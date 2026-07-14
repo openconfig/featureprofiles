@@ -56,7 +56,7 @@ graph LR;
 *   **Step 3**: Verify on ATE that it does **NOT** receive `RT_MEMBERSHIP` advertisements from DUT for other unconfigured Route Targets (e.g., `64496:300`).
 *   **Step 4**: Verify using `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received` that DUT only receives prefixes matching the advertised RTCs (assuming ATE respects the RTC advertisements).
 
-## Canonical OpenConfig
+## Canonical OC
 
 ```json
 {
