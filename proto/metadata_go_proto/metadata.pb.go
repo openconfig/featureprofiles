@@ -58,6 +58,7 @@ const (
 	Metadata_TESTBED_DUT_2LINKS            Metadata_Testbed = 15
 	Metadata_TESTBED_DUT_ATE_34LINKS       Metadata_Testbed = 16
 	Metadata_TESTBED_DUT_ATE_8LINKS_LAG    Metadata_Testbed = 17
+	Metadata_TESTBED_DUT_8_LOOP_2_ATE      Metadata_Testbed = 18
 )
 
 // Enum value maps for Metadata_Testbed.
@@ -81,6 +82,7 @@ var (
 		15: "TESTBED_DUT_2LINKS",
 		16: "TESTBED_DUT_ATE_34LINKS",
 		17: "TESTBED_DUT_ATE_8LINKS_LAG",
+		18: "TESTBED_DUT_8_LOOP_2_ATE",
 	}
 	Metadata_Testbed_value = map[string]int32{
 		"TESTBED_UNSPECIFIED":           0,
@@ -101,6 +103,7 @@ var (
 		"TESTBED_DUT_2LINKS":            15,
 		"TESTBED_DUT_ATE_34LINKS":       16,
 		"TESTBED_DUT_ATE_8LINKS_LAG":    17,
+		"TESTBED_DUT_8_LOOP_2_ATE":      18,
 	}
 )
 
@@ -1407,12 +1410,12 @@ type Metadata_Deviations struct {
 	// Cisco: https://partnerissuetracker.corp.google.com/issues/429169079
 	// Functional translator to be used for Fragment Punt OC paths
 	FragmentPuntFt string `protobuf:"bytes,408,opt,name=fragment_punt_ft,json=fragmentPuntFt,proto3" json:"fragment_punt_ft,omitempty"`
-	// Device Does not support session channel id
-	// Juniper: https://partnerissuetracker.corp.google.com/issues/494474526
-	AcctzRecordSessionChannelIdUnsupported bool `protobuf:"varint,410,opt,name=acctz_record_session_channel_id_unsupported,json=acctzRecordSessionChannelIdUnsupported,proto3" json:"acctz_record_session_channel_id_unsupported,omitempty"`
 	// Arista: https://partnerissuetracker.corp.google.com/issues/502838491
 	// Device is missing subinterface state packet counters.
 	DefaultSubinterfacePacketCountersMissing bool `protobuf:"varint,409,opt,name=default_subinterface_packet_counters_missing,json=defaultSubinterfacePacketCountersMissing,proto3" json:"default_subinterface_packet_counters_missing,omitempty"`
+	// Device Does not support session channel id
+	// Juniper: https://partnerissuetracker.corp.google.com/issues/494474526
+	AcctzRecordSessionChannelIdUnsupported bool `protobuf:"varint,410,opt,name=acctz_record_session_channel_id_unsupported,json=acctzRecordSessionChannelIdUnsupported,proto3" json:"acctz_record_session_channel_id_unsupported,omitempty"`
 	// Functional translator to be used for carrier-transitions paths.
 	// Cisco: https://partnerissuetracker.corp.google.com/issues/437390593
 	CarrierFt string `protobuf:"bytes,411,opt,name=carrier_ft,json=carrierFt,proto3" json:"carrier_ft,omitempty"`
@@ -4151,16 +4154,16 @@ func (x *Metadata_Deviations) GetFragmentPuntFt() string {
 	return ""
 }
 
-func (x *Metadata_Deviations) GetAcctzRecordSessionChannelIdUnsupported() bool {
+func (x *Metadata_Deviations) GetDefaultSubinterfacePacketCountersMissing() bool {
 	if x != nil {
-		return x.AcctzRecordSessionChannelIdUnsupported
+		return x.DefaultSubinterfacePacketCountersMissing
 	}
 	return false
 }
 
-func (x *Metadata_Deviations) GetDefaultSubinterfacePacketCountersMissing() bool {
+func (x *Metadata_Deviations) GetAcctzRecordSessionChannelIdUnsupported() bool {
 	if x != nil {
-		return x.DefaultSubinterfacePacketCountersMissing
+		return x.AcctzRecordSessionChannelIdUnsupported
 	}
 	return false
 }
@@ -4445,7 +4448,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xb4\xf9\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xd2\xf9\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -4835,9 +4838,9 @@ const file_metadata_proto_rawDesc = "" +
 	" subinterface_0_state_unsupported\x18\x95\x03 \x01(\bR\x1dsubinterface0StateUnsupported\x12;\n" +
 	"\x19fragment_punt_unsupported\x18\x96\x03 \x01(\bR\x17fragmentPuntUnsupported\x12D\n" +
 	"\x1efragment_punt_pkts_unsupported\x18\x97\x03 \x01(\bR\x1bfragmentPuntPktsUnsupported\x12)\n" +
-	"\x10fragment_punt_ft\x18\x98\x03 \x01(\tR\x0efragmentPuntFt\x12\\\n" +
-	"+acctz_record_session_channel_id_unsupported\x18\x9a\x03 \x01(\bR&acctzRecordSessionChannelIdUnsupported\x12_\n" +
-	",default_subinterface_packet_counters_missing\x18\x99\x03 \x01(\bR(defaultSubinterfacePacketCountersMissing\x12\x1e\n" +
+	"\x10fragment_punt_ft\x18\x98\x03 \x01(\tR\x0efragmentPuntFt\x12_\n" +
+	",default_subinterface_packet_counters_missing\x18\x99\x03 \x01(\bR(defaultSubinterfacePacketCountersMissing\x12\\\n" +
+	"+acctz_record_session_channel_id_unsupported\x18\x9a\x03 \x01(\bR&acctzRecordSessionChannelIdUnsupported\x12\x1e\n" +
 	"\n" +
 	"carrier_ft\x18\x9b\x03 \x01(\tR\tcarrierFt\x12\x1c\n" +
 	"\tfabric_ft\x18\x9c\x03 \x01(\tR\bfabricFt\x12'\n" +
@@ -4876,7 +4879,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
 	"\n" +
 	"deviations\x18\x02 \x01(\v2'.openconfig.testing.Metadata.DeviationsR\n" +
-	"deviations\"\x80\x04\n" +
+	"deviations\"\x9e\x04\n" +
 	"\aTestbed\x12\x17\n" +
 	"\x13TESTBED_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vTESTBED_DUT\x10\x01\x12\x1a\n" +
@@ -4896,7 +4899,8 @@ const file_metadata_proto_rawDesc = "" +
 	"\x16TESTBED_DUT_800ZR_PLUS\x10\x0e\x12\x16\n" +
 	"\x12TESTBED_DUT_2LINKS\x10\x0f\x12\x1b\n" +
 	"\x17TESTBED_DUT_ATE_34LINKS\x10\x10\x12\x1e\n" +
-	"\x1aTESTBED_DUT_ATE_8LINKS_LAG\x10\x11\"m\n" +
+	"\x1aTESTBED_DUT_ATE_8LINKS_LAG\x10\x11\x12\x1c\n" +
+	"\x18TESTBED_DUT_8_LOOP_2_ATE\x10\x12\"m\n" +
 	"\x04Tags\x12\x14\n" +
 	"\x10TAGS_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10TAGS_AGGREGATION\x10\x01\x12\x18\n" +
