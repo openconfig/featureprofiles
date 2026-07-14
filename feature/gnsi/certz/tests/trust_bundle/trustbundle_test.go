@@ -317,7 +317,6 @@ func TestTrustBundleCert(t *testing.T) {
 			}
 			//Initiate trustbundle rotation.
 			t.Logf("STATUS:%s Initiating Certz rotation with server cert: %s and trust bundle: %s.", tc.desc, tc.serverCertFile, tc.trustBundleFile)
-			startTime := time.Now()
 			if success := setup_service.CertzRotate(ctx, t, newCaCert, certzClient, gnmiClient, newClientCert, dut, username, password, serverSAN, serverAddr, testProfile, tc.newTLScreds, tc.mismatch, tc.scale, &serverCertEntity, &trustBundleEntity); !success {
 				t.Fatalf("STATUS: %s:CertzRotation failed.", tc.desc)
 			}
