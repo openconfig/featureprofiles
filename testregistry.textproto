@@ -115,6 +115,26 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/otg_tests/afts_reboot/afts_reboot_test.go"
 }
 test: {
+  id: "AFT-6.1"
+  description: "AFT Prefix Filtering"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/filtered_streaming/otg_tests/afts_prefix_filtering/README.md"
+}
+test: {
+  id: "AFT-6.2"
+  description: "AFT Prefix Filtering Dual-Stack"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/filtered_streaming/otg_tests/afts_prefix_filtering_dualstack/README.md"
+}
+test: {
+  id: "AFT-6.3"
+  description: "AFT Prefix Filtering Resilience"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/filtered_streaming/otg_tests/afts_prefix_filtering_resilience/README.md"
+}
+test: {
+  id: "AFT-6.4"
+  description: "AFT Prefix Filtering Dynamic Updates"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/filtered_streaming/otg_tests/afts_prefix_filtering_dynamic/README.md"
+}
+test: {
   id: "attestz-1"
   description: "Validate attestz for initial install"
   readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/system/attestz/tests/README.md"
