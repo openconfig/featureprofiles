@@ -206,6 +206,7 @@ Preamble: You are a test engineer analyzing test coverage.
 Task: Analyze the provided readme markdown and automation code. Identify any gaps in the automation code based on the requirements provided in the readme markdown.
 Note that any "TODO" items or sections in the Readme Markdown are not considered requirements and should be ignored when identifying gaps.
 Ignore any gap in the automation if the same is covered using a deviation.
+Note that testbed deployment details, baseline topology setup, interface IP configurations, network instances, and default gRPC server setup (often described in "Baseline Setup" or "Canonical OC" sections) are assumed to be pre-configured by the testbed environment and should not be flagged as gaps in the Go test automation code. Only focus on actions, validations, and operations that are expected to be executed dynamically in the test scenario itself.
 Return the result in JSON format with two fields: 'gap_found' (boolean) and 'gap_description' (string).
 If gaps are found, 'gap_found' should be true and 'gap_description' should contain a description of what requirements are not covered by the test automation.
 If all requirements in the readme are covered, 'gap_found' should be false and 'gap_description' should be 'No gap in the implementation found.'.
@@ -253,26 +254,53 @@ Result in JSON format:
 
 	// Make HTTP request
 	url := fmt.Sprintf(geminiAPIURL, *model, *apiKey)
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(reqBytes))
-	if err != nil {
-		return false, "", fmt.Errorf("failed to create http request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-
 	client := &http.Client{Timeout: geminiTimeout}
-	resp, err := client.Do(req)
-	if err != nil {
-		return false, "", fmt.Errorf("http request failed: %w", err)
-	}
-	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return false, "", fmt.Errorf("failed to read response body: %w", err)
-	}
+	var respBody []byte
+	var lastErr error
+	for attempt := 1; attempt <= geminiMaxRetries; attempt++ {
+		req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(reqBytes))
+		if err != nil {
+			return false, "", fmt.Errorf("failed to create http request: %w", err)
+		}
+		req.Header.Set("Content-Type", "application/json")
 
-	if resp.StatusCode != http.StatusOK {
-		return false, "", fmt.Errorf("gemini api returned non-ok status %d: %s", resp.StatusCode, string(respBody))
+		resp, err := client.Do(req)
+		if err != nil {
+			lastErr = fmt.Errorf("http request failed: %w", err)
+			if attempt < geminiMaxRetries {
+				backoff := time.Duration(attempt) * geminiBackoff
+				log.Printf("Attempt %d of %d failed: %v. Retrying in %v...", attempt, geminiMaxRetries, lastErr, backoff)
+				time.Sleep(backoff)
+			}
+			continue
+		}
+		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			lastErr = fmt.Errorf("failed to read response body: %w", err)
+			if attempt < geminiMaxRetries {
+				backoff := time.Duration(attempt) * geminiBackoff
+				log.Printf("Attempt %d of %d failed: %v. Retrying in %v...", attempt, geminiMaxRetries, lastErr, backoff)
+				time.Sleep(backoff)
+			}
+			continue
+		}
+		if resp.StatusCode != http.StatusOK {
+			lastErr = fmt.Errorf("gemini api returned non-ok status %d: %s", resp.StatusCode, string(body))
+			if attempt < geminiMaxRetries {
+				backoff := time.Duration(attempt) * geminiBackoff
+				log.Printf("Attempt %d of %d failed: %v. Retrying in %v...", attempt, geminiMaxRetries, lastErr, backoff)
+				time.Sleep(backoff)
+			}
+			continue
+		}
+		respBody = body
+		lastErr = nil
+		break
+	}
+	if lastErr != nil {
+		return false, "", lastErr
 	}
 
 	// Unmarshal response body
@@ -318,23 +346,7 @@ Result in JSON format:
 	return gapResult.GapFound, gapResult.GapDescription, nil
 }
 
-// callGeminiWithRetry wraps callGemini with a retry loop.
-func callGeminiWithRetry(ctx context.Context, readmeContent, automationContent string) (bool, string, error) {
-	var gapFound bool
-	var gapDesc string
-	var err error
-	for i := range geminiMaxRetries {
-		gapFound, gapDesc, err = callGemini(ctx, readmeContent, automationContent)
-		if err == nil {
-			return gapFound, gapDesc, nil
-		}
-		log.Printf("Warning: Gemini call failed (attempt %d/%d): %v", i+1, geminiMaxRetries, err)
-		if i < geminiMaxRetries-1 {
-			time.Sleep(time.Duration(i+1) * geminiBackoff) // Exponential-ish backoff
-		}
-	}
-	return false, "", fmt.Errorf("failed after %d attempts: %w", geminiMaxRetries, err)
-}
+
 
 // escape replaces special characters in a string for GitHub Action command values.
 func escape(s string) string {
@@ -400,7 +412,7 @@ func main() {
 			continue
 		}
 
-		gapFound, gapDesc, err := callGeminiWithRetry(ctx, string(readmeContent), string(autoContent))
+		gapFound, gapDesc, err := callGemini(ctx, string(readmeContent), string(autoContent))
 
 		if err != nil {
 			log.Printf("Warning: Gemini analysis failed for %s: %v", test.ID, err)
