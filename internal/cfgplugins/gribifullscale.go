@@ -128,10 +128,8 @@ const (
 	// NH/NHG ID base constants — kept non-overlapping across all VRFs.
 	NHBaseDefault  = uint64(1_000)
 	NHGBaseDefault = uint64(2_000)
-	NHBaseD1       = uint64(10_000)
-	NHBaseD2       = uint64(12_000)
-	NHGBaseE1      = uint64(20_000)
-	NHGBaseE2      = uint64(21_000)
+	NHBaseTransit  = uint64(10_000)
+	NHGBaseTransit = uint64(20_000)
 	NHBaseRepair   = uint64(30_000)
 	NHGBaseRepair  = uint64(32_000)
 	NHBaseEncap    = uint64(50_000)
@@ -272,11 +270,23 @@ type ScaleParams struct {
 	// 2) backup prefixes pointing to backup NHGs.
 	NumDefaultIPv4 int
 
-	NumTransitNHD1     int
-	NumTransitNHD2     int
-	NumTransitNHGE1    int
-	NumTransitNHGE2    int
-	NumTransitIPv4     int
+	// The number of NextHops in transit VRFs (transit TE_VRF_111 and repaired TE_VRF_222) pointing
+	// to fictitious IPv4 prefixes in Default VRF.
+	// The NHs will be split in 2 sub-groups
+	// 1) NHs used in transit VRF pointing to primary NHs pointing to primary default prefixes
+	// 2) NHs used in repaired VRF pointing to backup NHs pointing to backup default prefixes.
+	NumTransitNH int
+	// The number of NextHopgroups in transit VRFs (transit TE_VRF_111 and repaired TE_VRF_222)
+	// Each NHG reference and load-balance across 2 NHs created via `NumTransitNH` with 1:63 weight.
+	// The NHGs will be split in 2 sub-groups
+	// 1) NHGs used in transit VRF referencing NHs in sub-group 1)
+	// 2) NHGs used in repaired VRF referencing NHs in sub-group 2)
+	NumTransitNHG int
+	// The number of IPv4 prefixes in each of the 2 transit VRFs (transit TE_VRF_111 and repaired TE_VRF_222)
+	// The IPv4 entries in transit VRF will point to NHGs in sub-group 1)
+	// The IPv4 entries in repaired VRF will point to NHGs in sub-group 2)
+	NumTransitIPv4 int
+
 	NumRepairIPv4      int
 	NumEncapVRFs       int
 	NumEncapIPv4PerVRF int
@@ -832,63 +842,67 @@ func BuildStaticGroups(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context
 func BuildTransitVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, defaultVRF string, primaryDefaultPrefixes, backupDefaultPrefixes []string, s1NHG, s2NHG uint64, params ScaleParams) {
 	t.Helper()
 	validatePrefixesV4 := make(map[string][]string)
-	totalEntries := params.NumTransitNHD1 + params.NumTransitNHD2 + params.NumTransitNHGE1 + params.NumTransitNHGE2 + 2*params.NumTransitIPv4
+	totalEntries := params.NumTransitNH + params.NumTransitNHG + 2*params.NumTransitIPv4
 	entries := make([]fluent.GRIBIEntry, 0, totalEntries)
 
-	numNHD1Part := max(params.NumTransitNHD1/2, 1)
-	numNHD2Part := max(params.NumTransitNHD2/2, 1)
-
-	for _, c := range []struct {
-		numNH  int
-		nhBase uint64
-		pfxs   []string
-	}{
-		{numNHD1Part, NHBaseD1, primaryDefaultPrefixes},
-		{numNHD2Part, NHBaseD2, primaryDefaultPrefixes},
-		{numNHD1Part, NHBaseD1 + uint64(numNHD1Part), backupDefaultPrefixes},
-		{numNHD2Part, NHBaseD2 + uint64(numNHD2Part), backupDefaultPrefixes},
-	} {
-		for k := 0; k < c.numNH; k++ {
+	buildTransitVRF := func(vrfName string, prefixStart string, defaultPrefixes []string, baseNHId uint64, nhCount int, baseNHGId uint64, nhgCount int, backupNHG uint64) {
+		if nhCount == 0 || nhgCount == 0 {
+			return
+		}
+		// Create next hops pointing to default network instance.
+		for k := 0; k < nhCount; k++ {
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(defaultVRF).
-				WithIndex(c.nhBase+uint64(k)).WithIPAddress(c.pfxs[k%len(c.pfxs)]))
+				WithIndex(baseNHId+uint64(k)).
+				WithIPAddress(defaultPrefixes[k%len(defaultPrefixes)]))
 		}
-	}
 
-	for _, c := range []struct {
-		numNHG      int
-		nhgBase     uint64
-		backupNHG   uint64
-		vrfName     string
-		prefixStart string
-	}{
-		{params.NumTransitNHGE1, NHGBaseE1, s1NHG, TransitVRF111Str, TransitVRF111PrefixStart},
-		{params.NumTransitNHGE2, NHGBaseE2, s2NHG, TransitVRF222Str, TransitVRF222PrefixStart},
-	} {
-		for i := 0; i < c.numNHG; i++ {
-			nhD1 := NHBaseD1 + uint64(i%numNHD1Part)
-			nhD2 := NHBaseD2 + uint64(i%numNHD2Part)
-			if c.nhgBase == NHGBaseE2 {
-				// Offset to point to the backup Next Hops that map to Set 2 (disjoint sub-interfaces)
-				nhD1 += uint64(numNHD1Part)
-				nhD2 += uint64(numNHD2Part)
+		// Create next hop groups referencing default network instance NHs.
+		for i := 0; i < nhgCount; i++ {
+			nhg := fluent.NextHopGroupEntry().WithNetworkInstance(defaultVRF).
+				WithID(baseNHGId + uint64(i)).WithBackupNHG(backupNHG)
+			nh1 := baseNHId + uint64(i%nhCount)
+			nhg.AddNextHop(nh1, 1)
+			// Make sure that we don't add the same NH twice in case there is only one NH.
+			if nhCount > 1 {
+				nh2 := baseNHId + uint64((i+1)%nhCount)
+				nhg.AddNextHop(nh2, 63)
 			}
-			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(defaultVRF).
-				WithID(c.nhgBase+uint64(i)).AddNextHop(nhD1, 1).AddNextHop(nhD2, 63).WithBackupNHG(c.backupNHG))
+			entries = append(entries, nhg)
 		}
 
-		vrfPrefixes, err := iputil.GenerateIPsWithStep(c.prefixStart, params.NumTransitIPv4, CommonPrefixStep)
+		// Create IPv4 prefixes in the specific Transit VRF.
+		vrfPrefixes, err := iputil.GenerateIPsWithStep(prefixStart, params.NumTransitIPv4, CommonPrefixStep)
 		if err != nil {
-			t.Fatalf("BuildTransitVRFs: generate %s prefixes: %v", c.vrfName, err)
+			t.Fatalf("BuildTransitVRFs: generate %s prefixes: %v", vrfName, err)
 		}
 		for i, host := range vrfPrefixes {
 			pfx := fmt.Sprintf("%s/%d", host, IPv4HostMask)
-			entries = append(entries, fluent.IPv4Entry().WithNetworkInstance(c.vrfName).WithPrefix(pfx).WithNextHopGroup(c.nhgBase+uint64(i%c.numNHG)).WithNextHopGroupNetworkInstance(defaultVRF))
+			entries = append(entries, fluent.IPv4Entry().WithNetworkInstance(vrfName).WithPrefix(pfx).
+				WithNextHopGroup(baseNHGId+uint64(i%nhgCount)).WithNextHopGroupNetworkInstance(defaultVRF))
 		}
 		// Validate only the first prefix to save time.
-		validatePrefixesV4[c.vrfName] = []string{fmt.Sprintf("%s/%d", vrfPrefixes[0], IPv4HostMask)}
+		validatePrefixesV4[vrfName] = []string{fmt.Sprintf("%s/%d", vrfPrefixes[0], IPv4HostMask)}
 	}
 
-	t.Logf("BuildTransitVRFs: %d NHs in D1, %d NHGs in E1; %d NHs in D2, %d NHGs in E2", params.NumTransitNHD1, params.NumTransitNHGE1, params.NumTransitNHD2, params.NumTransitNHGE2)
+	nhPrimaryCount := int(max(params.NumTransitNH/2, 1))
+	nhgPrimaryCount := int(max(params.NumTransitNHG/2, 1))
+	nhPrimaryOffset := uint64(0)
+	nhgPrimaryOffset := uint64(0)
+	buildTransitVRF(TransitVRF111Str, TransitVRF111PrefixStart, primaryDefaultPrefixes,
+		NHBaseTransit+nhPrimaryOffset, nhPrimaryCount,
+		NHGBaseTransit+nhgPrimaryOffset, nhgPrimaryCount,
+		s1NHG)
+
+	nhBackupCount := params.NumTransitNH - nhPrimaryCount
+	nhgBackupCount := params.NumTransitNHG - nhgPrimaryCount
+	nhBackupOffset := uint64(nhPrimaryCount)
+	nhgBackupOffset := uint64(nhgPrimaryCount)
+	buildTransitVRF(TransitVRF222Str, TransitVRF222PrefixStart, backupDefaultPrefixes,
+		NHBaseTransit+nhBackupOffset, nhBackupCount,
+		NHGBaseTransit+nhgBackupOffset, nhgBackupCount,
+		s2NHG)
+
+	t.Logf("BuildTransitVRFs: %d NHs total, %d NHGs total", params.NumTransitNH, params.NumTransitNHG)
 	t.Logf("BuildTransitVRFs: %d IPv4 entries each transit VRF", params.NumTransitIPv4)
 	gSession := BatchModify(t, dut, ctx, entries, params.GRIBIBatchSize, 3*time.Minute)
 
