@@ -65,23 +65,23 @@ func verifyServices(t *testing.T, caCert *x509.CertPool, expectedResult bool, sa
 	} else {
 		t.Logf("%s: Verifying Certz-2.1: trusted connection established across gNMI, gNOI, gNSI, gRIBI, and P4RT.", time.Now().String())
 	}
-	if result := setupService.VerifyGnmi(t, caCert, san, serverAddr, username, password, cert, mismatch); !result {
+	if result := setup_service.VerifyGnmi(t, caCert, san, serverAddr, username, password, cert, mismatch); !result {
 		t.Errorf("gNMI service validation failed: got %v, want %v", result, expectedResult)
 		return false
 	}
-	if result := setupService.VerifyGnoi(t, caCert, san, serverAddr, username, password, cert, mismatch); !result {
+	if result := setup_service.VerifyGnoi(t, caCert, san, serverAddr, username, password, cert, mismatch); !result {
 		t.Errorf("gNOI service validation failed: got %v, want %v", result, expectedResult)
 		return false
 	}
-	if result := setupService.VerifyGnsi(t, caCert, san, serverAddr, username, password, cert, mismatch); !result {
+	if result := setup_service.VerifyGnsi(t, caCert, san, serverAddr, username, password, cert, mismatch); !result {
 		t.Errorf("gNSI service validation failed: got %v, want %v", result, expectedResult)
 		return false
 	}
-	if result := setupService.VerifyGribi(t, caCert, san, serverAddr, username, password, cert, mismatch); !result {
+	if result := setup_service.VerifyGribi(t, caCert, san, serverAddr, username, password, cert, mismatch); !result {
 		t.Errorf("gRIBI service validation failed: got %v, want %v", result, expectedResult)
 		return false
 	}
-	if result := setupService.VerifyP4rt(t, caCert, san, serverAddr, username, password, cert, mismatch); !result {
+	if result := setup_service.VerifyP4rt(t, caCert, san, serverAddr, username, password, cert, mismatch); !result {
 		t.Errorf("P4RT service validation failed: got %v, want %v", result, expectedResult)
 		return false
 	}
