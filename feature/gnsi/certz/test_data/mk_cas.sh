@@ -26,10 +26,12 @@ RSAKEYLEN=2048
 # Lifetime of certificates.
 LIFETIME=3650
 
+OUTDIR="${1:-.}"
+
 # Create RSA and ECDSA CA keys, and associated certificates.
 for d in ${DIRS[@]} ; do
-  if [ ! -d ca-${d} ] ; then
-    mkdir ca-${d}
+  if [ ! -d ${OUTDIR}/ca-${d} ] ; then
+    mkdir -p ${OUTDIR}/ca-${d}
   fi
   # Create a CA key and certificate for each of the DIRS count of
   # keys / certs. Do this for each of the TYPES key types.
@@ -39,18 +41,18 @@ for d in ${DIRS[@]} ; do
       # Generate the appropriate key type keys.
       case ${t} in
         rsa)
-          openssl genrsa -out ca-${d}/ca-${OFFSET}-${t}-key.pem ${RSAKEYLEN}
+          openssl genrsa -out ${OUTDIR}/ca-${d}/ca-${OFFSET}-${t}-key.pem ${RSAKEYLEN}
           ;;
         ecdsa)
           openssl ecparam -name ${CURVE} \
-            -out ca-${d}/ca-${OFFSET}-${t}-key.pem -genkey
+            -out ${OUTDIR}/ca-${d}/ca-${OFFSET}-${t}-key.pem -genkey
           ;;
       esac
       # Create a cert with the fresh key, require it to be a CA certificate.
       openssl req -new -x509 -nodes -days ${LIFETIME} \
         -addext basicConstraints=critical,CA:TRUE \
-        -key ca-${d}/ca-${OFFSET}-${t}-key.pem \
-        -out ca-${d}/ca-${OFFSET}-${t}-cert.pem \
+        -key ${OUTDIR}/ca-${d}/ca-${OFFSET}-${t}-key.pem \
+        -out ${OUTDIR}/ca-${d}/ca-${OFFSET}-${t}-cert.pem \
         -subj "/CN=CA ${OFFSET}/C=AQ/ST=NZ/L=NZ/O=OpenConfigFeatureProfiles"
     done
   done
@@ -59,12 +61,12 @@ done
 # Make the trust bundles.
 for d in ${DIRS[@]}; do
   for t in ${TYPES[@]}; do
-    cat ca-${d}/ca-*-${t}-cert.pem > ca-${d}/trust_bundle_${d}_${t}.pem
+    cat ${OUTDIR}/ca-${d}/ca-*-${t}-cert.pem > ${OUTDIR}/ca-${d}/trust_bundle_${d}_${t}.pem
     CERTS=""
-    for cf in ca-${d}/ca-*-${t}-cert.pem; do
+    for cf in ${OUTDIR}/ca-${d}/ca-*-${t}-cert.pem; do
       CERTS="${CERTS} -certfile ${cf}"
     done
-    openssl crl2pkcs7 -nocrl ${CERTS} -out ca-${d}/trust_bundle_${d}_${t}.p7b
+    openssl crl2pkcs7 -nocrl ${CERTS} -out ${OUTDIR}/ca-${d}/trust_bundle_${d}_${t}.p7b
   done
 done
 
@@ -75,8 +77,8 @@ done
 #   * Use the CA + extensions config to create the client/server certificates.
 #
 for  d in ${DIRS[@]}; do
-  if [ ! -d ca-${d} ] ; then
-    mkdir ca-${d}
+  if [ ! -d ${OUTDIR}/ca-${d} ] ; then
+    mkdir -p ${OUTDIR}/ca-${d}
   fi
   for t in ${TYPES[@]}; do
     OFFSET=$(printf "%05i" ${d})
@@ -86,11 +88,11 @@ for  d in ${DIRS[@]}; do
       for cs in client server; do
         case ${t} in
           rsa)
-            openssl genrsa -out ca-${d}/${cs}-${t}-${g}-key.pem ${RSAKEYLEN}
+            openssl genrsa -out ${OUTDIR}/ca-${d}/${cs}-${t}-${g}-key.pem ${RSAKEYLEN}
             ;;
           ecdsa)
             openssl ecparam -name ${CURVE} \
-              -out ca-${d}/${cs}-${t}-${g}-key.pem -genkey
+              -out ${OUTDIR}/ca-${d}/${cs}-${t}-${g}-key.pem -genkey
             ;;
         esac
       done
@@ -99,14 +101,14 @@ for  d in ${DIRS[@]}; do
     # Create the client and server requests, for both A and B (the 2 required certs)
     for cs in client server; do
       for g in a b ; do
-        openssl req -new -key ca-${d}/${cs}-${t}-${g}-key.pem \
-          -out ca-${d}/${cs}-${t}-${g}-req.pem \
+        openssl req -new -key ${OUTDIR}/ca-${d}/${cs}-${t}-${g}-key.pem \
+          -out ${OUTDIR}/ca-${d}/${cs}-${t}-${g}-req.pem \
           -config ${cs}_cert.cnf
         # Create the client and server complete certificates.
-        openssl x509 -req -in ca-${d}/${cs}-${t}-${g}-req.pem \
-          -CA ca-${d}/ca-${OFFSET}-${t}-cert.pem \
-          -CAkey ca-${d}/ca-${OFFSET}-${t}-key.pem \
-          -out ca-${d}/${cs}-${t}-${g}-cert.pem \
+        openssl x509 -req -in ${OUTDIR}/ca-${d}/${cs}-${t}-${g}-req.pem \
+          -CA ${OUTDIR}/ca-${d}/ca-${OFFSET}-${t}-cert.pem \
+          -CAkey ${OUTDIR}/ca-${d}/ca-${OFFSET}-${t}-key.pem \
+          -out ${OUTDIR}/ca-${d}/${cs}-${t}-${g}-cert.pem \
           -CAcreateserial \
           -days ${LIFETIME} \
           -sha256 \
@@ -115,3 +117,4 @@ for  d in ${DIRS[@]}; do
     done
   done
 done
+

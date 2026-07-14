@@ -1531,7 +1531,17 @@ func ConfigureVRFSelectionPolicyOC(t *testing.T, dut *ondatra.DUTDevice, encapVR
 		seq++
 	}
 
-	pol.GetOrCreateRule(seq).GetOrCreateAction().NetworkInstance = ygot.String(defaultVRF)
+	if deviations.PfRequireMatchDefaultRule(dut) {
+		r4 := pol.GetOrCreateRule(seq)
+		r4.GetOrCreateL2().SetEthertype(oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4)
+		r4.GetOrCreateAction().NetworkInstance = ygot.String(defaultVRF)
+		seq++
+		r6 := pol.GetOrCreateRule(seq)
+		r6.GetOrCreateL2().SetEthertype(oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV6)
+		r6.GetOrCreateAction().NetworkInstance = ygot.String(defaultVRF)
+	} else {
+		pol.GetOrCreateRule(seq).GetOrCreateAction().NetworkInstance = ygot.String(defaultVRF)
+	}
 
 	interfaceID := p1.Name()
 	if deviations.InterfaceRefInterfaceIDFormat(dut) {

@@ -57,8 +57,35 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
+// verifyServices explicitly validates connections for all required gRPC services: gNMI, gNOI, gNSI, gRIBI, and P4RT.
+func verifyServices(t *testing.T, caCert *x509.CertPool, expectedResult bool, san, serverAddr, username, password string, cert tls.Certificate, mismatch bool) bool {
+	t.Helper()
+	t.Logf("%s: Verifying gNMI, gNOI, gNSI, gRIBI, and P4RT connections.", time.Now().String())
+	if result := setup_service.VerifyGnmi(t, caCert, san, serverAddr, username, password, cert, mismatch); !result {
+		t.Errorf("gNMI service validation failed: got %v, want %v", result, expectedResult)
+		return false
+	}
+	if result := setup_service.VerifyGnoi(t, caCert, san, serverAddr, username, password, cert, mismatch); !result {
+		t.Errorf("gNOI service validation failed: got %v, want %v", result, expectedResult)
+		return false
+	}
+	if result := setup_service.VerifyGnsi(t, caCert, san, serverAddr, username, password, cert, mismatch); !result {
+		t.Errorf("gNSI service validation failed: got %v, want %v", result, expectedResult)
+		return false
+	}
+	if result := setup_service.VerifyGribi(t, caCert, san, serverAddr, username, password, cert, mismatch); !result {
+		t.Errorf("gRIBI service validation failed: got %v, want %v", result, expectedResult)
+		return false
+	}
+	if result := setup_service.VerifyP4rt(t, caCert, san, serverAddr, username, password, cert, mismatch); !result {
+		t.Errorf("P4RT service validation failed: got %v, want %v", result, expectedResult)
+		return false
+	}
+	return true
+}
+
 // TestTrustBundle tests the load of server certificate and key from each of the following CA sets
-// ca-01/ca-02/ca-10/ca-1000 of both rsa and ecdsa keytype.
+// ca-01/ca-02/ca-10/ca-1000/ca-20000 of both rsa and ecdsa keytype.
 func TestTrustBundleCert(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
@@ -70,8 +97,16 @@ func TestTrustBundleCert(t *testing.T) {
 	password := creds.RPCPassword()
 	t.Logf("STATUS:Validation of all services that are using gRPC before certz rotation.")
 	gnmiClient, gnsiC := setup_service.PreInitCheck(context.Background(), t, dut)
+	dirPath := t.TempDir()
 	//Generate testdata certificates.
 	t.Logf("Creation of test data.")
+  //Registering the cleanup before the certificate generation call, so it runs even if certificate generation fails.
+	t.Cleanup(func() {
+		t.Logf("STATUS:Cleanup of test data.")
+		if err := setup_service.TestdataMakeCleanup(t, dirPath, *certsTimeout, "./cleanup.sh"); err != nil {
+			t.Logf("STATUS:Cleanup of testdata certificates failed!: %v", err)
+		}
+	})
 	// Execute mk_cas.sh to generate certificates
 	t.Logf("STATUS:Generation of testdata certificates begins.")
 	if err := setup_service.TestdataMakeCleanup(t, dirPath, *certsTimeout, "./mk_cas.sh", *certsList); err != nil {
@@ -200,6 +235,30 @@ func TestTrustBundleCert(t *testing.T) {
 			newTLScreds:     true,
 			scale:           true,
 		},
+		{
+			desc:            "Certz4.1:Load the key-type rsa trustbundle with 20000CA configuration",
+			serverCertFile:  dirPath + "ca-20000/server-rsa-a-cert.pem",
+			serverKeyFile:   dirPath + "ca-20000/server-rsa-a-key.pem",
+			trustBundleFile: dirPath + "ca-20000/trust_bundle_20000_rsa.p7b",
+			clientCertFile:  dirPath + "ca-20000/client-rsa-a-cert.pem",
+			clientKeyFile:   dirPath + "ca-20000/client-rsa-a-key.pem",
+			cversion:        "v9",
+			bversion:        "bundle9",
+			newTLScreds:     true,
+			scale:           true,
+		},
+		{
+			desc:            "Certz4.1:Load the key-type ecdsa trustbundle with 20000CA configuration",
+			serverCertFile:  dirPath + "ca-20000/server-ecdsa-a-cert.pem",
+			serverKeyFile:   dirPath + "ca-20000/server-ecdsa-a-key.pem",
+			trustBundleFile: dirPath + "ca-20000/trust_bundle_20000_ecdsa.p7b",
+			clientCertFile:  dirPath + "ca-20000/client-ecdsa-a-cert.pem",
+			clientKeyFile:   dirPath + "ca-20000/client-ecdsa-a-key.pem",
+			cversion:        "v10",
+			bversion:        "bundle10",
+			newTLScreds:     true,
+			scale:           true,
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -258,13 +317,14 @@ func TestTrustBundleCert(t *testing.T) {
 			}
 			//Initiate trustbundle rotation.
 			t.Logf("STATUS:%s Initiating Certz rotation with server cert: %s and trust bundle: %s.", tc.desc, tc.serverCertFile, tc.trustBundleFile)
+			startTime := time.Now()
 			if success := setup_service.CertzRotate(ctx, t, newCaCert, certzClient, gnmiClient, newClientCert, dut, username, password, serverSAN, serverAddr, testProfile, tc.newTLScreds, tc.mismatch, tc.scale, &serverCertEntity, &trustBundleEntity); !success {
 				t.Fatalf("STATUS: %s:CertzRotation failed.", tc.desc)
 			}
 			t.Logf("STATUS:%s: TrustBundle rotation completed!", tc.desc)
 			//Post rotate validation of all services.
 			t.Run("Verification of new connection after successful trustBundle rotation", func(t *testing.T) {
-				if result := setup_service.ServicesValidationCheck(t, newCaCert, expectedResult, serverSAN, serverAddr, username, password, newClientCert, tc.mismatch); !result {
+				if result := verifyServices(t, newCaCert, expectedResult, serverSAN, serverAddr, username, password, newClientCert, tc.mismatch); !result {
 					t.Fatalf("STATUS:%s:service validation failed after rotate- got %v, want %v.", tc.desc, result, expectedResult)
 				}
 				t.Logf("STATUS:%s:service validation done!", tc.desc)
@@ -275,10 +335,5 @@ func TestTrustBundleCert(t *testing.T) {
 			prevTrustBundleFile = tc.trustBundleFile
 		})
 	}
-	t.Logf("STATUS:Cleanup of test data.")
-	//Cleanup of test data.
-	if err := setup_service.TestdataMakeCleanup(t, dirPath, *certsTimeout, "./cleanup.sh"); err != nil {
-		t.Logf("STATUS:Cleanup of testdata certificates failed!: %v", err)
-	}
-	t.Logf("STATUS:Test completed!")
+	t.Logf("STATUS:Trust Bundle Test completed!")
 }
