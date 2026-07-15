@@ -431,6 +431,16 @@ func buildNeighborList(atePort2, atePort3, atePort4 attributes) []*bgpNeighbor {
 	return nbrList
 }
 
+// addPathNeighbors returns the set of BGP neighbors on which AddPath should be
+// negotiated. When deviations.BGPAddPathClientOnly is true, only the
+// client-facing port4 peers are returned; otherwise every peer is returned.
+func addPathNeighbors(dut *ondatra.DUTDevice) []*bgpNeighbor {
+	if deviations.BGPAddPathClientOnly(dut) {
+		return atePort4.buildIPv4NbrList(ateAS4, peerv44GrpName, peerv64GrpName)
+	}
+	return buildNeighborList(atePort2, atePort3, atePort4)
+}
+
 func validateAddPathDisabled(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config) {
 	validatePrefixes(t, dut, "50.1.1.2", "1000:1::50:1:1:2")
 }
@@ -456,7 +466,7 @@ func validateAddPathReceiveSend(t *testing.T, dut *ondatra.DUTDevice, ate *ondat
 
 func configAddPathDisabled(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 	ocRoot := &oc.Root{}
-	nbrList := buildNeighborList(atePort2, atePort3, atePort4)
+	nbrList := addPathNeighbors(dut)
 	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	bgp := ocRoot.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
 	for _, nbr := range nbrList {
@@ -475,7 +485,7 @@ func configAddPathDisabled(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.AT
 
 func configAddPathReceive(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 	ocRoot := &oc.Root{}
-	nbrList := buildNeighborList(atePort2, atePort3, atePort4)
+	nbrList := addPathNeighbors(dut)
 	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	bgp := ocRoot.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
 	for _, nbr := range nbrList {
@@ -494,7 +504,7 @@ func configAddPathReceive(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATE
 
 func configAddPathReceiveSend(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 	ocRoot := &oc.Root{}
-	nbrList := buildNeighborList(atePort2, atePort3, atePort4)
+	nbrList := addPathNeighbors(dut)
 	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	bgp := ocRoot.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
 	for _, nbr := range nbrList {
