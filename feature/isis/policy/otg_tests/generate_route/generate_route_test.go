@@ -38,6 +38,7 @@ const (
 	triggerRoutePolicyIPv6Name   = "TRIGGER_ROUTE_IPV6"
 	isisRouteName                = "v4-isisNet-dev"
 	isisIPv6RouteName            = "v6-isisNet-dev"
+	localAggregateName           = "AGGREGATE"
 )
 
 var (
@@ -82,7 +83,7 @@ func (td *testData) awaitISISAdjacency(t *testing.T, p *ondatra.Port, isisName s
 	t.Helper()
 	isis := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisName).Isis()
 	intf := isis.Interface(p.Name())
-	if deviations.ExplicitInterfaceInDefaultVRF(td.dut) {
+	if deviations.ExplicitInterfaceInDefaultVRF(td.dut) || deviations.InterfaceRefInterfaceIDFormat(td.dut) {
 		intf = isis.Interface(p.Name() + ".0")
 	}
 	query := intf.Level(2).AdjacencyAny().AdjacencyState().State()
@@ -143,12 +144,16 @@ func (td *testData) configureISIS(t *testing.T) {
 	}
 
 	interfaceName := td.dut.Port(t, "port1").Name()
-	if deviations.ExplicitInterfaceInDefaultVRF(td.dut) {
+	if deviations.ExplicitInterfaceInDefaultVRF(td.dut) || deviations.InterfaceRefInterfaceIDFormat(td.dut) {
 		interfaceName += ".0"
 	}
 
 	isisIntf := isis.GetOrCreateInterface(interfaceName)
-	isisIntf.GetOrCreateInterfaceRef().SetInterface(interfaceName)
+	if deviations.InterfaceRefInterfaceIDFormat(td.dut) {
+		isisIntf.GetOrCreateInterfaceRef().SetInterface(td.dut.Port(t, "port1").Name())
+	} else {
+		isisIntf.GetOrCreateInterfaceRef().SetInterface(interfaceName)
+	}
 	isisIntf.GetOrCreateInterfaceRef().SetSubinterface(0)
 	if deviations.InterfaceRefConfigUnsupported(td.dut) {
 		isisIntf.InterfaceRef = nil
@@ -228,7 +233,7 @@ func (td *testData) createPolicyToAdvertiseAggregate(t *testing.T) {
 
 	gnmi.Replace(t, td.dut, gnmi.OC().RoutingPolicy().Config(), routingPolicy)
 
-	cfgplugins.GenerateDynamicRouteWithISIS(t, td.dut, &gnmi.SetBatch{})
+	cfgplugins.GenerateDynamicRouteWithISIS(t, td.dut, &gnmi.SetBatch{}, localAggregateName, generateRoute, generateIPv6Route)
 }
 
 // verifyRIBRoute verifies whether a given prefix exists or not in the DUT's AFT.
