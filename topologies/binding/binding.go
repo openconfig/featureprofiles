@@ -43,7 +43,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/metadata"
 )
 
 const (
@@ -702,22 +701,29 @@ type creds struct {
 	secure             bool
 }
 
+type credsOverrideKey struct{}
+
+// CredsOverride holds per-RPC credential overrides stored in a context value.
+type CredsOverride struct {
+	Username, Password string
+}
+
+// ContextWithCreds returns a context carrying per-RPC credential overrides.
+// These override the binding-level credentials without duplicating metadata.
+func ContextWithCreds(ctx context.Context, username, password string) context.Context {
+	return context.WithValue(ctx, credsOverrideKey{}, &CredsOverride{Username: username, Password: password})
+}
+
 func (c *creds) GetRequestMetadata(ctx context.Context, _ ...string) (map[string]string, error) {
-	md, ok := metadata.FromOutgoingContext(ctx)
-	var username, password string
-	if ok {
-		if len(md.Get("username")) > 0 && md.Get("username")[0] != "" {
-			username = md.Get("username")[0]
+	username := c.username
+	password := c.password
+	if override, ok := ctx.Value(credsOverrideKey{}).(*CredsOverride); ok {
+		if override.Username != "" {
+			username = override.Username
 		}
-		if len(md.Get("password")) > 0 && md.Get("password")[0] != "" {
-			password = md.Get("password")[0]
+		if override.Password != "" {
+			password = override.Password
 		}
-	}
-	if username == "" {
-		username = c.username
-	}
-	if password == "" {
-		password = c.password
 	}
 	return map[string]string{
 		"username": username,
