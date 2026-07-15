@@ -105,9 +105,9 @@ graph LR;
                       "afi-safis": {
                         "afi-safi": [
                           {
-                            "afi-safi-name": "openconfig-bgp-types:RT_MEMBERSHIP",
+                            "afi-safi-name": "RT_MEMBERSHIP",
                             "config": {
-                              "afi-safi-name": "openconfig-bgp-types:RT_MEMBERSHIP",
+                              "afi-safi-name": "RT_MEMBERSHIP",
                               "enabled": true
                             }
                           },
