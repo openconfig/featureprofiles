@@ -76,6 +76,61 @@ BGP Long-Lived Graceful Restart
 *   /neighbors/neighbor/afi-safis/afi-safi/graceful-restart/state/received 
 *   /neighbors/neighbor/afi-safis/afi-safi/graceful-restart/state/advertised 
 
+## Canonical OC
+
+```json
+{
+  "network-instances": {
+    "network-instance": [
+      {
+        "name": "DEFAULT",
+        "config": {
+          "name": "DEFAULT"
+        },
+        "protocols": {
+          "protocol": [
+            {
+              "identifier": "BGP",
+              "name": "BGP",
+              "config": {
+                "identifier": "BGP",
+                "name": "BGP"
+              },
+              "bgp": {
+                "global": {
+                  "config": {
+                    "identifier": "BGP",
+                    "name": "BGP"
+                  },
+                  "graceful-restart": {
+                    "config": {
+                      "enabled": true,
+                      "restart-time": 120,
+                      "stale-routes-time": 300,
+                      "helper-only": false
+                    }
+                  }
+                },
+                "peer-groups": {
+                  "peer-group": [
+                    {
+                      "peer-group-name": "BGP-PEER-GROUP",
+                      "config": {
+                        "peer-group-name": "BGP-PEER-GROUP"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
