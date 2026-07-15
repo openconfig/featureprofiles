@@ -99,8 +99,8 @@ BGP Long-Lived Graceful Restart
               "bgp": {
                 "global": {
                   "config": {
-                    "identifier": "BGP",
-                    "name": "BGP"
+                    "as": 65001,
+                    "router-id": "192.0.2.1"
                   },
                   "graceful-restart": {
                     "config": {
