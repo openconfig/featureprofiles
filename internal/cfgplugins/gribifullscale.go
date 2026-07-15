@@ -858,10 +858,16 @@ func BuildTransitVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context,
 
 		// Create next hop groups referencing default network instance NHs.
 		for i := 0; i < nhgCount; i++ {
+			nhg := fluent.NextHopGroupEntry().WithNetworkInstance(defaultVRF).
+				WithID(baseNHGId + uint64(i)).WithBackupNHG(backupNHG)
 			nh1 := baseNHId + uint64(i%nhCount)
-			nh2 := baseNHId + uint64((i+1)%nhCount)
-			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(defaultVRF).
-				WithID(baseNHGId+uint64(i)).AddNextHop(nh1, 1).AddNextHop(nh2, 63).WithBackupNHG(backupNHG))
+			nhg.AddNextHop(nh1, 1)
+			// Make sure that we don't add the same NH twice in case there is only one NH.
+			if nhCount > 1 {
+				nh2 := baseNHId + uint64((i+1)%nhCount)
+				nhg.AddNextHop(nh2, 63)
+			}
+			entries = append(entries, nhg)
 		}
 
 		// Create IPv4 prefixes in the specific Transit VRF.
