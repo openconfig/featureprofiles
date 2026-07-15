@@ -679,7 +679,6 @@ func dialSSH(t *testing.T, dut *ondatra.DUTDevice, username, password, target st
 	return conn, w
 }
 
-
 // SendGnmiRPCs Setup gNMI test RPCs (successful and failed) to be used in the acctz client tests.
 func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordResponse {
 	// Per https://github.com/openconfig/featureprofiles/issues/2637, waiting to see what the
@@ -752,7 +751,6 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	}
 
 	// Send a successful gNMI capabilities request.
-	ctx = context.Background()
 	ctx = fpbinding.ContextWithCreds(context.Background(), SuccessUsername, successPassword)
 	req := &gnmipb.CapabilityRequest{}
 	payload, err := anypb.New(req)
@@ -845,13 +843,13 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		}
 		gnoiSystemClient = systempb.NewSystemClient(conn)
 	} else {
-		gnoiClients, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
+		gnoiClients, err := dut.RawAPIs().BindingDUT().DialGNOI(ctx)
 		if err != nil {
 			t.Fatalf("Failed dialing GNOI: %v", err)
 		}
 		gnoiSystemClient = gnoiClients.System()
 	}
-	ctx = fpbinding.ContextWithCreds(context.Background(), failuser, failpass)
+	ctx = fpbinding.ContextWithCreds(ctx, failuser, failpass)
 	var rpcName string
 	var payload *anypb.Any
 	var err error
@@ -901,7 +899,6 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	}
 
 	// Send a successful gNOI request.
-	ctx = context.Background()
 	ctx = fpbinding.ContextWithCreds(context.Background(), SuccessUsername, successPassword)
 
 	if dut.Vendor() == ondatra.NOKIA {
@@ -1043,7 +1040,6 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		})
 	}
 	// Send a successful gNSI authz get request.
-	ctx = context.Background()
 	ctx = fpbinding.ContextWithCreds(context.Background(), SuccessUsername, successPassword)
 	req := &authzpb.GetRequest{}
 	payload, err := anypb.New(req)
@@ -1160,7 +1156,6 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespon
 	})
 
 	// Send a successful gRIBI get request.
-	ctx = context.Background()
 	ctx = fpbinding.ContextWithCreds(context.Background(), SuccessUsername, successPassword)
 	req := &gribi.GetRequest{
 		NetworkInstance: &gribi.GetRequest_All{},
@@ -1304,7 +1299,6 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 			},
 		})
 	}
-	ctx = context.Background()
 	ctx = fpbinding.ContextWithCreds(context.Background(), SuccessUsername, successPassword)
 	req := &p4pb.CapabilitiesRequest{}
 	payload, err := anypb.New(req)

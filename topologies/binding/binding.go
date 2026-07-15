@@ -717,7 +717,7 @@ func ContextWithCreds(ctx context.Context, username, password string) context.Co
 func (c *creds) GetRequestMetadata(ctx context.Context, _ ...string) (map[string]string, error) {
 	username := c.username
 	password := c.password
-	if override, ok := ctx.Value(credsOverrideKey{}).(*CredsOverride); ok {
+	if override, ok := ctx.Value(credsOverrideKey{}).(*CredsOverride); ok && override != nil {
 		if override.Username != "" {
 			username = override.Username
 		}
