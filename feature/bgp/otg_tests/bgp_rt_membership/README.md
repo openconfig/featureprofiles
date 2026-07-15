@@ -58,6 +58,9 @@ graph LR;
 
 ## Canonical OC
 
+> [!NOTE]
+> `RT_MEMBERSHIP` is not yet a standard OpenConfig AFI-SAFI type enum value. It is enabled in the test procedure but omitted from this Canonical OC sample to prevent validation failures against standard schemas. See TODO below.
+
 ```json
 {
   "network-instances": {
@@ -104,13 +107,6 @@ graph LR;
                       "peer-group-name": "IBGP_PEERS",
                       "afi-safis": {
                         "afi-safi": [
-                          {
-                            "afi-safi-name": "RT_MEMBERSHIP",
-                            "config": {
-                              "afi-safi-name": "RT_MEMBERSHIP",
-                              "enabled": true
-                            }
-                          },
                           {
                             "afi-safi-name": "openconfig-bgp-types:L3VPN_IPV4_UNICAST",
                             "config": {
@@ -467,6 +463,10 @@ rpcs:
       on_change: true
 
 ```
+
+## TODO
+
+*   Request addition of `RT_MEMBERSHIP` (or `RTC`) to the standard OpenConfig `AFI_SAFI_TYPE` identities in `openconfig-bgp-types.yang` to support RFC 4684 validation natively.
 
 ## Required DUT platform
 
