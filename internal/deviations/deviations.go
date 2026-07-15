@@ -2278,6 +2278,13 @@ func LacpInterfaceFallbackOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLacpInterfaceFallbackOcUnsupported()
 }
 
+// BgpDynamicNeighborPrefixUnsupported returns true if the device accepts the
+// OpenConfig dynamic-neighbor-prefix configuration via gNMI without error, but does not actually program it (silently ignored).
+// Arista: https://partnerissuetracker.corp.google.com/u/2/issues/534817001
+func BgpDynamicNeighborPrefixUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpDynamicNeighborPrefixUnsupported()
+}
+
 // VlanSubinterfaceOCUnsupported returns true if the device does not support OC config for VLAN subinterfaces.
 // Arista: https://partnerissuetracker.corp.google.com/issues/494280147
 func VlanSubinterfaceOCUnsupported(dut *ondatra.DUTDevice) bool {

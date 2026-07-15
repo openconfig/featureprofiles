@@ -199,18 +199,52 @@ func applyDUTConfig(t *testing.T, dut *ondatra.DUTDevice) {
 	protoPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName(dut))
 	gnmi.Replace(t, dut, protoPath.Config(), buildDUTBGPConfig(t, dut))
 
-	// Arista silently ignores the OpenConfig dynamic-neighbor-prefixes path;
-	// configure bgp listen range via CLI as a workaround.
-	// TODO: replace with a deviation once upstream OC support is confirmed.
-	if dut.Vendor() == ondatra.ARISTA {
+	// DIAGNOSTIC ONLY: confirm whether the OC dynamic-neighbor-prefix push alone
+	// results in "bgp listen range" appearing in the EOS running-config.
+	// Kept for reference; the deviation decision has been confirmed and
+	// formalized as deviations.BgpDynamicNeighborPrefixUnsupported.
+	//
+	// if dut.Vendor() == ondatra.ARISTA {
+	// 	runningCfg, err := dut.RawAPIs().CLI(t).RunCommand(context.Background(), "show running-config section bgp")
+	// 	if err != nil {
+	// 		t.Logf("diagnostic CLI error: %v", err)
+	// 	} else {
+	// 		t.Logf("running-config after OC push only:\n%s", runningCfg.Output())
+	// 		if strings.Contains(runningCfg.Output(), "bgp listen range") {
+	// 			t.Logf("RESULT: OC push DID program bgp listen range - CLI workaround may be unnecessary")
+	// 		} else {
+	// 			t.Logf("RESULT: OC push did NOT program bgp listen range - confirms silent-ignore, CLI workaround needed")
+	// 		}
+	// 	}
+	// }
+
+	// Arista accepts the OpenConfig dynamic-neighbor-prefixes path but
+	// silently ignores it; configure bgp listen range via CLI as a workaround.
+	if deviations.BgpDynamicNeighborPrefixUnsupported(dut) {
 		output, err := dut.RawAPIs().CLI(t).RunCommand(context.Background(), fmt.Sprintf(
 			"configure\nrouter bgp %d\nbgp listen range %s peer-group %s remote-as %d\nexit\nexit\n",
 			dutAS, dynamicListenPrefix, dynamicPeerGroupName, dutAS))
 		if err != nil {
-			t.Logf("CLI ERROR: %v", err)
 			t.Fatalf("failed to configure bgp listen range via CLI: %v", err)
 		}
-		t.Logf("CLI output: %s", output)
+		t.Logf("CLI output: %s", output.Output())
+
+		// DIAGNOSTIC ONLY: confirm the CLI workaround actually programmed
+		// "bgp listen range" into the running-config. Kept for reference; the
+		// deviation decision has been confirmed and formalized as
+		// deviations.BgpDynamicNeighborPrefixUnsupported.
+		//
+		// runningCfgAfter, err := dut.RawAPIs().CLI(t).RunCommand(context.Background(), "show running-config section bgp")
+		// if err != nil {
+		// 	t.Logf("diagnostic CLI error: %v", err)
+		// } else {
+		// 	t.Logf("running-config after CLI workaround:\n%s", runningCfgAfter.Output())
+		// 	if strings.Contains(runningCfgAfter.Output(), "bgp listen range") {
+		// 		t.Logf("RESULT: CLI workaround DID program bgp listen range")
+		// 	} else {
+		// 		t.Logf("RESULT: CLI workaround did NOT program bgp listen range - investigate further")
+		// 	}
+		// }
 	}
 }
 
