@@ -14,5 +14,6 @@ platform_exceptions: {
     interface_enabled: true
     default_network_instance: "default"
     default_bgp_instance_name: "BGP"
+    skip_checking_attribute_index: true
   }
 }

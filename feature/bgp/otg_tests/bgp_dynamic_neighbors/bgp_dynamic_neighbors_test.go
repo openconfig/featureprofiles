@@ -106,9 +106,11 @@ func configureDUTPorts(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	dc := gnmi.OC()
 	i1 := dutPort1.NewOCInterface(dut.Port(t, "port1").Name(), dut)
+	i1.Enabled = ygot.Bool(true)
 	gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), i1)
 
 	i2 := dutPort2.NewOCInterface(dut.Port(t, "port2").Name(), dut)
+	i2.Enabled = ygot.Bool(true)
 	gnmi.Replace(t, dut, dc.Interface(i2.GetName()).Config(), i2)
 
 	if deviations.ExplicitPortSpeed(dut) {
@@ -124,10 +126,7 @@ func configureDUTPorts(t *testing.T, dut *ondatra.DUTDevice) {
 func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
 	t.Helper()
 	for _, p := range dev.Ports() {
-		status := gnmi.Get(t, dev, gnmi.OC().Interface(p.Name()).OperStatus().State())
-		if want := oc.Interface_OperStatus_UP; status != want {
-			t.Fatalf("%s Status: got %v, want %v", p, status, want)
-		}
+		gnmi.Await(t, dev, gnmi.OC().Interface(p.Name()).OperStatus().State(), 30*time.Second, oc.Interface_OperStatus_UP)
 	}
 }
 
@@ -204,12 +203,14 @@ func applyDUTConfig(t *testing.T, dut *ondatra.DUTDevice) {
 	// configure bgp listen range via CLI as a workaround.
 	// TODO: replace with a deviation once upstream OC support is confirmed.
 	if dut.Vendor() == ondatra.ARISTA {
-		_, err := dut.RawAPIs().CLI(t).RunCommand(context.Background(), fmt.Sprintf(
-			"configure\nrouter bgp %d\nbgp listen range %s peer-group %s\nexit\nexit\n",
-			dutAS, dynamicListenPrefix, dynamicPeerGroupName))
+		output, err := dut.RawAPIs().CLI(t).RunCommand(context.Background(), fmt.Sprintf(
+			"configure\nrouter bgp %d\nbgp listen range %s peer-group %s remote-as %d\nexit\nexit\n",
+			dutAS, dynamicListenPrefix, dynamicPeerGroupName, dutAS))
 		if err != nil {
+			t.Logf("CLI ERROR: %v", err)
 			t.Fatalf("failed to configure bgp listen range via CLI: %v", err)
 		}
+		t.Logf("CLI output: %s", output)
 	}
 }
 
@@ -270,8 +271,11 @@ func buildATEConfig(t *testing.T, dut *ondatra.DUTDevice, staticPeer atePeerSpec
 	return config
 }
 
-func applyATEConfig(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) {
+func applyATEConfig(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, stopFirst bool) {
 	t.Helper()
+	if stopFirst {
+		ate.OTG().StopProtocols(t)
+	}
 	ate.OTG().PushConfig(t, config)
 	ate.OTG().StartProtocols(t)
 }
@@ -299,8 +303,13 @@ func verifyNeighborTelemetry(t *testing.T, dut *ondatra.DUTDevice, neighbor stri
 		t.Fatalf("neighbor %s session state got %v, want ESTABLISHED", neighbor, state)
 	}
 
-	if got := gnmi.Get(t, dut, nbrPath.DynamicallyConfigured().State()); got != wantDynamic {
-		t.Fatalf("neighbor %s dynamically-configured got %v, want %v", neighbor, got, wantDynamic)
+	dynamicVal := gnmi.Lookup(t, dut, nbrPath.DynamicallyConfigured().State())
+	gotDynamic, present := dynamicVal.Val()
+	if !present {
+		gotDynamic = false // not present means default false (vendor omits default boolean values)
+	}
+	if gotDynamic != wantDynamic {
+		t.Fatalf("neighbor %s dynamically-configured got %v, want %v", neighbor, gotDynamic, wantDynamic)
 	}
 
 	if got := gnmi.Get(t, dut, nbrPath.State()).GetPeerAs(); got != dutAS {
@@ -429,7 +438,7 @@ func TestBGPDynamicNeighbors(t *testing.T) {
 	t.Run("RT-1.103.1 Dynamic Peering and Router-ID Validation", func(t *testing.T) {
 		staticPeer, dynamicPeers := sessionOnlyConfig()
 		applyDUTConfig(t, dut)
-		applyATEConfig(t, ate, buildATEConfig(t, dut, staticPeer, dynamicPeers))
+		applyATEConfig(t, ate, buildATEConfig(t, dut, staticPeer, dynamicPeers), false)
 
 		verifyGlobalRouterID(t, dut)
 		verifyDynamicNeighbors(t, dut, dynamicPeers)
@@ -441,58 +450,58 @@ func TestBGPDynamicNeighbors(t *testing.T) {
 		}
 	})
 
-	// t.Run("RT-1.103.2 Telemetry for Dynamic Neighbors", func(t *testing.T) {
-	// 	staticPeer, dynamicPeers := sessionOnlyConfig()
-	// 	applyDUTConfig(t, dut)
-	// 	applyATEConfig(t, ate, buildATEConfig(t, dut, staticPeer, dynamicPeers))
+	t.Run("RT-1.103.2 Telemetry for Dynamic Neighbors", func(t *testing.T) {
+		staticPeer, dynamicPeers := sessionOnlyConfig()
+		applyDUTConfig(t, dut)
+		applyATEConfig(t, ate, buildATEConfig(t, dut, staticPeer, dynamicPeers), true)
 
-	// 	verifyDynamicNeighbors(t, dut, dynamicPeers)
-	// 	verifyNeighborTelemetry(t, dut, atePort1.IPv6, false)
-	// })
+		verifyDynamicNeighbors(t, dut, dynamicPeers)
+		verifyNeighborTelemetry(t, dut, atePort1.IPv6, false)
+	})
 
-	// t.Run("RT-1.103.3 Secured Dynamic Peers (iBGP MD5)", func(t *testing.T) {
-	// 	staticPeer, dynamicPeers := sessionOnlyConfig()
-	// 	applyDUTConfig(t, dut)
-	// 	applyATEConfig(t, ate, buildATEConfig(t, dut, staticPeer, dynamicPeers))
+	t.Run("RT-1.103.3 Secured Dynamic Peers (iBGP MD5)", func(t *testing.T) {
+		staticPeer, dynamicPeers := sessionOnlyConfig()
+		applyDUTConfig(t, dut)
+		applyATEConfig(t, ate, buildATEConfig(t, dut, staticPeer, dynamicPeers), true)
 
-	// 	for _, peer := range dynamicPeers {
-	// 		waitForNeighborState(t, dut, peer.localIP, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
-	// 	}
+		for _, peer := range dynamicPeers {
+			waitForNeighborState(t, dut, peer.localIP, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+		}
 
-	// 	wrongPasswordPeers := makeDynamicPeers(1, dutAS, "wrong-md5")
-	// 	applyATEConfig(t, ate, buildATEConfig(t, dut, staticPeer, append(wrongPasswordPeers, dynamicPeers[1:]...)))
-	// 	waitForNeighborState(t, dut, dynamicPeers[1].localIP, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
-	// 	waitForNeighborDownOrNotEstablished(t, dut, wrongPasswordPeers[0].localIP)
+		wrongPasswordPeers := makeDynamicPeers(1, dutAS, "wrong-md5")
+		applyATEConfig(t, ate, buildATEConfig(t, dut, staticPeer, append(wrongPasswordPeers, dynamicPeers[1:]...)), true)
+		waitForNeighborState(t, dut, dynamicPeers[1].localIP, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+		waitForNeighborDownOrNotEstablished(t, dut, wrongPasswordPeers[0].localIP)
 
-	// 	noPasswordPeers := makeDynamicPeers(1, dutAS, "")
-	// 	applyATEConfig(t, ate, buildATEConfig(t, dut, staticPeer, append(noPasswordPeers, dynamicPeers[1:]...)))
-	// 	waitForNeighborState(t, dut, dynamicPeers[1].localIP, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
-	// 	waitForNeighborDownOrNotEstablished(t, dut, noPasswordPeers[0].localIP)
-	// })
+		noPasswordPeers := makeDynamicPeers(1, dutAS, "")
+		applyATEConfig(t, ate, buildATEConfig(t, dut, staticPeer, append(noPasswordPeers, dynamicPeers[1:]...)), true)
+		waitForNeighborState(t, dut, dynamicPeers[1].localIP, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+		waitForNeighborDownOrNotEstablished(t, dut, noPasswordPeers[0].localIP)
+	})
 
-	// t.Run("RT-1.103.4 Duplicate ATE Router-ID (Transport Separation)", func(t *testing.T) {
-	// 	staticPeer, dynamicPeers := sessionOnlyConfig()
-	// 	applyDUTConfig(t, dut)
-	// 	applyATEConfig(t, ate, buildATEConfig(t, dut, staticPeer, dynamicPeers))
+	t.Run("RT-1.103.4 Duplicate ATE Router-ID (Transport Separation)", func(t *testing.T) {
+		staticPeer, dynamicPeers := sessionOnlyConfig()
+		applyDUTConfig(t, dut)
+		applyATEConfig(t, ate, buildATEConfig(t, dut, staticPeer, dynamicPeers), true)
 
-	// 	for _, peer := range dynamicPeers {
-	// 		waitForNeighborState(t, dut, peer.localIP, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
-	// 	}
-	// 	verifyGlobalRouterID(t, dut)
-	// })
+		for _, peer := range dynamicPeers {
+			waitForNeighborState(t, dut, peer.localIP, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+		}
+		verifyGlobalRouterID(t, dut)
+	})
 
-	// t.Run("RT-1.103.5 Overlapping Prefix Best-Path Selection and Reconvergence", func(t *testing.T) {
-	// 	staticPeer, dynamicPeers := routeSelectionConfig(false)
-	// 	applyDUTConfig(t, dut)
-	// 	applyATEConfig(t, ate, buildATEConfig(t, dut, staticPeer, dynamicPeers))
+	t.Run("RT-1.103.5 Overlapping Prefix Best-Path Selection and Reconvergence", func(t *testing.T) {
+		staticPeer, dynamicPeers := routeSelectionConfig(false)
+		applyDUTConfig(t, dut)
+		applyATEConfig(t, ate, buildATEConfig(t, dut, staticPeer, dynamicPeers), true)
 
-	// 	waitForNeighborState(t, dut, staticPeer.localIP, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
-	// 	waitForNeighborState(t, dut, dynamicPeers[0].localIP, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
-	// 	verifyLocRIBMED(t, dut, dynamicRoutePrefix, 50)
+		waitForNeighborState(t, dut, staticPeer.localIP, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+		waitForNeighborState(t, dut, dynamicPeers[0].localIP, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+		verifyLocRIBMED(t, dut, dynamicRoutePrefix, 50)
 
-	// 	withdrawStaticPeer, reconvergeDynamicPeers := routeSelectionConfig(true)
-	// 	applyATEConfig(t, ate, buildATEConfig(t, dut, withdrawStaticPeer, reconvergeDynamicPeers))
-	// 	waitForNeighborState(t, dut, reconvergeDynamicPeers[0].localIP, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
-	// 	verifyLocRIBMED(t, dut, dynamicRoutePrefix, 100)
-	// })
+		withdrawStaticPeer, reconvergeDynamicPeers := routeSelectionConfig(true)
+		applyATEConfig(t, ate, buildATEConfig(t, dut, withdrawStaticPeer, reconvergeDynamicPeers), true)
+		waitForNeighborState(t, dut, reconvergeDynamicPeers[0].localIP, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+		verifyLocRIBMED(t, dut, dynamicRoutePrefix, 100)
+	})
 }
