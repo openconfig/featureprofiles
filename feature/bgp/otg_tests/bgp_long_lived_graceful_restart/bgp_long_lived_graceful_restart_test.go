@@ -27,7 +27,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gnoi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -65,17 +64,13 @@ const (
 	advertisedRoutesv4CIDRp2 = "198.18.1.1/32"
 	advertisedRoutesv6CIDRp2 = "2001:db8::198:18:1:1/128"
 	ipv4DstTrafficStart      = "203.0.113.1"
-	ipv4DstTrafficEnd        = "203.0.113.254"
-	ipv4Src                  = "192.0.2.2"
 	aclNullPrefix            = "0.0.0.0/0"
 	aclName                  = "BGP-DENY-ACL"
-	aclv6Name                = "ipv6-policy-acl"
 	routeCount               = 254
 	dutAS                    = 64500
 	ateAS                    = 64501
 	plenIPv4                 = 30
 	plenIPv6                 = 126
-	bgpPort                  = 179
 	flow1                    = "v4FlowPort1toPort2"
 	peerv4GrpName            = "BGP-PEER-GROUP-V4"
 	peerv6GrpName            = "BGP-PEER-GROUP-V6"
@@ -87,7 +82,6 @@ const (
 	vlan50                   = 50
 	vlan60                   = 60
 	setMEDPolicy             = "SET-MED"
-	setALLOWPolicy           = "ALLOW"
 	bgpMED                   = 25
 	aclStatement3            = "30"
 	gnmiRetryCount           = 3
@@ -662,30 +656,6 @@ func configACLInterface(iFace *oc.Acl_Interface, ifName string) *acl.Acl_Interfa
 	return aclConf
 }
 
-func disableLLGRConf(dut *ondatra.DUTDevice, as int) string {
-	switch dut.Vendor() {
-	case ondatra.ARISTA:
-		return fmt.Sprintf(`
-		router bgp %d
-		no graceful-restart-helper long-lived`, as)
-	case ondatra.JUNIPER:
-		return `
-		protocols {
-			bgp {
-				graceful-restart {
-					long-lived {
-						receiver {
-							disable;
-						}
-					}
-				}
-			}
-		}`
-	default:
-		return ""
-	}
-}
-
 func stopATENewPeers(t *testing.T, ate *ondatra.ATEDevice, peerNames []string) {
 	t.Helper()
 	cs := gosnappi.NewControlState()
@@ -838,23 +808,6 @@ func verifyGracefulRestart(t *testing.T, dut *ondatra.DUTDevice) {
 			t.Errorf("Neighbor AFI-SAFI Graceful restart status: got %v, want Enabled", nbrAfiSafiGrState)
 		}
 	}
-}
-
-func buildCliConfigRequest(config string) *gpb.SetRequest {
-	// Build config with Origin set to cli and Ascii encoded config.
-	gpbSetRequest := &gpb.SetRequest{
-		Update: []*gpb.Update{{
-			Path: &gpb.Path{
-				Origin: "cli",
-			},
-			Val: &gpb.TypedValue{
-				Value: &gpb.TypedValue_AsciiVal{
-					AsciiVal: config,
-				},
-			},
-		}},
-	}
-	return gpbSetRequest
 }
 
 func replaceWithRetry[T any](t *testing.T, dut *ondatra.DUTDevice, q ygnmi.ConfigQuery[T], val T) {

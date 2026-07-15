@@ -14,7 +14,7 @@ BGP Long-Lived Graceful Restart
 *   For IPv4 and IPv6 routes:
     *   Advertise prefixes from ATE to DUT. 
     *   Trigger DUT session restart by disconnecting TCP session between DUT - ATE Port2 and determine that:
-        *   Forwarded traffic between between ATE port-1 and DUT port-1 for the duration of the  
+        *   Forwarded traffic between ATE port-1 and DUT port-1 for the duration of the  
             specified stale routes time (default), during the stale state traffic shouldnt be impacted. 
         *   Dropped after the stale routes timer has expired.
         *   Forwarded again between ATE port-1 and DUT port-1 after the session is re-established. 
