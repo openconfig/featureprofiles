@@ -54,7 +54,12 @@ func TestMain(m *testing.M) {
 func TestAttestz3(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	if *vendorCaCertPem == "" {
-		t.Fatalf("Switch vendor CA certificate path missing in test args.")
+		switch dut.Vendor() {
+		case ondatra.NOKIA:
+			*vendorCaCertPem = attestz.FetchNokiaCACertFile(t, dut)
+		default:
+			t.Fatalf("Switch vendor CA certificate path missing in test args.")
+		}
 	}
 
 	attestzTarget, attestzServer := attestz.SetupBaseline(t, dut)

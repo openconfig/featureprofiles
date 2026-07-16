@@ -28,11 +28,18 @@ import (
 	"fmt"
 	"math/big"
 	"net"
+	"os"
+	"path"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/components"
 	certzpb "github.com/openconfig/gnsi/certz"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
 type certType int
@@ -339,4 +346,28 @@ func populateCertTemplate(ip string) (*x509.Certificate, error) {
 		KeyUsage:    x509.KeyUsageDigitalSignature,
 	}
 	return certSpec, nil
+}
+
+// FetchNokiaCACertFile copies the Nokia TPM factory CA from the DUT into a temp PEM and returns its path.
+func FetchNokiaCACertFile(t *testing.T, dut *ondatra.DUTDevice) string {
+	const tpmCertificatesDir = "/opt/srlinux/firmware/tpm_certificates"
+	var remotePath string
+	chassis := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS)
+	model := gnmi.Get(t, dut, gnmi.OC().Component(chassis[0]).ModelName().State())
+	switch {
+	case strings.HasPrefix(model, "7250 IXR-10e"):
+		remotePath = path.Join(tpmCertificatesDir, "Nokia_IP_Networks_Factory_CA1.pem")
+	case strings.HasPrefix(model, "7250 IXR-18e"):
+		remotePath = path.Join(tpmCertificatesDir, "Nokia_IP_Networks_ECDSA_Factory_CA1.pem")
+	default:
+		t.Fatalf("unsupported Nokia chassis model %s for automatic vendor CA; pass -switch_vendor_ca_cert", model)
+	}
+
+	pemData := gNOIReadFile(t, dut, remotePath)
+	out := filepath.Join(t.TempDir(), "vendor-ca.pem")
+	if err := os.WriteFile(out, pemData, 0o644); err != nil {
+		t.Fatalf("write temp vendor CA: %v", err)
+	}
+	t.Logf("FetchNokiaCACertFile: DUT path=%s local PEM path=%s", remotePath, out)
+	return out
 }
