@@ -15,9 +15,11 @@
 package attestz
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"io"
 	"net"
 	"os"
 	"testing"
@@ -27,6 +29,7 @@ import (
 	enrollzpb "github.com/openconfig/attestz/proto/tpm_enrollz"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/security/svid"
+	fpb "github.com/openconfig/gnoi/file"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding/introspect"
 	"github.com/openconfig/ondatra/gnmi"
@@ -200,4 +203,30 @@ func FindControlCards(t *testing.T, dut *ondatra.DUTDevice) (*ControlCard, *Cont
 	}
 	activeCard.Name, standbyCard.Name = findControllers(t, dut, controllers)
 	return activeCard, standbyCard
+}
+
+// gNOIReadFile reads remotePath on the DUT via gNOI File.Get and returns the file contents.
+func gNOIReadFile(t *testing.T, dut *ondatra.DUTDevice, remotePath string) []byte {
+	gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
+	if err != nil {
+		t.Fatalf("DialGNOI: %v", err)
+	}
+	stream, err := gnoiClient.File().Get(context.Background(), &fpb.GetRequest{RemoteFile: remotePath})
+	if err != nil {
+		t.Fatalf("gNOI File.Get(%s): %v", remotePath, err)
+	}
+	var buf bytes.Buffer
+	for {
+		resp, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("gNOI File.Get stream recv %s: %v", remotePath, err)
+		}
+		if c := resp.GetContents(); len(c) > 0 {
+			buf.Write(c)
+		}
+	}
+	return buf.Bytes()
 }

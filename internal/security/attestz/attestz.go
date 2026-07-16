@@ -34,6 +34,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"path"
 	"strings"
 	"testing"
 	"time"
@@ -88,8 +89,8 @@ func PrettyPrint(i interface{}) string {
 	return string(s)
 }
 
-// getPcrBankHashAlgosForPlatform returns hash algorithms for pcr bank based on each vendor platform.
-func getPcrBankHashAlgosForPlatform(t *testing.T, dut *ondatra.DUTDevice) []cdpb.Tpm20HashAlgo {
+// GetPcrBankHashAlgosForPlatform returns hash algorithms for pcr bank based on each vendor platform.
+func GetPcrBankHashAlgosForPlatform(t *testing.T, dut *ondatra.DUTDevice) []cdpb.Tpm20HashAlgo {
 	chassisName = components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS)[0]
 	model := gnmi.Get(t, dut, gnmi.OC().Component(chassisName).ModelName().State())
 	switch {
@@ -184,7 +185,7 @@ func (cc *ControlCard) AttestzWorkflow(t *testing.T, dut *ondatra.DUTDevice, tc 
 	as := tc.NewSession(t)
 	defer as.Conn.Close()
 
-	for _, hashAlgo := range getPcrBankHashAlgosForPlatform(t, dut) {
+	for _, hashAlgo := range GetPcrBankHashAlgosForPlatform(t, dut) {
 		nonce := GenNonce(t)
 		attestResponse := as.RequestAttestation(t, cc.Role, nonce, hashAlgo, PcrIndices)
 
@@ -387,15 +388,8 @@ func nokiaPCRVerify(t *testing.T, dut *ondatra.DUTDevice, cardName string, hashA
 	t.Logf("Found software version: %v", ver)
 
 	// Expected pcr values for Nokia present in /mnt/nokiaos/<build binary.bin>/known_good_pcr_values.json.
-	sshC, err := dut.RawAPIs().BindingDUT().DialCLI(context.Background())
-	if err != nil {
-		t.Logf("Could not connect ssh. error: %v", err)
-	}
-	cmd := fmt.Sprintf("cat /mnt/nokiaos/%s/known_good_pcr_values.json", ver)
-	res, err := sshC.RunCommand(context.Background(), cmd)
-	if err != nil {
-		t.Fatalf("Could not run command: %v, error: %v", cmd, err)
-	}
+	remotePath := path.Join("/mnt/nokiaos", ver, "known_good_pcr_values.json")
+	jsonBytes := gNOIReadFile(t, dut, remotePath)
 
 	// Parse json file into struct.
 	type Values struct {
@@ -417,7 +411,7 @@ func nokiaPCRVerify(t *testing.T, dut *ondatra.DUTDevice, cardName string, hashA
 		Cards []CardData `json:"cards"`
 	}
 	var nokiaPcrData PcrData
-	err = json.Unmarshal([]byte(res.Output()), &nokiaPcrData)
+	err := json.Unmarshal(jsonBytes, &nokiaPcrData)
 	if err != nil {
 		t.Fatalf("Could not parse json. error: %v", err)
 	}
