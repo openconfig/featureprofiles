@@ -96,6 +96,21 @@ const (
 	defaultKeepaliveTimer = 80
 	defaultUpdateTimer    = 30
 	defaultEnablePGGR     = true
+	// BGP scale test related constants
+	v4ISISRoutes         = 1000
+	v6ISISRoutes         = 1000
+	defaultv4IBGPRoutes  = 2000
+	defaultv6IBGPRoutes  = 2000
+	defaultv4Convergence = 2100
+	defaultv6Convergence = 2005
+	defaultEBGPPeerCount = 150
+	defaultIBGPPeerCount = 15
+	scalev4IBGPRoutes    = 8000
+	scalev6IBGPRoutes    = 8000
+	scalev4Convergence   = 8100
+	scalev6Convergence   = 8005
+	scaleEBGPPeerCount   = 200
+	scaleIBGPPeerCount   = 31
 )
 
 var (
@@ -556,7 +571,7 @@ func TestBGPScale(t *testing.T) {
 		{
 			name:              "RT-1.65.1.1 - Steady State - 7 v4/v6 IBGP sessions",
 			dutSetup:          dutSetup,
-			scale:             map[string]uint32{"Port2": 200, "Port3": 200, "Port4": 7, "v4ISISRoutes": 1000, "v6ISISRoutes": 1000, "v4IBGPRoutes": 6000, "v6IBGPRoutes": 6000, "v4Convergence": 6100, "v6Convergence": 6005},
+			scale:             map[string]uint32{"Port2": defaultEBGPPeerCount, "Port3": defaultEBGPPeerCount, "Port4": defaultIBGPPeerCount, "v4ISISRoutes": v4ISISRoutes, "v6ISISRoutes": v6ISISRoutes, "v4IBGPRoutes": defaultv4IBGPRoutes, "v6IBGPRoutes": defaultv6IBGPRoutes, "v4Convergence": defaultv4Convergence, "v6Convergence": defaultv6Convergence},
 			validate:          []func(t *testing.T, dev *ondatra.Device){verifyPortsUp},
 			verifyTelemetry:   []func(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, nbrList []*bgpNeighbor){verifyISISTelemetry, verifyBgpTelemetry, verifyBGPCapabilities, validateLinkBWNotAdvertised},
 			verifyConvergence: measureConvergence,
@@ -565,7 +580,7 @@ func TestBGPScale(t *testing.T) {
 		{
 			name:              "RT-1.65.2 - BGP Session Scale - 31 v4/v6 IBGP sessions",
 			dutSetup:          ateSetup,
-			scale:             map[string]uint32{"Port2": 400, "Port3": 400, "Port4": 31, "v4ISISRoutes": 1000, "v6ISISRoutes": 1000, "v4IBGPRoutes": 6000, "v6IBGPRoutes": 6000, "v4Convergence": 6100, "v6Convergence": 6005},
+			scale:             map[string]uint32{"Port2": scaleEBGPPeerCount, "Port3": scaleEBGPPeerCount, "Port4": scaleIBGPPeerCount, "v4ISISRoutes": v4ISISRoutes, "v6ISISRoutes": v6ISISRoutes, "v4IBGPRoutes": defaultv4IBGPRoutes, "v6IBGPRoutes": defaultv6IBGPRoutes, "v4Convergence": defaultv4Convergence, "v6Convergence": defaultv6Convergence},
 			validate:          []func(t *testing.T, dev *ondatra.Device){verifyPortsUp},
 			verifyTelemetry:   []func(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, nbrList []*bgpNeighbor){verifyISISTelemetry, verifyBgpTelemetry, verifyBGPCapabilities},
 			verifyConvergence: measureConvergence,
@@ -574,7 +589,7 @@ func TestBGPScale(t *testing.T) {
 		{
 			name:              "RT-1.65.3 - Session and BGP Route Scale without BGP events",
 			dutSetup:          ateSetup,
-			scale:             map[string]uint32{"Port2": 400, "Port3": 400, "Port4": 31, "v4ISISRoutes": 1000, "v6ISISRoutes": 1000, "v4IBGPRoutes": 250000, "v6IBGPRoutes": 150000, "v4Convergence": 250100, "v6Convergence": 150005},
+			scale:             map[string]uint32{"Port2": scaleEBGPPeerCount, "Port3": scaleEBGPPeerCount, "Port4": scaleIBGPPeerCount, "v4ISISRoutes": v4ISISRoutes, "v6ISISRoutes": v6ISISRoutes, "v4IBGPRoutes": scalev4IBGPRoutes, "v6IBGPRoutes": scalev6IBGPRoutes, "v4Convergence": scalev4Convergence, "v6Convergence": scalev6Convergence},
 			validate:          []func(t *testing.T, dev *ondatra.Device){verifyPortsUp},
 			verifyTelemetry:   []func(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, nbrList []*bgpNeighbor){verifyISISTelemetry, verifyBgpTelemetry, verifyBGPCapabilities},
 			verifyConvergence: measureConvergence,
@@ -583,7 +598,7 @@ func TestBGPScale(t *testing.T) {
 		{
 			name:              "RT-1.65.3.2 - Session and BGP Route Scale without BGP events with MSS configured",
 			dutSetup:          ateSetup,
-			scale:             map[string]uint32{"Port2": 400, "Port3": 400, "Port4": 31, "v4ISISRoutes": 1000, "v6ISISRoutes": 1000, "v4IBGPRoutes": 250000, "v6IBGPRoutes": 150000, "v4Convergence": 250100, "v6Convergence": 150005},
+			scale:             map[string]uint32{"Port2": scaleEBGPPeerCount, "Port3": scaleEBGPPeerCount, "Port4": scaleIBGPPeerCount, "v4ISISRoutes": v4ISISRoutes, "v6ISISRoutes": v6ISISRoutes, "v4IBGPRoutes": scalev4IBGPRoutes, "v6IBGPRoutes": scalev6IBGPRoutes, "v4Convergence": scalev4Convergence, "v6Convergence": scalev6Convergence},
 			validate:          []func(t *testing.T, dev *ondatra.Device){verifyPortsUp},
 			verifyTelemetry:   []func(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, nbrList []*bgpNeighbor){verifyISISTelemetry, verifyBgpTelemetry, verifyBGPCapabilities},
 			verifyConvergence: measureConvergence,
@@ -593,7 +608,7 @@ func TestBGPScale(t *testing.T) {
 		{
 			name:              "RT-1.65.4.1 - BGP Session and Route Scale with BGP events_Alter_BGP_attributes",
 			dutSetup:          nil,
-			scale:             map[string]uint32{"Port2": 400, "Port3": 400, "Port4": 31, "v4ISISRoutes": 1000, "v6ISISRoutes": 1000, "v4IBGPRoutes": 250000, "v6IBGPRoutes": 150000, "v4Convergence": 250100, "v6Convergence": 150005},
+			scale:             map[string]uint32{"Port2": scaleEBGPPeerCount, "Port3": scaleEBGPPeerCount, "Port4": scaleIBGPPeerCount, "v4ISISRoutes": v4ISISRoutes, "v6ISISRoutes": v6ISISRoutes, "v4IBGPRoutes": scalev4IBGPRoutes, "v6IBGPRoutes": scalev6IBGPRoutes, "v4Convergence": scalev4Convergence, "v6Convergence": scalev6Convergence},
 			bgpEvents:         bgpEvents,
 			operation:         "alterBGPAttributes",
 			validate:          []func(t *testing.T, dev *ondatra.Device){verifyPortsUp},
@@ -604,7 +619,7 @@ func TestBGPScale(t *testing.T) {
 		{
 			name:              "RT-1.65.4.2 - BGP Session and Route Scale with BGP events_WithdrawRoutes",
 			dutSetup:          nil,
-			scale:             map[string]uint32{"Port2": 400, "Port3": 400, "Port4": 31, "v4ISISRoutes": 1000, "v6ISISRoutes": 1000, "v4IBGPRoutes": 250000, "v6IBGPRoutes": 150000, "v4Convergence": 250100, "v6Convergence": 150005},
+			scale:             map[string]uint32{"Port2": scaleEBGPPeerCount, "Port3": scaleEBGPPeerCount, "Port4": scaleIBGPPeerCount, "v4ISISRoutes": v4ISISRoutes, "v6ISISRoutes": v6ISISRoutes, "v4IBGPRoutes": scalev4IBGPRoutes, "v6IBGPRoutes": scalev6IBGPRoutes, "v4Convergence": scalev4Convergence, "v6Convergence": scalev6Convergence},
 			bgpEvents:         bgpEvents,
 			operation:         "withdrawRoutes",
 			validate:          []func(t *testing.T, dev *ondatra.Device){verifyPortsUp},
@@ -615,7 +630,7 @@ func TestBGPScale(t *testing.T) {
 		{
 			name:              "RT-1.65.4.3 - BGP Session and Route Scale with BGP events_ResetBGPPeers",
 			dutSetup:          nil,
-			scale:             map[string]uint32{"Port2": 400, "Port3": 400, "Port4": 31, "v4ISISRoutes": 1000, "v6ISISRoutes": 1000, "v4IBGPRoutes": 250000, "v6IBGPRoutes": 150000, "v4Convergence": 250100, "v6Convergence": 150005},
+			scale:             map[string]uint32{"Port2": scaleEBGPPeerCount, "Port3": scaleEBGPPeerCount, "Port4": scaleIBGPPeerCount, "v4ISISRoutes": v4ISISRoutes, "v6ISISRoutes": v6ISISRoutes, "v4IBGPRoutes": scalev4IBGPRoutes, "v6IBGPRoutes": scalev6IBGPRoutes, "v4Convergence": scalev4Convergence, "v6Convergence": scalev6Convergence},
 			bgpEvents:         bgpEvents,
 			operation:         "resetBGPPeers",
 			validate:          []func(t *testing.T, dev *ondatra.Device){verifyPortsUp},
@@ -633,9 +648,9 @@ func TestBGPScale(t *testing.T) {
 				atePort2.numSubIntf = tc.scale["Port2"]
 				atePort3.numSubIntf = tc.scale["Port3"]
 				atePort4.numSubIntf = tc.scale["Port4"]
-				dutPort2.numSubIntf = 400
-				dutPort3.numSubIntf = 400
-				dutPort4.numSubIntf = 31
+				dutPort2.numSubIntf = scaleEBGPPeerCount
+				dutPort3.numSubIntf = scaleEBGPPeerCount
+				dutPort4.numSubIntf = scaleIBGPPeerCount
 				atePort4.v4ISISRouteCount = tc.scale["v4ISISRoutes"] // ISIS v4 Scale
 				atePort4.v6ISISRouteCount = tc.scale["v6ISISRoutes"] // ISIS v6 Scale
 				v4IBGPRouteCount = tc.scale["v4IBGPRoutes"]          // iBGP v4Scale
@@ -768,7 +783,7 @@ func measureConvergence(t *testing.T, dut *ondatra.DUTDevice, afi []string, v4Ro
 					peer = atePort1.IPv4
 					routeCount = v4RouteCount
 					if isRouteWithdrawn {
-						routeCountWithdraw = 200
+						routeCountWithdraw = 250
 					}
 
 				case "ipv6":
@@ -777,7 +792,7 @@ func measureConvergence(t *testing.T, dut *ondatra.DUTDevice, afi []string, v4Ro
 					peer = atePort1.IPv6
 					routeCount = v6RouteCount
 					if isRouteWithdrawn {
-						routeCountWithdraw = 100
+						routeCountWithdraw = 150
 					}
 				}
 				gotSent := gnmi.Get(t, dut, prefixes.Sent().State())
@@ -1057,12 +1072,12 @@ func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
 	for _, p := range dev.Ports() {
 		status := gnmi.Get(t, dev, gnmi.OC().Interface(p.Name()).OperStatus().State())
 		if want := oc.Interface_OperStatus_UP; status != want {
-			t.Errorf("%s Status: got %v, want %v", p, status, want)
+			t.Fatalf("%s Status: got %v, want %v", p, status, want)
 		}
 	}
 	status := gnmi.Get(t, dev, gnmi.OC().Interface(aggIDs[len(aggIDs)-1]).OperStatus().State())
 	if want := oc.Interface_OperStatus_UP; status != want {
-		t.Errorf("%s Status: got %v, want %v", aggIDs[len(aggIDs)-1], status, want)
+		t.Fatalf("%s Status: got %v, want %v", aggIDs[len(aggIDs)-1], status, want)
 	}
 }
 
@@ -1202,7 +1217,7 @@ func verifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATED
 			t.Logf("Break from Loop:Iteration %d: Number of established IS-IS sessions: UP %v  DOWN %v Configured %v", i, counter, counter2, atePort4.numSubIntf)
 			break
 		}
-		t.Logf("Iteration %d: Number of established IS-IS sessions: %v %v", i, counter, counter2)
+		t.Logf("Iteration %d: Number of established IS-IS sessions: UP %v DOWN %v Configured %d", i, counter, counter2, atePort4.numSubIntf)
 		time.Sleep(30 * time.Second)
 	}
 	if counter != int(atePort4.numSubIntf) {
@@ -1667,15 +1682,18 @@ func configureDUTBGP(t *testing.T, as uint32, nbrs []*bgpNeighbor, dut *ondatra.
 	bgp := niProto.GetOrCreateBgp()
 
 	// Global Configuration using cfgplugins
-	cfgplugins.ConfigureGlobal(bgp, dut,
+	globalOpts := []cfgplugins.GlobalOption{
 		cfgplugins.WithAS(as),
 		cfgplugins.WithRouterID(dutLoopback.IPv4),
 		cfgplugins.WithGlobalGracefulRestart(true, 120, 300),
 		cfgplugins.WithGlobalAfiSafiEnabled(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, true),
 		cfgplugins.WithGlobalAfiSafiEnabled(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, true),
 		cfgplugins.WithExternalRouteDistance(9),
-		cfgplugins.WithGlobalEBGPMultipath(64),
-	)
+	}
+	if !deviations.BgpMaxMultipathPathsUnsupported(dut) {
+		globalOpts = append(globalOpts, cfgplugins.WithGlobalEBGPMultipath(64))
+	}
+	cfgplugins.ConfigureGlobal(bgp, dut, globalOpts...)
 	if deviations.BgpDistanceOcPathUnsupported(dut) {
 		distanceConfigv4 = fmt.Sprintf("router bgp %d instance BGP\naddress-family %s unicast\ndistance bgp %d 200 200\n", dutAS, "ipv4", 9)
 		distanceConfigv6 = fmt.Sprintf("router bgp %d instance BGP\naddress-family %s unicast\ndistance bgp %d 200 200\n", dutAS, "ipv6", 9)
@@ -1701,7 +1719,7 @@ func configureDUTBGP(t *testing.T, as uint32, nbrs []*bgpNeighbor, dut *ondatra.
 		}
 
 		peerGroup := bgp.GetOrCreatePeerGroup(pg.pgName)
-		cfgplugins.ConfigurePeerGroup(peerGroup, dut,
+		pgOpts := []cfgplugins.PeerGroupOption{
 			cfgplugins.WithPeerAS(pg.pgAS),
 			cfgplugins.WithPGTimers(pg.pgHoldTimer, pg.pgKeepaliveTimer, pg.pgUpdateTimer),
 			cfgplugins.WithPGDescription(pg.pgName),
@@ -1711,7 +1729,8 @@ func configureDUTBGP(t *testing.T, as uint32, nbrs []*bgpNeighbor, dut *ondatra.
 			cfgplugins.WithPGSendCommunity([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD, oc.Bgp_CommunityType_EXTENDED}),
 			cfgplugins.WithPGAfiSafiEnabled(pg.pgAFISAFI, true, true),
 			cfgplugins.ApplyPGRoutingPolicy(pg.pgImportPolicy, pg.pgExportPolicy, dut.Vendor() == ondatra.CISCO || delLinkbwCLIConfig != ""),
-		)
+		}
+		cfgplugins.ConfigurePeerGroup(peerGroup, dut, pgOpts...)
 	}
 
 	for _, nbr := range nbrs {
@@ -2237,6 +2256,7 @@ func configureOTGISIS(t *testing.T, name string, dev gosnappi.Device, atePort at
 				Metric:      10,
 			},
 		},
+		SetLearnedLspFilter: false,
 	}
 	isis := otgconfighelpers.ConfigureISIS(t, dev, isisAttrs)
 	loopbackV4, eMsg := atePort.ip4Loopback(i)

@@ -4,4 +4,14 @@
 uuid:  "0db82082-bf63-4511-a7ff-a98046ead23a"
 plan_id:  "BMP-2.8"
 description:  "BMP Post Policy Test"
-testbed:  TESTBED_DUT_ATE_2LINKS
+testbed:  TESTBED_DUT_ATE_4LINKS
+platform_exceptions:  {
+  platform:  {
+    vendor:  ARISTA
+  }
+  deviations:  {
+    interface_enabled:  true
+    default_network_instance:  "default"
+    bmp_oc_unsupported: true
+  }
+}
