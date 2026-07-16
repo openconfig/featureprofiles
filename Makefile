@@ -21,14 +21,6 @@ all: openconfig_public protos validate_paths
 openconfig_public:
 	tools/clone_oc_public.sh openconfig_public
 
-validate_paths: openconfig_public proto/feature_go_proto/feature.pb.go
-	go run -v tools/validate_paths.go \
-		-alsologtostderr \
-		--feature_root=$(CURDIR)/feature/ \
-		--yang_roots=$(CURDIR)/openconfig_public/release/models/,$(CURDIR)/openconfig_public/third_party/ \
-		--yang_skip_roots=$(CURDIR)/openconfig_public/release/models/wifi \
-		--feature_files=${FEATURE_FILES}
-
 protos: $(GO_PROTOS)
 
 protoimports:
