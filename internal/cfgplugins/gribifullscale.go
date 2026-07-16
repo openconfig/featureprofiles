@@ -259,6 +259,25 @@ type nhgLoadBalancingBucket struct {
 	numLoadBalancingNH int
 }
 
+// validateNHGLoadBalance verifies that the default next hop group load-balancing specifications are valid.
+// Specifically, it checks that percentages are non-negative, next-hop counts are positive, and the total percentage sum equals exactly 100.
+func validateNHGLoadBalance(t *testing.T, configs []NHGLoadBalancingParams) {
+	t.Helper()
+	sumPct := 0
+	for _, spec := range configs {
+		if spec.Pct < 0 {
+			t.Fatalf("validateNHGLoadBalance: invalid negative percentage (%d) in DefaultNHGLoadBalance", spec.Pct)
+		}
+		if spec.NumNextHops <= 0 {
+			t.Fatalf("validateNHGLoadBalance: invalid next-hops count (%d) in DefaultNHGLoadBalance", spec.NumNextHops)
+		}
+		sumPct += spec.Pct
+	}
+	if sumPct != 100 {
+		t.Fatalf("validateNHGLoadBalance: sum of percentages in DefaultNHGLoadBalance must be exactly 100, got %d", sumPct)
+	}
+}
+
 // computeNHGBuckets converts the NHG load balancing spec from percentage-based to
 // absolute values. Each bucket contains a set of NHGs and the number of load
 // balancing NHs that each NHG should use.
@@ -797,7 +816,7 @@ func BuildDefaultVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, 
 
 			// Advance to the next bucket once the number of groups created in the current bucket
 			// exceeds the bucket's configured size.
-			if nhgBucket < len(nhgLoadBalancingBuckets)-1 && nhgCreatedInBucket >= nhgLoadBalancingBuckets[nhgBucket].numNHG {
+			for nhgBucket < len(nhgLoadBalancingBuckets)-1 && nhgCreatedInBucket >= nhgLoadBalancingBuckets[nhgBucket].numNHG {
 				nhgBucket++
 				nhgCreatedInBucket = 0
 			}
@@ -815,8 +834,12 @@ func BuildDefaultVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, 
 			}
 			// Distribute the target weight sum evenly across the available NextHops.
 			baseWeight := targetWeightSum / uint64(actualNHCount)
+			remainder := targetWeightSum % uint64(actualNHCount)
 			for j := 0; j < actualNHCount; j++ {
 				weight := baseWeight
+				if j == actualNHCount-1 {
+					weight += remainder
+				}
 				if actualNHCount == targetNHCount && actualNHCount > 1 {
 					// Apply specific weight adjustments to force the router to program WCMP instead of standard ECMP,
 					// while perfectly preserving the targetWeightSum for hardware buckets.
@@ -825,10 +848,6 @@ func BuildDefaultVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, 
 					} else if j == actualNHCount-1 {
 						weight++
 					}
-				} else if j == actualNHCount-1 {
-					// For scaled-down scenarios, assign any remaining weight to the last NextHop
-					// to ensure the total sum exactly matches targetWeightSum.
-					weight = targetWeightSum - (uint64(actualNHCount-1) * baseWeight)
 				}
 				nhg.AddNextHop(baseNH+uint64((nhOffset+j)%numNHPart), weight)
 			}
@@ -1910,6 +1929,9 @@ func FetchUniqueItems(t *testing.T, s []string) []string {
 // for the given scale parameters.
 func RunFullScaleTest(t *testing.T, params ScaleParams, enablePacketCapture, compactOTGFlows bool) {
 	t.Helper()
+
+	validateNHGLoadBalance(t, params.DefaultNHGLoadBalance)
+
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	defaultVRF := deviations.DefaultNetworkInstance(dut)
