@@ -52,6 +52,8 @@ func SwitchoverReady(t *testing.T, dut *ondatra.DUTDevice, activeCard, standbyCa
 		fptest.LogQuery(t, "Standby card reported state", standbyCardPath, gnmi.Get(t, dut, standbyCardPath))
 		t.Fatal("Cards are not synchronized.")
 	}
+	// Brief sleep for synchronization status to propagate the system
+	time.Sleep(5 * time.Second)
 }
 
 func waitForBootup(t *testing.T, dut *ondatra.DUTDevice, maxBootTime uint64) {
