@@ -116,41 +116,58 @@ B --EBGP--> C[Port2:ATE];
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
-  ## Config paths
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/enabled:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/connection-mode:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/local-address:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/statistics-timeout:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/name:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/address:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/port:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/policy-type:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/exclude-non-eligible:
-  
-  ## state paths
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/enabled:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/connection-mode:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/local-address:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/statistics-timeout:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/idle-time:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/probe-count:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/probe-interval:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/address:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/port:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/connection-status:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/uptime:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/flap-count:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/policy-type:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/exclude-non-eligible:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/message-counters/total:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/message-counters/statistics:
-  
-  rpcs:
-   gnmi:
-     gNMI.Set:
-       union_replace: true
-       replace: true
-     gNMI.Subscribe:
+paths:
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length:
+  /network-instances/network-instance/protocols/protocol/bgp/global/config/as:
+  /network-instances/network-instance/protocols/protocol/bgp/global/config/router-id:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/apply-policy/config/import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/neighbor-address:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-as:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/config/mode:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set:
+
+  # TODO: The following states are pending completion of openconfig/public#1343
+  # /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/enabled:
+  # /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/connection-mode:
+  # /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/local-address:
+  # /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/statistics-timeout:
+  # /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/idle-time:
+  # /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/probe-count:
+  # /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/probe-interval:
+  # /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/address:
+  # /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/port:
+  # /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/connection-status:
+  # /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/uptime:
+  # /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/flap-count:
+  # /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/policy-type:
+  # /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/exclude-non-eligible:
+  # /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/message-counters/total:
+  # /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/message-counters/statistics:
+  # /network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/enabled:
+  # /network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/connection-mode:
+  # /network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/local-address:
+  # /network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/statistics-timeout:
+  # /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/name:
+  # /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/address:
+  # /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/port:
+  # /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/policy-type:
+  # /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/exclude-non-eligible:
+
+rpcs:
+  gnmi:
+    gNMI.Set:
+      replace: true
+      union_replace: true
+    gNMI.Subscribe:
 ```
 
 ## Required DUT platform

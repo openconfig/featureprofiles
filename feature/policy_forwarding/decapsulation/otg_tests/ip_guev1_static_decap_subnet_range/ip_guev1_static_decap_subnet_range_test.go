@@ -61,7 +61,7 @@ const (
 	v6NetName1      = "BGPv6RR1"
 	v4NetName2      = "BGPv4RR2"
 	v6NetName2      = "BGPv6RR2"
-	tunIp           = "4.4.4.4"
+	tunIp           = "2001:db8::3"
 	policyName      = "decap-policy-gue"
 	policyId        = 1
 	outerDscpValue  = uint32(35)
@@ -183,7 +183,7 @@ func TestIpGueStaticDecapsulation(t *testing.T) {
 			ipType:            "ipv4",
 			ateGuePort:        6081,
 			dutGuePort:        6081,
-			trafficDestIp:     atePort2.IPv4,
+			trafficDestIp:     atePort2.IPv6,
 			trafficShouldPass: true,
 			verifyCounters:    false,
 		},
@@ -192,7 +192,7 @@ func TestIpGueStaticDecapsulation(t *testing.T) {
 			ipType:            "ipv6",
 			ateGuePort:        6081,
 			dutGuePort:        6081,
-			trafficDestIp:     atePort2.IPv4,
+			trafficDestIp:     atePort2.IPv6,
 			trafficShouldPass: true,
 			verifyCounters:    false,
 		},
@@ -482,7 +482,13 @@ func gueDecapInnerIpv4Traffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 	stopCapture(t, ate)
 	if trafficValidation {
 		verifyTrafficFlow(t, ate, trafficID, true)
-		verifyCaptureDscpTtlValue(t, ate, "port2", int(innerDscpValue), int(innerTTL-1))
+		if verifyCounters {
+			// PF-1.4.1 / PF-1.4.2: decapsulate — verify inner DSCP and TTL
+			verifyCaptureDscpTtlValue(t, ate, "port2", int(innerDscpValue), int(innerTTL-1))
+		} else {
+			// PF-1.4.5 / PF-1.4.6: pass-through — verify outer packet unmodified (no decap)
+			verifyPassThroughGuePacket(t, ate, "port2")
+		}
 	} else {
 		verifyTrafficFlow(t, ate, trafficID, false)
 	}
@@ -501,7 +507,13 @@ func gueDecapInnerIpv6Traffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 	stopCapture(t, ate)
 	if trafficValidation {
 		verifyTrafficFlow(t, ate, trafficID, true)
-		verifyCaptureDscpTtlValue(t, ate, "port2", int(innerDscpValue), int(innerTTL-1))
+		if verifyCounters {
+			// PF-1.4.1 / PF-1.4.2: decapsulate — verify inner DSCP and TTL
+			verifyCaptureDscpTtlValue(t, ate, "port2", int(innerDscpValue), int(innerTTL-1))
+		} else {
+			// PF-1.4.5 / PF-1.4.6: pass-through — verify outer packet unmodified (no decap)
+			verifyPassThroughGuePacket(t, ate, "port2")
+		}
 	} else {
 		verifyTrafficFlow(t, ate, trafficID, false)
 	}
@@ -538,11 +550,11 @@ func configureIPv4Traffic(t *testing.T, ate *ondatra.ATEDevice, topo gosnappi.Co
 	ethHeader := flow.Packet().Add().Ethernet()
 	ethHeader.Src().SetValue(atePort1.MAC)
 	ethHeader.Dst().Auto()
-	outerIpHeader := flow.Packet().Add().Ipv4()
-	outerIpHeader.Src().SetValue(atePort1.IPv4)
+	outerIpHeader := flow.Packet().Add().Ipv6()
+	outerIpHeader.Src().SetValue(atePort1.IPv6)
 	outerIpHeader.Dst().SetValue(destIp)
-	outerIpHeader.Priority().Dscp().Phb().SetValue(outerDscpValue)
-	outerIpHeader.TimeToLive().SetValue(outerTTL)
+	outerIpHeader.TrafficClass().SetValue(outerDscpValue)
+	outerIpHeader.HopLimit().SetValue(outerTTL)
 	udpHeader := flow.Packet().Add().Udp()
 	udpHeader.SrcPort().SetValue(srcPortValue)
 	udpHeader.DstPort().SetValue(uint32(guePort))
@@ -567,11 +579,11 @@ func configureIPv6Traffic(t *testing.T, ate *ondatra.ATEDevice, topo gosnappi.Co
 	ethHeader := flow.Packet().Add().Ethernet()
 	ethHeader.Src().SetValue(atePort1.MAC)
 	ethHeader.Dst().Auto()
-	outerIpHeader := flow.Packet().Add().Ipv4()
-	outerIpHeader.Src().SetValue(atePort1.IPv4)
+	outerIpHeader := flow.Packet().Add().Ipv6()
+	outerIpHeader.Src().SetValue(atePort1.IPv6)
 	outerIpHeader.Dst().SetValue(destIp)
-	outerIpHeader.Priority().Dscp().Phb().SetValue(outerDscpValue)
-	outerIpHeader.TimeToLive().SetValue(outerTTL)
+	outerIpHeader.TrafficClass().SetValue(outerDscpValue)
+	outerIpHeader.HopLimit().SetValue(outerTTL)
 	udpHeader := flow.Packet().Add().Udp()
 	udpHeader.SrcPort().SetValue(srcPortValue)
 	udpHeader.DstPort().SetValue(uint32(guePort))
@@ -596,22 +608,34 @@ func verifyCaptureDscpTtlValue(t *testing.T, ate *ondatra.ATEDevice, port string
 	defer handle.Close()
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 	for packet := range packetSource.Packets() {
+		// Handle IPv4 payload
 		if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
 			ip, _ := ipLayer.(*layers.IPv4)
 			if ip.SrcIP.Equal(net.ParseIP(ipv4Src)) {
 				dscpValue := ip.TOS >> 2
 				ttlVal := ip.TTL
 				if dscpValue == uint8(dscp) && ttlVal == uint8(ttl) {
-					t.Logf("PASS: DSCP value %v and TTL value %v are Preserved", dscp, ttl)
-					break
-				} else {
-					t.Fatalf("ERROR: DSCP and TTL value not preserved after Decap. Expected : DSCP - %v , TTL -%v Got : DSCP - %v , TTL -%v", dscp, ttl, dscpValue, ttlVal)
+					t.Logf("PASS: IPv4 DSCP value %v and TTL value %v are Preserved", dscp, ttl)
+					return
 				}
-
+				t.Fatalf("ERROR: IPv4 DSCP and TTL value not preserved after Decap. Expected : DSCP - %v , TTL - %v Got : DSCP - %v , TTL - %v", dscp, ttl, dscpValue, ttlVal)
 			}
-
+		}
+		// Handle IPv6 payload
+		if ip6Layer := packet.Layer(layers.LayerTypeIPv6); ip6Layer != nil {
+			ip6, _ := ip6Layer.(*layers.IPv6)
+			if ip6.SrcIP.Equal(net.ParseIP(ipv6Src)) {
+				dscpValue := ip6.TrafficClass
+				ttlVal := ip6.HopLimit
+				if int(dscpValue) == dscp && int(ttlVal) == ttl {
+					t.Logf("PASS: IPv6 DSCP value %v and TTL value %v are Preserved", dscp, ttl)
+					return
+				}
+				t.Fatalf("ERROR: IPv6 DSCP and TTL value not preserved after Decap. Expected : DSCP - %v , TTL - %v Got : DSCP - %v , TTL - %v", dscp, ttl, dscpValue, ttlVal)
+			}
 		}
 	}
+	t.Fatalf("ERROR: Could not find packet with matching inner source IP (%s or %s) in capture", ipv4Src, ipv6Src)
 }
 
 // waitForBGPSession waits for BGP neighbors to reach the expected session state within a fixed timeout. It validates BGPv4 neighbor session state under the default network instance.
@@ -644,4 +668,27 @@ func waitForBGPSession(t *testing.T, dut *ondatra.DUTDevice, wantEstablished boo
 			}
 		}
 	}
+}
+func verifyPassThroughGuePacket(t *testing.T, ate *ondatra.ATEDevice, port string) {
+	pcapfilename := processCapture(t, ate, port)
+	handle, err := pcap.OpenOffline(pcapfilename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer handle.Close()
+	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
+	for packet := range packetSource.Packets() {
+		if ip6Layer := packet.Layer(layers.LayerTypeIPv6); ip6Layer != nil {
+			ip6, _ := ip6Layer.(*layers.IPv6)
+			if ip6.SrcIP.Equal(net.ParseIP(atePort1.IPv6)) {
+				expectedTTL := uint8(outerTTL - 1)
+				if ip6.HopLimit == expectedTTL {
+					t.Logf("PASS: GUE pass-through packet verified: outer src=%s, TTL=%d (decremented by 1)", atePort1.IPv6, ip6.HopLimit)
+					return
+				}
+				t.Fatalf("ERROR: Outer TTL mismatch in pass-through. Expected: %d, Got: %d", expectedTTL, ip6.HopLimit)
+			}
+		}
+	}
+	t.Fatalf("ERROR: Could not find GUE pass-through packet with outer src IP (%s) in capture", atePort1.IPv6)
 }
