@@ -15,8 +15,8 @@
 ROOT_DIR:=$(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 GO_PROTOS:=proto/feature_go_proto/feature.pb.go proto/metadata_go_proto/metadata.pb.go proto/ocpaths_go_proto/ocpaths.pb.go proto/ocrpcs_go_proto/ocrpcs.pb.go proto/nosimage_go_proto/nosimage.pb.go topologies/proto/binding/binding.pb.go
 
-.PHONY: all clean protos validate_paths protoimports
-all: openconfig_public protos validate_paths
+.PHONY: all clean protos protoimports
+all: openconfig_public protos
 
 openconfig_public:
 	tools/clone_oc_public.sh openconfig_public
