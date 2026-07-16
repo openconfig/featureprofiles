@@ -41,6 +41,10 @@ The below yaml defines the OC paths intended to be covered by this test. OC path
 
 ```yaml
 rpcs:
+   attestz:
+      TpmEnrollzService.GetIakCert:
+      TpmEnrollzService.RotateOIakCert:
+      TpmAttestzService.Attest:
    gnsi:
       certz.v1.Certz.Rotate:
 ```
