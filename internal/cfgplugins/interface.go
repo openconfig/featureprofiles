@@ -1356,7 +1356,7 @@ func ConfigureURPFNonDefaultNI(t *testing.T, dut *ondatra.DUTDevice, cfg URPFNon
 	cfg.IPv6Obj.GetOrCreateUrpf()
 	cfg.IPv6Obj.Urpf.Enabled = ygot.Bool(true)
 	cfg.IPv6Obj.Urpf.Mode = oc.IfIp_UrpfMode_LOOSE
-	cfg.IPv4Obj.Urpf.LookupNetworkInstance = ygot.String(cfg.VrfName)
+	cfg.IPv6Obj.Urpf.LookupNetworkInstance = ygot.String(cfg.VrfName)
 }
 
 
