@@ -36,6 +36,7 @@ import (
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding"
+	"github.com/openconfig/ondatra/binding/introspect"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
@@ -209,6 +210,10 @@ func TestDialLocal(t *testing.T) {
 	gribiClient.AddNH(t, 2001, "Decap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 	gribiClient.AddNHG(t, 201, map[uint64]uint64{2001: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 
+	// Dynamically fetch the actual gNMI and gRIBI ports the DUT is configured with.
+	gnmiPort := introspect.DUTDialer(t, dut, introspect.GNMI).DevicePort
+	gribiPort := introspect.DUTDialer(t, dut, introspect.GRIBI).DevicePort
+
 	tests := []struct {
 		desc     string
 		inMsg    *cpb.DialRequest
@@ -218,7 +223,7 @@ func TestDialLocal(t *testing.T) {
 	}{{
 		desc: "dial gNMI",
 		inMsg: &cpb.DialRequest{
-			Addr:     dialAddr + ":9339",
+			Addr:     fmt.Sprintf("%s:%d", dialAddr, gnmiPort),
 			Username: username,
 			Password: password,
 			Request: &cpb.DialRequest_Srv{
@@ -229,7 +234,7 @@ func TestDialLocal(t *testing.T) {
 	}, {
 		desc: "dial gRIBI",
 		inMsg: &cpb.DialRequest{
-			Addr:     dialAddr + ":9340",
+			Addr:     fmt.Sprintf("%s:%d", dialAddr, gribiPort),
 			Username: username,
 			Password: password,
 			Request: &cpb.DialRequest_Srv{
