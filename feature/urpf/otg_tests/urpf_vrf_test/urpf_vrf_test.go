@@ -403,7 +403,7 @@ func TestURPFNonDefaultNI(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 
 	t.Log("Configure DUT with baseline BGP, VRF, and uRPF settings")
-	batch := configureDUT(t, dut)
+	configureDUT(t, dut)
 
 	t.Log("Configure ATE with eBGP and iBGP peers")
 	otgConfig := configureATE(t, ate)
