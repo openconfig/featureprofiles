@@ -77,6 +77,7 @@ func testbedPathFromMetadata() (string, error) {
 		mpb.Metadata_TESTBED_DUT_DUT_4LINKS:        "dutdut.testbed",
 		mpb.Metadata_TESTBED_DUT_ATE_2LINKS:        "atedut_2.testbed",
 		mpb.Metadata_TESTBED_DUT_ATE_4LINKS:        "atedut_4.testbed",
+		mpb.Metadata_TESTBED_DUT_ATE_8LINKS_LAG:    "atedut_8_lag.testbed",
 		mpb.Metadata_TESTBED_DUT_ATE_9LINKS_LAG:    "atedut_9_lag.testbed",
 		mpb.Metadata_TESTBED_DUT_DUT_ATE_2LINKS:    "dutdutate.testbed",
 		mpb.Metadata_TESTBED_DUT_ATE_8LINKS:        "atedut_8.testbed",
@@ -85,6 +86,7 @@ func testbedPathFromMetadata() (string, error) {
 		mpb.Metadata_TESTBED_DUT_400ZR_100G_4LINKS: "dut_400zr_100g_4links.testbed",
 		mpb.Metadata_TESTBED_DUT_400FR_100G_4LINKS: "dut_400fr_100g_4links.testbed",
 		mpb.Metadata_TESTBED_DUT_2LINKS:            "dut_2links.testbed",
+		mpb.Metadata_TESTBED_DUT_8_LOOP_2_ATE:      "dut_8_loop_2_ate.testbed",
 	}
 	testbedFile, ok := testbedToFile[testbed]
 	if !ok {
