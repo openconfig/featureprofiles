@@ -87,6 +87,13 @@ func TestGRIBIFullScaleT2(t *testing.T) {
 		PctEncap32NH:        20,
 		DecapDestsSubsetPct: 100,
 		GRIBIBatchSize:      2_000,
+
+		DefaultNHGLoadBalance: []cfgplugins.NHGLoadBalancingParams{
+			{Pct: 40, NumNextHops: 8},
+			{Pct: 40, NumNextHops: 16},
+			{Pct: 15, NumNextHops: 32},
+			{Pct: 5, NumNextHops: 64},
+		},
 	}
 	cfgplugins.RunFullScaleTest(t, params, *enablePacketCapture, *compactOTGFlows)
 }
