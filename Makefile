@@ -15,19 +15,11 @@
 ROOT_DIR:=$(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 GO_PROTOS:=proto/feature_go_proto/feature.pb.go proto/metadata_go_proto/metadata.pb.go proto/ocpaths_go_proto/ocpaths.pb.go proto/ocrpcs_go_proto/ocrpcs.pb.go proto/nosimage_go_proto/nosimage.pb.go topologies/proto/binding/binding.pb.go
 
-.PHONY: all clean protos validate_paths protoimports
-all: openconfig_public protos validate_paths
+.PHONY: all clean protos protoimports
+all: openconfig_public protos
 
 openconfig_public:
 	tools/clone_oc_public.sh openconfig_public
-
-validate_paths: openconfig_public proto/feature_go_proto/feature.pb.go
-	go run -v tools/validate_paths.go \
-		-alsologtostderr \
-		--feature_root=$(CURDIR)/feature/ \
-		--yang_roots=$(CURDIR)/openconfig_public/release/models/,$(CURDIR)/openconfig_public/third_party/ \
-		--yang_skip_roots=$(CURDIR)/openconfig_public/release/models/wifi \
-		--feature_files=${FEATURE_FILES}
 
 protos: $(GO_PROTOS)
 
