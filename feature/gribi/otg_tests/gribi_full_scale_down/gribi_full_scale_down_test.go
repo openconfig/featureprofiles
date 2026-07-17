@@ -60,35 +60,47 @@ func TestMain(m *testing.M) {
 // traffic pass per sub-test.
 func TestGRIBIFullScaleDown(t *testing.T) {
 	params := cfgplugins.ScaleParams{
-		PctNHG512:          80,
-		NumRepairNHG:       1,
-		NumEncapDefaultNHG: 1,
-		NumUniqueEncapNH:   1,
+		// gRIBI & System parameters
+		GRIBIBatchSize: 256,
 
-		NumDefaultNH:       2,
-		NumDefaultNHG:      2,
-		NumDefaultIPv4:     2,
-		NumTransitNH:       2,
-		NumTransitNHG:      2,
-		NumTransitIPv4:     1,
-		NumRepairIPv4:      1,
+		// Default VRF parameters
+		NumDefaultNH:  2,
+		NumDefaultNHG: 2,
+    		DefaultNHGLoadBalance: []cfgplugins.NHGLoadBalancingParams{
+			{Pct: 100, NumNextHops: 2},
+		},
+		NumDefaultIPv4: 2,
+
+		// Transit VRF parameters
+		NumTransitNH:   2,
+		NumTransitNHG:  2,
+		NumTransitIPv4: 1,
+
+		// Repair VRF parameters
+		NumRepairIPv4: 1,
+		NumRepairNHG:  1,
+		PctNHG512:     80,
+
+		// Encap / Decap VRF parameters
 		NumEncapVRFs:       1,
 		NumEncapIPv4PerVRF: 1,
 		NumEncapIPv6PerVRF: 1,
-		NumDecapEntries:    1,
-		TrafficDuration:    1 * time.Minute,
-		TrafficLossTol:     5,
-		TrafficRateMpps:    1_000,
+		NumUniqueEncapNH:   1,
+		NumEncapDefaultNHG: 1,
+		PctEncap8NH:        75,
+		PctEncap32NH:       20,
 
-		NumPort2VLANs:       2,
-		PctEncap8NH:         75,
-		PctEncap32NH:        20,
+		// Decap VRF parameters
+		NumDecapEntries:     1,
 		DecapDestsSubsetPct: 100,
-		GRIBIBatchSize:      256,
-	
-		DefaultNHGLoadBalance: []cfgplugins.NHGLoadBalancingParams{
-			{Pct: 100, NumNextHops: 2},
-		},
+
+		// OTG / Port parameters
+		NumPort2VLANs: 2,
+
+		// Traffic parameters
+		TrafficRateMpps: 1_000,
+		TrafficDuration: 1 * time.Minute,
+		TrafficLossTol:  5,
 	}
 	cfgplugins.RunFullScaleTest(t, params, *enablePacketCapture, *compactOTGFlows)
 }

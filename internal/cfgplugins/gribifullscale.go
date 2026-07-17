@@ -133,7 +133,7 @@ const (
 	NHBaseRepair   = uint64(30_000)
 	NHGBaseRepair  = uint64(32_000)
 	NHBaseEncap    = uint64(50_000)
-	NHGBaseEncap   = uint64(82_001)
+	NHGBaseEncap   = uint64(82_000)
 	NHBaseDecap    = uint64(120_000)
 	NHGBaseDecap   = uint64(120_100)
 
@@ -1052,13 +1052,27 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 	if err != nil {
 		t.Fatalf("BuildEncapDecapVRFs: generate encap NH tunnel dsts: %v", err)
 	}
+
+	// Fallback NH points to the default VRF.
+	fallbackNHID := uint64(NHBaseEncap)
+	fallbackNH, _ := gribi.NHEntry(fallbackNHID, "VRFOnly", defaultVRF, fluent.InstalledInFIB, &gribi.NHOptions{VrfName: defaultVRF})
+	allEntries = append(allEntries, fallbackNH)
+
+	// Encap NHs point to the transit VRF.
+	nhIdx := fallbackNHID + 1
 	for i := 0; i < params.NumUniqueEncapNH; i++ {
-		nhEntry, _ := gribi.NHEntry(NHBaseEncap+uint64(i), "Encap", defaultVRF, fluent.InstalledInFIB, &gribi.NHOptions{Src: IPv4OuterSrc111, Dest: tunnelDsts[i%numOfTunnelsToUse], VrfName: TransitVRF111Str})
+		nhEntry, _ := gribi.NHEntry(nhIdx+uint64(i), "Encap", defaultVRF, fluent.InstalledInFIB, &gribi.NHOptions{Src: IPv4OuterSrc111, Dest: tunnelDsts[i%numOfTunnelsToUse], VrfName: TransitVRF111Str})
 		allEntries = append(allEntries, nhEntry)
 	}
 
+	// Fallback NHG points to the fallback NH.
+	fallbackNHGID := uint64(NHGBaseEncap)
+	fallbackNHG, _ := gribi.NHGEntry(fallbackNHGID, map[uint64]uint64{fallbackNHID: 1}, defaultVRF, fluent.InstalledInFIB)
+	allEntries = append(allEntries, fallbackNHG)
+	nhgIdx := fallbackNHGID + 1
+
 	for i := 0; i < params.NumEncapDefaultNHG; i++ {
-		nhg := fluent.NextHopGroupEntry().WithNetworkInstance(defaultVRF).WithID(NHGBaseEncap + uint64(i))
+		nhg := fluent.NextHopGroupEntry().WithNetworkInstance(defaultVRF).WithID(nhgIdx + uint64(i))
 		pct := i * 100 / params.NumEncapDefaultNHG
 
 		var targetNHCount int
@@ -1090,7 +1104,7 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 
 		// Distribute weights among the unique NHs
 		for j := 0; j < actualNHCount; j++ {
-			nhID := NHBaseEncap + uint64((i*targetNHCount+j)%params.NumUniqueEncapNH)
+			nhID := nhIdx + uint64((i*targetNHCount+j)%params.NumUniqueEncapNH)
 			weight := baseWeight
 			if j == actualNHCount-1 {
 				// The last unique NH gets all the remaining weight
@@ -1102,13 +1116,14 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 	}
 
 	encapVRFs := BuildEncapVRFs(params.NumEncapVRFs)
+
 	for vi, vrf := range encapVRFs {
 		v4Prefixes, v4Err := iputil.GenerateIPsWithStep(fmt.Sprintf("200.%d.0.1", vi), params.NumEncapIPv4PerVRF, CommonPrefixStep)
 		if v4Err != nil {
 			t.Fatalf("Failed to generate IPv4 prefixes for VRF %s (vi=%d): %v", vrf, vi, v4Err)
 		}
 		for i, host := range v4Prefixes {
-			allEntries = append(allEntries, fluent.IPv4Entry().WithNetworkInstance(vrf).WithPrefix(fmt.Sprintf("%s/%d", host, IPv4HostMask)).WithNextHopGroup(NHGBaseEncap+uint64((vi*params.NumEncapIPv4PerVRF+i)%params.NumEncapDefaultNHG)).WithNextHopGroupNetworkInstance(defaultVRF))
+			allEntries = append(allEntries, fluent.IPv4Entry().WithNetworkInstance(vrf).WithPrefix(fmt.Sprintf("%s/%d", host, IPv4HostMask)).WithNextHopGroup(nhgIdx+uint64((vi*params.NumEncapIPv4PerVRF+i)%params.NumEncapDefaultNHG)).WithNextHopGroupNetworkInstance(defaultVRF))
 		}
 		// Add first and last prefixes to wantPrefixesV4 for later verification.
 		wantPrefixesV4[vrf] = append(wantPrefixesV4[vrf], fmt.Sprintf("%s/%d", v4Prefixes[0], IPv4HostMask))
@@ -1119,11 +1134,21 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 			t.Fatalf("Failed to generate IPv6 prefixes for VRF %s (vi=%d): %v", vrf, vi, v6Err)
 		}
 		for i, pfx := range v6Prefixes {
-			allEntries = append(allEntries, fluent.IPv6Entry().WithNetworkInstance(vrf).WithPrefix(fmt.Sprintf("%s/%d", pfx, IPv6HostMask)).WithNextHopGroup(NHGBaseEncap+uint64((vi*params.NumEncapIPv6PerVRF+i)%params.NumEncapDefaultNHG)).WithNextHopGroupNetworkInstance(defaultVRF))
+			allEntries = append(allEntries, fluent.IPv6Entry().WithNetworkInstance(vrf).WithPrefix(fmt.Sprintf("%s/%d", pfx, IPv6HostMask)).WithNextHopGroup(nhgIdx+uint64((vi*params.NumEncapIPv6PerVRF+i)%params.NumEncapDefaultNHG)).WithNextHopGroupNetworkInstance(defaultVRF))
 		}
 		// Add first and last prefixes to wantPrefixesV6 for later verification.
 		wantPrefixesV6[vrf] = append(wantPrefixesV6[vrf], fmt.Sprintf("%s/%d", v6Prefixes[0], IPv6HostMask))
 		wantPrefixesV6[vrf] = append(wantPrefixesV6[vrf], fmt.Sprintf("%s/%d", v6Prefixes[len(v6Prefixes)-1], IPv6HostMask))
+
+		// Add Fallback route in Encap VRF
+		allEntries = append(allEntries,
+			fluent.IPv4Entry().WithNetworkInstance(vrf).
+				WithPrefix("0.0.0.0/0").WithNextHopGroup(fallbackNHGID).WithNextHopGroupNetworkInstance(defaultVRF),
+			fluent.IPv6Entry().WithNetworkInstance(vrf).
+				WithPrefix("::/0").WithNextHopGroup(fallbackNHGID).WithNextHopGroupNetworkInstance(defaultVRF),
+		)
+		wantPrefixesV4[vrf] = append(wantPrefixesV4[vrf], "0.0.0.0/0")
+		wantPrefixesV6[vrf] = append(wantPrefixesV6[vrf], "::/0")
 	}
 
 	// DECAP_TE_VRF entries use variable prefix lengths — not host routes.
