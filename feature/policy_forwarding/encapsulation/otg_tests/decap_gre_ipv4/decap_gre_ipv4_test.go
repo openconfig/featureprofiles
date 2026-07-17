@@ -137,6 +137,7 @@ func TestDecapGre(t *testing.T) {
 
 	// Configure Static Route: MPLS label binding
 	cfgplugins.MPLSStaticLSP(t, sfBatch, dut, "lsp1", LBL1, otgPort2.IPv4, dut.Port(t, "port2").Name(), "ipv4")
+	sfBatch.Set(t, dut)
 
 	// Configure Static Route: IPV4-DST2 --> ATE Port 2
 	configStaticRoute(t, dut, IPv4Dst2, otgPort2.IPv4)
@@ -355,7 +356,6 @@ func testGreDecapIPv6(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.OTG, 
 	config.Flows().Append(flow)
 	otgConfig.PushConfig(t, config)
 
-	// enableCapture(t, config, "port2")
 	otgConfig.StartProtocols(t)
 
 	otgutils.WaitForARP(t, otgConfig, config, "IPv4")
@@ -393,8 +393,6 @@ func testGreDecapIPv4MPLS(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.O
 
 	config.Flows().Append(flow)
 	otgConfig.PushConfig(t, config)
-
-	// enableCapture(t, config, "port2")
 
 	otgConfig.StartProtocols(t)
 	otgutils.WaitForARP(t, otgConfig, config, "IPv4")
@@ -669,7 +667,7 @@ func validateTrafficLoss(t *testing.T, otgConfig *otg.OTG, config gosnappi.Confi
 		t.Fatalf("OutPkts for flow %s is 0, want > 0", flowName)
 	}
 	if got := ((outPkts - inPkts) * 100) / outPkts; got > 1 {
-		t.Fatalf("LossPct for flow %s: got %v, want 0", flowName, got)
+		t.Fatalf("LossPct for flow %s: got %v, want < 1", flowName, got)
 	}
 }
 
