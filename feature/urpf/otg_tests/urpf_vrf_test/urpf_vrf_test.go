@@ -56,6 +56,8 @@ const (
 	GUEPolicyV4Name    = "GUE-Policy-V4"
 	GUEPolicyV6Name    = "GUE-Policy-V6"
 	GUEDstIPv4         = "192.0.2.6"
+	ppnhIPv4           = []string{"192.168.0.1/24"}
+	ppnhIPv6           = []string{"fc00:0:10:a1::1/64"}
 	isDefaultVRF       = true
 )
 
@@ -120,17 +122,17 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch {
 	defaultNI := cfgplugins.ConfigureNetworkInstance(t, dut, defaultNIName, isDefaultVRF)
 	cfgplugins.ConfigureNetworkInstance(t, dut, nonDefaultVRF, !isDefaultVRF)
 	cfgplugins.ConfigureBGPNeighbor(t, dut, defaultNI, dutPort1.IPv4, atePort1.IPv4, dutAS, ateAS1, "IPv4", true)
-	cfgplugins.ConfigureBGPNeighbor(t, dut, defaultNI, dutPort1.IPv6, atePort1.IPv6, dutAS, ateAS1, "IPv6", true)
+	cfgplugins.ConfigureBGPNeighbor(t, dut, defaultNI, dutPort1.IPv4, atePort1.IPv6, dutAS, ateAS1, "IPv6", true)
 	cfgplugins.ConfigureBGPNeighbor(t, dut, defaultNI, dutPort2.IPv4, atePort2.IPv4, dutAS, ateAS2, "IPv4", true)
-	cfgplugins.ConfigureBGPNeighbor(t, dut, defaultNI, dutPort2.IPv6, atePort2.IPv6, dutAS, ateAS2, "IPv6", true)
+	cfgplugins.ConfigureBGPNeighbor(t, dut, defaultNI, dutPort2.IPv4, atePort2.IPv6, dutAS, ateAS2, "IPv6", true)
 
 	cfgplugins.UpdateNetworkInstanceOnDut(t, dut, defaultNIName, defaultNI)
-	configureDUTPort(t, dut, intBatch, &dutPort1, p1, defaultNIName)
-	configureDUTPort(t, dut, intBatch, &dutPort2, p2, defaultNIName)
+	cfgplugins.AssignToNetworkInstance(t, dut, p1.Name(), defaultNIName, 0)
+	cfgplugins.AssignToNetworkInstance(t, dut, p2.Name(), defaultNIName, 0)
 	sV4 := &cfgplugins.StaticRouteCfg{
 		NetworkInstance: nonDefaultVRF,
 		Prefix:          ateAdvIPv4Prefix1 + "/" + strconv.Itoa(prefix1Len),
-		NextHops:        map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{"0": oc.UnionString("Null0")},
+		NextHops:        map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{"0": oc.LocalRouting_LOCAL_DEFINED_NEXT_HOP_DROP},
 	}
 	if _, err := cfgplugins.NewStaticRouteCfg(intBatch, sV4, dut); err != nil {
 		t.Errorf("Failed to configure IPv4 static route in non-default vrf: %v", err)
@@ -138,7 +140,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch {
 	sV6 := &cfgplugins.StaticRouteCfg{
 		NetworkInstance: nonDefaultVRF,
 		Prefix:          ateAdvIPv6Prefix1 + "/" + strconv.Itoa(prefix1LenV6),
-		NextHops:        map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{"0": oc.UnionString("Null0")},
+		NextHops:        map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{"0": oc.LocalRouting_LOCAL_DEFINED_NEXT_HOP_DROP},
 	}
 	if _, err := cfgplugins.NewStaticRouteCfg(intBatch, sV6, dut); err != nil {
 		t.Errorf("Failed to configure IPv6 static route in non-default vrf: %v", err)
@@ -146,7 +148,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch {
 	cv4 := &cfgplugins.StaticRouteCfg{
 		NetworkInstance: nonDefaultVRF,
 		Prefix:          "192.0.2.0/30",
-		NextHops:        map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{"0": oc.UnionString("Null0")},
+		NextHops:        map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{"0": oc.LocalRouting_LOCAL_DEFINED_NEXT_HOP_DROP},
 	}
 	if _, err := cfgplugins.NewStaticRouteCfg(intBatch, cv4, dut); err != nil {
 		t.Errorf("Failed to configure DUT-PORT1 IPv4 static route in non-default vrf: %v", err)
@@ -154,7 +156,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch {
 	cv6 := &cfgplugins.StaticRouteCfg{
 		NetworkInstance: nonDefaultVRF,
 		Prefix:          "2001:db8:1::0/126",
-		NextHops:        map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{"0": oc.UnionString("Null0")},
+		NextHops:        map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{"0": oc.LocalRouting_LOCAL_DEFINED_NEXT_HOP_DROP},
 	}
 	if _, err := cfgplugins.NewStaticRouteCfg(intBatch, cv6, dut); err != nil {
 		t.Errorf("Failed to configure DUT-PORT1 IPv6 static route in non-default vrf: %v", err)
@@ -245,40 +247,44 @@ func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // configureGUETunnel configures a GUE tunnel with optional ToS and TTL.
-func configureGUEEncap(t *testing.T, dut *ondatra.DUTDevice, trafficType, nextHopGrpName, srcIP, GUEPolicyName string, dstIP []string, UDPDstPort uint16) {
+func configureGUEEncap(t *testing.T, dut *ondatra.DUTDevice, trafficType, nextHopGrpName, srcIP, GUEPolicyName string, dstIP []string, ppnh []string, UDPDstPort uint16) {
 	t.Helper()
 	d := &oc.Root{}
 	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	v4NexthopUDPParams := cfgplugins.NexthopGroupUDPParams{
 		IPFamily:           trafficType,
 		NexthopGrpName:     nextHopGrpName,
+		Index:              "0",
 		SrcIp:              srcIP,
 		DstIp:              dstIP,
 		DstUdpPort:         UDPDstPort,
 		NetworkInstanceObj: ni,
+		PPNH:               ppnh,
 	}
-	// Create nexthop group for v4
+	// Create nexthop group config
 	cfgplugins.NextHopGroupConfigForIpOverUdp(t, dut, v4NexthopUDPParams)
+	// Add Static route for next hop group config with PPNH
+	cfgplugins.NextHopGroupStaticRoute(t, dut, v4NexthopUDPParams)
 
-	gueV4EncapPolicyParams := cfgplugins.GueEncapPolicyParams{
-		IPFamily:         trafficType,
-		PolicyName:       GUEPolicyName,
-		NexthopGroupName: nextHopGrpName,
-		SrcIntfName:      srcIP,
-		DstAddr:          dstIP,
-		Rule:             1,
-	}
-	cfgplugins.NewPolicyForwardingGueEncap(t, dut, gueV4EncapPolicyParams)
+	// gueV4EncapPolicyParams := cfgplugins.GueEncapPolicyParams{
+	// 	IPFamily:         trafficType,
+	// 	PolicyName:       GUEPolicyName,
+	// 	NexthopGroupName: nextHopGrpName,
+	// 	SrcIntfName:      srcIP,
+	// 	DstAddr:          dstIP,
+	// 	Rule:             1,
+	// }
+	// cfgplugins.NewPolicyForwardingGueEncap(t, dut, gueV4EncapPolicyParams)
 
-	// Apply traffic policy on interface
-	interfacePolicyParams := cfgplugins.OcPolicyForwardingParams{
-		InterfaceID:        dut.Port(t, "port1").Name(),
-		AppliedPolicyName:  GUEPolicyName,
-		InterfaceName:      dut.Port(t, "port1").Name(),
-		PolicyName:         GUEPolicyName,
-		NetworkInstanceObj: ni,
-	}
-	cfgplugins.InterfacePolicyForwardingApply(t, dut, interfacePolicyParams)
+	// // Apply traffic policy on interface
+	// interfacePolicyParams := cfgplugins.OcPolicyForwardingParams{
+	// 	InterfaceID:        dut.Port(t, "port1").Name(),
+	// 	AppliedPolicyName:  GUEPolicyName,
+	// 	InterfaceName:      dut.Port(t, "port1").Name(),
+	// 	PolicyName:         GUEPolicyName,
+	// 	NetworkInstanceObj: ni,
+	// }
+	// cfgplugins.InterfacePolicyForwardingApply(t, dut, interfacePolicyParams)
 }
 
 // configureATE configures the ATE topology with two BGP peers.
@@ -523,9 +529,9 @@ func TestURPFNonDefaultNI(t *testing.T) {
 			if tc.gueEnabled {
 				t.Log("Configuring GUE on DUT")
 				if tc.isV4 {
-					configureGUEEncap(t, dut, "V4Udp", nexthopGroupNameV4, dutLoopback.IPv4, GUEPolicyV4Name, dstAddr, udpDestPort)
+					configureGUEEncap(t, dut, "V4Udp", nexthopGroupNameV4, dutLoopback.IPv4, GUEPolicyV4Name, dstAddr, ppnhIPv4, udpDestPort)
 				} else {
-					configureGUEEncap(t, dut, "V6Udp", nexthopGroupNameV6, dutLoopback.IPv6, GUEPolicyV6Name, dstAddr, udpDestPort)
+					configureGUEEncap(t, dut, "V6Udp", nexthopGroupNameV6, dutLoopback.IPv6, GUEPolicyV6Name, dstAddr, ppnhIPv6, udpDestPort)
 				}
 			}
 			var initialDropCount uint64

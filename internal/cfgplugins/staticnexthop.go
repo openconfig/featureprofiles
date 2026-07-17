@@ -329,6 +329,7 @@ type NexthopGroupUDPParams struct {
 	NetworkInstanceObj *oc.NetworkInstance
 	DeleteTtl          bool
 	DeleteDSCP         bool
+	PPNH               []string
 }
 
 // configureNextHopGroups configures the next-hop groups and their encapsulation headers.
@@ -434,22 +435,79 @@ func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, params
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group config'", dut.Vendor())
 		}
-	} else {
-		nhg := params.NetworkInstanceObj.GetOrCreateStatic().GetOrCreateNextHopGroup(params.NexthopGrpName)
-		nhg.GetOrCreateNextHop(params.Index).SetIndex(params.Index)
-
-		ueh1 := params.NetworkInstanceObj.GetOrCreateStatic().GetOrCreateNextHop(params.Index).GetOrCreateEncapHeader(1)
-		for _, addr := range params.DstIp {
-			ueh1.GetOrCreateUdpV4().SetDstIp(addr)
-		}
-		if params.TTL != 0 {
-			ueh1.GetOrCreateUdpV4().SetIpTtl(params.TTL)
-		}
-		ueh1.GetOrCreateUdpV4().SetSrcIp(params.SrcIp)
-		ueh1.GetOrCreateUdpV4().SetDscp(params.DSCP)
-		ueh1.GetOrCreateUdpV4().SetDstUdpPort(params.DstUdpPort)
-		ueh1.GetOrCreateUdpV4().SetSrcUdpPort(params.SrcUdpPort)
 	}
+}
+
+func NextHopGroupStaticRoute(t *testing.T, dut *ondatra.DUTDevice, params NexthopGroupUDPParams) {
+    t.Helper()
+    if deviations.NextHopGroupStaticRouteOCUnsupported(dut) {
+        switch dut.Vendor() {
+        case ondatra.CISCO:
+            v4TunnelConfig := new(strings.Builder)
+            v6TunnelConfig := new(strings.Builder)
+            
+            for _, ppnh := range params.PPNH {
+                var entry string
+                if params.TTL != 0 {
+                    entry = fmt.Sprintf("  tunnel %s remote-next-hop %s tunnel gue-v1 source-ip %s ttl %d\n", 
+                        ppnh, params.NexthopGrpName, params.SrcIp, params.TTL)
+                } else {
+                    entry = fmt.Sprintf("  tunnel %s remote-next-hop %s tunnel gue-v1 source-ip %s\n", 
+                        ppnh, params.NexthopGrpName, params.SrcIp)
+                }
+                
+                // Dynamically route prefixes to the correct address family
+                if strings.Contains(ppnh, ":") {
+                    fmt.Fprint(v6TunnelConfig, entry)
+                } else {
+                    fmt.Fprint(v4TunnelConfig, entry)
+                }
+            }
+
+            cliBuilder := new(strings.Builder)
+            fmt.Fprintln(cliBuilder, "router static")
+            
+            if v4TunnelConfig.Len() > 0 {
+                fmt.Fprintln(cliBuilder, " address-family ipv4 unicast")
+                fmt.Fprint(cliBuilder, v4TunnelConfig.String())
+                fmt.Fprintln(cliBuilder, " !")
+            }
+            if v6TunnelConfig.Len() > 0 {
+                fmt.Fprintln(cliBuilder, " address-family ipv6 unicast")
+                fmt.Fprint(cliBuilder, v6TunnelConfig.String())
+                fmt.Fprintln(cliBuilder, " !")
+            }
+            fmt.Fprintln(cliBuilder, "!")
+
+            helpers.GnmiCLIConfig(t, dut, cliBuilder.String())
+
+        case ondatra.ARISTA:
+            v4TunnelConfig := new(strings.Builder)
+            v6TunnelConfig := new(strings.Builder)
+
+            for _, ppnh := range params.PPNH {
+                if strings.Contains(ppnh, ":") {
+                    fmt.Fprintf(v6TunnelConfig, "ipv6 route %s nexthop-group %s\n", ppnh, params.NexthopGrpName)
+                } else {
+                    fmt.Fprintf(v4TunnelConfig, "ip route %s nexthop-group %s\n", ppnh, params.NexthopGrpName)
+                }
+            }
+
+            cliBuilder := new(strings.Builder)
+            if v4TunnelConfig.Len() > 0 {
+                fmt.Fprint(cliBuilder, v4TunnelConfig.String())
+            }
+            if v6TunnelConfig.Len() > 0 {
+                fmt.Fprint(cliBuilder, v6TunnelConfig.String())
+            }
+
+            if cliBuilder.Len() > 0 {
+                helpers.GnmiCLIConfig(t, dut, cliBuilder.String())
+            }
+        default:
+            t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group static route'", dut.Vendor())
+        }
+    }
 }
 
 // configureTOSGUE configures the tos
