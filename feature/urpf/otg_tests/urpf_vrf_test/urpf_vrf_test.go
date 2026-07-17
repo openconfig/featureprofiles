@@ -56,8 +56,6 @@ const (
 	GUEPolicyV4Name    = "GUE-Policy-V4"
 	GUEPolicyV6Name    = "GUE-Policy-V6"
 	GUEDstIPv4         = "192.0.2.6"
-	ppnhIPv4           = []string{"192.168.0.1/24"}
-	ppnhIPv6           = []string{"fc00:0:10:a1::1/64"}
 	isDefaultVRF       = true
 )
 
@@ -95,6 +93,9 @@ var (
 	defaultNIName    = strings.ToLower("DEFAULT")
 	staticRoutePfxV4 = "/24"
 	staticRoutePfxV6 = "/64"
+
+	ppnhIPv4 = []string{"192.168.0.1/24"}
+	ppnhIPv6 = []string{"fc00:0:10:a1::1/64"}
 )
 
 func TestMain(m *testing.M) {
