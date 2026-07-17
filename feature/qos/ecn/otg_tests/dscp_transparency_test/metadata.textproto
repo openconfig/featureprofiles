@@ -24,3 +24,20 @@ platform_exceptions: {
     interface_enabled: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    interface_ref_interface_id_format: true
+    qos_queue_requires_id: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    qos_queue_requires_id: true
+  }
+}

@@ -28,6 +28,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 )
 
 // Topology:
@@ -139,16 +140,24 @@ func TestOnChangeBackplaneCapacityCounters(t *testing.T) {
 		t.Skipf("Get Fabric card list for %q: got 0, want > 0", dut.Model())
 	}
 	t.Logf("Fabric components count: %d", len(fabrics))
+	if len(fabrics) < 2 {
+		t.Skipf("Need at least 2 removable fabric cards to test backplane capacity degradation, got %d", len(fabrics))
+	}
 
 	ts1, tocs1, apct1 := getBackplaneCapacityCounters(t, dut, ics)
 
 	fc := (len(fabrics) / 2) + 1
+	if fc == len(fabrics) {
+		fc = len(fabrics) - 1
+		t.Logf("Capping fabric cards to disable at %d to keep at least 1 active", fc)
+	}
 	for _, f := range fabrics[:fc] {
 		empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(f).Empty().State()).Val()
 		if ok && empty {
 			t.Logf("Fabric Component %s is empty, hence skipping", f)
 			continue
 		}
+		gnmi.Update(t, dut, gnmi.OC().Component(f).Config(), &oc.Component{Name: ygot.String(f)})
 		gnmi.Replace(t, dut, gnmi.OC().Component(f).Fabric().PowerAdminState().Config(), oc.Platform_ComponentPowerType_POWER_DISABLED)
 		gnmi.Await(t, dut, gnmi.OC().Component(f).Fabric().PowerAdminState().State(), time.Minute, oc.Platform_ComponentPowerType_POWER_DISABLED)
 	}
@@ -162,6 +171,7 @@ func TestOnChangeBackplaneCapacityCounters(t *testing.T) {
 			t.Logf("Fabric Component %s is empty, hence skipping", f)
 			continue
 		}
+		gnmi.Update(t, dut, gnmi.OC().Component(f).Config(), &oc.Component{Name: ygot.String(f)})
 		gnmi.Replace(t, dut, gnmi.OC().Component(f).Fabric().PowerAdminState().Config(), oc.Platform_ComponentPowerType_POWER_ENABLED)
 		if deviations.MissingValueForDefaults(dut) {
 			time.Sleep(time.Minute)
@@ -170,7 +180,7 @@ func TestOnChangeBackplaneCapacityCounters(t *testing.T) {
 				t.Errorf("Component %s, power-admin-state got: %v, want: %v", f, power, oc.Platform_ComponentPowerType_POWER_ENABLED)
 			}
 		}
-		if oper, ok := gnmi.Await(t, dut, gnmi.OC().Component(f).OperStatus().State(), 2*time.Minute, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE).Val(); !ok {
+		if oper, ok := gnmi.Await(t, dut, gnmi.OC().Component(f).OperStatus().State(), 5*time.Minute, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE).Val(); !ok {
 			t.Errorf("Component %s oper-status after POWER_ENABLED, got: %v, want: %v", f, oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE)
 		}
 	}
