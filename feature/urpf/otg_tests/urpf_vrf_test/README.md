@@ -14,11 +14,11 @@ graph LR;
 ### Baseline DUT configuration
 - Configure EBGP[ASN200:ASN100] between ATE port1 – DUT port1
 - Configure IBGP[ASN100] between ATE port 2 – DUT
-- Configure a non-default vrf to host routes learned from eBGP neighborship(ATE port1) and to constraint the uRPF lookup in the non-default vrf
+- Configure DUT to constraint the uRPF lookup in the non-default vrf
 - Routes in non-default VRF:
     - Configure the static routes for `IPv4Prefix1/24` `IPv6Prefix1/64` in non-default VRF
-    - Configure a static route for the connected interface subnet for DUT port1 in non-deafult VRF. This aids the ATE port1 – DUT port1 eBGP peering in transitioning into the Established state and remaining functional.
-    - No default should be configured or leaked into non-deafult VRF.
+    - Configure a static route for the connected interface subnet for DUT port1 in non-default VRF
+    - No default should be configured or leaked into non-default VRF
 - DUT has DUT:Port1 and DUT:Port2 in the default network-instance
 - DUT's IP sub-interfaces belong to Default VRF
 - DUT port1 has uRPF policy at the ingress DUT:PORT1
