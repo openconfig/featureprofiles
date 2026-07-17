@@ -55,6 +55,7 @@ const (
 	v4FlowName               = "v4Flow"
 	v6FlowName               = "v6Flow"
 	SRReservedLabelblockName = "default-srgb" // supported name for Cisco SRGB
+	fixedPackets             = 1000
 )
 
 var (
@@ -122,7 +123,7 @@ func configureOTG(t *testing.T, ts *isissession.TestSession) {
 		SetTxNames([]string{srcIpv4.Name()}).
 		SetRxNames([]string{v4NetName})
 
-	v4Flow.Duration().FixedPackets().SetPackets(1000)
+	v4Flow.Duration().FixedPackets().SetPackets(fixedPackets)
 	v4Flow.Size().SetFixed(512)
 	v4Flow.Rate().SetPps(100)
 
@@ -142,7 +143,7 @@ func configureOTG(t *testing.T, ts *isissession.TestSession) {
 		SetTxNames([]string{srcIpv6.Name()}).
 		SetRxNames([]string{v6NetName})
 
-	v6Flow.Duration().FixedPackets().SetPackets(1000)
+	v6Flow.Duration().FixedPackets().SetPackets(fixedPackets)
 	v6Flow.Size().SetFixed(512)
 	v6Flow.Rate().SetPps(100)
 
@@ -213,7 +214,29 @@ func verifySRCounters(t *testing.T, ts *isissession.TestSession, ate *ondatra.AT
 	}
 }
 
+// awaitTrafficCounters polls the flow state until the transmitted packet count reaches the wanted value.
+func awaitTrafficCounters(t *testing.T, ate *ondatra.ATEDevice, flowName string, wantedPkts uint64, timeout time.Duration) {
+	deadline := time.Now().Add(timeout)
+
+	for time.Now().Before(deadline) {
+		metric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).State())
+		if metric != nil && metric.GetCounters() != nil {
+			if metric.GetCounters().GetOutPkts() >= wantedPkts {
+				t.Logf("[%s] successfully reached %d Tx packets.", flowName, wantedPkts)
+				return
+			}
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	t.Fatalf("Timeout waiting for [%s] Tx packets to reach %d", flowName, wantedPkts)
+}
+
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice) {
+
+	// Await until counter values are stabilized
+	awaitTrafficCounters(t, ate, v4FlowName, fixedPackets, time.Second*15)
+	awaitTrafficCounters(t, ate, v6FlowName, fixedPackets, time.Second*15)
+	
 	recvMetricV4 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v4FlowName).State())
 	recvMetricV6 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v6FlowName).State())
 
