@@ -5,11 +5,6 @@
 
 name:  "WBB Test Registry"
 test:  {
-  id:  "# CERTZ-4"
-  description:  "gNSI Trust Bundle"
-  readme:  "https://github.com/openconfig/featureprofiles/blob/main/feature/security/gnsi/certz/tests/trust_bundle/README.md"
-}
-test:  {
   id:  "ACCTZ-1.1"
   description:  "Record Subscribe Full"
   readme:  "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/acctz/tests/record_subscribe_full/README.md"
@@ -173,6 +168,11 @@ test:  {
   description:  "Server Certificate"
   readme:  "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/server_certificates/README.md"
   exec:  "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/server_certificates/server_certificates_test.go"
+}
+test:  {
+  id:  "CERTZ-4"
+  description:  "gNSI Trust Bundle"
+  readme:  "https://github.com/openconfig/featureprofiles/blob/main/feature/security/gnsi/certz/tests/trust_bundle/README.md"
 }
 test:  {
   id:  "CFM-1.1"
