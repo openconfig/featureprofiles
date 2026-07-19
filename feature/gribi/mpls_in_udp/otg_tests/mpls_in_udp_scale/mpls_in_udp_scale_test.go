@@ -51,8 +51,8 @@ const (
 	nextHopGroupID       = uint64(50001)
 	outerIPv6Src         = "2001:db8:300::1"
 	outerIPv6Dst         = "6001:0:0:1::1"
-	outerIPv4Src         = "194.51.0.1"
-	outerIPv4Dst         = "195.51.0.1"
+	outerIPv4Src         = "198.51.100.1"
+	outerIPv4Dst         = "198.51.100.101"
 	outerDstUDPPort      = 6635
 	outerDSCP            = 26
 	outerTTL             = 64
@@ -783,7 +783,7 @@ func buildProfileRoutes(t *testing.T, dut *ondatra.DUTDevice, totalNHs, routesPe
 		routePfxLen = routeV4PrfLen
 	}
 	if err != nil {
-		t.Fatalf("failed to generate IPv4 prefixes: %v", err)
+		t.Fatalf("failed to generate %s prefixes: %v", flowType, err)
 	}
 	entries := make([]fluent.GRIBIEntry, 0, totalPrefixes)
 	vrfV4PfxMap := make(map[string][]string)
@@ -1030,7 +1030,7 @@ func programProfileMultiVRFECMP(t *testing.T, dut *ondatra.DUTDevice, nextHopID,
 // programProfile8MultiVRFIPv6MoUDP builds Profile 8 gRIBI NextHop and NextHopGroup entries for IPv6 MoUDP encapsulation across multiple VRFs. It programs 64 reusable source IPv6 addresses, 16 destination IPv6 addresses per NHG, and 16 unique MPLS labels per NHG, and returns the generated gRIBI entries and reusable source IPv6 addresses.
 func programProfile8MultiVRFIPv6MoUDP(t *testing.T, dut *ondatra.DUTDevice, nextHopID, nextHopGroupID, labelValue uint64, totalNHGs, nhsPerNHG int, vrfs []string, outerIPv6Src, outerIPv6Dst string, outerDstUDPPort uint16, outerTTL, outerDSCP uint8) ([]fluent.GRIBIEntry, []string, []uint64) {
 	t.Helper()
-	var lableList []uint64
+	var labelList []uint64
 	if len(vrfs) == 0 {
 		t.Fatal("no VRFs provided")
 	}
@@ -1077,7 +1077,7 @@ func programProfile8MultiVRFIPv6MoUDP(t *testing.T, dut *ondatra.DUTDevice, next
 		for labelIdx := 0; labelIdx < labelsPerNHG; labelIdx++ {
 			label := globalLabel
 			globalLabel++
-			lableList = append(lableList, label)
+			labelList = append(labelList, label)
 			dstIP := dstIPs[dstBase+labelIdx]
 			for srcIdx := 0; srcIdx < srcIPsPerBlock; srcIdx++ {
 				entries = append(entries,
@@ -1106,7 +1106,7 @@ func programProfile8MultiVRFIPv6MoUDP(t *testing.T, dut *ondatra.DUTDevice, next
 		nhgID++
 		nhgGlobal++
 	}
-	return entries, srcIPs, lableList
+	return entries, srcIPs, labelList
 }
 
 // staticARPWithUniversalIP programs static routes with interface-based next-hops and corresponding static ARP entries for a single destination IP across multiple VRFs and ports.
@@ -1197,7 +1197,7 @@ func validateMPLSPacketCapture(t *testing.T, ate *ondatra.ATEDevice, otgPortName
 			}
 			if len(srcLists) != 0 {
 				if !slices.Contains(srcLists, v4.SrcIP.String()) {
-					return fmt.Errorf("packet %d: got IPv4 src %s, want %s", packetCount, v4.SrcIP, pr.srcIP)
+					return fmt.Errorf("packet %d: got IPv4 src %s, want one of %v", packetCount, v4.SrcIP, srcLists)
 				}
 			} else {
 				if v4.SrcIP.String() != pr.srcIP {
@@ -1215,7 +1215,7 @@ func validateMPLSPacketCapture(t *testing.T, ate *ondatra.ATEDevice, otgPortName
 			}
 			if len(srcLists) != 0 {
 				if !slices.Contains(srcLists, v6.SrcIP.String()) {
-					return fmt.Errorf("packet %d: got IPv6 src %s, want %s", packetCount, v6.SrcIP, pr.srcIP)
+					return fmt.Errorf("packet %d: got IPv6 src %s, want one of %v", packetCount, v6.SrcIP, srcLists)
 				}
 			} else {
 				if v6.SrcIP.String() != pr.srcIP {
@@ -1481,6 +1481,13 @@ func configureVRFProfiles(ctx context.Context, t *testing.T, ateConfig gosnappi.
 	for _, batch := range batches {
 		c.AddEntries(t, batch, nil)
 	}
+	expectedPrefixes := totalPrefixes
+	switch profile {
+	case profileMultiVRFIPv4ECMP,
+		profileMultiVRFIPv6ECMP,
+		profileMultiNHGIPv6:
+		expectedPrefixes = totalNHs
+	}
 	routeTime := time.Now()
 	for time.Since(routeTime) < batchTimeout {
 		var addrEntries int
@@ -1491,7 +1498,7 @@ func configureVRFProfiles(ctx context.Context, t *testing.T, ateConfig gosnappi.
 		default:
 			addrEntries = len(gnmi.GetAll(t, dut, gnmi.OC().NetworkInstanceAny().Afts().Ipv6EntryAny().State()))
 		}
-		if addrEntries >= totalPrefixes {
+		if addrEntries >= expectedPrefixes {
 			break
 		}
 		time.Sleep(trafficDuration)
@@ -1983,8 +1990,8 @@ func (fa *flowAttr) createFlow(t *testing.T, cfg gosnappi.Config, flowType, name
 				for _, vrf := range orderedVRFs {
 					skewPfxCounts = append(skewPfxCounts, len(vrf.Prefixes))
 				}
-				for range pfx1V6Lists {
-					for i := 0; i < skewPfxCounts[len(nonDefaultPfx1V4Lists)]; i++ {
+				for _, count := range skewPfxCounts {
+					for i := 0; i < count; i++ {
 						nonDefaultPfx1V4Lists = append(nonDefaultPfx1V4Lists, dutV4AddrPfx1)
 						nonDefVlanIDs = append(nonDefVlanIDs, vlanID)
 					}
