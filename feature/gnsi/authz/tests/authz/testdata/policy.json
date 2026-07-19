@@ -225,4 +225,31 @@
         }
       }
     ]
+  },
+  {
+    "name": "policy-prefix-suffix-match",
+    "allow_rules": [
+      {
+        "name": "prefix-match-xyz",
+        "source": {
+          "principals": [
+            "spiffe://test-abc.foo.bar/xyz/*"
+          ]
+        },
+        "request": {
+          "paths": ["/gnmi.gNMI/Get"]
+        }
+      },
+      {
+        "name": "suffix-match-admin",
+        "source": {
+          "principals": [
+            "*admin"
+          ]
+        },
+        "request": {
+          "paths": ["/gribi.gRIBI/Get"]
+        }
+      }
+    ]
   }]
