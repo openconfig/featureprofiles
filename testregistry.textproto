@@ -1603,6 +1603,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "TE-6.5"
+  description: "Community-based dynamic route-leaking between VRFs"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/route_selection/otg_tests/community_based_route_leak/README.md"
+  exec: " "
+}
+test: {
   id: "TE-8.2"
   description: "Supervisor Failure"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/supervisor_failure_test/README.md"
