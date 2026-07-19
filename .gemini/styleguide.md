@@ -68,6 +68,12 @@
     *   **Do not use:** `1.1.1.1`, `8.8.8.8`, or common local private ranges
         like `192.168.0.0/16`.
 
+*   **Native Configuration & Cleanup**
+    *   **Mandatory Cleanup for Native CLI for AAA commands:** Whenever a test pushes raw/native CLI commands to a device (e.g., using `helpers.GnmiCLIConfig`) that deals alters device access logic, the PR MUST include corresponding cleanup commands to revert those exact changes. 
+    *   **SSH and AAA State:** Pay special attention to AAA and SSH configurations. If a test modifies SSH authentication (e.g., `management ssh authentication protocol password`), the cleanup routine MUST explicitly negate that specific command (e.g., `management ssh \n no authentication protocol`) rather than relying on generic default commands that might wipe baseline lab configurations.
+    *   **Use `t.Cleanup()`:** Cleanup commands for raw CLI configurations must be registered using `t.Cleanup()` to guarantee they run even if the test fails.
+    
+
 ### **2. Deviation Guidelines**
 
 **Source:** `internal/deviations/README.md`
