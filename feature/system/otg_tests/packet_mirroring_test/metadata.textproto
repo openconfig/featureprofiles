@@ -1,0 +1,8 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "c3e98124-7eb3-4df4-b3ef-8df3d2e96041"
+plan_id: "DP-1.18"
+description: "Flow matching using ACL and to Port Mirror/Redirect"
+testbed: TESTBED_DUT_ATE_4LINKS
+

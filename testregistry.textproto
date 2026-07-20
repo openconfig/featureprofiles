@@ -328,7 +328,7 @@ test: {
 test: {
   id: "DP-1.18"
   description: "Flow matching using ACL and to Port Mirror/Redirect"
-  readme: ""
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/otg_tests/packet_mirroring_test/README.md"
   exec: " "
 }
 test: {
