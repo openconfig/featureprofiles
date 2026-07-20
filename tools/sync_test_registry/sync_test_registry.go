@@ -89,7 +89,7 @@ func processMetadataFile(path string, tests map[string]*tpb.Test) error {
 	execURL := findExecURL(dir)
 
 	if existing, ok := tests[m.GetPlanId()]; ok {
-		glog.Warningf("Duplicate plan_id %s found. Overwriting. Old: %v, New: %v", m.GetPlanId(), existing.GetReadme(), readmeURL)
+		return fmt.Errorf("duplicate plan_id %s found. Old: %v, New: %v", m.GetPlanId(), existing.GetReadme(), readmeURL)
 	}
 
 	tests[m.GetPlanId()] = &tpb.Test{
@@ -110,7 +110,7 @@ func loadTestsFromDir(dir string) (map[string]*tpb.Test, error) {
 		}
 		if !d.IsDir() && d.Name() == "metadata.textproto" {
 			if err := processMetadataFile(path, tests); err != nil {
-				glog.Warningf("Failed to process %s: %v", path, err)
+				return err
 			}
 		}
 		return nil

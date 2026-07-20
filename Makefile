@@ -13,7 +13,7 @@
 # limitations under the License.
 
 ROOT_DIR:=$(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
-GO_PROTOS:=proto/feature_go_proto/feature.pb.go proto/metadata_go_proto/metadata.pb.go proto/ocpaths_go_proto/ocpaths.pb.go proto/ocrpcs_go_proto/ocrpcs.pb.go proto/nosimage_go_proto/nosimage.pb.go topologies/proto/binding/binding.pb.go
+GO_PROTOS:=proto/feature_go_proto/feature.pb.go proto/metadata_go_proto/metadata.pb.go proto/ocpaths_go_proto/ocpaths.pb.go proto/ocrpcs_go_proto/ocrpcs.pb.go proto/nosimage_go_proto/nosimage.pb.go proto/testregistry_go_proto/testregistry.pb.go topologies/proto/binding/binding.pb.go
 
 .PHONY: all clean protos protoimports sync-test-registry
 all: openconfig_public protos
@@ -76,7 +76,7 @@ topologies/proto/binding/binding.pb.go: topologies/proto/binding.proto protoimpo
 	protoc -I='protobuf-import' --proto_path=topologies/proto --go_out=. --go_opt=Mbinding.proto=topologies/proto/binding binding.proto
 	goimports -w topologies/proto/binding/binding.pb.go
 
-sync-test-registry:
+sync-test-registry: protos
 	go run tools/sync_test_registry/sync_test_registry.go -logtostderr
 
 clean:
