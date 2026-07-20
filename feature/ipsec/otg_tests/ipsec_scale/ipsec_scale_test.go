@@ -561,7 +561,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice,
 		configureLAGInterface(t, dut, lag, portGroups[i], &portAttrs[i], vrfName)
 	}
 }
-func configureLoopback(t *testing.T, dut *ondatra.DUTDevice, lbName, ip string, prefixLen uint8, isIPv6 bool) {
+func configureLoopback(t *testing.T, dut *ondatra.DUTDevice, lbName, ip string, prefixLen uint8, isIPv6 bool, batch *gnmi.SetBatch) {
 	t.Helper()
 
 	i := &oc.Interface{}
@@ -590,11 +590,11 @@ func configureLoopback(t *testing.T, dut *ondatra.DUTDevice, lbName, ip string, 
 		addr.PrefixLength = ygot.Uint8(prefixLen)
 	}
 
-	gnmi.Replace(t, dut,
-		gnmi.OC().
-			Interface(lbName).
-			Config(),
-		i)
+	if batch != nil {
+		gnmi.BatchUpdate(batch, gnmi.OC().Interface(lbName).Config(), i)
+	} else {
+		gnmi.Replace(t, dut, gnmi.OC().Interface(lbName).Config(), i)
+	}
 }
 
 func configureATE(t *testing.T) gosnappi.Config {
@@ -949,11 +949,11 @@ func configureScaledTunnels(t *testing.T, dut1, dut2 *ondatra.DUTDevice, numTunn
 
 	// Tunnel overlay addressing: IPv4 /30s from 172.16.0.0/22; IPv6 /64s and
 	// loopback /128s derived per tunnel index below.
-	dut1TunnelV4s, err := iputil.GenerateIPsWithStep("172.16.0.1", numTunnels, "0.0.0.4")
+	dut1TunnelV4s, err := iputil.GenerateIPsWithStep("100.64.0.1", numTunnels, "0.0.0.4")
 	if err != nil {
 		t.Fatalf("failed to generate DUT1 tunnel IPv4 addresses: %v", err)
 	}
-	dut2TunnelV4s, err := iputil.GenerateIPsWithStep("172.16.0.2", numTunnels, "0.0.0.4")
+	dut2TunnelV4s, err := iputil.GenerateIPsWithStep("100.64.0.2", numTunnels, "0.0.0.4")
 	if err != nil {
 		t.Fatalf("failed to generate DUT2 tunnel IPv4 addresses: %v", err)
 	}
@@ -962,6 +962,8 @@ func configureScaledTunnels(t *testing.T, dut1, dut2 *ondatra.DUTDevice, numTunn
 	// per DUT after the loop; one Set per tunnel is prohibitively slow at scale.
 	var dut1Tunnels, dut2Tunnels []string
 	var dut1ReachRoutes, dut2ReachRoutes []staticRoute
+	dut1LoopbackBatch := &gnmi.SetBatch{}
+	dut2LoopbackBatch := &gnmi.SetBatch{}
 
 	for i := 0; i < numTunnels; i++ {
 		n := i + 1
@@ -976,8 +978,9 @@ func configureScaledTunnels(t *testing.T, dut1, dut2 *ondatra.DUTDevice, numTunn
 		profile := fmt.Sprintf("IPSEC_PROFILE_%d", n)
 
 		// Per-tunnel loopback endpoints.
-		configureLoopback(t, dut1, lbName, dut1LbV6, loopbackPrefixLen, true)
-		configureLoopback(t, dut2, lbName, dut2LbV6, loopbackPrefixLen, true)
+		// Per-tunnel loopback endpoints.
+		configureLoopback(t, dut1, lbName, dut1LbV6, loopbackPrefixLen, true, dut1LoopbackBatch)
+		configureLoopback(t, dut2, lbName, dut2LbV6, loopbackPrefixLen, true, dut2LoopbackBatch)
 
 		dut1Cfg := cfgplugins.IPSecTunnelCfg{
 			TunnelName:  tunName,
@@ -1039,6 +1042,10 @@ func configureScaledTunnels(t *testing.T, dut1, dut2 *ondatra.DUTDevice, numTunn
 		dut2TunnelV6NHs = append(dut2TunnelV6NHs, dut2TunV6)
 	}
 
+	// Execute the batched loopback configurations.
+	dut1LoopbackBatch.Set(t, dut1)
+	dut2LoopbackBatch.Set(t, dut2)
+
 	// Push all accumulated tunnel CLI in a single gNMI CLI Set per DUT.
 	if len(dut1Tunnels) > 0 {
 		helpers.GnmiCLIConfig(t, dut1, strings.Join(dut1Tunnels, "\n"))
@@ -1055,18 +1062,43 @@ func configureScaledTunnels(t *testing.T, dut1, dut2 *ondatra.DUTDevice, numTunn
 	return dut1TunnelV4NHs, dut2TunnelV4NHs, dut1TunnelV6NHs, dut2TunnelV6NHs
 }
 
-func verifyTunnelOperStatus(t *testing.T, dut *ondatra.DUTDevice, tunnelName string, want oc.E_Interface_OperStatus, timeout time.Duration) {
+// waitForAllTunnelsUP waits for all IPSec tunnels to reach UP state on both DUTs.
+func waitForAllTunnelsUP(t *testing.T, dut1, dut2 *ondatra.DUTDevice, numTunnels int, timeout time.Duration) {
 	t.Helper()
 
-	path := gnmi.OC().Interface(tunnelName).OperStatus().State()
-	_, ok := gnmi.Watch(t, dut, path, timeout, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
-		status, present := val.Val()
-		return present && status == want
-	}).Await(t)
-	if !ok {
-		got := gnmi.Get(t, dut, path)
-		t.Fatalf("tunnel %s oper-status got %v, want %v", tunnelName, got, want)
+	t.Logf("Waiting for all %d IPSec tunnels to come UP on both DUTs (timeout: %v)...", numTunnels, timeout)
+
+	for i := 1; i <= numTunnels; i++ {
+		tunName := fmt.Sprintf("Tunnel%d", i)
+
+		// Check DUT1 tunnel
+		path1 := gnmi.OC().Interface(tunName).OperStatus().State()
+		_, ok1 := gnmi.Watch(t, dut1, path1, timeout, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
+			status, present := val.Val()
+			return present && status == oc.Interface_OperStatus_UP
+		}).Await(t)
+		if !ok1 {
+			got1 := gnmi.Get(t, dut1, path1)
+			t.Fatalf("DUT1 tunnel %s did not come UP within %v, final status: %v", tunName, timeout, got1)
+		}
+
+		// Check DUT2 tunnel
+		path2 := gnmi.OC().Interface(tunName).OperStatus().State()
+		_, ok2 := gnmi.Watch(t, dut2, path2, timeout, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
+			status, present := val.Val()
+			return present && status == oc.Interface_OperStatus_UP
+		}).Await(t)
+		if !ok2 {
+			got2 := gnmi.Get(t, dut2, path2)
+			t.Fatalf("DUT2 tunnel %s did not come UP within %v, final status: %v", tunName, timeout, got2)
+		}
+
+		if i%32 == 0 || i == numTunnels {
+			t.Logf("Tunnels %d-%d are UP on both DUTs", i-31, i)
+		}
 	}
+
+	t.Logf("All %d IPSec tunnels are UP on both DUTs", numTunnels)
 }
 
 func readMemberOutPkts(t *testing.T, dut *ondatra.DUTDevice, memberPorts []*ondatra.Port) map[string]uint64 {
@@ -1173,8 +1205,8 @@ func TestIPSecScaleWithMACSecOverAggregatedLinks(t *testing.T) {
 	configureDUT(t, dut2, [][]*ondatra.Port{{dut2CustPort}}, []attrs.Attributes{dut2CustIntf}, ateVRF)
 
 	// Configure loopback interfaces used as IPSec tunnel endpoints.
-	configureLoopback(t, dut1, loopbackIfName, dut1LoopbackIPv6, loopbackPrefixLen, true)
-	configureLoopback(t, dut2, loopbackIfName, dut2LoopbackIPv6, loopbackPrefixLen, true)
+	configureLoopback(t, dut1, loopbackIfName, dut1LoopbackIPv6, loopbackPrefixLen, true, nil)
+	configureLoopback(t, dut2, loopbackIfName, dut2LoopbackIPv6, loopbackPrefixLen, true, nil)
 
 	// Configure loopback interfaces used as IPSec tunnel endpoints.
 	// All per-tunnel loopback endpoints are configured by configureScaledTunnels below.
@@ -1222,7 +1254,6 @@ func TestIPSecScaleWithMACSecOverAggregatedLinks(t *testing.T) {
 		dut2Routes = append(dut2Routes, staticRoute{Prefix: ate1IPv6Prefix, NextHop: nh, VRF: ateVRF, EgressVRF: tunnelVRF})
 	}
 	configureStaticRoutes(t, dut2, dut2Routes)
-	configureStaticRoutes(t, dut1, dut1Routes)
 
 	// Step: Configure ATE topology and flows.
 	top := configureATE(t)
@@ -1238,6 +1269,9 @@ func TestIPSecScaleWithMACSecOverAggregatedLinks(t *testing.T) {
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 
+	// Wait for all 256 IPSec tunnels to come UP on both DUTs.
+	waitForAllTunnelsUP(t, dut1, dut2, numTunnels, tunnelUpTimeout)
+
 	// Start the customer-port capture before traffic; it is consumed once by
 	// IPSEC-1.2.1 to confirm MACsec encryption.
 	cs := packetvalidationhelpers.StartCapture(t, ate)
@@ -1246,9 +1280,6 @@ func TestIPSecScaleWithMACSecOverAggregatedLinks(t *testing.T) {
 	// runTrafficAndVerify runs a traffic window and verifies the named flows are
 	// forwarded with no loss; used by each IPSEC-1.2.x subtest.
 	runTrafficAndVerify := func(t *testing.T, flowNames ...string) {
-		verifyTunnelOperStatus(t, dut1, tunnelIfName, oc.Interface_OperStatus_UP, tunnelUpTimeout)
-		verifyTunnelOperStatus(t, dut2, tunnelIfName, oc.Interface_OperStatus_UP, tunnelUpTimeout)
-
 		otg.StartTraffic(t)
 		// Wait for traffic to flow and stabilize.
 		time.Sleep(trafficWaitTime)
