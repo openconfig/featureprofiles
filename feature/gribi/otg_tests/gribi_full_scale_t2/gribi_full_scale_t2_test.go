@@ -14,10 +14,6 @@
 
 // Package gribi_full_scale_t2_test implements TE-14.4: gRIBI Scaling - full scale setup, target T2.
 //
-// Scale constants for T2:
-//
-//	pctNHG512=70%, numRepairNHG=2K, numEncapDefaultNHG=8K, numUniqueEncapNH=32K
-//
 // Test structure (per README TE-14.4):
 //
 //	TestGRIBIFullScaleT2 — configures DUT+ATE once, programs gRIBI once, then runs
@@ -37,29 +33,6 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-)
-
-// ============================================================
-// Constants — T2-specific scale parameters (TE-14.4)
-// ============================================================
-
-const (
-	// pctNHG512T2 is the percentage of Default VRF NHGs with 1/512 granularity.
-	// T1: 80%, T2: 70%.
-	pctNHG512T2 = 70
-
-	// numRepairNHGT2 is the number of NHGs in REPAIR_VRF for T2.
-	// T1: 1K, T2: 2K.
-	numRepairNHGT2 = 2_000
-
-	// numEncapDefaultNHGT2 is the T3 scale target: NHGs in the default VRF
-	// that back encap VRF entries.
-	// T1: 4K, T2: 8K.
-	numEncapDefaultNHGT2 = 8_000
-
-	// numUniqueEncapNHT2 is the T4 scale target: total unique encap NHs.
-	// T1: 16K, T2: 32K.
-	numUniqueEncapNHT2 = 32_000
 )
 
 var (
@@ -83,41 +56,46 @@ func TestMain(m *testing.M) {
 // IMIX traffic profiles using a table-driven approach. It performs full DUT
 // setup once and executes all five traffic scenarios in a single 30 Mpps
 // traffic pass per sub-test.
-//
-// gRIBI programming is performed incrementally: each VRF builder creates its
-// own persistent gRIBI client, pushes its entries, validates the FIB, then
-// closes the connection. Entries remain installed on the DUT (Persistence:
-// true) until the single cleanup client issues a FlushAll at test teardown.
 func TestGRIBIFullScaleT2(t *testing.T) {
 	params := cfgplugins.ScaleParams{
-		PctNHG512:          pctNHG512T2,
-		NumRepairNHG:       numRepairNHGT2,
-		NumEncapDefaultNHG: numEncapDefaultNHGT2,
-		NumUniqueEncapNH:   numUniqueEncapNHT2,
+		// gRIBI & System parameters
+		GRIBIBatchSize: 2_000,
 
-		NumDefaultNH:       1_000,
-		NumDefaultNHG:      1_000,
-		NumDefaultIPv4:     1_000,
-		NumTransitNHD1:     1536,
-		NumTransitNHD2:     1536,
-		NumTransitNHGE1:    768,
-		NumTransitNHGE2:    768,
-		NumTransitIPv4:     200_000,
-		NumRepairIPv4:      200_000,
+		// Default VRF parameters
+		NumDefaultNH:   1_000,
+		NumDefaultNHG:  1_000,
+		NumDefaultIPv4: 1_000,
+
+		// Transit VRF parameters
+		NumTransitNH:   4_000,
+		NumTransitNHG:  2_000,
+		NumTransitIPv4: 200_000,
+
+		// Repair VRF parameters
+		NumRepairIPv4: 200_000,
+		NumRepairNHG:  1_000,
+		PctNHG512:     70,
+
+		// Encap / Decap VRF parameters
 		NumEncapVRFs:       16,
-		NumEncapIPv4PerVRF: 10_000,
-		NumEncapIPv6PerVRF: 10_000,
-		NumDecapEntries:    48,
-		TrafficDuration:    5 * time.Minute,
-		TrafficLossTol:     5,
-		TrafficRateMpps:    30_000_000,
+		NumEncapIPv4PerVRF: 9_000,
+		NumEncapIPv6PerVRF: 11_000,
+		NumUniqueEncapNH:   16_000,
+		NumEncapDefaultNHG: 4_000,
+		PctEncap8NH:        75,
+		PctEncap32NH:       20,
 
-		NumPort1VLANs:       1,
-		NumPort2VLANs:       640,
-		PctEncap8NH:         75,
-		PctEncap32NH:        20,
-		DecapDestsSubsetPct: 10,
-		GRIBIBatchSize:      2_000,
+		// Decap VRF parameters
+		NumDecapEntries:     50,
+		DecapDestsSubsetPct: 100,
+
+		// OTG / Port parameters
+		NumPort2VLANs: 640,
+
+		// Traffic parameters
+		TrafficRateMpps: 30_000_000,
+		TrafficDuration: 5 * time.Minute,
+		TrafficLossTol:  5,
 	}
 	cfgplugins.RunFullScaleTest(t, params, *enablePacketCapture, *compactOTGFlows)
 }
