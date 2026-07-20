@@ -55,10 +55,11 @@ Validations = []packetvalidationhelpers.ValidationType{
 
 // IPv4 and IPv6 are the IP protocol types.
 const (
-	IPv4 = "IPv4"
-	IPv6 = "IPv6"
-	TCP  = 6  // TCP protocol number as seen on the wire.
-	UDP  = 17 // UDP protocol number as seen on the wire.
+	IPv4            = "IPv4"
+	IPv6            = "IPv6"
+	TCP             = 6  // TCP protocol number as seen on the wire.
+	UDP             = 17 // UDP protocol number as seen on the wire.
+	MacsecEtherType = 0x88E5
 )
 
 // ValidationType defines the type of validation to perform.
@@ -83,6 +84,8 @@ const (
 	ValidateUDPHeader ValidationType = "ValidateUDPHeader"
 	// ValidateBGPHeader validates the BGP header.
 	ValidateBGPHeader ValidationType = "ValidateBGPHeader"
+	// ValidateMacsecHeader validates the MACsec (802.1AE) header.
+	ValidateMacsecHeader ValidationType = "ValidateMacsecHeader"
 )
 
 // PacketValidation is a struct to hold the packet validation parameters.
@@ -95,11 +98,14 @@ type PacketValidation struct {
 	IPv6Layer        *IPv6Layer
 	GreLayer         *GreLayer
 	MPLSLayer        *MPLSLayer
+	MacsecLayer      *MacsecLayer
 	TCPLayer         *TCPLayer
 	UDPLayer         *UDPLayer
 	InnerIPLayerIPv4 *IPv4Layer
 	InnerIPLayerIPv6 *IPv6Layer
 	BGPLayer         *BGPLayer
+	// Flags enables optional field-level validations that are otherwise skipped.
+	Flags *ValidationFlags
 	// Validations is a list of validations to perform on the captured packets.
 	Validations     []ValidationType
 	packetSourceObj *gopacket.PacketSource
@@ -108,6 +114,13 @@ type PacketValidation struct {
 // VlanLayer is a struct to hold the vlan layer parameters
 type VlanLayer struct {
 	VlanID uint16
+}
+
+// ValidationFlags holds optional toggles that enable specific field-level
+// validations which are otherwise skipped when their value is zero/empty.
+type ValidationFlags struct {
+	// ValidateFlowLabel enables IPv6 flow-label validation against IPv6Layer.FlowLabel.
+	ValidateFlowLabel bool
 }
 
 // IPv4Layer is a struct to hold the IP layer parameters.
@@ -125,11 +138,19 @@ type IPv6Layer struct {
 	TrafficClass uint8
 	HopLimit     uint8
 	NextHeader   uint32
+	FlowLabel    uint32
 }
 
 // GreLayer is a struct to hold the GRE layer parameters.
 type GreLayer struct {
 	Protocol uint32
+}
+
+// MacsecLayer holds the MACsec (802.1AE) layer parameters.
+type MacsecLayer struct {
+	// EtherType is the MACsec EtherType to match. It defaults to
+	// MacsecEtherType (0x88E5) when left as zero.
+	EtherType uint16
 }
 
 // MPLSLayer holds MPLS layer properties
@@ -239,6 +260,10 @@ func CaptureAndValidatePackets(t *testing.T, ate *ondatra.ATEDevice, packetVal *
 			if err := validateBGPHeader(t, packetVal.packetSourceObj, packetVal); err != nil {
 				return err
 			}
+		case ValidateMacsecHeader:
+			if err := validateMacsecHeader(t, packetVal.packetSourceObj, packetVal); err != nil {
+				return err
+			}
 		default:
 			return fmt.Errorf("unknown validation type: %s", validation)
 		}
@@ -318,6 +343,9 @@ func validateIPv6Header(t *testing.T, packetSource *gopacket.PacketSource, packe
 			}
 			if ipv6.TrafficClass != packetVal.IPv6Layer.TrafficClass {
 				return fmt.Errorf("traffic class value is altered to: %d. expected: %d", ipv6.TrafficClass, packetVal.IPv6Layer.TrafficClass)
+			}
+			if packetVal.Flags != nil && packetVal.Flags.ValidateFlowLabel && ipv6.FlowLabel != packetVal.IPv6Layer.FlowLabel {
+				return fmt.Errorf("IPv6 flow label is not set properly. Expected: %d, Actual: %d", packetVal.IPv6Layer.FlowLabel, ipv6.FlowLabel)
 			}
 			if packetVal.IPv6Layer.NextHeader != 0 {
 				if uint32(ipv6.NextHeader) != packetVal.IPv6Layer.NextHeader {
@@ -518,6 +546,41 @@ func isAllFF(b []byte) bool {
 		}
 	}
 	return true
+}
+
+// validateMacsecHeader validates that the capture contains MACsec-encrypted
+// packets, identified by the MACsec EtherType (0x88E5 by default).
+func validateMacsecHeader(t *testing.T, packetSource *gopacket.PacketSource, packetVal *PacketValidation) error {
+	t.Helper()
+	t.Log("Validating MACsec header")
+
+	etherType := packetVal.MacsecLayer.EtherType
+	if etherType == 0 {
+		etherType = MacsecEtherType
+	}
+
+	macsecCount := 0
+	totalPackets := 0
+	for packet := range packetSource.Packets() {
+		totalPackets++
+		ethLayer := packet.Layer(layers.LayerTypeEthernet)
+		if ethLayer == nil {
+			continue
+		}
+		eth := ethLayer.(*layers.Ethernet)
+		if uint16(eth.EthernetType) == etherType {
+			macsecCount++
+		}
+	}
+
+	if totalPackets == 0 {
+		return fmt.Errorf("no packets captured, want at least 1 MACsec-encrypted packet")
+	}
+	if macsecCount == 0 {
+		return fmt.Errorf("captured %d total packets but no MACsec-encrypted packets (EtherType 0x%04X) detected", totalPackets, etherType)
+	}
+	t.Logf("Validated %d MACsec-encrypted packets out of %d total packets", macsecCount, totalPackets)
+	return nil
 }
 
 // ConfigurePacketCapture configures the packet capture on the port.

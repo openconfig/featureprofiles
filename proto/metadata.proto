@@ -48,6 +48,7 @@ message Metadata {
     TESTBED_DUT_ATE_34LINKS = 16;
     TESTBED_DUT_ATE_8LINKS_LAG = 17;
     TESTBED_DUT_8_LOOP_2_ATE = 18;
+    TESTBED_ATE_DUT1_4LINKS_DUT2_ATE = 19;
   }
   // Testbed on which the test is intended to run.
   Testbed testbed = 4;
@@ -1403,6 +1404,18 @@ message Metadata {
     // Device has max route count based on specific platform
     // Juniper : For devices which has different max route count based on platform, this deviation can be used to set the max route count for the device. This will be used in scale test cases to set the max route count for the device.
     uint32 max_out_fib_route_count = 441;
+
+    // https://partnerissuetracker.corp.google.com/issues/536260803
+    bool ipsec_oc_unsupported = 442;
+
+    // https://partnerissuetracker.corp.google.com/issues/536063386
+    bool static_route_in_vrf_oc_unsupported = 443;
+
+    // https://partnerissuetracker.corp.google.com/issues/536063387
+    bool ip_routing_in_vrf_oc_unsupported = 444;
+
+    // https://partnerissuetracker.corp.google.com/issues/536257634
+    bool macsec_oc_unsupported = 445;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
