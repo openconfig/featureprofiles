@@ -210,10 +210,10 @@ _Transit VRFs setup:_
     - D.1) Install 1536 NextHops. Each will redirect to an IP from C).
     - D.2) Install 1536 NextHops. Each will redirect to an IP from C).
     - E.1) Install 768 NextHopGroups. Each will contain 1 NextHops from D.1 with
-    weights 1 and 1 NextHop from D.1 with weight 63. The backup NextHopGroup
+    weights 1 and 1 NextHop from D.2 with weight 63. The backup NextHopGroup
     should be S1).
     - E.2) Install 768 NextHopGroups. Each will contain 1 NextHops from D.1 with
-    weights 1 and 1 NextHop from D.1 with weight 63. The backup NextHopGroup
+    weights 1 and 1 NextHop from D.2 with weight 63. The backup NextHopGroup
     should be S2).
 - `TE_VRF_111`:
      - Install 200K `/32` IPv4Entries (no IPv6Entries). Each points to a NextHopGroup from E.1).
