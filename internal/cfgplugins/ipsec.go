@@ -111,10 +111,12 @@ func BuildIPSecTunnel(cfg IPSecTunnelCfg) string {
 		!`, ikePolicy, cfg.LocalFQDN, cfg.RemoteFQDN, saPolicy, profile, cfg.TunnelName, cfg.Description, cfg.TunnelVRF, addrLines, cfg.TunnelSrc, cfg.TunnelDst)
 }
 
-// ConfigureIPSecTunnel configures IPSec IKE/SA policies and a tunnel interface,
-// via a gNMI CLI block on Arista or via OpenConfig (interface attributes only) elsewhere.
-func ConfigureIPSecTunnel(t *testing.T, dut *ondatra.DUTDevice, cfg IPSecTunnelCfg) {
+// ConfigureIPSecTunnel returns a gnmi SetBatch for configuring IPSec IKE/SA policies and a tunnel interface.
+// For CLI-based devices, the batch will execute CLI commands. For OC-based devices, it will set OC paths.
+func ConfigureIPSecTunnel(t *testing.T, dut *ondatra.DUTDevice, cfg IPSecTunnelCfg) *gnmi.SetBatch {
 	t.Helper()
+
+	batch := &gnmi.SetBatch{}
 
 	// Each tunnel uses an independent IKE/SA policy and profile so a change on one
 	// tunnel does not affect others sharing the same profile.
@@ -161,16 +163,21 @@ func ConfigureIPSecTunnel(t *testing.T, dut *ondatra.DUTDevice, cfg IPSecTunnelC
 				Interface:    ygot.String(cfg.TunnelName),
 				Subinterface: ygot.Uint32(0),
 			}
-			gnmi.Update(t, dut, d.NetworkInstance(cfg.TunnelVRF).Interface(cfg.TunnelName).Config(), niIntf)
+			gnmi.BatchUpdate(batch, d.NetworkInstance(cfg.TunnelVRF).Interface(cfg.TunnelName).Config(), niIntf)
 		}
 
-		gnmi.Update(t, dut, d.Interface(cfg.TunnelName).Config(), i)
+		gnmi.BatchUpdate(batch, d.Interface(cfg.TunnelName).Config(), i)
 	}
+
+	return batch
 }
 
-// SetShortSALifetime configures a short SA lifetime on the IPSec SA policy.
-func SetShortSALifetime(t *testing.T, dut *ondatra.DUTDevice, cfg IPSecTunnelCfg, seconds int) {
+// SetShortSALifetime returns a gnmi SetBatch for configuring a short SA lifetime on the IPSec SA policy.
+func SetShortSALifetime(t *testing.T, dut *ondatra.DUTDevice, cfg IPSecTunnelCfg, seconds int) *gnmi.SetBatch {
 	t.Helper()
+
+	batch := &gnmi.SetBatch{}
+
 	if deviations.IpsecOcUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
@@ -179,18 +186,23 @@ func SetShortSALifetime(t *testing.T, dut *ondatra.DUTDevice, cfg IPSecTunnelCfg
 				saPolicy = "SA_POLICY_1"
 			}
 			helpers.GnmiCLIConfig(t, dut, fmt.Sprintf(`ip security
-			sa policy %s
-				sa lifetime %d minutes
-			!`, saPolicy, seconds))
+sa policy %s
+	sa lifetime %d minutes
+!`, saPolicy, seconds))
 		}
 	} else {
 		t.Log("Setting short SA lifetime via OpenConfig is not supported on this DUT, skipping")
 	}
+
+	return batch
 }
 
-// SetShortIKELifetime configures a short IKE lifetime on the IPSec IKE policy.
-func SetShortIKELifetime(t *testing.T, dut *ondatra.DUTDevice, cfg IPSecTunnelCfg, seconds int) {
+// SetShortIKELifetime returns a gnmi SetBatch for configuring a short IKE lifetime on the IPSec IKE policy.
+func SetShortIKELifetime(t *testing.T, dut *ondatra.DUTDevice, cfg IPSecTunnelCfg, seconds int) *gnmi.SetBatch {
 	t.Helper()
+
+	batch := &gnmi.SetBatch{}
+
 	if deviations.IpsecOcUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
@@ -199,18 +211,23 @@ func SetShortIKELifetime(t *testing.T, dut *ondatra.DUTDevice, cfg IPSecTunnelCf
 				ikePolicy = "IKE_POLICY_1"
 			}
 			helpers.GnmiCLIConfig(t, dut, fmt.Sprintf(`ip security
-			ike policy %s
-				ike-lifetime %d minutes
-			!`, ikePolicy, seconds))
+ike policy %s
+	ike-lifetime %d minutes
+!`, ikePolicy, seconds))
 		}
 	} else {
 		t.Log("Setting short IKE lifetime via OpenConfig is not supported on this DUT, skipping")
 	}
+
+	return batch
 }
 
-// ConfigureDPD configures Dead Peer Detection on the IPSec profile.
-func ConfigureDPD(t *testing.T, dut *ondatra.DUTDevice, cfg IPSecTunnelCfg, intervalSec, holdSec int) {
+// ConfigureDPD returns a gnmi SetBatch for configuring Dead Peer Detection on the IPSec profile.
+func ConfigureDPD(t *testing.T, dut *ondatra.DUTDevice, cfg IPSecTunnelCfg, intervalSec, holdSec int) *gnmi.SetBatch {
 	t.Helper()
+
+	batch := &gnmi.SetBatch{}
+
 	if deviations.IpsecOcUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
@@ -219,18 +236,23 @@ func ConfigureDPD(t *testing.T, dut *ondatra.DUTDevice, cfg IPSecTunnelCfg, inte
 				profile = "IPSEC_PROFILE_1"
 			}
 			helpers.GnmiCLIConfig(t, dut, fmt.Sprintf(`ip security
-			profile %s
-				dpd %d %d
-			!`, profile, intervalSec, holdSec))
+profile %s
+	dpd %d %d
+!`, profile, intervalSec, holdSec))
 		}
 	} else {
 		t.Log("Configuring DPD via OpenConfig is not supported on this DUT, skipping")
 	}
+
+	return batch
 }
 
-// SetMismatchedKey modifies the shared key on the IPSec profile to trigger a mismatch.
-func SetMismatchedKey(t *testing.T, dut *ondatra.DUTDevice, cfg IPSecTunnelCfg) {
+// SetMismatchedKey returns a gnmi SetBatch for modifying the shared key on the IPSec profile to trigger a mismatch.
+func SetMismatchedKey(t *testing.T, dut *ondatra.DUTDevice, cfg IPSecTunnelCfg) *gnmi.SetBatch {
 	t.Helper()
+
+	batch := &gnmi.SetBatch{}
+
 	if deviations.IpsecOcUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
@@ -239,18 +261,23 @@ func SetMismatchedKey(t *testing.T, dut *ondatra.DUTDevice, cfg IPSecTunnelCfg) 
 				profile = "IPSEC_PROFILE_1"
 			}
 			helpers.GnmiCLIConfig(t, dut, fmt.Sprintf(`ip security
-			profile %s
-				shared-key 7 047F0E021A71
-			!`, profile))
+profile %s
+	shared-key 7 047F0E021A71
+!`, profile))
 		}
 	} else {
 		t.Log("Setting mismatched key via OpenConfig is not supported on this DUT, skipping")
 	}
+
+	return batch
 }
 
-// SetMismatchedCipher modifies the cipher on the IPSec SA policy to trigger a mismatch.
-func SetMismatchedCipher(t *testing.T, dut *ondatra.DUTDevice, cfg IPSecTunnelCfg) {
+// SetMismatchedCipher returns a gnmi SetBatch for modifying the cipher on the IPSec SA policy to trigger a mismatch.
+func SetMismatchedCipher(t *testing.T, dut *ondatra.DUTDevice, cfg IPSecTunnelCfg) *gnmi.SetBatch {
 	t.Helper()
+
+	batch := &gnmi.SetBatch{}
+
 	if deviations.IpsecOcUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
@@ -259,18 +286,23 @@ func SetMismatchedCipher(t *testing.T, dut *ondatra.DUTDevice, cfg IPSecTunnelCf
 				saPolicy = "SA_POLICY_1"
 			}
 			helpers.GnmiCLIConfig(t, dut, fmt.Sprintf(`ip security
-			sa policy %s
-				esp encryption aes128gcm128
-			!`, saPolicy))
+sa policy %s
+	esp encryption aes128gcm128
+!`, saPolicy))
 		}
 	} else {
 		t.Log("Setting mismatched cipher via OpenConfig is not supported on this DUT, skipping")
 	}
+
+	return batch
 }
 
-// RotateSharedKey updates the shared key on the IPSec profile.
-func RotateSharedKey(t *testing.T, dut *ondatra.DUTDevice, cfg IPSecTunnelCfg, key string) {
+// RotateSharedKey returns a gnmi SetBatch for updating the shared key on the IPSec profile.
+func RotateSharedKey(t *testing.T, dut *ondatra.DUTDevice, cfg IPSecTunnelCfg, key string) *gnmi.SetBatch {
 	t.Helper()
+
+	batch := &gnmi.SetBatch{}
+
 	if deviations.IpsecOcUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
@@ -279,37 +311,49 @@ func RotateSharedKey(t *testing.T, dut *ondatra.DUTDevice, cfg IPSecTunnelCfg, k
 				profile = "IPSEC_PROFILE_1"
 			}
 			helpers.GnmiCLIConfig(t, dut, fmt.Sprintf(`ip security
-			profile %s
-				shared-key 7 %s
-			!`, profile, key))
+profile %s
+	shared-key 7 %s
+!`, profile, key))
 		}
 	} else {
 		t.Log("Rotating shared key via OpenConfig is not supported on this DUT, skipping")
 	}
+
+	return batch
 }
 
-// DisableFlowLabelHash disables flow label hashing on the tunnel interface.
-func DisableFlowLabelHash(t *testing.T, dut *ondatra.DUTDevice, cfg IPSecTunnelCfg) {
+// DisableFlowLabelHash returns a gnmi SetBatch for disabling flow label hashing on the tunnel interface.
+func DisableFlowLabelHash(t *testing.T, dut *ondatra.DUTDevice, cfg IPSecTunnelCfg) *gnmi.SetBatch {
 	t.Helper()
+
+	batch := &gnmi.SetBatch{}
+
 	if deviations.IpsecOcUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
 			helpers.GnmiCLIConfig(t, dut, fmt.Sprintf(`interface %s
-			tunnel flow-label hash disable
-			!`, cfg.TunnelName))
+tunnel flow-label hash disable
+!`, cfg.TunnelName))
 		}
 	} else {
 		t.Log("Disabling flow label hash via OpenConfig is not supported on this DUT, skipping")
 	}
+
+	return batch
 }
 
-// DeleteTunnelInterface deletes a tunnel interface via CLI.
-func DeleteTunnelInterface(t *testing.T, dut *ondatra.DUTDevice, tunnelName string) {
+// DeleteTunnelInterface returns a gnmi SetBatch for deleting a tunnel interface via CLI.
+func DeleteTunnelInterface(t *testing.T, dut *ondatra.DUTDevice, tunnelName string) *gnmi.SetBatch {
 	t.Helper()
+
+	batch := &gnmi.SetBatch{}
+
 	if deviations.IpsecOcUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
 			helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("no interface %s", tunnelName))
 		}
 	}
+
+	return batch
 }

@@ -36,9 +36,12 @@ type MACsecCfg struct {
 	FallbackCAK string
 }
 
-// ConfigureMACsec configures a MACsec security profile and applies it to the given interface
-func ConfigureMACsec(t *testing.T, dut *ondatra.DUTDevice, cfg MACsecCfg) {
+// ConfigureMACsec returns a gnmi SetBatch for configuring a MACsec security profile and applies it to the given interface.
+func ConfigureMACsec(t *testing.T, dut *ondatra.DUTDevice, cfg MACsecCfg) *gnmi.SetBatch {
 	t.Helper()
+
+	batch := &gnmi.SetBatch{}
+
 	if deviations.MacsecOcUnsupported(dut) {
 		macSecCLI := fmt.Sprintf(`mac security
 	profile %[1]s
@@ -67,7 +70,7 @@ func ConfigureMACsec(t *testing.T, dut *ondatra.DUTDevice, cfg MACsecCfg) {
 			fallback.SetSecretKey(cfg.FallbackCAK)
 			fallback.SetCryptoAlgorithm(oc.KeychainTypes_CRYPTO_TYPE_AES_256_CMAC)
 		}
-		gnmi.Update(t, dut, d.Keychain(cfg.ProfileName).Config(), kc)
+		gnmi.BatchUpdate(batch, d.Keychain(cfg.ProfileName).Config(), kc)
 
 		// MKA policy and MACsec interface referencing the keychain and policy.
 		macsec := &oc.Macsec{}
@@ -83,6 +86,8 @@ func ConfigureMACsec(t *testing.T, dut *ondatra.DUTDevice, cfg MACsecCfg) {
 		mka.SetKeyChain(cfg.ProfileName)
 		mka.SetMkaPolicy(cfg.ProfileName)
 
-		gnmi.Update(t, dut, d.Macsec().Config(), macsec)
+		gnmi.BatchUpdate(batch, d.Macsec().Config(), macsec)
 	}
+
+	return batch
 }

@@ -800,7 +800,7 @@ func configureATE(t *testing.T) gosnappi.Config {
 	return top
 }
 
-func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, cfg gosnappi.Config, flowName string, testResults bool) {
+func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, cfg gosnappi.Config, flowName string, testResults bool) error {
 	t.Helper()
 
 	flowPath := gnmi.OTG().Flow(flowName).State()
@@ -837,22 +837,23 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, cfg gosnappi.Config, fl
 		if testResults {
 			if framesTx > 0 && framesRx == framesTx {
 				t.Logf("%s: traffic verification passed: FramesTx: %d, FramesRx: %d", flowName, framesTx, framesRx)
-				return
+				return nil
 			}
 		} else {
 			if framesTx > 0 && framesRx == 0 {
 				t.Logf("%s: traffic verification passed: FramesTx: %d, FramesRx: %d", flowName, framesTx, framesRx)
-				return
+				return nil
 			}
 		}
 
+		var errMsg string
 		if testResults {
-			t.Errorf("%s: traffic verification did not pass: FramesTx: %d, FramesRx: %d, want FramesRx == FramesTx and FramesTx > 0", flowName, framesTx, framesRx)
+			errMsg = fmt.Sprintf("%s: traffic verification did not pass: FramesTx: %d, FramesRx: %d, want FramesRx == FramesTx and FramesTx > 0", flowName, framesTx, framesRx)
 		} else {
-			t.Errorf("%s: traffic verification did not pass: FramesTx: %d, FramesRx: %d, want FramesRx == 0 and FramesTx > 0", flowName, framesTx, framesRx)
+			errMsg = fmt.Sprintf("%s: traffic verification did not pass: FramesTx: %d, FramesRx: %d, want FramesRx == 0 and FramesTx > 0", flowName, framesTx, framesRx)
 		}
 		otgutils.LogFlowMetrics(t, ate.OTG(), cfg)
-		return
+		return fmt.Errorf("%s", errMsg)
 	}
 
 	recvMetric, present := last.Val()
@@ -863,6 +864,7 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, cfg gosnappi.Config, fl
 	framesRx := recvMetric.GetCounters().GetInPkts()
 	otgutils.LogFlowMetrics(t, ate.OTG(), cfg)
 	t.Logf("%s: traffic verification passed: FramesTx: %d, FramesRx: %d", flowName, framesTx, framesRx)
+	return nil
 }
 
 func waitForOTGLAGUP(t *testing.T, ate *ondatra.ATEDevice, lagName string, wantMembersUp uint64, timeout time.Duration) {
@@ -1011,12 +1013,14 @@ func configureScaledTunnels(t *testing.T, dut1, dut2 *ondatra.DUTDevice, numTunn
 		if deviations.IpsecOcUnsupported(dut1) {
 			dut1Tunnels = append(dut1Tunnels, cfgplugins.BuildIPSecTunnel(dut1Cfg))
 		} else {
-			cfgplugins.ConfigureIPSecTunnel(t, dut1, dut1Cfg)
+			batch1 := cfgplugins.ConfigureIPSecTunnel(t, dut1, dut1Cfg)
+			batch1.Set(t, dut1)
 		}
 		if deviations.IpsecOcUnsupported(dut2) {
 			dut2Tunnels = append(dut2Tunnels, cfgplugins.BuildIPSecTunnel(dut2Cfg))
 		} else {
-			cfgplugins.ConfigureIPSecTunnel(t, dut2, dut2Cfg)
+			batch2 := cfgplugins.ConfigureIPSecTunnel(t, dut2, dut2Cfg)
+			batch2.Set(t, dut2)
 		}
 
 		// Reachability to the far-end loopback endpoint over both DUT-DUT core LAGs.
@@ -1074,7 +1078,7 @@ func readMemberOutPkts(t *testing.T, dut *ondatra.DUTDevice, memberPorts []*onda
 	return vals
 }
 
-func verifyDUTDUTLoadBalance(t *testing.T, dut *ondatra.DUTDevice, memberPorts []*ondatra.Port, baseline map[string]uint64, tolerance float64, wantSingleLink bool) {
+func verifyDUTDUTLoadBalance(t *testing.T, dut *ondatra.DUTDevice, memberPorts []*ondatra.Port, baseline map[string]uint64, tolerance float64, wantSingleLink bool) error {
 	t.Helper()
 
 	after := readMemberOutPkts(t, dut, memberPorts)
@@ -1094,28 +1098,34 @@ func verifyDUTDUTLoadBalance(t *testing.T, dut *ondatra.DUTDevice, memberPorts [
 	}
 
 	if total == 0 {
-		t.Fatalf("no packets observed on DUT-to-DUT member links")
+		return fmt.Errorf("no packets observed on DUT-to-DUT member links")
 	}
+
+	var errs []error
 
 	if wantSingleLink {
 		if active != 1 {
-			t.Errorf("single-link expectation failed: active members got %d, want 1", active)
+			errs = append(errs, fmt.Errorf("single-link expectation failed: active members got %d, want 1", active))
 		}
-		return
+	} else {
+		if active != len(memberPorts) {
+			errs = append(errs, fmt.Errorf("balanced load expectation failed: active members got %d, want %d", active, len(memberPorts)))
+		}
+
+		evenShare := 1.0 / float64(len(memberPorts))
+		for _, p := range memberPorts {
+			name := p.Name()
+			share := float64(delta[name]) / float64(total)
+			if math.Abs(share-evenShare) > tolerance {
+				errs = append(errs, fmt.Errorf("member %s share got %.3f, want %.3f +/- %.3f", name, share, evenShare, tolerance))
+			}
+		}
 	}
 
-	if active != len(memberPorts) {
-		t.Errorf("balanced load expectation failed: active members got %d, want %d", active, len(memberPorts))
+	if len(errs) > 0 {
+		return fmt.Errorf("load balance verification failed: %v", errs)
 	}
-
-	evenShare := 1.0 / float64(len(memberPorts))
-	for _, p := range memberPorts {
-		name := p.Name()
-		share := float64(delta[name]) / float64(total)
-		if math.Abs(share-evenShare) > tolerance {
-			t.Errorf("member %s share got %.3f, want %.3f +/- %.3f", name, share, evenShare, tolerance)
-		}
-	}
+	return nil
 }
 
 // TestIPSecScaleWithMACSecOverAggregatedLinks implements IPSEC-1.2: it brings up the
@@ -1169,7 +1179,7 @@ func TestIPSecScaleWithMACSecOverAggregatedLinks(t *testing.T) {
 	// Configure loopback interfaces used as IPSec tunnel endpoints.
 	// All per-tunnel loopback endpoints are configured by configureScaledTunnels below.
 
-	cfgplugins.ConfigureMACsec(t, dut1, cfgplugins.MACsecCfg{
+	batchMACsec := cfgplugins.ConfigureMACsec(t, dut1, cfgplugins.MACsecCfg{
 		IntfName:    dut1CustPort.Name(),
 		ProfileName: "macSecProfile",
 		CKN:         ckn,
@@ -1177,6 +1187,7 @@ func TestIPSecScaleWithMACSecOverAggregatedLinks(t *testing.T) {
 		FallbackCKN: fallbackCkn,
 		FallbackCAK: fallbackCak,
 	})
+	batchMACsec.Set(t, dut1)
 
 	// Configure the maximum number of parallel IPSec tunnels between the two
 	// DUTs. Each tunnel uses a dedicated loopback pair as its endpoints and an
@@ -1254,7 +1265,9 @@ func TestIPSecScaleWithMACSecOverAggregatedLinks(t *testing.T) {
 		}
 
 		for _, flowName := range flowNames {
-			verifyTraffic(t, ate, top, flowName, true)
+			if err := verifyTraffic(t, ate, top, flowName, true); err != nil {
+				t.Errorf("traffic verification failed: %v", err)
+			}
 		}
 	}
 
@@ -1273,7 +1286,9 @@ func TestIPSecScaleWithMACSecOverAggregatedLinks(t *testing.T) {
 
 				runTrafficAndVerify(t, flowIPv4Fwd, flowIPv4Bwd)
 
-				verifyDUTDUTLoadBalance(t, dut1, dut1CorePorts, pre, 0.25, false)
+				if err := verifyDUTDUTLoadBalance(t, dut1, dut1CorePorts, pre, 0.25, false); err != nil {
+					t.Errorf("load balance verification failed: %v", err)
+				}
 			},
 		},
 		{
@@ -1286,7 +1301,9 @@ func TestIPSecScaleWithMACSecOverAggregatedLinks(t *testing.T) {
 
 				runTrafficAndVerify(t, flowIPv6Fwd, flowIPv6Bwd)
 
-				verifyDUTDUTLoadBalance(t, dut1, dut1CorePorts, pre, 0.25, false)
+				if err := verifyDUTDUTLoadBalance(t, dut1, dut1CorePorts, pre, 0.25, false); err != nil {
+					t.Errorf("load balance verification failed: %v", err)
+				}
 			},
 		},
 		{
