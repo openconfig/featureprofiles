@@ -554,7 +554,10 @@ func validateMacsecHeader(t *testing.T, packetSource *gopacket.PacketSource, pac
 	t.Helper()
 	t.Log("Validating MACsec header")
 
-	etherType := packetVal.MacsecLayer.EtherType
+	var etherType uint16
+	if packetVal.MacsecLayer != nil {
+		etherType = packetVal.MacsecLayer.EtherType
+	}
 	if etherType == 0 {
 		etherType = MacsecEtherType
 	}
