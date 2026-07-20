@@ -28,10 +28,8 @@ import (
 	sync "sync"
 	unsafe "unsafe"
 
-	_ "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
 	ocpaths_go_proto "github.com/openconfig/featureprofiles/proto/ocpaths_go_proto"
 	ocrpcs_go_proto "github.com/openconfig/featureprofiles/proto/ocrpcs_go_proto"
-	_ "github.com/openconfig/featureprofiles/proto/testregistry_go_proto"
 	proto "github.com/openconfig/ondatra/proto"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -343,7 +341,7 @@ var File_nosimage_proto protoreflect.FileDescriptor
 
 const file_nosimage_proto_rawDesc = "" +
 	"\n" +
-	"\x0enosimage.proto\x12\x1copenconfig.profiles.nosimage\x1a>github.com/openconfig/featureprofiles/proto/testregistry.proto\x1a:github.com/openconfig/featureprofiles/proto/metadata.proto\x1a9github.com/openconfig/featureprofiles/proto/ocpaths.proto\x1a8github.com/openconfig/featureprofiles/proto/ocrpcs.proto\x1a1github.com/openconfig/ondatra/proto/testbed.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8f\x04\n" +
+	"\x0enosimage.proto\x12\x1copenconfig.profiles.nosimage\x1a9github.com/openconfig/featureprofiles/proto/ocpaths.proto\x1a8github.com/openconfig/featureprofiles/proto/ocrpcs.proto\x1a1github.com/openconfig/ondatra/proto/testbed.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8f\x04\n" +
 	"\x0fNOSImageProfile\x123\n" +
 	"\tvendor_id\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\bvendorId\x12\x10\n" +
 	"\x03nos\x18\x02 \x01(\tR\x03nos\x12)\n" +
