@@ -179,9 +179,8 @@ func TestBGPSetup(t *testing.T) {
 		//BGP multipath enable/disable at the peer-group level not required b/376799583
 		t.Logf("BGP Multipath enable/disable is not required under Peer-group by %s hence skipping", bs.DUT.Vendor())
 	case ondatra.JUNIPER:
-		if !deviations.MultipathUnsupportedNeighborOrAfisafi(bs.DUT) {
-			bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().Enabled = ygot.Bool(true)
-		}
+		// Buganizer ID
+		bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().Enabled = ygot.Bool(true)
 	default:
 		bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().Enabled = ygot.Bool(true)
 	}
@@ -222,11 +221,11 @@ func TestBGPSetup(t *testing.T) {
 			t.Fatalf("Unsupported vendor %s for deviation 'SkipSettingAllowMultipleAS'", bs.DUT.Vendor())
 		}
 	} else {
-		if !deviations.MultipathUnsupportedNeighborOrAfisafi(bs.DUT) {
-			gEBGP := bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp()
-			gEBGP.SetAllowMultipleAs(true)
+		gEBGP := bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp()
+		gEBGP.SetAllowMultipleAs(true)
+		gEBGP.GetOrCreateLinkBandwidthExtCommunity().SetEnabled(true)
+		if !deviations.BgpMaxMultipathPathsUnsupported(bs.DUT) {
 			gEBGP.SetMaximumPaths(maxPaths)
-			gEBGP.GetOrCreateLinkBandwidthExtCommunity().SetEnabled(true)
 		}
 	}
 
