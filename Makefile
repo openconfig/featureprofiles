@@ -76,7 +76,7 @@ topologies/proto/binding/binding.pb.go: topologies/proto/binding.proto protoimpo
 	protoc -I='protobuf-import' --proto_path=topologies/proto --go_out=. --go_opt=Mbinding.proto=topologies/proto/binding binding.proto
 	goimports -w topologies/proto/binding/binding.pb.go
 
-sync-test-registry: protos
+sync-test-registry:
 	go run tools/sync_test_registry/sync_test_registry.go -logtostderr
 
 clean:
