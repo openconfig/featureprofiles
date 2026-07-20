@@ -21,6 +21,7 @@ platform_exceptions: {
   }
   deviations: {
     bgp_max_multipath_paths_unsupported: true
+    multipath_unsupported_neighbor_or_afisafi: true
   }
 }
 platform_exceptions: {
