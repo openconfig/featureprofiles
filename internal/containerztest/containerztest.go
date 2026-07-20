@@ -55,7 +55,9 @@ func Client(t *testing.T, dut *ondatra.DUTDevice) *client.Client {
 		time.Sleep(time.Minute)
 	case ondatra.CISCO:
 		dut.Config().New().WithCiscoText(`
-			appmgr docker allow-sensitive-paths
+			appmgr
+			  docker vrf mgmt
+			  docker allow-sensitive-paths
 			ipv6 access-list restrict-access-ipv6
 			  ! open port for cntrsrv from PROD
 			  permit tcp any any eq 60061
