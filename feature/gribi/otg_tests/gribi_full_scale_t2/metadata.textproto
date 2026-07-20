@@ -11,18 +11,9 @@ platform_exceptions: {
     vendor: ARISTA
   }
   deviations: {
+    omit_l2_mtu: true
     interface_enabled: true
     default_network_instance: "default"
-  }
-}
-
-platform_exceptions: {
-  platform: {
-    vendor: CISCO
-  }
-  deviations: {
-    ipv4_missing_enabled: true
-    interface_ref_interface_id_format: true
   }
 }
 
@@ -32,5 +23,27 @@ platform_exceptions: {
   }
   deviations: {
     no_mix_of_tagged_and_untagged_subinterfaces: true
+    explicit_interface_in_default_vrf: true
+    interface_enabled: true
+  }
+}
+
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    no_mix_of_tagged_and_untagged_subinterfaces: true
+    interface_ref_interface_id_format: true
+  }
+}
+
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    interface_ref_interface_id_format: true
+    pf_require_match_default_rule: true
   }
 }
