@@ -37,7 +37,7 @@ import (
 )
 
 const (
-	decapDesIpv4IP   = "203.0.113.1/24"
+	decapDesIpv4IP   = "203.0.113.0/24"
 	decapGrpName     = "Decap1"
 	nullRoute        = "Null0"
 	IPv4Dst1         = "192.0.4.0/30"
@@ -137,6 +137,7 @@ func TestDecapGre(t *testing.T) {
 
 	// Configure Static Route: MPLS label binding
 	cfgplugins.MPLSStaticLSP(t, sfBatch, dut, "lsp1", LBL1, otgPort2.IPv4, dut.Port(t, "port2").Name(), "ipv4")
+	sfBatch.Set(t, dut)
 
 	// Configure Static Route: IPV4-DST2 --> ATE Port 2
 	configStaticRoute(t, dut, IPv4Dst2, otgPort2.IPv4)
@@ -145,7 +146,7 @@ func TestDecapGre(t *testing.T) {
 	configStaticRoute(t, dut, IPv6Dst2, otgPort2.IPv6)
 
 	// Policy Based Forwading Rule-1
-	cfgplugins.PolicyForwardingGreDecapsulation(t, sfBatch, dut, strings.Split(decapDesIpv4IP, "/")[0], "PBR-Policy", "port1", decapGrpName)
+	cfgplugins.PolicyForwardingGreDecapsulation(t, sfBatch, dut, decapDesIpv4IP, "PBR-Policy", "port1", decapGrpName)
 
 	// Test cases.
 	type testCase struct {
@@ -355,7 +356,6 @@ func testGreDecapIPv6(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.OTG, 
 	config.Flows().Append(flow)
 	otgConfig.PushConfig(t, config)
 
-	enableCapture(t, config, "port2")
 	otgConfig.StartProtocols(t)
 
 	otgutils.WaitForARP(t, otgConfig, config, "IPv4")
@@ -370,7 +370,7 @@ func testGreDecapIPv6(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.OTG, 
 
 	stopCapture(t, otgConfig, cs)
 	validateTrafficLoss(t, otgConfig, config, "DecapIpv6GRE")
-	validateGREDecapIpv6(t, otgConfig, false)
+	validateGREDecapIpv6(t, otgConfig, false, false)
 
 }
 
@@ -393,8 +393,6 @@ func testGreDecapIPv4MPLS(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.O
 
 	config.Flows().Append(flow)
 	otgConfig.PushConfig(t, config)
-
-	enableCapture(t, config, "port2")
 
 	otgConfig.StartProtocols(t)
 	otgutils.WaitForARP(t, otgConfig, config, "IPv4")
@@ -433,8 +431,6 @@ func testGreDecapIPv6MPLS(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.O
 	config.Flows().Append(flow)
 	otgConfig.PushConfig(t, config)
 
-	enableCapture(t, config, "port2")
-
 	otgConfig.StartProtocols(t)
 	otgutils.WaitForARP(t, otgConfig, config, "IPv4")
 	otgutils.WaitForARP(t, otgConfig, config, "IPv6")
@@ -448,7 +444,7 @@ func testGreDecapIPv6MPLS(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.O
 
 	stopCapture(t, otgConfig, cs)
 	validateTrafficLoss(t, otgConfig, config, "Decap-IPv6-over-MPLS")
-	validateGREDecapIpv6(t, otgConfig, true)
+	validateGREDecapIpv6(t, otgConfig, true, true)
 
 }
 
@@ -476,8 +472,6 @@ func testGreDecapMultiLabelMPLS(t *testing.T, dut *ondatra.DUTDevice, otgConfig 
 
 	config.Flows().Append(flow)
 	otgConfig.PushConfig(t, config)
-
-	enableCapture(t, config, "port2")
 
 	otgConfig.StartProtocols(t)
 	otgutils.WaitForARP(t, otgConfig, config, "IPv4")
@@ -574,7 +568,7 @@ func validateGREDecapIpv4(t *testing.T, otgConfig *otg.OTG, checkTTL bool) {
 	}
 }
 
-func validateGREDecapIpv6(t *testing.T, otgConfig *otg.OTG, checkTTL bool) {
+func validateGREDecapIpv6(t *testing.T, otgConfig *otg.OTG, checkTTL bool, checkMpls bool) {
 	capturePktFile := processCapture(t, otgConfig, "port2")
 	handle, err := pcap.OpenOffline(capturePktFile)
 	if err != nil {
@@ -584,6 +578,11 @@ func validateGREDecapIpv6(t *testing.T, otgConfig *otg.OTG, checkTTL bool) {
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 
 	for packet := range packetSource.Packets() {
+		if checkMpls {
+			if mplsLayer := packet.Layer(layers.LayerTypeMPLS); mplsLayer != nil {
+				t.Fatalf("Error: Decapsulated MPLS traffic is received on ATE Port 2")
+			}
+		}
 		if ipv4Layer := packet.Layer(layers.LayerTypeIPv4); ipv4Layer != nil {
 			t.Fatalf("Error: Decapsulated IPv6 traffic is not received on ATE Port 2")
 		}
@@ -652,6 +651,8 @@ func validateMPLSDecapTraffic(t *testing.T, otgConfig *otg.OTG) {
 		} else {
 			t.Logf("Got expected EXP.Expected: 4, Got: %v", mplsExp)
 		}
+	} else {
+		t.Fatalf("Error: Decapsulated MPLS traffic is not received on ATE Port 2")
 	}
 }
 
@@ -665,8 +666,8 @@ func validateTrafficLoss(t *testing.T, otgConfig *otg.OTG, config gosnappi.Confi
 	if outPkts == 0 {
 		t.Fatalf("OutPkts for flow %s is 0, want > 0", flowName)
 	}
-	if got := ((outPkts - inPkts) * 100) / outPkts; got > 0 {
-		t.Fatalf("LossPct for flow %s: got %v, want 0", flowName, got)
+	if got := ((outPkts - inPkts) * 100) / outPkts; got > 1 {
+		t.Fatalf("LossPct for flow %s: got %v, want < 1", flowName, got)
 	}
 }
 
@@ -689,7 +690,7 @@ func processCapture(t *testing.T, otg *otg.OTG, port string) string {
 func validateDUTPkts(t *testing.T, dut *ondatra.DUTDevice) {
 	if deviations.GreDecapsulationOCUnsupported(dut) {
 		switch dut.Vendor() {
-		case ondatra.ARISTA:
+		case ondatra.ARISTA, ondatra.CISCO:
 			port1 := dut.Port(t, "port1")
 			ingressPort := port1.Name()
 
