@@ -5,6 +5,7 @@ uuid: "6924b212-f540-4f89-b330-03233ab4b2f0"
 plan_id: "TE-14.5"
 description: "gRIBI Scaling - full scale setup, target T0"
 testbed: TESTBED_DUT_ATE_2LINKS
+
 platform_exceptions: {
   platform: {
     vendor: ARISTA
@@ -37,3 +38,12 @@ platform_exceptions: {
   }
 }
 
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    interface_ref_interface_id_format: true
+    pf_require_match_default_rule: true
+  }
+}
