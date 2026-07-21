@@ -19,9 +19,10 @@ package authz
 
 import (
 	"context"
-
 	"crypto/tls"
 	"encoding/json"
+	"errors"
+	"io"
 	"os"
 	"testing"
 	"time"
@@ -145,7 +146,7 @@ func (p *AuthorizationPolicy) Rotate(t *testing.T, dut *ondatra.DUTDevice, creat
 		t.Fatalf("Error while finalizing rotate request  %v", err)
 	}
 	_, err = rotateStream.Recv()
-	if err != nil {
+	if err != nil && !errors.Is(err, io.EOF) {
 		t.Fatalf("Error while receiving finalize response %v", err)
 	}
 	_, finalPolicy := Get(t, dut)
