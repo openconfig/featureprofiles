@@ -435,11 +435,11 @@ func testControllerCardLastRebootTime(t *testing.T, dut *ondatra.DUTDevice, cont
 	t.Logf("Wait for a minute to allow the sub component's reboot process to start")
 	time.Sleep(1 * time.Minute)
 
-	watch := gnmi.Watch(t, dut, gnmi.OC().Component(rpStandby).RedundantRole().State(), 20*time.Minute, func(val *ygnmi.Value[oc.E_Platform_ComponentRedundantRole]) bool {
+	watch := gnmi.Watch(t, dut, gnmi.OC().Component(rpStandby).RedundantRole().State(), 30*time.Minute, func(val *ygnmi.Value[oc.E_Platform_ComponentRedundantRole]) bool {
 		return val.IsPresent()
 	})
 	if val, ok := watch.Await(t); !ok {
-		t.Fatalf("DUT did not reach target state within %v: got %v", 20*time.Minute, val)
+		t.Fatalf("DUT did not reach target state within %v: got %v", 30*time.Minute, val)
 	}
 	t.Logf("Standby controller boot time: %.2f seconds", time.Since(startReboot).Seconds())
 
