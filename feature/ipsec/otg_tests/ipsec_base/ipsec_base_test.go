@@ -507,44 +507,29 @@ type staticRoute struct {
 	EgressVRF string // egress VRF for cross-VRF leaking (empty if not used)
 }
 
-// configureStaticRoutes uses OC for named-VRF routes, CLI for egress-vrf/default-VRF routes.
+// configureStaticRoutes configures static routes via OpenConfig or CLI based on device capabilities.
+// Routes are grouped by VRF and batched where possible to minimize gNMI roundtrips.
 func configureStaticRoutes(t *testing.T, dut *ondatra.DUTDevice, routes []staticRoute) {
 	t.Helper()
 
-	// Group named-VRF routes without egress-vrf for OC.
-	ocRoutesByVRF := make(map[string][]staticRoute)
-	for _, r := range routes {
-		if r.EgressVRF == "" && r.VRF != "" {
-			ocRoutesByVRF[r.VRF] = append(ocRoutesByVRF[r.VRF], r)
-		}
-	}
-
-	// Configure named-VRF plain next-hop routes via OC.
-	for vrfName, vrfRoutes := range ocRoutesByVRF {
-		proto := &oc.NetworkInstance_Protocol{
-			Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
-			Name:       ygot.String(deviations.StaticProtocolName(dut)),
-		}
-		for _, r := range vrfRoutes {
-			sr := proto.GetOrCreateStatic(r.Prefix)
-			sr.Prefix = ygot.String(r.Prefix)
-			nh := sr.GetOrCreateNextHop("0")
-			nh.Index = ygot.String("0")
-			nh.NextHop = oc.UnionString(r.NextHop)
-		}
-		sp := gnmi.OC().NetworkInstance(vrfName).Protocol(
-			oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-		gnmi.Update(t, dut, sp.Config(), proto)
-	}
-
 	if deviations.StaticRouteInVrfOcUnsupported(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			// Configure via CLI for routes with egress-vrf or in default VRF.
-			for _, r := range routes {
-				if r.EgressVRF == "" && r.VRF != "" {
-					continue // already handled via OC above
-				}
+		// Configure all routes via CLI on devices that don't support OC static routes.
+		if dut.Vendor() != ondatra.ARISTA {
+			t.Fatalf("Static route CLI configuration not implemented for vendor %v; implement vendor-specific handling or use OpenConfig", dut.Vendor())
+		}
+		// Group CLI routes by VRF and batch commands per VRF
+		cliRoutesByVRF := make(map[string][]staticRoute)
+		for _, r := range routes {
+			vrfName := r.VRF
+			if vrfName == "" {
+				vrfName = deviations.DefaultNetworkInstance(dut)
+			}
+			cliRoutesByVRF[vrfName] = append(cliRoutesByVRF[vrfName], r)
+		}
+
+		for vrfName, vrfRoutes := range cliRoutesByVRF {
+			var cliCommands []string
+			for _, r := range vrfRoutes {
 				ipType := "ip"
 				for _, ch := range r.Prefix {
 					if ch == ':' {
@@ -558,45 +543,68 @@ func configureStaticRoutes(t *testing.T, dut *ondatra.DUTDevice, routes []static
 					cli = fmt.Sprintf("%s route vrf %s %s egress-vrf %s %s",
 						ipType, r.VRF, r.Prefix, r.EgressVRF, r.NextHop)
 				case r.EgressVRF == "" && r.VRF == "":
-					// Default VRF with plain next-hop (no vrf qualifier).
 					cli = fmt.Sprintf("%s route %s %s", ipType, r.Prefix, r.NextHop)
 				default:
-					// Egress from default VRF (edge case).
 					cli = fmt.Sprintf("%s route %s egress-vrf %s %s",
 						ipType, r.Prefix, r.EgressVRF, r.NextHop)
 				}
-				helpers.GnmiCLIConfig(t, dut, cli)
+				cliCommands = append(cliCommands, cli)
+			}
+			if len(cliCommands) > 0 {
+				helpers.GnmiCLIConfig(t, dut, strings.Join(cliCommands, "\n"))
+				t.Logf("Configured %d CLI static routes in VRF %s", len(cliCommands), vrfName)
 			}
 		}
 	} else {
-		// Configure via OC for routes with egress-vrf or in default VRF.
+		// Configure all routes via OpenConfig on devices that support it.
+		type ocNextHop struct {
+			IP        string
+			EgressVRF string
+		}
+
+		// Group OC routes by VRF and prefix for batching
+		ocRoutesByVRF := make(map[string]map[string][]ocNextHop) // [vrfName][prefix][]{IP, EgressVRF}
 		for _, r := range routes {
-			if r.EgressVRF == "" && r.VRF != "" {
-				continue // already handled via OC above
-			}
 			vrfName := r.VRF
 			if vrfName == "" {
 				vrfName = deviations.DefaultNetworkInstance(dut)
 			}
+			if ocRoutesByVRF[vrfName] == nil {
+				ocRoutesByVRF[vrfName] = make(map[string][]ocNextHop)
+			}
+			ocRoutesByVRF[vrfName][r.Prefix] = append(ocRoutesByVRF[vrfName][r.Prefix], ocNextHop{
+				IP:        r.NextHop,
+				EgressVRF: r.EgressVRF,
+			})
+		}
+
+		// Configure OC routes: batch by VRF, use incremented indices for each next-hop
+		for vrfName, prefixMap := range ocRoutesByVRF {
 			proto := &oc.NetworkInstance_Protocol{
 				Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
 				Name:       ygot.String(deviations.StaticProtocolName(dut)),
 			}
-			sr := proto.GetOrCreateStatic(r.Prefix)
-			sr.Prefix = ygot.String(r.Prefix)
-			nh := sr.GetOrCreateNextHop("0")
-			nh.Index = ygot.String("0")
-			nh.NextHop = oc.UnionString(r.NextHop)
-			if r.EgressVRF != "" {
-				nh.NextNetworkInstance = ygot.String(r.EgressVRF)
+			for prefix, nextHops := range prefixMap {
+				sr := proto.GetOrCreateStatic(prefix)
+				sr.Prefix = ygot.String(prefix)
+				// Use incremented index for each next-hop to support ECMP
+				for i, nhInfo := range nextHops {
+					indexStr := strconv.Itoa(i)
+					nh := sr.GetOrCreateNextHop(indexStr)
+					nh.Index = ygot.String(indexStr)
+					nh.NextHop = oc.UnionString(nhInfo.IP)
+					if nhInfo.EgressVRF != "" {
+						nh.NextNetworkInstance = ygot.String(nhInfo.EgressVRF)
+					}
+				}
 			}
 			sp := gnmi.OC().NetworkInstance(vrfName).Protocol(
 				oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
 			gnmi.Update(t, dut, sp.Config(), proto)
+			t.Logf("Configured %d OC static routes in VRF %s", len(prefixMap), vrfName)
 		}
 	}
 }
-
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice,
 	portGroups [][]*ondatra.Port,
 	portAttrs []attrs.Attributes,
