@@ -77,7 +77,7 @@ const (
 	// Traffic flow parameters
 	packetCount = 100
 	frameSize   = 512 // bytes
-	flowRatePPS = 10  // packets per second
+	flowRatePPS = 50  // packets per second
 )
 
 // Define DUT and ATE interfaces using Ondatra attributes.
