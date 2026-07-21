@@ -305,12 +305,12 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) (gosnappi.Config, []stri
 	dev1 := atePort1.AddToOTG(topo, p1, &dutPort1)
 	dev2 := atePort2.AddToOTG(topo, p2, &dutPort2)
 	// Advertise the scaled routes from the ATE instead of installing them as static routes: DEFAULT scale over port1 and VRF-A scale over port2.
-	aftpf.AFTFilterConfigureATEScaleBGP(t, dev1, aftpf.AFTATEBGPParams{
+	aftpf.AFTConfigureATEScaleBGP(t, dev1, aftpf.AFTATEBGPParams{
 		DUTPort: dutPort1, ATEPort: atePort1, NamePrefix: "default-scale",
 		V4RouteCount: scaleIPv4Routes, V4BaseAddr: scaleV4Pfx, V4PrefixLen: scaleV4PfxLen,
 		V6RouteCount: scaleIPv6Routes, V6BaseAddr: scaleV6Pfx, V6PrefixLen: scaleV6PfxLen,
 	})
-	aftpf.AFTFilterConfigureATEScaleBGP(t, dev2, aftpf.AFTATEBGPParams{
+	aftpf.AFTConfigureATEScaleBGP(t, dev2, aftpf.AFTATEBGPParams{
 		DUTPort: dutPort2, ATEPort: atePort2, NamePrefix: "vrfa-scale",
 		V4RouteCount: scaleIPv4Routes, V4BaseAddr: scaleVrfV4Pfx, V4PrefixLen: scaleV4PfxLen,
 		V6RouteCount: scaleIPv6Routes, V6BaseAddr: scaleVrfV6Pfx, V6PrefixLen: scaleV6PfxLen,
@@ -330,13 +330,13 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) (gosnappi.Config, []stri
 // are learned and installed in both instances.
 func configureScaleBGP(t *testing.T, dut *ondatra.DUTDevice, defaultNI, nonDefaultNI *oc.NetworkInstance) {
 	t.Helper()
-	aftpf.AFTFilterConfigureScaleBGP(t, dut, aftpf.AFTBGPParams{
+	aftpf.AFTConfigureScaleBGP(t, dut, aftpf.AFTBGPParams{
 		NetworkInstance: defaultNI,
 		RouterID:        dutPort1.IPv4,
 		V4Neighbor:      atePort1.IPv4,
 		V6Neighbor:      atePort1.IPv6,
 	})
-	aftpf.AFTFilterConfigureScaleBGP(t, dut, aftpf.AFTBGPParams{
+	aftpf.AFTConfigureScaleBGP(t, dut, aftpf.AFTBGPParams{
 		NetworkInstance: nonDefaultNI,
 		RouterID:        dutPort2.IPv4,
 		V4Neighbor:      atePort2.IPv4,

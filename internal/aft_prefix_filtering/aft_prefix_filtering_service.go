@@ -264,14 +264,19 @@ func AFTConfigureBGP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch,
 	gnmi.BatchUpdate(batch, gnmi.OC().NetworkInstance(ni.GetName()).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP"))
 }
 
-// AFTApplyBGPMaxPrefixes applies the Arista max-prefixes deviation to the
-// DEFAULT-instance eBGP neighbors.
-func AFTApplyBGPMaxPrefixes(t *testing.T, dut *ondatra.DUTDevice) {
+type AFTBGPPrefixParams struct {
+	V4Prefix        string
+	V6Prefix        string
+	NetworkInstance *oc.NetworkInstance
+}
+
+// AFTApplyBGPMaxPrefixes applies the Arista max-prefixes deviation to the DEFAULT-instance eBGP neighbors.
+func AFTApplyBGPMaxPrefixes(t *testing.T, dut *ondatra.DUTDevice, cfg AFTBGPPrefixParams) {
 	t.Helper()
 	if !deviations.BGPMissingOCMaxPrefixesConfiguration(dut) {
 		return
 	}
-	for _, addr := range []string{AFTATEPort1.IPv4, AFTATEPort2.IPv6} {
+	for _, addr := range []string{cfg.V4Prefix, cfg.V6Prefix} {
 		cfgplugins.DeviationAristaBGPNeighborMaxPrefixes(t, dut, addr, 0)
 	}
 }
@@ -284,8 +289,8 @@ type AFTBGPParams struct {
 	V6Neighbor      string
 }
 
-// AFTFilterConfigureScaleBGP configures a dual-AFI eBGP peering in the given network instance over a single connected port, so that scaled IPv4 and IPv6 background routes can be advertised into either the default or a VRF network instance.
-func AFTFilterConfigureScaleBGP(t *testing.T, dut *ondatra.DUTDevice, cfg AFTBGPParams) {
+// AFTConfigureScaleBGP configures a dual-AFI eBGP peering in the given network instance over a single connected port, so that scaled IPv4 and IPv6 background routes can be advertised into either the default or a VRF network instance.
+func AFTConfigureScaleBGP(t *testing.T, dut *ondatra.DUTDevice, cfg AFTBGPParams) {
 	t.Helper()
 	v4PeerGroup := fmt.Sprintf("%s-%s", aftBGPV4PeerGroup, cfg.NetworkInstance.GetName())
 	v6PeerGroup := fmt.Sprintf("%s-%s", aftBGPV6PeerGroup, cfg.NetworkInstance.GetName())
@@ -370,7 +375,7 @@ type AFTATEBGPParams struct {
 
 // AFTConfigureATEScaleBGP attaches dual-AFI eBGP peers to the supplied
 // ATE device, advertising the parameterized IPv4/IPv6 background route ranges.
-func AFTFilterConfigureATEScaleBGP(t *testing.T, dev gosnappi.Device, cfg AFTATEBGPParams) {
+func AFTConfigureATEScaleBGP(t *testing.T, dev gosnappi.Device, cfg AFTATEBGPParams) {
 	t.Helper()
 	bgp := dev.Bgp().SetRouterId(cfg.ATEPort.IPv4)
 	ipv4Name := fmt.Sprintf("%s.IPv4", cfg.ATEPort.Name)
