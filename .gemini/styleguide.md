@@ -68,10 +68,10 @@
     *   **Do not use:** `1.1.1.1`, `8.8.8.8`, or common local private ranges
         like `192.168.0.0/16`.
 
-*   **Native Configuration & Cleanup**
-    *   **Mandatory Cleanup for Native CLI for AAA commands:** Whenever a test pushes raw/native CLI commands to a device (e.g., using `helpers.GnmiCLIConfig`) that deals alters device access logic, the PR MUST include corresponding cleanup commands to revert those exact changes. 
+*   **Configuration & Cleanup**
+    *   **Mandatory State Reversion:** Tests must always leave the system in the exact original state it was in prior to the test execution, regardless of whether the test passes or fails. This requirement applies to both standard gNMI `Set` configurations and raw/native CLI commands (e.g., using `helpers.GnmiCLIConfig`). The PR MUST include corresponding cleanup operations to revert any changes made during the test.
     *   **SSH and AAA State:** Pay special attention to AAA and SSH configurations. If a test modifies SSH authentication (e.g., `management ssh authentication protocol password`), the cleanup routine MUST explicitly negate that specific command (e.g., `management ssh \n no authentication protocol`) rather than relying on generic default commands that might wipe baseline lab configurations.
-    *   **Use `t.Cleanup()`:** Cleanup commands for raw CLI configurations must be registered using `t.Cleanup()` to guarantee they run even if the test fails.
+    *   **Use `t.Cleanup()`:** All cleanup operations, whether for gNMI configurations or raw CLI commands, must be registered using `t.Cleanup()` to guarantee they are executed even if the test fails or panics early.
     
 
 ### **2. Deviation Guidelines**
