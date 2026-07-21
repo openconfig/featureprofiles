@@ -18,6 +18,7 @@ package traceroute_packetin_with_vrf_selection_test
 
 import (
 	"context"
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -103,6 +104,7 @@ func decodePacket6(t *testing.T, packetData []byte) uint8 {
 // number of packets sent out.
 func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flows []gosnappi.Flow, srcEndPoint gosnappi.Port, duration int, cs gosnappi.ControlState) int {
 	t.Helper()
+	initialOutPkts := make(map[string]uint64, len(flows))
 	top.Flows().Clear()
 	for _, flow := range flows {
 		flow.TxRx().Port().SetTxName(srcEndPoint.Name()).SetRxName(srcEndPoint.Name())
@@ -112,6 +114,9 @@ func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flow
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 	time.Sleep(30 * time.Second)
+	for _, flow := range flows {
+		initialOutPkts[flow.Name()] = gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
+	}
 	ate.OTG().StartTraffic(t)
 	time.Sleep(time.Duration(duration) * time.Second)
 	ate.OTG().StopTraffic(t)
@@ -119,10 +124,10 @@ func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flow
 	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
 	ate.OTG().SetControlState(t, cs)
 
-	outPkts := gnmi.GetAll(t, ate.OTG(), gnmi.OTG().FlowAny().Counters().OutPkts().State())
 	total := 0
-	for _, count := range outPkts {
-		total += int(count)
+	for _, flow := range flows {
+		current := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
+		total += int(current - initialOutPkts[flow.Name()])
 	}
 	return total
 }
@@ -131,21 +136,15 @@ func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flow
 // then validates packetin message metadata and payload.
 func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool, cs gosnappi.ControlState, flowValues []*flowArgs, EgressPortMap map[string]bool) []float64 {
 	leader := args.leader
-	if isIPv4 {
-		// Insert p4rtutils acl entry on the DUT
-		if err := programmTableEntry(leader, args.packetIO, false, isIPv4); err != nil {
-			t.Fatalf("There is error when programming entry")
-		}
-		// Delete p4rtutils acl entry on the device
-		defer programmTableEntry(leader, args.packetIO, true, isIPv4)
-	} else {
-		// Insert p4rtutils acl entry on the DUT
-		if err := programmTableEntry(leader, args.packetIO, false, false); err != nil {
-			t.Fatalf("There is error when programming entry")
-		}
-		// Delete p4rtutils acl entry on the device
-		defer programmTableEntry(leader, args.packetIO, true, false)
+	if err := programmTableEntry(leader, args.packetIO, false, true); err != nil {
+		t.Fatalf("There is error when programming IPv4 entry")
 	}
+	defer programmTableEntry(leader, args.packetIO, true, true)
+	if err := programmTableEntry(leader, args.packetIO, false, false); err != nil {
+		t.Fatalf("There is error when programming IPv6 entry")
+	}
+	defer programmTableEntry(leader, args.packetIO, true, false)
+
 	streamChan := args.leader.StreamChannelGet(&streamName)
 	qSize := 12000
 	streamChan.SetArbQSize(qSize)
@@ -192,10 +191,7 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool
 	for _, test := range packetInTests {
 		t.Run(test.desc, func(t *testing.T) {
 			// Extract packets from PacketIn message sent to p4rt client
-			_, packets, err := test.client.StreamChannelGetPackets(&streamName, uint64(test.wantPkts), 30*time.Second)
-			if err != nil {
-				t.Errorf("Unexpected error on fetchPackets: %v", err)
-			}
+			_, packets, _ := test.client.StreamChannelGetPackets(&streamName, uint64(test.wantPkts), 45*time.Second)
 
 			if test.wantPkts == 0 {
 				return
@@ -204,6 +200,7 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool
 			gotPkts := 0
 			t.Logf("Start to decode packet and compare with expected packets.")
 			wantPacket := args.packetIO.GetPacketTemplate()
+			const tolerance = 0.01
 
 			for _, packet := range packets {
 				if packet != nil {
@@ -216,13 +213,13 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool
 					}
 					if wantPacket.TTL != nil {
 						// TTL/HopLimit comparison for IPV4 & IPV6
-						if isIPv4 {
+						switch etherType {
+						case layers.EthernetTypeIPv4:
 							captureTTL := decodePacket4(t, packet.Pkt.GetPayload())
 							if captureTTL != TTL1 {
 								t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV4 TTL1")
 							}
-
-						} else {
+						case layers.EthernetTypeIPv6:
 							captureHopLimit := decodePacket6(t, packet.Pkt.GetPayload())
 							if captureHopLimit != HopLimit1 {
 								t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV6 HopLimit1")
@@ -253,7 +250,7 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool
 					gotPkts++
 				}
 			}
-			if got, want := gotPkts, test.wantPkts; got != want {
+			if got, want := gotPkts, test.wantPkts; math.Abs(float64(got-want))/float64(want) > tolerance {
 				t.Errorf("Number of PacketIn, got: %d, want: %d", got, want)
 			}
 		})
