@@ -45,32 +45,32 @@ import (
 
 const (
 	// Package-level constants shared by the AFT prefix-filtering tests.
-	AFTFilterSubscriptionWait     = 3 * time.Minute
-	AFTFilterStaticRouteIndex     = 100
-	AFTFilterPolicyMatchAll       = "POLICY-MATCH-ALL"
-	AFTFilterDefaultStatementName = "10"
-	AFTFilterPfxMode              = "exact"
-	AFTFilterBulkV4BaseAddr       = "80.0.0.1"
-	AFTFilterBulkV4RouteCount     = 1500000
-	AFTFilterBulkV4PrefixLen      = 32
-	AFTFilterBulkV6BaseAddr       = "3000::1"
-	AFTFilterBulkV6RouteCount     = 500000
-	AFTFilterBulkV6PrefixLen      = 128
+	AFTSubscriptionWait     = 3 * time.Minute
+	AFTStaticRouteIndex     = 100
+	AFTPolicyMatchAll       = "POLICY-MATCH-ALL"
+	AFTDefaultStatementName = "10"
+	AFTPfxMode              = "exact"
+	AFTBulkV4BaseAddr       = "80.0.0.1"
+	AFTBulkV4RouteCount     = 1500000
+	AFTBulkV4PrefixLen      = 32
+	AFTBulkV6BaseAddr       = "3000::1"
+	AFTBulkV6RouteCount     = 500000
+	AFTBulkV6PrefixLen      = 128
 
 	// Local constants for the AFT prefix-filtering service.
-	aftFilterDUTAS              = 65001
-	aftFilterATEAS              = 65002
-	aftFilterBGPV4PeerGroup     = "BGP-BULK-V4-PEER-GROUP"
-	aftFilterBGPV6PeerGroup     = "BGP-BULK-V6-PEER-GROUP"
-	aftFilterBGPSessionTimeout  = 2 * time.Minute
-	aftFilterBGPConvergenceWait = 10 * time.Minute
-	aristaPersistConfig         = "management api gnmi\ntransport grpc default\noperation set persistence"
-	aristaNoPersistConfig       = "management api gnmi\ntransport grpc default\nno operation set persistence"
+	aftDUTAS              = 65001
+	aftATEAS              = 65002
+	aftBGPV4PeerGroup     = "BGP-BULK-V4-PEER-GROUP"
+	aftBGPV6PeerGroup     = "BGP-BULK-V6-PEER-GROUP"
+	aftBGPSessionTimeout  = 2 * time.Minute
+	aftBGPConvergenceWait = 10 * time.Minute
+	aristaPersistConfig   = "management api gnmi\ntransport grpc default\noperation set persistence"
+	aristaNoPersistConfig = "management api gnmi\ntransport grpc default\nno operation set persistence"
 )
 
 var (
 	// Package-level variables shared by the AFT prefix-filtering tests
-	AFTFilterDUTPort1 = attrs.Attributes{
+	AFTDUTPort1 = attrs.Attributes{
 		Desc:    "DUT to ATE Port 1",
 		MAC:     "02:00:02:02:02:02",
 		IPv4:    "192.0.2.1",
@@ -78,7 +78,7 @@ var (
 		IPv6:    "2001:db8:0:1::1",
 		IPv6Len: 64,
 	}
-	AFTFilterATEPort1 = attrs.Attributes{
+	AFTATEPort1 = attrs.Attributes{
 		Name:    "atePort1",
 		Desc:    "ATE to DUT Port 1",
 		MAC:     "02:00:02:01:01:01",
@@ -87,7 +87,7 @@ var (
 		IPv6:    "2001:db8:0:1::2",
 		IPv6Len: 64,
 	}
-	AFTFilterDUTPort2 = attrs.Attributes{
+	AFTDUTPort2 = attrs.Attributes{
 		Desc:    "DUT to ATE Port 2",
 		MAC:     "02:00:04:02:02:02",
 		IPv4:    "192.0.3.1",
@@ -95,7 +95,7 @@ var (
 		IPv6:    "2001:db8:0:2::1",
 		IPv6Len: 64,
 	}
-	AFTFilterATEPort2 = attrs.Attributes{
+	AFTATEPort2 = attrs.Attributes{
 		Name:    "atePort2",
 		Desc:    "ATE to DUT Port 2",
 		MAC:     "02:00:04:01:01:01",
@@ -106,10 +106,10 @@ var (
 	}
 
 	// Local variables for the AFT prefix-filtering service
-	debugNotifications  = flag.Bool("debug_notifications", true, "Enable full AFT notification recording")
-	aftFilterGNMIOnce   sync.Once
-	aftFilterGNMIClient gpb.GNMIClient
-	aftFilterGNMIErr    error
+	debugNotifications = flag.Bool("debug_notifications", true, "Enable full AFT notification recording")
+	aftGNMIOnce        sync.Once
+	aftGNMIClient      gpb.GNMIClient
+	aftGNMIErr         error
 )
 
 // PrefixesParams contains the prefixes expected to be present in the AFT cache.
@@ -195,15 +195,15 @@ func NewCollector(t *testing.T, dut *ondatra.DUTDevice, cfg NewCollectorParams) 
 	return c
 }
 
-// AFTFilterConfigureDUT configures the DUT with basic port1/port2 interfaces in the DEFAULT network instance.
-func AFTFilterConfigureDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch {
+// AFTConfigureDUT configures the DUT with basic port1/port2 interfaces in the DEFAULT network instance.
+func AFTConfigureDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch {
 	t.Helper()
 	batch := &gnmi.SetBatch{}
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
-	aftFilterConfigureDUTInterface(t, dut, batch, &AFTFilterDUTPort1, p1)
-	aftFilterConfigureDUTInterface(t, dut, batch, &AFTFilterDUTPort2, p2)
+	aftConfigureDUTInterface(t, dut, batch, &AFTDUTPort1, p1)
+	aftConfigureDUTInterface(t, dut, batch, &AFTDUTPort2, p2)
 	batch.Set(t, dut)
 	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, p1)
@@ -217,8 +217,8 @@ func AFTFilterConfigureDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch 
 	return batch
 }
 
-// aftFilterConfigureDUTInterface configures an interface on the DUT.
-func aftFilterConfigureDUTInterface(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, a *attrs.Attributes, p *ondatra.Port) {
+// aftConfigureDUTInterface configures an interface on the DUT.
+func aftConfigureDUTInterface(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, a *attrs.Attributes, p *ondatra.Port) {
 	t.Helper()
 	ocPath := gnmi.OC()
 	i := a.NewOCInterface(p.Name(), dut)
@@ -239,45 +239,45 @@ func aftFilterConfigureDUTInterface(t *testing.T, dut *ondatra.DUTDevice, batch 
 	gnmi.BatchUpdate(batch, ocPath.Interface(p.Name()).Config(), i)
 }
 
-// AFTFilterConfigureATE configures the ATE ports and returns the topology along with the list of configured device (interface) names.
-func AFTFilterConfigureATE(t *testing.T, ate *ondatra.ATEDevice) (gosnappi.Config, []string) {
+// AFTConfigureATE configures the ATE ports and returns the topology along with the list of configured device (interface) names.
+func AFTConfigureATE(t *testing.T, ate *ondatra.ATEDevice) (gosnappi.Config, []string) {
 	t.Helper()
 	interfaceNamesList := []string{}
 	topo := gosnappi.NewConfig()
 	p1 := ate.Port(t, "port1")
 	p2 := ate.Port(t, "port2")
-	AFTFilterATEPort1.AddToOTG(topo, p1, &AFTFilterDUTPort1)
-	AFTFilterATEPort2.AddToOTG(topo, p2, &AFTFilterDUTPort2)
+	AFTATEPort1.AddToOTG(topo, p1, &AFTDUTPort1)
+	AFTATEPort2.AddToOTG(topo, p2, &AFTDUTPort2)
 	for _, dev := range topo.Devices().Items() {
 		interfaceNamesList = append(interfaceNamesList, dev.Name())
 	}
 	return topo, interfaceNamesList
 }
 
-// AFTFilterConfigureBGP configures two eBGP neighbors in the DEFAULT network instance, one per port, carrying the bulk background routes (1.5M IPv4, 500k IPv6).
-func AFTFilterConfigureBGP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, ni *oc.NetworkInstance) {
+// AFTConfigureBGP configures two eBGP neighbors in the DEFAULT network instance, one per port, carrying the bulk background routes (1.5M IPv4, 500k IPv6).
+func AFTConfigureBGP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, ni *oc.NetworkInstance) {
 	t.Helper()
-	aftFilterConfigureBGPInstance(t, ni, AFTFilterDUTPort1.IPv4, []aftFilterBGPNeighborSpec{
-		{address: AFTFilterATEPort1.IPv4, peerGroup: aftFilterBGPV4PeerGroup, v4: true},
-		{address: AFTFilterATEPort2.IPv6, peerGroup: aftFilterBGPV6PeerGroup, v4: false},
+	aftConfigureBGPInstance(t, ni, AFTDUTPort1.IPv4, []aftBGPNeighborSpec{
+		{address: AFTATEPort1.IPv4, peerGroup: aftBGPV4PeerGroup, v4: true},
+		{address: AFTATEPort2.IPv6, peerGroup: aftBGPV6PeerGroup, v4: false},
 	})
 	gnmi.BatchUpdate(batch, gnmi.OC().NetworkInstance(ni.GetName()).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP"))
 }
 
-// AFTFilterApplyBGPMaxPrefixes applies the Arista max-prefixes deviation to the
+// AFTApplyBGPMaxPrefixes applies the Arista max-prefixes deviation to the
 // DEFAULT-instance eBGP neighbors.
-func AFTFilterApplyBGPMaxPrefixes(t *testing.T, dut *ondatra.DUTDevice) {
+func AFTApplyBGPMaxPrefixes(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	if !deviations.BGPMissingOCMaxPrefixesConfiguration(dut) {
 		return
 	}
-	for _, addr := range []string{AFTFilterATEPort1.IPv4, AFTFilterATEPort2.IPv6} {
+	for _, addr := range []string{AFTATEPort1.IPv4, AFTATEPort2.IPv6} {
 		cfgplugins.DeviationAristaBGPNeighborMaxPrefixes(t, dut, addr, 0)
 	}
 }
 
-// AFTFilterBGPParams parameterizes a per-network-instance eBGP peering that advertises scaled IPv4/IPv6 background routes over a single connected port.
-type AFTFilterBGPParams struct {
+// AFTBGPParams parameterizes a per-network-instance eBGP peering that advertises scaled IPv4/IPv6 background routes over a single connected port.
+type AFTBGPParams struct {
 	NetworkInstance *oc.NetworkInstance
 	RouterID        string
 	V4Neighbor      string
@@ -285,11 +285,11 @@ type AFTFilterBGPParams struct {
 }
 
 // AFTFilterConfigureScaleBGP configures a dual-AFI eBGP peering in the given network instance over a single connected port, so that scaled IPv4 and IPv6 background routes can be advertised into either the default or a VRF network instance.
-func AFTFilterConfigureScaleBGP(t *testing.T, dut *ondatra.DUTDevice, cfg AFTFilterBGPParams) {
+func AFTFilterConfigureScaleBGP(t *testing.T, dut *ondatra.DUTDevice, cfg AFTBGPParams) {
 	t.Helper()
-	v4PeerGroup := fmt.Sprintf("%s-%s", aftFilterBGPV4PeerGroup, cfg.NetworkInstance.GetName())
-	v6PeerGroup := fmt.Sprintf("%s-%s", aftFilterBGPV6PeerGroup, cfg.NetworkInstance.GetName())
-	aftFilterConfigureBGPInstance(t, cfg.NetworkInstance, cfg.RouterID, []aftFilterBGPNeighborSpec{
+	v4PeerGroup := fmt.Sprintf("%s-%s", aftBGPV4PeerGroup, cfg.NetworkInstance.GetName())
+	v6PeerGroup := fmt.Sprintf("%s-%s", aftBGPV6PeerGroup, cfg.NetworkInstance.GetName())
+	aftConfigureBGPInstance(t, cfg.NetworkInstance, cfg.RouterID, []aftBGPNeighborSpec{
 		{address: cfg.V4Neighbor, peerGroup: v4PeerGroup, v4: true},
 		{address: cfg.V6Neighbor, peerGroup: v6PeerGroup, v4: false},
 	})
@@ -299,16 +299,16 @@ func AFTFilterConfigureScaleBGP(t *testing.T, dut *ondatra.DUTDevice, cfg AFTFil
 	}
 }
 
-// aftFilterBGPNeighborSpec describes a single-AFI eBGP neighbor: when v4 is
+// aftBGPNeighborSpec describes a single-AFI eBGP neighbor: when v4 is
 // true the IPv4 unicast AFI is enabled (IPv6 unicast disabled), and vice versa.
-type aftFilterBGPNeighborSpec struct {
+type aftBGPNeighborSpec struct {
 	address   string
 	peerGroup string
 	v4        bool
 }
 
-// aftFilterConfigureBGPInstance configures a complete eBGP protocol instance in the given network instance with the supplied router-id and single-AFI neighbors, applying the accept-all import/export policy directly to each neighbor.
-func aftFilterConfigureBGPInstance(t *testing.T, ni *oc.NetworkInstance, routerID string, neighbors []aftFilterBGPNeighborSpec) {
+// aftConfigureBGPInstance configures a complete eBGP protocol instance in the given network instance with the supplied router-id and single-AFI neighbors, applying the accept-all import/export policy directly to each neighbor.
+func aftConfigureBGPInstance(t *testing.T, ni *oc.NetworkInstance, routerID string, neighbors []aftBGPNeighborSpec) {
 	t.Helper()
 	if ni == nil {
 		t.Fatalf("Network Instance is not configured")
@@ -317,46 +317,46 @@ func aftFilterConfigureBGPInstance(t *testing.T, ni *oc.NetworkInstance, routerI
 	niProto.Enabled = ygot.Bool(true)
 	bgp := niProto.GetOrCreateBgp()
 	g := bgp.GetOrCreateGlobal()
-	g.As = ygot.Uint32(aftFilterDUTAS)
+	g.As = ygot.Uint32(aftDUTAS)
 	g.RouterId = ygot.String(routerID)
 	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 	for _, n := range neighbors {
 		nb := bgp.GetOrCreateNeighbor(n.address)
-		nb.PeerAs = ygot.Uint32(aftFilterATEAS)
+		nb.PeerAs = ygot.Uint32(aftATEAS)
 		nb.Enabled = ygot.Bool(true)
 		nb.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(n.v4)
 		nb.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(!n.v4)
 		ap := nb.GetOrCreateApplyPolicy()
-		ap.ImportPolicy = []string{AFTFilterPolicyMatchAll}
-		ap.ExportPolicy = []string{AFTFilterPolicyMatchAll}
+		ap.ImportPolicy = []string{AFTPolicyMatchAll}
+		ap.ExportPolicy = []string{AFTPolicyMatchAll}
 	}
 }
 
-// AFTFilterConfigureATEBGP attaches BGPv4 (port1) and BGPv6 (port2) peers advertising the bulk IPv4/IPv6 background route ranges to the ATE topology.
-func AFTFilterConfigureATEBGP(t *testing.T, topo gosnappi.Config) {
+// AFTConfigureATEBGP attaches BGPv4 (port1) and BGPv6 (port2) peers advertising the bulk IPv4/IPv6 background route ranges to the ATE topology.
+func AFTConfigureATEBGP(t *testing.T, topo gosnappi.Config) {
 	t.Helper()
 	dev1 := topo.Devices().Items()[0]
-	ipv4Name1 := fmt.Sprintf("%s.IPv4", AFTFilterATEPort1.Name)
-	bgp1 := dev1.Bgp().SetRouterId(AFTFilterATEPort1.IPv4)
+	ipv4Name1 := fmt.Sprintf("%s.IPv4", AFTATEPort1.Name)
+	bgp1 := dev1.Bgp().SetRouterId(AFTATEPort1.IPv4)
 	peer1 := bgp1.Ipv4Interfaces().Add().SetIpv4Name(ipv4Name1).Peers().Add().SetName("atePort1.BGP4.peer")
-	peer1.SetPeerAddress(AFTFilterDUTPort1.IPv4).SetAsNumber(aftFilterATEAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
+	peer1.SetPeerAddress(AFTDUTPort1.IPv4).SetAsNumber(aftATEAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
 	v4Routes := peer1.V4Routes().Add().SetName("bulk-ipv4-routes")
-	v4Routes.SetNextHopIpv4Address(AFTFilterATEPort1.IPv4).SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
-	v4Routes.Addresses().Add().SetAddress(AFTFilterBulkV4BaseAddr).SetPrefix(AFTFilterBulkV4PrefixLen).SetCount(AFTFilterBulkV4RouteCount).SetStep(1)
+	v4Routes.SetNextHopIpv4Address(AFTATEPort1.IPv4).SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
+	v4Routes.Addresses().Add().SetAddress(AFTBulkV4BaseAddr).SetPrefix(AFTBulkV4PrefixLen).SetCount(AFTBulkV4RouteCount).SetStep(1)
 	dev2 := topo.Devices().Items()[1]
-	ipv6Name2 := fmt.Sprintf("%s.IPv6", AFTFilterATEPort2.Name)
-	bgp2 := dev2.Bgp().SetRouterId(AFTFilterATEPort2.IPv4)
+	ipv6Name2 := fmt.Sprintf("%s.IPv6", AFTATEPort2.Name)
+	bgp2 := dev2.Bgp().SetRouterId(AFTATEPort2.IPv4)
 	peer2 := bgp2.Ipv6Interfaces().Add().SetIpv6Name(ipv6Name2).Peers().Add().SetName("atePort2.BGP6.peer")
-	peer2.SetPeerAddress(AFTFilterDUTPort2.IPv6).SetAsNumber(aftFilterATEAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
+	peer2.SetPeerAddress(AFTDUTPort2.IPv6).SetAsNumber(aftATEAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
 	v6Routes := peer2.V6Routes().Add().SetName("bulk-ipv6-routes")
-	v6Routes.SetNextHopIpv6Address(AFTFilterATEPort2.IPv6).SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
-	v6Routes.Addresses().Add().SetAddress(AFTFilterBulkV6BaseAddr).SetPrefix(AFTFilterBulkV6PrefixLen).SetCount(AFTFilterBulkV6RouteCount).SetStep(1)
+	v6Routes.SetNextHopIpv6Address(AFTATEPort2.IPv6).SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
+	v6Routes.Addresses().Add().SetAddress(AFTBulkV6BaseAddr).SetPrefix(AFTBulkV6PrefixLen).SetCount(AFTBulkV6RouteCount).SetStep(1)
 }
 
-// AFTFilterATEBGPParams parameterizes ATE-side eBGP peers advertising scaled
+// AFTATEBGPParams parameterizes ATE-side eBGP peers advertising scaled
 // IPv4/IPv6 background routes over a single connected port.
-type AFTFilterATEBGPParams struct {
+type AFTATEBGPParams struct {
 	DUTPort      attrs.Attributes
 	ATEPort      attrs.Attributes
 	NamePrefix   string
@@ -368,59 +368,59 @@ type AFTFilterATEBGPParams struct {
 	V6PrefixLen  uint32
 }
 
-// AFTFilterConfigureATEScaleBGP attaches dual-AFI eBGP peers to the supplied
+// AFTConfigureATEScaleBGP attaches dual-AFI eBGP peers to the supplied
 // ATE device, advertising the parameterized IPv4/IPv6 background route ranges.
-func AFTFilterConfigureATEScaleBGP(t *testing.T, dev gosnappi.Device, cfg AFTFilterATEBGPParams) {
+func AFTFilterConfigureATEScaleBGP(t *testing.T, dev gosnappi.Device, cfg AFTATEBGPParams) {
 	t.Helper()
 	bgp := dev.Bgp().SetRouterId(cfg.ATEPort.IPv4)
 	ipv4Name := fmt.Sprintf("%s.IPv4", cfg.ATEPort.Name)
 	peer4 := bgp.Ipv4Interfaces().Add().SetIpv4Name(ipv4Name).Peers().Add().SetName(fmt.Sprintf("%s.BGP4.peer", cfg.NamePrefix))
-	peer4.SetPeerAddress(cfg.DUTPort.IPv4).SetAsNumber(aftFilterATEAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
+	peer4.SetPeerAddress(cfg.DUTPort.IPv4).SetAsNumber(aftATEAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
 	v4Routes := peer4.V4Routes().Add().SetName(fmt.Sprintf("%s-ipv4-routes", cfg.NamePrefix))
 	v4Routes.SetNextHopIpv4Address(cfg.ATEPort.IPv4).SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
 	v4Routes.Addresses().Add().SetAddress(cfg.V4BaseAddr).SetPrefix(cfg.V4PrefixLen).SetCount(cfg.V4RouteCount).SetStep(1)
 	ipv6Name := fmt.Sprintf("%s.IPv6", cfg.ATEPort.Name)
 	peer6 := bgp.Ipv6Interfaces().Add().SetIpv6Name(ipv6Name).Peers().Add().SetName(fmt.Sprintf("%s.BGP6.peer", cfg.NamePrefix))
-	peer6.SetPeerAddress(cfg.DUTPort.IPv6).SetAsNumber(aftFilterATEAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
+	peer6.SetPeerAddress(cfg.DUTPort.IPv6).SetAsNumber(aftATEAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
 	v6Routes := peer6.V6Routes().Add().SetName(fmt.Sprintf("%s-ipv6-routes", cfg.NamePrefix))
 	v6Routes.SetNextHopIpv6Address(cfg.ATEPort.IPv6).SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
 	v6Routes.Addresses().Add().SetAddress(cfg.V6BaseAddr).SetPrefix(cfg.V6PrefixLen).SetCount(cfg.V6RouteCount).SetStep(1)
 }
 
-// AFTFilterConfigureBaseRoutesParams defines the parameters for configuring the baseline static routes.
-type AFTFilterConfigureBaseRoutesParams struct {
+// AFTConfigureBaseRoutesParams defines the parameters for configuring the baseline static routes.
+type AFTConfigureBaseRoutesParams struct {
 	V4Prefixes []string
 	V6Prefixes []string
 }
 
-// AFTFilterConfigureBaseRoutes installs the baseline static routes into the DEFAULT network instance. IPv4 prefixes use the ATE port1 IPv4 next-hop and IPv6 prefixes use the ATE port1 IPv6 next-hop.
-func AFTFilterConfigureBaseRoutes(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, p AFTFilterConfigureBaseRoutesParams) {
+// AFTConfigureBaseRoutes installs the baseline static routes into the DEFAULT network instance. IPv4 prefixes use the ATE port1 IPv4 next-hop and IPv6 prefixes use the ATE port1 IPv6 next-hop.
+func AFTConfigureBaseRoutes(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, p AFTConfigureBaseRoutesParams) {
 	t.Helper()
 	ni := deviations.DefaultNetworkInstance(dut)
 	for idx, prefix := range p.V4Prefixes {
-		cfgplugins.ConfigureStaticRoute(t, dut, batch, cfgplugins.ConfigureStaticRouteParams{NetworkInstance: ni, Prefix: prefix, Index: fmt.Sprintf("%d", AFTFilterStaticRouteIndex+idx), NextHop: AFTFilterATEPort1.IPv4})
+		cfgplugins.ConfigureStaticRoute(t, dut, batch, cfgplugins.ConfigureStaticRouteParams{NetworkInstance: ni, Prefix: prefix, Index: fmt.Sprintf("%d", AFTStaticRouteIndex+idx), NextHop: AFTATEPort1.IPv4})
 	}
 	for idx, prefix := range p.V6Prefixes {
-		cfgplugins.ConfigureStaticRoute(t, dut, batch, cfgplugins.ConfigureStaticRouteParams{NetworkInstance: ni, Prefix: prefix, Index: fmt.Sprintf("%d", AFTFilterStaticRouteIndex+100+idx), NextHop: AFTFilterATEPort1.IPv6})
+		cfgplugins.ConfigureStaticRoute(t, dut, batch, cfgplugins.ConfigureStaticRouteParams{NetworkInstance: ni, Prefix: prefix, Index: fmt.Sprintf("%d", AFTStaticRouteIndex+100+idx), NextHop: AFTATEPort1.IPv6})
 	}
 	batch.Set(t, dut)
 }
 
-// AFTFilterAwaitBGPConvergence waits for both eBGP sessions to establish and for the expected bulk prefix counts to install, recording failures with t.Errorf so the caller can continue.
-func AFTFilterAwaitBGPConvergence(t *testing.T, dut *ondatra.DUTDevice, niName string) {
+// AFTAwaitBGPConvergence waits for both eBGP sessions to establish and for the expected bulk prefix counts to install, recording failures with t.Errorf so the caller can continue.
+func AFTAwaitBGPConvergence(t *testing.T, dut *ondatra.DUTDevice, niName string) {
 	t.Helper()
-	AFTFilterAwaitScaleBGPConvergence(t, dut, AFTFilterBGPConvergenceParams{
+	AFTAwaitScaleBGPConvergence(t, dut, AFTBGPConvergenceParams{
 		NetworkInstance: niName,
-		V4Neighbor:      AFTFilterATEPort1.IPv4,
-		V6Neighbor:      AFTFilterATEPort2.IPv6,
-		V4RouteCount:    AFTFilterBulkV4RouteCount,
-		V6RouteCount:    AFTFilterBulkV6RouteCount,
+		V4Neighbor:      AFTATEPort1.IPv4,
+		V6Neighbor:      AFTATEPort2.IPv6,
+		V4RouteCount:    AFTBulkV4RouteCount,
+		V6RouteCount:    AFTBulkV6RouteCount,
 	})
 }
 
-// AFTFilterBGPConvergenceParams parameterizes the BGP convergence check for a
+// AFTBGPConvergenceParams parameterizes the BGP convergence check for a
 // dual-AFI peering advertising scaled routes over a single connected port.
-type AFTFilterBGPConvergenceParams struct {
+type AFTBGPConvergenceParams struct {
 	NetworkInstance string
 	V4Neighbor      string
 	V6Neighbor      string
@@ -428,71 +428,71 @@ type AFTFilterBGPConvergenceParams struct {
 	V6RouteCount    uint32
 }
 
-// AFTFilterAwaitScaleBGPConvergence waits for both eBGP sessions to establish and for the expected IPv4/IPv6 prefix counts to install, recording failures with t.Errorf so the caller can continue.
-func AFTFilterAwaitScaleBGPConvergence(t *testing.T, dut *ondatra.DUTDevice, cfg AFTFilterBGPConvergenceParams) {
+// AFTAwaitScaleBGPConvergence waits for both eBGP sessions to establish and for the expected IPv4/IPv6 prefix counts to install, recording failures with t.Errorf so the caller can continue.
+func AFTAwaitScaleBGPConvergence(t *testing.T, dut *ondatra.DUTDevice, cfg AFTBGPConvergenceParams) {
 	t.Helper()
-	if err := aftFilterAwaitBGPEstablished(t, dut, cfg.NetworkInstance, cfg.V4Neighbor); err != nil {
+	if err := aftAwaitBGPEstablished(t, dut, cfg.NetworkInstance, cfg.V4Neighbor); err != nil {
 		t.Errorf("%v", err)
 	}
-	if err := aftFilterAwaitBGPEstablished(t, dut, cfg.NetworkInstance, cfg.V6Neighbor); err != nil {
+	if err := aftAwaitBGPEstablished(t, dut, cfg.NetworkInstance, cfg.V6Neighbor); err != nil {
 		t.Errorf("%v", err)
 	}
-	if err := aftFilterAwaitBGPPrefixCount(t, dut, cfg.NetworkInstance, cfg.V4Neighbor, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, cfg.V4RouteCount); err != nil {
+	if err := aftAwaitBGPPrefixCount(t, dut, cfg.NetworkInstance, cfg.V4Neighbor, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, cfg.V4RouteCount); err != nil {
 		t.Errorf("%v", err)
 	}
-	if err := aftFilterAwaitBGPPrefixCount(t, dut, cfg.NetworkInstance, cfg.V6Neighbor, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, cfg.V6RouteCount); err != nil {
+	if err := aftAwaitBGPPrefixCount(t, dut, cfg.NetworkInstance, cfg.V6Neighbor, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, cfg.V6RouteCount); err != nil {
 		t.Errorf("%v", err)
 	}
 }
 
-// aftFilterAwaitBGPEstablished waits for a BGP neighbor session to reach ESTABLISHED, returning an error on timeout.
-func aftFilterAwaitBGPEstablished(t *testing.T, dut *ondatra.DUTDevice, niName, neighbor string) error {
+// aftAwaitBGPEstablished waits for a BGP neighbor session to reach ESTABLISHED, returning an error on timeout.
+func aftAwaitBGPEstablished(t *testing.T, dut *ondatra.DUTDevice, niName, neighbor string) error {
 	t.Helper()
 	path := gnmi.OC().NetworkInstance(niName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(neighbor).SessionState().State()
-	val, ok := gnmi.Watch(t, dut, path, aftFilterBGPSessionTimeout, func(v *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+	val, ok := gnmi.Watch(t, dut, path, aftBGPSessionTimeout, func(v *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 		state, present := v.Val()
 		return present && state == oc.Bgp_Neighbor_SessionState_ESTABLISHED
 	}).Await(t)
 	if !ok {
 		got, _ := val.Val()
-		return fmt.Errorf("BGP session with %s did not reach ESTABLISHED within %v (last observed state: %v)", neighbor, aftFilterBGPSessionTimeout, got)
+		return fmt.Errorf("BGP session with %s did not reach ESTABLISHED within %v (last observed state: %v)", neighbor, aftBGPSessionTimeout, got)
 	}
 	t.Logf("BGP session with %s is ESTABLISHED", neighbor)
 	return nil
 }
 
-// aftFilterAwaitBGPPrefixCount waits for a BGP neighbor to install the expected number of prefixes for the given AFI-SAFI, returning an error on timeout.
-func aftFilterAwaitBGPPrefixCount(t *testing.T, dut *ondatra.DUTDevice, niName, neighbor string, afiSafi oc.E_BgpTypes_AFI_SAFI_TYPE, wantCount uint32) error {
+// aftAwaitBGPPrefixCount waits for a BGP neighbor to install the expected number of prefixes for the given AFI-SAFI, returning an error on timeout.
+func aftAwaitBGPPrefixCount(t *testing.T, dut *ondatra.DUTDevice, niName, neighbor string, afiSafi oc.E_BgpTypes_AFI_SAFI_TYPE, wantCount uint32) error {
 	t.Helper()
 	path := gnmi.OC().NetworkInstance(niName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(neighbor).AfiSafi(afiSafi).Prefixes().Installed().State()
-	val, ok := gnmi.Watch(t, dut, path, aftFilterBGPConvergenceWait, func(v *ygnmi.Value[uint32]) bool {
+	val, ok := gnmi.Watch(t, dut, path, aftBGPConvergenceWait, func(v *ygnmi.Value[uint32]) bool {
 		got, present := v.Val()
 		return present && got >= wantCount
 	}).Await(t)
 	if !ok {
 		got, _ := val.Val()
-		return fmt.Errorf("BGP neighbor %s only installed %d of %d wanted prefixes for %v within %v", neighbor, got, wantCount, afiSafi, aftFilterBGPConvergenceWait)
+		return fmt.Errorf("BGP neighbor %s only installed %d of %d wanted prefixes for %v within %v", neighbor, got, wantCount, afiSafi, aftBGPConvergenceWait)
 	}
 	t.Logf("BGP neighbor %s installed >= %d prefixes for %v", neighbor, wantCount, afiSafi)
 	return nil
 }
 
-// AFTFilterDialGNMI returns a shared raw gNMI client, dialing it once and caching it for reuse. Needed for raw paths absent from the OC tree.
-func AFTFilterDialGNMI(t *testing.T, dut *ondatra.DUTDevice) (gpb.GNMIClient, error) {
+// AFTDialGNMI returns a shared raw gNMI client, dialing it once and caching it for reuse. Needed for raw paths absent from the OC tree.
+func AFTDialGNMI(t *testing.T, dut *ondatra.DUTDevice) (gpb.GNMIClient, error) {
 	t.Helper()
-	aftFilterGNMIOnce.Do(func() {
+	aftGNMIOnce.Do(func() {
 		client, err := dut.RawAPIs().BindingDUT().DialGNMI(context.Background())
 		if err != nil {
-			aftFilterGNMIErr = fmt.Errorf("failed to dial GNMI: %w", err)
+			aftGNMIErr = fmt.Errorf("failed to dial GNMI: %w", err)
 			return
 		}
-		aftFilterGNMIClient = client
+		aftGNMIClient = client
 	})
-	return aftFilterGNMIClient, aftFilterGNMIErr
+	return aftGNMIClient, aftGNMIErr
 }
 
-// AFTFilterDeleteGlobalFilter deletes both global-filter policy leaves for the given network-instance.
-func AFTFilterDeleteGlobalFilter(t *testing.T, dut *ondatra.DUTDevice, niName string) error {
+// AFTDeleteGlobalFilter deletes both global-filter policy leaves for the given network-instance.
+func AFTDeleteGlobalFilter(t *testing.T, dut *ondatra.DUTDevice, niName string) error {
 	t.Helper()
 	if deviations.AftsGlobalFilterPolicyOCUnsupported(dut) {
 		switch dut.Vendor() {
@@ -673,4 +673,46 @@ func ConfigureGlobalFilterPolicies(t *testing.T, dut *ondatra.DUTDevice, cfg Con
 	// batch.Set(t, dut)
 	// return
 	t.Fatalf("AFT global filter policy is expected to be supported on %s, but no OpenConfig implementation is available", dut.Vendor())
+}
+
+// NetworkInstanceStaticRouteParams holds the parameters required to
+// configure static routes in the default and non-default network instances.
+type NetworkInstanceStaticRouteParams struct {
+	DefaultPrefixes     []string
+	VRFPrefixes         []string
+	DefaultNextHop      string
+	VRFNextHop          string
+	StartIndex          int
+	VRFInstanceName     string
+	DefaultInstanceName string
+}
+
+// ConfigureNetworkInstanceStaticRoute configures IPv4 and IPv6 static routes in the DEFAULT
+// and Non-Default network instances using the specified next-hop addresses.
+func ConfigureNetworkInstanceStaticRoute(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, cfg NetworkInstanceStaticRouteParams) {
+	t.Helper()
+	for idx, prefix := range cfg.DefaultPrefixes {
+		cfgplugins.ConfigureStaticRoute(t, dut, batch, cfgplugins.ConfigureStaticRouteParams{NetworkInstance: cfg.DefaultInstanceName, Prefix: prefix, Index: fmt.Sprintf("%d", idx+cfg.StartIndex), NextHop: cfg.DefaultNextHop})
+	}
+	// VRF-A IPv4 and IPv6 routes
+	for idx, prefix := range cfg.VRFPrefixes {
+		cfgplugins.ConfigureStaticRoute(t, dut, batch, cfgplugins.ConfigureStaticRouteParams{NetworkInstance: cfg.VRFInstanceName, Prefix: prefix, Index: fmt.Sprintf("%d", idx+cfg.StartIndex+200), NextHop: cfg.VRFNextHop})
+	}
+	batch.Set(t, dut)
+}
+
+// AddStaticRouteParams holds the parameters for adding a static route.
+type AddStaticRouteParams struct {
+	NetworkInstanceName string
+	Prefix              string
+	Index               string
+	NextHop             string
+}
+
+// MustAddSingleStaticRoute adds one static route.
+func MustAddSingleStaticRoute(t *testing.T, dut *ondatra.DUTDevice, cfg AddStaticRouteParams) {
+	t.Helper()
+	batch := &gnmi.SetBatch{}
+	cfgplugins.ConfigureStaticRoute(t, dut, batch, cfgplugins.ConfigureStaticRouteParams{NetworkInstance: cfg.NetworkInstanceName, Prefix: cfg.Prefix, Index: cfg.Index, NextHop: cfg.NextHop})
+	batch.Set(t, dut)
 }
