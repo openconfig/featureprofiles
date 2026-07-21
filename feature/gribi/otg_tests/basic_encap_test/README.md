@@ -347,6 +347,82 @@ this test we’ll focus on tunnel traffic identification using
         the weight.
     *   The DSCP value is copied from the inner header to the outer header.
     *   The TTL value is copied from the inner header to the outer header.
+#### Test-4, sFlow sampling for IPv4 traffic WCMP Encap
+
+*   Configure sFlow on DUT.
+*   Send IPv4 traffic matching Test-1.
+*   Verify sFlow collector receives samples.
+*   Verify sFlow sample contains:
+    *   Ingress interface matches the ingress port (DUT Port-1).
+    *   Egress interface matches the egress port (DUT Port-2/3/4/5 depending on hash).
+    *   Sampled packet header matches the expected encapsulated packet.
+
+##### Canonical OC
+```json
+{
+  "interfaces": {
+    "interface": [
+      {
+        "name": "port-1",
+        "config": {
+          "name": "port-1"
+        }
+      }
+    ]
+  },
+  "sampling": {
+    "sflow": {
+      "config": {
+        "enabled": true,
+        "ingress-sampling-rate": 10000
+      },
+      "collectors": {
+        "collector": [
+          {
+            "address": "192.0.2.2",
+            "port": 6343,
+            "config": {
+              "address": "192.0.2.2",
+              "port": 6343
+            }
+          }
+        ]
+      },
+      "interfaces": {
+        "interface": [
+          {
+            "name": "port-1",
+            "config": {
+              "name": "port-1",
+              "enabled": true
+            }
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
+#### Test-5, sFlow sampling for IPv6 traffic WCMP Encap
+
+*   Configure sFlow on DUT.
+*   Send IPv6 traffic matching Test-2.
+*   Verify sFlow collector receives samples.
+*   Verify sFlow sample contains:
+    *   Ingress interface matches the ingress port.
+    *   Egress interface matches the egress port.
+    *   Sampled packet header matches the expected encapsulated packet.
+
+#### Test-6, sFlow sampling for Decap scenario
+
+*   Configure sFlow on DUT.
+*   Send encapsulated traffic that triggers decapsulation according to the policy.
+*   Verify sFlow collector receives samples.
+*   Verify sFlow sample contains:
+    *   Ingress interface matches the ingress port.
+    *   Egress interface matches the egress port.
+    *   Sampled packet header matches the expected decapsulated packet.
 
 ## Config Parameter Coverage
 
@@ -407,9 +483,19 @@ paths:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decap-network-instance:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/post-decap-network-instance:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decap-fallback-network-instance:
+  # sflow config
+  /sampling/sflow/config/enabled:
+  /sampling/sflow/config/ingress-sampling-rate:
+  /sampling/sflow/interfaces/interface/config/enabled:
+  /sampling/sflow/interfaces/interface/config/ingress-sampling-rate:
+  /sampling/sflow/collectors/collector/config/address:
+  /sampling/sflow/collectors/collector/config/port:
 
   ## State paths
   /interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/state/link-layer-address:
+  # sflow state
+  /sampling/sflow/state/enabled:
+  /sampling/sflow/interfaces/interface/state/enabled:
 
 rpcs:
   gnmi:

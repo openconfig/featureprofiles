@@ -2679,6 +2679,11 @@ test: {
   exec: " "
 }
 
+test: {
+  id: "SFLOW-2"
+  description: "sFlow Sampling with Encapsulation and Decapsulation"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/sflow/otg_tests/sflow_encap_decap_test/README.md"
+}
 
 test: {
   id: "PF-1.26"
