@@ -12,7 +12,6 @@ package afts_prefix_filtering_dynamic_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -102,7 +101,6 @@ var (
 		"198.51.100.0/24",
 		"203.0.113.0/28",
 		"198.51.100.1/32",
-		"192.0.2.0/24",
 	}
 
 	defaultIPv6Prefixes = []string{
@@ -117,14 +115,14 @@ var (
 	}
 
 	vrfV4Prefixes = []string{
-		"198.51.100.0/24",
+		"198.18.1.0/24",
 		"100.64.1.0/24",
 		"203.0.113.128/28",
 	}
 	vrfV6Prefixes = []string{
-		"2001:db8:2::/64",
-		"2001:db8:2::1/128",
-		"2001:db8:2::2/128",
+		"2001:db8:3::/64",
+		"2001:db8:3::1/128",
+		"2001:db8:3::2/128",
 	}
 )
 
@@ -151,21 +149,35 @@ func TestAFTPrefixFilteringDynamicUpdates(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	batch := configureDUT(t, dut)
 	configurePolicies(t, dut, batch)
-	configureStaticRoute(t, dut, batch, defaultIPv4Prefixes, vrfV4Prefixes, atePort1.IPv4, atePort2.IPv4, staticRouteIndex)
-	configureStaticRoute(t, dut, batch, defaultIPv6Prefixes, vrfV6Prefixes, atePort1.IPv6, atePort2.IPv6, staticRouteIndex+100)
+	aftpf.ConfigureNetworkInstanceStaticRoute(t, dut, batch, aftpf.NetworkInstanceStaticRouteParams{
+		DefaultPrefixes:     defaultIPv4Prefixes,
+		VRFPrefixes:         vrfV4Prefixes,
+		DefaultNextHop:      atePort1.IPv4,
+		VRFNextHop:          atePort2.IPv4,
+		StartIndex:          staticRouteIndex,
+		DefaultInstanceName: deviations.DefaultNetworkInstance(dut),
+		VRFInstanceName:     vrfName})
+	aftpf.ConfigureNetworkInstanceStaticRoute(t, dut, batch, aftpf.NetworkInstanceStaticRouteParams{
+		DefaultPrefixes:     defaultIPv6Prefixes,
+		VRFPrefixes:         vrfV6Prefixes,
+		DefaultNextHop:      atePort1.IPv6,
+		VRFNextHop:          atePort2.IPv6,
+		StartIndex:          staticRouteIndex + 100,
+		DefaultInstanceName: deviations.DefaultNetworkInstance(dut),
+		VRFInstanceName:     vrfName})
 	topo, interfaceNamesList := configureATE(t, ate)
 	ate.OTG().PushConfig(t, topo)
 	ate.OTG().StartProtocols(t)
 	cfgplugins.IsIPv4InterfaceARPresolved(t, ate, cfgplugins.AddressFamilyParams{InterfaceNames: interfaceNamesList})
 	cfgplugins.IsIPv6InterfaceARPresolved(t, ate, cfgplugins.AddressFamilyParams{InterfaceNames: interfaceNamesList})
-	aftpf.AFTFilterAwaitScaleBGPConvergence(t, dut, aftpf.AFTFilterBGPConvergenceParams{
+	aftpf.AwaitScaleBGPConvergence(t, dut, aftpf.BGPConvergenceParams{
 		NetworkInstance: deviations.DefaultNetworkInstance(dut),
 		V4Neighbor:      atePort1.IPv4,
 		V6Neighbor:      atePort1.IPv6,
-		V4RouteCount:    aftpf.AFTFilterBulkV4RouteCount,
-		V6RouteCount:    aftpf.AFTFilterBulkV6RouteCount,
+		V4RouteCount:    aftpf.BulkV4RouteCount,
+		V6RouteCount:    aftpf.BulkV6RouteCount,
 	})
-	aftpf.AFTFilterAwaitScaleBGPConvergence(t, dut, aftpf.AFTFilterBGPConvergenceParams{
+	aftpf.AwaitScaleBGPConvergence(t, dut, aftpf.BGPConvergenceParams{
 		NetworkInstance: vrfName,
 		V4Neighbor:      atePort2.IPv4,
 		V6Neighbor:      atePort2.IPv6,
@@ -210,7 +222,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch {
 	cfgplugins.UpdateNetworkInstanceOnDut(t, dut, vrfName, nonDefaultNI)
 	configureDUTPort(t, dut, batch, &dutPort2, p2, vrfName)
 	batch.Set(t, dut)
-	aftpf.AFTFilterApplyBGPMaxPrefixes(t, dut, aftpf.AFTFilterBGPPrefixParams{V4Prefix: atePort1.IPv4, V6Prefix: atePort1.IPv6, NetworkInstance: defaultNI})
+	aftpf.ApplyBGPMaxPrefixes(t, dut, aftpf.BGPPrefixParams{V4Prefix: atePort1.IPv4, V6Prefix: atePort1.IPv6, NetworkInstance: defaultNI})
 	return batch
 }
 
@@ -245,7 +257,12 @@ func configureDUTPort(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch
 	gnmi.BatchUpdate(batch, ocPath.Interface(p.Name()).Config(), i)
 }
 
-// configureHardwareInit sets up the initial hardware configuration on the DUT. It pushes hardware initialization configs for VRF Selection Extended feature and Policy Forwarding feature.
+// configureHardwareInit sets up the initial hardware configuration on the DUT.
+// It pushes hardware initialization configurations for the VRF Selection Extended
+// and Policy Forwarding features.
+// TODO: The TCAM profile is currently required for the VRF configuration.
+// Remove it if it is no longer needed after the global filter validation is
+// complete.
 func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	features := []cfgplugins.FeatureType{
@@ -270,29 +287,29 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) (gosnappi.Config, []stri
 	dev1 := atePort1.AddToOTG(topo, p1, &dutPort1)
 	dev2 := atePort2.AddToOTG(topo, p2, &dutPort2)
 	// Advertise scaled background routes from the ATE: DEFAULT over port1.
-	aftpf.AFTFilterConfigureATEScaleBGP(t, dev1,
-		aftpf.AFTFilterATEBGPParams{
+	aftpf.ConfigureATEScaleBGP(t, dev1,
+		aftpf.ATEBGPParams{
 			DUTPort:      dutPort1,
 			ATEPort:      atePort1,
 			NamePrefix:   "default-bulk",
-			V4RouteCount: aftpf.AFTFilterBulkV4RouteCount,
-			V4BaseAddr:   aftpf.AFTFilterBulkV4BaseAddr,
-			V4PrefixLen:  aftpf.AFTFilterBulkV4PrefixLen,
-			V6RouteCount: aftpf.AFTFilterBulkV6RouteCount,
-			V6BaseAddr:   aftpf.AFTFilterBulkV6BaseAddr,
-			V6PrefixLen:  aftpf.AFTFilterBulkV6PrefixLen,
+			V4RouteCount: aftpf.BulkV4RouteCount,
+			V4BaseAddr:   aftpf.BulkV4BaseAddr,
+			V4PrefixLen:  aftpf.BulkV4PrefixLen,
+			V6RouteCount: aftpf.BulkV6RouteCount,
+			V6BaseAddr:   aftpf.BulkV6BaseAddr,
+			V6PrefixLen:  aftpf.BulkV6PrefixLen,
 		})
-	aftpf.AFTFilterConfigureATEScaleBGP(t, dev2,
-		aftpf.AFTFilterATEBGPParams{
+	aftpf.ConfigureATEScaleBGP(t, dev2,
+		aftpf.ATEBGPParams{
 			DUTPort:      dutPort2,
 			ATEPort:      atePort2,
 			NamePrefix:   "vrf-bulk",
 			V4RouteCount: vrfRoutes,
 			V4BaseAddr:   vrfRouteV4Pfx,
-			V4PrefixLen:  aftpf.AFTFilterBulkV4PrefixLen,
+			V4PrefixLen:  aftpf.BulkV4PrefixLen,
 			V6RouteCount: vrfRoutes,
 			V6BaseAddr:   vrfRouteV6Pfx,
-			V6PrefixLen:  aftpf.AFTFilterBulkV6PrefixLen,
+			V6PrefixLen:  aftpf.BulkV6PrefixLen,
 		})
 	// Collect interface/device names
 	for _, dev := range topo.Devices().Items() {
@@ -301,16 +318,17 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) (gosnappi.Config, []stri
 	return topo, interfaceNamesList
 }
 
-// configureBGP configures dual-AFI eBGP peerings in the DEFAULT (port1) network instance so that the ATE-advertised background routes are learned and installed instances.
+// configureBGP configures dual-AFI eBGP peerings in the DEFAULT network instance.
+// It enables the DUT to learn and install ATE-advertised background routes.
 func configureBGP(t *testing.T, dut *ondatra.DUTDevice, defaultNI, nonDefaultNI *oc.NetworkInstance) {
 	t.Helper()
-	aftpf.AFTFilterConfigureScaleBGP(t, dut, aftpf.AFTFilterBGPParams{
+	aftpf.ConfigureScaleBGP(t, dut, aftpf.BGPParams{
 		NetworkInstance: defaultNI,
 		RouterID:        dutPort1.IPv4,
 		V4Neighbor:      atePort1.IPv4,
 		V6Neighbor:      atePort1.IPv6,
 	})
-	aftpf.AFTFilterConfigureScaleBGP(t, dut, aftpf.AFTFilterBGPParams{
+	aftpf.ConfigureScaleBGP(t, dut, aftpf.BGPParams{
 		NetworkInstance: nonDefaultNI,
 		RouterID:        dutPort2.IPv4,
 		V4Neighbor:      atePort2.IPv4,
@@ -321,10 +339,9 @@ func configureBGP(t *testing.T, dut *ondatra.DUTDevice, defaultNI, nonDefaultNI 
 // testIPv4DynamicUpdates validates:
 //
 //  1. Initial filtered subscription.
-//  2. Add matching IPv4 route -> visible.
-//  3. Add non-matching IPv4 route -> not visible.
-//  4. Delete matching route -> removed.
-//  5. Dynamic policy update -> newly matched route becomes visible.
+//  2. Add prefix to prefix-set -> matching AFT entry becomes visible.
+//  3. Remove prefix from prefix-set -> AFT entry is removed.
+//  4. Atomic prefix-set update -> add and delete notifications are received.
 func testIPv4DynamicUpdates(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	testDynamicUpdates(t, dut,
@@ -345,10 +362,9 @@ func testIPv4DynamicUpdates(t *testing.T, dut *ondatra.DUTDevice) {
 // testIPv6DynamicUpdates validates:
 //
 //  1. Initial filtered IPv6 subscription.
-//  2. Add matching IPv6 route.
-//  3. Add non-matching IPv6 route.
-//  4. Delete matching IPv6 route.
-//  5. Dynamic policy update.
+//  2. Add IPv6 prefix to prefix-set -> matching AFT entry becomes visible.
+//  3. Remove IPv6 prefix from prefix-set -> AFT entry is removed.
+//  4. Atomic prefix-set update -> add and delete notifications are received.
 func testIPv6DynamicUpdates(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	testDynamicUpdates(t, dut,
@@ -411,7 +427,7 @@ func testDynamicUpdates(t *testing.T, dut *ondatra.DUTDevice, pArgs dynamicUpdat
 	t.Logf("%s - Initial Synchronization", pArgs.testID)
 	aftpf.RunCollector(t,
 		aftpf.RunCollectorParams{
-			Ctx:       context.Background(),
+			Ctx:       ctx,
 			Collector: collector,
 			Stop: aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes,
 				map[string]bool{atePort1.IPv4: true},
@@ -432,13 +448,18 @@ func testDynamicUpdates(t *testing.T, dut *ondatra.DUTDevice, pArgs dynamicUpdat
 	// AFT-6.4.X.1 Add Prefix
 	//----------------------------------------------------------------------
 	t.Logf("%s.1 - Addition of Prefix to Active Set", pArgs.testID)
-	mustAddSingleStaticRoute(t, dut, deviations.DefaultNetworkInstance(dut), pArgs.dynamicPrefix, pArgs.nhIndex, pArgs.nhIP)
+	aftpf.AddPrefixToPrefixSet(t, dut,
+		aftpf.AddPrefixToPrefixSetParams{
+			PrefixSetName: pArgs.prefixSet,
+			Prefix:        pArgs.dynamicPrefix,
+			MaskRange:     pArgs.maskRange,
+		})
 	// Wait for ADD notification on the SAME stream.
 	aftpf.RunCollector(t,
 		aftpf.RunCollectorParams{
-			Ctx:       context.Background(),
+			Ctx:       ctx,
 			Collector: collector,
-			Stop: aftcache.WaitForUpdateNotification(t,
+			Stop: aftcache.WaitForNotification(t,
 				aftcache.NotificationExpectation{
 					AddPrefix:        pArgs.dynamicPrefix,
 					NotificationWait: notificationWaitTime,
@@ -460,9 +481,9 @@ func testDynamicUpdates(t *testing.T, dut *ondatra.DUTDevice, pArgs dynamicUpdat
 	// Wait for DELETE notification on SAME stream.
 	aftpf.RunCollector(t,
 		aftpf.RunCollectorParams{
-			Ctx:       context.Background(),
+			Ctx:       ctx,
 			Collector: collector,
-			Stop: aftcache.WaitForDeleteNotification(t,
+			Stop: aftcache.WaitForNotification(t,
 				aftcache.NotificationExpectation{
 					DeletePrefix:     pArgs.initialAllowedPrefixes[0],
 					NotificationWait: notificationWaitTime,
@@ -478,9 +499,9 @@ func testDynamicUpdates(t *testing.T, dut *ondatra.DUTDevice, pArgs dynamicUpdat
 	// Wait for BOTH notifications on SAME stream.
 	aftpf.RunCollector(t,
 		aftpf.RunCollectorParams{
-			Ctx:       context.Background(),
+			Ctx:       ctx,
 			Collector: collector,
-			Stop: aftcache.WaitForUpdateDeleteNotification(t,
+			Stop: aftcache.WaitForNotification(t,
 				aftcache.NotificationExpectation{
 					AddPrefix:        pArgs.initialAllowedPrefixes[0],
 					DeletePrefix:     pArgs.initialAllowedPrefixes[1],
@@ -495,21 +516,8 @@ func testDynamicUpdates(t *testing.T, dut *ondatra.DUTDevice, pArgs dynamicUpdat
 	if err != nil {
 		t.Fatalf("ToAFT failed: %v", err)
 	}
-	aftpf.VerifyPrefixesPresent(t,
-		aftpf.PrefixesParams{
-			InfoAFT: finalAFT,
-			Prefixes: []string{
-				pArgs.initialAllowedPrefixes[0],
-				pArgs.dynamicPrefix,
-			},
-		})
-	aftpf.VerifyPrefixesAbsent(t,
-		aftpf.PrefixesParams{
-			InfoAFT: finalAFT,
-			Prefixes: []string{
-				pArgs.initialAllowedPrefixes[1],
-			},
-		})
+	aftpf.VerifyPrefixesPresent(t, aftpf.PrefixesParams{InfoAFT: finalAFT, Prefixes: []string{pArgs.initialAllowedPrefixes[0], pArgs.dynamicPrefix}})
+	aftpf.VerifyPrefixesAbsent(t, aftpf.PrefixesParams{InfoAFT: finalAFT, Prefixes: []string{pArgs.initialAllowedPrefixes[1]}})
 }
 
 // verifyPrefixRemovedFromPrefixSet verifies that the specified prefix no longer exists in the given prefix-set configuration.
@@ -522,7 +530,8 @@ func verifyPrefixRemovedFromPrefixSet(t *testing.T, dut *ondatra.DUTDevice, pref
 	t.Logf("Verified prefix %s mask-range %s removed from prefix-set %s", prefix, maskRange, prefixSetName)
 }
 
-// atomicPrefixSetSwap atomically adds one prefix and removes another from the specified prefix-set using a single gNMI Set transaction.
+// atomicPrefixSetSwap atomically updates a prefix set.
+// It adds one prefix and removes another using a single gNMI Set transaction.
 func atomicPrefixSetSwap(t *testing.T, dut *ondatra.DUTDevice, prefixName, addPrefixVal, delPrefixVal, prefixMode string) {
 	t.Helper()
 	batch := &gnmi.SetBatch{}
@@ -537,44 +546,119 @@ func atomicPrefixSetSwap(t *testing.T, dut *ondatra.DUTDevice, prefixName, addPr
 	batch.Set(t, dut)
 }
 
-// configurePolicies configures routing policies.
+// configurePolicies configures all routing policies required for AFT prefix
+// filtering tests and installs them on the DUT using the provided gNMI batch.
 func configurePolicies(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch) {
 	t.Helper()
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
-	// POLICY-MATCH-ALL
-	aftpf.AddPrefixSetPolicy(t, rp, aftpf.PrefixSetPolicyParams{PolicyName: matchAllPolicy, StatementNames: []string{"10"}, PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE})
-	aftpf.AddPrefixSetPolicy(t, rp, aftpf.PrefixSetPolicyParams{PolicyName: "POLICY-PREFIX-SET-A", StatementNames: []string{"10"}, PrefixSetNames: []string{"PREFIX-SET-A"}, PrefixList: policyIPv4Prefixes, PrefixMode: "exact", PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE})
-	aftpf.AddPrefixSetPolicy(t, rp, aftpf.PrefixSetPolicyParams{PolicyName: "POLICY-PREFIX-SET-B", StatementNames: []string{"10"}, PrefixSetNames: []string{"PREFIX-SET-B"}, PrefixList: policyIPv6Prefixes, PrefixMode: "exact", PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE})
-	aftpf.AddPrefixSetPolicy(t, rp, aftpf.PrefixSetPolicyParams{PolicyName: "POLICY-SUBNET-V4", StatementNames: []string{"10"}, PrefixSetNames: []string{"PREFIX-SET-SUBNET-V4"}, MatchPrefixSet: true, PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE})
-	aftpf.AddPrefixSetPolicy(t, rp, aftpf.PrefixSetPolicyParams{PolicyName: "POLICY-SUBNET-V6", StatementNames: []string{"10"}, PrefixSetNames: []string{"PREFIX-SET-SUBNET-V6"}, MatchPrefixSet: true, PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE})
-	aftpf.AddPrefixSetPolicy(t, rp, aftpf.PrefixSetPolicyParams{PolicyName: "POLICY-MULTI-STMT", StatementNames: []string{"10", "20"}, PrefixSetNames: []string{"PREFIX-SET-A", "PREFIX-SET-SUBNET"}, MatchPrefixSet: true, PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE})
-	aftpf.AddPrefixSetPolicy(t, rp, aftpf.PrefixSetPolicyParams{PolicyName: "POLICY-DENY-PREFIX-SET-A", StatementNames: []string{"10", "20"}, PrefixSetNames: []string{"PREFIX-SET-A", ""}, MatchPrefixSet: true, PrefixDeny: true, PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE})
-	aftpf.AddPrefixSetPolicy(t, rp, aftpf.PrefixSetPolicyParams{PolicyName: "POLICY-TAG-MATCH", StatementNames: []string{"10"}, MatchPrefixSet: true, SetTag: true, PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE})
-	aftpf.AddPrefixSetPolicy(t, rp, aftpf.PrefixSetPolicyParams{PolicyName: "POLICY-PREFIX-SET-VRF-A", StatementNames: []string{"10"}, PrefixSetNames: []string{"PREFIX-SET-VRF-A"}, PrefixList: []string{vrfV4Pfx}, PrefixMode: "24..32", PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE})
-	aftpf.AddPrefixSetPolicy(t, rp, aftpf.PrefixSetPolicyParams{PolicyName: "POLICY-PREFIX-SET-VRF-B", StatementNames: []string{"20"}, PrefixSetNames: []string{"PREFIX-SET-VRF-B"}, PrefixList: []string{vrfV6Pfx}, PrefixMode: "65..128", PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE})
-	aftpf.ConfigureGlobalFilterPolicies(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{V4Policy: v4Policy, V6Policy: v6Policy, VRFName: deviations.DefaultNetworkInstance(dut)})
+	configureCommonPolicies(t, rp)
+	configureDynamicUpdatePolicies(t, rp)
 	gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
 	batch.Set(t, dut)
 }
 
-// configureStaticRoute installs a static route into the default NI.
-func configureStaticRoute(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, defaultPrefixes, vrfPrefixes []string, nhIP, vrfNhIP string, indx int) {
+// configureDynamicUpdatePolicies configures IPv4 and IPv6 routing policies
+// used by AFT-6.4 dynamic prefix-set update validation.
+func configureDynamicUpdatePolicies(t *testing.T, rp *oc.RoutingPolicy) {
 	t.Helper()
-	for idx, prefix := range defaultPrefixes {
-		cfgplugins.ConfigureStaticRoute(t, dut, batch, cfgplugins.ConfigureStaticRouteParams{NetworkInstance: deviations.DefaultNetworkInstance(dut), Prefix: prefix, Index: fmt.Sprintf("%d", idx+indx), NextHop: nhIP})
-	}
-	// VRF-A IPv4 and IPv6 routes
-	for idx, prefix := range vrfPrefixes {
-		cfgplugins.ConfigureStaticRoute(t, dut, batch, cfgplugins.ConfigureStaticRouteParams{NetworkInstance: vrfName, Prefix: prefix, Index: fmt.Sprintf("%d", idx+indx+200), NextHop: vrfNhIP})
-	}
-	batch.Set(t, dut)
+	// IPv4 dynamic prefix filtering policy.
+	aftpf.AddPrefixSetPolicy(t, rp,
+		aftpf.PrefixSetPolicyParams{
+			PolicyName:     v4Policy,
+			StatementNames: []string{"10"},
+			PrefixSetNames: []string{v4PfxSet},
+			PrefixList:     policyIPv4Prefixes,
+			PrefixMode:     maskRange,
+			PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
+		})
+	// IPv6 dynamic prefix filtering policy.
+	aftpf.AddPrefixSetPolicy(t, rp,
+		aftpf.PrefixSetPolicyParams{
+			PolicyName:     v6Policy,
+			StatementNames: []string{"10"},
+			PrefixSetNames: []string{v6PfxSet},
+			PrefixList:     policyIPv6Prefixes,
+			PrefixMode:     maskRange,
+			PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
+		})
 }
 
-// mustAddSingleStaticRoute adds one static route.
-func mustAddSingleStaticRoute(t *testing.T, dut *ondatra.DUTDevice, niName, prefix, index, nextHop string) {
+// configureCommonPolicies configures routing policies shared across multiple
+// AFT prefix filtering test cases.
+func configureCommonPolicies(t *testing.T, rp *oc.RoutingPolicy) {
 	t.Helper()
-	batch := &gnmi.SetBatch{}
-	cfgplugins.ConfigureStaticRoute(t, dut, batch, cfgplugins.ConfigureStaticRouteParams{NetworkInstance: niName, Prefix: prefix, Index: index, NextHop: nextHop})
-	batch.Set(t, dut)
+	// POLICY-MATCH-ALL
+	aftpf.AddPrefixSetPolicy(t, rp,
+		aftpf.PrefixSetPolicyParams{
+			PolicyName:     matchAllPolicy,
+			StatementNames: []string{"10"},
+			PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
+		})
+	// POLICY-SUBNET-V4
+	aftpf.AddPrefixSetPolicy(t, rp,
+		aftpf.PrefixSetPolicyParams{
+			PolicyName:     "POLICY-SUBNET-V4",
+			StatementNames: []string{"10"},
+			PrefixSetNames: []string{"PREFIX-SET-SUBNET-V4"},
+			MatchPrefixSet: true,
+			PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
+		})
+	// POLICY-SUBNET-V6
+	aftpf.AddPrefixSetPolicy(t, rp,
+		aftpf.PrefixSetPolicyParams{
+			PolicyName:     "POLICY-SUBNET-V6",
+			StatementNames: []string{"10"},
+			PrefixSetNames: []string{"PREFIX-SET-SUBNET-V6"},
+			MatchPrefixSet: true,
+			PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
+		})
+	// POLICY-MULTI-STMT
+	aftpf.AddPrefixSetPolicy(t, rp,
+		aftpf.PrefixSetPolicyParams{
+			PolicyName:     "POLICY-MULTI-STMT",
+			StatementNames: []string{"10", "20"},
+			PrefixSetNames: []string{"PREFIX-SET-A", "PREFIX-SET-SUBNET"},
+			MatchPrefixSet: true,
+			PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
+		})
+	// POLICY-DENY-PREFIX-SET-A
+	aftpf.AddPrefixSetPolicy(t, rp,
+		aftpf.PrefixSetPolicyParams{
+			PolicyName:     "POLICY-DENY-PREFIX-SET-A",
+			StatementNames: []string{"10", "20"},
+			PrefixSetNames: []string{"PREFIX-SET-A", ""},
+			MatchPrefixSet: true,
+			PrefixDeny:     true,
+			PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
+		})
+	// POLICY-TAG-MATCH
+	aftpf.AddPrefixSetPolicy(t, rp,
+		aftpf.PrefixSetPolicyParams{
+			PolicyName:     "POLICY-TAG-MATCH",
+			StatementNames: []string{"10"},
+			MatchPrefixSet: true,
+			SetTag:         true,
+			PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
+		})
+	// POLICY-PREFIX-SET-VRF-A
+	aftpf.AddPrefixSetPolicy(t, rp,
+		aftpf.PrefixSetPolicyParams{
+			PolicyName:     "POLICY-PREFIX-SET-VRF-A",
+			StatementNames: []string{"10"},
+			PrefixSetNames: []string{"PREFIX-SET-VRF-A"},
+			PrefixList:     []string{vrfV4Pfx},
+			PrefixMode:     "24..32",
+			PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
+		})
+	// POLICY-PREFIX-SET-VRF-B
+	aftpf.AddPrefixSetPolicy(t, rp,
+		aftpf.PrefixSetPolicyParams{
+			PolicyName:     "POLICY-PREFIX-SET-VRF-B",
+			StatementNames: []string{"20"},
+			PrefixSetNames: []string{"PREFIX-SET-VRF-B"},
+			PrefixList:     []string{vrfV6Pfx},
+			PrefixMode:     "65..128",
+			PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
+		})
 }
