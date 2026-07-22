@@ -178,6 +178,7 @@ test:  {
   id:  "CFM-1.1"
   description:  "CFM over ETHoCWoMPLSoGRE"
   readme:  "https://github.com/openconfig/featureprofiles/blob/main/feature/cfm/otg_tests/cfm_base/README.md"
+  exec:  "https://github.com/openconfig/featureprofiles/blob/main/feature/cfm/otg_tests/cfm_base/cfm_base_test.go"
 }
 test:  {
   id:  "CNTR-1"
