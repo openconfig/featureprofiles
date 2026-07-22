@@ -322,6 +322,7 @@ type NexthopGroupUDPParams struct {
 	Index              string
 	DstIp              []string
 	SrcIp              string
+	SrcInterface       string
 	DstUdpPort         uint16
 	SrcUdpPort         uint16
 	TTL                uint8
@@ -400,11 +401,17 @@ func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, params
 					tunnelDst += fmt.Sprintf("entry %d tunnel-destination %s \n", i, addr)
 				}
 				cli = fmt.Sprintf(`
+					qos rewrite ipv4-over-udp inner dscp disabled
+					qos rewrite ipv6-over-udp inner dscp disabled
 					nexthop-group %s type %s
-					tunnel-source intf %s
 					fec hierarchical
    					%s
-					`, params.NexthopGrpName, groupType, params.SrcIp, tunnelDst)
+					`, params.NexthopGrpName, groupType, tunnelDst)
+				if params.SrcInterface != "" {
+					cli += fmt.Sprintf("tunnel-source intf %s", params.SrcInterface)
+				} else {
+					cli += fmt.Sprintf("tunnel-source %s", params.SrcIp)
+				}
 				helpers.GnmiCLIConfig(t, dut, cli)
 			}
 			if params.TTL != 0 {
@@ -417,6 +424,14 @@ func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, params
 
 			if params.DSCP != 0 {
 				configureTOSGUE(t, dut, "policy1", uint32(params.DSCP>>5), params.SrcIp, params.DeleteDSCP)
+			}
+
+			if params.DeleteTtl {
+				cli = fmt.Sprintf(
+					`nexthop-group %s type %s
+					no ttl %v
+					`, params.NexthopGrpName, groupType, params.TTL)
+				helpers.GnmiCLIConfig(t, dut, cli)
 			}
 
 			if params.DeleteTtl {
