@@ -124,11 +124,11 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		{"port2", &dutDst},
 	} {
 		port := dut.Port(t, p.portName)
+		t.Logf("Configuring VRF on interface %s", port.Name())
+		configureInterfaceVRF(t, dut, port.Name())
 		i := &oc.Interface{Name: ygot.String(port.Name())}
 		i.Enabled = ygot.Bool(true)
 		gnmi.Update(t, dut, d.Interface(port.Name()).Config(), configInterfaceDUT(i, p.attrs, dut))
-		t.Logf("Configuring VRF on interface %s", port.Name())
-		configureInterfaceVRF(t, dut, port.Name())
 	}
 
 }
