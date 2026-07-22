@@ -80,8 +80,9 @@ func (d *hmacEnrollDeps) RotateOIakCert(ctx context.Context, req *epb.RotateOIak
 	return d.enrollzC.RotateOIakCert(ctx, req)
 }
 
+// RotateAIKCert exists only to implement the biz.EnrollzDeviceClient interface used in the enrollment flow (embedded via biz.EnrollSwitchWithHMACChallengeInfraDeps)
 func (d *hmacEnrollDeps) RotateAIKCert(ctx context.Context, opts ...grpc.CallOption) (epb.TpmEnrollzService_RotateAIKCertClient, error) {
-	return d.enrollzC.RotateAIKCert(ctx, opts...)
+	return nil, fmt.Errorf("RotateAIKCert is a TPM 1.2 RPC and is not supported by this TPM 2.0 HMAC enrollment test")
 }
 
 func (d *hmacEnrollDeps) GetControlCardVendorID(ctx context.Context, req *epb.GetControlCardVendorIDRequest) (*epb.GetControlCardVendorIDResponse, error) {
