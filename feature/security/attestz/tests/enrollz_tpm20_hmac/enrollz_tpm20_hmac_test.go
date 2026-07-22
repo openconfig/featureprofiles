@@ -308,10 +308,9 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 			func(t *testing.T) error {
 				badClient, err := enrollzClientWithTLS(t, dut, invalidTLSConfig(t))
 				if err != nil {
-					t.Logf("connection rejected at dial time: %v", err)
-					return nil
+					return err
 				}
-				t.Log("dial succeeded with bad cert; issuing RPC and expecting TLS failure")
+				t.Log("issuing RPC and expecting TLS failure")
 				_, err = badClient.GetControlCardVendorID(ctx, &epb.GetControlCardVendorIDRequest{
 					ControlCardSelection: activeCard(),
 				})
