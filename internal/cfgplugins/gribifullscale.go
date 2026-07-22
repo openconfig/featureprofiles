@@ -38,6 +38,7 @@ import (
 	packetvalidationhelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/packetvalidationhelpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	spb "github.com/openconfig/gnoi/system"
+	gribipb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/client"
 	"github.com/openconfig/gribigo/constants"
@@ -750,13 +751,18 @@ func BatchModify(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, entr
 			end = len(entries)
 		}
 		gSession.AddEntries(t, entries[i:end], nil)
-		// NOTE: AwaitTimeout per chunk is intentionally commented out due to a known bug.
-		// if err := gSession.AwaitTimeout(context.Background(), t, 20*time.Second); err != nil {
-		// 	t.Fatalf("gRIBI batch programming failed: %v", err)
-		// }
+		// TODO: Arista does not ack
+		if dut.Vendor() != ondatra.ARISTA {
+			if err := gSession.AwaitTimeout(context.Background(), t, 20*time.Second); err != nil {
+				t.Fatalf("gRIBI batch programming timeout: %v", err)
+			}
+		}
 	}
 	// TODO: A time.Sleep is used as a temporary workaround. This will be fixed once the underlying issue is resolved.
-	time.Sleep(wTime)
+	if dut.Vendor() == ondatra.ARISTA {
+		time.Sleep(wTime)
+	}
+	ValidateGRIBIResults(t, gSession.Fluent(t).Results(t))
 	return gSession
 }
 
@@ -1199,6 +1205,99 @@ func VerifyFIBProgrammed(t *testing.T, c *gribi.Client, wantPrefixesV4 map[strin
 
 	verifyPrefixes(wantPrefixesV4, false)
 	verifyPrefixes(wantPrefixesV6, true)
+}
+
+// ValidateGRIBIResults validates the gRIBI results by looking for failures.
+// It counts total failures for Next Hop, Next Hop Group, and IP Entry categories,
+// collects the first 10 failures of each, logs them via t.Errorf, and returns true if any failure was found.
+// If all operations succeeded, it returns false.
+func ValidateGRIBIResults(t *testing.T, results []*client.OpResult) bool {
+	t.Helper()
+
+	isFailure := func(op *client.OpResult) bool {
+		if op.ServerError != "" || op.ClientError != "" {
+			return true
+		}
+		if op.ProgrammingResult == gribipb.AFTResult_FIB_FAILED {
+			return true
+		}
+		return false
+	}
+
+	var nhFailures []*client.OpResult
+	var nhgFailures []*client.OpResult
+	var ipFailures []*client.OpResult
+
+	var totalNHFailures int
+	var totalNHGFailures int
+	var totalIPFailures int
+
+	for _, res := range results {
+		if !isFailure(res) {
+			continue
+		}
+		if res.Details == nil {
+			totalIPFailures++
+			if len(ipFailures) < 10 {
+				ipFailures = append(ipFailures, res)
+			}
+			continue
+		}
+
+		if res.Details.NextHopIndex != 0 {
+			totalNHFailures++
+			if len(nhFailures) < 10 {
+				nhFailures = append(nhFailures, res)
+			}
+		} else if res.Details.NextHopGroupID != 0 {
+			totalNHGFailures++
+			if len(nhgFailures) < 10 {
+				nhgFailures = append(nhgFailures, res)
+			}
+		} else if res.Details.IPv4Prefix != "" || res.Details.IPv6Prefix != "" {
+			totalIPFailures++
+			if len(ipFailures) < 10 {
+				ipFailures = append(ipFailures, res)
+			}
+		} else {
+			totalIPFailures++
+			if len(ipFailures) < 10 {
+				ipFailures = append(ipFailures, res)
+			}
+		}
+	}
+
+	hasFailure := false
+
+	if len(nhFailures) > 0 {
+		t.Errorf("First %d Next Hop failures (Total: %d):", len(nhFailures), totalNHFailures)
+		for index, op := range nhFailures {
+			t.Errorf("  [%d] %v", index, op)
+		}
+		hasFailure = true
+	} else {
+		t.Logf("All Next Hop operations succeeded")
+	}
+	if len(nhgFailures) > 0 {
+		t.Errorf("First %d Next Hop Group failures (Total: %d):", len(nhgFailures), totalNHGFailures)
+		for index, op := range nhgFailures {
+			t.Errorf("  [%d] %v", index, op)
+		}
+		hasFailure = true
+	} else {
+		t.Logf("All Next Hop Group operations succeeded")
+	}
+	if len(ipFailures) > 0 {
+		t.Errorf("First %d IP Entry failures (Total: %d):", len(ipFailures), totalIPFailures)
+		for index, op := range ipFailures {
+			t.Errorf("  [%d] %v", index, op)
+		}
+		hasFailure = true
+	} else {
+		t.Logf("All IP Entry operations succeeded")
+	}
+
+	return hasFailure
 }
 
 // VerifyHierarchicalResolution spot-checks TE_VRF_111 prefixes for FIB_PROGRAMMED and non-zero NHG via gNMI AFT.
