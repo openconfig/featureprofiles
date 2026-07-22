@@ -268,7 +268,7 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 				if err != nil {
 					return err
 				}
-				if err := verifyCerts(t, ctx, dut, enrollzC, ownerCA, hasStandby, nil); err != nil {
+				if err := verifyCertsIssued(t, ctx, dut, enrollzC, ownerCA, hasStandby); err != nil {
 					return err
 				}
 				baseline = captureIAKBaseline(t, ctx, dut, enrollzC, hasStandby)
@@ -293,7 +293,7 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 				if err != nil {
 					return err
 				}
-				if err := verifyCerts(t, ctx, dut, enrollzC, ownerCA, hasStandby, nil); err != nil {
+				if err := verifyCertsIssued(t, ctx, dut, enrollzC, ownerCA, hasStandby); err != nil {
 					return err
 				}
 				baseline = captureIAKBaseline(t, ctx, dut, enrollzC, hasStandby)
@@ -576,7 +576,7 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 				if err := requireRejectedRequest(t, err); err != nil {
 					return err
 				}
-				return verifyCerts(t, ctx, dut, enrollzC, nil, baseline.hasStandby, &baseline)
+				return verifyCertsUnchanged(t, ctx, dut, enrollzC, baseline)
 			},
 		},
 		{
@@ -593,7 +593,7 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 				if err := requireRejectedRequest(t, err); err != nil {
 					return err
 				}
-				return verifyCerts(t, ctx, dut, enrollzC, nil, baseline.hasStandby, &baseline)
+				return verifyCertsUnchanged(t, ctx, dut, enrollzC, baseline)
 			},
 		},
 		{
@@ -611,7 +611,7 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 				if err := requireRejectedRequest(t, err); err != nil {
 					return err
 				}
-				return verifyCerts(t, ctx, dut, enrollzC, nil, baseline.hasStandby, &baseline)
+				return verifyCertsUnchanged(t, ctx, dut, enrollzC, baseline)
 			},
 		},
 		{
@@ -627,7 +627,7 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 				if err := requireRejectedRequest(t, err); err != nil {
 					return err
 				}
-				return verifyCerts(t, ctx, dut, enrollzC, nil, baseline.hasStandby, &baseline)
+				return verifyCertsUnchanged(t, ctx, dut, enrollzC, baseline)
 			},
 		},
 		{
@@ -643,7 +643,7 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 				if err := requireRejectedRequest(t, err); err != nil {
 					return err
 				}
-				return verifyCerts(t, ctx, dut, enrollzC, nil, baseline.hasStandby, &baseline)
+				return verifyCertsUnchanged(t, ctx, dut, enrollzC, baseline)
 			},
 		},
 		{
@@ -661,7 +661,7 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 				if err := requireRejectedRequest(t, err); err != nil {
 					return err
 				}
-				return verifyCerts(t, ctx, dut, enrollzC, nil, baseline.hasStandby, &baseline)
+				return verifyCertsUnchanged(t, ctx, dut, enrollzC, baseline)
 			},
 		},
 		{
@@ -677,7 +677,7 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 				if err := requireRejectedRequest(t, err); err != nil {
 					return err
 				}
-				return verifyCerts(t, ctx, dut, enrollzC, nil, baseline.hasStandby, &baseline)
+				return verifyCertsUnchanged(t, ctx, dut, enrollzC, baseline)
 			},
 		},
 		{
@@ -693,7 +693,7 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 				if err := requireRejectedRequest(t, err); err != nil {
 					return err
 				}
-				return verifyCerts(t, ctx, dut, enrollzC, nil, baseline.hasStandby, &baseline)
+				return verifyCertsUnchanged(t, ctx, dut, enrollzC, baseline)
 			},
 		},
 		{
@@ -717,7 +717,7 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 				if err != nil {
 					return err
 				}
-				if err := verifyCerts(t, ctx, dut, enrollzC, ownerCA, hasStandby, nil); err != nil {
+				if err := verifyCertsIssued(t, ctx, dut, enrollzC, ownerCA, hasStandby); err != nil {
 					return err
 				}
 				t.Log("RotateOIakCert with mixed oIAK/oIDevID succeeded")
@@ -743,7 +743,7 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 				if err != nil {
 					return err
 				}
-				if err := verifyCerts(t, ctx, dut, enrollzC, ownerCA, hasStandby, nil); err != nil {
+				if err := verifyCertsIssued(t, ctx, dut, enrollzC, ownerCA, hasStandby); err != nil {
 					return err
 				}
 				t.Log("Post-reboot certificates verified")
@@ -777,7 +777,7 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 				if err != nil {
 					return err
 				}
-				if err := verifyCerts(t, ctx, dut, enrollzC, ownerCA, hasStandby, nil); err != nil {
+				if err := verifyCertsIssued(t, ctx, dut, enrollzC, ownerCA, hasStandby); err != nil {
 					return err
 				}
 				t.Log("Re-enrollment after reboot succeeded")
@@ -1137,72 +1137,27 @@ func generateSelfSignedCertPEM(t *testing.T) string {
 	return string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER}))
 }
 
-// verifyCerts has two modes of operation:
-//   - Positive check (baseline == nil): verifies that enrolled certs on the DUT
-//     are signed by ownerCA. Used after a successful enrollment.
-//   - Baseline comparison (baseline != nil): verifies that the DUT's certs have
-//     not changed relative to a previously captured snapshot. Used as a
-//     rollback check after a rejected RotateOIakCert (tests 1.21–1.28)
-func verifyCerts(t *testing.T, ctx context.Context, dut *ondatra.DUTDevice, enrollzC epb.TpmEnrollzServiceClient, ownerCA *ownerCAClient, hasStandby bool, baseline *iakCertBaseline) error {
+func verifyCertsIssued(t *testing.T, ctx context.Context, dut *ondatra.DUTDevice, enrollzC epb.TpmEnrollzServiceClient, ownerCA *ownerCAClient, hasStandby bool) error {
 	t.Helper()
-	var errs []error
-	if baseline != nil {
-		t.Log("Performing baseline certificate comparison (checking certs are unchanged)...")
-		if baseline.useTLSCert {
-			t.Log("Using TLS cert for baseline check")
-			raw, err := tlsRawServerCert(gnsiAddr(t, dut))
-			if err != nil {
-				return fmt.Errorf("baseline check: TLS server cert unavailable: %v", err)
-			}
-			if got := sha256.Sum256(raw); got != baseline.activeTLSCert {
-				return fmt.Errorf("baseline check: active oIDevID cert changed (TLS fingerprint mismatch)")
-			}
-		} else {
-			resp, err := enrollzC.GetIakCert(ctx, &epb.GetIakCertRequest{ControlCardSelection: activeCard()})
-			if err != nil {
-				return fmt.Errorf("baseline check: GetIakCert(active): %v", err)
-			}
-			if got := sha256.Sum256([]byte(resp.GetIakCert())); got != baseline.activeSHA256 {
-				errs = append(errs, fmt.Errorf("baseline check: active oIAK cert changed (baseline=%x got=%x)", baseline.activeSHA256, got))
-			}
-			if baseline.hasStandby {
-				resp, err := enrollzC.GetIakCert(ctx, &epb.GetIakCertRequest{ControlCardSelection: standbyCard()})
-				if err != nil {
-					errs = append(errs, fmt.Errorf("baseline check: GetIakCert(standby): %v", err))
-				} else if got := sha256.Sum256([]byte(resp.GetIakCert())); got != baseline.standbySHA256 {
-					errs = append(errs, fmt.Errorf("baseline check: standby oIAK cert changed (baseline=%x got=%x)", baseline.standbySHA256, got))
-				}
-			}
-		}
-		if baseline.hasTLSCert {
-			t.Log("Verify active card TLS server cert")
-			raw, tlsErr := tlsRawServerCert(gnsiAddr(t, dut))
-			if tlsErr != nil {
-				errs = append(errs, fmt.Errorf("baseline check: TLS server cert unavailable: %v", tlsErr))
-			} else if got := sha256.Sum256(raw); got != baseline.activeTLSCert {
-				errs = append(errs, fmt.Errorf("baseline check: active oIDevID cert changed (TLS fingerprint mismatch)"))
-			}
-		}
-		return errors.Join(errs...)
-	}
 	if ownerCA == nil {
-		return fmt.Errorf("verifyCerts: ownerCA is nil")
+		return fmt.Errorf("verifyCertsIssued: ownerCA is nil")
 	}
+	var errs []error
 	ownerCAPool := x509.NewCertPool()
 	ownerCAPool.AddCert(ownerCA.ca)
 
 	raw, err := tlsRawServerCert(gnsiAddr(t, dut))
 	if err != nil {
-		t.Logf("verifyCerts: TLS server cert unavailable (plaintext mode or unreachable): %v", err)
+		t.Logf("verifyCertsIssued: TLS server cert unavailable (plaintext mode or unreachable): %v", err)
 	} else {
 		cert, err := x509.ParseCertificate(raw)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("verifyCerts: parse TLS server cert: %v", err))
+			errs = append(errs, fmt.Errorf("verifyCertsIssued: parse TLS server cert: %v", err))
 		} else if cert.Issuer.CommonName != ownerCA.ca.Subject.CommonName {
-			errs = append(errs, fmt.Errorf("verifyCerts: TLS server cert issuer CN = %q, want %q (oIDevID not in use)",
+			errs = append(errs, fmt.Errorf("verifyCertsIssued: TLS server cert issuer CN = %q, want %q (oIDevID not in use)",
 				cert.Issuer.CommonName, ownerCA.ca.Subject.CommonName))
 		} else {
-			t.Logf("verifyCerts: TLS server cert subject=%q issuer=%q (oIDevID confirmed)",
+			t.Logf("verifyCertsIssued: TLS server cert subject=%q issuer=%q (oIDevID confirmed)",
 				cert.Subject.CommonName, cert.Issuer.CommonName)
 		}
 	}
@@ -1214,23 +1169,65 @@ func verifyCerts(t *testing.T, ctx context.Context, dut *ondatra.DUTDevice, enro
 	for _, sel := range sels {
 		resp, err := enrollzC.GetIakCert(ctx, &epb.GetIakCertRequest{ControlCardSelection: sel})
 		if err != nil {
-			t.Logf("verifyCerts: GetIakCert unavailable for %v: %v", sel, err)
+			t.Logf("verifyCertsIssued: GetIakCert unavailable for %v: %v", sel, err)
 			continue
 		}
 		block, _ := pem.Decode([]byte(resp.GetIakCert()))
 		if block == nil {
-			errs = append(errs, fmt.Errorf("verifyCerts: oIAK cert for %v is not valid PEM", sel))
+			errs = append(errs, fmt.Errorf("verifyCertsIssued: oIAK cert for %v is not valid PEM", sel))
 			continue
 		}
 		cert, err := x509.ParseCertificate(block.Bytes)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("verifyCerts: parse oIAK cert for %v: %v", sel, err))
+			errs = append(errs, fmt.Errorf("verifyCertsIssued: parse oIAK cert for %v: %v", sel, err))
 			continue
 		}
 		if _, err := cert.Verify(x509.VerifyOptions{Roots: ownerCAPool}); err != nil {
-			errs = append(errs, fmt.Errorf("verifyCerts: oIAK cert for %v not signed by ownerCA: %v", sel, err))
+			errs = append(errs, fmt.Errorf("verifyCertsIssued: oIAK cert for %v not signed by ownerCA: %v", sel, err))
 		} else {
-			t.Logf("verifyCerts: oIAK cert for %v signed by %q – enrollment verified", sel, cert.Issuer.CommonName)
+			t.Logf("verifyCertsIssued: oIAK cert for %v signed by %q – enrollment verified", sel, cert.Issuer.CommonName)
+		}
+	}
+	return errors.Join(errs...)
+}
+
+func verifyCertsUnchanged(t *testing.T, ctx context.Context, dut *ondatra.DUTDevice, enrollzC epb.TpmEnrollzServiceClient, baseline iakCertBaseline) error {
+	t.Helper()
+	var errs []error
+	t.Log("Performing baseline certificate comparison (checking certs are unchanged)...")
+	if baseline.useTLSCert {
+		t.Log("Using TLS cert for baseline check")
+		raw, err := tlsRawServerCert(gnsiAddr(t, dut))
+		if err != nil {
+			return fmt.Errorf("baseline check: TLS server cert unavailable: %v", err)
+		}
+		if got := sha256.Sum256(raw); got != baseline.activeTLSCert {
+			return fmt.Errorf("baseline check: active oIDevID cert changed (TLS fingerprint mismatch)")
+		}
+	} else {
+		resp, err := enrollzC.GetIakCert(ctx, &epb.GetIakCertRequest{ControlCardSelection: activeCard()})
+		if err != nil {
+			return fmt.Errorf("baseline check: GetIakCert(active): %v", err)
+		}
+		if got := sha256.Sum256([]byte(resp.GetIakCert())); got != baseline.activeSHA256 {
+			errs = append(errs, fmt.Errorf("baseline check: active oIAK cert changed (baseline=%x got=%x)", baseline.activeSHA256, got))
+		}
+		if baseline.hasStandby {
+			resp, err := enrollzC.GetIakCert(ctx, &epb.GetIakCertRequest{ControlCardSelection: standbyCard()})
+			if err != nil {
+				errs = append(errs, fmt.Errorf("baseline check: GetIakCert(standby): %v", err))
+			} else if got := sha256.Sum256([]byte(resp.GetIakCert())); got != baseline.standbySHA256 {
+				errs = append(errs, fmt.Errorf("baseline check: standby oIAK cert changed (baseline=%x got=%x)", baseline.standbySHA256, got))
+			}
+		}
+	}
+	if baseline.hasTLSCert {
+		t.Log("Verify active card TLS server cert")
+		raw, tlsErr := tlsRawServerCert(gnsiAddr(t, dut))
+		if tlsErr != nil {
+			errs = append(errs, fmt.Errorf("baseline check: TLS server cert unavailable: %v", tlsErr))
+		} else if got := sha256.Sum256(raw); got != baseline.activeTLSCert {
+			errs = append(errs, fmt.Errorf("baseline check: active oIDevID cert changed (TLS fingerprint mismatch)"))
 		}
 	}
 	return errors.Join(errs...)
