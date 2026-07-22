@@ -843,7 +843,7 @@ func BuildDefaultVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, 
 				if j == actualNHCount-1 {
 					weight += remainder
 				}
-				if actualNHCount == targetNHCount && actualNHCount > 1 {
+				if actualNHCount == targetNHCount && actualNHCount > 1 && baseWeight > 1 {
 					// Apply specific weight adjustments to force the router to program WCMP instead of standard ECMP,
 					// while perfectly preserving the targetWeightSum for hardware buckets.
 					if j == actualNHCount-2 {
