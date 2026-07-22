@@ -14,11 +14,14 @@ any security setup for connecting to the services.
 
 1. Configure DUT with service configurations for all required services
 2. The test will verify if the hostname configuration paths can be read, updated and deleted.
+3. The test will verify if the domain-name configuration paths can be read, updated and deleted.
 
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
 paths:
+   /system/config/domain-name:
+   /system/state/domain-name:
    /system/config/hostname:
    /system/state/hostname:
 
