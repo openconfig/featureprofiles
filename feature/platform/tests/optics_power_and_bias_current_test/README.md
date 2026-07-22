@@ -80,7 +80,18 @@ to Automatic Test Equipment (ATE).
 ## Canonical OC
 
 ```json
-{}
+{
+  "openconfig-platform:components": {
+    "component": [
+      {
+        "config": {
+          "name": "transceiver1"
+        },
+        "name": "transceiver1"
+      }
+    ]
+  }
+}
 ```
 
 ## OpenConfig Path and RPC Coverage
@@ -108,6 +119,8 @@ paths:
   /components/component/transceiver/physical-channels/channel/state/input-power/instant:
     platform_type: ["TRANSCEIVER"]
   /components/component/transceiver/physical-channels/channel/state/laser-bias-current/instant:
+    platform_type: ["TRANSCEIVER"]
+  /components/component/transceiver/physical-channels/channel/state/laser-temperature/instant:
     platform_type: ["TRANSCEIVER"]
   /components/component/transceiver/physical-channels/channel/state/output-power/instant:
     platform_type: ["TRANSCEIVER"]
