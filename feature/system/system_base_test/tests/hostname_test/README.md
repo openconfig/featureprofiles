@@ -16,6 +16,18 @@ any security setup for connecting to the services.
 2. The test will verify if the hostname configuration paths can be read, updated and deleted.
 3. The test will verify if the domain-name configuration paths can be read, updated and deleted.
 
+#### Canonical OC
+```json
+{
+  "system": {
+    "config": {
+      "domain-name": "test.name.example",
+      "hostname": "abcdefghijkmnop"
+    }
+  }
+}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
