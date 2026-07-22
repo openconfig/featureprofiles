@@ -1181,11 +1181,7 @@ func WaitForNotification(t *testing.T, cfg NotificationExpectation) PeriodicHook
 				}
 			}
 			if time.Since(start) > cfg.NotificationWait {
-				return false, fmt.Errorf(
-					"timed out waiting for update(%q) delete(%q)",
-					cfg.AddPrefix,
-					cfg.DeletePrefix,
-				)
+				return false, fmt.Errorf("timed out waiting for update(%q) delete(%q)", cfg.AddPrefix, cfg.DeletePrefix)
 			}
 			return false, nil
 		},
