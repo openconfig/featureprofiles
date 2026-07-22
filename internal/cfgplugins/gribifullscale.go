@@ -585,28 +585,28 @@ func setDUTSubinterfaceAdminState(t *testing.T, dut *ondatra.DUTDevice, portName
 	sb.Set(t, dut)
 }
 
-// verifySubinterfaceStatus verifies that the operational status of select VLAN subinterfaces has reached the target status.
+// verifySubinterfaceStatus verifies that the admin status of select VLAN subinterfaces has reached the target status.
 func verifySubinterfaceStatus(t *testing.T, dut *ondatra.DUTDevice, portName string, startIdx, endIdx int, enabled bool) {
 	t.Helper()
-	wantStatus := oc.Interface_OperStatus_UP
+	wantStatus := oc.Interface_AdminStatus_UP
 	if !enabled {
-		wantStatus = oc.Interface_OperStatus_DOWN
+		wantStatus = oc.Interface_AdminStatus_DOWN
 	}
-	t.Logf("Verifying subinterfaces %d-%d on %s reach oper-status %s", startIdx, endIdx, portName, wantStatus)
+	t.Logf("Verifying subinterfaces %d-%d on %s reach admin-status %s", startIdx, endIdx, portName, wantStatus)
 	start := time.Now()
 	for i := startIdx; i <= endIdx; i++ {
-		statePath := gnmi.OC().Interface(portName).Subinterface(uint32(i)).OperStatus().State()
+		statePath := gnmi.OC().Interface(portName).Subinterface(uint32(i)).AdminStatus().State()
 		subStart := time.Now()
-		_, ok := gnmi.Watch(t, dut, statePath, 2*time.Minute, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
+		_, ok := gnmi.Watch(t, dut, statePath, 2*time.Minute, func(val *ygnmi.Value[oc.E_Interface_AdminStatus]) bool {
 			if v, ok := val.Val(); ok {
 				return v == wantStatus
 			}
 			return false
 		}).Await(t)
 		if !ok {
-			t.Errorf("Subinterface %s:%d oper status did not reach %s after waiting %v", portName, i, wantStatus, time.Since(subStart))
+			t.Errorf("Subinterface %s.%d admin status did not reach %s after waiting %v", portName, i, wantStatus, time.Since(subStart))
 		} else {
-			t.Logf("Subinterface %s:%d reached oper-status %s in %v", portName, i, wantStatus, time.Since(subStart))
+			t.Logf("Subinterface %s.%d reached admin-status %s in %v", portName, i, wantStatus, time.Since(subStart))
 		}
 	}
 	t.Logf("Verifying subinterfaces %d-%d on %s completed in %v", startIdx, endIdx, portName, time.Since(start))

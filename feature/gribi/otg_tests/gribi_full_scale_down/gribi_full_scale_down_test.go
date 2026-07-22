@@ -26,7 +26,7 @@
 //	  2. Outer-src IP correctness per scenario (encap → src111, repaired → src222, …).
 //	  3. DSCP preservation end-to-end.
 //	  4. Encap presence/absence (inner vs outer header inspection via OTG capture).
-package gribifullscaledown_test
+package gribi_full_scale_down_test
 
 import (
 	"flag"
