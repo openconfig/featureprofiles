@@ -944,7 +944,7 @@ func NewAggregateInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatc
 	}
 
 	agg.GetOrCreateAggregation().LagType = l.AggType
-
+	gnmi.BatchReplace(b, gnmi.OC().Interface(aggID).Config(), agg)
 	// Set LACP mode to ACTIVE for the LAG interface
 	if l.LacpParams != nil {
 		if l.LacpParams.Activity == nil || l.LacpParams.Period == nil {
@@ -956,7 +956,7 @@ func NewAggregateInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatc
 		lacpPath := gnmi.OC().Lacp().Interface(aggID)
 		gnmi.BatchReplace(b, lacpPath.Config(), lacp)
 	}
-	gnmi.BatchReplace(b, gnmi.OC().Interface(aggID).Config(), agg)
+
 	gnmi.BatchDelete(b, gnmi.OC().Interface(aggID).Aggregation().MinLinks().Config())
 
 	l.PopulateOndatraPorts(t, dut)
