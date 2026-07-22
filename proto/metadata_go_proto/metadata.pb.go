@@ -58,7 +58,8 @@ const (
 	Metadata_TESTBED_DUT_2LINKS            Metadata_Testbed = 15
 	Metadata_TESTBED_DUT_ATE_34LINKS       Metadata_Testbed = 16
 	Metadata_TESTBED_DUT_ATE_8LINKS_LAG    Metadata_Testbed = 17
-	Metadata_TESTBED_DUT_DUT_ATE_8LINKS    Metadata_Testbed = 18
+	Metadata_TESTBED_DUT_8_LOOP_2_ATE      Metadata_Testbed = 18
+  Metadata_TESTBED_DUT_DUT_ATE_8LINKS    Metadata_Testbed = 19
 )
 
 // Enum value maps for Metadata_Testbed.
@@ -82,7 +83,8 @@ var (
 		15: "TESTBED_DUT_2LINKS",
 		16: "TESTBED_DUT_ATE_34LINKS",
 		17: "TESTBED_DUT_ATE_8LINKS_LAG",
-		18: "TESTBED_DUT_DUT_ATE_8LINKS",
+		18: "TESTBED_DUT_8_LOOP_2_ATE",
+    19: "TESTBED_DUT_DUT_ATE_8LINKS",
 	}
 	Metadata_Testbed_value = map[string]int32{
 		"TESTBED_UNSPECIFIED":           0,
@@ -103,7 +105,8 @@ var (
 		"TESTBED_DUT_2LINKS":            15,
 		"TESTBED_DUT_ATE_34LINKS":       16,
 		"TESTBED_DUT_ATE_8LINKS_LAG":    17,
-		"TESTBED_DUT_DUT_ATE_8LINKS":    18,
+		"TESTBED_DUT_8_LOOP_2_ATE":      18,
+    "TESTBED_DUT_DUT_ATE_8LINKS":    19,
 	}
 )
 
@@ -4438,7 +4441,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xfc\xf8\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xfa\xf8\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -4868,7 +4871,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
 	"\n" +
 	"deviations\x18\x02 \x01(\v2'.openconfig.testing.Metadata.DeviationsR\n" +
-	"deviations\"\xa0\x04\n" +
+	"deviations\"\x9e\x04\n" +
 	"\aTestbed\x12\x17\n" +
 	"\x13TESTBED_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vTESTBED_DUT\x10\x01\x12\x1a\n" +
