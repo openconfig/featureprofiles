@@ -191,12 +191,12 @@ func TestAFTPrefixFilteringResilience(t *testing.T) {
 	ate.OTG().StartProtocols(t)
 	cfgplugins.IsIPv4InterfaceARPresolved(t, ate, cfgplugins.AddressFamilyParams{InterfaceNames: interfaceNamesList})
 	cfgplugins.IsIPv6InterfaceARPresolved(t, ate, cfgplugins.AddressFamilyParams{InterfaceNames: interfaceNamesList})
-	aftpf.AFTAwaitScaleBGPConvergence(t, dut, aftpf.AFTBGPConvergenceParams{
+	aftpf.AwaitScaleBGPConvergence(t, dut, aftpf.BGPConvergenceParams{
 		NetworkInstance: deviations.DefaultNetworkInstance(dut),
 		V4Neighbor:      atePort1.IPv4, V6Neighbor: atePort1.IPv6,
 		V4RouteCount: scaleIPv4Routes, V6RouteCount: scaleIPv6Routes,
 	})
-	aftpf.AFTAwaitScaleBGPConvergence(t, dut, aftpf.AFTBGPConvergenceParams{
+	aftpf.AwaitScaleBGPConvergence(t, dut, aftpf.BGPConvergenceParams{
 		NetworkInstance: vrfName,
 		V4Neighbor:      atePort2.IPv4, V6Neighbor: atePort2.IPv6,
 		V4RouteCount: scaleIPv4Routes, V6RouteCount: scaleIPv6Routes,
@@ -279,8 +279,13 @@ func configureNetworkInstanceOnDUTPort(t *testing.T, dut *ondatra.DUTDevice, bat
 	gnmi.BatchUpdate(batch, d.Interface(p.Name()).Config(), i)
 }
 
-// configureHardwareInit sets up the initial hardware configuration on the DUT. It pushes hardware initialization configs for VRF Selection Extended feature and Policy Forwarding feature.
-// TODO: The TCAM profile needs to be updated for the VRF configuration. I will remove it if its no longer needed after the global filter validation is complete.
+// configureHardwareInit sets up the initial hardware configuration on the DUT.
+// It pushes the hardware initialization configuration for the VRF Selection
+// Extended and Policy Forwarding features.
+//
+// TODO: The TCAM profile is currently required for the VRF configuration.
+// Remove it if it is no longer needed after the global filter validation is
+// complete.
 func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	features := []cfgplugins.FeatureType{
@@ -305,12 +310,12 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) (gosnappi.Config, []stri
 	dev1 := atePort1.AddToOTG(topo, p1, &dutPort1)
 	dev2 := atePort2.AddToOTG(topo, p2, &dutPort2)
 	// Advertise the scaled routes from the ATE instead of installing them as static routes: DEFAULT scale over port1 and VRF-A scale over port2.
-	aftpf.AFTConfigureATEScaleBGP(t, dev1, aftpf.AFTATEBGPParams{
+	aftpf.ConfigureATEScaleBGP(t, dev1, aftpf.ATEBGPParams{
 		DUTPort: dutPort1, ATEPort: atePort1, NamePrefix: "default-scale",
 		V4RouteCount: scaleIPv4Routes, V4BaseAddr: scaleV4Pfx, V4PrefixLen: scaleV4PfxLen,
 		V6RouteCount: scaleIPv6Routes, V6BaseAddr: scaleV6Pfx, V6PrefixLen: scaleV6PfxLen,
 	})
-	aftpf.AFTConfigureATEScaleBGP(t, dev2, aftpf.AFTATEBGPParams{
+	aftpf.ConfigureATEScaleBGP(t, dev2, aftpf.ATEBGPParams{
 		DUTPort: dutPort2, ATEPort: atePort2, NamePrefix: "vrfa-scale",
 		V4RouteCount: scaleIPv4Routes, V4BaseAddr: scaleVrfV4Pfx, V4PrefixLen: scaleV4PfxLen,
 		V6RouteCount: scaleIPv6Routes, V6BaseAddr: scaleVrfV6Pfx, V6PrefixLen: scaleV6PfxLen,
@@ -330,13 +335,13 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) (gosnappi.Config, []stri
 // are learned and installed in both instances.
 func configureScaleBGP(t *testing.T, dut *ondatra.DUTDevice, defaultNI, nonDefaultNI *oc.NetworkInstance) {
 	t.Helper()
-	aftpf.AFTConfigureScaleBGP(t, dut, aftpf.AFTBGPParams{
+	aftpf.ConfigureScaleBGP(t, dut, aftpf.BGPParams{
 		NetworkInstance: defaultNI,
 		RouterID:        dutPort1.IPv4,
 		V4Neighbor:      atePort1.IPv4,
 		V6Neighbor:      atePort1.IPv6,
 	})
-	aftpf.AFTConfigureScaleBGP(t, dut, aftpf.AFTBGPParams{
+	aftpf.ConfigureScaleBGP(t, dut, aftpf.BGPParams{
 		NetworkInstance: nonDefaultNI,
 		RouterID:        dutPort2.IPv4,
 		V4Neighbor:      atePort2.IPv4,
@@ -382,8 +387,6 @@ func testAfterReboot(t *testing.T, dut *ondatra.DUTDevice) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	wantPrefixes := aftpf.GeneratePrefixes(t, aftpf.GeneratePrefixesParams{V4Prefixes: []string{matchPrefixAft1, matchPrefixAft2}, V6Prefixes: nil, PfxCount: pfxCount})
-	// Prefixes advertised by the ATE but expected to be filtered out.
-	unexpectedPrefixes := generateUnexpectedPrefixes([]string{matchPrefixAft1, matchPrefixAft2}, []string{matchPrefixAft1, matchPrefixAft2})
 	// Verify configured policies before reboot.
 	verifyGlobalFilterPolicies(t, dut, ipv4Policy, ipv6Policy)
 	// Establish initial gNMI subscriptions.
@@ -486,21 +489,6 @@ func gnmiPath(t *testing.T, path string) *gpb.Path {
 		t.Fatalf("Failed to parse path %s: %v", path, err)
 	}
 	return p
-}
-
-// isExpectedReconnectError validates acceptable reboot-window errors.
-func isExpectedReconnectError(err error) bool {
-	if err == nil {
-		return false
-	}
-	s := strings.ToLower(err.Error())
-	return strings.Contains(s, "unavailable") ||
-		strings.Contains(s, "transport is closing") ||
-		strings.Contains(s, "connection refused") ||
-		strings.Contains(s, "eof") ||
-		strings.Contains(s, "context canceled") ||
-		strings.Contains(s, "deadline exceeded") ||
-		strings.Contains(s, "connection reset")
 }
 
 // configurePolicies configures all routing policies required for AFT filtering
@@ -694,7 +682,8 @@ func bootTime(t *testing.T, dut *ondatra.DUTDevice) (uint64, error) {
 	return bootTime, nil
 }
 
-// waitForReboot waits for the DUT to become unreachable, come back online, and report a boot time newer than the previous boot time.
+// waitForReboot waits for the DUT to become unreachable, come back online,
+// and report a boot time newer than the previous boot time.
 func waitForReboot(t *testing.T, dut *ondatra.DUTDevice, lastBootTime uint64) {
 	t.Helper()
 	startReboot := time.Now()
@@ -747,7 +736,8 @@ func waitForReboot(t *testing.T, dut *ondatra.DUTDevice, lastBootTime uint64) {
 	t.Logf("Boot time successfully changed from %d to %d", lastBootTime, currentBootTime)
 }
 
-// bootTimePredicate returns a predicate that evaluates to true when the DUT reports a boot time greater than the provided previous boot time.
+// bootTimePredicate returns a predicate that evaluates to true when the DUT
+// reports a boot time greater than the provided previous boot time.
 func bootTimePredicate(lastBootTime uint64) func(val *ygnmi.Value[uint64]) bool {
 	return func(val *ygnmi.Value[uint64]) bool {
 		currentBootTime, ok := val.Val()
@@ -863,17 +853,14 @@ func testScaleFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Select expected prefixes
-			var selectedPrefixes, allPrefixes []string
+			var selectedPrefixes []string
 			var stoppingCondition aftcache.PeriodicHook
 			if tc.ipv4 {
-				allPrefixes = ipv4Prefixes
 				selectedPrefixes = selectPercentagePrefixes(ipv4Prefixes, tc.matchPercent)
 			} else {
-				allPrefixes = ipv6Prefixes
 				selectedPrefixes = selectPercentagePrefixes(ipv6Prefixes, tc.matchPercent)
 			}
 			wantPrefixes := aftpf.GeneratePrefixes(t, aftpf.GeneratePrefixesParams{V4Prefixes: selectedPrefixes, V6Prefixes: nil, PfxCount: pfxCount})
-			unexpectedPrefixes := generateUnexpectedPrefixes(allPrefixes, selectedPrefixes)
 			// Create subscriptions
 			aftSession1 := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
 			aftSession2 := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
@@ -903,40 +890,6 @@ func testScaleFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-// // verifyFilteredPrefixes validates that all expected prefixes are present in the received AFT data and that unexpected prefixes are absent.
-//
-//	func verifyFilteredPrefixes(t *testing.T, aftPrefixes *aftcache.AFTData, wantPrefixes map[string]bool, ipv4 bool) {
-//		t.Helper()
-//		// Validate IPv4 entries
-//		if ipv4 {
-//			for pfx := range wantPrefixes {
-//				if _, ok := aftPrefixes.Prefixes[pfx]; !ok {
-//					t.Fatalf("Expected IPv4 prefix missing from filtered AFT: %s", pfx)
-//				}
-//			}
-//			for _, pfx := range unexpectedPrefixes {
-//				if _, ok := aftPrefixes.Prefixes[pfx]; ok {
-//					t.Fatalf("Unexpected IPv4 prefix present after filtering: %s", pfx)
-//				}
-//			}
-//			t.Log("Verified IPv4 filtered prefixes")
-//			return
-//		}
-//		// Validate IPv6 entries
-//		for pfx := range wantPrefixes {
-//			if _, ok := aftPrefixes.Prefixes[pfx]; !ok {
-//				t.Fatalf("Expected IPv6 prefix missing from filtered AFT: %s", pfx)
-//			}
-//		}
-//		for _, pfx := range unexpectedPrefixes {
-//			if _, ok := aftPrefixes.Prefixes[pfx]; ok {
-//				t.Fatalf("Unexpected IPv6 prefix present after filtering: %s", pfx)
-//			}
-//		}
-//		t.Log("Verified IPv6 filtered prefixes")
-//	}
-//
-
 // verifyFilteredPrefixes validates that the AFT contains all expected prefixes
 // after applying the filter policy and does not contain prefixes that should
 // have been filtered out.
@@ -959,23 +912,6 @@ func verifyFilteredPrefixes(t *testing.T, aftPrefixes *aftcache.AFTData, wantPre
 		}
 	}
 	t.Logf("Verified %s filtered prefixes", addressFamily)
-}
-
-// generateUnexpectedPrefixes returns prefixes that should not appear in the
-// filtered AFT. These are prefixes advertised by the ATE but not selected by
-// the filtering policy.
-func generateUnexpectedPrefixes(allPrefixes, expectedPrefixes []string) []string {
-	expected := make(map[string]bool)
-	for _, pfx := range expectedPrefixes {
-		expected[pfx] = true
-	}
-	var unexpected []string
-	for _, pfx := range allPrefixes {
-		if !expected[pfx] {
-			unexpected = append(unexpected, pfx)
-		}
-	}
-	return unexpected
 }
 
 // selectPercentagePrefixes selects percentage-based subset.
@@ -1034,24 +970,24 @@ func testPerNIFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 	// Add unmatched route to DEFAULT
 	// Neither collector should receive it
 	t.Log("Adding unmatched route to DEFAULT")
-	aftpf.MustAddSingleStaticRoute(t, dut, aftpf.AddStaticRouteParams{NetworkInstanceName: deviations.DefaultNetworkInstance(dut), Prefix: v4AbsentPfx1, Index: fmt.Sprintf("%d", staticRouteIndex+900), NextHop: atePort1.IPv4})
+	aftpf.AddSingleStaticRoute(t, dut, aftpf.AddStaticRouteParams{NetworkInstanceName: deviations.DefaultNetworkInstance(dut), Prefix: v4AbsentPfx1, Index: fmt.Sprintf("%d", staticRouteIndex+900), NextHop: atePort1.IPv4})
 	mustVerifyPrefixAbsent(t, dut, collector1, v4AbsentPfx1)
 	mustVerifyPrefixAbsent(t, dut, collector2, v4AbsentPfx1)
 	// Add unmatched route
 	t.Log("Adding unmatched route to DEFAULT")
-	aftpf.MustAddSingleStaticRoute(t, dut, aftpf.AddStaticRouteParams{NetworkInstanceName: deviations.DefaultNetworkInstance(dut), Prefix: v4AbsentPfx2, Index: fmt.Sprintf("%d", staticRouteIndex+901), NextHop: atePort1.IPv4})
+	aftpf.AddSingleStaticRoute(t, dut, aftpf.AddStaticRouteParams{NetworkInstanceName: deviations.DefaultNetworkInstance(dut), Prefix: v4AbsentPfx2, Index: fmt.Sprintf("%d", staticRouteIndex+901), NextHop: atePort1.IPv4})
 	mustVerifyPrefixAbsent(t, dut, collector1, v4AbsentPfx2)
 	mustVerifyPrefixAbsent(t, dut, collector2, v4AbsentPfx2)
 	// Add matched exact route to DEFAULT
 	// Collector1 should receive it
 	t.Log("Adding matched route to DEFAULT")
-	aftpf.MustAddSingleStaticRoute(t, dut, aftpf.AddStaticRouteParams{NetworkInstanceName: deviations.DefaultNetworkInstance(dut), Prefix: matchVrfPfx4, Index: fmt.Sprintf("%d", staticRouteIndex+902), NextHop: atePort1.IPv4})
+	aftpf.AddSingleStaticRoute(t, dut, aftpf.AddStaticRouteParams{NetworkInstanceName: deviations.DefaultNetworkInstance(dut), Prefix: matchVrfPfx4, Index: fmt.Sprintf("%d", staticRouteIndex+902), NextHop: atePort1.IPv4})
 	waitForPrefixesPresent(t, dut, collector1, []string{matchVrfPfx4}, subscriptionWait, atePort1.IPv4)
 	mustVerifyPrefixAbsent(t, dut, collector2, matchVrfPfx4)
 	// Add matched subnet route to VRF-A
 	// Collector2 should receive it
 	t.Log("Adding matched subnet route to VRF-A")
-	aftpf.MustAddSingleStaticRoute(t, dut, aftpf.AddStaticRouteParams{NetworkInstanceName: vrfName, Prefix: matchVrfPfx2, Index: fmt.Sprintf("%d", staticRouteIndex+903), NextHop: atePort2.IPv4})
+	aftpf.AddSingleStaticRoute(t, dut, aftpf.AddStaticRouteParams{NetworkInstanceName: vrfName, Prefix: matchVrfPfx2, Index: fmt.Sprintf("%d", staticRouteIndex+903), NextHop: atePort2.IPv4})
 	waitForPrefixesPresent(t, dut, collector2, []string{matchVrfPfx2}, subscriptionWait, atePort2.IPv4)
 	mustVerifyPrefixAbsent(t, dut, collector1, matchVrfPfx2)
 	// Change VRF-A policy to MATCH-ALL
