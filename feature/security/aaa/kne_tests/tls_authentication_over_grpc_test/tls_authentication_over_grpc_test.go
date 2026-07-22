@@ -185,6 +185,14 @@ func TestAuthentication(t *testing.T) {
 					authentication protocol password
 				`
 		helpers.GnmiCLIConfig(t, dut, cliConfig)
+		t.Cleanup(func() {
+			t.Logf("Arista vendor, performing SSH cleanup for password authentication")
+			cliConfig := `
+				management ssh
+					no authentication protocol password
+				`
+			helpers.GnmiCLIConfig(t, dut, cliConfig)
+		})
 
 	case ondatra.CISCO:
 		t.Logf("Cisco vendor, performing SSH configuration")
