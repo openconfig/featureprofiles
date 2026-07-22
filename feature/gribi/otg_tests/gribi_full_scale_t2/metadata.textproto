@@ -19,10 +19,31 @@ platform_exceptions: {
 
 platform_exceptions: {
   platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    no_mix_of_tagged_and_untagged_subinterfaces: true
+    explicit_interface_in_default_vrf: true
+    interface_enabled: true
+  }
+}
+
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    no_mix_of_tagged_and_untagged_subinterfaces: true
+    interface_ref_interface_id_format: true
+  }
+}
+
+platform_exceptions: {
+  platform: {
     vendor: CISCO
   }
   deviations: {
-    ipv4_missing_enabled: true
-    interface_ref_interface_id_format: true   
+    interface_ref_interface_id_format: true
+    pf_require_match_default_rule: true
   }
 }

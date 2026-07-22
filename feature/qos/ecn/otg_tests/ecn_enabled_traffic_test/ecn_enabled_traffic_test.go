@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -684,8 +684,12 @@ func configureQoS(t *testing.T, dut *ondatra.DUTDevice, queues *entname.CommonTr
 	}}
 
 	t.Logf("qos input classifier config: %v", classifierIntfs)
+	qosIntfSuffix := ""
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		qosIntfSuffix = ".0"
+	}
 	for _, tc := range classifierIntfs {
-		intf := q.GetOrCreateInterface(tc.intf)
+		intf := q.GetOrCreateInterface(tc.intf + qosIntfSuffix)
 		intf.GetOrCreateInterfaceRef().SetInterface(tc.intf)
 		if dut.Vendor() != ondatra.CISCO {
 			intf.GetOrCreateInterfaceRef().SetSubinterface(0)
