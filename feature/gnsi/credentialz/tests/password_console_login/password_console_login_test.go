@@ -51,6 +51,14 @@ func TestCredentialz(t *testing.T) {
 				management ssh
 			  	 authentication protocol password
 				 `
+		t.Cleanup(func() {
+			t.Logf("Arista vendor, performing SSH cleanup for password authentication")
+			cliConfig := `
+				management ssh
+					no authentication protocol password
+				`
+			helpers.GnmiCLIConfig(t, dut, cliConfig)
+		})
 		helpers.GnmiCLIConfig(t, dut, cliConfig)
 	case ondatra.JUNIPER:
 		t.Logf("Juniper vendor, adding CLI config to enable ssh services and allow root login")
