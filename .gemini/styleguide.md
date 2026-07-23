@@ -52,7 +52,9 @@
     *   Use `t.Run` for subtests so output clearly reflects passed/failed steps.
     *   **Avoid `time.Sleep`**: Use `gnmi.Watch` with `.Await` for waiting on
         conditions.
-
+    *   **Querying Counters:** Always use a `gnmi.Watch` loop to wait for a specific counter value to be reached before querying it.
+    *   **OTG Start Protocols:** Prior to invoking OTG start protocols, explicitly call `WaitForARP` function to maintain test stability.
+      
 *   **Enums:**
 
     *   Do not use numerical enum values (e.g., `6`). Use the ygot-generated
@@ -67,6 +69,12 @@
     *   **ASNs:** Use RFC 5398 (`64496-64511` or `65536-65551`).
     *   **Do not use:** `1.1.1.1`, `8.8.8.8`, or common local private ranges
         like `192.168.0.0/16`.
+
+*   **Configuration & Cleanup**
+    *   **Mandatory State Reversion:** Tests must always leave the system in the exact original state it was in prior to the test execution, regardless of whether the test passes or fails. This requirement applies to both standard gNMI `Set` configurations and raw/native CLI commands (e.g., using `helpers.GnmiCLIConfig`). The PR MUST include corresponding cleanup operations to revert any changes made during the test.
+    *   **SSH and AAA State:** Pay special attention to AAA and SSH configurations. If a test modifies SSH authentication (e.g., `management ssh authentication protocol password`), the cleanup routine MUST explicitly negate that specific command (e.g., `management ssh \n no authentication protocol`) rather than relying on generic default commands that might wipe baseline lab configurations.
+    *   **Use `t.Cleanup()`:** All cleanup operations, whether for gNMI configurations or raw CLI commands, must be registered using `t.Cleanup()` to guarantee they are executed even if the test fails or panics early.
+    
 
 ### **2. Deviation Guidelines**
 
