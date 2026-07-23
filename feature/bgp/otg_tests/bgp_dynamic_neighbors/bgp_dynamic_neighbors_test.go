@@ -465,6 +465,10 @@ func TestBGPDynamicNeighbors(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 
+	t.Cleanup(func() {
+		bgpClearConfig(t, dut)
+	})
+
 	configureDUTPorts(t, dut)
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	verifyPortsUp(t, dut.Device)
