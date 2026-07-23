@@ -372,7 +372,10 @@ func isOpticalChannelStreamReady(val *oc.Component, operStatus oc.E_Interface_Op
 			val.GetOpticalChannel().GetInputPower().GetAvg() <= (val.GetOpticalChannel().GetInputPower().GetMax()+math.Abs(val.GetOpticalChannel().GetInputPower().GetMax())*errorTolerance) &&
 			val.GetOpticalChannel().GetInputPower().GetAvg() >= (val.GetOpticalChannel().GetInputPower().GetMin()-math.Abs(val.GetOpticalChannel().GetInputPower().GetMin())*errorTolerance) &&
 			val.GetOpticalChannel().GetInputPower().GetInstant() <= (val.GetOpticalChannel().GetInputPower().GetMax()+math.Abs(val.GetOpticalChannel().GetInputPower().GetMax())*errorTolerance) &&
-			val.GetOpticalChannel().GetInputPower().GetInstant() >= (val.GetOpticalChannel().GetInputPower().GetMin()-math.Abs(val.GetOpticalChannel().GetInputPower().GetMin())*errorTolerance)
+			val.GetOpticalChannel().GetInputPower().GetInstant() >= (val.GetOpticalChannel().GetInputPower().GetMin()-math.Abs(val.GetOpticalChannel().GetInputPower().GetMin())*errorTolerance) &&
+			val.GetOpticalChannel().GetOutputPower().GetMin() >= (params.TargetOpticalPower-powerReadingError) &&
+			val.GetOpticalChannel().GetOutputPower().GetMin() <= (params.TargetOpticalPower+powerReadingError) &&
+			val.GetOpticalChannel().GetChromaticDispersion().GetInstant() == val.GetOpticalChannel().GetChromaticDispersion().GetAvg()
 	default:
 		return val.GetOpticalChannel().GetInputPower().GetMax() <= inactivePower &&
 			val.GetOpticalChannel().GetInputPower().GetMin() <= inactivePower &&
