@@ -441,14 +441,13 @@ encapsulation and ingress decapsulation types are mapped to interface speeds:
         }
       ]
     },
-    "mka": {
+    "openconfig-macsec:mka": {
       "policies": {
         "policy": [
           {
             "name": "must_secure_policy",
             "config": {
               "name": "must_secure_policy",
-              "security-policy": "MUST_SECURE",
               "key-server-priority": 15,
               "macsec-cipher-suite": [
                 "GCM_AES_XPN_256"
@@ -463,7 +462,6 @@ encapsulation and ingress decapsulation types are mapped to interface speeds:
             "name": "should_secure_policy",
             "config": {
               "name": "should_secure_policy",
-              "security-policy": "SHOULD_SECURE",
               "key-server-priority": 15,
               "macsec-cipher-suite": [
                 "GCM_AES_XPN_256"
@@ -476,7 +474,7 @@ encapsulation and ingress decapsulation types are mapped to interface speeds:
           }
         ]
       }
-    }
+  }
   },
   "openconfig-mpls:mpls": {
     "lsps": {
