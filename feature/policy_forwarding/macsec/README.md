@@ -44,7 +44,7 @@ encapsulation and ingress decapsulation types are mapped to interface speeds:
 *   Connect the ATE to DUT1 and DUT2, respectively, using 1x10G, 1x100G, and
     1x400G interfaces.
 *   Connect DUT1 and DUT2 using 1x10G, 1x100G, and 1x400G interfaces.
-*   Enable L3 routing (IPv4 and IPv6) on all interfaces.
+*   Enable L3 routing (IPv4 and IPv6) on all interfaces in default VRF.
 *   MACsec will be enabled on the links between DUT1 and DUT2.
 *   Traffic flows are validated on:
     *   **10G path**: `ATE:port1 <-> DUT1 <-> DUT2 <-> ATE:port2` (using
@@ -374,7 +374,7 @@ encapsulation and ingress decapsulation types are mapped to interface speeds:
             "egress": {
               "config": {
                 "incoming-label": 99998,
-                "next-hop": "194.0.2.1",
+                "next-hop": "192.0.2.1",
                 "push-label": "IMPLICIT_NULL"
               }
             }
@@ -487,7 +487,7 @@ encapsulation and ingress decapsulation types are mapped to interface speeds:
                     {
                       "config": {
                         "index": "Dest A-NH1",
-                        "next-hop": "194.0.2.2"
+                        "next-hop": "192.0.2.2"
                       },
                       "index": "Dest A-NH1",
                       "encap-header": [
