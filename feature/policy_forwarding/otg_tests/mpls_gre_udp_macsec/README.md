@@ -287,6 +287,7 @@ Verify:
 * **Fail:** 
   * The DUT fails to establish a MACsec session on Port 2 (the `oper-status` does not transition to `UP`).
   * Packets are transmitted out of Port 2 in cleartext instead of being encrypted.
+  * Cleartext packets received (forcefully injected by ATE port 2) on port2 and forwarded to ATE ports 3,4,5 and 6 with must secure configuration on DUT towards ATE port 2.
   * The outer IP header inside the MACsec payload is not IPv6.
   * The encryption telemetry counters do not increment appropriately.
 

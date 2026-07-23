@@ -112,7 +112,7 @@ Establish a `gNMI Subscribe` to monitor device health and egress packet rates:
 
 ### Traffic execution
 1.  ATE generates 1000 simultaneous traffic flows from the ingress aggregate interfaces (Aggregate2 and Aggregate3).
-2.  Each flow must have a unique outer IPv6 Source Address, unique UDP source port, and unique inner payload IP.
+2.  Each flow must have a unique outer IPv6 Source Address, unique UDP source port, and unique inner payload IP and UDP source port (varying within the ephemeral range 49152-65535).
 3.  The total line rate for the combined streams should be at least 50% of the ingress port capacity.
 
 ### Pass/Fail Criteria
