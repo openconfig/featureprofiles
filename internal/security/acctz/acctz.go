@@ -296,9 +296,40 @@ func aristaFailAuthzCliRole(t *testing.T, dut *ondatra.DUTDevice) {
 		"   authentication protocol password",
 		"management api gnmi",
 		"   transport grpc default",
+		"      aaa config-commands disabled",
+		"      authentication username priority metadata",
 		"      authorization requests",
 		"   transport grpc mgmt",
+		"      aaa config-commands disabled",
+		"      authentication username priority metadata",
 		"      authorization requests",
+	}
+	helpers.GnmiCLIConfig(t, dut, strings.Join(commands, "\n"))
+}
+
+func aristaCleanupAuthzCliRole(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	t.Log("Cleaning up Arista AAA configuration and test users")
+	commands := []string{
+		"configure",
+		"aaa authentication login default group tacacs+ local",
+		"aaa authorization exec default group tacacs+ local",
+		"aaa authorization commands all default group tacacs+ local",
+		fmt.Sprintf("no username %s", SuccessUsername),
+		fmt.Sprintf("no username %s", FailUsername),
+		fmt.Sprintf("no username %s", failAuthorizeUsername),
+		"management ssh",
+		"   no authentication protocol password",
+		"management api gnmi",
+		"   transport grpc default",
+		"      no aaa config-commands",
+		"      no authorization requests",
+		"      no authentication username priority",
+		"   transport grpc mgmt",
+		"      no aaa config-commands",
+		"      no authorization requests",
+		"      no authentication username priority",
+		fmt.Sprintf("no role %s", failRoleName),
 	}
 	helpers.GnmiCLIConfig(t, dut, strings.Join(commands, "\n"))
 }
@@ -345,6 +376,9 @@ func SetupUsers(t *testing.T, dut *ondatra.DUTDevice, configureFailCliRole bool)
 				SetRequest = nokiaFailCliRole(t)
 			case ondatra.ARISTA:
 				aristaFailAuthzCliRole(t, dut)
+				t.Cleanup(func() {
+					aristaCleanupAuthzCliRole(t, dut)
+				})
 			}
 			// _, policyBefore := authz.Get(t, dut)
 			// t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint(t))
