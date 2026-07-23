@@ -52,7 +52,9 @@
     *   Use `t.Run` for subtests so output clearly reflects passed/failed steps.
     *   **Avoid `time.Sleep`**: Use `gnmi.Watch` with `.Await` for waiting on
         conditions.
-
+    *   **Querying Counters:** Always use a `gnmi.Watch` loop to wait for a specific counter value to be reached before querying it.
+    *   **OTG Start Protocols:** Prior to invoking OTG start protocols, explicitly call `WaitForARP` function to maintain test stability.
+      
 *   **Enums:**
 
     *   Do not use numerical enum values (e.g., `6`). Use the ygot-generated
