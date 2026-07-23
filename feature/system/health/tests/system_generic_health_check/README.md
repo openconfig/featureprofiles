@@ -35,11 +35,6 @@ Generic Health Check
 
 N/A
 
-## Canonical OC
-```json
-{}
-```
-
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
