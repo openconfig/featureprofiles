@@ -520,7 +520,7 @@ encapsulation and ingress decapsulation types are mapped to interface speeds:
                     {
                       "config": {
                         "index": "Dest A-NH2",
-                        "next-hop": "194.0.2.2"
+                        "next-hop": "192.0.2.2"
                       },
                       "index": "Dest A-NH2",
                       "encap-header": [
