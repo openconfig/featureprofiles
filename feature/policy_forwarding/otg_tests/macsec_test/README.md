@@ -1,4 +1,4 @@
-# PF-1.17: MPLSoGRE/MPLSoGUE MACsec and Line Rate Performance
+# PF-1.27: MPLSoGRE/MPLSoGUE MACsec and Line Rate Performance
 
 ## Summary
 
@@ -95,7 +95,7 @@ encapsulation and ingress decapsulation types are mapped to interface speeds:
 
 ## Test Cases
 
-### PF-1.17.1 - MPLSoGRE Encap with MACsec and IMIX Traffic (Functional, 10G & 100G)
+### PF-1.27.1 - MPLSoGRE Encap with MACsec and IMIX Traffic (Functional, 10G & 100G)
 
 *   **Traffic Type**: Tested with both IPv4 and IPv6 traffic.
 *   **Path**: 10G path (`ATE:port1 -> DUT1 -> DUT2 -> ATE:port2`) and 100G path
@@ -115,7 +115,107 @@ encapsulation and ingress decapsulation types are mapped to interface speeds:
     *   Step 5 - Verify that traffic is received at ATE (port2/port4)
         encapsulated in MPLSoGRE with no packet loss.
 
-### PF-1.17.2 - MPLSoUDP Encap with MACsec and IMIX Traffic (Functional, 400G)
+### PF-1.27.2 - MACsec Must-Secure Policy Enforcement (Functional, 10G, 100G & 400G)
+
+*   **Traffic Type**: Tested with both IPv4 and IPv6 IMIX traffic.
+*   **Path**: Triple-run on 10G path (`ATE:port1 -> DUT1 -> DUT2 -> ATE:port2`),
+    100G path (`ATE:port3 -> DUT1 -> DUT2 -> ATE:port4`), and 400G path
+    (`ATE:port5 -> DUT1 -> DUT2 -> ATE:port6`).
+*   **Procedure**:
+    *   Step 1 - Configure MACsec on DUT1 and DUT2 on the interconnecting links
+        (10G, 100G, and 400G) with `security-policy` set to `MUST_SECURE`.
+    *   Step 2 - Configure Policy Forwarding on DUT2 to encapsulate traffic (GRE
+        for 10G/100G, UDP for 400G).
+    *   Step 3 - Verify MACsec session is established and secured.
+    *   Step 4 - Generate IPv4 and IPv6 IMIX traffic (using a standard 354B
+        average packet size IMIX) from ATE (port1/port3/port5) at the Maximum
+        Non-Drop Rate (NDR) to prevent queue drops:
+        *   For the 10G run: Offer rate at ATE Port 1 limited to **~92.1%**
+            (~8.72 Gbps).
+        *   For the 100G run: Offer rate at ATE Port 3 limited to **~92.1%**
+            (~87.2 Gbps).
+        *   For the 400G run: Offer rate at ATE Port 5 limited to **~91.2%**
+            (~345.3 Gbps).
+    *   Step 5 - Verify that traffic is received at ATE (port2/port4/port6) with
+        no packet loss.
+    *   Step 6 - Simulating MACsec failure: Modify the pre-shared key (CAK/CKN)
+        configuration on DUT2 to introduce a mismatch, bringing the MKA session
+        down.
+    *   Step 7 - Verify that the MACsec session status on both DUTs transitions
+        to DOWN.
+    *   Step 8 - Resume traffic generation from ATE.
+    *   Step 9 - Verify that **all** traffic is dropped on the DUT1-DUT2 link
+        (0% received rate at ATE) due to the `MUST_SECURE` policy.
+    *   Step 10 - Restore the correct MACsec keys on DUT2. Verify that the MKA
+        session recovers to UP and traffic forwarding resumes with zero packet
+        loss.
+
+### PF-1.27.3 - MACsec Should-Secure Policy Enforcement (Functional, 10G, 100G & 400G)
+
+*   **Traffic Type**: Tested with both IPv4 and IPv6 IMIX traffic.
+*   **Path**: Triple-run on 10G path (`ATE:port1 -> DUT1 -> DUT2 -> ATE:port2`),
+    100G path (`ATE:port3 -> DUT1 -> DUT2 -> ATE:port4`), and 400G path
+    (`ATE:port5 -> DUT1 -> DUT2 -> ATE:port6`).
+*   **Procedure**:
+    *   Step 1 - Configure MACsec on DUT1 and DUT2 on the interconnecting links
+        (10G, 100G, and 400G) with `security-policy` set to `SHOULD_SECURE`.
+    *   Step 2 - Configure Policy Forwarding on DUT2 to encapsulate traffic (GRE
+        for 10G/100G, UDP for 400G).
+    *   Step 3 - Verify MACsec session is established and secured.
+    *   Step 4 - Generate IPv4 and IPv6 IMIX traffic (using a standard 354B
+        average packet size IMIX) from ATE (port1/port3/port5) at the Maximum
+        Non-Drop Rate (NDR) to prevent queue drops:
+        *   For the 10G run: Offer rate at ATE Port 1 limited to **~92.1%**
+            (~8.72 Gbps).
+        *   For the 100G run: Offer rate at ATE Port 3 limited to **~92.1%**
+            (~87.2 Gbps).
+        *   For the 400G run: Offer rate at ATE Port 5 limited to **~91.2%**
+            (~345.3 Gbps).
+    *   Step 5 - Verify that traffic is received at ATE (port2/port4/port6) with
+        no packet loss.
+    *   Step 6 - Verify via telemetry/CLI that all packets are transmitted and
+        received as encrypted (MACsec-protected).
+    *   Step 7 - Simulating MACsec failure: Modify the pre-shared key (CAK/CKN)
+        configuration on DUT2 to introduce a mismatch, bringing the MKA session
+        down.
+    *   Step 8 - Verify that the MACsec session status on both DUTs transitions
+        to DOWN.
+    *   Step 9 - Resume traffic generation from ATE.
+    *   Step 10 - Verify that traffic is **still forwarded** and received at ATE
+        with no packet loss, but is transmitted **unencrypted** (cleartext) over
+        the DUT1-DUT2 link. Verify that untagged packet counters
+        (`tx-untagged-pkts` and `rx-untagged-pkts`) are incrementing.
+    *   Step 11 - Restore the correct MACsec keys on DUT2. Verify that the MKA
+        session recovers to UP and traffic is again transmitted encrypted.
+
+### PF-1.27.4 - MACsec Security-Association Rekey Timer (Functional, 10G, 100G & 400G)
+
+*   **Traffic Type**: Tested with both IPv4 and IPv6 IMIX traffic.
+*   **Path**: Triple-run on 10G path (`ATE:port1 -> DUT1 -> DUT2 -> ATE:port2`),
+    100G path (`ATE:port3 -> DUT1 -> DUT2 -> ATE:port4`), and 400G path
+    (`ATE:port5 -> DUT1 -> DUT2 -> ATE:port6`).
+*   **Procedure**:
+    *   Step 1 - Configure MACsec on DUT1 and DUT2 on the interconnecting links
+        (10G, 100G, and 400G) with `security-policy` set to `MUST_SECURE` and
+        `sak-rekey-interval` set to 28800 seconds.
+    *   Step 2 - Configure Policy Forwarding on DUT2 to encapsulate traffic (GRE
+        for 10G/100G, UDP for 400G).
+    *   Step 3 - Verify the SAK key value is accepted by the DUT (via
+        CLI/telemetry).
+    *   Step 4 - Verify that MACsec sessions are UP.
+    *   Step 5 - Generate IPv4 and IPv6 IMIX traffic (using a standard 354B
+        average packet size IMIX) from ATE (port1/port3/port5) at the Maximum
+        Non-Drop Rate (NDR) to prevent queue drops:
+        *   For the 10G run: Offer rate at ATE Port 1 limited to **~92.1%**
+            (~8.72 Gbps).
+        *   For the 100G run: Offer rate at ATE Port 3 limited to **~92.1%**
+            (~87.2 Gbps).
+        *   For the 400G run: Offer rate at ATE Port 5 limited to **~91.2%**
+            (~345.3 Gbps).
+    *   Step 6 - Verify that traffic is received at ATE (port2/port4/port6) with
+        no packet loss.
+
+### PF-1.27.5 - MPLSoUDP Encap with MACsec and IMIX Traffic (Functional, 400G)
 
 *   **Traffic Type**: Tested with both IPv4 and IPv6 traffic.
 *   **Path**: 400G path (`ATE:port5 -> DUT1 -> DUT2 -> ATE:port6`).
@@ -134,7 +234,7 @@ encapsulation and ingress decapsulation types are mapped to interface speeds:
     *   Step 5 - Verify that traffic is received at ATE (port6) encapsulated in
         MPLSoUDP with no packet loss.
 
-### PF-1.17.3 - MACsec Line Rate Performance with 64B Frames (10G, 100G, 400G)
+### PF-1.27.6 - MACsec Line Rate Performance with 64B Frames (10G, 100G, 400G)
 
 *   **Traffic Type**: Tested with both IPv4 and IPv6 traffic.
 *   **Forwarding Mode**: DUT2 uses encapsulation (MPLSoGRE for 10G and 100G,
@@ -162,14 +262,14 @@ encapsulation and ingress decapsulation types are mapped to interface speeds:
     *   Step 5 - Validate that throughput matches the expected line rate for 64B
         frames (accounting for MACsec and respective encapsulation overhead).
 
-### PF-1.17.4 - MACsec Line Rate Performance with IMIX Traffic (10G, 100G, 400G)
+### PF-1.27.7 - MACsec Line Rate Performance with IMIX Traffic (10G, 100G, 400G)
 
 *   **Traffic Type**: Tested with both IPv4 and IPv6 traffic.
 *   **Forwarding Mode**: DUT2 uses encapsulation (MPLSoGRE for 10G and 100G,
     MPLSoUDP for 400G) to forward traffic towards ATE ports 2, 4, and 6.
 *   **Procedure**:
     *   Step 1 - Maintain the MACsec and encapsulation configuration from
-        PF-1.17.3.
+        PF-1.27.6.
     *   Step 2 - Generate IPv4 and IPv6 traffic using an IMIX profile (e.g., a
         mix of 64B, 570B, and 1518B) at the Maximum Non-Drop Rate (NDR). Due to
         overhead, the offered rate at the ATE ingress must be limited:
@@ -187,7 +287,7 @@ encapsulation and ingress decapsulation types are mapped to interface speeds:
             egress link overhead.
     *   Step 3 - Verify zero packet loss and consistent throughput for each run.
 
-### PF-1.17.5 - MACsec Line Rate Performance with Jumbo Frames (10G, 100G, 400G)
+### PF-1.27.8 - MACsec Line Rate Performance with Jumbo Frames (10G, 100G, 400G)
 
 *   **Traffic Type**: Tested with both IPv4 and IPv6 traffic.
 *   **Forwarding Mode**: DUT2 uses encapsulation (MPLSoGRE for 10G and 100G,
@@ -210,7 +310,7 @@ encapsulation and ingress decapsulation types are mapped to interface speeds:
     *   Step 3 - Verify that the hardware correctly handles large encrypted and
         encapsulated payloads without fragmentation or loss for each run.
 
-### PF-1.17.6 - MPLSoGRE Decap and Label Pop with MACsec (Functional, 10G & 100G)
+### PF-1.27.9 - MPLSoGRE Decap and Label Pop with MACsec (Functional, 10G & 100G)
 
 *   **Traffic Type**: Tested with both IPv4 and IPv6 IMIX traffic.
 *   **Path**: 10G path (`ATE:port2 -> DUT2 -> DUT1 -> ATE:port1`) and 100G path
@@ -231,7 +331,7 @@ encapsulation and ingress decapsulation types are mapped to interface speeds:
     *   Step 5 - Verify that decapsulated and decrypted traffic is received at
         ATE (port1/port3) with no packet loss.
 
-### PF-1.17.7 - MPLSoUDP Decap and Label Pop with MACsec (Functional, 400G)
+### PF-1.27.10 - MPLSoUDP Decap and Label Pop with MACsec (Functional, 400G)
 
 *   **Traffic Type**: Tested with both IPv4 and IPv6 IMIX traffic.
 *   **Path**: 400G path (`ATE:port6 -> DUT2 -> DUT1 -> ATE:port5`).
@@ -252,7 +352,7 @@ encapsulation and ingress decapsulation types are mapped to interface speeds:
     *   Step 5 - Verify that decapsulated and decrypted traffic is received at
         ATE (port5) with no packet loss.
 
-### PF-1.17.8 - MACsec Hitless Key Rotation (Functional, 10G, 100G & 400G)
+### PF-1.27.11 - MACsec Hitless Key Rotation (Functional, 10G, 100G & 400G)
 
 *   **Traffic Type**: Tested with both IPv4 and IPv6 IMIX traffic.
 *   **Path**: Triple-run on 10G path (`ATE:port1 -> DUT1 -> DUT2 -> ATE:port2`),
@@ -291,6 +391,8 @@ encapsulation and ingress decapsulation types are mapped to interface speeds:
     *   Traffic must remain at line-rate with zero packet loss (0% drop) during
         every key transition.
     *   The MACsec session must remain stable across the transitions.
+
+
 
 --------------------------------------------------------------------------------
 
@@ -333,7 +435,7 @@ encapsulation and ingress decapsulation types are mapped to interface speeds:
           "mka": {
             "config": {
               "key-chain": "macsec_keychain",
-              "mka-policy": "line_rate_policy"
+              "mka-policy": "must_secure_policy"
             }
           }
         }
@@ -343,9 +445,25 @@ encapsulation and ingress decapsulation types are mapped to interface speeds:
       "policies": {
         "policy": [
           {
-            "name": "line_rate_policy",
+            "name": "must_secure_policy",
             "config": {
-              "name": "line_rate_policy",
+              "name": "must_secure_policy",
+              "security-policy": "MUST_SECURE",
+              "key-server-priority": 15,
+              "macsec-cipher-suite": [
+                "GCM_AES_XPN_256"
+              ],
+              "confidentiality-offset": "0_BYTES",
+              "include-icv-indicator": true,
+              "include-sci": true,
+              "sak-rekey-interval": 30
+            }
+          },
+          {
+            "name": "should_secure_policy",
+            "config": {
+              "name": "should_secure_policy",
+              "security-policy": "SHOULD_SECURE",
               "key-server-priority": 15,
               "macsec-cipher-suite": [
                 "GCM_AES_XPN_256"
@@ -506,6 +624,7 @@ paths:
     /macsec/interfaces/interface/config/enable:
     /macsec/interfaces/interface/config/replay-protection:
     /macsec/mka/policies/policy/config/name:
+    /macsec/mka/policies/policy/config/security-policy:
     /macsec/mka/policies/policy/config/macsec-cipher-suite:
     /macsec/mka/policies/policy/config/confidentiality-offset:
     /macsec/mka/policies/policy/config/key-server-priority:
@@ -543,6 +662,7 @@ paths:
     /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/push-label:
   state:
     /macsec/mka/interfaces/interface/state/active-key-id:
+    /macsec/mka/policies/policy/state/security-policy:
     /macsec/interfaces/interface/state/counters/rx-badtag-pkts:
     /macsec/interfaces/interface/state/counters/rx-late-pkts:
     /macsec/interfaces/interface/state/counters/rx-nosci-pkts:

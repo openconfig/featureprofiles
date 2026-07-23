@@ -616,7 +616,7 @@ test:  {
   readme:  "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/mpls_gre_local_proxy_test/README.md"
 }
 test:  {
-  id:  "PF-1.17"
+  id:  "PF-1.27"
   description:  "MPLSoGRE and MPLSoGUE MACsec"
   readme:  "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/macsec_test/README.md"
 }
