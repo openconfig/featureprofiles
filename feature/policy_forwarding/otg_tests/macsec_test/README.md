@@ -347,8 +347,7 @@ encapsulation and ingress decapsulation types are mapped to interface speeds:
         than the downstream MACsec overhead, the packets shrink as they traverse
         the path. Thus, traffic can be sent at **100%** of the physical line
         rate of the encapsulated traffic (~380.5 Gbps L2 throughput for a
-        standard 354B average inner packet size IMIX) without causing packet
-        loss.
+        standard 354B average inner packet size IMIX) without causing egress queue congestion or packet loss.
     *   Step 5 - Verify that decapsulated and decrypted traffic is received at
         ATE (port5) with no packet loss.
 
