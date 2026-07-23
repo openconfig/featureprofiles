@@ -2293,3 +2293,8 @@ func MaxOutFIBRouteCount(dut *ondatra.DUTDevice) uint32 {
 	}
 	return 2500000
 }
+
+// AftsGlobalFilterPolicyOCUnsupported returns true if the device does not support Afts Global Filter paths /network-instances/network-instance/afts/global-filter/config/
+func AftsGlobalFilterPolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAftsGlobalFilterPolicyOcUnsupported()
+}

@@ -138,6 +138,7 @@ test:  {
   id:  "AFT-6.4"
   description:  "AFT Prefix Filtering Dynamic Updates"
   readme:  "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/filtered_streaming/otg_tests/afts_prefix_filtering_dynamic/README.md"
+  exec:  "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/filtered_streaming/otg_tests/afts_prefix_filtering_dynamic/afts_prefix_filtering_dynamic_test.go"
 }
 test:  {
   id:  "Authz"
