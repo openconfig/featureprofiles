@@ -501,6 +501,363 @@ func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 	})
 }
 
+// TestDoubleFailoverContainerPersistence implements CNTR-3.11.
+func TestDoubleFailoverContainerPersistence(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	ctx := context.Background()
+
+	if containerTarPath(t) == "" {
+		t.Skip("container_tar flag not set, skipping test")
+	}
+
+	cli := containerztest.Client(t, dut)
+
+	t.Cleanup(func() {
+		t.Log("Starting cleanup...")
+		cli := containerztest.Client(t, dut)
+		if err := cli.RemoveContainer(ctx, containerName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+			t.Errorf("Cleanup: failed to remove container %q: %v", containerName, err)
+		}
+		if err := cli.RemoveImage(ctx, imageName, tag, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+			t.Errorf("Cleanup: failed to remove image %q:%q: %v", imageName, tag, err)
+		}
+		t.Log("Cleanup finished.")
+	})
+
+	t.Run("Setup", func(t *testing.T) {
+		if err := loadImage(ctx, t, cli, imageName, tag, containerTarPath(t)); err != nil {
+			t.Fatalf("Failed to load image: %v", err)
+		}
+
+		t.Logf("Deploying and starting container %s...", containerName)
+		startOpts := []client.StartOption{
+			client.WithPorts([]string{"60061:60061"}),
+		}
+
+		if err := cli.RemoveContainer(ctx, containerName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+			t.Logf("Pre-start removal of container %s failed: %v", containerName, err)
+		}
+
+		if _, err := cli.StartContainer(ctx, imageName, tag, "./cntrsrv", containerName, startOpts...); err != nil {
+			t.Fatalf("Failed to start container %s: %v", containerName, err)
+		}
+
+		if err := containerztest.WaitForRunning(ctx, t, cli, containerName, 30*time.Second); err != nil {
+			t.Fatalf("Container %s did not reach running state: %v", containerName, err)
+		}
+	})
+
+	standbyRP1, _, err := findRPs(t, dut)
+	if err != nil {
+		t.Fatalf("Failed to find RPs before first switchover: %v", err)
+	}
+
+	t.Run("FirstSwitchover", func(t *testing.T) {
+		awaitSwitchoverReadyAndSwitch(t, dut, standbyRP1)
+	})
+
+	t.Run("VerifyAfterFirstSwitchover", func(t *testing.T) {
+		waitForSwitchover(t, dut)
+		cli = containerztest.Client(t, dut)
+
+		t.Log("Verifying container persistence after first switchover...")
+		if err := verifyContainerStateEventually(ctx, t, cli, containerName, cpb.ListContainerResponse_RUNNING, verifyTimeout); err != nil {
+			t.Fatalf("Container persistence failed after first switchover: %v", err)
+		}
+	})
+
+	standbyRP2, activeRP2, err := findRPs(t, dut)
+	if err != nil {
+		t.Fatalf("Failed to find RPs before second switchover: %v", err)
+	}
+	if activeRP2 != standbyRP1 {
+		t.Fatalf("Expected new active RP to be %s, but got %s", standbyRP1, activeRP2)
+	}
+
+	t.Run("SecondSwitchover", func(t *testing.T) {
+		awaitSwitchoverReadyAndSwitch(t, dut, standbyRP2)
+	})
+
+	t.Run("VerifyAfterSecondSwitchover", func(t *testing.T) {
+		waitForSwitchover(t, dut)
+		cli = containerztest.Client(t, dut)
+
+		t.Log("Verifying container persistence after second switchover...")
+		if err := verifyContainerStateEventually(ctx, t, cli, containerName, cpb.ListContainerResponse_RUNNING, verifyTimeout); err != nil {
+			t.Errorf("Container persistence failed after second switchover: %v", err)
+		}
+	})
+}
+
+// TestDoubleFailoverContainerStopPersistence implements CNTR-3.12.
+func TestDoubleFailoverContainerStopPersistence(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	ctx := context.Background()
+
+	if containerTarPath(t) == "" {
+		t.Skip("container_tar flag not set, skipping test")
+	}
+
+	cli := containerztest.Client(t, dut)
+
+	t.Cleanup(func() {
+		t.Log("Starting cleanup...")
+		cli := containerztest.Client(t, dut)
+		if err := cli.RemoveContainer(ctx, containerName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+			t.Errorf("Cleanup: failed to remove container %q: %v", containerName, err)
+		}
+		if err := cli.RemoveImage(ctx, imageName, tag, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+			t.Errorf("Cleanup: failed to remove image %q:%q: %v", imageName, tag, err)
+		}
+		t.Log("Cleanup finished.")
+	})
+
+	t.Run("Setup", func(t *testing.T) {
+		if err := loadImage(ctx, t, cli, imageName, tag, containerTarPath(t)); err != nil {
+			t.Fatalf("Failed to load image: %v", err)
+		}
+
+		startOpts := []client.StartOption{
+			client.WithPorts([]string{"60061:60061"}),
+		}
+
+		if err := cli.RemoveContainer(ctx, containerName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+			t.Logf("Pre-start removal of container %s failed: %v", containerName, err)
+		}
+
+		if _, err := cli.StartContainer(ctx, imageName, tag, "./cntrsrv", containerName, startOpts...); err != nil {
+			t.Fatalf("Failed to start container %s: %v", containerName, err)
+		}
+
+		if err := containerztest.WaitForRunning(ctx, t, cli, containerName, 30*time.Second); err != nil {
+			t.Fatalf("Container %s did not reach running state: %v", containerName, err)
+		}
+	})
+
+	standbyRP1, _, err := findRPs(t, dut)
+	if err != nil {
+		t.Fatalf("Failed to find RPs before first switchover: %v", err)
+	}
+
+	t.Run("FirstSwitchover", func(t *testing.T) {
+		awaitSwitchoverReadyAndSwitch(t, dut, standbyRP1)
+	})
+
+	t.Run("StopContainer", func(t *testing.T) {
+		waitForSwitchover(t, dut)
+		cli = containerztest.Client(t, dut)
+
+		if err := cli.StopContainer(ctx, containerName, false); err != nil {
+			t.Fatalf("Failed to stop container: %v", err)
+		}
+
+		if err := verifyContainerStateEventually(ctx, t, cli, containerName, cpb.ListContainerResponse_STOPPED, verifyTimeout); err != nil {
+			t.Fatalf("Container did not reach STOPPED state: %v", err)
+		}
+	})
+
+	standbyRP2, activeRP2, err := findRPs(t, dut)
+	if err != nil {
+		t.Fatalf("Failed to find RPs before second switchover: %v", err)
+	}
+	if activeRP2 != standbyRP1 {
+		t.Fatalf("Expected new active RP to be %s, but got %s", standbyRP1, activeRP2)
+	}
+
+	t.Run("SecondSwitchover", func(t *testing.T) {
+		awaitSwitchoverReadyAndSwitch(t, dut, standbyRP2)
+	})
+
+	t.Run("VerifyAfterSecondSwitchover", func(t *testing.T) {
+		waitForSwitchover(t, dut)
+		cli = containerztest.Client(t, dut)
+
+		t.Log("Verifying container remained STOPPED after second switchover...")
+		if err := verifyContainerStateEventually(ctx, t, cli, containerName, cpb.ListContainerResponse_STOPPED, verifyTimeout); err != nil {
+			t.Errorf("Container stop persistence failed after second switchover: %v", err)
+		}
+	})
+}
+
+// TestDoubleFailoverVolumePersistence implements CNTR-3.13.
+func TestDoubleFailoverVolumePersistence(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	ctx := context.Background()
+
+	cli := containerztest.Client(t, dut)
+
+	t.Cleanup(func() {
+		t.Log("Starting cleanup...")
+		cli := containerztest.Client(t, dut)
+		if err := cli.RemoveVolume(ctx, volName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+			t.Errorf("Cleanup: failed to remove volume %q: %v", volName, err)
+		}
+		t.Log("Cleanup finished.")
+	})
+
+	t.Run("Setup", func(t *testing.T) {
+		t.Logf("Creating volume %s...", volName)
+		volOpts := map[string]string{
+			"type":       "none",
+			"options":    "bind",
+			"mountpoint": "/tmp",
+		}
+		if _, err := cli.CreateVolume(ctx, volName, "local", nil, volOpts); err != nil {
+			t.Fatalf("Failed to create volume: %v", err)
+		}
+		if err := verifyVolumeExists(ctx, t, cli, volName); err != nil {
+			t.Fatalf("Volume not found after creation: %v", err)
+		}
+	})
+
+	standbyRP1, _, err := findRPs(t, dut)
+	if err != nil {
+		t.Fatalf("Failed to find RPs before first switchover: %v", err)
+	}
+
+	t.Run("FirstSwitchover", func(t *testing.T) {
+		awaitSwitchoverReadyAndSwitch(t, dut, standbyRP1)
+	})
+
+	t.Run("VerifyAfterFirstSwitchover", func(t *testing.T) {
+		waitForSwitchover(t, dut)
+		cli = containerztest.Client(t, dut)
+
+		if err := verifyVolumeExistsEventually(ctx, t, cli, volName, verifyTimeout); err != nil {
+			t.Fatalf("Volume persistence failed after first switchover: %v", err)
+		}
+	})
+
+	standbyRP2, activeRP2, err := findRPs(t, dut)
+	if err != nil {
+		t.Fatalf("Failed to find RPs before second switchover: %v", err)
+	}
+	if activeRP2 != standbyRP1 {
+		t.Fatalf("Expected new active RP to be %s, but got %s", standbyRP1, activeRP2)
+	}
+
+	t.Run("SecondSwitchover", func(t *testing.T) {
+		awaitSwitchoverReadyAndSwitch(t, dut, standbyRP2)
+	})
+
+	t.Run("VerifyAfterSecondSwitchover", func(t *testing.T) {
+		waitForSwitchover(t, dut)
+		cli = containerztest.Client(t, dut)
+
+		t.Log("Verifying volume persistence after second switchover...")
+		if err := verifyVolumeExistsEventually(ctx, t, cli, volName, verifyTimeout); err != nil {
+			t.Errorf("Volume persistence failed after second switchover: %v", err)
+		}
+	})
+}
+
+// TestDoubleFailoverContainerAndVolumePersistence implements CNTR-3.14.
+func TestDoubleFailoverContainerAndVolumePersistence(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	ctx := context.Background()
+
+	if containerTarPath(t) == "" {
+		t.Skip("container_tar flag not set, skipping test")
+	}
+
+	cli := containerztest.Client(t, dut)
+
+	t.Cleanup(func() {
+		t.Log("Starting cleanup...")
+		cli := containerztest.Client(t, dut)
+		if err := cli.RemoveContainer(ctx, containerName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+			t.Errorf("Cleanup: failed to remove container %q: %v", containerName, err)
+		}
+		if err := cli.RemoveImage(ctx, imageName, tag, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+			t.Errorf("Cleanup: failed to remove image %q:%q: %v", imageName, tag, err)
+		}
+		if err := cli.RemoveVolume(ctx, volName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+			t.Errorf("Cleanup: failed to remove volume %q: %v", volName, err)
+		}
+		t.Log("Cleanup finished.")
+	})
+
+	t.Run("Setup", func(t *testing.T) {
+		t.Logf("Creating volume %s...", volName)
+		volOpts := map[string]string{
+			"type":       "none",
+			"options":    "bind",
+			"mountpoint": "/tmp",
+		}
+		if _, err := cli.CreateVolume(ctx, volName, "local", nil, volOpts); err != nil {
+			t.Fatalf("Failed to create volume: %v", err)
+		}
+
+		if err := loadImage(ctx, t, cli, imageName, tag, containerTarPath(t)); err != nil {
+			t.Fatalf("Failed to load image: %v", err)
+		}
+
+		t.Logf("Deploying and starting container %s...", containerName)
+		startOpts := []client.StartOption{
+			client.WithPorts([]string{"60061:60061"}),
+			client.WithVolumes([]string{fmt.Sprintf("%s:%s", volName, "/data")}),
+		}
+
+		if err := cli.RemoveContainer(ctx, containerName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+			t.Logf("Pre-start removal of container %s failed: %v", containerName, err)
+		}
+
+		if _, err := cli.StartContainer(ctx, imageName, tag, "./cntrsrv", containerName, startOpts...); err != nil {
+			t.Fatalf("Failed to start container %s with volume %s: %v", containerName, volName, err)
+		}
+
+		if err := containerztest.WaitForRunning(ctx, t, cli, containerName, 30*time.Second); err != nil {
+			t.Fatalf("Container %s did not reach running state: %v", containerName, err)
+		}
+	})
+
+	standbyRP1, _, err := findRPs(t, dut)
+	if err != nil {
+		t.Fatalf("Failed to find RPs before first switchover: %v", err)
+	}
+
+	t.Run("FirstSwitchover", func(t *testing.T) {
+		awaitSwitchoverReadyAndSwitch(t, dut, standbyRP1)
+	})
+
+	t.Run("VerifyAfterFirstSwitchover", func(t *testing.T) {
+		waitForSwitchover(t, dut)
+		cli = containerztest.Client(t, dut)
+
+		if err := verifyContainerStateEventually(ctx, t, cli, containerName, cpb.ListContainerResponse_RUNNING, verifyTimeout); err != nil {
+			t.Fatalf("Container recovery failed after first switchover: %v", err)
+		}
+		if err := verifyVolumeExistsEventually(ctx, t, cli, volName, verifyTimeout); err != nil {
+			t.Fatalf("Volume persistence failed after first switchover: %v", err)
+		}
+	})
+
+	standbyRP2, activeRP2, err := findRPs(t, dut)
+	if err != nil {
+		t.Fatalf("Failed to find RPs before second switchover: %v", err)
+	}
+	if activeRP2 != standbyRP1 {
+		t.Fatalf("Expected new active RP to be %s, but got %s", standbyRP1, activeRP2)
+	}
+
+	t.Run("SecondSwitchover", func(t *testing.T) {
+		awaitSwitchoverReadyAndSwitch(t, dut, standbyRP2)
+	})
+
+	t.Run("VerifyAfterSecondSwitchover", func(t *testing.T) {
+		waitForSwitchover(t, dut)
+		cli = containerztest.Client(t, dut)
+
+		t.Log("Verifying container and volume persistence after second switchover...")
+		if err := verifyContainerStateEventually(ctx, t, cli, containerName, cpb.ListContainerResponse_RUNNING, verifyTimeout); err != nil {
+			t.Errorf("Container recovery failed after second switchover: %v", err)
+		}
+		if err := verifyVolumeExistsEventually(ctx, t, cli, volName, verifyTimeout); err != nil {
+			t.Errorf("Volume persistence failed after second switchover: %v", err)
+		}
+	})
+}
+
 // waitForSwitchover waits for the switchover to complete by polling telemetry.
 func waitForSwitchover(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
