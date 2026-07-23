@@ -95,7 +95,7 @@ func ConfigureAdditionalNetworkInstance(batch *gnmi.SetBatch, t *testing.T, dut 
 	// Configure non-default network instance.
 	cfgplugins.NewNetworkInstance(t, dut, batch, &dutPort2NetworkInstanceIParams)
 	transportSec := transportSecurity
-	if deviations.RequireTransportSecurity(dut) {
+	if !deviations.RequireTransportSecurity(dut) {
 		transportSec = false
 	}
 	// Configure non-default gNMI server.
