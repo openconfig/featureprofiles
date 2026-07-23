@@ -169,8 +169,9 @@ func TestCredentialz(t *testing.T) {
 		// Clear hiba for authorized principals command.
 		credz.RotateAuthorizedPrincipalCheck(t, dut, cpb.AuthorizedPrincipalCheckRequest_TOOL_UNSPECIFIED)
 
-		credz.RotateAuthenticationArtifacts(t, dut, "", "", "", 0)
-
-		credz.SSHCleanup(t, dut)
+		// Remove host artifacts from the dut.
+		// credz.RotateAuthenticationArtifacts(t, dut, "", "", "", 0)
+		// SSH configuration cleanup on DUT
+		// credz.SSHCleanup(t, dut)
 	})
 }
