@@ -79,6 +79,8 @@ func ConfigureDUT(batch *gnmi.SetBatch, t *testing.T, dut *ondatra.DUTDevice) {
 
 	// Configure default network instance.
 	cfgplugins.NewNetworkInstance(t, dut, batch, &dutPort1NetworkInstanceIParams)
+	// Configure gNMI server on default network instance.
+	cfgplugins.CreateGNMIServer(t, dut, batch, &dutPort1NetworkInstanceIParams, gNMIPort, grpcTransportSecurity(dut))
 
 }
 
@@ -94,12 +96,15 @@ func ConfigureAdditionalNetworkInstance(batch *gnmi.SetBatch, t *testing.T, dut 
 
 	// Configure non-default network instance.
 	cfgplugins.NewNetworkInstance(t, dut, batch, &dutPort2NetworkInstanceIParams)
-	transportSec := transportSecurity
-	if deviations.RequireTransportSecurity(dut) {
-		transportSec = false
-	}
 	// Configure non-default gNMI server.
-	cfgplugins.CreateGNMIServer(t, dut, batch, &dutPort2NetworkInstanceIParams, gNMIPort, transportSec)
+	cfgplugins.CreateGNMIServer(t, dut, batch, &dutPort2NetworkInstanceIParams, gNMIPort, grpcTransportSecurity(dut))
+}
+
+func grpcTransportSecurity(dut *ondatra.DUTDevice) bool {
+	if !deviations.RequireTransportSecurity(dut) {
+		return false
+	}
+	return transportSecurity
 }
 
 func ValidateNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
