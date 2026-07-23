@@ -1150,90 +1150,38 @@ type NotificationExpectation struct {
 	NotificationWait time.Duration
 }
 
-// WaitForUpdateDeleteNotification returns a PeriodicHook that waits until:
-//
-//   - an UPDATE notification is received for updatePrefix
-//   - a DELETE notification is received for deletePrefix
-//
-// The hook returns true only after both notifications have been observed.
-func WaitForUpdateDeleteNotification(t *testing.T, cfg NotificationExpectation) PeriodicHook {
+// WaitForNotification returns a PeriodicHook that waits for the expected update
+// and/or delete notifications specified in NotificationExpectation. The hook
+// completes successfully once all requested notifications are observed.
+func WaitForNotification(t *testing.T, cfg NotificationExpectation) PeriodicHook {
 	t.Helper()
 	start := time.Now()
 	return PeriodicHook{
-		Description: fmt.Sprintf("Wait for UPDATE(%s) and DELETE(%s) notifications", cfg.AddPrefix, cfg.DeletePrefix),
+		Description: "Wait for notification",
 		PeriodicFunc: func(ss *AFTStreamSession) (bool, error) {
-			match := notificationMatch{}
+			match := notificationMatch{
+				updateFound: cfg.AddPrefix == "",
+				deleteFound: cfg.DeletePrefix == "",
+			}
 			for _, resp := range ss.Notifications() {
 				update := resp.GetUpdate()
 				if update == nil {
+					// Ignore SubscribeResponse messages that do not contain an Update,
+					// such as SyncResponse.
 					continue
 				}
-
-				if hasUpdateNotification(update, cfg.AddPrefix) {
+				if !match.updateFound && hasUpdateNotification(update, cfg.AddPrefix) {
 					match.updateFound = true
 				}
-
-				if hasDeleteNotification(update, cfg.DeletePrefix) {
+				if !match.deleteFound && hasDeleteNotification(update, cfg.DeletePrefix) {
 					match.deleteFound = true
 				}
-
 				if match.updateFound && match.deleteFound {
-					t.Logf("Update and Delete notifications received for %s, %s", cfg.AddPrefix, cfg.DeletePrefix)
 					return true, nil
 				}
 			}
 			if time.Since(start) > cfg.NotificationWait {
-				return false, fmt.Errorf("update and delete notifications are not received for %s, %s", cfg.AddPrefix, cfg.DeletePrefix)
-			}
-			return false, nil
-		},
-	}
-}
-
-// WaitForDeleteNotification returns a PeriodicHook that waits until a DELETE notification is received for the specified prefix.
-func WaitForDeleteNotification(t *testing.T, cfg NotificationExpectation) PeriodicHook {
-	t.Helper()
-	start := time.Now()
-	return PeriodicHook{
-		Description: fmt.Sprintf("Wait for delete notification: %s", cfg.DeletePrefix),
-		PeriodicFunc: func(ss *AFTStreamSession) (bool, error) {
-			for _, resp := range ss.Notifications() {
-				update := resp.GetUpdate()
-				if update == nil {
-					continue
-				}
-				if hasDeleteNotification(update, cfg.DeletePrefix) {
-					t.Logf("Delete notification received for %s", cfg.DeletePrefix)
-					return true, nil
-				}
-			}
-			if time.Since(start) > cfg.NotificationWait {
-				return false, fmt.Errorf("delete notification not received for prefix %s", cfg.DeletePrefix)
-			}
-			return false, nil
-		},
-	}
-}
-
-// WaitForUpdateNotification returns a PeriodicHook that waits until an UPDATE notification is received for the specified prefix.
-func WaitForUpdateNotification(t *testing.T, cfg NotificationExpectation) PeriodicHook {
-	t.Helper()
-	start := time.Now()
-	return PeriodicHook{
-		Description: fmt.Sprintf("Wait for update notification for %s", cfg.AddPrefix),
-		PeriodicFunc: func(ss *AFTStreamSession) (bool, error) {
-			for _, resp := range ss.Notifications() {
-				update := resp.GetUpdate()
-				if update == nil {
-					continue
-				}
-				if hasUpdateNotification(update, cfg.AddPrefix) {
-					t.Logf("Update notification received for %s", cfg.AddPrefix)
-					return true, nil
-				}
-			}
-			if time.Since(start) > cfg.NotificationWait {
-				return false, fmt.Errorf("update notification not received for prefix %s after %v", cfg.AddPrefix, cfg.NotificationWait)
+				return false, fmt.Errorf("timed out waiting for update(%q) delete(%q)", cfg.AddPrefix, cfg.DeletePrefix)
 			}
 			return false, nil
 		},
