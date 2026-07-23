@@ -212,7 +212,7 @@ This test scenario validates the encapsulation of traffic into MPLS over GRE ove
 #### Canonical OC Configuration
 ```json
 {
-  "interfaces": {
+  "openconfig-interfaces:interfaces": {
     "interface": [
       {
         "name": "Port1",
@@ -220,7 +220,10 @@ This test scenario validates the encapsulation of traffic into MPLS over GRE ove
           "subinterface": [
             {
               "index": 0,
-              "ipv6": {
+              "config": {
+                "index": 0
+              },
+              "openconfig-if-ip:ipv6": {
                 "addresses": {
                   "address": [
                     {
@@ -239,7 +242,7 @@ This test scenario validates the encapsulation of traffic into MPLS over GRE ove
       }
     ]
   },
-  "qos": {
+  "openconfig-qos:qos": {
     "classifiers": {
       "classifier": [
         {
@@ -297,17 +300,22 @@ This test scenario validates the encapsulation of traffic into MPLS over GRE ove
       ]
     }
   },
-  "network-instances": {
+  "openconfig-network-instance:network-instances": {
     "network-instance": [
       {
         "name": "default",
+        "config": {
+          "name": "default",
+          "type": "openconfig-network-instance-types:DEFAULT_INSTANCE"
+        },
         "policy-forwarding": {
           "policies": {
             "policy": [
               {
                 "policy-id": "encap-v6",
                 "config": {
-                  "policy-id": "encap-v6"
+                  "policy-id": "encap-v6",
+                  "type": "openconfig-policy-forwarding-types:PBR"
                 },
                 "rules": {
                   "rule": [

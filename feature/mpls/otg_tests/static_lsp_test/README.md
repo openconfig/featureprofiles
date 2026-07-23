@@ -155,16 +155,23 @@ Generate traffic (100K packets at 1000 pps) on ATE Ports 3,4,5,6 having:
 #### Canonical OC Configuration
 ```json
 {
-  "network-instances": {
+  "openconfig-network-instance:network-instances": {
     "network-instance": [
       {
         "name": "default",
+        "config": {
+          "name": "default",
+          "type": "openconfig-network-instance-types:DEFAULT_INSTANCE"
+        },
         "mpls": {
           "lsps": {
             "static-lsps": {
               "static-lsp": [
                 {
                   "name": "v6-static-lsp",
+                  "config": {
+                    "name": "v6-static-lsp"
+                  },
                   "ingress": {
                     "config": {
                       "next-hop": "2001:db8::2",

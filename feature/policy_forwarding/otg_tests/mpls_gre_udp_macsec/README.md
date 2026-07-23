@@ -121,7 +121,7 @@ Verify:
 #### Canonical OC Configuration
 ```json
 {
-  "macsec": {
+  "openconfig-macsec:macsec": {
     "interfaces": {
       "interface": [
         {
@@ -140,10 +140,14 @@ Verify:
       ]
     }
   },
-  "network-instances": {
+  "openconfig-network-instance:network-instances": {
     "network-instance": [
       {
         "name": "default",
+        "config": {
+          "name": "default",
+          "type": "openconfig-network-instance-types:DEFAULT_INSTANCE"
+        },
         "policy-forwarding": {
           "interfaces": {
             "interface": [
@@ -162,7 +166,7 @@ Verify:
                 "policy-id": "IPV6_MPLS_GRE_UDP_ENCAP",
                 "config": {
                   "policy-id": "IPV6_MPLS_GRE_UDP_ENCAP",
-                  "type": "PBR_POLICY"
+                  "type": "openconfig-policy-forwarding-types:PBR"
                 }
               }
             ]
@@ -208,7 +212,7 @@ Verify:
 #### Canonical OC Configuration
 ```json
 {
-  "macsec": {
+  "openconfig-macsec:macsec": {
     "interfaces": {
       "interface": [
         {
@@ -228,10 +232,14 @@ Verify:
       ]
     }
   },
-  "network-instances": {
+  "openconfig-network-instance:network-instances": {
     "network-instance": [
       {
         "name": "default",
+        "config": {
+          "name": "default",
+          "type": "openconfig-network-instance-types:DEFAULT_INSTANCE"
+        },
         "policy-forwarding": {
           "interfaces": {
             "interface": [

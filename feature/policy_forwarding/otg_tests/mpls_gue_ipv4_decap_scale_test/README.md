@@ -69,6 +69,10 @@ Ensure the routing table contains valid routes for the inner payloads to egress 
             "policy": [
               {
                 "policy-id": "gue-decap-scale-v6",
+                "config": {
+                  "policy-id": "gue-decap-scale-v6",
+                  "type": "openconfig-policy-forwarding-types:PBR"
+                },
                 "rules": {
                   "rule": [
                     {
@@ -78,8 +82,8 @@ Ensure the routing table contains valid routes for the inner payloads to egress 
                       },
                       "ipv6": {
                         "config": {
-                          "source-address": "2001:db8:1::1/128",
-                          "protocol": "openconfig-packet-match-types:UDP"
+                          "source-address-prefix": "2001:db8:1::1/128",
+                          "protocol": "openconfig-packet-match-types:IP_UDP"
                         }
                       },
                       "action": {

@@ -503,14 +503,14 @@ Verify (Pass/Fail Criteria):
                                 "rules": {
                                     "rule": [
                                         {
-                                            "sequence-id": 0
+                                            "sequence-id": 0,
                                             "config": {
                                                 "sequence-id": 0
                                             }
                                             "ipv4": {
                                                 "config": {
-                                                    "destination-address": "10.2.2.2"
-                                                    "protocol": IP_GRE
+                                                    "destination-address": "10.2.2.2/32",
+                                                    "protocol": "openconfig-packet-match-types:IP_GRE"
                                                 }
                                             },
                                             "action": {
@@ -520,19 +520,19 @@ Verify (Pass/Fail Criteria):
                                             }
                                         },
                                         {
-                                            "sequence-id": 1
+                                            "sequence-id": 1,
                                             "config": {
                                                 "sequence-id": 1
                                             }
                                             "ipv4": {
                                                 "config": {
-                                                    "destination-address": "10.2.2.2"
-                                                    "protocol": IP_UDP
+                                                    "destination-address": "10.2.2.2/32",
+                                                    "protocol": "openconfig-packet-match-types:IP_UDP"
                                                 }
                                             },
                                             "transport": {
                                                 "config": {
-                                                    "destination-port": "6080"
+                                                    "destination-port": 6080
                                                 }
                                             },
                                             "action": {
@@ -542,19 +542,19 @@ Verify (Pass/Fail Criteria):
                                             }
                                         },
                                         {
-                                            "sequence-id": 2
+                                            "sequence-id": 2,
                                             "config": {
                                                 "sequence-id": 2
                                             }
                                             "ipv4": {
                                                 "config": {
-                                                    "destination-address": "10.2.2.2"
-                                                    "protocol": IP_UDP
+                                                    "destination-address": "10.2.2.2/32",
+                                                    "protocol": "openconfig-packet-match-types:IP_UDP"
                                                 }
                                             },
                                             "transport": {
                                                 "config": {
-                                                    "destination-port": "6635"
+                                                    "destination-port": 6635
                                                 }
                                             },
                                             "action": {
@@ -570,13 +570,13 @@ Verify (Pass/Fail Criteria):
                                             },
                                             "ipv6": {
                                                 "config": {
-                                                    "destination-address": "2001:DB8::10:2:2:2",
-                                                    "protocol": "IP_UDP"
+                                                    "destination-address": "2001:DB8::10:2:2:2/128",
+                                                    "protocol": "openconfig-packet-match-types:IP_UDP"
                                                 }
                                             },
                                             "transport": {
                                                 "config": {
-                                                    "destination-port": "6635"
+                                                    "destination-port": 6635
                                                 }
                                             },
                                             "action": {
