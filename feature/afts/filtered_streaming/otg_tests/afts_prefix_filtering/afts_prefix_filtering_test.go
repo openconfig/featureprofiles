@@ -88,59 +88,69 @@ func configurePolicies(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatc
 	t.Helper()
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
-	cfgplugins.AddPrefixSetPolicy(t, rp, cfgplugins.PrefixSetPolicyParams{
+	aftpf.AddPrefixSetPolicy(t, rp, aftpf.PrefixSetPolicyParams{
 		PolicyName:     policyMatchAll,
 		StatementNames: []string{defaultStatementName},
 		PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
 	})
-	cfgplugins.AddPrefixSetPolicyWithMatch(t, rp, cfgplugins.PrefixSetPolicyParams{
+	aftpf.AddPrefixSetPolicy(t, rp, aftpf.PrefixSetPolicyParams{
 		PolicyName:     policyPfxSetA,
 		StatementNames: []string{defaultStatementName},
 		PrefixSetNames: []string{v4PfxSetA},
 		PrefixList:     pfxSetAMembers,
 		PrefixMode:     pfxMode,
+		MatchPrefixSet: true,
+		MatchSetOption: oc.E_RoutingPolicy_MatchSetOptionsRestrictedType(oc.RoutingPolicy_MatchSetOptionsType_ANY),
 		PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
 	})
-	cfgplugins.AddPrefixSetPolicyWithMatch(t, rp, cfgplugins.PrefixSetPolicyParams{
+	aftpf.AddPrefixSetPolicy(t, rp, aftpf.PrefixSetPolicyParams{
 		PolicyName:     policyPfxSetB,
 		StatementNames: []string{defaultStatementName},
 		PrefixSetNames: []string{v6PfxSetB},
 		PrefixList:     pfxSetBMembers,
 		PrefixMode:     pfxMode,
+		MatchPrefixSet: true,
+		MatchSetOption: oc.E_RoutingPolicy_MatchSetOptionsRestrictedType(oc.RoutingPolicy_MatchSetOptionsType_ANY),
 		PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
 	})
-	cfgplugins.AddPrefixSetPolicyWithMatch(t, rp, cfgplugins.PrefixSetPolicyParams{
+	aftpf.AddPrefixSetPolicy(t, rp, aftpf.PrefixSetPolicyParams{
 		PolicyName:     policyVrfA,
 		StatementNames: []string{defaultStatementName},
 		PrefixSetNames: []string{vrfPfxSetA},
 		PrefixList:     []string{"100.64.1.0/24"},
 		PrefixMode:     "24..32",
+		MatchPrefixSet: true,
+		MatchSetOption: oc.E_RoutingPolicy_MatchSetOptionsRestrictedType(oc.RoutingPolicy_MatchSetOptionsType_ANY),
 		PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
 	})
-	cfgplugins.AddPrefixSetPolicyWithMatch(t, rp, cfgplugins.PrefixSetPolicyParams{
+	aftpf.AddPrefixSetPolicy(t, rp, aftpf.PrefixSetPolicyParams{
 		PolicyName:     policySubnet,
 		StatementNames: []string{defaultStatementName},
 		PrefixSetNames: []string{subnetPfxSetV4},
 		PrefixList:     []string{"203.0.113.0/24"},
 		PrefixMode:     "25..32",
+		MatchPrefixSet: true,
+		MatchSetOption: oc.E_RoutingPolicy_MatchSetOptionsRestrictedType(oc.RoutingPolicy_MatchSetOptionsType_ANY),
 		PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
 	})
-	cfgplugins.AddPrefixSetPolicyWithMatch(t, rp, cfgplugins.PrefixSetPolicyParams{
+	aftpf.AddPrefixSetPolicy(t, rp, aftpf.PrefixSetPolicyParams{
 		PolicyName:     policySubnetV6,
 		StatementNames: []string{defaultStatementName},
 		PrefixSetNames: []string{subnetPfxSetV6},
 		PrefixList:     []string{"2001:db8:3::/64"},
 		PrefixMode:     "65..128",
+		MatchPrefixSet: true,
+		MatchSetOption: oc.E_RoutingPolicy_MatchSetOptionsRestrictedType(oc.RoutingPolicy_MatchSetOptionsType_ANY),
 		PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
 	})
-	cfgplugins.AddPrefixSetPolicy(t, rp, cfgplugins.PrefixSetPolicyParams{
+	aftpf.AddPrefixSetPolicy(t, rp, aftpf.PrefixSetPolicyParams{
 		PolicyName:     policyMultiStmt,
 		StatementNames: []string{defaultStatementName, secondStatementName},
 		PrefixSetNames: []string{v4PfxSetA, subnetPfxSetV4},
 		MatchPrefixSet: true,
 		PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
 	})
-	cfgplugins.AddPrefixSetPolicy(t, rp, cfgplugins.PrefixSetPolicyParams{
+	aftpf.AddPrefixSetPolicy(t, rp, aftpf.PrefixSetPolicyParams{
 		PolicyName:     policyDenyPfxSetA,
 		StatementNames: []string{defaultStatementName, secondStatementName},
 		PrefixSetNames: []string{v4PfxSetA, ""},
@@ -148,7 +158,7 @@ func configurePolicies(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatc
 		PrefixDeny:     true,
 		PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
 	})
-	cfgplugins.AddPrefixSetPolicy(t, rp, cfgplugins.PrefixSetPolicyParams{
+	aftpf.AddPrefixSetPolicy(t, rp, aftpf.PrefixSetPolicyParams{
 		PolicyName:     policyTagMatch,
 		StatementNames: []string{tagStatementName},
 		MatchPrefixSet: true,
@@ -683,12 +693,14 @@ func testNonExistentPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
-	cfgplugins.AddPrefixSetPolicyWithMatch(t, rp, cfgplugins.PrefixSetPolicyParams{
+	aftpf.AddPrefixSetPolicy(t, rp, aftpf.PrefixSetPolicyParams{
 		PolicyName:     policyNotYetExist,
 		StatementNames: []string{defaultStatementName},
 		PrefixSetNames: []string{pfxSetNotYetExist},
 		PrefixList:     []string{matchPrefix},
 		PrefixMode:     pfxMode,
+		MatchPrefixSet: true,
+		MatchSetOption: oc.E_RoutingPolicy_MatchSetOptionsRestrictedType(oc.RoutingPolicy_MatchSetOptionsType_ANY),
 		PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
 	})
 	batch := &gnmi.SetBatch{}
@@ -766,12 +778,14 @@ func testPolicyDeletion(t *testing.T, dut *ondatra.DUTDevice) {
 
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
-	cfgplugins.AddPrefixSetPolicyWithMatch(t, rp, cfgplugins.PrefixSetPolicyParams{
+	aftpf.AddPrefixSetPolicy(t, rp, aftpf.PrefixSetPolicyParams{
 		PolicyName:     policyPfxSetA,
 		StatementNames: []string{defaultStatementName},
 		PrefixSetNames: []string{v4PfxSetA},
 		PrefixList:     pfxSetAMembers,
 		PrefixMode:     pfxMode,
+		MatchPrefixSet: true,
+		MatchSetOption: oc.E_RoutingPolicy_MatchSetOptionsRestrictedType(oc.RoutingPolicy_MatchSetOptionsType_ANY),
 		PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
 	})
 	batch := &gnmi.SetBatch{}
