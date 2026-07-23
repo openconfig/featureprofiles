@@ -300,35 +300,36 @@ encapsulation and ingress decapsulation types are mapped to interface speeds:
 
 ```json
 {
-  "keychains": {
+  "openconfig-keychain:keychains": {
     "keychain": [
       {
+        "name": "macsec_keychain",
         "config": {
           "name": "macsec_keychain"
         },
         "keys": {
           "key": [
             {
+              "key-id": "0xabcd111122223333444455556666777788889999000011112222333344445555",
               "config": {
-                "crypto-algorithm": "AES_256_CMAC",
                 "key-id": "0xabcd111122223333444455556666777788889999000011112222333344445555",
-                "secret-key": "ad4rf10kn85fc0adk5dfcsnr1or4cm08q"
-              },
-              "key-id": "0xabcd111122223333444455556666777788889999000011112222333344445555"
+                "secret-key": "ad4rf10kn85fc0adk5dfcsnr1or4cm08q",
+                "crypto-algorithm": "AES_256_CMAC"
+              }
             }
           ]
-        },
-        "name": "macsec_keychain"
+        }
       }
     ]
   },
-  "macsec": {
+  "openconfig-macsec:macsec": {
     "interfaces": {
       "interface": [
         {
+          "name": "Ethernet1/1",
           "config": {
-            "enable": true,
             "name": "Ethernet1/1",
+            "enable": true,
             "replay-protection": 64
           },
           "mka": {
@@ -336,8 +337,7 @@ encapsulation and ingress decapsulation types are mapped to interface speeds:
               "key-chain": "macsec_keychain",
               "mka-policy": "line_rate_policy"
             }
-          },
-          "name": "Ethernet1/1"
+          }
         }
       ]
     },
@@ -345,37 +345,37 @@ encapsulation and ingress decapsulation types are mapped to interface speeds:
       "policies": {
         "policy": [
           {
+            "name": "line_rate_policy",
             "config": {
-              "confidentiality-offset": "0_BYTES",
-              "include-icv-indicator": true,
-              "include-sci": true,
+              "name": "line_rate_policy",
               "key-server-priority": 15,
               "macsec-cipher-suite": [
                 "GCM_AES_XPN_256"
               ],
-              "name": "line_rate_policy",
+              "confidentiality-offset": "0_BYTES",
+              "include-icv-indicator": true,
+              "include-sci": true,
               "sak-rekey-interval": 30
-            },
-            "name": "line_rate_policy"
+            }
           }
         ]
       }
     }
   },
-  "mpls": {
+  "openconfig-mpls:mpls": {
     "lsps": {
       "static-lsps": {
         "static-lsp": [
           {
+            "name": "static-lsp-pop",
             "config": {
               "name": "static-lsp-pop"
             },
-            "name": "static-lsp-pop",
             "egress": {
               "config": {
                 "incoming-label": 99998,
                 "next-hop": "192.0.2.1",
-                "push-label": "IMPLICIT_NULL"
+                "push-label": 3
               }
             }
           }
@@ -383,41 +383,38 @@ encapsulation and ingress decapsulation types are mapped to interface speeds:
       }
     }
   },
-  "network-instances": {
+  "openconfig-network-instance:network-instances": {
     "network-instance": [
       {
+        "name": "default",
         "config": {
           "name": "default",
           "type": "openconfig-network-instance-types:DEFAULT_INSTANCE"
         },
-        "name": "default",
         "policy-forwarding": {
           "interfaces": {
             "interface": [
               {
+                "interface-id": "Ethernet1/1.20",
                 "config": {
-                  "apply-forwarding-policy": "customer1",
-                  "interface-id": "Ethernet1/1.20"
-                },
-                "interface-id": "Ethernet1/1.20"
+                  "interface-id": "Ethernet1/1.20",
+                  "apply-forwarding-policy": "customer1"
+                }
               }
             ]
           },
           "policies": {
             "policy": [
               {
-                "config": {
-                  "policy-id": "customer1"
-                },
                 "policy-id": "customer1",
+                "config": {
+                  "policy-id": "customer1",
+                  "type": "openconfig-policy-forwarding-types:PBR"
+                },
                 "rules": {
                   "rule": [
                     {
-                      "action": {
-                        "config": {
-                          "next-hop-group": "MPLS_in_GRE_Encap"
-                        }
-                      },
+                      "sequence-id": 1,
                       "config": {
                         "sequence-id": 1
                       },
@@ -426,23 +423,28 @@ encapsulation and ingress decapsulation types are mapped to interface speeds:
                           "protocol": 47
                         }
                       },
-                      "sequence-id": 1
+                      "action": {
+                        "config": {
+                          "next-hop-group": "MPLS_in_GRE_Encap"
+                        }
+                      }
                     }
                   ]
                 }
               },
               {
-                "config": {
-                  "policy-id": "decap-policy"
-                },
                 "policy-id": "decap-policy",
+                "config": {
+                  "policy-id": "decap-policy",
+                  "type": "openconfig-policy-forwarding-types:PBR"
+                },
                 "rules": {
                   "rule": [
                     {
+                      "sequence-id": 10,
                       "config": {
                         "sequence-id": 10
                       },
-                      "sequence-id": 10,
                       "ipv4": {
                         "config": {
                           "protocol": 47
@@ -455,10 +457,10 @@ encapsulation and ingress decapsulation types are mapped to interface speeds:
                       }
                     },
                     {
+                      "sequence-id": 20,
                       "config": {
                         "sequence-id": 20
                       },
-                      "sequence-id": 20,
                       "ipv4": {
                         "config": {
                           "protocol": 17
@@ -478,28 +480,29 @@ encapsulation and ingress decapsulation types are mapped to interface speeds:
           "next-hop-groups": {
             "next-hop-group": [
               {
+                "name": "MPLS_in_GRE_Encap",
                 "config": {
                   "name": "MPLS_in_GRE_Encap"
                 },
-                "name": "MPLS_in_GRE_Encap",
                 "next-hops": {
                   "next-hop": [
                     {
+                      "index": "Dest A-NH1",
                       "config": {
                         "index": "Dest A-NH1",
                         "next-hop": "192.0.2.2"
                       },
-                      "index": "Dest A-NH1",
                       "encap-header": [
                         {
-                          "config": {
-                            "index": 1
-                          },
                           "index": 1,
+                          "config": {
+                            "index": 1,
+                            "type": "openconfig-policy-forwarding-types:GRE"
+                          },
                           "udp-v4": {
                             "config": {
-                              "dst-ip": "10.99.1.1",
                               "src-ip": "10.235.143.208",
+                              "dst-ip": "10.99.1.1",
                               "dscp": 0,
                               "ip-ttl": 64
                             }
@@ -511,28 +514,29 @@ encapsulation and ingress decapsulation types are mapped to interface speeds:
                 }
               },
               {
+                "name": "MPLS_in_UDP_Encap",
                 "config": {
                   "name": "MPLS_in_UDP_Encap"
                 },
-                "name": "MPLS_in_UDP_Encap",
                 "next-hops": {
                   "next-hop": [
                     {
+                      "index": "Dest A-NH2",
                       "config": {
                         "index": "Dest A-NH2",
                         "next-hop": "192.0.2.2"
                       },
-                      "index": "Dest A-NH2",
                       "encap-header": [
                         {
-                          "config": {
-                            "index": 1
-                          },
                           "index": 1,
+                          "config": {
+                            "index": 1,
+                            "type": "openconfig-policy-forwarding-types:MPLS_IN_UDP"
+                          },
                           "udp-v4": {
                             "config": {
-                              "dst-ip": "10.99.1.1",
                               "src-ip": "10.235.143.208",
+                              "dst-ip": "10.99.1.1",
                               "dst-udp-port": 6635,
                               "dscp": 0,
                               "ip-ttl": 64
@@ -570,7 +574,6 @@ paths:
     /interfaces/interface/config/description:
     /interfaces/interface/config/enabled:
     /interfaces/interface/config/name:
-    /interfaces/interface/config/type:
     /interfaces/interface/hold-time/config/up:
     /interfaces/interface/hold-time/config/down:
     /interfaces/interface/subinterfaces/subinterface/config/index:
