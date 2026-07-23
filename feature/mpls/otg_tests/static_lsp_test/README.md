@@ -190,7 +190,6 @@ Generate traffic (100K packets at 1000 pps) on ATE Ports 3,4,5,6 having:
 ```
 
 ### Telemetry and State Validation
-* Validate the operational state of the static LSP using gNMI. Subscribe to the state path and verify the `oper-status` reaches `UP`.
 * Verify IPv6 Neighbor Discovery (ND) resolution for the ATE IPv6 next-hop address on the egress interface by validating the `link-layer-address` is populated.
 
 ### Traffic Execution
@@ -199,13 +198,11 @@ Generate traffic (100K packets at 1000 pps) on ATE Ports 3,4,5,6 having:
 
 ### Pass/Fail Criteria
 * **Pass**:
-    * Telemetry successfully confirms the LSP `oper-status` is `UP`.
     * Telemetry confirms the IPv6 neighbor MAC address is successfully resolved for the next-hop.
     * ATE captures packets on Port 2 and validates that the DUT has correctly pushed the MPLS label `100100` onto the inner payload.
     * The egress packets are correctly encapsulated in an Ethernet frame destined for the ATE's IPv6 next-hop MAC address.
     * No packet drops are observed.
 * **Fail**:
-    * The static LSP remains in the `DOWN` state.
     * The DUT fails to resolve the IPv6 neighbor next-hop address.
     * Packets are forwarded as pure IP without the correct MPLS encapsulation, or the pushed label is incorrect.
     * Traffic is dropped.
@@ -301,8 +298,7 @@ paths:
   # Static LSP Paths
   /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/ingress/config/next-hop:
   /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/ingress/config/push-label:
-  /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/ingress/state/oper-status:
-
+  
   # IPv6 Neighbor paths
   /interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor/state/link-layer-address:
 

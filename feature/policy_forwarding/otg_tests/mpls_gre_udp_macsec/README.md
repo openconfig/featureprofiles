@@ -166,7 +166,7 @@ Verify:
                 "policy-id": "IPV6_MPLS_GRE_UDP_ENCAP",
                 "config": {
                   "policy-id": "IPV6_MPLS_GRE_UDP_ENCAP",
-                  "type": "openconfig-policy-forwarding-types:PBR"
+                  "type": "PBR_POLICY"
                 }
               }
             ]
@@ -219,8 +219,7 @@ Verify:
           "name": "Port2",
           "config": {
             "name": "Port2",
-            "enable": true,
-            "encryption-enable": true
+            "enable": true
           },
           "mka": {
             "config": {

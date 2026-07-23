@@ -315,7 +315,7 @@ This test scenario validates the encapsulation of traffic into MPLS over GRE ove
                 "policy-id": "encap-v6",
                 "config": {
                   "policy-id": "encap-v6",
-                  "type": "openconfig-policy-forwarding-types:PBR"
+                  "type": "PBR_POLICY"
                 },
                 "rules": {
                   "rule": [

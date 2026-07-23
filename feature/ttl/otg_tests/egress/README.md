@@ -470,10 +470,10 @@ Verify (Pass/Fail Criteria):
                             {
                                "config": {
                                   "name": "ipv4-static-lsp"
-                               }
+                               },
                                "egress": {
                                   "config": {
-                                     "incoming-label": 100010
+                                     "incoming-label": 100010,
                                      "next-hop": "192.168.20.1"
                                   }
                                }
@@ -481,10 +481,10 @@ Verify (Pass/Fail Criteria):
                             {
                                "config": {
                                   "name": "ipv6-static-lsp"
-                               }
+                               },
                                "egress": {
                                   "config": {
-                                     "incoming-label": 100020
+                                     "incoming-label": 100020,
                                      "next-hop": "2001:DB8::192:168:20:1"
                                   }
                                }
@@ -492,7 +492,7 @@ Verify (Pass/Fail Criteria):
                          ]
                       }
                    }
-                }
+                },
                 "policy-forwarding": {
                     "policies": {
                         "policy": [
@@ -506,7 +506,7 @@ Verify (Pass/Fail Criteria):
                                             "sequence-id": 0,
                                             "config": {
                                                 "sequence-id": 0
-                                            }
+                                            },
                                             "ipv4": {
                                                 "config": {
                                                     "destination-address": "10.2.2.2/32",
@@ -523,7 +523,7 @@ Verify (Pass/Fail Criteria):
                                             "sequence-id": 1,
                                             "config": {
                                                 "sequence-id": 1
-                                            }
+                                            },
                                             "ipv4": {
                                                 "config": {
                                                     "destination-address": "10.2.2.2/32",
@@ -545,7 +545,7 @@ Verify (Pass/Fail Criteria):
                                             "sequence-id": 2,
                                             "config": {
                                                 "sequence-id": 2
-                                            }
+                                            },
                                             "ipv4": {
                                                 "config": {
                                                     "destination-address": "10.2.2.2/32",
@@ -587,10 +587,10 @@ Verify (Pass/Fail Criteria):
                                         }
                                     ]
                                 }
-                            },
+                            }
                         ]
                     }
-                },
+                }
             }
         ]
     }

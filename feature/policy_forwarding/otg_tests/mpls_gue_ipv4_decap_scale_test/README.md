@@ -57,7 +57,7 @@ The test topology uses the same ingress and egress aggregate interfaces as the I
 Utilize a `gNMI Set` operation to program 1000 unique Policy-Based Routing (PBR) decapsulation rules. Each rule should match a unique IPv6 outer header. Alternatively, configure a single rule matching a `/64` IPv6 prefix that routes to a decapsulation loopback/interface, depending on platform support.
 Ensure the routing table contains valid routes for the inner payloads to egress out of the correct egress interface (Aggregate1).
 
-## Canonical OC Configuration
+## Canonical OC
 ```json
 {
   "openconfig-network-instance:network-instances": {
@@ -71,7 +71,7 @@ Ensure the routing table contains valid routes for the inner payloads to egress 
                 "policy-id": "gue-decap-scale-v6",
                 "config": {
                   "policy-id": "gue-decap-scale-v6",
-                  "type": "openconfig-policy-forwarding-types:PBR"
+                  "type": "PBR_POLICY"
                 },
                 "rules": {
                   "rule": [
@@ -82,7 +82,7 @@ Ensure the routing table contains valid routes for the inner payloads to egress 
                       },
                       "ipv6": {
                         "config": {
-                          "source-address-prefix": "2001:db8:1::1/128",
+                          "source-address": "2001:db8:1::1/128",
                           "protocol": "openconfig-packet-match-types:IP_UDP"
                         }
                       },

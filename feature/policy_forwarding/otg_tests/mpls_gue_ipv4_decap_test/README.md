@@ -201,7 +201,7 @@ Verify:
                 "policy-id": "gue-v6-decap-policy",
                 "config": {
                   "policy-id": "gue-v6-decap-policy",
-                  "type": "openconfig-policy-forwarding-types:PBR"
+                  "type": "PBR_POLICY"
                 },
                 "rules": {
                   "rule": [
@@ -212,7 +212,7 @@ Verify:
                       },
                       "ipv6": {
                         "config": {
-                          "destination-address-prefix": "2001:db8::1/128",
+                          "destination-address": "2001:db8::1/128",
                           "protocol": 17
                         }
                       },
