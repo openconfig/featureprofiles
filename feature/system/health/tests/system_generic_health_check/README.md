@@ -45,6 +45,7 @@ rpcs:
 paths:
   ## Config Parameter coverage
 
+    /system/alarms/alarm/state/severity:
     /system/processes/process/state/cpu-utilization:
     /system/processes/process/state/memory-utilization:
     /qos/interfaces/interface/input/queues/queue/state/dropped-pkts:
