@@ -71,9 +71,27 @@ func configurePolicies(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatc
 	t.Helper()
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
-	cfgplugins.AddPrefixSetPolicy(t, rp, cfgplugins.PrefixSetPolicyParams{PolicyName: aftpf.AFTFilterPolicyMatchAll, StatementNames: []string{aftpf.AFTFilterDefaultStatementName}, PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE})
-	cfgplugins.AddPrefixSetPolicyWithMatch(t, rp, cfgplugins.PrefixSetPolicyParams{PolicyName: policyPfxSetA, StatementNames: []string{aftpf.AFTFilterDefaultStatementName}, PrefixSetNames: []string{v4PfxSetA}, PrefixList: pfxSetAMembers, PrefixMode: aftpf.AFTFilterPfxMode, PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE})
-	cfgplugins.AddPrefixSetPolicyWithMatch(t, rp, cfgplugins.PrefixSetPolicyParams{PolicyName: policyPfxSetB, StatementNames: []string{aftpf.AFTFilterDefaultStatementName}, PrefixSetNames: []string{v6PfxSetB}, PrefixList: pfxSetBMembers, PrefixMode: aftpf.AFTFilterPfxMode, PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE})
+	cfgplugins.AddPrefixSetPolicy(t, rp, cfgplugins.PrefixSetPolicyParams{
+		PolicyName:     aftpf.PolicyMatchAll,
+		StatementNames: []string{aftpf.DefaultStatementName},
+		PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
+	})
+	cfgplugins.AddPrefixSetPolicyWithMatch(t, rp, cfgplugins.PrefixSetPolicyParams{
+		PolicyName:     policyPfxSetA,
+		StatementNames: []string{aftpf.DefaultStatementName},
+		PrefixSetNames: []string{v4PfxSetA},
+		PrefixList:     pfxSetAMembers,
+		PrefixMode:     aftpf.PfxMode,
+		PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
+	})
+	cfgplugins.AddPrefixSetPolicyWithMatch(t, rp, cfgplugins.PrefixSetPolicyParams{
+		PolicyName:     policyPfxSetB,
+		StatementNames: []string{aftpf.DefaultStatementName},
+		PrefixSetNames: []string{v6PfxSetB},
+		PrefixList:     pfxSetBMembers,
+		PrefixMode:     aftpf.PfxMode,
+		PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
+	})
 	gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
 	batch.Set(t, dut)
 }
@@ -86,36 +104,42 @@ func testSimultaneousDualStackPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	allMatch := append(append([]string{}, v4MatchPrefixes...), v6MatchPrefixes...)
 
 	t.Logf("AFT-6.2.1 - Apply IPv4 policy %s and IPv6 policy %s simultaneously", policyPfxSetA, policyPfxSetB)
-	cfgplugins.ConfigureGlobalFilterPolicies(t, dut, cfgplugins.ConfigureGlobalFilterPoliciesParams{V4Policy: policyPfxSetA, V6Policy: policyPfxSetB, VRFName: ni})
+	aftpf.ConfigureGlobalFilterPolicies(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{
+		V4Policy: policyPfxSetA,
+		V6Policy: policyPfxSetB,
+		VRFName:  ni,
+	})
 
 	wantPrefixes := map[string]bool{}
 	for _, p := range allMatch {
 		wantPrefixes[p] = true
 	}
 	collector := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
-	aftpf.RunCollector(t, aftpf.RunCollectorParams{Ctx: context.Background(), Collector: collector, Stop: aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, map[string]bool{aftpf.AFTFilterATEPort1.IPv4: true}, map[string]bool{aftpf.AFTFilterATEPort1.IPv6: true}), Timeout: aftpf.AFTFilterSubscriptionWait})
-	aft, err := collector.ToAFT(t, dut)
-	if err != nil {
-		t.Errorf("ToAFT failed: %v", err)
-	} else {
-		aftpf.VerifyPrefixesPresent(t, aftpf.PrefixesParams{InfoAFT: aft, Prefixes: allMatch})
-		aftpf.VerifyPrefixesAbsent(t, aftpf.PrefixesParams{InfoAFT: aft, Prefixes: nonMatchPrefixes})
-	}
+	aftpf.CollectAndVerify(t, dut, aftpf.RunCollectorParams{
+		Ctx:       context.Background(),
+		Collector: collector,
+		Stop: aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes,
+			map[string]bool{aftpf.ATEPort1.IPv4: true}, map[string]bool{aftpf.ATEPort1.IPv6: true}),
+		Timeout: aftpf.AFTSubscriptionWait,
+	}, allMatch, nonMatchPrefixes)
 
 	t.Logf("AFT-6.2.1 - Swap policies: IPv4 policy %s and IPv6 policy %s match nothing", policyPfxSetB, policyPfxSetA)
-	cfgplugins.ConfigureGlobalFilterPolicies(t, dut, cfgplugins.ConfigureGlobalFilterPoliciesParams{V4Policy: policyPfxSetB, V6Policy: policyPfxSetA, VRFName: ni})
+	aftpf.ConfigureGlobalFilterPolicies(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{
+		V4Policy: policyPfxSetB,
+		V6Policy: policyPfxSetA,
+		VRFName:  ni,
+	})
 
 	// Reuse the same streaming session so the policy swap is observed as
 	// streamed deletions rather than a fresh re-subscription.
-	aftpf.RunCollector(t, aftpf.RunCollectorParams{Ctx: context.Background(), Collector: collector, Stop: aftcache.DeletionStoppingCondition(t, dut, wantPrefixes), Timeout: aftpf.AFTFilterSubscriptionWait})
-	swapAFT, err := collector.ToAFT(t, dut)
-	if err != nil {
-		t.Errorf("ToAFT failed after policy swap: %v", err)
-	} else {
-		aftpf.VerifyPrefixesAbsent(t, aftpf.PrefixesParams{InfoAFT: swapAFT, Prefixes: allMatch})
-	}
+	aftpf.CollectAndVerify(t, dut, aftpf.RunCollectorParams{
+		Ctx:       context.Background(),
+		Collector: collector,
+		Stop:      aftcache.DeletionStoppingCondition(t, dut, wantPrefixes),
+		Timeout:   aftpf.AFTSubscriptionWait,
+	}, nil, allMatch)
 
-	if err := aftpf.AFTFilterDeleteGlobalFilter(t, dut, ni); err != nil {
+	if err := aftpf.AFTDeleteGlobalFilter(t, dut, ni); err != nil {
 		t.Errorf("Cleanup: failed to delete global-filter: %v", err)
 	}
 }
@@ -128,30 +152,39 @@ func TestMain(m *testing.M) {
 // TestAFTPrefixFilteringDualStack implements AFT-6.2.
 func TestAFTPrefixFilteringDualStack(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+
+	if deviations.AftsGlobalFilterPolicyOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			t.Skipf("Skipping AFT-6.1 test validation: AFT global-filter policy is not supported on %s", dut.Vendor())
+		}
+	}
+
 	ate := ondatra.ATE(t, "ate")
 	ni := deviations.DefaultNetworkInstance(dut)
 
-	if _, err := aftpf.AFTFilterDialGNMI(t, dut); err != nil {
+	if _, err := aftpf.DialGNMI(t, dut); err != nil {
 		t.Fatalf("%v", err)
 	}
 
-	batch := aftpf.AFTFilterConfigureDUT(t, dut)
+	batch := aftpf.ConfigureDUT(t, dut)
 	configurePolicies(t, dut, batch)
-	prefixes := aftpf.AFTFilterConfigureBaseRoutesParams{V4Prefixes: baseIPv4Prefixes, V6Prefixes: baseIPv6Prefixes}
-	aftpf.AFTFilterConfigureBaseRoutes(t, dut, batch, prefixes)
+	prefixes := aftpf.ConfigureBaseRoutesParams{V4Prefixes: baseIPv4Prefixes, V6Prefixes: baseIPv6Prefixes}
+	aftpf.ConfigureBaseRoutes(t, dut, batch, prefixes)
 	d := &oc.Root{}
 	defNI := d.GetOrCreateNetworkInstance(ni)
-	aftpf.AFTFilterConfigureBGP(t, dut, batch, defNI)
+	aftpf.ConfigureBGP(t, dut, batch, defNI)
 	batch.Set(t, dut)
-	aftpf.AFTFilterApplyBGPMaxPrefixes(t, dut)
-	topo, interfaceNamesList := aftpf.AFTFilterConfigureATE(t, ate)
-	aftpf.AFTFilterConfigureATEBGP(t, topo)
+	aftpf.ApplyBGPMaxPrefixes(t, dut, aftpf.BGPPrefixParams{V4Prefix: aftpf.ATEPort1.IPv4,
+		V6Prefix: aftpf.ATEPort2.IPv6, NetworkInstance: defNI})
+	topo, interfaceNamesList := aftpf.ConfigureATE(t, ate)
+	aftpf.ConfigureATEBGP(t, topo)
 	ate.OTG().PushConfig(t, topo)
 	ate.OTG().StartProtocols(t)
 	cfgplugins.IsIPv4InterfaceARPresolved(t, ate, cfgplugins.AddressFamilyParams{InterfaceNames: interfaceNamesList})
 	cfgplugins.IsIPv6InterfaceARPresolved(t, ate, cfgplugins.AddressFamilyParams{InterfaceNames: interfaceNamesList})
 
-	aftpf.AFTFilterAwaitBGPConvergence(t, dut, ni)
+	aftpf.AwaitBGPConvergence(t, dut, ni)
 
 	t.Run("aft-6.2.1-testSimultaneousDualStackPolicy", func(t *testing.T) {
 		testSimultaneousDualStackPolicy(t, dut)
