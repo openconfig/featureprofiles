@@ -106,7 +106,7 @@ Ensure the routing table contains valid routes for the inner payloads to egress 
 
 ### Telemetry
 Establish a `gNMI Subscribe` to monitor device health and egress packet rates:
-*   Subscribe to `/system/memory/state/free` and `/system/memory/state/used` to track memory usage.
+*   Subscribe to `/system/memory/state/physical`,`/system/memory/state/free` and `/system/memory/state/used` to track memory usage.
 *   Subscribe to `/system/cpus/cpu/state/total/instant` and `/system/cpus/cpu[index=0]/state/total/avg` to track CPU utilization across all cores.
 *   Subscribe to egress interface packet rate counters on the egress ports (e.g., Aggregate1 member links).
 
@@ -144,9 +144,11 @@ paths:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/sequence-id:
 
   # Telemetry for device health monitoring
-  /system/state/memory/utilization:
-  /system/cpus/cpu/state/total-utilization:
-
+  /system/memory/state/physical:
+  /system/memory/state/free:
+  /system/memory/state/used:
+  /system/cpus/cpu/state/total/instant:
+  /system/cpus/cpu[index=0]/state/total/avg:
 rpcs:
   gnmi:
     gNMI.Set:
