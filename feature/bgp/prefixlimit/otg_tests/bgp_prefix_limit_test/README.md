@@ -29,7 +29,9 @@ paths:
   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/ipv4-unicast/prefix-limit/config/max-prefixes:
   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/ipv4-unicast/prefix-limit/state/warning-threshold-pct:
   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/ipv4-unicast/prefix-limit/state/prefix-limit-exceeded:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv4-unicast/prefix-limit-received/state/prefix-limit-exceeded:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv4-unicast/prefix-limit-received/state/warning-threshold-pct:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv6-unicast/prefix-limit-received/state/prefix-limit-exceeded:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv6-unicast/prefix-limit-received/state/warning-threshold-pct:
 
 rpcs:
@@ -41,7 +43,47 @@ rpcs:
 
 ## Canonical OC
 ```json
-{}
+{
+  "openconfig-network-instance:network-instances": {
+    "network-instance": [
+      {
+        "name": "DEFAULT",
+        "protocols": {
+          "protocol": [
+            {
+              "identifier": "openconfig-policy-types:BGP",
+              "name": "BGP",
+              "bgp": {
+                "neighbors": {
+                  "neighbor": [
+                    {
+                      "neighbor-address": "192.0.2.2",
+                      "afi-safis": {
+                        "afi-safi": [
+                          {
+                            "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                            "ipv4-unicast": {
+                              "prefix-limit": {
+                                "config": {
+                                  "max-prefixes": 200,
+                                  "warning-threshold-pct": 10
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
 ```   
 
 ## Minimum DUT platform requirement
