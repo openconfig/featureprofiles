@@ -476,27 +476,6 @@ encapsulation and ingress decapsulation types are mapped to interface speeds:
       }
     }
   },
-  "openconfig-mpls:mpls": {
-    "lsps": {
-      "static-lsps": {
-        "static-lsp": [
-          {
-            "name": "static-lsp-pop",
-            "config": {
-              "name": "static-lsp-pop"
-            },
-            "egress": {
-              "config": {
-                "incoming-label": 99998,
-                "next-hop": "192.0.2.1",
-                "push-label": 3
-              }
-            }
-          }
-        ]
-      }
-    }
-  },
   "openconfig-network-instance:network-instances": {
     "network-instance": [
       {
@@ -504,6 +483,27 @@ encapsulation and ingress decapsulation types are mapped to interface speeds:
         "config": {
           "name": "default",
           "type": "openconfig-network-instance-types:DEFAULT_INSTANCE"
+        },
+        "mpls": {
+          "lsps": {
+            "static-lsps": {
+              "static-lsp": [
+                {
+                  "name": "static-lsp-pop",
+                  "config": {
+                    "name": "static-lsp-pop"
+                  },
+                  "egress": {
+                    "config": {
+                      "incoming-label": 99998,
+                      "next-hop": "192.0.2.1",
+                      "push-label": 3
+                    }
+                  }
+                }
+              ]
+            }
+          }
         },
         "policy-forwarding": {
           "interfaces": {
