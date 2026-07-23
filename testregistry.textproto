@@ -419,6 +419,7 @@ test:  {
   id:  "IPSEC-1.1"
   description:  "IPSec with MACSec over aggregated links."
   readme:  "https://github.com/openconfig/featureprofiles/blob/main/feature/ipsec/otg_tests/ipsec_base/README.md"
+  exec:  "https://github.com/openconfig/featureprofiles/blob/main/feature/ipsec/otg_tests/ipsec_base/ipsec_base_test.go"
 }
 test:  {
   id:  "IPSEC-1.2"
