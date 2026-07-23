@@ -270,10 +270,8 @@ Verify:
 ```
 
 ### 3. Telemetry and Traffic Execution
-* Use gNMI Subscribe to monitor the MACsec operational state at `/macsec/interfaces/interface/state/oper-status`. The expected value is `UP`.
 * Subscribe to MACsec encryption telemetry counters:
-  * `/macsec/interfaces/interface/sa/state/out-pkts-encrypted`
-  * `/macsec/interfaces/interface/sa/state/out-octets-encrypted`
+  * `/macsec/interfaces/interface/scsa-tx/scsa-tx/state/counters/sc-encrypted`
 * Execute traffic from the ATE:
   * Generate standard IPv4 and IPv6 payload traffic from ATE Port 1 into DUT Port 1 at a specific frame rate.
   * The DUT must match the ingress traffic, encapsulate it with an IPv6 outer header along with GRE, UDP, and MPLS headers, and encrypt the entire resulting frame using MACsec before transmitting it out of Port 2.
@@ -282,9 +280,9 @@ Verify:
 * **Pass:** 
   * The ATE on Port 2 successfully authenticates and decrypts the incoming MACsec frames.
   * Upon decryption by the ATE, the inner packet structure perfectly matches the expected MPLS over GRE over UDP over IPv6 encapsulation.
-  * The DUT MACsec telemetry counter for `out-pkts-encrypted` accurately matches the total number of packets injected by the ATE.
+  * The DUT MACsec telemetry counter for `sc-encrypted` accurately matches the total number of packets injected by the ATE.
 * **Fail:** 
-  * The DUT fails to establish a MACsec session on Port 2 (the `oper-status` does not transition to `UP`).
+  * The DUT fails to establish a MACsec session on Port 2.
   * Packets are transmitted out of Port 2 in cleartext instead of being encrypted.
   * Cleartext packets received (forcefully injected by ATE port 2) on port2 and forwarded to ATE ports 3,4,5 and 6 with must secure configuration on DUT towards ATE port 2.
   * The outer IP header inside the MACsec payload is not IPv6.
@@ -443,19 +441,11 @@ paths:
  /keychains/keychain/keys/key/send-lifetime/config/send-and-receive:
  /keychains/keychain/keys/key/receive-lifetime/config/start-time:
  /keychains/keychain/keys/key/receive-lifetime/config/end-time:
- /macsec/interfaces/interface/mka/state/session-state:
- /macsec/interfaces/interface/scsa-tx/state/encrypted-pkts:
- /macsec/interfaces/interface/scsa-rx/state/decrypted-pkts:
  /network-instances/network-instance/policy-forwarding/policies/policy/config/policy-id:
  /network-instances/network-instance/policy-forwarding/policies/policy/config/type:
  /network-instances/network-instance/policy-forwarding/interfaces/interface/config/interface-id:
  /network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-forwarding-policy:
- /macsec/interfaces/interface/state/oper-status:
- /macsec/interfaces/interface/state/encryption-enable:
- /macsec/interfaces/interface/config/encryption-enable:
- /macsec/interfaces/interface/sa/state/out-pkts-encrypted:
- /macsec/interfaces/interface/sa/state/out-octets-encrypted:
-
+ 
 #TODO: Add following OC paths
 #/macsec/interfaces/interface/state/status:
 #/macsec/interfaces/interface/state/ckn:
