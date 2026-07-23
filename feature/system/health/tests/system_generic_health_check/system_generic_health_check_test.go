@@ -742,7 +742,7 @@ func TestInterfaceStatus(t *testing.T) {
 				t.Logf("INFO: Counter OutErrors: %d", root.GetCounters().GetOutErrors())
 			}
 			if deviations.InterfaceCountersInFcsErrorsUnsupported(dut) {
-				t.Logf("Skipping InFcsErrors check due to InterfaceCountersInFcsErrorsUnsupported devaiation.")
+				t.Logf("Skipping InFcsErrors check due to InterfaceCountersInFcsErrorsUnsupported deviation.")
 			} else if root.GetCounters().InFcsErrors == nil {
 				t.Errorf("ERROR: Counter InFcsErrors is not present")
 			} else {
@@ -808,71 +808,77 @@ func TestInterfacesubIntfs(t *testing.T) {
 						}
 					})
 
-					subIntfCounterPath := subIntfPath.Counters()
-					intfCounterPath := intfPath.Counters()
-					cases := []struct {
-						desc          string
-						counter       ygnmi.SingletonQuery[uint64]
-						parentCounter ygnmi.SingletonQuery[uint64]
-					}{
-						{
-							desc:          "InDiscards",
-							counter:       subIntfCounterPath.InDiscards().State(),
-							parentCounter: intfCounterPath.InDiscards().State(),
-						},
-						{
-							desc:          "InErrors",
-							counter:       subIntfCounterPath.InErrors().State(),
-							parentCounter: intfCounterPath.InErrors().State(),
-						},
-						{
-							desc:          "InUnknownProtos",
-							counter:       subIntfCounterPath.InUnknownProtos().State(),
-							parentCounter: intfCounterPath.InUnknownProtos().State(),
-						},
-						{
-							desc:          "InMulticastPkts",
-							counter:       subIntfCounterPath.InMulticastPkts().State(),
-							parentCounter: intfCounterPath.InMulticastPkts().State(),
-						},
-						{
-							desc:          "OutDiscards",
-							counter:       subIntfCounterPath.OutDiscards().State(),
-							parentCounter: intfCounterPath.OutDiscards().State(),
-						},
-						{
-							desc:          "OutErrors",
-							counter:       subIntfCounterPath.OutErrors().State(),
-							parentCounter: intfCounterPath.OutErrors().State(),
-						},
-						{
-							desc:          "OutOctets",
-							counter:       subIntfCounterPath.OutOctets().State(),
-							parentCounter: intfCounterPath.OutOctets().State(),
-						},
-						{
-							desc:          "InFcsErrors",
-							counter:       subIntfCounterPath.InFcsErrors().State(),
-							parentCounter: intfCounterPath.InFcsErrors().State(),
-						},
-					}
-					t.Logf("Verifying counters for Interfaces: %s", interfaces)
-					for _, c := range cases {
-						t.Run(c.desc, func(t *testing.T) {
-							if c.desc == "InUnknownProtos" && deviations.InterfaceCountersInUnknownProtosUnsupported(dut) {
-								t.Skipf("INFO: Skipping test due to deviation interface_counters_in_unknown_protos_unsupported")
-							} else if c.desc == "InFcsErrors" && deviations.InterfaceCountersInFcsErrorsUnsupported(dut) {
-								t.Skipf("INFO: Skipping test due to deviation interface_counters_in_fcs_errors_unsupported")
-							}
-							if val, present := gnmi.Lookup(t, dut, c.counter).Val(); present {
-								t.Logf("INFO: %s: %d", c.counter, val)
-							} else if pVal, pPresent := gnmi.Lookup(t, dut, c.parentCounter).Val(); pPresent {
-								t.Logf("INFO: %s: %d", c.parentCounter, pVal)
-							} else {
-								t.Errorf("ERROR: Neither %s nor %s is present", c.counter, c.parentCounter)
-							}
-						})
-					}
+					t.Run("Subinterface Counters", func(t *testing.T) {
+						if deviations.SubinterfacePacketCountersMissing(dut) {
+							t.Skipf("Skipping subinterface packet counter tests due to deviation subinterface_packet_counters_missing")
+						}
+
+						subIntfCounterPath := subIntfPath.Counters()
+						intfCounterPath := intfPath.Counters()
+						cases := []struct {
+							desc          string
+							counter       ygnmi.SingletonQuery[uint64]
+							parentCounter ygnmi.SingletonQuery[uint64]
+						}{
+							{
+								desc:          "InDiscards",
+								counter:       subIntfCounterPath.InDiscards().State(),
+								parentCounter: intfCounterPath.InDiscards().State(),
+							},
+							{
+								desc:          "InErrors",
+								counter:       subIntfCounterPath.InErrors().State(),
+								parentCounter: intfCounterPath.InErrors().State(),
+							},
+							{
+								desc:          "InUnknownProtos",
+								counter:       subIntfCounterPath.InUnknownProtos().State(),
+								parentCounter: intfCounterPath.InUnknownProtos().State(),
+							},
+							{
+								desc:          "InMulticastPkts",
+								counter:       subIntfCounterPath.InMulticastPkts().State(),
+								parentCounter: intfCounterPath.InMulticastPkts().State(),
+							},
+							{
+								desc:          "OutDiscards",
+								counter:       subIntfCounterPath.OutDiscards().State(),
+								parentCounter: intfCounterPath.OutDiscards().State(),
+							},
+							{
+								desc:          "OutErrors",
+								counter:       subIntfCounterPath.OutErrors().State(),
+								parentCounter: intfCounterPath.OutErrors().State(),
+							},
+							{
+								desc:          "OutOctets",
+								counter:       subIntfCounterPath.OutOctets().State(),
+								parentCounter: intfCounterPath.OutOctets().State(),
+							},
+							{
+								desc:          "InFcsErrors",
+								counter:       subIntfCounterPath.InFcsErrors().State(),
+								parentCounter: intfCounterPath.InFcsErrors().State(),
+							},
+						}
+						t.Logf("Verifying counters for Interfaces: %s", interfaces)
+						for _, c := range cases {
+							t.Run(c.desc, func(t *testing.T) {
+								if c.desc == "InUnknownProtos" && deviations.InterfaceCountersInUnknownProtosUnsupported(dut) {
+									t.Skipf("INFO: Skipping test due to deviation interface_counters_in_unknown_protos_unsupported")
+								} else if c.desc == "InFcsErrors" && deviations.InterfaceCountersInFcsErrorsUnsupported(dut) {
+									t.Skipf("INFO: Skipping test due to deviation interface_counters_in_fcs_errors_unsupported")
+								}
+								if val, present := gnmi.Lookup(t, dut, c.counter).Val(); present {
+									t.Logf("INFO: %s: %d", c.counter, val)
+								} else if pVal, pPresent := gnmi.Lookup(t, dut, c.parentCounter).Val(); pPresent {
+									t.Logf("INFO: %s: %d", c.parentCounter, pVal)
+								} else {
+									t.Errorf("ERROR: Neither %s nor %s is present", c.counter, c.parentCounter)
+								}
+							})
+						}
+					})
 				})
 			}
 		})
