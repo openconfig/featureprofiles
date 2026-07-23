@@ -301,7 +301,7 @@ paths:
   # Static LSP Paths
   /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/ingress/config/next-hop:
   /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/ingress/config/push-label:
-  /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/state/oper-status:
+  /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/ingress/state/oper-status:
 
   # IPv6 Neighbor paths
   /interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor/state/link-layer-address:
