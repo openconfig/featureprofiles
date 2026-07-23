@@ -409,7 +409,7 @@ encapsulation and ingress decapsulation types are mapped to interface speeds:
                 "policy-id": "customer1",
                 "config": {
                   "policy-id": "customer1",
-                  "type": "openconfig-policy-forwarding-types:PBR"
+                  "type": "PBR_POLICY"
                 },
                 "rules": {
                   "rule": [
@@ -436,7 +436,7 @@ encapsulation and ingress decapsulation types are mapped to interface speeds:
                 "policy-id": "decap-policy",
                 "config": {
                   "policy-id": "decap-policy",
-                  "type": "openconfig-policy-forwarding-types:PBR"
+                  "type": "PBR_POLICY"
                 },
                 "rules": {
                   "rule": [
@@ -593,6 +593,7 @@ paths:
     /network-instances/network-instance/policy-forwarding/interfaces/interface/config/interface-id:
     /network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-forwarding-policy:
     /network-instances/network-instance/policy-forwarding/next-hop-groups/next-hop-group/next-hops/next-hop/encap-header/udp-v4/config/dst-udp-port:
+    /network-instances/network-instance/policy-forwarding/policies/policy/config/type:
     /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-gre:
     /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-gue:
     /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/config/name:
