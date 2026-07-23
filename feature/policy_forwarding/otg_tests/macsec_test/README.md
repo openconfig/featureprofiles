@@ -441,7 +441,7 @@ encapsulation and ingress decapsulation types are mapped to interface speeds:
         }
       ]
     },
-    "openconfig-macsec:mka": {
+    "mka": {
       "policies": {
         "policy": [
           {
@@ -474,7 +474,7 @@ encapsulation and ingress decapsulation types are mapped to interface speeds:
           }
         ]
       }
-  }
+    }
   },
   "openconfig-mpls:mpls": {
     "lsps": {
