@@ -399,6 +399,16 @@ encapsulation and ingress decapsulation types are mapped to interface speeds:
 
 ```json
 {
+  "openconfig-interfaces:interfaces": {
+    "interface": [
+      {
+        "name": "Ethernet1/1",
+        "config": {
+          "name": "Ethernet1/1"
+        }
+      }
+    ]
+  },
   "openconfig-keychain:keychains": {
     "keychain": [
       {
@@ -495,13 +505,68 @@ encapsulation and ingress decapsulation types are mapped to interface speeds:
                   "egress": {
                     "config": {
                       "incoming-label": 99998,
-                      "next-hop": "192.0.2.1",
-                      "push-label": 3
+                      "next-hop": "192.0.2.1"
                     }
                   }
                 }
               ]
             }
+          }
+        },
+        "static": {
+          "next-hop-groups": {
+            "next-hop-group": [
+              {
+                "name": "MPLS_in_GRE_Encap",
+                "config": {
+                  "name": "MPLS_in_GRE_Encap"
+                },
+                "next-hops": {
+                  "next-hop": [
+                    {
+                      "index": "1",
+                      "config": {
+                        "index": "1"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "MPLS_in_UDP_Encap",
+                "config": {
+                  "name": "MPLS_in_UDP_Encap"
+                },
+                "next-hops": {
+                  "next-hop": [
+                    {
+                      "index": "2",
+                      "config": {
+                        "index": "2"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "next-hops": {
+            "next-hop": [
+              {
+                "index": "1",
+                "config": {
+                  "index": "1",
+                  "next-hop": "192.0.2.1"
+                }
+              },
+              {
+                "index": "2",
+                "config": {
+                  "index": "2",
+                  "next-hop": "192.0.2.1"
+                }
+              }
+            ]
           }
         },
         "policy-forwarding": {
@@ -656,7 +721,9 @@ paths:
     /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/config/name:
     /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/incoming-label:
     /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/next-hop:
-    /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/push-label:
+    /network-instances/network-instance/static/next-hop-groups/next-hop-group/config/name:
+    /network-instances/network-instance/static/next-hops/next-hop/config/index:
+    /network-instances/network-instance/static/next-hops/next-hop/config/next-hop:
   state:
     /macsec/mka/interfaces/interface/state/active-key-id:
     /macsec/mka/policies/policy/state/security-policy:
