@@ -61,14 +61,17 @@ func NewStaticRouteCfg(batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUT
 	if cfg == nil {
 		return nil, errors.New("cfg must be defined")
 	}
-
 	ni := normalizeNIName(cfg.NetworkInstance, d)
-
 	c := &oc.NetworkInstance_Protocol{
 		Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
 		Name:       ygot.String(deviations.StaticProtocolName(d)),
 	}
 	s := c.GetOrCreateStatic(cfg.Prefix)
+
+	// cliConfigured tracks whether the route was fully configured via CLI
+	// deviation, in which case the OC batch write below must be skipped to
+	// avoid double-configuring/conflicting with the CLI path.
+	cliConfigured := false
 	if cfg.NexthopGroup {
 		if deviations.StaticRouteToNHGOCUnsupported(d) {
 			switch d.Vendor() {
@@ -76,6 +79,7 @@ func NewStaticRouteCfg(batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUT
 				cli := fmt.Sprintf(`ipv6 route %s nexthop-group %s`, cfg.Prefix, cfg.NexthopGroupName)
 				helpers.GnmiCLIConfig(cfg.T, d, cli)
 				staticRouteToNextHopGroupCLI(cfg.T, d, *cfg)
+				cliConfigured = true
 			default:
 				return s, fmt.Errorf("deviation StaticRouteToNHGOCUnsupported is not handled for the dut: %s", d.Vendor())
 			}
@@ -97,12 +101,15 @@ func NewStaticRouteCfg(batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUT
 			}
 		}
 	}
-
 	// Handle Interface-based NextHop (Resolution routes)
 	if cfg.NextHopIntf != "" {
 		// Usually "0" is used as the index if only one interface is provided
 		nh := s.GetOrCreateNextHop("0")
 		nh.GetOrCreateInterfaceRef().Interface = ygot.String(cfg.NextHopIntf)
+	}
+
+	if cliConfigured {
+		return s, nil
 	}
 
 	sp := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(d))

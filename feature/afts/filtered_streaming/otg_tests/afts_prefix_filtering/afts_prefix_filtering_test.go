@@ -31,36 +31,36 @@ import (
 )
 
 const (
-	v4PfxSetA      = "PREFIX-SET-A"
-	v6PfxSetB      = "PREFIX-SET-B"
-	vrfPfxSetA     = "PREFIX-SET-VRF-A"
-	subnetPfxSetV4 = "PREFIX-SET-SUBNET"
-	subnetPfxSetV6 = "PREFIX-SET-SUBNET-V6"
-	policyPfxSetA     = "POLICY-PREFIX-SET-A"
-	policyPfxSetB     = "POLICY-PREFIX-SET-B"
-	policyVrfA        = "POLICY-PREFIX-SET-VRF-A"
-	policySubnet      = "POLICY-SUBNET"
-	policySubnetV6    = "POLICY-SUBNET-V6"
-	policyMultiStmt   = "POLICY-MULTI-STMT"
-	policyDenyPfxSetA = "POLICY-DENY-PREFIX-SET-A"
-	policyTagMatch    = "POLICY-TAG-MATCH"
-	policyNotYetExist = "POLICY-DOES-NOT-YET-EXIST"
-	pfxSetNotYetExist = "PREFIX-SET-DOES-NOT-YET-EXIST"
-	secondStatementName = "20"
-	tagStatementName    = "100"
+	v4PfxSetA            = "PREFIX-SET-A"
+	v6PfxSetB            = "PREFIX-SET-B"
+	vrfPfxSetA           = "PREFIX-SET-VRF-A"
+	subnetPfxSetV4       = "PREFIX-SET-SUBNET"
+	subnetPfxSetV6       = "PREFIX-SET-SUBNET-V6"
+	policyPfxSetA        = "POLICY-PREFIX-SET-A"
+	policyPfxSetB        = "POLICY-PREFIX-SET-B"
+	policyVrfA           = "POLICY-PREFIX-SET-VRF-A"
+	policySubnet         = "POLICY-SUBNET"
+	policySubnetV6       = "POLICY-SUBNET-V6"
+	policyMultiStmt      = "POLICY-MULTI-STMT"
+	policyDenyPfxSetA    = "POLICY-DENY-PREFIX-SET-A"
+	policyTagMatch       = "POLICY-TAG-MATCH"
+	policyNotYetExist    = "POLICY-DOES-NOT-YET-EXIST"
+	pfxSetNotYetExist    = "PREFIX-SET-DOES-NOT-YET-EXIST"
+	secondStatementName  = "20"
+	tagStatementName     = "100"
 	notificationWaitTime = 30 * time.Second
-	policyMatchAll       = aftpf.AFTFilterPolicyMatchAll
-	defaultStatementName = aftpf.AFTFilterDefaultStatementName
-	pfxMode              = aftpf.AFTFilterPfxMode
-	subscriptionWait     = aftpf.AFTFilterSubscriptionWait
-	staticRouteIndex     = aftpf.AFTFilterStaticRouteIndex
+	policyMatchAll       = aftpf.PolicyMatchAll
+	defaultStatementName = aftpf.DefaultStatementName
+	pfxMode              = aftpf.PfxMode
+	subscriptionWait     = aftpf.AFTSubscriptionWait
+	staticRouteIndex     = aftpf.StaticRouteIndex
 )
 
 var (
-	atePort1 = aftpf.AFTFilterATEPort1
-	dialGNMI           = aftpf.AFTFilterDialGNMI
-	deleteGlobalFilter = aftpf.AFTFilterDeleteGlobalFilter
-	baseIPv4Prefixes = []string{
+	atePort1           = aftpf.ATEPort1
+	dialGNMI           = aftpf.DialGNMI
+	deleteGlobalFilter = aftpf.AFTDeleteGlobalFilter
+	baseIPv4Prefixes   = []string{
 		"198.51.100.0/24",
 		"203.0.113.0/28",
 		"100.64.0.0/24",
@@ -74,10 +74,12 @@ var (
 		"198.51.100.0/24",
 		"203.0.113.0/28",
 		"198.51.100.1/32",
+		"0.0.0.0/0",
 	}
 	pfxSetBMembers = []string{
 		"2001:db8:2::/64",
 		"2001:db8:2::1/128",
+		"0::0/0",
 	}
 )
 
@@ -86,33 +88,100 @@ func configurePolicies(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatc
 	t.Helper()
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
-	cfgplugins.AddPrefixSetPolicy(t, rp, cfgplugins.PrefixSetPolicyParams{PolicyName: policyMatchAll, StatementNames: []string{defaultStatementName}, PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE})
-	cfgplugins.AddPrefixSetPolicyWithMatch(t, rp, cfgplugins.PrefixSetPolicyParams{PolicyName: policyPfxSetA, StatementNames: []string{defaultStatementName}, PrefixSetNames: []string{v4PfxSetA}, PrefixList: pfxSetAMembers, PrefixMode: pfxMode, PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE})
-	cfgplugins.AddPrefixSetPolicyWithMatch(t, rp, cfgplugins.PrefixSetPolicyParams{PolicyName: policyPfxSetB, StatementNames: []string{defaultStatementName}, PrefixSetNames: []string{v6PfxSetB}, PrefixList: pfxSetBMembers, PrefixMode: pfxMode, PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE})
-	cfgplugins.AddPrefixSetPolicyWithMatch(t, rp, cfgplugins.PrefixSetPolicyParams{PolicyName: policyVrfA, StatementNames: []string{defaultStatementName}, PrefixSetNames: []string{vrfPfxSetA}, PrefixList: []string{"100.64.1.0/24"}, PrefixMode: "24..32", PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE})
-	cfgplugins.AddPrefixSetPolicyWithMatch(t, rp, cfgplugins.PrefixSetPolicyParams{PolicyName: policySubnet, StatementNames: []string{defaultStatementName}, PrefixSetNames: []string{subnetPfxSetV4}, PrefixList: []string{"203.0.113.0/24"}, PrefixMode: "25..32", PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE})
-	cfgplugins.AddPrefixSetPolicyWithMatch(t, rp, cfgplugins.PrefixSetPolicyParams{PolicyName: policySubnetV6, StatementNames: []string{defaultStatementName}, PrefixSetNames: []string{subnetPfxSetV6}, PrefixList: []string{"2001:db8:3::/64"}, PrefixMode: "65..128", PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE})
-	cfgplugins.AddPrefixSetPolicy(t, rp, cfgplugins.PrefixSetPolicyParams{PolicyName: policyMultiStmt, StatementNames: []string{defaultStatementName, secondStatementName}, PrefixSetNames: []string{v4PfxSetA, subnetPfxSetV4}, MatchPrefixSet: true, PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE})
-	cfgplugins.AddPrefixSetPolicy(t, rp, cfgplugins.PrefixSetPolicyParams{PolicyName: policyDenyPfxSetA, StatementNames: []string{defaultStatementName, secondStatementName}, PrefixSetNames: []string{v4PfxSetA, ""}, MatchPrefixSet: true, PrefixDeny: true, PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE})
-	cfgplugins.AddPrefixSetPolicy(t, rp, cfgplugins.PrefixSetPolicyParams{PolicyName: policyTagMatch, StatementNames: []string{tagStatementName}, MatchPrefixSet: true, SetTag: true, PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE})
+	cfgplugins.AddPrefixSetPolicy(t, rp, cfgplugins.PrefixSetPolicyParams{
+		PolicyName:     policyMatchAll,
+		StatementNames: []string{defaultStatementName},
+		PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
+	})
+	cfgplugins.AddPrefixSetPolicyWithMatch(t, rp, cfgplugins.PrefixSetPolicyParams{
+		PolicyName:     policyPfxSetA,
+		StatementNames: []string{defaultStatementName},
+		PrefixSetNames: []string{v4PfxSetA},
+		PrefixList:     pfxSetAMembers,
+		PrefixMode:     pfxMode,
+		PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
+	})
+	cfgplugins.AddPrefixSetPolicyWithMatch(t, rp, cfgplugins.PrefixSetPolicyParams{
+		PolicyName:     policyPfxSetB,
+		StatementNames: []string{defaultStatementName},
+		PrefixSetNames: []string{v6PfxSetB},
+		PrefixList:     pfxSetBMembers,
+		PrefixMode:     pfxMode,
+		PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
+	})
+	cfgplugins.AddPrefixSetPolicyWithMatch(t, rp, cfgplugins.PrefixSetPolicyParams{
+		PolicyName:     policyVrfA,
+		StatementNames: []string{defaultStatementName},
+		PrefixSetNames: []string{vrfPfxSetA},
+		PrefixList:     []string{"100.64.1.0/24"},
+		PrefixMode:     "24..32",
+		PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
+	})
+	cfgplugins.AddPrefixSetPolicyWithMatch(t, rp, cfgplugins.PrefixSetPolicyParams{
+		PolicyName:     policySubnet,
+		StatementNames: []string{defaultStatementName},
+		PrefixSetNames: []string{subnetPfxSetV4},
+		PrefixList:     []string{"203.0.113.0/24"},
+		PrefixMode:     "25..32",
+		PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
+	})
+	cfgplugins.AddPrefixSetPolicyWithMatch(t, rp, cfgplugins.PrefixSetPolicyParams{
+		PolicyName:     policySubnetV6,
+		StatementNames: []string{defaultStatementName},
+		PrefixSetNames: []string{subnetPfxSetV6},
+		PrefixList:     []string{"2001:db8:3::/64"},
+		PrefixMode:     "65..128",
+		PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
+	})
+	cfgplugins.AddPrefixSetPolicy(t, rp, cfgplugins.PrefixSetPolicyParams{
+		PolicyName:     policyMultiStmt,
+		StatementNames: []string{defaultStatementName, secondStatementName},
+		PrefixSetNames: []string{v4PfxSetA, subnetPfxSetV4},
+		MatchPrefixSet: true,
+		PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
+	})
+	cfgplugins.AddPrefixSetPolicy(t, rp, cfgplugins.PrefixSetPolicyParams{
+		PolicyName:     policyDenyPfxSetA,
+		StatementNames: []string{defaultStatementName, secondStatementName},
+		PrefixSetNames: []string{v4PfxSetA, ""},
+		MatchPrefixSet: true,
+		PrefixDeny:     true,
+		PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
+	})
+	cfgplugins.AddPrefixSetPolicy(t, rp, cfgplugins.PrefixSetPolicyParams{
+		PolicyName:     policyTagMatch,
+		StatementNames: []string{tagStatementName},
+		MatchPrefixSet: true,
+		SetTag:         true,
+		PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
+	})
 	gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
 	batch.Set(t, dut)
 }
 
-// addSingleStaticRoute adds one static route to the given network instance
-func addSingleStaticRoute(t *testing.T, dut *ondatra.DUTDevice, niName, prefix, index, nextHop string) error {
+// addSingleStaticRoute adds one static route to the given network instance.
+// batch.Set fails the test directly on error, so there is no error to
+// propagate to the caller.
+func addSingleStaticRoute(t *testing.T, dut *ondatra.DUTDevice, niName, prefix, index, nextHop string) {
 	t.Helper()
 	batch := &gnmi.SetBatch{}
-	cfgplugins.ConfigureStaticRoute(t, dut, batch, cfgplugins.ConfigureStaticRouteParams{NetworkInstance: niName, Prefix: prefix, Index: index, NextHop: nextHop})
+	cfgplugins.ConfigureStaticRoute(t, dut, batch, cfgplugins.ConfigureStaticRouteParams{
+		NetworkInstance: niName,
+		Prefix:          prefix,
+		Index:           index,
+		NextHop:         nextHop,
+	})
 	batch.Set(t, dut)
-	return nil
 }
 
-// removeStaticRoute deletes a static route (keyed by prefix) from the given network instance
-func removeStaticRoute(t *testing.T, dut *ondatra.DUTDevice, niName, prefix string) error {
+// removeStaticRoute deletes a static route (keyed by prefix) from the given
+// network instance. gnmi.Delete fails the test directly on error, so there
+// is no error to propagate to the caller.
+func removeStaticRoute(t *testing.T, dut *ondatra.DUTDevice, niName, prefix string) {
 	t.Helper()
-	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(niName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Static(prefix).Config())
-	return nil
+	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(niName).
+		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).
+		Static(prefix).Config())
 }
 
 // policyDefinitionPath builds the gNMI path for a policy-definition list entry.
@@ -150,7 +219,8 @@ func statementPrefixSetConfigPath(policyName, statementName string) *gpb.Path {
 
 // setGlobalFilterExpectCode sets the global-filter policy leaves and returns an
 // error unless the gNMI Set fails with exactly the given status code.
-func setGlobalFilterExpectCode(t *testing.T, dut *ondatra.DUTDevice, niName, v4Policy, v6Policy string, wantCode codes.Code) error {
+func setGlobalFilterExpectCode(t *testing.T, dut *ondatra.DUTDevice, niName, v4Policy, v6Policy string,
+	wantCode codes.Code) error {
 	t.Helper()
 	if deviations.AftsGlobalFilterPolicyOCUnsupported(dut) {
 		switch dut.Vendor() {
@@ -166,7 +236,6 @@ func setGlobalFilterExpectCode(t *testing.T, dut *ondatra.DUTDevice, niName, v4P
 	// generated ondatra `oc` bindings do not yet contain the GlobalFilter
 	// container, so the calls are commented out; uncomment them once the
 	// bindings are regenerated against openconfig/public >= 3.3.0.
-	//
 	// gf := gnmi.OC().NetworkInstance(niName).Afts().GlobalFilter()
 	// batch := &gnmi.SetBatch{}
 	// if v4Policy != "" {
@@ -178,7 +247,8 @@ func setGlobalFilterExpectCode(t *testing.T, dut *ondatra.DUTDevice, niName, v4P
 	// // Requires a non-fatal Set variant to inspect the returned status code
 	// // against wantCode instead of failing the test on RPC error.
 	// return nil
-	return fmt.Errorf("aft global filter policy is expected to be supported on %s, but no OpenConfig implementation is available", dut.Vendor())
+	return fmt.Errorf("aft global filter policy is expected to be supported on %s, "+
+		"but no OpenConfig implementation is available", dut.Vendor())
 }
 
 // deletePolicyExpectCode attempts to delete a policy-definition and returns
@@ -226,19 +296,20 @@ func deleteGlobalFilterAndPolicyAtomic(t *testing.T, dut *ondatra.DUTDevice, niN
 	// API. The generated ondatra `oc` bindings do not yet contain the
 	// GlobalFilter container, so the calls are commented out; uncomment them
 	// once the bindings are regenerated against openconfig/public >= 3.3.0.
-	//
 	// batch := &gnmi.SetBatch{}
 	// gnmi.BatchDelete(batch, gnmi.OC().NetworkInstance(niName).Afts().GlobalFilter().Ipv4Policy().Config())
 	// gnmi.BatchDelete(batch, gnmi.OC().NetworkInstance(niName).Afts().GlobalFilter().Ipv6Policy().Config())
 	// gnmi.BatchDelete(batch, gnmi.OC().RoutingPolicy().PolicyDefinition(policyName).Config())
 	// batch.Set(t, dut)
 	// return nil
-	return fmt.Errorf("aft global filter deletion is expected to be supported on %s, but no OpenConfig implementation is available", dut.Vendor())
+	return fmt.Errorf("aft global filter deletion is expected to be supported on %s, "+
+		"but no OpenConfig implementation is available", dut.Vendor())
 }
 
 // updatePolicyStatementPrefixSet replaces the prefix-set referenced by a
 // policy statement's match-prefix-set condition.
-func updatePolicyStatementPrefixSet(t *testing.T, dut *ondatra.DUTDevice, policyName, statementName, newPrefixSet string) error {
+func updatePolicyStatementPrefixSet(t *testing.T, dut *ondatra.DUTDevice, policyName, statementName,
+	newPrefixSet string) error {
 	t.Helper()
 	client, err := dialGNMI(t, dut)
 	if err != nil {
@@ -251,7 +322,8 @@ func updatePolicyStatementPrefixSet(t *testing.T, dut *ondatra.DUTDevice, policy
 		},
 	}}
 	if _, err := client.Set(context.Background(), req); err != nil {
-		return fmt.Errorf("failed to update policy %s statement %s prefix-set to %s: %w", policyName, statementName, newPrefixSet, err)
+		return fmt.Errorf("failed to update policy %s statement %s prefix-set to %s: %w",
+			policyName, statementName, newPrefixSet, err)
 	}
 	return nil
 }
@@ -372,9 +444,9 @@ func notificationHasName(n *gpb.Notification, name string) bool {
 	return false
 }
 
-// verifyNextHopsRetained confirms the next-hop-group and next-hops backing a
-// prefix are still present in the filtered AFT.
-func verifyNextHopsRetained(aft *aftcache.AFTData, prefix string) error {
+// verifyNexthopGroupsAndNexthopsRetained confirms the next-hop-group and
+// next-hops backing a prefix are still present in the filtered AFT.
+func verifyNexthopGroupsAndNexthopsRetained(aft *aftcache.AFTData, prefix string) error {
 	nhgID, ok := aft.Prefixes[prefix]
 	if !ok {
 		return fmt.Errorf("retained prefix %s missing from filtered AFT after dynamic delete", prefix)
@@ -403,10 +475,8 @@ func runPrefixSetIteration(t *testing.T, dut *ondatra.DUTDevice, tc prefixSetIte
 	ni := deviations.DefaultNetworkInstance(dut)
 
 	if tc.extraRoute != "" {
-		if err := addSingleStaticRoute(t, dut, ni, tc.extraRoute, fmt.Sprintf("%d", staticRouteIndex+500+iterIdx), tc.nextHop); err != nil {
-			t.Errorf("%s: failed to add extra route %s: %v", tc.name, tc.extraRoute, err)
-			return
-		}
+		idx := fmt.Sprintf("%d", staticRouteIndex+500+iterIdx)
+		addSingleStaticRoute(t, dut, ni, tc.extraRoute, idx, tc.nextHop)
 	}
 
 	v4Policy, v6Policy := "", ""
@@ -415,7 +485,11 @@ func runPrefixSetIteration(t *testing.T, dut *ondatra.DUTDevice, tc prefixSetIte
 	} else {
 		v6Policy = tc.policyName
 	}
-	cfgplugins.ConfigureGlobalFilterPolicies(t, dut, cfgplugins.ConfigureGlobalFilterPoliciesParams{V4Policy: v4Policy, V6Policy: v6Policy, VRFName: ni})
+	aftpf.ConfigureGlobalFilterPolicies(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{
+		V4Policy: v4Policy,
+		V6Policy: v6Policy,
+		VRFName:  ni,
+	})
 
 	rawStream, rawErr := newRawAFTStream(ctx, t, dut, ni)
 	if rawErr != nil {
@@ -430,7 +504,10 @@ func runPrefixSetIteration(t *testing.T, dut *ondatra.DUTDevice, tc prefixSetIte
 	t.Logf("%s - Initial Synchronization", tc.name)
 
 	collector := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
-	collector.ListenUntilPreUpdateHook(context.Background(), t, subscriptionWait, []aftcache.NotificationHook{aftcache.VerifyAtomicFlagHook(t)}, aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}))
+	collector.ListenUntilPreUpdateHook(context.Background(), t, subscriptionWait,
+		[]aftcache.NotificationHook{aftcache.VerifyAtomicFlagHook(t)},
+		aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes,
+			map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}))
 	initialAFT, err := collector.ToAFT(t, dut)
 	if err != nil {
 		t.Errorf("%s: ToAFT failed: %v", tc.name, err)
@@ -449,56 +526,49 @@ func runPrefixSetIteration(t *testing.T, dut *ondatra.DUTDevice, tc prefixSetIte
 			dynV6NH = map[string]bool{atePort1.IPv6: true}
 		}
 
-		if err := addSingleStaticRoute(t, dut, ni, tc.dynamicAddPrefix, fmt.Sprintf("%d", staticRouteIndex+600+iterIdx), tc.nextHop); err != nil {
-			t.Errorf("%s: failed to add dynamic prefix %s: %v", tc.name, tc.dynamicAddPrefix, err)
-		} else {
-			// Keep watching the same streaming session so the dynamic add is
-			// observed as an incremental notification on the existing stream.
-			aftpf.RunCollector(t, aftpf.RunCollectorParams{Ctx: context.Background(), Collector: collector, Stop: aftcache.InitialSyncStoppingCondition(t, dut, map[string]bool{tc.dynamicAddPrefix: true}, dynV4NH, dynV6NH), Timeout: subscriptionWait})
-			addAFT, err := collector.ToAFT(t, dut)
-			if err != nil {
-				t.Errorf("%s: ToAFT failed after adding %s: %v", tc.name, tc.dynamicAddPrefix, err)
-			} else {
-				aftpf.VerifyPrefixesPresent(t, aftpf.PrefixesParams{InfoAFT: addAFT, Prefixes: []string{tc.dynamicAddPrefix}})
-			}
+		dynIdx := fmt.Sprintf("%d", staticRouteIndex+600+iterIdx)
+		addSingleStaticRoute(t, dut, ni, tc.dynamicAddPrefix, dynIdx, tc.nextHop)
 
-			if err := removeStaticRoute(t, dut, ni, tc.dynamicAddPrefix); err != nil {
-				t.Errorf("%s: failed to remove dynamic prefix %s: %v", tc.name, tc.dynamicAddPrefix, err)
-			} else {
-				// Same session again: the delete must be seen as a streamed
-				// deletion notification, not by re-subscribing after the fact.
-				aftpf.RunCollector(t, aftpf.RunCollectorParams{Ctx: context.Background(), Collector: collector, Stop: aftcache.DeletionStoppingCondition(t, dut, map[string]bool{tc.dynamicAddPrefix: true}), Timeout: subscriptionWait})
-				delAFT, err := collector.ToAFT(t, dut)
-				if err != nil {
-					t.Errorf("%s: ToAFT failed after removing %s: %v", tc.name, tc.dynamicAddPrefix, err)
-				} else {
-					aftpf.VerifyPrefixesAbsent(t, aftpf.PrefixesParams{InfoAFT: delAFT, Prefixes: []string{tc.dynamicAddPrefix}})
-					if len(tc.matchPrefixes) > 0 {
-						if err := verifyNextHopsRetained(delAFT, tc.matchPrefixes[0]); err != nil {
-							t.Errorf("%s: %v", tc.name, err)
-						}
-					}
-				}
+		// Keep watching the same streaming session so the dynamic add is
+		// observed as an incremental notification on the existing stream.
+		aftpf.CollectAndVerify(t, dut, aftpf.RunCollectorParams{
+			Ctx:       context.Background(),
+			Collector: collector,
+			Stop: aftcache.InitialSyncStoppingCondition(t, dut, map[string]bool{tc.dynamicAddPrefix: true},
+				dynV4NH, dynV6NH),
+			Timeout: subscriptionWait,
+		}, []string{tc.dynamicAddPrefix}, nil)
+
+		removeStaticRoute(t, dut, ni, tc.dynamicAddPrefix)
+
+		// Same session again: the delete must be seen as a streamed
+		// deletion notification, not by re-subscribing after the fact.
+		delAFT := aftpf.CollectAndVerify(t, dut, aftpf.RunCollectorParams{
+			Ctx:       context.Background(),
+			Collector: collector,
+			Stop:      aftcache.DeletionStoppingCondition(t, dut, map[string]bool{tc.dynamicAddPrefix: true}),
+			Timeout:   subscriptionWait,
+		}, nil, []string{tc.dynamicAddPrefix})
+		if delAFT != nil && len(tc.matchPrefixes) > 0 {
+			if err := verifyNexthopGroupsAndNexthopsRetained(delAFT, tc.matchPrefixes[0]); err != nil {
+				t.Errorf("%s: %v", tc.name, err)
 			}
 		}
 
 		if tc.dynamicNonMatchPrefix != "" {
-			if err := addSingleStaticRoute(t, dut, ni, tc.dynamicNonMatchPrefix, fmt.Sprintf("%d", staticRouteIndex+650+iterIdx), tc.nextHop); err != nil {
-				t.Errorf("%s: failed to add non-matching dynamic prefix %s: %v", tc.name, tc.dynamicNonMatchPrefix, err)
-			} else {
-				// Drain the existing stream and confirm the non-matching prefix
-				// never surfaces; it must stay absent from the filtered view.
-				aftpf.RunCollector(t, aftpf.RunCollectorParams{Ctx: context.Background(), Collector: collector, Stop: aftcache.DeletionStoppingCondition(t, dut, map[string]bool{tc.dynamicNonMatchPrefix: true}), Timeout: notificationWaitTime})
-				nmAFT, err := collector.ToAFT(t, dut)
-				if err != nil {
-					t.Errorf("%s: ToAFT failed checking non-matching prefix %s: %v", tc.name, tc.dynamicNonMatchPrefix, err)
-				} else {
-					aftpf.VerifyPrefixesAbsent(t, aftpf.PrefixesParams{InfoAFT: nmAFT, Prefixes: []string{tc.dynamicNonMatchPrefix}})
-				}
-				if err := removeStaticRoute(t, dut, ni, tc.dynamicNonMatchPrefix); err != nil {
-					t.Errorf("%s: failed to clean up non-matching dynamic prefix %s: %v", tc.name, tc.dynamicNonMatchPrefix, err)
-				}
-			}
+			nmIdx := fmt.Sprintf("%d", staticRouteIndex+650+iterIdx)
+			addSingleStaticRoute(t, dut, ni, tc.dynamicNonMatchPrefix, nmIdx, tc.nextHop)
+
+			// Drain the existing stream and confirm the non-matching prefix
+			// never surfaces; it must stay absent from the filtered view.
+			aftpf.CollectAndVerify(t, dut, aftpf.RunCollectorParams{
+				Ctx:       context.Background(),
+				Collector: collector,
+				Stop:      aftcache.DeletionStoppingCondition(t, dut, map[string]bool{tc.dynamicNonMatchPrefix: true}),
+				Timeout:   notificationWaitTime,
+			}, nil, []string{tc.dynamicNonMatchPrefix})
+
+			removeStaticRoute(t, dut, ni, tc.dynamicNonMatchPrefix)
 		}
 	}
 
@@ -515,25 +585,24 @@ func runPrefixSetIteration(t *testing.T, dut *ondatra.DUTDevice, tc prefixSetIte
 			wantDeleteLeaf = "ipv6-policy"
 		}
 		if !rawStream.awaitStateDelete(subscriptionWait, wantDeleteLeaf) {
-			t.Errorf("%s: did not receive global-filter/state/%s delete notification after removing the filter", tc.name, wantDeleteLeaf)
+			t.Errorf("%s: did not receive global-filter/state/%s delete notification after removing the filter",
+				tc.name, wantDeleteLeaf)
 		}
 	}
 
 	liftWant := map[string]bool{tc.nonMatchPrefix: true}
 	// The filter removal is validated on the same stream: the previously
 	// filtered-out prefix must now appear as a streamed update.
-	aftpf.RunCollector(t, aftpf.RunCollectorParams{Ctx: context.Background(), Collector: collector, Stop: aftcache.InitialSyncStoppingCondition(t, dut, liftWant, map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}), Timeout: subscriptionWait})
-	liftedAFT, err := collector.ToAFT(t, dut)
-	if err != nil {
-		t.Errorf("%s: ToAFT failed after removing filter: %v", tc.name, err)
-	} else {
-		aftpf.VerifyPrefixesPresent(t, aftpf.PrefixesParams{InfoAFT: liftedAFT, Prefixes: []string{tc.nonMatchPrefix}})
-	}
+	aftpf.CollectAndVerify(t, dut, aftpf.RunCollectorParams{
+		Ctx:       context.Background(),
+		Collector: collector,
+		Stop: aftcache.InitialSyncStoppingCondition(t, dut, liftWant,
+			map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}),
+		Timeout: subscriptionWait,
+	}, []string{tc.nonMatchPrefix}, nil)
 
 	if tc.extraRoute != "" {
-		if err := removeStaticRoute(t, dut, ni, tc.extraRoute); err != nil {
-			t.Errorf("%s: failed to clean up extra route %s: %v", tc.name, tc.extraRoute, err)
-		}
+		removeStaticRoute(t, dut, ni, tc.extraRoute)
 	}
 }
 
@@ -607,43 +676,318 @@ func testNonExistentPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	ni := deviations.DefaultNetworkInstance(dut)
 	matchPrefix := "198.51.100.128/25"
 
-	if err := setGlobalFilterExpectCode(t, dut, ni, policyNotYetExist, policyNotYetExist, codes.FailedPrecondition); err != nil {
+	if err := setGlobalFilterExpectCode(t, dut, ni, policyNotYetExist, policyNotYetExist,
+		codes.FailedPrecondition); err != nil {
 		t.Errorf("Non-existent policy check: %v", err)
 	}
 
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
-	cfgplugins.AddPrefixSetPolicyWithMatch(t, rp, cfgplugins.PrefixSetPolicyParams{PolicyName: policyNotYetExist, StatementNames: []string{defaultStatementName}, PrefixSetNames: []string{pfxSetNotYetExist}, PrefixList: []string{matchPrefix}, PrefixMode: pfxMode, PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE})
+	cfgplugins.AddPrefixSetPolicyWithMatch(t, rp, cfgplugins.PrefixSetPolicyParams{
+		PolicyName:     policyNotYetExist,
+		StatementNames: []string{defaultStatementName},
+		PrefixSetNames: []string{pfxSetNotYetExist},
+		PrefixList:     []string{matchPrefix},
+		PrefixMode:     pfxMode,
+		PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
+	})
 	batch := &gnmi.SetBatch{}
 	gnmi.BatchUpdate(batch, gnmi.OC().RoutingPolicy().Config(), rp)
 	batch.Set(t, dut)
 
-	if err := addSingleStaticRoute(t, dut, ni, matchPrefix, fmt.Sprintf("%d", staticRouteIndex+700), atePort1.IPv4); err != nil {
-		t.Errorf("Failed to add match prefix %s: %v", matchPrefix, err)
-		return
-	}
+	mpIdx := fmt.Sprintf("%d", staticRouteIndex+700)
+	addSingleStaticRoute(t, dut, ni, matchPrefix, mpIdx, atePort1.IPv4)
 
-	cfgplugins.ConfigureGlobalFilterPolicies(t, dut, cfgplugins.ConfigureGlobalFilterPoliciesParams{V4Policy: policyNotYetExist, V6Policy: "", VRFName: ni})
+	aftpf.ConfigureGlobalFilterPolicies(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{
+		V4Policy: policyNotYetExist,
+		V6Policy: "",
+		VRFName:  ni,
+	})
 
 	wantPrefixes := map[string]bool{matchPrefix: true}
 	collector := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
-	aftpf.RunCollector(t, aftpf.RunCollectorParams{Ctx: context.Background(), Collector: collector, Stop: aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}), Timeout: subscriptionWait})
-	aft, err := collector.ToAFT(t, dut)
-	if err != nil {
-		t.Errorf("ToAFT failed: %v", err)
-	} else {
-		aftpf.VerifyPrefixesPresent(t, aftpf.PrefixesParams{InfoAFT: aft, Prefixes: []string{matchPrefix}})
-		aftpf.VerifyPrefixesAbsent(t, aftpf.PrefixesParams{InfoAFT: aft, Prefixes: []string{"198.51.100.0/24", "100.64.0.0/24"}})
-	}
+	aftpf.CollectAndVerify(t, dut, aftpf.RunCollectorParams{
+		Ctx:       context.Background(),
+		Collector: collector,
+		Stop: aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes,
+			map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}),
+		Timeout: subscriptionWait,
+	}, []string{matchPrefix}, []string{"198.51.100.0/24", "100.64.0.0/24"})
 
 	if err := deleteGlobalFilter(t, dut, ni); err != nil {
 		t.Errorf("Cleanup: failed to delete global-filter: %v", err)
 	}
-	if err := removeStaticRoute(t, dut, ni, matchPrefix); err != nil {
-		t.Errorf("Cleanup: failed to remove match prefix %s: %v", matchPrefix, err)
-	}
+	removeStaticRoute(t, dut, ni, matchPrefix)
 	if err := deletePolicy(t, dut, policyNotYetExist); err != nil {
 		t.Errorf("Cleanup: failed to delete policy %s: %v", policyNotYetExist, err)
+	}
+}
+
+// testPolicyDeletion implements AFT-6.1.3.
+func testPolicyDeletion(t *testing.T, dut *ondatra.DUTDevice) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ni := deviations.DefaultNetworkInstance(dut)
+	wantPrefixes := map[string]bool{"198.51.100.0/24": true, "203.0.113.0/28": true}
+	liftWant := map[string]bool{"100.64.0.0/24": true}
+
+	aftpf.ConfigureGlobalFilterPolicies(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{
+		V4Policy: policyPfxSetA,
+		V6Policy: "",
+		VRFName:  ni,
+	})
+
+	collector := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
+	aftpf.CollectAndVerify(t, dut, aftpf.RunCollectorParams{
+		Ctx:       context.Background(),
+		Collector: collector,
+		Stop: aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes,
+			map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}),
+		Timeout: subscriptionWait,
+	}, nil, nil)
+
+	if err := deletePolicyExpectCode(t, dut, policyPfxSetA, codes.FailedPrecondition); err != nil {
+		t.Errorf("Policy-still-referenced check: %v", err)
+	}
+
+	if err := deleteGlobalFilterAndPolicyAtomic(t, dut, ni, policyPfxSetA); err != nil {
+		t.Errorf("Atomic delete failed: %v", err)
+		return
+	}
+
+	// Same session observes the atomic filter+policy delete as a streamed change.
+	aftpf.CollectAndVerify(t, dut, aftpf.RunCollectorParams{
+		Ctx:       context.Background(),
+		Collector: collector,
+		Stop: aftcache.InitialSyncStoppingCondition(t, dut, liftWant,
+			map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}),
+		Timeout: subscriptionWait,
+	}, []string{"100.64.0.0/24"}, nil)
+
+	root := &oc.Root{}
+	rp := root.GetOrCreateRoutingPolicy()
+	cfgplugins.AddPrefixSetPolicyWithMatch(t, rp, cfgplugins.PrefixSetPolicyParams{
+		PolicyName:     policyPfxSetA,
+		StatementNames: []string{defaultStatementName},
+		PrefixSetNames: []string{v4PfxSetA},
+		PrefixList:     pfxSetAMembers,
+		PrefixMode:     pfxMode,
+		PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
+	})
+	batch := &gnmi.SetBatch{}
+	gnmi.BatchUpdate(batch, gnmi.OC().RoutingPolicy().Config(), rp)
+	batch.Set(t, dut)
+	aftpf.ConfigureGlobalFilterPolicies(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{
+		V4Policy: policyPfxSetA,
+		V6Policy: "",
+		VRFName:  ni,
+	})
+
+	// Same session observes the policy re-configuration as streamed updates.
+	aftpf.CollectAndVerify(t, dut, aftpf.RunCollectorParams{
+		Ctx:       context.Background(),
+		Collector: collector,
+		Stop: aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes,
+			map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}),
+		Timeout: subscriptionWait,
+	}, []string{"198.51.100.0/24", "203.0.113.0/28"}, []string{"100.64.0.0/24"})
+
+	if err := deleteGlobalFilter(t, dut, ni); err != nil {
+		t.Errorf("Multi-step delete: failed to delete global-filter: %v", err)
+	}
+	if err := deletePolicy(t, dut, policyPfxSetA); err != nil {
+		t.Errorf("Multi-step delete: failed to delete policy: %v", err)
+	}
+
+	// Same session observes the multi-step filter+policy delete as streamed deletions.
+	aftpf.CollectAndVerify(t, dut, aftpf.RunCollectorParams{
+		Ctx:       context.Background(),
+		Collector: collector,
+		Stop: aftcache.InitialSyncStoppingCondition(t, dut, liftWant,
+			map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}),
+		Timeout: subscriptionWait,
+	}, []string{"100.64.0.0/24"}, nil)
+
+	batch2 := &gnmi.SetBatch{}
+	gnmi.BatchUpdate(batch2, gnmi.OC().RoutingPolicy().Config(), rp)
+	batch2.Set(t, dut)
+}
+
+// testChangeReferencedPrefixSet implements AFT-6.1.4.
+func testChangeReferencedPrefixSet(t *testing.T, dut *ondatra.DUTDevice) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ni := deviations.DefaultNetworkInstance(dut)
+
+	aftpf.ConfigureGlobalFilterPolicies(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{
+		V4Policy: policyPfxSetA,
+		V6Policy: "",
+		VRFName:  ni,
+	})
+
+	wantPrefixes := map[string]bool{"198.51.100.0/24": true, "203.0.113.0/28": true}
+	collector := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
+	aftpf.CollectAndVerify(t, dut, aftpf.RunCollectorParams{
+		Ctx:       context.Background(),
+		Collector: collector,
+		Stop: aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes,
+			map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}),
+		Timeout: subscriptionWait,
+	}, []string{"198.51.100.0/24", "203.0.113.0/28"}, nil)
+
+	if err := updatePolicyStatementPrefixSet(t, dut, policyPfxSetA, defaultStatementName, v6PfxSetB); err != nil {
+		t.Errorf("Failed to swap prefix-set reference: %v", err)
+		return
+	}
+
+	// Same session observes the prefix-set swap as streamed deletions.
+	aftpf.CollectAndVerify(t, dut, aftpf.RunCollectorParams{
+		Ctx:       context.Background(),
+		Collector: collector,
+		Stop:      aftcache.DeletionStoppingCondition(t, dut, map[string]bool{"198.51.100.0/24": true}),
+		Timeout:   subscriptionWait,
+	}, nil, []string{"198.51.100.0/24", "203.0.113.0/28"})
+
+	// The swap only produces delete notifications for PREFIX-SET-A's members;
+	// PREFIX-SET-B's members were never installed in the AFT, so there is no
+	// further positive event to wait on. Wait out a full notification window
+	// and re-check the snapshot to catch any spurious re-add that a bug might
+	// otherwise introduce after the deletion settles.
+	time.Sleep(notificationWaitTime)
+	finalAFT, err := collector.ToAFT(t, dut)
+	if err != nil {
+		t.Errorf("ToAFT failed on stability check: %v", err)
+	} else {
+		aftpf.VerifyPrefixesAbsent(t, aftpf.PrefixesParams{
+			InfoAFT: finalAFT, Prefixes: []string{"198.51.100.0/24", "203.0.113.0/28"},
+		})
+	}
+
+	if err := updatePolicyStatementPrefixSet(t, dut, policyPfxSetA, defaultStatementName, v4PfxSetA); err != nil {
+		t.Errorf("Cleanup: failed to restore prefix-set reference: %v", err)
+	}
+	if err := deleteGlobalFilter(t, dut, ni); err != nil {
+		t.Errorf("Cleanup: failed to delete global-filter: %v", err)
+	}
+}
+
+// testMultiStatementPolicy implements AFT-6.1.5.
+func testMultiStatementPolicy(t *testing.T, dut *ondatra.DUTDevice) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ni := deviations.DefaultNetworkInstance(dut)
+	extraPrefix := "203.0.113.128/25"
+
+	extraIdx := fmt.Sprintf("%d", staticRouteIndex+800)
+	addSingleStaticRoute(t, dut, ni, extraPrefix, extraIdx, atePort1.IPv4)
+
+	aftpf.ConfigureGlobalFilterPolicies(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{
+		V4Policy: policyMultiStmt,
+		V6Policy: "",
+		VRFName:  ni,
+	})
+
+	wantPrefixes := map[string]bool{"198.51.100.0/24": true, "203.0.113.0/28": true, extraPrefix: true}
+	collector := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
+	aftpf.CollectAndVerify(t, dut, aftpf.RunCollectorParams{
+		Ctx:       context.Background(),
+		Collector: collector,
+		Stop: aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes,
+			map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}),
+		Timeout: subscriptionWait,
+	}, []string{"198.51.100.0/24", "203.0.113.0/28", extraPrefix}, []string{"100.64.0.0/24"})
+
+	if err := deleteGlobalFilter(t, dut, ni); err != nil {
+		t.Errorf("Cleanup: failed to delete global-filter: %v", err)
+	}
+	removeStaticRoute(t, dut, ni, extraPrefix)
+}
+
+// testDenyActionPolicy implements AFT-6.1.6.
+func testDenyActionPolicy(t *testing.T, dut *ondatra.DUTDevice) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ni := deviations.DefaultNetworkInstance(dut)
+
+	aftpf.ConfigureGlobalFilterPolicies(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{
+		V4Policy: policyDenyPfxSetA,
+		V6Policy: "",
+		VRFName:  ni,
+	})
+
+	wantPrefixes := map[string]bool{"100.64.0.0/24": true}
+	collector := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
+	aftpf.CollectAndVerify(t, dut, aftpf.RunCollectorParams{
+		Ctx:       context.Background(),
+		Collector: collector,
+		Stop: aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes,
+			map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}),
+		Timeout: subscriptionWait,
+	}, []string{"100.64.0.0/24"}, []string{"198.51.100.0/24", "203.0.113.0/28"})
+
+	if err := deleteGlobalFilter(t, dut, ni); err != nil {
+		t.Errorf("Cleanup: failed to delete global-filter: %v", err)
+	}
+}
+
+// testNonPrefixSetMatchCriteria implements AFT-6.1.7.
+func testNonPrefixSetMatchCriteria(t *testing.T, dut *ondatra.DUTDevice) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ni := deviations.DefaultNetworkInstance(dut)
+
+	aftpf.ConfigureGlobalFilterPolicies(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{
+		V4Policy: policyTagMatch,
+		V6Policy: "",
+		VRFName:  ni,
+	})
+
+	collector := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
+	aftpf.CollectAndVerify(t, dut, aftpf.RunCollectorParams{
+		Ctx:       context.Background(),
+		Collector: collector,
+		Stop: aftcache.InitialSyncStoppingCondition(t, dut, map[string]bool{},
+			map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}),
+		Timeout: subscriptionWait,
+	}, nil, []string{"198.51.100.0/24", "203.0.113.0/28", "100.64.0.0/24"})
+
+	if err := deleteGlobalFilter(t, dut, ni); err != nil {
+		t.Errorf("Failed to delete global-filter: %v", err)
+		return
+	}
+
+	aftpf.ConfigureGlobalFilterPolicies(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{
+		V4Policy: policyPfxSetA,
+		V6Policy: "",
+		VRFName:  ni,
+	})
+
+	// Same session observes the transition to the prefix-set policy as streamed updates.
+	wantPrefixes := map[string]bool{"198.51.100.0/24": true, "203.0.113.0/28": true}
+	aftpf.CollectAndVerify(t, dut, aftpf.RunCollectorParams{
+		Ctx:       context.Background(),
+		Collector: collector,
+		Stop: aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes,
+			map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}),
+		Timeout: subscriptionWait,
+	}, nil, nil)
+
+	aftpf.ConfigureGlobalFilterPolicies(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{
+		V4Policy: policyTagMatch,
+		V6Policy: "",
+		VRFName:  ni,
+	})
+
+	// Same session observes the transition back to tag-match as streamed deletions.
+	aftpf.CollectAndVerify(t, dut, aftpf.RunCollectorParams{
+		Ctx:       context.Background(),
+		Collector: collector,
+		Stop:      aftcache.DeletionStoppingCondition(t, dut, map[string]bool{"198.51.100.0/24": true}),
+		Timeout:   subscriptionWait,
+	}, nil, []string{"198.51.100.0/24", "203.0.113.0/28"})
+
+	if err := deleteGlobalFilter(t, dut, ni); err != nil {
+		t.Errorf("Cleanup: failed to delete global-filter: %v", err)
 	}
 }
 
@@ -655,31 +999,49 @@ func TestMain(m *testing.M) {
 // TestAFTPrefixFiltering implements AFT-6.1.
 func TestAFTPrefixFiltering(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+
+	if deviations.AftsGlobalFilterPolicyOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			t.Skipf("Skipping AFT-6.1 test validation: AFT global-filter policy is not supported on %s", dut.Vendor())
+		}
+	}
+
 	ate := ondatra.ATE(t, "ate")
 	ni := deviations.DefaultNetworkInstance(dut)
 
-	if _, err := aftpf.AFTFilterDialGNMI(t, dut); err != nil {
+	if _, err := aftpf.DialGNMI(t, dut); err != nil {
 		t.Fatalf("%v", err)
 	}
 
-	batch := aftpf.AFTFilterConfigureDUT(t, dut)
+	batch := aftpf.ConfigureDUT(t, dut)
 	configurePolicies(t, dut, batch)
-	prefixes := aftpf.AFTFilterConfigureBaseRoutesParams{V4Prefixes: baseIPv4Prefixes, V6Prefixes: baseIPv6Prefixes}
-	aftpf.AFTFilterConfigureBaseRoutes(t, dut, batch, prefixes)
+	prefixes := aftpf.ConfigureBaseRoutesParams{V4Prefixes: baseIPv4Prefixes, V6Prefixes: baseIPv6Prefixes}
+	aftpf.ConfigureBaseRoutes(t, dut, batch, prefixes)
 	d := &oc.Root{}
 	defNI := d.GetOrCreateNetworkInstance(ni)
-	aftpf.AFTFilterConfigureBGP(t, dut, batch, defNI)
+	aftpf.ConfigureBGP(t, dut, batch, defNI)
 	batch.Set(t, dut)
-	aftpf.AFTFilterApplyBGPMaxPrefixes(t, dut)
-	topo, interfaceNamesList := aftpf.AFTFilterConfigureATE(t, ate)
-	aftpf.AFTFilterConfigureATEBGP(t, topo)
+	batch.Set(t, dut)
+	aftpf.ApplyBGPMaxPrefixes(t, dut, aftpf.BGPPrefixParams{V4Prefix: aftpf.ATEPort1.IPv4,
+		V6Prefix: aftpf.ATEPort2.IPv6, NetworkInstance: defNI})
+	topo, interfaceNamesList := aftpf.ConfigureATE(t, ate)
+	aftpf.ConfigureATEBGP(t, topo)
 	ate.OTG().PushConfig(t, topo)
 	ate.OTG().StartProtocols(t)
 	cfgplugins.IsIPv4InterfaceARPresolved(t, ate, cfgplugins.AddressFamilyParams{InterfaceNames: interfaceNamesList})
 	cfgplugins.IsIPv6InterfaceARPresolved(t, ate, cfgplugins.AddressFamilyParams{InterfaceNames: interfaceNamesList})
 
-	aftpf.AFTFilterAwaitBGPConvergence(t, dut, ni)
+	aftpf.AwaitBGPConvergence(t, dut, ni)
 
+	// AFT-6.1.1 is the only subtest iterated across both IPv4 and IPv6: the
+	// README's Test Case Iteration section requires that subscribe/validate
+	// cycle to be repeated per address family. AFT-6.1.2 through AFT-6.1.7
+	// validate policy semantics (non-existent policy, deletion, prefix-set
+	// swap, multi-statement, deny action, non-prefix-set match) that are
+	// address-family agnostic and whose README procedures reference only
+	// ipv4-policy, so they are exercised with IPv4 only; the per-address-family
+	// path is already covered by AFT-6.1.1.
 	tests := []struct {
 		name string
 		test func(t *testing.T, dut *ondatra.DUTDevice)
@@ -718,230 +1080,5 @@ func TestAFTPrefixFiltering(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			tc.test(t, dut)
 		})
-	}
-}
-
-// testPolicyDeletion implements AFT-6.1.3.
-func testPolicyDeletion(t *testing.T, dut *ondatra.DUTDevice) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	ni := deviations.DefaultNetworkInstance(dut)
-	wantPrefixes := map[string]bool{"198.51.100.0/24": true, "203.0.113.0/28": true}
-	liftWant := map[string]bool{"100.64.0.0/24": true}
-
-	cfgplugins.ConfigureGlobalFilterPolicies(t, dut, cfgplugins.ConfigureGlobalFilterPoliciesParams{V4Policy: policyPfxSetA, V6Policy: "", VRFName: ni})
-
-	collector := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
-	aftpf.RunCollector(t, aftpf.RunCollectorParams{Ctx: context.Background(), Collector: collector, Stop: aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}), Timeout: subscriptionWait})
-	if _, err := collector.ToAFT(t, dut); err != nil {
-		t.Errorf("ToAFT failed: %v", err)
-	}
-
-	if err := deletePolicyExpectCode(t, dut, policyPfxSetA, codes.FailedPrecondition); err != nil {
-		t.Errorf("Policy-still-referenced check: %v", err)
-	}
-
-	if err := deleteGlobalFilterAndPolicyAtomic(t, dut, ni, policyPfxSetA); err != nil {
-		t.Errorf("Atomic delete failed: %v", err)
-		return
-	}
-
-	// Same session observes the atomic filter+policy delete as a streamed change.
-	aftpf.RunCollector(t, aftpf.RunCollectorParams{Ctx: context.Background(), Collector: collector, Stop: aftcache.InitialSyncStoppingCondition(t, dut, liftWant, map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}), Timeout: subscriptionWait})
-	liftedAFT, err := collector.ToAFT(t, dut)
-	if err != nil {
-		t.Errorf("ToAFT failed after atomic delete: %v", err)
-	} else {
-		aftpf.VerifyPrefixesPresent(t, aftpf.PrefixesParams{InfoAFT: liftedAFT, Prefixes: []string{"100.64.0.0/24"}})
-	}
-
-	root := &oc.Root{}
-	rp := root.GetOrCreateRoutingPolicy()
-	cfgplugins.AddPrefixSetPolicyWithMatch(t, rp, cfgplugins.PrefixSetPolicyParams{PolicyName: policyPfxSetA, StatementNames: []string{defaultStatementName}, PrefixSetNames: []string{v4PfxSetA}, PrefixList: pfxSetAMembers, PrefixMode: pfxMode, PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE})
-	batch := &gnmi.SetBatch{}
-	gnmi.BatchUpdate(batch, gnmi.OC().RoutingPolicy().Config(), rp)
-	batch.Set(t, dut)
-	cfgplugins.ConfigureGlobalFilterPolicies(t, dut, cfgplugins.ConfigureGlobalFilterPoliciesParams{V4Policy: policyPfxSetA, V6Policy: "", VRFName: ni})
-
-	// Same session observes the policy re-configuration as streamed updates.
-	aftpf.RunCollector(t, aftpf.RunCollectorParams{Ctx: context.Background(), Collector: collector, Stop: aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}), Timeout: subscriptionWait})
-	reAFT, err := collector.ToAFT(t, dut)
-	if err != nil {
-		t.Errorf("ToAFT failed after re-configuring policy: %v", err)
-	} else {
-		aftpf.VerifyPrefixesPresent(t, aftpf.PrefixesParams{InfoAFT: reAFT, Prefixes: []string{"198.51.100.0/24", "203.0.113.0/28"}})
-		aftpf.VerifyPrefixesAbsent(t, aftpf.PrefixesParams{InfoAFT: reAFT, Prefixes: []string{"100.64.0.0/24"}})
-	}
-
-	if err := deleteGlobalFilter(t, dut, ni); err != nil {
-		t.Errorf("Multi-step delete: failed to delete global-filter: %v", err)
-	}
-	if err := deletePolicy(t, dut, policyPfxSetA); err != nil {
-		t.Errorf("Multi-step delete: failed to delete policy: %v", err)
-	}
-
-	// Same session observes the multi-step filter+policy delete as streamed deletions.
-	aftpf.RunCollector(t, aftpf.RunCollectorParams{Ctx: context.Background(), Collector: collector, Stop: aftcache.InitialSyncStoppingCondition(t, dut, liftWant, map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}), Timeout: subscriptionWait})
-	finalAFT, err := collector.ToAFT(t, dut)
-	if err != nil {
-		t.Errorf("ToAFT failed after multi-step delete: %v", err)
-	} else {
-		aftpf.VerifyPrefixesPresent(t, aftpf.PrefixesParams{InfoAFT: finalAFT, Prefixes: []string{"100.64.0.0/24"}})
-	}
-
-	batch2 := &gnmi.SetBatch{}
-	gnmi.BatchUpdate(batch2, gnmi.OC().RoutingPolicy().Config(), rp)
-	batch2.Set(t, dut)
-}
-
-// testChangeReferencedPrefixSet implements AFT-6.1.4.
-func testChangeReferencedPrefixSet(t *testing.T, dut *ondatra.DUTDevice) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	ni := deviations.DefaultNetworkInstance(dut)
-
-	cfgplugins.ConfigureGlobalFilterPolicies(t, dut, cfgplugins.ConfigureGlobalFilterPoliciesParams{V4Policy: policyPfxSetA, V6Policy: "", VRFName: ni})
-
-	wantPrefixes := map[string]bool{"198.51.100.0/24": true, "203.0.113.0/28": true}
-	collector := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
-	aftpf.RunCollector(t, aftpf.RunCollectorParams{Ctx: context.Background(), Collector: collector, Stop: aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}), Timeout: subscriptionWait})
-	initialAFT, err := collector.ToAFT(t, dut)
-	if err != nil {
-		t.Errorf("ToAFT failed: %v", err)
-	} else {
-		aftpf.VerifyPrefixesPresent(t, aftpf.PrefixesParams{InfoAFT: initialAFT, Prefixes: []string{"198.51.100.0/24", "203.0.113.0/28"}})
-	}
-
-	if err := updatePolicyStatementPrefixSet(t, dut, policyPfxSetA, defaultStatementName, v6PfxSetB); err != nil {
-		t.Errorf("Failed to swap prefix-set reference: %v", err)
-		return
-	}
-
-	// Same session observes the prefix-set swap as streamed deletions.
-	aftpf.RunCollector(t, aftpf.RunCollectorParams{Ctx: context.Background(), Collector: collector, Stop: aftcache.DeletionStoppingCondition(t, dut, map[string]bool{"198.51.100.0/24": true}), Timeout: subscriptionWait})
-	swapAFT, err := collector.ToAFT(t, dut)
-	if err != nil {
-		t.Errorf("ToAFT failed after swap: %v", err)
-	} else {
-		aftpf.VerifyPrefixesAbsent(t, aftpf.PrefixesParams{InfoAFT: swapAFT, Prefixes: []string{"198.51.100.0/24", "203.0.113.0/28"}})
-	}
-
-	time.Sleep(notificationWaitTime)
-	finalAFT, err := collector.ToAFT(t, dut)
-	if err != nil {
-		t.Errorf("ToAFT failed on stability check: %v", err)
-	} else {
-		aftpf.VerifyPrefixesAbsent(t, aftpf.PrefixesParams{InfoAFT: finalAFT, Prefixes: []string{"198.51.100.0/24", "203.0.113.0/28"}})
-	}
-
-	if err := updatePolicyStatementPrefixSet(t, dut, policyPfxSetA, defaultStatementName, v4PfxSetA); err != nil {
-		t.Errorf("Cleanup: failed to restore prefix-set reference: %v", err)
-	}
-	if err := deleteGlobalFilter(t, dut, ni); err != nil {
-		t.Errorf("Cleanup: failed to delete global-filter: %v", err)
-	}
-}
-
-// testMultiStatementPolicy implements AFT-6.1.5.
-func testMultiStatementPolicy(t *testing.T, dut *ondatra.DUTDevice) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	ni := deviations.DefaultNetworkInstance(dut)
-	extraPrefix := "203.0.113.128/25"
-
-	if err := addSingleStaticRoute(t, dut, ni, extraPrefix, fmt.Sprintf("%d", staticRouteIndex+800), atePort1.IPv4); err != nil {
-		t.Errorf("Failed to add extra prefix %s: %v", extraPrefix, err)
-		return
-	}
-
-	cfgplugins.ConfigureGlobalFilterPolicies(t, dut, cfgplugins.ConfigureGlobalFilterPoliciesParams{V4Policy: policyMultiStmt, V6Policy: "", VRFName: ni})
-
-	wantPrefixes := map[string]bool{"198.51.100.0/24": true, "203.0.113.0/28": true, extraPrefix: true}
-	collector := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
-	aftpf.RunCollector(t, aftpf.RunCollectorParams{Ctx: context.Background(), Collector: collector, Stop: aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}), Timeout: subscriptionWait})
-	aft, err := collector.ToAFT(t, dut)
-	if err != nil {
-		t.Errorf("ToAFT failed: %v", err)
-	} else {
-		aftpf.VerifyPrefixesPresent(t, aftpf.PrefixesParams{InfoAFT: aft, Prefixes: []string{"198.51.100.0/24", "203.0.113.0/28", extraPrefix}})
-		aftpf.VerifyPrefixesAbsent(t, aftpf.PrefixesParams{InfoAFT: aft, Prefixes: []string{"100.64.0.0/24"}})
-	}
-
-	if err := deleteGlobalFilter(t, dut, ni); err != nil {
-		t.Errorf("Cleanup: failed to delete global-filter: %v", err)
-	}
-	if err := removeStaticRoute(t, dut, ni, extraPrefix); err != nil {
-		t.Errorf("Cleanup: failed to remove extra prefix %s: %v", extraPrefix, err)
-	}
-}
-
-// testDenyActionPolicy implements AFT-6.1.6.
-func testDenyActionPolicy(t *testing.T, dut *ondatra.DUTDevice) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	ni := deviations.DefaultNetworkInstance(dut)
-
-	cfgplugins.ConfigureGlobalFilterPolicies(t, dut, cfgplugins.ConfigureGlobalFilterPoliciesParams{V4Policy: policyDenyPfxSetA, V6Policy: "", VRFName: ni})
-
-	wantPrefixes := map[string]bool{"100.64.0.0/24": true}
-	collector := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
-	aftpf.RunCollector(t, aftpf.RunCollectorParams{Ctx: context.Background(), Collector: collector, Stop: aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}), Timeout: subscriptionWait})
-	aft, err := collector.ToAFT(t, dut)
-	if err != nil {
-		t.Errorf("ToAFT failed: %v", err)
-	} else {
-		aftpf.VerifyPrefixesAbsent(t, aftpf.PrefixesParams{InfoAFT: aft, Prefixes: []string{"198.51.100.0/24", "203.0.113.0/28"}})
-		aftpf.VerifyPrefixesPresent(t, aftpf.PrefixesParams{InfoAFT: aft, Prefixes: []string{"100.64.0.0/24"}})
-	}
-
-	if err := deleteGlobalFilter(t, dut, ni); err != nil {
-		t.Errorf("Cleanup: failed to delete global-filter: %v", err)
-	}
-}
-
-// testNonPrefixSetMatchCriteria implements AFT-6.1.7.
-func testNonPrefixSetMatchCriteria(t *testing.T, dut *ondatra.DUTDevice) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	ni := deviations.DefaultNetworkInstance(dut)
-
-	cfgplugins.ConfigureGlobalFilterPolicies(t, dut, cfgplugins.ConfigureGlobalFilterPoliciesParams{V4Policy: policyTagMatch, V6Policy: "", VRFName: ni})
-
-	collector := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
-	aftpf.RunCollector(t, aftpf.RunCollectorParams{Ctx: context.Background(), Collector: collector, Stop: aftcache.InitialSyncStoppingCondition(t, dut, map[string]bool{}, map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}), Timeout: subscriptionWait})
-	aft, err := collector.ToAFT(t, dut)
-	if err != nil {
-		t.Errorf("ToAFT failed: %v", err)
-	} else {
-		aftpf.VerifyPrefixesAbsent(t, aftpf.PrefixesParams{InfoAFT: aft, Prefixes: []string{"198.51.100.0/24", "203.0.113.0/28", "100.64.0.0/24"}})
-	}
-
-	if err := deleteGlobalFilter(t, dut, ni); err != nil {
-		t.Errorf("Failed to delete global-filter: %v", err)
-		return
-	}
-
-	cfgplugins.ConfigureGlobalFilterPolicies(t, dut, cfgplugins.ConfigureGlobalFilterPoliciesParams{V4Policy: policyPfxSetA, V6Policy: "", VRFName: ni})
-
-	// Same session observes the transition to the prefix-set policy as streamed updates.
-	wantPrefixes := map[string]bool{"198.51.100.0/24": true, "203.0.113.0/28": true}
-	aftpf.RunCollector(t, aftpf.RunCollectorParams{Ctx: context.Background(), Collector: collector, Stop: aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}), Timeout: subscriptionWait})
-	if _, err := collector.ToAFT(t, dut); err != nil {
-		t.Errorf("ToAFT failed during transition setup: %v", err)
-	}
-
-	cfgplugins.ConfigureGlobalFilterPolicies(t, dut, cfgplugins.ConfigureGlobalFilterPoliciesParams{V4Policy: policyTagMatch, V6Policy: "", VRFName: ni})
-
-	// Same session observes the transition back to tag-match as streamed deletions.
-	aftpf.RunCollector(t, aftpf.RunCollectorParams{Ctx: context.Background(), Collector: collector, Stop: aftcache.DeletionStoppingCondition(t, dut, map[string]bool{"198.51.100.0/24": true}), Timeout: subscriptionWait})
-	finalAFT, err := collector.ToAFT(t, dut)
-	if err != nil {
-		t.Errorf("ToAFT failed after transition: %v", err)
-	} else {
-		aftpf.VerifyPrefixesAbsent(t, aftpf.PrefixesParams{InfoAFT: finalAFT, Prefixes: []string{"198.51.100.0/24", "203.0.113.0/28"}})
-	}
-
-	if err := deleteGlobalFilter(t, dut, ni); err != nil {
-		t.Errorf("Cleanup: failed to delete global-filter: %v", err)
 	}
 }
