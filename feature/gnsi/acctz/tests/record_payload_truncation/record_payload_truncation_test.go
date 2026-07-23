@@ -64,7 +64,11 @@ func sendOversizedPayload(t *testing.T, dut *ondatra.DUTDevice) {
 			nh1.NextHop = oc.UnionString(nhAddress)
 		}
 	}
-	gnmi.Update(t, dut, gnmi.OC().Config(), ocRoot)
+	gnmiClient, err := dut.RawAPIs().BindingDUT().DialGNMI(context.Background(), grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(45000000), grpc.MaxCallSendMsgSize(45000000)))
+	if err != nil {
+		t.Fatalf("Failed to dial gNMI with custom message size: %v", err)
+	}
+	gnmi.Update(t, dut.GNMIOpts().WithClient(gnmiClient), gnmi.OC().Config(), ocRoot)
 }
 
 func TestAccountzRecordPayloadTruncation(t *testing.T) {
