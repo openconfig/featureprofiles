@@ -686,7 +686,6 @@ paths:
   /macsec/interfaces/interface/config/enable:
   /macsec/interfaces/interface/config/replay-protection:
   /macsec/mka/policies/policy/config/name:
-  /macsec/mka/policies/policy/config/security-policy:
   /macsec/mka/policies/policy/config/macsec-cipher-suite:
   /macsec/mka/policies/policy/config/confidentiality-offset:
   /macsec/mka/policies/policy/config/key-server-priority:
@@ -714,7 +713,7 @@ paths:
   /network-instances/network-instance/policy-forwarding/policies/policy/config/policy-id:
   /network-instances/network-instance/policy-forwarding/interfaces/interface/config/interface-id:
   /network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-forwarding-policy:
-  /network-instances/network-instance/policy-forwarding/next-hop-groups/next-hop-group/next-hops/next-hop/encap-header/udp-v4/config/dst-udp-port:
+  /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/dst-udp-port:
   /network-instances/network-instance/policy-forwarding/policies/policy/config/type:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-gre:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-gue:
@@ -725,8 +724,6 @@ paths:
   /network-instances/network-instance/static/next-hops/next-hop/config/index:
   /network-instances/network-instance/static/next-hops/next-hop/config/next-hop:
   # State paths:
-  /macsec/mka/interfaces/interface/state/active-key-id:
-  /macsec/mka/policies/policy/state/security-policy:
   /macsec/interfaces/interface/state/counters/rx-badtag-pkts:
   /macsec/interfaces/interface/state/counters/rx-late-pkts:
   /macsec/interfaces/interface/state/counters/rx-nosci-pkts:
