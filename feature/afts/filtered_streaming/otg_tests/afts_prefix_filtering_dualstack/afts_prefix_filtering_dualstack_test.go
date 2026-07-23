@@ -71,25 +71,29 @@ func configurePolicies(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatc
 	t.Helper()
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
-	cfgplugins.AddPrefixSetPolicy(t, rp, cfgplugins.PrefixSetPolicyParams{
+	aftpf.AddPrefixSetPolicy(t, rp, aftpf.PrefixSetPolicyParams{
 		PolicyName:     aftpf.PolicyMatchAll,
 		StatementNames: []string{aftpf.DefaultStatementName},
 		PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
 	})
-	cfgplugins.AddPrefixSetPolicyWithMatch(t, rp, cfgplugins.PrefixSetPolicyParams{
+	aftpf.AddPrefixSetPolicy(t, rp, aftpf.PrefixSetPolicyParams{
 		PolicyName:     policyPfxSetA,
 		StatementNames: []string{aftpf.DefaultStatementName},
 		PrefixSetNames: []string{v4PfxSetA},
 		PrefixList:     pfxSetAMembers,
 		PrefixMode:     aftpf.PfxMode,
+		MatchPrefixSet: true,
+		MatchSetOption: oc.E_RoutingPolicy_MatchSetOptionsRestrictedType(oc.RoutingPolicy_MatchSetOptionsType_ANY),
 		PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
 	})
-	cfgplugins.AddPrefixSetPolicyWithMatch(t, rp, cfgplugins.PrefixSetPolicyParams{
+	aftpf.AddPrefixSetPolicy(t, rp, aftpf.PrefixSetPolicyParams{
 		PolicyName:     policyPfxSetB,
 		StatementNames: []string{aftpf.DefaultStatementName},
 		PrefixSetNames: []string{v6PfxSetB},
 		PrefixList:     pfxSetBMembers,
 		PrefixMode:     aftpf.PfxMode,
+		MatchPrefixSet: true,
+		MatchSetOption: oc.E_RoutingPolicy_MatchSetOptionsRestrictedType(oc.RoutingPolicy_MatchSetOptionsType_ANY),
 		PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
 	})
 	gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
