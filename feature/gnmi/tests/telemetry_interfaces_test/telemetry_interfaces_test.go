@@ -362,7 +362,12 @@ func testTelemetryInterfacesStateSubinterface(t *testing.T, dut *ondatra.DUTDevi
 
 		subinterface := p.Interface(port).Subinterface(subIntfIndex)
 
-		si := &oc.Interface_Subinterface{Description: ygot.String(description)}
+		// Include Index in the payload for vendors (e.g. Junos) that require the
+		// list key to be present in the data tree, not just the path.
+		si := &oc.Interface_Subinterface{
+			Index:       ygot.Uint32(subIntfIndex),
+			Description: ygot.String(description),
+		}
 		gnmi.Update(t, dut, p.Interface(port).Subinterface(subIntfIndex).Config(), si)
 
 		time.Sleep(2 * time.Minute)
