@@ -393,8 +393,8 @@ func verifyLocRIBMED(t *testing.T, dut *ondatra.DUTDevice, prefix string, wantME
 				}
 				return false
 			}
-			attrSet := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Rib_AttrSet](t, dut, ribPath.AttrSet(route.GetAttrIndex()).State())
-			return attrSet != nil && attrSet.GetMed() == wantMED
+			attrSet, present := gnmi.Lookup(t, dut, ribPath.AttrSet(route.GetAttrIndex()).State()).Val()
+			return present && attrSet.GetMed() == wantMED
 		}
 		return false
 	}).Await(t)
