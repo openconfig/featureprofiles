@@ -1,5 +1,3 @@
-<!--* css: "//depot/google3/experimental/users/nkhambal/g3doc/styles.css" *-->
-
 # PF-1.17: MPLSoGRE/MPLSoGUE MACsec and Line Rate Performance
 
 ## Summary
@@ -477,75 +475,18 @@ encapsulation and ingress decapsulation types are mapped to interface speeds:
               }
             ]
           },
-          "next-hop-groups": {
-            "next-hop-group": [
+          "path-selection-groups": {
+            "path-selection-group": [
               {
-                "name": "MPLS_in_GRE_Encap",
+                "group-id": "MPLS_in_GRE_Encap",
                 "config": {
-                  "name": "MPLS_in_GRE_Encap"
-                },
-                "next-hops": {
-                  "next-hop": [
-                    {
-                      "index": "Dest A-NH1",
-                      "config": {
-                        "index": "Dest A-NH1",
-                        "next-hop": "192.0.2.2"
-                      },
-                      "encap-header": [
-                        {
-                          "index": 1,
-                          "config": {
-                            "index": 1,
-                            "type": "openconfig-policy-forwarding-types:GRE"
-                          },
-                          "udp-v4": {
-                            "config": {
-                              "src-ip": "10.235.143.208",
-                              "dst-ip": "10.99.1.1",
-                              "dscp": 0,
-                              "ip-ttl": 64
-                            }
-                          }
-                        }
-                      ]
-                    }
-                  ]
+                  "group-id": "MPLS_in_GRE_Encap"
                 }
               },
               {
-                "name": "MPLS_in_UDP_Encap",
+                "group-id": "MPLS_in_UDP_Encap",
                 "config": {
-                  "name": "MPLS_in_UDP_Encap"
-                },
-                "next-hops": {
-                  "next-hop": [
-                    {
-                      "index": "Dest A-NH2",
-                      "config": {
-                        "index": "Dest A-NH2",
-                        "next-hop": "192.0.2.2"
-                      },
-                      "encap-header": [
-                        {
-                          "index": 1,
-                          "config": {
-                            "index": 1,
-                            "type": "openconfig-policy-forwarding-types:MPLS_IN_UDP"
-                          },
-                          "udp-v4": {
-                            "config": {
-                              "src-ip": "10.235.143.208",
-                              "dst-ip": "10.99.1.1",
-                              "dst-udp-port": 6635,
-                              "dscp": 0,
-                              "ip-ttl": 64
-                            }
-                          }
-                        }
-                      ]
-                    }
-                  ]
+                  "group-id": "MPLS_in_UDP_Encap"
                 }
               }
             ]
