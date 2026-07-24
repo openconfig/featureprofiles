@@ -2044,6 +2044,14 @@ func SendMaxUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSendMaxUnsupported()
 }
 
+// BGPAddPathClientOnly returns true if the device requires BGP AddPath
+// negotiation to be scoped to only the client-facing peer instead of all BGP
+// peers. All BGP sessions still come up; only the AddPath capability
+// negotiation is narrowed.
+func BGPAddPathClientOnly(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpAddpathClientOnly()
+}
+
 // OcAaaUserRoleLeafStringTypeUnsupported returns true if the device does not support role leaf of string type for OC system/aaa username configuration.
 // Cisco: https://partnerissuetracker.corp.google.com/issues/436778949
 func OcAaaUserRoleLeafStringTypeUnsupported(dut *ondatra.DUTDevice) bool {

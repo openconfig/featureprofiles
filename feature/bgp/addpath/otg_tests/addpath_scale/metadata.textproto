@@ -34,5 +34,6 @@ platform_exceptions: {
     default_network_instance: "default"
     require_routed_subinterface_0: true
     match_community_set_match_set_options_all_unsupported: true
+    bgp_addpath_client_only: true
   }
 }
