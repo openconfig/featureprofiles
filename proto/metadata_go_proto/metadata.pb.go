@@ -1507,8 +1507,12 @@ type Metadata_Deviations struct {
 	// Device has max route count based on specific platform
 	// Juniper : For devices which has different max route count based on platform, this deviation can be used to set the max route count for the device. This will be used in scale test cases to set the max route count for the device.
 	MaxOutFibRouteCount uint32 `protobuf:"varint,441,opt,name=max_out_fib_route_count,json=maxOutFibRouteCount,proto3" json:"max_out_fib_route_count,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// Expected frr traffic tolerance. Minimum value is 0.2, anything less
+	// will be coerced to 0.2.
+	// Juniper:
+	FrrWeightResolutionTolerance float64 `protobuf:"fixed64,442,opt,name=frr_weight_resolution_tolerance,json=frrWeightResolutionTolerance,proto3" json:"frr_weight_resolution_tolerance,omitempty"`
+	unknownFields                protoimpl.UnknownFields
+	sizeCache                    protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -4383,6 +4387,13 @@ func (x *Metadata_Deviations) GetMaxOutFibRouteCount() uint32 {
 	return 0
 }
 
+func (x *Metadata_Deviations) GetFrrWeightResolutionTolerance() float64 {
+	if x != nil {
+		return x.FrrWeightResolutionTolerance
+	}
+	return 0
+}
+
 type Metadata_PlatformExceptions struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Platform      *Metadata_Platform     `protobuf:"bytes,1,opt,name=platform,proto3" json:"platform,omitempty"`
@@ -4439,7 +4450,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xfa\xf8\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xc2\xf9\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -4451,7 +4462,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xa8\xee\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xf0\xee\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -4863,7 +4874,8 @@ const file_metadata_proto_rawDesc = "" +
 	"3static_route_nexthop_interface_state_oc_unsupported\x18\xb6\x03 \x01(\bR-staticRouteNexthopInterfaceStateOcUnsupported\x12S\n" +
 	"&lacp_interface_fallback_oc_unsupported\x18\xb7\x03 \x01(\bR\"lacpInterfaceFallbackOcUnsupported\x12H\n" +
 	" vlan_subinterface_oc_unsupported\x18\xb8\x03 \x01(\bR\x1dvlanSubinterfaceOcUnsupported\x125\n" +
-	"\x17max_out_fib_route_count\x18\xb9\x03 \x01(\rR\x13maxOutFibRouteCountJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"\x17max_out_fib_route_count\x18\xb9\x03 \x01(\rR\x13maxOutFibRouteCount\x12F\n" +
+	"\x1ffrr_weight_resolution_tolerance\x18\xba\x03 \x01(\x01R\x1cfrrWeightResolutionToleranceJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02J\x06\b\xf1\x01\x10\xf2\x01J\x04\b1\x102\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +

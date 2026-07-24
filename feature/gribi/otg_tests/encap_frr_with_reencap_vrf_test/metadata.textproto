@@ -28,6 +28,17 @@ platform_exceptions:  {
     interface_ref_interface_id_format: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+    hardware_model_regex: "PTX10002-36QDD|PTX12008"
+  }
+  deviations: {
+    frr_weight_resolution_tolerance: 0.4
+    isis_level_enabled:  true
+    interface_ref_interface_id_format: true
+  }
+}
 platform_exceptions:  {
   platform:  {
     vendor:  NOKIA
