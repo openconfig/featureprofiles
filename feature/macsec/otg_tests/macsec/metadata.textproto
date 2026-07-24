@@ -15,3 +15,12 @@ platform_exceptions: {
     macsec_counters_ft: "arista-macsec-counters-ft"
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    macsec_state_ft: "juniper-macsec-state-ft"
+    macsec_counters_ft: "juniper-macsec-counters-ft"
+  }
+}
