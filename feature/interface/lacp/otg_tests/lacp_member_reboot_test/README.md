@@ -23,7 +23,7 @@ linecard recovers.
 * Configure a LACP bundle (e.g., `Port-Channel1`) on the DUT with at least two member ports.
 * Configure corresponding bundle on the ATE.
 * Establish LACP session between DUT and ATE.
-* Configure IP addresses on the bundle interfaces.
+* Configure IP addresses on the bundle interfaces in the Default Network Instance (VRF).
 
 ### RT-5.16.1: Traffic flow and stats validation during linecard reboot
 
