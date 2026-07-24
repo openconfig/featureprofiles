@@ -35,6 +35,23 @@ Generic Health Check
 
 N/A
 
+## Canonical OC
+
+```json
+{
+  "openconfig-platform:components": {
+    "component": [
+      {
+        "config": {
+          "name": "card1"
+        },
+        "name": "card1"
+      }
+    ]
+  }
+}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
@@ -45,6 +62,14 @@ rpcs:
 paths:
   ## Config Parameter coverage
 
+    /components/component/cpu/utilization/state/avg:
+      platform_type: ["CPU"]
+    /components/component/state/memory/available:
+      platform_type: ["CONTROLLER_CARD", "LINECARD"]
+    /components/component/state/memory/utilized:
+      platform_type: ["CONTROLLER_CARD", "LINECARD"]
+    /components/component/state/oper-status:
+      platform_type: ["CHASSIS", "CONTROLLER_CARD", "FABRIC", "LINECARD"]
     /system/processes/process/state/cpu-utilization:
     /system/processes/process/state/memory-utilization:
     /qos/interfaces/interface/input/queues/queue/state/dropped-pkts:
