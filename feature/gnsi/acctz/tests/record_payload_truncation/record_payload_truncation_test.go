@@ -23,6 +23,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/helpers"
+	"github.com/openconfig/featureprofiles/internal/security/acctz"
 	acctzpb "github.com/openconfig/gnsi/acctz"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -80,11 +81,13 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 	}
 
 	startTime := time.Now()
+	request := &acctzpb.RecordRequest{
+		Timestamp: timestamppb.New(startTime),
+	}
 
 	acctzClient := dut.RawAPIs().GNSI(t).AcctzStream()
-	acctzSubClient, err := acctzClient.RecordSubscribe(context.Background(), &acctzpb.RecordRequest{
-		Timestamp: timestamppb.New(startTime),
-	}, grpc.MaxCallRecvMsgSize(45000000))
+	t.Logf("Sending acctz record subscribe request: %s", acctz.PrettyPrint(request))
+	acctzSubClient, err := acctzClient.RecordSubscribe(context.Background(), request, grpc.MaxCallRecvMsgSize(45000000))
 	if err != nil {
 		t.Fatalf("Failed to subscribe to acctz records: %v", err)
 	}
@@ -118,7 +121,7 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 			t.Fatalf("Failed receiving record response, error: %s", resp.err)
 		}
 
-		t.Logf("Received record: %v", resp.record)
+		t.Logf("Received record: %v", acctz.PrettyPrint(resp.record))
 
 		grpcServiceRecord := resp.record.GetGrpcService()
 		if grpcServiceRecord == nil {
@@ -140,7 +143,7 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 			continue
 		}
 
-		t.Logf("Found truncated record: %v", resp.record)
+		t.Logf("Found truncated record: %v", acctz.PrettyPrint(resp.record))
 		break
 	}
 }
