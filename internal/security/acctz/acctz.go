@@ -25,6 +25,7 @@ import (
 	"net"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -67,20 +68,23 @@ const (
 	failAuthorizeUsername    = "failauthuser" // username for failed authorization
 	FailAuthorizeUsername    = failAuthorizeUsername
 	failAuthorizePassword    = "failauthpasswordTest123!"
-	failRoleName             = "acctz-fp-test-fail" // role for failed authorization
-	failDenyRoleName         = "acctz-fp-deny-fail" // role for failed deny authorization
-	successCliCommand        = "show version"
-	failCliCommand           = "show version"
-	failDenyCliCommand       = "/.*"
-	shellCommand             = "uname -a"
-	gnmiCapabilitiesPath     = "/gnmi.gNMI/Capabilities"
-	gnoiPingPath             = "/gnoi.system.System/Ping"
-	gnoiTimePath             = "/gnoi.system.System/Time"
-	gnsiGetPath              = "/gnsi.authz.v1.Authz/Get"
-	gribiGetPath             = "/gribi.gRIBI/Get"
-	p4rtCapabilitiesPath     = "/p4.v1.P4Runtime/Capabilities"
-	defaultSSHPort           = 22
-	ipProto                  = 6
+	// privEscUsername is a low-privilege (operator-level) user used for privilege escalation
+	privEscUsername      = "acctzRegularUser"
+	privEscPassword      = "acctzPass123"
+	failRoleName         = "acctz-fp-test-fail" // role for failed authorization
+	failDenyRoleName     = "acctz-fp-deny-fail" // role for failed deny authorization
+	successCliCommand    = "show version"
+	failCliCommand       = "show version"
+	failDenyCliCommand   = "/.*"
+	shellCommand         = "uname -a"
+	gnmiCapabilitiesPath = "/gnmi.gNMI/Capabilities"
+	gnoiPingPath         = "/gnoi.system.System/Ping"
+	gnoiTimePath         = "/gnoi.system.System/Time"
+	gnsiGetPath          = "/gnsi.authz.v1.Authz/Get"
+	gribiGetPath         = "/gribi.gRIBI/Get"
+	p4rtCapabilitiesPath = "/p4.v1.P4Runtime/Capabilities"
+	defaultSSHPort       = 22
+	ipProto              = 6
 )
 
 var (
@@ -719,6 +723,22 @@ func dialSSH(t *testing.T, dut *ondatra.DUTDevice, username, password, target st
 	}
 
 	return conn, w
+}
+
+func getHostPortInfo(t *testing.T, addr string) (string, uint32) {
+	t.Helper()
+	host, portStr, err := net.SplitHostPort(addr)
+	if err != nil {
+		t.Fatalf("Failed splitting host and port for %q: %v", addr, err)
+	}
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		t.Fatalf("Failed parsing port %q from %q: %v", portStr, addr, err)
+	}
+	if port < 0 || port > 65535 {
+		t.Fatalf("Port %d from %q is outside valid TCP/UDP range", port, addr)
+	}
+	return host, uint32(port)
 }
 
 func getMetadataKeys(dut *ondatra.DUTDevice) (string, string) {
@@ -1670,6 +1690,162 @@ func SendShellCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) 
 	})
 
 	return records
+}
+
+func enableAccountingStartStop(t *testing.T, dut *ondatra.DUTDevice) {
+	var cliCommand string
+	switch dut.Vendor() {
+	case ondatra.CISCO:
+		cliCommand = "aaa accounting commands default start-stop local"
+	case ondatra.ARISTA:
+		cliCommand = "aaa accounting commands all default start-stop logging"
+	}
+	if cliCommand != "" {
+		helpers.GnmiCLIConfig(t, dut, cliCommand)
+	}
+}
+
+func configureRegularUser(t *testing.T, dut *ondatra.DUTDevice) {
+	auth := &oc.System_Aaa_Authentication{}
+	u := auth.GetOrCreateUser(privEscUsername)
+	u.SetRole(oc.UnionString("network-operator"))
+	ondatragnmi.Update(t, dut, ondatragnmi.OC().System().Aaa().Authentication().Config(), auth)
+	t.Logf("Created user %s with role network-operator", privEscUsername)
+}
+
+func configureEnableAuth(t *testing.T, dut *ondatra.DUTDevice) {
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		helpers.GnmiCLIConfig(t, dut, "aaa authentication enable default local\nenable password acctzEnable")
+		setupUserPassword(t, dut, privEscUsername, privEscPassword)
+	case ondatra.CISCO:
+		helpers.GnmiCLIConfig(t, dut, "aaa authentication enable default local\nenable secret acctzEnable")
+	}
+}
+
+func SendPrivEscalation(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool, expectPass bool) []*acctzpb.RecordResponse {
+	target := getSSHTarget(t, dut, staticBinding)
+	var records []*acctzpb.RecordResponse
+
+	enableAccountingStartStop(t, dut)
+	configureRegularUser(t, dut)
+	configureEnableAuth(t, dut)
+
+	var user, password string
+	var recordStatus acctzpb.AuthnDetail_AuthnStatus
+	if expectPass {
+		user = SuccessUsername
+		password = successPassword
+		recordStatus = acctzpb.AuthnDetail_AUTHN_STATUS_SUCCESS
+	} else {
+		user = privEscUsername
+		password = privEscPassword
+		recordStatus = acctzpb.AuthnDetail_AUTHN_STATUS_FAIL
+	}
+
+	sshConn, w := dialSSH(t, dut, user, password, target)
+	remoteIP, remotePort := getHostPortInfo(t, sshConn.LocalAddr().String())
+	localIP, localPort := getHostPortInfo(t, target)
+	defer func() {
+		time.Sleep(6 * time.Second)
+		err := sshConn.Close()
+		if err != nil {
+			t.Logf("Error closing tcp(ssh) connection, will ignore, error: %s", err)
+		}
+	}()
+
+	privEscCmd := getPrivEscalationCommand(dut)
+	_, err := w.Write([]byte(privEscCmd + "\n"))
+	if err != nil {
+		t.Fatalf("Failed sending privilege escalation command, error: %s", err)
+	}
+
+	time.Sleep(2 * time.Second)
+
+	_, err = w.Write([]byte("wrongpassword\n"))
+	if err != nil {
+		t.Fatalf("Failed sending privilege escalation password, error: %s", err)
+	}
+
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		records = append(records, &acctzpb.RecordResponse{
+			ServiceRequest: &acctzpb.RecordResponse_CmdService{
+				CmdService: &acctzpb.CommandService{
+					ServiceType: acctzpb.CommandService_CMD_SERVICE_TYPE_CLI,
+				},
+			},
+			SessionInfo: &acctzpb.SessionInfo{
+				Status:        acctzpb.SessionInfo_SESSION_STATUS_ENABLE,
+				LocalAddress:  localIP,
+				LocalPort:     localPort,
+				RemoteAddress: remoteIP,
+				RemotePort:    remotePort,
+				IpProto:       ipProto,
+				Authn: &acctzpb.AuthnDetail{
+					Type:   acctzpb.AuthnDetail_AUTHN_TYPE_PASSWORD,
+					Status: recordStatus,
+				},
+				User: &acctzpb.UserDetail{
+					Identity: user,
+				},
+			},
+		})
+	case ondatra.CISCO:
+		records = append(records, &acctzpb.RecordResponse{
+			ServiceRequest: &acctzpb.RecordResponse_CmdService{
+				CmdService: &acctzpb.CommandService{
+					ServiceType: acctzpb.CommandService_CMD_SERVICE_TYPE_CLI,
+				},
+			},
+			SessionInfo: &acctzpb.SessionInfo{
+				Status:        acctzpb.SessionInfo_SESSION_STATUS_OPERATION,
+				LocalAddress:  localIP,
+				LocalPort:     localPort,
+				RemoteAddress: remoteIP,
+				RemotePort:    remotePort,
+				IpProto:       ipProto,
+				User: &acctzpb.UserDetail{
+					Identity: user,
+					Role:     "root-lr, cisco-support",
+				},
+			},
+		})
+	default:
+		records = append(records, &acctzpb.RecordResponse{
+			ServiceRequest: &acctzpb.RecordResponse_CmdService{
+				CmdService: &acctzpb.CommandService{
+					ServiceType: acctzpb.CommandService_CMD_SERVICE_TYPE_CLI,
+				},
+			},
+			SessionInfo: &acctzpb.SessionInfo{
+				Status:        acctzpb.SessionInfo_SESSION_STATUS_ENABLE,
+				LocalAddress:  localIP,
+				LocalPort:     localPort,
+				RemoteAddress: remoteIP,
+				RemotePort:    remotePort,
+				IpProto:       ipProto,
+				Authn: &acctzpb.AuthnDetail{
+					Type:   acctzpb.AuthnDetail_AUTHN_TYPE_PASSWORD,
+					Status: acctzpb.AuthnDetail_AUTHN_STATUS_FAIL,
+				},
+				User: &acctzpb.UserDetail{
+					Identity: user,
+				},
+			},
+		})
+	}
+
+	return records
+}
+
+func getPrivEscalationCommand(dut *ondatra.DUTDevice) string {
+	switch dut.Vendor() {
+	case ondatra.ARISTA, ondatra.CISCO:
+		return "configure terminal"
+	default:
+		return ""
+	}
 }
 
 func expectedAuthzStatus(dut *ondatra.DUTDevice, status acctzpb.AuthzDetail_AuthzStatus, rpcName string) acctzpb.AuthzDetail_AuthzStatus {
