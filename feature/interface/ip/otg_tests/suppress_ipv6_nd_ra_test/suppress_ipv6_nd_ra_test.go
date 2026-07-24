@@ -29,6 +29,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -66,7 +67,8 @@ func configureDUT(t *testing.T, a *attrs.Attributes, dut *ondatra.DUTDevice) {
 	s6 := i.GetOrCreateSubinterface(0).GetOrCreateIpv6()
 	routerAdvert := s6.GetOrCreateRouterAdvertisement()
 	if !deviations.Ipv6RouterAdvertisementSuppressUnsupported(dut) {
-		routerAdvert.SetSuppress(true)
+		routerAdvert.SetEnable(true)
+		routerAdvert.SetMode(oc.RouterAdvertisement_Mode_DISABLE_UNSOLICITED_RA)
 	}
 
 	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), i)
@@ -105,9 +107,9 @@ func verifyRATelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	txPort := dut.Port(t, "port1")
 
 	if !deviations.Ipv6RouterAdvertisementSuppressUnsupported(dut) {
-		deviceRASuppressQuery := gnmi.OC().Interface(txPort.Name()).Subinterface(0).Ipv6().RouterAdvertisement().Suppress().Config()
-		raSuppressOnDevice := gnmi.Get(t, dut, deviceRASuppressQuery)
-		t.Logf("Router Advertisement Suppress State = %v", raSuppressOnDevice)
+		deviceRAModeQuery := gnmi.OC().Interface(txPort.Name()).Subinterface(0).Ipv6().RouterAdvertisement().Mode().Config()
+		raMode := gnmi.Get(t, dut, deviceRAModeQuery)
+		t.Logf("Router Advertisement Mode = %v", raMode)
 	}
 
 	deviceRAConfigQuery := gnmi.OC().Interface(txPort.Name()).Subinterface(0).Ipv6().RouterAdvertisement().Enable().Config()
