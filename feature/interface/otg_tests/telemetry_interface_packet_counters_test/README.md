@@ -80,6 +80,74 @@ The test uses a 2 port ATE setup where 2 ports are used as a singleton interface
 Ports are configured with ipv4, ipv6 interfaces on DUT and ATE. Traffic is sent
 and from ATE to DUT and the counters are verified.
 
+## Canonical OC
+
+```json
+{
+  "openconfig-interfaces:interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "Input interface port1",
+          "enabled": true,
+          "name": "port1",
+          "type": "iana-if-type:ethernetCsmacd"
+        },
+        "name": "port1",
+        "openconfig-if-rates:rates": {
+          "config": {
+            "load-interval": 30
+          }
+        },
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "config": {
+                "enabled": true,
+                "index": 0
+              },
+              "index": 0,
+              "openconfig-if-ip:ipv4": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "198.51.100.0",
+                        "prefix-length": 31
+                      },
+                      "ip": "198.51.100.0"
+                    }
+                  ]
+                },
+                "config": {
+                  "enabled": true
+                }
+              },
+              "openconfig-if-ip:ipv6": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "2001:DB8::1",
+                        "prefix-length": 126
+                      },
+                      "ip": "2001:DB8::1"
+                    }
+                  ]
+                },
+                "config": {
+                  "enabled": true
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test.
@@ -95,6 +163,9 @@ paths:
   /interfaces/interface/rates/config/load-interval:
 
   ## State Paths ##
+  /interfaces/interface/state/oper-status:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/state/enabled:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/enabled:
   /interfaces/interface/state/counters/carrier-transitions:
   /interfaces/interface/state/counters/in-broadcast-pkts:
   /interfaces/interface/state/counters/in-discards:
