@@ -205,7 +205,7 @@ test: {
 }
 test: {
   id: "Certz"
-  description: "gNSI Client Certificate Baseline Tests"
+  description: "gNSI Client Certificate Baseline Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/baseline/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/baseline/certz_baseline_test.go"
 }
