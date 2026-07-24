@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/security/acctz"
 	acctzpb "github.com/openconfig/gnsi/acctz"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -37,11 +38,13 @@ func TestAccountzRecordHistoryTruncation(t *testing.T) {
 
 	// Try to get records from 1 day prior to device's boot time.
 	recordStartTime := time.Unix(0, int64(bootTime)).Add(-24 * time.Hour)
+	request := &acctzpb.RecordRequest{
+		Timestamp: timestamppb.New(recordStartTime),
+	}
 
 	acctzClient := dut.RawAPIs().GNSI(t).AcctzStream()
-	acctzSubClient, err := acctzClient.RecordSubscribe(context.Background(), &acctzpb.RecordRequest{
-		Timestamp: timestamppb.New(recordStartTime),
-	})
+	t.Logf("Sending acctz record subscribe request: %s", acctz.PrettyPrint(request))
+	acctzSubClient, err := acctzClient.RecordSubscribe(context.Background(), request)
 	if err != nil {
 		t.Fatalf("Failed getting accountz record subscribe client, error: %s", err)
 	}
