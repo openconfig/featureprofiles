@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/iputil"
@@ -27,6 +28,7 @@ import (
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
 )
 
@@ -85,6 +87,19 @@ func TestGNOITraceroute(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	lbIntf := netutil.LoopbackInterface(t, dut, 0)
+	loAttrs := attrs.Attributes{
+		Desc:    "Loopback ip",
+		IPv4:    "198.51.100.1",
+		IPv6:    "2001:db8::1",
+		IPv4Len: 32,
+		IPv6Len: 128,
+	}
+	lo := loAttrs.NewOCInterface(lbIntf, dut)
+	lo.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
+	gnmi.Replace(t, dut, gnmi.OC().Interface(lbIntf).Config(), lo)
+	t.Cleanup(func() {
+		gnmi.Delete(t, dut, gnmi.OC().Interface(lbIntf).Config())
+	})
 	lo0 := gnmi.OC().Interface(lbIntf).Subinterface(0)
 	ipv4Addrs := gnmi.GetAll(t, dut, lo0.Ipv4().AddressAny().State())
 	ipv6Addrs := gnmi.GetAll(t, dut, lo0.Ipv6().AddressAny().State())
