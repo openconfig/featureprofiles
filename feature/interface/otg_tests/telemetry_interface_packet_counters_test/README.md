@@ -164,8 +164,6 @@ paths:
 
   ## State Paths ##
   /interfaces/interface/state/oper-status:
-  /interfaces/interface/subinterfaces/subinterface/ipv4/state/enabled:
-  /interfaces/interface/subinterfaces/subinterface/ipv6/state/enabled:
   /interfaces/interface/state/counters/carrier-transitions:
   /interfaces/interface/state/counters/in-broadcast-pkts:
   /interfaces/interface/state/counters/in-discards:
@@ -190,8 +188,10 @@ paths:
   /interfaces/interface/subinterfaces/subinterface/state/counters/in-errors:
   /interfaces/interface/subinterfaces/subinterface/state/counters/in-unknown-protos:
   /interfaces/interface/subinterfaces/subinterface/state/counters/in-broadcast-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/state/enabled:
   /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-pkts:
   /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/enabled:
   /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-pkts:
   /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-pkts:
   /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-discarded-pkts:
