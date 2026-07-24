@@ -21,8 +21,16 @@ import (
 	"time"
 )
 
-// Base URL for Google AI Gemini Public API
-const geminiAPIURL = "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s"
+const (
+	// geminiAPIURL is the base URL for Google AI Gemini Public API.
+	geminiAPIURL = "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s"
+	// geminiTimeout specifies the HTTP client timeout for each Gemini API call.
+	geminiTimeout = 180 * time.Second
+	// geminiMaxRetries specifies the maximum number of retry attempts for Gemini API calls.
+	geminiMaxRetries = 3
+	// geminiBackoff specifies the base backoff delay between retry attempts.
+	geminiBackoff = 10 * time.Second
+)
 
 // --- Structs for parsing metadata.textproto ---
 
@@ -246,11 +254,11 @@ Result in JSON format:
 
 	// Make HTTP request
 	url := fmt.Sprintf(geminiAPIURL, *model, *apiKey)
-	client := &http.Client{Timeout: 180 * time.Second}
+	client := &http.Client{Timeout: geminiTimeout}
 
 	var respBody []byte
 	var lastErr error
-	for attempt := 1; attempt <= 3; attempt++ {
+	for attempt := 1; attempt <= geminiMaxRetries; attempt++ {
 		req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(reqBytes))
 		if err != nil {
 			return false, "", fmt.Errorf("failed to create http request: %w", err)
@@ -260,22 +268,31 @@ Result in JSON format:
 		resp, err := client.Do(req)
 		if err != nil {
 			lastErr = fmt.Errorf("http request failed: %w", err)
-			log.Printf("Attempt %d of 3 failed: %v. Retrying in 10s...", attempt, lastErr)
-			time.Sleep(10 * time.Second)
+			if attempt < geminiMaxRetries {
+				backoff := time.Duration(attempt) * geminiBackoff
+				log.Printf("Attempt %d of %d failed: %v. Retrying in %v...", attempt, geminiMaxRetries, lastErr, backoff)
+				time.Sleep(backoff)
+			}
 			continue
 		}
 		body, err := io.ReadAll(resp.Body)
 		resp.Body.Close()
 		if err != nil {
 			lastErr = fmt.Errorf("failed to read response body: %w", err)
-			log.Printf("Attempt %d of 3 failed: %v. Retrying in 10s...", attempt, lastErr)
-			time.Sleep(10 * time.Second)
+			if attempt < geminiMaxRetries {
+				backoff := time.Duration(attempt) * geminiBackoff
+				log.Printf("Attempt %d of %d failed: %v. Retrying in %v...", attempt, geminiMaxRetries, lastErr, backoff)
+				time.Sleep(backoff)
+			}
 			continue
 		}
 		if resp.StatusCode != http.StatusOK {
 			lastErr = fmt.Errorf("gemini api returned non-ok status %d: %s", resp.StatusCode, string(body))
-			log.Printf("Attempt %d of 3 failed: %v. Retrying in 10s...", attempt, lastErr)
-			time.Sleep(10 * time.Second)
+			if attempt < geminiMaxRetries {
+				backoff := time.Duration(attempt) * geminiBackoff
+				log.Printf("Attempt %d of %d failed: %v. Retrying in %v...", attempt, geminiMaxRetries, lastErr, backoff)
+				time.Sleep(backoff)
+			}
 			continue
 		}
 		respBody = body
@@ -328,6 +345,8 @@ Result in JSON format:
 
 	return gapResult.GapFound, gapResult.GapDescription, nil
 }
+
+
 
 // escape replaces special characters in a string for GitHub Action command values.
 func escape(s string) string {
