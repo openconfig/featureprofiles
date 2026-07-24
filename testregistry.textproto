@@ -685,6 +685,11 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/double_gue_decap/README.md"
 }
 test: {
+  id: "PF-1.27"
+  description: "MPLSoGRE/MPLSoGUE MACsec and Line Rate Performance"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/macsec_test/README.md"
+}
+test: {
   id: "PF-1.3"
   description: "Policy-based IPv4 GRE Decapsulation"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/encapsulation/otg_tests/decap_gre_ipv4/README.md"
