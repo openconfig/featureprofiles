@@ -286,6 +286,7 @@ Dynamic1 | 12x12 | 56 | 4 | 57.0.0.0/8
 ## Canonical OC
 
 ```json
+{
   "openconfig-network-instance:network-instances": {
     "network-instance": [
       {
@@ -646,43 +647,43 @@ Dynamic1 | 12x12 | 56 | 4 | 57.0.0.0/8
 paths:
   ## Config Parameter Coverage
 
+  /network-instances/network-instance/protocols/protocol/isis/global/config/net:
+  /network-instances/network-instance/protocols/protocol/isis/global/config/level-capability:
+  /network-instances/network-instance/protocols/protocol/isis/global/config/hello-padding:
+  /network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/config/enabled:
+  /network-instances/network-instance/protocols/protocol/isis/global/timers/spf/config/spf-hold-interval:
+  /network-instances/network-instance/protocols/protocol/isis/global/timers/spf/config/spf-first-interval:
+  /network-instances/network-instance/protocols/protocol/isis/global/timers/config/lsp-refresh-interval:
+  /network-instances/network-instance/protocols/protocol/isis/global/timers/config/lsp-lifetime-interval:
+  /network-instances/network-instance/protocols/protocol/isis/global/mpls/igp-ldp-sync/config/enabled:
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/config/level-number:
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/config/enabled:
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/config/metric-style:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/interface-id:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/enabled:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/circuit-type:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/passive:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/config/level-number:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/config/passive:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/timers/config/hello-interval:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/timers/config/hello-multiplier:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/afi-name:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/safi-name:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/enabled:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/timers/config/lsp-pacing-interval:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/mpls/igp-ldp-sync/config/enabled:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/config/metric:
 
-/network-instances/network-instance/protocols/protocol/isis/global/config/net:
-/network-instances/network-instance/protocols/protocol/isis/global/config/level-capability:
-/network-instances/network-instance/protocols/protocol/isis/global/config/hello-padding:
-/network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/config/enabled:
-/network-instances/network-instance/protocols/protocol/isis/global/timers/spf/config/spf-hold-interval:
-/network-instances/network-instance/protocols/protocol/isis/global/timers/spf/config/spf-first-interval:
-/network-instances/network-instance/protocols/protocol/isis/global/timers/config/lsp-refresh-interval:
-/network-instances/network-instance/protocols/protocol/isis/global/timers/config/lsp-lifetime-interval:
-/network-instances/network-instance/protocols/protocol/isis/global/mpls/igp-ldp-sync/config/enabled:
-/network-instances/network-instance/protocols/protocol/isis/levels/level/config/level-number:
-/network-instances/network-instance/protocols/protocol/isis/levels/level/config/enabled:
-/network-instances/network-instance/protocols/protocol/isis/levels/level/config/metric-style:
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/interface-id:
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/enabled:
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/circuit-type:
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/passive:
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/config/level-number:
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/config/passive:
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/timers/config/hello-interval:
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/timers/config/hello-multiplier:
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/afi-name:
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/safi-name:
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/enabled:
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/timers/config/lsp-pacing-interval:
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/mpls/igp-ldp-sync/config/enabled:
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/config/metric:
+  ## Telemetry Parameter Coverage
 
-
-## Telemetry Parameter Coverage
-
-/interfaces/interface/state/admin-status:
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state:
-/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/state/lsp-id:
-/network-instances/network-instance/afts/aft-summaries/ipv4-unicast/protocols/protocol/state/counters/aft-entries:
-/network-instances/network-instance/afts/aft-summaries/ipv6-unicast/protocols/protocol/state/counters/aft-entries:
-/instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv:
+  /interfaces/interface/state/admin-status:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/state/interface-id:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state:
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/total-lsps:
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/state/lsp-id:
+  /network-instances/network-instance/afts/aft-summaries/ipv4-unicast/protocols/protocol/state/counters/aft-entries:
+  /network-instances/network-instance/afts/aft-summaries/ipv6-unicast/protocols/protocol/state/counters/aft-entries:
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/state/type:
 
 rpcs:
   gnmi:
