@@ -109,10 +109,12 @@ type TCPFlowParams struct {
 
 // UDPFlowParams is a struct to hold UDP traffic parameters.
 type UDPFlowParams struct {
-	UDPSrcPort  uint32
-	UDPDstPort  uint32
-	UDPSrcCount uint32
-	UDPDstCount uint32
+	UDPSrcPort     uint32
+	UDPDstPort     uint32
+	UDPSrcCount    uint32
+	UDPDstCount    uint32
+	UDPCheckSum    uint32
+	SetUDPCheckSum bool
 }
 
 // MPLSFlowParams is a struct to hold MPLS traffic parameters.
@@ -327,6 +329,10 @@ func (f *Flow) AddUDPHeader() {
 		udpHdr.DstPort().Increment().SetStart(f.UDPFlow.UDPDstPort).SetCount(f.UDPFlow.UDPDstCount)
 	} else {
 		udpHdr.DstPort().SetValue(f.UDPFlow.UDPDstPort)
+	}
+
+	if f.UDPFlow.SetUDPCheckSum {
+		udpHdr.Checksum().SetCustom(f.UDPFlow.UDPCheckSum)
 	}
 }
 
