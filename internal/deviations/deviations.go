@@ -2293,3 +2293,12 @@ func MaxOutFIBRouteCount(dut *ondatra.DUTDevice) uint32 {
 	}
 	return 2500000
 }
+
+// FRRWeightResolutionTolerance returns the allowed tolerance for traffic flow while comparing for pass or fail conditions.
+// Default minimum value is 0.2.
+func FrrWeightResolutionTolerance(dut *ondatra.DUTDevice) float64 {
+	if hwrt := lookupDUTDeviations(dut).GetFrrWeightResolutionTolerance(); hwrt != 0 {
+		return hwrt
+	}
+	return 0.2
+}
