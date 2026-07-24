@@ -194,7 +194,7 @@ func TestDialLocal(t *testing.T) {
 
 	gribiClient := gribi.Client{
 		DUT:         dut,
-		FIBACK:      true,
+		FIBACK:      false,
 		Persistence: true,
 	}
 	if err := gribiClient.Start(t); err != nil {
@@ -207,8 +207,8 @@ func TestDialLocal(t *testing.T) {
 	defer gribiClient.FlushAll(t)
 
 	//Program a sample gRIBI Entry on DUT for gRIBI Get query response.
-	gribiClient.AddNH(t, 2001, "Decap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-	gribiClient.AddNHG(t, 201, map[uint64]uint64{2001: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	gribiClient.AddNH(t, 2001, "Decap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInRIB)
+	gribiClient.AddNHG(t, 201, map[uint64]uint64{2001: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInRIB)
 
 	// Dynamically fetch the actual gNMI and gRIBI ports the DUT is configured with.
 	gnmiPort := introspect.DUTDialer(t, dut, introspect.GNMI).DevicePort
