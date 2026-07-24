@@ -561,9 +561,6 @@ func TestCoppSystem(t *testing.T) {
 	for idx := range testCases {
 		tc := &testCases[idx]
 		t.Run(tc.name, func(t *testing.T) {
-			if strings.HasPrefix(tc.name, "CoppSystemL2Ucast") && deviations.CoppL2UnicastUnsupported(ce.dut) {
-				t.Skip("L2 unicast COPP test not supported on this platform")
-			}
 			ce.testCoppSystemHelper(t, tc)
 		})
 	}
