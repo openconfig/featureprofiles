@@ -587,21 +587,9 @@ func verifyACLCounters(t *testing.T, dut *ondatra.DUTDevice, fc flowConfig, expe
 	aclSetPath := gnmi.OC().Acl().AclSet(aclParams.Name, aclParams.ACLType)
 
 	t.Logf("Verifying ACL counters for ACL %s entry %d", aclParams.Name, entryID)
-	var entry *oc.Acl_AclSet_AclEntry
-	check := func(val *ygnmi.Value[*oc.Acl_AclSet_AclEntry]) bool {
-		e, present := val.Val()
-		return present && e != nil
-	}
-	val, ok := gnmi.Watch(t, dut, aclSetPath.AclEntry(entryID).State(), aclCounterTimeout, check).Await(t)
-	if !ok {
-		return fmt.Errorf("ACL entry %d not found in ACL %s after %v seconds", entryID, aclParams.Name, aclCounterTimeout)
-	}
-	entry, _ = val.Val()
 
 	var expectedPackets uint64
-	matched := entry.GetMatchedPackets()
 	previouslyMatched := entryCounters[entryID]
-	t.Logf("ACL entry %d: matched=%d", entryID, matched)
 
 	switch {
 	case expectPass && aclParams.DefaultPermit, !expectPass && !aclParams.DefaultPermit:
@@ -618,9 +606,24 @@ func verifyACLCounters(t *testing.T, dut *ondatra.DUTDevice, fc flowConfig, expe
 		}
 	}
 
+	check := func(val *ygnmi.Value[*oc.Acl_AclSet_AclEntry]) bool {
+		e, present := val.Val()
+		if !present || e == nil {
+			return false
+		}
+		return e.GetMatchedPackets()-previouslyMatched >= expectedPackets
+	}
+	val, ok := gnmi.Watch(t, dut, aclSetPath.AclEntry(entryID).State(), aclCounterTimeout, check).Await(t)
+
+	var matched uint64
+	if entry, present := val.Val(); present && entry != nil {
+		matched = entry.GetMatchedPackets()
+	}
+	t.Logf("ACL entry %d: matched=%d", entryID, matched)
 	entryCounters[entryID] = matched
+
 	message := fmt.Sprintf("expected >= %d matched packets for ACL entry %d, got %d", expectedPackets, entryID, matched-previouslyMatched)
-	if matched-previouslyMatched < expectedPackets {
+	if !ok {
 		err := fmt.Errorf("ACL validation failed for flow %s: %s", fc.name, message)
 		t.Log(err.Error())
 		return err
@@ -652,11 +655,11 @@ func sendAndVerifyTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATE
 	}
 	otg.StopProtocols(t)
 
-	if err := verifyFlowStatistics(t, ate, config, flowConfig.name, expectPass, maxDroppedPackets); err != nil {
-		validationErrors = append(validationErrors, err)
-	}
-
 	if !aclParams.Update || !deviations.SkipACLCountersVerificationDuringUpdate(dut) {
+		if err := verifyFlowStatistics(t, ate, config, flowConfig.name, expectPass, maxDroppedPackets); err != nil {
+			validationErrors = append(validationErrors, err)
+		}
+
 		if err := verifyACLCounters(t, dut, flowConfig, expectPass, aclParams, maxDroppedPackets); err != nil {
 			validationErrors = append(validationErrors, err)
 		}
