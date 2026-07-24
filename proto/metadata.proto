@@ -1401,8 +1401,14 @@ message Metadata {
     bool vlan_subinterface_oc_unsupported = 440;
     
     // Device has max route count based on specific platform
-    // Juniper : For devices which has different max route count based on platform, this deviation can be used to set the max route count for the device. This will be used in scale test cases to set the max route count for the device.
+    // Juniper : For devices which has different max route count based on platform,
+    // this deviation can be used to set the max route count for the device. This
+    // will be used in scale test cases to set the max route count for the device.
     uint32 max_out_fib_route_count = 441;
+
+    // Device does not support configuring route-reflector-client
+    // Juniper: b/534122367
+    bool route_reflector_client_unsupported = 442;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
