@@ -666,6 +666,7 @@ func (td *testData) testStaticRouteWithMetric(t *testing.T) {
 	td.configureStaticRouteToATEP1AndP2(t)
 	defer td.deleteStaticRoutes(t)
 
+	var port1Metric = uint32(1)
 	var port2Metric = uint32(100)
 	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
 
@@ -674,13 +675,12 @@ func (td *testData) testStaticRouteWithMetric(t *testing.T) {
 	if deviations.StaticRouteWithExplicitMetric(td.dut) {
 		// per the cisco specifications setting the metric is equivlent to setting the weight, so in this case
 		// we want the majority of the traffic to go over port 1 so setting the metric to 100 and port 2 as 1
-		var port1Metric = uint32(100)
+		port1Metric = uint32(100)
 		port2Metric = uint32(1)
-		gnmi.BatchReplace(batch, sp.Static(td.staticIPv4.cidr(t)).NextHop("0").Metric().Config(), port1Metric)
-		gnmi.BatchReplace(batch, sp.Static(td.staticIPv6.cidr(t)).NextHop("0").Metric().Config(), port1Metric)
-
 	}
 
+	gnmi.BatchReplace(batch, sp.Static(td.staticIPv4.cidr(t)).NextHop("0").Metric().Config(), port1Metric)
+	gnmi.BatchReplace(batch, sp.Static(td.staticIPv6.cidr(t)).NextHop("0").Metric().Config(), port1Metric)
 	gnmi.BatchReplace(batch, sp.Static(td.staticIPv4.cidr(t)).NextHop("1").Metric().Config(), port2Metric)
 	gnmi.BatchReplace(batch, sp.Static(td.staticIPv6.cidr(t)).NextHop("1").Metric().Config(), port2Metric)
 	batch.Set(t, td.dut)
@@ -692,11 +692,25 @@ func (td *testData) testStaticRouteWithMetric(t *testing.T) {
 		gnmi.Await(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv4.cidr(t))
 		gnmi.Await(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv6.cidr(t))
 		// Validate that the metric is set correctly
-		if got, want := gnmi.Get(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).NextHop("1").Metric().State()), port2Metric; got != want {
-			t.Errorf("IPv4 Static Route metric for NextHop 1, got: %d, want: %d", got, want)
+		_, ok := gnmi.Watch(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).State(), time.Second*60,
+			func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Static]) bool {
+				val, present := v.Val()
+				return present && val.GetPrefix() == td.staticIPv4.cidr(t) &&
+					val.GetNextHop("0").GetMetric() == port1Metric
+			}).Await(t)
+		if !ok {
+			got := gnmi.Get(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).NextHop("0").Metric().State())
+			t.Errorf("IPv4 Static Route metric for NextHop 0, got: %d, want: %d", got, port1Metric)
 		}
-		if got, want := gnmi.Get(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).NextHop("1").Metric().State()), port2Metric; got != want {
-			t.Errorf("IPv6 Static Route metric for NextHop 1, got: %d, want: %d", got, want)
+		_, ok = gnmi.Watch(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).State(), time.Second*60,
+			func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Static]) bool {
+				val, present := v.Val()
+				return present && val.GetPrefix() == td.staticIPv6.cidr(t) &&
+					val.GetNextHop("0").GetMetric() == port1Metric
+			}).Await(t)
+		if !ok {
+			got := gnmi.Get(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).NextHop("0").Metric().State())
+			t.Errorf("IPv6 Static Route metric for NextHop 0, got: %d, want: %d", got, port1Metric)
 		}
 	})
 
@@ -769,6 +783,7 @@ func (td *testData) testStaticRouteWithPreference(t *testing.T) {
 	defer td.deleteStaticRoutes(t)
 
 	const port1Preference = uint32(50)
+	const port2Preference = uint32(10)
 	const port2Metric = uint32(100)
 
 	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
@@ -789,6 +804,8 @@ func (td *testData) testStaticRouteWithPreference(t *testing.T) {
 	} else {
 		gnmi.BatchReplace(batch, sp.Static(td.staticIPv4.cidr(t)).NextHop("0").Preference().Config(), port1Preference)
 		gnmi.BatchReplace(batch, sp.Static(td.staticIPv6.cidr(t)).NextHop("0").Preference().Config(), port1Preference)
+		gnmi.BatchReplace(batch, sp.Static(td.staticIPv4.cidr(t)).NextHop("1").Preference().Config(), port2Preference)
+		gnmi.BatchReplace(batch, sp.Static(td.staticIPv6.cidr(t)).NextHop("1").Preference().Config(), port2Preference)
 	}
 	batch.Set(t, td.dut)
 
@@ -827,11 +844,25 @@ func (td *testData) testStaticRouteWithPreference(t *testing.T) {
 				}
 			}
 		} else {
-			if got, want := gnmi.Get(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).NextHop("0").Preference().State()), port1Preference; got != want {
-				t.Errorf("IPv4 Static Route preference for NextHop 0, got: %d, want: %d", got, want)
+			_, ok := gnmi.Watch(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).State(), time.Second*60,
+				func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Static]) bool {
+					val, present := v.Val()
+					return present && val.GetPrefix() == td.staticIPv4.cidr(t) &&
+						val.GetNextHop("1").GetPreference() == port2Preference
+				}).Await(t)
+			if !ok {
+				got := gnmi.Get(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).NextHop("1").Preference().State())
+				t.Errorf("IPv4 Static Route preference for NextHop 1, got: %d, want: %d", got, port2Preference)
 			}
-			if got, want := gnmi.Get(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).NextHop("0").Preference().State()), port1Preference; got != want {
-				t.Errorf("IPv6 Static Route preference for NextHop 0, got: %d, want: %d", got, want)
+			_, ok = gnmi.Watch(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).State(), time.Second*60,
+				func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Static]) bool {
+					val, present := v.Val()
+					return present && val.GetPrefix() == td.staticIPv6.cidr(t) &&
+						val.GetNextHop("1").GetPreference() == port2Preference
+				}).Await(t)
+			if !ok {
+				got := gnmi.Get(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).NextHop("1").Preference().State())
+				t.Errorf("IPv6 Static Route preference for NextHop 1, got: %d, want: %d", got, port2Preference)
 			}
 		}
 	})
