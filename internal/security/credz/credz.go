@@ -21,6 +21,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -38,21 +39,24 @@ import (
 )
 
 const (
-	lowercase = "abcdefghijklmnopqrstuvwxyz"
-	uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	digits    = "0123456789"
-	symbols   = "!@#$%^&*(){}[]\\:;\"'"
-	// space             = " "
+	lowercase         = "abcdefghijklmnopqrstuvwxyz"
+	uppercase         = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	digits            = "0123456789"
+	symbols           = "!@#$%^&*(){}[]\\|:;\"'"
+	space             = " "
 	dutKey            = "dut"
 	userKey           = "testuser"
 	caKey             = "ca"
 	minPasswordLength = 24
 	maxPasswordLength = 32
 	defaultSSHPort    = 22
-)
 
-var (
-	charClasses = []string{lowercase, uppercase, digits, symbols}
+	// rotateStreamTimeout bounds a single end-to-end credentialz Rotate stream
+	// (open -> Send -> Recv -> Send(Finalize) -> drain to io.EOF). It must be
+	// generous enough for slow control-plane commits yet short enough that a
+	// stuck stream fails fast instead of hanging until the outer `go test`
+	// -timeout fires.
+	rotateStreamTimeout = 60 * time.Second
 )
 
 // PrettyPrint prints rpc requests/responses in a pretty format.
@@ -73,6 +77,12 @@ func SetupUser(t *testing.T, dut *ondatra.DUTDevice, username string) {
 // - Must be 24-32 characters long.
 // - Must use 4 of the 5 character classes ([a-z], [A-Z], [0-9], [!@#$%^&*(){}[]\|:;'"], [ ]).
 func GeneratePassword() string {
+	// charClasses is a function-local slice (not a package-level var) so that
+	// concurrent callers of GeneratePassword do not race on a shared slice:
+	// rand.Shuffle below reorders it in place, which would otherwise mutate
+	// global state and introduce a data race.
+	charClasses := []string{lowercase, uppercase, digits, symbols, space}
+
 	// Create random length between 24-32 characters long.
 	delta := maxPasswordLength - minPasswordLength + 1
 	length := minPasswordLength + rand.Intn(delta)
@@ -100,58 +110,123 @@ func GeneratePassword() string {
 	return password.String()
 }
 
+// rotateStream is the minimal streaming surface shared by the credentialz
+// RotateHostParameters and RotateAccountCredentials client streams. Both
+// generated clients already satisfy it, which lets a single helper drive the
+// full end-to-end rotate handshake for either RPC.
+type rotateStream[Req any, Resp any] interface {
+	Send(Req) error
+	Recv() (Resp, error)
+}
+
+// runRotate performs the complete, end-to-end credentialz Rotate handshake and
+// guarantees the device is left in a committed (clean) state for every call:
+//
+//  1. Send the caller's request.
+//  2. Recv the server's acknowledgement.
+//  3. Send Finalize.
+//  4. Drain Recv until io.EOF so the commit is fully applied and the stream is
+//     closed cleanly before returning.
+//
+// Context handling (why this is not simply context.Background()):
+//
+// The rotate stream is derived from t.Context() while it is still live. This is
+// exactly what we want from the test body: if the test is canceled or hits its
+// deadline, the in-flight rotate stream is torn down with it, so the Recv-until-
+// EOF drain below can never outlive the test.
+//
+// However, per the Go testing contract, t.Context() is canceled *just before* a
+// test's t.Cleanup callbacks run. These credentialz helpers are intentionally
+// invoked from BOTH the test body and from t.Cleanup / deferred teardown (that
+// is the whole point of the cleanup-every-run contract). If we used t.Context()
+// unconditionally, every teardown rotation would fail with
+// "rpc error: code = Canceled desc = context canceled" and leave the device
+// dirty. So once t.Context() is already canceled (i.e. we are running from
+// cleanup) we transparently fall back to context.Background() for that call.
+//
+// In both cases we layer a WithTimeout(rotateStreamTimeout) on top, so a stuck
+// stream fails fast in CI instead of hanging until the outer `go test` -timeout.
+func runRotate[Req any, Resp any](
+	t *testing.T,
+	rpcName string,
+	open func(context.Context) (rotateStream[Req, Resp], error),
+	request Req,
+	finalize Req,
+) {
+	t.Helper()
+
+	// Prefer the live test context; fall back to Background only when t.Context()
+	// is already canceled (cleanup/teardown path). Always bounded by a timeout.
+	base := t.Context()
+	if base.Err() != nil {
+		t.Logf("t.Context() already canceled (%v); using background context for credentialz %s (cleanup path).", base.Err(), rpcName)
+		base = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(base, rotateStreamTimeout)
+	defer cancel()
+
+	stream, err := open(ctx)
+	if err != nil {
+		t.Fatalf("Failed fetching credentialz %s client, error: %s", rpcName, err)
+	}
+
+	t.Logf("Sending credentialz %s request: %s", rpcName, PrettyPrint(request))
+	if err := stream.Send(request); err != nil {
+		t.Fatalf("Failed sending credentialz %s request, error: %s", rpcName, err)
+	}
+	if _, err := stream.Recv(); err != nil {
+		t.Fatalf("Failed receiving credentialz %s response, error: %s", rpcName, err)
+	}
+
+	if err := stream.Send(finalize); err != nil {
+		t.Fatalf("Failed sending credentialz %s finalize request, error: %s", rpcName, err)
+	}
+	// Read response to Finalize until EOF so the commit is fully applied.
+	for {
+		_, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("Failed during %s finalize Recv, error: %s", rpcName, err)
+		}
+	}
+}
+
 func sendHostParametersRequest(t *testing.T, dut *ondatra.DUTDevice, request *cpb.RotateHostParametersRequest) {
+	t.Helper()
 	credzClient := dut.RawAPIs().GNSI(t).Credentialz()
-	credzRotateClient, err := credzClient.RotateHostParameters(context.Background())
-	if err != nil {
-		t.Fatalf("Failed fetching credentialz rotate host parameters client, error: %s", err)
-	}
-	t.Logf("Sending credentialz rotate host request: %s", PrettyPrint(request))
-	err = credzRotateClient.Send(request)
-	if err != nil {
-		t.Fatalf("Failed sending credentialz rotate host parameters request, error: %s", err)
-	}
-	_, err = credzRotateClient.Recv()
-	if err != nil {
-		t.Fatalf("Failed receiving credentialz rotate host parameters response, error: %s", err)
-	}
-	err = credzRotateClient.Send(&cpb.RotateHostParametersRequest{
-		Request: &cpb.RotateHostParametersRequest_Finalize{
-			Finalize: request.GetFinalize(),
+	runRotate(
+		t,
+		"rotate host parameters",
+		func(ctx context.Context) (rotateStream[*cpb.RotateHostParametersRequest, *cpb.RotateHostParametersResponse], error) {
+			return credzClient.RotateHostParameters(ctx)
 		},
-	})
-	if err != nil {
-		t.Fatalf("Failed sending credentialz rotate host parameters finalize request, error: %s", err)
-	}
-	// Brief sleep for finalize to get processed.
-	time.Sleep(time.Second)
+		request,
+		&cpb.RotateHostParametersRequest{
+			Request: &cpb.RotateHostParametersRequest_Finalize{
+				Finalize: request.GetFinalize(),
+			},
+		},
+	)
 }
 
 func sendAccountCredentialsRequest(t *testing.T, dut *ondatra.DUTDevice, request *cpb.RotateAccountCredentialsRequest) {
+	t.Helper()
 	credzClient := dut.RawAPIs().GNSI(t).Credentialz()
-	credzRotateClient, err := credzClient.RotateAccountCredentials(context.Background())
-	if err != nil {
-		t.Fatalf("Failed fetching credentialz rotate account credentials client, error: %s", err)
-	}
-	t.Logf("Sending credentialz rotate account request: %s", PrettyPrint(request))
-	err = credzRotateClient.Send(request)
-	if err != nil {
-		t.Fatalf("Failed sending credentialz rotate account credentials request, error: %s", err)
-	}
-	_, err = credzRotateClient.Recv()
-	if err != nil {
-		t.Fatalf("Failed receiving credentialz rotate account credentials response, error: %s", err)
-	}
-	err = credzRotateClient.Send(&cpb.RotateAccountCredentialsRequest{
-		Request: &cpb.RotateAccountCredentialsRequest_Finalize{
-			Finalize: request.GetFinalize(),
+	runRotate(
+		t,
+		"rotate account credentials",
+		func(ctx context.Context) (rotateStream[*cpb.RotateAccountCredentialsRequest, *cpb.RotateAccountCredentialsResponse], error) {
+			return credzClient.RotateAccountCredentials(ctx)
 		},
-	})
-	if err != nil {
-		t.Fatalf("Failed sending credentialz rotate account credentials finalize request, error: %s", err)
-	}
-	// Brief sleep for finalize to get processed.
-	time.Sleep(time.Second)
+		request,
+		&cpb.RotateAccountCredentialsRequest{
+			Request: &cpb.RotateAccountCredentialsRequest_Finalize{
+				Finalize: request.GetFinalize(),
+			},
+		},
+	)
 }
 
 // GenerateVersion returns a unique version string for gNSI rotations.
@@ -159,19 +234,29 @@ func GenerateVersion() string {
 	return fmt.Sprintf("v%d", time.Now().UnixNano())
 }
 
-// RotateUserPassword apply password for the specified username on the dut.
+// RotateUserPassword applies or deletes the password for the specified username on the DUT.
+// To add/update a password, provide non-empty password, version, and createdOn.
+// To delete a password, provide empty strings for password and version, and 0 for createdOn.
+//
+// The request is always constructed as a single, well-formed message. The plaintext
+// password value is only attached when a password is supplied, so no combination of
+// arguments can leave the request nil (which previously risked a nil pointer
+// dereference / gRPC panic in sendAccountCredentialsRequest).
 func RotateUserPassword(t *testing.T, dut *ondatra.DUTDevice, username, password, version string, createdOn uint64) {
+	pw := &cpb.PasswordRequest_Password{}
+	if password != "" {
+		pw.Value = &cpb.PasswordRequest_Password_Plaintext{
+			Plaintext: password,
+		}
+	}
+
 	request := &cpb.RotateAccountCredentialsRequest{
 		Request: &cpb.RotateAccountCredentialsRequest_Password{
 			Password: &cpb.PasswordRequest{
 				Accounts: []*cpb.PasswordRequest_Account{
 					{
-						Account: username,
-						Password: &cpb.PasswordRequest_Password{
-							Value: &cpb.PasswordRequest_Password_Plaintext{
-								Plaintext: password,
-							},
-						},
+						Account:   username,
+						Password:  pw,
 						Version:   version,
 						CreatedOn: createdOn,
 					},
@@ -183,23 +268,35 @@ func RotateUserPassword(t *testing.T, dut *ondatra.DUTDevice, username, password
 	sendAccountCredentialsRequest(t, dut, request)
 }
 
-// RotateAuthorizedPrincipal apply authorized principal for the specified username on the dut.
-func RotateAuthorizedPrincipal(t *testing.T, dut *ondatra.DUTDevice, username, userPrincipal string) {
+// RotateAuthorizedPrincipal applies or deletes authorized principal for the specified username on the dut.
+// To add/update authorized principal, provide non-empty authorized principal, version, and createdOn.
+// To delete authorized principal, provide empty strings for authorized principal and version, and 0 for createdOn.
+//
+// The request is always constructed as a single, well-formed message. Authorized
+// principals are only attached when a principal is supplied, so no combination of
+// arguments can leave the request nil (which previously risked a nil pointer
+// dereference / gRPC panic in sendAccountCredentialsRequest).
+func RotateAuthorizedPrincipal(t *testing.T, dut *ondatra.DUTDevice, username, userPrincipal, version string, createdOn uint64) {
+	var authPrincipals *cpb.UserPolicy_SshAuthorizedPrincipals
+	if userPrincipal != "" {
+		authPrincipals = &cpb.UserPolicy_SshAuthorizedPrincipals{
+			AuthorizedPrincipals: []*cpb.UserPolicy_SshAuthorizedPrincipal{
+				{
+					AuthorizedUser: userPrincipal,
+				},
+			},
+		}
+	}
+
 	request := &cpb.RotateAccountCredentialsRequest{
 		Request: &cpb.RotateAccountCredentialsRequest_User{
 			User: &cpb.AuthorizedUsersRequest{
 				Policies: []*cpb.UserPolicy{
 					{
-						Account: username,
-						AuthorizedPrincipals: &cpb.UserPolicy_SshAuthorizedPrincipals{
-							AuthorizedPrincipals: []*cpb.UserPolicy_SshAuthorizedPrincipal{
-								{
-									AuthorizedUser: userPrincipal,
-								},
-							},
-						},
-						Version:   GenerateVersion(),
-						CreatedOn: uint64(time.Now().Unix()),
+						Account:              username,
+						AuthorizedPrincipals: authPrincipals,
+						Version:              version,
+						CreatedOn:            createdOn,
 					},
 				},
 			},
@@ -210,6 +307,8 @@ func RotateAuthorizedPrincipal(t *testing.T, dut *ondatra.DUTDevice, username, u
 }
 
 // RotateAuthorizedKey read user key contents from the specified directory & apply it as authorized key on the dut.
+// To add an authorized key, provide a non-empty dir (and a version/createdOn for telemetry).
+// To delete/clear the authorized key, provide an empty dir (the key list is sent empty).
 func RotateAuthorizedKey(t *testing.T, dut *ondatra.DUTDevice, dir, username, version string, createdOn uint64) {
 	var keyContents []*cpb.AccountCredentials_AuthorizedKey
 
@@ -247,8 +346,10 @@ func RotateAuthorizedKey(t *testing.T, dut *ondatra.DUTDevice, dir, username, ve
 	sendAccountCredentialsRequest(t, dut, request)
 }
 
-// RotateTrustedUserCA read CA key contents from the specified directory & apply it on the dut.
-func RotateTrustedUserCA(t *testing.T, dut *ondatra.DUTDevice, dir string) {
+// RotateTrustedUserCA applies or deletes CA key contents on the dut.
+// To add the CA, provide a non-empty dir along with a version and createdOn.
+// To delete the CA, provide an empty dir, empty version, and 0 createdOn.
+func RotateTrustedUserCA(t *testing.T, dut *ondatra.DUTDevice, dir, version string, createdOn uint64) {
 	var keyContents []*cpb.PublicKey
 
 	if dir != "" {
@@ -271,8 +372,8 @@ func RotateTrustedUserCA(t *testing.T, dut *ondatra.DUTDevice, dir string) {
 		Request: &cpb.RotateHostParametersRequest_SshCaPublicKey{
 			SshCaPublicKey: &cpb.CaPublicKeyRequest{
 				SshCaPublicKeys: keyContents,
-				Version:         GenerateVersion(),
-				CreatedOn:       uint64(time.Now().Unix()),
+				Version:         version,
+				CreatedOn:       createdOn,
 			},
 		},
 	}
@@ -293,7 +394,18 @@ func RotateAuthenticationTypes(t *testing.T, dut *ondatra.DUTDevice, authTypes [
 	sendHostParametersRequest(t, dut, request)
 }
 
-// RotateAuthenticationArtifacts read dut key/certificate contents from the specified directory & apply it as host authentication artifacts on the dut.
+// RotateAuthenticationArtifacts reads dut key/certificate contents from the specified
+// directories & applies them as host authentication artifacts on the dut.
+//
+// To install artifacts, provide keyDir and/or certDir along with a non-empty version
+// and non-zero createdOn. When both a key and a certificate are provided, they are
+// bundled into a single AuthenticationArtifacts entry.
+//
+// To clear artifacts, pass empty keyDir and certDir. Per the gNSI spec, every
+// ServerKeys rotation must carry a version/created_on (they are persisted and reported
+// via telemetry), so if version is empty / createdOn is 0 they are auto-generated.
+// This keeps the request well-formed and accepted across all vendors (e.g. it avoids
+// vendor rejections such as "Empty version string. Need value for version.").
 func RotateAuthenticationArtifacts(t *testing.T, dut *ondatra.DUTDevice, keyDir, certDir, version string, createdOn uint64) {
 	var artifactContents []*cpb.ServerKeysRequest_AuthenticationArtifacts
 
@@ -301,31 +413,38 @@ func RotateAuthenticationArtifacts(t *testing.T, dut *ondatra.DUTDevice, keyDir,
 	var certData []byte
 	var err error
 	if keyDir != "" {
-		// data, err := os.ReadFile(fmt.Sprintf("%s/%s", keyDir, dut.ID()))
 		keyData, err = os.ReadFile(fmt.Sprintf("%s/%s", keyDir, dut.ID()))
 		if err != nil {
 			t.Fatalf("Failed reading host private key, error: %s", err)
 		}
-		// artifactContents = append(artifactContents, &cpb.ServerKeysRequest_AuthenticationArtifacts{
-		// 	PrivateKey: data,
-		// })
 	}
 
 	if certDir != "" {
-		// data, err := os.ReadFile(fmt.Sprintf("%s/%s-cert.pub", certDir, dut.ID()))
 		certData, err = os.ReadFile(fmt.Sprintf("%s/%s-cert.pub", certDir, dut.ID()))
 		if err != nil {
 			t.Fatalf("Failed reading host signed certificate, error: %s", err)
 		}
-		// artifactContents = append(artifactContents, &cpb.ServerKeysRequest_AuthenticationArtifacts{
-		// 	Certificate: data,
-		// })
 	}
 
-	artifactContents = append(artifactContents, &cpb.ServerKeysRequest_AuthenticationArtifacts{
-		PrivateKey:  keyData,
-		Certificate: certData,
-	})
+	// Only add an artifact when there is actually a key and/or certificate to send.
+	// This keeps the cleanup call (keyDir == "" && certDir == "") from sending an empty
+	// artifact (auth_artifacts: [{}]), which some vendors reject as malformed.
+	if keyData != nil || certData != nil {
+		artifactContents = append(artifactContents, &cpb.ServerKeysRequest_AuthenticationArtifacts{
+			PrivateKey:  keyData,
+			Certificate: certData,
+		})
+	}
+
+	// The gNSI spec requires version/created_on on every ServerKeys rotation, including
+	// when clearing artifacts. Auto-generate them if the caller did not provide them so
+	// the request is accepted across all vendors.
+	if version == "" {
+		version = GenerateVersion()
+	}
+	if createdOn == 0 {
+		createdOn = uint64(time.Now().Unix())
+	}
 
 	request := &cpb.RotateHostParametersRequest{
 		Request: &cpb.RotateHostParametersRequest_ServerKeys{
@@ -409,7 +528,7 @@ func GetDutPublicKey(t *testing.T, dut *ondatra.DUTDevice, targetAlgo string) []
 			t.Fatalf("Failed to find host key for algorithm %s on DUT. Available keys and their types can be inspected via logs.", targetAlgo)
 		}
 	} else {
-		// Form the key bytes from the proto message
+		// Form the key bytes from the proto message.
 		key = response.PublicKeys[0]
 		algo = sshAlgo(t, key)
 		if algo == "" {
@@ -661,7 +780,6 @@ func SSHWithPassword(ctx context.Context, dut *ondatra.DUTDevice, username, pass
 
 // SSHWithCertificate dials ssh with user certificate to be used in credentialz tests.
 func SSHWithCertificate(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, username, dir string) (binding.SSHClient, error) {
-
 	privateKeyContents, err := os.ReadFile(fmt.Sprintf("%s/%s", dir, userKey))
 	if err != nil {
 		t.Fatalf("Failed reading private key contents, error: %s", err)
@@ -684,7 +802,7 @@ func SSHWithKey(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, usern
 	return dut.RawAPIs().BindingDUT().DialSSH(ctx, binding.KeyAuth{User: username, Key: privateKeyContents})
 }
 
-// SSHCleanup performs required cleanup on DUT
+// SSHCleanup performs required cleanup on DUT.
 func SSHCleanup(t *testing.T, dut *ondatra.DUTDevice) {
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
@@ -697,8 +815,10 @@ func SSHCleanup(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // GetConfiguredHostKey returns the configured host key on the DUT for the given algorithm.
+// fqdn is used for logging/diagnostic context when locating the host key.
 func GetConfiguredHostKey(t *testing.T, dut *ondatra.DUTDevice, algo string, fqdn string) string {
 	t.Helper()
+	t.Logf("Looking up configured host key for algo %q (fqdn: %q)", algo, fqdn)
 	credzClient := dut.RawAPIs().GNSI(t).Credentialz()
 
 	// Polling is required because the host key might not be immediately available after rotation.
@@ -724,7 +844,7 @@ func GetConfiguredHostKey(t *testing.T, dut *ondatra.DUTDevice, algo string, fqd
 		if matchingKey != "" {
 			break
 		}
-		t.Logf("Waiting for %s host key (attempt %d/10)", algo, i+1)
+		t.Logf("Waiting for %s host key (attempt %d/10) for fqdn %q", algo, i+1, fqdn)
 		time.Sleep(5 * time.Second)
 	}
 
@@ -735,7 +855,7 @@ func GetConfiguredHostKey(t *testing.T, dut *ondatra.DUTDevice, algo string, fqd
 		if response != nil {
 			t.Logf("Available public keys: %+v", response.PublicKeys)
 		} else {
-			t.Fatalf("Failed to find host key for algorithm %s on DUT. Available keys and their types can be inspected via logs.", algo)
+			t.Fatalf("Failed to find host key for algorithm %s (fqdn %q) on DUT. Available keys and their types can be inspected via logs.", algo, fqdn)
 		}
 	}
 
@@ -773,7 +893,7 @@ func sshAlgo(t *testing.T, pk *cpb.PublicKey) string {
 	case cpb.KeyType_KEY_TYPE_ED25519:
 		return "ssh-ed25519"
 	case cpb.KeyType_KEY_TYPE_UNSPECIFIED:
-		// Attempt to infer from public key content
+		// Attempt to infer from public key content.
 		keyData := string(pk.PublicKey)
 		parts := strings.Fields(keyData)
 		if len(parts) >= 1 && (strings.HasPrefix(parts[0], "ssh-") || strings.HasPrefix(parts[0], "ecdsa-")) {
