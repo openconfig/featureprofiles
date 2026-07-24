@@ -609,7 +609,7 @@ func TestTC5ShortDOWN(t *testing.T) {
 	// Construct the hold-time config object
 	holdTimeConfig := &oc.Interface_HoldTime{
 		Up:   ygot.Uint32(upTimer),
-		Down: ygot.Uint32(2000),
+		Down: ygot.Uint32(5000),
 	}
 
 	t.Run("Update hold timer configs down", func(t *testing.T) {
