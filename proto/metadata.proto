@@ -1383,8 +1383,8 @@ message Metadata {
 
     // No FIB_ACK support for unreferenced NH/NHG entries
     bool unreferenced_aft_fib_ack_unsupported = 436;
-    
-    //Indirect next-hop not supported with forwarding viable.
+
+    // Indirect next-hop not supported with forwarding viable.
     // Nokia: b/428883444
     bool forwarding_viable_failover_with_indirect_nh_unsupported = 437;
 
@@ -1399,10 +1399,32 @@ message Metadata {
     // Device does not support configuring VLAN subinterfaces
     // Arista: https://partnerissuetracker.corp.google.com/issues/494280147
     bool vlan_subinterface_oc_unsupported = 440;
-    
+
     // Device has max route count based on specific platform
     // Juniper : For devices which has different max route count based on platform, this deviation can be used to set the max route count for the device. This will be used in scale test cases to set the max route count for the device.
     uint32 max_out_fib_route_count = 441;
+
+    // Device containerz service presents a self-signed TLS certificate that cannot
+    // be verified against a trusted CA. When true, dialContainer uses TLS with
+    // InsecureSkipVerify instead of plaintext transport.
+    bool containerz_tls_insecure_skip_verify = 442;
+
+    // Extra minutes the device needs beyond the 5-minute base timeout for
+    // switchover-related waits (post-switchover verification, switchover-ready
+    // polling, and SwitchControlProcessor retry). Supervisors may restart
+    // containerz/Octa after a switchover; the new active needs extra time for
+    // Docker state to settle. Default 0 means no extra delay beyond 5 minutes.
+    uint32 switchover_stabilize_delay_m = 443;
+
+    // Device requires a fresh DialGNOI call after a supervisor switchover
+    // because the Ondatra gNOI cache still points at the old active.
+    // Tracking: https://github.com/openconfig/ondatra/issues/145
+    bool gnoi_requires_fresh_dial_after_switchover = 444;
+
+    // Device requires explicit "write memory" before reboot to persist
+    // containerz config, and must skip config re-push after reboot to avoid
+    // restarting the management stack during warmup.
+    bool containerz_require_explicit_config_save = 445;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
@@ -1433,4 +1455,3 @@ message Metadata {
   // checks.
   bool path_presence_test = 7;
 }
-
