@@ -562,6 +562,11 @@ func chassisReboot(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 
 		if len(preRebootCompStatus) == len(postRebootCompStatus) {
+			t.Logf("Waiting for all components on the DUT to match pre-reboot state")
+		}
+
+		rebootDiff := cmp.Diff(preCompMatrix, postCompMatrix)
+		if rebootDiff == "" {
 			t.Logf("All components on the DUT are in responsive state")
 			time.Sleep(10 * time.Second)
 			break
@@ -569,10 +574,8 @@ func chassisReboot(t *testing.T, dut *ondatra.DUTDevice) {
 
 		if uint64(time.Since(startComp).Seconds()) > maxCompWaitTime {
 			t.Logf("DUT components status post reboot: %v", postRebootCompStatus)
-			if rebootDiff := cmp.Diff(preCompMatrix, postCompMatrix); rebootDiff != "" {
-				t.Logf("[DEBUG] Unexpected diff after reboot (-component missing from pre reboot, +component added from pre reboot): %v ", rebootDiff)
-			}
-			t.Fatalf("There's a difference in components obtained in pre reboot: %v and post reboot: %v.", len(preRebootCompStatus), len(postRebootCompStatus))
+			t.Logf("Difference between components obtained in pre reboot: %v and post reboot: %v.", len(preRebootCompStatus), len(postRebootCompStatus))
+			t.Fatalf("Unexpected diff after reboot (-component missing from pre reboot, +component added from pre reboot): %v ", rebootDiff)
 		}
 		time.Sleep(10 * time.Second)
 	}
@@ -675,10 +678,10 @@ func checkSyncResponse(t *testing.T, stream gpb.GNMI_SubscribeClient) {
 		if err != nil {
 			t.Errorf("[Error]: While receieving the subcription response %v", err)
 		}
-
-		if time.Since(startTime).Seconds() > float64(syncResponseWaitTimeOut) {
+		if time.Since(startTime) > syncResponseWaitTimeOut {
 			t.Fatalf("[Fail]:Didn't receive sync_response. Time limit = %v  exceeded", syncResponseWaitTimeOut)
 		}
+		time.Sleep(10 * time.Second)
 	}
 }
 
