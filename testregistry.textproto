@@ -1923,8 +1923,9 @@ test: {
 }
 test: {
   id: "attestz-1"
-  description: "General enrollz and attestz tests"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/attestz/tests/enrollz_and_attestz/README.md"
+  description: "Validate attestz for initial install"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/attestz/tests/attestz1/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/attestz/tests/attestz1/attestz1_test.go"
 }
 test: {
   id: "bootz"
