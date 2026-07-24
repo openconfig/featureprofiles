@@ -164,6 +164,12 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/bmp/otg_tests/bmp_post_policy_test/bmp_post_policy_test.go"
 }
 test: {
+  id: "CERTZ"
+  description: "gNSI Client Certificate Baseline Test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/baseline/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/baseline/certz_baseline_test.go"
+}
+test: {
   id: "CERTZ-2"
   description: "Server Certificate"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/server_certificates/README.md"
@@ -202,12 +208,6 @@ test: {
   description: "Interface based ARP policer"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/ingress_arp_policing/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/ingress_arp_policing/ingress_arp_policing_test.go"
-}
-test: {
-  id: "Certz"
-  description: "gNSI Client Certificate Baseline Test"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/baseline/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/baseline/certz_baseline_test.go"
 }
 test: {
   id: "Certz-1"
