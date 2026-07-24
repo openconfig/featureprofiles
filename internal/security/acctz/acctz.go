@@ -32,6 +32,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/helpers"
+	fpbinding "github.com/openconfig/featureprofiles/topologies/binding"
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	systempb "github.com/openconfig/gnoi/system"
@@ -48,7 +49,6 @@ import (
 	p4pb "github.com/p4lang/p4runtime/go/p4/v1"
 	"golang.org/x/crypto/ssh"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -713,10 +713,6 @@ func dialSSH(t *testing.T, dut *ondatra.DUTDevice, username, password, target st
 	return conn, w
 }
 
-func getMetadataKeys(dut *ondatra.DUTDevice) (string, string) {
-	return "username", "password"
-}
-
 // SendGnmiRPCs Setup gNMI test RPCs (successful and failed) to be used in the acctz client tests.
 func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordResponse {
 	// Per https://github.com/openconfig/featureprofiles/issues/2637, waiting to see what the
@@ -727,7 +723,6 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 
 	var records []*acctzpb.RecordResponse
 	// grpcConn := dialGrpc(t, target)
-	userKey, passKey := getMetadataKeys(dut)
 	if dut.Vendor() == ondatra.ARISTA {
 		failuser = failAuthorizeUsername
 		failpass = failAuthorizePassword
@@ -735,7 +730,7 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		failuser = FailAuthenticateUsername
 		failpass = failAuthenticatePassword
 	}
-	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, failuser, passKey, failpass))
+	ctx := fpbinding.ContextWithCreds(context.Background(), failuser, failpass)
 	var gnmiClient gnmipb.GNMIClient
 	var err error
 	if dut.Vendor() == ondatra.NOKIA {
@@ -746,13 +741,13 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		if err := binding.DUTAs(bindingDUT, &dialer); err != nil {
 			t.Fatalf("BindingDUT %T does not implement DialGRPCWithPort: %v", bindingDUT, err)
 		}
-		conn, err := dialer.DialGRPCWithPort(ctx, 10162)
+		conn, err := dialer.DialGRPCWithPort(context.Background(), 10162)
 		if err != nil {
 			t.Fatalf("Failed dialing custom gNMI port: %v", err)
 		}
 		gnmiClient = gnmipb.NewGNMIClient(conn)
 	} else {
-		gnmiClient, err = dut.RawAPIs().BindingDUT().DialGNMI(ctx)
+		gnmiClient, err = dut.RawAPIs().BindingDUT().DialGNMI(context.Background())
 		if err != nil {
 			t.Fatalf("Failed dialing GNMI: %v", err)
 		}
@@ -790,9 +785,7 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	}
 
 	// Send a successful gNMI capabilities request.
-	ctx = context.Background()
-	ctx = metadata.AppendToOutgoingContext(ctx, "username", SuccessUsername)
-	ctx = metadata.AppendToOutgoingContext(ctx, "password", successPassword)
+	ctx = fpbinding.ContextWithCreds(context.Background(), SuccessUsername, successPassword)
 	req := &gnmipb.CapabilityRequest{}
 	payload, err := anypb.New(req)
 
@@ -860,7 +853,6 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	// grpcConn := dialGrpc(t, target)
 	// gnoiSystemClient := dut.RawAPIs().GNOI(t).System()
 	// systempb.NewSystemClient(grpcConn)
-	userKey, passKey := getMetadataKeys(dut)
 	if dut.Vendor() == ondatra.ARISTA {
 		failuser = failAuthorizeUsername
 		failpass = failAuthorizePassword
@@ -885,9 +877,13 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		}
 		gnoiSystemClient = systempb.NewSystemClient(conn)
 	} else {
-		gnoiSystemClient = dut.RawAPIs().GNOI(t).System()
+		gnoiClients, err := dut.RawAPIs().BindingDUT().DialGNOI(ctx)
+		if err != nil {
+			t.Fatalf("Failed dialing GNOI: %v", err)
+		}
+		gnoiSystemClient = gnoiClients.System()
 	}
-	ctx = metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, failuser, passKey, failpass))
+	ctx = fpbinding.ContextWithCreds(ctx, failuser, failpass)
 	var rpcName string
 	var payload *anypb.Any
 	var err error
@@ -937,9 +933,7 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	}
 
 	// Send a successful gNOI request.
-	ctx = context.Background()
-	ctx = metadata.AppendToOutgoingContext(ctx, "username", SuccessUsername)
-	ctx = metadata.AppendToOutgoingContext(ctx, "password", successPassword)
+	ctx = fpbinding.ContextWithCreds(context.Background(), SuccessUsername, successPassword)
 
 	if dut.Vendor() == ondatra.NOKIA {
 		req := &systempb.TimeRequest{}
@@ -1019,7 +1013,6 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	var records []*acctzpb.RecordResponse
 	// grpcConn := dialGrpc(t, target)
 	// authzClient := dut.RawAPIs().GNSI(t).Authz()
-	userKey, passKey := getMetadataKeys(dut)
 	if dut.Vendor() == ondatra.ARISTA {
 		failuser = failAuthorizeUsername
 		failpass = failAuthorizePassword
@@ -1027,7 +1020,7 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		failuser = FailAuthenticateUsername
 		failpass = failAuthenticatePassword
 	}
-	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, failuser, passKey, failpass))
+	ctx := fpbinding.ContextWithCreds(context.Background(), failuser, failpass)
 	var authzClient authzpb.AuthzClient
 	if dut.Vendor() == ondatra.NOKIA {
 		var dialer interface {
@@ -1037,13 +1030,17 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		if err := binding.DUTAs(bindingDUT, &dialer); err != nil {
 			t.Fatalf("BindingDUT %T does not implement DialGRPCWithPort: %v", bindingDUT, err)
 		}
-		conn, err := dialer.DialGRPCWithPort(ctx, 10162)
+		conn, err := dialer.DialGRPCWithPort(context.Background(), 10162)
 		if err != nil {
 			t.Fatalf("Failed dialing custom gNSI port: %v", err)
 		}
 		authzClient = authzpb.NewAuthzClient(conn)
 	} else {
-		authzClient = dut.RawAPIs().GNSI(t).Authz()
+		gnsiClients, err := dut.RawAPIs().BindingDUT().DialGNSI(context.Background())
+		if err != nil {
+			t.Fatalf("Failed dialing GNSI: %v", err)
+		}
+		authzClient = gnsiClients.Authz()
 	}
 	// Send an unsuccessful gNSI authz get request (bad creds in context), we don't
 	// care about receiving on it, just want to make the request.
@@ -1077,9 +1074,7 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		})
 	}
 	// Send a successful gNSI authz get request.
-	ctx = context.Background()
-	ctx = metadata.AppendToOutgoingContext(ctx, "username", SuccessUsername)
-	ctx = metadata.AppendToOutgoingContext(ctx, "password", successPassword)
+	ctx = fpbinding.ContextWithCreds(context.Background(), SuccessUsername, successPassword)
 	req := &authzpb.GetRequest{}
 	payload, err := anypb.New(req)
 	if err != nil {
@@ -1141,7 +1136,6 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespon
 	// grpcConn := dialGrpc(t, target)
 	// gribiClient := gribi.NewGRIBIClient(grpcConn)
 	// gribiClient,err := dut.RawAPIs().BindingDUT().DialGRIBI
-	userKey, passKey := getMetadataKeys(dut)
 	if dut.Vendor() == ondatra.ARISTA {
 		failuser = failAuthorizeUsername
 		failpass = failAuthorizePassword
@@ -1149,9 +1143,9 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespon
 		failuser = FailAuthenticateUsername
 		failpass = failAuthenticatePassword
 	}
-	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, failuser, passKey, failpass))
+	ctx := fpbinding.ContextWithCreds(context.Background(), failuser, failpass)
 
-	gribiClient, err := dut.RawAPIs().BindingDUT().DialGRIBI(ctx)
+	gribiClient, err := dut.RawAPIs().BindingDUT().DialGRIBI(context.Background())
 	if err != nil {
 		t.Fatalf("Got unexpected error during gribi get request, error: %s", err)
 	}
@@ -1196,9 +1190,7 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespon
 	})
 
 	// Send a successful gRIBI get request.
-	ctx = context.Background()
-	ctx = metadata.AppendToOutgoingContext(ctx, "username", SuccessUsername)
-	ctx = metadata.AppendToOutgoingContext(ctx, "password", successPassword)
+	ctx = fpbinding.ContextWithCreds(context.Background(), SuccessUsername, successPassword)
 	req := &gribi.GetRequest{
 		NetworkInstance: &gribi.GetRequest_All{},
 		Aft:             gribi.AFTType_IPV4,
@@ -1301,7 +1293,6 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	}
 	var records []*acctzpb.RecordResponse
 	// grpcConn := dialGrpc(t, target)
-	userKey, passKey := getMetadataKeys(dut)
 	if dut.Vendor() == ondatra.ARISTA {
 		failuser = failAuthorizeUsername
 		failpass = failAuthorizePassword
@@ -1309,9 +1300,9 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		failuser = FailAuthenticateUsername
 		failpass = failAuthenticatePassword
 	}
-	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, failuser, passKey, failpass))
+	ctx := fpbinding.ContextWithCreds(context.Background(), failuser, failpass)
 
-	p4rtclient, err := dut.RawAPIs().BindingDUT().DialP4RT(ctx)
+	p4rtclient, err := dut.RawAPIs().BindingDUT().DialP4RT(context.Background())
 	if err != nil {
 		t.Fatalf("Got unexpected error during p4rt get request, error: %s", err)
 	}
@@ -1342,9 +1333,7 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 			},
 		})
 	}
-	ctx = context.Background()
-	ctx = metadata.AppendToOutgoingContext(ctx, "username", SuccessUsername)
-	ctx = metadata.AppendToOutgoingContext(ctx, "password", successPassword)
+	ctx = fpbinding.ContextWithCreds(context.Background(), SuccessUsername, successPassword)
 	req := &p4pb.CapabilitiesRequest{}
 	payload, err := anypb.New(req)
 	if err != nil {
