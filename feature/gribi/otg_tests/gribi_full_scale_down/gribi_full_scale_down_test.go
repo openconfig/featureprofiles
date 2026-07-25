@@ -64,8 +64,11 @@ func TestGRIBIFullScaleDown(t *testing.T) {
 		GRIBIBatchSize: 256,
 
 		// Default VRF parameters
-		NumDefaultNH:   2,
-		NumDefaultNHG:  2,
+		NumDefaultNH:  2,
+		NumDefaultNHG: 2,
+		DefaultNHGLoadBalance: []cfgplugins.NHGLoadBalancingParams{
+			{Pct: 100, NumNextHops: 2},
+		},
 		NumDefaultIPv4: 2,
 
 		// Transit VRF parameters
