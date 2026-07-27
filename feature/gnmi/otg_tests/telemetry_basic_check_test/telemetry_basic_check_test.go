@@ -573,8 +573,14 @@ func TestComponentParent(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 
-			if len(compList[tc.desc]) == 0 && (dut.Model() == "DCS-7280CR3K-32D4" || dut.Model() == "CISCO-8202-32FH-M") {
-				t.Skipf("Test of %v is skipped due to hardware platform compatibility", tc.componentType)
+			if *args.NumLinecards <= 0 && tc.desc == "Linecard" {
+				t.Skipf("Test of %v is skipped due to hardware platform compatibility for model %v", tc.componentType, dut.Model())
+			}
+			if *args.NumFabrics <= 0 && tc.desc == "Fabric" {
+				t.Skipf("Test of %v is skipped due to hardware platform compatibility for model %v", tc.componentType, dut.Model())
+			}
+			if *args.NumControllerCards <= 0 && tc.desc == "Supervisor" {
+				t.Skipf("Test of %v is skipped due to hardware platform compatibility for model %v", tc.componentType, dut.Model())
 			}
 
 			t.Logf("Found component list for type %v : %v", tc.componentType, compList[tc.desc])
