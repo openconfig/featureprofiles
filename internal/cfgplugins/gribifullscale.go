@@ -347,6 +347,13 @@ type ScaleParams struct {
 	// 1) NHGs used in transit VRF referencing NHs in sub-group 1)
 	// 2) NHGs used in repaired VRF referencing NHs in sub-group 2)
 	NumTransitNHG int
+	// The load-balancing parameters for NextHopGroups in transit VRFs.
+	// The most common case is 100% of NHGs load-balancing across 2 NHs (1:63 weight) to simulate
+	// the load-balancing across self-site and next-site.
+	// e.g. TransitNHGLoadBalance: []cfgplugins.NHGLoadBalancingParams{
+	// 	{Pct: 100, NumNextHops: 2},
+	// },
+	TransitNHGLoadBalance []NHGLoadBalancingParams
 	// The number of IPv4 prefixes in each of the 2 transit VRFs (transit TE_VRF_111 and repaired TE_VRF_222)
 	// The IPv4 entries in transit VRF will point to NHGs in sub-group 1)
 	// The IPv4 entries in repaired VRF will point to NHGs in sub-group 2)
@@ -935,17 +942,36 @@ func BuildTransitVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context,
 				WithIPAddress(defaultPrefixes[k%len(defaultPrefixes)]))
 		}
 
+		nhgLoadBalancingBuckets := computeNHGBuckets(nhgCount, params.TransitNHGLoadBalance)
+		t.Logf("Transit VRF %s NHG load balancing buckets: %v", vrfName, nhgLoadBalancingBuckets)
+
+		nhOffset := 0
+		nhgBucket := 0
+		nhgCreatedInBucket := 0
 		// Create next hop groups referencing default network instance NHs.
 		for i := 0; i < nhgCount; i++ {
 			nhg := fluent.NextHopGroupEntry().WithNetworkInstance(defaultVRF).
 				WithID(baseNHGId + uint64(i)).WithBackupNHG(backupNHG)
-			nh1 := baseNHId + uint64(i%nhCount)
-			nhg.AddNextHop(nh1, 1)
-			// Make sure that we don't add the same NH twice in case there is only one NH.
-			if nhCount > 1 {
-				nh2 := baseNHId + uint64((i+1)%nhCount)
-				nhg.AddNextHop(nh2, 63)
+
+			for nhgBucket < len(nhgLoadBalancingBuckets)-1 && nhgCreatedInBucket >= nhgLoadBalancingBuckets[nhgBucket].numNHG {
+				nhgBucket++
+				nhgCreatedInBucket = 0
 			}
+			targetNHCount := nhgLoadBalancingBuckets[nhgBucket].numLoadBalancingNH
+			actualNHCount := min(targetNHCount, nhCount)
+
+			targetWeight := uint64(64)
+			for j := 0; j < actualNHCount; j++ {
+				nhID := baseNHId + uint64((nhOffset+j)%nhCount)
+				weight := uint64(1)
+				if j == actualNHCount-1 {
+					weight = targetWeight - uint64(actualNHCount-1)
+				}
+				nhg.AddNextHop(nhID, weight)
+			}
+
+			nhOffset += actualNHCount
+			nhgCreatedInBucket++
 			entries = append(entries, nhg)
 		}
 
@@ -1959,6 +1985,7 @@ func RunFullScaleTest(t *testing.T, params ScaleParams, enablePacketCapture, com
 	t.Helper()
 
 	validateNHGLoadBalance(t, params.DefaultNHGLoadBalance)
+	validateNHGLoadBalance(t, params.TransitNHGLoadBalance)
 
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
