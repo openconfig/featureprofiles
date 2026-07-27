@@ -33,7 +33,6 @@ import (
 const (
 	hostCertificateVersion = "v1.0"
 	passwordVersion        = "v1.0"
-	maxSSHRetryTime        = 30 // Unit is seconds.
 )
 
 var (
@@ -87,7 +86,6 @@ func TestCredentialz(t *testing.T) {
 
 		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 		defer cancel()
-		startTime := time.Now()
 		var client binding.SSHClient
 		for {
 			var err error
@@ -96,8 +94,8 @@ func TestCredentialz(t *testing.T) {
 				t.Logf("Dialing ssh succeeded as expected.")
 				break
 			}
-			if uint64(time.Since(startTime).Seconds()) > maxSSHRetryTime {
-				t.Fatalf("Exceeded maxSSHRetryTime, dialing ssh failed, error: %s", err)
+			if ctx.Err() != nil {
+				t.Fatalf("Exceeded ssh retry timeout, dialing ssh failed, error: %s", err)
 			}
 			t.Logf("Dialing ssh failed, retrying ...")
 			time.Sleep(5 * time.Second)
