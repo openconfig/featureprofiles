@@ -688,8 +688,8 @@ func TestCPU(t *testing.T) {
 func TestSupervisorLastRebootInfo(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	if dut.Model() == "DCS-7280CR3K-32D4" {
-		t.Skipf("Test is skipped due to hardware platform compatibility")
+	if *args.NumControllerCards <= 0 {
+		t.Skipf("Test of SupervisorLastRebootInfo is skipped due to hardware platform compatibility for model %v", dut.Model())
 	}
 
 	cards := components.FindComponentsByType(t, dut, supervisorType)
