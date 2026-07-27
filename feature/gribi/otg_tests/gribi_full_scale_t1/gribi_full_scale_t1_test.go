@@ -14,10 +14,6 @@
 
 // Package gribi_full_scale_t1_test implements TE-14.3: gRIBI Scaling - full scale setup, target T1.
 //
-// Scale constants for T1:
-//
-//	pctNHG512=80%, numRepairNHG=1K, numEncapDefaultNHG=4K, numUniqueEncapNH=16K
-//
 // Test structure (per README TE-14.3):
 //
 //	TestGRIBIFullScaleT1 — configures DUT+ATE once, programs gRIBI once, then runs
@@ -37,29 +33,6 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-)
-
-// ============================================================
-// Constants — T1-specific scale parameters (TE-14.3)
-// ============================================================
-
-const (
-	// pctNHG512T1 is the percentage of Default VRF NHGs with 1/512 granularity.
-	// T1: 80%, T2: 20%.
-	pctNHG512T1 = 80
-
-	// numRepairNHGT1 is the number of NHGs in REPAIR_VRF for T1.
-	// T1: 1K, T2: 2K.
-	numRepairNHGT1 = 1_000
-
-	// numEncapDefaultNHGT1 is the T3 scale target: NHGs in the default VRF
-	// that back encap VRF entries.
-	// T1: 4K, T2: 8K.
-	numEncapDefaultNHGT1 = 4_000
-
-	// numUniqueEncapNHT1 is the T4 scale target: total unique encap NHs.
-	// T1: 16K, T2: 32K.
-	numUniqueEncapNHT1 = 16_000
 )
 
 var (
@@ -85,34 +58,50 @@ func TestMain(m *testing.M) {
 // traffic pass per sub-test.
 func TestGRIBIFullScaleT1(t *testing.T) {
 	params := cfgplugins.ScaleParams{
-		PctNHG512:          pctNHG512T1,
-		NumRepairNHG:       numRepairNHGT1,
-		NumEncapDefaultNHG: numEncapDefaultNHGT1,
-		NumUniqueEncapNH:   numUniqueEncapNHT1,
+		// gRIBI & System parameters
+		GRIBIBatchSize: 2_000,
 
-		NumDefaultNH:       1_000,
-		NumDefaultNHG:      1_000,
-		NumDefaultIPv4:     1_000,
-		NumTransitNHD1:     1536,
-		NumTransitNHD2:     1536,
-		NumTransitNHGE1:    768,
-		NumTransitNHGE2:    768,
-		NumTransitIPv4:     200_000,
-		NumRepairIPv4:      200_000,
-		NumEncapVRFs:       16,
-		NumEncapIPv4PerVRF: 10_000,
-		NumEncapIPv6PerVRF: 10_000,
-		NumDecapEntries:    48,
-		TrafficDuration:    5 * time.Minute,
-		TrafficLossTol:     5,
-		TrafficRateMpps:    30_000_000,
+		// Default VRF parameters
+		NumDefaultNH:   1_000,
+		NumDefaultNHG:  1_000,
+		NumDefaultIPv4: 1_000,
+		DefaultNHGLoadBalance: []cfgplugins.NHGLoadBalancingParams{
+			{Pct: 40, NumNextHops: 8},
+			{Pct: 40, NumNextHops: 16},
+			{Pct: 15, NumNextHops: 32},
+			{Pct: 5, NumNextHops: 64},
+		},
 
-		NumPort1VLANs:       1,
-		NumPort2VLANs:       640,
-		PctEncap8NH:         75,
-		PctEncap32NH:        20,
-		DecapDestsSubsetPct: 10,
-		GRIBIBatchSize:      2_000,
+		// Transit VRF parameters
+		NumTransitNH:   4_000,
+		NumTransitNHG:  2_000,
+		NumTransitIPv4: 17_500,
+
+		// Repair VRF parameters
+		NumRepairIPv4: 17_500,
+		NumRepairNHG:  1_000,
+		PctNHG512:     80,
+
+		// Encap VRF parameters
+		NumEncapVRFs:       5,
+		NumEncapIPv4PerVRF: 4_140,
+		NumEncapIPv6PerVRF: 5_060,
+		NumUniqueEncapNH:   14_000,
+		NumEncapDefaultNHG: 3_500,
+		PctEncap8NH:        75,
+		PctEncap32NH:       20,
+
+		// Decap VRF parameters
+		NumDecapEntries:     20,
+		DecapDestsSubsetPct: 100,
+
+		// OTG / Port parameters
+		NumPort2VLANs: 640,
+
+		// Traffic parameters
+		TrafficRateMpps: 30_000_000,
+		TrafficDuration: 5 * time.Minute,
+		TrafficLossTol:  5,
 	}
 	cfgplugins.RunFullScaleTest(t, params, *enablePacketCapture, *compactOTGFlows)
 }
