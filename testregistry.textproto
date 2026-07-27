@@ -995,6 +995,11 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_disable_peer_as_filter_test/README.md"
 }
 test: {
+  id: "RT-1.73"
+  description: "Static Route Resilience Test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/staticroute/otg_tests/static_route_resiliency_test/README.md"
+}
+test: {
   id: "RT-1.8"
   description: "BGP Route Reflector Test at scale"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/routereflector/otg_tests/route_reflector_scale/README.md"
