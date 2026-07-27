@@ -115,3 +115,27 @@
 *   **Deviations:** Deviations that affect configuration generation should be
     implemented *inside* the `cfgplugins` function, not in the test file.
 
+### **4. Performance & Execution Optimizations**
+
+To achieve high-velocity test execution and prevent pipeline bottlenecks, reviewers MUST flag the following performance anti-patterns and suggest the provided alternatives:
+
+*   **Batching gNMI Operations (Avoid "N+1" Queries):**
+    *   **Anti-pattern:** Using serial `gnmi.Get` calls inside a loop to query multiple ports or leaves. The "N+1" query pattern is a major contributor to setup and execution slowness.
+    *   **Correction:** Use `gnmi.OCBatch()` to aggregate paths and perform a single RPC call. 
+    *   *Example Correction:* 
+        ```go
+        batch := gnmi.OCBatch()
+        for _, p := range ports {
+            batch.AddPaths(gnmi.OC().Interface(p).OperStatus())
+        }
+        results := gnmi.Get(t, dut, batch.State())
+        ```
+*   **Sequential Validations:**
+    *   **Anti-pattern:** Verifying hundreds of neighbors or telemetry counters sequentially in a loop, which leads to idle device time.
+    *   **Correction:** Use `errgroup.Group` to issue gNMI telemetry requests concurrently. This collapses the total latency from `N×RTT` to `≈1×RTT`.
+*   **Setup Redundancy:**
+    *   **Anti-pattern:** Performing a full teardown and rebuild for every subtest, especially when significant overlap exists between tests.
+    *   **Correction:** Group related functional checks using `t.Run` to reduce redundant environment setup cycles. Use a `SetupDUTOnce()` pattern to check existing configurations and skip expensive `gnmi.Replace` and reboot phases if the DUT is already in the desired state.
+*   **Eliminating Static Sleeps (CRITICAL / HIGH PRIORITY):**
+    *   **Anti-pattern:** Relying on static `time.Sleep` calls based on legacy assumptions. **This is a critical performance issue that must be avoided and flagged as high priority.**
+    *   **Correction:** The use of `gnmi.Watch` is mandatory to detect desired states in real-time. Wait times should not be hardcoded, as static sleeps become a fixed tax on the pipeline.
