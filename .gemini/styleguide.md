@@ -136,6 +136,6 @@ To achieve high-velocity test execution and prevent pipeline bottlenecks, review
 *   **Setup Redundancy:**
     *   **Anti-pattern:** Performing a full teardown and rebuild for every subtest, especially when significant overlap exists between tests.
     *   **Correction:** Group related functional checks using `t.Run` to reduce redundant environment setup cycles. Use a `SetupDUTOnce()` pattern to check existing configurations and skip expensive `gnmi.Replace` and reboot phases if the DUT is already in the desired state.
-*   **Eliminating Static Sleeps:**
-    *   **Anti-pattern:** Relying on static `time.Sleep` calls based on legacy assumptions.
+*   **Eliminating Static Sleeps (CRITICAL / HIGH PRIORITY):**
+    *   **Anti-pattern:** Relying on static `time.Sleep` calls based on legacy assumptions. **This is a critical performance issue that must be avoided and flagged as high priority.**
     *   **Correction:** The use of `gnmi.Watch` is mandatory to detect desired states in real-time. Wait times should not be hardcoded, as static sleeps become a fixed tax on the pipeline.
