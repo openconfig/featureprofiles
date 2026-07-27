@@ -573,13 +573,13 @@ func TestComponentParent(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 
-			if *args.NumLinecards <= 0 && tc.desc == "Linecard" {
+			if *args.NumLinecards == 0 && tc.desc == "Linecard" {
 				t.Skipf("Test of %v is skipped due to hardware platform compatibility for model %v", tc.componentType, dut.Model())
 			}
-			if *args.NumFabrics <= 0 && tc.desc == "Fabric" {
+			if *args.NumFabrics == 0 && tc.desc == "Fabric" {
 				t.Skipf("Test of %v is skipped due to hardware platform compatibility for model %v", tc.componentType, dut.Model())
 			}
-			if *args.NumControllerCards <= 0 && tc.desc == "Supervisor" {
+			if *args.NumControllerCards == 0 && tc.desc == "Supervisor" {
 				t.Skipf("Test of %v is skipped due to hardware platform compatibility for model %v", tc.componentType, dut.Model())
 			}
 
