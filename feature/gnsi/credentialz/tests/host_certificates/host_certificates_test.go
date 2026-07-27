@@ -25,6 +25,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/security/credz"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/gnmi"
 	"golang.org/x/crypto/ssh"
 )
@@ -32,6 +33,7 @@ import (
 const (
 	hostCertificateVersion = "v1.0"
 	passwordVersion        = "v1.0"
+	maxSSHRetryTime        = 30 // Unit is seconds.
 )
 
 var (
@@ -85,9 +87,20 @@ func TestCredentialz(t *testing.T) {
 
 		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 		defer cancel()
-		client, err := credz.SSHWithPassword(ctx, dut, username, password)
-		if err != nil {
-			t.Fatalf("Failed dialing ssh with password: %s", err)
+		startTime := time.Now()
+		var client binding.SSHClient
+		for {
+			var err error
+			client, err = credz.SSHWithPassword(ctx, dut, username, password)
+			if err == nil {
+				t.Logf("Dialing ssh succeeded as expected.")
+				break
+			}
+			if uint64(time.Since(startTime).Seconds()) > maxSSHRetryTime {
+				t.Fatalf("Exceeded maxSSHRetryTime, dialing ssh failed, error: %s", err)
+			}
+			t.Logf("Dialing ssh failed, retrying ...")
+			time.Sleep(5 * time.Second)
 		}
 		defer client.Close()
 
