@@ -784,6 +784,7 @@ test: {
   id: "RT-1.103"
   description: "DUT iBGP passive listener FNT with common router id"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_dynamic_neighbors/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_dynamic_neighbors/bgp_dynamic_neighbors_test.go"
 }
 test: {
   id: "RT-1.106"
