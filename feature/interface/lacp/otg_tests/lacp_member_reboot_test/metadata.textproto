@@ -1,0 +1,7 @@
+# proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: openconfig.testing.Metadata
+
+uuid: "e1ad8b60-cb7c-4510-a13e-3113d7b4968b"
+plan_id: "RT-5.16"
+description: "LACP Member Linecard Reboot"
+testbed: TESTBED_DUT_ATE_4LINKS
