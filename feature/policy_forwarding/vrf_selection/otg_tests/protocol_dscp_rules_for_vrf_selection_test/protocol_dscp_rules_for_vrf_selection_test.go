@@ -520,14 +520,18 @@ func testTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config,
 	for _, flow := range flows {
 		t.Run(flow.Name(), func(t *testing.T) {
 			t.Logf("*** Verifying %v traffic on OTG ... ", flow.Name())
-			outPktsVal, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State(), 15*time.Second, func(val *ygnmi.Value[uint64]) bool {
-				v, present := val.Val()
-				return present && v > 0
-			}).Await(t)
-			if !ok {
+			
+			if _, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Transmit().State(), 15*time.Second, func(val *ygnmi.Value[bool]) bool {
+				transmitState, present := val.Val()
+				return present && !transmitState
+			}).Await(t); !ok {
+				t.Fatalf("Timeout waiting for flow %s to stop transmitting", flow.Name())
+			}
+			
+			outPktsRaw := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
+			if outPktsRaw == 0 {
 				t.Fatalf("OutPkts == 0, want >0.")
 			}
-			outPktsRaw, _ := outPktsVal.Val()
 			outPkts := float32(outPktsRaw)
 
 			var inPkts float32
