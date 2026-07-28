@@ -13,10 +13,10 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
-	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 )
 
 const (
@@ -179,7 +179,7 @@ func runTest(t *testing.T, tc testCase, dut *ondatra.DUTDevice, ate *ondatra.ATE
 		}).Await(t); !ok {
 			t.Errorf("Timeout waiting for flow %s to transmit %d packets", tc.flowName, noOfPackets)
 		}
-		
+
 		otgutils.LogFlowMetrics(t, otg, *config)
 		otgutils.LogPortMetrics(t, otg, *config)
 
