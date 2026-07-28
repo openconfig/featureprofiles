@@ -451,8 +451,8 @@ func verifyConfiguredElements(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Logf("Successfully retrieved raw interface map. Counted: %d interfaces", numInterfaces)
 
 	// 5. Perform  assertion check
-	if numInterfaces < params.NumLAGInterfaces + numPorts {
-		t.Fatalf("Number of interfaces mismatch: got: %d, want >= %d", numInterfaces, params.NumLAGInterfaces + numPorts)
+	if numInterfaces < params.NumLAGInterfaces+numPorts {
+		t.Fatalf("Number of interfaces mismatch: got: %d, want >= %d", numInterfaces, params.NumLAGInterfaces+numPorts)
 	}
 	t.Logf("Success: Verified all the configured interface elements.")
 	// Verify BGP Neighbors
