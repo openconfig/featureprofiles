@@ -47,7 +47,7 @@ const (
 	groupName       = "arp-policer"
 	SchedulerName   = "ARP-policer"
 	flowName        = "arp-test"
-	tolerancePct    = 0.01 // 1% dynamic tolerance
+	tolerancePct    = 0.01
 	macB            = "ff:ff:ff:ff:ff:ff"
 )
 
