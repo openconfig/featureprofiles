@@ -402,7 +402,7 @@ func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Con
 			return present && f.GetCounters() != nil && f.GetCounters().GetOutPkts() >= uint64(uint32(totalPackets))
 		}).Await(t); !ok {
 			t.Errorf("Flow %s did not send any packets", flow.Name())
-		}		
+		}
 		flowMetrics := gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).State())
 		txPackets := flowMetrics.GetCounters().GetOutPkts()
 		rxPackets := flowMetrics.GetCounters().GetInPkts()
