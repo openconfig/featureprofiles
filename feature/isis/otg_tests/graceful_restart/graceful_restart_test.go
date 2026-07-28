@@ -446,7 +446,6 @@ func testGrHelper(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, 
 		t.Error("traffic loss for flow is more than expected")
 	}
 
-	time.Sleep(sleepTime)
 	t.Log("Verify ISIS is up again after GR timeout expiry")
 	verifyISISTelemetry(t, dut, []string{dut.Port(t, "port1").Name(), dut.Port(t, "port2").Name()})
 	// The ATE restart action is configured with restart-after=40s. Validate
