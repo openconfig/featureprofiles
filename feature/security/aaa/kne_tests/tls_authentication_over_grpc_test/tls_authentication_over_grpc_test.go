@@ -131,6 +131,21 @@ func createNativeUser(t testing.TB, dut *ondatra.DUTDevice, user string, pass st
 						},
 					},
 				},
+				{
+					Path: &gpb.Path{
+						Elem: []*gpb.PathElem{
+							{Name: "system"},
+							{Name: "configuration"},
+							{Name: "role", Key: map[string]string{"name": "admin"}},
+							{Name: "oc-rule", Key: map[string]string{"path-reference": "/"}},
+						},
+					},
+					Val: &gpb.TypedValue{
+						Value: &gpb.TypedValue_JsonIetfVal{
+							JsonIetfVal: ruleValUpdate,
+						},
+					},
+				},
 			},
 		}
 		gnmiClient := dut.RawAPIs().GNMI(t)
@@ -220,6 +235,7 @@ func TestAuthentication(t *testing.T) {
 	default:
 		t.Logf("No CLI config required for vendor %s", dut.Vendor())
 	}
+	t.Logf("Setting user alice with password %v", password)
 	if deviations.SetNativeUser(dut) {
 		createNativeUser(t, dut, "alice", password, "admin")
 	} else {
