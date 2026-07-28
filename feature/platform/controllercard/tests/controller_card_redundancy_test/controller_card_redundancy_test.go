@@ -222,8 +222,8 @@ func testControllerCardInventory(t *testing.T, dut *ondatra.DUTDevice, controlle
 		}
 
 		// Log and validate last reboot reason
-		if componentState.LastRebootReason != nil {
-			t.Logf("The value of last reboot reason is %v", *componentState.LastRebootReason)
+		if componentState.LastRebootReason != 0 {
+			t.Logf("The value of last reboot reason is %v", componentState.LastRebootReason)
 		} else {
 			t.Errorf("Controller card last reboot reason is not returning a valid value for %s", controllerCard)
 		}
@@ -286,7 +286,7 @@ func testControllerCardInventory(t *testing.T, dut *ondatra.DUTDevice, controlle
 
 		// Log and validate type
 		if componentState.Type != nil {
-			t.Logf("The value of type is %v", *componentState.Type)
+			t.Logf("The value of type is %v", componentState.Type)
 		} else {
 			t.Errorf("Controller card type is not returning a valid value for %s", controllerCard)
 		}
