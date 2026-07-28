@@ -999,7 +999,7 @@ func TestBreakoutSubscription(t *testing.T) {
 	checkSyncResponse(t, stream)
 	notifCh := startStreamReader(t, stream)
 
-	t.Run("PLT-1.2.1 Check response after a triggered interface state change", func(t *testing.T) {
+	t.Run("PLT-1.3.1 Check response after a triggered interface state change", func(t *testing.T) {
 		drainChannel(notifCh)
 
 		setDUTInterfaceWithState(t, dut, tc.dutPorts[0], false)
@@ -1029,7 +1029,7 @@ func TestBreakoutSubscription(t *testing.T) {
 	})
 
 	// Check response after a triggered interface flap
-	t.Run("PLT-1.2.2 Check response after a triggered interface flap", func(t *testing.T) {
+	t.Run("PLT-1.3.2 Check response after a triggered interface flap", func(t *testing.T) {
 		counter := 5
 		var receivedNotifications []*gpb.Notification
 		var err error
@@ -1063,7 +1063,7 @@ func TestBreakoutSubscription(t *testing.T) {
 	})
 
 	// Check response after a triggered LC reboot
-	t.Run("PLT-1.2.3 Check response after a triggered LC reboot", func(t *testing.T) {
+	t.Run("PLT-1.3.3 Check response after a triggered LC reboot", func(t *testing.T) {
 		LinecardReboot(t, dut)
 		updateTimeout := 300 * time.Second
 		receivedNotifications, err := recieveUpdateWithTimeout(ctx, t, notifCh, updateTimeout)
@@ -1082,7 +1082,7 @@ func TestBreakoutSubscription(t *testing.T) {
 	defer stream.CloseSend()
 
 	// Check response after a triggered chassis reboot
-	t.Run("PLT-1.2.4 Check response after a triggered chassis reboot", func(t *testing.T) {
+	t.Run("PLT-1.3.4 Check response after a triggered chassis reboot", func(t *testing.T) {
 		chassisReboot(t, dut)
 		streamReboot := newSubscribeRequest(ctx, t, dut)
 		checkSyncResponse(t, streamReboot)
@@ -1090,10 +1090,10 @@ func TestBreakoutSubscription(t *testing.T) {
 	})
 
 	// Check response after a triggered breakout module reboot
-	t.Run("PLT-1.2.5 Check response after a triggered breakout module reboot", func(t *testing.T) {
+	t.Run("PLT-1.3.5 Check response after a triggered breakout module reboot", func(t *testing.T) {
 		lcs := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD)
 		if len(lcs) == 0 {
-			t.Skipf("Skipping PLT-1.2.5: No LINECARD components found. Device %s is a Fixed Form Factor (FFF) chassis.", dut.Model())
+			t.Skipf("Skipping PLT-1.3.5: No LINECARD components found. Device %s is a Fixed Form Factor (FFF) chassis.", dut.Model())
 		}
 		intfsOperStatusUPBeforeReboot := helpers.FetchOperStatusUPIntfs(t, dut, *args.CheckInterfacesInBinding)
 		t.Logf("intfsOperStatusUPBeforeReboot: %v", intfsOperStatusUPBeforeReboot)

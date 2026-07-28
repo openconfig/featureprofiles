@@ -38,6 +38,7 @@ import (
 	packetvalidationhelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/packetvalidationhelpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	spb "github.com/openconfig/gnoi/system"
+	gribipb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/client"
 	"github.com/openconfig/gribigo/constants"
@@ -128,14 +129,12 @@ const (
 	// NH/NHG ID base constants — kept non-overlapping across all VRFs.
 	NHBaseDefault  = uint64(1_000)
 	NHGBaseDefault = uint64(2_000)
-	NHBaseD1       = uint64(10_000)
-	NHBaseD2       = uint64(12_000)
-	NHGBaseE1      = uint64(20_000)
-	NHGBaseE2      = uint64(21_000)
+	NHBaseTransit  = uint64(10_000)
+	NHGBaseTransit = uint64(20_000)
 	NHBaseRepair   = uint64(30_000)
 	NHGBaseRepair  = uint64(32_000)
 	NHBaseEncap    = uint64(50_000)
-	NHGBaseEncap   = uint64(82_001)
+	NHGBaseEncap   = uint64(82_000)
 	NHBaseDecap    = uint64(120_000)
 	NHGBaseDecap   = uint64(120_100)
 
@@ -245,23 +244,129 @@ type FlowExpectation struct {
 	DecapPrefixSet []string
 }
 
+// NHGLoadBalancingParams specifies the percentage of NextHopGroups in a VRF
+// that should load-balance across a given number of NextHops.
+type NHGLoadBalancingParams struct {
+	// Pct is the percentage of NextHopGroups in a VRF that should load-balance
+	// across a given number of NextHops.
+	Pct int
+	// NumNextHops is the number of NextHops that a NextHopGroup should
+	// load-balance across.
+	NumNextHops int
+}
+
+type nhgLoadBalancingBucket struct {
+	numNHG             int
+	numLoadBalancingNH int
+}
+
+// validateNHGLoadBalance verifies that the default next hop group load-balancing specifications are valid.
+// Specifically, it checks that percentages are non-negative, next-hop counts are positive, and the total percentage sum equals exactly 100.
+func validateNHGLoadBalance(t *testing.T, configs []NHGLoadBalancingParams) {
+	t.Helper()
+	if len(configs) == 0 {
+		t.Fatalf("validateNHGLoadBalance: DefaultNHGLoadBalance is empty")
+	}
+	sumPct := 0
+	for _, spec := range configs {
+		if spec.Pct < 0 {
+			t.Fatalf("validateNHGLoadBalance: invalid negative percentage (%d) in DefaultNHGLoadBalance", spec.Pct)
+		}
+		if spec.NumNextHops <= 0 {
+			t.Fatalf("validateNHGLoadBalance: invalid next-hops count (%d) in DefaultNHGLoadBalance", spec.NumNextHops)
+		}
+		sumPct += spec.Pct
+	}
+	if sumPct != 100 {
+		t.Fatalf("validateNHGLoadBalance: sum of percentages in DefaultNHGLoadBalance must be exactly 100, got %d", sumPct)
+	}
+}
+
+// computeNHGBuckets converts the NHG load balancing spec from percentage-based to
+// absolute values. Each bucket contains a set of NHGs and the number of load
+// balancing NHs that each NHG should use.
+func computeNHGBuckets(numNHG int, req []NHGLoadBalancingParams) []nhgLoadBalancingBucket {
+	buckets := make([]nhgLoadBalancingBucket, len(req))
+	totalNHG := 0
+	for idx, spec := range req {
+		numNH := numNHG * spec.Pct / 100
+		buckets[idx] = nhgLoadBalancingBucket{
+			numNHG:             numNH,
+			numLoadBalancingNH: spec.NumNextHops,
+		}
+		totalNHG += numNH
+	}
+	// Ensure that the last bucket contains all the remaining NHGs.
+	buckets[len(buckets)-1].numNHG += numNHG - totalNHG
+	return buckets
+}
+
 // ScaleParams holds the scale constants that configure the gRIBI full scale setup.
 type ScaleParams struct {
-	PctNHG512          int
-	NumRepairNHG       int
 	NumEncapDefaultNHG int
 	NumUniqueEncapNH   int
 	GRIBIBatchSize     int
 
-	NumDefaultNH       int
-	NumDefaultNHG      int
-	NumDefaultIPv4     int
-	NumTransitNHD1     int
-	NumTransitNHD2     int
-	NumTransitNHGE1    int
-	NumTransitNHGE2    int
-	NumTransitIPv4     int
-	NumRepairIPv4      int
+	// The number of NextHops in Default VRF egressing the switch.
+	// Each NH will point to a unique output VLAN subinterface.
+	// Based on ShutdownVLANPct, these NHs are virtually split in 2 sub-groups:
+	// 1) primary NHs pointing to VLANs that will NOT be shut down.
+	// 2) backup NHs pointing to VLANs that will be shut down during the repair tests.
+	NumDefaultNH int
+	// The number of NextHopGroups in Default VRF egressing the switch.
+	// Each NHG reference and load-balance across the NH created via `NumDefaultNH`.
+	// Also, virtually split into 2 sub-groups:
+	// 1) primary NHGs containing primary NHs.
+	// 2) backup NHGs containing backup NHs.
+	NumDefaultNHG int
+	// The load-balancing parameters for NextHopGroups in Default VRF.
+	// e.g. DefaultNHGLoadBalance: []cfgplugins.NHGLoadBalancingParams{
+	// 	{Pct: 40, NumNextHops: 8},
+	// 	{Pct: 40, NumNextHops: 16},
+	// 	{Pct: 15, NumNextHops: 32},
+	// 	{Pct: 5, NumNextHops: 64},
+	// },
+	DefaultNHGLoadBalance []NHGLoadBalancingParams
+
+	// The percentage of NextHopGroups in Default VRF that should have a total weight of 512.
+	// The remaining (100 - PctNHG512) % of NextHopGroups will have a total weight of 1024.
+	PctNHG512 int
+	// The number of fictitious IPv4 prefixes in Default VRF.
+	// Theese IP entries will be pointed by the transit routes.
+	// Each prefix points to a unique NHG. Also virtually split into 2 sub-groups:
+	// 1) primary prefixes pointing to primary NHGs.
+	// 2) backup prefixes pointing to backup NHGs.
+	NumDefaultIPv4 int
+
+	// The number of NextHops in transit VRFs (transit TE_VRF_111 and repaired TE_VRF_222) pointing
+	// to fictitious IPv4 prefixes in Default VRF.
+	// The NHs will be split in 2 sub-groups
+	// 1) NHs used in transit VRF pointing to primary NHs pointing to primary default prefixes
+	// 2) NHs used in repaired VRF pointing to backup NHs pointing to backup default prefixes.
+	NumTransitNH int
+	// The number of NextHopgroups in transit VRFs (transit TE_VRF_111 and repaired TE_VRF_222)
+	// Each NHG reference and load-balance across 2 NHs created via `NumTransitNH` with 1:63 weight.
+	// The NHGs will be split in 2 sub-groups
+	// 1) NHGs used in transit VRF referencing NHs in sub-group 1)
+	// 2) NHGs used in repaired VRF referencing NHs in sub-group 2)
+	NumTransitNHG int
+	// The load-balancing parameters for NextHopGroups in transit VRFs.
+	// The most common case is 100% of NHGs load-balancing across 2 NHs (1:63 weight) to simulate
+	// the load-balancing across self-site and next-site.
+	// e.g. TransitNHGLoadBalance: []cfgplugins.NHGLoadBalancingParams{
+	// 	{Pct: 100, NumNextHops: 2},
+	// },
+	TransitNHGLoadBalance []NHGLoadBalancingParams
+	// The number of IPv4 prefixes in each of the 2 transit VRFs (transit TE_VRF_111 and repaired TE_VRF_222)
+	// The IPv4 entries in transit VRF will point to NHGs in sub-group 1)
+	// The IPv4 entries in repaired VRF will point to NHGs in sub-group 2)
+	NumTransitIPv4 int
+
+	// The number of IPv4 prefixes in the repair VRF
+	NumRepairIPv4 int
+	// The number of NextHopGroups in the repair VRF
+	NumRepairNHG int
+
 	NumEncapVRFs       int
 	NumEncapIPv4PerVRF int
 	NumEncapIPv6PerVRF int
@@ -270,7 +375,6 @@ type ScaleParams struct {
 	TrafficLossTol     uint64
 	TrafficRateMpps    uint64
 
-	NumPort1VLANs       int
 	NumPort2VLANs       int
 	PctEncap8NH         int
 	PctEncap32NH        int
@@ -354,33 +458,21 @@ func ConfigureDUT(t *testing.T, dut *ondatra.DUTDevice, params ScaleParams) {
 	d := gnmi.OC()
 	vrfBatch := new(gnmi.SetBatch)
 
-	if dut.Vendor() == ondatra.ARISTA {
-		ConfigureHardwareInit(t, dut)
-		RebootChassis(t, dut)
-	}
-	CreateGRIBIScaleVRFs(t, dut, vrfBatch, params.NumEncapVRFs)
-	portList := []*ondatra.Port{dp1, dp2}
-	dutPortAttrs := []attrs.Attributes{dutPort1Attr, dutPort2Attr}
+	ConfigureHardwareInit(t, dut)
 
-	for idx, a := range dutPortAttrs {
-		p := portList[idx]
-		intf := a.NewOCInterface(p.Name(), dut)
-		if !deviations.OmitL2MTU(dut) && a.MTU > 0 {
-			// Physical MTU (L2) = L3 MTU + Ethernet header size (14) + VLAN ID (4) + FrameCheckSequence (4) = 22 bytes
-			l2MTUDiff := uint16(22)
-			intf.Mtu = ygot.Uint16(uint16(a.MTU) + l2MTUDiff)
-		}
-		if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
-			s := intf.GetOrCreateSubinterface(a.Subinterface)
-			if deviations.DeprecatedVlanID(dut) {
-				s.GetOrCreateVlan().VlanId = oc.UnionUint16(NoMixVlanIDBase)
-			} else {
-				s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(NoMixVlanIDBase)
-			}
-		}
-		gnmi.BatchUpdate(vrfBatch, d.Interface(p.Name()).Config(), intf)
-		assignInterfaceToDefaultNI(t, vrfBatch, dut, p.Name(), uint32(a.Subinterface))
-		t.Logf("Configured DUT port %s (%s)", p.Name(), a.Desc)
+	CreateGRIBIScaleVRFs(t, dut, vrfBatch, params.NumEncapVRFs)
+
+	inputPortList := []*ondatra.Port{dp1}
+	dutInputPortAttrs := []attrs.Attributes{dutPort1Attr}
+
+	outputPortList := []*ondatra.Port{dp2}
+	dutOutputPortAttrs := []attrs.Attributes{dutPort2Attr}
+
+	for idx, a := range dutInputPortAttrs {
+		configureDUTInterface(t, vrfBatch, dut, inputPortList[idx], a, false)
+	}
+	for idx, a := range dutOutputPortAttrs {
+		configureDUTInterface(t, vrfBatch, dut, outputPortList[idx], a, true)
 	}
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
@@ -389,14 +481,36 @@ func ConfigureDUT(t *testing.T, dut *ondatra.DUTDevice, params ScaleParams) {
 		dutConfNIPath := d.NetworkInstance(deviations.DefaultNetworkInstance(dut))
 		gnmi.BatchUpdate(vrfBatch, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 	}
-	// Configure sub-interfaces on port1 (1 VLAN) and port2 (640 VLANs).
-	ConfigureDUTSubinterfaces(t, vrfBatch, new(oc.Root), dut, dp1, DUTPort1IPv4Start, DUTPort1IPv6Start, StartVLANPort1, params.NumPort1VLANs)
+	// Configure sub-interfaces on port2
 	ConfigureDUTSubinterfaces(t, vrfBatch, new(oc.Root), dut, dp2, DUTPort2IPv4Start, DUTPort2IPv6Start, StartVLANPort2, params.NumPort2VLANs)
 	vrfBatch.Set(t, dut)
 
 	ConfigureCLIDecapVRFMode(t, dut)
 	encapVRFs := BuildEncapVRFs(params.NumEncapVRFs)
 	ConfigureVRFSelectionPolicyOC(t, dut, encapVRFs)
+}
+
+// configureDUTInterface sets up a physical port interface, including MTU, optional base subinterface VLAN matching, and default network instance assignment.
+func configureDUTInterface(t *testing.T, vrfBatch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ondatra.Port, a attrs.Attributes, configureVlan bool) {
+	t.Helper()
+	d := gnmi.OC()
+	intf := a.NewOCInterface(p.Name(), dut)
+	if !deviations.OmitL2MTU(dut) && a.MTU > 0 {
+		// Physical MTU (L2) = L3 MTU + Ethernet header size (14) + VLAN ID (4) + FrameCheckSequence (4) = 22 bytes
+		l2MTUDiff := uint16(22)
+		intf.Mtu = ygot.Uint16(uint16(a.MTU) + l2MTUDiff)
+	}
+	if configureVlan && deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
+		s := intf.GetOrCreateSubinterface(a.Subinterface)
+		if deviations.DeprecatedVlanID(dut) {
+			s.GetOrCreateVlan().VlanId = oc.UnionUint16(NoMixVlanIDBase)
+		} else {
+			s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(NoMixVlanIDBase)
+		}
+	}
+	gnmi.BatchUpdate(vrfBatch, d.Interface(p.Name()).Config(), intf)
+	assignInterfaceToDefaultNI(t, vrfBatch, dut, p.Name(), uint32(a.Subinterface))
+	t.Logf("Configured DUT port %s (%s)", p.Name(), a.Desc)
 }
 
 // ConfigureDUTSubinterfaces creates multiple VLAN-tagged sub-interfaces on dut port, deriving IPv4/IPv6 addresses from the provided prefixes.
@@ -439,12 +553,18 @@ func CreateDUTSubinterface(t *testing.T, vrfBatch *gnmi.SetBatch, d *oc.Root,
 	s4 := s.GetOrCreateIpv4()
 	a4 := s4.GetOrCreateAddress(ipv4Addr)
 	a4.PrefixLength = ygot.Uint8(uint8(IPv4IntfMask))
+	if MTU > 0 {
+		s4.Mtu = ygot.Uint16(MTU)
+	}
 	if deviations.InterfaceEnabled(dut) {
 		s4.Enabled = ygot.Bool(true)
 	}
 	s6 := s.GetOrCreateIpv6()
 	a6 := s6.GetOrCreateAddress(ipv6Addr)
 	a6.PrefixLength = ygot.Uint8(uint8(IPv6IntfMask))
+	if MTU > 0 {
+		s6.Mtu = ygot.Uint32(uint32(MTU))
+	}
 	if deviations.InterfaceEnabled(dut) {
 		s6.Enabled = ygot.Bool(true)
 	}
@@ -513,15 +633,44 @@ func verifySubinterfaceStatus(t *testing.T, dut *ondatra.DUTDevice, portName str
 // ConfigureHardwareInit pushes platform-specific hardware init configs.
 func ConfigureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
+	rebootRequired := false
+	if dut.Vendor() == ondatra.ARISTA {
+		rebootRequired = ConfigureTcam(t, dut)
+	} else if dut.Vendor() == ondatra.NOKIA {
+		rebootRequired = EnableSecondaryDefaultLookup(t, dut)
+	}
+	if rebootRequired {
+		RebootChassis(t, dut)
+	}
+}
+
+// ConfigureTcam pushes Arista-specific hardware init configs for TCAM to allocate enough space
+// for routes and optimize FIB and counters.
+func ConfigureTcam(t *testing.T, dut *ondatra.DUTDevice) bool {
+	t.Helper()
 	hardwareVrfCfg := NewDUTHardwareInit(t, dut, FeatureVrfSelectionExtended)
 	hardwarePfCfg := NewDUTHardwareInit(t, dut, FeatureOptimizeFIBAndCounters)
-	if hardwareVrfCfg == "" || hardwarePfCfg == "" {
-		return
+	if hardwareVrfCfg != "" && hardwarePfCfg != "" {
+		PushDUTHardwareInitConfig(t, dut, hardwareVrfCfg)
+		PushDUTHardwareInitConfig(t, dut, hardwarePfCfg)
+		// Save the configurations before rebooting the chassis.
+		helpers.GnmiCLIConfig(t, dut, "write memory")
+		return true
 	}
-	PushDUTHardwareInitConfig(t, dut, hardwareVrfCfg)
-	PushDUTHardwareInitConfig(t, dut, hardwarePfCfg)
-	// Save the configurations before rebooting the chassis.
-	helpers.GnmiCLIConfig(t, dut, "write memory")
+	return false
+}
+
+// EnableSecondaryDefaultLookup pushes Nokia specific hardware configuration to enable secondary
+// default lookup. It is required for decap flows due to the fact that decapsulated packets
+// are forwarded to the default VRF by the static route 0.0.0.0/0 from the encap VRF.
+func EnableSecondaryDefaultLookup(t *testing.T, dut *ondatra.DUTDevice) bool {
+	t.Helper()
+	cliConfig := NewDUTHardwareInit(t, dut, FeatureSecondaryDefaultLookup)
+	if cliConfig != "" {
+		PushDUTHardwareInitConfig(t, dut, cliConfig)
+		return true
+	}
+	return false
 }
 
 // CreateGRIBIScaleVRFs creates all non-default VRF network-instances plus the DEFAULT instance.  Uses deviations.DefaultNetworkInstance for the correct name.
@@ -557,15 +706,16 @@ func ConfigureOTG(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, 
 	ateConfig.Ports().Add().SetName(ap2.ID())
 
 	// Base devices for each port.
-	vlanID := uint16(0)
+	vlanIDPort1 := uint16(0)
+	vlanIDPort2 := uint16(0)
 	if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
-		vlanID = NoMixVlanIDBase
+		vlanIDPort2 = NoMixVlanIDBase
 	}
-	CreateATEDevice(t, ateConfig, ap1, vlanID, atePort1Attr.Name, atePort1Attr.MAC, dutPort1Attr.IPv4, atePort1Attr.IPv4, dutPort1Attr.IPv6, atePort1Attr.IPv6)
-	CreateATEDevice(t, ateConfig, ap2, vlanID, atePort2Attr.Name, atePort2Attr.MAC, dutPort2Attr.IPv4, atePort2Attr.IPv4, dutPort2Attr.IPv6, atePort2Attr.IPv6)
+	CreateATEDevice(t, ateConfig, ap1, vlanIDPort1, atePort1Attr.Name, atePort1Attr.MAC, dutPort1Attr.IPv4, atePort1Attr.IPv4, dutPort1Attr.IPv6, atePort1Attr.IPv6)
+	CreateATEDevice(t, ateConfig, ap2, vlanIDPort2, atePort2Attr.Name, atePort2Attr.MAC, dutPort2Attr.IPv4, atePort2Attr.IPv4, dutPort2Attr.IPv6, atePort2Attr.IPv6)
 
 	// VLAN sub-interfaces.
-	ifNames := MustConfigureATESubinterfaces(t, ateConfig, ap1, dut, atePort1Attr.Name, atePort1Attr.MAC, DUTPort1IPv4Start, ATEPort1IPv4Start, DUTPort1IPv6Start, ATEPort1IPv6Start, StartVLANPort1, params.NumPort1VLANs)
+	ifNames := []string{atePort1Attr.Name}
 	MustConfigureATESubinterfaces(t, ateConfig, ap2, dut, atePort2Attr.Name, atePort2Attr.MAC, DUTPort2IPv4Start, ATEPort2IPv4Start, DUTPort2IPv6Start, ATEPort2IPv6Start, StartVLANPort2, params.NumPort2VLANs)
 
 	return ateConfig, ifNames
@@ -647,13 +797,18 @@ func BatchModify(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, entr
 			end = len(entries)
 		}
 		gSession.AddEntries(t, entries[i:end], nil)
-		// NOTE: AwaitTimeout per chunk is intentionally commented out due to a known bug.
-		// if err := gSession.AwaitTimeout(context.Background(), t, 20*time.Second); err != nil {
-		// 	t.Fatalf("gRIBI batch programming failed: %v", err)
-		// }
+		// TODO: Arista does not ack
+		if dut.Vendor() != ondatra.ARISTA {
+			if err := gSession.AwaitTimeout(context.Background(), t, 20*time.Second); err != nil {
+				t.Fatalf("gRIBI batch programming timeout: %v", err)
+			}
+		}
 	}
 	// TODO: A time.Sleep is used as a temporary workaround. This will be fixed once the underlying issue is resolved.
-	time.Sleep(wTime)
+	if dut.Vendor() == ondatra.ARISTA {
+		time.Sleep(wTime)
+	}
+	ValidateGRIBIResults(t, gSession.Fluent(t).Results(t))
 	return gSession
 }
 
@@ -704,14 +859,28 @@ func BuildDefaultVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, 
 		nhEntries = append(nhEntries, nhEntry)
 	}
 
-	// Cap the number of NextHops per group to prevent duplicate NextHops
-	// within the same group when NumDefaultNH is scaled down.
-	actualNHCount := min(64, numNHPart)
-
 	buildNHGs := func(baseNHG uint64, baseNH uint64) []fluent.GRIBIEntry {
 		groups := make([]fluent.GRIBIEntry, 0, numNHGPart)
+		nhgLoadBalancingBuckets := computeNHGBuckets(numNHGPart, params.DefaultNHGLoadBalance)
+
+		nhOffset := 0
+		nhgBucket := 0
+		nhgCreatedInBucket := 0
 		for i := 0; i < numNHGPart; i++ {
 			nhg := fluent.NextHopGroupEntry().WithNetworkInstance(defaultVRF).WithID(baseNHG + uint64(i))
+
+			// Advance to the next bucket once the number of groups created in the current bucket
+			// exceeds the bucket's configured size.
+			for nhgBucket < len(nhgLoadBalancingBuckets)-1 && nhgCreatedInBucket >= nhgLoadBalancingBuckets[nhgBucket].numNHG {
+				nhgBucket++
+				nhgCreatedInBucket = 0
+			}
+			targetNHCount := nhgLoadBalancingBuckets[nhgBucket].numLoadBalancingNH
+
+			// Cap the number of NextHops per group to prevent duplicate NextHops
+			// within the same group when NumDefaultNH is scaled down.
+			actualNHCount := min(targetNHCount, numNHPart)
+
 			// Determine the target sum of weights for this NHG based on the percentage split.
 			// The first pctNHG512% of groups get a total weight of 512, the rest get 1024.
 			targetWeightSum := uint64(512)
@@ -720,25 +889,25 @@ func BuildDefaultVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, 
 			}
 			// Distribute the target weight sum evenly across the available NextHops.
 			baseWeight := targetWeightSum / uint64(actualNHCount)
+			remainder := targetWeightSum % uint64(actualNHCount)
 			for j := 0; j < actualNHCount; j++ {
 				weight := baseWeight
-				if actualNHCount == 64 {
-					// For full scale (64 NHs), apply specific weight adjustments to match
-					// the original test specification (e.g., 62 NHs with weight 8, one with 7, one with 9).
-					// This slight skew forces the router to program WCMP instead of standard ECMP,
-					// while perfectly preserving the 512 or 1024 total weight sum for hardware buckets.
-					if j == 62 {
+				if j == actualNHCount-1 {
+					weight += remainder
+				}
+				if actualNHCount == targetNHCount && actualNHCount > 1 && baseWeight > 1 {
+					// Apply specific weight adjustments to force the router to program WCMP instead of standard ECMP,
+					// while perfectly preserving the targetWeightSum for hardware buckets.
+					if j == actualNHCount-2 {
 						weight--
-					} else if j == 63 {
+					} else if j == actualNHCount-1 {
 						weight++
 					}
-				} else if j == actualNHCount-1 {
-					// For scaled-down scenarios, assign any remaining weight to the last NextHop
-					// to ensure the total sum exactly matches targetWeightSum.
-					weight = targetWeightSum - (uint64(actualNHCount-1) * baseWeight)
 				}
-				nhg.AddNextHop(baseNH+uint64((i*actualNHCount+j)%numNHPart), weight)
+				nhg.AddNextHop(baseNH+uint64((nhOffset+j)%numNHPart), weight)
 			}
+			nhOffset += actualNHCount
+			nhgCreatedInBucket++
 			groups = append(groups, nhg)
 		}
 		return groups
@@ -763,7 +932,11 @@ func BuildDefaultVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, 
 
 	// Setup Set 2 default prefixes (Backup)
 	for i := 0; i < numIPv4Part; i++ {
-		backupPrefixes[i] = prefixHosts[numIPv4Part+i]
+		prefixIdx := numIPv4Part + i
+		if prefixIdx >= len(prefixHosts) {
+			prefixIdx = i % len(prefixHosts)
+		}
+		backupPrefixes[i] = prefixHosts[prefixIdx]
 		ipv4Entries = append(ipv4Entries, fluent.IPv4Entry().WithNetworkInstance(defaultVRF).
 			WithPrefix(fmt.Sprintf("%s/%d", backupPrefixes[i], IPv4HostMask)).
 			WithNextHopGroup(nhgBaseBackup+uint64(i%numNHGPart)).WithNextHopGroupNetworkInstance(defaultVRF))
@@ -800,63 +973,86 @@ func BuildStaticGroups(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context
 func BuildTransitVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, defaultVRF string, primaryDefaultPrefixes, backupDefaultPrefixes []string, s1NHG, s2NHG uint64, params ScaleParams) {
 	t.Helper()
 	validatePrefixesV4 := make(map[string][]string)
-	totalEntries := params.NumTransitNHD1 + params.NumTransitNHD2 + params.NumTransitNHGE1 + params.NumTransitNHGE2 + 2*params.NumTransitIPv4
+	totalEntries := params.NumTransitNH + params.NumTransitNHG + 2*params.NumTransitIPv4
 	entries := make([]fluent.GRIBIEntry, 0, totalEntries)
 
-	numNHD1Part := max(params.NumTransitNHD1/2, 1)
-	numNHD2Part := max(params.NumTransitNHD2/2, 1)
-
-	for _, c := range []struct {
-		numNH  int
-		nhBase uint64
-		pfxs   []string
-	}{
-		{numNHD1Part, NHBaseD1, primaryDefaultPrefixes},
-		{numNHD2Part, NHBaseD2, primaryDefaultPrefixes},
-		{numNHD1Part, NHBaseD1 + uint64(numNHD1Part), backupDefaultPrefixes},
-		{numNHD2Part, NHBaseD2 + uint64(numNHD2Part), backupDefaultPrefixes},
-	} {
-		for k := 0; k < c.numNH; k++ {
+	buildTransitVRF := func(vrfName string, prefixStart string, defaultPrefixes []string, baseNHId uint64, nhCount int, baseNHGId uint64, nhgCount int, backupNHG uint64) {
+		if nhCount == 0 || nhgCount == 0 {
+			return
+		}
+		// Create next hops pointing to default network instance.
+		for k := 0; k < nhCount; k++ {
 			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(defaultVRF).
-				WithIndex(c.nhBase+uint64(k)).WithIPAddress(c.pfxs[k%len(c.pfxs)]))
+				WithIndex(baseNHId+uint64(k)).
+				WithIPAddress(defaultPrefixes[k%len(defaultPrefixes)]))
 		}
-	}
 
-	for _, c := range []struct {
-		numNHG      int
-		nhgBase     uint64
-		backupNHG   uint64
-		vrfName     string
-		prefixStart string
-	}{
-		{params.NumTransitNHGE1, NHGBaseE1, s1NHG, TransitVRF111Str, TransitVRF111PrefixStart},
-		{params.NumTransitNHGE2, NHGBaseE2, s2NHG, TransitVRF222Str, TransitVRF222PrefixStart},
-	} {
-		for i := 0; i < c.numNHG; i++ {
-			nhD1 := NHBaseD1 + uint64(i%numNHD1Part)
-			nhD2 := NHBaseD2 + uint64(i%numNHD2Part)
-			if c.nhgBase == NHGBaseE2 {
-				// Offset to point to the backup Next Hops that map to Set 2 (disjoint sub-interfaces)
-				nhD1 += uint64(numNHD1Part)
-				nhD2 += uint64(numNHD2Part)
+		nhgLoadBalancingBuckets := computeNHGBuckets(nhgCount, params.TransitNHGLoadBalance)
+		t.Logf("Transit VRF %s NHG load balancing buckets: %v", vrfName, nhgLoadBalancingBuckets)
+
+		nhOffset := 0
+		nhgBucket := 0
+		nhgCreatedInBucket := 0
+		// Create next hop groups referencing default network instance NHs.
+		for i := 0; i < nhgCount; i++ {
+			nhg := fluent.NextHopGroupEntry().WithNetworkInstance(defaultVRF).
+				WithID(baseNHGId + uint64(i)).WithBackupNHG(backupNHG)
+
+			for nhgBucket < len(nhgLoadBalancingBuckets)-1 && nhgCreatedInBucket >= nhgLoadBalancingBuckets[nhgBucket].numNHG {
+				nhgBucket++
+				nhgCreatedInBucket = 0
 			}
-			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(defaultVRF).
-				WithID(c.nhgBase+uint64(i)).AddNextHop(nhD1, 1).AddNextHop(nhD2, 63).WithBackupNHG(c.backupNHG))
+			targetNHCount := nhgLoadBalancingBuckets[nhgBucket].numLoadBalancingNH
+			actualNHCount := min(targetNHCount, nhCount)
+
+			targetWeight := uint64(64)
+			for j := 0; j < actualNHCount; j++ {
+				nhID := baseNHId + uint64((nhOffset+j)%nhCount)
+				weight := uint64(1)
+				if j == actualNHCount-1 {
+					weight = targetWeight - uint64(actualNHCount-1)
+				}
+				nhg.AddNextHop(nhID, weight)
+			}
+
+			nhOffset += actualNHCount
+			nhgCreatedInBucket++
+			entries = append(entries, nhg)
 		}
 
-		vrfPrefixes, err := iputil.GenerateIPsWithStep(c.prefixStart, params.NumTransitIPv4, CommonPrefixStep)
+		// Create IPv4 prefixes in the specific Transit VRF.
+		vrfPrefixes, err := iputil.GenerateIPsWithStep(prefixStart, params.NumTransitIPv4, CommonPrefixStep)
 		if err != nil {
-			t.Fatalf("BuildTransitVRFs: generate %s prefixes: %v", c.vrfName, err)
+			t.Fatalf("BuildTransitVRFs: generate %s prefixes: %v", vrfName, err)
 		}
 		for i, host := range vrfPrefixes {
 			pfx := fmt.Sprintf("%s/%d", host, IPv4HostMask)
-			entries = append(entries, fluent.IPv4Entry().WithNetworkInstance(c.vrfName).WithPrefix(pfx).WithNextHopGroup(c.nhgBase+uint64(i%c.numNHG)).WithNextHopGroupNetworkInstance(defaultVRF))
+			entries = append(entries, fluent.IPv4Entry().WithNetworkInstance(vrfName).WithPrefix(pfx).
+				WithNextHopGroup(baseNHGId+uint64(i%nhgCount)).WithNextHopGroupNetworkInstance(defaultVRF))
 		}
 		// Validate only the first prefix to save time.
-		validatePrefixesV4[c.vrfName] = []string{fmt.Sprintf("%s/%d", vrfPrefixes[0], IPv4HostMask)}
+		validatePrefixesV4[vrfName] = []string{fmt.Sprintf("%s/%d", vrfPrefixes[0], IPv4HostMask)}
 	}
 
-	t.Logf("BuildTransitVRFs: %d NHs in D1, %d NHGs in E1; %d NHs in D2, %d NHGs in E2", params.NumTransitNHD1, params.NumTransitNHGE1, params.NumTransitNHD2, params.NumTransitNHGE2)
+	nhPrimaryCount := int(max(params.NumTransitNH/2, 1))
+	nhgPrimaryCount := int(max(params.NumTransitNHG/2, 1))
+	nhPrimaryOffset := uint64(0)
+	nhgPrimaryOffset := uint64(0)
+	buildTransitVRF(TransitVRF111Str, TransitVRF111PrefixStart, primaryDefaultPrefixes,
+		NHBaseTransit+nhPrimaryOffset, nhPrimaryCount,
+		NHGBaseTransit+nhgPrimaryOffset, nhgPrimaryCount,
+		s1NHG)
+
+	nhBackupCount := params.NumTransitNH - nhPrimaryCount
+	nhgBackupCount := params.NumTransitNHG - nhgPrimaryCount
+	nhBackupOffset := uint64(nhPrimaryCount)
+	nhgBackupOffset := uint64(nhgPrimaryCount)
+	buildTransitVRF(TransitVRF222Str, TransitVRF222PrefixStart, backupDefaultPrefixes,
+		NHBaseTransit+nhBackupOffset, nhBackupCount,
+		NHGBaseTransit+nhgBackupOffset, nhgBackupCount,
+		s2NHG)
+
+	t.Logf("BuildTransitVRFs: %d NHs total, %d NHGs total", params.NumTransitNH, params.NumTransitNHG)
 	t.Logf("BuildTransitVRFs: %d IPv4 entries each transit VRF", params.NumTransitIPv4)
 	gSession := BatchModify(t, dut, ctx, entries, params.GRIBIBatchSize, 3*time.Minute)
 
@@ -930,13 +1126,27 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 	if err != nil {
 		t.Fatalf("BuildEncapDecapVRFs: generate encap NH tunnel dsts: %v", err)
 	}
+
+	// Fallback NH points to the default VRF.
+	fallbackNHID := uint64(NHBaseEncap)
+	fallbackNH, _ := gribi.NHEntry(fallbackNHID, "VRFOnly", defaultVRF, fluent.InstalledInFIB, &gribi.NHOptions{VrfName: defaultVRF})
+	allEntries = append(allEntries, fallbackNH)
+
+	// Encap NHs point to the transit VRF.
+	nhIdx := fallbackNHID + 1
 	for i := 0; i < params.NumUniqueEncapNH; i++ {
-		nhEntry, _ := gribi.NHEntry(NHBaseEncap+uint64(i), "Encap", defaultVRF, fluent.InstalledInFIB, &gribi.NHOptions{Src: IPv4OuterSrc111, Dest: tunnelDsts[i%numOfTunnelsToUse], VrfName: TransitVRF111Str})
+		nhEntry, _ := gribi.NHEntry(nhIdx+uint64(i), "Encap", defaultVRF, fluent.InstalledInFIB, &gribi.NHOptions{Src: IPv4OuterSrc111, Dest: tunnelDsts[i%numOfTunnelsToUse], VrfName: TransitVRF111Str})
 		allEntries = append(allEntries, nhEntry)
 	}
 
+	// Fallback NHG points to the fallback NH.
+	fallbackNHGID := uint64(NHGBaseEncap)
+	fallbackNHG, _ := gribi.NHGEntry(fallbackNHGID, map[uint64]uint64{fallbackNHID: 1}, defaultVRF, fluent.InstalledInFIB)
+	allEntries = append(allEntries, fallbackNHG)
+	nhgIdx := fallbackNHGID + 1
+
 	for i := 0; i < params.NumEncapDefaultNHG; i++ {
-		nhg := fluent.NextHopGroupEntry().WithNetworkInstance(defaultVRF).WithID(NHGBaseEncap + uint64(i))
+		nhg := fluent.NextHopGroupEntry().WithNetworkInstance(defaultVRF).WithID(nhgIdx + uint64(i))
 		pct := i * 100 / params.NumEncapDefaultNHG
 
 		var targetNHCount int
@@ -968,7 +1178,7 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 
 		// Distribute weights among the unique NHs
 		for j := 0; j < actualNHCount; j++ {
-			nhID := NHBaseEncap + uint64((i*targetNHCount+j)%params.NumUniqueEncapNH)
+			nhID := nhIdx + uint64((i*targetNHCount+j)%params.NumUniqueEncapNH)
 			weight := baseWeight
 			if j == actualNHCount-1 {
 				// The last unique NH gets all the remaining weight
@@ -980,13 +1190,14 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 	}
 
 	encapVRFs := BuildEncapVRFs(params.NumEncapVRFs)
+
 	for vi, vrf := range encapVRFs {
 		v4Prefixes, v4Err := iputil.GenerateIPsWithStep(fmt.Sprintf("200.%d.0.1", vi), params.NumEncapIPv4PerVRF, CommonPrefixStep)
 		if v4Err != nil {
 			t.Fatalf("Failed to generate IPv4 prefixes for VRF %s (vi=%d): %v", vrf, vi, v4Err)
 		}
 		for i, host := range v4Prefixes {
-			allEntries = append(allEntries, fluent.IPv4Entry().WithNetworkInstance(vrf).WithPrefix(fmt.Sprintf("%s/%d", host, IPv4HostMask)).WithNextHopGroup(NHGBaseEncap+uint64((vi*params.NumEncapIPv4PerVRF+i)%params.NumEncapDefaultNHG)).WithNextHopGroupNetworkInstance(defaultVRF))
+			allEntries = append(allEntries, fluent.IPv4Entry().WithNetworkInstance(vrf).WithPrefix(fmt.Sprintf("%s/%d", host, IPv4HostMask)).WithNextHopGroup(nhgIdx+uint64((vi*params.NumEncapIPv4PerVRF+i)%params.NumEncapDefaultNHG)).WithNextHopGroupNetworkInstance(defaultVRF))
 		}
 		// Add first and last prefixes to wantPrefixesV4 for later verification.
 		wantPrefixesV4[vrf] = append(wantPrefixesV4[vrf], fmt.Sprintf("%s/%d", v4Prefixes[0], IPv4HostMask))
@@ -997,11 +1208,21 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 			t.Fatalf("Failed to generate IPv6 prefixes for VRF %s (vi=%d): %v", vrf, vi, v6Err)
 		}
 		for i, pfx := range v6Prefixes {
-			allEntries = append(allEntries, fluent.IPv6Entry().WithNetworkInstance(vrf).WithPrefix(fmt.Sprintf("%s/%d", pfx, IPv6HostMask)).WithNextHopGroup(NHGBaseEncap+uint64((vi*params.NumEncapIPv6PerVRF+i)%params.NumEncapDefaultNHG)).WithNextHopGroupNetworkInstance(defaultVRF))
+			allEntries = append(allEntries, fluent.IPv6Entry().WithNetworkInstance(vrf).WithPrefix(fmt.Sprintf("%s/%d", pfx, IPv6HostMask)).WithNextHopGroup(nhgIdx+uint64((vi*params.NumEncapIPv6PerVRF+i)%params.NumEncapDefaultNHG)).WithNextHopGroupNetworkInstance(defaultVRF))
 		}
 		// Add first and last prefixes to wantPrefixesV6 for later verification.
 		wantPrefixesV6[vrf] = append(wantPrefixesV6[vrf], fmt.Sprintf("%s/%d", v6Prefixes[0], IPv6HostMask))
 		wantPrefixesV6[vrf] = append(wantPrefixesV6[vrf], fmt.Sprintf("%s/%d", v6Prefixes[len(v6Prefixes)-1], IPv6HostMask))
+
+		// Add Fallback route in Encap VRF
+		allEntries = append(allEntries,
+			fluent.IPv4Entry().WithNetworkInstance(vrf).
+				WithPrefix("0.0.0.0/0").WithNextHopGroup(fallbackNHGID).WithNextHopGroupNetworkInstance(defaultVRF),
+			fluent.IPv6Entry().WithNetworkInstance(vrf).
+				WithPrefix("::/0").WithNextHopGroup(fallbackNHGID).WithNextHopGroupNetworkInstance(defaultVRF),
+		)
+		wantPrefixesV4[vrf] = append(wantPrefixesV4[vrf], "0.0.0.0/0")
+		wantPrefixesV6[vrf] = append(wantPrefixesV6[vrf], "::/0")
 	}
 
 	// DECAP_TE_VRF entries use variable prefix lengths — not host routes.
@@ -1049,6 +1270,99 @@ func VerifyFIBProgrammed(t *testing.T, c *gribi.Client, wantPrefixesV4 map[strin
 
 	verifyPrefixes(wantPrefixesV4, false)
 	verifyPrefixes(wantPrefixesV6, true)
+}
+
+// ValidateGRIBIResults validates the gRIBI results by looking for failures.
+// It counts total failures for Next Hop, Next Hop Group, and IP Entry categories,
+// collects the first 10 failures of each, logs them via t.Errorf, and returns true if any failure was found.
+// If all operations succeeded, it returns false.
+func ValidateGRIBIResults(t *testing.T, results []*client.OpResult) bool {
+	t.Helper()
+
+	isFailure := func(op *client.OpResult) bool {
+		if op.ServerError != "" || op.ClientError != "" {
+			return true
+		}
+		if op.ProgrammingResult == gribipb.AFTResult_FIB_FAILED {
+			return true
+		}
+		return false
+	}
+
+	var nhFailures []*client.OpResult
+	var nhgFailures []*client.OpResult
+	var ipFailures []*client.OpResult
+
+	var totalNHFailures int
+	var totalNHGFailures int
+	var totalIPFailures int
+
+	for _, res := range results {
+		if !isFailure(res) {
+			continue
+		}
+		if res.Details == nil {
+			totalIPFailures++
+			if len(ipFailures) < 10 {
+				ipFailures = append(ipFailures, res)
+			}
+			continue
+		}
+
+		if res.Details.NextHopIndex != 0 {
+			totalNHFailures++
+			if len(nhFailures) < 10 {
+				nhFailures = append(nhFailures, res)
+			}
+		} else if res.Details.NextHopGroupID != 0 {
+			totalNHGFailures++
+			if len(nhgFailures) < 10 {
+				nhgFailures = append(nhgFailures, res)
+			}
+		} else if res.Details.IPv4Prefix != "" || res.Details.IPv6Prefix != "" {
+			totalIPFailures++
+			if len(ipFailures) < 10 {
+				ipFailures = append(ipFailures, res)
+			}
+		} else {
+			totalIPFailures++
+			if len(ipFailures) < 10 {
+				ipFailures = append(ipFailures, res)
+			}
+		}
+	}
+
+	hasFailure := false
+
+	if len(nhFailures) > 0 {
+		t.Errorf("First %d Next Hop failures (Total: %d):", len(nhFailures), totalNHFailures)
+		for index, op := range nhFailures {
+			t.Errorf("  [%d] %v", index, op)
+		}
+		hasFailure = true
+	} else {
+		t.Logf("All Next Hop operations succeeded")
+	}
+	if len(nhgFailures) > 0 {
+		t.Errorf("First %d Next Hop Group failures (Total: %d):", len(nhgFailures), totalNHGFailures)
+		for index, op := range nhgFailures {
+			t.Errorf("  [%d] %v", index, op)
+		}
+		hasFailure = true
+	} else {
+		t.Logf("All Next Hop Group operations succeeded")
+	}
+	if len(ipFailures) > 0 {
+		t.Errorf("First %d IP Entry failures (Total: %d):", len(ipFailures), totalIPFailures)
+		for index, op := range ipFailures {
+			t.Errorf("  [%d] %v", index, op)
+		}
+		hasFailure = true
+	} else {
+		t.Logf("All IP Entry operations succeeded")
+	}
+
+	return hasFailure
 }
 
 // VerifyHierarchicalResolution spot-checks TE_VRF_111 prefixes for FIB_PROGRAMMED and non-zero NHG via gNMI AFT.
@@ -1257,14 +1571,13 @@ func BuildEncapFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix bool,
 // BuildDecapFlows builds fixed-size/imix decap flows for all encap VRFs. Both DSCPs per VRF are expressed via SetValues in a single flow since the outer header is the same.
 func BuildDecapFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix bool, dstMac string, compact bool, params ScaleParams) []gosnappi.Flow {
 	flows := make([]gosnappi.Flow, 0)
-	decapDsts := ExpandDecapPrefixes(params)
+	outerDecapDsts := ExpandDecapPrefixes(params)
 	atePort2Ips, _ := iputil.GenerateIPsWithStep(ATEPort2IPv4Start, params.NumPort2VLANs, PortIPv4Step)
 
 	newFlow := MakeFlowCreator(top, pktSize, pps, imix)
 
-	createFlow := func(name string, dscpVals []uint32, dstIPs []string) {
-		f := createIPv4InIPv4Flow(newFlow, name, dstMac, IPv4OuterSrc111, dscpVals, decapDsts, dstIPs)
-
+	createFlow := func(name string, dscpVals []uint32, innerDstIPs []string) {
+		f := createIPv4InIPv4Flow(newFlow, name, dstMac, IPv4OuterSrc111, dscpVals, outerDecapDsts, innerDstIPs)
 		flows = append(flows, f)
 	}
 
@@ -1275,12 +1588,12 @@ func BuildDecapFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix bool,
 		encapVRFs := BuildEncapVRFs(params.NumEncapVRFs)
 		for vi := range encapVRFs {
 			d1, d2 := EncapVRFDSCP(vi)
-			var dstIPs []string
+			var innerDstIPs []string
 			for j := 0; j < subsetCount; j++ {
 				idx := (vi*subsetCount + j) % params.NumPort2VLANs
-				dstIPs = append(dstIPs, atePort2Ips[idx])
+				innerDstIPs = append(innerDstIPs, atePort2Ips[idx])
 			}
-			createFlow(fmt.Sprintf("decap_vrf_%d_src_111", vi), []uint32{uint32(d1), uint32(d2)}, dstIPs)
+			createFlow(fmt.Sprintf("decap_vrf_%d_src_111", vi), []uint32{uint32(d1), uint32(d2)}, innerDstIPs)
 		}
 	}
 
@@ -1807,6 +2120,10 @@ func FetchUniqueItems(t *testing.T, s []string) []string {
 // for the given scale parameters.
 func RunFullScaleTest(t *testing.T, params ScaleParams, enablePacketCapture, compactOTGFlows bool) {
 	t.Helper()
+
+	validateNHGLoadBalance(t, params.DefaultNHGLoadBalance)
+	validateNHGLoadBalance(t, params.TransitNHGLoadBalance)
+
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	defaultVRF := deviations.DefaultNetworkInstance(dut)
@@ -1818,7 +2135,9 @@ func RunFullScaleTest(t *testing.T, params ScaleParams, enablePacketCapture, com
 	t.Log("Configuring ATE topology")
 	ateConfig, interfaceNamesList := ConfigureOTG(t, ate, dut, params)
 	ate.OTG().PushConfig(t, ateConfig)
+	time.Sleep(1 * time.Minute)
 	ate.OTG().StartProtocols(t)
+	time.Sleep(1 * time.Minute)
 
 	// Limiting it to 100 since checking ARP for 1024 interfaces takes long time
 	ifs := interfaceNamesList
@@ -1829,17 +2148,9 @@ func RunFullScaleTest(t *testing.T, params ScaleParams, enablePacketCapture, com
 	IsIPv6InterfaceARPresolved(t, ate, AddressFamilyParams{InterfaceNames: ifs})
 
 	// Fetch MAC address for port1.
-	intfName := atePort1Attr.Name + "-0.Eth"
 	// The ATE needs to resolve the MAC address of the DUT to send traffic to it.
-	// The neighbor IP is the IPv4 address assigned to the first subinterface of DUT Port 1.
-	// We use GenerateIPsWithStep to exactly match the logic used during DUT configuration
-	// (in ConfigureDUTSubinterfaces), which derives the subinterface IPs from the start address.
-	goDutV4, err := iputil.GenerateIPsWithStep(DUTPort1IPv4Start, 1, PortIPv4Step)
-	if err != nil {
-		t.Fatalf("Failed to generate neighbor IP: %v", err)
-	}
-	neighborIP := goDutV4[0]
-	dstMac := GetDUTMACAddress(t, ate, intfName, neighborIP)
+	intfName := atePort1Attr.Name + ".Eth"
+	dstMac := GetDUTMACAddress(t, ate, intfName, DUTPort1IPv4)
 
 	t.Cleanup(func() {
 		gSession := NewGRIBIClient(t, dut)
@@ -1849,7 +2160,7 @@ func RunFullScaleTest(t *testing.T, params ScaleParams, enablePacketCapture, com
 	})
 
 	t.Run("Configure and validate FIB_PROGRAMMED, Hierarchical route structure", func(t *testing.T) {
-		// // DEFAULT VRF
+		// DEFAULT VRF
 		t.Log("Default VRF entries (A/B/C)")
 		primaryDefaultPrefixes, backupDefaultPrefixes := BuildDefaultVRF(t, dut, ctx, defaultVRF, params)
 
