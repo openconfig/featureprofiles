@@ -173,10 +173,12 @@ func runTest(t *testing.T, tc testCase, dut *ondatra.DUTDevice, ate *ondatra.ATE
 		otg.StartTraffic(t)
 		waitForTraffic(t, otg, tc.flowName, trafficTimeout)
 
-		gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(tc.flowName).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
+		if _, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(tc.flowName).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
 			f, present := val.Val()
 			return present && f.GetCounters() != nil && f.GetCounters().GetOutPkts() >= uint64(noOfPackets)
-		}).Await(t)
+		}).Await(t); !ok {
+			t.Errorf("Timeout waiting for flow %s to transmit %d packets", tc.flowName, noOfPackets)
+		}
 		
 		otgutils.LogFlowMetrics(t, otg, *config)
 		otgutils.LogPortMetrics(t, otg, *config)
