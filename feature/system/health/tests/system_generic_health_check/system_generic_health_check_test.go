@@ -422,6 +422,7 @@ func TestComponentsNoHighMemoryUtilization(t *testing.T) {
 
 	controllerCards := components.FindComponentsByType(t, dut, controllerCardType)
 	lineCards := components.FindComponentsByType(t, dut, lineCardType)
+	chassisCards := components.FindComponentsByType(t, dut, chassisCardType)
 	chassisLineCards := make([]string, 0)
 	for _, lc := range lineCards {
 		compEmptyVal, _ := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Empty().State()).Val()
@@ -430,7 +431,8 @@ func TestComponentsNoHighMemoryUtilization(t *testing.T) {
 		}
 	}
 	lineCards = chassisLineCards
-	cardList := append(controllerCards, lineCards...)
+	cardList := append(controllerCards, chassisCards...)
+	cardList = append(cardList, lineCards...)
 	if len(cardList) == 0 {
 		t.Errorf("ERROR: No card has been found.")
 	}
