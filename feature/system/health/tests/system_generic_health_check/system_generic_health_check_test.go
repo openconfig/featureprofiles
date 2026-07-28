@@ -423,6 +423,13 @@ func TestComponentsNoHighMemoryUtilization(t *testing.T) {
 	controllerCards := components.FindComponentsByType(t, dut, controllerCardType)
 	lineCards := components.FindComponentsByType(t, dut, lineCardType)
 	chassisCards := components.FindComponentsByType(t, dut, chassisCardType)
+	var memoryChassisCards []string
+	for _, cc := range chassisCards {
+		if val, present := gnmi.Lookup(t, dut, gnmi.OC().Component(cc).Memory().State()).Val(); present && val != nil {
+			memoryChassisCards = append(memoryChassisCards, cc)
+		}
+	}
+	chassisCards = memoryChassisCards
 	chassisLineCards := make([]string, 0)
 	for _, lc := range lineCards {
 		compEmptyVal, _ := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Empty().State()).Val()
