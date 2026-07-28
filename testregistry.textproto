@@ -1245,6 +1245,12 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/ip/otg_tests/disable_ipv6_nd_ra_test/disable_ipv6_nd_ra_test.go"
 }
 test: {
+  id: "RT-5.16"
+  description: "LACP Member Linecard Reboot"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/lacp/otg_tests/lacp_member_reboot_test/README.md"
+  exec: " "
+}
+test: {
   id: "RT-6.1"
   description: "Core LLDP TLV Population"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/lldp/otg_tests/core_lldp_tlv_population_test/README.md"
