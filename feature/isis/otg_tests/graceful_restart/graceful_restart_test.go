@@ -39,7 +39,6 @@ const (
 	restartWait         = 40
 	trafficPps          = 100
 	trafficFrameSize    = 512
-	trafficDuration     = time.Duration(trafficFrameSize / trafficPps)
 	lossTolerancePct    = 2
 	v4FlowName          = "ipv4_flow"
 	v6FlowName          = "ipv6_flow"
@@ -50,8 +49,6 @@ const (
 	sleepTime           = 10 * time.Second
 
 	controlcardType   = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
-	activeController  = oc.Platform_ComponentRedundantRole_PRIMARY
-	standbyController = oc.Platform_ComponentRedundantRole_SECONDARY
 	maxSwitchoverTime = 900
 )
 
@@ -517,8 +514,8 @@ func testISISWithControllerCardSwitchOver(t *testing.T, dut *ondatra.DUTDevice, 
 		switchoverReady := gnmi.OC().Component(rpActiveBeforeSwitch).SwitchoverReady()
 		gnmi.Await(t, dut, switchoverReady.State(), 30*time.Minute, true)
 		t.Logf("SwitchoverReady().Get(t): %v", gnmi.Get(t, dut, switchoverReady.State()))
-		if got, want := gnmi.Get(t, dut, switchoverReady.State()), true; got != want {
-			t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
+		if got := gnmi.Get(t, dut, switchoverReady.State()); got != true {
+			t.Errorf("switchoverReady.Get(t): got %v, want %v", got, true)
 		}
 
 		intfsOperStatusUPBeforeSwitch := helpers.FetchOperStatusUPIntfs(t, dut, *args.CheckInterfacesInBinding)
