@@ -1418,7 +1418,7 @@ message Metadata {
     bool macsec_oc_unsupported = 445;
 
     // Devices that do not support afts global filter policy
-    // Arista: https://partnerissuetracker.corp.google.com/u/1/issues/514565554
+    // Arista: https://partnerissuetracker.corp.google.com/issues/514565554
     bool afts_global_filter_policy_oc_unsupported = 446;
 
     // Reserved field numbers and identifiers.
