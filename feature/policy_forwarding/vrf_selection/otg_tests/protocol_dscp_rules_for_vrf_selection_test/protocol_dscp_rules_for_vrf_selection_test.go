@@ -532,11 +532,11 @@ func testTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config,
 
 			var inPkts float32
 			if expectPass {
-				inPktsVal, _ := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State(), 15*time.Second, func(val *ygnmi.Value[uint64]) bool {
+				inPktsVal, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State(), 15*time.Second, func(val *ygnmi.Value[uint64]) bool {
 					v, present := val.Val()
 					return present && v == outPktsRaw
 				}).Await(t)
-				if inPktsVal != nil {
+				if ok {
 					inPktsRaw, _ := inPktsVal.Val()
 					inPkts = float32(inPktsRaw)
 				} else {

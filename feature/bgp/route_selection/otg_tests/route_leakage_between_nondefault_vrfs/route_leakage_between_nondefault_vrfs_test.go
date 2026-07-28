@@ -399,7 +399,7 @@ func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Con
 	for _, flow := range config.Flows().Items() {
 		if _, ok := gnmi.Watch(t, otg, gnmi.OTG().Flow(flow.Name()).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
 			f, present := val.Val()
-			return present && f.GetCounters() != nil && f.GetCounters().GetOutPkts() >= uint64(uint32(totalPackets))
+			return present && f.GetCounters() != nil && f.GetCounters().GetOutPkts() >= totalPackets
 		}).Await(t); !ok {
 			t.Errorf("Flow %s did not send any packets", flow.Name())
 		}
