@@ -303,8 +303,6 @@ func computeNHGBuckets(numNHG int, req []NHGLoadBalancingParams) []nhgLoadBalanc
 
 // ScaleParams holds the scale constants that configure the gRIBI full scale setup.
 type ScaleParams struct {
-	PctNHG512          int
-	NumRepairNHG       int
 	NumEncapDefaultNHG int
 	NumUniqueEncapNH   int
 	GRIBIBatchSize     int
@@ -329,6 +327,10 @@ type ScaleParams struct {
 	// 	{Pct: 5, NumNextHops: 64},
 	// },
 	DefaultNHGLoadBalance []NHGLoadBalancingParams
+
+	// The percentage of NextHopGroups in Default VRF that should have a total weight of 512.
+	// The remaining (100 - PctNHG512) % of NextHopGroups will have a total weight of 1024.
+	PctNHG512 int
 	// The number of fictitious IPv4 prefixes in Default VRF.
 	// Theese IP entries will be pointed by the transit routes.
 	// Each prefix points to a unique NHG. Also virtually split into 2 sub-groups:
@@ -360,7 +362,11 @@ type ScaleParams struct {
 	// The IPv4 entries in repaired VRF will point to NHGs in sub-group 2)
 	NumTransitIPv4 int
 
-	NumRepairIPv4      int
+	// The number of IPv4 prefixes in the repair VRF
+	NumRepairIPv4 int
+	// The number of NextHopGroups in the repair VRF
+	NumRepairNHG int
+
 	NumEncapVRFs       int
 	NumEncapIPv4PerVRF int
 	NumEncapIPv6PerVRF int
@@ -452,10 +458,8 @@ func ConfigureDUT(t *testing.T, dut *ondatra.DUTDevice, params ScaleParams) {
 	d := gnmi.OC()
 	vrfBatch := new(gnmi.SetBatch)
 
-	if dut.Vendor() == ondatra.ARISTA {
-		ConfigureHardwareInit(t, dut)
-		RebootChassis(t, dut)
-	}
+	ConfigureHardwareInit(t, dut)
+
 	CreateGRIBIScaleVRFs(t, dut, vrfBatch, params.NumEncapVRFs)
 
 	inputPortList := []*ondatra.Port{dp1}
@@ -623,15 +627,44 @@ func verifySubinterfaceStatus(t *testing.T, dut *ondatra.DUTDevice, portName str
 // ConfigureHardwareInit pushes platform-specific hardware init configs.
 func ConfigureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
+	rebootRequired := false
+	if dut.Vendor() == ondatra.ARISTA {
+		rebootRequired = ConfigureTcam(t, dut)
+	} else if dut.Vendor() == ondatra.NOKIA {
+		rebootRequired = EnableSecondaryDefaultLookup(t, dut)
+	}
+	if rebootRequired {
+		RebootChassis(t, dut)
+	}
+}
+
+// ConfigureTcam pushes Arista-specific hardware init configs for TCAM to allocate enough space
+// for routes and optimize FIB and counters.
+func ConfigureTcam(t *testing.T, dut *ondatra.DUTDevice) bool {
+	t.Helper()
 	hardwareVrfCfg := NewDUTHardwareInit(t, dut, FeatureVrfSelectionExtended)
 	hardwarePfCfg := NewDUTHardwareInit(t, dut, FeatureOptimizeFIBAndCounters)
-	if hardwareVrfCfg == "" || hardwarePfCfg == "" {
-		return
+	if hardwareVrfCfg != "" && hardwarePfCfg != "" {
+		PushDUTHardwareInitConfig(t, dut, hardwareVrfCfg)
+		PushDUTHardwareInitConfig(t, dut, hardwarePfCfg)
+		// Save the configurations before rebooting the chassis.
+		helpers.GnmiCLIConfig(t, dut, "write memory")
+		return true
 	}
-	PushDUTHardwareInitConfig(t, dut, hardwareVrfCfg)
-	PushDUTHardwareInitConfig(t, dut, hardwarePfCfg)
-	// Save the configurations before rebooting the chassis.
-	helpers.GnmiCLIConfig(t, dut, "write memory")
+	return false
+}
+
+// EnableSecondaryDefaultLookup pushes Nokia specific hardware configuration to enable secondary
+// default lookup. It is required for decap flows due to the fact that decapsulated packets
+// are forwarded to the default VRF by the static route 0.0.0.0/0 from the encap VRF.
+func EnableSecondaryDefaultLookup(t *testing.T, dut *ondatra.DUTDevice) bool {
+	t.Helper()
+	cliConfig := NewDUTHardwareInit(t, dut, FeatureSecondaryDefaultLookup)
+	if cliConfig != "" {
+		PushDUTHardwareInitConfig(t, dut, cliConfig)
+		return true
+	}
+	return false
 }
 
 // CreateGRIBIScaleVRFs creates all non-default VRF network-instances plus the DEFAULT instance.  Uses deviations.DefaultNetworkInstance for the correct name.
@@ -1532,14 +1565,13 @@ func BuildEncapFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix bool,
 // BuildDecapFlows builds fixed-size/imix decap flows for all encap VRFs. Both DSCPs per VRF are expressed via SetValues in a single flow since the outer header is the same.
 func BuildDecapFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix bool, dstMac string, compact bool, params ScaleParams) []gosnappi.Flow {
 	flows := make([]gosnappi.Flow, 0)
-	decapDsts := ExpandDecapPrefixes(params)
+	outerDecapDsts := ExpandDecapPrefixes(params)
 	atePort2Ips, _ := iputil.GenerateIPsWithStep(ATEPort2IPv4Start, params.NumPort2VLANs, PortIPv4Step)
 
 	newFlow := MakeFlowCreator(top, pktSize, pps, imix)
 
-	createFlow := func(name string, dscpVals []uint32, dstIPs []string) {
-		f := createIPv4InIPv4Flow(newFlow, name, dstMac, IPv4OuterSrc111, dscpVals, decapDsts, dstIPs)
-
+	createFlow := func(name string, dscpVals []uint32, innerDstIPs []string) {
+		f := createIPv4InIPv4Flow(newFlow, name, dstMac, IPv4OuterSrc111, dscpVals, outerDecapDsts, innerDstIPs)
 		flows = append(flows, f)
 	}
 
@@ -1550,12 +1582,12 @@ func BuildDecapFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix bool,
 		encapVRFs := BuildEncapVRFs(params.NumEncapVRFs)
 		for vi := range encapVRFs {
 			d1, d2 := EncapVRFDSCP(vi)
-			var dstIPs []string
+			var innerDstIPs []string
 			for j := 0; j < subsetCount; j++ {
 				idx := (vi*subsetCount + j) % params.NumPort2VLANs
-				dstIPs = append(dstIPs, atePort2Ips[idx])
+				innerDstIPs = append(innerDstIPs, atePort2Ips[idx])
 			}
-			createFlow(fmt.Sprintf("decap_vrf_%d_src_111", vi), []uint32{uint32(d1), uint32(d2)}, dstIPs)
+			createFlow(fmt.Sprintf("decap_vrf_%d_src_111", vi), []uint32{uint32(d1), uint32(d2)}, innerDstIPs)
 		}
 	}
 
