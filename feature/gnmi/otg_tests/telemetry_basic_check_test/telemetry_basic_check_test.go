@@ -677,10 +677,11 @@ func TestCPU(t *testing.T) {
 	for _, cpu := range cpus {
 		t.Logf("Validate CPU: %s", cpu)
 		component := gnmi.OC().Component(cpu)
-		if !gnmi.Lookup(t, dut, component.Description().State()).IsPresent() {
+		desc, present := gnmi.Lookup(t, dut, component.Description().State()).Val()
+		if !present {
 			t.Errorf("component.Description().Lookup(t).IsPresent() for %q: got false, want true", cpu)
 		} else {
-			t.Logf("CPU %s Description: %s", cpu, gnmi.Get(t, dut, component.Description().State()))
+			t.Logf("CPU %s Description: %s", cpu, desc)
 		}
 	}
 }
@@ -702,15 +703,15 @@ func TestSupervisorLastRebootInfo(t *testing.T) {
 	rebootReasonFound := false
 	for _, card := range cards {
 		t.Logf("Validate card %s", card)
-		rebootTime := gnmi.OC().Component(card).LastRebootTime()
-		if gnmi.Lookup(t, dut, rebootTime.State()).IsPresent() {
-			t.Logf("Hardware card %s reboot time: %v", card, gnmi.Get(t, dut, rebootTime.State()))
+		rebootTimeVal, present := gnmi.Lookup(t, dut, gnmi.OC().Component(card).LastRebootTime().State()).Val()
+		if present {
+			t.Logf("Hardware card %s reboot time: %v", card, rebootTimeVal)
 			rebootTimeFound = true
 		}
 
-		rebootReason := gnmi.OC().Component(card).LastRebootReason()
-		if gnmi.Lookup(t, dut, rebootReason.State()).IsPresent() {
-			t.Logf("Hardware card %s reboot reason: %v", card, gnmi.Get(t, dut, rebootReason.State()))
+		rebootReasonVal, present := gnmi.Lookup(t, dut, gnmi.OC().Component(card).LastRebootReason().State()).Val()
+		if present {
+			t.Logf("Hardware card %s reboot reason: %v", card, rebootReasonVal)
 			rebootReasonFound = true
 		}
 	}
