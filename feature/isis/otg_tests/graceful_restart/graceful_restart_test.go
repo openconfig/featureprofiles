@@ -449,18 +449,21 @@ func testGrHelper(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, 
 		t.Error("traffic loss for flow is more than expected")
 	}
 
-	otgvalidationhelpers.ValidateOTGISISTelemetry(t, ate, expectedISISAdj)
-
 	time.Sleep(sleepTime)
 	t.Log("Verify ISIS is up again after GR timeout expiry")
 	verifyISISTelemetry(t, dut, []string{dut.Port(t, "port1").Name(), dut.Port(t, "port2").Name()})
+	// The ATE restart action is configured with restart-after=40s. Validate
+	// terminal GR telemetry only after the restart window, not while the
+	// action is still expected to report RESTARTING/INPROGRESS.
+	otgvalidationhelpers.ValidateOTGISISTelemetry(t, ate, expectedISISAdj)
 
 	// Initiating graceful restart, validating traffic loss after graceful restart expires before restart time
 	t.Logf("Validating traffic loss after after Restart Time expiry")
 	otg.SetControlAction(t, cs)
 
-	//The graceful restart timer is set to 30, validating traffic as soon as it expires before it initiate restart
-	time.Sleep(29 * time.Second)
+	// Start measuring after the 30-second holding timer expires, while the
+	// ATE ISIS router is still down and before restart-after=40s.
+	time.Sleep((gracefulRestartTime + 1) * time.Second)
 	otg.StartTraffic(t)
 	time.Sleep(5 * time.Second)
 	otg.StopTraffic(t)
