@@ -2294,10 +2294,6 @@ func MaxOutFIBRouteCount(dut *ondatra.DUTDevice) uint32 {
 	return 2500000
 }
 
-// AftsGlobalFilterPolicyOCUnsupported returns true if "/network-instances/network-instance/afts/global-filter-policy" OC path is not supported.
-// Arista: b/514565554
-func AftsGlobalFilterPolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetAftsGlobalFilterPolicyOcUnsupported()
 // IpsecOcUnsupported returns if device does not support OC configuration for IPSec.
 func IpsecOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIpsecOcUnsupported()
@@ -2316,4 +2312,10 @@ func IpRoutingInVrfOcUnsupported(dut *ondatra.DUTDevice) bool {
 // MacsecOcUnsupported returns true if device does not support OC configuration for MACSEC.
 func MacsecOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMacsecOcUnsupported()
+}
+
+// AftsGlobalFilterPolicyOCUnsupported returns true if "/network-instances/network-instance/afts/global-filter-policy" OC path is not supported.
+// Arista: b/514565554
+func AftsGlobalFilterPolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAftsGlobalFilterPolicyOcUnsupported()
 }
