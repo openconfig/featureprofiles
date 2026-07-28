@@ -19,7 +19,7 @@ func TestMain(m *testing.M) {
 const (
 	customVRFName     = "customVRFName"
 	gNMIPort          = 50055
-	transportSecurity = false
+	transportSecurity = true
 )
 
 var (
@@ -94,9 +94,12 @@ func ConfigureAdditionalNetworkInstance(batch *gnmi.SetBatch, t *testing.T, dut 
 
 	// Configure non-default network instance.
 	cfgplugins.NewNetworkInstance(t, dut, batch, &dutPort2NetworkInstanceIParams)
-
+	transportSec := transportSecurity
+	if deviations.RequireTransportSecurity(dut) {
+		transportSec = false
+	}
 	// Configure non-default gNMI server.
-	cfgplugins.CreateGNMIServer(t, dut, batch, &dutPort2NetworkInstanceIParams, gNMIPort, transportSecurity)
+	cfgplugins.CreateGNMIServer(t, dut, batch, &dutPort2NetworkInstanceIParams, gNMIPort, transportSec)
 }
 
 func ValidateNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {

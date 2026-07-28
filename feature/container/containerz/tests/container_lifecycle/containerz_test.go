@@ -134,6 +134,9 @@ func TestDeployAndStartContainer(t *testing.T) {
 func TestRetrieveLogs(t *testing.T) {
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
+	if deviations.ContainerzRetrieveLogsUnsupported(dut) {
+		t.Skip("Skipping test due to deviation containerz_retrieve_logs_unsupported")
+	}
 	baseCli := containerztest.Client(t, dut)
 
 	// Positive Test: Retrieve logs from a running container

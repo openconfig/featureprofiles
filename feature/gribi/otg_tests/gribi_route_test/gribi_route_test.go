@@ -244,6 +244,9 @@ func TestGRIBIFailover(t *testing.T) {
 	})
 
 	t.Run("RT-14.2.4: Traffic Match to Transit_Vrf, noMatch Tunnel Prefix Egress to Port3", func(t *testing.T) {
+		if deviations.DecapNHWithNextHopNIUnsupported(dut) {
+			t.Skip("Skipping because Decap NH with NextHop Network Instance is unsupported")
+		}
 		flow := createFlow(&flowArgs{flowName: "flow4in4",
 			outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: ipv4OuterDst222,
 			InnHdrSrcIP: ipv4OuterSrc111, InnHdrDstIP: ipv4InnerDst, isIPInIP: true}, dstMac)
@@ -427,10 +430,13 @@ func configureVrfSelectionPolicyC(t *testing.T, dut *ondatra.DUTDevice) {
 
 func configureGribiRoute(t *testing.T, dut *ondatra.DUTDevice, tcArgs *testArgs) {
 	t.Helper()
+	decapNH := fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
+		WithIndex(uint64(1)).WithDecapsulateHeader(fluent.IPinIP)
+	if !deviations.DecapNHWithNextHopNIUnsupported(dut) {
+		decapNH.WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	}
 	tcArgs.client.Modify().AddEntry(t,
-		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
-			WithIndex(uint64(1)).WithDecapsulateHeader(fluent.IPinIP).
-			WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
+		decapNH,
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
 			WithID(uint64(1)).AddNextHop(uint64(1), uint64(1)),
 

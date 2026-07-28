@@ -27,6 +27,8 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
+
+	log "github.com/golang/glog"
 )
 
 // Attributes bundles some common attributes for devices and/or interfaces.
@@ -47,6 +49,7 @@ type Attributes struct {
 	IPv6Len      uint8  // Prefix length for IPv6.
 	MTU          uint16
 	ID           uint32 // /interfaces/interface/state/id p4rt interface id
+	Duplex       string // interface Ethernet duplex mode: FULL or HALF
 }
 
 // IPv4CIDR constructs the IPv4 CIDR notation with the given prefix
@@ -76,6 +79,16 @@ func (a *Attributes) ConfigOCInterface(intf *oc.Interface, dut *ondatra.DUTDevic
 	e := intf.GetOrCreateEthernet()
 	if a.MAC != "" {
 		e.MacAddress = ygot.String(a.MAC)
+	}
+
+	if a.Duplex != "" {
+		if a.Duplex == "FULL" {
+			e.DuplexMode = oc.Ethernet_DuplexMode_FULL
+		} else if a.Duplex == "HALF" {
+			e.DuplexMode = oc.Ethernet_DuplexMode_HALF
+		} else {
+			log.Errorf("Unsupported duplex mode: %s", a.Duplex)
+		}
 	}
 
 	s := intf.GetOrCreateSubinterface(a.Subinterface)
