@@ -703,15 +703,15 @@ func TestSupervisorLastRebootInfo(t *testing.T) {
 	rebootReasonFound := false
 	for _, card := range cards {
 		t.Logf("Validate card %s", card)
-		rebootTimeVal, present := gnmi.Lookup(t, dut, gnmi.OC().Component(card).LastRebootTime().State()).Val()
+		rebootTime, present := gnmi.Lookup(t, dut, gnmi.OC().Component(card).LastRebootTime().State()).Val()
 		if present {
-			t.Logf("Hardware card %s reboot time: %v", card, rebootTimeVal)
+			t.Logf("Hardware card %s reboot time: %v", card, rebootTime)
 			rebootTimeFound = true
 		}
 
-		rebootReasonVal, present := gnmi.Lookup(t, dut, gnmi.OC().Component(card).LastRebootReason().State()).Val()
+		rebootReason, present := gnmi.Lookup(t, dut, gnmi.OC().Component(card).LastRebootReason().State()).Val()
 		if present {
-			t.Logf("Hardware card %s reboot reason: %v", card, rebootReasonVal)
+			t.Logf("Hardware card %s reboot reason: %v", card, rebootReason)
 			rebootReasonFound = true
 		}
 	}
