@@ -1,0 +1,37 @@
+name: Test Registry Sync Check
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'feature/**/metadata.textproto'
+      - 'testregistry.textproto'
+      - 'tools/sync_test_registry/**'
+      - 'Makefile'
+
+jobs:
+  check-sync:
+    name: Check Test Registry Sync
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: 'go.mod'
+        cache: true
+
+    - name: Sync Test Registry
+      run: make sync-test-registry
+
+    - name: Check for diff
+      run: |
+        if ! git diff --exit-code testregistry.textproto; then
+          echo "======================================================================"
+          echo "ERROR: testregistry.textproto is out of sync with feature metadata."
+          echo "Please run 'make sync-test-registry' locally and commit the changes."
+          echo "======================================================================"
+          exit 1
+        fi
