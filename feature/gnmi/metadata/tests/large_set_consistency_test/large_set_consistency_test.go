@@ -259,12 +259,11 @@ func getNotificationsUsingGNMIGet(t *testing.T, gnmiClient gpb.GNMIClient, dut *
 	return getResponse.GetNotification()
 }
 
-func checkshortStringMetadata1(t *testing.T, gnmiClient gpb.GNMIClient, dut *ondatra.DUTDevice, done *atomic.Int64) {
+func checkshortStringMetadata1(t *testing.T, gnmiClient gnmigrpc.GNMIClient, dut *ondatra.DUTDevice, done *atomic.Int64) {
 	t.Helper()
-	got, getRespTimeStamp := extractMetadataAnnotation(t, gnmiClient, dut)
-	want := shortStringMetadata1
-	if got != want && getRespTimeStamp < done.Load() {
-		t.Errorf("extractMetadataAnnotation: got %v, want %v", got, want)
+	got, _ := extractMetadataAnnotation(t, gnmiClient, dut)
+	if got != shortStringMetadata1 && got != shortStringMetadata2 {
+		t.Errorf("extractMetadataAnnotation: got %v, want either %v or %v", got, shortStringMetadata1, shortStringMetadata2)
 	}
 }
 
