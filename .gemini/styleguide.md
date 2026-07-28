@@ -55,6 +55,24 @@
     *   **Querying Counters:** Always use a `gnmi.Watch` loop to wait for a specific counter value to be reached before querying it.
     *   **OTG Start Protocols:** Prior to invoking OTG start protocols, explicitly call `WaitForARP` function to maintain test stability.
       
+        *   **OTG traffic neighbor resolution:** For tests that configure and
+                start OTG (traffic generator) protocols and traffic, ensure neighbor
+                resolution (ARP for IPv4 or ND for IPv6) has completed before
+                starting traffic. Specifically:
+
+                - After `StartProtocols(t)` and before `StartTraffic(t)`, call the
+                    appropriate helper: `otgutils.WaitForARP(t, otg, config, "IPv4")`
+                    or `otgutils.WaitForARP(t, otg, config, "IPv6")` depending on the
+                    address family used by the flows.
+                - If a helper function calls `StartTraffic()`, the caller must ensure
+                    the matching `WaitForARP(...)` has already completed; do not rely on
+                    `StartTraffic()` to implicitly resolve neighbors.
+                - For dual-stack tests that send both IPv4 and IPv6 traffic, wait for
+                    both families before starting traffic.
+
+                This prevents initial packets from being dropped due to unresolved
+                neighbor entries and makes traffic validation deterministic.
+
 *   **Enums:**
 
     *   Do not use numerical enum values (e.g., `6`). Use the ygot-generated
