@@ -397,5 +397,3 @@ func buildCLIConfigRequest(config string) *gpb.SetRequest {
 	}
 	return gpbSetRequest
 }
-
-
