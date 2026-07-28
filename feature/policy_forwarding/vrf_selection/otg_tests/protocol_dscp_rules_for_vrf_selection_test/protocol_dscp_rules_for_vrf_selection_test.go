@@ -31,10 +31,11 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 const (
-	trafficDuration = 1 * time.Minute
+	trafficDuration = 30 * time.Second
 	ipv4PrefixLen   = 30
 	ipv6PrefixLen   = 126
 )
@@ -486,6 +487,7 @@ func getIPinIPFlow(args *testArgs, src attrs.Attributes, dst attrs.Attributes, f
 	flow.Size().SetFixed(1024)
 	flow.Rate().SetPps(100)
 	flow.Duration().FixedPackets().SetPackets(100)
+	flow.Duration().Continuous()
 
 	return flow
 }
@@ -518,11 +520,30 @@ func testTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config,
 	for _, flow := range flows {
 		t.Run(flow.Name(), func(t *testing.T) {
 			t.Logf("*** Verifying %v traffic on OTG ... ", flow.Name())
-			outPkts := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State()))
-			inPkts := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State()))
-
-			if outPkts == 0 {
+			outPktsVal, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State(), 15*time.Second, func(val *ygnmi.Value[uint64]) bool {
+				v, present := val.Val()
+				return present && v > 0
+			}).Await(t)
+			if !ok {
 				t.Fatalf("OutPkts == 0, want >0.")
+			}
+			outPktsRaw, _ := outPktsVal.Val()
+			outPkts := float32(outPktsRaw)
+
+			var inPkts float32
+			if expectPass {
+				inPktsVal, _ := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State(), 15*time.Second, func(val *ygnmi.Value[uint64]) bool {
+					v, present := val.Val()
+					return present && v == outPktsRaw
+				}).Await(t)
+				if inPktsVal != nil {
+					inPktsRaw, _ := inPktsVal.Val()
+					inPkts = float32(inPktsRaw)
+				} else {
+					inPkts = float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State()))
+				}
+			} else {
+				inPkts = float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State()))
 			}
 
 			lossPct := (outPkts - inPkts) * 100 / outPkts
