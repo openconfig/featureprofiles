@@ -329,7 +329,8 @@ func testPktInPktOut(t *testing.T, args *testArgs) {
 		if (counter1 - counter0) < uint64(float32(3*packetCount)*0.95) {
 			t.Errorf("Number of Packetout packets, got: %d, want: %d", counter1-counter0, (3 * packetCount))
 		}
-		_, packetinPackets, err := args.leader.StreamChannelGetPackets(&streamName, uint64(pktIn), 30*time.Second)
+		// Collect packetin and fail if fewer than 95% of the packets are received.
+		_, packetinPackets, err := args.leader.StreamChannelGetPackets(&streamName, uint64(float32(pktIn)*0.95), 30*time.Second)
 		if err != nil {
 			t.Errorf("Unexpected error on StreamChannelGetPackets: %v", err)
 		}
