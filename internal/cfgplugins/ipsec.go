@@ -140,14 +140,22 @@ func ConfigureIPSecTunnel(t *testing.T, dut *ondatra.DUTDevice, cfg IPSecTunnelC
 		}
 
 		s0 := i.GetOrCreateSubinterface(0)
-		if addr, plen, ok := parseCIDRAddr(cfg.TunnelIPv4); ok {
+		if cfg.TunnelIPv4 != "" {
+			addr, plen, ok := parseCIDRAddr(cfg.TunnelIPv4)
+			if !ok {
+				t.Fatalf("Invalid TunnelIPv4 CIDR: %s", cfg.TunnelIPv4)
+			}
 			s4 := s0.GetOrCreateIpv4()
 			if deviations.InterfaceEnabled(dut) {
 				s4.Enabled = ygot.Bool(true)
 			}
 			s4.GetOrCreateAddress(addr).PrefixLength = ygot.Uint8(plen)
 		}
-		if addr, plen, ok := parseCIDRAddr(cfg.TunnelIPv6); ok {
+		if cfg.TunnelIPv6 != "" {
+			addr, plen, ok := parseCIDRAddr(cfg.TunnelIPv6)
+			if !ok {
+				t.Fatalf("Invalid TunnelIPv6 CIDR: %s", cfg.TunnelIPv6)
+			}
 			s6 := s0.GetOrCreateIpv6()
 			if deviations.InterfaceEnabled(dut) {
 				s6.Enabled = ygot.Bool(true)

@@ -78,7 +78,7 @@ func ConfigureMACsec(t *testing.T, dut *ondatra.DUTDevice, cfg MACsecCfg) *gnmi.
 		policy.SetKeyServerPriority(10)
 		policy.SetSakRekeyInterval(3600)
 		policy.SetIncludeSci(true)
-		policy.SetMacsecCipherSuite([]oc.E_Macsec_MacsecCipherSuite{oc.Macsec_MacsecCipherSuite_GCM_AES_256})
+		policy.SetMacsecCipherSuite([]oc.E_Macsec_MacsecCipherSuite{oc.Macsec_MacsecCipherSuite_GCM_AES_128})
 
 		intf := macsec.GetOrCreateInterface(cfg.IntfName)
 		intf.SetEnable(true)
