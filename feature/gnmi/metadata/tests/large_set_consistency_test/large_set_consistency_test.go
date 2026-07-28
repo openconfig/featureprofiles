@@ -259,7 +259,9 @@ func getNotificationsUsingGNMIGet(t *testing.T, gnmiClient gpb.GNMIClient, dut *
 	return getResponse.GetNotification()
 }
 
-func checkshortStringMetadata1(t *testing.T, gnmiClient gnmigrpc.GNMIClient, dut *ondatra.DUTDevice, done *atomic.Int64) {
+// During the Set push, an external reader should see EITHER the complete old config
+// OR the complete new config. Any partial string or missing data is a failure.
+func checkshortStringMetadata1(t *testing.T, gnmiClient gpb.GNMIClient, dut *ondatra.DUTDevice, done *atomic.Int64) {
 	t.Helper()
 	got, _ := extractMetadataAnnotation(t, gnmiClient, dut)
 	if got != shortStringMetadata1 && got != shortStringMetadata2 {
@@ -267,8 +269,6 @@ func checkshortStringMetadata1(t *testing.T, gnmiClient gnmigrpc.GNMIClient, dut
 	}
 }
 
-// During the Set push, an external reader should see EITHER the complete old config
-// OR the complete new config. Any partial string or missing data is a failure.
 func checkshortStringMetadata2(t *testing.T, gnmiClient gpb.GNMIClient, dut *ondatra.DUTDevice) {
 	t.Helper()
 	got, getRespTimeStamp := extractMetadataAnnotation(t, gnmiClient, dut)
