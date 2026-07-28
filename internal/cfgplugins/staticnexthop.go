@@ -1,6 +1,7 @@
 package cfgplugins
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -13,6 +14,8 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
+
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
 // OCEncapsulationParams holds parameters for generating the OC Encapsulations config.
@@ -148,6 +151,17 @@ entry 15 push label-stack 362143 tunnel-destination 10.99.1.3 tunnel-source 10.2
 !
 	`
 )
+
+// GreNextHopGroupParams holds parameters for generating the OC GRE Next Hop Group config.
+type GreNextHopGroupParams struct {
+	NetworkInstance  *oc.NetworkInstance
+	NexthopGroupName string
+	GroupType        string
+	SrcAddr          []string
+	DstAddr          []string
+	TTL              uint8
+	Dscp             uint8
+}
 
 // NextHopGroupConfig configures the interface next-hop-group config.
 func NextHopGroupConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string, ni *oc.NetworkInstance, params StaticNextHopGroupParams) {
@@ -467,4 +481,122 @@ func configureTOSGUE(t *testing.T, dut *ondatra.DUTDevice, policyName string, ds
 		}
 	}
 
+}
+
+func NextHopGroupConfigForMultipleIP(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, params GreNextHopGroupParams) {
+	if deviations.NextHopGroupOCUnsupported(dut) {
+		cli := ""
+		tunnelConfig := ""
+		ttlConfig := ""
+		tosConfig := ""
+
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			if len(params.SrcAddr) != 0 && len(params.DstAddr) != 0 {
+				srcLen := len(params.SrcAddr)
+				dstLen := len(params.DstAddr)
+
+				switch {
+				case srcLen == dstLen:
+					for entryNum := 0; entryNum < srcLen; entryNum++ {
+						tunnelConfig += fmt.Sprintf("entry %d tunnel-destination %s tunnel-source %s \n",
+							entryNum, params.DstAddr[entryNum], params.SrcAddr[entryNum])
+					}
+
+				case srcLen > dstLen:
+					for entryNum, addr := range params.SrcAddr {
+						tunnelConfig += fmt.Sprintf("entry %d tunnel-destination %s tunnel-source %s \n",
+							entryNum, params.DstAddr[entryNum%dstLen], addr)
+					}
+
+				case dstLen > srcLen:
+					for entryNum, addr := range params.DstAddr {
+						tunnelConfig += fmt.Sprintf("entry %d tunnel-destination %s tunnel-source %s \n",
+							entryNum, addr, params.SrcAddr[entryNum%srcLen])
+					}
+				}
+			}
+			if params.TTL != 0 {
+				ttlConfig = fmt.Sprintf(`ttl %v`, params.TTL)
+			}
+
+			if params.Dscp != 0 {
+				tosConfig = fmt.Sprintf(`tos %v`, params.Dscp)
+			}
+
+			cli = fmt.Sprintf(`
+				nexthop-group %s type %s
+				%s
+				%s
+				%s
+				`, params.NexthopGroupName, params.GroupType, tunnelConfig, ttlConfig, tosConfig)
+			helpers.GnmiCLIConfig(t, dut, cli)
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group config'", dut.Vendor())
+		}
+	} else {
+		t.Helper()
+		nhg := params.NetworkInstance.GetOrCreateStatic().GetOrCreateNextHopGroup(params.NexthopGroupName)
+		nhg.GetOrCreateNextHop(params.NexthopGroupName).SetIndex(params.NexthopGroupName)
+
+		// Set the encap header for each next-hop
+		ueh1 := params.NetworkInstance.GetOrCreateStatic().GetOrCreateNextHop(params.NexthopGroupName).GetOrCreateEncapHeader(1)
+		for _, addr := range params.DstAddr {
+			ueh1.GetOrCreateUdpV4().SetDstIp(addr)
+		}
+
+		for _, addr := range params.SrcAddr {
+			ueh1.GetOrCreateUdpV4().SetSrcIp(addr)
+		}
+
+		if params.TTL != 0 {
+			ueh1.GetOrCreateUdpV4().SetIpTtl(params.TTL)
+		}
+
+		if params.Dscp != 0 {
+			ueh1.GetOrCreateUdpV4().SetDscp(params.Dscp)
+		}
+	}
+}
+
+func GetNextHopGroupCounters(t *testing.T, dut *ondatra.DUTDevice) *gpb.GetResponse {
+	if deviations.NexthopGroupPseudowireCountersOcUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			// Nexthop counter ID which helps fetch the counter values from the native path
+			counterId := "4294967295"
+			req := &gpb.GetRequest{
+				Prefix: &gpb.Path{
+					Origin: "eos_native",
+				},
+				Path: []*gpb.Path{{
+					Elem: []*gpb.PathElem{
+						{Name: "Smash"},
+						{Name: "flexCounters"},
+						{Name: "counterTable"},
+						{Name: "Nexthop"},
+						{Name: counterId},
+						{Name: "counter"},
+					},
+				},
+				},
+				Type:     gpb.GetRequest_CONFIG,
+				Encoding: gpb.Encoding_JSON_IETF,
+			}
+
+			gnmiClient := dut.RawAPIs().GNMI(t)
+			if getResponse, err := gnmiClient.Get(context.Background(), req); err != nil {
+				t.Fatalf("Unexpected error getting counters: %v", err)
+			} else {
+				return getResponse
+			}
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group counters'", dut.Vendor())
+			return nil
+		}
+	} else {
+		// TODO: Add counters after https://github.com/openconfig/public/pull/1418 is merged
+		t.Log("OC path is not available for next-hop-group counters")
+	}
+	return nil
 }

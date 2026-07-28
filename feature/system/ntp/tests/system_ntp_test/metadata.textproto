@@ -13,3 +13,11 @@ platform_exceptions: {
     ntp_source_address_unsupported: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    default_network_instance: "default"
+  }
+}

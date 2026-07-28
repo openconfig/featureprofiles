@@ -5,3 +5,27 @@ uuid:  "6496f90f-b817-4e28-bf6d-bcbdb4c8efcd"
 plan_id:  "TE-6.4"
 description:  "gRIBI to BGP Route Redistribution for IPv4"
 testbed:  TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    omit_l2_mtu: true
+    interface_config_vrf_before_address: true
+    table_connections_unsupported: true
+  }
+}
+
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    interface_enabled: true
+    bgp_conditions_match_community_set_unsupported: true
+    community_match_with_redistribution_unsupported: true
+    default_route_policy_unsupported: true
+  }
+}

@@ -9,3 +9,15 @@ platform_exceptions: {
     vendor: PALOALTO
   }
 }
+
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    missing_value_for_defaults: true
+    state_path_unsupported: true
+    interface_enabled: true
+  }
+}
+

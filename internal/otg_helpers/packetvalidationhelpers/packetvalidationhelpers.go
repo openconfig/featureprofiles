@@ -55,16 +55,19 @@ Validations = []packetvalidationhelpers.ValidationType{
 
 // IPv4 and IPv6 are the IP protocol types.
 const (
-	IPv4 = "IPv4"
-	IPv6 = "IPv6"
-	TCP  = 6  // TCP protocol number as seen on the wire.
-	UDP  = 17 // UDP protocol number as seen on the wire.
+	IPv4            = "IPv4"
+	IPv6            = "IPv6"
+	TCP             = 6  // TCP protocol number as seen on the wire.
+	UDP             = 17 // UDP protocol number as seen on the wire.
+	MacsecEtherType = 0x88E5
 )
 
 // ValidationType defines the type of validation to perform.
 type ValidationType string
 
 const (
+	// ValidateVlanHeader validates the  VLAN header.
+	ValidateVlanHeader ValidationType = "ValidateVlanHeader"
 	// ValidateIPv4Header validates the  IPv4 header.
 	ValidateIPv4Header ValidationType = "ValidateIPv4Header"
 	// ValidateIPv6Header validates the IPv6 header.
@@ -79,6 +82,10 @@ const (
 	ValidateTCPHeader ValidationType = "ValidateTCPHeader"
 	// ValidateUDPHeader validates the UDP header.
 	ValidateUDPHeader ValidationType = "ValidateUDPHeader"
+	// ValidateBGPHeader validates the BGP header.
+	ValidateBGPHeader ValidationType = "ValidateBGPHeader"
+	// ValidateMacsecHeader validates the MACsec (802.1AE) header.
+	ValidateMacsecHeader ValidationType = "ValidateMacsecHeader"
 )
 
 // PacketValidation is a struct to hold the packet validation parameters.
@@ -86,16 +93,34 @@ type PacketValidation struct {
 	PortName         string
 	CaptureName      string
 	CaptureCount     int
+	VlanLayer        *VlanLayer
 	IPv4Layer        *IPv4Layer
 	IPv6Layer        *IPv6Layer
 	GreLayer         *GreLayer
 	MPLSLayer        *MPLSLayer
+	MacsecLayer      *MacsecLayer
 	TCPLayer         *TCPLayer
 	UDPLayer         *UDPLayer
 	InnerIPLayerIPv4 *IPv4Layer
 	InnerIPLayerIPv6 *IPv6Layer
+	BGPLayer         *BGPLayer
+	// Flags enables optional field-level validations that are otherwise skipped.
+	Flags *ValidationFlags
 	// Validations is a list of validations to perform on the captured packets.
-	Validations []ValidationType
+	Validations     []ValidationType
+	packetSourceObj *gopacket.PacketSource
+}
+
+// VlanLayer is a struct to hold the vlan layer parameters
+type VlanLayer struct {
+	VlanID uint16
+}
+
+// ValidationFlags holds optional toggles that enable specific field-level
+// validations which are otherwise skipped when their value is zero/empty.
+type ValidationFlags struct {
+	// ValidateFlowLabel enables IPv6 flow-label validation against IPv6Layer.FlowLabel.
+	ValidateFlowLabel bool
 }
 
 // IPv4Layer is a struct to hold the IP layer parameters.
@@ -113,6 +138,7 @@ type IPv6Layer struct {
 	TrafficClass uint8
 	HopLimit     uint8
 	NextHeader   uint32
+	FlowLabel    uint32
 }
 
 // GreLayer is a struct to hold the GRE layer parameters.
@@ -120,10 +146,19 @@ type GreLayer struct {
 	Protocol uint32
 }
 
+// MacsecLayer holds the MACsec (802.1AE) layer parameters.
+type MacsecLayer struct {
+	// EtherType is the MACsec EtherType to match. It defaults to
+	// MacsecEtherType (0x88E5) when left as zero.
+	EtherType uint16
+}
+
 // MPLSLayer holds MPLS layer properties
 type MPLSLayer struct {
-	Label uint32
-	Tc    uint8
+	Label               uint32
+	Tc                  uint8
+	ControlWordHeader   bool
+	ControlWordSequence uint32
 }
 
 // TCPLayer holds the TCP layer parameters.
@@ -136,6 +171,13 @@ type TCPLayer struct {
 type UDPLayer struct {
 	SrcPort uint32
 	DstPort uint32
+}
+
+// BGPLayer holds the BGP Layer parameters.
+type BGPLayer struct {
+	TYPE         uint8
+	ErrorCode    uint8
+	ErrorSubCode uint8
 }
 
 // StartCapture starts the capture on the port.
@@ -177,37 +219,49 @@ func CaptureAndValidatePackets(t *testing.T, ate *ondatra.ATEDevice, packetVal *
 	}
 	defer handle.Close()
 
-	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
+	packetVal.packetSourceObj = gopacket.NewPacketSource(handle, handle.LinkType())
 
 	// Iterate over the validations specified in packetVal.Validations.
 	for _, validation := range packetVal.Validations {
 		switch validation {
+		case ValidateVlanHeader:
+			if err := validateVlanHeader(t, packetVal.packetSourceObj, packetVal); err != nil {
+				return err
+			}
 		case ValidateIPv4Header:
-			if err := validateIPv4Header(t, packetSource, packetVal); err != nil {
+			if err := validateIPv4Header(t, packetVal.packetSourceObj, packetVal); err != nil {
 				return err
 			}
 		case ValidateInnerIPv4Header:
-			if err := validateInnerIPv4Header(t, packetSource, packetVal); err != nil {
+			if err := validateInnerIPv4Header(t, packetVal.packetSourceObj, packetVal); err != nil {
 				return err
 			}
 		case ValidateIPv6Header:
-			if err := validateIPv6Header(t, packetSource, packetVal); err != nil {
+			if err := validateIPv6Header(t, packetVal.packetSourceObj, packetVal); err != nil {
 				return err
 			}
 		case ValidateInnerIPv6Header:
-			if err := validateInnerIPv6Header(t, packetSource, packetVal); err != nil {
+			if err := validateInnerIPv6Header(t, packetVal.packetSourceObj, packetVal); err != nil {
 				return err
 			}
 		case ValidateMPLSLayer:
-			if err := validateMPLSLayer(t, packetSource, packetVal); err != nil {
+			if err := validateMPLSLayer(t, packetVal.packetSourceObj, packetVal); err != nil {
 				return err
 			}
 		case ValidateTCPHeader:
-			if err := validateTCPHeader(t, packetSource, packetVal); err != nil {
+			if err := validateTCPHeader(t, packetVal.packetSourceObj, packetVal); err != nil {
 				return err
 			}
 		case ValidateUDPHeader:
-			if err := validateUDPHeader(t, packetSource, packetVal); err != nil {
+			if err := validateUDPHeader(t, packetVal.packetSourceObj, packetVal); err != nil {
+				return err
+			}
+		case ValidateBGPHeader:
+			if err := validateBGPHeader(t, packetVal.packetSourceObj, packetVal); err != nil {
+				return err
+			}
+		case ValidateMacsecHeader:
+			if err := validateMacsecHeader(t, packetVal.packetSourceObj, packetVal); err != nil {
 				return err
 			}
 		default:
@@ -224,13 +278,30 @@ func ClearCapture(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice) {
 	ate.OTG().PushConfig(t, top)
 }
 
+func validateVlanHeader(t *testing.T, packetSource *gopacket.PacketSource, packetVal *PacketValidation) error {
+	t.Helper()
+	t.Log("Validating Vlan header")
+
+	for packet := range packetSource.Packets() {
+		if vlanLayer := packet.Layer(layers.LayerTypeDot1Q); vlanLayer != nil {
+			vlanHeader, _ := vlanLayer.(*layers.Dot1Q)
+
+			if vlanHeader.VLANIdentifier != packetVal.VlanLayer.VlanID {
+				return fmt.Errorf("vlan id is not set properly. Vlan ID is: %d, expected: %d", vlanHeader.VLANIdentifier, packetVal.VlanLayer.VlanID)
+			}
+			// If validation is successful for one packet, we can return.
+			return nil
+		}
+	}
+	return fmt.Errorf("no VLAN packets found")
+}
+
 // validateIPv4Header validates the outer IPv4 header.
 func validateIPv4Header(t *testing.T, packetSource *gopacket.PacketSource, packetVal *PacketValidation) error {
 	t.Helper()
 	t.Log("Validating IPv4 header")
 
 	for packet := range packetSource.Packets() {
-		t.Logf("packet: %v", packet)
 		if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
 			ip, _ := ipLayer.(*layers.IPv4)
 			if !packetVal.IPv4Layer.SkipProtocolCheck {
@@ -272,6 +343,9 @@ func validateIPv6Header(t *testing.T, packetSource *gopacket.PacketSource, packe
 			}
 			if ipv6.TrafficClass != packetVal.IPv6Layer.TrafficClass {
 				return fmt.Errorf("traffic class value is altered to: %d. expected: %d", ipv6.TrafficClass, packetVal.IPv6Layer.TrafficClass)
+			}
+			if packetVal.Flags != nil && packetVal.Flags.ValidateFlowLabel && ipv6.FlowLabel != packetVal.IPv6Layer.FlowLabel {
+				return fmt.Errorf("IPv6 flow label is not set properly. Expected: %d, Actual: %d", packetVal.IPv6Layer.FlowLabel, ipv6.FlowLabel)
 			}
 			if packetVal.IPv6Layer.NextHeader != 0 {
 				if uint32(ipv6.NextHeader) != packetVal.IPv6Layer.NextHeader {
@@ -369,6 +443,18 @@ func validateMPLSLayer(t *testing.T, packetSource *gopacket.PacketSource, packet
 			if mpls.TrafficClass != packetVal.MPLSLayer.Tc {
 				return fmt.Errorf("mpls traffic class is not set properly. expected: %d, actual: %d", packetVal.MPLSLayer.Tc, mpls.TrafficClass)
 			}
+
+			if packetVal.MPLSLayer.ControlWordHeader {
+				if len(mpls.Payload) >= 4 {
+					controlWord := mpls.Payload[:4]
+					if uint16(controlWord[0])<<8|uint16(controlWord[1]) == uint16(packetVal.MPLSLayer.ControlWordSequence) {
+						t.Logf("%v (32-bit field ) control word is inserted between the MPLS label stack and the Layer 2 payload (the Ethernet frame).0", packetVal.MPLSLayer.ControlWordSequence)
+					}
+				} else {
+					t.Errorf("Control Word header not found")
+				}
+			}
+
 			// If validation is successful for one packet, we can return.
 			return nil
 		}
@@ -420,6 +506,86 @@ func validateUDPHeader(t *testing.T, packetSource *gopacket.PacketSource, packet
 	return fmt.Errorf("no UDP packets found")
 }
 
+func validateBGPHeader(t *testing.T, packetSource *gopacket.PacketSource, packetVal *PacketValidation) error {
+	t.Helper()
+	t.Log("Validating BGP header")
+	for packet := range packetSource.Packets() {
+		// Get the TCP layer safely
+		tcpLayer := packet.Layer(layers.LayerTypeTCP)
+		if tcpLayer == nil {
+			// No TCP layer; skip
+			continue
+		}
+
+		payload := tcpLayer.LayerPayload()
+		// We need at least 21 bytes to access indices 0..20
+		if len(payload) < 21 {
+			continue
+		}
+
+		// Validate marker: payload[0:16] must be 0xFF
+		if !isAllFF(payload[:16]) {
+			continue
+		}
+
+		// Validate the Type, ErrorCode and ErrorSubCode
+		if payload[18] != packetVal.BGPLayer.TYPE && payload[19] != packetVal.BGPLayer.ErrorCode && payload[20] != packetVal.BGPLayer.ErrorSubCode {
+			continue
+		}
+		return nil
+	}
+
+	// If we iterated all packets with no match:
+	return fmt.Errorf("BGP Notification not found")
+}
+
+func isAllFF(b []byte) bool {
+	for _, v := range b {
+		if v != 0xFF {
+			return false
+		}
+	}
+	return true
+}
+
+// validateMacsecHeader validates that the capture contains MACsec-encrypted
+// packets, identified by the MACsec EtherType (0x88E5 by default).
+func validateMacsecHeader(t *testing.T, packetSource *gopacket.PacketSource, packetVal *PacketValidation) error {
+	t.Helper()
+	t.Log("Validating MACsec header")
+
+	var etherType uint16
+	if packetVal.MacsecLayer != nil {
+		etherType = packetVal.MacsecLayer.EtherType
+	}
+	if etherType == 0 {
+		etherType = MacsecEtherType
+	}
+
+	macsecCount := 0
+	totalPackets := 0
+	for packet := range packetSource.Packets() {
+		totalPackets++
+		ethLayer := packet.Layer(layers.LayerTypeEthernet)
+		if ethLayer == nil {
+			continue
+		}
+		eth := ethLayer.(*layers.Ethernet)
+		if uint16(eth.EthernetType) == etherType {
+			macsecCount++
+		}
+	}
+
+	if totalPackets == 0 {
+		return fmt.Errorf("no packets captured, want at least 1 MACsec-encrypted packet")
+	}
+	if macsecCount == 0 {
+		return fmt.Errorf("captured %d total packets but no MACsec-encrypted packets (EtherType 0x%04X) detected", totalPackets, etherType)
+	}
+	t.Logf("Validated %d MACsec-encrypted packets out of %d total packets", macsecCount, totalPackets)
+	return nil
+}
+
 // ConfigurePacketCapture configures the packet capture on the port.
 func ConfigurePacketCapture(t *testing.T, top gosnappi.Config, packetVal *PacketValidation) {
 	t.Helper()
@@ -428,4 +594,9 @@ func ConfigurePacketCapture(t *testing.T, top gosnappi.Config, packetVal *Packet
 	top.Captures().Add().SetName(packetVal.CaptureName).
 		SetPortNames(ports).
 		SetFormat(gosnappi.CaptureFormat.PCAP)
+}
+
+// SourceObj to get the packet object captured on the port
+func SourceObj(packetVal *PacketValidation) *gopacket.PacketSource {
+	return packetVal.packetSourceObj
 }

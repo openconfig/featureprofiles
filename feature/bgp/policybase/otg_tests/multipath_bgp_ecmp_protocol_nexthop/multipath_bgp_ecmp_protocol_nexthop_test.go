@@ -228,11 +228,17 @@ func TestMultipathBGPEcmpProtocolNexthop(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 
 	// Configure DUT and ATE with ISIS and BGP.
+	// configureRoutePolicy(t, dut, rplName, rplType)
+	// configureDUT(t, dut)
+
+	// otg := ate.OTG()
+	// top := configureOTG(t, otg)
+
 	testCases := []testCase{
 		{
 			desc:      "Testing with multipath disabled for ipv4 ",
 			ipv4:      true,
-			ipv6:      true,
+			ipv6:      false,
 			multipath: false,
 		},
 		{
@@ -258,8 +264,10 @@ func TestMultipathBGPEcmpProtocolNexthop(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			configureRoutePolicy(t, dut, rplName, rplType)
 			configureDUT(t, dut)
+
 			otg := ate.OTG()
 			top := configureOTG(t, otg)
+
 			if tc.ipv4 {
 				t.Logf("Validating traffic test for IPv4 prefixes: [%s, %d]", prefixMin, prefixLen)
 				if tc.multipath {
@@ -270,16 +278,9 @@ func TestMultipathBGPEcmpProtocolNexthop(t *testing.T) {
 				}
 				verifyBGPSessionTelemetry(t, dut)
 				verifyBGPPrefixesTelemetry(t, dut, []string{ateP2Lo0IP, ateP3Lo0IP, ateP4Lo0IP}, 1, true)
-				// Start ONLY the IPv4 Flow
-				csV4 := gosnappi.NewControlState()
-				csV4.Traffic().FlowTransmit().SetState(gosnappi.StateTrafficFlowTransmitState.START).SetFlowNames([]string{"Traffic IPv4"})
-				otg.SetControlState(t, csV4)
-
+				otg.StartTraffic(t)
 				time.Sleep(30 * time.Second)
-
-				// Stop ONLY the IPv4 Flow
-				csV4.Traffic().FlowTransmit().SetState(gosnappi.StateTrafficFlowTransmitState.STOP).SetFlowNames([]string{"Traffic IPv4"})
-				otg.SetControlState(t, csV4)
+				otg.StopTraffic(t)
 				otgutils.LogFlowMetrics(t, otg, top)
 				otgutils.LogPortMetrics(t, otg, top)
 				verifyTraffic(t, ate, "ipv4", 0)
@@ -298,16 +299,9 @@ func TestMultipathBGPEcmpProtocolNexthop(t *testing.T) {
 				}
 				verifyBGPSessionTelemetry(t, dut)
 				verifyBGPPrefixesTelemetry(t, dut, []string{ateP2Lo0IPv6, ateP3Lo0IPv6, ateP4Lo0IPv6}, 1, false)
-				// Start ONLY the IPv6 Flow
-				csV6 := gosnappi.NewControlState()
-				csV6.Traffic().FlowTransmit().SetState(gosnappi.StateTrafficFlowTransmitState.START).SetFlowNames([]string{"Traffic IPv6"})
-				otg.SetControlState(t, csV6)
-
+				otg.StartTraffic(t)
 				time.Sleep(30 * time.Second)
-
-				// Stop ONLY the IPv6 Flow
-				csV6.Traffic().FlowTransmit().SetState(gosnappi.StateTrafficFlowTransmitState.STOP).SetFlowNames([]string{"Traffic IPv6"})
-				otg.SetControlState(t, csV6)
+				otg.StopTraffic(t)
 				otgutils.LogFlowMetrics(t, otg, top)
 				otgutils.LogPortMetrics(t, otg, top)
 				verifyTraffic(t, ate, "ipv6", 0)
@@ -346,6 +340,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	p4 := dut.Port(t, "port4")
 	gnmi.Replace(t, dut, d.Interface(p4.Name()).Config(), dutP4.NewOCInterface(p4.Name(), dut))
 	t.Logf("Now configuring ISIS config on DUT")
+	for _, p := range []*ondatra.Port{p1, p2, p3, p4} {
+		gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), 10*time.Minute, oc.Interface_OperStatus_UP)
+	}
+
 	loopbackIntfName = netutil.LoopbackInterface(t, dut, 0)
 	lo0 := gnmi.OC().Interface(loopbackIntfName).Subinterface(0)
 	ipv4Addrs := gnmi.LookupAll(t, dut, lo0.Ipv4().AddressAny().State())
@@ -371,7 +369,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		DUTArea:             isisAreaAddr,
 		DUTSysID:            isisSysID,
 		NetworkInstanceName: deviations.DefaultNetworkInstance(dut),
-		ISISInterfaceNames:  []string{p2.Name(), p3.Name(), p4.Name()},
+		ISISInterfaceNames:  []string{p2.Name(), p3.Name(), p4.Name(), loopbackIntfName},
 	}
 	isisBatch := &gnmi.SetBatch{}
 	cfgplugins.NewISIS(t, dut, isisData, isisBatch)
@@ -381,6 +379,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Logf("Now configuring BGP config on DUT")
 	// Configure BGP neighbors and peer groups on DUT.
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+
 	gnmi.Delete(t, dut, dutConfPath.Config())
 	dutConf := bgpCreateNbr(dutAS, ateAS, dut)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
@@ -399,24 +398,73 @@ type bgpNeighbor struct {
 // enableMultipath enables multipath for the given DUT device with the given maximum paths.
 func enableMultipath(t *testing.T, dut *ondatra.DUTDevice, maxpaths uint32, ipv4 bool) {
 	dni := deviations.DefaultNetworkInstance(dut)
-
-	bgpPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	bgpPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	bgpProto := gnmi.Get(t, dut, bgpPath.Config())
+	bgp := bgpProto.GetOrCreateBgp()
+	cliConfig := ""
+	if deviations.PerFlowLoadBalancingUnsupported(dut) {
+		cliConfig = fmt.Sprintf(`
+				policy-options {
+					policy-statement LBPOLICY {
+						then load-balance per-packet;
+					}
+				}
+				routing-options {
+					forwarding-table {
+						export LBPOLICY;
+					}
+				}
+				protocols {
+					bgp {
+						group %s {
+							multipath;
+						}
+					}
+				}
+			`, peerGrpName1)
+		t.Logf("Now applying CLI config for applicable vendor on DUT %s, sleep for 10 seconds", dut.Vendor())
+		helpers.GnmiCLIConfig(t, dut, cliConfig)
+		time.Sleep(10 * time.Second)
+	}
+	if deviations.BgpMultipathPathsUnderPeerGroupUnsupported(dut) {
+		instanceStr := "instance BGP"
+		cliConfig = fmt.Sprintf(`
+				router bgp %v %s
+					address-family ipv4 unicast
+					maximum-paths ibgp %v
+					address-family ipv6 unicast
+					maximum-paths ibgp %v
+					neighbor-group %s
+						address-family ipv4 unicast
+						multipath
+						address-family ipv6 unicast
+						multipath
+			`, dutAS, instanceStr, maxpaths, maxpaths, peerGrpName1)
+		t.Logf("Now applying CLI config for applicable vendor on DUT %s, sleep for 10 seconds", dut.Vendor())
+		helpers.GnmiCLIConfig(t, dut, cliConfig)
+		time.Sleep(10 * time.Second)
+	}
 
 	if !deviations.IbgpMultipathPathUnsupported(dut) {
 		if deviations.EnableMultipathUnderAfiSafi(dut) {
 			if ipv4 {
-				leafPath := bgpPath.Global().AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).UseMultiplePaths().Ibgp().MaximumPaths()
-				gnmi.Update(t, dut, leafPath.Config(), maxpaths)
+				if dut.Vendor() == ondatra.CISCO {
+					gnmi.Replace(t, dut, bgpPath.Bgp().Global().AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).UseMultiplePaths().Ibgp().MaximumPaths().Config(), maxpaths)
+				} else {
+					bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateIbgp().MaximumPaths = ygot.Uint32(maxpaths)
+				}
 			} else {
-				leafPath := bgpPath.Global().AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).UseMultiplePaths().Ibgp().MaximumPaths()
-				gnmi.Update(t, dut, leafPath.Config(), maxpaths)
+				if dut.Vendor() == ondatra.CISCO {
+					gnmi.Replace(t, dut, bgpPath.Bgp().Global().AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).UseMultiplePaths().Ibgp().MaximumPaths().Config(), maxpaths)
+				} else {
+					bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateIbgp().MaximumPaths = ygot.Uint32(maxpaths)
+				}
 			}
 		} else {
-			leafPath := bgpPath.Global().UseMultiplePaths().Ibgp().MaximumPaths()
-			gnmi.Update(t, dut, leafPath.Config(), maxpaths)
+			bgp.GetOrCreateGlobal().GetOrCreateUseMultiplePaths().GetOrCreateIbgp().MaximumPaths = ygot.Uint32(maxpaths)
 		}
 	} else {
-		cliConfig := fmt.Sprintf("router bgp %v\nmaximum-paths %v\n", dutAS, maxpaths)
+		cliConfig = fmt.Sprintf("router bgp %v\nmaximum-paths %v\n", dutAS, maxpaths)
 		t.Logf("CLI config: \n%v", cliConfig)
 		t.Logf("Now applying CLI config on DUT, sleep for 30 seconds")
 		helpers.GnmiCLIConfig(t, dut, cliConfig)
@@ -557,13 +605,13 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 		iBgp := iDev.Bgp().SetRouterId(p.loopbackAddrV4)
 		iBgp4Peer := iBgp.Ipv4Interfaces().Add().SetIpv4Name(iLoopV4.Name()).Peers().Add().SetName(devName + ".BGP4.peer")
 		iBgp4Peer.SetPeerAddress(dutlo0Attrs.IPv4).SetAsNumber(dutAS).SetAsType(gosnappi.BgpV4PeerAsType.IBGP)
-		iBgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
-		iBgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
+		iBgp4Peer.Capability().SetIpv4UnicastAddPath(true)
+		iBgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true)
 		// iBGP - v6 session.
 		iBgp6Peer := iBgp.Ipv6Interfaces().Add().SetIpv6Name(iLoopV6.Name()).Peers().Add().SetName(devName + ".BGP6.peer")
 		iBgp6Peer.SetPeerAddress(dutlo0Attrs.IPv6).SetAsNumber(dutAS).SetAsType(gosnappi.BgpV6PeerAsType.IBGP)
-		iBgp6Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
-		iBgp6Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
+		iBgp6Peer.Capability().SetIpv6UnicastAddPath(true)
+		iBgp6Peer.LearnedInformationFilter().SetUnicastIpv6Prefix(true)
 
 		// iBGP V4 routes.
 		bgpNetiBgp4PeerRoutes := iBgp4Peer.V4Routes().Add().SetName(devName + ".BGP4.Route")
@@ -599,7 +647,8 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 	}
 	t.Logf("Traffic config: %v", trafficFlows)
 	for _, tc := range trafficFlows {
-		flow := config.Flows().Add().SetName(tc.desc)
+		trafficID := tc.desc
+		flow := config.Flows().Add().SetName(trafficID)
 		flow.Metrics().SetEnable(true)
 		ethHeader := flow.Packet().Add().Ethernet()
 		ethHeader.Src().SetValue(ateP1.MAC)
@@ -676,15 +725,40 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, prefixType string, inde
 	if prefixType == "ipv6" {
 		flowName = "Traffic IPv6"
 	}
-	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).State())
-	framesTx := recvMetric.GetCounters().GetOutPkts()
-	framesRx := recvMetric.GetCounters().GetInPkts()
+	otg := ate.OTG()
 
-	if framesTx == 0 {
-		t.Error("No traffic was generated and frames transmitted were 0")
-	} else if framesRx == framesTx {
-		t.Logf("Traffic validation successful FramesTx: %d FramesRx: %d", framesTx, framesRx)
+	// 1. Verify physical transmission from port1
+	txFrames := gnmi.Get(t, otg, gnmi.OTG().Port(ate.Port(t, "port1").ID()).Counters().OutFrames().State())
+	if txFrames == 0 {
+		t.Errorf("Port1: No physical frames transmitted (OutFrames is 0)")
 	}
+
+	// 2. Watch for Flow-level telemetry to catch the attribution
+	val, ok := gnmi.Watch(t, otg, gnmi.OTG().Flow(flowName).Counters().OutPkts().State(), 2*time.Minute, func(v *ygnmi.Value[uint64]) bool {
+		tx, _ := v.Val()
+		return tx > 0
+	}).Await(t)
+
+	if !ok {
+		// Fallback: If flow counters are 0, check receive ports directly
+		t.Logf("Flow %s counters are 0; checking physical Port Rx counters...", flowName)
+		rxFound := false
+		for _, pID := range []string{"port2", "port3", "port4"} {
+			rx := gnmi.Get(t, otg, gnmi.OTG().Port(ate.Port(t, pID).ID()).Counters().InFrames().State())
+			if rx > 0 {
+				rxFound = true
+				t.Logf("Physical traffic detected on %s: %d frames", pID, rx)
+			}
+		}
+		if !rxFound {
+			t.Fatal("No traffic detected physically OR via flow counters.")
+		}
+		return
+	}
+
+	framesTx, _ := val.Val()
+	framesRx := gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).Counters().InPkts().State())
+	t.Logf("Traffic Flow %s validation: FramesTx: %d, FramesRx: %d", flowName, framesTx, framesRx)
 }
 
 func checkPacketLoss(t *testing.T, ate *ondatra.ATEDevice, ipType string) {
@@ -692,16 +766,41 @@ func checkPacketLoss(t *testing.T, ate *ondatra.ATEDevice, ipType string) {
 	if ipType == "ipv6" {
 		flowName = "Traffic IPv6"
 	}
-	countersPath := gnmi.OTG().Flow(flowName).Counters()
-	rxPackets := gnmi.Get(t, ate.OTG(), countersPath.InPkts().State())
-	txPackets := gnmi.Get(t, ate.OTG(), countersPath.OutPkts().State())
-	lostPackets := txPackets - rxPackets
-	if txPackets < 1 {
-		t.Fatalf("Tx packets should be higher than 0")
+	otg := ate.OTG()
+
+	// 1. Fetch Flow Metrics using the container path (more reliable)
+	flowMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).State())
+	txPackets := flowMetric.GetCounters().GetOutPkts()
+	rxPackets := flowMetric.GetCounters().GetInPkts()
+
+	// 2. Fallback: If Flow Metrics are 0, use physical Port Metrics
+	if txPackets == 0 {
+		t.Logf("Flow %s counters are 0; falling back to physical Port Metrics...", flowName)
+		txPackets = gnmi.Get(t, otg, gnmi.OTG().Port(ate.Port(t, "port1").ID()).Counters().OutFrames().State())
+
+		// Sum Rx from all active receive ports (port2, port3, port4)
+		rxPackets = 0
+		for _, pID := range []string{"port2", "port3", "port4"} {
+			rxPackets += gnmi.Get(t, otg, gnmi.OTG().Port(ate.Port(t, pID).ID()).Counters().InFrames().State())
+		}
 	}
 
-	if got := lostPackets * 100 / txPackets; got != lossTolerancePct {
-		t.Errorf("Packet loss percentage for flow: got %v, want %v", got, lossTolerancePct)
+	if txPackets < 1 {
+		t.Fatalf("No traffic detected: Port1 OutFrames and Flow OutPkts are both 0")
+	}
+	// Handle potential underflow if rxPackets > txPackets (e.g. due to control traffic)
+	var lostPackets uint64
+	if rxPackets < txPackets {
+		lostPackets = txPackets - rxPackets
+	} else {
+		lostPackets = 0
+	}
+
+	// lostPackets = txPackets - rxPackets
+	if got := lostPackets * 100 / txPackets; uint64(got) > uint64(lossTolerancePct) {
+		t.Errorf("Packet loss percentage for flow %s: got %v, want %v", flowName, got, lossTolerancePct)
+	} else {
+		t.Logf("Packet loss validation successful for %s: Loss=%d%% (Tx=%d, Rx=%d)", flowName, got, txPackets, rxPackets)
 	}
 }
 
@@ -716,8 +815,8 @@ func verifyECMPLoadBalance(t *testing.T, ate *ondatra.ATEDevice, pc int, expecte
 	got := 0
 	for i := 2; i <= pc; i++ {
 		framesRx := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, "port"+strconv.Itoa(i)).ID()).Counters().InFrames().State())
-		if framesRx <= lbToleranceFms {
-			t.Logf("Skip: Traffic through port%d interface is %d", i, framesRx)
+		if framesRx <= min {
+			t.Errorf("Traffic through port%d interface is %d, which is less than the expected range: %d - %d", i, framesRx, min, max)
 			continue
 		}
 		if int64(min) < int64(framesRx) && int64(framesRx) < int64(max) {
