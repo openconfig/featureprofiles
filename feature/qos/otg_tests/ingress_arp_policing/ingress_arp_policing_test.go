@@ -168,17 +168,17 @@ func configureDUTTrafficPolicy(t *testing.T, dut *ondatra.DUTDevice, portName st
 	if deviations.TunnelConfigPathUnsupported(dut) {
 		gnmiClient := dut.RawAPIs().GNMI(t)
 		cliCommands := fmt.Sprintf(`
-    policy-map type quality-of-service ARP-policing-Qos
-    class ARP-CM
-    set traffic-class 2
-    police rate %d kbps burst-size %d kbytes
-    class-map type qos match-any ARP-CM
-    match mac access-group ARP-policing-Macl
-    mac access-list ARP-policing-Macl
-    counters per-entry
-    10 permit any any arp payload offset 1 pattern 0x00000001 mask 0xffffff00
-    interface %s
-    service-policy type qos input ARP-policing-Qos
+		policy-map type quality-of-service ARP-policing-Qos
+		class ARP-CM
+		set traffic-class 2
+		police rate %d kbps burst-size %d kbytes
+		class-map type qos match-any ARP-CM
+		match mac access-group ARP-policing-Macl
+		mac access-list ARP-policing-Macl
+		counters per-entry
+		10 permit any any arp payload offset 1 pattern 0x00000001 mask 0xffffff00
+		interface %s
+		service-policy type qos input ARP-policing-Qos
     `, cir, burstCount, portName)
 		gpbSetRequest := buildCLIConfigRequest(cliCommands)
 
