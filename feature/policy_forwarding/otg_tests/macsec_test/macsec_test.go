@@ -184,7 +184,7 @@ func TestMPLSOGREEncapIPv4Macsec(t *testing.T) {
 	dut1 := ondatra.DUT(t, "dut1")
 	ate := ondatra.ATE(t, "ate")
 
-	niName := "default"
+	niName := deviations.DefaultNetworkInstance(dut)
 	d := &oc.NetworkInstance{Name: ygot.String(niName)}
 	d.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(niName).Config(), d)
@@ -239,7 +239,7 @@ func GetDefaultStaticNextHopGroupParams() cfgplugins.StaticNextHopGroupParams {
 // matching the values in the provided JSON example.
 func GetDefaultOcPolicyForwardingParams() cfgplugins.OcPolicyForwardingParams {
 	return cfgplugins.OcPolicyForwardingParams{
-		NetworkInstanceName: "default",
+		NetworkInstanceName: "DEFAULT",
 		InterfaceID:         "Agg1.10",
 		AppliedPolicyName:   "customer1",
 	}
@@ -414,7 +414,7 @@ func configureInterfaceAddress(dut *ondatra.DUTDevice, s *oc.Interface_Subinterf
 func configureStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
 	b := &gnmi.SetBatch{}
 	sV4 := &cfgplugins.StaticRouteCfg{
-		NetworkInstance: "default",
+		NetworkInstance: deviations.DefaultNetworkInstance(dut),
 		Prefix:          "10.99.1.0/24",
 		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
 			"0": oc.UnionString("192.0.2.2"),
