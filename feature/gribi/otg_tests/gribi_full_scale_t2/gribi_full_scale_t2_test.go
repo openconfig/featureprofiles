@@ -91,8 +91,12 @@ func TestGRIBIFullScaleT2(t *testing.T) {
 		NumEncapIPv6PerVRF: 11_000,
 		NumUniqueEncapNH:   16_000,
 		NumEncapDefaultNHG: 4_000,
-		PctEncap8NH:        75,
-		PctEncap32NH:       20,
+		EncapNHGLoadBalance: []cfgplugins.NHGLoadBalancingParams{
+			{Pct: 75, NumNextHops: 4},
+			{Pct: 20, NumNextHops: 8},
+			{Pct: 3, NumNextHops: 16},
+			{Pct: 2, NumNextHops: 32},
+		},
 
 		// Decap VRF parameters
 		NumDecapEntries:     50,
