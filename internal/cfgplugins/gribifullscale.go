@@ -553,12 +553,18 @@ func CreateDUTSubinterface(t *testing.T, vrfBatch *gnmi.SetBatch, d *oc.Root,
 	s4 := s.GetOrCreateIpv4()
 	a4 := s4.GetOrCreateAddress(ipv4Addr)
 	a4.PrefixLength = ygot.Uint8(uint8(IPv4IntfMask))
+	if MTU > 0 {
+		s4.Mtu = ygot.Uint16(MTU)
+	}
 	if deviations.InterfaceEnabled(dut) {
 		s4.Enabled = ygot.Bool(true)
 	}
 	s6 := s.GetOrCreateIpv6()
 	a6 := s6.GetOrCreateAddress(ipv6Addr)
 	a6.PrefixLength = ygot.Uint8(uint8(IPv6IntfMask))
+	if MTU > 0 {
+		s6.Mtu = ygot.Uint32(uint32(MTU))
+	}
 	if deviations.InterfaceEnabled(dut) {
 		s6.Enabled = ygot.Bool(true)
 	}
