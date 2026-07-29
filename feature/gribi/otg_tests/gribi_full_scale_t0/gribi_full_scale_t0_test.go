@@ -65,16 +65,25 @@ func TestGRIBIFullScaleT0(t *testing.T) {
 		NumDefaultNH:   1_000,
 		NumDefaultNHG:  1_000,
 		NumDefaultIPv4: 1_000,
+		DefaultNHGLoadBalance: []cfgplugins.NHGLoadBalancingParams{
+			{Pct: 40, NumNextHops: 8},
+			{Pct: 40, NumNextHops: 16},
+			{Pct: 15, NumNextHops: 32},
+			{Pct: 5, NumNextHops: 64},
+		},
+		PctNHG512: 80,
 
 		// Transit VRF parameters
-		NumTransitNH:   4_000,
-		NumTransitNHG:  2_000,
+		NumTransitNH:  4_000,
+		NumTransitNHG: 2_000,
+		TransitNHGLoadBalance: []cfgplugins.NHGLoadBalancingParams{
+			{Pct: 100, NumNextHops: 2},
+		},
 		NumTransitIPv4: 12_600,
 
 		// Repair VRF parameters
 		NumRepairIPv4: 12_600,
 		NumRepairNHG:  1_000,
-		PctNHG512:     80,
 
 		// Encap / Decap VRF parameters
 		NumEncapVRFs:       5,
