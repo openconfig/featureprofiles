@@ -71,8 +71,9 @@ func sendOversizedPayload(t *testing.T, dut *ondatra.DUTDevice) {
 	if err != nil {
 		t.Fatalf("Failed to dial gNMI with custom message size: %v", err)
 	}
+	gnmi.Update(t, dut.GNMIOpts().WithClient(gnmiClient), gnmi.OC().Config(), ocRoot)
 	t.Cleanup(func() {
-		for i := 0; i < 150; i++ {
+		for i := 0; i < 10; i++ {
 			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(fmt.Sprintf("acctz-test-ni-%d", i)).Config())
 		}
 	})
