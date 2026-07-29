@@ -425,6 +425,7 @@ test: {
   id: "IPSEC-1.1"
   description: "IPSec with MACSec over aggregated links."
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/ipsec/otg_tests/ipsec_base/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/ipsec/otg_tests/ipsec_base/ipsec_base_test.go"
 }
 test: {
   id: "IPSEC-1.2"
@@ -1242,6 +1243,12 @@ test: {
   description: "Disable IPv6 ND Router Arvetisment"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/ip/otg_tests/disable_ipv6_nd_ra_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/ip/otg_tests/disable_ipv6_nd_ra_test/disable_ipv6_nd_ra_test.go"
+}
+test: {
+  id: "RT-5.16"
+  description: "LACP Member Linecard Reboot"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/lacp/otg_tests/lacp_member_reboot_test/README.md"
+  exec: " "
 }
 test: {
   id: "RT-6.1"
