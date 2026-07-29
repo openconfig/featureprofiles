@@ -1,0 +1,53 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "1bede6f9-9e99-4e68-a6b6-344aadd9c540"
+plan_id: "TRANSCEIVER-104"
+description: "Telemetry: ZR Plus terminal-device OC paths streaming."
+testbed: TESTBED_DUT_800ZR_PLUS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    default_network_instance: "default"
+    channel_assignment_rate_class_parameters_unsupported: true
+    missing_port_to_optical_channel_component_mapping: true
+    otn_channel_trib_unsupported: true
+    otn_to_eth_assignment: true
+    terminal_device_channel_admin_state_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
+    explicit_dco_config: true
+    eth_channel_ingress_parameters_unsupported: true
+    breakout_mode_unsupported_for_eight_hundred_gb: true
+    port_speed_duplex_mode_unsupported_for_interface_config: true
+    explicit_breakout_interface_config: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    otn_channel_trib_unsupported: true
+    eth_channel_ingress_parameters_unsupported: true
+    eth_channel_assignment_cisco_numbering: true
+    otn_channel_assignment_cisco_numbering: true
+    terminal_device_channel_admin_state_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    eth_channel_ingress_parameters_unsupported: true
+  }
+}

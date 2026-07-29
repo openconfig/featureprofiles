@@ -33,18 +33,19 @@ import (
 )
 
 const (
-	plen4        = 30
-	plen6        = 126
-	isisInstance = "DEFAULT"
-	areaAddress  = "49.0001"
-	sysID        = "1920.0000.2001"
-	v4Route      = "203.0.113.0"
-	v4RoutePlen  = 24
-	v4IP         = "203.0.113.1"
-	lag2MAC      = "02:aa:bb:02:00:02"
-	lag3MAC      = "02:aa:bb:03:00:02"
-	otgLAG2sysID = "640000000002"
-	otgLAG3sysID = "640000000003"
+	plen4              = 30
+	plen6              = 126
+	isisInstance       = "DEFAULT"
+	areaAddress        = "49.0001"
+	sysID              = "1920.0000.2001"
+	v4Route            = "203.0.113.0"
+	v4RoutePlen        = 24
+	v4IP               = "203.0.113.1"
+	lag2MAC            = "02:aa:bb:02:00:02"
+	lag3MAC            = "02:aa:bb:03:00:02"
+	otgLAG2sysID       = "640000000002"
+	otgLAG3sysID       = "640000000003"
+	maxEcmpPaths uint8 = 16
 )
 
 var (
@@ -239,10 +240,12 @@ func configureISISDUT(t *testing.T, dut *ondatra.DUTDevice, intfs []string) {
 	isis := prot.GetOrCreateIsis()
 
 	globalISIS := isis.GetOrCreateGlobal()
-	// Explicit Disable the default igp-ldp-sync enabled global leaf
-	isismpls := prot.GetOrCreateIsis().GetOrCreateGlobal().GetOrCreateMpls()
-	isismplsldpsync := isismpls.GetOrCreateIgpLdpSync()
-	isismplsldpsync.Enabled = ygot.Bool(false)
+	if !deviations.IsisMplsUnsupported(dut) {
+		// Explicit Disable the default igp-ldp-sync enabled global leaf
+		isismpls := prot.GetOrCreateIsis().GetOrCreateGlobal().GetOrCreateMpls()
+		isismplsldpsync := isismpls.GetOrCreateIgpLdpSync()
+		isismplsldpsync.Enabled = ygot.Bool(false)
+	}
 	if deviations.ISISInstanceEnabledRequired(dut) {
 		globalISIS.Instance = ygot.String(isisInstance)
 	}
@@ -250,6 +253,13 @@ func configureISISDUT(t *testing.T, dut *ondatra.DUTDevice, intfs []string) {
 	globalISIS.Net = []string{fmt.Sprintf("%v.%v.00", areaAddress, sysID)}
 	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+
+	if deviations.GlobalMaxEcmpPathsUnsupported(dut) {
+		globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).SetMaxEcmpPaths(maxEcmpPaths)
+		globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).SetMaxEcmpPaths(maxEcmpPaths)
+	} else {
+		globalISIS.SetMaxEcmpPaths(maxEcmpPaths)
+	}
 
 	lspBit := globalISIS.GetOrCreateLspBit().GetOrCreateOverloadBit()
 	lspBit.SetBit = ygot.Bool(false)
@@ -260,10 +270,16 @@ func configureISISDUT(t *testing.T, dut *ondatra.DUTDevice, intfs []string) {
 		isisLevel2.Enabled = ygot.Bool(true)
 	}
 	for _, intfName := range intfs {
-		isisIntf := isis.GetOrCreateInterface(intfName)
-		// Explicit Disable the default igp-ldp-sync enabled interface level leaf
-		isisintfmplsldpsync := isisIntf.GetOrCreateMpls().GetOrCreateIgpLdpSync()
-		isisintfmplsldpsync.Enabled = ygot.Bool(false)
+		intf := intfName
+		if deviations.InterfaceRefInterfaceIDFormat(dut) {
+			intf = intfName + ".0"
+		}
+		isisIntf := isis.GetOrCreateInterface(intf)
+		if !deviations.IsisMplsUnsupported(dut) {
+			// Explicit Disable the default igp-ldp-sync enabled interface level leaf
+			isisintfmplsldpsync := isisIntf.GetOrCreateMpls().GetOrCreateIgpLdpSync()
+			isisintfmplsldpsync.Enabled = ygot.Bool(false)
+		}
 		isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(intfName)
 		isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 		if deviations.InterfaceRefConfigUnsupported(dut) {
@@ -375,6 +391,9 @@ func changeMetric(t *testing.T, dut *ondatra.DUTDevice, intf string, metric uint
 	d := &oc.Root{}
 	netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	isis := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).GetOrCreateIsis()
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		intf += ".0"
+	}
 	isisIntfLevel := isis.GetOrCreateInterface(intf).GetOrCreateLevel(2)
 	isisIntfLevelAfiv4 := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
 	isisIntfLevelAfiv4.Metric = ygot.Uint32(metric)
@@ -425,15 +444,17 @@ func configureTrafficFlows(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, f
 	otg.PushConfig(t, top)
 	t.Logf("Starting protocols and awaiting for ARP & IS-IS adjacencies")
 	otg.StartProtocols(t)
+	time.Sleep(30 * time.Second)
 	otgutils.WaitForARP(t, otg, top, "IPv4")
+	otgutils.WaitForARP(t, otg, top, "IPv6")
 	awaitAdjacency(t, dut, agg2ID)
 	awaitAdjacency(t, dut, agg3ID)
-	time.Sleep(15 * time.Second)
 }
 
-func validateTrafficFlows(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, good []gosnappi.Flow, bad []gosnappi.Flow) {
+func validateTrafficFlows(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, good []gosnappi.Flow, bad []gosnappi.Flow, nhCount int) {
 
 	configureTrafficFlows(t, dut, otg, append(good, bad...))
+	aftCheck(t, dut, nhCount)
 
 	top := otg.GetConfig(t)
 	otg.StartTraffic(t)
@@ -468,10 +489,13 @@ func validateTrafficFlows(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, go
 
 func awaitAdjacency(t *testing.T, dut *ondatra.DUTDevice, intfName string) {
 	isisPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		intfName += ".0"
+	}
 	intf := isisPath.Interface(intfName)
 
 	query := intf.LevelAny().AdjacencyAny().AdjacencyState().State()
-	_, ok := gnmi.WatchAll(t, dut, query, time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
+	_, ok := gnmi.WatchAll(t, dut, query, 2*time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
 		v, ok := val.Val()
 		return v == oc.Isis_IsisInterfaceAdjState_UP && ok
 	}).Await(t)
@@ -481,6 +505,26 @@ func awaitAdjacency(t *testing.T, dut *ondatra.DUTDevice, intfName string) {
 	}
 }
 
+func aftCheck(t *testing.T, dut *ondatra.DUTDevice, nhCount int) {
+	aftsPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts()
+
+	_, ok := gnmi.Watch(t, dut, aftsPath.Ipv4Entry(v4Route+"/24").State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		ipv4Entry, present := val.Val()
+		if !present {
+			return false
+		}
+		hopGroup := gnmi.Get(t, dut, aftsPath.NextHopGroup(ipv4Entry.GetNextHopGroup()).State())
+		got := len(hopGroup.NextHop)
+		want := nhCount
+		t.Logf("Aft check for %s: Got %d nexthop,want %d", ipv4Entry.GetPrefix(), got, want)
+		return got == want
+
+	}).Await(t)
+
+	if !ok {
+		t.Errorf("Aft check failed for %s", v4Route+"/24")
+	}
+}
 func TestDrain(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
@@ -494,15 +538,15 @@ func TestDrain(t *testing.T) {
 	lag3Flow := createFlow(t, ateTopo, "trunk3-flow", atePort3.Name+".IPv4")
 
 	t.Logf("Validating baseline traffic flow")
-	validateTrafficFlows(t, dut, otg, []gosnappi.Flow{ecmpFlows}, nil)
+	validateTrafficFlows(t, dut, otg, []gosnappi.Flow{ecmpFlows}, nil, 2)
 
 	// Change trunk-2 metric to 1000 and validate the traffic flows
 	changeMetric(t, dut, agg2ID, 1000)
 	t.Logf("Validating traffic flows after increasing the metric")
-	validateTrafficFlows(t, dut, otg, []gosnappi.Flow{lag3Flow}, []gosnappi.Flow{lag2Flow})
+	validateTrafficFlows(t, dut, otg, []gosnappi.Flow{lag3Flow}, []gosnappi.Flow{lag2Flow}, 1)
 
 	// Restore trunk-2 metric
 	changeMetric(t, dut, agg2ID, 10)
 	t.Logf("Validating traffic flows after restoring the metric")
-	validateTrafficFlows(t, dut, otg, []gosnappi.Flow{ecmpFlows}, nil)
+	validateTrafficFlows(t, dut, otg, []gosnappi.Flow{ecmpFlows}, nil, 2)
 }

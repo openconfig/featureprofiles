@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "16e91827-1d4f-4836-8438-d17b387a5ea8"
+plan_id: "RT-3.52"
+description: "Multidimensional test for Static GUE Encap/Decap based on BGP path selection and selective DSCP marking"
+testbed: TESTBED_DUT_ATE_2LINKS

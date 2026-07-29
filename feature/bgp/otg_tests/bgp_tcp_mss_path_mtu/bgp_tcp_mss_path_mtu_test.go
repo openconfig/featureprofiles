@@ -67,6 +67,7 @@ const (
 var (
 	dut1Port1 = attrs.Attributes{
 		Desc:    "DUT to ATE source",
+		Name:    "port1",
 		IPv4:    "192.0.2.1",
 		IPv6:    "2001:db8::192:0:2:1",
 		IPv4Len: plenIPv4,
@@ -81,12 +82,13 @@ var (
 		IPv6Len: plenIPv6,
 	}
 	dut1Port2 = attrs.Attributes{
+		Name:    "port2",
 		Desc:    "DUT1 to DUT2",
 		IPv4:    "192.0.2.5",
 		IPv4Len: plenIPv4,
 	}
 	dut2Port1 = attrs.Attributes{
-		Name:    "DUT2 to DUT1",
+		Name:    "port1",
 		IPv4:    "192.0.2.6",
 		IPv4Len: plenIPv4,
 	}
@@ -97,16 +99,28 @@ func configureDUT(t *testing.T) {
 	dc := gnmi.OC()
 	dut1 := ondatra.DUT(t, "dut1")
 	dut2 := ondatra.DUT(t, "dut2")
-
-	t.Log("Configure interfaces on dut1.")
-	i1 := dut1Port1.NewOCInterface(dut1.Port(t, "port1").Name(), dut1)
-	gnmi.Replace(t, dut1, dc.Interface(i1.GetName()).Config(), i1)
-	i2 := dut1Port2.NewOCInterface(dut1.Port(t, "port2").Name(), dut1)
-	gnmi.Replace(t, dut1, dc.Interface(i2.GetName()).Config(), i2)
-
-	t.Log("Configure interfaces on dut2.")
-	i3 := dut2Port1.NewOCInterface(dut2.Port(t, "port1").Name(), dut2)
-	gnmi.Replace(t, dut2, dc.Interface(i3.GetName()).Config(), i3)
+	dutPortsMap := map[*ondatra.DUTDevice][]*attrs.Attributes{
+		dut1: {&dut1Port1, &dut1Port2},
+		dut2: {&dut2Port1},
+	}
+	t.Log("Configure interfaces on dut.")
+	for dutx, dutports := range dutPortsMap {
+		for _, portx := range dutports {
+			port := dutx.Port(t, portx.Name)
+			dutInt := portx.NewOCInterface(port.Name(), dutx)
+			ethPort := dutInt.GetOrCreateEthernet()
+			if deviations.FrBreakoutFix(dut1) && port.PMD() == ondatra.PMD100GBASEFR {
+				ethPort.SetAutoNegotiate(false)
+				ethPort.SetDuplexMode(oc.Ethernet_DuplexMode_FULL)
+				ethPort.SetPortSpeed(oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB)
+			}
+			dutInt.SetType(oc.IETFInterfaces_InterfaceType_ethernetCsmacd)
+			gnmi.Replace(t, dutx, dc.Interface(dutInt.GetName()).Config(), dutInt)
+			if deviations.ExplicitInterfaceInDefaultVRF(dutx) {
+				fptest.AssignToNetworkInstance(t, dutx, dutInt.GetName(), deviations.DefaultNetworkInstance(dutx), 0)
+			}
+		}
+	}
 }
 
 // bgpCreateNbr creates bgp configuration on dut device.
@@ -188,6 +202,9 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName []string, dutA
 	}
 
 	for _, intf := range intfName {
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut) {
+			intf += ".0"
+		}
 		isisIntf := isis.GetOrCreateInterface(intf)
 		isisIntf.Enabled = ygot.Bool(true)
 		isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
@@ -199,22 +216,29 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName []string, dutA
 		}
 		isisIntfLevel := isisIntf.GetOrCreateLevel(2)
 		isisIntfLevel.Enabled = ygot.Bool(true)
-		isisIntfLevelAfi := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
-		isisIntfLevelAfi.Metric = ygot.Uint32(200)
-		isisIntfLevelAfi.Enabled = ygot.Bool(true)
+		if deviations.MissingIsisInterfaceAfiSafiEnable(dut) {
+			isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = nil
+			isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = nil
+		}
+		if !deviations.ISISInterfaceAfiUnsupported(dut) {
+			isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+			isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+		}
 		if deviations.ISISInterfaceAfiUnsupported(dut) {
 			isisIntfLevel.Af = nil
 		}
+		isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric = ygot.Uint32(200)
+		isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric = ygot.Uint32(200)
 	}
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Config(), prot)
 }
 
-func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
+func configureOTG(t *testing.T, otg *otg.OTG, mtu uint32) gosnappi.Config {
 	config := gosnappi.NewConfig()
 	port1 := config.Ports().Add().SetName("port1")
 
 	iDut1Dev := config.Devices().Add().SetName(atePort1.Name)
-	iDut1Eth := iDut1Dev.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetMac(atePort1.MAC)
+	iDut1Eth := iDut1Dev.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetMac(atePort1.MAC).SetMtu(mtu)
 	iDut1Eth.Connection().SetPortName(port1.Name())
 	iDut1Ipv4 := iDut1Eth.Ipv4Addresses().Add().SetName(atePort1.Name + ".IPv4")
 	iDut1Ipv4.SetAddress(atePort1.IPv4).SetGateway(dut1Port1.IPv4).SetPrefix(uint32(atePort1.IPv4Len))
@@ -243,12 +267,12 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 	return config
 }
 
-func configOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
+func configOTG(t *testing.T, otg *otg.OTG, mtu uint32) gosnappi.Config {
 	config := gosnappi.NewConfig()
 	port1 := config.Ports().Add().SetName("port1")
 
 	iDut1Dev := config.Devices().Add().SetName(atePort1.Name)
-	iDut1Eth := iDut1Dev.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetMac(atePort1.MAC).SetMtu(uint32(mtu5040B))
+	iDut1Eth := iDut1Dev.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetMac(atePort1.MAC).SetMtu(mtu)
 	iDut1Eth.Connection().SetPortName(port1.Name())
 	iDut1Ipv4 := iDut1Eth.Ipv4Addresses().Add().SetName(atePort1.Name + ".IPv4")
 	iDut1Ipv4.SetAddress(atePort1.IPv4).SetGateway(dut1Port1.IPv4).SetPrefix(uint32(atePort1.IPv4Len))
@@ -358,7 +382,7 @@ func TestTcpMssPathMtu(t *testing.T) {
 	var otgConfig gosnappi.Config
 
 	t.Run("Configure OTG", func(t *testing.T) {
-		otgConfig = configureOTG(t, otg)
+		otgConfig = configureOTG(t, otg, uint32(mtu5040B))
 	})
 
 	var dut1NbrIP = []string{atePort1.IPv4, atePort1.IPv6}
@@ -378,7 +402,7 @@ func TestTcpMssPathMtu(t *testing.T) {
 			}
 		})
 	}
-	t.Run("Change the Interface MTU to the ATE port as 5040.", func(t *testing.T) {
+	t.Run("Change the Interface MTU to the DUT1 port as 5040.", func(t *testing.T) {
 		t.Logf("Configure DUT1 interface MTU to %v", mtu5040B)
 		configureIntfMTU(t, dut1, dut1.Port(t, "port1"), mtu5040B)
 
@@ -435,7 +459,7 @@ func TestTcpMssPathMtu(t *testing.T) {
 
 	t.Run("Configure iBGP session ATE Port1 - DUT2", func(t *testing.T) {
 		otg.StopProtocols(t)
-		otgConfig = configOTG(t, otg)
+		otgConfig = configOTG(t, otg, uint32(mtu5040B))
 	})
 
 	t.Run("Verify iBGP session between DUT2 - ATE Port1.", func(t *testing.T) {

@@ -78,11 +78,11 @@ func randRange(t *testing.T, start, end uint32, count int) []uint32 {
 	if count > int(end-start) {
 		t.Fatal("randRange: count greater than end-start.")
 	}
-	rand.New(rand.NewSource(time.Now().UnixNano()))
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	var result []uint32
 	for len(result) < count {
 		diff := end - start
-		randomValue := rand.Int31n(int32(diff)) + int32(start)
+		randomValue := r.Int31n(int32(diff)) + int32(start)
 		result = append(result, uint32(randomValue))
 	}
 	return result
@@ -112,8 +112,6 @@ func configureFlow(t *testing.T, bs *cfgplugins.BGPSession) {
 	udp := flow.Packet().Add().Udp()
 	udp.SrcPort().SetValues(randRange(t, 34525, 65535, 500))
 	udp.DstPort().SetValues(randRange(t, 49152, 65535, 500))
-	v4.Src().SetValue(bs.ATEPorts[0].IPv4)
-	v4.Dst().SetValue(prefixesStart)
 }
 
 func verifyECMPLoadBalance(t *testing.T, ate *ondatra.ATEDevice, pc int, expectedLinks int) {
@@ -224,6 +222,12 @@ func TestBGPSetup(t *testing.T) {
 			}
 
 			configureOTG(t, bs)
+
+			t.Logf("Waiting for all DUT ports to be operationally UP")
+			for _, p := range bs.OndatraDUTPorts {
+				gnmi.Await(t, bs.DUT, gnmi.OC().Interface(p.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
+			}
+
 			bs.PushAndStart(t)
 
 			t.Logf("Verify DUT BGP sessions up")
@@ -265,7 +269,7 @@ func TestBGPSetup(t *testing.T) {
 					}
 				}
 			}
-			sleepTime := time.Duration(totalPackets/trafficPps) + 5
+			sleepTime := time.Duration(totalPackets/trafficPps) + 10
 			bs.ATE.OTG().StartTraffic(t)
 			time.Sleep(sleepTime * time.Second)
 			bs.ATE.OTG().StopTraffic(t)

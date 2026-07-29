@@ -17,12 +17,12 @@ package vrf_policy_driven_te_test
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"testing"
 	"time"
 
+	log "github.com/golang/glog"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
@@ -31,13 +31,13 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
@@ -60,72 +60,75 @@ func TestMain(m *testing.M) {
 // DUT port-8 <------> port-8 ATE
 
 const (
-	plenIPv4                = 30
-	plenIPv6                = 126
-	maskLen24               = "24"
-	maskLen32               = "32"
-	maskLen126              = "126"
-	dscpEncapA1             = 10
-	dscpEncapA2             = 18
-	dscpEncapB1             = 20
-	dscpEncapB2             = 28
-	dscpEncapNoMatch        = 30
-	ipv4OuterSrc111WithMask = "198.51.100.111/32"
-	ipv4OuterSrc222WithMask = "198.51.100.222/32"
-	magicIp                 = "192.168.1.1"
-	magicMac                = "02:00:00:00:00:01"
-	gribiIPv4EntryDefVRF1   = "192.0.2.101"
-	gribiIPv4EntryDefVRF2   = "192.0.2.102"
-	gribiIPv4EntryDefVRF3   = "192.0.2.103"
-	gribiIPv4EntryDefVRF4   = "192.0.2.104"
-	gribiIPv4EntryDefVRF5   = "192.0.2.105"
-	gribiIPv4EntryVRF1111   = "203.0.113.1"
-	gribiIPv4EntryVRF1112   = "203.10.113.2"
-	gribiIPv4EntryVRF2221   = "203.0.113.100"
-	gribiIPv4EntryVRF2222   = "203.0.113.101"
-	gribiIPv4EntryEncapVRF  = "138.0.11.0"
-	gribiIPv6EntryEncapVRF  = "2001:db8::138:0:11:0"
-	ipv4OuterDst111         = "192.51.100.64"
-	ipv4OuterSrc111         = "198.51.100.111"
-	ipv4OuterSrc222         = "198.51.100.222"
-	ipv4OuterSrc333         = "198.100.200.123"
-	prot4                   = 4
-	prot41                  = 41
-	vrfPolW                 = "vrf_selection_policy_w"
-	vrfPolC                 = "vrf_selection_policy_c"
-	nhIndex                 = 1
-	nhgIndex                = 1
-	niDecapTeVrf            = "DECAP_TE_VRF"
-	niEncapTeVrfA           = "ENCAP_TE_VRF_A"
-	niEncapTeVrfB           = "ENCAP_TE_VRF_B"
-	niTeVrf111              = "TE_VRF_111"
-	niTeVrf222              = "TE_VRF_222"
-	niDefault               = "DEFAULT"
-	tolerancePct            = 2
-	flowNegTest             = "flowNegTest"
-	ipv4InnerDst            = "138.0.11.8"
-	ipv6InnerDst            = "2001:db8::138:0:11:8"
-	ipv4InnerDstNoEncap     = "20.0.0.1"
-	ipv6InnerDstNoEncap     = "2001:db8::20:0:0:1"
-	ipv4InnerDst2           = "138.0.11.15"
-	ipv6InnerDst2           = "2001:db8::138:0:11:15"
-	defaultRoute            = "0.0.0.0/0"
-	wantLoss                = true
-	routeDelete             = true
-	correspondingTTL        = 64
-	correspondingHopLimit   = 64
-	flow6in4                = "flow6in4"
-	flow4in4                = "flow4in4"
-	v4Flow                  = true
-	dutAreaAddress          = "49.0001"
-	dutSysID                = "1920.0000.2001"
-	otgSysID1               = "640000000001"
-	isisInstance            = "DEFAULT"
-	otgIsisPort8LoopV4      = "203.0.113.10"
-	otgIsisPort8LoopV6      = "2001:db8::203:0:113:10"
-	dutAS                   = 65501
-	peerGrpName1            = "BGP-PEER-GROUP1"
-	seqIDBase               = uint32(10)
+	plenIPv4                 = 30
+	plenIPv6                 = 126
+	maskLen24                = "24"
+	maskLen32                = "32"
+	maskLen126               = "126"
+	dscpEncapA1              = 10
+	dscpEncapA2              = 18
+	dscpEncapB1              = 20
+	dscpEncapB2              = 28
+	dscpEncapNoMatch         = 30
+	ecnNotCapable            = 0
+	ecnCapable1              = 1
+	ecnCapable2              = 2
+	ecnCongestionExperienced = 3
+	ipv4OuterSrc111WithMask  = "198.51.100.111/32"
+	ipv4OuterSrc222WithMask  = "198.51.100.222/32"
+	magicIp                  = "192.168.1.1"
+	magicMac                 = "02:00:00:00:00:01"
+	gribiIPv4EntryDefVRF1    = "192.0.2.101"
+	gribiIPv4EntryDefVRF2    = "192.0.2.102"
+	gribiIPv4EntryDefVRF3    = "192.0.2.103"
+	gribiIPv4EntryDefVRF4    = "192.0.2.104"
+	gribiIPv4EntryDefVRF5    = "192.0.2.105"
+	gribiIPv4EntryVRF1111    = "203.0.113.1"
+	gribiIPv4EntryVRF1112    = "203.10.113.2"
+	gribiIPv4EntryVRF2221    = "203.0.113.100"
+	gribiIPv4EntryVRF2222    = "203.0.113.101"
+	gribiIPv4EntryEncapVRF   = "138.0.11.0"
+	gribiIPv6EntryEncapVRF   = "2001:db8::138:0:11:0"
+	ipv4OuterDst111          = "192.51.100.64"
+	ipv4OuterSrc111          = "198.51.100.111"
+	ipv4OuterSrc222          = "198.51.100.222"
+	ipv4OuterSrc333          = "198.100.200.123"
+	prot4                    = 4
+	prot41                   = 41
+	vrfPolW                  = "vrf_selection_policy_w"
+	vrfPolC                  = "vrf_selection_policy_c"
+	nhIndex                  = 1
+	nhgIndex                 = 1
+	niDecapTeVrf             = "DECAP_TE_VRF"
+	niEncapTeVrfA            = "ENCAP_TE_VRF_A"
+	niEncapTeVrfB            = "ENCAP_TE_VRF_B"
+	niTeVrf111               = "TE_VRF_111"
+	niTeVrf222               = "TE_VRF_222"
+	tolerancePct             = 2
+	flowNegTest              = "flowNegTest"
+	ipv4InnerDst             = "138.0.11.8"
+	ipv6InnerDst             = "2001:db8::138:0:11:8"
+	ipv4InnerDstNoEncap      = "20.0.0.1"
+	ipv6InnerDstNoEncap      = "2001:db8::20:0:0:1"
+	ipv4InnerDst2            = "138.0.11.15"
+	ipv6InnerDst2            = "2001:db8::138:0:11:15"
+	defaultRoute             = "0.0.0.0/0"
+	wantLoss                 = true
+	routeDelete              = true
+	correspondingTTL         = 64
+	correspondingHopLimit    = 64
+	flow6in4                 = "flow6in4"
+	flow4in4                 = "flow4in4"
+	v4Flow                   = true
+	dutAreaAddress           = "49.0001"
+	dutSysID                 = "1920.0000.2001"
+	otgSysID1                = "640000000001"
+	isisInstance             = "DEFAULT"
+	otgIsisPort8LoopV4       = "203.0.113.10"
+	otgIsisPort8LoopV6       = "2001:db8::203:0:113:10"
+	dutAS                    = 65501
+	peerGrpName1             = "BGP-PEER-GROUP1"
+	seqIDBase                = uint32(10)
 )
 
 var (
@@ -363,6 +366,34 @@ type policyFwRule struct {
 	ni              string
 }
 
+func trafficClassFieldsToDecimal(dscpValue, ecnValue uint32) uint32 {
+	dscpByte := byte(dscpValue)
+	ecnByte := byte(ecnValue)
+	tosStr := fmt.Sprintf("%06b%02b", dscpByte, ecnByte)
+	tosDec, _ := strconv.ParseInt(tosStr, 2, 64)
+	return uint32(tosDec)
+}
+
+func buildTrafficClassForIpInIp(flowValues *flowArgs) (uint32, uint32) {
+	innerDscp := uint32(0)
+	innerEcn := uint32(0)
+	if len(flowValues.inHdrDscp) != 0 {
+		innerDscp = flowValues.inHdrDscp[0]
+	}
+	if len(flowValues.inHdrEcn) != 0 {
+		innerEcn = flowValues.inHdrEcn[0]
+	}
+	outerDscp := uint32(0)
+	outerEcn := uint32(0)
+	if len(flowValues.outHdrDscp) != 0 {
+		outerDscp = flowValues.outHdrDscp[0]
+	}
+	if len(flowValues.outHdrEcn) != 0 {
+		outerEcn = flowValues.outHdrEcn[0]
+	}
+	return trafficClassFieldsToDecimal(innerDscp, innerEcn), trafficClassFieldsToDecimal(outerDscp, outerEcn)
+}
+
 func configureVrfSelectionPolicyW(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	d := &oc.Root{}
@@ -387,13 +418,13 @@ func configureVrfSelectionPolicyW(t *testing.T, dut *ondatra.DUTDevice) {
 		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfB, decapFallbackNi: niTeVrf111}
 
 	pfRule9 := &policyFwRule{SeqId: 9, protocol: 4, sourceAddr: ipv4OuterSrc222WithMask,
-		decapNi: niDecapTeVrf, postDecapNi: niDefault, decapFallbackNi: niTeVrf222}
+		decapNi: niDecapTeVrf, postDecapNi: deviations.DefaultNetworkInstance(dut), decapFallbackNi: niTeVrf222}
 	pfRule10 := &policyFwRule{SeqId: 10, protocol: 41, sourceAddr: ipv4OuterSrc222WithMask,
-		decapNi: niDecapTeVrf, postDecapNi: niDefault, decapFallbackNi: niTeVrf222}
+		decapNi: niDecapTeVrf, postDecapNi: deviations.DefaultNetworkInstance(dut), decapFallbackNi: niTeVrf222}
 	pfRule11 := &policyFwRule{SeqId: 11, protocol: 4, sourceAddr: ipv4OuterSrc111WithMask,
-		decapNi: niDecapTeVrf, postDecapNi: niDefault, decapFallbackNi: niTeVrf111}
+		decapNi: niDecapTeVrf, postDecapNi: deviations.DefaultNetworkInstance(dut), decapFallbackNi: niTeVrf111}
 	pfRule12 := &policyFwRule{SeqId: 12, protocol: 41, sourceAddr: ipv4OuterSrc111WithMask,
-		decapNi: niDecapTeVrf, postDecapNi: niDefault, decapFallbackNi: niTeVrf111}
+		decapNi: niDecapTeVrf, postDecapNi: deviations.DefaultNetworkInstance(dut), decapFallbackNi: niTeVrf111}
 
 	pfRuleList := []*policyFwRule{pfRule1, pfRule2, pfRule3, pfRule4, pfRule5, pfRule6,
 		pfRule7, pfRule8, pfRule9, pfRule10, pfRule11, pfRule12}
@@ -420,20 +451,20 @@ func configureVrfSelectionPolicyW(t *testing.T, dut *ondatra.DUTDevice) {
 		pfR13 := niPf.GetOrCreateRule(seqIDOffset(dut, 13))
 		pfR13.GetOrCreateL2().SetEthertype(oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4)
 		pfRAction := pfR13.GetOrCreateAction()
-		pfRAction.NetworkInstance = ygot.String(niDefault)
+		pfRAction.NetworkInstance = ygot.String(deviations.DefaultNetworkInstance(dut))
 		pfR14 := niPf.GetOrCreateRule(seqIDOffset(dut, 14))
 		pfR14.GetOrCreateL2().SetEthertype(oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV6)
 		pfRAction = pfR14.GetOrCreateAction()
-		pfRAction.NetworkInstance = ygot.String(niDefault)
+		pfRAction.NetworkInstance = ygot.String(deviations.DefaultNetworkInstance(dut))
 	} else {
 		pfR := niPf.GetOrCreateRule(13)
 		pfRAction := pfR.GetOrCreateAction()
-		pfRAction.NetworkInstance = ygot.String(niDefault)
+		pfRAction.NetworkInstance = ygot.String(deviations.DefaultNetworkInstance(dut))
 	}
 
 	p1 := dut.Port(t, "port1")
 	interfaceID := p1.Name()
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+	if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
 		interfaceID = interfaceID + ".0"
 	}
 
@@ -471,21 +502,21 @@ func configureVrfSelectionPolicyC(t *testing.T, dut *ondatra.DUTDevice) {
 		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfB, decapFallbackNi: niTeVrf111}
 
 	pfRule9 := &policyFwRule{SeqId: 9, family: "ipv4", protocol: 4, sourceAddr: ipv4OuterSrc222WithMask,
-		decapNi: niDecapTeVrf, postDecapNi: niDefault, decapFallbackNi: niTeVrf222}
+		decapNi: niDecapTeVrf, postDecapNi: deviations.DefaultNetworkInstance(dut), decapFallbackNi: niTeVrf222}
 	pfRule10 := &policyFwRule{SeqId: 10, family: "ipv4", protocol: 41, sourceAddr: ipv4OuterSrc222WithMask,
-		decapNi: niDecapTeVrf, postDecapNi: niDefault, decapFallbackNi: niTeVrf222}
+		decapNi: niDecapTeVrf, postDecapNi: deviations.DefaultNetworkInstance(dut), decapFallbackNi: niTeVrf222}
 	pfRule11 := &policyFwRule{SeqId: 11, family: "ipv4", protocol: 4, sourceAddr: ipv4OuterSrc111WithMask,
-		decapNi: niDecapTeVrf, postDecapNi: niDefault, decapFallbackNi: niTeVrf111}
+		decapNi: niDecapTeVrf, postDecapNi: deviations.DefaultNetworkInstance(dut), decapFallbackNi: niTeVrf111}
 	pfRule12 := &policyFwRule{SeqId: 12, family: "ipv4", protocol: 41, sourceAddr: ipv4OuterSrc111WithMask,
-		decapNi: niDecapTeVrf, postDecapNi: niDefault, decapFallbackNi: niTeVrf111}
+		decapNi: niDecapTeVrf, postDecapNi: deviations.DefaultNetworkInstance(dut), decapFallbackNi: niTeVrf111}
 
 	pfRule13 := &policyFwRule{SeqId: 13, family: "ipv4", dscpSet: []uint8{dscpEncapA1, dscpEncapA2},
 		ni: niEncapTeVrfA}
 	pfRule14 := &policyFwRule{SeqId: 14, family: "ipv6", dscpSet: []uint8{dscpEncapA1, dscpEncapA2},
 		ni: niEncapTeVrfA}
-	pfRule15 := &policyFwRule{SeqId: 15, family: "ipv4", dscpSet: []uint8{dscpEncapA1, dscpEncapA2},
+	pfRule15 := &policyFwRule{SeqId: 15, family: "ipv4", dscpSet: []uint8{dscpEncapB1, dscpEncapB2},
 		ni: niEncapTeVrfB}
-	pfRule16 := &policyFwRule{SeqId: 16, family: "ipv6", dscpSet: []uint8{dscpEncapA1, dscpEncapA2},
+	pfRule16 := &policyFwRule{SeqId: 16, family: "ipv6", dscpSet: []uint8{dscpEncapB1, dscpEncapB2},
 		ni: niEncapTeVrfB}
 
 	pfRuleList := []*policyFwRule{pfRule1, pfRule2, pfRule3, pfRule4, pfRule5, pfRule6,
@@ -537,20 +568,20 @@ func configureVrfSelectionPolicyC(t *testing.T, dut *ondatra.DUTDevice) {
 		pfR17 := niPf.GetOrCreateRule(seqIDOffset(dut, 17))
 		pfR17.GetOrCreateL2().SetEthertype(oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4)
 		pfRAction := pfR17.GetOrCreateAction()
-		pfRAction.NetworkInstance = ygot.String(niDefault)
+		pfRAction.NetworkInstance = ygot.String(deviations.DefaultNetworkInstance(dut))
 		pfR18 := niPf.GetOrCreateRule(seqIDOffset(dut, 18))
 		pfR18.GetOrCreateL2().SetEthertype(oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV6)
 		pfRAction = pfR18.GetOrCreateAction()
-		pfRAction.NetworkInstance = ygot.String(niDefault)
+		pfRAction.NetworkInstance = ygot.String(deviations.DefaultNetworkInstance(dut))
 	} else {
 		pfR := niPf.GetOrCreateRule(17)
 		pfRAction := pfR.GetOrCreateAction()
-		pfRAction.NetworkInstance = ygot.String(niDefault)
+		pfRAction.NetworkInstance = ygot.String(deviations.DefaultNetworkInstance(dut))
 	}
 
 	p1 := dut.Port(t, "port1")
 	interfaceID := p1.Name()
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+	if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
 		interfaceID = interfaceID + ".0"
 	}
 	intf := niP.GetOrCreateInterface(interfaceID)
@@ -670,31 +701,15 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	// Configure loopback interface.
-	loopbackIntfName = netutil.LoopbackInterface(t, dut, 0)
-	lo0 := gnmi.OC().Interface(loopbackIntfName).Subinterface(0)
-	ipv4Addrs := gnmi.LookupAll(t, dut, lo0.Ipv4().AddressAny().State())
-	ipv6Addrs := gnmi.LookupAll(t, dut, lo0.Ipv6().AddressAny().State())
-	if len(ipv4Addrs) == 0 && len(ipv6Addrs) == 0 {
-		loop1 := dutlo0Attrs.NewOCInterface(loopbackIntfName, dut)
-		loop1.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
-		gnmi.Update(t, dut, d.Interface(loopbackIntfName).Config(), loop1)
-	} else {
-		v4, ok := ipv4Addrs[0].Val()
-		if ok {
-			dutlo0Attrs.IPv4 = v4.GetIp()
-		}
-		v6, ok := ipv6Addrs[0].Val()
-		if ok {
-			dutlo0Attrs.IPv6 = v6.GetIp()
-		}
-		t.Logf("Got DUT IPv4 loopback address: %v", dutlo0Attrs.IPv4)
-		t.Logf("Got DUT IPv6 loopback address: %v", dutlo0Attrs.IPv6)
-	}
+	loopbackIntfName = helpers.GetOrCreateLoopback(t, dut, 0, 0, &dutlo0Attrs)
 
 	for _, p := range portList {
 		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 			fptest.AssignToNetworkInstance(t, dut, p.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		}
+	}
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, loopbackIntfName, deviations.DefaultNetworkInstance(dut), 0)
 	}
 	for _, pName := range portNameList {
 		if deviations.ExplicitPortSpeed(dut) {
@@ -720,6 +735,7 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfList []string, dutA
 	globalISIS.LevelCapability = oc.Isis_LevelType_LEVEL_2
 	globalISIS.Net = []string{fmt.Sprintf("%v.%v.00", dutAreaAddress, dutSysID)}
 	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	if deviations.ISISSingleTopologyRequired(dut) {
 		afv6 := globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST)
 		afv6.GetOrCreateMultiTopology().SetAfiName(oc.IsisTypes_AFI_TYPE_IPV4)
@@ -734,6 +750,9 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfList []string, dutA
 		isisLevel2.Enabled = ygot.Bool(true)
 	}
 	for _, intfName := range intfList {
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut) {
+			intfName = intfName + ".0"
+		}
 		isisIntf := isis.GetOrCreateInterface(intfName)
 		isisIntf.Enabled = ygot.Bool(true)
 		isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
@@ -792,8 +811,7 @@ func bgpCreateNbr(localAs uint32, dut *ondatra.DUTDevice) *oc.NetworkInstance_Pr
 func verifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntf string) {
 	t.Helper()
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
-
-	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut) {
 		dutIntf = dutIntf + ".0"
 	}
 	nbrPath := statePath.Interface(dutIntf)
@@ -804,11 +822,12 @@ func verifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntf string) {
 	}).Await(t)
 	if !ok {
 		t.Logf("IS-IS state on %v has no adjacencies", dutIntf)
-		t.Fatal("No IS-IS adjacencies reported.")
+		t.Fatal("No IS-IS adjacencies reported")
 	}
 }
 
 func createFlow(flowValues *flowArgs) gosnappi.Flow {
+	innerTrafficClass, outerTrafficClass := buildTrafficClassForIpInIp(flowValues)
 	flow := gosnappi.NewFlow().SetName(flowValues.flowName)
 	flow.Metrics().SetEnable(true)
 	flow.TxRx().Device().SetTxNames([]string{"atePort1.IPv4"})
@@ -822,9 +841,8 @@ func createFlow(flowValues *flowArgs) gosnappi.Flow {
 	outerIpHdr := flow.Packet().Add().Ipv4()
 	outerIpHdr.Src().SetValue(flowValues.outHdrSrcIP)
 	outerIpHdr.Dst().SetValue(flowValues.outHdrDstIP)
-	if len(flowValues.outHdrDscp) != 0 {
-		outerIpHdr.Priority().Dscp().Phb().SetValues(flowValues.outHdrDscp)
-	}
+	outerIpHdr.TimeToLive().SetValue(uint32(correspondingTTL))
+	outerIpHdr.Priority().Raw().SetValue(outerTrafficClass)
 	if flowValues.udp {
 		UDPHeader := flow.Packet().Add().Udp()
 		UDPHeader.DstPort().Increment().SetStart(1).SetCount(50000).SetStep(1)
@@ -841,11 +859,7 @@ func createFlow(flowValues *flowArgs) gosnappi.Flow {
 			innerIpHdr := flow.Packet().Add().Ipv4()
 			innerIpHdr.Src().SetValue(flowValues.InnHdrSrcIP)
 			innerIpHdr.Dst().SetValue(flowValues.InnHdrDstIP)
-			// TODO : https://github.com/open-traffic-generator/fp-testbed-juniper/issues/42
-			// Below code will be uncommented once ixia issue is fixed.
-			// if len(flowValues.inHdrDscp) != 0 {
-			// 	innerIpHdr.Priority().Dscp().Phb().SetValues(flowValues.inHdrDscp)
-			// }
+			innerIpHdr.Priority().Raw().SetValue(innerTrafficClass)
 			UDPHeader := flow.Packet().Add().Udp()
 			UDPHeader.DstPort().Increment().SetStart(1).SetCount(50000).SetStep(1)
 			UDPHeader.SrcPort().Increment().SetStart(1).SetCount(50000).SetStep(1)
@@ -853,11 +867,7 @@ func createFlow(flowValues *flowArgs) gosnappi.Flow {
 			innerIpv6Hdr := flow.Packet().Add().Ipv6()
 			innerIpv6Hdr.Src().SetValue(flowValues.InnHdrSrcIPv6)
 			innerIpv6Hdr.Dst().SetValue(flowValues.InnHdrDstIPv6)
-			// TODO : https://github.com/open-traffic-generator/fp-testbed-juniper/issues/42
-			// Below code will be uncommented once ixia issue is fixed.
-			// if len(flowValues.inHdrDscp) != 0 {
-			// 	innerIpv6Hdr.FlowLabel().SetValues(flowValues.inHdrDscp)
-			// }
+			innerIpv6Hdr.TrafficClass().SetValue(innerTrafficClass)
 			UDPHeader := flow.Packet().Add().Udp()
 			UDPHeader.DstPort().Increment().SetStart(1).SetCount(50000).SetStep(1)
 			UDPHeader.SrcPort().Increment().SetStart(1).SetCount(50000).SetStep(1)
@@ -868,7 +878,7 @@ func createFlow(flowValues *flowArgs) gosnappi.Flow {
 
 func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	t.Logf("Verifying BGP state.")
+	t.Logf("Verifying BGP state")
 	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 
 	nbrPath := bgpPath.Neighbor(otgIsisPort8LoopV4)
@@ -1048,6 +1058,12 @@ func configGribiBaselineAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 		)
 	}
 
+	nh1001 := fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).WithIndex(1001).WithDecapsulateHeader(fluent.IPinIP)
+	// TODO Arista to introduce deviation https://issuetracker.google.com/529182953
+	if dut.Vendor() == ondatra.ARISTA {
+		nh1001.WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	}
+
 	// Programming AFT entries for backup NHG
 	args.client.Modify().AddEntry(t,
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
@@ -1057,11 +1073,8 @@ func configGribiBaselineAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithID(1000).AddNextHop(1000, 1),
 
-		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithIndex(1001).WithDecapsulateHeader(fluent.IPinIP).
-			WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
-		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithID(1001).AddNextHop(1001, 1),
+		nh1001,
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).WithID(1001).AddNextHop(1001, 1),
 
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithIndex(1002).WithDecapsulateHeader(fluent.IPinIP).WithEncapsulateHeader(fluent.IPinIP).
@@ -1108,22 +1121,34 @@ func configGribiBaselineAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 		)
 	}
 
+	nhg1 := fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+		WithID(1).AddNextHop(1, 1).AddNextHop(2, 3)
+	// TODO Arista to introduce deviation https://issuetracker.google.com/529182953
+	if dut.Vendor() != ondatra.ARISTA {
+		nhg1.WithBackupNHG(1000)
+	}
+
+	nhg3 := fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+		WithID(3).AddNextHop(4, 1)
+	// TODO Arista to introduce deviation https://issuetracker.google.com/529182953
+	if dut.Vendor() != ondatra.ARISTA {
+		nhg3.WithBackupNHG(1002)
+	}
+
 	// Programming AFT entries for prefixes in TE_VRF_111
 	args.client.Modify().AddEntry(t,
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithIndex(1).WithIPAddress(gribiIPv4EntryDefVRF1),
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithIndex(2).WithIPAddress(gribiIPv4EntryDefVRF2),
-		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithID(1).AddNextHop(1, 1).AddNextHop(2, 3).WithBackupNHG(1000),
+		nhg1,
 		fluent.IPv4Entry().WithNetworkInstance(niTeVrf111).
 			WithPrefix(gribiIPv4EntryVRF1111+"/"+maskLen32).WithNextHopGroup(1).
 			WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)),
 
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithIndex(4).WithIPAddress(gribiIPv4EntryDefVRF4),
-		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithID(3).AddNextHop(4, 1).WithBackupNHG(1002),
+		nhg3,
 		fluent.IPv4Entry().WithNetworkInstance(niTeVrf111).
 			WithPrefix(gribiIPv4EntryVRF1112+"/"+maskLen32).WithNextHopGroup(3).
 			WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)),
@@ -1229,7 +1254,7 @@ func configGribiBaselineAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 		chk.IgnoreOperationID(),
 	)
 
-	// Install an 0/0 static route in ENCAP_VRF_A and ENCAP_VRF_B pointing to the DEFAULT VRF.
+	// Install an 0/0 route in ENCAP_VRF_A and ENCAP_VRF_B pointing to the DEFAULT VRF.
 	args.client.Modify().AddEntry(t,
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithIndex(60).WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
@@ -1303,11 +1328,8 @@ func configureGribiRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDevi
 	// header and specifies the DEFAULT network instance.This IPv4Entry should be installed
 	// into the DECAP_TE_VRF.
 
-	args.client.Modify().AddEntry(t,
-		fluent.IPv4Entry().WithNetworkInstance(niDecapTeVrf).
-			WithPrefix(prefWithMask).WithNextHopGroup(1001).
-			WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)),
-	)
+	args.client.Modify().AddEntry(t, fluent.IPv4Entry().WithNetworkInstance(niDecapTeVrf).WithPrefix(prefWithMask).WithNextHopGroup(1001).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)))
+
 	if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
 		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
 	}
@@ -1547,6 +1569,7 @@ func sendTraffic(t *testing.T, args *testArgs, capturePortList []string, flowLis
 func verifyTraffic(t *testing.T, args *testArgs, flowList []string, wantLoss bool) {
 	t.Helper()
 	for _, flowName := range flowList {
+		waitForFlowMetricsReady(t, args.otg, flowName, 2*time.Minute)
 		t.Logf("Verifying flow metrics for the flow %s\n", flowName)
 		recvMetric := gnmi.Get(t, args.otg, gnmi.OTG().Flow(flowName).State())
 		txPackets := recvMetric.GetCounters().GetOutPkts()
@@ -1575,10 +1598,57 @@ func verifyTraffic(t *testing.T, args *testArgs, flowList []string, wantLoss boo
 	}
 }
 
+// waitForFlowMetricsReady waits until a flow's TX/RX counters stop changing, or fails after timeout.
+func waitForFlowMetricsReady(t *testing.T, otgDev *otg.OTG, flowName string, timeout time.Duration) {
+	const pollInterval = time.Second
+	const stableReads = 2
+
+	type counters struct {
+		tx uint64
+		rx uint64
+	}
+
+	deadline := time.Now().Add(timeout)
+	var (
+		prev      counters
+		havePrev  bool
+		stableCnt int
+		last      counters
+	)
+
+	for time.Now().Before(deadline) {
+		flowMetric := gnmi.Get(t, otgDev, gnmi.OTG().Flow(flowName).State())
+		cur := counters{
+			tx: flowMetric.GetCounters().GetOutPkts(),
+			rx: flowMetric.GetCounters().GetInPkts(),
+		}
+		last = cur
+
+		if havePrev && cur == prev {
+			stableCnt++
+			if stableCnt >= stableReads {
+				t.Logf("Flow %q metrics stabilized: tx=%d rx=%d", flowName, cur.tx, cur.rx)
+				return
+			}
+		} else {
+			stableCnt = 0
+		}
+
+		prev = cur
+		havePrev = true
+		time.Sleep(pollInterval)
+	}
+
+	t.Fatalf("Flow %q metrics did not stabilize within %s (last tx=%d rx=%d)", flowName, timeout, last.tx, last.rx)
+}
+
 type packetValidation struct {
 	portName        string
 	outDstIP        []string
 	inHdrIP         string
+	inHdrIPv6       string
+	inHdrDscp       uint32
+	inHdrEcn        uint32
 	validateDecap   bool
 	validateTTL     bool
 	validateNoDecap bool
@@ -1586,94 +1656,211 @@ type packetValidation struct {
 }
 
 func captureAndValidatePackets(t *testing.T, args *testArgs, packetVal *packetValidation) {
+	if !(packetVal.validateDecap || packetVal.validateTTL ||
+		packetVal.validateNoDecap || packetVal.validateEncap) {
+		t.Fatalf(`no validation has been specified for the captured packets.
+		please specify at least one of the validation flags: validateDecap, validateTTL, validateNoDecap, validateEncap`)
+		return
+	}
 	bytes := args.otg.GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(packetVal.portName))
 	f, err := os.CreateTemp("", "pcap")
 	if err != nil {
-		t.Fatalf("ERROR: Could not create temporary pcap file: %v\n", err)
+		t.Fatalf("could not create temporary pcap file: %v\n", err)
 	}
 	if _, err := f.Write(bytes); err != nil {
-		t.Fatalf("ERROR: Could not write bytes to pcap file: %v\n", err)
+		t.Fatalf("could not write bytes to pcap file: %v\n", err)
 	}
 	f.Close()
-	handle, err := pcap.OpenOffline(f.Name())
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer handle.Close()
-	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 	if packetVal.validateTTL {
-		validateTrafficTTL(t, packetSource)
+		validateTrafficTTL(t, f)
 	}
 	if packetVal.validateDecap {
-		validateTrafficDecap(t, packetSource)
+		validateTrafficDecap(t, f, packetVal.inHdrIP, packetVal.inHdrIPv6, packetVal.inHdrDscp, packetVal.inHdrEcn)
 	}
 	if packetVal.validateNoDecap {
-		validateTrafficNonDecap(t, packetSource, packetVal.outDstIP[0], packetVal.inHdrIP)
+		validateTrafficNonDecap(t, f, packetVal.outDstIP[0], packetVal.inHdrIP)
 	}
 	if packetVal.validateEncap {
-		validateTrafficEncap(t, packetSource, packetVal.outDstIP, packetVal.inHdrIP)
+		validateTrafficEncap(t, f, packetVal.outDstIP, packetVal.inHdrIP)
 	}
 	args.otgConfig.Captures().Clear()
 	args.otg.PushConfig(t, args.otgConfig)
 	time.Sleep(30 * time.Second)
 }
 
-func validateTrafficTTL(t *testing.T, packetSource *gopacket.PacketSource) {
+func validateTrafficTTL(t *testing.T, captureFile *os.File) {
 	t.Helper()
+	pcapFileHandle, err := pcap.OpenOffline(captureFile.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pcapFileHandle.Close()
 	var packetCheckCount uint32 = 0
+	packetSource := gopacket.NewPacketSource(pcapFileHandle, pcapFileHandle.LinkType())
 	for packet := range packetSource.Packets() {
 		ipLayer := packet.Layer(layers.LayerTypeIPv4)
 		if ipLayer != nil && packetCheckCount <= 3 {
 			packetCheckCount++
 			ipPacket, _ := ipLayer.(*layers.IPv4)
-			if ipPacket.TTL != correspondingTTL {
-				t.Errorf("IP TTL value is altered to: %d", ipPacket.TTL)
+			if ipPacket.TTL != (correspondingTTL - 1) {
+				t.Errorf("Decap TTL doesnt match; got:%d, want:%d", ipPacket.TTL, (correspondingTTL - 1))
 			}
 			innerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
 			ipInnerLayer := innerPacket.Layer(layers.LayerTypeIPv4)
 			ipv6InnerLayer := innerPacket.Layer(layers.LayerTypeIPv6)
 			if ipInnerLayer != nil {
-				t.Errorf("Packets are not decapped, Inner IP header is not removed.")
+				t.Errorf("validateTrafficTTL: packets are not decapped, inner IP header is not removed")
 			}
 			if ipv6InnerLayer != nil {
-				t.Errorf("Packets are not decapped, Inner IPv6 header is not removed.")
+				t.Errorf("validateTrafficTTL: packets are not decapped, inner IPv6 header is not removed")
 			}
 		}
 	}
+	if packetCheckCount == 0 {
+		t.Errorf("validateTrafficTTL: no packets have been captured and validated for TTL")
+	}
 }
 
-func validateTrafficDecap(t *testing.T, packetSource *gopacket.PacketSource) {
+// isDecapped determines if an IP-in-IP packet has been successfully decapsulated by verifying that only one IP layer exists.
+// Layer processing is intentionally stopped at the UDP layer, as the gopacket library may misinterpret the UDP payload
+// as an additional protocol layer (e.g.: APSP). This workaround prevents a false negative in the decapsulation check.
+func isDecapped(t *testing.T, packet gopacket.Packet) bool {
+	numberOfIPLayers := 0
+	for _, layer := range packet.Layers() {
+		if layer.LayerType() == layers.LayerTypeUDP {
+			break
+		}
+		if layer.LayerType() == layers.LayerTypeIPv4 || layer.LayerType() == layers.LayerTypeIPv6 {
+			numberOfIPLayers++
+		}
+	}
+	return (numberOfIPLayers == 1)
+}
+
+func validateTrafficDecap(t *testing.T, captureFile *os.File, expectedInHdrIP string, expectedInHdrIPv6 string, expectedInHdrDscp uint32, expectedInHdrEcn uint32) {
 	t.Helper()
+	pcapFileHandle, err := pcap.OpenOffline(captureFile.Name())
+	if err != nil {
+		t.Fatalf("validateTrafficDecap: failed to open pcap file: %v\n", err)
+	}
+	defer pcapFileHandle.Close()
+	testStats := struct {
+		packetCheckCount        uint32
+		IPv4CapturedPackets     uint32
+		IPv4NotDecappedPackets  uint32
+		IPv4DscpMismatchPackets uint32
+		IPv4EcnMismatchPackets  uint32
+		IPv6CapturedPackets     uint32
+		IPv6NotDecappedPackets  uint32
+		IPv6DscpMismatchPackets uint32
+		IPv6EcnMismatchPackets  uint32
+	}{}
+	packetSource := gopacket.NewPacketSource(pcapFileHandle, pcapFileHandle.LinkType())
+	for packet := range packetSource.Packets() {
+		ipLayer := packet.Layer(layers.LayerTypeIPv4)
+		ipv6Layer := packet.Layer(layers.LayerTypeIPv6)
+		if ipLayer == nil && ipv6Layer == nil {
+			// Not a packet we care about. e.g: ISIS packets.
+			continue
+		}
+		if packet.Layer(layers.LayerTypeUDP) == nil {
+			continue
+		}
+		if ipLayer != nil {
+			ipPacket, _ := ipLayer.(*layers.IPv4)
+			if ipPacket.DstIP.String() != expectedInHdrIP {
+				continue
+			}
+			testStats.packetCheckCount++
+			testStats.IPv4CapturedPackets++
+			if !isDecapped(t, packet) {
+				innerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
+				ipInnerLayer := innerPacket.Layer(layers.LayerTypeIPv4)
+				ipv6InnerLayer := innerPacket.Layer(layers.LayerTypeIPv6)
+				if ipInnerLayer != nil {
+					testStats.IPv4NotDecappedPackets++
+					log.Warningf("validateTrafficDecap: packets are not decapped, inner IP header is not removed")
+					continue
+				}
+				if ipv6InnerLayer != nil {
+					testStats.IPv6NotDecappedPackets++
+					log.Warningf("validateTrafficDecap: packets are not decapped, inner IPv6 header is not removed")
+					continue
+				}
+			}
+			if actualDscp := uint32(ipPacket.TOS >> 2); actualDscp != expectedInHdrDscp {
+				testStats.IPv4DscpMismatchPackets++
+				t.Errorf("validateTrafficDecap: dscp value mismatch, got %d, want %d", actualDscp, expectedInHdrDscp)
+			}
+			if actualEcn := uint32(ipPacket.TOS & 0x03); actualEcn != expectedInHdrEcn {
+				testStats.IPv4EcnMismatchPackets++
+				t.Errorf("validateTrafficDecap: ecn value mismatch, got %d, want %d", actualEcn, expectedInHdrEcn)
+			}
+		} else {
+			ipv6Packet, _ := ipv6Layer.(*layers.IPv6)
+			if ipv6Packet.DstIP.String() != expectedInHdrIPv6 {
+				continue
+			}
+			testStats.packetCheckCount++
+			testStats.IPv6CapturedPackets++
+			if actualDscp := uint32(ipv6Packet.TrafficClass >> 2); actualDscp != expectedInHdrDscp {
+				testStats.IPv6DscpMismatchPackets++
+				t.Errorf("validateTrafficDecap: dscp value mismatch, got %d, want %d", actualDscp, expectedInHdrDscp)
+			}
+			if actualEcn := uint32(ipv6Packet.TrafficClass & 0x03); actualEcn != expectedInHdrEcn {
+				testStats.IPv6EcnMismatchPackets++
+				t.Errorf("validateTrafficDecap: ecn value mismatch, got %d, want %d", actualEcn, expectedInHdrEcn)
+			}
+		}
+	}
+	if testStats.packetCheckCount == 0 {
+		t.Errorf("validateTrafficDecap: no packets have been captured and validated for decap")
+	}
+	if testStats.IPv4DscpMismatchPackets > 0 {
+		t.Errorf("validateTrafficDecap:%v packets have unexpected DSCP value after decap out of %v IPv4 packets captured",
+			testStats.IPv4DscpMismatchPackets, testStats.IPv4CapturedPackets)
+	}
+	if testStats.IPv4EcnMismatchPackets > 0 {
+		t.Errorf("validateTrafficDecap:%v packets have unexpected ECN value after decap out of %v IPv4 packets captured",
+			testStats.IPv4EcnMismatchPackets, testStats.IPv4CapturedPackets)
+	}
+	if testStats.IPv4NotDecappedPackets > 0 {
+		t.Errorf("validateTrafficDecap:%v packets have not been decapped out of %v IPv4 packets captured",
+			testStats.IPv4NotDecappedPackets, testStats.IPv4CapturedPackets)
+	}
+	if testStats.IPv6DscpMismatchPackets > 0 {
+		t.Errorf("validateTrafficDecap:%v packets have unexpected DSCP value after decap out of %v IPv6 packets captured",
+			testStats.IPv6DscpMismatchPackets, testStats.IPv6CapturedPackets)
+	}
+	if testStats.IPv6EcnMismatchPackets > 0 {
+		t.Errorf("validateTrafficDecap:%v packets have unexpected ECN value after decap out of %v IPv6 packets captured",
+			testStats.IPv6EcnMismatchPackets, testStats.IPv6CapturedPackets)
+	}
+	if testStats.IPv6NotDecappedPackets > 0 {
+		t.Errorf("validateTrafficDecap:%v packets have not been decapped out of %v IPv6 packets captured",
+			testStats.IPv6NotDecappedPackets, testStats.IPv6CapturedPackets)
+	}
+}
+
+func validateTrafficNonDecap(t *testing.T, captureFile *os.File, outDstIP, inHdrIP string) {
+	t.Helper()
+	t.Log("Validate traffic non decap routes")
+	pcapFileHandle, err := pcap.OpenOffline(captureFile.Name())
+	if err != nil {
+		t.Fatalf("validateTrafficNonDecap: failed to open pcap file: %v\n", err)
+	}
+	defer pcapFileHandle.Close()
+	var packetCheckCount uint32 = 0
+	packetSource := gopacket.NewPacketSource(pcapFileHandle, pcapFileHandle.LinkType())
 	for packet := range packetSource.Packets() {
 		ipLayer := packet.Layer(layers.LayerTypeIPv4)
 		if ipLayer == nil {
 			continue
 		}
-		ipPacket, _ := ipLayer.(*layers.IPv4)
-		innerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
-		ipInnerLayer := innerPacket.Layer(layers.LayerTypeIPv4)
-		ipv6InnerLayer := innerPacket.Layer(layers.LayerTypeIPv6)
-		if ipInnerLayer != nil {
-			t.Errorf("Packets are not decapped, Inner IP header is not removed.")
-		}
-		if ipv6InnerLayer != nil {
-			t.Errorf("Packets are not decapped, Inner IPv6 header is not removed.")
-		}
-	}
-}
-
-func validateTrafficNonDecap(t *testing.T, packetSource *gopacket.PacketSource, outDstIP, inHdrIP string) {
-	t.Helper()
-	t.Log("Validate traffic non decap routes")
-	var packetCheckCount uint32 = 1
-	for packet := range packetSource.Packets() {
 		if packetCheckCount >= 5 {
 			break
 		}
-		ipLayer := packet.Layer(layers.LayerTypeIPv4)
-		if ipLayer == nil {
-			continue
-		}
+		packetCheckCount++
 		ipPacket, _ := ipLayer.(*layers.IPv4)
 		innerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
 		ipInnerLayer := innerPacket.Layer(layers.LayerTypeIPv4)
@@ -1685,24 +1872,34 @@ func validateTrafficNonDecap(t *testing.T, packetSource *gopacket.PacketSource, 
 			if ipInnerPacket.DstIP.String() != inHdrIP {
 				t.Errorf("Negatice test for Decap failed. Traffic sent to route which does not match the decap route are decaped")
 			}
-			t.Logf("Traffic for non decap routes passed.")
+			t.Logf("Traffic for non decap routes passed")
 			break
 		}
 	}
+	if packetCheckCount == 0 {
+		t.Errorf("validateTrafficNonDecap: no packets have been captured and validated for non decap")
+	}
 }
 
-func validateTrafficEncap(t *testing.T, packetSource *gopacket.PacketSource, outDstIP []string, innerIP string) {
+func validateTrafficEncap(t *testing.T, captureFile *os.File, outDstIP []string, innerIP string) {
 	t.Helper()
 	t.Log("Validate traffic non decap routes")
-	var packetCheckCount uint32 = 1
+	pcapFileHandle, err := pcap.OpenOffline(captureFile.Name())
+	if err != nil {
+		t.Fatalf("validateTrafficEncap: failed to open pcap file: %v\n", err)
+	}
+	defer pcapFileHandle.Close()
+	var packetCheckCount uint32 = 0
+	packetSource := gopacket.NewPacketSource(pcapFileHandle, pcapFileHandle.LinkType())
 	for packet := range packetSource.Packets() {
-		if packetCheckCount >= 5 {
-			break
-		}
 		ipLayer := packet.Layer(layers.LayerTypeIPv4)
 		if ipLayer == nil {
 			continue
 		}
+		if packetCheckCount >= 5 {
+			break
+		}
+		packetCheckCount++
 		ipPacket, _ := ipLayer.(*layers.IPv4)
 		innerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
 		ipInnerLayer := innerPacket.Layer(layers.LayerTypeIPv4)
@@ -1716,9 +1913,12 @@ func validateTrafficEncap(t *testing.T, packetSource *gopacket.PacketSource, out
 					t.Errorf("Packets are not encapsulated as expected")
 				}
 			}
-			t.Logf("Traffic for encap routes passed.")
+			t.Logf("Traffic for encap routes passed")
 			break
 		}
+	}
+	if packetCheckCount == 0 {
+		t.Errorf("validateTrafficEncap: no packets have been captured and validated for encap")
 	}
 }
 
@@ -1760,11 +1960,9 @@ type flowArgs struct {
 	InnHdrSrcIP, InnHdrDstIP     string
 	InnHdrSrcIPv6, InnHdrDstIPv6 string
 	udp, isInnHdrV4              bool
-	outHdrDscp                   []uint32
-	// TODO : https://github.com/open-traffic-generator/fp-testbed-juniper/issues/42
-	// Below code will be uncommented once ixia issue is fixed.
-	// inHdrDscp []uint32
-	proto uint32
+	inHdrDscp, outHdrDscp        []uint32
+	inHdrEcn, outHdrEcn          []uint32
+	proto                        uint32
 }
 
 // testGribiDecapMatchSrcProtoNoMatchDSCP is to validate subtest test1.
@@ -1790,7 +1988,7 @@ func testGribiDecapMatchSrcProtoNoMatchDSCP(ctx context.Context, t *testing.T, d
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			t.Log("Flush existing gRIBI routes before test.")
+			t.Log("Flush existing gRIBI routes before test")
 			if err := gribi.FlushAll(args.client); err != nil {
 				t.Fatal(err)
 			}
@@ -1810,17 +2008,37 @@ func testGribiDecapMatchSrcProtoNoMatchDSCP(ctx context.Context, t *testing.T, d
 				func(t *testing.T) {
 
 					flow1 := createFlow(&flowArgs{flowName: flow4in4,
-						outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapNoMatch},
-						InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true})
+						outHdrSrcIP: ipv4OuterSrc111,
+						outHdrDstIP: ipv4OuterDst111,
+						outHdrDscp:  []uint32{dscpEncapNoMatch},
+						outHdrEcn:   []uint32{ecnCongestionExperienced},
+						isInnHdrV4:  true,
+						InnHdrSrcIP: atePort1.IPv4,
+						InnHdrDstIP: ipv4InnerDst,
+						inHdrDscp:   []uint32{dscpEncapNoMatch},
+						inHdrEcn:    []uint32{ecnCapable1}})
 
 					flow2 := createFlow(&flowArgs{flowName: flow6in4,
-						outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: ipv4OuterDst111, InnHdrSrcIPv6: atePort1.IPv6,
-						InnHdrDstIPv6: ipv6InnerDst, isInnHdrV4: false, outHdrDscp: []uint32{dscpEncapNoMatch}})
+						outHdrSrcIP:   ipv4OuterSrc111,
+						outHdrDstIP:   ipv4OuterDst111,
+						outHdrDscp:    []uint32{dscpEncapNoMatch},
+						outHdrEcn:     []uint32{ecnCongestionExperienced},
+						isInnHdrV4:    false,
+						InnHdrSrcIPv6: atePort1.IPv6,
+						InnHdrDstIPv6: ipv6InnerDst,
+						inHdrDscp:     []uint32{dscpEncapNoMatch},
+						inHdrEcn:      []uint32{ecnCapable1}})
 
 					sendTraffic(t, args, portList, []gosnappi.Flow{flow1, flow2})
 					verifyTraffic(t, args, []string{flow4in4, flow6in4}, !wantLoss)
 					captureAndValidatePackets(t, args, &packetValidation{portName: portList[0],
-						outDstIP: []string{ipv4OuterDst111}, inHdrIP: ipv4InnerDst, validateTTL: true, validateDecap: true})
+						outDstIP:      []string{ipv4OuterDst111},
+						inHdrIP:       ipv4InnerDst,
+						inHdrIPv6:     ipv6InnerDst,
+						inHdrDscp:     dscpEncapNoMatch,
+						inHdrEcn:      ecnCongestionExperienced, // IF packet has marked ECN 11, it will be copied to outer HDR
+						validateTTL:   true,
+						validateDecap: true})
 				})
 
 			// Test with packets with a destination address that does not match
@@ -1863,7 +2081,7 @@ func testGribiDecapMatchSrcProtoDSCP(ctx context.Context, t *testing.T, dut *ond
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			t.Log("Flush existing gRIBI routes before test.")
+			t.Log("Flush existing gRIBI routes before test")
 			if err := gribi.FlushAll(args.client); err != nil {
 				t.Fatal(err)
 			}
@@ -1883,17 +2101,37 @@ func testGribiDecapMatchSrcProtoDSCP(ctx context.Context, t *testing.T, dut *ond
 				func(t *testing.T) {
 
 					flow1 := createFlow(&flowArgs{flowName: flow4in4,
-						outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapA1},
-						InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDstNoEncap, isInnHdrV4: true})
+						outHdrSrcIP: ipv4OuterSrc111,
+						outHdrDstIP: ipv4OuterDst111,
+						outHdrDscp:  []uint32{dscpEncapA1},
+						outHdrEcn:   []uint32{ecnCapable2},
+						isInnHdrV4:  true,
+						InnHdrSrcIP: atePort1.IPv4,
+						InnHdrDstIP: ipv4InnerDstNoEncap,
+						inHdrDscp:   []uint32{dscpEncapA1},
+						inHdrEcn:    []uint32{ecnCapable2}})
 
 					flow2 := createFlow(&flowArgs{flowName: flow6in4,
-						outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: ipv4OuterDst111, InnHdrSrcIPv6: atePort1.IPv6,
-						InnHdrDstIPv6: ipv6InnerDstNoEncap, isInnHdrV4: false, outHdrDscp: []uint32{dscpEncapA1}})
+						outHdrSrcIP:   ipv4OuterSrc111,
+						outHdrDstIP:   ipv4OuterDst111,
+						outHdrDscp:    []uint32{dscpEncapA1},
+						outHdrEcn:     []uint32{ecnCapable2},
+						isInnHdrV4:    false,
+						InnHdrSrcIPv6: atePort1.IPv6,
+						InnHdrDstIPv6: ipv6InnerDstNoEncap,
+						inHdrDscp:     []uint32{dscpEncapA1},
+						inHdrEcn:      []uint32{ecnCapable2}})
 
 					sendTraffic(t, args, portList, []gosnappi.Flow{flow1, flow2})
 					verifyTraffic(t, args, []string{flow4in4, flow6in4}, !wantLoss)
 					captureAndValidatePackets(t, args, &packetValidation{portName: portList[0],
-						outDstIP: []string{ipv4OuterDst111}, inHdrIP: ipv4InnerDstNoEncap, validateTTL: true, validateDecap: true})
+						outDstIP:      []string{ipv4OuterDst111},
+						inHdrIP:       ipv4InnerDstNoEncap,
+						inHdrIPv6:     ipv6InnerDstNoEncap,
+						inHdrDscp:     dscpEncapA1,
+						inHdrEcn:      ecnCapable2,
+						validateTTL:   true,
+						validateDecap: true})
 				})
 		})
 	}
@@ -1909,7 +2147,7 @@ func testGribiDecapMixedLenPref(ctx context.Context, t *testing.T, dut *ondatra.
 	var traffiDstIP1 string = "192.55.200.3"
 	var traffiDstIP2 string = "192.51.128.5"
 
-	t.Log("Flush existing gRIBI routes before test.")
+	t.Log("Flush existing gRIBI routes before test")
 	if err := gribi.FlushAll(args.client); err != nil {
 		t.Fatal(err)
 	}
@@ -1926,17 +2164,37 @@ func testGribiDecapMixedLenPref(ctx context.Context, t *testing.T, dut *ondatra.
 	portList := []string{"port8"}
 	t.Run("Verify packets are decap & forward with Default vrf", func(t *testing.T) {
 		flow1 := createFlow(&flowArgs{flowName: "flow1",
-			outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: traffiDstIP1, InnHdrSrcIPv6: atePort1.IPv6,
-			InnHdrDstIPv6: ipv6InnerDst, isInnHdrV4: false, outHdrDscp: []uint32{dscpEncapNoMatch}})
+			outHdrSrcIP:   ipv4OuterSrc111,
+			outHdrDstIP:   traffiDstIP1,
+			outHdrDscp:    []uint32{dscpEncapNoMatch},
+			outHdrEcn:     []uint32{ecnNotCapable},
+			isInnHdrV4:    false,
+			InnHdrSrcIPv6: atePort1.IPv6,
+			InnHdrDstIPv6: ipv6InnerDst,
+			inHdrDscp:     []uint32{dscpEncapNoMatch},
+			inHdrEcn:      []uint32{ecnNotCapable}})
 
 		flow2 := createFlow(&flowArgs{flowName: "flow2",
-			outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: traffiDstIP2, InnHdrSrcIP: atePort1.IPv4,
-			InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true, outHdrDscp: []uint32{dscpEncapNoMatch}})
+			outHdrSrcIP: ipv4OuterSrc111,
+			outHdrDstIP: traffiDstIP2,
+			outHdrDscp:  []uint32{dscpEncapNoMatch},
+			outHdrEcn:   []uint32{ecnNotCapable},
+			isInnHdrV4:  true,
+			InnHdrSrcIP: atePort1.IPv4,
+			InnHdrDstIP: ipv4InnerDst,
+			inHdrDscp:   []uint32{dscpEncapNoMatch},
+			inHdrEcn:    []uint32{ecnNotCapable}})
 
 		sendTraffic(t, args, portList, []gosnappi.Flow{flow1, flow2})
 		verifyTraffic(t, args, []string{"flow1", "flow2"}, !wantLoss)
 		captureAndValidatePackets(t, args, &packetValidation{portName: portList[0],
-			outDstIP: []string{traffiDstIP1}, inHdrIP: ipv4InnerDst, validateTTL: false, validateDecap: true})
+			outDstIP:      []string{traffiDstIP1},
+			inHdrIP:       ipv4InnerDst,
+			inHdrIPv6:     ipv6InnerDst,
+			inHdrDscp:     dscpEncapNoMatch,
+			inHdrEcn:      ecnNotCapable,
+			validateTTL:   false,
+			validateDecap: true})
 	})
 
 	// Test with packets with a destination address that does not match
@@ -1960,7 +2218,7 @@ func testGribiDecapMixedLenPref(ctx context.Context, t *testing.T, dut *ondatra.
 func testTunnelTrafficNoDecap(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, args *testArgs) {
 	t.Helper()
 
-	t.Log("Flush existing gRIBI routes before test.")
+	t.Log("Flush existing gRIBI routes before test")
 	if err := gribi.FlushAll(args.client); err != nil {
 		t.Fatal(err)
 	}
@@ -2031,7 +2289,7 @@ func testTunnelTrafficNoDecap(ctx context.Context, t *testing.T, dut *ondatra.DU
 func testTunnelTrafficMatchDefaultTerm(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, args *testArgs) {
 	t.Helper()
 
-	t.Log("Flush existing gRIBI routes before test.")
+	t.Log("Flush existing gRIBI routes before test")
 	if err := gribi.FlushAll(args.client); err != nil {
 		t.Fatal(err)
 	}
@@ -2099,7 +2357,7 @@ func testTunnelTrafficMatchDefaultTerm(ctx context.Context, t *testing.T, dut *o
 func testTunnelTrafficDecapEncap(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, args *testArgs) {
 	t.Helper()
 
-	t.Log("Flush existing gRIBI routes before test.")
+	t.Log("Flush existing gRIBI routes before test")
 	if err := gribi.FlushAll(args.client); err != nil {
 		t.Fatal(err)
 	}
@@ -2195,7 +2453,7 @@ func TestGribiDecap(t *testing.T) {
 		configureVrfSelectionPolicyW(t, dut)
 	})
 
-	t.Log("Install BGP route resolved by ISIS.")
+	t.Log("Install BGP route resolved by ISIS")
 	t.Log("Configure ISIS on DUT")
 	configureISIS(t, dut, []string{dut.Port(t, "port8").Name(), loopbackIntfName}, dutAreaAddress, dutSysID)
 
@@ -2253,20 +2511,17 @@ func TestGribiDecap(t *testing.T) {
 	})
 
 	t.Run("Test-3: Mixed Prefix Decap gRIBI Entries", func(t *testing.T) {
-		if deviations.GribiDecapMixedPlenUnsupported(dut) {
-			t.Skip("Gribi route programming with mixed prefix length is not supported.")
-		}
 		testGribiDecapMixedLenPref(ctx, t, dut, args)
 	})
 
-	t.Log("Delete vrf selection policy W and Apply vrf selectioin policy C.")
+	t.Log("Delete vrf selection policy W and Apply vrf selectioin policy C")
 	configureVrfSelectionPolicyC(t, dut)
 
 	t.Run("Test-4: Tunneled traffic with no decap", func(t *testing.T) {
 		testTunnelTrafficNoDecap(ctx, t, dut, args)
 	})
 
-	t.Log("Delete vrf selection policy C and Apply vrf selectioin policy W.")
+	t.Log("Delete vrf selection policy C and Apply vrf selectioin policy W")
 	configureVrfSelectionPolicyW(t, dut)
 
 	t.Run("Test-5: Match on default term and send to default VRF", func(t *testing.T) {

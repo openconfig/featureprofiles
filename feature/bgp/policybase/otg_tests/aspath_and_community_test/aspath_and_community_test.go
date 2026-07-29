@@ -75,8 +75,12 @@ func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string,
 
 	aspathSet := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateAsPathSet(aspathSetName)
 	aspathSet.SetAsPathSetMember(aspathMatch)
-	stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetAsPathSet(aspathSetName)
-	stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetMatchSetOptions(aspMatchSetOptions)
+
+	if !deviations.MatchAsPathSetUnsupported(dut) {
+		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetAsPathSet(aspathSetName)
+		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetMatchSetOptions(aspMatchSetOptions)
+	}
+
 	pdAllow := rp.GetOrCreatePolicyDefinition(RPLPermitAll)
 	st, err := pdAllow.AppendNewStatement("id-1")
 	if err != nil {

@@ -84,6 +84,24 @@ N/A
 The below yaml defines the OC paths intended to be covered by this test.
 
 ```yaml
+paths:
+  /interfaces/interface/aggregation/config/lag-type:
+  /interfaces/interface/config/description:
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/config/type:
+  /interfaces/interface/ethernet/config/aggregate-id:
+  /interfaces/interface/ethernet/config/port-speed:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/config/link-layer-address:
+  /network-instances/network-instance/config/name:
+  /network-instances/network-instance/interfaces/interface/config/id:
+  /network-instances/network-instance/interfaces/interface/config/interface:
+  /network-instances/network-instance/protocols/protocol/config/identifier:
+  /network-instances/network-instance/protocols/protocol/config/name:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/index:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/interface-ref/config/interface:
 rpcs:
   gnmi:
     gNMI.Set:

@@ -29,10 +29,12 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
+	"github.com/openconfig/functional-translators/registrar"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
+	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 	"golang.org/x/exp/slices"
@@ -45,16 +47,40 @@ const (
 	operStatusUp    = oc.Interface_OperStatus_UP
 	operStatusDown  = oc.Interface_OperStatus_DOWN
 	maxPortVal      = "FFFFFEFF" // Maximum Port Value : https://github.com/openconfig/public/blob/2049164a8bca4cc9f11ffb313ef25c0e87303a24/release/models/p4rt/openconfig-p4rt.yang#L63-L81
+	aristaMACFT     = "arista-interface-mac-ft"
+	ciscoMACFT      = "ciscoxr-lagmac-ft"
 )
 
 var (
-	vendorQueueNo = map[ondatra.Vendor]int{
-		ondatra.ARISTA:  16,
-		ondatra.CISCO:   6,
-		ondatra.JUNIPER: 8,
-		ondatra.NOKIA:   16,
+	vendorQueueNo = map[ondatra.Vendor][]int{
+		ondatra.ARISTA:  {16},
+		ondatra.CISCO:   {6},
+		ondatra.JUNIPER: {8},
+		ondatra.NOKIA:   {16, 8},
 	}
 )
+
+// getMacAddress is a helper function to retrieve the MAC address, potentially using functional translators.
+func getMacAddress(t *testing.T, dut *ondatra.DUTDevice, intfName string) (string, bool) {
+	t.Helper()
+	var opts []ygnmi.Option
+	if dut.Vendor() == ondatra.ARISTA {
+		ft, ok := registrar.FunctionalTranslatorRegistry[aristaMACFT]
+		if !ok {
+			t.Fatalf("Functional translator %s is not registered", deviations.CiscoxrLaserFt(dut))
+		}
+		opts = append(opts, ygnmi.WithFT(ft))
+		t.Logf("Using functional translator %q for MAC address on %s", aristaMACFT, intfName)
+	} else if dut.Vendor() == ondatra.CISCO {
+		ft, ok := registrar.FunctionalTranslatorRegistry[ciscoMACFT]
+		if !ok {
+			t.Fatalf("Functional translator %s is not registered", ciscoMACFT)
+		}
+		opts = append(opts, ygnmi.WithFT(ft))
+		t.Logf("Using functional translator %q for MAC address on %s", ciscoMACFT, intfName)
+	}
+	return gnmi.Lookup(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().Interface(intfName).Ethernet().MacAddress().State()).Val()
+}
 
 const (
 	chassisType     = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS
@@ -121,6 +147,40 @@ func TestEthernetMacAddress(t *testing.T) {
 	t.Logf("Got %s MacAddress from telmetry: %v", dp.Name(), macAddress)
 	if len(r.FindString(macAddress)) == 0 {
 		t.Errorf("Get(DUT port1 MacAddress): got %v, want matching regexp %v", macAddress, macRegexp)
+	}
+}
+
+func TestLagMacAddress(t *testing.T) {
+	if !*args.LACPBaseConfigPresent {
+		t.Skipf("skipping test: LACP base config not present")
+	}
+	dut := ondatra.DUT(t, "dut")
+	setupLACPConfig(t, dut)
+	defer teardownLACPConfig(t, dut)
+
+	lacpIntfs := gnmi.GetAll(t, dut, gnmi.OC().Lacp().InterfaceAny().Name().State())
+	if len(lacpIntfs) == 0 {
+		t.Fatalf("Lacp().InterfaceAny().Name().Get(t) for %q: got 0, want > 0", dut.Name())
+	}
+
+	macRegexp := "^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$"
+	r, err := regexp.Compile(macRegexp)
+	if err != nil {
+		t.Fatalf("Cannot compile regular expression: %v", err)
+	}
+
+	for _, intfName := range lacpIntfs {
+		t.Run(intfName, func(t *testing.T) {
+			t.Logf("Checking MAC address for LACP interface: %s", intfName)
+			macAddress, present := getMacAddress(t, dut, intfName)
+			if !present {
+				t.Fatalf("MacAddress not present for LACP interface %s at /interfaces/interface[name=%s]/ethernet/state/mac-address", intfName, intfName)
+			}
+			t.Logf("Got %s MacAddress from telemetry: %v", intfName, macAddress)
+			if len(r.FindString(macAddress)) == 0 {
+				t.Errorf("Get(DUT LACP interface %s MacAddress): got %v, want matching regexp %v", intfName, macAddress, macRegexp)
+			}
+		})
 	}
 }
 
@@ -357,9 +417,16 @@ func TestQoSCounters(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
+			gotQueueCount := len(tc.counters)
+			matchedQueueCount := false
+			for _, expectedQueueCount := range vendorQueueNo[dut.Vendor()] {
+				if gotQueueCount == expectedQueueCount {
+					matchedQueueCount = true
+				}
+			}
 
-			if len(tc.counters) != vendorQueueNo[dut.Vendor()] {
-				t.Errorf("Get QoS queue# for %q: got %d, want %d", dut.Vendor(), len(tc.counters), vendorQueueNo[dut.Vendor()])
+			if !matchedQueueCount {
+				t.Errorf("Get QoS queue# for %q: got %d, want %v", dut.Vendor(), len(tc.counters), vendorQueueNo[dut.Vendor()])
 			}
 			for i, counter := range tc.counters {
 				val, present := counter.Val()
@@ -380,7 +447,7 @@ func TestInterfaceWildcard(t *testing.T) {
 	}
 }
 
-func findComponentsListByType(t *testing.T, dut *ondatra.DUTDevice) map[string][]string {
+func findComponentsListByType(t *testing.T, dut *ondatra.DUTDevice) (map[string][]string, map[string]*oc.Component) {
 	t.Helper()
 	componentType := map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{
 		"Fabric":      fabricType,
@@ -389,21 +456,25 @@ func findComponentsListByType(t *testing.T, dut *ondatra.DUTDevice) map[string][
 		"Supervisor":  supervisorType,
 		"SwitchChip":  switchChipType,
 	}
-	components := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
+	batch := gnmi.OCBatch()
+	batch.AddPaths(
+		gnmi.OC().ComponentAny().Name().State().PathStruct(),
+		gnmi.OC().ComponentAny().Type().State().PathStruct(),
+		gnmi.OC().ComponentAny().Parent().State().PathStruct(),
+	)
+	components := gnmi.Get(t, dut, batch.State()).Component
 	s := make(map[string][]string)
 	for comp := range componentType {
 		for _, c := range components {
 			if c.GetType() == nil {
-				t.Logf("Component %s type is missing from telemetry", c.GetName())
 				continue
 			}
-			t.Logf("Component %s has type: %v", c.GetName(), c.GetType())
 			if v := c.GetType(); v == componentType[comp] {
 				s[comp] = append(s[comp], c.GetName())
 			}
 		}
 	}
-	return s
+	return s, components
 }
 
 // verifyChassisIsAncestor verifies that a given component has
@@ -433,6 +504,36 @@ func verifyChassisIsAncestor(t *testing.T, dut *ondatra.DUTDevice, comp string) 
 	}
 }
 
+// verifyChassisIsAncestorLocal verifies that a given component has a
+// component of type CHASSIS as an ancestor using a pre-fetched local component map.
+func verifyChassisIsAncestorLocal(t *testing.T, compMap map[string]*oc.Component, comp string) {
+	visited := make(map[string]bool)
+	for curr := comp; ; {
+		if visited[curr] {
+			t.Errorf("Component %s already visited; loop detected in the hierarchy.", curr)
+			break
+		}
+		visited[curr] = true
+		c, ok := compMap[curr]
+		if !ok || c.GetParent() == "" {
+			t.Errorf("Chassis component NOT found as an ancestor of component %s", comp)
+			break
+		}
+		parentName := c.GetParent()
+		parentComp, ok := compMap[parentName]
+		if !ok {
+			t.Errorf("Parent component %s not found in telemetry for component %s", parentName, curr)
+			break
+		}
+		if parentComp.GetType() == chassisType {
+			t.Logf("Found chassis component as an ancestor of component %s", comp)
+			break
+		}
+		// Not reached chassis yet; go one level up.
+		curr = parentName
+	}
+}
+
 func TestComponentParent(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	componentParent := map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{
@@ -442,7 +543,7 @@ func TestComponentParent(t *testing.T) {
 		"Supervisor":  chassisType,
 		"SwitchChip":  linecardType,
 	}
-	compList := findComponentsListByType(t, dut)
+	compList, compMap := findComponentsListByType(t, dut)
 	cases := []struct {
 		desc          string
 		componentType oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT
@@ -472,8 +573,14 @@ func TestComponentParent(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 
-			if len(compList[tc.desc]) == 0 && dut.Model() == "DCS-7280CR3K-32D4" {
-				t.Skipf("Test of %v is skipped due to hardware platform compatibility", tc.componentType)
+			if *args.NumLinecards == 0 && tc.desc == "Linecard" {
+				t.Skipf("Test of %v is skipped due to hardware platform compatibility for model %v", tc.componentType, dut.Model())
+			}
+			if *args.NumFabrics == 0 && tc.desc == "Fabric" {
+				t.Skipf("Test of %v is skipped due to hardware platform compatibility for model %v", tc.componentType, dut.Model())
+			}
+			if *args.NumControllerCards == 0 && tc.desc == "Supervisor" {
+				t.Skipf("Test of %v is skipped due to hardware platform compatibility for model %v", tc.componentType, dut.Model())
 			}
 
 			t.Logf("Found component list for type %v : %v", tc.componentType, compList[tc.desc])
@@ -483,7 +590,7 @@ func TestComponentParent(t *testing.T) {
 			// Validate parent component.
 			for _, comp := range compList[tc.desc] {
 				t.Logf("Validate component %s", comp)
-				verifyChassisIsAncestor(t, dut, comp)
+				verifyChassisIsAncestorLocal(t, compMap, comp)
 			}
 		})
 	}
@@ -581,8 +688,8 @@ func TestCPU(t *testing.T) {
 func TestSupervisorLastRebootInfo(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	if dut.Model() == "DCS-7280CR3K-32D4" {
-		t.Skipf("Test is skipped due to hardware platform compatibility")
+	if *args.NumControllerCards == 0 {
+		t.Skipf("Test of SupervisorLastRebootInfo is skipped due to hardware platform compatibility for model %v", dut.Model())
 	}
 
 	cards := components.FindComponentsByType(t, dut, supervisorType)
@@ -640,6 +747,9 @@ func TestLacpMember(t *testing.T) {
 		t.Skipf("Test is skipped, since the related base config for LACP is not present")
 	}
 	dut := ondatra.DUT(t, "dut")
+	setupLACPConfig(t, dut)
+	defer teardownLACPConfig(t, dut)
+
 	lacpIntfs := gnmi.GetAll(t, dut, gnmi.OC().Lacp().InterfaceAny().Name().State())
 	if len(lacpIntfs) == 0 {
 		t.Logf("Lacp().InterfaceAny().Name().Get(t) for %q: got 0, want > 0", dut.Name())
@@ -1030,4 +1140,82 @@ func P4RTNodesByPort(t testing.TB, dut *ondatra.DUTDevice) map[string]string {
 		}
 	}
 	return res
+}
+
+// setupLACPConfig sets up a basic LACP configuration on the DUT using ports port1 and port2.
+func setupLACPConfig(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+
+	dp1 := dut.Port(t, "port1")
+	dp2 := dut.Port(t, "port2")
+
+	if dp1 == nil || dp2 == nil {
+		t.Fatalf("Could not get required ports")
+	}
+
+	if deviations.ExplicitPortSpeed(dut) {
+		fptest.SetPortSpeed(t, dp1)
+		fptest.SetPortSpeed(t, dp2)
+	}
+
+	// Use netutil to get the correct aggregate interface name for the vendor
+	aggID := netutil.NextAggregateInterface(t, dut)
+
+	// Create root config to apply atomically
+	d := &oc.Root{}
+
+	// Configure LACP interface with FAST interval
+	lacpIntf := d.GetOrCreateLacp().GetOrCreateInterface(aggID)
+	lacpIntf.SetInterval(oc.Lacp_LacpPeriodType_FAST)
+
+	// Create LAG interface with LACP aggregation type
+	agg := d.GetOrCreateInterface(aggID)
+	agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_LACP
+	agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+
+	// Add member ports to LAG
+	for _, port := range []*ondatra.Port{dp1, dp2} {
+		i := d.GetOrCreateInterface(port.Name())
+		i.GetOrCreateEthernet().AggregateId = ygot.String(aggID)
+		i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+
+		if deviations.InterfaceEnabled(dut) {
+			i.Enabled = ygot.Bool(true)
+		}
+	}
+
+	// Apply all configurations atomically
+	gnmi.Update(t, dut, gnmi.OC().Config(), d)
+	t.Logf("Configured LACP LAG interface %s with ports %s and %s", aggID, dp1.Name(), dp2.Name())
+	// Wait for the aggregate interface to become operationally UP using gNMI Watch
+	gnmi.Watch(t, dut, gnmi.OC().Interface(aggID).OperStatus().State(), 30*time.Second, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
+		v, ok := val.Val()
+		return ok && v == operStatusUp
+	}).Await(t)
+}
+
+// teardownLACPConfig removes the LACP configuration from the DUT.
+func teardownLACPConfig(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+
+	// Get the same aggregate interface name
+	aggID := netutil.NextAggregateInterface(t, dut)
+
+	dp1 := dut.Port(t, "port1")
+	dp2 := dut.Port(t, "port2")
+
+	b := &gnmi.SetBatch{}
+	for _, port := range []*ondatra.Port{dp1, dp2} {
+		gnmi.BatchDelete(b, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
+	}
+
+	// Remove LAG interface
+	gnmi.BatchDelete(b, gnmi.OC().Interface(aggID).Config())
+
+	// Remove LACP interface configuration
+	gnmi.BatchDelete(b, gnmi.OC().Lacp().Interface(aggID).Config())
+
+	b.Set(t, dut)
+
+	t.Logf("LACP configuration removed from DUT")
 }

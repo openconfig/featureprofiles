@@ -1,4 +1,4 @@
-# PF-1.14 - MPLSoGRE IPV4 encapsulation of IPV4/IPV6 payload
+# PF-1.14: MPLSoGRE IPV4 encapsulation of IPV4/IPV6 payload
 
 ## Summary
 

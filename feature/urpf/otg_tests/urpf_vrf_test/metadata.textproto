@@ -1,0 +1,21 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "2fe85525-35f5-41f5-b1e5-5ad0986a4f8d"
+plan_id:  "URPF-1.1"
+description:  "uRPF validation from non-default network-instance"
+testbed:  TESTBED_DUT_ATE_2LINKS
+platform_exceptions:  {
+  platform:  {
+    vendor:  ARISTA
+  }
+  deviations:  {
+    interface_enabled:  true
+    default_network_instance:  "default"
+    next_hop_group_config_unsupported: true
+    policy_forwarding_unsupported: true
+    interface_policy_forwarding_unsupported: true
+    urpf_config_oc_unsupported: true
+    static_route_next_network_instance_oc_unsupported: true
+  }
+}

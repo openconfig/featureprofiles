@@ -29,6 +29,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -121,7 +122,7 @@ func buildGRIBIServer(t *testing.T) func(uint) func() {
 }
 
 type gNMIServer struct {
-	*gpb.UnimplementedGNMIServer
+	gpb.UnimplementedGNMIServer
 }
 
 func (g *gNMIServer) Capabilities(context.Context, *gpb.CapabilityRequest) (*gpb.CapabilityResponse, error) {
@@ -148,6 +149,57 @@ func buildGNMIServer(t *testing.T) func(uint) func() {
 	}
 }
 
+// authChecker is a gRPC interceptor that checks for username/password in metadata.
+func authChecker(username, password string) grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		md, ok := metadata.FromIncomingContext(ctx)
+		if !ok {
+			return nil, status.Errorf(codes.Unauthenticated, "missing metadata")
+		}
+		if len(md["username"]) == 0 || md["username"][0] != username {
+			return nil, status.Errorf(codes.Unauthenticated, "invalid username")
+		}
+		if len(md["password"]) == 0 || md["password"][0] != password {
+			return nil, status.Errorf(codes.Unauthenticated, "invalid password")
+		}
+		return handler(ctx, req)
+	}
+}
+
+// buildAuthenticatedGNMIServer creates a fake gNMI server that requires authentication.
+func buildAuthenticatedGNMIServer(t *testing.T, username, password string) func(uint) func() {
+	return func(port uint) func() {
+		tls, err := config.WithSelfTLSCert()
+		if err != nil {
+			t.Fatalf("cannot create server, %v", err)
+		}
+		srv := grpc.NewServer(tls, grpc.UnaryInterceptor(authChecker(username, password)))
+		s := &gNMIServer{}
+		gpb.RegisterGNMIServer(srv, s)
+		lis, err := net.Listen("tcp", fmt.Sprintf("[::]:%d", port))
+		if err != nil {
+			t.Fatalf("cannot listen on port %d, got err: %v", port, err)
+		}
+		go srv.Serve(lis)
+		return srv.Stop
+	}
+}
+
+// freePort returns a free port for testing.
+func freePort(t *testing.T) int {
+	t.Helper()
+	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
+	if err != nil {
+		t.Fatalf("freePort: could not resolve tcp addr: %v", err)
+	}
+	l, err := net.ListenTCP("tcp", addr)
+	if err != nil {
+		t.Fatalf("freePort: could not listen on tcp addr: %v", err)
+	}
+	defer l.Close()
+	return l.Addr().(*net.TCPAddr).Port
+}
+
 func TestDial(t *testing.T) {
 	timeFn = func() *timestamppb.Timestamp {
 		return &timestamppb.Timestamp{
@@ -155,6 +207,15 @@ func TestDial(t *testing.T) {
 			Nanos:   42,
 		}
 	}
+
+	// Dynamically get ports to avoid conflicts when running tests in parallel.
+	serverPort := uint(freePort(t))
+	badTargetPort := uint(freePort(t))
+	gribiPort := uint(freePort(t))
+	gnmiPort := uint(freePort(t))
+	gnmiAuthPort := uint(freePort(t))
+	gnmiBadAuthPort := uint(freePort(t))
+	timeoutPort := uint(freePort(t))
 
 	tests := []struct {
 		desc         string
@@ -168,28 +229,28 @@ func TestDial(t *testing.T) {
 	}{{
 		desc:         "self-dial",
 		inServer:     startServer,
-		inServerPort: 60061,
+		inServerPort: serverPort,
 		inReq: &cpb.DialRequest{
-			Addr: "localhost:60061",
+			Addr: fmt.Sprintf("localhost:%d", serverPort),
 		},
 		wantResp: &cpb.DialResponse{},
 	}, {
 		desc:         "timeout",
 		inServer:     startServer,
-		inServerPort: 60061,
+		inServerPort: serverPort,
 		inReq: &cpb.DialRequest{
 			Request: &cpb.DialRequest_Ping{
 				Ping: &cpb.PingRequest{},
 			},
-			Addr: "localhost:6666",
+			Addr: fmt.Sprintf("localhost:%d", timeoutPort),
 		},
 		wantErr: true,
 	}, {
 		desc:         "self-dial and ping",
 		inServer:     startServer,
-		inServerPort: 60061,
+		inServerPort: serverPort,
 		inReq: &cpb.DialRequest{
-			Addr: "localhost:60061",
+			Addr: fmt.Sprintf("localhost:%d", serverPort),
 			Request: &cpb.DialRequest_Ping{
 				Ping: &cpb.PingRequest{},
 			},
@@ -207,11 +268,11 @@ func TestDial(t *testing.T) {
 	}, {
 		desc:         "bad target server",
 		inServer:     startServer,
-		inServerPort: 60061,
+		inServerPort: serverPort,
 		inRemote:     buildBadServer(t, PingError),
-		inRemotePort: 60062,
+		inRemotePort: badTargetPort,
 		inReq: &cpb.DialRequest{
-			Addr: "localhost:60062",
+			Addr: fmt.Sprintf("localhost:%d", badTargetPort),
 			Request: &cpb.DialRequest_Ping{
 				Ping: &cpb.PingRequest{},
 			},
@@ -220,11 +281,11 @@ func TestDial(t *testing.T) {
 	}, {
 		desc:         "gribi server",
 		inServer:     startServer,
-		inServerPort: 60061,
+		inServerPort: serverPort,
 		inRemote:     buildGRIBIServer(t),
-		inRemotePort: 9339,
+		inRemotePort: gribiPort,
 		inReq: &cpb.DialRequest{
-			Addr: "localhost:9339",
+			Addr: fmt.Sprintf("localhost:%d", gribiPort),
 			Request: &cpb.DialRequest_Srv{
 				Srv: cpb.Service_ST_GRIBI,
 			},
@@ -243,11 +304,11 @@ func TestDial(t *testing.T) {
 	}, {
 		desc:         "gnmi server",
 		inServer:     startServer,
-		inServerPort: 60061,
+		inServerPort: serverPort,
 		inRemote:     buildGNMIServer(t),
-		inRemotePort: 9340,
+		inRemotePort: gnmiPort,
 		inReq: &cpb.DialRequest{
-			Addr: "localhost:9340",
+			Addr: fmt.Sprintf("localhost:%d", gnmiPort),
 			Request: &cpb.DialRequest_Srv{
 				Srv: cpb.Service_ST_GNMI,
 			},
@@ -265,6 +326,48 @@ func TestDial(t *testing.T) {
 				}(),
 			},
 		},
+	}, {
+		desc:         "gnmi server with auth",
+		inServer:     startServer,
+		inServerPort: serverPort,
+		inRemote:     buildAuthenticatedGNMIServer(t, "testuser", "testpass"),
+		inRemotePort: gnmiAuthPort,
+		inReq: &cpb.DialRequest{
+			Addr:     fmt.Sprintf("localhost:%d", gnmiAuthPort),
+			Username: "testuser",
+			Password: "testpass",
+			Request: &cpb.DialRequest_Srv{
+				Srv: cpb.Service_ST_GNMI,
+			},
+		},
+		wantResp: &cpb.DialResponse{
+			Response: &cpb.DialResponse_GnmiResponse{
+				GnmiResponse: func() *anypb.Any {
+					a, err := anypb.New(&gpb.CapabilityResponse{
+						GNMIVersion: "demo",
+					})
+					if err != nil {
+						t.Fatalf("cannot create gNMI response, %v", err)
+					}
+					return a
+				}(),
+			},
+		},
+	}, {
+		desc:         "gnmi server with bad auth",
+		inServer:     startServer,
+		inServerPort: serverPort,
+		inRemote:     buildAuthenticatedGNMIServer(t, "testuser", "testpass"),
+		inRemotePort: gnmiBadAuthPort,
+		inReq: &cpb.DialRequest{
+			Addr:     fmt.Sprintf("localhost:%d", gnmiBadAuthPort),
+			Username: "baduser",
+			Password: "badpassword",
+			Request: &cpb.DialRequest_Srv{
+				Srv: cpb.Service_ST_GNMI,
+			},
+		},
+		wantErr: true,
 	}}
 
 	for _, tt := range tests {
@@ -278,7 +381,7 @@ func TestDial(t *testing.T) {
 
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			client, stopC := newClient(t, 60061)
+			client, stopC := newClient(t, tt.inServerPort)
 			defer stopC()
 
 			got, err := client.Dial(ctx, tt.inReq)

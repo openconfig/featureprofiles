@@ -31,6 +31,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
@@ -53,12 +54,12 @@ func TestMain(m *testing.M) {
 // networks be configured on the ATE.  It is not possible to send
 // packets to the ether.
 //
-// The testbed consists of ate:port1 -> dut:port1 and dut:port{2-9} ->
-// ate:port{2-9}.  The first pair is called the "source" pair, and the
+// The testbed consists of ate:port1 -> dut:port1 and dut:port{2-8} ->
+// ate:port{2-8}.  The first pair is called the "source" pair, and the
 // second aggregate link the "destination" pair.
 //
 //   * Source: ate:port1 -> dut:port1 subnet 192.0.2.0/30 2001:db8::0/126
-//   * Destination: dut:port{2-9} -> ate:port{2-9}
+//   * Destination: dut:port{2-8} -> ate:port{2-8}
 //     subnet 192.0.2.4/30 2001:db8::4/126
 //
 // Note that the first (.0, .4) and last (.3, .7) IPv4 addresses are
@@ -67,7 +68,7 @@ func TestMain(m *testing.M) {
 // for point to point links, but we use /126 so the numbering is
 // consistent with IPv4.
 //
-// A traffic flow is configured from ate:port1 as source and ate:port{2-9}
+// A traffic flow is configured from ate:port1 as source and ate:port{2-8}
 // as destination.
 
 const (
@@ -403,7 +404,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 	agg.Protocol().Lacp().SetActorKey(1).SetActorSystemPriority(1).SetActorSystemId("01:01:01:01:01:01")
 
 	// Disable FEC for 100G-FR ports because Novus does not support it.
-	p100gbasefr := []string{}
+	var p100gbasefr []string
 	for _, p := range tc.atePorts {
 		if p.PMD() == ondatra.PMD100GBASEFR {
 			p100gbasefr = append(p100gbasefr, p.ID())
@@ -447,7 +448,7 @@ var approxOpt = cmpopts.EquateApprox(0 /* frac */, 0.1 /* absolute */)
 // weights listed in the same order as atePorts.
 func (tc *testCase) portWants() []float64 {
 	numPorts := len(tc.dutPorts[1:])
-	weights := []float64{}
+	var weights []float64
 	for i := 0; i < numPorts; i++ {
 		weights = append(weights, 1/float64(numPorts))
 	}
@@ -460,8 +461,8 @@ func (tc *testCase) verifyCounterDiff(t *testing.T, before, after map[string]*oc
 
 	fmt.Fprint(w, "Interface Counter Deltas\n\n")
 	fmt.Fprint(w, "Name\tInPkts\tInOctets\tOutPkts\tOutOctets\n")
-	allInPkts := []uint64{}
-	allOutPkts := []uint64{}
+	var allInPkts []uint64
+	var allOutPkts []uint64
 
 	for port := range before {
 		inPkts := after[port].GetInUnicastPkts() - before[port].GetInUnicastPkts()
@@ -631,6 +632,42 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 	return ports
 }
 
+// configureStaticRoute adds v4/v6 default static route on DUT
+func configureStaticRoute(t *testing.T, dut *ondatra.DUTDevice, ni string) {
+	// set config container leafs corresponding to list key leafs
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
+	spID := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+	gnmi.Update(t, dut, spID.Config(), &oc.NetworkInstance_Protocol{
+		Name:       ygot.String(deviations.StaticProtocolName(dut)),
+		Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+	})
+	b := &gnmi.SetBatch{}
+	sV4 := &cfgplugins.StaticRouteCfg{
+		NetworkInstance: ni,
+		Prefix:          "0.0.0.0/0",
+		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+			"0": oc.UnionString(ateDst.IPv4),
+		},
+	}
+	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
+		t.Fatalf("Failed to configure IPv4 static route: %v", err)
+	}
+	sV6 := &cfgplugins.StaticRouteCfg{
+		NetworkInstance: ni,
+		Prefix:          "::0/0",
+		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+			"0": oc.UnionString(ateDst.IPv6),
+		},
+	}
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
+	dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
+	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	if _, err := cfgplugins.NewStaticRouteCfg(b, sV6, dut); err != nil {
+		t.Fatalf("Failed to configure IPv6 static route: %v", err)
+	}
+	b.Set(t, dut)
+}
+
 // define different flows for traffic
 func TestBalancing(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
@@ -671,6 +708,7 @@ func TestBalancing(t *testing.T) {
 	}
 	tc.configureATE(t)
 	tc.configureDUT(t)
+	configureStaticRoute(t, dut, deviations.DefaultNetworkInstance(dut))
 	t.Run("verifyDUT", tc.verifyDUT)
 
 	for _, tf := range tests {

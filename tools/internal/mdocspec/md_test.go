@@ -632,3 +632,1041 @@ This example yaml defines the OC paths intended to be covered by this test.  OC 
 		})
 	}
 }
+
+func TestJSONRenderer(t *testing.T) {
+	tests := []struct {
+		desc     string
+		inSource []byte
+		want     []string
+	}{{
+		desc: "valid-readme",
+		inSource: []byte(`
+# RT-1.7: Local BGP Test
+
+## Summary
+
+The local\_bgp\_test brings up two OpenConfig controlled devices and tests that for an eBGP session
+
+* Established between them.
+* Disconnected between them.
+* Verify BGP neighbor parameters
+
+Enable an Accept-route all import-policy/export-policy for eBGP session under the BGP peer-group AFI/SAFI.
+
+This test is suitable for running in a KNE environment.
+
+## Canonical OC
+` + "```" + `json
+{
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "a description",
+          "mtu": 1500,
+          "name": "eth0",
+          "type": "ethernetCsmacd"
+        },
+        "hold-time": {
+          "config": {
+            "up": 42
+          }
+        },
+        "name": "eth0"
+      }
+    ]
+  },
+  "system": {
+    "config": {
+      "hostname": "a hostname"
+    }
+  }
+}` + "\n```" + `
+## OpenConfig Path and RPC Coverage
+` + "```" + `yaml
+paths:
+  ## Parameter Coverage
+
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/export-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/export-policy:
+
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+    gNMI.Set:
+` + "```"),
+		want: []string{`
+{
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "a description",
+          "mtu": 1500,
+          "name": "eth0",
+          "type": "ethernetCsmacd"
+        },
+        "hold-time": {
+          "config": {
+            "up": 42
+          }
+        },
+        "name": "eth0"
+      }
+    ]
+  },
+  "system": {
+    "config": {
+      "hostname": "a hostname"
+    }
+  }
+}`},
+	}, {
+		desc: "second-json-block-in-separate-heading",
+		inSource: []byte(`
+# RT-1.7: Local BGP Test
+
+## Summary
+
+The local\_bgp\_test brings up two OpenConfig controlled devices and tests that for an eBGP session
+
+* Established between them.
+* Disconnected between them.
+* Verify BGP neighbor parameters
+
+Enable an Accept-route all import-policy/export-policy for eBGP session under the BGP peer-group AFI/SAFI.
+
+This test is suitable for running in a KNE environment.
+
+## Canonical OC
+` + "```" + `json
+{
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "a description",
+          "mtu": 1500,
+          "name": "eth0",
+          "type": "ethernetCsmacd"
+        },
+        "hold-time": {
+          "config": {
+            "up": 42
+          }
+        },
+        "name": "eth0"
+      }
+    ]
+  },
+  "system": {
+    "config": {
+      "hostname": "a hostname"
+    }
+  }
+}` + "\n```" + `
+## Second JSON Block
+` + "```" + `json
+{
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "a description",
+          "mtu": 1500,
+          "name": "eth0",
+          "type": "ethernetCsmacd"
+        },
+        "hold-time": {
+          "config": {
+            "up": 49
+          }
+        },
+        "name": "eth0"
+      }
+    ]
+  },
+  "system": {
+    "config": {
+      "hostname": "a hostname"
+    }
+  }
+}` + "\n```" + `
+## OpenConfig Path and RPC Coverage
+` + "```" + `yaml
+paths:
+  ## Parameter Coverage
+
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/export-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/export-policy:
+
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+    gNMI.Set:
+` + "```"),
+		want: []string{`
+{
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "a description",
+          "mtu": 1500,
+          "name": "eth0",
+          "type": "ethernetCsmacd"
+        },
+        "hold-time": {
+          "config": {
+            "up": 42
+          }
+        },
+        "name": "eth0"
+      }
+    ]
+  },
+  "system": {
+    "config": {
+      "hostname": "a hostname"
+    }
+  }
+}`},
+	}, {
+		desc: "two-json-blocks-same-heading",
+		inSource: []byte(`
+# RT-1.7: Local BGP Test
+
+## Summary
+
+The local\_bgp\_test brings up two OpenConfig controlled devices and tests that for an eBGP session
+
+* Established between them.
+* Disconnected between them.
+* Verify BGP neighbor parameters
+
+Enable an Accept-route all import-policy/export-policy for eBGP session under the BGP peer-group AFI/SAFI.
+
+This test is suitable for running in a KNE environment.
+
+## Canonical OC
+` + "```" + `json
+{
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "a description",
+          "mtu": 1500,
+          "name": "eth0",
+          "type": "ethernetCsmacd"
+        },
+        "hold-time": {
+          "config": {
+            "up": 47
+          }
+        },
+        "name": "eth0"
+      }
+    ]
+  },
+  "system": {
+    "config": {
+      "hostname": "a hostname"
+    }
+  }
+}` + "\n```" + "\n```" + `json
+{
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "a description",
+          "mtu": 1500,
+          "name": "eth0",
+          "type": "ethernetCsmacd"
+        },
+        "hold-time": {
+          "config": {
+            "up": 49
+          }
+        },
+        "name": "eth0"
+      }
+    ]
+  },
+  "system": {
+    "config": {
+      "hostname": "a hostname"
+    }
+  }
+}` + "\n```" + `
+## OpenConfig Path and RPC Coverage
+` + "```" + `yaml
+paths:
+  ## Parameter Coverage
+
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/export-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/export-policy:
+
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+    gNMI.Set:
+` + "```"),
+		want: []string{`
+{
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "a description",
+          "mtu": 1500,
+          "name": "eth0",
+          "type": "ethernetCsmacd"
+        },
+        "hold-time": {
+          "config": {
+            "up": 47
+          }
+        },
+        "name": "eth0"
+      }
+    ]
+  },
+  "system": {
+    "config": {
+      "hostname": "a hostname"
+    }
+  }
+}`},
+	}, {
+		desc: "json-block-after-next-heading-ignored",
+		inSource: []byte(`
+# RT-1.7: Local BGP Test
+
+## Summary
+
+The local\_bgp\_test brings up two OpenConfig controlled devices and tests that for an eBGP session
+
+* Established between them.
+* Disconnected between them.
+* Verify BGP neighbor parameters
+
+Enable an Accept-route all import-policy/export-policy for eBGP session under the BGP peer-group AFI/SAFI.
+
+This test is suitable for running in a KNE environment.
+
+## Canonical OC
+
+## Some other OC Heading
+` + "```" + `json
+{
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "a description",
+          "mtu": 1500,
+          "name": "eth0",
+          "type": "ethernetCsmacd"
+        },
+        "hold-time": {
+          "config": {
+            "up": 42
+          }
+        },
+        "name": "eth0"
+      }
+    ]
+  },
+  "system": {
+    "config": {
+      "hostname": "a hostname"
+    }
+  }
+}` + "\n```" + `
+## OpenConfig Path and RPC Coverage
+` + "```" + `yaml
+paths:
+  ## Parameter Coverage
+
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/export-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/export-policy:
+
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+    gNMI.Set:
+` + "```"),
+		want: []string{},
+	}, {
+		desc: "no-json-blocks-last-heading",
+		inSource: []byte(`
+# RT-1.7: Local BGP Test
+
+## Summary
+
+The local\_bgp\_test brings up two OpenConfig controlled devices and tests that for an eBGP session
+
+* Established between them.
+* Disconnected between them.
+* Verify BGP neighbor parameters
+
+Enable an Accept-route all import-policy/export-policy for eBGP session under the BGP peer-group AFI/SAFI.
+
+This test is suitable for running in a KNE environment.
+
+## Canonical OC
+
+## OpenConfig Path and RPC Coverage
+` + "```" + `yaml
+paths:
+  ## Parameter Coverage
+
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/export-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/export-policy:
+
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+    gNMI.Set:
+` + "```"),
+		want: []string{},
+	}, {
+		desc: "empty-json-codeblock",
+		inSource: []byte(`
+# RT-1.7: Local BGP Test
+
+## Summary
+
+The local\_bgp\_test brings up two OpenConfig controlled devices and tests that for an eBGP session
+
+* Established between them.
+* Disconnected between them.
+* Verify BGP neighbor parameters
+
+Enable an Accept-route all import-policy/export-policy for eBGP session under the BGP peer-group AFI/SAFI.
+
+This test is suitable for running in a KNE environment.
+
+## Canonical OC
+` + "```" + `json` + "\n```" + `
+## OpenConfig Path and RPC Coverage
+` + "```" + `yaml
+paths:
+  ## Parameter Coverage
+
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/export-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/export-policy:
+
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+    gNMI.Set:
+` + "```"),
+		want: []string{},
+	}, {
+		desc: "json-block-after-next-higher-heading-ignored",
+		inSource: []byte(`
+# RT-1.7: Local BGP Test
+
+## Summary
+
+The local\_bgp\_test brings up two OpenConfig controlled devices and tests that for an eBGP session
+
+* Established between them.
+* Disconnected between them.
+* Verify BGP neighbor parameters
+
+Enable an Accept-route all import-policy/export-policy for eBGP session under the BGP peer-group AFI/SAFI.
+
+This test is suitable for running in a KNE environment.
+
+## Canonical OC
+
+# Higher Heading
+` + "```" + `json
+{
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "a description",
+          "mtu": 1500,
+          "name": "eth0",
+          "type": "ethernetCsmacd"
+        },
+        "hold-time": {
+          "config": {
+            "up": 42
+          }
+        },
+        "name": "eth0"
+      }
+    ]
+  },
+  "system": {
+    "config": {
+      "hostname": "a hostname"
+    }
+  }
+}` + "\n```" + `
+## OpenConfig Path and RPC Coverage
+` + "```" + `yaml
+paths:
+  ## Parameter Coverage
+
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/export-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/export-policy:
+
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+    gNMI.Set:
+` + "```"),
+		want: []string{},
+	}, {
+		desc: "json-block-after-next-lower-heading-accepted",
+		inSource: []byte(`
+# RT-1.7: Local BGP Test
+
+## Summary
+
+The local\_bgp\_test brings up two OpenConfig controlled devices and tests that for an eBGP session
+
+* Established between them.
+* Disconnected between them.
+* Verify BGP neighbor parameters
+
+Enable an Accept-route all import-policy/export-policy for eBGP session under the BGP peer-group AFI/SAFI.
+
+This test is suitable for running in a KNE environment.
+
+## Canonical OC
+
+### Lower Heading
+` + "```" + `json
+{
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "a description",
+          "mtu": 1500,
+          "name": "eth0",
+          "type": "ethernetCsmacd"
+        },
+        "hold-time": {
+          "config": {
+            "up": 42
+          }
+        },
+        "name": "eth0"
+      }
+    ]
+  },
+  "system": {
+    "config": {
+      "hostname": "a hostname"
+    }
+  }
+}` + "\n```" + `
+## OpenConfig Path and RPC Coverage
+` + "```" + `yaml
+paths:
+  ## Parameter Coverage
+
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/export-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/export-policy:
+
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+    gNMI.Set:
+` + "```"),
+		want: []string{`
+{
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "a description",
+          "mtu": 1500,
+          "name": "eth0",
+          "type": "ethernetCsmacd"
+        },
+        "hold-time": {
+          "config": {
+            "up": 42
+          }
+        },
+        "name": "eth0"
+      }
+    ]
+  },
+  "system": {
+    "config": {
+      "hostname": "a hostname"
+    }
+  }
+}`},
+	}, {
+		desc: "two-blocks-same-heading-first-language-not-specified-and-ignored",
+		inSource: []byte(`
+# RT-1.7: Local BGP Test
+
+## Summary
+
+The local\_bgp\_test brings up two OpenConfig controlled devices and tests that for an eBGP session
+
+* Established between them.
+* Disconnected between them.
+* Verify BGP neighbor parameters
+
+Enable an Accept-route all import-policy/export-policy for eBGP session under the BGP peer-group AFI/SAFI.
+
+This test is suitable for running in a KNE environment.
+
+## Canonical OC
+` + "```" +
+			`{
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "a description",
+          "mtu": 1500,
+          "name": "eth0",
+          "type": "ethernetCsmacd"
+        },
+        "hold-time": {
+          "config": {
+            "up": 42
+          }
+        },
+        "name": "eth0"
+      }
+    ]
+  },
+  "system": {
+    "config": {
+      "hostname": "a hostname"
+    }
+  }
+}` + "\n```" + "\n```" + `json
+{
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "a description",
+          "mtu": 1500,
+          "name": "eth0",
+          "type": "ethernetCsmacd"
+        },
+        "hold-time": {
+          "config": {
+            "up": 47
+          }
+        },
+        "name": "eth0"
+      }
+    ]
+  },
+  "system": {
+    "config": {
+      "hostname": "a hostname"
+    }
+  }
+}` + "\n```" + `
+## OpenConfig Path and RPC Coverage
+` + "```" + `yaml
+paths:
+  ## Parameter Coverage
+
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/export-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/export-policy:
+
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+    gNMI.Set:
+` + "```"),
+		want: []string{`
+{
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "a description",
+          "mtu": 1500,
+          "name": "eth0",
+          "type": "ethernetCsmacd"
+        },
+        "hold-time": {
+          "config": {
+            "up": 47
+          }
+        },
+        "name": "eth0"
+      }
+    ]
+  },
+  "system": {
+    "config": {
+      "hostname": "a hostname"
+    }
+  }
+}`},
+	}, {
+		desc: "valid-readme-with-two-canonical-ocs",
+		inSource: []byte(`
+# RT-1.7: Local BGP Test
+
+## Summary
+
+The local\_bgp\_test brings up two OpenConfig controlled devices and tests that for an eBGP session
+
+* Established between them.
+* Disconnected between them.
+* Verify BGP neighbor parameters
+
+Enable an Accept-route all import-policy/export-policy for eBGP session under the BGP peer-group AFI/SAFI.
+
+This test is suitable for running in a KNE environment.
+
+## Canonical OC
+` + "```" + `json
+{
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "a description",
+          "mtu": 1500,
+          "name": "eth0",
+          "type": "ethernetCsmacd"
+        },
+        "hold-time": {
+          "config": {
+            "up": 48
+          }
+        },
+        "name": "eth0"
+      }
+    ]
+  },
+  "system": {
+    "config": {
+      "hostname": "a hostname"
+    }
+  }
+}` + "\n```" + `
+
+## Canonical OC
+` + "```" + `json
+{
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "a description",
+          "mtu": 1500,
+          "name": "eth0",
+          "type": "ethernetCsmacd"
+        },
+        "hold-time": {
+          "config": {
+            "up": 47
+          }
+        },
+        "name": "eth0"
+      }
+    ]
+  },
+  "system": {
+    "config": {
+      "hostname": "a hostname"
+    }
+  }
+}` + "\n```" + `
+## OpenConfig Path and RPC Coverage
+` + "```" + `yaml
+paths:
+  ## Parameter Coverage
+
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/export-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/export-policy:
+
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+    gNMI.Set:
+` + "```"),
+		want: []string{`
+{
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "a description",
+          "mtu": 1500,
+          "name": "eth0",
+          "type": "ethernetCsmacd"
+        },
+        "hold-time": {
+          "config": {
+            "up": 48
+          }
+        },
+        "name": "eth0"
+      }
+    ]
+  },
+  "system": {
+    "config": {
+      "hostname": "a hostname"
+    }
+  }
+}
+`, `
+{
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "a description",
+          "mtu": 1500,
+          "name": "eth0",
+          "type": "ethernetCsmacd"
+        },
+        "hold-time": {
+          "config": {
+            "up": 47
+          }
+        },
+        "name": "eth0"
+      }
+    ]
+  },
+  "system": {
+    "config": {
+      "hostname": "a hostname"
+    }
+  }
+}`},
+	}, {
+		desc: "valid-readme-with-todo",
+		inSource: []byte(`
+# RT-1.7: Local BGP Test
+
+## Summary
+
+The local\_bgp\_test brings up two OpenConfig controlled devices and tests that for an eBGP session
+
+* Established between them.
+* Disconnected between them.
+* Verify BGP neighbor parameters
+
+Enable an Accept-route all import-policy/export-policy for eBGP session under the BGP peer-group AFI/SAFI.
+
+This test is suitable for running in a KNE environment.
+
+#### TODO: https://github.com/openconfig/public/pull/1234 - Add new leaf to scheduler-policy
+` + "```" + `json
+{
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "a description",
+          "mtu": 1500,
+          "name": "eth0",
+          "type": "ethernetCsmacd"
+        },
+        "hold-time": {
+          "config": {
+            "up": 42
+          }
+        },
+        "name": "eth0"
+      }
+    ]
+  },
+  "system": {
+    "config": {
+      "hostname": "a hostname"
+    }
+  }
+}` + "\n```" + `
+## OpenConfig Path and RPC Coverage
+` + "```" + `yaml
+paths:
+  ## Parameter Coverage
+
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/export-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/export-policy:
+
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+    gNMI.Set:
+` + "```"),
+		want: []string{},
+	}, {
+		desc: "readme-with-todo-and-valid-oc",
+		inSource: []byte(`
+# RT-1.7: Local BGP Test
+
+## Summary
+
+The local\_bgp\_test brings up two OpenConfig controlled devices and tests that for an eBGP session
+
+* Established between them.
+* Disconnected between them.
+* Verify BGP neighbor parameters
+
+Enable an Accept-route all import-policy/export-policy for eBGP session under the BGP peer-group AFI/SAFI.
+
+This test is suitable for running in a KNE environment.
+
+#### TODO: https://github.com/openconfig/public/pull/1234 - Add new leaf to scheduler-policy
+` + "```" + `json
+{
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "a description",
+          "mtu": 1500,
+          "name": "eth0",
+          "type": "ethernetCsmacd"
+        },
+        "hold-time": {
+          "config": {
+            "up": 42
+          }
+        },
+        "name": "eth0"
+      }
+    ]
+  },
+  "system": {
+    "config": {
+      "hostname": "a hostname"
+    }
+  }
+}` + "\n```" + `
+
+## Canonical OC
+` + "```" + `json
+{
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "a description",
+          "mtu": 1500,
+          "name": "eth0",
+          "type": "ethernetCsmacd"
+        },
+        "hold-time": {
+          "config": {
+            "up": 42
+          }
+        },
+        "name": "eth0"
+      }
+    ]
+  },
+  "system": {
+    "config": {
+      "hostname": "a hostname"
+    }
+  }
+}` + "\n```" + `
+## OpenConfig Path and RPC Coverage
+` + "```" + `yaml
+paths:
+  ## Parameter Coverage
+
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/export-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/export-policy:
+
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+    gNMI.Set:
+` + "```"),
+		want: []string{`
+{
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "a description",
+          "mtu": 1500,
+          "name": "eth0",
+          "type": "ethernetCsmacd"
+        },
+        "hold-time": {
+          "config": {
+            "up": 42
+          }
+        },
+        "name": "eth0"
+      }
+    ]
+  },
+  "system": {
+    "config": {
+      "hostname": "a hostname"
+    }
+  }
+}`},
+	}}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			var buf strings.Builder
+			md := goldmark.New(
+				goldmark.WithExtensions(MDJSONSpecs),
+			)
+			if err := md.Convert(tt.inSource, &buf); err != nil {
+				t.Fatalf("MDJSONSpecs.Convert(%v, &buf): %v", tt.inSource, err)
+			}
+			if len(tt.want) != len(MDJSONSpecs.CanonicalOCs) {
+				t.Fatalf("MDJSONSpecs.Convert(%s, &buf): got %v, want %v", string(tt.inSource), MDJSONSpecs.CanonicalOCs, tt.want)
+			}
+			for idx, got := range MDJSONSpecs.CanonicalOCs {
+				if diff := cmp.Diff(strings.TrimSpace(tt.want[idx]), strings.TrimSpace(got)); diff != "" {
+					t.Errorf("MDJSONSpecs.Convert(%s, &buf): at idx: %d, (-want, +got):\n%s", string(tt.inSource), idx, diff)
+				}
+			}
+		})
+	}
+}

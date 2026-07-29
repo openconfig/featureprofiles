@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "b14b5c1c-4b88-4c8a-9144-b83cbdb27dc5"
+plan_id:  "ACCTZ-9.1"
+description:  "gNSI.acctz.v1 (Accounting) Test Accounting Privilege Escalation"
+testbed:  TESTBED_DUT_ATE_2LINKS

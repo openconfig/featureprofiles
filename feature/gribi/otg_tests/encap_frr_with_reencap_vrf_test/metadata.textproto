@@ -13,9 +13,10 @@ platform_exceptions:  {
   deviations:  {
     ipv4_missing_enabled:  true
     gribi_mac_override_with_static_arp: true
-    interface_ref_interface_id_format: true
+    interface_id_format_required_for_policy_forwarding: true
     pf_require_match_default_rule: true
-    pf_require_sequential_order_pbr_rules: true   
+    pf_require_sequential_order_pbr_rules: true
+    use_interface_name_for_ibgp_neighbor_transport_ipv4_local_address: true
   }
 }
 platform_exceptions:  {
@@ -24,6 +25,7 @@ platform_exceptions:  {
   }
   deviations:  {
     isis_level_enabled:  true
+    interface_ref_interface_id_format: true
   }
 }
 platform_exceptions:  {
@@ -31,6 +33,8 @@ platform_exceptions:  {
     vendor:  NOKIA
   }
   deviations:  {
+    reduced_ecmp_set_on_mixed_encap_decap_nh: true
+    missing_isis_interface_afi_safi_enable: true
     explicit_interface_in_default_vrf:  true
     interface_enabled:  true
   }

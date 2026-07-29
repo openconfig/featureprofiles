@@ -1,4 +1,4 @@
-# PF-1.18 - MPLSoGRE and MPLSoGUE QoS 
+# PF-1.18: MPLSoGRE and MPLSoGUE QoS 
 
 ## Summary
 This test verifies quality of service with MPLSoGRE and MPLSoGUE IP traffic on routed VLAN sub interfaces. The classification, marking and queueing of traffic while being encapsulated and decapsulated based on the outer headers and/or inner payload are the major features verified on the test device.
@@ -195,116 +195,228 @@ Verify results are same corresponding to test cases PF-1.18.1 - PF-1.18.9 with:
 * Ingress and egress aggregate links on same PPE
 * Ingress links on multiple PPEs and egress aggregate links on multiple PPEs
 
-## Canonical OpenConfig for MACsec configuration
+## PF-1.18.v6: Validate MPLS over GRE over UDP over IPv6 encapsulation and decapsulation with QoS prioritization
 
+This test scenario validates the encapsulation of traffic into MPLS over GRE over UDP over IPv6 (MPLSoGUEv6) and its decapsulation, while ensuring that the configured Quality of Service (QoS) prioritization correctly maps traffic to distinct egress queues based on DSCP values.
+
+#### Test environment setup
+1. Connect the DUT to the ATE using two links: Port 1 as the Ingress port and Port 2 as the Egress port.
+2. Initialize the ATE with IPv6 interfaces on both connected ports, configuring necessary neighbor discovery and IPv6 addresses.
+
+#### Configuration
+1. Use gNMI `Set` to configure IPv6 subinterfaces on DUT Port 1 and Port 2 under `/interfaces/interface[name=...]/subinterfaces/subinterface[index=0]/ipv6`.
+2. Configure QoS classifiers and forwarding groups on the DUT to match IPv6 DSCP values and map them to distinct egress queues via `/qos/classifiers` and `/qos/interfaces/interface/input/classifiers`. Assign high-priority DSCP flows (e.g., EF) to a high-priority queue (e.g., `NC1`).
+3. Configure Policy-Based Routing (PBR) rules to match incoming traffic and encapsulate it into an MPLSoGUEv6 outer header (Outer IPv6 -> UDP -> GRE -> MPLS) by routing to a network instance. Path: `/network-instances/network-instance[name=default]/policy-forwarding/policies/policy[policy-id=encap-v6]/rules/rule[sequence-id=1]/action/config/network-instance`.
+4. Configure a corresponding decapsulation rule on Port 1 for return traffic that matches the IPv6 outer header + UDP + GRE.
+
+#### Canonical OC Configuration
+```json
+{
+  "openconfig-interfaces:interfaces": {
+    "interface": [
+      {
+        "name": "Port1",
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "index": 0,
+              "config": {
+                "index": 0
+              },
+              "openconfig-if-ip:ipv6": {
+                "addresses": {
+                  "address": [
+                    {
+                      "ip": "2001:db8:1::1",
+                      "config": {
+                        "ip": "2001:db8:1::1",
+                        "prefix-length": 64
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "openconfig-qos:qos": {
+    "classifiers": {
+      "classifier": [
+        {
+          "name": "dscp-v6-classifier",
+          "config": {
+            "name": "dscp-v6-classifier",
+            "type": "IPV6"
+          },
+          "terms": {
+            "term": [
+              {
+                "id": "term1",
+                "config": {
+                  "id": "term1"
+                },
+                "conditions": {
+                  "ipv6": {
+                    "config": {
+                      "dscp": 46
+                    }
+                  }
+                },
+                "actions": {
+                  "config": {
+                    "target-group": "NC1"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "interfaces": {
+      "interface": [
+        {
+          "interface-id": "Port1",
+          "config": {
+            "interface-id": "Port1"
+          },
+          "input": {
+            "classifiers": {
+              "classifier": [
+                {
+                  "type": "IPV6",
+                  "config": {
+                    "type": "IPV6",
+                    "name": "dscp-v6-classifier"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  },
+  "openconfig-network-instance:network-instances": {
+    "network-instance": [
+      {
+        "name": "default",
+        "config": {
+          "name": "default",
+          "type": "openconfig-network-instance-types:DEFAULT_INSTANCE"
+        },
+        "policy-forwarding": {
+          "policies": {
+            "policy": [
+              {
+                "policy-id": "encap-v6",
+                "config": {
+                  "policy-id": "encap-v6",
+                  "type": "PBR_POLICY"
+                },
+                "rules": {
+                  "rule": [
+                    {
+                      "sequence-id": 1,
+                      "config": {
+                        "sequence-id": 1
+                      },
+                      "action": {
+                        "config": {
+                          "network-instance": "default"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}
+```
+
+#### Telemetry
+1. Subscribe via gNMI to interface counters to monitor traffic egressing the DUT: `/interfaces/interface[name=Port2]/state/counters/out-pkts`.
+2. Subscribe via gNMI to QoS queue transmit counters for the egress port to verify QoS queue mappings: `/qos/interfaces/interface[name=Port2]/output/queues/queue[name=NC1]/state/transmit-pkts` and `dropped-pkts`.
+
+#### Traffic Execution
+1. The ATE generates and sends a mix of high-priority (e.g., DSCP 46) and low-priority (e.g., default DSCP 0) inner payloads on Port 1 towards Port 2.
+2. Ensure that the DUT applies the configured encapsulation (Outer IPv6/UDP/GRE/MPLS).
+
+#### Verification
+* **Pass Criteria**:
+  * ATE receives the correctly encapsulated packets on Port 2.
+  * A packet capture on the ATE verifies that the outer header is IPv6 with the correct next-header fields (UDP), containing GRE and MPLS tags.
+  * QoS telemetry confirms packets egress via the correctly mapped hardware queues. Specifically, the path `/qos/interfaces/interface[name=Port2]/output/queues/queue[name=NC1]/state/transmit-pkts` increments for the high-priority flow, and `dropped-pkts` remains 0.
+* **Fail Criteria**:
+  * Any packet loss is observed for the configured streams.
+  * The outer header is encapsulated as IPv4 instead of IPv6.
+  * QoS telemetry indicates that traffic is mapped to the default queue or a wrong hardware QoS queue.
+
+#### Canonical OC 
+NOTE: Multicast traffic must be sent out with L2 multicast header based on IP Multicast address even though there is no PIM on the egress interface
+
+```json
+{
+  "network-instances": {
+    "network-instance": [
+      {
+        "config": {
+          "name": "default"
+        },
+        "mpls": {
+          "lsps": {
+            "static-lsps": {
+              "static-lsp": [
+                {
+                  "config": {
+                    "name": "Customer IPV4 in:40571 out:pop"
+                  },
+                  "egress": {
+                    "config": {
+                      "incoming-label": 40571,
+                      "next-hop": "169.254.1.138"
+                    }
+                  },
+                  "name": "Customer IPV4 in:40571 out:pop"
+                },
+                {
+                  "config": {
+                    "name": "Customer IPV6 in:40572 out:pop"
+                  },
+                  "egress": {
+                    "config": {
+                      "incoming-label": 40572,
+                      "next-hop": "2600:2d00:0:1:4000:15:69:2072"
+                    }
+                  },
+                  "name": "Customer IPV6 in:40572 out:pop"
+                }
+              ]
+            }
+          }
+        },
+        "name": "default"
+      }
+    ]
+  }
+}        
+```
 TODO: 
 * Finalize and update the below paths after the review and testing on any vendor device
 * MPLSoGRE/MPLSoGUE packet classification OC need to be defined
 * OC for Queueing with shaper need to be defined
 * Add json queueing configs in this file - b/408493684
-
-### JSON Format
-NOTE: Multicast traffic must be sent out with L2 multicast header based on IP Multicast address even though there is no PIM on the egress interface
-
-```json
-{
-    "network-instances": {
-        "network-instance": {
-            "DEFAULT": {
-                "mpls": {
-                    "global": {
-                        "interface-attributes": {
-                            "interface": [
-                                {
-                                    "config": {
-                                        "interface-id": "Aggregate4",
-                                        "mpls-enabled": false
-                                    },
-                                    "interface-id": "Aggregate4"
-                                }
-                            ]
-                        }
-                    },
-                    "lsps": {
-                        "static-lsps": {
-                            "static-lsp": [
-                                {
-                                    "config": {
-                                        "name": "Customer IPV4 in:40571 out:pop"
-                                    },
-                                    "egress": {
-                                        "config": {
-                                            "incoming-label": 40571,
-                                            "next-hop": "169.254.1.138",
-                                            "pipe-mode": true # TODO: Add to OC data models following https: //datatracker.ietf.org/doc/html/rfc3270#section-2.6.2
-                                        }
-                                    }
-                                },
-                                {
-                                    "config": {
-                                        "name": "Customer IPV6 in:40572 out:pop"
-                                    },
-                                    "egress": {
-                                        "config": {
-                                            "incoming-label": 40572,
-                                            "next-hop": "2600:2d00:0:1:4000:15:69:2072",
-                                            "pipe-mode": true # TODO: Add to OC data models following https: //datatracker.ietf.org/doc/html/rfc3270#section-2.6.2
-                                        }
-                                    }
-                                },
-                                {
-                                    "config": {
-                                        "name": "Customer multicast in:40573 out:pop"
-                                    },
-                                    "egress": {
-                                        "config": {
-                                            "incoming-label": 40573,
-                                            "next-hop": "239.0.1.1",
-                                            "pipe-mode": true # TODO: Add to OC data models following https: //datatracker.ietf.org/doc/html/rfc3270#section-2.6.2
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                },
-                "name": "default",
-                "policy-forwarding": {
-                    "policies": {
-                        "policy": [
-                            {
-                                "config": {
-                                    "policy-id": "decap MPLS in GRE"
-                                },
-                                "rules": {
-                                    "rule": [
-                                        {
-                                            "action": {
-                                                "decapsulate-mpls-in-udp": true
-                                            },
-                                            "config": {
-                                                "sequence-id": 1
-                                            },
-                                            "ipv4": {
-                                                "config": {
-                                                    "destination-address": "169.254.125.155/28",
-                                                    "protocol": "IP"
-                                                }
-                                            },
-                                            "sequence-id": 1
-                                        }
-                                    ]
-                                }
-                            }
-                        ]
-                    }
-                }
-            }
-        }
-    }
-}
-```
-
+* Add to OC data models following https: //datatracker.ietf.org/doc/html/rfc3270#section-2.6.2 :"pipe-mode": true
+* 
+  
 ## OpenConfig Path and RPC Coverage
 ```yaml
 
@@ -339,6 +451,14 @@ paths:
   /qos/classifiers/classifier/terms/term/conditions/mpls/config/traffic-class:
   /qos/forwarding-groups/forwarding-group/config/name:
   /qos/forwarding-groups/forwarding-group/config/output-queue:
+
+  ### PF-1.18.v6 Coverage
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length:
+  /interfaces/interface/state/counters/out-pkts:
+  /qos/classifiers/classifier/terms/term/conditions/ipv6/config/dscp:
+  /qos/classifiers/classifier/terms/term/actions/config/target-group:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/network-instance:
 
 rpcs:
   gnmi:
