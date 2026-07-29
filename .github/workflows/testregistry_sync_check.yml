@@ -3,11 +3,6 @@ name: Test Registry Sync Check
 on:
   pull_request:
     branches: [ main ]
-    paths:
-      - 'feature/**/metadata.textproto'
-      - 'testregistry.textproto'
-      - 'tools/sync_test_registry/**'
-      - 'Makefile'
 
 jobs:
   check-sync:
