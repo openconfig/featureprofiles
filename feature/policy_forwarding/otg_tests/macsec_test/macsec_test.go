@@ -144,7 +144,7 @@ ip route 0.0.0.0/0 169.254.0.11
 	helpers.GnmiCLIConfig(t, dut, cfg)
 }
 
-// PF-1.17: MPLSoGRE and MPLSoGUE MACsec
+// PF-1.27: MPLSoGRE and MPLSoGUE MACsec
 func ConfigureDut(t *testing.T, dut *ondatra.DUTDevice, ocPFParams cfgplugins.OcPolicyForwardingParams, ocNHGParams cfgplugins.StaticNextHopGroupParams) {
 	t.Log("Check the config before the hardware tcam application...")
 	time.Sleep(300 * time.Second)
@@ -193,7 +193,7 @@ func TestSetup(t *testing.T) {
 	ConfigureOTG(t)
 }
 
-// PF-1.17: MPLSoGRE and MPLSoGUE MACsec
+// PF-1.27: MPLSoGRE and MPLSoGUE MACsec
 func TestMPLSOGREEncapIPv4Macsec(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	dut := ondatra.DUT(t, "dut")
