@@ -19,6 +19,7 @@ import (
 	p4v1pb "github.com/p4lang/p4runtime/go/p4/v1"
 )
 
+
 var (
 	p4InfoFile = flag.String("p4info_file_location", "../../data/wbb.p4info.pb.txt", "Path to the p4info file.")
 )
@@ -43,18 +44,19 @@ func TestP4RTMetadata(t *testing.T) {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
-	if err := clientArbitration(c); err != nil {
+	electionIdL, err := clientArbitration(c)
+	if err != nil {
 		t.Fatalf("Error in P4RT Client Arbitration: %v", err)
 	}
 
-	if err := forwardingPipeline(c); err != nil {
+	if err := forwardingPipeline(c, electionIdL); err != nil {
 		t.Fatalf("Error in P4RT Forwarding Pipeline config: %v", err)
 	}
 
 	metadata := "test metadata"
 
 	t.Run("Insert and Read Table with Metadata", func(t *testing.T) {
-		got, found, err := writeReadTableEntry(c, metadata, p4v1pb.Update_INSERT)
+		got, found, err := writeReadTableEntry(c, metadata, p4v1pb.Update_INSERT, electionIdL)
 		if err != nil {
 			t.Fatalf("Error in Write+Read Table Entry with Type %v: %v", p4v1pb.Update_INSERT, err)
 		}
@@ -74,7 +76,7 @@ func TestP4RTMetadata(t *testing.T) {
 		// Update Metadata to a different value.
 		metadata := "test metadata modified"
 
-		got, found, err := writeReadTableEntry(c, metadata, p4v1pb.Update_MODIFY)
+		got, found, err := writeReadTableEntry(c, metadata, p4v1pb.Update_MODIFY, electionIdL)
 		if err != nil {
 			t.Fatalf("Error in Write+Read Table Entry with Type %v: %v", p4v1pb.Update_MODIFY, err)
 		}
@@ -87,7 +89,7 @@ func TestP4RTMetadata(t *testing.T) {
 	})
 
 	t.Run("Delete Table with Metadata", func(t *testing.T) {
-		got, found, err := writeReadTableEntry(c, metadata, p4v1pb.Update_DELETE)
+		got, found, err := writeReadTableEntry(c, metadata, p4v1pb.Update_DELETE, electionIdL)
 		if err != nil {
 			t.Fatalf("Error in Write+Read Table Entry with Type %v: %v", p4v1pb.Update_DELETE, err)
 		}
@@ -97,8 +99,8 @@ func TestP4RTMetadata(t *testing.T) {
 	})
 }
 
-func writeReadTableEntry(c *p4rt_client.P4RTClient, metadata string, action p4v1pb.Update_Type) (string, bool, error) {
-	if err := writeTableEntry(c, metadata, action); err != nil {
+func writeReadTableEntry(c *p4rt_client.P4RTClient, metadata string, action p4v1pb.Update_Type, electionIdL uint64) (string, bool, error) {
+	if err := writeTableEntry(c, metadata, action, electionIdL); err != nil {
 		return "", false, fmt.Errorf("error in writing Table Entry: %v", err)
 	}
 	resp, err := readTableEntry(c)
@@ -117,40 +119,69 @@ func writeReadTableEntry(c *p4rt_client.P4RTClient, metadata string, action p4v1
 	return "", false, nil
 }
 
-func clientArbitration(c *p4rt_client.P4RTClient) error {
+func clientArbitration(c *p4rt_client.P4RTClient) (uint64, error) {
 	sp := p4rt_client.P4RTStreamParameters{
-		Name:        streamName,
-		DeviceId:    deviceID,
-		ElectionIdH: 0,
-		ElectionIdL: 1,
+		Name:     streamName,
+		DeviceId: deviceID,
 	}
 
 	if err := c.StreamChannelCreate(&sp); err != nil {
-		return fmt.Errorf("Error creating stream channel: %v", err)
+		return 0, fmt.Errorf("Error creating stream channel: %v", err)
 	}
+
+	// Step 1: Send a probe with no Election ID to discover the current highest ID
+	if err := c.StreamChannelSendMsg(&streamName, &p4v1pb.StreamMessageRequest{
+		Update: &p4v1pb.StreamMessageRequest_Arbitration{
+			Arbitration: &p4v1pb.MasterArbitrationUpdate{
+				DeviceId: sp.DeviceId,
+			},
+		},
+	}); err != nil {
+		return 0, fmt.Errorf("Error sending probe ClientArbitration request: %v", err)
+	}
+
+	_, arbResp, arbErr := c.StreamChannelGetArbitrationResp(&streamName, 1)
+	if arbErr != nil {
+		if err := p4rtutils.StreamTermErr(c.StreamTermErr); err != nil {
+			return 0, fmt.Errorf("Stream terminated on sending probe ClientArbitration: %v", err)
+		}
+		return 0, fmt.Errorf("Error getting probe ClientArbitration response: %v", arbErr)
+	}
+
+	// Extract highest known ID
+	var highestId uint64 = 0
+	if arbResp != nil && arbResp.Arb != nil && arbResp.Arb.ElectionId != nil {
+		highestId = arbResp.Arb.ElectionId.Low
+	}
+
+	// Step 2: Increment the discovered ID to guarantee primary election
+	newElectionId := highestId + 1
+
 	if err := c.StreamChannelSendMsg(&streamName, &p4v1pb.StreamMessageRequest{
 		Update: &p4v1pb.StreamMessageRequest_Arbitration{
 			Arbitration: &p4v1pb.MasterArbitrationUpdate{
 				DeviceId: sp.DeviceId,
 				ElectionId: &p4v1pb.Uint128{
-					High: sp.ElectionIdH,
-					Low:  sp.ElectionIdL,
+					High: 0,
+					Low:  newElectionId,
 				},
 			},
 		},
 	}); err != nil {
-		return fmt.Errorf("Error sending ClientArbitration request: %v", err)
+		return 0, fmt.Errorf("Error sending primary ClientArbitration request: %v", err)
 	}
+
 	if _, _, arbErr := c.StreamChannelGetArbitrationResp(&streamName, 1); arbErr != nil {
 		if err := p4rtutils.StreamTermErr(c.StreamTermErr); err != nil {
-			return fmt.Errorf("Stream terminated on sending ClientArbitration: %v", err)
+			return 0, fmt.Errorf("Stream terminated on sending primary ClientArbitration: %v", err)
 		}
-		return fmt.Errorf("Error getting ClientArbitration response: %v", arbErr)
+		return 0, fmt.Errorf("Error getting primary ClientArbitration response: %v", arbErr)
 	}
-	return nil
+
+	return newElectionId, nil
 }
 
-func forwardingPipeline(c *p4rt_client.P4RTClient) error {
+func forwardingPipeline(c *p4rt_client.P4RTClient, electionIdL uint64) error {
 	p4Info, err := utils.P4InfoLoad(p4InfoFile)
 	if err != nil {
 		return fmt.Errorf("Error loading P4 Info file: %v", err)
@@ -158,7 +189,7 @@ func forwardingPipeline(c *p4rt_client.P4RTClient) error {
 
 	if err := c.SetForwardingPipelineConfig(&p4v1pb.SetForwardingPipelineConfigRequest{
 		DeviceId:   deviceID,
-		ElectionId: &p4v1pb.Uint128{High: 0, Low: 1},
+		ElectionId: &p4v1pb.Uint128{High: 0, Low: electionIdL},
 		Action:     p4v1pb.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
 		Config: &p4v1pb.ForwardingPipelineConfig{
 			P4Info: p4Info,
@@ -178,7 +209,7 @@ func forwardingPipeline(c *p4rt_client.P4RTClient) error {
 	return nil
 }
 
-func writeTableEntry(c *p4rt_client.P4RTClient, metadata string, action p4v1pb.Update_Type) error {
+func writeTableEntry(c *p4rt_client.P4RTClient, metadata string, action p4v1pb.Update_Type, electionIdL uint64) error {
 	te := []*p4rtutils.ACLWbbIngressTableEntryInfo{{
 		Type:          action,
 		EtherType:     0x6007,
@@ -189,7 +220,7 @@ func writeTableEntry(c *p4rt_client.P4RTClient, metadata string, action p4v1pb.U
 
 	writeReq := &p4v1pb.WriteRequest{
 		DeviceId:   deviceID,
-		ElectionId: &p4v1pb.Uint128{High: 0, Low: 1},
+		ElectionId: &p4v1pb.Uint128{High: 0, Low: electionIdL},
 		Updates:    p4rtutils.ACLWbbIngressTableEntryGet(te),
 		Atomicity:  p4v1pb.WriteRequest_CONTINUE_ON_ERROR,
 	}
@@ -249,3 +280,4 @@ func configurePortID(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	gnmi.Replace(t, dut, d.Interface(portName).Config(), currIntf)
 }
+
