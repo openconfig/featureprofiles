@@ -15,17 +15,18 @@ import (
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	otgconfighelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers"
 	otgvalidationhelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_validation_helpers"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
 const (
 	cakPortLevel = "f123456789abcdef0123456789abcdeff123456789abcdef0123456789abcdef"
 	cknPortLevel = "f123456789abcdef0123456789abcdeff123456789abcdef0123456789abcdef"
-	ipv4Count    = 10
 )
 
 // TestMain calls main function.
@@ -36,7 +37,6 @@ func TestMain(m *testing.M) {
 const (
 	ethernetCsmacd = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	ieee8023adLag  = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-	GREProtocol    = 47
 )
 
 var (
@@ -53,8 +53,8 @@ var (
 	}
 	coreIntf = attrs.Attributes{
 		Desc:    "Core_Interface",
-		IPv4:    "194.0.2.1",
-		IPv6:    "2001:10:1:6::1",
+		IPv4:    "192.0.2.1",
+		IPv6:    "2001:DB8:1:6::1",
 		MTU:     1500,
 		IPv4Len: 24,
 		IPv6Len: 126,
@@ -85,10 +85,10 @@ var (
 		IPv4Len:     30,
 	}
 	interface7 = &otgconfighelpers.InterfaceProperties{
-		IPv4:        "194.0.2.2",
-		IPv6:        "2001:10:1:6::2",
-		IPv4Gateway: "194.0.2.1",
-		IPv6Gateway: "2001:10:1:6::1",
+		IPv4:        "192.0.2.2",
+		IPv6:        "2001:DB8:1:6::2",
+		IPv4Gateway: "192.0.2.1",
+		IPv6Gateway: "2001:DB8:1:6::1",
 		Name:        "Port-Channel2",
 		MAC:         "02:00:01:01:01:02",
 		IPv4Len:     24,
@@ -110,7 +110,7 @@ var (
 		FlowName:          "GCI traffic IPv4 interface IPv4 Payload",
 		EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg1.AggMAC},
 		VLANFlow:          &otgconfighelpers.VLANFlowParams{VLANId: 20},
-		IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "12.1.1.1", IPv4Dst: "11.1.1.1", IPv4SrcCount: 100, RawPriority: 0, RawPriorityCount: 100},
+		IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "203.0.113.1", IPv4Dst: "198.51.100.1", IPv4SrcCount: 100, RawPriority: 0, RawPriorityCount: 100},
 	}
 
 	FlowIPv4Validation = &otgvalidationhelpers.OTGValidation{
@@ -144,13 +144,20 @@ ip route 0.0.0.0/0 169.254.0.11
 	helpers.GnmiCLIConfig(t, dut, cfg)
 }
 
-// PF-1.27: MPLSoGRE and MPLSoGUE MACsec
+// PF-1.17: MPLSoGRE and MPLSoGUE MACsec
 func ConfigureDut(t *testing.T, dut *ondatra.DUTDevice, ocPFParams cfgplugins.OcPolicyForwardingParams, ocNHGParams cfgplugins.StaticNextHopGroupParams) {
 	t.Log("Check the config before the hardware tcam application...")
-	time.Sleep(300 * time.Second)
+	// Replacing static sleep with a watch on interface status as a proxy for readiness.
+	gnmi.Watch(t, dut, gnmi.OC().Interface(dut.Port(t, custPorts[0]).Name()).OperStatus().State(), 5*time.Minute, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
+		status, ok := val.Val()
+		return ok && status == oc.Interface_OperStatus_UP
+	}).Await(t)
 	cfgplugins.ConfigureAnpfHardwareTcam(t, dut)
 	t.Log("Waiting for ANPF hardware TCAM profile to be configured...")
-	time.Sleep(300 * time.Second)
+	gnmi.Watch(t, dut, gnmi.OC().Interface(dut.Port(t, custPorts[0]).Name()).OperStatus().State(), 5*time.Minute, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
+		status, ok := val.Val()
+		return ok && status == oc.Interface_OperStatus_UP
+	}).Await(t)
 	cfgplugins.MacsecConfig(t, dut)
 	for _, portName := range custPorts {
 		port := dut.Port(t, portName)
@@ -168,14 +175,20 @@ func ConfigureDut(t *testing.T, dut *ondatra.DUTDevice, ocPFParams cfgplugins.Oc
 	if deviations.MacsecOCUnsupported(dut) {
 		for _, port := range custPorts {
 			helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("interface %s \n no switchport \n speed 10g \n mac security profile macsec-test \n", dut.Port(t, port).Name()))
+			t.Cleanup(func() {
+				helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("interface %s \n no mac security profile \n", dut.Port(t, port).Name()))
+			})
 		}
 	}
 }
 
-func TestSetup(t *testing.T) {
+// PF-1.17: MPLSoGRE and MPLSoGUE MACsec
+func TestMPLSOGREEncapIPv4Macsec(t *testing.T) {
 	t.Log("PF-1.14.1: Generate DUT Configuration")
 	dut := ondatra.DUT(t, "dut")
 	dut1 := ondatra.DUT(t, "dut1")
+	ate := ondatra.ATE(t, "ate")
+
 	niName := "default"
 	d := &oc.NetworkInstance{Name: ygot.String(niName)}
 	d.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE
@@ -188,19 +201,22 @@ func TestSetup(t *testing.T) {
 
 	// Pass ocPFParams to ConfigureDut
 	ConfigureDut1(t, dut1)
-	time.Sleep(15 * time.Second)
+
+	// Wait for dut1 port2 to be up
+	gnmi.Watch(t, dut1, gnmi.OC().Interface(dut1.Port(t, "port2").Name()).OperStatus().State(), 5*time.Minute, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
+		status, ok := val.Val()
+		return ok && status == oc.Interface_OperStatus_UP
+	}).Await(t)
+
 	ConfigureDut(t, dut, ocPFParams, ocNHGParams)
 	ConfigureOTG(t)
-}
-
-// PF-1.27: MPLSoGRE and MPLSoGUE MACsec
-func TestMPLSOGREEncapIPv4Macsec(t *testing.T) {
-	ate := ondatra.ATE(t, "ate")
-	dut := ondatra.DUT(t, "dut")
-	dut1 := ondatra.DUT(t, "dut1")
 	for _, port := range custPorts {
 		t.Log("Waiting for MACsec to be negotiated...")
-		time.Sleep(15 * time.Second)
+		// Replacing static sleep with a watch on interface status as a proxy.
+		gnmi.Watch(t, dut, gnmi.OC().Interface(dut.Port(t, port).Name()).OperStatus().State(), 5*time.Minute, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
+			status, ok := val.Val()
+			return ok && status == oc.Interface_OperStatus_UP
+		}).Await(t)
 		checkMacsecState(t, dut, dut.Port(t, port), true)
 	}
 	checkMacsecState(t, dut1, dut1.Port(t, "port2"), true)
@@ -290,6 +306,7 @@ func OTGPreValidation(t *testing.T, params *otgvalidationhelpers.OTGValidation, 
 func sendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 	ate.OTG().StartTraffic(t)
 	time.Sleep(120 * time.Second)
 	ate.OTG().StopTraffic(t)
@@ -405,7 +422,7 @@ func configureStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
 		NetworkInstance: "default",
 		Prefix:          "10.99.1.0/24",
 		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-			"0": oc.UnionString("194.0.2.2"),
+			"0": oc.UnionString("192.0.2.2"),
 		},
 	}
 	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
@@ -428,10 +445,25 @@ func checkMacsecState(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port, wa
 		t.Fatalf("Unsupported vendor: %v", dut.Vendor())
 	}
 
-	macsecOutput := dut.CLI().Run(t, cmd)
+	timeout := 2 * time.Minute
+	interval := 5 * time.Second
+	deadline := time.Now().Add(timeout)
+
+	var macsecOutput string
+	var success bool
+
+	for time.Now().Before(deadline) {
+		macsecOutput = dut.CLI().Run(t, cmd)
+		if wantEnabled == strings.Contains(macsecOutput, want) {
+			success = true
+			break
+		}
+		time.Sleep(interval)
+	}
+
 	t.Logf("Got MACsec status: %v", macsecOutput)
-	if wantEnabled != strings.Contains(macsecOutput, want) {
-		t.Errorf("MACsec for port %s enabled status: got %v, want %v", dp.Name(), !wantEnabled, wantEnabled)
+	if !success {
+		t.Errorf("MACsec for port %s enabled status: got %v, want %v (Output: %s)", dp.Name(), !wantEnabled, wantEnabled, macsecOutput)
 	}
 }
 
