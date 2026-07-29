@@ -91,3 +91,35 @@ func ConfigureMACsec(t *testing.T, dut *ondatra.DUTDevice, cfg MACsecCfg) *gnmi.
 
 	return batch
 }
+const (
+	macsecConfigArista = `
+management security
+   entropy source hardware
+   !
+   session shared-secret profile BAYBRIDGE
+      secret f123456789abcdef0123456789abcdeff123456789abcdef0123456789abcdef f123456789abcdef0123456789abcdeff123456789abcdef0123456789abcdef receive-lifetime 2026-03-17 18:30:00 infinite transmit-lifetime 2026-03-17 18:30:00 infinite
+!
+mac security
+      profile macsec-test
+      cipher aes256-gcm-xpn
+      key source shared-secret profile BAYBRIDGE
+      sci
+      mka key-server priority 15
+      mka session rekey-period 28800
+      traffic unprotected drop
+      replay protection window 64
+!
+`
+)
+
+// MacsecConfig configures macsec.
+func MacsecConfig(t *testing.T, dut *ondatra.DUTDevice) {
+	if deviations.MacsecOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			helpers.GnmiCLIConfig(t, dut, macsecConfigArista)
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'macsec'", dut.Vendor())
+		}
+	}
+}
