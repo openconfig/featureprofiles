@@ -81,13 +81,7 @@ paths:
   /system/logging/files/file/config/rotate:
 
   ## State Paths ##
-  /system/logging/console/selectors/selector/state/facility:
   /system/logging/console/selectors/selector/state/severity:
-  /system/logging/vty/selectors/selector/state/facility:
-  /system/logging/vty/selectors/selector/state/severity:
-  /system/logging/files/file/selectors/selector/state/facility:
-  /system/logging/files/file/selectors/selector/state/severity:
-  /system/logging/files/file/state/rotate:
 
 rpcs:
   gnmi:
