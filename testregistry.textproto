@@ -1,6 +1,8 @@
 # proto-file: /proto/testregistry.proto
 # proto-message: TestRegistry
 
+# Auto-generated file. Use `make sync-test-registry` to re-generate.
+
 name: "WBB Test Registry"
 test: {
   id: "ACCTZ-1.1"
