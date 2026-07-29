@@ -24,11 +24,6 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-const (
-	cakPortLevel = "f123456789abcdef0123456789abcdeff123456789abcdef0123456789abcdef"
-	cknPortLevel = "f123456789abcdef0123456789abcdeff123456789abcdef0123456789abcdef"
-)
-
 // TestMain calls main function.
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
