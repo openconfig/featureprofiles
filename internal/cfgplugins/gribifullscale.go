@@ -260,6 +260,20 @@ type nhgLoadBalancingBucket struct {
 	numLoadBalancingNH int
 }
 
+// NHGWeightParams specifies the percentage of NextHopGroups in a VRF
+// that should have a given total weight sum.
+type NHGWeightParams struct {
+	// Pct is the percentage of NextHopGroups.
+	Pct int
+	// TargetWeightSum is the target sum of weights for the NextHopGroup.
+	TargetWeightSum uint64
+}
+
+type nhgWeightBucket struct {
+	numNHG          int
+	targetWeightSum uint64
+}
+
 // validateNHGLoadBalance verifies that the next hop group load-balancing specifications are valid.
 // Specifically, it checks that percentages are non-negative, next-hop counts are positive, and the total percentage sum equals exactly 100.
 func validateNHGLoadBalance(t *testing.T, name string, configs []NHGLoadBalancingParams) {
@@ -282,23 +296,68 @@ func validateNHGLoadBalance(t *testing.T, name string, configs []NHGLoadBalancin
 	}
 }
 
+// partitionNHG distributes the next hop group count into buckets based on the percentage requirements,
+// allocating any remainder to the final bucket.
+func partitionNHG[T any](numNHG int, req []T, getPct func(T) int) []int {
+	counts := make([]int, len(req))
+	totalNHG := 0
+	for idx, spec := range req {
+		numNH := numNHG * getPct(spec) / 100
+		counts[idx] = numNH
+		totalNHG += numNH
+	}
+	counts[len(counts)-1] += numNHG - totalNHG
+	return counts
+}
+
 // computeNHGBuckets converts the NHG load balancing spec from percentage-based to
 // absolute values. Each bucket contains a set of NHGs and the number of load
 // balancing NHs that each NHG should use.
 func computeNHGBuckets(numNHG int, req []NHGLoadBalancingParams) []nhgLoadBalancingBucket {
+	counts := partitionNHG(numNHG, req, func(s NHGLoadBalancingParams) int { return s.Pct })
 	buckets := make([]nhgLoadBalancingBucket, len(req))
-	totalNHG := 0
 	for idx, spec := range req {
-		numNH := numNHG * spec.Pct / 100
 		buckets[idx] = nhgLoadBalancingBucket{
-			numNHG:             numNH,
+			numNHG:             counts[idx],
 			numLoadBalancingNH: spec.NumNextHops,
 		}
-		totalNHG += numNH
 	}
-	// Ensure that the last bucket contains all the remaining NHGs.
-	buckets[len(buckets)-1].numNHG += numNHG - totalNHG
 	return buckets
+}
+
+// computeNHGWeightBuckets converts the NHG target weight sum spec from percentage-based to
+// absolute group counts.
+func computeNHGWeightBuckets(numNHG int, req []NHGWeightParams) []nhgWeightBucket {
+	counts := partitionNHG(numNHG, req, func(s NHGWeightParams) int { return s.Pct })
+	buckets := make([]nhgWeightBucket, len(req))
+	for idx, spec := range req {
+		buckets[idx] = nhgWeightBucket{
+			numNHG:          counts[idx],
+			targetWeightSum: spec.TargetWeightSum,
+		}
+	}
+	return buckets
+}
+
+// validateNHGWeight verifies that next hop group weight specifications are valid.
+func validateNHGWeight(t *testing.T, name string, configs []NHGWeightParams) {
+	t.Helper()
+	if len(configs) == 0 {
+		t.Fatalf("validateNHGWeight: %s is empty", name)
+	}
+	sumPct := 0
+	for _, spec := range configs {
+		if spec.Pct < 0 {
+			t.Fatalf("validateNHGWeight: invalid negative percentage (%d) in %s", spec.Pct, name)
+		}
+		if spec.TargetWeightSum == 0 {
+			t.Fatalf("validateNHGWeight: invalid target weight sum (%d) in %s", spec.TargetWeightSum, name)
+		}
+		sumPct += spec.Pct
+	}
+	if sumPct != 100 {
+		t.Fatalf("validateNHGWeight: sum of percentages in %s must be exactly 100, got %d", name, sumPct)
+	}
 }
 
 // computeWCMPWeightParams calculates the targetWeightSum and baseWeight for a given number of next hops (numNHs).
@@ -363,9 +422,12 @@ type ScaleParams struct {
 	// },
 	DefaultNHGLoadBalance []NHGLoadBalancingParams
 
-	// The percentage of NextHopGroups in Default VRF that should have a total weight of 512.
-	// The remaining (100 - PctNHG512) % of NextHopGroups will have a total weight of 1024.
-	PctNHG512 int
+	// The target weight sum distribution parameters for NextHopGroups in Default VRF.
+	// e.g. DefaultNHGWeight: []cfgplugins.NHGWeightParams{
+	// 	{Pct: 80, TargetWeightSum: 512},
+	// 	{Pct: 20, TargetWeightSum: 1024},
+	// },
+	DefaultNHGWeight []NHGWeightParams
 	// The number of fictitious IPv4 prefixes in Default VRF.
 	// Theese IP entries will be pointed by the transit routes.
 	// Each prefix points to a unique NHG. Also virtually split into 2 sub-groups:
@@ -907,31 +969,39 @@ func BuildDefaultVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, 
 	buildNHGs := func(baseNHG uint64, baseNH uint64) []fluent.GRIBIEntry {
 		groups := make([]fluent.GRIBIEntry, 0, numNHGPart)
 		nhgLoadBalancingBuckets := computeNHGBuckets(numNHGPart, params.DefaultNHGLoadBalance)
+		t.Logf("Default VRF NHG load balancing buckets: %v", nhgLoadBalancingBuckets)
+
+		nhgWeightBuckets := computeNHGWeightBuckets(numNHGPart, params.DefaultNHGWeight)
+		t.Logf("Default VRF NHG weight buckets: %v", nhgWeightBuckets)
 
 		nhOffset := 0
-		nhgBucket := 0
-		nhgCreatedInBucket := 0
+		nhgLBBucket := 0
+		nhgCreatedInLBBucket := 0
+		nhgWeightBucketIdx := 0
+		nhgCreatedInWeightBucket := 0
 		for i := 0; i < numNHGPart; i++ {
 			nhg := fluent.NextHopGroupEntry().WithNetworkInstance(defaultVRF).WithID(baseNHG + uint64(i))
 
 			// Advance to the next bucket once the number of groups created in the current bucket
 			// exceeds the bucket's configured size.
-			for nhgBucket < len(nhgLoadBalancingBuckets)-1 && nhgCreatedInBucket >= nhgLoadBalancingBuckets[nhgBucket].numNHG {
-				nhgBucket++
-				nhgCreatedInBucket = 0
+			for nhgLBBucket < len(nhgLoadBalancingBuckets)-1 && nhgCreatedInLBBucket >= nhgLoadBalancingBuckets[nhgLBBucket].numNHG {
+				nhgLBBucket++
+				nhgCreatedInLBBucket = 0
 			}
-			targetNHCount := nhgLoadBalancingBuckets[nhgBucket].numLoadBalancingNH
+			targetNHCount := nhgLoadBalancingBuckets[nhgLBBucket].numLoadBalancingNH
 
 			// Cap the number of NextHops per group to prevent duplicate NextHops
 			// within the same group when NumDefaultNH is scaled down.
 			actualNHCount := min(targetNHCount, numNHPart)
 
-			// Determine the target sum of weights for this NHG based on the percentage split.
-			// The first pctNHG512% of groups get a total weight of 512, the rest get 1024.
-			targetWeightSum := uint64(512)
-			if i >= numNHGPart*params.PctNHG512/100 {
-				targetWeightSum = 1024
+			// Advance to the next weight bucket once the number of groups created in the current bucket
+			// exceeds the weight bucket's configured size.
+			for nhgWeightBucketIdx < len(nhgWeightBuckets)-1 && nhgCreatedInWeightBucket >= nhgWeightBuckets[nhgWeightBucketIdx].numNHG {
+				nhgWeightBucketIdx++
+				nhgCreatedInWeightBucket = 0
 			}
+			targetWeightSum := nhgWeightBuckets[nhgWeightBucketIdx].targetWeightSum
+
 			// Distribute the target weight sum evenly across the available NextHops.
 			baseWeight := targetWeightSum / uint64(actualNHCount)
 			remainder := targetWeightSum % uint64(actualNHCount)
@@ -952,7 +1022,8 @@ func BuildDefaultVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, 
 				nhg.AddNextHop(baseNH+uint64((nhOffset+j)%numNHPart), weight)
 			}
 			nhOffset += actualNHCount
-			nhgCreatedInBucket++
+			nhgCreatedInLBBucket++
+			nhgCreatedInWeightBucket++
 			groups = append(groups, nhg)
 		}
 		return groups
@@ -1036,18 +1107,18 @@ func BuildTransitVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context,
 		t.Logf("Transit VRF %s NHG load balancing buckets: %v", vrfName, nhgLoadBalancingBuckets)
 
 		nhOffset := 0
-		nhgBucket := 0
-		nhgCreatedInBucket := 0
+		nhgLBBucket := 0
+		nhgCreatedInLBBucket := 0
 		// Create next hop groups referencing default network instance NHs.
 		for i := 0; i < nhgCount; i++ {
 			nhg := fluent.NextHopGroupEntry().WithNetworkInstance(defaultVRF).
 				WithID(baseNHGId + uint64(i)).WithBackupNHG(backupNHG)
 
-			for nhgBucket < len(nhgLoadBalancingBuckets)-1 && nhgCreatedInBucket >= nhgLoadBalancingBuckets[nhgBucket].numNHG {
-				nhgBucket++
-				nhgCreatedInBucket = 0
+			for nhgLBBucket < len(nhgLoadBalancingBuckets)-1 && nhgCreatedInLBBucket >= nhgLoadBalancingBuckets[nhgLBBucket].numNHG {
+				nhgLBBucket++
+				nhgCreatedInLBBucket = 0
 			}
-			targetNHCount := nhgLoadBalancingBuckets[nhgBucket].numLoadBalancingNH
+			targetNHCount := nhgLoadBalancingBuckets[nhgLBBucket].numLoadBalancingNH
 			actualNHCount := min(targetNHCount, nhCount)
 
 			targetWeight := uint64(64)
@@ -1061,7 +1132,7 @@ func BuildTransitVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context,
 			}
 
 			nhOffset += actualNHCount
-			nhgCreatedInBucket++
+			nhgCreatedInLBBucket++
 			entries = append(entries, nhg)
 		}
 
@@ -1204,18 +1275,18 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 		nhgLoadBalancingBuckets := computeNHGBuckets(numNHGPerVrf, params.EncapNHGLoadBalance)
 		t.Logf("Encap VRF %d NHG load balancing buckets (size %d): %v", vi, numNHGPerVrf, nhgLoadBalancingBuckets)
 
-		nhgBucket := 0
-		nhgCreatedInBucket := 0
+		nhgLBBucket := 0
+		nhgCreatedInLBBucket := 0
 		for i := 0; i < numNHGPerVrf; i++ {
 			nhg := fluent.NextHopGroupEntry().WithNetworkInstance(defaultVRF).WithID(nhgIdx + uint64(nhgOffset+i))
 
 			// Advance to the next bucket once the number of groups created in the current bucket
 			// exceeds the bucket's configured size.
-			for nhgBucket < len(nhgLoadBalancingBuckets)-1 && nhgCreatedInBucket >= nhgLoadBalancingBuckets[nhgBucket].numNHG {
-				nhgBucket++
-				nhgCreatedInBucket = 0
+			for nhgLBBucket < len(nhgLoadBalancingBuckets)-1 && nhgCreatedInLBBucket >= nhgLoadBalancingBuckets[nhgLBBucket].numNHG {
+				nhgLBBucket++
+				nhgCreatedInLBBucket = 0
 			}
-			targetNHCount := nhgLoadBalancingBuckets[nhgBucket].numLoadBalancingNH
+			targetNHCount := nhgLoadBalancingBuckets[nhgLBBucket].numLoadBalancingNH
 
 		actualNHCount := min(targetNHCount, params.NumUniqueEncapNH)
 			targetWeightSum, baseWeight := computeWCMPWeightParams(targetNHCount)
@@ -1231,7 +1302,7 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 			nhg.AddNextHop(nhID, weight)
 		}
 			nhOffset += actualNHCount
-			nhgCreatedInBucket++
+			nhgCreatedInLBBucket++
 		allEntries = append(allEntries, nhg)
 	}
 
@@ -2168,6 +2239,7 @@ func RunFullScaleTest(t *testing.T, params ScaleParams, enablePacketCapture, com
 	t.Helper()
 
 	validateNHGLoadBalance(t, "DefaultNHGLoadBalance", params.DefaultNHGLoadBalance)
+	validateNHGWeight(t, "DefaultNHGWeight", params.DefaultNHGWeight)
 	validateNHGLoadBalance(t, "TransitNHGLoadBalance", params.TransitNHGLoadBalance)
 	validateNHGLoadBalance(t, "EncapNHGLoadBalance", params.EncapNHGLoadBalance)
 

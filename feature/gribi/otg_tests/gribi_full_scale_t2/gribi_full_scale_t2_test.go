@@ -71,7 +71,10 @@ func TestGRIBIFullScaleT2(t *testing.T) {
 			{Pct: 15, NumNextHops: 32},
 			{Pct: 5, NumNextHops: 64},
 		},
-		PctNHG512: 70,
+		DefaultNHGWeight: []cfgplugins.NHGWeightParams{
+			{Pct: 70, TargetWeightSum: 512},
+			{Pct: 30, TargetWeightSum: 1024},
+		},
 
 		// Transit VRF parameters
 		NumTransitNH:  4_000,
