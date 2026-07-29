@@ -102,15 +102,24 @@ rpcs:
           "selector": [
             {
               "facility": "openconfig-system-logging:LOCAL7",
-              "severity": "openconfig-system-logging:INFORMATIONAL"
+              "config": {
+                "facility": "openconfig-system-logging:LOCAL7",
+                "severity": "openconfig-system-logging:INFORMATIONAL"
+              }
             },
             {
               "facility": "openconfig-system-logging:LOCAL6",
-              "severity": "openconfig-system-logging:ALERT"
+              "config": {
+                "facility": "openconfig-system-logging:LOCAL6",
+                "severity": "openconfig-system-logging:ALERT"
+              }
             },
             {
               "facility": "openconfig-system-logging:LOCAL5",
-              "severity": "openconfig-system-logging:CRITICAL"
+              "config": {
+                "facility": "openconfig-system-logging:LOCAL5",
+                "severity": "openconfig-system-logging:CRITICAL"
+              }
             }
           ]
         }
