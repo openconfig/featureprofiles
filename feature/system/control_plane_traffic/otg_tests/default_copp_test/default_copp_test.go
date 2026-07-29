@@ -385,7 +385,7 @@ func (ce *commonEntities) testCoppSystemHelper(t *testing.T, tc *coppSystemTestc
 	finalCounters := gnmi.Get(t, ce.dut, gnmi.OC().Interface(ce.dut.Port(t, dutIncomingPort).Name()).Counters().State())
 	finalInPkts := finalCounters.GetInPkts()
 	t.Logf("Final incoming packets: %v", finalInPkts)
-
+	// TODO: b/540356827 gnmi.Watch doesn't work with arista-platform-control-plane-traffic-counters:l3-lpm-overflow
 	var finalPktCounts []float64
 	timeout := 45 * time.Second
 	pollInterval := 5 * time.Second
