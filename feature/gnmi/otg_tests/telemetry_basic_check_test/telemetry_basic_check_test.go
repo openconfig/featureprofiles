@@ -447,7 +447,7 @@ func TestInterfaceWildcard(t *testing.T) {
 	}
 }
 
-func findComponentsListByType(t *testing.T, dut *ondatra.DUTDevice) map[string][]string {
+func findComponentsListByType(t *testing.T, dut *ondatra.DUTDevice) (map[string][]string, map[string]*oc.Component) {
 	t.Helper()
 	componentType := map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{
 		"Fabric":      fabricType,
@@ -456,21 +456,25 @@ func findComponentsListByType(t *testing.T, dut *ondatra.DUTDevice) map[string][
 		"Supervisor":  supervisorType,
 		"SwitchChip":  switchChipType,
 	}
-	components := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
+	batch := gnmi.OCBatch()
+	batch.AddPaths(
+		gnmi.OC().ComponentAny().Name().State().PathStruct(),
+		gnmi.OC().ComponentAny().Type().State().PathStruct(),
+		gnmi.OC().ComponentAny().Parent().State().PathStruct(),
+	)
+	components := gnmi.Get(t, dut, batch.State()).Component
 	s := make(map[string][]string)
 	for comp := range componentType {
 		for _, c := range components {
 			if c.GetType() == nil {
-				t.Logf("Component %s type is missing from telemetry", c.GetName())
 				continue
 			}
-			t.Logf("Component %s has type: %v", c.GetName(), c.GetType())
 			if v := c.GetType(); v == componentType[comp] {
 				s[comp] = append(s[comp], c.GetName())
 			}
 		}
 	}
-	return s
+	return s, components
 }
 
 // verifyChassisIsAncestor verifies that a given component has
@@ -500,6 +504,36 @@ func verifyChassisIsAncestor(t *testing.T, dut *ondatra.DUTDevice, comp string) 
 	}
 }
 
+// verifyChassisIsAncestorLocal verifies that a given component has a
+// component of type CHASSIS as an ancestor using a pre-fetched local component map.
+func verifyChassisIsAncestorLocal(t *testing.T, compMap map[string]*oc.Component, comp string) {
+	visited := make(map[string]bool)
+	for curr := comp; ; {
+		if visited[curr] {
+			t.Errorf("Component %s already visited; loop detected in the hierarchy.", curr)
+			break
+		}
+		visited[curr] = true
+		c, ok := compMap[curr]
+		if !ok || c.GetParent() == "" {
+			t.Errorf("Chassis component NOT found as an ancestor of component %s", comp)
+			break
+		}
+		parentName := c.GetParent()
+		parentComp, ok := compMap[parentName]
+		if !ok {
+			t.Errorf("Parent component %s not found in telemetry for component %s", parentName, curr)
+			break
+		}
+		if parentComp.GetType() == chassisType {
+			t.Logf("Found chassis component as an ancestor of component %s", comp)
+			break
+		}
+		// Not reached chassis yet; go one level up.
+		curr = parentName
+	}
+}
+
 func TestComponentParent(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	componentParent := map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{
@@ -509,7 +543,7 @@ func TestComponentParent(t *testing.T) {
 		"Supervisor":  chassisType,
 		"SwitchChip":  linecardType,
 	}
-	compList := findComponentsListByType(t, dut)
+	compList, compMap := findComponentsListByType(t, dut)
 	cases := []struct {
 		desc          string
 		componentType oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT
@@ -539,8 +573,14 @@ func TestComponentParent(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 
-			if len(compList[tc.desc]) == 0 && (dut.Model() == "DCS-7280CR3K-32D4" || dut.Model() == "CISCO-8202-32FH-M") {
-				t.Skipf("Test of %v is skipped due to hardware platform compatibility", tc.componentType)
+			if *args.NumLinecards == 0 && tc.desc == "Linecard" {
+				t.Skipf("Test of %v is skipped due to hardware platform compatibility for model %v", tc.componentType, dut.Model())
+			}
+			if *args.NumFabrics == 0 && tc.desc == "Fabric" {
+				t.Skipf("Test of %v is skipped due to hardware platform compatibility for model %v", tc.componentType, dut.Model())
+			}
+			if *args.NumControllerCards == 0 && tc.desc == "Supervisor" {
+				t.Skipf("Test of %v is skipped due to hardware platform compatibility for model %v", tc.componentType, dut.Model())
 			}
 
 			t.Logf("Found component list for type %v : %v", tc.componentType, compList[tc.desc])
@@ -550,7 +590,7 @@ func TestComponentParent(t *testing.T) {
 			// Validate parent component.
 			for _, comp := range compList[tc.desc] {
 				t.Logf("Validate component %s", comp)
-				verifyChassisIsAncestor(t, dut, comp)
+				verifyChassisIsAncestorLocal(t, compMap, comp)
 			}
 		})
 	}
@@ -648,8 +688,8 @@ func TestCPU(t *testing.T) {
 func TestSupervisorLastRebootInfo(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	if dut.Model() == "DCS-7280CR3K-32D4" {
-		t.Skipf("Test is skipped due to hardware platform compatibility")
+	if *args.NumControllerCards == 0 {
+		t.Skipf("Test of SupervisorLastRebootInfo is skipped due to hardware platform compatibility for model %v", dut.Model())
 	}
 
 	cards := components.FindComponentsByType(t, dut, supervisorType)

@@ -50,8 +50,44 @@
     *   Environment setup code should be placed in a function named
         setupEnvironment and called from TestMain
     *   Use `t.Run` for subtests so output clearly reflects passed/failed steps.
-    *   **Avoid `time.Sleep`**: Use `gnmi.Watch` with `.Await` for waiting on
-        conditions.
+    *   **Eliminating Polling Loops and Static Sleeps (CRITICAL / HIGH PRIORITY):**
+        *   **Anti-pattern:** Relying on static `time.Sleep` calls, or building custom `for` loops that poll telemetry state with `time.Sleep(pollInterval)`.
+        *   **Correction:** The use of `gnmi.Watch` with `.Await(t)` is mandatory to detect desired states in real-time. Custom polling loops are banned.
+        *   **BAD (Do not do this):**
+            ```go
+            for {
+                val := gnmi.Get(t, dut, path)
+                if val == expected { break }
+                time.Sleep(2 * time.Second)
+            }
+            ```
+        *   **GOOD (Do this instead):**
+            ```go
+            gnmi.Watch(t, dut, path, timeout, func(val *ygnmi.Value[Type]) bool {
+                v, present := val.Val()
+                return present && v == expected
+            }).Await(t)
+            ```
+    *   **Querying Counters:** Always use a `gnmi.Watch` loop to wait for a specific counter value to be reached before querying it.
+    *   **OTG Start Protocols:** Prior to invoking OTG start protocols, explicitly call `WaitForARP` function to maintain test stability.
+      
+        *   **OTG traffic neighbor resolution:** For tests that configure and
+                start OTG (traffic generator) protocols and traffic, ensure neighbor
+                resolution (ARP for IPv4 or ND for IPv6) has completed before
+                starting traffic. Specifically:
+
+                - After `StartProtocols(t)` and before `StartTraffic(t)`, call the
+                    appropriate helper: `otgutils.WaitForARP(t, otg, config, "IPv4")`
+                    or `otgutils.WaitForARP(t, otg, config, "IPv6")` depending on the
+                    address family used by the flows.
+                - If a helper function calls `StartTraffic()`, the caller must ensure
+                    the matching `WaitForARP(...)` has already completed; do not rely on
+                    `StartTraffic()` to implicitly resolve neighbors.
+                - For dual-stack tests that send both IPv4 and IPv6 traffic, wait for
+                    both families before starting traffic.
+
+                This prevents initial packets from being dropped due to unresolved
+                neighbor entries and makes traffic validation deterministic.
 
 *   **Enums:**
 
@@ -113,3 +149,27 @@
 *   **Deviations:** Deviations that affect configuration generation should be
     implemented *inside* the `cfgplugins` function, not in the test file.
 
+### **4. Performance & Execution Optimizations**
+
+To achieve high-velocity test execution and prevent pipeline bottlenecks, reviewers MUST flag the following performance anti-patterns and suggest the provided alternatives:
+
+*   **Batching gNMI Operations (Avoid "N+1" Queries):**
+    *   **Anti-pattern:** Using serial `gnmi.Get` calls inside a loop to query multiple ports or leaves. The "N+1" query pattern is a major contributor to setup and execution slowness.
+    *   **Correction:** Use `gnmi.OCBatch()` to aggregate paths and perform a single RPC call. 
+    *   *Example Correction:* 
+        ```go
+        batch := gnmi.OCBatch()
+        for _, p := range ports {
+            batch.AddPaths(gnmi.OC().Interface(p).OperStatus())
+        }
+        results := gnmi.Get(t, dut, batch.State())
+        ```
+*   **Sequential Validations:**
+    *   **Anti-pattern:** Verifying hundreds of neighbors or telemetry counters sequentially in a loop, which leads to idle device time.
+    *   **Correction:** Use `errgroup.Group` to issue gNMI telemetry requests concurrently. This collapses the total latency from `N×RTT` to `≈1×RTT`.
+*   **Setup Redundancy:**
+    *   **Anti-pattern:** Performing a full teardown and rebuild for every subtest, especially when significant overlap exists between tests.
+    *   **Correction:** Group related functional checks using `t.Run` to reduce redundant environment setup cycles. Use a `SetupDUTOnce()` pattern to check existing configurations and skip expensive `gnmi.Replace` and reboot phases if the DUT is already in the desired state.
+*   **Eliminating Static Sleeps (CRITICAL / HIGH PRIORITY):**
+    *   **Anti-pattern:** Relying on static `time.Sleep` calls based on legacy assumptions. **This is a critical performance issue that must be avoided and flagged as high priority.**
+    *   **Correction:** The use of `gnmi.Watch` is mandatory to detect desired states in real-time. Wait times should not be hardcoded, as static sleeps become a fixed tax on the pipeline.
