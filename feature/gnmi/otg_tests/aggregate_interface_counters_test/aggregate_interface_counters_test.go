@@ -384,10 +384,7 @@ func (tc *testCase) verifyATE(t *testing.T) {
 	gnmi.Await(t, tc.ate.OTG(), gnmi.OTG().Port(ap.ID()).Link().State(), time.Minute, otgtelemetry.Port_Link_UP)
 
 	t.Logf("Checking if LAG is up on OTG")
-	gnmi.Watch(t, tc.ate.OTG(), gnmi.OTG().Lag(ateDst.Name).OperStatus().State(), time.Minute, func(val *ygnmi.Value[otgtelemetry.E_Lag_OperStatus]) bool {
-		state, present := val.Val()
-		return present && state.String() == "UP"
-	}).Await(t)
+	gnmi.Await(t, tc.ate.OTG(), gnmi.OTG().Lag(ateDst.Name).OperStatus().State(), time.Minute, otgtelemetry.Lag_OperStatus_UP)
 
 	otgutils.LogLAGMetrics(t, tc.ate.OTG(), tc.top)
 	if tc.lagType == oc.IfAggregate_AggregationType_LACP {
