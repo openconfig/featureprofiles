@@ -904,8 +904,22 @@ func TestBGPPGracefulRestart(t *testing.T) {
 			t.Log("Start ATE Config")
 			configureATE(t, ate, 60)
 
+			// Configure interface on the DUT
+			t.Log("Start DUT interface Config")
+			configureDUT(t, dut)
+			configureRoutePolicy(t, dut, "ALLOW", oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+
+			// Configure BGP+Neighbors on the DUT
+			t.Log("Configure BGP with Graceful Restart option under Global Bgp")
+			dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+			nbrList := buildNbrList()
+			dutConf := bgpWithNbr(dutAS, 60, nbrList, dut)
+			gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
+			fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
+
 			var src, dst attrs.Attributes
 			var dstStart, dutBGPIfName string
+
 			modes := []string{"EBGP", "IBGP"}
 			for _, mode := range modes {
 				if mode == "EBGP" {
