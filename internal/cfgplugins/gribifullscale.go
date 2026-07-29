@@ -260,18 +260,52 @@ type nhgLoadBalancingBucket struct {
 	numLoadBalancingNH int
 }
 
+// WeightConfig is a sealed interface representing next-hop group weight scaling configurations.
+type WeightConfig interface {
+	isWeightConfig()
+}
+
+// ECMP represents standard ECMP load balancing where all next-hops have equal weights (1).
+type ECMP struct{}
+
+func (ECMP) isWeightConfig() {}
+
+// WCMP represents weighted cost multi-path load balancing with a custom weight granularity.
+type WCMP struct {
+	WeightGranularity uint64
+}
+
+func (WCMP) isWeightConfig() {}
+
+var (
+	// WCMP1 is a WCMP configuration representing a granularity of 1.
+	WCMP1 = WCMP{WeightGranularity: 1}
+	// WCMP1in32 is a WCMP configuration representing a granularity of 1/32.
+	WCMP1in32 = WCMP{WeightGranularity: 32}
+	// WCMP1in64 is a WCMP configuration representing a granularity of 1/64.
+	WCMP1in64 = WCMP{WeightGranularity: 64}
+	// WCMP1in128 is a WCMP configuration representing a granularity of 1/128.
+	WCMP1in128 = WCMP{WeightGranularity: 128}
+	// WCMP1in256 is a WCMP configuration representing a granularity of 1/256.
+	WCMP1in256 = WCMP{WeightGranularity: 256}
+	// WCMP1in512 is a WCMP configuration representing a granularity of 1/512.
+	WCMP1in512 = WCMP{WeightGranularity: 512}
+	// WCMP1in1024 is a WCMP configuration representing a granularity of 1/1024.
+	WCMP1in1024 = WCMP{WeightGranularity: 1024}
+)
+
 // NHGWeightParams specifies the percentage of NextHopGroups in a VRF
-// that should have a given total weight sum.
+// that should have a given weight configuration (ECMP or WCMP with granularity).
 type NHGWeightParams struct {
 	// Pct is the percentage of NextHopGroups.
 	Pct int
-	// TargetWeightSum is the target sum of weights for the NextHopGroup.
-	TargetWeightSum uint64
+	// Config defines either ECMP{} or WCMP{WeightGranularity: ...}.
+	Config WeightConfig
 }
 
 type nhgWeightBucket struct {
-	numNHG          int
-	targetWeightSum uint64
+	numNHG int
+	config WeightConfig
 }
 
 // validateNHGLoadBalance verifies that the next hop group load-balancing specifications are valid.
@@ -332,8 +366,8 @@ func computeNHGWeightBuckets(numNHG int, req []NHGWeightParams) []nhgWeightBucke
 	buckets := make([]nhgWeightBucket, len(req))
 	for idx, spec := range req {
 		buckets[idx] = nhgWeightBucket{
-			numNHG:          counts[idx],
-			targetWeightSum: spec.TargetWeightSum,
+			numNHG: counts[idx],
+			config: spec.Config,
 		}
 	}
 	return buckets
@@ -350,8 +384,18 @@ func validateNHGWeight(t *testing.T, name string, configs []NHGWeightParams) {
 		if spec.Pct < 0 {
 			t.Fatalf("validateNHGWeight: invalid negative percentage (%d) in %s", spec.Pct, name)
 		}
-		if spec.TargetWeightSum == 0 {
-			t.Fatalf("validateNHGWeight: invalid target weight sum (%d) in %s", spec.TargetWeightSum, name)
+		if spec.Config == nil {
+			t.Fatalf("validateNHGWeight: WeightConfig cannot be nil in %s", name)
+		}
+		switch cfg := spec.Config.(type) {
+		case ECMP:
+			// valid
+		case WCMP:
+			if cfg.WeightGranularity == 0 {
+				t.Fatalf("validateNHGWeight: WeightGranularity must be greater than 0 for WCMP in %s", name)
+			}
+		default:
+			t.Fatalf("validateNHGWeight: unexpected type %T for WeightConfig in %s", spec.Config, name)
 		}
 		sumPct += spec.Pct
 	}
@@ -360,41 +404,39 @@ func validateNHGWeight(t *testing.T, name string, configs []NHGWeightParams) {
 	}
 }
 
-// computeWCMPWeightParams calculates the targetWeightSum and baseWeight for a given number of next hops (numNHs).
-// To prevent standard ECMP from being programmed by the router and instead force WCMP, the next-hop
-// weights must be uneven. This function chooses a power-of-two targetWeight and returns a baseWeight
-// that is 1 less than the even share, leaving the remainder to be assigned to the last next hop.
-//
-// Examples:
-//   - numNHs = 4:
-//     targetWeight = 32, base = 32 / 4 - 1 = 7.
-//     Returns (32, 7). NH weights: three 7s and one 11 (GCD(7, 11) = 1, targetWeight = 32).
-//   - numNHs = 8:
-//     targetWeight = 64, base = 64 / 8 - 1 = 7.
-//     Returns (64, 7). NH weights: seven 7s and one 15 (GCD(7, 15) = 1, targetWeight = 64).
-//   - numNHs = 16:
-//     targetWeight = 128, base = 128 / 16 - 1 = 7.
-//     Returns (128, 7). NH weights: fifteen 7s and one 23 (GCD(7, 23) = 1, targetWeight = 128).
-//   - numNHs = 32:
-//     targetWeight = 256, base = 256 / 32 - 1 = 7.
-//     Returns (256, 7). NH weights: thirty-one 7s and one 39 (GCD(7, 39) = 1, targetWeight = 256).
-func computeWCMPWeightParams(numNHs int) (uint64, uint64) {
-	// Find the smallest power-of-two target sum that is at least numNHs * 8.
-	// We require targetWeight to be at least 8 times numNHs to ensure the average weight per next hop
-	// is sufficiently large (>= 8). This gives us enough padding to subtract 1 from the average weight
-	// to make the baseWeight uneven, while guaranteeing the remaining next-hop weight is strictly positive
-	// and doesn't share common factors with the baseWeight.
-	targetWeight := 1
-	for targetWeight < numNHs*8 {
-		targetWeight *= 2
+// computeNHGWeights calculates next-hop weights for actualNHCount next-hops given a WeightGranularity.
+// To prevent standard ECMP from being programmed by the router and force WCMP, the next-hop
+// weights must be slightly uneven. This function distributes the granularity as evenly as possible
+// and shifts 1 weight unit from the second-to-last next hop to the last next hop if all weights are equal.
+func computeNHGWeights(granularity uint64, actualNHCount int) []uint64 {
+	weights := make([]uint64, actualNHCount)
+	if actualNHCount == 0 {
+		return weights
 	}
-	// Under-allocate the base weight by 1 compared to the even share (targetWeight / numNHs) to ensure the remaining
-	// weight assigned to the final next-hop results in an uneven (non-simplifiable) distribution.
-	base := targetWeight / numNHs
-	if base > 1 {
-		base--
+	baseWeight := granularity / uint64(actualNHCount)
+	remainder := granularity % uint64(actualNHCount)
+	for i := 0; i < actualNHCount; i++ {
+		w := baseWeight
+		if i == actualNHCount-1 {
+			w += remainder
+		}
+		weights[i] = w
 	}
-	return uint64(targetWeight), uint64(base)
+	// Force uneven weights to trigger WCMP instead of standard ECMP if baseWeight is greater than 1.
+	if actualNHCount > 1 && baseWeight > 1 {
+		allEqual := true
+		for idx := 1; idx < actualNHCount; idx++ {
+			if weights[idx] != weights[0] {
+				allEqual = false
+				break
+			}
+		}
+		if allEqual {
+			weights[actualNHCount-2]--
+			weights[actualNHCount-1]++
+		}
+	}
+	return weights
 }
 
 // ScaleParams holds the scale constants that configure the gRIBI full scale setup.
@@ -454,6 +496,11 @@ type ScaleParams struct {
 	// 	{Pct: 100, NumNextHops: 2},
 	// },
 	TransitNHGLoadBalance []NHGLoadBalancingParams
+	// The target weight sum distribution parameters for NextHopGroups in transit VRFs.
+	// e.g. TransitNHGWeight: []cfgplugins.NHGWeightParams{
+	// 	{Pct: 100, TargetWeightSum: 64},
+	// },
+	TransitNHGWeight []NHGWeightParams
 	// The number of IPv4 prefixes in each of the 2 transit VRFs (transit TE_VRF_111 and repaired TE_VRF_222)
 	// The IPv4 entries in transit VRF will point to NHGs in sub-group 1)
 	// The IPv4 entries in repaired VRF will point to NHGs in sub-group 2)
@@ -475,8 +522,16 @@ type ScaleParams struct {
 	// 	{Pct: 2, NumNextHops: 32},
 	// },
 	EncapNHGLoadBalance []NHGLoadBalancingParams
-	NumEncapIPv4PerVRF  int
-	NumEncapIPv6PerVRF  int
+	// The target weight sum distribution parameters for NextHopGroups in Encap VRF.
+	// e.g. EncapNHGWeight: []cfgplugins.NHGWeightParams{
+	// 	{Pct: 75, TargetWeightSum: 32},
+	// 	{Pct: 20, TargetWeightSum: 64},
+	// 	{Pct: 3, TargetWeightSum: 128},
+	// 	{Pct: 2, TargetWeightSum: 256},
+	// },
+	EncapNHGWeight     []NHGWeightParams
+	NumEncapIPv4PerVRF int
+	NumEncapIPv6PerVRF int
 
 	NumDecapEntries     int
 	DecapDestsSubsetPct int
@@ -1000,26 +1055,20 @@ func BuildDefaultVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, 
 				nhgWeightBucketIdx++
 				nhgCreatedInWeightBucket = 0
 			}
-			targetWeightSum := nhgWeightBuckets[nhgWeightBucketIdx].targetWeightSum
 
-			// Distribute the target weight sum evenly across the available NextHops.
-			baseWeight := targetWeightSum / uint64(actualNHCount)
-			remainder := targetWeightSum % uint64(actualNHCount)
+			// Distribute weights according to the weight configuration type.
+			switch cfg := nhgWeightBuckets[nhgWeightBucketIdx].config.(type) {
+			case ECMP:
 			for j := 0; j < actualNHCount; j++ {
-				weight := baseWeight
-				if j == actualNHCount-1 {
-					weight += remainder
+					t.Logf("Adding next hop %d to NHG %d with weight 1 (ECMP)", baseNH+uint64((nhOffset+j)%numNHPart), baseNHG+uint64(i))
+					nhg.AddNextHop(baseNH+uint64((nhOffset+j)%numNHPart), 1)
 				}
-				if actualNHCount == targetNHCount && actualNHCount > 1 && baseWeight > 1 {
-					// Apply specific weight adjustments to force the router to program WCMP instead of standard ECMP,
-					// while perfectly preserving the targetWeightSum for hardware buckets.
-					if j == actualNHCount-2 {
-						weight--
-					} else if j == actualNHCount-1 {
-						weight++
-					}
+			case WCMP:
+				weights := computeNHGWeights(cfg.WeightGranularity, actualNHCount)
+				for j := 0; j < actualNHCount; j++ {
+					t.Logf("Adding next hop %d to NHG %d with weight %d (WCMP)", baseNH+uint64((nhOffset+j)%numNHPart), baseNHG+uint64(i), weights[j])
+					nhg.AddNextHop(baseNH+uint64((nhOffset+j)%numNHPart), weights[j])
 				}
-				nhg.AddNextHop(baseNH+uint64((nhOffset+j)%numNHPart), weight)
 			}
 			nhOffset += actualNHCount
 			nhgCreatedInLBBucket++
@@ -1106,9 +1155,14 @@ func BuildTransitVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context,
 		nhgLoadBalancingBuckets := computeNHGBuckets(nhgCount, params.TransitNHGLoadBalance)
 		t.Logf("Transit VRF %s NHG load balancing buckets: %v", vrfName, nhgLoadBalancingBuckets)
 
+		nhgWeightBuckets := computeNHGWeightBuckets(nhgCount, params.TransitNHGWeight)
+		t.Logf("Transit VRF %s NHG weight buckets: %v", vrfName, nhgWeightBuckets)
+
 		nhOffset := 0
 		nhgLBBucket := 0
 		nhgCreatedInLBBucket := 0
+		nhgWeightBucketIdx := 0
+		nhgCreatedInWeightBucket := 0
 		// Create next hop groups referencing default network instance NHs.
 		for i := 0; i < nhgCount; i++ {
 			nhg := fluent.NextHopGroupEntry().WithNetworkInstance(defaultVRF).
@@ -1121,18 +1175,28 @@ func BuildTransitVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context,
 			targetNHCount := nhgLoadBalancingBuckets[nhgLBBucket].numLoadBalancingNH
 			actualNHCount := min(targetNHCount, nhCount)
 
-			targetWeight := uint64(64)
+			for nhgWeightBucketIdx < len(nhgWeightBuckets)-1 && nhgCreatedInWeightBucket >= nhgWeightBuckets[nhgWeightBucketIdx].numNHG {
+				nhgWeightBucketIdx++
+				nhgCreatedInWeightBucket = 0
+			}
+
+			switch cfg := nhgWeightBuckets[nhgWeightBucketIdx].config.(type) {
+			case ECMP:
 			for j := 0; j < actualNHCount; j++ {
 				nhID := baseNHId + uint64((nhOffset+j)%nhCount)
-				weight := uint64(1)
-				if j == actualNHCount-1 {
-					weight = targetWeight - uint64(actualNHCount-1)
+					nhg.AddNextHop(nhID, 1)
 				}
-				nhg.AddNextHop(nhID, weight)
+			case WCMP:
+				weights := computeNHGWeights(cfg.WeightGranularity, actualNHCount)
+				for j := 0; j < actualNHCount; j++ {
+					nhID := baseNHId + uint64((nhOffset+j)%nhCount)
+					nhg.AddNextHop(nhID, weights[j])
+				}
 			}
 
 			nhOffset += actualNHCount
 			nhgCreatedInLBBucket++
+			nhgCreatedInWeightBucket++
 			entries = append(entries, nhg)
 		}
 
@@ -1275,8 +1339,13 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 		nhgLoadBalancingBuckets := computeNHGBuckets(numNHGPerVrf, params.EncapNHGLoadBalance)
 		t.Logf("Encap VRF %d NHG load balancing buckets (size %d): %v", vi, numNHGPerVrf, nhgLoadBalancingBuckets)
 
+		nhgWeightBuckets := computeNHGWeightBuckets(numNHGPerVrf, params.EncapNHGWeight)
+		t.Logf("Encap VRF %d NHG weight buckets (size %d): %v", vi, numNHGPerVrf, nhgWeightBuckets)
+
 		nhgLBBucket := 0
 		nhgCreatedInLBBucket := 0
+		nhgWeightBucketIdx := 0
+		nhgCreatedInWeightBucket := 0
 		for i := 0; i < numNHGPerVrf; i++ {
 			nhg := fluent.NextHopGroupEntry().WithNetworkInstance(defaultVRF).WithID(nhgIdx + uint64(nhgOffset+i))
 
@@ -1288,23 +1357,32 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 			}
 			targetNHCount := nhgLoadBalancingBuckets[nhgLBBucket].numLoadBalancingNH
 
-		actualNHCount := min(targetNHCount, params.NumUniqueEncapNH)
-			targetWeightSum, baseWeight := computeWCMPWeightParams(targetNHCount)
-
-		// Distribute weights among the unique NHs
-		for j := 0; j < actualNHCount; j++ {
-				nhID := nhIdx + uint64((nhOffset+j)%params.NumUniqueEncapNH)
-			weight := baseWeight
-			if j == actualNHCount-1 {
-				// The last unique NH gets all the remaining weight
-				weight = targetWeightSum - (uint64(actualNHCount-1) * baseWeight)
+			// Advance to the next weight bucket once the number of groups created in the current bucket
+			// exceeds the weight bucket's configured size.
+			for nhgWeightBucketIdx < len(nhgWeightBuckets)-1 && nhgCreatedInWeightBucket >= nhgWeightBuckets[nhgWeightBucketIdx].numNHG {
+				nhgWeightBucketIdx++
+				nhgCreatedInWeightBucket = 0
 			}
-			nhg.AddNextHop(nhID, weight)
-		}
+
+			actualNHCount := min(targetNHCount, params.NumUniqueEncapNH)
+			switch cfg := nhgWeightBuckets[nhgWeightBucketIdx].config.(type) {
+			case ECMP:
+				for j := 0; j < actualNHCount; j++ {
+					nhID := nhIdx + uint64((nhOffset+j)%params.NumUniqueEncapNH)
+					nhg.AddNextHop(nhID, 1)
+				}
+			case WCMP:
+				weights := computeNHGWeights(cfg.WeightGranularity, actualNHCount)
+			for j := 0; j < actualNHCount; j++ {
+					nhID := nhIdx + uint64((nhOffset+j)%params.NumUniqueEncapNH)
+					nhg.AddNextHop(nhID, weights[j])
+				}
+			}
 			nhOffset += actualNHCount
 			nhgCreatedInLBBucket++
-		allEntries = append(allEntries, nhg)
-	}
+			nhgCreatedInWeightBucket++
+			allEntries = append(allEntries, nhg)
+		}
 
 		// 2. Create IPv4 and IPv6 routes for the current VRF
 		v4Prefixes, v4Err := iputil.GenerateIPsWithStep(fmt.Sprintf("200.%d.0.1", vi), params.NumEncapIPv4PerVRF, CommonPrefixStep)
@@ -2233,15 +2311,51 @@ func FetchUniqueItems(t *testing.T, s []string) []string {
 	return uniqueList
 }
 
+// validateScaleParams verifies that all scale configuration options are logically valid.
+func validateScaleParams(t *testing.T, params ScaleParams) {
+	t.Helper()
+
+	// Default VRF category
+	validateNHGLoadBalance(t, "DefaultNHGLoadBalance", params.DefaultNHGLoadBalance)
+	validateNHGWeight(t, "DefaultNHGWeight", params.DefaultNHGWeight)
+
+	// Encap VRF category
+	if params.NumEncapVRFs <= 0 {
+		t.Fatalf("validateScaleParams: NumEncapVRFs (%d) must be greater than 0", params.NumEncapVRFs)
+	}
+	if params.NumEncapDefaultNHG < params.NumEncapVRFs {
+		t.Fatalf("validateScaleParams: NumEncapDefaultNHG (%d) must be greater than or equal to NumEncapVRFs (%d)", params.NumEncapDefaultNHG, params.NumEncapVRFs)
+	}
+	if params.NumUniqueEncapNH > 0 && params.NumTransitIPv4 == 0 {
+		t.Fatalf("validateScaleParams: NumTransitIPv4 must be greater than 0 when NumUniqueEncapNH (%d) is greater than 0", params.NumUniqueEncapNH)
+	}
+	validateNHGLoadBalance(t, "EncapNHGLoadBalance", params.EncapNHGLoadBalance)
+	validateNHGWeight(t, "EncapNHGWeight", params.EncapNHGWeight)
+
+	// Decap VRF category
+	if params.NumDecapEntries < 0 {
+		t.Fatalf("validateScaleParams: NumDecapEntries (%d) cannot be negative", params.NumDecapEntries)
+	}
+	if params.DecapDestsSubsetPct < 0 || params.DecapDestsSubsetPct > 100 {
+		t.Fatalf("validateScaleParams: DecapDestsSubsetPct (%d) must be between 0 and 100", params.DecapDestsSubsetPct)
+	}
+
+	// Transit VRF category
+	validateNHGLoadBalance(t, "TransitNHGLoadBalance", params.TransitNHGLoadBalance)
+	validateNHGWeight(t, "TransitNHGWeight", params.TransitNHGWeight)
+
+	// General/Other validations
+	if params.NumPort2VLANs <= 0 {
+		t.Fatalf("validateScaleParams: NumPort2VLANs (%d) must be greater than 0", params.NumPort2VLANs)
+	}
+}
+
 // RunFullScaleTest runs the complete set of configuration, programming, and traffic tests
 // for the given scale parameters.
 func RunFullScaleTest(t *testing.T, params ScaleParams, enablePacketCapture, compactOTGFlows bool) {
 	t.Helper()
 
-	validateNHGLoadBalance(t, "DefaultNHGLoadBalance", params.DefaultNHGLoadBalance)
-	validateNHGWeight(t, "DefaultNHGWeight", params.DefaultNHGWeight)
-	validateNHGLoadBalance(t, "TransitNHGLoadBalance", params.TransitNHGLoadBalance)
-	validateNHGLoadBalance(t, "EncapNHGLoadBalance", params.EncapNHGLoadBalance)
+	validateScaleParams(t, params)
 
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
