@@ -91,6 +91,7 @@ func ConfigureMACsec(t *testing.T, dut *ondatra.DUTDevice, cfg MACsecCfg) *gnmi.
 
 	return batch
 }
+
 const (
 	macsecConfigArista = `
 management security

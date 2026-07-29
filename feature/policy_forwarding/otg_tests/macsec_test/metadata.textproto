@@ -3,7 +3,7 @@
 
 uuid: "73f52817-2667-44c8-837e-cb1a2769b599"
 plan_id: "PF-1.27"
-description: "MPLSoGRE and MPLSoGUE MACsec"
+description: "MPLSoGRE/MPLSoGUE MACsec and Line Rate Performance"
 testbed: TESTBED_DUT_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
@@ -15,12 +15,12 @@ platform_exceptions: {
     default_network_instance: "default"
     next_hop_group_config_unsupported: true
     mpls_unsupported: true
+    macsec_unsupported: true
     mpls_label_classification_unsupported: true
     local_proxy_unsupported: true
     qos_classification_unsupported: true
     policy_forwarding_unsupported: true
     interface_policy_forwarding_unsupported: true
-    macsec_unsupported: true
   }
 }
 platform_exceptions: {

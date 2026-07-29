@@ -1496,6 +1496,7 @@ func EnableHardwareCounters(t *testing.T, dut *ondatra.DUTDevice, feature string
 		t.Fatalf("Unsupported vendor: %v", dut.Vendor())
 	}
 }
+
 // ConfigureAnpfHardwareTcam configures ANPF hardware TCAM profile on the DUT.
 func ConfigureAnpfHardwareTcam(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
