@@ -26,21 +26,25 @@ and traffic forwarding.
 ```
 
 * **DUT Port 1** (Drained Interface): Connected to **ATE Port 1**.
-  * IPv4: `198.51.100.1/31`, IPv6: `2001:db8:1::1/127`
-  * ATE IPv4: `198.51.100.0/31`, ATE IPv6: `2001:db8:1::0/127`
-  * BGP Peer: eBGP between DUT AS `64500` and ATE AS `64501`
+  * Network Instance: DEFAULT
+  * IPv4: 198.51.100.1/31, IPv6: 2001:db8:1::1/127
+  * ATE IPv4: 198.51.100.0/31, ATE IPv6: 2001:db8:1::0/127
+  * BGP Peer: eBGP between DUT AS 64500 and ATE AS 64501
   * IS-IS: Level-2 point-to-point adjacency
 * **DUT Port 2** (Ingress Source): Connected to **ATE Port 2**.
-  * IPv4: `198.51.100.3/31`, IPv6: `2001:db8:1::3/127`
-  * ATE IPv4: `198.51.100.2/31`, ATE IPv6: `2001:db8:1::2/127`
+  * Network Instance: DEFAULT
+  * IPv4: 198.51.100.3/31, IPv6: 2001:db8:1::3/127
+  * ATE IPv4: 198.51.100.2/31, ATE IPv6: 2001:db8:1::2/127
 * **DUT Port 3** (Pass-through Egress): Connected to **ATE Port 3**.
-  * IPv4: `198.51.100.5/31`, IPv6: `2001:db8:1::5/127`
-  * ATE IPv4: `198.51.100.4/31`, ATE IPv6: `2001:db8:1::4/127`
-  * BGP Peer: eBGP between DUT AS `64500` and ATE AS `64503`
+  * Network Instance: DEFAULT
+  * IPv4: 198.51.100.5/31, IPv6: 2001:db8:1::5/127
+  * ATE IPv4: 198.51.100.4/31, ATE IPv6: 2001:db8:1::4/127
+  * BGP Peer: eBGP between DUT AS 64500 and ATE AS 64503
   * IS-IS: Level-2 point-to-point adjacency
 * **DUT Port 4** (Auxiliary Transit): Connected to **ATE Port 4**.
-  * IPv4: `198.51.100.7/31`, IPv6: `2001:db8:1::7/127`
-  * ATE IPv4: `198.51.100.6/31`, ATE IPv6: `2001:db8:1::6/127`
+  * Network Instance: DEFAULT
+  * IPv4: 198.51.100.7/31, IPv6: 2001:db8:1::7/127
+  * ATE IPv4: 198.51.100.6/31, ATE IPv6: 2001:db8:1::6/127
 
 ## Procedure
 
