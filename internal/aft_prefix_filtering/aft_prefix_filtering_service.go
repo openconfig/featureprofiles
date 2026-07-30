@@ -165,6 +165,30 @@ func RunCollector(t *testing.T, cfg RunCollectorParams) {
 	cfg.Collector.ListenUntil(cfg.Ctx, t, cfg.Timeout, cfg.Stop)
 }
 
+// CollectAndVerify runs the collector per cfg, converts the resulting
+// notifications into an AFT snapshot, and verifies that the given prefixes
+// are present/absent in that snapshot (either slice may be nil/empty to skip
+// that check). It returns the resulting snapshot (nil on ToAFT failure, in
+// which case a t.Errorf has already been logged) so callers can layer on any
+// additional, case-specific checks.
+func CollectAndVerify(t *testing.T, dut *ondatra.DUTDevice, cfg RunCollectorParams,
+	present, absent []string) *aftcache.AFTData {
+	t.Helper()
+	RunCollector(t, cfg)
+	aft, err := cfg.Collector.ToAFT(t, dut)
+	if err != nil {
+		t.Errorf("ToAFT failed: %v", err)
+		return nil
+	}
+	if len(present) > 0 {
+		VerifyPrefixesPresent(t, PrefixesParams{InfoAFT: aft, Prefixes: present})
+	}
+	if len(absent) > 0 {
+		VerifyPrefixesAbsent(t, PrefixesParams{InfoAFT: aft, Prefixes: absent})
+	}
+	return aft
+}
+
 // RemovePrefixFromPrefixSetParams contains the parameters required to remove a prefix entry from a routing policy prefix set.
 type RemovePrefixFromPrefixSetParams struct {
 	PrefixSetName string
@@ -691,7 +715,6 @@ func ConfigureGlobalFilterPolicies(t *testing.T, dut *ondatra.DUTDevice, cfg Con
 	// API. The generated ondatra `oc` bindings do not yet contain the
 	// GlobalFilter container, so the calls below are commented out; uncomment
 	// them once the bindings are regenerated against openconfig/public >= 3.3.0.
-	//
 	// batch := &gnmi.SetBatch{}
 	// if cfg.V4Policy != "" {
 	// 	gnmi.BatchUpdate(batch, gnmi.OC().NetworkInstance(cfg.VRFName).Afts().GlobalFilter().Ipv4Policy().Config(), cfg.V4Policy)
@@ -744,4 +767,36 @@ func AddSingleStaticRoute(t *testing.T, dut *ondatra.DUTDevice, cfg AddStaticRou
 	batch := &gnmi.SetBatch{}
 	cfgplugins.ConfigureStaticRoute(t, dut, batch, cfgplugins.ConfigureStaticRouteParams{NetworkInstance: cfg.NetworkInstanceName, Prefix: cfg.Prefix, Index: cfg.Index, NextHop: cfg.NextHop})
 	batch.Set(t, dut)
+}
+
+type CheckForDefaultRoutesParams struct {
+	DUT             *ondatra.DUTDevice
+	NetworkInstance string
+	IPv4Route       string
+	IPv6Route       string
+}
+
+// CheckForDefaultRoutes checks for the presence of IPv4 and IPv6 default routes
+// in the DUT's static routing table.
+func CheckForDefaultRoutes(t *testing.T, cfg *CheckForDefaultRoutesParams) {
+	t.Helper()
+
+	staticProtoName := deviations.StaticProtocolName(cfg.DUT)
+	staticProto := gnmi.OC().
+		NetworkInstance(cfg.NetworkInstance).
+		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, staticProtoName)
+
+	v4Present := gnmi.Lookup(t, cfg.DUT, staticProto.Static(cfg.IPv4Route).State()).IsPresent()
+	v6Present := gnmi.Lookup(t, cfg.DUT, staticProto.Static(cfg.IPv6Route).State()).IsPresent()
+
+	if v4Present && v6Present {
+		t.Logf("AFT-6.2: IPv4 and IPv6 default routes are already present in network-instance %s's static routing table.",
+			cfg.NetworkInstance)
+		return
+	}
+
+	t.Logf("WARNING: Precondition failed: default route(s) missing from network-instance %s's static routing table "+
+		"(IPv4 present: %v, IPv6 present: %v). Please preconfigure %s and %s as data-plane static routes. "+
+		"Otherwise check for InitialSyncStoppingCondition will fail.",
+		cfg.NetworkInstance, v4Present, v6Present, cfg.IPv4Route, cfg.IPv6Route)
 }
