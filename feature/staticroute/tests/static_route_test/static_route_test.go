@@ -233,12 +233,6 @@ func verifyTrafficStreams(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Con
 		// Fetch TX packets once since traffic is stopped and this value is static
 		txPkts := float32(gnmi.Get(t, otg, outPktsQuery))
 
-		// Fail fast if no traffic was sent, saving a 15-second timeout wait
-		if txPkts == 0 {
-			t.Errorf("Flow %s reported 0 transmitted packets. Traffic generation failed.", flowName)
-			continue 
-		}
-
 		// Calculate bounds once before entering the watch loop
 		lowerBound := txPkts * (1 - tolerance)
 		upperBound := txPkts * (1 + tolerance)
@@ -250,8 +244,13 @@ func verifyTrafficStreams(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Con
 				return false
 			}
 
+			// Prevent the test from passing if both TX and RX are 0
+			if txPkts == 0 {
+				return false
+			}
+
 			rxPkts := float32(rx)
-			// Return true to exit Watch loop as soon as it's within tolerance
+			// Return true to exit Watch loop as soon as it's within +/- tolerance limits
 			return rxPkts >= lowerBound && rxPkts <= upperBound
 		}).Await(t)
 
@@ -259,9 +258,13 @@ func verifyTrafficStreams(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Con
 		rxPkts := float32(gnmi.Get(t, otg, inPktsQuery))
 
 		if !watchOk || rxPkts < lowerBound || rxPkts > upperBound {
-			t.Errorf("Received packets for flow %s are outside of the acceptable range: %v (1%% tolerance from %v)", flowName, rxPkts, txPkts)
+			if txPkts == 0 {
+				t.Errorf("IXIA traffic generation failed: flow %s transmitted 0 packets after 45s", flowName)
+			} else {
+				t.Errorf("Generic Test Assertion Failure: Received packets for flow %s are outside of the acceptable range: %v (± tolerance from %v)", flowName, rxPkts, txPkts)
+			}
 		} else {
-			t.Logf("Received packets for flow %s are within the acceptable range: %v (1%% tolerance from %v)", flowName, rxPkts, txPkts)
+			t.Logf("Received packets for flow %s are within the acceptable range: %v (± tolerance from %v)", flowName, rxPkts, txPkts)
 		}
 	}
 
