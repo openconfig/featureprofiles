@@ -303,6 +303,64 @@ type NHGWeightParams struct {
 	Config WeightConfig
 }
 
+// NHGBucketIterator generates the sequence of next-hop count and weight specification weights
+// for NextHopGroups, according to specified load-balancing and weight configurations.
+type NHGBucketIterator struct {
+	lbBuckets       []nhgLoadBalancingBucket
+	weightBuckets   []nhgWeightBucket
+	maxNHsAvailable int
+
+	lbIdx         int
+	lbCreated     int
+	weightIdx     int
+	weightCreated int
+}
+
+// NewNHGBucketIterator creates a new initialized NHGBucketIterator.
+func NewNHGBucketIterator(numNHG int, lbParams []NHGLoadBalancingParams, weightParams []NHGWeightParams, maxNHsAvailable int) *NHGBucketIterator {
+	return &NHGBucketIterator{
+		lbBuckets:       computeNHGBuckets(numNHG, lbParams),
+		weightBuckets:   computeNHGWeightBuckets(numNHG, weightParams),
+		maxNHsAvailable: maxNHsAvailable,
+	}
+}
+
+// Next advances the iterator and returns the slice of next-hop weights for the next group.
+func (it *NHGBucketIterator) Next() []uint64 {
+	if it.lbIdx < len(it.lbBuckets)-1 && it.lbCreated >= it.lbBuckets[it.lbIdx].numNHG {
+		it.lbIdx++
+		it.lbCreated = 0
+	}
+	targetNHCount := it.lbBuckets[it.lbIdx].numLoadBalancingNH
+	actualNHCount := min(targetNHCount, it.maxNHsAvailable)
+
+	if it.weightIdx < len(it.weightBuckets)-1 && it.weightCreated >= it.weightBuckets[it.weightIdx].numNHG {
+		it.weightIdx++
+		it.weightCreated = 0
+	}
+	cfg := it.weightBuckets[it.weightIdx].config
+
+	it.lbCreated++
+	it.weightCreated++
+
+	switch c := cfg.(type) {
+	case ECMP:
+		weights := make([]uint64, actualNHCount)
+		for idx := 0; idx < actualNHCount; idx++ {
+			weights[idx] = 1
+		}
+		return weights
+	case WCMP:
+		return computeNHGWeights(c.WeightGranularity, actualNHCount)
+	default:
+		weights := make([]uint64, actualNHCount)
+		for idx := 0; idx < actualNHCount; idx++ {
+			weights[idx] = 1
+		}
+		return weights
+	}
+}
+
 type nhgWeightBucket struct {
 	numNHG int
 	config WeightConfig
@@ -1023,56 +1081,18 @@ func BuildDefaultVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, 
 
 	buildNHGs := func(baseNHG uint64, baseNH uint64) []fluent.GRIBIEntry {
 		groups := make([]fluent.GRIBIEntry, 0, numNHGPart)
-		nhgLoadBalancingBuckets := computeNHGBuckets(numNHGPart, params.DefaultNHGLoadBalance)
-		t.Logf("Default VRF NHG load balancing buckets: %v", nhgLoadBalancingBuckets)
-
-		nhgWeightBuckets := computeNHGWeightBuckets(numNHGPart, params.DefaultNHGWeight)
-		t.Logf("Default VRF NHG weight buckets: %v", nhgWeightBuckets)
+		iter := NewNHGBucketIterator(numNHGPart, params.DefaultNHGLoadBalance, params.DefaultNHGWeight, numNHPart)
 
 		nhOffset := 0
-		nhgLBBucket := 0
-		nhgCreatedInLBBucket := 0
-		nhgWeightBucketIdx := 0
-		nhgCreatedInWeightBucket := 0
 		for i := 0; i < numNHGPart; i++ {
 			nhg := fluent.NextHopGroupEntry().WithNetworkInstance(defaultVRF).WithID(baseNHG + uint64(i))
-
-			// Advance to the next bucket once the number of groups created in the current bucket
-			// exceeds the bucket's configured size.
-			for nhgLBBucket < len(nhgLoadBalancingBuckets)-1 && nhgCreatedInLBBucket >= nhgLoadBalancingBuckets[nhgLBBucket].numNHG {
-				nhgLBBucket++
-				nhgCreatedInLBBucket = 0
+			weights := iter.Next()
+			for j, w := range weights {
+				nhID := baseNH + uint64((nhOffset+j)%numNHPart)
+				t.Logf("Adding next hop %d to NHG %d with weight %d", nhID, baseNHG+uint64(i), w)
+				nhg.AddNextHop(nhID, w)
 			}
-			targetNHCount := nhgLoadBalancingBuckets[nhgLBBucket].numLoadBalancingNH
-
-			// Cap the number of NextHops per group to prevent duplicate NextHops
-			// within the same group when NumDefaultNH is scaled down.
-			actualNHCount := min(targetNHCount, numNHPart)
-
-			// Advance to the next weight bucket once the number of groups created in the current bucket
-			// exceeds the weight bucket's configured size.
-			for nhgWeightBucketIdx < len(nhgWeightBuckets)-1 && nhgCreatedInWeightBucket >= nhgWeightBuckets[nhgWeightBucketIdx].numNHG {
-				nhgWeightBucketIdx++
-				nhgCreatedInWeightBucket = 0
-			}
-
-			// Distribute weights according to the weight configuration type.
-			switch cfg := nhgWeightBuckets[nhgWeightBucketIdx].config.(type) {
-			case ECMP:
-			for j := 0; j < actualNHCount; j++ {
-					t.Logf("Adding next hop %d to NHG %d with weight 1 (ECMP)", baseNH+uint64((nhOffset+j)%numNHPart), baseNHG+uint64(i))
-					nhg.AddNextHop(baseNH+uint64((nhOffset+j)%numNHPart), 1)
-				}
-			case WCMP:
-				weights := computeNHGWeights(cfg.WeightGranularity, actualNHCount)
-				for j := 0; j < actualNHCount; j++ {
-					t.Logf("Adding next hop %d to NHG %d with weight %d (WCMP)", baseNH+uint64((nhOffset+j)%numNHPart), baseNHG+uint64(i), weights[j])
-					nhg.AddNextHop(baseNH+uint64((nhOffset+j)%numNHPart), weights[j])
-				}
-			}
-			nhOffset += actualNHCount
-			nhgCreatedInLBBucket++
-			nhgCreatedInWeightBucket++
+			nhOffset += len(weights)
 			groups = append(groups, nhg)
 		}
 		return groups
@@ -1152,51 +1172,20 @@ func BuildTransitVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context,
 				WithIPAddress(defaultPrefixes[k%len(defaultPrefixes)]))
 		}
 
-		nhgLoadBalancingBuckets := computeNHGBuckets(nhgCount, params.TransitNHGLoadBalance)
-		t.Logf("Transit VRF %s NHG load balancing buckets: %v", vrfName, nhgLoadBalancingBuckets)
-
-		nhgWeightBuckets := computeNHGWeightBuckets(nhgCount, params.TransitNHGWeight)
-		t.Logf("Transit VRF %s NHG weight buckets: %v", vrfName, nhgWeightBuckets)
-
+		iter := NewNHGBucketIterator(nhgCount, params.TransitNHGLoadBalance, params.TransitNHGWeight, nhCount)
 		nhOffset := 0
-		nhgLBBucket := 0
-		nhgCreatedInLBBucket := 0
-		nhgWeightBucketIdx := 0
-		nhgCreatedInWeightBucket := 0
 		// Create next hop groups referencing default network instance NHs.
 		for i := 0; i < nhgCount; i++ {
 			nhg := fluent.NextHopGroupEntry().WithNetworkInstance(defaultVRF).
 				WithID(baseNHGId + uint64(i)).WithBackupNHG(backupNHG)
 
-			for nhgLBBucket < len(nhgLoadBalancingBuckets)-1 && nhgCreatedInLBBucket >= nhgLoadBalancingBuckets[nhgLBBucket].numNHG {
-				nhgLBBucket++
-				nhgCreatedInLBBucket = 0
-			}
-			targetNHCount := nhgLoadBalancingBuckets[nhgLBBucket].numLoadBalancingNH
-			actualNHCount := min(targetNHCount, nhCount)
-
-			for nhgWeightBucketIdx < len(nhgWeightBuckets)-1 && nhgCreatedInWeightBucket >= nhgWeightBuckets[nhgWeightBucketIdx].numNHG {
-				nhgWeightBucketIdx++
-				nhgCreatedInWeightBucket = 0
-			}
-
-			switch cfg := nhgWeightBuckets[nhgWeightBucketIdx].config.(type) {
-			case ECMP:
-			for j := 0; j < actualNHCount; j++ {
+			weights := iter.Next()
+			for j, w := range weights {
 				nhID := baseNHId + uint64((nhOffset+j)%nhCount)
-					nhg.AddNextHop(nhID, 1)
-				}
-			case WCMP:
-				weights := computeNHGWeights(cfg.WeightGranularity, actualNHCount)
-				for j := 0; j < actualNHCount; j++ {
-					nhID := baseNHId + uint64((nhOffset+j)%nhCount)
-					nhg.AddNextHop(nhID, weights[j])
-				}
+				nhg.AddNextHop(nhID, w)
 			}
 
-			nhOffset += actualNHCount
-			nhgCreatedInLBBucket++
-			nhgCreatedInWeightBucket++
+			nhOffset += len(weights)
 			entries = append(entries, nhg)
 		}
 
@@ -1335,52 +1324,15 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 			numNHGPerVrf = params.NumEncapDefaultNHG - nhgOffset
 		}
 
-		// 1. Create dedicated pool of Next Hop Groups for the current VRF
-		nhgLoadBalancingBuckets := computeNHGBuckets(numNHGPerVrf, params.EncapNHGLoadBalance)
-		t.Logf("Encap VRF %d NHG load balancing buckets (size %d): %v", vi, numNHGPerVrf, nhgLoadBalancingBuckets)
-
-		nhgWeightBuckets := computeNHGWeightBuckets(numNHGPerVrf, params.EncapNHGWeight)
-		t.Logf("Encap VRF %d NHG weight buckets (size %d): %v", vi, numNHGPerVrf, nhgWeightBuckets)
-
-		nhgLBBucket := 0
-		nhgCreatedInLBBucket := 0
-		nhgWeightBucketIdx := 0
-		nhgCreatedInWeightBucket := 0
+		iter := NewNHGBucketIterator(numNHGPerVrf, params.EncapNHGLoadBalance, params.EncapNHGWeight, params.NumUniqueEncapNH)
 		for i := 0; i < numNHGPerVrf; i++ {
 			nhg := fluent.NextHopGroupEntry().WithNetworkInstance(defaultVRF).WithID(nhgIdx + uint64(nhgOffset+i))
-
-			// Advance to the next bucket once the number of groups created in the current bucket
-			// exceeds the bucket's configured size.
-			for nhgLBBucket < len(nhgLoadBalancingBuckets)-1 && nhgCreatedInLBBucket >= nhgLoadBalancingBuckets[nhgLBBucket].numNHG {
-				nhgLBBucket++
-				nhgCreatedInLBBucket = 0
+			weights := iter.Next()
+			for j, w := range weights {
+				nhID := nhIdx + uint64((nhOffset+j)%params.NumUniqueEncapNH)
+				nhg.AddNextHop(nhID, w)
 			}
-			targetNHCount := nhgLoadBalancingBuckets[nhgLBBucket].numLoadBalancingNH
-
-			// Advance to the next weight bucket once the number of groups created in the current bucket
-			// exceeds the weight bucket's configured size.
-			for nhgWeightBucketIdx < len(nhgWeightBuckets)-1 && nhgCreatedInWeightBucket >= nhgWeightBuckets[nhgWeightBucketIdx].numNHG {
-				nhgWeightBucketIdx++
-				nhgCreatedInWeightBucket = 0
-			}
-
-			actualNHCount := min(targetNHCount, params.NumUniqueEncapNH)
-			switch cfg := nhgWeightBuckets[nhgWeightBucketIdx].config.(type) {
-			case ECMP:
-				for j := 0; j < actualNHCount; j++ {
-					nhID := nhIdx + uint64((nhOffset+j)%params.NumUniqueEncapNH)
-					nhg.AddNextHop(nhID, 1)
-				}
-			case WCMP:
-				weights := computeNHGWeights(cfg.WeightGranularity, actualNHCount)
-			for j := 0; j < actualNHCount; j++ {
-					nhID := nhIdx + uint64((nhOffset+j)%params.NumUniqueEncapNH)
-					nhg.AddNextHop(nhID, weights[j])
-				}
-			}
-			nhOffset += actualNHCount
-			nhgCreatedInLBBucket++
-			nhgCreatedInWeightBucket++
+			nhOffset += len(weights)
 			allEntries = append(allEntries, nhg)
 		}
 
