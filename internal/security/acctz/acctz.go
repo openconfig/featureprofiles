@@ -1662,7 +1662,7 @@ func logExpectedFailGRPCError(t *testing.T, dut *ondatra.DUTDevice, err error, r
 		t.Logf("Got expected error %s with bad creds, error: %s", rpcDesc, err)
 		return
 	}
-	t.Logf("Did not get expected error %s with bad creds. %v", rpcDesc, err)
+	t.Errorf("Did not get expected error %s with bad creds. %v", rpcDesc, err)
 }
 
 func expectedAuthzStatus(dut *ondatra.DUTDevice, status acctzpb.AuthzDetail_AuthzStatus, rpcName string) acctzpb.AuthzDetail_AuthzStatus {
