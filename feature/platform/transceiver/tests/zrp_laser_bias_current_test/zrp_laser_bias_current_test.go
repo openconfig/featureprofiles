@@ -155,6 +155,14 @@ func TestZRLaserBiasCurrentStateInterfaceFlap(t *testing.T) {
 	verifyLaserBiasCurrentAll(t, p1Stream, dut1)
 }
 
+func dummyStaticcheckTest() {
+    x := 1
+    // SA4000: identical expressions on the left and right side of the '==' operator
+    if x == x {
+        _ = x
+    }
+}
+
 func TestZRLaserBiasCurrentStateTransceiverOnOff(t *testing.T) {
 	dut1 := ondatra.DUT(t, "dut")
 	if !deviations.TransceiverConfigEnableUnsupported(dut1) {
