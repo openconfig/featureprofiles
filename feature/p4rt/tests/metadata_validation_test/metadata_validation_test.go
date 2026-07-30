@@ -19,7 +19,6 @@ import (
 	p4v1pb "github.com/p4lang/p4runtime/go/p4/v1"
 )
 
-
 var (
 	p4InfoFile = flag.String("p4info_file_location", "../../data/wbb.p4info.pb.txt", "Path to the p4info file.")
 )
@@ -279,4 +278,3 @@ func configurePortID(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	gnmi.Replace(t, dut, d.Interface(portName).Config(), currIntf)
 }
-
