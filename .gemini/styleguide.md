@@ -50,11 +50,45 @@
     *   Environment setup code should be placed in a function named
         setupEnvironment and called from TestMain
     *   Use `t.Run` for subtests so output clearly reflects passed/failed steps.
-    *   **Avoid `time.Sleep`**: Use `gnmi.Watch` with `.Await` for waiting on
-        conditions.
+    *   **Eliminating Polling Loops and Static Sleeps (CRITICAL / HIGH PRIORITY):**
+        *   **Anti-pattern:** Relying on static `time.Sleep` calls, or building custom `for` loops that poll telemetry state with `time.Sleep(pollInterval)`.
+        *   **Correction:** The use of `gnmi.Watch` with `.Await(t)` is mandatory to detect desired states in real-time. Custom polling loops are banned.
+        *   **BAD (Do not do this):**
+            ```go
+            for {
+                val := gnmi.Get(t, dut, path)
+                if val == expected { break }
+                time.Sleep(2 * time.Second)
+            }
+            ```
+        *   **GOOD (Do this instead):**
+            ```go
+            gnmi.Watch(t, dut, path, timeout, func(val *ygnmi.Value[Type]) bool {
+                v, present := val.Val()
+                return present && v == expected
+            }).Await(t)
+            ```
     *   **Querying Counters:** Always use a `gnmi.Watch` loop to wait for a specific counter value to be reached before querying it.
     *   **OTG Start Protocols:** Prior to invoking OTG start protocols, explicitly call `WaitForARP` function to maintain test stability.
       
+        *   **OTG traffic neighbor resolution:** For tests that configure and
+                start OTG (traffic generator) protocols and traffic, ensure neighbor
+                resolution (ARP for IPv4 or ND for IPv6) has completed before
+                starting traffic. Specifically:
+
+                - After `StartProtocols(t)` and before `StartTraffic(t)`, call the
+                    appropriate helper: `otgutils.WaitForARP(t, otg, config, "IPv4")`
+                    or `otgutils.WaitForARP(t, otg, config, "IPv6")` depending on the
+                    address family used by the flows.
+                - If a helper function calls `StartTraffic()`, the caller must ensure
+                    the matching `WaitForARP(...)` has already completed; do not rely on
+                    `StartTraffic()` to implicitly resolve neighbors.
+                - For dual-stack tests that send both IPv4 and IPv6 traffic, wait for
+                    both families before starting traffic.
+
+                This prevents initial packets from being dropped due to unresolved
+                neighbor entries and makes traffic validation deterministic.
+
 *   **Enums:**
 
     *   Do not use numerical enum values (e.g., `6`). Use the ygot-generated
