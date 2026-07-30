@@ -118,26 +118,21 @@ func TestAccountzRecordSubscribeFull(t *testing.T) {
 		}
 
 		foundMap[key{path: path, id: id}] = true
-                if dut.Vendor() == ondatra.JUNIPER {
-                    if  id == "bilbo" {
+		// This check is needed to handle delay in acctz record generation in failUser and successUser 
+                if  id == "bilbo" {
                       denyRecords = append(denyRecords, r)
-                    } else {
+                } else {
                       t.Logf("ID : %v" , id)
                       allowRecords = append(allowRecords, r)
-                    }
-                } else {
-                   gotRecords = append(gotRecords, r)
                 }
 	}
-        if dut.Vendor() == ondatra.JUNIPER {
-           if len(allowRecords) != len(denyRecords) {
+        if len(allowRecords) != len(denyRecords) {
                 t.Errorf("Got %d records, want %d", len(allowRecords), len(denyRecords))
-           } else {
+        } else {
                    for i := 0; i < len(allowRecords); i++ {
                       gotRecords = append(gotRecords, denyRecords[i])
                       gotRecords = append(gotRecords, allowRecords[i])
-               }
-           }
+                   }
         }
 
         if len(wantRecords) != len(gotRecords) {

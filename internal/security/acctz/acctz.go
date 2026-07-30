@@ -775,8 +775,7 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		t.Errorf("Did not get expected error fetching capabilities with no permissions. %v", err1)
 	}
 
-	//if !deviations.AcctzRecordFailGrpcUnsupported(dut) {
-		records = append(records, &acctzpb.RecordResponse{
+        records = append(records, &acctzpb.RecordResponse{
 			ServiceRequest: &acctzpb.RecordResponse_GrpcService{
 				GrpcService: &acctzpb.GrpcService{
 					ServiceType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GNMI,
@@ -796,8 +795,7 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 					Identity: failuser,
 				},
 			},
-		})
-	//}
+	})
 
 	// Send a successful gNMI capabilities request.
 	ctx = context.Background()
@@ -926,8 +924,7 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		}
 	}
 
-	//if !deviations.AcctzRecordFailGrpcUnsupported(dut) {
-		records = append(records, &acctzpb.RecordResponse{
+	records = append(records, &acctzpb.RecordResponse{
 			ServiceRequest: &acctzpb.RecordResponse_GrpcService{
 				GrpcService: &acctzpb.GrpcService{
 					ServiceType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GNOI,
@@ -947,8 +944,7 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 					Identity: failuser,
 				},
 			},
-		})
-	//}
+	})
 
 	// Send a successful gNOI request.
 	ctx = context.Background()
@@ -1067,8 +1063,7 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	} else {
 		t.Errorf("Did not get expected error fetching authz policy with no permissions. error: %s", err)
 	}
-	//if !deviations.AcctzRecordFailGrpcUnsupported(dut) {
-		records = append(records, &acctzpb.RecordResponse{
+	records = append(records, &acctzpb.RecordResponse{
 			ServiceRequest: &acctzpb.RecordResponse_GrpcService{
 				GrpcService: &acctzpb.GrpcService{
 					ServiceType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GNSI,
@@ -1088,8 +1083,7 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 					Identity: failuser,
 				},
 			},
-		})
-	//}
+	})
 	// Send a successful gNSI authz get request.
 	ctx = context.Background()
 	ctx = metadata.AppendToOutgoingContext(ctx, "username", SuccessUsername)
@@ -1337,8 +1331,7 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	} else {
 		t.Errorf("Did not get expected error fetching pr4t capabilities with no permissions, error: %s", err)
 	}
-	//if !deviations.AcctzRecordFailGrpcUnsupported(dut) {
-		records = append(records, &acctzpb.RecordResponse{
+	records = append(records, &acctzpb.RecordResponse{
 			ServiceRequest: &acctzpb.RecordResponse_GrpcService{
 				GrpcService: &acctzpb.GrpcService{
 					ServiceType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_P4RT,
@@ -1358,8 +1351,7 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 					Identity: failuser,
 				},
 			},
-		})
-	//}
+	})
 	ctx = context.Background()
 	ctx = metadata.AppendToOutgoingContext(ctx, "username", SuccessUsername)
 	ctx = metadata.AppendToOutgoingContext(ctx, "password", successPassword)
