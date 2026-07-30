@@ -156,11 +156,11 @@ func TestZRLaserBiasCurrentStateInterfaceFlap(t *testing.T) {
 }
 
 func dummyStaticcheckTest() {
-    x := 1
-    // SA4000: identical expressions on the left and right side of the '==' operator
-    if x == x {
-        _ = x
-    }
+	x := 1
+	// SA4000: identical expressions on the left and right side of the '==' operator
+	if x == x {
+		_ = x
+	}
 }
 
 func TestZRLaserBiasCurrentStateTransceiverOnOff(t *testing.T) {
