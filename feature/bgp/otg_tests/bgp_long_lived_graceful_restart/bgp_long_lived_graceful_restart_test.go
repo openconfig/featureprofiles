@@ -373,7 +373,6 @@ func bgpWithNbr(as uint32, nbrs []*bgpNeighbor, dut *ondatra.DUTDevice) *oc.Netw
 			af6.Enabled = ygot.Bool(false)
 		} else {
 			bgpNbr.PeerGroup = ygot.String(peerv6GrpName)
-			bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 			af6 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 			af6.Enabled = ygot.Bool(true)
 			af4 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
@@ -538,7 +537,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) (gosnappi.Config, []stri
 		v4Route.SetNextHopIpv4Address(newPeerV4[i].Address()).
 			SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
 			SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
-		v4Route.Addresses().Add().SetAddress(fmt.Sprintf("198.51.%d.1", i+1)).SetPrefix(32).SetCount(1)
+		v4Route.Addresses().Add().SetAddress(fmt.Sprintf("198.51.100.%d", i+1)).SetPrefix(32).SetCount(1)
 
 		v6PeerName := newPeerIntfNames[i] + ".BGP6.peer"
 		v6Peer := bgp.Ipv6Interfaces().Add().SetIpv6Name(newPeerV6[i].Name()).Peers().Add().SetName(v6PeerName)
@@ -548,7 +547,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) (gosnappi.Config, []stri
 		v6Route.SetNextHopIpv6Address(newPeerV6[i].Address()).
 			SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
 			SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
-		v6Route.Addresses().Add().SetAddress(fmt.Sprintf("2001:db8::198:51:%d:1", i+1)).SetPrefix(128).SetCount(1)
+		v6Route.Addresses().Add().SetAddress(fmt.Sprintf("2001:db8::198:51:100:%d", i+1)).SetPrefix(128).SetCount(1)
 
 		newPeerNames = append(newPeerNames, v4PeerName)
 	}
@@ -556,7 +555,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) (gosnappi.Config, []stri
 	t.Log("Pushing config to ATE and starting protocols...")
 	otg.PushConfig(t, topo)
 	otg.StartProtocols(t)
-
+	otgutils.WaitForARP(t, otg, topo, "IPv4")
 	return topo, []string{flow1}, newPeerNames
 }
 
@@ -612,7 +611,7 @@ func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, duration time.Duration) {
 }
 
 func configACL(d *oc.Root, name string) *oc.Acl_AclSet {
-	acl := d.GetOrCreateAcl().GetOrCreateAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4)
+	acl := d.GetOrCreateAcl().GetOrCreateAclSet(name, oc.Acl_ACL_TYPE_ACL_IPV4)
 	aclEntry10 := acl.GetOrCreateAclEntry(10)
 	aclEntry10.SequenceId = ygot.Uint32(10)
 	aclEntry10.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_DROP
@@ -637,7 +636,7 @@ func configACL(d *oc.Root, name string) *oc.Acl_AclSet {
 }
 
 func configAdmitAllACL(d *oc.Root, name string) *oc.Acl_AclSet {
-	acl := d.GetOrCreateAcl().GetOrCreateAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4)
+	acl := d.GetOrCreateAcl().GetOrCreateAclSet(name, oc.Acl_ACL_TYPE_ACL_IPV4)
 	acl.DeleteAclEntry(10)
 	acl.DeleteAclEntry(20)
 	return acl
@@ -715,10 +714,12 @@ func configureDUTNewPeers(t *testing.T, dut *ondatra.DUTDevice, nbrs []*bgpNeigh
 
 	// Note: we have to define the peer group even if we aren't setting any policy because it's
 	// invalid OC for the neighbor to be part of a peer group that doesn't exist.
+	pg1 := bgp.GetOrCreatePeerGroup(peerv4GrpName)
+	if len(nbrs) > 0 {
+		pg1.PeerAs = ygot.Uint32(nbrs[0].as)
+	}
+	pg1.PeerGroupName = ygot.String(peerv4GrpName)
 	for _, nbr := range nbrs {
-		pg1 := bgp.GetOrCreatePeerGroup(peerv4GrpName)
-		pg1.PeerAs = ygot.Uint32(nbr.as)
-		pg1.PeerGroupName = ygot.String(peerv4GrpName)
 		nv4 := bgp.GetOrCreateNeighbor(nbr.neighborip)
 		nv4.PeerGroup = ygot.String(peerv4GrpName)
 		nv4.PeerAs = ygot.Uint32(nbr.as)
@@ -865,6 +866,16 @@ func gnmiOperationWithRetry(t *testing.T, opName string, retryCount int, op func
 func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
+
+	// Register cleanup for DUT configuration
+	t.Cleanup(func() {
+		t.Log("Cleaning up DUT configuration...")
+		dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+		gnmi.Delete(t, dut, dutConfPath.Config())
+		gnmi.Delete(t, dut, gnmi.OC().RoutingPolicy().Config())
+		gnmi.Delete(t, dut, gnmi.OC().Acl().Config())
+		t.Log("DUT cleanup complete")
+	})
 
 	t.Run("configureDut", func(t *testing.T) {
 		configureDUT(t, dut)
