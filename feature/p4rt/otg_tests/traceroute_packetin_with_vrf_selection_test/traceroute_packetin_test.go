@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
@@ -133,9 +132,6 @@ func testPacket(t *testing.T, args *testArgs, cs gosnappi.ControlState, flowValu
 
 	configureDeviceID(ctx, t, dut)
 
-	ate.OTG().PushConfig(t, top)
-	ate.OTG().StartProtocols(t)
-	time.Sleep(30 * time.Second)
 
 	args = &testArgs{
 		ctx:      ctx,
