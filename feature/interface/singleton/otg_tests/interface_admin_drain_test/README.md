@@ -51,7 +51,7 @@ and traffic forwarding.
 ### Test environment setup
 
 1. Establish Layer 3 interface configurations on DUT Ports 1, 2, 3, and 4
-   with dual-stack IPv4 and IPv6 subnets.
+   with dual-stack IPv4 and IPv6 subnets under the default network instance (DEFAULT).
 2. Establish eBGP sessions:
    * DUT Port 1 to ATE Port 1: ATE advertises prefix `203.0.113.0/24` (IPv4)
      and `2001:db8:2::/64` (IPv6).
