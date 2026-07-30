@@ -2283,3 +2283,33 @@ func LacpInterfaceFallbackOCUnsupported(dut *ondatra.DUTDevice) bool {
 func VlanSubinterfaceOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetVlanSubinterfaceOcUnsupported()
 }
+
+// MaxOutFIBRouteCount returns routecount if the device has a max route count based on specific platform
+// For devices which has different max route count based on platform, this deviation can be used to set the max route count for the device.
+// This will be used in scale test cases to set the max route count for the device.
+func MaxOutFIBRouteCount(dut *ondatra.DUTDevice) uint32 {
+	if routeCount := lookupDUTDeviations(dut).GetMaxOutFibRouteCount(); routeCount != 0 {
+		return routeCount
+	}
+	return 2500000
+}
+
+// IpsecOcUnsupported returns if device does not support OC configuration for IPSec.
+func IpsecOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIpsecOcUnsupported()
+}
+
+// StaticRouteInVrfOcUnsupported returns true if device does not support OC configuration for static route in VRF.
+func StaticRouteInVrfOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticRouteInVrfOcUnsupported()
+}
+
+// IpRoutingInVrfOcUnsupported returns true if device does not support OC configuration for IP routing in VRF.
+func IpRoutingInVrfOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIpRoutingInVrfOcUnsupported()
+}
+
+// MacsecOcUnsupported returns true if device does not support OC configuration for MACSEC.
+func MacsecOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMacsecOcUnsupported()
+}

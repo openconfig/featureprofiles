@@ -199,19 +199,19 @@ by the bootz process. If the artifacts are incomplete an error will be returned.
 The purpose of this test is to validate BootstrapStream rpc. This
 RPC allows for only requiring a self-signed cert for TLS session.
 The rest of the stream will create trust for both client and server via
-the internal protocol documented at [BootstrapStream](https://github.com/openconfig/bootz/blob/main/proto/bootz.proto#L47).
+the internal protocol documented at [BootstrapStream](https://github.com/openconfig/bootz/blob/main/proto/bootz.proto#L49).
 
 ```mermaid
 sequenceDiagram
    actor Device
    actor Server
-   Device->Server: BootstrapStreamRequest.bootstrap_request
+   Device->>Server: BootstrapStreamRequest.bootstrap_request
    Note right of Server: Server will query OVGS to validate<br>the device and fetch needed keys<br>and build challenge
-   Server->Device: BootstrapStreamResponse.challenge
+   Server->>Device: BootstrapStreamResponse.challenge
    Note left of Device: Device will use private keys<br>to build the challenge reponse
-   Device->Server: BootstrapStreamRequest.response
+   Device->>Server: BootstrapStreamRequest.response
    Note right of Server: Server will validate the response and if valid<br>return bootstrap data
-   Server->Device: BootstrapStreamResponse.bootstrap_data
+   Server->>Device: BootstrapStreamResponse.bootstrap_data
 ```
 
 #### bootz-6.1: Validate minimum necessary bootz configuration
@@ -461,6 +461,106 @@ manual pre-configuration.
 4. Validate the DUT retains the pre-configuration and remains reachable.
 5. Validate device telemetry:
     * `/system/bootz/state/status` returns to `BOOTZ_UNSPECIFIED`.
+
+### bootz-8: Validate bootz.Bootstrap.BootstrapStreamV1
+
+The purpose of this test is to validate BootstrapStreamV1 RPC. This
+RPC allows a device not presenting a certificate during TLS handshake.
+The rest of the stream will create trust for both client and server via
+the internal protocol documented at [BootstrapStreamV1](https://github.com/openconfig/bootz/blob/main/proto/bootz.proto#L68).
+
+```mermaid
+sequenceDiagram
+   participant Device
+   participant Server
+   Device->>Server: BootstrapStreamRequestV1.bootstrap_request
+   Note right of Server: Server will query OVGS to validate<br>the device and fetch needed keys<br>and build challenge
+   Server->>Device: BootstrapStreamResponseV1.challenge_request
+   Note left of Device: Device will use private keys<br>to build the challenge reponse
+   Device->>Server: BootstrapStreamRequestV1.challenge_response
+   Note right of Server: Server will validate the response and if valid<br>return encrypted bootstrap data
+   Server->>Device: BootstrapStreamResponseV1.bootstrap_response
+   Note left of Device: Device will report bootstrap status
+   Device->>Server: BootstrapStreamRequestV1.report_status_request
+   Note right of Server: Server will generate a new challenge if this is a new stream.<br>If not a new stream, skip to final step 'report_status_response'
+   Server->>Device: BootstrapStreamResponseV1.challenge_request
+   Note left of Device: Device will use private keys<br>to build the challenge reponse
+   Device->>Server: BootstrapStreamRequestV1.challenge_response
+   Note right of Server: Server will acknowledge the status report
+   Server->>Device: BootstrapStreamResponseV1.report_status_response
+```
+
+| ID | Case | Result |
+| --- | --- | --- |
+| bootz-8.1 | Successful Bootstrap (Happy Path) | Device successfully bootstraps and applies config. |
+| bootz-8.2 | Challenge Failure | Device sends wrong challenge response, and server returns error. |
+| bootz-8.3 | IDevID Serial Number Mismatch | Device sends IDevID certificate with wrong serial number, and server returns error. |
+| bootz-8.4 | Missing AIK Pub Digest | Device sends TPM 1.2 bootstrap request without populating AIK Pub Digest field, and server returns error. |
+
+#### bootz-8.1: Successful Bootstrap (Happy Path)
+
+This test validates that the device can finish a bootstrap using BootstrapStreamV1 RPC successfully.
+
+| ID        | Case  | Result |
+| --------- | ------------- | --- |
+| bootz-8.1.1 | TPM 2.0 with IDevID  | A TPM 2.0 with IDevID device finishes bootstrap successfully |
+| bootz-8.1.2 | TPM 2.0 without IDevID  | A TPM 2.0 without IDevID device finishes bootstrap successfully |
+| bootz-8.1.3 | TPM 1.2  | A TPM 1.2 device finishes bootstrap successfully |
+
+1. Start Bootz server and provide bootstrap reponse configured as prescribed.
+2. Configure DHCP server with Bootz server address.
+3. Initiate Streaming Bootz v1 boot on the device.
+4. Validate the device initiates the connection via BootstrapStreamV1 RPC.
+5. Validate the BootstrapStreamV1 flow completes successfully and the new configuration is applied.
+6. Validate the device OS version is as expected and the device configuration is as expected.
+7. Validate device telemetry:
+    * `/system/bootz/state/status` transitions to `BOOTZ_OK`.
+    * `/system/bootz/state/error-count` is 0.
+    * `/system/bootz/state/checksum` matches sent proto.
+
+#### bootz-8.2: Challenge Failure
+
+This test validates that the bootz server checks the challenge reponse correctly.
+
+| ID        | Case  | Result |
+| --------- | ------------- | --- |
+| bootz-8.2.1 | TPM 2.0 with IDevID  | A TPM 2.0 with IDevID device sends wrong challenge response and server returns error |
+| bootz-8.2.2 | TPM 2.0 without IDevID  | A TPM 2.0 without IDevID device sends wrong challenge response and server returns error |
+| bootz-8.2.3 | TPM 1.2  | A TPM 1.2 device sends wrong challenge response and server returns error |
+
+1. Start Bootz server and provide bootstrap reponse configured as prescribed.
+2. Configure DHCP server with Bootz server address.
+3. Initiate Streaming Bootz v1 boot on the device.
+4. Validate the device initiates the connection via BootstrapStreamV1 RPC.
+5. Make the device send wrong challenge response after receiving the challenge request from the server.
+6. Validate the server returns error instead of bootstrap data, indicating challenge failure.
+
+#### bootz-8.3: IDevID Serial Number Mismatch
+
+This test validates that the bootz server compares the serial number inside IDevID certificate to
+the serial number of the chassis (or the control card). 
+
+This test applies to TPM 2.0 with IDevID devices only.
+
+1. Start Bootz server and provide bootstrap reponse configured as prescribed.
+2. Configure DHCP server with Bootz server address.
+3. Initiate Streaming Bootz v1 boot on the TPM 2.0 with IDevID device.
+4. Validate the device initiates the connection via BootstrapStreamV1 RPC.
+5. Make the device send an IDevID certificate which contains a different serial number not belonging to the device in the bootstrap request.
+6. Validate the server returns error instead of bootstrap data, indicating serial number mismatch.
+
+#### bootz-8.4: Missing AIK Pub Digest
+
+This test validates that the bootz server checks the AIK Pub Digest for TPM 1.2 bootstrap request.
+
+This test applies to TPM 1.2 devices only.
+
+1. Start Bootz server and provide bootstrap reponse configured as prescribed.
+2. Configure DHCP server with Bootz server address.
+3. Initiate Streaming Bootz v1 boot on the TPM 1.2 device.
+4. Validate the device initiates the connection via BootstrapStreamV1 RPC.
+5. Make the device send an empty AIK Pub Digest in the bootstrap request.
+6. Validate the server returns error instead of bootstrap data, indicating AIK Pub Digest is missing.
 
 ## OpenConfig Path and RPC Coverage
 

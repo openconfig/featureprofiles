@@ -78,7 +78,7 @@ It is assumed that DUT supports 8 QOS queues and use the following class mapping
 | NC1   | 6   |  48 |
 
 
-### DP-1.17.1 Egress Classification and rewrite of IPv4 packets with various DSCP values
+### DP-1.19.1 Egress Classification and rewrite of IPv4 packets with various DSCP values
 
 * Traffic:
     * Generate IPv4 traffic from ATE Port 1 with various DSCP values per table listed in the "Test environment setup" section.
@@ -87,7 +87,7 @@ It is assumed that DUT supports 8 QOS queues and use the following class mapping
     * Capture packets on ATE Port 2 ingress to verify packet re-marking per table above.
     * Analyze traffic flows to confirm no packet drops on DUT.
 
-### DP-1.17.2 Egress Classification and rewrite of IPv6 packets with various TC values
+### DP-1.19.2 Egress Classification and rewrite of IPv6 packets with various TC values
 
 * Traffic:
     * Generate IPv6 traffic from ATE Port 1 with various DSCP values per table listed in the "Test environment setup" section.
@@ -96,7 +96,7 @@ It is assumed that DUT supports 8 QOS queues and use the following class mapping
     * Capture packets on ATE Port 2 ingress to verify packet marking per table above.
     * Analyze traffic flows, confirming no drops on DUT.
 
-### DP-1.17.3 Egress Classification and rewrite of IPoMPLSoGUE traffic with pop action
+### DP-1.19.3 Egress Classification and rewrite of IPoMPLSoGUE traffic with pop action
 
 *   Configuration:
     *   Configure Static MPLS LSP with MPLS pop and IPv4/IPv6 forward actions for a specific label 100020 via ATE Port 1.
@@ -109,7 +109,7 @@ It is assumed that DUT supports 8 QOS queues and use the following class mapping
     *   Capture packets on the DUT ATE Port 2 ingress interface to verify packet marking according to the marking table.
     *   Analyze traffic flows to confirm that no packets are dropped on the DUT.
 
-### DP-1.17.4 Egress Classification and rewrite of IPv6oMPLSoGUE traffic with pop action
+### DP-1.19.4 Egress Classification and rewrite of IPv6oMPLSoGUE traffic with pop action
 *   Configuration:
     *   Configure Static MPLS LSP with MPLS pop and IPv6 forward actions for a specific label 10020.
     *   Configure decapsulation rules for IPv6-DST-DECAP/12
@@ -122,7 +122,7 @@ It is assumed that DUT supports 8 QOS queues and use the following class mapping
     *   Capture packets on the DUT ATE Port 2 ingress interface to verify packet marking according to the marking table.
     *   Analyze traffic flows to confirm that no packets are dropped on the DUT.
 
-### DP-1.17.5 Egress Classification and rewrite of IPoMPLSoGRE traffic with pop action
+### DP-1.19.5 Egress Classification and rewrite of IPoMPLSoGRE traffic with pop action
 *   Configuration:
     *   Configure Static MPLS LSP with MPLS pop and IPv4 forward actions for a specific label 100020
     *   Configure decapsulation rules for IPv4-DST-DECAP/32
@@ -135,7 +135,7 @@ It is assumed that DUT supports 8 QOS queues and use the following class mapping
     *   Capture packets on the DUT ATE Port 2 ingress interface to verify packet marking according to the marking table.
     *   Analyze traffic flows to confirm that no packets are dropped on the DUT.
 
-### DP-1.17.7 Egress Classification and rewrite of IPv6oMPLSoGRE traffic with pop action
+### DP-1.19.6 Egress Classification and rewrite of IPv6oMPLSoGRE traffic with pop action
 *   Configuration:
     *  Configure Static MPLS LSP with MPLS pop and IPv6 forward actions for a specific label 100020.
     *  Configure decapsulation rules for IPv6-DST-DECAP/12
@@ -148,7 +148,7 @@ It is assumed that DUT supports 8 QOS queues and use the following class mapping
     *   Capture packets on the DUT ATE Port 2 ingress interface to verify packet marking according to the marking table.
     *   Analyze traffic flows to confirm that no packets are dropped on the DUT.
 
-### DP-1.17.8 Egress Classification and rewrite of IPoGRE traffic with decapsulate action
+### DP-1.19.7 Egress Classification and rewrite of IPoGRE traffic with decapsulate action
 *   Configuration:
     *    Configure decapsulation rules for IPv4-DST-DECAP/32
     *    Configufe egress QOS re-write rules based on DSCP/TC values and set new DSCP values based on remarking rules.
@@ -160,7 +160,7 @@ It is assumed that DUT supports 8 QOS queues and use the following class mapping
     *   Capture packets on the DUT ATE Port 2 ingress interface to verify packet marking according to the marking table.
     *   Analyze traffic flows to confirm that no packets are dropped on the DUT.
 
-### DP-1.17.9 Egress Classification and rewrite of IPv6oGRE traffic with decapsulate action
+### DP-1.19.8 Egress Classification and rewrite of IPv6oGRE traffic with decapsulate action
 *   Configuration:
     *   Configure decapsulation rules for  IPv6-DST-DECAP/12
     *   Configufe egress QOS re-write rules based on DSCP/TC values and set new DSCP values based on remarking rules.
@@ -171,7 +171,7 @@ It is assumed that DUT supports 8 QOS queues and use the following class mapping
     *   Capture packets on the DUT ATE Port 2 ingress interface to verify packet marking according to the marking table.
     *   Analyze traffic flows to confirm that no packets are dropped on the DUT.
 
-### DP-1.17.10 Egress Classification and rewrite of IPoGUE traffic with pop action
+### DP-1.19.9 Egress Classification and rewrite of IPoGUE traffic with pop action
 *   Configuration:ƒ
     *    Configure decapsulation rules for IPv4-DST-DECAP/32
     *    Configufe egress QOS re-write rules based on DSCP/TC values and set new DSCP values based on remarking rules.
@@ -183,7 +183,7 @@ It is assumed that DUT supports 8 QOS queues and use the following class mapping
     *   Capture packets on the DUT ATE Port 2 ingress interface to verify packet marking according to the marking table.
     *   Analyze traffic flows to confirm that no packets are dropped on the DUT.
 
-### DP-1.17.11 Egress Classification and rewrite of IPv6oGUE traffic with pop action
+### DP-1.19.10 Egress Classification and rewrite of IPv6oGUE traffic with pop action
 *   Configuration:
     *   Configure decapsulation rules for Id IPv6-DST-DECAP/12
     *   Configufe egress QOS re-write rules based on DSCP/TC values and set new DSCP values based on remarking rules.

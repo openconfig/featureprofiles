@@ -36,6 +36,7 @@ import (
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding"
+	"github.com/openconfig/ondatra/binding/introspect"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
@@ -55,7 +56,7 @@ var (
 	containerTar = flag.String("container_tar", "/tmp/cntrsrv.tar", "The container tarball to deploy.")
 	// containerTarPath returns the path to the container tarball.
 	// This can be overridden for internal testing behavior using init().
-	containerTarPath = func() string {
+	containerTarPath = func(t *testing.T) string {
 		return *containerTar
 	}
 )
@@ -81,7 +82,7 @@ func setupContainer(t *testing.T, dut *ondatra.DUTDevice) {
 		ImageName:           imageName,
 		InstanceName:        instanceName,
 		Command:             fmt.Sprintf("./cntrsrv --port=%d", cntrPort),
-		TarPath:             containerTarPath(),
+		TarPath:             containerTarPath(t),
 		Network:             "host",
 		PollForRunningState: true,
 	}
@@ -193,7 +194,7 @@ func TestDialLocal(t *testing.T) {
 
 	gribiClient := gribi.Client{
 		DUT:         dut,
-		FIBACK:      true,
+		FIBACK:      false,
 		Persistence: true,
 	}
 	if err := gribiClient.Start(t); err != nil {
@@ -206,8 +207,12 @@ func TestDialLocal(t *testing.T) {
 	defer gribiClient.FlushAll(t)
 
 	//Program a sample gRIBI Entry on DUT for gRIBI Get query response.
-	gribiClient.AddNH(t, 2001, "Decap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-	gribiClient.AddNHG(t, 201, map[uint64]uint64{2001: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	gribiClient.AddNH(t, 2001, "Decap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInRIB)
+	gribiClient.AddNHG(t, 201, map[uint64]uint64{2001: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInRIB)
+
+	// Dynamically fetch the actual gNMI and gRIBI ports the DUT is configured with.
+	gnmiPort := introspect.DUTDialer(t, dut, introspect.GNMI).DevicePort
+	gribiPort := introspect.DUTDialer(t, dut, introspect.GRIBI).DevicePort
 
 	tests := []struct {
 		desc     string
@@ -218,7 +223,7 @@ func TestDialLocal(t *testing.T) {
 	}{{
 		desc: "dial gNMI",
 		inMsg: &cpb.DialRequest{
-			Addr:     dialAddr + ":9339",
+			Addr:     fmt.Sprintf("%s:%d", dialAddr, gnmiPort),
 			Username: username,
 			Password: password,
 			Request: &cpb.DialRequest_Srv{
@@ -229,7 +234,7 @@ func TestDialLocal(t *testing.T) {
 	}, {
 		desc: "dial gRIBI",
 		inMsg: &cpb.DialRequest{
-			Addr:     dialAddr + ":9340",
+			Addr:     fmt.Sprintf("%s:%d", dialAddr, gribiPort),
 			Username: username,
 			Password: password,
 			Request: &cpb.DialRequest_Srv{
