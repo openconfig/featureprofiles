@@ -28,6 +28,7 @@ import (
 	"github.com/google/gopacket/layers"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/p4rtutils"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ygnmi/ygnmi"
@@ -113,7 +114,8 @@ func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flow
 	}
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
-	time.Sleep(30 * time.Second)
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 
 	// START THE PACKET CAPTURE AFTER CONFIG IS PUSHED
 	ate.OTG().SetControlState(t, cs)
