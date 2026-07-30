@@ -13,6 +13,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
@@ -171,6 +172,13 @@ func runTest(t *testing.T, tc testCase, dut *ondatra.DUTDevice, ate *ondatra.ATE
 		otgutils.WaitForARP(t, ate.OTG(), *config, "IPv6")
 		otg.StartTraffic(t)
 		waitForTraffic(t, otg, tc.flowName, trafficTimeout)
+
+		if _, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(tc.flowName).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
+			f, present := val.Val()
+			return present && f.GetCounters() != nil && f.GetCounters().GetOutPkts() >= uint64(noOfPackets)
+		}).Await(t); !ok {
+			t.Errorf("Timeout waiting for flow %s to transmit %d packets", tc.flowName, noOfPackets)
+		}
 
 		otgutils.LogFlowMetrics(t, otg, *config)
 		otgutils.LogPortMetrics(t, otg, *config)
