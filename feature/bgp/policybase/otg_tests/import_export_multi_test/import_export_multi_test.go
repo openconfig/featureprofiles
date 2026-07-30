@@ -256,6 +256,15 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 
 	if !deviations.SkipSettingStatementForPolicy(dut) {
 		pd2stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+
+		// Add catch-all reject statement to match_community_regex policy so that
+		// routes not matching the regex get an explicit REJECT_ROUTE result,
+		// ensuring the call-policy condition in the parent policy evaluates to false.
+		pd2stmt2, err := pdef2.AppendNewStatement("catch_all_reject")
+		if err != nil {
+			t.Fatalf("AppendNewStatement(%s) failed: %v", "catch_all_reject", err)
+		}
+		pd2stmt2.GetOrCreateActions().SetPolicyResult(rejectResult)
 	}
 
 	// Configure the parent policy multi_policy.
@@ -903,6 +912,10 @@ func TestImportExportMultifacetMatchActionsBGPPolicy(t *testing.T) {
 	bs := cfgplugins.NewBGPSession(t, cfgplugins.PortCount2, nil)
 	bs.WithEBGP(t, []oc.E_BgpTypes_AFI_SAFI_TYPE{oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST}, []string{
 		"port1", "port2"}, true, false)
+
+	if deviations.BgpRibStreamingConfigRequired(dut) {
+		cfgplugins.DeviationBgpRibStreamingConfigRequired(t, dut)
+	}
 
 	configureOTG(t, bs, prefixesV4, prefixesV6, communityMembers)
 	bs.PushAndStart(t)

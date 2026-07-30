@@ -19,8 +19,9 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ondatra/netutil"
-	"github.com/openconfig/ondatra/otg"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -42,6 +43,7 @@ const (
 	intStepV4              = "0.0.0.4"
 	intStepV6              = "0:0:0:1::"
 	staticRoutePrefix      = "10.99.1.0/24"
+	staticRouteV6Prefix    = "3000:1::/64"
 	staticRouteNextHop     = "194.0.2.2"
 	outerSrcIPv4           = "100.64.0.1"
 	outerDstIPv4           = "11.1.1.1"
@@ -56,8 +58,8 @@ const (
 	dutIPv6Len             = 126
 	dutMtu                 = 9202
 	ratePPS                = 100
-	totalPkts              = 10000
-	sleepTime              = 30
+	totalPkts              = 0
+	sleepTime              = 15
 	carrierDelayUp         = 3000
 	carrierDelayDown       = 150
 	outerFlowRate          = 0
@@ -67,11 +69,12 @@ const (
 	innerRawPriority       = 10
 	innerSrcCount          = 0
 	innerSrcPort           = 49152
+	tolerancePct           = 5
+	pushStartWaitTime      = 120 * time.Second
 )
 
 var (
 	top       = gosnappi.NewConfig()
-	aggID     string
 	custPorts = []string{"port1", "port2"}
 	corePorts = []string{"port3", "port4"}
 	coreIntf  = attrs.Attributes{Desc: "Core_Interface", IPv4: "194.0.2.1", IPv6: "2001:10:1:6::1", MTU: 9202, IPv4Len: 24, IPv6Len: 126}
@@ -97,16 +100,17 @@ var (
 		RxNames:           []string{},
 		SizeWeightProfile: &sizeWeightProfile,
 		Flowrate:          100,
+		PacketsToSend:     totalPkts,
 		FlowName:          "MPLSOGUE-IPv4-Traffic",
 		EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg2.AggMAC},
 		IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: outerSrcIPv4, IPv4Dst: outerDstIPv4, IPv4SrcCount: flowSrcCount},
 		MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: mplsV4Label, MPLSExp: 7, MPLSLabelCount: mplsLabelCount},
-		UDPFlow:           &otgconfighelpers.UDPFlowParams{UDPSrcPort: innerSrcPort, UDPDstPort: udpDstPort},
+		UDPFlow:           &otgconfighelpers.UDPFlowParams{UDPSrcPort: innerSrcPort, UDPDstPort: udpDstPort, UDPSrcCount: flowSrcCount},
 	}
 	// flowOuterIPv4Validation MPLSOGUE traffic IPv4 interface IPv4 Payload.
 	flowOuterIPv4Validation = &otgvalidationhelpers.OTGValidation{
 		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{}, Ports: append(agg1.MemberPorts, agg2.MemberPorts...)},
-		Flow:      &otgvalidationhelpers.FlowParams{Name: flowOuterIPv4.FlowName, TolerancePct: 5},
+		Flow:      &otgvalidationhelpers.FlowParams{Name: flowOuterIPv4.FlowName, TolerancePct: tolerancePct},
 	}
 	// flowInnerIPv4 Inner Header IPv4 Payload.
 	flowInnerIPv4 = &otgconfighelpers.Flow{
@@ -115,10 +119,11 @@ var (
 	}
 	// flowOuterIPv6 Decap IPv6 Interface IPv6 Payload traffic params Outer Header.
 	flowOuterIPv6 = &otgconfighelpers.Flow{
-		TxNames:           []string{agg2.Interfaces[0].Name + ".IPv4"},
+		TxNames:           []string{agg2.Interfaces[0].Name + ".IPv6"},
 		RxNames:           []string{},
 		SizeWeightProfile: &sizeWeightProfile,
 		Flowrate:          100,
+		PacketsToSend:     totalPkts,
 		FlowName:          "MPLSOGUE-IPv6-Traffic",
 		EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg2.AggMAC},
 		IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: outerSrcIPv4, IPv4Dst: outerDstIPv4, IPv4SrcCount: flowSrcCount},
@@ -128,7 +133,7 @@ var (
 	// flowOuterIPv6Validation MPLSOGUE traffic IPv6 interface IPv6 Payload.
 	flowOuterIPv6Validation = &otgvalidationhelpers.OTGValidation{
 		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{}, Ports: append(agg1.MemberPorts, agg2.MemberPorts...)},
-		Flow:      &otgvalidationhelpers.FlowParams{Name: flowOuterIPv6.FlowName, TolerancePct: 5},
+		Flow:      &otgvalidationhelpers.FlowParams{Name: flowOuterIPv6.FlowName, TolerancePct: tolerancePct},
 	}
 	// flowInnerIPv6 Inner Header IPv6 Payload.
 	flowInnerIPv6 = &otgconfighelpers.Flow{
@@ -141,6 +146,7 @@ var (
 		RxNames:           []string{},
 		SizeWeightProfile: &sizeWeightProfile,
 		Flowrate:          100,
+		PacketsToSend:     totalPkts,
 		FlowName:          "MPLSoGUE-Mcast-Traffic",
 		EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg2.AggMAC},
 		IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: outerSrcIPv4, IPv4Dst: outerDstIPv4, IPv4SrcCount: flowSrcCount},
@@ -150,7 +156,7 @@ var (
 	// flowOuterMcastValidation MPLSOGUE traffic IPv4 interface IPv4 Payload.
 	flowOuterMcastValidation = &otgvalidationhelpers.OTGValidation{
 		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{}, Ports: append(agg1.MemberPorts, agg2.MemberPorts...)},
-		Flow:      &otgvalidationhelpers.FlowParams{Name: flowOuterMcast.FlowName, TolerancePct: 5},
+		Flow:      &otgvalidationhelpers.FlowParams{Name: flowOuterMcast.FlowName, TolerancePct: tolerancePct},
 	}
 	// flowInnerMcast is the “inner” multicast payload (IPv4 + UDP to the same group).
 	flowInnerMcast = &otgconfighelpers.Flow{
@@ -243,9 +249,8 @@ func configureOTG(t *testing.T) {
 }
 
 // configureDUT Generate DUT Configuration.
-func configureDUT(t *testing.T, dut *ondatra.DUTDevice, netConfig *networkConfig, ocPFParams cfgplugins.OcPolicyForwardingParams) {
+func configureDUT(t *testing.T, dut *ondatra.DUTDevice, netConfig *networkConfig, ocPFParams cfgplugins.OcPolicyForwardingParams) string {
 	t.Helper()
-	aggID = netutil.NextAggregateInterface(t, dut)
 	var interfaces []*attrs.Attributes
 	for i := range intCount {
 		interfaces = append(interfaces, &attrs.Attributes{
@@ -258,16 +263,37 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, netConfig *networkConfig
 			Subinterface: uint32(i + 1),
 		})
 	}
-	configureInterfaces(t, dut, custPorts, interfaces, aggID)
-	aggID = netutil.NextAggregateInterface(t, dut)
-	configureInterfaces(t, dut, corePorts, []*attrs.Attributes{&coreIntf}, aggID)
+	custAggID := netutil.NextAggregateInterface(t, dut)
+	configureInterfaces(t, dut, custPorts, interfaces, custAggID)
+	coreAggID := netutil.NextAggregateInterface(t, dut)
+	configureInterfaces(t, dut, corePorts, []*attrs.Attributes{&coreIntf}, coreAggID)
 	configureStaticRoute(t, dut)
 	_, ni, pf := cfgplugins.SetupPolicyForwardingInfraOC(ocPFParams.NetworkInstanceName)
 	decapMPLSInGUE(t, dut, pf, ni, netConfig, ocPFParams)
+	return custAggID
+}
+
+// waitForLAGUp waits until all specified member ports and the aggregate interface (LAG) reach an operational UP state on the DUT.
+func waitForLAGUp(t *testing.T, dut *ondatra.DUTDevice, aggID string, ports []string) {
+	t.Helper()
+
+	t.Logf("Waiting for LAG %s to be UP...", aggID)
+
+	// Wait for member ports UP
+	for _, p := range ports {
+		port := dut.Port(t, p)
+		gnmi.Await(t, dut, gnmi.OC().Interface(port.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
+		t.Logf("Port %s is UP", p)
+	}
+
+	// Wait for LAG interface UP
+	gnmi.Await(t, dut, gnmi.OC().Interface(aggID).OperStatus().State(), 3*time.Minute, oc.Interface_OperStatus_UP)
+
+	t.Logf("LAG %s is UP", aggID)
 }
 
 // configureDUTAndOTG generates and applies DUT configuration, prepares OTG device/interface properties, and sets up validation flows.
-func configureDUTAndOTG(t *testing.T) {
+func configureDUTAndOTG(t *testing.T) (*ondatra.DUTDevice, string, *networkConfig) {
 	t.Helper()
 	t.Log("PF-1.20.1: Generate DUT Configuration")
 	dut := ondatra.DUT(t, "dut")
@@ -313,7 +339,7 @@ func configureDUTAndOTG(t *testing.T) {
 	ocPFParams.DecapPolicy.DecapMPLSParams.MplsStaticLabels = mplsV4Labels
 	ocPFParams.DecapPolicy.DecapMPLSParams.MplsStaticLabelsForIPv6 = mplsV6Labels
 	// Pass ocPFParams to configureDut
-	configureDUT(t, dut, netConfig, ocPFParams)
+	custAggID := configureDUT(t, dut, netConfig, ocPFParams)
 	// after agg1.Interfaces has been populated...
 	for _, intf := range agg1.Interfaces {
 		// tell the validator which ingress interfaces to watch
@@ -328,6 +354,8 @@ func configureDUTAndOTG(t *testing.T) {
 		flowOuterMcast.RxNames = append(flowOuterMcast.RxNames, intf.Name+".IPv4")
 	}
 	configureOTG(t)
+	waitForLAGUp(t, dut, custAggID, custPorts)
+	return dut, custAggID, netConfig
 }
 
 // defaultOCPolicyForwardingParams provides default parameters for the generator, matching the values in the provided JSON example.
@@ -356,25 +384,28 @@ func decapMPLSInGUE(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance
 }
 
 // sendTraffic push the OTG config and start the protocols/traffic and get the flow/port metrics.
-func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, config *otg.OTG) {
+func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, custAggID string, netConfig *networkConfig) {
 	t.Helper()
-	ate.OTG().PushConfig(t, top)
-	ate.OTG().StartProtocols(t)
+	pushAndStartProtocols(t, ate, top, pushStartWaitTime)
+	waitForSubinterfacesUp(t, dut, custAggID, netConfig, 180*time.Second)
 	if err := flowResolveArp.IsIPv4Interfaceresolved(t, ate); err != nil {
 		t.Fatalf("Failed to resolve IPv4 interface for ATE: %v, error: %v", ate, err)
+	}
+	if err := flowResolveArp.IsIPv6Interfaceresolved(t, ate); err != nil {
+		t.Fatalf("Failed to resolve IPv6 interface for ATE: %v, error: %v", ate, err)
 	}
 	ate.OTG().StartTraffic(t)
 	time.Sleep(sleepTime * time.Second)
 	ate.OTG().StopTraffic(t)
-	otgutils.LogFlowMetrics(t, config, top)
-	otgutils.LogPortMetrics(t, config, top)
+	otgutils.LogFlowMetrics(t, ate.OTG(), top)
+	otgutils.LogPortMetrics(t, ate.OTG(), top)
 }
 
 // sendTrafficCapture push the OTG config and start/stop the capture/traffic to validate the captured packets.
-func sendTrafficCapture(t *testing.T, ate *ondatra.ATEDevice, config *otg.OTG) {
+func sendTrafficCapture(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, custAggID string, netConfig *networkConfig) {
 	t.Helper()
-	ate.OTG().PushConfig(t, top)
-	ate.OTG().StartProtocols(t)
+	pushAndStartProtocols(t, ate, top, pushStartWaitTime)
+	waitForSubinterfacesUp(t, dut, custAggID, netConfig, 180*time.Second)
 	if err := flowResolveArp.IsIPv4Interfaceresolved(t, ate); err != nil {
 		t.Fatalf("Failed to resolve IPv4 interface for ATE: %v, error: %v", ate, err)
 	}
@@ -385,32 +416,181 @@ func sendTrafficCapture(t *testing.T, ate *ondatra.ATEDevice, config *otg.OTG) {
 	packetvalidationhelpers.StopCapture(t, ate, cs)
 }
 
-// createflow configure the traffic streams as per the readme.
-func createflow(t *testing.T, top gosnappi.Config, paramsOuter *otgconfighelpers.Flow, paramsInner *otgconfighelpers.Flow, clearFlows bool) {
+// pushAndStartProtocols pushes the OTG configuration to the ATE, starts all control-plane protocols, waits for protocol convergence, and optionally stops the protocols after the provided duration.
+func pushAndStartProtocols(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, pushStartWaitTime time.Duration) {
 	t.Helper()
+
+	t.Log("Pushing OTG config...")
+	ate.OTG().PushConfig(t, top)
+	time.Sleep(pushStartWaitTime)
+	t.Log("Starting protocols...")
+	ate.OTG().StartProtocols(t)
+
+	if err := waitForOTGProtocolsUpWithRetry(t, ate, top, pushStartWaitTime, false); err != nil {
+		t.Log("Protocols not UP on first attempt, restarting once...")
+
+		// Restart once
+		ate.OTG().StopProtocols(t)
+		ate.OTG().StartProtocols(t)
+
+		if err := waitForOTGProtocolsUpWithRetry(t, ate, top, pushStartWaitTime, true); err != nil {
+			t.Fatalf("Protocols failed to come UP even after restart: %v", err)
+		}
+	}
+
+	t.Log("Protocols are stable and ready")
+}
+
+// waitForSubinterfacesUp validates that all DUT subinterfaces are configured and operational by verifying IP presence and (optionally) neighbor resolution.
+func waitForSubinterfacesUp(t *testing.T, dut *ondatra.DUTDevice, aggID string, netConfig *networkConfig, timeout time.Duration) {
+	t.Helper()
+	t.Logf("Waiting for subinterfaces on %s...", aggID)
+
+	for i := range netConfig.DutIPv4s {
+		subif := uint32(i + 1)
+		// -------------------------------
+		// IPv4 Address Check
+		// -------------------------------
+		ipv4 := netConfig.DutIPv4s[i]
+
+		_, ok := gnmi.Watch(t, dut, gnmi.OC().Interface(aggID).Subinterface(subif).Ipv4().Address(ipv4).PrefixLength().State(), timeout,
+			func(val *ygnmi.Value[uint8]) bool {
+				_, present := val.Val()
+				return present
+			},
+		).Await(t)
+
+		if !ok {
+			t.Fatalf("IPv4 not configured on %s.%d", aggID, subif)
+		}
+		// -------------------------------
+		// IPv6 Address Check
+		// -------------------------------
+		ipv6 := netConfig.DutIPv6s[i]
+
+		_, ok = gnmi.Watch(t, dut, gnmi.OC().Interface(aggID).Subinterface(subif).Ipv6().Address(ipv6).PrefixLength().State(), timeout,
+			func(val *ygnmi.Value[uint8]) bool {
+				_, present := val.Val()
+				return present
+			},
+		).Await(t)
+
+		if !ok {
+			t.Fatalf("IPv6 not configured on %s.%d", aggID, subif)
+		}
+	}
+
+	t.Log("All subinterfaces are configured successfully")
+}
+
+// waitForOTGProtocolsUpWithRetry waits for all OTG ports and LAGs to reach an operational UP state within the given timeout.
+func waitForOTGProtocolsUpWithRetry(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, pushStartWaitTime time.Duration, strict bool) error {
+	t.Helper()
+	t.Log("Waiting for OTG ports to be UP...")
+	for _, p := range config.Ports().Items() {
+		_, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Port(p.Name()).Link().State(), pushStartWaitTime,
+			func(val *ygnmi.Value[otgtelemetry.E_Port_Link]) bool {
+				state, present := val.Val()
+				return present && state == otgtelemetry.Port_Link_UP
+			}).Await(t)
+
+		if !ok {
+			if strict {
+				return fmt.Errorf("port %s not UP", p.Name())
+			}
+			return fmt.Errorf("retry needed: port %s not UP", p.Name())
+		}
+		t.Logf("Port %s is UP", p.Name())
+	}
+
+	t.Log("Waiting for LAGs to be UP...")
+	for _, lag := range config.Lags().Items() {
+		_, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Lag(lag.Name()).OperStatus().State(), pushStartWaitTime,
+			func(val *ygnmi.Value[otgtelemetry.E_Lag_OperStatus]) bool {
+				state, present := val.Val()
+				return present && state == otgtelemetry.Lag_OperStatus_UP
+			}).Await(t)
+
+		if !ok {
+			if strict {
+				return fmt.Errorf("LAG %s not UP", lag.Name())
+			}
+			return fmt.Errorf("retry needed: LAG %s not UP", lag.Name())
+		}
+		t.Logf("LAG %s is UP", lag.Name())
+	}
+
+	return nil
+}
+
+// createflow configure the traffic streams as per the readme.
+func createflow(t *testing.T, top gosnappi.Config, outer *otgconfighelpers.Flow, inner *otgconfighelpers.Flow, clearFlows bool) {
+	t.Helper()
+
 	if clearFlows {
 		top.Flows().Clear()
 	}
-	paramsOuter.CreateFlow(top)
-	paramsOuter.AddEthHeader()
-	paramsOuter.AddIPv4Header()
-	paramsOuter.AddUDPHeader()
-	paramsOuter.AddMPLSHeader()
-	if paramsInner.IPv4Flow != nil {
-		paramsOuter.IPv4Flow = paramsInner.IPv4Flow
-		paramsOuter.AddIPv4Header()
+
+	outerCopy := *outer
+
+	if outer.IPv4Flow != nil {
+		ipv4 := *outer.IPv4Flow
+		outerCopy.IPv4Flow = &ipv4
 	}
-	if paramsInner.IPv6Flow != nil {
-		paramsOuter.IPv6Flow = paramsInner.IPv6Flow
-		paramsOuter.AddIPv6Header()
+	if outer.IPv6Flow != nil {
+		ipv6 := *outer.IPv6Flow
+		outerCopy.IPv6Flow = &ipv6
 	}
-	if paramsInner.TCPFlow != nil {
-		paramsOuter.TCPFlow = paramsInner.TCPFlow
-		paramsOuter.AddTCPHeader()
+	if outer.TCPFlow != nil {
+		tcp := *outer.TCPFlow
+		outerCopy.TCPFlow = &tcp
 	}
-	if paramsInner.UDPFlow != nil {
-		paramsOuter.UDPFlow = paramsInner.UDPFlow
-		paramsOuter.AddUDPHeader()
+	if outer.UDPFlow != nil {
+		udp := *outer.UDPFlow
+		outerCopy.UDPFlow = &udp
+	}
+	if outer.MPLSFlow != nil {
+		mpls := *outer.MPLSFlow
+		outerCopy.MPLSFlow = &mpls
+	}
+
+	outerCopy.CreateFlow(top)
+	outerCopy.AddEthHeader()
+
+	if outerCopy.IPv4Flow != nil {
+		outerCopy.AddIPv4Header()
+	}
+	if outerCopy.UDPFlow != nil {
+		outerCopy.AddUDPHeader()
+	}
+	if outerCopy.MPLSFlow != nil {
+		outerCopy.AddMPLSHeader()
+	}
+
+	if inner != nil {
+		if inner.IPv4Flow != nil {
+			ipv4 := *inner.IPv4Flow
+			outerCopy.IPv4Flow = &ipv4
+			outerCopy.AddIPv4Header()
+		}
+
+		if inner.IPv6Flow != nil {
+			ipv6 := *inner.IPv6Flow
+			outerCopy.IPv6Flow = &ipv6
+			outerCopy.AddIPv6Header()
+		}
+
+		if inner.TCPFlow != nil {
+			tcp := *inner.TCPFlow
+			outerCopy.TCPFlow = &tcp
+			outerCopy.AddTCPHeader()
+		}
+
+		if inner.UDPFlow != nil {
+			udp := *inner.UDPFlow
+			outerCopy.UDPFlow = &udp
+			outerCopy.AddUDPHeader()
+		}
 	}
 }
 
@@ -537,6 +717,15 @@ func configureStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
 	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
 		t.Fatalf("Failed to configure IPv4 static route: %v", err)
 	}
+	sV6 := &cfgplugins.StaticRouteCfg{
+		NetworkInstance: deviations.DefaultNetworkInstance(dut),
+		Prefix:          staticRouteV6Prefix,
+		NextHops:        map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{"1": oc.UnionString(agg2interface.IPv6Gateway)},
+	}
+
+	if _, err := cfgplugins.NewStaticRouteCfg(b, sV6, dut); err != nil {
+		t.Fatalf("Failed to configure IPv6 static route: %v", err)
+	}
 	b.Set(t, dut)
 }
 
@@ -549,7 +738,7 @@ func pushPolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.Net
 
 func TestMPLSOGUEDecapScale(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
-	configureDUTAndOTG(t)
+	dut, custAggID, netConfig := configureDUTAndOTG(t)
 	tests := []struct {
 		name                    string
 		outerFlow               *otgconfighelpers.Flow
@@ -607,10 +796,10 @@ func TestMPLSOGUEDecapScale(t *testing.T) {
 			if tc.validatePayloadPreserve {
 				updateFlow(t, tc.outerFlow, tc.innerFlow, true, ratePPS, totalPkts)
 				packetvalidationhelpers.ConfigurePacketCapture(t, top, tc.validationConfig)
-				sendTrafficCapture(t, ate, ate.OTG())
+				sendTrafficCapture(t, ate, dut, custAggID, netConfig)
 			} else {
 				createflow(t, top, tc.outerFlow, tc.innerFlow, true)
-				sendTraffic(t, ate, ate.OTG())
+				sendTraffic(t, ate, dut, custAggID, netConfig)
 			}
 
 			if err := tc.flowValidator(t, ate); err != nil {
