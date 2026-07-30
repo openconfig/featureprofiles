@@ -775,26 +775,26 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		t.Errorf("Did not get expected error fetching capabilities with no permissions. %v", err1)
 	}
 
-        records = append(records, &acctzpb.RecordResponse{
-			ServiceRequest: &acctzpb.RecordResponse_GrpcService{
-				GrpcService: &acctzpb.GrpcService{
-					ServiceType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GNMI,
-					RpcName:     gnmiCapabilitiesPath,
-					Authz: &acctzpb.AuthzDetail{
-						Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY, gnmiCapabilitiesPath),
-					},
+	records = append(records, &acctzpb.RecordResponse{
+		ServiceRequest: &acctzpb.RecordResponse_GrpcService{
+			GrpcService: &acctzpb.GrpcService{
+				ServiceType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GNMI,
+				RpcName:     gnmiCapabilitiesPath,
+				Authz: &acctzpb.AuthzDetail{
+					Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY, gnmiCapabilitiesPath),
 				},
 			},
-			SessionInfo: &acctzpb.SessionInfo{
-				Status: acctzpb.SessionInfo_SESSION_STATUS_ONCE,
-				Authn: &acctzpb.AuthnDetail{
-					Type:   acctzpb.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
-					Status: acctzpb.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
-				},
-				User: &acctzpb.UserDetail{
-					Identity: failuser,
-				},
+		},
+		SessionInfo: &acctzpb.SessionInfo{
+			Status: acctzpb.SessionInfo_SESSION_STATUS_ONCE,
+			Authn: &acctzpb.AuthnDetail{
+				Type:   acctzpb.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
+				Status: acctzpb.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
 			},
+			User: &acctzpb.UserDetail{
+				Identity: failuser,
+			},
+		},
 	})
 
 	// Send a successful gNMI capabilities request.
@@ -925,25 +925,25 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	}
 
 	records = append(records, &acctzpb.RecordResponse{
-			ServiceRequest: &acctzpb.RecordResponse_GrpcService{
-				GrpcService: &acctzpb.GrpcService{
-					ServiceType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GNOI,
-					RpcName:     rpcName,
-					Authz: &acctzpb.AuthzDetail{
-						Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY, rpcName),
-					},
+		ServiceRequest: &acctzpb.RecordResponse_GrpcService{
+			GrpcService: &acctzpb.GrpcService{
+				ServiceType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GNOI,
+				RpcName:     rpcName,
+				Authz: &acctzpb.AuthzDetail{
+					Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY, rpcName),
 				},
 			},
-			SessionInfo: &acctzpb.SessionInfo{
-				Status: acctzpb.SessionInfo_SESSION_STATUS_ONCE,
-				Authn: &acctzpb.AuthnDetail{
-					Type:   acctzpb.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
-					Status: acctzpb.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
-				},
-				User: &acctzpb.UserDetail{
-					Identity: failuser,
-				},
+		},
+		SessionInfo: &acctzpb.SessionInfo{
+			Status: acctzpb.SessionInfo_SESSION_STATUS_ONCE,
+			Authn: &acctzpb.AuthnDetail{
+				Type:   acctzpb.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
+				Status: acctzpb.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
 			},
+			User: &acctzpb.UserDetail{
+				Identity: failuser,
+			},
+		},
 	})
 
 	// Send a successful gNOI request.
@@ -1064,25 +1064,25 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		t.Errorf("Did not get expected error fetching authz policy with no permissions. error: %s", err)
 	}
 	records = append(records, &acctzpb.RecordResponse{
-			ServiceRequest: &acctzpb.RecordResponse_GrpcService{
-				GrpcService: &acctzpb.GrpcService{
-					ServiceType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GNSI,
-					RpcName:     gnsiGetPath,
-					Authz: &acctzpb.AuthzDetail{
-						Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY, gnsiGetPath),
-					},
+		ServiceRequest: &acctzpb.RecordResponse_GrpcService{
+			GrpcService: &acctzpb.GrpcService{
+				ServiceType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GNSI,
+				RpcName:     gnsiGetPath,
+				Authz: &acctzpb.AuthzDetail{
+					Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY, gnsiGetPath),
 				},
 			},
-			SessionInfo: &acctzpb.SessionInfo{
-				Status: acctzpb.SessionInfo_SESSION_STATUS_ONCE,
-				Authn: &acctzpb.AuthnDetail{
-					Type:   acctzpb.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
-					Status: acctzpb.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
-				},
-				User: &acctzpb.UserDetail{
-					Identity: failuser,
-				},
+		},
+		SessionInfo: &acctzpb.SessionInfo{
+			Status: acctzpb.SessionInfo_SESSION_STATUS_ONCE,
+			Authn: &acctzpb.AuthnDetail{
+				Type:   acctzpb.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
+				Status: acctzpb.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
 			},
+			User: &acctzpb.UserDetail{
+				Identity: failuser,
+			},
+		},
 	})
 	// Send a successful gNSI authz get request.
 	ctx = context.Background()
@@ -1332,25 +1332,25 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		t.Errorf("Did not get expected error fetching pr4t capabilities with no permissions, error: %s", err)
 	}
 	records = append(records, &acctzpb.RecordResponse{
-			ServiceRequest: &acctzpb.RecordResponse_GrpcService{
-				GrpcService: &acctzpb.GrpcService{
-					ServiceType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_P4RT,
-					RpcName:     p4rtCapabilitiesPath,
-					Authz: &acctzpb.AuthzDetail{
-						Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY, p4rtCapabilitiesPath),
-					},
+		ServiceRequest: &acctzpb.RecordResponse_GrpcService{
+			GrpcService: &acctzpb.GrpcService{
+				ServiceType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_P4RT,
+				RpcName:     p4rtCapabilitiesPath,
+				Authz: &acctzpb.AuthzDetail{
+					Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY, p4rtCapabilitiesPath),
 				},
 			},
-			SessionInfo: &acctzpb.SessionInfo{
-				Status: acctzpb.SessionInfo_SESSION_STATUS_ONCE,
-				Authn: &acctzpb.AuthnDetail{
-					Type:   acctzpb.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
-					Status: acctzpb.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
-				},
-				User: &acctzpb.UserDetail{
-					Identity: failuser,
-				},
+		},
+		SessionInfo: &acctzpb.SessionInfo{
+			Status: acctzpb.SessionInfo_SESSION_STATUS_ONCE,
+			Authn: &acctzpb.AuthnDetail{
+				Type:   acctzpb.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
+				Status: acctzpb.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
 			},
+			User: &acctzpb.UserDetail{
+				Identity: failuser,
+			},
+		},
 	})
 	ctx = context.Background()
 	ctx = metadata.AppendToOutgoingContext(ctx, "username", SuccessUsername)

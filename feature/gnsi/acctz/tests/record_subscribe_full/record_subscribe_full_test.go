@@ -91,8 +91,8 @@ func TestAccountzRecordSubscribeFull(t *testing.T) {
 
 	// Filter out records that are not for the success or fail usernames.
 	var gotRecords []*acctzpb.RecordResponse
-        var allowRecords []*acctzpb.RecordResponse
-        var denyRecords []*acctzpb.RecordResponse
+	var allowRecords []*acctzpb.RecordResponse
+	var denyRecords []*acctzpb.RecordResponse
 
 	type key struct {
 		path string
@@ -118,26 +118,26 @@ func TestAccountzRecordSubscribeFull(t *testing.T) {
 		}
 
 		foundMap[key{path: path, id: id}] = true
-		// This check is needed to handle delay in acctz record generation in failUser and successUser 
-                if  id == "bilbo" {
-                      denyRecords = append(denyRecords, r)
-                } else {
-                      t.Logf("ID : %v" , id)
-                      allowRecords = append(allowRecords, r)
-                }
+		// This check is needed to handle delay in acctz record generation in failUser and successUser
+		if id == "bilbo" {
+			denyRecords = append(denyRecords, r)
+		} else {
+			t.Logf("ID : %v", id)
+			allowRecords = append(allowRecords, r)
+		}
 	}
-        if len(allowRecords) != len(denyRecords) {
-                t.Errorf("Got %d records, want %d", len(allowRecords), len(denyRecords))
-        } else {
-                   for i := 0; i < len(allowRecords); i++ {
-                      gotRecords = append(gotRecords, denyRecords[i])
-                      gotRecords = append(gotRecords, allowRecords[i])
-                   }
-        }
+	if len(allowRecords) != len(denyRecords) {
+		t.Errorf("Got %d records, want %d", len(allowRecords), len(denyRecords))
+	} else {
+		for i := 0; i < len(allowRecords); i++ {
+			gotRecords = append(gotRecords, denyRecords[i])
+			gotRecords = append(gotRecords, allowRecords[i])
+		}
+	}
 
-        if len(wantRecords) != len(gotRecords) {
-                t.Errorf("Got %d records, want %d", len(gotRecords), len(wantRecords))
-        }
+	if len(wantRecords) != len(gotRecords) {
+		t.Errorf("Got %d records, want %d", len(gotRecords), len(wantRecords))
+	}
 
 	// Ignore proto fields which are set internally by the DUT (cannot be matched exactly)
 	// and compare them manually later.
