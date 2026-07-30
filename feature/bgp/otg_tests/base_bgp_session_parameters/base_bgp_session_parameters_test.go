@@ -15,6 +15,7 @@
 package base_bgp_session_parameters_test
 
 import (
+	"slices"
 	"testing"
 	"time"
 
