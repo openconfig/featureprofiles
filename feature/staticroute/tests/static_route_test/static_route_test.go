@@ -223,29 +223,52 @@ func verifyTrafficStreams(t *testing.T,
 
 	t.Log("Starting traffic for 30 seconds")
 	ate.OTG().StartTraffic(t)
-	time.Sleep(30 * time.Second)
-	t.Log("Stopping traffic and waiting 10 seconds for traffic stats to complete")
+	time.Sleep(30 * time.Second) // Traffic transmission period
+
+	t.Log("Stopping traffic and waiting for traffic stats to settle")
 	ate.OTG().StopTraffic(t)
-	time.Sleep(10 * time.Second)
 
-	otgutils.LogFlowMetrics(t, ate.OTG(), top)
-
-	// Loop through each flow to validate packets
+	// Loop through each flow to validate packets using Watch instead of static sleep
 	for _, flow := range trafficFlows {
 		flowName := flow.Name()
-		txPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).Counters().OutPkts().State()))
-		rxPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).Counters().InPkts().State()))
+		inPktsQuery := gnmi.OTG().Flow(flowName).Counters().InPkts().State()
+		outPktsQuery := gnmi.OTG().Flow(flowName).Counters().OutPkts().State()
 
-		// Calculate the acceptable lower and upper bounds for rxPkts
+		// Watch for up to 15 seconds for the counters to sync and fall within tolerance
+		_, watchOk := gnmi.Watch(t, otg, inPktsQuery, 15*time.Second, func(v *ygnmi.Value[uint64]) bool {
+			rx, present := v.Val()
+			if !present {
+				return false
+			}
+
+			tx := gnmi.Get(t, otg, outPktsQuery)
+			if tx == 0 {
+				return false
+			}
+
+			rxPkts := float32(rx)
+			txPkts := float32(tx)
+
+			lowerBound := txPkts * (1 - tolerance)
+			upperBound := txPkts * (1 + tolerance)
+
+			// Return true to exit Watch loop as soon as it's within tolerance
+			return rxPkts >= lowerBound && rxPkts <= upperBound
+		}).Await(t)
+
+		// Fetch final values for logging/error reporting
+		txPkts := float32(gnmi.Get(t, otg, outPktsQuery))
+		rxPkts := float32(gnmi.Get(t, otg, inPktsQuery))
 		lowerBound := txPkts * (1 - tolerance)
 		upperBound := txPkts * (1 + tolerance)
 
-		if rxPkts < lowerBound || rxPkts > upperBound {
+		if !watchOk || rxPkts < lowerBound || rxPkts > upperBound {
 			t.Errorf("Received packets for flow %s are outside of the acceptable range: %v (1%% tolerance from %v)", flowName, rxPkts, txPkts)
 		} else {
 			t.Logf("Received packets for flow %s are within the acceptable range: %v (1%% tolerance from %v)", flowName, rxPkts, txPkts)
 		}
 	}
+	otgutils.LogFlowMetrics(t, ate.OTG(), top)
 }
 
 func configureStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
