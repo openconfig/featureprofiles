@@ -29,11 +29,12 @@ import (
 )
 
 const (
-	v4PfxSetA = "PREFIX-SET-A"
-	v6PfxSetB = "PREFIX-SET-B"
-
-	policyPfxSetA = "POLICY-PREFIX-SET-A"
-	policyPfxSetB = "POLICY-PREFIX-SET-B"
+	v4PfxSetA      = "PREFIX-SET-A"
+	v6PfxSetB      = "PREFIX-SET-B"
+	policyPfxSetA  = "POLICY-PREFIX-SET-A"
+	policyPfxSetB  = "POLICY-PREFIX-SET-B"
+	defaultV4Route = "0.0.0.0/0"
+	defaultV6Route = "::/0"
 )
 
 var (
@@ -54,14 +55,16 @@ var (
 		"198.51.100.0/24",
 		"203.0.113.0/28",
 		"198.51.100.1/32",
+		defaultV4Route,
 	}
 	pfxSetBMembers = []string{
 		"2001:db8:2::/64",
 		"2001:db8:2::1/128",
+		defaultV6Route,
 	}
 
-	v4MatchPrefixes  = []string{"198.51.100.0/24", "203.0.113.0/28", "198.51.100.1/32"}
-	v6MatchPrefixes  = []string{"2001:db8:2::/64", "2001:db8:2::1/128"}
+	v4MatchPrefixes  = []string{"198.51.100.0/24", "203.0.113.0/28", "198.51.100.1/32", defaultV4Route}
+	v6MatchPrefixes  = []string{"2001:db8:2::/64", "2001:db8:2::1/128", defaultV6Route}
 	nonMatchPrefixes = []string{"100.64.0.0/24", "2001:db8:1::/64", "2001:db8:3::/64"}
 )
 
@@ -160,7 +163,7 @@ func TestAFTPrefixFilteringDualStack(t *testing.T) {
 	if deviations.AftsGlobalFilterPolicyOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			t.Skipf("Skipping AFT-6.1 test validation: AFT global-filter policy is not supported on %s", dut.Vendor())
+			t.Skipf("Skipping AFT-6.2 test validation: AFT global-filter policy is not supported on %s", dut.Vendor())
 		}
 	}
 
@@ -189,6 +192,13 @@ func TestAFTPrefixFilteringDualStack(t *testing.T) {
 	cfgplugins.IsIPv6InterfaceARPresolved(t, ate, cfgplugins.AddressFamilyParams{InterfaceNames: interfaceNamesList})
 
 	aftpf.AwaitBGPConvergence(t, dut, ni)
+
+	aftpf.CheckForDefaultRoutes(t, &aftpf.CheckForDefaultRoutesParams{
+		DUT:             dut,
+		NetworkInstance: ni,
+		IPv4Route:       defaultV4Route,
+		IPv6Route:       defaultV6Route,
+	})
 
 	t.Run("aft-6.2.1-testSimultaneousDualStackPolicy", func(t *testing.T) {
 		testSimultaneousDualStackPolicy(t, dut)
