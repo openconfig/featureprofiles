@@ -54,6 +54,8 @@ const (
 	pfxMode              = aftpf.PfxMode
 	subscriptionWait     = aftpf.AFTSubscriptionWait
 	staticRouteIndex     = aftpf.StaticRouteIndex
+	defaultV4Route       = "0.0.0.0/0"
+	defaultV6Route       = "::/0"
 )
 
 var (
@@ -74,12 +76,12 @@ var (
 		"198.51.100.0/24",
 		"203.0.113.0/28",
 		"198.51.100.1/32",
-		"0.0.0.0/0",
+		defaultV4Route,
 	}
 	pfxSetBMembers = []string{
 		"2001:db8:2::/64",
 		"2001:db8:2::1/128",
-		"0::0/0",
+		defaultV6Route,
 	}
 )
 
@@ -638,7 +640,7 @@ func testPrefixSetPolicySubscription(t *testing.T, dut *ondatra.DUTDevice) {
 			policyName:            policyPfxSetA,
 			ipv4:                  true,
 			nextHop:               atePort1.IPv4,
-			matchPrefixes:         []string{"198.51.100.0/24", "203.0.113.0/28"},
+			matchPrefixes:         []string{"198.51.100.0/24", "203.0.113.0/28", defaultV4Route},
 			nonMatchPrefix:        "100.64.0.0/24",
 			dynamicAddPrefix:      "198.51.100.1/32",
 			dynamicNonMatchPrefix: "100.64.1.0/24",
@@ -648,7 +650,7 @@ func testPrefixSetPolicySubscription(t *testing.T, dut *ondatra.DUTDevice) {
 			policyName:            policyPfxSetB,
 			ipv4:                  false,
 			nextHop:               atePort1.IPv6,
-			matchPrefixes:         []string{"2001:db8:2::/64"},
+			matchPrefixes:         []string{"2001:db8:2::/64", defaultV6Route},
 			nonMatchPrefix:        "2001:db8:1::/64",
 			dynamicAddPrefix:      "2001:db8:2::1/128",
 			dynamicNonMatchPrefix: "2001:db8:4::/64",
@@ -1048,14 +1050,12 @@ func TestAFTPrefixFiltering(t *testing.T) {
 
 	aftpf.AwaitBGPConvergence(t, dut, ni)
 
-	// AFT-6.1.1 is the only subtest iterated across both IPv4 and IPv6: the
-	// README's Test Case Iteration section requires that subscribe/validate
-	// cycle to be repeated per address family. AFT-6.1.2 through AFT-6.1.7
-	// validate policy semantics (non-existent policy, deletion, prefix-set
-	// swap, multi-statement, deny action, non-prefix-set match) that are
-	// address-family agnostic and whose README procedures reference only
-	// ipv4-policy, so they are exercised with IPv4 only; the per-address-family
-	// path is already covered by AFT-6.1.1.
+	aftpf.CheckForDefaultRoutes(t, &aftpf.CheckForDefaultRoutesParams{
+		DUT:             dut,
+		NetworkInstance: ni,
+		IPv4Route:       defaultV4Route,
+		IPv6Route:       defaultV6Route,
+	})
 	tests := []struct {
 		name string
 		test func(t *testing.T, dut *ondatra.DUTDevice)
