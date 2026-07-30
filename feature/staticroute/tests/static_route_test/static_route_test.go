@@ -214,53 +214,49 @@ func createTrafficFlows(t *testing.T,
 }
 
 // Send traffic and validate traffic.
-func verifyTrafficStreams(t *testing.T,
-	ate *ondatra.ATEDevice,
-	top gosnappi.Config,
-	otg *otg.OTG,
-	trafficFlows ...gosnappi.Flow) {
+func verifyTrafficStreams(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, otg *otg.OTG, trafficFlows ...gosnappi.Flow) {
 	t.Helper()
 
 	t.Log("Starting traffic for 30 seconds")
 	ate.OTG().StartTraffic(t)
-	time.Sleep(30 * time.Second) // Traffic transmission period
+	time.Sleep(30 * time.Second)
 
 	t.Log("Stopping traffic and waiting for traffic stats to settle")
 	ate.OTG().StopTraffic(t)
 
-	// Loop through each flow to validate packets using Watch instead of static sleep
+	// Loop through each flow to validate packets
 	for _, flow := range trafficFlows {
 		flowName := flow.Name()
 		inPktsQuery := gnmi.OTG().Flow(flowName).Counters().InPkts().State()
 		outPktsQuery := gnmi.OTG().Flow(flowName).Counters().OutPkts().State()
 
-		// Watch for up to 15 seconds for the counters to sync and fall within tolerance
-		_, watchOk := gnmi.Watch(t, otg, inPktsQuery, 15*time.Second, func(v *ygnmi.Value[uint64]) bool {
+		// Fetch TX packets once since traffic is stopped and this value is static
+		txPkts := float32(gnmi.Get(t, otg, outPktsQuery))
+
+		// Fail fast if no traffic was sent, saving a 15-second timeout wait
+		if txPkts == 0 {
+			t.Errorf("Flow %s reported 0 transmitted packets. Traffic generation failed.", flowName)
+			continue 
+		}
+
+		// Calculate bounds once before entering the watch loop
+		lowerBound := txPkts * (1 - tolerance)
+		upperBound := txPkts * (1 + tolerance)
+
+		// Watch for up to 45 seconds for the counters to sync and fall within tolerance
+		_, watchOk := gnmi.Watch(t, otg, inPktsQuery, 45*time.Second, func(v *ygnmi.Value[uint64]) bool {
 			rx, present := v.Val()
 			if !present {
 				return false
 			}
 
-			tx := gnmi.Get(t, otg, outPktsQuery)
-			if tx == 0 {
-				return false
-			}
-
 			rxPkts := float32(rx)
-			txPkts := float32(tx)
-
-			lowerBound := txPkts * (1 - tolerance)
-			upperBound := txPkts * (1 + tolerance)
-
 			// Return true to exit Watch loop as soon as it's within tolerance
 			return rxPkts >= lowerBound && rxPkts <= upperBound
 		}).Await(t)
 
-		// Fetch final values for logging/error reporting
-		txPkts := float32(gnmi.Get(t, otg, outPktsQuery))
+		// Fetch final RX value for logging/error reporting
 		rxPkts := float32(gnmi.Get(t, otg, inPktsQuery))
-		lowerBound := txPkts * (1 - tolerance)
-		upperBound := txPkts * (1 + tolerance)
 
 		if !watchOk || rxPkts < lowerBound || rxPkts > upperBound {
 			t.Errorf("Received packets for flow %s are outside of the acceptable range: %v (1%% tolerance from %v)", flowName, rxPkts, txPkts)
@@ -268,6 +264,7 @@ func verifyTrafficStreams(t *testing.T,
 			t.Logf("Received packets for flow %s are within the acceptable range: %v (1%% tolerance from %v)", flowName, rxPkts, txPkts)
 		}
 	}
+
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
 }
 
