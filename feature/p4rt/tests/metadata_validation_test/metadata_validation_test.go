@@ -44,19 +44,19 @@ func TestP4RTMetadata(t *testing.T) {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
-	electionIdL, err := clientArbitration(c)
+	electionIDL, err := clientArbitration(c)
 	if err != nil {
 		t.Fatalf("Error in P4RT Client Arbitration: %v", err)
 	}
 
-	if err := forwardingPipeline(c, electionIdL); err != nil {
+	if err := forwardingPipeline(c, electionIDL); err != nil {
 		t.Fatalf("Error in P4RT Forwarding Pipeline config: %v", err)
 	}
 
 	metadata := "test metadata"
 
 	t.Run("Insert and Read Table with Metadata", func(t *testing.T) {
-		got, found, err := writeReadTableEntry(c, metadata, p4v1pb.Update_INSERT, electionIdL)
+		got, found, err := writeReadTableEntry(c, metadata, p4v1pb.Update_INSERT, electionIDL)
 		if err != nil {
 			t.Fatalf("Error in Write+Read Table Entry with Type %v: %v", p4v1pb.Update_INSERT, err)
 		}
@@ -76,7 +76,7 @@ func TestP4RTMetadata(t *testing.T) {
 		// Update Metadata to a different value.
 		metadata := "test metadata modified"
 
-		got, found, err := writeReadTableEntry(c, metadata, p4v1pb.Update_MODIFY, electionIdL)
+		got, found, err := writeReadTableEntry(c, metadata, p4v1pb.Update_MODIFY, electionIDL)
 		if err != nil {
 			t.Fatalf("Error in Write+Read Table Entry with Type %v: %v", p4v1pb.Update_MODIFY, err)
 		}
@@ -89,7 +89,7 @@ func TestP4RTMetadata(t *testing.T) {
 	})
 
 	t.Run("Delete Table with Metadata", func(t *testing.T) {
-		got, found, err := writeReadTableEntry(c, metadata, p4v1pb.Update_DELETE, electionIdL)
+		got, found, err := writeReadTableEntry(c, metadata, p4v1pb.Update_DELETE, electionIDL)
 		if err != nil {
 			t.Fatalf("Error in Write+Read Table Entry with Type %v: %v", p4v1pb.Update_DELETE, err)
 		}
@@ -99,8 +99,8 @@ func TestP4RTMetadata(t *testing.T) {
 	})
 }
 
-func writeReadTableEntry(c *p4rt_client.P4RTClient, metadata string, action p4v1pb.Update_Type, electionIdL uint64) (string, bool, error) {
-	if err := writeTableEntry(c, metadata, action, electionIdL); err != nil {
+func writeReadTableEntry(c *p4rt_client.P4RTClient, metadata string, action p4v1pb.Update_Type, electionIDL uint64) (string, bool, error) {
+	if err := writeTableEntry(c, metadata, action, electionIDL); err != nil {
 		return "", false, fmt.Errorf("error in writing Table Entry: %v", err)
 	}
 	resp, err := readTableEntry(c)
@@ -148,13 +148,13 @@ func clientArbitration(c *p4rt_client.P4RTClient) (uint64, error) {
 		return 0, fmt.Errorf("Error getting probe ClientArbitration response: %v", arbErr)
 	}
 	// Extract highest known ID
-	var highestId uint64 = 0
+	var highestID uint64 = 0
 	if arbResp != nil && arbResp.Arb != nil && arbResp.Arb.ElectionId != nil {
-		highestId = arbResp.Arb.ElectionId.Low
+		highestID = arbResp.Arb.ElectionId.Low
 	}
 
 	// Step 2: Increment the discovered ID to guarantee primary election
-	newElectionId := highestId + 1
+	newElectionID := highestID + 1
 
 	if err := c.StreamChannelSendMsg(&streamName, &p4v1pb.StreamMessageRequest{
 		Update: &p4v1pb.StreamMessageRequest_Arbitration{
@@ -162,7 +162,7 @@ func clientArbitration(c *p4rt_client.P4RTClient) (uint64, error) {
 				DeviceId: sp.DeviceId,
 				ElectionId: &p4v1pb.Uint128{
 					High: 0,
-					Low:  newElectionId,
+					Low:  newElectionID,
 				},
 			},
 		},
@@ -177,10 +177,10 @@ func clientArbitration(c *p4rt_client.P4RTClient) (uint64, error) {
 		return 0, fmt.Errorf("Error getting primary ClientArbitration response: %v", arbErr)
 	}
 
-	return newElectionId, nil
+	return newElectionID, nil
 }
 
-func forwardingPipeline(c *p4rt_client.P4RTClient, electionIdL uint64) error {
+func forwardingPipeline(c *p4rt_client.P4RTClient, electionIDL uint64) error {
 	p4Info, err := utils.P4InfoLoad(p4InfoFile)
 	if err != nil {
 		return fmt.Errorf("Error loading P4 Info file: %v", err)
@@ -188,7 +188,7 @@ func forwardingPipeline(c *p4rt_client.P4RTClient, electionIdL uint64) error {
 
 	if err := c.SetForwardingPipelineConfig(&p4v1pb.SetForwardingPipelineConfigRequest{
 		DeviceId:   deviceID,
-		ElectionId: &p4v1pb.Uint128{High: 0, Low: electionIdL},
+		ElectionId: &p4v1pb.Uint128{High: 0, Low: electionIDL},
 		Action:     p4v1pb.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
 		Config: &p4v1pb.ForwardingPipelineConfig{
 			P4Info: p4Info,
@@ -208,7 +208,7 @@ func forwardingPipeline(c *p4rt_client.P4RTClient, electionIdL uint64) error {
 	return nil
 }
 
-func writeTableEntry(c *p4rt_client.P4RTClient, metadata string, action p4v1pb.Update_Type, electionIdL uint64) error {
+func writeTableEntry(c *p4rt_client.P4RTClient, metadata string, action p4v1pb.Update_Type, electionIDL uint64) error {
 	te := []*p4rtutils.ACLWbbIngressTableEntryInfo{{
 		Type:          action,
 		EtherType:     0x6007,
@@ -219,7 +219,7 @@ func writeTableEntry(c *p4rt_client.P4RTClient, metadata string, action p4v1pb.U
 
 	writeReq := &p4v1pb.WriteRequest{
 		DeviceId:   deviceID,
-		ElectionId: &p4v1pb.Uint128{High: 0, Low: electionIdL},
+		ElectionId: &p4v1pb.Uint128{High: 0, Low: electionIDL},
 		Updates:    p4rtutils.ACLWbbIngressTableEntryGet(te),
 		Atomicity:  p4v1pb.WriteRequest_CONTINUE_ON_ERROR,
 	}
