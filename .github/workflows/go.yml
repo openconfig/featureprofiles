@@ -23,10 +23,6 @@ jobs:
       with:
         go-version-file: 'go.mod'
         cache: true
-    - name: Move cache
-      run: |
-        sudo mv "${HOME}/.cache" /mnt/cache
-        ln -s /mnt/cache "${HOME}/.cache"
     # Dependency for Go module github.com/google/gopacket
     - name: Install libpcap-dev
       run: sudo apt-get -y install libpcap-dev
@@ -49,10 +45,6 @@ jobs:
         with:
           go-version-file: 'go.mod'
           cache: true
-      - name: Move cache
-        run: |
-          sudo mv "${HOME}/.cache" /mnt/cache
-          ln -s /mnt/cache "${HOME}/.cache"
       # Dependency for Go module github.com/google/gopacket
       - name: Install libpcap-dev
         run: sudo apt-get -y install libpcap-dev
@@ -63,8 +55,8 @@ jobs:
         with:
           path-to-profile: profile.cov
 
-  static_analysis:
-    name: Static Analysis
+  fast_analysis:
+    name: Fast Analysis
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -78,10 +70,6 @@ jobs:
       with:
         go-version-file: 'go.mod'
         cache: true
-    - name: Move cache
-      run: |
-        sudo mv "${HOME}/.cache" /mnt/cache
-        ln -s /mnt/cache "${HOME}/.cache"
     # Dependency for Go module github.com/google/gopacket
     - name: Install libpcap-dev
       run: sudo apt-get -y install libpcap-dev
@@ -111,6 +99,49 @@ jobs:
       run: go install github.com/mgechev/revive@v1.3.4
     - name: Run revive
       run: revive ./...
+
+    - name: Get changed Go directories
+      id: changed-dirs
+      if: github.event_name == 'pull_request'
+      uses: tj-actions/changed-files@v44
+      with:
+        files: |
+          **/*.go
+        dir_names: true
+
+    - name: Get staticcheck
+      if: github.event_name == 'pull_request' && steps.changed-dirs.outputs.any_changed == 'true'
+      run: go install honnef.co/go/tools/cmd/staticcheck@latest
+
+    - name: Run staticcheck on changed packages
+      if: github.event_name == 'pull_request' && steps.changed-dirs.outputs.any_changed == 'true'
+      run: |
+        for dir in ${{ steps.changed-dirs.outputs.all_changed_files }}; do
+          echo "Running staticcheck on ./$dir/..."
+          GOGC=30 staticcheck "./$dir/..."
+        done
+
+  deep_analysis:
+    name: Deep Analysis (Staticcheck)
+    # Only run on cron schedule or push to main, NOT on pull requests
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Free additional disk space
+      run: |
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /usr/local/lib/android
+        sudo rm -rf /opt/hostedtoolcache/CodeQL
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: 'go.mod'
+        cache: true
+    # Dependency for Go module github.com/google/gopacket
+    - name: Install libpcap-dev
+      run: sudo apt-get -y install libpcap-dev
+
     - name: Get staticcheck
       run: go install honnef.co/go/tools/cmd/staticcheck@latest
     - name: Run staticcheck
