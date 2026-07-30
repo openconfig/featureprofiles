@@ -49,6 +49,7 @@ var (
 		IPv4:    "192.0.2.2",
 		IPv4Len: 30,
 	}
+	kneDeviceModelList = []string{"ncptx"}
 )
 
 // Constants.
@@ -414,7 +415,8 @@ func TestPassword(t *testing.T) {
 
 	// If the DUT will not fail a BGP session when the BGP MD5 key configuration changes,
 	// change the key from the ATE side to time out the session.
-	if deviations.BGPMD5RequiresReset(dut) {
+	if slices.Contains(kneDeviceModelList, dut.Model()) || deviations.BGPMD5RequiresReset(dut) {
+		t.Logf("DUT Model: %s", dut.Model())
 		port1 := ate.Port(t, "port1")
 		topo := gosnappi.NewConfig()
 
