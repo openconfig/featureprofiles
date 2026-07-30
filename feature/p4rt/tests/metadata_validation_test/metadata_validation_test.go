@@ -140,7 +140,7 @@ func clientArbitration(c *p4rt_client.P4RTClient) (uint64, error) {
 		return 0, fmt.Errorf("Error sending probe ClientArbitration request: %v", err)
 	}
 
-	_, arbResp, arbErr := c.StreamChannelGetArbitrationResp(&streamName, 1)
+	arbResp, _, arbErr := c.StreamChannelGetArbitrationResp(&streamName, 1)
 	if arbErr != nil {
 		if err := p4rtutils.StreamTermErr(c.StreamTermErr); err != nil {
 			return 0, fmt.Errorf("Stream terminated on sending probe ClientArbitration: %v", err)
@@ -150,8 +150,8 @@ func clientArbitration(c *p4rt_client.P4RTClient) (uint64, error) {
 
 	// Extract highest known ID
 	var highestId uint64 = 0
-	if arbResp != nil && arbResp.Arb != nil && arbResp.Arb.ElectionId != nil {
-		highestId = arbResp.Arb.ElectionId.Low
+	if arbResp != nil && arbResp.ElectionId != nil {
+		highestId = arbResp.ElectionId.Low
 	}
 
 	// Step 2: Increment the discovered ID to guarantee primary election
