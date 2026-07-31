@@ -8,7 +8,7 @@ on:
     - cron: "0 0 * * *"
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-arm64
     steps:
     - uses: actions/checkout@v4
     # Go & staticcheck build cache require a lot of disk space.  Reclaim extra
@@ -23,6 +23,10 @@ jobs:
       with:
         go-version-file: 'go.mod'
         cache: true
+    - name: Move cache
+      run: |
+        sudo mv "${HOME}/.cache" /mnt/cache
+        ln -s /mnt/cache "${HOME}/.cache"
     # Dependency for Go module github.com/google/gopacket
     - name: Install libpcap-dev
       run: sudo apt-get -y install libpcap-dev
@@ -30,7 +34,7 @@ jobs:
       run: go build -v ./...
 
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-arm64
     steps:    
       - uses: actions/checkout@v4
       # Go & staticcheck build cache require a lot of disk space.  Reclaim extra
@@ -45,6 +49,10 @@ jobs:
         with:
           go-version-file: 'go.mod'
           cache: true
+      - name: Move cache
+        run: |
+          sudo mv "${HOME}/.cache" /mnt/cache
+          ln -s /mnt/cache "${HOME}/.cache"
       # Dependency for Go module github.com/google/gopacket
       - name: Install libpcap-dev
         run: sudo apt-get -y install libpcap-dev
@@ -57,7 +65,7 @@ jobs:
 
   static_analysis:
     name: Static Analysis
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-arm64
     steps:
     - uses: actions/checkout@v4
     - name: Free additional disk space
@@ -70,36 +78,49 @@ jobs:
       with:
         go-version-file: 'go.mod'
         cache: true
+    - name: Move cache
+      run: |
+        sudo mv "${HOME}/.cache" /mnt/cache
+        ln -s /mnt/cache "${HOME}/.cache"
     # Dependency for Go module github.com/google/gopacket
     - name: Install libpcap-dev
       run: sudo apt-get -y install libpcap-dev
+
+    # === THIS IS THE ONLY CHANGE ===
+    - name: Clean Go build cache before analysis
+      run: go clean -cache
+    # ===============================
 
     - name: Go vet
       run: GOGC=30 go vet ./...
     - name: Gofmt
       run: |
-        # Use find to exclude generated pb.go files which take too long to parse
-        unformatted=$(find . -name "*.go" -type f | grep -v "pb.go$" | xargs gofmt -d -s)
-        if [ -n "$unformatted" ]; then
-          echo "$unformatted"
+        # gofmt always returns true, so we use grep '^' which returns
+        # true on non-empty output, but will otherwise passthrough all
+        # output lines.
+        if gofmt -d -s . | grep '^'; then
           exit 1
         fi
     - name: Get goimports
       run: go install golang.org/x/tools/cmd/goimports@latest
     - name: Goimports
       run: |
-        # goimports does not support "gofmt -s" so both goimports and gofmt are required.
-        unformatted=$(find . -name "*.go" -type f | grep -v "pb.go$" | xargs goimports -l)
-        if [ -n "$unformatted" ]; then
-          echo "The following files have goimports formatting errors:"
-          echo "$unformatted"
-          exit 1
-        fi
+        # goimports always returns true, so we use grep '^' which returns
+        # true on non-empty output, but will otherwise passthrough all
+        # output lines.
+        #
+        # goimports does not support "gofmt -s" so both goimports and gofmt are
+        # required.
+        find . -name "*.go" | egrep -v "pb.go$" | while read l; do
+          if goimports -d $l | grep '^'; then
+            exit 1;
+          fi;
+        done
     - name: Get revive
       run: go install github.com/mgechev/revive@v1.3.4
     - name: Run revive
       run: revive ./...
-    - uses: dominikh/staticcheck-action@v1.3.1
-      with:
-        version: "latest"
-        install-go: false
+    - name: Get staticcheck
+      run: go install honnef.co/go/tools/cmd/staticcheck@latest
+    - name: Run staticcheck
+      run: GOGC=30 staticcheck ./...
