@@ -209,6 +209,23 @@ func policyDefinitionPath(policyName string) *gpb.Path {
 	}
 }
 
+// globalFilterPolicyPath builds the gNMI path for an afts/global-filter policy
+// config leaf (ipv4-policy or ipv6-policy) under a network-instance.
+// TODO: replace this raw gNMI path with the ygot-generated OC path once the
+// afts/global-filter schema is supported in featureprofiles.
+func globalFilterPolicyPath(niName, leaf string) *gpb.Path {
+	return &gpb.Path{
+		Elem: []*gpb.PathElem{
+			{Name: "network-instances"},
+			{Name: "network-instance", Key: map[string]string{"name": niName}},
+			{Name: "afts"},
+			{Name: "global-filter"},
+			{Name: "config"},
+			{Name: leaf},
+		},
+	}
+}
+
 // statementPrefixSetConfigPath builds the gNMI path for the match-prefix-set
 // prefix-set leaf of a policy statement.
 // TODO: replace this raw gNMI path with the ygot-generated OC path once the
@@ -242,25 +259,35 @@ func setGlobalFilterExpectCode(t *testing.T, dut *ondatra.DUTDevice, niName, v4P
 		}
 	}
 
-	// For vendors that support the OpenConfig afts/global-filter augment
-	// (openconfig-aft-global-filter.yang, models 3.3.0), set the filter leaves
-	// through the typed OC path API and assert the Set fails with wantCode. The
-	// generated ondatra `oc` bindings do not yet contain the GlobalFilter
-	// container, so the calls are commented out; uncomment them once the
-	// bindings are regenerated against openconfig/public >= 3.3.0.
-	// gf := gnmi.OC().NetworkInstance(niName).Afts().GlobalFilter()
-	// batch := &gnmi.SetBatch{}
-	// if v4Policy != "" {
-	// 	gnmi.BatchUpdate(batch, gf.Ipv4Policy().Config(), v4Policy)
-	// }
-	// if v6Policy != "" {
-	// 	gnmi.BatchUpdate(batch, gf.Ipv6Policy().Config(), v6Policy)
-	// }
-	// // Requires a non-fatal Set variant to inspect the returned status code
-	// // against wantCode instead of failing the test on RPC error.
-	// return nil
-	return fmt.Errorf("aft global filter policy is expected to be supported on %s, "+
-		"but no OpenConfig implementation is available", dut.Vendor())
+	client, err := dialGNMI(t, dut)
+	if err != nil {
+		return err
+	}
+	var updates []*gpb.Update
+	if v4Policy != "" {
+		updates = append(updates, &gpb.Update{
+			Path: globalFilterPolicyPath(niName, "ipv4-policy"),
+			Val:  &gpb.TypedValue{Value: &gpb.TypedValue_StringVal{StringVal: v4Policy}},
+		})
+	}
+	if v6Policy != "" {
+		updates = append(updates, &gpb.Update{
+			Path: globalFilterPolicyPath(niName, "ipv6-policy"),
+			Val:  &gpb.TypedValue{Value: &gpb.TypedValue_StringVal{StringVal: v6Policy}},
+		})
+	}
+	req := &gpb.SetRequest{Update: updates}
+	_, setErr := client.Set(context.Background(), req)
+	if setErr == nil {
+		if wantCode == codes.OK {
+			return nil
+		}
+		return fmt.Errorf("gNMI Set succeeded, want error with code %v", wantCode)
+	}
+	if got := status.Code(setErr); got != wantCode {
+		return fmt.Errorf("unexpected gNMI Set error code: got %v, want %v (err: %v)", got, wantCode, setErr)
+	}
+	return nil
 }
 
 // deletePolicyExpectCode attempts to delete a policy-definition and returns
@@ -302,20 +329,21 @@ func deleteGlobalFilterAndPolicyAtomic(t *testing.T, dut *ondatra.DUTDevice, niN
 		}
 	}
 
-	// For vendors that support the OpenConfig afts/global-filter augment
-	// (openconfig-aft-global-filter.yang, models 3.3.0), delete the filter
-	// leaves and the policy-definition atomically through the typed OC path
-	// API. The generated ondatra `oc` bindings do not yet contain the
-	// GlobalFilter container, so the calls are commented out; uncomment them
-	// once the bindings are regenerated against openconfig/public >= 3.3.0.
-	// batch := &gnmi.SetBatch{}
-	// gnmi.BatchDelete(batch, gnmi.OC().NetworkInstance(niName).Afts().GlobalFilter().Ipv4Policy().Config())
-	// gnmi.BatchDelete(batch, gnmi.OC().NetworkInstance(niName).Afts().GlobalFilter().Ipv6Policy().Config())
-	// gnmi.BatchDelete(batch, gnmi.OC().RoutingPolicy().PolicyDefinition(policyName).Config())
-	// batch.Set(t, dut)
-	// return nil
-	return fmt.Errorf("aft global filter deletion is expected to be supported on %s, "+
-		"but no OpenConfig implementation is available", dut.Vendor())
+	client, err := dialGNMI(t, dut)
+	if err != nil {
+		return err
+	}
+	req := &gpb.SetRequest{
+		Delete: []*gpb.Path{
+			globalFilterPolicyPath(niName, "ipv4-policy"),
+			globalFilterPolicyPath(niName, "ipv6-policy"),
+			policyDefinitionPath(policyName),
+		},
+	}
+	if _, err := client.Set(context.Background(), req); err != nil {
+		return fmt.Errorf("atomic delete failed: %w", err)
+	}
+	return nil
 }
 
 // updatePolicyStatementPrefixSet replaces the prefix-set referenced by a
@@ -1016,12 +1044,12 @@ func TestMain(m *testing.M) {
 func TestAFTPrefixFiltering(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	if deviations.AftsGlobalFilterPolicyOCUnsupported(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			t.Skipf("Skipping AFT-6.1 test validation: AFT global-filter policy is not supported on %s", dut.Vendor())
-		}
-	}
+	// if deviations.AftsGlobalFilterPolicyOCUnsupported(dut) {
+	// 	switch dut.Vendor() {
+	// 	case ondatra.ARISTA:
+	// 		t.Skipf("Skipping AFT-6.1 test validation: AFT global-filter policy is not supported on %s", dut.Vendor())
+	// 	}
+	// }
 
 	ate := ondatra.ATE(t, "ate")
 	ni := deviations.DefaultNetworkInstance(dut)
@@ -1037,7 +1065,6 @@ func TestAFTPrefixFiltering(t *testing.T) {
 	d := &oc.Root{}
 	defNI := d.GetOrCreateNetworkInstance(ni)
 	aftpf.ConfigureBGP(t, dut, batch, defNI)
-	batch.Set(t, dut)
 	batch.Set(t, dut)
 	aftpf.ApplyBGPMaxPrefixes(t, dut, aftpf.BGPPrefixParams{V4Prefix: aftpf.ATEPort1.IPv4,
 		V6Prefix: aftpf.ATEPort2.IPv6, NetworkInstance: defNI})
