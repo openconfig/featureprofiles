@@ -123,6 +123,13 @@ jobs:
       run: revive ./...
     - name: Get staticcheck
       run: go install honnef.co/go/tools/cmd/staticcheck@latest
+    - name: Cache staticcheck
+      uses: actions/cache@v4
+      with:
+        path: /mnt/cache/staticcheck
+        key: ${{ runner.os }}-staticcheck-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-staticcheck-
     - name: Run staticcheck
       run: staticcheck ./...
     - name: Print cache sizes
