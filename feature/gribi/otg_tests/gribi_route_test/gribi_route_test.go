@@ -175,7 +175,6 @@ func TestGRIBIFailover(t *testing.T) {
 	t.Log("Configure VRF_Policy")
 	configureVrfSelectionPolicyC(t, dut)
 
-	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 	verifyBgpTelemetry(t, dut)
 
 	llAddress, found := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Interface("port1.Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
