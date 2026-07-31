@@ -40,7 +40,8 @@ type FNTTest struct {
 
 // APIPart corresponds to a part of the content request/response.
 type APIPart struct {
-	Text string `json:"text"`
+	Text    string `json:"text"`
+	Thought bool   `json:"thought,omitempty"`
 }
 
 // APIContent corresponds to content in the request/response.
@@ -98,7 +99,7 @@ var (
 	// apiKey specifies the API Key for Gemini API.
 	apiKey = flag.String("api-key", os.Getenv("GEMINI_API_KEY"), "API Key for Google AI Gemini API. Can also be set via GEMINI_API_KEY env var.")
 	// model specifies the Gemini model to use for gap analysis.
-	model = flag.String("model", "gemini-2.5-pro", "The public Gemini model to use.")
+	model = flag.String("model", "gemini-3-flash-preview", "The public Gemini model to use.")
 	// featureprofilesRoot specifies the root directory for searching feature profiles tests.
 	featureprofilesRoot = flag.String("featureprofiles-root", ".", "Root directory for searching tests (e.g., '.' for repo root).")
 	// changedFilesStr specifies a comma-separated list of changed files to analyze.
@@ -197,6 +198,7 @@ Preamble: You are a test engineer analyzing test coverage.
 Task: Analyze the provided readme markdown and automation code. Identify any gaps in the automation code based on the requirements provided in the readme markdown.
 Note that any "TODO" items or sections in the Readme Markdown are not considered requirements and should be ignored when identifying gaps.
 Ignore any gap in the automation if the same is covered using a deviation.
+Note that testbed deployment details, baseline topology setup, interface IP configurations, network instances, and default gRPC server setup (often described in "Baseline Setup" or "Canonical OC" sections) are assumed to be pre-configured by the testbed environment and should not be flagged as gaps in the Go test automation code. Only focus on actions, validations, and operations that are expected to be executed dynamically in the test scenario itself.
 Return the result in JSON format with two fields: 'gap_found' (boolean) and 'gap_description' (string).
 If gaps are found, 'gap_found' should be true and 'gap_description' should contain a description of what requirements are not covered by the test automation.
 If all requirements in the readme are covered, 'gap_found' should be false and 'gap_description' should be 'No gap in the implementation found.'.
@@ -244,26 +246,44 @@ Result in JSON format:
 
 	// Make HTTP request
 	url := fmt.Sprintf(geminiAPIURL, *model, *apiKey)
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(reqBytes))
-	if err != nil {
-		return false, "", fmt.Errorf("failed to create http request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
+	client := &http.Client{Timeout: 180 * time.Second}
 
-	client := &http.Client{Timeout: 60 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return false, "", fmt.Errorf("http request failed: %w", err)
-	}
-	defer resp.Body.Close()
+	var respBody []byte
+	var lastErr error
+	for attempt := 1; attempt <= 3; attempt++ {
+		req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(reqBytes))
+		if err != nil {
+			return false, "", fmt.Errorf("failed to create http request: %w", err)
+		}
+		req.Header.Set("Content-Type", "application/json")
 
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return false, "", fmt.Errorf("failed to read response body: %w", err)
+		resp, err := client.Do(req)
+		if err != nil {
+			lastErr = fmt.Errorf("http request failed: %w", err)
+			log.Printf("Attempt %d of 3 failed: %v. Retrying in 10s...", attempt, lastErr)
+			time.Sleep(10 * time.Second)
+			continue
+		}
+		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			lastErr = fmt.Errorf("failed to read response body: %w", err)
+			log.Printf("Attempt %d of 3 failed: %v. Retrying in 10s...", attempt, lastErr)
+			time.Sleep(10 * time.Second)
+			continue
+		}
+		if resp.StatusCode != http.StatusOK {
+			lastErr = fmt.Errorf("gemini api returned non-ok status %d: %s", resp.StatusCode, string(body))
+			log.Printf("Attempt %d of 3 failed: %v. Retrying in 10s...", attempt, lastErr)
+			time.Sleep(10 * time.Second)
+			continue
+		}
+		respBody = body
+		lastErr = nil
+		break
 	}
-
-	if resp.StatusCode != http.StatusOK {
-		return false, "", fmt.Errorf("gemini api returned non-ok status %d: %s", resp.StatusCode, string(respBody))
+	if lastErr != nil {
+		return false, "", lastErr
 	}
 
 	// Unmarshal response body
@@ -281,9 +301,28 @@ Result in JSON format:
 	}
 
 	// Unmarshal the actual gap result JSON from the candidate text
+	var resultText string
+	for _, part := range apiResp.Candidates[0].Content.Parts {
+		if !part.Thought {
+			resultText = part.Text
+			break
+		}
+	}
+	if resultText == "" {
+		return false, "", fmt.Errorf("gemini returned no valid answer in response parts")
+	}
+
+	cleanText := strings.TrimSpace(resultText)
+	if strings.HasPrefix(cleanText, "```json") {
+		cleanText = strings.TrimPrefix(cleanText, "```json")
+		cleanText = strings.TrimSuffix(strings.TrimSpace(cleanText), "```")
+	} else if strings.HasPrefix(cleanText, "```") {
+		cleanText = strings.TrimPrefix(cleanText, "```")
+		cleanText = strings.TrimSuffix(strings.TrimSpace(cleanText), "```")
+	}
+
 	var gapResult GapResult
-	resultText := apiResp.Candidates[0].Content.Parts[0].Text
-	if err := json.Unmarshal([]byte(resultText), &gapResult); err != nil {
+	if err := json.Unmarshal([]byte(cleanText), &gapResult); err != nil {
 		return false, "", fmt.Errorf("failed to unmarshal gap result json '%s': %w", resultText, err)
 	}
 

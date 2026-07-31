@@ -1072,12 +1072,12 @@ func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
 	for _, p := range dev.Ports() {
 		status := gnmi.Get(t, dev, gnmi.OC().Interface(p.Name()).OperStatus().State())
 		if want := oc.Interface_OperStatus_UP; status != want {
-			t.Errorf("%s Status: got %v, want %v", p, status, want)
+			t.Fatalf("%s Status: got %v, want %v", p, status, want)
 		}
 	}
 	status := gnmi.Get(t, dev, gnmi.OC().Interface(aggIDs[len(aggIDs)-1]).OperStatus().State())
 	if want := oc.Interface_OperStatus_UP; status != want {
-		t.Errorf("%s Status: got %v, want %v", aggIDs[len(aggIDs)-1], status, want)
+		t.Fatalf("%s Status: got %v, want %v", aggIDs[len(aggIDs)-1], status, want)
 	}
 }
 
@@ -1217,7 +1217,7 @@ func verifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATED
 			t.Logf("Break from Loop:Iteration %d: Number of established IS-IS sessions: UP %v  DOWN %v Configured %v", i, counter, counter2, atePort4.numSubIntf)
 			break
 		}
-		t.Logf("Iteration %d: Number of established IS-IS sessions: %v %v", i, counter, counter2)
+		t.Logf("Iteration %d: Number of established IS-IS sessions: UP %v DOWN %v Configured %d", i, counter, counter2, atePort4.numSubIntf)
 		time.Sleep(30 * time.Second)
 	}
 	if counter != int(atePort4.numSubIntf) {
@@ -1682,15 +1682,18 @@ func configureDUTBGP(t *testing.T, as uint32, nbrs []*bgpNeighbor, dut *ondatra.
 	bgp := niProto.GetOrCreateBgp()
 
 	// Global Configuration using cfgplugins
-	cfgplugins.ConfigureGlobal(bgp, dut,
+	globalOpts := []cfgplugins.GlobalOption{
 		cfgplugins.WithAS(as),
 		cfgplugins.WithRouterID(dutLoopback.IPv4),
 		cfgplugins.WithGlobalGracefulRestart(true, 120, 300),
 		cfgplugins.WithGlobalAfiSafiEnabled(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, true),
 		cfgplugins.WithGlobalAfiSafiEnabled(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, true),
 		cfgplugins.WithExternalRouteDistance(9),
-		cfgplugins.WithGlobalEBGPMultipath(64),
-	)
+	}
+	if !deviations.BgpMaxMultipathPathsUnsupported(dut) {
+		globalOpts = append(globalOpts, cfgplugins.WithGlobalEBGPMultipath(64))
+	}
+	cfgplugins.ConfigureGlobal(bgp, dut, globalOpts...)
 	if deviations.BgpDistanceOcPathUnsupported(dut) {
 		distanceConfigv4 = fmt.Sprintf("router bgp %d instance BGP\naddress-family %s unicast\ndistance bgp %d 200 200\n", dutAS, "ipv4", 9)
 		distanceConfigv6 = fmt.Sprintf("router bgp %d instance BGP\naddress-family %s unicast\ndistance bgp %d 200 200\n", dutAS, "ipv6", 9)
@@ -1716,7 +1719,7 @@ func configureDUTBGP(t *testing.T, as uint32, nbrs []*bgpNeighbor, dut *ondatra.
 		}
 
 		peerGroup := bgp.GetOrCreatePeerGroup(pg.pgName)
-		cfgplugins.ConfigurePeerGroup(peerGroup, dut,
+		pgOpts := []cfgplugins.PeerGroupOption{
 			cfgplugins.WithPeerAS(pg.pgAS),
 			cfgplugins.WithPGTimers(pg.pgHoldTimer, pg.pgKeepaliveTimer, pg.pgUpdateTimer),
 			cfgplugins.WithPGDescription(pg.pgName),
@@ -1726,7 +1729,8 @@ func configureDUTBGP(t *testing.T, as uint32, nbrs []*bgpNeighbor, dut *ondatra.
 			cfgplugins.WithPGSendCommunity([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD, oc.Bgp_CommunityType_EXTENDED}),
 			cfgplugins.WithPGAfiSafiEnabled(pg.pgAFISAFI, true, true),
 			cfgplugins.ApplyPGRoutingPolicy(pg.pgImportPolicy, pg.pgExportPolicy, dut.Vendor() == ondatra.CISCO || delLinkbwCLIConfig != ""),
-		)
+		}
+		cfgplugins.ConfigurePeerGroup(peerGroup, dut, pgOpts...)
 	}
 
 	for _, nbr := range nbrs {
@@ -2252,6 +2256,7 @@ func configureOTGISIS(t *testing.T, name string, dev gosnappi.Device, atePort at
 				Metric:      10,
 			},
 		},
+		SetLearnedLspFilter: false,
 	}
 	isis := otgconfighelpers.ConfigureISIS(t, dev, isisAttrs)
 	loopbackV4, eMsg := atePort.ip4Loopback(i)

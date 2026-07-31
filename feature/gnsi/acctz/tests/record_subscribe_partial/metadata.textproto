@@ -13,7 +13,6 @@ platform_exceptions: {
   deviations: {
     p4rt_capabilities_unsupported: true
     gribi_records_unsupported: true
-    acctz_records_authz_status_deny_unsupported: true
   }
 }
 

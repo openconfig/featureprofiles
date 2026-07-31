@@ -47,7 +47,10 @@ import (
 	"github.com/openconfig/ygot/ygot"
 	p4pb "github.com/p4lang/p4runtime/go/p4/v1"
 	"golang.org/x/crypto/ssh"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -72,6 +75,7 @@ const (
 	shellCommand             = "uname -a"
 	gnmiCapabilitiesPath     = "/gnmi.gNMI/Capabilities"
 	gnoiPingPath             = "/gnoi.system.System/Ping"
+	gnoiTimePath             = "/gnoi.system.System/Time"
 	gnsiGetPath              = "/gnsi.authz.v1.Authz/Get"
 	gribiGetPath             = "/gribi.gRIBI/Get"
 	p4rtCapabilitiesPath     = "/p4.v1.P4Runtime/Capabilities"
@@ -84,8 +88,14 @@ var (
 	failpass     string
 	failPassword = "baggins"
 	// TestPaths is the list of paths to be tested for acctz.
-	TestPaths = []string{gnmiCapabilitiesPath, gnoiPingPath, gnsiGetPath, gribiGetPath, p4rtCapabilitiesPath}
+	TestPaths = []string{gnmiCapabilitiesPath, gnoiPingPath, gnoiTimePath, gnsiGetPath, gribiGetPath, p4rtCapabilitiesPath}
 )
+
+// PrettyPrint prints rpc requests/responses in a pretty format.
+func PrettyPrint(i any) string {
+	s, _ := json.MarshalIndent(i, "", "\t")
+	return string(s)
+}
 
 // var gRPCClientAddr net.Addr
 func setupUserPassword(t *testing.T, dut *ondatra.DUTDevice, username, password string) {
@@ -114,6 +124,7 @@ func setupUserPassword(t *testing.T, dut *ondatra.DUTDevice, username, password 
 	if err != nil {
 		t.Fatalf("Failed fetching credentialz rotate account credentials client, error: %s", err)
 	}
+	t.Logf("Sending credentialz rotate account request: %s", PrettyPrint(request))
 	err = credzRotateClient.Send(request)
 	if err != nil {
 		t.Fatalf("Failed sending credentialz rotate account credentials request, error: %s", err)
@@ -133,6 +144,48 @@ func setupUserPassword(t *testing.T, dut *ondatra.DUTDevice, username, password 
 
 	// Brief sleep for finalize to get processed.
 	time.Sleep(time.Second)
+}
+
+func nokiaCreateTestGrpcServer(t *testing.T) *gnmipb.SetRequest {
+	grpcServerData, err := json.Marshal(map[string]any{
+		"system": map[string]any{
+			"srl_nokia-grpc:grpc-server": []map[string]any{
+				{
+					"name":                    "mgmtVrf1",
+					"admin-state":             "enable",
+					"session-limit":           1024,
+					"metadata-authentication": true,
+					"yang-models":             "openconfig",
+					"tls-profile":             "self-signed-certs-profile",
+					"network-instance":        "mgmtVrf",
+					"port":                    10162,
+					"services":                []string{"gnmi", "gnoi", "gnsi"},
+					"gnmi": map[string]any{
+						"commit-save": true,
+					},
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Error with json marshal: %v", err)
+	}
+
+	return &gnmipb.SetRequest{
+		Prefix: &gnmipb.Path{
+			Origin: "native",
+		},
+		Update: []*gnmipb.Update{
+			{
+				Path: &gnmipb.Path{},
+				Val: &gnmipb.TypedValue{
+					Value: &gnmipb.TypedValue_JsonIetfVal{
+						JsonIetfVal: grpcServerData,
+					},
+				},
+			},
+		},
+	}
 }
 
 func nokiaFailCliRole(t *testing.T) *gnmipb.SetRequest {
@@ -252,11 +305,63 @@ func aristaFailAuthzCliRole(t *testing.T, dut *ondatra.DUTDevice) {
 		"   authentication protocol password",
 		"management api gnmi",
 		"   transport grpc default",
+		"      aaa config-commands disabled",
+		"      authentication username priority metadata",
 		"      authorization requests",
 		"   transport grpc mgmt",
+		"      aaa config-commands disabled",
+		"      authentication username priority metadata",
 		"      authorization requests",
 	}
 	helpers.GnmiCLIConfig(t, dut, strings.Join(commands, "\n"))
+}
+
+func aristaCleanupAuthzCliRole(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	t.Log("Cleaning up Arista AAA configuration and test users")
+	commands := []string{
+		"configure",
+		"aaa authentication login default group tacacs+ local",
+		"aaa authorization exec default group tacacs+ local",
+		"aaa authorization commands all default group tacacs+ local",
+		fmt.Sprintf("no username %s", SuccessUsername),
+		fmt.Sprintf("no username %s", FailUsername),
+		fmt.Sprintf("no username %s", failAuthorizeUsername),
+		"management ssh",
+		"   no authentication protocol password",
+		"management api gnmi",
+		"   transport grpc default",
+		"      no aaa config-commands",
+		"      no authorization requests",
+		"      no authentication username priority",
+		"   transport grpc mgmt",
+		"      no aaa config-commands",
+		"      no authorization requests",
+		"      no authentication username priority",
+		fmt.Sprintf("no role %s", failRoleName),
+	}
+	helpers.GnmiCLIConfig(t, dut, strings.Join(commands, "\n"))
+}
+
+func nokiaGrpcMetadataAuth(t *testing.T) []*gnmipb.Update {
+	var updates []*gnmipb.Update
+	for _, name := range []string{"mgmtVrf-gribi", "mgmtVrf-p4rt"} {
+		updates = append(updates, &gnmipb.Update{
+			Path: &gnmipb.Path{
+				Elem: []*gnmipb.PathElem{
+					{Name: "system"},
+					{Name: "grpc-server", Key: map[string]string{"name": name}},
+					{Name: "metadata-authentication"},
+				},
+			},
+			Val: &gnmipb.TypedValue{
+				Value: &gnmipb.TypedValue_BoolVal{
+					BoolVal: true,
+				},
+			},
+		})
+	}
+	return updates
 }
 
 // SetupUsers Setup users for acctz tests and optionally configure cli role for denied commands.
@@ -268,8 +373,7 @@ func SetupUsers(t *testing.T, dut *ondatra.DUTDevice, configureFailCliRole bool)
 		auth := &oc.System_Aaa_Authentication{}
 		successUser := auth.GetOrCreateUser(SuccessUsername)
 		successUser.SetRole(oc.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN)
-		failAuthenticateUser := auth.GetOrCreateUser(FailAuthenticateUsername)
-		failAuthenticateUser.SetRole(oc.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN)
+		auth.GetOrCreateUser(FailAuthenticateUsername)
 		failAuthorizeUser := auth.GetOrCreateUser(failAuthorizeUsername)
 		if configureFailCliRole {
 			var SetRequest *gnmipb.SetRequest
@@ -280,6 +384,9 @@ func SetupUsers(t *testing.T, dut *ondatra.DUTDevice, configureFailCliRole bool)
 				SetRequest = nokiaFailCliRole(t)
 			case ondatra.ARISTA:
 				aristaFailAuthzCliRole(t, dut)
+				t.Cleanup(func() {
+					aristaCleanupAuthzCliRole(t, dut)
+				})
 			}
 			// _, policyBefore := authz.Get(t, dut)
 			// t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint(t))
@@ -302,6 +409,20 @@ func SetupUsers(t *testing.T, dut *ondatra.DUTDevice, configureFailCliRole bool)
 			}
 		}
 		ondatragnmi.Update(t, dut, ondatragnmi.OC().System().Aaa().Authentication().Config(), auth)
+		// Create separate gRPC server for testing on Nokia AFTER users are created.
+		if dut.Vendor() == ondatra.NOKIA {
+			gnmiClient := dut.RawAPIs().GNMI(t)
+			if _, err := gnmiClient.Set(context.Background(), nokiaCreateTestGrpcServer(t)); err != nil {
+				t.Fatalf("Unexpected error creating test grpc server: %v", err)
+			}
+			metadataReq := &gnmipb.SetRequest{
+				Prefix: &gnmipb.Path{Origin: "srl_nokia"},
+				Update: nokiaGrpcMetadataAuth(t),
+			}
+			if _, err := gnmiClient.Set(context.Background(), metadataReq); err != nil {
+				t.Fatalf("Unexpected error configuring nokia metadata auth: %v", err)
+			}
+		}
 		setupUserPassword(t, dut, SuccessUsername, successPassword)
 		setupUserPassword(t, dut, FailAuthenticateUsername, failPassword)
 		if configureFailCliRole {
@@ -313,6 +434,71 @@ func SetupUsers(t *testing.T, dut *ondatra.DUTDevice, configureFailCliRole bool)
 			helpers.GnmiCLIConfig(t, dut, taskUserGroupCLI)
 		}
 	}
+}
+
+// AcctzStreamClient is a local interface for the AcctzStream gRPC client.
+type AcctzStreamClient interface {
+	RecordSubscribe(ctx context.Context, in *acctzpb.RecordRequest, opts ...grpc.CallOption) (AcctzStream_RecordSubscribeClient, error)
+}
+
+// AcctzStream_RecordSubscribeClient is a local interface for the RecordSubscribe gRPC stream.
+type AcctzStream_RecordSubscribeClient interface {
+	Recv() (*acctzpb.RecordResponse, error)
+	grpc.ClientStream
+}
+
+type nokiaAcctzClient struct {
+	conn *grpc.ClientConn
+}
+
+func (c *nokiaAcctzClient) RecordSubscribe(ctx context.Context, in *acctzpb.RecordRequest, opts ...grpc.CallOption) (AcctzStream_RecordSubscribeClient, error) {
+	stream, err := c.conn.NewStream(ctx, &grpc.StreamDesc{
+		StreamName:    "RecordSubscribe",
+		Handler:       nil,
+		ServerStreams: true,
+		ClientStreams: true,
+	}, "/gnsi.acctz.v1.AcctzStream/RecordSubscribe", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &nokiaAcctzRecordSubscribeClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type nokiaAcctzRecordSubscribeClient struct {
+	grpc.ClientStream
+}
+
+func (x *nokiaAcctzRecordSubscribeClient) Recv() (*acctzpb.RecordResponse, error) {
+	m := new(acctzpb.RecordResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+// GetNokiaCustomAcctzClient returns a custom gNSI Acctz client for Nokia devices connecting to port 10162.
+func GetNokiaCustomAcctzClient(t *testing.T, dut *ondatra.DUTDevice) AcctzStreamClient {
+	t.Helper()
+	var dialer interface {
+		DialGRPCWithPort(context.Context, int, ...grpc.DialOption) (*grpc.ClientConn, error)
+	}
+	bindingDUT := dut.RawAPIs().BindingDUT()
+	if err := binding.DUTAs(bindingDUT, &dialer); err != nil {
+		t.Fatalf("BindingDUT %T does not implement DialGRPCWithPort, which is required for Nokia custom client: %v", bindingDUT, err)
+	}
+
+	conn, err := dialer.DialGRPCWithPort(context.Background(), 10162)
+	if err != nil {
+		t.Fatalf("DialGRPCWithPort failed for port 10162: %v", err)
+	}
+	return &nokiaAcctzClient{conn: conn}
 }
 
 // func getGrpcTarget(t *testing.T, dut *ondatra.DUTDevice, service introspect.Service) string {
@@ -440,13 +626,13 @@ func extractRawSSHClient(c binding.SSHClient) *ssh.Client {
 	}
 	// Try to find a field of type *ssh.Client by name "Client" first.
 	f := v.FieldByName("Client")
-	if f.IsValid() && f.Type().String() == "*ssh.Client" {
+	if f.IsValid() && f.CanInterface() && f.Type().String() == "*ssh.Client" {
 		return f.Interface().(*ssh.Client)
 	}
 	// If not found, iterate through all fields and return the first *ssh.Client found.
 	for i := 0; i < v.NumField(); i++ {
 		field := v.Field(i)
-		if field.Type().String() == "*ssh.Client" {
+		if field.CanInterface() && field.Type().String() == "*ssh.Client" {
 			return field.Interface().(*ssh.Client)
 		}
 	}
@@ -555,20 +741,36 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		failpass = failAuthorizePassword
 	} else {
 		failuser = FailAuthenticateUsername
-		failpass = failAuthenticatePassword
+		failpass = failPassword
 	}
 	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, failuser, passKey, failpass))
-
-	gnmiClient, err := dut.RawAPIs().BindingDUT().DialGNMI(ctx)
-	if err != nil {
-		t.Fatalf("Failed dialing GNMI: %v", err)
+	var gnmiClient gnmipb.GNMIClient
+	var err error
+	if dut.Vendor() == ondatra.NOKIA {
+		var dialer interface {
+			DialGRPCWithPort(context.Context, int, ...grpc.DialOption) (*grpc.ClientConn, error)
+		}
+		bindingDUT := dut.RawAPIs().BindingDUT()
+		if err := binding.DUTAs(bindingDUT, &dialer); err != nil {
+			t.Fatalf("BindingDUT %T does not implement DialGRPCWithPort: %v", bindingDUT, err)
+		}
+		conn, err := dialer.DialGRPCWithPort(ctx, 10162)
+		if err != nil {
+			t.Fatalf("Failed dialing custom gNMI port: %v", err)
+		}
+		gnmiClient = gnmipb.NewGNMIClient(conn)
+	} else {
+		gnmiClient, err = dut.RawAPIs().BindingDUT().DialGNMI(ctx)
+		if err != nil {
+			t.Fatalf("Failed dialing GNMI: %v", err)
+		}
 	}
 	// Send an unsuccessful gNMI capabilities request (bad creds in context).
 	_, err1 := gnmiClient.Capabilities(ctx, &gnmipb.CapabilityRequest{})
-	if err1 != nil {
-		t.Logf("Got expected error fetching capabilities with bad creds, error: %s", err1)
+	if err1 != nil && status.Code(err1) == codes.PermissionDenied {
+		t.Logf("Got expected error fetching capabilities with no permissions, error: %s", err1)
 	} else {
-		t.Logf("Did not get expected error fetching capabilities with bad creds. %v", err1)
+		t.Errorf("Did not get expected error fetching capabilities with no permissions. %v", err1)
 	}
 
 	if !deviations.AcctzRecordFailGrpcUnsupported(dut) {
@@ -578,7 +780,7 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 					ServiceType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GNMI,
 					RpcName:     gnmiCapabilitiesPath,
 					Authz: &acctzpb.AuthzDetail{
-						Status: acctzpb.AuthzDetail_AUTHZ_STATUS_DENY,
+						Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY, gnmiCapabilitiesPath),
 					},
 				},
 			},
@@ -664,7 +866,7 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 
 	var records []*acctzpb.RecordResponse
 	// grpcConn := dialGrpc(t, target)
-	gnoiSystemClient := dut.RawAPIs().GNOI(t).System()
+	// gnoiSystemClient := dut.RawAPIs().GNOI(t).System()
 	// systempb.NewSystemClient(grpcConn)
 	userKey, passKey := getMetadataKeys(dut)
 	if dut.Vendor() == ondatra.ARISTA {
@@ -672,22 +874,54 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		failpass = failAuthorizePassword
 	} else {
 		failuser = FailAuthenticateUsername
-		failpass = failAuthenticatePassword
+		failpass = failPassword
 	}
-	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, failuser, passKey, failpass))
-	// Send an unsuccessful gNOI system time request (bad creds in context), we don't
-	// care about receiving on it, just want to make the request.
-	gnoiSystemPingClient, err := gnoiSystemClient.Ping(ctx, &systempb.PingRequest{
-		Destination: "127.0.0.1",
-		Count:       1,
-	})
-	if err != nil {
-		t.Errorf("Got unexpected error getting gnoi system time client, error: %s", err)
-	}
+	var gnoiSystemClient systempb.SystemClient
+	ctx := context.Background()
 
-	_, err = gnoiSystemPingClient.Recv()
-	if err != nil {
-		t.Logf("Got expected error getting gnoi system time with bad creds, error: %s", err)
+	if dut.Vendor() == ondatra.NOKIA {
+		var dialer interface {
+			DialGRPCWithPort(context.Context, int, ...grpc.DialOption) (*grpc.ClientConn, error)
+		}
+		bindingDUT := dut.RawAPIs().BindingDUT()
+		if err := binding.DUTAs(bindingDUT, &dialer); err != nil {
+			t.Fatalf("BindingDUT %T does not implement DialGRPCWithPort: %v", bindingDUT, err)
+		}
+		conn, err := dialer.DialGRPCWithPort(ctx, 10162)
+		if err != nil {
+			t.Fatalf("Failed dialing custom gNOI port: %v", err)
+		}
+		gnoiSystemClient = systempb.NewSystemClient(conn)
+	} else {
+		gnoiSystemClient = dut.RawAPIs().GNOI(t).System()
+	}
+	ctx = metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, failuser, passKey, failpass))
+	var rpcName string
+	var payload *anypb.Any
+	var err error
+	if dut.Vendor() == ondatra.NOKIA {
+		rpcName = gnoiTimePath
+		_, err = gnoiSystemClient.Time(ctx, &systempb.TimeRequest{})
+		if err != nil && status.Code(err) == codes.PermissionDenied {
+			t.Logf("Got expected error getting gnoi system time with no permissions, error: %s", err)
+		} else {
+			t.Errorf("Did not get expected error getting gnoi system time with no permissions. error: %s", err)
+		}
+	} else {
+		rpcName = gnoiPingPath
+		gnoiSystemPingClient, err1 := gnoiSystemClient.Ping(ctx, &systempb.PingRequest{
+			Destination: "127.0.0.1",
+			Count:       1,
+		})
+		if err1 != nil {
+			t.Errorf("Got unexpected error getting gnoi system ping client, error: %s", err1)
+		}
+		_, err = gnoiSystemPingClient.Recv()
+		if err != nil && status.Code(err) == codes.PermissionDenied {
+			t.Logf("Got expected error getting gnoi system ping with no permissions, error: %s", err)
+		} else {
+			t.Errorf("Did not get expected error getting gnoi system ping with no permissions. error: %s", err)
+		}
 	}
 
 	if !deviations.AcctzRecordFailGrpcUnsupported(dut) {
@@ -695,9 +929,9 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 			ServiceRequest: &acctzpb.RecordResponse_GrpcService{
 				GrpcService: &acctzpb.GrpcService{
 					ServiceType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GNOI,
-					RpcName:     gnoiPingPath,
+					RpcName:     rpcName,
 					Authz: &acctzpb.AuthzDetail{
-						Status: acctzpb.AuthzDetail_AUTHZ_STATUS_DENY,
+						Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY, rpcName),
 					},
 				},
 			},
@@ -714,25 +948,38 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		})
 	}
 
-	// Send a successful gNOI ping request.
+	// Send a successful gNOI request.
 	ctx = context.Background()
 	ctx = metadata.AppendToOutgoingContext(ctx, "username", SuccessUsername)
 	ctx = metadata.AppendToOutgoingContext(ctx, "password", successPassword)
-	req := &systempb.PingRequest{
-		Destination: "127.0.0.1",
-		Count:       1,
-	}
-	payload, err := anypb.New(req)
-	if err != nil {
-		t.Errorf("Failed creating anypb payload.")
-	}
-	gnoiSystemPingClient, err = gnoiSystemClient.Ping(ctx, req)
-	if err != nil {
-		t.Errorf("Error fetching gnoi system time, error: %s", err)
-	}
-	_, err = gnoiSystemPingClient.Recv()
-	if err != nil {
-		t.Errorf("Got unexpected error getting gnoi system time, error: %s", err)
+
+	if dut.Vendor() == ondatra.NOKIA {
+		req := &systempb.TimeRequest{}
+		payload, err = anypb.New(req)
+		if err != nil {
+			t.Errorf("Failed creating anypb payload.")
+		}
+		_, err = gnoiSystemClient.Time(ctx, req)
+		if err != nil {
+			t.Errorf("Error fetching gnoi system time, error: %s", err)
+		}
+	} else {
+		req := &systempb.PingRequest{
+			Destination: "127.0.0.1",
+			Count:       1,
+		}
+		payload, err = anypb.New(req)
+		if err != nil {
+			t.Errorf("Failed creating anypb payload.")
+		}
+		gnoiSystemPingClient, err1 := gnoiSystemClient.Ping(ctx, req)
+		if err1 != nil {
+			t.Errorf("Error fetching gnoi system ping, error: %s", err1)
+		}
+		_, err = gnoiSystemPingClient.Recv()
+		if err != nil {
+			t.Errorf("Got unexpected error getting gnoi system ping, error: %s", err)
+		}
 	}
 
 	// Remote from the perspective of the router.
@@ -743,7 +990,7 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		ServiceRequest: &acctzpb.RecordResponse_GrpcService{
 			GrpcService: &acctzpb.GrpcService{
 				ServiceType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GNOI,
-				RpcName:     gnoiPingPath,
+				RpcName:     rpcName,
 				Payload: &acctzpb.GrpcService_ProtoVal{
 					ProtoVal: payload,
 				},
@@ -783,24 +1030,40 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 
 	var records []*acctzpb.RecordResponse
 	// grpcConn := dialGrpc(t, target)
-	authzClient := dut.RawAPIs().GNSI(t).Authz()
+	// authzClient := dut.RawAPIs().GNSI(t).Authz()
 	userKey, passKey := getMetadataKeys(dut)
 	if dut.Vendor() == ondatra.ARISTA {
 		failuser = failAuthorizeUsername
 		failpass = failAuthorizePassword
 	} else {
 		failuser = FailAuthenticateUsername
-		failpass = failAuthenticatePassword
+		failpass = failPassword
 	}
 	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, failuser, passKey, failpass))
-
+	var authzClient authzpb.AuthzClient
+	if dut.Vendor() == ondatra.NOKIA {
+		var dialer interface {
+			DialGRPCWithPort(context.Context, int, ...grpc.DialOption) (*grpc.ClientConn, error)
+		}
+		bindingDUT := dut.RawAPIs().BindingDUT()
+		if err := binding.DUTAs(bindingDUT, &dialer); err != nil {
+			t.Fatalf("BindingDUT %T does not implement DialGRPCWithPort: %v", bindingDUT, err)
+		}
+		conn, err := dialer.DialGRPCWithPort(ctx, 10162)
+		if err != nil {
+			t.Fatalf("Failed dialing custom gNSI port: %v", err)
+		}
+		authzClient = authzpb.NewAuthzClient(conn)
+	} else {
+		authzClient = dut.RawAPIs().GNSI(t).Authz()
+	}
 	// Send an unsuccessful gNSI authz get request (bad creds in context), we don't
 	// care about receiving on it, just want to make the request.
 	_, err := authzClient.Get(ctx, &authzpb.GetRequest{})
-	if err != nil {
-		t.Logf("Got expected error fetching authz policy with bad creds, error: %s", err)
+	if err != nil && status.Code(err) == codes.PermissionDenied {
+		t.Logf("Got expected error fetching authz policy with no permissions, error: %s", err)
 	} else {
-		t.Logf("Did not get expected error fetching authz policy with bad creds.")
+		t.Errorf("Did not get expected error fetching authz policy with no permissions. error: %s", err)
 	}
 	if !deviations.AcctzRecordFailGrpcUnsupported(dut) {
 		records = append(records, &acctzpb.RecordResponse{
@@ -809,7 +1072,7 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 					ServiceType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GNSI,
 					RpcName:     gnsiGetPath,
 					Authz: &acctzpb.AuthzDetail{
-						Status: acctzpb.AuthzDetail_AUTHZ_STATUS_DENY,
+						Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY, gnsiGetPath),
 					},
 				},
 			},
@@ -896,7 +1159,7 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespon
 		failpass = failAuthorizePassword
 	} else {
 		failuser = FailAuthenticateUsername
-		failpass = failAuthenticatePassword
+		failpass = failPassword
 	}
 	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, failuser, passKey, failpass))
 
@@ -918,8 +1181,10 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespon
 		t.Fatalf("Got unexpected error during gribi get request, error: %s", err)
 	}
 	_, err = gribiGetClient.Recv()
-	if err != nil {
-		t.Logf("Got expected error during gribi recv request, error: %s", err)
+	if err != nil && status.Code(err) == codes.PermissionDenied {
+		t.Logf("Got expected error during gribi recv request with no permissions, error: %s", err)
+	} else {
+		t.Errorf("Did not get expected error during gribi recv request with no permissions. error: %s", err)
 	}
 
 	records = append(records, &acctzpb.RecordResponse{
@@ -928,7 +1193,7 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespon
 				ServiceType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GRIBI,
 				RpcName:     gribiGetPath,
 				Authz: &acctzpb.AuthzDetail{
-					Status: acctzpb.AuthzDetail_AUTHZ_STATUS_PERMIT,
+					Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY, gribiGetPath),
 				},
 			},
 		},
@@ -939,7 +1204,7 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespon
 				Status: acctzpb.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
 			},
 			User: &acctzpb.UserDetail{
-				Identity: failAuthorizeUsername,
+				Identity: failuser,
 			},
 		},
 	})
@@ -981,7 +1246,7 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespon
 					ProtoVal: payload,
 				},
 				Authz: &acctzpb.AuthzDetail{
-					Status: acctzpb.AuthzDetail_AUTHZ_STATUS_PERMIT,
+					Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_PERMIT, gribiGetPath),
 				},
 			},
 		},
@@ -1056,7 +1321,7 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		failpass = failAuthorizePassword
 	} else {
 		failuser = FailAuthenticateUsername
-		failpass = failAuthenticatePassword
+		failpass = failPassword
 	}
 	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, failuser, passKey, failpass))
 
@@ -1065,8 +1330,10 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		t.Fatalf("Got unexpected error during p4rt get request, error: %s", err)
 	}
 	_, err = p4rtclient.Capabilities(ctx, &p4pb.CapabilitiesRequest{})
-	if err != nil {
-		t.Logf("Got expected error getting p4rt capabilities with no creds, error: %s", err)
+	if err != nil && status.Code(err) == codes.PermissionDenied {
+		t.Logf("Got expected error getting p4rt capabilities with no permissions, error: %s", err)
+	} else {
+		t.Errorf("Did not get expected error fetching pr4t capabilities with no permissions, error: %s", err)
 	}
 	if !deviations.AcctzRecordFailGrpcUnsupported(dut) {
 		records = append(records, &acctzpb.RecordResponse{
@@ -1075,7 +1342,7 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 					ServiceType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_P4RT,
 					RpcName:     p4rtCapabilitiesPath,
 					Authz: &acctzpb.AuthzDetail{
-						Status: acctzpb.AuthzDetail_AUTHZ_STATUS_PERMIT,
+						Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY, p4rtCapabilitiesPath),
 					},
 				},
 			},
@@ -1117,7 +1384,7 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 					ProtoVal: payload,
 				},
 				Authz: &acctzpb.AuthzDetail{
-					Status: acctzpb.AuthzDetail_AUTHZ_STATUS_PERMIT,
+					Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_PERMIT, p4rtCapabilitiesPath),
 				},
 			},
 		},
@@ -1154,7 +1421,7 @@ func SendSuccessCliCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding b
 	sshConn, w := dialSSH(t, dut, SuccessUsername, successPassword, target)
 	defer func() {
 		// Give things a second to percolate then close the connection.
-		time.Sleep(3 * time.Second)
+		time.Sleep(6 * time.Second)
 		err := sshConn.Close()
 		if err != nil {
 			t.Logf("Error closing tcp(ssh) connection, will ignore, error: %s", err)
@@ -1202,7 +1469,7 @@ func SendSuccessCliCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding b
 				ServiceType: acctzpb.CommandService_CMD_SERVICE_TYPE_CLI,
 				Cmd:         successCliCommand,
 				Authz: &acctzpb.AuthzDetail{
-					Status: acctzpb.AuthzDetail_AUTHZ_STATUS_PERMIT,
+					Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_PERMIT, successCliCommand),
 				},
 			},
 		},
@@ -1232,15 +1499,18 @@ func SendFailCliCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool
 	target := getSSHTarget(t, dut, staticBinding)
 
 	var records []*acctzpb.RecordResponse
-	sshConn, w := dialSSH(t, dut, failAuthorizeUsername, failAuthorizePassword, target)
-	if dut.Vendor() == ondatra.ARISTA {
+
+	if dut.Vendor() == ondatra.ARISTA || dut.Vendor() == ondatra.NOKIA || dut.Vendor() == ondatra.CISCO {
 		failuser = failAuthorizeUsername
+		failpass = failAuthorizePassword
 	} else {
 		failuser = FailAuthenticateUsername
+		failpass = failAuthenticatePassword
 	}
+	sshConn, w := dialSSH(t, dut, failuser, failpass, target)
 	defer func() {
 		// Give things a second to percolate then close the connection.
-		time.Sleep(3 * time.Second)
+		time.Sleep(6 * time.Second)
 		err := sshConn.Close()
 		if err != nil {
 			t.Logf("Error closing tcp(ssh) connection, will ignore, error: %s", err)
@@ -1277,7 +1547,7 @@ func SendFailCliCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool
 		}
 	} else {
 		authzStatusField = &acctzpb.AuthzDetail{
-			Status: acctzpb.AuthzDetail_AUTHZ_STATUS_DENY,
+			Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY, failCliCommand),
 		}
 	}
 
@@ -1353,7 +1623,7 @@ func SendShellCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) 
 	sshConn, w := dialSSH(t, dut, shellUsername, shellPassword, target)
 	defer func() {
 		// Give things a second to percolate then close the connection.
-		time.Sleep(3 * time.Second)
+		time.Sleep(6 * time.Second)
 		err := sshConn.Close()
 		if err != nil {
 			t.Logf("Error closing tcp(ssh) connection, will ignore, error: %s", err)
@@ -1377,7 +1647,7 @@ func SendShellCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) 
 				ServiceType: acctzpb.CommandService_CMD_SERVICE_TYPE_SHELL,
 				Cmd:         shellCommand,
 				Authz: &acctzpb.AuthzDetail{
-					Status: acctzpb.AuthzDetail_AUTHZ_STATUS_PERMIT,
+					Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_PERMIT, shellCommand),
 				},
 			},
 		},
@@ -1400,4 +1670,11 @@ func SendShellCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) 
 	})
 
 	return records
+}
+
+func expectedAuthzStatus(dut *ondatra.DUTDevice, status acctzpb.AuthzDetail_AuthzStatus, rpcName string) acctzpb.AuthzDetail_AuthzStatus {
+	if dut.Vendor() == ondatra.ARISTA && rpcName == gribiGetPath && status == acctzpb.AuthzDetail_AUTHZ_STATUS_DENY {
+		return acctzpb.AuthzDetail_AUTHZ_STATUS_PERMIT
+	}
+	return status
 }
