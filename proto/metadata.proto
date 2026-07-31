@@ -1423,7 +1423,6 @@ message Metadata {
 
     // Expected frr traffic tolerance. Minimum value is 0.2, anything less
     // will be coerced to 0.2.
-    // Juniper: 
     double frr_weight_resolution_tolerance = 447;
 
     // Reserved field numbers and identifiers.
