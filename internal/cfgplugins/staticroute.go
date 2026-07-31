@@ -61,14 +61,14 @@ func NewStaticRouteCfg(batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUT
 	if cfg == nil {
 		return nil, errors.New("cfg must be defined")
 	}
-
 	ni := normalizeNIName(cfg.NetworkInstance, d)
-
 	c := &oc.NetworkInstance_Protocol{
 		Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
 		Name:       ygot.String(deviations.StaticProtocolName(d)),
 	}
 	s := c.GetOrCreateStatic(cfg.Prefix)
+
+	cliConfigured := false
 	if cfg.NexthopGroup {
 		if deviations.StaticRouteToNHGOCUnsupported(d) {
 			switch d.Vendor() {
@@ -76,6 +76,7 @@ func NewStaticRouteCfg(batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUT
 				cli := fmt.Sprintf(`ipv6 route %s nexthop-group %s`, cfg.Prefix, cfg.NexthopGroupName)
 				helpers.GnmiCLIConfig(cfg.T, d, cli)
 				staticRouteToNextHopGroupCLI(cfg.T, d, *cfg)
+				cliConfigured = true
 			default:
 				return s, fmt.Errorf("deviation StaticRouteToNHGOCUnsupported is not handled for the dut: %s", d.Vendor())
 			}
@@ -97,12 +98,15 @@ func NewStaticRouteCfg(batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUT
 			}
 		}
 	}
-
 	// Handle Interface-based NextHop (Resolution routes)
 	if cfg.NextHopIntf != "" {
 		// Usually "0" is used as the index if only one interface is provided
 		nh := s.GetOrCreateNextHop("0")
 		nh.GetOrCreateInterfaceRef().Interface = ygot.String(cfg.NextHopIntf)
+	}
+
+	if cliConfigured {
+		return s, nil
 	}
 
 	sp := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(d))
@@ -200,4 +204,28 @@ func NewStaticVRFRoute(t *testing.T, batch *gnmi.SetBatch, cfg *StaticVRFRouteCf
 	gnmi.BatchReplace(batch, sp.Static(cfg.Prefix).Config(), s)
 
 	return s, nil
+}
+
+// ConfigureStaticRouteParams contains the parameters required to configure a static route on the DUT.
+type ConfigureStaticRouteParams struct {
+	NetworkInstance string
+	Prefix          string
+	Index           string
+	NextHop         string
+}
+
+// ConfigureStaticRoute installs a static route into the default NI.
+func ConfigureStaticRoute(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, cfg ConfigureStaticRouteParams) {
+	t.Helper()
+	staticRoute := &StaticRouteCfg{
+		NetworkInstance: cfg.NetworkInstance,
+		Prefix:          cfg.Prefix,
+		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+			cfg.Index: oc.UnionString(cfg.NextHop),
+		},
+	}
+
+	if _, err := NewStaticRouteCfg(batch, staticRoute, dut); err != nil {
+		t.Fatalf("Failed to configure static route %s: %v", cfg.Prefix, err)
+	}
 }
