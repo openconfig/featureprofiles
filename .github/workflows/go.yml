@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest-arm64
+    runs-on: ubuntu-24.04-arm
     steps:
     - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
     # Go & staticcheck build cache require a lot of disk space.  Reclaim extra
@@ -37,7 +37,7 @@ jobs:
       run: go build -v ./...
 
   test:
-    runs-on: ubuntu-latest-arm64
+    runs-on: ubuntu-24.04-arm
     steps:    
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       # Go & staticcheck build cache require a lot of disk space.  Reclaim extra
@@ -68,7 +68,7 @@ jobs:
 
   static_analysis:
     name: Static Analysis
-    runs-on: ubuntu-latest-arm64
+    runs-on: ubuntu-24.04-arm
     steps:
     - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
     - name: Free additional disk space
