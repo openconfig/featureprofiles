@@ -363,11 +363,18 @@ func TestControllerCardLargeConfigPushAndPull(t *testing.T) {
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	// Configuring the routing policy.
 	configureRoutingPolicy(t, dut)
+	t.Cleanup(func() {
+		gnmi.Delete(t, dut, gnmi.OC().RoutingPolicy().PolicyDefinition(acceptRoutePolicy).Config())
+	})
 	// Configuring basic interface and network instance as some devices only populate OC after configuration.
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
+	t.Cleanup(func() {
+		gnmi.Delete(t, dut, gnmi.OC().Interface(p1.Name()).Config())
+		gnmi.Delete(t, dut, gnmi.OC().Interface(p2.Name()).Config())
+	})
 
 	// Get Controller Card list that are inserted in the DUT.
 	controllerCards := components.FindComponentsByType(t, dut, controlcardType)
