@@ -1526,7 +1526,7 @@ type Metadata_Deviations struct {
 	// https://partnerissuetracker.corp.google.com/issues/536257634
 	MacsecOcUnsupported bool `protobuf:"varint,445,opt,name=macsec_oc_unsupported,json=macsecOcUnsupported,proto3" json:"macsec_oc_unsupported,omitempty"`
 	// Devices that does not support afts global filter policy
-	// Arista: b/514565554
+	// Arista: https://partnerissuetracker.corp.google.com/issues/514565554
 	AftsGlobalFilterPolicyOcUnsupported bool `protobuf:"varint,446,opt,name=afts_global_filter_policy_oc_unsupported,json=aftsGlobalFilterPolicyOcUnsupported,proto3" json:"afts_global_filter_policy_oc_unsupported,omitempty"`
 }
 

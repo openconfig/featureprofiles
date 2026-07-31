@@ -68,9 +68,6 @@ func NewStaticRouteCfg(batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUT
 	}
 	s := c.GetOrCreateStatic(cfg.Prefix)
 
-	// cliConfigured tracks whether the route was fully configured via CLI
-	// deviation, in which case the OC batch write below must be skipped to
-	// avoid double-configuring/conflicting with the CLI path.
 	cliConfigured := false
 	if cfg.NexthopGroup {
 		if deviations.StaticRouteToNHGOCUnsupported(d) {
