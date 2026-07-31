@@ -93,7 +93,7 @@ jobs:
     # Removed counter-productive go clean -cache
 
     - name: Go vet
-      run: GOGC=30 go vet ./...
+      run: go vet ./...
     - name: Gofmt
       run: |
         # gofmt always returns true, so we use grep '^' which returns
@@ -124,4 +124,4 @@ jobs:
     - name: Get staticcheck
       run: go install honnef.co/go/tools/cmd/staticcheck@latest
     - name: Run staticcheck
-      run: GOGC=30 staticcheck ./...
+      run: staticcheck ./...
