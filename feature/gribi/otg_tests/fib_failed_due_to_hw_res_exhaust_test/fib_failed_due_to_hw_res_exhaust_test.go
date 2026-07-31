@@ -26,6 +26,7 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
@@ -54,52 +55,43 @@ func TestMain(m *testing.M) {
 //   * ate:port2 -> dut:port2 subnet 192.0.2.5/30
 
 const (
-	dstIPBlock         = "203.0.113.0"
-	vipBlock           = "198.51.100.0"
-	wantLoss           = true
-	dutAS              = 64500
-	ateAS              = 64501
-	advertisedRoutesv6 = "2001:DB8:2::1"
-	tolerancePct       = 2
-	tolerance          = 50
-	plenIPv4           = 30
-	plenIPv6           = 126
-	fibPassedTraffic   = "fibPassedTraffic"
-	fibFailedTraffic   = "fibFailedTraffic"
-	dstTrackingf1      = "dstTrackingf1"
-	dstTrackingf2      = "dstTrackingf2"
+	dstIPBlock       = "203.0.113.0"
+	vipBlock         = "198.51.100.0"
+	wantLoss         = true
+	dutAS            = 64500
+	ateAS            = 64501
+	advertisedRoutes = "1.0.0.1"
+	tolerancePct     = 2
+	tolerance        = 50
+	plenIPv4         = 30
+	fibPassedTraffic = "fibPassedTraffic"
+	fibFailedTraffic = "fibFailedTraffic"
+	dstTrackingf1    = "dstTrackingf1"
+	dstTrackingf2    = "dstTrackingf2"
 )
 
 var (
 	dutPort1 = attrs.Attributes{
 		Desc:    "dutPort1",
 		IPv4:    "192.0.2.1",
-		IPv6:    "2001:db8::192:0:2:1",
 		IPv4Len: plenIPv4,
-		IPv6Len: plenIPv6,
 	}
 	atePort1 = attrs.Attributes{
 		Name:    "atePort1",
 		IPv4:    "192.0.2.2",
 		MAC:     "02:00:01:01:01:01",
-		IPv6:    "2001:db8::192:0:2:2",
 		IPv4Len: plenIPv4,
-		IPv6Len: plenIPv6,
 	}
 	dutPort2 = attrs.Attributes{
 		Desc:    "dutPort2",
 		IPv4:    "192.0.2.5",
-		IPv6:    "2001:db8::192:0:2:5",
 		IPv4Len: plenIPv4,
-		IPv6Len: plenIPv6,
 	}
 	atePort2 = attrs.Attributes{
 		Name:    "atePort2",
 		IPv4:    "192.0.2.6",
 		MAC:     "02:00:02:01:01:01",
-		IPv6:    "2001:db8::192:0:2:6",
 		IPv4Len: plenIPv4,
-		IPv6Len: plenIPv6,
 	}
 	fibPassedDstRoute      string
 	fibFailedDstRoute      string
@@ -115,35 +107,35 @@ func configureBGP(dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	g := bgp.GetOrCreateGlobal()
 	g.As = ygot.Uint32(dutAS)
 	g.RouterId = ygot.String(dutPort1.IPv4)
-	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
+	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 
-	pg := bgp.GetOrCreatePeerGroup("BGP-PEER-GROUP-V6")
+	pg := bgp.GetOrCreatePeerGroup("BGP-PEER-GROUP-V4")
 	pg.PeerAs = ygot.Uint32(ateAS)
-	pg.PeerGroupName = ygot.String("BGP-PEER-GROUP-V6")
-	pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
+	pg.PeerGroupName = ygot.String("BGP-PEER-GROUP-V4")
+	pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 
 	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
 		rpl := pg.GetOrCreateApplyPolicy()
 		rpl.SetExportPolicy([]string{"ALLOW"})
 		rpl.SetImportPolicy([]string{"ALLOW"})
 	} else {
-		pg1af4 := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+		pg1af4 := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 		pg1af4.Enabled = ygot.Bool(true)
 		pg1rpl4 := pg1af4.GetOrCreateApplyPolicy()
 		pg1rpl4.SetExportPolicy([]string{"ALLOW"})
 		pg1rpl4.SetImportPolicy([]string{"ALLOW"})
 	}
 
-	bgpNbr := bgp.GetOrCreateNeighbor(atePort1.IPv6)
+	bgpNbr := bgp.GetOrCreateNeighbor(atePort1.IPv4)
 	bgpNbr.PeerAs = ygot.Uint32(ateAS)
 	bgpNbr.Enabled = ygot.Bool(true)
-	bgpNbr.PeerGroup = ygot.String("BGP-PEER-GROUP-V6")
-	af6 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-	af6.Enabled = ygot.Bool(true)
+	bgpNbr.PeerGroup = ygot.String("BGP-PEER-GROUP-V4")
+	af4 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+	af4.Enabled = ygot.Bool(true)
 	return niProto
 }
 
-func configureOTG(t *testing.T, otg *otg.OTG, dstIPList []string) (gosnappi.BgpV6Peer, gosnappi.DeviceIpv6, gosnappi.Config) {
+func configureOTG(t *testing.T, otg *otg.OTG, dstIPList []string) (gosnappi.BgpV4Peer, gosnappi.DeviceIpv4, gosnappi.Config) {
 	t.Helper()
 	config := gosnappi.NewConfig()
 	port1 := config.Ports().Add().SetName("port1")
@@ -154,8 +146,6 @@ func configureOTG(t *testing.T, otg *otg.OTG, dstIPList []string) (gosnappi.BgpV
 	iDut1Eth.Connection().SetPortName(port1.Name())
 	iDut1Ipv4 := iDut1Eth.Ipv4Addresses().Add().SetName(atePort1.Name + ".IPv4")
 	iDut1Ipv4.SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).SetPrefix(uint32(atePort1.IPv4Len))
-	iDut1Ipv6 := iDut1Eth.Ipv6Addresses().Add().SetName(atePort1.Name + ".IPv6")
-	iDut1Ipv6.SetAddress(atePort1.IPv6).SetGateway(dutPort1.IPv6).SetPrefix(uint32(atePort1.IPv6Len))
 
 	iDut2Dev := config.Devices().Add().SetName(atePort2.Name)
 	iDut2Eth := iDut2Dev.Ethernets().Add().SetName(atePort2.Name + ".Eth").SetMac(atePort2.MAC)
@@ -164,9 +154,9 @@ func configureOTG(t *testing.T, otg *otg.OTG, dstIPList []string) (gosnappi.BgpV
 	iDut2Ipv4.SetAddress(atePort2.IPv4).SetGateway(dutPort2.IPv4).SetPrefix(uint32(atePort2.IPv4Len))
 
 	iDut1Bgp := iDut1Dev.Bgp().SetRouterId(iDut1Ipv4.Address())
-	iDut1Bgp6Peer := iDut1Bgp.Ipv6Interfaces().Add().SetIpv6Name(iDut1Ipv6.Name()).Peers().Add().SetName(atePort1.Name + ".BGP6.peer")
-	iDut1Bgp6Peer.SetPeerAddress(iDut1Ipv6.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
-	iDut1Bgp6Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
+	iDut1Bgp4Peer := iDut1Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut1Ipv4.Name()).Peers().Add().SetName(atePort1.Name + ".BGP4.peer")
+	iDut1Bgp4Peer.SetPeerAddress(iDut1Ipv4.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
+	iDut1Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true)
 
 	flow1ipv4 := config.Flows().Add().SetName(fibPassedTraffic)
 	flow1ipv4.Metrics().SetEnable(true)
@@ -212,7 +202,7 @@ func configureOTG(t *testing.T, otg *otg.OTG, dstIPList []string) (gosnappi.BgpV
 	otg.StartProtocols(t)
 	time.Sleep(30 * time.Second)
 
-	return iDut1Bgp6Peer, iDut1Ipv6, config
+	return iDut1Bgp4Peer, iDut1Ipv4, config
 }
 
 func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr oc.E_RoutingPolicy_PolicyResultType) {
@@ -228,16 +218,16 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr 
 }
 
 type testArgs struct {
-	ctx                       context.Context
-	dut                       *ondatra.DUTDevice
-	ate                       *ondatra.ATEDevice
-	otgBgpPeer                gosnappi.BgpV6Peer
-	otgIPv6Device             gosnappi.DeviceIpv6
-	otgConfig                 gosnappi.Config
-	client                    *fluent.GRIBIClient
-	electionID                gribi.Uint128
-	otg                       *otg.OTG
-	advertisedRoutesv6MaskLen uint32
+	ctx                     context.Context
+	dut                     *ondatra.DUTDevice
+	ate                     *ondatra.ATEDevice
+	otgBgpPeer              gosnappi.BgpV4Peer
+	otgDevice               gosnappi.DeviceIpv4
+	otgConfig               gosnappi.Config
+	client                  *fluent.GRIBIClient
+	electionID              gribi.Uint128
+	otg                     *otg.OTG
+	advertisedRoutesMaskLen uint32
 }
 
 // TestFibFailDueToHwResExhaust is to test gRIBI FIB_FAILED functionality
@@ -245,12 +235,8 @@ type testArgs struct {
 func TestFibFailDueToHwResExhaust(t *testing.T) {
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
-	var advertisedV6MaskLen uint32
-	if deviations.SubnetMaskChangeRequired(dut) {
-		advertisedV6MaskLen = uint32(120)
-	} else {
-		advertisedV6MaskLen = uint32(128)
-	}
+	// Keep IPv4 advertised routes as /32 for exact unique-count scaling.
+	advertisedMaskLen := uint32(32)
 	dstIPList := createIPv4Entries(t, fmt.Sprintf("%s/%d", dstIPBlock, 20))
 	vipList := createIPv4Entries(t, fmt.Sprintf("%s/%d", vipBlock, 20))
 	configureDUT(t, dut)
@@ -271,7 +257,7 @@ func TestFibFailDueToHwResExhaust(t *testing.T) {
 				_, err := cli.RunCommand(context.Background(), `
 				configure
 					router bgp 64500
-						neighbor BGP-PEER-GROUP-V6 maximum-routes 0
+						neighbor BGP-PEER-GROUP-V4 maximum-routes 0
 						exit
 					exit
 				exit
@@ -288,9 +274,9 @@ func TestFibFailDueToHwResExhaust(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	otg := ate.OTG()
 	var otgConfig gosnappi.Config
-	var otgBgpPeer gosnappi.BgpV6Peer
-	var otgIPv6Device gosnappi.DeviceIpv6
-	otgBgpPeer, otgIPv6Device, otgConfig = configureOTG(t, otg, dstIPList)
+	var otgBgpPeer gosnappi.BgpV4Peer
+	var otgDevice gosnappi.DeviceIpv4
+	otgBgpPeer, otgDevice, otgConfig = configureOTG(t, otg, dstIPList)
 	time.Sleep(30 * time.Second)
 	verifyBgpTelemetry(t, dut)
 
@@ -323,16 +309,16 @@ func TestFibFailDueToHwResExhaust(t *testing.T) {
 	}
 
 	args := &testArgs{
-		ctx:                       ctx,
-		client:                    client,
-		dut:                       dut,
-		ate:                       ate,
-		otgBgpPeer:                otgBgpPeer,
-		otgIPv6Device:             otgIPv6Device,
-		otgConfig:                 otgConfig,
-		electionID:                eID,
-		otg:                       otg,
-		advertisedRoutesv6MaskLen: advertisedV6MaskLen,
+		ctx:                     ctx,
+		client:                  client,
+		dut:                     dut,
+		ate:                     ate,
+		otgBgpPeer:              otgBgpPeer,
+		otgDevice:               otgDevice,
+		otgConfig:               otgConfig,
+		electionID:              eID,
+		otg:                     otg,
+		advertisedRoutesMaskLen: advertisedMaskLen,
 	}
 	start := time.Now()
 	// cleanup fib table
@@ -344,8 +330,10 @@ func TestFibFailDueToHwResExhaust(t *testing.T) {
 	injectEntry(ctx, t, args, dstIPList, vipList)
 	t.Logf("Main Function: Time elapsed %.2f seconds since start", time.Since(start).Seconds())
 
-	t.Log("Send traffic to any of the programmed entries and validate.")
-	sendTraffic(t, args)
+	if !deviations.TrafficValidationUponOORUnsupported(args.dut) {
+		t.Log("Send traffic to any of the programmed entries and validate.")
+		sendTraffic(t, args)
+	}
 }
 
 func sendTraffic(t *testing.T, args *testArgs) {
@@ -409,7 +397,7 @@ func verifyTraffic(t *testing.T, args *testArgs, flowName string, wantLoss bool)
 
 func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	var nbrIP = []string{atePort1.IPv6}
+	var nbrIP = []string{atePort1.IPv4}
 	t.Logf("Verifying BGP state.")
 	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	time.Sleep(30 * time.Second)
@@ -439,9 +427,11 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
+	dutPort1Intf := dutPort1.NewOCInterface(p1.Name(), dut)
+	dutPort2Intf := dutPort2.NewOCInterface(p2.Name(), dut)
 
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutPort1Intf)
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2Intf)
 
 	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, dut.Port(t, "port1"))
@@ -457,21 +447,96 @@ func injectBGPRoutes(t *testing.T, args *testArgs) {
 	t.Helper()
 
 	routeCount := deviations.MaxOutFIBRouteCount(args.dut)
-
-	bgpNeti1Bgp6PeerRoutes := args.otgBgpPeer.V6Routes().Add().SetName(atePort1.Name + ".BGP6.Route")
-	bgpNeti1Bgp6PeerRoutes.SetNextHopIpv6Address(args.otgIPv6Device.Address()).
-		SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
-		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
-	bgpNeti1Bgp6PeerRoutes.Addresses().Add().
-		SetAddress(advertisedRoutesv6).
-		SetPrefix(args.advertisedRoutesv6MaskLen).
-		SetCount(routeCount).SetStep(2)
-	bgpNeti1Bgp6PeerRoutes.Advanced().SetIncludeLocalPreference(false)
+	routeStep := uint32(257)
+	t.Logf("Injecting IPv4 routes with prefix /%d, count=%d, step=%d", args.advertisedRoutesMaskLen, routeCount, routeStep)
+	b := args.otgBgpPeer.V4Routes().Add().SetName(atePort1.Name + ".BGP4.Route")
+	b.SetNextHopIpv4Address(args.otgDevice.Address()).
+		SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
+		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
+	b.Addresses().Add().
+		SetAddress(advertisedRoutes).
+		SetPrefix(args.advertisedRoutesMaskLen).
+		SetCount(routeCount).SetStep(routeStep)
+	b.Advanced().SetIncludeLocalPreference(false)
 
 	args.otg.PushConfig(t, args.otgConfig)
 	time.Sleep(30 * time.Second)
 	args.otg.StartProtocols(t)
 	time.Sleep(30 * time.Second)
+}
+
+// icResourceState holds the utilization state for one integrated-circuit resource.
+type icResourceState struct {
+	Component     string
+	Used          uint64
+	Free          uint64
+	MaxLimit      uint64
+	HighWatermark uint64
+}
+
+// readICResourceUtilization polls IC resource utilization until it reaches 99%.
+func readICResourceUtilization(t *testing.T, dut *ondatra.DUTDevice) []icResourceState {
+	t.Helper()
+	const (
+		resourceName   = "lpm_tcam_0"
+		targetUsed     = 99
+		pollInterval   = 30 * time.Second
+		pollTimeout    = 15 * time.Minute
+		stabilizeDelay = time.Minute
+	)
+	comps := components.FindActiveComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
+	if len(comps) == 0 {
+		t.Fatal("No active integrated-circuit components found for TCAM OOR validation")
+	}
+	ticker := time.NewTicker(pollInterval)
+	defer ticker.Stop()
+	timer := time.NewTimer(pollTimeout)
+	defer timer.Stop()
+
+	var lastResults []icResourceState
+	var lastMissing []string
+
+	for {
+		var results []icResourceState
+		var missing []string
+		reachedTarget := false
+		for _, comp := range comps {
+			resourcePath := gnmi.OC().Component(comp).IntegratedCircuit().Utilization().Resource(resourceName)
+			resource, ok := gnmi.Lookup(t, dut, resourcePath.State()).Val()
+			if !ok {
+				missing = append(missing, comp)
+				continue
+			}
+			used := resource.GetUsed()
+			results = append(results, icResourceState{
+				Component:     comp,
+				Used:          used,
+				Free:          resource.GetFree(),
+				MaxLimit:      resource.GetMaxLimit(),
+				HighWatermark: resource.GetHighWatermark(),
+			})
+			t.Logf("IC resource %q on %s: used=%d", resourceName, comp, used)
+			if used >= targetUsed {
+				reachedTarget = true
+			}
+		}
+		if len(results) > 0 {
+			lastResults = results
+		}
+		lastMissing = missing
+
+		if reachedTarget {
+			time.Sleep(stabilizeDelay) // Wait to ensure the resource is stable at the target.
+			return results
+		}
+
+		t.Logf("IC resource %q used has not reached %d; waiting %s before retry", resourceName, targetUsed, pollInterval)
+		select {
+		case <-ticker.C:
+		case <-timer.C:
+			t.Fatalf("Timed out after %s waiting for IC resource %q used >= %d; last observed=%+v; missing telemetry components=%v", pollTimeout, resourceName, targetUsed, lastResults, lastMissing)
+		}
+	}
 }
 
 // awaitTimeout calls a fluent client Await, adding a timeout to the context.
@@ -570,6 +635,9 @@ routeAddLoop:
 		if j == 1 {
 			fibPassedDstRoute = dstIPList[0]
 			injectBGPRoutes(t, args)
+			if deviations.TrafficValidationUponOORUnsupported(args.dut) {
+				readICResourceUtilization(t, args.dut)
+			}
 			time.Sleep(5 * time.Minute)
 		}
 	}

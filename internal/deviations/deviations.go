@@ -2318,3 +2318,8 @@ func MacsecOcUnsupported(dut *ondatra.DUTDevice) bool {
 func AftsGlobalFilterPolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAftsGlobalFilterPolicyOcUnsupported()
 }
+
+// TrafficValidationUponOORUnsupported returns true if traffic validation upon OOR (Out Of Resource) is unsupported.
+func TrafficValidationUponOORUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTrafficValidationUponOorUnsupported()
+}

@@ -12,7 +12,8 @@ platform_exceptions: {
   deviations: {
     ipv4_missing_enabled: true
     subnet_mask_change_required: true
-    max_out_fib_route_count: 2500000
+    max_out_fib_route_count: 5500000
+    traffic_validation_upon_oor_unsupported: true
   }
 }
 platform_exceptions: {
