@@ -132,7 +132,6 @@ func testPacket(t *testing.T, args *testArgs, cs gosnappi.ControlState, flowValu
 
 	configureDeviceID(ctx, t, dut)
 
-
 	args = &testArgs{
 		ctx:      ctx,
 		leader:   args.leader,
