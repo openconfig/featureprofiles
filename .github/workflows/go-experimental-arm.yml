@@ -1,4 +1,9 @@
-name: Go
+name: Go (ARM64 Experimental)
+
+# NOTE: This is an experimental workflow running on ARM64 infrastructure to 
+# evaluate execution speed and GitHub caching. 
+# DO NOT add this check as a required status check for branch protection.
+# If this workflow fails, it should NOT block merges to main.
 
 on:
   push:
@@ -6,27 +11,33 @@ on:
   pull_request:
   schedule:
     - cron: "0 0 * * *"
+permissions:
+  contents: read
+
+env:
+  XDG_CACHE_HOME: /mnt/cache
+  GOMODCACHE: /mnt/cache/go-mod
+
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
     # Go & staticcheck build cache require a lot of disk space.  Reclaim extra
     # space for the container by removing unnecessary tooling.
-    - name: Free additional disk space
+    - name: Free additional disk space and prepare cache directory
       run: |
         sudo rm -rf /usr/share/dotnet
         sudo rm -rf /usr/local/lib/android
         sudo rm -rf /opt/hostedtoolcache/CodeQL
+        sudo mkdir -p /mnt/cache
+        sudo chown -R $USER:$USER /mnt/cache
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
       with:
         go-version-file: 'go.mod'
         cache: true
-    - name: Move cache
-      run: |
-        sudo mv "${HOME}/.cache" /mnt/cache
-        ln -s /mnt/cache "${HOME}/.cache"
+    # Cache location is managed by XDG_CACHE_HOME env variable
     # Dependency for Go module github.com/google/gopacket
     - name: Install libpcap-dev
       run: sudo apt-get -y install libpcap-dev
@@ -34,25 +45,24 @@ jobs:
       run: go build -v ./...
 
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     steps:    
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       # Go & staticcheck build cache require a lot of disk space.  Reclaim extra
       # space for the container by removing unnecessary tooling.
-      - name: Free additional disk space
+      - name: Free additional disk space and prepare cache directory
         run: |
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo mkdir -p /mnt/cache
+          sudo chown -R $USER:$USER /mnt/cache
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: 'go.mod'
           cache: true
-      - name: Move cache
-        run: |
-          sudo mv "${HOME}/.cache" /mnt/cache
-          ln -s /mnt/cache "${HOME}/.cache"
+      # Cache location is managed by XDG_CACHE_HOME env variable
       # Dependency for Go module github.com/google/gopacket
       - name: Install libpcap-dev
         run: sudo apt-get -y install libpcap-dev
@@ -65,34 +75,30 @@ jobs:
 
   static_analysis:
     name: Static Analysis
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     steps:
-    - uses: actions/checkout@v4
-    - name: Free additional disk space
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+    - name: Free additional disk space and prepare cache directory
       run: |
         sudo rm -rf /usr/share/dotnet
         sudo rm -rf /usr/local/lib/android
         sudo rm -rf /opt/hostedtoolcache/CodeQL
+        sudo mkdir -p /mnt/cache
+        sudo chown -R $USER:$USER /mnt/cache
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
       with:
         go-version-file: 'go.mod'
         cache: true
-    - name: Move cache
-      run: |
-        sudo mv "${HOME}/.cache" /mnt/cache
-        ln -s /mnt/cache "${HOME}/.cache"
+    # Cache location is managed by XDG_CACHE_HOME env variable
     # Dependency for Go module github.com/google/gopacket
     - name: Install libpcap-dev
       run: sudo apt-get -y install libpcap-dev
 
-    # === THIS IS THE ONLY CHANGE ===
-    - name: Clean Go build cache before analysis
-      run: go clean -cache
-    # ===============================
+    # Removed counter-productive go clean -cache
 
     - name: Go vet
-      run: GOGC=30 go vet ./...
+      run: go vet ./...
     - name: Gofmt
       run: |
         # gofmt always returns true, so we use grep '^' which returns
@@ -122,5 +128,12 @@ jobs:
       run: revive ./...
     - name: Get staticcheck
       run: go install honnef.co/go/tools/cmd/staticcheck@latest
+    - name: Cache staticcheck
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      with:
+        path: /mnt/cache/staticcheck
+        key: ${{ runner.os }}-staticcheck-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-staticcheck-
     - name: Run staticcheck
-      run: GOGC=30 staticcheck ./...
+      run: staticcheck ./...
