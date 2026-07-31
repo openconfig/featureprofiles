@@ -138,10 +138,11 @@ func GRIBIMACOverrideStaticARPStaticRoute(dut *ondatra.DUTDevice) bool {
 func AggregateAtomicUpdate(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAggregateAtomicUpdate()
 }
+
 // NextHopGroupStaticRouteOCUnsupported returns if the device does not support OC for next-hop-group static routes.
+// TODO: Track removal of this deviation at https://issuetracker.google.com/issues/540976446
 func NextHopGroupStaticRouteOCUnsupported(dut *ondatra.DUTDevice) bool {
-    // Manually trigger the deviation true for targeted vendors (CISCO / ARISTA)
-    return dut.Vendor() == ondatra.CISCO || dut.Vendor() == ondatra.ARISTA
+	return lookupDUTDeviations(dut).GetNextHopGroupStaticRouteOcUnsupported()
 }
 
 // DefaultNetworkInstance returns the name used for the default network instance for VRF.

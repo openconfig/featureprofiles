@@ -439,75 +439,97 @@ func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, params
 }
 
 func NextHopGroupStaticRoute(t *testing.T, dut *ondatra.DUTDevice, params NexthopGroupUDPParams) {
-    t.Helper()
-    if deviations.NextHopGroupStaticRouteOCUnsupported(dut) {
-        switch dut.Vendor() {
-        case ondatra.CISCO:
-            v4TunnelConfig := new(strings.Builder)
-            v6TunnelConfig := new(strings.Builder)
-            
-            for _, ppnh := range params.PPNH {
-                var entry string
-                if params.TTL != 0 {
-                    entry = fmt.Sprintf("  tunnel %s remote-next-hop %s tunnel gue-v1 source-ip %s ttl %d\n", 
-                        ppnh, params.NexthopGrpName, params.SrcIp, params.TTL)
-                } else {
-                    entry = fmt.Sprintf("  tunnel %s remote-next-hop %s tunnel gue-v1 source-ip %s\n", 
-                        ppnh, params.NexthopGrpName, params.SrcIp)
-                }
-                
-                // Dynamically route prefixes to the correct address family
-                if strings.Contains(ppnh, ":") {
-                    fmt.Fprint(v6TunnelConfig, entry)
-                } else {
-                    fmt.Fprint(v4TunnelConfig, entry)
-                }
-            }
+	t.Helper()
+	if deviations.NextHopGroupStaticRouteOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.CISCO:
+			v4TunnelConfig := new(strings.Builder)
+			v6TunnelConfig := new(strings.Builder)
 
-            cliBuilder := new(strings.Builder)
-            fmt.Fprintln(cliBuilder, "router static")
-            
-            if v4TunnelConfig.Len() > 0 {
-                fmt.Fprintln(cliBuilder, " address-family ipv4 unicast")
-                fmt.Fprint(cliBuilder, v4TunnelConfig.String())
-                fmt.Fprintln(cliBuilder, " !")
-            }
-            if v6TunnelConfig.Len() > 0 {
-                fmt.Fprintln(cliBuilder, " address-family ipv6 unicast")
-                fmt.Fprint(cliBuilder, v6TunnelConfig.String())
-                fmt.Fprintln(cliBuilder, " !")
-            }
-            fmt.Fprintln(cliBuilder, "!")
+			for _, ppnh := range params.PPNH {
+				var entry string
+				if params.TTL != 0 {
+					entry = fmt.Sprintf("  tunnel %s remote-next-hop %s tunnel gue-v1 source-ip %s ttl %d\n",
+						ppnh, params.NexthopGrpName, params.SrcIp, params.TTL)
+				} else {
+					entry = fmt.Sprintf("  tunnel %s remote-next-hop %s tunnel gue-v1 source-ip %s\n",
+						ppnh, params.NexthopGrpName, params.SrcIp)
+				}
 
-            helpers.GnmiCLIConfig(t, dut, cliBuilder.String())
+				// Dynamically route prefixes to the correct address family
+				if strings.Contains(ppnh, ":") {
+					fmt.Fprint(v6TunnelConfig, entry)
+				} else {
+					fmt.Fprint(v4TunnelConfig, entry)
+				}
+			}
 
-        case ondatra.ARISTA:
-            v4TunnelConfig := new(strings.Builder)
-            v6TunnelConfig := new(strings.Builder)
+			cliBuilder := new(strings.Builder)
+			fmt.Fprintln(cliBuilder, "router static")
 
-            for _, ppnh := range params.PPNH {
-                if strings.Contains(ppnh, ":") {
-                    fmt.Fprintf(v6TunnelConfig, "ipv6 route %s nexthop-group %s\n", ppnh, params.NexthopGrpName)
-                } else {
-                    fmt.Fprintf(v4TunnelConfig, "ip route %s nexthop-group %s\n", ppnh, params.NexthopGrpName)
-                }
-            }
+			if v4TunnelConfig.Len() > 0 {
+				fmt.Fprintln(cliBuilder, " address-family ipv4 unicast")
+				fmt.Fprint(cliBuilder, v4TunnelConfig.String())
+				fmt.Fprintln(cliBuilder, " !")
+			}
+			if v6TunnelConfig.Len() > 0 {
+				fmt.Fprintln(cliBuilder, " address-family ipv6 unicast")
+				fmt.Fprint(cliBuilder, v6TunnelConfig.String())
+				fmt.Fprintln(cliBuilder, " !")
+			}
+			fmt.Fprintln(cliBuilder, "!")
 
-            cliBuilder := new(strings.Builder)
-            if v4TunnelConfig.Len() > 0 {
-                fmt.Fprint(cliBuilder, v4TunnelConfig.String())
-            }
-            if v6TunnelConfig.Len() > 0 {
-                fmt.Fprint(cliBuilder, v6TunnelConfig.String())
-            }
+			helpers.GnmiCLIConfig(t, dut, cliBuilder.String())
 
-            if cliBuilder.Len() > 0 {
-                helpers.GnmiCLIConfig(t, dut, cliBuilder.String())
-            }
-        default:
-            t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group static route'", dut.Vendor())
-        }
-    }
+		case ondatra.ARISTA:
+			v4TunnelConfig := new(strings.Builder)
+			v6TunnelConfig := new(strings.Builder)
+
+			for _, ppnh := range params.PPNH {
+				if strings.Contains(ppnh, ":") {
+					fmt.Fprintf(v6TunnelConfig, "ipv6 route %s nexthop-group %s\n", ppnh, params.NexthopGrpName)
+				} else {
+					fmt.Fprintf(v4TunnelConfig, "ip route %s nexthop-group %s\n", ppnh, params.NexthopGrpName)
+				}
+			}
+
+			cliBuilder := new(strings.Builder)
+			if v4TunnelConfig.Len() > 0 {
+				fmt.Fprint(cliBuilder, v4TunnelConfig.String())
+			}
+			if v6TunnelConfig.Len() > 0 {
+				fmt.Fprint(cliBuilder, v6TunnelConfig.String())
+			}
+
+			if cliBuilder.Len() > 0 {
+				helpers.GnmiCLIConfig(t, dut, cliBuilder.String())
+			}
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group static route'", dut.Vendor())
+		}
+	} else {
+		// Standard OpenConfig implementation for static routes pointing to a next-hop-group
+		batch := &gnmi.SetBatch{}
+		for _, ppnh := range params.PPNH {
+			protoStr := "ip"
+			if strings.Contains(ppnh, ":") {
+				protoStr = "ipv6"
+			}
+
+			cfg := &StaticVRFRouteCfg{
+				NetworkInstance: deviations.DefaultNetworkInstance(dut),
+				Prefix:          ppnh,
+				NextHopGroup:    params.NexthopGrpName,
+				ProtocolStr:     protoStr,
+			}
+
+			if _, err := NewStaticVRFRoute(t, batch, cfg, dut); err != nil {
+				t.Fatalf("Failed to configure static route to next-hop-group via OC: %v", err)
+			}
+		}
+		// Pushes all PPNH static routes in a single gNMI Set transaction
+		batch.Set(t, dut)
+	}
 }
 
 // configureTOSGUE configures the tos
