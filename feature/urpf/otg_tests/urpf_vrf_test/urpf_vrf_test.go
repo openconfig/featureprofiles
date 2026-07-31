@@ -94,8 +94,8 @@ var (
 	staticRoutePfxV4 = "/24"
 	staticRoutePfxV6 = "/64"
 
-	ppnhIPv4 = []string{"192.168.0.1/24"}
-	ppnhIPv6 = []string{"fc00:0:10:a1::1/64"}
+	ppnhIPv4 = []string{"198.18.0.0/24"}
+	ppnhIPv6 = []string{"2001:db8:10:a1::/64"}
 )
 
 func TestMain(m *testing.M) {
