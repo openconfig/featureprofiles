@@ -41,7 +41,7 @@ platform_exceptions: {
   deviations: {
     interface_enabled: true
     unsupported_qos_output_service_policy: true
-    interface_output_queue_non_standard_name: true
+    interface_output_queue_non_standard_name: false
     mpls_exp_ingress_classifier_oc_unsupported: true
   }
 }
