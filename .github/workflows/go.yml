@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+env:
+  XDG_CACHE_HOME: /mnt/cache
+  GOMODCACHE: /mnt/cache/go-mod
+
 jobs:
   build:
     runs-on: ubuntu-24.04-arm
@@ -16,20 +20,19 @@ jobs:
     - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
     # Go & staticcheck build cache require a lot of disk space.  Reclaim extra
     # space for the container by removing unnecessary tooling.
-    - name: Free additional disk space
+    - name: Free additional disk space and prepare cache directory
       run: |
         sudo rm -rf /usr/share/dotnet
         sudo rm -rf /usr/local/lib/android
         sudo rm -rf /opt/hostedtoolcache/CodeQL
+        sudo mkdir -p /mnt/cache
+        sudo chown -R $USER:$USER /mnt/cache
     - name: Set up Go
       uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
       with:
         go-version-file: 'go.mod'
         cache: true
-    - name: Move cache
-      run: |
-        sudo mv "${HOME}/.cache" /mnt/cache
-        ln -s /mnt/cache "${HOME}/.cache"
+    # Cache location is managed by XDG_CACHE_HOME env variable
     # Dependency for Go module github.com/google/gopacket
     - name: Install libpcap-dev
       run: sudo apt-get -y install libpcap-dev
@@ -42,20 +45,19 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       # Go & staticcheck build cache require a lot of disk space.  Reclaim extra
       # space for the container by removing unnecessary tooling.
-      - name: Free additional disk space
+      - name: Free additional disk space and prepare cache directory
         run: |
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo mkdir -p /mnt/cache
+          sudo chown -R $USER:$USER /mnt/cache
       - name: Set up Go
         uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: 'go.mod'
           cache: true
-      - name: Move cache
-        run: |
-          sudo mv "${HOME}/.cache" /mnt/cache
-          ln -s /mnt/cache "${HOME}/.cache"
+      # Cache location is managed by XDG_CACHE_HOME env variable
       # Dependency for Go module github.com/google/gopacket
       - name: Install libpcap-dev
         run: sudo apt-get -y install libpcap-dev
@@ -71,28 +73,24 @@ jobs:
     runs-on: ubuntu-24.04-arm
     steps:
     - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-    - name: Free additional disk space
+    - name: Free additional disk space and prepare cache directory
       run: |
         sudo rm -rf /usr/share/dotnet
         sudo rm -rf /usr/local/lib/android
         sudo rm -rf /opt/hostedtoolcache/CodeQL
+        sudo mkdir -p /mnt/cache
+        sudo chown -R $USER:$USER /mnt/cache
     - name: Set up Go
       uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
       with:
         go-version-file: 'go.mod'
         cache: true
-    - name: Move cache
-      run: |
-        sudo mv "${HOME}/.cache" /mnt/cache
-        ln -s /mnt/cache "${HOME}/.cache"
+    # Cache location is managed by XDG_CACHE_HOME env variable
     # Dependency for Go module github.com/google/gopacket
     - name: Install libpcap-dev
       run: sudo apt-get -y install libpcap-dev
 
-    # === THIS IS THE ONLY CHANGE ===
-    - name: Clean Go build cache before analysis
-      run: go clean -cache
-    # ===============================
+    # Removed counter-productive go clean -cache
 
     - name: Go vet
       run: GOGC=30 go vet ./...
