@@ -1044,12 +1044,12 @@ func TestMain(m *testing.M) {
 func TestAFTPrefixFiltering(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	// if deviations.AftsGlobalFilterPolicyOCUnsupported(dut) {
-	// 	switch dut.Vendor() {
-	// 	case ondatra.ARISTA:
-	// 		t.Skipf("Skipping AFT-6.1 test validation: AFT global-filter policy is not supported on %s", dut.Vendor())
-	// 	}
-	// }
+	if deviations.AftsGlobalFilterPolicyOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			t.Skipf("Skipping AFT-6.1 test validation: AFT global-filter policy is not supported on %s", dut.Vendor())
+		}
+	}
 
 	ate := ondatra.ATE(t, "ate")
 	ni := deviations.DefaultNetworkInstance(dut)
