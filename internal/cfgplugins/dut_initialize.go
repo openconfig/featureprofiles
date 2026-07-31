@@ -47,6 +47,7 @@ const (
 	FeatureAnPF
 	FeatureIngressARP
 	FeatureOptimizeFIBAndCounters
+	FeatureSecondaryDefaultLookup
 
 	aristaTcamProfileMplsTracking = `
 hardware counter feature traffic-policy in
@@ -347,6 +348,10 @@ hardware tcam
       feature vrf selection extended
 	  !
 	system profile vrf-selection-with-ip6-sip
+`
+
+	nokiaSecondaryDefaultLookup = `
+system datapath secondary-default-lookup admin-state enable
 `
 
 	aristaOptimizeFIBAndCounters = `
@@ -1250,6 +1255,10 @@ var (
 		FeatureIngressARP:             aristaIngressARP,
 		FeatureOptimizeFIBAndCounters: aristaOptimizeFIBAndCounters,
 	}
+
+	nokiaHardwareInitMap = map[FeatureType]string{
+		FeatureSecondaryDefaultLookup: nokiaSecondaryDefaultLookup,
+	}
 )
 
 func buildCliSetRequest(config string) *gpb.SetRequest {
@@ -1278,6 +1287,8 @@ func NewDUTHardwareInit(t *testing.T, dut *ondatra.DUTDevice, feature FeatureTyp
 			return ""
 		}
 		return aristaTcamProfileMap[feature]
+	case ondatra.NOKIA:
+		return nokiaHardwareInitMap[feature]
 	default:
 		return ""
 	}
