@@ -33,50 +33,6 @@ Verify configuration of sflow and sFlow sample data.
       * Next hop
       * Next hop source mask
       * Next hop destination mask
-* SFLOW-1.4 sFlow sampling with IPoverGRE Encap
-  * Configure IPoverGRE encapsulation on DUT.
-  * Enable sFlow sampling on the ingress interface (receiving IP traffic) and egress interface (sending GRE traffic).
-  * Send IPv4 traffic from ATE.
-  * Verify DUT encapsulates traffic and sends to ATE.
-  * Verify sFlow collector receives samples.
-  * Verify sFlow sample contains:
-    * Ingress interface matches the ingress port.
-    * Egress interface matches the egress port.
-    * Sampled packet header matches the expected GRE packet.
-    * Sampling rate matches configured rate.
-
-* SFLOW-1.5 sFlow sampling with IPoverGRE Decap
-  * Configure IPoverGRE decapsulation on DUT.
-  * Enable sFlow sampling on the ingress interface (receiving GRE traffic) and egress interface (sending IP traffic).
-  * Send GRE encapsulated IPv4 traffic from ATE.
-  * Verify DUT decapsulates traffic and sends to ATE.
-  * Verify sFlow collector receives samples.
-  * Verify sFlow sample contains:
-    * Ingress interface matches the ingress port.
-    * Egress interface matches the egress port.
-    * Sampled packet header matches the expected packet.
-
-* SFLOW-1.6 sFlow sampling with IPv6overGRE Encap
-  * Configure IPv6overGRE encapsulation on DUT.
-  * Enable sFlow sampling on the ingress interface and egress interface.
-  * Send IPv6 traffic from ATE.
-  * Verify DUT encapsulates traffic and sends to ATE.
-  * Verify sFlow collector receives samples.
-  * Verify sFlow sample contains:
-    * Ingress interface matches the ingress port.
-    * Egress interface matches the egress port.
-    * Sampled packet header matches the expected GRE packet.
-
-* SFLOW-1.7 sFlow sampling with IPv6overGRE Decap
-  * Configure IPv6overGRE decapsulation on DUT.
-  * Enable sFlow sampling on the ingress interface and egress interface.
-  * Send GRE encapsulated IPv6 traffic from ATE.
-  * Verify DUT decapsulates traffic and sends to ATE.
-  * Verify sFlow collector receives samples.
-  * Verify sFlow sample contains:
-    * Ingress interface matches the ingress port.
-    * Egress interface matches the egress port.
-    * Sampled packet header matches the expected packet.
 
 ## Canonical OC
 ```json
