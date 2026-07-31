@@ -2313,3 +2313,8 @@ func IpRoutingInVrfOcUnsupported(dut *ondatra.DUTDevice) bool {
 func MacsecOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMacsecOcUnsupported()
 }
+
+// AftsGlobalFilterPolicyOCUnsupported returns true if "/network-instances/network-instance/afts/global-filter-policy" OC path is not supported.
+func AftsGlobalFilterPolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAftsGlobalFilterPolicyOcUnsupported()
+}
