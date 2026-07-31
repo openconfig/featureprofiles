@@ -34,53 +34,6 @@ Verify configuration of sflow and sFlow sample data.
       * Next hop source mask
       * Next hop destination mask
 
-## Canonical OC
-```json
-{
-  "interfaces": {
-    "interface": [
-      {
-        "name": "eth1",
-        "config": {
-          "name": "eth1"
-        }
-      }
-    ]
-  },
-  "sampling": {
-    "sflow": {
-      "config": {
-        "enabled": true,
-        "ingress-sampling-rate": 10000
-      },
-      "collectors": {
-        "collector": [
-          {
-            "address": "192.0.2.2",
-            "port": 6343,
-            "config": {
-              "address": "192.0.2.2",
-              "port": 6343
-            }
-          }
-        ]
-      },
-      "interfaces": {
-        "interface": [
-          {
-            "name": "eth1",
-            "config": {
-              "name": "eth1",
-              "enabled": true
-            }
-          }
-        ]
-      }
-    }
-  }
-}
-```
-
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
