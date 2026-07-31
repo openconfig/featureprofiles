@@ -38,6 +38,7 @@ import (
 	packetvalidationhelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/packetvalidationhelpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	spb "github.com/openconfig/gnoi/system"
+	gribipb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/client"
 	"github.com/openconfig/gribigo/constants"
@@ -133,7 +134,7 @@ const (
 	NHBaseRepair   = uint64(30_000)
 	NHGBaseRepair  = uint64(32_000)
 	NHBaseEncap    = uint64(50_000)
-	NHGBaseEncap   = uint64(82_001)
+	NHGBaseEncap   = uint64(82_000)
 	NHBaseDecap    = uint64(120_000)
 	NHGBaseDecap   = uint64(120_100)
 
@@ -243,13 +244,262 @@ type FlowExpectation struct {
 	DecapPrefixSet []string
 }
 
+// NHGLoadBalancingParams specifies the percentage of NextHopGroups in a VRF
+// that should load-balance across a given number of NextHops.
+type NHGLoadBalancingParams struct {
+	// Pct is the percentage of NextHopGroups in a VRF that should load-balance
+	// across a given number of NextHops.
+	Pct int
+	// NumNextHops is the number of NextHops that a NextHopGroup should
+	// load-balance across.
+	NumNextHops int
+}
+
+type nhgLoadBalancingBucket struct {
+	numNHG             int
+	numLoadBalancingNH int
+}
+
+// WeightConfig is a sealed interface representing next-hop group weight scaling configurations.
+type WeightConfig interface {
+	isWeightConfig()
+}
+
+// ECMP represents standard ECMP load balancing where all next-hops have equal weights (1).
+type ECMP struct{}
+
+func (ECMP) isWeightConfig() {}
+
+// WCMP represents weighted cost multi-path load balancing with a custom weight granularity.
+type WCMP struct {
+	WeightGranularity uint64
+}
+
+func (WCMP) isWeightConfig() {}
+
+var (
+	// WCMP1 is a WCMP configuration representing a granularity of 1.
+	WCMP1 = WCMP{WeightGranularity: 1}
+	// WCMP1in32 is a WCMP configuration representing a granularity of 1/32.
+	WCMP1in32 = WCMP{WeightGranularity: 32}
+	// WCMP1in64 is a WCMP configuration representing a granularity of 1/64.
+	WCMP1in64 = WCMP{WeightGranularity: 64}
+	// WCMP1in128 is a WCMP configuration representing a granularity of 1/128.
+	WCMP1in128 = WCMP{WeightGranularity: 128}
+	// WCMP1in256 is a WCMP configuration representing a granularity of 1/256.
+	WCMP1in256 = WCMP{WeightGranularity: 256}
+	// WCMP1in512 is a WCMP configuration representing a granularity of 1/512.
+	WCMP1in512 = WCMP{WeightGranularity: 512}
+	// WCMP1in1024 is a WCMP configuration representing a granularity of 1/1024.
+	WCMP1in1024 = WCMP{WeightGranularity: 1024}
+)
+
+// NHGWeightParams specifies the percentage of NextHopGroups in a VRF
+// that should have a given weight configuration (ECMP or WCMP with granularity).
+type NHGWeightParams struct {
+	// Pct is the percentage of NextHopGroups.
+	Pct int
+	// Config defines either ECMP{} or WCMP{WeightGranularity: ...}.
+	Config WeightConfig
+}
+
+// NHGBucketIterator generates the sequence of next-hop count and weight specification weights
+// for NextHopGroups, according to specified load-balancing and weight configurations.
+type NHGBucketIterator struct {
+	lbBuckets       []nhgLoadBalancingBucket
+	weightBuckets   []nhgWeightBucket
+	maxNHsAvailable int
+
+	lbIdx         int
+	lbCreated     int
+	weightIdx     int
+	weightCreated int
+}
+
+// NewNHGBucketIterator creates a new initialized NHGBucketIterator.
+func NewNHGBucketIterator(numNHG int, lbParams []NHGLoadBalancingParams, weightParams []NHGWeightParams, maxNHsAvailable int) *NHGBucketIterator {
+	return &NHGBucketIterator{
+		lbBuckets:       computeNHGBuckets(numNHG, lbParams),
+		weightBuckets:   computeNHGWeightBuckets(numNHG, weightParams),
+		maxNHsAvailable: maxNHsAvailable,
+	}
+}
+
+// Next advances the iterator and returns the slice of next-hop weights for the next group.
+func (it *NHGBucketIterator) Next() []uint64 {
+	if it.lbIdx < len(it.lbBuckets)-1 && it.lbCreated >= it.lbBuckets[it.lbIdx].numNHG {
+		it.lbIdx++
+		it.lbCreated = 0
+	}
+	targetNHCount := it.lbBuckets[it.lbIdx].numLoadBalancingNH
+	actualNHCount := min(targetNHCount, it.maxNHsAvailable)
+
+	if it.weightIdx < len(it.weightBuckets)-1 && it.weightCreated >= it.weightBuckets[it.weightIdx].numNHG {
+		it.weightIdx++
+		it.weightCreated = 0
+	}
+	cfg := it.weightBuckets[it.weightIdx].config
+
+	it.lbCreated++
+	it.weightCreated++
+
+	switch c := cfg.(type) {
+	case ECMP:
+		weights := make([]uint64, actualNHCount)
+		for idx := 0; idx < actualNHCount; idx++ {
+			weights[idx] = 1
+		}
+		return weights
+	case WCMP:
+		return computeNHGWeights(c.WeightGranularity, actualNHCount)
+	default:
+		weights := make([]uint64, actualNHCount)
+		for idx := 0; idx < actualNHCount; idx++ {
+			weights[idx] = 1
+		}
+		return weights
+	}
+}
+
+type nhgWeightBucket struct {
+	numNHG int
+	config WeightConfig
+}
+
+// validateNHGLoadBalance verifies that the next hop group load-balancing specifications are valid.
+// Specifically, it checks that percentages are non-negative, next-hop counts are positive, and the total percentage sum equals exactly 100.
+func validateNHGLoadBalance(t *testing.T, name string, configs []NHGLoadBalancingParams) {
+	t.Helper()
+	if len(configs) == 0 {
+		t.Fatalf("validateNHGLoadBalance: %s is empty", name)
+	}
+	sumPct := 0
+	for _, spec := range configs {
+		if spec.Pct < 0 {
+			t.Fatalf("validateNHGLoadBalance: invalid negative percentage (%d) in %s", spec.Pct, name)
+		}
+		if spec.NumNextHops <= 0 {
+			t.Fatalf("validateNHGLoadBalance: invalid next-hops count (%d) in %s", spec.NumNextHops, name)
+		}
+		sumPct += spec.Pct
+	}
+	if sumPct != 100 {
+		t.Fatalf("validateNHGLoadBalance: sum of percentages in %s must be exactly 100, got %d", name, sumPct)
+	}
+}
+
+// partitionNHG distributes the next hop group count into buckets based on the percentage requirements,
+// allocating any remainder to the final bucket.
+func partitionNHG[T any](numNHG int, req []T, getPct func(T) int) []int {
+	counts := make([]int, len(req))
+	totalNHG := 0
+	for idx, spec := range req {
+		numNH := numNHG * getPct(spec) / 100
+		counts[idx] = numNH
+		totalNHG += numNH
+	}
+	counts[len(counts)-1] += numNHG - totalNHG
+	return counts
+}
+
+// computeNHGBuckets converts the NHG load balancing spec from percentage-based to
+// absolute values. Each bucket contains a set of NHGs and the number of load
+// balancing NHs that each NHG should use.
+func computeNHGBuckets(numNHG int, req []NHGLoadBalancingParams) []nhgLoadBalancingBucket {
+	counts := partitionNHG(numNHG, req, func(s NHGLoadBalancingParams) int { return s.Pct })
+	buckets := make([]nhgLoadBalancingBucket, len(req))
+	for idx, spec := range req {
+		buckets[idx] = nhgLoadBalancingBucket{
+			numNHG:             counts[idx],
+			numLoadBalancingNH: spec.NumNextHops,
+		}
+	}
+	return buckets
+}
+
+// computeNHGWeightBuckets converts the NHG target weight sum spec from percentage-based to
+// absolute group counts.
+func computeNHGWeightBuckets(numNHG int, req []NHGWeightParams) []nhgWeightBucket {
+	counts := partitionNHG(numNHG, req, func(s NHGWeightParams) int { return s.Pct })
+	buckets := make([]nhgWeightBucket, len(req))
+	for idx, spec := range req {
+		buckets[idx] = nhgWeightBucket{
+			numNHG: counts[idx],
+			config: spec.Config,
+		}
+	}
+	return buckets
+}
+
+// validateNHGWeight verifies that next hop group weight specifications are valid.
+func validateNHGWeight(t *testing.T, name string, configs []NHGWeightParams) {
+	t.Helper()
+	if len(configs) == 0 {
+		t.Fatalf("validateNHGWeight: %s is empty", name)
+	}
+	sumPct := 0
+	for _, spec := range configs {
+		if spec.Pct < 0 {
+			t.Fatalf("validateNHGWeight: invalid negative percentage (%d) in %s", spec.Pct, name)
+		}
+		if spec.Config == nil {
+			t.Fatalf("validateNHGWeight: WeightConfig cannot be nil in %s", name)
+		}
+		switch cfg := spec.Config.(type) {
+		case ECMP:
+			// valid
+		case WCMP:
+			if cfg.WeightGranularity == 0 {
+				t.Fatalf("validateNHGWeight: WeightGranularity must be greater than 0 for WCMP in %s", name)
+			}
+		default:
+			t.Fatalf("validateNHGWeight: unexpected type %T for WeightConfig in %s", spec.Config, name)
+		}
+		sumPct += spec.Pct
+	}
+	if sumPct != 100 {
+		t.Fatalf("validateNHGWeight: sum of percentages in %s must be exactly 100, got %d", name, sumPct)
+	}
+}
+
+// computeNHGWeights calculates next-hop weights for actualNHCount next-hops given a WeightGranularity.
+// To prevent standard ECMP from being programmed by the router and force WCMP, the next-hop
+// weights must be slightly uneven. This function distributes the granularity as evenly as possible
+// and shifts 1 weight unit from the second-to-last next hop to the last next hop if all weights are equal.
+func computeNHGWeights(granularity uint64, actualNHCount int) []uint64 {
+	weights := make([]uint64, actualNHCount)
+	if actualNHCount == 0 {
+		return weights
+	}
+	baseWeight := granularity / uint64(actualNHCount)
+	remainder := granularity % uint64(actualNHCount)
+	for i := 0; i < actualNHCount; i++ {
+		w := baseWeight
+		if i == actualNHCount-1 {
+			w += remainder
+		}
+		weights[i] = w
+	}
+	// Force uneven weights to trigger WCMP instead of standard ECMP if baseWeight is greater than 1.
+	if actualNHCount > 1 && baseWeight > 1 {
+		allEqual := true
+		for idx := 1; idx < actualNHCount; idx++ {
+			if weights[idx] != weights[0] {
+				allEqual = false
+				break
+			}
+		}
+		if allEqual {
+			weights[actualNHCount-2]--
+			weights[actualNHCount-1]++
+		}
+	}
+	return weights
+}
+
 // ScaleParams holds the scale constants that configure the gRIBI full scale setup.
 type ScaleParams struct {
-	PctNHG512          int
-	NumRepairNHG       int
-	NumEncapDefaultNHG int
-	NumUniqueEncapNH   int
-	GRIBIBatchSize     int
+	GRIBIBatchSize int
 
 	// The number of NextHops in Default VRF egressing the switch.
 	// Each NH will point to a unique output VLAN subinterface.
@@ -263,6 +513,21 @@ type ScaleParams struct {
 	// 1) primary NHGs containing primary NHs.
 	// 2) backup NHGs containing backup NHs.
 	NumDefaultNHG int
+	// The load-balancing parameters for NextHopGroups in Default VRF.
+	// e.g. DefaultNHGLoadBalance: []cfgplugins.NHGLoadBalancingParams{
+	// 	{Pct: 40, NumNextHops: 8},
+	// 	{Pct: 40, NumNextHops: 16},
+	// 	{Pct: 15, NumNextHops: 32},
+	// 	{Pct: 5, NumNextHops: 64},
+	// },
+	DefaultNHGLoadBalance []NHGLoadBalancingParams
+
+	// The target weight sum distribution parameters for NextHopGroups in Default VRF.
+	// e.g. DefaultNHGWeight: []cfgplugins.NHGWeightParams{
+	// 	{Pct: 80, TargetWeightSum: 512},
+	// 	{Pct: 20, TargetWeightSum: 1024},
+	// },
+	DefaultNHGWeight []NHGWeightParams
 	// The number of fictitious IPv4 prefixes in Default VRF.
 	// Theese IP entries will be pointed by the transit routes.
 	// Each prefix points to a unique NHG. Also virtually split into 2 sub-groups:
@@ -282,24 +547,58 @@ type ScaleParams struct {
 	// 1) NHGs used in transit VRF referencing NHs in sub-group 1)
 	// 2) NHGs used in repaired VRF referencing NHs in sub-group 2)
 	NumTransitNHG int
+	// The load-balancing parameters for NextHopGroups in transit VRFs.
+	// The most common case is 100% of NHGs load-balancing across 2 NHs (1:63 weight) to simulate
+	// the load-balancing across self-site and next-site.
+	// e.g. TransitNHGLoadBalance: []cfgplugins.NHGLoadBalancingParams{
+	// 	{Pct: 100, NumNextHops: 2},
+	// },
+	TransitNHGLoadBalance []NHGLoadBalancingParams
+	// The target weight sum distribution parameters for NextHopGroups in transit VRFs.
+	// e.g. TransitNHGWeight: []cfgplugins.NHGWeightParams{
+	// 	{Pct: 100, TargetWeightSum: 64},
+	// },
+	TransitNHGWeight []NHGWeightParams
 	// The number of IPv4 prefixes in each of the 2 transit VRFs (transit TE_VRF_111 and repaired TE_VRF_222)
 	// The IPv4 entries in transit VRF will point to NHGs in sub-group 1)
 	// The IPv4 entries in repaired VRF will point to NHGs in sub-group 2)
 	NumTransitIPv4 int
 
-	NumRepairIPv4      int
+	// The number of IPv4 prefixes in the repair VRF
+	NumRepairIPv4 int
+	// The number of NextHopGroups in the repair VRF
+	NumRepairNHG int
+
 	NumEncapVRFs       int
+	NumUniqueEncapNH   int
+	NumEncapDefaultNHG int
+	// The load-balancing parameters for NextHopGroups in Encap VRF.
+	// e.g. EncapNHGLoadBalance: []cfgplugins.NHGLoadBalancingParams{
+	// 	{Pct: 75, NumNextHops: 4},
+	// 	{Pct: 20, NumNextHops: 8},
+	// 	{Pct: 3, NumNextHops: 16},
+	// 	{Pct: 2, NumNextHops: 32},
+	// },
+	EncapNHGLoadBalance []NHGLoadBalancingParams
+	// The target weight sum distribution parameters for NextHopGroups in Encap VRF.
+	// e.g. EncapNHGWeight: []cfgplugins.NHGWeightParams{
+	// 	{Pct: 75, TargetWeightSum: 32},
+	// 	{Pct: 20, TargetWeightSum: 64},
+	// 	{Pct: 3, TargetWeightSum: 128},
+	// 	{Pct: 2, TargetWeightSum: 256},
+	// },
+	EncapNHGWeight     []NHGWeightParams
 	NumEncapIPv4PerVRF int
 	NumEncapIPv6PerVRF int
-	NumDecapEntries    int
-	TrafficDuration    time.Duration
-	TrafficLossTol     uint64
-	TrafficRateMpps    uint64
 
-	NumPort2VLANs       int
-	PctEncap8NH         int
-	PctEncap32NH        int
+	NumDecapEntries     int
 	DecapDestsSubsetPct int
+
+	TrafficDuration time.Duration
+	TrafficLossTol  uint64
+	TrafficRateMpps uint64
+
+	NumPort2VLANs int
 }
 
 // TrafficTestCase is a table-driven entry for the two traffic profiles.
@@ -379,10 +678,8 @@ func ConfigureDUT(t *testing.T, dut *ondatra.DUTDevice, params ScaleParams) {
 	d := gnmi.OC()
 	vrfBatch := new(gnmi.SetBatch)
 
-	if dut.Vendor() == ondatra.ARISTA {
-		ConfigureHardwareInit(t, dut)
-		RebootChassis(t, dut)
-	}
+	ConfigureHardwareInit(t, dut)
+
 	CreateGRIBIScaleVRFs(t, dut, vrfBatch, params.NumEncapVRFs)
 
 	inputPortList := []*ondatra.Port{dp1}
@@ -476,12 +773,18 @@ func CreateDUTSubinterface(t *testing.T, vrfBatch *gnmi.SetBatch, d *oc.Root,
 	s4 := s.GetOrCreateIpv4()
 	a4 := s4.GetOrCreateAddress(ipv4Addr)
 	a4.PrefixLength = ygot.Uint8(uint8(IPv4IntfMask))
+	if MTU > 0 {
+		s4.Mtu = ygot.Uint16(MTU)
+	}
 	if deviations.InterfaceEnabled(dut) {
 		s4.Enabled = ygot.Bool(true)
 	}
 	s6 := s.GetOrCreateIpv6()
 	a6 := s6.GetOrCreateAddress(ipv6Addr)
 	a6.PrefixLength = ygot.Uint8(uint8(IPv6IntfMask))
+	if MTU > 0 {
+		s6.Mtu = ygot.Uint32(uint32(MTU))
+	}
 	if deviations.InterfaceEnabled(dut) {
 		s6.Enabled = ygot.Bool(true)
 	}
@@ -550,15 +853,44 @@ func verifySubinterfaceStatus(t *testing.T, dut *ondatra.DUTDevice, portName str
 // ConfigureHardwareInit pushes platform-specific hardware init configs.
 func ConfigureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
+	rebootRequired := false
+	if dut.Vendor() == ondatra.ARISTA {
+		rebootRequired = ConfigureTcam(t, dut)
+	} else if dut.Vendor() == ondatra.NOKIA {
+		rebootRequired = EnableSecondaryDefaultLookup(t, dut)
+	}
+	if rebootRequired {
+		RebootChassis(t, dut)
+	}
+}
+
+// ConfigureTcam pushes Arista-specific hardware init configs for TCAM to allocate enough space
+// for routes and optimize FIB and counters.
+func ConfigureTcam(t *testing.T, dut *ondatra.DUTDevice) bool {
+	t.Helper()
 	hardwareVrfCfg := NewDUTHardwareInit(t, dut, FeatureVrfSelectionExtended)
 	hardwarePfCfg := NewDUTHardwareInit(t, dut, FeatureOptimizeFIBAndCounters)
-	if hardwareVrfCfg == "" || hardwarePfCfg == "" {
-		return
+	if hardwareVrfCfg != "" && hardwarePfCfg != "" {
+		PushDUTHardwareInitConfig(t, dut, hardwareVrfCfg)
+		PushDUTHardwareInitConfig(t, dut, hardwarePfCfg)
+		// Save the configurations before rebooting the chassis.
+		helpers.GnmiCLIConfig(t, dut, "write memory")
+		return true
 	}
-	PushDUTHardwareInitConfig(t, dut, hardwareVrfCfg)
-	PushDUTHardwareInitConfig(t, dut, hardwarePfCfg)
-	// Save the configurations before rebooting the chassis.
-	helpers.GnmiCLIConfig(t, dut, "write memory")
+	return false
+}
+
+// EnableSecondaryDefaultLookup pushes Nokia specific hardware configuration to enable secondary
+// default lookup. It is required for decap flows due to the fact that decapsulated packets
+// are forwarded to the default VRF by the static route 0.0.0.0/0 from the encap VRF.
+func EnableSecondaryDefaultLookup(t *testing.T, dut *ondatra.DUTDevice) bool {
+	t.Helper()
+	cliConfig := NewDUTHardwareInit(t, dut, FeatureSecondaryDefaultLookup)
+	if cliConfig != "" {
+		PushDUTHardwareInitConfig(t, dut, cliConfig)
+		return true
+	}
+	return false
 }
 
 // CreateGRIBIScaleVRFs creates all non-default VRF network-instances plus the DEFAULT instance.  Uses deviations.DefaultNetworkInstance for the correct name.
@@ -685,13 +1017,18 @@ func BatchModify(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, entr
 			end = len(entries)
 		}
 		gSession.AddEntries(t, entries[i:end], nil)
-		// NOTE: AwaitTimeout per chunk is intentionally commented out due to a known bug.
-		// if err := gSession.AwaitTimeout(context.Background(), t, 20*time.Second); err != nil {
-		// 	t.Fatalf("gRIBI batch programming failed: %v", err)
-		// }
+		// TODO: Arista does not ack
+		if dut.Vendor() != ondatra.ARISTA {
+			if err := gSession.AwaitTimeout(context.Background(), t, 20*time.Second); err != nil {
+				t.Fatalf("gRIBI batch programming timeout: %v", err)
+			}
+		}
 	}
 	// TODO: A time.Sleep is used as a temporary workaround. This will be fixed once the underlying issue is resolved.
-	time.Sleep(wTime)
+	if dut.Vendor() == ondatra.ARISTA {
+		time.Sleep(wTime)
+	}
+	ValidateGRIBIResults(t, gSession.Fluent(t).Results(t))
 	return gSession
 }
 
@@ -742,41 +1079,20 @@ func BuildDefaultVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, 
 		nhEntries = append(nhEntries, nhEntry)
 	}
 
-	// Cap the number of NextHops per group to prevent duplicate NextHops
-	// within the same group when NumDefaultNH is scaled down.
-	actualNHCount := min(64, numNHPart)
-
 	buildNHGs := func(baseNHG uint64, baseNH uint64) []fluent.GRIBIEntry {
 		groups := make([]fluent.GRIBIEntry, 0, numNHGPart)
+		iter := NewNHGBucketIterator(numNHGPart, params.DefaultNHGLoadBalance, params.DefaultNHGWeight, numNHPart)
+
+		nhOffset := 0
 		for i := 0; i < numNHGPart; i++ {
 			nhg := fluent.NextHopGroupEntry().WithNetworkInstance(defaultVRF).WithID(baseNHG + uint64(i))
-			// Determine the target sum of weights for this NHG based on the percentage split.
-			// The first pctNHG512% of groups get a total weight of 512, the rest get 1024.
-			targetWeightSum := uint64(512)
-			if i >= numNHGPart*params.PctNHG512/100 {
-				targetWeightSum = 1024
+			weights := iter.Next()
+			for j, w := range weights {
+				nhID := baseNH + uint64((nhOffset+j)%numNHPart)
+				t.Logf("Adding next hop %d to NHG %d with weight %d", nhID, baseNHG+uint64(i), w)
+				nhg.AddNextHop(nhID, w)
 			}
-			// Distribute the target weight sum evenly across the available NextHops.
-			baseWeight := targetWeightSum / uint64(actualNHCount)
-			for j := 0; j < actualNHCount; j++ {
-				weight := baseWeight
-				if actualNHCount == 64 {
-					// For full scale (64 NHs), apply specific weight adjustments to match
-					// the original test specification (e.g., 62 NHs with weight 8, one with 7, one with 9).
-					// This slight skew forces the router to program WCMP instead of standard ECMP,
-					// while perfectly preserving the 512 or 1024 total weight sum for hardware buckets.
-					if j == 62 {
-						weight--
-					} else if j == 63 {
-						weight++
-					}
-				} else if j == actualNHCount-1 {
-					// For scaled-down scenarios, assign any remaining weight to the last NextHop
-					// to ensure the total sum exactly matches targetWeightSum.
-					weight = targetWeightSum - (uint64(actualNHCount-1) * baseWeight)
-				}
-				nhg.AddNextHop(baseNH+uint64((i*actualNHCount+j)%numNHPart), weight)
-			}
+			nhOffset += len(weights)
 			groups = append(groups, nhg)
 		}
 		return groups
@@ -856,17 +1172,20 @@ func BuildTransitVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context,
 				WithIPAddress(defaultPrefixes[k%len(defaultPrefixes)]))
 		}
 
+		iter := NewNHGBucketIterator(nhgCount, params.TransitNHGLoadBalance, params.TransitNHGWeight, nhCount)
+		nhOffset := 0
 		// Create next hop groups referencing default network instance NHs.
 		for i := 0; i < nhgCount; i++ {
 			nhg := fluent.NextHopGroupEntry().WithNetworkInstance(defaultVRF).
 				WithID(baseNHGId + uint64(i)).WithBackupNHG(backupNHG)
-			nh1 := baseNHId + uint64(i%nhCount)
-			nhg.AddNextHop(nh1, 1)
-			// Make sure that we don't add the same NH twice in case there is only one NH.
-			if nhCount > 1 {
-				nh2 := baseNHId + uint64((i+1)%nhCount)
-				nhg.AddNextHop(nh2, 63)
+
+			weights := iter.Next()
+			for j, w := range weights {
+				nhID := baseNHId + uint64((nhOffset+j)%nhCount)
+				nhg.AddNextHop(nhID, w)
 			}
+
+			nhOffset += len(weights)
 			entries = append(entries, nhg)
 		}
 
@@ -976,63 +1295,55 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 	if err != nil {
 		t.Fatalf("BuildEncapDecapVRFs: generate encap NH tunnel dsts: %v", err)
 	}
+
+	// Fallback NH points to the default VRF.
+	fallbackNHID := uint64(NHBaseEncap)
+	fallbackNH, _ := gribi.NHEntry(fallbackNHID, "VRFOnly", defaultVRF, fluent.InstalledInFIB, &gribi.NHOptions{VrfName: defaultVRF})
+	allEntries = append(allEntries, fallbackNH)
+
+	// Encap NHs point to the transit VRF.
+	nhIdx := fallbackNHID + 1
 	for i := 0; i < params.NumUniqueEncapNH; i++ {
-		nhEntry, _ := gribi.NHEntry(NHBaseEncap+uint64(i), "Encap", defaultVRF, fluent.InstalledInFIB, &gribi.NHOptions{Src: IPv4OuterSrc111, Dest: tunnelDsts[i%numOfTunnelsToUse], VrfName: TransitVRF111Str})
+		nhEntry, _ := gribi.NHEntry(nhIdx+uint64(i), "Encap", defaultVRF, fluent.InstalledInFIB, &gribi.NHOptions{Src: IPv4OuterSrc111, Dest: tunnelDsts[i%numOfTunnelsToUse], VrfName: TransitVRF111Str})
 		allEntries = append(allEntries, nhEntry)
 	}
 
-	for i := 0; i < params.NumEncapDefaultNHG; i++ {
-		nhg := fluent.NextHopGroupEntry().WithNetworkInstance(defaultVRF).WithID(NHGBaseEncap + uint64(i))
-		pct := i * 100 / params.NumEncapDefaultNHG
-
-		var targetNHCount int
-		var targetWeightSum uint64
-		var baseWeight uint64
-
-		switch {
-		case pct < params.PctEncap8NH:
-			// 75% of NHGs: 8 NHs, granularity 1/64.
-			// Base weight 7 x 7 NHs = 49. Last NH gets 15 (64 - 49). Sum = 64. GCD(7, 15) = 1.
-			targetNHCount = 8
-			targetWeightSum = 64
-			baseWeight = 7
-		case pct < params.PctEncap8NH+params.PctEncap32NH:
-			// 20% of NHGs: 32 NHs, granularity 1/128.
-			// Base weight 3 x 31 NHs = 93. Last NH gets 35 (128 - 93). Sum = 128. GCD(3, 35) = 1.
-			targetNHCount = 32
-			targetWeightSum = 128
-			baseWeight = 3
-		default:
-			// 5% of NHGs: 32 NHs, granularity 1/256.
-			// Base weight 7 x 31 NHs = 217. Last NH gets 39 (256 - 217). Sum = 256. GCD(7, 39) = 1.
-			targetNHCount = 32
-			targetWeightSum = 256
-			baseWeight = 7
-		}
-
-		actualNHCount := min(targetNHCount, params.NumUniqueEncapNH)
-
-		// Distribute weights among the unique NHs
-		for j := 0; j < actualNHCount; j++ {
-			nhID := NHBaseEncap + uint64((i*targetNHCount+j)%params.NumUniqueEncapNH)
-			weight := baseWeight
-			if j == actualNHCount-1 {
-				// The last unique NH gets all the remaining weight
-				weight = targetWeightSum - (uint64(actualNHCount-1) * baseWeight)
-			}
-			nhg.AddNextHop(nhID, weight)
-		}
-		allEntries = append(allEntries, nhg)
-	}
+	// Fallback NHG points to the fallback NH.
+	fallbackNHGID := uint64(NHGBaseEncap)
+	fallbackNHG, _ := gribi.NHGEntry(fallbackNHGID, map[uint64]uint64{fallbackNHID: 1}, defaultVRF, fluent.InstalledInFIB)
+	allEntries = append(allEntries, fallbackNHG)
+	nhgIdx := fallbackNHGID + 1
 
 	encapVRFs := BuildEncapVRFs(params.NumEncapVRFs)
+	numNHGPerVrf := max(params.NumEncapDefaultNHG/params.NumEncapVRFs, 1)
+
+	nhOffset := 0
 	for vi, vrf := range encapVRFs {
+		nhgOffset := vi * numNHGPerVrf
+		if vi == params.NumEncapVRFs-1 {
+			numNHGPerVrf = params.NumEncapDefaultNHG - nhgOffset
+		}
+
+		iter := NewNHGBucketIterator(numNHGPerVrf, params.EncapNHGLoadBalance, params.EncapNHGWeight, params.NumUniqueEncapNH)
+		for i := 0; i < numNHGPerVrf; i++ {
+			nhg := fluent.NextHopGroupEntry().WithNetworkInstance(defaultVRF).WithID(nhgIdx + uint64(nhgOffset+i))
+			weights := iter.Next()
+			for j, w := range weights {
+				nhID := nhIdx + uint64((nhOffset+j)%params.NumUniqueEncapNH)
+				nhg.AddNextHop(nhID, w)
+			}
+			nhOffset += len(weights)
+			allEntries = append(allEntries, nhg)
+		}
+
+		// 2. Create IPv4 and IPv6 routes for the current VRF
 		v4Prefixes, v4Err := iputil.GenerateIPsWithStep(fmt.Sprintf("200.%d.0.1", vi), params.NumEncapIPv4PerVRF, CommonPrefixStep)
 		if v4Err != nil {
 			t.Fatalf("Failed to generate IPv4 prefixes for VRF %s (vi=%d): %v", vrf, vi, v4Err)
 		}
 		for i, host := range v4Prefixes {
-			allEntries = append(allEntries, fluent.IPv4Entry().WithNetworkInstance(vrf).WithPrefix(fmt.Sprintf("%s/%d", host, IPv4HostMask)).WithNextHopGroup(NHGBaseEncap+uint64((vi*params.NumEncapIPv4PerVRF+i)%params.NumEncapDefaultNHG)).WithNextHopGroupNetworkInstance(defaultVRF))
+			v4NHGID := nhgIdx + uint64(nhgOffset+(i%numNHGPerVrf))
+			allEntries = append(allEntries, fluent.IPv4Entry().WithNetworkInstance(vrf).WithPrefix(fmt.Sprintf("%s/%d", host, IPv4HostMask)).WithNextHopGroup(v4NHGID).WithNextHopGroupNetworkInstance(defaultVRF))
 		}
 		// Add first and last prefixes to wantPrefixesV4 for later verification.
 		wantPrefixesV4[vrf] = append(wantPrefixesV4[vrf], fmt.Sprintf("%s/%d", v4Prefixes[0], IPv4HostMask))
@@ -1043,11 +1354,22 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 			t.Fatalf("Failed to generate IPv6 prefixes for VRF %s (vi=%d): %v", vrf, vi, v6Err)
 		}
 		for i, pfx := range v6Prefixes {
-			allEntries = append(allEntries, fluent.IPv6Entry().WithNetworkInstance(vrf).WithPrefix(fmt.Sprintf("%s/%d", pfx, IPv6HostMask)).WithNextHopGroup(NHGBaseEncap+uint64((vi*params.NumEncapIPv6PerVRF+i)%params.NumEncapDefaultNHG)).WithNextHopGroupNetworkInstance(defaultVRF))
+			v6NHGID := nhgIdx + uint64(nhgOffset+(i%numNHGPerVrf))
+			allEntries = append(allEntries, fluent.IPv6Entry().WithNetworkInstance(vrf).WithPrefix(fmt.Sprintf("%s/%d", pfx, IPv6HostMask)).WithNextHopGroup(v6NHGID).WithNextHopGroupNetworkInstance(defaultVRF))
 		}
 		// Add first and last prefixes to wantPrefixesV6 for later verification.
 		wantPrefixesV6[vrf] = append(wantPrefixesV6[vrf], fmt.Sprintf("%s/%d", v6Prefixes[0], IPv6HostMask))
 		wantPrefixesV6[vrf] = append(wantPrefixesV6[vrf], fmt.Sprintf("%s/%d", v6Prefixes[len(v6Prefixes)-1], IPv6HostMask))
+
+		// Add Fallback route in Encap VRF
+		allEntries = append(allEntries,
+			fluent.IPv4Entry().WithNetworkInstance(vrf).
+				WithPrefix("0.0.0.0/0").WithNextHopGroup(fallbackNHGID).WithNextHopGroupNetworkInstance(defaultVRF),
+			fluent.IPv6Entry().WithNetworkInstance(vrf).
+				WithPrefix("::/0").WithNextHopGroup(fallbackNHGID).WithNextHopGroupNetworkInstance(defaultVRF),
+		)
+		wantPrefixesV4[vrf] = append(wantPrefixesV4[vrf], "0.0.0.0/0")
+		wantPrefixesV6[vrf] = append(wantPrefixesV6[vrf], "::/0")
 	}
 
 	// DECAP_TE_VRF entries use variable prefix lengths — not host routes.
@@ -1095,6 +1417,99 @@ func VerifyFIBProgrammed(t *testing.T, c *gribi.Client, wantPrefixesV4 map[strin
 
 	verifyPrefixes(wantPrefixesV4, false)
 	verifyPrefixes(wantPrefixesV6, true)
+}
+
+// ValidateGRIBIResults validates the gRIBI results by looking for failures.
+// It counts total failures for Next Hop, Next Hop Group, and IP Entry categories,
+// collects the first 10 failures of each, logs them via t.Errorf, and returns true if any failure was found.
+// If all operations succeeded, it returns false.
+func ValidateGRIBIResults(t *testing.T, results []*client.OpResult) bool {
+	t.Helper()
+
+	isFailure := func(op *client.OpResult) bool {
+		if op.ServerError != "" || op.ClientError != "" {
+			return true
+		}
+		if op.ProgrammingResult == gribipb.AFTResult_FIB_FAILED {
+			return true
+		}
+		return false
+	}
+
+	var nhFailures []*client.OpResult
+	var nhgFailures []*client.OpResult
+	var ipFailures []*client.OpResult
+
+	var totalNHFailures int
+	var totalNHGFailures int
+	var totalIPFailures int
+
+	for _, res := range results {
+		if !isFailure(res) {
+			continue
+		}
+		if res.Details == nil {
+			totalIPFailures++
+			if len(ipFailures) < 10 {
+				ipFailures = append(ipFailures, res)
+			}
+			continue
+		}
+
+		if res.Details.NextHopIndex != 0 {
+			totalNHFailures++
+			if len(nhFailures) < 10 {
+				nhFailures = append(nhFailures, res)
+			}
+		} else if res.Details.NextHopGroupID != 0 {
+			totalNHGFailures++
+			if len(nhgFailures) < 10 {
+				nhgFailures = append(nhgFailures, res)
+			}
+		} else if res.Details.IPv4Prefix != "" || res.Details.IPv6Prefix != "" {
+			totalIPFailures++
+			if len(ipFailures) < 10 {
+				ipFailures = append(ipFailures, res)
+			}
+		} else {
+			totalIPFailures++
+			if len(ipFailures) < 10 {
+				ipFailures = append(ipFailures, res)
+			}
+		}
+	}
+
+	hasFailure := false
+
+	if len(nhFailures) > 0 {
+		t.Errorf("First %d Next Hop failures (Total: %d):", len(nhFailures), totalNHFailures)
+		for index, op := range nhFailures {
+			t.Errorf("  [%d] %v", index, op)
+		}
+		hasFailure = true
+	} else {
+		t.Logf("All Next Hop operations succeeded")
+	}
+	if len(nhgFailures) > 0 {
+		t.Errorf("First %d Next Hop Group failures (Total: %d):", len(nhgFailures), totalNHGFailures)
+		for index, op := range nhgFailures {
+			t.Errorf("  [%d] %v", index, op)
+		}
+		hasFailure = true
+	} else {
+		t.Logf("All Next Hop Group operations succeeded")
+	}
+	if len(ipFailures) > 0 {
+		t.Errorf("First %d IP Entry failures (Total: %d):", len(ipFailures), totalIPFailures)
+		for index, op := range ipFailures {
+			t.Errorf("  [%d] %v", index, op)
+		}
+		hasFailure = true
+	} else {
+		t.Logf("All IP Entry operations succeeded")
+	}
+
+	return hasFailure
 }
 
 // VerifyHierarchicalResolution spot-checks TE_VRF_111 prefixes for FIB_PROGRAMMED and non-zero NHG via gNMI AFT.
@@ -1303,14 +1718,13 @@ func BuildEncapFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix bool,
 // BuildDecapFlows builds fixed-size/imix decap flows for all encap VRFs. Both DSCPs per VRF are expressed via SetValues in a single flow since the outer header is the same.
 func BuildDecapFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix bool, dstMac string, compact bool, params ScaleParams) []gosnappi.Flow {
 	flows := make([]gosnappi.Flow, 0)
-	decapDsts := ExpandDecapPrefixes(params)
+	outerDecapDsts := ExpandDecapPrefixes(params)
 	atePort2Ips, _ := iputil.GenerateIPsWithStep(ATEPort2IPv4Start, params.NumPort2VLANs, PortIPv4Step)
 
 	newFlow := MakeFlowCreator(top, pktSize, pps, imix)
 
-	createFlow := func(name string, dscpVals []uint32, dstIPs []string) {
-		f := createIPv4InIPv4Flow(newFlow, name, dstMac, IPv4OuterSrc111, dscpVals, decapDsts, dstIPs)
-
+	createFlow := func(name string, dscpVals []uint32, innerDstIPs []string) {
+		f := createIPv4InIPv4Flow(newFlow, name, dstMac, IPv4OuterSrc111, dscpVals, outerDecapDsts, innerDstIPs)
 		flows = append(flows, f)
 	}
 
@@ -1321,12 +1735,12 @@ func BuildDecapFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix bool,
 		encapVRFs := BuildEncapVRFs(params.NumEncapVRFs)
 		for vi := range encapVRFs {
 			d1, d2 := EncapVRFDSCP(vi)
-			var dstIPs []string
+			var innerDstIPs []string
 			for j := 0; j < subsetCount; j++ {
 				idx := (vi*subsetCount + j) % params.NumPort2VLANs
-				dstIPs = append(dstIPs, atePort2Ips[idx])
+				innerDstIPs = append(innerDstIPs, atePort2Ips[idx])
 			}
-			createFlow(fmt.Sprintf("decap_vrf_%d_src_111", vi), []uint32{uint32(d1), uint32(d2)}, dstIPs)
+			createFlow(fmt.Sprintf("decap_vrf_%d_src_111", vi), []uint32{uint32(d1), uint32(d2)}, innerDstIPs)
 		}
 	}
 
@@ -1849,10 +2263,52 @@ func FetchUniqueItems(t *testing.T, s []string) []string {
 	return uniqueList
 }
 
+// validateScaleParams verifies that all scale configuration options are logically valid.
+func validateScaleParams(t *testing.T, params ScaleParams) {
+	t.Helper()
+
+	// Default VRF category
+	validateNHGLoadBalance(t, "DefaultNHGLoadBalance", params.DefaultNHGLoadBalance)
+	validateNHGWeight(t, "DefaultNHGWeight", params.DefaultNHGWeight)
+
+	// Encap VRF category
+	if params.NumEncapVRFs <= 0 {
+		t.Fatalf("validateScaleParams: NumEncapVRFs (%d) must be greater than 0", params.NumEncapVRFs)
+	}
+	if params.NumEncapDefaultNHG < params.NumEncapVRFs {
+		t.Fatalf("validateScaleParams: NumEncapDefaultNHG (%d) must be greater than or equal to NumEncapVRFs (%d)", params.NumEncapDefaultNHG, params.NumEncapVRFs)
+	}
+	if params.NumUniqueEncapNH > 0 && params.NumTransitIPv4 == 0 {
+		t.Fatalf("validateScaleParams: NumTransitIPv4 must be greater than 0 when NumUniqueEncapNH (%d) is greater than 0", params.NumUniqueEncapNH)
+	}
+	validateNHGLoadBalance(t, "EncapNHGLoadBalance", params.EncapNHGLoadBalance)
+	validateNHGWeight(t, "EncapNHGWeight", params.EncapNHGWeight)
+
+	// Decap VRF category
+	if params.NumDecapEntries < 0 {
+		t.Fatalf("validateScaleParams: NumDecapEntries (%d) cannot be negative", params.NumDecapEntries)
+	}
+	if params.DecapDestsSubsetPct < 0 || params.DecapDestsSubsetPct > 100 {
+		t.Fatalf("validateScaleParams: DecapDestsSubsetPct (%d) must be between 0 and 100", params.DecapDestsSubsetPct)
+	}
+
+	// Transit VRF category
+	validateNHGLoadBalance(t, "TransitNHGLoadBalance", params.TransitNHGLoadBalance)
+	validateNHGWeight(t, "TransitNHGWeight", params.TransitNHGWeight)
+
+	// General/Other validations
+	if params.NumPort2VLANs <= 0 {
+		t.Fatalf("validateScaleParams: NumPort2VLANs (%d) must be greater than 0", params.NumPort2VLANs)
+	}
+}
+
 // RunFullScaleTest runs the complete set of configuration, programming, and traffic tests
 // for the given scale parameters.
 func RunFullScaleTest(t *testing.T, params ScaleParams, enablePacketCapture, compactOTGFlows bool) {
 	t.Helper()
+
+	validateScaleParams(t, params)
+
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	defaultVRF := deviations.DefaultNetworkInstance(dut)
