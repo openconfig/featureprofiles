@@ -95,12 +95,13 @@ func TestCredentialz(t *testing.T) {
 
 		res, err := sshClient.RunCommand(ctx, "show version")
 		if err != nil {
-			t.Fatalf("CombinedOutput failed, err: %v", err)
+			t.Fatalf("RunCommand failed, err: %v", err)
 		}
-		t.Logf("SSH session output: %s", res)
+		t.Logf("SSH session output: %s", res.Output())
 
 		sshClient.Close()
 		time.Sleep(2 * time.Second)
+
 		// Verify ssh counters.
 		if !deviations.SSHServerCountersUnsupported(dut) {
 			endingAcceptCounter, endingLastAcceptTime := credz.GetAcceptTelemetry(t, dut)
