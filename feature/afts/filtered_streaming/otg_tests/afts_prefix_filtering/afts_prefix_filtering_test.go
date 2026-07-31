@@ -577,7 +577,7 @@ func runPrefixSetIteration(t *testing.T, dut *ondatra.DUTDevice, tc prefixSetIte
 				Ctx:       context.Background(),
 				Collector: collector,
 				Stop:      aftcache.DeletionStoppingCondition(t, dut, map[string]bool{tc.dynamicNonMatchPrefix: true}),
-				Timeout:   notificationWaitTime,
+				Timeout:   subscriptionWait,
 			}, nil, []string{tc.dynamicNonMatchPrefix})
 
 			removeStaticRoute(t, dut, ni, tc.dynamicNonMatchPrefix)
