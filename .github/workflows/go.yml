@@ -125,3 +125,7 @@ jobs:
       run: go install honnef.co/go/tools/cmd/staticcheck@latest
     - name: Run staticcheck
       run: staticcheck ./...
+    - name: Print cache sizes
+      run: |
+        echo "=== Cache Sizes ==="
+        sudo du -sh /mnt/cache/* || true
