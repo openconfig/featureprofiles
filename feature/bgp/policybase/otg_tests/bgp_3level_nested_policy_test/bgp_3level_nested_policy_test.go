@@ -918,6 +918,12 @@ func checkTraffic(t *testing.T, td testData, flowName string) {
 	otgutils.LogPortMetrics(t, td.ate.OTG(), td.top)
 
 	t.Log("Checking flow telemetry...")
+	if _, ok := gnmi.Watch(t, td.ate.OTG(), gnmi.OTG().Flow(flowName).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
+		f, present := val.Val()
+		return present && f.GetCounters() != nil && f.GetCounters().GetOutPkts() >= uint64(totalPackets)
+	}).Await(t); !ok {
+		t.Errorf("Timeout waiting for flow %s to transmit %d packets", flowName, totalPackets)
+	}
 	recvMetric := gnmi.Get(t, td.ate.OTG(), gnmi.OTG().Flow(flowName).State())
 	txPackets := recvMetric.GetCounters().GetOutPkts()
 	rxPackets := recvMetric.GetCounters().GetInPkts()
