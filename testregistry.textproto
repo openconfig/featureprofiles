@@ -128,6 +128,7 @@ test: {
   id: "AFT-6.2"
   description: "AFT Prefix Filtering Dual-Stack"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/filtered_streaming/otg_tests/afts_prefix_filtering_dualstack/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/filtered_streaming/otg_tests/afts_prefix_filtering_dualstack/afts_prefix_filtering_dualstack_test.go"
 }
 test: {
   id: "AFT-6.3"
@@ -425,6 +426,7 @@ test: {
   id: "IPSEC-1.1"
   description: "IPSec with MACSec over aggregated links."
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/ipsec/otg_tests/ipsec_base/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/ipsec/otg_tests/ipsec_base/ipsec_base_test.go"
 }
 test: {
   id: "IPSEC-1.2"
@@ -995,6 +997,11 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_disable_peer_as_filter_test/README.md"
 }
 test: {
+  id: "RT-1.73"
+  description: "Static Route Resilience Test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/staticroute/otg_tests/static_route_resiliency_test/README.md"
+}
+test: {
   id: "RT-1.8"
   description: "BGP Route Reflector Test at scale"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/routereflector/otg_tests/route_reflector_scale/README.md"
@@ -1189,6 +1196,11 @@ test: {
   description: "LACP Fallback Support"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/lacp/otg_tests/lacp_fallback_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/lacp/otg_tests/lacp_fallback_test/lacp_fallback_test.go"
+}
+test: {
+  id: "RT-5.16"
+  description: "LACP Member Linecard Reboot"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/lacp/otg_tests/lacp_member_reboot_test/README.md"
 }
 test: {
   id: "RT-5.2"

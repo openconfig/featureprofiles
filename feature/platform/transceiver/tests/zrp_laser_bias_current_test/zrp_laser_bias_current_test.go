@@ -51,8 +51,8 @@ func TestMain(m *testing.M) {
 
 func verifyLaserBiasValue(t *testing.T, laserBiasValue float64) {
 	t.Helper()
-	if laserBiasValue <= 0 && laserBiasValue >= 131 {
-		t.Errorf("The laser bias value is not between 0 and 131")
+	if laserBiasValue < 0.0 || laserBiasValue > 131.0 {
+		t.Errorf("The laser bias value %f is not between 0 and 131", laserBiasValue)
 	}
 }
 
@@ -67,7 +67,7 @@ func verifyLaserBiasCurrentAll(t *testing.T, p1Stream *samplestream.SampleStream
 	}
 	laserBiasInstant := laserBiasVal.GetInstant()
 	if reflect.TypeOf(laserBiasInstant).Kind() != reflect.Float64 {
-		t.Fatalf("Return value is not type string")
+		t.Fatalf("Return value is not type float64")
 	}
 	t.Logf("laserBias Instant value: %f", laserBiasInstant)
 	if deviations.MissingZROpticalChannelTunableParametersTelemetry(dut1) {
@@ -81,7 +81,7 @@ func verifyLaserBiasCurrentAll(t *testing.T, p1Stream *samplestream.SampleStream
 		t.Logf("laserBias Max value: %f", laserBiasMax)
 		laserBiasAvg := laserBiasVal.GetAvg()
 		verifyLaserBiasValue(t, laserBiasAvg)
-		t.Logf("laserBias Avg value: %f", laserBiasMin)
+		t.Logf("laserBias Avg value: %f", laserBiasAvg)
 		if laserBiasAvg >= laserBiasMin && laserBiasAvg <= laserBiasMax {
 			t.Logf("The average %f is between the maximum and minimum values", laserBiasAvg)
 		} else {
@@ -144,8 +144,8 @@ func TestZRLaserBiasCurrentStateInterfaceFlap(t *testing.T) {
 	// Wait 120 sec cooling-off period
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
 	t.Logf("%v operational status is: %v", dp1.Name(), gnmi.Get(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State()))
-	t.Log("Wait to update telemetry")
-	time.Sleep(80 * time.Second)
+	t.Log("Wait for laser bias current to update to 0.0")
+	gnmi.Await(t, dut1, component.OpticalChannel().LaserBiasCurrent().Instant().State(), 2*time.Minute, 0.0)
 	verifyLaserBiasCurrentAll(t, p1Stream, dut1)
 	// Enable interface
 	cfgplugins.ToggleInterface(t, dut1, dp1.Name(), true)
