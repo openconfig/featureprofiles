@@ -141,7 +141,7 @@ func switchoverControllerCards(ctx context.Context, t *testing.T, dut *ondatra.D
 		} else {
 			t.Fatalf("Failed to perform switchover with unexpected err: %v", err)
 		}
-	} else if err == nil {
+	} else {
 		// ONLY read from the response if the RPC returned cleanly without an error
 		if useNameOnly {
 			if len(switchoverResponse.GetControlProcessor().GetElem()) > 0 {
