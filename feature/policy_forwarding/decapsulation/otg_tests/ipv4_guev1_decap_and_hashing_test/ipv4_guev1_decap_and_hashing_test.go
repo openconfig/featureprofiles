@@ -1033,59 +1033,6 @@ func verifyFlowTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Con
 	return true
 }
 
-// testLoadBalance to ensure 50:50 Load Balancing
-func testLoadBalance(t *testing.T, ate *ondatra.ATEDevice, aggNames []string, flow gosnappi.Flow, aggregateAggName string) []uint64 {
-	t.Helper()
-	var rxs []uint64
-	flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).State())
-	flowInFrames := flowMetrics.GetCounters().GetInPkts()
-	for _, aggName := range aggNames {
-		metrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Lag(aggName).State())
-		rxs = append(rxs, (metrics.GetCounters().GetInFrames()))
-		inFrames := metrics.GetCounters().GetInFrames()
-		if aggName == aggregateAggName {
-			inFrames -= flowInFrames
-		}
-		rxs = append(rxs, inFrames)
-	}
-	var total uint64
-	for _, rx := range rxs {
-		total += rx
-	}
-	for idx, rx := range rxs {
-		rxs[idx] = (rx * 100) / total
-	}
-	return rxs
-}
-
-// countRxPkts validates whether the received packet count on a given Rx port is within the expected load-balancing range.
-func countRxPkts(t *testing.T, ate *ondatra.ATEDevice, flow gosnappi.Flow, rxPort string) {
-	t.Helper()
-	if rxPort != "" {
-		// Constants for lower and upper bounds as percentage of total flow (e.g., 20% to 80%)
-		const lowerPct = 20
-		const upperPct = 81
-
-		// Fetch flow-level InPkts
-		flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).State())
-		flowInFrames := flowMetrics.GetCounters().GetInPkts()
-
-		// Fetch port-level InFrames
-		portMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(rxPort).State())
-		portFrames := portMetrics.GetCounters().GetInFrames()
-
-		// Calculate thresholds
-		lowerBound := (flowInFrames * lowerPct) / 100
-		upperBound := (flowInFrames * upperPct) / 100
-
-		if portFrames >= lowerBound && portFrames <= upperBound {
-			t.Logf("Port %s received %d packets within expected range [%d - %d] for flow %s: Load Balance Success", rxPort, portFrames, lowerBound, upperBound, flow.Name())
-		} else {
-			t.Errorf("port %s received %d packets out of expected range [%d - %d] for flow %s: Load Balance Failed", rxPort, portFrames, lowerBound, upperBound, flow.Name())
-		}
-	}
-}
-
 // verifyTrafficFlowNegCase checks whether the observed packet loss for a flow is within acceptable tolerance.
 func verifyTrafficFlowNegCase(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, flow gosnappi.Flow) bool {
 	t.Helper()
