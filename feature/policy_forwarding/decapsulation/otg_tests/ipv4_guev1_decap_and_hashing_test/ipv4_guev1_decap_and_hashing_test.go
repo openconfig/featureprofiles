@@ -63,6 +63,7 @@ const (
 	flowCount            = 10 // Number of prefixes/routes per host group
 	dcapIPv6             = "2001:db8::3"
 	tolerance            = 5 // As per readme, Tolerance for delta: 5%
+	unexpectedPktTol     = 100
 	fixedPackets         = 1000000
 	trafficFrameSize     = 1500
 	ratePercent          = 10
@@ -77,6 +78,9 @@ const (
 	dutLoopbackName      = "Loopback0"
 	skipDefaultPolicy    = true
 	checkSum             = 0
+	v4Step               = "0.0.0.1"
+	v6Step               = "::1"
+	outerSrcPortCount    = 1000
 )
 
 // IP Addresses and Attributes
@@ -106,34 +110,48 @@ var (
 	dutP7 = attrs.Attributes{Desc: "DUT Port7", IPv4: "192.0.7.1", IPv6: "2001:db8:7::1", MAC: "02:00:05:02:02:02", IPv4Len: plenIPv4, IPv6Len: plenIPv6}
 	ateP7 = attrs.Attributes{Name: "atep7", IPv4: "192.0.7.2", IPv6: "2001:db8:7::2", MAC: "02:00:05:01:01:01", IPv4Len: plenIPv4, IPv6Len: plenIPv6}
 	// Advertised Prefixes (base addresses)
-	host1IPv4Start         = "198.51.100.0"
-	host1IPv6Start         = "2001:db8:100::"
-	host2IPv4Start         = "198.51.110.0"
-	host2IPv6Start         = "2001:db8:110::"
-	host3IPv4Start         = "198.51.120.0"
-	host4IPv4Start         = "198.51.130.0"
-	host4IPv6Start         = "2001:db8:130::"
-	ate1LoopbackIP         = "172.16.1.0"
-	ate1LoopbackIPv6       = "2001:db8:1:1::1"
-	timeout                = 1 * time.Minute
-	lagTrafficDistribution = []uint64{50, 50}
-	aggID1                 = "Port-Channel"
-	aggID2                 = "Port-Channel"
-	aggIndx1               = "10"
-	aggIndx2               = "11"
-	constH1v4              = "198.51.100.1"
-	constH1v6              = "2001:db8:100::1"
-	constH2v4              = "198.51.110.1"
-	constH2v6              = "2001:db8:110::1"
-	constH3v4              = "198.51.120.1"
-	constH3v6              = "2001:db8:120::1"
-	constH4v4              = "198.51.130.1"
-	constH4v6              = "2001:db8:130::1"
+	host1IPv4Start   = "198.51.100.0"
+	host1IPv6Start   = "2001:db8:100::"
+	host2IPv4Start   = "198.51.110.0"
+	host2IPv6Start   = "2001:db8:110::"
+	host3IPv4Start   = "198.51.120.0"
+	host3IPv6Start   = "2001:db8:120::"
+	host4IPv4Start   = "198.51.130.0"
+	host4IPv6Start   = "2001:db8:130::"
+	ate1LoopbackIP   = "172.16.1.0"
+	ate1LoopbackIPv6 = "2001:db8:1:1::1"
+	timeout          = 1 * time.Minute
+	aggID1           = "Port-Channel"
+	aggID2           = "Port-Channel"
+	aggIndx1         = "10"
+	aggIndx2         = "11"
+	constH1v4        = "198.51.100.1"
+	constH1v6        = "2001:db8:100::1"
+	constH2v4        = "198.51.110.1"
+	constH2v6        = "2001:db8:110::1"
+	constH3v4        = "198.51.120.1"
+	constH3v6        = "2001:db8:120::1"
+	constH4v4        = "198.51.130.1"
+	constH4v6        = "2001:db8:130::1"
 )
 
 type Neighbor struct {
 	IPv4 string
 	IPv6 string
+}
+
+type flowMode int
+
+const (
+	flowModeBaseline flowMode = iota
+	flowModeSinglePathL4
+	flowModeSinglePathL3
+)
+
+type flowExpectation struct {
+	dstPorts       []string
+	candidatePorts []string
+	expectedPct    map[string]uint64
 }
 
 func TestMain(m *testing.M) {
@@ -164,154 +182,114 @@ func TestMultipathGUE(t *testing.T) {
 	}
 	checkBgpStatus(t, dut, neighbors)
 	t.Run("PF-1.22.1[Baseline]: GUE Decapsulation over ipv6 decap address and Load-balance test", func(t *testing.T) {
-
-		destinations := [][]string{
-			{otgConfig.Lags().Items()[0].Name()},                                      // Flow#1 to H3 via ATE3 LAG
-			{otgConfig.Ports().Items()[1].Name(), otgConfig.Lags().Items()[0].Name()}, // Flow#2 to H2 via ATE2 + ATE3 LAG
-			{otgConfig.Ports().Items()[1].Name(), otgConfig.Lags().Items()[0].Name()}, // Flow#3 same as Flow#2
-			{otgConfig.Ports().Items()[2].Name(), otgConfig.Lags().Items()[1].Name()}, // Flow#4 to H4 via ATE4 LAG + ATE5
-			{otgConfig.Ports().Items()[2].Name(), otgConfig.Lags().Items()[1].Name()}, // Flow#5 same as Flow#4
-			{otgConfig.Lags().Items()[0].Name()},                                      // Flow#6 to H3 via ATE3 LAG
-			{otgConfig.Ports().Items()[1].Name(), otgConfig.Lags().Items()[0].Name()}, // Flow#7 to H2 via ATE2 + ATE3 LAG
-			{otgConfig.Ports().Items()[1].Name(), otgConfig.Lags().Items()[0].Name()}, // Flow#8 same as Flow#7
-			{otgConfig.Ports().Items()[2].Name(), otgConfig.Lags().Items()[1].Name()}, // Flow#9 to H4 via ATE4 LAG + ATE5
-			{otgConfig.Ports().Items()[2].Name(), otgConfig.Lags().Items()[1].Name()}, // Flow#10 same as Flow#9
-		}
 		macAddress := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
 		for flowIndex := 1; flowIndex <= 10; flowIndex++ {
+			exp := getFlowExpectation(t, otgConfig, flowIndex)
 			otgConfig.Flows().Clear()
-			flow := configureFlows(t, otgConfig, macAddress, destinations[flowIndex-1], flowIndex, false)
+			flow := configureFlows(t, otgConfig, macAddress, exp.dstPorts, flowIndex, flowModeBaseline)
 			ate.OTG().PushConfig(t, otgConfig)
 			ate.OTG().StartProtocols(t)
 			t.Logf("Running test for flow index %d: %s", flowIndex, flow.Name())
-			var payloadType, excludeLag, rxPort string
-			var rxLags []string
 
-			switch flowIndex {
-			case 1, 6:
-				payloadType = "mpls"
-				rxLags = []string{otgConfig.Lags().Items()[0].Name()}
-				rxPort = ""
-				excludeLag = otgConfig.Lags().Items()[1].Name()
-			case 2, 3:
-				payloadType = "ipv4"
-				rxLags = []string{otgConfig.Lags().Items()[0].Name()}
-				rxPort = otgConfig.Ports().Items()[1].Name()
-				excludeLag = otgConfig.Lags().Items()[1].Name()
-			case 4, 5:
-				payloadType = "ipv4"
-				rxLags = []string{otgConfig.Lags().Items()[1].Name()}
-				rxPort = otgConfig.Ports().Items()[2].Name()
-				excludeLag = otgConfig.Lags().Items()[0].Name()
-			case 7, 8:
-				payloadType = "ipv6"
-				rxLags = []string{otgConfig.Lags().Items()[0].Name()}
-				rxPort = otgConfig.Ports().Items()[1].Name()
-				excludeLag = otgConfig.Lags().Items()[1].Name()
-			default:
-				payloadType = "ipv6"
-				rxLags = []string{otgConfig.Lags().Items()[1].Name()}
-				rxPort = otgConfig.Ports().Items()[2].Name()
-				excludeLag = otgConfig.Lags().Items()[0].Name()
-			}
-			// Configure decap on DUT for current payload
-			configureDutWithGueDecap(t, dut, payloadType)
+			configureDutWithGueDecap(t, dut, payloadTypeForFlow(flowIndex))
+			before := snapshotPortCounters(t, ate, monitoredDataPorts(t, otgConfig))
 
 			ate.OTG().StartTraffic(t)
 			time.Sleep(trafficDuration * time.Second)
 			ate.OTG().StopTraffic(t)
 			if ok := verifyFlowTraffic(t, ate, otgConfig, flow.Name()); !ok {
-				t.Fatalf("Packet loss detected in flow: %s", flow.Name())
+				t.Fatalf("packet loss detected in flow: %s", flow.Name())
 			}
-			// Validate load balancing weights
-			weights := testLoadBalance(t, ate, rxLags, flow, excludeLag)
-			countRxPkts(t, ate, flow, rxPort)
-			for idx, weight := range lagTrafficDistribution {
-				if got, want := weights[idx], weight; got < (want-tolerance) || got > (want+tolerance) {
-					t.Errorf("ECMP Percentage for Aggregate Index: %d: got %d, want %d", idx+1, got, want)
-				}
-			}
-			t.Logf("Load balancing has been verified on the LAG interfaces.")
+			after := snapshotPortCounters(t, ate, monitoredDataPorts(t, otgConfig))
+			delta := diffPortCounters(before, after)
+			validateExpectedDistribution(t, flow.Name(), delta, exp)
+			t.Logf("Per-flow distribution model has been verified for %s.", flow.Name())
 		}
 	})
 	t.Run("PF-1.22.2: GUE Decapsulation over non-matching ipv6 decap address [Negative] test", func(t *testing.T) {
-		var flows []gosnappi.Flow
 		macAddress := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
-		otgConfig.Flows().Clear()
 		for flowIndex := 11; flowIndex <= 12; flowIndex++ {
-			flow := configureFlows(t, otgConfig, macAddress, []string{otgConfig.Ports().Items()[1].Name()}, flowIndex, false)
-			flows = append(flows, flow)
-		}
-		ate.OTG().PushConfig(t, otgConfig)
-		ate.OTG().StartProtocols(t)
-		ate.OTG().StartTraffic(t)
-		time.Sleep(trafficDuration * time.Second)
-		ate.OTG().StopTraffic(t)
-		for _, flow := range flows {
+			exp := getFlowExpectation(t, otgConfig, flowIndex)
+			otgConfig.Flows().Clear()
+			flow := configureFlows(t, otgConfig, macAddress, exp.dstPorts, flowIndex, flowModeBaseline)
+			ate.OTG().PushConfig(t, otgConfig)
+			ate.OTG().StartProtocols(t)
+			configureDutWithGueDecap(t, dut, payloadTypeForFlow(flowIndex))
+			before := snapshotPortCounters(t, ate, monitoredDataPorts(t, otgConfig))
+			ate.OTG().StartTraffic(t)
+			time.Sleep(trafficDuration * time.Second)
+			ate.OTG().StopTraffic(t)
 			if ok := verifyFlowTraffic(t, ate, otgConfig, flow.Name()); !ok {
-				t.Fatalf("Packet loss detected in flow: %s", flow.Name())
-			} else {
-				t.Logf("Flow %s: Traffic validation sucess", flow.Name())
+				t.Fatalf("packet loss detected in flow: %s", flow.Name())
 			}
+			t.Logf("Flow %s: Traffic validation success", flow.Name())
+			after := snapshotPortCounters(t, ate, monitoredDataPorts(t, otgConfig))
+			delta := diffPortCounters(before, after)
+			validateExpectedDistribution(t, flow.Name(), delta, exp)
 		}
 	})
 	t.Run("PF-1.22.3: GUE Decapsulation over non-matching UDP decap port [Negative] test", func(t *testing.T) {
-		var flows []gosnappi.Flow
 		macAddress := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
-		otgConfig.Flows().Clear()
 		for flowIndex := 13; flowIndex <= 14; flowIndex++ {
-			flow := configureFlows(t, otgConfig, macAddress, []string{otgConfig.Ports().Items()[1].Name()}, flowIndex, false)
-			flows = append(flows, flow)
-		}
-		ate.OTG().PushConfig(t, otgConfig)
-		ate.OTG().StartProtocols(t)
-		ate.OTG().StartTraffic(t)
-		time.Sleep(trafficDuration * time.Second)
-		ate.OTG().StopTraffic(t)
-		for _, flow := range flows {
+			exp := getFlowExpectation(t, otgConfig, flowIndex)
+			otgConfig.Flows().Clear()
+			flow := configureFlows(t, otgConfig, macAddress, exp.dstPorts, flowIndex, flowModeBaseline)
+			ate.OTG().PushConfig(t, otgConfig)
+			ate.OTG().StartProtocols(t)
+			configureDutWithGueDecap(t, dut, payloadTypeForFlow(flowIndex))
+			ate.OTG().StartTraffic(t)
+			time.Sleep(trafficDuration * time.Second)
+			ate.OTG().StopTraffic(t)
 			if ok := verifyTrafficFlowNegCase(t, ate, otgConfig, flow); !ok {
-				t.Logf("Flow %s: Packets dropped, Test Passed", flow.Name())
-			} else {
-				t.Fatalf("Flow %s: Packets not dropped, Test Failed", flow.Name())
+				t.Fatalf("flow %s: Expected packet drop was not observed", flow.Name())
 			}
+			t.Logf("Flow %s: Expected packet drop observed", flow.Name())
 		}
 	})
 	t.Run("PF-1.22.4: Verify the Immediate next header's L4 fields are not considered in Load-Balancing Algorithm test", func(t *testing.T) {
-		t.Log("Starting test: Verify that immediate next header's L4 fields are NOT used in load-balancing")
+		t.Log("Starting test: Verify that immediate next header L4 fields are NOT used in load-balancing")
 		macAddress := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
-		otgConfig.Flows().Clear()
-		// Generate flows with randomized L4 ports immediately after outer header
 		for flowIndex := 1; flowIndex <= 10; flowIndex++ {
-			configureFlows(t, otgConfig, macAddress, []string{otgConfig.Ports().Items()[1].Name()}, flowIndex, true)
+			exp := getFlowExpectation(t, otgConfig, flowIndex)
+			otgConfig.Flows().Clear()
+			flow := configureFlows(t, otgConfig, macAddress, exp.dstPorts, flowIndex, flowModeSinglePathL4)
+			ate.OTG().PushConfig(t, otgConfig)
+			ate.OTG().StartProtocols(t)
+			configureDutWithGueDecap(t, dut, payloadTypeForFlow(flowIndex))
+			before := snapshotPortCounters(t, ate, monitoredDataPorts(t, otgConfig))
+			ate.OTG().StartTraffic(t)
+			time.Sleep(trafficDuration * time.Second)
+			ate.OTG().StopTraffic(t)
+			if ok := verifyFlowTraffic(t, ate, otgConfig, flow.Name()); !ok {
+				t.Fatalf("packet loss detected in flow: %s", flow.Name())
+			}
+			after := snapshotPortCounters(t, ate, monitoredDataPorts(t, otgConfig))
+			delta := diffPortCounters(before, after)
+			validateSinglePathSelection(t, flow.Name(), delta, exp)
 		}
-
-		ate.OTG().PushConfig(t, otgConfig)
-		ate.OTG().StartProtocols(t)
-		ate.OTG().StartTraffic(t)
-		time.Sleep(trafficDuration * time.Second)
-		ate.OTG().StopTraffic(t)
-
-		// Verify: Traffic should NOT be load-balanced → All traffic should go to a single port
-		verifySinglePathTraffic(t, ate, otgConfig)
 	})
 	t.Run("PF-1.22.5: Verify the Immediate next header's L3 fields are not considered in Load-Balancing Algorithm test", func(t *testing.T) {
-		t.Log("Starting test: Verify that immediate next header's L4 fields are NOT used in load-balancing")
+		t.Log("Starting test: Verify that immediate next header L3 fields are NOT used in load-balancing")
 		macAddress := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
-		otgConfig.Flows().Clear()
-		// Generate flows with Immediate next header's L3 fields
 		for flowIndex := 1; flowIndex <= 10; flowIndex++ {
-			configureFlows(t, otgConfig, macAddress, []string{otgConfig.Ports().Items()[1].Name()}, flowIndex, true)
+			exp := getFlowExpectation(t, otgConfig, flowIndex)
+			otgConfig.Flows().Clear()
+			flow := configureFlows(t, otgConfig, macAddress, exp.dstPorts, flowIndex, flowModeSinglePathL3)
+			ate.OTG().PushConfig(t, otgConfig)
+			ate.OTG().StartProtocols(t)
+			configureDutWithGueDecap(t, dut, payloadTypeForFlow(flowIndex))
+			before := snapshotPortCounters(t, ate, monitoredDataPorts(t, otgConfig))
+			ate.OTG().StartTraffic(t)
+			time.Sleep(trafficDuration * time.Second)
+			ate.OTG().StopTraffic(t)
+			if ok := verifyFlowTraffic(t, ate, otgConfig, flow.Name()); !ok {
+				t.Fatalf("packet loss detected in flow: %s", flow.Name())
+			}
+			after := snapshotPortCounters(t, ate, monitoredDataPorts(t, otgConfig))
+			delta := diffPortCounters(before, after)
+			validateSinglePathSelection(t, flow.Name(), delta, exp)
 		}
-		ate.OTG().PushConfig(t, otgConfig)
-		ate.OTG().StartProtocols(t)
-		ate.OTG().StartTraffic(t)
-		time.Sleep(trafficDuration * time.Second)
-		ate.OTG().StopTraffic(t)
-
-		// Verify: Traffic should NOT be load-balanced → All traffic should go to a single port
-		verifySinglePathTraffic(t, ate, otgConfig)
 	})
-
 }
 
 // configureDUT configures all DUT aspects.
@@ -384,7 +362,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 	dutBgpConf := cfgplugins.ConfigureDUTBGP(t, dut, aggrBatch, cfgBGP)
 	_, err := cfgplugins.ConfigureBGPRoutePolicy(t, aggrBatch, cfgplugins.BGPPolicyConfig{PolicyName: "ALLOW", StatementID: "10"})
 	if err != nil {
-		t.Fatalf("Failed to configure BGP Policy: %v", err)
+		t.Fatalf("failed to configure BGP Policy: %v", err)
 	}
 	configureDUTBGPNeighbors(t, dut, aggrBatch, dutBgpConf.Bgp)
 	aggrBatch.Set(t, dut)
@@ -487,13 +465,13 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 		ate.Port(t, "port3"),
 		ate.Port(t, "port4"),
 	}
-	configureLAGDevice(t, ateConfig, ateLag1, dutLag1, ateAggPorts1, 1, ate3AS, false, true, "lag1", host2IPv4Start, host2IPv6Start, host3IPv4Start)
+	configureLAGDevice(t, ateConfig, ateLag1, dutLag1, ateAggPorts1, 1, ate3AS, false, true, "lag1", host2IPv4Start, host2IPv6Start, host3IPv4Start, host3IPv6Start)
 	// ATE LAG2 (EBGP)
 	ateAggPorts2 := []*ondatra.Port{
 		ate.Port(t, "port5"),
 		ate.Port(t, "port6"),
 	}
-	configureLAGDevice(t, ateConfig, ateLag2, dutLag2, ateAggPorts2, 2, ate4AS, true, false, "lag2", host4IPv4Start, host4IPv6Start, "")
+	configureLAGDevice(t, ateConfig, ateLag2, dutLag2, ateAggPorts2, 2, ate4AS, true, false, "lag2", host4IPv4Start, host4IPv6Start, "", "")
 	configureATEDevice(t, ateConfig, ate5Port, ateP7, dutP7, ate5AS, loopbackPfxLen, true, false, false, host4IPv4Start, host4IPv6Start, ate1LoopbackIPv6, ateSysID+"2")
 	return ateConfig
 }
@@ -542,7 +520,7 @@ func configureATEDevice(t *testing.T, cfg gosnappi.Config, port gosnappi.Port, a
 }
 
 // configureLAGDevice configures the Lags along with the associated protocols.
-func configureLAGDevice(t *testing.T, ateConfig gosnappi.Config, lagAttrs attrs.Attributes, dutAttrs attrs.Attributes, atePorts []*ondatra.Port, lagID, asn uint32, isEBGP, isISIS bool, lagName, hostPrefixV4, hostPrefixV6, host3PrefixV4 string) {
+func configureLAGDevice(t *testing.T, ateConfig gosnappi.Config, lagAttrs attrs.Attributes, dutAttrs attrs.Attributes, atePorts []*ondatra.Port, lagID, asn uint32, isEBGP, isISIS bool, lagName, hostPrefixV4, hostPrefixV6, host3PrefixV4, host3PrefixV6 string) {
 	t.Helper()
 	lag := ateConfig.Lags().Add().SetName(lagName)
 	lag.Protocol().Static().SetLagId(lagID)
@@ -584,6 +562,7 @@ func configureLAGDevice(t *testing.T, ateConfig gosnappi.Config, lagAttrs attrs.
 		addBGPRoutes(v4Peer.V4Routes().Add(), ateLag1.Name+".Host2.v4", hostPrefixV4, advertisedIPv4PfxLen, flowCount, ipv4.Address())
 		addBGPRoutes(v6Peer.V6Routes().Add(), ateLag1.Name+".Host2.v6", hostPrefixV6, advertisedIPv6PfxLen, flowCount, ipv6.Address())
 		addBGPRoutes(v4Peer.V4Routes().Add(), ateLag1.Name+".Host3.v4", host3PrefixV4, advertisedIPv4PfxLen, flowCount, ipv4.Address())
+		addBGPRoutes(v6Peer.V6Routes().Add(), ateLag1.Name+".Host3.v6", host3PrefixV6, advertisedIPv6PfxLen, flowCount, ipv6.Address())
 	} else {
 		addBGPRoutes(v4Peer.V4Routes().Add(), ateLag2.Name+".Host4.v4", hostPrefixV4, advertisedIPv4PfxLen, flowCount, ipv4.Address())
 		addBGPRoutes(v6Peer.V6Routes().Add(), ateLag2.Name+".Host4.v6", hostPrefixV6, advertisedIPv6PfxLen, flowCount, ipv6.Address())
@@ -632,7 +611,7 @@ func configureISIS(dev gosnappi.Device, routerID, ifName string, ipv4Nets, ipv6N
 	}
 }
 
-// Validate all BGP neighbors are in ESTABLISHED state
+// checkBgpStatus validates all BGP neighbors are in ESTABLISHED state
 func checkBgpStatus(t *testing.T, dut *ondatra.DUTDevice, neighbors []Neighbor) {
 	t.Helper()
 	t.Log("Verifying BGP neighbor sessions (IPv4 and IPv6)")
@@ -650,7 +629,7 @@ func checkBgpStatus(t *testing.T, dut *ondatra.DUTDevice, neighbors []Neighbor) 
 			}).Await(t)
 		if !ok {
 			fptest.LogQuery(t, "BGP IPv4 state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
-			t.Fatalf("BGP IPv4 session to neighbor %s not ESTABLISHED as expected", nbr.IPv4)
+			t.Fatalf("bgp IPv4 session to neighbor %s not ESTABLISHED as expected", nbr.IPv4)
 		}
 		t.Logf("BGP IPv4 neighbor %s ESTABLISHED", nbr.IPv4)
 
@@ -664,7 +643,7 @@ func checkBgpStatus(t *testing.T, dut *ondatra.DUTDevice, neighbors []Neighbor) 
 			}).Await(t)
 		if !ok {
 			fptest.LogQuery(t, "BGP IPv6 state", nbrPathv6.State(), gnmi.Get(t, dut, nbrPathv6.State()))
-			t.Fatalf("BGP IPv6 session to neighbor %s not ESTABLISHED as expected", nbr.IPv6)
+			t.Fatalf("bgp IPv6 session to neighbor %s not ESTABLISHED as expected", nbr.IPv6)
 		}
 		t.Logf("BGP IPv6 neighbor %s ESTABLISHED", nbr.IPv6)
 	}
@@ -690,7 +669,7 @@ func incrementMAC(mac string, i int) (string, error) {
 }
 
 // configureFlows configure traffic streams as per the provided input.
-func configureFlows(t *testing.T, otgConfig gosnappi.Config, macAddress string, dstPorts []string, incr int, immediateHeader bool) gosnappi.Flow {
+func configureFlows(t *testing.T, otgConfig gosnappi.Config, macAddress string, dstPorts []string, incr int, mode flowMode) gosnappi.Flow {
 	t.Helper()
 	t.Logf("Adding Traffic Stream: %s", "Flow-"+strconv.Itoa(incr))
 	flow := otgConfig.Flows().Add().SetName("Flow-" + strconv.Itoa(incr))
@@ -707,16 +686,14 @@ func configureFlows(t *testing.T, otgConfig gosnappi.Config, macAddress string, 
 	ipOuter.Src().SetValue(ateP1.IPv6)
 	if incr == 11 || incr == 12 {
 		ipOuter.Dst().SetValue(ateP2.IPv6)
-	} else if immediateHeader {
-		ipOuter.Dst().SetValue(ateP2.IPv6)
 	} else {
 		ipOuter.Dst().SetValue(dcapIPv6)
 	}
 	udpOuter := flow.Packet().Add().Udp()
-	if immediateHeader {
-		udpOuter.SrcPort().SetValue(UDPSrcPort)
+	if mode == flowModeBaseline {
+		udpOuter.SrcPort().Increment().SetStart(UDPSrcPort).SetStep(1).SetCount(outerSrcPortCount)
 	} else {
-		udpOuter.SrcPort().Increment().SetStart(UDPSrcPort).SetStep(1).SetCount(10)
+		udpOuter.SrcPort().SetValue(UDPSrcPort)
 	}
 	if incr == 13 || incr == 14 {
 		udpOuter.DstPort().SetValue(UDPDstPortNeg)
@@ -730,26 +707,32 @@ func configureFlows(t *testing.T, otgConfig gosnappi.Config, macAddress string, 
 		// Middle MPLS + IPv4 UDP for GUE
 		mpls := flow.Packet().Add().Mpls()
 		mpls.Label().SetValue(mplsLabel) // Example label
-
+		// Middle IPv4|UDP, then MPLS label, then inner IP payload.
 		ipMiddle := flow.Packet().Add().Ipv4()
 		ipMiddle.Src().SetValue(ate1LoopbackIP)
 		ipMiddle.Dst().SetValue(ateLag1.IPv4)
-
 		udpMiddle := flow.Packet().Add().Udp()
-		if immediateHeader {
-			udpMiddle.SrcPort().SetValue(UDPSrcPort - 1)
+		if mode == flowModeSinglePathL3 {
+			udpMiddle.SrcPort().SetValue(UDPSrcPort)
 		} else {
-			udpMiddle.SrcPort().Increment().SetStart(UDPSrcPort - 1).SetStep(1).SetCount(10)
+			udpMiddle.SrcPort().Increment().SetStart(UDPSrcPort - 1).SetStep(1).SetCount(flowCount)
 		}
 		udpMiddle.DstPort().SetValue(UDPDstPort)
-
 		if incr == 1 {
 			ipInner := flow.Packet().Add().Ipv4()
-			ipInner.Src().SetValue(constH1v4)
+			if mode == flowModeSinglePathL3 {
+				ipInner.Src().Increment().SetStart(constH1v4).SetStep(v4Step).SetCount(flowCount)
+			} else {
+				ipInner.Src().SetValue(constH1v4)
+			}
 			ipInner.Dst().SetValue(constH3v4)
 		} else {
 			ipInner := flow.Packet().Add().Ipv6()
-			ipInner.Src().SetValue(constH1v6)
+			if mode == flowModeSinglePathL3 {
+				ipInner.Src().Increment().SetStart(constH1v6).SetStep(v6Step).SetCount(flowCount)
+			} else {
+				ipInner.Src().SetValue(constH1v6)
+			}
 			ipInner.Dst().SetValue(constH3v6)
 		}
 		tcp := flow.Packet().Add().Tcp()
@@ -764,7 +747,11 @@ func configureFlows(t *testing.T, otgConfig gosnappi.Config, macAddress string, 
 			ipInner.Dst().SetValue(constH4v4)
 		}
 		udp := flow.Packet().Add().Udp()
-		udp.SrcPort().Increment().SetStart(testSrcPort).SetStep(1).SetCount(10)
+		if mode == flowModeSinglePathL3 {
+			udp.SrcPort().SetValue(testSrcPort)
+		} else {
+			udp.SrcPort().Increment().SetStart(testSrcPort).SetStep(1).SetCount(flowCount)
+		}
 		udp.DstPort().SetValue(testDstPort)
 	case 3, 5:
 		ipInner := flow.Packet().Add().Ipv4()
@@ -775,7 +762,11 @@ func configureFlows(t *testing.T, otgConfig gosnappi.Config, macAddress string, 
 			ipInner.Dst().SetValue(constH4v4)
 		}
 		tcp := flow.Packet().Add().Tcp()
-		tcp.SrcPort().Increment().SetStart(testSrcPort).SetStep(1).SetCount(10)
+		if mode == flowModeSinglePathL3 {
+			tcp.SrcPort().SetValue(testSrcPort)
+		} else {
+			tcp.SrcPort().Increment().SetStart(testSrcPort).SetStep(1).SetCount(flowCount)
+		}
 		tcp.DstPort().SetValue(testDstPort)
 	case 7, 9:
 		ipInner := flow.Packet().Add().Ipv6()
@@ -786,7 +777,11 @@ func configureFlows(t *testing.T, otgConfig gosnappi.Config, macAddress string, 
 			ipInner.Dst().SetValue(constH4v6)
 		}
 		udp := flow.Packet().Add().Udp()
-		udp.SrcPort().Increment().SetStart(UDPSrcPort - 1).SetStep(1).SetCount(10)
+		if mode == flowModeSinglePathL3 {
+			udp.SrcPort().SetValue(UDPSrcPort - 1)
+		} else {
+			udp.SrcPort().Increment().SetStart(UDPSrcPort - 1).SetStep(1).SetCount(flowCount)
+		}
 		udp.DstPort().SetValue(UDPSrcPort - 2)
 	case 8, 10:
 		ipInner := flow.Packet().Add().Ipv6()
@@ -797,7 +792,11 @@ func configureFlows(t *testing.T, otgConfig gosnappi.Config, macAddress string, 
 			ipInner.Dst().SetValue(constH4v6)
 		}
 		tcp := flow.Packet().Add().Tcp()
-		tcp.SrcPort().Increment().SetStart(testSrcPort).SetStep(1).SetCount(10)
+		if mode == flowModeSinglePathL3 {
+			tcp.SrcPort().SetValue(testSrcPort)
+		} else {
+			tcp.SrcPort().Increment().SetStart(testSrcPort).SetStep(1).SetCount(flowCount)
+		}
 		tcp.DstPort().SetValue(testDstPort)
 	case 11, 12, 13, 14:
 		ipInner := flow.Packet().Add().Ipv6()
@@ -808,6 +807,191 @@ func configureFlows(t *testing.T, otgConfig gosnappi.Config, macAddress string, 
 		tcp.DstPort().SetValue(testDstPort)
 	}
 	return flow
+}
+
+// payloadTypeForFlow returns the payload type associated with the specified flow index.
+func payloadTypeForFlow(flowIndex int) string {
+	switch flowIndex {
+	case 1, 6:
+		return "mpls"
+	case 7, 8, 9, 10, 11, 12, 13, 14:
+		return "ipv6"
+	default:
+		return "ipv4"
+	}
+}
+
+// getFlowExpectation returns the expected forwarding behavior and traffic
+// distribution for the specified flow.
+func getFlowExpectation(t *testing.T, otgConfig gosnappi.Config, flowIndex int) flowExpectation {
+	t.Helper()
+	if len(otgConfig.Ports().Items()) < 7 || len(otgConfig.Lags().Items()) < 2 {
+		t.Fatalf("unexpected OTG topology: got %d ports and %d lags, need at least 7 ports and 2 lags", len(otgConfig.Ports().Items()), len(otgConfig.Lags().Items()))
+	}
+	port2 := otgConfig.Ports().Items()[1].Name()
+	port7 := otgConfig.Ports().Items()[2].Name()
+	port3 := otgConfig.Ports().Items()[3].Name()
+	port4 := otgConfig.Ports().Items()[4].Name()
+	port5 := otgConfig.Ports().Items()[5].Name()
+	port6 := otgConfig.Ports().Items()[6].Name()
+	lag1 := otgConfig.Lags().Items()[0].Name()
+	lag2 := otgConfig.Lags().Items()[1].Name()
+
+	switch flowIndex {
+	case 1, 6:
+		return flowExpectation{
+			dstPorts:       []string{lag1},
+			candidatePorts: []string{port3, port4},
+			expectedPct: map[string]uint64{
+				port3: 50,
+				port4: 50,
+			},
+		}
+	case 2, 3, 7, 8:
+		return flowExpectation{
+			dstPorts:       []string{port2, lag1},
+			candidatePorts: []string{port2, port3, port4},
+			expectedPct: map[string]uint64{
+				port2: 50,
+				port3: 25,
+				port4: 25,
+			},
+		}
+	case 4, 5, 9, 10:
+		return flowExpectation{
+			dstPorts:       []string{port7, lag2},
+			candidatePorts: []string{port7, port5, port6},
+			expectedPct: map[string]uint64{
+				port7: 50,
+				port5: 25,
+				port6: 25,
+			},
+		}
+	case 11, 12:
+		return flowExpectation{
+			dstPorts:       []string{port2},
+			candidatePorts: []string{port2},
+			expectedPct: map[string]uint64{
+				port2: 100,
+			},
+		}
+	case 13, 14:
+		return flowExpectation{
+			dstPorts:       []string{port2},
+			candidatePorts: []string{port2},
+			expectedPct: map[string]uint64{
+				port2: 0,
+			},
+		}
+	default:
+		t.Fatalf("unsupported flow index: %d", flowIndex)
+		return flowExpectation{}
+	}
+}
+
+// monitoredDataPorts returns the OTG data ports whose ingress counters are
+// monitored during traffic validation.
+func monitoredDataPorts(t *testing.T, otgConfig gosnappi.Config) []string {
+	t.Helper()
+	if len(otgConfig.Ports().Items()) < 7 {
+		t.Fatalf("unexpected OTG topology: got %d ports, need at least 7", len(otgConfig.Ports().Items()))
+	}
+	return []string{
+		otgConfig.Ports().Items()[1].Name(),
+		otgConfig.Ports().Items()[2].Name(),
+		otgConfig.Ports().Items()[3].Name(),
+		otgConfig.Ports().Items()[4].Name(),
+		otgConfig.Ports().Items()[5].Name(),
+		otgConfig.Ports().Items()[6].Name(),
+	}
+}
+
+// snapshotPortCounters returns a snapshot of the ingress frame counters for
+// the specified OTG ports.
+func snapshotPortCounters(t *testing.T, ate *ondatra.ATEDevice, ports []string) map[string]uint64 {
+	t.Helper()
+	counters := make(map[string]uint64, len(ports))
+	for _, port := range ports {
+		counters[port] = gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(port).Counters().InFrames().State())
+	}
+	return counters
+}
+
+// diffPortCounters returns the per-port counter deltas between two counter snapshots.
+func diffPortCounters(before, after map[string]uint64) map[string]uint64 {
+	delta := make(map[string]uint64, len(after))
+	for port, afterVal := range after {
+		beforeVal := before[port]
+		if afterVal >= beforeVal {
+			delta[port] = afterVal - beforeVal
+		}
+	}
+	return delta
+}
+
+// validateExpectedDistribution verifies that traffic is distributed across the
+// expected candidate ports according to the configured percentages and that no
+// unexpected ports receive traffic.
+func validateExpectedDistribution(t *testing.T, flowName string, delta map[string]uint64, exp flowExpectation) {
+	t.Helper()
+	var totalExpected uint64
+	for _, port := range exp.candidatePorts {
+		totalExpected += delta[port]
+	}
+	if totalExpected == 0 {
+		t.Fatalf("flow %s: no packets observed on expected candidate ports %v", flowName, exp.candidatePorts)
+	}
+
+	candidates := make(map[string]bool)
+	for _, p := range exp.candidatePorts {
+		candidates[p] = true
+	}
+	for port, frames := range delta {
+		if !candidates[port] && frames > unexpectedPktTol {
+			t.Errorf("flow %s: unexpected traffic observed on non-candidate port %s: %d packets", flowName, port, frames)
+		}
+	}
+
+	for port, wantPct := range exp.expectedPct {
+		gotPct := (delta[port] * 100) / totalExpected
+		if gotPct < (wantPct-tolerance) || gotPct > (wantPct+tolerance) {
+			t.Errorf("flow %s: distribution mismatch on %s, got %d%% want %d%% +/- %d%%", flowName, port, gotPct, wantPct, tolerance)
+		}
+	}
+}
+
+// validateSinglePathSelection verifies that traffic is forwarded on exactly
+// one of the expected candidate ports and that no unexpected ports receive traffic.
+func validateSinglePathSelection(t *testing.T, flowName string, delta map[string]uint64, exp flowExpectation) {
+	t.Helper()
+	var total uint64
+	activePaths := 0
+	maxPct := uint64(0)
+	candidates := make(map[string]bool)
+	for _, p := range exp.candidatePorts {
+		candidates[p] = true
+		total += delta[p]
+	}
+	if total == 0 {
+		t.Fatalf("flow %s: no packets observed on candidate ports %v", flowName, exp.candidatePorts)
+	}
+	for port, frames := range delta {
+		if !candidates[port] && frames > unexpectedPktTol {
+			t.Errorf("flow %s: unexpected traffic observed on non-candidate port %s: %d packets", flowName, port, frames)
+		}
+	}
+	for _, port := range exp.candidatePorts {
+		pct := (delta[port] * 100) / total
+		if pct > tolerance {
+			activePaths++
+		}
+		if pct > maxPct {
+			maxPct = pct
+		}
+	}
+	if activePaths != 1 || maxPct < (100-tolerance) {
+		t.Fatalf("flow %s: expected single-path forwarding, got activePaths=%d maxPathPct=%d%% (candidate ports: %v)", flowName, activePaths, maxPct, exp.candidatePorts)
+	}
 }
 
 // verifyFlowTraffic validate the traffic stream counts.
@@ -827,7 +1011,7 @@ func verifyFlowTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Con
 		}).Await(t)
 
 	if !ok {
-		t.Errorf("Flow %q: TX did not reach expected count (%d)", flowName, txRate)
+		t.Errorf("flow %q: TX did not reach expected count (%d)", flowName, txRate)
 		return false
 	}
 
@@ -839,7 +1023,7 @@ func verifyFlowTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Con
 		}).Await(t)
 
 	if !ok {
-		t.Errorf("Flow %q: RX packets did not match expected TX count (%d)", flowName, txRate)
+		t.Errorf("flow %q: RX packets did not match expected TX count (%d)", flowName, txRate)
 		return false
 	}
 
@@ -897,7 +1081,7 @@ func countRxPkts(t *testing.T, ate *ondatra.ATEDevice, flow gosnappi.Flow, rxPor
 		if portFrames >= lowerBound && portFrames <= upperBound {
 			t.Logf("Port %s received %d packets within expected range [%d - %d] for flow %s: Load Balance Success", rxPort, portFrames, lowerBound, upperBound, flow.Name())
 		} else {
-			t.Errorf("Port %s received %d packets out of expected range [%d - %d] for flow %s: Load Balance Failed", rxPort, portFrames, lowerBound, upperBound, flow.Name())
+			t.Errorf("port %s received %d packets out of expected range [%d - %d] for flow %s: Load Balance Failed", rxPort, portFrames, lowerBound, upperBound, flow.Name())
 		}
 	}
 }
@@ -908,45 +1092,15 @@ func verifyTrafficFlowNegCase(t *testing.T, ate *ondatra.ATEDevice, config gosna
 	otgutils.LogFlowMetrics(t, ate.OTG(), config)
 	rxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State())
 	txPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
-	lostPkt := txPkts - rxPkts
-	if got := (lostPkt * 100 / txPkts); got >= tolerance {
+	if txPkts == 0 {
+		t.Logf("Flow %s: no transmitted packets observed", flow.Name())
 		return false
 	}
-	return true
-}
-
-// verifySinglePathTraffic validates that traffic follows a single expected path without load balancing across multiple ports.
-func verifySinglePathTraffic(t *testing.T, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
-	t.Helper()
-	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
-	otgutils.LogPortMetrics(t, ate.OTG(), otgConfig)
-	portList := []string{
-		otgConfig.Ports().Items()[1].Name(), // primary destination port
-		otgConfig.Ports().Items()[2].Name(), // alternative path
-		otgConfig.Ports().Items()[3].Name(),
+	lostPkt := txPkts - rxPkts
+	if got := (lostPkt * 100 / txPkts); got >= (100 - tolerance) {
+		t.Logf("Flow %s: TX=%d RX=%d loss=%d%%", flow.Name(), txPkts, rxPkts, got)
+		return true
 	}
-	aggNames := []string{otgConfig.Lags().Items()[0].Name(), otgConfig.Lags().Items()[1].Name()}
-	totalRx := uint64(0)
-	nonZeroPorts := 0
-	for _, port := range portList {
-		rxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(port).Counters().InFrames().State())
-		t.Logf("Port %s received %d packets", port, rxPkts)
-		if rxPkts > tolerance {
-			nonZeroPorts++
-		}
-		totalRx += rxPkts
-	}
-	for _, aggName := range aggNames {
-		metrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Lag(aggName).State())
-		inFrames := metrics.GetCounters().GetInFrames()
-		t.Logf("Lag %s received %d packets", aggName, inFrames)
-		if inFrames > tolerance {
-			nonZeroPorts++
-		}
-	}
-	if nonZeroPorts > tolerance {
-		t.Fatalf("Expected traffic to follow a single path, but received on %d ports", nonZeroPorts)
-	} else {
-		t.Logf("PASS: All traffic followed a single path as expected")
-	}
+	t.Logf("Flow %s: TX=%d RX=%d loss=%d%%, expected near 100%% drop", flow.Name(), txPkts, rxPkts, (lostPkt*100)/txPkts)
+	return false
 }
