@@ -759,8 +759,8 @@ func checkTraffic(t *testing.T, td testData, flowName string) {
 	}).Await(t)
 
 	// Fetch the final, stable values
-	txPackets, _ := gnmi.Lookup(t, otg, outPktsQuery).Val()
-	rxPackets, _ := gnmi.Lookup(t, otg, inPktsQuery).Val()
+	txPackets := gnmi.Get(t, otg, outPktsQuery)
+	rxPackets := gnmi.Get(t, otg, inPktsQuery)
 
 	if txPackets == 0 {
 		t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flowName)
