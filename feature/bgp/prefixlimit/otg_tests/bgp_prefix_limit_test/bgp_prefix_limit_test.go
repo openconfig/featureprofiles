@@ -500,6 +500,24 @@ func (tc *testCase) verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	verifyPrefixLimitTelemetry(t, dut, nv6, tc.wantEstablished)
 }
 
+// waitForFIBProgramming watches the AFT to guarantee the route is in the data plane.
+func waitForFIBProgramming(t *testing.T, dut *ondatra.DUTDevice, ipv4Prefix string) {
+	t.Helper()
+	t.Logf("Waiting for prefixes to be programmed in the hardware FIB (AFT)...")
+
+	netInst := deviations.DefaultNetworkInstance(dut)
+
+	// Watch IPv4 AFT Entry
+	ipv4AftPath := gnmi.OC().NetworkInstance(netInst).Afts().Ipv4Entry(ipv4Prefix).State()
+	_, ok4 := gnmi.Watch(t, dut, ipv4AftPath, time.Minute, func(v *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		return v.IsPresent()
+	}).Await(t)
+	if !ok4 {
+		t.Fatalf("IPv4 Prefix %s was not programmed into the hardware FIB within the timeout", ipv4Prefix)
+	}
+	t.Log("Hardware FIB programming confirmed.")
+}
+
 func (tc *testCase) verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, conf gosnappi.Config, tolerance float32, flowNames []string) {
 	otg := ate.OTG()
 	for _, flow := range flowNames {
@@ -646,8 +664,11 @@ func (tc *testCase) run(t *testing.T, conf gosnappi.Config, dut *ondatra.DUTDevi
 		tc.verifyBGPTelemetry(t, dut)
 	})
 
-	// Give the hardware ASIC time to program the FIB
-	time.Sleep(3 * time.Second)
+	// Verify FIB Programming
+	if tc.wantEstablished {
+		ipv4Target := fmt.Sprintf("%s/%d", ipv4DstTraffic, advertisedRoutesv4Prefix)
+		waitForFIBProgramming(t, dut, ipv4Target)
+	}
 	
 	// Time Duration for which maximum-prefix-restart-time has been active
 	elapsed := time.Since(now)
