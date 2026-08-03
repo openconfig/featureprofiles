@@ -827,18 +827,20 @@ func DecapPolicyRulesandActionsGue(t *testing.T, dut *ondatra.DUTDevice, params 
 	pol := pf.GetOrCreatePolicy(params.AppliedPolicyName)
 	rule := pol.GetOrCreateRule(1)
 
+	sb := &gnmi.SetBatch{}
+
 	prefixSetName := params.AppliedPolicyName + "-dst-prefix-set"
 	if strings.Contains(params.TunnelIP, ":") {
 		prefixSet := d.GetOrCreateDefinedSets().GetOrCreateIpv6PrefixSet(prefixSetName)
 		prefixSet.Prefix = []string{params.TunnelIP}
-		gnmi.Update(t, dut, gnmi.OC().DefinedSets().Ipv6PrefixSet(prefixSetName).Config(), prefixSet)
+		gnmi.BatchUpdate(sb, gnmi.OC().DefinedSets().Ipv6PrefixSet(prefixSetName).Config(), prefixSet)
 		ip6 := rule.GetOrCreateIpv6()
 		ip6.DestinationAddressPrefixSet = ygot.String(prefixSetName)
 		ip6.Protocol = oc.PacketMatchTypes_IP_PROTOCOL_IP_UDP
 	} else {
 		prefixSet := d.GetOrCreateDefinedSets().GetOrCreateIpv4PrefixSet(prefixSetName)
 		prefixSet.Prefix = []string{params.TunnelIP}
-		gnmi.Update(t, dut, gnmi.OC().DefinedSets().Ipv4PrefixSet(prefixSetName).Config(), prefixSet)
+		gnmi.BatchUpdate(sb, gnmi.OC().DefinedSets().Ipv4PrefixSet(prefixSetName).Config(), prefixSet)
 		ip4 := rule.GetOrCreateIpv4()
 		ip4.DestinationAddressPrefixSet = ygot.String(prefixSetName)
 		ip4.Protocol = oc.PacketMatchTypes_IP_PROTOCOL_IP_UDP
@@ -849,8 +851,8 @@ func DecapPolicyRulesandActionsGue(t *testing.T, dut *ondatra.DUTDevice, params 
 	iface := pf.GetOrCreateInterface(params.InterfaceID)
 	iface.ApplyForwardingPolicy = ygot.String(params.AppliedPolicyName)
 
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(params.NetworkInstanceName).PolicyForwarding().Config(), pf)
-
+	gnmi.BatchUpdate(sb, gnmi.OC().NetworkInstance(params.NetworkInstanceName).PolicyForwarding().Config(), pf)
+	sb.Set(t, dut)
 }
 
 // ApplyPolicyToInterfaceOC configures the policy-forwarding interfaces section to apply the specified

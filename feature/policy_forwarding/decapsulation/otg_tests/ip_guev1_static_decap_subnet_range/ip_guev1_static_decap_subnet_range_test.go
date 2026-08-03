@@ -422,19 +422,20 @@ func verifyDropCountersIncrement(t *testing.T, initialInUnicastPkts, finalInUnic
 	inDelta := finalInUnicastPkts - initialInUnicastPkts
 	outDelta := finalOutUnicastPkts - initialOutUnicastPkts
 	tolerance := uint64(packetCount * counterTolerancePct / 100)
+	minAllowedIngress := uint64(packetCount) - tolerance
 	maxAllowedIngress := uint64(packetCount) + tolerance
 	maxAllowedEgress := tolerance
-	if inDelta > maxAllowedIngress {
-		t.Errorf("expected DUT ingress in-unicast-pkts on port1 to increment by at most %d packets (%d + %d%%), got %d (initial=%d final=%d)",
-			maxAllowedIngress, packetCount, counterTolerancePct, inDelta, initialInUnicastPkts, finalInUnicastPkts)
+	if inDelta < minAllowedIngress || inDelta > maxAllowedIngress {
+		t.Errorf("expected DUT ingress in-unicast-pkts on port1 to increment by %d +/- %d%% (range [%d, %d]), got %d (initial=%d final=%d)",
+			packetCount, counterTolerancePct, minAllowedIngress, maxAllowedIngress, inDelta, initialInUnicastPkts, finalInUnicastPkts)
 	}
 	if outDelta > maxAllowedEgress {
 		t.Errorf("expected DUT egress out-unicast-pkts on port2 to increase by at most %d packets (%d + %d%%), got %d (initial=%d final=%d)",
 			maxAllowedEgress, packetCount, counterTolerancePct, outDelta, initialOutUnicastPkts, finalOutUnicastPkts)
 	}
-	if inDelta <= maxAllowedIngress && outDelta <= maxAllowedEgress {
-		t.Logf("PASS: DUT ingress increased by %d packets (<= %d allowed) and egress increased by %d packets (<= %d allowed), indicating the flow was dropped",
-			inDelta, maxAllowedIngress, outDelta, maxAllowedEgress)
+	if inDelta >= minAllowedIngress && inDelta <= maxAllowedIngress && outDelta <= maxAllowedEgress {
+		t.Logf("PASS: DUT ingress increased by %d packets (within [%d, %d]) and egress increased by %d packets (<= %d allowed), indicating the flow was dropped",
+			inDelta, minAllowedIngress, maxAllowedIngress, outDelta, maxAllowedEgress)
 	}
 }
 
@@ -533,8 +534,7 @@ func verifyPolicerMatchedPackets(t *testing.T, dut *ondatra.DUTDevice, p *police
 			}
 
 			if p.WantIncrement {
-				ingressAtePkts := gnmi.Get(t, p.OTGConfig, gnmi.OTG().Flow(p.Flow.Name()).Counters().OutPkts().State())
-				egressAtePkts := gnmi.Get(t, p.OTGConfig, gnmi.OTG().Flow(p.Flow.Name()).Counters().InPkts().State())
+				ingressAtePkts, egressAtePkts := otgutils.GetFlowStats(t, p.OTGConfig, p.Flow.Name(), timeout)
 
 				if ingressPkt >= ingressAtePkts && egressPkt >= egressAtePkts {
 					t.Logf("Interface counters reflect decapsulated packets: InUnicastPkts: %d OutUnicastPkts: %d", ingressPkt, egressPkt)
