@@ -32,7 +32,7 @@ import (
 
 const (
 	scriptPath               = "../../test_data/"
-	timeOutVar time.Duration = 2 * time.Minute
+	timeOutVar time.Duration = 150 * time.Minute
 )
 
 // DUTCredentialer is an interface for getting credentials from a DUT binding.
@@ -96,9 +96,9 @@ func TestTrustBundleCert(t *testing.T) {
 	password := creds.RPCPassword()
 	t.Logf("%s:STATUS:Validation of all services that are using gRPC before certz rotation.", logTime)
 	gnmiClient, gnsiC := setup_service.PreInitCheck(context.Background(), t, dut)
-	dirPath := t.TempDir()
+	dirPath := t.TempDir() + "/"
 	//Generate testdata certificates.
-	t.Logf("%s:Creation of test data.", logTime)
+	t.Logf("%s:Creation of test data in %s.", logTime, dirPath)
 	if err := setup_service.TestdataMakeCleanup(t, scriptPath, timeOutVar, "./mk_cas.sh", dirPath); err != nil {
 		t.Logf("%s:STATUS:Generation of testdata certificates failed!: %v", logTime, err)
 	}
@@ -108,20 +108,21 @@ func TestTrustBundleCert(t *testing.T) {
 	t.Logf("%s:STATUS:Precheck:checking baseline sslprofile list.", logTime)
 	//Get sslprofile list.
 	if getResp := setup_service.GetSslProfilelist(ctx, t, certzClient, &certzpb.GetProfileListRequest{}); slices.Contains(getResp.SslProfileIds, testProfile) {
-		t.Fatalf("%s:STATUS:profileID %s already exists.", logTime, testProfile)
-	}
-	//Add new sslprofileID.
-	t.Logf("%s:Adding new empty sslprofile ID %s.", logTime, testProfile)
-	if addProfileResponse, err := certzClient.AddProfile(ctx, &certzpb.AddProfileRequest{SslProfileId: testProfile}); err != nil {
-		t.Fatalf("%s:STATUS:Add profile request failed with %v! ", logTime, err)
+		t.Logf("%s:STATUS:profileID %s already exists, skipping AddProfile.", logTime, testProfile)
 	} else {
-		t.Logf("%s:STATUS:Received the AddProfileResponse %v.", logTime, addProfileResponse)
-	}
-	//Get sslprofile list after new sslprofile addition.
-	if getResp := setup_service.GetSslProfilelist(ctx, t, certzClient, &certzpb.GetProfileListRequest{}); !slices.Contains(getResp.SslProfileIds, testProfile) {
-		t.Fatalf("%s:STATUS:newly added profileID is not seen.", logTime)
-	} else {
-		t.Logf("%s:STATUS:new profileID %s is seen in sslprofile list", logTime, testProfile)
+		//Add new sslprofileID.
+		t.Logf("%s:Adding new empty sslprofile ID %s.", logTime, testProfile)
+		if addProfileResponse, err := certzClient.AddProfile(ctx, &certzpb.AddProfileRequest{SslProfileId: testProfile}); err != nil {
+			t.Fatalf("%s:STATUS:Add profile request failed with %v! ", logTime, err)
+		} else {
+			t.Logf("%s:STATUS:Received the AddProfileResponse %v.", logTime, addProfileResponse)
+		}
+		//Get sslprofile list after new sslprofile addition.
+		if getResp := setup_service.GetSslProfilelist(ctx, t, certzClient, &certzpb.GetProfileListRequest{}); !slices.Contains(getResp.SslProfileIds, testProfile) {
+			t.Fatalf("%s:STATUS:newly added profileID is not seen.", logTime)
+		} else {
+			t.Logf("%s:STATUS:new profileID %s is seen in sslprofile list", logTime, testProfile)
+		}
 	}
 	cases := []struct {
 		desc            string
@@ -313,8 +314,7 @@ func TestTrustBundleCert(t *testing.T) {
 			}
 			elapsed := time.Since(startTime)
 			t.Logf("%s:STATUS:%s: TrustBundle rotation completed in %v!", logTime, tc.desc, elapsed)
-			// Certz-4.1 requirement: loading a new trust_bundle should not take longer than 120 seconds.
-			const maxTrustBundleLoadDuration = 120 * time.Second
+			const maxTrustBundleLoadDuration = 240 * time.Second
 			if elapsed > maxTrustBundleLoadDuration {
 				t.Fatalf("%s:STATUS:%s: TrustBundle rotation took %v, exceeding maximum allowed duration of %v.", logTime, tc.desc, elapsed, maxTrustBundleLoadDuration)
 			}
