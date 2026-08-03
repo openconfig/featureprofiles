@@ -1645,3 +1645,9 @@ func expectedAuthzStatus(dut *ondatra.DUTDevice, status acctzpb.AuthzDetail_Auth
 	}
 	return status
 }
+
+// PrettyPrint returns a pretty-printed JSON representation of the input.
+func PrettyPrint(i any) string {
+	s, _ := json.MarshalIndent(i, "", "\t")
+	return string(s)
+}
