@@ -502,42 +502,82 @@ func (tc *testCase) verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 
 func (tc *testCase) verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, conf gosnappi.Config, tolerance float32, flowNames []string) {
 	otg := ate.OTG()
-	otgutils.LogFlowMetrics(t, otg, conf)
 	for _, flow := range flowNames {
-		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(flow).State())
-		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
-		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
+		outPktsQuery := gnmi.OTG().Flow(flow).Counters().OutPkts().State()
+		inPktsQuery := gnmi.OTG().Flow(flow).Counters().InPkts().State()
+
+		// Watch for up to 45 seconds until InPkts catches up to OutPkts (loss <= tolerance).
+		gnmi.Watch(t, otg, inPktsQuery, 45*time.Second, func(v *ygnmi.Value[uint64]) bool {
+			rx, present := v.Val()
+			if !present {
+				return false
+			}
+			tx, txPresent := gnmi.Lookup(t, otg, outPktsQuery).Val()
+			if !txPresent || tx == 0 {
+				return false // Keep waiting if tx hasn't populated or is 0
+			}
+
+			lossPct := float32(tx-rx) * 100 / float32(tx)
+			// Wait for loss to drop within tolerance (including negative values if rx slightly > tx)
+			return lossPct <= tolerance
+		}).Await(t)
+
+		// Fetch the final, stable values
+		txPackets, _ := gnmi.Lookup(t, otg, outPktsQuery).Val()
+		rxPackets, _ := gnmi.Lookup(t, otg, inPktsQuery).Val()
+
 		if txPackets == 0 {
-			t.Fatalf("TxPkts = 0, want > 0")
+			t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flow)
 		}
-		lostPackets := txPackets - rxPackets
-		lossPct := lostPackets * 100 / txPackets
-		if lossPct > tolerance {
-			t.Errorf("Traffic Loss Pct for Flow %s: got %v, want 0", flow, lossPct)
-		} else {
+
+		lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
+		if lossPct <= tolerance {
 			t.Logf("Traffic Test Passed! Got %v loss", lossPct)
+		} else {
+			t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want 0", flow, lossPct)
 		}
 	}
+	otgutils.LogFlowMetrics(t, otg, conf)
 }
 
 func (tc *testCase) verifyPacketLoss(t *testing.T, ate *ondatra.ATEDevice, conf gosnappi.Config, tolerance float32, flowNames []string) {
 	otg := ate.OTG()
-	otgutils.LogFlowMetrics(t, otg, conf)
+
 	for _, flow := range flowNames {
-		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(flow).State())
-		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
-		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
+		outPktsQuery := gnmi.OTG().Flow(flow).Counters().OutPkts().State()
+		inPktsQuery := gnmi.OTG().Flow(flow).Counters().InPkts().State()
+
+		// Watch for up to 45 seconds until traffic loss settles within the expected 100% target.
+		gnmi.Watch(t, otg, inPktsQuery, 45*time.Second, func(v *ygnmi.Value[uint64]) bool {
+			rx, present := v.Val()
+			if !present {
+				return false
+			}
+			tx, txPresent := gnmi.Lookup(t, otg, outPktsQuery).Val()
+			if !txPresent || tx == 0 {
+				return false // Keep waiting if tx hasn't populated or is 0
+			}
+
+			lossPct := float32(tx-rx) * 100 / float32(tx)
+			return lossPct >= (100 - tolerance)
+		}).Await(t)
+
+		// Fetch the final, stable values
+		txPackets, _ := gnmi.Lookup(t, otg, outPktsQuery).Val()
+		rxPackets, _ := gnmi.Lookup(t, otg, inPktsQuery).Val()
+
 		if txPackets == 0 {
-			t.Fatalf("TxPkts = 0, want > 0")
+			t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flow)
 		}
-		lostPackets := txPackets - rxPackets
-		lossPct := lostPackets * 100 / txPackets
+
+		lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
 		if lossPct >= (100-tolerance) && lossPct <= 100 {
 			t.Logf("Traffic Test Passed! Loss seen as expected: got %v, want 100%% ", lossPct)
 		} else {
-			t.Errorf("Traffic %s is expected to fail: got %v, want 100%% failure", flow, lossPct)
+			t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want 100%% failure", flow, lossPct)
 		}
 	}
+	otgutils.LogFlowMetrics(t, otg, conf)
 }
 
 func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, duration time.Duration) {
@@ -605,6 +645,10 @@ func (tc *testCase) run(t *testing.T, conf gosnappi.Config, dut *ondatra.DUTDevi
 	t.Run("verifyBGPTelemetry", func(t *testing.T) {
 		tc.verifyBGPTelemetry(t, dut)
 	})
+
+	// Give the hardware ASIC time to program the FIB
+	time.Sleep(3 * time.Second)
+	
 	// Time Duration for which maximum-prefix-restart-time has been active
 	elapsed := time.Since(now)
 
