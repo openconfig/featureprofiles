@@ -141,10 +141,6 @@ type testData struct {
 	dutLAGNames []string
 }
 
-func (d *testData) waitInterface(t *testing.T) {
-	otgutils.WaitForARP(t, d.otg, d.otgConfig, d.flowProto)
-}
-
 func createFlow(flowName string, flowSize uint32, ipv string) gosnappi.Flow {
 	flow := gosnappi.NewFlow().SetName(flowName)
 	flow.Metrics().SetEnable(true)
