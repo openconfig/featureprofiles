@@ -395,7 +395,6 @@ func testLargeIPPacketTransmission(t *testing.T, dut *ondatra.DUTDevice, ate *on
 	addAllFlows(otgConfig)
 
 	otg.PushConfig(t, otgConfig)
-	time.Sleep(time.Second * 30)
 	otg.StartProtocols(t)
 
 	otgutils.WaitForARP(t, otg, otgConfig, ipv4)
@@ -628,7 +627,6 @@ func testLargeIPPacketTransmissionBundle(t *testing.T, dut *ondatra.DUTDevice, a
 	addAllFlows(otgConfig)
 
 	otg.PushConfig(t, otgConfig)
-	time.Sleep(time.Second * 30)
 	otg.StartProtocols(t)
 
 	otgutils.WaitForARP(t, otg, otgConfig, ipv4)
@@ -656,6 +654,10 @@ func TestLargeIPPacketTransmission(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	otg := ate.OTG()
 
-	testLargeIPPacketTransmission(t, dut, ate, otg)
-	testLargeIPPacketTransmissionBundle(t, dut, ate, otg)
+	t.Run("Physical", func(t *testing.T) {
+		testLargeIPPacketTransmission(t, dut, ate, otg)
+	})
+	t.Run("Bundle", func(t *testing.T) {
+		testLargeIPPacketTransmissionBundle(t, dut, ate, otg)
+	})
 }
