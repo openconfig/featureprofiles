@@ -20,6 +20,7 @@ env:
 
 jobs:
   build:
+    name: Build (ARM64)
     runs-on: ubuntu-24.04-arm
     steps:
     - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -45,6 +46,7 @@ jobs:
       run: go build -v ./...
 
   test:
+    name: Test (ARM64)
     runs-on: ubuntu-24.04-arm
     steps:    
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -74,7 +76,7 @@ jobs:
           path-to-profile: profile.cov
 
   static_analysis:
-    name: Static Analysis
+    name: Static Analysis (ARM64)
     runs-on: ubuntu-24.04-arm
     steps:
     - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
