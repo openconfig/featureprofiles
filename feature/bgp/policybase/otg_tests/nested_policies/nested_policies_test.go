@@ -735,19 +735,48 @@ func checkTraffic(t *testing.T, td testData, flowName string) {
 	time.Sleep(time.Second * 30)
 	td.ate.OTG().StopTraffic(t)
 
-	otgutils.LogFlowMetrics(t, td.ate.OTG(), td.top)
-	otgutils.LogPortMetrics(t, td.ate.OTG(), td.top)
-
 	t.Log("Checking flow telemetry...")
-	recvMetric := gnmi.Get(t, td.ate.OTG(), gnmi.OTG().Flow(flowName).State())
-	txPackets := recvMetric.GetCounters().GetOutPkts()
-	rxPackets := recvMetric.GetCounters().GetInPkts()
-	lostPackets := txPackets - rxPackets
-	lossPct := lostPackets * 100 / txPackets
+	otg := td.ate.OTG()
+	tolerance := float32(1.0)
 
-	if lossPct > 1 {
-		t.Errorf("FAIL- got %v%% packet loss for %s ; want < 1%%", lossPct, flowName)
+	outPktsQuery := gnmi.OTG().Flow(flowName).Counters().OutPkts().State()
+	inPktsQuery := gnmi.OTG().Flow(flowName).Counters().InPkts().State()
+
+	// Watch for up to 45 seconds until InPkts catches up to OutPkts (loss <= tolerance).
+	gnmi.Watch(t, otg, inPktsQuery, 45*time.Second, func(v *ygnmi.Value[uint64]) bool {
+		rx, present := v.Val()
+		if !present {
+			return false
+		}
+		tx, txPresent := gnmi.Lookup(t, otg, outPktsQuery).Val()
+		if !txPresent || tx == 0 {
+			return false // Keep waiting if tx hasn't populated or is 0
+		}
+
+		lossPct := float32(tx-rx) * 100 / float32(tx)
+		// Wait for loss to drop within tolerance
+		return lossPct <= tolerance
+	}).Await(t)
+
+	// Fetch the final, stable values
+	txPackets, _ := gnmi.Lookup(t, otg, outPktsQuery).Val()
+	rxPackets, _ := gnmi.Lookup(t, otg, inPktsQuery).Val()
+
+	if txPackets == 0 {
+		t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flowName)
 	}
+
+	// Final verification
+	lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
+	if lossPct > tolerance {
+		t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want 0", flowName, lossPct)
+	} else {
+		t.Logf("Traffic Test Passed! Got %v%% loss", lossPct)
+	}
+
+	// Move logging to the end so it captures the final settled values
+	otgutils.LogFlowMetrics(t, otg, td.top)
+	otgutils.LogPortMetrics(t, otg, td.top)
 }
 
 func (td *testData) advertiseRoutesWithEBGP(t *testing.T) {
