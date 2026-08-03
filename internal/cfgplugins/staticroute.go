@@ -80,7 +80,7 @@ func NewStaticRouteCfg(batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUT
 					cli := fmt.Sprintf(`ipv6 route %s nexthop-group %s`, cfg.Prefix, cfg.NexthopGroupName)
 					helpers.GnmiCLIConfig(cfg.T, d, cli)
 					staticRouteToNextHopGroupCLI(cfg.T, d, *cfg)
-                    cliConfigured = true
+					cliConfigured = true
 				}
 			default:
 				return s, fmt.Errorf("deviation StaticRouteToNHGOCUnsupported is not handled for the dut: %s", d.Vendor())
