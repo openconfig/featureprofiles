@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "0c706ad4-fb7e-46c2-a554-a1def8b6a799"
+plan_id: "RT-1.103"
+description: "DUT iBGP passive listener FNT with common router id"
+testbed: TESTBED_DUT_ATE_2LINKS

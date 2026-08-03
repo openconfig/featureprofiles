@@ -1009,8 +1009,10 @@ func TestBreakoutSubscription(t *testing.T) {
 		}
 		expectedUpdatePaths := []string{
 			"/interfaces/interface/state/admin-status",
-			"/lacp/interfaces/interface/members/member/state/interface",
 			"/interfaces/interface/state/oper-status",
+		}
+		if !deviations.LACPInterfaceMemberStateInterfaceUnsupported(dut) {
+			expectedUpdatePaths = append(expectedUpdatePaths, "/lacp/interfaces/interface/members/member/state/interface")
 		}
 		verifyNotificationPaths(t, receivedNotifications, expectedUpdatePaths)
 		verifyUpdateValue(t, receivedNotifications, dut, "DOWN")
@@ -1049,8 +1051,10 @@ func TestBreakoutSubscription(t *testing.T) {
 		}
 		expectedUpdatePaths := []string{
 			"/interfaces/interface/state/admin-status",
-			"/lacp/interfaces/interface/members/member/state/interface",
 			"/interfaces/interface/state/oper-status",
+		}
+		if !deviations.LACPInterfaceMemberStateInterfaceUnsupported(dut) {
+			expectedUpdatePaths = append(expectedUpdatePaths, "/lacp/interfaces/interface/members/member/state/interface")
 		}
 		verifyNotificationPaths(t, receivedNotifications, expectedUpdatePaths)
 	})

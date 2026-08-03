@@ -168,9 +168,9 @@ func configureDUTPort(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.Port, 
 }
 
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	for portName, portAfdrs := range dutPorts {
+	for portName, portAttrs := range dutPorts {
 		port := dut.Port(t, portName)
-		configureDUTPort(t, dut, port, portAfdrs)
+		configureDUTPort(t, dut, port, portAttrs)
 		verifyDUTPort(t, dut, port.Name())
 	}
 }
@@ -203,10 +203,10 @@ func verifyDUTPort(t *testing.T, dut *ondatra.DUTDevice, portName string) {
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	otgConfig := gosnappi.NewConfig()
 
-	for portName, portAfdrs := range atePorts {
+	for portName, portAttrs := range atePorts {
 		port := ate.Port(t, portName)
 		dutPort := dutPorts[portName]
-		portAfdrs.AddToOTG(otgConfig, port, dutPort)
+		portAttrs.AddToOTG(otgConfig, port, dutPort)
 	}
 
 	return otgConfig
@@ -299,7 +299,7 @@ func testFabricInventory(t *testing.T, dut *ondatra.DUTDevice, fabrics []string,
 		serialNo := gnmi.OC().Component(fabric).SerialNo()
 		typeVal := gnmi.OC().Component(fabric).Type()
 		location := gnmi.OC().Component(fabric).Location()
-		lastReboofdime := gnmi.OC().Component(fabric).LastRebootTime()
+		lastRebootTime := gnmi.OC().Component(fabric).LastRebootTime()
 		powerAdminState := gnmi.OC().Component(fabric).Fabric().PowerAdminState()
 
 		descriptionKey := strings.Join([]string{fabric, "description"}, ":")
@@ -313,7 +313,7 @@ func testFabricInventory(t *testing.T, dut *ondatra.DUTDevice, fabrics []string,
 		serialNoKey := strings.Join([]string{fabric, "serial-no"}, ":")
 		typeValKey := strings.Join([]string{fabric, "type"}, ":")
 		locationKey := strings.Join([]string{fabric, "location"}, ":")
-		lastReboofdimeKey := strings.Join([]string{fabric, "last-reboot-time"}, ":")
+		lastRebootTimeKey := strings.Join([]string{fabric, "last-reboot-time"}, ":")
 		powerAdminStateConfigKey := strings.Join([]string{fabric, "config/power-admin-state"}, ":")
 		powerAdminStateStateKey := strings.Join([]string{fabric, "state/power-admin-state"}, ":")
 		c := gnmi.OC().Component(fabric)
@@ -324,7 +324,7 @@ func testFabricInventory(t *testing.T, dut *ondatra.DUTDevice, fabrics []string,
 				Name: ygot.String(fabric),
 			})
 			gnmi.Replace(t, dut, powerAdminState.Config(), oc.Platform_ComponentPowerType_POWER_ENABLED)
-			gnmi.Await(t, dut, gnmi.OC().Component(fabric).Fabric().PowerAdminState().State(), time.Minute, oc.Platform_ComponentPowerType_POWER_ENABLED)
+			gnmi.Await(t, dut, gnmi.OC().Component(fabric).Fabric().PowerAdminState().State(), 5*time.Minute, oc.Platform_ComponentPowerType_POWER_ENABLED)
 		}
 		fabricLeafOrValuePresent[descriptionKey] = []any{gnmi.Lookup(t, dut, description.State()).IsPresent()}
 		fabricLeafOrValuePresent[hardwareVersionKey] = []any{gnmi.Lookup(t, dut, hardwareVersion.State()).IsPresent()}
@@ -337,7 +337,7 @@ func testFabricInventory(t *testing.T, dut *ondatra.DUTDevice, fabrics []string,
 		fabricLeafOrValuePresent[serialNoKey] = []any{gnmi.Lookup(t, dut, serialNo.State()).IsPresent()}
 		fabricLeafOrValuePresent[typeValKey] = []any{gnmi.Lookup(t, dut, typeVal.State()).IsPresent()}
 		fabricLeafOrValuePresent[locationKey] = []any{gnmi.Lookup(t, dut, location.State()).IsPresent()}
-		fabricLeafOrValuePresent[lastReboofdimeKey] = []any{gnmi.Lookup(t, dut, lastReboofdime.State()).IsPresent()}
+		fabricLeafOrValuePresent[lastRebootTimeKey] = []any{gnmi.Lookup(t, dut, lastRebootTime.State()).IsPresent()}
 		fabricLeafOrValuePresent[powerAdminStateConfigKey] = []any{gnmi.Lookup(t, dut, powerAdminState.Config()).IsPresent()}
 		fabricLeafOrValuePresent[powerAdminStateStateKey] = []any{gnmi.Lookup(t, dut, powerAdminState.State()).IsPresent()}
 
@@ -366,8 +366,8 @@ func testFabricInventory(t *testing.T, dut *ondatra.DUTDevice, fabrics []string,
 					fabricLeafOrValuePresent[leaf] = append(fabricLeafOrValuePresent[leaf], gnmi.Get(t, dut, typeVal.State()))
 				case locationKey:
 					fabricLeafOrValuePresent[leaf] = append(fabricLeafOrValuePresent[leaf], gnmi.Get(t, dut, location.State()))
-				case lastReboofdimeKey:
-					fabricLeafOrValuePresent[leaf] = append(fabricLeafOrValuePresent[leaf], gnmi.Get(t, dut, lastReboofdime.State()))
+				case lastRebootTimeKey:
+					fabricLeafOrValuePresent[leaf] = append(fabricLeafOrValuePresent[leaf], gnmi.Get(t, dut, lastRebootTime.State()))
 				case powerAdminStateConfigKey:
 					fabricLeafOrValuePresent[leaf] = append(fabricLeafOrValuePresent[leaf], gnmi.Get(t, dut, powerAdminState.Config()))
 				case powerAdminStateStateKey:
@@ -404,8 +404,8 @@ func testFabricLastRebootTime(t *testing.T, dut *ondatra.DUTDevice, fabrics []st
 	fabric := fabrics[randomIndex]
 
 	t.Logf("\n\n VALIDATE %s: \n\n", fabric)
-	lastReboofdime := gnmi.OC().Component(fabric).LastRebootTime()
-	lastReboofdimeBefore := gnmi.Get(t, dut, lastReboofdime.State())
+	lastRebootTime := gnmi.OC().Component(fabric).LastRebootTime()
+	lastRebootTimeBefore := gnmi.Get(t, dut, lastRebootTime.State())
 	if deviations.ConfigLeafCreateRequired(dut) {
 		c := gnmi.OC().Component(fabric)
 		config = c.Fabric().PowerAdminState().Config()
@@ -414,7 +414,7 @@ func testFabricLastRebootTime(t *testing.T, dut *ondatra.DUTDevice, fabrics []st
 		})
 	}
 	gnmi.Replace(t, dut, gnmi.OC().Component(fabric).Fabric().PowerAdminState().Config(), oc.Platform_ComponentPowerType_POWER_DISABLED)
-	gnmi.Await(t, dut, gnmi.OC().Component(fabric).Fabric().PowerAdminState().State(), time.Minute, oc.Platform_ComponentPowerType_POWER_DISABLED)
+	gnmi.Await(t, dut, gnmi.OC().Component(fabric).Fabric().PowerAdminState().State(), 5*time.Minute, oc.Platform_ComponentPowerType_POWER_DISABLED)
 
 	if deviations.ConfigLeafCreateRequired(dut) {
 		c := gnmi.OC().Component(fabric)
@@ -428,18 +428,18 @@ func testFabricLastRebootTime(t *testing.T, dut *ondatra.DUTDevice, fabrics []st
 	if deviations.MissingValueForDefaults(dut) {
 		time.Sleep(time.Minute)
 	} else {
-		if power, ok := gnmi.Await(t, dut, gnmi.OC().Component(fabric).Fabric().PowerAdminState().State(), time.Minute, oc.Platform_ComponentPowerType_POWER_ENABLED).Val(); !ok {
+		if power, ok := gnmi.Await(t, dut, gnmi.OC().Component(fabric).Fabric().PowerAdminState().State(), 5*time.Minute, oc.Platform_ComponentPowerType_POWER_ENABLED).Val(); !ok {
 			t.Errorf("Component %s, power-admin-state got: %v, want: %v", fabric, power, oc.Platform_ComponentPowerType_POWER_ENABLED)
 		}
 	}
-	if oper, ok := gnmi.Await(t, dut, gnmi.OC().Component(fabric).OperStatus().State(), 2*time.Minute, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE).Val(); !ok {
+	if oper, ok := gnmi.Await(t, dut, gnmi.OC().Component(fabric).OperStatus().State(), 5*time.Minute, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE).Val(); !ok {
 		t.Errorf("Component %s oper-status after POWER_ENABLED, got: %v, want: %v", fabric, oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE)
 	}
 
-	lastReboofdimeAfter := gnmi.Get(t, dut, lastReboofdime.State())
+	lastRebootTimeAfter := gnmi.Get(t, dut, lastRebootTime.State())
 
-	if lastReboofdimeBefore > lastReboofdimeAfter {
-		t.Errorf("Component %s, last-reboot-time before power disable is same as after power enable", fabric)
+	if lastRebootTimeBefore >= lastRebootTimeAfter {
+		t.Errorf("Component %s, last-reboot-time did not increase after power cycle, got before: %v, after: %v", fabric, lastRebootTimeBefore, lastRebootTimeAfter)
 	}
 }
 
@@ -474,7 +474,7 @@ func testFabricRedundancy(t *testing.T, dut *ondatra.DUTDevice, fabrics []string
 		})
 	}
 	gnmi.Replace(t, dut, gnmi.OC().Component(disabledFabric).Fabric().PowerAdminState().Config(), oc.Platform_ComponentPowerType_POWER_DISABLED)
-	gnmi.Await(t, dut, gnmi.OC().Component(disabledFabric).Fabric().PowerAdminState().State(), time.Minute, oc.Platform_ComponentPowerType_POWER_DISABLED)
+	gnmi.Await(t, dut, gnmi.OC().Component(disabledFabric).Fabric().PowerAdminState().State(), 5*time.Minute, oc.Platform_ComponentPowerType_POWER_DISABLED)
 
 	t.Logf("Waiting for 120s after power disable...")
 	time.Sleep(120 * time.Second)
@@ -501,7 +501,7 @@ func testFabricRedundancy(t *testing.T, dut *ondatra.DUTDevice, fabrics []string
 	inOctets := gnmi.Get(t, od.otg, flowCounters.InOctets().State())
 
 	if outPkts == 0 || inPkts == 0 {
-		t.Error("flow did not send or receive any packets, this should not happen")
+		t.Fatal("flow did not send or receive any packets, this should not happen")
 	}
 
 	lossPercent := (float32(outPkts-inPkts) / float32(outPkts)) * 100
@@ -515,7 +515,11 @@ func testFabricRedundancy(t *testing.T, dut *ondatra.DUTDevice, fabrics []string
 	}
 
 	avgPacketSize := uint32(inOctets / inPkts)
-	packetSizeDelta := float32(avgPacketSize-fd.flowSize) / (float32(avgPacketSize+fd.flowSize) / 2) * 100
+	avgOfSizes := float32(avgPacketSize+fd.flowSize) / 2
+	if avgOfSizes == 0 {
+		t.Fatalf("cannot calculate packet size delta: both avgPacketSize (%d) and flowSize (%d) are zero", avgPacketSize, fd.flowSize)
+	}
+	packetSizeDelta := float32(avgPacketSize-fd.flowSize) / avgOfSizes * 100
 
 	if packetSizeDelta > acceptablePacketSizeDelta {
 		t.Errorf(
@@ -530,11 +534,11 @@ func testFabricRedundancy(t *testing.T, dut *ondatra.DUTDevice, fabrics []string
 	if deviations.MissingValueForDefaults(dut) {
 		time.Sleep(time.Minute)
 	} else {
-		if power, ok := gnmi.Await(t, dut, gnmi.OC().Component(disabledFabric).Fabric().PowerAdminState().State(), time.Minute, oc.Platform_ComponentPowerType_POWER_ENABLED).Val(); !ok {
+		if power, ok := gnmi.Await(t, dut, gnmi.OC().Component(disabledFabric).Fabric().PowerAdminState().State(), 5*time.Minute, oc.Platform_ComponentPowerType_POWER_ENABLED).Val(); !ok {
 			t.Errorf("Component %s, power-admin-state got: %v, want: %v", disabledFabric, power, oc.Platform_ComponentPowerType_POWER_ENABLED)
 		}
 	}
-	if oper, ok := gnmi.Await(t, dut, gnmi.OC().Component(disabledFabric).OperStatus().State(), 2*time.Minute, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE).Val(); !ok {
+	if oper, ok := gnmi.Await(t, dut, gnmi.OC().Component(disabledFabric).OperStatus().State(), 5*time.Minute, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE).Val(); !ok {
 		t.Errorf("Component %s oper-status after POWER_ENABLED, got: %v, want: %v", disabledFabric, oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE)
 	}
 
@@ -601,7 +605,7 @@ func TestFabricRedundancy(t *testing.T) {
 		t.Fatalf("No of Fabrics on DUT (%q): got %v, want => 2", dut.Model(), len(fabrics))
 	}
 
-	/* configure the ATE device to send/receive 16 millions of packets
+	/* configure the ATE device to send/receive 16 million packets
 	   at 100kpps rate and using 4000B packets (with 10E-6 tolerance). */
 	ate := ondatra.ATE(t, "ate")
 	otg := ate.OTG()

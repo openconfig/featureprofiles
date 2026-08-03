@@ -111,10 +111,17 @@ func TestTunnelEncapsulationByGREOverIPv4WithLoadBalance(t *testing.T) {
 	initialTunnelOutPkts := make([]uint64, tunnelCount)
 	tunnelLoadblanceDiff := tunnelCount * 3
 	interfaceLoadblanceDiff := tolerance
-	config := &oc.Root{}
-	dutIntf1.ConfigOCInterface(config.GetOrCreateInterface(dutPort1.Name()), dut)
-	dutIntf2.ConfigOCInterface(config.GetOrCreateInterface(dutPort2.Name()), dut)
-	dutIntf3.ConfigOCInterface(config.GetOrCreateInterface(dutPort3.Name()), dut)
+
+	batch := &gnmi.SetBatch{}
+	dutPorts := []*ondatra.Port{dutPort1, dutPort2, dutPort3}
+	dutIntfs := []*attrs.Attributes{&dutIntf1, &dutIntf2, &dutIntf3}
+	for i, port := range dutPorts {
+		intf := dutIntfs[i]
+		ocIntf := intf.NewOCInterface(port.Name(), dut)
+		t.Logf("Configure DUT Interface %s with attributes IP address %s MAC address %s", port.Name(), intf.IPv4, intf.MAC)
+		gnmi.BatchReplace(batch, gnmi.OC().Interface(port.Name()).Config(), ocIntf)
+	}
+	batch.Set(t, dut)
 
 	step := 0
 	var overlayIPv4Nh []string
