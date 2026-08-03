@@ -22,7 +22,7 @@ platform_exceptions:  {
 platform_exceptions:  {
   platform:  {
     vendor:  JUNIPER
-    hardware_model_regex: "PTX10008|PTX10001-36MR-K|PTX10001-36MR"
+    hardware_model_regex: "PTX10008|PTX10001-36MR-K|PTX10001-36MR|PTX10016"
   }
   deviations:  {
     isis_level_enabled:  true
