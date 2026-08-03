@@ -15,6 +15,7 @@
 package bgp_prefix_limit_test
 
 import (
+	"fmt"
 	"slices"
 	"testing"
 	"time"
