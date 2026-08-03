@@ -12,6 +12,7 @@ platform_exceptions: {
   }
   deviations: {
     containerz_oc_unsupported: true
+    default_network_instance: "default"
   }
 }
 
