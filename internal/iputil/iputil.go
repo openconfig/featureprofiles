@@ -304,8 +304,7 @@ func GenerateIPv6(startIP string, count uint64) ([]string, error) {
 		nextInt.Add(nextInt, hostOffset)
 		nextInt.Mod(nextInt, pmax)
 		ipv6 := nextInt.FillBytes(make([]byte, 16))
-		p, _ := netip.ParsePrefix(fmt.Sprintf("%v/%d", net.IP(ipv6), maskSize))
-		entries = append(entries, p.Addr().String())
+		entries = append(entries, net.IP(ipv6).String())
 	}
 	return entries, nil
 }

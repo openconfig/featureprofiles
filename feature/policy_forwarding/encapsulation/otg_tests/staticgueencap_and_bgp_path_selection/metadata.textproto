@@ -22,5 +22,6 @@ platform_exceptions: {
     qos_classification_unsupported: true
     static_route_to_nhg_oc_unsupported: true
     gue_gre_decap_unsupported: true
+    nexthop_group_pseudowire_counters_oc_unsupported: true
   }
 }

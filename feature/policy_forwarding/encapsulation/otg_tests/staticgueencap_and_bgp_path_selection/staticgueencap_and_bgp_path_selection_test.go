@@ -2,6 +2,7 @@ package staticgueencapbgppathselection_test
 
 import (
 	"fmt"
+	"net"
 	"regexp"
 	"testing"
 	"time"
@@ -16,6 +17,7 @@ import (
 	otgvalidationhelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_validation_helpers"
 	"github.com/openconfig/featureprofiles/internal/otg_helpers/packetvalidationhelpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -217,6 +219,9 @@ var (
 	ate2InternalPrefixesV4List    = iputil.GenerateIPs(ate2InternalPrefixesV4+"/24", int(ate2InternalPrefixCount))
 	ate2InternalPrefixesV6List, _ = iputil.GenerateIPv6(ate2InternalPrefixesV6+"/64", uint64(ate2InternalPrefixCount))
 
+	// $ATE2_C.IBGP.v6 - IBGP router address of ATE2_C (the "-v6ate_C_IBGP" neighbor).
+	ate2CIBGPv6 = "2001:db8:1::6"
+
 	// ATE2 Port3 bgp prefixes
 	bgpInternalTE11 = &attrs.Attributes{
 		Name:    "ate2InternalTE11",
@@ -361,6 +366,7 @@ var flowGroups = make(map[string]flowGroupData)
 
 // configureDUT configures interfaces, BGP, IS-IS, and static tunnel routes on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.Port, portAttr *attrs.Attributes) {
+	t.Helper()
 	d := gnmi.OC()
 	gnmi.Update(t, dut, d.Interface(port.Name()).Config(), configInterfaceDUT(t, port, new(oc.Root), portAttr, dut))
 
@@ -459,6 +465,7 @@ func configInterfaceDUT(t *testing.T, p *ondatra.Port, d *oc.Root, a *attrs.Attr
 }
 
 func configureLoopback(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
 	// Configure interface loopback
 	loopbackIntfName = netutil.LoopbackInterface(t, dut, 0)
 	lo0 := gnmi.OC().Interface(loopbackIntfName).Subinterface(0)
@@ -483,6 +490,7 @@ func configureLoopback(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func configureISIS(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
 	isisConf := []*isisConfig{
 		{port: dut.Port(t, otgBGPConfig[0].port).Name(), level: oc.Isis_LevelType_LEVEL_2},
 		{port: dut.Port(t, otgBGPConfig[1].port).Name(), level: oc.Isis_LevelType_LEVEL_2},
@@ -536,6 +544,7 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func bgpCreateNbr(t *testing.T, localAs uint32, dut *ondatra.DUTDevice, nbrs []*bgpNbr) {
+	t.Helper()
 	localAddressLeaf := ""
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	dutOcRoot := &oc.Root{}
@@ -824,29 +833,19 @@ func validatePrefixes(t *testing.T, dut *ondatra.DUTDevice, neighborIP string, i
 
 	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	query := bgpPath.Neighbor(neighborIP).AfiSafi(afiSafi).Prefixes().Received().State()
-	_, ok := gnmi.Watch(t, dut, query, 30*time.Second, func(val *ygnmi.Value[uint32]) bool {
-		if v, ok := val.Val(); ok {
-			if v != uint32(PfxRcd) {
-				t.Errorf("received prefixes - got: %v, want: %v", v, PfxRcd)
-			}
-		}
-		return true
-	}).Await(t)
-	if !ok {
-		t.Errorf("no received prefixes found")
+	if _, ok := gnmi.Watch(t, dut, query, 30*time.Second, func(val *ygnmi.Value[uint32]) bool {
+		v, present := val.Val()
+		return present && v == PfxRcd
+	}).Await(t); !ok {
+		t.Errorf("Prefixes received error: timeout waiting for %d prefixes on neighbor %s", PfxRcd, neighborIP)
 	}
 
 	sentQuery := bgpPath.Neighbor(neighborIP).AfiSafi(afiSafi).Prefixes().Sent().State()
-	_, ok = gnmi.Watch(t, dut, sentQuery, 30*time.Second, func(val *ygnmi.Value[uint32]) bool {
-		if v, ok := val.Val(); ok {
-			if v != uint32(PfxSent) {
-				t.Errorf("sent prefixes - got: %v, want: %v", v, PfxSent)
-			}
-		}
-		return true
-	}).Await(t)
-	if !ok {
-		t.Errorf("no sent prefixes found")
+	if _, ok := gnmi.Watch(t, dut, sentQuery, 30*time.Second, func(val *ygnmi.Value[uint32]) bool {
+		v, present := val.Val()
+		return present && v == PfxSent
+	}).Await(t); !ok {
+		t.Errorf("Prefixes sent error: timeout waiting for %d prefixes on neighbor %s", PfxSent, neighborIP)
 	}
 
 }
@@ -854,11 +853,11 @@ func validatePrefixes(t *testing.T, dut *ondatra.DUTDevice, neighborIP string, i
 func validateOutCounters(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG) {
 	var totalTxFromATE uint64
 
-	flows := otg.FetchConfig(t).Flows().Items()
-	for _, flow := range flows {
-		txPkts := gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
-
-		totalTxFromATE += txPkts
+	flows := gnmi.GetAll(t, otg, gnmi.OTG().FlowAny().State())
+	for _, fs := range flows {
+		if fs.Counters != nil && fs.Counters.OutPkts != nil {
+			totalTxFromATE += fs.GetCounters().GetOutPkts()
+		}
 	}
 
 	dutOutCounters := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, otgBGPConfig[2].port).Name()).Counters().State()).GetOutUnicastPkts()
@@ -918,7 +917,65 @@ func configureGueEncap(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
+// removeStaticRoutes deletes the static routes configured by configureStaticRoute,
+// restoring the DUT to its original state.
+func removeStaticRoutes(t *testing.T, dut *ondatra.DUTDevice) {
+	for _, r := range []struct {
+		prefix           string
+		nexthopGroupName string
+	}{
+		{ate2ppnh1Prefix, nexthopGroupName2},
+		{ate2ppnh2Prefix, nexthopGroupName1},
+	} {
+		if deviations.StaticRouteToNHGOCUnsupported(dut) {
+			cfg := &cfgplugins.StaticRouteCfg{
+				NetworkInstance:   deviations.DefaultNetworkInstance(dut),
+				Prefix:            r.prefix,
+				NexthopGroup:      true,
+				NexthopGroupName:  r.nexthopGroupName,
+				T:                 t,
+				RemoveStaticRoute: true,
+			}
+			if _, err := cfgplugins.NewStaticRouteCfg(&gnmi.SetBatch{}, cfg, dut); err != nil {
+				t.Errorf("Failed to remove static route %s: %v", r.prefix, err)
+			}
+		} else {
+			sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Static(r.prefix)
+			gnmi.Delete(t, dut, sp.Config())
+		}
+	}
+}
+
+// removeGueEncap deletes the GUE encap policy-forwarding binding and nexthop
+// groups configured by configureGueEncap, restoring the DUT to its original state.
+func removeGueEncap(t *testing.T, dut *ondatra.DUTDevice) {
+	if deviations.NextHopGroupOCUnsupported(dut) {
+		cfgplugins.InterfacePolicyForwardingApply(t, dut, cfgplugins.OcPolicyForwardingParams{
+			InterfaceName:    dut.Port(t, "port1").Name(),
+			PolicyName:       guePolicyName,
+			RemovePolicyName: true,
+		})
+	}
+	for _, nhg := range []string{nexthopGroupName1, nexthopGroupName2} {
+		cfgplugins.RemoveNextHopGroupConfigForIpOverUdp(t, dut, cfgplugins.NexthopGroupUDPParams{
+			IPFamily:       "V6Udp",
+			NexthopGrpName: nhg,
+		})
+	}
+}
+
+// removeDecapGroups deletes the GUE decap groups configured in TestStaticGue,
+// restoring the DUT to its original state.
+func removeDecapGroups(t *testing.T, dut *ondatra.DUTDevice) {
+	for _, name := range []string{decapPolicy1, decapPolicy2} {
+		cfgplugins.RemoveDecapGroupGue(t, dut, cfgplugins.OcPolicyForwardingParams{
+			AppliedPolicyName: name,
+		})
+	}
+}
+
 func sendTrafficCapture(t *testing.T, ate *ondatra.ATEDevice, flowNames []string) {
+	t.Helper()
 	cs := gosnappi.NewControlState()
 	if flowNames[0] == "all" {
 		ate.OTG().StartTraffic(t)
@@ -936,11 +993,13 @@ func sendTrafficCapture(t *testing.T, ate *ondatra.ATEDevice, flowNames []string
 }
 
 func validatePacket(t *testing.T, ate *ondatra.ATEDevice, validationPacket *packetvalidationhelpers.PacketValidation) error {
+	t.Helper()
 	err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, validationPacket)
 	return err
 }
 
 func validateAFTCounters(t *testing.T, dut *ondatra.DUTDevice, isV4 bool, routeIp string) {
+	t.Helper()
 	t.Logf("Validate AFT parameters for %s", routeIp)
 	if isV4 {
 		ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv4Entry(routeIp)
@@ -961,63 +1020,194 @@ func validateAFTCounters(t *testing.T, dut *ondatra.DUTDevice, isV4 bool, routeI
 	}
 }
 
-func testTrafficMigration(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config, flowNames map[string][]string, dscpVal string) {
+func networkPrefix(hostIP string, prefixLen int) string {
+	_, ipNet, err := net.ParseCIDR(fmt.Sprintf("%s/%d", hostIP, prefixLen))
+	if err != nil {
+		return fmt.Sprintf("%s/%d", hostIP, prefixLen)
+	}
+	return ipNet.String()
+}
+
+func verifyAFTEntry(t *testing.T, dut *ondatra.DUTDevice, isV4 bool, prefix string, wantOrigin oc.E_PolicyTypes_INSTALL_PROTOCOL_TYPE, checkCounter ...bool) {
+	t.Helper()
+	t.Logf("Validate AFT entry for %s", prefix)
+	afts := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts()
+
+	shouldCheckCounters := true
+	if len(checkCounter) > 0 {
+		shouldCheckCounters = checkCounter[0]
+	}
+
+	var gotPrefix string
+	var gotNHG uint64
+	var gotOrigin oc.E_PolicyTypes_INSTALL_PROTOCOL_TYPE
+	var gotPkts uint64
+	var gotOctets uint64
+	var haveCounter bool
+
+	entryType := "ipv4-entry"
+	if isV4 {
+		val, ok := gnmi.Watch(t, dut, afts.Ipv4Entry(prefix).State(), time.Minute, func(v *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+			e, present := v.Val()
+			return present && e.GetNextHopGroup() != 0
+		}).Await(t)
+		if !ok {
+			t.Errorf("AFT ipv4-entry %s not installed with a next-hop-group", prefix)
+			return
+		}
+		e, _ := val.Val()
+		gotPrefix, gotNHG, gotOrigin = e.GetPrefix(), e.GetNextHopGroup(), e.GetOriginProtocol()
+		if c := e.GetCounters(); c != nil && c.PacketsForwarded != nil {
+			gotPkts, haveCounter = c.GetPacketsForwarded(), true
+			gotOctets = c.GetOctetsForwarded()
+		}
+	} else {
+		entryType = "ipv6-entry"
+		val, ok := gnmi.Watch(t, dut, afts.Ipv6Entry(prefix).State(), time.Minute, func(v *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
+			e, present := v.Val()
+			return present && e.GetNextHopGroup() != 0
+		}).Await(t)
+		if !ok {
+			t.Errorf("AFT ipv6-entry %s not installed with a next-hop-group", prefix)
+			return
+		}
+		e, _ := val.Val()
+		gotPrefix, gotNHG, gotOrigin = e.GetPrefix(), e.GetNextHopGroup(), e.GetOriginProtocol()
+		if c := e.GetCounters(); c != nil && c.PacketsForwarded != nil {
+			gotPkts, haveCounter = c.GetPacketsForwarded(), true
+			gotOctets = c.GetOctetsForwarded()
+		}
+	}
+
+	if gotPrefix != prefix {
+		t.Errorf("%s/state/prefix = %q, want %q", entryType, gotPrefix, prefix)
+	}
+	if gotNHG == 0 {
+		t.Errorf("%s %s next-hop-group is not present", entryType, prefix)
+	}
+	if gotOrigin != wantOrigin {
+		t.Errorf("%s %s origin-protocol = %v, want %v", entryType, prefix, gotOrigin, wantOrigin)
+	}
+
+	if shouldCheckCounters {
+		if deviations.NexthopGroupPseudowireCountersOcUnsupported(dut) {
+			if got := nextHopGroupPacketCounters(t, dut); got == 0 {
+				t.Errorf("%s %s: next-hop-group packets-forwarded = 0, want > 0", entryType, prefix)
+			} else {
+				t.Logf("%s %s: next-hop-group packets-forwarded=%d", entryType, prefix, got)
+			}
+		} else {
+			if !haveCounter || gotPkts == 0 {
+				t.Errorf("%s %s counters/packets-forwarded = 0, want > 0", entryType, prefix)
+			}
+			if gotOctets == 0 {
+				t.Errorf("%s %s counters/octets-forwarded = 0, want > 0", entryType, prefix)
+			} else {
+				t.Logf("%s %s: packets-forwarded=%d octets-forwarded=%d", entryType, prefix, gotPkts, gotOctets)
+			}
+		}
+	} else {
+		if deviations.NexthopGroupPseudowireCountersOcUnsupported(dut) {
+			if got := nextHopGroupPacketCounters(t, dut); got > 0 {
+				t.Logf("%s %s: next-hop-group packets-forwarded=%d", entryType, prefix, got)
+			}
+		} else if haveCounter {
+			t.Logf("%s %s: packets-forwarded=%d octets-forwarded=%d", entryType, prefix, gotPkts, gotOctets)
+		}
+	}
+}
+
+func nextHopGroupPacketCounters(t *testing.T, dut *ondatra.DUTDevice) uint64 {
+	t.Helper()
+	var pkts uint64
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		response := cfgplugins.GetNextHopGroupCounters(t, dut)
+		for _, notif := range response.Notification {
+			for _, update := range notif.Update {
+				if len(update.Path.Elem) > 0 && update.Path.Elem[len(update.Path.Elem)-1].Name == "pkts" {
+					if v, ok := update.Val.Value.(*gnmipb.TypedValue_UintVal); ok {
+						pkts += v.UintVal
+					}
+				}
+			}
+		}
+	default:
+		t.Fatalf("Unsupported vendor for next-hop-group counters: %v", dut.Vendor())
+	}
+	return pkts
+}
+
+func testTrafficMigration(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, flowNames map[string][]string, dscpVal string) {
 	t.Logf("Validating flow migrated to %s", dscpVal)
+
 	sendTrafficCapture(t, ate, flowNames["v4"])
+	validateGUEEncapsulation(t, ate, dscpVal, "v4")
+	validateGUEDecapsulation(t, ate, dscpVal, "v4")
 
-	// Validating GUEv6 encapsulation and decapsulation for v4 traffic
-	t.Log("Validate GUE encapsulation with ipv4 traffic")
-	gueLayer := *outerGUEIPLayerIPv6
-	gueLayer.TrafficClass = uint8(expectedDscpValue[dscpVal])
-
-	gueInnerLayer := *innerGUEIPLayerIPv4
-	gueInnerLayer.Tos = uint8(expectedDscpValue[dscpVal])
-
-	encapValidation.IPv6Layer = &gueLayer
-	encapValidation.InnerIPLayerIPv4 = &gueInnerLayer
-
-	if err := validatePacket(t, ate, encapValidation); err != nil {
-		t.Errorf("capture and validatePackets failed (): %q", err)
-	} else {
-		t.Log("GUE encapsulated packets are received")
-	}
-
-	t.Log("Validate GUE Decapsulation with v4 traffic")
-	decapInner := *innerGUEIPLayerIPv4
-	decapInner.SkipProtocolCheck = true
-	decapInner.Tos = uint8(expectedDscpValue[dscpVal])
-	decapValidation.IPv4Layer = &decapInner
-
-	if err := validatePacket(t, ate, decapValidation); err != nil {
-		t.Errorf("capture and validatePackets failed (): %q", err)
-	} else {
-		t.Log("GUE decapsulated packets are received")
-	}
-
-	t.Log("Validate GUE encapsulation with ipv6 traffic")
 	sendTrafficCapture(t, ate, flowNames["v6"])
-
-	encapValidationv6.IPv6Layer.TrafficClass = uint8(dscpValue[dscpVal])
-	if err := validatePacket(t, ate, encapValidationv6); err != nil {
-		t.Errorf("capture and validatePackets failed (): %q", err)
-	}
-
-	t.Log("Validate GUE Decapsulation with v6 traffic")
-	decapInnerv6 := *innerGUEIPLayerIPv6
-	decapInnerv6.NextHeader = 0
-	decapInnerv6.TrafficClass = uint8(dscpValue[dscpVal])
-	decapValidationv6.IPv6Layer = &decapInnerv6
-	if err := validatePacket(t, ate, decapValidationv6); err != nil {
-		t.Errorf("capture and validatePackets failed: %q", err)
-	} else {
-		t.Log("GUE decapsulated packets are received")
-	}
+	validateGUEEncapsulation(t, ate, dscpVal, "v6")
+	validateGUEDecapsulation(t, ate, dscpVal, "v6")
 
 	// Validate the counters received on ATE and DUT are same
 	validateOutCounters(t, dut, ate.OTG())
 }
 
-func testDecapTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
+func validateGUEEncapsulation(t *testing.T, ate *ondatra.ATEDevice, dscpVal string, ipType string) {
+	// Validating GUEv6 encapsulation and decapsulation for v4 traffic
+	if ipType == "v4" {
+		t.Log("Validate GUE encapsulation with ipv4 traffic")
+		gueLayer := *outerGUEIPLayerIPv6
+		gueLayer.TrafficClass = uint8(expectedDscpValue[dscpVal])
+
+		gueInnerLayer := *innerGUEIPLayerIPv4
+		gueInnerLayer.Tos = uint8(expectedDscpValue[dscpVal])
+
+		encapValidation.IPv6Layer = &gueLayer
+		encapValidation.InnerIPLayerIPv4 = &gueInnerLayer
+
+		if err := validatePacket(t, ate, encapValidation); err != nil {
+			t.Errorf("capture and validatePackets failed (): %q", err)
+		} else {
+			t.Log("GUE encapsulated packets are received")
+		}
+	} else {
+		t.Log("Validate GUE encapsulation with ipv6 traffic")
+		encapValidationv6.IPv6Layer.TrafficClass = uint8(dscpValue[dscpVal])
+		if err := validatePacket(t, ate, encapValidationv6); err != nil {
+			t.Errorf("capture and validatePackets failed (): %q", err)
+		}
+	}
+}
+
+func validateGUEDecapsulation(t *testing.T, ate *ondatra.ATEDevice, dscpVal string, ipType string) {
+	if ipType == "v4" {
+		t.Log("Validate GUE Decapsulation with v4 traffic")
+		decapInner := *innerGUEIPLayerIPv4
+		decapInner.SkipProtocolCheck = true
+		decapInner.Tos = uint8(expectedDscpValue[dscpVal])
+		decapValidation.IPv4Layer = &decapInner
+
+		if err := validatePacket(t, ate, decapValidation); err != nil {
+			t.Errorf("capture and validatePackets failed (): %q", err)
+		} else {
+			t.Log("GUE decapsulated packets are received")
+		}
+	} else {
+		t.Log("Validate GUE Decapsulation with v6 traffic")
+		decapInnerv6 := *innerGUEIPLayerIPv6
+		decapInnerv6.NextHeader = 0
+		decapInnerv6.TrafficClass = uint8(dscpValue[dscpVal])
+		decapValidationv6.IPv6Layer = &decapInnerv6
+		if err := validatePacket(t, ate, decapValidationv6); err != nil {
+			t.Errorf("capture and validatePackets failed: %q", err)
+		} else {
+			t.Log("GUE decapsulated packets are received")
+		}
+	}
+}
+
+func testDecapTraffic(t *testing.T, ate *ondatra.ATEDevice) {
 	t.Log("Validate GUE Decapsulation with v4 traffic")
 
 	// Map of destination IP to expected shifted DSCP (TOS)
@@ -1064,11 +1254,453 @@ func testDecapTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 }
 
 func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
 	hardwareInitCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeaturePolicyForwarding)
 	if hardwareInitCfg == "" {
 		return
 	}
 	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareInitCfg)
+}
+
+func testBaselineTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
+	flowsets := []string{"flowSet1", "flowSet2", "flowSet5"}
+
+	otgConfig.Flows().Clear()
+
+	for _, flowset := range flowsets {
+		otgConfig.Flows().Append(flowGroups[flowset].Flows...)
+	}
+
+	ate.OTG().PushConfig(t, otgConfig)
+	ate.OTG().StartProtocols(t)
+
+	t.Logf("Verify OTG BGP sessions up")
+	cfgplugins.VerifyOTGBGPEstablished(t, ate)
+
+	t.Logf("Verify DUT BGP sessions up")
+	cfgplugins.VerifyDUTBGPEstablished(t, dut)
+
+	// Validating no prefixes are exchanged over the IBGP peering between $ATE2_C.IBGP.v6 and $DUT_lo0.v6
+	validatePrefixes(t, dut, otgBGPConfig[1].otgPortData[1].IPv6, false, 0, 0)
+
+	sendTrafficCapture(t, ate, []string{"all"})
+
+	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
+	otgutils.LogPortMetrics(t, ate.OTG(), otgConfig)
+
+	for _, flows := range flowsets {
+		for _, flow := range flowGroups[flows].Flows {
+			verifyTrafficFlow(t, ate, flow.Name())
+		}
+	}
+}
+
+func testBE1TrafficMigration(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
+	advertiseRoutesWithiBGP([]string{ate2InternalPrefixesV4List[0]}, ate2ppnh1.IPv6, true, fmt.Sprintf("%s-CBGP-1", atePort2RoutesV4))
+	advertiseRoutesWithiBGP([]string{ate2InternalPrefixesV6List[0]}, ate2ppnh1.IPv6, false, fmt.Sprintf("%s-CBGP-1", atePort2RoutesV6))
+
+	flowsets := []string{"flowSet1", "flowSet5"}
+
+	flowNames := map[string][]string{
+		"v4": {},
+		"v6": {},
+	}
+
+	for _, flow := range flowsets {
+		flowNames["v4"] = append(flowNames["v4"], flowGroups[flow].Flows[0].Name())
+		flowNames["v6"] = append(flowNames["v6"], flowGroups[flow].Flows[1].Name())
+	}
+
+	ate.OTG().PushConfig(t, otgConfig)
+	ate.OTG().StartProtocols(t)
+
+	t.Logf("Verify OTG BGP sessions up")
+	cfgplugins.VerifyOTGBGPEstablished(t, ate)
+
+	t.Logf("Verify DUT BGP sessions up")
+	cfgplugins.VerifyDUTBGPEstablished(t, dut)
+
+	time.Sleep(10 * time.Second)
+	// Validating routes to prefixes learnt from $ATE2_C.IBGP.v6/128
+	validatePrefixes(t, dut, otgBGPConfig[1].otgPortData[1].IPv6, false, 1, 7)
+
+	sendTrafficCapture(t, ate, []string{"all"})
+
+	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
+	otgutils.LogPortMetrics(t, ate.OTG(), otgConfig)
+
+	verifyAFTEntry(t, dut, true, networkPrefix(ate2InternalPrefixesV4, 24), oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP)
+	verifyAFTEntry(t, dut, false, networkPrefix(ate2InternalPrefixesV6, 64), oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP)
+
+	testTrafficMigration(t, dut, ate, flowNames, "BE1")
+
+}
+
+func testAF1TrafficMigration(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
+	advertiseRoutesWithiBGP([]string{ate2InternalPrefixesV4List[1]}, ate2ppnh1.IPv6, true, fmt.Sprintf("%s-CBGP-2", atePort2RoutesV4))
+	advertiseRoutesWithiBGP([]string{ate2InternalPrefixesV6List[1]}, ate2ppnh1.IPv6, false, fmt.Sprintf("%s-CBGP-2", atePort2RoutesV6))
+	flowsets := []string{"flowSet1", "flowSet5"}
+	flowNames := map[string][]string{
+		"v4": {},
+		"v6": {},
+	}
+
+	for _, flow := range flowsets {
+		flowNames["v4"] = append(flowNames["v4"], flowGroups[flow].Flows[2].Name())
+		flowNames["v6"] = append(flowNames["v6"], flowGroups[flow].Flows[3].Name())
+	}
+
+	ate.OTG().PushConfig(t, otgConfig)
+	ate.OTG().StartProtocols(t)
+
+	t.Logf("Verify OTG BGP sessions up")
+	cfgplugins.VerifyOTGBGPEstablished(t, ate)
+
+	t.Logf("Verify DUT BGP sessions up")
+	cfgplugins.VerifyDUTBGPEstablished(t, dut)
+
+	time.Sleep(10 * time.Second)
+	// Validating routes to prefixes learnt from $ATE2_C.IBGP.v6/128
+	validatePrefixes(t, dut, otgBGPConfig[1].otgPortData[1].IPv6, false, 2, 7)
+
+	sendTrafficCapture(t, ate, []string{"all"})
+
+	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
+	otgutils.LogPortMetrics(t, ate.OTG(), otgConfig)
+
+	verifyAFTEntry(t, dut, true, networkPrefix(ate2InternalPrefixesV4, 24), oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP)
+	verifyAFTEntry(t, dut, false, networkPrefix(ate2InternalPrefixesV6, 64), oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP)
+
+	testTrafficMigration(t, dut, ate, flowNames, "AF1")
+}
+
+func testAF2TrafficMigration(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
+	advertiseRoutesWithiBGP([]string{ate2InternalPrefixesV4List[2]}, ate2ppnh1.IPv6, true, fmt.Sprintf("%s-CBGP-3", atePort2RoutesV4))
+	advertiseRoutesWithiBGP([]string{ate2InternalPrefixesV6List[2]}, ate2ppnh1.IPv6, false, fmt.Sprintf("%s-CBGP-3", atePort2RoutesV6))
+
+	flowNames := map[string][]string{
+		"v4": {},
+		"v6": {},
+	}
+
+	flowNames["v4"] = append(flowNames["v4"], flowGroups["flowSet1"].Flows[4].Name())
+	flowNames["v6"] = append(flowNames["v6"], flowGroups["flowSet1"].Flows[5].Name())
+
+	flowNames["v4"] = append(flowNames["v4"], flowGroups["flowSet5"].Flows[4].Name())
+	flowNames["v6"] = append(flowNames["v6"], flowGroups["flowSet5"].Flows[5].Name())
+
+	ate.OTG().PushConfig(t, otgConfig)
+	ate.OTG().StartProtocols(t)
+
+	t.Logf("Verify OTG BGP sessions up")
+	cfgplugins.VerifyOTGBGPEstablished(t, ate)
+
+	t.Logf("Verify DUT BGP sessions up")
+	cfgplugins.VerifyDUTBGPEstablished(t, dut)
+	time.Sleep(10 * time.Second)
+	// Validating routes to prefixes learnt from $ATE2_C.IBGP.v6/128
+	validatePrefixes(t, dut, otgBGPConfig[1].otgPortData[1].IPv6, false, 3, 7)
+
+	sendTrafficCapture(t, ate, []string{"all"})
+
+	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
+	otgutils.LogPortMetrics(t, ate.OTG(), otgConfig)
+
+	verifyAFTEntry(t, dut, true, networkPrefix(ate2InternalPrefixesV4, 24), oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP)
+	verifyAFTEntry(t, dut, false, networkPrefix(ate2InternalPrefixesV6, 64), oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP)
+
+	testTrafficMigration(t, dut, ate, flowNames, "AF2")
+}
+
+func testAF3TrafficMigration(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
+	advertiseRoutesWithiBGP([]string{ate2InternalPrefixesV4List[3]}, ate2ppnh2.IPv6, true, fmt.Sprintf("%s-CBGP-4", atePort2RoutesV4))
+	advertiseRoutesWithiBGP([]string{ate2InternalPrefixesV6List[3]}, ate2ppnh2.IPv6, false, fmt.Sprintf("%s-CBGP-4", atePort2RoutesV6))
+
+	flowNames := map[string][]string{
+		"v4": {},
+		"v6": {},
+	}
+
+	flowNames["v4"] = append(flowNames["v4"], flowGroups["flowSet2"].Flows[0].Name())
+	flowNames["v6"] = append(flowNames["v6"], flowGroups["flowSet2"].Flows[1].Name())
+
+	flowNames["v4"] = append(flowNames["v4"], flowGroups["flowSet5"].Flows[6].Name())
+	flowNames["v6"] = append(flowNames["v6"], flowGroups["flowSet5"].Flows[7].Name())
+
+	ate.OTG().PushConfig(t, otgConfig)
+	ate.OTG().StartProtocols(t)
+
+	t.Logf("Verify OTG BGP sessions up")
+	cfgplugins.VerifyOTGBGPEstablished(t, ate)
+
+	t.Logf("Verify DUT BGP sessions up")
+	cfgplugins.VerifyDUTBGPEstablished(t, dut)
+
+	time.Sleep(10 * time.Second)
+	// Validating routes to prefixes learnt from $ATE2_C.IBGP.v6/128
+	validatePrefixes(t, dut, otgBGPConfig[1].otgPortData[1].IPv6, false, 4, 7)
+
+	sendTrafficCapture(t, ate, []string{"all"})
+
+	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
+	otgutils.LogPortMetrics(t, ate.OTG(), otgConfig)
+
+	verifyAFTEntry(t, dut, true, networkPrefix(ate2InternalPrefixesV4, 24), oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP)
+	verifyAFTEntry(t, dut, false, networkPrefix(ate2InternalPrefixesV6, 64), oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP)
+
+	testTrafficMigration(t, dut, ate, flowNames, "AF3")
+}
+
+func testAF4TrafficMigration(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
+	advertiseRoutesWithiBGP([]string{ate2InternalPrefixesV4List[4]}, ate2ppnh2.IPv6, true, fmt.Sprintf("%s-CBGP-5", atePort2RoutesV4))
+	advertiseRoutesWithiBGP([]string{ate2InternalPrefixesV6List[4]}, ate2ppnh2.IPv6, false, fmt.Sprintf("%s-CBGP-5", atePort2RoutesV6))
+
+	flowNames := map[string][]string{
+		"v4": {},
+		"v6": {},
+	}
+
+	flowNames["v4"] = append(flowNames["v4"], flowGroups["flowSet2"].Flows[2].Name())
+	flowNames["v6"] = append(flowNames["v6"], flowGroups["flowSet2"].Flows[3].Name())
+
+	flowNames["v4"] = append(flowNames["v4"], flowGroups["flowSet5"].Flows[8].Name())
+	flowNames["v6"] = append(flowNames["v6"], flowGroups["flowSet5"].Flows[9].Name())
+
+	ate.OTG().PushConfig(t, otgConfig)
+	ate.OTG().StartProtocols(t)
+
+	t.Logf("Verify OTG BGP sessions up")
+	cfgplugins.VerifyOTGBGPEstablished(t, ate)
+
+	t.Logf("Verify DUT BGP sessions up")
+	cfgplugins.VerifyDUTBGPEstablished(t, dut)
+
+	time.Sleep(10 * time.Second)
+	// Validating routes to prefixes learnt from $ATE2_C.IBGP.v6/128
+	validatePrefixes(t, dut, otgBGPConfig[1].otgPortData[1].IPv6, false, 5, 7)
+
+	sendTrafficCapture(t, ate, []string{"all"})
+
+	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
+	otgutils.LogPortMetrics(t, ate.OTG(), otgConfig)
+
+	verifyAFTEntry(t, dut, true, networkPrefix(ate2InternalPrefixesV4, 24), oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP)
+	verifyAFTEntry(t, dut, false, networkPrefix(ate2InternalPrefixesV6, 64), oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP)
+
+	testTrafficMigration(t, dut, ate, flowNames, "AF4")
+}
+
+func testDUTDecapNode(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
+	// Active flows for Flow-Set #1 through Flow-Set #4.
+	flowsets := []string{"flowSet1", "flowSet2", "flowSet3", "flowSet4"}
+
+	otgConfig.Flows().Clear()
+
+	for _, flowset := range flowsets {
+		otgConfig.Flows().Append(flowGroups[flowset].Flows...)
+	}
+
+	ate.OTG().PushConfig(t, otgConfig)
+	ate.OTG().StartProtocols(t)
+
+	t.Logf("Verify OTG BGP sessions up")
+	cfgplugins.VerifyOTGBGPEstablished(t, ate)
+
+	t.Logf("Verify DUT BGP sessions up")
+	cfgplugins.VerifyDUTBGPEstablished(t, dut)
+
+	sendTrafficCapture(t, ate, []string{"all"})
+
+	// Verify Traffic
+	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
+	otgutils.LogPortMetrics(t, ate.OTG(), otgConfig)
+
+	for _, flows := range flowsets {
+		for _, flow := range flowGroups[flows].Flows {
+			verifyTrafficFlow(t, ate, flow.Name())
+		}
+	}
+
+	testDecapTraffic(t, ate)
+
+}
+
+func testTunnelEndpointRemoved(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
+	flowsets := []string{"flowSet1", "flowSet2", "flowSet3", "flowSet4"}
+
+	otgConfig.Flows().Clear()
+
+	for _, flowset := range flowsets {
+		otgConfig.Flows().Append(flowGroups[flowset].Flows...)
+	}
+
+	ate.OTG().PushConfig(t, otgConfig)
+	ate.OTG().StartProtocols(t)
+
+	withdrawBGPRoutes(t, []string{"ebgp4-te10-routes", "ebgp4-te11-routes"})
+	time.Sleep(20 * time.Second)
+
+	t.Logf("Verify OTG BGP sessions up")
+	cfgplugins.VerifyOTGBGPEstablished(t, ate)
+
+	t.Logf("Verify DUT BGP sessions up")
+	cfgplugins.VerifyDUTBGPEstablished(t, dut)
+
+	time.Sleep(10 * time.Second)
+	validatePrefixes(t, dut, otgBGPConfig[2].otgPortData[0].IPv6, true, 0, 10)
+
+	// After the EBGP tunnel-endpoint routes are withdrawn, the endpoints must be
+	// re-resolved via IBGP ($ATE2_IBGP.v6 <> $DUT_lo0.v6) and re-installed in the
+	// FIB. Verify both tunnel endpoints are present in the AFT with origin BGP.
+	verifyAFTEntry(t, dut, false, networkPrefix(bgpInternalTE10.IPv6, 64), oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, false)
+	verifyAFTEntry(t, dut, false, networkPrefix(bgpInternalTE11.IPv6, 64), oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, false)
+
+	sendTrafficCapture(t, ate, []string{"all"})
+
+	// Verify Traffic
+	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
+	otgutils.LogPortMetrics(t, ate.OTG(), otgConfig)
+
+	for _, flows := range flowsets {
+		for _, flow := range flowGroups[flows].Flows {
+			verifyTrafficFlow(t, ate, flow.Name())
+		}
+	}
+
+	testDecapTraffic(t, ate)
+
+}
+
+func testIbgpTunnelEndpointRemoved(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
+	_, ni, _ := cfgplugins.SetupPolicyForwardingInfraOC(deviations.DefaultNetworkInstance(dut))
+
+	if deviations.NextHopGroupOCUnsupported(dut) {
+		interfacePolicyParams := cfgplugins.OcPolicyForwardingParams{
+			InterfaceName:      dut.Port(t, "port1").Name(),
+			PolicyName:         guePolicyName,
+			RemovePolicyName:   true,
+			NetworkInstanceObj: ni,
+		}
+		cfgplugins.InterfacePolicyForwardingApply(t, dut, interfacePolicyParams)
+	}
+
+	t.Log("Stop advertising tunnel endpoints on ATE Port2")
+	withdrawBGPRoutes(t, []string{atePort2RoutesTE10, atePort2RoutesTE11})
+	time.Sleep(10 * time.Second)
+
+	b := &gnmi.SetBatch{}
+
+	// Configuring Static Route: PNH-IPv6 --> IPv4 GUE tunnel.
+	sV4 := &cfgplugins.StaticRouteCfg{
+		NetworkInstance:   deviations.DefaultNetworkInstance(dut),
+		Prefix:            ate2ppnh1Prefix,
+		NexthopGroup:      true,
+		NexthopGroupName:  nexthopGroupName2,
+		T:                 t,
+		RemoveStaticRoute: true,
+	}
+
+	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
+		t.Fatalf("Failed to configure IPv6 static route: %v", err)
+	}
+	b.Set(t, dut)
+
+	sV4 = &cfgplugins.StaticRouteCfg{
+		NetworkInstance:   deviations.DefaultNetworkInstance(dut),
+		Prefix:            ate2ppnh2Prefix,
+		NexthopGroup:      true,
+		NexthopGroupName:  nexthopGroupName1,
+		T:                 t,
+		RemoveStaticRoute: true,
+	}
+
+	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
+		t.Fatalf("Failed to configure IPv6 static route: %v", err)
+	}
+	b.Set(t, dut)
+
+	validateAFTCounters(t, dut, false, ate2ppnh1Prefix)
+	validateAFTCounters(t, dut, false, ate2ppnh2Prefix)
+
+	validatePrefixes(t, dut, otgBGPConfig[1].otgPortData[0].IPv6, false, 5, 5)
+
+	sendTrafficCapture(t, ate, []string{"all"})
+
+	// Verify Traffic
+	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
+	otgutils.LogPortMetrics(t, ate.OTG(), otgConfig)
+
+	for _, flows := range []string{"flowSet1", "flowSet2", "flowSet3", "flowSet4"} {
+		for _, flow := range flowGroups[flows].Flows {
+			verifyTrafficFlow(t, ate, flow.Name())
+		}
+	}
+	testDecapTraffic(t, ate)
+}
+
+func testEstablishIBGPoverEBGP(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
+	validateAFTCounters(t, dut, false, networkPrefix(ate2CIBGPv6, 128))
+
+	_, ni, _ := cfgplugins.SetupPolicyForwardingInfraOC(deviations.DefaultNetworkInstance(dut))
+
+	if deviations.NextHopGroupOCUnsupported(dut) {
+		interfacePolicyParams := cfgplugins.OcPolicyForwardingParams{
+			InterfaceName:      dut.Port(t, "port1").Name(),
+			PolicyName:         guePolicyName,
+			NetworkInstanceObj: ni,
+		}
+		cfgplugins.InterfacePolicyForwardingApply(t, dut, interfacePolicyParams)
+	}
+
+	configureStaticRoute(t, dut)
+
+	// Active flows for Flow-Set #1 through Flow-Set #4.
+	port4Data := otgBGPConfig[2]
+	iDut4Dev := port4Data.otgDevice[0]
+
+	bgpPeer := iDut4Dev.Bgp().Ipv4Interfaces().Items()[0].Peers().Items()[0]
+	v4routes := bgpPeer.V4Routes().Add().SetName("ATE2_C_IBGP_via_EBGP")
+	v4routes.Addresses().Add().SetAddress(ate2InternalPrefixesV4).SetPrefix(24).SetCount(5)
+
+	bgpPeerv6 := iDut4Dev.Bgp().Ipv6Interfaces().Items()[0].Peers().Items()[0]
+	v6routes := bgpPeerv6.V6Routes().Add().SetName("ATE2_C_IBGP_via_EBGPv6")
+	v6routes.Addresses().Add().SetAddress(ate2InternalPrefixesV6).SetPrefix(64).SetCount(5)
+	ate.OTG().PushConfig(t, otgConfig)
+
+	time.Sleep(20 * time.Second)
+	d := &oc.Root{}
+	i := d.GetOrCreateInterface(dut.Port(t, "port2").Name())
+	i.SetEnabled(false)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(dut.Port(t, "port2").Name()).Config(), i)
+
+	ate.OTG().StartProtocols(t)
+
+	// Validating one flow to be encapsulated when sent from Port1 -> ATE2 Port3
+	sendTrafficCapture(t, ate, []string{flowGroups["flowSet1"].Flows[0].Name()})
+
+	gueLayer := *outerGUEIPLayerIPv6
+	gueLayer.TrafficClass = uint8(expectedDscpValue["BE1"])
+	encapValidation.IPv6Layer = &gueLayer
+
+	innerGueLayer := *innerGUEIPLayerIPv4
+	innerGueLayer.Tos = uint8(expectedDscpValue["BE1"])
+	encapValidation.InnerIPLayerIPv4 = &innerGueLayer
+	if err := validatePacket(t, ate, encapValidation); err != nil {
+		t.Errorf("capture and validatePackets failed (): %q", err)
+	}
+
+	// Validting no traffic loss for other flows
+	sendTrafficCapture(t, ate, []string{"all"})
+
+	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
+	otgutils.LogPortMetrics(t, ate.OTG(), otgConfig)
+
+	for _, flows := range []string{"flowSet1", "flowSet2", "flowSet3", "flowSet4"} {
+		for _, flow := range flowGroups[flows].Flows {
+			verifyTrafficFlow(t, ate, flow.Name())
+		}
+	}
+	testDecapTraffic(t, ate)
 }
 
 func TestStaticGue(t *testing.T) {
@@ -1099,8 +1731,10 @@ func TestStaticGue(t *testing.T) {
 	}
 
 	configureStaticRoute(t, dut)
+	t.Cleanup(func() { removeStaticRoutes(t, dut) })
 	configureISIS(t, dut)
 	configureGueEncap(t, dut)
+	t.Cleanup(func() { removeGueEncap(t, dut) })
 
 	// Configure gue decap config
 	ocPFParams := cfgplugins.OcPolicyForwardingParams{
@@ -1123,6 +1757,7 @@ func TestStaticGue(t *testing.T) {
 		Dynamic:             true,
 	}
 	cfgplugins.DecapGroupConfigGue(t, dut, pf, ocPFParams)
+	t.Cleanup(func() { removeDecapGroups(t, dut) })
 
 	port1DstMac = gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
 	port2DstMac = gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port2").Name()).Ethernet().MacAddress().State())
@@ -1655,423 +2290,4 @@ func TestStaticGue(t *testing.T) {
 		})
 	}
 
-}
-
-func testBaselineTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
-	flowsets := []string{"flowSet1", "flowSet2", "flowSet5"}
-
-	otgConfig.Flows().Clear()
-
-	for _, flowset := range flowsets {
-		otgConfig.Flows().Append(flowGroups[flowset].Flows...)
-	}
-
-	ate.OTG().PushConfig(t, otgConfig)
-	ate.OTG().StartProtocols(t)
-
-	t.Logf("Verify OTG BGP sessions up")
-	cfgplugins.VerifyOTGBGPEstablished(t, ate)
-
-	t.Logf("Verify DUT BGP sessions up")
-	cfgplugins.VerifyDUTBGPEstablished(t, dut)
-
-	// Validating no prefixes are exchanged over the IBGP peering between $ATE2_C.IBGP.v6 and $DUT_lo0.v6
-	validatePrefixes(t, dut, otgBGPConfig[1].otgPortData[1].IPv6, false, 0, 0)
-
-	sendTrafficCapture(t, ate, []string{"all"})
-
-	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
-	otgutils.LogPortMetrics(t, ate.OTG(), otgConfig)
-
-	for _, flows := range flowsets {
-		for _, flow := range flowGroups[flows].Flows {
-			verifyTrafficFlow(t, ate, flow.Name())
-		}
-	}
-}
-
-func testBE1TrafficMigration(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
-	advertiseRoutesWithiBGP([]string{ate2InternalPrefixesV4List[0]}, ate2ppnh1.IPv6, true, fmt.Sprintf("%s-CBGP-1", atePort2RoutesV4))
-	advertiseRoutesWithiBGP([]string{ate2InternalPrefixesV6List[0]}, ate2ppnh1.IPv6, false, fmt.Sprintf("%s-CBGP-1", atePort2RoutesV6))
-
-	flowsets := []string{"flowSet1", "flowSet5"}
-
-	flowNames := map[string][]string{
-		"v4": {},
-		"v6": {},
-	}
-
-	for _, flow := range flowsets {
-		flowNames["v4"] = append(flowNames["v4"], flowGroups[flow].Flows[0].Name())
-		flowNames["v6"] = append(flowNames["v6"], flowGroups[flow].Flows[1].Name())
-	}
-
-	ate.OTG().PushConfig(t, otgConfig)
-	ate.OTG().StartProtocols(t)
-
-	t.Logf("Verify OTG BGP sessions up")
-	cfgplugins.VerifyOTGBGPEstablished(t, ate)
-
-	t.Logf("Verify DUT BGP sessions up")
-	cfgplugins.VerifyDUTBGPEstablished(t, dut)
-
-	time.Sleep(10 * time.Second)
-	// Validating routes to prefixes learnt from $ATE2_C.IBGP.v6/128
-	validatePrefixes(t, dut, otgBGPConfig[1].otgPortData[1].IPv6, false, 1, 7)
-
-	sendTrafficCapture(t, ate, []string{"all"})
-
-	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
-	otgutils.LogPortMetrics(t, ate.OTG(), otgConfig)
-
-	testTrafficMigration(t, dut, ate, otgConfig, flowNames, "BE1")
-
-}
-
-func testAF1TrafficMigration(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
-	advertiseRoutesWithiBGP([]string{ate2InternalPrefixesV4List[1]}, ate2ppnh1.IPv6, true, fmt.Sprintf("%s-CBGP-2", atePort2RoutesV4))
-	advertiseRoutesWithiBGP([]string{ate2InternalPrefixesV6List[1]}, ate2ppnh1.IPv6, false, fmt.Sprintf("%s-CBGP-2", atePort2RoutesV6))
-	flowsets := []string{"flowSet1", "flowSet5"}
-	flowNames := map[string][]string{
-		"v4": {},
-		"v6": {},
-	}
-
-	for _, flow := range flowsets {
-		flowNames["v4"] = append(flowNames["v4"], flowGroups[flow].Flows[2].Name())
-		flowNames["v6"] = append(flowNames["v6"], flowGroups[flow].Flows[3].Name())
-	}
-
-	ate.OTG().PushConfig(t, otgConfig)
-	ate.OTG().StartProtocols(t)
-
-	t.Logf("Verify OTG BGP sessions up")
-	cfgplugins.VerifyOTGBGPEstablished(t, ate)
-
-	t.Logf("Verify DUT BGP sessions up")
-	cfgplugins.VerifyDUTBGPEstablished(t, dut)
-
-	time.Sleep(10 * time.Second)
-	// Validating routes to prefixes learnt from $ATE2_C.IBGP.v6/128
-	validatePrefixes(t, dut, otgBGPConfig[1].otgPortData[1].IPv6, false, 2, 7)
-
-	sendTrafficCapture(t, ate, []string{"all"})
-
-	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
-	otgutils.LogPortMetrics(t, ate.OTG(), otgConfig)
-
-	testTrafficMigration(t, dut, ate, otgConfig, flowNames, "AF1")
-}
-
-func testAF2TrafficMigration(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
-	advertiseRoutesWithiBGP([]string{ate2InternalPrefixesV4List[2]}, ate2ppnh1.IPv6, true, fmt.Sprintf("%s-CBGP-3", atePort2RoutesV4))
-	advertiseRoutesWithiBGP([]string{ate2InternalPrefixesV6List[2]}, ate2ppnh1.IPv6, false, fmt.Sprintf("%s-CBGP-3", atePort2RoutesV6))
-
-	flowNames := map[string][]string{
-		"v4": {},
-		"v6": {},
-	}
-
-	flowNames["v4"] = append(flowNames["v4"], flowGroups["flowSet1"].Flows[4].Name())
-	flowNames["v6"] = append(flowNames["v6"], flowGroups["flowSet1"].Flows[5].Name())
-
-	flowNames["v4"] = append(flowNames["v4"], flowGroups["flowSet5"].Flows[4].Name())
-	flowNames["v6"] = append(flowNames["v6"], flowGroups["flowSet5"].Flows[5].Name())
-
-	ate.OTG().PushConfig(t, otgConfig)
-	ate.OTG().StartProtocols(t)
-
-	t.Logf("Verify OTG BGP sessions up")
-	cfgplugins.VerifyOTGBGPEstablished(t, ate)
-
-	t.Logf("Verify DUT BGP sessions up")
-	cfgplugins.VerifyDUTBGPEstablished(t, dut)
-	time.Sleep(10 * time.Second)
-	// Validating routes to prefixes learnt from $ATE2_C.IBGP.v6/128
-	validatePrefixes(t, dut, otgBGPConfig[1].otgPortData[1].IPv6, false, 3, 7)
-
-	sendTrafficCapture(t, ate, []string{"all"})
-
-	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
-	otgutils.LogPortMetrics(t, ate.OTG(), otgConfig)
-
-	testTrafficMigration(t, dut, ate, otgConfig, flowNames, "AF2")
-}
-
-func testAF3TrafficMigration(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
-	advertiseRoutesWithiBGP([]string{ate2InternalPrefixesV4List[3]}, ate2ppnh2.IPv6, true, fmt.Sprintf("%s-CBGP-4", atePort2RoutesV4))
-	advertiseRoutesWithiBGP([]string{ate2InternalPrefixesV6List[3]}, ate2ppnh2.IPv6, false, fmt.Sprintf("%s-CBGP-4", atePort2RoutesV6))
-
-	flowNames := map[string][]string{
-		"v4": {},
-		"v6": {},
-	}
-
-	flowNames["v4"] = append(flowNames["v4"], flowGroups["flowSet2"].Flows[0].Name())
-	flowNames["v6"] = append(flowNames["v6"], flowGroups["flowSet2"].Flows[1].Name())
-
-	flowNames["v4"] = append(flowNames["v4"], flowGroups["flowSet5"].Flows[6].Name())
-	flowNames["v6"] = append(flowNames["v6"], flowGroups["flowSet5"].Flows[7].Name())
-
-	ate.OTG().PushConfig(t, otgConfig)
-	ate.OTG().StartProtocols(t)
-
-	t.Logf("Verify OTG BGP sessions up")
-	cfgplugins.VerifyOTGBGPEstablished(t, ate)
-
-	t.Logf("Verify DUT BGP sessions up")
-	cfgplugins.VerifyDUTBGPEstablished(t, dut)
-
-	time.Sleep(10 * time.Second)
-	// Validating routes to prefixes learnt from $ATE2_C.IBGP.v6/128
-	validatePrefixes(t, dut, otgBGPConfig[1].otgPortData[1].IPv6, false, 4, 7)
-
-	sendTrafficCapture(t, ate, []string{"all"})
-
-	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
-	otgutils.LogPortMetrics(t, ate.OTG(), otgConfig)
-
-	testTrafficMigration(t, dut, ate, otgConfig, flowNames, "AF3")
-}
-
-func testAF4TrafficMigration(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
-	advertiseRoutesWithiBGP([]string{ate2InternalPrefixesV4List[4]}, ate2ppnh2.IPv6, true, fmt.Sprintf("%s-CBGP-5", atePort2RoutesV4))
-	advertiseRoutesWithiBGP([]string{ate2InternalPrefixesV6List[4]}, ate2ppnh2.IPv6, false, fmt.Sprintf("%s-CBGP-5", atePort2RoutesV6))
-
-	flowNames := map[string][]string{
-		"v4": {},
-		"v6": {},
-	}
-
-	flowNames["v4"] = append(flowNames["v4"], flowGroups["flowSet2"].Flows[2].Name())
-	flowNames["v6"] = append(flowNames["v6"], flowGroups["flowSet2"].Flows[3].Name())
-
-	flowNames["v4"] = append(flowNames["v4"], flowGroups["flowSet5"].Flows[8].Name())
-	flowNames["v6"] = append(flowNames["v6"], flowGroups["flowSet5"].Flows[9].Name())
-
-	ate.OTG().PushConfig(t, otgConfig)
-	ate.OTG().StartProtocols(t)
-
-	t.Logf("Verify OTG BGP sessions up")
-	cfgplugins.VerifyOTGBGPEstablished(t, ate)
-
-	t.Logf("Verify DUT BGP sessions up")
-	cfgplugins.VerifyDUTBGPEstablished(t, dut)
-
-	time.Sleep(10 * time.Second)
-	// Validating routes to prefixes learnt from $ATE2_C.IBGP.v6/128
-	validatePrefixes(t, dut, otgBGPConfig[1].otgPortData[1].IPv6, false, 5, 7)
-
-	sendTrafficCapture(t, ate, []string{"all"})
-
-	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
-	otgutils.LogPortMetrics(t, ate.OTG(), otgConfig)
-
-	testTrafficMigration(t, dut, ate, otgConfig, flowNames, "AF4")
-}
-
-func testDUTDecapNode(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
-	// Active flows for Flow-Set #1 through Flow-Set #4.
-	flowsets := []string{"flowSet1", "flowSet2", "flowSet3", "flowSet4"}
-
-	otgConfig.Flows().Clear()
-
-	for _, flowset := range flowsets {
-		otgConfig.Flows().Append(flowGroups[flowset].Flows...)
-	}
-
-	ate.OTG().PushConfig(t, otgConfig)
-	ate.OTG().StartProtocols(t)
-
-	t.Logf("Verify OTG BGP sessions up")
-	cfgplugins.VerifyOTGBGPEstablished(t, ate)
-
-	t.Logf("Verify DUT BGP sessions up")
-	cfgplugins.VerifyDUTBGPEstablished(t, dut)
-
-	sendTrafficCapture(t, ate, []string{"all"})
-
-	// Verify Traffic
-	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
-	otgutils.LogPortMetrics(t, ate.OTG(), otgConfig)
-
-	for _, flows := range flowsets {
-		for _, flow := range flowGroups[flows].Flows {
-			verifyTrafficFlow(t, ate, flow.Name())
-		}
-	}
-
-	testDecapTraffic(t, dut, ate, otgConfig)
-
-}
-
-func testTunnelEndpointRemoved(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
-	flowsets := []string{"flowSet1", "flowSet2", "flowSet3", "flowSet4"}
-
-	otgConfig.Flows().Clear()
-
-	for _, flowset := range flowsets {
-		otgConfig.Flows().Append(flowGroups[flowset].Flows...)
-	}
-
-	ate.OTG().PushConfig(t, otgConfig)
-	ate.OTG().StartProtocols(t)
-
-	withdrawBGPRoutes(t, []string{"ebgp4-te10-routes", "ebgp4-te11-routes"})
-	time.Sleep(20 * time.Second)
-
-	t.Logf("Verify OTG BGP sessions up")
-	cfgplugins.VerifyOTGBGPEstablished(t, ate)
-
-	t.Logf("Verify DUT BGP sessions up")
-	cfgplugins.VerifyDUTBGPEstablished(t, dut)
-
-	time.Sleep(10 * time.Second)
-	// validatePrefixes(t, dut, otgBGPConfig[2].otgPortData[0].IPv4, true, 0, 12)
-	validatePrefixes(t, dut, otgBGPConfig[2].otgPortData[0].IPv6, true, 0, 10)
-
-	sendTrafficCapture(t, ate, []string{"all"})
-
-	// Verify Traffic
-	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
-	otgutils.LogPortMetrics(t, ate.OTG(), otgConfig)
-
-	for _, flows := range flowsets {
-		for _, flow := range flowGroups[flows].Flows {
-			verifyTrafficFlow(t, ate, flow.Name())
-		}
-	}
-
-	testDecapTraffic(t, dut, ate, otgConfig)
-
-}
-
-func testIbgpTunnelEndpointRemoved(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
-	_, ni, _ := cfgplugins.SetupPolicyForwardingInfraOC(deviations.DefaultNetworkInstance(dut))
-
-	if deviations.NextHopGroupOCUnsupported(dut) {
-		interfacePolicyParams := cfgplugins.OcPolicyForwardingParams{
-			InterfaceName:      dut.Port(t, "port1").Name(),
-			PolicyName:         guePolicyName,
-			RemovePolicyName:   true,
-			NetworkInstanceObj: ni,
-		}
-		cfgplugins.InterfacePolicyForwardingApply(t, dut, interfacePolicyParams)
-	}
-
-	t.Log("Stop advertising tunnel endpoints on ATE Port2")
-	withdrawBGPRoutes(t, []string{atePort2RoutesTE10, atePort2RoutesTE11})
-	time.Sleep(10 * time.Second)
-
-	b := &gnmi.SetBatch{}
-
-	// Configuring Static Route: PNH-IPv6 --> IPv4 GUE tunnel.
-	sV4 := &cfgplugins.StaticRouteCfg{
-		NetworkInstance:   deviations.DefaultNetworkInstance(dut),
-		Prefix:            ate2ppnh1Prefix,
-		NexthopGroup:      true,
-		NexthopGroupName:  nexthopGroupName2,
-		T:                 t,
-		RemoveStaticRoute: true,
-	}
-
-	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
-		t.Fatalf("Failed to configure IPv6 static route: %v", err)
-	}
-	b.Set(t, dut)
-
-	sV4 = &cfgplugins.StaticRouteCfg{
-		NetworkInstance:   deviations.DefaultNetworkInstance(dut),
-		Prefix:            ate2ppnh2Prefix,
-		NexthopGroup:      true,
-		NexthopGroupName:  nexthopGroupName1,
-		T:                 t,
-		RemoveStaticRoute: true,
-	}
-
-	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
-		t.Fatalf("Failed to configure IPv6 static route: %v", err)
-	}
-	b.Set(t, dut)
-
-	validateAFTCounters(t, dut, false, ate2ppnh1Prefix)
-	validateAFTCounters(t, dut, false, ate2ppnh2Prefix)
-
-	validatePrefixes(t, dut, otgBGPConfig[1].otgPortData[0].IPv6, false, 5, 5)
-
-	sendTrafficCapture(t, ate, []string{"all"})
-
-	// Verify Traffic
-	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
-	otgutils.LogPortMetrics(t, ate.OTG(), otgConfig)
-
-	for _, flows := range []string{"flowSet1", "flowSet2", "flowSet3", "flowSet4"} {
-		for _, flow := range flowGroups[flows].Flows {
-			verifyTrafficFlow(t, ate, flow.Name())
-		}
-	}
-	testDecapTraffic(t, dut, ate, otgConfig)
-}
-
-func testEstablishIBGPoverEBGP(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
-	_, ni, _ := cfgplugins.SetupPolicyForwardingInfraOC(deviations.DefaultNetworkInstance(dut))
-
-	if deviations.NextHopGroupOCUnsupported(dut) {
-		interfacePolicyParams := cfgplugins.OcPolicyForwardingParams{
-			InterfaceName:      dut.Port(t, "port1").Name(),
-			PolicyName:         guePolicyName,
-			NetworkInstanceObj: ni,
-		}
-		cfgplugins.InterfacePolicyForwardingApply(t, dut, interfacePolicyParams)
-	}
-
-	configureStaticRoute(t, dut)
-
-	// Active flows for Flow-Set #1 through Flow-Set #4.
-	port4Data := otgBGPConfig[2]
-	iDut4Dev := port4Data.otgDevice[0]
-
-	bgpPeer := iDut4Dev.Bgp().Ipv4Interfaces().Items()[0].Peers().Items()[0]
-	v4routes := bgpPeer.V4Routes().Add().SetName("ATE2_C_IBGP_via_EBGP")
-	v4routes.Addresses().Add().SetAddress(ate2InternalPrefixesV4).SetPrefix(24).SetCount(5)
-
-	bgpPeerv6 := iDut4Dev.Bgp().Ipv6Interfaces().Items()[0].Peers().Items()[0]
-	v6routes := bgpPeerv6.V6Routes().Add().SetName("ATE2_C_IBGP_via_EBGPv6")
-	v6routes.Addresses().Add().SetAddress(ate2InternalPrefixesV6).SetPrefix(64).SetCount(5)
-	ate.OTG().PushConfig(t, otgConfig)
-
-	time.Sleep(20 * time.Second)
-	d := &oc.Root{}
-	i := d.GetOrCreateInterface(dut.Port(t, "port2").Name())
-	i.SetEnabled(false)
-	gnmi.Replace(t, dut, gnmi.OC().Interface(dut.Port(t, "port2").Name()).Config(), i)
-
-	ate.OTG().StartProtocols(t)
-
-	// Validating one flow to be encapsulated when sent from Port1 -> ATE2 Port3
-	sendTrafficCapture(t, ate, []string{flowGroups["flowSet1"].Flows[0].Name()})
-
-	gueLayer := *outerGUEIPLayerIPv6
-	gueLayer.TrafficClass = uint8(expectedDscpValue["BE1"])
-	encapValidation.IPv6Layer = &gueLayer
-
-	innerGueLayer := *innerGUEIPLayerIPv4
-	innerGueLayer.Tos = uint8(expectedDscpValue["BE1"])
-	encapValidation.InnerIPLayerIPv4 = &innerGueLayer
-	if err := validatePacket(t, ate, encapValidation); err != nil {
-		t.Errorf("capture and validatePackets failed (): %q", err)
-	}
-
-	// Validting no traffic loss for other flows
-	sendTrafficCapture(t, ate, []string{"all"})
-
-	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
-	otgutils.LogPortMetrics(t, ate.OTG(), otgConfig)
-
-	for _, flows := range []string{"flowSet1", "flowSet2", "flowSet3", "flowSet4"} {
-		for _, flow := range flowGroups[flows].Flows {
-			verifyTrafficFlow(t, ate, flow.Name())
-		}
-	}
-	testDecapTraffic(t, dut, ate, otgConfig)
 }

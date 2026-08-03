@@ -434,14 +434,6 @@ func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, params
 				helpers.GnmiCLIConfig(t, dut, cli)
 			}
 
-			if params.DeleteTtl {
-				cli = fmt.Sprintf(
-					`nexthop-group %s type %s
-					no ttl %v
-					`, params.NexthopGrpName, groupType, params.TTL)
-				helpers.GnmiCLIConfig(t, dut, cli)
-			}
-
 			if params.DstUdpPort != 0 {
 				cli = fmt.Sprintf(`tunnel type %s udp destination port %v`, groupType, params.DstUdpPort)
 				helpers.GnmiCLIConfig(t, dut, cli)
@@ -464,6 +456,32 @@ func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, params
 		ueh1.GetOrCreateUdpV4().SetDscp(params.DSCP)
 		ueh1.GetOrCreateUdpV4().SetDstUdpPort(params.DstUdpPort)
 		ueh1.GetOrCreateUdpV4().SetSrcUdpPort(params.SrcUdpPort)
+	}
+}
+
+// RemoveNextHopGroupConfigForIpOverUdp deletes a nexthop-group previously created
+// by NextHopGroupConfigForIpOverUdp, allowing tests to revert the DUT to its
+// original state.
+func RemoveNextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, params NexthopGroupUDPParams) {
+	t.Helper()
+	if deviations.NextHopGroupOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			var groupType string
+			switch params.IPFamily {
+			case "V4Udp":
+				groupType = "ipv4-over-udp"
+			case "V6Udp":
+				groupType = "ipv6-over-udp"
+			default:
+				t.Fatalf("Unsupported address family type %q", params.IPFamily)
+			}
+			helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("no nexthop-group %s type %s\n", params.NexthopGrpName, groupType))
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group removal'", dut.Vendor())
+		}
+	} else if params.NetworkInstanceObj != nil {
+		params.NetworkInstanceObj.GetOrCreateStatic().DeleteNextHopGroup(params.NexthopGrpName)
 	}
 }
 
