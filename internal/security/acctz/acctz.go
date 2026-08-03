@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"net"
@@ -28,32 +29,28 @@ import (
 	"testing"
 	"time"
 
-	"google3/base/go/flag"
-
-	anypb "google3/google/protobuf/any_go_proto"
-	"google3/third_party/golang/go_crypto/ssh/ssh"
-	"google3/third_party/golang/grpc/grpc"
-	"google3/third_party/golang/grpc/metadata/metadata"
-	"google3/third_party/golang/protobuf/v2/encoding/prototext/prototext"
-	"google3/third_party/golang/ygot/ygot/ygot"
-	"google3/third_party/openconfig/featureprofiles/internal/args/args"
-	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
-	"google3/third_party/openconfig/featureprofiles/internal/helpers/helpers"
-	bindpb "google3/third_party/openconfig/featureprofiles/topologies/proto/binding_go_proto"
-	gnmigrpc "google3/third_party/openconfig/gnmi/proto/gnmi/gnmi_go_grpc"
-	gnmipb "google3/third_party/openconfig/gnmi/proto/gnmi/gnmi_go_proto"
-	systempb "google3/third_party/openconfig/gnoi/system/system_go_proto"
-	acctzpb "google3/third_party/openconfig/gnsi/v1/acctz/acctz_go_proto"
-	authzgrpc "google3/third_party/openconfig/gnsi/v1/authz/authz_go_grpc"
-	authzpb "google3/third_party/openconfig/gnsi/v1/authz/authz_go_proto"
-	cpb "google3/third_party/openconfig/gnsi/v1/credentialz/credentialz_go_proto"
-	gribi "google3/third_party/openconfig/gribi/v1/proto/service/gribi_go_proto"
-	tpb "google3/third_party/openconfig/kne/proto/topo_go_proto"
-	"google3/third_party/openconfig/ondatra/binding/binding"
-	ondatragnmi "google3/third_party/openconfig/ondatra/gnmi/gnmi"
-	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
-	"google3/third_party/openconfig/ondatra/ondatra"
-	p4pb "google3/third_party/p4lang_p4runtime/proto/p4/v1/p4runtime_go_proto"
+	"github.com/openconfig/featureprofiles/internal/args"
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/helpers"
+	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
+	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
+	systempb "github.com/openconfig/gnoi/system"
+	acctzpb "github.com/openconfig/gnsi/acctz"
+	authzpb "github.com/openconfig/gnsi/authz"
+	cpb "github.com/openconfig/gnsi/credentialz"
+	gribi "github.com/openconfig/gribi/v1/proto/service"
+	tpb "github.com/openconfig/kne/proto/topo"
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/binding"
+	ondatragnmi "github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygot/ygot"
+	p4pb "github.com/p4lang/p4runtime/go/p4/v1"
+	"golang.org/x/crypto/ssh"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 const (
@@ -719,7 +716,7 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		failpass = failAuthenticatePassword
 	}
 	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, failuser, passKey, failpass))
-	var gnmiClient gnmigrpc.GNMIClient
+	var gnmiClient gnmipb.GNMIClient
 	var err error
 	if dut.Vendor() == ondatra.NOKIA {
 		var dialer interface {
@@ -733,7 +730,7 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		if err != nil {
 			t.Fatalf("Failed dialing custom gNMI port: %v", err)
 		}
-		gnmiClient = gnmigrpc.NewGNMIClient(conn)
+		gnmiClient = gnmipb.NewGNMIClient(conn)
 	} else {
 		gnmiClient, err = dut.RawAPIs().BindingDUT().DialGNMI(ctx)
 		if err != nil {
@@ -1011,7 +1008,7 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		failpass = failAuthenticatePassword
 	}
 	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, failuser, passKey, failpass))
-	var authzClient authzgrpc.AuthzClient
+	var authzClient authzpb.AuthzClient
 	if dut.Vendor() == ondatra.NOKIA {
 		var dialer interface {
 			DialGRPCWithPort(context.Context, int, ...grpc.DialOption) (*grpc.ClientConn, error)
@@ -1024,7 +1021,7 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		if err != nil {
 			t.Fatalf("Failed dialing custom gNSI port: %v", err)
 		}
-		authzClient = authzgrpc.NewAuthzClient(conn)
+		authzClient = authzpb.NewAuthzClient(conn)
 	} else {
 		authzClient = dut.RawAPIs().GNSI(t).Authz()
 	}
