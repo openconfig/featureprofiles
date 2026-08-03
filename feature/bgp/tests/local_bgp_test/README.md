@@ -10,6 +10,7 @@ The local\_bgp\_test brings up two OpenConfig controlled devices and tests that 
 
 Enable an Accept-route all import-policy/export-policy for eBGP session under the BGP peer-group AFI/SAFI.
 
+
 This test is suitable for running in a KNE environment.
 
 ## Canonical OpenConfig
