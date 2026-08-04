@@ -1463,7 +1463,7 @@ func ConfigureTrafficPolicyACL(t *testing.T, dut *ondatra.DUTDevice, params ACLT
 }
 
 // ConfigureVRFSelectionPolicyOC configures vrf_selection_policy_c on DUT port1.
-func ConfigureVRFSelectionPolicyOC(t *testing.T, dut *ondatra.DUTDevice, vrfBatch *gnmi.SetBatch) {
+func ConfigureVRFSelectionPolicyOC(t *testing.T, dut *ondatra.DUTDevice, encapVRFs []string) {
 	t.Helper()
 	p1 := dut.Port(t, "port1")
 	defaultVRF := deviations.DefaultNetworkInstance(dut)
@@ -1531,7 +1531,17 @@ func ConfigureVRFSelectionPolicyOC(t *testing.T, dut *ondatra.DUTDevice, vrfBatc
 		seq++
 	}
 
-	pol.GetOrCreateRule(seq).GetOrCreateAction().NetworkInstance = ygot.String(defaultVRF)
+	if deviations.PfRequireMatchDefaultRule(dut) {
+		r4 := pol.GetOrCreateRule(seq)
+		r4.GetOrCreateL2().SetEthertype(oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4)
+		r4.GetOrCreateAction().NetworkInstance = ygot.String(defaultVRF)
+		seq++
+		r6 := pol.GetOrCreateRule(seq)
+		r6.GetOrCreateL2().SetEthertype(oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV6)
+		r6.GetOrCreateAction().NetworkInstance = ygot.String(defaultVRF)
+	} else {
+		pol.GetOrCreateRule(seq).GetOrCreateAction().NetworkInstance = ygot.String(defaultVRF)
+	}
 
 	interfaceID := p1.Name()
 	if deviations.InterfaceRefInterfaceIDFormat(dut) {
@@ -1544,7 +1554,7 @@ func ConfigureVRFSelectionPolicyOC(t *testing.T, dut *ondatra.DUTDevice, vrfBatc
 	if deviations.InterfaceRefConfigUnsupported(dut) {
 		intf.InterfaceRef = nil
 	}
-	gnmi.BatchUpdate(vrfBatch, gnmi.OC().NetworkInstance(defaultVRF).PolicyForwarding().Config(), pf)
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(defaultVRF).PolicyForwarding().Config(), pf)
 }
 
 // ConfigureCLIDecapVRFMode enables next-hop decapsulation VRF mode required for VRF selection policy decapsulation forwarding.

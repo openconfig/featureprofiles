@@ -11,7 +11,7 @@ platform_exceptions:  {
   }
   deviations:  {
     gribi_mac_override_with_static_arp: true
-    interface_ref_interface_id_format: true
+    interface_id_format_required_for_policy_forwarding: true
     pf_require_match_default_rule: true
     pf_require_sequential_order_pbr_rules: true   
     isis_single_topology_required: true

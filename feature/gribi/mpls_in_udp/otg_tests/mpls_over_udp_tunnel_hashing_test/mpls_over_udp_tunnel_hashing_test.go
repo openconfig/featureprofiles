@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
-	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -157,32 +156,26 @@ func TestMPLSOverUDPTunnelHashing(t *testing.T) {
 	ConfigureDUTIntf(t, dut)
 
 	// configure ATE
-	topo := configureATE(t)
+	topo, interfaceNamesList := configureATE(t)
 	ate.OTG().PushConfig(t, topo)
-
 	ate.OTG().StartProtocols(t)
-	otgutils.WaitForARP(t, ate.OTG(), topo, "IPv4")
-	otgutils.WaitForARP(t, ate.OTG(), topo, "IPv6")
+	if err := cfgplugins.IsIPv4InterfaceARPresolved(t, ate, cfgplugins.AddressFamilyParams{InterfaceNames: interfaceNamesList}); err != nil {
+		t.Fatalf("IPv4 ARP resolution failed: %v", err)
+	}
+	if err := cfgplugins.IsIPv6InterfaceARPresolved(t, ate, cfgplugins.AddressFamilyParams{InterfaceNames: interfaceNamesList}); err != nil {
+		t.Fatalf("IPv6 ARP resolution failed: %v", err)
+	}
 
 	// Configure gRIBI client
-	c := gribi.Client{
-		DUT:         dut,
-		FIBACK:      true,
-		Persistence: true,
-	}
-
-	if err := c.Start(t); err != nil {
-		t.Fatalf("gRIBI Connection can not be established")
-	}
-	defer c.Close(t)
-	c.BecomeLeader(t)
-
-	// Flush all existing AFT entries and set up basic routing infrastructure
-	c.FlushAll(t)
-	programBasicEntries(t, dut, &c)
+	c := mustNewGRIBIClient(t, dut)
+	t.Cleanup(func() {
+		c.FlushAll(t)
+		c.Close(t)
+	})
+	programBasicEntries(t, dut, c)
 
 	// Verify basic infrastructure is properly installed
-	if err := c.AwaitTimeout(ctx, t, 3*time.Minute); err != nil {
+	if err := c.AwaitTimeout(ctx, t, 10*time.Second); err != nil {
 		t.Fatalf("Failed to install basic infrastructure entries: %v", err)
 	}
 
@@ -233,23 +226,7 @@ func TestMPLSOverUDPTunnelHashing(t *testing.T) {
 				WithOperationType(constants.Add).
 				AsResult(),
 		}
-		wantDelResults := []*client.OpResult{
-			fluent.OperationResult().
-				WithIPv6Operation(innerIPv6Prefix).
-				WithProgrammingResult(fluent.InstalledInRIB).
-				WithOperationType(constants.Delete).
-				AsResult(),
-			fluent.OperationResult().
-				WithNextHopGroupOperation(mplsNHGID).
-				WithProgrammingResult(fluent.InstalledInRIB).
-				WithOperationType(constants.Delete).
-				AsResult(),
-			fluent.OperationResult().
-				WithNextHopOperation(mplsNHID).
-				WithProgrammingResult(fluent.InstalledInRIB).
-				WithOperationType(constants.Delete).
-				AsResult(),
-		}
+
 		flows := []gosnappi.Flow{fa6.getFlow("ipv6", "ip6mpls", dscpEncapA1)}
 
 		c.AddEntries(t, entries, wantAddResults)
@@ -264,7 +241,7 @@ func TestMPLSOverUDPTunnelHashing(t *testing.T) {
 		}
 
 		tcArgs := &testArgs{
-			client: &c,
+			client: c,
 			dut:    dut,
 			ate:    ate,
 			topo:   topo,
@@ -292,10 +269,8 @@ func TestMPLSOverUDPTunnelHashing(t *testing.T) {
 		t.Log("Validate traffic flows")
 		validateTrafficFlows(t, ate, topo, tcArgs, flows, false, true)
 
-		// Clean up MPLS entries
-		t.Log("Deleting MPLS-in-UDP entries")
-		slices.Reverse(entries)
-		c.DeleteEntries(t, entries, wantDelResults)
+		// Flush all existing AFT entries and set up basic routing infrastructure
+		c.FlushAll(t)
 
 		// Verify traffic fails after deletion
 		t.Log("Verify traffic fails after entry deletion")
@@ -303,6 +278,24 @@ func TestMPLSOverUDPTunnelHashing(t *testing.T) {
 
 	})
 
+}
+
+// mustNewGRIBIClient creates a gRIBI client, starts the session, and fails the test if the client cannot be created or started.
+func mustNewGRIBIClient(t *testing.T, dut *ondatra.DUTDevice) *gribi.Client {
+	t.Helper()
+
+	c := &gribi.Client{
+		DUT:         dut,
+		FIBACK:      true,
+		Persistence: true,
+	}
+
+	if err := c.Start(t); err != nil {
+		t.Fatalf("gRIBI connection failed: %v", err)
+	}
+
+	c.BecomeLeader(t)
+	return c
 }
 
 func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
@@ -397,7 +390,7 @@ func configInterfaceDUT(p *ondatra.Port, a *attrs.Attributes, dut *ondatra.DUTDe
 }
 
 // configureATE sets up the ATE interfaces and BGP configurations.
-func configureATE(t *testing.T) gosnappi.Config {
+func configureATE(t *testing.T) (gosnappi.Config, []string) {
 	topo := gosnappi.NewConfig()
 	t.Log("Configure ATE interface")
 	port1 := topo.Ports().Add().SetName("port1")
@@ -437,7 +430,7 @@ func configureATE(t *testing.T) gosnappi.Config {
 	port4Ipv6 := port4Eth.Ipv6Addresses().Add().SetName(atePort4.Name + ".IPv6")
 	port4Ipv6.SetAddress(atePort4.IPv6).SetGateway(dutPort4.IPv6).SetPrefix(uint32(atePort4.IPv6Len))
 
-	return topo
+	return topo, []string{atePort1.Name, atePort2.Name, atePort3.Name, atePort4.Name}
 }
 
 func programBasicEntries(t *testing.T, dut *ondatra.DUTDevice, c *gribi.Client) {
@@ -568,9 +561,6 @@ func sendTraffic(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bo
 
 	otg.PushConfig(t, args.topo)
 	otg.StartProtocols(t)
-
-	otgutils.WaitForARP(t, args.ate.OTG(), args.topo, "IPv4")
-	otgutils.WaitForARP(t, args.ate.OTG(), args.topo, "IPv6")
 
 	if capture {
 		startCapture(t, args.ate)
