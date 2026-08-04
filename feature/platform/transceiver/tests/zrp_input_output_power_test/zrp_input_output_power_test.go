@@ -58,7 +58,6 @@ func TestOpticalPower(t *testing.T) {
 		// Get transceiver and optical channel.
 		trs[p.Name()] = gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
 		ochs[p.Name()] = gnmi.Get(t, dut, gnmi.OC().Component(trs[p.Name()]).Transceiver().Channel(0).AssociatedOpticalChannel().State())
-		// ochs[p.Name()] = components.OpticalChannelComponentFromPort(t, dut, p)
 	}
 
 	for _, frequency := range frequencies {
@@ -76,9 +75,6 @@ func TestOpticalPower(t *testing.T) {
 				ochStreams[portName] = samplestream.New(t, dut, gnmi.OC().Component(och).OpticalChannel().State(), samplingInterval)
 				trStreams[portName] = samplestream.New(t, dut, gnmi.OC().Component(trs[portName]).Transceiver().Channel(0).State(), samplingInterval)
 				interfaceStreams[portName] = samplestream.New(t, dut, gnmi.OC().Interface(portName).State(), samplingInterval)
-				defer ochStreams[portName].Close()
-				defer trStreams[portName].Close()
-				defer interfaceStreams[portName].Close()
 			}
 
 			// Enable interface.
@@ -119,6 +115,13 @@ func TestOpticalPower(t *testing.T) {
 			time.Sleep(8 * samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
 
 			validateAllSampleStreams(t, dut, true, interfaceStreams, ochStreams, trStreams, targetOpticalPower)
+
+			//Close the connections:
+			for portName := range ochs {
+				ochStreams[portName].Close()
+				trStreams[portName].Close()
+				interfaceStreams[portName].Close()
+			}
 		}
 	}
 }
