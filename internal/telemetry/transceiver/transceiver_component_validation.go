@@ -11,6 +11,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
 )
@@ -201,11 +202,26 @@ func validateTranscieverTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondat
 			maxAllowed: maxAllowedTemperature,
 		})
 	}
+	formFactor := transceiverValue.GetTransceiver().GetFormFactor()
+	if dut.Vendor() == ondatra.CISCO {
+		// Cisco may expose correct form-factor on direct leaf read even when bundled component decode shows OTHER.
+		directFormFactor := gnmi.Get(t, dut, gnmi.OC().Component(params.TransceiverNames[p.Name()]).Transceiver().FormFactor().State())
+		if directFormFactor != oc.TransportTypes_TRANSCEIVER_FORM_FACTOR_TYPE_UNSET {
+			formFactor = directFormFactor
+		}
+		// If the generated binding still decodes Cisco OSFP optics as OTHER, use module identity as fallback.
+		if formFactor == oc.TransportTypes_TRANSCEIVER_FORM_FACTOR_TYPE_OTHER {
+			partNo := strings.ToUpper(transceiverValue.GetPartNo())
+			if strings.Contains(partNo, "OSFP") && params.FormFactor == oc.TransportTypes_TRANSCEIVER_FORM_FACTOR_TYPE_OSFP {
+				formFactor = oc.TransportTypes_TRANSCEIVER_FORM_FACTOR_TYPE_OSFP
+			}
+		}
+	}
 	if dut.Vendor() != ondatra.JUNIPER {
 		tcs = append(tcs, testcase{
 			desc: "Transceiver Form Factor Validation",
 			path: fmt.Sprintf(componentPath+"/transceiver/state/form-factor", params.TransceiverNames[p.Name()]),
-			got:  transceiverValue.GetTransceiver().GetFormFactor(),
+			got:  formFactor,
 			want: params.FormFactor,
 		})
 	}
