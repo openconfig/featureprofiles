@@ -119,11 +119,17 @@ func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flow
 
 	// START THE PACKET CAPTURE AFTER CONFIG IS PUSHED
 	ate.OTG().SetControlState(t, cs)
+	defer func() {
+		cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
+		ate.OTG().SetControlState(t, cs)
+	}()
 
 	for _, flow := range flows {
 		initialOutPkts[flow.Name()] = gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
 	}
 	ate.OTG().StartTraffic(t)
+	defer ate.OTG().StopTraffic(t)
+
 	// AWAIT LOGIC INSTEAD OF SLEEP
 	for _, flow := range flows {
 		_, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State(), time.Minute, func(val *ygnmi.Value[uint64]) bool {
@@ -132,13 +138,9 @@ func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flow
 		}).Await(t)
 
 		if !ok {
-			t.Errorf("Traffic flow %s did not reach the target of %d packets within the timeout", flow.Name(), targetPkts)
+			t.Fatalf("Traffic flow %s did not reach the target of %d packets within the timeout", flow.Name(), targetPkts)
 		}
 	}
-	ate.OTG().StopTraffic(t)
-
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
-	ate.OTG().SetControlState(t, cs)
 
 	total := 0
 	for _, flow := range flows {
@@ -151,6 +153,7 @@ func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flow
 // testPacketIn programs p4rt table entry and sends traffic related to Traceroute,
 // then validates packetin message metadata and payload.
 func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool, cs gosnappi.ControlState, flowValues []*flowArgs, EgressPortMap map[string]bool) []float64 {
+	const targetPkts = 500
 	leader := args.leader
 	if err := programmTableEntry(leader, args.packetIO, false, true); err != nil {
 		t.Fatalf("There is error when programming IPv4 entry")
@@ -190,7 +193,7 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool
 	for _, flowValue := range flowValues {
 		flow = append(flow, args.packetIO.GetTrafficFlow(args.ate, dstMac, isIPv4, 1, 300, 50, ipv4InnerDst, flowValue))
 	}
-	pktOut := testTraffic(t, args.top, args.ate, flow, srcEndPoint, 500, cs)
+	pktOut := testTraffic(t, args.top, args.ate, flow, srcEndPoint, targetPkts, cs)
 	var countPkts = map[string]int{"11": 0, "12": 0, "13": 0, "14": 0, "15": 0, "16": 0, "17": 0}
 
 	packetInTests := []struct {
