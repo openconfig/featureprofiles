@@ -143,16 +143,18 @@ func switchoverControllerCards(ctx context.Context, t *testing.T, dut *ondatra.D
 		}
 	} else {
 		// ONLY read from the response if the RPC returned cleanly without an error
-		if useNameOnly {
-			if len(switchoverResponse.GetControlProcessor().GetElem()) > 0 {
-				got = switchoverResponse.GetControlProcessor().GetElem()[0].GetName()
-			}
-		} else {
-			if len(switchoverResponse.GetControlProcessor().GetElem()) > 1 {
-				got = switchoverResponse.GetControlProcessor().GetElem()[1].GetKey()["name"]
+		if switchoverResponse != nil && switchoverResponse.GetControlProcessor() != nil {
+			elems := switchoverResponse.GetControlProcessor().GetElem()
+			if useNameOnly {
+				if len(elems) > 0 {
+					got = elems[0].GetName()
+				}
+			} else {
+				if len(elems) > 1 {
+					got = elems[1].GetKey()["name"]
+				}
 			}
 		}
-	}
 
 	if got != want {
 		t.Fatalf("switchoverResponse validation failed: got %q, want %q", got, want)
