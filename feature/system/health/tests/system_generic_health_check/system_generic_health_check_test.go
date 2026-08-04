@@ -161,6 +161,9 @@ func configureSubinterfaces(t *testing.T, dut *ondatra.DUTDevice) {
 		intf := a.NewOCInterface(port.Name(), dut)
 		intf.GetOrCreateSubinterface(a.Subinterface).Description = ygot.String(a.Desc)
 		gnmi.Update(t, dut, gnmi.OC().Interface(port.Name()).Config(), intf)
+		t.Cleanup(func() {
+			gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Subinterface(a.Subinterface).Config())
+		})
 	}
 }
 
