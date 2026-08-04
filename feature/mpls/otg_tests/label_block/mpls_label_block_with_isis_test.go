@@ -36,24 +36,27 @@ func TestMain(m *testing.M) {
 
 }
 
-const (
+var (
+	SRReservedLabelblockName = "default-srgb"
+	srgbLocalID              = "100.1.1.1"
+	srlbLocalID              = "200.1.1.1"
+	srgbMplsLabelBlockName   = "400000 465001"
+	srlbMplsLabelBlockName   = "40000 41000"
+	srgbLocalIDReconfigure   = "99.99.99.99"
+	srlbLocalIDReconfigure   = "88.88.88.88"
+	srgbGblBlockReconfigure  = "101000 102001"
+	srgbLclBlockReconfigure  = "200000 201001"
+)
 
-	//SRReservedLabelblockName                  = "sr-reserved-label-block"
-	SRReservedLabelblockName                  = "default-srgb"
+const (
 	SRReservedLabelblockLowerbound            = 1000000
 	SRReservedLabelblockUpperbound            = 1048575
 	SRReservedLabelblockLowerboundReconfigure = 1110000
 	SRReservedLabelblockUpperboundReconfigure = 1048575
-	srgbMplsLabelBlockName                    = "400000 465001"
-	srlbMplsLabelBlockName                    = "40000 41000"
-	srgbGblBlockReconfigure                   = "101000 102001"
-	srgbLclBlockReconfigure                   = "200000 201001"
 	srgbGlobalLowerBound                      = 400000
 	srgbGlobalUpperBound                      = 465001
 	srgbLocalLowerBound                       = 40000
 	srgbLocalUpperBound                       = 41000
-	srgbLocalID                               = "100.1.1.1"
-	srlbLocalID                               = "200.1.1.1"
 	plenIPv4                                  = 30
 	plenIPv6                                  = 126
 	password                                  = "google"
@@ -135,12 +138,12 @@ func configureISISMPLSSRReconfigure(t *testing.T, ts *isissession.TestSession, S
 	mplsprot.GetOrCreateReservedLabelBlock(SRReservedLabelblockName).UpperBound = oc.UnionUint32(SRReservedLabelblockUpperbound)
 	// SRGB and SRLB Configurations
 	segmentrouting := netInstance.GetOrCreateSegmentRouting()
-	srgb := segmentrouting.GetOrCreateSrgb("99.99.99.99")
-	srgb.LocalId = ygot.String("99.99.99.99")
+	srgb := segmentrouting.GetOrCreateSrgb(srgbLocalIDReconfigure)
+	srgb.LocalId = ygot.String(srgbLocalIDReconfigure)
 	srgb.SetMplsLabelBlocks([]string{srgbGblBlock})
 
-	srlb := segmentrouting.GetOrCreateSrlb("88.88.88.88")
-	srlb.LocalId = ygot.String("88.88.88.88")
+	srlb := segmentrouting.GetOrCreateSrlb(srlbLocalIDReconfigure)
+	srlb.LocalId = ygot.String(srlbLocalIDReconfigure)
 	srlb.SetMplsLabelBlock(srgbLclBlock)
 }
 
@@ -155,6 +158,8 @@ func configureISISMPLSSR(t *testing.T, ts *isissession.TestSession) {
 	// ISIS Segment Routing configurations
 	isissr := prot.GetOrCreateIsis().GetOrCreateGlobal().GetOrCreateSegmentRouting()
 	isissr.Enabled = ygot.Bool(true)
+	isissr.Srgb = ygot.String(srgbLocalID)
+	isissr.Srlb = ygot.String(srlbLocalID)
 
 	// MPLS reserved label block.
 	mplsprot := netInstance.GetOrCreateMpls().GetOrCreateGlobal()
@@ -163,11 +168,11 @@ func configureISISMPLSSR(t *testing.T, ts *isissession.TestSession) {
 
 	// SRGB and SRLB Configurations
 	segmentrouting := netInstance.GetOrCreateSegmentRouting()
-	srgb := segmentrouting.GetOrCreateSrgb("srgb-global")
+	srgb := segmentrouting.GetOrCreateSrgb(srgbLocalID)
 	srgb.LocalId = ygot.String(srgbLocalID)
 	srgb.SetMplsLabelBlocks([]string{srgbMplsLabelBlockName})
 
-	srlb := segmentrouting.GetOrCreateSrlb(srgbLocalID)
+	srlb := segmentrouting.GetOrCreateSrlb(srlbLocalID)
 	srlb.LocalId = ygot.String(srlbLocalID)
 	srlb.SetMplsLabelBlock(srlbMplsLabelBlockName)
 
@@ -406,6 +411,21 @@ func TestMPLSLabelBlockWithISIS(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
 	ts := isissession.MustNew(t).WithISIS()
+
+	// Arista does not support custom reserved label block names,
+	// only well-defined names like "isis-sr" and "srlb".
+	if ts.DUT.Vendor() == ondatra.ARISTA {
+		SRReservedLabelblockName = "isis-sr"
+		srgbMplsLabelBlockName = "isis-sr"
+		srlbMplsLabelBlockName = "srlb"
+		srgbLocalID = "isis-sr"
+		srlbLocalID = "srlb"
+		srgbGblBlockReconfigure = "isis-sr"
+		srgbLclBlockReconfigure = "srlb"
+		srgbLocalIDReconfigure = "isis-sr"
+		srlbLocalIDReconfigure = "srlb"
+	}
+
 	configureISISMPLSSR(t, ts)
 
 	switch deviations.SrIgpConfigUnsupported(ts.DUT) {
@@ -460,7 +480,7 @@ func TestMPLSLabelBlockWithISIS(t *testing.T) {
 	case false:
 		configureISISMPLSSRReconfigure(t, ts, SRReservedLabelblockLowerboundReconfigure, SRReservedLabelblockUpperboundReconfigure, srgbGblBlockReconfigure, srgbLclBlockReconfigure)
 		// Checking MPLS SR
-		verifyMPLSSR(t, ts, srgbGlobalLowerBound, srgbGlobalUpperBound)
+		verifyMPLSSR(t, ts, SRReservedLabelblockLowerboundReconfigure, SRReservedLabelblockUpperboundReconfigure)
 	}
 
 	// Traffic checks
