@@ -2319,3 +2319,12 @@ func MacsecOcUnsupported(dut *ondatra.DUTDevice) bool {
 func AftsGlobalFilterPolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAftsGlobalFilterPolicyOcUnsupported()
 }
+
+// FRRWeightResolutionTolerance returns the allowed tolerance for traffic flow while comparing for pass or fail conditions.
+// Default minimum value is 0.2.
+func FrrWeightResolutionTolerance(dut *ondatra.DUTDevice) float64 {
+	if hwrt := lookupDUTDeviations(dut).GetFrrWeightResolutionTolerance(); hwrt != 0 {
+		return hwrt
+	}
+	return 0.2
+}

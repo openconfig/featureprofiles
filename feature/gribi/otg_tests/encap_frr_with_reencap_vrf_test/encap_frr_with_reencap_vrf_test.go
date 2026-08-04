@@ -79,7 +79,6 @@ const (
 	niEncapTeVrfA          = "ENCAP_TE_VRF_A"
 	niRepairVrf            = "REPAIR_VRF"
 	tolerancePct           = 2
-	tolerance              = 0.2
 	encapFlow              = "encapFlow"
 	correspondingHopLimit  = 64
 	magicIP                = "192.168.1.1"
@@ -191,6 +190,7 @@ var (
 	}
 	loopbackIntfName string
 	atePortNamelist  []string
+	tolerance        = 0.2
 )
 
 // awaitTimeout calls a fluent client Await, adding a timeout to the context.
@@ -817,7 +817,7 @@ func verifyTraffic(t *testing.T, args *testArgs, capturePortList []string, loadB
 		}
 	}
 	t.Log("Verify packet load balancing as per the programmed weight")
-	validateTrafficDistribution(t, args.ate, loadBalancePercent)
+	validateTrafficDistribution(t, args.dut, args.ate, loadBalancePercent)
 	var pcapFileList []string
 	for _, capturePort := range capturePortList {
 		bytes := args.otg.GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(capturePort))
@@ -1016,13 +1016,16 @@ func normalize(xs []uint64) (ys []float64, sum uint64) {
 	return ys, sum
 }
 
-func validateTrafficDistribution(t *testing.T, ate *ondatra.ATEDevice, wantWeights []float64) {
+func validateTrafficDistribution(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, wantWeights []float64) {
 	inFramesAllPorts := gnmi.GetAll(t, ate.OTG(), gnmi.OTG().PortAny().Counters().InFrames().State())
 	// Skip source port, Port1.
 	gotWeights, _ := normalize(inFramesAllPorts[1:])
 
 	t.Log("got ratio:", gotWeights)
 	t.Log("want ratio:", wantWeights)
+	if deviations.FrrWeightResolutionTolerance(dut) != tolerance {
+		tolerance = deviations.FrrWeightResolutionTolerance(dut)
+	}
 	if diff := cmp.Diff(wantWeights, gotWeights, cmpopts.EquateApprox(0, tolerance)); diff != "" {
 		t.Errorf("Packet distribution ratios -want,+got:\n%s", diff)
 	}
