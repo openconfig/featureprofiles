@@ -1089,7 +1089,6 @@ func BuildDefaultVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, 
 			weights := iter.Next()
 			for j, w := range weights {
 				nhID := baseNH + uint64((nhOffset+j)%numNHPart)
-				t.Logf("Adding next hop %d to NHG %d with weight %d", nhID, baseNHG+uint64(i), w)
 				nhg.AddNextHop(nhID, w)
 			}
 			nhOffset += len(weights)
