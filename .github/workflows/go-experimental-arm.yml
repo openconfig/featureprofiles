@@ -134,7 +134,7 @@ jobs:
       uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: /mnt/cache/staticcheck
-        key: ${{ runner.os }}-staticcheck-${{ github.sha }}
+        key: ${{ runner.os }}-staticcheck-${{ hashFiles('**/go.sum') }}
         restore-keys: |
           ${{ runner.os }}-staticcheck-
     - name: Run staticcheck
