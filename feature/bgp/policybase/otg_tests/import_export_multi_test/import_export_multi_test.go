@@ -749,6 +749,10 @@ func verifyTrafficV4AndV6(t *testing.T, bs *cfgplugins.BGPSession, testResults [
 			t.Logf("Traffic validation successful for Prefixes: [%s, %s]. Result: [%t] PacketsTx: %d PacketsRx: %d", prefixesV6[index][0], prefixesV6[index][1], expectSuccess, txPackets6, rxPackets6)
 		}
 	}
+
+	// Log flow and port metrics
+	otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
+	otgutils.LogPortMetrics(t, bs.ATE.OTG(), bs.ATETop)
 }
 
 func validateLocalPreferenceV4(t *testing.T, dut *ondatra.DUTDevice, prefix string, metricValue uint32) {
