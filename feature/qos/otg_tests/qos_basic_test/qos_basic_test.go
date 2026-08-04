@@ -24,6 +24,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/qoscfg"
+	"github.com/openconfig/functional-translators/registrar"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -73,6 +74,17 @@ type trafficData struct {
 	dscp                  uint8
 	queue                 string
 	inputIntf             attrs.Attributes
+}
+
+func getOptsForFunctionalTranslator(t *testing.T, dut *ondatra.DUTDevice, functionalTranslatorName string) []ygnmi.Option {
+	if functionalTranslatorName == "" {
+		return nil
+	}
+	ft, ok := registrar.FunctionalTranslatorRegistry[functionalTranslatorName]
+	if !ok {
+		t.Fatalf("Functional translator %s is not registered", functionalTranslatorName)
+	}
+	return []ygnmi.Option{ygnmi.WithFT(ft)}
 }
 
 func TestMain(m *testing.M) {
@@ -425,27 +437,28 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 			// Get QoS egress packet counters before the traffic.
 			const timeout = time.Minute
 			isPresent := func(val *ygnmi.Value[uint64]) bool { return val.IsPresent() }
+			opts := getOptsForFunctionalTranslator(t, dut, deviations.QosFt(dut))
 			if !deviations.QosGetStatePathUnsupported(dut) {
 				for _, data := range trafficFlows {
-					count, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State(), timeout, isPresent).Await(t)
+					count, ok := gnmi.Watch(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State(), timeout, isPresent).Await(t)
 					if !ok {
 						t.Errorf("TransmitPkts count for queue %q on interface %q not available within %v", dp3.Name(), data.queue, timeout)
 					}
 					counters["dutQosPktsBeforeTraffic"][data.queue], _ = count.Val()
 
-					count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitOctets().State(), timeout, isPresent).Await(t)
+					count, ok = gnmi.Watch(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitOctets().State(), timeout, isPresent).Await(t)
 					if !ok {
 						t.Errorf("TransmitOctets count for queue %q on interface %q not available within %v", dp3.Name(), data.queue, timeout)
 					}
 					counters["dutQosOctetsBeforeTraffic"][data.queue], _ = count.Val()
 
-					count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State(), timeout, isPresent).Await(t)
+					count, ok = gnmi.Watch(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State(), timeout, isPresent).Await(t)
 					if !ok {
 						t.Errorf("DroppedPkts count for queue %q on interface %q not available within %v", dp3.Name(), data.queue, timeout)
 					}
 					counters["dutQosDroppedPktsBeforeTraffic"][data.queue], _ = count.Val()
 
-					count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State(), timeout, isPresent).Await(t)
+					count, ok = gnmi.Watch(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State(), timeout, isPresent).Await(t)
 					if !ok {
 						t.Errorf("DroppedOctets count for queue %q on interface %q not available within %v", dp3.Name(), data.queue, timeout)
 					}
@@ -468,10 +481,10 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 				counters["ateInPkts"][data.queue] += ateRxPkts
 
 				if !deviations.QosGetStatePathUnsupported(dut) {
-					counters["dutQosPktsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State())
-					counters["dutQosOctetsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitOctets().State())
-					counters["dutQosDroppedPktsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State())
-					counters["dutQosDroppedOctetsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State())
+					counters["dutQosPktsAfterTraffic"][data.queue] = gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State())
+					counters["dutQosOctetsAfterTraffic"][data.queue] = gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitOctets().State())
+					counters["dutQosDroppedPktsAfterTraffic"][data.queue] = gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State())
+					counters["dutQosDroppedOctetsAfterTraffic"][data.queue] = gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State())
 				}
 
 				t.Logf("ateInPkts: %v, txPkts %v, Queue: %v", counters["ateInPkts"][data.queue], counters["dutQosPktsAfterTraffic"][data.queue], data.queue)
@@ -1749,10 +1762,10 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func gnmiOpts(t *testing.T, dut *ondatra.DUTDevice, interval time.Duration) *gnmi.Opts {
-	return dut.GNMIOpts().WithYGNMIOpts(
-		ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE),
-		ygnmi.WithSampleInterval(interval),
-	)
+	opts := getOptsForFunctionalTranslator(t, dut, deviations.QosFt(dut))
+	opts = append(opts, ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE))
+	opts = append(opts, ygnmi.WithSampleInterval(interval))
+	return dut.GNMIOpts().WithYGNMIOpts(opts...)
 }
 func configureNoZeroSuppression(t *testing.T, dut *ondatra.DUTDevice) {
 	// Disable Zero suppression
