@@ -517,6 +517,10 @@ func ValidateGnoiPingRequest(ctx context.Context, t *testing.T, sysClient spb.Sy
 	t.Logf("Verifying gNOI Ping Request.")
 	pingClient, err := sysClient.Ping(ctx, &spb.PingRequest{Destination: "127.0.0.1", Count: 1})
 	if err != nil {
+		if mismatch {
+			t.Logf("Expected connection failure for certificate mismatch: %v", err)
+			return true
+		}
 		t.Fatalf("Unable to connect gnoiClient %v", err)
 	}
 	_, err = pingClient.Recv()
@@ -659,6 +663,10 @@ func ValidateGribiGetRequest(ctx context.Context, t *testing.T, gRibiClient grib
 		Aft:             gribipb.AFTType_IPV4,
 	})
 	if err != nil {
+		if mismatch {
+			t.Logf("Expected connection failure for certificate mismatch: %v", err)
+			return true
+		}
 		t.Fatalf("Failed to connect GribiClient with error:%v.", err)
 	}
 	_, err = getClient.Recv()
