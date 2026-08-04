@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -29,6 +30,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 	"golang.org/x/exp/slices"
 
 	fpb "github.com/openconfig/gnoi/file"
@@ -62,6 +64,25 @@ const (
 	controllerCardType = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
 	chassisCardType    = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS
 )
+
+var dutPorts = map[string]attrs.Attributes{
+	"port1": {
+		Desc:         "Health-1.1 dutPort1",
+		Subinterface: 0,
+		IPv4:         "198.51.100.1",
+		IPv4Len:      30,
+		IPv6:         "2001:db8:1::1",
+		IPv6Len:      126,
+	},
+	"port2": {
+		Desc:         "Health-1.1 dutPort2",
+		Subinterface: 0,
+		IPv4:         "198.51.100.5",
+		IPv4Len:      30,
+		IPv6:         "2001:db8:1::5",
+		IPv6Len:      126,
+	},
+}
 
 // coreFileCheck function is used to check if cores are found on the DUT.
 func coreFileCheck(t *testing.T, dut *ondatra.DUTDevice, gnoiClient gnoigo.Clients, sysConfigTime uint64, retry bool) {
@@ -124,6 +145,23 @@ func sortedInterfaces(ports []*ondatra.Port) []string {
 	}
 	slices.Sort(interfaces)
 	return interfaces
+}
+
+// configureSubinterfaces configures the untagged subinterface on every DUT port so that
+// the subinterface health checks have something to verify.
+func configureSubinterfaces(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+
+	for _, port := range dut.Ports() {
+		a, ok := dutPorts[port.ID()]
+		if !ok {
+			t.Fatalf("ERROR: No attributes defined for testbed port %s, add an entry to dutPorts", port.ID())
+		}
+
+		intf := a.NewOCInterface(port.Name(), dut)
+		intf.GetOrCreateSubinterface(a.Subinterface).Description = ygot.String(a.Desc)
+		gnmi.Update(t, dut, gnmi.OC().Interface(port.Name()).Config(), intf)
+	}
 }
 
 func removeElement(list []string, element string) []string {
@@ -718,7 +756,9 @@ func TestInterfaceStatus(t *testing.T) {
 			} else {
 				t.Logf("INFO: Counter OutOctets: %d", root.GetCounters().GetOutOctets())
 			}
-			if root.GetCounters().InMulticastPkts == nil {
+			if deviations.SubintfCountersInMulticastPktsUnsupported(dut) {
+				t.Skip("INFO: Skipping test due to deviati on subintf_counters_inmulticastpkts_unsupported")
+			} else if root.GetCounters().InMulticastPkts == nil {
 				t.Errorf("ERROR: Counter InMulticastPkts is not present")
 			} else {
 				t.Logf("INFO: Counter InMulticastPkts: %d", root.GetCounters().GetInMulticastPkts())
@@ -763,6 +803,8 @@ func TestInterfaceStatus(t *testing.T) {
 
 func TestInterfacesubIntfs(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+
+	configureSubinterfaces(t, dut)
 
 	interfaces := sortedInterfaces(dut.Ports())
 	t.Logf("Interfaces: %s", interfaces)
@@ -872,6 +914,8 @@ func TestInterfacesubIntfs(t *testing.T) {
 								t.Skipf("INFO: Skipping test due to deviation interface_counters_in_unknown_protos_unsupported")
 							} else if c.desc == "InFcsErrors" && deviations.InterfaceCountersInFcsErrorsUnsupported(dut) {
 								t.Skipf("INFO: Skipping test due to deviation interface_counters_in_fcs_errors_unsupported")
+							} else if c.desc == "InMulticastPkts" && deviations.SubintfCountersInMulticastPktsUnsupported(dut) {
+								t.Skipf("INFO: Skipping test due to deviation subintf_counters_inmulticastpkts_unsupported")
 							}
 							if val, present := gnmi.Lookup(t, dut, c.counter).Val(); present {
 								t.Logf("INFO: %s: %d", c.counter, val)

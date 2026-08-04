@@ -41,6 +41,7 @@ N/A
 rpcs:
   gnmi:
     gNMI.Get:
+    gNMI.Set:
 
 paths:
   ## Config Parameter coverage
@@ -61,6 +62,9 @@ paths:
     /interfaces/interface/state/counters/out-octets:
     /interfaces/interface/state/description:
     /interfaces/interface/state/type:
+    /interfaces/interface/subinterfaces/subinterface/state/oper-status:
+    /interfaces/interface/subinterfaces/subinterface/state/admin-status:
+    /interfaces/interface/subinterfaces/subinterface/state/description:
     /interfaces/interface/subinterfaces/subinterface/state/counters/in-discards:
     /interfaces/interface/subinterfaces/subinterface/state/counters/in-errors:
     /interfaces/interface/subinterfaces/subinterface/state/counters/in-unknown-protos:
