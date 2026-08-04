@@ -35,12 +35,131 @@ Generic Health Check
 
 N/A
 
+## Canonical OC
+
+The subinterface health checks require an untagged subinterface to be present on
+each DUT port, so the test configures the following before validating telemetry.
+
+```json
+{
+  "openconfig-interfaces:interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "Health-1.1 dutPort1",
+          "enabled": true,
+          "name": "port1",
+          "type": "ethernetCsmacd"
+        },
+        "name": "port1",
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "config": {
+                "description": "Health-1.1 dutPort1",
+                "index": 0
+              },
+              "index": 0,
+              "ipv4": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "198.51.100.1",
+                        "prefix-length": 30
+                      },
+                      "ip": "198.51.100.1"
+                    }
+                  ]
+                },
+                "config": {
+                  "enabled": true
+                }
+              },
+              "ipv6": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "2001:db8:1::1",
+                        "prefix-length": 126
+                      },
+                      "ip": "2001:db8:1::1"
+                    }
+                  ]
+                },
+                "config": {
+                  "enabled": true
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "config": {
+          "description": "Health-1.1 dutPort2",
+          "enabled": true,
+          "name": "port2",
+          "type": "ethernetCsmacd"
+        },
+        "name": "port2",
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "config": {
+                "description": "Health-1.1 dutPort2",
+                "index": 0
+              },
+              "index": 0,
+              "ipv4": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "198.51.100.5",
+                        "prefix-length": 30
+                      },
+                      "ip": "198.51.100.5"
+                    }
+                  ]
+                },
+                "config": {
+                  "enabled": true
+                }
+              },
+              "ipv6": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "2001:db8:1::5",
+                        "prefix-length": 126
+                      },
+                      "ip": "2001:db8:1::5"
+                    }
+                  ]
+                },
+                "config": {
+                  "enabled": true
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
 rpcs:
   gnmi:
     gNMI.Get:
+    gNMI.Set:
 
 paths:
   ## Config Parameter coverage
@@ -61,6 +180,9 @@ paths:
     /interfaces/interface/state/counters/out-octets:
     /interfaces/interface/state/description:
     /interfaces/interface/state/type:
+    /interfaces/interface/subinterfaces/subinterface/state/oper-status:
+    /interfaces/interface/subinterfaces/subinterface/state/admin-status:
+    /interfaces/interface/subinterfaces/subinterface/state/description:
     /interfaces/interface/subinterfaces/subinterface/state/counters/in-discards:
     /interfaces/interface/subinterfaces/subinterface/state/counters/in-errors:
     /interfaces/interface/subinterfaces/subinterface/state/counters/in-unknown-protos:

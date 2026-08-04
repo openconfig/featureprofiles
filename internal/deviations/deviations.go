@@ -2319,3 +2319,10 @@ func MacsecOcUnsupported(dut *ondatra.DUTDevice) bool {
 func AftsGlobalFilterPolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAftsGlobalFilterPolicyOcUnsupported()
 }
+
+// SubintfCountersInMulticastPktsUnsupported returns true if the DUT does not support counters for
+// multicast packets at the subinterface state level.
+// Nokia: b/513402739
+func SubintfCountersInMulticastPktsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSubintfCountersInmulticastpktsUnsupported()
+}
