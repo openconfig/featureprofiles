@@ -292,9 +292,7 @@ func firstInterfaceWithoutTransceiver(t *testing.T, dut *ondatra.DUTDevice) stri
 		name := intf.GetName()
 		if !(strings.HasPrefix(name, "Ethernet") || strings.HasPrefix(name, "et-") || strings.HasPrefix(name, "xe-") || strings.HasPrefix(name, "ge-")) {
 		st := intf.GetOperStatus()
-		if st == operStatusNoTransceiver(t, dut) || st == oc.Interface_OperStatus_DOWN {
-			return name
-		}
+		if st == operStatusNoTransceiver(t, dut) {
 	}
 
 	t.Fatalf("unable to find an Ethernet interface with no transceiver connected")
