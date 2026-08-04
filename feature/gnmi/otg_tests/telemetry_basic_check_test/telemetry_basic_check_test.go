@@ -573,8 +573,14 @@ func TestComponentParent(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 
-			if len(compList[tc.desc]) == 0 && (dut.Model() == "DCS-7280CR3K-32D4" || dut.Model() == "CISCO-8202-32FH-M") {
-				t.Skipf("Test of %v is skipped due to hardware platform compatibility", tc.componentType)
+			if *args.NumLinecards == 0 && tc.desc == "Linecard" {
+				t.Skipf("Test of %v is skipped due to hardware platform compatibility for model %v", tc.componentType, dut.Model())
+			}
+			if *args.NumFabrics == 0 && tc.desc == "Fabric" {
+				t.Skipf("Test of %v is skipped due to hardware platform compatibility for model %v", tc.componentType, dut.Model())
+			}
+			if *args.NumControllerCards == 0 && tc.desc == "Supervisor" {
+				t.Skipf("Test of %v is skipped due to hardware platform compatibility for model %v", tc.componentType, dut.Model())
 			}
 
 			t.Logf("Found component list for type %v : %v", tc.componentType, compList[tc.desc])
@@ -671,10 +677,11 @@ func TestCPU(t *testing.T) {
 	for _, cpu := range cpus {
 		t.Logf("Validate CPU: %s", cpu)
 		component := gnmi.OC().Component(cpu)
-		if !gnmi.Lookup(t, dut, component.Description().State()).IsPresent() {
+		desc, present := gnmi.Lookup(t, dut, component.Description().State()).Val()
+		if !present {
 			t.Errorf("component.Description().Lookup(t).IsPresent() for %q: got false, want true", cpu)
 		} else {
-			t.Logf("CPU %s Description: %s", cpu, gnmi.Get(t, dut, component.Description().State()))
+			t.Logf("CPU %s Description: %s", cpu, desc)
 		}
 	}
 }
@@ -682,8 +689,8 @@ func TestCPU(t *testing.T) {
 func TestSupervisorLastRebootInfo(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	if dut.Model() == "DCS-7280CR3K-32D4" {
-		t.Skipf("Test is skipped due to hardware platform compatibility")
+	if *args.NumControllerCards == 0 {
+		t.Skipf("Test of SupervisorLastRebootInfo is skipped due to hardware platform compatibility for model %v", dut.Model())
 	}
 
 	cards := components.FindComponentsByType(t, dut, supervisorType)
@@ -696,15 +703,15 @@ func TestSupervisorLastRebootInfo(t *testing.T) {
 	rebootReasonFound := false
 	for _, card := range cards {
 		t.Logf("Validate card %s", card)
-		rebootTime := gnmi.OC().Component(card).LastRebootTime()
-		if gnmi.Lookup(t, dut, rebootTime.State()).IsPresent() {
-			t.Logf("Hardware card %s reboot time: %v", card, gnmi.Get(t, dut, rebootTime.State()))
+		rebootTime, present := gnmi.Lookup(t, dut, gnmi.OC().Component(card).LastRebootTime().State()).Val()
+		if present {
+			t.Logf("Hardware card %s reboot time: %v", card, rebootTime)
 			rebootTimeFound = true
 		}
 
-		rebootReason := gnmi.OC().Component(card).LastRebootReason()
-		if gnmi.Lookup(t, dut, rebootReason.State()).IsPresent() {
-			t.Logf("Hardware card %s reboot reason: %v", card, gnmi.Get(t, dut, rebootReason.State()))
+		rebootReason, present := gnmi.Lookup(t, dut, gnmi.OC().Component(card).LastRebootReason().State()).Val()
+		if present {
+			t.Logf("Hardware card %s reboot reason: %v", card, rebootReason)
 			rebootReasonFound = true
 		}
 	}
