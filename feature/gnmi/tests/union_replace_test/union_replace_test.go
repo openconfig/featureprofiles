@@ -290,9 +290,7 @@ func firstInterfaceWithoutTransceiver(t *testing.T, dut *ondatra.DUTDevice) stri
 	allInterfaces := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().State())
 	for _, intf := range allInterfaces {
 		name := intf.GetName()
-		if !(strings.HasPrefix(name, "Ethernet") || strings.HasPrefix(name, "et")) {
-			continue
-		}
+		if !(strings.HasPrefix(name, "Ethernet") || strings.HasPrefix(name, "et-") || strings.HasPrefix(name, "xe-") || strings.HasPrefix(name, "ge-")) {
 		st := intf.GetOperStatus()
 		if st == operStatusNoTransceiver(t, dut) || st == oc.Interface_OperStatus_DOWN {
 			return name
