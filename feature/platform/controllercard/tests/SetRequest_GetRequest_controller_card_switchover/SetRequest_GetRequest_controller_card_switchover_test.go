@@ -430,9 +430,13 @@ func verifyConfiguredElements(t *testing.T, dut *ondatra.DUTDevice) {
 
 	numInterfaces := 0
 	// 4. Parse the raw JSON using a generic map wrapper
-	if len(getResponse.GetNotification()) > 0 && len(getResponse.GetNotification()[0].GetUpdate()) > 0 {
-		jsonVal := getResponse.GetNotification()[0].GetUpdate()[0].GetVal().GetJsonIetfVal()
-
+	if getResponse != nil && len(getResponse.GetNotification()) > 0 && len(getResponse.GetNotification()[0].GetUpdate()) > 0 {
+		update := getResponse.GetNotification()[0].GetUpdate()[0]
+		if update.GetVal() == nil {
+			t.Fatalf("gNMI Get response update value is nil")
+		}
+		jsonVal := update.GetVal().GetJsonIetfVal()
+			
 		// Parse into a dynamic map representing the interfaces container
 		var rawData map[string]interface{}
 		if err := json.Unmarshal(jsonVal, &rawData); err != nil {
@@ -468,6 +472,11 @@ func verifyConfiguredElements(t *testing.T, dut *ondatra.DUTDevice) {
 	dni := deviations.DefaultNetworkInstance(dut)
 	//Get the entire single BGP configuration container (No wildcards!)
 	bgpConfig := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Config())
+	if bgpConfig == nil {
+		t.Fatalf("BGP configuration is nil")
+	}
+	// Access the inner Neighbor map built into the Go struct
+	numBGPNeighbors := len(bgpConfig.Neighbor)
 
 	// Access the inner Neighbor map built into the Go struct
 	numBGPNeighbors := len(bgpConfig.Neighbor)
