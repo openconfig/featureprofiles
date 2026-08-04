@@ -1421,6 +1421,9 @@ message Metadata {
     // Arista: https://partnerissuetracker.corp.google.com/issues/514565554
     bool afts_global_filter_policy_oc_unsupported = 446;
 
+    // https://partnerissuetracker.corp.google.com/issues/540976446
+    bool next_hop_group_static_route_oc_unsupported = 447;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }
