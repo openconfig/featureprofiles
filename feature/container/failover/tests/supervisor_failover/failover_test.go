@@ -166,7 +166,7 @@ func TestContainerAndVolumePersistence(t *testing.T) {
 
 		t.Logf("Deploying and starting container %s...", containerName)
 		startOpts := []client.StartOption{
-			client.WithPorts([]string{"60061:60061"}),
+			client.WithNetwork("host"),
 			client.WithVolumes([]string{fmt.Sprintf("%s:%s", volName, "/data")}),
 		}
 
@@ -443,7 +443,7 @@ func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 
 		t.Logf("Starting container %s...", containerName)
 		startOpts := []client.StartOption{
-			client.WithPorts([]string{"60061:60061"}),
+			client.WithNetwork("host"),
 			client.WithVolumes([]string{fmt.Sprintf("%s:%s", volName, "/data")}),
 		}
 		// Ensure container is removed before starting.

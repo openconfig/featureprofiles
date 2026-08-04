@@ -79,10 +79,11 @@ func setupContainer(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	ctx := context.Background()
 	opts := containerztest.StartContainerOptions{
-		ImageName:           imageName,
-		InstanceName:        instanceName,
-		Command:             fmt.Sprintf("./cntrsrv --port=%d", cntrPort),
-		TarPath:             containerTarPath(t),
+		ImageName:    imageName,
+		InstanceName: instanceName,
+		Command:      fmt.Sprintf("./cntrsrv --port=%d", cntrPort),
+		TarPath:      containerTarPath(t),
+		// Host networking exposes cntrPort directly without port publishing.
 		Network:             "host",
 		PollForRunningState: true,
 	}
