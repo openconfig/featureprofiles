@@ -23,10 +23,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/attrs"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 	"google.golang.org/protobuf/encoding/prototext"
@@ -158,6 +160,47 @@ func buildCliConfigRequest(config string) (*gpb.SetRequest, error) {
 // BuildCliConfigRequest Build config with Origin set to cli and Ascii encoded config.
 func BuildCliConfigRequest(config string) (*gpb.SetRequest, error) {
 	return buildCliConfigRequest(config)
+}
+
+// GetOrCreateLoopback ensures the requested loopback interface/subinterface exists on the DUT
+// and returns the loopback interface name. If the interface does not exist, it is created
+// (softwareLoopback type) with both IPv4 and IPv6 addresses from loopAttrs in one update. If it
+// already exists, any missing address family is configured from loopAttrs, and any existing
+// address is read back into loopAttrs so callers always have the correct in-use addresses after
+// this call.
+func GetOrCreateLoopback(t *testing.T, dut *ondatra.DUTDevice, loopbackID int, subinterface uint32, loopAttrs *attrs.Attributes) string {
+	t.Helper()
+	loopbackIntfName := netutil.LoopbackInterface(t, dut, loopbackID)
+	loopIntf := gnmi.Lookup(t, dut, gnmi.OC().Interface(loopbackIntfName).State())
+	if _, ok := loopIntf.Val(); !ok {
+		// Interface does not exist: create it with both addresses in one update.
+		loopCfg := *loopAttrs
+		loopCfg.Subinterface = subinterface
+		loop1 := loopCfg.NewOCInterface(loopbackIntfName, dut)
+		loop1.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
+		gnmi.Update(t, dut, gnmi.OC().Interface(loopbackIntfName).Config(), loop1)
+		t.Logf("Created loopback interface %s with IPv4=%s IPv6=%s", loopbackIntfName, loopAttrs.IPv4, loopAttrs.IPv6)
+	} else {
+		// Interface exists: check each family independently.
+		lo := gnmi.OC().Interface(loopbackIntfName).Subinterface(subinterface)
+		ipv4Addrs := gnmi.LookupAll(t, dut, lo.Ipv4().AddressAny().State())
+		if len(ipv4Addrs) == 0 {
+			gnmi.Update(t, dut, lo.Ipv4().Address(loopAttrs.IPv4).PrefixLength().Config(), uint8(loopAttrs.IPv4Len))
+			t.Logf("Configured missing IPv4 loopback address: %v", loopAttrs.IPv4)
+		} else if v4, ok := ipv4Addrs[0].Val(); ok {
+			loopAttrs.IPv4 = v4.GetIp()
+			t.Logf("Got DUT IPv4 loopback address: %v", loopAttrs.IPv4)
+		}
+		ipv6Addrs := gnmi.LookupAll(t, dut, lo.Ipv6().AddressAny().State())
+		if len(ipv6Addrs) == 0 {
+			gnmi.Update(t, dut, lo.Ipv6().Address(loopAttrs.IPv6).PrefixLength().Config(), uint8(loopAttrs.IPv6Len))
+			t.Logf("Configured missing IPv6 loopback address: %v", loopAttrs.IPv6)
+		} else if v6, ok := ipv6Addrs[0].Val(); ok {
+			loopAttrs.IPv6 = v6.GetIp()
+			t.Logf("Got DUT IPv6 loopback address: %v", loopAttrs.IPv6)
+		}
+	}
+	return loopbackIntfName
 }
 
 // GetRouterTime gets the current time from the router via gNMI to avoid clock skew issues.
