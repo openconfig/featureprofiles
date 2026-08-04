@@ -327,7 +327,6 @@ func TestControllerCardsNoHighCPUSpike(t *testing.T) {
 					}
 				}
 			})
-
 		}
 
 		if deviations.SecondaryControllerCardCpuUtilizationUnsupported(dut) {
@@ -757,7 +756,7 @@ func TestInterfaceStatus(t *testing.T) {
 				t.Logf("INFO: Counter OutOctets: %d", root.GetCounters().GetOutOctets())
 			}
 			if deviations.SubintfCountersInMulticastPktsUnsupported(dut) {
-				t.Skip("INFO: Skipping test due to deviati on subintf_counters_inmulticastpkts_unsupported")
+				t.Skip("INFO: Skipping test due to deviation subintf_counters_inmulticastpkts_unsupported")
 			} else if root.GetCounters().InMulticastPkts == nil {
 				t.Errorf("ERROR: Counter InMulticastPkts is not present")
 			} else {
