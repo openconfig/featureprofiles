@@ -3,6 +3,7 @@ package weighted_ecmp_test
 import (
 	"fmt"
 	"math/rand"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
@@ -31,14 +33,15 @@ const (
 	acceptRoutePolicy = "PERMIT-ALL"
 	trafficPPS        = 50000 // Should be 5000000 // Should be 1000 for kne env(SW)
 	trafficv6PPS      = 50000 // Should be 5000000 // Should be 1000 for kne env(SW)
-	srcTrafficV4      = "192.0.2.2"
-	srcTrafficV6      = "2000:db8::2"
+	srcTrafficV4      = "198.18.0.0/32"
+	srcTrafficV6      = "2001:db8:99::/128"
 	dstTrafficV4      = "100.0.1.1"
 	dstTrafficV6      = "2010:db8:64:64::1"
 	v4Count           = 254
 	v6Count           = 1000 // Should be 10000000
 	fixedPackets      = 1000000
 	lossTolerance     = 0.01
+	srcIPCount        = 512
 )
 
 type aggPortData struct {
@@ -204,6 +207,34 @@ func TestWeightedECMPForISIS(t *testing.T) {
 		t.Logf("LAG %s: MemberPorts=%v", aggID, state.GetMember())
 	}
 
+	for _, lag := range top.Lags().Items() {
+		if _, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Lag(lag.Name()).State(), 2*time.Minute, func(v *ygnmi.Value[*otgtelemetry.Lag]) bool {
+			lagValue, present := v.Val()
+			if present {
+				return lagValue.GetCounters() != nil && lagValue.GetCounters().GetMemberPortsUp() == 2 && lagValue.GetOperStatus() == otgtelemetry.Lag_OperStatus_UP
+			} else {
+				return false
+			}
+		}).Await(t); !ok {
+			t.Errorf("LAG %s or member interfaces of LAG not UP on ATE", lag.Name())
+		}
+	}
+
+	v4Prefix := "100.0.1.0/24"
+	if got, ok := gnmi.Watch(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv4Entry(v4Prefix).State(), 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		ipv4Entry, present := val.Val()
+		return present && ipv4Entry.GetPrefix() == v4Prefix
+	}).Await(t); !ok {
+		t.Errorf("IPv4 route %s not found in AFT, got %v", v4Prefix, got)
+	}
+	v6Prefix := "2010:db8:64:64::/64"
+	if got, ok := gnmi.Watch(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv6Entry(v6Prefix).State(), 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
+		ipv6Entry, present := val.Val()
+		return present && ipv6Entry.GetPrefix() == v6Prefix
+	}).Await(t); !ok {
+		t.Errorf("IPv6 route %s not found in AFT, got %v", v6Prefix, got)
+	}
+
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 	VerifyISISTelemetry(t, dut, aggIDs, []*aggPortData{agg1, agg2})
@@ -315,6 +346,18 @@ func randRange(t *testing.T, start, end uint32, count int) []uint32 {
 	return result
 }
 
+func generateRandomIPList(t *testing.T, cidr string, count int) []string {
+	t.Helper()
+	var ips []string
+	for net := range netutil.GenCIDRs(t, cidr, count) {
+		ips = append(ips, strings.TrimSuffix(strings.TrimSuffix(net, "/32"), "/128"))
+	}
+	rand.Shuffle(len(ips), func(i, j int) {
+		ips[i], ips[j] = ips[j], ips[i]
+	})
+	return ips
+}
+
 func configureFlows(t *testing.T, top gosnappi.Config) []gosnappi.Flow {
 	t.Helper()
 	dut := ondatra.DUT(t, "dut")
@@ -332,7 +375,7 @@ func configureFlows(t *testing.T, top gosnappi.Config) []gosnappi.Flow {
 	eV4 := fV4.Packet().Add().Ethernet()
 	eV4.Src().SetValue(agg1.ateAggMAC)
 	v4 := fV4.Packet().Add().Ipv4()
-	v4.Src().Increment().SetStart(srcTrafficV4).SetCount(1)
+	v4.Src().SetValues(generateRandomIPList(t, srcTrafficV4, srcIPCount))
 	v4.Dst().Increment().SetStart(dstTrafficV4).SetCount(v4Count)
 	udp := fV4.Packet().Add().Udp()
 	udp.SrcPort().SetValues(randRange(t, 34525, 65535, 5000))
@@ -352,7 +395,7 @@ func configureFlows(t *testing.T, top gosnappi.Config) []gosnappi.Flow {
 	eV6.Src().SetValue(agg1.ateAggMAC)
 
 	v6 := fV6.Packet().Add().Ipv6()
-	v6.Src().Increment().SetStart(srcTrafficV6).SetCount(1)
+	v6.Src().SetValues(generateRandomIPList(t, srcTrafficV6, srcIPCount))
 	v6.Dst().Increment().SetStart(dstTrafficV6).SetCount(v6Count)
 	udpv6 := fV6.Packet().Add().Udp()
 	udpv6.SrcPort().SetValues(randRange(t, 35521, 65535, 5000))
