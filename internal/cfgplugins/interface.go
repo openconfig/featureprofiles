@@ -1318,8 +1318,8 @@ func ConfigureURPFonDutInt(t *testing.T, dut *ondatra.DUTDevice, cfg URPFConfigP
 		case ondatra.ARISTA:
 			urpfCliConfig := fmt.Sprintf(`
 			interface %s
-			ip verify unicast source reachable-via any
-			ipv6 verify unicast source reachable-via any
+			ip verify unicast source reachable-via rx
+			ipv6 verify unicast source reachable-via rx
 			`, cfg.InterfaceName)
 			helpers.GnmiCLIConfig(t, dut, urpfCliConfig)
 		default:
