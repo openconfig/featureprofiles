@@ -81,9 +81,18 @@ const (
 	// Traffic generation parameters.
 	trafficPPS = 100
 
-	// numTunnels is the number of parallel IPSec tunnels between the DUT pair for
-	// the scale test (IPSEC-1.2.x), all sharing TUNNEL_VRF with ECMP'd traffic.
+	// numTunnels is the single-attachment max tunnel count (IPSEC-1.2.1/1.2.2,
+	// base VLAN 10).
 	numTunnels = 256
+
+	// attachmentTunnels is the default per-attachment tunnel count for the
+	// device-max tests (4 * 256 = 1024). Lower-cap platforms override it via
+	// attachmentTunnelCount (Arista = 16 -> 4 * 16 = 64).
+	attachmentTunnels = 256
+
+	// numAdditionalAttachments is the count of extra attachments (VLAN 20/30/40)
+	// added on top of the trimmed base attachment for the device-max tests.
+	numAdditionalAttachments = 3
 
 	// Timeout durations.
 	lagUpTimeout    = 2 * time.Minute
@@ -418,7 +427,7 @@ func createVRFs(t *testing.T, dut *ondatra.DUTDevice, vrfNames []string) {
 					vrfName, vrfName, vrfName)
 			}
 			if cli := b.String(); cli != "" {
-				t.Logf("Creating VRF(s) via CLI on Arista (OC cannot express routing-enable): %v", vrfNames)
+				t.Logf("Creating VRF(s) via CLI on Arista (routing-enable): %v", vrfNames)
 				helpers.GnmiCLIConfig(t, dut, cli)
 			}
 		}
@@ -544,7 +553,7 @@ func configureStaticRoutes(t *testing.T, dut *ondatra.DUTDevice, routes []static
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice,
 	portGroups [][]*ondatra.Port,
 	portAttrs []attrs.Attributes,
-	vrfName string) {
+	vrfName string) []string {
 
 	t.Helper()
 
@@ -555,11 +564,55 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice,
 	// VRF should already be created by createVRF() before calling this
 	// Just configure the interfaces without VRF creation
 
+	lagNames := make([]string, 0, len(portGroups))
 	for i := range portGroups {
 		// Generate a unique aggregate ID per DUT per LAG.
 		lag := netutil.NextAggregateInterface(t, dut)
 		configureLAGInterface(t, dut, lag, portGroups[i], &portAttrs[i], vrfName)
+		lagNames = append(lagNames, lag)
 	}
+	return lagNames
+}
+
+// addCustomerAttachmentSubinterface adds a VLAN-tagged customer subinterface to an
+// existing aggregate and assigns it to the attachment's VRF. Physical-port MACsec
+// is inherited, so no extra MACsec config is needed.
+func addCustomerAttachmentSubinterface(t *testing.T, dut *ondatra.DUTDevice, lagName string, vlan uint16, a attrs.Attributes, vrfName string) {
+	t.Helper()
+
+	// Create the VLAN-tagged subinterface (no IP yet).
+	agg := &oc.Interface{Name: ygot.String(lagName)}
+	s := agg.GetOrCreateSubinterface(uint32(vlan))
+	s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().SetVlanId(vlan)
+	s4 := s.GetOrCreateIpv4()
+	s6 := s.GetOrCreateIpv6()
+	if deviations.InterfaceEnabled(dut) {
+		s4.Enabled = ygot.Bool(true)
+		s6.Enabled = ygot.Bool(true)
+	}
+	s4.Mtu = ygot.Uint16(a.MTU)
+	s6.Mtu = ygot.Uint32(uint32(a.MTU))
+	gnmi.Update(t, dut, gnmi.OC().Interface(lagName).Config(), agg)
+
+	// Assign the VRF before programming IPs; moving VRFs afterwards can clear them.
+	assignAggregateToVRF(t, dut, lagName, uint32(vlan), vrfName)
+
+	// Program the IP addresses on the subinterface.
+	aggIP := &oc.Interface{Name: ygot.String(lagName)}
+	sIP := aggIP.GetOrCreateSubinterface(uint32(vlan))
+	s4IP := sIP.GetOrCreateIpv4()
+	s6IP := sIP.GetOrCreateIpv6()
+	if deviations.InterfaceEnabled(dut) {
+		s4IP.Enabled = ygot.Bool(true)
+		s6IP.Enabled = ygot.Bool(true)
+	}
+	if a.IPv4 != "" {
+		s4IP.GetOrCreateAddress(a.IPv4).PrefixLength = ygot.Uint8(a.IPv4Len)
+	}
+	if a.IPv6 != "" {
+		s6IP.GetOrCreateAddress(a.IPv6).PrefixLength = ygot.Uint8(a.IPv6Len)
+	}
+	gnmi.Update(t, dut, gnmi.OC().Interface(lagName).Config(), aggIP)
 }
 func configureLoopback(t *testing.T, dut *ondatra.DUTDevice, lbName, ip string, prefixLen uint8, isIPv6 bool, batch *gnmi.SetBatch) {
 	t.Helper()
@@ -942,18 +995,55 @@ func waitForOTGMACSecUp(t *testing.T, ate *ondatra.ATEDevice, ifName string, tim
 	}
 }
 
-// configureScaledTunnels configures numTunnels parallel IPSec tunnels between dut1
-// and dut2 in TUNNEL_VRF and returns the per-tunnel next-hops used to ECMP traffic.
+// tunnelBlock describes one block of parallel IPSec tunnels: size, global
+// index/name offset, tunnel VRF, and the loopback/overlay addressing schemes.
+// Distinct blocks (one per attachment) use non-overlapping schemes.
+type tunnelBlock struct {
+	numTunnels int
+	startIndex int // global offset added to loopback/tunnel numbering
+	tunnelVRF  string
+	v4Seed1    string // DUT1 overlay IPv4 seed (incremented by v4Step)
+	v4Seed2    string // DUT2 overlay IPv4 seed (incremented by v4Step)
+	v4Step     string
+	lbV6Fmt1   string // DUT1 loopback IPv6 format (single %x for tunnel index)
+	lbV6Fmt2   string // DUT2 loopback IPv6 format
+	tunV6Fmt1  string // DUT1 overlay IPv6 format
+	tunV6Fmt2  string // DUT2 overlay IPv6 format
+}
+
+// baseTunnelBlock returns the base attachment's tunnel block (IPSEC-1.2.1/1.2.2).
+func baseTunnelBlock(n int) tunnelBlock {
+	return tunnelBlock{
+		numTunnels: n,
+		startIndex: 0,
+		tunnelVRF:  tunnelVRF,
+		v4Seed1:    "100.64.0.1",
+		v4Seed2:    "100.64.0.2",
+		v4Step:     "0.0.0.4",
+		lbV6Fmt1:   "2001:db8:31:%x::1",
+		lbV6Fmt2:   "2001:db8:32:%x::1",
+		tunV6Fmt1:  "2001:db8:100:%x::1",
+		tunV6Fmt2:  "2001:db8:100:%x::2",
+	}
+}
+
+// configureScaledTunnels configures the base customer attachment's tunnel block.
 func configureScaledTunnels(t *testing.T, dut1, dut2 *ondatra.DUTDevice, numTunnels int) (dut1TunnelV4NHs, dut2TunnelV4NHs, dut1TunnelV6NHs, dut2TunnelV6NHs []string) {
+	return configureTunnelBlock(t, dut1, dut2, baseTunnelBlock(numTunnels))
+}
+
+// configureTunnelBlock configures blk.numTunnels parallel IPSec tunnels between dut1
+// and dut2 in blk.tunnelVRF and returns the per-tunnel next-hops used to ECMP traffic.
+func configureTunnelBlock(t *testing.T, dut1, dut2 *ondatra.DUTDevice, blk tunnelBlock) (dut1TunnelV4NHs, dut2TunnelV4NHs, dut1TunnelV6NHs, dut2TunnelV6NHs []string) {
 	t.Helper()
 
-	// Tunnel overlay addressing: IPv4 /30s from 172.16.0.0/22; IPv6 /64s and
+	// Tunnel overlay addressing: per-block IPv4 /30 seeds and IPv6 /64s plus
 	// loopback /128s derived per tunnel index below.
-	dut1TunnelV4s, err := iputil.GenerateIPsWithStep("100.64.0.1", numTunnels, "0.0.0.4")
+	dut1TunnelV4s, err := iputil.GenerateIPsWithStep(blk.v4Seed1, blk.numTunnels, blk.v4Step)
 	if err != nil {
 		t.Fatalf("failed to generate DUT1 tunnel IPv4 addresses: %v", err)
 	}
-	dut2TunnelV4s, err := iputil.GenerateIPsWithStep("100.64.0.2", numTunnels, "0.0.0.4")
+	dut2TunnelV4s, err := iputil.GenerateIPsWithStep(blk.v4Seed2, blk.numTunnels, blk.v4Step)
 	if err != nil {
 		t.Fatalf("failed to generate DUT2 tunnel IPv4 addresses: %v", err)
 	}
@@ -965,19 +1055,19 @@ func configureScaledTunnels(t *testing.T, dut1, dut2 *ondatra.DUTDevice, numTunn
 	dut1LoopbackBatch := &gnmi.SetBatch{}
 	dut2LoopbackBatch := &gnmi.SetBatch{}
 
-	for i := 0; i < numTunnels; i++ {
-		n := i + 1
-		lbName := fmt.Sprintf("Loopback%d", i)
+	for i := 0; i < blk.numTunnels; i++ {
+		global := blk.startIndex + i
+		n := global + 1
+		lbName := fmt.Sprintf("Loopback%d", global)
 		tunName := fmt.Sprintf("Tunnel%d", n)
-		dut1LbV6 := fmt.Sprintf("2001:db8:31:%x::1", i)
-		dut2LbV6 := fmt.Sprintf("2001:db8:32:%x::1", i)
-		dut1TunV6 := fmt.Sprintf("2001:db8:100:%x::1", i)
-		dut2TunV6 := fmt.Sprintf("2001:db8:100:%x::2", i)
+		dut1LbV6 := fmt.Sprintf(blk.lbV6Fmt1, i)
+		dut2LbV6 := fmt.Sprintf(blk.lbV6Fmt2, i)
+		dut1TunV6 := fmt.Sprintf(blk.tunV6Fmt1, i)
+		dut2TunV6 := fmt.Sprintf(blk.tunV6Fmt2, i)
 		ikePolicy := fmt.Sprintf("IKE_POLICY_%d", n)
 		saPolicy := fmt.Sprintf("SA_POLICY_%d", n)
 		profile := fmt.Sprintf("IPSEC_PROFILE_%d", n)
 
-		// Per-tunnel loopback endpoints.
 		// Per-tunnel loopback endpoints.
 		configureLoopback(t, dut1, lbName, dut1LbV6, loopbackPrefixLen, true, dut1LoopbackBatch)
 		configureLoopback(t, dut2, lbName, dut2LbV6, loopbackPrefixLen, true, dut2LoopbackBatch)
@@ -991,7 +1081,7 @@ func configureScaledTunnels(t *testing.T, dut1, dut2 *ondatra.DUTDevice, numTunn
 			TunnelIPv6:  fmt.Sprintf("%s/64", dut1TunV6),
 			TunnelSrc:   dut1LbV6,
 			TunnelDst:   dut2LbV6,
-			TunnelVRF:   tunnelVRF,
+			TunnelVRF:   blk.tunnelVRF,
 			IKEPolicy:   ikePolicy,
 			SAPolicy:    saPolicy,
 			Profile:     profile,
@@ -1005,7 +1095,7 @@ func configureScaledTunnels(t *testing.T, dut1, dut2 *ondatra.DUTDevice, numTunn
 			TunnelIPv6:  fmt.Sprintf("%s/64", dut2TunV6),
 			TunnelSrc:   dut2LbV6,
 			TunnelDst:   dut1LbV6,
-			TunnelVRF:   tunnelVRF,
+			TunnelVRF:   blk.tunnelVRF,
 			IKEPolicy:   ikePolicy,
 			SAPolicy:    saPolicy,
 			Profile:     profile,
@@ -1062,13 +1152,15 @@ func configureScaledTunnels(t *testing.T, dut1, dut2 *ondatra.DUTDevice, numTunn
 	return dut1TunnelV4NHs, dut2TunnelV4NHs, dut1TunnelV6NHs, dut2TunnelV6NHs
 }
 
-// waitForAllTunnelsUP waits for all IPSec tunnels to reach UP state on both DUTs.
-func waitForAllTunnelsUP(t *testing.T, dut1, dut2 *ondatra.DUTDevice, numTunnels int, timeout time.Duration) {
+// waitForAllTunnelsUP waits for the IPSec tunnels numbered [startTunnel,
+// startTunnel+count-1] to reach UP state on both DUTs.
+func waitForAllTunnelsUP(t *testing.T, dut1, dut2 *ondatra.DUTDevice, startTunnel, count int, timeout time.Duration) {
 	t.Helper()
 
-	t.Logf("Waiting for all %d IPSec tunnels to come UP on both DUTs (timeout: %v)...", numTunnels, timeout)
+	endTunnel := startTunnel + count - 1
+	t.Logf("Waiting for IPSec tunnels %d-%d to come UP on both DUTs (timeout: %v)...", startTunnel, endTunnel, timeout)
 
-	for i := 1; i <= numTunnels; i++ {
+	for i := startTunnel; i <= endTunnel; i++ {
 		tunName := fmt.Sprintf("Tunnel%d", i)
 
 		// Check DUT1 tunnel
@@ -1093,12 +1185,12 @@ func waitForAllTunnelsUP(t *testing.T, dut1, dut2 *ondatra.DUTDevice, numTunnels
 			t.Fatalf("DUT2 tunnel %s did not come UP within %v, final status: %v", tunName, timeout, got2)
 		}
 
-		if i%32 == 0 || i == numTunnels {
-			t.Logf("Tunnels %d-%d are UP on both DUTs", i-31, i)
+		if (i-startTunnel+1)%32 == 0 || i == endTunnel {
+			t.Logf("Tunnels up through %d on both DUTs", i)
 		}
 	}
 
-	t.Logf("All %d IPSec tunnels are UP on both DUTs", numTunnels)
+	t.Logf("All IPSec tunnels %d-%d are UP on both DUTs", startTunnel, endTunnel)
 }
 
 func readMemberOutPkts(t *testing.T, dut *ondatra.DUTDevice, memberPorts []*ondatra.Port) map[string]uint64 {
@@ -1160,6 +1252,375 @@ func verifyDUTDUTLoadBalance(t *testing.T, dut *ondatra.DUTDevice, memberPorts [
 	return nil
 }
 
+// custAttachment describes one additional device-max attachment (IPSEC-1.2.3/1.2.4):
+// a distinct VLAN + VRF pair with its own block of IPSec tunnels.
+type custAttachment struct {
+	vlanID    uint16 // customer VLAN / subinterface ID
+	custVRF   string // customer-facing VRF
+	tunnelVRF string // tunnel-facing VRF
+
+	dut1Cust attrs.Attributes // DUT1 customer subinterface (ATE1 side)
+	dut2Cust attrs.Attributes // DUT2 customer subinterface (ATE2 side)
+	ate1     attrs.Attributes // ATE1-side endpoint
+	ate2     attrs.Attributes // ATE2-side endpoint
+
+	ate1MAC string
+	ate2MAC string
+
+	// Static route prefixes reachable behind each ATE endpoint.
+	ate1V4Prefix string
+	ate2V4Prefix string
+	ate1V6Prefix string
+	ate2V6Prefix string
+
+	// OTG object names.
+	ate1DevName string
+	ate2DevName string
+	v4Name1     string
+	v6Name1     string
+	v4Name2     string
+	v6Name2     string
+	flowV4Fwd   string
+	flowV4Bwd   string
+	flowV6Fwd   string
+	flowV6Bwd   string
+
+	tunnels tunnelBlock // tunnel addressing/naming for this attachment
+}
+
+// attachmentTunnelCount returns the per-attachment tunnel count, overridden per
+// platform where the multi-attachment IPsec forwarding cap is lower than default.
+func attachmentTunnelCount(dut *ondatra.DUTDevice) int {
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		return 16
+	default:
+		return attachmentTunnels
+	}
+}
+
+// buildAttachments computes n additional attachments with non-overlapping VLANs,
+// VRFs, IP addressing and tunnel blocks of perAttachmentTunnels tunnels each.
+func buildAttachments(n, perAttachmentTunnels int) []custAttachment {
+	atts := make([]custAttachment, 0, n)
+	for k := 1; k <= n; k++ {
+		att := custAttachment{
+			vlanID:    uint16(10 * (k + 1)),
+			custVRF:   fmt.Sprintf("ATE_VRF_%d", k),
+			tunnelVRF: fmt.Sprintf("TUNNEL_VRF_%d", k),
+			ate1MAC:   fmt.Sprintf("00:00:11:01:01:%02x", 0x20+k),
+			ate2MAC:   fmt.Sprintf("00:00:12:02:02:%02x", 0x20+k),
+		}
+		att.dut1Cust = attrs.Attributes{
+			Desc:    fmt.Sprintf("DUT1 attachment %d customer interface", k),
+			IPv4:    fmt.Sprintf("192.0.2.%d", 4*k+1),
+			IPv4Len: 30,
+			IPv6:    fmt.Sprintf("2001:db8:1:%x::1", k),
+			IPv6Len: 126,
+			MAC:     fmt.Sprintf("00:00:11:01:01:%02x", 0x40+k),
+			MTU:     9216,
+			ID:      uint32(att.vlanID),
+		}
+		att.dut2Cust = attrs.Attributes{
+			Desc:    fmt.Sprintf("DUT2 attachment %d customer interface", k),
+			IPv4:    fmt.Sprintf("203.0.113.%d", 4*k+1),
+			IPv4Len: 30,
+			IPv6:    fmt.Sprintf("2001:db8:2:%x::1", k),
+			IPv6Len: 126,
+			MAC:     fmt.Sprintf("00:00:12:02:02:%02x", 0x40+k),
+			MTU:     9216,
+			ID:      uint32(att.vlanID),
+		}
+		att.ate1 = attrs.Attributes{
+			Desc:    fmt.Sprintf("ATE1 attachment %d", k),
+			IPv4:    fmt.Sprintf("192.0.2.%d", 4*k+2),
+			IPv4Len: 30,
+			IPv6:    fmt.Sprintf("2001:db8:1:%x::2", k),
+			IPv6Len: 126,
+			MAC:     att.ate1MAC,
+			MTU:     1500,
+		}
+		att.ate2 = attrs.Attributes{
+			Desc:    fmt.Sprintf("ATE2 attachment %d", k),
+			IPv4:    fmt.Sprintf("203.0.113.%d", 4*k+2),
+			IPv4Len: 30,
+			IPv6:    fmt.Sprintf("2001:db8:2:%x::2", k),
+			IPv6Len: 126,
+			MAC:     att.ate2MAC,
+			MTU:     1500,
+		}
+		att.ate1V4Prefix = fmt.Sprintf("192.0.2.%d/30", 4*k)
+		att.ate2V4Prefix = fmt.Sprintf("203.0.113.%d/30", 4*k)
+		att.ate1V6Prefix = fmt.Sprintf("2001:db8:1:%x::/126", k)
+		att.ate2V6Prefix = fmt.Sprintf("2001:db8:2:%x::/126", k)
+
+		att.ate1DevName = fmt.Sprintf("d1att%d", k)
+		att.ate2DevName = fmt.Sprintf("d2att%d", k)
+		att.v4Name1 = fmt.Sprintf("p1d1ipv4att%d", k)
+		att.v6Name1 = fmt.Sprintf("p1d1ipv6att%d", k)
+		att.v4Name2 = fmt.Sprintf("p2d2ipv4att%d", k)
+		att.v6Name2 = fmt.Sprintf("p2d2ipv6att%d", k)
+		att.flowV4Fwd = fmt.Sprintf("Flow-IPv4-Fwd-att%d", k)
+		att.flowV4Bwd = fmt.Sprintf("Flow-IPv4-Bwd-att%d", k)
+		att.flowV6Fwd = fmt.Sprintf("Flow-IPv6-Fwd-att%d", k)
+		att.flowV6Bwd = fmt.Sprintf("Flow-IPv6-Bwd-att%d", k)
+
+		att.tunnels = tunnelBlock{
+			numTunnels: perAttachmentTunnels,
+			startIndex: k * perAttachmentTunnels,
+			tunnelVRF:  att.tunnelVRF,
+			v4Seed1:    fmt.Sprintf("100.%d.0.1", 64+k),
+			v4Seed2:    fmt.Sprintf("100.%d.0.2", 64+k),
+			v4Step:     "0.0.0.4",
+			lbV6Fmt1:   fmt.Sprintf("2001:db8:a1%02x:%%x::1", k),
+			lbV6Fmt2:   fmt.Sprintf("2001:db8:a2%02x:%%x::1", k),
+			tunV6Fmt1:  fmt.Sprintf("2001:db8:b0%02x:%%x::1", k),
+			tunV6Fmt2:  fmt.Sprintf("2001:db8:b0%02x:%%x::2", k),
+		}
+		atts = append(atts, att)
+	}
+	return atts
+}
+
+// configureAttachments configures the DUT side of each attachment: VRFs, VLAN
+// subinterfaces, tunnel block and the customer ECMP static routes.
+func configureAttachments(t *testing.T, dut1, dut2 *ondatra.DUTDevice, dut1CustLag, dut2CustLag string, atts []custAttachment) {
+	t.Helper()
+
+	for _, att := range atts {
+		createVRFs(t, dut1, []string{att.custVRF, att.tunnelVRF})
+		createVRFs(t, dut2, []string{att.custVRF, att.tunnelVRF})
+
+		addCustomerAttachmentSubinterface(t, dut1, dut1CustLag, att.vlanID, att.dut1Cust, att.custVRF)
+		addCustomerAttachmentSubinterface(t, dut2, dut2CustLag, att.vlanID, att.dut2Cust, att.custVRF)
+
+		d1V4NHs, d2V4NHs, d1V6NHs, d2V6NHs := configureTunnelBlock(t, dut1, dut2, att.tunnels)
+
+		// DUT1 routing: customer return path towards ATE1, plus ECMP of customer
+		// traffic destined to ATE2 across every tunnel's DUT2-side next-hop.
+		dut1Routes := []staticRoute{
+			{Prefix: att.ate1V4Prefix, NextHop: att.ate1.IPv4, VRF: att.tunnelVRF, EgressVRF: att.custVRF},
+			{Prefix: att.ate1V6Prefix, NextHop: att.ate1.IPv6, VRF: att.tunnelVRF, EgressVRF: att.custVRF},
+		}
+		for _, nh := range d2V4NHs {
+			dut1Routes = append(dut1Routes, staticRoute{Prefix: att.ate2V4Prefix, NextHop: nh, VRF: att.custVRF, EgressVRF: att.tunnelVRF})
+		}
+		for _, nh := range d2V6NHs {
+			dut1Routes = append(dut1Routes, staticRoute{Prefix: att.ate2V6Prefix, NextHop: nh, VRF: att.custVRF, EgressVRF: att.tunnelVRF})
+		}
+		configureStaticRoutes(t, dut1, dut1Routes)
+
+		// DUT2 routing: customer return path towards ATE2, plus ECMP of customer
+		// traffic destined to ATE1 across every tunnel's DUT1-side next-hop.
+		dut2Routes := []staticRoute{
+			{Prefix: att.ate2V4Prefix, NextHop: att.ate2.IPv4, VRF: att.tunnelVRF, EgressVRF: att.custVRF},
+			{Prefix: att.ate2V6Prefix, NextHop: att.ate2.IPv6, VRF: att.tunnelVRF, EgressVRF: att.custVRF},
+		}
+		for _, nh := range d1V4NHs {
+			dut2Routes = append(dut2Routes, staticRoute{Prefix: att.ate1V4Prefix, NextHop: nh, VRF: att.custVRF, EgressVRF: att.tunnelVRF})
+		}
+		for _, nh := range d1V6NHs {
+			dut2Routes = append(dut2Routes, staticRoute{Prefix: att.ate1V6Prefix, NextHop: nh, VRF: att.custVRF, EgressVRF: att.tunnelVRF})
+		}
+		configureStaticRoutes(t, dut2, dut2Routes)
+	}
+}
+
+// removeTunnelRange deletes tunnels Tunnel[start..end] and loopbacks
+// Loopback[start-1..end-1] on both DUTs.
+func removeTunnelRange(t *testing.T, dut1, dut2 *ondatra.DUTDevice, startTunnel, endTunnel int) {
+	t.Helper()
+
+	for _, dut := range []*ondatra.DUTDevice{dut1, dut2} {
+		if deviations.IpsecOcUnsupported(dut) {
+			var lines []string
+			for n := startTunnel; n <= endTunnel; n++ {
+				lines = append(lines, fmt.Sprintf("no interface Tunnel%d", n))
+				lines = append(lines, fmt.Sprintf("no interface Loopback%d", n-1))
+			}
+			if len(lines) > 0 {
+				helpers.GnmiCLIConfig(t, dut, strings.Join(lines, "\n"))
+			}
+		} else {
+			for n := startTunnel; n <= endTunnel; n++ {
+				gnmi.Delete(t, dut, gnmi.OC().Interface(fmt.Sprintf("Tunnel%d", n)).Config())
+				gnmi.Delete(t, dut, gnmi.OC().Interface(fmt.Sprintf("Loopback%d", n-1)).Config())
+			}
+		}
+	}
+}
+
+// removeStaticRoutes removes the given static routes; it mirrors
+// configureStaticRoutes, emitting "no" CLI on Arista and OC deletes elsewhere.
+func removeStaticRoutes(t *testing.T, dut *ondatra.DUTDevice, routes []staticRoute) {
+	t.Helper()
+
+	if deviations.StaticRouteInVrfOcUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			var cliLines []string
+			for _, r := range routes {
+				ipType := "ip"
+				if strings.Contains(r.Prefix, ":") {
+					ipType = "ipv6"
+				}
+				var cli string
+				switch {
+				case r.EgressVRF != "" && r.VRF != "":
+					cli = fmt.Sprintf("%s route vrf %s %s egress-vrf %s %s",
+						ipType, r.VRF, r.Prefix, r.EgressVRF, r.NextHop)
+				case r.EgressVRF == "" && r.VRF == "":
+					cli = fmt.Sprintf("%s route %s %s", ipType, r.Prefix, r.NextHop)
+				case r.EgressVRF == "" && r.VRF != "":
+					cli = fmt.Sprintf("%s route vrf %s %s %s", ipType, r.VRF, r.Prefix, r.NextHop)
+				default:
+					cli = fmt.Sprintf("%s route %s egress-vrf %s %s",
+						ipType, r.Prefix, r.EgressVRF, r.NextHop)
+				}
+				cliLines = append(cliLines, "no "+cli)
+			}
+			if len(cliLines) > 0 {
+				helpers.GnmiCLIConfig(t, dut, strings.Join(cliLines, "\n"))
+			}
+		}
+		return
+	}
+
+	for _, r := range routes {
+		vrfName := r.VRF
+		if vrfName == "" {
+			vrfName = deviations.DefaultNetworkInstance(dut)
+		}
+		sp := gnmi.OC().NetworkInstance(vrfName).Protocol(
+			oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+		gnmi.Delete(t, dut, sp.Static(r.Prefix).Config())
+	}
+}
+
+// trimBaseAttachment shrinks the base attachment from numTunnels to
+// perAttachmentTunnels, removing the surplus tunnels/loopbacks and their routes.
+func trimBaseAttachment(t *testing.T, dut1, dut2 *ondatra.DUTDevice, perAttachmentTunnels int, d1V4NHs, d2V4NHs, d1V6NHs, d2V6NHs []string) {
+	t.Helper()
+
+	// Remove tunnels/loopbacks with index [perAttachmentTunnels, numTunnels-1]
+	// (tunnel numbers [perAttachmentTunnels+1, numTunnels]).
+	removeTunnelRange(t, dut1, dut2, perAttachmentTunnels+1, numTunnels)
+
+	blk := baseTunnelBlock(numTunnels)
+	var dut1Rm, dut2Rm []staticRoute
+	for i := perAttachmentTunnels; i < numTunnels; i++ {
+		// Base customer-ECMP routes that pointed at the removed tunnels.
+		dut1Rm = append(dut1Rm,
+			staticRoute{Prefix: ate2IPv4Prefix, NextHop: d2V4NHs[i], VRF: ateVRF, EgressVRF: tunnelVRF},
+			staticRoute{Prefix: ate2IPv6Prefix, NextHop: d2V6NHs[i], VRF: ateVRF, EgressVRF: tunnelVRF},
+		)
+		dut2Rm = append(dut2Rm,
+			staticRoute{Prefix: ate1IPv4Prefix, NextHop: d1V4NHs[i], VRF: ateVRF, EgressVRF: tunnelVRF},
+			staticRoute{Prefix: ate1IPv6Prefix, NextHop: d1V6NHs[i], VRF: ateVRF, EgressVRF: tunnelVRF},
+		)
+		// Loopback reachability routes for the removed loopbacks (default VRF).
+		d1LbV6 := fmt.Sprintf(blk.lbV6Fmt1, i)
+		d2LbV6 := fmt.Sprintf(blk.lbV6Fmt2, i)
+		dut1Rm = append(dut1Rm,
+			staticRoute{Prefix: fmt.Sprintf("%s/128", d2LbV6), NextHop: dut2CoreIntf2.IPv6},
+			staticRoute{Prefix: fmt.Sprintf("%s/128", d2LbV6), NextHop: dut2CoreIntf1.IPv6},
+		)
+		dut2Rm = append(dut2Rm,
+			staticRoute{Prefix: fmt.Sprintf("%s/128", d1LbV6), NextHop: dut1CoreIntf2.IPv6},
+			staticRoute{Prefix: fmt.Sprintf("%s/128", d1LbV6), NextHop: dut1CoreIntf1.IPv6},
+		)
+	}
+	removeStaticRoutes(t, dut1, dut1Rm)
+	removeStaticRoutes(t, dut2, dut2Rm)
+}
+
+// addAttachmentOTG adds the ATE-side devices and flows for one additional
+// attachment on the existing customer LAGs (ate1LagName / ate2LagName).
+func addAttachmentOTG(top gosnappi.Config, att custAttachment) {
+	d1 := top.Devices().Add().SetName(att.ate1DevName)
+	eth1 := d1.Ethernets().Add().SetName(att.ate1DevName + "Eth").SetMac(att.ate1MAC)
+	eth1.Connection().SetLagName(ate1LagName)
+	eth1.Vlans().Add().SetName(att.ate1DevName + "Vlan").SetId(uint32(att.vlanID))
+	eth1.Ipv4Addresses().Add().SetName(att.v4Name1).SetAddress(att.ate1.IPv4).SetGateway(att.dut1Cust.IPv4).SetPrefix(uint32(att.ate1.IPv4Len))
+	eth1.Ipv6Addresses().Add().SetName(att.v6Name1).SetAddress(att.ate1.IPv6).SetGateway(att.dut1Cust.IPv6).SetPrefix(uint32(att.ate1.IPv6Len))
+
+	d2 := top.Devices().Add().SetName(att.ate2DevName)
+	eth2 := d2.Ethernets().Add().SetName(att.ate2DevName + "Eth").SetMac(att.ate2MAC)
+	eth2.Connection().SetLagName(ate2LagName)
+	eth2.Vlans().Add().SetName(att.ate2DevName + "Vlan").SetId(uint32(att.vlanID))
+	eth2.Ipv4Addresses().Add().SetName(att.v4Name2).SetAddress(att.ate2.IPv4).SetGateway(att.dut2Cust.IPv4).SetPrefix(uint32(att.ate2.IPv4Len))
+	eth2.Ipv6Addresses().Add().SetName(att.v6Name2).SetAddress(att.ate2.IPv6).SetGateway(att.dut2Cust.IPv6).SetPrefix(uint32(att.ate2.IPv6Len))
+
+	addAttachmentFlows(top, att)
+}
+
+// addAttachmentFlows adds the IPv4/IPv6 forward/backward flows for one attachment.
+// Forward flows ride the MACsec edge; both directions carry the VLAN tag.
+func addAttachmentFlows(top gosnappi.Config, att custAttachment) {
+	// IPv4 forward: ATE1 -> ATE2, MACsec + VLAN on the customer edge.
+	f4 := top.Flows().Add().SetName(att.flowV4Fwd)
+	f4.TxRx().Device().SetTxNames([]string{att.v4Name1}).SetRxNames([]string{att.v4Name2})
+	for _, sw := range sizeWeightProfile {
+		f4.Size().WeightPairs().Custom().Add().SetSize(sw.Size).SetWeight(sw.Weight)
+	}
+	f4.Rate().SetPps(trafficPPS)
+	f4.Duration().Continuous()
+	f4.Metrics().SetEnable(true)
+	f4.Packet().Add().Ethernet().Src().SetValue(att.ate1MAC)
+	f4.Packet().Add().Macsec()
+	f4.Packet().Add().Vlan().Id().SetValue(uint32(att.vlanID))
+	v4 := f4.Packet().Add().Ipv4()
+	// Increment the source address to spread traffic across tunnels/core links.
+	v4.Src().Increment().SetStart(att.ate1.IPv4).SetStep("0.0.0.1").SetCount(1000)
+	v4.Dst().SetValue(att.ate2.IPv4)
+
+	// IPv4 backward: ATE2 -> ATE1, VLAN-tagged (DUT2 subinterface is tagged).
+	f4b := top.Flows().Add().SetName(att.flowV4Bwd)
+	f4b.TxRx().Device().SetTxNames([]string{att.v4Name2}).SetRxNames([]string{att.v4Name1})
+	for _, sw := range sizeWeightProfile {
+		f4b.Size().WeightPairs().Custom().Add().SetSize(sw.Size).SetWeight(sw.Weight)
+	}
+	f4b.Rate().SetPps(trafficPPS)
+	f4b.Duration().Continuous()
+	f4b.Metrics().SetEnable(true)
+	f4b.Packet().Add().Ethernet().Src().SetValue(att.ate2MAC)
+	f4b.Packet().Add().Vlan().Id().SetValue(uint32(att.vlanID))
+	v4b := f4b.Packet().Add().Ipv4()
+	v4b.Src().SetValue(att.ate2.IPv4)
+	v4b.Dst().SetValue(att.ate1.IPv4)
+
+	// IPv6 forward: ATE1 -> ATE2.
+	f6 := top.Flows().Add().SetName(att.flowV6Fwd)
+	f6.TxRx().Device().SetTxNames([]string{att.v6Name1}).SetRxNames([]string{att.v6Name2})
+	for _, sw := range sizeWeightProfile {
+		f6.Size().WeightPairs().Custom().Add().SetSize(sw.Size).SetWeight(sw.Weight)
+	}
+	f6.Rate().SetPps(trafficPPS)
+	f6.Duration().Continuous()
+	f6.Metrics().SetEnable(true)
+	f6.Packet().Add().Ethernet().Src().SetValue(att.ate1MAC)
+	f6.Packet().Add().Macsec()
+	f6.Packet().Add().Vlan().Id().SetValue(uint32(att.vlanID))
+	v6 := f6.Packet().Add().Ipv6()
+	v6.Src().Increment().SetStart(att.ate1.IPv6).SetStep("::1").SetCount(1000)
+	v6.Dst().SetValue(att.ate2.IPv6)
+
+	// IPv6 backward: ATE2 -> ATE1.
+	f6b := top.Flows().Add().SetName(att.flowV6Bwd)
+	f6b.TxRx().Device().SetTxNames([]string{att.v6Name2}).SetRxNames([]string{att.v6Name1})
+	for _, sw := range sizeWeightProfile {
+		f6b.Size().WeightPairs().Custom().Add().SetSize(sw.Size).SetWeight(sw.Weight)
+	}
+	f6b.Rate().SetPps(trafficPPS)
+	f6b.Duration().Continuous()
+	f6b.Metrics().SetEnable(true)
+	f6b.Packet().Add().Ethernet().Src().SetValue(att.ate2MAC)
+	f6b.Packet().Add().Vlan().Id().SetValue(uint32(att.vlanID))
+	v6b := f6b.Packet().Add().Ipv6()
+	v6b.Src().SetValue(att.ate2.IPv6)
+	v6b.Dst().SetValue(att.ate1.IPv6)
+}
+
 // TestIPSecScaleWithMACSecOverAggregatedLinks implements IPSEC-1.2: it brings up the
 // max number of parallel IPSec tunnels over MACsec and validates IPv4/IPv6 connectivity.
 func TestIPSecScaleWithMACSecOverAggregatedLinks(t *testing.T) {
@@ -1199,10 +1660,10 @@ func TestIPSecScaleWithMACSecOverAggregatedLinks(t *testing.T) {
 	// Configure DUTs: generate one aggregate per port group inside configureDUT.
 	// The core port groups are the LAGs in TUNNEL_VRF for DUT-to-DUT communication.
 	configureDUT(t, dut1, dut1CorePortGroups, dut1PortAttrs, "")
-	configureDUT(t, dut1, [][]*ondatra.Port{{dut1CustPort}}, []attrs.Attributes{dut1CustIntf}, ateVRF)
+	dut1CustLag := configureDUT(t, dut1, [][]*ondatra.Port{{dut1CustPort}}, []attrs.Attributes{dut1CustIntf}, ateVRF)[0]
 
 	configureDUT(t, dut2, dut2CorePortGroups, dut2PortAttrs, "")
-	configureDUT(t, dut2, [][]*ondatra.Port{{dut2CustPort}}, []attrs.Attributes{dut2CustIntf}, ateVRF)
+	dut2CustLag := configureDUT(t, dut2, [][]*ondatra.Port{{dut2CustPort}}, []attrs.Attributes{dut2CustIntf}, ateVRF)[0]
 
 	// Configure loopback interfaces used as IPSec tunnel endpoints.
 	configureLoopback(t, dut1, loopbackIfName, dut1LoopbackIPv6, loopbackPrefixLen, true, nil)
@@ -1269,8 +1730,8 @@ func TestIPSecScaleWithMACSecOverAggregatedLinks(t *testing.T) {
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 
-	// Wait for all 256 IPSec tunnels to come UP on both DUTs.
-	waitForAllTunnelsUP(t, dut1, dut2, numTunnels, tunnelUpTimeout)
+	// Wait for the base attachment's IPSec tunnels to come UP on both DUTs.
+	waitForAllTunnelsUP(t, dut1, dut2, 1, numTunnels, tunnelUpTimeout)
 
 	// Start the customer-port capture before traffic; it is consumed once by
 	// IPSEC-1.2.1 to confirm MACsec encryption.
@@ -1302,60 +1763,70 @@ func TestIPSecScaleWithMACSecOverAggregatedLinks(t *testing.T) {
 		}
 	}
 
-	// The subtests map 1:1 to the IPSEC-1.2.x README sections. With a single
-	// attachment, the device-max cases (1.2.3/1.2.4) reuse the same tunnel set.
-	tests := []struct {
-		name string
-		fn   func(t *testing.T)
-	}{
-		{
-			// Step: Verify IPv4 connectivity over the max number of tunnels for a
-			// single customer attachment.
-			name: "IPSEC-1.2.1: Verify IPv4 Connectivity over a Max # of Tunnels for Single Attachment",
-			fn: func(t *testing.T) {
-				pre := readMemberOutPkts(t, dut1, dut1CorePorts)
+	// Phase 1 (IPSEC-1.2.1/1.2.2): single customer attachment, max tunnels.
+	t.Run("IPSEC-1.2.1: Verify IPv4 Connectivity over a Max # of Tunnels for Single Attachment", func(t *testing.T) {
+		pre := readMemberOutPkts(t, dut1, dut1CorePorts)
+		runTrafficAndVerify(t, flowIPv4Fwd, flowIPv4Bwd)
+		if err := verifyDUTDUTLoadBalance(t, dut1, dut1CorePorts, pre, 0.25, false); err != nil {
+			t.Errorf("load balance verification failed: %v", err)
+		}
+	})
+	t.Run("IPSEC-1.2.2: Verify IPv6 Connectivity over a Max # of Tunnels for Single Attachment", func(t *testing.T) {
+		pre := readMemberOutPkts(t, dut1, dut1CorePorts)
+		runTrafficAndVerify(t, flowIPv6Fwd, flowIPv6Bwd)
+		if err := verifyDUTDUTLoadBalance(t, dut1, dut1CorePorts, pre, 0.25, false); err != nil {
+			t.Errorf("load balance verification failed: %v", err)
+		}
+	})
 
-				runTrafficAndVerify(t, flowIPv4Fwd, flowIPv4Bwd)
+	// Phase 2 (IPSEC-1.2.3/1.2.4): trim the base attachment and add extra ones up
+	// to device-max, then verify traffic on every attachment. Flow lists include
+	// the base attachment plus all extras.
+	v4FwdFlows := []string{flowIPv4Fwd}
+	v4BwdFlows := []string{flowIPv4Bwd}
+	v6FwdFlows := []string{flowIPv6Fwd}
+	v6BwdFlows := []string{flowIPv6Bwd}
 
-				if err := verifyDUTDUTLoadBalance(t, dut1, dut1CorePorts, pre, 0.25, false); err != nil {
-					t.Errorf("load balance verification failed: %v", err)
-				}
-			},
-		},
-		{
-			// Step: Verify IPv6 connectivity over the max number of tunnels for a
-			// single customer attachment.
-			name: "IPSEC-1.2.2: Verify IPv6 Connectivity over a Max # of Tunnels for Single Attachment",
-			fn: func(t *testing.T) {
+	attTunnels := attachmentTunnelCount(dut1)
+	attachments := buildAttachments(numAdditionalAttachments, attTunnels)
+	if len(attachments) > 0 {
+		// Trim the base attachment to attTunnels, then add the extras.
+		trimBaseAttachment(t, dut1, dut2, attTunnels, dut1TunnelV4NHs, dut2TunnelV4NHs, dut1TunnelV6NHs, dut2TunnelV6NHs)
 
-				pre := readMemberOutPkts(t, dut1, dut1CorePorts)
+		configureAttachments(t, dut1, dut2, dut1CustLag, dut2CustLag, attachments)
+		for _, att := range attachments {
+			addAttachmentOTG(top, att)
+			v4FwdFlows = append(v4FwdFlows, att.flowV4Fwd)
+			v4BwdFlows = append(v4BwdFlows, att.flowV4Bwd)
+			v6FwdFlows = append(v6FwdFlows, att.flowV6Fwd)
+			v6BwdFlows = append(v6BwdFlows, att.flowV6Bwd)
+		}
 
-				runTrafficAndVerify(t, flowIPv6Fwd, flowIPv6Bwd)
-
-				if err := verifyDUTDUTLoadBalance(t, dut1, dut1CorePorts, pre, 0.25, false); err != nil {
-					t.Errorf("load balance verification failed: %v", err)
-				}
-			},
-		},
-		{
-			// Step: Verify IPv4 connectivity over the device programmed with its max
-			// number of tunnels.
-			name: "IPSEC-1.2.3: Verify IPv4 Connectivity over Device with Max # of Tunnels",
-			fn: func(t *testing.T) {
-				t.Skip("IPSec on OTG is not supported, skipping this test")
-			},
-		},
-		{
-			// Step: Verify IPv6 connectivity over the device programmed with its max
-			// number of tunnels.
-			name: "IPSEC-1.2.4: Verify IPv6 Connectivity over Device with Max # of Tunnels",
-			fn: func(t *testing.T) {
-				t.Skip("IPSec on OTG is not supported, skipping this test")
-			},
-		},
+		// Re-push OTG with the extra attachment devices/flows and bring them up.
+		otg.PushConfig(t, top)
+		otg.StartProtocols(t)
+		waitForOTGMACSecUp(t, ate, macsecPeerName, lagUpTimeout)
+		waitForOTGLAGUP(t, ate, ate1LagName, 1, lagUpTimeout)
+		waitForOTGLAGUP(t, ate, ate2LagName, 1, lagUpTimeout)
+		otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
+		otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
+		for _, att := range attachments {
+			waitForAllTunnelsUP(t, dut1, dut2, att.tunnels.startIndex+1, att.tunnels.numTunnels, tunnelUpTimeout)
+		}
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, tc.fn)
-	}
+	t.Run("IPSEC-1.2.3: Verify IPv4 Connectivity over Device with Max # of Tunnels", func(t *testing.T) {
+		pre := readMemberOutPkts(t, dut1, dut1CorePorts)
+		runTrafficAndVerify(t, append(append([]string{}, v4FwdFlows...), v4BwdFlows...)...)
+		if err := verifyDUTDUTLoadBalance(t, dut1, dut1CorePorts, pre, 0.25, false); err != nil {
+			t.Errorf("load balance verification failed: %v", err)
+		}
+	})
+	t.Run("IPSEC-1.2.4: Verify IPv6 Connectivity over Device with Max # of Tunnels", func(t *testing.T) {
+		pre := readMemberOutPkts(t, dut1, dut1CorePorts)
+		runTrafficAndVerify(t, append(append([]string{}, v6FwdFlows...), v6BwdFlows...)...)
+		if err := verifyDUTDUTLoadBalance(t, dut1, dut1CorePorts, pre, 0.25, false); err != nil {
+			t.Errorf("load balance verification failed: %v", err)
+		}
+	})
 }
