@@ -873,7 +873,7 @@ func DecapGroupConfigGue(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 		case ondatra.ARISTA:
 			if ocPFParams.Dynamic {
 				t.Logf("Going into decap")
-				aristaGueDecapCLIConfig(t, dut, ocPFParams)
+				aristaGueDecapCLIConfig(t, dut, ocPFParams.GUEPort, ocPFParams.IPType, ocPFParams.DecapProtocol, ocPFParams.AppliedPolicyName, ocPFParams.TunnelIP, ocPFParams.InterfaceID)
 			} else {
 				helpers.GnmiCLIConfig(t, dut, decapGroupGUEArista)
 			}
@@ -885,23 +885,21 @@ func DecapGroupConfigGue(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 	}
 }
 
-// aristaGueDecapCLIConfig configures GUEDEcapConfig for Arista
-func aristaGueDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
-
-	decapProto := params.DecapProtocol
+// aristaGueDecapCLIConfig configures GUE decap for Arista. It clears any existing
+// UDP port mapping for the given port before applying the new configuration.
+func aristaGueDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, guePort uint32, ipType, decapProto, policyName, tunIP, decapIntf string) {
 	if decapProto == "" {
-		decapProto = params.IPType
+		decapProto = ipType
 	}
-
-	cliConfig := fmt.Sprintf(`
-		                    ip decap-group type udp destination port %v payload %s
-							tunnel type %s-over-udp udp destination port %v
-							ip decap-group %s
-							tunnel type UDP
-							tunnel decap-ip %s
-							tunnel decap-interface %s
-							`, params.GUEPort, decapProto, params.IPType, params.GUEPort, params.AppliedPolicyName, params.TunnelIP, params.InterfaceID)
-	helpers.GnmiCLIConfig(t, dut, cliConfig)
+	helpers.GnmiCLIConfig(t, dut, fmt.Sprintf(`no ip decap-group type udp destination port %d`, guePort))
+	helpers.GnmiCLIConfig(t, dut, fmt.Sprintf(`
+		ip decap-group type udp destination port %[1]d payload %[2]s
+		tunnel type %[3]s-over-udp udp destination port %[1]d
+		ip decap-group %[4]s
+		tunnel type UDP
+		tunnel decap-ip %[5]s
+		tunnel decap-interface %[6]s
+		`, guePort, decapProto, ipType, policyName, tunIP, decapIntf))
 }
 
 // aristaGreDecapCLIConfig configures GREDEcapConfig for Arista
@@ -1209,21 +1207,12 @@ func NewConfigureGRETunnel(t *testing.T, dut *ondatra.DUTDevice, decapIp string,
 }
 
 // ConfigureDutWithGueDecap configures the DUT to decapsulate GUE (Generic UDP Encapsulation) traffic. It supports both native CLI configuration (for vendors like Arista) and OpenConfig (GNMI) configuration.
-func ConfigureDutWithGueDecap(t *testing.T, dut *ondatra.DUTDevice, guePort int, ipType, tunIP, decapInt, policyName string, policyId int) {
+func ConfigureDutWithGueDecap(t *testing.T, dut *ondatra.DUTDevice, guePort uint32, ipType, tunIP, decapInt, policyName string, policyId uint32) {
 	t.Logf("Configure DUT with decapsulation UDP port %v", guePort)
 	if deviations.DecapsulateGueOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			cliConfig := fmt.Sprintf(`
-                            ip decap-group type udp destination port %[1]d payload %[2]s 
-                            tunnel type %[2]s-over-udp udp destination port %[1]d
-                            ip decap-group test
-                            tunnel type UDP
-                            tunnel decap-ip %[3]s
-                            tunnel decap-interface %[4]s
-                            `, guePort, ipType, tunIP, decapInt)
-			helpers.GnmiCLIConfig(t, dut, cliConfig)
-
+			aristaGueDecapCLIConfig(t, dut, guePort, ipType, "", policyName, tunIP, decapInt)
 		default:
 			t.Errorf("deviation decapsulateGueOCUnsupported is not handled for the dut: %v", dut.Vendor())
 		}
@@ -1234,7 +1223,7 @@ func ConfigureDutWithGueDecap(t *testing.T, dut *ondatra.DUTDevice, guePort int,
 		npf := ni1.GetOrCreatePolicyForwarding()
 		np := npf.GetOrCreatePolicy(policyName)
 		np.PolicyId = ygot.String(policyName)
-		npRule := np.GetOrCreateRule(uint32(policyId))
+		npRule := np.GetOrCreateRule(policyId)
 		ip := npRule.GetOrCreateIpv4()
 		ip.DestinationAddressPrefixSet = ygot.String(tunIP)
 		ip.Protocol = oc.PacketMatchTypes_IP_PROTOCOL_IP_UDP
