@@ -153,7 +153,7 @@ func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flow
 // testPacketIn programs p4rt table entry and sends traffic related to Traceroute,
 // then validates packetin message metadata and payload.
 func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool, cs gosnappi.ControlState, flowValues []*flowArgs, EgressPortMap map[string]bool) []float64 {
-	const targetPkts = 500
+	const targetPkts = 1000
 	leader := args.leader
 	if err := programmTableEntry(leader, args.packetIO, false, true); err != nil {
 		t.Fatalf("There is error when programming IPv4 entry")
