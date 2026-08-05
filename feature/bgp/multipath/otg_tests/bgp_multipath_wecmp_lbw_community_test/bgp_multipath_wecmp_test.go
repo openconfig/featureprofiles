@@ -189,7 +189,7 @@ func TestBGPSetup(t *testing.T) {
 		bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD, oc.Bgp_CommunityType_EXTENDED, oc.Bgp_CommunityType_LARGE})
 	}
 
-	if deviations.MultipathUnsupportedNeighborOrAfisafi(bs.DUT) {
+	if !deviations.MultipathUnsupportedNeighborOrAfisafi(bs.DUT) {
 		t.Logf("MultipathUnsupportedNeighborOrAfisafi is supported")
 		bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).GetOrCreateUseMultiplePaths().Enabled = ygot.Bool(true)
 		bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).GetOrCreateUseMultiplePaths().GetOrCreateEbgp().AllowMultipleAs = ygot.Bool(true)
@@ -222,7 +222,9 @@ func TestBGPSetup(t *testing.T) {
 		}
 	} else {
 		gEBGP := bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp()
-		gEBGP.SetAllowMultipleAs(true)
+		if !deviations.MultipathUnsupportedNeighborOrAfisafi() {
+			gEBGP.SetAllowMultipleAs(true)
+		}
 		gEBGP.GetOrCreateLinkBandwidthExtCommunity().SetEnabled(true)
 		if !deviations.BgpMaxMultipathPathsUnsupported(bs.DUT) {
 			gEBGP.SetMaximumPaths(maxPaths)
