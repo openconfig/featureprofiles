@@ -21,6 +21,7 @@ import (
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -389,6 +390,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 	// TODO: Uncomment the code which is commented out after the issue fixed.
 	// Configure DUT interfaces.
 	ConfigureDUTIntf(t, dut)
+	configureAristaHardwareCounterFeatures(t, dut)
 
 	// Configure ATE interfaces.
 	ate := ondatra.ATE(t, "ate")
@@ -538,6 +540,17 @@ func TestIntfCounterUpdate(t *testing.T) {
 			t.Errorf("Get less outPkts from telemetry: got %v, want >= %v", got, want)
 		}
 	}
+}
+
+// ARISTA strata hardware counter configuration
+func configureAristaHardwareCounterFeatures(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	if dut.Vendor() != ondatra.ARISTA || helpers.AristaPlatform(t, dut) != "strata" {
+		return
+	}
+
+	helpers.GnmiCLIConfig(t, dut, "hardware counter feature ip in\n")
+	helpers.GnmiCLIConfig(t, dut, "hardware counter feature ip out\n")
 }
 
 func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
