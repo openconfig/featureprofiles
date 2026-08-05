@@ -44,13 +44,12 @@ const (
 	pps             = 100   // Packets per second
 	mplsLabelV4     = 99910 // Static Mpls currently supported range 16 - 99999 (99910 instead of 100010)
 	mplsLabelV6     = 99920 // Static Mpls currently supported range 16 - 99999 (99920 instead of 100020)
-	sleepTime       = 20
+	sleepTime       = 3
 	flowname        = "trafficItem"
 	tolerance       = 2
 	udpDecapPort    = 6080 // UDP destination port for GUE-like decapsulation
 	defaultNI       = "DEFAULT"
 	policyName      = "decap-policy"
-	policyId        = 1
 	lspName1        = "lsp1"
 	lspName2        = "lsp2"
 )
@@ -786,10 +785,24 @@ func createIPv6oMPLSoGREFlow(t *testing.T, dut *ondatra.DUTDevice, otgConfig *ot
 	}
 }
 
+func getDefaultGueDecapParams(t *testing.T, dut *ondatra.DUTDevice, ipType string) (cfgplugins.OcPolicyForwardingParams, *oc.NetworkInstance_PolicyForwarding) {
+	t.Helper()
+	_, _, pf := cfgplugins.SetupPolicyForwardingInfraOC(deviations.DefaultNetworkInstance(dut))
+	return cfgplugins.OcPolicyForwardingParams{
+		NetworkInstanceName: deviations.DefaultNetworkInstance(dut),
+		InterfaceID:         dut.Port(t, "port1").Name(),
+		AppliedPolicyName:   policyName,
+		GUEPort:             udpDecapPort,
+		IPType:              ipType,
+		TunnelIP:            ipv4Decap,
+		Dynamic:             true,
+	}, pf
+}
+
 func createIPv4oUDPFlow(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.OTG, config gosnappi.Config, innerTTL, outerTTL, mplsTTL int) {
 	t.Helper()
-	dp1 := dut.Port(t, "port1")
-	cfgplugins.ConfigureDutWithGueDecap(t, dut, udpDecapPort, "ipv4", ipv4Decap, dp1.Name(), policyName, policyId)
+	ocPFParams, pf := getDefaultGueDecapParams(t, dut, "ipv4")
+	cfgplugins.DecapGroupConfigGue(t, dut, pf, ocPFParams)
 	config.Flows().Clear()
 	flow := addFlow(t, config, &flowArgs{flowName: flowname + "-ipv4",
 		outerSrcIP: atePort1.IPv4, outerDstIP: ipv4Decap, outerIpv4Ttl: outerTTL, ipv4Flow: true})
@@ -812,8 +825,8 @@ func createIPv4oUDPFlow(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.OTG
 
 func createIPv6oUDPFlow(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.OTG, config gosnappi.Config, innerTTL, outerTTL, mplsTTL int) {
 	t.Helper()
-	dp1 := dut.Port(t, "port1")
-	cfgplugins.ConfigureDutWithGueDecap(t, dut, udpDecapPort, "ipv6", ipv4Decap, dp1.Name(), policyName, policyId)
+	ocPFParams, pf := getDefaultGueDecapParams(t, dut, "ipv6")
+	cfgplugins.DecapGroupConfigGue(t, dut, pf, ocPFParams)
 	config.Flows().Clear()
 	flow := addFlow(t, config, &flowArgs{flowName: flowname + "-ipv6",
 		outerSrcIP: atePort1.IPv4, outerDstIP: ipv4Decap, outerIpv4Ttl: outerTTL, ipv4Flow: true})
@@ -835,8 +848,8 @@ func createIPv6oUDPFlow(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.OTG
 
 func createIPv4oMPLSoUDPFlow(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.OTG, config gosnappi.Config, innerTTL, outerTTL, mplsTTL int) {
 	t.Helper()
-	dp1 := dut.Port(t, "port1")
-	cfgplugins.ConfigureDutWithGueDecap(t, dut, udpDecapPort, "mpls", ipv4Decap, dp1.Name(), policyName, policyId)
+	ocPFParams, pf := getDefaultGueDecapParams(t, dut, "mpls")
+	cfgplugins.DecapGroupConfigGue(t, dut, pf, ocPFParams)
 	config.Flows().Clear()
 	flow := addFlow(t, config, &flowArgs{flowName: flowname + "-ipv4",
 		outerSrcIP: atePort1.IPv4, outerDstIP: ipv4Decap, outerIpv4Ttl: outerTTL, ipv4Flow: true})

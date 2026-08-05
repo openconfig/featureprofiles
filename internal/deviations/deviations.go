@@ -1377,7 +1377,7 @@ func MacsecOCUnsupported(dut *ondatra.DUTDevice) bool {
 
 // GueGreDecapOCUnsupported returns true if gue gre decap is unsupported
 func GueGreDecapOCUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetGueGreDecapUnsupported()
+	return lookupDUTDeviations(dut).GetGueGreDecapOcUnsupported()
 }
 
 // MplsLabelClassificationOCUnsupported returns true if mpls label classification is unsupported
@@ -1410,10 +1410,6 @@ func InterfacePolicyForwardingOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfacePolicyForwardingUnsupported()
 }
 
-// GueGreDecapUnsupported returns true if gue or gre decap is unsupported
-func GueGreDecapUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetGueGreDecapUnsupported()
-}
 
 // StaticMplsUnsupported returns true if static mpls is unsupported
 func StaticMplsUnsupported(dut *ondatra.DUTDevice) bool {
@@ -1632,10 +1628,6 @@ func PredefinedMaxEcmpPaths(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPredefinedMaxEcmpPaths()
 }
 
-// DecapsulateGueOCUnsupported returns true if decapsulation group is not supported
-func DecapsulateGueOCUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetDecapsulateGueOcUnsupported()
-}
 
 // LinePortUnsupported returns whether the DUT does not support line-port configuration on optical channel components.
 func LinePortUnsupported(dut *ondatra.DUTDevice) bool {

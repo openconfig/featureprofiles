@@ -15,7 +15,7 @@ platform_exceptions: {
     default_network_instance: "default"
     next_hop_group_config_unsupported: true
     mpls_unsupported: true
-    gue_gre_decap_unsupported: true
+    gue_gre_decap_oc_unsupported: true
     mpls_label_classification_unsupported: true
     local_proxy_unsupported: true
     static_mpls_unsupported: true
