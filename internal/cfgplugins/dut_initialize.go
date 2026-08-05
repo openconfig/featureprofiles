@@ -1242,7 +1242,7 @@ hardware tcam
    `
 )
 
-	aristaHierarchicalFIB = `
+	const aristaHierarchicalFIB = `
 router general
    rib fib fec hierarchical resolution
 !
