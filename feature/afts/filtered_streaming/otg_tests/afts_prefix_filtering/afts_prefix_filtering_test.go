@@ -711,6 +711,10 @@ func testPrefixSetPolicySubscription(t *testing.T, dut *ondatra.DUTDevice) {
 
 // testNonExistentPolicy implements AFT-6.1.2.
 func testNonExistentPolicy(t *testing.T, dut *ondatra.DUTDevice) {
+	if deviations.AftsGlobalFilterPolicyConfigReferenceValidationUnsupported(dut) {
+		t.Skip("AFT global-filter policy reference validation is unsupported")
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	ni := deviations.DefaultNetworkInstance(dut)
@@ -767,6 +771,10 @@ func testNonExistentPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 
 // testPolicyDeletion implements AFT-6.1.3.
 func testPolicyDeletion(t *testing.T, dut *ondatra.DUTDevice) {
+	if deviations.AftsGlobalFilterPolicyConfigReferenceValidationUnsupported(dut) {
+		t.Skip("AFT global-filter policy reference validation is unsupported")
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	ni := deviations.DefaultNetworkInstance(dut)

@@ -2327,3 +2327,10 @@ func MacsecOcUnsupported(dut *ondatra.DUTDevice) bool {
 func AftsGlobalFilterPolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAftsGlobalFilterPolicyOcUnsupported()
 }
+
+// AftsGlobalFilterPolicyConfigReferenceValidationUnsupported returns true if the
+// device does not validate references from an AFT global-filter policy.
+// Arista: Phase 1 implementation
+func AftsGlobalFilterPolicyConfigReferenceValidationUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAftsGlobalFilterPolicyConfigReferenceValidationUnsupported()
+}
