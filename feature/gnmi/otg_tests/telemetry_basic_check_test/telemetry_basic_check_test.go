@@ -79,7 +79,13 @@ func getMacAddress(t *testing.T, dut *ondatra.DUTDevice, intfName string) (strin
 		opts = append(opts, ygnmi.WithFT(ft))
 		t.Logf("Using functional translator %q for MAC address on %s", ciscoMACFT, intfName)
 	}
-	return gnmi.Lookup(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().Interface(intfName).Ethernet().MacAddress().State()).Val()
+	val, ok := gnmi.Watch(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().Interface(intfName).Ethernet().MacAddress().State(), time.Minute, func(v *ygnmi.Value[string]) bool {
+		return v.IsPresent()
+	}).Await(t)
+	if ok {
+		return val.Val()
+	}
+	return "", false
 }
 
 const (
@@ -1003,7 +1009,6 @@ func TestIntfCounterUpdate(t *testing.T) {
 	v4 := flowipv4.Packet().Add().Ipv4()
 	v4.Src().SetValue(ip4_1.Address())
 	v4.Dst().SetValue(ip4_2.Address())
-	v4.Priority().Dscp().Phb().SetValue(56)
 	otg.PushConfig(t, config)
 	otg.StartProtocols(t)
 	otgutils.WaitForARP(t, ate.OTG(), config, "IPv4")
