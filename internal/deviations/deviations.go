@@ -2330,7 +2330,7 @@ func AftsGlobalFilterPolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
 
 // AftsGlobalFilterPolicyConfigReferenceValidationUnsupported returns true if the
 // device does not validate references from an AFT global-filter policy.
-// Arista: Phase 1 implementation
+// Arista: https://partnerissuetracker.corp.google.com/issues/491765154#comment10
 func AftsGlobalFilterPolicyConfigReferenceValidationUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAftsGlobalFilterPolicyConfigReferenceValidationUnsupported()
 }
