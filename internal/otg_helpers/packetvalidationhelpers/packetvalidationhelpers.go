@@ -331,7 +331,6 @@ func validateIPv6Header(t *testing.T, packetSource *gopacket.PacketSource, packe
 	t.Log("Validating IPv6 header")
 
 	for packet := range packetSource.Packets() {
-		t.Logf("packet: %v", packet)
 		if ipLayer := packet.Layer(layers.LayerTypeIPv6); ipLayer != nil {
 			ipv6, _ := ipLayer.(*layers.IPv6)
 

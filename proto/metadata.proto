@@ -1421,6 +1421,9 @@ message Metadata {
     // Arista: https://partnerissuetracker.corp.google.com/issues/514565554
     bool afts_global_filter_policy_oc_unsupported = 446;
 
+    // Device that do not support soft loopback mode
+    // https://partnerissuetracker.corp.google.com/issues/542569522
+    bool soft_loopback_oc_unsupported = 447;
     // Device containerz service presents a self-signed TLS certificate that cannot
     // be verified against a trusted CA. When true, dialContainer uses TLS with
     // InsecureSkipVerify instead of plaintext transport.
