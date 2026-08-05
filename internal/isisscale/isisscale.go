@@ -103,16 +103,11 @@ func CreateATEData(lagToErouterMap map[int][]*otgconfighelpers.AteEmulatedRouter
 }
 
 func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
-	if hardwareInitCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureEnableAFTSummaries); hardwareInitCfg != "" {
-		cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareInitCfg)
+	hardwareInitCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureEnableAFTSummaries)
+	if hardwareInitCfg == "" {
+		return
 	}
-	if hfibCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureHierarchicalFIB); hfibCfg != "" {
-		cfgplugins.PushDUTHardwareInitConfig(t, dut, hfibCfg)
-		t.Cleanup(func() {
-			revertCfg := "router general\n no rib fib fec hierarchical resolution\n!\n"
-			cfgplugins.PushDUTHardwareInitConfig(t, dut, revertCfg)
-		})
-	}
+	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareInitCfg)
 }
 
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutData *DutData) {
