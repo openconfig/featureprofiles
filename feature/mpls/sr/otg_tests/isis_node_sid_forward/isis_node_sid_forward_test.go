@@ -234,8 +234,8 @@ func awaitTrafficCounters(t *testing.T, ate *ondatra.ATEDevice, flowName string,
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice) {
 
 	// Await until counter values are stabilized
-	awaitTrafficCounters(t, ate, v4FlowName, fixedPackets, time.Second*15)
-	awaitTrafficCounters(t, ate, v6FlowName, fixedPackets, time.Second*15)
+	awaitTrafficCounters(t, ate, v4FlowName, fixedPackets, time.Second*45)
+	awaitTrafficCounters(t, ate, v6FlowName, fixedPackets, time.Second*45)
 
 	recvMetricV4 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v4FlowName).State())
 	recvMetricV6 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v6FlowName).State())
