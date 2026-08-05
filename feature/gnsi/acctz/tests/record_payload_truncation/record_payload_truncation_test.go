@@ -32,6 +32,8 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+const maxNIs = 100
+
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
@@ -46,7 +48,6 @@ func sendOversizedPayload(t *testing.T, dut *ondatra.DUTDevice) {
 	// giant set of network instances + static routes which should hopefully work for everyone.
 	ocRoot := &oc.Root{}
 
-const maxNIs = 100
 for i := 0; i < maxNIs; i++ {
 		ni := ocRoot.GetOrCreateNetworkInstance(fmt.Sprintf("acctz-test-ni-%d", i))
 		ni.SetDescription("This is a pointlessly long description in order to make the payload bigger.")
@@ -73,7 +74,7 @@ for i := 0; i < maxNIs; i++ {
 		t.Fatalf("Failed to dial gNMI with custom message size: %v", err)
 	}
 	t.Cleanup(func() {
-		for i := 0; i < 150; i++ {
+		for i := 0; i < maxNIs; i++ {
 			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(fmt.Sprintf("acctz-test-ni-%d", i)).Config())
 		}
 	})
