@@ -1427,7 +1427,7 @@ message Metadata {
     bool containerz_tls_insecure_skip_verify = 448;
 
     // Devices that do not validate AFT global filter policy references.
-    // Arista: Phase 1 implementation
+    // Arista: https://partnerissuetracker.corp.google.com/issues/491765154#comment10
     bool afts_global_filter_policy_config_reference_validation_unsupported = 449;
 
     // Reserved field numbers and identifiers.
