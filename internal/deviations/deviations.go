@@ -1881,6 +1881,14 @@ func NonStandardGRPCPort(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNonStandardGrpcPort()
 }
 
+// ContainerzTLSInsecureSkipVerify returns true if the device's containerz
+// service presents a self-signed TLS certificate that cannot be verified
+// against a trusted CA. When true, dialContainer uses TLS with
+// InsecureSkipVerify. Default value is false.
+func ContainerzTLSInsecureSkipVerify(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetContainerzTlsInsecureSkipVerify()
+}
+
 // TemperatureSensorCheck returns true if the transceiver subcomponent should look for the temperature sensor
 func TemperatureSensorCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTemperatureSensorCheck()
@@ -2312,4 +2320,10 @@ func IpRoutingInVrfOcUnsupported(dut *ondatra.DUTDevice) bool {
 // MacsecOcUnsupported returns true if device does not support OC configuration for MACSEC.
 func MacsecOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMacsecOcUnsupported()
+}
+
+// AftsGlobalFilterPolicyOCUnsupported returns true if "/network-instances/network-instance/afts/global-filter-policy" OC path is not supported.
+// Arista: b/514565554
+func AftsGlobalFilterPolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAftsGlobalFilterPolicyOcUnsupported()
 }
