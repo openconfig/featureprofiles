@@ -365,6 +365,7 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 	t.Logf("Pushing config to OTG and starting protocols...")
 	otg.PushConfig(t, config)
 	otg.StartProtocols(t)
+	otgutils.WaitForARP(t, otg, config, "IPv4")
 	return config
 }
 
@@ -378,6 +379,9 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, flow
 	recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).State())
 	txPackets := recvMetric.GetCounters().GetOutPkts()
 	rxPackets := recvMetric.GetCounters().GetInPkts()
+	if txPackets == 0 {
+		t.Fatalf("No packets transmitted for flow %s (txPackets is 0)", flowName)
+	}
 	lostPackets := txPackets - rxPackets
 	lossPct := lostPackets * 100 / txPackets
 	if wantLoss {
