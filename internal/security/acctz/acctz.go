@@ -86,7 +86,7 @@ const (
 var (
 	failuser     string
 	failpass     string
-	failPassword = "baggins"
+	failPassword = "bagginsTest123!"
 	// TestPaths is the list of paths to be tested for acctz.
 	TestPaths = []string{gnmiCapabilitiesPath, gnoiPingPath, gnoiTimePath, gnsiGetPath, gribiGetPath, p4rtCapabilitiesPath}
 )
@@ -744,6 +744,8 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		failpass = failPassword
 	}
 	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, failuser, passKey, failpass))
+	//ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, SuccessUsername, passKey, successPassword))
+
 	var gnmiClient gnmipb.GNMIClient
 	var err error
 	if dut.Vendor() == ondatra.NOKIA {
@@ -773,29 +775,27 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		t.Errorf("Did not get expected error fetching capabilities with no permissions. %v", err1)
 	}
 
-	if !deviations.AcctzRecordFailGrpcUnsupported(dut) {
-		records = append(records, &acctzpb.RecordResponse{
-			ServiceRequest: &acctzpb.RecordResponse_GrpcService{
-				GrpcService: &acctzpb.GrpcService{
-					ServiceType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GNMI,
-					RpcName:     gnmiCapabilitiesPath,
-					Authz: &acctzpb.AuthzDetail{
-						Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY, gnmiCapabilitiesPath),
-					},
+	records = append(records, &acctzpb.RecordResponse{
+		ServiceRequest: &acctzpb.RecordResponse_GrpcService{
+			GrpcService: &acctzpb.GrpcService{
+				ServiceType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GNMI,
+				RpcName:     gnmiCapabilitiesPath,
+				Authz: &acctzpb.AuthzDetail{
+					Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY, gnmiCapabilitiesPath),
 				},
 			},
-			SessionInfo: &acctzpb.SessionInfo{
-				Status: acctzpb.SessionInfo_SESSION_STATUS_ONCE,
-				Authn: &acctzpb.AuthnDetail{
-					Type:   acctzpb.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
-					Status: acctzpb.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
-				},
-				User: &acctzpb.UserDetail{
-					Identity: failuser,
-				},
+		},
+		SessionInfo: &acctzpb.SessionInfo{
+			Status: acctzpb.SessionInfo_SESSION_STATUS_ONCE,
+			Authn: &acctzpb.AuthnDetail{
+				Type:   acctzpb.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
+				Status: acctzpb.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
 			},
-		})
-	}
+			User: &acctzpb.UserDetail{
+				Identity: failuser,
+			},
+		},
+	})
 
 	// Send a successful gNMI capabilities request.
 	ctx = context.Background()
@@ -924,29 +924,27 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		}
 	}
 
-	if !deviations.AcctzRecordFailGrpcUnsupported(dut) {
-		records = append(records, &acctzpb.RecordResponse{
-			ServiceRequest: &acctzpb.RecordResponse_GrpcService{
-				GrpcService: &acctzpb.GrpcService{
-					ServiceType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GNOI,
-					RpcName:     rpcName,
-					Authz: &acctzpb.AuthzDetail{
-						Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY, rpcName),
-					},
+	records = append(records, &acctzpb.RecordResponse{
+		ServiceRequest: &acctzpb.RecordResponse_GrpcService{
+			GrpcService: &acctzpb.GrpcService{
+				ServiceType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GNOI,
+				RpcName:     rpcName,
+				Authz: &acctzpb.AuthzDetail{
+					Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY, rpcName),
 				},
 			},
-			SessionInfo: &acctzpb.SessionInfo{
-				Status: acctzpb.SessionInfo_SESSION_STATUS_ONCE,
-				Authn: &acctzpb.AuthnDetail{
-					Type:   acctzpb.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
-					Status: acctzpb.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
-				},
-				User: &acctzpb.UserDetail{
-					Identity: failuser,
-				},
+		},
+		SessionInfo: &acctzpb.SessionInfo{
+			Status: acctzpb.SessionInfo_SESSION_STATUS_ONCE,
+			Authn: &acctzpb.AuthnDetail{
+				Type:   acctzpb.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
+				Status: acctzpb.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
 			},
-		})
-	}
+			User: &acctzpb.UserDetail{
+				Identity: failuser,
+			},
+		},
+	})
 
 	// Send a successful gNOI request.
 	ctx = context.Background()
@@ -1065,29 +1063,27 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	} else {
 		t.Errorf("Did not get expected error fetching authz policy with no permissions. error: %s", err)
 	}
-	if !deviations.AcctzRecordFailGrpcUnsupported(dut) {
-		records = append(records, &acctzpb.RecordResponse{
-			ServiceRequest: &acctzpb.RecordResponse_GrpcService{
-				GrpcService: &acctzpb.GrpcService{
-					ServiceType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GNSI,
-					RpcName:     gnsiGetPath,
-					Authz: &acctzpb.AuthzDetail{
-						Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY, gnsiGetPath),
-					},
+	records = append(records, &acctzpb.RecordResponse{
+		ServiceRequest: &acctzpb.RecordResponse_GrpcService{
+			GrpcService: &acctzpb.GrpcService{
+				ServiceType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GNSI,
+				RpcName:     gnsiGetPath,
+				Authz: &acctzpb.AuthzDetail{
+					Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY, gnsiGetPath),
 				},
 			},
-			SessionInfo: &acctzpb.SessionInfo{
-				Status: acctzpb.SessionInfo_SESSION_STATUS_ONCE,
-				Authn: &acctzpb.AuthnDetail{
-					Type:   acctzpb.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
-					Status: acctzpb.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
-				},
-				User: &acctzpb.UserDetail{
-					Identity: failuser,
-				},
+		},
+		SessionInfo: &acctzpb.SessionInfo{
+			Status: acctzpb.SessionInfo_SESSION_STATUS_ONCE,
+			Authn: &acctzpb.AuthnDetail{
+				Type:   acctzpb.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
+				Status: acctzpb.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
 			},
-		})
-	}
+			User: &acctzpb.UserDetail{
+				Identity: failuser,
+			},
+		},
+	})
 	// Send a successful gNSI authz get request.
 	ctx = context.Background()
 	ctx = metadata.AppendToOutgoingContext(ctx, "username", SuccessUsername)
@@ -1335,29 +1331,27 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	} else {
 		t.Errorf("Did not get expected error fetching pr4t capabilities with no permissions, error: %s", err)
 	}
-	if !deviations.AcctzRecordFailGrpcUnsupported(dut) {
-		records = append(records, &acctzpb.RecordResponse{
-			ServiceRequest: &acctzpb.RecordResponse_GrpcService{
-				GrpcService: &acctzpb.GrpcService{
-					ServiceType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_P4RT,
-					RpcName:     p4rtCapabilitiesPath,
-					Authz: &acctzpb.AuthzDetail{
-						Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY, p4rtCapabilitiesPath),
-					},
+	records = append(records, &acctzpb.RecordResponse{
+		ServiceRequest: &acctzpb.RecordResponse_GrpcService{
+			GrpcService: &acctzpb.GrpcService{
+				ServiceType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_P4RT,
+				RpcName:     p4rtCapabilitiesPath,
+				Authz: &acctzpb.AuthzDetail{
+					Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY, p4rtCapabilitiesPath),
 				},
 			},
-			SessionInfo: &acctzpb.SessionInfo{
-				Status: acctzpb.SessionInfo_SESSION_STATUS_ONCE,
-				Authn: &acctzpb.AuthnDetail{
-					Type:   acctzpb.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
-					Status: acctzpb.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
-				},
-				User: &acctzpb.UserDetail{
-					Identity: failuser,
-				},
+		},
+		SessionInfo: &acctzpb.SessionInfo{
+			Status: acctzpb.SessionInfo_SESSION_STATUS_ONCE,
+			Authn: &acctzpb.AuthnDetail{
+				Type:   acctzpb.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
+				Status: acctzpb.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
 			},
-		})
-	}
+			User: &acctzpb.UserDetail{
+				Identity: failuser,
+			},
+		},
+	})
 	ctx = context.Background()
 	ctx = metadata.AppendToOutgoingContext(ctx, "username", SuccessUsername)
 	ctx = metadata.AppendToOutgoingContext(ctx, "password", successPassword)
