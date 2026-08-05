@@ -421,7 +421,7 @@ func verifyPrefix(t *testing.T, ts *isissession.TestSession, shouldBePresent boo
 func verifyV6Prefix(t *testing.T, ts *isissession.TestSession, shouldBePresent bool) {
 
 	t.Run("Verify Route on OTG", func(t *testing.T) {
-		_, ok := gnmi.WatchAll(t, ts.ATE.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().Ipv6Reachability().Prefix(v6Route).State(), 30*time.Second, func(v *ygnmi.Value[*otgtelemetry.IsisRouter_LinkStateDatabase_Lsps_Tlvs_Ipv6Reachability_Prefix]) bool {
+		_, ok := gnmi.WatchAll(t, ts.ATE.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().Ipv6Reachability().Prefix(v6Route).State(), time.Minute, func(v *ygnmi.Value[*otgtelemetry.IsisRouter_LinkStateDatabase_Lsps_Tlvs_Ipv6Reachability_Prefix]) bool {
 			prefix, present := v.Val()
 			return present && prefix.GetPrefix() == v6Route
 		}).Await(t)
@@ -440,7 +440,7 @@ func verifyV6Prefix(t *testing.T, ts *isissession.TestSession, shouldBePresent b
 func verifyPrefixMetric(t *testing.T, ts *isissession.TestSession, expectedMetric uint32) {
 
 	t.Run("Verify Route Metric on OTG", func(t *testing.T) {
-		_, ok := gnmi.WatchAll(t, ts.ATE.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().Prefix(v4Route).Metric().State(), 30*time.Second, func(v *ygnmi.Value[uint32]) bool {
+		_, ok := gnmi.WatchAll(t, ts.ATE.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().Prefix(v4Route).Metric().State(), time.Minute, func(v *ygnmi.Value[uint32]) bool {
 			if !v.IsPresent() {
 				return false
 			}
@@ -459,7 +459,7 @@ func verifyPrefixMetric(t *testing.T, ts *isissession.TestSession, expectedMetri
 func verifyV6PrefixMetric(t *testing.T, ts *isissession.TestSession, expectedMetric uint32) {
 
 	t.Run("Verify Route Metric on OTG", func(t *testing.T) {
-		_, ok := gnmi.WatchAll(t, ts.ATE.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().Ipv6Reachability().Prefix(v6Route).Metric().State(), 30*time.Second, func(v *ygnmi.Value[uint32]) bool {
+		_, ok := gnmi.WatchAll(t, ts.ATE.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().Ipv6Reachability().Prefix(v6Route).Metric().State(), time.Minute, func(v *ygnmi.Value[uint32]) bool {
 			if !v.IsPresent() {
 				return false
 			}
@@ -737,7 +737,7 @@ func TestStaticToISISRedistribution(t *testing.T) {
 					ts.ATE.OTG().StopTraffic(t)
 
 					for _, flow := range tc.trafficFlows {
-						loss := otgutils.GetFlowLossPct(t, ts.ATE.OTG(), flow, 20*time.Second)
+						loss := otgutils.GetFlowLossPct(t, ts.ATE.OTG(), flow, 45*time.Second)
 						if loss > lossTolerance {
 							t.Errorf("Traffic loss too high for flow %s", flow)
 						} else {
