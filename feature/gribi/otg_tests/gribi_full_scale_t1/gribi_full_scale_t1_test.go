@@ -65,16 +65,31 @@ func TestGRIBIFullScaleT1(t *testing.T) {
 		NumDefaultNH:   1_000,
 		NumDefaultNHG:  1_000,
 		NumDefaultIPv4: 1_000,
+		DefaultNHGLoadBalance: []cfgplugins.NHGLoadBalancingParams{
+			{Pct: 40, NumNextHops: 8},
+			{Pct: 40, NumNextHops: 16},
+			{Pct: 15, NumNextHops: 32},
+			{Pct: 5, NumNextHops: 64},
+		},
+		DefaultNHGWeight: []cfgplugins.NHGWeightParams{
+			{Pct: 80, Config: cfgplugins.WCMP1in512},
+			{Pct: 20, Config: cfgplugins.WCMP1in1024},
+		},
 
 		// Transit VRF parameters
-		NumTransitNH:   4_000,
-		NumTransitNHG:  2_000,
+		NumTransitNH:  4_000,
+		NumTransitNHG: 2_000,
+		TransitNHGLoadBalance: []cfgplugins.NHGLoadBalancingParams{
+			{Pct: 100, NumNextHops: 2},
+		},
+		TransitNHGWeight: []cfgplugins.NHGWeightParams{
+			{Pct: 100, Config: cfgplugins.WCMP1in64},
+		},
 		NumTransitIPv4: 17_500,
 
 		// Repair VRF parameters
 		NumRepairIPv4: 17_500,
 		NumRepairNHG:  1_000,
-		PctNHG512:     80,
 
 		// Encap VRF parameters
 		NumEncapVRFs:       5,
@@ -82,8 +97,18 @@ func TestGRIBIFullScaleT1(t *testing.T) {
 		NumEncapIPv6PerVRF: 5_060,
 		NumUniqueEncapNH:   14_000,
 		NumEncapDefaultNHG: 3_500,
-		PctEncap8NH:        75,
-		PctEncap32NH:       20,
+		EncapNHGLoadBalance: []cfgplugins.NHGLoadBalancingParams{
+			{Pct: 75, NumNextHops: 4},
+			{Pct: 20, NumNextHops: 8},
+			{Pct: 3, NumNextHops: 16},
+			{Pct: 2, NumNextHops: 32},
+		},
+		EncapNHGWeight: []cfgplugins.NHGWeightParams{
+			{Pct: 75, Config: cfgplugins.WCMP1in32},
+			{Pct: 20, Config: cfgplugins.WCMP1in64},
+			{Pct: 3, Config: cfgplugins.WCMP1in128},
+			{Pct: 2, Config: cfgplugins.WCMP1in256},
+		},
 
 		// Decap VRF parameters
 		NumDecapEntries:     20,

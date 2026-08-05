@@ -30,11 +30,12 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
 const (
-	trafficDuration = 1 * time.Minute
+	trafficDuration = 30 * time.Second
 	ipv4PrefixLen   = 30
 	ipv6PrefixLen   = 126
 )
@@ -486,6 +487,7 @@ func getIPinIPFlow(args *testArgs, src attrs.Attributes, dst attrs.Attributes, f
 	flow.Size().SetFixed(1024)
 	flow.Rate().SetPps(100)
 	flow.Duration().FixedPackets().SetPackets(100)
+	flow.Duration().Continuous()
 
 	return flow
 }
@@ -518,11 +520,34 @@ func testTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config,
 	for _, flow := range flows {
 		t.Run(flow.Name(), func(t *testing.T) {
 			t.Logf("*** Verifying %v traffic on OTG ... ", flow.Name())
-			outPkts := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State()))
-			inPkts := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State()))
 
-			if outPkts == 0 {
+			if _, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Transmit().State(), 15*time.Second, func(val *ygnmi.Value[bool]) bool {
+				transmitState, present := val.Val()
+				return present && !transmitState
+			}).Await(t); !ok {
+				t.Fatalf("Timeout waiting for flow %s to stop transmitting", flow.Name())
+			}
+
+			outPktsRaw := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
+			if outPktsRaw == 0 {
 				t.Fatalf("OutPkts == 0, want >0.")
+			}
+			outPkts := float32(outPktsRaw)
+
+			var inPkts float32
+			if expectPass {
+				inPktsVal, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State(), 15*time.Second, func(val *ygnmi.Value[uint64]) bool {
+					v, present := val.Val()
+					return present && v == outPktsRaw
+				}).Await(t)
+				if ok {
+					inPktsRaw, _ := inPktsVal.Val()
+					inPkts = float32(inPktsRaw)
+				} else {
+					inPkts = float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State()))
+				}
+			} else {
+				inPkts = float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State()))
 			}
 
 			lossPct := (outPkts - inPkts) * 100 / outPkts
