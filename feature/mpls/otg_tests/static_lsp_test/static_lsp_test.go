@@ -350,7 +350,7 @@ func configureGueDecap(t *testing.T, dut *ondatra.DUTDevice) {
 		p := dut.Port(t, pName)
 		cfgplugins.ApplyPolicyToInterfaceOC(t, pf, p.Name(), guePolicyName)
 	}
-	if !deviations.GueGreDecapUnsupported(dut) {
+	if !deviations.GueGreDecapOCUnsupported(dut) {
 		cfgplugins.PushPolicyForwardingConfig(t, dut, ni)
 	}
 	t.Cleanup(func() {
