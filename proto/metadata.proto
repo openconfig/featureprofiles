@@ -1433,10 +1433,10 @@ message Metadata {
     // JUNIPER: https://partnerissuetracker.corp.google.com/issues/510723665
     // ARISTA: https://partnerissuetracker.corp.google.com/issues/510723664
     // NOKIA: https://partnerissuetracker.corp.google.com/issues/510725200
-    bool bgp_adj_rib_oc_unsupported = 448;
+    bool bgp_adj_rib_oc_unsupported = 449;
 
     // Devices that donot support AIGP metric increment when IGP metric to original destination is zero
-    bool aigp_metric_increment = 449;
+    bool aigp_metric_increment = 450;
 
     // Device containerz service presents a self-signed TLS certificate that cannot
     // be verified against a trusted CA. When true, dialContainer uses TLS with
