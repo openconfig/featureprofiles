@@ -14,7 +14,7 @@ platform_exceptions: {
     default_network_instance: "default"
     omit_l2_mtu: true
     interface_config_vrf_before_address: true
-    table_connections_unsupported: true
+    table_connections_unsupported: false
   }
 }
 
