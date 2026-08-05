@@ -103,11 +103,12 @@ func CreateATEData(lagToErouterMap map[int][]*otgconfighelpers.AteEmulatedRouter
 }
 
 func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
-	hardwareInitCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureEnableAFTSummaries)
-	if hardwareInitCfg == "" {
-		return
+	if hardwareInitCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureEnableAFTSummaries); hardwareInitCfg != "" {
+		cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareInitCfg)
 	}
-	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareInitCfg)
+	if hfibCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureHierarchicalFIB); hfibCfg != "" {
+		cfgplugins.PushDUTHardwareInitConfig(t, dut, hfibCfg)
+	}
 }
 
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutData *DutData) {

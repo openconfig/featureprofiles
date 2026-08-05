@@ -1914,11 +1914,18 @@ func verifySystemHealth(t *testing.T, dut *ondatra.DUTDevice) dutInfo {
 	return dutInfo
 }
 
+func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
+	if hfibCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureHierarchicalFIB); hfibCfg != "" {
+		cfgplugins.PushDUTHardwareInitConfig(t, dut, hfibCfg)
+	}
+}
+
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutData *dutData) {
 	t.Logf("===========Configuring DUT===========")
 	t.Helper()
 	var cfgDutPorts []cfgplugins.Attributes
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
+	configureHardwareInit(t, dut)
 
 	for _, l := range dutData.lags {
 		b := &gnmi.SetBatch{}
