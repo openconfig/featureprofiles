@@ -40,6 +40,8 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -475,18 +477,34 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) map[
 	time.Sleep(1 * time.Minute)
 	ate.OTG().StopTraffic(t)
 
-	otgutils.LogFlowMetrics(t, ate.OTG(), top)
+	gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flowipv4.Name()).State(), 45*time.Second, func(v *ygnmi.Value[*otgtelemetry.Flow]) bool {
+		val, present := v.Val()
+		if !present {
+			return false
+		}
+		tx := val.GetCounters().GetOutPkts()
+		rx := val.GetCounters().GetInPkts()
+		if tx == 0 {
+			return false
+		}
+		lossPct := float32(tx-rx) * 100 / float32(tx)
+		return lossPct <= 0
+	}).Await(t)
 
 	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowipv4.Name()).State())
-	txPkts := float32(recvMetric.GetCounters().GetOutPkts())
-	rxPkts := float32(recvMetric.GetCounters().GetInPkts())
-	lossPct := (txPkts - rxPkts) * 100 / txPkts
+	txPkts := recvMetric.GetCounters().GetOutPkts()
+	rxPkts := recvMetric.GetCounters().GetInPkts()
+
 	if txPkts == 0 {
-		t.Fatalf("TxPkts == 0, want > 0.")
+		t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flowipv4.Name())
 	}
-	if lossPct > 0 && recvMetric.GetCounters().GetOutPkts() > 0 {
-		t.Fatalf("Loss Pct for %s got %v, want 0", flowipv4.Name(), lossPct)
+
+	lossPct := float32(txPkts-rxPkts) * 100 / float32(txPkts)
+	if lossPct > 0 {
+		t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want <= 0", flowipv4.Name(), lossPct)
 	}
+
+	otgutils.LogFlowMetrics(t, ate.OTG(), top)
 
 	// Compare traffic distribution with the wanted results.
 	results := filterPacketReceived(t, "flow", ate)

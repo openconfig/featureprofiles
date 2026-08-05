@@ -28,8 +28,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
-	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 const (
@@ -203,33 +201,14 @@ func incrementIPSlice(ipSlice []string) []string {
 
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, ports int, testResults bool) {
 	// compare the flows transmitted and received instead of the ports counters
-	gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow("flow").State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
-		recvMetric, present := val.Val()
-		if !present {
-			return false
-		}
-		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
-		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
-		if txPackets == 0 {
-			return false
-		}
-		lossPct := (txPackets - rxPackets) * 100.0 / txPackets
-		if testResults {
-			return lossPct < 5.0
-		}
-		return lossPct > 99.0
-	}).Await(t)
-
-	framesTx := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow("flow").State()).GetCounters().GetOutPkts())
-	framesRx := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow("flow").State()).GetCounters().GetInPkts())
+	framesTx := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow("flow").State()).GetCounters().GetOutPkts()
+	framesRx := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow("flow").State()).GetCounters().GetInPkts()
 	if framesTx == 0 {
-		t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow flow")
-	}
-	lossPct := (framesTx - framesRx) * 100.0 / framesTx
-	if (testResults && lossPct < 5.0) || (!testResults && lossPct > 99.0) {
-		t.Logf("Traffic validation successful for criteria [%t] FramesTx: %f FramesRx: %f", testResults, framesTx, framesRx)
+		t.Error("No traffic was generated and frames transmitted were 0")
+	} else if (testResults && framesRx == framesTx) || (!testResults && framesRx == 0) {
+		t.Logf("Traffic validation successful for criteria [%t] FramesTx: %d FramesRx: %d", testResults, framesTx, framesRx)
 	} else {
-		t.Errorf("Generic Test Assertion Failure: Flow flow: got %f loss, want 0%% (testResults=%t)", lossPct, testResults)
+		t.Errorf("Traffic validation failed for criteria [%t] FramesTx: %d FramesRx: %d", testResults, framesTx, framesRx)
 	}
 }
 

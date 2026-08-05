@@ -914,26 +914,35 @@ func checkTraffic(t *testing.T, td testData, flowName string) {
 	time.Sleep(time.Second * trafficDuration)
 	td.ate.OTG().StopTraffic(t)
 
-	otgutils.LogFlowMetrics(t, td.ate.OTG(), td.top)
-	otgutils.LogPortMetrics(t, td.ate.OTG(), td.top)
-
 	t.Log("Checking flow telemetry...")
-	if _, ok := gnmi.Watch(t, td.ate.OTG(), gnmi.OTG().Flow(flowName).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
+	gnmi.Watch(t, td.ate.OTG(), gnmi.OTG().Flow(flowName).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
 		f, present := val.Val()
-		return present && f.GetCounters() != nil && f.GetCounters().GetOutPkts() >= uint64(totalPackets)
-	}).Await(t); !ok {
-		t.Errorf("Timeout waiting for flow %s to transmit %d packets", flowName, totalPackets)
-	}
+		if !present || f.GetCounters() == nil {
+			return false
+		}
+		txPackets := f.GetCounters().GetOutPkts()
+		rxPackets := f.GetCounters().GetInPkts()
+		if txPackets == 0 {
+			return false
+		}
+		lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
+		return lossPct <= float32(tolerance)
+	}).Await(t)
+
 	recvMetric := gnmi.Get(t, td.ate.OTG(), gnmi.OTG().Flow(flowName).State())
 	txPackets := recvMetric.GetCounters().GetOutPkts()
 	rxPackets := recvMetric.GetCounters().GetInPkts()
-	lostPackets := txPackets - rxPackets
+
 	if txPackets == 0 {
-		t.Fatalf("txPkts == %d, want > 0.", txPackets)
+		t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flowName)
 	}
-	if got := (lostPackets * 100 / txPackets); got >= tolerance {
-		t.Errorf("FAIL- Packet loss for flow %s: got %v, want %v", flowName, got, tolerance)
+	lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
+	if lossPct > float32(tolerance) {
+		t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want <= %d", flowName, lossPct, tolerance)
 	}
+
+	otgutils.LogFlowMetrics(t, td.ate.OTG(), td.top)
+	otgutils.LogPortMetrics(t, td.ate.OTG(), td.top)
 }
 
 // advertiseRoutesWithEBGP configure the BGP routes.

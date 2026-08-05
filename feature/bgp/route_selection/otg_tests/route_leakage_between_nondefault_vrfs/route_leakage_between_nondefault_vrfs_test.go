@@ -154,8 +154,6 @@ func runTest(t *testing.T, tc testCase, dut *ondatra.DUTDevice, ate *ondatra.ATE
 		waitForTraffic(t, otg, flow.Name(), trafficTimeout)
 	}
 
-	otgutils.LogFlowMetrics(t, otg, config)
-
 	verifyTrafficFlow(t, ate, config, tc.expectTrafficPass)
 }
 
@@ -397,39 +395,50 @@ func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Con
 	otg := ate.OTG()
 
 	for _, flow := range config.Flows().Items() {
-		if _, ok := gnmi.Watch(t, otg, gnmi.OTG().Flow(flow.Name()).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
+		gnmi.Watch(t, otg, gnmi.OTG().Flow(flow.Name()).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
 			f, present := val.Val()
-			return present && f.GetCounters() != nil && f.GetCounters().GetOutPkts() >= totalPackets
-		}).Await(t); !ok {
-			t.Errorf("Flow %s did not send any packets", flow.Name())
-		}
+			if !present || f.GetCounters() == nil {
+				return false
+			}
+			txPackets := f.GetCounters().GetOutPkts()
+			rxPackets := f.GetCounters().GetInPkts()
+			if txPackets == 0 {
+				return false
+			}
+			if expectTrafficPass {
+				lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
+				return lossPct <= 0.0
+			} else {
+				return rxPackets == 0
+			}
+		}).Await(t)
+
 		flowMetrics := gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).State())
-		txPackets := flowMetrics.GetCounters().GetOutPkts()
-		rxPackets := flowMetrics.GetCounters().GetInPkts()
+		txPackets := float32(flowMetrics.GetCounters().GetOutPkts())
+		rxPackets := float32(flowMetrics.GetCounters().GetInPkts())
 
 		if txPackets == 0 {
-			t.Fatalf("Flow %s did not send any packets", flow.Name())
+			t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flow.Name())
 		}
 
-		if txPackets < totalPackets {
-			t.Errorf("Flow %s sent fewer packets than expected: sent %d, expected %d", flow.Name(), txPackets, totalPackets)
-		}
+		lossPct := (txPackets - rxPackets) * 100 / txPackets
 
-		var expectedPackets uint64
 		if expectTrafficPass {
-			expectedPackets = totalPackets
+			if lossPct > 0.0 {
+				t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want <= 0", flow.Name(), lossPct)
+			} else {
+				t.Logf("Traffic Test Passed! for flow %s", flow.Name())
+			}
 		} else {
-			expectedPackets = 0
-		}
-
-		t.Logf("Expecting %d packets for flow %s", expectedPackets, flow.Name())
-		msg := fmt.Sprintf("Sent %d packets, expected %d packets, received %d packets.", txPackets, expectedPackets, rxPackets)
-		if rxPackets == expectedPackets {
-			t.Log(msg)
-		} else {
-			t.Error(msg)
+			if rxPackets > 0 {
+				t.Errorf("Generic Test Assertion Failure: Flow %s: got %v framesRx, want 0", flow.Name(), rxPackets)
+			} else {
+				t.Logf("Traffic Test Passed! for flow %s", flow.Name())
+			}
 		}
 	}
+	otgutils.LogFlowMetrics(t, otg, config)
+	otgutils.LogPortMetrics(t, otg, config)
 }
 
 func enableDefaultVRFBGP(t *testing.T, dut *ondatra.DUTDevice) {

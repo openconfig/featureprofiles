@@ -29,8 +29,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
-	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 const (
@@ -263,46 +261,16 @@ func configureFlow(t *testing.T, bs *cfgplugins.BGPSession, prefixPair []string,
 }
 
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, prefixType string, testResults bool, index int) {
-	flowName := "flow" + prefixType + strconv.Itoa(index)
-	gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flowName).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
-		f, present := val.Val()
-		if !present || f.GetCounters() == nil {
-			return false
-		}
-		framesTx := f.GetCounters().GetOutPkts()
-		framesRx := f.GetCounters().GetInPkts()
-		if framesTx == 0 {
-			return false
-		}
-		if testResults {
-			lossPct := float32(framesTx-framesRx) * 100 / float32(framesTx)
-			return lossPct <= 0.0
-		} else {
-			return framesRx == 0
-		}
-	}).Await(t)
-
-	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).State())
-	framesTx := float32(recvMetric.GetCounters().GetOutPkts())
-	framesRx := float32(recvMetric.GetCounters().GetInPkts())
+	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow("flow"+prefixType+strconv.Itoa(index)).State())
+	framesTx := recvMetric.GetCounters().GetOutPkts()
+	framesRx := recvMetric.GetCounters().GetInPkts()
 
 	if framesTx == 0 {
-		t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flowName)
-	}
-	lossPct := (framesTx - framesRx) * 100 / framesTx
-
-	if testResults {
-		if lossPct > 0.0 {
-			t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want <= 0", flowName, lossPct)
-		} else {
-			t.Logf("Traffic validation successful for criteria [%t] FramesTx: %f FramesRx: %f", testResults, framesTx, framesRx)
-		}
+		t.Error("No traffic was generated and frames transmitted were 0")
+	} else if (testResults && framesRx == framesTx) || (!testResults && framesRx == 0) {
+		t.Logf("Traffic validation successful for criteria [%t] FramesTx: %d FramesRx: %d", testResults, framesTx, framesRx)
 	} else {
-		if framesRx > 0 {
-			t.Errorf("Generic Test Assertion Failure: Flow %s: got %v framesRx, want 0", flowName, framesRx)
-		} else {
-			t.Logf("Traffic validation successful for criteria [%t] FramesTx: %f FramesRx: %f", testResults, framesTx, framesRx)
-		}
+		t.Errorf("Traffic validation failed for criteria [%t] FramesTx: %d FramesRx: %d", testResults, framesTx, framesRx)
 	}
 }
 

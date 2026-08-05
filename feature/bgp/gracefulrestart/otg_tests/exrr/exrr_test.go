@@ -1032,45 +1032,72 @@ func verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, flows []string) {
 	t.Helper()
 	otg := ate.OTG()
 	c := otg.FetchConfig(t)
-	otgutils.LogFlowMetrics(t, otg, c)
 
 	for _, f := range flows {
 		t.Logf("Verifying flow metrics for flow %s\n", f)
+		gnmi.Watch(t, otg, gnmi.OTG().Flow(f).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
+			recvMetric, present := val.Val()
+			if !present {
+				return false
+			}
+			txPackets := float32(recvMetric.GetCounters().GetOutPkts())
+			rxPackets := float32(recvMetric.GetCounters().GetInPkts())
+			if txPackets == 0 {
+				return false
+			}
+			lossPct := (txPackets - rxPackets) * 100.0 / txPackets
+			return lossPct < 5.0
+		}).Await(t)
+
 		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(f).State())
 		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
 		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
 		lostPackets := txPackets - rxPackets
 		if txPackets == 0 {
-			t.Fatalf("Tx packets should be higher than 0 for flow %s", f)
+			t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", f)
 		}
 		if lossPct := lostPackets * 100 / txPackets; lossPct < 5.0 {
 			t.Logf("Traffic received as expected! Got %v loss", lossPct)
 		} else {
-			t.Errorf("traffic verification failed, Loss Pct for Flow %s: got %f", f, lossPct)
+			t.Errorf("Generic Test Assertion Failure: Flow %s: got %f, want < 5.0", f, lossPct)
 		}
 	}
+	otgutils.LogFlowMetrics(t, otg, c)
 }
 
 func confirmPacketLoss(t *testing.T, ate *ondatra.ATEDevice, flows []string) {
 	t.Helper()
 	otg := ate.OTG()
 	c := otg.FetchConfig(t)
-	otgutils.LogFlowMetrics(t, otg, c)
 	for _, f := range flows {
 		t.Logf("Verifying flow metrics for flow %s\n", f)
+		gnmi.Watch(t, otg, gnmi.OTG().Flow(f).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
+			recvMetric, present := val.Val()
+			if !present {
+				return false
+			}
+			txPackets := float32(recvMetric.GetCounters().GetOutPkts())
+			rxPackets := float32(recvMetric.GetCounters().GetInPkts())
+			if txPackets == 0 {
+				return false
+			}
+			lossPct := (txPackets - rxPackets) * 100.0 / txPackets
+			return lossPct > 99.0
+		}).Await(t)
 		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(f).State())
 		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
 		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
 		lostPackets := txPackets - rxPackets
 		if txPackets == 0 {
-			t.Fatalf("Tx packets should be higher than 0 for flow %s", f)
+			t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", f)
 		}
 		if lossPct := lostPackets * 100 / txPackets; lossPct > 99.0 {
 			t.Logf("Traffic received as expected! Loss seen as expected: got %v, want 100%% ", lossPct)
 		} else {
-			t.Errorf("traffic %s is expected to fail: got %f, want 100%% failure", f, lossPct)
+			t.Errorf("Generic Test Assertion Failure: Flow %s: got %f, want 100%% failure", f, lossPct)
 		}
 	}
+	otgutils.LogFlowMetrics(t, otg, c)
 }
 
 func sendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
@@ -1246,34 +1273,50 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.
 	time.Sleep(trafficDuration)
 	otg.StopTraffic(t)
 
-	otgutils.LogPortMetrics(t, otg, config)
-	otgutils.LogFlowMetrics(t, otg, config)
-
 	for _, flow := range config.Flows().Items() {
+		gnmi.Watch(t, otg, gnmi.OTG().Flow(flow.Name()).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
+			recvMetric, present := val.Val()
+			if !present {
+				return false
+			}
+			outPkts := float32(recvMetric.GetCounters().GetOutPkts())
+			inPkts := float32(recvMetric.GetCounters().GetInPkts())
+			if outPkts == 0 {
+				return false
+			}
+			lossPct := ((outPkts - inPkts) * 100.0) / outPkts
+			if match {
+				return lossPct <= 0
+			}
+			return lossPct >= 100
+		}).Await(t)
+
 		outPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State()))
 		inPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State()))
-		lossPct := ((outPkts - inPkts) * 100) / outPkts
+		lossPct := ((outPkts - inPkts) * 100.0) / outPkts
 
 		t.Logf("Flow %s: OutPkts=%v, InPkts=%v, LossPct=%v", flow.Name(), outPkts, inPkts, lossPct)
 
 		if outPkts == 0 {
-			return fmt.Errorf("outpkts for flow %s is 0, want > 0", flow.Name())
+			t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flow.Name())
 		}
 
 		if match {
 			// Expecting traffic to pass (0% loss)
 			if got := lossPct; got > 0 {
-				return fmt.Errorf("traffic validation FAILED: Flow %s has %v%% packet loss, want 0%%", flow.Name(), got)
+				return fmt.Errorf("Generic Test Assertion Failure: Flow %s has %v%% packet loss, want 0%%", flow.Name(), got)
 			}
 			t.Logf("Traffic validation PASSED: Flow %s has 0%% packet loss", flow.Name())
 		} else {
 			// Expecting traffic to fail (100% loss)
 			if got := lossPct; got != 100 {
-				return fmt.Errorf("traffic validation FAILED: Flow %s has %v%% packet loss, want 100%%", flow.Name(), got)
+				return fmt.Errorf("Generic Test Assertion Failure: Flow %s has %v%% packet loss, want 100%%", flow.Name(), got)
 			}
 			t.Logf("Traffic validation PASSED: Flow %s has 100%% packet loss", flow.Name())
 		}
 	}
+	otgutils.LogPortMetrics(t, otg, config)
+	otgutils.LogFlowMetrics(t, otg, config)
 	return nil
 }
 

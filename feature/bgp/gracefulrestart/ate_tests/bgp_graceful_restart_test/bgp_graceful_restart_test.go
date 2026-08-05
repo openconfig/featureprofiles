@@ -388,22 +388,66 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) []*ondatra.Flow {
 }
 
 func verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, allFlows []*ondatra.Flow) {
-	captureTrafficStats(t, ate)
 	for _, flow := range allFlows {
-		if lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(flow.Name()).LossPct().State()); lossPct < 5.0 {
+		gnmi.Watch(t, ate, gnmi.OC().Flow(flow.Name()).State(), 45*time.Second, func(val *ygnmi.Value[*oc.Flow]) bool {
+			flowStat, present := val.Val()
+			if !present {
+				return false
+			}
+			txPackets := float32(flowStat.GetCounters().GetOutPkts())
+			rxPackets := float32(flowStat.GetCounters().GetInPkts())
+			if txPackets == 0 {
+				return false
+			}
+			lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
+			return lossPct < 5.0
+		}).Await(t)
+
+		flowStat := gnmi.Get(t, ate, gnmi.OC().Flow(flow.Name()).State())
+		txPackets := float32(flowStat.GetCounters().GetOutPkts())
+		rxPackets := float32(flowStat.GetCounters().GetInPkts())
+		if txPackets == 0 {
+			t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flow.Name())
+		}
+		lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
+
+		if lossPct < 5.0 {
 			t.Logf("Traffic Test Passed! Got %v loss", lossPct)
 		} else {
-			t.Errorf("Traffic Loss Pct for Flow %s: got %v", flow.Name(), lossPct)
+			t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want < 5.0", flow.Name(), lossPct)
 		}
 	}
+	captureTrafficStats(t, ate)
 }
 
 func confirmPacketLoss(t *testing.T, ate *ondatra.ATEDevice, allFlows []*ondatra.Flow) {
 	for _, flow := range allFlows {
-		if lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(flow.Name()).LossPct().State()); lossPct > 99.0 {
+		gnmi.Watch(t, ate, gnmi.OC().Flow(flow.Name()).State(), 45*time.Second, func(val *ygnmi.Value[*oc.Flow]) bool {
+			flowStat, present := val.Val()
+			if !present {
+				return false
+			}
+			txPackets := float32(flowStat.GetCounters().GetOutPkts())
+			rxPackets := float32(flowStat.GetCounters().GetInPkts())
+			if txPackets == 0 {
+				return false
+			}
+			lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
+			return lossPct > 99.0
+		}).Await(t)
+
+		flowStat := gnmi.Get(t, ate, gnmi.OC().Flow(flow.Name()).State())
+		txPackets := float32(flowStat.GetCounters().GetOutPkts())
+		rxPackets := float32(flowStat.GetCounters().GetInPkts())
+		if txPackets == 0 {
+			t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flow.Name())
+		}
+		lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
+
+		if lossPct > 99.0 {
 			t.Logf("Traffic Test Passed! Loss seen as expected: got %v, want 100%% ", lossPct)
 		} else {
-			t.Errorf("Traffic %s is expected to fail: got %v, want 100%% failure", flow.Name(), lossPct)
+			t.Errorf("Generic Test Assertion Failure: Flow %s is expected to fail: got %v, want > 99.0", flow.Name(), lossPct)
 		}
 	}
 }

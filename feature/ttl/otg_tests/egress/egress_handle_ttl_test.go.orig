@@ -31,9 +31,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ondatra/otg"
-	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 const (
@@ -436,50 +434,19 @@ func addFlow(t *testing.T, config gosnappi.Config, flowValues *flowArgs) gosnapp
 }
 
 // verifyTrafficFlow verify the each flow on ATE
-func verifyTrafficFlow(t *testing.T, otgConfig *otg.OTG, config gosnappi.Config, flow gosnappi.Flow, expectDrop bool) {
+func verifyTrafficFlow(t *testing.T, otgConfig *otg.OTG, config gosnappi.Config, flow gosnappi.Flow) bool {
 	t.Helper()
-
-	gnmi.Watch(t, otgConfig, gnmi.OTG().Flow(flow.Name()).State(), 45*time.Second, func(v *ygnmi.Value[*otgtelemetry.Flow]) bool {
-		val, present := v.Val()
-		if !present {
-			return false
-		}
-		tx := val.GetCounters().GetOutPkts()
-		rx := val.GetCounters().GetInPkts()
-		if tx == 0 {
-			return false
-		}
-		lossPct := float32(tx-rx) * 100 / float32(tx)
-		if expectDrop {
-			return lossPct >= float32(tolerance)
-		}
-		return lossPct < float32(tolerance)
-	}).Await(t)
-
-	recvMetric := gnmi.Get(t, otgConfig, gnmi.OTG().Flow(flow.Name()).State())
-	txPkts := recvMetric.GetCounters().GetOutPkts()
-	rxPkts := recvMetric.GetCounters().GetInPkts()
-
-	if txPkts == 0 {
-		t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flow.Name())
-	}
-
-	lossPct := float32(txPkts-rxPkts) * 100 / float32(txPkts)
-
-	if expectDrop {
-		if lossPct < float32(tolerance) {
-			t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want >= %v", flow.Name(), lossPct, tolerance)
-		} else {
-			t.Log("Packets Dropped, Test Passed")
-		}
-	} else {
-		if lossPct >= float32(tolerance) {
-			t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want < %v", flow.Name(), lossPct, tolerance)
-		} else {
-			t.Log("Packets Received")
-		}
-	}
 	otgutils.LogFlowMetrics(t, otgConfig, config)
+	rxPkts := gnmi.Get(t, otgConfig, gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State())
+	txPkts := gnmi.Get(t, otgConfig, gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
+	lostPkt := txPkts - rxPkts
+	if txPkts == 0 {
+		t.Fatalf("txPkts == %d, want > 0.", txPkts)
+	}
+	if got := (lostPkt * 100 / txPkts); got >= tolerance {
+		return false
+	}
+	return true
 }
 
 func captureAndValidatePackets(t *testing.T, otgConfig *otg.OTG, packetVal *packetValidation, protocolType string) {
@@ -667,9 +634,12 @@ func otgOperation(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.OTG, conf
 	stopCapture(t, otgConfig, cs)
 	finalInUnicastPkts := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Counters().InUnicastPkts().State())
 	finalOutUnicastPkts := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port2").Name()).Counters().OutUnicastPkts().State())
-
-	verifyTrafficFlow(t, otgConfig, config, flow, false)
 	validateDUTPkts(t, dut, otgConfig, flow, initialInUnicastPkts, initialOutUnicastPkts, finalInUnicastPkts, finalOutUnicastPkts)
+	if ok := verifyTrafficFlow(t, otgConfig, config, flow); !ok {
+		t.Fatal("Packets Dropped, LossPct for flow ")
+	} else {
+		t.Log("Packets Received")
+	}
 }
 
 func otgTrafficValidation(t *testing.T, otgConfig *otg.OTG, config gosnappi.Config, flow gosnappi.Flow) {
@@ -683,7 +653,11 @@ func otgTrafficValidation(t *testing.T, otgConfig *otg.OTG, config gosnappi.Conf
 	time.Sleep(sleepTime * time.Second)
 	otgConfig.StopTraffic(t)
 
-	verifyTrafficFlow(t, otgConfig, config, flow, true)
+	if ok := verifyTrafficFlow(t, otgConfig, config, flow); !ok {
+		t.Log("Packets Dropped, Test Passed")
+	} else {
+		t.Fatal("Packet not Dropped, Test Failed")
+	}
 }
 
 func createIPv4Flow(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.OTG, config gosnappi.Config, innerTTL, outerTTL, mplsTTL int) {

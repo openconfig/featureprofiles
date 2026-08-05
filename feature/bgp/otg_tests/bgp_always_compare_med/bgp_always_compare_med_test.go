@@ -373,26 +373,45 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, flowName string, wantLoss bool) {
 	t.Helper()
 	otg := ate.OTG()
-	otgutils.LogFlowMetrics(t, otg, c)
 	t.Logf("Verifying flow metrics for flow %s\n", flowName)
+	gnmi.Watch(t, otg, gnmi.OTG().Flow(flowName).State(), 45*time.Second, func(val *ygnmi.Value[otgtelemetry.Flow]) bool {
+		recvMetric, present := val.Val()
+		if !present {
+			return false
+		}
+		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
+		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
+		if txPackets == 0 {
+			return false
+		}
+		lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
+		if wantLoss {
+			return lossPct >= 100-float32(tolerancePct)
+		}
+		return lossPct <= float32(tolerancePct)
+	}).Await(t)
+
 	recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).State())
-	txPackets := recvMetric.GetCounters().GetOutPkts()
-	rxPackets := recvMetric.GetCounters().GetInPkts()
-	lostPackets := txPackets - rxPackets
-	lossPct := lostPackets * 100 / txPackets
+	txPackets := float32(recvMetric.GetCounters().GetOutPkts())
+	rxPackets := float32(recvMetric.GetCounters().GetInPkts())
+	if txPackets == 0 {
+		t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flowName)
+	}
+	lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
 	if wantLoss {
-		if lossPct < 100-tolerancePct {
-			t.Errorf("Traffic is expected to fail %s\n got %v, want 100%% failure", flowName, lossPct)
+		if lossPct < 100-float32(tolerancePct) {
+			t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want >= %v", flowName, lossPct, 100-float32(tolerancePct))
 		} else {
 			t.Logf("Traffic Loss Test Passed!")
 		}
 	} else {
-		if lossPct > tolerancePct {
-			t.Errorf("Traffic Loss Pct for Flow: %s\n got %v, want 0", flowName, lossPct)
+		if lossPct > float32(tolerancePct) {
+			t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want <= %v", flowName, lossPct, float32(tolerancePct))
 		} else {
 			t.Logf("Traffic Test Passed!")
 		}
 	}
+	otgutils.LogFlowMetrics(t, otg, c)
 }
 
 // sendTraffic is used to send traffic.
