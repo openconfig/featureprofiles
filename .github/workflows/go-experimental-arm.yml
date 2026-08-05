@@ -1,0 +1,141 @@
+name: Go (ARM64 Experimental)
+
+# NOTE: This is an experimental workflow running on ARM64 infrastructure to 
+# evaluate execution speed and GitHub caching. 
+# DO NOT add this check as a required status check for branch protection.
+# If this workflow fails, it should NOT block merges to main.
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  schedule:
+    - cron: "0 0 * * *"
+permissions:
+  contents: read
+
+env:
+  XDG_CACHE_HOME: /mnt/cache
+  GOMODCACHE: /mnt/cache/go-mod
+
+jobs:
+  build:
+    name: Build (ARM64)
+    runs-on: ubuntu-24.04-arm
+    steps:
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+    # Go & staticcheck build cache require a lot of disk space.  Reclaim extra
+    # space for the container by removing unnecessary tooling.
+    - name: Free additional disk space and prepare cache directory
+      run: |
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /usr/local/lib/android
+        sudo rm -rf /opt/hostedtoolcache/CodeQL
+        sudo mkdir -p /mnt/cache
+        sudo chown -R $USER:$USER /mnt/cache
+    - name: Set up Go
+      uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+      with:
+        go-version-file: 'go.mod'
+        cache: true
+    # Cache location is managed by XDG_CACHE_HOME env variable
+    # Dependency for Go module github.com/google/gopacket
+    - name: Install libpcap-dev
+      run: sudo apt-get -y install libpcap-dev
+    - name: Build
+      run: go build -v ./...
+
+  test:
+    name: Test (ARM64)
+    runs-on: ubuntu-24.04-arm
+    steps:    
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      # Go & staticcheck build cache require a lot of disk space.  Reclaim extra
+      # space for the container by removing unnecessary tooling.
+      - name: Free additional disk space and prepare cache directory
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo mkdir -p /mnt/cache
+          sudo chown -R $USER:$USER /mnt/cache
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+      # Cache location is managed by XDG_CACHE_HOME env variable
+      # Dependency for Go module github.com/google/gopacket
+      - name: Install libpcap-dev
+        run: sudo apt-get -y install libpcap-dev
+      - run: go test -v -coverprofile=profile.cov $(go list ./... | grep -v /.*test.*)
+      - name: Send coverage
+        continue-on-error: true
+        uses: shogo82148/actions-goveralls@7b1bd2871942af030d707d6574e5f684f9891fb2
+        with:
+          path-to-profile: profile.cov
+
+  static_analysis:
+    name: Static Analysis (ARM64)
+    runs-on: ubuntu-24.04-arm
+    steps:
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+    - name: Free additional disk space and prepare cache directory
+      run: |
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /usr/local/lib/android
+        sudo rm -rf /opt/hostedtoolcache/CodeQL
+        sudo mkdir -p /mnt/cache
+        sudo chown -R $USER:$USER /mnt/cache
+    - name: Set up Go
+      uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+      with:
+        go-version-file: 'go.mod'
+        cache: true
+    # Cache location is managed by XDG_CACHE_HOME env variable
+    # Dependency for Go module github.com/google/gopacket
+    - name: Install libpcap-dev
+      run: sudo apt-get -y install libpcap-dev
+
+    # Removed counter-productive go clean -cache
+
+    - name: Go vet
+      run: go vet ./...
+    - name: Gofmt
+      run: |
+        # gofmt always returns true, so we use grep '^' which returns
+        # true on non-empty output, but will otherwise passthrough all
+        # output lines.
+        if gofmt -d -s . | grep '^'; then
+          exit 1
+        fi
+    - name: Get goimports
+      run: go install golang.org/x/tools/cmd/goimports@latest
+    - name: Goimports
+      run: |
+        # goimports always returns true, so we use grep '^' which returns
+        # true on non-empty output, but will otherwise passthrough all
+        # output lines.
+        #
+        # goimports does not support "gofmt -s" so both goimports and gofmt are
+        # required.
+        find . -name "*.go" | egrep -v "pb.go$" | while read l; do
+          if goimports -d $l | grep '^'; then
+            exit 1;
+          fi;
+        done
+    - name: Get revive
+      run: go install github.com/mgechev/revive@v1.3.4
+    - name: Run revive
+      run: revive ./...
+    - name: Get staticcheck
+      run: go install honnef.co/go/tools/cmd/staticcheck@latest
+    - name: Cache staticcheck
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      with:
+        path: /mnt/cache/staticcheck
+        key: ${{ runner.os }}-staticcheck-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-staticcheck-
+    - name: Run staticcheck
+      run: staticcheck ./...
