@@ -1917,6 +1917,10 @@ func verifySystemHealth(t *testing.T, dut *ondatra.DUTDevice) dutInfo {
 func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 	if hfibCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureHierarchicalFIB); hfibCfg != "" {
 		cfgplugins.PushDUTHardwareInitConfig(t, dut, hfibCfg)
+		t.Cleanup(func() {
+			revertCfg := "router general\n no rib fib fec hierarchical resolution\n!\n"
+			cfgplugins.PushDUTHardwareInitConfig(t, dut, revertCfg)
+		})
 	}
 }
 
