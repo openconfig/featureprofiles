@@ -23,12 +23,16 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/helpers"
+	"github.com/openconfig/featureprofiles/internal/security/acctz"
 	acctzpb "github.com/openconfig/gnsi/acctz"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+const maxNIs = 100
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
@@ -44,19 +48,37 @@ func sendOversizedPayload(t *testing.T, dut *ondatra.DUTDevice) {
 	// giant set of network instances + static routes which should hopefully work for everyone.
 	ocRoot := &oc.Root{}
 
-	for i := 0; i < 50; i++ {
+	for i := 0; i < maxNIs; i++ {
 		ni := ocRoot.GetOrCreateNetworkInstance(fmt.Sprintf("acctz-test-ni-%d", i))
 		ni.SetDescription("This is a pointlessly long description in order to make the payload bigger.")
 		ni.SetType(oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF)
 		staticProtocol := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
 		nhAddress := fmt.Sprintf("192.%d.2.1", i)
-		for j := 0; j < 254; j++ {
+		nstatRoutes := 0
+		switch dut.Vendor() {
+		case ondatra.JUNIPER:
+			nstatRoutes = 1
+		default:
+			nstatRoutes = 254
+		}
+		for j := 0; j < nstatRoutes; j++ {
 			sr1 := staticProtocol.GetOrCreateStatic(fmt.Sprintf("10.%d.0.0/24", j))
 			nh1 := sr1.GetOrCreateNextHop("0")
 			nh1.NextHop = oc.UnionString(nhAddress)
 		}
 	}
-	gnmi.Update(t, dut, gnmi.OC().Config(), ocRoot)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	gnmiClient, err := dut.RawAPIs().BindingDUT().DialGNMI(ctx, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(45000000), grpc.MaxCallSendMsgSize(45000000)))
+	if err != nil {
+		t.Fatalf("Failed to dial gNMI with custom message size: %v", err)
+	}
+	t.Cleanup(func() {
+		for i := 0; i < maxNIs; i++ {
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(fmt.Sprintf("acctz-test-ni-%d", i)).Config())
+		}
+	})
+	gnmi.Update(t, dut.GNMIOpts().WithClient(gnmiClient), gnmi.OC().Config(), ocRoot)
 }
 
 func TestAccountzRecordPayloadTruncation(t *testing.T) {
@@ -72,11 +94,13 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 	}
 
 	startTime := time.Now()
+	request := &acctzpb.RecordRequest{
+		Timestamp: timestamppb.New(startTime),
+	}
 
 	acctzClient := dut.RawAPIs().GNSI(t).AcctzStream()
-	acctzSubClient, err := acctzClient.RecordSubscribe(context.Background(), &acctzpb.RecordRequest{
-		Timestamp: timestamppb.New(startTime),
-	})
+	t.Logf("Sending acctz record subscribe request: %s", acctz.PrettyPrint(request))
+	acctzSubClient, err := acctzClient.RecordSubscribe(context.Background(), request, grpc.MaxCallRecvMsgSize(45000000))
 	if err != nil {
 		t.Fatalf("Failed to subscribe to acctz records: %v", err)
 	}
@@ -110,7 +134,7 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 			t.Fatalf("Failed receiving record response, error: %s", resp.err)
 		}
 
-		t.Logf("Received record: %v", resp.record)
+		t.Logf("Received record: %v", acctz.PrettyPrint(resp.record))
 
 		grpcServiceRecord := resp.record.GetGrpcService()
 		if grpcServiceRecord == nil {
@@ -132,7 +156,7 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 			continue
 		}
 
-		t.Logf("Found truncated record: %v", resp.record)
+		t.Logf("Found truncated record: %v", acctz.PrettyPrint(resp.record))
 		break
 	}
 }

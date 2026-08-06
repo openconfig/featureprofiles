@@ -5,3 +5,15 @@ uuid:  "99428c80-2eae-4e51-bd10-d24549faf2e2"
 plan_id:  "RT-5.14"
 description:  "Aggregate Subinterface in Default and Non-default Network Instance"
 testbed:  TESTBED_DUT_ATE_4LINKS
+
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    deprecated_vlan_id: true
+    require_routed_subinterface_0: true
+  }
+}

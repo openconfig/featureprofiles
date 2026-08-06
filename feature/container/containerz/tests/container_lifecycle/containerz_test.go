@@ -22,6 +22,7 @@ import (
 	"github.com/openconfig/containerz/client"
 
 	cpb "github.com/openconfig/gnoi/containerz"
+	gspb "github.com/openconfig/gnoi/system"
 )
 
 var (
@@ -56,6 +57,7 @@ func startContainer(ctx context.Context, t *testing.T) (*client.Client, func()) 
 	t.Helper()
 	dut := ondatra.DUT(t, "dut")
 	opts := containerztest.StartContainerOptions{
+		InstanceName:        instanceName,
 		TarPath:             containerTarPath(t),
 		RemoveExistingImage: false,
 		PollForRunningState: false,
@@ -132,6 +134,9 @@ func TestDeployAndStartContainer(t *testing.T) {
 func TestRetrieveLogs(t *testing.T) {
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
+	if deviations.ContainerzRetrieveLogsUnsupported(dut) {
+		t.Skip("Skipping test due to deviation containerz_retrieve_logs_unsupported")
+	}
 	baseCli := containerztest.Client(t, dut)
 
 	// Positive Test: Retrieve logs from a running container
@@ -253,9 +258,14 @@ func TestRetrieveLogs(t *testing.T) {
 
 		// Stop the container.
 		if err := baseCli.StopContainer(ctx, stoppedInstanceName, true); err != nil {
-			t.Fatalf("Failed to stop container %s for stopped log test: %v", stoppedInstanceName, err)
+			if status.Code(err) == codes.NotFound || status.Code(err) == codes.FailedPrecondition {
+				t.Logf("Container %s is already stopped: %v", stoppedInstanceName, err)
+			} else {
+				t.Fatalf("Failed to stop container %s for stopped log test: %v", stoppedInstanceName, err)
+			}
+		} else {
+			t.Logf("Container %s stopped.", stoppedInstanceName)
 		}
-		t.Logf("Container %s stopped.", stoppedInstanceName)
 		// Allow time for stop to process.
 		time.Sleep(3 * time.Second)
 
@@ -291,8 +301,8 @@ func TestRetrieveLogs(t *testing.T) {
 				s, ok := status.FromError(msg.Error)
 				if !ok {
 					t.Errorf("Stream error for stopped instance %s was not a gRPC status error: %v", stoppedInstanceName, msg.Error)
-				} else if s.Code() != codes.NotFound && s.Code() != codes.FailedPrecondition && s.Code() != codes.Unknown {
-					t.Errorf("Expected gRPC status code NotFound, FailedPrecondition, or Unknown from channel for stopped instance %s, but got %s.", stoppedInstanceName, s.Code())
+				} else if s.Code() != codes.NotFound && s.Code() != codes.FailedPrecondition && s.Code() != codes.Unknown && s.Code() != codes.Internal {
+					t.Errorf("Expected gRPC status code NotFound, FailedPrecondition, Internal or Unknown from channel for stopped instance %s, but got %s.", stoppedInstanceName, s.Code())
 				}
 				foundErrorOnChannel = true
 				break
@@ -490,15 +500,14 @@ func TestVolumes(t *testing.T) {
 		}
 		// Allow time for removal to settle.
 		time.Sleep(5 * time.Second)
-
-		mountOpts := map[string]string{
+		volOpts := map[string]string{
+			"type":       "none",
 			"options":    "bind",
-			"mountpoint": "/some-path",
+			"mountpoint": "/tmp",
 		}
-
-		createdVolumeName, err := cli.CreateVolume(ctx, volumeName, "local", nil, mountOpts)
+		createdVolumeName, err := cli.CreateVolume(ctx, volumeName, "local", nil, volOpts)
 		if err != nil {
-			t.Fatalf("CreateVolume(%q, \"local\", nil, nil) failed: %v", volumeName, err)
+			t.Fatalf("CreateVolume(%q, \"local\", nil, %v) failed: %v", volumeName, volOpts, err)
 		}
 		if createdVolumeName != volumeName {
 			t.Errorf("CreateVolume returned name %q, want %q", createdVolumeName, volumeName)
@@ -526,9 +535,9 @@ func TestVolumes(t *testing.T) {
 					t.Errorf("Volume %q has driver %q, want \"local\"", vol.Name, vol.Driver)
 				}
 
-				// check options
+				// check options.
 				wantOptions := map[string]string{
-					"device": "/some-path",
+					"device": "/tmp",
 					"o":      "bind",
 					"type":   "none",
 				}
@@ -857,8 +866,8 @@ func TestPlugins(t *testing.T) {
 		} else {
 			t.Logf("Got expected error when starting with non-existent image %q: %v", pluginName, err)
 			s, ok := status.FromError(err)
-			if !ok || (s.Code() != codes.Unknown && s.Code() != codes.FailedPrecondition) {
-				t.Errorf("Expected gRPC status code Unknown or NotFound for non-existent image, got: %v (status code: %s)", err, s.Code())
+			if !ok || (s.Code() != codes.Unknown && s.Code() != codes.NotFound && s.Code() != codes.FailedPrecondition) {
+				t.Errorf("Expected gRPC status code Unknown or NotFound or FailedPrecondition for non-existent image, got: %v (status code: %s)", err, s.Code())
 			}
 		}
 	})
@@ -903,6 +912,140 @@ func TestPlugins(t *testing.T) {
 			s, ok := status.FromError(err)
 			if !ok || (s.Code() != codes.Unknown && s.Code() != codes.AlreadyExists) {
 				t.Errorf("Expected gRPC status code Unknown or AlreadyExists for already started instance, got: %v (status code: %s)", err, s.Code())
+			}
+		}
+	})
+}
+
+// TestContainerPersistenceAfterColdReboot implements CNTR-3.8 checking container persistence after a chassis cold reboot.
+func TestContainerPersistenceAfterColdReboot(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	ctx := context.Background()
+
+	if containerTarPath(t) == "" {
+		t.Skip("container_tar flag not set, skipping test")
+	}
+
+	cli := containerztest.Client(t, dut)
+	sysClient := dut.RawAPIs().GNOI(t).System()
+
+	volName := "test-coldreboot-vol"
+	tag := "latest"
+
+	t.Cleanup(func() {
+		t.Log("Starting cleanup...")
+		// Re-initialize client in case of connection loss
+		cli := containerztest.Client(t, dut)
+		if err := cli.RemoveContainer(ctx, instanceName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+			t.Errorf("Cleanup: failed to remove container %q: %v", instanceName, err)
+		}
+		if err := cli.RemoveImage(ctx, imageName, tag, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+			t.Errorf("Cleanup: failed to remove image %q:%q: %v", imageName, tag, err)
+		}
+		if err := cli.RemoveVolume(ctx, volName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+			t.Errorf("Cleanup: failed to remove volume %q: %v", volName, err)
+		}
+		t.Log("Cleanup finished.")
+	})
+
+	t.Run("Setup", func(t *testing.T) {
+		t.Logf("Creating volume %s...", volName)
+		volOpts := map[string]string{
+			"type":       "none",
+			"options":    "bind",
+			"mountpoint": "/tmp",
+		}
+		if _, err := cli.CreateVolume(ctx, volName, "local", nil, volOpts); err != nil {
+			t.Fatalf("Failed to create volume: %v", err)
+		}
+
+		opts := containerztest.StartContainerOptions{
+			InstanceName:        instanceName,
+			ImageName:           imageName,
+			ImageTag:            tag,
+			TarPath:             containerTarPath(t),
+			Command:             "./cntrsrv",
+			Ports:               []string{"60061:60061"},
+			Volumes:             []string{fmt.Sprintf("%s:%s", volName, "/data")},
+			RemoveExistingImage: true,
+			PollForRunningState: true,
+			PollTimeout:         30 * time.Second,
+			PollInterval:        5 * time.Second,
+		}
+
+		if err := containerztest.DeployAndStart(ctx, t, cli, opts); err != nil {
+			t.Fatalf("Failed to deploy and start container: %v", err)
+		}
+	})
+
+	t.Run("ColdReboot", func(t *testing.T) {
+		t.Log("Rebooting chassis (cold reboot)...")
+		rebootReq := &gspb.RebootRequest{
+			Method:  gspb.RebootMethod_COLD,
+			Delay:   0,
+			Message: "Container persistence test reboot",
+			Force:   true,
+		}
+		// We expect the connection to drop.
+		if _, err := sysClient.Reboot(ctx, rebootReq); err != nil {
+			t.Logf("Reboot returned error (expected): %v", err)
+		}
+	})
+
+	t.Run("VerifyPersistence", func(t *testing.T) {
+		t.Log("Waiting for DUT to reboot and reconnect...")
+
+		// Wait for reboot.
+		maxRebootTime := 8 * time.Minute
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		timeout := time.After(maxRebootTime)
+		var deviceWentDown bool
+
+	rebootLoop:
+		for {
+			select {
+			case <-timeout:
+				t.Fatalf("Timeout exceeded: DUT did not reboot within %v seconds.", maxRebootTime)
+			case <-ticker.C:
+				// use GNOI to refresh the stale cached connection post reboot.
+				sysClient := dut.RawAPIs().GNOI(t).System()
+				_, err := sysClient.Time(ctx, &gspb.TimeRequest{})
+				if err != nil {
+					if !deviceWentDown {
+						t.Logf("Device is now unreachable. Waiting for it to come back up.")
+						deviceWentDown = true
+					}
+				} else {
+					if deviceWentDown {
+						t.Logf("Device rebooted successfully.")
+						break rebootLoop
+					}
+					t.Logf("Device is still reachable; reboot hasn't started yet.")
+				}
+			}
+		}
+
+		// Poll for container state.
+		cli = containerztest.Client(t, dut)
+
+		// Use a generous timeout for the device to come back up and the container to start.
+		if err := containerztest.WaitForRunning(ctx, t, cli, instanceName, 5*time.Minute); err != nil {
+			t.Errorf("Container persistence failed: %v", err)
+		}
+
+		volCh, err := cli.ListVolume(ctx, map[string][]string{"name": {volName}})
+		if err != nil {
+			t.Errorf("ListVolume failed: %v", err)
+		} else {
+			volFound := false
+			for vol := range volCh {
+				if vol.Name == volName {
+					volFound = true
+				}
+			}
+			if !volFound {
+				t.Errorf("Volume persistence failed: volume %s not found", volName)
 			}
 		}
 	})

@@ -28,8 +28,10 @@ import (
 	sync "sync"
 	unsafe "unsafe"
 
+	_ "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
 	ocpaths_go_proto "github.com/openconfig/featureprofiles/proto/ocpaths_go_proto"
 	ocrpcs_go_proto "github.com/openconfig/featureprofiles/proto/ocrpcs_go_proto"
+	_ "github.com/openconfig/featureprofiles/proto/testregistry_go_proto"
 	proto "github.com/openconfig/ondatra/proto"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -42,6 +44,109 @@ const (
 	// Verify that runtime/protoimpl is sufficiently up-to-date.
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
+
+// Defines the release type of the network operating system image.
+type ImageType int32
+
+const (
+	ImageType_IMAGETYPE_UNSPECIFIED ImageType = 0 // Default value
+	ImageType_IMAGETYPE_GA          ImageType = 1 // General Availability
+	ImageType_IMAGETYPE_EFT         ImageType = 2 // Early Field Trial
+)
+
+// Enum value maps for ImageType.
+var (
+	ImageType_name = map[int32]string{
+		0: "IMAGETYPE_UNSPECIFIED",
+		1: "IMAGETYPE_GA",
+		2: "IMAGETYPE_EFT",
+	}
+	ImageType_value = map[string]int32{
+		"IMAGETYPE_UNSPECIFIED": 0,
+		"IMAGETYPE_GA":          1,
+		"IMAGETYPE_EFT":         2,
+	}
+)
+
+func (x ImageType) Enum() *ImageType {
+	p := new(ImageType)
+	*p = x
+	return p
+}
+
+func (x ImageType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ImageType) Descriptor() protoreflect.EnumDescriptor {
+	return file_nosimage_proto_enumTypes[0].Descriptor()
+}
+
+func (ImageType) Type() protoreflect.EnumType {
+	return &file_nosimage_proto_enumTypes[0]
+}
+
+func (x ImageType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ImageType.Descriptor instead.
+func (ImageType) EnumDescriptor() ([]byte, []int) {
+	return file_nosimage_proto_rawDescGZIP(), []int{0}
+}
+
+// result identifies if the test was executed and its outcome
+type FeatureProfileTestResult_Result int32
+
+const (
+	FeatureProfileTestResult_UNKNOWN      FeatureProfileTestResult_Result = 0
+	FeatureProfileTestResult_PASSED       FeatureProfileTestResult_Result = 1
+	FeatureProfileTestResult_FAILED       FeatureProfileTestResult_Result = 2
+	FeatureProfileTestResult_NOT_EXECUTED FeatureProfileTestResult_Result = 3
+)
+
+// Enum value maps for FeatureProfileTestResult_Result.
+var (
+	FeatureProfileTestResult_Result_name = map[int32]string{
+		0: "UNKNOWN",
+		1: "PASSED",
+		2: "FAILED",
+		3: "NOT_EXECUTED",
+	}
+	FeatureProfileTestResult_Result_value = map[string]int32{
+		"UNKNOWN":      0,
+		"PASSED":       1,
+		"FAILED":       2,
+		"NOT_EXECUTED": 3,
+	}
+)
+
+func (x FeatureProfileTestResult_Result) Enum() *FeatureProfileTestResult_Result {
+	p := new(FeatureProfileTestResult_Result)
+	*p = x
+	return p
+}
+
+func (x FeatureProfileTestResult_Result) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (FeatureProfileTestResult_Result) Descriptor() protoreflect.EnumDescriptor {
+	return file_nosimage_proto_enumTypes[1].Descriptor()
+}
+
+func (FeatureProfileTestResult_Result) Type() protoreflect.EnumType {
+	return &file_nosimage_proto_enumTypes[1]
+}
+
+func (x FeatureProfileTestResult_Result) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use FeatureProfileTestResult_Result.Descriptor instead.
+func (FeatureProfileTestResult_Result) EnumDescriptor() ([]byte, []int) {
+	return file_nosimage_proto_rawDescGZIP(), []int{1, 0}
+}
 
 // NOSImageProfile - A network operating system and version which provides
 // support for a list of OpenConfig paths and RPCs.
@@ -67,7 +172,12 @@ type NOSImageProfile struct {
 	// OpenConfig Paths supported by the network operating system.
 	Ocpaths *ocpaths_go_proto.OCPaths `protobuf:"bytes,5,opt,name=ocpaths,proto3" json:"ocpaths,omitempty"`
 	// OpenConfig RPCs supported by the network operating system.
-	Ocrpcs        *ocrpcs_go_proto.OCRPCs `protobuf:"bytes,6,opt,name=ocrpcs,proto3" json:"ocrpcs,omitempty"`
+	Ocrpcs *ocrpcs_go_proto.OCRPCs `protobuf:"bytes,6,opt,name=ocrpcs,proto3" json:"ocrpcs,omitempty"`
+	// featureprofile_test_result contains a list of tests which
+	// were executed on the NOS software was tested against
+	FeatureprofileTestResult []*FeatureProfileTestResult `protobuf:"bytes,8,rep,name=featureprofile_test_result,json=featureprofileTestResult,proto3" json:"featureprofile_test_result,omitempty"`
+	// Specifies the type of the image release.
+	ImageType     ImageType `protobuf:"varint,9,opt,name=image_type,json=imageType,proto3,enum=openconfig.profiles.nosimage.ImageType" json:"image_type,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -151,11 +261,89 @@ func (x *NOSImageProfile) GetOcrpcs() *ocrpcs_go_proto.OCRPCs {
 	return nil
 }
 
+func (x *NOSImageProfile) GetFeatureprofileTestResult() []*FeatureProfileTestResult {
+	if x != nil {
+		return x.FeatureprofileTestResult
+	}
+	return nil
+}
+
+func (x *NOSImageProfile) GetImageType() ImageType {
+	if x != nil {
+		return x.ImageType
+	}
+	return ImageType_IMAGETYPE_UNSPECIFIED
+}
+
+type FeatureProfileTestResult struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The unique identifier for a featureprofiles test plan.  This string must
+	// match the Metadata plan_id defined for the referenced test.
+	PlanId string `protobuf:"bytes,1,opt,name=plan_id,json=planId,proto3" json:"plan_id,omitempty"`
+	// The git commit hash for the featureprofiles repository containing the
+	// referenced test
+	Commit        string                          `protobuf:"bytes,2,opt,name=commit,proto3" json:"commit,omitempty"`
+	Result        FeatureProfileTestResult_Result `protobuf:"varint,3,opt,name=result,proto3,enum=openconfig.profiles.nosimage.FeatureProfileTestResult_Result" json:"result,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FeatureProfileTestResult) Reset() {
+	*x = FeatureProfileTestResult{}
+	mi := &file_nosimage_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FeatureProfileTestResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FeatureProfileTestResult) ProtoMessage() {}
+
+func (x *FeatureProfileTestResult) ProtoReflect() protoreflect.Message {
+	mi := &file_nosimage_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FeatureProfileTestResult.ProtoReflect.Descriptor instead.
+func (*FeatureProfileTestResult) Descriptor() ([]byte, []int) {
+	return file_nosimage_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *FeatureProfileTestResult) GetPlanId() string {
+	if x != nil {
+		return x.PlanId
+	}
+	return ""
+}
+
+func (x *FeatureProfileTestResult) GetCommit() string {
+	if x != nil {
+		return x.Commit
+	}
+	return ""
+}
+
+func (x *FeatureProfileTestResult) GetResult() FeatureProfileTestResult_Result {
+	if x != nil {
+		return x.Result
+	}
+	return FeatureProfileTestResult_UNKNOWN
+}
+
 var File_nosimage_proto protoreflect.FileDescriptor
 
 const file_nosimage_proto_rawDesc = "" +
 	"\n" +
-	"\x0enosimage.proto\x12\x1copenconfig.profiles.nosimage\x1a9github.com/openconfig/featureprofiles/proto/ocpaths.proto\x1a8github.com/openconfig/featureprofiles/proto/ocrpcs.proto\x1a1github.com/openconfig/ondatra/proto/testbed.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd1\x02\n" +
+	"\x0enosimage.proto\x12\x1copenconfig.profiles.nosimage\x1a>github.com/openconfig/featureprofiles/proto/testregistry.proto\x1a:github.com/openconfig/featureprofiles/proto/metadata.proto\x1a9github.com/openconfig/featureprofiles/proto/ocpaths.proto\x1a8github.com/openconfig/featureprofiles/proto/ocrpcs.proto\x1a1github.com/openconfig/ondatra/proto/testbed.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8f\x04\n" +
 	"\x0fNOSImageProfile\x123\n" +
 	"\tvendor_id\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\bvendorId\x12\x10\n" +
 	"\x03nos\x18\x02 \x01(\tR\x03nos\x12)\n" +
@@ -163,7 +351,25 @@ const file_nosimage_proto_rawDesc = "" +
 	"\rhardware_name\x18\a \x01(\tR\fhardwareName\x12=\n" +
 	"\frelease_date\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\vreleaseDate\x125\n" +
 	"\aocpaths\x18\x05 \x01(\v2\x1b.openconfig.ocpaths.OCPathsR\aocpaths\x121\n" +
-	"\x06ocrpcs\x18\x06 \x01(\v2\x19.openconfig.ocrpcs.OCRPCsR\x06ocrpcsb\x06proto3"
+	"\x06ocrpcs\x18\x06 \x01(\v2\x19.openconfig.ocrpcs.OCRPCsR\x06ocrpcs\x12t\n" +
+	"\x1afeatureprofile_test_result\x18\b \x03(\v26.openconfig.profiles.nosimage.FeatureProfileTestResultR\x18featureprofileTestResult\x12F\n" +
+	"\n" +
+	"image_type\x18\t \x01(\x0e2'.openconfig.profiles.nosimage.ImageTypeR\timageType\"\xe3\x01\n" +
+	"\x18FeatureProfileTestResult\x12\x17\n" +
+	"\aplan_id\x18\x01 \x01(\tR\x06planId\x12\x16\n" +
+	"\x06commit\x18\x02 \x01(\tR\x06commit\x12U\n" +
+	"\x06result\x18\x03 \x01(\x0e2=.openconfig.profiles.nosimage.FeatureProfileTestResult.ResultR\x06result\"?\n" +
+	"\x06Result\x12\v\n" +
+	"\aUNKNOWN\x10\x00\x12\n" +
+	"\n" +
+	"\x06PASSED\x10\x01\x12\n" +
+	"\n" +
+	"\x06FAILED\x10\x02\x12\x10\n" +
+	"\fNOT_EXECUTED\x10\x03*K\n" +
+	"\tImageType\x12\x19\n" +
+	"\x15IMAGETYPE_UNSPECIFIED\x10\x00\x12\x10\n" +
+	"\fIMAGETYPE_GA\x10\x01\x12\x11\n" +
+	"\rIMAGETYPE_EFT\x10\x02b\x06proto3"
 
 var (
 	file_nosimage_proto_rawDescOnce sync.Once
@@ -177,24 +383,31 @@ func file_nosimage_proto_rawDescGZIP() []byte {
 	return file_nosimage_proto_rawDescData
 }
 
-var file_nosimage_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_nosimage_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_nosimage_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_nosimage_proto_goTypes = []any{
-	(*NOSImageProfile)(nil),          // 0: openconfig.profiles.nosimage.NOSImageProfile
-	(proto.Device_Vendor)(0),         // 1: ondatra.Device.Vendor
-	(*timestamppb.Timestamp)(nil),    // 2: google.protobuf.Timestamp
-	(*ocpaths_go_proto.OCPaths)(nil), // 3: openconfig.ocpaths.OCPaths
-	(*ocrpcs_go_proto.OCRPCs)(nil),   // 4: openconfig.ocrpcs.OCRPCs
+	(ImageType)(0),                       // 0: openconfig.profiles.nosimage.ImageType
+	(FeatureProfileTestResult_Result)(0), // 1: openconfig.profiles.nosimage.FeatureProfileTestResult.Result
+	(*NOSImageProfile)(nil),              // 2: openconfig.profiles.nosimage.NOSImageProfile
+	(*FeatureProfileTestResult)(nil),     // 3: openconfig.profiles.nosimage.FeatureProfileTestResult
+	(proto.Device_Vendor)(0),             // 4: ondatra.Device.Vendor
+	(*timestamppb.Timestamp)(nil),        // 5: google.protobuf.Timestamp
+	(*ocpaths_go_proto.OCPaths)(nil),     // 6: openconfig.ocpaths.OCPaths
+	(*ocrpcs_go_proto.OCRPCs)(nil),       // 7: openconfig.ocrpcs.OCRPCs
 }
 var file_nosimage_proto_depIdxs = []int32{
-	1, // 0: openconfig.profiles.nosimage.NOSImageProfile.vendor_id:type_name -> ondatra.Device.Vendor
-	2, // 1: openconfig.profiles.nosimage.NOSImageProfile.release_date:type_name -> google.protobuf.Timestamp
-	3, // 2: openconfig.profiles.nosimage.NOSImageProfile.ocpaths:type_name -> openconfig.ocpaths.OCPaths
-	4, // 3: openconfig.profiles.nosimage.NOSImageProfile.ocrpcs:type_name -> openconfig.ocrpcs.OCRPCs
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	4, // 0: openconfig.profiles.nosimage.NOSImageProfile.vendor_id:type_name -> ondatra.Device.Vendor
+	5, // 1: openconfig.profiles.nosimage.NOSImageProfile.release_date:type_name -> google.protobuf.Timestamp
+	6, // 2: openconfig.profiles.nosimage.NOSImageProfile.ocpaths:type_name -> openconfig.ocpaths.OCPaths
+	7, // 3: openconfig.profiles.nosimage.NOSImageProfile.ocrpcs:type_name -> openconfig.ocrpcs.OCRPCs
+	3, // 4: openconfig.profiles.nosimage.NOSImageProfile.featureprofile_test_result:type_name -> openconfig.profiles.nosimage.FeatureProfileTestResult
+	0, // 5: openconfig.profiles.nosimage.NOSImageProfile.image_type:type_name -> openconfig.profiles.nosimage.ImageType
+	1, // 6: openconfig.profiles.nosimage.FeatureProfileTestResult.result:type_name -> openconfig.profiles.nosimage.FeatureProfileTestResult.Result
+	7, // [7:7] is the sub-list for method output_type
+	7, // [7:7] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_nosimage_proto_init() }
@@ -207,13 +420,14 @@ func file_nosimage_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_nosimage_proto_rawDesc), len(file_nosimage_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   1,
+			NumEnums:      2,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_nosimage_proto_goTypes,
 		DependencyIndexes: file_nosimage_proto_depIdxs,
+		EnumInfos:         file_nosimage_proto_enumTypes,
 		MessageInfos:      file_nosimage_proto_msgTypes,
 	}.Build()
 	File_nosimage_proto = out.File
