@@ -1315,10 +1315,10 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.
 		t.Logf("Flow %s: OutPkts=%v, InPkts=%v, LossPct=%v", flow.Name(), outPkts, inPkts, lossPct)
 
 		if outPkts == 0 {
-			t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flow.Name())
+			return fmt.Errorf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flow.Name())
 		}
 		if inPkts > outPkts {
-			t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", inPkts, outPkts)
+			return fmt.Errorf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", inPkts, outPkts)
 		}
 
 		if match {
