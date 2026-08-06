@@ -2328,6 +2328,13 @@ func AftsGlobalFilterPolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAftsGlobalFilterPolicyOcUnsupported()
 }
 
+// AftsGlobalFilterPolicyConfigReferenceValidationUnsupported returns true if the
+// device does not validate references from an AFT global-filter policy.
+// Arista: https://partnerissuetracker.corp.google.com/issues/491765154#comment10
+func AftsGlobalFilterPolicyConfigReferenceValidationUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAftsGlobalFilterPolicyConfigReferenceValidationUnsupported()
+}
+
 // DecapNHWithoutNextHopNIUnsupported returns true if Decap NH without NextHopNetworkInstance is not supported
 // Nokia: https://partnerissuetracker.corp.google.com/issues/529388485
 func DecapNHWithoutNextHopNIUnsupported(dut *ondatra.DUTDevice) bool {
