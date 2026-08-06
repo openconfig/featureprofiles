@@ -18,17 +18,16 @@ import (
 	"fmt"
 	"testing"
 	"time"
-
-	"github.com/openconfig/ygot/ygot"
-	"google3/third_party/openconfig/featureprofiles/internal/attrs/attrs"
-	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
-	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
-	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
-	"google3/third_party/openconfig/ondatra/gnmi/oc/acl"
-	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
-	"google3/third_party/openconfig/ondatra/ixnet/ixnet"
-	"google3/third_party/openconfig/ondatra/ondatra"
+	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/gnmi/oc/acl"
+	"github.com/openconfig/ondatra/ixnet"
 	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 )
 
 func TestMain(m *testing.M) {
