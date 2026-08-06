@@ -15,3 +15,11 @@ platform_exceptions:  {
     bmp_oc_unsupported: true
   }
 }
+platform_exceptions:  {
+  platform:  {
+    vendor:  JUNIPER
+  }
+  deviations:  {
+    bmp_oc_unsupported: true
+  }
+}

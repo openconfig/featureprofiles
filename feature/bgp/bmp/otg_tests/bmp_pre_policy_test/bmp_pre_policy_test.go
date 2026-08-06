@@ -180,6 +180,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch {
 	p3 := dut.Port(t, "port3")
 	p4 := dut.Port(t, "port4")
 
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
+
 	batch := &gnmi.SetBatch{}
 	gnmi.BatchReplace(batch, gnmi.OC().Interface(p1.Name()).Config(), dutP1.NewOCInterface(p1.Name(), dut))
 	gnmi.BatchReplace(batch, gnmi.OC().Interface(p2.Name()).Config(), dutP2.NewOCInterface(p2.Name(), dut))
@@ -190,7 +192,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch {
 	configureDUTBGPNeighbors(t, dut, batch, dutBgpConf.Bgp)
 
 	batch.Set(t, dut)
-	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	return batch
 }
 
@@ -661,10 +662,14 @@ func TestBMPBaseSession(t *testing.T) {
 	batch := &gnmi.SetBatch{}
 
 	cfgplugins.ConfigureBMP(t, dut, batch, bmpConfigParams)
-	batch.Set(t, dut)
+	if !deviations.BMPOCUnsupported(dut) {
+		batch.Set(t, dut)
+	}
 
 	cfgplugins.ConfigureBMPAccessList(t, dut, batch, bmpConfigParams)
-	batch.Set(t, dut)
+	if !deviations.BMPOCUnsupported(dut) {
+		batch.Set(t, dut)
+	}
 
 	type testCase struct {
 		name string
