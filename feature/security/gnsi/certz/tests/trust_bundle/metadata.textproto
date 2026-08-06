@@ -2,6 +2,6 @@
 # proto-message: Metadata
 
 uuid:  "2d5f9729-f436-4750-9140-1f0beadf6206"
-plan_id:  "# CERTZ-4"
+plan_id:  "CERTZ-4"
 description:  "gNSI Trust Bundle"
 testbed:  TESTBED_DUT_ATE_2LINKS
