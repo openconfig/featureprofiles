@@ -31,6 +31,29 @@ Test `used-threshold-upper` configuration and telemetry for hardware resources.
 
 *   Get utilization percentages again and validate decrease in utilization.
 
+## Canonical OC
+
+```json
+{
+  "openconfig-system:system": {
+    "utilization": {
+      "resources": {
+        "resource": [
+          {
+            "name": "ip-lpm-routes",
+            "config": {
+              "name": "ip-lpm-routes",
+              "used-threshold-upper": 60,
+              "used-threshold-upper-clear": 50
+            }
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 This example yaml defines the OC paths intended to be covered by this test.  OC paths used for test environment setup are not required to be listed here.
@@ -45,11 +68,19 @@ paths:
   /system/utilization/resources/resource/state/name:
   /system/utilization/resources/resource/state/used-threshold-upper:
   /system/utilization/resources/resource/state/used-threshold-upper-clear:
+  /components/component/integrated-circuit/utilization/resources/resource/state/free:
+    platform_type: ["INTEGRATED_CIRCUIT"]
+  /components/component/integrated-circuit/utilization/resources/resource/state/max-limit:
+    platform_type: ["INTEGRATED_CIRCUIT"]
   /components/component/integrated-circuit/utilization/resources/resource/state/name:
     platform_type: ["INTEGRATED_CIRCUIT"]
   /components/component/integrated-circuit/utilization/resources/resource/state/used:
     platform_type: ["INTEGRATED_CIRCUIT"]
-  /components/component/integrated-circuit/utilization/resources/resource/state/free:
+  /components/component/integrated-circuit/utilization/resources/resource/state/used-threshold-upper:
+    platform_type: ["INTEGRATED_CIRCUIT"]
+  /components/component/integrated-circuit/utilization/resources/resource/state/used-threshold-upper-clear:
+    platform_type: ["INTEGRATED_CIRCUIT"]
+  /components/component/integrated-circuit/utilization/resources/resource/state/used-threshold-upper-exceeded:
     platform_type: ["INTEGRATED_CIRCUIT"]
 rpcs:
   gnmi:
