@@ -37,6 +37,7 @@ platform_exceptions: {
     interface_enabled: true
     default_network_instance: "default"
     backup_nhg_requires_vrf_with_decap: true
+    vrf_selection_policy_non_default_ni_unsupported: true
   }
 }
 tags: TAGS_DATACENTER_EDGE
