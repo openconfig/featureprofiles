@@ -1426,6 +1426,10 @@ message Metadata {
     // InsecureSkipVerify instead of plaintext transport.
     bool containerz_tls_insecure_skip_verify = 448;
 
+    // Standby/redundant power supply may report oper-status DISABLED instead of ACTIVE.
+    // Juniper: A physically present but inactive PSU reports DISABLED; both ACTIVE and DISABLED are valid.
+    bool standby_power_supply_reports_disabled = 449;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }

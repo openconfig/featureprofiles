@@ -31,6 +31,7 @@ platform_exceptions: {
     backplane_facing_capacity_unsupported: true
     install_position_and_install_component_unsupported: true
     model_name_unsupported: true
+    standby_power_supply_reports_disabled: true
     storage_component_unsupported: true
     switch_chip_id_unsupported: true
   }
