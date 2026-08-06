@@ -1204,6 +1204,11 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/lacp/otg_tests/lacp_member_reboot_test/README.md"
 }
 test: {
+  id: "RT-5.17"
+  description: "Physical Interface Drain via Admin Down"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/singleton/otg_tests/interface_admin_drain_test/README.md"
+}
+test: {
   id: "RT-5.2"
   description: "Aggregate Interfaces"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/aggregate/otg_tests/aggregate_test/README.md"
