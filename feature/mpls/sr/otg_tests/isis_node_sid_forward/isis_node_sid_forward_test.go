@@ -19,17 +19,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/ygot/ygot"
-	"github.com/open-traffic-generator/snappi/gosnappi"
-	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
-	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
-	"google3/third_party/openconfig/featureprofiles/internal/isissession/isissession"
-	"google3/third_party/openconfig/featureprofiles/internal/otgutils/otgutils"
-	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
-	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/isissession"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
-	"google3/third_party/openconfig/ondatra/ondatra"
-	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygot/ygot"
 )
 
 // TestMain initializes the testbed and runs the tests
