@@ -156,25 +156,50 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 // stopAndVerifyTraffic stops traffic on the ATE
 // and checks for packet loss for the given flow.
 func stopAndVerifyTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
+	otg := ate.OTG()
+	otg.StopTraffic(t)
 
-	ate.OTG().StopTraffic(t)
-	otgutils.LogFlowMetrics(t, ate.OTG(), top)
+	t.Logf("Waiting for flow telemetry on %s to report zero packet loss (tx == rx)...", flowName)
+	inPktsQuery := gnmi.OTG().Flow(flowName).Counters().InPkts().State()
+	outPktsQuery := gnmi.OTG().Flow(flowName).Counters().OutPkts().State()
 
-	time.Sleep(time.Minute)
+	// Watch and wait for Rx packets to catch up to Tx packets (tx == rx and tx > 0)
+	gnmi.Watch(t, otg, inPktsQuery, 45*time.Second, func(v *ygnmi.Value[uint64]) bool {
+		rx, present := v.Val()
+		if !present {
+			return false
+		}
+		tx, txPresent := gnmi.Lookup(t, otg, outPktsQuery).Val()
+		if !txPresent || tx == 0 {
+			return false
+		}
+		return tx == rx
+	}).Await(t)
 
-	txPkts := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().OutPkts().State()))
-	rxPkts := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().InPkts().State()))
+	// Fetch final metric counters
+	txPkts, txOK := gnmi.Lookup(t, otg, outPktsQuery).Val()
+	rxPkts, rxOK := gnmi.Lookup(t, otg, inPktsQuery).Val()
 
-	if txPkts == 0 {
-		t.Fatalf("TxPkts == 0, want > 0")
+	if !txOK || txPkts == 0 {
+		t.Fatalf("IXIA traffic generation failed: TxPkts == 0 or missing for flow %s, want > 0", flowName)
 	}
 
-	if got := (txPkts - rxPkts) * 100 / txPkts; got != 0 {
-		t.Errorf("FAIL: LossPct for flow named %s got %v, want 0", flowName, got)
+	if !rxOK {
+		t.Fatalf("RxPkts missing for flow %s", flowName)
+	}
+
+	lossPct := float32(txPkts-rxPkts) * 100 / float32(txPkts)
+
+	if txPkts != rxPkts {
+		t.Errorf("Generic Test Assertion Failure: LossPct for flow named %s got %.2f%% (%d lost), want 0%%", flowName, lossPct, txPkts-rxPkts)
 	} else {
-		t.Logf("LossPct for flow named %s got %v, want 0", flowName, got)
+		t.Logf("LossPct for flow named %s got %.2f%%, want 0%% (PacketsTx: %d, PacketsRx: %d)", flowName, lossPct, txPkts, rxPkts)
 	}
+
+	// Log metrics after counters have settled
+	otgutils.LogFlowMetrics(t, otg, top)
 }
+
 
 // testArgs holds the objects needed by the test case.
 type testArgs struct {
