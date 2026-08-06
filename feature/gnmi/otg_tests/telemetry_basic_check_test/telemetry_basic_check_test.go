@@ -80,7 +80,8 @@ func getMacAddress(t *testing.T, dut *ondatra.DUTDevice, intfName string) (strin
 		t.Logf("Using functional translator %q for MAC address on %s", ciscoMACFT, intfName)
 	}
 	val, ok := gnmi.Watch(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().Interface(intfName).Ethernet().MacAddress().State(), time.Minute, func(v *ygnmi.Value[string]) bool {
-		return v.IsPresent()
+		val, present := v.Val()
+		return present && val != ""
 	}).Await(t)
 	if ok {
 		return val.Val()
