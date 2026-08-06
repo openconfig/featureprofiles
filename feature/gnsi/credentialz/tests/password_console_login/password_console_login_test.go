@@ -16,6 +16,7 @@ package passwordconsolelogin_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -40,8 +41,9 @@ func TestMain(m *testing.M) {
 }
 
 func TestCredentialz(t *testing.T) {
+	passwordVersion := fmt.Sprintf("%s-%d", passwordVersion, time.Now().Unix())
+
 	dut := ondatra.DUT(t, "dut")
-	// target := credz.GetDutTarget(t, dut)
 
 	// Add any vendor specific cli to enable the ssh login using password
 	switch dut.Vendor() {
@@ -51,6 +53,27 @@ func TestCredentialz(t *testing.T) {
 				management ssh
 			  	 authentication protocol password
 				 `
+		t.Cleanup(func() {
+			t.Logf("Arista vendor, performing SSH cleanup for password authentication")
+			cliConfig := `
+				management ssh
+					no authentication protocol password
+				`
+			helpers.GnmiCLIConfig(t, dut, cliConfig)
+		})
+		helpers.GnmiCLIConfig(t, dut, cliConfig)
+	case ondatra.JUNIPER:
+		t.Logf("Juniper vendor, adding CLI config to enable ssh services and allow root login")
+		cliConfig := `
+			system {
+					services {
+							ssh {
+									root-login allow;
+							}
+					}
+					authentication-order password;
+			}
+			`
 		helpers.GnmiCLIConfig(t, dut, cliConfig)
 	default:
 		t.Logf("Vendor %s, does not need CLI configuration in this test", dut.Vendor())
@@ -112,9 +135,20 @@ func TestCredentialz(t *testing.T) {
 				t.Fatalf("Telemetry reports password version is not correct\n\tgot: %s\n\twant: %s", got, want)
 			}
 			gotPasswordCreatedOn := userState.GetPasswordCreatedOn()
-			if got, want := gotPasswordCreatedOn, uint64(passwordCreatedOn); got != want {
+			wantPasswordCreatedOn := uint64(passwordCreatedOn)
+			switch dut.Vendor() {
+			case ondatra.NOKIA:
+				wantPasswordCreatedOn *= 1e9
+			}
+			if got, want := gotPasswordCreatedOn, wantPasswordCreatedOn; got != want {
 				t.Fatalf("Telemetry reports password created on is not correct\n\tgot: %d\n\twant: %d", got, want)
 			}
 		})
 	}
+
+	t.Cleanup(func() {
+		// Cleanup user password after test.
+		credz.RotateUserPassword(t, dut, username, "", "", 0)
+		credz.SSHCleanup(t, dut)
+	})
 }

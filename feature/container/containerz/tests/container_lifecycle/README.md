@@ -150,6 +150,16 @@ This test validates the complete lifecycle of the `vieux/docker-volume-sshfs` pl
 Using the tarball from 'Build docker volume sshfs plugin tarball', the test installs and activates the plugin via `gnoi.Containerz.StartPlugin`, then verifies its presence and state using `gnoi.Containerz.ListPlugins`.
 Subsequently, the plugin is stopped using `gnoi.Containerz.StopPlugin` and removed with `gnoi.Containerz.RemovePlugin`.
 
+## CNTR-1.8: Container Persistence On Cold Reboot
+
+1.  **Setup**:
+    *   Using `gnoi.Containerz.CreateVolume`, create a volume.
+    *   Using `gnoi.Containerz.Deploy`, load a container image.
+    *   Using `gnoi.Containerz.Start`, start a container that mounts the created volume.
+2.  **Verify Setup**: Verify the container is in a `RUNNING` state and the volume exists.
+2.  **Cold Reboot**: Trigger a cold reboot using `gnoi.System.Reboot`.
+3.  **Verify Recovery**: After the cold reboot, verify that the container is still `RUNNING` and the volume still exists using `gnoi.Containerz`.
+
 ## Canonical OC
 
 <!-- This test does not require any specific OpenConfig configuration, so this section is empty to satisfy the validator. -->
@@ -177,4 +187,5 @@ rpcs:
     containerz.Containerz.ListPlugins:
     containerz.Containerz.StopPlugin:
     containerz.Containerz.RemovePlugin:
+    system.System.Reboot:
 ```
