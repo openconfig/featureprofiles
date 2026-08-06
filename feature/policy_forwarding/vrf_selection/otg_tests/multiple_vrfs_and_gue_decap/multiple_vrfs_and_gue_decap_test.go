@@ -690,8 +690,9 @@ func waitForBGPSession(t *testing.T, dut *ondatra.DUTDevice, wantEstablished boo
 	nbrList := []string{atePort1.IPv4, atePort2.IPv4, atePort1.IPv6, atePort2.IPv6}
 
 	var eg errgroup.Group
-	for _, nbr := range nbrList {
-		eg.Go(func() error {
+for _, nbr := range nbrList {
+	nbr := nbr
+	eg.Go(func() error {
 			nbrPath := statePath.Neighbor(nbr)
 			_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), 2*time.Minute, compare).Await(t)
 			if !ok {
