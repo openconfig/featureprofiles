@@ -233,6 +233,9 @@ func verifyTrafficStatistics(t *testing.T, ate *ondatra.ATEDevice, flowName stri
 	t.Logf("Flow: %s received packets: %d !", flowName, rxPackets)
 	lostPackets := txPackets - rxPackets
 	t.Logf("Flow: %s lost packets: %d !", flowName, lostPackets)
+	if txPackets == 0 {
+		t.Fatalf("txPackets == 0, want > 0")
+	}
 	lossPct := lostPackets * 100 / txPackets
 	t.Logf("Flow: %s packet loss percent : %d !", flowName, lossPct)
 	if wantLoss {
