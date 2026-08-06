@@ -284,14 +284,14 @@ func configureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
 	p1 := dut.Port(t, "port1")
 	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(p1, dutPort1, dut))
-t.Cleanup(func() {
-	gnmi.Delete(t, dut, d.Interface(p1.Name()).Subinterface(0).Config())
-})
+	t.Cleanup(func() {
+		gnmi.Delete(t, dut, d.Interface(p1.Name()).Subinterface(0).Config())
+	})
 	p2 := dut.Port(t, "port2")
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(p2, dutPort2, dut))
-t.Cleanup(func() {
-	gnmi.Delete(t, dut, d.Interface(p2.Name()).Subinterface(0).Config())
-})
+	t.Cleanup(func() {
+		gnmi.Delete(t, dut, d.Interface(p2.Name()).Subinterface(0).Config())
+	})
 	configureLoopbackInterface(t, dut)
 }
 
@@ -690,9 +690,9 @@ func waitForBGPSession(t *testing.T, dut *ondatra.DUTDevice, wantEstablished boo
 	nbrList := []string{atePort1.IPv4, atePort2.IPv4, atePort1.IPv6, atePort2.IPv6}
 
 	var eg errgroup.Group
-for _, nbr := range nbrList {
-	nbr := nbr
-	eg.Go(func() error {
+	for _, nbr := range nbrList {
+		nbr := nbr
+		eg.Go(func() error {
 			nbrPath := statePath.Neighbor(nbr)
 			_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), 2*time.Minute, compare).Await(t)
 			if !ok {
@@ -980,17 +980,25 @@ func verifyDecapCounters(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATED
 	}
 
 	if deviations.PolicyRuleCountersOCUnsupported(dut) {
-		after := readDecapMatchedPkts(t, dut)
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			ingressPkt := after.port1InUnicast - before.port1InUnicast
-			egressPkt := after.port2OutUnicast - before.port2OutUnicast
-			t.Logf("Decap fallback counters for flows %v: ingressPkt=%d egressPkt=%d want>=%d", encapped, ingressPkt, egressPkt, wantDecapped)
-			if ingressPkt < wantDecapped || egressPkt == 0 {
-				t.Errorf("Interface counters didn't reflect decapsulated packets for flows %v: ingressPkt=%d (want >= %d), egressPkt=%d (want > 0)", encapped, ingressPkt, wantDecapped, egressPkt)
-			}
-		default:
-			t.Logf("deviation PolicyRuleCountersOCUnsupported set for vendor %v without a handled fallback; skipping decap counter validation", dut.Vendor())
+		port1Name := dut.Port(t, "port1").Name()
+		port2Name := dut.Port(t, "port2").Name()
+
+		wantIngress := before.port1InUnicast + wantDecapped
+		_, ok := gnmi.Watch(t, dut, gnmi.OC().Interface(port1Name).Counters().InUnicastPkts().State(), decapCounterTimeout, func(v *ygnmi.Value[uint64]) bool {
+			got, present := v.Val()
+			return present && got >= wantIngress
+		}).Await(t)
+		if !ok {
+			t.Errorf("Ingress counters on %s didn't reflect decapsulated packets: got %d, want >= %d", port1Name, gnmi.Get(t, dut, gnmi.OC().Interface(port1Name).Counters().InUnicastPkts().State())-before.port1InUnicast, wantDecapped)
+		}
+
+		wantEgress := before.port2OutUnicast + 1
+		_, ok = gnmi.Watch(t, dut, gnmi.OC().Interface(port2Name).Counters().OutUnicastPkts().State(), decapCounterTimeout, func(v *ygnmi.Value[uint64]) bool {
+			got, present := v.Val()
+			return present && got >= wantEgress
+		}).Await(t)
+		if !ok {
+			t.Errorf("Egress counters on %s didn't reflect forwarded packets: got %d, want > 0", port2Name, gnmi.Get(t, dut, gnmi.OC().Interface(port2Name).Counters().OutUnicastPkts().State())-before.port2OutUnicast)
 		}
 		return
 	}
