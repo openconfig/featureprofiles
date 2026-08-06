@@ -175,7 +175,9 @@ func configureDUT(t *testing.T, bs *cfgplugins.BGPSession) *cfgplugins.BGPSessio
 	bgpNbrT := ateIBGPN2IPv4.GetOrCreateTransport()
 	bgpNbrT.LocalAddress = ygot.String(localAddressLeaf)
 	routeReflector := ateIBGPN2IPv4.GetOrCreateRouteReflector()
-	routeReflector.RouteReflectorClient = ygot.Bool(true)
+	if !deviations.RouteReflectorClientUnsupported(bs.DUT) {
+		routeReflector.RouteReflectorClient = ygot.Bool(true)
+	}
 	// routeReflector.RouteReflectorClusterId = oc.UnionString(dutLoopback.IPv4)
 
 	ateIBGPN2IPv4AF := ateIBGPN2IPv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
@@ -191,7 +193,9 @@ func configureDUT(t *testing.T, bs *cfgplugins.BGPSession) *cfgplugins.BGPSessio
 	bgpNbrT = ateIBGPN2IPv6.GetOrCreateTransport()
 	bgpNbrT.LocalAddress = ygot.String(dutLoopback.IPv6)
 	routeReflector = ateIBGPN2IPv6.GetOrCreateRouteReflector()
-	routeReflector.RouteReflectorClient = ygot.Bool(true)
+	if !deviations.RouteReflectorClientUnsupported(bs.DUT) {
+		routeReflector.RouteReflectorClient = ygot.Bool(true)
+	}
 	// routeReflector.RouteReflectorClusterId = oc.UnionString(dutLoopback.IPv4)
 
 	ateIBGPN2IPv6AF := ateIBGPN2IPv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
@@ -208,7 +212,9 @@ func configureDUT(t *testing.T, bs *cfgplugins.BGPSession) *cfgplugins.BGPSessio
 	bgpNbrT = ateIBGPN3IPv4.GetOrCreateTransport()
 	bgpNbrT.LocalAddress = ygot.String(localAddressLeaf)
 	routeReflector = ateIBGPN3IPv4.GetOrCreateRouteReflector()
-	routeReflector.RouteReflectorClient = ygot.Bool(true)
+	if !deviations.RouteReflectorClientUnsupported(bs.DUT) {
+		routeReflector.RouteReflectorClient = ygot.Bool(true)
+	}
 	// routeReflector.RouteReflectorClusterId = oc.UnionString(dutLoopback.IPv4)
 
 	ateIBGPN3IPv4AF := ateIBGPN3IPv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
@@ -224,7 +230,9 @@ func configureDUT(t *testing.T, bs *cfgplugins.BGPSession) *cfgplugins.BGPSessio
 	bgpNbrT = ateIBGPN3IPv6.GetOrCreateTransport()
 	bgpNbrT.LocalAddress = ygot.String(dutLoopback.IPv6)
 	routeReflector = ateIBGPN3IPv6.GetOrCreateRouteReflector()
-	routeReflector.RouteReflectorClient = ygot.Bool(true)
+	if !deviations.RouteReflectorClientUnsupported(bs.DUT) {
+		routeReflector.RouteReflectorClient = ygot.Bool(true)
+	}
 	// routeReflector.RouteReflectorClusterId = oc.UnionString(dutLoopback.IPv4)
 
 	ateIBGPN3IPv6AF := ateIBGPN3IPv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
