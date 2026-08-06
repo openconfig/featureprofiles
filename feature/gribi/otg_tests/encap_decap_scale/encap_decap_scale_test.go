@@ -38,6 +38,8 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -527,6 +529,12 @@ func verifyTraffic(t *testing.T, args *testArgs, flowList []string) {
 	t.Helper()
 	for _, flowName := range flowList {
 		t.Logf("Verifying flow metrics for the flow %s\n", flowName)
+		if _, ok := gnmi.Watch(t, args.ate.OTG(), gnmi.OTG().Flow(flowName).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
+			f, present := val.Val()
+			return present && f.GetCounters() != nil && f.GetCounters().GetOutPkts() >= uint64(1000)
+		}).Await(t); !ok {
+			t.Errorf("Flow %s did not send any packets", flowName)
+		}
 		recvMetric := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Flow(flowName).State())
 		txPackets := recvMetric.GetCounters().GetOutPkts()
 		rxPackets := recvMetric.GetCounters().GetInPkts()
