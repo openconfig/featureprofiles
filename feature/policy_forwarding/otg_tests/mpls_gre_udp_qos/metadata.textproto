@@ -4,7 +4,7 @@
 uuid: "2beaac46-9b7b-49c4-9bde-62ad530aa5c5"
 plan_id: "PF-1.18"
 description: "MPLSoGRE and MPLSoGUE QoS"
-testbed: TESTBED_DUT_ATE_4LINKS
+testbed: TESTBED_DUT_ATE_8LINKS
 platform_exceptions: {
   platform: {
     vendor: ARISTA
