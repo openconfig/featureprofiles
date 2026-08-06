@@ -214,15 +214,17 @@ func BuildVRFConfig(dut *ondatra.DUTDevice, egressIPs []string, param Param) []*
 	// * Each NHG 1:1 mapping to NH
 	// * Each NH has one entry for decap and encap
 	// * All NHG has a backup for decap then goto default VRF.
-	reEncapNHGRatio := param.V4TunnelCount / param.V4ReEncapNHGCount
 	allTunnelIPs := v4TunnelIPAddrs.AllIPs()
+	var nhgIndex int = -1
 	for idx, ip := range allTunnelIPs {
-		if idx%reEncapNHGRatio == 0 {
+		currentNHGIndex := (idx * param.V4ReEncapNHGCount) / param.V4TunnelCount
+		if currentNHGIndex != nhgIndex {
+			nhgIndex = currentNHGIndex
 			nhgID = idPool.NextNHGID()
 			nhgEntry := fluent.NextHopGroupEntry().WithID(nhgID).WithNetworkInstance(defaultVRF).WithBackupNHG(nhgDecapToDefault)
-			nhID = idPool.NextNHID()
-			// Use same NHG and DecapEncap tunnel for "reEncapNHGRatio" prefixes
-			destinationTunnelIP := allTunnelIPs[(idx/reEncapNHGRatio)%len(allTunnelIPs)]
+			nhID := idPool.NextNHID()
+			// Use same NHG and DecapEncap tunnel for a group of prefixes
+			destinationTunnelIP := allTunnelIPs[nhgIndex%len(allTunnelIPs)]
 			vrfDefault.NHs = append(vrfDefault.NHs,
 				fluent.NextHopEntry().WithIndex(nhID).WithDecapsulateHeader(fluent.IPinIP).WithEncapsulateHeader(fluent.IPinIP).
 					WithNetworkInstance(defaultVRF).WithIPinIP(tunnelSrcIP, destinationTunnelIP),
