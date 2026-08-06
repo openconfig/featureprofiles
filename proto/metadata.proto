@@ -1417,9 +1417,14 @@ message Metadata {
     // https://partnerissuetracker.corp.google.com/issues/536257634
     bool macsec_oc_unsupported = 445;
 
-    // Standby/redundant power supply may report oper-status DISABLED instead of ACTIVE.
-    // Juniper: A physically present but inactive PSU reports DISABLED; both ACTIVE and DISABLED are valid.
-    bool standby_power_supply_reports_disabled = 446;
+    // Devices that do not support afts global filter policy
+    // Arista: https://partnerissuetracker.corp.google.com/issues/514565554
+    bool afts_global_filter_policy_oc_unsupported = 446;
+
+    // Device containerz service presents a self-signed TLS certificate that cannot
+    // be verified against a trusted CA. When true, dialContainer uses TLS with
+    // InsecureSkipVerify instead of plaintext transport.
+    bool containerz_tls_insecure_skip_verify = 448;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
