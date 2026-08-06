@@ -204,7 +204,7 @@ func TestBGPSetup(t *testing.T) {
 		case ondatra.CISCO:
 			communitySetCLIConfig = fmt.Sprintf("router bgp %v instance BGP neighbor-group %v \n ebgp-recv-extcommunity-dmz \n ebgp-send-extcommunity-dmz\n", cfgplugins.DutAS, cfgplugins.BGPPeerGroup1)
 		default:
-t.Fatalf("Unsupported vendor %s for deviation 'SkipAfiSafiPathForBgpMultipleAs'", bs.DUT.Vendor())
+			t.Fatalf("Unsupported vendor %s for deviation 'SkipAfiSafiPathForBgpMultipleAs'", bs.DUT.Vendor())
 		}
 		helpers.GnmiCLIConfig(t, bs.DUT, communitySetCLIConfig)
 		if deviations.SkipSettingAllowMultipleAS(bs.DUT) {
