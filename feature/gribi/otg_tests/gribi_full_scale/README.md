@@ -246,8 +246,8 @@ network-instances {
             - For all the `ENCAP_TE_VRF_A` - `ENCAP_TE_VRF_P` (here `VRF_X`), the flows are:
                 - outer_src_ip=`ipv4_outer_src_111`, outer_dst_ip=[expanded Decap IPv4s], outer_dscp=`encap_vrf_dscp_x_1`,  inner_src_ip=DUT-1, inner_dst_ip=[all IPv4s from `VRF_X`], inner_dscp=`encap_vrf_dscp_x_1`
                 - outer_src_ip=`ipv4_outer_src_111`, outer_dst_ip=[expanded Decap IPv4s], outer_dscp=`encap_vrf_dscp_x_2`, inner_src_ip=DUT-1, inner_dst_ip=[all IPv4s from `VRF_X`], inner_dscp=`encap_vrf_dscp_x_2`
-                - outer_src_ip=`ipv4_outer_src_111`, outer_dst_ip=[expanded Decap IPv4s],  outer_dscp=`encap_vrf_dscp_x_1`,  inner_src_ip=DUT-1, inner_dst_ip=[all IPv6s from `VRF_X`], inner_dscp=`encap_vrf_dscp_x_1
-                - outer_src_ip=`ipv4_outer_src_111`, outer_dst_ip=[expanded Decap IPv4s],  outer_dscp=`encap_vrf_dscp_x_2`,  inner_src_ip=DUT-1, inner_dst_ip=[all IPv6s from `VRF_X`], inner_dscp=`encap_vrf_dscp_x_2
+                - outer_src_ip=`ipv4_outer_src_111`, outer_dst_ip=[expanded Decap IPv4s],  outer_dscp=`encap_vrf_dscp_x_1`,  inner_src_ip=DUT-1, inner_dst_ip=[all IPv6s from `VRF_X`], inner_dscp=`encap_vrf_dscp_x_1`
+                - outer_src_ip=`ipv4_outer_src_111`, outer_dst_ip=[expanded Decap IPv4s],  outer_dscp=`encap_vrf_dscp_x_2`,  inner_src_ip=DUT-1, inner_dst_ip=[all IPv6s from `VRF_X`], inner_dscp=`encap_vrf_dscp_x_2`
                 - outer_src_ip=`ipv4_outer_src_222`, outer_dst_ip=[expanded Decap IPv4s],  outer_dscp=`encap_vrf_dscp_x_1`,  inner_src_ip=DUT-1, inner_dst_ip=[all IPv4s from `VRF_X`], inner_dscp=`encap_vrf_dscp_x_1
                 - outer_src_ip=`ipv4_outer_src_222`, outer_dst_ip=[expanded Decap IPv4s],  outer_dscp=`encap_vrf_dscp_x_2`,  inner_src_ip=DUT-1, inner_dst_ip=[all IPv4s from `VRF_X`], inner_dscp=`encap_vrf_dscp_x_2`
                 - outer_src_ip=`ipv4_outer_src_222`, outer_dst_ip=[expanded Decap IPv4s],  outer_dscp=`encap_vrf_dscp_x_1`,  inner_src_ip=DUT-1, inner_dst_ip=[all IPv6s from `VRF_X`], inner_dscp=`encap_vrf_dscp_x_1`
