@@ -270,7 +270,6 @@ network-instances {
 ---
 
 ## Canonical OC Configuration
-
 ```json
 {
   "interfaces": {
