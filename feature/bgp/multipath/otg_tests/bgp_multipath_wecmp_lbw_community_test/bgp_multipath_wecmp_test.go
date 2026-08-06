@@ -21,18 +21,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/ygot/ygot"
 	"github.com/open-traffic-generator/snappi/gosnappi"
-	"google3/third_party/openconfig/featureprofiles/internal/cfgplugins/cfgplugins"
-	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
-	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
-	"google3/third_party/openconfig/featureprofiles/internal/helpers/helpers"
-	"google3/third_party/openconfig/featureprofiles/internal/otgutils/otgutils"
-	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
-	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
-	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
-	"google3/third_party/openconfig/ondatra/ondatra"
-	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygot/ygot"
 )
 
 const (
