@@ -5,19 +5,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/featureprofiles/internal/attrs"
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/helpers"
-	"github.com/openconfig/featureprofiles/internal/otgutils"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
-	"github.com/openconfig/ondatra/otg"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
+	"github.com/open-traffic-generator/snappi/gosnappi"
+	"google3/third_party/openconfig/featureprofiles/internal/attrs/attrs"
+	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
+	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
+	"google3/third_party/openconfig/featureprofiles/internal/helpers/helpers"
+	"google3/third_party/openconfig/featureprofiles/internal/otgutils/otgutils"
+	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
+	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
+	"google3/third_party/openconfig/ondatra/ondatra"
+	"google3/third_party/openconfig/ondatra/otg/otg"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 const (
@@ -393,6 +393,8 @@ func verifyLeakedRoutes(t *testing.T, dut *ondatra.DUTDevice, expectLeakedRoutes
 func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, expectTrafficPass bool) {
 	t.Helper()
 	otg := ate.OTG()
+	defer otgutils.LogFlowMetrics(t, otg, config)
+	defer otgutils.LogPortMetrics(t, otg, config)
 
 	for _, flow := range config.Flows().Items() {
 		gnmi.Watch(t, otg, gnmi.OTG().Flow(flow.Name()).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
@@ -405,9 +407,12 @@ func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Con
 			if txPackets == 0 {
 				return false
 			}
+			if rxPackets > txPackets {
+				return false
+			}
 			if expectTrafficPass {
 				lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
-				return lossPct <= 0.0
+				return int(lossPct) <= 0
 			} else {
 				return rxPackets == 0
 			}
@@ -420,11 +425,14 @@ func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Con
 		if txPackets == 0 {
 			t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flow.Name())
 		}
+		if rxPackets > txPackets {
+			t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", rxPackets, txPackets)
+		}
 
 		lossPct := (txPackets - rxPackets) * 100 / txPackets
 
 		if expectTrafficPass {
-			if lossPct > 0.0 {
+			if int(lossPct) > 0 {
 				t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want <= 0", flow.Name(), lossPct)
 			} else {
 				t.Logf("Traffic Test Passed! for flow %s", flow.Name())
@@ -437,8 +445,6 @@ func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Con
 			}
 		}
 	}
-	otgutils.LogFlowMetrics(t, otg, config)
-	otgutils.LogPortMetrics(t, otg, config)
 }
 
 func enableDefaultVRFBGP(t *testing.T, dut *ondatra.DUTDevice) {

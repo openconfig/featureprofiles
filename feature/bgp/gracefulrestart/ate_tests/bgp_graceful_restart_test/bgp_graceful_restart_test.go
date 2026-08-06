@@ -19,16 +19,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/internal/attrs"
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/gnmi/oc/acl"
-	"github.com/openconfig/ondatra/ixnet"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
+	"google3/third_party/openconfig/featureprofiles/internal/attrs/attrs"
+	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
+	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
+	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
+	"google3/third_party/openconfig/ondatra/gnmi/oc/acl"
+	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
+	"google3/third_party/openconfig/ondatra/ixnet/ixnet"
+	"google3/third_party/openconfig/ondatra/ondatra"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -399,8 +399,11 @@ func verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, allFlows []*ondatr
 			if txPackets == 0 {
 				return false
 			}
+			if rxPackets > txPackets {
+				return false
+			}
 			lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
-			return lossPct < 5.0
+			return int(lossPct) < int(5)
 		}).Await(t)
 
 		flowStat := gnmi.Get(t, ate, gnmi.OC().Flow(flow.Name()).State())
@@ -409,9 +412,12 @@ func verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, allFlows []*ondatr
 		if txPackets == 0 {
 			t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flow.Name())
 		}
+		if rxPackets > txPackets {
+			t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", rxPackets, txPackets)
+		}
 		lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
 
-		if lossPct < 5.0 {
+		if int(lossPct) < int(5) {
 			t.Logf("Traffic Test Passed! Got %v loss", lossPct)
 		} else {
 			t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want < 5.0", flow.Name(), lossPct)
@@ -432,8 +438,11 @@ func confirmPacketLoss(t *testing.T, ate *ondatra.ATEDevice, allFlows []*ondatra
 			if txPackets == 0 {
 				return false
 			}
+			if rxPackets > txPackets {
+				return false
+			}
 			lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
-			return lossPct > 99.0
+			return int(lossPct) > int(99)
 		}).Await(t)
 
 		flowStat := gnmi.Get(t, ate, gnmi.OC().Flow(flow.Name()).State())
@@ -442,9 +451,12 @@ func confirmPacketLoss(t *testing.T, ate *ondatra.ATEDevice, allFlows []*ondatra
 		if txPackets == 0 {
 			t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flow.Name())
 		}
+		if rxPackets > txPackets {
+			t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", rxPackets, txPackets)
+		}
 		lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
 
-		if lossPct > 99.0 {
+		if int(lossPct) > int(99) {
 			t.Logf("Traffic Test Passed! Loss seen as expected: got %v, want 100%% ", lossPct)
 		} else {
 			t.Errorf("Generic Test Assertion Failure: Flow %s is expected to fail: got %v, want > 99.0", flow.Name(), lossPct)

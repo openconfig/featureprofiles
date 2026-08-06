@@ -18,18 +18,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/featureprofiles/internal/attrs"
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/otgutils"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
-	otg "github.com/openconfig/ondatra/otg"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
+	"github.com/open-traffic-generator/snappi/gosnappi"
+	"google3/third_party/openconfig/featureprofiles/internal/attrs/attrs"
+	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
+	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
+	"google3/third_party/openconfig/featureprofiles/internal/otgutils/otgutils"
+	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
+	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
+	"google3/third_party/openconfig/ondatra/ondatra"
+	otg "google3/third_party/openconfig/ondatra/otg/otg"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -373,8 +373,9 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, flowName string, wantLoss bool) {
 	t.Helper()
 	otg := ate.OTG()
+	defer otgutils.LogFlowMetrics(t, otg, c)
 	t.Logf("Verifying flow metrics for flow %s\n", flowName)
-	gnmi.Watch(t, otg, gnmi.OTG().Flow(flowName).State(), 45*time.Second, func(val *ygnmi.Value[otgtelemetry.Flow]) bool {
+	gnmi.Watch(t, otg, gnmi.OTG().Flow(flowName).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
 		recvMetric, present := val.Val()
 		if !present {
 			return false
@@ -384,11 +385,14 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, flow
 		if txPackets == 0 {
 			return false
 		}
+		if rxPackets > txPackets {
+			return false
+		}
 		lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
 		if wantLoss {
-			return lossPct >= 100-float32(tolerancePct)
+			return int(lossPct) >= int(100-float32(tolerancePct))
 		}
-		return lossPct <= float32(tolerancePct)
+		return int(lossPct) <= int(tolerancePct)
 	}).Await(t)
 
 	recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).State())
@@ -397,21 +401,23 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, flow
 	if txPackets == 0 {
 		t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flowName)
 	}
+	if rxPackets > txPackets {
+		t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", rxPackets, txPackets)
+	}
 	lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
 	if wantLoss {
-		if lossPct < 100-float32(tolerancePct) {
+		if int(lossPct) < int(100-float32(tolerancePct)) {
 			t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want >= %v", flowName, lossPct, 100-float32(tolerancePct))
 		} else {
 			t.Logf("Traffic Loss Test Passed!")
 		}
 	} else {
-		if lossPct > float32(tolerancePct) {
+		if int(lossPct) > int(tolerancePct) {
 			t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want <= %v", flowName, lossPct, float32(tolerancePct))
 		} else {
 			t.Logf("Traffic Test Passed!")
 		}
 	}
-	otgutils.LogFlowMetrics(t, otg, c)
 }
 
 // sendTraffic is used to send traffic.

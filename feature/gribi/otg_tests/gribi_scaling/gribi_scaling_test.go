@@ -24,21 +24,21 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-traffic-generator/snappi/gosnappi"
-	fpargs "github.com/openconfig/featureprofiles/internal/args"
-	"github.com/openconfig/featureprofiles/internal/attrs"
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/gribi"
-	"github.com/openconfig/featureprofiles/internal/otgutils"
-	"github.com/openconfig/featureprofiles/internal/tescale"
-	"github.com/openconfig/gribigo/fluent"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
+	"github.com/open-traffic-generator/snappi/gosnappi"
+	fpargs "google3/third_party/openconfig/featureprofiles/internal/args/args"
+	"google3/third_party/openconfig/featureprofiles/internal/attrs/attrs"
+	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
+	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
+	"google3/third_party/openconfig/featureprofiles/internal/gribi/gribi"
+	"google3/third_party/openconfig/featureprofiles/internal/otgutils/otgutils"
+	"google3/third_party/openconfig/featureprofiles/internal/tescale/tescale"
+	"google3/third_party/openconfig/gribigo/fluent/fluent"
+	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
+	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
+	"google3/third_party/openconfig/ondatra/ondatra"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -386,6 +386,8 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, vrfTC
 }
 
 func checkTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
+	defer otgutils.LogFlowMetrics(t, ate.OTG(), top)
+	defer otgutils.LogPortMetrics(t, ate.OTG(), top)
 	ate.OTG().StartTraffic(t)
 	time.Sleep(time.Second * 30)
 	ate.OTG().StopTraffic(t)
@@ -401,8 +403,11 @@ func checkTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
 		if tx == 0 {
 			return false
 		}
+		if rx > tx {
+			return false
+		}
 		lossPct := float32(tx-rx) * 100 / float32(tx)
-		return lossPct <= 1
+		return int(lossPct) <= 1
 	}).Await(t)
 
 	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow("flow").State())
@@ -412,13 +417,13 @@ func checkTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
 	if txPackets == 0 {
 		t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", "flow")
 	}
+	if rxPackets > txPackets {
+		t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", rxPackets, txPackets)
+	}
 
 	lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
 
-	if lossPct > 1 {
+	if int(lossPct) > 1 {
 		t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want <= 1", "flow", lossPct)
 	}
-
-	otgutils.LogFlowMetrics(t, ate.OTG(), top)
-	otgutils.LogPortMetrics(t, ate.OTG(), top)
 }

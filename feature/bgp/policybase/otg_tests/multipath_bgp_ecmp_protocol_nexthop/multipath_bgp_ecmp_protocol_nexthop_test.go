@@ -19,22 +19,22 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/featureprofiles/internal/attrs"
-	"github.com/openconfig/featureprofiles/internal/cfgplugins"
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/helpers"
-	"github.com/openconfig/featureprofiles/internal/otgutils"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/gnmi/oc/netinstbgp"
-	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
-	"github.com/openconfig/ondatra/netutil"
-	otg "github.com/openconfig/ondatra/otg"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
+	"github.com/open-traffic-generator/snappi/gosnappi"
+	"google3/third_party/openconfig/featureprofiles/internal/attrs/attrs"
+	"google3/third_party/openconfig/featureprofiles/internal/cfgplugins/cfgplugins"
+	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
+	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
+	"google3/third_party/openconfig/featureprofiles/internal/helpers/helpers"
+	"google3/third_party/openconfig/featureprofiles/internal/otgutils/otgutils"
+	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
+	"google3/third_party/openconfig/ondatra/gnmi/oc/netinstbgp"
+	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
+	"google3/third_party/openconfig/ondatra/netutil/netutil"
+	"google3/third_party/openconfig/ondatra/ondatra"
+	otg "google3/third_party/openconfig/ondatra/otg/otg"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -268,6 +268,8 @@ func TestMultipathBGPEcmpProtocolNexthop(t *testing.T) {
 
 			otg := ate.OTG()
 			top := configureOTG(t, otg)
+			defer otgutils.LogFlowMetrics(t, otg, top)
+			defer otgutils.LogPortMetrics(t, otg, top)
 
 			if tc.ipv4 {
 				t.Logf("Validating traffic test for IPv4 prefixes: [%s, %d]", prefixMin, prefixLen)
@@ -282,8 +284,6 @@ func TestMultipathBGPEcmpProtocolNexthop(t *testing.T) {
 				otg.StartTraffic(t)
 				time.Sleep(30 * time.Second)
 				otg.StopTraffic(t)
-				otgutils.LogFlowMetrics(t, otg, top)
-				otgutils.LogPortMetrics(t, otg, top)
 				verifyTraffic(t, ate, "ipv4", 0)
 				checkPacketLoss(t, ate, "ipv4")
 				if tc.multipath {
@@ -303,8 +303,6 @@ func TestMultipathBGPEcmpProtocolNexthop(t *testing.T) {
 				otg.StartTraffic(t)
 				time.Sleep(30 * time.Second)
 				otg.StopTraffic(t)
-				otgutils.LogFlowMetrics(t, otg, top)
-				otgutils.LogPortMetrics(t, otg, top)
 				verifyTraffic(t, ate, "ipv6", 0)
 				checkPacketLoss(t, ate, "ipv6")
 				if tc.multipath {
@@ -779,8 +777,11 @@ func checkPacketLoss(t *testing.T, ate *ondatra.ATEDevice, ipType string) {
 		if txPackets == 0 {
 			return false
 		}
+		if rxPackets > txPackets {
+			return false
+		}
 		lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
-		return lossPct <= float32(lossTolerancePct)
+		return int(lossPct) <= int(lossTolerancePct)
 	}).Await(t)
 
 	flowMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).State())
@@ -790,9 +791,12 @@ func checkPacketLoss(t *testing.T, ate *ondatra.ATEDevice, ipType string) {
 	if txPackets == 0 {
 		t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flowName)
 	}
+	if rxPackets > txPackets {
+		t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", rxPackets, txPackets)
+	}
 
 	lossPct := (txPackets - rxPackets) * 100 / txPackets
-	if lossPct > float32(lossTolerancePct) {
+	if int(lossPct) > int(lossTolerancePct) {
 		t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want <= %d", flowName, lossPct, lossTolerancePct)
 	} else {
 		t.Logf("Packet loss validation successful for %s: Loss=%f%% (Tx=%f, Rx=%f)", flowName, lossPct, txPackets, rxPackets)

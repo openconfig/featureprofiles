@@ -26,23 +26,23 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/featureprofiles/internal/attrs"
-	"github.com/openconfig/featureprofiles/internal/cfgplugins"
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/helpers"
-	otgconfighelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers"
-	"github.com/openconfig/featureprofiles/internal/otgutils"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	netinstbgp "github.com/openconfig/ondatra/gnmi/oc/netinstbgp"
-	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
-	"github.com/openconfig/ondatra/netutil"
-	"github.com/openconfig/testt"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
+	"github.com/open-traffic-generator/snappi/gosnappi"
+	"google3/third_party/openconfig/featureprofiles/internal/attrs/attrs"
+	"google3/third_party/openconfig/featureprofiles/internal/cfgplugins/cfgplugins"
+	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
+	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
+	"google3/third_party/openconfig/featureprofiles/internal/helpers/helpers"
+	otgconfighelpers "google3/third_party/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers/otgconfighelpers"
+	"google3/third_party/openconfig/featureprofiles/internal/otgutils/otgutils"
+	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
+	netinstbgp "google3/third_party/openconfig/ondatra/gnmi/oc/netinstbgp"
+	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
+	"google3/third_party/openconfig/ondatra/netutil/netutil"
+	"google3/third_party/openconfig/ondatra/ondatra"
+	"google3/third_party/openconfig/testt/testt"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 const (
@@ -1872,6 +1872,7 @@ func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, conf gosnappi.Config) {
 // verifyTraffic verifies the traffic flow.
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, conf gosnappi.Config) {
 	otg := ate.OTG()
+	defer otgutils.LogFlowMetrics(t, otg, conf)
 	for _, flow := range conf.Flows().Items() {
 		flowName := flow.Name()
 		gnmi.Watch(t, otg, gnmi.OTG().Flow(flowName).State(), 45*time.Second, func(v *ygnmi.Value[*otgtelemetry.Flow]) bool {
@@ -1884,8 +1885,11 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, conf gosnappi.Config) {
 			if txPackets == 0 {
 				return false
 			}
+			if rxPackets > txPackets {
+				return false
+			}
 			lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
-			return lossPct <= float32(tolerancePct)
+			return int(lossPct) <= int(tolerancePct)
 		}).Await(t)
 
 		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).State())
@@ -1894,14 +1898,16 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, conf gosnappi.Config) {
 		if txPackets == 0 {
 			t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flowName)
 		}
+		if rxPackets > txPackets {
+			t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", rxPackets, txPackets)
+		}
 		lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
-		if lossPct > float32(tolerancePct) {
+		if int(lossPct) > int(tolerancePct) {
 			t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want <= %v", flowName, lossPct, tolerancePct)
 		} else {
 			t.Logf("Traffic Test Passed! for flow %s", flowName)
 		}
 	}
-	otgutils.LogFlowMetrics(t, otg, conf)
 }
 
 // verifySystemHealth verifies the system health.

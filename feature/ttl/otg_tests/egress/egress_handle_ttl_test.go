@@ -23,16 +23,16 @@ import (
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
 	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/featureprofiles/internal/attrs"
-	"github.com/openconfig/featureprofiles/internal/cfgplugins"
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/otgutils"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
+	"google3/third_party/openconfig/featureprofiles/internal/attrs/attrs"
+	"google3/third_party/openconfig/featureprofiles/internal/cfgplugins/cfgplugins"
+	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
+	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
+	"google3/third_party/openconfig/featureprofiles/internal/otgutils/otgutils"
+	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
+	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
 	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
-	"github.com/openconfig/ondatra/otg"
+	"google3/third_party/openconfig/ondatra/ondatra"
+	"google3/third_party/openconfig/ondatra/otg/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 )
 
@@ -438,6 +438,7 @@ func addFlow(t *testing.T, config gosnappi.Config, flowValues *flowArgs) gosnapp
 // verifyTrafficFlow verify the each flow on ATE
 func verifyTrafficFlow(t *testing.T, otgConfig *otg.OTG, config gosnappi.Config, flow gosnappi.Flow, expectDrop bool) {
 	t.Helper()
+	defer otgutils.LogFlowMetrics(t, otgConfig, config)
 
 	gnmi.Watch(t, otgConfig, gnmi.OTG().Flow(flow.Name()).State(), 45*time.Second, func(v *ygnmi.Value[*otgtelemetry.Flow]) bool {
 		val, present := v.Val()
@@ -449,11 +450,14 @@ func verifyTrafficFlow(t *testing.T, otgConfig *otg.OTG, config gosnappi.Config,
 		if tx == 0 {
 			return false
 		}
+		if rx > tx {
+			return false
+		}
 		lossPct := float32(tx-rx) * 100 / float32(tx)
 		if expectDrop {
-			return lossPct >= float32(tolerance)
+			return int(lossPct) >= int(tolerance)
 		}
-		return lossPct < float32(tolerance)
+		return int(lossPct) < int(tolerance)
 	}).Await(t)
 
 	recvMetric := gnmi.Get(t, otgConfig, gnmi.OTG().Flow(flow.Name()).State())
@@ -463,23 +467,25 @@ func verifyTrafficFlow(t *testing.T, otgConfig *otg.OTG, config gosnappi.Config,
 	if txPkts == 0 {
 		t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flow.Name())
 	}
+	if rxPkts > txPkts {
+		t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", rxPkts, txPkts)
+	}
 
 	lossPct := float32(txPkts-rxPkts) * 100 / float32(txPkts)
 
 	if expectDrop {
-		if lossPct < float32(tolerance) {
+		if int(lossPct) < int(tolerance) {
 			t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want >= %v", flow.Name(), lossPct, tolerance)
 		} else {
 			t.Log("Packets Dropped, Test Passed")
 		}
 	} else {
-		if lossPct >= float32(tolerance) {
+		if int(lossPct) >= int(tolerance) {
 			t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want < %v", flow.Name(), lossPct, tolerance)
 		} else {
 			t.Log("Packets Received")
 		}
 	}
-	otgutils.LogFlowMetrics(t, otgConfig, config)
 }
 
 func captureAndValidatePackets(t *testing.T, otgConfig *otg.OTG, packetVal *packetValidation, protocolType string) {

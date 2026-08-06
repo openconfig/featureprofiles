@@ -19,17 +19,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/isissession"
-	"github.com/openconfig/featureprofiles/internal/otgutils"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
+	"github.com/open-traffic-generator/snappi/gosnappi"
+	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
+	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
+	"google3/third_party/openconfig/featureprofiles/internal/isissession/isissession"
+	"google3/third_party/openconfig/featureprofiles/internal/otgutils/otgutils"
+	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
+	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
+	"google3/third_party/openconfig/ondatra/ondatra"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 // TestMain initializes the testbed and runs the tests
@@ -210,8 +210,11 @@ func verifySRCounters(t *testing.T, ts *isissession.TestSession, ate *ondatra.AT
 		if txPkts == 0 {
 			return false
 		}
+		if rxPkts > txPkts {
+			return false
+		}
 		lossPct := float32(txPkts-rxPkts) * 100 / float32(txPkts)
-		return lossPct <= 0
+		return int(lossPct) <= 0
 	}).Await(t)
 
 	recvMetricV4 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v4FlowName).State())
@@ -220,8 +223,11 @@ func verifySRCounters(t *testing.T, ts *isissession.TestSession, ate *ondatra.AT
 	if txPkts == 0 {
 		t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", v4FlowName)
 	}
+	if rxPkts > txPkts {
+		t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", rxPkts, txPkts)
+	}
 	lossPct := float32(txPkts-rxPkts) * 100 / float32(txPkts)
-	if lossPct > 0 {
+	if int(lossPct) > 0 {
 		t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want <= 0", v4FlowName, lossPct)
 	}
 	v4InPkts := rxPkts
@@ -241,6 +247,8 @@ func verifySRCounters(t *testing.T, ts *isissession.TestSession, ate *ondatra.AT
 }
 
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
+	defer otgutils.LogFlowMetrics(t, ate.OTG(), top)
+	defer otgutils.LogPortMetrics(t, ate.OTG(), top)
 	for _, flowName := range []string{v4FlowName, v6FlowName} {
 		gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flowName).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
 			recvMetric, ok := val.Val()
@@ -252,8 +260,11 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
 			if txPkts == 0 {
 				return false
 			}
+			if rxPkts > txPkts {
+				return false
+			}
 			lossPct := float32(txPkts-rxPkts) * 100 / float32(txPkts)
-			return lossPct <= 0
+			return int(lossPct) <= 0
 		}).Await(t)
 
 		recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).State())
@@ -262,15 +273,16 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
 		if txPkts == 0 {
 			t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flowName)
 		}
+		if rxPkts > txPkts {
+			t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", rxPkts, txPkts)
+		}
 		lossPct := float32(txPkts-rxPkts) * 100 / float32(txPkts)
-		if lossPct > 0 {
+		if int(lossPct) > 0 {
 			t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want <= 0", flowName, lossPct)
 		} else {
 			t.Logf("Traffic validation successful for [%s] FramesTx: %d FramesRx: %d", flowName, txPkts, rxPkts)
 		}
 	}
-	otgutils.LogFlowMetrics(t, ate.OTG(), top)
-	otgutils.LogPortMetrics(t, ate.OTG(), top)
 }
 
 // TestMPLSLabelBlockWithISIS verifies MPLS label block SRGB on DUT.

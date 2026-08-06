@@ -19,17 +19,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/featureprofiles/internal/attrs"
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/otgutils"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
+	"github.com/open-traffic-generator/snappi/gosnappi"
+	"google3/third_party/openconfig/featureprofiles/internal/attrs/attrs"
+	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
+	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
+	"google3/third_party/openconfig/featureprofiles/internal/otgutils/otgutils"
+	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
+	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
+	"google3/third_party/openconfig/ondatra/ondatra"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -503,8 +503,9 @@ func (tc *testCase) verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 
 func (tc *testCase) verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, conf gosnappi.Config, tolerance float32, flowNames []string) {
 	otg := ate.OTG()
+	defer otgutils.LogFlowMetrics(t, otg, conf)
 	for _, flow := range flowNames {
-		gnmi.Watch(t, otg, gnmi.OTG().Flow(flow).State(), 45*time.Second, func(val *ygnmi.Value[otgtelemetry.Flow]) bool {
+		gnmi.Watch(t, otg, gnmi.OTG().Flow(flow).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
 			recvMetric, present := val.Val()
 			if !present {
 				return false
@@ -514,8 +515,11 @@ func (tc *testCase) verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, con
 			if txPackets == 0 {
 				return false
 			}
+			if rxPackets > txPackets {
+				return false
+			}
 			lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
-			return lossPct <= tolerance
+			return int(lossPct) <= int(tolerance)
 		}).Await(t)
 
 		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(flow).State())
@@ -524,20 +528,23 @@ func (tc *testCase) verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, con
 		if txPackets == 0 {
 			t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flow)
 		}
+		if rxPackets > txPackets {
+			t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", rxPackets, txPackets)
+		}
 		lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
-		if lossPct > tolerance {
+		if int(lossPct) > int(tolerance) {
 			t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want <= %v", flow, lossPct, tolerance)
 		} else {
 			t.Logf("Traffic Test Passed! Got %v loss", lossPct)
 		}
 	}
-	otgutils.LogFlowMetrics(t, otg, conf)
 }
 
 func (tc *testCase) verifyPacketLoss(t *testing.T, ate *ondatra.ATEDevice, conf gosnappi.Config, tolerance float32, flowNames []string) {
 	otg := ate.OTG()
+	defer otgutils.LogFlowMetrics(t, otg, conf)
 	for _, flow := range flowNames {
-		gnmi.Watch(t, otg, gnmi.OTG().Flow(flow).State(), 45*time.Second, func(val *ygnmi.Value[otgtelemetry.Flow]) bool {
+		gnmi.Watch(t, otg, gnmi.OTG().Flow(flow).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
 			recvMetric, present := val.Val()
 			if !present {
 				return false
@@ -547,8 +554,11 @@ func (tc *testCase) verifyPacketLoss(t *testing.T, ate *ondatra.ATEDevice, conf 
 			if txPackets == 0 {
 				return false
 			}
+			if rxPackets > txPackets {
+				return false
+			}
 			lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
-			return lossPct >= (100-tolerance) && lossPct <= 100
+			return int(lossPct) >= int(100-tolerance) && int(lossPct) <= 100
 		}).Await(t)
 
 		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(flow).State())
@@ -557,14 +567,16 @@ func (tc *testCase) verifyPacketLoss(t *testing.T, ate *ondatra.ATEDevice, conf 
 		if txPackets == 0 {
 			t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flow)
 		}
+		if rxPackets > txPackets {
+			t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", rxPackets, txPackets)
+		}
 		lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
-		if lossPct >= (100-tolerance) && lossPct <= 100 {
+		if int(lossPct) >= int(100-tolerance) && int(lossPct) <= 100 {
 			t.Logf("Traffic Test Passed! Loss seen as expected: got %v, want 100%% ", lossPct)
 		} else {
 			t.Errorf("Generic Test Assertion Failure: Flow %s is expected to fail: got %v, want 100%% failure", flow, lossPct)
 		}
 	}
-	otgutils.LogFlowMetrics(t, otg, conf)
 }
 
 func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, duration time.Duration) {

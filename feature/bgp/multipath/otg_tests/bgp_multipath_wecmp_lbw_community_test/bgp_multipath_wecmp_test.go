@@ -21,18 +21,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/featureprofiles/internal/cfgplugins"
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/helpers"
-	"github.com/openconfig/featureprofiles/internal/otgutils"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
+	"github.com/open-traffic-generator/snappi/gosnappi"
+	"google3/third_party/openconfig/featureprofiles/internal/cfgplugins/cfgplugins"
+	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
+	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
+	"google3/third_party/openconfig/featureprofiles/internal/helpers/helpers"
+	"google3/third_party/openconfig/featureprofiles/internal/otgutils/otgutils"
+	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
+	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
+	"google3/third_party/openconfig/ondatra/ondatra"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 const (
@@ -122,7 +122,8 @@ func configureFlow(bs *cfgplugins.BGPSession) {
 	v4.Dst().Increment().SetCount(3).SetStep("0.0.0.1").SetStart(prefixesStart)
 }
 
-func checkPacketLoss(t *testing.T, ate *ondatra.ATEDevice) {
+func checkPacketLoss(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config) {
+	defer otgutils.LogFlowMetrics(t, ate.OTG(), c)
 	countersPath := gnmi.OTG().Flow("flow")
 
 	gnmi.Watch(t, ate.OTG(), countersPath.State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
@@ -135,20 +136,26 @@ func checkPacketLoss(t *testing.T, ate *ondatra.ATEDevice) {
 		if txPackets == 0 {
 			return false
 		}
+		if rxPackets > txPackets {
+			return false
+		}
 		lossPct := (txPackets - rxPackets) * 100 / txPackets
-		return lossPct <= lossTolerancePct
+		return int(lossPct) <= int(lossTolerancePct)
 	}).Await(t)
 
-	rxPackets := gnmi.Get(t, ate.OTG(), countersPath.Counters().InPkts().State())
-	txPackets := gnmi.Get(t, ate.OTG(), countersPath.Counters().OutPkts().State())
+	rxPackets := float32(gnmi.Get(t, ate.OTG(), countersPath.Counters().InPkts().State()))
+	txPackets := float32(gnmi.Get(t, ate.OTG(), countersPath.Counters().OutPkts().State()))
 	lostPackets := txPackets - rxPackets
 
 	if txPackets == 0 {
 		t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow flow")
 	}
+	if rxPackets > txPackets {
+		t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", rxPackets, txPackets)
+	}
 	got := float32(lostPackets) * 100 / float32(txPackets)
 
-	if got > lossTolerancePct {
+	if int(got) > int(lossTolerancePct) {
 		t.Errorf("Generic Test Assertion Failure: Flow flow: got %v, want <= %v", got, lossTolerancePct)
 	}
 }
@@ -304,8 +311,7 @@ func TestBGPSetup(t *testing.T) {
 			time.Sleep(sleepTime * time.Second)
 			bs.ATE.OTG().StopTraffic(t)
 
-			checkPacketLoss(t, bs.ATE)
-			otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
+			checkPacketLoss(t, bs.ATE, bs.ATETop)
 			verifyECMPLoadBalance(t, bs.ATE, int(cfgplugins.PortCount4), 2)
 		})
 	}

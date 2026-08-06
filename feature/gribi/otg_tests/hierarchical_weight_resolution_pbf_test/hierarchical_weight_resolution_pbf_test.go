@@ -28,22 +28,22 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/featureprofiles/internal/attrs"
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/gribi"
-	"github.com/openconfig/featureprofiles/internal/otgutils"
-	"github.com/openconfig/featureprofiles/internal/vrfpolicy"
-	"github.com/openconfig/gribigo/chk"
-	"github.com/openconfig/gribigo/constants"
-	"github.com/openconfig/gribigo/fluent"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
+	"github.com/open-traffic-generator/snappi/gosnappi"
+	"google3/third_party/openconfig/featureprofiles/internal/attrs/attrs"
+	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
+	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
+	"google3/third_party/openconfig/featureprofiles/internal/gribi/gribi"
+	"google3/third_party/openconfig/featureprofiles/internal/otgutils/otgutils"
+	"google3/third_party/openconfig/featureprofiles/internal/vrfpolicy/vrfpolicy"
+	"google3/third_party/openconfig/gribigo/chk/chk"
+	"google3/third_party/openconfig/gribigo/constants/constants"
+	"google3/third_party/openconfig/gribigo/fluent/fluent"
+	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
+	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
+	"google3/third_party/openconfig/ondatra/ondatra"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 type attributes struct {
@@ -450,6 +450,7 @@ func incrementMAC(mac string, i int) (string, error) {
 // <VlanID::TrafficDistribution> that is wanted and compares it to the actual
 // traffic test result.
 func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) map[string]float64 {
+	defer otgutils.LogFlowMetrics(t, ate.OTG(), top)
 
 	dut := ondatra.DUT(t, "dut")
 	dstMac := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
@@ -491,8 +492,11 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) map[
 		if txPkts == 0 {
 			return false
 		}
+		if rxPkts > txPkts {
+			return false
+		}
 		lossPct := float32(txPkts-rxPkts) * 100 / float32(txPkts)
-		return lossPct <= 0
+		return int(lossPct) <= 0
 	}).Await(t)
 
 	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowipv4.Name()).State())
@@ -501,12 +505,13 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) map[
 	if txPkts == 0 {
 		t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flowipv4.Name())
 	}
+	if rxPkts > txPkts {
+		t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", rxPkts, txPkts)
+	}
 	lossPct := float32(txPkts-rxPkts) * 100 / float32(txPkts)
-	if lossPct > 0 {
+	if int(lossPct) > 0 {
 		t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want <= 0", flowipv4.Name(), lossPct)
 	}
-
-	otgutils.LogFlowMetrics(t, ate.OTG(), top)
 
 	// Compare traffic distribution with the wanted results.
 	results := filterPacketReceived(t, "flow", ate)

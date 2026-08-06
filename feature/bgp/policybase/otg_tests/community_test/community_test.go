@@ -21,15 +21,15 @@ import (
 	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/featureprofiles/internal/cfgplugins"
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/helpers"
-	"github.com/openconfig/featureprofiles/internal/otgutils"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
+	"google3/third_party/openconfig/featureprofiles/internal/cfgplugins/cfgplugins"
+	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
+	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
+	"google3/third_party/openconfig/featureprofiles/internal/helpers/helpers"
+	"google3/third_party/openconfig/featureprofiles/internal/otgutils/otgutils"
+	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
+	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
 	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
+	"google3/third_party/openconfig/ondatra/ondatra"
 	"github.com/openconfig/ygnmi/ygnmi"
 )
 
@@ -208,7 +208,7 @@ func configureFlow(t *testing.T, bs *cfgplugins.BGPSession, prefixPair []string,
 
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, prefixType string, testResults bool, index int) {
 	flowName := "flow" + prefixType + strconv.Itoa(index)
-	gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flowName).State(), 45*time.Second, func(val *ygnmi.Value[otgtelemetry.Flow]) bool {
+	gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flowName).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
 		recvMetric, present := val.Val()
 		if !present {
 			return false
@@ -218,11 +218,14 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, prefixType string, test
 		if txPackets == 0 {
 			return false
 		}
+		if rxPackets > txPackets {
+			return false
+		}
 		lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
 		if testResults {
-			return lossPct <= 0.0
+			return int(lossPct) <= int(0)
 		} else {
-			return lossPct >= 100.0
+			return int(lossPct) >= int(100)
 		}
 	}).Await(t)
 
@@ -233,10 +236,13 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, prefixType string, test
 	if txPackets == 0 {
 		t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flowName)
 	}
+	if rxPackets > txPackets {
+		t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", rxPackets, txPackets)
+	}
 
 	lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
 
-	if (testResults && lossPct <= 0.0) || (!testResults && lossPct >= 100.0) {
+	if (testResults && int(lossPct) <= int(0)) || (!testResults && int(lossPct) >= int(100)) {
 		t.Logf("Traffic validation successful for criteria [%t] FramesTx: %f FramesRx: %f", testResults, txPackets, rxPackets)
 	} else {
 		t.Errorf("Generic Test Assertion Failure: Flow %s: got loss %v%%, want <=0%% (testResults=%t)", flowName, lossPct, testResults)
@@ -312,6 +318,8 @@ func TestCommunitySet(t *testing.T) {
 			cfgplugins.VerifyDUTBGPEstablished(t, bs.DUT)
 
 			t.Logf("Starting traffic for IPv4 and v6")
+			defer otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
+			defer otgutils.LogPortMetrics(t, bs.ATE.OTG(), bs.ATETop)
 			bs.ATE.OTG().StartTraffic(t)
 			time.Sleep(sleepTime * time.Second)
 			bs.ATE.OTG().StopTraffic(t)
@@ -322,7 +330,6 @@ func TestCommunitySet(t *testing.T) {
 				t.Logf("Validating traffic test for IPv6 prefixes: [%s, %s]. Expected Result: [%t]", prefixesV6[index][0], prefixesV6[index][1], tc.testResults[index])
 				verifyTraffic(t, bs.ATE, "ipv6", tc.testResults[index], index)
 			}
-			otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
 		})
 	}
 }
@@ -389,6 +396,8 @@ func validateCommunitySetUpdateTraffic(t *testing.T, bs *cfgplugins.BGPSession) 
 	cfgplugins.VerifyDUTBGPEstablished(t, bs.DUT)
 
 	t.Logf("Starting traffic for IPv4 and v6")
+	defer otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
+	defer otgutils.LogPortMetrics(t, bs.ATE.OTG(), bs.ATETop)
 	bs.ATE.OTG().StartTraffic(t)
 	time.Sleep(sleepTime * time.Second)
 	bs.ATE.OTG().StopTraffic(t)
@@ -400,5 +409,4 @@ func validateCommunitySetUpdateTraffic(t *testing.T, bs *cfgplugins.BGPSession) 
 		t.Logf("Validating traffic test for IPv6 prefixes: [%s, %s]. Expected Result: [%t]", prefixesV6[index][0], prefixesV6[index][1], testResults[index])
 		verifyTraffic(t, bs.ATE, "ipv6", testResults[index], index)
 	}
-	otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
 }
