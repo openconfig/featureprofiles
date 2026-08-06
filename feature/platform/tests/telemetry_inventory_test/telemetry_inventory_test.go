@@ -830,10 +830,10 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 			if p.operStatus != oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET {
 				operStatus := card.GetOperStatus()
 				t.Logf("Component %s OperStatus: %s", cName, operStatus.String())
-				isPSU := p.pType == componentType["PowerSupply"]
-				isDisabledStandbyPSU := isPSU && deviations.StandbyPowerSupplyReportsDisabled(dut) &&
-					operStatus == oc.PlatformTypes_COMPONENT_OPER_STATUS_DISABLED
-				if operStatus != p.operStatus && !isDisabledStandbyPSU {
+				// A standby PSU may legitimately report DISABLED rather than ACTIVE.
+				isStandbyPSU := p.pType == componentType["PowerSupply"] &&
+					card.GetRedundantRole() == oc.Platform_ComponentRedundantRole_SECONDARY
+				if operStatus != p.operStatus && !(isStandbyPSU && operStatus == oc.PlatformTypes_COMPONENT_OPER_STATUS_DISABLED) {
 					t.Errorf("Component %s OperStatus: got %s, want %s", cName, operStatus, p.operStatus)
 				}
 			}

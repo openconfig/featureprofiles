@@ -2327,10 +2327,3 @@ func MacsecOcUnsupported(dut *ondatra.DUTDevice) bool {
 func AftsGlobalFilterPolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAftsGlobalFilterPolicyOcUnsupported()
 }
-
-// StandbyPowerSupplyReportsDisabled returns true for devices where a standby/redundant
-// power supply that is physically present may report oper-status DISABLED instead of ACTIVE.
-// Juniper: https://github.com/openconfig/featureprofiles/pull/5436
-func StandbyPowerSupplyReportsDisabled(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetStandbyPowerSupplyReportsDisabled()
-}
