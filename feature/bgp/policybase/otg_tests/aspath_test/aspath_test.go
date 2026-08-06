@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -123,6 +124,7 @@ func configureOTG(t *testing.T, bs *cfgplugins.BGPSession, prefixesV4 [][]string
 		route4Address1.SetPrefix(prefixV4Len)
 		route4Address2 := bgp4PeerRoute.Addresses().Add().SetAddress(prefixes[1])
 		route4Address2.SetPrefix(prefixV4Len)
+		bgp4PeerRoute.AsPath().SetAsSetMode(gosnappi.BgpAsPathAsSetMode.INCLUDE_AS_SEQ)
 		asp4 := bgp4PeerRoute.AsPath().Segments().Add()
 		asp4.SetAsNumbers(aspathMembers[index])
 	}
@@ -135,6 +137,7 @@ func configureOTG(t *testing.T, bs *cfgplugins.BGPSession, prefixesV4 [][]string
 		route6Address1.SetPrefix(prefixV6Len)
 		route6Address2 := bgp6PeerRoute.Addresses().Add().SetAddress(prefixes[1])
 		route6Address2.SetPrefix(prefixV6Len)
+		bgp6PeerRoute.AsPath().SetAsSetMode(gosnappi.BgpAsPathAsSetMode.INCLUDE_AS_SEQ)
 		asp6 := bgp6PeerRoute.AsPath().Segments().Add()
 		asp6.SetAsNumbers(aspathMembers[index])
 	}
