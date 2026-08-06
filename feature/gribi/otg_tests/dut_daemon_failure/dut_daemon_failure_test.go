@@ -177,15 +177,11 @@ func stopAndVerifyTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Con
 	}).Await(t)
 
 	// Fetch final metric counters
-	txPkts, txOK := gnmi.Lookup(t, otg, outPktsQuery).Val()
-	rxPkts, rxOK := gnmi.Lookup(t, otg, inPktsQuery).Val()
+	txPkts := gnmi.Get(t, otg, outPktsQuery)
+	rxPkts := gnmi.Get(t, otg, inPktsQuery)
 
-	if !txOK || txPkts == 0 {
+	if txPkts == 0 {
 		t.Fatalf("IXIA traffic generation failed: TxPkts == 0 or missing for flow %s, want > 0", flowName)
-	}
-
-	if !rxOK {
-		t.Fatalf("RxPkts missing for flow %s", flowName)
 	}
 
 	lossPct := float32(txPkts-rxPkts) * 100 / float32(txPkts)
@@ -199,7 +195,6 @@ func stopAndVerifyTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Con
 	// Log metrics after counters have settled
 	otgutils.LogFlowMetrics(t, otg, top)
 }
-
 
 // testArgs holds the objects needed by the test case.
 type testArgs struct {
