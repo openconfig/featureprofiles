@@ -118,7 +118,7 @@ func TestGRIBIFullScaleT0(t *testing.T) {
 		NumPort2VLANs: 640,
 
 		// Traffic parameters
-		TrafficRateMpps: 100_000,
+		TrafficRateMpps: 30_000_000,
 		TrafficDuration: 5 * time.Minute,
 		TrafficLossTol:  5,
 	}
