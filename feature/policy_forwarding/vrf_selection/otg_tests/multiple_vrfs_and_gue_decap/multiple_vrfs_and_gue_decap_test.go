@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,7 +16,9 @@ package multiple_vrfs_and_gue_decap_test
 
 import (
 	"fmt"
+	"net/netip"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -34,18 +36,21 @@ import (
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
-	advertiseIpv4PrefixLength = 32
-	advertiseIpv6PrefixLength = 128
+	advertiseIpv4PrefixLength = 24
+	advertiseIpv6PrefixLength = 64
 	ipv4PrefixLen             = 30
 	ipv6PrefixLen             = 126
+	loopbackIPv4PrefixLen     = 28
+	loopbackIPv6PrefixLen     = 128
 	ate1Asn                   = 65001
 	ate2Asn                   = 65003
 	dutAsn                    = 65001
-	ipv4Src                   = "198.51.100.1"
-	ipv4Dst                   = "198.51.200.1"
+	ipv4Src                   = "198.18.100.1"
+	ipv4Dst                   = "198.18.200.1"
 	ipv6Src                   = "2001:DB8:1::1"
 	ipv6Dst                   = "2001:DB8:2::1"
 	rplType                   = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
@@ -63,16 +68,16 @@ const (
 	trafficSleepTime          = 10
 	nonDefaultVrfName         = "B2_VRF"
 	packetSize                = 512
-	IPv4Prefix1               = "198.51.100.1"
-	IPv4Prefix2               = "198.51.100.2"
-	IPv4Prefix3               = "198.51.100.3"
-	IPv4Prefix4               = "198.51.100.4"
-	IPv4Prefix5               = "198.51.100.5"
-	IPv4Prefix6               = "198.51.200.1"
-	IPv4Prefix7               = "198.51.200.2"
-	IPv4Prefix8               = "198.51.200.3"
-	IPv4Prefix9               = "198.51.200.4"
-	IPv4Prefix10              = "198.51.200.5"
+	IPv4Prefix1               = "198.18.100.1"
+	IPv4Prefix2               = "198.18.100.2"
+	IPv4Prefix3               = "198.18.100.3"
+	IPv4Prefix4               = "198.18.100.4"
+	IPv4Prefix5               = "198.18.100.5"
+	IPv4Prefix6               = "198.18.200.1"
+	IPv4Prefix7               = "198.18.200.2"
+	IPv4Prefix8               = "198.18.200.3"
+	IPv4Prefix9               = "198.18.200.4"
+	IPv4Prefix10              = "198.18.200.5"
 	IPv6Prefix1               = "2001:DB8:1::1"
 	IPv6Prefix2               = "2001:DB8:1::2"
 	IPv6Prefix3               = "2001:DB8:1::3"
@@ -83,7 +88,33 @@ const (
 	IPv6Prefix8               = "2001:DB8:2::3"
 	IPv6Prefix9               = "2001:DB8:2::4"
 	IPv6Prefix10              = "2001:DB8:2::5"
+	leakedIPv4Network1        = "198.18.100.0"
+	leakedIPv4Network2        = "198.18.101.0"
+	leakedIPv4Network3        = "198.18.102.0"
+	leakedIPv4Network4        = "198.18.103.0"
+	leakedIPv4Network5        = "198.18.104.0"
+	leakedIPv4Network6        = "198.18.200.0"
+	leakedIPv4Network7        = "198.18.201.0"
+	leakedIPv4Network8        = "198.18.202.0"
+	leakedIPv4Network9        = "198.18.203.0"
+	leakedIPv4Network10       = "198.18.204.0"
+	leakedIPv6Network1        = "2001:DB8:1::"
+	leakedIPv6Network2        = "2001:DB8:1:1::"
+	leakedIPv6Network3        = "2001:DB8:1:2::"
+	leakedIPv6Network4        = "2001:DB8:1:3::"
+	leakedIPv6Network5        = "2001:DB8:1:4::"
+	leakedIPv6Network6        = "2001:DB8:2::"
+	leakedIPv6Network7        = "2001:DB8:2:1::"
+	leakedIPv6Network8        = "2001:DB8:2:2::"
+	leakedIPv6Network9        = "2001:DB8:2:3::"
+	leakedIPv6Network10       = "2001:DB8:2:4::"
 	policyName                = "decap-policy-gue"
+	policyId                  = 1
+	decapCounterTimeout       = 30 * time.Second
+	ibgpV4PrefixSetName       = "IPv4Prefixes_IBGP"
+	ibgpV6PrefixSetName       = "IPv6Prefixes_IBGP"
+	bgpExportPolicyName       = "BGP_EXPORT_B2_VRF"
+	decapIPType               = "ipv6"
 )
 
 var (
@@ -124,8 +155,8 @@ var (
 		Desc:    "Loopback ip",
 		IPv4:    "203.0.113.1",
 		IPv6:    "2001:db8::203:0:113:1",
-		IPv4Len: advertiseIpv4PrefixLength,
-		IPv6Len: advertiseIpv6PrefixLength,
+		IPv4Len: loopbackIPv4PrefixLen,
+		IPv6Len: loopbackIPv6PrefixLen,
 	}
 )
 
@@ -148,6 +179,9 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr 
 	}
 	st.GetOrCreateActions().PolicyResult = pr
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+	t.Cleanup(func() {
+		gnmi.Delete(t, dut, gnmi.OC().RoutingPolicy().PolicyDefinition(name).Config())
+	})
 }
 
 func TestMultipleVrfsAndGueDecap(t *testing.T) {
@@ -157,7 +191,6 @@ func TestMultipleVrfsAndGueDecap(t *testing.T) {
 	dp2 := dut.Port(t, "port2")
 	t.Log(dp1, dp2)
 
-	// Configure DUT interfaces.
 	t.Logf("Configuring Hardware Init")
 	configureHardwareInit(t, dut)
 	createVRF(t, dut)
@@ -165,11 +198,9 @@ func TestMultipleVrfsAndGueDecap(t *testing.T) {
 	configureRoutePolicy(t, dut, rplName, rplType)
 	configureBgp(t, dut)
 	configureQoSDUTIpv4Ipv6(t, dut)
-
 	configureRouteLeaking(t, dut)
-	configureDutWithGueDecap(t, dut, guePort, "ipv4")
+	configureDutWithGueDecap(t, dut, guePort, decapIPType)
 
-	// configure ATE
 	topo := configureATE(t)
 	ate.OTG().PushConfig(t, topo)
 
@@ -178,8 +209,7 @@ func TestMultipleVrfsAndGueDecap(t *testing.T) {
 	otgutils.WaitForARP(t, ate.OTG(), topo, "IPv6")
 	verifyBGPTelemetry(t, dut)
 	verifyLeakedRoutes(t, dut)
-	configureIPv4Traffic(t, ate, topo)
-	trafficStartStop(t, dut, ate, topo)
+	verifyLeakedRoutesV6(t, dut)
 
 	testCases := []testCase{
 		{
@@ -210,7 +240,11 @@ func TestMultipleVrfsAndGueDecap(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			validateTrafficLoss(t, ate, tc.flownames)
+			configureTrafficFlows(t, ate, topo, tc.flownames)
+			decapCountBefore := readDecapMatchedPkts(t, dut)
+			trafficStartStop(t, dut, ate, topo)
+			validateTrafficLoss(t, ate, topo, tc.flownames)
+			verifyDecapCounters(t, dut, ate, tc.flownames, decapCountBefore)
 		})
 	}
 }
@@ -221,16 +255,23 @@ func configureDutWithGueDecap(t *testing.T, dut *ondatra.DUTDevice, guePort int,
 	ocPFParams := getDefaultOcPolicyForwardingParams(t, dut, guePort, ipType)
 	_, _, pf := cfgplugins.SetupPolicyForwardingInfraOC(ocPFParams.NetworkInstanceName)
 	cfgplugins.DecapGroupConfigGue(t, dut, pf, ocPFParams)
+	t.Cleanup(func() {
+		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(ocPFParams.NetworkInstanceName).PolicyForwarding().Config())
+	})
 }
 
 // getDefaultOcPolicyForwardingParams provides default parameters for the generator,
 // matching the values in the provided JSON example.
 func getDefaultOcPolicyForwardingParams(t *testing.T, dut *ondatra.DUTDevice, guePort int, ipType string) cfgplugins.OcPolicyForwardingParams {
+	tunnelIP := dutlo0Attrs.IPv4
+	if ipType == "ipv6" {
+		tunnelIP = dutlo0Attrs.IPv6
+	}
 	return cfgplugins.OcPolicyForwardingParams{
-		NetworkInstanceName: "DEFAULT",
+		NetworkInstanceName: deviations.DefaultBgpInstanceName(dut),
 		InterfaceID:         dut.Port(t, "port1").Name(),
 		AppliedPolicyName:   policyName,
-		TunnelIP:            dutlo0Attrs.IPv4,
+		TunnelIP:            tunnelIP,
 		GUEPort:             uint32(guePort),
 		IPType:              ipType,
 		Dynamic:             true,
@@ -243,25 +284,26 @@ func configureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
 	p1 := dut.Port(t, "port1")
 	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(p1, dutPort1, dut))
+	t.Cleanup(func() {
+		gnmi.Delete(t, dut, d.Interface(p1.Name()).Config())
+	})
 	p2 := dut.Port(t, "port2")
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(p2, dutPort2, dut))
-
+	t.Cleanup(func() {
+		gnmi.Delete(t, dut, d.Interface(p2.Name()).Config())
+	})
 	configureLoopbackInterface(t, dut)
-
 }
 
 func configureBgp(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 
-	// Define neighbors for peer-group 1
 	nbr1v4 := &cfgplugins.BgpNeighbor{LocalAS: dutAsn, PeerAS: ate1Asn, Neighborip: atePort1.IPv4, IsV4: true, PeerGrp: peerv4Grp1Name}
 	nbr1v6 := &cfgplugins.BgpNeighbor{LocalAS: dutAsn, PeerAS: ate1Asn, Neighborip: atePort1.IPv6, IsV4: false, PeerGrp: peerv6Grp1Name}
 
-	// Define neighbors for peer-group 2
 	nbr2v4 := &cfgplugins.BgpNeighbor{LocalAS: dutAsn, PeerAS: ate2Asn, Neighborip: atePort2.IPv4, IsV4: true, PeerGrp: peerv4Grp2Name}
 	nbr2v6 := &cfgplugins.BgpNeighbor{LocalAS: dutAsn, PeerAS: ate2Asn, Neighborip: atePort2.IPv6, IsV4: false, PeerGrp: peerv6Grp2Name}
 
-	// Prepare GNMI batch
 	sb := &gnmi.SetBatch{}
 
 	pg1Cfg := cfgplugins.BGPNeighborsConfig{
@@ -269,6 +311,7 @@ func configureBgp(t *testing.T, dut *ondatra.DUTDevice) {
 		PeerGrpNameV4: peerv4Grp1Name,
 		PeerGrpNameV6: peerv6Grp1Name,
 		Nbrs:          []*cfgplugins.BgpNeighbor{nbr1v4, nbr1v6},
+		ProtocolName:  deviations.DefaultBgpInstanceName(dut),
 	}
 
 	if err := cfgplugins.CreateBGPNeighbors(t, dut, sb, pg1Cfg); err != nil {
@@ -280,6 +323,7 @@ func configureBgp(t *testing.T, dut *ondatra.DUTDevice) {
 		PeerGrpNameV4: peerv4Grp2Name,
 		PeerGrpNameV6: peerv6Grp2Name,
 		Nbrs:          []*cfgplugins.BgpNeighbor{nbr2v4, nbr2v6},
+		ProtocolName:  deviations.DefaultBgpInstanceName(dut),
 	}
 
 	if err := cfgplugins.CreateBGPNeighbors(t, dut, sb, pg2Cfg); err != nil {
@@ -287,6 +331,10 @@ func configureBgp(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	sb.Set(t, dut)
+	t.Cleanup(func() {
+		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.DefaultBgpInstanceName(dut)).Config())
+	})
 }
 
 // configInterfaceDUT Configures the given DUT interface.
@@ -301,6 +349,7 @@ func configInterfaceDUT(p *ondatra.Port, a *attrs.Attributes, dut *ondatra.DUTDe
 func configureQoSDUTIpv4Ipv6(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	dp1 := dut.Port(t, "port1")
+	dp2 := dut.Port(t, "port2")
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
 	queues := netutil.CommonTrafficQueues(t, dut)
@@ -428,13 +477,23 @@ func configureQoSDUTIpv4Ipv6(t *testing.T, dut *ondatra.DUTDevice) {
 		inputClassifierType oc.E_Input_Classifier_Type
 		classifier          string
 	}{{
-		desc:                "Input Classifier Type IPV4",
+		desc:                "Input Classifier Type IPV4 on Port1",
 		intf:                dp1.Name(),
 		inputClassifierType: oc.Input_Classifier_Type_IPV4,
 		classifier:          "dscp_based_classifier_ipv4",
 	}, {
-		desc:                "Input Classifier Type IPV6",
+		desc:                "Input Classifier Type IPV6 on Port1",
 		intf:                dp1.Name(),
+		inputClassifierType: oc.Input_Classifier_Type_IPV6,
+		classifier:          "dscp_based_classifier_ipv6",
+	}, {
+		desc:                "Input Classifier Type IPV4 on Port2",
+		intf:                dp2.Name(),
+		inputClassifierType: oc.Input_Classifier_Type_IPV4,
+		classifier:          "dscp_based_classifier_ipv4",
+	}, {
+		desc:                "Input Classifier Type IPV6 on Port2",
+		intf:                dp2.Name(),
 		inputClassifierType: oc.Input_Classifier_Type_IPV6,
 		classifier:          "dscp_based_classifier_ipv6",
 	}}
@@ -442,6 +501,9 @@ func configureQoSDUTIpv4Ipv6(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, tc := range classifierIntfs {
 		qoscfg.SetInputClassifier(t, dut, q, tc.intf, tc.inputClassifierType, tc.classifier)
 	}
+	t.Cleanup(func() {
+		gnmi.Delete(t, dut, gnmi.OC().Qos().Config())
+	})
 }
 
 // configureATE sets up the ATE interfaces and BGP configurations.
@@ -500,31 +562,33 @@ func configureATE(t *testing.T) gosnappi.Config {
 	return topo
 }
 
-// trafficStartStop - start and stop traffic from OTG
+// trafficStartStop - start traffic from OTG. The fixed-packet flows self-terminate,
+// and validateTrafficLoss (via otgutils.GetFlowStats) waits for the transmit state to
+// stop before reading counters, so no redundant transmit-state polling is done here.
 func trafficStartStop(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, config gosnappi.Config) {
 	ate.OTG().StartProtocols(t)
 	otgutils.WaitForARP(t, ate.OTG(), config, "IPv4")
 	otgutils.WaitForARP(t, ate.OTG(), config, "IPv6")
 	verifyBGPTelemetry(t, dut)
 	ate.OTG().StartTraffic(t)
-	time.Sleep(trafficSleepTime * time.Second)
-	ate.OTG().StopTraffic(t)
-	otgutils.LogFlowMetrics(t, ate.OTG(), config)
 }
 
 // validateTrafficLoss - validate traffic loss on each flows
-func validateTrafficLoss(t *testing.T, ate *ondatra.ATEDevice, flowName []string) {
-	for _, flow := range flowName {
-		outPkts := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow).Counters().OutPkts().State()))
-		inPkts := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow).Counters().InPkts().State()))
-		t.Logf("Flow %s: outPkts: %v, inPkts: %v", flow, outPkts, inPkts)
+func validateTrafficLoss(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, flowNames []string) {
+	t.Helper()
+	for _, flow := range flowNames {
+		outPkts, inPkts := otgutils.GetFlowStats(t, ate.OTG(), flow, 10*time.Second)
+		t.Logf("Flow %s: OutPkts (tx): %v, InPkts (rx): %v", flow, outPkts, inPkts)
 		if outPkts == 0 {
 			t.Fatalf("OutPkts for flow %s is 0, want > 0", flow)
 		}
-		if got := ((outPkts - inPkts) * 100) / outPkts; got > 0 {
-			t.Fatalf("LossPct for flow %s: got %v, want 0", flow, got)
+		lossPct := (float64(outPkts-inPkts) * 100.0) / float64(outPkts)
+		if lossPct > 0 {
+			t.Fatalf("LossPct for flow %s: got %v, want 0", flow, lossPct)
 		}
 	}
+	ate.OTG().StopTraffic(t)
+	otgutils.LogFlowMetrics(t, ate.OTG(), config)
 }
 
 // configureRouteLeaking - route leaking from default to non default VRF
@@ -548,24 +612,68 @@ func configureRouteLeakingFromCLI(t *testing.T, dut *ondatra.DUTDevice) {
 	      leak routes source-vrf default subscribe-policy RM-ALL-ROUTES
 	`, nonDefaultVrfName)
 	helpers.GnmiCLIConfig(t, dut, cli)
+	t.Cleanup(func() {
+		noCli := fmt.Sprintf(`
+		   router general
+		   vrf %s
+		      no leak routes source-vrf default subscribe-policy RM-ALL-ROUTES
+		   no route-map RM-ALL-ROUTES permit 10
+		`, nonDefaultVrfName)
+		helpers.GnmiCLIConfig(t, dut, noCli)
+	})
 }
 
-// configureRouteLeakingFromOC - configures route leaking functionality from OC command
+// configureRouteLeakingFromOC configures OpenConfig routing policies for route leaking between the default and non-default VRFs.
 func configureRouteLeakingFromOC(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	root := &oc.Root{}
+	rp := root.GetOrCreateRoutingPolicy()
+	ds := rp.GetOrCreateDefinedSets()
 
-	ni1 := root.GetOrCreateNetworkInstance(nonDefaultVrfName)
-	ni1Pol := ni1.GetOrCreateInterInstancePolicies()
-	iexp1 := ni1Pol.GetOrCreateImportExportPolicy()
-	iexp1.SetImportRouteTarget([]oc.NetworkInstance_InterInstancePolicies_ImportExportPolicy_ImportRouteTarget_Union{oc.UnionString(deviations.DefaultNetworkInstance(dut))})
-	iexp1.SetExportRouteTarget([]oc.NetworkInstance_InterInstancePolicies_ImportExportPolicy_ExportRouteTarget_Union{oc.UnionString(deviations.DefaultNetworkInstance(dut))})
-	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(nonDefaultVrfName).InterInstancePolicies().Config(), ni1Pol)
+	v4ps := ds.GetOrCreatePrefixSet(ibgpV4PrefixSetName)
+	v4ps.GetOrCreatePrefix("0.0.0.0/0", fmt.Sprintf("%d..%d", advertiseIpv4PrefixLength, advertiseIpv4PrefixLength))
+
+	v6ps := ds.GetOrCreatePrefixSet(ibgpV6PrefixSetName)
+	v6ps.GetOrCreatePrefix("::/0", fmt.Sprintf("%d..%d", advertiseIpv6PrefixLength, advertiseIpv6PrefixLength))
+
+	pd := rp.GetOrCreatePolicyDefinition(bgpExportPolicyName)
+	stV4, err := pd.AppendNewStatement("IPv4Prefix_IBGP_EXPORT")
+	if err != nil {
+		t.Fatalf("Failed to create IPv4 route-leak statement: %v", err)
+	}
+	stV4.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(ibgpV4PrefixSetName)
+	stV4.GetOrCreateActions().SetPolicyResult(rplType)
+
+	stV6, err := pd.AppendNewStatement("IPv6Prefix_IBGP_EXPORT")
+	if err != nil {
+		t.Fatalf("Failed to create IPv6 route-leak statement: %v", err)
+	}
+	stV6.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(ibgpV6PrefixSetName)
+	stV6.GetOrCreateActions().SetPolicyResult(rplType)
+
+	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+
+	niDefault := root.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	niDefault.GetOrCreateInterInstancePolicies().GetOrCreateApplyPolicy().SetExportPolicy([]string{bgpExportPolicyName})
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).InterInstancePolicies().Config(), niDefault.GetInterInstancePolicies())
+
+	niVrf := root.GetOrCreateNetworkInstance(nonDefaultVrfName)
+	niVrf.GetOrCreateInterInstancePolicies().GetOrCreateApplyPolicy().SetImportPolicy([]string{bgpExportPolicyName})
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(nonDefaultVrfName).InterInstancePolicies().Config(), niVrf.GetInterInstancePolicies())
+
+	t.Cleanup(func() {
+		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(nonDefaultVrfName).InterInstancePolicies().Config())
+		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).InterInstancePolicies().Config())
+		gnmi.Delete(t, dut, gnmi.OC().RoutingPolicy().PolicyDefinition(bgpExportPolicyName).Config())
+		gnmi.Delete(t, dut, gnmi.OC().RoutingPolicy().DefinedSets().PrefixSet(ibgpV4PrefixSetName).Config())
+		gnmi.Delete(t, dut, gnmi.OC().RoutingPolicy().DefinedSets().PrefixSet(ibgpV6PrefixSetName).Config())
+	})
 }
 
 // waitForBGPSession - verify BGP session is Established
 func waitForBGPSession(t *testing.T, dut *ondatra.DUTDevice, wantEstablished bool) {
-	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
+		deviations.DefaultBgpInstanceName(dut)).Bgp()
 
 	compare := func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 		state, ok := val.Val()
@@ -579,25 +687,31 @@ func waitForBGPSession(t *testing.T, dut *ondatra.DUTDevice, wantEstablished boo
 		return false
 	}
 
-	nbrListv4 := []string{atePort1.IPv4, atePort2.IPv4}
+	nbrList := []string{atePort1.IPv4, atePort2.IPv4, atePort1.IPv6, atePort2.IPv6}
 
-	for _, nbr := range nbrListv4 {
-		nbrPath := statePath.Neighbor(nbr)
-		_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), 2*time.Minute, compare).Await(t)
-		if !ok {
-			fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
-			if wantEstablished {
-				t.Fatal("No BGP neighbor formed...")
-			} else {
-				t.Fatal("BGPv4 session didn't teardown.")
+	var eg errgroup.Group
+	for _, nbr := range nbrList {
+		eg.Go(func() error {
+			nbrPath := statePath.Neighbor(nbr)
+			_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), 2*time.Minute, compare).Await(t)
+			if !ok {
+				fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
+				if wantEstablished {
+					return fmt.Errorf("no BGP neighbor formed for %s", nbr)
+				}
+				return fmt.Errorf("BGP session for %s didn't teardown", nbr)
 			}
-		}
+			return nil
+		})
+	}
+	if err := eg.Wait(); err != nil {
+		t.Fatal(err)
 	}
 }
 
 // verifyBGPTelemetry - verify BGP neighborship
 func verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Log("Waiting for BGPv4 neighbor to establish...")
+	t.Log("Waiting for BGPv4/BGPv6 neighbors to establish...")
 	waitForBGPSession(t, dut, true)
 }
 
@@ -606,22 +720,21 @@ func createVRF(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	droot := &oc.Root{}
 
-	// DEFAULT NI
 	ni := droot.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE
 
 	sb := &gnmi.SetBatch{}
 	gnmi.BatchUpdate(sb, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), ni)
 
-	// VRF
 	ni1 := droot.GetOrCreateNetworkInstance(nonDefaultVrfName)
 	ni1.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
 	gnmi.BatchReplace(sb, gnmi.OC().NetworkInstance(nonDefaultVrfName).Config(), ni1)
 
 	sb.Set(t, dut)
+	t.Cleanup(func() {
+		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(nonDefaultVrfName).Config())
+	})
 }
-
-// configureLoopbackInterface - create and configure loopback interface
 func configureLoopbackInterface(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	dc := gnmi.OC()
@@ -634,6 +747,10 @@ func configureLoopbackInterface(t *testing.T, dut *ondatra.DUTDevice) {
 		loop1 := dutlo0Attrs.NewOCInterface(loopbackIntfName, dut)
 		loop1.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
 		gnmi.Update(t, dut, dc.Interface(loopbackIntfName).Config(), loop1)
+
+		t.Cleanup(func() {
+			gnmi.Delete(t, dut, dc.Interface(loopbackIntfName).Config())
+		})
 	} else {
 		v4, ok := ipv4Addrs[0].Val()
 		if ok {
@@ -648,27 +765,29 @@ func configureLoopbackInterface(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-// configureIPv4Traffic - create traffic flows in ATE
-func configureIPv4Traffic(t *testing.T, ate *ondatra.ATEDevice, topo gosnappi.Config) {
+type trafficFlowSpec struct {
+	desc     string
+	dscpSet  []uint32
+	ipType   string
+	srcIp    string
+	dstIp    string
+	priority int
+}
 
-	topo.Flows().Clear()
-	trafficFlows := []struct {
-		desc     string
-		dscpSet  []uint32
-		ipType   string
-		srcIp    string
-		dstIp    string
-		priority int
-	}{{desc: "1to6v4_encapped", dscpSet: []uint32{0}, ipType: "ipv4oipv4", srcIp: IPv4Prefix1, dstIp: IPv4Prefix6, priority: 0},
-		{desc: "2to7v4_encapped", dscpSet: []uint32{8}, ipType: "ipv4oipv4", srcIp: IPv4Prefix2, dstIp: IPv4Prefix7, priority: 8},
-		{desc: "3to8v4_encapped", dscpSet: []uint32{16}, ipType: "ipv4oipv4", srcIp: IPv4Prefix3, dstIp: IPv4Prefix8, priority: 16},
-		{desc: "4to9v4_encapped", dscpSet: []uint32{24}, ipType: "ipv4oipv4", srcIp: IPv4Prefix4, dstIp: IPv4Prefix9, priority: 24},
-		{desc: "5to10v4_encapped", dscpSet: []uint32{32}, ipType: "ipv4oipv4", srcIp: IPv4Prefix5, dstIp: IPv4Prefix10, priority: 32},
-		{desc: "1to6v6_encapped", dscpSet: []uint32{0}, ipType: "ipv6oipv4", srcIp: IPv6Prefix1, dstIp: IPv6Prefix6, priority: 0},
-		{desc: "2to7v6_encapped", dscpSet: []uint32{8}, ipType: "ipv6oipv4", srcIp: IPv6Prefix2, dstIp: IPv6Prefix7, priority: 8},
-		{desc: "3to8v6_encapped", dscpSet: []uint32{16}, ipType: "ipv6oipv4", srcIp: IPv6Prefix3, dstIp: IPv6Prefix8, priority: 16},
-		{desc: "4to9v6_encapped", dscpSet: []uint32{24}, ipType: "ipv6oipv4", srcIp: IPv6Prefix4, dstIp: IPv6Prefix9, priority: 24},
-		{desc: "5to10v6_encapped", dscpSet: []uint32{32}, ipType: "ipv6oipv4", srcIp: IPv6Prefix5, dstIp: IPv6Prefix10, priority: 32},
+// trafficFlowSpecs returns the full set of flow definitions used across all PF-2.3.x
+// subtests.
+func trafficFlowSpecs() []trafficFlowSpec {
+	return []trafficFlowSpec{
+		{desc: "1to6v4_encapped", dscpSet: []uint32{0}, ipType: "ipv4oipv6", srcIp: IPv4Prefix1, dstIp: IPv4Prefix6, priority: 0},
+		{desc: "2to7v4_encapped", dscpSet: []uint32{8}, ipType: "ipv4oipv6", srcIp: IPv4Prefix2, dstIp: IPv4Prefix7, priority: 8},
+		{desc: "3to8v4_encapped", dscpSet: []uint32{16}, ipType: "ipv4oipv6", srcIp: IPv4Prefix3, dstIp: IPv4Prefix8, priority: 16},
+		{desc: "4to9v4_encapped", dscpSet: []uint32{24}, ipType: "ipv4oipv6", srcIp: IPv4Prefix4, dstIp: IPv4Prefix9, priority: 24},
+		{desc: "5to10v4_encapped", dscpSet: []uint32{32}, ipType: "ipv4oipv6", srcIp: IPv4Prefix5, dstIp: IPv4Prefix10, priority: 32},
+		{desc: "1to6v6_encapped", dscpSet: []uint32{0}, ipType: "ipv6oipv6", srcIp: IPv6Prefix1, dstIp: IPv6Prefix6, priority: 0},
+		{desc: "2to7v6_encapped", dscpSet: []uint32{8}, ipType: "ipv6oipv6", srcIp: IPv6Prefix2, dstIp: IPv6Prefix7, priority: 8},
+		{desc: "3to8v6_encapped", dscpSet: []uint32{16}, ipType: "ipv6oipv6", srcIp: IPv6Prefix3, dstIp: IPv6Prefix8, priority: 16},
+		{desc: "4to9v6_encapped", dscpSet: []uint32{24}, ipType: "ipv6oipv6", srcIp: IPv6Prefix4, dstIp: IPv6Prefix9, priority: 24},
+		{desc: "5to10v6_encapped", dscpSet: []uint32{32}, ipType: "ipv6oipv6", srcIp: IPv6Prefix5, dstIp: IPv6Prefix10, priority: 32},
 		{desc: "1to6v4", dscpSet: []uint32{0}, ipType: "ipv4", srcIp: IPv4Prefix1, dstIp: IPv4Prefix6, priority: 0},
 		{desc: "2to7v4", dscpSet: []uint32{8}, ipType: "ipv4", srcIp: IPv4Prefix2, dstIp: IPv4Prefix7, priority: 8},
 		{desc: "3to8v4", dscpSet: []uint32{16}, ipType: "ipv4", srcIp: IPv4Prefix3, dstIp: IPv4Prefix8, priority: 16},
@@ -678,27 +797,121 @@ func configureIPv4Traffic(t *testing.T, ate *ondatra.ATEDevice, topo gosnappi.Co
 		{desc: "2to7v6", dscpSet: []uint32{8}, ipType: "ipv6", srcIp: IPv6Prefix2, dstIp: IPv6Prefix7, priority: 8},
 		{desc: "3to8v6", dscpSet: []uint32{16}, ipType: "ipv6", srcIp: IPv6Prefix3, dstIp: IPv6Prefix8, priority: 16},
 		{desc: "4to9v6", dscpSet: []uint32{24}, ipType: "ipv6", srcIp: IPv6Prefix4, dstIp: IPv6Prefix9, priority: 24},
-		{desc: "5to10v6", dscpSet: []uint32{32}, ipType: "ipv6", srcIp: IPv6Prefix5, dstIp: IPv6Prefix10, priority: 32}}
+		{desc: "5to10v6", dscpSet: []uint32{32}, ipType: "ipv6", srcIp: IPv6Prefix5, dstIp: IPv6Prefix10, priority: 32},
+	}
+}
 
-	t.Logf("Traffic config: %v", trafficFlows)
-	for _, tc := range trafficFlows {
-		trafficID := tc.desc
-		t.Logf("Configure Traffic from ATE with flowname %s", trafficID)
-		flow := topo.Flows().Add().SetName(trafficID)
+// wantFlows returns the subset of specs whose desc is in flownames.
+func wantFlows(specs []trafficFlowSpec, flownames []string) []trafficFlowSpec {
+	want := make(map[string]bool, len(flownames))
+	for _, n := range flownames {
+		want[n] = true
+	}
+	var out []trafficFlowSpec
+	for _, s := range specs {
+		if want[s.desc] {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// configureTrafficFlows clears any previously configured flows and (re)configures only
+// the flows named in flownames.
+func configureTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, topo gosnappi.Config, flownames []string) {
+	t.Helper()
+	topo.Flows().Clear()
+	specs := wantFlows(trafficFlowSpecs(), flownames)
+	t.Logf("Traffic config for scenario: %v", specs)
+
+	configureIPv4Traffic(t, topo, specs)
+	configureIPv6Traffic(t, topo, specs)
+	configureEncappedTraffic(t, topo, specs)
+
+	ate.OTG().PushConfig(t, topo)
+}
+
+// configureIPv4Traffic - create plain (non-encapped) IPv4 traffic flows in ATE, bound to
+// the IPv4 BGP-advertised networks (v4NetName1 -> v4NetName2).
+func configureIPv4Traffic(t *testing.T, topo gosnappi.Config, specs []trafficFlowSpec) {
+	t.Helper()
+	for _, tc := range specs {
+		if tc.ipType != "ipv4" {
+			continue
+		}
+		t.Logf("Configure IPv4 traffic from ATE with flowname %s", tc.desc)
+		flow := topo.Flows().Add().SetName(tc.desc)
 		flow.Metrics().SetEnable(true)
 		flow.TxRx().Device().SetTxNames([]string{v4NetName1}).SetRxNames([]string{v4NetName2})
 		ethHeader := flow.Packet().Add().Ethernet()
 		ethHeader.Src().SetValue(atePort1.MAC)
 		ethHeader.Dst().Auto()
+		ipHeader := flow.Packet().Add().Ipv4()
+		ipHeader.Src().SetValue(tc.srcIp)
+		ipHeader.Dst().SetValue(tc.dstIp)
+		ipHeader.Priority().Dscp().Phb().SetValue(uint32(tc.priority))
+		udpHeader := flow.Packet().Add().Udp()
+		udpHeader.SrcPort().SetValue(14)
+		udpHeader.DstPort().SetValue(uint32(15))
+		flow.Size().SetFixed(uint32(packetSize))
+		flow.Rate().SetPps(packetPerSecond)
+		flow.Duration().FixedPackets().SetPackets(packetPerSecond)
+	}
+}
+
+// configureIPv6Traffic - create plain (non-encapped) IPv6 traffic flows in ATE, bound to
+// the IPv6 BGP-advertised networks (v6NetName1 -> v6NetName2).
+func configureIPv6Traffic(t *testing.T, topo gosnappi.Config, specs []trafficFlowSpec) {
+	t.Helper()
+	for _, tc := range specs {
+		if tc.ipType != "ipv6" {
+			continue
+		}
+		t.Logf("Configure IPv6 traffic from ATE with flowname %s", tc.desc)
+		flow := topo.Flows().Add().SetName(tc.desc)
+		flow.Metrics().SetEnable(true)
+		flow.TxRx().Device().SetTxNames([]string{v6NetName1}).SetRxNames([]string{v6NetName2})
+		ethHeader := flow.Packet().Add().Ethernet()
+		ethHeader.Src().SetValue(atePort1.MAC)
+		ethHeader.Dst().Auto()
+		ipHeader := flow.Packet().Add().Ipv6()
+		ipHeader.Src().SetValue(tc.srcIp)
+		ipHeader.Dst().SetValue(tc.dstIp)
+		ipHeader.TrafficClass().SetValue(uint32(tc.priority))
+		udpHeader := flow.Packet().Add().Udp()
+		udpHeader.SrcPort().SetValue(14)
+		udpHeader.DstPort().SetValue(uint32(15))
+		flow.Size().SetFixed(uint32(packetSize))
+		flow.Rate().SetPps(packetPerSecond)
+		flow.Duration().FixedPackets().SetPackets(packetPerSecond)
+	}
+}
+
+// configureEncappedTraffic configures GUE-encapsulated IPv4-over-IPv6 and IPv6-over-IPv6 traffic flows on the ATE.
+func configureEncappedTraffic(t *testing.T, topo gosnappi.Config, specs []trafficFlowSpec) {
+	t.Helper()
+	for _, tc := range specs {
+		if tc.ipType != "ipv4oipv6" && tc.ipType != "ipv6oipv6" {
+			continue
+		}
+		t.Logf("Configure GUE-encapped traffic from ATE with flowname %s", tc.desc)
+		flow := topo.Flows().Add().SetName(tc.desc)
+		flow.Metrics().SetEnable(true)
+		flow.TxRx().Device().SetTxNames([]string{v6NetName1}).SetRxNames([]string{v6NetName2})
+		ethHeader := flow.Packet().Add().Ethernet()
+		ethHeader.Src().SetValue(atePort1.MAC)
+		ethHeader.Dst().Auto()
+
+		outerIpHeader := flow.Packet().Add().Ipv6()
+		outerIpHeader.Src().SetValue(atePort1.IPv6)
+		outerIpHeader.Dst().SetValue(dutlo0Attrs.IPv6)
+		outerIpHeader.TrafficClass().SetValue(uint32(tc.priority))
+		outerudpHeader := flow.Packet().Add().Udp()
+		outerudpHeader.SrcPort().SetValue(5996)
+		outerudpHeader.DstPort().SetValue(uint32(guePort))
+
 		switch tc.ipType {
-		case "ipv4oipv4":
-			outerIpHeader := flow.Packet().Add().Ipv4()
-			outerIpHeader.Src().SetValue(atePort1.IPv4)
-			outerIpHeader.Dst().SetValue(dutlo0Attrs.IPv4)
-			outerIpHeader.Priority().Dscp().Phb().SetValue(uint32(tc.priority))
-			outerudpHeader := flow.Packet().Add().Udp()
-			outerudpHeader.SrcPort().SetValue(5996)
-			outerudpHeader.DstPort().SetValue(uint32(guePort))
+		case "ipv4oipv6":
 			innerIpHeader := flow.Packet().Add().Ipv4()
 			innerIpHeader.Src().SetValue(tc.srcIp)
 			innerIpHeader.Dst().SetValue(tc.dstIp)
@@ -706,14 +919,7 @@ func configureIPv4Traffic(t *testing.T, ate *ondatra.ATEDevice, topo gosnappi.Co
 			innerudpHeader := flow.Packet().Add().Udp()
 			innerudpHeader.SrcPort().SetValue(14)
 			innerudpHeader.DstPort().SetValue(uint32(15))
-		case "ipv6oipv4":
-			outerIpHeader := flow.Packet().Add().Ipv4()
-			outerIpHeader.Src().SetValue(atePort1.IPv4)
-			outerIpHeader.Dst().SetValue(dutlo0Attrs.IPv4)
-			outerIpHeader.Priority().Dscp().Phb().SetValue(uint32(tc.priority))
-			outerudpHeader := flow.Packet().Add().Udp()
-			outerudpHeader.SrcPort().SetValue(5996)
-			outerudpHeader.DstPort().SetValue(uint32(guePort))
+		case "ipv6oipv6":
 			innerIpHeader := flow.Packet().Add().Ipv6()
 			innerIpHeader.Src().SetValue(tc.srcIp)
 			innerIpHeader.Dst().SetValue(tc.dstIp)
@@ -721,34 +927,90 @@ func configureIPv4Traffic(t *testing.T, ate *ondatra.ATEDevice, topo gosnappi.Co
 			innerudpHeader := flow.Packet().Add().Udp()
 			innerudpHeader.SrcPort().SetValue(14)
 			innerudpHeader.DstPort().SetValue(uint32(15))
-		case "ipv4":
-			ipHeader := flow.Packet().Add().Ipv4()
-			ipHeader.Src().SetValue(tc.srcIp)
-			ipHeader.Dst().SetValue(tc.dstIp)
-			ipHeader.Priority().Dscp().Phb().SetValue(uint32(tc.priority))
-			udpHeader := flow.Packet().Add().Udp()
-			udpHeader.SrcPort().SetValue(14)
-			udpHeader.DstPort().SetValue(uint32(15))
-		case "ipv6":
-			ipHeader := flow.Packet().Add().Ipv6()
-			ipHeader.Src().SetValue(tc.srcIp)
-			ipHeader.Dst().SetValue(tc.dstIp)
-			ipHeader.TrafficClass().SetValue(uint32(tc.priority))
-			udpHeader := flow.Packet().Add().Udp()
-			udpHeader.SrcPort().SetValue(14)
-			udpHeader.DstPort().SetValue(uint32(15))
 		}
 		flow.Size().SetFixed(uint32(packetSize))
 		flow.Rate().SetPps(packetPerSecond)
 		flow.Duration().FixedPackets().SetPackets(packetPerSecond)
 	}
-	ate.OTG().PushConfig(t, topo)
 }
 
-// verifyLeakedRoutes - verify ip routes in no default VRF
+// isEncappedFlow reports whether a flow name denotes a GUE-encapped flow, per the
+// README's "*_encapped" flow-type naming.
+func isEncappedFlow(name string) bool {
+	return strings.HasSuffix(name, "_encapped")
+}
+
+type decapCounterSnapshot struct {
+	matchedPkts     uint64
+	port1InUnicast  uint64
+	port2OutUnicast uint64
+}
+
+// readDecapMatchedPkts reads the current interface and policy-rule packet counters for decapsulation traffic validation.
+func readDecapMatchedPkts(t *testing.T, dut *ondatra.DUTDevice) decapCounterSnapshot {
+	t.Helper()
+	snap := decapCounterSnapshot{
+		port1InUnicast:  gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Counters().InUnicastPkts().State()),
+		port2OutUnicast: gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port2").Name()).Counters().OutUnicastPkts().State()),
+	}
+	if !deviations.PolicyRuleCountersOCUnsupported(dut) {
+		matchedPktsPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Policy(policyName).Rule(policyId).MatchedPkts().State()
+		if v, ok := gnmi.Lookup(t, dut, matchedPktsPath).Val(); ok {
+			snap.matchedPkts = v
+		}
+	}
+	return snap
+}
+
+// verifyDecapCounters verifies that decapsulation packet counters increase as expected for GUE-encapsulated traffic.
+func verifyDecapCounters(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, flownames []string, before decapCounterSnapshot) {
+	t.Helper()
+	var encapped []string
+	var wantDecapped uint64
+	for _, name := range flownames {
+		if !isEncappedFlow(name) {
+			continue
+		}
+		encapped = append(encapped, name)
+		wantDecapped += gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(name).Counters().OutPkts().State())
+	}
+	if len(encapped) == 0 {
+		return
+	}
+
+	if deviations.PolicyRuleCountersOCUnsupported(dut) {
+		after := readDecapMatchedPkts(t, dut)
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			ingressPkt := after.port1InUnicast - before.port1InUnicast
+			egressPkt := after.port2OutUnicast - before.port2OutUnicast
+			t.Logf("Decap fallback counters for flows %v: ingressPkt=%d egressPkt=%d want>=%d", encapped, ingressPkt, egressPkt, wantDecapped)
+			if ingressPkt < wantDecapped || egressPkt == 0 {
+				t.Errorf("Interface counters didn't reflect decapsulated packets for flows %v: ingressPkt=%d (want >= %d), egressPkt=%d (want > 0)", encapped, ingressPkt, wantDecapped, egressPkt)
+			}
+		default:
+			t.Logf("deviation PolicyRuleCountersOCUnsupported set for vendor %v without a handled fallback; skipping decap counter validation", dut.Vendor())
+		}
+		return
+	}
+
+	matchedPktsPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Policy(policyName).Rule(policyId).MatchedPkts().State()
+	wantTotal := before.matchedPkts + wantDecapped
+	val, ok := gnmi.Watch(t, dut, matchedPktsPath, decapCounterTimeout, func(v *ygnmi.Value[uint64]) bool {
+		got, present := v.Val()
+		return present && got >= wantTotal
+	}).Await(t)
+	got, _ := val.Val()
+	t.Logf("Decap matched-packets for flows %v: before=%d after=%d delta=%d want>=%d", encapped, before.matchedPkts, got, got-before.matchedPkts, wantDecapped)
+	if !ok {
+		t.Errorf("Decap matched-packets count got %d, want >= %d (packets sent by ATE:Port1 for flows %v)", got-before.matchedPkts, wantDecapped, encapped)
+	}
+}
+
+// verifyLeakedRoutes - verify IPv4 routes leaked into the non-default VRF
 func verifyLeakedRoutes(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	routes := []string{IPv4Prefix1, IPv4Prefix2, IPv4Prefix3, IPv4Prefix4, IPv4Prefix5, IPv4Prefix6, IPv4Prefix7, IPv4Prefix8, IPv4Prefix9, IPv4Prefix10}
+	routes := []string{leakedIPv4Network1, leakedIPv4Network2, leakedIPv4Network3, leakedIPv4Network4, leakedIPv4Network5, leakedIPv4Network6, leakedIPv4Network7, leakedIPv4Network8, leakedIPv4Network9, leakedIPv4Network10}
 	for _, adroute := range routes {
 		advroute := adroute + "/" + strconv.Itoa(advertiseIpv4PrefixLength)
 		t.Logf("Verifying leaked route %s in %s", advroute, nonDefaultVrfName)
@@ -764,6 +1026,37 @@ func verifyLeakedRoutes(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
+// verifyLeakedRoutesV6 - verify IPv6 routes leaked into the non-default VRF
+func verifyLeakedRoutesV6(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	routes := []string{
+		leakedIPv6Network1, leakedIPv6Network2, leakedIPv6Network3, leakedIPv6Network4, leakedIPv6Network5,
+		leakedIPv6Network6, leakedIPv6Network7, leakedIPv6Network8, leakedIPv6Network9, leakedIPv6Network10,
+	}
+
+	for _, adroute := range routes {
+		pfx, err := netip.ParsePrefix(fmt.Sprintf("%s/%d", adroute, advertiseIpv6PrefixLength))
+		if err != nil {
+			t.Fatalf("Invalid IPv6 prefix %s/%d: %v", adroute, advertiseIpv6PrefixLength, err)
+		}
+		advroute := pfx.String()
+		t.Logf("Verifying leaked route %s in %s", advroute, nonDefaultVrfName)
+
+		aftVrf2 := gnmi.OC().NetworkInstance(nonDefaultVrfName).Afts().Ipv6Entry(advroute)
+		_, ok := gnmi.Watch(t, dut, aftVrf2.State(), 15*time.Second, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
+			return val.IsPresent()
+		}).Await(t)
+
+		if !ok {
+			t.Errorf("Route %s was not leaked into %s unexpectedly", advroute, nonDefaultVrfName)
+		} else {
+			t.Logf("Route %s was successfully leaked into %s as expected", advroute, nonDefaultVrfName)
+		}
+	}
+}
+
+// configureHardwareInit applies the required hardware initialization configuration for
+// the test. Not registered with t.Cleanup since these platform features need a reboot to revert.
 func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 	hardwareInitCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureVrfSelectionExtended)
 	hardwareInitCfg1 := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeaturePolicyForwarding)

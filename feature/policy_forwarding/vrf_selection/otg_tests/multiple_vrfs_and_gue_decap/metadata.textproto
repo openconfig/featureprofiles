@@ -15,5 +15,7 @@ platform_exceptions: {
     default_network_instance: "default"
     gue_gre_decap_unsupported: true
     network_instance_import_export_policy_oc_unsupported: true
+    default_bgp_instance_name: "BGP"
+    policy_rule_counters_oc_unsupported: true
   }
 }
