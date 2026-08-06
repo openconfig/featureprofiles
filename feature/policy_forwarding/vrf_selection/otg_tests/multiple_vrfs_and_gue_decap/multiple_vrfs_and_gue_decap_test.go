@@ -284,9 +284,9 @@ func configureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
 	p1 := dut.Port(t, "port1")
 	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(p1, dutPort1, dut))
-	t.Cleanup(func() {
-		gnmi.Delete(t, dut, d.Interface(p1.Name()).Config())
-	})
+t.Cleanup(func() {
+	gnmi.Delete(t, dut, d.Interface(p1.Name()).Subinterface(0).Config())
+})
 	p2 := dut.Port(t, "port2")
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(p2, dutPort2, dut))
 	t.Cleanup(func() {
