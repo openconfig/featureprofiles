@@ -655,7 +655,8 @@ func createHibaKeysGen(t *testing.T, hibaCa, hibaGen, keysDir string) {
 		hibaCa,
 		"-c",
 		"-d", keysDir, // output to the temp dir
-		"--",           // pass the rest to ssh-keygen
+		"--",            // pass the rest to ssh-keygen
+		"-t", "ed25519", // force ED25519 key type
 		"-q", "-N", "", // quiet, empty passphrase
 
 	)
@@ -670,6 +671,7 @@ func createHibaKeysGen(t *testing.T, hibaCa, hibaGen, keysDir string) {
 		"-d", keysDir,
 		"-u", "-I", userKey,
 		"--",
+		"-t", "ed25519",
 		"-q", "-N", "",
 	)
 	err = userKeyCmd.Run()
@@ -683,6 +685,7 @@ func createHibaKeysGen(t *testing.T, hibaCa, hibaGen, keysDir string) {
 		"-d", keysDir,
 		"-h", "-I", dutKey,
 		"--",
+		"-t", "ed25519",
 		"-q", "-N", "",
 	)
 	err = dutKeyCmd.Run()
