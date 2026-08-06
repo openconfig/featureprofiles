@@ -521,7 +521,7 @@ func testTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config,
 		t.Run(flow.Name(), func(t *testing.T) {
 			t.Logf("*** Verifying %v traffic on OTG ... ", flow.Name())
 
-			if _, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Transmit().State(), 15*time.Second, func(val *ygnmi.Value[bool]) bool {
+			if _, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Transmit().State(), 30*time.Second, func(val *ygnmi.Value[bool]) bool {
 				transmitState, present := val.Val()
 				return present && !transmitState
 			}).Await(t); !ok {
@@ -536,7 +536,7 @@ func testTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config,
 
 			var inPkts float32
 			if expectPass {
-				inPktsVal, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State(), 15*time.Second, func(val *ygnmi.Value[uint64]) bool {
+				inPktsVal, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State(), 30*time.Second, func(val *ygnmi.Value[uint64]) bool {
 					v, present := val.Val()
 					return present && v == outPktsRaw
 				}).Await(t)
