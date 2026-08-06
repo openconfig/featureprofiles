@@ -1420,6 +1420,23 @@ message Metadata {
     // Devices that do not support afts global filter policy
     // Arista: https://partnerissuetracker.corp.google.com/issues/514565554
     bool afts_global_filter_policy_oc_unsupported = 446;
+    
+    // Devices that do not support configuring aigp action in bgp route policy 
+    // CISCO: https://partnerissuetracker.corp.google.com/issues/465200087
+    // JUNIPER: https://partnerissuetracker.corp.google.com/issues/465200563
+    // ARISTA: https://partnerissuetracker.corp.google.com/issues/465200085
+    // NOKIA: https://partnerissuetracker.corp.google.com/issues/465200305
+    bool aigp_route_metric_not_supported = 447;
+
+    // Devices that do not support OC for neighbor adjacencies rib 
+    // CISCO: https://partnerissuetracker.corp.google.com/issues/510713780
+    // JUNIPER: https://partnerissuetracker.corp.google.com/issues/510723665
+    // ARISTA: https://partnerissuetracker.corp.google.com/issues/510723664
+    // NOKIA: https://partnerissuetracker.corp.google.com/issues/510725200
+    bool bgp_adj_rib_oc_unsupported = 449;
+
+    // Devices that donot support AIGP metric increment when IGP metric to original destination is zero
+    bool aigp_metric_increment = 450;
 
     // Device containerz service presents a self-signed TLS certificate that cannot
     // be verified against a trusted CA. When true, dialContainer uses TLS with
