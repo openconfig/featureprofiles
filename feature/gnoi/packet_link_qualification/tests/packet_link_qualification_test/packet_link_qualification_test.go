@@ -77,7 +77,8 @@ type LinkQualificationDuration struct {
 }
 
 const (
-	ipv4PLen = 30
+	ipv4PLen              = 30
+	lagConvergenceTimeout = 12 * time.Minute
 )
 
 var (
@@ -380,8 +381,8 @@ func configureDUTAggregate(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Po
 	}
 
 	// Wait for LAG interfaces to be UP
-	gnmi.Await(t, dut, gnmi.OC().Interface(aggID1).OperStatus().State(), 12*time.Minute, oc.Interface_OperStatus_UP)
-	gnmi.Await(t, dut, gnmi.OC().Interface(aggID2).OperStatus().State(), 12*time.Minute, oc.Interface_OperStatus_UP)
+	gnmi.Await(t, dut, gnmi.OC().Interface(aggID1).OperStatus().State(), lagConvergenceTimeout, oc.Interface_OperStatus_UP)
+	gnmi.Await(t, dut, gnmi.OC().Interface(aggID2).OperStatus().State(), lagConvergenceTimeout, oc.Interface_OperStatus_UP)
 }
 
 func testLinkQualification(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Port, dp2 *ondatra.Port, plqID string, aggregate bool) {
