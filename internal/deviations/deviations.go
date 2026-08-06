@@ -1096,6 +1096,7 @@ func Ipv6RouterAdvertisementIntervalUnsupported(dut *ondatra.DUTDevice) bool {
 }
 
 // DecapNHWithNextHopNIUnsupported returns true if Decap NH with NextHopNetworkInstance is unsupported
+// Arista: https://issuetracker.google.com/512135230
 func DecapNHWithNextHopNIUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDecapNhWithNexthopNiUnsupported()
 }
@@ -1880,6 +1881,14 @@ func NonStandardGRPCPort(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNonStandardGrpcPort()
 }
 
+// ContainerzTLSInsecureSkipVerify returns true if the device's containerz
+// service presents a self-signed TLS certificate that cannot be verified
+// against a trusted CA. When true, dialContainer uses TLS with
+// InsecureSkipVerify. Default value is false.
+func ContainerzTLSInsecureSkipVerify(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetContainerzTlsInsecureSkipVerify()
+}
+
 // TemperatureSensorCheck returns true if the transceiver subcomponent should look for the temperature sensor
 func TemperatureSensorCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTemperatureSensorCheck()
@@ -1907,6 +1916,12 @@ func NoQueueDropUnsupported(dut *ondatra.DUTDevice) bool {
 // Arista: https://issuetracker.google.com/456175793
 func InterfaceEthernetInblockErrorsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfaceEthernetInblockErrorsUnsupported()
+}
+
+// WithIPAddressUnsupported returns true when an indirect next-hop (direct interface IP) with forwarding viable is used, since this is not supported.
+// Nokia b/428883444
+func ForwardingViableFailoverWithIndirectNHUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetForwardingViableFailoverWithIndirectNhUnsupported()
 }
 
 // CiscoxrTransceiverFt returns the functional translator to be used for translating
@@ -2242,4 +2257,78 @@ func UseInterfaceNameForIBGPNeighborTransportIpv4LocalAddress(dut *ondatra.DUTDe
 // Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/523054650
 func InterfaceIDFormatRequiredForPolicyForwarding(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfaceIdFormatRequiredForPolicyForwarding()
+}
+
+// UseChassisAggregateUtilization returns true for devices that report resource
+// utilization at the chassis component level rather than at the
+// integrated-circuit component level.
+// Arista: https://partnerissuetracker.corp.google.com/issues/523026741
+func UseChassisAggregateUtilization(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUseChassisAggregateUtilization()
+}
+
+// UnreferencedAftFibAckUnsupported returns true if no FIB_ACK for unreferenced NH/NHG entries
+func UnreferencedAftFibAckUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUnreferencedAftFibAckUnsupported()
+}
+
+// StaticRouteNexthopInterfaceStateOcUnsupported returns true if the device does not support state for static route next-hop interface.
+// Arista: b/494493377
+func StaticRouteNexthopInterfaceStateOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticRouteNexthopInterfaceStateOcUnsupported()
+}
+
+// LacpInterfaceFallbackOCUnsupported returns true if the device does not support OC config for port channel fallback and timeout.
+// Arista: https://partnerissuetracker.corp.google.com/issues/492458024
+func LacpInterfaceFallbackOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLacpInterfaceFallbackOcUnsupported()
+}
+
+// VlanSubinterfaceOCUnsupported returns true if the device does not support OC config for VLAN subinterfaces.
+// Arista: https://partnerissuetracker.corp.google.com/issues/494280147
+func VlanSubinterfaceOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetVlanSubinterfaceOcUnsupported()
+}
+
+// MaxOutFIBRouteCount returns routecount if the device has a max route count based on specific platform
+// For devices which has different max route count based on platform, this deviation can be used to set the max route count for the device.
+// This will be used in scale test cases to set the max route count for the device.
+func MaxOutFIBRouteCount(dut *ondatra.DUTDevice) uint32 {
+	if routeCount := lookupDUTDeviations(dut).GetMaxOutFibRouteCount(); routeCount != 0 {
+		return routeCount
+	}
+	return 2500000
+}
+
+// IpsecOcUnsupported returns if device does not support OC configuration for IPSec.
+func IpsecOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIpsecOcUnsupported()
+}
+
+// StaticRouteInVrfOcUnsupported returns true if device does not support OC configuration for static route in VRF.
+func StaticRouteInVrfOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticRouteInVrfOcUnsupported()
+}
+
+// IpRoutingInVrfOcUnsupported returns true if device does not support OC configuration for IP routing in VRF.
+func IpRoutingInVrfOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIpRoutingInVrfOcUnsupported()
+}
+
+// MacsecOcUnsupported returns true if device does not support OC configuration for MACSEC.
+func MacsecOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMacsecOcUnsupported()
+}
+
+// AftsGlobalFilterPolicyOCUnsupported returns true if "/network-instances/network-instance/afts/global-filter-policy" OC path is not supported.
+// Arista: b/514565554
+func AftsGlobalFilterPolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAftsGlobalFilterPolicyOcUnsupported()
+}
+
+// AftsGlobalFilterPolicyConfigReferenceValidationUnsupported returns true if the
+// device does not validate references from an AFT global-filter policy.
+// Arista: https://partnerissuetracker.corp.google.com/issues/491765154#comment10
+func AftsGlobalFilterPolicyConfigReferenceValidationUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAftsGlobalFilterPolicyConfigReferenceValidationUnsupported()
 }

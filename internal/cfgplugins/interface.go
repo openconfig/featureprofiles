@@ -42,6 +42,15 @@ const (
 	targetOutputPowerTolerancedBm = 1
 	targetFrequencyMHz            = 193100000
 	targetFrequencyToleranceMHz   = 100000
+
+	vlanInterfaceCLITemplate = `interface vlan %d
+   ip address %s/%d
+   ipv6 address %s/%d
+`
+	interfaceFallbackCLITemplate = `interface %s
+   port-channel lacp fallback individual
+   port-channel lacp fallback timeout %d
+`
 )
 
 // DUTSubInterfaceData is the data structure for a subinterface in the DUT.
@@ -1112,6 +1121,28 @@ func ConfigureSubinterfaceIPs(s *oc.Interface_Subinterface, dut *ondatra.DUTDevi
 	}
 }
 
+type AccessVlanParams struct {
+	Intf   *oc.Interface
+	VlanID uint16
+}
+
+// ConfigureAccessVlan sets the interface to ACCESS mode with given VLAN ID.
+func ConfigureAccessVlan(p AccessVlanParams) {
+	i := p.Intf
+
+	// Remove L3 config (force L2 mode)
+	i.Subinterface = nil
+
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+
+	eth := i.GetOrCreateEthernet()
+
+	// Configure switched VLAN
+	swVlan := eth.GetOrCreateSwitchedVlan()
+	swVlan.SetInterfaceMode(oc.Vlan_VlanModeType_ACCESS)
+	swVlan.SetAccessVlan(p.VlanID)
+}
+
 // assignSubifsToDefaultNetworkInstance assigns the subinterfaces to the default network instance.
 func (a *Attributes) assignSubifsToDefaultNetworkInstance(t *testing.T, d *ondatra.DUTDevice) {
 	if !deviations.ExplicitInterfaceInDefaultVRF(d) {
@@ -1339,8 +1370,58 @@ func ConfigureVlan(t *testing.T, dut *ondatra.DUTDevice, cfg VlanParams) {
 			t.Logf("Unsupported vendor %s for native command support for deviation 'Vlan ID'", dut.Vendor())
 		}
 	} else {
-		t.Log("Currently do not have support to configure VLAN and spanning-tree through OC, need to uncomment once implemented")
+		t.Log("Configuring VLAN using OpenConfig global VLAN model")
+
+		vi := &oc.NetworkInstance_Vlan{
+			VlanId: ygot.Uint16(uint16(cfg.VlanID)),
+			Name:   ygot.String(fmt.Sprintf("VLAN_%d", cfg.VlanID)),
+		}
+
+		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Vlan(uint16(cfg.VlanID)).Config(), vi)
 	}
+}
+
+// SVIParams holds the addressing and naming details for the SVI.
+type SVIParams struct {
+	IntfName string
+	IPv4     string
+	IPv4Len  uint8
+	IPv6     string
+	IPv6Len  uint8
+}
+
+// ConfigureSVI configures an L3 VLAN interface with IPv4 and IPv6 addresses.
+func ConfigureSVI(t *testing.T, dut *ondatra.DUTDevice, params SVIParams) {
+	t.Helper()
+	t.Logf("Configuring SVI: %s", params.IntfName)
+
+	// Initialize the Interface object with the L3 VLAN type
+	svi := &oc.Interface{
+		Name: ygot.String(params.IntfName),
+		Type: oc.IETFInterfaces_InterfaceType_l3ipvlan,
+	}
+
+	// Handle vendor-specific interface enabled deviation
+	if deviations.InterfaceEnabled(dut) {
+		svi.Enabled = ygot.Bool(true)
+	}
+
+	// Navigate to the RoutedVlan container (subinterface-like layer for SVIs)
+	rv := svi.GetOrCreateRoutedVlan()
+
+	// IPv4 Configuration
+	v4 := rv.GetOrCreateIpv4()
+	v4Addr := v4.GetOrCreateAddress(params.IPv4)
+	v4Addr.PrefixLength = ygot.Uint8(params.IPv4Len)
+
+	// IPv6 Configuration
+	v6 := rv.GetOrCreateIpv6()
+	v6.Enabled = ygot.Bool(true)
+	v6Addr := v6.GetOrCreateAddress(params.IPv6)
+	v6Addr.PrefixLength = ygot.Uint8(params.IPv6Len)
+
+	// Apply the configuration via gNMI Replace
+	gnmi.Replace(t, dut, gnmi.OC().Interface(params.IntfName).Config(), svi)
 }
 
 // AddressFamilyParams defines parameters for IPv4/v6 interfaces.
@@ -1372,4 +1453,50 @@ func IsIPv6InterfaceARPresolved(t *testing.T, ate *ondatra.ATEDevice, cfg Addres
 		}
 	}
 	return nil
+}
+
+func CreateVlanFromOC(t *testing.T, dut *ondatra.DUTDevice, vlanBatch *gnmi.SetBatch, networkInstance string, vlan DUTSubInterfaceData) {
+	vlanName := fmt.Sprintf("vlan%d", vlan.VlanID)
+	root := &oc.Root{}
+	vlanObj := root.GetOrCreateNetworkInstance(networkInstance).GetOrCreateVlan(uint16(vlan.VlanID))
+	vlanObj.Name = ygot.String(vlanName)
+	vlanObj.VlanId = ygot.Uint16(uint16(vlan.VlanID))
+	gnmi.BatchReplace(vlanBatch, gnmi.OC().NetworkInstance(networkInstance).Vlan(uint16(vlan.VlanID)).Config(), vlanObj)
+}
+
+func ConfigureVlanInterfaceFromCLI(t *testing.T, dut *ondatra.DUTDevice, vlan DUTSubInterfaceData) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		cli := fmt.Sprintf(vlanInterfaceCLITemplate, vlan.VlanID, vlan.IPv4Address, vlan.IPv4PrefixLen, vlan.IPv6Address, vlan.IPv6PrefixLen)
+		helpers.GnmiCLIConfig(t, dut, cli)
+	default:
+		t.Fatalf("VLAN interface CLI deviation not implemented for vendor: %s", dut.Vendor())
+	}
+}
+
+func ConfigureVlanInterfaceFromOC(t *testing.T, dut *ondatra.DUTDevice, vlanBatch *gnmi.SetBatch, vlan DUTSubInterfaceData) {
+	root := &oc.Root{}
+	vlanName := fmt.Sprintf("vlan%d", vlan.VlanID)
+	vlanIntf := root.GetOrCreateInterface(vlanName)
+	vlanIntf.Type = oc.IETFInterfaces_InterfaceType_l3ipvlan
+	vlanIntf.Enabled = ygot.Bool(true)
+	vlanIPv4 := vlanIntf.GetOrCreateSubinterface(0).GetOrCreateIpv4()
+	vlanIPv4.Enabled = ygot.Bool(true)
+	vlanIPv4.GetOrCreateAddress(vlan.IPv4Address.String()).PrefixLength = ygot.Uint8(uint8(vlan.IPv4PrefixLen))
+	vlanIPv6 := vlanIntf.GetOrCreateSubinterface(0).GetOrCreateIpv6()
+	vlanIPv6.Enabled = ygot.Bool(true)
+	vlanIPv6.GetOrCreateAddress(vlan.IPv6Address.String()).PrefixLength = ygot.Uint8(uint8(vlan.IPv6PrefixLen))
+	gnmi.BatchReplace(vlanBatch, gnmi.OC().Interface(vlanName).Config(), vlanIntf)
+}
+
+func ConfigureLACPFallbackCLI(t *testing.T, dut *ondatra.DUTDevice, lagIntfName string, timeoutSecs uint16) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		cli := fmt.Sprintf(interfaceFallbackCLITemplate, lagIntfName, timeoutSecs)
+		helpers.GnmiCLIConfig(t, dut, cli)
+	default:
+		t.Fatalf("configureLACPFallbackCLI: unsupported vendor %s", dut.Vendor())
+	}
 }
