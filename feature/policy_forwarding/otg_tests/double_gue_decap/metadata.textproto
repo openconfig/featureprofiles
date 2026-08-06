@@ -1,7 +1,7 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "c356db98-353f-4e56-b242-902f5310a799"
-plan_id: "RT-1.66"
-description: "IPv4 Static Route with IPv6 Next-Hop"
+uuid: "7a174892-6dfa-4a16-9a21-e278551002e4"
+plan_id: "PF-1.26"
+description: "Double GUEv1 Decapsulation for Overlay Probing"
 testbed: TESTBED_DUT_ATE_4LINKS

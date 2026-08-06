@@ -37,7 +37,7 @@ platform_exceptions: {
   }
   deviations: {
     prefix_limit_config_unsupported: true
-    default_bgp_instance_name: "default"
+    default_bgp_instance_name: "BGP"
   }
 }
 platform_exceptions: {
