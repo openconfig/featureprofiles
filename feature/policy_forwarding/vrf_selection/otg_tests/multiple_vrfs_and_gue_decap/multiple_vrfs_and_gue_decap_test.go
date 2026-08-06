@@ -289,9 +289,9 @@ t.Cleanup(func() {
 })
 	p2 := dut.Port(t, "port2")
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(p2, dutPort2, dut))
-	t.Cleanup(func() {
-		gnmi.Delete(t, dut, d.Interface(p2.Name()).Config())
-	})
+t.Cleanup(func() {
+	gnmi.Delete(t, dut, d.Interface(p2.Name()).Subinterface(0).Config())
+})
 	configureLoopbackInterface(t, dut)
 }
 
