@@ -204,6 +204,9 @@ func TestBGPSetup(t *testing.T) {
 	case ondatra.NOKIA:
 		//BGP multipath enable/disable at the peer-group level not required b/376799583
 		t.Logf("BGP Multipath enable/disable is not required under Peer-group by %s hence skipping", bs.DUT.Vendor())
+	case ondatra.JUNIPER:
+		//BGP multipath enable/disable at the peer-group level not supported
+		bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().Enabled = ygot.Bool(true)
 	default:
 		bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().Enabled = ygot.Bool(true)
 	}
@@ -212,7 +215,7 @@ func TestBGPSetup(t *testing.T) {
 		bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD, oc.Bgp_CommunityType_EXTENDED, oc.Bgp_CommunityType_LARGE})
 	}
 
-	if deviations.MultipathUnsupportedNeighborOrAfisafi(bs.DUT) {
+	if !deviations.MultipathUnsupportedNeighborOrAfisafi(bs.DUT) {
 		t.Logf("MultipathUnsupportedNeighborOrAfisafi is supported")
 		bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).GetOrCreateUseMultiplePaths().Enabled = ygot.Bool(true)
 		bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).GetOrCreateUseMultiplePaths().GetOrCreateEbgp().AllowMultipleAs = ygot.Bool(true)
@@ -245,9 +248,13 @@ func TestBGPSetup(t *testing.T) {
 		}
 	} else {
 		gEBGP := bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp()
-		gEBGP.SetAllowMultipleAs(true)
-		gEBGP.SetMaximumPaths(maxPaths)
+		if !deviations.MultipathUnsupportedNeighborOrAfisafi() {
+			gEBGP.SetAllowMultipleAs(true)
+		}
 		gEBGP.GetOrCreateLinkBandwidthExtCommunity().SetEnabled(true)
+		if !deviations.BgpMaxMultipathPathsUnsupported(bs.DUT) {
+			gEBGP.SetMaximumPaths(maxPaths)
+		}
 	}
 
 	configureOTG(t, bs)
