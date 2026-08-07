@@ -15,6 +15,7 @@
 package base_bgp_session_parameters_test
 
 import (
+	"slices"
 	"testing"
 	"time"
 
@@ -49,6 +50,7 @@ var (
 		IPv4:    "192.0.2.2",
 		IPv4Len: 30,
 	}
+	kneDeviceModelList = []string{"ncptx"}
 )
 
 // Constants.
@@ -414,7 +416,8 @@ func TestPassword(t *testing.T) {
 
 	// If the DUT will not fail a BGP session when the BGP MD5 key configuration changes,
 	// change the key from the ATE side to time out the session.
-	if deviations.BGPMD5RequiresReset(dut) {
+	if slices.Contains(kneDeviceModelList, dut.Model()) || deviations.BGPMD5RequiresReset(dut) {
+		t.Logf("DUT Model: %s", dut.Model())
 		port1 := ate.Port(t, "port1")
 		topo := gosnappi.NewConfig()
 
@@ -433,7 +436,6 @@ func TestPassword(t *testing.T) {
 		peerBGP.SetPeerAddress(ip.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
 		ate.OTG().PushConfig(t, topo)
 		ate.OTG().StartProtocols(t)
-
 	}
 	t.Log("Wait till hold time expires: BGP should not be in ESTABLISHED state when passwords do not match.")
 	_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), (dutHoldTime+10)*time.Second, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
@@ -447,7 +449,7 @@ func TestPassword(t *testing.T) {
 
 	t.Log("Revert md5 auth password on DUT to match with ATE.")
 	gnmi.Replace(t, dut, dutConfPath.Bgp().Neighbor(ateAttrs.IPv4).AuthPassword().Config(), authPassword)
-	if deviations.BGPMD5RequiresReset(dut) {
+	if slices.Contains(kneDeviceModelList, dut.Model()) || deviations.BGPMD5RequiresReset(dut) {
 		topo := configureATE(t, &bgpTestParams{localAS: ateAS, peerIP: dutAttrs.IPv4}, connExternal, md5Auth)
 		t.Log("Pushing config to ATE and starting protocols...")
 		ate.OTG().PushConfig(t, topo)
