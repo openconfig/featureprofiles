@@ -40,6 +40,8 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -445,6 +447,7 @@ func incrementMAC(mac string, i int) (string, error) {
 // <VlanID::TrafficDistribution> that is wanted and compares it to the actual
 // traffic test result.
 func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) map[string]float64 {
+	defer otgutils.LogFlowMetrics(t, ate.OTG(), top)
 
 	dut := ondatra.DUT(t, "dut")
 	dstMac := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
@@ -475,17 +478,38 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) map[
 	time.Sleep(1 * time.Minute)
 	ate.OTG().StopTraffic(t)
 
-	otgutils.LogFlowMetrics(t, ate.OTG(), top)
+	gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flowipv4.Name()).State(), 45*time.Second, func(v *ygnmi.Value[*otgtelemetry.Flow]) bool {
+		val, present := v.Val()
+		if !present {
+			return false
+		}
+		tx := val.GetCounters().GetOutPkts()
+		rx := val.GetCounters().GetInPkts()
+		if tx == 0 {
+			return false
+		}
+		if rx > tx {
+			return false
+		}
+		lossPct := float32(tx-rx) * 100 / float32(tx)
+		return int(lossPct) <= 0
+	}).Await(t)
 
 	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowipv4.Name()).State())
-	txPkts := float32(recvMetric.GetCounters().GetOutPkts())
-	rxPkts := float32(recvMetric.GetCounters().GetInPkts())
-	lossPct := (txPkts - rxPkts) * 100 / txPkts
+	txPkts := recvMetric.GetCounters().GetOutPkts()
+	rxPkts := recvMetric.GetCounters().GetInPkts()
+
 	if txPkts == 0 {
-		t.Fatalf("TxPkts == 0, want > 0.")
+		t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flowipv4.Name())
 	}
-	if lossPct > 0 && recvMetric.GetCounters().GetOutPkts() > 0 {
-		t.Fatalf("Loss Pct for %s got %v, want 0", flowipv4.Name(), lossPct)
+
+	if rxPkts > txPkts {
+		t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", rxPkts, txPkts)
+	}
+
+	lossPct := float32(txPkts-rxPkts) * 100 / float32(txPkts)
+	if int(lossPct) > 0 {
+		t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want <= 0", flowipv4.Name(), lossPct)
 	}
 
 	// Compare traffic distribution with the wanted results.
