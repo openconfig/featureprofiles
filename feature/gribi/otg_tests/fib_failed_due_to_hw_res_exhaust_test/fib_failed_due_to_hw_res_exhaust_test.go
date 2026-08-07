@@ -60,7 +60,7 @@ const (
 	wantLoss         = true
 	dutAS            = 64500
 	ateAS            = 64501
-	advertisedRoutes = "1.0.0.1"
+	advertisedRoutes = "198.18.0.1"
 	tolerancePct     = 2
 	tolerance        = 50
 	plenIPv4         = 30
@@ -474,13 +474,12 @@ type icResourceState struct {
 	HighWatermark uint64
 }
 
-// readICResourceUtilization polls IC resource utilization until it reaches 99%.
+// readICResourceUtilization watches IC resource utilization until it reaches 99%.
 func readICResourceUtilization(t *testing.T, dut *ondatra.DUTDevice) []icResourceState {
 	t.Helper()
 	const (
 		resourceName   = "lpm_tcam_0"
 		targetUsed     = 99
-		pollInterval   = 30 * time.Second
 		pollTimeout    = 15 * time.Minute
 		stabilizeDelay = time.Minute
 	)
@@ -488,55 +487,42 @@ func readICResourceUtilization(t *testing.T, dut *ondatra.DUTDevice) []icResourc
 	if len(comps) == 0 {
 		t.Fatal("No active integrated-circuit components found for TCAM OOR validation")
 	}
-	ticker := time.NewTicker(pollInterval)
-	defer ticker.Stop()
-	timer := time.NewTimer(pollTimeout)
-	defer timer.Stop()
 
-	var lastResults []icResourceState
-	var lastMissing []string
-
-	for {
-		var results []icResourceState
-		var missing []string
-		reachedTarget := false
-		for _, comp := range comps {
-			resourcePath := gnmi.OC().Component(comp).IntegratedCircuit().Utilization().Resource(resourceName)
-			resource, ok := gnmi.Lookup(t, dut, resourcePath.State()).Val()
-			if !ok {
-				missing = append(missing, comp)
-				continue
-			}
-			used := resource.GetUsed()
-			results = append(results, icResourceState{
-				Component:     comp,
-				Used:          used,
-				Free:          resource.GetFree(),
-				MaxLimit:      resource.GetMaxLimit(),
-				HighWatermark: resource.GetHighWatermark(),
-			})
-			t.Logf("IC resource %q on %s: used=%d", resourceName, comp, used)
-			if used >= targetUsed {
-				reachedTarget = true
-			}
-		}
-		if len(results) > 0 {
-			lastResults = results
-		}
-		lastMissing = missing
-
-		if reachedTarget {
-			time.Sleep(stabilizeDelay) // Wait to ensure the resource is stable at the target.
-			return results
-		}
-
-		t.Logf("IC resource %q used has not reached %d; waiting %s before retry", resourceName, targetUsed, pollInterval)
-		select {
-		case <-ticker.C:
-		case <-timer.C:
-			t.Fatalf("Timed out after %s waiting for IC resource %q used >= %d; last observed=%+v; missing telemetry components=%v", pollTimeout, resourceName, targetUsed, lastResults, lastMissing)
+	var validComps []string
+	for _, comp := range comps {
+		resourcePath := gnmi.OC().Component(comp).IntegratedCircuit().Utilization().Resource(resourceName)
+		if _, ok := gnmi.Lookup(t, dut, resourcePath.State()).Val(); ok {
+			validComps = append(validComps, comp)
 		}
 	}
+	if len(validComps) == 0 {
+		t.Fatal("No active integrated-circuit components support TCAM resource telemetry")
+	}
+
+	// Watch the valid components for the target utilization.
+	for _, comp := range validComps {
+		resourcePath := gnmi.OC().Component(comp).IntegratedCircuit().Utilization().Resource(resourceName)
+		gnmi.Watch(t, dut, resourcePath.State(), pollTimeout, func(val *ygnmi.Value[*oc.Component_IntegratedCircuit_Utilization_Resource]) bool {
+			resource, ok := val.Val()
+			return ok && resource.GetUsed() >= targetUsed
+		}).Await(t)
+	}
+
+	time.Sleep(stabilizeDelay)
+
+	var results []icResourceState
+	for _, comp := range validComps {
+		resourcePath := gnmi.OC().Component(comp).IntegratedCircuit().Utilization().Resource(resourceName)
+		resource := gnmi.Get(t, dut, resourcePath.State())
+		results = append(results, icResourceState{
+			Component:     comp,
+			Used:          resource.GetUsed(),
+			Free:          resource.GetFree(),
+			MaxLimit:      resource.GetMaxLimit(),
+			HighWatermark: resource.GetHighWatermark(),
+		})
+	}
+	return results
 }
 
 // awaitTimeout calls a fluent client Await, adding a timeout to the context.
