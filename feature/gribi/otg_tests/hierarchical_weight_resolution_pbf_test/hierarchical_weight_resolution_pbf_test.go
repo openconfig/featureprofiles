@@ -38,6 +38,7 @@ import (
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
