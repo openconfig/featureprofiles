@@ -1962,7 +1962,7 @@ func (fa *flowAttr) createFlow(t *testing.T, cfg gosnappi.Config, flowType, name
 	orderedVRFs := sortedVRFSkewList(vrfDataLists)
 	hasDefault := false
 	for _, vrf := range orderedVRFs {
-		if strings.EqualFold(vrf.VRF, "default") {
+		if strings.EqualFold(vrf.VRF, strings.ToLower("DEFAULT")) {
 			hasDefault = true
 			break
 		}
