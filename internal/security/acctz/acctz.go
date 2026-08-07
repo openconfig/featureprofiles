@@ -279,8 +279,31 @@ func juniperSetup(t *testing.T, dut *ondatra.DUTDevice, configureFailCliRole boo
 	t.Logf("Loopback Configuration Completed.")
 }
 
+func aristaCleanupAuthzCliRole(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	// Revert AAA and role configuration to original state.
+	// Remove command authorization first to avoid blocking subsequent changes.
+	cleanupCommands := []string{
+		"configure",
+		"no aaa authorization commands all default local",
+		"default aaa authorization exec default",
+		"default aaa authentication login default",
+		fmt.Sprintf("no username %s", SuccessUsername),
+		fmt.Sprintf("no username %s", FailUsername),
+		fmt.Sprintf("no username %s", failAuthorizeUsername),
+		fmt.Sprintf("no role %s", failRoleName),
+	}
+	helpers.GnmiCLIConfig(t, dut, strings.Join(cleanupCommands, "\n"))
+}
+
 func aristaFailAuthzCliRole(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
+
+	// Register cleanup to revert configuration regardless of test outcome.
+	t.Cleanup(func() {
+		aristaCleanupAuthzCliRole(t, dut)
+	})
+
 	// Step 1: Clear any lingering AAA command authorization from previous runs,
 	// create the deny-all role, configure users, management, and basic AAA.
 	// "aaa authorization commands all default local" is NOT included here because
