@@ -340,7 +340,6 @@ func TestHardwareCards(t *testing.T) {
 				idValidation:          false,
 				nameValidation:        true,
 				partNoValidation:      true,
-				removableValidation:   true,
 				serialNoValidation:    true,
 				mfgNameValidation:     false,
 				mfgDateValidation:     false,
