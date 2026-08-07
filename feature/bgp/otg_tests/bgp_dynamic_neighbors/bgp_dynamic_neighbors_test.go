@@ -364,6 +364,19 @@ func verifyGlobalRouterID(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
+func countEstablishedDynamicNeighbors(t *testing.T, dut *ondatra.DUTDevice) int {
+	t.Helper()
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.DefaultBgpInstanceName(dut)).Bgp()
+	neighbors := gnmi.GetAll(t, dut, bgpPath.NeighborAny().State())
+	count := 0
+	for _, nbr := range neighbors {
+		if nbr.GetSessionState() == oc.Bgp_Neighbor_SessionState_ESTABLISHED && nbr.GetDynamicallyConfigured() {
+			count++
+		}
+	}
+	return count
+}
+
 func verifyLocRIBMED(t *testing.T, dut *ondatra.DUTDevice, prefix string, wantMED uint32) {
 	t.Helper()
 	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.DefaultBgpInstanceName(dut)).Bgp()
@@ -477,8 +490,8 @@ func TestBGPDynamicNeighbors(t *testing.T) {
 		verifyGlobalRouterID(t, dut)
 		verifyDynamicNeighbors(t, dut, dynamicPeers)
 
-		if got := len(dynamicPeers); got != defaultSessionCountCheck {
-			t.Fatalf("session count helper mismatch, got %d, want %d", got, defaultSessionCountCheck)
+		if got := countEstablishedDynamicNeighbors(t, dut); got != defaultSessionCountCheck {
+			t.Fatalf("established dynamic session count from telemetry got %d, want %d", got, defaultSessionCountCheck)
 		}
 	})
 
