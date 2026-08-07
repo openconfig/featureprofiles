@@ -16,6 +16,7 @@ package system_generic_health_check_test
 
 import (
 	"context"
+	"fmt"
 	"regexp"
 	"strings"
 	"testing"
@@ -534,9 +535,19 @@ func TestSystemProcessState(t *testing.T) {
 		t.Fatalf("ERROR: No processes found on device %s", deviceName)
 	}
 
-	for _, process := range processes {
+	for i, process := range processes {
 		processName := process.GetName()
-		t.Run(processName, func(t *testing.T) {
+		subtestName := processName
+		if subtestName == "" {
+			subtestName = "unnamed"
+		}
+		if process.Pid != nil {
+			subtestName = fmt.Sprintf("%s-PID-%d", subtestName, process.GetPid())
+		} else {
+			subtestName = fmt.Sprintf("%s-Index-%d", subtestName, i)
+		}
+
+		t.Run(subtestName, func(t *testing.T) {
 			if processName == "" {
 				t.Errorf("%s %s ERROR: %s process name is empty", timestamp, deviceName, description)
 			} else {
