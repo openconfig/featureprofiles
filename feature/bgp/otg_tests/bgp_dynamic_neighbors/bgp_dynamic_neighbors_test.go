@@ -348,11 +348,12 @@ func verifyNeighborTelemetry(t *testing.T, dut *ondatra.DUTDevice, neighbor stri
 
 func verifyDynamicNeighbors(t *testing.T, dut *ondatra.DUTDevice, peers []atePeerSpec) {
 	t.Helper()
+	waitForNeighborState(t, dut, atePort1.IPv6, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+	verifyNeighborTelemetry(t, dut, atePort1.IPv6, false)
 	for _, peer := range peers {
 		waitForNeighborState(t, dut, peer.localIP, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
 		verifyNeighborTelemetry(t, dut, peer.localIP, true)
 	}
-	verifyNeighborTelemetry(t, dut, atePort1.IPv6, false)
 }
 
 func verifyGlobalRouterID(t *testing.T, dut *ondatra.DUTDevice) {
@@ -475,8 +476,6 @@ func TestBGPDynamicNeighbors(t *testing.T) {
 
 		verifyGlobalRouterID(t, dut)
 		verifyDynamicNeighbors(t, dut, dynamicPeers)
-		waitForNeighborState(t, dut, atePort1.IPv6, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
-		verifyNeighborTelemetry(t, dut, atePort1.IPv6, false)
 
 		if got := len(dynamicPeers); got != defaultSessionCountCheck {
 			t.Fatalf("session count helper mismatch, got %d, want %d", got, defaultSessionCountCheck)
@@ -489,7 +488,6 @@ func TestBGPDynamicNeighbors(t *testing.T) {
 		applyATEConfig(t, ate, buildATEConfig(t, dut, staticPeer, dynamicPeers), true)
 
 		verifyDynamicNeighbors(t, dut, dynamicPeers)
-		verifyNeighborTelemetry(t, dut, atePort1.IPv6, false)
 	})
 
 	t.Run("RT-1.103.3 Secured Dynamic Peers (iBGP MD5)", func(t *testing.T) {
