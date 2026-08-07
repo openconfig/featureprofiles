@@ -96,13 +96,6 @@ type atePeerSpec struct {
 	routeMED       uint32
 }
 
-func bgpName(dut *ondatra.DUTDevice) string {
-	if name := deviations.DefaultBgpInstanceName(dut); name != "" {
-		return name
-	}
-	return "BGP"
-}
-
 func configureDUTPorts(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	dc := gnmi.OC()
@@ -134,7 +127,7 @@ func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
 func bgpClearConfig(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	resetBatch := &gnmi.SetBatch{}
-	protoPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName(dut))
+	protoPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.DefaultBgpInstanceName(dut))
 	gnmi.BatchDelete(resetBatch, protoPath.Config())
 
 	if deviations.NetworkInstanceTableDeletionRequired(dut) {
@@ -155,7 +148,7 @@ func buildDUTBGPConfig(t *testing.T, dut *ondatra.DUTDevice) *oc.NetworkInstance
 
 	d := &oc.Root{}
 	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	proto := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName(dut))
+	proto := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.DefaultBgpInstanceName(dut))
 	proto.SetEnabled(true)
 
 	bgp := proto.GetOrCreateBgp()
@@ -197,7 +190,7 @@ func buildDUTBGPConfig(t *testing.T, dut *ondatra.DUTDevice) *oc.NetworkInstance
 func applyDUTConfig(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	bgpClearConfig(t, dut)
-	protoPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName(dut))
+	protoPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.DefaultBgpInstanceName(dut))
 	gnmi.Replace(t, dut, protoPath.Config(), buildDUTBGPConfig(t, dut))
 
 	// DIAGNOSTIC ONLY: confirm whether the OC dynamic-neighbor-prefix push alone
@@ -318,7 +311,7 @@ func applyATEConfig(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config
 
 func waitForNeighborState(t *testing.T, dut *ondatra.DUTDevice, neighbor string, want oc.E_Bgp_Neighbor_SessionState) {
 	t.Helper()
-	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName(dut)).Bgp()
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.DefaultBgpInstanceName(dut)).Bgp()
 	nbrPath := bgpPath.Neighbor(neighbor)
 	_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), establishedTimeout, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 		state, present := val.Val()
@@ -331,7 +324,7 @@ func waitForNeighborState(t *testing.T, dut *ondatra.DUTDevice, neighbor string,
 
 func verifyNeighborTelemetry(t *testing.T, dut *ondatra.DUTDevice, neighbor string, wantDynamic bool) {
 	t.Helper()
-	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName(dut)).Bgp()
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.DefaultBgpInstanceName(dut)).Bgp()
 	nbrPath := bgpPath.Neighbor(neighbor)
 
 	state := gnmi.Get(t, dut, nbrPath.SessionState().State())
@@ -364,7 +357,7 @@ func verifyDynamicNeighbors(t *testing.T, dut *ondatra.DUTDevice, peers []atePee
 
 func verifyGlobalRouterID(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName(dut)).Bgp()
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.DefaultBgpInstanceName(dut)).Bgp()
 	if got := gnmi.Get(t, dut, bgpPath.Global().RouterId().State()); got != routerID {
 		t.Fatalf("global router-id got %s, want %s", got, routerID)
 	}
@@ -372,7 +365,7 @@ func verifyGlobalRouterID(t *testing.T, dut *ondatra.DUTDevice) {
 
 func verifyLocRIBMED(t *testing.T, dut *ondatra.DUTDevice, prefix string, wantMED uint32) {
 	t.Helper()
-	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName(dut)).Bgp()
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.DefaultBgpInstanceName(dut)).Bgp()
 	ribPath := bgpPath.Rib()
 
 	locRibPath := ribPath.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Ipv6Unicast().LocRib().State()
@@ -405,7 +398,7 @@ func verifyLocRIBMED(t *testing.T, dut *ondatra.DUTDevice, prefix string, wantME
 
 func waitForNeighborDownOrNotEstablished(t *testing.T, dut *ondatra.DUTDevice, neighbor string) {
 	t.Helper()
-	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName(dut)).Bgp()
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.DefaultBgpInstanceName(dut)).Bgp()
 	nbrPath := bgpPath.Neighbor(neighbor)
 	_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), negativeTimeout, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 		state, present := val.Val()
