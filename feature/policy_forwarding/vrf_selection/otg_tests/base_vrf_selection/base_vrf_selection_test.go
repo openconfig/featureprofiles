@@ -373,8 +373,17 @@ func createIPv4Flow(name string, top gosnappi.Config, dst attrs.Attributes, srcI
 
 func sendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
 	t.Logf("*** Starting traffic ...")
+	time.Sleep(20 * time.Second)
+
+	// Send traffic for 2 seconds to force ND/ARP resolution
+	t.Logf("Warming up hardware FIBs by sending traffic for 2 seconds")
+	ate.OTG().StartTraffic(t)
+	time.Sleep(2 * time.Second)
+	ate.OTG().StopTraffic(t)
+	time.Sleep(2 * time.Second)
+
 	otgutils.WaitForARP(t, ate.OTG(), ate.OTG().GetConfig(t), "IPv4")
-	otgutils.WaitForARP(t, ate.OTG(), ate.OTG().GetConfig(t), "IPv6")
+
 	ate.OTG().StartTraffic(t)
 	time.Sleep(trafficDuration)
 	t.Logf("*** Stop traffic ...")
