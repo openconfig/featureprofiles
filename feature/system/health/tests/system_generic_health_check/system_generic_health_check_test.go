@@ -522,6 +522,42 @@ func TestSystemProcessNoHighMemorySpike(t *testing.T) {
 	}
 }
 
+func TestSystemProcessState(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	deviceName := dut.Name()
+	const description = "System Process State"
+
+	query := gnmi.OC().System().ProcessAny().State()
+	timestamp := time.Now().Round(time.Second)
+	processes := gnmi.GetAll(t, dut, query)
+	if len(processes) == 0 {
+		t.Fatalf("ERROR: No processes found on device %s", deviceName)
+	}
+
+	for _, process := range processes {
+		processName := process.GetName()
+		t.Run(processName, func(t *testing.T) {
+			if processName == "" {
+				t.Errorf("%s %s ERROR: %s process name is empty", timestamp, deviceName, description)
+			} else {
+				t.Logf("%s %s INFO: %s - Process Name: %s", timestamp, deviceName, description, processName)
+			}
+
+			if process.Pid == nil {
+				t.Errorf("%s %s ERROR: %s - Process %s PID is not available", timestamp, deviceName, description, processName)
+			} else {
+				t.Logf("%s %s INFO: %s - Process %s - PID: %d", timestamp, deviceName, description, processName, process.GetPid())
+			}
+
+			if process.StartTime == nil {
+				t.Errorf("%s %s ERROR: %s - Process %s StartTime is not available", timestamp, deviceName, description, processName)
+			} else {
+				t.Logf("%s %s INFO: %s - Process %s - StartTime: %d", timestamp, deviceName, description, processName, process.GetStartTime())
+			}
+		})
+	}
+}
+
 func TestNoQueueDrop(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	if deviations.NoQueueDropUnsupported(dut) {

@@ -47,6 +47,9 @@ paths:
 
     /system/processes/process/state/cpu-utilization:
     /system/processes/process/state/memory-utilization:
+    /system/processes/process/state/name:
+    /system/processes/process/state/pid:
+    /system/processes/process/state/start-time:
     /qos/interfaces/interface/input/queues/queue/state/dropped-pkts:
     /qos/interfaces/interface/output/queues/queue/state/dropped-pkts:
     /qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/dropped-pkts:
