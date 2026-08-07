@@ -31,6 +31,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 const (
