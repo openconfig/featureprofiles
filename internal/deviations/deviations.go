@@ -2335,6 +2335,11 @@ func AftsGlobalFilterPolicyConfigReferenceValidationUnsupported(dut *ondatra.DUT
 	return lookupDUTDeviations(dut).GetAftsGlobalFilterPolicyConfigReferenceValidationUnsupported()
 }
 
+// VrfSelectionPolicyNonDefaultNIUnsupported returns true if device does not support configuring VRF selection policy under non-default network instance.
+func VrfSelectionPolicyNonDefaultNIUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetVrfSelectionPolicyNonDefaultNiUnsupported()
+}
+
 // DecapNHWithoutNextHopNIUnsupported returns true if Decap NH without NextHopNetworkInstance is not supported
 // Nokia: https://partnerissuetracker.corp.google.com/issues/529388485
 func DecapNHWithoutNextHopNIUnsupported(dut *ondatra.DUTDevice) bool {
