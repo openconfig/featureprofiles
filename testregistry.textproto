@@ -123,6 +123,7 @@ test: {
   id: "AFT-6.1"
   description: "AFT Prefix Filtering"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/filtered_streaming/otg_tests/afts_prefix_filtering/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/filtered_streaming/otg_tests/afts_prefix_filtering/afts_prefix_filtering_test.go"
 }
 test: {
   id: "AFT-6.2"
@@ -690,6 +691,7 @@ test: {
   id: "PF-1.27"
   description: "MPLSoGRE/MPLSoGUE MACsec and Line Rate Performance"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/macsec_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/macsec_test/macsec_test.go"
 }
 test: {
   id: "PF-1.3"
