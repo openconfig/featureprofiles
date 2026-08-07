@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"strconv"
 	"testing"
@@ -173,6 +174,17 @@ func TestGRIBIFailover(t *testing.T) {
 	top := configureOTG(t, ate)
 	t.Log("Configure VRF_Policy")
 	configureVrfSelectionPolicyC(t, dut)
+
+	verifyBgpTelemetry(t, dut)
+
+	llAddress, found := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Interface("port1.Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+		return val.IsPresent()
+	}).Await(t)
+	if !found {
+		t.Fatalf("Could not get the LinkLayerAddress %s", llAddress)
+	}
+	dstMac, _ := llAddress.Val()
+
 	t.Log("Configure GRIBI")
 
 	ctx := context.Background()
@@ -194,16 +206,6 @@ func TestGRIBIFailover(t *testing.T) {
 	}
 
 	configureGribiRoute(t, dut, tcArgs)
-
-	llAddress, found := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Interface("port1.Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		return val.IsPresent()
-	}).Await(t)
-	if !found {
-		t.Fatalf("Could not get the LinkLayerAddress %s", llAddress)
-	}
-	dstMac, _ := llAddress.Val()
-
-	verifyBgpTelemetry(t, dut)
 
 	args := &testArgs{
 		dut:       dut,
@@ -244,6 +246,9 @@ func TestGRIBIFailover(t *testing.T) {
 	})
 
 	t.Run("RT-14.2.4: Traffic Match to Transit_Vrf, noMatch Tunnel Prefix Egress to Port3", func(t *testing.T) {
+		if deviations.DecapNHWithNextHopNIUnsupported(dut) {
+			t.Skip("Skipping because Decap NH with NextHop Network Instance is unsupported")
+		}
 		flow := createFlow(&flowArgs{flowName: "flow4in4",
 			outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: ipv4OuterDst222,
 			InnHdrSrcIP: ipv4OuterSrc111, InnHdrDstIP: ipv4InnerDst, isIPInIP: true}, dstMac)
@@ -326,6 +331,7 @@ func configureOTGBGP(t *testing.T, dev gosnappi.Device, top gosnappi.Config, nbr
 		SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
 		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
 	bgpNeti1Bgp4PeerRoutes.Addresses().Add().SetAddress(ipv4InnerDst).SetPrefix(32).SetCount(1)
+	bgpNeti1Bgp4PeerRoutes.Addresses().Add().SetAddress(ipv4OuterDst222).SetPrefix(32).SetCount(1)
 }
 
 func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
@@ -376,7 +382,6 @@ func configNonDefaultNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 func configureVrfSelectionPolicyC(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	d := &oc.Root{}
-	time.Sleep(100 * time.Second)
 	dutPolFwdPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding()
 
 	pfRule1 := &policyFwRule{SeqID: 1, family: "ipv4", protocol: 4, sourceAddr: ipv4OuterSrc111WithMask,
@@ -427,10 +432,13 @@ func configureVrfSelectionPolicyC(t *testing.T, dut *ondatra.DUTDevice) {
 
 func configureGribiRoute(t *testing.T, dut *ondatra.DUTDevice, tcArgs *testArgs) {
 	t.Helper()
+	decapNH := fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
+		WithIndex(uint64(1)).WithDecapsulateHeader(fluent.IPinIP)
+	if !deviations.DecapNHWithNextHopNIUnsupported(dut) {
+		decapNH.WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	}
 	tcArgs.client.Modify().AddEntry(t,
-		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
-			WithIndex(uint64(1)).WithDecapsulateHeader(fluent.IPinIP).
-			WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
+		decapNH,
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
 			WithID(uint64(1)).AddNextHop(uint64(1), uint64(1)),
 
@@ -506,10 +514,9 @@ func configureGribiRoute(t *testing.T, dut *ondatra.DUTDevice, tcArgs *testArgs)
 
 	tcArgs.client.Modify().AddEntry(t,
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
-			WithIndex(uint64(5)).WithIPAddress(atePort3.IPv4),
+			WithIndex(uint64(5)).WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
 			WithID(uint64(5)).AddNextHop(uint64(5), uint64(1)),
-
 		fluent.IPv4Entry().WithNetworkInstance(niEncapTeVrfA).
 			WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithPrefix("0.0.0.0/0").WithNextHopGroup(uint64(5)))
@@ -599,12 +606,47 @@ func sendTraffic(t *testing.T, args *testArgs, top gosnappi.Config, ate *ondatra
 	otgutils.LogPortMetrics(t, ate.OTG(), top)
 }
 
-// verifyTrafficFlow verify the each flow on ATE
+// verifyTrafficFlow verifies each flow on ATE using gnmi.Watch.
 func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flow gosnappi.Flow) bool {
-	rxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State())
-	txPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
-	lostPkt := txPkts - rxPkts
-	if got := (lostPkt * 100 / txPkts); got >= tolerancePct {
+	t.Helper()
+	otg := ate.OTG()
+	flowName := flow.Name()
+
+	outPktsQuery := gnmi.OTG().Flow(flowName).Counters().OutPkts().State()
+	inPktsQuery := gnmi.OTG().Flow(flowName).Counters().InPkts().State()
+
+	// Watch InPkts and live OutPkts for up to 45 seconds until counters settle within +/- tolerance.
+	_, ok := gnmi.Watch(t, otg, inPktsQuery, 45*time.Second, func(v *ygnmi.Value[uint64]) bool {
+		rx, present := v.Val()
+		if !present {
+			return false
+		}
+
+		txVal, txPresent := gnmi.Lookup(t, otg, outPktsQuery).Val()
+		if !txPresent || txVal == 0 {
+			return false // Keep waiting if tx hasn't populated or is 0
+		}
+
+		// Calculate percentage difference.
+		// Using float64 protects against uint64 underflow and handles rx > tx.
+		diffPct := (float64(txVal) - float64(rx)) * 100 / float64(txVal)
+
+		// math.Abs ensures we check +/- tolerance limits equally
+		return math.Abs(diffPct) <= float64(tolerancePct)
+	}).Await(t)
+
+	if !ok {
+		// Fetch absolute final values after the 45s timeout
+		lastTx, _ := gnmi.Lookup(t, otg, outPktsQuery).Val()
+		lastRx, _ := gnmi.Lookup(t, otg, inPktsQuery).Val()
+
+		if lastTx == 0 {
+			t.Errorf("IXIA traffic generation failed: flow %s transmitted 0 packets after 45s", flowName)
+			return false
+		}
+
+		diffPct := (float64(lastTx) - float64(lastRx)) * 100 / float64(lastTx)
+		t.Errorf("Generic Test Assertion Failure: Flow %s counters outside of ±%d%% tolerance. Difference: %.2f%% (tx: %d, rx: %d)", flowName, tolerancePct, diffPct, lastTx, lastRx)
 		return false
 	}
 	return true
@@ -662,7 +704,6 @@ func captureAndValidatePackets(t *testing.T, args *testArgs, packetVal *packetVa
 	}
 	args.otgConfig.Captures().Clear()
 	args.otg.PushConfig(t, args.otgConfig)
-	time.Sleep(30 * time.Second)
 }
 
 func validateTrafficDecap(t *testing.T, packetSource *gopacket.PacketSource) {
