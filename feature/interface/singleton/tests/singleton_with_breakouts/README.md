@@ -10,7 +10,12 @@ This test requires a DUT with the following setup
   * 4x100G-DR4+
   * 1x100G-LR
   * 1x100G-FR
+  * 2x400G-FR4
+  * 2x400G-LR4
+  * 8x100G-LR
 * ATE connections are not required.
+* Note: Due to the current lack of explicit Ondatra PMD constants for some optics in `ondatra v0.14.5` (e.g. 800G breakouts and 100G-LR), the test automation uses component descriptions to identify PMD types and apply the correct breakout configuration. This description matching can be replaced with direct PMD enum checking once `openconfig-transport-types v1.5.0+` (from `openconfig/public` PR #1505) is integrated into a future Ondatra release (`> v0.14.5`) and imported into `featureprofiles`.
+
 
 ## Procedure
 ### RT-8.1 - Baseline test:
@@ -55,4 +60,49 @@ rpcs:
     gNMI.Set:
     gNMI.Subscribe:
 ```
+
+## Canonical OC
+```json
+{
+  "components": {
+    "component": [
+      {
+        "config": {
+          "name": "port-1"
+        },
+        "name": "port-1",
+        "port": {
+          "breakout-mode": {
+            "groups": {
+              "group": [
+                {
+                  "config": {
+                    "breakout-speed": "SPEED_100GB",
+                    "index": 1,
+                    "num-breakouts": 4
+                  },
+                  "index": 1
+                }
+              ]
+            }
+          }
+        }
+      }
+    ]
+  },
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "enabled": true,
+          "name": "et-1/1/1",
+          "type": "ethernetCsmacd"
+        },
+        "name": "et-1/1/1"
+      }
+    ]
+  }
+}
+```
+
 
