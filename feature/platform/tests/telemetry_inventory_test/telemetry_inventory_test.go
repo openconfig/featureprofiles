@@ -680,7 +680,11 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 			}
 
 			if p.removableValidation {
-				t.Logf("Component %s Removable: %v", cName, card.GetRemovable())
+				if card.Removable == nil {
+					t.Errorf("Component %s Removable: leaf /components/component/state/removable is missing in telemetry", cName)
+				} else {
+					t.Logf("Component %s Removable: %v", cName, card.GetRemovable())
+				}
 			}
 
 			if p.installPositionAndComponentValidation && !deviations.InstallPositionAndInstallComponentUnsupported(dut) {
