@@ -47,6 +47,7 @@ const (
 	FeatureAnPF
 	FeatureIngressARP
 	FeatureOptimizeFIBAndCounters
+	FeatureHierarchicalFIB
 	FeatureSecondaryDefaultLookup
 	FeatureAnpf
 
@@ -1368,6 +1369,12 @@ hardware tcam
    `
 )
 
+const aristaHierarchicalFIB = `
+router general
+   rib fib fec hierarchical resolution
+!
+   `
+
 var (
 	aristaTcamProfileMap = map[FeatureType]string{
 		FeatureMplsTracking:           aristaTcamProfileMplsTracking,
@@ -1382,6 +1389,7 @@ var (
 		FeatureIngressARP:             aristaIngressARP,
 		FeatureOptimizeFIBAndCounters: aristaOptimizeFIBAndCounters,
 		FeatureAnpf:                   aristaAnpfTcamProfile,
+		FeatureHierarchicalFIB:        aristaHierarchicalFIB,
 	}
 
 	nokiaHardwareInitMap = map[FeatureType]string{
