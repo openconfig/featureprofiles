@@ -26,6 +26,14 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
+type BGPRoutePolicyConfig struct {
+	PolicyName string
+	RD         string
+	RT         string
+	DutAS      uint32
+	VrfName    string
+}
+
 // DeviationCiscoRoutingPolicyBGPActionSetMed is used as an alternative to
 // /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med.
 // This deviation implements CLI to perform the equivalent function.
@@ -459,4 +467,23 @@ func ConfigureBGPRoutePolicy(t *testing.T, batch *gnmi.SetBatch, cfg BGPPolicyCo
 	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	gnmi.BatchUpdate(batch, gnmi.OC().RoutingPolicy().PolicyDefinition(cfg.PolicyName).Config(), pdef)
 	return rp, nil
+}
+
+func ConfigureRouteTargetsCLI(t *testing.T, dut *ondatra.DUTDevice, params BGPRoutePolicyConfig) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		cli := fmt.Sprintf(`
+			router bgp %d
+			   vrf %s
+			      rd %s
+			      route-target import vpn-ipv4 %s
+			      route-target export vpn-ipv4 %s
+				  route-target import vpn-ipv6 %s
+			      route-target export vpn-ipv6 %s
+		`, params.DutAS, params.VrfName, params.RD, params.RT, params.RT, params.RT, params.RT)
+		helpers.GnmiCLIConfig(t, dut, cli)
+	default:
+		t.Fatalf("ConfigureRouteTargetsCLI: no CLI fallback implemented for vendor %v", dut.Vendor())
+	}
 }
