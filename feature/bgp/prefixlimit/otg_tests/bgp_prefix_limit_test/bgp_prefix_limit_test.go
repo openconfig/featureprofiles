@@ -465,6 +465,88 @@ func verifyPrefixLimitTelemetry(t *testing.T, dut *ondatra.DUTDevice, neighbor *
 	})
 }
 
+func getPeerGroupPrefixLimitv4(dut *ondatra.DUTDevice, pg *oc.NetworkInstance_Protocol_Bgp_PeerGroup) (uint32, bool, uint8, bool) {
+	afisafi := pg.GetAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+	if afisafi == nil {
+		return 0, false, 0, false
+	}
+	v4 := afisafi.GetIpv4Unicast()
+	if v4 == nil {
+		return 0, false, 0, false
+	}
+	if deviations.BGPExplicitPrefixLimitReceived(dut) {
+		pl := v4.GetPrefixLimitReceived()
+		if pl == nil {
+			return 0, false, 0, false
+		}
+		return pl.GetMaxPrefixes(), pl.GetPrefixLimitExceeded(), pl.GetWarningThresholdPct(), true
+	}
+	pl := v4.GetPrefixLimit()
+	if pl == nil {
+		return 0, false, 0, false
+	}
+	return pl.GetMaxPrefixes(), pl.GetPrefixLimitExceeded(), pl.GetWarningThresholdPct(), true
+}
+
+func getPeerGroupPrefixLimitv6(dut *ondatra.DUTDevice, pg *oc.NetworkInstance_Protocol_Bgp_PeerGroup) (uint32, bool, uint8, bool) {
+	afisafi := pg.GetAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+	if afisafi == nil {
+		return 0, false, 0, false
+	}
+	v6 := afisafi.GetIpv6Unicast()
+	if v6 == nil {
+		return 0, false, 0, false
+	}
+	if deviations.BGPExplicitPrefixLimitReceived(dut) {
+		pl := v6.GetPrefixLimitReceived()
+		if pl == nil {
+			return 0, false, 0, false
+		}
+		return pl.GetMaxPrefixes(), pl.GetPrefixLimitExceeded(), pl.GetWarningThresholdPct(), true
+	}
+	pl := v6.GetPrefixLimit()
+	if pl == nil {
+		return 0, false, 0, false
+	}
+	return pl.GetMaxPrefixes(), pl.GetPrefixLimitExceeded(), pl.GetWarningThresholdPct(), true
+}
+
+func verifyPeerGroupPrefixLimitTelemetry(t *testing.T, dut *ondatra.DUTDevice, pg *oc.NetworkInstance_Protocol_Bgp_PeerGroup, isV4 bool, wantEstablished bool) {
+	t.Run("verifyPeerGroupPrefixLimitTelemetry", func(t *testing.T) {
+		if isV4 {
+			maxPrefix, limitExceeded, warnThreshold, hasLimit := getPeerGroupPrefixLimitv4(dut, pg)
+			if hasLimit {
+				if maxPrefix != prefixLimit {
+					t.Errorf("PeerGroup PrefixLimit max-prefixes v4 mismatch: got %d, want %d", maxPrefix, prefixLimit)
+				}
+				if warnThreshold != pwarnthesholdPct {
+					t.Errorf("PeerGroup PrefixLimit warning-threshold-pct v4 mismatch: got %d, want %d", warnThreshold, pwarnthesholdPct)
+				}
+				if !deviations.PrefixLimitExceededTelemetryUnsupported(dut) {
+					if (wantEstablished && limitExceeded) || (!wantEstablished && !limitExceeded) {
+						t.Errorf("PeerGroup PrefixLimitExceeded v4 mismatch: got %t, want %t", limitExceeded, !wantEstablished)
+					}
+				}
+			}
+		} else {
+			maxPrefix, limitExceeded, warnThreshold, hasLimit := getPeerGroupPrefixLimitv6(dut, pg)
+			if hasLimit {
+				if maxPrefix != prefixLimit {
+					t.Errorf("PeerGroup PrefixLimit max-prefixes v6 mismatch: got %d, want %d", maxPrefix, prefixLimit)
+				}
+				if warnThreshold != pwarnthesholdPct {
+					t.Errorf("PeerGroup PrefixLimit warning-threshold-pct v6 mismatch: got %d, want %d", warnThreshold, pwarnthesholdPct)
+				}
+				if !deviations.PrefixLimitExceededTelemetryUnsupported(dut) {
+					if (wantEstablished && limitExceeded) || (!wantEstablished && !limitExceeded) {
+						t.Errorf("PeerGroup PrefixLimitExceeded v6 mismatch: got %t, want %t", limitExceeded, !wantEstablished)
+					}
+				}
+			}
+		}
+	})
+}
+
 func (tc *testCase) verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Waiting for BGPv4 neighbor to establish...")
 	waitForBGPSession(t, dut, tc.wantEstablished)
@@ -499,41 +581,35 @@ func (tc *testCase) verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	nv6 := gnmi.Get(t, dut, statePath.Neighbor(ateDst.IPv6).State())
 	verifyPrefixLimitTelemetry(t, dut, nv6, tc.wantEstablished)
+
+	t.Log("Verifying BGP peer group telemetry")
+	pgv4 := gnmi.Get(t, dut, statePath.PeerGroup(peerGrpNamev4).State())
+	if got := pgv4.GetPeerGroupName(); got != peerGrpNamev4 {
+		t.Errorf("Peer group v4 name mismatch: got %v, want %v", got, peerGrpNamev4)
+	}
+	verifyPeerGroupPrefixLimitTelemetry(t, dut, pgv4, true, tc.wantEstablished)
+
+	pgv6 := gnmi.Get(t, dut, statePath.PeerGroup(peerGrpNamev6).State())
+	if got := pgv6.GetPeerGroupName(); got != peerGrpNamev6 {
+		t.Errorf("Peer group v6 name mismatch: got %v, want %v", got, peerGrpNamev6)
+	}
+	verifyPeerGroupPrefixLimitTelemetry(t, dut, pgv6, false, tc.wantEstablished)
 }
 
 func (tc *testCase) verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, conf gosnappi.Config, tolerance float32, flowNames []string) {
 	otg := ate.OTG()
-	defer otgutils.LogFlowMetrics(t, otg, conf)
+	otgutils.LogFlowMetrics(t, otg, conf)
 	for _, flow := range flowNames {
-		gnmi.Watch(t, otg, gnmi.OTG().Flow(flow).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
-			recvMetric, present := val.Val()
-			if !present {
-				return false
-			}
-			txPackets := float32(recvMetric.GetCounters().GetOutPkts())
-			rxPackets := float32(recvMetric.GetCounters().GetInPkts())
-			if txPackets == 0 {
-				return false
-			}
-			if rxPackets > txPackets {
-				return false
-			}
-			lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
-			return int(lossPct) <= int(tolerance)
-		}).Await(t)
-
 		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(flow).State())
 		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
 		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
 		if txPackets == 0 {
-			t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flow)
+			t.Fatalf("TxPkts = 0, want > 0")
 		}
-		if rxPackets > txPackets {
-			t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", rxPackets, txPackets)
-		}
-		lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
-		if int(lossPct) > int(tolerance) {
-			t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want <= %v", flow, lossPct, tolerance)
+		lostPackets := txPackets - rxPackets
+		lossPct := lostPackets * 100 / txPackets
+		if lossPct > tolerance {
+			t.Errorf("Traffic Loss Pct for Flow %s: got %v, want 0", flow, lossPct)
 		} else {
 			t.Logf("Traffic Test Passed! Got %v loss", lossPct)
 		}
@@ -542,39 +618,20 @@ func (tc *testCase) verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, con
 
 func (tc *testCase) verifyPacketLoss(t *testing.T, ate *ondatra.ATEDevice, conf gosnappi.Config, tolerance float32, flowNames []string) {
 	otg := ate.OTG()
-	defer otgutils.LogFlowMetrics(t, otg, conf)
+	otgutils.LogFlowMetrics(t, otg, conf)
 	for _, flow := range flowNames {
-		gnmi.Watch(t, otg, gnmi.OTG().Flow(flow).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
-			recvMetric, present := val.Val()
-			if !present {
-				return false
-			}
-			txPackets := float32(recvMetric.GetCounters().GetOutPkts())
-			rxPackets := float32(recvMetric.GetCounters().GetInPkts())
-			if txPackets == 0 {
-				return false
-			}
-			if rxPackets > txPackets {
-				return false
-			}
-			lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
-			return int(lossPct) >= int(100-tolerance) && int(lossPct) <= 100
-		}).Await(t)
-
 		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(flow).State())
 		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
 		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
 		if txPackets == 0 {
-			t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flow)
+			t.Fatalf("TxPkts = 0, want > 0")
 		}
-		if rxPackets > txPackets {
-			t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", rxPackets, txPackets)
-		}
-		lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
-		if int(lossPct) >= int(100-tolerance) && int(lossPct) <= 100 {
+		lostPackets := txPackets - rxPackets
+		lossPct := lostPackets * 100 / txPackets
+		if lossPct >= (100-tolerance) && lossPct <= 100 {
 			t.Logf("Traffic Test Passed! Loss seen as expected: got %v, want 100%% ", lossPct)
 		} else {
-			t.Errorf("Generic Test Assertion Failure: Flow %s is expected to fail: got %v, want 100%% failure", flow, lossPct)
+			t.Errorf("Traffic %s is expected to fail: got %v, want 100%% failure", flow, lossPct)
 		}
 	}
 }
