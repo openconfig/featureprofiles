@@ -49,110 +49,7 @@ var (
 func createNativeUser(t testing.TB, dut *ondatra.DUTDevice, user string, pass string, role string) {
 	t.Helper()
 	switch dut.Vendor() {
-	case ondatra.NOKIA:
-		var roleVal = []any{
-			map[string]any{
-				"services": []string{"cli", "gnmi"},
-			},
-		}
-		roleUpdate, err := json.Marshal(roleVal)
-		if err != nil {
-			t.Fatalf("Error with json Marshal: %v", err)
-		}
-
-		var userDataVal = []any{
-			map[string]any{
-				"password": pass,
-				"role":     []string{"admin"},
-			},
-		}
-		userDataUpdate, err := json.Marshal(userDataVal)
-		if err != nil {
-			t.Fatalf("Error with json Marshal: %v", err)
-		}
-
-		var ruleVal = []any{
-			map[string]any{
-				"action": "write",
-			},
-		}
-		ruleValUpdate, err := json.Marshal(ruleVal)
-		if err != nil {
-			t.Fatalf("Error with json Marshal: %v", err)
-		}
-
-		SetRequest := &gpb.SetRequest{
-			Prefix: &gpb.Path{
-				Origin: "native",
-			},
-			Replace: []*gpb.Update{
-				{
-					Path: &gpb.Path{
-						Elem: []*gpb.PathElem{
-							{Name: "system"},
-							{Name: "aaa"},
-							{Name: "authorization"},
-							{Name: "role", Key: map[string]string{"rolename": role}},
-						},
-					},
-					Val: &gpb.TypedValue{
-						Value: &gpb.TypedValue_JsonIetfVal{
-							JsonIetfVal: roleUpdate,
-						},
-					},
-				},
-				{
-					Path: &gpb.Path{
-						Elem: []*gpb.PathElem{
-							{Name: "system"},
-							{Name: "aaa"},
-							{Name: "authentication"},
-							{Name: "user", Key: map[string]string{"username": user}},
-						},
-					},
-					Val: &gpb.TypedValue{
-						Value: &gpb.TypedValue_JsonIetfVal{
-							JsonIetfVal: userDataUpdate,
-						},
-					},
-				},
-				{
-					Path: &gpb.Path{
-						Elem: []*gpb.PathElem{
-							{Name: "system"},
-							{Name: "configuration"},
-							{Name: "role", Key: map[string]string{"name": "admin"}},
-							{Name: "rule", Key: map[string]string{"path-reference": "/"}},
-						},
-					},
-					Val: &gpb.TypedValue{
-						Value: &gpb.TypedValue_JsonIetfVal{
-							JsonIetfVal: ruleValUpdate,
-						},
-					},
-				},
-				{
-					Path: &gpb.Path{
-						Elem: []*gpb.PathElem{
-							{Name: "system"},
-							{Name: "configuration"},
-							{Name: "role", Key: map[string]string{"name": "admin"}},
-							{Name: "oc-rule", Key: map[string]string{"path-reference": "/"}},
-						},
-					},
-					Val: &gpb.TypedValue{
-						Value: &gpb.TypedValue_JsonIetfVal{
-							JsonIetfVal: ruleValUpdate,
-						},
-					},
-				},
-			},
-		}
-		gnmiClient := dut.RawAPIs().GNMI(t)
-		if _, err := gnmiClient.Set(context.Background(), SetRequest); err != nil {
-			t.Fatalf("Unexpected error configuring User: %v", err)
-		}
-	case ondatra.JUNIPER:
+	case ondatra.JUNIPER, ondatra.NOKIA:
 		t.Logf("Rotating user password on DUT for user, pass: %s, %s", user, pass)
 		credz.SetupUser(t.(*testing.T), dut, user)
 		t.Logf("Rotating user password on DUT")
@@ -235,7 +132,6 @@ func TestAuthentication(t *testing.T) {
 	default:
 		t.Logf("No CLI config required for vendor %s", dut.Vendor())
 	}
-	t.Logf("Setting user alice with password %v", password)
 	if deviations.SetNativeUser(dut) {
 		createNativeUser(t, dut, "alice", password, "admin")
 	} else {
