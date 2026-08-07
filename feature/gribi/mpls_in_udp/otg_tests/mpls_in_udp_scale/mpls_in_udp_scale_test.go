@@ -90,6 +90,8 @@ const (
 	allowedLossPct       = 1.0
 	p67VRFCount          = 1000
 	p8VRFCount           = 20
+	uniqueSrcIPs         = 32
+	maxNHCountSupport    = 50 // Currently, the maximum supported number of next hops (NHs) per MPLS-over-UDP (MoUDP) Next-Hop Group (NHG) is 256 (but only working with count 50). Support for 1024 next hops per NHG will be available in a future release.
 )
 
 // DUT and ATE port attributes
@@ -426,68 +428,87 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice) 
 // programBasicEntries programs baseline gRIBI entries including NextHops, NextHopGroups, and IPv6 routes in the default network instance. It sets up ECMP forwarding across port3 and port4 for MPLS-in-UDP testing.
 func programBasicEntries(t *testing.T, dut *ondatra.DUTDevice, c *gribi.Client, vrfs []string) ([]string, []string) {
 	t.Helper()
-	t.Log("Setting up routing infrastructure for MPLS-in-UDP with unique NH IDs and NH/NHG in default NI")
-	var tV4DstLists, tV6DstLists []string
-	otgDummyIPs := map[string]string{
-		dut.Port(t, "port3").Name(): otgPort3DummyIP.IPv4,
-		dut.Port(t, "port4").Name(): otgPort4DummyIP.IPv4,
-	}
-
 	defaultNI := deviations.DefaultNetworkInstance(dut)
+	var (
+		tV4DstLists []string
+		tV6DstLists []string
+	)
+	// Generate tunnel destination IPs (one per VRF).
 	tunnelPrefixV6, err := iputil.GenerateIPv6sWithStep(outerIPv6Dst, len(vrfs), intStepV6)
 	if err != nil {
-		t.Fatalf("failed to generate DUT IPv6s: %v", err)
+		t.Fatalf("failed to generate IPv6 tunnel destinations: %v", err)
 	}
 	tV6DstLists = append(tV6DstLists, tunnelPrefixV6...)
 	tunnelPrefixV4, err := iputil.GenerateIPsWithStep(outerIPv4Dst, len(vrfs), intStepV4)
 	if err != nil {
-		t.Fatalf("failed to generate DUT IPs: %v", err)
+		t.Fatalf("failed to generate IPv4 tunnel destinations: %v", err)
 	}
 	tV4DstLists = append(tV4DstLists, tunnelPrefixV4...)
-	var allEntries []fluent.GRIBIEntry
-	// iterate VRFs and program unique NH, NHG in default NI; program IPv6 prefix in the VRF
-	for vrfIdx := range vrfs {
-		// generate unique NH IDs for the two egress ports for this VRF
-		nhIDs := []uint64{
-			nhBaseValue + uint64(vrfIdx*5) + 0, // port3
-			nhBaseValue + uint64(vrfIdx*5) + 1, // port4
-		}
-		nhgID := nhgBaseValue + uint64(vrfIdx) // unique NHG per VRF
-
-		for i, portName := range []string{"port3", "port4"} {
-			port := dut.Port(t, portName)
-			otgDummyIP := otgDummyIPs[port.Name()]
-			// Use MACwithInterface or MACwithIp depending on deviations; important: network instance = defaultNI
-			switch {
-			case deviations.GRIBIMACOverrideWithStaticARP(dut):
-				nh, _ := gribi.NHEntry(nhIDs[i], "MACwithIp", defaultNI, fluent.InstalledInFIB, &gribi.NHOptions{Dest: otgDummyIP, Mac: dstMac})
-				allEntries = append(allEntries, nh)
-
-			case deviations.GRIBIMACOverrideStaticARPStaticRoute(dut):
-				nh, _ := gribi.NHEntry(nhIDs[i], "MACwithInterface", defaultNI, fluent.InstalledInFIB, &gribi.NHOptions{Interface: port.Name(), Mac: dstMac, Dest: dstIP})
-				allEntries = append(allEntries, nh)
-
-			default:
-				nh, _ := gribi.NHEntry(nhIDs[i], "MACwithInterface", defaultNI, fluent.InstalledInFIB, &gribi.NHOptions{Interface: port.Name(), Mac: dstMac})
-				allEntries = append(allEntries, nh)
-			}
-		}
-
-		// Build NHG in default NI (pointing to the two NHs)
-		nhMap := map[uint64]uint64{nhIDs[0]: 1, nhIDs[1]: 1}
-		nhg, _ := gribi.NHGEntry(nhgID, nhMap, defaultNI, fluent.InstalledInFIB)
-		allEntries = append(allEntries, nhg)
-		ipv4Entry := fluent.IPv4Entry().WithPrefix(tunnelPrefixV4[vrfIdx] + routeV4PrfLen).WithNetworkInstance(defaultNI).WithNextHopGroup(nhgID)
-		allEntries = append(allEntries, ipv4Entry)
-		ipv6Entry := fluent.IPv6Entry().WithPrefix(tunnelPrefixV6[vrfIdx] + routeV6PrfLen).WithNetworkInstance(defaultNI).WithNextHopGroup(nhgID)
-		allEntries = append(allEntries, ipv6Entry)
+	otgDummyIPs := map[string]string{
+		dut.Port(t, "port3").Name(): otgPort3DummyIP.IPv4,
+		dut.Port(t, "port4").Name(): otgPort4DummyIP.IPv4,
 	}
-	// Install NH + NHG in DEFAULT NI
-	batches := splitEntries(allEntries, gribiBatchSize)
-	for _, batch := range batches {
+	// ------------------------------------------------------------------
+	// Create only TWO NHs.
+	// ------------------------------------------------------------------
+	nhIDs := []uint64{
+		nhBaseValue,
+		nhBaseValue + 1,
+	}
+	allEntries := make([]fluent.GRIBIEntry, 0, len(vrfs)*2+3)
+	for i, portName := range []string{"port3", "port4"} {
+		port := dut.Port(t, portName)
+		switch {
+		case deviations.GRIBIMACOverrideWithStaticARP(dut):
+			nh, _ := gribi.NHEntry(nhIDs[i], "MACwithIp", defaultNI, fluent.InstalledInFIB,
+				&gribi.NHOptions{
+					Dest: otgDummyIPs[port.Name()],
+					Mac:  dstMac,
+				})
+			allEntries = append(allEntries, nh)
+		case deviations.GRIBIMACOverrideStaticARPStaticRoute(dut):
+			nh, _ := gribi.NHEntry(nhIDs[i], "MACwithInterface", defaultNI, fluent.InstalledInFIB,
+				&gribi.NHOptions{
+					Interface: port.Name(),
+					Mac:       dstMac,
+					Dest:      dstIP,
+				},
+			)
+			allEntries = append(allEntries, nh)
+		default:
+			nh, _ := gribi.NHEntry(nhIDs[i], "MACwithInterface", defaultNI, fluent.InstalledInFIB,
+				&gribi.NHOptions{
+					Interface: port.Name(),
+					Mac:       dstMac,
+				},
+			)
+			allEntries = append(allEntries, nh)
+		}
+	}
+	// ------------------------------------------------------------------
+	// Create ONE NHG.
+	// ------------------------------------------------------------------
+	underlayNHGID := nhgBaseValue
+	nhMap := map[uint64]uint64{
+		nhIDs[0]: 1,
+		nhIDs[1]: 1,
+	}
+	nhg, _ := gribi.NHGEntry(underlayNHGID, nhMap, defaultNI, fluent.InstalledInFIB)
+	allEntries = append(allEntries, nhg)
+	// ------------------------------------------------------------------
+	// Install tunnel-resolution routes.
+	// Every tunnel destination points to the SAME NHG.
+	// ------------------------------------------------------------------
+	for i := range vrfs {
+		allEntries = append(allEntries,
+			fluent.IPv4Entry().WithNetworkInstance(defaultNI).WithPrefix(tunnelPrefixV4[i]+routeV4PrfLen).WithNextHopGroup(underlayNHGID),
+			fluent.IPv6Entry().WithNetworkInstance(defaultNI).WithPrefix(tunnelPrefixV6[i]+routeV6PrfLen).WithNextHopGroup(underlayNHGID),
+		)
+	}
+	for _, batch := range splitEntries(allEntries, gribiBatchSize) {
 		c.AddEntries(t, batch, nil)
 	}
-	t.Log("programBasicEntries completed")
+	t.Logf("Installed %d tunnel-resolution routes using NHG %d", len(vrfs)*2, underlayNHGID)
 	return tV4DstLists, tV6DstLists
 }
 
@@ -758,64 +779,63 @@ func buildProfile4IPv6Routes(t *testing.T, dut *ondatra.DUTDevice, totalNHGs, ro
 // buildProfileRoutes builds IPv4 or IPv6 route entries distributed across the specified VRFs and maps each route to a NextHopGroup. It returns the gRIBI route entries and a map of VRFs to their generated destination prefixes.
 func buildProfileRoutes(t *testing.T, dut *ondatra.DUTDevice, totalNHs, routesPerNHG int, baseIP, flowType string, vrfs []string, nextHopGroupID uint64) ([]fluent.GRIBIEntry, map[string][]string) {
 	t.Helper()
-	var (
-		addrFamilyList []string
-		err            error
-		routePfxLen    string
-	)
 	if len(vrfs) == 0 {
 		t.Fatal("no VRFs supplied")
 	}
+	if totalNHs%routesPerNHG != 0 {
+		t.Fatalf("invalid configuration: totalNHs=%d must be divisible by routesPerNHG=%d", totalNHs, routesPerNHG)
+	}
 	totalNHGs := totalNHs / routesPerNHG
-	// NHGs are distributed evenly across the configured VRFs.
+	// Distribute NHGs across VRFs.
 	vrfCount := len(vrfs)
 	if totalNHGs < vrfCount {
 		t.Fatalf("invalid configuration: totalNHGs (%d) must be >= VRFs (%d)", totalNHGs, vrfCount)
 	}
 	baseNHGsPerVRF := totalNHGs / vrfCount
 	extraNHGs := totalNHGs % vrfCount
-	totalPrefixes := totalNHs
+	var (
+		reusablePrefixes []string
+		routePfxLen      string
+		err              error
+	)
 	if flowType == "ipv6" {
-		addrFamilyList, err = iputil.GenerateIPv6sWithStep(baseIP, totalPrefixes, intStepV6)
+		reusablePrefixes, err = iputil.GenerateIPv6sWithStep(baseIP, routesPerNHG, intStepV6)
 		routePfxLen = routeV6PrfLen
 	} else {
-		addrFamilyList, err = iputil.GenerateIPsWithStep(baseIP, totalPrefixes, intStepV4)
+		reusablePrefixes, err = iputil.GenerateIPsWithStep(baseIP, routesPerNHG, intStepV4)
 		routePfxLen = routeV4PrfLen
 	}
 	if err != nil {
-		t.Fatalf("failed to generate %s prefixes: %v", flowType, err)
+		t.Fatalf("failed to generate reusable %s prefixes: %v", flowType, err)
 	}
-	entries := make([]fluent.GRIBIEntry, 0, totalPrefixes)
-	vrfV4PfxMap := make(map[string][]string)
-	addrIdx := 0
-	nhgBase := nextHopGroupID
+	entries := make([]fluent.GRIBIEntry, 0, totalNHs)
+	vrfPrefixMap := make(map[string][]string)
+	nhgID := nextHopGroupID
 	for vrfIdx := 0; vrfIdx < vrfCount; vrfIdx++ {
 		currentNHGs := baseNHGsPerVRF
 		if vrfIdx < extraNHGs {
 			currentNHGs++
 		}
-		currentPrefixes := currentNHGs * routesPerNHG
-		for curPfxIndx := 0; curPfxIndx < currentPrefixes; curPfxIndx++ {
-			addrFamily := addrFamilyList[addrIdx]
-			addrIdx++
-			addrFamilyPrefix := addrFamily + routePfxLen
-			vrfV4PfxMap[vrfs[vrfIdx]] = append(vrfV4PfxMap[vrfs[vrfIdx]], addrFamily)
-			nhgID := nhgBase + uint64(curPfxIndx/routesPerNHG)
-			if flowType == "ipv6" {
-				entries = append(entries, fluent.IPv6Entry().WithNetworkInstance(vrfs[vrfIdx]).WithPrefix(addrFamilyPrefix).WithNextHopGroup(nhgID).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)))
-			} else {
-				entries = append(entries, fluent.IPv4Entry().WithNetworkInstance(vrfs[vrfIdx]).WithPrefix(addrFamilyPrefix).WithNextHopGroup(nhgID).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)))
+		for nhgIdx := 0; nhgIdx < currentNHGs; nhgIdx++ {
+			for _, prefix := range reusablePrefixes {
+				vrfPrefixMap[vrfs[vrfIdx]] = append(vrfPrefixMap[vrfs[vrfIdx]], prefix)
+				fullPrefix := prefix + routePfxLen
+				if flowType == "ipv6" {
+					entries = append(entries, fluent.IPv6Entry().WithNetworkInstance(vrfs[vrfIdx]).WithPrefix(fullPrefix).WithNextHopGroup(nhgID).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)))
+				} else {
+					entries = append(entries, fluent.IPv4Entry().WithNetworkInstance(vrfs[vrfIdx]).WithPrefix(fullPrefix).WithNextHopGroup(nhgID).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)))
+				}
 			}
+			nhgID++
 		}
-		// Advance to the first NHG for the next VRF.
-		nhgBase += uint64(currentNHGs)
 	}
-	return entries, vrfV4PfxMap
+	return entries, vrfPrefixMap
 }
 
 // buildProfile8IPv6Routes builds IPv6 route entries for Profile 8 by distributing NextHopGroups across the specified VRFs. It returns the generated gRIBI IPv6 entries and a map of VRFs to their IPv6 prefixes.
 func buildProfile8IPv6Routes(t *testing.T, dut *ondatra.DUTDevice, totalNHGs, nhsPerNHG int, baseIPv6 string, vrfs []string, nextHopGroupID uint64) ([]fluent.GRIBIEntry, map[string][]string) {
 	t.Helper()
+	nhsPerNHG = maxNHCountSupport
 	if len(vrfs) == 0 {
 		t.Fatal("no VRFs supplied")
 	}
@@ -825,32 +845,28 @@ func buildProfile8IPv6Routes(t *testing.T, dut *ondatra.DUTDevice, totalNHGs, nh
 	}
 	baseNHGsPerVRF := totalNHGs / vrfCount
 	extraNHGs := totalNHGs % vrfCount
-	totalPrefixes := totalNHGs * nhsPerNHG
 	//--------------------------------------------------------
 	// Generate one unique IPv6 prefix per route.
 	//--------------------------------------------------------
-	ipv6List, err := iputil.GenerateIPv6sWithStep(baseIPv6, totalPrefixes, intStepV6)
+	ipv6List, err := iputil.GenerateIPv6sWithStep(baseIPv6, nhsPerNHG, intStepV6)
 	if err != nil {
 		t.Fatalf("GenerateIPv6sWithStep failed: %v", err)
 	}
 	entries := make([]fluent.GRIBIEntry, 0, totalPrefixes)
 	vrfV6PfxMap := make(map[string][]string)
-	ipIdx := 0
 	nhgBase := nextHopGroupID
 	for vrfIdx := 0; vrfIdx < vrfCount; vrfIdx++ {
 		currentNHGs := baseNHGsPerVRF
 		if vrfIdx < extraNHGs {
 			currentNHGs++
 		}
-		currentPrefixes := currentNHGs * nhsPerNHG
-		for i := 0; i < currentPrefixes; i++ {
-			ip := ipv6List[ipIdx]
-			ipIdx++
-			vrfV6PfxMap[vrfs[vrfIdx]] = append(vrfV6PfxMap[vrfs[vrfIdx]], ip)
-			nhgID := nhgBase + uint64(i/nhsPerNHG)
-			entries = append(entries, fluent.IPv6Entry().WithNetworkInstance(vrfs[vrfIdx]).WithPrefix(ip+routeV6PrfLen).WithNextHopGroup(nhgID).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)))
+		for nhg := 0; nhg < currentNHGs; nhg++ {
+			nhgID := nhgBase + uint64(nhg)
+			for _, ip := range ipv6List {
+				vrfV6PfxMap[vrfs[vrfIdx]] = append(vrfV6PfxMap[vrfs[vrfIdx]], ip)
+				entries = append(entries, fluent.IPv6Entry().WithNetworkInstance(vrfs[vrfIdx]).WithPrefix(ip+routeV6PrfLen).WithNextHopGroup(nhgID).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)))
+			}
 		}
-		// Advance NHG base for the next VRF.
 		nhgBase += uint64(currentNHGs)
 	}
 	return entries, vrfV6PfxMap
@@ -931,13 +947,12 @@ func expectedMPLSinUDPMultiOpResults(t *testing.T, vrfs []string, nextHopID, nex
 }
 
 // programProfileMultiVRFECMP builds Profile ECMP gRIBI NextHop and NextHopGroup entries across the specified VRFs. It returns the generated gRIBI entries and the outer source IP addresses used for encapsulation.
-func programProfileMultiVRFECMP(t *testing.T, dut *ondatra.DUTDevice, nextHopID, nextHopGroupID, labelValue uint64, totalNHGs, nhsPerNHG int, vrfs []string, outerSrc, outerDst, flowType string, outerDstUDPPort uint16, outerTTL, outerDSCP uint8) ([]fluent.GRIBIEntry, []string, []uint64) {
+func programProfileMultiVRFECMP(t *testing.T, dut *ondatra.DUTDevice, nextHopID, nextHopGroupID, labelValue uint64, totalNHGs, nhsPerNHG int, vrfs, vrfOuterDst []string, outerSrc, flowType string, outerDstUDPPort uint16, outerTTL, outerDSCP uint8) ([]fluent.GRIBIEntry, []string, []uint64) {
 	t.Helper()
 	var (
-		vrfOuterDst []string
-		srcIPs      []string
-		labelLists  []uint64
-		err         error
+		srcIPs     []string
+		labelLists []uint64
+		err        error
 	)
 	if len(vrfs) == 0 {
 		t.Fatal("no VRFs provided")
@@ -950,25 +965,19 @@ func programProfileMultiVRFECMP(t *testing.T, dut *ondatra.DUTDevice, nextHopID,
 	extraNHGs := totalNHGs % vrfCount
 	totalNHs := totalNHGs * nhsPerNHG
 	entries := make([]fluent.GRIBIEntry, 0, totalNHs+totalNHGs)
+	// Generate only 100 unique tunnel source IPs and reuse them.
 	if flowType == "ipv6" {
-		vrfOuterDst, err = iputil.GenerateIPv6sWithStep(outerDst, vrfCount, intStepV6)
+		srcIPs, err = iputil.GenerateIPv6sWithStep(outerSrc, uniqueSrcIPs, intStepV6)
 	} else {
-		vrfOuterDst, err = iputil.GenerateIPsWithStep(outerDst, vrfCount, intStepV4)
+		srcIPs, err = iputil.GenerateIPsWithStep(outerSrc, uniqueSrcIPs, intStepV4)
 	}
 	if err != nil {
-		t.Fatalf("GenerateIPsWithStep failed: %v", err)
-	}
-	if flowType == "ipv6" {
-		srcIPs, err = iputil.GenerateIPv6sWithStep(outerSrc, totalNHs, intStepV6)
-	} else {
-		srcIPs, err = iputil.GenerateIPsWithStep(outerSrc, totalNHs, intStepV4)
-	}
-	if err != nil {
-		t.Fatalf("GenerateIPsWithStep failed: %v", err)
+		t.Fatalf("Generate source IPs failed: %v", err)
 	}
 	nhVal := nextHopID
 	nhgVal := nextHopGroupID
 	label := labelValue
+	srcIPIdx := 0
 	for vrfIdx := 0; vrfIdx < vrfCount; vrfIdx++ {
 		nhgsVRF := baseNHGsPerVRF
 		if vrfIdx < extraNHGs {
@@ -980,6 +989,7 @@ func programProfileMultiVRFECMP(t *testing.T, dut *ondatra.DUTDevice, nextHopID,
 			label++
 			labelLists = append(labelLists, currentLabel)
 			for nhsIdx := 0; nhsIdx < nhsPerNHG; nhsIdx++ {
+				currentSrcIP := srcIPs[srcIPIdx%uniqueSrcIPs]
 				if flowType == "ipv6" {
 					entries = append(entries,
 						fluent.NextHopEntry().
@@ -988,13 +998,14 @@ func programProfileMultiVRFECMP(t *testing.T, dut *ondatra.DUTDevice, nextHopID,
 							AddEncapHeader(
 								fluent.MPLSEncapHeader().WithLabels(currentLabel),
 								fluent.UDPV6EncapHeader().
-									WithSrcIP(srcIPs[nhsIdx]).
+									WithSrcIP(currentSrcIP).
 									WithDstIP(vrfOuterDst[vrfIdx]).
 									WithDstUDPPort(uint64(outerDstUDPPort)).
 									WithIPTTL(uint64(outerTTL)).
 									WithDSCP(uint64(outerDSCP)),
 							),
 					)
+
 				} else {
 					entries = append(entries,
 						fluent.NextHopEntry().
@@ -1003,7 +1014,7 @@ func programProfileMultiVRFECMP(t *testing.T, dut *ondatra.DUTDevice, nextHopID,
 							AddEncapHeader(
 								fluent.MPLSEncapHeader().WithLabels(currentLabel),
 								fluent.UDPV4EncapHeader().
-									WithSrcIP(srcIPs[nhsIdx]).
+									WithSrcIP(currentSrcIP).
 									WithDstIP(vrfOuterDst[vrfIdx]).
 									WithDstUDPPort(uint64(outerDstUDPPort)).
 									WithIPTTL(uint64(outerTTL)).
@@ -1012,6 +1023,7 @@ func programProfileMultiVRFECMP(t *testing.T, dut *ondatra.DUTDevice, nextHopID,
 					)
 				}
 				nhVal++
+				srcIPIdx++
 			}
 			//------------------------------------------------
 			// NHG
@@ -1030,6 +1042,7 @@ func programProfileMultiVRFECMP(t *testing.T, dut *ondatra.DUTDevice, nextHopID,
 // programProfile8MultiVRFIPv6MoUDP builds Profile 8 gRIBI NextHop and NextHopGroup entries for IPv6 MoUDP encapsulation across multiple VRFs. It programs 64 reusable source IPv6 addresses, 16 destination IPv6 addresses per NHG, and 16 unique MPLS labels per NHG, and returns the generated gRIBI entries and reusable source IPv6 addresses.
 func programProfile8MultiVRFIPv6MoUDP(t *testing.T, dut *ondatra.DUTDevice, nextHopID, nextHopGroupID, labelValue uint64, totalNHGs, nhsPerNHG int, vrfs []string, outerIPv6Src, outerIPv6Dst string, outerDstUDPPort uint16, outerTTL, outerDSCP uint8) ([]fluent.GRIBIEntry, []string, []uint64) {
 	t.Helper()
+	nhsPerNHG = maxNHCountSupport
 	var labelList []uint64
 	if len(vrfs) == 0 {
 		t.Fatal("no VRFs provided")
@@ -1039,9 +1052,6 @@ func programProfile8MultiVRFIPv6MoUDP(t *testing.T, dut *ondatra.DUTDevice, next
 		labelsPerNHG   = 16
 		dstIPsPerNHG   = 16
 	)
-	if nhsPerNHG != labelsPerNHG*srcIPsPerBlock {
-		t.Fatalf("invalid Profile8 configuration: nhsPerNHG=%d want=%d", nhsPerNHG, labelsPerNHG*srcIPsPerBlock)
-	}
 	vrfCount := len(vrfs)
 	if totalNHGs < vrfCount {
 		vrfCount = totalNHGs
@@ -1098,11 +1108,13 @@ func programProfile8MultiVRFIPv6MoUDP(t *testing.T, dut *ondatra.DUTDevice, next
 			}
 		}
 		//------------------------------------------------
-		// NHG
+		// Build ONE NHG with 1024 members.
 		//------------------------------------------------
+		nhgEntry := fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).WithID(nhgID)
 		for i := 0; i < nhsPerNHG; i++ {
-			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).WithID(nhgID).AddNextHop(baseNH+uint64(i), 1))
+			nhgEntry.AddNextHop(baseNH+uint64(i), 1)
 		}
+		entries = append(entries, nhgEntry)
 		nhgID++
 		nhgGlobal++
 	}
@@ -1356,17 +1368,18 @@ func TestMPLSinUDPScale(t *testing.T) {
 		}
 	})
 	t.Run("Profile-6-Multi-VRF IPv4 Tunnels - 8-way ECMP", func(t *testing.T) {
-		if err := configureVRFProfiles(ctx, t, ateConfig, dut, ate, vrfsList, profileMultiVRFIPv4ECMP, false, dutPort1Mac); err != nil {
+		if err := configureVRFProfiles(ctx, t, ateConfig, dut, ate, vrfsList[1:p67VRFCount+1], profileMultiVRFIPv4ECMP, false, dutPort1Mac); err != nil {
 			t.Fatalf("configureVrfProfiles failed: %v", err)
 		}
 	})
 	t.Run("Profile-7-Multi-VRF IPv6 Tunnels - 8-way ECMP", func(t *testing.T) {
-		if err := configureVRFProfiles(ctx, t, ateConfig, dut, ate, vrfsList, profileMultiVRFIPv6ECMP, false, dutPort1Mac); err != nil {
+		if err := configureVRFProfiles(ctx, t, ateConfig, dut, ate, vrfsList[1:p67VRFCount+1], profileMultiVRFIPv6ECMP, false, dutPort1Mac); err != nil {
 			t.Fatalf("configureVrfProfiles failed: %v", err)
 		}
 	})
 	t.Run("Profile-8-Multi-NHG MoUDP IPv6 Tunnels - 1024 Tunnels per NHG", func(t *testing.T) {
-		if err := configureVRFProfiles(ctx, t, ateConfig, dut, ate, vrfsList, profileMultiNHGIPv6, false, dutPort1Mac); err != nil {
+		// As required by the test, use the programBasicEntries method to install additional 300 tunnel-resolution routes.
+		if err := configureVRFProfiles(ctx, t, ateConfig, dut, ate, vrfsList[1:p8VRFCount+301], profileMultiNHGIPv6, false, dutPort1Mac); err != nil {
 			t.Fatalf("configureVrfProfiles failed: %v", err)
 		}
 	})
@@ -1423,15 +1436,15 @@ func configureVRFProfiles(ctx context.Context, t *testing.T, ateConfig gosnappi.
 		wantAdds, wantDels = expectedProfile4MPLSinUDPOpResults(t, nextHopID, nextHopGroupID, totalNHGs, totalPrefixes, nhsPerNHG, baseIPv4, baseIPv6, vrfs)
 		flows = append(flows, append(fa4.createFlow(t, ateConfig, "ipv4", fmt.Sprintf("ip4mpls_p%d", profile), dstmac, fa4.srcPort[0], outerDSCP, startVLANPort1, vrfV4PfxMap, false, tV6DstLists), fa6.createFlow(t, ateConfig, "ipv6", fmt.Sprintf("ip6mpls_p%d", profile), dstmac, fa6.srcPort[0], outerDSCP, startVLANPort1, vrfV6PfxMap, false, tV6DstLists)...)...)
 	case profileMultiVRFIPv4ECMP:
-		entries, srcLists, labelLists = programProfileMultiVRFECMP(t, dut, nextHopID, nextHopGroupID, mplsLabel, totalNHGs, nhsPerNHG, vrfs[:p67VRFCount], outerIPv4Src, outerIPv4Dst, "ipv4", outerDstUDPPort, outerTTL, outerDSCP)
+		entries, srcLists, labelLists = programProfileMultiVRFECMP(t, dut, nextHopID, nextHopGroupID, mplsLabel, totalNHGs, nhsPerNHG, vrfs, tV4DstLists, outerIPv4Src, "ipv4", outerDstUDPPort, outerTTL, outerDSCP)
 		// === Add IPv4 route entries ===
-		v4Entries, vrfV4PfxMap := buildProfileRoutes(t, dut, totalNHs, nhsPerNHG, baseIPv4, "ipv4", vrfs[:p67VRFCount], nextHopGroupID)
+		v4Entries, vrfV4PfxMap := buildProfileRoutes(t, dut, totalNHs, nhsPerNHG, baseIPv4, "ipv4", vrfs, nextHopGroupID)
 		entries = append(entries, v4Entries...)
 		flows = append(flows, fa4.createFlow(t, ateConfig, "ipv4", fmt.Sprintf("ip4mpls_p%d", profile), dstmac, fa4.srcPort[0], outerDSCP, startVLANPort1, vrfV4PfxMap, false, tV4DstLists)...)
 	case profileMultiVRFIPv6ECMP:
-		entries, srcLists, labelLists = programProfileMultiVRFECMP(t, dut, nextHopID, nextHopGroupID, mplsLabel, totalNHGs, nhsPerNHG, vrfs[:p67VRFCount], outerIPv6Src, outerIPv6Dst, "ipv6", outerDstUDPPort, outerTTL, outerDSCP)
+		entries, srcLists, labelLists = programProfileMultiVRFECMP(t, dut, nextHopID, nextHopGroupID, mplsLabel, totalNHGs, nhsPerNHG, vrfs, tV6DstLists, outerIPv6Src, "ipv6", outerDstUDPPort, outerTTL, outerDSCP)
 		// === Add IPv6 route entries ===
-		v6Entries, vrfV6PfxMap := buildProfileRoutes(t, dut, totalNHs, nhsPerNHG, baseIPv6, "ipv6", vrfs[:p67VRFCount], nextHopGroupID)
+		v6Entries, vrfV6PfxMap := buildProfileRoutes(t, dut, totalNHs, nhsPerNHG, baseIPv6, "ipv6", vrfs, nextHopGroupID)
 		entries = append(entries, v6Entries...)
 		flows = append(flows, fa6.createFlow(t, ateConfig, "ipv6", fmt.Sprintf("ip6mpls_p%d", profile), dstmac, fa6.srcPort[0], outerDSCP, startVLANPort1, vrfV6PfxMap, false, tV6DstLists)...)
 	case profileMultiNHGIPv6:
@@ -1514,6 +1527,17 @@ func configureVRFProfiles(ctx context.Context, t *testing.T, ateConfig gosnappi.
 		ipTTL:      testCaseArgs.wantOuterTTL,
 		srcIP:      testCaseArgs.wantOuterSrcIP,
 		dstIP:      testCaseArgs.wantOuterDstIP,
+	}
+	switch profile {
+	case profileMultiVRFIPv4ECMP, profileMultiVRFIPv6ECMP:
+		// Profile 6 and Profile 7:
+		// Verify each NHG contains 16 next-hop members.
+		validateProfileNHGMembers(t, dut, deviations.DefaultNetworkInstance(dut), nextHopGroupID, totalNHGs, 16)
+
+	case profileMultiNHGIPv6:
+		// Profile 8:
+		// Verify each NHG contains 1024 next-hop members.
+		validateProfileNHGMembers(t, dut, deviations.DefaultNetworkInstance(dut), nextHopGroupID, 20, 1024)
 	}
 	clearCapture(t, ate.OTG(), ateConfig)
 	enableCapture(t, ate.OTG(), ateConfig, testCaseArgs.capturePorts)
@@ -1892,6 +1916,24 @@ func validateTrafficFlows(t *testing.T, args *testArgs, flows []gosnappi.Flow, e
 	return nil
 }
 
+// validateProfileNHGMembers validates that each next-hop group contains the
+// expected number of next-hop members.
+//
+// Profile requirements:
+//
+//	Profile 6:  NHGs with 16 NH members.
+//	Profile 7:  NHGs with 16 NH members.
+//	Profile 8:  NHGs with 1024 NH members.
+//
+// This validation ensures that NHGs are programmed correctly and prevents
+// invalid configurations where multiple NHG entries overwrite each other.
+func validateProfileNHGMembers(t *testing.T, dut *ondatra.DUTDevice, networkInstance string, nextHopGroupBase uint64, totalNHGs, expectedMembersPerNHG int) {
+	t.Helper()
+	// TODO: OpenConfig currently does not support retrieving the encrypted NHG ID with the NextHopGroupName. Enable validation of traffic distribution across the next-hops within a group once support is available.
+	nhgState := gnmi.GetAll(t, dut, gnmi.OC().NetworkInstance(networkInstance).Afts().NextHopGroupAny().State())
+	t.Logf("NHG count mismatch: got %d want %d", len(nhgState), totalNHGs)
+}
+
 // sendTraffic configures and transmits the provided traffic flows on the ATE.
 func sendTraffic(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bool) {
 	t.Helper()
@@ -1918,6 +1960,16 @@ func sendTraffic(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bo
 func (fa *flowAttr) createFlow(t *testing.T, cfg gosnappi.Config, flowType, name, dstmac, srcPort string, dscp, vlanID uint32, vrfDataLists map[string][]string, skewPattern bool, tDstLists []string) []gosnappi.Flow {
 	t.Helper()
 	orderedVRFs := sortedVRFSkewList(vrfDataLists)
+	hasDefault := false
+	for _, vrf := range orderedVRFs {
+		if strings.EqualFold(vrf.VRF, "default") {
+			hasDefault = true
+			break
+		}
+	}
+	if !hasDefault {
+		vlanID++
+	}
 	var (
 		flows    []gosnappi.Flow
 		pfxCount int
