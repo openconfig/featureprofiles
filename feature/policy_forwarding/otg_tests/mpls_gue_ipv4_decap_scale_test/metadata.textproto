@@ -17,7 +17,7 @@ platform_exceptions: {
   mpls_label_classification_unsupported: true
   aggregate_atomic_update: true
   interface_enabled: true
-  gue_gre_decap_unsupported: true
+  gue_gre_decap_oc_unsupported: true
   static_mpls_unsupported: true
   default_network_instance: "default"
   }
