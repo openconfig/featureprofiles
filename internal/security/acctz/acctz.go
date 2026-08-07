@@ -899,6 +899,8 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		_, err = gnoiSystemClient.Time(ctx, &systempb.TimeRequest{})
 		if err != nil {
 			t.Logf("Got expected error getting gnoi system time with bad creds, error: %s", err)
+		} else {
+			t.Errorf("Did not get expected error getting gnoi system time with bad creds.")
 		}
 	} else {
 		rpcName = gnoiPingPath
@@ -912,6 +914,8 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		_, err = gnoiSystemPingClient.Recv()
 		if err != nil {
 			t.Logf("Got expected error getting gnoi system ping with bad creds, error: %s", err)
+		} else {
+			t.Errorf("Did not get expected error getting gnoi system ping with bad creds.")
 		}
 	}
 
