@@ -566,7 +566,7 @@ func testTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config,
 				lossPct = float64(outPkts-inPkts) * 100.0 / float64(outPkts)
 			} else {
 				// If outPkts is 0, traffic failed to start entirely
-				lossPct = 100.0 
+				lossPct = 100.0
 			}
 
 			// Log stats
