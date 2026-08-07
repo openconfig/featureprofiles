@@ -440,66 +440,28 @@ func verifyMTU(t *testing.T, dut *ondatra.DUTDevice, lag1Name, lag2Name string, 
 	// Some platforms expose IP MTU as L2 MTU minus ethernet header bytes.
 	wantAdjusted = uint16(mtu - 14)
 	wantIPv6Adjusted = uint32(mtu - 14)
-	batch := gnmi.OCBatch()
 	for _, lagName := range []string{lag1Name, lag2Name} {
 		if !deviations.OmitL2MTU(dut) {
-			batch.AddPaths(gnmi.OC().Interface(lagName).Mtu())
-		}
-		for _, sub := range subs[lagName] {
-			subifIndex := uint32(sub.vlanID)
-			batch.AddPaths(
-				gnmi.OC().Interface(lagName).Subinterface(subifIndex).Ipv4().Mtu(),
-				gnmi.OC().Interface(lagName).Subinterface(subifIndex).Ipv6().Mtu(),
-			)
-		}
-	}
-
-	state := gnmi.Get(t, dut, batch.State())
-
-	for _, lagName := range []string{lag1Name, lag2Name} {
-		lag := state.GetInterface(lagName)
-		if lag == nil {
-			t.Errorf("%s aggregate interface is missing from state", lagName)
-			continue
-		}
-		if !deviations.OmitL2MTU(dut) {
-			if lag.Mtu == nil {
-				t.Errorf("%s aggregate MTU is missing from state", lagName)
+			lagMTU := gnmi.Get(t, dut, gnmi.OC().Interface(lagName).Mtu().State())
+			if lagMTU != wantPrimary {
+				t.Errorf("%s aggregate MTU: got %d, want %d", lagName, lagMTU, wantPrimary)
 			} else {
-				lagMTU := lag.GetMtu()
-				if lagMTU != wantPrimary {
-					t.Errorf("%s aggregate MTU: got %d, want %d", lagName, lagMTU, wantPrimary)
-				} else {
-					t.Logf("%s aggregate MTU: %d (OK)", lagName, lagMTU)
-				}
+				t.Logf("%s aggregate MTU: %d (OK)", lagName, lagMTU)
 			}
 		}
 		for _, sub := range subs[lagName] {
 			subifIndex := uint32(sub.vlanID)
-			subif := state.GetInterface(lagName).GetSubinterface(subifIndex)
-			if subif == nil {
-				t.Errorf("%s subinterface %d is missing from state", lagName, sub.vlanID)
-				continue
-			}
-			if subif.Ipv4 == nil || subif.Ipv4.Mtu == nil {
-				t.Errorf("%s subinterface %d IPv4 MTU is missing from state", lagName, sub.vlanID)
+			ipv4MTU := gnmi.Get(t, dut, gnmi.OC().Interface(lagName).Subinterface(subifIndex).Ipv4().Mtu().State())
+			if ipv4MTU != wantPrimary && ipv4MTU != wantAdjusted {
+				t.Errorf("%s subinterface %d IPv4 MTU: got %d, want %d or %d", lagName, sub.vlanID, ipv4MTU, wantPrimary, wantAdjusted)
 			} else {
-				ipv4MTU := subif.GetIpv4().GetMtu()
-				if ipv4MTU != wantPrimary && ipv4MTU != wantAdjusted {
-					t.Errorf("%s subinterface %d IPv4 MTU: got %d, want %d or %d", lagName, sub.vlanID, ipv4MTU, wantPrimary, wantAdjusted)
-				} else {
-					t.Logf("%s subinterface %d IPv4 MTU: %d (OK)", lagName, sub.vlanID, ipv4MTU)
-				}
+				t.Logf("%s subinterface %d IPv4 MTU: %d (OK)", lagName, sub.vlanID, ipv4MTU)
 			}
-			if subif.Ipv6 == nil || subif.Ipv6.Mtu == nil {
-				t.Errorf("%s subinterface %d IPv6 MTU is missing from state", lagName, sub.vlanID)
+			ipv6MTU := gnmi.Get(t, dut, gnmi.OC().Interface(lagName).Subinterface(subifIndex).Ipv6().Mtu().State())
+			if ipv6MTU != wantIPv6Primary && ipv6MTU != wantIPv6Adjusted {
+				t.Errorf("%s subinterface %d IPv6 MTU: got %d, want %d or %d", lagName, sub.vlanID, ipv6MTU, wantIPv6Primary, wantIPv6Adjusted)
 			} else {
-				ipv6MTU := subif.GetIpv6().GetMtu()
-				if ipv6MTU != wantIPv6Primary && ipv6MTU != wantIPv6Adjusted {
-					t.Errorf("%s subinterface %d IPv6 MTU: got %d, want %d or %d", lagName, sub.vlanID, ipv6MTU, wantIPv6Primary, wantIPv6Adjusted)
-				} else {
-					t.Logf("%s subinterface %d IPv6 MTU: %d (OK)", lagName, sub.vlanID, ipv6MTU)
-				}
+				t.Logf("%s subinterface %d IPv6 MTU: %d (OK)", lagName, sub.vlanID, ipv6MTU)
 			}
 		}
 	}
@@ -630,7 +592,6 @@ func TestAggregateSubinterface(t *testing.T) {
 	})
 
 	t.Run("RT-5.14.2: Aggregate sub-interface in default Network Instance (NI)", func(t *testing.T) {
-		t.Skip()
 		t.Cleanup(func() { ensureLagMembersEnabled(t, dut) })
 		ensureLagMembersEnabled(t, dut)
 		t.Logf("Using Network Instance: %s", deviations.DefaultNetworkInstance(dut))
@@ -679,7 +640,6 @@ func TestAggregateSubinterface(t *testing.T) {
 	})
 
 	t.Run("RT-5.14.3: Aggregate sub-interface in non-default Network Instance (NI)", func(t *testing.T) {
-		t.Skip()
 		t.Cleanup(func() { ensureLagMembersEnabled(t, dut) })
 		ensureLagMembersEnabled(t, dut)
 		deletebatch := &gnmi.SetBatch{}
