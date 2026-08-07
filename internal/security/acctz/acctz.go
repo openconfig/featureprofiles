@@ -765,7 +765,7 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	if err1 != nil {
 		t.Logf("Got expected error fetching capabilities with bad creds, error: %s", err1)
 	} else {
-		t.Logf("Did not get expected error fetching capabilities with bad creds. %v", err1)
+		t.Errorf("Did not get expected error fetching capabilities with bad creds. %v", err1)
 	}
 
 	if !deviations.AcctzRecordFailGrpcUnsupported(dut) {
@@ -1054,7 +1054,7 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	if err != nil {
 		t.Logf("Got expected error fetching authz policy with bad creds, error: %s", err)
 	} else {
-		t.Logf("Did not get expected error fetching authz policy with bad creds.")
+		t.Errorf("Did not get expected error fetching authz policy with bad creds.")
 	}
 	if !deviations.AcctzRecordFailGrpcUnsupported(dut) {
 		records = append(records, &acctzpb.RecordResponse{
