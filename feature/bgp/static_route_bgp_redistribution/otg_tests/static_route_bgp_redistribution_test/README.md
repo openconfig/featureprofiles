@@ -9,6 +9,7 @@
 - Community list set to defined community set
 - BGP protocol next-hop set to value provided in configuration
 - Redstribute static-route with "DROP" as the next-hop
+- BGP route origin set to value provided in configuration (IGP, EGP, INCOMPLETE)
 
 ## Testbed type
 
@@ -215,7 +216,7 @@
 *   Verify for routing-policy ```route-policy-v4``` statement ```statement-v4``` local-preference is set to ```100```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/state/set-local-pref
 ##### Validate test results
-*   Validate that the ATE receives the redistributed static route ```ipv4-route``` with MED of ```1000``` on the iBGP session between DUT-ATE port 3
+*   Validate that the ATE receives the redistributed static route ```ipv4-route``` with Local-Preference of ```100``` on the iBGP session between DUT-ATE port 3
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/prefix
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/local-pref
 
@@ -302,7 +303,7 @@
 *   Validate that the ATE receives the redistributed static route ```ipv4-drop-route``` on the iBGP session between DUT-ATE port 3
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/prefix
 *   Initiate traffic from ATE port-3 to the DUT and destined to ```ipv4-drop-network``` i.e. ```192.168.20.0/24```
-*   Validate that the traffic is received on ATE port-2
+*   Validate that the traffic is **dropped by the DUT** (or not received on ATE port-2).
 
 
 
@@ -435,13 +436,13 @@
 #### Redistribute IPv6 static routes to BGP with Local-Preference set to ```100```
 ---
 ##### Configure BGP actions to set local-pref
-*   For routing-policy ```route-policy-v4``` statement ```statement-v4``` set local-preference to ```100```
+*   For routing-policy ```route-policy-v6``` statement ```statement-v6``` set local-preference to ```100```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref
 ##### Verification
-*   Verify for routing-policy ```route-policy-v4``` statement ```statement-v4``` local-preference is set to ```100```
+*   Verify for routing-policy ```route-policy-v6``` statement ```statement-v6``` local-preference is set to ```100```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/state/set-local-pref
 ##### Validate test results
-*   Validate that the ATE receives the redistributed static route ```ipv4-route``` with MED of ```1000``` on the iBGP session between DUT-ATE port 3
+*   Validate that the ATE receives the redistributed static route ```ipv6-route``` with Local-Preference of ```100``` on the iBGP session between DUT-ATE port 3
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/loc-rib/routes/route/prefix
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/local-pref
 
@@ -523,13 +524,97 @@
 *   For routing-policy ```route-policy-v6``` statement ```statement-v6``` set next-hop to ```2001:DB8::9```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-next-hop
 ##### Verification
-*   Verify for routing-policy ```route-policy-v4``` statement ```statement-v4``` next-hop is set to ```2001:DB8::9```
+*   Verify for routing-policy ```route-policy-v6``` statement ```statement-v6``` next-hop is set to ```2001:DB8::9```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/state/set-next-hop
 ##### Validate the test results
-*   Validate that the ATE receives the redistributed static route ```ipv4-drop-route``` on the iBGP session between DUT-ATE port 3
+*   Validate that the ATE receives the redistributed static route ```ipv6-drop-route``` on the iBGP session between DUT-ATE port 3
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/loc-rib/routes/route/prefix
-*   Initiate traffic from ATE port-3 to the DUT and destined to ```ipv4-drop-network``` i.e. ```2024:db8:64:64::/64```
-*   Validate that the traffic is received on ATE port-2
+*   Initiate traffic from ATE port-3 to the DUT and destined to ```ipv6-drop-network``` i.e. ```2024:db8:64:64::/64```
+*   Validate that the traffic is **dropped by the DUT** (or not received on ATE port-2).
+
+### RT-1.27.23
+#### Redistribute IPv4 static routes to BGP with route-origin set to EGP
+---
+##### Configure BGP actions to set route-origin
+*   For routing-policy ```route-policy-v4``` statement ```statement-v4``` set route-origin to ```EGP```
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-route-origin
+##### Verification
+*   Verify for routing-policy ```route-policy-v4``` statement ```statement-v4``` route-origin is set to ```EGP```
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/state/set-route-origin
+##### Validate test results
+*   Validate that the ATE receives the redistributed static route ```ipv4-route``` with origin of ```EGP```
+    *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/prefix
+    *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/origin
+
+### RT-1.27.24
+#### Redistribute IPv6 static routes to BGP with route-origin set to EGP
+---
+##### Configure BGP actions to set route-origin
+*   For routing-policy ```route-policy-v6``` statement ```statement-v6``` set route-origin to ```EGP```
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-route-origin
+##### Verification
+*   Verify for routing-policy ```route-policy-v6``` statement ```statement-v6``` route-origin is set to ```EGP```
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/state/set-route-origin
+##### Validate test results
+*   Validate that the ATE receives the redistributed static route ```ipv6-route``` with origin of ```EGP```
+    *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/loc-rib/routes/route/prefix
+    *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/origin
+
+### RT-1.27.25
+#### Redistribute IPv4 static routes to BGP with route-origin set to IGP
+---
+##### Configure BGP actions to set route-origin
+*   For routing-policy ```route-policy-v4``` statement ```statement-v4``` set route-origin to ```IGP```
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-route-origin
+##### Verification
+*   Verify for routing-policy ```route-policy-v4``` statement ```statement-v4``` route-origin is set to ```IGP```
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/state/set-route-origin
+##### Validate test results
+*   Validate that the ATE receives the redistributed static route ```ipv4-route``` with origin of ```IGP```
+    *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/prefix
+    *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/origin
+
+### RT-1.27.26
+#### Redistribute IPv6 static routes to BGP with route-origin set to IGP
+---
+##### Configure BGP actions to set route-origin
+*   For routing-policy ```route-policy-v6``` statement ```statement-v6``` set route-origin to ```IGP```
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-route-origin
+##### Verification
+*   Verify for routing-policy ```route-policy-v6``` statement ```statement-v6``` route-origin is set to ```IGP```
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/state/set-route-origin
+##### Validate test results
+*   Validate that the ATE receives the redistributed static route ```ipv6-route``` with origin of ```IGP```
+    *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/loc-rib/routes/route/prefix
+    *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/origin
+
+### RT-1.27.27
+#### Redistribute IPv4 static routes to BGP with route-origin set to INCOMPLETE
+---
+##### Configure BGP actions to set route-origin
+*   For routing-policy ```route-policy-v4``` statement ```statement-v4``` set route-origin to ```INCOMPLETE```
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-route-origin
+##### Verification
+*   Verify for routing-policy ```route-policy-v4``` statement ```statement-v4``` route-origin is set to ```INCOMPLETE```
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/state/set-route-origin
+##### Validate test results
+*   Validate that the ATE receives the redistributed static route ```ipv4-route``` with origin of ```INCOMPLETE```
+    *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/prefix
+    *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/origin
+
+### RT-1.27.28
+#### Redistribute IPv6 static routes to BGP with route-origin set to INCOMPLETE
+---
+##### Configure BGP actions to set route-origin
+*   For routing-policy ```route-policy-v6``` statement ```statement-v6``` set route-origin to ```INCOMPLETE```
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-route-origin
+##### Verification
+*   Verify for routing-policy ```route-policy-v6``` statement ```statement-v6``` route-origin is set to ```INCOMPLETE```
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/state/set-route-origin
+##### Validate test results
+*   Validate that the ATE receives the redistributed static route ```ipv6-route``` with origin of ```INCOMPLETE```
+    *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/loc-rib/routes/route/prefix
+    *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/origin
 
 ## Config parameter coverage
 
@@ -567,6 +652,7 @@
 *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref
 *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med
+*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-route-origin
 *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-next-hop
 *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/asn
 *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community/reference/config/community-set-ref
@@ -588,6 +674,7 @@
 *  /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/as-path/as-segment/state/member
 *  /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/local-pref
 *  /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/med
+*  /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/origin
 
 *  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/state/community-member
 *  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/state/community-set-name
@@ -618,6 +705,7 @@
 *  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/state/asn
 *  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/state/set-local-pref
 *  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/state/set-med
+*  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/state/set-route-origin
 *  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/state/set-next-hop
 
 *  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/state/match-set-options
@@ -673,11 +761,13 @@ paths:
   /routing-policy/policy-definitions/policy-definition/state/name:
   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref:
   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-route-origin:
   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-next-hop:
   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/asn:
   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/repeat-n:
   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community/reference/config/community-set-ref:
   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/state/set-next-hop:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/state/set-route-origin:
   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/state/policy-result:
   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options:
