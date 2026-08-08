@@ -1434,6 +1434,9 @@ message Metadata {
     // non-default network instance.
     bool vrf_selection_policy_non_default_ni_unsupported = 450;
 
+    // https://partnerissuetracker.corp.google.com/issues/529388485
+    bool decap_nh_without_nexthop_ni_unsupported = 451;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }
