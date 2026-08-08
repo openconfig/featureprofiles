@@ -1,0 +1,7 @@
+# proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "1e40d880-6571-4e66-ad82-e67f1e70c2b2"
+plan_id: "SFLOW-2"
+description: "sFlow Sampling with Encapsulation and Decapsulation"
+testbed: TESTBED_DUT_ATE_4LINKS
