@@ -32,12 +32,18 @@ following features:
 *   Validate if counters are being updated consistently
 
     Check the presence of packet counter paths and monitor counters every
-    30 seconds. Generate traffic to get atleast 10 or more samples. 
+    30 seconds. Generate traffic to get atleast 10 or more samples.
 
     *   /interfaces/interface[name='port']/state/counters/in-pkts
     *   /interfaces/interface[name='port']/state/counters/out-pkts
     *   /interfaces/interface[name='port']/subinterfaces/subinterface[index='index-id']/ipv4/state/counters/in-pkts
+    *   /interfaces/interface[name='port']/subinterfaces/subinterface[index='index-id']/ipv4/state/counters/out-pkts
+    *   /interfaces/interface[name='port']/subinterfaces/subinterface[index='index-id']/ipv4/state/counters/in-octets
+    *   /interfaces/interface[name='port']/subinterfaces/subinterface[index='index-id']/ipv4/state/counters/out-octets
     *   /interfaces/interface[name='port']/subinterfaces/subinterface[index='index-id']/ipv6/state/counters/in-pkts
+    *   /interfaces/interface[name='port']/subinterfaces/subinterface[index='index-id']/ipv6/state/counters/out-pkts
+    *   /interfaces/interface[name='port']/subinterfaces/subinterface[index='index-id']/ipv6/state/counters/in-octets
+    *   /interfaces/interface[name='port']/subinterfaces/subinterface[index='index-id']/ipv6/state/counters/out-octets
    
 
 *   Subinterfaces counters:
@@ -80,6 +86,68 @@ The test uses a 2 port ATE setup where 2 ports are used as a singleton interface
 Ports are configured with ipv4, ipv6 interfaces on DUT and ATE. Traffic is sent
 and from ATE to DUT and the counters are verified.
 
+## Canonical OC
+
+```json
+{
+  "openconfig-interfaces:interfaces": {
+    "interface": [
+      {
+        "name": "port1",
+        "config": {
+          "enabled": true,
+          "name": "port1",
+          "type": "iana-if-type:ethernetCsmacd"
+        },
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "index": 0,
+              "config": {
+                "enabled": true,
+                "index": 0
+              },
+              "openconfig-if-ip:ipv4": {
+                "addresses": {
+                  "address": [
+                    {
+                      "ip": "192.0.2.1",
+                      "config": {
+                        "ip": "192.0.2.1",
+                        "prefix-length": 30
+                      }
+                    }
+                  ]
+                },
+                "config": {
+                  "enabled": true
+                }
+              },
+              "openconfig-if-ip:ipv6": {
+                "addresses": {
+                  "address": [
+                    {
+                      "ip": "2001:db8::1",
+                      "config": {
+                        "ip": "2001:db8::1",
+                        "prefix-length": 126
+                      }
+                    }
+                  ]
+                },
+                "config": {
+                  "enabled": true
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test.
@@ -121,8 +189,12 @@ paths:
   /interfaces/interface/subinterfaces/subinterface/state/counters/in-broadcast-pkts:
   /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-pkts:
   /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-octets:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-octets:
   /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-pkts:
   /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-octets:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-octets:
   /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-discarded-pkts:
   /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-discarded-pkts:
   /interfaces/interface/ethernet/state/counters/in-maxsize-exceeded:
@@ -140,13 +212,7 @@ rpcs:
     gNMI.Set:
 ```
 
-## Required DUT platform
-
-* Specify the minimum DUT-type
-    * FFF - fixed form factor is enough for this test. However it can run also
-      on a MFF testbed.
-      gNMI.Set:
-
 ## Minimum DUT platform requirement
+
 * FFF - fixed form factor
 
