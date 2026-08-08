@@ -33,6 +33,9 @@ specified operating temperature and voltage.
     the ZR_PLUS optics
 
     *   /components/component/optical-channel/state/laser-bias-current/instant
+    *   /components/component/optical-channel/state/laser-bias-current/avg
+    *   /components/component/optical-channel/state/laser-bias-current/min
+    *   /components/component/optical-channel/state/laser-bias-current/max
 
 
 ## TRANSCEIVER-9.2.2
@@ -95,6 +98,12 @@ paths:
     /interfaces/interface/config/enabled:
     ## State Paths ##
     /components/component/optical-channel/state/laser-bias-current/instant:
+        platform_type: [ "OPTICAL_CHANNEL" ]
+    /components/component/optical-channel/state/laser-bias-current/avg:
+        platform_type: [ "OPTICAL_CHANNEL" ]
+    /components/component/optical-channel/state/laser-bias-current/min:
+        platform_type: [ "OPTICAL_CHANNEL" ]
+    /components/component/optical-channel/state/laser-bias-current/max:
         platform_type: [ "OPTICAL_CHANNEL" ]
     
 rpcs:
