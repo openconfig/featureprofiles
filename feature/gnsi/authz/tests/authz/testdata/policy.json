@@ -1,11 +1,17 @@
-[{
+[
+  {
     "name": "allow-test-infra",
-    "source": {
-      "principals": [
-        "<test_infra_id>"
-      ]
-    },
-    "request": {}
+    "allow_rules": [
+      {
+        "name": "allow-test-infra-rule",
+        "source": {
+          "principals": [
+               "spiffe://test-abc.foo.bar.test.google.com/xyz/cafyauto"
+          ]
+        },
+        "request": {}
+      }
+    ]
   },
   {
     "name": "policy-everyone-can-gnmi-not-gribi",
@@ -98,7 +104,7 @@
         "name": "gribi-get",
         "source": {
           "principals": [
-            "spiffe://test-abc.foo.bar/xyz/read-only"
+            "spiffe://test-abc.foo.bar.test.google.com/xyz/read-only"
           ]
         },
         "request": {
@@ -114,7 +120,7 @@
         "name": "gnmi-get",
         "source": {
           "principals": [
-            "spiffe://test-abc.foo.bar/xyz/read-only"
+            "spiffe://test-abc.foo.bar.test.google.com/xyz/read-only"
           ]
         },
         "request": {
@@ -130,8 +136,8 @@
         "name": "gribi-modify",
         "source": {
           "principals": [
-            "spiffe://test-abc.foo.bar/xyz/admin",
-            "spiffe://test-abc.foo.bar/xyz/gribi-modify"
+            "spiffe://test-abc.foo.bar.test.google.com/xyz/admin",
+            "spiffe://test-abc.foo.bar.test.google.com/xyz/gribi-modify"
           ]
         },
         "request": {
@@ -142,8 +148,8 @@
         "name": "gnmi-set",
         "source": {
           "principals": [
-            "spiffe://test-abc.foo.bar/xyz/admin",
-            "spiffe://test-abc.foo.bar/xyz/gnmi-set"
+            "spiffe://test-abc.foo.bar.test.google.com/xyz/admin",
+            "spiffe://test-abc.foo.bar.test.google.com/xyz/gnmi-set"
           ]
         },
         "request": {
@@ -154,8 +160,8 @@
         "name": "gnoi-time",
         "source": {
           "principals": [
-            "spiffe://test-abc.foo.bar/xyz/admin",
-            "spiffe://test-abc.foo.bar/xyz/gnoi-time"
+            "spiffe://test-abc.foo.bar.test.google.com/xyz/admin",
+            "spiffe://test-abc.foo.bar.test.google.com/xyz/gnoi-time"
           ]
         },
         "request": {
@@ -166,8 +172,8 @@
         "name": "gnoi-ping",
         "source": {
           "principals": [
-            "spiffe://test-abc.foo.bar/xyz/admin",
-            "spiffe://test-abc.foo.bar/xyz/gnoi-ping"
+            "spiffe://test-abc.foo.bar.test.google.com/xyz/admin",
+            "spiffe://test-abc.foo.bar.test.google.com/xyz/gnoi-ping"
           ]
         },
         "request": {
@@ -178,7 +184,7 @@
         "name": "gnsi-set",
         "source": {
           "principals": [
-            "spiffe://test-abc.foo.bar/xyz/admin"
+            "spiffe://test-abc.foo.bar.test.google.com/xyz/admin"
           ]
         },
         "request": {
@@ -189,7 +195,7 @@
         "name": "gnsi-probe",
         "source": {
           "principals": [
-            "spiffe://test-abc.foo.bar/xyz/gnsi-probe"
+            "spiffe://test-abc.foo.bar.test.google.com/xyz/gnsi-probe"
           ]
         },
         "request": {
@@ -200,7 +206,7 @@
         "name": "read-only",
         "source": {
           "principals": [
-            "spiffe://test-abc.foo.bar/xyz/read-only"
+            "spiffe://test-abc.foo.bar.test.google.com/xyz/read-only"
           ]
         },
         "request": {
@@ -217,7 +223,7 @@
         "name": "deny-all-user-can-do-nothing",
         "source": {
           "principals": [
-            "spiffe://test-abc.foo.bar/xyz/deny-all"
+            "spiffe://test-abc.foo.bar.test.google.com/xyz/deny-all"
           ]
         },
         "request": {
@@ -225,4 +231,5 @@
         }
       }
     ]
-  }]
+  }
+]
