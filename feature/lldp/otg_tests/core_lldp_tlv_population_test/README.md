@@ -70,6 +70,7 @@ paths:
   /lldp/interfaces/interface/neighbors/neighbor/state/chassis-id:
   /lldp/interfaces/interface/neighbors/neighbor/state/chassis-id-type:
   /lldp/interfaces/interface/neighbors/neighbor/state/port-id:
+  /lldp/interfaces/interface/neighbors/neighbor/state/port-id-type:
   /lldp/interfaces/interface/neighbors/neighbor/state/system-description:
   /lldp/interfaces/interface/neighbors/neighbor/state/system-name:
   /lldp/interfaces/interface/state/name:
