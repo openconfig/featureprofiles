@@ -11,6 +11,7 @@ Generic Health Check
     *   No high CPU spike or usage on control or forwarding plane
     *   No high memory utilization or usage on control or forwarding plane
     *   No processes/daemons high CPU/Memory utilization
+    *   Validate system process state telemetry (process names, PIDs, and start-times)
     *   No generic drop counters
         *   QUEUE drops
             *   Interfaces
@@ -31,6 +32,12 @@ Generic Health Check
     *   No system errors or logs
     *   No CRC or Layer 1 errors fabric links
 
+## Canonical OC
+
+```json
+{}
+```
+
 ## Config Parameter Coverage
 
 N/A
@@ -45,11 +52,15 @@ rpcs:
 paths:
   ## Config Parameter coverage
 
-    /system/processes/process/state/cpu-utilization:
-    /system/processes/process/state/memory-utilization:
+    /components/component/state/memory/available:
+       platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU"]
+    /components/component/state/memory/utilized:
+       platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU"]
     /system/processes/process/state/name:
     /system/processes/process/state/pid:
     /system/processes/process/state/start-time:
+    /system/processes/process/state/cpu-utilization:
+    /system/processes/process/state/memory-utilization:
     /qos/interfaces/interface/input/queues/queue/state/dropped-pkts:
     /qos/interfaces/interface/output/queues/queue/state/dropped-pkts:
     /qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/dropped-pkts:
