@@ -346,14 +346,24 @@ func Stop(ctx context.Context, t *testing.T, cli *client.Client, instNameToStop 
 	t.Helper()
 	t.Logf("Attempting to stop container %s", instNameToStop)
 	if err := cli.StopContainer(ctx, instNameToStop, true); err != nil {
-		s, _ := status.FromError(err)
-		if s.Code() == codes.NotFound {
+		if status.Code(err) == codes.NotFound {
 			t.Logf("StopContainer: Container %s not found (may have already been stopped and removed): %v", instNameToStop, err)
 		} else {
 			t.Logf("StopContainer for %s encountered an issue: %v", instNameToStop, err)
 		}
 	} else {
 		t.Logf("Container %s stopped successfully.", instNameToStop)
+	}
+
+	t.Logf("Attempting to remove container %s", instNameToStop)
+	if err := cli.RemoveContainer(ctx, instNameToStop, true); err != nil {
+		if status.Code(err) == codes.NotFound {
+			t.Logf("RemoveContainer: Container %s not found (may have already been removed): %v", instNameToStop, err)
+		} else {
+			t.Logf("RemoveContainer for %s encountered an issue: %v", instNameToStop, err)
+		}
+	} else {
+		t.Logf("Container %s removed successfully.", instNameToStop)
 	}
 }
 
