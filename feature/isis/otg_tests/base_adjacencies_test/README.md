@@ -87,6 +87,77 @@ Base IS-IS functionality and adjacency establishment.
     *   Verify that the updated Hello-Multiplier is reflected in isis adjacency output in the ATE.
     *   Verify that the correct streaming telemetry values are reported correctly by the DUT.
 
+## Canonical OC
+
+```json
+{
+  "openconfig-interfaces:interfaces": {
+    "interface": [
+      {
+        "name": "port1",
+        "config": {
+          "name": "port1",
+          "enabled": true
+        }
+      }
+    ]
+  },
+  "openconfig-network-instance:network-instances": {
+    "network-instance": [
+      {
+        "name": "DEFAULT",
+        "interfaces": {
+          "interface": [
+            {
+              "id": "port1",
+              "config": {
+                "id": "port1",
+                "interface": "port1"
+              }
+            }
+          ]
+        },
+        "protocols": {
+          "protocol": [
+            {
+              "identifier": "openconfig-policy-types:ISIS",
+              "name": "ISIS",
+              "config": {
+                "identifier": "openconfig-policy-types:ISIS",
+                "name": "ISIS",
+                "enabled": true
+              },
+              "isis": {
+                "global": {
+                  "config": {
+                    "level-capability": "LEVEL_2",
+                    "net": [
+                      "49.0001.1920.0000.2001.00"
+                    ]
+                  }
+                },
+                "interfaces": {
+                  "interface": [
+                    {
+                      "interface-id": "port1",
+                      "config": {
+                        "interface-id": "port1",
+                        "enabled": true,
+                        "circuit-type": "POINT_TO_POINT"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test.
@@ -122,7 +193,10 @@ paths:
 
 
   ## State paths
+  /network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/state/enabled:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/state/circuit-type:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/state/enabled:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/state/enabled:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/system-id:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/afi-name:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/metric:
