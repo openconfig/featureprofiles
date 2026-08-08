@@ -255,6 +255,9 @@ paths:
   /network-instances/network-instance/protocols/protocol/isis/global/graceful-restart/config/enabled:
   /network-instances/network-instance/protocols/protocol/isis/global/graceful-restart/config/helper-only:
   /network-instances/network-instance/protocols/protocol/isis/global/graceful-restart/config/restart-time:
+
+  ## State Paths ##
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/state/enabled:
   
 rpcs:
   gnmi:
