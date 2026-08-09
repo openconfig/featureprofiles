@@ -48,9 +48,10 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygnmi/ygnmi"
-	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/ygot"
 )
 
 func TestMain(m *testing.M) {
@@ -254,6 +255,28 @@ func (tc *testArgs) verifyDUT(t *testing.T) {
 	for _, port := range tc.dutPorts {
 		path := gnmi.OC().Interface(port.Name())
 		gnmi.Await(t, tc.dut, path.OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
+	}
+}
+
+// verifyLAG confirms if the LAG interfaces on both DUT and OTG are in operational UP status.
+func (tc *testArgs) verifyLAG(t *testing.T) {
+	t.Helper()
+	t.Logf("Waiting for DUT LAG %s to be UP", tc.aggID)
+	_, ok := gnmi.Watch(t, tc.dut, gnmi.OC().Interface(tc.aggID).OperStatus().State(), time.Minute, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
+		status, present := val.Val()
+		return present && status == oc.Interface_OperStatus_UP
+	}).Await(t)
+	if !ok {
+		t.Fatalf("DUT LAG %s is not ready (OperStatus is not UP)", tc.aggID)
+	}
+
+	t.Logf("Waiting for OTG LAG %s to be UP", ateDst.Name)
+	_, ok = gnmi.Watch(t, tc.ate.OTG(), gnmi.OTG().Lag(ateDst.Name).OperStatus().State(), time.Minute, func(val *ygnmi.Value[otgtelemetry.E_Lag_OperStatus]) bool {
+		status, present := val.Val()
+		return present && status.String() == "UP"
+	}).Await(t)
+	if !ok {
+		t.Fatalf("OTG LAG %s is not ready", ateDst.Name)
 	}
 }
 
@@ -552,6 +575,7 @@ func (tc *testArgs) testAggregateForwardingFlow(t *testing.T, forwardingViable b
 	tc.ate.OTG().PushConfig(t, tc.top)
 	tc.ate.OTG().StartProtocols(t)
 
+	tc.verifyLAG(t)
 	otgutils.WaitForARP(t, tc.ate.OTG(), tc.top, "IPv4")
 	beforeTrafficCounters := tc.getCounters(t, "before")
 
