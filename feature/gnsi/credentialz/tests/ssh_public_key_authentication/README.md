@@ -5,6 +5,8 @@
 Test that Credentialz properly configures authorized SSH public keys for a given user, and that
 the DUT properly allows or disallows authentication based on the configured settings.
 
+## Testbed type
+* [`featureprofiles/topologies/atedut_4.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/dut.testbed)
 
 ## Procedure
 
@@ -28,6 +30,29 @@ the DUT properly allows or disallows authentication based on the configured sett
           `/oc-sys:system/oc-sys:ssh-server/oc-sys:state:counters:access-accepts`
           `/oc-sys:system/oc-sys:ssh-server/oc-sys:state:counters:last-access-accept`
 
+## Canonical OC
+```json
+{
+  "system": {
+    "aaa": {
+      "authentication": {
+        "users": {
+          "user": [
+            {
+              "config": {
+                "password": "xxxxxxx",
+                "ssh-key": "yyyyyyy",
+                "username": "testuser"
+              },
+              "username": "testuser"
+            }
+          ]
+        }
+      }
+    }
+  }
+}
+```
 
 ## OpenConfig Path and RPC Coverage
 
@@ -46,7 +71,6 @@ rpcs:
     credentialz.v1.Credentialz.RotateAccountCredentials:
 ```
 
-
 ## Minimum DUT platform requirement
+* KNE
 
-N/A

@@ -67,6 +67,7 @@ const (
 var (
 	dut1Port1 = attrs.Attributes{
 		Desc:    "DUT to ATE source",
+		Name:    "port1",
 		IPv4:    "192.0.2.1",
 		IPv6:    "2001:db8::192:0:2:1",
 		IPv4Len: plenIPv4,
@@ -81,12 +82,13 @@ var (
 		IPv6Len: plenIPv6,
 	}
 	dut1Port2 = attrs.Attributes{
+		Name:    "port2",
 		Desc:    "DUT1 to DUT2",
 		IPv4:    "192.0.2.5",
 		IPv4Len: plenIPv4,
 	}
 	dut2Port1 = attrs.Attributes{
-		Name:    "DUT2 to DUT1",
+		Name:    "port1",
 		IPv4:    "192.0.2.6",
 		IPv4Len: plenIPv4,
 	}
@@ -95,10 +97,8 @@ var (
 // configureDUT configures all the interfaces on the DUT.
 func configureDUT(t *testing.T) {
 	dc := gnmi.OC()
-
 	dut1 := ondatra.DUT(t, "dut1")
 	dut2 := ondatra.DUT(t, "dut2")
-
 	dutPortsMap := map[*ondatra.DUTDevice][]*attrs.Attributes{
 		dut1: {&dut1Port1, &dut1Port2},
 		dut2: {&dut2Port1},
@@ -114,7 +114,11 @@ func configureDUT(t *testing.T) {
 				ethPort.SetDuplexMode(oc.Ethernet_DuplexMode_FULL)
 				ethPort.SetPortSpeed(oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB)
 			}
+			dutInt.SetType(oc.IETFInterfaces_InterfaceType_ethernetCsmacd)
 			gnmi.Replace(t, dutx, dc.Interface(dutInt.GetName()).Config(), dutInt)
+			if deviations.ExplicitInterfaceInDefaultVRF(dutx) {
+				fptest.AssignToNetworkInstance(t, dutx, dutInt.GetName(), deviations.DefaultNetworkInstance(dutx), 0)
+			}
 		}
 	}
 }
@@ -198,6 +202,9 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName []string, dutA
 	}
 
 	for _, intf := range intfName {
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut) {
+			intf += ".0"
+		}
 		isisIntf := isis.GetOrCreateInterface(intf)
 		isisIntf.Enabled = ygot.Bool(true)
 		isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
@@ -209,12 +216,19 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName []string, dutA
 		}
 		isisIntfLevel := isisIntf.GetOrCreateLevel(2)
 		isisIntfLevel.Enabled = ygot.Bool(true)
-		isisIntfLevelAfi := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
-		isisIntfLevelAfi.Metric = ygot.Uint32(200)
-		isisIntfLevelAfi.Enabled = ygot.Bool(true)
+		if deviations.MissingIsisInterfaceAfiSafiEnable(dut) {
+			isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = nil
+			isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = nil
+		}
+		if !deviations.ISISInterfaceAfiUnsupported(dut) {
+			isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+			isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+		}
 		if deviations.ISISInterfaceAfiUnsupported(dut) {
 			isisIntfLevel.Af = nil
 		}
+		isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric = ygot.Uint32(200)
+		isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric = ygot.Uint32(200)
 	}
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Config(), prot)
 }

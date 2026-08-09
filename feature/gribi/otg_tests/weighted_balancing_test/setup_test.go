@@ -189,13 +189,9 @@ func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
 		if i := dutInterface(dp, dut); i != nil {
 			if dp.PMD() == ondatra.PMD100GBASEFR {
 				e := i.GetOrCreateEthernet()
-				if !deviations.AutoNegotiateUnsupported(dut) {
+				if deviations.FrBreakoutFix(dut) {
 					e.AutoNegotiate = ygot.Bool(false)
-				}
-				if !deviations.DuplexModeUnsupported(dut) {
 					e.DuplexMode = oc.Ethernet_DuplexMode_FULL
-				}
-				if !deviations.PortSpeedUnsupported(dut) {
 					e.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
 				}
 			}

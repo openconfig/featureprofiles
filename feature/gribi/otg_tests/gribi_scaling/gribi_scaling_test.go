@@ -36,6 +36,8 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -95,8 +97,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, dp1.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
-
-	applyForwardingPolicy(t, dp1.Name())
 
 	// configure 16 L3 subinterfaces under DUT port#2 and assign them to DEFAULT vrf
 	configureDUTSubIfs(t, d, dut, dp2)
@@ -313,7 +313,13 @@ func TestScaling(t *testing.T) {
 			V4ReEncapNHGCount:     *fpargs.V4ReEncapNHGCount,
 		},
 	)
+
 	createFlow(t, ate, top, vrfConfigs[1])
+
+	t.Log("ARP resolved. Applying Forwarding Policy now")
+	dp1 := dut.Port(t, "port1")
+	applyForwardingPolicy(t, dp1.Name())
+
 	var maxEntries int = 10000
 	for _, vrfConfig := range vrfConfigs {
 		entries := append(vrfConfig.NHs, vrfConfig.NHGs...)
@@ -376,25 +382,48 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, vrfTC
 
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
-	otgutils.WaitForARP(t, ate.OTG(), top, "flow")
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 }
 
 func checkTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
+	defer otgutils.LogFlowMetrics(t, ate.OTG(), top)
+	defer otgutils.LogPortMetrics(t, ate.OTG(), top)
 	ate.OTG().StartTraffic(t)
 	time.Sleep(time.Second * 30)
 	ate.OTG().StopTraffic(t)
 
-	otgutils.LogFlowMetrics(t, ate.OTG(), top)
-	otgutils.LogPortMetrics(t, ate.OTG(), top)
-
 	t.Log("Checking flow telemetry...")
+	gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow("flow").State(), 45*time.Second, func(v *ygnmi.Value[*otgtelemetry.Flow]) bool {
+		val, present := v.Val()
+		if !present {
+			return false
+		}
+		tx := val.GetCounters().GetOutPkts()
+		rx := val.GetCounters().GetInPkts()
+		if tx == 0 {
+			return false
+		}
+		if rx > tx {
+			return false
+		}
+		lossPct := float32(tx-rx) * 100 / float32(tx)
+		return int(lossPct) <= 1
+	}).Await(t)
+
 	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow("flow").State())
 	txPackets := recvMetric.GetCounters().GetOutPkts()
 	rxPackets := recvMetric.GetCounters().GetInPkts()
-	lostPackets := txPackets - rxPackets
-	lossPct := lostPackets * 100 / txPackets
 
-	if lossPct > 1 {
-		t.Errorf("FAIL- Got %v%% packet loss for %s ; expected < 1%%", lossPct, "flow")
+	if txPackets == 0 {
+		t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", "flow")
+	}
+	if rxPackets > txPackets {
+		t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", rxPackets, txPackets)
+	}
+
+	lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
+
+	if int(lossPct) > 1 {
+		t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want <= 1", "flow", lossPct)
 	}
 }

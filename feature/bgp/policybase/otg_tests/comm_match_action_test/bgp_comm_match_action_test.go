@@ -23,6 +23,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
@@ -52,6 +53,7 @@ const (
 	acceptPolicy         = "PERMIT-ALL"
 	matchStdCommunitySet = "match_std_comms"
 	addStdCommunitySet   = "add_std_comms"
+	totalPackets         = 1000
 )
 
 var (
@@ -187,6 +189,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, communitySet := range communitySets {
 		configureCommunitySet(t, dut, communitySet)
 	}
+
+	if deviations.BgpRibStreamingConfigRequired(dut) {
+		cfgplugins.DeviationBgpRibStreamingConfigRequired(t, dut)
+	}
 }
 
 func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
@@ -200,6 +206,7 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 	global := bgp.GetOrCreateGlobal()
 	global.RouterId = ygot.String(dutPort1.IPv4)
 	global.As = ygot.Uint32(localAs)
+
 	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 
@@ -209,16 +216,21 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 		pg.PeerAs = ygot.Uint32(nbr.as)
 		pg.PeerGroupName = ygot.String(nbr.peerGrp)
 
-		if deviations.SkipBgpSendCommunityType(dut) {
-			pg.SetSendCommunity(oc.E_Bgp_CommunityType(oc.Bgp_CommunityType_STANDARD))
-		} else {
-			pg.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
-		}
-
 		as4 := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 		as4.Enabled = ygot.Bool(true)
 		as6 := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 		as6.Enabled = ygot.Bool(true)
+
+		if deviations.SkipBgpSendCommunityType(dut) {
+			pg.SetSendCommunity(oc.E_Bgp_CommunityType(oc.Bgp_CommunityType_STANDARD))
+		} else {
+			if deviations.SkipBgpPeerGroupSendCommunityType(dut) {
+				as4.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
+				as6.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
+			} else {
+				pg.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
+			}
+		}
 
 		bgpNbr := bgp.GetOrCreateNeighbor(nbr.nbrAddr)
 		bgpNbr.PeerGroup = ygot.String(nbr.peerGrp)
@@ -460,7 +472,7 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 		SetTxNames([]string{iDut2Ipv4.Name()}).
 		SetRxNames(dstBgp4PeerRoutes)
 	flowipv4.Size().SetFixed(512)
-	flowipv4.Duration().FixedPackets().SetPackets(1000)
+	flowipv4.Duration().FixedPackets().SetPackets(totalPackets)
 	e1 := flowipv4.Packet().Add().Ethernet()
 	e1.Src().SetValue(iDut2Eth.Mac())
 	v4 := flowipv4.Packet().Add().Ipv4()
@@ -480,7 +492,7 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 		SetTxNames([]string{iDut2Ipv6.Name()}).
 		SetRxNames(dstBgp6PeerRoutes)
 	flowipv6.Size().SetFixed(512)
-	flowipv6.Duration().FixedPackets().SetPackets(1000)
+	flowipv6.Duration().FixedPackets().SetPackets(totalPackets)
 	e2 := flowipv6.Packet().Add().Ethernet()
 	e2.Src().SetValue(iDut2Eth.Mac())
 	v6 := flowipv6.Packet().Add().Ipv6()
@@ -502,18 +514,37 @@ func sendTraffic(t *testing.T, otg *otg.OTG) {
 
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, conf gosnappi.Config) {
 	otg := ate.OTG()
-	otgutils.LogFlowMetrics(t, otg, conf)
+	defer otgutils.LogFlowMetrics(t, otg, conf)
 	for _, flow := range conf.Flows().Items() {
+		gnmi.Watch(t, otg, gnmi.OTG().Flow(flow.Name()).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
+			f, present := val.Val()
+			if !present || f.GetCounters() == nil {
+				return false
+			}
+			txPackets := f.GetCounters().GetOutPkts()
+			rxPackets := f.GetCounters().GetInPkts()
+			if txPackets == 0 {
+				return false
+			}
+			if rxPackets > txPackets {
+				return false
+			}
+			lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
+			return int(lossPct) <= int(tolerancePct)
+		}).Await(t)
+
 		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).State())
 		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
 		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
 		if txPackets == 0 {
-			t.Fatalf("TxPkts = 0, want > 0")
+			t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flow.Name())
 		}
-		lostPackets := txPackets - rxPackets
-		lossPct := lostPackets * 100 / txPackets
-		if lossPct > tolerancePct {
-			t.Errorf("Traffic Loss Pct for Flow %s: got %v, want max %v pct failure", flow.Name(), lossPct, tolerancePct)
+		if rxPackets > txPackets {
+			t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", rxPackets, txPackets)
+		}
+		lossPct := (txPackets - rxPackets) * 100 / txPackets
+		if int(lossPct) > int(tolerancePct) {
+			t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want <= %d", flow.Name(), lossPct, tolerancePct)
 		} else {
 			t.Logf("Traffic Test Passed! for flow %s", flow.Name())
 		}

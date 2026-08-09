@@ -24,6 +24,7 @@ import (
 
 // Global test flags.
 var (
+	Fqdn                          = flag.String("arg_fqdn", "net.google.com", "The fully qualified domain name of the DUT.")
 	NumControllerCards            = flag.Int("arg_num_controller_cards", -1, "The expected number of controller cards. Some devices with a single controller report 0, which is a valid expected value. Expectation is not checked for values < 0.")
 	NumLinecards                  = flag.Int("arg_num_linecards", -1, "The expected number of linecards. Some devices with a single linecard report 0, which is a valid expected value. Expectation is not checked for values < 0.")
 	NumFabrics                    = flag.Int("arg_num_fabrics", -1, "The expected number of fabrics. Some devices with a single fabric report 0, which is a valid expected value. Expectation is not checked for values < 0.")
@@ -49,6 +50,7 @@ var (
 	NonDefaultVRFIPv4NHGWeightSum = flag.Int("arg_non_default_vrf_ipv4_nhg_weight_sum", 32, "In gRIBI scaling tests, the sum of weights to assign to next-hops within a next-hop-group referenced from IPv4 entries in non-default VRFs")
 	DecapEncapCount               = flag.Int("arg_decap_encap_count", 64, "In gRIBI scaling tests, number of next-hop-groups with decap+encap next-hops")
 	DefaultVRFPrimarySubifCount   = flag.Int("arg_default_vrf_primary_subif_count", 64, "In gRIBI scaling tests, number of subinterfaces to use for \"primary\" (i.e. non-backup) next-hop forwarding. Set such that DefaultVRFPrimarySubifCount <= (DefaultVRFIPv4NHCount - DefaultVRFIPv4NHSize)")
+	HardwareModelName             = flag.String("arg_hardware_model_name", "", "The hardware model name of the DUT as per CLI output.")
 
 	V4TunnelCount         = flag.Int("arg_v4_tunnel_count", 20000, "In gRIBI scaling tests, the number of tunnel IPs.")
 	V4TunnelNHGCount      = flag.Int("arg_v4_tunnel_nhg_count", 256, "In gRIBI scaling tests, the number of next-hop-groups associated to the v4 tunnels.")

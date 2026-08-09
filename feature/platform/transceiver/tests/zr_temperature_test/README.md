@@ -1,4 +1,4 @@
-# TRANSCEIVER-8: Telemetry: 400ZR Optics module temperature streaming.
+# TRANSCEIVER-8.1: Telemetry: 400ZR Optics module temperature streaming.
 
 ## Summary
 
@@ -53,6 +53,11 @@ https://www.oiforum.com/wp-content/uploads/CMIS5p0_Third_Party_Spec.pdf
     *   If the modules or the devices are in a boot stage, they must not stream
         any invalid string values like "nil" or "-inf".
     *   Reported temperature value must always be of type decimal64. 
+
+### Canonical OC
+```json
+{}
+```
 
 ## OpenConfig Path and RPC Coverage
 

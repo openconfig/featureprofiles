@@ -23,6 +23,7 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
@@ -283,9 +284,7 @@ func configureImportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	prefixSet.GetOrCreatePrefix(advertisedIPv41.cidr(t), maskLenExact)
 
-	if !deviations.SkipSetRpMatchSetOptions(dut) {
-		stmt2.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
-	}
+	stmt2.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
 	stmt2.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(v4PrefixSet)
 	statPath := rp.GetOrCreatePolicyDefinition(v4LPPolicy).GetStatement(v4LPStatement).GetOrCreateConditions()
 	statPath.SetCallPolicy(v4PrefixPolicy)
@@ -380,6 +379,7 @@ func configureExportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 		stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	}
 	stmt1.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().SetAsn(dutAS)
+	stmt1.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().SetRepeatN(1)
 
 	pdef2 := rp.GetOrCreatePolicyDefinition(v4MedPolicy)
 	stmt2, err := pdef2.AppendNewStatement(v4MedStatement)
@@ -500,9 +500,7 @@ func configureImportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	prefixSet.GetOrCreatePrefix(advertisedIPv61.cidr(t), maskLenExact)
 
-	if !deviations.SkipSetRpMatchSetOptions(dut) {
-		stmt2.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
-	}
+	stmt2.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
 	stmt2.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(v6PrefixSet)
 	statPath := rp.GetOrCreatePolicyDefinition(v6LPPolicy).GetStatement(v6LPStatement).GetOrCreateConditions()
 	statPath.SetCallPolicy(v6PrefixPolicy)
@@ -603,6 +601,7 @@ func configureExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 		stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	}
 	stmt1.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().SetAsn(dutAS)
+	stmt1.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().SetRepeatN(1)
 
 	pdef2 := rp.GetOrCreatePolicyDefinition(v6MedPolicy)
 	stmt2, err := pdef2.AppendNewStatement(v6MedStatement)
@@ -736,19 +735,48 @@ func checkTraffic(t *testing.T, td testData, flowName string) {
 	time.Sleep(time.Second * 30)
 	td.ate.OTG().StopTraffic(t)
 
-	otgutils.LogFlowMetrics(t, td.ate.OTG(), td.top)
-	otgutils.LogPortMetrics(t, td.ate.OTG(), td.top)
-
 	t.Log("Checking flow telemetry...")
-	recvMetric := gnmi.Get(t, td.ate.OTG(), gnmi.OTG().Flow(flowName).State())
-	txPackets := recvMetric.GetCounters().GetOutPkts()
-	rxPackets := recvMetric.GetCounters().GetInPkts()
-	lostPackets := txPackets - rxPackets
-	lossPct := lostPackets * 100 / txPackets
+	otg := td.ate.OTG()
+	tolerance := float32(1.0)
 
-	if lossPct > 1 {
-		t.Errorf("FAIL- got %v%% packet loss for %s ; want < 1%%", lossPct, flowName)
+	outPktsQuery := gnmi.OTG().Flow(flowName).Counters().OutPkts().State()
+	inPktsQuery := gnmi.OTG().Flow(flowName).Counters().InPkts().State()
+
+	// Watch for up to 45 seconds until InPkts catches up to OutPkts (loss <= tolerance).
+	gnmi.Watch(t, otg, inPktsQuery, 45*time.Second, func(v *ygnmi.Value[uint64]) bool {
+		rx, present := v.Val()
+		if !present {
+			return false
+		}
+		tx, txPresent := gnmi.Lookup(t, otg, outPktsQuery).Val()
+		if !txPresent || tx == 0 {
+			return false // Keep waiting if tx hasn't populated or is 0
+		}
+
+		lossPct := float32(tx-rx) * 100 / float32(tx)
+		// Wait for loss to drop within tolerance
+		return lossPct <= tolerance
+	}).Await(t)
+
+	// Fetch the final, stable values
+	txPackets := gnmi.Get(t, otg, outPktsQuery)
+	rxPackets := gnmi.Get(t, otg, inPktsQuery)
+
+	if txPackets == 0 {
+		t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flowName)
 	}
+
+	// Final verification
+	lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
+	if lossPct > tolerance {
+		t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want 0", flowName, lossPct)
+	} else {
+		t.Logf("Traffic Test Passed! Got %v%% loss", lossPct)
+	}
+
+	// Move logging to the end so it captures the final settled values
+	otgutils.LogFlowMetrics(t, otg, td.top)
+	otgutils.LogPortMetrics(t, otg, td.top)
 }
 
 func (td *testData) advertiseRoutesWithEBGP(t *testing.T) {
@@ -902,6 +930,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
+	}
+
+	if deviations.BgpRibStreamingConfigRequired(dut) {
+		cfgplugins.DeviationBgpRibStreamingConfigRequired(t, dut)
 	}
 }
 

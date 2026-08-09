@@ -135,7 +135,7 @@ func TestISISChangeLSPLifetime(t *testing.T) {
 
 	isisPath := isissession.ISISPath(ts.DUT)
 	intfName := ts.DUTPort1.Name()
-	if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) {
+	if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) || deviations.InterfaceRefInterfaceIDFormat(ts.DUT) {
 		intfName += ".0"
 	}
 	t.Run("Isis telemetry", func(t *testing.T) {
@@ -250,6 +250,9 @@ func TestISISChangeLSPLifetime(t *testing.T) {
 				txPackets := recvMetric.GetCounters().GetOutPkts()
 				rxPackets := recvMetric.GetCounters().GetInPkts()
 				lostPackets := txPackets - rxPackets
+				if txPackets == 0 {
+					t.Fatalf("txPackets == 0, want > 0")
+				}
 				lossPct := lostPackets * 100 / txPackets
 
 				if lossPct > 1 {

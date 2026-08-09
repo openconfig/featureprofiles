@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "5842851c-5be1-4aab-90e0-bb19d63c8488"
+plan_id:  "ACCTZ-5.1"
+description:  "gNSI.acctz.v1 (Accounting) Test RecordSubscribe Idle Timeout - client becomes silent"
+testbed:  TESTBED_DUT_ATE_2LINKS

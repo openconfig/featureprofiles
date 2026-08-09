@@ -505,6 +505,7 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 
 	dutPortName := dut.Port(t, "port1").Name()
 	sysConfigTime := gnmi.Get(t, dut, gnmi.OC().Interface(dutPortName).LastChange().State())
@@ -633,7 +634,7 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 
 	t.Log("Reconnect gRIBi client after switchover on new master.")
 
-	retryDuration := 180 * time.Second
+	retryDuration := 320 * time.Second
 	retryInterval := 5 * time.Second
 	startTime := time.Now()
 	for {

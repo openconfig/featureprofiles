@@ -1,36 +1,36 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid:  "2beaac46-9b7b-49c4-9bde-62ad530aa5c5"
-plan_id:  "PF-1.14"
-description:  "MPLSoGRE IPV4 encapsulation of IPV4/IPV6 payload"
-testbed:  TESTBED_DUT_ATE_4LINKS
-platform_exceptions:  {
-  platform:  {
-    vendor:  ARISTA
+uuid: "c46a4b9b-5c89-4fd4-897b-99f311ca84e1"
+plan_id: "PF-1.14"
+description: "MPLSoGRE IPV4 encapsulation of IPV4/IPV6 payload"
+testbed: TESTBED_DUT_ATE_4LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
   }
-  deviations:  {
-    aggregate_atomic_update:  true
-    interface_enabled:  true
-    default_network_instance:  "default"
-    mpls_unsupported:  true
-    mpls_label_classification_unsupported:  true
-    local_proxy_unsupported:  true
-    qos_classification_unsupported:  true
-    policy_forwarding_unsupported:  true
-    interface_policy_forwarding_unsupported:  true
-    next_hop_group_config_unsupported:  true
+  deviations: {
+    aggregate_atomic_update: true
+    interface_enabled: true
+    default_network_instance: "default"
+    next_hop_group_config_unsupported: true
+    mpls_unsupported: true
+    mpls_label_classification_unsupported: true
+    local_proxy_unsupported: true
+    qos_classification_unsupported: true
+    policy_forwarding_unsupported: true
+    interface_policy_forwarding_unsupported: true
   }
 }
-platform_exceptions:  {
-  platform:  {
-    vendor:  CISCO
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
   }
-  deviations:  {
-    interface_ref_config_unsupported:  true
-    rib_wecmp:  true
-    wecmp_auto_unsupported:  true
-    isis_loopback_required:  true
-    weighted_ecmp_fixed_packet_verification:  true
+  deviations: {
+    interface_ref_config_unsupported: true
+    rib_wecmp: true
+    wecmp_auto_unsupported: true
+    isis_loopback_required: true
+    weighted_ecmp_fixed_packet_verification: true
   }
 }

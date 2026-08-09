@@ -29,6 +29,8 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 const (
@@ -75,8 +77,12 @@ func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string,
 
 	aspathSet := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateAsPathSet(aspathSetName)
 	aspathSet.SetAsPathSetMember(aspathMatch)
-	stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetAsPathSet(aspathSetName)
-	stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetMatchSetOptions(aspMatchSetOptions)
+
+	if !deviations.MatchAsPathSetUnsupported(dut) {
+		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetAsPathSet(aspathSetName)
+		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetMatchSetOptions(aspMatchSetOptions)
+	}
+
 	pdAllow := rp.GetOrCreatePolicyDefinition(RPLPermitAll)
 	st, err := pdAllow.AppendNewStatement("id-1")
 	if err != nil {
@@ -256,17 +262,54 @@ func configureFlow(t *testing.T, bs *cfgplugins.BGPSession, prefixPair []string,
 	}
 }
 
-func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, prefixType string, testResults bool, index int) {
-	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow("flow"+prefixType+strconv.Itoa(index)).State())
-	framesTx := recvMetric.GetCounters().GetOutPkts()
-	framesRx := recvMetric.GetCounters().GetInPkts()
+func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, prefixType string, testResults bool, index int) {
+	defer otgutils.LogFlowMetrics(t, ate.OTG(), c)
+	flowName := "flow" + prefixType + strconv.Itoa(index)
+	gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flowName).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
+		f, present := val.Val()
+		if !present || f.GetCounters() == nil {
+			return false
+		}
+		framesTx := float32(f.GetCounters().GetOutPkts())
+		framesRx := float32(f.GetCounters().GetInPkts())
+		if framesTx == 0 {
+			return false
+		}
+		if framesRx > framesTx {
+			return false
+		}
+		if testResults {
+			lossPct := float32(framesTx-framesRx) * 100 / float32(framesTx)
+			return int(lossPct) <= int(0)
+		} else {
+			return framesRx == 0
+		}
+	}).Await(t)
+
+	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).State())
+	framesTx := float32(recvMetric.GetCounters().GetOutPkts())
+	framesRx := float32(recvMetric.GetCounters().GetInPkts())
 
 	if framesTx == 0 {
-		t.Error("No traffic was generated and frames transmitted were 0")
-	} else if (testResults && framesRx == framesTx) || (!testResults && framesRx == 0) {
-		t.Logf("Traffic validation successful for criteria [%t] FramesTx: %d FramesRx: %d", testResults, framesTx, framesRx)
+		t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flowName)
+	}
+	if framesRx > framesTx {
+		t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", framesRx, framesTx)
+	}
+	lossPct := (framesTx - framesRx) * 100 / framesTx
+
+	if testResults {
+		if int(lossPct) > int(0) {
+			t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want <= 0", flowName, lossPct)
+		} else {
+			t.Logf("Traffic validation successful for criteria [%t] FramesTx: %f FramesRx: %f", testResults, framesTx, framesRx)
+		}
 	} else {
-		t.Errorf("Traffic validation failed for criteria [%t] FramesTx: %d FramesRx: %d", testResults, framesTx, framesRx)
+		if framesRx > 0 {
+			t.Errorf("Generic Test Assertion Failure: Flow %s: got %v framesRx, want 0", flowName, framesRx)
+		} else {
+			t.Logf("Traffic validation successful for criteria [%t] FramesTx: %f FramesRx: %f", testResults, framesTx, framesRx)
+		}
 	}
 }
 
@@ -304,8 +347,7 @@ func TestCommunitySet(t *testing.T) {
 		bs.ATE.OTG().StartTraffic(t)
 		time.Sleep(sleepTime * time.Second)
 		bs.ATE.OTG().StopTraffic(t)
-		otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
-		verifyTraffic(t, bs.ATE, "ipv4", testResults[index], index)
+		verifyTraffic(t, bs.ATE, bs.ATETop, "ipv4", testResults[index], index)
 
 		bs.ATETop.Flows().Clear()
 		t.Logf("Running traffic test for IPv6 prefixes: [%s, %s]. Expected Result: [%t]", prefixesV6[index][0], prefixesV6[index][1], testResults[index])
@@ -315,7 +357,6 @@ func TestCommunitySet(t *testing.T) {
 		bs.ATE.OTG().StartTraffic(t)
 		time.Sleep(sleepTime * time.Second)
 		bs.ATE.OTG().StopTraffic(t)
-		otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
-		verifyTraffic(t, bs.ATE, "ipv6", testResults[index], index)
+		verifyTraffic(t, bs.ATE, bs.ATETop, "ipv6", testResults[index], index)
 	}
 }

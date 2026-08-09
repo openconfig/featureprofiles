@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "d2bce146-4e21-4a57-b3c1-5a431c45863a"
+plan_id:  "AFT-2.1"
+description:  "AFTs Prefix Counters"
+testbed:  TESTBED_DUT_ATE_2LINKS

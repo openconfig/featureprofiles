@@ -256,8 +256,10 @@ func configureDUTBGP(t *testing.T, dut *ondatra.DUTDevice) {
 	bgpPeerGroup := bgp.GetOrCreatePeerGroup(peerGroupName)
 	bgpPeerGroup.SetPeerAs(dutAsn)
 
-	if !deviations.SkipBgpPeerGroupSendCommunityType(dut) {
-		bgpPeerGroup.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
+	if deviations.SkipBgpSendCommunityType(dut) {
+		if !deviations.SkipBgpPeerGroupSendCommunityType(dut) {
+			bgpPeerGroup.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
+		}
 	}
 
 	// dutPort1 -> atePort1 peer (ebgp session)
@@ -307,6 +309,10 @@ func configureDUTBGP(t *testing.T, dut *ondatra.DUTDevice) {
 	ateIBGPNeighborFourIPv6AFPolicy.SetExportPolicy([]string{"permit-all"})
 
 	gnmi.Replace(t, dut, bgpPath.Config(), networkInstanceProtocolBgp)
+
+	if deviations.BgpRibStreamingConfigRequired(dut) {
+		cfgplugins.DeviationBgpRibStreamingConfigRequired(t, dut)
+	}
 }
 
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
@@ -429,18 +435,37 @@ func sendTraffic(t *testing.T, otg *otg.OTG) {
 // Validate traffic flow
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, conf gosnappi.Config) {
 	otg := ate.OTG()
-	otgutils.LogFlowMetrics(t, otg, conf)
+	defer otgutils.LogFlowMetrics(t, otg, conf)
 	for _, flow := range conf.Flows().Items() {
+		gnmi.Watch(t, otg, gnmi.OTG().Flow(flow.Name()).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
+			f, present := val.Val()
+			if !present || f.GetCounters() == nil {
+				return false
+			}
+			txPackets := f.GetCounters().GetOutPkts()
+			rxPackets := f.GetCounters().GetInPkts()
+			if txPackets == 0 {
+				return false
+			}
+			if rxPackets > txPackets {
+				return false
+			}
+			lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
+			return int(lossPct) <= int(tolerancePct)
+		}).Await(t)
+
 		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).State())
 		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
 		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
 		if txPackets == 0 {
-			t.Fatalf("TxPkts = 0, want > 0")
+			t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flow.Name())
 		}
-		lostPackets := txPackets - rxPackets
-		lossPct := lostPackets * 100 / txPackets
-		if lossPct > tolerancePct {
-			t.Fatalf("Traffic Loss Pct for Flow %s: got %v, want max %v pct failure", flow.Name(), lossPct, tolerancePct)
+		if rxPackets > txPackets {
+			t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", rxPackets, txPackets)
+		}
+		lossPct := (txPackets - rxPackets) * 100 / txPackets
+		if int(lossPct) > int(tolerancePct) {
+			t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want <= %d", flow.Name(), lossPct, tolerancePct)
 		} else {
 			t.Logf("Traffic Test Passed! for flow %s", flow.Name())
 		}
@@ -484,8 +509,10 @@ func configureTableConnection(t *testing.T, dut *ondatra.DUTDevice, isV4, mPropa
 
 	if deviations.EnableTableConnections(dut) {
 		fptest.ConfigEnableTbNative(t, dut)
+		gnmi.BatchUpdate(batchSet, niPath.TableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, addressFamily).Config(), tc)
+	} else {
+		gnmi.BatchReplace(batchSet, niPath.TableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, addressFamily).Config(), tc)
 	}
-	gnmi.BatchReplace(batchSet, niPath.TableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, addressFamily).Config(), tc)
 
 	if deviations.SamePolicyAttachedToAllAfis(dut) {
 		if addressFamily == oc.Types_ADDRESS_FAMILY_IPV4 {
@@ -711,10 +738,8 @@ func validatePrefixSetRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, isV4 b
 		t.Fatal("Routing-policy not associated with expected prefix-set")
 	}
 
-	if !deviations.SkipSetRpMatchSetOptions(dut) {
-		if foundPDef.GetStatement(policyStatementName).GetConditions().GetMatchPrefixSet().GetMatchSetOptions() != oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY {
-			t.Fatal("Routing-policy prefix-set match-set-option not set to ANY")
-		}
+	if foundPDef.GetStatement(policyStatementName).GetConditions().GetMatchPrefixSet().GetMatchSetOptions() != oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY {
+		t.Fatal("Routing-policy prefix-set match-set-option not set to ANY")
 	}
 
 	var foundPSet oc.RoutingPolicy_DefinedSets_PrefixSet
@@ -861,9 +886,7 @@ func redistributeIPv4PrefixRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, ate
 
 	ipv4PrefixPolicyStatementConditionsPrefixes := ipv4PrefixPolicyStatement.GetOrCreateConditions().GetOrCreateMatchPrefixSet()
 	ipv4PrefixPolicyStatementConditionsPrefixes.SetPrefixSet("prefix-set-v4")
-	if !deviations.SkipSetRpMatchSetOptions(dut) {
-		ipv4PrefixPolicyStatementConditionsPrefixes.SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
-	}
+	ipv4PrefixPolicyStatementConditionsPrefixes.SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
 
 	gnmi.Replace(t, dut, policyPath.Config(), redistributePolicyDefinition)
 	if deviations.TcAttributePropagationUnsupported(dut) {
@@ -910,6 +933,18 @@ func redistributeStaticRoutePolicyWithASN(t *testing.T, dut *ondatra.DUTDevice, 
 	policyStatementAction := policyStatement.GetOrCreateActions()
 	policyStatementAction.SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	policyStatementAction.GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().Asn = ygot.Uint32(64512)
+
+	// Repeat-n configuration is required for both v6 or v4 policies. validatePrefixASN for v6 policy is
+	// expecting AS number has to be prepended once along with local as number.
+	// Hence repeat-n is set to 1 here.
+
+	// Below is the description from openconfig model for repeat-n leaf:
+	//     Number of times to prepend the value specified in the asn leaf to the AS path.
+	//     If no value is specified by the asn leaf, the local AS number of the system is used.
+	//     The value should be between 1 and the maximum supported by the implementation.
+
+	policyStatementAction.GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().SetRepeatN(1)
+
 	if isV4 {
 		policyStatementAction.GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().Asn = ygot.Uint32(65499)
 		policyStatementAction.GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().SetRepeatN(3)
@@ -1011,6 +1046,15 @@ func redistributeStaticRoutePolicyWithCommunitySet(t *testing.T, dut *ondatra.DU
 	communitySetPolicyDefinition := communitySet.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(communitySetName)
 	communitySetPolicyDefinition.SetCommunityMember([]oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union{oc.UnionString("64512:100")})
 
+	// Delete the references import policy under table connection before replacing the policy.
+	if isV4 {
+		tableConnV4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).TableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.Types_ADDRESS_FAMILY_IPV4)
+		gnmi.Delete(t, dut, tableConnV4Path.ImportPolicy().Config())
+	} else {
+		tableConnV6Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).TableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.Types_ADDRESS_FAMILY_IPV6)
+		gnmi.Delete(t, dut, tableConnV6Path.ImportPolicy().Config())
+	}
+
 	gnmi.Replace(t, dut, policyPath.Config(), redistributePolicyDefinition)
 	gnmi.Replace(t, dut, communityPath.Config(), communitySetPolicyDefinition)
 
@@ -1072,9 +1116,7 @@ func redistributeStaticRoutePolicyWithTagSet(t *testing.T, dut *ondatra.DUTDevic
 	}
 
 	policyStatementCondition := policyStatement.GetOrCreateConditions()
-	if !deviations.SkipSetRpMatchSetOptions(dut) {
-		policyStatementCondition.GetOrCreateMatchTagSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
-	}
+	policyStatementCondition.GetOrCreateMatchTagSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
 	policyStatementCondition.GetOrCreateMatchTagSet().SetTagSet(tagSetName)
 	policyStatementAction := policyStatement.GetOrCreateActions()
 	policyStatementAction.SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
@@ -1183,9 +1225,7 @@ func redistributeIPv6StaticRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, ate
 
 	ipv6PrefixPolicyStatementConditionsPrefixes := ipv6PrefixPolicyStatement.GetOrCreateConditions().GetOrCreateMatchPrefixSet()
 	ipv6PrefixPolicyStatementConditionsPrefixes.SetPrefixSet("prefix-set-v6")
-	if !deviations.SkipSetRpMatchSetOptions(dut) {
-		ipv6PrefixPolicyStatementConditionsPrefixes.SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
-	}
+	ipv6PrefixPolicyStatementConditionsPrefixes.SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
 
 	gnmi.Replace(t, dut, policyPath.Config(), redistributePolicyDefinition)
 

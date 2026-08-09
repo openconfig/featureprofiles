@@ -15,8 +15,8 @@
 package hibaauthentication_test
 
 import (
+	"context"
 	"fmt"
-	"os"
 	"testing"
 	"time"
 
@@ -31,9 +31,8 @@ import (
 )
 
 const (
-	username               = "testuser"
-	maxSSHRetryTime        = 30 // Unit is seconds.
-	hostCertificateVersion = "v1.0"
+	username        = "testuser"
+	maxSSHRetryTime = 30 // Unit is seconds.
 )
 
 var (
@@ -45,22 +44,11 @@ func TestMain(m *testing.M) {
 }
 
 func TestCredentialz(t *testing.T) {
+	hostCertificateVersion := fmt.Sprintf("v1.0-%d", time.Now().Unix())
+
 	dut := ondatra.DUT(t, "dut")
-	target := credz.GetDutTarget(t, dut)
-
-	// Create temporary directory for storing ssh keys/certificates.
-	dir, err := os.MkdirTemp("", "")
-	if err != nil {
-		t.Fatalf("creating temp dir, err: %s", err)
-	}
-	defer func(dir string) {
-		err = os.RemoveAll(dir)
-		if err != nil {
-			t.Logf("error removing temp directory, error: %s", err)
-		}
-	}(dir)
-
-	credz.CreateHibaKeys(t, dir)
+	dir := t.TempDir()
+	credz.CreateHibaKeys(t, dut, dir)
 	credz.SetupUser(t, dut, username)
 
 	// Set only public key authentication for our test.
@@ -68,7 +56,6 @@ func TestCredentialz(t *testing.T) {
 		cpb.AuthenticationType_AUTHENTICATION_TYPE_PUBKEY,
 	})
 
-	// Setup hiba for authorized principals command.
 	credz.RotateAuthorizedPrincipalCheck(t, dut, cpb.AuthorizedPrincipalCheckRequest_TOOL_HIBA_DEFAULT)
 
 	t.Run("auth should fail hiba host certificate not present", func(t *testing.T) {
@@ -77,10 +64,12 @@ func TestCredentialz(t *testing.T) {
 			startingRejectCounter, _ = credz.GetRejectTelemetry(t, dut)
 		}
 
-		// Verify ssh with hiba fails as expected.
+		// Verify ssh with hiba fails as expected (no host cert pushed yet).
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
 		startTime := time.Now()
 		for {
-			_, err := credz.SSHWithCertificate(t, target, username, fmt.Sprintf("%s/users", dir))
+			_, err := credz.SSHWithCertificate(ctx, t, dut, username, fmt.Sprintf("%s/users", dir))
 			if err != nil {
 				t.Logf("Dialing ssh failed as expected.")
 				break
@@ -110,17 +99,17 @@ func TestCredentialz(t *testing.T) {
 			uint64(hostCertificateCreatedOn),
 		)
 
-		// Setup trusted user ca on the dut.
-		credz.RotateTrustedUserCA(t, dut, dir)
+		credz.RotateTrustedUserCA(t, dut, dir, hostCertificateVersion, uint64(hostCertificateCreatedOn))
 
 		var startingAcceptCounter, startingLastAcceptTime uint64
 		if !deviations.SSHServerCountersUnsupported(dut) {
 			startingAcceptCounter, startingLastAcceptTime = credz.GetAcceptTelemetry(t, dut)
 		}
-
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
 		startTime := time.Now()
 		for {
-			_, err := credz.SSHWithCertificate(t, target, username, fmt.Sprintf("%s/users", dir))
+			_, err := credz.SSHWithCertificate(ctx, t, dut, username, fmt.Sprintf("%s/users", dir))
 			if err == nil {
 				t.Logf("Dialing ssh succeeded as expected.")
 				break
@@ -153,30 +142,36 @@ func TestCredentialz(t *testing.T) {
 			)
 		}
 		gotHostCertificateCreatedOn := sshServer.GetActiveHostCertificateCreatedOn()
-		if !cmp.Equal(time.Unix(0, int64(gotHostCertificateCreatedOn)), time.Unix(hostCertificateCreatedOn, 0)) {
+		wantHostCertificateCreatedOn := hostCertificateCreatedOn
+		switch dut.Vendor() {
+		case ondatra.NOKIA:
+			wantHostCertificateCreatedOn *= 1e9
+		}
+		if got, want := int64(gotHostCertificateCreatedOn), wantHostCertificateCreatedOn; got != want {
 			t.Fatalf(
 				"Telemetry reports host certificate created on is not correct\n\tgot: %d\n\twant: %d",
-				gotHostCertificateCreatedOn, hostCertificateCreatedOn,
+				got, want,
 			)
 		}
 	})
 
 	t.Cleanup(func() {
-		// Cleanup to remove previous policy which only allowed key auth to make sure we don't leave dut in a
-		// state where we can't reset config for further tests.
+		// Cleanup to remove previous policy which only allowed key auth to make sure
+		// we don't leave dut in a state where we can't reset config for further tests.
 		credz.RotateAuthenticationTypes(t, dut, []cpb.AuthenticationType{
 			cpb.AuthenticationType_AUTHENTICATION_TYPE_PASSWORD,
 			cpb.AuthenticationType_AUTHENTICATION_TYPE_PUBKEY,
 			cpb.AuthenticationType_AUTHENTICATION_TYPE_KBDINTERACTIVE,
 		})
 
-		// Remove user ca so subsequent fail cases work.
-		credz.RotateTrustedUserCA(t, dut, "")
+		credz.RotateTrustedUserCA(t, dut, "", "", 0)
 
 		// Clear hiba for authorized principals command.
 		credz.RotateAuthorizedPrincipalCheck(t, dut, cpb.AuthorizedPrincipalCheckRequest_TOOL_UNSPECIFIED)
 
 		// Remove host artifacts from the dut.
-		credz.RotateAuthenticationArtifacts(t, dut, "", "", "", 0)
+		// credz.RotateAuthenticationArtifacts(t, dut, "", "", "", 0)
+		// SSH configuration cleanup on DUT
+		// credz.SSHCleanup(t, dut)
 	})
 }

@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -28,6 +29,8 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 const (
@@ -73,8 +76,12 @@ func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string,
 
 	aspathSet := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateAsPathSet(aspathSetName)
 	aspathSet.SetAsPathSetMember(aspathMatch)
-	stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetAsPathSet(aspathSetName)
-	stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetMatchSetOptions(matchSetOptions)
+
+	if !deviations.MatchAsPathSetUnsupported(dut) {
+		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetAsPathSet(aspathSetName)
+		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetMatchSetOptions(matchSetOptions)
+	}
+
 	pdAllow := rp.GetOrCreatePolicyDefinition(RPLPermitAll)
 	st, err := pdAllow.AppendNewStatement("id-1")
 	if err != nil {
@@ -195,16 +202,42 @@ func incrementIPSlice(ipSlice []string) []string {
 	return incrementedSlice
 }
 
-func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, ports int, testResults bool) {
+func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, ports int, testResults bool) {
+	defer otgutils.LogFlowMetrics(t, ate.OTG(), c)
 	// compare the flows transmitted and received instead of the ports counters
-	framesTx := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow("flow").State()).GetCounters().GetOutPkts()
-	framesRx := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow("flow").State()).GetCounters().GetInPkts()
+	gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow("flow").State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
+		recvMetric, present := val.Val()
+		if !present {
+			return false
+		}
+		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
+		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
+		if txPackets == 0 {
+			return false
+		}
+		if rxPackets > txPackets {
+			return false
+		}
+		lossPct := (txPackets - rxPackets) * 100.0 / txPackets
+		if testResults {
+			return int(lossPct) <= int(5)
+		}
+		return int(lossPct) >= int(99)
+	}).Await(t)
+
+	framesTx := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow("flow").State()).GetCounters().GetOutPkts())
+	framesRx := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow("flow").State()).GetCounters().GetInPkts())
 	if framesTx == 0 {
-		t.Error("No traffic was generated and frames transmitted were 0")
-	} else if (testResults && framesRx == framesTx) || (!testResults && framesRx == 0) {
-		t.Logf("Traffic validation successful for criteria [%t] FramesTx: %d FramesRx: %d", testResults, framesTx, framesRx)
+		t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow flow")
+	}
+	if framesRx > framesTx {
+		t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", framesRx, framesTx)
+	}
+	lossPct := (framesTx - framesRx) * 100.0 / framesTx
+	if (testResults && int(lossPct) <= int(5)) || (!testResults && int(lossPct) >= int(99)) {
+		t.Logf("Traffic validation successful for criteria [%t] FramesTx: %f FramesRx: %f", testResults, framesTx, framesRx)
 	} else {
-		t.Errorf("Traffic validation failed for criteria [%t] FramesTx: %d FramesRx: %d", testResults, framesTx, framesRx)
+		t.Errorf("Generic Test Assertion Failure: Flow flow: got %f loss, want 0%% (testResults=%t)", lossPct, testResults)
 	}
 }
 
@@ -299,16 +332,14 @@ func TestAsPathSet(t *testing.T) {
 				bs.ATE.OTG().StartTraffic(t)
 				time.Sleep(sleepTime * time.Second)
 				bs.ATE.OTG().StopTraffic(t)
-				otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
-				verifyTraffic(t, bs.ATE, int(cfgplugins.PortCount2), tc.testResults[index])
+				verifyTraffic(t, bs.ATE, bs.ATETop, int(cfgplugins.PortCount2), tc.testResults[index])
 
 				t.Logf("Running traffic test for IPv6 prefixes: [%s, %s]. Expected Result: [%t]", prefixesV6[index][0], prefixesV6[index][1], tc.testResults[index])
 				configureFlow(bs, prefixesV6[index], "ipv6", dstMac, index)
 				bs.ATE.OTG().StartTraffic(t)
 				time.Sleep(sleepTime * time.Second)
 				bs.ATE.OTG().StopTraffic(t)
-				otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
-				verifyTraffic(t, bs.ATE, int(cfgplugins.PortCount2), tc.testResults[index])
+				verifyTraffic(t, bs.ATE, bs.ATETop, int(cfgplugins.PortCount2), tc.testResults[index])
 			}
 		})
 	}

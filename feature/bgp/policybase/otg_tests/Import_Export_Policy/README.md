@@ -127,45 +127,76 @@ Apply the routing policy to the BGP neighbor 10.1.1.1 & 2607:f8b0:8007:614f::1 a
 * Import Policy: The DUT's AFT table should only contain the BGP prefixes 192.0.2.1/32 and 192.0.2.2/32 & 2001:db8:300:100::0/127 and 2001:db8:300:101::0/127 learned from ATE. Prefixes with longer AS-Paths should be filtered and not appear in the DUT's AFT table.
 
 
-## Canonical OpenConfig
+## Canonical OC
 
 ```json
-
-## Config Paths:
-
 {
   "network-instances": {
     "network-instance": [
       {
-        "name": "<network_instance_name>",
+        "config": {
+          "name": "DEFAULT"
+        },
+        "name": "DEFAULT",
         "protocols": {
           "protocol": [
             {
-              "identifier": "<protocol_identifier>",
               "bgp": {
                 "neighbors": {
                   "neighbor": [
                     {
-                      "neighbor-address": "<neighbor_ip_address>",
                       "apply-policy": {
                         "config": {
+                          "export-policy": [
+                            "test_export"
+                          ],
                           "import-policy": [
                             "test_import"
                           ]
-                          "export-policy": [
-                            "test_export"
-                          ]
                         }
-                      }
+                      },
+                      "config": {
+                        "neighbor-address": "192.168.1.1"
+                      },
+                      "graceful-restart": {
+                        "config": {
+                          "enabled": true
+                        }
+                      },
+                      "neighbor-address": "192.168.1.1"
                     }
                   ]
                 }
-              }
+              },
+              "config": {
+                "identifier": "BGP",
+                "name": "BGP"
+              },
+              "identifier": "BGP",
+              "name": "BGP"
             }
           ]
         }
       }
     ]
+  },
+  "routing-policy": {
+    "policy-definitions": {
+      "policy-definition": [
+        {
+          "config": {
+            "name": "test_export"
+          },
+          "name": "test_export"
+        },
+        {
+          "config": {
+            "name": "test_import"
+          },
+          "name": "test_import"
+        }
+      ]
+    }
   }
 }
 ```
@@ -175,21 +206,44 @@ Apply the routing policy to the BGP neighbor 10.1.1.1 & 2607:f8b0:8007:614f::1 a
 
 ```yaml
 paths:
-
-#Telemetry
-
-/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state:
-/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/neighbor-address:
-/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
-/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-type:
-/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/state/import-policy:
-/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/export-policy:
-
+  /interfaces/interface/config/description:
+  /interfaces/interface/config/name:
+  /interfaces/interface/config/type:
+  /interfaces/interface/state/oper-status:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/state/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/ip:
+  /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/enabled:
+  /network-instances/network-instance/protocols/protocol/bgp/global/config/as:
+  /network-instances/network-instance/protocols/protocol/bgp/global/config/router-id:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/config/enabled:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/installed:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/enabled:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-as:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-group:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/config/local-address:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/state/passive-mode:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/config/enabled:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/peer-as:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/peer-group-name:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/transport/config/local-address:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/transport/state/passive-mode:
+  /routing-policy/defined-sets/bgp-defined-sets/as-path-sets/as-path-set/config/as-path-set-member:
+  /routing-policy/defined-sets/bgp-defined-sets/as-path-sets/as-path-set/config/as-path-set-name:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/config/mode:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/config/name:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range:
+  /routing-policy/policy-definitions/policy-definition/config/name:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set:
 rpcs:
   gnmi:
     gNMI.Set:
-      union_replace: true
       replace: true
+      union_replace: true
     gNMI.Subscribe:
       on_change: true
 ```
@@ -198,5 +252,3 @@ rpcs:
 
 * FFF
 * MFF
-
-

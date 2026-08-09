@@ -15,6 +15,18 @@ Verify that LLDP packets are punted with correct metadata.
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  /components/component/integrated-circuit/config/node-id:
+    platform_type: [INTEGRATED_CIRCUIT]
+  /interfaces/interface/config/description:
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/config/id:
+  /interfaces/interface/config/type:
+  /interfaces/interface/ethernet/config/port-speed:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled:
+  /lldp/config/enabled:
+  /network-instances/network-instance/interfaces/interface/config/id:
 rpcs:
   gnmi:
     gNMI.Get:

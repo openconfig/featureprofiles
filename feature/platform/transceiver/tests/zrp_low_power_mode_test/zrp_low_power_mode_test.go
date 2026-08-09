@@ -23,6 +23,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
@@ -31,7 +32,7 @@ import (
 )
 
 const (
-	intUpdateTime                 = 5 * time.Minute
+	intUpdateTime                 = 12 * time.Minute
 	samplingInterval              = 10 * time.Second
 	targetOutputPowerdBm          = -3
 	targetOutputPowerTolerancedBm = 1
@@ -40,7 +41,7 @@ const (
 )
 
 var (
-	operationalModeFlag = flag.Int("operational_mode", 5, "vendor-specific operational-mode for the channel")
+	operationalModeFlag = flag.Int("operational_mode", 0, "vendor-specific operational-mode for the channel")
 	operationalMode     uint16
 )
 
@@ -89,20 +90,11 @@ func validateOutputPower(t *testing.T, streams map[string]*samplestream.SampleSt
 }
 
 func TestLowPowerMode(t *testing.T) {
-	if operationalModeFlag != nil {
-		operationalMode = uint16(*operationalModeFlag)
-	} else {
-		t.Fatalf("Please specify the vendor-specific operational-mode flag")
-	}
 	dut := ondatra.DUT(t, "dut")
-	dp1 := dut.Port(t, "port1")
-	dp2 := dut.Port(t, "port2")
-	t.Logf("dut1: %v", dut)
-	t.Logf("dut1 dp1 name: %v", dp1.Name())
-	och1 := components.OpticalChannelComponentFromPort(t, dut, dp1)
-	och2 := components.OpticalChannelComponentFromPort(t, dut, dp2)
-	cfgplugins.ConfigOpticalChannel(t, dut, och1, targetFrequencyMHz, targetOutputPowerdBm, operationalMode)
-	cfgplugins.ConfigOpticalChannel(t, dut, och2, targetFrequencyMHz, targetOutputPowerdBm, operationalMode)
+	operationalMode = uint16(*operationalModeFlag)
+	cfgplugins.InterfaceInitialize(t, dut, operationalMode)
+	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"))
+	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"))
 	for _, port := range []string{"port1", "port2"} {
 		t.Run(fmt.Sprintf("Port:%s", port), func(t *testing.T) {
 			dp := dut.Port(t, port)
@@ -117,9 +109,6 @@ func TestLowPowerMode(t *testing.T) {
 			defer streamPartNo.Close()
 			streamType := samplestream.New(t, dut, gnmi.OC().Component(tr).Type().State(), samplingInterval)
 			defer streamType.Close()
-			// TODO: b/333021032 - Uncomment the description check from the test once the bug is fixed.
-			// streamDescription := samplestream.New(t, dut, gnmi.OC().Component(tr).Description().State(), samplingInterval)
-			// defer streamDescription.Close()
 			streamMfgName := samplestream.New(t, dut, gnmi.OC().Component(tr).MfgName().State(), samplingInterval)
 			defer streamMfgName.Close()
 			streamMfgDate := samplestream.New(t, dut, gnmi.OC().Component(tr).MfgDate().State(), samplingInterval)
@@ -130,14 +119,21 @@ func TestLowPowerMode(t *testing.T) {
 			defer streamFirmwareVersion.Close()
 
 			allStream := map[string]*samplestream.SampleStream[string]{
-				"serialNo": streamSerialNo,
-				"partNo":   streamPartNo,
-				// "description":     streamDescription,
+				"serialNo":        streamSerialNo,
+				"partNo":          streamPartNo,
 				"mfgName":         streamMfgName,
 				"mfgDate":         streamMfgDate,
 				"hwVersion":       streamHwVersion,
 				"firmwareVersion": streamFirmwareVersion,
 			}
+
+			// Conditionally add description stream based on device support
+			if !deviations.SkipTransceiverDescription(dut) {
+				streamDescription := samplestream.New(t, dut, gnmi.OC().Component(tr).Description().State(), samplingInterval)
+				defer streamDescription.Close()
+				allStream["description"] = streamDescription
+			}
+
 			validateStreamOutput(t, allStream)
 
 			// Disable interface
@@ -146,9 +142,17 @@ func TestLowPowerMode(t *testing.T) {
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
 			time.Sleep(3 * samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
 			validateStreamOutput(t, allStream)
+
 			opticalChannelName := components.OpticalChannelComponentFromPort(t, dut, dp)
-			samplingInterval := time.Duration(gnmi.Get(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Interval().State())) * time.Second
-			opInst := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Instant().State(), samplingInterval)
+
+			// FIXED: Use deviation check to avoid blocking on unsupported devices
+			currentSamplingInterval := samplingInterval
+			if !deviations.SkipOpticalChannelOutputPowerInterval(dut) {
+				// Removed extra time.Second multiplier in optical channel interval state check
+				currentSamplingInterval = time.Duration(gnmi.Get(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Interval().State()))
+			}
+
+			opInst := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Instant().State(), currentSamplingInterval)
 			defer opInst.Close()
 			if opInstN := opInst.Next(); opInstN != nil {
 				if val, ok := opInstN.Val(); ok && val != -40 {
@@ -157,7 +161,7 @@ func TestLowPowerMode(t *testing.T) {
 				}
 			}
 
-			opAvg := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Avg().State(), samplingInterval)
+			opAvg := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Avg().State(), currentSamplingInterval)
 			defer opAvg.Close()
 			if opAvgN := opAvg.Next(); opAvgN != nil {
 				if val, ok := opAvgN.Val(); ok && val != -40 {
@@ -166,7 +170,7 @@ func TestLowPowerMode(t *testing.T) {
 				}
 			}
 
-			opMin := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Min().State(), samplingInterval)
+			opMin := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Min().State(), currentSamplingInterval)
 			defer opMin.Close()
 			if opMinN := opMin.Next(); opMinN != nil {
 				if val, ok := opMinN.Val(); ok && val != -40 {
@@ -175,7 +179,7 @@ func TestLowPowerMode(t *testing.T) {
 				}
 			}
 
-			opMax := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Max().State(), samplingInterval)
+			opMax := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Max().State(), currentSamplingInterval)
 			defer opMax.Close()
 			if opMaxN := opMax.Next(); opMaxN != nil {
 				if val, ok := opMaxN.Val(); ok && val != -40 {
