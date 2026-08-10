@@ -13,7 +13,7 @@ Ensure that gRIBI entries are persisted over supervisor failure.
 ### Test environment setup:
 
 * Connect DUT port-1 to ATE port-1, DUT port-2 to ATE port-2.
-* Assign IPv4 addresses to all ports.
+* Assign IPv4 and IPv6 addresses to all ports.
 
 ### TE-8.2.1 - FIB Programming and Switchover Validation
 
@@ -75,6 +75,8 @@ rpcs:
         gNMI.Subscribe:
     gnoi:
         system.System.SwitchControlProcessor:
+    gribi:
+        gRIBI.Modify:
 ```
 
 ## Minimum DUT Required
