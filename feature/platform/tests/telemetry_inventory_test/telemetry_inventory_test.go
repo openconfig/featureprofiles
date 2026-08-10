@@ -566,6 +566,63 @@ func TestTempSensor(t *testing.T) {
 	}
 }
 
+func TestPowerSupplyTelemetry(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	if deviations.PowerSupplyTelemetryUnsupported(dut) {
+		t.Skip("Skip PowerSupplyTelemetry test due to deviation power_supply_telemetry_unsupported.")
+	}
+	psus := findComponentsListByType(t, dut)["PowerSupply"]
+	if len(psus) == 0 {
+		t.Fatalf("Get PowerSupply list for %q: got 0, want > 0", dut.Model())
+	}
+	t.Logf("PowerSupply components count: %d", len(psus))
+
+	for _, psu := range psus {
+		if psu.Name == nil {
+			t.Errorf("Encountered a PowerSupply component with no Name")
+			continue
+		}
+
+		if psu.GetEmpty() {
+			t.Logf("Skipping empty PowerSupply slot: %s", psu.GetName())
+			continue
+		}
+
+		pName := psu.GetName()
+		t.Run(pName, func(t *testing.T) {
+			psuState := gnmi.Lookup(t, dut, gnmi.OC().Component(pName).PowerSupply().State())
+			psVal, present := psuState.Val()
+			if !present {
+				t.Fatalf("PowerSupply %s state is not present in telemetry", pName)
+			}
+
+			if psVal.InputCurrent == nil {
+				t.Errorf("PowerSupply %s: /components/component/power-supply/state/input-current is nil", pName)
+			} else {
+				t.Logf("PowerSupply %s InputCurrent: %v Amps", pName, psVal.GetInputCurrent())
+			}
+
+			if psVal.InputVoltage == nil {
+				t.Errorf("PowerSupply %s: /components/component/power-supply/state/input-voltage is nil", pName)
+			} else {
+				t.Logf("PowerSupply %s InputVoltage: %v Volts", pName, psVal.GetInputVoltage())
+			}
+
+			if psVal.OutputCurrent == nil {
+				t.Errorf("PowerSupply %s: /components/component/power-supply/state/output-current is nil", pName)
+			} else {
+				t.Logf("PowerSupply %s OutputCurrent: %v Amps", pName, psVal.GetOutputCurrent())
+			}
+
+			if psVal.OutputVoltage == nil {
+				t.Errorf("PowerSupply %s: /components/component/power-supply/state/output-voltage is nil", pName)
+			} else {
+				t.Logf("PowerSupply %s OutputVoltage: %v Volts", pName, psVal.GetOutputVoltage())
+			}
+		})
+	}
+}
+
 func TestControllerCardEmpty(t *testing.T) {
 	if *args.NumControllerCards <= 0 {
 		t.Skip("Skip ControllerCardEmpty Telemetry check for fixed form factor devices.")
