@@ -21,13 +21,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/system"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
-	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ygnmi/ygnmi"
+
 )
 
 var (
@@ -143,4 +145,14 @@ func FetchProcessName(dut *ondatra.DUTDevice, daemon Daemon) (string, error) {
 		return "", fmt.Errorf("daemon %s not defined for vendor %s", daemon, dut.Vendor().String())
 	}
 	return d, nil
+}
+
+// RestartRoutingProcess restarts the routing daemon on the DUT via gNOI and waits for it to restart.
+// If the device does not support restarting the routing process via gNOI, the test is skipped.
+func RestartRoutingProcess(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	if deviations.RoutingRestartViaGnoiUnsupported(dut) {
+		t.Skip("Skipping routing restart via gNOI due to deviation")
+	}
+	KillProcess(t, dut, ROUTING, SigTerm, true, true)
 }

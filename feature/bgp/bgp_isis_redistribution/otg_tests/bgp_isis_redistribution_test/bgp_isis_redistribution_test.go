@@ -21,14 +21,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/github.com/openconfig/ondatra"
+	"github.com/open-traffic-generator/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/gnoi"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/isissession"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
-	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
@@ -98,7 +99,7 @@ type testCase struct {
 	name                string
 	desc                string
 	applyPolicyFunc     func(t *testing.T, dut *ondatra.DUTDevice)
-	verifyTelemetryFunc func(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice)
+	verifyTelemetryFunc func(t *testing.T, ts *isissession.TestSession)
 	testTraffic         bool
 	ipv4                bool
 }
@@ -124,7 +125,7 @@ func TestBGPToISISRedistribution(t *testing.T) {
 			name:                "NonMatchingPrefix",
 			desc:                "Non matching IPv4 BGP prefixes in a prefix-set should not be redistributed to IS-IS",
 			applyPolicyFunc:     nonMatchingPrefixRoutePolicy,
-			verifyTelemetryFunc: verifyNonMatchingPrefixTelemetry,
+			verifyTelemetryFunc: func(t *testing.T, ts *isissession.TestSession) { verifyNonMatchingPrefixTelemetry(t, ts.DUT, ts.ATE) },
 			testTraffic:         false,
 			ipv4:                true,
 		},
@@ -132,23 +133,41 @@ func TestBGPToISISRedistribution(t *testing.T) {
 			name:                "MatchingPrefix",
 			desc:                "Matching IPv4 BGP prefixes in a prefix-set should be redistributed to IS-IS",
 			applyPolicyFunc:     matchingPrefixRoutePolicy,
-			verifyTelemetryFunc: verifyMatchingPrefixTelemetry,
+			verifyTelemetryFunc: func(t *testing.T, ts *isissession.TestSession) { verifyMatchingPrefixTelemetry(t, ts.DUT, ts.ATE) },
 			testTraffic:         true,
 			ipv4:                true,
 		},
 		{
-			name:                "NonMatchingCommunity",
-			desc:                "IPv4: Non matching BGP community in a community-set should not be redistributed to IS-IS",
-			applyPolicyFunc:     nonMatchingCommunityRoutePolicy,
-			verifyTelemetryFunc: verifyNonMatchingCommunityTelemetry,
-			testTraffic:         false,
+			name:                "MatchingPrefixWithRestart",
+			desc:                "Verify BGP-to-ISIS redistributed routes persist after routing daemon restart",
+			applyPolicyFunc:     matchingPrefixRoutePolicy,
+			verifyTelemetryFunc: verifyMatchingPrefixWithRestartTelemetry,
+			testTraffic:         true,
 			ipv4:                true,
+		},
+		{
+			name:                "MatchingPrefixWithSharedNexthop",
+			desc:                "Verify BGP-to-ISIS redistributed routes persist after routing daemon restart with Shared Nexthop",
+			applyPolicyFunc:     applySharedNexthopRoutePolicy,
+			verifyTelemetryFunc: verifyMatchingPrefixWithRestartTelemetry,
+			testTraffic:         true,
+			ipv4:                true,
+		},
+		{
+			name:            "NonMatchingCommunity",
+			desc:            "IPv4: Non matching BGP community in a community-set should not be redistributed to IS-IS",
+			applyPolicyFunc: nonMatchingCommunityRoutePolicy,
+			verifyTelemetryFunc: func(t *testing.T, ts *isissession.TestSession) {
+				verifyNonMatchingCommunityTelemetry(t, ts.DUT, ts.ATE)
+			},
+			testTraffic: false,
+			ipv4:        true,
 		},
 		{
 			name:                "MatchingCommunity",
 			desc:                "IPv4: Matching BGP community in a community-set should be redistributed to IS-IS",
 			applyPolicyFunc:     matchingCommunityRoutePolicy,
-			verifyTelemetryFunc: verifyMatchingCommunityTelemetry,
+			verifyTelemetryFunc: func(t *testing.T, ts *isissession.TestSession) { verifyMatchingCommunityTelemetry(t, ts.DUT, ts.ATE) },
 			testTraffic:         true,
 			ipv4:                true,
 		},
@@ -156,7 +175,7 @@ func TestBGPToISISRedistribution(t *testing.T) {
 			name:                "NonMatchingPrefixV6",
 			desc:                "Non matching IPv6 BGP prefixes in a prefix-set should not be redistributed to IS-IS",
 			applyPolicyFunc:     nonMatchingPrefixRoutePolicyV6,
-			verifyTelemetryFunc: verifyNonMatchingPrefixTelemetryV6,
+			verifyTelemetryFunc: func(t *testing.T, ts *isissession.TestSession) { verifyNonMatchingPrefixTelemetryV6(t, ts.DUT, ts.ATE) },
 			testTraffic:         false,
 			ipv4:                false,
 		},
@@ -164,23 +183,41 @@ func TestBGPToISISRedistribution(t *testing.T) {
 			name:                "MatchingPrefixV6",
 			desc:                "Matching IPv6 BGP prefixes in a prefix-set should be redistributed to IS-IS",
 			applyPolicyFunc:     matchingPrefixRoutePolicyV6,
-			verifyTelemetryFunc: verifyMatchingPrefixTelemetryV6,
+			verifyTelemetryFunc: func(t *testing.T, ts *isissession.TestSession) { verifyMatchingPrefixTelemetryV6(t, ts.DUT, ts.ATE) },
 			testTraffic:         true,
 			ipv4:                false,
 		},
 		{
-			name:                "NonMatchingCommunityV6",
-			desc:                "IPv6: Non matching BGP community in a community-set should not be redistributed to IS-IS",
-			applyPolicyFunc:     nonMatchingCommunityRoutePolicyV6,
-			verifyTelemetryFunc: verifyNonMatchingCommunityTelemetryV6,
-			testTraffic:         false,
+			name:                "MatchingPrefixWithRestartV6",
+			desc:                "Verify IPv6 BGP-to-ISIS redistributed routes persist after routing daemon restart",
+			applyPolicyFunc:     matchingPrefixRoutePolicyV6,
+			verifyTelemetryFunc: verifyMatchingPrefixWithRestartTelemetryV6,
+			testTraffic:         true,
 			ipv4:                false,
+		},
+		{
+			name:                "MatchingPrefixWithSharedNexthopV6",
+			desc:                "Verify IPv6 BGP-to-ISIS redistributed routes persist after routing daemon restart with Shared Nexthop",
+			applyPolicyFunc:     applySharedNexthopRoutePolicyV6,
+			verifyTelemetryFunc: verifyMatchingPrefixWithRestartTelemetryV6,
+			testTraffic:         true,
+			ipv4:                false,
+		},
+		{
+			name:            "NonMatchingCommunityV6",
+			desc:            "IPv6: Non matching BGP community in a community-set should not be redistributed to IS-IS",
+			applyPolicyFunc: nonMatchingCommunityRoutePolicyV6,
+			verifyTelemetryFunc: func(t *testing.T, ts *isissession.TestSession) {
+				verifyNonMatchingCommunityTelemetryV6(t, ts.DUT, ts.ATE)
+			},
+			testTraffic: false,
+			ipv4:        false,
 		},
 		{
 			name:                "MatchingCommunityV6",
 			desc:                "IPv6: Matching BGP community in a community-set should be redistributed to IS-IS",
 			applyPolicyFunc:     matchingCommunityRoutePolicyV6,
-			verifyTelemetryFunc: verifyMatchingCommunityTelemetryV6,
+			verifyTelemetryFunc: func(t *testing.T, ts *isissession.TestSession) { verifyMatchingCommunityTelemetryV6(t, ts.DUT, ts.ATE) },
 			testTraffic:         true,
 			ipv4:                false,
 		},
@@ -197,7 +234,7 @@ func TestBGPToISISRedistribution(t *testing.T) {
 				bgpISISRedistributionV6(t, ts.DUT, "set")
 				defer bgpISISRedistributionV6(t, ts.DUT, "delete")
 			}
-			tc.verifyTelemetryFunc(t, ts.DUT, ts.ATE)
+			tc.verifyTelemetryFunc(t, ts)
 			if tc.testTraffic {
 				if tc.ipv4 {
 					createFlow(t, ts)
@@ -892,11 +929,12 @@ func createFlowV6(t *testing.T, ts *isissession.TestSession) {
 }
 
 func checkTraffic(t *testing.T, ts *isissession.TestSession, flowName string) {
-	defer otgutils.LogFlowMetrics(t, ts.ATE.OTG(), ts.ATETop)
-	defer otgutils.LogPortMetrics(t, ts.ATE.OTG(), ts.ATETop)
 	ts.ATE.OTG().StartTraffic(t)
 	time.Sleep(time.Second * 30)
 	ts.ATE.OTG().StopTraffic(t)
+
+	otgutils.LogFlowMetrics(t, ts.ATE.OTG(), ts.ATETop)
+	otgutils.LogPortMetrics(t, ts.ATE.OTG(), ts.ATETop)
 
 	t.Log("Checking flow telemetry...")
 	otgutils.ExpectedTrafficLoss(t, ts.ATE.OTG(), flowName, 0, 1)
@@ -911,4 +949,142 @@ func containsValue[T comparable](slice []T, val T) bool {
 		}
 	}
 	return found
+}
+
+func verifyMatchingPrefixWithRestartTelemetry(t *testing.T, ts *isissession.TestSession) {
+	verifyMatchingPrefixTelemetry(t, ts.DUT, ts.ATE)
+	t.Log("Restarting routing process via gNOI...")
+	gnoi.RestartRoutingProcess(t, ts.DUT)
+
+	t.Log("Wait for BGP and ISIS sessions to re-establish...")
+	cfgplugins.VerifyDUTBGPEstablished(t, ts.DUT)
+	cfgplugins.VerifyOTGBGPEstablished(t, ts.ATE)
+	ts.MustAdjacency(t)
+
+	verifyMatchingPrefixTelemetry(t, ts.DUT, ts.ATE)
+}
+
+func verifyMatchingPrefixWithRestartTelemetryV6(t *testing.T, ts *isissession.TestSession) {
+	verifyMatchingPrefixTelemetryV6(t, ts.DUT, ts.ATE)
+	t.Log("Restarting routing process via gNOI...")
+	gnoi.RestartRoutingProcess(t, ts.DUT)
+
+	t.Log("Wait for BGP and ISIS sessions to re-establish...")
+	cfgplugins.VerifyDUTBGPEstablished(t, ts.DUT)
+	cfgplugins.VerifyOTGBGPEstablished(t, ts.ATE)
+	ts.MustAdjacency(t)
+
+	verifyMatchingPrefixTelemetryV6(t, ts.DUT, ts.ATE)
+}
+
+func configureSharedNexthopStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
+	sV4 := &cfgplugins.StaticRouteCfg{
+		NetworkInstance: deviations.DefaultNetworkInstance(dut),
+		Prefix:          advertisedIPv4.cidr(t),
+		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+			"0": oc.UnionString(isissession.ATETrafficAttrs.IPv4),
+		},
+	}
+	b := &gnmi.SetBatch{}
+	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
+		t.Fatalf("Failed to configure static route: %v", err)
+	}
+	b.Set(t, dut)
+}
+
+func deleteSharedNexthopStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
+	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(
+		oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+		deviations.StaticProtocolName(dut)).Static(advertisedIPv4.cidr(t)).Config())
+}
+
+func configureSharedNexthopStaticRouteV6(t *testing.T, dut *ondatra.DUTDevice) {
+	sV6 := &cfgplugins.StaticRouteCfg{
+		NetworkInstance: deviations.DefaultNetworkInstance(dut),
+		Prefix:          advertisedIPv6.cidr(t),
+		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+			"0": oc.UnionString(isissession.ATETrafficAttrs.IPv6),
+		},
+	}
+	b := &gnmi.SetBatch{}
+	if _, err := cfgplugins.NewStaticRouteCfg(b, sV6, dut); err != nil {
+		t.Fatalf("Failed to configure static route V6: %v", err)
+	}
+	b.Set(t, dut)
+}
+
+func deleteSharedNexthopStaticRouteV6(t *testing.T, dut *ondatra.DUTDevice) {
+	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(
+		oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+		deviations.StaticProtocolName(dut)).Static(advertisedIPv6.cidr(t)).Config())
+}
+
+func staticISISRedistribution(t *testing.T, dut *ondatra.DUTDevice, operation string) {
+	dni := deviations.DefaultNetworkInstance(dut)
+	root := &oc.Root{}
+	if deviations.EnableTableConnections(dut) {
+		fptest.ConfigEnableTbNative(t, dut)
+	}
+	tableConn := root.GetOrCreateNetworkInstance(dni).GetOrCreateTableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, oc.Types_ADDRESS_FAMILY_IPV4)
+	if operation == "set" {
+		if !deviations.SkipSettingDisableMetricPropagation(dut) {
+			tableConn.SetDisableMetricPropagation(false)
+		}
+		if !deviations.DefaultRoutePolicyUnsupported(dut) {
+			tableConn.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
+		}
+		tableConn.SetImportPolicy([]string{v4RoutePolicy})
+		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(dni).TableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, oc.Types_ADDRESS_FAMILY_IPV4).Config(), tableConn)
+	} else if operation == "delete" {
+		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(dni).TableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, oc.Types_ADDRESS_FAMILY_IPV4).Config())
+	}
+}
+
+func staticISISRedistributionV6(t *testing.T, dut *ondatra.DUTDevice, operation string) {
+	dni := deviations.DefaultNetworkInstance(dut)
+	root := &oc.Root{}
+	if deviations.EnableTableConnections(dut) {
+		fptest.ConfigEnableTbNative(t, dut)
+	}
+	tableConn := root.GetOrCreateNetworkInstance(dni).GetOrCreateTableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, oc.Types_ADDRESS_FAMILY_IPV6)
+	if operation == "set" {
+		if !deviations.SkipSettingDisableMetricPropagation(dut) {
+			tableConn.SetDisableMetricPropagation(false)
+		}
+		if !deviations.DefaultRoutePolicyUnsupported(dut) {
+			tableConn.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
+		}
+		tableConn.SetImportPolicy([]string{v6RoutePolicy})
+		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(dni).TableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, oc.Types_ADDRESS_FAMILY_IPV6).Config(), tableConn)
+	} else if operation == "delete" {
+		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(dni).TableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, oc.Types_ADDRESS_FAMILY_IPV6).Config())
+	}
+}
+
+func applySharedNexthopRoutePolicy(t *testing.T, dut *ondatra.DUTDevice) {
+	matchingPrefixRoutePolicy(t, dut)
+
+	configureSharedNexthopStaticRoute(t, dut)
+	t.Cleanup(func() {
+		deleteSharedNexthopStaticRoute(t, dut)
+	})
+
+	staticISISRedistribution(t, dut, "set")
+	t.Cleanup(func() {
+		staticISISRedistribution(t, dut, "delete")
+	})
+}
+
+func applySharedNexthopRoutePolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
+	matchingPrefixRoutePolicyV6(t, dut)
+
+	configureSharedNexthopStaticRouteV6(t, dut)
+	t.Cleanup(func() {
+		deleteSharedNexthopStaticRouteV6(t, dut)
+	})
+
+	staticISISRedistributionV6(t, dut, "set")
+	t.Cleanup(func() {
+		staticISISRedistributionV6(t, dut, "delete")
+	})
 }
