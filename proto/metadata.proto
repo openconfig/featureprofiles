@@ -1443,6 +1443,14 @@ message Metadata {
     // InsecureSkipVerify instead of plaintext transport.
     bool containerz_tls_insecure_skip_verify = 448;
 
+    // Devices that do not validate AFT global filter policy references.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/491765154#comment10
+    bool afts_global_filter_policy_config_reference_validation_unsupported = 449;
+
+    // Device does not support configuring VRF selection policy under
+    // non-default network instance.
+    bool vrf_selection_policy_non_default_ni_unsupported = 450;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }
