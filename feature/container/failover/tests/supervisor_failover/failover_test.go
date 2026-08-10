@@ -542,7 +542,7 @@ func doSwitchover(t *testing.T, dut *ondatra.DUTDevice, standby string) {
 	// connection can remain half-open against the old active RP, causing the
 	// next RPC to be reset before it reaches the new active RP. Bypass the cache
 	// and establish a new connection for every switchover request.
-	dialCtx, dialCancel := context.WithTimeout(t.Context(), 30*time.Second)
+	dialCtx, dialCancel := context.WithTimeout(context.Background(), 30*time.Second)
 	gnoiClients, err := dut.RawAPIs().BindingDUT().DialGNOI(dialCtx)
 	dialCancel()
 	if err != nil {
