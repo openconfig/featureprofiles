@@ -35,7 +35,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 )
 
-
 var (
 	enablePacketCapture = flag.Bool("enable_packet_capture", false, "Enable packet capture and deep packet inspection validation.")
 	compactOTGFlows     = flag.Bool("compact_otg_flows", true, "Compact OTG flows to reduce the number of flows due to OTG port limits.")
@@ -100,7 +99,7 @@ func TestGRIBIFullScaleT3(t *testing.T) {
 		NumEncapDefaultNHG: 8_000,
 		EncapNHGLoadBalance: []cfgplugins.NHGLoadBalancingParams{
 			{Pct: 75, NumNextHops: 4},
-			{Pct: 20, NumNextHops: 8},
+ 			{Pct: 20, NumNextHops: 8},
 			{Pct: 3, NumNextHops: 16},
 			{Pct: 2, NumNextHops: 32},
 		},
@@ -125,3 +124,4 @@ func TestGRIBIFullScaleT3(t *testing.T) {
 	}
 	cfgplugins.RunFullScaleTest(t, params, *enablePacketCapture, *compactOTGFlows)
 }
+
