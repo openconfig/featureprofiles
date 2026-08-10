@@ -2334,3 +2334,8 @@ func AftsGlobalFilterPolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
 func AftsGlobalFilterPolicyConfigReferenceValidationUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAftsGlobalFilterPolicyConfigReferenceValidationUnsupported()
 }
+
+// VrfSelectionPolicyNonDefaultNIUnsupported returns true if device does not support configuring VRF selection policy under non-default network instance.
+func VrfSelectionPolicyNonDefaultNIUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetVrfSelectionPolicyNonDefaultNiUnsupported()
+}
