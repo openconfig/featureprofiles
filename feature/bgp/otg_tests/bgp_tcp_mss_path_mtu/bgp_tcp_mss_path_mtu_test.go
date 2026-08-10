@@ -21,6 +21,7 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
@@ -62,6 +63,9 @@ const (
 	dut2AreaAddress = "49.0001"
 	dut2SysID       = "1920.0000.3001"
 	ateSysID        = "640000000001"
+
+	flowToDUT2Name = "flow-dut2-port1"
+	flowRate       = uint64(1000)
 )
 
 var (
@@ -180,6 +184,40 @@ func verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbrIP []string) {
 		}
 		t.Logf("BGP adjacency for %s: %s", nbr, state)
 	}
+}
+
+func waitForBGPTcpMss(t *testing.T, dut *ondatra.DUTDevice, nbr string, want uint16, timeout time.Duration) {
+	t.Helper()
+	mssPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(nbr).Transport().TcpMss().State()
+	t.Logf("Waiting for BGP neighbor %s TCP MSS to be %v...", nbr, want)
+	val, ok := gnmi.Watch(t, dut, mssPath, timeout, func(v *ygnmi.Value[uint16]) bool {
+		mss, present := v.Val()
+		return present && mss == want
+	}).Await(t)
+	if !ok {
+		got := gnmi.Get(t, dut, mssPath)
+		t.Errorf("BGP neighbor %s TCP MSS did not reach %v within %v, got %v", nbr, want, timeout, got)
+		return
+	}
+	mss, _ := val.Val()
+	t.Logf("BGP neighbor %s TCP MSS: %v", nbr, mss)
+}
+
+func waitForBGPTcpMssValid(t *testing.T, dut *ondatra.DUTDevice, nbr string, maxMTU uint16, timeout time.Duration) {
+	t.Helper()
+	mssPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(nbr).Transport().TcpMss().State()
+	t.Logf("Waiting for BGP neighbor %s TCP MSS (non-zero, <= %v)...", nbr, maxMTU)
+	val, ok := gnmi.Watch(t, dut, mssPath, timeout, func(v *ygnmi.Value[uint16]) bool {
+		mss, present := v.Val()
+		return present && mss > 0 && mss <= maxMTU
+	}).Await(t)
+	if !ok {
+		got := gnmi.Get(t, dut, mssPath)
+		t.Errorf("BGP neighbor %s TCP MSS not valid within %v, got %v, want non-zero and <= %v", nbr, timeout, got, maxMTU)
+		return
+	}
+	mss, _ := val.Val()
+	t.Logf("BGP neighbor %s TCP MSS: %v", nbr, mss)
 }
 
 func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName []string, dutAreaAddress, dutSysID string) {
@@ -349,6 +387,44 @@ type bgpNeighbor struct {
 	peerGrp    string
 }
 
+// startOTGTrafficToDUT2Port1 configures and starts continuous 5040B traffic from OTG to DUT2 port1.
+func startOTGTrafficToDUT2Port1(t *testing.T, otg *otg.OTG, config gosnappi.Config) {
+	t.Helper()
+	dut1 := ondatra.DUT(t, "dut1")
+	dut1Port1MAC := gnmi.Get(t, dut1, gnmi.OC().Interface(dut1.Port(t, "port1").Name()).Ethernet().MacAddress().State())
+
+	flowExists := false
+	for _, item := range config.Flows().Items() {
+		if item.Name() == flowToDUT2Name {
+			flowExists = true
+			break
+		}
+	}
+	if !flowExists {
+		port1Name := "port1"
+		flow := config.Flows().Add().SetName(flowToDUT2Name)
+		flow.Metrics().SetEnable(true)
+		flow.TxRx().Port().
+			SetTxName(port1Name).
+			SetRxNames([]string{port1Name})
+		flow.Size().SetFixed(uint32(4000))
+		flow.Rate().SetPps(flowRate)
+		flow.Duration().Continuous()
+		eth := flow.Packet().Add().Ethernet()
+		eth.Src().SetValue(atePort1.MAC)
+		eth.Dst().SetValue(dut1Port1MAC)
+		ipv4 := flow.Packet().Add().Ipv4()
+		ipv4.Src().SetValue(atePort1.IPv4)
+		ipv4.Dst().SetValue(dut2Port1.IPv4)
+		ipv4.DontFragment().SetValue(1)
+	}
+
+	otg.PushConfig(t, config)
+	otg.StartProtocols(t)
+	t.Logf("Starting OTG continuous traffic flow %q (%dB) to DUT2 port1 %s", flowToDUT2Name, mtu5040B, dut2Port1.IPv4)
+	otg.StartTraffic(t)
+}
+
 // TestTcpMssPathMtu is to Validate TCP MSS for BGP v4/v6 sessions.
 func TestTcpMssPathMtu(t *testing.T) {
 	dut1 := ondatra.DUT(t, "dut1")
@@ -392,23 +468,14 @@ func TestTcpMssPathMtu(t *testing.T) {
 
 	if !deviations.SkipTCPNegotiatedMSSCheck(dut1) {
 		t.Run("Verify that the default TCP MSS value is set below the default interface MTU value.", func(t *testing.T) {
-			// Fetch interface MTU value to compare negotiated tcp mss.
 			gotIntfMTU := intfMTU(t, dut1, dut1.Port(t, "port1"))
-			if gotTCPMss := gnmi.Get(t, dut1, dut1ConfPath.Bgp().Neighbor(atePort1.IPv4).Transport().TcpMss().State()); gotTCPMss > gotIntfMTU || gotTCPMss == 0 {
-				t.Errorf("Obtained TCP MSS for BGP v4 on dut1 is not as expected, got is %v, want non zero and less than %v", gotTCPMss, mtu4096B)
-			}
-			if gotTCP6Mss := gnmi.Get(t, dut1, dut1ConfPath.Bgp().Neighbor(atePort1.IPv6).Transport().TcpMss().State()); gotTCP6Mss > gotIntfMTU || gotTCP6Mss == 0 {
-				t.Errorf("Obtained TCP MSS for BGP v6 peer on dut1 is not as expected, got is %v, want non zero and less than %v", gotTCP6Mss, mtu4096B)
-			}
+			waitForBGPTcpMssValid(t, dut1, atePort1.IPv4, gotIntfMTU, 10*time.Second)
+			waitForBGPTcpMssValid(t, dut1, atePort1.IPv6, gotIntfMTU, 10*time.Second)
 		})
 	}
 	t.Run("Change the Interface MTU to the DUT1 port as 5040.", func(t *testing.T) {
-		t.Logf("Configure DUT1 interface MTU to %v", mtu5040B)
-		configureIntfMTU(t, dut1, dut1.Port(t, "port1"), mtu5040B)
-
-		t.Logf("Configure DUT1 BGP TCP-MSS value to %v", mtu4096B)
-		gnmi.Replace(t, dut1, dut1ConfPath.Bgp().Neighbor(atePort1.IPv4).Transport().TcpMss().Config(), mtu4096B)
-		gnmi.Replace(t, dut1, dut1ConfPath.Bgp().Neighbor(atePort1.IPv6).Transport().TcpMss().Config(), mtu4096B)
+		t.Logf("Configure DUT1 interface MTU to %v and BGP TCP-MSS to %v", mtu5040B, mtu4096B)
+		cfgplugins.ConfigureDUTBGPMaxSegmentSize(t, dut1, dut1.Port(t, "port1").Name(), mtu5040B, []string{atePort1.IPv4, atePort1.IPv6}, mtu4096B)
 	})
 
 	t.Run("Re-establish the BGP sessions by tcp reset.", func(t *testing.T) {
@@ -424,12 +491,8 @@ func TestTcpMssPathMtu(t *testing.T) {
 
 	t.Run("Verify BGP TCP MSS value", func(t *testing.T) {
 		t.Logf("Verify DUT1 BGP TCP-MSS value is to %v for both BGP v4 and v6 sessions.", mtu4096B)
-		if gotTCPMss := gnmi.Get(t, dut1, dut1ConfPath.Bgp().Neighbor(atePort1.IPv4).Transport().TcpMss().State()); gotTCPMss != mtu4096B {
-			t.Errorf("Obtained TCP MSS for BGP v4 on dut1 is not as expected, got is %v, want %v", gotTCPMss, mtu4096B)
-		}
-		if gotTCP6Mss := gnmi.Get(t, dut1, dut1ConfPath.Bgp().Neighbor(atePort1.IPv6).Transport().TcpMss().State()); gotTCP6Mss != mtu4096B {
-			t.Errorf("Obtained TCP MSS for BGP v6 peer on dut1 is not as expected, got is %v, want %v", gotTCP6Mss, mtu4096B)
-		}
+		waitForBGPTcpMss(t, dut1, atePort1.IPv4, mtu4096B, 10*time.Second)
+		waitForBGPTcpMss(t, dut1, atePort1.IPv6, mtu4096B, 10*time.Second)
 	})
 
 	t.Run("Remove configured BGP TCP MSS for v4 and v6 neighbors on DUT1", func(t *testing.T) {
@@ -491,10 +554,13 @@ func TestTcpMssPathMtu(t *testing.T) {
 	})
 
 	if !deviations.SkipTCPNegotiatedMSSCheck(dut2) {
+		t.Run("Start OTG continuous traffic to DUT2 port1", func(t *testing.T) {
+			startOTGTrafficToDUT2Port1(t, otg, otgConfig)
+			otg.StopTraffic(t)
+		})
+
 		t.Run("Validate that the min MSS value has been adjusted to be below 1500 bytes on the tcp session.", func(t *testing.T) {
-			if gotTCPMss := gnmi.Get(t, dut2, dut2ConfPath.Bgp().Neighbor(atePort1.IPv4).Transport().TcpMss().State()); gotTCPMss > mtu1500B || gotTCPMss == 0 {
-				t.Errorf("Obtained TCP MSS for BGP v4 on dut2 is not as expected, got %v, want non zero value and less then %v", gotTCPMss, mtu1500B)
-			}
+			waitForBGPTcpMssValid(t, dut2, atePort1.IPv4, mtu1500B, time.Minute)
 		})
 	}
 }
