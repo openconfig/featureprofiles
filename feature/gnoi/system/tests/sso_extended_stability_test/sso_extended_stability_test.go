@@ -207,8 +207,19 @@ func runPostSSOVerification(t *testing.T, dut *ondatra.DUTDevice, criticalProcs 
   }
 }
 
+//func TestSSOSoftwareStability(t *testing.T) {
+//  dut := ondatra.DUT(t, "dut")
+
 func TestSSOSoftwareStability(t *testing.T) {
   dut := ondatra.DUT(t, "dut")
+
+  t.Cleanup(func() {
+    cleanBatch := &gnmi.SetBatch{}
+    gnmi.BatchDelete(cleanBatch, gnmi.OC().NetworkInstance("TRANSIT_VRF").Config())
+    gnmi.BatchDelete(cleanBatch, gnmi.OC().NetworkInstance("DECAP_TE_VRF").Config())
+    gnmi.BatchDelete(cleanBatch, gnmi.OC().Qos().Config())
+    cleanBatch.Set(t, dut)
+  })
 
   // Init BGPSession
   bs := cfgplugins.NewBGPSession(t, cfgplugins.PortCount4, nil)
@@ -216,7 +227,7 @@ func TestSSOSoftwareStability(t *testing.T) {
 
   p1 := bs.OndatraDUTPorts[0]
   p2 := bs.OndatraDUTPorts[1]
-  :wq! p3 := bs.OndatraDUTPorts[2]
+  p3 := bs.OndatraDUTPorts[2]
   p4 := bs.OndatraDUTPorts[3]
 
   // 1. Delete BGP protocol under default network-instance
@@ -246,7 +257,7 @@ func TestSSOSoftwareStability(t *testing.T) {
   } else {
     transitNi.GetOrCreateInterface("port2").Id = ygot.String(p2.Name())
   }
-
+ 
   decapNi := bs.DUTConf.GetOrCreateNetworkInstance("DECAP_TE_VRF")
   decapNi.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
   decapNi.GetOrCreateInterface("port3").Interface = ygot.String(p3.Name())
@@ -291,10 +302,11 @@ func TestSSOSoftwareStability(t *testing.T) {
   // Create PERMIT-ALL routing policy
   rp := bs.DUTConf.GetOrCreateRoutingPolicy()
   pdef := rp.GetOrCreatePolicyDefinition(rplPermitAll)
-  stmt, err := pdef.AppendNewStatement("20")
-  if err != nil {
-    t.Fatalf("Failed to create routing policy statement: %v", err)
-  }
+  //stmt, err := pdef.AppendNewStatement("20")
+  //if err != nil {
+  //  t.Fatalf("Failed to create routing policy statement: %v", err)
+  //}
+  stmt := pdef.GetOrCreateStatement("20")
   stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
   // Assign BGP neighbors to respective VRFs BGP config
@@ -303,13 +315,30 @@ func TestSSOSoftwareStability(t *testing.T) {
     var nbr *oc.NetworkInstance_Protocol_Bgp_Neighbor
 
     // Reuse neighbor object generated from WithEBGP or build one
-    if i == 0 || i == 1 {
+    /*if i == 0 || i == 1 {
       nbr = transitBgp.GetOrCreateNeighbor(peerAddress)
       nbr.PeerAs = ygot.Uint32(65001)
     } else {
       nbr = decapBgp.GetOrCreateNeighbor(peerAddress)
       nbr.PeerAs = ygot.Uint32(65002)
+    }*/
+
+    var peerAS uint32
+    switch i {
+    case 0:
+      nbr = transitBgp.GetOrCreateNeighbor(peerAddress)
+      peerAS = cfgplugins.AteAS1
+    case 1:
+      nbr = transitBgp.GetOrCreateNeighbor(peerAddress)
+      peerAS = cfgplugins.AteAS2
+    case 2:
+      nbr = decapBgp.GetOrCreateNeighbor(peerAddress)
+      peerAS = cfgplugins.AteAS3
+    case 3:
+      nbr = decapBgp.GetOrCreateNeighbor(peerAddress)
+      peerAS = cfgplugins.AteAS4
     }
+    nbr.PeerAs = ygot.Uint32(peerAS)
     nbr.Enabled = ygot.Bool(true)
     nbr.SendCommunityType = []oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_NONE}
 
