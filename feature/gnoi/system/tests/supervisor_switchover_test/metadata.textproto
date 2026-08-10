@@ -1,4 +1,4 @@
-# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
 uuid: "7b4c9615-3892-4298-be2f-82a79dcfce9b"
@@ -10,6 +10,23 @@ platform_exceptions: {
     vendor: ARISTA
   }
   deviations: {
+    gnoi_subcomponent_path: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    interface_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
     gnoi_subcomponent_path: true
   }
 }
