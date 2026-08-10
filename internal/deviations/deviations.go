@@ -2315,6 +2315,19 @@ func MacsecOcUnsupported(dut *ondatra.DUTDevice) bool {
 }
 
 // AftsGlobalFilterPolicyOCUnsupported returns true if "/network-instances/network-instance/afts/global-filter-policy" OC path is not supported.
+// Arista: b/514565554
 func AftsGlobalFilterPolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAftsGlobalFilterPolicyOcUnsupported()
+}
+
+// AftsGlobalFilterPolicyConfigReferenceValidationUnsupported returns true if the
+// device does not validate references from an AFT global-filter policy.
+// Arista: https://partnerissuetracker.corp.google.com/issues/491765154#comment10
+func AftsGlobalFilterPolicyConfigReferenceValidationUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAftsGlobalFilterPolicyConfigReferenceValidationUnsupported()
+}
+
+// VrfSelectionPolicyNonDefaultNIUnsupported returns true if device does not support configuring VRF selection policy under non-default network instance.
+func VrfSelectionPolicyNonDefaultNIUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetVrfSelectionPolicyNonDefaultNiUnsupported()
 }
