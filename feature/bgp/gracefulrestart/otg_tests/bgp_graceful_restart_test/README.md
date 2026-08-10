@@ -117,31 +117,29 @@ The origial RFC4724 had no coverage for Graceful restart process post send/recei
         "protocols": {
           "protocol": {
             "BGP": {
-              "BGP": {
-                "bgp": {
-                  "peer-groups": {
-                    "peer-group": {
-                      "BGP-PEER-GROUP-V4": {
-                        "afi-safis": {
-                          "afi-safi": {
-                            "IPV4_UNICAST": {
-                              "graceful-restart": {
-                                "state": {
-                                  "enabled": true
-                                }
+              "bgp": {
+                "peer-groups": {
+                  "peer-group": {
+                    "BGP-PEER-GROUP-V4": {
+                      "afi-safis": {
+                        "afi-safi": {
+                          "IPV4_UNICAST": {
+                            "graceful-restart": {
+                              "state": {
+                                "enabled": true
                               }
                             }
                           }
                         }
-                      },
-                      "BGP-PEER-GROUP-V6": {
-                        "afi-safis": {
-                          "afi-safi": {
-                            "IPV6_UNICAST": {
-                              "graceful-restart": {
-                                "state": {
-                                  "enabled": true
-                                }
+                      }
+                    },
+                    "BGP-PEER-GROUP-V6": {
+                      "afi-safis": {
+                        "afi-safi": {
+                          "IPV6_UNICAST": {
+                            "graceful-restart": {
+                              "state": {
+                                "enabled": true
                               }
                             }
                           }
