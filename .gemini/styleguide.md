@@ -69,6 +69,7 @@
             }).Await(t)
             ```
     *   **Querying Counters:** Always use a `gnmi.Watch` loop to wait for a specific counter value to be reached before querying it.
+    *   All variables used as denominators in arithmetic operations (especially dynamic metric counters like `txPackets`) must be explicitly checked against zero before division to prevent runtime panics.
     *   **OTG Start Protocols:** Prior to invoking OTG start protocols, explicitly call `WaitForARP` function to maintain test stability.
       
         *   **OTG traffic neighbor resolution:** For tests that configure and
