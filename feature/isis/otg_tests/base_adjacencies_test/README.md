@@ -87,6 +87,48 @@ Base IS-IS functionality and adjacency establishment.
     *   Verify that the updated Hello-Multiplier is reflected in isis adjacency output in the ATE.
     *   Verify that the correct streaming telemetry values are reported correctly by the DUT.
 
+## Canonical OC
+
+```json
+{
+  "openconfig-network-instance:network-instances": {
+    "network-instance": [
+      {
+        "name": "DEFAULT",
+        "protocols": {
+          "protocol": [
+            {
+              "identifier": "openconfig-policy-types:ISIS",
+              "name": "DEFAULT",
+              "isis": {
+                "global": {
+                  "config": {
+                    "net": [
+                      "49.0001.1920.0000.0001.00"
+                    ]
+                  }
+                },
+                "interfaces": {
+                  "interface": [
+                    {
+                      "config": {
+                        "enabled": true,
+                        "interface-id": "eth1"
+                      },
+                      "interface-id": "eth1"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test.
@@ -123,6 +165,7 @@ paths:
 
   ## State paths
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/state/circuit-type:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/state/interface-id:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/system-id:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/afi-name:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/metric:
