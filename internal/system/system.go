@@ -19,9 +19,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/openconfig/ondatra/gnmi/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc/oc"
-	"github.com/openconfig/ondatra/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra"
 )
 
 // FindProcessIDByName uses telemetry to find out the PID of a process.
