@@ -19,17 +19,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/ygot/ygot/ygot"
-	"github.com/openconfig/featureprofiles/internal/cfgplugins/cfgplugins"
-	"github.com/openconfig/featureprofiles/internal/deviations/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest/fptest"
-	"github.com/openconfig/featureprofiles/internal/qoscfg/qoscfg"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/qoscfg"
 	spb "github.com/openconfig/gnoi/system/system_go_proto"
-	"github.com/openconfig/ondatra/gnmi/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc/oc"
-	"github.com/openconfig/ondatra/netutil/netutil"
-	"github.com/openconfig/ondatra/ondatra"
-	"github.com/openconfig/testt/testt"
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/testt"
+	"github.com/openconfig/ygot/ygot"
 )
 
 func TestMain(m *testing.M) {
@@ -108,6 +108,10 @@ func TestQosEcnConfigTests(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	setupEnvironment(t, dut)
 
+	t.Cleanup(func() {
+		gnmi.Delete(t, dut, gnmi.OC().Qos().Config())
+	})
+
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
 	for _, tt := range qosEcnConfigTestcases {
@@ -165,7 +169,16 @@ func testDP131EqualThreshold(t *testing.T, q *oc.Qos) {
 	if _, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchReq); err != nil {
 		t.Logf("SwitchControlProcessor response err (can be expected during switchover or unsupported): %v", err)
 	}
-	time.Sleep(30 * time.Second)
+		deadline := time.Now().Add(5 * time.Minute)
+	for {
+		if time.Now().After(deadline) {
+			t.Fatal("Timeout waiting for DUT to become reachable after switchover")
+		}
+		if val := gnmi.Lookup(t, dut, gnmi.OC().System().Hostname().State()); val.IsPresent() {
+			break
+		}
+		time.Sleep(5 * time.Second)
+	}
 
 	// Step 6: Once new supervisor is active, repeat gNMI Get checks to verify configuration persisted.
 	t.Log("Step 6 - Verify configuration persisted after supervisor switchover")

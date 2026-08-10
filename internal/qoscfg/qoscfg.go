@@ -18,6 +18,7 @@ package qoscfg
 import (
 	"testing"
 
+	"github.com/golang/ygot/ygot"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -48,5 +49,27 @@ func SetInputClassifier(t *testing.T, dut *ondatra.DUTDevice, qos *oc.Qos, intfI
 		intf.InterfaceRef = nil
 	}
 	intf.GetOrCreateInput().GetOrCreateClassifier(classType).SetName(className)
+	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
+}
+
+// SetOutputQueueManagementProfile sets an output queue management profile on the specified interface queue.
+func SetOutputQueueManagementProfile(t *testing.T, dut *ondatra.DUTDevice, qos *oc.Qos, intfID string, queueName string, profileName string) {
+	t.Helper()
+	intf := qos.GetOrCreateInterface(intfID)
+	intf.SetInterfaceId(intfID)
+	intf.GetOrCreateInterfaceRef().Interface = ygot.String(intfID)
+	if deviations.InterfaceRefConfigUnsupported(dut) {
+		intf.InterfaceRef = nil
+	}
+	output := intf.GetOrCreateOutput()
+	queue := output.GetOrCreateQueue(queueName)
+	queue.SetName(queueName)
+	queue.SetQueueManagementProfile(profileName)
+	if deviations.QOSBufferAllocationConfigRequired(dut) {
+		bufferAllocation := qos.GetOrCreateBufferAllocationProfile("ballocprofile")
+		bq := bufferAllocation.GetOrCreateQueue(queueName)
+		bq.SetStaticSharedBufferLimit(uint32(268435456))
+		output.SetBufferAllocationProfile("ballocprofile")
+	}
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
 }
