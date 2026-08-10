@@ -24,10 +24,11 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	tpb "github.com/openconfig/gnoi/types"
-	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/gnmi/oc/ocpath"
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/ygnmi"
 )
 
@@ -237,4 +238,28 @@ func OpticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *on
 		t.Fatalf("Associated Optical Channel for Transceiver (%v) not found!", transceiverName)
 	}
 	return opticalChannelName
+}
+
+// WaitForSwitchover verifies the stability of the SUP cards after switchover by polling the system datetime.
+func WaitForSwitchover(t *testing.T, dut *ondatra.DUTDevice, maxSwitchoverTime time.Duration) {
+	t.Helper()
+	startSwitchover := time.Now()
+	t.Logf("Wait for new active RP to boot up by polling the telemetry output.")
+	for {
+		var currentTime string
+		t.Logf("Time elapsed %.2f seconds since switchover started.", time.Since(startSwitchover).Seconds())
+		time.Sleep(30 * time.Second)
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+		}); errMsg != nil {
+			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+		} else {
+			t.Logf("RP switchover has completed successfully with received time: %v", currentTime)
+			break
+		}
+		if time.Since(startSwitchover) >= maxSwitchoverTime {
+			t.Fatalf("time.Since(startSwitchover): got %v, want < %v", time.Since(startSwitchover), maxSwitchoverTime)
+		}
+	}
+	t.Logf("RP switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
 }
