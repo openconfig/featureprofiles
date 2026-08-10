@@ -554,12 +554,10 @@ func TestTcpMssPathMtu(t *testing.T) {
 	})
 
 	if !deviations.SkipTCPNegotiatedMSSCheck(dut2) {
-		t.Run("Start OTG continuous traffic to DUT2 port1", func(t *testing.T) {
+		t.Run("Start OTG continuous traffic and verify that the TCP session’s minimum MSS is adjusted below 1500 bytes.", func(t *testing.T) {
 			startOTGTrafficToDUT2Port1(t, otg, otgConfig)
-			otg.StopTraffic(t)
-		})
+			defer otg.StopTraffic(t)
 
-		t.Run("Validate that the min MSS value has been adjusted to be below 1500 bytes on the tcp session.", func(t *testing.T) {
 			waitForBGPTcpMssValid(t, dut2, atePort1.IPv4, mtu1500B, time.Minute)
 		})
 	}
