@@ -364,13 +364,30 @@ func configureRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, policyName str
 
 	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	if nbr != nil {
-		gnmi.BatchReplace(batchConfig, bgpPath.Neighbor(nbr.nbrAddr).AfiSafi(nbr.afiSafi).ApplyPolicy().ImportPolicy().Config(), []string{policyName})
+		if deviations.BgpPolicyLeafListsRequireParentReplace(dut) {
+			applyPolicy := &oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicy{}
+			applyPolicy.SetImportPolicy([]string{policyName})
+			gnmi.BatchReplace(batchConfig, bgpPath.Neighbor(nbr.nbrAddr).AfiSafi(nbr.afiSafi).ApplyPolicy().Config(), applyPolicy)
+		} else {
+			gnmi.BatchReplace(batchConfig, bgpPath.Neighbor(nbr.nbrAddr).AfiSafi(nbr.afiSafi).ApplyPolicy().ImportPolicy().Config(), []string{policyName})
+		}
 	}
 	if pgName != "" {
-		gnmi.BatchReplace(batchConfig, bgpPath.PeerGroup(pgName).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().ImportPolicy().Config(), []string{policyName})
-		gnmi.BatchReplace(batchConfig, bgpPath.PeerGroup(pgName).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy().ImportPolicy().Config(), []string{policyName})
-		gnmi.BatchDelete(batchConfig, bgpPath.Neighbor(ebgp1NbrV4.nbrAddr).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().ImportPolicy().Config())
-		gnmi.BatchDelete(batchConfig, bgpPath.Neighbor(ebgp1NbrV6.nbrAddr).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy().ImportPolicy().Config())
+		if deviations.BgpPolicyLeafListsRequireParentReplace(dut) {
+			applyPolicyV4 := &oc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi_ApplyPolicy{}
+			applyPolicyV4.SetImportPolicy([]string{policyName})
+			applyPolicyV6 := &oc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi_ApplyPolicy{}
+			applyPolicyV6.SetImportPolicy([]string{policyName})
+			gnmi.BatchReplace(batchConfig, bgpPath.PeerGroup(pgName).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().Config(), applyPolicyV4)
+			gnmi.BatchReplace(batchConfig, bgpPath.PeerGroup(pgName).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy().Config(), applyPolicyV6)
+			gnmi.BatchDelete(batchConfig, bgpPath.Neighbor(ebgp1NbrV4.nbrAddr).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().Config())
+			gnmi.BatchDelete(batchConfig, bgpPath.Neighbor(ebgp1NbrV6.nbrAddr).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy().Config())
+		} else {
+			gnmi.BatchReplace(batchConfig, bgpPath.PeerGroup(pgName).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().ImportPolicy().Config(), []string{policyName})
+			gnmi.BatchReplace(batchConfig, bgpPath.PeerGroup(pgName).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy().ImportPolicy().Config(), []string{policyName})
+			gnmi.BatchDelete(batchConfig, bgpPath.Neighbor(ebgp1NbrV4.nbrAddr).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().ImportPolicy().Config())
+			gnmi.BatchDelete(batchConfig, bgpPath.Neighbor(ebgp1NbrV6.nbrAddr).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy().ImportPolicy().Config())
+		}
 	}
 
 	batchConfig.Set(t, dut)
