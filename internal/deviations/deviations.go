@@ -2339,3 +2339,29 @@ func AftsGlobalFilterPolicyConfigReferenceValidationUnsupported(dut *ondatra.DUT
 func VrfSelectionPolicyNonDefaultNIUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetVrfSelectionPolicyNonDefaultNiUnsupported()
 }
+
+// BgpNeighborSendCommunityRequiresAfiSafi returns true if neighbor-root BGP
+// send-community configuration must use send-community-type under the
+// neighbor AFI-SAFI instead.
+func BgpNeighborSendCommunityRequiresAfiSafi(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpNeighborSendCommunityRequiresAfiSafi()
+}
+
+// BgpPeerGroupSendCommunityRequiresAfiSafi returns true if peer-group-root BGP
+// send-community configuration must use send-community-type under the
+// peer-group AFI-SAFI instead.
+func BgpPeerGroupSendCommunityRequiresAfiSafi(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpPeerGroupSendCommunityRequiresAfiSafi()
+}
+
+// BgpNeighborDefaultsUnsupported returns true if OpenConfig defaults beneath
+// BGP neighbors are not applied by the device.
+func BgpNeighborDefaultsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpNeighborDefaultsUnsupported()
+}
+
+// BgpPolicyLeafListsRequireParentReplace returns true if changes to BGP policy
+// leaf-lists must replace their containing parent container or list.
+func BgpPolicyLeafListsRequireParentReplace(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpPolicyLeafListsRequireParentReplace()
+}
