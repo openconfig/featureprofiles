@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package gribi_full_scale_t1_test implements TE-14.3: gRIBI Scaling - full scale setup, target T1.
+// Package gribi_full_scale_t2_test implements TE-14.4: gRIBI Scaling - full scale setup, target T2.
 //
-// Test structure (per README TE-14.3):
+// Test structure (per README TE-14.4):
 //
-//	TestGRIBIFullScaleT1 — configures DUT+ATE once, programs gRIBI once, then runs
+//	TestGRIBIFullScaleT2 — configures DUT+ATE once, programs gRIBI once, then runs
 //	                        both fixed-size (64B) and IMIX traffic profiles as sub-tests,
 //	                        each executing all five traffic scenarios simultaneously in a
 //	                        single 30 Mpps traffic pass and validates:
@@ -24,7 +24,7 @@
 //	  2. Outer-src IP correctness per scenario (encap → src111, repaired → src222, …).
 //	  3. DSCP preservation end-to-end.
 //	  4. Encap presence/absence (inner vs outer header inspection via OTG capture).
-package gribifullscalet1_test
+package gribifullscalet2_test
 
 import (
 	"flag"
@@ -52,11 +52,11 @@ func TestMain(m *testing.M) {
 // Test
 // ============================================================
 
-// TestGRIBIFullScaleT1 validates TE-14.3 by running both fixed-size (64B) and
+// TestGRIBIFullScaleT2 validates TE-14.4 by running both fixed-size (64B) and
 // IMIX traffic profiles using a table-driven approach. It performs full DUT
 // setup once and executes all five traffic scenarios in a single 30 Mpps
 // traffic pass per sub-test.
-func TestGRIBIFullScaleT1(t *testing.T) {
+func TestGRIBIFullScaleT2(t *testing.T) {
 	params := cfgplugins.ScaleParams{
 		// gRIBI & System parameters
 		GRIBIBatchSize: 2_000,
@@ -71,7 +71,10 @@ func TestGRIBIFullScaleT1(t *testing.T) {
 			{Pct: 15, NumNextHops: 32},
 			{Pct: 5, NumNextHops: 64},
 		},
-		PctNHG512: 80,
+		DefaultNHGWeight: []cfgplugins.NHGWeightParams{
+			{Pct: 70, Config: cfgplugins.WCMP1in512},
+			{Pct: 30, Config: cfgplugins.WCMP1in1024},
+		},
 
 		// Transit VRF parameters
 		NumTransitNH:  4_000,
@@ -79,23 +82,36 @@ func TestGRIBIFullScaleT1(t *testing.T) {
 		TransitNHGLoadBalance: []cfgplugins.NHGLoadBalancingParams{
 			{Pct: 100, NumNextHops: 2},
 		},
-		NumTransitIPv4: 17_500,
+		TransitNHGWeight: []cfgplugins.NHGWeightParams{
+			{Pct: 100, Config: cfgplugins.WCMP1in64},
+		},
+		NumTransitIPv4: 200_000,
 
 		// Repair VRF parameters
-		NumRepairIPv4: 17_500,
+		NumRepairIPv4: 200_000,
 		NumRepairNHG:  1_000,
 
-		// Encap VRF parameters
-		NumEncapVRFs:       5,
-		NumEncapIPv4PerVRF: 4_140,
-		NumEncapIPv6PerVRF: 5_060,
-		NumUniqueEncapNH:   14_000,
-		NumEncapDefaultNHG: 3_500,
-		PctEncap8NH:        75,
-		PctEncap32NH:       20,
+		// Encap / Decap VRF parameters
+		NumEncapVRFs:       16,
+		NumEncapIPv4PerVRF: 9_000,
+		NumEncapIPv6PerVRF: 11_000,
+		NumUniqueEncapNH:   16_000,
+		NumEncapDefaultNHG: 4_000,
+		EncapNHGLoadBalance: []cfgplugins.NHGLoadBalancingParams{
+			{Pct: 75, NumNextHops: 4},
+			{Pct: 20, NumNextHops: 8},
+			{Pct: 3, NumNextHops: 16},
+			{Pct: 2, NumNextHops: 32},
+		},
+		EncapNHGWeight: []cfgplugins.NHGWeightParams{
+			{Pct: 75, Config: cfgplugins.WCMP1in32},
+			{Pct: 20, Config: cfgplugins.WCMP1in64},
+			{Pct: 3, Config: cfgplugins.WCMP1in128},
+			{Pct: 2, Config: cfgplugins.WCMP1in256},
+		},
 
 		// Decap VRF parameters
-		NumDecapEntries:     20,
+		NumDecapEntries:     50,
 		DecapDestsSubsetPct: 100,
 
 		// OTG / Port parameters

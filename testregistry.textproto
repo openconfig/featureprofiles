@@ -55,6 +55,7 @@ test: {
   id: "ACCTZ-7.1"
   description: "gNSI.acctz.v1 (Accounting) Test Accounting Authentication Failure - Multi-transaction"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/acctz/tests/AccountingAuthenFailMulti/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/acctz/tests/AccountingAuthenFailMulti/accounting_authen_fail_multi_test.go"
 }
 test: {
   id: "ACCTZ-8.1"
@@ -123,11 +124,13 @@ test: {
   id: "AFT-6.1"
   description: "AFT Prefix Filtering"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/filtered_streaming/otg_tests/afts_prefix_filtering/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/filtered_streaming/otg_tests/afts_prefix_filtering/afts_prefix_filtering_test.go"
 }
 test: {
   id: "AFT-6.2"
   description: "AFT Prefix Filtering Dual-Stack"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/filtered_streaming/otg_tests/afts_prefix_filtering_dualstack/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/filtered_streaming/otg_tests/afts_prefix_filtering_dualstack/afts_prefix_filtering_dualstack_test.go"
 }
 test: {
   id: "AFT-6.3"
@@ -138,6 +141,7 @@ test: {
   id: "AFT-6.4"
   description: "AFT Prefix Filtering Dynamic Updates"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/filtered_streaming/otg_tests/afts_prefix_filtering_dynamic/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/filtered_streaming/otg_tests/afts_prefix_filtering_dynamic/afts_prefix_filtering_dynamic_test.go"
 }
 test: {
   id: "Authz"
@@ -689,6 +693,7 @@ test: {
   id: "PF-1.27"
   description: "MPLSoGRE/MPLSoGUE MACsec and Line Rate Performance"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/macsec_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/macsec_test/macsec_test.go"
 }
 test: {
   id: "PF-1.3"
@@ -1197,6 +1202,11 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/lacp/otg_tests/lacp_fallback_test/lacp_fallback_test.go"
 }
 test: {
+  id: "RT-5.16"
+  description: "LACP Member Linecard Reboot"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/lacp/otg_tests/lacp_member_reboot_test/README.md"
+}
+test: {
   id: "RT-5.2"
   description: "Aggregate Interfaces"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/aggregate/otg_tests/aggregate_test/README.md"
@@ -1243,12 +1253,6 @@ test: {
   description: "Disable IPv6 ND Router Arvetisment"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/ip/otg_tests/disable_ipv6_nd_ra_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/ip/otg_tests/disable_ipv6_nd_ra_test/disable_ipv6_nd_ra_test.go"
-}
-test: {
-  id: "RT-5.16"
-  description: "LACP Member Linecard Reboot"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/lacp/otg_tests/lacp_member_reboot_test/README.md"
-  exec: " "
 }
 test: {
   id: "RT-6.1"
@@ -1511,26 +1515,26 @@ test: {
 test: {
   id: "TE-14.3"
   description: "gRIBI Scaling - full scale setup, target T1"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_full_scale_t1/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_full_scale_t1/gribi_full_scale_t1_test.go"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/gribi_full_scale/otg_tests/gribi_full_scale_t1/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/gribi_full_scale/otg_tests/gribi_full_scale_t1/gribi_full_scale_t1_test.go"
 }
 test: {
   id: "TE-14.4"
   description: "gRIBI Scaling - full scale setup, target T2"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_full_scale_t2/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_full_scale_t2/gribi_full_scale_t2_test.go"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/gribi_full_scale/otg_tests/gribi_full_scale_t2/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/gribi_full_scale/otg_tests/gribi_full_scale_t2/gribi_full_scale_t2_test.go"
 }
 test: {
   id: "TE-14.5"
   description: "gRIBI Scaling - full scale setup, target T0"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_full_scale_t0/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_full_scale_t0/gribi_full_scale_t0_test.go"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/gribi_full_scale/otg_tests/gribi_full_scale_t0/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/gribi_full_scale/otg_tests/gribi_full_scale_t0/gribi_full_scale_t0_test.go"
 }
 test: {
   id: "TE-14.6"
   description: "gRIBI Scaling - all scenarios but with minimal scaling parameters"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_full_scale_down/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_full_scale_down/gribi_full_scale_down_test.go"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/gribi_full_scale/otg_tests/gribi_full_scale_down/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/gribi_full_scale/otg_tests/gribi_full_scale_down/gribi_full_scale_down_test.go"
 }
 test: {
   id: "TE-15.1"

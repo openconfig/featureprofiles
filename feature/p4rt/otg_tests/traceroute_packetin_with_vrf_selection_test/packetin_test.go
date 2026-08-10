@@ -27,6 +27,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/featureprofiles/internal/p4rtutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -102,7 +103,7 @@ func decodePacket6(t *testing.T, packetData []byte) uint8 {
 
 // testTraffic sends traffic flow for duration seconds and returns the
 // number of packets sent out.
-func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flows []gosnappi.Flow, srcEndPoint gosnappi.Port, duration int, cs gosnappi.ControlState) int {
+func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flows []gosnappi.Flow, srcEndPoint gosnappi.Port, targetPkts uint64, cs gosnappi.ControlState) int {
 	t.Helper()
 	initialOutPkts := make(map[string]uint64, len(flows))
 	top.Flows().Clear()
@@ -113,16 +114,33 @@ func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flow
 	}
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
-	time.Sleep(30 * time.Second)
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
+
+	// START THE PACKET CAPTURE AFTER CONFIG IS PUSHED
+	ate.OTG().SetControlState(t, cs)
+	defer func() {
+		cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
+		ate.OTG().SetControlState(t, cs)
+	}()
+
 	for _, flow := range flows {
 		initialOutPkts[flow.Name()] = gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
 	}
 	ate.OTG().StartTraffic(t)
-	time.Sleep(time.Duration(duration) * time.Second)
-	ate.OTG().StopTraffic(t)
+	defer ate.OTG().StopTraffic(t)
 
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
-	ate.OTG().SetControlState(t, cs)
+	// AWAIT LOGIC INSTEAD OF SLEEP
+	for _, flow := range flows {
+		_, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State(), time.Minute, func(val *ygnmi.Value[uint64]) bool {
+			pkts, present := val.Val()
+			return present && (pkts >= initialOutPkts[flow.Name()]+targetPkts)
+		}).Await(t)
+
+		if !ok {
+			t.Fatalf("Traffic flow %s did not reach the target of %d packets within the timeout", flow.Name(), targetPkts)
+		}
+	}
 
 	total := 0
 	for _, flow := range flows {
@@ -135,6 +153,7 @@ func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flow
 // testPacketIn programs p4rt table entry and sends traffic related to Traceroute,
 // then validates packetin message metadata and payload.
 func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool, cs gosnappi.ControlState, flowValues []*flowArgs, EgressPortMap map[string]bool) []float64 {
+	const targetPkts = 1000
 	leader := args.leader
 	if err := programmTableEntry(leader, args.packetIO, false, true); err != nil {
 		t.Fatalf("There is error when programming IPv4 entry")
@@ -174,7 +193,7 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool
 	for _, flowValue := range flowValues {
 		flow = append(flow, args.packetIO.GetTrafficFlow(args.ate, dstMac, isIPv4, 1, 300, 50, ipv4InnerDst, flowValue))
 	}
-	pktOut := testTraffic(t, args.top, args.ate, flow, srcEndPoint, 60, cs)
+	pktOut := testTraffic(t, args.top, args.ate, flow, srcEndPoint, targetPkts, cs)
 	var countPkts = map[string]int{"11": 0, "12": 0, "13": 0, "14": 0, "15": 0, "16": 0, "17": 0}
 
 	packetInTests := []struct {
