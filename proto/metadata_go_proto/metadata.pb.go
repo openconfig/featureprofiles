@@ -21,12 +21,13 @@
 package metadata_go_proto
 
 import (
-	proto "github.com/openconfig/ondatra/proto"
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
+
+	proto "github.com/openconfig/ondatra/proto"
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -1523,8 +1524,18 @@ type Metadata_Deviations struct {
 	// Devices that do not support afts global filter policy
 	// Arista: https://partnerissuetracker.corp.google.com/issues/514565554
 	AftsGlobalFilterPolicyOcUnsupported bool `protobuf:"varint,446,opt,name=afts_global_filter_policy_oc_unsupported,json=aftsGlobalFilterPolicyOcUnsupported,proto3" json:"afts_global_filter_policy_oc_unsupported,omitempty"`
-	unknownFields                       protoimpl.UnknownFields
-	sizeCache                           protoimpl.SizeCache
+	// Device containerz service presents a self-signed TLS certificate that cannot
+	// be verified against a trusted CA. When true, dialContainer uses TLS with
+	// InsecureSkipVerify instead of plaintext transport.
+	ContainerzTlsInsecureSkipVerify bool `protobuf:"varint,448,opt,name=containerz_tls_insecure_skip_verify,json=containerzTlsInsecureSkipVerify,proto3" json:"containerz_tls_insecure_skip_verify,omitempty"`
+	// Devices that do not validate AFT global filter policy references.
+	// Arista: https://partnerissuetracker.corp.google.com/issues/491765154#comment10
+	AftsGlobalFilterPolicyConfigReferenceValidationUnsupported bool `protobuf:"varint,449,opt,name=afts_global_filter_policy_config_reference_validation_unsupported,json=aftsGlobalFilterPolicyConfigReferenceValidationUnsupported,proto3" json:"afts_global_filter_policy_config_reference_validation_unsupported,omitempty"`
+	// Device does not support configuring VRF selection policy under
+	// non-default network instance.
+	VrfSelectionPolicyNonDefaultNiUnsupported bool `protobuf:"varint,450,opt,name=vrf_selection_policy_non_default_ni_unsupported,json=vrfSelectionPolicyNonDefaultNiUnsupported,proto3" json:"vrf_selection_policy_non_default_ni_unsupported,omitempty"`
+	unknownFields                             protoimpl.UnknownFields
+	sizeCache                                 protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -4434,6 +4445,27 @@ func (x *Metadata_Deviations) GetAftsGlobalFilterPolicyOcUnsupported() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetContainerzTlsInsecureSkipVerify() bool {
+	if x != nil {
+		return x.ContainerzTlsInsecureSkipVerify
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetAftsGlobalFilterPolicyConfigReferenceValidationUnsupported() bool {
+	if x != nil {
+		return x.AftsGlobalFilterPolicyConfigReferenceValidationUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetVrfSelectionPolicyNonDefaultNiUnsupported() bool {
+	if x != nil {
+		return x.VrfSelectionPolicyNonDefaultNiUnsupported
+	}
+	return false
+}
+
 type Metadata_PlatformExceptions struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Platform      *Metadata_Platform     `protobuf:"bytes,1,opt,name=platform,proto3" json:"platform,omitempty"`
@@ -4919,7 +4951,10 @@ const file_metadata_proto_rawDesc = "" +
 	"\"static_route_in_vrf_oc_unsupported\x18\xbb\x03 \x01(\bR\x1dstaticRouteInVrfOcUnsupported\x12F\n" +
 	" ip_routing_in_vrf_oc_unsupported\x18\xbc\x03 \x01(\bR\x1bipRoutingInVrfOcUnsupported\x123\n" +
 	"\x15macsec_oc_unsupported\x18\xbd\x03 \x01(\bR\x13macsecOcUnsupported\x12V\n" +
-	"(afts_global_filter_policy_oc_unsupported\x18\xbe\x03 \x01(\bR#aftsGlobalFilterPolicyOcUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"(afts_global_filter_policy_oc_unsupported\x18\xbe\x03 \x01(\bR#aftsGlobalFilterPolicyOcUnsupported\x12M\n" +
+	"#containerz_tls_insecure_skip_verify\x18\xc0\x03 \x01(\bR\x1fcontainerzTlsInsecureSkipVerify\x12\x86\x01\n" +
+	"Aafts_global_filter_policy_config_reference_validation_unsupported\x18\xc1\x03 \x01(\bR:aftsGlobalFilterPolicyConfigReferenceValidationUnsupported\x12c\n" +
+	"/vrf_selection_policy_non_default_ni_unsupported\x18\xc2\x03 \x01(\bR)vrfSelectionPolicyNonDefaultNiUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02J\x06\b\xf1\x01\x10\xf2\x01J\x04\b1\x102\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +

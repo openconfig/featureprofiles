@@ -521,48 +521,66 @@ func testTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config,
 		t.Run(flow.Name(), func(t *testing.T) {
 			t.Logf("*** Verifying %v traffic on OTG ... ", flow.Name())
 
-			if _, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Transmit().State(), 15*time.Second, func(val *ygnmi.Value[bool]) bool {
+			// 1. Wait for flow transmit state to stop
+			if _, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Transmit().State(), 30*time.Second, func(val *ygnmi.Value[bool]) bool {
 				transmitState, present := val.Val()
 				return present && !transmitState
 			}).Await(t); !ok {
 				t.Fatalf("Timeout waiting for flow %s to stop transmitting", flow.Name())
 			}
 
-			outPktsRaw := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
-			if outPktsRaw == 0 {
-				t.Fatalf("OutPkts == 0, want >0.")
-			}
-			outPkts := float32(outPktsRaw)
+			var outPkts uint64
+			var inPkts uint64
 
-			var inPkts float32
 			if expectPass {
-				inPktsVal, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State(), 15*time.Second, func(val *ygnmi.Value[uint64]) bool {
+				// Query OutPkts dynamically inside Watch predicate to allow time for telemetry sync
+				inPktsVal, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State(), 30*time.Second, func(val *ygnmi.Value[uint64]) bool {
 					v, present := val.Val()
-					return present && v == outPktsRaw
+					outPkts = gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
+					return present && outPkts > 0 && v == outPkts
 				}).Await(t)
+
 				if ok {
-					inPktsRaw, _ := inPktsVal.Val()
-					inPkts = float32(inPktsRaw)
+					inPkts, _ = inPktsVal.Val()
 				} else {
-					inPkts = float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State()))
+					inPkts = gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State())
 				}
 			} else {
-				inPkts = float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State()))
+				// When expecting failure, watch OutPkts to ensure it registers > 0 before proceeding
+				outPktsVal, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State(), 30*time.Second, func(val *ygnmi.Value[uint64]) bool {
+					v, present := val.Val()
+					return present && v > 0
+				}).Await(t)
+
+				if ok {
+					outPkts, _ = outPktsVal.Val()
+				} else {
+					outPkts = gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
+				}
+				inPkts = gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State())
 			}
 
-			lossPct := (outPkts - inPkts) * 100 / outPkts
+			// Loss calculation
+			var lossPct float64
+			if outPkts > 0 {
+				lossPct = float64(outPkts-inPkts) * 100.0 / float64(outPkts)
+			} else {
+				// If outPkts is 0, traffic failed to start entirely
+				lossPct = 100.0
+			}
 
-			// log stats
-			t.Log("Flow LossPct: ", lossPct)
-			t.Log("Flow InPkts  : ", inPkts)
-			t.Log("Flow OutPkts : ", outPkts)
+			// Log stats
+			t.Logf("Flow OutPkts : %d", outPkts)
+			t.Logf("Flow InPkts  : %d", inPkts)
+			t.Logf("Flow LossPct : %.2f%%", lossPct)
 
-			if (expectPass == true) && (lossPct == 0) {
+			// Verification Logic
+			if expectPass && inPkts == outPkts && outPkts > 0 {
 				t.Logf("Traffic for %v flow is passing as expected", flow.Name())
-			} else if (expectPass == false) && (lossPct == 100) {
+			} else if !expectPass && inPkts == 0 && outPkts > 0 {
 				t.Logf("Traffic for %v flow is failing as expected", flow.Name())
 			} else {
-				t.Fatalf("Traffic is not working as expected for flow: %v. LossPct: %f", flow.Name(), lossPct)
+				t.Fatalf("Traffic is not working as expected for flow %s. OutPkts: %d, InPkts: %d, LossPct: %.2f%%", flow.Name(), outPkts, inPkts, lossPct)
 			}
 		})
 	}
