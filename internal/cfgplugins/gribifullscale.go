@@ -936,7 +936,8 @@ func ConfigureOTG(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, 
 
 	// VLAN sub-interfaces.
 	ifNames := []string{atePort1Attr.Name}
-	MustConfigureATESubinterfaces(t, ateConfig, ap2, dut, atePort2Attr.Name, atePort2Attr.MAC, DUTPort2IPv4Start, ATEPort2IPv4Start, DUTPort2IPv6Start, ATEPort2IPv6Start, StartVLANPort2, params.NumPort2VLANs)
+	port2SubintNames := MustConfigureATESubinterfaces(t, ateConfig, ap2, dut, atePort2Attr.Name, atePort2Attr.MAC, DUTPort2IPv4Start, ATEPort2IPv4Start, DUTPort2IPv6Start, ATEPort2IPv6Start, StartVLANPort2, params.NumPort2VLANs)
+	ifNames = append(ifNames, port2SubintNames...)
 
 	return ateConfig, ifNames
 }
@@ -2323,13 +2324,9 @@ func RunFullScaleTest(t *testing.T, params ScaleParams, enablePacketCapture, com
 	ate.OTG().StartProtocols(t)
 	time.Sleep(1 * time.Minute)
 
-	// Limiting it to 100 since checking ARP for 1024 interfaces takes long time
-	ifs := interfaceNamesList
-	if len(ifs) >= 100 {
-		ifs = ifs[:100]
-	}
-	IsIPv4InterfaceARPresolved(t, ate, AddressFamilyParams{InterfaceNames: ifs})
-	IsIPv6InterfaceARPresolved(t, ate, AddressFamilyParams{InterfaceNames: ifs})
+	t.Log("Validating ARP resolution for IPv4 and IPv6 interfaces")
+	IsIPv4InterfaceARPresolved(t, ate, AddressFamilyParams{InterfaceNames: interfaceNamesList})
+	IsIPv6InterfaceARPresolved(t, ate, AddressFamilyParams{InterfaceNames: interfaceNamesList})
 
 	// Fetch MAC address for port1.
 	// The ATE needs to resolve the MAC address of the DUT to send traffic to it.
