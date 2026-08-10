@@ -2224,4 +2224,3 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnpsi/otg_tests/sampling_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnpsi/otg_tests/sampling_test/sampling_and_subscription_check_test.go"
 }
-
