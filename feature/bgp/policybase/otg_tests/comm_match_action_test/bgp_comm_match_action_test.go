@@ -223,13 +223,11 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 
 		if deviations.SkipBgpSendCommunityType(dut) {
 			pg.SetSendCommunity(oc.E_Bgp_CommunityType(oc.Bgp_CommunityType_STANDARD))
+		} else if deviations.SkipBgpPeerGroupSendCommunityType(dut) || deviations.BgpPeerGroupSendCommunityRequiresAfiSafi(dut) {
+			as4.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
+			as6.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
 		} else {
-			if deviations.SkipBgpPeerGroupSendCommunityType(dut) {
-				as4.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
-				as6.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
-			} else {
-				pg.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
-			}
+			pg.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
 		}
 
 		bgpNbr := bgp.GetOrCreateNeighbor(nbr.nbrAddr)
