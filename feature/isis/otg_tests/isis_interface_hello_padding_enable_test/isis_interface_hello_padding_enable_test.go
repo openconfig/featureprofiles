@@ -521,6 +521,9 @@ func TestIsisInterfaceHelloPaddingEnable(t *testing.T) {
 				txPackets := recvMetric.GetCounters().GetOutPkts()
 				rxPackets := recvMetric.GetCounters().GetInPkts()
 				lostPackets := txPackets - rxPackets
+				if txPackets == 0 {
+					t.Fatalf("txPackets == 0, want > 0")
+				}
 				lossPct := lostPackets * 100 / txPackets
 
 				if lossPct > 1 {
