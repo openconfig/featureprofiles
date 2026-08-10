@@ -797,6 +797,9 @@ func checkPacketLoss(t *testing.T, ate *ondatra.ATEDevice, ipType string) {
 	}
 
 	// lostPackets = txPackets - rxPackets
+	if txPackets == 0 {
+		t.Fatalf("txPackets == 0, want > 0")
+	}
 	if got := lostPackets * 100 / txPackets; uint64(got) > uint64(lossTolerancePct) {
 		t.Errorf("Packet loss percentage for flow %s: got %v, want %v", flowName, got, lossTolerancePct)
 	} else {
