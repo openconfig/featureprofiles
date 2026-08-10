@@ -552,7 +552,7 @@ func doSwitchover(t *testing.T, dut *ondatra.DUTDevice, standby string) {
 	switchReq := &gspb.SwitchControlProcessorRequest{
 		ControlProcessor: components.GetSubcomponentPath(standby, deviations.GNOISubcomponentPath(dut)),
 	}
-	switchCtx, switchCancel := context.WithTimeout(t.Context(), 30*time.Second)
+	switchCtx, switchCancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer switchCancel()
 	if _, err := gnoiClients.System().SwitchControlProcessor(switchCtx, switchReq); err != nil {
 		t.Logf("SwitchControlProcessor returned error (this is often expected): %v", err)
