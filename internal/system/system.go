@@ -16,11 +16,12 @@
 package system
 
 import (
+	"fmt"
 	"testing"
 
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/gnmi/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc/oc"
+	"github.com/openconfig/ondatra/ondatra"
 )
 
 // FindProcessIDByName uses telemetry to find out the PID of a process.
@@ -36,4 +37,51 @@ func FindProcessIDByName(t *testing.T, dut *ondatra.DUTDevice, pName string) uin
 		}
 	}
 	return pid
+}
+
+// ProcessInfo holds PID, Start Time, and Memory Usage of a system process.
+type ProcessInfo struct {
+	Pid         uint64
+	StartTime   uint64
+	MemoryUsage uint64
+}
+
+// GetProcessInfo returns the PID, Start Time, and Memory Usage of the named processes.
+func GetProcessInfo(t *testing.T, dut *ondatra.DUTDevice, pNames []string) (map[string]*ProcessInfo, error) {
+	t.Helper()
+	pList := gnmi.GetAll[*oc.System_Process](t, dut, gnmi.OC().System().ProcessAny().State())
+	results := make(map[string]*ProcessInfo)
+
+	nameMap := make(map[string]bool)
+	for _, name := range pNames {
+		nameMap[name] = true
+	}
+
+	for _, proc := range pList {
+		pName := proc.GetName()
+		if nameMap[pName] {
+			if _, ok := results[pName]; !ok {
+				var startTime uint64
+				if proc.StartTime != nil {
+					startTime = proc.GetStartTime()
+				}
+				var memUsage uint64
+				if proc.MemoryUsage != nil {
+					memUsage = proc.GetMemoryUsage()
+				}
+				results[pName] = &ProcessInfo{
+					Pid:         proc.GetPid(),
+					StartTime:   startTime,
+					MemoryUsage: memUsage,
+				}
+			}
+		}
+	}
+
+	for _, name := range pNames {
+		if _, ok := results[name]; !ok {
+			return nil, fmt.Errorf("process %q not found", name)
+		}
+	}
+	return results, nil
 }
