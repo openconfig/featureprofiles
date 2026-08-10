@@ -21,19 +21,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/featureprofiles/internal/cfgplugins"
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/helpers"
-	"github.com/openconfig/featureprofiles/internal/isissession"
-	"github.com/openconfig/featureprofiles/internal/otgutils"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
-	"github.com/openconfig/ygnmi/ygnmi"
-	"github.com/openconfig/ygot/ygot"
+	"google3/third_party/golang/ygot/ygot/ygot"
+	"google3/third_party/open_traffic_generator/gosnappi/gosnappi"
+	"google3/third_party/openconfig/featureprofiles/internal/cfgplugins/cfgplugins"
+	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
+	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
+	"google3/third_party/openconfig/featureprofiles/internal/helpers/helpers"
+	"google3/third_party/openconfig/featureprofiles/internal/isissession/isissession"
+	"google3/third_party/openconfig/featureprofiles/internal/otgutils/otgutils"
+	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
+	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
+	otgtelemetry "google3/third_party/openconfig/ondatra/gnmi/otg/otg"
+	"google3/third_party/openconfig/ondatra/ondatra"
+	"google3/third_party/openconfig/ygnmi/ygnmi/ygnmi"
 )
 
 const (
@@ -892,23 +892,14 @@ func createFlowV6(t *testing.T, ts *isissession.TestSession) {
 }
 
 func checkTraffic(t *testing.T, ts *isissession.TestSession, flowName string) {
+	defer otgutils.LogFlowMetrics(t, ts.ATE.OTG(), ts.ATETop)
+	defer otgutils.LogPortMetrics(t, ts.ATE.OTG(), ts.ATETop)
 	ts.ATE.OTG().StartTraffic(t)
 	time.Sleep(time.Second * 30)
 	ts.ATE.OTG().StopTraffic(t)
 
-	otgutils.LogFlowMetrics(t, ts.ATE.OTG(), ts.ATETop)
-	otgutils.LogPortMetrics(t, ts.ATE.OTG(), ts.ATETop)
-
 	t.Log("Checking flow telemetry...")
-	recvMetric := gnmi.Get(t, ts.ATE.OTG(), gnmi.OTG().Flow(flowName).State())
-	txPackets := recvMetric.GetCounters().GetOutPkts()
-	rxPackets := recvMetric.GetCounters().GetInPkts()
-	lostPackets := txPackets - rxPackets
-	lossPct := lostPackets * 100 / txPackets
-
-	if lossPct > 1 {
-		t.Errorf("FAIL- Got %v%% packet loss for %s ; expected < 1%%", lossPct, flowName)
-	}
+	otgutils.ExpectedTrafficLoss(t, ts.ATE.OTG(), flowName, 0, 1)
 }
 
 func containsValue[T comparable](slice []T, val T) bool {
