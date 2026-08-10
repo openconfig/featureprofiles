@@ -8,8 +8,8 @@ import (
 
 	"github.com/golang/ygot/ygot/ygot"
 	"github.com/open_traffic_generator/gosnappi/gosnappi"
-	"github.com/third_party/openconfig/featureprofiles/internal/attrs/attrs"
-	"github.com/third_party/openconfig/featureprofiles/internal/cfgplugins/cfgplugins"
+	"github.com/openconfig/featureprofiles/internal/attrs/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest/fptest"
 	"github.com/openconfig/ondatra/gnmi/gnmi"
