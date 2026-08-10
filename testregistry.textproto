@@ -55,6 +55,7 @@ test: {
   id: "ACCTZ-7.1"
   description: "gNSI.acctz.v1 (Accounting) Test Accounting Authentication Failure - Multi-transaction"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/acctz/tests/AccountingAuthenFailMulti/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/acctz/tests/AccountingAuthenFailMulti/accounting_authen_fail_multi_test.go"
 }
 test: {
   id: "ACCTZ-8.1"
@@ -140,6 +141,7 @@ test: {
   id: "AFT-6.4"
   description: "AFT Prefix Filtering Dynamic Updates"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/filtered_streaming/otg_tests/afts_prefix_filtering_dynamic/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/filtered_streaming/otg_tests/afts_prefix_filtering_dynamic/afts_prefix_filtering_dynamic_test.go"
 }
 test: {
   id: "Authz"
@@ -1513,26 +1515,26 @@ test: {
 test: {
   id: "TE-14.3"
   description: "gRIBI Scaling - full scale setup, target T1"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_full_scale_t1/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_full_scale_t1/gribi_full_scale_t1_test.go"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/gribi_full_scale/otg_tests/gribi_full_scale_t1/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/gribi_full_scale/otg_tests/gribi_full_scale_t1/gribi_full_scale_t1_test.go"
 }
 test: {
   id: "TE-14.4"
   description: "gRIBI Scaling - full scale setup, target T2"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_full_scale_t2/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_full_scale_t2/gribi_full_scale_t2_test.go"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/gribi_full_scale/otg_tests/gribi_full_scale_t2/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/gribi_full_scale/otg_tests/gribi_full_scale_t2/gribi_full_scale_t2_test.go"
 }
 test: {
   id: "TE-14.5"
   description: "gRIBI Scaling - full scale setup, target T0"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_full_scale_t0/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_full_scale_t0/gribi_full_scale_t0_test.go"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/gribi_full_scale/otg_tests/gribi_full_scale_t0/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/gribi_full_scale/otg_tests/gribi_full_scale_t0/gribi_full_scale_t0_test.go"
 }
 test: {
   id: "TE-14.6"
   description: "gRIBI Scaling - all scenarios but with minimal scaling parameters"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_full_scale_down/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_full_scale_down/gribi_full_scale_down_test.go"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/gribi_full_scale/otg_tests/gribi_full_scale_down/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/gribi_full_scale/otg_tests/gribi_full_scale_down/gribi_full_scale_down_test.go"
 }
 test: {
   id: "TE-15.1"
