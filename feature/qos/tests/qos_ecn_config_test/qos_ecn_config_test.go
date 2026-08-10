@@ -15,472 +15,339 @@
 package qos_ecn_config_test
 
 import (
+	"context"
 	"testing"
+	"time"
 
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/qoscfg"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/netutil"
-	"github.com/openconfig/ygot/ygot"
+	"github.com/golang/ygot/ygot/ygot"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins/cfgplugins"
+	"github.com/openconfig/featureprofiles/internal/deviations/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest/fptest"
+	"github.com/openconfig/featureprofiles/internal/qoscfg/qoscfg"
+	spb "github.com/openconfig/gnoi/system/system_go_proto"
+	"github.com/openconfig/ondatra/gnmi/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc/oc"
+	"github.com/openconfig/ondatra/netutil/netutil"
+	"github.com/openconfig/ondatra/ondatra"
+	"github.com/openconfig/testt/testt"
 )
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-type Testcase struct {
+type testcase struct {
 	name string
 	fn   func(t *testing.T, q *oc.Qos)
 }
 
-// For Cisco devices, minimum and maximum threshold values can't be the same,
-// as well as it should be a multiple of 6,144 bytes
-const (
-	CiscoMinThreshold = (uint64(8005632))
-	CiscoMaxThreshold = (uint64(8011776))
-)
+var qosEcnConfigTestcases = []testcase{
+	{
+		name: "DP-1.3.1_80KB_Equal_Threshold",
+		fn:   testDP131EqualThreshold,
+	},
+	{
+		name: "DP-1.3.2_MB_Threshold_Not_Equal",
+		fn:   testDP132MBThreshold,
+	},
+	{
+		name: "DP-1.3.3_Percent_Threshold",
+		fn:   testDP133PercentThreshold,
+	},
+	{
+		name: "DP-1.3.4_Negative_Test_Cases",
+		fn:   testDP134NegativeTestCases,
+	},
+	{
+		name: "DP-1.3.5_Teardown_And_Cleanup",
+		fn:   testDP135TeardownAndCleanup,
+	},
+}
 
-var (
-	QoSEcnConfigTestcases = []Testcase{
-		{
+func setupEnvironment(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	p1 := dut.Port(t, "port1")
+	p2 := dut.Port(t, "port2")
 
-			name: "testECNConfig",
-			fn:   testECNConfig,
-		},
-		{
-			name: "testQoSOutputIntfConfig",
-			fn:   testQoSOutputIntfConfig,
-		},
+	// Configure basic interface IDs.
+	d := &oc.Root{}
+	i1 := d.GetOrCreateInterface(p1.Name())
+	i1.SetEnabled(true)
+	i1.SetType(oc.IETFInterfaces_InterfaceType_ethernetCsmacd)
+	i2 := d.GetOrCreateInterface(p2.Name())
+	i2.SetEnabled(true)
+	i2.SetType(oc.IETFInterfaces_InterfaceType_ethernetCsmacd)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), i1)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), i2)
+
+	// Create an input IPv4 classifier to match traffic intended for the QoS queue being tested.
+	q := &oc.Qos{}
+	classifierName := "ECN_CLASSIFIER_IPV4"
+	classifiers := []cfgplugins.QosClassifier{{
+		Desc:      "IPv4 DSCP ECN classifier",
+		Name:      classifierName,
+		ClassType: oc.Qos_Classifier_Type_IPV4,
+		TermID:    "term-1",
+		DscpSet:   []uint8{0, 1, 2, 3, 4, 5, 6, 7},
+	}}
+	cfgplugins.NewQoSClassifierConfiguration(t, dut, q, classifiers)
+	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+
+	// Apply the classifier to the input of DUT port-1.
+	qoscfg.SetInputClassifier(t, dut, q, p1.Name(), oc.Input_Classifier_Type_IPV4, classifierName)
+}
+
+func targetQueueName(t *testing.T, dut *ondatra.DUTDevice) string {
+	if deviations.QOSQueueRequiresID(dut) {
+		return netutil.CommonTrafficQueues(t, dut).BE0
 	}
-)
-
-// QoS ecn OC config:
-//  - ECN queue-management-profiles:
-//    - /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/min-threshold
-//    - /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-threshold
-//    - /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/enable-ecn
-//    - /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/weight
-//    - /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/drop
-//    - /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-drop-probability-percent
-//  - Output interface queue and scheduler-policy:
-//    - /qos/interfaces/interface/output/queues/queue/config/queue-management-profile
-//    - /qos/interfaces/interface/output/queues/queue/config/name
-//    - /qos/interfaces/interface/output/scheduler-policy/config/name
-//
-//
-// Topology:
-//   ate:port1 <--> port1:dut:port2 <--> ate:port2
-//
-// Test notes:
-//
-//  Sample CLI command to get telemetry using gmic:
-//   - gnmic -a ipaddr:10162 -u username -p password --skip-verify get \
-//      --path /components/component --format flat
-//   - gnmic tool info:
-//     - https://github.com/karimra/gnmic/blob/main/README.md
-//
+	return "0"
+}
 
 func TestQosEcnConfigTests(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	setupEnvironment(t, dut)
+
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
-	for _, tt := range QoSEcnConfigTestcases {
+	for _, tt := range qosEcnConfigTestcases {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.fn(t, q)
 		})
 	}
 }
-func testECNConfig(t *testing.T, q *oc.Qos) {
+
+func testDP131EqualThreshold(t *testing.T, q *oc.Qos) {
 	dut := ondatra.DUT(t, "dut")
+	dp := dut.Port(t, "port2")
+	queueName := targetQueueName(t, dut)
 
-	ecnConfig := struct {
-		ecnEnabled                bool
-		dropEnabled               bool
-		minThreshold              uint64
-		maxThreshold              uint64
-		maxDropProbabilityPercent uint8
-		weight                    uint32
-	}{
-		ecnEnabled:                true,
-		dropEnabled:               false,
-		minThreshold:              uint64(80000),
-		maxThreshold:              uint64(80000),
-		maxDropProbabilityPercent: uint8(100),
-		weight:                    uint32(0),
+	profile := cfgplugins.QoSQueueManagementProfile{
+		Desc:                      "DP-1.3.1 80KB min-threshold equal max-threshold",
+		Name:                      "ECN_PROFILE_1",
+		MinThreshold:              81920,
+		MaxThreshold:              81920,
+		EnableEcn:                 true,
+		Drop:                      false,
+		MaxDropProbabilityPercent: 100,
 	}
 
-	queueMgmtProfile := q.GetOrCreateQueueManagementProfile("DropProfile")
-	queueMgmtProfile.SetName("DropProfile")
-	wred := queueMgmtProfile.GetOrCreateWred()
-	uniform := wred.GetOrCreateUniform()
-	uniform.SetEnableEcn(ecnConfig.ecnEnabled)
-	uniform.SetDrop(ecnConfig.dropEnabled)
-	wantMinThreshold := ecnConfig.minThreshold
-	wantMaxThreshold := ecnConfig.maxThreshold
-	if deviations.EcnSameMinMaxThresholdUnsupported(dut) {
-		wantMinThreshold = CiscoMinThreshold
-		wantMaxThreshold = CiscoMaxThreshold
-	}
-	uniform.SetMinThreshold(wantMinThreshold)
-	uniform.SetMaxThreshold(wantMaxThreshold)
-	uniform.SetMaxDropProbabilityPercent(ecnConfig.maxDropProbabilityPercent)
-	if !deviations.QosSetWeightConfigUnsupported(dut) {
-		uniform.SetWeight(ecnConfig.weight)
-	}
-	if deviations.QosSchedulerConfigRequired(dut) {
-		schedulerPolicy := q.GetOrCreateSchedulerPolicy("scheduler")
-		schedulerPolicy.SetName("scheduler")
-		dp := dut.Port(t, "port2")
-		i := q.GetOrCreateInterface(dp.Name())
-		i.SetInterfaceId(dp.Name())
-		i.GetOrCreateInterfaceRef().Interface = ygot.String(dp.Name())
+	// Step 1: Generate DUT configuration with queue-management-profile and attach to target queue on output of DUT port-1/2.
+	t.Log("Step 1 - Generate DUT configuration: Configure queue-management-profile ECN_PROFILE_1")
+	cfgplugins.NewQoSQueueManagementProfile(t, dut, q, []cfgplugins.QoSQueueManagementProfile{profile})
 
-		queueName := []string{"NC1", "AF4", "AF3", "AF2", "AF1", "BE0", "BE1"}
-
-		for i, queue := range queueName {
-			q1 := q.GetOrCreateQueue(queue)
-			q1.Name = ygot.String(queue)
-			queueid := len(queueName) - i
-			q1.QueueId = ygot.Uint8(uint8(queueid))
-
-		}
-		cases := []struct {
-			desc         string
-			sequence     uint32
-			priority     oc.E_Scheduler_Priority
-			inputID      string
-			inputType    oc.E_Input_InputType
-			weight       uint64
-			queueName    string
-			targetGrpoup string
-			ecnProfile   string
-			scheduler    string
-		}{{
-			desc:         "scheduler-policy-BE1",
-			sequence:     uint32(1),
-			priority:     oc.Scheduler_Priority_UNSET,
-			inputType:    oc.Input_InputType_QUEUE,
-			weight:       uint64(1),
-			queueName:    "BE1",
-			targetGrpoup: "target-group-BE1",
-			ecnProfile:   "DropProfile",
-			scheduler:    "scheduler",
-		}, {
-			desc:         "scheduler-policy-BE0",
-			sequence:     uint32(1),
-			priority:     oc.Scheduler_Priority_UNSET,
-			inputType:    oc.Input_InputType_QUEUE,
-			weight:       uint64(4),
-			queueName:    "BE0",
-			targetGrpoup: "target-group-BE0",
-			ecnProfile:   "DropProfile",
-			scheduler:    "scheduler",
-		}, {
-			desc:         "scheduler-policy-AF1",
-			sequence:     uint32(1),
-			priority:     oc.Scheduler_Priority_UNSET,
-			inputType:    oc.Input_InputType_QUEUE,
-			weight:       uint64(8),
-			queueName:    "AF1",
-			targetGrpoup: "target-group-AF1",
-			ecnProfile:   "DropProfile",
-			scheduler:    "scheduler",
-		}, {
-			desc:         "scheduler-policy-AF2",
-			sequence:     uint32(1),
-			priority:     oc.Scheduler_Priority_UNSET,
-			inputType:    oc.Input_InputType_QUEUE,
-			weight:       uint64(16),
-			queueName:    "AF2",
-			ecnProfile:   "DropProfile",
-			scheduler:    "scheduler",
-			targetGrpoup: "target-group-AF2",
-		}, {
-			desc:         "scheduler-policy-AF3",
-			sequence:     uint32(1),
-			priority:     oc.Scheduler_Priority_UNSET,
-			inputType:    oc.Input_InputType_QUEUE,
-			weight:       uint64(32),
-			queueName:    "AF3",
-			targetGrpoup: "target-group-AF3",
-			ecnProfile:   "DropProfile",
-			scheduler:    "scheduler",
-		}, {
-			desc:         "scheduler-policy-AF4",
-			sequence:     uint32(0),
-			priority:     oc.Scheduler_Priority_STRICT,
-			inputType:    oc.Input_InputType_QUEUE,
-			weight:       uint64(6),
-			queueName:    "AF4",
-			targetGrpoup: "target-group-AF4",
-			ecnProfile:   "DropProfile",
-			scheduler:    "scheduler",
-		}, {
-			desc:         "scheduler-policy-NC1",
-			sequence:     uint32(0),
-			priority:     oc.Scheduler_Priority_STRICT,
-			inputType:    oc.Input_InputType_QUEUE,
-			weight:       uint64(7),
-			queueName:    "NC1",
-			targetGrpoup: "target-group-NC1",
-			ecnProfile:   "DropProfile",
-			scheduler:    "scheduler",
-		}}
-
-		t.Logf("qos scheduler policies config cases: %v", cases)
-		for _, tc := range cases {
-			t.Run(tc.desc, func(t *testing.T) {
-				s := schedulerPolicy.GetOrCreateScheduler(tc.sequence)
-				s.SetSequence(tc.sequence)
-				s.SetPriority(tc.priority)
-				input := s.GetOrCreateInput(tc.queueName)
-				input.SetId(tc.queueName)
-				input.SetInputType(tc.inputType)
-				input.SetQueue(tc.queueName)
-				input.SetWeight(tc.weight)
-
-				output := i.GetOrCreateOutput()
-				schedulerPolicy := output.GetOrCreateSchedulerPolicy()
-				schedulerPolicy.SetName(tc.scheduler)
-				queue := output.GetOrCreateQueue(tc.queueName)
-				queue.SetQueueManagementProfile(tc.ecnProfile)
-				queue.SetName(tc.queueName)
-
-			})
-		}
-	}
-
-	t.Logf("qos ECN QueueManagementProfile config cases: %v", ecnConfig)
+	// Step 2: Push configuration to DUT using gNMI Set with REPLACE option.
+	t.Log("Step 2 - Push configuration to DUT using gNMI Set with REPLACE option")
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 
-	// Verify the QueueManagementProfile is applied by checking the telemetry path state values.
-	wredUniform := gnmi.OC().Qos().QueueManagementProfile("DropProfile").Wred().Uniform()
+	// Step 3: Validate that profile is created and values are set as expected.
+	t.Log("Step 3 - Validate queue-management-profile ECN_PROFILE_1 state values")
+	cfgplugins.ValidateQueueManagementProfile(t, dut, profile)
+
+	// Step 4: Validate ECN profile application on output interface queue.
+	t.Log("Step 4 - Validate ECN profile ECN_PROFILE_1 application on output queue")
+	qoscfg.SetOutputQueueManagementProfile(t, dut, q, dp.Name(), queueName, profile.Name)
+	outQueue := gnmi.OC().Qos().Interface(dp.Name()).Output().Queue(queueName)
 	if deviations.QosGetStatePathUnsupported(dut) {
-		if got, want := gnmi.Get(t, dut, wredUniform.EnableEcn().Config()), ecnConfig.ecnEnabled; got != want {
-			t.Errorf("wredUniform.EnableEcn().Config(): got %v, want %v", got, want)
-		}
-		if got, want := gnmi.Get(t, dut, wredUniform.MaxDropProbabilityPercent().Config()), ecnConfig.maxDropProbabilityPercent; got != want {
-			t.Errorf("wredUniform.MaxDropProbabilityPercent().Config(): got %v, want %v", got, want)
-		}
-		if got, want := gnmi.Get(t, dut, wredUniform.MinThreshold().Config()), wantMinThreshold; got != want {
-			t.Errorf("wredUniform.MinThreshold().Config(): got %v, want %v", got, want)
-		}
-		if got, want := gnmi.Get(t, dut, wredUniform.MaxThreshold().Config()), wantMaxThreshold; got != want {
-			t.Errorf("wredUniform.MaxThreshold().Config(): got %v, want %v", got, want)
+		if got, want := gnmi.Get(t, dut, outQueue.QueueManagementProfile().Config()), profile.Name; got != want {
+			t.Errorf("outQueue.QueueManagementProfile().Config(): got %v, want %v", got, want)
 		}
 	} else {
-		if got, want := gnmi.Get(t, dut, wredUniform.EnableEcn().State()), ecnConfig.ecnEnabled; got != want {
-			t.Errorf("wredUniform.EnableEcn().State(): got %v, want %v", got, want)
+		if got, want := gnmi.Get(t, dut, outQueue.QueueManagementProfile().State()), profile.Name; got != want {
+			t.Errorf("outQueue.QueueManagementProfile().State(): got %v, want %v", got, want)
 		}
-		if got, want := gnmi.Get(t, dut, wredUniform.MaxDropProbabilityPercent().State()), ecnConfig.maxDropProbabilityPercent; got != want {
-			t.Errorf("wredUniform.MaxDropProbabilityPercent().State(): got %v, want %v", got, want)
-		}
+	}
 
+	// Step 5: Trigger a supervisor switchover using gNOI SwitchControlProcessor.
+	t.Log("Step 5 - Trigger supervisor switchover using gNOI SwitchControlProcessor")
+	gnoiClient := dut.RawAPIs().GNOI(t)
+	switchReq := &spb.SwitchControlProcessorRequest{}
+	if _, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchReq); err != nil {
+		t.Logf("SwitchControlProcessor response err (can be expected during switchover or unsupported): %v", err)
 	}
-	if !deviations.StatePathsUnsupported(dut) {
-		if got, want := gnmi.Get(t, dut, wredUniform.MinThreshold().State()), ecnConfig.minThreshold; got != want {
-			t.Errorf("wredUniform.MinThreshold().State(): got %v, want %v", got, want)
-		}
-		if got, want := gnmi.Get(t, dut, wredUniform.MaxThreshold().State()), ecnConfig.maxThreshold; got != want {
-			t.Errorf("wredUniform.MaxThreshold().State(): got %v, want %v", got, want)
-		}
+	time.Sleep(30 * time.Second)
+
+	// Step 6: Once new supervisor is active, repeat gNMI Get checks to verify configuration persisted.
+	t.Log("Step 6 - Verify configuration persisted after supervisor switchover")
+	cfgplugins.ValidateQueueManagementProfile(t, dut, profile)
+}
+
+func testDP132MBThreshold(t *testing.T, q *oc.Qos) {
+	dut := ondatra.DUT(t, "dut")
+	dp := dut.Port(t, "port2")
+	queueName := targetQueueName(t, dut)
+
+	profile := cfgplugins.QoSQueueManagementProfile{
+		Desc:                      "DP-1.3.2 Threshold in MB, min-threshold not-equal max-threshold",
+		Name:                      "ECN_PROFILE_2",
+		MinThreshold:              3276800,
+		MaxThreshold:              6553600,
+		EnableEcn:                 true,
+		Drop:                      false,
+		MaxDropProbabilityPercent: 100,
 	}
-	if !deviations.DropWeightLeavesUnsupported(dut) {
-		if got, want := gnmi.Get(t, dut, wredUniform.Drop().State()), ecnConfig.dropEnabled; got != want {
-			t.Errorf("wredUniform.Drop().State(): got %v, want %v", got, want)
+
+	// Step 1: Generate DUT configuration for ECN_PROFILE_2.
+	t.Log("Step 1 - Generate DUT configuration: Configure queue-management-profile ECN_PROFILE_2")
+	cfgplugins.NewQoSQueueManagementProfile(t, dut, q, []cfgplugins.QoSQueueManagementProfile{profile})
+
+	// Step 2: Push configuration to DUT using gNMI Set with REPLACE option.
+	t.Log("Step 2 - Push configuration to DUT using gNMI Set with REPLACE option")
+	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+
+	// Step 3: Validation with pass/fail criteria.
+	t.Log("Step 3 - Validate queue-management-profile ECN_PROFILE_2 state values")
+	cfgplugins.ValidateQueueManagementProfile(t, dut, profile)
+
+	// Step 4: Validate ECN profile application.
+	t.Log("Step 4 - Validate ECN profile ECN_PROFILE_2 application on output queue")
+	qoscfg.SetOutputQueueManagementProfile(t, dut, q, dp.Name(), queueName, profile.Name)
+	outQueue := gnmi.OC().Qos().Interface(dp.Name()).Output().Queue(queueName)
+	if deviations.QosGetStatePathUnsupported(dut) {
+		if got, want := gnmi.Get(t, dut, outQueue.QueueManagementProfile().Config()), profile.Name; got != want {
+			t.Errorf("outQueue.QueueManagementProfile().Config(): got %v, want %v", got, want)
 		}
-		if got, want := gnmi.Get(t, dut, wredUniform.Weight().State()), ecnConfig.weight; got != want {
-			t.Errorf("wredUniform.Weight().State(): got %v, want %v", got, want)
+	} else {
+		if got, want := gnmi.Get(t, dut, outQueue.QueueManagementProfile().State()), profile.Name; got != want {
+			t.Errorf("outQueue.QueueManagementProfile().State(): got %v, want %v", got, want)
 		}
 	}
 }
 
-func testQoSOutputIntfConfig(t *testing.T, q *oc.Qos) {
+func testDP133PercentThreshold(t *testing.T, q *oc.Qos) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port2")
-	queues := netutil.CommonTrafficQueues(t, dut)
+	queueName := targetQueueName(t, dut)
 
-	ecnConfig := struct {
-		ecnEnabled                bool
-		dropEnabled               bool
-		minThreshold              uint64
-		maxThreshold              uint64
-		maxDropProbabilityPercent uint8
-		weight                    uint32
-	}{
-		ecnEnabled:                true,
-		dropEnabled:               false,
-		minThreshold:              uint64(80000),
-		maxThreshold:              uint64(80000),
-		maxDropProbabilityPercent: uint8(100),
-		weight:                    uint32(0),
+	profile := cfgplugins.QoSQueueManagementProfile{
+		Desc:                      "DP-1.3.3 Threshold in percentage, min-threshold not-equal max-threshold",
+		Name:                      "ECN_PROFILE_3",
+		MinThresholdPercent:       1,
+		MaxThresholdPercent:       2,
+		EnableEcn:                 true,
+		Drop:                      false,
+		MaxDropProbabilityPercent: 100,
 	}
 
-	queueMgmtProfile := q.GetOrCreateQueueManagementProfile("DropProfile")
-	queueMgmtProfile.SetName("DropProfile")
-	wred := queueMgmtProfile.GetOrCreateWred()
-	uniform := wred.GetOrCreateUniform()
-	uniform.SetEnableEcn(ecnConfig.ecnEnabled)
-	uniform.SetDrop(ecnConfig.dropEnabled)
-	wantMinThreshold := ecnConfig.minThreshold
-	wantMaxThreshold := ecnConfig.maxThreshold
-	if deviations.EcnSameMinMaxThresholdUnsupported(dut) {
-		wantMinThreshold = CiscoMinThreshold
-		wantMaxThreshold = CiscoMaxThreshold
+	// Step 1: Generate DUT configuration for ECN_PROFILE_3.
+	t.Log("Step 1 - Generate DUT configuration: Configure queue-management-profile ECN_PROFILE_3")
+	cfgplugins.NewQoSQueueManagementProfile(t, dut, q, []cfgplugins.QoSQueueManagementProfile{profile})
+
+	// Step 2: Push configuration to DUT using gNMI Set with REPLACE option.
+	t.Log("Step 2 - Push configuration to DUT using gNMI Set with REPLACE option")
+	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+
+	// Step 3: Validation with pass/fail criteria.
+	t.Log("Step 3 - Validate queue-management-profile ECN_PROFILE_3 state values")
+	cfgplugins.ValidateQueueManagementProfile(t, dut, profile)
+
+	// Step 4: Validate ECN profile application.
+	t.Log("Step 4 - Validate ECN profile ECN_PROFILE_3 application on output queue")
+	qoscfg.SetOutputQueueManagementProfile(t, dut, q, dp.Name(), queueName, profile.Name)
+	outQueue := gnmi.OC().Qos().Interface(dp.Name()).Output().Queue(queueName)
+	if deviations.QosGetStatePathUnsupported(dut) {
+		if got, want := gnmi.Get(t, dut, outQueue.QueueManagementProfile().Config()), profile.Name; got != want {
+			t.Errorf("outQueue.QueueManagementProfile().Config(): got %v, want %v", got, want)
+		}
+	} else {
+		if got, want := gnmi.Get(t, dut, outQueue.QueueManagementProfile().State()), profile.Name; got != want {
+			t.Errorf("outQueue.QueueManagementProfile().State(): got %v, want %v", got, want)
+		}
 	}
-	uniform.SetMinThreshold(wantMinThreshold)
-	uniform.SetMaxThreshold(wantMaxThreshold)
-	uniform.SetMaxDropProbabilityPercent(ecnConfig.maxDropProbabilityPercent)
-	if !deviations.QosSetWeightConfigUnsupported(dut) {
-		uniform.SetWeight(ecnConfig.weight)
+}
+
+func testDP134NegativeTestCases(t *testing.T, q *oc.Qos) {
+	dut := ondatra.DUT(t, "dut")
+	dp := dut.Port(t, "port2")
+	queueName := targetQueueName(t, dut)
+
+	// Negative Test 1 (min-threshold > max-threshold)
+	t.Log("Negative Test 1 - Attempt configuring min-threshold strictly greater than max-threshold")
+	invalidQos1 := &oc.Qos{}
+	profile1 := invalidQos1.GetOrCreateQueueManagementProfile("NEG_PROFILE_1")
+	profile1.SetName("NEG_PROFILE_1")
+	wred1 := profile1.GetOrCreateWred().GetOrCreateUniform()
+	wred1.SetMinThreshold(81920)
+	wred1.SetMaxThreshold(40960)
+	if got := testt.ExpectFatal(t, func(t testing.TB) {
+		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), invalidQos1)
+	}); got == "" {
+		t.Errorf("Negative Test 1: expected fatal error when min-threshold > max-threshold, got nil")
 	}
 
-	cases := []struct {
-		desc       string
-		queueName  string
-		ecnProfile string
-		scheduler  string
-		sequence   uint32
-		priority   oc.E_Scheduler_Priority
-		inputID    string
-		inputType  oc.E_Input_InputType
-		weight     uint64
-	}{{
-		desc:       "output-interface-BE1",
-		queueName:  queues.BE1,
-		ecnProfile: "DropProfile",
-		scheduler:  "scheduler",
-		sequence:   uint32(1),
-		priority:   oc.Scheduler_Priority_UNSET,
-		inputType:  oc.Input_InputType_QUEUE,
-		weight:     uint64(1),
-	}, {
-		desc:       "output-interface-BE0",
-		queueName:  queues.BE0,
-		ecnProfile: "DropProfile",
-		scheduler:  "scheduler",
-		sequence:   uint32(1),
-		priority:   oc.Scheduler_Priority_UNSET,
-		inputType:  oc.Input_InputType_QUEUE,
-		weight:     uint64(4),
-	}, {
-		desc:       "output-interface-AF1",
-		queueName:  queues.AF1,
-		ecnProfile: "DropProfile",
-		scheduler:  "scheduler",
-		sequence:   uint32(1),
-		priority:   oc.Scheduler_Priority_UNSET,
-		inputType:  oc.Input_InputType_QUEUE,
-		weight:     uint64(8),
-	}, {
-		desc:       "output-interface-AF2",
-		queueName:  queues.AF2,
-		ecnProfile: "DropProfile",
-		scheduler:  "scheduler",
-		sequence:   uint32(1),
-		priority:   oc.Scheduler_Priority_UNSET,
-		inputType:  oc.Input_InputType_QUEUE,
-		weight:     uint64(16),
-	}, {
-		desc:       "output-interface-AF3",
-		queueName:  queues.AF3,
-		ecnProfile: "DropProfile",
-		scheduler:  "scheduler",
-		sequence:   uint32(1),
-		priority:   oc.Scheduler_Priority_UNSET,
-		inputType:  oc.Input_InputType_QUEUE,
-		weight:     uint64(32),
-	}, {
-		desc:       "output-interface-AF4",
-		queueName:  queues.AF4,
-		ecnProfile: "DropProfile",
-		scheduler:  "scheduler",
-		sequence:   uint32(0),
-		priority:   oc.Scheduler_Priority_STRICT,
-		inputType:  oc.Input_InputType_QUEUE,
-		weight:     uint64(6),
-	}, {
-		desc:       "output-interface-NC1",
-		queueName:  queues.NC1,
-		ecnProfile: "DropProfile",
-		scheduler:  "scheduler",
-		sequence:   uint32(0),
-		priority:   oc.Scheduler_Priority_STRICT,
-		inputType:  oc.Input_InputType_QUEUE,
-		weight:     uint64(7),
-	}}
+	// Negative Test 2 (Invalid max-drop-probability-percent)
+	t.Log("Negative Test 2 - Attempt configuring out-of-range max-drop-probability-percent (101)")
+	invalidQos2 := &oc.Qos{}
+	profile2 := invalidQos2.GetOrCreateQueueManagementProfile("NEG_PROFILE_2")
+	profile2.SetName("NEG_PROFILE_2")
+	wred2 := profile2.GetOrCreateWred().GetOrCreateUniform()
+	wred2.SetMaxDropProbabilityPercent(101)
+	if got := testt.ExpectFatal(t, func(t testing.TB) {
+		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), invalidQos2)
+	}); got == "" {
+		t.Errorf("Negative Test 2: expected fatal error when max-drop-probability-percent > 100, got nil")
+	}
 
-	i := q.GetOrCreateInterface(dp.Name())
-	i.SetInterfaceId(dp.Name())
-	i.GetOrCreateInterfaceRef().Interface = ygot.String(dp.Name())
+	// Negative Test 3 (Non-existent Profile Assignment)
+	t.Log("Negative Test 3 - Attempt assigning non-existent queue-management-profile BOGUS_PROFILE")
+	invalidQos3 := &oc.Qos{}
+	intf3 := invalidQos3.GetOrCreateInterface(dp.Name())
+	intf3.SetInterfaceId(dp.Name())
+	intf3.GetOrCreateInterfaceRef().Interface = ygot.String(dp.Name())
 	if deviations.InterfaceRefConfigUnsupported(dut) {
-		i.InterfaceRef = nil
+		intf3.InterfaceRef = nil
 	}
-	if deviations.QOSQueueRequiresID(dut) {
-		queueNames := []string{queues.NC1, queues.AF4, queues.AF3, queues.AF2, queues.AF1, queues.BE0, queues.BE1}
-		for i, queue := range queueNames {
-			q1 := q.GetOrCreateQueue(queue)
-			q1.Name = ygot.String(queue)
-			queueid := len(queueNames) - i
-			q1.QueueId = ygot.Uint8(uint8(queueid))
+	queue3 := intf3.GetOrCreateOutput().GetOrCreateQueue(queueName)
+	queue3.SetName(queueName)
+	queue3.SetQueueManagementProfile("BOGUS_PROFILE")
+	if got := testt.ExpectFatal(t, func(t testing.TB) {
+		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), invalidQos3)
+	}); got == "" {
+		t.Errorf("Negative Test 3: expected fatal error when assigning non-existent profile BOGUS_PROFILE, got nil")
+	}
+
+	// Negative Test 4 (Invalid Profile Deletion while actively applied)
+	t.Log("Negative Test 4 - Attempt deleting queue-management-profile while actively applied")
+	if got := testt.ExpectFatal(t, func(t testing.TB) {
+		gnmi.Delete(t, dut, gnmi.OC().Qos().QueueManagementProfile("ECN_PROFILE_3").Config())
+	}); got == "" {
+		t.Errorf("Negative Test 4: expected fatal error when deleting active profile ECN_PROFILE_3, got nil")
+	}
+}
+
+func testDP135TeardownAndCleanup(t *testing.T, q *oc.Qos) {
+	dut := ondatra.DUT(t, "dut")
+	dp := dut.Port(t, "port2")
+	queueName := targetQueueName(t, dut)
+
+	// Step 1: Detach the queue-management-profile from output queue.
+	t.Log("Step 1 - Detach queue-management-profile from output queue")
+	intf := q.GetOrCreateInterface(dp.Name())
+	queue := intf.GetOrCreateOutput().GetOrCreateQueue(queueName)
+	queue.QueueManagementProfile = nil
+	gnmi.Replace(t, dut, gnmi.OC().Qos().Interface(dp.Name()).Output().Queue(queueName).Config(), queue)
+
+	// Step 2: Validate profile is detached.
+	t.Log("Step 2 - Validate profile is detached from output queue")
+	outQueue := gnmi.OC().Qos().Interface(dp.Name()).Output().Queue(queueName)
+	if !deviations.QosGetStatePathUnsupported(dut) {
+		if got := gnmi.Lookup(t, dut, outQueue.QueueManagementProfile().State()); got.IsPresent() {
+			val, _ := got.Val()
+			if val != "" {
+				t.Errorf("Expected empty queue-management-profile after detach, got %v", val)
+			}
 		}
 	}
 
-	schedulerPolicy := q.GetOrCreateSchedulerPolicy("scheduler")
-	schedulerPolicy.SetName("scheduler")
-	t.Logf("qos output interface config cases: %v", cases)
-	for _, tc := range cases {
-		t.Run(tc.desc, func(t *testing.T) {
-			qoscfg.SetForwardingGroup(t, dut, q, tc.queueName, tc.queueName)
-			s := schedulerPolicy.GetOrCreateScheduler(tc.sequence)
-			s.SetSequence(tc.sequence)
-			s.SetPriority(tc.priority)
-			input := s.GetOrCreateInput(tc.queueName)
-			input.SetId(tc.queueName)
-			input.SetInputType(tc.inputType)
-			input.SetQueue(tc.queueName)
-			input.SetWeight(tc.weight)
-			output := i.GetOrCreateOutput()
-			schedulerPolicy := output.GetOrCreateSchedulerPolicy()
-			schedulerPolicy.SetName(tc.scheduler)
-			queue := output.GetOrCreateQueue(tc.queueName)
-			queue.SetQueueManagementProfile(tc.ecnProfile)
-			queue.SetName(tc.queueName)
-			if deviations.QOSBufferAllocationConfigRequired(dut) {
-				bufferAllocation := q.GetOrCreateBufferAllocationProfile("ballocprofile")
-				bq := bufferAllocation.GetOrCreateQueue(tc.queueName)
-				bq.SetStaticSharedBufferLimit(uint32(268435456))
-				output.SetBufferAllocationProfile("ballocprofile")
-			}
-			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
-		})
+	// Step 3: Delete queue-management-profile ECN_PROFILE_1 entirely.
+	t.Log("Step 3 - Delete queue-management-profile ECN_PROFILE_1")
+	gnmi.Delete(t, dut, gnmi.OC().Qos().QueueManagementProfile("ECN_PROFILE_1").Config())
 
-		// Verify the policy is applied by checking the telemetry path state values.
-		policy := gnmi.OC().Qos().Interface(dp.Name()).Output().SchedulerPolicy()
-		outQueue := gnmi.OC().Qos().Interface(dp.Name()).Output().Queue(tc.queueName)
-		if !deviations.StatePathsUnsupported(dut) {
-			if got, want := gnmi.Get(t, dut, policy.Name().State()), tc.scheduler; got != want {
-				t.Errorf("policy.Name().State(): got %v, want %v", got, want)
-			}
-			if got, want := gnmi.Get(t, dut, outQueue.Name().State()), tc.queueName; got != want {
-				t.Errorf("outQueue.Name().State(): got %v, want %v", got, want)
-			}
-			if got, want := gnmi.Get(t, dut, outQueue.QueueManagementProfile().State()), tc.ecnProfile; got != want {
-				t.Errorf("outQueue.QueueManagementProfile().State(): got %v, want %v", got, want)
-			}
-		}
-		if deviations.QosGetStatePathUnsupported(dut) {
-			if got, want := gnmi.Get(t, dut, policy.Name().Config()), tc.scheduler; got != want {
-				t.Errorf("policy.Name().Config(): got %v, want %v", got, want)
-			}
-			if got, want := gnmi.Get(t, dut, outQueue.Name().Config()), tc.queueName; got != want {
-				t.Errorf("outQueue.Name().Config(): got %v, want %v", got, want)
-			}
-			if got, want := gnmi.Get(t, dut, outQueue.QueueManagementProfile().Config()), tc.ecnProfile; got != want {
-				t.Errorf("outQueue.QueueManagementProfile().Config(): got %v, want %v", got, want)
-			}
+	// Step 4: Validate profile is removed.
+	t.Log("Step 4 - Validate profile ECN_PROFILE_1 is removed")
+	if !deviations.QosGetStatePathUnsupported(dut) {
+		if got := gnmi.Lookup(t, dut, gnmi.OC().Qos().QueueManagementProfile("ECN_PROFILE_1").State()); got.IsPresent() {
+			t.Errorf("Expected ECN_PROFILE_1 state to be removed, but lookup reported present")
 		}
 	}
 }
