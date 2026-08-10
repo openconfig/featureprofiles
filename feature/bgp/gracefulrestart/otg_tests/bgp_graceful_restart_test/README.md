@@ -107,7 +107,7 @@ The origial RFC4724 had no coverage for Graceful restart process post send/recei
 *   Revert ATE configuration blocking TCP connection to/from DUT over TCP-Port:179 so the EBGP peering between ATE:Port1 <> DUT:port1 is reestablished. Restart traffic and confirm that there is zero packet loss. 
 *   Restart the above procedure for the IBGP peering between DUT port-2 and ATE port-2
 
-## Canonical OpenConfig for keepalive-interval and hold-time at neighbour and peer-group level for BGP
+## Canonical OC
 
 ```json
 {
