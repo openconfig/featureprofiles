@@ -29,15 +29,15 @@ import (
 // ExpectedTrafficLoss checks if traffic loss for a given flow is within the expected range (minLossPct to maxLossPct).
 // It waits up to 45 seconds for the traffic loss percentage to be within the expected range,
 // then fails the test with a standard error message if the validation fails.
-func ExpectedTrafficLoss(t testing.TB, otg *otg.OTG, flowName string, minLossPct, maxLossPct float32) {
+func ExpectedTrafficLoss(t testing.TB, otg *otg.OTG, flowName string, minLossPct, maxLossPct float64) {
 	t.Helper()
 	_, ok := gnmi.Watch(t, otg, gnmi.OTG().Flow(flowName).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
 		recvMetric, present := val.Val()
 		if !present || recvMetric == nil || recvMetric.GetCounters() == nil {
 			return false
 		}
-		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
-		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
+		txPackets := float64(recvMetric.GetCounters().GetOutPkts())
+		rxPackets := float64(recvMetric.GetCounters().GetInPkts())
 		if txPackets == 0 || rxPackets > txPackets {
 			return false
 		}
@@ -55,8 +55,8 @@ func ExpectedTrafficLoss(t testing.TB, otg *otg.OTG, flowName string, minLossPct
 		t.Fatalf("[%s] OTG traffic generation failed: missing metrics for flow %s", fperrorspb.ErrorCategory_ERROR_CATEGORY_TRAFFIC_GENERATION_FAILED.String(), flowName)
 	}
 
-	txPackets := float32(recvMetric.GetCounters().GetOutPkts())
-	rxPackets := float32(recvMetric.GetCounters().GetInPkts())
+	txPackets := float64(recvMetric.GetCounters().GetOutPkts())
+	rxPackets := float64(recvMetric.GetCounters().GetInPkts())
 	if txPackets == 0 {
 		t.Fatalf("[%s] OTG traffic generation failed: TxPkts = 0 for flow %s", fperrorspb.ErrorCategory_ERROR_CATEGORY_TRAFFIC_GENERATION_FAILED.String(), flowName)
 	}
