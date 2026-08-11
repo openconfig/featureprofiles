@@ -503,7 +503,12 @@ func testECMPAndFIB(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice
 	}
 	bRem.Set(t, dut)
 	// Step 6 (Verify Remove)
-	time.Sleep(10 * time.Second)
+	ni := deviations.DefaultNetworkInstance(dut)
+	sp := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+	gnmi.Watch(t, dut, sp.Static("10.1.0.0/24").State(), 30*time.Second, func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Static]) bool {
+		_, present := v.Val()
+		return !present
+	}).Await(t)
 
 	flowMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow("flow_ecmp_v4").State())
 	if flowMetric.GetCounters() == nil || flowMetric.GetCounters().GetOutPkts() == 0 {
