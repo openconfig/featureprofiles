@@ -699,7 +699,7 @@ func doHTTPRequest(t *testing.T, desc string, build func() (*http.Request, error
 }
 
 func outboundIP() net.IP {
-	conn, err := net.Dial("udp", "8.8.8.8:80")
+	conn, err := net.Dial("udp", "192.0.2.1:80")
 	if err == nil {
 		defer conn.Close()
 		if addr, ok := conn.LocalAddr().(*net.UDPAddr); ok {
