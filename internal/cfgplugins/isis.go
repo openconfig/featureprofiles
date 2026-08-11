@@ -6,12 +6,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/helpers"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygot/ygot"
+	"google3/third_party/golang/ygot/ygot/ygot"
+	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
+	"google3/third_party/openconfig/featureprofiles/internal/helpers/helpers"
+	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
+	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
+	"google3/third_party/openconfig/ondatra/ondatra"
 )
 
 // ISISConfigBasic holds all parameters needed for configuring ISIS on the DUT.
@@ -31,6 +31,7 @@ type ISISGlobalParams struct {
 	NetworkInstanceName string
 	ISISInterfaceNames  []string
 	NetworkInstanceType *oc.E_NetworkInstanceTypes_NETWORK_INSTANCE_TYPE
+	ISISAuthKey         string
 }
 
 // NewISIS configures the DUT with ISIS protocol.
@@ -71,6 +72,23 @@ func NewISIS(t *testing.T, dut *ondatra.DUTDevice, ISISData *ISISGlobalParams, b
 		isis.GetGlobal().GetOrCreateMpls().GetOrCreateIgpLdpSync().SetEnabled(false)
 	}
 
+	// Configure Level 2 LSP database authentication if ISISAuthKey is provided.
+	// This secures IS-IS LSP exchanges between the DUT and peers using MD5 simple-key authentication.
+	if ISISData.ISISAuthKey != "" {
+		lvl2Auth := isis.GetOrCreateLevel(2).GetOrCreateAuthentication()
+		lvl2Auth.Enabled = ygot.Bool(true)
+		lvl2Auth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+		lvl2Auth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
+		lvl2Auth.AuthPassword = ygot.String(ISISData.ISISAuthKey)
+		// For Nokia SR Linux (and platforms requiring explicit level auth containers), explicit flags
+		// (DisableCsnp, DisableLsp, DisablePsnp = false) must be set to ensure complete LSP authentication.
+		if deviations.ISISExplicitLevelAuthenticationConfig(dut) {
+			lvl2Auth.DisableCsnp = ygot.Bool(false)
+			lvl2Auth.DisableLsp = ygot.Bool(false)
+			lvl2Auth.DisablePsnp = ygot.Bool(false)
+		}
+	}
+
 	// Set IPV4 configuration parameters
 	isisV4Afi := isis.GetGlobal().GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
 	isisV4Afi.SetEnabled(true)
@@ -80,7 +98,7 @@ func NewISIS(t *testing.T, dut *ondatra.DUTDevice, ISISData *ISISGlobalParams, b
 	isisV6Afi.Enabled = ygot.Bool(true)
 
 	for _, in := range ISISData.ISISInterfaceNames {
-		if (deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut)) && !strings.Contains(in, ".") {
+		if (deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut)) && !strings.Contains(in, ".") && !strings.HasPrefix(strings.ToLower(in), "lo") {
 			in += ".0"
 		}
 		fmt.Println("Adding ISIS interface: ", in)
@@ -100,8 +118,26 @@ func NewISIS(t *testing.T, dut *ondatra.DUTDevice, ISISData *ISISGlobalParams, b
 		if !deviations.IsisMplsUnsupported(dut) {
 			isisInterface.GetOrCreateMpls().GetOrCreateIgpLdpSync().SetEnabled(false)
 		}
-		if in[0:2] == "lo" {
+		// Loopback interfaces are configured as passive and excluded from Hello authentication.
+		if strings.HasPrefix(strings.ToLower(in), "lo") {
 			isisInterface.SetPassive(true)
+		} else if ISISData.ISISAuthKey != "" {
+			// Configure interface-level MD5 Simple-Key authentication for IS-IS Hello packets on active links.
+			// Cisco IOS-XR uses the top-level interface authentication container (SetISISAuthWithInterfaceAuthenticationContainer),
+			// whereas standard OpenConfig models configure hello-authentication under Level(2).
+			if deviations.SetISISAuthWithInterfaceAuthenticationContainer(dut) {
+				intfAuth := isisInterface.GetOrCreateAuthentication()
+				intfAuth.Enabled = ygot.Bool(true)
+				intfAuth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+				intfAuth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
+				intfAuth.AuthPassword = ygot.String(ISISData.ISISAuthKey)
+			} else {
+				lvl2IntfAuth := isisInterface.GetOrCreateLevel(2).GetOrCreateHelloAuthentication()
+				lvl2IntfAuth.Enabled = ygot.Bool(true)
+				lvl2IntfAuth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+				lvl2IntfAuth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
+				lvl2IntfAuth.AuthPassword = ygot.String(ISISData.ISISAuthKey)
+			}
 		}
 	}
 

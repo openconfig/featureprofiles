@@ -8,12 +8,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/internal/cfgplugins"
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	isisscalehelpers "github.com/openconfig/featureprofiles/internal/isisscale"
-	otgconfighelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers"
-	"github.com/openconfig/ondatra/gnmi/oc"
+	"google3/third_party/openconfig/featureprofiles/internal/cfgplugins/cfgplugins"
+	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
+	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
+	isisscalehelpers "google3/third_party/openconfig/featureprofiles/internal/isisscale/isisscale"
+	otgconfighelpers "google3/third_party/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers/otgconfighelpers"
+	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
 )
 
 type descriptor struct {
@@ -80,26 +80,27 @@ func initializeMultiAdjISISScaleTestData(t *testing.T) *isisscalehelpers.TestDat
 			blockCount:     1,
 		},
 	}
+	// Use 4 aggregate LAG interfaces with 76 sub-interfaces each to establish 304 total
+	// IS-IS Level 2 multi-adjacencies (4 x 76 = 304). This enables running against standard 4-port
+	// physical testbeds (testbed_dut_ate_4links.textproto) while achieving the 304 scale requirement.
 	aggregateCount := 4
-	// NOTE(scale): subInterfacesCountPerAggregate is set to 76 across 4 aggregate interfaces
-	// to establish 304 total IS-IS Level 2 adjacencies (4 x 76 = 304). This allows running on 4-port
-	// physical testbeds (testbed_dut_ate_4links.textproto) while maintaining the 304 adjacency target.
 	subInterfacesCountPerAggregate := 76
 	initialVlanID := 1000
 	initialIPv4Address := net.ParseIP("192.0.0.1")
 	initialIPv6Address := net.ParseIP("2001:db8::1")
 
-	// Create DUT data.
+	// Create DUT data with MD5 authentication key enabled.
 	dutData := &isisscalehelpers.DutData{
 		Lags: isisscalehelpers.CreateDUTAggregateInterfacesData(t, aggregateCount, subInterfacesCountPerAggregate, initialVlanID, initialIPv4Address, initialIPv6Address),
 		IsisData: &cfgplugins.ISISGlobalParams{
 			DUTArea:  "49.0001",
 			DUTSysID: "1920.0000.2001",
 		},
+		// Set ISISAuthKey to configure dual-level MD5 authentication (Level 2 LSP + Hello packets).
 		ISISAuthKey: "google_isis_key",
 	}
 
-	// Create ATE data.
+	// Create ATE data and configure the matching MD5 authentication key across all emulated routers.
 	ateEmulatedRouterData := isisscalehelpers.CreateATEEmulatedRouterData(t, dutData.Lags)
 	for _, er := range ateEmulatedRouterData {
 		er.ISISAuthKey = "google_isis_key"
@@ -270,3 +271,4 @@ func TestISISScale(t *testing.T) {
 		})
 	}
 }
+

@@ -11,18 +11,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/featureprofiles/internal/attrs"
-	"github.com/openconfig/featureprofiles/internal/cfgplugins"
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/iputil"
-	otgconfighelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/netutil"
-	"github.com/openconfig/ygnmi/ygnmi"
+	"google3/third_party/open_traffic_generator/gosnappi/gosnappi"
+	"google3/third_party/openconfig/featureprofiles/internal/attrs/attrs"
+	"google3/third_party/openconfig/featureprofiles/internal/cfgplugins/cfgplugins"
+	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
+	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
+	"google3/third_party/openconfig/featureprofiles/internal/iputil/iputil"
+	otgconfighelpers "google3/third_party/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers/otgconfighelpers"
+	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
+	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
+	"google3/third_party/openconfig/ondatra/netutil/netutil"
+	"google3/third_party/openconfig/ondatra/ondatra"
+	"google3/third_party/openconfig/ygnmi/ygnmi/ygnmi"
 )
 
 const (
@@ -46,8 +46,10 @@ type TestData struct {
 
 // DutData contains the DUT data for the ISIS scale test.
 type DutData struct {
-	IsisData *cfgplugins.ISISGlobalParams
-	Lags     []*cfgplugins.DUTAggData
+	IsisData    *cfgplugins.ISISGlobalParams
+	Lags        []*cfgplugins.DUTAggData
+	// ISISAuthKey specifies the MD5 simple key used for DUT interface Hello and Level 2 LSP authentication.
+	ISISAuthKey string
 }
 
 var (
@@ -133,6 +135,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutData *DutData) {
 		gnmi.Await(t, dut, gnmi.OC().Interface(l.LagName).AdminStatus().State(), 60*time.Second, oc.Interface_AdminStatus_UP)
 	}
 	dutData.IsisData.ISISInterfaceNames = createISISInterfaceNames(t, dut, dutData)
+	dutData.IsisData.ISISAuthKey = dutData.ISISAuthKey
 	b := &gnmi.SetBatch{}
 	cfgplugins.NewISIS(t, dut, dutData.IsisData, b)
 	b.Set(t, dut)

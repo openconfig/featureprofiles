@@ -1,4 +1,4 @@
-# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
 uuid: "d6453669-e73b-4bca-9d8c-ceb812b97132"
@@ -17,9 +17,13 @@ platform_exceptions: {
     isis_mpls_unsupported: true
     ipv4_missing_enabled: true
     isis_lsp_tlvs_oc_unsupported: true
+    # Arista EOS configures MTU at the IP interface level rather than L2.
     omit_l2_mtu: true
+    # Arista EOS requires explicit IPv4/IPv6 config containers on sub-interfaces.
     missing_value_for_defaults: true
+    # Arista EOS does not support per-interface AFI/SAFI container hierarchies.
     isis_interface_afi_unsupported: true
+    # Disables unsupported RS-FEC on 100G-FR lab transceivers.
     fr_breakout_fix: true
   }
 }
@@ -52,6 +56,7 @@ platform_exceptions: {
     ipv4_missing_enabled: true
     aggregate_atomic_update: true
     isis_adjacency_stream_unsupported: true
+    # Nokia SR Linux requires explicit Level 2 authentication flags (disable-csnp/lsp/psnp = false).
     isis_explicit_level_authentication_config: true
   }
 }
