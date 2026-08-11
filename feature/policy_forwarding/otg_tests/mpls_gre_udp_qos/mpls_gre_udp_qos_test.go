@@ -682,41 +682,78 @@ func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, dur time.Duration) {
 	ate.OTG().StopTraffic(t)
 }
 
+// encapToIPFlow pairs Flow-A's outer (tunnel) IPv4 header with its inner (payload) IPv4
+// header; otgconfighelpers.Flow only models one IPv4 layer via IPv4Flow, but decap traffic
+// needs both an outer tunnel-destination header and an inner payload header.
+type encapToIPFlow struct {
+	*otgconfighelpers.Flow
+	innerIPv4 *otgconfighelpers.IPv4FlowParams
+}
+
 // buildEncapToIPFlows builds one flow per MPLS EXP value (0-7) for both MPLSoGRE and
 // MPLSoGUE, split across both core aggregates (README: ATE Ports 3,4,5,6) with GRE flows on
 // core1 and GUE flows on core2, egressing (post decap) on the customer aggregate. Implements
-// Flow-A. Per-flow rate is capped so each aggregate's own total stays under 100% of its port
-// capacity (the ATE rejects any single Tx port configured above that); congestion for
-// PF-1.18.4-1.18.7 instead comes from both aggregates' traffic converging on the single
-// customer egress interface.
-func buildEncapToIPFlows() []*otgconfighelpers.Flow {
-	var flows []*otgconfighelpers.Flow
+// Flow-A. The outer IPv4 destination falls within outerEncapPrefix, which is what
+// configureAristaDecap's decap-groups match on. Per-flow rate is capped so each aggregate's
+// own total stays under 100% of its port capacity (the ATE rejects any single Tx port
+// configured above that); congestion for PF-1.18.4-1.18.7 instead comes from both
+// aggregates' traffic converging on the single customer egress interface.
+func buildEncapToIPFlows() []*encapToIPFlow {
+	var flows []*encapToIPFlow
 	for tc := 0; tc < 8; tc++ {
-		flows = append(flows, &otgconfighelpers.Flow{
-			TxNames:           []string{core1OTG.Name + ".IPv4"},
-			RxNames:           []string{custOTG0.Name + ".IPv4"},
-			SizeWeightProfile: &sizeWeightProfile,
-			Flowrate:          8,
-			FlowName:          fmt.Sprintf("MPLSoGRE-tc%d-%s", tc, core1OTG.Name),
-			EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg2.AggMAC},
-			IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "100.64.0.1", IPv4Dst: "11.1.1.1", IPv4SrcCount: 1000},
-			MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: uint32(99990 + tc), MPLSExp: uint32(tc)},
-			GREFlow:           &otgconfighelpers.GREFlowParams{Protocol: otgconfighelpers.IanaMPLSEthertype},
+		flows = append(flows, &encapToIPFlow{
+			Flow: &otgconfighelpers.Flow{
+				TxNames:           []string{core1OTG.Name + ".IPv4"},
+				RxNames:           []string{custOTG0.Name + ".IPv4"},
+				SizeWeightProfile: &sizeWeightProfile,
+				Flowrate:          8,
+				FlowName:          fmt.Sprintf("MPLSoGRE-tc%d-%s", tc, core1OTG.Name),
+				EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg2.AggMAC},
+				IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "100.64.0.1", IPv4Dst: outerGREDstCore1, IPv4SrcCount: 1000},
+				GREFlow:           &otgconfighelpers.GREFlowParams{Protocol: otgconfighelpers.IanaMPLSEthertype},
+				MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: uint32(99990 + tc), MPLSExp: uint32(tc)},
+			},
+			innerIPv4: &otgconfighelpers.IPv4FlowParams{IPv4Src: "50.1.1.1", IPv4Dst: "11.1.1.1", IPv4SrcCount: 1000},
 		})
-		flows = append(flows, &otgconfighelpers.Flow{
-			TxNames:           []string{core2OTG.Name + ".IPv4"},
-			RxNames:           []string{custOTG0.Name + ".IPv4"},
-			SizeWeightProfile: &sizeWeightProfile,
-			Flowrate:          8,
-			FlowName:          fmt.Sprintf("MPLSoGUE-tc%d-%s", tc, core2OTG.Name),
-			EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg3.AggMAC},
-			IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "100.64.1.1", IPv4Dst: "11.1.1.1", IPv4SrcCount: 1000},
-			UDPFlow:           &otgconfighelpers.UDPFlowParams{UDPSrcPort: 49152, UDPDstPort: gueDstPort},
-			GREFlow:           &otgconfighelpers.GREFlowParams{Protocol: otgconfighelpers.IanaMPLSEthertype},
-			MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: uint32(99890 + tc), MPLSExp: uint32(tc)},
+		flows = append(flows, &encapToIPFlow{
+			Flow: &otgconfighelpers.Flow{
+				TxNames:           []string{core2OTG.Name + ".IPv4"},
+				RxNames:           []string{custOTG0.Name + ".IPv4"},
+				SizeWeightProfile: &sizeWeightProfile,
+				Flowrate:          8,
+				FlowName:          fmt.Sprintf("MPLSoGUE-tc%d-%s", tc, core2OTG.Name),
+				EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg3.AggMAC},
+				IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "100.64.1.1", IPv4Dst: outerGUEDstCore2, IPv4SrcCount: 1000},
+				UDPFlow:           &otgconfighelpers.UDPFlowParams{UDPSrcPort: 49152, UDPDstPort: gueDstPort},
+				MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: uint32(99890 + tc), MPLSExp: uint32(tc)},
+			},
+			innerIPv4: &otgconfighelpers.IPv4FlowParams{IPv4Src: "50.1.2.1", IPv4Dst: "11.1.1.1", IPv4SrcCount: 1000},
 		})
 	}
 	return flows
+}
+
+// createEncapToIPFlow builds a Flow-A packet: Eth -> outer IPv4 (tunnel) -> [UDP] -> [GRE] ->
+// MPLS -> inner IPv4 (payload). Both IPv4 layers are required: configureAristaDecap's
+// decap-groups match on the outer IPv4 destination, so a flow with only the inner header (as
+// this used to build) is never recognized as tunneled traffic and gets dropped.
+func createEncapToIPFlow(t *testing.T, top gosnappi.Config, f *encapToIPFlow, clearFlows bool) {
+	t.Helper()
+	if clearFlows {
+		top.Flows().Clear()
+	}
+	f.CreateFlow(top)
+	f.AddEthHeader()
+	f.AddIPv4Header() // outer (tunnel) header
+	if f.UDPFlow != nil {
+		f.AddUDPHeader()
+	}
+	if f.GREFlow != nil {
+		f.AddGREHeader()
+	}
+	f.AddMPLSHeader()
+	*f.IPv4Flow = *f.innerIPv4
+	f.AddIPv4Header() // inner (payload) header
 }
 
 // buildIPToEncapFlows builds one flow per traffic class (0-7), classified by DSCP, ingressing
@@ -767,7 +804,7 @@ func TestPF1182MPLSTrafficClassClassification(t *testing.T) {
 	top.Flows().Clear()
 	flows := buildEncapToIPFlows()
 	for i, f := range flows {
-		createflow(t, top, f, i == 0)
+		createEncapToIPFlow(t, top, f, i == 0)
 	}
 	sendTraffic(t, ate, trafficDuration)
 
@@ -805,8 +842,10 @@ func TestPF1183DSCPMarking(t *testing.T) {
 	}
 
 	flow := &otgconfighelpers.Flow{
-		TxNames:       []string{custOTG0.Name + ".IPv4"},
-		RxNames:       []string{core1OTG.Name + ".IPv4"},
+		TxNames: []string{custOTG0.Name + ".IPv4"},
+		// nhg-gre-encap load-balances across both core uplinks, so both must be listed as
+		// Rx or ~half the traffic is wrongly counted as loss (it legitimately egresses core2).
+		RxNames:       []string{core1OTG.Name + ".IPv4", core2OTG.Name + ".IPv4"},
 		FlowName:      "IPtoEncap-dscp-marking",
 		PacketsToSend: 1000,
 		EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: agg1.AggMAC},
@@ -850,7 +889,7 @@ func TestPF1184AssuredForwardingMinBandwidth(t *testing.T) {
 	flows := buildEncapToIPFlows()
 	for i, f := range flows {
 		f.Flowrate = 12 // oversubscribe to induce congestion.
-		createflow(t, top, f, i == 0)
+		createEncapToIPFlow(t, top, f, i == 0)
 	}
 	sendTraffic(t, ate, trafficDuration)
 
@@ -880,7 +919,7 @@ func TestPF1185AssuredForwardingShaper(t *testing.T) {
 	flows := buildEncapToIPFlows()
 	for i, f := range flows {
 		f.Flowrate = 12
-		createflow(t, top, f, i == 0)
+		createEncapToIPFlow(t, top, f, i == 0)
 	}
 	sendTraffic(t, ate, trafficDuration)
 
@@ -909,7 +948,7 @@ func TestPF1186ExpeditedForwardingPriorityDecap(t *testing.T) {
 	flows := buildEncapToIPFlows()
 	for i, f := range flows {
 		f.Flowrate = 12
-		createflow(t, top, f, i == 0)
+		createEncapToIPFlow(t, top, f, i == 0)
 	}
 	sendTraffic(t, ate, trafficDuration)
 
@@ -937,7 +976,7 @@ func TestPF1187ExpeditedForwardingPriorityShaper(t *testing.T) {
 	flows := buildEncapToIPFlows()
 	for i, f := range flows {
 		f.Flowrate = 12
-		createflow(t, top, f, i == 0)
+		createEncapToIPFlow(t, top, f, i == 0)
 	}
 	sendTraffic(t, ate, trafficDuration)
 
