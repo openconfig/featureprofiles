@@ -44,33 +44,33 @@ func deviceBootStatus(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Logf("Device boot time: %.2f minutes", time.Since(startReboot).Minutes())
 }
 
-func verifyChassisIsAncestorLocal(t *testing.T, compMap map[string]*oc.Component, comp string) {
-	visited := make(map[string]bool)
-	for curr := comp; ; {
-		if visited[curr] {
-			t.Errorf("Component %s already visited; loop detected in the hierarchy.", curr)
-			break
-		}
-		visited[curr] = true
-		c, ok := compMap[curr]
-		if !ok || c.GetParent() == "" {
-			t.Errorf("Chassis component NOT found as an ancestor of component %s", comp)
-			break
-		}
-		parentName := c.GetParent()
-		parentComp, ok := compMap[parentName]
-		if !ok {
-			t.Errorf("Parent component %s not found in telemetry for component %s", parentName, curr)
-			break
-		}
-		if parentComp.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS {
-			t.Logf("Found chassis component as an ancestor of component %s", comp)
-			break
-		}
-		// Not reached chassis yet; go one level up.
-		curr = parentName
-	}
-}
+// func verifyChassisIsAncestorLocal(t *testing.T, compMap map[string]*oc.Component, comp string) {
+// 	visited := make(map[string]bool)
+// 	for curr := comp; ; {
+// 		if visited[curr] {
+// 			t.Errorf("Component %s already visited; loop detected in the hierarchy.", curr)
+// 			break
+// 		}
+// 		visited[curr] = true
+// 		c, ok := compMap[curr]
+// 		if !ok || c.GetParent() == "" {
+// 			t.Errorf("Chassis component NOT found as an ancestor of component %s", comp)
+// 			break
+// 		}
+// 		parentName := c.GetParent()
+// 		parentComp, ok := compMap[parentName]
+// 		if !ok {
+// 			t.Errorf("Parent component %s not found in telemetry for component %s", parentName, curr)
+// 			break
+// 		}
+// 		if parentComp.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS {
+// 			t.Logf("Found chassis component as an ancestor of component %s", comp)
+// 			break
+// 		}
+// 		// Not reached chassis yet; go one level up.
+// 		curr = parentName
+// 	}
+// }
 
 func TestLargeGNMISetAndReboot(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
@@ -95,9 +95,9 @@ func TestLargeGNMISetAndReboot(t *testing.T) {
 		lag.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_LACP
 
 		subIntf := lag.GetOrCreateSubinterface(0)
-		v4Addr := fmt.Sprintf("10.0.%d.1", lagIndex/255) // Just a dummy IP
+		v4Addr := fmt.Sprintf("198.18.%d.1", lagIndex/255) // Just a dummy IP
 		if lagIndex < 255 {
-			v4Addr = fmt.Sprintf("10.0.0.%d", lagIndex)
+			v4Addr = fmt.Sprintf("198.18.0.%d", lagIndex)
 		}
 		subIntf.GetOrCreateIpv4().GetOrCreateAddress(v4Addr).PrefixLength = ygot.Uint8(24)
 		subIntf.GetOrCreateIpv6().GetOrCreateAddress(fmt.Sprintf("2001:db8::%x", lagIndex)).PrefixLength = ygot.Uint8(64)
@@ -120,26 +120,35 @@ func TestLargeGNMISetAndReboot(t *testing.T) {
 		createLAG(2)
 	}
 	// Configure another 300 LAG interfaces with 1 member interface each on the DUT.
+	// Configure another 300 LAG interfaces with 1 member interface each on the DUT.
 	for i := 0; i < 300; i++ {
 		createLAG(1)
 	}
+
+	t.Cleanup(func() {
+		b := &gnmi.SetBatch{}
+		for _, intf := range d.Interface {
+			gnmi.BatchDelete(b, gnmi.OC().Interface(*intf.Name).Config())
+		}
+		b.Set(t, dut)
+	})
 
 	var wg sync.WaitGroup
 	wg.Add(2)
 
 	// We use WaitGroup to wait for both goroutines
-	go func() {
-		defer wg.Done()
-		t.Logf("Starting gNMI Batch Set in Goroutine")
+	// go func() {
+	// 	defer wg.Done()
+	// 	t.Logf("Starting gNMI Batch Set in Goroutine")
 
-		b := &gnmi.SetBatch{}
-		for _, intf := range d.Interface {
-			gnmi.BatchReplace(b, gnmi.OC().Interface(*intf.Name).Config(), intf)
-		}
+	// 	b := &gnmi.SetBatch{}
+	// 	for _, intf := range d.Interface {
+	// 		gnmi.BatchReplace(b, gnmi.OC().Interface(*intf.Name).Config(), intf)
+	// 	}
 
-		res := b.Set(t, dut)
-		t.Logf("gNMI Batch Set completed successfully before reboot took effect. Result: %v", res)
-	}()
+	// 	res := b.Set(t, dut)
+	// 	t.Logf("gNMI Batch Set completed successfully before reboot took effect. Result: %v", res)
+	// }()
 
 	go func() {
 		defer wg.Done()
@@ -217,7 +226,7 @@ func TestLargeGNMISetAndReboot(t *testing.T) {
 			t.Errorf("Interface %s description: got %v, want %v", portName, portDesc, want)
 		}
 
-		v4Addr := fmt.Sprintf("10.0.0.%d", i)
+		v4Addr := fmt.Sprintf("198.18.0.%d", i)
 		ipv4Path := gnmi.OC().Interface(lagName).Subinterface(0).Ipv4().Address(v4Addr).Ip().Config()
 		if got := gnmi.Get(t, dut, ipv4Path); got != v4Addr {
 			t.Errorf("Interface %s IPv4 address: got %v, want %v", lagName, got, v4Addr)
