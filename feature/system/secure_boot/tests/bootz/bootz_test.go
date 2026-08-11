@@ -522,7 +522,7 @@ func vendorConfigFromBinding(t *testing.T, dutID string) string {
 		if dut.GetId() != dutID {
 			continue
 		}
-		if len(dut.GetConfig().GetGnmiSetFile()) == 0 {
+		if dut.GetConfig() == nil || len(dut.GetConfig().GetGnmiSetFile()) == 0 {
 			t.Fatalf("binding DUT %s has no GNMI set file", dutID)
 		}
 		data, err := os.ReadFile(dut.GetConfig().GetGnmiSetFile()[0])
