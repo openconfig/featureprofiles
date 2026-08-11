@@ -325,6 +325,7 @@ func TestSupFailure(t *testing.T) {
 	// Verify that static routes to ATE port-2 are preferred by the traffic.
 	t.Logf("Starting traffic")
 	ate.OTG().StartTraffic(t)
+	defer ate.OTG().StopTraffic(t)
 	time.Sleep(15 * time.Second)
 
 	t.Logf("Verifying traffic flows 100%% before switchover")
