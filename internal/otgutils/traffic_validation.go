@@ -14,7 +14,6 @@
 
 package otgutils
 
-
 import (
 	"testing"
 	"time"
