@@ -112,50 +112,58 @@ The origial RFC4724 had no coverage for Graceful restart process post send/recei
 ```json
 {
   "network-instances": {
-    "network-instance": {
-      "DEFAULT": {
+    "network-instance": [
+      {
+        "name": "DEFAULT",
         "protocols": {
-          "protocol": {
-            "BGP": {
+          "protocol": [
+            {
+              "identifier": "BGP",
+              "name": "BGP",
               "bgp": {
                 "peer-groups": {
-                  "peer-group": {
-                    "BGP-PEER-GROUP-V4": {
+                  "peer-group": [
+                    {
+                      "peer-group-name": "BGP-PEER-GROUP-V4",
                       "afi-safis": {
-                        "afi-safi": {
-                          "IPV4_UNICAST": {
+                        "afi-safi": [
+                          {
+                            "afi-safi-name": "IPV4_UNICAST",
                             "graceful-restart": {
                               "state": {
                                 "enabled": true
                               }
                             }
                           }
-                        }
+                        ]
                       }
                     },
-                    "BGP-PEER-GROUP-V6": {
+                    {
+                      "peer-group-name": "BGP-PEER-GROUP-V6",
                       "afi-safis": {
-                        "afi-safi": {
-                          "IPV6_UNICAST": {
+                        "afi-safi": [
+                          {
+                            "afi-safi-name": "IPV6_UNICAST",
                             "graceful-restart": {
                               "state": {
                                 "enabled": true
                               }
                             }
                           }
-                        }
+                        ]
                       }
                     }
-                  }
+                  ]
                 }
               }
             }
-          }
+          ]
         }
       }
-    }
+    ]
   }
 }
+
 ```
 ## Config Parameter Coverage
 
