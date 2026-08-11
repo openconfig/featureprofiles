@@ -14,6 +14,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest/fptest"
 	"github.com/openconfig/ondatra/gnmi/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc/oc"
+	"github.com/openconfig/ondatra/gnmi/ygnmi"
 	"github.com/openconfig/ondatra/ondatra"
 )
 
@@ -183,10 +184,20 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
 func fetchDUTCounters(t *testing.T, dut *ondatra.DUTDevice) map[string]uint64 {
 	t.Helper()
 	counters := make(map[string]uint64)
+	batch := gnmi.OCBatch()
 	for i := 1; i <= 8; i++ {
 		portName := dut.Port(t, fmt.Sprintf("port%d", i)).Name()
-		outPkts := gnmi.Get(t, dut, gnmi.OC().Interface(portName).Counters().OutUnicastPkts().State())
-		counters[portName] = outPkts
+		batch.AddPaths(gnmi.OC().Interface(portName).Counters().OutUnicastPkts().State().PathStruct())
+	}
+	got := gnmi.Get(t, dut, batch.State())
+	for i := 1; i <= 8; i++ {
+		portName := dut.Port(t, fmt.Sprintf("port%d", i)).Name()
+		intf := got.GetInterface(portName)
+		if intf == nil || intf.GetCounters() == nil {
+			counters[portName] = 0
+			continue
+		}
+		counters[portName] = intf.GetCounters().GetOutUnicastPkts()
 	}
 	return counters
 }
@@ -255,6 +266,14 @@ func createFlow(t *testing.T, top gosnappi.Config, name string, srcRx string, ds
 	return flow
 }
 
+func assertOTGFlowTransmits(t *testing.T, ate *ondatra.ATEDevice, flowName string) {
+	t.Helper()
+	flowState := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).State())
+	if flowState.GetCounters() == nil || flowState.GetCounters().GetOutPkts() == 0 {
+		t.Fatalf("flow %s did not transmit any packets", flowName)
+	}
+}
+
 func applyStaticRoutes(t *testing.T, dut *ondatra.DUTDevice, nexthops []string, dstIPv4 string, dstIPv6 string) {
 	t.Helper()
 	b := &gnmi.SetBatch{}
@@ -295,10 +314,35 @@ func testRouteWithVLAN(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDev
 	ate.OTG().StartTraffic(t)
 	time.Sleep(10 * time.Second)
 	ate.OTG().StopTraffic(t)
-	after := fetchDUTCounters(t, dut)
 
 	port1 := dut.Port(t, "port1").Name()
 	port2 := dut.Port(t, "port2").Name()
+	batch := gnmi.OCBatch()
+	batch.AddPaths(
+		gnmi.OC().Interface(port1).Counters().OutUnicastPkts().State().PathStruct(),
+		gnmi.OC().Interface(port2).Counters().OutUnicastPkts().State().PathStruct(),
+	)
+
+	watcher := gnmi.Watch(t, dut, batch.State(), 60*time.Second, func(v *ygnmi.Value[*oc.Root]) bool {
+		got, present := v.Val()
+		if !present {
+			return false
+		}
+		if got.GetInterface(port1) != nil && got.GetInterface(port1).GetCounters() != nil &&
+			got.GetInterface(port1).GetCounters().GetOutUnicastPkts() >= before[port1]+100 {
+			return true
+		}
+		if got.GetInterface(port2) != nil && got.GetInterface(port2).GetCounters() != nil &&
+			got.GetInterface(port2).GetCounters().GetOutUnicastPkts() >= before[port2]+100 {
+			return true
+		}
+		return false
+	})
+	if _, ok := watcher.Await(t); !ok {
+		t.Fatalf("DUT counters did not update after traffic stop")
+	}
+
+	after := fetchDUTCounters(t, dut)
 	if (after[port1]-before[port1]) < 100 && (after[port2]-before[port2]) < 100 {
 		t.Errorf("Traffic not routed out of Port 1 or 2 properly")
 	}
@@ -314,11 +358,38 @@ func testRouteWithLAG(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 	ate.OTG().StartProtocols(t)
 	time.Sleep(10 * time.Second)
 
+	before := gnmi.Get(t, dut, gnmi.OC().Interface(lag1Name).Counters().OutUnicastPkts().State())
 	ate.OTG().StartTraffic(t)
 	time.Sleep(10 * time.Second)
+	ate.OTG().StopTraffic(t)
+
+	watcher := gnmi.Watch(t, dut, gnmi.OC().Interface(lag1Name).Counters().OutUnicastPkts().State(), 60*time.Second, func(v *ygnmi.Value[uint64]) bool {
+		got, present := v.Val()
+		return present && got >= before+100
+	})
+	if _, ok := watcher.Await(t); !ok {
+		t.Fatalf("LAG interface counters did not update after traffic stop")
+	}
+
+	after := gnmi.Get(t, dut, gnmi.OC().Interface(lag1Name).Counters().OutUnicastPkts().State())
+	if after-before < 100 {
+		t.Errorf("Traffic not routed out of LAG interface properly: got %d packets, want >= 100", after-before)
+	}
 }
 
 func testLAGFailure(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config) {
+	applyStaticRoutes(t, dut, []string{"198.51.101.2"}, "203.0.114.0/24", "2001:db8:214::/64")
+
+	top.Flows().Clear()
+	createFlow(t, top, "flow_lag_failure_v4", atePort8.Name+".IPv4", []string{"ateLag1IPv4"}, atePort8.IPv4, "203.0.114.1", atePort8.IPv6, "2001:db8:214::1", false)
+	createFlow(t, top, "flow_lag_failure_v6", atePort8.Name+".IPv6", []string{"ateLag1IPv6"}, atePort8.IPv4, "203.0.114.1", atePort8.IPv6, "2001:db8:214::1", true)
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
+	time.Sleep(10 * time.Second)
+
+	ate.OTG().StartTraffic(t)
+	time.Sleep(10 * time.Second)
+
 	portStateAction := gosnappi.NewControlState()
 	portStateAction.Port().Link().SetPortNames([]string{ate.Port(t, "port3").ID(), ate.Port(t, "port4").ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
 	ate.OTG().SetControlState(t, portStateAction)
@@ -333,7 +404,13 @@ func testLAGFailure(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice
 
 	gnmi.Await(t, dut, gnmi.OC().Interface(lag1Name).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
 	time.Sleep(10 * time.Second)
+
 	ate.OTG().StopTraffic(t)
+
+	flowState := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow("flow_lag_failure_v4").State())
+	if flowState.GetCounters().GetOutPkts() == 0 {
+		t.Errorf("Traffic flow did not transmit after LAG failure recovery")
+	}
 }
 
 func testECMPAndFIB(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config) {
@@ -420,9 +497,14 @@ func testECMPAndFIB(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice
 	// Step 6 (Verify Remove)
 	time.Sleep(10 * time.Second)
 
+	flowMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow("flow_ecmp_v4").State())
+	if flowMetric.GetCounters() == nil || flowMetric.GetCounters().GetOutPkts() == 0 {
+		t.Fatalf("flow_ecmp_v4 did not continue transmitting after route removal")
+	}
+
 	// Step 7 (Simulate Linecard OIR by Admin-disable)
 	t.Cleanup(func() {
-    gnmi.Replace(t, dut, gnmi.OC().Interface(dut.Port(t, "port7").Name()).Enabled().Config(), true)
+		gnmi.Replace(t, dut, gnmi.OC().Interface(dut.Port(t, "port7").Name()).Enabled().Config(), true)
 	})
 	gnmi.Replace(t, dut, gnmi.OC().Interface(dut.Port(t, "port7").Name()).Enabled().Config(), false)
 	time.Sleep(10 * time.Second)
