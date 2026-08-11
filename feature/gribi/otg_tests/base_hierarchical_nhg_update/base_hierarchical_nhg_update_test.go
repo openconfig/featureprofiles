@@ -610,9 +610,7 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad, lb []
 			macFilter = pMACFilter
 		}
 		if !change {
-			if got := getLossPct(t, flow.Name()); got > 0 {
-				t.Errorf("LossPct for flow %s: got %v, want 0", flow.Name(), got)
-			}
+			otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), 0, 0)
 		}
 		etPath := gnmi.OTG().Flow(flow.Name()).TaggedMetricAny()
 		ets := gnmi.GetAll(t, ate.OTG(), etPath.State())
@@ -644,9 +642,7 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad, lb []
 			macFilter = pMACFilter
 		}
 		if !change {
-			if diff := cmp.Diff(float32(lbPct), getLossPct(t, flow.Name()), cmpopts.EquateApprox(0, lbPrecision)); diff != "" {
-				t.Errorf("Received number of packets -want,+got:\n%s", diff)
-			}
+			otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), float64(100.0-lbPct-lbPrecision), float64(100.0-lbPct+lbPrecision))
 		}
 		etPath := gnmi.OTG().Flow(flow.Name()).TaggedMetricAny()
 		ets := gnmi.GetAll(t, ate.OTG(), etPath.State())
@@ -666,9 +662,7 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad, lb []
 	}
 	for _, flow := range bad {
 		if !change {
-			if got := getLossPct(t, flow.Name()); got < 100 {
-				t.Errorf("LossPct for flow %s: got %v, want 100", flow.Name(), got)
-			}
+			otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), 100, 100)
 		}
 	}
 
@@ -991,17 +985,4 @@ func addStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Update(t, dut, d.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), ni)
 }
 
-// getLossPct returns the loss percentage for a given flow
-func getLossPct(t *testing.T, flowName string) float32 {
-	t.Helper()
-	otg := ondatra.ATE(t, "ate").OTG()
-	flowStats := gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).State())
-	txPackets := flowStats.GetCounters().GetOutPkts()
-	rxPackets := flowStats.GetCounters().GetInPkts()
-	lostPackets := txPackets - rxPackets
-	if txPackets == 0 {
-		t.Fatalf("Tx packets should be higher than 0 for flow %s", flowName)
-	}
-	lossPct := 100 * (float32(lostPackets) / float32(txPackets))
-	return lossPct
-}
+

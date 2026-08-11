@@ -433,25 +433,7 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, co
 
 	otgutils.LogFlowMetrics(t, ate.OTG(), config)
 	otgutils.LogPortMetrics(t, ate.OTG(), config)
-	if got := getLossPct(t, ate, good); got > 0 {
-		t.Errorf("LossPct for flow %s: got %v, want 0", good, got)
-	}
-	if got := getLossPct(t, ate, bad); got < 100 {
-		t.Errorf("LossPct for flow %s: got %v, want 100", bad, got)
-	}
+	otgutils.ExpectedTrafficLoss(t, ate.OTG(), good, 0, 0)
+	otgutils.ExpectedTrafficLoss(t, ate.OTG(), bad, 100, 100)
 
-}
-
-// getLossPct returns the loss percentage for a given flow
-func getLossPct(t *testing.T, ate *ondatra.ATEDevice, flowName string) float32 {
-	t.Helper()
-	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).State())
-	txPackets := float32(recvMetric.GetCounters().GetOutPkts())
-	rxPackets := float32(recvMetric.GetCounters().GetInPkts())
-	lostPackets := txPackets - rxPackets
-	if txPackets == 0 {
-		t.Fatalf("Tx packets should be higher than 0 for flow %s", flowName)
-	}
-	lossPct := lostPackets * 100 / txPackets
-	return lossPct
 }

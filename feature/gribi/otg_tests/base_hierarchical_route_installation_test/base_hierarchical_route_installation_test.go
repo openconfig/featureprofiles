@@ -382,8 +382,8 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, name 
 	return flow
 }
 
-// validateTraffic will return loss percentage of traffic
-func ValidateTraffic(t *testing.T, ate *ondatra.ATEDevice, flow gosnappi.Flow, flowFilter string) float32 {
+// validateTraffic will verify loss percentage of traffic
+func ValidateTraffic(t *testing.T, ate *ondatra.ATEDevice, flow gosnappi.Flow, flowFilter string, minLossPct, maxLossPct float64) {
 	top := ate.OTG().GetConfig(t)
 	top.Flows().Clear()
 	top.Flows().Append(flow)
@@ -396,11 +396,10 @@ func ValidateTraffic(t *testing.T, ate *ondatra.ATEDevice, flow gosnappi.Flow, f
 	time.Sleep(45 * time.Second)
 
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
+	otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), minLossPct, maxLossPct)
 
-	txPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
-	rxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State())
-	lossPct := float32(txPkts-rxPkts) * 100 / float32(txPkts)
-	if int(lossPct) == 0 && flowFilter != "" {
+	if minLossPct == 0 && flowFilter != "" {
+		rxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State())
 		etPath := gnmi.OTG().Flow(flow.Name()).TaggedMetricAny()
 		ets := gnmi.GetAll(t, ate.OTG(), etPath.State())
 		if got := len(ets); got != 1 {
@@ -415,7 +414,6 @@ func ValidateTraffic(t *testing.T, ate *ondatra.ATEDevice, flow gosnappi.Flow, f
 			t.Errorf("EgressTracking counter in-pkts got %d, want %d", got, rxPkts)
 		}
 	}
-	return float32(lossPct)
 }
 
 // testArgs holds the objects needed by a test case.
@@ -536,9 +534,7 @@ func testRecursiveIPv4EntrywithIPNexthop(t *testing.T, args *testArgs) {
 
 	t.Run("ValidateTraffic", func(t *testing.T) {
 		t.Log("Validate Traffic is recieved on atePort2 with IP next-hop")
-		if got, want := ValidateTraffic(t, args.ate, baseFlow, ""), 0; int(got) != want {
-			t.Errorf("Loss: got %v, want %v", got, want)
-		}
+		ValidateTraffic(t, args.ate, baseFlow, "", 0, 0)
 	})
 
 	t.Logf("Deleting NH entry and verifing there is no traffic")
@@ -550,9 +546,7 @@ func testRecursiveIPv4EntrywithIPNexthop(t *testing.T, args *testArgs) {
 	}
 	t.Run("ValidateNoTrafficAfterNHDelete", func(t *testing.T) {
 		t.Log("Validate No traffic Traffic is recieved on atePort2 after NH delete")
-		if got, want := ValidateTraffic(t, args.ate, baseFlow, ""), 100; int(got) != want {
-			t.Errorf("Loss: got %v, want %v", got, want)
-		}
+		ValidateTraffic(t, args.ate, baseFlow, "", 100, 100)
 	})
 }
 
@@ -589,9 +583,7 @@ func testRecursiveIPv4EntrywithMACNexthop(t *testing.T, args *testArgs) {
 	})
 	t.Run("ValidateTraffic", func(t *testing.T) {
 		t.Log("Validate Traffic is recieved on atePort2 with dst MAC as gRIBI NH MAC")
-		if got, want := ValidateTraffic(t, args.ate, baseFlow, macFilter), 0; int(got) != want {
-			t.Errorf("Loss: got %v, want %v", got, want)
-		}
+		ValidateTraffic(t, args.ate, baseFlow, macFilter, 0, 0)
 	})
 
 	t.Logf("Deleting NH entry and verifing there is no traffic")
@@ -603,9 +595,7 @@ func testRecursiveIPv4EntrywithMACNexthop(t *testing.T, args *testArgs) {
 	}
 	t.Run("ValidateNoTrafficAfterNHDelete", func(t *testing.T) {
 		t.Log("Validate No traffic Traffic is recieved on atePort2 after NH delete")
-		if got, want := ValidateTraffic(t, args.ate, baseFlow, macFilter), 100; int(got) != want {
-			t.Errorf("Loss: got %v, want %v", got, want)
-		}
+		ValidateTraffic(t, args.ate, baseFlow, macFilter, 100, 100)
 	})
 }
 
@@ -640,9 +630,7 @@ func testRecursiveIPv4EntrywithVrfPolW(t *testing.T, args *testArgs) {
 
 	t.Run("ValidateTraffic", func(t *testing.T) {
 		t.Log("Validate Traffic is recieved on atePort2 with IP next-hop")
-		if got, want := ValidateTraffic(t, args.ate, baseFlow, ""), 0; int(got) != want {
-			t.Errorf("Loss: got %v, want %v", got, want)
-		}
+		ValidateTraffic(t, args.ate, baseFlow, "", 0, 0)
 	})
 
 	t.Logf("Deleting NH entry and verifing there is no traffic")
@@ -654,9 +642,7 @@ func testRecursiveIPv4EntrywithVrfPolW(t *testing.T, args *testArgs) {
 	}
 	t.Run("ValidateNoTrafficAfterNHDelete", func(t *testing.T) {
 		t.Log("Validate No traffic Traffic is recieved on atePort2 after NH delete")
-		if got, want := ValidateTraffic(t, args.ate, baseFlow, ""), 100; int(got) != want {
-			t.Errorf("Loss: got %v, want %v", got, want)
-		}
+		ValidateTraffic(t, args.ate, baseFlow, "", 100, 100)
 	})
 }
 

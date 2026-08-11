@@ -529,28 +529,7 @@ func verifyTraffic(t *testing.T, args *testArgs, flowList []string) {
 	t.Helper()
 	for _, flowName := range flowList {
 		t.Logf("Verifying flow metrics for the flow %s\n", flowName)
-		if _, ok := gnmi.Watch(t, args.ate.OTG(), gnmi.OTG().Flow(flowName).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
-			f, present := val.Val()
-			return present && f.GetCounters() != nil && f.GetCounters().GetOutPkts() >= uint64(1000)
-		}).Await(t); !ok {
-			t.Errorf("Flow %s did not send any packets", flowName)
-		}
-		recvMetric := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Flow(flowName).State())
-		txPackets := recvMetric.GetCounters().GetOutPkts()
-		rxPackets := recvMetric.GetCounters().GetInPkts()
-
-		lostPackets := txPackets - rxPackets
-		var lossPct uint64
-		if txPackets != 0 {
-			lossPct = lostPackets * 100 / txPackets
-		} else {
-			t.Errorf("Traffic stats are not correct %v", recvMetric)
-		}
-		if lossPct > tolerancePct {
-			t.Errorf("Traffic Loss Pct for Flow: %s\n got %v, want 0", flowName, lossPct)
-		} else {
-			t.Logf("Traffic Test Passed!")
-		}
+		otgutils.ExpectedTrafficLoss(t, args.ate.OTG(), flowName, 0, tolerancePct)
 	}
 }
 

@@ -50,6 +50,8 @@ import (
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
+
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 )
 
 func TestMain(m *testing.M) {
@@ -730,31 +732,10 @@ func sendTraffic(t *testing.T, args *testArgs, capturePortList []string, cs gosn
 func verifyTraffic(t *testing.T, args *testArgs, capturePortList []string, loadBalancePercent []float64, wantLoss, checkEncap bool, headerDstIP map[string][]string) {
 	t.Helper()
 
-	waitForFlowMetricsReady(t, args.otg, encapFlow, 1*time.Minute)
-
-	t.Logf("Verifying flow metrics for the flow: encapFlow\n")
-	recvMetric := gnmi.Get(t, args.otg, gnmi.OTG().Flow(encapFlow).State())
-	txPackets := recvMetric.GetCounters().GetOutPkts()
-	rxPackets := recvMetric.GetCounters().GetInPkts()
-	lostPackets := txPackets - rxPackets
-	var lossPct uint64
-	if txPackets != 0 {
-		lossPct = lostPackets * 100 / txPackets
-	} else {
-		t.Errorf("Traffic stats are not correct %v", recvMetric)
-	}
 	if wantLoss {
-		if lossPct < 100-tolerancePct {
-			t.Errorf("Traffic is expected to fail %s\n got %v, want 100%% failure", encapFlow, lossPct)
-		} else {
-			t.Logf("Traffic Loss Test Passed!")
-		}
+		otgutils.ExpectedTrafficLoss(t, args.otg, encapFlow, 100-tolerancePct, 100)
 	} else {
-		if lossPct > tolerancePct {
-			t.Errorf("Traffic Loss Pct for Flow: %s\n got %v, want 0", encapFlow, lossPct)
-		} else {
-			t.Logf("Traffic Test Passed!")
-		}
+		otgutils.ExpectedTrafficLoss(t, args.otg, encapFlow, 0, tolerancePct)
 	}
 	t.Log("Verify packet load balancing as per the programmed weight")
 	validateTrafficDistribution(t, args.ate, loadBalancePercent)
@@ -775,66 +756,6 @@ func verifyTraffic(t *testing.T, args *testArgs, capturePortList []string, loadB
 	args.otgConfig.Captures().Clear()
 	args.otg.PushConfig(t, args.otgConfig)
 	time.Sleep(30 * time.Second)
-}
-
-// waitForFlowMetricsReady waits until a flow's TX/RX counters stop changing, or fails after timeout.
-//
-// This helper reduces flakiness caused by asynchronous OTG metric propagation immediately
-// after traffic stop. It polls flow counters once per second and requires multiple
-// consecutive identical samples before considering metrics "stable".
-//
-// Behavior:
-//   - Polls `gnmi.OTG().Flow(flowName).State()` every `pollInterval`.
-//   - Extracts OutPkts (tx) and InPkts (rx) counters.
-//   - Treats counters as stable when the same `(tx, rx)` pair is observed in
-//     `stableReads` consecutive polls.
-//   - Calls `t.Fatalf` if stability is not reached within `timeout`.
-//
-// Notes:
-//   - `stableReads` > 1 avoids accepting a single transient repeated sample.
-//   - This function is intended for test code and therefore fails the test directly
-//     on timeout rather than returning an error.
-func waitForFlowMetricsReady(t *testing.T, otgDev *otg.OTG, flowName string, timeout time.Duration) {
-	const pollInterval = time.Second
-	const stableReads = 2 // Require N consecutive identical reads to reduce jitter.
-
-	type counters struct {
-		tx uint64
-		rx uint64
-	}
-
-	deadline := time.Now().Add(timeout)
-	var (
-		prev      counters
-		havePrev  bool
-		stableCnt int
-		last      counters
-	)
-
-	for time.Now().Before(deadline) {
-		flowMetric := gnmi.Get(t, otgDev, gnmi.OTG().Flow(flowName).State())
-		cur := counters{
-			tx: flowMetric.GetCounters().GetOutPkts(),
-			rx: flowMetric.GetCounters().GetInPkts(),
-		}
-		last = cur
-
-		if havePrev && cur == prev {
-			stableCnt++
-			if stableCnt >= stableReads {
-				t.Logf("Flow %q metrics stabilized: tx=%d rx=%d", flowName, cur.tx, cur.rx)
-				return
-			}
-		} else {
-			stableCnt = 0
-		}
-
-		prev = cur
-		havePrev = true
-		time.Sleep(pollInterval)
-	}
-
-	t.Fatalf("Flow %q metrics did not stabilize within %s (last tx=%d rx=%d)", flowName, timeout, last.tx, last.rx)
 }
 
 func validatePackets(t *testing.T, filename []string, checkEncap bool, headerDstIP map[string][]string) {
