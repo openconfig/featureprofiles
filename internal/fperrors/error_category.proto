@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package openconfig.featureprofiles.fperrors;
 
-option go_package = "google3/third_party/openconfig/featureprofiles/internal/fperrors/fperrors_go_proto";
+option go_package = "github.com/openconfig/featureprofiles/internal/fperrors/fperrors_go_proto";
 
 // ErrorCategory categorizes the failures in featureprofiles tests.
 enum ErrorCategory {
