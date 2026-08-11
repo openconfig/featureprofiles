@@ -187,7 +187,7 @@ func fetchDUTCounters(t *testing.T, dut *ondatra.DUTDevice) map[string]uint64 {
 	batch := gnmi.OCBatch()
 	for i := 1; i <= 8; i++ {
 		portName := dut.Port(t, fmt.Sprintf("port%d", i)).Name()
-		batch.AddPaths(gnmi.OC().Interface(portName).Counters().OutUnicastPkts().State().PathStruct())
+		batch.AddPaths(gnmi.OC().Interface(portName).Counters().OutUnicastPkts().State())
 	}
 	got := gnmi.Get(t, dut, batch.State())
 	for i := 1; i <= 8; i++ {
