@@ -1194,11 +1194,19 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespon
 	if err != nil {
 		t.Fatalf("Got unexpected error during gribi get request, error: %s", err)
 	}
+	rpcExpStatus := acctzpb.AuthzDetail_AUTHZ_STATUS_DENY
 	_, err = gribiGetClient.Recv()
-	if err != nil && status.Code(err) == codes.PermissionDenied {
-		t.Logf("Got expected error during gribi recv request with no permissions, error: %s", err)
+	if deviations.GribiAaaRoleBasedAuthzUnsupported(dut) {
+		rpcExpStatus = acctzpb.AuthzDetail_AUTHZ_STATUS_PERMIT
+		if err != nil {
+			t.Errorf("Got unexpected error during gribi recv request, error: %s", err)
+		}
 	} else {
-		t.Errorf("Did not get expected error during gribi recv request with no permissions. error: %s", err)
+		if err != nil && status.Code(err) == codes.PermissionDenied {
+			t.Logf("Got expected error during gribi recv request with no permissions, error: %s", err)
+		} else {
+			t.Errorf("Did not get expected error during gribi recv request with no permissions. error: %s", err)
+		}
 	}
 
 	records = append(records, &acctzpb.RecordResponse{
@@ -1207,7 +1215,7 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespon
 				ServiceType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GRIBI,
 				RpcName:     gribiGetPath,
 				Authz: &acctzpb.AuthzDetail{
-					Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY, gribiGetPath),
+					Status: expectedAuthzStatus(dut, rpcExpStatus, gribiGetPath),
 				},
 			},
 		},
@@ -1343,11 +1351,19 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	if err != nil {
 		t.Fatalf("Got unexpected error during p4rt get request, error: %s", err)
 	}
+	rpcExpStatus := acctzpb.AuthzDetail_AUTHZ_STATUS_DENY
 	_, err = p4rtclient.Capabilities(ctx, &p4pb.CapabilitiesRequest{})
-	if err != nil && status.Code(err) == codes.PermissionDenied {
-		t.Logf("Got expected error getting p4rt capabilities with no permissions, error: %s", err)
+	if deviations.P4RTAaaRoleBasedAuthzUnsupported(dut) {
+		rpcExpStatus = acctzpb.AuthzDetail_AUTHZ_STATUS_PERMIT
+		if err != nil {
+			t.Errorf("Got unexpected error during p4rt capabilities request, error: %s", err)
+		}
 	} else {
-		t.Errorf("Did not get expected error fetching pr4t capabilities with no permissions, error: %s", err)
+		if err != nil && status.Code(err) == codes.PermissionDenied {
+			t.Logf("Got expected error getting p4rt capabilities with no permissions, error: %s", err)
+		} else {
+			t.Errorf("Did not get expected error fetching pr4t capabilities with no permissions, error: %s", err)
+		}
 	}
 	if !deviations.AcctzRecordFailGrpcUnsupported(dut) {
 		records = append(records, &acctzpb.RecordResponse{
@@ -1356,7 +1372,7 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 					ServiceType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_P4RT,
 					RpcName:     p4rtCapabilitiesPath,
 					Authz: &acctzpb.AuthzDetail{
-						Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY, p4rtCapabilitiesPath),
+						Status: expectedAuthzStatus(dut, rpcExpStatus, p4rtCapabilitiesPath),
 					},
 				},
 			},

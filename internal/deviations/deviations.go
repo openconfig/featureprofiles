@@ -2346,3 +2346,13 @@ func AftsGlobalFilterPolicyConfigReferenceValidationUnsupported(dut *ondatra.DUT
 func VrfSelectionPolicyNonDefaultNIUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetVrfSelectionPolicyNonDefaultNiUnsupported()
 }
+
+// GribiAaaRoleBasedAuthzUnsupported returns true if no gRIBI AAA role based Authorization support
+func GribiAaaRoleBasedAuthzUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGribiAaaRoleBasedAuthzUnsupported()
+}
+
+// P4RTAaaRoleBasedAuthzUnsupported returns true if no P4RT AAA role based Authorization support
+func P4RTAaaRoleBasedAuthzUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetP4RtAaaRoleBasedAuthzUnsupported()
+}
