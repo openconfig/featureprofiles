@@ -126,12 +126,15 @@ func TestBootz1_3ValidMinimumConfig(t *testing.T) {
 }
 
 func runBootzPositiveTest(t *testing.T, postBootz func(*testing.T, *ondatra.DUTDevice, *statusTracker)) {
+	// Step 1: The test initializes the bootz server with a bootstrap response based on the test scenario.
 	dut := ondatra.DUT(t, *dutID)
 
 	chassis := getChassisSerial(t, dut)
 	if *godhcpdAddr != "" {
 		configureDHCPForDUT(t, dut, chassis)
-		defer deleteDHCPRecord(t, *godhcpdAddr, chassis)
+		t.Cleanup(func() {
+			deleteDHCPRecord(t, *godhcpdAddr, chassis)
+		})
 	}
 
 	controlCards := getControllerCardSerials(t, dut)
@@ -157,18 +160,24 @@ func runBootzPositiveTest(t *testing.T, postBootz func(*testing.T, *ondatra.DUTD
 			t.Logf("Bootz server stopped: %v", err)
 		}
 	}()
-	defer srv.Stop()
+	t.Cleanup(srv.Stop)
 
+	// Step 2: The test initiates bootz via a gNOI factory reset request.
 	initiateBootz(t, dut)
 
+	// Step 3: The test validates that the device has sent a BootStrapRequest to the server.
 	tracker.awaitBootstrapRequest(t, bootzStartTimeout)
+	// Step 4: The test validates that the server has received ReportStatusRequest(s) with BOOTSTRAP_STATUS_INITIATED and CONTROL_CARD_STATUS_UNINITIALIZED for each controller card.
 	tracker.awaitBootstrapStatus(t, bootzpb.ReportStatusRequest_BOOTSTRAP_STATUS_INITIATED, bootzStartTimeout)
 	tracker.awaitControlCardStatus(t, bootzpb.ControlCardState_CONTROL_CARD_STATUS_NOT_INITIALIZED, bootzStartTimeout)
+	// Step 5: The test validates that the server has received ReportStatusRequest(s) with BOOTSTRAP_STATUS_SUCCESS.
 	tracker.awaitBootstrapStatus(t, bootzpb.ReportStatusRequest_BOOTSTRAP_STATUS_SUCCESS, bootzCompleteTimeout)
 	tracker.awaitControlCardStatus(t, bootzpb.ControlCardState_CONTROL_CARD_STATUS_INITIALIZED, bootzCompleteTimeout)
 
+	// Step 6: The test validates the telemetry.
 	awaitBootzStatus(t, dut, oc.Bootz_Status_BOOTZ_OK, bootupTimeout)
 	validateBootzTelemetry(t, dut, preLastAttempt, tracker.bootstrapDataChecksum())
+	// Step 7: The test validates the software image version against the expected version.
 	validateSoftwareVersion(t, dut, preVersion)
 	if postBootz != nil {
 		postBootz(t, dut, tracker)
