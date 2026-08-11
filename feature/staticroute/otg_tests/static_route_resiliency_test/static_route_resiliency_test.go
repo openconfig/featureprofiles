@@ -308,7 +308,8 @@ func testRouteWithVLAN(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDev
 	createFlow(t, top, "flow_vlan_v6", atePort8.Name+".IPv6", rxNamesV6, atePort8.IPv4, "203.0.113.1", atePort8.IPv6, "2001:db8:213::1", true)
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
-	time.Sleep(10 * time.Second)
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 
 	before := fetchDUTCounters(t, dut)
 	ate.OTG().StartTraffic(t)
