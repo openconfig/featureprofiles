@@ -19,12 +19,12 @@ import (
 	"testing"
 	"time"
 
-	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
-	"google3/third_party/openconfig/ondatra/otg/otg"
-	"google3/third_party/openconfig/ygnmi/ygnmi/ygnmi"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/otg"
+	"github.com/openconfig/ygnmi/ygnmi"
 
-	fperrorspb "google3/third_party/openconfig/featureprofiles/internal/fperrors/fperrors_go_proto"
-	otgtelemetry "google3/third_party/openconfig/ondatra/gnmi/otg/otg"
+	fperrorspb "github.com/openconfig/featureprofiles/internal/fperrors/fperrors_go_proto"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 )
 
 // ExpectedTrafficLoss checks if traffic loss for a given flow is within the expected range (minLossPct to maxLossPct).
