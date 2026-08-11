@@ -34,7 +34,7 @@ func ExpectedTrafficLoss(t testing.TB, otg *otg.OTG, flowName string, minLossPct
 	t.Helper()
 	_, ok := gnmi.Watch(t, otg, gnmi.OTG().Flow(flowName).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
 		recvMetric, present := val.Val()
-		if !present || recvMetric.GetCounters() == nil {
+		if !present || recvMetric == nil || recvMetric.GetCounters() == nil {
 			return false
 		}
 		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
@@ -46,7 +46,16 @@ func ExpectedTrafficLoss(t testing.TB, otg *otg.OTG, flowName string, minLossPct
 		return lossPct >= minLossPct-0.01 && lossPct <= maxLossPct+0.01
 	}).Await(t)
 
+	if ok {
+		t.Logf("Traffic validation successful for flow %s", flowName)
+		return
+	}
+
 	recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).State())
+	if recvMetric == nil || recvMetric.GetCounters() == nil {
+		t.Fatalf("[%s] OTG traffic generation failed: missing metrics for flow %s", fperrorspb.ErrorCategory_ERROR_CATEGORY_TRAFFIC_GENERATION_FAILED.String(), flowName)
+	}
+
 	txPackets := float32(recvMetric.GetCounters().GetOutPkts())
 	rxPackets := float32(recvMetric.GetCounters().GetInPkts())
 	if txPackets == 0 {
@@ -57,8 +66,5 @@ func ExpectedTrafficLoss(t testing.TB, otg *otg.OTG, flowName string, minLossPct
 	}
 	lossPct := (txPackets - rxPackets) * 100.0 / txPackets
 
-	if !ok || lossPct < minLossPct-0.01 || lossPct > maxLossPct+0.01 {
-		t.Fatalf("[%s] Generic Test Assertion Failure: Flow %s: got %v, want between %v and %v", fperrorspb.ErrorCategory_ERROR_CATEGORY_TEST_ASSERTION_FAILURE.String(), flowName, lossPct, minLossPct, maxLossPct)
-	}
-	t.Logf("Traffic validation successful for flow %s: got %v, want between %v and %v", flowName, lossPct, minLossPct, maxLossPct)
+	t.Fatalf("[%s] Generic Test Assertion Failure: Flow %s: got %v, want between %v and %v", fperrorspb.ErrorCategory_ERROR_CATEGORY_TEST_ASSERTION_FAILURE.String(), flowName, lossPct, minLossPct, maxLossPct)
 }
