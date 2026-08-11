@@ -80,8 +80,11 @@ func initializeMultiAdjISISScaleTestData(t *testing.T) *isisscalehelpers.TestDat
 			blockCount:     1,
 		},
 	}
-	aggregateCount := 8
-	subInterfacesCountPerAggregate := 12
+	aggregateCount := 4
+	// NOTE(scale): subInterfacesCountPerAggregate is set to 76 across 4 aggregate interfaces
+	// to establish 304 total IS-IS Level 2 adjacencies (4 x 76 = 304). This allows running on 4-port
+	// physical testbeds (testbed_dut_ate_4links.textproto) while maintaining the 304 adjacency target.
+	subInterfacesCountPerAggregate := 76
 	initialVlanID := 1000
 	initialIPv4Address := net.ParseIP("192.0.0.1")
 	initialIPv6Address := net.ParseIP("2001:db8::1")
@@ -93,10 +96,14 @@ func initializeMultiAdjISISScaleTestData(t *testing.T) *isisscalehelpers.TestDat
 			DUTArea:  "49.0001",
 			DUTSysID: "1920.0000.2001",
 		},
+		ISISAuthKey: "google_isis_key",
 	}
 
 	// Create ATE data.
 	ateEmulatedRouterData := isisscalehelpers.CreateATEEmulatedRouterData(t, dutData.Lags)
+	for _, er := range ateEmulatedRouterData {
+		er.ISISAuthKey = "google_isis_key"
+	}
 	lagToErouterMap := make(map[int][]*otgconfighelpers.AteEmulatedRouterData)
 	for i := 0; i < aggregateCount; i++ {
 		lagToErouterMap[i] = ateEmulatedRouterData[i*subInterfacesCountPerAggregate : (i+1)*subInterfacesCountPerAggregate]
