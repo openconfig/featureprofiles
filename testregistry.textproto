@@ -1415,6 +1415,7 @@ test: {
   id: "SYS-5.1"
   description: "Configuration Commit Validation after Large gNMI-Set and reboot in parallel"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/scale/otg_tests/large_gnmi_set_and_reboot/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/scale/otg_tests/large_gnmi_set_and_reboot/large_gnmi_set_and_reboot_test.go"
 }
 test: {
   id: "SYS-6.1"
