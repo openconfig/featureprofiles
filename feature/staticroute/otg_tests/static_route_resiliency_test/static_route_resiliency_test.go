@@ -410,8 +410,11 @@ func testLAGFailure(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice
 
 	ate.OTG().StopTraffic(t)
 
-	flowState := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow("flow_lag_failure_v4").State())
-	if flowState.GetCounters().GetOutPkts() == 0 {
+	watcher := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow("flow_lag_failure_v4").State(), 10*time.Second, func(v *ygnmi.Value[*oc.Otg_Flow]) bool {
+		val, present := v.Val()
+		return present && val.GetCounters() != nil && val.GetCounters().GetOutPkts() > 0
+	})
+	if _, ok := watcher.Await(t); !ok {
 		t.Errorf("Traffic flow did not transmit after LAG failure recovery")
 	}
 }
