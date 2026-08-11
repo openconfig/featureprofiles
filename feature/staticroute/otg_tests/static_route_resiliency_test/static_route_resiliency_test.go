@@ -426,7 +426,8 @@ func testECMPAndFIB(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice
 	createFlow(t, top, "flow_ecmp_v4", atePort8.Name+".IPv4", []string{"ateLag1IPv4"}, atePort8.IPv4, "203.0.115.1", atePort8.IPv6, "2001:db8:215::1", false)
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
-	time.Sleep(10 * time.Second)
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 
 	ate.OTG().StartTraffic(t)
 	time.Sleep(10 * time.Second)
