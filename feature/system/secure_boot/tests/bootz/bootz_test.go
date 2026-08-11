@@ -93,9 +93,7 @@ const (
 	authzPolicyJSON      = `{"name":"simple_authz_policy","allow_rules":[{"name":"allow_all","source":{"principals":["*"]},"request":{"paths":["*"]}}]}`
 )
 
-func TestMain(m *testing.M) {
-	flag.Parse()
-
+func setupEnvironment() {
 	if _, _, err := net.SplitHostPort(*bootzAddr); err != nil {
 		port, err := freePort()
 		if err != nil {
@@ -114,7 +112,11 @@ func TestMain(m *testing.M) {
 			panic(fmt.Sprintf("failed to parse binding file: %v", err))
 		}
 	}
+}
 
+func TestMain(m *testing.M) {
+	flag.Parse()
+	setupEnvironment()
 	fptest.RunTests(m)
 }
 
