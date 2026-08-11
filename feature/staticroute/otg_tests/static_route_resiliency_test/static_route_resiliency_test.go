@@ -320,8 +320,8 @@ func testRouteWithVLAN(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDev
 	port2 := dut.Port(t, "port2").Name()
 	batch := gnmi.OCBatch()
 	batch.AddPaths(
-		gnmi.OC().Interface(port1).Counters().OutUnicastPkts().State().PathStruct(),
-		gnmi.OC().Interface(port2).Counters().OutUnicastPkts().State().PathStruct(),
+		gnmi.OC().Interface(port1).Counters().OutUnicastPkts().State(),
+		gnmi.OC().Interface(port2).Counters().OutUnicastPkts().State(),
 	)
 
 	watcher := gnmi.Watch(t, dut, batch.State(), 60*time.Second, func(v *ygnmi.Value[*oc.Root]) bool {
