@@ -158,6 +158,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) ([]*ondatra.Port, string
 		}
 	})
 	return ports, lagName
+}
 
 // configureOTG configures the OTG with LACP bundle and continuous data-plane traffic.
 func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
