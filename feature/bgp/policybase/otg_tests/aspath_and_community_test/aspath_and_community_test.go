@@ -265,51 +265,10 @@ func configureFlow(t *testing.T, bs *cfgplugins.BGPSession, prefixPair []string,
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, prefixType string, testResults bool, index int) {
 	defer otgutils.LogFlowMetrics(t, ate.OTG(), c)
 	flowName := "flow" + prefixType + strconv.Itoa(index)
-	gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flowName).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
-		f, present := val.Val()
-		if !present || f.GetCounters() == nil {
-			return false
-		}
-		framesTx := float32(f.GetCounters().GetOutPkts())
-		framesRx := float32(f.GetCounters().GetInPkts())
-		if framesTx == 0 {
-			return false
-		}
-		if framesRx > framesTx {
-			return false
-		}
-		if testResults {
-			lossPct := float32(framesTx-framesRx) * 100 / float32(framesTx)
-			return int(lossPct) <= int(0)
-		} else {
-			return framesRx == 0
-		}
-	}).Await(t)
-
-	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).State())
-	framesTx := float32(recvMetric.GetCounters().GetOutPkts())
-	framesRx := float32(recvMetric.GetCounters().GetInPkts())
-
-	if framesTx == 0 {
-		t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flowName)
-	}
-	if framesRx > framesTx {
-		t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", framesRx, framesTx)
-	}
-	lossPct := (framesTx - framesRx) * 100 / framesTx
-
 	if testResults {
-		if int(lossPct) > int(0) {
-			t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want <= 0", flowName, lossPct)
-		} else {
-			t.Logf("Traffic validation successful for criteria [%t] FramesTx: %f FramesRx: %f", testResults, framesTx, framesRx)
-		}
+		otgutils.ExpectedTrafficLoss(t, ate.OTG(), flowName, 0, 0)
 	} else {
-		if framesRx > 0 {
-			t.Errorf("Generic Test Assertion Failure: Flow %s: got %v framesRx, want 0", flowName, framesRx)
-		} else {
-			t.Logf("Traffic validation successful for criteria [%t] FramesTx: %f FramesRx: %f", testResults, framesTx, framesRx)
-		}
+		otgutils.ExpectedTrafficLoss(t, ate.OTG(), flowName, 100, 100)
 	}
 }
 

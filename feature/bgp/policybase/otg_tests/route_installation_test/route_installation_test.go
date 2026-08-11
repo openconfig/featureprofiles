@@ -524,55 +524,10 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, want
 	defer otgutils.LogFlowMetrics(t, otg, c)
 	for _, f := range c.Flows().Items() {
 		t.Logf("Verifying flow metrics for flow %s\n", f.Name())
-		gnmi.Watch(t, otg, gnmi.OTG().Flow(f.Name()).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
-			recvMetric, ok := val.Val()
-			if !ok {
-				return false
-			}
-			txPackets := float32(recvMetric.GetCounters().GetOutPkts())
-			rxPackets := float32(recvMetric.GetCounters().GetInPkts())
-			if txPackets == 0 {
-				return false
-			}
-			if rxPackets > txPackets {
-				return false
-			}
-			lossPct := (txPackets - rxPackets) * 100 / txPackets
-			if !wantLoss {
-				return int(lossPct) <= int(tolerancePct)
-			}
-			return int(lossPct) >= int(100-tolerancePct)
-		}).Await(t)
-
-		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(f.Name()).State())
-		txPackets := recvMetric.GetCounters().GetOutPkts()
-		rxPackets := recvMetric.GetCounters().GetInPkts()
-
-		if txPackets == 0 {
-			t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", f.Name())
-		}
-		if rxPackets > txPackets {
-			t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", rxPackets, txPackets)
-		}
-
-		lostPackets := txPackets - rxPackets
-		lossPct := float32(lostPackets) * 100 / float32(txPackets)
-
 		if !wantLoss {
-			if lostPackets > tolerance {
-				t.Logf("Packets received not matching packets sent. Sent: %v, Received: %v", txPackets, rxPackets)
-			}
-			if int(lossPct) > int(tolerancePct) {
-				t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want <= %d", f.Name(), lossPct, tolerancePct)
-			} else {
-				t.Logf("Traffic Test Passed! for flow %s", f.Name())
-			}
+			otgutils.ExpectedTrafficLoss(t, otg, f.Name(), 0, float64(tolerancePct))
 		} else {
-			if int(lossPct) < int(100-tolerancePct) {
-				t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want >= %d", f.Name(), lossPct, 100-tolerancePct)
-			} else {
-				t.Logf("Traffic Loss Test Passed! for flow %s", f.Name())
-			}
+			otgutils.ExpectedTrafficLoss(t, otg, f.Name(), float64(100-tolerancePct), 100)
 		}
 	}
 }
