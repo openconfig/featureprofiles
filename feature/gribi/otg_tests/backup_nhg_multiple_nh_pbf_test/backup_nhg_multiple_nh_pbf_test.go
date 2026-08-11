@@ -186,8 +186,12 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	if deviations.BackupNHGRequiresVrfWithDecap(dut) {
-		d := &oc.Root{}
-		ni := d.GetOrCreateNetworkInstance(vrf1)
+		vrfSelectionNI := vrf1
+		if deviations.VrfSelectionPolicyNonDefaultNIUnsupported(dut) {
+			vrfSelectionNI = deviations.DefaultNetworkInstance(dut)
+		}
+		ocRoot := &oc.Root{}
+		ni := ocRoot.GetOrCreateNetworkInstance(vrfSelectionNI)
 		pf := ni.GetOrCreatePolicyForwarding()
 		fp1 := pf.GetOrCreatePolicy("match-ipip")
 		fp1.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
@@ -196,7 +200,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		p1 := dut.Port(t, "port1")
 		intf := pf.GetOrCreateInterface(p1.Name())
 		intf.ApplyVrfSelectionPolicy = ygot.String("match-ipip")
-		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf1).PolicyForwarding().Config(), pf)
+		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfSelectionNI).PolicyForwarding().Config(), pf)
 	}
 
 	gnmi.Update(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
