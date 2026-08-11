@@ -1476,6 +1476,10 @@ func TestRT1269_DirectInterfaceIPDeletion(t *testing.T) {
 		t.Fatalf("Failed to configure IPv4 static route: %v", err)
 	}
 	b.Set(t, dut)
+	t.Cleanup(func() {
+		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+		gnmi.Delete(t, dut, sp.Static(prefix.cidr(t)).Config())
+	})
 	validateStaticRoute(t, dut, prefix.cidr(t), sV4)
 
 	// Step 2 & 3 - Send Traffic before deletion to ensure setup is working.
