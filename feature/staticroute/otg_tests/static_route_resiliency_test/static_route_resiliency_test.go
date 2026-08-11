@@ -215,7 +215,8 @@ func TestStaticRouteResiliency(t *testing.T) {
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 
-	gnmi.Watch(15 * time.Second)
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 
 	t.Run("RT-1.73.1 Validate Static Route with VLAN Interface", func(t *testing.T) {
 		testRouteWithVLAN(t, dut, ate, top)
