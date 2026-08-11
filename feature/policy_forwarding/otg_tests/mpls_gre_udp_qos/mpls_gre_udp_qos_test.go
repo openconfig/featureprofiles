@@ -683,29 +683,33 @@ func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, dur time.Duration) {
 }
 
 // buildEncapToIPFlows builds one flow per MPLS EXP value (0-7) for both MPLSoGRE and
-// MPLSoGUE, ingressing on the core aggregates and egressing (post decap) on the customer
-// aggregate. This implements Flow-A.
-func buildEncapToIPFlows(coreOTGName string) []*otgconfighelpers.Flow {
+// MPLSoGUE, split across both core aggregates (README: ATE Ports 3,4,5,6) with GRE flows on
+// core1 and GUE flows on core2, egressing (post decap) on the customer aggregate. Implements
+// Flow-A. Per-flow rate is capped so each aggregate's own total stays under 100% of its port
+// capacity (the ATE rejects any single Tx port configured above that); congestion for
+// PF-1.18.4-1.18.7 instead comes from both aggregates' traffic converging on the single
+// customer egress interface.
+func buildEncapToIPFlows() []*otgconfighelpers.Flow {
 	var flows []*otgconfighelpers.Flow
 	for tc := 0; tc < 8; tc++ {
 		flows = append(flows, &otgconfighelpers.Flow{
-			TxNames:           []string{coreOTGName + ".IPv4"},
+			TxNames:           []string{core1OTG.Name + ".IPv4"},
 			RxNames:           []string{custOTG0.Name + ".IPv4"},
 			SizeWeightProfile: &sizeWeightProfile,
-			Flowrate:          10,
-			FlowName:          fmt.Sprintf("MPLSoGRE-tc%d-%s", tc, coreOTGName),
+			Flowrate:          8,
+			FlowName:          fmt.Sprintf("MPLSoGRE-tc%d-%s", tc, core1OTG.Name),
 			EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg2.AggMAC},
 			IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "100.64.0.1", IPv4Dst: "11.1.1.1", IPv4SrcCount: 1000},
 			MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: uint32(99990 + tc), MPLSExp: uint32(tc)},
 			GREFlow:           &otgconfighelpers.GREFlowParams{Protocol: otgconfighelpers.IanaMPLSEthertype},
 		})
 		flows = append(flows, &otgconfighelpers.Flow{
-			TxNames:           []string{coreOTGName + ".IPv4"},
+			TxNames:           []string{core2OTG.Name + ".IPv4"},
 			RxNames:           []string{custOTG0.Name + ".IPv4"},
 			SizeWeightProfile: &sizeWeightProfile,
-			Flowrate:          10,
-			FlowName:          fmt.Sprintf("MPLSoGUE-tc%d-%s", tc, coreOTGName),
-			EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg2.AggMAC},
+			Flowrate:          8,
+			FlowName:          fmt.Sprintf("MPLSoGUE-tc%d-%s", tc, core2OTG.Name),
+			EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg3.AggMAC},
 			IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "100.64.1.1", IPv4Dst: "11.1.1.1", IPv4SrcCount: 1000},
 			UDPFlow:           &otgconfighelpers.UDPFlowParams{UDPSrcPort: 49152, UDPDstPort: gueDstPort},
 			GREFlow:           &otgconfighelpers.GREFlowParams{Protocol: otgconfighelpers.IanaMPLSEthertype},
@@ -761,7 +765,7 @@ func TestPF1182MPLSTrafficClassClassification(t *testing.T) {
 	qNames := []string{queues.BE1, queues.AF1, queues.AF2, queues.AF3, queues.AF4, queues.NC1}
 
 	top.Flows().Clear()
-	flows := buildEncapToIPFlows(core1OTG.Name)
+	flows := buildEncapToIPFlows()
 	for i, f := range flows {
 		createflow(t, top, f, i == 0)
 	}
@@ -793,6 +797,7 @@ func TestPF1183DSCPMarking(t *testing.T) {
 	// Outer header must carry DSCP 32 (PF-1.18.1); inner DSCP is preserved.
 	encapValidation := &packetvalidationhelpers.PacketValidation{
 		PortName:         core1Ports[0],
+		CaptureName:      "ip-encap-dscp",
 		Validations:      validations,
 		IPv4Layer:        &packetvalidationhelpers.IPv4Layer{Protocol: greProtocol, DstIP: outerGREDstCore1, Tos: outerMarkedDSCP << 2, TTL: 64},
 		MPLSLayer:        &packetvalidationhelpers.MPLSLayer{Label: encapMPLSLabel, Tc: ingressClassifyTC3},
@@ -842,9 +847,9 @@ func TestPF1184AssuredForwardingMinBandwidth(t *testing.T) {
 	applySchedulerOnOutput(t, dut, custAggID, bwSchedulerName, qNames)
 
 	top.Flows().Clear()
-	flows := buildEncapToIPFlows(core1OTG.Name)
+	flows := buildEncapToIPFlows()
 	for i, f := range flows {
-		f.Flowrate = 15 // oversubscribe to induce congestion.
+		f.Flowrate = 12 // oversubscribe to induce congestion.
 		createflow(t, top, f, i == 0)
 	}
 	sendTraffic(t, ate, trafficDuration)
@@ -872,9 +877,9 @@ func TestPF1185AssuredForwardingShaper(t *testing.T) {
 	applySchedulerOnOutput(t, dut, custAggID, bwShaperSchedulerName, qNames)
 
 	top.Flows().Clear()
-	flows := buildEncapToIPFlows(core1OTG.Name)
+	flows := buildEncapToIPFlows()
 	for i, f := range flows {
-		f.Flowrate = 15
+		f.Flowrate = 12
 		createflow(t, top, f, i == 0)
 	}
 	sendTraffic(t, ate, trafficDuration)
@@ -901,9 +906,9 @@ func TestPF1186ExpeditedForwardingPriorityDecap(t *testing.T) {
 	applySchedulerOnOutput(t, dut, custAggID, prioSchedulerName, qNames)
 
 	top.Flows().Clear()
-	flows := buildEncapToIPFlows(core1OTG.Name)
+	flows := buildEncapToIPFlows()
 	for i, f := range flows {
-		f.Flowrate = 15
+		f.Flowrate = 12
 		createflow(t, top, f, i == 0)
 	}
 	sendTraffic(t, ate, trafficDuration)
@@ -929,9 +934,9 @@ func TestPF1187ExpeditedForwardingPriorityShaper(t *testing.T) {
 	applySchedulerOnOutput(t, dut, custAggID, prioShaperSchedulerName, qNames)
 
 	top.Flows().Clear()
-	flows := buildEncapToIPFlows(core1OTG.Name)
+	flows := buildEncapToIPFlows()
 	for i, f := range flows {
-		f.Flowrate = 15
+		f.Flowrate = 12
 		createflow(t, top, f, i == 0)
 	}
 	sendTraffic(t, ate, trafficDuration)
@@ -956,7 +961,7 @@ func TestPF1188ExpeditedForwardingPriorityEncap(t *testing.T) {
 	top.Flows().Clear()
 	flows := buildIPToEncapFlows()
 	for i, f := range flows {
-		f.Flowrate = 15
+		f.Flowrate = 12
 		createflow(t, top, f, i == 0)
 	}
 	sendTraffic(t, ate, trafficDuration)
@@ -977,7 +982,7 @@ func TestPF1189TwoRateThreeColorPolicer(t *testing.T) {
 	top.Flows().Clear()
 	flows := buildIPToEncapFlows()
 	for i, f := range flows {
-		f.Flowrate = 15 // sum > configured PIR/CIR, per README.
+		f.Flowrate = 12 // sum > configured PIR/CIR, per README.
 		createflow(t, top, f, i == 0)
 	}
 	sendTraffic(t, ate, trafficDuration)
