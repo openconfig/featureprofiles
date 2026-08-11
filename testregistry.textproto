@@ -1538,6 +1538,12 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/gribi_full_scale/otg_tests/gribi_full_scale_down/gribi_full_scale_down_test.go"
 }
 test: {
+  id: "TE-14.7"
+  description: "gRIBI Scaling - full scale setup, target T3"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/gribi_full_scale/otg_tests/gribi_full_scale_t3/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/gribi_full_scale/otg_tests/gribi_full_scale_t3/gribi_full_scale_t3_test.go"
+}
+test: {
   id: "TE-15.1"
   description: "gRIBI Compliance"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribigo_compliance_test/README.md"
