@@ -217,9 +217,7 @@ func TestGRIBIFailover(t *testing.T) {
 		flow := createFlow(&flowArgs{flowName: "flow4in4",
 			InnHdrSrcIP: ipv4OuterSrc111, InnHdrDstIP: ipv4InnerDst}, dstMac)
 		sendTraffic(t, args, top, ate, flow, 30, []string{"port2"})
-		if ok := verifyTrafficFlow(t, ate, flow); !ok {
-			t.Fatal("Packet Dropped, LossPct for flow ")
-		}
+		otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), 0, float64(tolerancePct))
 		captureAndValidatePackets(t, args, &packetValidation{portName: atePort2.Name,
 			outDstIP: []string{ipv4OuterDst111}, inHdrIP: ipv4InnerDst, validateEncap: true})
 	})
@@ -228,9 +226,7 @@ func TestGRIBIFailover(t *testing.T) {
 		flow := createFlow(&flowArgs{flowName: "flow4in4",
 			InnHdrSrcIP: ipv4OuterSrc111, InnHdrDstIP: ipv4OuterDst222}, dstMac)
 		sendTraffic(t, args, top, ate, flow, 30, []string{"port3"})
-		if ok := verifyTrafficFlow(t, ate, flow); !ok {
-			t.Fatal("Packet Dropped, LossPct for flow ")
-		}
+		otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), 0, float64(tolerancePct))
 	})
 
 	t.Run("RT-14.2.3: Traffic Match to Transit_Vrf, Match Tunnel Prefix Egress to Port2", func(t *testing.T) {
@@ -238,9 +234,7 @@ func TestGRIBIFailover(t *testing.T) {
 			outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: ipv4OuterDst111,
 			InnHdrSrcIP: ipv4OuterSrc111, InnHdrDstIP: ipv4InnerDst, isIPInIP: true}, dstMac)
 		sendTraffic(t, args, top, ate, flow, 30, []string{"port2"})
-		if ok := verifyTrafficFlow(t, ate, flow); !ok {
-			t.Fatal("Packet Dropped, LossPct for flow ")
-		}
+		otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), 0, float64(tolerancePct))
 		captureAndValidatePackets(t, args, &packetValidation{portName: atePort2.Name,
 			outDstIP: []string{ipv4OuterDst111}, inHdrIP: ipv4InnerDst, validateNoDecap: true})
 	})
@@ -253,9 +247,7 @@ func TestGRIBIFailover(t *testing.T) {
 			outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: ipv4OuterDst222,
 			InnHdrSrcIP: ipv4OuterSrc111, InnHdrDstIP: ipv4InnerDst, isIPInIP: true}, dstMac)
 		sendTraffic(t, args, top, ate, flow, 30, []string{"port3"})
-		if ok := verifyTrafficFlow(t, ate, flow); !ok {
-			t.Fatal("Packet Dropped, LossPct for flow ")
-		}
+		otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), 0, float64(tolerancePct))
 		captureAndValidatePackets(t, args, &packetValidation{portName: atePort3.Name,
 			outDstIP: []string{ipv4OuterDst222}, inHdrIP: ipv4InnerDst, validateDecap: true})
 	})
@@ -604,52 +596,6 @@ func sendTraffic(t *testing.T, args *testArgs, top gosnappi.Config, ate *ondatra
 	args.otg.SetControlState(t, cs)
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
 	otgutils.LogPortMetrics(t, ate.OTG(), top)
-}
-
-// verifyTrafficFlow verifies each flow on ATE using gnmi.Watch.
-func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flow gosnappi.Flow) bool {
-	t.Helper()
-	otg := ate.OTG()
-	flowName := flow.Name()
-
-	outPktsQuery := gnmi.OTG().Flow(flowName).Counters().OutPkts().State()
-	inPktsQuery := gnmi.OTG().Flow(flowName).Counters().InPkts().State()
-
-	// Watch InPkts and live OutPkts for up to 45 seconds until counters settle within +/- tolerance.
-	_, ok := gnmi.Watch(t, otg, inPktsQuery, 45*time.Second, func(v *ygnmi.Value[uint64]) bool {
-		rx, present := v.Val()
-		if !present {
-			return false
-		}
-
-		txVal, txPresent := gnmi.Lookup(t, otg, outPktsQuery).Val()
-		if !txPresent || txVal == 0 {
-			return false // Keep waiting if tx hasn't populated or is 0
-		}
-
-		// Calculate percentage difference.
-		// Using float64 protects against uint64 underflow and handles rx > tx.
-		diffPct := (float64(txVal) - float64(rx)) * 100 / float64(txVal)
-
-		// math.Abs ensures we check +/- tolerance limits equally
-		return math.Abs(diffPct) <= float64(tolerancePct)
-	}).Await(t)
-
-	if !ok {
-		// Fetch absolute final values after the 45s timeout
-		lastTx, _ := gnmi.Lookup(t, otg, outPktsQuery).Val()
-		lastRx, _ := gnmi.Lookup(t, otg, inPktsQuery).Val()
-
-		if lastTx == 0 {
-			t.Errorf("IXIA traffic generation failed: flow %s transmitted 0 packets after 45s", flowName)
-			return false
-		}
-
-		diffPct := (float64(lastTx) - float64(lastRx)) * 100 / float64(lastTx)
-		t.Errorf("Generic Test Assertion Failure: Flow %s counters outside of ±%d%% tolerance. Difference: %.2f%% (tx: %d, rx: %d)", flowName, tolerancePct, diffPct, lastTx, lastRx)
-		return false
-	}
-	return true
 }
 
 // verifyBgpTelemetry verifies BGP telemetry.

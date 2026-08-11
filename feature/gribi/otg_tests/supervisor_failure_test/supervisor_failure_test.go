@@ -159,22 +159,6 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	return top
 }
 
-// Function to verify traffic
-func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice) {
-	flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().State())
-	txPkts := flowMetrics.GetOutPkts()
-	rxPkts := flowMetrics.GetInPkts()
-
-	if txPkts == 0 {
-		t.Errorf("txPackets is 0")
-		return
-	}
-	if got := 100 * float32(txPkts-rxPkts) / float32(txPkts); got > 0 {
-		t.Errorf("LossPct for flow %s got %f, want 0", flowName, got)
-	} else {
-		t.Logf("Traffic flows fine from ATE-port1 to ATE-port2")
-	}
-}
 
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
@@ -315,7 +299,7 @@ func TestSupFailure(t *testing.T) {
 	time.Sleep(15 * time.Second)
 	ate.OTG().StopTraffic(t)
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
-	verifyTraffic(t, args.ate)
+	otgutils.ExpectedTrafficLoss(t, args.ate.OTG(), flowName, 0, 0)
 
 	controllers := cmp.FindComponentsByType(t, dut, controlcardType)
 	t.Logf("Found controller list: %v", controllers)
@@ -389,7 +373,7 @@ func TestSupFailure(t *testing.T) {
 	t.Logf("ipv4-entry found for %s after controller switchover..", ateDstNetCIDR)
 
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
-	verifyTraffic(t, args.ate)
+	otgutils.ExpectedTrafficLoss(t, args.ate.OTG(), flowName, 0, 0)
 	ate.OTG().StopTraffic(t)
 	args.ate.OTG().StopProtocols(t)
 }

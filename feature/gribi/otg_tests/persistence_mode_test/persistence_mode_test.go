@@ -181,25 +181,10 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, srcE
 	otgutils.LogFlowMetrics(t, otg, top)
 
 	time.Sleep(time.Minute)
-	txPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flowipv4.Name()).Counters().OutPkts().State()))
-	rxPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flowipv4.Name()).Counters().InPkts().State()))
-
-	if txPkts == 0 {
-		t.Fatalf("TxPkts == 0, want > 0")
-	}
-
 	if !wantLoss {
-		if got := (txPkts - rxPkts) * 100 / txPkts; got != 0 {
-			t.Errorf("FAIL: LossPct for flow named %s got %v, want 0", flowipv4.Name(), got)
-		} else {
-			t.Logf("LossPct for flow named %s got %v, want 0", flowipv4.Name(), got)
-		}
+		otgutils.ExpectedTrafficLoss(t, otg, flowipv4.Name(), 0, 0)
 	} else {
-		if got := (txPkts - rxPkts) * 100 / txPkts; got != 100 {
-			t.Errorf("FAIL: LossPct for flow named %s got %v, want 100", flowipv4.Name(), got)
-		} else {
-			t.Logf("LossPct for flow named %s got %v, want 100", flowipv4.Name(), got)
-		}
+		otgutils.ExpectedTrafficLoss(t, otg, flowipv4.Name(), 100, 100)
 	}
 }
 

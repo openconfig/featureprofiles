@@ -38,6 +38,8 @@ import (
 	"github.com/openconfig/ygot/ygot"
 
 	aftspb "github.com/openconfig/gribi/v1/proto/service"
+
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 )
 
 func TestMain(m *testing.M) {
@@ -366,18 +368,11 @@ func sendTraffic(t *testing.T, args *testArgs) {
 func verifyTraffic(t *testing.T, args *testArgs, flowName string, wantLoss bool) {
 	t.Helper()
 	t.Logf("Verifying flow metrics for the flow %s\n", flowName)
-	recvMetric := gnmi.Get(t, args.otg, gnmi.OTG().Flow(flowName).State())
-	txPackets := recvMetric.GetCounters().GetOutPkts()
-	rxPackets := recvMetric.GetCounters().GetInPkts()
-	lostPackets := txPackets - rxPackets
-	var lossPct uint64
-	trafficPassed := false
-	if txPackets != 0 {
-		lossPct = lostPackets * 100 / txPackets
-	} else {
-		t.Errorf("Traffic stats are not correct %v", recvMetric)
-	}
 	if wantLoss {
+		otgutils.ExpectedTrafficLoss(t, args.otg, flowName, 100-float64(tolerancePct), 100)
+		recvMetric := gnmi.Get(t, args.otg, gnmi.OTG().Flow(flowName).State())
+		rxPackets := recvMetric.GetCounters().GetInPkts()
+		trafficPassed := false
 		// If no rxPackets are received, the first route is fibFailedRoute, resulting in no packets being generated with tagged metrics.
 		if rxPackets > 0 {
 			etPath := gnmi.OTG().Flow(flowName).TaggedMetricAny()
@@ -398,13 +393,8 @@ func verifyTraffic(t *testing.T, args *testArgs, flowName string, wantLoss bool)
 			t.Logf("Traffic Test Passed!")
 		}
 	} else {
-		if lossPct > tolerancePct {
-			t.Errorf("Traffic Loss Pct for Flow: %s\n got %v, want 0", flowName, lossPct)
-		} else {
-			t.Logf("Traffic Test Passed!")
-		}
+		otgutils.ExpectedTrafficLoss(t, args.otg, flowName, 0, float64(tolerancePct))
 	}
-
 }
 
 func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
