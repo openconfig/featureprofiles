@@ -40,14 +40,14 @@ var (
 	dutPort5 = attrs.Attributes{Name: "port5"}
 	dutPort6 = attrs.Attributes{Name: "port6"}
 	dutPort7 = attrs.Attributes{Name: "port7", IPv4: "198.51.102.1", IPv4Len: 24, IPv6: "2001:db8:102::1", IPv6Len: 64}
-	dutPort8 = attrs.Attributes{Name: "port8", IPv4: "10.0.0.1", IPv4Len: 24, IPv6: "2001:db8:a::1", IPv6Len: 64}
+	dutPort8 = attrs.Attributes{Name: "port8", IPv4: "192.0.2.1", IPv4Len: 24, IPv6: "2001:db8:192::1", IPv6Len: 64}
 
 	sviIP = attrs.Attributes{IPv4: "198.51.100.1", IPv4Len: 24, IPv6: "2001:db8:100::1", IPv6Len: 64}
 
 	atePort1 = attrs.Attributes{Name: "port1", MAC: "02:00:01:01:01:01", IPv4: "198.51.100.2", IPv4Len: 24, IPv6: "2001:db8:100::2", IPv6Len: 64}
 	atePort2 = attrs.Attributes{Name: "port2", MAC: "02:00:01:01:01:02", IPv4: "198.51.100.3", IPv4Len: 24, IPv6: "2001:db8:100::3", IPv6Len: 64}
 	atePort7 = attrs.Attributes{Name: "port7", MAC: "02:00:02:01:01:07", IPv4: "198.51.102.2", IPv4Len: 24, IPv6: "2001:db8:102::2", IPv6Len: 64}
-	atePort8 = attrs.Attributes{Name: "port8", MAC: "02:00:02:01:01:08", IPv4: "10.0.0.2", IPv4Len: 24, IPv6: "2001:db8:a::2", IPv6Len: 64}
+	atePort8 = attrs.Attributes{Name: "port8", MAC: "02:00:02:01:01:08", IPv4: "192.0.2.2", IPv4Len: 24, IPv6: "2001:db8:192::2", IPv6Len: 64}
 
 	dutLag1 = attrs.Attributes{Name: lag1Name, IPv4: "198.51.101.1", IPv4Len: 24, IPv6: "2001:db8:101::1", IPv6Len: 64}
 )
@@ -196,6 +196,7 @@ func TestStaticRouteResiliency(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 
 	configureDUT(t, dut)
+	t.Cleanup()
 
 	top := gosnappi.NewConfig()
 	configureATE(t, ate, top)
@@ -203,7 +204,7 @@ func TestStaticRouteResiliency(t *testing.T) {
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 
-	time.Sleep(15 * time.Second)
+	gnmi.Watch(15 * time.Second)
 
 	t.Run("RT-1.73.1 Validate Static Route with VLAN Interface", func(t *testing.T) {
 		testRouteWithVLAN(t, dut, ate, top)
@@ -228,7 +229,7 @@ func TestStaticRouteResiliency(t *testing.T) {
 
 func testScaleAndPersistence(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config) {
 	t.Helper()
-	// Left unimplemented for current testbed limitation handling
+	// TODO: Left unimplemented for current testbed limitation handling
 }
 
 func createFlow(t *testing.T, top gosnappi.Config, name string, srcRx string, dstRx []string, srcIPv4, dstIPv4 string, srcIPv6, dstIPv6 string, isIPv6 bool) gosnappi.Flow {
@@ -369,7 +370,7 @@ func testECMPAndFIB(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice
 	for i := 0; i < 100; i++ {
 		v4Prefix := fmt.Sprintf("10.1.%d.0/24", i)
 		v6Prefix := fmt.Sprintf("2001:db8:10%02x::/64", i)
-		vlanIndex := (i % 10) + 11
+		vlanIndex := (i % 10) + 111
 		nhV4 := fmt.Sprintf("198.51.%d.2", vlanIndex)
 		nhV6 := fmt.Sprintf("2001:db8:%d::2", vlanIndex)
 
@@ -420,6 +421,9 @@ func testECMPAndFIB(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice
 	time.Sleep(10 * time.Second)
 
 	// Step 7 (Simulate Linecard OIR by Admin-disable)
+	t.Cleanup(func() {
+    gnmi.Replace(t, dut, gnmi.OC().Interface(dut.Port(t, "port7").Name()).Enabled().Config(), true)
+	})
 	gnmi.Replace(t, dut, gnmi.OC().Interface(dut.Port(t, "port7").Name()).Enabled().Config(), false)
 	time.Sleep(10 * time.Second)
 
