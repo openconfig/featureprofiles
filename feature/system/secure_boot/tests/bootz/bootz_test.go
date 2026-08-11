@@ -17,7 +17,10 @@ package bootz
 import (
 	"bytes"
 	"context"
+	"crypto"
 	"crypto/sha256"
+	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -31,19 +34,18 @@ import (
 	"testing"
 	"time"
 
-	bootztypes "github.com/openconfig/bootz/common/types"
+	ownercertificate "github.com/openconfig/bootz/common/owner_certificate"
+	ownershipvoucher "github.com/openconfig/bootz/common/ownership_voucher"
 	bootzpb "github.com/openconfig/bootz/proto/bootz"
 	bootzsrv "github.com/openconfig/bootz/server"
-	"github.com/openconfig/bootz/server/entitymanager"
-	emproto "github.com/openconfig/bootz/server/entitymanager/proto/entity"
-	artifacts "github.com/openconfig/bootz/testdata"
+	bootzconfig "github.com/openconfig/bootz/server/proto/config"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
-	authzpb "github.com/openconfig/gnsi/authz"
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	frpb "github.com/openconfig/gnoi/factory_reset"
+	authzpb "github.com/openconfig/gnsi/authz"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -138,18 +140,14 @@ func runBootzPositiveTest(t *testing.T, postBootz func(*testing.T, *ondatra.DUTD
 	}
 
 	controlCards := getControllerCardSerials(t, dut)
-	entity := newChassisEntity(t, dut.ID(), chassis, controlCards)
-	secArtifacts := generateSecurityArtifacts(t, chassis, controlCards, bootzAdvertisedAddr)
-	em := newEntityManager(t, entity, secArtifacts)
+	serverConfig := newBootzServerConfig(t, dut.ID(), chassis, controlCards)
 
 	preVersion := gnmi.Get(t, dut, gnmi.OC().System().SoftwareVersion().State())
 	preLastAttempt, _ := gnmi.Lookup(t, dut, gnmi.OC().System().Bootz().LastBootAttempt().State()).Val()
 
 	tracker := newStatusTracker(controlCards)
 	srv, err := bootzsrv.NewServer(
-		*bootzAddr,
-		em,
-		secArtifacts,
+		serverConfig,
 		&bootzsrv.InterceptorOpts{BootzInterceptor: tracker.interceptor()},
 	)
 	if err != nil {
@@ -184,27 +182,71 @@ func runBootzPositiveTest(t *testing.T, postBootz func(*testing.T, *ondatra.DUTD
 	}
 }
 
-func newChassisEntity(t *testing.T, dutID, serial string, controlCards []string) *emproto.Chassis {
+func newBootzServerConfig(t *testing.T, dutID, chassisSerial string, controlCards []string) *bootzconfig.Config {
 	t.Helper()
 
-	entity := &emproto.Chassis{
-		Manufacturer: *manufacturer,
-		SerialNumber: serial,
-		Config: &emproto.Config{
-			BootConfig: &emproto.BootConfig{
+	pdc, pdcKey, err := ownercertificate.NewRSACertificate("Pinned Domain Certificate", "", nil, nil)
+	if err != nil {
+		t.Fatalf("failed to generate pinned domain certificate: %v", err)
+	}
+	ownerCert, ownerKey, err := ownercertificate.NewRSACertificate("Owner Certificate", "", pdc, pdcKey)
+	if err != nil {
+		t.Fatalf("failed to generate owner certificate: %v", err)
+	}
+	vendorCA, vendorCAKey, err := ownercertificate.NewRSACertificate("Vendor Certificate Authority", "", nil, nil)
+	if err != nil {
+		t.Fatalf("failed to generate vendor CA: %v", err)
+	}
+	trustAnchor, trustAnchorKey, err := ownercertificate.NewRSACertificate("Trust Anchor", "", nil, nil)
+	if err != nil {
+		t.Fatalf("failed to generate trust anchor: %v", err)
+	}
+
+	serverSerials := controlCards
+	if *ovFromChassis {
+		serverSerials = []string{chassisSerial}
+	}
+	bootzControlCards := make([]*bootzconfig.ControlCard, 0, len(serverSerials))
+	for _, serial := range serverSerials {
+		ov, err := ownershipvoucher.NewOwnershipVoucher("json", serial, pdc, vendorCA, vendorCAKey)
+		if err != nil {
+			t.Fatalf("failed to generate ownership voucher for %s: %v", serial, err)
+		}
+		bootzControlCards = append(bootzControlCards, &bootzconfig.ControlCard{
+			SerialNumber:     serial,
+			OwnershipVoucher: base64.StdEncoding.EncodeToString(ov),
+		})
+	}
+
+	return &bootzconfig.Config{
+		ServerAddress:    bootzServerAddress(t),
+		TrustAnchor:      certKeyPair(t, trustAnchor, trustAnchorKey),
+		OwnerCertificate: certKeyPair(t, ownerCert, ownerKey),
+		VendorCaCerts:    []string{base64.StdEncoding.EncodeToString(vendorCA.Raw)},
+		Chassis: []*bootzconfig.Chassis{{
+			Manufacturer: *manufacturer,
+			ControlCards: bootzControlCards,
+			BootConfig: &bootzpb.BootConfig{
 				VendorConfig: []byte(vendorConfig(t, dutID)),
 			},
-			// The current public Bootz server requires AuthZ inventory to be present
-			// when resolving bootstrap data, even for this minimum-config workflow.
-			GnsiConfig: &emproto.GNSIConfig{
-				AuthzUpload: bootzAuthzUpload(),
-			},
-		},
+			// The public Bootz server requires AuthZ inventory to be present when
+			// resolving bootstrap data, even for this minimum-config workflow.
+			Authz: bootzAuthzUpload(),
+		}},
 	}
-	for _, serial := range controlCards {
-		entity.ControllerCards = append(entity.ControllerCards, &emproto.ControlCard{SerialNumber: serial})
+}
+
+func bootzServerAddress(t *testing.T) string {
+	t.Helper()
+
+	_, listenPort, err := net.SplitHostPort(*bootzAddr)
+	if err != nil {
+		t.Fatalf("failed to parse Bootz listen address %q: %v", *bootzAddr, err)
 	}
-	return entity
+	// Bootz v0.7.1 uses the address host for the TLS certificate and its port
+	// for the local listener. Preserve the local port when a DHCP tunnel changes
+	// only the address advertised to the DUT.
+	return net.JoinHostPort(hostFromAddress(bootzAdvertisedAddr), listenPort)
 }
 
 func bootzAuthzUpload() *authzpb.UploadRequest {
@@ -215,72 +257,16 @@ func bootzAuthzUpload() *authzpb.UploadRequest {
 	}
 }
 
-func newEntityManager(t *testing.T, entity *emproto.Chassis, secArtifacts *bootztypes.SecurityArtifacts) *entitymanager.InMemoryEntityManager {
+func certKeyPair(t *testing.T, cert *x509.Certificate, key crypto.PrivateKey) *bootzconfig.CertKeyPair {
 	t.Helper()
 
-	em, err := entitymanager.New("", secArtifacts)
+	keyDER, err := x509.MarshalPKCS8PrivateKey(key)
 	if err != nil {
-		t.Fatalf("failed to initialize Bootz entity manager: %v", err)
+		t.Fatalf("failed to marshal private key: %v", err)
 	}
-	if err := em.ReplaceDevice(&bootztypes.EntityLookup{
-		Manufacturer: entity.GetManufacturer(),
-		SerialNumber: entity.GetSerialNumber(),
-	}, entity); err != nil {
-		t.Fatalf("failed to add chassis entity: %v", err)
-	}
-	return em
-}
-
-func generateSecurityArtifacts(t *testing.T, chassisSerial string, controlCards []string, advertisedAddr string) *bootztypes.SecurityArtifacts {
-	t.Helper()
-
-	serverName := hostFromAddress(advertisedAddr)
-	serials := controlCards
-	if *ovFromChassis {
-		serials = []string{chassisSerial}
-	}
-
-	pdc, pdcPrivateKey, err := artifacts.NewCertificateAuthority("Pinned Domain Cert", "OpenConfig", serverName)
-	if err != nil {
-		t.Fatalf("failed to generate pinned domain certificate: %v", err)
-	}
-	ownerCert, ownerPrivateKey, err := artifacts.NewSignedCertificate("Owner Certificate", "OpenConfig", serverName, pdc, pdcPrivateKey)
-	if err != nil {
-		t.Fatalf("failed to generate owner certificate: %v", err)
-	}
-	vendorCA, vendorCAPrivateKey, err := artifacts.NewCertificateAuthority("Vendor Certificate Authority", *manufacturer, serverName)
-	if err != nil {
-		t.Fatalf("failed to generate vendor CA: %v", err)
-	}
-	trustAnchor, trustAnchorPrivateKey, err := artifacts.NewCertificateAuthority("Trust Anchor", "OpenConfig", serverName)
-	if err != nil {
-		t.Fatalf("failed to generate trust anchor: %v", err)
-	}
-	tlsKeypair, err := artifacts.TLSCertificate(trustAnchor, trustAnchorPrivateKey)
-	if err != nil {
-		t.Fatalf("failed to generate TLS keypair: %v", err)
-	}
-
-	ovs := bootztypes.OVList{}
-	for _, serial := range serials {
-		ov, err := artifacts.NewOwnershipVoucher("json", serial, pdc, vendorCA, vendorCAPrivateKey)
-		if err != nil {
-			t.Fatalf("failed to generate ownership voucher for %s: %v", serial, err)
-		}
-		ovs[serial] = ov
-	}
-
-	return &bootztypes.SecurityArtifacts{
-		OwnerCert:             ownerCert,
-		OwnerCertPrivateKey:   ownerPrivateKey,
-		PDC:                   pdc,
-		PDCPrivateKey:         pdcPrivateKey,
-		VendorCA:              vendorCA,
-		VendorCAPrivateKey:    vendorCAPrivateKey,
-		TrustAnchor:           trustAnchor,
-		TrustAnchorPrivateKey: trustAnchorPrivateKey,
-		OV:                    ovs,
-		TLSKeypair:            tlsKeypair,
+	return &bootzconfig.CertKeyPair{
+		Cert: base64.StdEncoding.EncodeToString(cert.Raw),
+		Key:  base64.StdEncoding.EncodeToString(keyDER),
 	}
 }
 
