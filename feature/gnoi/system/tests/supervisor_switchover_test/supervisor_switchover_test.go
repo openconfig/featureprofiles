@@ -22,14 +22,14 @@ import (
 	"time"
 
 	"github.com/open-traffic-generator/gosnappi/gosnappi"
-	"github.com/openconfig/featureprofiles/internal/args/args"
-	"github.com/openconfig/featureprofiles/internal/attrs/attrs"
-	"github.com/openconfig/featureprofiles/internal/components/components"
-	"github.com/openconfig/featureprofiles/internal/deviations/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest/fptest"
-	"github.com/openconfig/featureprofiles/internal/gnoi/gnoi"
-	"github.com/openconfig/featureprofiles/internal/helpers/helpers"
-	"github.com/openconfig/featureprofiles/internal/otgutils/otgutils"
+	"github.com/openconfig/featureprofiles/internal/args"
+	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/gnoi"
+	"github.com/openconfig/featureprofiles/internal/helpers"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra/gnmi/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc/oc"
@@ -280,6 +280,7 @@ func TestSupervisorSwitchover(t *testing.T) {
 
 	verifyLACPState(t, dut, dutPorts, lagName)
 	otg.StartTraffic(t)
+	t.Cleanup(func() { otg.StopTraffic(t) })
 	time.Sleep(15 * time.Second)
 	verifyZeroTrafficLoss(t, ate, otgTop)
 
@@ -297,7 +298,7 @@ func TestSupervisorSwitchover(t *testing.T) {
 		testPowerDisabledStandby(t, dut, ate, otgTop, controllerCards)
 	})
 
-	otg.StopTraffic(t)
+		// Traffic is stopped automatically via t.Cleanup registered after StartTraffic.
 }
 
 func testRecoveryValidation(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, controllerCards []string, dutPorts []*ondatra.Port, lagName string, intfsOperStatusUPBeforeSwitch []string) {
@@ -389,7 +390,12 @@ func testPowerDisabledStandby(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyControllerCard(t, dut, controllerCards)
 	t.Logf("Detected rpStandby for PowerDisabledStandby: %v, rpActive: %v", rpStandbyBeforeSwitch, rpActiveBeforeSwitch)
 
-	components.SetControllerCardPowerState(t, dut, rpStandbyBeforeSwitch, oc.Platform_ComponentPowerType_POWER_DISABLED, 5*time.Minute)
+		components.SetControllerCardPowerState(t, dut, rpStandbyBeforeSwitch, oc.Platform_ComponentPowerType_POWER_DISABLED, 5*time.Minute)
+	t.Cleanup(func() {
+		t.Logf("Re-enabling power on standby supervisor %s to restore redundancy", rpStandbyBeforeSwitch)
+		components.SetControllerCardPowerState(t, dut, rpStandbyBeforeSwitch, oc.Platform_ComponentPowerType_POWER_ENABLED, 10*time.Minute)
+		gnmi.Await(t, dut, gnmi.OC().Component(rpStandbyBeforeSwitch).SwitchoverReady().State(), 30*time.Minute, true)
+	})
 
 	gnoiClient := dut.RawAPIs().GNOI(t)
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
@@ -410,7 +416,5 @@ func testPowerDisabledStandby(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 	}
 	verifyZeroTrafficLoss(t, ate, top)
 
-	t.Logf("Re-enabling power on standby supervisor %s to restore redundancy", rpStandbyBeforeSwitch)
-	components.SetControllerCardPowerState(t, dut, rpStandbyBeforeSwitch, oc.Platform_ComponentPowerType_POWER_ENABLED, 10*time.Minute)
-	gnmi.Await(t, dut, gnmi.OC().Component(rpStandbyBeforeSwitch).SwitchoverReady().State(), 30*time.Minute, true)
+	// Standby supervisor power state is restored automatically via t.Cleanup.
 }
