@@ -1,10 +1,10 @@
-# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
 uuid: "d6453669-e73b-4bca-9d8c-ceb812b97132"
 plan_id: "RT-2.18"
 description: "IS-IS Multi-adjacencies scale test"
-testbed: TESTBED_DUT_ATE_8LINKS
+testbed: TESTBED_DUT_ATE_4LINKS
 platform_exceptions: {
   platform: {
     vendor: ARISTA
@@ -17,6 +17,10 @@ platform_exceptions: {
     isis_mpls_unsupported: true
     ipv4_missing_enabled: true
     isis_lsp_tlvs_oc_unsupported: true
+    omit_l2_mtu: true
+    missing_value_for_defaults: true
+    isis_interface_afi_unsupported: true
+    fr_breakout_fix: true
   }
 }
 platform_exceptions: {
@@ -48,5 +52,6 @@ platform_exceptions: {
     ipv4_missing_enabled: true
     aggregate_atomic_update: true
     isis_adjacency_stream_unsupported: true
+    isis_explicit_level_authentication_config: true
   }
 }
