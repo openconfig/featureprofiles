@@ -12,13 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package gribi_full_scale_down_test implements TE-14.6: gRIBI Scaling - all scenarios but with minimal scaling parameters.
-// This test is helpful to validate the correctness of the gRIBI programming and the OTG traffic
-// validation logic.
+// Package gribi_full_scale_t1_test implements TE-14.3: gRIBI Scaling - full scale setup, target T1.
 //
-// Test structure (per README TE-14.5):
+// Test structure (per README TE-14.3):
 //
-//	TestGRIBIFullScaleT0 — configures DUT+ATE once, programs gRIBI once, then runs
+//	TestGRIBIFullScaleT1 — configures DUT+ATE once, programs gRIBI once, then runs
 //	                        both fixed-size (64B) and IMIX traffic profiles as sub-tests,
 //	                        each executing all five traffic scenarios simultaneously in a
 //	                        single 30 Mpps traffic pass and validates:
@@ -26,7 +24,7 @@
 //	  2. Outer-src IP correctness per scenario (encap → src111, repaired → src222, …).
 //	  3. DSCP preservation end-to-end.
 //	  4. Encap presence/absence (inner vs outer header inspection via OTG capture).
-package gribifullscaledown_test
+package gribifullscalet1_test
 
 import (
 	"flag"
@@ -54,55 +52,74 @@ func TestMain(m *testing.M) {
 // Test
 // ============================================================
 
-// TestGRIBIFullScaleT0 validates TE-14.5 by running both fixed-size (64B) and
+// TestGRIBIFullScaleT1 validates TE-14.3 by running both fixed-size (64B) and
 // IMIX traffic profiles using a table-driven approach. It performs full DUT
 // setup once and executes all five traffic scenarios in a single 30 Mpps
 // traffic pass per sub-test.
-func TestGRIBIFullScaleDown(t *testing.T) {
+func TestGRIBIFullScaleT1(t *testing.T) {
 	params := cfgplugins.ScaleParams{
 		// gRIBI & System parameters
-		GRIBIBatchSize: 256,
+		GRIBIBatchSize: 2_000,
 
 		// Default VRF parameters
-		NumDefaultNH:  2,
-		NumDefaultNHG: 2,
+		NumDefaultNH:   1_000,
+		NumDefaultNHG:  1_000,
+		NumDefaultIPv4: 1_000,
 		DefaultNHGLoadBalance: []cfgplugins.NHGLoadBalancingParams{
-			{Pct: 100, NumNextHops: 2},
+			{Pct: 40, NumNextHops: 8},
+			{Pct: 40, NumNextHops: 16},
+			{Pct: 15, NumNextHops: 32},
+			{Pct: 5, NumNextHops: 64},
 		},
-		PctNHG512:      80,
-		NumDefaultIPv4: 2,
+		DefaultNHGWeight: []cfgplugins.NHGWeightParams{
+			{Pct: 80, Config: cfgplugins.WCMP1in512},
+			{Pct: 20, Config: cfgplugins.WCMP1in1024},
+		},
 
 		// Transit VRF parameters
-		NumTransitNH:  2,
-		NumTransitNHG: 2,
+		NumTransitNH:  4_000,
+		NumTransitNHG: 2_000,
 		TransitNHGLoadBalance: []cfgplugins.NHGLoadBalancingParams{
 			{Pct: 100, NumNextHops: 2},
 		},
-		NumTransitIPv4: 1,
+		TransitNHGWeight: []cfgplugins.NHGWeightParams{
+			{Pct: 100, Config: cfgplugins.WCMP1in64},
+		},
+		NumTransitIPv4: 17_500,
 
 		// Repair VRF parameters
-		NumRepairIPv4: 1,
-		NumRepairNHG:  1,
+		NumRepairIPv4: 17_500,
+		NumRepairNHG:  1_000,
 
-		// Encap / Decap VRF parameters
-		NumEncapVRFs:       1,
-		NumEncapIPv4PerVRF: 1,
-		NumEncapIPv6PerVRF: 1,
-		NumUniqueEncapNH:   1,
-		NumEncapDefaultNHG: 1,
-		PctEncap8NH:        75,
-		PctEncap32NH:       20,
+		// Encap VRF parameters
+		NumEncapVRFs:       5,
+		NumEncapIPv4PerVRF: 4_140,
+		NumEncapIPv6PerVRF: 5_060,
+		NumUniqueEncapNH:   14_000,
+		NumEncapDefaultNHG: 3_500,
+		EncapNHGLoadBalance: []cfgplugins.NHGLoadBalancingParams{
+			{Pct: 75, NumNextHops: 4},
+			{Pct: 20, NumNextHops: 8},
+			{Pct: 3, NumNextHops: 16},
+			{Pct: 2, NumNextHops: 32},
+		},
+		EncapNHGWeight: []cfgplugins.NHGWeightParams{
+			{Pct: 75, Config: cfgplugins.WCMP1in32},
+			{Pct: 20, Config: cfgplugins.WCMP1in64},
+			{Pct: 3, Config: cfgplugins.WCMP1in128},
+			{Pct: 2, Config: cfgplugins.WCMP1in256},
+		},
 
 		// Decap VRF parameters
-		NumDecapEntries:     1,
+		NumDecapEntries:     20,
 		DecapDestsSubsetPct: 100,
 
 		// OTG / Port parameters
-		NumPort2VLANs: 2,
+		NumPort2VLANs: 640,
 
 		// Traffic parameters
-		TrafficRateMpps: 1_000,
-		TrafficDuration: 1 * time.Minute,
+		TrafficRateMpps: 30_000_000,
+		TrafficDuration: 5 * time.Minute,
 		TrafficLossTol:  5,
 	}
 	cfgplugins.RunFullScaleTest(t, params, *enablePacketCapture, *compactOTGFlows)
