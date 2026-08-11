@@ -562,7 +562,6 @@ func NewOneRateTwoColorScheduler(t *testing.T, dut *ondatra.DUTDevice, batch *gn
 	}
 }
 
-
 // NewQoSQueueManagementProfile creates a QoS queue management profile configuration.
 func NewQoSQueueManagementProfile(t *testing.T, dut *ondatra.DUTDevice, q *oc.Qos, profiles []QoSQueueManagementProfile) *oc.Qos {
 	t.Logf("QoS QueueManagementProfile config cases: %v", profiles)
