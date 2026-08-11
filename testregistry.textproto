@@ -1515,26 +1515,26 @@ test: {
 test: {
   id: "TE-14.3"
   description: "gRIBI Scaling - full scale setup, target T1"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_full_scale_t1/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_full_scale_t1/gribi_full_scale_t1_test.go"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/gribi_full_scale/otg_tests/gribi_full_scale_t1/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/gribi_full_scale/otg_tests/gribi_full_scale_t1/gribi_full_scale_t1_test.go"
 }
 test: {
   id: "TE-14.4"
   description: "gRIBI Scaling - full scale setup, target T2"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_full_scale_t2/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_full_scale_t2/gribi_full_scale_t2_test.go"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/gribi_full_scale/otg_tests/gribi_full_scale_t2/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/gribi_full_scale/otg_tests/gribi_full_scale_t2/gribi_full_scale_t2_test.go"
 }
 test: {
   id: "TE-14.5"
   description: "gRIBI Scaling - full scale setup, target T0"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_full_scale_t0/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_full_scale_t0/gribi_full_scale_t0_test.go"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/gribi_full_scale/otg_tests/gribi_full_scale_t0/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/gribi_full_scale/otg_tests/gribi_full_scale_t0/gribi_full_scale_t0_test.go"
 }
 test: {
   id: "TE-14.6"
   description: "gRIBI Scaling - all scenarios but with minimal scaling parameters"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_full_scale_down/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_full_scale_down/gribi_full_scale_down_test.go"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/gribi_full_scale/otg_tests/gribi_full_scale_down/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/gribi_full_scale/otg_tests/gribi_full_scale_down/gribi_full_scale_down_test.go"
 }
 test: {
   id: "TE-15.1"
