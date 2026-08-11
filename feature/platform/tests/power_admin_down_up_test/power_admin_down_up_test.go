@@ -190,16 +190,26 @@ func TestControllerCardPowerAdmin(t *testing.T) {
 
 	// 3. Verification:
 	// Verify the operational status and redundant roles of the controller cards post-recovery.
+	batch := gnmi.OCBatch()
 	for _, c := range cs {
-		operVal, ok := gnmi.Await(t, dut, gnmi.OC().Component(c).OperStatus().State(), 20*time.Minute, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE).Val()
-		if !ok {
-			t.Errorf("Component %s oper-status, got: %v, want: ACTIVE", c, operVal)
-		}
-		readyVal, ok := gnmi.Await(t, dut, gnmi.OC().Component(c).SwitchoverReady().State(), 20*time.Minute, true).Val()
-		if !ok {
-			t.Errorf("Component %s switchover-ready, got: %v, want: true", c, readyVal)
-		}
+		batch.AddPaths(
+			gnmi.OC().Component(c).OperStatus(),
+			gnmi.OC().Component(c).SwitchoverReady(),
+		)
 	}
+	gnmi.Watch(t, dut, batch.State(), 20*time.Minute, func(val *ygnmi.Value[*oc.Root]) bool {
+		root, present := val.Val()
+		if !present {
+			return false
+		}
+		for _, c := range cs {
+			comp := root.GetComponent(c)
+			if comp == nil || comp.GetOperStatus() != oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE || !comp.GetSwitchoverReady() {
+				return false
+			}
+		}
+		return true
+	}).Await(t)
 
 	role1 := gnmi.Get(t, dut, gnmi.OC().Component(cs[0]).RedundantRole().State())
 	role2 := gnmi.Get(t, dut, gnmi.OC().Component(cs[1]).RedundantRole().State())
