@@ -207,7 +207,6 @@ func TestStaticRouteResiliency(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 
 	configureDUT(t, dut)
-	t.Cleanup()
 
 	top := gosnappi.NewConfig()
 	configureATE(t, ate, top)
