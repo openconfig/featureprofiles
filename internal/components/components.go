@@ -248,7 +248,6 @@ func WaitForSwitchover(t *testing.T, dut *ondatra.DUTDevice, maxSwitchoverTime t
 	for {
 		var currentTime string
 		t.Logf("Time elapsed %.2f seconds since switchover started.", time.Since(startSwitchover).Seconds())
-		time.Sleep(30 * time.Second)
 		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
 		}); errMsg != nil {
@@ -260,6 +259,7 @@ func WaitForSwitchover(t *testing.T, dut *ondatra.DUTDevice, maxSwitchoverTime t
 		if time.Since(startSwitchover) >= maxSwitchoverTime {
 			t.Fatalf("time.Since(startSwitchover): got %v, want < %v", time.Since(startSwitchover), maxSwitchoverTime)
 		}
+		time.Sleep(30 * time.Second)
 	}
 	t.Logf("RP switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
 }
