@@ -80,11 +80,8 @@ func initializeMultiAdjISISScaleTestData(t *testing.T) *isisscalehelpers.TestDat
 			blockCount:     1,
 		},
 	}
-	aggregateCount := 4
-	// NOTE(scale): subInterfacesCountPerAggregate is set to 76 across 4 aggregate interfaces
-	// to establish 304 total IS-IS Level 2 adjacencies (4 x 76 = 304). This allows running on 4-port
-	// physical testbeds (testbed_dut_ate_4links.textproto) while maintaining the 304 adjacency target.
-	subInterfacesCountPerAggregate := 76
+	aggregateCount := 8
+	subInterfacesCountPerAggregate := 12
 	initialVlanID := 1000
 	initialIPv4Address := net.ParseIP("192.0.0.1")
 	initialIPv6Address := net.ParseIP("2001:db8::1")
@@ -96,14 +93,10 @@ func initializeMultiAdjISISScaleTestData(t *testing.T) *isisscalehelpers.TestDat
 			DUTArea:  "49.0001",
 			DUTSysID: "1920.0000.2001",
 		},
-		ISISAuthKey: "google_isis_key",
 	}
 
 	// Create ATE data.
 	ateEmulatedRouterData := isisscalehelpers.CreateATEEmulatedRouterData(t, dutData.Lags)
-	for _, er := range ateEmulatedRouterData {
-		er.ISISAuthKey = "google_isis_key"
-	}
 	lagToErouterMap := make(map[int][]*otgconfighelpers.AteEmulatedRouterData)
 	for i := 0; i < aggregateCount; i++ {
 		lagToErouterMap[i] = ateEmulatedRouterData[i*subInterfacesCountPerAggregate : (i+1)*subInterfacesCountPerAggregate]
@@ -182,13 +175,8 @@ func TestISISScale(t *testing.T) {
 			var count int
 			var ok bool
 			t.Logf("===========Conducting pre-test checks===========")
-			// NOTE(timeouts): Convergence timeouts for interface operational state and IS-IS
-			// Level 2 adjacencies are set to 4 minutes (increased from 2 minutes) to accommodate
-			// CPU-emulated virtualized container routers in KNE (e.g. cPTX, cXR, cEOS, SR Linux)
-			// when bringing up 304 adjacencies with MD5 authentication.
-			// When running on physical hardware ASICs, convergence typically completes within 1-2 minutes.
 			// Check Aggregate on DUT are UP
-			count, ok = isisscalehelpers.CheckIntsOpState(t, dut, 4*time.Minute)
+			count, ok = isisscalehelpers.CheckIntsOpState(t, dut, 2*time.Minute)
 			switch {
 			case ok && count == testInfo.CorrectAggInterfaceCount:
 				t.Logf("Check passed: All interfaces participating in ISIS are operationally up  need %v up interfaces got %v", testInfo.CorrectAggInterfaceCount, count)
@@ -198,9 +186,9 @@ func TestISISScale(t *testing.T) {
 
 			// Check ISIS Adjacency
 			if deviations.ISISAdjacencyStreamUnsupported(dut) {
-				count, ok = isisscalehelpers.FindISISAdjCountNonStream(t, dut, 4*time.Minute, testInfo.CorrectISISAdjCount)
+				count, ok = isisscalehelpers.FindISISAdjCountNonStream(t, dut, 2*time.Minute, testInfo.CorrectISISAdjCount)
 			} else {
-				count, ok = isisscalehelpers.FindISISAdjCount(t, dut, 4*time.Minute, testInfo.CorrectISISAdjCount)
+				count, ok = isisscalehelpers.FindISISAdjCount(t, dut, 2*time.Minute, testInfo.CorrectISISAdjCount)
 			}
 			switch {
 			case !ok:
@@ -238,14 +226,14 @@ func TestISISScale(t *testing.T) {
 					go func() {
 						defer wg.Done()
 						if deviations.AFTSummaryOCUnsupported(dut) {
-							count, ok := isisscalehelpers.FindProtocolRouteCount(t, dut, family, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, 4*time.Minute, testInfo.CorrectIPRouteCount[family])
+							count, ok := isisscalehelpers.FindProtocolRouteCount(t, dut, family, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, 1*time.Minute, testInfo.CorrectIPRouteCount[family])
 							if !ok {
 								t.Errorf("check failed: incorrect %s route count need %v routes got %v", family.String(), testInfo.CorrectIPRouteCount[family], count)
 								return
 							}
 							t.Logf("Check passed: correct %s route count need %v routes got %v", family.String(), testInfo.CorrectIPRouteCount[family], count)
 						} else {
-							count := isisscalehelpers.FindProtocolSummaryRouteCount(t, dut, family, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, 4*time.Minute, testInfo.CorrectIPRouteCount[family])
+							count := isisscalehelpers.FindProtocolSummaryRouteCount(t, dut, family, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, 1*time.Minute, testInfo.CorrectIPRouteCount[family])
 							if count >= testInfo.CorrectIPRouteCount[family] {
 								t.Logf("Check passed: correct route count for the family %s need %v routes got %v", family.String(), testInfo.CorrectIPRouteCount[family], count)
 							} else {
