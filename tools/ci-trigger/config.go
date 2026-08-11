@@ -128,10 +128,10 @@ var virtualDeviceMachineType = map[deviceType]string{
 
 // physicalDeviceTypes is a list of device types that can execute tests on real hardware.
 var physicalDeviceTypes = []deviceType{
-	{Vendor: opb.Device_ARISTA, HardwareModel: "7808"},
-	{Vendor: opb.Device_CISCO, HardwareModel: "8808"},
-	{Vendor: opb.Device_JUNIPER, HardwareModel: "PTX10008"},
-	{Vendor: opb.Device_NOKIA, HardwareModel: "7250 IXR-10e"},
+	{Vendor: opb.Device_ARISTA},
+	{Vendor: opb.Device_CISCO},
+	{Vendor: opb.Device_JUNIPER},
+	{Vendor: opb.Device_NOKIA},
 }
 
 func titleCase(input string) string {
