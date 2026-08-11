@@ -299,14 +299,14 @@ func TestSSOSoftwareStability(t *testing.T) {
 	decapGR.StaleRoutesTime = ygot.Uint16(300)
 	decapGlobal.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 
-// Create PERMIT-ALL routing policy
-rp := bs.DUTConf.GetOrCreateRoutingPolicy()
-pdef := rp.GetOrCreatePolicyDefinition(rplPermitAll)
-stmt, err := pdef.AppendNewStatement("20")
-if err != nil {
-	t.Fatalf("Failed to create routing policy statement: %v", err)
-}
-stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	// Create PERMIT-ALL routing policy
+	rp := bs.DUTConf.GetOrCreateRoutingPolicy()
+	pdef := rp.GetOrCreatePolicyDefinition(rplPermitAll)
+	stmt, err := pdef.AppendNewStatement("20")
+	if err != nil {
+		t.Fatalf("Failed to create routing policy statement: %v", err)
+	}
+	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
 	// Assign BGP neighbors to respective VRFs BGP config
 	for i, otgPort := range bs.ATEPorts {
