@@ -36,6 +36,8 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -384,24 +386,44 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, vrfTC
 }
 
 func checkTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
+	defer otgutils.LogFlowMetrics(t, ate.OTG(), top)
+	defer otgutils.LogPortMetrics(t, ate.OTG(), top)
 	ate.OTG().StartTraffic(t)
 	time.Sleep(time.Second * 30)
 	ate.OTG().StopTraffic(t)
 
-	otgutils.LogFlowMetrics(t, ate.OTG(), top)
-	otgutils.LogPortMetrics(t, ate.OTG(), top)
-
 	t.Log("Checking flow telemetry...")
+	gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow("flow").State(), 45*time.Second, func(v *ygnmi.Value[*otgtelemetry.Flow]) bool {
+		val, present := v.Val()
+		if !present {
+			return false
+		}
+		tx := val.GetCounters().GetOutPkts()
+		rx := val.GetCounters().GetInPkts()
+		if tx == 0 {
+			return false
+		}
+		if rx > tx {
+			return false
+		}
+		lossPct := float32(tx-rx) * 100 / float32(tx)
+		return int(lossPct) <= 1
+	}).Await(t)
+
 	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow("flow").State())
 	txPackets := recvMetric.GetCounters().GetOutPkts()
 	rxPackets := recvMetric.GetCounters().GetInPkts()
-	lostPackets := txPackets - rxPackets
-	if txPackets == 0 {
-		t.Fatalf("txPackets == 0, want > 0")
-	}
-	lossPct := lostPackets * 100 / txPackets
 
-	if lossPct > 1 {
-		t.Errorf("FAIL- Got %v%% packet loss for %s ; expected < 1%%", lossPct, "flow")
+	if txPackets == 0 {
+		t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", "flow")
+	}
+	if rxPackets > txPackets {
+		t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", rxPackets, txPackets)
+	}
+
+	lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
+
+	if int(lossPct) > 1 {
+		t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want <= 1", "flow", lossPct)
 	}
 }
