@@ -184,6 +184,8 @@ func ConfigureOTG(t *testing.T) {
 // snippets tied to a different test's lab addressing (e.g. hardcoded prefixes/next-hop-group
 // names), which would silently misconfigure this test's topology.
 func ConfigureDut(t *testing.T, dut *ondatra.DUTDevice) {
+	configureHardwareInit(t, dut)
+
 	custAggID = netutil.NextAggregateInterface(t, dut)
 	configureInterfaces(t, dut, custPorts, custIntfs, custAggID)
 
@@ -201,6 +203,18 @@ func ConfigureDut(t *testing.T, dut *ondatra.DUTDevice) {
 	configureDecapMPLSInGREAndGUE(t, dut)
 
 	configureQoS(t, dut)
+}
+
+// configureHardwareInit programs the Arista TCAM profile required for port traffic-policy
+// support; without it, binding a traffic-policy to an interface fails ("Port traffic-policy
+// not supported in TCAM profile").
+func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	hardwarePfCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeaturePolicyForwarding)
+	if hardwarePfCfg == "" {
+		return
+	}
+	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwarePfCfg)
 }
 
 // configureEncapMPLSInGREAndGUE implements the "IP to Encap" side of PF-1.18.1.
@@ -240,14 +254,19 @@ func configureAristaEncap(t *testing.T, dut *ondatra.DUTDevice) {
 
 	// MPLSoGUE next-hop-group + PBR rule: these cfgplugins helpers are genuinely parameterized
 	// (unlike PolicyForwardingConfig/NextHopGroupConfig above), so they're safe to reuse as-is.
+	// NOTE: despite its name, SrcIp is the Arista "tunnel-source intf <name>" argument and must
+	// be a DUT interface name, not an IP address.
+	// TODO: DSCP is left unset here; NextHopGroupConfigForIpOverUdp's DSCP marking applies an
+	// ingress QoS policy to the tunnel-source interface (via configureTOSGUE), which isn't the
+	// same as marking the GUE outer header, and its cs<N> conversion (DSCP>>5) expects a
+	// TOS-scaled value, not a raw DSCP. Revisit once outer-header marking for GUE is verified.
 	cfgplugins.NextHopGroupConfigForIpOverUdp(t, dut, cfgplugins.NexthopGroupUDPParams{
 		IPFamily:       "V4Udp",
 		NexthopGrpName: gueNHGName,
 		DstIp:          []string{outerGUEDstCore1, outerGUEDstCore2},
-		SrcIp:          core1Intf.IPv4,
+		SrcIp:          core1AggID,
 		DstUdpPort:     gueDstPort,
 		TTL:            64,
-		DSCP:           outerMarkedDSCP,
 	})
 	cfgplugins.NewPolicyForwardingGueEncap(t, dut, cfgplugins.GueEncapPolicyParams{
 		IPFamily:         "V4Udp",
@@ -402,9 +421,13 @@ func configureBandwidthShaperScheduler(t *testing.T, dut *ondatra.DUTDevice, qNa
 		input.SetId(qn)
 		input.SetInputType(oc.Input_InputType_QUEUE)
 		input.SetQueue(qn)
+		// TODO: b/442749011 - Arista's gNMI schema rejects two-rate-three-color/one-rate-two-color
+		// under scheduler-policy/scheduler; skip pushing them until a CLI-based equivalent (Arista
+		// egress tx-queue shaping) is implemented (see README TODO on shaper OC not being finalized).
+		if deviations.QosTwoRateThreeColorPolicerOCUnsupported(dut) {
+			continue
+		}
 		if i < 3 {
-			// TODO: README notes shaper OC is not yet finalized; two-rate-three-color is used
-			// here as the closest existing min(cir)/max(pir) bandwidth construct.
 			trtc := s.GetOrCreateTwoRateThreeColor()
 			trtc.SetCir(rates[i].cir)
 			trtc.SetPir(rates[i].pir)
@@ -454,7 +477,8 @@ func configurePriorityShaperScheduler(t *testing.T, dut *ondatra.DUTDevice, qNam
 		input.SetId(qn)
 		input.SetInputType(oc.Input_InputType_QUEUE)
 		input.SetQueue(qn)
-		if i < len(shaperPir) {
+		if i < len(shaperPir) && !deviations.QosTwoRateThreeColorPolicerOCUnsupported(dut) {
+			// TODO: b/442749011 - see configureBandwidthShaperScheduler.
 			ortc := s.GetOrCreateOneRateTwoColor()
 			ortc.SetCir(shaperPir[i])
 			ortc.GetOrCreateExceedAction().SetDrop(true)

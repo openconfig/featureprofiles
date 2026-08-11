@@ -22,6 +22,8 @@ platform_exceptions: {
     qos_classification_unsupported: true
     policy_forwarding_unsupported: true
     interface_policy_forwarding_unsupported: true
+    qos_two_rate_three_color_policer_oc_unsupported: true
+    qos_scheduler_ingress_policer_unsupported: true
   }
 }
 platform_exceptions: {
