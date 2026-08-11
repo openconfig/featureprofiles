@@ -1954,6 +1954,7 @@ test: {
   id: "bootz"
   description: "General bootz bootstrap tests"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/bootz_test.go"
 }
 test: {
   id: "enrollz-1"
