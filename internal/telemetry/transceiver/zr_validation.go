@@ -223,31 +223,20 @@ func PlatformPathsTest(t *testing.T, tp *TunableParamters) {
 
 func TunableParamsTest(t *testing.T, tp *TunableParams) {
 	t.Helper()
-
-	dut := ondatra.DUT(t, "dut")
-
-	fptest.ConfigureDefaultNetworkInstance(t, dut)
-
-	t.Logf("\n*** Configure interfaces with Operational Mode: %v, Optical Frequency: %v, Target Power: %v\n\n\n", tp.OpMode, tp.Freq, tp.OutputPower)
-	params := &cfgplugins.ConfigParameters{
-		Enabled:            true,
-		Frequency:          tp.Freq,
-		TargetOpticalPower: tp.OutputPower,
-		OperationalMode:    tp.OpMode,
-	}
-	batch := &gnmi.SetBatch{}
-	cfgplugins.NewInterfaceConfigAll(t, dut, batch, params)
-	batch.Set(t, dut)
-
-	// Create sample steams for each port.
-	ochStreams := make(map[string]*samplestream.SampleStream[*oc.Component])
-	interfaceStreams := make(map[string]*samplestream.SampleStream[*oc.Interface])
+	dut, params, ochStreams, interfaceStreams := setupTunableParams(t, tp)
+	defer closeTunableParamsStreams(ochStreams, interfaceStreams)
 	for _, p := range dut.Ports() {
-		ochStreams[p.Name()] = samplestream.New(t, dut, gnmi.OC().Component(params.OpticalChannelNames[p.Name()]).State(), samplingInterval)
-		interfaceStreams[p.Name()] = samplestream.New(t, dut, gnmi.OC().Interface(p.Name()).State(), samplingInterval)
-		defer ochStreams[p.Name()].Close()
-		defer interfaceStreams[p.Name()].Close()
+		validateInterfaceTelemetry(t, dut, p, params, oc.Interface_OperStatus_UP, interfaceStreams[p.Name()])
+		validateOpticalChannelTelemetry(t, p, params, oc.Interface_OperStatus_UP, ochStreams[p.Name()])
 	}
+}
+
+// TunableParamsInterfaceFlapTest validates tunable parameter telemetry across an interface flap.
+func TunableParamsInterfaceFlapTest(t *testing.T, tp *TunableParams) {
+	t.Helper()
+	dut, params, ochStreams, interfaceStreams := setupTunableParams(t, tp)
+	defer closeTunableParamsStreams(ochStreams, interfaceStreams)
+
 	for _, p := range dut.Ports() {
 		validateInterfaceTelemetry(t, dut, p, params, oc.Interface_OperStatus_UP, interfaceStreams[p.Name()])
 		validateOpticalChannelTelemetry(t, p, params, oc.Interface_OperStatus_UP, ochStreams[p.Name()])
@@ -271,6 +260,40 @@ func TunableParamsTest(t *testing.T, tp *TunableParams) {
 	for _, p := range dut.Ports() {
 		validateInterfaceTelemetry(t, dut, p, params, oc.Interface_OperStatus_UP, interfaceStreams[p.Name()])
 		validateOpticalChannelTelemetry(t, p, params, oc.Interface_OperStatus_UP, ochStreams[p.Name()])
+	}
+}
+
+func setupTunableParams(t *testing.T, tp *TunableParams) (*ondatra.DUTDevice, *cfgplugins.ConfigParameters, map[string]*samplestream.SampleStream[*oc.Component], map[string]*samplestream.SampleStream[*oc.Interface]) {
+	t.Helper()
+	dut := ondatra.DUT(t, "dut")
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
+
+	t.Logf("\n*** Configure interfaces with Operational Mode: %v, Optical Frequency: %v, Target Power: %v\n\n\n", tp.OpMode, tp.Freq, tp.OutputPower)
+	params := &cfgplugins.ConfigParameters{
+		Enabled:            true,
+		Frequency:          tp.Freq,
+		TargetOpticalPower: tp.OutputPower,
+		OperationalMode:    tp.OpMode,
+	}
+	batch := &gnmi.SetBatch{}
+	cfgplugins.NewInterfaceConfigAll(t, dut, batch, params)
+	batch.Set(t, dut)
+
+	ochStreams := make(map[string]*samplestream.SampleStream[*oc.Component])
+	interfaceStreams := make(map[string]*samplestream.SampleStream[*oc.Interface])
+	for _, p := range dut.Ports() {
+		ochStreams[p.Name()] = samplestream.New(t, dut, gnmi.OC().Component(params.OpticalChannelNames[p.Name()]).State(), samplingInterval)
+		interfaceStreams[p.Name()] = samplestream.New(t, dut, gnmi.OC().Interface(p.Name()).State(), samplingInterval)
+	}
+	return dut, params, ochStreams, interfaceStreams
+}
+
+func closeTunableParamsStreams(ochStreams map[string]*samplestream.SampleStream[*oc.Component], interfaceStreams map[string]*samplestream.SampleStream[*oc.Interface]) {
+	for _, stream := range ochStreams {
+		stream.Close()
+	}
+	for _, stream := range interfaceStreams {
+		stream.Close()
 	}
 }
 
