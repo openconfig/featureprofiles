@@ -32,6 +32,10 @@ import (
 	"github.com/openconfig/ondatra"
 
 	gpb "github.com/openconfig/gribi/v1/proto/service"
+
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 const (
@@ -342,7 +346,7 @@ func (c *Client) AddIPv6(t testing.TB, prefix string, nhgIndex uint64, instance,
 	)
 }
 
-// AddIPv4s adds multiple IPv4Entries mapping prefixes to a given next hop group index within a given network instance.
+// AddIPv4s adds multiple IPv4Entry mappings to a given next hop group index within a given network instance.
 func (c *Client) AddIPv4s(t testing.TB, prefixes []string, nhgIndex uint64, instance, nhgInstance string, expectedResult fluent.ProgrammingResult) {
 	t.Helper()
 	var entries []fluent.GRIBIEntry
@@ -364,7 +368,7 @@ func (c *Client) AddIPv4s(t testing.TB, prefixes []string, nhgIndex uint64, inst
 	c.AddEntries(t, entries, results)
 }
 
-// AddIPv6s adds multiple IPv6Entries mapping prefixes to a given next hop group index within a given network instance.
+// AddIPv6s adds multiple IPv6Entry mappings to a given next hop group index within a given network instance.
 func (c *Client) AddIPv6s(t testing.TB, prefixes []string, nhgIndex uint64, instance, nhgInstance string, expectedResult fluent.ProgrammingResult) {
 	t.Helper()
 	var entries []fluent.GRIBIEntry
@@ -497,50 +501,30 @@ func awaitTimeout(ctx context.Context, t testing.TB, c *fluent.GRIBIClient, time
 	return c.Await(subctx, t)
 }
 
-// VerifyRestoredIPv4s verifies that the specified IPv4 prefixes are present in the server's RIB via a Get RPC.
-func (c *Client) VerifyRestoredIPv4s(t testing.TB, prefixes []string, networkInstanceName string) {
+// AwaitAFTIPv4Entries waits for a list of IPv4 prefixes to be successfully installed in AFT.
+func AwaitAFTIPv4Entries(t testing.TB, dut *ondatra.DUTDevice, networkInstance string, prefixes []string) {
 	t.Helper()
-	getResponse, err := c.fluentC.Get().WithNetworkInstance(networkInstanceName).WithAFT(fluent.IPv4).Send()
-	if err != nil {
-		t.Fatalf("Cannot Get IPv4 entries: %v", err)
-	}
-
-	gotPrefixes := make(map[string]bool)
-	for _, entry := range getResponse.GetEntry() {
-		if v, ok := entry.Entry.(*gpb.AFTEntry_Ipv4); ok {
-			if prefix := v.Ipv4.GetPrefix(); prefix != "" {
-				gotPrefixes[prefix] = true
-			}
-		}
-	}
-
-	for _, p := range prefixes {
-		if !gotPrefixes[p] {
-			t.Errorf("IPv4 prefix %q not found in gRIBI Get response", p)
+	for _, prefix := range prefixes {
+		ipv4Path := gnmi.OC().NetworkInstance(networkInstance).Afts().Ipv4Entry(prefix)
+		if _, found := gnmi.Watch(t, dut, ipv4Path.State(), 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+			value, present := val.Val()
+			return present && value.GetPrefix() == prefix
+		}).Await(t); !found {
+			t.Fatalf("Could not find IPv4 prefix %s in telemetry AFT", prefix)
 		}
 	}
 }
 
-// VerifyRestoredIPv6s verifies that the specified IPv6 prefixes are present in the server's RIB via a Get RPC.
-func (c *Client) VerifyRestoredIPv6s(t testing.TB, prefixes []string, networkInstanceName string) {
+// AwaitAFTIPv6Entries waits for a list of IPv6 prefixes to be successfully installed in AFT.
+func AwaitAFTIPv6Entries(t testing.TB, dut *ondatra.DUTDevice, networkInstance string, prefixes []string) {
 	t.Helper()
-	getResponse, err := c.fluentC.Get().WithNetworkInstance(networkInstanceName).WithAFT(fluent.IPv6).Send()
-	if err != nil {
-		t.Fatalf("Cannot Get IPv6 entries: %v", err)
-	}
-
-	gotPrefixes := make(map[string]bool)
-	for _, entry := range getResponse.GetEntry() {
-		if v, ok := entry.Entry.(*gpb.AFTEntry_Ipv6); ok {
-			if prefix := v.Ipv6.GetPrefix(); prefix != "" {
-				gotPrefixes[prefix] = true
-			}
-		}
-	}
-
-	for _, p := range prefixes {
-		if !gotPrefixes[p] {
-			t.Errorf("IPv6 prefix %q not found in gRIBI Get response", p)
+	for _, prefix := range prefixes {
+		ipv6Path := gnmi.OC().NetworkInstance(networkInstance).Afts().Ipv6Entry(prefix)
+		if _, found := gnmi.Watch(t, dut, ipv6Path.State(), 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
+			value, present := val.Val()
+			return present && value.GetPrefix() == prefix
+		}).Await(t); !found {
+			t.Fatalf("Could not find IPv6 prefix %s in telemetry AFT", prefix)
 		}
 	}
 }

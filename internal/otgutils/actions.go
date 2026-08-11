@@ -55,3 +55,18 @@ func GetFlowLossPct(t testing.TB, otg *otg.OTG, flowName string, timeout time.Du
 	tx, rx := GetFlowStats(t, otg, flowName, timeout)
 	return (float64(tx) - float64(rx)) * 100 / float64(tx)
 }
+
+// ExpectedTrafficLoss waits for a flow to stop and asserts the observed loss percentage
+// is within the configured expected range.
+func ExpectedTrafficLoss(t testing.TB, otg *otg.OTG, flowName string, minLossPct, maxLossPct float64) {
+	t.Helper()
+	lossPct := GetFlowLossPct(t, otg, flowName, 30*time.Second)
+	if lossPct < minLossPct || lossPct > maxLossPct {
+		t.Fatalf("flow %q loss percentage = %.2f%%, want between %.2f%% and %.2f%%", flowName, lossPct, minLossPct, maxLossPct)
+	}
+	if lossPct == 0 {
+		t.Logf("Flow %q loss percentage = %.2f%%", flowName, lossPct)
+		return
+	}
+	t.Logf("Flow %q loss percentage = %.2f%%", flowName, lossPct)
+}

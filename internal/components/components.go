@@ -237,16 +237,17 @@ func ValidateTelemetry(t *testing.T, dut *ondatra.DUTDevice, primaryAfterSwitch,
 		t.Logf("Found primary.LastSwitchoverTime(): %v", gnmi.Get(t, dut, primary.LastSwitchoverTime().State()))
 	}
 
+	var gotTrigger oc.E_PlatformTypes_ComponentRedundantRoleSwitchoverReasonTrigger
 	if !gnmi.Lookup(t, dut, primary.LastSwitchoverReason().State()).IsPresent() {
 		t.Errorf("primary.LastSwitchoverReason().Lookup(t).IsPresent(): got false, want true")
 	} else {
 		lastSwitchoverReason := gnmi.Get(t, dut, primary.LastSwitchoverReason().State())
 		t.Logf("Found lastSwitchoverReason.GetDetails(): %v", lastSwitchoverReason.GetDetails())
 		t.Logf("Found lastSwitchoverReason.GetTrigger().String(): %v", lastSwitchoverReason.GetTrigger().String())
-	}
-
-	if got, want := gnmi.Get(t, dut, primary.LastSwitchoverReason().State()).GetTrigger(), switchTrigger; got != want {
-		t.Errorf("primary.GetLastSwitchoverReason().GetTrigger(): got %s, want %s.", got, want)
+		gotTrigger = lastSwitchoverReason.GetTrigger()
+		if gotTrigger != switchTrigger {
+			t.Errorf("primary.GetLastSwitchoverReason().GetTrigger(): got %s, want %s.", gotTrigger, switchTrigger)
+		}
 	}
 
 	if !gnmi.Lookup(t, dut, secondary.LastRebootTime().State()).IsPresent() {
