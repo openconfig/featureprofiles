@@ -524,8 +524,9 @@ func testECMPAndFIB(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice
 	gnmi.Await(t, dut, gnmi.OC().Interface(port7Name).OperStatus().State(), 30*time.Second, oc.Interface_OperStatus_DOWN)
 
 	// Step 8 (Verify Persistence)
-	gnmi.Replace(t, dut, gnmi.OC().Interface(dut.Port(t, "port7").Name()).Enabled().Config(), true)
-	time.Sleep(10 * time.Second)
+	port7Name := dut.Port(t, "port7").Name()
+	gnmi.Replace(t, dut, gnmi.OC().Interface(port7Name).Enabled().Config(), true)
+	gnmi.Await(t, dut, gnmi.OC().Interface(port7Name).OperStatus().State(), 30*time.Second, oc.Interface_OperStatus_UP)
 
 	// Step 9 & 10 (Stop & Delete)
 	ate.OTG().StopTraffic(t)
