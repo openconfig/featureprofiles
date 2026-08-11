@@ -249,3 +249,4 @@ func TestLargeGNMISetAndReboot(t *testing.T) {
 		t.Logf("Successfully verified new description %q on %s", gotDesc, testInterface)
 	}
 }
+
