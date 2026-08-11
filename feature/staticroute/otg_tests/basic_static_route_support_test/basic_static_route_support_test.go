@@ -290,7 +290,8 @@ func TestRT1268_StaticRouteAddRemove(t *testing.T) {
 	}
 	// Note: We need to explicitly delete the next-hops index 0 and 3
 	// using the new helper or manually
-	cfgplugins.DeleteStaticRouteNextHopLeaves(t, dut, deviations.DefaultNetworkInstance(dut), prefix.cidr(t), "0", "metric", "preference", "recurse") // Just to clear config
+	cfgplugins.DeleteStaticRouteNextHopLeaves(t, dut, deviations.DefaultNetworkInstance(dut), prefix.cidr(t), "0", "metric", "preference", "recurse")
+	cfgplugins.DeleteStaticRouteNextHopLeaves(t, dut, deviations.DefaultNetworkInstance(dut), prefix.cidr(t), "3", "metric", "preference", "recurse")
 
 	// Actually we should just set the batch for the whole route, but the route replacement doesn't delete old leaves in OC unless requested.
 	// Oh wait, NewStaticRouteCfg just sets the leaves that we give, it doesn't delete the other leaves unless we do gnmi.Update on the whole StaticRoute list which isn't done explicitly. Wait, actually NewStaticRouteCfg does gnmi.BatchReplace on the specific prefix level configuration. So replacing the prefix configuration drops old next-hops.
@@ -1438,6 +1439,9 @@ func (td *testData) advertiseRoutesWithISIS(t *testing.T) {
 
 func TestRT1269_DirectInterfaceIPDeletion(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	if deviations.StaticRouteNextHopInterfaceRefUnsupported(dut) {
+		t.Skip("Skipping test due to unsupported static route next-hop interface-ref.")
+	}
 	configureDUT(t, dut)
 
 	ate := ondatra.ATE(t, "ate")
@@ -1481,6 +1485,12 @@ func TestRT1269_DirectInterfaceIPDeletion(t *testing.T) {
 	// Step 2 - Delete the IP address of that direct interface using a gNMI Set DELETE.
 	intfPath := gnmi.OC().Interface(dut.Port(t, "port1").Name())
 	gnmi.Delete(t, dut, intfPath.Subinterface(0).Ipv4().Address(dutPort1.IPv4).Config())
+	t.Cleanup(func() {
+		gnmi.Replace(t, dut, intfPath.Subinterface(0).Ipv4().Address(dutPort1.IPv4).Config(), &oc.Interface_Subinterface_Ipv4_Address{
+			Ip:           ygot.String(dutPort1.IPv4),
+			PrefixLength: ygot.Uint8(uint8(dutPort1.IPv4Len)),
+		})
+	})
 
 	time.Sleep(30 * time.Second)
 	td.ate.OTG().StopTraffic(t)
@@ -1561,6 +1571,13 @@ func TestRT12610_OverlappingPrefixesLPM(t *testing.T) {
 
 	// Step 2 - Push configuration to DUT.
 	b.Set(t, dut)
+	t.Cleanup(func() {
+		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+		bClean := &gnmi.SetBatch{}
+		gnmi.BatchDelete(bClean, sp.Static("10.0.0.0/8").Config())
+		gnmi.BatchDelete(bClean, sp.Static("10.1.1.0/24").Config())
+		bClean.Set(t, dut)
+	})
 
 	// Step 3 - Send traffic to destination 10.1.1.1.
 	td.ate.OTG().StartTraffic(t)
@@ -1587,6 +1604,9 @@ func TestRT12610_OverlappingPrefixesLPM(t *testing.T) {
 
 func TestRT12611_RouteResolutionLoop(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	if deviations.UnsupportedStaticRouteNextHopRecurse(dut) {
+		t.Skip("Skipping test due to unsupported static route next-hop recursion.")
+	}
 	configureDUT(t, dut)
 
 	ate := ondatra.ATE(t, "ate")
@@ -1629,6 +1649,13 @@ func TestRT12611_RouteResolutionLoop(t *testing.T) {
 
 	// Step 3 - Push configuration to DUT.
 	b.Set(t, dut)
+	t.Cleanup(func() {
+		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+		bClean := &gnmi.SetBatch{}
+		gnmi.BatchDelete(bClean, sp.Static(routeA).Config())
+		gnmi.BatchDelete(bClean, sp.Static(routeB).Config())
+		bClean.Set(t, dut)
+	})
 
 	// Step 4 - Verify the device's control plane detects or breaks the recursion loop safely without hanging or crashing.
 	// Allow time for device control plane to potentially loop
