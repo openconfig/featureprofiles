@@ -267,6 +267,9 @@ func ValidateStaticRouteNextHopIndex(t *testing.T, dut *ondatra.DUTDevice, netIn
 	sp := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
 
 	gotStatic := gnmi.Get(t, dut, sp.Static(prefix).State())
+	if gotStatic == nil {
+		t.Fatalf("ValidateStaticRouteNextHopIndex: static route for prefix %s not found", prefix)
+	}
 
 	if got, want := len(gotStatic.NextHop), len(expectedNh); got != want {
 		t.Errorf("ValidateStaticRouteNextHopIndex: got %d nexthops, want %d", got, want)
@@ -282,3 +285,4 @@ func ValidateStaticRouteNextHopIndex(t *testing.T, dut *ondatra.DUTDevice, netIn
 			t.Errorf("ValidateStaticRouteNextHopIndex: index %s got next hop %s, want %s", index, got, want)
 		}
 	}
+}
