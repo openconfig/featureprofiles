@@ -1956,6 +1956,7 @@ test: {
   id: "enrollz-2"
   description: "enrollz test for TPM 1.2 Enrollment flow"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/attestz/tests/enrollz_tpm12/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/attestz/tests/enrollz_tpm12/enrollz_tpm12_test.go"
 }
 test: {
   id: "example-0.1"
