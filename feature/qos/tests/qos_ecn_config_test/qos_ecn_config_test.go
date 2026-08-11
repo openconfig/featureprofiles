@@ -169,7 +169,7 @@ func testDP131EqualThreshold(t *testing.T, q *oc.Qos) {
 	if _, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchReq); err != nil {
 		t.Logf("SwitchControlProcessor response err (can be expected during switchover or unsupported): %v", err)
 	}
-		deadline := time.Now().Add(5 * time.Minute)
+	deadline := time.Now().Add(5 * time.Minute)
 	for {
 		if time.Now().After(deadline) {
 			t.Fatal("Timeout waiting for DUT to become reachable after switchover")
