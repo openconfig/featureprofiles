@@ -25,11 +25,10 @@ import (
 	"github.com/openconfig/featureprofiles/internal/system"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
+	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ygnmi/ygnmi"
-
 )
 
 var (
