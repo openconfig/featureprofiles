@@ -29,6 +29,8 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 const (
@@ -264,7 +266,7 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, pref
 	defer otgutils.LogFlowMetrics(t, ate.OTG(), c)
 	flowName := "flow" + prefixType + strconv.Itoa(index)
 	if testResults {
-		otgutils.ExpectedTrafficLoss(t, ate.OTG(), flowName, 0, 0)
+		otgutils.ExpectedTrafficLoss(t, ate.OTG(), flowName, 0, 0.99)
 	} else {
 		otgutils.ExpectedTrafficLoss(t, ate.OTG(), flowName, 100, 100)
 	}

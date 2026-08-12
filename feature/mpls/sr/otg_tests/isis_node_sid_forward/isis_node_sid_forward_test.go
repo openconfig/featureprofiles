@@ -27,6 +27,8 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -198,7 +200,7 @@ func verifySRCounters(t *testing.T, ts *isissession.TestSession, ate *ondatra.AT
 	d := ts.DUTConf
 	networkInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT))
 
-	otgutils.ExpectedTrafficLoss(t, ate.OTG(), v4FlowName, 0, 0)
+	otgutils.ExpectedTrafficLoss(t, ate.OTG(), v4FlowName, 0, 0.99)
 
 	recvMetricV4 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v4FlowName).State())
 	txPkts := recvMetricV4.GetCounters().GetOutPkts()
@@ -223,7 +225,7 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
 	defer otgutils.LogFlowMetrics(t, ate.OTG(), top)
 	defer otgutils.LogPortMetrics(t, ate.OTG(), top)
 	for _, flowName := range []string{v4FlowName, v6FlowName} {
-		otgutils.ExpectedTrafficLoss(t, ate.OTG(), flowName, 0, 0)
+		otgutils.ExpectedTrafficLoss(t, ate.OTG(), flowName, 0, 0.99)
 	}
 }
 

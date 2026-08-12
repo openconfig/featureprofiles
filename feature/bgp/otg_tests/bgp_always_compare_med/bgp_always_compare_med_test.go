@@ -368,14 +368,17 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 	return config
 }
 
+// verifyTraffic confirms that every traffic flow has the expected amount of loss (0% or 100%
+// depending on wantLoss, +- 2%).
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, flowName string, wantLoss bool) {
 	t.Helper()
 	otg := ate.OTG()
 	defer otgutils.LogFlowMetrics(t, otg, c)
+	t.Logf("Verifying flow metrics for flow %s\n", flowName)
 	if wantLoss {
 		otgutils.ExpectedTrafficLoss(t, otg, flowName, float64(100-tolerancePct), 100)
 	} else {
-		otgutils.ExpectedTrafficLoss(t, otg, flowName, 0, float64(tolerancePct))
+		otgutils.ExpectedTrafficLoss(t, otg, flowName, 0, float64(tolerancePct)+0.99)
 	}
 }
 

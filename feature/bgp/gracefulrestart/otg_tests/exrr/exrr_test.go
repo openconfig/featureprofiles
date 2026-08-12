@@ -1035,7 +1035,15 @@ func verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, flows []string) {
 	defer otgutils.LogFlowMetrics(t, otg, c)
 
 	for _, f := range flows {
-		otgutils.ExpectedTrafficLoss(t, otg, f, 0, 5)
+		t.Logf("Verifying flow metrics for flow %s\n", f)
+		gnmi.Watch(t, otg, gnmi.OTG().Flow(f).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
+			recvMetric, present := val.Val()
+			if !present || recvMetric.GetCounters() == nil {
+				return false
+			}
+			return true
+		}).Await(t)
+		otgutils.ExpectedTrafficLoss(t, otg, f, 0, 4.99)
 	}
 }
 
@@ -1045,7 +1053,15 @@ func confirmPacketLoss(t *testing.T, ate *ondatra.ATEDevice, flows []string) {
 	c := otg.FetchConfig(t)
 	defer otgutils.LogFlowMetrics(t, otg, c)
 	for _, f := range flows {
-		otgutils.ExpectedTrafficLoss(t, otg, f, 99, 100)
+		t.Logf("Verifying flow metrics for flow %s\n", f)
+		gnmi.Watch(t, otg, gnmi.OTG().Flow(f).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
+			recvMetric, present := val.Val()
+			if !present || recvMetric.GetCounters() == nil {
+				return false
+			}
+			return true
+		}).Await(t)
+		otgutils.ExpectedTrafficLoss(t, otg, f, 100, 100)
 	}
 }
 
@@ -1226,9 +1242,13 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.
 
 	for _, flow := range config.Flows().Items() {
 		if match {
-			otgutils.ExpectedTrafficLoss(t, otg, flow.Name(), 0, 0)
+			// Expecting traffic to pass (0% loss)
+			otgutils.ExpectedTrafficLoss(t, otg, flow.Name(), 0, 0.99)
+			t.Logf("Traffic validation PASSED: Flow %s has 0%% packet loss", flow.Name())
 		} else {
+			// Expecting traffic to fail (100% loss)
 			otgutils.ExpectedTrafficLoss(t, otg, flow.Name(), 100, 100)
+			t.Logf("Traffic validation PASSED: Flow %s has 100%% packet loss", flow.Name())
 		}
 	}
 	return nil

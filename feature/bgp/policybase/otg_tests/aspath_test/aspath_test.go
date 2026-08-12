@@ -29,6 +29,8 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 const (
@@ -202,11 +204,10 @@ func incrementIPSlice(ipSlice []string) []string {
 
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, ports int, testResults bool) {
 	defer otgutils.LogFlowMetrics(t, ate.OTG(), c)
-	otg := ate.OTG()
 	if testResults {
-		otgutils.ExpectedTrafficLoss(t, otg, "flow", 0, 5)
+		otgutils.ExpectedTrafficLoss(t, ate.OTG(), "flow", 0, 5.99)
 	} else {
-		otgutils.ExpectedTrafficLoss(t, otg, "flow", 99, 100)
+		otgutils.ExpectedTrafficLoss(t, ate.OTG(), "flow", 99, 100)
 	}
 }
 

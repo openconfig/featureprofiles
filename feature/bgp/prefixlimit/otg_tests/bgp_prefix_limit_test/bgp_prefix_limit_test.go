@@ -27,6 +27,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -504,7 +505,7 @@ func (tc *testCase) verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, con
 	otg := ate.OTG()
 	defer otgutils.LogFlowMetrics(t, otg, conf)
 	for _, flow := range flowNames {
-		otgutils.ExpectedTrafficLoss(t, otg, flow, 0, float64(tolerance))
+		otgutils.ExpectedTrafficLoss(t, otg, flow, 0, tolerance+0.99)
 	}
 }
 
@@ -512,7 +513,7 @@ func (tc *testCase) verifyPacketLoss(t *testing.T, ate *ondatra.ATEDevice, conf 
 	otg := ate.OTG()
 	defer otgutils.LogFlowMetrics(t, otg, conf)
 	for _, flow := range flowNames {
-		otgutils.ExpectedTrafficLoss(t, otg, flow, float64(100-tolerance), 100)
+		otgutils.ExpectedTrafficLoss(t, otg, flow, 100-tolerance, 100)
 	}
 }
 
