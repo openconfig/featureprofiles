@@ -373,7 +373,7 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, flow
 	otg := ate.OTG()
 	defer otgutils.LogFlowMetrics(t, otg, c)
 	if wantLoss {
-		otgutils.ExpectedTrafficLoss(t, otg, flowName, float64(100-float32(tolerancePct)), 100)
+		otgutils.ExpectedTrafficLoss(t, otg, flowName, float64(100-tolerancePct), 100)
 	} else {
 		otgutils.ExpectedTrafficLoss(t, otg, flowName, 0, float64(tolerancePct))
 	}
