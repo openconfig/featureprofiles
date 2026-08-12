@@ -275,7 +275,8 @@ func testScaleAndPersistence(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 
 	var afterScale map[string]uint64
 	var portStateReached bool
-	for attempts := 0; attempts < 60; attempts++ { // Retry for up to 60 iterations
+	var attempts int
+	for attempts = 0; attempts < 60; attempts++ { // Retry for up to 60 iterations
 		afterScale = fetchDUTCounters(t, dut)
 		if portCountersIncreased(beforeScale, afterScale, lag2Ports) {
 			portStateReached = true
