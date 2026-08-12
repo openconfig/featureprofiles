@@ -228,43 +228,28 @@ func ConfigureDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch {
 	t.Helper()
 	batch := &gnmi.SetBatch{}
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
+
 	p1 := dut.Port(t, "port1")
+	intf1 := &oc.Interface{Name: ygot.String(p1.Name())}
+	DUTPort1.ConfigOCInterface(intf1, dut)
+	gnmi.BatchUpdate(batch, gnmi.OC().Interface(p1.Name()).Config(), intf1)
+
 	p2 := dut.Port(t, "port2")
-	configureDUTInterface(t, dut, batch, &DUTPort1, p1)
-	configureDUTInterface(t, dut, batch, &DUTPort2, p2)
-	batch.Set(t, dut)
+	intf2 := &oc.Interface{Name: ygot.String(p2.Name())}
+	DUTPort2.ConfigOCInterface(intf2, dut)
+	gnmi.BatchUpdate(batch, gnmi.OC().Interface(p2.Name()).Config(), intf2)
+
 	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, p1)
 		fptest.SetPortSpeed(t, p2)
 	}
+
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		ni := deviations.DefaultNetworkInstance(dut)
 		fptest.AssignToNetworkInstance(t, dut, p1.Name(), ni, 0)
 		fptest.AssignToNetworkInstance(t, dut, p2.Name(), ni, 0)
 	}
 	return batch
-}
-
-// configureDUTInterface configures an interface on the DUT.
-func configureDUTInterface(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, a *attrs.Attributes, p *ondatra.Port) {
-	t.Helper()
-	ocPath := gnmi.OC()
-	i := a.NewOCInterface(p.Name(), dut)
-	i.Description = ygot.String(a.Desc)
-	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	if deviations.InterfaceEnabled(dut) {
-		i.Enabled = ygot.Bool(true)
-	}
-	i.GetOrCreateEthernet()
-	i4 := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
-	i4.Enabled = ygot.Bool(true)
-	av4 := i4.GetOrCreateAddress(a.IPv4)
-	av4.PrefixLength = ygot.Uint8(a.IPv4Len)
-	i6 := i.GetOrCreateSubinterface(0).GetOrCreateIpv6()
-	i6.Enabled = ygot.Bool(true)
-	av6 := i6.GetOrCreateAddress(a.IPv6)
-	av6.PrefixLength = ygot.Uint8(a.IPv6Len)
-	gnmi.BatchUpdate(batch, ocPath.Interface(p.Name()).Config(), i)
 }
 
 // ConfigureATE configures the ATE ports and returns the topology along with the list of configured device (interface) names.
@@ -291,7 +276,7 @@ func ConfigureBGP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, ni
 		{address: ATEPort1.IPv4, peerGroup: bgpV4PeerGroup, v4: true},
 		{address: ATEPort2.IPv6, peerGroup: bgpV6PeerGroup, v4: false},
 	})
-	gnmi.BatchUpdate(batch, gnmi.OC().NetworkInstance(ni.GetName()).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP"))
+	gnmi.BatchUpdate(batch, gnmi.OC().NetworkInstance(ni.GetName()).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.DefaultBgpInstanceName(dut)).Config(), ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.DefaultBgpInstanceName(dut)))
 }
 
 type BGPPrefixParams struct {
@@ -349,10 +334,11 @@ type bgpNeighborSpec struct {
 // It applies the supplied router ID and single-AFI neighbors with the accept-all import/export policy.
 func configureBGPInstance(t *testing.T, ni *oc.NetworkInstance, routerID string, neighbors []bgpNeighborSpec) {
 	t.Helper()
+	dut := ondatra.DUT(t, "dut")
 	if ni == nil {
 		t.Fatalf("Network Instance is not configured")
 	}
-	niProto := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	niProto := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.DefaultBgpInstanceName(dut))
 	niProto.Enabled = ygot.Bool(true)
 	bgp := niProto.GetOrCreateBgp()
 	g := bgp.GetOrCreateGlobal()
@@ -364,9 +350,15 @@ func configureBGPInstance(t *testing.T, ni *oc.NetworkInstance, routerID string,
 		nb := bgp.GetOrCreateNeighbor(n.address)
 		nb.PeerAs = ygot.Uint32(ateAS)
 		nb.Enabled = ygot.Bool(true)
-		nb.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(n.v4)
-		nb.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(!n.v4)
-		ap := nb.GetOrCreateApplyPolicy()
+		afiSafiType := oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST
+		if !n.v4 {
+			afiSafiType = oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST
+		}
+
+		afiSafi := nb.GetOrCreateAfiSafi(afiSafiType)
+		afiSafi.Enabled = ygot.Bool(true)
+
+		ap := afiSafi.GetOrCreateApplyPolicy()
 		ap.ImportPolicy = []string{PolicyMatchAll}
 		ap.ExportPolicy = []string{PolicyMatchAll}
 	}
@@ -494,7 +486,7 @@ func AwaitScaleBGPConvergence(t *testing.T, dut *ondatra.DUTDevice, cfg BGPConve
 // awaitBGPEstablished waits for a BGP neighbor session to reach ESTABLISHED, returning an error on timeout.
 func awaitBGPEstablished(t *testing.T, dut *ondatra.DUTDevice, niName, neighbor string) error {
 	t.Helper()
-	path := gnmi.OC().NetworkInstance(niName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(neighbor).SessionState().State()
+	path := gnmi.OC().NetworkInstance(niName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.DefaultBgpInstanceName(dut)).Bgp().Neighbor(neighbor).SessionState().State()
 	val, ok := gnmi.Watch(t, dut, path, bgpSessionTimeout, func(v *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 		state, present := v.Val()
 		return present && state == oc.Bgp_Neighbor_SessionState_ESTABLISHED
@@ -512,7 +504,7 @@ func awaitBGPEstablished(t *testing.T, dut *ondatra.DUTDevice, niName, neighbor 
 // times out.
 func awaitBGPPrefixCount(t *testing.T, dut *ondatra.DUTDevice, niName, neighbor string, afiSafi oc.E_BgpTypes_AFI_SAFI_TYPE, wantCount uint32) error {
 	t.Helper()
-	path := gnmi.OC().NetworkInstance(niName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(neighbor).AfiSafi(afiSafi).Prefixes().Installed().State()
+	path := gnmi.OC().NetworkInstance(niName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.DefaultBgpInstanceName(dut)).Bgp().Neighbor(neighbor).AfiSafi(afiSafi).Prefixes().Installed().State()
 	val, ok := gnmi.Watch(t, dut, path, bgpConvergenceWait, func(v *ygnmi.Value[uint32]) bool {
 		got, present := v.Val()
 		return present && got >= wantCount
@@ -540,6 +532,25 @@ func DialGNMI(t *testing.T, dut *ondatra.DUTDevice) (gpb.GNMIClient, error) {
 	return gnmiClient, gnmiErr
 }
 
+// globalFilterPolicyPath builds the raw gNMI path for an AFT global-filter
+// policy leaf ("ipv4-policy" or "ipv6-policy") on the given network-instance.
+// The afts/global-filter augment (openconfig-aft-global-filter.yang, added in
+// openconfig/public >= 3.3.0) is not yet present in the ondatra `oc` bindings,
+// so the path is constructed manually.
+func globalFilterPolicyPath(niName, leaf string) *gpb.Path {
+	return &gpb.Path{
+		Origin: "openconfig",
+		Elem: []*gpb.PathElem{
+			{Name: "network-instances"},
+			{Name: "network-instance", Key: map[string]string{"name": niName}},
+			{Name: "afts"},
+			{Name: "global-filter"},
+			{Name: "config"},
+			{Name: leaf},
+		},
+	}
+}
+
 // AFTDeleteGlobalFilter deletes both global-filter policy leaves for the given network-instance.
 func AFTDeleteGlobalFilter(t *testing.T, dut *ondatra.DUTDevice, niName string) error {
 	t.Helper()
@@ -550,18 +561,22 @@ func AFTDeleteGlobalFilter(t *testing.T, dut *ondatra.DUTDevice, niName string) 
 			return nil
 		}
 	}
-	// For vendors that support the OpenConfig afts/global-filter augment
-	// (openconfig-aft-global-filter.yang, added in openconfig/public models
-	// 3.3.0), delete the IPv4/IPv6 filter policy leaves through the typed OC
-	// path API. The generated ondatra `oc` bindings do not yet contain the
-	// GlobalFilter container, so the calls below are commented out; uncomment
-	// them once the bindings are regenerated against openconfig/public >= 3.3.0.
-	// batch := &gnmi.SetBatch{}
-	// gnmi.BatchDelete(batch, gnmi.OC().NetworkInstance(niName).Afts().GlobalFilter().Ipv4Policy().Config())
-	// gnmi.BatchDelete(batch, gnmi.OC().NetworkInstance(niName).Afts().GlobalFilter().Ipv6Policy().Config())
-	// batch.Set(t, dut)
-	// return nil
-	return fmt.Errorf("AFT global filter deletion is expected to be supported on %s, but no OpenConfig implementation is available", dut.Vendor())
+	// The ondatra `oc` bindings do not yet contain the afts/global-filter
+	// augment, so delete the IPv4/IPv6 filter policy leaves via raw gNMI paths.
+	gnmiClient, err := DialGNMI(t, dut)
+	if err != nil {
+		return fmt.Errorf("failed to dial gNMI client: %w", err)
+	}
+	req := &gpb.SetRequest{
+		Delete: []*gpb.Path{
+			globalFilterPolicyPath(niName, "ipv4-policy"),
+			globalFilterPolicyPath(niName, "ipv6-policy"),
+		},
+	}
+	if _, err := gnmiClient.Set(context.Background(), req); err != nil {
+		return fmt.Errorf("failed to delete AFT global-filter policies on %s: %w", dut.Vendor(), err)
+	}
+	return nil
 }
 
 // ConfigureToStoreRunningGNMIConfig configures the DUT to persist gNMI
@@ -709,22 +724,31 @@ func ConfigureGlobalFilterPolicies(t *testing.T, dut *ondatra.DUTDevice, cfg Con
 		}
 	}
 
-	// For vendors that support the OpenConfig afts/global-filter augment
-	// (openconfig-aft-global-filter.yang, added in openconfig/public models
-	// 3.3.0), attach the IPv4/IPv6 filter policies through the typed OC path
-	// API. The generated ondatra `oc` bindings do not yet contain the
-	// GlobalFilter container, so the calls below are commented out; uncomment
-	// them once the bindings are regenerated against openconfig/public >= 3.3.0.
-	// batch := &gnmi.SetBatch{}
-	// if cfg.V4Policy != "" {
-	// 	gnmi.BatchUpdate(batch, gnmi.OC().NetworkInstance(cfg.VRFName).Afts().GlobalFilter().Ipv4Policy().Config(), cfg.V4Policy)
-	// }
-	// if cfg.V6Policy != "" {
-	// 	gnmi.BatchUpdate(batch, gnmi.OC().NetworkInstance(cfg.VRFName).Afts().GlobalFilter().Ipv6Policy().Config(), cfg.V6Policy)
-	// }
-	// batch.Set(t, dut)
-	// return
-	t.Fatalf("AFT global filter policy is expected to be supported on %s, but no OpenConfig implementation is available", dut.Vendor())
+	// The ondatra `oc` bindings do not yet contain the afts/global-filter
+	// augment, so attach the IPv4/IPv6 filter policies via raw gNMI paths.
+	var updates []*gpb.Update
+	if cfg.V4Policy != "" {
+		updates = append(updates, &gpb.Update{
+			Path: globalFilterPolicyPath(cfg.VRFName, "ipv4-policy"),
+			Val:  &gpb.TypedValue{Value: &gpb.TypedValue_JsonIetfVal{JsonIetfVal: []byte(fmt.Sprintf("%q", cfg.V4Policy))}},
+		})
+	}
+	if cfg.V6Policy != "" {
+		updates = append(updates, &gpb.Update{
+			Path: globalFilterPolicyPath(cfg.VRFName, "ipv6-policy"),
+			Val:  &gpb.TypedValue{Value: &gpb.TypedValue_JsonIetfVal{JsonIetfVal: []byte(fmt.Sprintf("%q", cfg.V6Policy))}},
+		})
+	}
+	if len(updates) == 0 {
+		return
+	}
+	gnmiClient, err := DialGNMI(t, dut)
+	if err != nil {
+		t.Fatalf("Failed to dial gNMI client: %v", err)
+	}
+	if _, err := gnmiClient.Set(context.Background(), &gpb.SetRequest{Update: updates}); err != nil {
+		t.Fatalf("Failed to set AFT global-filter policies on %s: %v", dut.Vendor(), err)
+	}
 }
 
 // NetworkInstanceStaticRouteParams holds the parameters required to
