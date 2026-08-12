@@ -791,6 +791,7 @@ func sendTraffic(t *testing.T, args *testArgs, capturePortList []string, cs gosn
 
 func verifyTraffic(t *testing.T, args *testArgs, capturePortList []string, loadBalancePercent []float64, wantLoss, checkEncap bool, headerDstIP map[string][]string) {
 	t.Helper()
+	waitForFlowMetricsReady(t, args.otg, encapFlow, 1*time.Minute)
 	if wantLoss {
 		otgutils.ExpectedTrafficLoss(t, args.otg, encapFlow, 100-tolerancePct, 100)
 	} else {
