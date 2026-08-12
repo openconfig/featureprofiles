@@ -239,6 +239,8 @@ func ConfigureDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch {
 	DUTPort2.ConfigOCInterface(intf2, dut)
 	gnmi.BatchUpdate(batch, gnmi.OC().Interface(p2.Name()).Config(), intf2)
 
+	batch.Set(t, dut)
+
 	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, p1)
 		fptest.SetPortSpeed(t, p2)
@@ -573,7 +575,7 @@ func AFTDeleteGlobalFilter(t *testing.T, dut *ondatra.DUTDevice, niName string) 
 			globalFilterPolicyPath(niName, "ipv6-policy"),
 		},
 	}
-	if _, err := gnmiClient.Set(context.Background(), req); err != nil {
+	if _, err := gnmiClient.Set(t.Context(), req); err != nil {
 		return fmt.Errorf("failed to delete AFT global-filter policies on %s: %w", dut.Vendor(), err)
 	}
 	return nil
@@ -746,7 +748,7 @@ func ConfigureGlobalFilterPolicies(t *testing.T, dut *ondatra.DUTDevice, cfg Con
 	if err != nil {
 		t.Fatalf("Failed to dial gNMI client: %v", err)
 	}
-	if _, err := gnmiClient.Set(context.Background(), &gpb.SetRequest{Update: updates}); err != nil {
+	if _, err := gnmiClient.Set(t.Context(), &gpb.SetRequest{Update: updates}); err != nil {
 		t.Fatalf("Failed to set AFT global-filter policies on %s: %v", dut.Vendor(), err)
 	}
 }
