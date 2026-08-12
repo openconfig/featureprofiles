@@ -137,6 +137,8 @@ var (
 		IPv6: "2001:10:1:7::2", IPv6Gateway: "2001:10:1:7::1", IPv6Len: 126,
 	}
 
+	qcNames = []string{"TC0", "TC1", "TC2", "TC3", "TC4", "TC5", "TC6", "TC7"}
+
 	sizeWeightProfile = []otgconfighelpers.SizeWeightPair{
 		{Size: 64, Weight: 20},
 		{Size: 128, Weight: 20},
@@ -265,10 +267,20 @@ ip decap-group %s
 	helpers.GnmiCLIConfig(t, dut, mplsB.String())
 }
 
+func configureAristaQosTxQueues(t *testing.T, dut *ondatra.DUTDevice, qNames []string) {
+	t.Helper()
+	var cli strings.Builder
+	for index, queue := range qNames {
+		fmt.Fprintf(&cli, "qos tx-queue %d name %s\n!\n", index, queue)
+		fmt.Fprintf(&cli, "qos map traffic-class %d to tx-queue %d\n!\n", index, index)
+		fmt.Fprintf(&cli, "qos traffic-class %d name target-group-%s\n!\n", index, queue)
+	}
+	helpers.GnmiCLIConfig(t, dut, cli.String())
+}
+
 func configureQoS(t *testing.T, dut *ondatra.DUTDevice) {
-	cfgplugins.NewQosInitialize(t, dut)
-	queues := netutil.CommonTrafficQueues(t, dut)
-	qNames := []string{queues.BE1, queues.AF1, queues.AF2, queues.AF3, queues.AF4, queues.NC1}
+	qNames := qcNames
+	configureAristaQosTxQueues(t, dut, qNames)
 
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
@@ -321,7 +333,7 @@ func configureBandwidthScheduler(t *testing.T, dut *ondatra.DUTDevice, qNames []
 	q := d.GetOrCreateQos()
 	sp := q.GetOrCreateSchedulerPolicy(bwSchedulerName)
 	sp.SetName(bwSchedulerName)
-	weights := []uint64{10, 15, 20, 25, 30}
+	weights := []uint64{10, 15, 20, 25, 30, 35, 40, 45}
 	for i, qn := range qNames {
 		if i >= len(weights) {
 			break
@@ -344,7 +356,7 @@ func configureBandwidthShaperScheduler(t *testing.T, dut *ondatra.DUTDevice, qNa
 	sp := q.GetOrCreateSchedulerPolicy(bwShaperSchedulerName)
 	sp.SetName(bwShaperSchedulerName)
 	type bw struct{ cir, pir uint64 }
-	rates := []bw{{100_000_000, 200_000_000}, {150_000_000, 300_000_000}, {200_000_000, 400_000_000}, {250_000_000, 500_000_000}, {300_000_000, 600_000_000}}
+	rates := []bw{{100_000_000, 200_000_000}, {150_000_000, 300_000_000}, {200_000_000, 400_000_000}, {250_000_000, 500_000_000}, {300_000_000, 600_000_000}, {350_000_000, 700_000_000}, {400_000_000, 800_000_000}, {450_000_000, 900_000_000}}
 	for i, qn := range qNames {
 		if i >= len(rates) {
 			break
@@ -731,12 +743,12 @@ func TestPF1182MPLSTrafficClassClassification(t *testing.T) {
 	t.Log("PF-1.18.2: Verify Classification of MPLSoGRE and MPLSoGUE traffic based on traffic class bits in MPLS header")
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	queues := netutil.CommonTrafficQueues(t, dut)
-	qNames := []string{queues.BE1, queues.AF1, queues.AF2, queues.AF3, queues.AF4, queues.NC1}
+	qNames := qcNames
 
 	top.Flows().Clear()
 	flows := buildEncapToIPFlows()
 	for i, f := range flows {
+		f.Flowrate = 5
 		createEncapToIPFlow(t, top, f, i == 0)
 	}
 	sendTraffic(t, ate, trafficDuration)
@@ -808,8 +820,7 @@ func TestPF1184AssuredForwardingMinBandwidth(t *testing.T) {
 	t.Log("PF-1.18.4: Verify Assured forwarding (bandwidth class) - Queueing of decap traffic")
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	queues := netutil.CommonTrafficQueues(t, dut)
-	qNames := []string{queues.BE1, queues.AF1, queues.AF2, queues.AF3, queues.AF4, queues.NC1}
+	qNames := qcNames
 
 	applySchedulerOnOutput(t, dut, custAggID, bwSchedulerName, qNames)
 
@@ -837,8 +848,7 @@ func TestPF1185AssuredForwardingShaper(t *testing.T) {
 	t.Log("PF-1.18.5: Verify Assured forwarding (bandwidth class) - Queueing of decap traffic with min/max bandwidth (shaper)")
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	queues := netutil.CommonTrafficQueues(t, dut)
-	qNames := []string{queues.BE1, queues.AF1, queues.AF2, queues.AF3, queues.AF4, queues.NC1}
+	qNames := qcNames
 
 	applySchedulerOnOutput(t, dut, custAggID, bwShaperSchedulerName, qNames)
 
@@ -863,8 +873,7 @@ func TestPF1186ExpeditedForwardingPriorityDecap(t *testing.T) {
 	t.Log("PF-1.18.6: Verify Expedited forwarding (Priority class) - Queueing of decap traffic")
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	queues := netutil.CommonTrafficQueues(t, dut)
-	qNames := []string{queues.BE1, queues.AF1, queues.AF2, queues.AF3, queues.AF4, queues.NC1}
+	qNames := qcNames
 
 	applySchedulerOnOutput(t, dut, custAggID, prioSchedulerName, qNames)
 
@@ -889,8 +898,7 @@ func TestPF1187ExpeditedForwardingPriorityShaper(t *testing.T) {
 	t.Log("PF-1.18.7: Verify Expedited forwarding (Priority class) - Queueing of decap traffic with min/max bandwidth (shaper)")
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	queues := netutil.CommonTrafficQueues(t, dut)
-	qNames := []string{queues.BE1, queues.AF1, queues.AF2, queues.AF3, queues.AF4, queues.NC1}
+	qNames := qcNames
 
 	applySchedulerOnOutput(t, dut, custAggID, prioShaperSchedulerName, qNames)
 
@@ -912,8 +920,7 @@ func TestPF1188ExpeditedForwardingPriorityEncap(t *testing.T) {
 	t.Log("PF-1.18.8: Verify Expedited forwarding (Priority class) - Queueing of encap traffic")
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	queues := netutil.CommonTrafficQueues(t, dut)
-	qNames := []string{queues.BE1, queues.AF1, queues.AF2, queues.AF3, queues.AF4, queues.NC1}
+	qNames := qcNames
 
 	top.Flows().Clear()
 	flows := buildIPToEncapFlows()
@@ -962,7 +969,7 @@ func TestPF118v6MPLSoGUEv6QoS(t *testing.T) {
 	t.Log("PF-1.18.v6: Validate MPLS over GRE over UDP over IPv6 encapsulation and decapsulation with QoS prioritization")
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	queues := netutil.CommonTrafficQueues(t, dut)
+	highestQueue := qcNames[len(qcNames)-1]
 
 	highPrioFlow := &otgconfighelpers.Flow{
 		TxNames:  []string{custOTG0.Name + ".IPv6"},
@@ -990,10 +997,10 @@ func TestPF118v6MPLSoGUEv6QoS(t *testing.T) {
 			t.Errorf("ValidateLossOnFlows(%s): %v", f.FlowName, err)
 		}
 	}
-	if dropped := queueDroppedPkts(t, dut, core1Ports, queues.NC1); dropped != 0 {
-		t.Errorf("dropped-pkts on %s queue %s: got %d, want 0", core1AggID, queues.NC1, dropped)
+	if dropped := queueDroppedPkts(t, dut, core1Ports, highestQueue); dropped != 0 {
+		t.Errorf("dropped-pkts on %s queue %s: got %d, want 0", core1AggID, highestQueue, dropped)
 	}
-	if got := queueTransmitPkts(t, dut, core1Ports, queues.NC1); got == 0 {
-		t.Errorf("transmit-pkts on %s queue %s: got 0, want > 0", core1AggID, queues.NC1)
+	if got := queueTransmitPkts(t, dut, core1Ports, highestQueue); got == 0 {
+		t.Errorf("transmit-pkts on %s queue %s: got 0, want > 0", core1AggID, highestQueue)
 	}
 }
