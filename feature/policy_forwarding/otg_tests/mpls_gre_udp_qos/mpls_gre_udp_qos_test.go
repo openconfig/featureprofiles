@@ -788,26 +788,48 @@ const queueCounterTimeout = time.Minute
 
 var queueCounterIsPresent = func(val *ygnmi.Value[uint64]) bool { return val.IsPresent() }
 
-// queueTransmitPkts returns the transmit-pkts counter for a given egress interface/queue.
-func queueTransmitPkts(t *testing.T, dut *ondatra.DUTDevice, intf, queue string) uint64 {
+// queueTransmitPkts returns the summed transmit-pkts counter for a queue across a LAG's
+// physical member ports; Arista does not expose per-queue output counters on the Port-Channel
+// parent interface, and LAG hashing means any single member may legitimately show 0 for a flow.
+func queueTransmitPkts(t *testing.T, dut *ondatra.DUTDevice, ports []string, queue string) uint64 {
 	t.Helper()
-	val, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queue).TransmitPkts().State(), queueCounterTimeout, queueCounterIsPresent).Await(t)
-	if !ok {
-		t.Errorf("transmit-pkts for queue %s on %s not available within %v", queue, intf, queueCounterTimeout)
+	var total uint64
+	var anyPresent bool
+	for _, p := range ports {
+		intf := dut.Port(t, p).Name()
+		val, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queue).TransmitPkts().State(), queueCounterTimeout, queueCounterIsPresent).Await(t)
+		if ok {
+			anyPresent = true
+			got, _ := val.Val()
+			total += got
+		}
 	}
-	got, _ := val.Val()
-	return got
+	if !anyPresent {
+		t.Errorf("transmit-pkts for queue %s not available on any member of %v within %v", queue, ports, queueCounterTimeout)
+	}
+	return total
 }
 
-// queueDroppedPkts returns the dropped-pkts counter for a given egress interface/queue.
-func queueDroppedPkts(t *testing.T, dut *ondatra.DUTDevice, intf, queue string) uint64 {
+// queueDroppedPkts returns the summed dropped-pkts counter for a queue across a LAG's physical
+// member ports (see queueTransmitPkts for why this sums across members rather than querying the
+// Port-Channel parent).
+func queueDroppedPkts(t *testing.T, dut *ondatra.DUTDevice, ports []string, queue string) uint64 {
 	t.Helper()
-	val, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queue).DroppedPkts().State(), queueCounterTimeout, queueCounterIsPresent).Await(t)
-	if !ok {
-		t.Errorf("dropped-pkts for queue %s on %s not available within %v", queue, intf, queueCounterTimeout)
+	var total uint64
+	var anyPresent bool
+	for _, p := range ports {
+		intf := dut.Port(t, p).Name()
+		val, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queue).DroppedPkts().State(), queueCounterTimeout, queueCounterIsPresent).Await(t)
+		if ok {
+			anyPresent = true
+			got, _ := val.Val()
+			total += got
+		}
 	}
-	got, _ := val.Val()
-	return got
+	if !anyPresent {
+		t.Errorf("dropped-pkts for queue %s not available on any member of %v within %v", queue, ports, queueCounterTimeout)
+	}
+	return total
 }
 
 // TestPF1182MPLSTrafficClassClassification implements PF-1.18.2.
@@ -831,7 +853,7 @@ func TestPF1182MPLSTrafficClassClassification(t *testing.T) {
 		}
 	}
 	for i, qn := range qNames {
-		if got := queueTransmitPkts(t, dut, custAggID, qn); got == 0 {
+		if got := queueTransmitPkts(t, dut, custPorts, qn); got == 0 {
 			t.Errorf("queue %s (tc%d) transmit-pkts on %s: got 0, want > 0", qn, i, custAggID)
 		}
 	}
@@ -911,12 +933,12 @@ func TestPF1184AssuredForwardingMinBandwidth(t *testing.T) {
 	sendTraffic(t, ate, trafficDuration)
 
 	for i, qn := range qNames {
-		got := queueTransmitPkts(t, dut, custAggID, qn)
+		got := queueTransmitPkts(t, dut, custPorts, qn)
 		t.Logf("queue %s (class %d) transmit-pkts: %d", qn, i, got)
 		if got == 0 {
 			t.Errorf("queue %s: got 0 transmit-pkts, want > 0 (minimum bandwidth not honored)", qn)
 		}
-		if dropped := queueDroppedPkts(t, dut, custAggID, qn); dropped > 0 {
+		if dropped := queueDroppedPkts(t, dut, custPorts, qn); dropped > 0 {
 			t.Logf("queue %s dropped-pkts: %d (congestion expected per README)", qn, dropped)
 		}
 	}
@@ -941,7 +963,7 @@ func TestPF1185AssuredForwardingShaper(t *testing.T) {
 	sendTraffic(t, ate, trafficDuration)
 
 	for i, qn := range qNames {
-		got := queueTransmitPkts(t, dut, custAggID, qn)
+		got := queueTransmitPkts(t, dut, custPorts, qn)
 		t.Logf("queue %s (class %d) transmit-pkts: %d", qn, i, got)
 		if got == 0 {
 			t.Errorf("queue %s: got 0 transmit-pkts, want > 0", qn)
@@ -971,11 +993,11 @@ func TestPF1186ExpeditedForwardingPriorityDecap(t *testing.T) {
 
 	// Highest priority queue (last in qNames, i.e. NC1) should never starve.
 	highest := qNames[len(qNames)-1]
-	if got := queueTransmitPkts(t, dut, custAggID, highest); got == 0 {
+	if got := queueTransmitPkts(t, dut, custPorts, highest); got == 0 {
 		t.Errorf("highest priority queue %s: got 0 transmit-pkts, want > 0", highest)
 	}
 	for i, qn := range qNames {
-		t.Logf("queue %s (priority level %d) transmit-pkts: %d", qn, i, queueTransmitPkts(t, dut, custAggID, qn))
+		t.Logf("queue %s (priority level %d) transmit-pkts: %d", qn, i, queueTransmitPkts(t, dut, custPorts, qn))
 	}
 }
 
@@ -999,7 +1021,7 @@ func TestPF1187ExpeditedForwardingPriorityShaper(t *testing.T) {
 
 	for i, qn := range qNames {
 		t.Logf("queue %s (priority level %d) transmit-pkts: %d, dropped-pkts: %d",
-			qn, i, queueTransmitPkts(t, dut, custAggID, qn), queueDroppedPkts(t, dut, custAggID, qn))
+			qn, i, queueTransmitPkts(t, dut, custPorts, qn), queueDroppedPkts(t, dut, custPorts, qn))
 	}
 	// TODO: verify shaped priority classes never exceed the configured shaper rate once the
 	// OC for shaping rate is finalized (see README TODO).
@@ -1022,10 +1044,10 @@ func TestPF1188ExpeditedForwardingPriorityEncap(t *testing.T) {
 	}
 	sendTraffic(t, ate, trafficDuration)
 
-	for _, coreAggID := range []string{core1AggID, core2AggID} {
+	for _, ports := range [][]string{core1Ports, core2Ports} {
 		highest := qNames[len(qNames)-1]
-		if got := queueTransmitPkts(t, dut, coreAggID, highest); got == 0 {
-			t.Errorf("highest priority queue %s on %s: got 0 transmit-pkts, want > 0", highest, coreAggID)
+		if got := queueTransmitPkts(t, dut, ports, highest); got == 0 {
+			t.Errorf("highest priority queue %s on ports %v: got 0 transmit-pkts, want > 0", highest, ports)
 		}
 	}
 }
@@ -1097,10 +1119,10 @@ func TestPF118v6MPLSoGUEv6QoS(t *testing.T) {
 			t.Errorf("ValidateLossOnFlows(%s): %v", f.FlowName, err)
 		}
 	}
-	if dropped := queueDroppedPkts(t, dut, core1AggID, queues.NC1); dropped != 0 {
+	if dropped := queueDroppedPkts(t, dut, core1Ports, queues.NC1); dropped != 0 {
 		t.Errorf("dropped-pkts on %s queue %s: got %d, want 0", core1AggID, queues.NC1, dropped)
 	}
-	if got := queueTransmitPkts(t, dut, core1AggID, queues.NC1); got == 0 {
+	if got := queueTransmitPkts(t, dut, core1Ports, queues.NC1); got == 0 {
 		t.Errorf("transmit-pkts on %s queue %s: got 0, want > 0", core1AggID, queues.NC1)
 	}
 }
