@@ -306,19 +306,43 @@ func verifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntf []string)
 }
 
 // verifyTraffic checks traffic flow metrics against expected loss.
-func verifyTraffic(t *testing.T, otg *otg.OTG, otgConfig gosnappi.Config, expectLoss bool) {
+func verifyTraffic(t *testing.T, otg *otg.OTG, otgConfig gosnappi.Config, expectLoss bool) bool {
 	t.Helper()
+
+	fail := false
 
 	otgutils.LogFlowMetrics(t, otg, otgConfig)
 	otgutils.LogPortMetrics(t, otg, otgConfig)
 
 	for _, flowName := range []string{v4FlowName, v6FlowName} {
-		if expectLoss {
-			otgutils.ExpectedTrafficLoss(t, otg, flowName, 100-lossTolerancePct, 100)
-		} else {
-			otgutils.ExpectedTrafficLoss(t, otg, flowName, 0, lossTolerancePct)
+		metrics := gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).State())
+		txPackets := metrics.GetCounters().GetOutPkts()
+		rxPackets := metrics.GetCounters().GetInPkts()
+
+		if txPackets == 0 {
+			t.Fatalf("Transmit packets for flow %s was 0, expected > 0", flowName)
+		}
+
+		lossPct := (float64(txPackets-rxPackets) / float64(txPackets)) * 100
+
+		switch {
+		case expectLoss && lossPct < (100-lossTolerancePct):
+			t.Errorf("traffic loss for flow %s was less than expected: got %v, want > %v", flowName, lossPct, 100-lossTolerancePct)
+			fail = true
+
+		case expectLoss:
+			t.Logf("Traffic loss for flow %s was as expected: %v", flowName, lossPct)
+
+		case lossPct > lossTolerancePct:
+			t.Errorf("traffic loss for flow %s was higher than expected: got %v, want < %v", flowName, lossPct, lossTolerancePct)
+			fail = true
+
+		default:
+			t.Logf("No loss seen for flow %s as expected", flowName)
 		}
 	}
+
+	return fail
 }
 
 func startStopISISRouter(t *testing.T, otg *otg.OTG, routeNames []string, state string) {
@@ -402,7 +426,9 @@ func testGrHelper(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, 
 	otg.StartTraffic(t)
 	time.Sleep(sleepTime)
 	otg.StopTraffic(t)
-	verifyTraffic(t, otg, otgConfig, false)
+	if verifyTraffic(t, otg, otgConfig, false) {
+		t.Error("traffic loss for flow is more than expected")
+	}
 
 	// Validating subtest 2: Restarting IS-IS on ATE port-2 and verifying traffic is not lost due to GR
 	t.Logf("Subtest-2: Restarting IS-IS on ATE port-2 and verifying traffic is not lost due to GR.")
@@ -419,7 +445,9 @@ func testGrHelper(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, 
 	sleepTime := gracefulRestartTime*time.Second - replaceDuration
 	time.Sleep(sleepTime)
 	otg.StopTraffic(t)
-	verifyTraffic(t, otg, otgConfig, false)
+	if verifyTraffic(t, otg, otgConfig, false) {
+		t.Error("traffic loss for flow is more than expected")
+	}
 
 	otgvalidationhelpers.ValidateOTGISISTelemetry(t, ate, expectedISISAdj)
 
@@ -436,7 +464,9 @@ func testGrHelper(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, 
 	otg.StartTraffic(t)
 	time.Sleep(5 * time.Second)
 	otg.StopTraffic(t)
-	verifyTraffic(t, otg, otgConfig, true)
+	if verifyTraffic(t, otg, otgConfig, true) {
+		t.Error("traffic loss is not seen for flow as expected")
+	}
 
 	// Validating subtest 3: Disable IS-IS on ATE port-2 and verifying traffic is lost due to GR.
 	t.Logf("Subtest-3: Disable IS-IS on ATE port-2 and verifying traffic is lost due to GR.")
@@ -446,7 +476,9 @@ func testGrHelper(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, 
 	otg.StartTraffic(t)
 	time.Sleep(sleepTime)
 	otg.StopTraffic(t)
-	verifyTraffic(t, otg, otgConfig, true)
+	if verifyTraffic(t, otg, otgConfig, true) {
+		t.Error("traffic loss is not seen for flow as expected")
+	}
 }
 
 func testISISWithControllerCardSwitchOver(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
@@ -459,7 +491,9 @@ func testISISWithControllerCardSwitchOver(t *testing.T, dut *ondatra.DUTDevice, 
 	otg.StartTraffic(t)
 	time.Sleep(sleepTime)
 	otg.StopTraffic(t)
-	verifyTraffic(t, otg, otgConfig, false)
+	if verifyTraffic(t, otg, otgConfig, false) {
+		t.Error("traffic loss for flow is more than expected")
+	}
 
 	// TODO: Not able to verify because of HW limitation. Adding the below deviation instead creating new one
 	if deviations.GNOISwitchoverReasonMissingUserInitiated(dut) {
@@ -507,7 +541,9 @@ func testISISWithControllerCardSwitchOver(t *testing.T, dut *ondatra.DUTDevice, 
 		for {
 			var currentTime string
 			t.Logf("Time elapsed %.2f seconds since switchover started.", time.Since(startSwitchover).Seconds())
-			verifyTraffic(t, otg, otgConfig, false)
+			if !verifyTraffic(t, otg, otgConfig, false) {
+				break
+			}
 			time.Sleep(60 * time.Second)
 			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 				currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
@@ -553,15 +589,25 @@ func testISISWithDUTRestart(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.A
 	otg.StartTraffic(t)
 	time.Sleep(sleepTime)
 	otg.StopTraffic(t)
-	verifyTraffic(t, otg, otgConfig, false)
+	if verifyTraffic(t, otg, otgConfig, false) {
+		t.Error("traffic loss for flow is more than expected")
+	}
 
 	t.Logf("Initiating Kill Process on DUT")
 	gnoi.KillProcess(t, dut, "ISIS", gnoi.SigTerm, true, false)
 	startTime := time.Now()
-	otg.StartTraffic(t)
-	time.Sleep(5 * time.Second)
-	otg.StopTraffic(t)
-	verifyTraffic(t, otg, otgConfig, false)
+	for {
+		otg.StartTraffic(t)
+		time.Sleep(5 * time.Second)
+		otg.StopTraffic(t)
+		if !verifyTraffic(t, otg, otgConfig, false) {
+			break
+		}
+
+		if uint64(time.Since(startTime).Seconds()) > gracefulRestartTime {
+			t.Fatalf("Traffic verification failed. Traffic didn't pass within the graceful restart time : %v sec", gracefulRestartTime)
+		}
+	}
 
 	otgvalidationhelpers.ValidateOTGISISTelemetry(t, ate, expectedISISAdj)
 }
