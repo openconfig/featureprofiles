@@ -22,6 +22,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -781,16 +782,32 @@ func flowValidation(name string) *otgvalidationhelpers.OTGValidation {
 	}
 }
 
+// queueCounterTimeout bounds how long to wait for a QoS queue counter to appear;
+// Arista does not populate a queue's state subtree until it has forwarded a packet.
+const queueCounterTimeout = time.Minute
+
+var queueCounterIsPresent = func(val *ygnmi.Value[uint64]) bool { return val.IsPresent() }
+
 // queueTransmitPkts returns the transmit-pkts counter for a given egress interface/queue.
 func queueTransmitPkts(t *testing.T, dut *ondatra.DUTDevice, intf, queue string) uint64 {
 	t.Helper()
-	return gnmi.Get(t, dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queue).TransmitPkts().State())
+	val, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queue).TransmitPkts().State(), queueCounterTimeout, queueCounterIsPresent).Await(t)
+	if !ok {
+		t.Errorf("transmit-pkts for queue %s on %s not available within %v", queue, intf, queueCounterTimeout)
+	}
+	got, _ := val.Val()
+	return got
 }
 
 // queueDroppedPkts returns the dropped-pkts counter for a given egress interface/queue.
 func queueDroppedPkts(t *testing.T, dut *ondatra.DUTDevice, intf, queue string) uint64 {
 	t.Helper()
-	return gnmi.Get(t, dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queue).DroppedPkts().State())
+	val, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queue).DroppedPkts().State(), queueCounterTimeout, queueCounterIsPresent).Await(t)
+	if !ok {
+		t.Errorf("dropped-pkts for queue %s on %s not available within %v", queue, intf, queueCounterTimeout)
+	}
+	got, _ := val.Val()
+	return got
 }
 
 // TestPF1182MPLSTrafficClassClassification implements PF-1.18.2.
