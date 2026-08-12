@@ -21,7 +21,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/ygot/ygot"
 	"github.com/open-traffic-generator/gosnappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/args/args"
 	"github.com/openconfig/featureprofiles/internal/attrs/attrs"
@@ -37,6 +36,7 @@ import (
 	"github.com/openconfig/ondatra/netutil/netutil"
 	"github.com/openconfig/ondatra/ondatra"
 	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -52,23 +52,23 @@ const (
 var (
 	dutSrc = attrs.Attributes{
 		Desc:    "dutSrc",
-		IPv4:    "192.168.1.1",
+		IPv4:    "192.0.2.1",
 		IPv4Len: ipv4PrefixLen,
 	}
 	ateSrc = attrs.Attributes{
 		Name:    "ateSrc",
-		IPv4:    "192.168.1.2",
+		IPv4:    "192.0.2.2",
 		MAC:     "02:00:01:01:01:01",
 		IPv4Len: ipv4PrefixLen,
 	}
 	dutDst = attrs.Attributes{
 		Desc:    "dutDst",
-		IPv4:    "192.168.2.1",
+		IPv4:    "198.51.100.1",
 		IPv4Len: ipv4PrefixLen,
 	}
 	ateDst = attrs.Attributes{
 		Name:    "ateDst",
-		IPv4:    "192.168.2.2",
+		IPv4:    "198.51.100.2",
 		MAC:     "02:00:02:01:01:01",
 		IPv4Len: ipv4PrefixLen,
 	}
@@ -147,6 +147,33 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) ([]*ondatra.Port, string
 		replaceInterfaceConfig(t, dut, gnmi.OC().Interface(port.Name()).Config(), intf)
 		t.Logf("Successfully configured member interface %q", port.Name())
 	}
+	t.Cleanup(func() {
+	t.Cleanup(func() {
+		for _, port := range ports {
+			gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Config())
+		}
+		gnmi.Delete(t, dut, gnmi.OC().Interface(lagName).Config())
+		if !deviations.LacpInterfaceFallbackOCUnsupported(dut) {
+			gnmi.Delete(t, dut, gnmi.OC().Lacp().Interface(lagName).Config())
+		}
+	})
+
+	return ports, lagName
+			gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Config())
+		}
+		gnmi.Delete(t, dut, gnmi.OC().Interface(lagName).Config())
+		if !deviations.LacpInterfaceFallbackOCUnsupported(dut) {
+			gnmi.Delete(t, dut, gnmi.OC().Lacp().Interface(lagName).Config())
+		}
+	})
+
+	return ports, lagName
+		}
+		gnmi.Delete(t, dut, gnmi.OC().Interface(lagName).Config())
+		if !deviations.LacpInterfaceFallbackOCUnsupported(dut) {
+			gnmi.Delete(t, dut, gnmi.OC().Lacp().Interface(lagName).Config())
+		}
+	})
 
 	return ports, lagName
 }
@@ -224,14 +251,24 @@ func verifyZeroTrafficLoss(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Co
 	otg := ate.OTG()
 	otgutils.LogFlowMetrics(t, otg, top)
 	for _, f := range top.Flows().Items() {
-		flowMetrics := gnmi.Get(t, otg, gnmi.OTG().Flow(f.Name()).State())
-		rxPkts := flowMetrics.GetCounters().GetInPkts()
-		txPkts := flowMetrics.GetCounters().GetOutPkts()
-		if txPkts == 0 || rxPkts < txPkts {
-			lossPct := ygot.BinaryToFloat32(flowMetrics.GetLossPct())
-			if lossPct > 0 {
-				t.Errorf("Flow %s experienced packet loss: Tx = %d, Rx = %d, LossPct = %f", f.Name(), txPkts, rxPkts, lossPct)
-			}
+		var txPkts, rxPkts uint64
+		var lossPct float32
+		_, ok := gnmi.Watch(t, otg, gnmi.OTG().Flow(f.Name()).State(), 1*time.Minute, func(val *ygnmi.Value[*otg.Flow]) bool {
+			flowMetrics, present := val.Val()
+			if !present {
+				return false
+	otgutils.WaitForARP(t, otg, otgTop, "IPv4")
+			txPkts = flowMetrics.GetCounters().GetOutPkts()
+			rxPkts = flowMetrics.GetCounters().GetInPkts()
+			lossPct = ygot.BinaryToFloat32(flowMetrics.GetLossPct())
+			return txPkts > 0
+		}).Await(t)
+		if !ok {
+			t.Errorf("Flow %s did not transmit any packets", f.Name())
+			continue
+		}
+		if lossPct > 0 || rxPkts < txPkts {
+			t.Errorf("Flow %s experienced packet loss: Tx = %d, Rx = %d, LossPct = %f", f.Name(), txPkts, rxPkts, lossPct)
 		} else {
 			t.Logf("Flow %s verified zero packet loss (Tx=%d, Rx=%d)", f.Name(), txPkts, rxPkts)
 		}
