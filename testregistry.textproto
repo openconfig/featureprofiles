@@ -787,6 +787,7 @@ test: {
   id: "RT-1.103"
   description: "DUT iBGP passive listener FNT with common router id"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_dynamic_neighbors/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_dynamic_neighbors/bgp_dynamic_neighbors_test.go"
 }
 test: {
   id: "RT-1.106"
@@ -1535,6 +1536,12 @@ test: {
   description: "gRIBI Scaling - all scenarios but with minimal scaling parameters"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/gribi_full_scale/otg_tests/gribi_full_scale_down/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/gribi_full_scale/otg_tests/gribi_full_scale_down/gribi_full_scale_down_test.go"
+}
+test: {
+  id: "TE-14.7"
+  description: "gRIBI Scaling - full scale setup, target T3"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/gribi_full_scale/otg_tests/gribi_full_scale_t3/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/gribi_full_scale/otg_tests/gribi_full_scale_t3/gribi_full_scale_t3_test.go"
 }
 test: {
   id: "TE-15.1"

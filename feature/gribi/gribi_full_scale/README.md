@@ -6,6 +6,7 @@ The scaling parameters (e.g., number of VRFs, next hops, entries, and traffic ra
 * [Target T0 README](./otg_tests/gribi_full_scale_t0/README.md)
 * [Target T1 README](./otg_tests/gribi_full_scale_t1/README.md)
 * [Target T2 README](./otg_tests/gribi_full_scale_t2/README.md)
+* [Target T3 README](./otg_tests/gribi_full_scale_t3/README.md)
 * [Target Down README](./otg_tests/gribi_full_scale_down/README.md)
 
 ---
