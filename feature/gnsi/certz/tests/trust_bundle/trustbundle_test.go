@@ -100,7 +100,7 @@ func TestTrustBundleCert(t *testing.T) {
 	dirPath := t.TempDir()
 	//Generate testdata certificates.
 	t.Logf("Creation of test data.")
-  //Registering the cleanup before the certificate generation call, so it runs even if certificate generation fails.
+	//Registering the cleanup before the certificate generation call, so it runs even if certificate generation fails.
 	t.Cleanup(func() {
 		t.Logf("STATUS:Cleanup of test data.")
 		if err := setup_service.TestdataMakeCleanup(t, dirPath, *certsTimeout, "./cleanup.sh"); err != nil {
