@@ -168,6 +168,16 @@ func TestVRFSelectionResiliency(t *testing.T) {
 		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(ni.GetName()).Config(), ni)
 	}
 
+	t.Cleanup(func() {
+		t.Logf("Cleaning up configurations...")
+		vrfpolicy.DeletePolicyForwarding(t, dut, p1.Name())
+		for _, ni := range d.NetworkInstance {
+			if ni.GetName() != deviations.DefaultNetworkInstance(dut) {
+				gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(ni.GetName()).Config())
+			}
+		}
+	})
+
 	// Delete VRF-GHOST as specified by the test procedure to ensure Traffic Drops correctly
 	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("VRF-GHOST").Config())
 
