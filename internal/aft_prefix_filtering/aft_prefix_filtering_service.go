@@ -824,3 +824,23 @@ func CheckForDefaultRoutes(t *testing.T, cfg *CheckForDefaultRoutesParams) {
 		"Otherwise check for InitialSyncStoppingCondition will fail.",
 		cfg.NetworkInstance, v4Present, v6Present, cfg.IPv4Route, cfg.IPv6Route)
 }
+
+// AddPrefixToPrefixSetParams defines parameters for adding a prefix to a prefix-set.
+type AddPrefixToPrefixSetParams struct {
+	PrefixSetName string
+	Prefix        string
+	MaskRange     string
+}
+
+// AddPrefixToPrefixSet adds a prefix entry to an existing routing policy prefix-set.
+func AddPrefixToPrefixSet(t *testing.T, dut *ondatra.DUTDevice, cfg AddPrefixToPrefixSetParams) {
+	t.Helper()
+	batch := &gnmi.SetBatch{}
+	path := gnmi.OC().RoutingPolicy().DefinedSets().PrefixSet(cfg.PrefixSetName).Prefix(cfg.Prefix, cfg.MaskRange)
+	entry := &oc.RoutingPolicy_DefinedSets_PrefixSet_Prefix{
+		IpPrefix:        ygot.String(cfg.Prefix),
+		MasklengthRange: ygot.String(cfg.MaskRange),
+	}
+	gnmi.BatchReplace(batch, path.Config(), entry)
+	batch.Set(t, dut)
+}
