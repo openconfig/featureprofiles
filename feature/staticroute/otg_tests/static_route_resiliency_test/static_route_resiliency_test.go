@@ -274,19 +274,17 @@ func testScaleAndPersistence(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	lag2Ports := []string{dut.Port(t, "port5").Name(), dut.Port(t, "port6").Name()}
 
 	var afterScale map[string]uint64
-	var portStateReached bool
-	var attempts int
-	for attempts = 0; attempts < 60; attempts++ { // Retry for up to 60 iterations
-		afterScale = fetchDUTCounters(t, dut)
-		if portCountersIncreased(beforeScale, afterScale, lag2Ports) {
-			portStateReached = true
-			break
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-	if !portStateReached && attempts >= 60 {
-		t.Logf("Warning: timeout waiting for port counters to increase")
-	}
+    deadlineScale := time.Now().Add(time.Minute)
+    for {
+        afterScale = fetchDUTCounters(t, dut)
+        if portCountersIncreased(beforeScale, afterScale, lag2Ports) {
+            break
+        }
+        if time.Now().After(deadlineScale) {
+            t.Fatalf("Timeout: port counters on %v did not increase after 1 minute", lag2Ports)
+        }
+        time.Sleep(2 * time.Second)
+    }
 
 	assertFlowLossBelow(t, ate, "flow_scale_v4_0", 60*time.Second, 10)
 	if !portCountersIncreased(beforeScale, afterScale, lag2Ports) {
@@ -327,13 +325,10 @@ func testScaleAndPersistence(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	ate.OTG().StopTraffic(t)
 
 	var afterAdd map[string]uint64
-	gnmi.Watch(t, dut, func() any {
+	gnmi.WatchAll(t, dut, gnmi.OC().InterfaceAny().Counters().OutUnicastPkts().State(), time.Minute, func(val *ygnmi.Value[uint64]) bool {
 		afterAdd = fetchDUTCounters(t, dut)
-		if portCountersIncreased(beforeAdd, afterAdd, lag2Ports) {
-			return true
-		}
-		return nil
-	}, time.Minute, 100*time.Millisecond)
+		return portCountersIncreased(beforeAdd, afterAdd, lag2Ports)
+	}).Await(t)
 
 	assertFlowLossBelow(t, ate, "flow_scale_v4_0", 60*time.Second, 10)
 	if !portCountersIncreased(beforeAdd, afterAdd, lag2Ports) {
@@ -369,13 +364,10 @@ func testScaleAndPersistence(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	ate.OTG().StopTraffic(t)
 
 	var afterRemove map[string]uint64
-	gnmi.Watch(t, dut, func() any {
+	gnmi.WatchAll(t, dut, gnmi.OC().InterfaceAny().Counters().OutUnicastPkts().State(), time.Minute, func(val *ygnmi.Value[uint64]) bool {
 		afterRemove = fetchDUTCounters(t, dut)
-		if portCountersIncreased(beforeRemove, afterRemove, lag2Ports) {
-			return true
-		}
-		return nil
-	}, time.Minute, 100*time.Millisecond)
+		return portCountersIncreased(beforeRemove, afterRemove, lag2Ports)
+	}).Await(t)
 
 	assertFlowLossBelow(t, ate, "flow_scale_v4_0", 60*time.Second, 10)
 	if !portCountersIncreased(beforeRemove, afterRemove, lag2Ports) {
@@ -484,13 +476,10 @@ func testRouteWithVLAN(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDev
 	port2 := dut.Port(t, "port2").Name()
 
 	var after map[string]uint64
-	gnmi.Watch(t, dut, func() any {
+	gnmi.WatchAll(t, dut, gnmi.OC().InterfaceAny().Counters().OutUnicastPkts().State(), time.Minute, func(val *ygnmi.Value[uint64]) bool {
 		after = fetchDUTCounters(t, dut)
-		if (after[port1]-before[port1]) >= 100 || (after[port2]-before[port2]) >= 100 {
-			return true
-		}
-		return nil
-	}, time.Minute, 100*time.Millisecond)
+		return (after[port1]-before[port1]) >= 100 || (after[port2]-before[port2]) >= 100
+	}).Await(t)
 
 	if (after[port1]-before[port1]) < 100 && (after[port2]-before[port2]) < 100 {
 		t.Errorf("Traffic not routed out of Port 1 or 2 properly")
@@ -516,13 +505,10 @@ func testRouteWithLAG(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 	port4 := dut.Port(t, "port4").Name()
 
 	var after map[string]uint64
-	gnmi.Watch(t, dut, func() any {
+	gnmi.WatchAll(t, dut, gnmi.OC().InterfaceAny().Counters().OutUnicastPkts().State(), time.Minute, func(val *ygnmi.Value[uint64]) bool {
 		after = fetchDUTCounters(t, dut)
-		if (after[port3]-before[port3]) >= 100 || (after[port4]-before[port4]) >= 100 {
-			return true
-		}
-		return nil
-	}, time.Minute, 100*time.Millisecond)
+		return (after[port3]-before[port3]) >= 100 || (after[port4]-before[port4]) >= 100
+	}).Await(t)
 
 	if (after[port3]-before[port3]) < 100 && (after[port4]-before[port4]) < 100 {
 		t.Errorf("Traffic not routed out of LAG ports 3 or 4 properly")
@@ -583,13 +569,10 @@ func testECMPAndFIB(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice
 	lag2Ports := []string{dut.Port(t, "port5").Name(), dut.Port(t, "port6").Name()}
 
 	var afterECMP map[string]uint64
-	gnmi.Watch(t, dut, func() any {
+	gnmi.WatchAll(t, dut, gnmi.OC().InterfaceAny().Counters().OutUnicastPkts().State(), time.Minute, func(val *ygnmi.Value[uint64]) bool {
 		afterECMP = fetchDUTCounters(t, dut)
-		if portCountersIncreased(beforeECMP, afterECMP, lag1Ports) && portCountersIncreased(beforeECMP, afterECMP, lag2Ports) {
-			return true
-		}
-		return nil
-	}, time.Minute, 100*time.Millisecond)
+		return portCountersIncreased(beforeECMP, afterECMP, lag1Ports) && portCountersIncreased(beforeECMP, afterECMP, lag2Ports)
+	}).Await(t)
 
 	assertFlowLossBelow(t, ate, "flow_ecmp_v4", 60*time.Second, 5)
 	if !portCountersIncreased(beforeECMP, afterECMP, lag1Ports) {
@@ -619,13 +602,17 @@ func testECMPAndFIB(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice
 	ate.OTG().StopTraffic(t)
 
 	var afterScale map[string]uint64
-	gnmi.Watch(t, dut, func() any {
-		afterScale = fetchDUTCounters(t, dut)
-		if portCountersIncreased(beforeScale, afterScale, lag2Ports) {
-			return true
-		}
-		return nil
-	}, time.Minute, 100*time.Millisecond)
+    deadlineScale := time.Now().Add(time.Minute)
+    for {
+        afterScale = fetchDUTCounters(t, dut)
+        if portCountersIncreased(beforeScale, afterScale, lag2Ports) {
+            break
+        }
+        if time.Now().After(deadlineScale) {
+            t.Fatalf("Timeout: port counters on %v did not increase after 1 minute", lag2Ports)
+        }
+        time.Sleep(2 * time.Second)
+    }
 
 	assertFlowLossBelow(t, ate, "flow_scale_v4_0", 60*time.Second, 10)
 	if !portCountersIncreased(beforeScale, afterScale, lag2Ports) {
@@ -666,13 +653,10 @@ func testECMPAndFIB(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice
 	ate.OTG().StopTraffic(t)
 
 	var afterAdd map[string]uint64
-	gnmi.Watch(t, dut, func() any {
+	gnmi.WatchAll(t, dut, gnmi.OC().InterfaceAny().Counters().OutUnicastPkts().State(), time.Minute, func(val *ygnmi.Value[uint64]) bool {
 		afterAdd = fetchDUTCounters(t, dut)
-		if portCountersIncreased(beforeAdd, afterAdd, lag2Ports) {
-			return true
-		}
-		return nil
-	}, time.Minute, 100*time.Millisecond)
+		return portCountersIncreased(beforeAdd, afterAdd, lag2Ports)
+	}).Await(t)
 
 	assertFlowLossBelow(t, ate, "flow_scale_v4_0", 60*time.Second, 10)
 	if !portCountersIncreased(beforeAdd, afterAdd, lag2Ports) {
@@ -708,13 +692,10 @@ func testECMPAndFIB(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice
 	ate.OTG().StopTraffic(t)
 
 	var afterRemove map[string]uint64
-	gnmi.Watch(t, dut, func() any {
+	gnmi.WatchAll(t, dut, gnmi.OC().InterfaceAny().Counters().OutUnicastPkts().State(), time.Minute, func(val *ygnmi.Value[uint64]) bool {
 		afterRemove = fetchDUTCounters(t, dut)
-		if portCountersIncreased(beforeRemove, afterRemove, lag2Ports) {
-			return true
-		}
-		return nil
-	}, time.Minute, 100*time.Millisecond)
+		return portCountersIncreased(beforeRemove, afterRemove, lag2Ports)
+	}).Await(t)
 
 	assertFlowLossBelow(t, ate, "flow_scale_v4_0", 60*time.Second, 10)
 	if !portCountersIncreased(beforeRemove, afterRemove, lag2Ports) {
@@ -815,12 +796,12 @@ func portCountersIncreased(before, after map[string]uint64, ports []string) bool
 func waitForOTGARP(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
 	for _, d := range top.Devices().Items() {
 		eth := d.Ethernets().Items()[0]
-		if _, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Interface(eth.Name()+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), 2*time.Minute, func(val *ygnmi.Value[string]) bool {
+		if _, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(eth.Name()+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), 2*time.Minute, func(val *ygnmi.Value[string]) bool {
 			return val.IsPresent()
 		}).Await(t); !ok {
 			t.Fatalf("Did not receive OTG IPv4 neighbor entry for interface %s", eth.Name())
 		}
-		if _, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Interface(eth.Name()+".Eth").Ipv6NeighborAny().LinkLayerAddress().State(), 2*time.Minute, func(val *ygnmi.Value[string]) bool {
+		if _, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(eth.Name()+".Eth").Ipv6NeighborAny().LinkLayerAddress().State(), 2*time.Minute, func(val *ygnmi.Value[string]) bool {
 			return val.IsPresent()
 		}).Await(t); !ok {
 			t.Fatalf("Did not receive OTG IPv6 neighbor entry for interface %s", eth.Name())
