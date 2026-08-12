@@ -180,7 +180,6 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, srcE
 	otg.StopTraffic(t)
 	otgutils.LogFlowMetrics(t, otg, top)
 
-	time.Sleep(time.Minute)
 	if !wantLoss {
 		otgutils.ExpectedTrafficLoss(t, otg, flowipv4.Name(), 0, 0)
 	} else {
