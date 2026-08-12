@@ -1,6 +1,6 @@
 module github.com/openconfig/featureprofiles
 
-go 1.26.0
+go 1.26.1
 
 require (
 	cloud.google.com/go/pubsub v1.45.1
