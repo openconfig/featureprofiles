@@ -742,7 +742,7 @@ func assertFlowLossBelow(t *testing.T, ate *ondatra.ATEDevice, flowName string, 
 	waitForFlowTraffic(t, otg, flowName, timeout)
 
 	var outPkts uint64
-	if ok := gnmi.Watch(t, otg, gnmi.OTG().Flow(flowName).Counters().OutPkts().State(), timeout, func(val *ygnmi.Value[uint64]) bool {
+	if _, ok := gnmi.Watch(t, otg, gnmi.OTG().Flow(flowName).Counters().OutPkts().State(), timeout, func(val *ygnmi.Value[uint64]) bool {
 		v, present := val.Val()
 		if !present || v == 0 {
 			return false
@@ -766,7 +766,7 @@ func assertFlowLossAbove(t *testing.T, ate *ondatra.ATEDevice, flowName string, 
 	waitForFlowTraffic(t, otg, flowName, timeout)
 
 	var outPkts uint64
-	if ok := gnmi.Watch(t, otg, gnmi.OTG().Flow(flowName).Counters().OutPkts().State(), timeout, func(val *ygnmi.Value[uint64]) bool {
+	if _, ok := gnmi.Watch(t, otg, gnmi.OTG().Flow(flowName).Counters().OutPkts().State(), timeout, func(val *ygnmi.Value[uint64]) bool {
 		v, present := val.Val()
 		if !present || v == 0 {
 			return false
