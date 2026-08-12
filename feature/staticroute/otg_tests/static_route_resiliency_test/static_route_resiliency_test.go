@@ -274,17 +274,17 @@ func testScaleAndPersistence(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	lag2Ports := []string{dut.Port(t, "port5").Name(), dut.Port(t, "port6").Name()}
 
 	var afterScale map[string]uint64
-    deadlineScale := time.Now().Add(time.Minute)
-    for {
-        afterScale = fetchDUTCounters(t, dut)
-        if portCountersIncreased(beforeScale, afterScale, lag2Ports) {
-            break
-        }
-        if time.Now().After(deadlineScale) {
-            t.Fatalf("Timeout: port counters on %v did not increase after 1 minute", lag2Ports)
-        }
-        time.Sleep(2 * time.Second)
-    }
+	deadlineScale := time.Now().Add(time.Minute)
+	for {
+		afterScale = fetchDUTCounters(t, dut)
+		if portCountersIncreased(beforeScale, afterScale, lag2Ports) {
+			break
+		}
+		if time.Now().After(deadlineScale) {
+			t.Fatalf("Timeout: port counters on %v did not increase after 1 minute", lag2Ports)
+		}
+		time.Sleep(2 * time.Second)
+	}
 
 	assertFlowLossBelow(t, ate, "flow_scale_v4_0", 60*time.Second, 10)
 	if !portCountersIncreased(beforeScale, afterScale, lag2Ports) {
@@ -602,17 +602,17 @@ func testECMPAndFIB(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice
 	ate.OTG().StopTraffic(t)
 
 	var afterScale map[string]uint64
-    deadlineScale := time.Now().Add(time.Minute)
-    for {
-        afterScale = fetchDUTCounters(t, dut)
-        if portCountersIncreased(beforeScale, afterScale, lag2Ports) {
-            break
-        }
-        if time.Now().After(deadlineScale) {
-            t.Fatalf("Timeout: port counters on %v did not increase after 1 minute", lag2Ports)
-        }
-        time.Sleep(2 * time.Second)
-    }
+	deadlineScale := time.Now().Add(time.Minute)
+	for {
+		afterScale = fetchDUTCounters(t, dut)
+		if portCountersIncreased(beforeScale, afterScale, lag2Ports) {
+			break
+		}
+		if time.Now().After(deadlineScale) {
+			t.Fatalf("Timeout: port counters on %v did not increase after 1 minute", lag2Ports)
+		}
+		time.Sleep(2 * time.Second)
+	}
 
 	assertFlowLossBelow(t, ate, "flow_scale_v4_0", 60*time.Second, 10)
 	if !portCountersIncreased(beforeScale, afterScale, lag2Ports) {
