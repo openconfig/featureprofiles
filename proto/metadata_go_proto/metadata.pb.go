@@ -1521,6 +1521,10 @@ type Metadata_Deviations struct {
 	// Devices that do not support afts global filter policy
 	// Arista: https://partnerissuetracker.corp.google.com/issues/514565554
 	AftsGlobalFilterPolicyOcUnsupported bool `protobuf:"varint,446,opt,name=afts_global_filter_policy_oc_unsupported,json=aftsGlobalFilterPolicyOcUnsupported,proto3" json:"afts_global_filter_policy_oc_unsupported,omitempty"`
+	// Device accepts the OpenConfig BGP dynamic-neighbor-prefix
+	// path via gNMI but silently ignores it — the corresponding "bgp listen range" is never programmed.
+	// Arista: https://partnerissuetracker.corp.google.com/u/2/issues/534817001
+	BgpDynamicNeighborPrefixUnsupported bool `protobuf:"varint,447,opt,name=bgp_dynamic_neighbor_prefix_unsupported,json=bgpDynamicNeighborPrefixUnsupported,proto3" json:"bgp_dynamic_neighbor_prefix_unsupported,omitempty"`
 	// Device containerz service presents a self-signed TLS certificate that cannot
 	// be verified against a trusted CA. When true, dialContainer uses TLS with
 	// InsecureSkipVerify instead of plaintext transport.
@@ -4444,6 +4448,13 @@ func (x *Metadata_Deviations) GetAftsGlobalFilterPolicyOcUnsupported() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetBgpDynamicNeighborPrefixUnsupported() bool {
+	if x != nil {
+		return x.BgpDynamicNeighborPrefixUnsupported
+	}
+	return false
+}
+
 func (x *Metadata_Deviations) GetContainerzTlsInsecureSkipVerify() bool {
 	if x != nil {
 		return x.ContainerzTlsInsecureSkipVerify
@@ -4528,7 +4539,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\x83\xff\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xda\xff\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -4540,7 +4551,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\x8b\xf4\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xe2\xf4\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -4957,7 +4968,8 @@ const file_metadata_proto_rawDesc = "" +
 	"\"static_route_in_vrf_oc_unsupported\x18\xbb\x03 \x01(\bR\x1dstaticRouteInVrfOcUnsupported\x12F\n" +
 	" ip_routing_in_vrf_oc_unsupported\x18\xbc\x03 \x01(\bR\x1bipRoutingInVrfOcUnsupported\x123\n" +
 	"\x15macsec_oc_unsupported\x18\xbd\x03 \x01(\bR\x13macsecOcUnsupported\x12V\n" +
-	"(afts_global_filter_policy_oc_unsupported\x18\xbe\x03 \x01(\bR#aftsGlobalFilterPolicyOcUnsupported\x12M\n" +
+	"(afts_global_filter_policy_oc_unsupported\x18\xbe\x03 \x01(\bR#aftsGlobalFilterPolicyOcUnsupported\x12U\n" +
+	"'bgp_dynamic_neighbor_prefix_unsupported\x18\xbf\x03 \x01(\bR#bgpDynamicNeighborPrefixUnsupported\x12M\n" +
 	"#containerz_tls_insecure_skip_verify\x18\xc0\x03 \x01(\bR\x1fcontainerzTlsInsecureSkipVerify\x12\x86\x01\n" +
 	"Aafts_global_filter_policy_config_reference_validation_unsupported\x18\xc1\x03 \x01(\bR:aftsGlobalFilterPolicyConfigReferenceValidationUnsupported\x12c\n" +
 	"/vrf_selection_policy_non_default_ni_unsupported\x18\xc2\x03 \x01(\bR)vrfSelectionPolicyNonDefaultNiUnsupported\x12P\n" +
