@@ -504,7 +504,7 @@ func (tc *testCase) verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, con
 	otg := ate.OTG()
 	defer otgutils.LogFlowMetrics(t, otg, conf)
 	for _, flow := range flowNames {
-		otgutils.ExpectedTrafficLoss(t, otg, flow, 0, tolerance+0.99)
+		otgutils.ExpectedTrafficLoss(t, otg, flow, 0, float64(tolerance)+0.99)
 	}
 }
 
@@ -512,7 +512,7 @@ func (tc *testCase) verifyPacketLoss(t *testing.T, ate *ondatra.ATEDevice, conf 
 	otg := ate.OTG()
 	defer otgutils.LogFlowMetrics(t, otg, conf)
 	for _, flow := range flowNames {
-		otgutils.ExpectedTrafficLoss(t, otg, flow, 100-tolerance, 100)
+		otgutils.ExpectedTrafficLoss(t, otg, flow, 100-float64(tolerance), 100)
 	}
 }
 
