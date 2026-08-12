@@ -251,8 +251,11 @@ func TestVRFSelectionResiliency(t *testing.T) {
 	if linecardPort == "" {
 		t.Logf("Could not find linecard for port: %s. Skipping Linecard OIR tests.", p1.Name())
 	} else {
-		t.Logf("Toggling linecard %s to POWER_DISABLED", linecardPort)
 		linecardPath := gnmi.OC().Component(linecardPort).Linecard().PowerAdminState()
+		t.Cleanup(func() {
+			gnmi.Replace(t, dut, linecardPath.Config(), oc.Platform_ComponentPowerType_POWER_ENABLED)
+		})
+		t.Logf("Toggling linecard %s to POWER_DISABLED", linecardPort)
 		gnmi.Replace(t, dut, linecardPath.Config(), oc.Platform_ComponentPowerType_POWER_DISABLED)
 		gnmi.Await(t, dut, gnmi.OC().Component(linecardPort).OperStatus().State(), 5*time.Minute, oc.PlatformTypes_COMPONENT_OPER_STATUS_DISABLED)
 
