@@ -272,7 +272,9 @@ func configureAristaQosTxQueues(t *testing.T, dut *ondatra.DUTDevice, qNames []s
 	var cli strings.Builder
 	for index, queue := range qNames {
 		fmt.Fprintf(&cli, "qos tx-queue %d name %s\n!\n", index, queue)
-		fmt.Fprintf(&cli, "qos map traffic-class %d to tx-queue %d\n!\n", index, index)
+		if index != 7 {
+			fmt.Fprintf(&cli, "qos map traffic-class %d to tx-queue %d\n!\n", index, index)
+		}
 		fmt.Fprintf(&cli, "qos traffic-class %d name target-group-%s\n!\n", index, queue)
 	}
 	helpers.GnmiCLIConfig(t, dut, cli.String())
