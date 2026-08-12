@@ -1140,6 +1140,7 @@ test: {
   id: "RT-3.4"
   description: "VRF Selection Policy Hardware Programming with Linecard and Supervisor Resiliency"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/vrf_selection/otg_tests/vrf_selection_resiliency_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/vrf_selection/otg_tests/vrf_selection_resiliency_test/vrf_selection_resiliency_test.go"
 }
 test: {
   id: "RT-3.52"

@@ -25,11 +25,14 @@ import (
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/featureprofiles/internal/vrfpolicy"
 	syspb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/testt"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -106,7 +109,7 @@ func TestVRFSelectionResiliency(t *testing.T) {
 	}
 	s1 := i1.GetOrCreateSubinterface(0)
 	s1.GetOrCreateIpv4().Enabled = ygot.Bool(true)
-	s1.GetOrCreateIpv4().GetOrCreateAddress("192.168.0.1").PrefixLength = ygot.Uint8(24)
+	s1.GetOrCreateIpv4().GetOrCreateAddress("100.64.0.1").PrefixLength = ygot.Uint8(24)
 
 	// Step 1: Initial VRF Binding for ingress
 	niPfw := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding()
@@ -211,35 +214,47 @@ func TestVRFSelectionResiliency(t *testing.T) {
 
 	// RT-3.4.2 - VRF Selection Policy Resilience Post Supervisor Switchover
 	t.Logf("RT-3.4.2 - Step 1: Trigger Switchover")
+
 	controllers := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
 	if len(controllers) > 0 {
-		activeController := controllers[0]
-		t.Logf("Found active controller: %s. Initiating SwitchControlProcessor...", activeController)
-		// Record switchover time prior
-		t0 := time.Now()
+		standbyController, activeController := components.FindStandbyControllerCard(t, dut, controllers)
+		t.Logf("Found active: %s, standby: %s. Initiating SwitchControlProcessor to standby...", activeController, standbyController)
 
 		systemClient := dut.RawAPIs().GNOI(t).System()
 		req := &syspb.SwitchControlProcessorRequest{
-			ControlProcessor: components.GetSubcomponentPath(activeController, deviations.GNOISubcomponentPath(dut)),
+			ControlProcessor: components.GetSubcomponentPath(standbyController, deviations.GNOISubcomponentPath(dut)),
 		}
-		_, err := systemClient.SwitchControlProcessor(context.Background(), req)
-		if err != nil {
+		if _, err := systemClient.SwitchControlProcessor(context.Background(), req); err != nil {
 			t.Fatalf("SwitchControlProcessor failed: %v", err)
 		}
 
-		// Wait for components to transition and new active controller to emerge
-		t.Logf("Waiting for new ACTIVE controller...")
-		gnmi.Await(t, dut, gnmi.OC().Component(activeController).OperStatus().State(), 5*time.Minute, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE)
-
-		// Check telemetry
-		t.Logf("Checking last switchover time and reason...")
-		lastSwitch := gnmi.Get(t, dut, gnmi.OC().Component(activeController).LastSwitchoverTime().State())
-		if time.Unix(0, int64(lastSwitch)*int64(time.Nanosecond)).Before(t0) {
-			t.Logf("Warning: switchover time telemetry %v was not updated after %v", lastSwitch, t0)
+		// Wait for control-plane to accept GNMI again by polling a safe telemetry path.
+		start := time.Now()
+		timeout := 5 * time.Minute
+		for {
+			time.Sleep(10 * time.Second)
+			var now string
+			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+				now = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+			}); errMsg != nil {
+				t.Logf("gNMI not ready yet (%s); retrying...", *errMsg)
+			} else {
+				t.Logf("gNMI reachable; DUT time: %s", now)
+				break
+			}
+			if time.Since(start) > timeout {
+				t.Fatalf("timed out waiting for gNMI after %v", timeout)
+			}
 		}
 
+		// Confirm standby became the new active.
+		_, rpActiveAfterSwitch := components.FindStandbyControllerCard(t, dut, controllers)
+		if rpActiveAfterSwitch != standbyController {
+			t.Fatalf("Post-switchover active RP mismatch: got %q want %q", rpActiveAfterSwitch, standbyController)
+		}
+		t.Logf("Switchover complete: new active %s", rpActiveAfterSwitch)
 	} else {
-		t.Logf("No active controller found. Skipping gNOI switchover injection.")
+		t.Logf("No controller cards found; skipping switchover.")
 	}
 
 	t.Logf("RT-3.4.2 - Step 2: Validate 0%% traffic loss")
@@ -280,7 +295,14 @@ func TestVRFSelectionResiliency(t *testing.T) {
 	vrfpolicy.DeletePolicyForwarding(t, dut, p1.Name())
 
 	// Wait for policy detachment propagation
-	time.Sleep(30 * time.Second)
+	interfaceID := p1.Name()
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		interfaceID = p1.Name() + ".0"
+	}
+	gnmi.Watch(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID).ApplyVrfSelectionPolicy().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+		v, present := val.Val()
+		return !present || v == ""
+	}).Await(t)
 
 	t.Logf("RT-3.4.4 - Step 3: Validate fallback to DEFAULT network instance mapping")
 	// Validated by ensuring traffic no longer routes to specific egress ports uniquely mapped to VRF subints
