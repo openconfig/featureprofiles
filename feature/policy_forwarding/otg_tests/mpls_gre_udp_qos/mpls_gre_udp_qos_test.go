@@ -1,5 +1,3 @@
-// Package mpls_gre_udp_qos_test tests MPLSoGRE/MPLSoGUE QoS classification, marking,
-// scheduling (bandwidth/priority classes with and without shaping) and policing.
 package mpls_gre_udp_qos_test
 
 import (
@@ -26,20 +24,16 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-// TestMain calls main function.
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
 const (
-	ethernetCsmacd = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	ieee8023adLag  = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-	greProtocol    = 47
-	// gueDstPort is the well known UDP destination port used for MPLSoGUE encap/decap.
-	gueDstPort = 6635
-	// outerMarkedDSCP is the DSCP value the DUT must set on the MPLSoGRE/MPLSoGUE outer header (PF-1.18.1/1.18.3).
-	outerMarkedDSCP = 32
-	// ingressClassifyTC3/ingressClassifyTC4 are the traffic classes IP-to-encap traffic is classified into (PF-1.18.1/1.18.3).
+	ethernetCsmacd     = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	ieee8023adLag      = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	greProtocol        = 47
+	gueDstPort         = 6635
+	outerMarkedDSCP    = 32
 	ingressClassifyTC3 = 3
 	ingressClassifyTC4 = 4
 
@@ -49,16 +43,11 @@ const (
 	prioShaperSchedulerName = "scheduler-prio-shaper"
 	ingressPolicerName      = "scheduler-ingress-2r3c"
 
-	// encapMPLSLabel is the MPLS label the DUT pushes for IP-to-encap (customer -> core) traffic.
-	encapMPLSLabel  = 116383
-	greNHGName      = "nhg-gre-encap"
-	gueNHGName      = "nhg-gue-encap"
-	encapPolicyName = "encap-mplsogre-mplsogue"
-	// outerEncapPrefix covers all MPLSoGRE/MPLSoGUE outer destination addresses used below and
-	// is what the decap-groups match on (see configureAristaDecap).
+	encapMPLSLabel   = 116383
+	greNHGName       = "nhg-gre-encap"
+	gueNHGName       = "nhg-gue-encap"
+	encapPolicyName  = "encap-mplsogre-mplsogue"
 	outerEncapPrefix = "10.99.0.0/16"
-	// outerGREDstCoreN/outerGUEDstCoreN are host addresses within outerEncapPrefix, one pair per
-	// core uplink, each reachable via the matching static route (see configureStaticRoutes).
 	outerGREDstCore1 = "10.99.1.1"
 	outerGREDstCore2 = "10.99.2.1"
 	outerGUEDstCore1 = "10.99.1.2"
@@ -81,10 +70,6 @@ var (
 	core1Ports = []string{"port3", "port4"}
 	core2Ports = []string{"port5", "port6"}
 
-	// custIntfs models the "5 sub-interfaces" the README requires the bandwidth/priority
-	// class egress queueing profiles to be applied on (PF-1.18.1, PF-1.18.4-1.18.7). Traffic
-	// validation is driven primarily via custIntfs[0]; the same scheduler-policy is applied to
-	// all 5 to demonstrate consistent behavior across sub-interfaces.
 	custIntfTC0 = attrs.Attributes{Desc: "customer-0", MTU: 1500, IPv4: "169.254.0.11", IPv4Len: 29, IPv6: "2001:db8:10:11::1", IPv6Len: 126, Subinterface: 20}
 	custIntfTC1 = attrs.Attributes{Desc: "customer-1", MTU: 1500, IPv4: "169.254.0.19", IPv4Len: 29, Subinterface: 21}
 	custIntfTC2 = attrs.Attributes{Desc: "customer-2", MTU: 1500, IPv4: "169.254.0.27", IPv4Len: 29, Subinterface: 22}
@@ -92,7 +77,6 @@ var (
 	custIntfTC4 = attrs.Attributes{Desc: "customer-4", MTU: 1500, IPv4: "169.254.0.43", IPv4Len: 29, Subinterface: 24}
 	custIntfs   = []*attrs.Attributes{&custIntfTC0, &custIntfTC1, &custIntfTC2, &custIntfTC3, &custIntfTC4}
 
-	// core1Intf/core2Intf are the two eBGP uplinks (ATE Ports 3,4 and ATE Ports 5,6).
 	core1Intf = attrs.Attributes{Desc: "core1", MTU: 9202, IPv4: "194.0.2.1", IPv4Len: 24, IPv6: "2001:10:1:6::1", IPv6Len: 126}
 	core2Intf = attrs.Attributes{Desc: "core2", MTU: 9202, IPv4: "194.0.3.1", IPv4Len: 24, IPv6: "2001:10:1:7::1", IPv6Len: 126}
 
@@ -153,8 +137,6 @@ var (
 		IPv6: "2001:10:1:7::2", IPv6Gateway: "2001:10:1:7::1", IPv6Len: 126,
 	}
 
-	// sizeWeightProfile implements the "64, 128, 256, 512, 1024...MTU" IMIX frame size mix
-	// required throughout the README.
 	sizeWeightProfile = []otgconfighelpers.SizeWeightPair{
 		{Size: 64, Weight: 20},
 		{Size: 128, Weight: 20},
@@ -165,7 +147,6 @@ var (
 	}
 )
 
-// ConfigureOTG configures the ATE topology (3 aggregate interfaces).
 func ConfigureOTG(t *testing.T) {
 	t.Helper()
 	top.Captures().Clear()
@@ -176,14 +157,6 @@ func ConfigureOTG(t *testing.T) {
 	ate.OTG().PushConfig(t, top)
 }
 
-// ConfigureDut configures interfaces, static routes, MPLSoGRE/MPLSoGUE encap and decap, and
-// QoS (PF-1.18.1).
-//
-// NOTE: encap/decap config is written directly here (rather than via the shared
-// cfgplugins.PolicyForwardingConfig/NextHopGroupConfig/DecapGroupConfigGre/MPLSStaticLSPConfig
-// helpers) because those helpers' CLI-deviation branches push fixed, non-parameterized CLI
-// snippets tied to a different test's lab addressing (e.g. hardcoded prefixes/next-hop-group
-// names), which would silently misconfigure this test's topology.
 func ConfigureDut(t *testing.T, dut *ondatra.DUTDevice) {
 	configureHardwareInit(t, dut)
 
@@ -198,17 +171,12 @@ func ConfigureDut(t *testing.T, dut *ondatra.DUTDevice) {
 
 	configureStaticRoutes(t, dut)
 
-	// IP to Encap direction: classify, mark, and encapsulate (MPLSoGRE + MPLSoGUE).
 	configureEncapMPLSInGREAndGUE(t, dut)
-	// Encap to IP direction: decapsulate (MPLSoGRE + MPLSoGUE) and classify by MPLS EXP bits.
 	configureDecapMPLSInGREAndGUE(t, dut)
 
 	configureQoS(t, dut)
 }
 
-// configureHardwareInit programs the Arista TCAM profile required for port traffic-policy
-// support; without it, binding a traffic-policy to an interface fails ("Port traffic-policy
-// not supported in TCAM profile").
 func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	hardwarePfCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeaturePolicyForwarding)
@@ -218,7 +186,6 @@ func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwarePfCfg)
 }
 
-// configureEncapMPLSInGREAndGUE implements the "IP to Encap" side of PF-1.18.1.
 func configureEncapMPLSInGREAndGUE(t *testing.T, dut *ondatra.DUTDevice) {
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
@@ -228,9 +195,6 @@ func configureEncapMPLSInGREAndGUE(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-// configureAristaEncap classifies IP-to-encap traffic into TC3 (redirected into MPLSoGRE) and
-// marks/redirects it into MPLSoGRE + MPLSoGUE next-hop-groups spanning both core uplinks, with
-// DSCP outerMarkedDSCP set on the outer header (PF-1.18.1).
 func configureAristaEncap(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	var b strings.Builder
@@ -241,9 +205,6 @@ func configureAristaEncap(t *testing.T, dut *ondatra.DUTDevice) {
 	fmt.Fprintf(&b, " entry 1 push label-stack %d tunnel-destination %s tunnel-source %s\n", encapMPLSLabel, outerGREDstCore2, core2Intf.IPv4)
 	fmt.Fprintf(&b, "!\n")
 	fmt.Fprintf(&b, "traffic-policies\n traffic-policy %s\n", encapPolicyName)
-	// TODO: split GRE (TC3) vs GUE (TC4) encapsulation by an additional match criterion (e.g.
-	// inner DSCP range) instead of sending all default IPv4 traffic to GRE/TC3; GUE traffic
-	// currently only reaches its next-hop-group via a dedicated match added below.
 	fmt.Fprintf(&b, "  match ipv4-all-default ipv4\n   actions\n    count\n    set traffic class %d\n    redirect next-hop group %s\n", ingressClassifyTC3, greNHGName)
 	fmt.Fprintf(&b, "  match ipv6-all-default ipv6\n")
 	fmt.Fprintf(&b, " !\n")
@@ -253,14 +214,6 @@ func configureAristaEncap(t *testing.T, dut *ondatra.DUTDevice) {
 		helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("interface %s.%d\n traffic-policy input %s\n!\n", custAggID, a.Subinterface, encapPolicyName))
 	}
 
-	// MPLSoGUE next-hop-group + PBR rule: these cfgplugins helpers are genuinely parameterized
-	// (unlike PolicyForwardingConfig/NextHopGroupConfig above), so they're safe to reuse as-is.
-	// NOTE: despite its name, SrcIp is the Arista "tunnel-source intf <name>" argument and must
-	// be a DUT interface name, not an IP address.
-	// TODO: DSCP is left unset here; NextHopGroupConfigForIpOverUdp's DSCP marking applies an
-	// ingress QoS policy to the tunnel-source interface (via configureTOSGUE), which isn't the
-	// same as marking the GUE outer header, and its cs<N> conversion (DSCP>>5) expects a
-	// TOS-scaled value, not a raw DSCP. Revisit once outer-header marking for GUE is verified.
 	cfgplugins.NextHopGroupConfigForIpOverUdp(t, dut, cfgplugins.NexthopGroupUDPParams{
 		IPFamily:       "V4Udp",
 		NexthopGrpName: gueNHGName,
@@ -276,7 +229,6 @@ func configureAristaEncap(t *testing.T, dut *ondatra.DUTDevice) {
 	})
 }
 
-// configureDecapMPLSInGREAndGUE implements the "Encap to IP" side of PF-1.18.1.
 func configureDecapMPLSInGREAndGUE(t *testing.T, dut *ondatra.DUTDevice) {
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
@@ -286,11 +238,6 @@ func configureDecapMPLSInGREAndGUE(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-// configureAristaDecap decapsulates MPLSoGRE and MPLSoGUE traffic destined to outerEncapPrefix
-// and pops the MPLS labels used by buildEncapToIPFlows, forwarding the inner payload to
-// custOTG0 (PF-1.18.1/PF-1.18.2). The "tunnel overlay mpls qos map mpls-traffic-class to
-// traffic-class" line performs the MPLS EXP -> traffic-class classification (no OC path exists
-// for this yet, see README TODO).
 func configureAristaDecap(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	cli := fmt.Sprintf(`
@@ -318,15 +265,9 @@ ip decap-group %s
 	helpers.GnmiCLIConfig(t, dut, mplsB.String())
 }
 
-// configureQoS builds the classifiers, forwarding-groups, scheduler-policies (bandwidth,
-// bandwidth+shaper, priority, priority+shaper) and the ingress two-rate-three-color policer,
-// then applies them on the relevant interfaces (PF-1.18.1).
 func configureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	cfgplugins.NewQosInitialize(t, dut)
 	queues := netutil.CommonTrafficQueues(t, dut)
-	// NOTE: netutil.CommonTrafficQueues() only exposes 6 named queues (BE1, AF1-AF4, NC1).
-	// TODO: The README requires 8 bandwidth/priority classes (TC0-TC7); platforms that
-	// expose additional hardware queues should extend qNames/queues below accordingly.
 	qNames := []string{queues.BE1, queues.AF1, queues.AF2, queues.AF3, queues.AF4, queues.NC1}
 
 	d := &oc.Root{}
@@ -361,17 +302,12 @@ func configureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	configurePriorityShaperScheduler(t, dut, qNames)
 	configureIngressPolicer(t, dut)
 
-	// Apply the priority scheduler on both core (encap egress) uplinks (PF-1.18.8).
 	for _, intfName := range []string{core1AggID, core2AggID} {
 		applySchedulerOnOutput(t, dut, intfName, prioSchedulerName, qNames)
 	}
-	// Apply the bandwidth/priority (and shaper variants) scheduler on the 5 customer
-	// sub-interfaces used for decap egress queueing (PF-1.18.4-1.18.7). Only one scheduler
-	// can be bound to a given interface at a time; PF-1.18.4-1.18.7 rebind the interface to
-	// the scheduler under test before generating traffic.
+
 }
 
-// dscpRangeForTC returns the 8 DSCP values (tc*8 .. tc*8+7) that classify into traffic-class tc.
 func dscpRangeForTC(tc int) []uint8 {
 	var vals []uint8
 	for i := 0; i < 8; i++ {
@@ -385,7 +321,6 @@ func configureBandwidthScheduler(t *testing.T, dut *ondatra.DUTDevice, qNames []
 	q := d.GetOrCreateQos()
 	sp := q.GetOrCreateSchedulerPolicy(bwSchedulerName)
 	sp.SetName(bwSchedulerName)
-	// weights are relative; TODO: replace with platform specific absolute/percentage minimums.
 	weights := []uint64{10, 15, 20, 25, 30}
 	for i, qn := range qNames {
 		if i >= len(weights) {
@@ -408,7 +343,6 @@ func configureBandwidthShaperScheduler(t *testing.T, dut *ondatra.DUTDevice, qNa
 	q := d.GetOrCreateQos()
 	sp := q.GetOrCreateSchedulerPolicy(bwShaperSchedulerName)
 	sp.SetName(bwShaperSchedulerName)
-	// cir/pir are illustrative; TODO: replace with platform specific min/max bandwidth values.
 	type bw struct{ cir, pir uint64 }
 	rates := []bw{{100_000_000, 200_000_000}, {150_000_000, 300_000_000}, {200_000_000, 400_000_000}, {250_000_000, 500_000_000}, {300_000_000, 600_000_000}}
 	for i, qn := range qNames {
@@ -422,9 +356,6 @@ func configureBandwidthShaperScheduler(t *testing.T, dut *ondatra.DUTDevice, qNa
 		input.SetId(qn)
 		input.SetInputType(oc.Input_InputType_QUEUE)
 		input.SetQueue(qn)
-		// TODO: b/442749011 - Arista's gNMI schema rejects two-rate-three-color/one-rate-two-color
-		// under scheduler-policy/scheduler; skip pushing them until a CLI-based equivalent (Arista
-		// egress tx-queue shaping) is implemented (see README TODO on shaper OC not being finalized).
 		if deviations.QosTwoRateThreeColorPolicerOCUnsupported(dut) {
 			continue
 		}
@@ -448,7 +379,6 @@ func configurePriorityScheduler(t *testing.T, dut *ondatra.DUTDevice, qNames []s
 	q := d.GetOrCreateQos()
 	sp := q.GetOrCreateSchedulerPolicy(prioSchedulerName)
 	sp.SetName(prioSchedulerName)
-	// Lowest sequence number == highest priority; qNames is ordered lowest -> highest priority.
 	for i, qn := range qNames {
 		seq := uint32(len(qNames) - 1 - i)
 		s := sp.GetOrCreateScheduler(seq)
@@ -467,7 +397,6 @@ func configurePriorityShaperScheduler(t *testing.T, dut *ondatra.DUTDevice, qNam
 	q := d.GetOrCreateQos()
 	sp := q.GetOrCreateSchedulerPolicy(prioShaperSchedulerName)
 	sp.SetName(prioShaperSchedulerName)
-	// TODO: replace with platform specific shaper (max bandwidth) values; illustrative only.
 	shaperPir := []uint64{100_000_000, 150_000_000, 200_000_000, 250_000_000}
 	for i, qn := range qNames {
 		seq := uint32(len(qNames) - 1 - i)
@@ -479,7 +408,6 @@ func configurePriorityShaperScheduler(t *testing.T, dut *ondatra.DUTDevice, qNam
 		input.SetInputType(oc.Input_InputType_QUEUE)
 		input.SetQueue(qn)
 		if i < len(shaperPir) && !deviations.QosTwoRateThreeColorPolicerOCUnsupported(dut) {
-			// TODO: b/442749011 - see configureBandwidthShaperScheduler.
 			ortc := s.GetOrCreateOneRateTwoColor()
 			ortc.SetCir(shaperPir[i])
 			ortc.GetOrCreateExceedAction().SetDrop(true)
@@ -488,16 +416,13 @@ func configurePriorityShaperScheduler(t *testing.T, dut *ondatra.DUTDevice, qNam
 	gnmi.Update(t, dut, gnmi.OC().Qos().SchedulerPolicy(prioShaperSchedulerName).Config(), sp)
 }
 
-// configureIngressPolicer configures a two-rate-three-color policer for IP-to-Encap traffic
-// and applies it on the customer facing ingress aggregate (PF-1.18.1/PF-1.18.9).
 func configureIngressPolicer(t *testing.T, dut *ondatra.DUTDevice) {
 	batch := &gnmi.SetBatch{}
 	params := &cfgplugins.SchedulerParams{
-		SchedulerName: ingressPolicerName,
-		PolicerName:   ingressPolicerName,
-		InterfaceName: custAggID,
-		ClassName:     "class-default",
-		// TODO: replace with the CIR/PIR values required by the DUT platform under test.
+		SchedulerName:  ingressPolicerName,
+		PolicerName:    ingressPolicerName,
+		InterfaceName:  custAggID,
+		ClassName:      "class-default",
 		CirValue:       1_000_000_000,
 		PirValue:       2_000_000_000,
 		BurstSize:      100_000,
@@ -508,7 +433,6 @@ func configureIngressPolicer(t *testing.T, dut *ondatra.DUTDevice) {
 	batch.Set(t, dut)
 }
 
-// applySchedulerOnOutput binds schedulerName to intfName's egress queues.
 func applySchedulerOnOutput(t *testing.T, dut *ondatra.DUTDevice, intfName, schedulerName string, qNames []string) {
 	t.Helper()
 	d := &oc.Root{}
@@ -605,8 +529,6 @@ func configureInterfaceAddress(dut *ondatra.DUTDevice, s *oc.Interface_Subinterf
 	}
 }
 
-// configureStaticRoutes configures reachability for the encapsulated outer headers via both
-// core uplinks.
 func configureStaticRoutes(t *testing.T, dut *ondatra.DUTDevice) {
 	b := &gnmi.SetBatch{}
 	routes := []*cfgplugins.StaticRouteCfg{
@@ -633,7 +555,6 @@ func configureStaticRoutes(t *testing.T, dut *ondatra.DUTDevice) {
 	b.Set(t, dut)
 }
 
-// TestSetup implements PF-1.18.1: Generate DUT Configuration.
 func TestSetup(t *testing.T) {
 	t.Log("PF-1.18.1: Generate DUT Configuration")
 	dut := ondatra.DUT(t, "dut")
@@ -643,7 +564,6 @@ func TestSetup(t *testing.T) {
 	ConfigureOTG(t)
 }
 
-// createflow builds the packet layers of a Flow in top.
 func createflow(t *testing.T, top gosnappi.Config, params *otgconfighelpers.Flow, clearFlows bool) {
 	t.Helper()
 	if clearFlows {
@@ -683,22 +603,11 @@ func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, dur time.Duration) {
 	ate.OTG().StopTraffic(t)
 }
 
-// encapToIPFlow pairs Flow-A's outer (tunnel) IPv4 header with its inner (payload) IPv4
-// header; otgconfighelpers.Flow only models one IPv4 layer via IPv4Flow, but decap traffic
-// needs both an outer tunnel-destination header and an inner payload header.
 type encapToIPFlow struct {
 	*otgconfighelpers.Flow
 	innerIPv4 *otgconfighelpers.IPv4FlowParams
 }
 
-// buildEncapToIPFlows builds one flow per MPLS EXP value (0-7) for both MPLSoGRE and
-// MPLSoGUE, split across both core aggregates (README: ATE Ports 3,4,5,6) with GRE flows on
-// core1 and GUE flows on core2, egressing (post decap) on the customer aggregate. Implements
-// Flow-A. The outer IPv4 destination falls within outerEncapPrefix, which is what
-// configureAristaDecap's decap-groups match on. Per-flow rate is capped so each aggregate's
-// own total stays under 100% of its port capacity (the ATE rejects any single Tx port
-// configured above that); congestion for PF-1.18.4-1.18.7 instead comes from both
-// aggregates' traffic converging on the single customer egress interface.
 func buildEncapToIPFlows() []*encapToIPFlow {
 	var flows []*encapToIPFlow
 	for tc := 0; tc < 8; tc++ {
@@ -734,10 +643,6 @@ func buildEncapToIPFlows() []*encapToIPFlow {
 	return flows
 }
 
-// createEncapToIPFlow builds a Flow-A packet: Eth -> outer IPv4 (tunnel) -> [UDP] -> [GRE] ->
-// MPLS -> inner IPv4 (payload). Both IPv4 layers are required: configureAristaDecap's
-// decap-groups match on the outer IPv4 destination, so a flow with only the inner header (as
-// this used to build) is never recognized as tunneled traffic and gets dropped.
 func createEncapToIPFlow(t *testing.T, top gosnappi.Config, f *encapToIPFlow, clearFlows bool) {
 	t.Helper()
 	if clearFlows {
@@ -745,7 +650,7 @@ func createEncapToIPFlow(t *testing.T, top gosnappi.Config, f *encapToIPFlow, cl
 	}
 	f.CreateFlow(top)
 	f.AddEthHeader()
-	f.AddIPv4Header() // outer (tunnel) header
+	f.AddIPv4Header()
 	if f.UDPFlow != nil {
 		f.AddUDPHeader()
 	}
@@ -754,11 +659,9 @@ func createEncapToIPFlow(t *testing.T, top gosnappi.Config, f *encapToIPFlow, cl
 	}
 	f.AddMPLSHeader()
 	*f.IPv4Flow = *f.innerIPv4
-	f.AddIPv4Header() // inner (payload) header
+	f.AddIPv4Header()
 }
 
-// buildIPToEncapFlows builds one flow per traffic class (0-7), classified by DSCP, ingressing
-// on the customer aggregate. This implements Flow-B.
 func buildIPToEncapFlows() []*otgconfighelpers.Flow {
 	var flows []*otgconfighelpers.Flow
 	for tc := 0; tc < 8; tc++ {
@@ -782,15 +685,10 @@ func flowValidation(name string) *otgvalidationhelpers.OTGValidation {
 	}
 }
 
-// queueCounterTimeout bounds how long to wait for a QoS queue counter to appear;
-// Arista does not populate a queue's state subtree until it has forwarded a packet.
 const queueCounterTimeout = time.Minute
 
 var queueCounterIsPresent = func(val *ygnmi.Value[uint64]) bool { return val.IsPresent() }
 
-// queueTransmitPkts returns the summed transmit-pkts counter for a queue across a LAG's
-// physical member ports; Arista does not expose per-queue output counters on the Port-Channel
-// parent interface, and LAG hashing means any single member may legitimately show 0 for a flow.
 func queueTransmitPkts(t *testing.T, dut *ondatra.DUTDevice, ports []string, queue string) uint64 {
 	t.Helper()
 	var total uint64
@@ -810,9 +708,6 @@ func queueTransmitPkts(t *testing.T, dut *ondatra.DUTDevice, ports []string, que
 	return total
 }
 
-// queueDroppedPkts returns the summed dropped-pkts counter for a queue across a LAG's physical
-// member ports (see queueTransmitPkts for why this sums across members rather than querying the
-// Port-Channel parent).
 func queueDroppedPkts(t *testing.T, dut *ondatra.DUTDevice, ports []string, queue string) uint64 {
 	t.Helper()
 	var total uint64
@@ -832,7 +727,6 @@ func queueDroppedPkts(t *testing.T, dut *ondatra.DUTDevice, ports []string, queu
 	return total
 }
 
-// TestPF1182MPLSTrafficClassClassification implements PF-1.18.2.
 func TestPF1182MPLSTrafficClassClassification(t *testing.T) {
 	t.Log("PF-1.18.2: Verify Classification of MPLSoGRE and MPLSoGUE traffic based on traffic class bits in MPLS header")
 	dut := ondatra.DUT(t, "dut")
@@ -859,7 +753,6 @@ func TestPF1182MPLSTrafficClassClassification(t *testing.T) {
 	}
 }
 
-// TestPF1183DSCPMarking implements PF-1.18.3.
 func TestPF1183DSCPMarking(t *testing.T) {
 	t.Log("PF-1.18.3: Verify DSCP marking of encapsulated and decapsulated traffic")
 	dut := ondatra.DUT(t, "dut")
@@ -870,7 +763,6 @@ func TestPF1183DSCPMarking(t *testing.T) {
 		packetvalidationhelpers.ValidateMPLSLayer,
 		packetvalidationhelpers.ValidateInnerIPv4Header,
 	}
-	// Outer header must carry DSCP 32 (PF-1.18.1); inner DSCP is preserved.
 	encapValidation := &packetvalidationhelpers.PacketValidation{
 		PortName:         core1Ports[0],
 		CaptureName:      "ip-encap-dscp",
@@ -881,9 +773,7 @@ func TestPF1183DSCPMarking(t *testing.T) {
 	}
 
 	flow := &otgconfighelpers.Flow{
-		TxNames: []string{custOTG0.Name + ".IPv4"},
-		// nhg-gre-encap load-balances across both core uplinks, so both must be listed as
-		// Rx or ~half the traffic is wrongly counted as loss (it legitimately egresses core2).
+		TxNames:       []string{custOTG0.Name + ".IPv4"},
 		RxNames:       []string{core1OTG.Name + ".IPv4", core2OTG.Name + ".IPv4"},
 		FlowName:      "IPtoEncap-dscp-marking",
 		PacketsToSend: 1000,
@@ -914,7 +804,6 @@ func TestPF1183DSCPMarking(t *testing.T) {
 	_ = dut
 }
 
-// TestPF1184AssuredForwardingMinBandwidth implements PF-1.18.4.
 func TestPF1184AssuredForwardingMinBandwidth(t *testing.T) {
 	t.Log("PF-1.18.4: Verify Assured forwarding (bandwidth class) - Queueing of decap traffic")
 	dut := ondatra.DUT(t, "dut")
@@ -927,7 +816,7 @@ func TestPF1184AssuredForwardingMinBandwidth(t *testing.T) {
 	top.Flows().Clear()
 	flows := buildEncapToIPFlows()
 	for i, f := range flows {
-		f.Flowrate = 12 // oversubscribe to induce congestion.
+		f.Flowrate = 12
 		createEncapToIPFlow(t, top, f, i == 0)
 	}
 	sendTraffic(t, ate, trafficDuration)
@@ -944,7 +833,6 @@ func TestPF1184AssuredForwardingMinBandwidth(t *testing.T) {
 	}
 }
 
-// TestPF1185AssuredForwardingShaper implements PF-1.18.5.
 func TestPF1185AssuredForwardingShaper(t *testing.T) {
 	t.Log("PF-1.18.5: Verify Assured forwarding (bandwidth class) - Queueing of decap traffic with min/max bandwidth (shaper)")
 	dut := ondatra.DUT(t, "dut")
@@ -968,12 +856,9 @@ func TestPF1185AssuredForwardingShaper(t *testing.T) {
 		if got == 0 {
 			t.Errorf("queue %s: got 0 transmit-pkts, want > 0", qn)
 		}
-		// TODO: verify shaped classes (i < 3) do not exceed the configured PIR once the
-		// OC for shaping rate is finalized (see README TODO).
 	}
 }
 
-// TestPF1186ExpeditedForwardingPriorityDecap implements PF-1.18.6.
 func TestPF1186ExpeditedForwardingPriorityDecap(t *testing.T) {
 	t.Log("PF-1.18.6: Verify Expedited forwarding (Priority class) - Queueing of decap traffic")
 	dut := ondatra.DUT(t, "dut")
@@ -991,7 +876,6 @@ func TestPF1186ExpeditedForwardingPriorityDecap(t *testing.T) {
 	}
 	sendTraffic(t, ate, trafficDuration)
 
-	// Highest priority queue (last in qNames, i.e. NC1) should never starve.
 	highest := qNames[len(qNames)-1]
 	if got := queueTransmitPkts(t, dut, custPorts, highest); got == 0 {
 		t.Errorf("highest priority queue %s: got 0 transmit-pkts, want > 0", highest)
@@ -1001,7 +885,6 @@ func TestPF1186ExpeditedForwardingPriorityDecap(t *testing.T) {
 	}
 }
 
-// TestPF1187ExpeditedForwardingPriorityShaper implements PF-1.18.7.
 func TestPF1187ExpeditedForwardingPriorityShaper(t *testing.T) {
 	t.Log("PF-1.18.7: Verify Expedited forwarding (Priority class) - Queueing of decap traffic with min/max bandwidth (shaper)")
 	dut := ondatra.DUT(t, "dut")
@@ -1023,11 +906,8 @@ func TestPF1187ExpeditedForwardingPriorityShaper(t *testing.T) {
 		t.Logf("queue %s (priority level %d) transmit-pkts: %d, dropped-pkts: %d",
 			qn, i, queueTransmitPkts(t, dut, custPorts, qn), queueDroppedPkts(t, dut, custPorts, qn))
 	}
-	// TODO: verify shaped priority classes never exceed the configured shaper rate once the
-	// OC for shaping rate is finalized (see README TODO).
 }
 
-// TestPF1188ExpeditedForwardingPriorityEncap implements PF-1.18.8.
 func TestPF1188ExpeditedForwardingPriorityEncap(t *testing.T) {
 	t.Log("PF-1.18.8: Verify Expedited forwarding (Priority class) - Queueing of encap traffic")
 	dut := ondatra.DUT(t, "dut")
@@ -1035,7 +915,6 @@ func TestPF1188ExpeditedForwardingPriorityEncap(t *testing.T) {
 	queues := netutil.CommonTrafficQueues(t, dut)
 	qNames := []string{queues.BE1, queues.AF1, queues.AF2, queues.AF3, queues.AF4, queues.NC1}
 
-	// Priority scheduler is already applied on both core uplinks in configureQoS().
 	top.Flows().Clear()
 	flows := buildIPToEncapFlows()
 	for i, f := range flows {
@@ -1052,7 +931,6 @@ func TestPF1188ExpeditedForwardingPriorityEncap(t *testing.T) {
 	}
 }
 
-// TestPF1189TwoRateThreeColorPolicer implements PF-1.18.9.
 func TestPF1189TwoRateThreeColorPolicer(t *testing.T) {
 	t.Log("PF-1.18.9: Verify two rate three color policer - Ingress rate limiting of encap traffic")
 	ate := ondatra.ATE(t, "ate")
@@ -1060,7 +938,7 @@ func TestPF1189TwoRateThreeColorPolicer(t *testing.T) {
 	top.Flows().Clear()
 	flows := buildIPToEncapFlows()
 	for i, f := range flows {
-		f.Flowrate = 12 // sum > configured PIR/CIR, per README.
+		f.Flowrate = 12
 		createflow(t, top, f, i == 0)
 	}
 	sendTraffic(t, ate, trafficDuration)
@@ -1072,7 +950,6 @@ func TestPF1189TwoRateThreeColorPolicer(t *testing.T) {
 	t.Logf("Average loss across %d flows: %.2f%% (expect drops beyond configured PIR)", len(flows), totalLossPct/float32(len(flows)))
 }
 
-// TestPF11810PortHardwareDependency implements PF-1.18.10.
 func TestPF11810PortHardwareDependency(t *testing.T) {
 	t.Log("PF-1.18.10: Verify port/hardware dependency")
 	t.Skip("TODO: requires per-platform packet-processing-engine (PPE) port placement " +
@@ -1081,12 +958,6 @@ func TestPF11810PortHardwareDependency(t *testing.T) {
 		"information is available for the DUT under test.")
 }
 
-// TestPF118v6MPLSoGUEv6QoS implements PF-1.18.v6.
-//
-// NOTE: the README describes a standalone two-port (non-aggregate) topology for this test
-// case. To avoid re-configuring ports1/2 (already bound to the LACP aggregate used by
-// PF-1.18.1-1.18.10), this re-uses the existing custIntfTC0 (IPv6 enabled) and core1
-// aggregate interfaces instead of raw port1/port2.
 func TestPF118v6MPLSoGUEv6QoS(t *testing.T) {
 	t.Log("PF-1.18.v6: Validate MPLS over GRE over UDP over IPv6 encapsulation and decapsulation with QoS prioritization")
 	dut := ondatra.DUT(t, "dut")
