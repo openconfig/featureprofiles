@@ -31,9 +31,9 @@ import (
 	"github.com/openconfig/ondatra/binding"
 )
 
-const (
-	dirPath = "../../test_data/"
-)
+//const (
+//	dirPath = "../../test_data/"
+//)
 
 // DUTCredentialer is an interface for getting credentials from a DUT binding.
 type DUTCredentialer interface {
