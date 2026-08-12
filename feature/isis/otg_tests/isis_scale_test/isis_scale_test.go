@@ -21,7 +21,6 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygnmi/ygnmi"
-
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 )
 
