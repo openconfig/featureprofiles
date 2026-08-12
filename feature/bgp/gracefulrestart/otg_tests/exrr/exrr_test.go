@@ -1036,13 +1036,6 @@ func verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, flows []string) {
 
 	for _, f := range flows {
 		t.Logf("Verifying flow metrics for flow %s\n", f)
-		gnmi.Watch(t, otg, gnmi.OTG().Flow(f).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
-			recvMetric, present := val.Val()
-			if !present || recvMetric.GetCounters() == nil {
-				return false
-			}
-			return true
-		}).Await(t)
 		otgutils.ExpectedTrafficLoss(t, otg, f, 0, 4.99)
 	}
 }
@@ -1054,13 +1047,6 @@ func confirmPacketLoss(t *testing.T, ate *ondatra.ATEDevice, flows []string) {
 	defer otgutils.LogFlowMetrics(t, otg, c)
 	for _, f := range flows {
 		t.Logf("Verifying flow metrics for flow %s\n", f)
-		gnmi.Watch(t, otg, gnmi.OTG().Flow(f).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
-			recvMetric, present := val.Val()
-			if !present || recvMetric.GetCounters() == nil {
-				return false
-			}
-			return true
-		}).Await(t)
 		otgutils.ExpectedTrafficLoss(t, otg, f, 100, 100)
 	}
 }
