@@ -79,7 +79,14 @@ func getMacAddress(t *testing.T, dut *ondatra.DUTDevice, intfName string) (strin
 		opts = append(opts, ygnmi.WithFT(ft))
 		t.Logf("Using functional translator %q for MAC address on %s", ciscoMACFT, intfName)
 	}
-	return gnmi.Lookup(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().Interface(intfName).Ethernet().MacAddress().State()).Val()
+	val, ok := gnmi.Watch(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().Interface(intfName).Ethernet().MacAddress().State(), time.Minute, func(v *ygnmi.Value[string]) bool {
+		val, present := v.Val()
+		return present && val != ""
+	}).Await(t)
+	if ok {
+		return val.Val()
+	}
+	return "", false
 }
 
 const (
@@ -677,10 +684,11 @@ func TestCPU(t *testing.T) {
 	for _, cpu := range cpus {
 		t.Logf("Validate CPU: %s", cpu)
 		component := gnmi.OC().Component(cpu)
-		if !gnmi.Lookup(t, dut, component.Description().State()).IsPresent() {
+		desc, present := gnmi.Lookup(t, dut, component.Description().State()).Val()
+		if !present {
 			t.Errorf("component.Description().Lookup(t).IsPresent() for %q: got false, want true", cpu)
 		} else {
-			t.Logf("CPU %s Description: %s", cpu, gnmi.Get(t, dut, component.Description().State()))
+			t.Logf("CPU %s Description: %s", cpu, desc)
 		}
 	}
 }
@@ -702,15 +710,15 @@ func TestSupervisorLastRebootInfo(t *testing.T) {
 	rebootReasonFound := false
 	for _, card := range cards {
 		t.Logf("Validate card %s", card)
-		rebootTime := gnmi.OC().Component(card).LastRebootTime()
-		if gnmi.Lookup(t, dut, rebootTime.State()).IsPresent() {
-			t.Logf("Hardware card %s reboot time: %v", card, gnmi.Get(t, dut, rebootTime.State()))
+		rebootTime, present := gnmi.Lookup(t, dut, gnmi.OC().Component(card).LastRebootTime().State()).Val()
+		if present {
+			t.Logf("Hardware card %s reboot time: %v", card, rebootTime)
 			rebootTimeFound = true
 		}
 
-		rebootReason := gnmi.OC().Component(card).LastRebootReason()
-		if gnmi.Lookup(t, dut, rebootReason.State()).IsPresent() {
-			t.Logf("Hardware card %s reboot reason: %v", card, gnmi.Get(t, dut, rebootReason.State()))
+		rebootReason, present := gnmi.Lookup(t, dut, gnmi.OC().Component(card).LastRebootReason().State()).Val()
+		if present {
+			t.Logf("Hardware card %s reboot reason: %v", card, rebootReason)
 			rebootReasonFound = true
 		}
 	}
@@ -1002,7 +1010,6 @@ func TestIntfCounterUpdate(t *testing.T) {
 	v4 := flowipv4.Packet().Add().Ipv4()
 	v4.Src().SetValue(ip4_1.Address())
 	v4.Dst().SetValue(ip4_2.Address())
-	v4.Priority().Dscp().Phb().SetValue(56)
 	otg.PushConfig(t, config)
 	otg.StartProtocols(t)
 	otgutils.WaitForARP(t, ate.OTG(), config, "IPv4")
