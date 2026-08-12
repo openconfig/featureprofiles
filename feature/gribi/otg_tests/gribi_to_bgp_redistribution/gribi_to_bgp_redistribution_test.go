@@ -415,6 +415,9 @@ func createFlow(t *testing.T, cfg gosnappi.Config, ate *ondatra.ATEDevice) gosna
 // validateTrafficFlows validates OTG traffic behavior for the provided flows.
 func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, cfg gosnappi.Config, flow gosnappi.Flow, expectPass bool) {
 	t.Helper()
+	ate.OTG().StartTraffic(t)
+	time.Sleep(trafficDuration)
+	ate.OTG().StopTraffic(t)
 	otgutils.LogFlowMetrics(t, ate.OTG(), cfg)
 	if expectPass {
 		otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), 0, trafficLossTolerance)
