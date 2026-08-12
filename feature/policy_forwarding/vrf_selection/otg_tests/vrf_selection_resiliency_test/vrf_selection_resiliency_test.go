@@ -56,7 +56,7 @@ func configEgressSubIntf(dut *ondatra.DUTDevice, d *oc.Root, port *ondatra.Port,
 	s.GetOrCreateIpv4().Enabled = ygot.Bool(true)
 	s.GetOrCreateIpv6().Enabled = ygot.Bool(true)
 
-	s.GetOrCreateIpv4().GetOrCreateAddress(fmt.Sprintf("192.168.%d.1", subIntfIndex)).PrefixLength = ygot.Uint8(24)
+	s.GetOrCreateIpv4().GetOrCreateAddress(fmt.Sprintf("100.64.%d.1", subIntfIndex)).PrefixLength = ygot.Uint8(24)
 	s.GetOrCreateIpv6().GetOrCreateAddress(fmt.Sprintf("2001:db8:%d::1", subIntfIndex)).PrefixLength = ygot.Uint8(64)
 
 	ni := d.GetOrCreateNetworkInstance(vrfName)
