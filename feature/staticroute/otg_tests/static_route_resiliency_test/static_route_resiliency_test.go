@@ -38,10 +38,6 @@ const (
 var (
 	dutPort1 = attrs.Attributes{Name: "port1"}
 	dutPort2 = attrs.Attributes{Name: "port2"}
-	dutPort3 = attrs.Attributes{Name: "port3"}
-	dutPort4 = attrs.Attributes{Name: "port4"}
-	dutPort5 = attrs.Attributes{Name: "port5"}
-	dutPort6 = attrs.Attributes{Name: "port6"}
 	dutPort7 = attrs.Attributes{Name: "port7", IPv4: "198.51.102.1", IPv4Len: 24, IPv6: "2001:db8:102::1", IPv6Len: 64}
 	dutPort8 = attrs.Attributes{Name: "port8", IPv4: "192.0.2.1", IPv4Len: 24, IPv6: "2001:db8:192::1", IPv6Len: 64}
 
