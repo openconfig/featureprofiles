@@ -1147,8 +1147,10 @@ func configureVRFProfiles(ctx context.Context, t *testing.T, ateConfig gosnappi.
 		}
 	}
 
-	// Validate forwarding
-	validateTrafficFlows(t, tArgs, testCaseArgs.flows, true)
+	// Validate forwarding (allow the helper to return an error for test assertions)
+	if err := validateTrafficFlows(t, tArgs, testCaseArgs.flows, true); err != nil {
+		return fmt.Errorf("profile %d traffic validation failed: %v", profile, err)
+	}
 	// === Profile 5 specific QPS scaling ===
 	if profile == profileSingleVRFgRIBI {
 		t.Log("Starting Profile 5 high-rate gRIBI ops at ~1k ops/sec")
@@ -1174,16 +1176,25 @@ func configureVRFProfiles(ctx context.Context, t *testing.T, ateConfig gosnappi.
 			t.Fatalf("pumpOpsAtRate failed: %v", err)
 		}
 
-		validateTrafficFlows(t, tArgs, testCaseArgs.flows, true)
+		if err := validateTrafficFlows(t, tArgs, testCaseArgs.flows, true); err != nil {
+			return fmt.Errorf("profile %d traffic validation failed: %v", profile, err)
+		}
 		t.Log("Completed Profile 5 QPS scaling phase")
 	}
 	// === Delete Entries ===
 	t.Logf("Deleting MPLS-in-UDP entries for Profile %d", profile)
 	c.FlushAll(t)
 	t.Logf("Verifying traffic fails after MPLS-in-UDP entries deleted for Profile %d", profile)
-	validateTrafficFlows(t, tArgs, testCaseArgs.flows, false)
-	t.Logf("Traffic failure observed after MPLS-in-UDP deletion for Profile %d", profile)
-	return nil
+	delTrfTime := time.Now()
+	for time.Since(delTrfTime) < batchTimeout {
+		perr := validateTrafficFlows(t, tArgs, testCaseArgs.flows, false)
+		if perr != nil {
+			// Expected: traffic validation fails
+			t.Logf("Traffic failure observed after MPLS-in-UDP deletion for Profile %d", profile)
+			return nil
+		}
+	}
+	return fmt.Errorf("profile %d post-delete traffic validation did not fail within %v", profile, batchTimeout)
 }
 
 // splitEntries split the entries into the batches.
@@ -1455,17 +1466,29 @@ func sortedVRFSkewList(vrfSkewList map[string][]string) []vrfEntry {
 }
 
 // validateTrafficFlows validates OTG traffic behavior for the provided flows.
-func validateTrafficFlows(t *testing.T, args *testArgs, flows []gosnappi.Flow, expectPass bool) {
+func validateTrafficFlows(t *testing.T, args *testArgs, flows []gosnappi.Flow, expectPass bool) error {
 	t.Helper()
 	t.Logf("=== TRAFFIC FLOW VALIDATION START (expecting match=%v) ===", expectPass)
 	otg := args.ate.OTG()
+	otg.StartTraffic(t)
+	time.Sleep(trafficDuration)
+	otg.StopTraffic(t)
 	otgutils.LogPortMetrics(t, otg, args.topo)
 
 	for _, flow := range flows {
-		if expectPass {
-			otgutils.ExpectedTrafficLoss(t, otg, flow.Name(), 0, trafficLossTolerance)
-		} else {
-			otgutils.ExpectedTrafficLoss(t, otg, flow.Name(), 100-trafficLossTolerance, 100)
+		outPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State()))
+		inPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State()))
+
+		if outPkts == 0 {
+			return fmt.Errorf("flow %s: OutPkts=0, traffic not generated", flow.Name())
+		}
+
+		lossPct := ((outPkts - inPkts) * 100) / outPkts
+
+		t.Logf("Flow %s: Out=%v In=%v Loss=%v", flow.Name(), outPkts, inPkts, lossPct)
+
+		if lossPct > trafficLossTolerance {
+			return fmt.Errorf("flow %s: loss %v > allowed %d", flow.Name(), lossPct, trafficLossTolerance)
 		}
 	}
 
@@ -1476,10 +1499,12 @@ func validateTrafficFlows(t *testing.T, args *testArgs, flows []gosnappi.Flow, e
 		for idx, want := range portsTrafficDistribution {
 			got := weights[idx]
 			if got < (want-ecmpDistTolerance) || got > (want+ecmpDistTolerance) {
-				t.Errorf("ecmp mismatch on port %d: got %d%% want %d%% ±%d", idx+1, got, want, ecmpDistTolerance)
+				return fmt.Errorf("ecmp mismatch on port %d: got %d%% want %d%% ±%d", idx+1, got, want, ecmpDistTolerance)
 			}
 		}
 	}
+
+	return nil
 }
 
 // sendTraffic configures and transmits the provided traffic flows on the ATE.
