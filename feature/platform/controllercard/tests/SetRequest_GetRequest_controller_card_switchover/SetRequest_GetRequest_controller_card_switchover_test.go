@@ -155,6 +155,7 @@ func switchoverControllerCards(ctx context.Context, t *testing.T, dut *ondatra.D
 				}
 			}
 		}
+	}
 
 	if got != want {
 		t.Fatalf("switchoverResponse validation failed: got %q, want %q", got, want)
@@ -436,7 +437,7 @@ func verifyConfiguredElements(t *testing.T, dut *ondatra.DUTDevice) {
 			t.Fatalf("gNMI Get response update value is nil")
 		}
 		jsonVal := update.GetVal().GetJsonIetfVal()
-			
+
 		// Parse into a dynamic map representing the interfaces container
 		var rawData map[string]interface{}
 		if err := json.Unmarshal(jsonVal, &rawData); err != nil {
@@ -475,9 +476,6 @@ func verifyConfiguredElements(t *testing.T, dut *ondatra.DUTDevice) {
 	if bgpConfig == nil {
 		t.Fatalf("BGP configuration is nil")
 	}
-	// Access the inner Neighbor map built into the Go struct
-	numBGPNeighbors := len(bgpConfig.Neighbor)
-
 	// Access the inner Neighbor map built into the Go struct
 	numBGPNeighbors := len(bgpConfig.Neighbor)
 	t.Logf("Successfully found %d configured BGP neighbors.", numBGPNeighbors)
