@@ -1198,7 +1198,7 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespon
 	_, err = gribiGetClient.Recv()
 	if deviations.GribiAaaRoleBasedAuthzUnsupported(dut) {
 		rpcExpStatus = acctzpb.AuthzDetail_AUTHZ_STATUS_PERMIT
-		if err != nil {
+		if err != nil && !errors.Is(err, io.EOF) {
 			t.Errorf("Got unexpected error during gribi recv request, error: %s", err)
 		}
 	} else {
