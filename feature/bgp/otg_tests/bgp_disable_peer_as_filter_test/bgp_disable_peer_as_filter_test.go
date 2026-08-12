@@ -202,6 +202,30 @@ func verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbrs []string) err
 	return nil
 }
 
+// verifyBGPCapabilities checks that route-refresh, ASN32 and MPBGP capabilities are reported for DUT neighbors.
+func verifyBGPCapabilities(t *testing.T, dut *ondatra.DUTDevice, nbrs []string) error {
+	t.Helper()
+	t.Logf("Verifying BGP capabilities for neighbors: %v", nbrs)
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	for _, nbr := range nbrs {
+		nbrPath := statePath.Neighbor(nbr)
+		capabilities := map[oc.E_BgpTypes_BGP_CAPABILITY]bool{
+			oc.BgpTypes_BGP_CAPABILITY_ROUTE_REFRESH: false,
+			oc.BgpTypes_BGP_CAPABILITY_ASN32:         false,
+			oc.BgpTypes_BGP_CAPABILITY_MPBGP:         false,
+		}
+		for _, cap := range gnmi.Get(t, dut, nbrPath.SupportedCapabilities().State()) {
+			capabilities[cap] = true
+		}
+		for cap, present := range capabilities {
+			if !present {
+				return fmt.Errorf("capability %v not reported for neighbor %s", cap, nbr)
+			}
+		}
+	}
+	return nil
+}
+
 // verifyDisablePeerASFilterStateOnNeighbors checks disable-peer-as-filter state for DUT neighbors.
 func verifyDisablePeerASFilterStateOnNeighbors(t *testing.T, dut *ondatra.DUTDevice, nbrs []string, want bool) error {
 	t.Helper()
@@ -479,6 +503,7 @@ type testCase struct {
 	disablePeerASFilter bool
 	expectedASPath      []uint32
 	verifyASPath        bool
+	verifyCapabilities  bool
 	peerGroup           bool
 	atePort2AS          uint32 // AS number for ATE Port 2
 }
@@ -523,6 +548,7 @@ func TestDisablePeerAsFilterPerBGPNeighbor(t *testing.T) {
 			disablePeerASFilter: true,
 			expectedASPath:      []uint32{dutAS, ateAS1, ateAS4, ateAS2}, // [64498, 64496, 64499, 64497]
 			verifyASPath:        true,
+			verifyCapabilities:  true,
 			peerGroup:           false,
 			atePort2AS:          ateAS2,
 		},
@@ -567,8 +593,12 @@ func TestDisablePeerAsFilterPerBGPNeighbor(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if tc.disablePeerASFilter {
-				if err := verifyDisablePeerASFilterStateOnNeighbors(t, dut, bgpConfig.NeighborIPs, true); err != nil {
+			if err := verifyDisablePeerASFilterStateOnNeighbors(t, dut, bgpConfig.NeighborIPs, tc.disablePeerASFilter); err != nil {
+				t.Fatal(err)
+			}
+
+			if tc.verifyCapabilities {
+				if err := verifyBGPCapabilities(t, dut, bgpConfig.NeighborIPs); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -672,10 +702,8 @@ func TestDisablePeerAsFilterPerBGPPeerGroup(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if tc.disablePeerASFilter {
-				if err := verifyDisablePeerASFilterStateOnPeerGroups(t, dut, bgpConfig.PeerGroupNames, true); err != nil {
-					t.Fatal(err)
-				}
+			if err := verifyDisablePeerASFilterStateOnPeerGroups(t, dut, bgpConfig.PeerGroupNames, tc.disablePeerASFilter); err != nil {
+				t.Fatal(err)
 			}
 
 			// Verify routes received according to test case expectations

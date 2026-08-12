@@ -1873,12 +1873,13 @@ func DeleteExtendedRouteRetention(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi
 }
 
 // ConfigureBGPEnablePeerAsFilterPeer enables enable-peer-as-filter for specified neighbors or peer groups
-func ConfigureBGPEnablePeerAsFilterPeer(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, params BGPConfig) *gnmi.SetBatch {
+func ConfigureBGPEnablePeerAsFilterPeer(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, params BGPConfig) *gnmi.SetBatch {
 	t.Helper()
-	batch := &gnmi.SetBatch{}
+	if batch == nil {
+		batch = &gnmi.SetBatch{}
+	}
 	// The default behavior is to have peer AS filter enabled. we are achieving it using peer-tag .
-	switch dut.Vendor() {
-	case ondatra.ARISTA:
+	if deviations.DefaultPeerAsFilterOcUnsupported(dut) {
 		if params.ApplyOnPeerGroup {
 			cliConfig := fmt.Sprintf(`router bgp %d
 		neighbor %s peer-tag in PEER_AS_FILTER
@@ -1894,14 +1895,45 @@ func ConfigureBGPEnablePeerAsFilterPeer(t *testing.T, dut *ondatra.DUTDevice, b 
 
 			helpers.GnmiCLIConfig(t, dut, cliConfig)
 		}
+	} else {
+		// Explicitly set disable-peer-as-filter=false to keep the default peer AS filter enabled.
+		dutOcRoot := &oc.Root{}
+		ni := dutOcRoot.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+		niProto := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+		bgp := niProto.GetOrCreateBgp()
+
+		if params.ApplyOnPeerGroup {
+			pg1 := bgp.GetOrCreatePeerGroup(params.PeerGroupNames[0])
+			pg1.GetOrCreateAsPathOptions().DisablePeerAsFilter = ygot.Bool(false)
+
+			pg2 := bgp.GetOrCreatePeerGroup(params.PeerGroupNames[1])
+			pg2.GetOrCreateAsPathOptions().DisablePeerAsFilter = ygot.Bool(false)
+		} else {
+			nbr1v4 := bgp.GetOrCreateNeighbor(params.NeighborIPs[0])
+			nbr1v4.GetOrCreateAsPathOptions().DisablePeerAsFilter = ygot.Bool(false)
+
+			nbr1v6 := bgp.GetOrCreateNeighbor(params.NeighborIPs[2])
+			nbr1v6.GetOrCreateAsPathOptions().DisablePeerAsFilter = ygot.Bool(false)
+
+			nbr2v4 := bgp.GetOrCreateNeighbor(params.NeighborIPs[1])
+			nbr2v4.GetOrCreateAsPathOptions().DisablePeerAsFilter = ygot.Bool(false)
+
+			nbr2v6 := bgp.GetOrCreateNeighbor(params.NeighborIPs[3])
+			nbr2v6.GetOrCreateAsPathOptions().DisablePeerAsFilter = ygot.Bool(false)
+		}
+
+		dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+		gnmi.BatchUpdate(batch, dutConfPath.Config(), niProto)
 	}
 	return batch
 }
 
 // ConfigureBGPWithDisablePeerAsFilter enables disable-peer-as-filter at peer group level
-func ConfigureBGPDisablePeerAsFilter(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, params BGPConfig) *gnmi.SetBatch {
+func ConfigureBGPDisablePeerAsFilter(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, params BGPConfig) *gnmi.SetBatch {
 	t.Helper()
-	batch := &gnmi.SetBatch{}
+	if batch == nil {
+		batch = &gnmi.SetBatch{}
+	}
 	if deviations.DefaultPeerAsFilterOcUnsupported(dut) {
 		if params.ApplyOnPeerGroup {
 			cliConfig := fmt.Sprintf(`router bgp %d
