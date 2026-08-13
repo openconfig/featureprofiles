@@ -148,26 +148,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) ([]*ondatra.Port, string
 		t.Logf("Successfully configured member interface %q", port.Name())
 	}
 	t.Cleanup(func() {
-	t.Cleanup(func() {
 		for _, port := range ports {
 			gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Config())
-		}
-		gnmi.Delete(t, dut, gnmi.OC().Interface(lagName).Config())
-		if !deviations.LacpInterfaceFallbackOCUnsupported(dut) {
-			gnmi.Delete(t, dut, gnmi.OC().Lacp().Interface(lagName).Config())
-		}
-	})
-
-	return ports, lagName
-			gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Config())
-		}
-		gnmi.Delete(t, dut, gnmi.OC().Interface(lagName).Config())
-		if !deviations.LacpInterfaceFallbackOCUnsupported(dut) {
-			gnmi.Delete(t, dut, gnmi.OC().Lacp().Interface(lagName).Config())
-		}
-	})
-
-	return ports, lagName
 		}
 		gnmi.Delete(t, dut, gnmi.OC().Interface(lagName).Config())
 		if !deviations.LacpInterfaceFallbackOCUnsupported(dut) {
@@ -257,7 +239,7 @@ func verifyZeroTrafficLoss(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Co
 			flowMetrics, present := val.Val()
 			if !present {
 				return false
-	otgutils.WaitForARP(t, otg, otgTop, "IPv4")
+			}
 			txPkts = flowMetrics.GetCounters().GetOutPkts()
 			rxPkts = flowMetrics.GetCounters().GetInPkts()
 			lossPct = ygot.BinaryToFloat32(flowMetrics.GetLossPct())
@@ -294,11 +276,10 @@ func TestSupervisorSwitchover(t *testing.T) {
 	otg := ate.OTG()
 	otg.PushConfig(t, otgTop)
 	otg.StartProtocols(t)
-	time.Sleep(30 * time.Second)
 
 	verifyLACPState(t, dut, dutPorts, lagName)
+	otgutils.WaitForARP(t, otg, otgTop, "IPv4")
 	otg.StartTraffic(t)
-	time.Sleep(15 * time.Second)
 	verifyZeroTrafficLoss(t, ate, otgTop)
 
 	intfsOperStatusUPBeforeSwitch := helpers.FetchOperStatusUPIntfs(t, dut, *args.CheckInterfacesInBinding)
