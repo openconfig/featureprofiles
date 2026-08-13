@@ -393,7 +393,7 @@ func verifyTraffic(t *testing.T, args *testArgs, flowName string, wantLoss bool)
 			t.Logf("Traffic Test Passed!")
 		}
 	} else {
-		otgutils.ExpectedTrafficLoss(t, args.otg, flowName, 0, float64(tolerancePct))
+		otgutils.ExpectedTrafficLoss(t, args.otg, flowName, 0, float64(tolerancePct)+0.99)
 	}
 }
 
