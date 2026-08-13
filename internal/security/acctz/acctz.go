@@ -1367,7 +1367,7 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 				ServiceType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_P4RT,
 				RpcName:     p4rtCapabilitiesPath,
 				Authz: &acctzpb.AuthzDetail{
-					Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY, p4rtCapabilitiesPath),
+					Status: expectedAuthzStatus(dut, rpcExpStatus, p4rtCapabilitiesPath),
 				},
 			},
 		},
