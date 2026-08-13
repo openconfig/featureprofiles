@@ -27,7 +27,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/gnoi"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	spb "github.com/openconfig/gnoi/system"
@@ -310,7 +309,6 @@ func testRecoveryValidation(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.A
 	switchoverReady := gnmi.OC().Component(rpActiveBeforeSwitch).SwitchoverReady()
 	gnmi.Await(t, dut, switchoverReady.State(), 30*time.Minute, true)
 
-	startSwitchover := time.Now()
 	gnoiClient := dut.RawAPIs().GNOI(t)
 	switchoverRequest := &spb.SwitchControlProcessorRequest{
 		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch, deviations.GNOISubcomponentPath(dut)),
@@ -318,7 +316,7 @@ func testRecoveryValidation(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.A
 	if _, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest); err != nil {
 		t.Fatalf("Failed to initiate supervisor switchover: %v", err)
 	}
-	gnoi.WaitForSwitchoverCompletion(t, dut, startSwitchover, maxSwitchoverTime)
+	gnmi.Await(t, dut, gnmi.OC().Component(rpStandbyBeforeSwitch).RedundantRole().State(), maxSwitchoverTime, oc.Platform_ComponentRedundantRole_PRIMARY)
 
 	rpStandbyAfterSwitch, rpActiveAfterSwitch := components.FindStandbyControllerCard(t, dut, controllerCards)
 	t.Logf("Found standbyRP after switchover: %v, activeRP: %v", rpStandbyAfterSwitch, rpActiveAfterSwitch)
@@ -373,8 +371,6 @@ func testBackToBackSwitchover(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 	t.Logf("Detected rpStandby for BackToBack: %v, rpActive: %v", rpStandbyBeforeSwitch, rpActiveBeforeSwitch)
 
 	gnmi.Await(t, dut, gnmi.OC().Component(rpActiveBeforeSwitch).SwitchoverReady().State(), 30*time.Minute, true)
-	startFirst := time.Now()
-
 	gnoiClient := dut.RawAPIs().GNOI(t)
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
 	firstRequest := &spb.SwitchControlProcessorRequest{
@@ -395,7 +391,7 @@ func testBackToBackSwitchover(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 		t.Logf("Back-to-back switchover request safely and correctly rejected with err: %v", err)
 	}
 
-	gnoi.WaitForSwitchoverCompletion(t, dut, startFirst, maxSwitchoverTime)
+	gnmi.Await(t, dut, gnmi.OC().Component(rpStandbyBeforeSwitch).RedundantRole().State(), maxSwitchoverTime, oc.Platform_ComponentRedundantRole_PRIMARY)
 	verifyZeroTrafficLoss(t, ate, top)
 	gnmi.Await(t, dut, gnmi.OC().Component(rpStandbyBeforeSwitch).SwitchoverReady().State(), 30*time.Minute, true)
 }
