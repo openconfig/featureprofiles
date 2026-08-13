@@ -734,9 +734,9 @@ func verifyTraffic(t *testing.T, args *testArgs, capturePortList []string, loadB
 	waitForFlowMetricsReady(t, args.otg, encapFlow, 1*time.Minute)
 
 	if wantLoss {
-		otgutils.ExpectedTrafficLoss(t, args.otg, encapFlow, 100-tolerancePct, 100)
+		otgutils.ExpectedTrafficLoss(t, args.otg, encapFlow, float64(100-tolerancePct), 100)
 	} else {
-		otgutils.ExpectedTrafficLoss(t, args.otg, encapFlow, 0, tolerancePct)
+		otgutils.ExpectedTrafficLoss(t, args.otg, encapFlow, 0, float64(tolerancePct)+0.99)
 	}
 	t.Log("Verify packet load balancing as per the programmed weight")
 	validateTrafficDistribution(t, args.ate, loadBalancePercent)

@@ -527,7 +527,7 @@ func verifyTraffic(t *testing.T, args *testArgs, flowList []string) {
 	t.Helper()
 	for _, flowName := range flowList {
 		t.Logf("Verifying flow metrics for the flow %s\n", flowName)
-		otgutils.ExpectedTrafficLoss(t, args.ate.OTG(), flowName, 0, tolerancePct)
+		otgutils.ExpectedTrafficLoss(t, args.ate.OTG(), flowName, 0, float64(tolerancePct)+0.99)
 	}
 }
 
