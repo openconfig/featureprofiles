@@ -290,17 +290,20 @@ func juniperSetup(t *testing.T, dut *ondatra.DUTDevice, configureFailCliRole boo
 
 func aristaFailAuthzCliRole(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	// Configure a role that denies Authorization for rpcs.
+	// Step 1: Clear any lingering AAA command authorization from previous runs,
+	// create the deny-all role, configure users, management, and basic AAA.
+	// "aaa authorization commands all default local" is NOT included here because
+	// it takes effect within the configure session and blocks the implicit commit
+	// for gNMI users with "Unknown role".
 	commands := []string{
 		"configure",
+		"no aaa authorization commands all default local",
 		fmt.Sprintf("role %s", failRoleName),
 		"   10 deny command .*",
+		"exit",
 		fmt.Sprintf("username %s privilege 15 role network-admin secret %s", SuccessUsername, successPassword),
 		fmt.Sprintf("username %s privilege 15 role acctz-fp-test-fail secret %s", FailUsername, failPassword),
 		fmt.Sprintf("username %s privilege 15 role acctz-fp-test-fail secret %s", failAuthorizeUsername, failAuthorizePassword),
-		"aaa authentication login default local",
-		"aaa authorization exec default local",
-		"aaa authorization commands all default local",
 		"management ssh",
 		"   authentication protocol password",
 		"management api gnmi",
@@ -312,8 +315,19 @@ func aristaFailAuthzCliRole(t *testing.T, dut *ondatra.DUTDevice) {
 		"      aaa config-commands disabled",
 		"      authentication username priority metadata",
 		"      authorization requests",
+		"aaa authentication login default local",
+		"aaa authorization exec default local",
 	}
 	helpers.GnmiCLIConfig(t, dut, strings.Join(commands, "\n"))
+
+	// Step 2: Enable command authorization in a separate call. After step 1
+	// committed successfully, the users and roles are in the running config,
+	// so this commit can proceed.
+	authzCommands := []string{
+		"configure",
+		"aaa authorization commands all default local",
+	}
+	helpers.GnmiCLIConfig(t, dut, strings.Join(authzCommands, "\n"))
 }
 
 func aristaCleanupAuthzCliRole(t *testing.T, dut *ondatra.DUTDevice) {
@@ -511,8 +525,8 @@ func GetNokiaCustomAcctzClient(t *testing.T, dut *ondatra.DUTDevice) AcctzStream
 // 	return resolvedTarget.String()
 // }
 
-// getSSHTarget returns the target for the SSH service.
-func getSSHTarget(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) string {
+// GetSSHTarget returns the target for the SSH service.
+func GetSSHTarget(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) string {
 	if staticBinding {
 		f := flag.Lookup("binding")
 		if f == nil {
@@ -1176,11 +1190,19 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespon
 	if err != nil {
 		t.Fatalf("Got unexpected error during gribi get request, error: %s", err)
 	}
+	rpcExpStatus := acctzpb.AuthzDetail_AUTHZ_STATUS_DENY
 	_, err = gribiGetClient.Recv()
-	if err != nil && status.Code(err) == codes.PermissionDenied {
-		t.Logf("Got expected error during gribi recv request with no permissions, error: %s", err)
+	if deviations.GribiAaaRoleBasedAuthzUnsupported(dut) {
+		rpcExpStatus = acctzpb.AuthzDetail_AUTHZ_STATUS_PERMIT
+		if err != nil && !errors.Is(err, io.EOF) {
+			t.Errorf("Got unexpected error during gribi recv request, error: %s", err)
+		}
 	} else {
-		t.Errorf("Did not get expected error during gribi recv request with no permissions. error: %s", err)
+		if err != nil && status.Code(err) == codes.PermissionDenied {
+			t.Logf("Got expected error during gribi recv request with no permissions, error: %s", err)
+		} else {
+			t.Errorf("Did not get expected error during gribi recv request with no permissions. error: %s", err)
+		}
 	}
 
 	records = append(records, &acctzpb.RecordResponse{
@@ -1189,7 +1211,7 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespon
 				ServiceType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GRIBI,
 				RpcName:     gribiGetPath,
 				Authz: &acctzpb.AuthzDetail{
-					Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY, gribiGetPath),
+					Status: expectedAuthzStatus(dut, rpcExpStatus, gribiGetPath),
 				},
 			},
 		},
@@ -1325,11 +1347,19 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	if err != nil {
 		t.Fatalf("Got unexpected error during p4rt get request, error: %s", err)
 	}
+	rpcExpStatus := acctzpb.AuthzDetail_AUTHZ_STATUS_DENY
 	_, err = p4rtclient.Capabilities(ctx, &p4pb.CapabilitiesRequest{})
-	if err != nil && status.Code(err) == codes.PermissionDenied {
-		t.Logf("Got expected error getting p4rt capabilities with no permissions, error: %s", err)
+	if deviations.P4RTAaaRoleBasedAuthzUnsupported(dut) {
+		rpcExpStatus = acctzpb.AuthzDetail_AUTHZ_STATUS_PERMIT
+		if err != nil {
+			t.Errorf("Got unexpected error during p4rt capabilities request, error: %s", err)
+		}
 	} else {
-		t.Errorf("Did not get expected error fetching pr4t capabilities with no permissions, error: %s", err)
+		if err != nil && status.Code(err) == codes.PermissionDenied {
+			t.Logf("Got expected error getting p4rt capabilities with no permissions, error: %s", err)
+		} else {
+			t.Errorf("Did not get expected error fetching pr4t capabilities with no permissions, error: %s", err)
+		}
 	}
 	records = append(records, &acctzpb.RecordResponse{
 		ServiceRequest: &acctzpb.RecordResponse_GrpcService{
@@ -1408,7 +1438,7 @@ func SendSuccessCliCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding b
 	// Per https://github.com/openconfig/featureprofiles/issues/2637, waiting to see what the
 	// "best"/"preferred" way is to get the v4/v6 of the dut. For now, we use this workaround
 	// because ssh isn't exposed in introspection.
-	target := getSSHTarget(t, dut, staticBinding)
+	target := GetSSHTarget(t, dut, staticBinding)
 
 	var records []*acctzpb.RecordResponse
 
@@ -1490,7 +1520,7 @@ func SendFailCliCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool
 	// Per https://github.com/openconfig/featureprofiles/issues/2637, waiting to see what the
 	// "best"/"preferred" way is to get the v4/v6 of the dut. For now, we use this workaround
 	// because ssh isn't exposed in introspection.
-	target := getSSHTarget(t, dut, staticBinding)
+	target := GetSSHTarget(t, dut, staticBinding)
 
 	var records []*acctzpb.RecordResponse
 
@@ -1588,7 +1618,7 @@ func SendShellCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) 
 	// Per https://github.com/openconfig/featureprofiles/issues/2637, waiting to see what the
 	// "best"/"preferred" way is to get the v4/v6 of the dut. For now, we use this workaround
 	// because ssh isn't exposed in introspection.
-	target := getSSHTarget(t, dut, staticBinding)
+	target := GetSSHTarget(t, dut, staticBinding)
 
 	var records []*acctzpb.RecordResponse
 	shellUsername := SuccessUsername

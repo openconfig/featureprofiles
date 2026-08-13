@@ -331,6 +331,9 @@ func TestP4RTDaemonFailure(t *testing.T) {
 	txPackets := float32(recvMetric.GetCounters().GetOutPkts())
 	rxPackets := float32(recvMetric.GetCounters().GetInPkts())
 	lostPackets := txPackets - rxPackets
+	if txPackets == 0 {
+		t.Fatalf("txPackets == 0, want > 0")
+	}
 	lossPct := lostPackets * 100 / txPackets
 
 	if lossPct > lossTolerance {
