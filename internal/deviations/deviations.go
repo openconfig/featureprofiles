@@ -2347,6 +2347,18 @@ func VrfSelectionPolicyNonDefaultNIUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetVrfSelectionPolicyNonDefaultNiUnsupported()
 }
 
+// GribiAaaRoleBasedAuthzUnsupported returns true if no gRIBI AAA role based Authorization support
+// Arista: https://partnerissuetracker.corp.google.com/issues/542639968#comment8
+func GribiAaaRoleBasedAuthzUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGribiAaaRoleBasedAuthzUnsupported()
+}
+
+// P4RTAaaRoleBasedAuthzUnsupported returns true if no P4RT AAA role based Authorization support
+// Arista: https://partnerissuetracker.corp.google.com/issues/542639968#comment8
+func P4RTAaaRoleBasedAuthzUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetP4RtAaaRoleBasedAuthzUnsupported()
+}
+
 // DefaultPeerAsFilterOcUnsupported returns true if devices do not support default peer AS filter OC configuration.
 func DefaultPeerAsFilterOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDefaultPeerAsFilterOcUnsupported()
