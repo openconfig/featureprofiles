@@ -413,17 +413,29 @@ func createFlow(t *testing.T, cfg gosnappi.Config, ate *ondatra.ATEDevice) gosna
 }
 
 // validateTrafficFlows validates OTG traffic behavior for the provided flows.
-func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, cfg gosnappi.Config, flow gosnappi.Flow, expectPass bool) {
+func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, cfg gosnappi.Config, flow gosnappi.Flow) error {
 	t.Helper()
 	ate.OTG().StartTraffic(t)
 	time.Sleep(trafficDuration)
 	ate.OTG().StopTraffic(t)
 	otgutils.LogFlowMetrics(t, ate.OTG(), cfg)
-	if expectPass {
-		otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), 0, trafficLossTolerance)
-	} else {
-		otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), float64(trafficLossTolerance)+0.01, 100)
+
+	outPkts := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State()))
+	inPkts := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State()))
+
+	if outPkts == 0 {
+		return fmt.Errorf("flow %s: OutPkts=0, traffic not generated", flow.Name())
 	}
+
+	lossPct := ((outPkts - inPkts) * 100) / outPkts
+
+	t.Logf("Flow %s: Out=%v In=%v Loss=%v", flow.Name(), outPkts, inPkts, lossPct)
+
+	if lossPct > trafficLossTolerance {
+		return fmt.Errorf("flow %s: loss %v > allowed %d", flow.Name(), lossPct, trafficLossTolerance)
+	}
+
+	return nil
 }
 
 // checkOTGBGP4Prefix verifies whether a specific IPv4 prefix is learned by an OTG BGP peer within a given timeout.
@@ -630,10 +642,16 @@ func TestGRIBIBGPRedistribution(t *testing.T) {
 		if !checkOTGBGP4Prefix(t, otg, topo, expectedOTGBGPPrefix) {
 			t.Errorf("prefix %v is not being learned", expectedOTGBGPPrefix.Address)
 		}
-		validateTrafficFlows(t, ate, topo, flow, true)
+		if err := validateTrafficFlows(t, ate, topo, flow); err != nil {
+			t.Errorf("traffic validation failed: %v", err)
+		}
 		c.FlushAll(t)
 		t.Logf("Verifying traffic fails after entries deleted.")
-		validateTrafficFlows(t, ate, topo, flow, false)
+		if err := validateTrafficFlows(t, ate, topo, flow); err == nil {
+			t.Error("Traffic validation succeeded unexpectedly, expected failure.")
+		} else {
+			t.Logf("Traffic validation failed as expected: %v", err)
+		}
 	})
 	// TestID-16.4.2 - Drain Policy Validation
 	t.Run("TestID-16.4.2 : DrainPolicyValidation", func(t *testing.T) {
