@@ -140,10 +140,10 @@ func TestZRLaserBiasCurrentStateInterfaceFlap(t *testing.T) {
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
 	t.Logf("%v operational status is: %v", dp1.Name(), gnmi.Get(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State()))
 	t.Log("Wait for laser bias current to update to 0.0")
-gnmi.Watch(t, dut1, component.OpticalChannel().LaserBiasCurrent().Instant().State(), 2*time.Minute, func(val *ygnmi.Value[float64]) bool {
-	v, present := val.Val()
-	return present && v <= 0.0
-}).Await(t)
+	gnmi.Watch(t, dut1, component.OpticalChannel().LaserBiasCurrent().Instant().State(), 2*time.Minute, func(val *ygnmi.Value[float64]) bool {
+		v, present := val.Val()
+		return present && v <= 0.0
+	}).Await(t)
 	verifyLaserBiasCurrentAll(t, p1Stream, dut1)
 	// Enable interface
 	i.Enabled = ygot.Bool(true)
