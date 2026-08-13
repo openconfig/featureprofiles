@@ -369,11 +369,10 @@ func verifyTraffic(t *testing.T, args *testArgs, flowName string, wantLoss bool)
 	recvMetric := gnmi.Get(t, args.otg, gnmi.OTG().Flow(flowName).State())
 	txPackets := recvMetric.GetCounters().GetOutPkts()
 	rxPackets := recvMetric.GetCounters().GetInPkts()
-	lostPackets := txPackets - rxPackets
-	var lossPct uint64
+	var lossPct float64
 	trafficPassed := false
 	if txPackets != 0 {
-		lossPct = lostPackets * 100 / txPackets
+		lossPct = float64(txPackets-rxPackets) * 100 / float64(txPackets)
 	} else {
 		t.Errorf("Traffic stats are not correct %v", recvMetric)
 	}
