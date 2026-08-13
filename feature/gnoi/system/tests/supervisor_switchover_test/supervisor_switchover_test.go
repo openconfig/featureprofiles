@@ -396,14 +396,22 @@ func testBackToBackSwitchover(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 	gnmi.Await(t, dut, gnmi.OC().Component(rpStandbyBeforeSwitch).SwitchoverReady().State(), 30*time.Minute, true)
 }
 
+// setControllerCardPowerState sets the power state of a controller card and waits for the desired state.
+func setControllerCardPowerState(t *testing.T, dut *ondatra.DUTDevice, component string, powerState oc.E_Platform_ComponentPowerType, timeout time.Duration) {
+	t.Helper()
+	t.Logf("Setting power state of component %q to %v", component, powerState)
+	gnmi.Replace(t, dut, gnmi.OC().Component(component).PowerAdminState().Config(), powerState)
+	gnmi.Await(t, dut, gnmi.OC().Component(component).PowerAdminState().State(), timeout, powerState)
+}
+
 func testPowerDisabledStandby(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, controllerCards []string) {
 	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyControllerCard(t, dut, controllerCards)
 	t.Logf("Detected rpStandby for PowerDisabledStandby: %v, rpActive: %v", rpStandbyBeforeSwitch, rpActiveBeforeSwitch)
 
-	components.SetControllerCardPowerState(t, dut, rpStandbyBeforeSwitch, oc.Platform_ComponentPowerType_POWER_DISABLED, 5*time.Minute)
+	setControllerCardPowerState(t, dut, rpStandbyBeforeSwitch, oc.Platform_ComponentPowerType_POWER_DISABLED, 5*time.Minute)
 	t.Cleanup(func() {
 		t.Logf("Cleaning up: Re-enabling power on standby supervisor %s to restore redundancy", rpStandbyBeforeSwitch)
-		components.SetControllerCardPowerState(t, dut, rpStandbyBeforeSwitch, oc.Platform_ComponentPowerType_POWER_ENABLED, 10*time.Minute)
+		setControllerCardPowerState(t, dut, rpStandbyBeforeSwitch, oc.Platform_ComponentPowerType_POWER_ENABLED, 10*time.Minute)
 		gnmi.Await(t, dut, gnmi.OC().Component(rpStandbyBeforeSwitch).SwitchoverReady().State(), 30*time.Minute, true)
 	})
 
