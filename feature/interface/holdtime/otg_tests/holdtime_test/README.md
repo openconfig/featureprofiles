@@ -67,7 +67,29 @@ rpcs:
     gNMI.Set:
     gNMI.Subscribe:
 ```
+## Canonical OC
 
+```json
+{
+  "interfaces": {
+    "interface": [
+      {
+        "name": "port-1",
+        "hold-time": {
+          "config": {
+            "up": 5000,
+            "down": 300
+          }
+        },
+        "state": {
+          "oper-status": "UP",
+          "last-change": "1970-01-01T00:00:00Z"
+        }
+      }
+    ]
+  }
+}
+```
 ## Minimum DUT Platform Requirement
 
 FFF
