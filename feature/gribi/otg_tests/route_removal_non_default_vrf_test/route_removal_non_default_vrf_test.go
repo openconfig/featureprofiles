@@ -360,8 +360,6 @@ func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) {
 	otgutils.LogFlowMetrics(t, ate.OTG(), config)
 }
 
-
-
 // hasIPv4Entry checks if the entry is active through AFT Telemetry.
 func hasIPv4Entry(t *testing.T, dut *ondatra.DUTDevice, networkInstanceName string, ateDstNetCIDR string) bool {
 	ipv4EntryPath := gnmi.OC().NetworkInstance(networkInstanceName).Afts().Ipv4Entry(ateDstNetCIDR)

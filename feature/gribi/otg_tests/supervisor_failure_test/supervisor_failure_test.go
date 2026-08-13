@@ -159,7 +159,6 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	return top
 }
 
-
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
 	ctx     context.Context
