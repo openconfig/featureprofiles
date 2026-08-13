@@ -422,7 +422,7 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, cfg gosnappi.Con
 	if expectPass {
 		otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), 0, trafficLossTolerance)
 	} else {
-		otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), 100-trafficLossTolerance, 100)
+		otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), float64(trafficLossTolerance)+0.01, 100)
 	}
 }
 

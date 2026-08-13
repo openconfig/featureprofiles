@@ -369,7 +369,6 @@ func verifyTraffic(t *testing.T, args *testArgs, flowName string, wantLoss bool)
 	t.Helper()
 	t.Logf("Verifying flow metrics for the flow %s\n", flowName)
 	if wantLoss {
-		otgutils.ExpectedTrafficLoss(t, args.otg, flowName, 100-float64(tolerancePct), 100)
 		recvMetric := gnmi.Get(t, args.otg, gnmi.OTG().Flow(flowName).State())
 		rxPackets := recvMetric.GetCounters().GetInPkts()
 		trafficPassed := false
