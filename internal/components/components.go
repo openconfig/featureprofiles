@@ -215,6 +215,55 @@ func FindStandbyControllerCard(t *testing.T, dut *ondatra.DUTDevice, supervisors
 	return standbyCC, activeCC
 }
 
+// SwitchoverReady checks whether a controller card is ready for a switchover.
+func SwitchoverReady(t *testing.T, dut *ondatra.DUTDevice, controller string) bool {
+	switchoverReady := gnmi.OC().Component(controller).SwitchoverReady()
+	_, ok := gnmi.Watch(t, dut, switchoverReady.State(), 30*time.Minute, func(val *ygnmi.Value[bool]) bool {
+		ready, present := val.Val()
+		return present && ready
+	}).Await(t)
+	return ok
+}
+
+// ValidateTelemetry checks telemetry sensors for LastSwitchoverTime, LastSwitchoverReason,
+// LastRebootTime, and LastRebootReason on the specified primary and secondary controllers.
+func ValidateTelemetry(t *testing.T, dut *ondatra.DUTDevice, primaryAfterSwitch, secondaryAfterSwitch string, switchTrigger oc.E_PlatformTypes_ComponentRedundantRoleSwitchoverReasonTrigger) {
+	t.Log("Validate OC Switchover time/reason.")
+	primary := gnmi.OC().Component(primaryAfterSwitch)
+	secondary := gnmi.OC().Component(secondaryAfterSwitch)
+	if !gnmi.Lookup(t, dut, primary.LastSwitchoverTime().State()).IsPresent() {
+		t.Errorf("primary.LastSwitchoverTime().Lookup(t).IsPresent(): got false, want true")
+	} else {
+		t.Logf("Found primary.LastSwitchoverTime(): %v", gnmi.Get(t, dut, primary.LastSwitchoverTime().State()))
+	}
+
+	var gotTrigger oc.E_PlatformTypes_ComponentRedundantRoleSwitchoverReasonTrigger
+	if !gnmi.Lookup(t, dut, primary.LastSwitchoverReason().State()).IsPresent() {
+		t.Errorf("primary.LastSwitchoverReason().Lookup(t).IsPresent(): got false, want true")
+	} else {
+		lastSwitchoverReason := gnmi.Get(t, dut, primary.LastSwitchoverReason().State())
+		t.Logf("Found lastSwitchoverReason.GetDetails(): %v", lastSwitchoverReason.GetDetails())
+		t.Logf("Found lastSwitchoverReason.GetTrigger().String(): %v", lastSwitchoverReason.GetTrigger().String())
+		gotTrigger = lastSwitchoverReason.GetTrigger()
+		if gotTrigger != switchTrigger {
+			t.Errorf("primary.GetLastSwitchoverReason().GetTrigger(): got %s, want %s.", gotTrigger, switchTrigger)
+		}
+	}
+
+	if !gnmi.Lookup(t, dut, secondary.LastRebootTime().State()).IsPresent() {
+		t.Errorf("secondary.LastRebootTime.().Lookup(t).IsPresent(): got false, want true")
+	} else {
+		lastrebootTime := gnmi.Get(t, dut, secondary.LastRebootTime().State())
+		t.Logf("Found lastRebootTime.GetDetails(): %v", lastrebootTime)
+	}
+	if !gnmi.Lookup(t, dut, secondary.LastRebootReason().State()).IsPresent() {
+		t.Errorf("secondary.LastRebootReason.().Lookup(t).IsPresent(): got false, want true")
+	} else {
+		lastrebootReason := gnmi.Get(t, dut, secondary.LastRebootReason().State())
+		t.Logf("Found lastRebootReason.GetDetails(): %v", lastrebootReason)
+	}
+}
+
 // OpticalChannelComponentFromPort finds the optical channel component for a port.
 func OpticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
 	t.Helper()

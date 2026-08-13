@@ -342,6 +342,50 @@ func (c *Client) AddIPv6(t testing.TB, prefix string, nhgIndex uint64, instance,
 	)
 }
 
+// AddIPv4s adds multiple IPv4Entries mapping prefixes to a given next hop group index within a given network instance.
+func (c *Client) AddIPv4s(t testing.TB, prefixes []string, nhgIndex uint64, instance, nhgInstance string, expectedResult fluent.ProgrammingResult) {
+	t.Helper()
+	var entries []fluent.GRIBIEntry
+	var results []*client.OpResult
+	for _, prefix := range prefixes {
+		ipv4Entry := fluent.IPv4Entry().WithPrefix(prefix).
+			WithNetworkInstance(instance).
+			WithNextHopGroup(nhgIndex)
+		if nhgInstance != "" && nhgInstance != instance {
+			ipv4Entry.WithNextHopGroupNetworkInstance(nhgInstance)
+		}
+		entries = append(entries, ipv4Entry)
+		results = append(results, fluent.OperationResult().
+			WithIPv4Operation(prefix).
+			WithOperationType(constants.Add).
+			WithProgrammingResult(expectedResult).
+			AsResult())
+	}
+	c.AddEntries(t, entries, results)
+}
+
+// AddIPv6s adds multiple IPv6Entries mapping prefixes to a given next hop group index within a given network instance.
+func (c *Client) AddIPv6s(t testing.TB, prefixes []string, nhgIndex uint64, instance, nhgInstance string, expectedResult fluent.ProgrammingResult) {
+	t.Helper()
+	var entries []fluent.GRIBIEntry
+	var results []*client.OpResult
+	for _, prefix := range prefixes {
+		ipv6Entry := fluent.IPv6Entry().WithPrefix(prefix).
+			WithNetworkInstance(instance).
+			WithNextHopGroup(nhgIndex)
+		if nhgInstance != "" && nhgInstance != instance {
+			ipv6Entry.WithNextHopGroupNetworkInstance(nhgInstance)
+		}
+		entries = append(entries, ipv6Entry)
+		results = append(results, fluent.OperationResult().
+			WithIPv6Operation(prefix).
+			WithOperationType(constants.Add).
+			WithProgrammingResult(expectedResult).
+			AsResult())
+	}
+	c.AddEntries(t, entries, results)
+}
+
 // DeleteIPv4 deletes an IPv4Entry within a network instance, given the route's prefix
 func (c *Client) DeleteIPv4(t testing.TB, prefix string, instance string, expectedResult fluent.ProgrammingResult) {
 	t.Helper()
@@ -451,4 +495,52 @@ func awaitTimeout(ctx context.Context, t testing.TB, c *fluent.GRIBIClient, time
 	subctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	return c.Await(subctx, t)
+}
+
+// VerifyRestoredIPv4s verifies that the specified IPv4 prefixes are present in the server's RIB via a Get RPC.
+func (c *Client) VerifyRestoredIPv4s(t testing.TB, prefixes []string, networkInstanceName string) {
+	t.Helper()
+	getResponse, err := c.fluentC.Get().WithNetworkInstance(networkInstanceName).WithAFT(fluent.IPv4).Send()
+	if err != nil {
+		t.Fatalf("Cannot Get IPv4 entries: %v", err)
+	}
+
+	gotPrefixes := make(map[string]bool)
+	for _, entry := range getResponse.GetEntry() {
+		if v, ok := entry.Entry.(*gpb.AFTEntry_Ipv4); ok {
+			if prefix := v.Ipv4.GetPrefix(); prefix != "" {
+				gotPrefixes[prefix] = true
+			}
+		}
+	}
+
+	for _, p := range prefixes {
+		if !gotPrefixes[p] {
+			t.Errorf("IPv4 prefix %q not found in gRIBI Get response", p)
+		}
+	}
+}
+
+// VerifyRestoredIPv6s verifies that the specified IPv6 prefixes are present in the server's RIB via a Get RPC.
+func (c *Client) VerifyRestoredIPv6s(t testing.TB, prefixes []string, networkInstanceName string) {
+	t.Helper()
+	getResponse, err := c.fluentC.Get().WithNetworkInstance(networkInstanceName).WithAFT(fluent.IPv6).Send()
+	if err != nil {
+		t.Fatalf("Cannot Get IPv6 entries: %v", err)
+	}
+
+	gotPrefixes := make(map[string]bool)
+	for _, entry := range getResponse.GetEntry() {
+		if v, ok := entry.Entry.(*gpb.AFTEntry_Ipv6); ok {
+			if prefix := v.Ipv6.GetPrefix(); prefix != "" {
+				gotPrefixes[prefix] = true
+			}
+		}
+	}
+
+	for _, p := range prefixes {
+		if !gotPrefixes[p] {
+			t.Errorf("IPv6 prefix %q not found in gRIBI Get response", p)
+		}
+	}
 }
