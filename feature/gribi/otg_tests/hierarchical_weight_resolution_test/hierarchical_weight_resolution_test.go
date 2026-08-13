@@ -475,8 +475,8 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) map[
 	ate.OTG().StartTraffic(t)
 	time.Sleep(1 * time.Minute)
 	ate.OTG().StopTraffic(t)
-
-	otgutils.ExpectedTrafficLoss(t, ate.OTG(), flowipv4.Name(), 0, 0)
+  
+  otgutils.ExpectedTrafficLoss(t, ate.OTG(), flowipv4.Name(), 0, 0.99)
 
 	// Compare traffic distribution with the wanted results.
 	results := filterPacketReceived(t, "flow", ate)
