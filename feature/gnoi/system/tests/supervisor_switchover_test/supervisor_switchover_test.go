@@ -21,7 +21,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-traffic-generator/gosnappi/gosnappi"
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/args/args"
 	"github.com/openconfig/featureprofiles/internal/attrs/attrs"
 	"github.com/openconfig/featureprofiles/internal/components/components"
@@ -148,13 +148,15 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) ([]*ondatra.Port, string
 		t.Logf("Successfully configured member interface %q", port.Name())
 	}
 	t.Cleanup(func() {
+		batch := &gnmi.SetBatch{}
 		for _, port := range ports {
-			gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Config())
+			gnmi.BatchDelete(batch, gnmi.OC().Interface(port.Name()).Config())
 		}
-		gnmi.Delete(t, dut, gnmi.OC().Interface(lagName).Config())
+		gnmi.BatchDelete(batch, gnmi.OC().Interface(lagName).Config())
 		if !deviations.LacpInterfaceFallbackOCUnsupported(dut) {
-			gnmi.Delete(t, dut, gnmi.OC().Lacp().Interface(lagName).Config())
+			gnmi.BatchDelete(batch, gnmi.OC().Lacp().Interface(lagName).Config())
 		}
+		batch.Set(t, dut)
 	})
 
 	return ports, lagName
@@ -280,6 +282,9 @@ func TestSupervisorSwitchover(t *testing.T) {
 	verifyLACPState(t, dut, dutPorts, lagName)
 	otgutils.WaitForARP(t, otg, otgTop, "IPv4")
 	otg.StartTraffic(t)
+	t.Cleanup(func() {
+		otg.StopTraffic(t)
+	})
 	verifyZeroTrafficLoss(t, ate, otgTop)
 
 	intfsOperStatusUPBeforeSwitch := helpers.FetchOperStatusUPIntfs(t, dut, *args.CheckInterfacesInBinding)
@@ -295,8 +300,6 @@ func TestSupervisorSwitchover(t *testing.T) {
 	t.Run("PowerDisabledStandby", func(t *testing.T) {
 		testPowerDisabledStandby(t, dut, ate, otgTop, controllerCards)
 	})
-
-	otg.StopTraffic(t)
 }
 
 func testRecoveryValidation(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, controllerCards []string, dutPorts []*ondatra.Port, lagName string, intfsOperStatusUPBeforeSwitch []string) {
@@ -389,6 +392,11 @@ func testPowerDisabledStandby(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 	t.Logf("Detected rpStandby for PowerDisabledStandby: %v, rpActive: %v", rpStandbyBeforeSwitch, rpActiveBeforeSwitch)
 
 	components.SetControllerCardPowerState(t, dut, rpStandbyBeforeSwitch, oc.Platform_ComponentPowerType_POWER_DISABLED, 5*time.Minute)
+	t.Cleanup(func() {
+		t.Logf("Cleaning up: Re-enabling power on standby supervisor %s to restore redundancy", rpStandbyBeforeSwitch)
+		components.SetControllerCardPowerState(t, dut, rpStandbyBeforeSwitch, oc.Platform_ComponentPowerType_POWER_ENABLED, 10*time.Minute)
+		gnmi.Await(t, dut, gnmi.OC().Component(rpStandbyBeforeSwitch).SwitchoverReady().State(), 30*time.Minute, true)
+	})
 
 	gnoiClient := dut.RawAPIs().GNOI(t)
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
@@ -408,8 +416,4 @@ func testPowerDisabledStandby(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 		t.Errorf("Active supervisor role changed unexpectedly after rejected switchover: got %v, want PRIMARY", role)
 	}
 	verifyZeroTrafficLoss(t, ate, top)
-
-	t.Logf("Re-enabling power on standby supervisor %s to restore redundancy", rpStandbyBeforeSwitch)
-	components.SetControllerCardPowerState(t, dut, rpStandbyBeforeSwitch, oc.Platform_ComponentPowerType_POWER_ENABLED, 10*time.Minute)
-	gnmi.Await(t, dut, gnmi.OC().Component(rpStandbyBeforeSwitch).SwitchoverReady().State(), 30*time.Minute, true)
 }
