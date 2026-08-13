@@ -30,6 +30,8 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -120,17 +122,41 @@ func configureFlow(bs *cfgplugins.BGPSession) {
 	v4.Dst().Increment().SetCount(3).SetStep("0.0.0.1").SetStart(prefixesStart)
 }
 
-func checkPacketLoss(t *testing.T, ate *ondatra.ATEDevice) {
-	countersPath := gnmi.OTG().Flow("flow").Counters()
-	rxPackets := gnmi.Get(t, ate.OTG(), countersPath.InPkts().State())
-	txPackets := gnmi.Get(t, ate.OTG(), countersPath.OutPkts().State())
+func checkPacketLoss(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config) {
+	defer otgutils.LogFlowMetrics(t, ate.OTG(), c)
+	countersPath := gnmi.OTG().Flow("flow")
+
+	gnmi.Watch(t, ate.OTG(), countersPath.State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
+		recvMetric, ok := val.Val()
+		if !ok {
+			return false
+		}
+		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
+		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
+		if txPackets == 0 {
+			return false
+		}
+		if rxPackets > txPackets {
+			return false
+		}
+		lossPct := (txPackets - rxPackets) * 100 / txPackets
+		return int(lossPct) <= int(lossTolerancePct)
+	}).Await(t)
+
+	rxPackets := float32(gnmi.Get(t, ate.OTG(), countersPath.Counters().InPkts().State()))
+	txPackets := float32(gnmi.Get(t, ate.OTG(), countersPath.Counters().OutPkts().State()))
 	lostPackets := txPackets - rxPackets
 
-	if txPackets < 1 {
-		t.Fatalf("Tx packets should be higher than 0")
+	if txPackets == 0 {
+		t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow flow")
 	}
-	if got := lostPackets * 100 / txPackets; got != lossTolerancePct {
-		t.Errorf("Packet loss percentage for flow: got %v, want %v", got, lossTolerancePct)
+	if rxPackets > txPackets {
+		t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", rxPackets, txPackets)
+	}
+	got := float32(lostPackets) * 100 / float32(txPackets)
+
+	if int(got) > int(lossTolerancePct) {
+		t.Errorf("Generic Test Assertion Failure: Flow flow: got %v, want <= %v", got, lossTolerancePct)
 	}
 }
 
@@ -292,8 +318,7 @@ func TestBGPSetup(t *testing.T) {
 			time.Sleep(sleepTime * time.Second)
 			bs.ATE.OTG().StopTraffic(t)
 
-			otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
-			checkPacketLoss(t, bs.ATE)
+			checkPacketLoss(t, bs.ATE, bs.ATETop)
 			verifyECMPLoadBalance(t, bs.ATE, int(cfgplugins.PortCount4), 2)
 		})
 	}
