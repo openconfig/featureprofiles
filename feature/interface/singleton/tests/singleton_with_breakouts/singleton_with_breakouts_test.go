@@ -140,11 +140,12 @@ func buildExpectedCounts(t *testing.T, dut *ondatra.DUTDevice, breakoutPorts map
 //
 // TODO: Refactor description string matching to direct ondatra.PMD enum comparisons once the
 // following upstream release chain completes:
-// 1. openconfig-transport-types.yang v1.5.0+ (via openconfig/public PR #1505) is merged, adding identities
-//    for ETH_800GBASE_2XLR4, ETH_800GBASE_2XPLR4, ETH_800GBASE_2XDR4, and ETH_100GBASE_LR.
-// 2. github.com/openconfig/ondatra releases a version > v0.14.5 (e.g. v0.14.6+ or v0.15.0+) that imports
-//    these models and generates the corresponding PMD enum constants (e.g. ondatra.PMD800GBASE2XLR4).
-// 3. openconfig/featureprofiles updates go.mod to import that newer ondatra release.
+//  1. openconfig-transport-types.yang v1.5.0+ (via openconfig/public PR #1505) is merged, adding identities
+//     for ETH_800GBASE_2XLR4, ETH_800GBASE_2XPLR4, ETH_800GBASE_2XDR4, and ETH_100GBASE_LR.
+//  2. github.com/openconfig/ondatra releases a version > v0.14.5 (e.g. v0.14.6+ or v0.15.0+) that imports
+//     these models and generates the corresponding PMD enum constants (e.g. ondatra.PMD800GBASE2XLR4).
+//  3. openconfig/featureprofiles updates go.mod to import that newer ondatra release.
+//
 // Until then, description string matching is required as devices reporting these PMD strings are decoded
 // as PMD_UNSPECIFIED by ondatra v0.14.5.
 func breakoutConfig(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.Port) (uint8, oc.E_IfEthernet_ETHERNET_SPEED, uint8) {

@@ -346,8 +346,6 @@ Result in JSON format:
 	return gapResult.GapFound, gapResult.GapDescription, nil
 }
 
-
-
 // escape replaces special characters in a string for GitHub Action command values.
 func escape(s string) string {
 	s = strings.ReplaceAll(s, "\r", "%0D")
