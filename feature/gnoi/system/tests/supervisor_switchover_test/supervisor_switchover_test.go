@@ -61,11 +61,6 @@ var (
 		MAC:     "02:00:01:01:01:01",
 		IPv4Len: ipv4PrefixLen,
 	}
-	dutDst = attrs.Attributes{
-		Desc:    "dutDst",
-		IPv4:    "198.51.100.1",
-		IPv4Len: ipv4PrefixLen,
-	}
 	ateDst = attrs.Attributes{
 		Name:    "ateDst",
 		IPv4:    "198.51.100.2",
