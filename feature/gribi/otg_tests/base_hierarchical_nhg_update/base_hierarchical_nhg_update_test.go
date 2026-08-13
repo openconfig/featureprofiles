@@ -984,5 +984,3 @@ func addStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
 	ipv4Nh2.NextHop, _ = ipv4Nh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union(atePort4.IPv4)
 	gnmi.Update(t, dut, d.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), ni)
 }
-
-
