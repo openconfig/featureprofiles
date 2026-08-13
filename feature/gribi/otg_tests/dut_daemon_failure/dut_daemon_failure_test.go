@@ -158,10 +158,9 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 func stopAndVerifyTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
 	otg := ate.OTG()
 	otg.StopTraffic(t)
-
+	otgutils.ExpectedTrafficLoss(t, otg, flowName, 0, 0)
 	// Log metrics after counters have settled
 	otgutils.LogFlowMetrics(t, otg, top)
-	otgutils.ExpectedTrafficLoss(t, otg, flowName, 0, 0)
 }
 
 // testArgs holds the objects needed by the test case.
