@@ -2286,6 +2286,13 @@ func LacpInterfaceFallbackOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLacpInterfaceFallbackOcUnsupported()
 }
 
+// BgpDynamicNeighborPrefixUnsupported returns true if the device accepts the
+// OpenConfig dynamic-neighbor-prefix configuration via gNMI without error, but does not actually program it (silently ignored).
+// Arista: https://partnerissuetracker.corp.google.com/u/2/issues/534817001
+func BgpDynamicNeighborPrefixUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpDynamicNeighborPrefixUnsupported()
+}
+
 // VlanSubinterfaceOCUnsupported returns true if the device does not support OC config for VLAN subinterfaces.
 // Arista: https://partnerissuetracker.corp.google.com/issues/494280147
 func VlanSubinterfaceOCUnsupported(dut *ondatra.DUTDevice) bool {
@@ -2326,4 +2333,28 @@ func MacsecOcUnsupported(dut *ondatra.DUTDevice) bool {
 // Arista: b/514565554
 func AftsGlobalFilterPolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAftsGlobalFilterPolicyOcUnsupported()
+}
+
+// AftsGlobalFilterPolicyConfigReferenceValidationUnsupported returns true if the
+// device does not validate references from an AFT global-filter policy.
+// Arista: https://partnerissuetracker.corp.google.com/issues/491765154#comment10
+func AftsGlobalFilterPolicyConfigReferenceValidationUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAftsGlobalFilterPolicyConfigReferenceValidationUnsupported()
+}
+
+// VrfSelectionPolicyNonDefaultNIUnsupported returns true if device does not support configuring VRF selection policy under non-default network instance.
+func VrfSelectionPolicyNonDefaultNIUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetVrfSelectionPolicyNonDefaultNiUnsupported()
+}
+
+// GribiAaaRoleBasedAuthzUnsupported returns true if no gRIBI AAA role based Authorization support
+// Arista: https://partnerissuetracker.corp.google.com/issues/542639968#comment8
+func GribiAaaRoleBasedAuthzUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGribiAaaRoleBasedAuthzUnsupported()
+}
+
+// P4RTAaaRoleBasedAuthzUnsupported returns true if no P4RT AAA role based Authorization support
+// Arista: https://partnerissuetracker.corp.google.com/issues/542639968#comment8
+func P4RTAaaRoleBasedAuthzUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetP4RtAaaRoleBasedAuthzUnsupported()
 }

@@ -202,16 +202,12 @@ func incrementIPSlice(ipSlice []string) []string {
 	return incrementedSlice
 }
 
-func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, ports int, testResults bool) {
-	// compare the flows transmitted and received instead of the ports counters
-	framesTx := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow("flow").State()).GetCounters().GetOutPkts()
-	framesRx := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow("flow").State()).GetCounters().GetInPkts()
-	if framesTx == 0 {
-		t.Error("No traffic was generated and frames transmitted were 0")
-	} else if (testResults && framesRx == framesTx) || (!testResults && framesRx == 0) {
-		t.Logf("Traffic validation successful for criteria [%t] FramesTx: %d FramesRx: %d", testResults, framesTx, framesRx)
+func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, ports int, testResults bool) {
+	defer otgutils.LogFlowMetrics(t, ate.OTG(), c)
+	if testResults {
+		otgutils.ExpectedTrafficLoss(t, ate.OTG(), "flow", 0, 5.99)
 	} else {
-		t.Errorf("Traffic validation failed for criteria [%t] FramesTx: %d FramesRx: %d", testResults, framesTx, framesRx)
+		otgutils.ExpectedTrafficLoss(t, ate.OTG(), "flow", 99, 100)
 	}
 }
 
@@ -306,16 +302,14 @@ func TestAsPathSet(t *testing.T) {
 				bs.ATE.OTG().StartTraffic(t)
 				time.Sleep(sleepTime * time.Second)
 				bs.ATE.OTG().StopTraffic(t)
-				otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
-				verifyTraffic(t, bs.ATE, int(cfgplugins.PortCount2), tc.testResults[index])
+				verifyTraffic(t, bs.ATE, bs.ATETop, int(cfgplugins.PortCount2), tc.testResults[index])
 
 				t.Logf("Running traffic test for IPv6 prefixes: [%s, %s]. Expected Result: [%t]", prefixesV6[index][0], prefixesV6[index][1], tc.testResults[index])
 				configureFlow(bs, prefixesV6[index], "ipv6", dstMac, index)
 				bs.ATE.OTG().StartTraffic(t)
 				time.Sleep(sleepTime * time.Second)
 				bs.ATE.OTG().StopTraffic(t)
-				otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
-				verifyTraffic(t, bs.ATE, int(cfgplugins.PortCount2), tc.testResults[index])
+				verifyTraffic(t, bs.ATE, bs.ATETop, int(cfgplugins.PortCount2), tc.testResults[index])
 			}
 		})
 	}
