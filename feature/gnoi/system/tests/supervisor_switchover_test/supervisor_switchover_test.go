@@ -311,7 +311,13 @@ func testRecoveryValidation(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.A
 	gnmi.Await(t, dut, switchoverReady.State(), 30*time.Minute, true)
 
 	startSwitchover := time.Now()
-	_ = gnoi.InitiateSupervisorSwitchover(context.Background(), t, dut, rpStandbyBeforeSwitch)
+	gnoiClient := dut.RawAPIs().GNOI(t)
+	switchoverRequest := &spb.SwitchControlProcessorRequest{
+		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch, deviations.GNOISubcomponentPath(dut)),
+	}
+	if _, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest); err != nil {
+		t.Fatalf("Failed to initiate supervisor switchover: %v", err)
+	}
 	gnoi.WaitForSwitchoverCompletion(t, dut, startSwitchover, maxSwitchoverTime)
 
 	rpStandbyAfterSwitch, rpActiveAfterSwitch := components.FindStandbyControllerCard(t, dut, controllerCards)
@@ -368,10 +374,16 @@ func testBackToBackSwitchover(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 
 	gnmi.Await(t, dut, gnmi.OC().Component(rpActiveBeforeSwitch).SwitchoverReady().State(), 30*time.Minute, true)
 	startFirst := time.Now()
-	_ = gnoi.InitiateSupervisorSwitchover(context.Background(), t, dut, rpStandbyBeforeSwitch)
 
 	gnoiClient := dut.RawAPIs().GNOI(t)
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
+	firstRequest := &spb.SwitchControlProcessorRequest{
+		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch, useNameOnly),
+	}
+	if _, err := gnoiClient.System().SwitchControlProcessor(context.Background(), firstRequest); err != nil {
+		t.Fatalf("Failed to initiate first supervisor switchover: %v", err)
+	}
+
 	secondRequest := &spb.SwitchControlProcessorRequest{
 		ControlProcessor: components.GetSubcomponentPath(rpActiveBeforeSwitch, useNameOnly),
 	}
