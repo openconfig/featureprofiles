@@ -1754,7 +1754,7 @@ func configureEnableAuth(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func SendPrivEscalation(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool, expectPass bool) []*acctzpb.RecordResponse {
-	target := getSSHTarget(t, dut, staticBinding)
+	target := GetSSHTarget(t, dut, staticBinding)
 	var records []*acctzpb.RecordResponse
 
 	enableAccountingStartStop(t, dut)
