@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -44,6 +44,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 	p4pb "github.com/p4lang/p4runtime/go/p4/v1"
+	"golang.org/x/crypto/ssh"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
@@ -71,20 +72,25 @@ const (
 	pingCount           = 1
 	metadataKeyUsername = "username"
 	metadataKeyPassword = "password"
+	sshPort             = "22"
+	cliServiceName      = "cli"
 )
 
 var (
-	// serviceTable maps each gRPC service to its binding-supplied target (host:port),
-	// proto enum, and exerciser RPC. Populated at test-start by buildServiceTable.
-	serviceTable []serviceEntry
-
-	// scenarioTable defines the credential-failure scenarios applied to every service. certFailure=true rows present a wrong TLS cert instead of password credentials.
+	serviceTable  []serviceEntry
 	scenarioTable = []scenarioEntry{
 		{name: "empty-user-correct-pass", user: "", pass: successPassword, certFailure: false},
 		{name: "unknown-user-correct-pass", user: unconfiguredUser, pass: successPassword, certFailure: false},
 		{name: "success-user-empty-pass", user: acctzlib.SuccessUsername, pass: "", certFailure: false},
 		{name: "success-user-wrong-pass", user: acctzlib.SuccessUsername, pass: wrongPassword, certFailure: false},
 		{name: "success-user-wrong-cert", user: acctzlib.SuccessUsername, pass: successPassword, certFailure: true},
+	}
+	cliScenarioTable = []scenarioEntry{
+		{name: "empty-user-correct-pass", user: "", pass: successPassword, certFailure: false},
+		{name: "unknown-user-correct-pass", user: unconfiguredUser, pass: successPassword, certFailure: false},
+		{name: "success-user-empty-pass", user: acctzlib.SuccessUsername, pass: "", certFailure: false},
+		{name: "success-user-wrong-pass", user: acctzlib.SuccessUsername, pass: wrongPassword, certFailure: false},
+		{name: "success-user-wrong-sshkey", user: acctzlib.SuccessUsername, certFailure: true},
 	}
 )
 
@@ -114,6 +120,8 @@ type rpcConfig struct {
 // connRecord captures the network metadata of one completed dial attempt.
 type connRecord struct {
 	serviceType acctzpb.GrpcService_GrpcServiceType
+	cmdSvcType  acctzpb.CommandService_CmdServiceType
+	isCLI       bool
 	localAddr   string
 	localPort   uint32
 	remoteAddr  string
@@ -123,7 +131,8 @@ type connRecord struct {
 	certFailure bool
 }
 
-// dialConfig is the unified config for dialAndFail. When certFailure is true, wrongCert is used and password is ignored.
+// dialConfig is the unified config for dialAndFail/dialAndFailSSH. When certFailure is
+// true, wrongCert (gRPC) or wrongSSHKey (SSH) is used instead of password credentials.
 type dialConfig struct {
 	target      string
 	username    string
@@ -131,6 +140,7 @@ type dialConfig struct {
 	testName    string
 	certFailure bool
 	wrongCert   tls.Certificate
+	wrongSSHKey ssh.Signer
 	svcType     acctzpb.GrpcService_GrpcServiceType
 	rpcFn       func(*testing.T, rpcConfig) error
 }
@@ -227,21 +237,18 @@ func TestAccountingAuthenFailUni(t *testing.T) {
 	usedRecord := ([]bool)(nil)
 	err := error(nil)
 
-	// Populate the package-level serviceTable using targets from the binding file.
 	serviceTable = buildServiceTable(t, dut)
 
 	setupTestUser(t, dut)
 
 	wrongCert := mustGenerateWrongClientCert(t)
+	wrongSSHKey := mustGenerateWrongSSHKey(t)
 	mustVerifyServiceConnectivity(t, dut, serviceTable)
 
-	// Step 1 (README): record T0.
 	t0 := time.Now().Add(-t0Offset)
 	t.Logf("T0 = %v", t0)
 
-	// Build the canonical test table by expanding the (service x scenario)
-	// cross-product. Each row drives one t.Run subtest below.
-	tests := make([]testCase, 0, len(serviceTable)*len(scenarioTable))
+	tests := make([]testCase, 0, len(serviceTable)*len(scenarioTable)+len(cliScenarioTable))
 	for _, svc := range serviceTable {
 		for _, sc := range scenarioTable {
 			tests = append(tests, testCase{
@@ -252,8 +259,30 @@ func TestAccountingAuthenFailUni(t *testing.T) {
 		}
 	}
 
-	// Step 2 (README): dial each test-case, record connection metadata.
+	cliHost, _ := mustHostPortInfo(t, serviceTable[0].target)
+	cliTarget := net.JoinHostPort(cliHost, sshPort)
+	cliIdx := len(tests)
+	for _, sc := range cliScenarioTable {
+		tests = append(tests, testCase{
+			name: cliServiceName + "/" + sc.name,
+			svc:  serviceEntry{name: cliServiceName, target: cliTarget},
+			sc:   sc,
+		})
+	}
+
 	for i := range tests {
+		if i >= cliIdx {
+			rec, ok := dialAndFailSSH(t, dialConfig{
+				target:      tests[i].svc.target,
+				username:    tests[i].sc.user,
+				password:    tests[i].sc.pass,
+				testName:    tests[i].name,
+				certFailure: tests[i].sc.certFailure,
+				wrongSSHKey: wrongSSHKey,
+			})
+			tests[i].res = dialResult{rec: rec, skip: !ok}
+			continue
+		}
 		rec, ok := dialAndFail(t, dialConfig{
 			target:      tests[i].svc.target,
 			username:    tests[i].sc.user,
@@ -266,16 +295,15 @@ func TestAccountingAuthenFailUni(t *testing.T) {
 		})
 		tests[i].res = dialResult{rec: rec, skip: !ok}
 	}
-	t.Logf("completed %d per-transaction connection attempts", len(tests))
+	t.Logf("completed %d per-transaction connection attempts (including %d SSH/CLI attempts)",
+		len(tests), len(tests)-cliIdx)
 
-	// Step 3-4 (README): establish gNSI connection, call RecordSubscribe(T0), collect records.
 	acctzUsername, acctzPassword = dutRPCCredentials(dut)
-	// Reuse the gNMI/gNSI target (same host:port) for the acctz connection.
 	acctzTarget = serviceTable[0].target
 	acctzConn, err = grpc.NewClient(
 		acctzTarget,
 		grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
-			InsecureSkipVerify: true, //nolint:gosec // test-only; DUT uses self-signed cert
+			InsecureSkipVerify: true, //nolint:gosec
 		})),
 		grpc.WithPerRPCCredentials(&rpcCredentials{username: acctzUsername, password: acctzPassword}),
 	)
@@ -312,10 +340,9 @@ func TestAccountingAuthenFailUni(t *testing.T) {
 		)
 	}
 
-	// Step 5 (README): table-driven verification — one t.Run per test-case row.
 	usedRecord = make([]bool, len(gotRecords))
 	for _, tc := range tests {
-		tc := tc // capture loop variable
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.res.skip {
 				t.Skip("dial attempt skipped (TCP/gRPC setup failed)")
@@ -483,8 +510,6 @@ func dialAndFail(t *testing.T, cfg dialConfig) (connRecord, bool) {
 	localAddr, localPort := mustHostPortInfo(t, rawConn.LocalAddr().String())
 	remoteAddr, remotePort := mustHostPortInfo(t, cfg.target)
 
-	// Reuse the already-established TCP connection so the recorded local
-	// ephemeral port matches what the DUT will log.
 	reuseOrDialTCP := func(ctx context.Context, addr string) (net.Conn, error) {
 		if !used {
 			used = true
@@ -513,14 +538,11 @@ func dialAndFail(t *testing.T, cfg dialConfig) (connRecord, bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), dialTimeout)
 	defer cancel()
 	if cfg.certFailure {
-		// Send only username so the DUT can log identity even when the cert
-		// is rejected at the TLS handshake level.
 		ctx = metadata.AppendToOutgoingContext(ctx, metadataKeyUsername, cfg.username)
 	} else {
 		ctx = metadata.AppendToOutgoingContext(ctx, metadataKeyUsername, cfg.username, metadataKeyPassword, cfg.password)
 	}
 
-	// Errors are expected — silently discard.
 	_ = cfg.rpcFn(t, rpcConfig{conn: grpcConn, ctx: ctx, failOK: true})
 
 	t.Logf("dial attempt: testCase=%s user=%q local=%s:%d remote=%s:%d cert=%v",
@@ -555,12 +577,18 @@ func matchRecord(cfg matchRecordConfig) bool {
 	if si.GetLocalAddress() != conn.remoteAddr || si.GetLocalPort() != conn.remotePort {
 		return false
 	}
-	grpcSvc := resp.GetGrpcService()
-	if grpcSvc == nil || grpcSvc.GetServiceType() != conn.serviceType {
-		return false
+	if conn.isCLI {
+		cmdSvc := resp.GetCmdService()
+		if cmdSvc == nil || cmdSvc.GetServiceType() != conn.cmdSvcType {
+			return false
+		}
+	} else {
+		grpcSvc := resp.GetGrpcService()
+		if grpcSvc == nil || grpcSvc.GetServiceType() != conn.serviceType {
+			return false
+		}
 	}
 
-	// README: remote_address/remote_port verified only when populated by DUT.
 	if ra := si.GetRemoteAddress(); ra != "" && ra != "0.0.0.0" && ra != "::" {
 		if ra != conn.localAddr {
 			return false
@@ -570,14 +598,9 @@ func matchRecord(cfg matchRecordConfig) bool {
 		}
 	}
 
-	// README: user.identity must match the username sent. For cert failures identity may be empty or contain the cert CN.
-	if conn.certFailure {
-		got := si.GetUser().GetIdentity()
-		return got == "" || got == conn.username || got == wrongCertCN
-	}
 	got := si.GetUser().GetIdentity()
-	if conn.username == "" {
-		return got == "" || got == "unknown" || got == "<anonymous>"
+	if conn.certFailure && !conn.isCLI {
+		return got == "" || got == conn.username || got == wrongCertCN
 	}
 	return got == conn.username
 }
@@ -635,7 +658,6 @@ func verifyAuthenFailRecord(cfg verifyRecordConfig) []error {
 		validationErrs = append(validationErrs, fmt.Errorf(format, args...))
 	}
 
-	// README: timestamp must be after T0.
 	ts := resp.GetTimestamp()
 	if ts == nil {
 		add("recordResponse.timestamp is nil")
@@ -653,12 +675,10 @@ func verifyAuthenFailRecord(cfg verifyRecordConfig) []error {
 		return validationErrs
 	}
 
-	// README: ip_proto must be TCP (6).
 	if got := si.GetIpProto(); got != ipProtoTCP {
 		add("session_info.ip_proto: got %d, want %d (TCP)", got, ipProtoTCP)
 	}
 
-	// README: local_address / local_port must match DUT-side values.
 	if got := si.GetLocalAddress(); got != conn.remoteAddr {
 		add("session_info.local_address: got %q, want %q", got, conn.remoteAddr)
 	}
@@ -666,27 +686,23 @@ func verifyAuthenFailRecord(cfg verifyRecordConfig) []error {
 		add("session_info.local_port: got %d, want %d", got, conn.remotePort)
 	}
 
-	// README: remote_address / remote_port — only verified when populated by DUT.
-	if ra := si.GetRemoteAddress(); ra != "" && ra != "0.0.0.0" && ra != "::" {
-		if ra != conn.localAddr {
-			add("session_info.remote_address: got %q, want %q", ra, conn.localAddr)
+	if ra := si.GetRemoteAddress(); ra != conn.localAddr {
+		add("session_info.remote_address: got %q, want %q", ra, conn.localAddr)
+	}
+	if rp := si.GetRemotePort(); rp != conn.localPort {
+		add("session_info.remote_port: got %d, want %d", rp, conn.localPort)
+	}
+
+	if got := si.GetChannelId(); got != "0" {
+		add("session_info.channel_id: got %q, want \"0\"", got)
+	}
+
+	if !conn.isCLI {
+		if got := si.GetTty(); got != "" {
+			add("session_info.tty: got %q, want omitted for gRPC", got)
 		}
-		if rp := si.GetRemotePort(); rp != 0 && rp != conn.localPort {
-			add("session_info.remote_port: got %d, want %d", rp, conn.localPort)
-		}
 	}
 
-	// README: channel_id must be 0 for gRPC.
-	if got := si.GetChannelId(); got != "" && got != "0" {
-		add("session_info.channel_id: got %q, want 0 or empty for gRPC", got)
-	}
-
-	// README: tty must be omitted for gRPC (platform-dependent for other methods).
-	if got := si.GetTty(); got != "" {
-		add("session_info.tty: got %q, want omitted for gRPC", got)
-	}
-
-	// README: status must equal ONCE for per-transaction services.
 	if got := si.GetStatus(); got != acctzpb.SessionInfo_SESSION_STATUS_ONCE {
 		add("session_info.status: got %v, want SESSION_STATUS_ONCE", got)
 	}
@@ -697,15 +713,23 @@ func verifyAuthenFailRecord(cfg verifyRecordConfig) []error {
 		return validationErrs
 	}
 
-	// README: authen.type must equal the authentication method used (not UNSPECIFIED).
-	if got := authn.GetType(); got == acctzpb.AuthnDetail_AUTHN_TYPE_UNSPECIFIED {
-		add("session_info.authn.type: got UNSPECIFIED, must equal the authentication method used")
+	switch {
+	case conn.certFailure && !conn.isCLI:
+		if got := authn.GetType(); got != acctzpb.AuthnDetail_AUTHN_TYPE_TLSCERT {
+			add("session_info.authn.type: got %v, want AUTHN_TYPE_TLSCERT (wrong client certificate)", got)
+		}
+	case conn.certFailure && conn.isCLI:
+		if got := authn.GetType(); got != acctzpb.AuthnDetail_AUTHN_TYPE_SSHKEY {
+			add("session_info.authn.type: got %v, want AUTHN_TYPE_SSHKEY (wrong SSH key)", got)
+		}
+	default:
+		if got := authn.GetType(); got == acctzpb.AuthnDetail_AUTHN_TYPE_UNSPECIFIED {
+			add("session_info.authn.type: got UNSPECIFIED, must equal the authentication method used")
+		}
 	}
-	// README: authen.status must equal FAIL.
 	if got := authn.GetStatus(); got != acctzpb.AuthnDetail_AUTHN_STATUS_FAIL {
 		add("session_info.authn.status: got %v, want AUTHN_STATUS_FAIL", got)
 	}
-	// README: authen.cause must be populated with reason(s) for the failure.
 	if got := authn.GetCause(); got == "" {
 		add("session_info.authn.cause: must be non-empty on authentication failure")
 	}
@@ -716,18 +740,42 @@ func verifyAuthenFailRecord(cfg verifyRecordConfig) []error {
 		return validationErrs
 	}
 
-	// README: user.identity must match the username sent to the DUT. For cert failures the identity may not be available at TLS rejection time.
-	if !conn.certFailure && conn.username != "" {
+	if !(conn.certFailure && !conn.isCLI) {
 		if got := user.GetIdentity(); got != conn.username {
 			add("session_info.user.identity: got %q, want %q", got, conn.username)
 		}
 	}
-	// README: user.privilege_level must be omitted on auth failure.
 	if got := user.GetRole(); got != "" {
 		add("session_info.user.role (privilege_level): got %q, want omitted on auth failure", got)
 	}
 
-	// README: grpc_service.service_type must equal the service used; all other grpc_service fields must be omitted.
+	if conn.isCLI {
+		cmdSvc := resp.GetCmdService()
+		if cmdSvc == nil {
+			add("cmd_service is nil; README requires service_type to be set")
+			return validationErrs
+		}
+		if got := cmdSvc.GetServiceType(); got != conn.cmdSvcType {
+			add("cmd_service.service_type: got %v, want %v", got, conn.cmdSvcType)
+		}
+		if got := cmdSvc.GetCmd(); got != "" {
+			add("cmd_service.cmd: got %q, want omitted (no command is authorized/executed on an authentication failure)", got)
+		}
+		if cmdSvc.GetCmdIstruncated() {
+			add("cmd_service.cmd_istruncated: got true, want omitted (no command is present on an authentication failure)")
+		}
+		if got := cmdSvc.GetCmdArgs(); len(got) != 0 {
+			add("cmd_service.cmd_args: got %v, want omitted (no command args are present on an authentication failure)", got)
+		}
+		if cmdSvc.GetCmdArgsIstruncated() {
+			add("cmd_service.cmd_args_istruncated: got true, want omitted (no command args are present on an authentication failure)")
+		}
+		if authz := cmdSvc.GetAuthz(); authz != nil {
+			add("cmd_service.authz: got %v, want omitted (authorization is never reached when authentication fails)", authz)
+		}
+		return validationErrs
+	}
+
 	grpcSvc := resp.GetGrpcService()
 	if grpcSvc == nil {
 		add("grpc_service is nil; README requires service_type to be set")
@@ -738,6 +786,21 @@ func verifyAuthenFailRecord(cfg verifyRecordConfig) []error {
 	}
 	if got := grpcSvc.GetRpcName(); got != "" {
 		add("grpc_service.rpc_name: got %q, want omitted (all fields except service_type must be omitted)", got)
+	}
+	if got := grpcSvc.GetPayloads(); len(got) != 0 {
+		add("grpc_service.payloads: got %d entries, want omitted (the RPC is never processed on an authentication failure)", len(got))
+	}
+	if grpcSvc.GetPayloadIstruncated() {
+		add("grpc_service.payload_istruncated: got true, want omitted (no payload is present on an authentication failure)")
+	}
+	if got := grpcSvc.GetProtoVal(); got != nil {
+		add("grpc_service.proto_val: got %v, want omitted (no payload is present on an authentication failure)", got)
+	}
+	if got := grpcSvc.GetStringVal(); got != "" {
+		add("grpc_service.string_val: got %q, want omitted (no payload is present on an authentication failure)", got)
+	}
+	if authz := grpcSvc.GetAuthz(); authz != nil {
+		add("grpc_service.authz: got %v, want omitted (authorization is never reached when authentication fails)", authz)
 	}
 
 	return validationErrs
@@ -821,7 +884,6 @@ func mustGenerateWrongClientCert(t *testing.T) tls.Certificate {
 		t.Fatalf("marshal client key: %v", err)
 	}
 
-	// Build tls.Certificate directly from in-memory PEM — no disk I/O needed.
 	certPEM := pem.EncodeToMemory(&pem.Block{Type: pemTypeCertificate, Bytes: clientDER})
 	keyPEM := pem.EncodeToMemory(&pem.Block{Type: pemTypeECPrivateKey, Bytes: clientKeyDER})
 	tlsCert, err := tls.X509KeyPair(certPEM, keyPEM)
@@ -830,6 +892,75 @@ func mustGenerateWrongClientCert(t *testing.T) tls.Certificate {
 	}
 	t.Logf("generated wrong client TLS certificate in memory: CN=%s", wrongCertCN)
 	return tlsCert
+}
+
+// mustGenerateWrongSSHKey creates an in-memory SSH key pair not registered as
+// an authorized key on the DUT, guaranteeing auth failure.
+func mustGenerateWrongSSHKey(t *testing.T) ssh.Signer {
+	t.Helper()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("generate wrong SSH key: %v", err)
+	}
+	signer, err := ssh.NewSignerFromKey(key)
+	if err != nil {
+		t.Fatalf("ssh.NewSignerFromKey: %v", err)
+	}
+	t.Logf("generated wrong SSH client key in memory")
+	return signer
+}
+
+// dialAndFailSSH performs a failed SSH authentication attempt against the DUT's
+// CLI (CommandService) access method and records connection metadata, mirroring dialAndFail's gRPC handling.
+func dialAndFailSSH(t *testing.T, cfg dialConfig) (connRecord, bool) {
+	t.Helper()
+
+	tcpCtx, tcpCancel := context.WithTimeout(context.Background(), dialTimeout)
+	defer tcpCancel()
+
+	rawConn, err := (&net.Dialer{}).DialContext(tcpCtx, "tcp", cfg.target)
+	if err != nil {
+		t.Logf("SSH TCP pre-dial %s: %v (skipping)", cfg.target, err)
+		return connRecord{}, false
+	}
+
+	localAddr, localPort := mustHostPortInfo(t, rawConn.LocalAddr().String())
+	remoteAddr, remotePort := mustHostPortInfo(t, cfg.target)
+
+	sshCfg := &ssh.ClientConfig{
+		User:            cfg.username,
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(), //nolint:gosec
+		Timeout:         dialTimeout,
+	}
+	if cfg.certFailure {
+		sshCfg.Auth = []ssh.AuthMethod{ssh.PublicKeys(cfg.wrongSSHKey)}
+	} else {
+		sshCfg.Auth = []ssh.AuthMethod{ssh.Password(cfg.password)}
+	}
+
+	sc, chans, reqs, err := ssh.NewClientConn(rawConn, cfg.target, sshCfg)
+	if err != nil {
+		rawConn.Close()
+	} else {
+		client := ssh.NewClient(sc, chans, reqs)
+		client.Close()
+		t.Logf("dial attempt: testCase=%s SSH authentication unexpectedly succeeded", cfg.testName)
+	}
+
+	t.Logf("SSH dial attempt: testCase=%s user=%q local=%s:%d remote=%s:%d wrongKey=%v",
+		cfg.testName, cfg.username, localAddr, localPort, remoteAddr, remotePort, cfg.certFailure)
+
+	return connRecord{
+		cmdSvcType:  acctzpb.CommandService_CMD_SERVICE_TYPE_CLI,
+		isCLI:       true,
+		localAddr:   localAddr,
+		localPort:   localPort,
+		remoteAddr:  remoteAddr,
+		remotePort:  remotePort,
+		username:    cfg.username,
+		testName:    cfg.testName,
+		certFailure: cfg.certFailure,
+	}, true
 }
 
 // mustHostPortInfo splits an address into host and port, fatally failing on error.
