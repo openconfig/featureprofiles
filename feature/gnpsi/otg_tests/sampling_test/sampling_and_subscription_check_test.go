@@ -28,6 +28,7 @@ import (
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
+	"google.golang.org/grpc"
 )
 
 const (
@@ -343,21 +344,35 @@ func verifySingleSFlowClient(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.
 func verifyMultipleSFlowClients(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, top gosnappi.Config, flow flowConfig) {
 	ctx, closeContext := context.WithCancel(t.Context())
 	defer closeContext()
-	gnpsiClient := dut.RawAPIs().GNPSI(t)
 	otg := ate.OTG()
+	gnpsiDialer := introspect.DUTDialer(t, dut, introspect.GNPSI)
 
 	ate.OTG().PushConfig(t, top)
 	otg.StartProtocols(t)
 
 	gnpsiClients := []gnpsipb.GNPSI_SubscribeClient{}
+	gnpsiConns := []*grpc.ClientConn{}
 
 	for range gnpsiClientsInParallel {
-		stream, err := subscribeGNPSIClient(t, ctx, gnpsiClient)
+		conn, err := gnpsiDialer.Dial(ctx)
+		if err != nil {
+			t.Fatalf("Failed to dial dedicated GNPSI connection: %v", err)
+		}
+		gnpsiConns = append(gnpsiConns, conn)
+
+		stream, err := subscribeGNPSIClient(t, ctx, gnpsipb.NewGNPSIClient(conn))
 		if err != nil {
 			t.Fatalf("Failed to connect to GNPSI server: %v", err)
 		}
 		gnpsiClients = append(gnpsiClients, stream)
 	}
+	defer func() {
+		for _, conn := range gnpsiConns {
+			if closeErr := conn.Close(); closeErr != nil {
+				t.Logf("Failed to close GNPSI conn: %v", closeErr)
+			}
+		}
+	}()
 
 	maxDifference := func(values []int) int {
 		if len(values) == 0 {
