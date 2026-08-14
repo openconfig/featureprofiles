@@ -889,6 +889,13 @@ func TestWrrTraffic(t *testing.T) {
 
 			otgutils.LogFlowMetrics(t, ate.OTG(), top)
 			for trafficID, data := range trafficFlows {
+				minLossPct := float64(100.0 - (data.expectedThroughputPct + tolerance))
+				if minLossPct < 0 {
+					minLossPct = 0
+				}
+				maxLossPct := float64(100.0 - (data.expectedThroughputPct - tolerance))
+				otgutils.ExpectedTrafficLoss(t, ate.OTG(), trafficID, minLossPct, maxLossPct)
+
 				ateTxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().OutPkts().State())
 				ateRxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().InPkts().State())
 				ateOutPkts[data.queue] += ateTxPkts
@@ -898,11 +905,6 @@ func TestWrrTraffic(t *testing.T) {
 				t.Logf("ateInPkts: %v, txPkts %v, Queue: %v", ateInPkts[data.queue], dutQosPktsAfterTraffic[data.queue], data.queue)
 				if ateTxPkts == 0 {
 					t.Fatalf("TxPkts == 0, want >0.")
-				}
-				lossPct := (float32)((float64(ateTxPkts-ateRxPkts) * 100.0) / float64(ateTxPkts))
-				t.Logf("Get flow %q: lossPct: %.2f%% or rxPct: %.2f%%, want: %.2f%%\n\n", data.queue, lossPct, 100.0-lossPct, data.expectedThroughputPct)
-				if got, want := 100.0-lossPct, data.expectedThroughputPct; got < want-tolerance || got > want+tolerance {
-					t.Errorf("Get(throughput for queue %q): got %.2f%%, want within [%.2f%%, %.2f%%]", data.queue, got, want-tolerance, want+tolerance)
 				}
 			}
 
