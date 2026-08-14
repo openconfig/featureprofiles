@@ -1600,15 +1600,7 @@ func TestUnionReplace(t *testing.T) {
 			},
 		},
 	}
-	selectedTests := map[string]bool{
-		"gNMI-3.9.1-NonOverlapCLIAndOC": true,
-		// "gNMI-3.10.1-MissingHardwareOC": true,
-		// "gNMI-3.10.2-MissingHardwareCLI":    true,
-	}
 	for _, tc := range testCases {
-		if !selectedTests[tc.name] {
-			continue
-		}
 		t.Run(tc.name, func(t *testing.T) {
 			defer resetConfig()
 			t.Log(tc.desc)
