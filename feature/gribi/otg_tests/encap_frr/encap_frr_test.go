@@ -50,6 +50,8 @@ import (
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
+
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 )
 
 func TestMain(m *testing.M) {
@@ -729,32 +731,12 @@ func sendTraffic(t *testing.T, args *testArgs, capturePortList []string, cs gosn
 
 func verifyTraffic(t *testing.T, args *testArgs, capturePortList []string, loadBalancePercent []float64, wantLoss, checkEncap bool, headerDstIP map[string][]string) {
 	t.Helper()
-
 	waitForFlowMetricsReady(t, args.otg, encapFlow, 1*time.Minute)
 
-	t.Logf("Verifying flow metrics for the flow: encapFlow\n")
-	recvMetric := gnmi.Get(t, args.otg, gnmi.OTG().Flow(encapFlow).State())
-	txPackets := recvMetric.GetCounters().GetOutPkts()
-	rxPackets := recvMetric.GetCounters().GetInPkts()
-	lostPackets := txPackets - rxPackets
-	var lossPct uint64
-	if txPackets != 0 {
-		lossPct = lostPackets * 100 / txPackets
-	} else {
-		t.Errorf("Traffic stats are not correct %v", recvMetric)
-	}
 	if wantLoss {
-		if lossPct < 100-tolerancePct {
-			t.Errorf("Traffic is expected to fail %s\n got %v, want 100%% failure", encapFlow, lossPct)
-		} else {
-			t.Logf("Traffic Loss Test Passed!")
-		}
+		otgutils.ExpectedTrafficLoss(t, args.otg, encapFlow, float64(100-tolerancePct), 100)
 	} else {
-		if lossPct > tolerancePct {
-			t.Errorf("Traffic Loss Pct for Flow: %s\n got %v, want 0", encapFlow, lossPct)
-		} else {
-			t.Logf("Traffic Test Passed!")
-		}
+		otgutils.ExpectedTrafficLoss(t, args.otg, encapFlow, 0, float64(tolerancePct)+0.99)
 	}
 	t.Log("Verify packet load balancing as per the programmed weight")
 	validateTrafficDistribution(t, args.ate, loadBalancePercent)

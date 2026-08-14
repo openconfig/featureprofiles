@@ -212,10 +212,7 @@ func TestWeightedECMPForISIS(t *testing.T) {
 	time.Sleep(time.Minute)
 	t.Run("Equal_Distribution_Of_Traffic", func(t *testing.T) {
 		for _, flow := range flows {
-			loss := otgutils.GetFlowLossPct(t, ate.OTG(), flow.Name(), 20*time.Second)
-			if got, want := loss, lossTolerance; got > want {
-				t.Errorf("Flow %s loss: got %f, want %f", flow.Name(), got, lossTolerance)
-			}
+			otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), 0, lossTolerance)
 		}
 		time.Sleep(time.Minute)
 		weights := trafficRXWeights(t, ate, []string{agg1.ateAggName, agg2.ateAggName, agg3.ateAggName})
@@ -259,10 +256,7 @@ func TestWeightedECMPForISIS(t *testing.T) {
 
 	t.Run("Unequal_Distribution_Of_Traffic", func(t *testing.T) {
 		for _, flow := range flows {
-			loss := otgutils.GetFlowLossPct(t, ate.OTG(), flow.Name(), 20*time.Second)
-			if got, want := loss, lossTolerance; got > want {
-				t.Errorf("Flow %s loss: got %f, want %f", flow.Name(), got, lossTolerance)
-			}
+			otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), 0, lossTolerance)
 		}
 		time.Sleep(time.Minute)
 		weights := trafficRXWeights(t, ate, []string{agg1.ateAggName, agg2.ateAggName, agg3.ateAggName})
