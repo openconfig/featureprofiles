@@ -286,6 +286,7 @@ Dynamic1 | 12x12 | 56 | 4 | 57.0.0.0/8
 ## Canonical OC
 
 ```json
+{
   "openconfig-network-instance:network-instances": {
     "network-instance": [
       {
@@ -680,6 +681,7 @@ paths:
 /interfaces/interface/state/admin-status:
 /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state:
 /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/state/lsp-id:
+/network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/total-lsps:
 /network-instances/network-instance/afts/aft-summaries/ipv4-unicast/protocols/protocol/state/counters/aft-entries:
 /network-instances/network-instance/afts/aft-summaries/ipv6-unicast/protocols/protocol/state/counters/aft-entries:
 /instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv:
