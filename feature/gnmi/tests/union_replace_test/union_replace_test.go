@@ -928,8 +928,9 @@ func TestUnionReplace(t *testing.T) {
 
 				t.Log("Add both interfaces via OC union_replace")
 				bothOC := &oc.Root{}
-				bothOC.GetOrCreateInterface(intf1Name).Description = ygot.String(descIntf1Present)
-				bothOC.GetOrCreateInterface(intf2Name).Description = ygot.String(descIntf2Present)
+				// Ensure OC `type` is present for each interface to satisfy device mandatory fields.
+				configureOCInterface(t, bothOC, dut, intf1Name, descIntf1Present, 0, "", 0)
+				configureOCInterface(t, bothOC, dut, intf2Name, descIntf2Present, 0, "", 0)
 				sb := &gnmi.SetBatch{}
 				gnmi.BatchUnionReplaceCLI(sb, cliOrigin, sharedBaseline)
 				gnmi.BatchUnionReplace(sb, gnmi.OC().Config(), bothOC)
@@ -939,7 +940,7 @@ func TestUnionReplace(t *testing.T) {
 
 				t.Log("Omit interface 2 in OC union_replace")
 				intf1Only := &oc.Root{}
-				intf1Only.GetOrCreateInterface(intf1Name).Description = ygot.String(descIntf1Present)
+				configureOCInterface(t, intf1Only, dut, intf1Name, descIntf1Present, 0, "", 0)
 				sb2 := &gnmi.SetBatch{}
 				gnmi.BatchUnionReplaceCLI(sb2, cliOrigin, sharedBaseline)
 				gnmi.BatchUnionReplace(sb2, gnmi.OC().Config(), intf1Only)
@@ -988,8 +989,10 @@ func TestUnionReplace(t *testing.T) {
 
 				t.Log("Configure IP on port1, no IP on port2")
 				ocConfig := &oc.Root{}
+				// Ensure OC `type` is present for each interface (required by some DUTs).
 				configureOCInterface(t, ocConfig, dut, intf1Name, descMoveHasIP, 0, port1IPv4, ipv4PrefixLen)
-				ocConfig.GetOrCreateInterface(intf2Name).Description = ygot.String(descMoveNoIP)
+				// Use configureOCInterface for the second interface as well so `type` is set.
+				configureOCInterface(t, ocConfig, dut, intf2Name, descMoveNoIP, 0, "", 0)
 				sb := &gnmi.SetBatch{}
 				gnmi.BatchUnionReplaceCLI(sb, cliOrigin, sharedBaseline)
 				gnmi.BatchUnionReplace(sb, gnmi.OC().Config(), ocConfig)
@@ -998,7 +1001,7 @@ func TestUnionReplace(t *testing.T) {
 
 				t.Log("Move IP from port1 to port2")
 				ocConfig = &oc.Root{}
-				ocConfig.GetOrCreateInterface(intf1Name).Description = ygot.String(descMoveIPMoved)
+				configureOCInterface(t, ocConfig, dut, intf1Name, descMoveIPMoved, 0, "", 0)
 				configureOCInterface(t, ocConfig, dut, intf2Name, descMoveHasIPNow, 0, port1IPv4, ipv4PrefixLen)
 				sb2 := &gnmi.SetBatch{}
 				gnmi.BatchUnionReplaceCLI(sb2, cliOrigin, sharedBaseline)
@@ -1067,7 +1070,19 @@ func TestUnionReplace(t *testing.T) {
 				t.Logf("Configuring DUT port %q to mismatched port-speed %q using gNMI union_replace.", dp1.Name(), targetSpeed)
 				// get the cli config from DUT and add it to the SetBatch.
 				clicfg1 := cliConfig(t, dut)
-				gnmi.BatchUnionReplaceCLI(sb, cliOrigin, clicfg1)
+				// For Juniper, avoid setting port-speed via OC as the native translation
+				// may reject the translated native `speed` statement. Instead, append
+				// a CLI interface stanza that sets the mismatched speed so the union_replace
+				// applies the CLI change directly.
+				if dut.Vendor() == ondatra.JUNIPER {
+					// Use the physical interface name (strip any unit suffix) so the
+					// `speed` statement is applied at the correct level (e.g. et-0/0/9).
+					physName := strings.SplitN(dp1.Name(), ":", 2)[0]
+					cliDelta := cliInterfaceConfig(t, dut, cliInterfaceConfigOpts{Name: physName, Speed: "10g"})
+					gnmi.BatchUnionReplaceCLI(sb, cliOrigin, clicfg1+"\n"+cliDelta)
+				} else {
+					gnmi.BatchUnionReplaceCLI(sb, cliOrigin, clicfg1)
+				}
 				/*
 				   These Arista EOS CLI commands would allow EOS to accept the port speed mismatch but are not
 				   included as they are not accepted as a deviation.
@@ -1077,7 +1092,11 @@ func TestUnionReplace(t *testing.T) {
 
 				// add configuration of the OC interface to the SetBatch
 				configOCInterface(t, sb, dut)
-				gnmi.BatchUnionReplace(sb, gnmi.OC().Interface(dp1.Name()).Ethernet().PortSpeed().Config(), targetSpeed)
+				// Set OC port-speed for non-Juniper devices. Juniper devices will receive
+				// the speed via CLI above to avoid translator syntax errors.
+				if dut.Vendor() != ondatra.JUNIPER {
+					gnmi.BatchUnionReplace(sb, gnmi.OC().Interface(dp1.Name()).Ethernet().PortSpeed().Config(), targetSpeed)
+				}
 				gnmi.BatchUnionReplace(sb, gnmi.OC().Interface(dp1.Name()).Ethernet().DuplexMode().Config(), oc.Ethernet_DuplexMode_FULL)
 				t.Logf("Generated BatchUnionReplace: %#v\n", sb.String())
 
