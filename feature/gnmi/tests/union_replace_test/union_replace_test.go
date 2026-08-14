@@ -1181,7 +1181,7 @@ func TestUnionReplace(t *testing.T) {
 				case ondatra.CISCO:
 					clicfg1 += fmt.Sprintf("interface %s\nspeed 10000\n", dp1.Name())
 				case ondatra.JUNIPER:
-					clicfg1 += fmt.Sprintf("set interfaces %s speed 10g\n", dp1.Name())
+					clicfg1 += fmt.Sprintf("interfaces {\n  %s {\n    speed 10g;\n  }\n}\n", dp1.Name())
 				default:
 					return fmt.Errorf("unsupported vendor: %v", dut.Vendor())
 				}
@@ -1286,6 +1286,8 @@ func TestUnionReplace(t *testing.T) {
 					switch dut.Vendor() {
 					case ondatra.ARISTA:
 						badCLI = fmt.Sprintf("interface %s\n  mtu %d\n", nonExistentIntf, badIntfMTU)
+					case ondatra.JUNIPER:
+						badCLI = fmt.Sprintf("interfaces {\n  %s {\n    mtu %d;\n  }\n}\n", nonExistentIntf, badIntfMTU)
 					default:
 						t.Fatalf("CLI invalid interface test not implemented for vendor %v", dut.Vendor())
 					}
