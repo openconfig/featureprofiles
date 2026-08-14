@@ -593,8 +593,13 @@ func getPeerGroup(pgn string, dut *ondatra.DUTDevice, afiType []oc.E_BgpTypes_AF
 		afisafi := pg.GetOrCreateAfiSafi(afi)
 		afisafi.Enabled = ygot.Bool(true)
 		rpl := afisafi.GetOrCreateApplyPolicy()
-		rpl.SetExportPolicy([]string{RPLPermitAll})
-		rpl.SetImportPolicy([]string{RPLPermitAll})
+		if dut.Vendor() == ondatra.JUNIPER {
+			rpl.DefaultExportPolicy = oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE
+			rpl.DefaultImportPolicy = oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE
+		} else {
+			rpl.SetExportPolicy([]string{RPLPermitAll})
+			rpl.SetImportPolicy([]string{RPLPermitAll})
+		}
 	}
 	return pg
 }

@@ -178,13 +178,19 @@ func configureDUT(t *testing.T, bs *cfgplugins.BGPSession) *cfgplugins.BGPSessio
 	if !deviations.RouteReflectorClientUnsupported(bs.DUT) {
 		routeReflector.RouteReflectorClient = ygot.Bool(true)
 	}
-	// routeReflector.RouteReflectorClusterId = oc.UnionString(dutLoopback.IPv4)
+	routeReflector.RouteReflectorClusterId = oc.UnionString(dutLoopback.IPv4)
 
 	ateIBGPN2IPv4AF := ateIBGPN2IPv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 	ateIBGPN2IPv4AF.SetEnabled(true)
 	ateIBGPN2IPv4AFPolicy := ateIBGPN2IPv4AF.GetOrCreateApplyPolicy()
-	ateIBGPN2IPv4AFPolicy.SetImportPolicy([]string{cfgplugins.RPLPermitAll})
-	ateIBGPN2IPv4AFPolicy.SetExportPolicy([]string{cfgplugins.RPLPermitAll})
+
+	if bs.DUT.Vendor() == ondatra.JUNIPER {
+		ateIBGPN2IPv4AFPolicy.DefaultExportPolicy = oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE
+		ateIBGPN2IPv4AFPolicy.DefaultImportPolicy = oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE
+	} else {
+		ateIBGPN2IPv4AFPolicy.SetImportPolicy([]string{cfgplugins.RPLPermitAll})
+		ateIBGPN2IPv4AFPolicy.SetExportPolicy([]string{cfgplugins.RPLPermitAll})
+	}
 
 	ateIBGPN2IPv6 := bgp.GetOrCreateNeighbor(otgIsisPort2LoopV6)
 	ateIBGPN2IPv6.PeerGroup = ygot.String(cfgplugins.BGPPeerGroup1)
@@ -196,13 +202,18 @@ func configureDUT(t *testing.T, bs *cfgplugins.BGPSession) *cfgplugins.BGPSessio
 	if !deviations.RouteReflectorClientUnsupported(bs.DUT) {
 		routeReflector.RouteReflectorClient = ygot.Bool(true)
 	}
-	// routeReflector.RouteReflectorClusterId = oc.UnionString(dutLoopback.IPv4)
+	routeReflector.RouteReflectorClusterId = oc.UnionString(dutLoopback.IPv4)
 
 	ateIBGPN2IPv6AF := ateIBGPN2IPv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 	ateIBGPN2IPv6AF.SetEnabled(true)
 	ateIBGPN2IPv6AFPolicy := ateIBGPN2IPv6AF.GetOrCreateApplyPolicy()
-	ateIBGPN2IPv6AFPolicy.SetImportPolicy([]string{cfgplugins.RPLPermitAll})
-	ateIBGPN2IPv6AFPolicy.SetExportPolicy([]string{cfgplugins.RPLPermitAll})
+	if bs.DUT.Vendor() == ondatra.JUNIPER {
+		ateIBGPN2IPv6AFPolicy.DefaultExportPolicy = oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE
+		ateIBGPN2IPv6AFPolicy.DefaultImportPolicy = oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE
+	} else {
+		ateIBGPN2IPv6AFPolicy.SetImportPolicy([]string{cfgplugins.RPLPermitAll})
+		ateIBGPN2IPv6AFPolicy.SetExportPolicy([]string{cfgplugins.RPLPermitAll})
+	}
 
 	// dutPort3 -> atePort3 peer (ibgp session)
 	ateIBGPN3IPv4 := bgp.GetOrCreateNeighbor(otgIsisPort3LoopV4)
@@ -215,13 +226,19 @@ func configureDUT(t *testing.T, bs *cfgplugins.BGPSession) *cfgplugins.BGPSessio
 	if !deviations.RouteReflectorClientUnsupported(bs.DUT) {
 		routeReflector.RouteReflectorClient = ygot.Bool(true)
 	}
-	// routeReflector.RouteReflectorClusterId = oc.UnionString(dutLoopback.IPv4)
+	routeReflector.RouteReflectorClusterId = oc.UnionString(dutLoopback.IPv4)
 
 	ateIBGPN3IPv4AF := ateIBGPN3IPv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 	ateIBGPN3IPv4AF.SetEnabled(true)
 	ateIBGPN3IPv4AFPolicy := ateIBGPN3IPv4AF.GetOrCreateApplyPolicy()
-	ateIBGPN3IPv4AFPolicy.SetImportPolicy([]string{cfgplugins.RPLPermitAll})
-	ateIBGPN3IPv4AFPolicy.SetExportPolicy([]string{cfgplugins.RPLPermitAll})
+
+	if bs.DUT.Vendor() == ondatra.JUNIPER {
+		ateIBGPN3IPv4AFPolicy.DefaultExportPolicy = oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE
+		ateIBGPN3IPv4AFPolicy.DefaultImportPolicy = oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE
+	} else {
+		ateIBGPN3IPv4AFPolicy.SetImportPolicy([]string{cfgplugins.RPLPermitAll})
+		ateIBGPN3IPv4AFPolicy.SetExportPolicy([]string{cfgplugins.RPLPermitAll})
+	}
 
 	ateIBGPN3IPv6 := bgp.GetOrCreateNeighbor(otgIsisPort3LoopV6)
 	ateIBGPN3IPv6.PeerGroup = ygot.String(cfgplugins.BGPPeerGroup1)
@@ -233,13 +250,19 @@ func configureDUT(t *testing.T, bs *cfgplugins.BGPSession) *cfgplugins.BGPSessio
 	if !deviations.RouteReflectorClientUnsupported(bs.DUT) {
 		routeReflector.RouteReflectorClient = ygot.Bool(true)
 	}
-	// routeReflector.RouteReflectorClusterId = oc.UnionString(dutLoopback.IPv4)
+	routeReflector.RouteReflectorClusterId = oc.UnionString(dutLoopback.IPv4)
 
 	ateIBGPN3IPv6AF := ateIBGPN3IPv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 	ateIBGPN3IPv6AF.SetEnabled(true)
 	ateIBGPN3IPv6AFPolicy := ateIBGPN3IPv6AF.GetOrCreateApplyPolicy()
-	ateIBGPN3IPv6AFPolicy.SetImportPolicy([]string{cfgplugins.RPLPermitAll})
-	ateIBGPN3IPv6AFPolicy.SetExportPolicy([]string{cfgplugins.RPLPermitAll})
+
+	if bs.DUT.Vendor() == ondatra.JUNIPER {
+		ateIBGPN3IPv6AFPolicy.DefaultExportPolicy = oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE
+		ateIBGPN3IPv6AFPolicy.DefaultImportPolicy = oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE
+	} else {
+		ateIBGPN3IPv6AFPolicy.SetImportPolicy([]string{cfgplugins.RPLPermitAll})
+		ateIBGPN3IPv6AFPolicy.SetExportPolicy([]string{cfgplugins.RPLPermitAll})
+	}
 
 	return bs
 }
