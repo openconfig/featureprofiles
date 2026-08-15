@@ -114,14 +114,13 @@ var portSpeed = map[ondatra.Speed]oc.E_IfEthernet_ETHERNET_SPEED{
 func configOCInterface(t *testing.T, sb *gnmi.SetBatch, dut *ondatra.DUTDevice) {
 	t.Helper()
 	dp1 := dut.Port(t, "port1")
-	i := dutIntf.NewOCInterface(dut.Port(t, "port1").Name(), dut)
+	root := &oc.Root{}
+	i := dutIntf.NewOCInterface(dp1.Name(), dut)
 	if deviations.ExplicitPortSpeed(dut) {
 		i.GetOrCreateEthernet().SetPortSpeed(fptest.GetIfSpeed(t, dp1))
 	}
-	inf := gnmi.OC().Interface(dp1.Name())
-	// TODO: add handling for ExplicitPortSpeed deviation and ExplicitInterfaceInDefaultVRF deviation
-
-	gnmi.BatchUnionReplace(sb, inf.Config(), i)
+	root.AppendInterface(i)
+	gnmi.BatchUnionReplace(sb, gnmi.OC().Config(), root)
 }
 
 func awaitStateEq[T comparable](t *testing.T, dut *ondatra.DUTDevice, path ygnmi.SingletonQuery[T], want T, timeout time.Duration) (T, bool) {
@@ -1438,6 +1437,8 @@ func TestUnionReplace(t *testing.T) {
 					switch dut.Vendor() {
 					case ondatra.ARISTA:
 						bgpCLI = fmt.Sprintf("router bgp %d\n", bgpASCLI)
+					case ondatra.JUNIPER:
+						bgpCLI = fmt.Sprintf("routing-options {\n  autonomous-system %d;\n}\n", bgpASCLI)
 					default:
 						t.Fatalf("BGP overlap test not implemented for vendor %v", dut.Vendor())
 					}
@@ -1497,6 +1498,8 @@ func TestUnionReplace(t *testing.T) {
 					switch dut.Vendor() {
 					case ondatra.ARISTA:
 						rpCLI = fmt.Sprintf("route-map %s permit 10\n", policyName)
+					case ondatra.JUNIPER:
+						rpCLI = fmt.Sprintf("policy-options {\n  policy-statement %s {\n    then accept;\n  }\n}\n", policyName)
 					default:
 						t.Fatalf("Routing-policy overlap test not implemented for vendor %v", dut.Vendor())
 					}
