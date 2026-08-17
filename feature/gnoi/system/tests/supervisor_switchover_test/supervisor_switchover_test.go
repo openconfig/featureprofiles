@@ -330,10 +330,10 @@ func testRecoveryValidation(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.A
 	t.Log("Validate management plane recovery by writing and reading interface description via gNMI.")
 	origDesc := "LACP Port-Channel bundle for Supervisor Switchover test"
 	testDesc := fmt.Sprintf("Updated %s description post-switchover", lagName)
-	gnmi.Update(t, dut, gnmi.OC().Interface(lagName).Description().Config(), testDesc)
 	t.Cleanup(func() {
 		gnmi.Update(t, dut, gnmi.OC().Interface(lagName).Description().Config(), origDesc)
 	})
+	gnmi.Update(t, dut, gnmi.OC().Interface(lagName).Description().Config(), testDesc)
 	if got, want := gnmi.Get(t, dut, gnmi.OC().Interface(lagName).Description().State()), testDesc; got != want {
 		t.Errorf("Management plane recovery validation failed: got description %q, want %q", got, want)
 	}
