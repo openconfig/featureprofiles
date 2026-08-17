@@ -121,6 +121,7 @@ func TestQosEcnConfigTests(t *testing.T) {
 	}
 }
 
+// testDP131EqualThreshold implements DP-1.3.1 - 80KB min-threshold equal max-threshold
 func testDP131EqualThreshold(t *testing.T, q *oc.Qos) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port2")
@@ -169,15 +170,13 @@ func testDP131EqualThreshold(t *testing.T, q *oc.Qos) {
 	if _, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchReq); err != nil {
 		t.Logf("SwitchControlProcessor response err (can be expected during switchover or unsupported): %v", err)
 	}
-	deadline := time.Now().Add(5 * time.Minute)
-	for {
-		if time.Now().After(deadline) {
-			t.Fatal("Timeout waiting for DUT to become reachable after switchover")
-		}
-		if val := gnmi.Lookup(t, dut, gnmi.OC().System().Hostname().State()); val.IsPresent() {
-			break
-		}
-		time.Sleep(5 * time.Second)
+	// Wait for the device to become reachable and configuration to persist after switchover.
+	t.Log("Waiting for device to be reachable and configuration to persist after switchover")
+	wredUniform := gnmi.OC().Qos().QueueManagementProfile(profile.Name).Wred().Uniform()
+	if !deviations.QosGetStatePathUnsupported(dut) {
+		gnmi.Await(t, dut, wredUniform.EnableEcn().State(), 10*time.Minute, profile.EnableEcn)
+	} else {
+		gnmi.Await(t, dut, wredUniform.EnableEcn().Config(), 10*time.Minute, profile.EnableEcn)
 	}
 
 	// Step 6: Once new supervisor is active, repeat gNMI Get checks to verify configuration persisted.
@@ -185,6 +184,7 @@ func testDP131EqualThreshold(t *testing.T, q *oc.Qos) {
 	cfgplugins.ValidateQueueManagementProfile(t, dut, profile)
 }
 
+// testDP132MBThreshold implements DP-1.3.2 - Threshold in MB, min-threshold not-equal max-threshold
 func testDP132MBThreshold(t *testing.T, q *oc.Qos) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port2")
@@ -227,6 +227,7 @@ func testDP132MBThreshold(t *testing.T, q *oc.Qos) {
 	}
 }
 
+// testDP133PercentThreshold implements DP-1.3.3 - Threshold in percentage, min-threshold not-equal max-threshold
 func testDP133PercentThreshold(t *testing.T, q *oc.Qos) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port2")
@@ -269,6 +270,7 @@ func testDP133PercentThreshold(t *testing.T, q *oc.Qos) {
 	}
 }
 
+// testDP134NegativeTestCases implements DP-1.3.4 - Negative Test Cases
 func testDP134NegativeTestCases(t *testing.T, q *oc.Qos) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port2")
@@ -328,6 +330,7 @@ func testDP134NegativeTestCases(t *testing.T, q *oc.Qos) {
 	}
 }
 
+// testDP135TeardownAndCleanup implements DP-1.3.5 - Teardown and Cleanup Verification
 func testDP135TeardownAndCleanup(t *testing.T, q *oc.Qos) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port2")
