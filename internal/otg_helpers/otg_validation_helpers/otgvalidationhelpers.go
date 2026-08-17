@@ -84,6 +84,7 @@ func (v *OTGValidation) ValidateLossOnFlows(t *testing.T, ate *ondatra.ATEDevice
 		t.Fatalf("Get(out packets for flow %q): got %v, want nonzero", v.Flow.Name, outPkts)
 	}
 	inPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v.Flow.Name).Counters().InPkts().State())
+	t.Logf("Flow %q, outPkts %d, inPkts %d", v.Flow.Name, outPkts, inPkts)
 	lossPct := 100 * float32(outPkts-inPkts) / float32(outPkts)
 	if lossPct > v.Flow.TolerancePct {
 		return fmt.Errorf("Get(traffic loss for flow %q): got %v percent, want < %v percent", v.Flow.Name, lossPct, v.Flow.TolerancePct)
@@ -171,6 +172,24 @@ func (v *OTGValidation) ValidateECMPonLAG(t *testing.T, ate *ondatra.ATEDevice) 
 	}
 	if got := (math.Abs(float64(expectedPkts)-float64(p2Pkts)) * 100) / float64(expectedPkts); got > tolerance {
 		return fmt.Errorf("port 2 packet count out of expected range: got %d, expected ~%d ±%f", p2Pkts, expectedPkts, tolerance)
+	}
+
+	return nil
+}
+
+func (v *OTGValidation) ValidateLoadBalanceOnLAG(t *testing.T, ate *ondatra.ATEDevice) error {
+	totalPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v.Flow.Name).Counters().InPkts().State())
+	var portPackets []uint64
+	for _, port := range v.Interface.Ports {
+		portPackets = append(portPackets, gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(port).Counters().InFrames().State()))
+	}
+
+	expectedPkts := totalPkts / uint64(len(v.Interface.Ports))
+	tolerance := 2
+	for i, pPkts := range portPackets {
+		if got := (math.Abs(float64(expectedPkts)-float64(pPkts)) * 100) / float64(expectedPkts); got > float64(tolerance) {
+			return fmt.Errorf("port %d packet count out of expected range: got %d, expected ~%d ±%d", i+1, pPkts, expectedPkts, tolerance)
+		}
 	}
 
 	return nil

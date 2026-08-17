@@ -1515,3 +1515,16 @@ func ConfigureAnpfHardwareTcam(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Fatalf("Unsupported vendor: %v", dut.Vendor())
 	}
 }
+
+// ClearNeighbors clears the dynamic ARP and IPv6 neighbor cache entries on the DUT.
+// This is an operational action rather than config, so it is only implemented via
+// vendor CLI (no OpenConfig/gNOI equivalent is defined for clearing neighbor caches).
+func ClearNeighbors(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		helpers.GnmiCLIConfig(t, dut, "clear arp-cache\nclear ipv6 neighbors\n")
+	default:
+		t.Logf("ClearNeighbors: no CLI mapping known for vendor %v, skipping", dut.Vendor())
+	}
+}

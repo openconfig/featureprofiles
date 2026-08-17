@@ -267,7 +267,7 @@ ip decap-group gre-decap
 !
 ip decap-group type udp destination port 6635 payload mpls
 !
-ip decap-group gre-decap
+ip decap-group gue-decap
   tunnel type udp
   tunnel decap-ip 11.0.0.0/8
   tunnel overlay mpls qos map mpls-traffic-class to traffic-class
@@ -832,6 +832,23 @@ func DecapPolicyRulesandActionsGue(t *testing.T, pf *oc.NetworkInstance_PolicyFo
 	rule10.GetOrCreateAction().DecapsulateGue = ygot.Bool(true)
 }
 
+func DecapPolicyRulesAndActionsGueIPv6Outer(t *testing.T, pf *oc.NetworkInstance_PolicyForwarding, params OcPolicyForwardingParams) {
+	t.Helper()
+
+	policy := pf.GetOrCreatePolicy("gue-v6-decap-policy")
+	var ruleSeq uint32 = 10
+	var protocolUDP uint8 = 17
+
+	rule10 := policy.GetOrCreateRule(ruleSeq)
+	rule10.GetOrCreateIpv6().DestinationAddress = ygot.String(params.TunnelIP)
+	rule10.GetOrCreateIpv6().Protocol = oc.UnionUint8(protocolUDP)
+	rule10.GetOrCreateTransport().DestinationPort = oc.UnionUint16(uint16(params.GUEPort))
+
+	action := rule10.GetOrCreateAction()
+	action.DecapsulateGue = ygot.Bool(true)
+	action.DecapNetworkInstance = ygot.String(params.NetworkInstanceName)
+}
+
 // ApplyPolicyToInterfaceOC configures the policy-forwarding interfaces section to apply the specified
 // policy to the given interface ID.
 func ApplyPolicyToInterfaceOC(t *testing.T, pf *oc.NetworkInstance_PolicyForwarding, interfaceID string, appliedPolicyName string) {
@@ -885,6 +902,21 @@ func DecapGroupConfigGue(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 	}
 }
 
+// DecapGroupConfigGueIPv6Outer configures the interface decap-group for MPLSoGUE traffic
+// carrying an IPv6 outer header (PF-1.19.v6).
+func DecapGroupConfigGueIPv6Outer(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, ocPFParams OcPolicyForwardingParams) {
+	if deviations.GueGreDecapUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			aristaGueDecapCLIConfig(t, dut, ocPFParams)
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'decap-group config'", dut.Vendor())
+		}
+	} else {
+		DecapPolicyRulesAndActionsGueIPv6Outer(t, pf, ocPFParams)
+	}
+}
+
 // aristaGueDecapCLIConfig configures GUEDEcapConfig for Arista
 func aristaGueDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
 
@@ -899,8 +931,11 @@ func aristaGueDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPoli
 							ip decap-group %s
 							tunnel type UDP
 							tunnel decap-ip %s
-							tunnel decap-interface %s
-							`, params.GUEPort, decapProto, params.IPType, params.GUEPort, params.AppliedPolicyName, params.TunnelIP, params.InterfaceID)
+							`, params.GUEPort, decapProto, decapProto, params.GUEPort, params.AppliedPolicyName, params.TunnelIP)
+	if params.InterfaceID != "" {
+		cliConfig += fmt.Sprintf(`tunnel decap-interface %s
+								`, params.InterfaceID)
+	}
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
 }
 
