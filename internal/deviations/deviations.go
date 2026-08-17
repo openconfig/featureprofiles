@@ -139,12 +139,6 @@ func AggregateAtomicUpdate(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAggregateAtomicUpdate()
 }
 
-// NextHopGroupStaticRouteOCUnsupported returns if the device does not support OC for next-hop-group static routes.
-// TODO: Track removal of this deviation at https://issuetracker.google.com/issues/540976446
-func NextHopGroupStaticRouteOCUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetNextHopGroupStaticRouteOcUnsupported()
-}
-
 // DefaultNetworkInstance returns the name used for the default network instance for VRF.
 func DefaultNetworkInstance(dut *ondatra.DUTDevice) string {
 	if dni := lookupDUTDeviations(dut).GetDefaultNetworkInstance(); dni != "" {
