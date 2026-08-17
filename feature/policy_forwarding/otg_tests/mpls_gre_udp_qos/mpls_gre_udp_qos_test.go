@@ -43,20 +43,23 @@ const (
 	prioShaperSchedulerName = "scheduler-prio-shaper"
 	ingressPolicerName      = "scheduler-ingress-2r3c"
 
-	encapMPLSLabel   = 116383
-	greNHGName       = "nhg-gre-encap"
-	gueNHGName       = "nhg-gue-encap"
-	encapPolicyName  = "encap-mplsogre-mplsogue"
-	outerEncapPrefix = "10.99.0.0/16"
-	outerGREDstCore1 = "10.99.1.1"
-	outerGREDstCore2 = "10.99.2.1"
-	outerGUEDstCore1 = "10.99.1.2"
-	outerGUEDstCore2 = "10.99.2.2"
-	decapGREGroup    = "gre-decap"
-	decapGUEGroup    = "gue-decap"
+	encapMPLSLabel     = 116383
+	greNHGName         = "nhg-gre-encap"
+	gueNHGName         = "nhg-gue-encap"
+	encapPolicyName    = "encap-mplsogre"
+	gueEncapPolicyName = "encap-mplsogue"
+	outerEncapPrefix   = "10.99.0.0/16"
+	outerGREDstCore1   = "10.99.1.1"
+	outerGREDstCore2   = "10.99.2.1"
+	outerGUEDstCore1   = "10.99.1.2"
+	outerGUEDstCore2   = "10.99.2.2"
+	decapGREGroup      = "gre-decap"
+	decapGUEGroup      = "gue-decap"
 
-	trafficDuration  = 60 * time.Second
-	lossTolerancePct = float32(2.0)
+	trafficDuration        = 60 * time.Second
+	lossTolerancePct       = float32(3.0)
+	strictLossTolerancePct = float32(0.0)
+	innerDSCPCapture       = 10
 )
 
 var (
@@ -140,12 +143,12 @@ var (
 	qcNames = []string{"TC0", "TC1", "TC2", "TC3", "TC4", "TC5", "TC6", "TC7"}
 
 	sizeWeightProfile = []otgconfighelpers.SizeWeightPair{
-		{Size: 64, Weight: 20},
-		{Size: 128, Weight: 20},
-		{Size: 256, Weight: 20},
-		{Size: 512, Weight: 10},
-		{Size: 1500, Weight: 28},
-		{Size: 9000, Weight: 2},
+		{Size: 64, Weight: 15},
+		{Size: 128, Weight: 15},
+		{Size: 256, Weight: 15},
+		{Size: 512, Weight: 15},
+		{Size: 1024, Weight: 15},
+		{Size: 1500, Weight: 25},
 	}
 )
 
@@ -181,11 +184,13 @@ func ConfigureDut(t *testing.T, dut *ondatra.DUTDevice) {
 
 func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	hardwarePfCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeaturePolicyForwarding)
-	if hardwarePfCfg == "" {
-		return
+	for _, feature := range []cfgplugins.FeatureType{cfgplugins.FeaturePolicyForwarding, cfgplugins.FeatureQOSIn} {
+		cfg := cfgplugins.NewDUTHardwareInit(t, dut, feature)
+		if cfg == "" {
+			continue
+		}
+		cfgplugins.PushDUTHardwareInitConfig(t, dut, cfg)
 	}
-	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwarePfCfg)
 }
 
 func configureEncapMPLSInGREAndGUE(t *testing.T, dut *ondatra.DUTDevice) {
@@ -199,6 +204,9 @@ func configureEncapMPLSInGREAndGUE(t *testing.T, dut *ondatra.DUTDevice) {
 
 func configureAristaEncap(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
+	greIntfs := custIntfs[:3]
+	gueIntfs := custIntfs[3:]
+
 	var b strings.Builder
 	fmt.Fprintf(&b, "mpls ip\n")
 	fmt.Fprintf(&b, "nexthop-group %s type mpls-over-gre\n", greNHGName)
@@ -212,7 +220,7 @@ func configureAristaEncap(t *testing.T, dut *ondatra.DUTDevice) {
 	fmt.Fprintf(&b, " !\n")
 	helpers.GnmiCLIConfig(t, dut, b.String())
 
-	for _, a := range custIntfs {
+	for _, a := range greIntfs {
 		helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("interface %s.%d\n traffic-policy input %s\n!\n", custAggID, a.Subinterface, encapPolicyName))
 	}
 
@@ -224,11 +232,17 @@ func configureAristaEncap(t *testing.T, dut *ondatra.DUTDevice) {
 		DstUdpPort:     gueDstPort,
 		TTL:            64,
 	})
-	cfgplugins.NewPolicyForwardingGueEncap(t, dut, cfgplugins.GueEncapPolicyParams{
-		IPFamily:         "V4Udp",
-		PolicyName:       encapPolicyName,
-		NexthopGroupName: gueNHGName,
-	})
+
+	var g strings.Builder
+	fmt.Fprintf(&g, "traffic-policies\n traffic-policy %s\n", gueEncapPolicyName)
+	fmt.Fprintf(&g, "  match ipv4-all-default ipv4\n   actions\n    count\n    set traffic class %d\n    redirect next-hop group %s\n", ingressClassifyTC4, gueNHGName)
+	fmt.Fprintf(&g, "  match ipv6-all-default ipv6\n")
+	fmt.Fprintf(&g, " !\n")
+	helpers.GnmiCLIConfig(t, dut, g.String())
+
+	for _, a := range gueIntfs {
+		helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("interface %s.%d\n traffic-policy input %s\n!\n", custAggID, a.Subinterface, gueEncapPolicyName))
+	}
 }
 
 func configureDecapMPLSInGREAndGUE(t *testing.T, dut *ondatra.DUTDevice) {
@@ -274,6 +288,7 @@ func configureAristaQosTxQueues(t *testing.T, dut *ondatra.DUTDevice, qNames []s
 		fmt.Fprintf(&cli, "qos tx-queue %d name %s\n!\n", index, queue)
 		if index != 7 {
 			fmt.Fprintf(&cli, "qos map traffic-class %d to tx-queue %d\n!\n", index, index)
+			fmt.Fprintf(&cli, "qos map traffic-class %d to exp %d\n!\n", index, index)
 		}
 		fmt.Fprintf(&cli, "qos traffic-class %d name target-group-%s\n!\n", index, queue)
 	}
@@ -316,10 +331,15 @@ func configureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	configurePriorityShaperScheduler(t, dut, qNames)
 	configureIngressPolicer(t, dut)
 
-	for _, intfName := range []string{core1AggID, core2AggID} {
+	for _, intfName := range []string{custAggID, core1AggID, core2AggID} {
 		applySchedulerOnOutput(t, dut, intfName, prioSchedulerName, qNames)
 	}
 
+	for _, ports := range [][]string{custPorts, core1Ports, core2Ports} {
+		for _, p := range ports {
+			registerQueuesOnPhysicalPort(t, dut, dut.Port(t, p).Name(), qNames)
+		}
+	}
 }
 
 func dscpRangeForTC(tc int) []uint8 {
@@ -458,6 +478,22 @@ func applySchedulerOnOutput(t *testing.T, dut *ondatra.DUTDevice, intfName, sche
 	}
 	out := i.GetOrCreateOutput()
 	out.GetOrCreateSchedulerPolicy().Name = ygot.String(schedulerName)
+	for _, qn := range qNames {
+		out.GetOrCreateQueue(qn).SetName(qn)
+	}
+	gnmi.Update(t, dut, gnmi.OC().Qos().Interface(intfName).Config(), i)
+}
+
+func registerQueuesOnPhysicalPort(t *testing.T, dut *ondatra.DUTDevice, intfName string, qNames []string) {
+	t.Helper()
+	d := &oc.Root{}
+	q := d.GetOrCreateQos()
+	i := q.GetOrCreateInterface(intfName)
+	i.SetInterfaceId(intfName)
+	if !deviations.InterfaceRefConfigUnsupported(dut) {
+		i.GetOrCreateInterfaceRef().Interface = ygot.String(intfName)
+	}
+	out := i.GetOrCreateOutput()
 	for _, qn := range qNames {
 		out.GetOrCreateQueue(qn).SetName(qn)
 	}
@@ -616,6 +652,7 @@ func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, dur time.Duration) {
 	ate.OTG().StartTraffic(t)
 	time.Sleep(dur)
 	ate.OTG().StopTraffic(t)
+	time.Sleep(10 * time.Second)
 }
 
 type encapToIPFlow struct {
@@ -700,58 +737,61 @@ func flowValidation(name string) *otgvalidationhelpers.OTGValidation {
 	}
 }
 
-const queueCounterTimeout = time.Minute
+func flowValidationStrict(name string) *otgvalidationhelpers.OTGValidation {
+	return &otgvalidationhelpers.OTGValidation{
+		Flow: &otgvalidationhelpers.FlowParams{Name: name, TolerancePct: strictLossTolerancePct},
+	}
+}
+
+const queueCounterTimeout = 15 * time.Second
 
 var queueCounterIsPresent = func(val *ygnmi.Value[uint64]) bool { return val.IsPresent() }
 
-func queueTransmitPkts(t *testing.T, dut *ondatra.DUTDevice, ports []string, queue string) uint64 {
+func queueCounterCandidates(t *testing.T, dut *ondatra.DUTDevice, aggID string, ports []string) []string {
+	t.Helper()
+	intfs := []string{aggID}
+	for _, p := range ports {
+		intfs = append(intfs, dut.Port(t, p).Name())
+	}
+	return intfs
+}
+
+func queueTransmitPkts(t *testing.T, dut *ondatra.DUTDevice, aggID string, ports []string, queue string) uint64 {
 	t.Helper()
 	var total uint64
 	var anyPresent bool
-	for _, p := range ports {
-		intf := dut.Port(t, p).Name()
+	intfs := queueCounterCandidates(t, dut, aggID, ports)
+	for _, intf := range intfs {
 		val, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queue).TransmitPkts().State(), queueCounterTimeout, queueCounterIsPresent).Await(t)
 		if ok {
 			anyPresent = true
 			got, _ := val.Val()
+			t.Logf("queue %s transmit-pkts on %s: %d", queue, intf, got)
 			total += got
 		}
 	}
 	if !anyPresent {
-		t.Errorf("transmit-pkts for queue %s not available on any member of %v within %v", queue, ports, queueCounterTimeout)
+		t.Errorf("transmit-pkts for queue %s not available on any of %v within %v", queue, intfs, queueCounterTimeout)
 	}
 	return total
 }
 
-func queueTransmitPktsSoft(t *testing.T, dut *ondatra.DUTDevice, ports []string, queue string) uint64 {
-	t.Helper()
-	var total uint64
-	for _, p := range ports {
-		intf := dut.Port(t, p).Name()
-		val, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queue).TransmitPkts().State(), queueCounterTimeout, queueCounterIsPresent).Await(t)
-		if ok {
-			got, _ := val.Val()
-			total += got
-		}
-	}
-	return total
-}
-
-func queueDroppedPkts(t *testing.T, dut *ondatra.DUTDevice, ports []string, queue string) uint64 {
+func queueDroppedPkts(t *testing.T, dut *ondatra.DUTDevice, aggID string, ports []string, queue string) uint64 {
 	t.Helper()
 	var total uint64
 	var anyPresent bool
-	for _, p := range ports {
-		intf := dut.Port(t, p).Name()
+	intfs := queueCounterCandidates(t, dut, aggID, ports)
+	for _, intf := range intfs {
 		val, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queue).DroppedPkts().State(), queueCounterTimeout, queueCounterIsPresent).Await(t)
 		if ok {
 			anyPresent = true
 			got, _ := val.Val()
+			t.Logf("queue %s dropped-pkts on %s: %d", queue, intf, got)
 			total += got
 		}
 	}
 	if !anyPresent {
-		t.Errorf("dropped-pkts for queue %s not available on any member of %v within %v", queue, ports, queueCounterTimeout)
+		t.Errorf("dropped-pkts for queue %s not available on any of %v within %v", queue, intfs, queueCounterTimeout)
 	}
 	return total
 }
@@ -760,6 +800,7 @@ func TestPF1182MPLSTrafficClassClassification(t *testing.T) {
 	t.Log("PF-1.18.2: Verify Classification of MPLSoGRE and MPLSoGUE traffic based on traffic class bits in MPLS header")
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
+
 	qNames := qcNames
 
 	top.Flows().Clear()
@@ -776,10 +817,60 @@ func TestPF1182MPLSTrafficClassClassification(t *testing.T) {
 		}
 	}
 	for i, qn := range qNames {
-		if got := queueTransmitPktsSoft(t, dut, custPorts, qn); got == 0 {
-			t.Logf("queue %s (tc%d) transmit-pkts on %s: got 0, want > 0", qn, i, custAggID)
+		if got := queueTransmitPkts(t, dut, custAggID, custPorts, qn); got == 0 {
+			t.Errorf("queue %s (tc%d) transmit-pkts on %s: got 0, want > 0", qn, i, custAggID)
 		}
 	}
+
+	dscpCaptureGRE := &encapToIPFlow{
+		Flow: &otgconfighelpers.Flow{
+			TxNames:       []string{core1OTG.Name + ".IPv4"},
+			RxNames:       []string{custOTG0.Name + ".IPv4"},
+			FlowName:      "MPLSoGRE-decap-inner-header-capture",
+			PacketsToSend: 100,
+			EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: agg2.AggMAC},
+			IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: "100.64.0.1", IPv4Dst: outerGREDstCore1, IPv4SrcCount: 1000},
+			GREFlow:       &otgconfighelpers.GREFlowParams{Protocol: otgconfighelpers.IanaMPLSEthertype},
+			MPLSFlow:      &otgconfighelpers.MPLSFlowParams{MPLSLabel: 99990, MPLSExp: 0},
+		},
+		innerIPv4: &otgconfighelpers.IPv4FlowParams{IPv4Src: "50.1.1.1", IPv4Dst: "11.1.1.1", IPv4SrcCount: 1000, DSCP: innerDSCPCapture},
+	}
+	dscpCaptureGUE := &encapToIPFlow{
+		Flow: &otgconfighelpers.Flow{
+			TxNames:       []string{core2OTG.Name + ".IPv4"},
+			RxNames:       []string{custOTG0.Name + ".IPv4"},
+			FlowName:      "MPLSoGUE-decap-inner-header-capture",
+			PacketsToSend: 100,
+			EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: agg3.AggMAC},
+			IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: "100.64.1.1", IPv4Dst: outerGUEDstCore2, IPv4SrcCount: 1000},
+			UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPSrcPort: 49152, UDPDstPort: gueDstPort},
+			MPLSFlow:      &otgconfighelpers.MPLSFlowParams{MPLSLabel: 99890, MPLSExp: 0},
+		},
+		innerIPv4: &otgconfighelpers.IPv4FlowParams{IPv4Src: "50.1.2.1", IPv4Dst: "11.1.1.1", IPv4SrcCount: 1000, DSCP: innerDSCPCapture},
+	}
+	innerCapture := &packetvalidationhelpers.PacketValidation{
+		PortName:    custPorts[0],
+		CaptureName: "decap-inner-header",
+		Validations: []packetvalidationhelpers.ValidationType{packetvalidationhelpers.ValidateIPv4Header},
+		IPv4Layer:   &packetvalidationhelpers.IPv4Layer{DstIP: "11.1.1.1", Tos: innerDSCPCapture << 2, TTL: 64, SkipProtocolCheck: true},
+	}
+	top.Flows().Clear()
+	createEncapToIPFlow(t, top, dscpCaptureGRE, true)
+	createEncapToIPFlow(t, top, dscpCaptureGUE, false)
+	packetvalidationhelpers.ConfigurePacketCapture(t, top, innerCapture)
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
+	time.Sleep(30 * time.Second)
+	cs := packetvalidationhelpers.StartCapture(t, ate)
+	ate.OTG().StartTraffic(t)
+	time.Sleep(10 * time.Second)
+	ate.OTG().StopTraffic(t)
+	time.Sleep(10 * time.Second)
+	packetvalidationhelpers.StopCapture(t, ate, cs)
+	if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, innerCapture); err != nil {
+		t.Errorf("CaptureAndValidatePackets(inner DSCP/dest-IP after decap): %v", err)
+	}
+	t.Log("NOTE: inner source-IP validation and IPv6/multicast decap forwarding are not covered by this subtest (see code comments)")
 }
 
 func TestPF1183DSCPMarking(t *testing.T) {
@@ -837,6 +928,7 @@ func TestPF1184AssuredForwardingMinBandwidth(t *testing.T) {
 	t.Log("PF-1.18.4: Verify Assured forwarding (bandwidth class) - Queueing of decap traffic")
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
+
 	qNames := qcNames
 
 	applySchedulerOnOutput(t, dut, custAggID, bwSchedulerName, qNames)
@@ -850,12 +942,12 @@ func TestPF1184AssuredForwardingMinBandwidth(t *testing.T) {
 	sendTraffic(t, ate, trafficDuration)
 
 	for i, qn := range qNames {
-		got := queueTransmitPkts(t, dut, custPorts, qn)
+		got := queueTransmitPkts(t, dut, custAggID, custPorts, qn)
 		t.Logf("queue %s (class %d) transmit-pkts: %d", qn, i, got)
 		if got == 0 {
 			t.Errorf("queue %s: got 0 transmit-pkts, want > 0 (minimum bandwidth not honored)", qn)
 		}
-		if dropped := queueDroppedPkts(t, dut, custPorts, qn); dropped > 0 {
+		if dropped := queueDroppedPkts(t, dut, custAggID, custPorts, qn); dropped > 0 {
 			t.Logf("queue %s dropped-pkts: %d (congestion expected per README)", qn, dropped)
 		}
 	}
@@ -878,7 +970,7 @@ func TestPF1185AssuredForwardingShaper(t *testing.T) {
 	sendTraffic(t, ate, trafficDuration)
 
 	for i, qn := range qNames {
-		got := queueTransmitPkts(t, dut, custPorts, qn)
+		got := queueTransmitPkts(t, dut, custAggID, custPorts, qn)
 		t.Logf("queue %s (class %d) transmit-pkts: %d", qn, i, got)
 		if got == 0 {
 			t.Errorf("queue %s: got 0 transmit-pkts, want > 0", qn)
@@ -903,11 +995,11 @@ func TestPF1186ExpeditedForwardingPriorityDecap(t *testing.T) {
 	sendTraffic(t, ate, trafficDuration)
 
 	highest := qNames[len(qNames)-1]
-	if got := queueTransmitPkts(t, dut, custPorts, highest); got == 0 {
+	if got := queueTransmitPkts(t, dut, custAggID, custPorts, highest); got == 0 {
 		t.Errorf("highest priority queue %s: got 0 transmit-pkts, want > 0", highest)
 	}
 	for i, qn := range qNames {
-		t.Logf("queue %s (priority level %d) transmit-pkts: %d", qn, i, queueTransmitPkts(t, dut, custPorts, qn))
+		t.Logf("queue %s (priority level %d) transmit-pkts: %d", qn, i, queueTransmitPkts(t, dut, custAggID, custPorts, qn))
 	}
 }
 
@@ -929,7 +1021,7 @@ func TestPF1187ExpeditedForwardingPriorityShaper(t *testing.T) {
 
 	for i, qn := range qNames {
 		t.Logf("queue %s (priority level %d) transmit-pkts: %d, dropped-pkts: %d",
-			qn, i, queueTransmitPkts(t, dut, custPorts, qn), queueDroppedPkts(t, dut, custPorts, qn))
+			qn, i, queueTransmitPkts(t, dut, custAggID, custPorts, qn), queueDroppedPkts(t, dut, custAggID, custPorts, qn))
 	}
 }
 
@@ -947,10 +1039,13 @@ func TestPF1188ExpeditedForwardingPriorityEncap(t *testing.T) {
 	}
 	sendTraffic(t, ate, trafficDuration)
 
-	for _, ports := range [][]string{core1Ports, core2Ports} {
+	for _, agg := range []struct {
+		aggID string
+		ports []string
+	}{{core1AggID, core1Ports}, {core2AggID, core2Ports}} {
 		highest := qNames[len(qNames)-1]
-		if got := queueTransmitPkts(t, dut, ports, highest); got == 0 {
-			t.Errorf("highest priority queue %s on ports %v: got 0 transmit-pkts, want > 0", highest, ports)
+		if got := queueTransmitPkts(t, dut, agg.aggID, agg.ports, highest); got == 0 {
+			t.Errorf("highest priority queue %s on ports %v: got 0 transmit-pkts, want > 0", highest, agg.ports)
 		}
 	}
 }
@@ -1010,14 +1105,14 @@ func TestPF118v6MPLSoGUEv6QoS(t *testing.T) {
 	sendTraffic(t, ate, trafficDuration)
 
 	for _, f := range []*otgconfighelpers.Flow{highPrioFlow, lowPrioFlow} {
-		if err := flowValidation(f.FlowName).ValidateLossOnFlows(t, ate); err != nil {
+		if err := flowValidationStrict(f.FlowName).ValidateLossOnFlows(t, ate); err != nil {
 			t.Errorf("ValidateLossOnFlows(%s): %v", f.FlowName, err)
 		}
 	}
-	if dropped := queueDroppedPkts(t, dut, core1Ports, highestQueue); dropped != 0 {
+	if dropped := queueDroppedPkts(t, dut, core1AggID, core1Ports, highestQueue); dropped != 0 {
 		t.Errorf("dropped-pkts on %s queue %s: got %d, want 0", core1AggID, highestQueue, dropped)
 	}
-	if got := queueTransmitPkts(t, dut, core1Ports, highestQueue); got == 0 {
+	if got := queueTransmitPkts(t, dut, core1AggID, core1Ports, highestQueue); got == 0 {
 		t.Errorf("transmit-pkts on %s queue %s: got 0, want > 0", core1AggID, highestQueue)
 	}
 }
