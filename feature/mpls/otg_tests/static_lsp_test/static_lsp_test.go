@@ -410,13 +410,13 @@ func runFlows(t *testing.T, ate *ondatra.ATEDevice, flowNames []string) {
 	t.Helper()
 	otgObj := ate.OTG()
 	otgObj.StartTraffic(t)
+	defer otgObj.StopTraffic(t)
 	for _, name := range flowNames {
 		gnmi.Watch(t, otgObj, gnmi.OTG().Flow(name).Counters().OutPkts().State(), time.Minute, func(v *ygnmi.Value[uint64]) bool {
 			pkts, ok := v.Val()
 			return ok && pkts >= uint64(trafficPackets)
 		}).Await(t)
 	}
-	otgObj.StopTraffic(t)
 }
 
 // TestStaticLSP verifies MPLSoGUE decapsulation and static MPLS label to egress next-hop forwarding.
@@ -546,8 +546,8 @@ func TestStaticLSP(t *testing.T) {
 		packetvalidationhelpers.ConfigurePacketCapture(t, top, pv)
 		pushAndResolve(t, ate, top)
 		cs := packetvalidationhelpers.StartCapture(t, ate)
+		defer packetvalidationhelpers.StopCapture(t, ate, cs)
 		runFlows(t, ate, []string{"mplsogue-ipv4"})
-		packetvalidationhelpers.StopCapture(t, ate, cs)
 		otgutils.LogFlowMetrics(t, ate.OTG(), top)
 		if err := v4Val.ValidateLossOnFlows(t, ate); err != nil {
 			t.Errorf("IPv4 decap flow: %v", err)
@@ -613,8 +613,8 @@ func TestStaticLSP(t *testing.T) {
 		t.Cleanup(func() { cfgplugins.RemoveStaticMplsLspPushLabel(t, dut, v6LSPName, p1.Name()) })
 
 		cs := packetvalidationhelpers.StartCapture(t, ate)
+		defer packetvalidationhelpers.StopCapture(t, ate, cs)
 		runFlows(t, ate, []string{"v6-push"})
-		packetvalidationhelpers.StopCapture(t, ate, cs)
 		otgutils.LogFlowMetrics(t, ate.OTG(), top)
 
 		pushVal := &otgvalidationhelpers.OTGValidation{Flow: &otgvalidationhelpers.FlowParams{Name: "v6-push", TolerancePct: tolerance * 100}}
