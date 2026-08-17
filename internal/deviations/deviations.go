@@ -2358,3 +2358,10 @@ func GribiAaaRoleBasedAuthzUnsupported(dut *ondatra.DUTDevice) bool {
 func P4RTAaaRoleBasedAuthzUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetP4RtAaaRoleBasedAuthzUnsupported()
 }
+
+// RoutingPolicyAsPathSetEnableRegexMode returns true if the device needs to separately enable regex
+// matching for as-path set members.
+// Arista: https://issuetracker.google.com/issues/496260572
+func RoutingPolicyAsPathSetEnableRegexMode(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetRoutingPolicyAsPathSetEnableRegexMode()
+}
