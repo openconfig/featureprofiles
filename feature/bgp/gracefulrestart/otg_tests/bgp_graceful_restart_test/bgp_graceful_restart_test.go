@@ -225,6 +225,7 @@ func bgpWithNbr(as uint32, keepaliveTimer uint16, nbrs []*bgpNeighbor, dut *onda
 			nv4.GetOrCreateTimers().KeepaliveInterval = ygot.Uint16(keepaliveTimer)
 			nv4.PeerAs = ygot.Uint32(nbr.as)
 			nv4.Enabled = ygot.Bool(true)
+			nv4.GetOrCreateGracefulRestart()
 			af4 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 			af4.Enabled = ygot.Bool(true)
 			af6 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
@@ -236,6 +237,7 @@ func bgpWithNbr(as uint32, keepaliveTimer uint16, nbrs []*bgpNeighbor, dut *onda
 			nv6.GetOrCreateTimers().KeepaliveInterval = ygot.Uint16(keepaliveTimer)
 			nv6.PeerAs = ygot.Uint32(nbr.as)
 			nv6.Enabled = ygot.Bool(true)
+			nv6.GetOrCreateGracefulRestart()
 			nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 			af6 := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 			af6.Enabled = ygot.Bool(true)
@@ -413,49 +415,8 @@ func configureFlow(t *testing.T, ate *ondatra.ATEDevice, src, dst attrs.Attribut
 
 	ate.OTG().PushConfig(t, config)
 	ate.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, ate.OTG(), config, "IPv4")
 
-}
-
-func verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice) {
-	otg := ate.OTG()
-	c := otg.FetchConfig(t)
-	otgutils.LogFlowMetrics(t, otg, c)
-	for _, f := range c.Flows().Items() {
-		t.Logf("Verifying flow metrics for flow %s\n", f.Name())
-		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(f.Name()).State())
-		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
-		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
-		lostPackets := txPackets - rxPackets
-		if txPackets == 0 {
-			t.Fatalf("Tx packets should be higher than 0 for flow %s", f.Name())
-		}
-		if lossPct := lostPackets * 100 / txPackets; lossPct < 5.0 {
-			t.Logf("Traffic Test Passed! Got %v loss", lossPct)
-		} else {
-			t.Errorf("Traffic Loss Pct for Flow %s: got %f", f.Name(), lossPct)
-		}
-	}
-}
-
-func confirmPacketLoss(t *testing.T, ate *ondatra.ATEDevice) {
-	otg := ate.OTG()
-	c := otg.FetchConfig(t)
-	otgutils.LogFlowMetrics(t, otg, c)
-	for _, f := range c.Flows().Items() {
-		t.Logf("Verifying flow metrics for flow %s\n", f.Name())
-		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(f.Name()).State())
-		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
-		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
-		lostPackets := txPackets - rxPackets
-		if txPackets == 0 {
-			t.Fatalf("Tx packets should be higher than 0 for flow %s", f.Name())
-		}
-		if lossPct := lostPackets * 100 / txPackets; lossPct > 99.0 {
-			t.Logf("Traffic Test Passed! Loss seen as expected: got %v, want 100%% ", lossPct)
-		} else {
-			t.Errorf("Traffic %s is expected to fail: got %f, want 100%% failure", f.Name(), lossPct)
-		}
-	}
 }
 
 func sendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
@@ -601,7 +562,7 @@ func unblockBGPTCP(t *testing.T, iface *oc.Acl_Interface, dutIfName string) {
 	gnmi.Delete(t, dut, aclPath.Config())
 }
 
-func TestBGPPGracefulRestart(t *testing.T) {
+func TestBGPGracefulRestart(t *testing.T) {
 	t.Run("RT-1.4.1 Enable and validate BGP Graceful restart feature", func(t *testing.T) {
 		dut := ondatra.DUT(t, "dut")
 		ate := ondatra.ATE(t, "ate")
@@ -749,12 +710,12 @@ func TestBGPPGracefulRestart(t *testing.T) {
 
 				}
 				t.Logf("Time passed since graceful restart was initiated is %s", time.Since(startTime))
-				waitDuration := grStaleRouteTime*time.Second - time.Since(startTime) - 10*time.Second
+				waitDuration := grStaleRouteTime*time.Second - time.Since(startTime) - 20*time.Second
 				t.Logf("Waiting for %s short of stale route time expiration of %v", waitDuration, grStaleRouteTime)
 				time.Sleep(waitDuration)
 				ate.OTG().StopTraffic(t)
 				t.Run("Verify No Packet Loss for "+mode, func(t *testing.T) {
-					verifyNoPacketLoss(t, ate)
+					otgutils.ExpectedTrafficLoss(t, ate.OTG(), "Ipv4", 0.0, 0.0, 10)
 				})
 				verifyBGPActive(t, mode, dst)
 
@@ -769,7 +730,7 @@ func TestBGPPGracefulRestart(t *testing.T) {
 
 				sendTraffic(t, ate)
 				t.Run("Confirm Packet Loss for "+mode, func(t *testing.T) {
-					confirmPacketLoss(t, ate)
+					otgutils.ExpectedTrafficLoss(t, ate.OTG(), "Ipv4", 99.0, 100.0, 10)
 				})
 			}
 		})
@@ -834,12 +795,12 @@ func TestBGPPGracefulRestart(t *testing.T) {
 			var waitDuration time.Duration
 
 			if time.Since(startTime) < time.Duration(holdTimer)*time.Second {
-				waitDuration = time.Duration(holdTimer)*time.Second - time.Since(startTime) + 10*time.Second
+				waitDuration = time.Duration(holdTimer)*time.Second - time.Since(startTime) + 20*time.Second
 				t.Logf("Waiting %s seconds to ensure the hold timer of %v expired", waitDuration, 3*keepaliveTimer)
 				time.Sleep(waitDuration)
 			}
 			t.Run("Verify No Packet Loss for "+mode, func(t *testing.T) {
-				verifyNoPacketLoss(t, ate)
+				otgutils.ExpectedTrafficLoss(t, ate.OTG(), "Ipv4", 0.0, 0.0, 10)
 			})
 			verifyBGPActive(t, mode, dst)
 
@@ -854,7 +815,7 @@ func TestBGPPGracefulRestart(t *testing.T) {
 
 			sendTraffic(t, ate)
 			t.Run("Confirm Packet Loss for "+mode, func(t *testing.T) {
-				confirmPacketLoss(t, ate)
+				otgutils.ExpectedTrafficLoss(t, ate.OTG(), "Ipv4", 99.0, 100.0, 10)
 			})
 
 			t.Logf("Removing Acl on the dut interface %s to restore BGP", dutBGPIfName)
@@ -960,21 +921,21 @@ func TestBGPPGracefulRestart(t *testing.T) {
 				iFace := blockBGPTCP(t, dst, dutBGPIfName)
 				startTime := time.Now()
 
-				waitDuration := grStaleRouteTime*time.Second - time.Since(startTime) - 10*time.Second
+				waitDuration := grStaleRouteTime*time.Second - time.Since(startTime) - 20*time.Second
 				t.Logf("Waiting for %s just short of stale route time of %v expiration", waitDuration, grStaleRouteTime)
 				time.Sleep(waitDuration)
 				ate.OTG().StopTraffic(t)
 				t.Run("Verify No Packet Loss for "+mode, func(t *testing.T) {
-					verifyNoPacketLoss(t, ate)
+					otgutils.ExpectedTrafficLoss(t, ate.OTG(), "Ipv4", 0.0, 0.0, 10, 10)
 				})
 				t.Logf("Time passed since acl applied is %s", time.Since(startTime))
-				waitDuration = grStaleRouteTime*time.Second - time.Since(startTime) + 10*time.Second
+				waitDuration = grStaleRouteTime*time.Second - time.Since(startTime) + 20*time.Second
 				t.Logf("Waiting another %s seconds to ensure the stale route timer of %v expired", waitDuration, grStaleRouteTime)
 				time.Sleep(waitDuration)
 
 				sendTraffic(t, ate)
 				t.Run("Confirm Packet Loss for "+mode, func(t *testing.T) {
-					confirmPacketLoss(t, ate)
+					otgutils.ExpectedTrafficLoss(t, ate.OTG(), "Ipv4", 99.0, 100.0, 10, 10)
 				})
 				t.Logf("Removing Acl on the dut interface %s to restore BGP", dutBGPIfName)
 				unblockBGPTCP(t, iFace, dutBGPIfName)

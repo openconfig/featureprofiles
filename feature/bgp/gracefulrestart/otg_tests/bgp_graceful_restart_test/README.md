@@ -24,7 +24,7 @@ B -- IBGP --> C[Port2:ATE];
 *   Configure EBGP peering between ATE:Port1 and DUT:Port1
 *   Configure IBGP peering between ATE:Port2 and DUT:Port2
 *   Ensure that the EBGP and IBGP peering are setup for IPv4-Unicast and IPv6-unicast AFI-SAFIs. Total 2xpeer-groups (1 per protocol) with 1 BGP session each.  
-*   Enable `Graceful-Restart` capability at the `Peer-Group` level once and also repeat all steps below by enabling `Graceful-Restart` at `neighbor` level
+*   Enable `Graceful-Restart` capability at the `Global`, `Peer-Group` and at `Neighbor` levels.
 *   Ensure that the `restart-time` and the `stale-routes-time` are configured at the `Global` level. The `stale-routes-time` should be set at a value less than the BGP Holddown timer.
 *   Configure allow route-policy under BGP peer-group address-family
 *   Validate received capabilities at DUT and ATE reflect support for graceful
@@ -181,7 +181,7 @@ Parameters:
 *   /network-instances/network-instance/protocols/protocol/bgp/global/graceful-restart/config/restart-time
 *   /network-instances/network-instance/protocols/protocol/bgp/global/graceful-restart/config/stale-routes-time
 
-BGP conifguration:
+BGP configuration:
 * /network-instances/network-instance/protocols/protocol/bgp/neighbors/peer-group/
   
 * Policy-Definition
