@@ -234,7 +234,7 @@ func verifyZeroTrafficLoss(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Co
 		var lossPct float32
 		_, ok := gnmi.Watch(t, otg, gnmi.OTG().Flow(f.Name()).State(), 1*time.Minute, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
 			flowMetrics, present := val.Val()
-			if !present {
+			if !present || flowMetrics == nil || flowMetrics.GetCounters() == nil {
 				return false
 			}
 			txPkts = flowMetrics.GetCounters().GetOutPkts()
