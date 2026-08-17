@@ -20,21 +20,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/featureprofiles/internal/cfgplugins"
-	"github.com/openconfig/featureprofiles/internal/components"
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/otgutils"
-	"github.com/openconfig/featureprofiles/internal/system"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/testt"
-	"github.com/openconfig/ygnmi/ygnmi"
-	"github.com/openconfig/ygot/ygot"
+	"github.com/golang/ygot/ygot/ygot"
+	"github.com/open_traffic_generator/gosnappi/gosnappi"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins/cfgplugins"
+	"github.com/openconfig/featureprofiles/internal/components/components"
+	"github.com/openconfig/featureprofiles/internal/deviations/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest/fptest"
+	"github.com/openconfig/featureprofiles/internal/otgutils/otgutils"
+	"github.com/openconfig/featureprofiles/internal/system/system"
+	"github.com/openconfig/ondatra/gnmi/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc/oc"
+	"github.com/openconfig/ondatra/ondatra"
+	"github.com/openconfig/ygnmi/ygnmi/ygnmi"
 
-	spb "github.com/openconfig/gnoi/system"
+	spb "github.com/openconfig/gnoi/system/system_go_proto"
 )
 
 const (
@@ -120,10 +119,6 @@ func performSwitchover(t *testing.T, dut *ondatra.DUTDevice, controllerCards []s
 	rpStandbyBefore, rpActiveBefore := components.FindStandbyControllerCard(t, dut, controllerCards)
 	t.Logf("Detected rpStandby before switchover: %v, rpActive before: %v", rpStandbyBefore, rpActiveBefore)
 
-	// Validate SwitchoverReady
-	switchoverReady := gnmi.OC().Component(rpActiveBefore).SwitchoverReady()
-	gnmi.Await(t, dut, switchoverReady.State(), 30*time.Minute, true)
-
 	gnoiClient := dut.RawAPIs().GNOI(t)
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
 	switchoverRequest := &spb.SwitchControlProcessorRequest{
@@ -136,24 +131,8 @@ func performSwitchover(t *testing.T, dut *ondatra.DUTDevice, controllerCards []s
 	}
 	t.Logf("SwitchControlProcessor response: %v", switchoverResponse)
 
-	startSwitchover := time.Now()
-	t.Logf("Waiting for new active RP to boot up...")
-	for {
-		var currentTime string
-		t.Logf("Time elapsed: %.2f seconds", time.Since(startSwitchover).Seconds())
-		time.Sleep(30 * time.Second)
-		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
-		}); errMsg != nil {
-			t.Logf("Keep polling: %s", *errMsg)
-		} else {
-			t.Logf("RP switchover completed successfully. Router datetime: %v", currentTime)
-			break
-		}
-		if got, want := uint64(time.Since(startSwitchover).Seconds()), uint64(maxSwitchoverTime); got >= want {
-			t.Fatalf("Chassis supervisor switchover timed out: got %v, want < %v", got, want)
-		}
-	}
+	// Wait for DUT to reboot / recover from SSO and gNMI to become reachable again.
+	system.AwaitDeviceReachable(t, dut, maxSwitchoverTime*time.Second)
 
 	rpStandbyAfter, rpActiveAfter := components.FindStandbyControllerCard(t, dut, controllerCards)
 	t.Logf("Detected rpStandby after switchover: %v, rpActive after: %v", rpStandbyAfter, rpActiveAfter)
@@ -164,8 +143,16 @@ func performSwitchover(t *testing.T, dut *ondatra.DUTDevice, controllerCards []s
 	return rpActiveAfter, rpStandbyAfter
 }
 
-func runPostSSOVerification(t *testing.T, dut *ondatra.DUTDevice, criticalProcs []string, baselines map[string]*system.ProcessInfo, qosBaselines map[string]uint64, qosPorts []string, qosQueues []string) {
+func runPostSSOVerification(t *testing.T, dut *ondatra.DUTDevice, criticalProcs []string, qosBaselines map[string]uint64, qosPorts []string, qosQueues []string, controllerCards []string) {
 	t.Log("Starting 10 minutes validation post-switchover...")
+	baselines, err := system.GetProcessInfo(t, dut, criticalProcs)
+	if err != nil {
+		t.Fatalf("Failed to query baseline process info post-switchover: %v", err)
+	}
+	for name, pInfo := range baselines {
+		t.Logf("Post-switchover process %s baseline: PID=%d, StartTime=%d, Memory=%d", name, pInfo.Pid, pInfo.StartTime, pInfo.MemoryUsage)
+	}
+
 	for min := 2; min <= 10; min += 2 {
 		time.Sleep(2 * time.Minute)
 		t.Logf("Verifying process and device health at %d minutes mark...", min)
@@ -205,21 +192,16 @@ func runPostSSOVerification(t *testing.T, dut *ondatra.DUTDevice, criticalProcs 
 		// Verify QoS queue drop telemetry does not increase
 		verifyNoQoSDrops(t, dut, qosPorts, qosQueues, qosBaselines)
 	}
-}
 
-//func TestSSOSoftwareStability(t *testing.T) {
-//  dut := ondatra.DUT(t, "dut")
+	t.Log("Validating the new active RP is switchover ready...")
+	rpStandbyAfter, rpActiveAfter := components.FindStandbyControllerCard(t, dut, controllerCards)
+	t.Logf("Detected rpStandby before switchover sequence: %v, rpActive before: %v", rpStandbyAfter, rpActiveAfter)
+	switchoverReady := gnmi.OC().Component(rpActiveAfter).SwitchoverReady()
+	gnmi.Await(t, dut, switchoverReady.State(), 30*time.Minute, true)
+}
 
 func TestSSOSoftwareStability(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-
-	t.Cleanup(func() {
-		cleanBatch := &gnmi.SetBatch{}
-		gnmi.BatchDelete(cleanBatch, gnmi.OC().NetworkInstance("TRANSIT_VRF").Config())
-		gnmi.BatchDelete(cleanBatch, gnmi.OC().NetworkInstance("DECAP_TE_VRF").Config())
-		gnmi.BatchDelete(cleanBatch, gnmi.OC().Qos().Config())
-		cleanBatch.Set(t, dut)
-	})
 
 	// Init BGPSession
 	bs := cfgplugins.NewBGPSession(t, cfgplugins.PortCount4, nil)
@@ -314,30 +296,13 @@ func TestSSOSoftwareStability(t *testing.T) {
 		var nbr *oc.NetworkInstance_Protocol_Bgp_Neighbor
 
 		// Reuse neighbor object generated from WithEBGP or build one
-		/*if i == 0 || i == 1 {
-		    nbr = transitBgp.GetOrCreateNeighbor(peerAddress)
-		    nbr.PeerAs = ygot.Uint32(65001)
-		  } else {
-		    nbr = decapBgp.GetOrCreateNeighbor(peerAddress)
-		    nbr.PeerAs = ygot.Uint32(65002)
-		  }*/
-
-		var peerAS uint32
-		switch i {
-		case 0:
+		if i == 0 || i == 1 {
 			nbr = transitBgp.GetOrCreateNeighbor(peerAddress)
-			peerAS = cfgplugins.AteAS1
-		case 1:
-			nbr = transitBgp.GetOrCreateNeighbor(peerAddress)
-			peerAS = cfgplugins.AteAS2
-		case 2:
+			nbr.PeerAs = ygot.Uint32(65001)
+		} else {
 			nbr = decapBgp.GetOrCreateNeighbor(peerAddress)
-			peerAS = cfgplugins.AteAS3
-		case 3:
-			nbr = decapBgp.GetOrCreateNeighbor(peerAddress)
-			peerAS = cfgplugins.AteAS4
+			nbr.PeerAs = ygot.Uint32(65002)
 		}
-		nbr.PeerAs = ygot.Uint32(peerAS)
 		nbr.Enabled = ygot.Bool(true)
 		nbr.SendCommunityType = []oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_NONE}
 
@@ -409,6 +374,7 @@ func TestSSOSoftwareStability(t *testing.T) {
 		SetRxName(bs.ATEPorts[2].Name)
 	ethAF4 := flowAF4.Packet().Add().Ethernet()
 	ethAF4.Src().SetValue(bs.ATEPorts[0].MAC)
+	ethAF4.Dst().Auto()
 	ipAF4 := flowAF4.Packet().Add().Ipv4()
 	ipAF4.Src().SetValue(bs.ATEPorts[0].IPv4)
 	ipAF4.Dst().SetValue("198.51.102.1")
@@ -421,6 +387,7 @@ func TestSSOSoftwareStability(t *testing.T) {
 		SetRxName(bs.ATEPorts[3].Name)
 	ethBE0 := flowBE0.Packet().Add().Ethernet()
 	ethBE0.Src().SetValue(bs.ATEPorts[1].MAC)
+	ethBE0.Dst().Auto()
 	ipBE0 := flowBE0.Packet().Add().Ipv4()
 	ipBE0.Src().SetValue(bs.ATEPorts[1].IPv4)
 	ipBE0.Dst().SetValue("198.51.103.1")
@@ -444,27 +411,41 @@ func TestSSOSoftwareStability(t *testing.T) {
 	t.Log("Wait for ARP resolution on OTG")
 	otgutils.WaitForARP(t, bs.ATE.OTG(), bs.ATETop, "IPv4")
 
-	t.Log("Initiating continuously background traffic")
+	// Step 1 - Start Background Traffic and Record Process State
+	t.Log("Step 1 - Initiating continuously background traffic")
 	bs.ATE.OTG().StartTraffic(t)
-	time.Sleep(30 * time.Second) // Let traffic flow
 
-	// Verify traffic flows with 0 loss initially
-	for _, flow := range []string{"AF4_Flow", "BE0_Flow"} {
-		loss := otgutils.GetFlowLossPct(t, bs.ATE.OTG(), flow, 10*time.Second)
-		if loss > 0.0 {
-			t.Fatalf("Initial traffic validation failed: flow %s has loss %f%%, want 0%%", flow, loss)
+	// Wait for BGP traffic to stabilize instead of a pure sleep.
+	t.Log("Waiting for traffic to stabilize (10s continuous zero loss expected within 1 minute)...")
+	startConv := time.Now()
+	for {
+		if time.Since(startConv) > 60*time.Second {
+			t.Fatalf("Traffic did not stabilize with 0%% loss within 60s")
+		}
+		converged := true
+		for _, flow := range []string{"AF4_Flow", "BE0_Flow"} {
+			loss := otgutils.GetFlowLossPct(t, bs.ATE.OTG(), flow, 10*time.Second)
+			if loss > 0.0 {
+				converged = false
+				t.Logf("Traffic not yet stabilized: flow %s has loss %f%%", flow, loss)
+				break
+			}
+		}
+		if converged {
+			t.Log("Traffic achieved 0% continuous loss.")
+			break
 		}
 	}
 
 	// 7. Find critical hardware and routing processes to monitor
 	criticalProcs := findRunningCriticalProcesses(t, dut)
 	t.Logf("Monitoring critical processes: %v", criticalProcs)
-	procBaselines, err := system.GetProcessInfo(t, dut, criticalProcs)
+	initialProcInfos, err := system.GetProcessInfo(t, dut, criticalProcs)
 	if err != nil {
-		t.Fatalf("Failed to query baseline process info: %v", err)
+		t.Fatalf("Failed to query initial process info: %v", err)
 	}
-	for name, pInfo := range procBaselines {
-		t.Logf("Process %s baseline: PID=%d, StartTime=%d, Memory=%d", name, pInfo.Pid, pInfo.StartTime, pInfo.MemoryUsage)
+	for name, pInfo := range initialProcInfos {
+		t.Logf("Initial active RP process %s state: PID=%d, StartTime=%d, Memory=%d", name, pInfo.Pid, pInfo.StartTime, pInfo.MemoryUsage)
 	}
 
 	qosPorts := []string{p1.Name(), p2.Name(), p3.Name(), p4.Name()}
@@ -478,17 +459,18 @@ func TestSSOSoftwareStability(t *testing.T) {
 		t.Skipf("Skip test, not enough controller cards for switchover on %v: got %d, want >= 2", dut.Model(), len(controllerCards))
 	}
 
-	// ==== Supervisor Switchover 1 ====
-	t.Log("Executing first supervisor switchover...")
+	// Step 2 - Trigger Supervisor Switchover (First Switchover & Soak)
+	t.Log("Step 2 - Executing first supervisor switchover and validating 10m soak...")
 	performSwitchover(t, dut, controllerCards)
-	runPostSSOVerification(t, dut, criticalProcs, procBaselines, qosBaselines, qosPorts, qosQueues)
+	runPostSSOVerification(t, dut, criticalProcs, qosBaselines, qosPorts, qosQueues, controllerCards)
 
-	// ==== Supervisor Switchover 2 ====
-	t.Log("Executing second supervisor switchover...")
+	// Step 3 - Soak Phase (Second Switchover & Soak)
+	t.Log("Step 3 - Executing second supervisor switchover and validating 10m soak...")
 	performSwitchover(t, dut, controllerCards)
-	runPostSSOVerification(t, dut, criticalProcs, procBaselines, qosBaselines, qosPorts, qosQueues)
+	runPostSSOVerification(t, dut, criticalProcs, qosBaselines, qosPorts, qosQueues, controllerCards)
 
-	// Final validations
+	// Step 4 - Validation with pass/fail criteria
+	t.Log("Step 4 - Final validations and metric gathering...")
 	t.Log("Stopping traffic...")
 	bs.ATE.OTG().StopTraffic(t)
 
@@ -496,6 +478,7 @@ func TestSSOSoftwareStability(t *testing.T) {
 	otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
 	otgutils.LogPortMetrics(t, bs.ATE.OTG(), bs.ATETop)
 	for _, flow := range []string{"AF4_Flow", "BE0_Flow"} {
+		// Sample one last time or use aggregate
 		loss := otgutils.GetFlowLossPct(t, bs.ATE.OTG(), flow, 10*time.Second)
 		if loss > 0.0 {
 			t.Errorf("Final forwarding validation failed: flow %s has loss %f%%, want 0%%", flow, loss)
