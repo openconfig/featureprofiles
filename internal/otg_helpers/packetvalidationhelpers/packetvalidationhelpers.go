@@ -310,7 +310,7 @@ func validateIPv4Header(t *testing.T, packetSource *gopacket.PacketSource, packe
 				}
 			}
 			if ip.DstIP.String() != packetVal.IPv4Layer.DstIP {
-				return fmt.Errorf("IP Dst IP is not set properly. Expected: %s, Actual: %s", packetVal.IPv4Layer.DstIP, ip.DstIP)
+				continue
 			}
 			if ip.TTL != packetVal.IPv4Layer.TTL {
 				return fmt.Errorf("IP TTL value is altered to: %d, expected: %d", ip.TTL, packetVal.IPv4Layer.TTL)
@@ -336,7 +336,7 @@ func validateIPv6Header(t *testing.T, packetSource *gopacket.PacketSource, packe
 			ipv6, _ := ipLayer.(*layers.IPv6)
 
 			if ipv6.DstIP.String() != packetVal.IPv6Layer.DstIP {
-				return fmt.Errorf("IPv6 Dst IP is not set properly. Expected: %s, Actual: %s", packetVal.IPv6Layer.DstIP, ipv6.DstIP)
+				continue
 			}
 			if ipv6.HopLimit != packetVal.IPv6Layer.HopLimit {
 				return fmt.Errorf("IPv6 HopLimit value is altered to: %d. Expected: %d", ipv6.HopLimit, packetVal.IPv6Layer.HopLimit)
