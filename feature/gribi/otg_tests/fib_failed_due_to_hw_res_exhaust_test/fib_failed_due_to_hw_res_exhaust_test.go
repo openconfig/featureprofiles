@@ -354,6 +354,9 @@ func sendTraffic(t *testing.T, args *testArgs) {
 	t.Helper()
 	t.Logf("TestBGP:start otg Traffic")
 
+	t.Logf("Waiting for ARP to resolve")
+	otgutils.WaitForARP(t, args.otg, args.otgConfig, "IPv4")
+
 	t.Logf("Starting traffic")
 	args.otg.StartTraffic(t)
 	time.Sleep(15 * time.Second)
