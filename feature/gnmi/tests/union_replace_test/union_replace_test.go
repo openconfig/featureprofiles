@@ -293,7 +293,6 @@ func firstInterfaceWithoutTransceiver(t *testing.T, dut *ondatra.DUTDevice) stri
 		}
 		st := intf.GetOperStatus()
 		if st == operStatusNoTransceiver(t, dut) {
-		//if st != oc.Interface_OperStatus_NOT_PRESENT && st != oc.Interface_OperStatus_DOWN {
 			return name
 		}
 	}
