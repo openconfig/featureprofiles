@@ -509,8 +509,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) (gosnappi.Config, []stri
 		SetRxNames([]string{b2r4.Name()})
 	flowipv4.Size().SetFixed(512)
 	flowipv4.Rate().SetPps(100)
-	eth := flowipv4.Packet().Add().Ethernet()
-	eth.Src().SetValue("aa:aa:aa:aa:aa:aa")
+	flowipv4.Packet().Add().Ethernet()
 	flowipv4.Packet().Add().Vlan().Id().SetValue(uint32(vlan10))
 	v4 := flowipv4.Packet().Add().Ipv4()
 	v4.Src().SetValue(ipv4SrcTraffic)
@@ -557,48 +556,6 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) (gosnappi.Config, []stri
 	otg.StartProtocols(t)
 	otgutils.WaitForARP(t, otg, topo, "IPv4")
 	return topo, []string{flow1}, newPeerNames
-}
-
-func verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, allFlows []string) {
-	t.Helper()
-	otg := ate.OTG()
-	c := otg.FetchConfig(t)
-	otgutils.LogFlowMetrics(t, otg, c)
-	for _, flow := range allFlows {
-		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(flow).State())
-		txPackets := float64(recvMetric.GetCounters().GetOutPkts())
-		rxPackets := float64(recvMetric.GetCounters().GetInPkts())
-		if txPackets == 0 {
-			t.Fatalf("Tx packets should be higher than 0 for flow %s", flow)
-		}
-		lossPct := (txPackets - rxPackets) * 100 / txPackets
-		if lossPct < 5.0 {
-			t.Logf("Traffic Test Passed! Got %v loss", lossPct)
-		} else {
-			t.Errorf("Traffic Loss Pct for Flow %s: got %v", flow, lossPct)
-		}
-	}
-}
-
-func confirmPacketLoss(t *testing.T, ate *ondatra.ATEDevice, allFlows []string) {
-	t.Helper()
-	otg := ate.OTG()
-	c := otg.FetchConfig(t)
-	otgutils.LogFlowMetrics(t, otg, c)
-	for _, flow := range allFlows {
-		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(flow).State())
-		txPackets := float64(recvMetric.GetCounters().GetOutPkts())
-		rxPackets := float64(recvMetric.GetCounters().GetInPkts())
-		if txPackets == 0 {
-			t.Fatalf("Tx packets should be higher than 0 for flow %s", flow)
-		}
-		lossPct := (txPackets - rxPackets) * 100 / txPackets
-		if lossPct > 99.0 {
-			t.Logf("Traffic Test Passed! Loss seen as expected: got %v, want 100%% ", lossPct)
-		} else {
-			t.Errorf("Traffic %s is expected to fail: got %v, want 100%% failure", flow, lossPct)
-		}
-	}
 }
 
 func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, duration time.Duration) {
@@ -703,7 +660,7 @@ func setBgpPolicy(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 	}
 }
 
-// configureDUTNewPeers configured five more BGP peers on subinterfaces.
+// configureDUTNewPeers configures five more BGP peers on subinterfaces.
 func configureDUTNewPeers(t *testing.T, dut *ondatra.DUTDevice, nbrs []*bgpNeighbor) {
 	t.Helper()
 	d := &oc.Root{}
@@ -909,7 +866,7 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 	t.Run("VerifyTrafficPassBeforeAcLBlock", func(t *testing.T) {
 		t.Log("Send traffic with GR timer enabled. Traffic should pass.")
 		sendTraffic(t, ate, trafficDuration)
-		verifyNoPacketLoss(t, ate, allFlows)
+		otgutils.VerifyNoPacketLoss(t, ate.OTG(), allFlows)
 	})
 
 	d := &oc.Root{}
@@ -936,7 +893,7 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 		t.Log("Send traffic while GR timer is counting down. Traffic should pass as BGP GR is enabled!")
 		ate.OTG().StopTraffic(t)
 		t.Log("Traffic stopped")
-		verifyNoPacketLoss(t, ate, allFlows)
+		otgutils.VerifyNoPacketLoss(t, ate.OTG(), allFlows)
 	})
 
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
@@ -1020,7 +977,7 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 	t.Run("VerifyTrafficFailureAfterGRexpired", func(t *testing.T) {
 		t.Log("Send traffic again after GR timer has expired. This traffic should fail!")
 		sendTraffic(t, ate, trafficDuration)
-		confirmPacketLoss(t, ate, allFlows)
+		otgutils.ConfirmPacketLoss(t, ate.OTG(), allFlows)
 	})
 
 	t.Run("RemoveAclInterface", func(t *testing.T) {
@@ -1048,6 +1005,6 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 			t.Errorf("Get(BGP peer %s status): got %d, want %d", ateDst.IPv4, status, want)
 		}
 		sendTraffic(t, ate, trafficDuration)
-		verifyNoPacketLoss(t, ate, allFlows)
+		otgutils.VerifyNoPacketLoss(t, ate.OTG(), allFlows)
 	})
 }
