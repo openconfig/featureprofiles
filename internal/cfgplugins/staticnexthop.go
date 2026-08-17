@@ -38,22 +38,22 @@ var (
    tos 96 
    ttl 64 
    fec hierarchical
-   entry 0 push label-stack 116383 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.208
-   entry 1 push label-stack 116383 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.209
-   entry 2 push label-stack 116383 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.210
-   entry 3 push label-stack 116383 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.211
-   entry 4 push label-stack 116383 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.212
-   entry 5 push label-stack 116383 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.213
-   entry 6 push label-stack 116383 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.215
-   entry 7 push label-stack 116383 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.216
-   entry 8 push label-stack 116383 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.217
-   entry 9 push label-stack 116383 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.218
-   entry 10 push label-stack 116383 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.219
-   entry 11 push label-stack 116383 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.220
-   entry 12 push label-stack 116383 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.221
-   entry 13 push label-stack 116383 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.222
-   entry 14 push label-stack 116383 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.223
-   entry 15 push label-stack 116383 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.224
+   entry 0 push label-stack 99998 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.208
+   entry 1 push label-stack 99998 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.209
+   entry 2 push label-stack 99998 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.210
+   entry 3 push label-stack 99998 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.211
+   entry 4 push label-stack 99998 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.212
+   entry 5 push label-stack 99998 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.213
+   entry 6 push label-stack 99998 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.215
+   entry 7 push label-stack 99998 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.216
+   entry 8 push label-stack 99998 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.217
+   entry 9 push label-stack 99998 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.218
+   entry 10 push label-stack 99998 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.219
+   entry 11 push label-stack 99998 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.220
+   entry 12 push label-stack 99998 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.221
+   entry 13 push label-stack 99998 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.222
+   entry 14 push label-stack 99998 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.223
+   entry 15 push label-stack 99998 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.224
 !
 `
 	nextHopGroupConfigIPV6Arista = `
