@@ -9,7 +9,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/helpers"
 	otgconfighelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers"
 	otgvalidationhelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_validation_helpers"
 	"github.com/openconfig/featureprofiles/internal/otg_helpers/packetvalidationhelpers"
@@ -175,19 +174,16 @@ func configureGueDecap(t *testing.T, dut *ondatra.DUTDevice) {
 		cfgplugins.PushPolicyForwardingConfig(t, dut, ni)
 	}
 	t.Cleanup(func() {
-		if deviations.GueGreDecapUnsupported(dut) {
-			if dut.Vendor() == ondatra.ARISTA {
-				helpers.GnmiCLIConfig(t, dut, "no ip decap-group type udp destination port 6635 payload mpls\nno ip decap-group gre-decap\n")
-			}
-			return
-		}
-		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Policy("customer10").Config())
+		cfgplugins.RemoveDecapGroupGue(t, dut, "customer10")
 	})
 }
 
 // removeInterfaceAddress deletes the IPv4 or IPv6 address of the given family from a DUT subinterface.
 func removeInterfaceAddress(t *testing.T, dut *ondatra.DUTDevice, port string, index uint32, a *attrs.Attributes, family string) {
 	t.Helper()
+	if a == nil {
+		t.Fatal("Attributes 'a' cannot be nil")
+	}
 	sub := gnmi.OC().Interface(dut.Port(t, port).Name()).Subinterface(index)
 	switch family {
 	case "IPv4":
@@ -200,6 +196,9 @@ func removeInterfaceAddress(t *testing.T, dut *ondatra.DUTDevice, port string, i
 // addInterfaceAddress re-adds the IPv4 or IPv6 address of the given family to a DUT subinterface.
 func addInterfaceAddress(t *testing.T, dut *ondatra.DUTDevice, port string, index uint32, a *attrs.Attributes, family string) {
 	t.Helper()
+	if a == nil {
+		t.Fatal("Attributes 'a' cannot be nil")
+	}
 	sub := gnmi.OC().Interface(dut.Port(t, port).Name()).Subinterface(index)
 	switch family {
 	case "IPv4":
@@ -211,11 +210,14 @@ func addInterfaceAddress(t *testing.T, dut *ondatra.DUTDevice, port string, inde
 	}
 }
 
-// addVLANSubinterface configures a VLAN-tagged subinterface on a DUT port carrying the
-// given family's address. PF-1.25.3 uses it to move an egress interface from an untagged
+// addVLANSubinterface configures a VLAN-tagged subinterface on a DUT port carrying both
+// IPv4 and IPv6 addresses. PF-1.25.3 uses it to move an egress interface from an untagged
 // interface to a VLAN interface.
-func addVLANSubinterface(t *testing.T, dut *ondatra.DUTDevice, port string, index uint32, vlanID uint16, a *attrs.Attributes, family string) {
+func addVLANSubinterface(t *testing.T, dut *ondatra.DUTDevice, port string, index uint32, vlanID uint16, a *attrs.Attributes) {
 	t.Helper()
+	if a == nil {
+		t.Fatal("Attributes 'a' cannot be nil")
+	}
 	p := dut.Port(t, port)
 	i := &oc.Interface{Name: ygot.String(p.Name())}
 	if deviations.InterfaceEnabled(dut) {
@@ -228,14 +230,14 @@ func addVLANSubinterface(t *testing.T, dut *ondatra.DUTDevice, port string, inde
 	} else {
 		s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(vlanID)
 	}
-	switch family {
-	case "IPv4":
+	if a.IPv4 != "" {
 		s4 := s.GetOrCreateIpv4()
 		if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 			s4.Enabled = ygot.Bool(true)
 		}
 		s4.GetOrCreateAddress(a.IPv4).PrefixLength = ygot.Uint8(ipv4PrefixLen)
-	case "IPv6":
+	}
+	if a.IPv6 != "" {
 		s6 := s.GetOrCreateIpv6()
 		if deviations.InterfaceEnabled(dut) {
 			s6.Enabled = ygot.Bool(true)
@@ -422,11 +424,10 @@ func TestStaticLSP(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 
+	configureDUT(t, dut)
+
 	var top gosnappi.Config
 	t.Run("PF-1.25.1: Generate config for MPLS in GRE decap and push to DUT", func(subT *testing.T) {
-		// Use the parent test so DUT config cleanups run at the end of TestStaticLSP,
-		// not when this subtest returns (which would tear down config before PF-1.25.2).
-		configureDUT(t, dut)
 		top = configureOTG(subT)
 	})
 
@@ -449,79 +450,86 @@ func TestStaticLSP(t *testing.T) {
 	})
 
 	t.Run("PF-1.25.3: Verify decap traffic is unaffected by IPv4/IPv6 VLAN config changes", func(t *testing.T) {
-		// Move the egress interface from the untagged interface onto a single VLAN-tagged
-		// subinterface carrying both IPv4 and IPv6 (mirrored on the ATE).
-		removeInterfaceAddress(t, dut, "port2", 0, &dutDst, "IPv4")
-		removeInterfaceAddress(t, dut, "port2", 0, &dutDst, "IPv6")
-		addVLANSubinterface(t, dut, "port2", vlanID, vlanID, &dutDst, "IPv4")
-		addVLANSubinterface(t, dut, "port2", vlanID, vlanID, &dutDst, "IPv6")
+		t.Run("VLAN config churn", func(t *testing.T) {
+			// Restore the base (untagged) config on the DUT and ATE even if this subtest
+			// fails or panics early.
+			t.Cleanup(func() {
+				removeVLANSubinterface(t, dut, "port2", vlanID)
+				addInterfaceAddress(t, dut, "port2", 0, &dutDst, "IPv4")
+				addInterfaceAddress(t, dut, "port2", 0, &dutDst, "IPv6")
+				top = configureOTG(t)
+				pushAndResolve(t, ate, top)
+			})
 
-		// Remove and re-add the IPv4 address on the VLAN subinterface. IPv6 decap traffic
-		// on the same VLAN interface must be unaffected.
-		top = churnOTG(vlanID)
-		createMPLSoGUEFlow(top, "mplsogue-ipv6", mplsLabelIPv6, innerIPv6Flow(), ateDst.Name+".IPv6")
-		pushAndResolve(t, ate, top)
-		removeInterfaceAddress(t, dut, "port2", vlanID, &dutDst, "IPv4")
-		addInterfaceAddress(t, dut, "port2", vlanID, &dutDst, "IPv4")
-		runFlows(t, ate, []string{"mplsogue-ipv6"})
-		otgutils.LogFlowMetrics(t, ate.OTG(), top)
-		if err := v6Val.ValidateLossOnFlows(t, ate); err != nil {
-			t.Errorf("IPv6 decap flow during IPv4 VLAN config churn: %v", err)
-		}
+			// Move the egress interface from the untagged interface onto a single VLAN-tagged
+			// subinterface carrying both IPv4 and IPv6 (mirrored on the ATE).
+			removeInterfaceAddress(t, dut, "port2", 0, &dutDst, "IPv4")
+			removeInterfaceAddress(t, dut, "port2", 0, &dutDst, "IPv6")
+			addVLANSubinterface(t, dut, "port2", vlanID, vlanID, &dutDst)
 
-		// Remove and re-add the IPv6 address on the VLAN subinterface. IPv4 decap traffic
-		// on the same VLAN interface must be unaffected.
-		top = churnOTG(vlanID)
-		createMPLSoGUEFlow(top, "mplsogue-ipv4", mplsLabelIPv4, innerIPv4Flow(), ateDst.Name+".IPv4")
-		pushAndResolve(t, ate, top)
-		removeInterfaceAddress(t, dut, "port2", vlanID, &dutDst, "IPv6")
-		addInterfaceAddress(t, dut, "port2", vlanID, &dutDst, "IPv6")
-		runFlows(t, ate, []string{"mplsogue-ipv4"})
-		otgutils.LogFlowMetrics(t, ate.OTG(), top)
-		if err := v4Val.ValidateLossOnFlows(t, ate); err != nil {
-			t.Errorf("IPv4 decap flow during IPv6 VLAN config churn: %v", err)
-		}
-
-		// Restore the base (untagged) config on the DUT and ATE.
-		removeVLANSubinterface(t, dut, "port2", vlanID)
-		addInterfaceAddress(t, dut, "port2", 0, &dutDst, "IPv4")
-		addInterfaceAddress(t, dut, "port2", 0, &dutDst, "IPv6")
-		top = configureOTG(t)
-
-		// The per-family MPLSoGUE decap config in this 2-port setup is the per-family
-		// static MPLS label binding that pops the label and forwards the inner payload.
-		var v4LSP, v6LSP staticLSP
-		for _, l := range staticLSPList() {
-			switch l.protocolType {
-			case "ipv4":
-				v4LSP = l
-			case "ipv6":
-				v6LSP = l
+			// Remove and re-add the IPv4 address on the VLAN subinterface. IPv6 decap traffic
+			// on the same VLAN interface must be unaffected.
+			top = churnOTG(vlanID)
+			createMPLSoGUEFlow(top, "mplsogue-ipv6", mplsLabelIPv6, innerIPv6Flow(), ateDst.Name+".IPv6")
+			pushAndResolve(t, ate, top)
+			removeInterfaceAddress(t, dut, "port2", vlanID, &dutDst, "IPv4")
+			addInterfaceAddress(t, dut, "port2", vlanID, &dutDst, "IPv4")
+			runFlows(t, ate, []string{"mplsogue-ipv6"})
+			otgutils.LogFlowMetrics(t, ate.OTG(), top)
+			if err := v6Val.ValidateLossOnFlows(t, ate); err != nil {
+				t.Errorf("IPv6 decap flow during IPv4 VLAN config churn: %v", err)
 			}
-		}
 
-		// Remove and re-add the IPv4 MPLSoGUE decap config. IPv6 decap traffic must be unaffected.
-		createMPLSoGUEFlow(top, "mplsogue-ipv6", mplsLabelIPv6, innerIPv6Flow(), ateDst.Name+".IPv6")
-		pushAndResolve(t, ate, top)
-		deleteStaticLSP(t, dut, v4LSP)
-		setStaticLSP(t, dut, v4LSP)
-		runFlows(t, ate, []string{"mplsogue-ipv6"})
-		otgutils.LogFlowMetrics(t, ate.OTG(), top)
-		if err := v6Val.ValidateLossOnFlows(t, ate); err != nil {
-			t.Errorf("IPv6 decap flow during IPv4 decap config churn: %v", err)
-		}
+			// Remove and re-add the IPv6 address on the VLAN subinterface. IPv4 decap traffic
+			// on the same VLAN interface must be unaffected.
+			top = churnOTG(vlanID)
+			createMPLSoGUEFlow(top, "mplsogue-ipv4", mplsLabelIPv4, innerIPv4Flow(), ateDst.Name+".IPv4")
+			pushAndResolve(t, ate, top)
+			removeInterfaceAddress(t, dut, "port2", vlanID, &dutDst, "IPv6")
+			addInterfaceAddress(t, dut, "port2", vlanID, &dutDst, "IPv6")
+			runFlows(t, ate, []string{"mplsogue-ipv4"})
+			otgutils.LogFlowMetrics(t, ate.OTG(), top)
+			if err := v4Val.ValidateLossOnFlows(t, ate); err != nil {
+				t.Errorf("IPv4 decap flow during IPv6 VLAN config churn: %v", err)
+			}
+		})
 
-		// Remove and re-add the IPv6 MPLSoGUE decap config. IPv4 decap traffic must be unaffected.
-		top = configureOTG(t)
-		createMPLSoGUEFlow(top, "mplsogue-ipv4", mplsLabelIPv4, innerIPv4Flow(), ateDst.Name+".IPv4")
-		pushAndResolve(t, ate, top)
-		deleteStaticLSP(t, dut, v6LSP)
-		setStaticLSP(t, dut, v6LSP)
-		runFlows(t, ate, []string{"mplsogue-ipv4"})
-		otgutils.LogFlowMetrics(t, ate.OTG(), top)
-		if err := v4Val.ValidateLossOnFlows(t, ate); err != nil {
-			t.Errorf("IPv4 decap flow during IPv6 decap config churn: %v", err)
-		}
+		t.Run("Decap config churn", func(t *testing.T) {
+			// The per-family MPLSoGUE decap config in this 2-port setup is the per-family
+			// static MPLS label binding that pops the label and forwards the inner payload.
+			var v4LSP, v6LSP staticLSP
+			for _, l := range staticLSPList() {
+				switch l.protocolType {
+				case "ipv4":
+					v4LSP = l
+				case "ipv6":
+					v6LSP = l
+				}
+			}
+
+			// Remove and re-add the IPv4 MPLSoGUE decap config. IPv6 decap traffic must be unaffected.
+			createMPLSoGUEFlow(top, "mplsogue-ipv6", mplsLabelIPv6, innerIPv6Flow(), ateDst.Name+".IPv6")
+			pushAndResolve(t, ate, top)
+			deleteStaticLSP(t, dut, v4LSP)
+			setStaticLSP(t, dut, v4LSP)
+			runFlows(t, ate, []string{"mplsogue-ipv6"})
+			otgutils.LogFlowMetrics(t, ate.OTG(), top)
+			if err := v6Val.ValidateLossOnFlows(t, ate); err != nil {
+				t.Errorf("IPv6 decap flow during IPv4 decap config churn: %v", err)
+			}
+
+			// Remove and re-add the IPv6 MPLSoGUE decap config. IPv4 decap traffic must be unaffected.
+			top = configureOTG(t)
+			createMPLSoGUEFlow(top, "mplsogue-ipv4", mplsLabelIPv4, innerIPv4Flow(), ateDst.Name+".IPv4")
+			pushAndResolve(t, ate, top)
+			deleteStaticLSP(t, dut, v6LSP)
+			setStaticLSP(t, dut, v6LSP)
+			runFlows(t, ate, []string{"mplsogue-ipv4"})
+			otgutils.LogFlowMetrics(t, ate.OTG(), top)
+			if err := v4Val.ValidateLossOnFlows(t, ate); err != nil {
+				t.Errorf("IPv4 decap flow during IPv6 decap config churn: %v", err)
+			}
+		})
 	})
 
 	t.Run("PF-1.25.4: Verify MPLSoGUE DSCP/TTL preserve operation", func(t *testing.T) {

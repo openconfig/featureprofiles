@@ -290,9 +290,13 @@ func RemoveMPLSStaticLSP(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDev
 		cliConfig := ""
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
+			bypassStr := ""
+			if byPass {
+				bypassStr = " access-list bypass"
+			}
 			cliConfig = fmt.Sprintf(`
-					no mpls static top-label %v %s pop payload-type %s access-list bypass
-					`, incomingLabel, nextHopIP, protocolType)
+					no mpls static top-label %v %s pop payload-type %s%s
+					`, incomingLabel, nextHopIP, protocolType, bypassStr)
 			helpers.GnmiCLIConfig(t, dut, cliConfig)
 		default:
 			t.Errorf("Deviation StaticMplsLspOCUnsupported is not handled for the dut: %v", dut.Vendor())

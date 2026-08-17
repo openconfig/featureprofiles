@@ -885,6 +885,25 @@ func DecapGroupConfigGue(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 	}
 }
 
+// RemoveDecapGroupGue removes the GUE decap-group configuration applied by DecapGroupConfigGue.
+func RemoveDecapGroupGue(t *testing.T, dut *ondatra.DUTDevice, policyName string) {
+	t.Helper()
+	if deviations.GueGreDecapUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			cli := fmt.Sprintf(`no ip decap-group type udp destination port 6635 payload mpls
+no ip decap-group gre-decap
+no ip decap-group %s
+`, policyName)
+			helpers.GnmiCLIConfig(t, dut, cli)
+		default:
+			t.Errorf("Unsupported vendor %s for native command support for deviation 'decap-group config'", dut.Vendor())
+		}
+		return
+	}
+	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Policy(policyName).Config())
+}
+
 // aristaGueDecapCLIConfig configures GUEDEcapConfig for Arista
 func aristaGueDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
 
