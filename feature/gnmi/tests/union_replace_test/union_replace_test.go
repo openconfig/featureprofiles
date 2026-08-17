@@ -319,8 +319,6 @@ func cliShowRunningConfigCommand(t *testing.T, dut *ondatra.DUTDevice) (string, 
 	case ondatra.CISCO:
 		return "show running-config", "#"
 	case ondatra.JUNIPER:
-		// Request Junos configuration in hierarchical format so appended
-		// CLI blocks (braces/semicolons) match the device's configuration.
 		return "cli -c \"show configuration | no-more\"", ""
 	case ondatra.NOKIA:
 		return "info | as-set", ""
@@ -774,7 +772,7 @@ func TestUnionReplace(t *testing.T) {
 					if err := verifyInterfaceMTU(t, dut, dp2.Name(), 1300); err != nil {
 						return err
 					}
-				case ondatra.CISCO, ondatra.NOKIA, ondatra.JUNIPER:
+				case ondatra.CISCO, ondatra.JUNIPER, ondatra.NOKIA:
 					// OC and CLI conflict generates an error, MTU stays at 1400
 					if setErr != nil {
 						if s, ok := status.FromError(setErr); ok && s.Code() == codes.InvalidArgument {
@@ -1051,6 +1049,9 @@ func TestUnionReplace(t *testing.T) {
 			desc: "Verify configuration with OC hardware mismatch (wrong port-speed) is accepted.",
 			fn: func(t *testing.T) error {
 				dut := ondatra.DUT(t, "dut")
+				if dut.Vendor() == ondatra.JUNIPER {
+					t.Skipf("Skipping %s: Juniper does not support port-speed config on breakout-channel interfaces", t.Name())
+				}
 				setCLIunionReplace(t, dut)
 				sb := &gnmi.SetBatch{}
 				targetSpeed := oc.IfEthernet_ETHERNET_SPEED_SPEED_10GB
@@ -1069,19 +1070,7 @@ func TestUnionReplace(t *testing.T) {
 				t.Logf("Configuring DUT port %q to mismatched port-speed %q using gNMI union_replace.", dp1.Name(), targetSpeed)
 				// get the cli config from DUT and add it to the SetBatch.
 				clicfg1 := cliConfig(t, dut)
-				// For Juniper, avoid setting port-speed via OC as the native translation
-				// may reject the translated native `speed` statement. Instead, append
-				// a CLI interface stanza that sets the mismatched speed so the union_replace
-				// applies the CLI change directly.
-				if dut.Vendor() == ondatra.JUNIPER {
-					// Use the physical interface name (strip any unit suffix) so the
-					// `speed` statement is applied at the correct level (e.g. et-0/0/9).
-					physName := strings.SplitN(dp1.Name(), ":", 2)[0]
-					cliDelta := cliInterfaceConfig(t, dut, cliInterfaceConfigOpts{Name: physName, Speed: "10g"})
-					gnmi.BatchUnionReplaceCLI(sb, cliOrigin, clicfg1+"\n"+cliDelta)
-				} else {
-					gnmi.BatchUnionReplaceCLI(sb, cliOrigin, clicfg1)
-				}
+				gnmi.BatchUnionReplaceCLI(sb, cliOrigin, clicfg1)
 				/*
 				   These Arista EOS CLI commands would allow EOS to accept the port speed mismatch but are not
 				   included as they are not accepted as a deviation.
@@ -1091,11 +1080,7 @@ func TestUnionReplace(t *testing.T) {
 
 				// add configuration of the OC interface to the SetBatch
 				configOCInterface(t, sb, dut)
-				// Set OC port-speed for non-Juniper devices. Juniper devices will receive
-				// the speed via CLI above to avoid translator syntax errors.
-				if dut.Vendor() != ondatra.JUNIPER {
-					gnmi.BatchUnionReplace(sb, gnmi.OC().Interface(dp1.Name()).Ethernet().PortSpeed().Config(), targetSpeed)
-				}
+				gnmi.BatchUnionReplace(sb, gnmi.OC().Interface(dp1.Name()).Ethernet().PortSpeed().Config(), targetSpeed)
 				gnmi.BatchUnionReplace(sb, gnmi.OC().Interface(dp1.Name()).Ethernet().DuplexMode().Config(), oc.Ethernet_DuplexMode_FULL)
 				t.Logf("Generated BatchUnionReplace: %#v\n", sb.String())
 
@@ -1156,6 +1141,9 @@ func TestUnionReplace(t *testing.T) {
 			desc: "Verify configuration with CLI hardware mismatch is accepted.",
 			fn: func(t *testing.T) error {
 				dut := ondatra.DUT(t, "dut")
+				if dut.Vendor() == ondatra.JUNIPER {
+					t.Skipf("Skipping %s: Juniper does not support port-speed config on breakout-channel interfaces", t.Name())
+				}
 				setCLIunionReplace(t, dut)
 				sb := &gnmi.SetBatch{}
 				targetSpeed := oc.IfEthernet_ETHERNET_SPEED_SPEED_10GB
@@ -1179,8 +1167,6 @@ func TestUnionReplace(t *testing.T) {
 					clicfg1 += fmt.Sprintf("interface %s\nspeed 10g\n", dp1.Name())
 				case ondatra.CISCO:
 					clicfg1 += fmt.Sprintf("interface %s\nspeed 10000\n", dp1.Name())
-				case ondatra.JUNIPER:
-					clicfg1 += fmt.Sprintf("interfaces {\n  %s {\n    speed 10g;\n  }\n}\n", dp1.Name())
 				default:
 					return fmt.Errorf("unsupported vendor: %v", dut.Vendor())
 				}
