@@ -183,6 +183,7 @@ func bgpWithNbr(as uint32, keepaliveTimer uint16, nbrs []*bgpNeighbor, dut *onda
 	bgpgr.Enabled = ygot.Bool(true)
 	bgpgr.RestartTime = ygot.Uint16(grRestartTime)
 	bgpgr.StaleRoutesTime = ygot.Uint16(grStaleRouteTime)
+	bgpgr.HelperOnly = ygot.Bool(false)
 
 	pg := bgp.GetOrCreatePeerGroup(peerv4GrpName)
 	pgGrV4 := pg.GetOrCreateGracefulRestart()
