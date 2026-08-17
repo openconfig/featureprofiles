@@ -304,13 +304,13 @@ func validateIPv4Header(t *testing.T, packetSource *gopacket.PacketSource, packe
 	for packet := range packetSource.Packets() {
 		if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
 			ip, _ := ipLayer.(*layers.IPv4)
+			if ip.DstIP.String() != packetVal.IPv4Layer.DstIP {
+				continue
+			}
 			if !packetVal.IPv4Layer.SkipProtocolCheck {
 				if uint32(ip.Protocol) != packetVal.IPv4Layer.Protocol {
 					return fmt.Errorf("packet is not encapsulated properly. Encapsulated protocol is: %d, expected: %d", ip.Protocol, packetVal.IPv4Layer.Protocol)
 				}
-			}
-			if ip.DstIP.String() != packetVal.IPv4Layer.DstIP {
-				continue
 			}
 			if ip.TTL != packetVal.IPv4Layer.TTL {
 				return fmt.Errorf("IP TTL value is altered to: %d, expected: %d", ip.TTL, packetVal.IPv4Layer.TTL)
