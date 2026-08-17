@@ -899,38 +899,7 @@ func checkTraffic(t *testing.T, ts *isissession.TestSession, flowName string) {
 	ts.ATE.OTG().StopTraffic(t)
 
 	t.Log("Checking flow telemetry...")
-	gnmi.Watch(t, ts.ATE.OTG(), gnmi.OTG().Flow(flowName).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
-		f, present := val.Val()
-		if !present || f.GetCounters() == nil {
-			return false
-		}
-		txPackets := f.GetCounters().GetOutPkts()
-		rxPackets := f.GetCounters().GetInPkts()
-		if txPackets == 0 {
-			return false
-		}
-		if rxPackets > txPackets {
-			return false
-		}
-		lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
-		return int(lossPct) <= int(1)
-	}).Await(t)
-
-	recvMetric := gnmi.Get(t, ts.ATE.OTG(), gnmi.OTG().Flow(flowName).State())
-	txPackets := float32(recvMetric.GetCounters().GetOutPkts())
-	rxPackets := float32(recvMetric.GetCounters().GetInPkts())
-
-	if txPackets == 0 {
-		t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flowName)
-	}
-	if rxPackets > txPackets {
-		t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", rxPackets, txPackets)
-	}
-
-	lossPct := (txPackets - rxPackets) * 100 / txPackets
-	if int(lossPct) > int(1) {
-		t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want <= 1", flowName, lossPct)
-	}
+	otgutils.ExpectedTrafficLoss(t, ts.ATE.OTG(), flowName, 0, 1)
 }
 
 func containsValue[T comparable](slice []T, val T) bool {
