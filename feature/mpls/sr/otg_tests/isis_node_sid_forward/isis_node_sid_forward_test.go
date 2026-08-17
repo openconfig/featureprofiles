@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/isissession"
@@ -55,6 +56,7 @@ const (
 	v4FlowName               = "v4Flow"
 	v6FlowName               = "v6Flow"
 	SRReservedLabelblockName = "default-srgb" // supported name for Cisco SRGB
+	fixedPackets             = 1000
 )
 
 var (
@@ -122,7 +124,7 @@ func configureOTG(t *testing.T, ts *isissession.TestSession) {
 		SetTxNames([]string{srcIpv4.Name()}).
 		SetRxNames([]string{v4NetName})
 
-	v4Flow.Duration().FixedPackets().SetPackets(1000)
+	v4Flow.Duration().FixedPackets().SetPackets(fixedPackets)
 	v4Flow.Size().SetFixed(512)
 	v4Flow.Rate().SetPps(100)
 
@@ -142,7 +144,7 @@ func configureOTG(t *testing.T, ts *isissession.TestSession) {
 		SetTxNames([]string{srcIpv6.Name()}).
 		SetRxNames([]string{v6NetName})
 
-	v6Flow.Duration().FixedPackets().SetPackets(1000)
+	v6Flow.Duration().FixedPackets().SetPackets(fixedPackets)
 	v6Flow.Size().SetFixed(512)
 	v6Flow.Rate().SetPps(100)
 
@@ -195,10 +197,14 @@ func verifyMPLSSR(t *testing.T, ts *isissession.TestSession) {
 func verifySRCounters(t *testing.T, ts *isissession.TestSession, ate *ondatra.ATEDevice) {
 	d := ts.DUTConf
 	networkInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT))
+
+	otgutils.ExpectedTrafficLoss(t, ate.OTG(), v4FlowName, 0, 0.99)
+
 	recvMetricV4 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v4FlowName).State())
-	// recvMetricV6 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v6FlowName).State())
-	v4InPkts := recvMetricV4.GetCounters().GetInPkts()
-	v4OutPkts := recvMetricV4.GetCounters().GetOutPkts()
+	txPkts := recvMetricV4.GetCounters().GetOutPkts()
+	rxPkts := recvMetricV4.GetCounters().GetInPkts()
+	v4InPkts := rxPkts
+	v4OutPkts := txPkts
 	// Get SR Counters
 	srSgProto := networkInstance.GetOrCreateMpls().GetOrCreateSignalingProtocols().GetSegmentRouting()
 	srIntf := srSgProto.GetOrCreateInterface(ts.DUTPort1.Name())
@@ -213,30 +219,11 @@ func verifySRCounters(t *testing.T, ts *isissession.TestSession, ate *ondatra.AT
 	}
 }
 
-func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice) {
-	recvMetricV4 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v4FlowName).State())
-	recvMetricV6 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v6FlowName).State())
-
-	framesTxV4 := recvMetricV4.GetCounters().GetOutPkts()
-	framesRxV4 := recvMetricV4.GetCounters().GetInPkts()
-	framesTxV6 := recvMetricV6.GetCounters().GetOutPkts()
-	framesRxV6 := recvMetricV6.GetCounters().GetInPkts()
-
-	t.Logf("Starting V4 traffic validation")
-	if framesTxV4 == 0 {
-		t.Error("No traffic was generated and frames transmitted were 0")
-	} else if framesRxV4 == framesTxV4 {
-		t.Logf("Traffic validation successful for [%s] FramesTx: %d FramesRx: %d", v4FlowName, framesTxV4, framesRxV4)
-	} else {
-		t.Errorf("Traffic validation failed for [%s] FramesTx: %d FramesRx: %d", v4FlowName, framesTxV4, framesRxV4)
-	}
-	t.Logf("Starting V6 traffic validation")
-	if framesTxV6 == 0 {
-		t.Error("No traffic was generated and frames transmitted were 0")
-	} else if framesRxV6 == framesTxV6 {
-		t.Logf("Traffic validation successful for [%s] FramesTx: %d FramesRx: %d", v6FlowName, framesTxV6, framesRxV6)
-	} else {
-		t.Errorf("Traffic validation failed for [%s] FramesTx: %d FramesRx: %d", v6FlowName, framesTxV6, framesRxV6)
+func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
+	defer otgutils.LogFlowMetrics(t, ate.OTG(), top)
+	defer otgutils.LogPortMetrics(t, ate.OTG(), top)
+	for _, flowName := range []string{v4FlowName, v6FlowName} {
+		otgutils.ExpectedTrafficLoss(t, ate.OTG(), flowName, 0, 0.99)
 	}
 }
 
@@ -280,9 +267,7 @@ func TestMPLSLabelBlockWithISIS(t *testing.T) {
 		t.Logf("Stop traffic")
 		otg.StopTraffic(t)
 
-		otgutils.LogFlowMetrics(t, otg, ts.ATETop)
-		otgutils.LogPortMetrics(t, otg, ts.ATETop)
-		verifyTraffic(t, ts.ATE)
+		verifyTraffic(t, ts.ATE, ts.ATETop)
 	})
 
 	// SR counters checks
