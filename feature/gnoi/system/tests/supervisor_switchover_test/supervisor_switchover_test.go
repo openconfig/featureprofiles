@@ -105,6 +105,18 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) ([]*ondatra.Port, string
 	p2 := dut.Port(t, "port2")
 	ports := []*ondatra.Port{p1, p2}
 
+	t.Cleanup(func() {
+		batch := &gnmi.SetBatch{}
+		for _, port := range ports {
+			gnmi.BatchDelete(batch, gnmi.OC().Interface(port.Name()).Config())
+		}
+		gnmi.BatchDelete(batch, gnmi.OC().Interface(lagName).Config())
+		if !deviations.LacpInterfaceFallbackOCUnsupported(dut) {
+			gnmi.BatchDelete(batch, gnmi.OC().Lacp().Interface(lagName).Config())
+		}
+		batch.Set(t, dut)
+	})
+
 	// 1. Configure the aggregate LACP interface first so that lag-type
 	// is present before member Ethernet interfaces reference it.
 	t.Logf("Configuring aggregate LACP interface %q with LagType=LACP...", lagName)
@@ -142,17 +154,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) ([]*ondatra.Port, string
 		replaceInterfaceConfig(t, dut, gnmi.OC().Interface(port.Name()).Config(), intf)
 		t.Logf("Successfully configured member interface %q", port.Name())
 	}
-	t.Cleanup(func() {
-		batch := &gnmi.SetBatch{}
-		for _, port := range ports {
-			gnmi.BatchDelete(batch, gnmi.OC().Interface(port.Name()).Config())
-		}
-		gnmi.BatchDelete(batch, gnmi.OC().Interface(lagName).Config())
-		if !deviations.LacpInterfaceFallbackOCUnsupported(dut) {
-			gnmi.BatchDelete(batch, gnmi.OC().Lacp().Interface(lagName).Config())
-		}
-		batch.Set(t, dut)
-	})
 
 	return ports, lagName
 }
