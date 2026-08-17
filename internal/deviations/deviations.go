@@ -2359,7 +2359,6 @@ func P4RTAaaRoleBasedAuthzUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetP4RtAaaRoleBasedAuthzUnsupported()
 }
 
-
 // AIGPRouteMetricNotSupported returns true if AIGP route metric is not supported.
 func AIGPRouteMetricNotSupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAigpRouteMetricNotSupported()
