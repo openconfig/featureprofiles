@@ -158,40 +158,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 func stopAndVerifyTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
 	otg := ate.OTG()
 	otg.StopTraffic(t)
-
-	t.Logf("Waiting for flow telemetry on %s to report zero packet loss (tx == rx)...", flowName)
-	inPktsQuery := gnmi.OTG().Flow(flowName).Counters().InPkts().State()
-	outPktsQuery := gnmi.OTG().Flow(flowName).Counters().OutPkts().State()
-
-	// Watch and wait for Rx packets to catch up to Tx packets (tx == rx and tx > 0)
-	gnmi.Watch(t, otg, inPktsQuery, 45*time.Second, func(v *ygnmi.Value[uint64]) bool {
-		rx, present := v.Val()
-		if !present {
-			return false
-		}
-		tx, txPresent := gnmi.Lookup(t, otg, outPktsQuery).Val()
-		if !txPresent || tx == 0 {
-			return false
-		}
-		return tx == rx
-	}).Await(t)
-
-	// Fetch final metric counters
-	txPkts := gnmi.Get(t, otg, outPktsQuery)
-	rxPkts := gnmi.Get(t, otg, inPktsQuery)
-
-	if txPkts == 0 {
-		t.Fatalf("IXIA traffic generation failed: TxPkts == 0 or missing for flow %s, want > 0", flowName)
-	}
-
-	lossPct := float32(txPkts-rxPkts) * 100 / float32(txPkts)
-
-	if txPkts != rxPkts {
-		t.Errorf("Generic Test Assertion Failure: LossPct for flow named %s got %.2f%% (%d lost), want 0%%", flowName, lossPct, txPkts-rxPkts)
-	} else {
-		t.Logf("LossPct for flow named %s got %.2f%%, want 0%% (PacketsTx: %d, PacketsRx: %d)", flowName, lossPct, txPkts, rxPkts)
-	}
-
+	otgutils.ExpectedTrafficLoss(t, otg, flowName, 0, 0)
 	// Log metrics after counters have settled
 	otgutils.LogFlowMetrics(t, otg, top)
 }
