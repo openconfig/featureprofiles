@@ -128,14 +128,14 @@ func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flow
 		initialOutPkts[flow.Name()] = gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
 	}
 	ate.OTG().StartTraffic(t)
-	
+
 	trafficStopped := false
 	defer func() {
 		if !trafficStopped {
 			ate.OTG().StopTraffic(t)
 		}
 	}()
-	
+
 	// AWAIT LOGIC INSTEAD OF SLEEP
 	for _, flow := range flows {
 		_, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State(), time.Minute, func(val *ygnmi.Value[uint64]) bool {
@@ -203,7 +203,7 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool
 		t.Errorf("Stream '%s' expecting Packet qSize(%d) Got (%d)",
 			streamName, qSize, qSizeRead)
 	}
-	
+
 	// Flush any leftover packets from previous tests
 	_, _, _ = args.leader.StreamChannelGetPackets(&streamName, 1000000, 3*time.Second)
 
