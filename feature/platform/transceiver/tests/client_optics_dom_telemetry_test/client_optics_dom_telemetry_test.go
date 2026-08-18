@@ -478,6 +478,10 @@ func TestOpticsPowerUpdate(t *testing.T) {
 				t.Cleanup(func() {
 					gnmi.Update(t, dut, gnmi.OC().Interface(dp.Name()).Enabled().Config(), originalEnabled)
 				})
+			} else {
+				t.Cleanup(func() {
+					gnmi.Delete(t, dut, gnmi.OC().Interface(dp.Name()).Enabled().Config())
+				})
 			}
 
 			cases := []struct {
@@ -538,10 +542,12 @@ func TestOpticsPowerUpdate(t *testing.T) {
 							tracePath(t, pStr, statusFail, "input power is not defined")
 							continue
 						}
-						if inPower > maxOpticsPower || inPower < minOpticsPower {
-							tracePath(t, pStr, statusFail, "value %.2f is outside range [%f, %f]", inPower, minOpticsPower, maxOpticsPower)
+						if inPower > maxOpticsPower {
+							tracePath(t, pStr, statusFail, "value %.2f is above maximum threshold <= %f", inPower, maxOpticsPower)
+						} else if tc.IntfStatus && inPower < minOpticsPower {
+							tracePath(t, pStr, statusFail, "value %.2f is below minimum threshold >= %f", inPower, minOpticsPower)
 						} else {
-							tracePath(t, pStr, statusPass, "value %.2f is within range [%f, %f]", inPower, minOpticsPower, maxOpticsPower)
+							tracePath(t, pStr, statusPass, "value %.2f is within expected range", inPower)
 						}
 					}
 
