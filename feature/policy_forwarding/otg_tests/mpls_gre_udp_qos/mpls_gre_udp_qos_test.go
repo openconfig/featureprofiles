@@ -610,15 +610,6 @@ func configureStaticRoutes(t *testing.T, dut *ondatra.DUTDevice) {
 	b.Set(t, dut)
 }
 
-func TestSetup(t *testing.T) {
-	t.Log("PF-1.18.1: Generate DUT Configuration")
-	dut := ondatra.DUT(t, "dut")
-	fptest.ConfigureDefaultNetworkInstance(t, dut)
-
-	ConfigureDut(t, dut)
-	ConfigureOTG(t)
-}
-
 // cleanupDut reverts all DUT configuration applied by ConfigureDut, in the reverse
 // order it was applied, so the DUT is left in its original state.
 func cleanupDut(t *testing.T, dut *ondatra.DUTDevice) {
@@ -1007,328 +998,303 @@ func queueDroppedPkts(t *testing.T, dut *ondatra.DUTDevice, aggID string, ports 
 	return total
 }
 
-func TestPF1182MPLSTrafficClassClassification(t *testing.T) {
-	t.Log("PF-1.18.2: Verify Classification of MPLSoGRE and MPLSoGUE traffic based on traffic class bits in MPLS header")
+func TestPF118Traffic(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
+	t.Cleanup(func() { cleanupDut(t, dut) })
 
-	qNames := qcNames
+	t.Run("PF-1.18.1_Setup", func(t *testing.T) {
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
+		ConfigureDut(t, dut)
+		ConfigureOTG(t)
+	})
 
-	top.Flows().Clear()
-	flows := buildEncapToIPFlows()
-	for i, f := range flows {
-		f.Flowrate = 5
-		createEncapToIPFlow(t, top, f, i == 0)
-	}
-	sendTraffic(t, dut, ate, trafficDuration)
+	t.Run("PF-1.18.2_MPLSTrafficClassClassification", func(t *testing.T) {
+		qNames := qcNames
 
-	for _, f := range flows {
-		if err := flowValidation(f.FlowName).ValidateLossOnFlows(t, ate); err != nil {
-			t.Errorf("ValidateLossOnFlows(%s): %v", f.FlowName, err)
+		top.Flows().Clear()
+		flows := buildEncapToIPFlows()
+		for i, f := range flows {
+			f.Flowrate = 5
+			createEncapToIPFlow(t, top, f, i == 0)
 		}
-	}
-	for i, qn := range qNames {
-		if got := queueTransmitPkts(t, dut, custAggID, custPorts, qn); got == 0 {
-			t.Errorf("queue %s (tc%d) transmit-pkts on %s: got 0, want > 0", qn, i, custAggID)
+		sendTraffic(t, dut, ate, trafficDuration)
+
+		for _, f := range flows {
+			if err := flowValidation(f.FlowName).ValidateLossOnFlows(t, ate); err != nil {
+				t.Errorf("ValidateLossOnFlows(%s): %v", f.FlowName, err)
+			}
 		}
-	}
+		for i, qn := range qNames {
+			if got := queueTransmitPkts(t, dut, custAggID, custPorts, qn); got == 0 {
+				t.Errorf("queue %s (tc%d) transmit-pkts on %s: got 0, want > 0", qn, i, custAggID)
+			}
+		}
 
-	dscpCaptureGRE := &encapToIPFlow{
-		Flow: &otgconfighelpers.Flow{
-			TxNames:       []string{core1OTG.Name + ".IPv4"},
-			RxNames:       []string{custOTG0.Name + ".IPv4"},
-			FlowName:      "MPLSoGRE-decap-inner-header-capture",
-			PacketsToSend: 100,
-			EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: agg2.AggMAC},
-			IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: "100.64.0.1", IPv4Dst: outerGREDstCore1, IPv4SrcCount: 1000},
-			GREFlow:       &otgconfighelpers.GREFlowParams{Protocol: otgconfighelpers.IanaMPLSEthertype},
-			MPLSFlow:      &otgconfighelpers.MPLSFlowParams{MPLSLabel: 99990, MPLSExp: 0},
-		},
-		innerIPv4: &otgconfighelpers.IPv4FlowParams{IPv4Src: "50.1.1.1", IPv4Dst: "11.1.1.1", IPv4SrcCount: 1000, DSCP: innerDSCPCapture},
-	}
-	dscpCaptureGUE := &encapToIPFlow{
-		Flow: &otgconfighelpers.Flow{
-			TxNames:       []string{core2OTG.Name + ".IPv4"},
-			RxNames:       []string{custOTG0.Name + ".IPv4"},
-			FlowName:      "MPLSoGUE-decap-inner-header-capture",
-			PacketsToSend: 100,
-			EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: agg3.AggMAC},
-			IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: "100.64.1.1", IPv4Dst: outerGUEDstCore2, IPv4SrcCount: 1000},
-			UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPSrcPort: 49152, UDPDstPort: gueDstPort},
-			MPLSFlow:      &otgconfighelpers.MPLSFlowParams{MPLSLabel: 99890, MPLSExp: 0},
-		},
-		innerIPv4: &otgconfighelpers.IPv4FlowParams{IPv4Src: "50.1.2.1", IPv4Dst: "11.1.1.1", IPv4SrcCount: 1000, DSCP: innerDSCPCapture},
-	}
-	innerCapture := &packetvalidationhelpers.PacketValidation{
-		PortName:    custPorts[0],
-		CaptureName: "decap-inner-header",
-		Validations: []packetvalidationhelpers.ValidationType{packetvalidationhelpers.ValidateIPv4Header},
-		IPv4Layer:   &packetvalidationhelpers.IPv4Layer{DstIP: "11.1.1.1", Tos: innerDSCPCapture << 2, TTL: 64, SkipProtocolCheck: true},
-	}
-	top.Flows().Clear()
-	createEncapToIPFlow(t, top, dscpCaptureGRE, true)
-	createEncapToIPFlow(t, top, dscpCaptureGUE, false)
-	packetvalidationhelpers.ConfigurePacketCapture(t, top, innerCapture)
-	ate.OTG().PushConfig(t, top)
-	ate.OTG().StartProtocols(t)
-	waitForProtocols(t, dut, ate)
-	cs := packetvalidationhelpers.StartCapture(t, ate)
-	ate.OTG().StartTraffic(t)
-	time.Sleep(10 * time.Second)
-	ate.OTG().StopTraffic(t)
-	time.Sleep(10 * time.Second)
-	packetvalidationhelpers.StopCapture(t, ate, cs)
-	if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, innerCapture); err != nil {
-		t.Errorf("CaptureAndValidatePackets(inner DSCP/dest-IP after decap): %v", err)
-	}
-}
+		dscpCaptureGRE := &encapToIPFlow{
+			Flow: &otgconfighelpers.Flow{
+				TxNames:       []string{core1OTG.Name + ".IPv4"},
+				RxNames:       []string{custOTG0.Name + ".IPv4"},
+				FlowName:      "MPLSoGRE-decap-inner-header-capture",
+				PacketsToSend: 100,
+				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: agg2.AggMAC},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: "100.64.0.1", IPv4Dst: outerGREDstCore1, IPv4SrcCount: 1000},
+				GREFlow:       &otgconfighelpers.GREFlowParams{Protocol: otgconfighelpers.IanaMPLSEthertype},
+				MPLSFlow:      &otgconfighelpers.MPLSFlowParams{MPLSLabel: 99990, MPLSExp: 0},
+			},
+			innerIPv4: &otgconfighelpers.IPv4FlowParams{IPv4Src: "50.1.1.1", IPv4Dst: "11.1.1.1", IPv4SrcCount: 1000, DSCP: innerDSCPCapture},
+		}
+		dscpCaptureGUE := &encapToIPFlow{
+			Flow: &otgconfighelpers.Flow{
+				TxNames:       []string{core2OTG.Name + ".IPv4"},
+				RxNames:       []string{custOTG0.Name + ".IPv4"},
+				FlowName:      "MPLSoGUE-decap-inner-header-capture",
+				PacketsToSend: 100,
+				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: agg3.AggMAC},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: "100.64.1.1", IPv4Dst: outerGUEDstCore2, IPv4SrcCount: 1000},
+				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPSrcPort: 49152, UDPDstPort: gueDstPort},
+				MPLSFlow:      &otgconfighelpers.MPLSFlowParams{MPLSLabel: 99890, MPLSExp: 0},
+			},
+			innerIPv4: &otgconfighelpers.IPv4FlowParams{IPv4Src: "50.1.2.1", IPv4Dst: "11.1.1.1", IPv4SrcCount: 1000, DSCP: innerDSCPCapture},
+		}
+		innerCapture := &packetvalidationhelpers.PacketValidation{
+			PortName:    custPorts[0],
+			CaptureName: "decap-inner-header",
+			Validations: []packetvalidationhelpers.ValidationType{packetvalidationhelpers.ValidateIPv4Header},
+			IPv4Layer:   &packetvalidationhelpers.IPv4Layer{DstIP: "11.1.1.1", Tos: innerDSCPCapture << 2, TTL: 64, SkipProtocolCheck: true},
+		}
+		top.Flows().Clear()
+		createEncapToIPFlow(t, top, dscpCaptureGRE, true)
+		createEncapToIPFlow(t, top, dscpCaptureGUE, false)
+		packetvalidationhelpers.ConfigurePacketCapture(t, top, innerCapture)
+		ate.OTG().PushConfig(t, top)
+		ate.OTG().StartProtocols(t)
+		waitForProtocols(t, dut, ate)
+		cs := packetvalidationhelpers.StartCapture(t, ate)
+		ate.OTG().StartTraffic(t)
+		time.Sleep(10 * time.Second)
+		ate.OTG().StopTraffic(t)
+		time.Sleep(10 * time.Second)
+		packetvalidationhelpers.StopCapture(t, ate, cs)
+		if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, innerCapture); err != nil {
+			t.Errorf("CaptureAndValidatePackets(inner DSCP/dest-IP after decap): %v", err)
+		}
+	})
 
-func TestPF1183DSCPMarking(t *testing.T) {
-	t.Log("PF-1.18.3: Verify DSCP marking of encapsulated and decapsulated traffic")
-	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
+	t.Run("PF-1.18.3_DSCPMarking", func(t *testing.T) {
+		validations := []packetvalidationhelpers.ValidationType{
+			packetvalidationhelpers.ValidateIPv4Header,
+			packetvalidationhelpers.ValidateMPLSLayer,
+			packetvalidationhelpers.ValidateInnerIPv4Header,
+		}
+		encapValidation := &packetvalidationhelpers.PacketValidation{
+			PortName:         core1Ports[0],
+			CaptureName:      "ip-encap-dscp",
+			Validations:      validations,
+			IPv4Layer:        &packetvalidationhelpers.IPv4Layer{Protocol: greProtocol, DstIP: outerGREDstCore1, Tos: outerMarkedDSCP << 2, TTL: 64},
+			MPLSLayer:        &packetvalidationhelpers.MPLSLayer{Label: encapMPLSLabel, Tc: ingressClassifyTC3},
+			InnerIPLayerIPv4: &packetvalidationhelpers.IPv4Layer{DstIP: "11.1.1.1", Tos: 4 << 2, TTL: 63},
+		}
 
-	validations := []packetvalidationhelpers.ValidationType{
-		packetvalidationhelpers.ValidateIPv4Header,
-		packetvalidationhelpers.ValidateMPLSLayer,
-		packetvalidationhelpers.ValidateInnerIPv4Header,
-	}
-	encapValidation := &packetvalidationhelpers.PacketValidation{
-		PortName:         core1Ports[0],
-		CaptureName:      "ip-encap-dscp",
-		Validations:      validations,
-		IPv4Layer:        &packetvalidationhelpers.IPv4Layer{Protocol: greProtocol, DstIP: outerGREDstCore1, Tos: outerMarkedDSCP << 2, TTL: 64},
-		MPLSLayer:        &packetvalidationhelpers.MPLSLayer{Label: encapMPLSLabel, Tc: ingressClassifyTC3},
-		InnerIPLayerIPv4: &packetvalidationhelpers.IPv4Layer{DstIP: "11.1.1.1", Tos: 4 << 2, TTL: 63},
-	}
+		flow := &otgconfighelpers.Flow{
+			TxNames:       []string{custOTG0.Name + ".IPv4"},
+			RxNames:       []string{core1OTG.Name + ".IPv4", core2OTG.Name + ".IPv4"},
+			FlowName:      "IPtoEncap-dscp-marking",
+			PacketsToSend: 1000,
+			EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: agg1.AggMAC},
+			VLANFlow:      &otgconfighelpers.VLANFlowParams{VLANId: uint32(custIntfTC0.Subinterface)},
+			IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: "12.1.1.1", IPv4Dst: "11.1.1.1", IPv4SrcCount: 100, DSCP: 4},
+		}
+		createflow(t, top, flow, true)
+		packetvalidationhelpers.ConfigurePacketCapture(t, top, encapValidation)
 
-	flow := &otgconfighelpers.Flow{
-		TxNames:       []string{custOTG0.Name + ".IPv4"},
-		RxNames:       []string{core1OTG.Name + ".IPv4", core2OTG.Name + ".IPv4"},
-		FlowName:      "IPtoEncap-dscp-marking",
-		PacketsToSend: 1000,
-		EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: agg1.AggMAC},
-		VLANFlow:      &otgconfighelpers.VLANFlowParams{VLANId: uint32(custIntfTC0.Subinterface)},
-		IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: "12.1.1.1", IPv4Dst: "11.1.1.1", IPv4SrcCount: 100, DSCP: 4},
-	}
-	createflow(t, top, flow, true)
-	packetvalidationhelpers.ConfigurePacketCapture(t, top, encapValidation)
+		ate.OTG().PushConfig(t, top)
+		ate.OTG().StartProtocols(t)
+		waitForProtocols(t, dut, ate)
+		cs := packetvalidationhelpers.StartCapture(t, ate)
+		ate.OTG().StartTraffic(t)
+		time.Sleep(30 * time.Second)
+		ate.OTG().StopTraffic(t)
+		time.Sleep(30 * time.Second)
+		packetvalidationhelpers.StopCapture(t, ate, cs)
 
-	ate.OTG().PushConfig(t, top)
-	ate.OTG().StartProtocols(t)
-	waitForProtocols(t, dut, ate)
-	cs := packetvalidationhelpers.StartCapture(t, ate)
-	ate.OTG().StartTraffic(t)
-	time.Sleep(30 * time.Second)
-	ate.OTG().StopTraffic(t)
-	time.Sleep(30 * time.Second)
-	packetvalidationhelpers.StopCapture(t, ate, cs)
-
-	if err := flowValidation(flow.FlowName).ValidateLossOnFlows(t, ate); err != nil {
+		if err := flowValidation(flow.FlowName).ValidateLossOnFlows(t, ate); err != nil {
+			packetvalidationhelpers.ClearCapture(t, top, ate)
+			t.Errorf("ValidateLossOnFlows(): %v", err)
+		}
+		if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, encapValidation); err != nil {
+			t.Errorf("CaptureAndValidatePackets(): %v", err)
+		}
 		packetvalidationhelpers.ClearCapture(t, top, ate)
-		t.Errorf("ValidateLossOnFlows(): %v", err)
-	}
-	if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, encapValidation); err != nil {
-		t.Errorf("CaptureAndValidatePackets(): %v", err)
-	}
-	packetvalidationhelpers.ClearCapture(t, top, ate)
-}
+	})
 
-func TestPF1184AssuredForwardingMinBandwidth(t *testing.T) {
-	t.Log("PF-1.18.4: Verify Assured forwarding (bandwidth class) - Queueing of decap traffic")
-	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
+	t.Run("PF-1.18.4_AssuredForwardingMinBandwidth", func(t *testing.T) {
+		qNames := qcNames
 
-	qNames := qcNames
+		applySchedulerOnOutput(t, dut, custAggID, bwSchedulerName, qNames)
 
-	applySchedulerOnOutput(t, dut, custAggID, bwSchedulerName, qNames)
-
-	top.Flows().Clear()
-	flows := buildEncapToIPFlows()
-	for i, f := range flows {
-		f.Flowrate = 12
-		createEncapToIPFlow(t, top, f, i == 0)
-	}
-	sendTraffic(t, dut, ate, trafficDuration)
-
-	for i, qn := range qNames {
-		got := queueTransmitPkts(t, dut, custAggID, custPorts, qn)
-		t.Logf("queue %s (class %d) transmit-pkts: %d", qn, i, got)
-		if got == 0 {
-			t.Errorf("queue %s: got 0 transmit-pkts, want > 0 (minimum bandwidth not honored)", qn)
+		top.Flows().Clear()
+		flows := buildEncapToIPFlows()
+		for i, f := range flows {
+			f.Flowrate = 12
+			createEncapToIPFlow(t, top, f, i == 0)
 		}
-		if dropped := queueDroppedPkts(t, dut, custAggID, custPorts, qn); dropped > 0 {
-			t.Logf("queue %s dropped-pkts: %d (congestion expected per README)", qn, dropped)
+		sendTraffic(t, dut, ate, trafficDuration)
+
+		for i, qn := range qNames {
+			got := queueTransmitPkts(t, dut, custAggID, custPorts, qn)
+			t.Logf("queue %s (class %d) transmit-pkts: %d", qn, i, got)
+			if got == 0 {
+				t.Errorf("queue %s: got 0 transmit-pkts, want > 0 (minimum bandwidth not honored)", qn)
+			}
+			if dropped := queueDroppedPkts(t, dut, custAggID, custPorts, qn); dropped > 0 {
+				t.Logf("queue %s dropped-pkts: %d (congestion expected per README)", qn, dropped)
+			}
 		}
-	}
-}
+	})
 
-func TestPF1185AssuredForwardingShaper(t *testing.T) {
-	t.Log("PF-1.18.5: Verify Assured forwarding (bandwidth class) - Queueing of decap traffic with min/max bandwidth (shaper)")
-	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
-	qNames := qcNames
+	t.Run("PF-1.18.5_AssuredForwardingShaper", func(t *testing.T) {
+		qNames := qcNames
 
-	applySchedulerOnOutput(t, dut, custAggID, bwShaperSchedulerName, qNames)
+		applySchedulerOnOutput(t, dut, custAggID, bwShaperSchedulerName, qNames)
 
-	top.Flows().Clear()
-	flows := buildEncapToIPFlows()
-	for i, f := range flows {
-		f.Flowrate = 12
-		createEncapToIPFlow(t, top, f, i == 0)
-	}
-	sendTraffic(t, dut, ate, trafficDuration)
-
-	for i, qn := range qNames {
-		got := queueTransmitPkts(t, dut, custAggID, custPorts, qn)
-		t.Logf("queue %s (class %d) transmit-pkts: %d", qn, i, got)
-		if got == 0 {
-			t.Errorf("queue %s: got 0 transmit-pkts, want > 0", qn)
+		top.Flows().Clear()
+		flows := buildEncapToIPFlows()
+		for i, f := range flows {
+			f.Flowrate = 12
+			createEncapToIPFlow(t, top, f, i == 0)
 		}
-	}
-}
+		sendTraffic(t, dut, ate, trafficDuration)
 
-func TestPF1186ExpeditedForwardingPriorityDecap(t *testing.T) {
-	t.Log("PF-1.18.6: Verify Expedited forwarding (Priority class) - Queueing of decap traffic")
-	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
-	qNames := qcNames
+		for i, qn := range qNames {
+			got := queueTransmitPkts(t, dut, custAggID, custPorts, qn)
+			t.Logf("queue %s (class %d) transmit-pkts: %d", qn, i, got)
+			if got == 0 {
+				t.Errorf("queue %s: got 0 transmit-pkts, want > 0", qn)
+			}
+		}
+	})
 
-	applySchedulerOnOutput(t, dut, custAggID, prioSchedulerName, qNames)
+	t.Run("PF-1.18.6_ExpeditedForwardingPriorityDecap", func(t *testing.T) {
+		qNames := qcNames
 
-	top.Flows().Clear()
-	flows := buildEncapToIPFlows()
-	for i, f := range flows {
-		f.Flowrate = 12
-		createEncapToIPFlow(t, top, f, i == 0)
-	}
-	sendTraffic(t, dut, ate, trafficDuration)
+		applySchedulerOnOutput(t, dut, custAggID, prioSchedulerName, qNames)
 
-	highest := qNames[len(qNames)-1]
-	if got := queueTransmitPkts(t, dut, custAggID, custPorts, highest); got == 0 {
-		t.Errorf("highest priority queue %s: got 0 transmit-pkts, want > 0", highest)
-	}
-	for i, qn := range qNames {
-		t.Logf("queue %s (priority level %d) transmit-pkts: %d", qn, i, queueTransmitPkts(t, dut, custAggID, custPorts, qn))
-	}
-}
+		top.Flows().Clear()
+		flows := buildEncapToIPFlows()
+		for i, f := range flows {
+			f.Flowrate = 12
+			createEncapToIPFlow(t, top, f, i == 0)
+		}
+		sendTraffic(t, dut, ate, trafficDuration)
 
-func TestPF1187ExpeditedForwardingPriorityShaper(t *testing.T) {
-	t.Log("PF-1.18.7: Verify Expedited forwarding (Priority class) - Queueing of decap traffic with min/max bandwidth (shaper)")
-	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
-	qNames := qcNames
-
-	applySchedulerOnOutput(t, dut, custAggID, prioShaperSchedulerName, qNames)
-
-	top.Flows().Clear()
-	flows := buildEncapToIPFlows()
-	for i, f := range flows {
-		f.Flowrate = 12
-		createEncapToIPFlow(t, top, f, i == 0)
-	}
-	sendTraffic(t, dut, ate, trafficDuration)
-
-	for i, qn := range qNames {
-		t.Logf("queue %s (priority level %d) transmit-pkts: %d, dropped-pkts: %d",
-			qn, i, queueTransmitPkts(t, dut, custAggID, custPorts, qn), queueDroppedPkts(t, dut, custAggID, custPorts, qn))
-	}
-}
-
-func TestPF1188ExpeditedForwardingPriorityEncap(t *testing.T) {
-	t.Log("PF-1.18.8: Verify Expedited forwarding (Priority class) - Queueing of encap traffic")
-	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
-	qNames := qcNames
-
-	top.Flows().Clear()
-	flows := buildIPToEncapFlows()
-	for i, f := range flows {
-		f.Flowrate = 12
-		createflow(t, top, f, i == 0)
-	}
-	sendTraffic(t, dut, ate, trafficDuration)
-
-	for _, agg := range []struct {
-		aggID string
-		ports []string
-	}{{core1AggID, core1Ports}, {core2AggID, core2Ports}} {
 		highest := qNames[len(qNames)-1]
-		if got := queueTransmitPkts(t, dut, agg.aggID, agg.ports, highest); got == 0 {
-			t.Errorf("highest priority queue %s on ports %v: got 0 transmit-pkts, want > 0", highest, agg.ports)
+		if got := queueTransmitPkts(t, dut, custAggID, custPorts, highest); got == 0 {
+			t.Errorf("highest priority queue %s: got 0 transmit-pkts, want > 0", highest)
 		}
-	}
-}
-
-func TestPF1189TwoRateThreeColorPolicer(t *testing.T) {
-	t.Log("PF-1.18.9: Verify two rate three color policer - Ingress rate limiting of encap traffic")
-	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
-
-	top.Flows().Clear()
-	flows := buildIPToEncapFlows()
-	for i, f := range flows {
-		f.Flowrate = 12
-		createflow(t, top, f, i == 0)
-	}
-	sendTraffic(t, dut, ate, trafficDuration)
-
-	var totalLossPct float32
-	for _, f := range flows {
-		totalLossPct += flowValidation(f.FlowName).ReturnLossPercentage(t, ate)
-	}
-	t.Logf("Average loss across %d flows: %.2f%% (expect drops beyond configured PIR)", len(flows), totalLossPct/float32(len(flows)))
-}
-
-func TestPF11810PortHardwareDependency(t *testing.T) {
-	t.Log("PF-1.18.10: Verify port/hardware dependency")
-	t.Skip("TODO: requires per-platform packet-processing-engine (PPE) port placement " +
-		"information which is not modeled in the standard topology; re-run PF-1.18.1-1.18.9 " +
-		"with ingress/egress aggregate member ports redistributed across PPEs once that " +
-		"information is available for the DUT under test.")
-}
-
-func TestPF118v6MPLSoGUEv6QoS(t *testing.T) {
-	t.Log("PF-1.18.v6: Validate MPLS over GRE over UDP over IPv6 encapsulation and decapsulation with QoS prioritization")
-	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
-	highestQueue := qcNames[len(qcNames)-1]
-
-	highPrioFlow := &otgconfighelpers.Flow{
-		TxNames:  []string{custOTG0.Name + ".IPv6"},
-		RxNames:  []string{core1OTG.Name + ".IPv6"},
-		FlowName: "MPLSoGUEv6-high-priority",
-		EthFlow:  &otgconfighelpers.EthFlowParams{SrcMAC: agg1.AggMAC},
-		VLANFlow: &otgconfighelpers.VLANFlowParams{VLANId: uint32(custIntfTC0.Subinterface)},
-		IPv6Flow: &otgconfighelpers.IPv6FlowParams{IPv6Src: "2001:db8:1::10", IPv6Dst: "2001:db8:1::1", TrafficClass: 46},
-	}
-	lowPrioFlow := &otgconfighelpers.Flow{
-		TxNames:  []string{custOTG0.Name + ".IPv6"},
-		RxNames:  []string{core1OTG.Name + ".IPv6"},
-		FlowName: "MPLSoGUEv6-low-priority",
-		EthFlow:  &otgconfighelpers.EthFlowParams{SrcMAC: agg1.AggMAC},
-		VLANFlow: &otgconfighelpers.VLANFlowParams{VLANId: uint32(custIntfTC0.Subinterface)},
-		IPv6Flow: &otgconfighelpers.IPv6FlowParams{IPv6Src: "2001:db8:1::11", IPv6Dst: "2001:db8:1::1", TrafficClass: 0},
-	}
-	top.Flows().Clear()
-	createflow(t, top, highPrioFlow, true)
-	createflow(t, top, lowPrioFlow, false)
-	sendTraffic(t, dut, ate, trafficDuration)
-
-	for _, f := range []*otgconfighelpers.Flow{highPrioFlow, lowPrioFlow} {
-		if err := flowValidationStrict(f.FlowName).ValidateLossOnFlows(t, ate); err != nil {
-			t.Errorf("ValidateLossOnFlows(%s): %v", f.FlowName, err)
+		for i, qn := range qNames {
+			t.Logf("queue %s (priority level %d) transmit-pkts: %d", qn, i, queueTransmitPkts(t, dut, custAggID, custPorts, qn))
 		}
-	}
-	if dropped := queueDroppedPkts(t, dut, core1AggID, core1Ports, highestQueue); dropped != 0 {
-		t.Errorf("dropped-pkts on %s queue %s: got %d, want 0", core1AggID, highestQueue, dropped)
-	}
-	if got := queueTransmitPkts(t, dut, core1AggID, core1Ports, highestQueue); got == 0 {
-		t.Errorf("transmit-pkts on %s queue %s: got 0, want > 0", core1AggID, highestQueue)
-	}
-}
+	})
 
-func TestZZZCleanup(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	cleanupDut(t, dut)
+	t.Run("PF-1.18.7_ExpeditedForwardingPriorityShaper", func(t *testing.T) {
+		qNames := qcNames
+
+		applySchedulerOnOutput(t, dut, custAggID, prioShaperSchedulerName, qNames)
+
+		top.Flows().Clear()
+		flows := buildEncapToIPFlows()
+		for i, f := range flows {
+			f.Flowrate = 12
+			createEncapToIPFlow(t, top, f, i == 0)
+		}
+		sendTraffic(t, dut, ate, trafficDuration)
+
+		for i, qn := range qNames {
+			t.Logf("queue %s (priority level %d) transmit-pkts: %d, dropped-pkts: %d",
+				qn, i, queueTransmitPkts(t, dut, custAggID, custPorts, qn), queueDroppedPkts(t, dut, custAggID, custPorts, qn))
+		}
+	})
+
+	t.Run("PF-1.18.8_ExpeditedForwardingPriorityEncap", func(t *testing.T) {
+		qNames := qcNames
+
+		top.Flows().Clear()
+		flows := buildIPToEncapFlows()
+		for i, f := range flows {
+			f.Flowrate = 12
+			createflow(t, top, f, i == 0)
+		}
+		sendTraffic(t, dut, ate, trafficDuration)
+
+		for _, agg := range []struct {
+			aggID string
+			ports []string
+		}{{core1AggID, core1Ports}, {core2AggID, core2Ports}} {
+			highest := qNames[len(qNames)-1]
+			if got := queueTransmitPkts(t, dut, agg.aggID, agg.ports, highest); got == 0 {
+				t.Errorf("highest priority queue %s on ports %v: got 0 transmit-pkts, want > 0", highest, agg.ports)
+			}
+		}
+	})
+
+	t.Run("PF-1.18.9_TwoRateThreeColorPolicer", func(t *testing.T) {
+		top.Flows().Clear()
+		flows := buildIPToEncapFlows()
+		for i, f := range flows {
+			f.Flowrate = 12
+			createflow(t, top, f, i == 0)
+		}
+		sendTraffic(t, dut, ate, trafficDuration)
+
+		var totalLossPct float32
+		for _, f := range flows {
+			totalLossPct += flowValidation(f.FlowName).ReturnLossPercentage(t, ate)
+		}
+		t.Logf("Average loss across %d flows: %.2f%% (expect drops beyond configured PIR)", len(flows), totalLossPct/float32(len(flows)))
+	})
+
+	t.Run("PF-1.18.10_PortHardwareDependency", func(t *testing.T) {
+		t.Skip("TODO: requires per-platform packet-processing-engine (PPE) port placement " +
+			"information which is not modeled in the standard topology; re-run PF-1.18.1-1.18.9 " +
+			"with ingress/egress aggregate member ports redistributed across PPEs once that " +
+			"information is available for the DUT under test.")
+	})
+
+	t.Run("PF-1.18.v6_MPLSoGUEv6QoS", func(t *testing.T) {
+		highestQueue := qcNames[len(qcNames)-1]
+
+		highPrioFlow := &otgconfighelpers.Flow{
+			TxNames:  []string{custOTG0.Name + ".IPv6"},
+			RxNames:  []string{core1OTG.Name + ".IPv6"},
+			FlowName: "MPLSoGUEv6-high-priority",
+			EthFlow:  &otgconfighelpers.EthFlowParams{SrcMAC: agg1.AggMAC},
+			VLANFlow: &otgconfighelpers.VLANFlowParams{VLANId: uint32(custIntfTC0.Subinterface)},
+			IPv6Flow: &otgconfighelpers.IPv6FlowParams{IPv6Src: "2001:db8:1::10", IPv6Dst: "2001:db8:1::1", TrafficClass: 46},
+		}
+		lowPrioFlow := &otgconfighelpers.Flow{
+			TxNames:  []string{custOTG0.Name + ".IPv6"},
+			RxNames:  []string{core1OTG.Name + ".IPv6"},
+			FlowName: "MPLSoGUEv6-low-priority",
+			EthFlow:  &otgconfighelpers.EthFlowParams{SrcMAC: agg1.AggMAC},
+			VLANFlow: &otgconfighelpers.VLANFlowParams{VLANId: uint32(custIntfTC0.Subinterface)},
+			IPv6Flow: &otgconfighelpers.IPv6FlowParams{IPv6Src: "2001:db8:1::11", IPv6Dst: "2001:db8:1::1", TrafficClass: 0},
+		}
+		top.Flows().Clear()
+		createflow(t, top, highPrioFlow, true)
+		createflow(t, top, lowPrioFlow, false)
+		sendTraffic(t, dut, ate, trafficDuration)
+
+		for _, f := range []*otgconfighelpers.Flow{highPrioFlow, lowPrioFlow} {
+			if err := flowValidationStrict(f.FlowName).ValidateLossOnFlows(t, ate); err != nil {
+				t.Errorf("ValidateLossOnFlows(%s): %v", f.FlowName, err)
+			}
+		}
+		if dropped := queueDroppedPkts(t, dut, core1AggID, core1Ports, highestQueue); dropped != 0 {
+			t.Errorf("dropped-pkts on %s queue %s: got %d, want 0", core1AggID, highestQueue, dropped)
+		}
+		if got := queueTransmitPkts(t, dut, core1AggID, core1Ports, highestQueue); got == 0 {
+			t.Errorf("transmit-pkts on %s queue %s: got 0, want > 0", core1AggID, highestQueue)
+		}
+	})
 }
