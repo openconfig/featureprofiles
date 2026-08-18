@@ -18,8 +18,12 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
 // DeviationCiscoTableConnectionsStatictoBGPMetricPropagation is used as an alternative to
@@ -45,4 +49,26 @@ func DeviationCiscoTableConnectionsStatictoBGPMetricPropagation(t *testing.T, du
 		cliConfig = fmt.Sprintf("router bgp 64512\n address-family %v unicast\n redistribute static metric %d route-policy %s\n !\n!\n", aftype, metric, routePolicyName)
 	}
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
+}
+
+// ConfigureTableConnection sets or deletes a table connection redistribution policy on the DUT.
+func ConfigureTableConnection(t *testing.T, dut *ondatra.DUTDevice, srcProto, dstProto oc.E_PolicyTypes_INSTALL_PROTOCOL_TYPE, afi oc.E_Types_ADDRESS_FAMILY, importPolicies []string, disableMetricPropagation bool, defaultImportPolicy oc.E_RoutingPolicy_DefaultPolicyType, operation string) {
+	dni := deviations.DefaultNetworkInstance(dut)
+	if deviations.EnableTableConnections(dut) {
+		fptest.ConfigEnableTbNative(t, dut)
+	}
+	if operation == "delete" {
+		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(dni).TableConnection(srcProto, dstProto, afi).Config())
+		return
+	}
+	root := &oc.Root{}
+	tableConn := root.GetOrCreateNetworkInstance(dni).GetOrCreateTableConnection(srcProto, dstProto, afi)
+	if !deviations.SkipSettingDisableMetricPropagation(dut) {
+		tableConn.SetDisableMetricPropagation(disableMetricPropagation)
+	}
+	if !deviations.DefaultRoutePolicyUnsupported(dut) {
+		tableConn.SetDefaultImportPolicy(defaultImportPolicy)
+	}
+	tableConn.SetImportPolicy(importPolicies)
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(dni).TableConnection(srcProto, dstProto, afi).Config(), tableConn)
 }
