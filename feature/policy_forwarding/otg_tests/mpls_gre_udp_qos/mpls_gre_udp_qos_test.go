@@ -280,8 +280,8 @@ ip decap-group %s
 	for tc := 0; tc < 8; tc++ {
 		fmt.Fprintf(&mplsB, "mpls static top-label %d %s pop payload-type ipv4 access-list bypass\n", 99990+tc, custOTG0.IPv4)
 		fmt.Fprintf(&mplsB, "mpls static top-label %d %s pop payload-type ipv4 access-list bypass\n", 99890+tc, custOTG0.IPv4)
-		fmt.Fprintf(&mplsB, "mpls static top-label %d %s pop payload-type ipv4 access-list bypass\n", 99980+tc, mcastDst)
-		fmt.Fprintf(&mplsB, "mpls static top-label %d %s pop payload-type ipv4 access-list bypass\n", 99880+tc, mcastDst)
+		fmt.Fprintf(&mplsB, "mpls static top-label %d %s pop payload-type ipv4 access-list bypass\n", 99980+tc, custOTG0.IPv4)
+		fmt.Fprintf(&mplsB, "mpls static top-label %d %s pop payload-type ipv4 access-list bypass\n", 99880+tc, custOTG0.IPv4)
 	}
 	helpers.GnmiCLIConfig(t, dut, mplsB.String())
 }
@@ -688,8 +688,8 @@ no ip decap-group %s
 		for tc := 0; tc < 8; tc++ {
 			fmt.Fprintf(&mplsB, "no mpls static top-label %d %s pop payload-type ipv4 access-list bypass\n", 99990+tc, custOTG0.IPv4)
 			fmt.Fprintf(&mplsB, "no mpls static top-label %d %s pop payload-type ipv4 access-list bypass\n", 99890+tc, custOTG0.IPv4)
-			fmt.Fprintf(&mplsB, "no mpls static top-label %d %s pop payload-type ipv4 access-list bypass\n", 99980+tc, mcastDst)
-			fmt.Fprintf(&mplsB, "no mpls static top-label %d %s pop payload-type ipv4 access-list bypass\n", 99880+tc, mcastDst)
+			fmt.Fprintf(&mplsB, "no mpls static top-label %d %s pop payload-type ipv4 access-list bypass\n", 99980+tc, custOTG0.IPv4)
+			fmt.Fprintf(&mplsB, "no mpls static top-label %d %s pop payload-type ipv4 access-list bypass\n", 99880+tc, custOTG0.IPv4)
 		}
 		helpers.GnmiCLIConfig(t, dut, mplsB.String())
 	default:
