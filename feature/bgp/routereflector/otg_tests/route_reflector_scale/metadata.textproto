@@ -29,6 +29,7 @@ platform_exceptions: {
     isis_level_enabled: true
     interface_ref_interface_id_format: true
     default_bgp_instance_name: "BGP"
+    route_reflector_client_unsupported: true
   }
 }
 platform_exceptions: {
