@@ -1833,6 +1833,12 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_low_power_mode_test/zrp_low_power_mode_test.go"
 }
 test: {
+  id: "TRANSCEIVER-20.1"
+  description: "Client Optics DOM Telemetry, Instant, Threshold, and Miscellaneous Static Info"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/client_optics_dom_telemetry_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/client_optics_dom_telemetry_test/client_optics_dom_telemetry_test.go"
+}
+test: {
   id: "TRANSCEIVER-3.1"
   description: "Telemetry: 400ZR Optics firmware version streaming"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zr_firmware_version_test/README.md"
