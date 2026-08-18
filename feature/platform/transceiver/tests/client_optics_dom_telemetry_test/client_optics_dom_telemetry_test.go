@@ -424,10 +424,10 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
 					sType, ok := sensorTypeLookup.Val()
 					if ok && sType == sensorType {
 						scomponent := gnmi.OC().Component(subcName)
-						sensorComponentChecked = true
 						descLookup := gnmi.Lookup(t, dut, scomponent.Description().State())
 						desc, _ := descLookup.Val()
 						if !deviations.TemperatureSensorCheck(dut) || strings.Contains(desc, "Temperature Sensor") {
+							sensorComponentChecked = true
 							tempPathStr := getPathStr(scomponent.Temperature().Instant().State().PathStruct())
 							v := gnmi.Lookup(t, dut, scomponent.Temperature().Instant().State())
 							if val, ok := v.Val(); !ok {
@@ -608,14 +608,19 @@ func TestInterfacesWithTransceivers(t *testing.T) {
 			tracePath(t, transceiverPath, statusPass, "Interface transceiver: %s", tv)
 
 			t.Run(fmt.Sprintf("Transceiver:%s", tv), func(t *testing.T) {
-				mfgName, _ := gnmi.Lookup(t, dut, gnmi.OC().Component(tv).MfgName().State()).Val()
+				compLookup := gnmi.Lookup(t, dut, gnmi.OC().Component(tv).State())
+				comp, compPresent := compLookup.Val()
 				tvPathStr := getPathStr(gnmi.OC().Component(tv).State().PathStruct())
-				if mfgName == "" {
+				if !compPresent || comp == nil || comp.GetMfgName() == "" {
 					tracePath(t, tvPathStr, statusSkipped, "Skipping check for Transceiver: got no MfgName.")
 					t.Skipf("Skipping check for Transceiver: %q, got no MfgName.", tv)
 				}
+				mfgName := comp.GetMfgName()
 
-				formFactor, _ := gnmi.Lookup(t, dut, gnmi.OC().Component(tv).Transceiver().FormFactor().State()).Val()
+				formFactor := oc.TransportTypes_TRANSCEIVER_FORM_FACTOR_TYPE_UNSET
+				if comp.GetTransceiver() != nil {
+					formFactor = comp.GetTransceiver().GetFormFactor()
+				}
 				if formFactor == oc.TransportTypes_TRANSCEIVER_FORM_FACTOR_TYPE_UNSET {
 					tracePath(t, tvPathStr, statusFail, "transceiver form-factor unset")
 				} else {
@@ -624,8 +629,8 @@ func TestInterfacesWithTransceivers(t *testing.T) {
 
 				// Verify Component Type
 				typePath := gnmi.OC().Component(tv).Type().State()
-				compType, typePresent := gnmi.Lookup(t, dut, typePath).Val()
-				if !typePresent {
+				compType := comp.GetType()
+				if compType == nil {
 					tracePath(t, getPathStr(typePath.PathStruct()), statusFail, "Component type is not present")
 				} else {
 					if compType == transceiverType {
@@ -637,8 +642,8 @@ func TestInterfacesWithTransceivers(t *testing.T) {
 
 				// Verify Part Number
 				partNoPath := gnmi.OC().Component(tv).PartNo().State()
-				partNo, partNoPresent := gnmi.Lookup(t, dut, partNoPath).Val()
-				if !partNoPresent || partNo == "" {
+				partNo := comp.GetPartNo()
+				if partNo == "" {
 					tracePath(t, getPathStr(partNoPath.PathStruct()), statusFail, "Part number is not present or empty")
 				} else {
 					tracePath(t, getPathStr(partNoPath.PathStruct()), statusPass, "Part number: %s", partNo)
@@ -646,8 +651,8 @@ func TestInterfacesWithTransceivers(t *testing.T) {
 
 				// Verify Serial Number
 				serialNoPath := gnmi.OC().Component(tv).SerialNo().State()
-				serialNo, serialNoPresent := gnmi.Lookup(t, dut, serialNoPath).Val()
-				if !serialNoPresent || serialNo == "" {
+				serialNo := comp.GetSerialNo()
+				if serialNo == "" {
 					tracePath(t, getPathStr(serialNoPath.PathStruct()), statusFail, "Serial number is not present or empty")
 				} else {
 					tracePath(t, getPathStr(serialNoPath.PathStruct()), statusPass, "Serial number: %s", serialNo)
@@ -655,8 +660,8 @@ func TestInterfacesWithTransceivers(t *testing.T) {
 
 				// Verify Firmware Version
 				firmwareVersionPath := gnmi.OC().Component(tv).FirmwareVersion().State()
-				firmwareVersion, firmwareVersionPresent := gnmi.Lookup(t, dut, firmwareVersionPath).Val()
-				if !firmwareVersionPresent || firmwareVersion == "" {
+				firmwareVersion := comp.GetFirmwareVersion()
+				if firmwareVersion == "" {
 					tracePath(t, getPathStr(firmwareVersionPath.PathStruct()), statusWarning, "Firmware version is not present or empty")
 				} else {
 					tracePath(t, getPathStr(firmwareVersionPath.PathStruct()), statusPass, "Firmware version: %s", firmwareVersion)
@@ -664,8 +669,8 @@ func TestInterfacesWithTransceivers(t *testing.T) {
 
 				// Verify Hardware Version
 				hardwareVersionPath := gnmi.OC().Component(tv).HardwareVersion().State()
-				hardwareVersion, hardwareVersionPresent := gnmi.Lookup(t, dut, hardwareVersionPath).Val()
-				if !hardwareVersionPresent || hardwareVersion == "" {
+				hardwareVersion := comp.GetHardwareVersion()
+				if hardwareVersion == "" {
 					tracePath(t, getPathStr(hardwareVersionPath.PathStruct()), statusFail, "Hardware version is not present or empty")
 				} else {
 					tracePath(t, getPathStr(hardwareVersionPath.PathStruct()), statusPass, "Hardware version: %s", hardwareVersion)
@@ -676,8 +681,8 @@ func TestInterfacesWithTransceivers(t *testing.T) {
 				if deviations.SkipTransceiverDescription(dut) {
 					tracePath(t, getPathStr(descPath.PathStruct()), statusSkipped, "Skipping verification of transceiver description due to deviation")
 				} else {
-					desc, descPresent := gnmi.Lookup(t, dut, descPath).Val()
-					if !descPresent || desc == "" {
+					desc := comp.GetDescription()
+					if desc == "" {
 						tracePath(t, getPathStr(descPath.PathStruct()), statusWarning, "Description is not present or empty")
 					} else {
 						tracePath(t, getPathStr(descPath.PathStruct()), statusPass, "Description: %s", desc)
@@ -689,8 +694,8 @@ func TestInterfacesWithTransceivers(t *testing.T) {
 				if deviations.ComponentMfgDateUnsupported(dut) {
 					tracePath(t, getPathStr(mfgDatePath.PathStruct()), statusSkipped, "Skipping verification of transceiver manufacturing date due to deviation")
 				} else {
-					mfgDate, mfgDatePresent := gnmi.Lookup(t, dut, mfgDatePath).Val()
-					if !mfgDatePresent || mfgDate == "" {
+					mfgDate := comp.GetMfgDate()
+					if mfgDate == "" {
 						tracePath(t, getPathStr(mfgDatePath.PathStruct()), statusFail, "Manufacturing date is not present or empty")
 					} else {
 						tracePath(t, getPathStr(mfgDatePath.PathStruct()), statusPass, "Manufacturing date: %s", mfgDate)
@@ -698,10 +703,13 @@ func TestInterfacesWithTransceivers(t *testing.T) {
 				}
 
 				channelsMap := make(map[uint16]bool)
-				channels := gnmi.LookupAll(t, dut, gnmi.OC().Component(tv).Transceiver().ChannelAny().State())
-				for _, ch := range channels {
-					if val, ok := ch.Val(); ok {
-						channelsMap[val.GetIndex()] = true
+				if comp.GetTransceiver() != nil {
+					for chIdx, ch := range comp.GetTransceiver().Channel {
+						if ch != nil {
+							channelsMap[ch.GetIndex()] = true
+						} else {
+							channelsMap[chIdx] = true
+						}
 					}
 				}
 
