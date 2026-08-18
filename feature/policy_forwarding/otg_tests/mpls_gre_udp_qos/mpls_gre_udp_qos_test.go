@@ -611,7 +611,120 @@ func TestSetup(t *testing.T) {
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	ConfigureDut(t, dut)
+	t.Cleanup(func() {
+		cleanupDut(t, dut)
+	})
 	ConfigureOTG(t)
+}
+
+// cleanupDut reverts all DUT configuration applied by ConfigureDut, in the reverse
+// order it was applied, so the DUT is left in its original state.
+func cleanupDut(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	cleanupQoS(t, dut)
+	cleanupDecapMPLSInGREAndGUE(t, dut)
+	cleanupEncapMPLSInGREAndGUE(t, dut)
+	cleanupStaticRoutes(t, dut)
+	cleanupAggregate(t, dut, custAggID, custPorts)
+	cleanupAggregate(t, dut, core1AggID, core1Ports)
+	cleanupAggregate(t, dut, core2AggID, core2Ports)
+}
+
+func cleanupAggregate(t *testing.T, dut *ondatra.DUTDevice, aggID string, ports []string) {
+	t.Helper()
+	gnmi.Delete(t, dut, gnmi.OC().Lacp().Interface(aggID).Config())
+	gnmi.Delete(t, dut, gnmi.OC().Interface(aggID).Config())
+	for _, p := range ports {
+		port := dut.Port(t, p)
+		gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
+		gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).HoldTime().Config())
+	}
+}
+
+func cleanupStaticRoutes(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	ni := deviations.DefaultNetworkInstance(dut)
+	for _, prefix := range []string{"10.99.1.0/24", "10.99.2.0/24"} {
+		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Static(prefix).Config())
+	}
+}
+
+func cleanupEncapMPLSInGREAndGUE(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		greIntfs := custIntfs[:3]
+		gueIntfs := custIntfs[3:]
+		for _, a := range greIntfs {
+			helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("interface %s.%d\n no traffic-policy input %s\n!\n", custAggID, a.Subinterface, encapPolicyName))
+		}
+		for _, a := range gueIntfs {
+			helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("interface %s.%d\n no traffic-policy input %s\n!\n", custAggID, a.Subinterface, gueEncapPolicyName))
+		}
+		var b strings.Builder
+		fmt.Fprintf(&b, "traffic-policies\n no traffic-policy %s\n no traffic-policy %s\n!\n", encapPolicyName, gueEncapPolicyName)
+		fmt.Fprintf(&b, "no nexthop-group %s type mpls-over-gre\n", greNHGName)
+		fmt.Fprintf(&b, "no nexthop-group %s type ipv4-over-udp\n", gueNHGName)
+		helpers.GnmiCLIConfig(t, dut, b.String())
+	default:
+		t.Fatalf("MPLSoGRE/MPLSoGUE encap cleanup is not implemented for vendor %v", dut.Vendor())
+	}
+}
+
+func cleanupDecapMPLSInGREAndGUE(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		cli := fmt.Sprintf(`
+no ip decap-group %s
+no ip decap-group type udp destination port %d payload mpls
+no ip decap-group %s
+`, decapGREGroup, gueDstPort, decapGUEGroup)
+		helpers.GnmiCLIConfig(t, dut, cli)
+
+		var mplsB strings.Builder
+		for tc := 0; tc < 8; tc++ {
+			fmt.Fprintf(&mplsB, "no mpls static top-label %d %s pop payload-type ipv4 access-list bypass\n", 99990+tc, custOTG0.IPv4)
+			fmt.Fprintf(&mplsB, "no mpls static top-label %d %s pop payload-type ipv4 access-list bypass\n", 99890+tc, custOTG0.IPv4)
+		}
+		helpers.GnmiCLIConfig(t, dut, mplsB.String())
+	default:
+		t.Fatalf("MPLSoGRE/MPLSoGUE decap cleanup is not implemented for vendor %v", dut.Vendor())
+	}
+}
+
+func cleanupQoS(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	cleanupIngressPolicerCLI(t, dut)
+	gnmi.Delete(t, dut, gnmi.OC().Qos().Config())
+	cleanupAristaQosTxQueues(t, dut, qcNames)
+}
+
+func cleanupIngressPolicerCLI(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	if dut.Vendor() != ondatra.ARISTA {
+		return
+	}
+	if deviations.QosSchedulerIngressPolicer(dut) {
+		helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("interface %s\n no service-policy type qos input %s\n!\n", custAggID, ingressPolicerName))
+	}
+	if deviations.QosTwoRateThreeColorPolicerOCUnsupported(dut) {
+		helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("no policy-map type quality-of-service %s\n", ingressPolicerName))
+	}
+}
+
+func cleanupAristaQosTxQueues(t *testing.T, dut *ondatra.DUTDevice, qNames []string) {
+	t.Helper()
+	var cli strings.Builder
+	for index, queue := range qNames {
+		fmt.Fprintf(&cli, "no qos traffic-class %d name target-group-%s\n!\n", index, queue)
+		if index != 7 {
+			fmt.Fprintf(&cli, "no qos map traffic-class %d to exp %d\n!\n", index, index)
+			fmt.Fprintf(&cli, "no qos map traffic-class %d to tx-queue %d\n!\n", index, index)
+		}
+		fmt.Fprintf(&cli, "no qos tx-queue %d name %s\n!\n", index, queue)
+	}
+	helpers.GnmiCLIConfig(t, dut, cli.String())
 }
 
 func createflow(t *testing.T, top gosnappi.Config, params *otgconfighelpers.Flow, clearFlows bool) {
