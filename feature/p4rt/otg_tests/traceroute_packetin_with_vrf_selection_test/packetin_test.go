@@ -128,7 +128,6 @@ func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flow
 		initialOutPkts[flow.Name()] = gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
 	}
 	ate.OTG().StartTraffic(t)
-	defer ate.OTG().StopTraffic(t)
 
 	// AWAIT LOGIC INSTEAD OF SLEEP
 	for _, flow := range flows {
@@ -142,10 +141,27 @@ func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flow
 		}
 	}
 
+	ate.OTG().StopTraffic(t)
+	
+	// Add stabilization: poll counters until they stop incrementing
 	total := 0
 	for _, flow := range flows {
-		current := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
-		total += int(current - initialOutPkts[flow.Name()])
+		var lastPkts uint64
+		var stableCount int
+		for {
+			current := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
+			if current == lastPkts {
+				stableCount++
+				if stableCount >= 4 { // 4 * 500ms = 2 seconds of stability
+					total += int(current - initialOutPkts[flow.Name()])
+					break
+				}
+			} else {
+				stableCount = 0
+			}
+			lastPkts = current
+			time.Sleep(500 * time.Millisecond)
+		}
 	}
 	return total
 }
@@ -179,6 +195,9 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool
 		t.Errorf("Stream '%s' expecting Packet qSize(%d) Got (%d)",
 			streamName, qSize, qSizeRead)
 	}
+	
+	// Flush any leftover packets from previous tests
+	_, _, _ = args.leader.StreamChannelGetPackets(&streamName, 1000000, 3*time.Second)
 
 	// Send Traceroute traffic from ATE
 	srcEndPoint := ateInterface(t, args.top, "port1")
