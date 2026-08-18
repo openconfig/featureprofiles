@@ -214,10 +214,10 @@ func verifySRCounters(t *testing.T, ts *isissession.TestSession, ate *ondatra.AT
 	t.Logf("SR InPkts: %d, SR OutPkts: %d", srIntf.InPkts, srIntf.OutPkts)
 	t.Logf("InPkts: %d, OutPkts: %d", v4InPkts, v4OutPkts)
 
-	if got := srIntf.InPkts; *got != 0 {
+	if got := srIntf.InPkts; got != ygot.Uint64(0) {
 		t.Errorf("FAIL- SR InPkts is not zero, got %d, want %d", got, v4InPkts)
 	}
-	if got := srIntf.OutPkts; *got != 0 {
+	if got := srIntf.OutPkts; got != ygot.Uint64(0) {
 		t.Errorf("FAIL- SR OutPkts is not zero, got %d, want %d", got, v4OutPkts)
 	}
 	t.Logf("SR InPkts: %d, SR OutPkts: %d", srIntf.InPkts, srIntf.OutPkts)
