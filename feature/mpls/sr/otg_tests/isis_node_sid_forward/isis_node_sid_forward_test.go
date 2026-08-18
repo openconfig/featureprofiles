@@ -32,7 +32,6 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-
 // TestMain initializes the testbed and runs the tests
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
