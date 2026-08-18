@@ -2354,12 +2354,6 @@ func BgpPeerGroupSendCommunityRequiresAfiSafi(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpPeerGroupSendCommunityRequiresAfiSafi()
 }
 
-// BgpNeighborDefaultsUnsupported returns true if OpenConfig defaults beneath
-// BGP neighbors are not applied by the device.
-func BgpNeighborDefaultsUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetBgpNeighborDefaultsUnsupported()
-}
-
 // BgpPolicyLeafListsRequireParentReplace returns true if changes to BGP policy
 // leaf-lists must replace their containing parent container or list.
 func BgpPolicyLeafListsRequireParentReplace(dut *ondatra.DUTDevice) bool {
