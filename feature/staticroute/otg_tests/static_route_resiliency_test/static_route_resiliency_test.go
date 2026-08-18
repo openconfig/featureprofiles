@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"unicode"
+
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
@@ -85,19 +87,11 @@ var (
 	}
 )
 
-type testData struct {
-	dut      *ondatra.DUTDevice
-	ate      *ondatra.ATEDevice
-	top      gosnappi.Config
-	lag1Name string
-	lag2Name string
-}
-
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) (string, string) {
 	t.Helper()
 
 	lag1Name := netutil.NextAggregateInterface(t, dut)
-	numRE := strings.TrimLeft(lag1Name, "a-zA-Z-")
+	numRE := strings.TrimLeftFunc(lag1Name, func(r rune) bool { return !unicode.IsDigit(r) })
 	start, err := strconv.Atoi(numRE)
 	if err != nil {
 		t.Fatalf("Failed to parse LAG number from %s: %v", lag1Name, err)
