@@ -62,6 +62,7 @@ const (
 	lossTolerancePct       = float32(3.0)
 	strictLossTolerancePct = float32(0.0)
 	innerDSCPCapture       = 10
+	mcastDst               = "239.1.1.1"
 )
 
 var (
@@ -279,6 +280,8 @@ ip decap-group %s
 	for tc := 0; tc < 8; tc++ {
 		fmt.Fprintf(&mplsB, "mpls static top-label %d %s pop payload-type ipv4 access-list bypass\n", 99990+tc, custOTG0.IPv4)
 		fmt.Fprintf(&mplsB, "mpls static top-label %d %s pop payload-type ipv4 access-list bypass\n", 99890+tc, custOTG0.IPv4)
+		fmt.Fprintf(&mplsB, "mpls static top-label %d %s pop payload-type ipv4 access-list bypass\n", 99980+tc, mcastDst)
+		fmt.Fprintf(&mplsB, "mpls static top-label %d %s pop payload-type ipv4 access-list bypass\n", 99880+tc, mcastDst)
 	}
 	helpers.GnmiCLIConfig(t, dut, mplsB.String())
 }
@@ -688,6 +691,8 @@ no ip decap-group %s
 		for tc := 0; tc < 8; tc++ {
 			fmt.Fprintf(&mplsB, "no mpls static top-label %d %s pop payload-type ipv4 access-list bypass\n", 99990+tc, custOTG0.IPv4)
 			fmt.Fprintf(&mplsB, "no mpls static top-label %d %s pop payload-type ipv4 access-list bypass\n", 99890+tc, custOTG0.IPv4)
+			fmt.Fprintf(&mplsB, "no mpls static top-label %d %s pop payload-type ipv4 access-list bypass\n", 99980+tc, mcastDst)
+			fmt.Fprintf(&mplsB, "no mpls static top-label %d %s pop payload-type ipv4 access-list bypass\n", 99880+tc, mcastDst)
 		}
 		helpers.GnmiCLIConfig(t, dut, mplsB.String())
 	default:
@@ -871,6 +876,35 @@ func buildEncapToIPFlows() []*encapToIPFlow {
 			},
 			innerIPv4: &otgconfighelpers.IPv4FlowParams{IPv4Src: "50.1.2.1", IPv4Dst: "11.1.1.1", IPv4SrcCount: 1000},
 		})
+		// Multicast inner payload flows using dedicated multicast MPLS labels.
+		flows = append(flows, &encapToIPFlow{
+			Flow: &otgconfighelpers.Flow{
+				TxNames:           []string{core1OTG.Name + ".IPv4"},
+				RxNames:           []string{custOTG0.Name + ".IPv4"},
+				SizeWeightProfile: &sizeWeightProfile,
+				Flowrate:          8,
+				FlowName:          fmt.Sprintf("MPLSoGRE-mcast-tc%d-%s", tc, core1OTG.Name),
+				EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg2.AggMAC},
+				IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "100.64.0.1", IPv4Dst: outerGREDstCore1, IPv4SrcCount: 1000},
+				GREFlow:           &otgconfighelpers.GREFlowParams{Protocol: otgconfighelpers.IanaMPLSEthertype},
+				MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: uint32(99980 + tc), MPLSExp: uint32(tc)},
+			},
+			innerIPv4: &otgconfighelpers.IPv4FlowParams{IPv4Src: "50.1.1.1", IPv4Dst: mcastDst, IPv4SrcCount: 1000},
+		})
+		flows = append(flows, &encapToIPFlow{
+			Flow: &otgconfighelpers.Flow{
+				TxNames:           []string{core2OTG.Name + ".IPv4"},
+				RxNames:           []string{custOTG0.Name + ".IPv4"},
+				SizeWeightProfile: &sizeWeightProfile,
+				Flowrate:          8,
+				FlowName:          fmt.Sprintf("MPLSoGUE-mcast-tc%d-%s", tc, core2OTG.Name),
+				EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg3.AggMAC},
+				IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "100.64.1.1", IPv4Dst: outerGUEDstCore2, IPv4SrcCount: 1000},
+				UDPFlow:           &otgconfighelpers.UDPFlowParams{UDPSrcPort: 49152, UDPDstPort: gueDstPort},
+				MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: uint32(99880 + tc), MPLSExp: uint32(tc)},
+			},
+			innerIPv4: &otgconfighelpers.IPv4FlowParams{IPv4Src: "50.1.2.1", IPv4Dst: mcastDst, IPv4SrcCount: 1000},
+		})
 	}
 	return flows
 }
@@ -1050,7 +1084,6 @@ func TestPF1182MPLSTrafficClassClassification(t *testing.T) {
 	if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, innerCapture); err != nil {
 		t.Errorf("CaptureAndValidatePackets(inner DSCP/dest-IP after decap): %v", err)
 	}
-	t.Log("NOTE: inner source-IP validation and IPv6/multicast decap forwarding are not covered by this subtest (see code comments)")
 }
 
 func TestPF1183DSCPMarking(t *testing.T) {
