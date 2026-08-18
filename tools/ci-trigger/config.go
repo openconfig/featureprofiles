@@ -87,14 +87,16 @@ var triggerKeywords = map[string][]deviceType{
 		{Vendor: opb.Device_NOKIA, HardwareModel: "SR Linux"},
 		{Vendor: opb.Device_OPENCONFIG, HardwareModel: "Lemming"},
 	},
-	"/fptest arista-7808":        {{Vendor: opb.Device_ARISTA, HardwareModel: "7808"}},
+	// Physical device triggers (vendor-level)
+	"/fptest arista":             {{Vendor: opb.Device_ARISTA}},
+	"/fptest cisco":              {{Vendor: opb.Device_CISCO}},
+	"/fptest juniper":            {{Vendor: opb.Device_JUNIPER}},
+	"/fptest nokia":              {{Vendor: opb.Device_NOKIA}},
+
 	"/fptest arista-ceos":        {{Vendor: opb.Device_ARISTA, HardwareModel: "cEOS"}},
 	"/fptest cisco-8000e":        {{Vendor: opb.Device_CISCO, HardwareModel: "8000E"}},
-	"/fptest cisco-8808":         {{Vendor: opb.Device_CISCO, HardwareModel: "8808"}},
 	"/fptest cisco-xrd":          {{Vendor: opb.Device_CISCO, HardwareModel: "XRd"}},
 	"/fptest juniper-ncptx":      {{Vendor: opb.Device_JUNIPER, HardwareModel: "ncPTX"}},
-	"/fptest juniper-ptx10008":   {{Vendor: opb.Device_JUNIPER, HardwareModel: "PTX10008"}},
-	"/fptest nokia-7250":         {{Vendor: opb.Device_NOKIA, HardwareModel: "7250 IXR-10e"}},
 	"/fptest nokia-srl":          {{Vendor: opb.Device_NOKIA, HardwareModel: "SR Linux"}},
 	"/fptest openconfig-lemming": {{Vendor: opb.Device_OPENCONFIG, HardwareModel: "Lemming"}},
 
