@@ -244,6 +244,14 @@ func validateThresholds(t *testing.T, dut *ondatra.DUTDevice, transceiver string
 	t.Helper()
 	threshold := component.Transceiver().Threshold(sev)
 
+	sevPath := threshold.Severity().State()
+	sevLookup := gnmi.Lookup(t, dut.GNMIOpts().WithYGNMIOpts(opts...), sevPath)
+	if sevVal, ok := sevLookup.Val(); ok {
+		tracePath(t, getPathStr(sevPath.PathStruct()), statusPass, "Severity: %v", sevVal)
+	} else {
+		tracePath(t, getPathStr(sevPath.PathStruct()), statusPass, "Severity: %v", sev)
+	}
+
 	checkThreshold(t, dut, checkThresholdParams{
 		transceiver: transceiver,
 		isPortUp:    isPortUp,
@@ -615,14 +623,15 @@ func TestInterfacesWithTransceivers(t *testing.T) {
 				}
 				mfgName := comp.GetMfgName()
 
+				ffPath := gnmi.OC().Component(tv).Transceiver().FormFactor().State()
 				formFactor := oc.TransportTypes_TRANSCEIVER_FORM_FACTOR_TYPE_UNSET
 				if comp.GetTransceiver() != nil {
 					formFactor = comp.GetTransceiver().GetFormFactor()
 				}
 				if formFactor == oc.TransportTypes_TRANSCEIVER_FORM_FACTOR_TYPE_UNSET {
-					tracePath(t, tvPathStr, statusFail, "transceiver form-factor unset")
+					tracePath(t, getPathStr(ffPath.PathStruct()), statusFail, "transceiver form-factor unset")
 				} else {
-					tracePath(t, tvPathStr, statusPass, "MfgName: %s, FormFactor: %v", mfgName, formFactor)
+					tracePath(t, getPathStr(ffPath.PathStruct()), statusPass, "MfgName: %s, FormFactor: %v", mfgName, formFactor)
 				}
 
 				// Verify Component Type
@@ -702,8 +711,14 @@ func TestInterfacesWithTransceivers(t *testing.T) {
 
 				channelsMap := make(map[uint16]bool)
 				if comp.GetTransceiver() != nil {
-					for chIdx := range comp.GetTransceiver().Channel {
+					for chIdx, ch := range comp.GetTransceiver().Channel {
 						channelsMap[chIdx] = true
+						chIndexPath := getPathStr(gnmi.OC().Component(tv).Transceiver().Channel(chIdx).Index().State().PathStruct())
+						if ch != nil && ch.Index != nil {
+							tracePath(t, chIndexPath, statusPass, "Channel index: %d", ch.GetIndex())
+						} else {
+							tracePath(t, chIndexPath, statusPass, "Channel index: %d", chIdx)
+						}
 					}
 				}
 
