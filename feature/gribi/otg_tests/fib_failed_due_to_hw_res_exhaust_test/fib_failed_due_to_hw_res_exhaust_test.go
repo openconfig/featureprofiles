@@ -60,7 +60,7 @@ const (
 	wantLoss         = true
 	dutAS            = 64500
 	ateAS            = 64501
-	advertisedRoutes = "198.18.0.1"
+	advertisedRoutes = "1.0.0.1"
 	tolerancePct     = 2
 	tolerance        = 50
 	plenIPv4         = 30
