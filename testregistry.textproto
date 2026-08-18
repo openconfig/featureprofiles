@@ -1035,6 +1035,11 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_route_test/gribi_route_test.go"
 }
 test: {
+  id: "RT-14.3"
+  description: "Soft Drain vs Hard Drain Convergence Verification"
+  readme: "https://github.com/openconfig/featureprofiles/feature/isis/otg_tests/soft_drain_convergence_test/README.md"
+}
+test: {
   id: "RT-2.1"
   description: "Base IS-IS Process and Adjacencies"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/otg_tests/base_adjacencies_test/README.md"
