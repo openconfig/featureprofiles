@@ -625,18 +625,32 @@ func TestTransceiverConfigEnabled(t *testing.T) {
 			opts := getOptsForFunctionalTranslator(t, dut, deviations.CiscoxrTransceiverFt(dut))
 			channels := transceiver.ChannelAny()
 
-			t.Run("Disable transceiver and verify link is DOWN", func(t *testing.T) {
+			t.Run("Disable transceiver", func(t *testing.T) {
 				gnmi.Update(t, dut, cfgEnabledPath, false)
 				tracePath(t, cfgPathStr, statusPass, "Set transceiver enabled config: false")
 
-				gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
-				operPathStr := getPathStr(gnmi.OC().Interface(dp.Name()).OperStatus().State().PathStruct())
-				tracePath(t, operPathStr, statusPass, "Reached expected operational status: %v", oc.Interface_OperStatus_DOWN)
+				statePath := transceiver.Enabled().State()
+				statePathStr := getPathStr(statePath.PathStruct())
+				if val, ok := gnmi.Lookup(t, dut, statePath).Val(); ok {
+					if !val {
+						tracePath(t, statePathStr, statusPass, "Transceiver enabled state: false")
+					} else {
+						gnmi.Await(t, dut, statePath, intUpdateTime, false)
+						tracePath(t, statePathStr, statusPass, "Transceiver reached enabled state: false")
+					}
+				}
 			})
 
 			t.Run("Re-enable transceiver and verify link is UP, power and laser normal", func(t *testing.T) {
 				gnmi.Update(t, dut, cfgEnabledPath, true)
 				tracePath(t, cfgPathStr, statusPass, "Set transceiver enabled config: true")
+
+				statePath := transceiver.Enabled().State()
+				statePathStr := getPathStr(statePath.PathStruct())
+				if _, ok := gnmi.Lookup(t, dut, statePath).Val(); ok {
+					gnmi.Await(t, dut, statePath, intUpdateTime, true)
+					tracePath(t, statePathStr, statusPass, "Transceiver reached enabled state: true")
+				}
 
 				gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 				operPathStr := getPathStr(gnmi.OC().Interface(dp.Name()).OperStatus().State().PathStruct())

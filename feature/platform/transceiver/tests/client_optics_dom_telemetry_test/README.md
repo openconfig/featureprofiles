@@ -32,7 +32,7 @@ Optics test requirements alongside the platform functional tests require optics 
     *   Re-enable interface: verify oper-status UP and output power returns to normal.
 
 *   Step 4: Verify transceiver config enabled on/off:
-    *   Set `/components/component/transceiver/config/enabled` to `false`: verify oper-status DOWN.
+    *   Set `/components/component/transceiver/config/enabled` to `false`: verify transceiver disabled.
     *   Set `/components/component/transceiver/config/enabled` to `true`: verify oper-status UP, optics power and laser normal.
 
 ## Canonical OC
@@ -53,6 +53,8 @@ paths:
   /interfaces/interface/config/enabled:
 
   # Telemetry Parameter coverage
+  /components/component/transceiver/state/enabled:
+    platform_type: ["TRANSCEIVER"]
   /components/component/state/firmware-version:
     platform_type: ["TRANSCEIVER"]
   /components/component/state/mfg-name:
