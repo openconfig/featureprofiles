@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/isissession"
@@ -29,8 +30,8 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
-	"github.com/openconfig/ygnmi/ygnmi"
 )
+
 
 // TestMain initializes the testbed and runs the tests
 func TestMain(m *testing.M) {
@@ -213,40 +214,13 @@ func verifySRCounters(t *testing.T, ts *isissession.TestSession, ate *ondatra.AT
 	t.Logf("SR InPkts: %d, SR OutPkts: %d", srIntf.InPkts, srIntf.OutPkts)
 	t.Logf("InPkts: %d, OutPkts: %d", v4InPkts, v4OutPkts)
 
-	if got := srIntf.InPkts; got != ygot.Uint64(0) {
+	if got := srIntf.InPkts; *got != 0 {
 		t.Errorf("FAIL- SR InPkts is not zero, got %d, want %d", got, v4InPkts)
 	}
-	if got := srIntf.OutPkts; got != ygot.Uint64(0) {
+	if got := srIntf.OutPkts; *got != 0 {
 		t.Errorf("FAIL- SR OutPkts is not zero, got %d, want %d", got, v4OutPkts)
 	}
-}
-
-// waitForFIBProgramming watches the AFT to guarantee the route is in the data plane.
-func waitForFIBProgramming(t *testing.T, dut *ondatra.DUTDevice, ipv4 bool, prefix string) {
-	t.Helper()
-	t.Logf("Waiting for prefixes to be programmed in the hardware FIB (AFT)...")
-
-	netInst := deviations.DefaultNetworkInstance(dut)
-	if ipv4 {
-		// Watch IPv4 AFT Entry
-		ipv4AftPath := gnmi.OC().NetworkInstance(netInst).Afts().Ipv4Entry(prefix).State()
-		_, ok4 := gnmi.Watch(t, dut, ipv4AftPath, time.Minute, func(v *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
-			return v.IsPresent()
-		}).Await(t)
-		if !ok4 {
-			t.Fatalf("IPv4 Prefix %s was not programmed into the hardware FIB within the timeout", prefix)
-		}
-	} else {
-		// Watch IPv6 AFT Entry
-		ipv6AftPath := gnmi.OC().NetworkInstance(netInst).Afts().Ipv6Entry(prefix).State()
-		_, ok6 := gnmi.Watch(t, dut, ipv6AftPath, time.Minute, func(v *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
-			return v.IsPresent()
-		}).Await(t)
-		if !ok6 {
-			t.Fatalf("IPv6 Prefix %s was not programmed into the hardware FIB within the timeout", prefix)
-		}
-	}
-	t.Log("Hardware FIB programming confirmed.")
+	t.Logf("SR InPkts: %d, SR OutPkts: %d", srIntf.InPkts, srIntf.OutPkts)
 }
 
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
@@ -290,17 +264,17 @@ func TestMPLSLabelBlockWithISIS(t *testing.T) {
 	t.Run("Traffic checks", func(t *testing.T) {
 		otgutils.WaitForARP(t, otg, ts.ATETop, "IPv4")
 		otgutils.WaitForARP(t, otg, ts.ATETop, "IPv6")
+		cfgplugins.VerifyRoutes(t, ts.DUT, map[string]cfgplugins.RouteInfo{
+			fmt.Sprintf("%s/%d", ateV4Route, plenIPv4): {IPType: cfgplugins.IPv4},
+			fmt.Sprintf("%s/%d", ateV6Route, plenIPv6): {IPType: cfgplugins.IPv6},
+		})
 
-		waitForFIBProgramming(t, ts.DUT, true, fmt.Sprintf("%s/%d", ateV4Route, plenIPv4))
-		waitForFIBProgramming(t, ts.DUT, false, fmt.Sprintf("%s/%d", ateV6Route, plenIPv6))
-		
 		t.Logf("Starting traffic")
 		t.Log(otg.GetConfig(t))
 		otg.StartTraffic(t)
 		time.Sleep(time.Second * 15)
 		t.Logf("Stop traffic")
 		otg.StopTraffic(t)
-
 		verifyTraffic(t, ts.ATE, ts.ATETop)
 	})
 
