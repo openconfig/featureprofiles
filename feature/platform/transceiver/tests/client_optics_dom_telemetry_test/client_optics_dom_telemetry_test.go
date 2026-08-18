@@ -301,36 +301,38 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
 	ports := dut.Ports()
 	for _, dp := range ports {
 		t.Run(dp.Name(), func(t *testing.T) {
-			transceiverPath := gnmi.OC().Interface(dp.Name()).Transceiver().State().PathStruct()
-			transceiverLookup := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp.Name()).Transceiver().State())
-			transceiverName, ok := transceiverLookup.Val()
-			if !ok || transceiverName == "" {
-				tracePath(t, getPathStr(transceiverPath), statusFail, "Failed to find transceiver for port %q", dp.Name())
+			intfLookup := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp.Name()).State())
+			intf, intfPresent := intfLookup.Val()
+			transceiverPath := getPathStr(gnmi.OC().Interface(dp.Name()).Transceiver().State().PathStruct())
+			if !intfPresent || intf == nil || intf.GetTransceiver() == "" {
+				tracePath(t, transceiverPath, statusFail, "Failed to find transceiver for port %q", dp.Name())
 				t.Fatalf("Failed to find transceiver for port %q", dp.Name())
 			}
-			tracePath(t, getPathStr(transceiverPath), statusPass, "Transceiver: %s", transceiverName)
+			transceiverName := intf.GetTransceiver()
+			tracePath(t, transceiverPath, statusPass, "Transceiver: %s", transceiverName)
 
 			component := gnmi.OC().Component(transceiverName)
-			mfgLookup := gnmi.Lookup(t, dut, component.MfgName().State())
-			mfgName, ok := mfgLookup.Val()
-			if !ok {
-				tracePath(t, getPathStr(component.MfgName().State().PathStruct()), statusFail, "MfgName not defined")
+			compLookup := gnmi.Lookup(t, dut, component.State())
+			comp, compPresent := compLookup.Val()
+			mfgPathStr := getPathStr(component.MfgName().State().PathStruct())
+			if !compPresent || comp == nil || comp.GetMfgName() == "" {
+				tracePath(t, mfgPathStr, statusFail, "MfgName not defined")
 			} else {
-				tracePath(t, getPathStr(component.MfgName().State().PathStruct()), statusPass, "MfgName: %s", mfgName)
+				tracePath(t, mfgPathStr, statusPass, "MfgName: %s", comp.GetMfgName())
 			}
 
 			// Check admin status using state/admin-status and config/enabled
-			adminStatusLookup := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp.Name()).AdminStatus().State())
-			adminStatus, adminStatusPresent := adminStatusLookup.Val()
 			adminStatusPathStr := getPathStr(gnmi.OC().Interface(dp.Name()).AdminStatus().State().PathStruct())
+			adminStatus := intf.GetAdminStatus()
+			adminStatusPresent := intf.AdminStatus != oc.Interface_AdminStatus_UNSET
 
 			configEnabledLookup := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp.Name()).Enabled().Config())
 			configEnabled, configEnabledPresent := configEnabledLookup.Val()
 			configEnabledPathStr := getPathStr(gnmi.OC().Interface(dp.Name()).Enabled().Config().PathStruct())
 
-			operStatusLookup := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State())
-			operStatus, operStatusPresent := operStatusLookup.Val()
 			operStatusPathStr := getPathStr(gnmi.OC().Interface(dp.Name()).OperStatus().State().PathStruct())
+			operStatus := intf.GetOperStatus()
+			operStatusPresent := intf.OperStatus != oc.Interface_OperStatus_UNSET
 
 			isAdminDown := false
 			if adminStatusPresent && adminStatus == oc.Interface_AdminStatus_DOWN {
@@ -412,37 +414,34 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
 				}
 			}
 
-			subcomponentNames := gnmi.LookupAll[string](t, dut, component.SubcomponentAny().Name().State())
 			sensorComponentChecked := false
-			for _, s := range subcomponentNames {
-				subcName, ok := s.Val()
-				if ok {
-					sensorTypeLookup := gnmi.Lookup(t, dut, gnmi.OC().Component(subcName).Type().State())
-					sType, ok := sensorTypeLookup.Val()
-					if ok && sType == sensorType {
-						scomponent := gnmi.OC().Component(subcName)
-						descLookup := gnmi.Lookup(t, dut, scomponent.Description().State())
-						desc, _ := descLookup.Val()
+			if compPresent && comp != nil {
+				for _, subc := range comp.Subcomponent {
+					if subc == nil || subc.GetName() == "" {
+						continue
+					}
+					subcName := subc.GetName()
+					scompLookup := gnmi.Lookup(t, dut, gnmi.OC().Component(subcName).State())
+					if scomp, ok := scompLookup.Val(); ok && scomp != nil && scomp.GetType() == sensorType {
+						desc := scomp.GetDescription()
 						if !deviations.TemperatureSensorCheck(dut) || strings.Contains(desc, "Temperature Sensor") {
 							sensorComponentChecked = true
-							tempPathStr := getPathStr(scomponent.Temperature().Instant().State().PathStruct())
-							v := gnmi.Lookup(t, dut, scomponent.Temperature().Instant().State())
-							if val, ok := v.Val(); !ok {
+							tempPathStr := getPathStr(gnmi.OC().Component(subcName).Temperature().Instant().State().PathStruct())
+							if scomp.GetTemperature() == nil || scomp.GetTemperature().Instant == nil {
 								tracePath(t, tempPathStr, statusFail, "Sensor %s: Temperature instant is not defined", subcName)
 							} else {
-								tracePath(t, tempPathStr, statusPass, "Temperature value: %v", val)
+								tracePath(t, tempPathStr, statusPass, "Temperature value: %v", scomp.GetTemperature().GetInstant())
 							}
 						}
 					}
 				}
 			}
-			if len(subcomponentNames) == 0 || !sensorComponentChecked {
+			if !sensorComponentChecked {
 				tempPathStr := getPathStr(component.Temperature().Instant().State().PathStruct())
-				v := gnmi.Lookup(t, dut, component.Temperature().Instant().State())
-				if val, ok := v.Val(); !ok {
+				if !compPresent || comp == nil || comp.GetTemperature() == nil || comp.GetTemperature().Instant == nil {
 					tracePath(t, tempPathStr, statusFail, "Transceiver %s: Temperature instant is not defined", transceiverName)
 				} else {
-					tracePath(t, tempPathStr, statusPass, "Temperature value: %v", val)
+					tracePath(t, tempPathStr, statusPass, "Temperature value: %v", comp.GetTemperature().GetInstant())
 				}
 			}
 
@@ -452,8 +451,7 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
 			}
 
 			laserOpts := getOptsForFunctionalTranslator(t, dut, deviations.CiscoxrLaserFt(dut))
-			operStatusVal := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State())
-			isPortUp := operStatusVal == oc.Interface_OperStatus_UP
+			isPortUp := operStatus == oc.Interface_OperStatus_UP
 			for _, sev := range []oc.E_AlarmTypes_OPENCONFIG_ALARM_SEVERITY{
 				oc.AlarmTypes_OPENCONFIG_ALARM_SEVERITY_WARNING,
 				oc.AlarmTypes_OPENCONFIG_ALARM_SEVERITY_CRITICAL,
@@ -513,13 +511,14 @@ func TestOpticsPowerUpdate(t *testing.T) {
 
 					transceiverName := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).Transceiver().State())
 					component := gnmi.OC().Component(transceiverName)
-					if !gnmi.Lookup(t, dut, component.MfgName().State()).IsPresent() {
-						tracePath(t, getPathStr(component.MfgName().State().PathStruct()), statusSkipped, "Skipping: component MfgName not present")
+					mfgLookup := gnmi.Lookup(t, dut, component.MfgName().State())
+					mfgName, mfgOk := mfgLookup.Val()
+					mfgPathStr := getPathStr(component.MfgName().State().PathStruct())
+					if !mfgOk || mfgName == "" {
+						tracePath(t, mfgPathStr, statusSkipped, "Skipping: component MfgName not present")
 						t.Skipf("component.MfgName().Lookup(t).IsPresent() for %q is false. skip it", transceiverName)
 					}
-
-					mfgName := gnmi.Get(t, dut, component.MfgName().State())
-					tracePath(t, getPathStr(component.MfgName().State().PathStruct()), statusPass, "MfgName: %s", mfgName)
+					tracePath(t, mfgPathStr, statusPass, "MfgName: %s", mfgName)
 
 					channels := gnmi.OC().Component(transceiverName).Transceiver().ChannelAny()
 					opts := getOptsForFunctionalTranslator(t, dut, deviations.CiscoxrTransceiverFt(dut))
@@ -586,19 +585,19 @@ func TestInterfacesWithTransceivers(t *testing.T) {
 	ports := dut.Ports()
 	for _, dp := range ports {
 		t.Run(fmt.Sprintf("Interface:%s", dp.Name()), func(t *testing.T) {
-			intfNameLookup := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp.Name()).Name().State())
-			intfName, ok := intfNameLookup.Val()
+			intfLookup := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp.Name()).State())
+			intf, ok := intfLookup.Val()
 			intfNamePath := getPathStr(gnmi.OC().Interface(dp.Name()).Name().State().PathStruct())
-			if !ok || intfName == "" {
+			if !ok || intf == nil || intf.GetName() == "" {
 				tracePath(t, intfNamePath, statusFail, "Failed to retrieve interface name state")
 				t.Fatalf("Failed to retrieve interface name state for %q", dp.Name())
 			}
+			intfName := intf.GetName()
 			tracePath(t, intfNamePath, statusPass, "Interface name: %s", intfName)
 
-			transceiverLookup := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp.Name()).Transceiver().State())
-			tv, tvOk := transceiverLookup.Val()
 			transceiverPath := getPathStr(gnmi.OC().Interface(dp.Name()).Transceiver().State().PathStruct())
-			if !tvOk || tv == "" {
+			tv := intf.GetTransceiver()
+			if tv == "" {
 				tracePath(t, transceiverPath, statusFail, "Failed to retrieve transceiver state")
 				t.Fatalf("Failed to retrieve transceiver state for %q", dp.Name())
 			}
@@ -706,10 +705,9 @@ func TestInterfacesWithTransceivers(t *testing.T) {
 					}
 				}
 
-				physicalChannelLookup := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp.Name()).PhysicalChannel().State())
-				physicalChannel, pcOk := physicalChannelLookup.Val()
+				physicalChannel := intf.GetPhysicalChannel()
 				pcPath := getPathStr(gnmi.OC().Interface(dp.Name()).PhysicalChannel().State().PathStruct())
-				if !pcOk || len(physicalChannel) == 0 {
+				if len(physicalChannel) == 0 {
 					tracePath(t, pcPath, statusFail, "physical-channel unset for Interface: %q", intfName)
 				} else {
 					t.Logf("Interface %s physical-channel: %v", dp.Name(), physicalChannel)
