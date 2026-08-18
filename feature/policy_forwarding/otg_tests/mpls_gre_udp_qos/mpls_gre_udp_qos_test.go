@@ -616,9 +616,6 @@ func TestSetup(t *testing.T) {
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	ConfigureDut(t, dut)
-	t.Cleanup(func() {
-		cleanupDut(t, dut)
-	})
 	ConfigureOTG(t)
 }
 
@@ -637,13 +634,13 @@ func cleanupDut(t *testing.T, dut *ondatra.DUTDevice) {
 
 func cleanupAggregate(t *testing.T, dut *ondatra.DUTDevice, aggID string, ports []string) {
 	t.Helper()
-	gnmi.Delete(t, dut, gnmi.OC().Lacp().Interface(aggID).Config())
-	gnmi.Delete(t, dut, gnmi.OC().Interface(aggID).Config())
 	for _, p := range ports {
 		port := dut.Port(t, p)
 		gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
 		gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).HoldTime().Config())
 	}
+	gnmi.Delete(t, dut, gnmi.OC().Interface(aggID).Config())
+	gnmi.Delete(t, dut, gnmi.OC().Lacp().Interface(aggID).Config())
 }
 
 func cleanupStaticRoutes(t *testing.T, dut *ondatra.DUTDevice) {
@@ -1329,4 +1326,9 @@ func TestPF118v6MPLSoGUEv6QoS(t *testing.T) {
 	if got := queueTransmitPkts(t, dut, core1AggID, core1Ports, highestQueue); got == 0 {
 		t.Errorf("transmit-pkts on %s queue %s: got 0, want > 0", core1AggID, highestQueue)
 	}
+}
+
+func TestZZZCleanup(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	cleanupDut(t, dut)
 }
