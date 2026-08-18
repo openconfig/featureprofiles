@@ -21,6 +21,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/iputil"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
@@ -433,7 +434,7 @@ func TestGNOIPing(t *testing.T) {
 					StdDevZero = false
 				}
 
-				if responses[i].Source != tc.expectedReply.Source {
+				if !iputil.IPEqual(responses[i].Source, tc.expectedReply.Source) {
 					t.Errorf("Ping reply source: got %v, want %v", responses[i].Source, tc.expectedReply.Source)
 				}
 
