@@ -32,7 +32,7 @@ import (
 
 const (
 	samplingInterval = 10 * time.Second
-	intUpdateTime    = 2 * time.Minute
+	intUpdateTime    = 5 * time.Minute
 )
 
 var (

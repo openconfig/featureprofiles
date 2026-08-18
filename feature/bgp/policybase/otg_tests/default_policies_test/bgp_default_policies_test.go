@@ -24,11 +24,11 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/gnmi/oc/netinstbgp"
-	"github.com/openconfig/ondatra/netutil"
 	otg "github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
@@ -143,26 +143,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	i2 := dutPort2.NewOCInterface(dut.Port(t, "port2").Name(), dut)
 	gnmi.Replace(t, dut, dc.Interface(i2.GetName()).Config(), i2)
 
-	loopbackIntfName = netutil.LoopbackInterface(t, dut, 0)
-	lo0 := gnmi.OC().Interface(loopbackIntfName).Subinterface(0)
-	ipv4Addrs := gnmi.LookupAll(t, dut, lo0.Ipv4().AddressAny().State())
-	ipv6Addrs := gnmi.LookupAll(t, dut, lo0.Ipv6().AddressAny().State())
-	if len(ipv4Addrs) == 0 && len(ipv6Addrs) == 0 {
-		loop1 := dutlo0Attrs.NewOCInterface(loopbackIntfName, dut)
-		loop1.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
-		gnmi.Update(t, dut, dc.Interface(loopbackIntfName).Config(), loop1)
-	} else {
-		v4, ok := ipv4Addrs[0].Val()
-		if ok {
-			dutlo0Attrs.IPv4 = v4.GetIp()
-		}
-		v6, ok := ipv6Addrs[0].Val()
-		if ok {
-			dutlo0Attrs.IPv6 = v6.GetIp()
-		}
-		t.Logf("Got DUT IPv4 loopback address: %v", dutlo0Attrs.IPv4)
-		t.Logf("Got DUT IPv6 loopback address: %v", dutlo0Attrs.IPv6)
-	}
+	loopbackIntfName = helpers.GetOrCreateLoopback(t, dut, 0, 0, &dutlo0Attrs)
 
 	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, dut.Port(t, "port1"))
@@ -179,10 +160,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
 	t.Helper()
 	for _, p := range dev.Ports() {
-		status := gnmi.Get(t, dev, gnmi.OC().Interface(p.Name()).OperStatus().State())
-		if want := oc.Interface_OperStatus_UP; status != want {
-			t.Errorf("%s Status: got %v, want %v", p, status, want)
-		}
+		gnmi.Await(t, dev, gnmi.OC().Interface(p.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
 	}
 }
 
@@ -507,6 +485,9 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName []string, dutA
 	}
 
 	for _, intf := range intfName {
+		if deviations.InterfaceRefInterfaceIDFormat(dut) {
+			intf += ".0"
+		}
 		isisIntf := isis.GetOrCreateInterface(intf)
 		isisIntf.Enabled = ygot.Bool(true)
 		isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
@@ -533,7 +514,7 @@ func verifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntf []string)
 	t.Helper()
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
 	for _, intfName := range dutIntf {
-		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut) {
 			intfName = intfName + ".0"
 		}
 		nbrPath := statePath.Interface(intfName)

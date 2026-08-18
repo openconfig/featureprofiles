@@ -86,7 +86,7 @@ func configureISIS(t *testing.T, ts *isissession.TestSession) {
 
 	// Interface configs.
 	intfName := ts.DUTPort1.Name()
-	if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) {
+	if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) || deviations.InterfaceRefInterfaceIDFormat(ts.DUT) {
 		intfName += ".0"
 	}
 	intf := isis.GetOrCreateInterface(intfName)
@@ -189,7 +189,7 @@ func TestISISLevelPassive(t *testing.T) {
 
 	statePath := isissession.ISISPath(ts.DUT)
 	intfName := ts.DUTPort1.Name()
-	if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) {
+	if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) || deviations.InterfaceRefInterfaceIDFormat(ts.DUT) {
 		intfName += ".0"
 	}
 	t.Run("Isis telemetry", func(t *testing.T) {
@@ -401,16 +401,7 @@ func TestISISLevelPassive(t *testing.T) {
 			otgutils.LogPortMetrics(t, otg, ts.ATETop)
 
 			for _, flow := range []string{v4FlowName, v6FlowName} {
-				t.Log("Checking flow telemetry...")
-				recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(flow).State())
-				txPackets := recvMetric.GetCounters().GetOutPkts()
-				rxPackets := recvMetric.GetCounters().GetInPkts()
-				lostPackets := txPackets - rxPackets
-				lossPct := lostPackets * 100 / txPackets
-
-				if lossPct > 1 {
-					t.Errorf("FAIL- Got %v%% packet loss for %s ; expected < 1%%", lossPct, flow)
-				}
+				otgutils.ExpectedTrafficLoss(t, otg, flow, 0, 1)
 			}
 		})
 	})

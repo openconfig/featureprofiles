@@ -46,7 +46,7 @@ func checkParentComponent(t *testing.T, dut *ondatra.DUTDevice, entity string) s
 // TestInterfaceParentComponent tests that the parent component of any given interface is a Switch Chip.
 func TestInterfaceParentComponent(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	parentComponentRegex := regexp.MustCompile("^(SwitchChip(?:[0-9]+|[0-9]/[0-9])?|NPU[0-9]|[0-9]/(?:[0-9]|RP[0-9])/CPU[0-9]-NPU[0-9]|FPC[0-9]+:PIC[0-9]:NPU[0-9]+)$")
+	parentComponentRegex := regexp.MustCompile("^(SwitchChip(?:[0-9]+|[0-9]/[0-9])?|NPU[0-9]|[0-9]/(?:[0-9]|RP[0-9])/CPU[0-9]-NPU[0-9]|FPC[0-9]+:PIC[0-9]:NPU[0-9]+|CHASSIS0:FPC[0-9]+:PIC[0-9]:NPU[0-9]+)$")
 	cases := []struct {
 		desc string
 		port string

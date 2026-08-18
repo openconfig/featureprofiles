@@ -198,24 +198,28 @@ The below YAML defines the OC paths intended to be covered by this test.
 OC paths used for test setup are not listed here.
 
 ```yaml
-openconfig_paths:
-  ## Config paths
+paths:
+  /components/component/power-supply/state/capacity:
+    platform_type: [POWER_SUPPLY]
+  /components/component/power-supply/state/output-power:
+    platform_type: [POWER_SUPPLY]
   /interfaces/interface/config/name:
+  /interfaces/interface/config/type:
+  /interfaces/interface/ethernet/state/mac-address:
+  /interfaces/interface/state/counters/in-unicast-pkts:
+  /interfaces/interface/state/counters/out-unicast-pkts:
   /interfaces/interface/config/description:
   /interfaces/interface/config/enabled:
-
-  ## Telemetry paths
   /interfaces/interface/state/loopback-mode:
   /interfaces/interface/state/counters/in-discards:
   /interfaces/interface/state/counters/in-errors:
   /interfaces/interface/state/counters/in-octets:
   /interfaces/interface/state/counters/in-pkts:
-  /interfaces/interface/state/counters/in-unicast-pkts:
   /interfaces/interface/state/counters/out-discards:
   /interfaces/interface/state/counters/out-errors:
   /interfaces/interface/state/counters/out-octets:
   /interfaces/interface/state/counters/out-pkts:
-  /interfaces/interface/state/counters/out-unicast-pkts:
+  /system/cpus/cpu/state/total/avg:
 rpcs:
   gnmi:
     gNMI.Set:

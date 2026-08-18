@@ -200,9 +200,12 @@ This test checks that the static protocol name is usable.
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
+paths:
+  /interfaces/interface/name:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/ip:
+  /network-instances/network-instance/name:
 rpcs:
   gnmi:
     gNMI.Get:
     gNMI.Subscribe:
-
 ```

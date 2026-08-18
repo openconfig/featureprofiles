@@ -267,9 +267,11 @@ func setPrefixLimitv4(dut *ondatra.DUTDevice, afisafi *oc.NetworkInstance_Protoc
 	if deviations.BGPExplicitPrefixLimitReceived(dut) {
 		prefixLimitReceived := afisafi.GetOrCreateIpv4Unicast().GetOrCreatePrefixLimitReceived()
 		prefixLimitReceived.MaxPrefixes = ygot.Uint32(limit)
+		prefixLimitReceived.WarningThresholdPct = ygot.Uint8(pwarnthesholdPct)
 	} else {
 		prefixLimitReceived := afisafi.GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit()
 		prefixLimitReceived.MaxPrefixes = ygot.Uint32(limit)
+		prefixLimitReceived.WarningThresholdPct = ygot.Uint8(pwarnthesholdPct)
 	}
 }
 
@@ -277,9 +279,11 @@ func setPrefixLimitv6(dut *ondatra.DUTDevice, afisafi *oc.NetworkInstance_Protoc
 	if deviations.BGPExplicitPrefixLimitReceived(dut) {
 		prefixLimitReceived := afisafi.GetOrCreateIpv6Unicast().GetOrCreatePrefixLimitReceived()
 		prefixLimitReceived.MaxPrefixes = ygot.Uint32(limit)
+		prefixLimitReceived.WarningThresholdPct = ygot.Uint8(pwarnthesholdPct)
 	} else {
 		prefixLimitReceived := afisafi.GetOrCreateIpv6Unicast().GetOrCreatePrefixLimit()
 		prefixLimitReceived.MaxPrefixes = ygot.Uint32(limit)
+		prefixLimitReceived.WarningThresholdPct = ygot.Uint8(pwarnthesholdPct)
 	}
 }
 
@@ -408,32 +412,35 @@ func waitForBGPSession(t *testing.T, dut *ondatra.DUTDevice, wantEstablished boo
 	}
 }
 
-func getPrefixLimitv4(dut *ondatra.DUTDevice, neighbor *oc.NetworkInstance_Protocol_Bgp_Neighbor) (uint32, bool) {
+func getPrefixLimitv4(dut *ondatra.DUTDevice, neighbor *oc.NetworkInstance_Protocol_Bgp_Neighbor) (uint32, bool, uint8) {
 	if deviations.BGPExplicitPrefixLimitReceived(dut) {
 		prefixLimitReceived := neighbor.GetAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetIpv4Unicast().GetPrefixLimitReceived()
-		return prefixLimitReceived.GetMaxPrefixes(), prefixLimitReceived.GetPrefixLimitExceeded()
+		return prefixLimitReceived.GetMaxPrefixes(), prefixLimitReceived.GetPrefixLimitExceeded(), prefixLimitReceived.GetWarningThresholdPct()
 	} else {
 		prefixLimitReceived := neighbor.GetAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetIpv4Unicast().GetPrefixLimit()
-		return prefixLimitReceived.GetMaxPrefixes(), prefixLimitReceived.GetPrefixLimitExceeded()
+		return prefixLimitReceived.GetMaxPrefixes(), prefixLimitReceived.GetPrefixLimitExceeded(), prefixLimitReceived.GetWarningThresholdPct()
 	}
 }
 
-func getPrefixLimitv6(dut *ondatra.DUTDevice, neighbor *oc.NetworkInstance_Protocol_Bgp_Neighbor) (uint32, bool) {
+func getPrefixLimitv6(dut *ondatra.DUTDevice, neighbor *oc.NetworkInstance_Protocol_Bgp_Neighbor) (uint32, bool, uint8) {
 	if deviations.BGPExplicitPrefixLimitReceived(dut) {
 		prefixLimitReceived := neighbor.GetAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetIpv6Unicast().GetPrefixLimitReceived()
-		return prefixLimitReceived.GetMaxPrefixes(), prefixLimitReceived.GetPrefixLimitExceeded()
+		return prefixLimitReceived.GetMaxPrefixes(), prefixLimitReceived.GetPrefixLimitExceeded(), prefixLimitReceived.GetWarningThresholdPct()
 	} else {
 		prefixLimitReceived := neighbor.GetAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetIpv6Unicast().GetPrefixLimit()
-		return prefixLimitReceived.GetMaxPrefixes(), prefixLimitReceived.GetPrefixLimitExceeded()
+		return prefixLimitReceived.GetMaxPrefixes(), prefixLimitReceived.GetPrefixLimitExceeded(), prefixLimitReceived.GetWarningThresholdPct()
 	}
 }
 
 func verifyPrefixLimitTelemetry(t *testing.T, dut *ondatra.DUTDevice, neighbor *oc.NetworkInstance_Protocol_Bgp_Neighbor, wantEstablished bool) {
 	t.Run("verifyPrefixLimitTelemetry", func(t *testing.T) {
 		if *neighbor.NeighborAddress == ateDst.IPv4 {
-			maxPrefix, limitExceeded := getPrefixLimitv4(dut, neighbor)
+			maxPrefix, limitExceeded, warnThreshold := getPrefixLimitv4(dut, neighbor)
 			if maxPrefix != prefixLimit {
 				t.Errorf("PrefixLimit max-prefixes v4 mismatch: got %d, want %d", maxPrefix, prefixLimit)
+			}
+			if warnThreshold != pwarnthesholdPct {
+				t.Errorf("PrefixLimit warning-threshold-pct v4 mismatch: got %d, want %d", warnThreshold, pwarnthesholdPct)
 			}
 			if !deviations.PrefixLimitExceededTelemetryUnsupported(dut) {
 				if (wantEstablished && limitExceeded) || (!wantEstablished && !limitExceeded) {
@@ -441,9 +448,12 @@ func verifyPrefixLimitTelemetry(t *testing.T, dut *ondatra.DUTDevice, neighbor *
 				}
 			}
 		} else if *neighbor.NeighborAddress == ateDst.IPv6 {
-			maxPrefix, limitExceeded := getPrefixLimitv6(dut, neighbor)
+			maxPrefix, limitExceeded, warnThreshold := getPrefixLimitv6(dut, neighbor)
 			if maxPrefix != prefixLimit {
 				t.Errorf("PrefixLimit max-prefixes v6 mismatch: got %d, want %d", maxPrefix, prefixLimit)
+			}
+			if warnThreshold != pwarnthesholdPct {
+				t.Errorf("PrefixLimit warning-threshold-pct v6 mismatch: got %d, want %d", warnThreshold, pwarnthesholdPct)
 			}
 			if !deviations.PrefixLimitExceededTelemetryUnsupported(dut) {
 				if (wantEstablished && limitExceeded) || (!wantEstablished && !limitExceeded) {
@@ -492,41 +502,17 @@ func (tc *testCase) verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 
 func (tc *testCase) verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, conf gosnappi.Config, tolerance float32, flowNames []string) {
 	otg := ate.OTG()
-	otgutils.LogFlowMetrics(t, otg, conf)
+	defer otgutils.LogFlowMetrics(t, otg, conf)
 	for _, flow := range flowNames {
-		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(flow).State())
-		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
-		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
-		if txPackets == 0 {
-			t.Fatalf("TxPkts = 0, want > 0")
-		}
-		lostPackets := txPackets - rxPackets
-		lossPct := lostPackets * 100 / txPackets
-		if lossPct > tolerance {
-			t.Errorf("Traffic Loss Pct for Flow %s: got %v, want 0", flow, lossPct)
-		} else {
-			t.Logf("Traffic Test Passed! Got %v loss", lossPct)
-		}
+		otgutils.ExpectedTrafficLoss(t, otg, flow, 0, float64(tolerance)+0.99)
 	}
 }
 
 func (tc *testCase) verifyPacketLoss(t *testing.T, ate *ondatra.ATEDevice, conf gosnappi.Config, tolerance float32, flowNames []string) {
 	otg := ate.OTG()
-	otgutils.LogFlowMetrics(t, otg, conf)
+	defer otgutils.LogFlowMetrics(t, otg, conf)
 	for _, flow := range flowNames {
-		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(flow).State())
-		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
-		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
-		if txPackets == 0 {
-			t.Fatalf("TxPkts = 0, want > 0")
-		}
-		lostPackets := txPackets - rxPackets
-		lossPct := lostPackets * 100 / txPackets
-		if lossPct >= (100-tolerance) && lossPct <= 100 {
-			t.Logf("Traffic Test Passed! Loss seen as expected: got %v, want 100%% ", lossPct)
-		} else {
-			t.Errorf("Traffic %s is expected to fail: got %v, want 100%% failure", flow, lossPct)
-		}
+		otgutils.ExpectedTrafficLoss(t, otg, flow, 100-float64(tolerance), 100)
 	}
 }
 

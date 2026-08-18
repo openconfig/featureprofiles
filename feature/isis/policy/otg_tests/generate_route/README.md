@@ -279,6 +279,35 @@ TODO:
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  /interfaces/interface/config/description:
+  /interfaces/interface/config/name:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length:
+  /network-instances/network-instance/protocols/protocol/config/enabled:
+  /network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/config/enabled:
+  /network-instances/network-instance/protocols/protocol/isis/global/config/instance:
+  /network-instances/network-instance/protocols/protocol/isis/global/config/level-capability:
+  /network-instances/network-instance/protocols/protocol/isis/global/config/net:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/circuit-type:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/enabled:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/interface-ref/config/interface:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/interface-ref/config/subinterface:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/config/metric:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/config/enabled:
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/config/metric-style:
+  /network-instances/network-instance/table-connections/table-connection/config/address-family:
+  /network-instances/network-instance/table-connections/table-connection/config/dst-protocol:
+  /network-instances/network-instance/table-connections/table-connection/config/import-policy:
+  /network-instances/network-instance/table-connections/table-connection/config/src-protocol:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/config/mode:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set:
 rpcs:
   gnmi:
     gNMI.Get:

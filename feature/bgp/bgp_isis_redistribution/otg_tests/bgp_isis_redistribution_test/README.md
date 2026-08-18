@@ -123,6 +123,74 @@
 *   Validate that the traffic is received on ATE port-2
 
 ### RT-1.28.3 [TODO: https://github.com/openconfig/featureprofiles/issues/2570]
+#### Verify BGP-to-ISIS redistributed routes persist after routing daemon restart
+---
+*   Restart the routing process on the DUT using gNOI OS command.
+*   Wait for BGP and IS-IS sessions to fully re-establish between the DUT and the ATE.
+*   Query the IS-IS Link State Database (LSDB) on the ATE and verify it receives the redistributed BGP route for network ```ipv4-network``` i.e. ```192.168.10.0/24```.
+    *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/prefix
+*   Initiate traffic from ATE port-1 to the DUT destined to ```ipv4-network``` i.e. ```192.168.10.0/24```.
+*   Validate that the traffic is correctly forwarded and received on ATE port-2.
+
+### RT-1.28.4 [TODO: https://github.com/openconfig/featureprofiles/issues/2570]
+#### Verify BGP-to-ISIS redistributed routes persist after routing daemon restart with Shared Nexthop
+---
+*   Configure a Static route for network ```ipv4-network``` i.e. ```192.168.10.0/24``` on the DUT pointing to the same next-hop IP address as the BGP route to simulate a shared next-hop scenario.
+    *   /network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix
+    *   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop
+*   Configure `STATIC` to `ISIS` redistribution policy on the DUT.
+    *   /network-instances/network-instance/table-connections/table-connection/config/src-protocol
+*   Verify the network ```ipv4-network``` i.e. ```192.168.10.0/24``` is present in the ATE's IS-IS Link State Database.
+    *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/prefix
+*   Restart the routing process on the DUT.
+*   Wait for all BGP and IS-IS sessions to re-establish.
+*   Verify that the network ```ipv4-network``` i.e. ```192.168.10.0/24``` is still present in the IS-IS database on the ATE.
+    *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/prefix
+*   Send traffic to the ```ipv4-network``` i.e. ```192.168.10.0/24``` prefix from the ATE and ensure there is no traffic drop.
+
+#### Canonical OC
+```json
+{
+  "openconfig-network-instance:network-instances": {
+    "network-instance": [
+      {
+        "name": "DEFAULT",
+        "protocols": {
+          "protocol": [
+            {
+              "identifier": "openconfig-policy-types:STATIC",
+              "name": "DEFAULT",
+              "static-routes": {
+                "static": [
+                  {
+                    "prefix": "192.168.10.0/24",
+                    "config": {
+                      "prefix": "192.168.10.0/24"
+                    },
+                    "next-hops": {
+                      "next-hop": [
+                        {
+                          "index": "0",
+                          "config": {
+                            "index": "0",
+                            "next-hop": "192.0.2.1"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
+
+### RT-1.28.5 [TODO: https://github.com/openconfig/featureprofiles/issues/2570]
 #### IPv4: Non matching BGP community in a community-set should not be redistributed to IS-IS
 ---
 ##### Configure a community-set
@@ -142,10 +210,10 @@
 *   Validate that the IS-IS on ATE does not receives the redistributed BGP route for network ```ipv4-network``` i.e. ```192.168.10.0/24```
     *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/prefix
 
-### RT-1.28.4 [TODO: https://github.com/openconfig/featureprofiles/issues/2570]
+### RT-1.28.6 [TODO: https://github.com/openconfig/featureprofiles/issues/2570]
 #### IPv4: Matching BGP community in a community-set should be redistributed to IS-IS
 ---
-##### Replace the previously configured community member value in RT-1.28.3
+##### Replace the previously configured community member value in RT-1.28.5
 *   For community set ```community-set-v4``` replece the community member value to ```64512:100```
     *   /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-member
 ##### Verification
@@ -158,7 +226,7 @@
 *   Initiate traffic from ATE port-1 to the DUT and destined to ```ipv4-network``` i.e. ```192.168.10.0/24```
 *   Validate that the traffic is received on ATE port-2
 
-### RT-1.28.5 [TODO: https://github.com/openconfig/featureprofiles/issues/2570]
+### RT-1.28.7 [TODO: https://github.com/openconfig/featureprofiles/issues/2570]
 #### Non matching IPv6 BGP prefixes in a prefix-set should not be redistributed to IS-IS
 ---
 ##### Configure a route-policy
@@ -234,10 +302,10 @@
 *   Validate that the IS-IS on ATE does not receives the redistributed BGP route for network ```ipv6-network``` i.e. ```2024:db8:128:128::/64```
     *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv6-reachability/prefixes/prefix/state/prefix
 
-### RT-1.28.6 [TODO: https://github.com/openconfig/featureprofiles/issues/2570]
+### RT-1.28.8 [TODO: https://github.com/openconfig/featureprofiles/issues/2570]
 #### Matching IPv6 BGP prefixes in a prefix-set should be redistributed to IS-IS
 ---
-##### Replace the previously configured prefix and mask in prefix-set configured in RT-1.28.5
+##### Replace the previously configured prefix and mask in prefix-set configured in RT-1.28.7
 *   For prefix-set ```prefix-set-v6``` replace the ip-prefix to ```2024:db8:128:128::/64``` and masklength is set to ```exact```
     *   /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix
     *   /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range
@@ -251,7 +319,79 @@
 *   Initiate traffic from ATE port-1 to the DUT and destined to ```ipv6-network``` i.e. ```2024:db8:128:128::/64```
 *   Validate that the traffic is received on ATE port-2
 
-### RT-1.28.7 [TODO: https://github.com/openconfig/featureprofiles/issues/2570]
+### RT-1.28.9 [TODO: https://github.com/openconfig/featureprofiles/issues/2570]
+#### Verify IPv6 BGP-to-ISIS redistributed routes persist after routing daemon restart
+---
+
+*   Restart the routing process on the DUT using gNOI OS command.
+*   Wait for BGP and IS-IS sessions to fully re-establish between the DUT and the ATE.
+*   Query the IS-IS Link State Database (LSDB) on the ATE and verify it receives the redistributed BGP route for network ```ipv6-network``` i.e. ```2024:db8:128:128::/64```.
+    *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv6-reachability/prefixes/prefix/state/prefix
+*   Initiate traffic from ATE port-1 to the DUT destined to ```ipv6-network``` i.e. ```2024:db8:128:128::/64```.
+*   Validate that the traffic is correctly forwarded and received on ATE port-2.
+
+### RT-1.28.10 [TODO: https://github.com/openconfig/featureprofiles/issues/2570]
+#### Verify IPv6 BGP-to-ISIS redistributed routes persist after routing daemon restart with Shared Nexthop
+---
+
+*   Configure a Static route for network ```ipv6-network``` i.e.
+    ```2024:db8:128:128::/64``` on the DUT pointing to the same next-hop IP
+    address as the BGP route to simulate a shared next-hop scenario.
+    *   /network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix
+    *   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop
+*   Configure `STATIC` to `ISIS` redistribution policy on the DUT.
+    *   /network-instances/network-instance/table-connections/table-connection/config/src-protocol
+*   Verify the network ```ipv6-network``` i.e. ```2024:db8:128:128::/64``` is present in the ATE's IS-IS Link State Database.
+    *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv6-reachability/prefixes/prefix/state/prefix
+*   Restart the routing process on the DUT.
+*   Wait for all BGP and IS-IS sessions to re-establish.
+*   Verify that the network ```ipv6-network``` i.e. ```2024:db8:128:128::/64``` is still present in the IS-IS database on the ATE.
+    *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv6-reachability/prefixes/prefix/state/prefix
+*   Send traffic to the ```ipv6-network``` i.e. ```2024:db8:128:128::/64``` prefix from the ATE and ensure there is no traffic drop.
+
+#### Canonical OC
+```json
+{
+  "openconfig-network-instance:network-instances": {
+    "network-instance": [
+      {
+        "name": "DEFAULT",
+        "protocols": {
+          "protocol": [
+            {
+              "identifier": "openconfig-policy-types:STATIC",
+              "name": "DEFAULT",
+              "static-routes": {
+                "static": [
+                  {
+                    "prefix": "2024:db8:128:128::/64",
+                    "config": {
+                      "prefix": "2024:db8:128:128::/64"
+                    },
+                    "next-hops": {
+                      "next-hop": [
+                        {
+                          "index": "0",
+                          "config": {
+                            "index": "0",
+                            "next-hop": "2001:db8::1"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
+
+### RT-1.28.11 [TODO: https://github.com/openconfig/featureprofiles/issues/2570]
 #### IPv6: Non matching BGP community in a community-set should not be redistributed to IS-IS
 ---
 ##### Configure a community-set
@@ -271,10 +411,10 @@
 *   Validate that the IS-IS on ATE does not receives the redistributed BGP route for network ```ipv6-network``` i.e. ```2024:db8:128:128::/64```
     *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv6-reachability/prefixes/prefix/state/prefix
 
-### RT-1.28.8 [TODO: https://github.com/openconfig/featureprofiles/issues/2570]
+### RT-1.28.12 [TODO: https://github.com/openconfig/featureprofiles/issues/2570]
 #### IPv6: Matching BGP community in a community-set should be redistributed to IS-IS
 ---
-##### Replace the previously configured community member value in RT-1.28.7
+##### Replace the previously configured community member value in RT-1.28.11
 *   For community set ```community-set-v6``` replece the community member value to ```64512:100```
     *   /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-member
 ##### Verification
@@ -384,6 +524,8 @@ paths:
   /network-instances/network-instance/table-connections/table-connection/config/dst-protocol:
   /network-instances/network-instance/table-connections/table-connection/config/disable-metric-propagation:
   /network-instances/network-instance/table-connections/table-connection/config/import-policy:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop:
 
   ## State paths
   /routing-policy/policy-definitions/policy-definition/state/name:

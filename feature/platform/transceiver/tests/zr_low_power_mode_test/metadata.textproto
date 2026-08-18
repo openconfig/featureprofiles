@@ -13,6 +13,7 @@ platform_exceptions: {
     interface_enabled: true
     default_network_instance: "default"
     missing_port_to_optical_channel_component_mapping: true
+    terminal_device_channel_admin_state_unsupported: true
   }
 }
 platform_exceptions: {
@@ -24,5 +25,13 @@ platform_exceptions: {
     explicit_dco_config: true
     skip_optical_channel_output_power_interval: true
     skip_transceiver_description: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    terminal_device_channel_admin_state_unsupported: true
   }
 }

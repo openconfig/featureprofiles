@@ -184,6 +184,21 @@ func TestISISSegmentRouting(t *testing.T) {
 
 	t.Logf("Starting capture")
 	startCapture(t, ate)
+	t.Logf("Waiting for routes to be installed on DUT.")
+	dni := deviations.DefaultNetworkInstance(dut)
+	ipv4Path := gnmi.OC().NetworkInstance(dni).Afts().Ipv4Entry(v4Route + "/32")
+	if _, ok := gnmi.Watch(t, dut, ipv4Path.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		return val.IsPresent()
+	}).Await(t); !ok {
+		t.Fatalf("Route %s not found in AFT", v4Route)
+	}
+
+	ipv6Path := gnmi.OC().NetworkInstance(dni).Afts().Ipv6Entry(v6Route + "/128")
+	if _, ok := gnmi.Watch(t, dut, ipv6Path.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
+		return val.IsPresent()
+	}).Await(t); !ok {
+		t.Fatalf("Route %s not found in AFT", v6Route)
+	}
 	t.Logf("Starting traffic")
 	ate.OTG().StartTraffic(t)
 	time.Sleep(time.Second * 15)
@@ -654,30 +669,10 @@ func configureDUTLoopback(t *testing.T, dut *ondatra.DUTDevice, id int, dutLoopb
 }
 
 func verifyTrafficNodeSID(t *testing.T, ate *ondatra.ATEDevice) {
-	recvMetricV4 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v4FlowNameNodeSID).State())
-	recvMetricV6 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v6FlowNameNodeSID).State())
-
-	framesTxV4 := recvMetricV4.GetCounters().GetOutPkts()
-	framesRxV4 := recvMetricV4.GetCounters().GetInPkts()
-	framesTxV6 := recvMetricV6.GetCounters().GetOutPkts()
-	framesRxV6 := recvMetricV6.GetCounters().GetInPkts()
-
 	t.Logf("Starting V4 traffic validation")
-	if framesTxV4 == 0 {
-		t.Error("No traffic was generated and frames transmitted were 0")
-	} else if framesRxV4 == framesTxV4 {
-		t.Logf("Traffic validation successful for [%s] FramesTx: %d FramesRx: %d", v4FlowNameNodeSID, framesTxV4, framesRxV4)
-	} else {
-		t.Errorf("Traffic validation failed for [%s] FramesTx: %d FramesRx: %d", v4FlowNameNodeSID, framesTxV4, framesRxV4)
-	}
+	otgutils.ExpectedTrafficLoss(t, ate.OTG(), v4FlowNameNodeSID, 0, 0)
 	t.Logf("Starting V6 traffic validation")
-	if framesTxV6 == 0 {
-		t.Error("No traffic was generated and frames transmitted were 0")
-	} else if framesRxV6 == framesTxV6 {
-		t.Logf("Traffic validation successful for [%s] FramesTx: %d FramesRx: %d", v6FlowNameNodeSID, framesTxV6, framesRxV6)
-	} else {
-		t.Errorf("Traffic validation failed for [%s] FramesTx: %d FramesRx: %d", v6FlowNameNodeSID, framesTxV6, framesRxV6)
-	}
+	otgutils.ExpectedTrafficLoss(t, ate.OTG(), v6FlowNameNodeSID, 0, 0)
 }
 
 // startCapture starts the capture on the otg ports

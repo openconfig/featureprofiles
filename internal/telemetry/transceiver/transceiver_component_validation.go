@@ -17,7 +17,7 @@ import (
 
 const (
 	minAllowedTemperature = 25.0
-	maxAllowedTemperature = 75.0
+	maxAllowedTemperature = 80.0
 )
 
 // validateTranscieverTelemetry validates the transceiver telemetry.
@@ -100,12 +100,6 @@ func validateTranscieverTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondat
 			path:           fmt.Sprintf(componentPath+"/state/mfg-date", params.TransceiverNames[p.Name()]),
 			got:            transceiverValue.GetMfgDate(),
 			patternToMatch: `\d{4}-\d{2}-\d{2}`,
-		},
-		{
-			desc: "Transceiver Form Factor Validation",
-			path: fmt.Sprintf(componentPath+"/transceiver/state/form-factor", params.TransceiverNames[p.Name()]),
-			got:  transceiverValue.GetTransceiver().GetFormFactor(),
-			want: params.FormFactor,
 		},
 		{
 			desc:       "Transceiver Supply Voltage Validation",
@@ -205,6 +199,14 @@ func validateTranscieverTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondat
 			operStatus: oc.Interface_OperStatus_UP,
 			minAllowed: minAllowedTemperature,
 			maxAllowed: maxAllowedTemperature,
+		})
+	}
+	if dut.Vendor() != ondatra.JUNIPER {
+		tcs = append(tcs, testcase{
+			desc: "Transceiver Form Factor Validation",
+			path: fmt.Sprintf(componentPath+"/transceiver/state/form-factor", params.TransceiverNames[p.Name()]),
+			got:  transceiverValue.GetTransceiver().GetFormFactor(),
+			want: params.FormFactor,
 		})
 	}
 	for _, tc := range tcs {

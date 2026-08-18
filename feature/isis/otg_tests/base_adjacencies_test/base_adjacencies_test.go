@@ -72,7 +72,7 @@ func TestBasic(t *testing.T) {
 	}
 	isisRoot := isissession.ISISPath(ts.DUT)
 	port1ISIS := isisRoot.Interface(ts.DUTPort1.Name())
-	if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) {
+	if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) || deviations.InterfaceRefInterfaceIDFormat(ts.DUT) {
 		port1ISIS = isisRoot.Interface(ts.DUTPort1.Name() + ".0")
 	}
 	// There might be lag between when the instance name is set and when the
@@ -645,7 +645,7 @@ func TestPointToPointCircuitType(t *testing.T) {
 	ts.MustAdjacency(t)
 
 	intfName := ts.DUTPort1.Name()
-	if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) {
+	if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) || deviations.InterfaceRefInterfaceIDFormat(ts.DUT) {
 		intfName = intfName + ".0"
 	}
 	circuitType := gnmi.Get(t, ts.DUT, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).
@@ -687,7 +687,7 @@ func TestISISHelloTimer(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			intfName := ts.DUTPort1.Name()
-			if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) {
+			if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) || deviations.InterfaceRefInterfaceIDFormat(ts.DUT) {
 				intfName = intfName + ".0"
 			}
 			level2 := 2

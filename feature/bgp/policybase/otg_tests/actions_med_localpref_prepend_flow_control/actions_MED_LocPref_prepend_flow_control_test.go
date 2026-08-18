@@ -15,7 +15,6 @@
 package actions_med_localpref_prepend_flow_control_test
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 	"testing"
@@ -26,7 +25,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -211,24 +209,6 @@ func VerifyBgpState(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("BGP sessions Established")
 }
 
-// juniperBgpPolicyMEDAdd is used to configure set metric add via native cli as an alternative for below xpath.
-// routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med
-func juniperBgpPolicyMEDAdd(polName string, metric int) string {
-	return fmt.Sprintf(`
-		policy-options {
- 		   policy-statement %s {
-        		term 1 {
-            		then {
-                		metric add %d;
-            		}
-        		}
-        		term 2 {
-            		then accept;
-        		}
-    		}
-		}`, polName, metric)
-}
-
 // configureASLocalPrefMEDPolicy configures MED, Local Pref, AS prepend etc
 func configureASLocalPrefMEDPolicy(t *testing.T, dut *ondatra.DUTDevice, policyType, policyValue, statement string, ASN uint32) {
 	t.Helper()
@@ -247,33 +227,18 @@ func configureASLocalPrefMEDPolicy(t *testing.T, dut *ondatra.DUTDevice, policyT
 		actions.GetOrCreateBgpActions().SetLocalPref = ygot.Uint32(uint32(metric))
 		actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	case setMEDPolicy:
+		metric, _ := strconv.Atoi(policyValue)
+		actions.GetOrCreateBgpActions().SetMed = oc.UnionUint32(uint32(metric))
 		if strings.Contains(policyValue, "+") {
-			if deviations.BgpSetMedV7Unsupported(dut) {
-				t.Logf("Push the CLI config:%s", dut.Vendor())
-				metric, _ := strconv.Atoi(policyValue)
-				switch dut.Vendor() {
-				case ondatra.JUNIPER:
-					config := juniperBgpPolicyMEDAdd(setMEDPolicy, metric)
-					helpers.GnmiCLIConfig(t, dut, config)
-				default:
-					t.Fatalf("BgpSetMedV7Unsupported deviation needs cli configuration for vendor %s which is not defined", dut.Vendor())
-				}
-			} else {
-				metric, _ := strconv.Atoi(policyValue)
-				actions.GetOrCreateBgpActions().SetMed = oc.UnionUint32(uint32(metric))
-				if !deviations.BGPSetMedActionUnsupported(dut) {
-					actions.GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_ADD
-				}
-				actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+			if !deviations.BGPSetMedActionUnsupported(dut) {
+				actions.GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_ADD
 			}
 		} else {
-			metric, _ := strconv.Atoi(policyValue)
-			actions.GetOrCreateBgpActions().SetMed = oc.UnionUint32(uint32(metric))
 			if !deviations.BGPSetMedActionUnsupported(dut) {
 				actions.GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
 			}
-			actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 		}
+		actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	case setPrependPolicy:
 		metric, _ := strconv.Atoi(policyValue)
 		asPrepend := actions.GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend()

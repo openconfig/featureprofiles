@@ -21,6 +21,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
@@ -126,6 +127,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	i2 := dutDst.NewOCInterface(dut.Port(t, "port2").Name(), dut)
 	gnmi.Replace(t, dut, dc.Interface(i2.GetName()).Config(), i2)
 
+	if deviations.BgpRibStreamingConfigRequired(dut) {
+		cfgplugins.DeviationBgpRibStreamingConfigRequired(t, dut)
+	}
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, i1.GetName(), deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, dut, i2.GetName(), deviations.DefaultNetworkInstance(dut), 0)
@@ -136,9 +140,12 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
 	t.Helper()
 	for _, p := range dev.Ports() {
-		status := gnmi.Get(t, dev, gnmi.OC().Interface(p.Name()).OperStatus().State())
-		if want := oc.Interface_OperStatus_UP; status != want {
-			t.Errorf("%s Status: got %v, want %v", p, status, want)
+		_, ok := gnmi.Watch(t, dev, gnmi.OC().Interface(p.Name()).OperStatus().State(), time.Minute, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
+			state, ok := val.Val()
+			return ok && state == oc.Interface_OperStatus_UP
+		}).Await(t)
+		if !ok {
+			t.Errorf("Interface not UP for port %s", p.Name())
 		}
 	}
 }
@@ -250,11 +257,19 @@ func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr string, w
 	t.Helper()
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	prefixesv4 := statePath.Neighbor(nbr).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
-	if gotInstalled := gnmi.Get(t, dut, prefixesv4.Installed().State()); gotInstalled != wantInstalled {
-		t.Errorf("Installed prefixes mismatch on %v: got %v, want %v", nbr, gotInstalled, wantInstalled)
+	_, ok := gnmi.Watch(t, dut, prefixesv4.Installed().State(), 2*time.Minute, func(val *ygnmi.Value[uint32]) bool {
+		gotInstalled, ok := val.Val()
+		return ok && gotInstalled == wantInstalled
+	}).Await(t)
+	if !ok {
+		t.Errorf("Installed prefixes mismatch on %v, got %v, want %v", nbr, gnmi.Get(t, dut, prefixesv4.Installed().State()), wantInstalled)
 	}
-	if gotSent := gnmi.Get(t, dut, prefixesv4.Sent().State()); gotSent != wantSent {
-		t.Errorf("Sent prefixes mismatch on %v: got %v, want %v", nbr, gotSent, wantSent)
+	_, ok = gnmi.Watch(t, dut, prefixesv4.Sent().State(), 2*time.Minute, func(val *ygnmi.Value[uint32]) bool {
+		gotSent, ok := val.Val()
+		return ok && gotSent == wantSent
+	}).Await(t)
+	if !ok {
+		t.Errorf("Sent prefixes mismatch on %v:, got %v, want %v", nbr, gnmi.Get(t, dut, prefixesv4.Sent().State()), wantSent)
 	}
 }
 

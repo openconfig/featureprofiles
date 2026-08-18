@@ -43,6 +43,7 @@ Validate ZR Plus optics module reports telemetry data for all leaves in
     *  terminal-device/logical-channels/channel/state/logical-channel-type
     *  terminal-device/logical-channels/channel/state/loopback-mode
     *  terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/index
+    *  terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/logical-channel
     *  terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/optical-channel
     *  terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/description
     *  terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/allocation
@@ -60,16 +61,8 @@ Validate ZR Plus optics module reports telemetry data for all leaves in
     *  terminal-device/logical-channels/channel/otn/state/pre-fec-ber/min
     *  terminal-device/logical-channels/channel/otn/state/pre-fec-ber/max
     *  terminal-device/logical-channels/channel/otn/state/fec-uncorrectable-blocks
-    *  terminal-device/logical-channels/channel/state/index
-    *  terminal-device/logical-channels/channel/state/description
-    *  terminal-device/logical-channels/channel/state/logical-channel-type
-    *  terminal-device/logical-channels/channel/state/loopback-mode
     *  terminal-device/logical-channels/channel/ingress/state/interface
     *  terminal-device/logical-channels/channel/ingress/state/transceiver
-    *  terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/index
-    *  terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/logical-channel
-    *  terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/allocation
-    *  terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/assignment-type
 
 **Note:** For min, max, and avg values, 10 second sampling is preferred. If 
           10 seconds is not supported, the sampling interval used must be

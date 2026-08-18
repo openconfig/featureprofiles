@@ -49,13 +49,12 @@ TODO(OCPATH): State paths (if any)
 
 ```yaml
 paths:
-
-  ## State paths
-
+  /components/component/healthz/state/status:
+    platform_type: [CHASSIS, SOFTWARE_MODULE]
 rpcs:
   gnoi:
-    system.System.KillProcess:
     healthz.Healthz.Artifact:
     healthz.Healthz.Check:
     healthz.Healthz.Get:
+    system.System.KillProcess:
 ```
