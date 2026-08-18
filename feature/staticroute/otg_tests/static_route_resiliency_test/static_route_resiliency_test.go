@@ -3,814 +3,538 @@ package static_route_resiliency_test
 import (
 	"fmt"
 	"net"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
-	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/golang/ygot/ygot/ygot"
+	"github.com/open_traffic_generator/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/ondatra"      // Changed from ondatra/ondatra
-	"github.com/openconfig/ondatra/gnmi" // Changed from gnmi/gnmi
+	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
-	"github.com/openconfig/ondatra/otg"
-	"github.com/openconfig/ygnmi/ygnmi"
-	"github.com/openconfig/ygot/ygot"
-)
-
-const (
-	ipv4PrefixLen = 24
-	ipv6PrefixLen = 64
-	vlanID        = uint16(10)
-	vlanIntfName  = "Vlan10"
-
-	lag1Name    = "Port-Channel1"
-	lag2Name    = "Port-Channel2"
-	ateLag1Name = "lag1"
-	ateLag2Name = "lag2"
-
-	trafficDuration = 10 * time.Second
-	packetPerSecond = 100
-)
-
-var (
-	dutPort1 = attrs.Attributes{Name: "port1"}
-	dutPort2 = attrs.Attributes{Name: "port2"}
-	dutPort7 = attrs.Attributes{Name: "port7", IPv4: "198.51.102.1", IPv4Len: 24, IPv6: "2001:db8:102::1", IPv6Len: 64}
-	dutPort8 = attrs.Attributes{Name: "port8", IPv4: "192.0.2.1", IPv4Len: 24, IPv6: "2001:db8:192::1", IPv6Len: 64}
-
-	sviIP = attrs.Attributes{IPv4: "198.51.100.1", IPv4Len: 24, IPv6: "2001:db8:100::1", IPv6Len: 64}
-
-	atePort1 = attrs.Attributes{Name: "port1", MAC: "02:00:01:01:01:01", IPv4: "198.51.100.2", IPv4Len: 24, IPv6: "2001:db8:100::2", IPv6Len: 64}
-	atePort2 = attrs.Attributes{Name: "port2", MAC: "02:00:01:01:01:02", IPv4: "198.51.100.3", IPv4Len: 24, IPv6: "2001:db8:100::3", IPv6Len: 64}
-	atePort7 = attrs.Attributes{Name: "port7", MAC: "02:00:02:01:01:07", IPv4: "198.51.102.2", IPv4Len: 24, IPv6: "2001:db8:102::2", IPv6Len: 64}
-	atePort8 = attrs.Attributes{Name: "port8", MAC: "02:00:02:01:01:08", IPv4: "192.0.2.2", IPv4Len: 24, IPv6: "2001:db8:192::2", IPv6Len: 64}
-
-	dutLag1 = attrs.Attributes{Name: lag1Name, IPv4: "198.51.101.1", IPv4Len: 24, IPv6: "2001:db8:101::1", IPv6Len: 64}
+	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ygnmi/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func lacpActivityType(v oc.E_Lacp_LacpActivityType) *oc.E_Lacp_LacpActivityType { return &v }
-func lacpPeriodType(v oc.E_Lacp_LacpPeriodType) *oc.E_Lacp_LacpPeriodType       { return &v }
+const (
+	ipv4PrefixLen   = 24
+	ipv6PrefixLen   = 64
+	vlanID          = uint16(10)
+	vlanIntfName    = "Vlan10"
+	trafficWaitTime = 60 * time.Second
+	frameSize       = 512
+	packetPerSecond = 100
+)
 
-func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-
-	cfgplugins.ConfigureVlan(t, dut, cfgplugins.VlanParams{VlanID: vlanID})
-
-	portBatch := &gnmi.SetBatch{}
-
-	dutPortsGroup1 := []attrs.Attributes{dutPort1, dutPort2}
-	for _, p := range dutPortsGroup1 {
-		iObj := &oc.Interface{Name: ygot.String(dut.Port(t, p.Name).Name())}
-		iObj.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-		if deviations.InterfaceEnabled(dut) {
-			iObj.Enabled = ygot.Bool(true)
-		}
-		cfgplugins.ConfigureAccessVlan(cfgplugins.AccessVlanParams{
-			Intf:   iObj,
-			VlanID: vlanID,
-		})
-		gnmi.BatchReplace(portBatch, gnmi.OC().Interface(dut.Port(t, p.Name).Name()).Config(), iObj)
+var (
+	atePorts = []attrs.Attributes{
+		{Name: "port1", MAC: "02:00:01:00:00:01", IPv4: "198.51.100.2", IPv4Len: ipv4PrefixLen, IPv6: "2001:db8:100::2", IPv6Len: ipv6PrefixLen},
+		{Name: "port2", MAC: "02:00:01:00:00:02", IPv4: "198.51.100.3", IPv4Len: ipv4PrefixLen, IPv6: "2001:db8:100::3", IPv6Len: ipv6PrefixLen},
+		{Name: "port3", MAC: "02:00:01:00:00:03"}, // LAG 1 Member
+		{Name: "port4", MAC: "02:00:01:00:00:04"}, // LAG 1 Member
+		{Name: "port5", MAC: "02:00:01:00:00:05"}, // LAG 2 Member
+		{Name: "port6", MAC: "02:00:01:00:00:06"}, // LAG 2 Member
+		{Name: "port7", MAC: "02:00:01:00:00:07", IPv4: "198.51.102.2", IPv4Len: ipv4PrefixLen, IPv6: "2001:db8:102::2", IPv6Len: ipv6PrefixLen},
+		{Name: "port8", MAC: "02:00:01:00:00:08", IPv4: "10.0.0.2", IPv4Len: ipv4PrefixLen, IPv6: "2001:db8:a::2", IPv6Len: ipv6PrefixLen},
 	}
 
-	dutPortsGroup2 := []attrs.Attributes{dutPort7, dutPort8}
-	for _, p := range dutPortsGroup2 {
-		iObj := &oc.Interface{Name: ygot.String(dut.Port(t, p.Name).Name())}
+	dutPorts = []attrs.Attributes{
+		{Name: "port1"},
+		{Name: "port2"},
+		{Name: "port3"},
+		{Name: "port4"},
+		{Name: "port5"},
+		{Name: "port6"},
+		{Name: "port7", IPv4: "198.51.102.1", IPv4Len: ipv4PrefixLen, IPv6: "2001:db8:102::1", IPv6Len: ipv6PrefixLen},
+		{Name: "port8", IPv4: "10.0.0.1", IPv4Len: ipv4PrefixLen, IPv6: "2001:db8:a::1", IPv6Len: ipv6PrefixLen},
+	}
+
+	sviParams = cfgplugins.SVIParams{
+		IntfName: vlanIntfName,
+		IPv4:     "198.51.100.1",
+		IPv4Len:  ipv4PrefixLen,
+		IPv6:     "2001:db8:100::1",
+		IPv6Len:  ipv6PrefixLen,
+	}
+
+	lag1DutAttrs = attrs.Attributes{
+		Name:    "lag1",
+		IPv4:    "198.51.101.1",
+		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2001:db8:101::1",
+		IPv6Len: ipv6PrefixLen,
+	}
+
+	lag1AteAttrs = attrs.Attributes{
+		Name:    "lag1Ate",
+		MAC:     "02:00:10:01:01:01",
+		IPv4:    "198.51.101.2",
+		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2001:db8:101::2",
+		IPv6Len: ipv6PrefixLen,
+	}
+)
+
+type testData struct {
+	dut      *ondatra.DUTDevice
+	ate      *ondatra.ATEDevice
+	top      gosnappi.Config
+	lag1Name string
+	lag2Name string
+}
+
+func configureDUT(t *testing.T, dut *ondatra.DUTDevice) (string, string) {
+	t.Helper()
+
+	lag1Name := netutil.NextAggregateInterface(t, dut)
+	numRE := strings.TrimLeft(lag1Name, "a-zA-Z-")
+	start, err := strconv.Atoi(numRE)
+	if err != nil {
+		t.Fatalf("Failed to parse LAG number from %s: %v", lag1Name, err)
+	}
+	prefix := strings.TrimRight(lag1Name, "0123456789")
+	lag2Name := fmt.Sprintf("%s%d", prefix, start+1)
+	t.Logf("Using LAG names: %s, %s", lag1Name, lag2Name)
+
+	cfgplugins.ConfigureVlan(t, dut, cfgplugins.VlanParams{
+		VlanID: vlanID,
+	})
+
+	portBatch := &gnmi.SetBatch{}
+	for i, a := range dutPorts {
+		iObj := &oc.Interface{Name: ygot.String(dut.Port(t, a.Name).Name())}
 		iObj.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 		if deviations.InterfaceEnabled(dut) {
 			iObj.Enabled = ygot.Bool(true)
 		}
-		s := iObj.GetOrCreateSubinterface(0)
-		cfgplugins.ConfigureSubinterfaceIPs(s, dut, p.IPv4, p.IPv4Len, p.IPv6, p.IPv6Len)
-		gnmi.BatchReplace(portBatch, gnmi.OC().Interface(dut.Port(t, p.Name).Name()).Config(), iObj)
+
+		if i < 2 { // Ports 1, 2: Access with VLAN 10
+			cfgplugins.ConfigureAccessVlan(cfgplugins.AccessVlanParams{
+				Intf:   iObj,
+				VlanID: vlanID,
+			})
+		} else if i == 6 || i == 7 { // Port 7, 8: Standalone Port
+			s := iObj.GetOrCreateSubinterface(0)
+			cfgplugins.ConfigureSubinterfaceIPs(s, dut, a.IPv4, a.IPv4Len, a.IPv6, a.IPv6Len)
+		}
+		// Lag member assignment will be handled by NewAggregateInterface
+		gnmi.BatchUpdate(portBatch, gnmi.OC().Interface(dut.Port(t, a.Name).Name()).Config(), iObj)
 	}
 	portBatch.Set(t, dut)
 
-	cfgplugins.ConfigureSVI(t, dut, cfgplugins.SVIParams{
-		IntfName: vlanIntfName,
-		IPv4:     sviIP.IPv4,
-		IPv4Len:  sviIP.IPv4Len,
-		IPv6:     sviIP.IPv6,
-		IPv6Len:  sviIP.IPv6Len,
-	})
+	cfgplugins.ConfigureSVI(t, dut, sviParams)
 
-	lag1Batch := &gnmi.SetBatch{}
-	cfgplugins.NewAggregateInterface(t, dut, lag1Batch, &cfgplugins.DUTAggData{
+	lagBatch := &gnmi.SetBatch{}
+	// Setup LAG 1
+	lag1 := &cfgplugins.DUTAggData{
+		Attributes:      lag1DutAttrs,
+		OndatraPortsIdx: []int{2, 3}, // Port 3 and 4
 		LagName:         lag1Name,
-		OndatraPortsIdx: []int{2, 3}, // ports 3 and 4 (0-indexed)
-		AggType:         oc.IfAggregate_AggregationType_LACP,
-		Attributes:      dutLag1,
-		LacpParams: &cfgplugins.LACPParams{
-			Activity: lacpActivityType(oc.Lacp_LacpActivityType_ACTIVE),
-			Period:   lacpPeriodType(oc.Lacp_LacpPeriodType_FAST),
-		},
-	})
+		AggType:         oc.IfAggregate_AggregationType_STATIC,
+	}
+	cfgplugins.NewAggregateInterface(t, dut, lagBatch, lag1)
 
-	tTrue := true
+	// Setup LAG 2
 	var lag2Subs []*cfgplugins.DUTSubInterfaceData
-	for i := uint16(101); i <= 110; i++ {
+	for i := 1; i <= 10; i++ {
+		tEnable := true
 		lag2Subs = append(lag2Subs, &cfgplugins.DUTSubInterfaceData{
-			VlanID:        int(i),
-			VlanEnable:    &tTrue,
-			IPv4Address:   net.ParseIP(fmt.Sprintf("198.51.%d.1", i+10)),
+			VlanID:        100 + i,
+			VlanEnable:    &tEnable,
+			IPv4Address:   net.ParseIP(fmt.Sprintf("198.51.%d.1", 110+i)),
+			IPv6Address:   net.ParseIP(fmt.Sprintf("2001:db8:%d::1", 110+i)),
 			IPv4PrefixLen: 24,
-			IPv6Address:   net.ParseIP(fmt.Sprintf("2001:db8:%d::1", i+10)),
 			IPv6PrefixLen: 64,
 		})
 	}
-	cfgplugins.NewAggregateInterface(t, dut, lag1Batch, &cfgplugins.DUTAggData{
-		LagName:         lag2Name,
-		OndatraPortsIdx: []int{4, 5},
-		AggType:         oc.IfAggregate_AggregationType_LACP,
+	lag2 := &cfgplugins.DUTAggData{
 		SubInterfaces:   lag2Subs,
-		LacpParams: &cfgplugins.LACPParams{
-			Activity: lacpActivityType(oc.Lacp_LacpActivityType_ACTIVE),
-			Period:   lacpPeriodType(oc.Lacp_LacpPeriodType_FAST),
-		},
-	})
-	lag1Batch.Set(t, dut)
+		OndatraPortsIdx: []int{4, 5}, // Port 5 and 6
+		LagName:         lag2Name,
+		AggType:         oc.IfAggregate_AggregationType_STATIC,
+	}
+	// For no IPv4 config, attributes is omitted
+	cfgplugins.NewAggregateInterface(t, dut, lagBatch, lag2)
+
+	lagBatch.Set(t, dut)
+	return lag1Name, lag2Name
 }
 
-func configureATE(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
+func configureOTG(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, lag1Name, lag2Name string) {
 	t.Helper()
 
-	atePort1.AddToOTG(top, ate.Port(t, atePort1.Name), &sviIP)
-	atePort2.AddToOTG(top, ate.Port(t, atePort2.Name), &sviIP)
-
-	atePort7.AddToOTG(top, ate.Port(t, atePort7.Name), &dutPort7)
-	atePort8.AddToOTG(top, ate.Port(t, atePort8.Name), &dutPort8)
-
-	addLAGPorts := func(lag gosnappi.Lag, members []string, systemMAC string) {
-		lag.Protocol().Lacp().SetActorKey(1).SetActorSystemPriority(1).SetActorSystemId(systemMAC)
-		for i, portName := range members {
-			p := ate.Port(t, portName)
-			top.Ports().Add().SetName(p.ID())
-			lagPort := lag.Ports().Add().SetPortName(p.ID())
-			lagPort.Ethernet().SetMac(systemMAC).SetName(lag.Name() + "-" + p.ID()).SetMtu(1500)
-			lagPort.Lacp().SetActorActivity("passive").SetActorPortNumber(uint32(i) + 1).SetActorPortPriority(1).SetLacpduTimeout(0)
-		}
+	// Configure Port 1, 2, 7, 8 normally
+	for _, i := range []int{0, 1, 6, 7} {
+		a := atePorts[i]
+		p := ate.Port(t, a.Name)
+		a.AddToOTG(top, p, &dutPorts[i])
 	}
 
-	lag1 := top.Lags().Add().SetName(ateLag1Name)
-	addLAGPorts(lag1, []string{"port3", "port4"}, "02:00:03:01:01:01")
+	// Configure LAG 1
+	p3 := ate.Port(t, atePorts[2].Name)
+	p4 := ate.Port(t, atePorts[3].Name)
+	top.Ports().Add().SetName(p3.ID())
+	top.Ports().Add().SetName(p4.ID())
 
-	dev1 := top.Devices().Add().SetName("ateLag1Dev")
-	eth1 := dev1.Ethernets().Add().SetName("ateLag1Eth").SetMac("02:00:03:01:01:01")
-	eth1.Connection().SetLagName(lag1.Name())
-	eth1.Ipv4Addresses().Add().SetName("ateLag1IPv4").SetAddress("198.51.101.2").SetGateway("198.51.101.1").SetPrefix(24)
-	eth1.Ipv6Addresses().Add().SetName("ateLag1IPv6").SetAddress("2001:db8:101::2").SetGateway("2001:db8:101::1").SetPrefix(64)
+	lag1 := top.Lags().Add().SetName("ATE_LAG1")
+	// Using static LAG
+	lag1.Protocol().Static().SetLagId(1)
+	lag1.Ports().Add().SetPortName(p3.ID()).Ethernet().SetMac(atePorts[2].MAC).SetName("LAG1_Rx1")
+	lag1.Ports().Add().SetPortName(p4.ID()).Ethernet().SetMac(atePorts[3].MAC).SetName("LAG1_Rx2")
 
-	lag2 := top.Lags().Add().SetName(ateLag2Name)
-	addLAGPorts(lag2, []string{"port5", "port6"}, "02:00:05:01:01:01")
+	lag1Dev := top.Devices().Add().SetName("LAG1_Dev")
+	lag1Eth := lag1Dev.Ethernets().Add().SetName("LAG1_Eth").SetMac(lag1AteAttrs.MAC)
+	lag1Eth.Connection().SetLagName("ATE_LAG1")
+	lag1Eth.Ipv4Addresses().Add().SetName("LAG1_IPv4").SetAddress(lag1AteAttrs.IPv4).SetGateway(lag1DutAttrs.IPv4).SetPrefix(uint32(lag1AteAttrs.IPv4Len))
+	lag1Eth.Ipv6Addresses().Add().SetName("LAG1_IPv6").SetAddress(lag1AteAttrs.IPv6).SetGateway(lag1DutAttrs.IPv6).SetPrefix(uint32(lag1AteAttrs.IPv6Len))
 
-	for i := uint16(101); i <= 110; i++ {
-		dev2 := top.Devices().Add().SetName(fmt.Sprintf("ateLag2Dev_vlan%d", i))
-		eth2 := dev2.Ethernets().Add().SetName(fmt.Sprintf("ateLag2Eth_vlan%d", i)).SetMac(fmt.Sprintf("02:00:05:%02x:01:01", i))
-		eth2.Connection().SetLagName(lag2.Name())
-		eth2.Vlans().Add().SetName(fmt.Sprintf("ateLag2Vlan%d", i)).SetId(uint32(i))
-		eth2.Ipv4Addresses().Add().SetName(fmt.Sprintf("ateLag2IPv4_%d", i)).SetAddress(fmt.Sprintf("198.51.%d.2", i+10)).SetGateway(fmt.Sprintf("198.51.%d.1", i+10)).SetPrefix(24)
-		eth2.Ipv6Addresses().Add().SetName(fmt.Sprintf("ateLag2IPv6_%d", i)).SetAddress(fmt.Sprintf("2001:db8:%d::2", i+10)).SetGateway(fmt.Sprintf("2001:db8:%d::1", i+10)).SetPrefix(64)
+	// Configure LAG 2
+	p5 := ate.Port(t, atePorts[4].Name)
+	p6 := ate.Port(t, atePorts[5].Name)
+	top.Ports().Add().SetName(p5.ID())
+	top.Ports().Add().SetName(p6.ID())
+
+	lag2 := top.Lags().Add().SetName("ATE_LAG2")
+	lag2.Protocol().Static().SetLagId(2)
+	lag2.Ports().Add().SetPortName(p5.ID()).Ethernet().SetMac(atePorts[4].MAC).SetName("LAG2_Rx1")
+	lag2.Ports().Add().SetPortName(p6.ID()).Ethernet().SetMac(atePorts[5].MAC).SetName("LAG2_Rx2")
+
+	for i := 1; i <= 10; i++ {
+		vlanId := 100 + i
+		vlanName := fmt.Sprintf("LAG2_Vlan%d", vlanId)
+		lag2Dev := top.Devices().Add().SetName(fmt.Sprintf("LAG2_Dev%d", vlanId))
+		lag2Eth := lag2Dev.Ethernets().Add().SetName(fmt.Sprintf("LAG2_Eth%d", vlanId)).SetMac(fmt.Sprintf("02:00:20:%02x:01:01", i))
+		lag2Eth.Connection().SetLagName("ATE_LAG2")
+		lag2Eth.Vlans().Add().SetName(vlanName).SetId(uint32(vlanId))
+
+		lag2Ipv4 := lag2Eth.Ipv4Addresses().Add().SetName(fmt.Sprintf("LAG2_IPv4_%d", vlanId))
+		lag2Ipv4.SetAddress(fmt.Sprintf("198.51.%d.2", 110+i)).SetGateway(fmt.Sprintf("198.51.%d.1", 110+i)).SetPrefix(24)
+
+		lag2Ipv6 := lag2Eth.Ipv6Addresses().Add().SetName(fmt.Sprintf("LAG2_IPv6_%d", vlanId))
+		lag2Ipv6.SetAddress(fmt.Sprintf("2001:db8:%d::2", 110+i)).SetGateway(fmt.Sprintf("2001:db8:%d::1", 110+i)).SetPrefix(64)
+	}
+
+}
+
+func createTraffic(top gosnappi.Config, flowName, dstV4Net, dstV6Net string) {
+	top.Flows().Clear()
+
+	srcV4Addr := atePorts[7].IPv4
+	srcV6Addr := atePorts[7].IPv6
+
+	v4F := top.Flows().Add().SetName(flowName + "_v4")
+	v4F.Metrics().SetEnable(true)
+	v4F.TxRx().Device().SetTxNames([]string{"port8.IPv4"})
+	eth := v4F.Packet().Add().Ethernet()
+	eth.Src().SetValue(atePorts[7].MAC)
+	v4 := v4F.Packet().Add().Ipv4()
+	v4.Src().SetValue(srcV4Addr)
+
+	if strings.Contains(dstV4Net, "/") {
+		parts := strings.Split(dstV4Net, "/")
+		v4.Dst().Increment().SetStart(parts[0]).SetStep("0.0.0.1").SetCount(254)
+	} else {
+		v4.Dst().SetValue(dstV4Net)
+	}
+
+	v6F := top.Flows().Add().SetName(flowName + "_v6")
+	v6F.Metrics().SetEnable(true)
+	v6F.TxRx().Device().SetTxNames([]string{"port8.IPv6"})
+	eth = v6F.Packet().Add().Ethernet()
+	eth.Src().SetValue(atePorts[7].MAC)
+	v6 := v6F.Packet().Add().Ipv6()
+	v6.Src().SetValue(srcV6Addr)
+
+	if strings.Contains(dstV6Net, "/") {
+		parts := strings.Split(dstV6Net, "/")
+		v6.Dst().Increment().SetStart(parts[0]).SetStep("::1").SetCount(254)
+	} else {
+		v6.Dst().SetValue(dstV6Net)
 	}
 }
 
-func fetchDUTCounters(t *testing.T, dut *ondatra.DUTDevice) map[string]uint64 {
-	t.Helper()
-
-	portNames := make([]string, 0, 8)
-	batch := gnmi.OCBatch()
-	for i := 1; i <= 8; i++ {
-		portName := dut.Port(t, fmt.Sprintf("port%d", i)).Name()
-		portNames = append(portNames, portName)
-		batch.AddPaths(gnmi.OC().Interface(portName).Counters().OutUnicastPkts().State().PathStruct())
+func configureRoute(t *testing.T, dut *ondatra.DUTDevice, v4Prefix, v6Prefix string, v4Nh, v6Nh []string) {
+	b := &gnmi.SetBatch{}
+	// IPv4 route
+	v4Map := make(map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union)
+	for i, nh := range v4Nh {
+		v4Map[fmt.Sprintf("%d", i)] = oc.UnionString(nh)
+	}
+	sV4 := &cfgplugins.StaticRouteCfg{
+		NetworkInstance: deviations.DefaultNetworkInstance(dut),
+		Prefix:          v4Prefix,
+		NextHops:        v4Map,
+	}
+	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
+		t.Fatalf("Failed to configure IPv4 static route: %v", err)
 	}
 
-	root := gnmi.Get(t, dut, batch.State())
-	counters := make(map[string]uint64, len(portNames))
-	for _, portName := range portNames {
-		counters[portName] = root.GetInterface(portName).GetCounters().GetOutUnicastPkts()
+	// IPv6 route
+	v6Map := make(map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union)
+	for i, nh := range v6Nh {
+		v6Map[fmt.Sprintf("%d", i)] = oc.UnionString(nh)
 	}
-	return counters
+	sV6 := &cfgplugins.StaticRouteCfg{
+		NetworkInstance: deviations.DefaultNetworkInstance(dut),
+		Prefix:          v6Prefix,
+		NextHops:        v6Map,
+	}
+	if _, err := cfgplugins.NewStaticRouteCfg(b, sV6, dut); err != nil {
+		t.Fatalf("Failed to configure IPv6 static route: %v", err)
+	}
+	b.Set(t, dut)
+
+	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+	gnmi.Await(t, dut, sp.Static(v4Prefix).Prefix().State(), 30*time.Second, v4Prefix)
+	gnmi.Await(t, dut, sp.Static(v6Prefix).Prefix().State(), 30*time.Second, v6Prefix)
 }
 
+// TestStaticRouteResiliency is the main test entry point that orchestrates the execution of all RT-1.73 subtests.
 func TestStaticRouteResiliency(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-
-	configureDUT(t, dut)
-	t.Cleanup(func() {
-		// Attempt to remove configured VLAN, SVIs and aggregated interfaces to restore DUT state.
-		// Remove SVI/interface for VLAN
-		_ = gnmi.Delete(t, dut, gnmi.OC().Interface(vlanIntfName).Config())
-
-		// Remove aggregate interfaces (LAGs)
-		_ = gnmi.Delete(t, dut, gnmi.OC().Interface(lag1Name).Config())
-		_ = gnmi.Delete(t, dut, gnmi.OC().Interface(lag2Name).Config())
-
-		// Remove per-port interface config that was altered by the test (ports 1-8)
-		for i := 1; i <= 8; i++ {
-			ifName := dut.Port(t, fmt.Sprintf("port%d", i)).Name()
-			_ = gnmi.Delete(t, dut, gnmi.OC().Interface(ifName).Config())
-		}
-	})
-
 	top := gosnappi.NewConfig()
-	configureATE(t, ate, top)
+
+	lag1Name, lag2Name := configureDUT(t, dut)
+	configureOTG(t, ate, top, lag1Name, lag2Name)
 
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 
-	waitForOTGARP(t, ate, top)
-
-	t.Run("RT-1.73.1 Validate Static Route with VLAN Interface", func(t *testing.T) {
-		testRouteWithVLAN(t, dut, ate, top)
-	})
-
-	t.Run("RT-1.73.2 Validate Static Route over LAG Interface", func(t *testing.T) {
-		testRouteWithLAG(t, dut, ate, top)
-	})
-
-	t.Run("RT-1.73.3 Control Plane Resilience on LAG Failure", func(t *testing.T) {
-		testLAGFailure(t, dut, ate, top)
-	})
-
-	t.Run("RT-1.73.4 Validate ECMP and FIB Reprogramming Across Multiple LAGs", func(t *testing.T) {
-		testECMPAndFIB(t, dut, ate, top)
-	})
-
-	t.Run("RT-1.73.5 Scale, Dynamic FIB Re-programming, and Route Persistence", func(t *testing.T) {
-		testScaleAndPersistence(t, dut, ate, top)
-	})
-}
-
-func testScaleAndPersistence(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config) {
-	applyStaticRoutes(t, dut, []string{"198.51.101.2"}, "203.0.115.0/24", "2001:db8:215::/64")
-
-	top.Flows().Clear()
-	for i := 0; i < 100; i++ {
-		v4Dst := fmt.Sprintf("10.1.%d.1", i)
-		v6Dst := fmt.Sprintf("2001:db8:10%02x::1", i)
-
-		createFlow(t, top, fmt.Sprintf("flow_scale_v4_%d", i), atePort8.Name+".IPv4", []string{"ateLag2IPv4_101", "ateLag2IPv4_110"}, atePort8.IPv4, v4Dst, atePort8.IPv6, v6Dst, false)
-		createFlow(t, top, fmt.Sprintf("flow_scale_v6_%d", i), atePort8.Name+".IPv6", []string{"ateLag2IPv6_101", "ateLag2IPv6_110"}, atePort8.IPv4, v4Dst, atePort8.IPv6, v6Dst, true)
-	}
-	ate.OTG().PushConfig(t, top)
-	ate.OTG().StartProtocols(t)
-	waitForOTGARP(t, ate, top)
-
-	beforeScale := fetchDUTCounters(t, dut)
-	ate.OTG().StartTraffic(t)
-	waitForFlowTraffic(t, ate.OTG(), "flow_scale_v4_0", 60*time.Second)
-	ate.OTG().StopTraffic(t)
-	lag2Ports := []string{dut.Port(t, "port5").Name(), dut.Port(t, "port6").Name()}
-
-	var afterScale map[string]uint64
-	deadlineScale := time.Now().Add(time.Minute)
-	for {
-		afterScale = fetchDUTCounters(t, dut)
-		if portCountersIncreased(beforeScale, afterScale, lag2Ports) {
-			break
+	t.Run("RT-1.73.1: Validate Static Route with VLAN Interface (SVI)", func(t *testing.T) {
+		configureRoute(t, dut, "203.0.113.0/24", "2001:db8:213::/64", []string{"198.51.100.2"}, []string{"2001:db8:100::2"})
+		createTraffic(top, "traffic_svi", "203.0.113.1", "2001:db8:213::1")
+		ate.OTG().PushConfig(t, top)
+		ate.OTG().StartProtocols(t)
+		ate.OTG().StartTraffic(t)
+		for _, flow := range top.Flows().Items() {
+			otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), 0, 1)
 		}
-		if time.Now().After(deadlineScale) {
-			t.Fatalf("Timeout: port counters on %v did not increase after 1 minute", lag2Ports)
-		}
-		time.Sleep(2 * time.Second)
-	}
-
-	assertFlowLossBelow(t, ate, "flow_scale_v4_0", 60*time.Second, 10)
-	if !portCountersIncreased(beforeScale, afterScale, lag2Ports) {
-		t.Fatalf("expected scaled flows to forward traffic through LAG2 ports %v", lag2Ports)
-	}
-
-	// Step 3 (FIB Update - Add Next-Hop) - Add ATE Port 7
-	beforeAdd := fetchDUTCounters(t, dut)
-	bAdd := &gnmi.SetBatch{}
-	for i := 0; i < 100; i++ {
-		v4Prefix := fmt.Sprintf("10.1.%d.0/24", i)
-		v6Prefix := fmt.Sprintf("2001:db8:10%02x::/64", i)
-		vlanIndex := (i % 10) + 111
-		nhV4 := fmt.Sprintf("198.51.%d.2", vlanIndex)
-		nhV6 := fmt.Sprintf("2001:db8:%d::2", vlanIndex)
-
-		cfgplugins.NewStaticRouteCfg(bAdd, &cfgplugins.StaticRouteCfg{
-			NetworkInstance: deviations.DefaultNetworkInstance(dut),
-			Prefix:          v4Prefix,
-			NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-				"0": oc.UnionString(nhV4),
-				"1": oc.UnionString("198.51.102.2"),
-			},
-		}, dut)
-		cfgplugins.NewStaticRouteCfg(bAdd, &cfgplugins.StaticRouteCfg{
-			NetworkInstance: deviations.DefaultNetworkInstance(dut),
-			Prefix:          v6Prefix,
-			NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-				"0": oc.UnionString(nhV6),
-				"1": oc.UnionString("2001:db8:102::2"),
-			},
-		}, dut)
-	}
-	bAdd.Set(t, dut)
-	// Step 4 (Verify Add)
-	ate.OTG().StartTraffic(t)
-	waitForFlowTraffic(t, ate.OTG(), "flow_scale_v4_0", 60*time.Second)
-	ate.OTG().StopTraffic(t)
-
-	var afterAdd map[string]uint64
-	gnmi.WatchAll(t, dut, gnmi.OC().InterfaceAny().Counters().OutUnicastPkts().State(), time.Minute, func(val *ygnmi.Value[uint64]) bool {
-		afterAdd = fetchDUTCounters(t, dut)
-		return portCountersIncreased(beforeAdd, afterAdd, lag2Ports)
-	}).Await(t)
-
-	assertFlowLossBelow(t, ate, "flow_scale_v4_0", 60*time.Second, 10)
-	if !portCountersIncreased(beforeAdd, afterAdd, lag2Ports) {
-		t.Fatalf("expected FIB add to preserve traffic through LAG2 ports %v", lag2Ports)
-	}
-
-	// Step 5 (FIB Update - Remove Next-Hop)
-	beforeRemove := fetchDUTCounters(t, dut)
-	bRem := &gnmi.SetBatch{}
-	for i := 0; i < 100; i++ {
-		v4Prefix := fmt.Sprintf("10.1.%d.0/24", i)
-		v6Prefix := fmt.Sprintf("2001:db8:10%02x::/64", i)
-
-		cfgplugins.NewStaticRouteCfg(bRem, &cfgplugins.StaticRouteCfg{
-			NetworkInstance: deviations.DefaultNetworkInstance(dut),
-			Prefix:          v4Prefix,
-			NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-				"0": oc.UnionString("198.51.102.2"),
-			},
-		}, dut)
-		cfgplugins.NewStaticRouteCfg(bRem, &cfgplugins.StaticRouteCfg{
-			NetworkInstance: deviations.DefaultNetworkInstance(dut),
-			Prefix:          v6Prefix,
-			NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-				"0": oc.UnionString("2001:db8:102::2"),
-			},
-		}, dut)
-	}
-	bRem.Set(t, dut)
-	// Step 6 (Verify Remove)
-	ate.OTG().StartTraffic(t)
-	waitForFlowTraffic(t, ate.OTG(), "flow_scale_v4_0", 60*time.Second)
-	ate.OTG().StopTraffic(t)
-
-	var afterRemove map[string]uint64
-	gnmi.WatchAll(t, dut, gnmi.OC().InterfaceAny().Counters().OutUnicastPkts().State(), time.Minute, func(val *ygnmi.Value[uint64]) bool {
-		afterRemove = fetchDUTCounters(t, dut)
-		return portCountersIncreased(beforeRemove, afterRemove, lag2Ports)
-	}).Await(t)
-
-	assertFlowLossBelow(t, ate, "flow_scale_v4_0", 60*time.Second, 10)
-	if !portCountersIncreased(beforeRemove, afterRemove, lag2Ports) {
-		t.Fatalf("expected FIB remove to preserve traffic through LAG2 ports %v", lag2Ports)
-	}
-
-	// Step 7 (Simulate Linecard OIR by Admin-disable)
-	port7Name := dut.Port(t, "port7").Name()
-	origEnabled := gnmi.Get(t, dut, gnmi.OC().Interface(port7Name).Enabled().State())
-	t.Cleanup(func() {
-		gnmi.Replace(t, dut, gnmi.OC().Interface(port7Name).Enabled().Config(), origEnabled)
+		ate.OTG().StopTraffic(t)
+		otgutils.VerifyPortTraffic(t, ate.OTG(), []string{"port1", "port2"}, 100, nil, 0, 5*time.Second)
 	})
-	gnmi.Replace(t, dut, gnmi.OC().Interface(port7Name).Enabled().Config(), false)
-	gnmi.Await(t, dut, gnmi.OC().Interface(port7Name).Enabled().State(), time.Minute, false)
 
-	// Step 8 (Verify Persistence)
-	gnmi.Replace(t, dut, gnmi.OC().Interface(dut.Port(t, "port7").Name()).Enabled().Config(), true)
-	gnmi.Await(t, dut, gnmi.OC().Interface(dut.Port(t, "port7").Name()).Enabled().State(), time.Minute, true)
+	t.Run("RT-1.73.2: Validate Static Route over LAG Interface", func(t *testing.T) {
+		configureRoute(t, dut, "203.0.114.0/24", "2001:db8:214::/64", []string{"198.51.101.2"}, []string{"2001:db8:101::2"})
+		createTraffic(top, "traffic_lag1", "203.0.114.1", "2001:db8:214::1")
+		ate.OTG().PushConfig(t, top)
+		ate.OTG().StartProtocols(t)
+		ate.OTG().StartTraffic(t)
+		for _, flow := range top.Flows().Items() {
+			otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), 0, 1)
+		}
+		otgutils.VerifyPortTraffic(t, ate.OTG(), []string{"port3", "port4"}, 100, nil, 0, 5*time.Second)
+		// Leave traffic flowing for next test
+	})
 
-	ate.OTG().StartTraffic(t)
-	waitForFlowTraffic(t, ate.OTG(), "flow_scale_v4_0", 60*time.Second)
-	assertFlowLossBelow(t, ate, "flow_scale_v4_0", 60*time.Second, 10)
-	ate.OTG().StopTraffic(t)
+	t.Run("RT-1.73.3: Control Plane Resilience on LAG Failure", func(t *testing.T) {
+		p3 := ate.Port(t, atePorts[2].Name)
+		p4 := ate.Port(t, atePorts[3].Name)
 
-	// Step 9 & 10 (Stop & Delete)
-	ate.OTG().StopTraffic(t)
+		// Simulate LAG failure by bringing down ATE ports
+		portStateAction := gosnappi.NewControlState()
+		portStateAction.Port().Link().SetPortNames([]string{p3.ID(), p4.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
+		ate.OTG().SetControlState(t, portStateAction)
 
-	ni := deviations.DefaultNetworkInstance(dut)
-	sp := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-	for i := 0; i < 100; i++ {
-		gnmi.Delete(t, dut, sp.Static(fmt.Sprintf("10.1.%d.0/24", i)).Config())
-		gnmi.Delete(t, dut, sp.Static(fmt.Sprintf("2001:db8:10%02x::/64", i)).Config())
-	}
+		gnmi.Await(t, dut, gnmi.OC().Interface(lag1Name).OperStatus().State(), trafficWaitTime, oc.Interface_OperStatus_DOWN)
 
-	ate.OTG().StartTraffic(t)
-	waitForFlowTraffic(t, ate.OTG(), "flow_scale_v4_0", 30*time.Second)
-	assertFlowLossAbove(t, ate, "flow_scale_v4_0", 30*time.Second, 90)
-	ate.OTG().StopTraffic(t)
-}
+		// Unrelated gNMI Set operation should succeed
+		gnmi.Update(t, dut, gnmi.OC().Interface(dut.Port(t, "port7").Name()).Description().Config(), "test_description")
 
-func createFlow(t *testing.T, top gosnappi.Config, name string, srcRx string, dstRx []string, srcIPv4, dstIPv4 string, srcIPv6, dstIPv6 string, isIPv6 bool) gosnappi.Flow {
-	flow := top.Flows().Add().SetName(name)
-	flow.Metrics().SetEnable(true)
-	flow.TxRx().Device().SetTxNames([]string{srcRx}).SetRxNames(dstRx)
-	eth := flow.Packet().Add().Ethernet()
-	eth.Src().SetValue(atePort8.MAC)
-	eth.Dst().Auto()
+		// Verify traffic drops
+		ate.OTG().StartTraffic(t)
+		for _, flow := range top.Flows().Items() {
+			otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), 99.9, 100)
+		}
+		ate.OTG().StopTraffic(t)
+		otgutils.VerifyPortTraffic(t, ate.OTG(), nil, 0, []string{"port3", "port4"}, 10, 5*time.Second)
 
-	if isIPv6 {
-		ip := flow.Packet().Add().Ipv6()
-		ip.Src().SetValue(srcIPv6)
-		ip.Dst().SetValue(dstIPv6)
-	} else {
-		ip := flow.Packet().Add().Ipv4()
-		ip.Src().SetValue(srcIPv4)
-		ip.Dst().SetValue(dstIPv4)
-	}
+		// Re-enable
+		portStateAction.Port().Link().SetPortNames([]string{p3.ID(), p4.ID()}).SetState(gosnappi.StatePortLinkState.UP)
+		ate.OTG().SetControlState(t, portStateAction)
 
-	flow.Size().SetFixed(512)
-	flow.Rate().SetPps(packetPerSecond)
-	return flow
-}
+		gnmi.Await(t, dut, gnmi.OC().Interface(lag1Name).OperStatus().State(), trafficWaitTime, oc.Interface_OperStatus_UP)
 
-func applyStaticRoutes(t *testing.T, dut *ondatra.DUTDevice, nexthops []string, dstIPv4 string, dstIPv6 string) {
-	t.Helper()
-	b := &gnmi.SetBatch{}
-	for i, nh := range nexthops {
-		cfgplugins.NewStaticRouteCfg(b, &cfgplugins.StaticRouteCfg{
-			NetworkInstance: deviations.DefaultNetworkInstance(dut),
-			Prefix:          dstIPv4,
-			NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-				fmt.Sprintf("%d", i): oc.UnionString(nh),
-			},
-		}, dut)
-	}
-	for i, nh := range nexthops {
-		cfgplugins.NewStaticRouteCfg(b, &cfgplugins.StaticRouteCfg{
-			NetworkInstance: deviations.DefaultNetworkInstance(dut),
-			Prefix:          dstIPv6,
-			NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-				fmt.Sprintf("%d", i): oc.UnionString(nh),
-			},
-		}, dut)
-	}
-	b.Set(t, dut)
-}
-
-func testRouteWithVLAN(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config) {
-	applyStaticRoutes(t, dut, []string{"198.51.100.2"}, "203.0.113.0/24", "2001:db8:213::/64")
-
-	top.Flows().Clear()
-	rxNames := []string{atePort1.Name + ".IPv4"}
-	createFlow(t, top, "flow_vlan_v4", atePort8.Name+".IPv4", rxNames, atePort8.IPv4, "203.0.113.1", atePort8.IPv6, "2001:db8:213::1", false)
-	rxNamesV6 := []string{atePort1.Name + ".IPv6"}
-	createFlow(t, top, "flow_vlan_v6", atePort8.Name+".IPv6", rxNamesV6, atePort8.IPv4, "203.0.113.1", atePort8.IPv6, "2001:db8:213::1", true)
-	ate.OTG().PushConfig(t, top)
-	ate.OTG().StartProtocols(t)
-	waitForOTGARP(t, ate, top)
-
-	before := fetchDUTCounters(t, dut)
-	ate.OTG().StartTraffic(t)
-	waitForFlowTraffic(t, ate.OTG(), "flow_vlan_v4", 30*time.Second)
-	ate.OTG().StopTraffic(t)
-
-	port1 := dut.Port(t, "port1").Name()
-	port2 := dut.Port(t, "port2").Name()
-
-	var after map[string]uint64
-	gnmi.WatchAll(t, dut, gnmi.OC().InterfaceAny().Counters().OutUnicastPkts().State(), time.Minute, func(val *ygnmi.Value[uint64]) bool {
-		after = fetchDUTCounters(t, dut)
-		return (after[port1]-before[port1]) >= 100 || (after[port2]-before[port2]) >= 100
-	}).Await(t)
-
-	if (after[port1]-before[port1]) < 100 && (after[port2]-before[port2]) < 100 {
-		t.Errorf("Traffic not routed out of Port 1 or 2 properly")
-	}
-}
-
-func testRouteWithLAG(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config) {
-	applyStaticRoutes(t, dut, []string{"198.51.101.2"}, "203.0.114.0/24", "2001:db8:214::/64")
-
-	top.Flows().Clear()
-	createFlow(t, top, "flow_lag_v4", atePort8.Name+".IPv4", []string{"ateLag1IPv4"}, atePort8.IPv4, "203.0.114.1", atePort8.IPv6, "2001:db8:214::1", false)
-	createFlow(t, top, "flow_lag_v6", atePort8.Name+".IPv6", []string{"ateLag1IPv6"}, atePort8.IPv4, "203.0.114.1", atePort8.IPv6, "2001:db8:214::1", true)
-	ate.OTG().PushConfig(t, top)
-	ate.OTG().StartProtocols(t)
-	waitForOTGARP(t, ate, top)
-
-	before := fetchDUTCounters(t, dut)
-	ate.OTG().StartTraffic(t)
-	waitForFlowTraffic(t, ate.OTG(), "flow_lag_v4", 30*time.Second)
-	ate.OTG().StopTraffic(t)
-
-	port3 := dut.Port(t, "port3").Name()
-	port4 := dut.Port(t, "port4").Name()
-
-	var after map[string]uint64
-	gnmi.WatchAll(t, dut, gnmi.OC().InterfaceAny().Counters().OutUnicastPkts().State(), time.Minute, func(val *ygnmi.Value[uint64]) bool {
-		after = fetchDUTCounters(t, dut)
-		return (after[port3]-before[port3]) >= 100 || (after[port4]-before[port4]) >= 100
-	}).Await(t)
-
-	if (after[port3]-before[port3]) < 100 && (after[port4]-before[port4]) < 100 {
-		t.Errorf("Traffic not routed out of LAG ports 3 or 4 properly")
-	}
-}
-
-func testLAGFailure(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config) {
-	applyStaticRoutes(t, dut, []string{"198.51.101.2"}, "203.0.114.0/24", "2001:db8:214::/64")
-
-	top.Flows().Clear()
-	createFlow(t, top, "flow_lag_v4", atePort8.Name+".IPv4", []string{"ateLag1IPv4"}, atePort8.IPv4, "203.0.114.1", atePort8.IPv6, "2001:db8:214::1", false)
-	ate.OTG().PushConfig(t, top)
-	ate.OTG().StartProtocols(t)
-	waitForOTGARP(t, ate, top)
-
-	ate.OTG().StartTraffic(t)
-	t.Cleanup(func() {
+		// Verify traffic resumes
+		ate.OTG().StartTraffic(t)
+		otgutils.VerifyPortTraffic(t, ate.OTG(), []string{"port3", "port4"}, 100, nil, 0, 5*time.Second)
 		ate.OTG().StopTraffic(t)
 	})
-	waitForFlowTraffic(t, ate.OTG(), "flow_lag_v4", 30*time.Second)
 
-	portStateAction := gosnappi.NewControlState()
-	portStateAction.Port().Link().SetPortNames([]string{ate.Port(t, "port3").ID(), ate.Port(t, "port4").ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
-	ate.OTG().SetControlState(t, portStateAction)
+	t.Run("RT-1.73.4: Validate ECMP and FIB Reprogramming Across Multiple LAGs", func(t *testing.T) {
+		configureRoute(t, dut, "203.0.115.0/24", "2001:db8:215::/64", []string{"198.51.101.2", "198.51.111.2"}, []string{"2001:db8:101::2", "2001:db8:111::2"})
+		createTraffic(top, "traffic_ecmp", "203.0.115.1", "2001:db8:215::1")
+		ate.OTG().PushConfig(t, top)
+		ate.OTG().StartProtocols(t)
+		ate.OTG().StartTraffic(t)
+		otgutils.VerifyPortTraffic(t, ate.OTG(), []string{"port3", "port4", "port5", "port6"}, 100, nil, 0, 5*time.Second)
 
-	gnmi.Await(t, dut, gnmi.OC().Interface(lag1Name).OperStatus().State(), time.Minute, oc.Interface_OperStatus_DOWN)
+		// Update route to remove lag2 next-hop
+		configureRoute(t, dut, "203.0.115.0/24", "2001:db8:215::/64", []string{"198.51.101.2"}, []string{"2001:db8:101::2"})
 
-	gnmi.Replace(t, dut, gnmi.OC().Interface(dut.Port(t, "port7").Name()).Description().Config(), "test-lag-failure")
+		// Verify traffic loss is still low (Seamless)
+		for _, flow := range top.Flows().Items() {
+			otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), 0, 1)
+		}
 
-	portStateActionUp := gosnappi.NewControlState()
-	portStateActionUp.Port().Link().SetPortNames([]string{ate.Port(t, "port3").ID(), ate.Port(t, "port4").ID()}).SetState(gosnappi.StatePortLinkState.UP)
-	ate.OTG().SetControlState(t, portStateActionUp)
+		// Verify forwarding now only on port3, port4
+		otgutils.VerifyPortTraffic(t, ate.OTG(), []string{"port3", "port4"}, 100, []string{"port5", "port6"}, 10, 5*time.Second)
 
-	gnmi.Await(t, dut, gnmi.OC().Interface(lag1Name).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
-	waitForFlowTraffic(t, ate.OTG(), "flow_lag_v4", 30*time.Second)
-	assertFlowLossBelow(t, ate, "flow_lag_v4", 60*time.Second, 5)
-	ate.OTG().StopTraffic(t)
-}
-
-func testECMPAndFIB(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config) {
-	applyStaticRoutes(t, dut, []string{"198.51.101.2", "198.51.111.2"}, "203.0.115.0/24", "2001:db8:215::/64")
-
-	top.Flows().Clear()
-	createFlow(t, top, "flow_ecmp_v4", atePort8.Name+".IPv4", []string{"ateLag1IPv4"}, atePort8.IPv4, "203.0.115.1", atePort8.IPv6, "2001:db8:215::1", false)
-	ate.OTG().PushConfig(t, top)
-	ate.OTG().StartProtocols(t)
-	waitForOTGARP(t, ate, top)
-
-	beforeECMP := fetchDUTCounters(t, dut)
-	ate.OTG().StartTraffic(t)
-	t.Cleanup(func() {
 		ate.OTG().StopTraffic(t)
 	})
-	waitForFlowTraffic(t, ate.OTG(), "flow_ecmp_v4", 30*time.Second)
-	ate.OTG().StopTraffic(t)
 
-	lag1Ports := []string{dut.Port(t, "port3").Name(), dut.Port(t, "port4").Name()}
-	lag2Ports := []string{dut.Port(t, "port5").Name(), dut.Port(t, "port6").Name()}
+	t.Run("RT-1.73.5: Scale, Dynamic FIB Re-programming, and Route Persistence", func(t *testing.T) {
+		b := &gnmi.SetBatch{}
+		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
 
-	var afterECMP map[string]uint64
-	gnmi.WatchAll(t, dut, gnmi.OC().InterfaceAny().Counters().OutUnicastPkts().State(), time.Minute, func(val *ygnmi.Value[uint64]) bool {
-		afterECMP = fetchDUTCounters(t, dut)
-		return portCountersIncreased(beforeECMP, afterECMP, lag1Ports) && portCountersIncreased(beforeECMP, afterECMP, lag2Ports)
-	}).Await(t)
+		// Map routes across subinterfaces
+		for i := 0; i < 100; i++ {
+			nhIndex := (i % 10) + 1
+			v4Prefix := fmt.Sprintf("10.1.%d.0/24", i)
+			v6Prefix := fmt.Sprintf("2001:db8:10%02x::/64", i)
 
-	assertFlowLossBelow(t, ate, "flow_ecmp_v4", 60*time.Second, 5)
-	if !portCountersIncreased(beforeECMP, afterECMP, lag1Ports) {
-		t.Fatalf("expected ECMP traffic to use LAG1 ports %v", lag1Ports)
-	}
-	if !portCountersIncreased(beforeECMP, afterECMP, lag2Ports) {
-		t.Fatalf("expected ECMP traffic to use LAG2 ports %v", lag2Ports)
-	}
+			sV4 := &cfgplugins.StaticRouteCfg{
+				NetworkInstance: deviations.DefaultNetworkInstance(dut),
+				Prefix:          v4Prefix,
+				NextHops:        map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{"0": oc.UnionString(fmt.Sprintf("198.51.%d.2", 110+nhIndex))},
+			}
+			cfgplugins.NewStaticRouteCfg(b, sV4, dut)
 
-	applyStaticRoutes(t, dut, []string{"198.51.101.2"}, "203.0.115.0/24", "2001:db8:215::/64")
-
-	top.Flows().Clear()
-	for i := 0; i < 100; i++ {
-		v4Dst := fmt.Sprintf("10.1.%d.1", i)
-		v6Dst := fmt.Sprintf("2001:db8:10%02x::1", i)
-
-		createFlow(t, top, fmt.Sprintf("flow_scale_v4_%d", i), atePort8.Name+".IPv4", []string{"ateLag2IPv4_101", "ateLag2IPv4_110"}, atePort8.IPv4, v4Dst, atePort8.IPv6, v6Dst, false)
-		createFlow(t, top, fmt.Sprintf("flow_scale_v6_%d", i), atePort8.Name+".IPv6", []string{"ateLag2IPv6_101", "ateLag2IPv6_110"}, atePort8.IPv4, v4Dst, atePort8.IPv6, v6Dst, true)
-	}
-	ate.OTG().PushConfig(t, top)
-	ate.OTG().StartProtocols(t)
-	waitForOTGARP(t, ate, top)
-
-	beforeScale := fetchDUTCounters(t, dut)
-	ate.OTG().StartTraffic(t)
-	waitForFlowTraffic(t, ate.OTG(), "flow_scale_v4_0", 60*time.Second)
-	ate.OTG().StopTraffic(t)
-
-	var afterScale map[string]uint64
-	deadlineScale := time.Now().Add(time.Minute)
-	for {
-		afterScale = fetchDUTCounters(t, dut)
-		if portCountersIncreased(beforeScale, afterScale, lag2Ports) {
-			break
+			sV6 := &cfgplugins.StaticRouteCfg{
+				NetworkInstance: deviations.DefaultNetworkInstance(dut),
+				Prefix:          v6Prefix,
+				NextHops:        map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{"0": oc.UnionString(fmt.Sprintf("2001:db8:%d::2", 110+nhIndex))},
+			}
+			cfgplugins.NewStaticRouteCfg(b, sV6, dut)
 		}
-		if time.Now().After(deadlineScale) {
-			t.Fatalf("Timeout: port counters on %v did not increase after 1 minute", lag2Ports)
+		b.Set(t, dut)
+		gnmi.Await(t, dut, sp.Static("10.1.99.0/24").Prefix().State(), 30*time.Second, "10.1.99.0/24")
+
+		top.Flows().Clear()
+		for i := 0; i < 100; i++ {
+			createTraffic(top, fmt.Sprintf("scale_%d", i), fmt.Sprintf("10.1.%d.1", i), fmt.Sprintf("2001:db8:10%02x::1", i))
 		}
-		time.Sleep(2 * time.Second)
-	}
+		ate.OTG().PushConfig(t, top)
+		ate.OTG().StartProtocols(t)
+		ate.OTG().StartTraffic(t)
+		otgutils.VerifyPortTraffic(t, ate.OTG(), []string{"port5", "port6"}, 100, nil, 0, 5*time.Second)
 
-	assertFlowLossBelow(t, ate, "flow_scale_v4_0", 60*time.Second, 10)
-	if !portCountersIncreased(beforeScale, afterScale, lag2Ports) {
-		t.Fatalf("expected scaled flows to forward traffic through LAG2 ports %v", lag2Ports)
-	}
+		// Update to add port7
+		for i := 0; i < 100; i++ {
+			nhIndex := (i % 10) + 1
+			v4Prefix := fmt.Sprintf("10.1.%d.0/24", i)
+			v6Prefix := fmt.Sprintf("2001:db8:10%02x::/64", i)
 
-	// Step 3 (FIB Update - Add Next-Hop) - Add ATE Port 7
-	beforeAdd := fetchDUTCounters(t, dut)
-	bAdd := &gnmi.SetBatch{}
-	for i := 0; i < 100; i++ {
-		v4Prefix := fmt.Sprintf("10.1.%d.0/24", i)
-		v6Prefix := fmt.Sprintf("2001:db8:10%02x::/64", i)
-		vlanIndex := (i % 10) + 111
-		nhV4 := fmt.Sprintf("198.51.%d.2", vlanIndex)
-		nhV6 := fmt.Sprintf("2001:db8:%d::2", vlanIndex)
+			sV4 := &cfgplugins.StaticRouteCfg{
+				NetworkInstance: deviations.DefaultNetworkInstance(dut),
+				Prefix:          v4Prefix,
+				NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+					"0": oc.UnionString(fmt.Sprintf("198.51.%d.2", 110+nhIndex)),
+					"1": oc.UnionString("198.51.102.2"),
+				},
+			}
+			cfgplugins.NewStaticRouteCfg(b, sV4, dut)
 
-		cfgplugins.NewStaticRouteCfg(bAdd, &cfgplugins.StaticRouteCfg{
-			NetworkInstance: deviations.DefaultNetworkInstance(dut),
-			Prefix:          v4Prefix,
-			NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-				"0": oc.UnionString(nhV4),
-				"1": oc.UnionString("198.51.102.2"),
-			},
-		}, dut)
-		cfgplugins.NewStaticRouteCfg(bAdd, &cfgplugins.StaticRouteCfg{
-			NetworkInstance: deviations.DefaultNetworkInstance(dut),
-			Prefix:          v6Prefix,
-			NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-				"0": oc.UnionString(nhV6),
-				"1": oc.UnionString("2001:db8:102::2"),
-			},
-		}, dut)
-	}
-	bAdd.Set(t, dut)
-	// Step 4 (Verify Add)
-	ate.OTG().StartTraffic(t)
-	waitForFlowTraffic(t, ate.OTG(), "flow_scale_v4_0", 60*time.Second)
-	ate.OTG().StopTraffic(t)
+			sV6 := &cfgplugins.StaticRouteCfg{
+				NetworkInstance: deviations.DefaultNetworkInstance(dut),
+				Prefix:          v6Prefix,
+				NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+					"0": oc.UnionString(fmt.Sprintf("2001:db8:%d::2", 110+nhIndex)),
+					"1": oc.UnionString("2001:db8:102::2"),
+				},
+			}
+			cfgplugins.NewStaticRouteCfg(b, sV6, dut)
+		}
+		b.Set(t, dut)
 
-	var afterAdd map[string]uint64
-	gnmi.WatchAll(t, dut, gnmi.OC().InterfaceAny().Counters().OutUnicastPkts().State(), time.Minute, func(val *ygnmi.Value[uint64]) bool {
-		afterAdd = fetchDUTCounters(t, dut)
-		return portCountersIncreased(beforeAdd, afterAdd, lag2Ports)
-	}).Await(t)
+		// Verify traffic loss is still low (Seamless)
+		for _, flow := range top.Flows().Items() {
+			otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), 0, 1)
+		}
 
-	assertFlowLossBelow(t, ate, "flow_scale_v4_0", 60*time.Second, 10)
-	if !portCountersIncreased(beforeAdd, afterAdd, lag2Ports) {
-		t.Fatalf("expected FIB add to preserve traffic through LAG2 ports %v", lag2Ports)
-	}
+		// Verify forwarding on all next-hops
+		otgutils.VerifyPortTraffic(t, ate.OTG(), []string{"port5", "port6", "port7"}, 100, nil, 0, 5*time.Second)
 
-	// Step 5 (FIB Update - Remove Next-Hop)
-	beforeRemove := fetchDUTCounters(t, dut)
-	bRem := &gnmi.SetBatch{}
-	for i := 0; i < 100; i++ {
-		v4Prefix := fmt.Sprintf("10.1.%d.0/24", i)
-		v6Prefix := fmt.Sprintf("2001:db8:10%02x::/64", i)
+		// Remove LAG2
+		for i := 0; i < 100; i++ {
+			v4Prefix := fmt.Sprintf("10.1.%d.0/24", i)
+			v6Prefix := fmt.Sprintf("2001:db8:10%02x::/64", i)
 
-		cfgplugins.NewStaticRouteCfg(bRem, &cfgplugins.StaticRouteCfg{
-			NetworkInstance: deviations.DefaultNetworkInstance(dut),
-			Prefix:          v4Prefix,
-			NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-				"0": oc.UnionString("198.51.102.2"),
-			},
-		}, dut)
-		cfgplugins.NewStaticRouteCfg(bRem, &cfgplugins.StaticRouteCfg{
-			NetworkInstance: deviations.DefaultNetworkInstance(dut),
-			Prefix:          v6Prefix,
-			NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-				"0": oc.UnionString("2001:db8:102::2"),
-			},
-		}, dut)
-	}
-	bRem.Set(t, dut)
-	// Step 6 (Verify Remove)
-	ate.OTG().StartTraffic(t)
-	waitForFlowTraffic(t, ate.OTG(), "flow_scale_v4_0", 60*time.Second)
-	ate.OTG().StopTraffic(t)
+			sV4 := &cfgplugins.StaticRouteCfg{
+				NetworkInstance: deviations.DefaultNetworkInstance(dut),
+				Prefix:          v4Prefix,
+				NextHops:        map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{"0": oc.UnionString("198.51.102.2")},
+			}
+			cfgplugins.NewStaticRouteCfg(b, sV4, dut)
 
-	var afterRemove map[string]uint64
-	gnmi.WatchAll(t, dut, gnmi.OC().InterfaceAny().Counters().OutUnicastPkts().State(), time.Minute, func(val *ygnmi.Value[uint64]) bool {
-		afterRemove = fetchDUTCounters(t, dut)
-		return portCountersIncreased(beforeRemove, afterRemove, lag2Ports)
-	}).Await(t)
+			sV6 := &cfgplugins.StaticRouteCfg{
+				NetworkInstance: deviations.DefaultNetworkInstance(dut),
+				Prefix:          v6Prefix,
+				NextHops:        map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{"0": oc.UnionString("2001:db8:102::2")},
+			}
+			cfgplugins.NewStaticRouteCfg(b, sV6, dut)
+		}
+		b.Set(t, dut)
+		// Verify traffic loss is still low (Seamless)
+		for _, flow := range top.Flows().Items() {
+			otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), 0, 1)
+		}
 
-	assertFlowLossBelow(t, ate, "flow_scale_v4_0", 60*time.Second, 10)
-	if !portCountersIncreased(beforeRemove, afterRemove, lag2Ports) {
-		t.Fatalf("expected FIB remove to preserve traffic through LAG2 ports %v", lag2Ports)
-	}
+		// Verify forwarding strictly on port7
+		otgutils.VerifyPortTraffic(t, ate.OTG(), []string{"port7"}, 100, []string{"port5", "port6"}, 10, 5*time.Second)
 
-	// Step 7 (Simulate Linecard OIR by Admin-disable)
-	port7Name := dut.Port(t, "port7").Name()
-	origEnabled := gnmi.Get(t, dut, gnmi.OC().Interface(port7Name).Enabled().State())
-	t.Cleanup(func() {
-		gnmi.Replace(t, dut, gnmi.OC().Interface(port7Name).Enabled().Config(), origEnabled)
+		// Stop traffic to prepare for drop verification
+		ate.OTG().StopTraffic(t)
+
+		// Simulate Linecard OIR / Disable
+		dutP7 := dut.Port(t, "port7").Name()
+		gnmi.Update(t, dut, gnmi.OC().Interface(dutP7).Enabled().Config(), false)
+		gnmi.Await(t, dut, gnmi.OC().Interface(dutP7).OperStatus().State(), trafficWaitTime, oc.Interface_OperStatus_DOWN)
+
+		// Verify traffic drops
+		ate.OTG().StartTraffic(t)
+		for _, flow := range top.Flows().Items() {
+			otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), 99.9, 100)
+		}
+		ate.OTG().StopTraffic(t)
+		otgutils.VerifyPortTraffic(t, ate.OTG(), nil, 0, []string{"port7"}, 10, 5*time.Second)
+
+		gnmi.Update(t, dut, gnmi.OC().Interface(dutP7).Enabled().Config(), true)
+		gnmi.Await(t, dut, gnmi.OC().Interface(dutP7).OperStatus().State(), trafficWaitTime, oc.Interface_OperStatus_UP)
+		ate.OTG().StartTraffic(t)
+		otgutils.VerifyPortTraffic(t, ate.OTG(), []string{"port7"}, 100, nil, 0, 5*time.Second)
+		ate.OTG().StopTraffic(t)
+
+		// Stop and Delete
+		for i := 0; i < 100; i++ {
+			v4Prefix := fmt.Sprintf("10.1.%d.0/24", i)
+			v6Prefix := fmt.Sprintf("2001:db8:10%02x::/64", i)
+			gnmi.BatchDelete(b, sp.Static(v4Prefix).Config())
+			gnmi.BatchDelete(b, sp.Static(v6Prefix).Config())
+		}
+		b.Set(t, dut)
+
+		// Wait for deletion propagating
+		gnmi.Watch(t, dut, sp.Static("10.1.99.0/24").Prefix().State(), 30*time.Second, func(val *ygnmi.Value[string]) bool {
+			return !val.IsPresent()
+		}).Await(t)
+		// Verify traffic drops after route deletion
+		ate.OTG().StartTraffic(t)
+		for _, flow := range top.Flows().Items() {
+			otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), 99.9, 100)
+		}
+		ate.OTG().StopTraffic(t)
 	})
-	gnmi.Replace(t, dut, gnmi.OC().Interface(port7Name).Enabled().Config(), false)
-	gnmi.Await(t, dut, gnmi.OC().Interface(port7Name).Enabled().State(), time.Minute, false)
-
-	// Step 8 (Verify Persistence)
-	gnmi.Replace(t, dut, gnmi.OC().Interface(dut.Port(t, "port7").Name()).Enabled().Config(), true)
-	gnmi.Await(t, dut, gnmi.OC().Interface(dut.Port(t, "port7").Name()).Enabled().State(), time.Minute, true)
-
-	ate.OTG().StartTraffic(t)
-	waitForFlowTraffic(t, ate.OTG(), "flow_scale_v4_0", 60*time.Second)
-	assertFlowLossBelow(t, ate, "flow_scale_v4_0", 60*time.Second, 10)
-	ate.OTG().StopTraffic(t)
-
-	// Step 9 & 10 (Stop & Delete)
-	ate.OTG().StopTraffic(t)
-
-	ni := deviations.DefaultNetworkInstance(dut)
-	sp := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-	for i := 0; i < 100; i++ {
-		gnmi.Delete(t, dut, sp.Static(fmt.Sprintf("10.1.%d.0/24", i)).Config())
-		gnmi.Delete(t, dut, sp.Static(fmt.Sprintf("2001:db8:10%02x::/64", i)).Config())
-	}
-
-	ate.OTG().StartTraffic(t)
-	waitForFlowTraffic(t, ate.OTG(), "flow_scale_v4_0", 30*time.Second)
-	assertFlowLossAbove(t, ate, "flow_scale_v4_0", 30*time.Second, 90)
-	ate.OTG().StopTraffic(t)
-}
-
-func assertFlowLossBelow(t *testing.T, ate *ondatra.ATEDevice, flowName string, timeout time.Duration, maxLossPct float32) {
-	t.Helper()
-	otg := ate.OTG()
-	waitForFlowTraffic(t, otg, flowName, timeout)
-
-	var outPkts uint64
-	if _, ok := gnmi.Watch(t, otg, gnmi.OTG().Flow(flowName).Counters().OutPkts().State(), timeout, func(val *ygnmi.Value[uint64]) bool {
-		v, present := val.Val()
-		if !present || v == 0 {
-			return false
-		}
-		outPkts = v
-		return true
-	}).Await(t); !ok {
-		t.Fatalf("timeout waiting for flow %s OutPkts counter to populate", flowName)
-	}
-
-	inPkts := uint64(gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).Counters().InPkts().State()))
-	lossPct := (float32(outPkts-inPkts) * 100) / float32(outPkts)
-	if lossPct > maxLossPct {
-		t.Fatalf("flow %s loss %.2f%% exceeds max allowed %.2f%%", flowName, lossPct, maxLossPct)
-	}
-}
-
-func assertFlowLossAbove(t *testing.T, ate *ondatra.ATEDevice, flowName string, timeout time.Duration, minLossPct float32) {
-	t.Helper()
-	otg := ate.OTG()
-	waitForFlowTraffic(t, otg, flowName, timeout)
-
-	var outPkts uint64
-	if _, ok := gnmi.Watch(t, otg, gnmi.OTG().Flow(flowName).Counters().OutPkts().State(), timeout, func(val *ygnmi.Value[uint64]) bool {
-		v, present := val.Val()
-		if !present || v == 0 {
-			return false
-		}
-		outPkts = v
-		return true
-	}).Await(t); !ok {
-		t.Fatalf("timeout waiting for flow %s OutPkts counter to populate", flowName)
-	}
-
-	inPkts := uint64(gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).Counters().InPkts().State()))
-	lossPct := (float32(outPkts-inPkts) * 100) / float32(outPkts)
-	if lossPct < minLossPct {
-		t.Fatalf("flow %s loss %.2f%% is below expected minimum %.2f%%", flowName, lossPct, minLossPct)
-	}
-}
-
-func portCountersIncreased(before, after map[string]uint64, ports []string) bool {
-	for _, port := range ports {
-		if after[port] > before[port] {
-			return true
-		}
-	}
-	return false
-}
-
-func waitForOTGARP(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
-	for _, d := range top.Devices().Items() {
-		eth := d.Ethernets().Items()[0]
-		if _, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(eth.Name()+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), 2*time.Minute, func(val *ygnmi.Value[string]) bool {
-			return val.IsPresent()
-		}).Await(t); !ok {
-			t.Fatalf("Did not receive OTG IPv4 neighbor entry for interface %s", eth.Name())
-		}
-		if _, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(eth.Name()+".Eth").Ipv6NeighborAny().LinkLayerAddress().State(), 2*time.Minute, func(val *ygnmi.Value[string]) bool {
-			return val.IsPresent()
-		}).Await(t); !ok {
-			t.Fatalf("Did not receive OTG IPv6 neighbor entry for interface %s", eth.Name())
-		}
-	}
-}
-
-func waitForFlowTraffic(t *testing.T, otgDev *otg.OTG, flowName string, timeout time.Duration) {
-	_, ok := gnmi.Watch(t, otgDev, gnmi.OTG().Flow(flowName).State(), timeout, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
-		f, present := val.Val()
-		return present && f.GetCounters() != nil && f.GetCounters().GetOutPkts() > 0
-	}).Await(t)
-	if !ok {
-		t.Fatalf("timeout waiting for flow %s to transmit packets", flowName)
-	}
 }

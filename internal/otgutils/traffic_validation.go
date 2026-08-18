@@ -20,7 +20,7 @@ import (
 
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/otg"
-	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygnmi/ygnmi/ygnmi"
 
 	fperrorspb "github.com/openconfig/featureprofiles/internal/fperrors/fperrors_go_proto"
 	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
@@ -66,4 +66,36 @@ func ExpectedTrafficLoss(t testing.TB, otg *otg.OTG, flowName string, minLossPct
 	lossPct := (txPackets - rxPackets) * 100.0 / txPackets
 
 	t.Fatalf("[%s] Generic Test Assertion Failure: Flow %s: got %v, want between %v and %v", fperrorspb.ErrorCategory_ERROR_CATEGORY_TEST_ASSERTION_FAILURE.String(), flowName, lossPct, minLossPct, maxLossPct)
+}
+
+// VerifyPortTraffic checks if the specified ports received traffic.
+// It verifies that InFrames on all expectedPorts is greater than minPackets within timeout.
+// If unexpectedPorts are provided, it verifies they received less than maxPackets.
+func VerifyPortTraffic(t testing.TB, otg *otg.OTG, expectedPorts []string, minPackets uint64, unexpectedPorts []string, maxPackets uint64, timeout time.Duration) {
+	t.Helper()
+	// Watch expected ports
+	for _, p := range expectedPorts {
+		_, ok := gnmi.Watch(t, otg, gnmi.OTG().Port(p).State(), timeout, func(val *ygnmi.Value[*otgtelemetry.Port]) bool {
+			portMetric, present := val.Val()
+			if !present || portMetric == nil || portMetric.GetCounters() == nil {
+				return false
+			}
+			return portMetric.GetCounters().GetInFrames() >= minPackets
+		}).Await(t)
+		if !ok {
+			t.Errorf("Port %s did not receive expected traffic (min %d packets)", p, minPackets)
+		}
+	}
+
+	// Check unexpected ports
+	for _, p := range unexpectedPorts {
+		portMetrics := gnmi.Get(t, otg, gnmi.OTG().Port(p).State())
+		if portMetrics == nil || portMetrics.GetCounters() == nil {
+			continue // No counters means 0 traffic
+		}
+		rxFrames := portMetrics.GetCounters().GetInFrames()
+		if rxFrames > maxPackets {
+			t.Errorf("Port %s received %d packets, expected <= %d", p, rxFrames, maxPackets)
+		}
+	}
 }
