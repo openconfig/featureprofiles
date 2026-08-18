@@ -589,6 +589,96 @@ func TestOpticsPowerUpdate(t *testing.T) {
 	}
 }
 
+func TestTransceiverConfigEnabled(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	if deviations.TransceiverConfigEnableUnsupported(dut) {
+		tracePath(t, getPathStr(gnmi.OC().ComponentAny().Transceiver().Enabled().Config().PathStruct()), statusSkipped, "Skipping transceiver enabled config test due to deviation")
+		t.Skip("Skipping TestTransceiverConfigEnabled: TransceiverConfigEnableUnsupported is true")
+	}
+
+	ports := dut.Ports()
+	for _, dp := range ports {
+		t.Run(fmt.Sprintf("Transceiver-Enabled-%s", dp.Name()), func(t *testing.T) {
+			transceiverName := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).Transceiver().State())
+			component := gnmi.OC().Component(transceiverName)
+			mfgLookup := gnmi.Lookup(t, dut, component.MfgName().State())
+			mfgName, mfgOk := mfgLookup.Val()
+			if !mfgOk || mfgName == "" {
+				tracePath(t, getPathStr(component.MfgName().State().PathStruct()), statusSkipped, "Skipping: component MfgName not present")
+				t.Skipf("component MfgName for %q is not present. skip it", transceiverName)
+			}
+
+			transceiver := component.Transceiver()
+			cfgEnabledPath := transceiver.Enabled().Config()
+			cfgPathStr := getPathStr(cfgEnabledPath.PathStruct())
+
+			originalEnabled, present := gnmi.Lookup(t, dut, cfgEnabledPath).Val()
+			t.Cleanup(func() {
+				if present {
+					gnmi.Update(t, dut, cfgEnabledPath, originalEnabled)
+				} else {
+					gnmi.Delete(t, dut, cfgEnabledPath)
+				}
+			})
+
+			cases := []struct {
+				desc                string
+				enabled             bool
+				expectedStatus      oc.E_Interface_OperStatus
+				expectedMaxOutPower float64
+				checkMinOutPower    bool
+			}{{
+				desc:                "Disable transceiver and verify output power drops",
+				enabled:             false,
+				expectedStatus:      oc.Interface_OperStatus_DOWN,
+				expectedMaxOutPower: maxOpticsPowerAdminDown,
+				checkMinOutPower:    false,
+			}, {
+				desc:                "Re-enable transceiver and verify output power is normal",
+				enabled:             true,
+				expectedStatus:      oc.Interface_OperStatus_UP,
+				expectedMaxOutPower: maxOpticsPower,
+				checkMinOutPower:    true,
+			}}
+
+			intUpdateTime := 2 * time.Minute
+			opts := getOptsForFunctionalTranslator(t, dut, deviations.CiscoxrTransceiverFt(dut))
+			channels := transceiver.ChannelAny()
+
+			for _, tc := range cases {
+				t.Run(tc.desc, func(t *testing.T) {
+					gnmi.Update(t, dut, cfgEnabledPath, tc.enabled)
+					tracePath(t, cfgPathStr, statusPass, "Set transceiver enabled config: %v", tc.enabled)
+
+					gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, tc.expectedStatus)
+					operPathStr := getPathStr(gnmi.OC().Interface(dp.Name()).OperStatus().State().PathStruct())
+					tracePath(t, operPathStr, statusPass, "Reached expected operational status: %v", tc.expectedStatus)
+
+					outputPowers := gnmi.LookupAll(t, dut.GNMIOpts().WithYGNMIOpts(opts...), channels.OutputPower().Instant().State())
+					for _, outputPower := range outputPowers {
+						pStr, err := ygot.PathToString(outputPower.Path)
+						if err != nil {
+							pStr = outputPower.Path.String()
+						}
+						outPower, ok := outputPower.Val()
+						if !ok {
+							tracePath(t, pStr, statusFail, "output power is not defined")
+							continue
+						}
+						if outPower > tc.expectedMaxOutPower {
+							tracePath(t, pStr, statusFail, "value %.2f is above maximum threshold <= %f", outPower, tc.expectedMaxOutPower)
+						} else if tc.checkMinOutPower && outPower < minOpticsPower {
+							tracePath(t, pStr, statusFail, "value %.2f is below minimum threshold >= %f", outPower, minOpticsPower)
+						} else {
+							tracePath(t, pStr, statusPass, "value %.2f is within expected range", outPower)
+						}
+					}
+				})
+			}
+		})
+	}
+}
+
 func TestInterfacesWithTransceivers(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 

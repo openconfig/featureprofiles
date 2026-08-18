@@ -1,33 +1,37 @@
-# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid:  "290e7660-cec3-4ea8-bedb-9a94b6f1cf92"
-plan_id:  "TRANSCEIVER-20.1"
-description:  "Client Optics DOM Telemetry, Instant, Threshold, and Miscellaneous Static Info"
-testbed:  TESTBED_DUT_ATE_2LINKS
-platform_exceptions:  {
-  platform:  {
-    vendor:  NOKIA
+uuid: "290e7660-cec3-4ea8-bedb-9a94b6f1cf92"
+plan_id: "TRANSCEIVER-20.1"
+description: "Client Optics DOM Telemetry, Instant, Threshold, and Miscellaneous Static Info"
+testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
   }
-  deviations:  {
-    transceiver_thresholds_unsupported:  true
-    transceiver_state_unsupported:  true
+  deviations: {
+    transceiver_thresholds_unsupported: true
+    transceiver_state_unsupported: true
+    transceiver_config_enable_unsupported: true
   }
 }
-platform_exceptions:  {
-  platform:  {
-    vendor:  ARISTA
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
   }
-  deviations:  {}
+  deviations: {
+    transceiver_thresholds_unsupported: false
+  }
 }
-platform_exceptions:  {
-  platform:  {
-    vendor:  CISCO
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
   }
-  deviations:  {
-    transceiver_thresholds_unsupported:  true
-    ciscoxr_laser_ft:  "ciscoxr-laser-ft"
-    temperature_sensor_check:  true
-    ciscoxr_transceiver_ft:  "ciscoxr-transceiver-ft"
+  deviations: {
+    ciscoxr_laser_ft: "ciscoxr-laser-ft"
+    ciscoxr_transceiver_ft: "ciscoxr-transceiver-ft"
+    transceiver_thresholds_unsupported: true
+    temperature_sensor_check: true
+    transceiver_config_enable_unsupported: true
   }
 }

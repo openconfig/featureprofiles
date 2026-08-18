@@ -31,6 +31,10 @@ Optics test requirements alongside the platform functional tests require optics 
     *   Disable/shutdown interface: verify oper-status DOWN and output power drops.
     *   Re-enable interface: verify oper-status UP and output power returns to normal.
 
+*   Step 4: Verify transceiver config enabled on/off:
+    *   Set `/components/component/transceiver/config/enabled` to `false`: verify oper-status DOWN and output power drops.
+    *   Set `/components/component/transceiver/config/enabled` to `true`: verify oper-status UP and output power returns to normal.
+
 ## Canonical OC
 
 ```json
@@ -44,6 +48,8 @@ The below yaml defines the OC paths intended to be covered by this test.
 ```yaml
 paths:
   # Config Parameter coverage
+  /components/component/transceiver/config/enabled:
+    platform_type: ["TRANSCEIVER"]
   /interfaces/interface/config/enabled:
 
   # Telemetry Parameter coverage
