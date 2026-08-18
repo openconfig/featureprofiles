@@ -621,60 +621,87 @@ func TestTransceiverConfigEnabled(t *testing.T) {
 				}
 			})
 
-			cases := []struct {
-				desc                string
-				enabled             bool
-				expectedStatus      oc.E_Interface_OperStatus
-				expectedMaxOutPower float64
-				checkMinOutPower    bool
-			}{{
-				desc:                "Disable transceiver and verify output power drops",
-				enabled:             false,
-				expectedStatus:      oc.Interface_OperStatus_DOWN,
-				expectedMaxOutPower: maxOpticsPowerAdminDown,
-				checkMinOutPower:    false,
-			}, {
-				desc:                "Re-enable transceiver and verify output power is normal",
-				enabled:             true,
-				expectedStatus:      oc.Interface_OperStatus_UP,
-				expectedMaxOutPower: maxOpticsPower,
-				checkMinOutPower:    true,
-			}}
-
 			intUpdateTime := 2 * time.Minute
 			opts := getOptsForFunctionalTranslator(t, dut, deviations.CiscoxrTransceiverFt(dut))
 			channels := transceiver.ChannelAny()
 
-			for _, tc := range cases {
-				t.Run(tc.desc, func(t *testing.T) {
-					gnmi.Update(t, dut, cfgEnabledPath, tc.enabled)
-					tracePath(t, cfgPathStr, statusPass, "Set transceiver enabled config: %v", tc.enabled)
+			t.Run("Disable transceiver and verify link is DOWN", func(t *testing.T) {
+				gnmi.Update(t, dut, cfgEnabledPath, false)
+				tracePath(t, cfgPathStr, statusPass, "Set transceiver enabled config: false")
 
-					gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, tc.expectedStatus)
-					operPathStr := getPathStr(gnmi.OC().Interface(dp.Name()).OperStatus().State().PathStruct())
-					tracePath(t, operPathStr, statusPass, "Reached expected operational status: %v", tc.expectedStatus)
+				gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
+				operPathStr := getPathStr(gnmi.OC().Interface(dp.Name()).OperStatus().State().PathStruct())
+				tracePath(t, operPathStr, statusPass, "Reached expected operational status: %v", oc.Interface_OperStatus_DOWN)
+			})
 
-					outputPowers := gnmi.LookupAll(t, dut.GNMIOpts().WithYGNMIOpts(opts...), channels.OutputPower().Instant().State())
-					for _, outputPower := range outputPowers {
-						pStr, err := ygot.PathToString(outputPower.Path)
-						if err != nil {
-							pStr = outputPower.Path.String()
-						}
-						outPower, ok := outputPower.Val()
-						if !ok {
-							tracePath(t, pStr, statusFail, "output power is not defined")
-							continue
-						}
-						if outPower > tc.expectedMaxOutPower {
-							tracePath(t, pStr, statusFail, "value %.2f is above maximum threshold <= %f", outPower, tc.expectedMaxOutPower)
-						} else if tc.checkMinOutPower && outPower < minOpticsPower {
-							tracePath(t, pStr, statusFail, "value %.2f is below minimum threshold >= %f", outPower, minOpticsPower)
-						} else {
-							tracePath(t, pStr, statusPass, "value %.2f is within expected range", outPower)
-						}
+			t.Run("Re-enable transceiver and verify link is UP, power and laser normal", func(t *testing.T) {
+				gnmi.Update(t, dut, cfgEnabledPath, true)
+				tracePath(t, cfgPathStr, statusPass, "Set transceiver enabled config: true")
+
+				gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
+				operPathStr := getPathStr(gnmi.OC().Interface(dp.Name()).OperStatus().State().PathStruct())
+				tracePath(t, operPathStr, statusPass, "Reached expected operational status: %v", oc.Interface_OperStatus_UP)
+
+				// Verify input powers
+				inputPowers := gnmi.LookupAll(t, dut.GNMIOpts().WithYGNMIOpts(opts...), channels.InputPower().Instant().State())
+				for _, inputPower := range inputPowers {
+					pStr, err := ygot.PathToString(inputPower.Path)
+					if err != nil {
+						pStr = inputPower.Path.String()
 					}
-				})
-			}
+					inPower, ok := inputPower.Val()
+					if !ok {
+						tracePath(t, pStr, statusFail, "input power is not defined")
+						continue
+					}
+					if inPower > maxOpticsPower || inPower < minOpticsPower {
+						tracePath(t, pStr, statusFail, "value %.2f is outside range [%f, %f]", inPower, minOpticsPower, maxOpticsPower)
+					} else {
+						tracePath(t, pStr, statusPass, "value %.2f is within range [%f, %f]", inPower, minOpticsPower, maxOpticsPower)
+					}
+				}
+
+				// Verify output powers
+				outputPowers := gnmi.LookupAll(t, dut.GNMIOpts().WithYGNMIOpts(opts...), channels.OutputPower().Instant().State())
+				for _, outputPower := range outputPowers {
+					pStr, err := ygot.PathToString(outputPower.Path)
+					if err != nil {
+						pStr = outputPower.Path.String()
+					}
+					outPower, ok := outputPower.Val()
+					if !ok {
+						tracePath(t, pStr, statusFail, "output power is not defined")
+						continue
+					}
+					if outPower > maxOpticsPower || outPower < minOpticsPower {
+						tracePath(t, pStr, statusFail, "value %.2f is outside range [%f, %f]", outPower, minOpticsPower, maxOpticsPower)
+					} else {
+						tracePath(t, pStr, statusPass, "value %.2f is within expected range", outPower)
+					}
+				}
+
+				// Verify laser bias currents
+				biasCurrents := gnmi.LookupAll(t, dut.GNMIOpts().WithYGNMIOpts(opts...), channels.LaserBiasCurrent().Instant().State())
+				for _, biasCurrent := range biasCurrents {
+					pStr, err := ygot.PathToString(biasCurrent.Path)
+					if err != nil {
+						pStr = biasCurrent.Path.String()
+					}
+					if v, ok := biasCurrent.Val(); ok {
+						tracePath(t, pStr, statusPass, "Laser bias current value: %v", v)
+					}
+				}
+
+				if !deviations.TransceiverThresholdsUnsupported(dut) {
+					laserOpts := getOptsForFunctionalTranslator(t, dut, deviations.CiscoxrLaserFt(dut))
+					for _, sev := range []oc.E_AlarmTypes_OPENCONFIG_ALARM_SEVERITY{
+						oc.AlarmTypes_OPENCONFIG_ALARM_SEVERITY_WARNING,
+						oc.AlarmTypes_OPENCONFIG_ALARM_SEVERITY_CRITICAL,
+					} {
+						validateThresholds(t, dut, transceiverName, true, sev, component, laserOpts)
+					}
+				}
+			})
 		})
 	}
 }
