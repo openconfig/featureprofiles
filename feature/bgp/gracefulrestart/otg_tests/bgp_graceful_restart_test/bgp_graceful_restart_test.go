@@ -666,6 +666,7 @@ func TestBGPGracefulRestart(t *testing.T) {
 				checkBgpStatus(t, dut)
 				t.Log("Starting traffic before Graceful restart trigger from DUT")
 				ate.OTG().StartTraffic(t)
+				defer ate.OTG().StopTraffic(t)
 				var startTime time.Time
 
 				if tc.restarter == "speaker" {
@@ -794,6 +795,7 @@ func TestBGPGracefulRestart(t *testing.T) {
 			startTime := time.Now()
 
 			ate.OTG().StartTraffic(t)
+			defer ate.OTG().StopTraffic(t)
 			holdTimer := 3 * keepaliveTimer
 			var waitDuration time.Duration
 
@@ -908,6 +910,7 @@ func TestBGPGracefulRestart(t *testing.T) {
 				// Starting traffic before clear BGP notifications
 				t.Log("Starting traffic before clear BGP notifications")
 				ate.OTG().StartTraffic(t)
+				defer ate.OTG().StopTraffic(t)
 
 				if tc.direction == "send" {
 					// Sending BGP clear request
