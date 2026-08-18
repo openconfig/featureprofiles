@@ -20,7 +20,7 @@ import (
 
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/otg"
-	"github.com/openconfig/ygnmi/ygnmi/ygnmi"
+	"github.com/openconfig/ygnmi/ygnmi"
 
 	fperrorspb "github.com/openconfig/featureprofiles/internal/fperrors/fperrors_go_proto"
 	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
