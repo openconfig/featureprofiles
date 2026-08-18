@@ -35,12 +35,9 @@ import (
 const (
 	transceiverType         = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER
 	sensorType              = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_SENSOR
-	sleepDuration           = time.Minute
 	minOpticsPower          = -40.0
 	maxOpticsPower          = 10.0
 	maxOpticsPowerAdminDown = -30.0
-	minOpticsHighThreshold  = 1.0
-	maxOpticsLowThreshold   = -1.0
 )
 
 type testStatus string
@@ -478,10 +475,6 @@ func TestOpticsPowerUpdate(t *testing.T) {
 				t.Cleanup(func() {
 					gnmi.Update(t, dut, gnmi.OC().Interface(dp.Name()).Enabled().Config(), originalEnabled)
 				})
-			} else {
-				t.Cleanup(func() {
-					gnmi.Delete(t, dut, gnmi.OC().Interface(dp.Name()).Enabled().Config())
-				})
 			}
 
 			cases := []struct {
@@ -542,12 +535,10 @@ func TestOpticsPowerUpdate(t *testing.T) {
 							tracePath(t, pStr, statusFail, "input power is not defined")
 							continue
 						}
-						if inPower > maxOpticsPower {
-							tracePath(t, pStr, statusFail, "value %.2f is above maximum threshold <= %f", inPower, maxOpticsPower)
-						} else if tc.IntfStatus && inPower < minOpticsPower {
-							tracePath(t, pStr, statusFail, "value %.2f is below minimum threshold >= %f", inPower, minOpticsPower)
+						if inPower > maxOpticsPower || inPower < minOpticsPower {
+							tracePath(t, pStr, statusFail, "value %.2f is outside range [%f, %f]", inPower, minOpticsPower, maxOpticsPower)
 						} else {
-							tracePath(t, pStr, statusPass, "value %.2f is within expected range", inPower)
+							tracePath(t, pStr, statusPass, "value %.2f is within range [%f, %f]", inPower, minOpticsPower, maxOpticsPower)
 						}
 					}
 
@@ -710,12 +701,8 @@ func TestInterfacesWithTransceivers(t *testing.T) {
 
 				channelsMap := make(map[uint16]bool)
 				if comp.GetTransceiver() != nil {
-					for chIdx, ch := range comp.GetTransceiver().Channel {
-						if ch != nil {
-							channelsMap[ch.GetIndex()] = true
-						} else {
-							channelsMap[chIdx] = true
-						}
+					for chIdx := range comp.GetTransceiver().Channel {
+						channelsMap[chIdx] = true
 					}
 				}
 
@@ -724,7 +711,6 @@ func TestInterfacesWithTransceivers(t *testing.T) {
 				pcPath := getPathStr(gnmi.OC().Interface(dp.Name()).PhysicalChannel().State().PathStruct())
 				if !pcOk || len(physicalChannel) == 0 {
 					tracePath(t, pcPath, statusFail, "physical-channel unset for Interface: %q", intfName)
-					t.Errorf("physical-channel unset for Interface: %q", intfName)
 				} else {
 					t.Logf("Interface %s physical-channel: %v", dp.Name(), physicalChannel)
 					tracePath(t, pcPath, statusPass, "Physical channels: %v", physicalChannel)
