@@ -9,10 +9,12 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -20,71 +22,20 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func deviceBootStatus(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-	startReboot := time.Now()
-	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
-	for {
-		t.Logf("Time elapsed %.2f minutes since reboot started.", time.Since(startReboot).Minutes())
-
-		time.Sleep(3 * time.Minute)
-		// Poll system time as a sign of device being up
-		val := gnmi.Lookup(t, dut, gnmi.OC().System().CurrentDatetime().State())
-		if currentTime, ok := val.Val(); !ok || currentTime == "" {
-			t.Logf("Device not yet reachable, keep polling ...")
-		} else {
-			t.Logf("Device rebooted successfully with received time: %v", currentTime)
-			break
-		}
-
-		if uint64(time.Since(startReboot).Minutes()) > 30 {
-			t.Fatalf("Check boot time: got %v, want < %v", time.Since(startReboot), 30)
-		}
-	}
-	t.Logf("Device boot time: %.2f minutes", time.Since(startReboot).Minutes())
-}
-
-// func verifyChassisIsAncestorLocal(t *testing.T, compMap map[string]*oc.Component, comp string) {
-// 	visited := make(map[string]bool)
-// 	for curr := comp; ; {
-// 		if visited[curr] {
-// 			t.Errorf("Component %s already visited; loop detected in the hierarchy.", curr)
-// 			break
-// 		}
-// 		visited[curr] = true
-// 		c, ok := compMap[curr]
-// 		if !ok || c.GetParent() == "" {
-// 			t.Errorf("Chassis component NOT found as an ancestor of component %s", comp)
-// 			break
-// 		}
-// 		parentName := c.GetParent()
-// 		parentComp, ok := compMap[parentName]
-// 		if !ok {
-// 			t.Errorf("Parent component %s not found in telemetry for component %s", parentName, curr)
-// 			break
-// 		}
-// 		if parentComp.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS {
-// 			t.Logf("Found chassis component as an ancestor of component %s", comp)
-// 			break
-// 		}
-// 		// Not reached chassis yet; go one level up.
-// 		curr = parentName
-// 	}
-// }
-
 func TestLargeGNMISetAndReboot(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	// Pre-reboot checks
+	// Pre-reboot checks - Capture the initial boot time.
 	bootTimeBeforeReboot := gnmi.Get(t, dut, gnmi.OC().System().BootTime().State())
 	t.Logf("DUT boot time before reboot: %v", bootTimeBeforeReboot)
 
-	// Build the large configuration
+	// Define the root config to collect interfaces in a batch map.
 	d := &oc.Root{}
 
 	portIndex := 1
 	lagIndex := 1
 
+	// Helper function to generate aggregate LAGs and member physical interfaces.
 	createLAG := func(memberCount int) {
 		lagName := fmt.Sprintf("port-channel%d", lagIndex)
 		lag := d.GetOrCreateInterface(lagName)
@@ -95,10 +46,7 @@ func TestLargeGNMISetAndReboot(t *testing.T) {
 		lag.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_LACP
 
 		subIntf := lag.GetOrCreateSubinterface(0)
-		v4Addr := fmt.Sprintf("198.18.%d.1", lagIndex/255) // Just a dummy IP
-		if lagIndex < 255 {
-			v4Addr = fmt.Sprintf("198.18.0.%d", lagIndex)
-		}
+		v4Addr := fmt.Sprintf("10.0.%d.%d", lagIndex/252, (lagIndex%252)+1)
 		subIntf.GetOrCreateIpv4().GetOrCreateAddress(v4Addr).PrefixLength = ygot.Uint8(24)
 		subIntf.GetOrCreateIpv6().GetOrCreateAddress(fmt.Sprintf("2001:db8::%x", lagIndex)).PrefixLength = ygot.Uint8(64)
 
@@ -115,45 +63,38 @@ func TestLargeGNMISetAndReboot(t *testing.T) {
 		lagIndex++
 	}
 
+	// SYS-5.1.1 - gNMI Batch Set and reboot immediately.
 	// Configure 200 LAG interfaces with 2 member interfaces each on the DUT.
 	for i := 0; i < 200; i++ {
 		createLAG(2)
 	}
 	// Configure another 300 LAG interfaces with 1 member interface each on the DUT.
-	// Configure another 300 LAG interfaces with 1 member interface each on the DUT.
 	for i := 0; i < 300; i++ {
 		createLAG(1)
 	}
 
-	t.Cleanup(func() {
-		b := &gnmi.SetBatch{}
-		for _, intf := range d.Interface {
-			gnmi.BatchDelete(b, gnmi.OC().Interface(*intf.Name).Config())
-		}
-		b.Set(t, dut)
-	})
-
 	var wg sync.WaitGroup
 	wg.Add(2)
 
-	// We use WaitGroup to wait for both goroutines
-	// go func() {
-	// 	defer wg.Done()
-	// 	t.Logf("Starting gNMI Batch Set in Goroutine")
-
-	// 	b := &gnmi.SetBatch{}
-	// 	for _, intf := range d.Interface {
-	// 		gnmi.BatchReplace(b, gnmi.OC().Interface(*intf.Name).Config(), intf)
-	// 	}
-
-	// 	res := b.Set(t, dut)
-	// 	t.Logf("gNMI Batch Set completed successfully before reboot took effect. Result: %v", res)
-	// }()
-
+	// Trigger goroutines for parallel operations.
+	// Thread 1: Perform the large gNMI Batch Set.
 	go func() {
 		defer wg.Done()
-		// Give a tiny moment to ensure gNMI Set starts before Reboot is triggered,
-		// though the prompt says "trigger a complete chassis cold reboot ... in parallel".
+		t.Logf("Starting gNMI Batch Set in Goroutine")
+
+		b := &gnmi.SetBatch{}
+		for _, intf := range d.Interface {
+			gnmi.BatchReplace(b, gnmi.OC().Interface(*intf.Name).Config(), intf)
+		}
+
+		res := b.Set(t, dut)
+		t.Logf("gNMI Batch Set completed successfully before reboot took effect. Result: %v", res)
+	}()
+
+	// Thread 2: Trigger a cold reboot of the chassis.
+	go func() {
+		defer wg.Done()
+		// Give a tiny moment to ensure gNMI Set starts before Reboot is triggered.
 		time.Sleep(50 * time.Millisecond)
 		t.Logf("Starting gNOI Reboot in Goroutine")
 		gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
@@ -166,7 +107,7 @@ func TestLargeGNMISetAndReboot(t *testing.T) {
 			Message: "SYS-5.1 Parallel Cold Reboot",
 			Force:   true,
 		}
-		// Try triggering the reboot
+
 		ctxWithTimeout, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
 		_, err = gnoiClient.System().Reboot(ctxWithTimeout, rebootRequest)
@@ -177,75 +118,103 @@ func TestLargeGNMISetAndReboot(t *testing.T) {
 		}
 	}()
 
-	// Wait for the operations to complete.
+	// Wait for both concurrent operations to conclude.
 	wg.Wait()
 
-	// Wait for device to boot up
-	deviceBootStatus(t, dut)
+	// Use the shared library helper to block until devices completes reboot.
+	bootTimeAfterReboot := helpers.AwaitDUTReboot(t, dut, bootTimeBeforeReboot)
 
-	// Step 1: Verify boot time and software versions
-	bootTimeAfterReboot := gnmi.Get(t, dut, gnmi.OC().System().BootTime().State())
+	// SYS-5.1.2 - Post-reboot configuration validation
+
+	// Step 1: Verify boot time and software versions.
 	t.Logf("DUT boot time after reboot: %v", bootTimeAfterReboot)
-	if bootTimeAfterReboot == bootTimeBeforeReboot {
-		t.Errorf("Boot time did not change after reboot. Before: %v, After: %v", bootTimeBeforeReboot, bootTimeAfterReboot)
+	if bootTimeAfterReboot <= bootTimeBeforeReboot && bootTimeBeforeReboot != 0 {
+		t.Errorf("Boot time did not increase after reboot. Before: %v, After: %v", bootTimeBeforeReboot, bootTimeAfterReboot)
 	}
 
-	// Validate components and software versions
-	osList := components.FindSWComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_SOFTWARE_COMPONENT_OPERATING_SYSTEM)
-	if len(osList) == 0 {
-		t.Log("No OS component found, skipping software version validation.")
+	// Validate OS, BIOS, and BootLoader software versions dynamically.
+	compTypes := []oc.E_PlatformTypes_OPENCONFIG_SOFTWARE_COMPONENT{
+		oc.PlatformTypes_OPENCONFIG_SOFTWARE_COMPONENT_OPERATING_SYSTEM,
+		oc.PlatformTypes_OPENCONFIG_SOFTWARE_COMPONENT_BIOS,
+		oc.PlatformTypes_OPENCONFIG_SOFTWARE_COMPONENT_BOOT_LOADER,
 	}
-	for _, os := range osList {
-		swVer := gnmi.Lookup(t, dut, gnmi.OC().Component(os).SoftwareVersion().State())
-		if v, ok := swVer.Val(); ok && v != "" {
-			t.Logf("Post-reboot system software version %q for component %v", v, os)
-		} else {
-			t.Errorf("Post-reboot system software version was not reported for component %v", os)
+
+	for _, cType := range compTypes {
+		cList := components.FindSWComponentsByType(t, dut, cType)
+		if len(cList) == 0 {
+			t.Logf("No %v components found, skipping software version validation for this type.", cType)
+			continue
+		}
+		for _, comp := range cList {
+			swVer := gnmi.Lookup(t, dut, gnmi.OC().Component(comp).SoftwareVersion().State())
+			if v, ok := swVer.Val(); ok && v != "" {
+				t.Logf("Post-reboot system software version %q for component %v (%v)", v, comp, cType)
+			} else {
+				t.Errorf("Post-reboot system software version was not reported for component %v (%v)", comp, cType)
+			}
 		}
 	}
 
-	// Step 2: Verify interface descriptions and IP addresses applied in SYS-5.1.1 are present
-	t.Logf("Verifying configuration post-reboot")
-	gotIntfs := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().State())
-	if gotIntfs == nil {
-		t.Fatalf("Failed to retrieve interfaces state after reboot")
-	}
+	// Step 2: Verify interface descriptions and IP addresses applied in SYS-5.1.1 are present.
+	t.Logf("Verifying configuration post-reboot scaling...")
 
-	// Check a few LAGs and physical interfaces to verify config persisted
-	for i := 1; i <= 3; i++ {
-		lagName := fmt.Sprintf("port-channel%d", i)
-		portName := fmt.Sprintf("port%d", i)
+	// Iterate over our generated structure to assert it actually committed.
+	for _, expectedIntf := range d.Interface {
+		name := expectedIntf.GetName()
 
-		lagDesc := gnmi.Get(t, dut, gnmi.OC().Interface(lagName).Description().Config())
-		if want := fmt.Sprintf("LAG port %d", i); lagDesc != want {
-			t.Errorf("Interface %s description: got %v, want %v", lagName, lagDesc, want)
+		// Config Verification
+		descPathConfig := gnmi.OC().Interface(name).Description().Config()
+		gotDescConfig := gnmi.Get(t, dut, descPathConfig)
+		if want := expectedIntf.GetDescription(); gotDescConfig != want {
+			t.Errorf("Interface %s Config description: got %v, want %v", name, gotDescConfig, want)
 		}
 
-		portDesc := gnmi.Get(t, dut, gnmi.OC().Interface(portName).Description().Config())
-		if want := fmt.Sprintf("Physical port %d", i); portDesc != want {
-			t.Errorf("Interface %s description: got %v, want %v", portName, portDesc, want)
+		// State Verification
+		descPathState := gnmi.OC().Interface(name).Description().State()
+		gotDescState := gnmi.Get(t, dut, descPathState)
+		if want := expectedIntf.GetDescription(); gotDescState != want {
+			t.Errorf("Interface %s State description: got %v, want %v", name, gotDescState, want)
 		}
 
-		v4Addr := fmt.Sprintf("198.18.0.%d", i)
-		ipv4Path := gnmi.OC().Interface(lagName).Subinterface(0).Ipv4().Address(v4Addr).Ip().Config()
-		if got := gnmi.Get(t, dut, ipv4Path); got != v4Addr {
-			t.Errorf("Interface %s IPv4 address: got %v, want %v", lagName, got, v4Addr)
+		// If it's a LAG, we check its IP for both Config and State.
+		if expectedIntf.GetType() == oc.IETFInterfaces_InterfaceType_ieee8023adLag {
+			subIntf := expectedIntf.GetSubinterface(0)
+			if subIntf != nil && subIntf.GetIpv4() != nil {
+				for expectedIP := range subIntf.GetIpv4().Address {
+					// Config IPv4 Verification
+					ipv4ConfigPath := gnmi.OC().Interface(name).Subinterface(0).Ipv4().Address(expectedIP).Ip().Config()
+					if got := gnmi.Get(t, dut, ipv4ConfigPath); got != expectedIP {
+						t.Errorf("Interface %s IPv4 Config address: got %v, want %v", name, got, expectedIP)
+					}
+					// State IPv4 Verification
+					ipv4StatePath := gnmi.OC().Interface(name).Subinterface(0).Ipv4().Address(expectedIP).Ip().State()
+					if got := gnmi.Get(t, dut, ipv4StatePath); got != expectedIP {
+						t.Errorf("Interface %s IPv4 State address: got %v, want %v", name, got, expectedIP)
+					}
+				}
+			}
 		}
 	}
 
 	// Step 3: Issue a gNMI Set request to configure a test description on any one DUT interface.
 	testInterface := "port-channel100"
 	testDesc := "Test description post-reboot"
-	t.Logf("Applying new description %q to %s to test configuration database", testDesc, testInterface)
+	t.Logf("Applying new description %q to %s to test configuration database unlock", testDesc, testInterface)
 	gnmi.Update(t, dut, gnmi.OC().Interface(testInterface).Description().Config(), testDesc)
 
-	// Step 4: Verify the gnmi Set request succeeds (checked by gnmi.Update not failing)
+	// Step 4: Verify the gnmi Set request succeeds (implied by gnmi.Update not failing)
 
-	// Step 5: Verify the new description is applied correctly using a gNMI Get request.
-	gotDesc := gnmi.Get(t, dut, gnmi.OC().Interface(testInterface).Description().Config())
-	if gotDesc != testDesc {
-		t.Errorf("Failed to update description post-reboot on %s: got %v, want %v", testInterface, gotDesc, testDesc)
+	// Step 5: Verify the new description is applied correctly using a gNMI Get request via State.
+	t.Logf("Awaiting state propagation of description %q to %s", testDesc, testInterface)
+	val, ok := gnmi.Watch(t, dut, gnmi.OC().Interface(testInterface).Description().State(), time.Minute, func(v *ygnmi.Value[string]) bool {
+		val, present := v.Val()
+		return present && val == testDesc
+	}).Await(t)
+
+	if !ok {
+		t.Errorf("Failed to update description post-reboot on %s: state did not update to %v", testInterface, testDesc)
 	} else {
-		t.Logf("Successfully verified new description %q on %s", gotDesc, testInterface)
+		gotDesc, _ := val.Val()
+		t.Logf("Successfully verified new description %q on %s via State", gotDesc, testInterface)
 	}
 }
