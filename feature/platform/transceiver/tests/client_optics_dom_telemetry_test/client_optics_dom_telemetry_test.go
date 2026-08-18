@@ -469,11 +469,13 @@ func TestOpticsPowerUpdate(t *testing.T) {
 	for _, dp := range ports {
 		t.Run(fmt.Sprintf("Flap-%s", dp.Name()), func(t *testing.T) {
 			originalEnabled, present := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp.Name()).Enabled().Config()).Val()
-			if present {
-				t.Cleanup(func() {
+			t.Cleanup(func() {
+				if present {
 					gnmi.Update(t, dut, gnmi.OC().Interface(dp.Name()).Enabled().Config(), originalEnabled)
-				})
-			}
+				} else {
+					gnmi.Delete(t, dut, gnmi.OC().Interface(dp.Name()).Enabled().Config())
+				}
+			})
 
 			cases := []struct {
 				desc                string
