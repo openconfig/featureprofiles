@@ -16,6 +16,7 @@
 package isis_node_sid_forward_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -28,6 +29,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 // TestMain initializes the testbed and runs the tests
@@ -133,7 +135,7 @@ func configureOTG(t *testing.T, ts *isissession.TestSession) {
 
 	v4 := v4Flow.Packet().Add().Ipv4()
 	v4.Src().SetValue(isissession.ATEISISAttrs.IPv4)
-	v4.Dst().SetValue(ateV4Route) //
+	v4.Dst().SetValue(ateV4Route)
 
 	t.Log("Configuring v6 traffic flow ")
 
@@ -219,6 +221,34 @@ func verifySRCounters(t *testing.T, ts *isissession.TestSession, ate *ondatra.AT
 	}
 }
 
+// waitForFIBProgramming watches the AFT to guarantee the route is in the data plane.
+func waitForFIBProgramming(t *testing.T, dut *ondatra.DUTDevice, ipv4 bool, prefix string) {
+	t.Helper()
+	t.Logf("Waiting for prefixes to be programmed in the hardware FIB (AFT)...")
+
+	netInst := deviations.DefaultNetworkInstance(dut)
+	if ipv4 {
+		// Watch IPv4 AFT Entry
+		ipv4AftPath := gnmi.OC().NetworkInstance(netInst).Afts().Ipv4Entry(prefix).State()
+		_, ok4 := gnmi.Watch(t, dut, ipv4AftPath, time.Minute, func(v *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+			return v.IsPresent()
+		}).Await(t)
+		if !ok4 {
+			t.Fatalf("IPv4 Prefix %s was not programmed into the hardware FIB within the timeout", prefix)
+		}
+	} else {
+		// Watch IPv6 AFT Entry
+		ipv6AftPath := gnmi.OC().NetworkInstance(netInst).Afts().Ipv6Entry(prefix).State()
+		_, ok6 := gnmi.Watch(t, dut, ipv6AftPath, time.Minute, func(v *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
+			return v.IsPresent()
+		}).Await(t)
+		if !ok6 {
+			t.Fatalf("IPv6 Prefix %s was not programmed into the hardware FIB within the timeout", prefix)
+		}
+	}
+	t.Log("Hardware FIB programming confirmed.")
+}
+
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
 	defer otgutils.LogFlowMetrics(t, ate.OTG(), top)
 	defer otgutils.LogPortMetrics(t, ate.OTG(), top)
@@ -260,6 +290,10 @@ func TestMPLSLabelBlockWithISIS(t *testing.T) {
 	t.Run("Traffic checks", func(t *testing.T) {
 		otgutils.WaitForARP(t, otg, ts.ATETop, "IPv4")
 		otgutils.WaitForARP(t, otg, ts.ATETop, "IPv6")
+
+		waitForFIBProgramming(t, ts.DUT, true, fmt.Sprintf("%s/%d", ateV4Route, plenIPv4))
+		waitForFIBProgramming(t, ts.DUT, false, fmt.Sprintf("%s/%d", ateV6Route, plenIPv6))
+		
 		t.Logf("Starting traffic")
 		t.Log(otg.GetConfig(t))
 		otg.StartTraffic(t)
