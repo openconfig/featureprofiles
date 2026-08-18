@@ -15,10 +15,12 @@ import (
 	otgconfighelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers"
 	otgvalidationhelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_validation_helpers"
 	packetvalidationhelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/packetvalidationhelpers"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/featureprofiles/internal/qoscfg"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
@@ -757,15 +759,80 @@ func createflow(t *testing.T, top gosnappi.Config, params *otgconfighelpers.Flow
 	}
 }
 
-func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, dur time.Duration) {
+func sendTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, dur time.Duration) {
 	t.Helper()
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
-	time.Sleep(30 * time.Second)
+	waitForProtocols(t, dut, ate)
 	ate.OTG().StartTraffic(t)
 	time.Sleep(dur)
 	ate.OTG().StopTraffic(t)
 	time.Sleep(10 * time.Second)
+}
+
+func waitForLAGUp(t *testing.T, dut *ondatra.DUTDevice, aggID string, ports []string) {
+	t.Helper()
+	for _, portID := range ports {
+		portName := dut.Port(t, portID).Name()
+		gnmi.Await(t, dut, gnmi.OC().Interface(portName).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
+		memberPath := gnmi.OC().Lacp().Interface(aggID).Member(portName).State()
+		_, ok := gnmi.Watch(t, dut, memberPath, 3*time.Minute, func(value *ygnmi.Value[*oc.Lacp_Interface_Member]) bool {
+			if !value.IsPresent() {
+				return false
+			}
+			member, present := value.Val()
+			return present && member.Synchronization == oc.Lacp_LacpSynchronizationType_IN_SYNC && member.GetCollecting() && member.GetDistributing()
+		}).Await(t)
+		if !ok {
+			t.Fatalf("LACP member %s in %s did not reach IN_SYNC/collecting/distributing", portName, aggID)
+		}
+	}
+	t.Logf("DUT LAG %s members are IN_SYNC, collecting, and distributing", aggID)
+}
+
+func waitForOTGLAGUp(t *testing.T, ate *ondatra.ATEDevice, agg *otgconfighelpers.Port) {
+	t.Helper()
+	_, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Lag(agg.Name).OperStatus().State(), 2*time.Minute, func(value *ygnmi.Value[otgtelemetry.E_Lag_OperStatus]) bool {
+		status, present := value.Val()
+		return present && status.String() == "UP"
+	}).Await(t)
+	if !ok {
+		t.Fatalf("OTG LAG %s did not reach UP", agg.Name)
+	}
+
+	_, ok = gnmi.Watch(t, ate.OTG(), gnmi.OTG().Lacp().State(), 2*time.Minute, func(value *ygnmi.Value[*otgtelemetry.Lacp]) bool {
+		lacp, present := value.Val()
+		if !present || lacp == nil {
+			return false
+		}
+		for _, portID := range agg.MemberPorts {
+			member := lacp.GetLagMember(ate.Port(t, portID).ID())
+			if member == nil || !member.GetCollecting() || !member.GetDistributing() {
+				return false
+			}
+		}
+		return true
+	}).Await(t)
+	if !ok {
+		t.Fatalf("OTG LAG %s members did not reach collecting/distributing", agg.Name)
+	}
+	t.Logf("OTG LAG %s is UP and members are collecting/distributing", agg.Name)
+}
+
+func waitForLAG(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
+	t.Helper()
+	for _, agg := range []*otgconfighelpers.Port{agg1, agg2, agg3} {
+		waitForOTGLAGUp(t, ate, agg)
+	}
+	waitForLAGUp(t, dut, custAggID, custPorts)
+	waitForLAGUp(t, dut, core1AggID, core1Ports)
+	waitForLAGUp(t, dut, core2AggID, core2Ports)
+}
+
+func waitForProtocols(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
+	t.Helper()
+	waitForLAG(t, dut, ate)
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 }
 
 type encapToIPFlow struct {
@@ -922,7 +989,7 @@ func TestPF1182MPLSTrafficClassClassification(t *testing.T) {
 		f.Flowrate = 5
 		createEncapToIPFlow(t, top, f, i == 0)
 	}
-	sendTraffic(t, ate, trafficDuration)
+	sendTraffic(t, dut, ate, trafficDuration)
 
 	for _, f := range flows {
 		if err := flowValidation(f.FlowName).ValidateLossOnFlows(t, ate); err != nil {
@@ -973,7 +1040,7 @@ func TestPF1182MPLSTrafficClassClassification(t *testing.T) {
 	packetvalidationhelpers.ConfigurePacketCapture(t, top, innerCapture)
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
-	time.Sleep(30 * time.Second)
+	waitForProtocols(t, dut, ate)
 	cs := packetvalidationhelpers.StartCapture(t, ate)
 	ate.OTG().StartTraffic(t)
 	time.Sleep(10 * time.Second)
@@ -1019,6 +1086,7 @@ func TestPF1183DSCPMarking(t *testing.T) {
 
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
+	waitForProtocols(t, dut, ate)
 	cs := packetvalidationhelpers.StartCapture(t, ate)
 	ate.OTG().StartTraffic(t)
 	time.Sleep(30 * time.Second)
@@ -1034,7 +1102,6 @@ func TestPF1183DSCPMarking(t *testing.T) {
 		t.Errorf("CaptureAndValidatePackets(): %v", err)
 	}
 	packetvalidationhelpers.ClearCapture(t, top, ate)
-	_ = dut
 }
 
 func TestPF1184AssuredForwardingMinBandwidth(t *testing.T) {
@@ -1052,7 +1119,7 @@ func TestPF1184AssuredForwardingMinBandwidth(t *testing.T) {
 		f.Flowrate = 12
 		createEncapToIPFlow(t, top, f, i == 0)
 	}
-	sendTraffic(t, ate, trafficDuration)
+	sendTraffic(t, dut, ate, trafficDuration)
 
 	for i, qn := range qNames {
 		got := queueTransmitPkts(t, dut, custAggID, custPorts, qn)
@@ -1080,7 +1147,7 @@ func TestPF1185AssuredForwardingShaper(t *testing.T) {
 		f.Flowrate = 12
 		createEncapToIPFlow(t, top, f, i == 0)
 	}
-	sendTraffic(t, ate, trafficDuration)
+	sendTraffic(t, dut, ate, trafficDuration)
 
 	for i, qn := range qNames {
 		got := queueTransmitPkts(t, dut, custAggID, custPorts, qn)
@@ -1105,7 +1172,7 @@ func TestPF1186ExpeditedForwardingPriorityDecap(t *testing.T) {
 		f.Flowrate = 12
 		createEncapToIPFlow(t, top, f, i == 0)
 	}
-	sendTraffic(t, ate, trafficDuration)
+	sendTraffic(t, dut, ate, trafficDuration)
 
 	highest := qNames[len(qNames)-1]
 	if got := queueTransmitPkts(t, dut, custAggID, custPorts, highest); got == 0 {
@@ -1130,7 +1197,7 @@ func TestPF1187ExpeditedForwardingPriorityShaper(t *testing.T) {
 		f.Flowrate = 12
 		createEncapToIPFlow(t, top, f, i == 0)
 	}
-	sendTraffic(t, ate, trafficDuration)
+	sendTraffic(t, dut, ate, trafficDuration)
 
 	for i, qn := range qNames {
 		t.Logf("queue %s (priority level %d) transmit-pkts: %d, dropped-pkts: %d",
@@ -1150,7 +1217,7 @@ func TestPF1188ExpeditedForwardingPriorityEncap(t *testing.T) {
 		f.Flowrate = 12
 		createflow(t, top, f, i == 0)
 	}
-	sendTraffic(t, ate, trafficDuration)
+	sendTraffic(t, dut, ate, trafficDuration)
 
 	for _, agg := range []struct {
 		aggID string
@@ -1165,6 +1232,7 @@ func TestPF1188ExpeditedForwardingPriorityEncap(t *testing.T) {
 
 func TestPF1189TwoRateThreeColorPolicer(t *testing.T) {
 	t.Log("PF-1.18.9: Verify two rate three color policer - Ingress rate limiting of encap traffic")
+	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 
 	top.Flows().Clear()
@@ -1173,7 +1241,7 @@ func TestPF1189TwoRateThreeColorPolicer(t *testing.T) {
 		f.Flowrate = 12
 		createflow(t, top, f, i == 0)
 	}
-	sendTraffic(t, ate, trafficDuration)
+	sendTraffic(t, dut, ate, trafficDuration)
 
 	var totalLossPct float32
 	for _, f := range flows {
@@ -1215,7 +1283,7 @@ func TestPF118v6MPLSoGUEv6QoS(t *testing.T) {
 	top.Flows().Clear()
 	createflow(t, top, highPrioFlow, true)
 	createflow(t, top, lowPrioFlow, false)
-	sendTraffic(t, ate, trafficDuration)
+	sendTraffic(t, dut, ate, trafficDuration)
 
 	for _, f := range []*otgconfighelpers.Flow{highPrioFlow, lowPrioFlow} {
 		if err := flowValidationStrict(f.FlowName).ValidateLossOnFlows(t, ate); err != nil {
