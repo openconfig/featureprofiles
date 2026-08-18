@@ -88,10 +88,10 @@ var triggerKeywords = map[string][]deviceType{
 		{Vendor: opb.Device_OPENCONFIG, HardwareModel: "Lemming"},
 	},
 	// Physical device triggers (vendor-level)
-	"/fptest arista-physical":             {{Vendor: opb.Device_ARISTA}},
-	"/fptest cisco-physical":              {{Vendor: opb.Device_CISCO}},
-	"/fptest juniper-physical":            {{Vendor: opb.Device_JUNIPER}},
-	"/fptest nokia-physical":              {{Vendor: opb.Device_NOKIA}},
+	"/fptest arista-physical":  {{Vendor: opb.Device_ARISTA}},
+	"/fptest cisco-physical":   {{Vendor: opb.Device_CISCO}},
+	"/fptest juniper-physical": {{Vendor: opb.Device_JUNIPER}},
+	"/fptest nokia-physical":   {{Vendor: opb.Device_NOKIA}},
 
 	"/fptest arista-ceos":        {{Vendor: opb.Device_ARISTA, HardwareModel: "cEOS"}},
 	"/fptest cisco-8000e":        {{Vendor: opb.Device_CISCO, HardwareModel: "8000E"}},
