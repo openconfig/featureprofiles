@@ -128,7 +128,14 @@ func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flow
 		initialOutPkts[flow.Name()] = gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
 	}
 	ate.OTG().StartTraffic(t)
-
+	
+	trafficStopped := false
+	defer func() {
+		if !trafficStopped {
+			ate.OTG().StopTraffic(t)
+		}
+	}()
+	
 	// AWAIT LOGIC INSTEAD OF SLEEP
 	for _, flow := range flows {
 		_, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State(), time.Minute, func(val *ygnmi.Value[uint64]) bool {
@@ -142,7 +149,8 @@ func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flow
 	}
 
 	ate.OTG().StopTraffic(t)
-	
+	trafficStopped = true
+
 	// Add stabilization: poll counters until they stop incrementing
 	total := 0
 	for _, flow := range flows {
