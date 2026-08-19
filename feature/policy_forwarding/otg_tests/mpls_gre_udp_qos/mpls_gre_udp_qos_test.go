@@ -282,6 +282,8 @@ ip decap-group %s
 		fmt.Fprintf(&mplsB, "mpls static top-label %d %s pop payload-type ipv4 access-list bypass\n", 99890+tc, custOTG0.IPv4)
 		fmt.Fprintf(&mplsB, "mpls static top-label %d %s pop payload-type ipv4 access-list bypass\n", 99980+tc, custOTG0.IPv4)
 		fmt.Fprintf(&mplsB, "mpls static top-label %d %s pop payload-type ipv4 access-list bypass\n", 99880+tc, custOTG0.IPv4)
+		fmt.Fprintf(&mplsB, "mpls static top-label %d %s pop payload-type ipv6 access-list bypass\n", 99970+tc, custOTG0.IPv6)
+		fmt.Fprintf(&mplsB, "mpls static top-label %d %s pop payload-type ipv6 access-list bypass\n", 99870+tc, custOTG0.IPv6)
 	}
 	helpers.GnmiCLIConfig(t, dut, mplsB.String())
 }
@@ -681,6 +683,8 @@ no ip decap-group %s
 			fmt.Fprintf(&mplsB, "no mpls static top-label %d %s pop payload-type ipv4 access-list bypass\n", 99890+tc, custOTG0.IPv4)
 			fmt.Fprintf(&mplsB, "no mpls static top-label %d %s pop payload-type ipv4 access-list bypass\n", 99980+tc, custOTG0.IPv4)
 			fmt.Fprintf(&mplsB, "no mpls static top-label %d %s pop payload-type ipv4 access-list bypass\n", 99880+tc, custOTG0.IPv4)
+			fmt.Fprintf(&mplsB, "no mpls static top-label %d %s pop payload-type ipv6 access-list bypass\n", 99970+tc, custOTG0.IPv6)
+			fmt.Fprintf(&mplsB, "no mpls static top-label %d %s pop payload-type ipv6 access-list bypass\n", 99870+tc, custOTG0.IPv6)
 		}
 		helpers.GnmiCLIConfig(t, dut, mplsB.String())
 	default:
@@ -831,6 +835,8 @@ func waitForProtocols(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 type encapToIPFlow struct {
 	*otgconfighelpers.Flow
 	innerIPv4 *otgconfighelpers.IPv4FlowParams
+	innerIPv6 *otgconfighelpers.IPv6FlowParams
+	innerTCP  *otgconfighelpers.TCPFlowParams
 }
 
 func buildEncapToIPFlows() []*encapToIPFlow {
@@ -849,6 +855,7 @@ func buildEncapToIPFlows() []*encapToIPFlow {
 				MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: uint32(99990 + tc), MPLSExp: uint32(tc)},
 			},
 			innerIPv4: &otgconfighelpers.IPv4FlowParams{IPv4Src: "50.1.1.1", IPv4Dst: "11.1.1.1", IPv4SrcCount: 1000},
+			innerTCP:  &otgconfighelpers.TCPFlowParams{TCPSrcPort: 49152, TCPDstPort: 80, TCPSrcCount: 1000},
 		})
 		flows = append(flows, &encapToIPFlow{
 			Flow: &otgconfighelpers.Flow{
@@ -863,6 +870,7 @@ func buildEncapToIPFlows() []*encapToIPFlow {
 				MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: uint32(99890 + tc), MPLSExp: uint32(tc)},
 			},
 			innerIPv4: &otgconfighelpers.IPv4FlowParams{IPv4Src: "50.1.2.1", IPv4Dst: "11.1.1.1", IPv4SrcCount: 1000},
+			innerTCP:  &otgconfighelpers.TCPFlowParams{TCPSrcPort: 49152, TCPDstPort: 80, TCPSrcCount: 1000},
 		})
 		// Multicast inner payload flows using dedicated multicast MPLS labels.
 		flows = append(flows, &encapToIPFlow{
@@ -893,6 +901,37 @@ func buildEncapToIPFlows() []*encapToIPFlow {
 			},
 			innerIPv4: &otgconfighelpers.IPv4FlowParams{IPv4Src: "50.1.2.1", IPv4Dst: mcastDst, IPv4SrcCount: 1000},
 		})
+		// IPv6 inner payload flows.
+		flows = append(flows, &encapToIPFlow{
+			Flow: &otgconfighelpers.Flow{
+				TxNames:           []string{core1OTG.Name + ".IPv4"},
+				RxNames:           []string{custOTG0.Name + ".IPv4"},
+				SizeWeightProfile: &sizeWeightProfile,
+				Flowrate:          8,
+				FlowName:          fmt.Sprintf("MPLSoGRE-v6-tc%d-%s", tc, core1OTG.Name),
+				EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg2.AggMAC},
+				IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "100.64.0.1", IPv4Dst: outerGREDstCore1, IPv4SrcCount: 1000},
+				GREFlow:           &otgconfighelpers.GREFlowParams{Protocol: otgconfighelpers.IanaMPLSEthertype},
+				MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: uint32(99970 + tc), MPLSExp: uint32(tc)},
+			},
+			innerIPv6: &otgconfighelpers.IPv6FlowParams{IPv6Src: "2001:db8:100::1", IPv6Dst: "2001:db8:200::1", IPv6SrcCount: 1000},
+			innerTCP:  &otgconfighelpers.TCPFlowParams{TCPSrcPort: 49152, TCPDstPort: 443, TCPSrcCount: 1000},
+		})
+		flows = append(flows, &encapToIPFlow{
+			Flow: &otgconfighelpers.Flow{
+				TxNames:           []string{core2OTG.Name + ".IPv4"},
+				RxNames:           []string{custOTG0.Name + ".IPv4"},
+				SizeWeightProfile: &sizeWeightProfile,
+				Flowrate:          8,
+				FlowName:          fmt.Sprintf("MPLSoGUE-v6-tc%d-%s", tc, core2OTG.Name),
+				EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg3.AggMAC},
+				IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "100.64.1.1", IPv4Dst: outerGUEDstCore2, IPv4SrcCount: 1000},
+				UDPFlow:           &otgconfighelpers.UDPFlowParams{UDPSrcPort: 49152, UDPDstPort: gueDstPort},
+				MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: uint32(99870 + tc), MPLSExp: uint32(tc)},
+			},
+			innerIPv6: &otgconfighelpers.IPv6FlowParams{IPv6Src: "2001:db8:100::1", IPv6Dst: "2001:db8:200::1", IPv6SrcCount: 1000},
+			innerTCP:  &otgconfighelpers.TCPFlowParams{TCPSrcPort: 49152, TCPDstPort: 443, TCPSrcCount: 1000},
+		})
 	}
 	return flows
 }
@@ -912,8 +951,17 @@ func createEncapToIPFlow(t *testing.T, top gosnappi.Config, f *encapToIPFlow, cl
 		f.AddGREHeader()
 	}
 	f.AddMPLSHeader()
-	*f.IPv4Flow = *f.innerIPv4
-	f.AddIPv4Header()
+	if f.innerIPv6 != nil {
+		f.Flow.IPv6Flow = f.innerIPv6
+		f.AddIPv6Header()
+	} else {
+		*f.IPv4Flow = *f.innerIPv4
+		f.AddIPv4Header()
+	}
+	if f.innerTCP != nil {
+		f.Flow.TCPFlow = f.innerTCP
+		f.AddTCPHeader()
+	}
 }
 
 func buildIPToEncapFlows() []*otgconfighelpers.Flow {
