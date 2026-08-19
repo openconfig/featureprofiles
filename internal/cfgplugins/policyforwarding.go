@@ -849,7 +849,7 @@ func PushPolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.Net
 
 // DecapGroupConfigGre configures the interface decap-group.
 func DecapGroupConfigGre(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, ocPFParams OcPolicyForwardingParams) {
-	if deviations.GueGreDecapUnsupported(dut) {
+	if deviations.GueGreDecapOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
 			if ocPFParams.Dynamic {
@@ -868,7 +868,7 @@ func DecapGroupConfigGre(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 
 // DecapGroupConfigGue configures the interface decap-group for GUE.
 func DecapGroupConfigGue(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, ocPFParams OcPolicyForwardingParams) {
-	if deviations.GueGreDecapUnsupported(dut) {
+	if deviations.GueGreDecapOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
 			if ocPFParams.Dynamic {
@@ -885,23 +885,22 @@ func DecapGroupConfigGue(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 	}
 }
 
-// aristaGueDecapCLIConfig configures GUEDEcapConfig for Arista
+// aristaGueDecapCLIConfig configures GUE decap for Arista. It clears any existing
+// UDP port mapping for the given port before applying the new configuration.
 func aristaGueDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
-
 	decapProto := params.DecapProtocol
 	if decapProto == "" {
 		decapProto = params.IPType
 	}
-
-	cliConfig := fmt.Sprintf(`
-		                    ip decap-group type udp destination port %v payload %s
-							tunnel type %s-over-udp udp destination port %v
-							ip decap-group %s
-							tunnel type UDP
-							tunnel decap-ip %s
-							tunnel decap-interface %s
-							`, params.GUEPort, decapProto, params.IPType, params.GUEPort, params.AppliedPolicyName, params.TunnelIP, params.InterfaceID)
-	helpers.GnmiCLIConfig(t, dut, cliConfig)
+	helpers.GnmiCLIConfig(t, dut, fmt.Sprintf(`no ip decap-group type udp destination port %d`, params.GUEPort))
+	helpers.GnmiCLIConfig(t, dut, fmt.Sprintf(`
+		ip decap-group type udp destination port %[1]d payload %[2]s
+		tunnel type %[3]s-over-udp udp destination port %[1]d
+		ip decap-group %[4]s
+		tunnel type UDP
+		tunnel decap-ip %[5]s
+		tunnel decap-interface %[6]s
+		`, params.GUEPort, decapProto, params.IPType, params.AppliedPolicyName, params.TunnelIP, params.InterfaceID))
 }
 
 // aristaGreDecapCLIConfig configures GREDEcapConfig for Arista
@@ -1208,40 +1207,6 @@ func NewConfigureGRETunnel(t *testing.T, dut *ondatra.DUTDevice, decapIp string,
 	}
 }
 
-// ConfigureDutWithGueDecap configures the DUT to decapsulate GUE (Generic UDP Encapsulation) traffic. It supports both native CLI configuration (for vendors like Arista) and OpenConfig (GNMI) configuration.
-func ConfigureDutWithGueDecap(t *testing.T, dut *ondatra.DUTDevice, guePort int, ipType, tunIP, decapInt, policyName string, policyId int) {
-	t.Logf("Configure DUT with decapsulation UDP port %v", guePort)
-	if deviations.DecapsulateGueOCUnsupported(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			cliConfig := fmt.Sprintf(`
-                            ip decap-group type udp destination port %[1]d payload %[2]s 
-                            tunnel type %[2]s-over-udp udp destination port %[1]d
-                            ip decap-group test
-                            tunnel type UDP
-                            tunnel decap-ip %[3]s
-                            tunnel decap-interface %[4]s
-                            `, guePort, ipType, tunIP, decapInt)
-			helpers.GnmiCLIConfig(t, dut, cliConfig)
-
-		default:
-			t.Errorf("deviation decapsulateGueOCUnsupported is not handled for the dut: %v", dut.Vendor())
-		}
-	} else {
-		// TODO: As per the latest OpenConfig GNMI OC schema — the Encapsulation/Decapsulation sub-tree is not fully implemented, need to add OC commands once implemented.
-		d := &oc.Root{}
-		ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-		npf := ni1.GetOrCreatePolicyForwarding()
-		np := npf.GetOrCreatePolicy(policyName)
-		np.PolicyId = ygot.String(policyName)
-		npRule := np.GetOrCreateRule(uint32(policyId))
-		ip := npRule.GetOrCreateIpv4()
-		ip.DestinationAddressPrefixSet = ygot.String(tunIP)
-		ip.Protocol = oc.PacketMatchTypes_IP_PROTOCOL_IP_UDP
-		// transport := npRule.GetOrCreateTransport()
-		// transport.SetDestinationPort()
-	}
-}
 
 // PbrRule defines a policy-based routing rule configuration
 type PbrRule struct {
