@@ -331,7 +331,6 @@ func (a *testArgs) testIPv4BackUpSwitch(t *testing.T) {
 	a.client.AddEntries(t, []fluent.GRIBIEntry{nh4, nhg2}, []*client.OpResult{op6, op7})
 	a.client.AddIPv4(t, dstPfx, nhgid2, vrf2, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
 
-	
 	// Validate programming using cfgplugins.VerifyRoutes and AFT check
 	cfgplugins.VerifyRoutes(t, a.dut, map[string]cfgplugins.RouteInfo{
 		dstPfx: {VRF: vrf1, IPType: cfgplugins.IPv4, DefaultName: deviations.DefaultNetworkInstance(a.dut)},
@@ -339,7 +338,7 @@ func (a *testArgs) testIPv4BackUpSwitch(t *testing.T) {
 	cfgplugins.VerifyRoutes(t, a.dut, map[string]cfgplugins.RouteInfo{
 		dstPfx: {VRF: vrf2, IPType: cfgplugins.IPv4, DefaultName: deviations.DefaultNetworkInstance(a.dut)},
 	})
-	
+
 	// validate programming using AFT
 	// TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
 	a.aftCheck(t, dstPfx, vrf2)
@@ -428,7 +427,7 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow string, outPorts []*o
 	otgutils.LogFlowMetrics(t, a.ate.OTG(), a.top)
 
 	otgutils.ExpectedTrafficLoss(t, a.ate.OTG(), flow, 0, lossTolerance)
-	
+
 	// Get send and receive traffic
 	flowMetrics := gnmi.Get(t, a.ate.OTG(), gnmi.OTG().Flow(flow).State())
 	sentPkts := uint64(flowMetrics.GetCounters().GetOutPkts())
