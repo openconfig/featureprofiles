@@ -1289,6 +1289,7 @@ func TestPF118Traffic(t *testing.T) {
 
 		applySchedulerOnOutput(t, dut, custAggID, prioSchedulerName, qNames)
 
+		// Phase 1: all TCs active under strict priority with congestion.
 		top.Flows().Clear()
 		flows := buildEncapToIPFlows()
 		for i, f := range flows {
@@ -1297,12 +1298,46 @@ func TestPF118Traffic(t *testing.T) {
 		}
 		sendTraffic(t, dut, ate, trafficDuration)
 
-		highest := qNames[len(qNames)-1]
-		if got := queueTransmitPkts(t, dut, custAggID, custPorts, highest); got == 0 {
-			t.Errorf("highest priority queue %s: got 0 transmit-pkts, want > 0", highest)
-		}
+		txPkts := make([]uint64, len(qNames))
 		for i, qn := range qNames {
-			t.Logf("queue %s (priority level %d) transmit-pkts: %d", qn, i, queueTransmitPkts(t, dut, custAggID, custPorts, qn))
+			txPkts[i] = queueTransmitPkts(t, dut, custAggID, custPorts, qn)
+			t.Logf("queue %s (priority %d) transmit-pkts: %d", qn, i, txPkts[i])
+		}
+		if txPkts[len(qNames)-1] == 0 {
+			t.Errorf("highest priority queue %s: got 0 transmit-pkts, want > 0", qNames[len(qNames)-1])
+		}
+		for i := 1; i < len(qNames); i++ {
+			if txPkts[i] < txPkts[i-1] {
+				t.Errorf("priority %d (%s) transmit-pkts %d < priority %d (%s) %d; higher priority must not be starved by lower",
+					i, qNames[i], txPkts[i], i-1, qNames[i-1], txPkts[i-1])
+			}
+		}
+
+		// Phase 2: stop TC7, verify TC6 absorbs freed bandwidth.
+		top.Flows().Clear()
+		flows = buildEncapToIPFlows()
+		for i, f := range flows {
+			if f.MPLSFlow.MPLSExp == 7 {
+				f.Flowrate = 0
+			} else {
+				f.Flowrate = 12
+			}
+			createEncapToIPFlow(t, top, f, i == 0)
+		}
+		sendTraffic(t, dut, ate, trafficDuration)
+
+		for i, qn := range qNames {
+			got := queueTransmitPkts(t, dut, custAggID, custPorts, qn)
+			if i == 7 {
+				t.Logf("queue %s (stopped): transmit-pkts %d", qn, got)
+			} else if i == 6 {
+				t.Logf("queue %s (now highest active): transmit-pkts %d (was %d)", qn, got, txPkts[i])
+				if got <= txPkts[i] {
+					t.Errorf("queue %s: transmit-pkts %d did not increase after stopping TC7 (was %d)", qn, got, txPkts[i])
+				}
+			} else {
+				t.Logf("queue %s (priority %d): transmit-pkts %d", qn, i, got)
+			}
 		}
 	})
 
@@ -1311,6 +1346,7 @@ func TestPF118Traffic(t *testing.T) {
 
 		applySchedulerOnOutput(t, dut, custAggID, prioShaperSchedulerName, qNames)
 
+		// Phase 1: all TCs active under strict priority + shaper.
 		top.Flows().Clear()
 		flows := buildEncapToIPFlows()
 		for i, f := range flows {
@@ -1319,19 +1355,64 @@ func TestPF118Traffic(t *testing.T) {
 		}
 		sendTraffic(t, dut, ate, trafficDuration)
 
+		// OneRateTwoColor PIR for TC0-TC3 (bits/s).
+		shaperPir := []uint64{100_000_000, 150_000_000, 200_000_000, 250_000_000}
+		txPkts := make([]uint64, len(qNames))
 		for i, qn := range qNames {
-			t.Logf("queue %s (priority level %d) transmit-pkts: %d, dropped-pkts: %d",
-				qn, i, queueTransmitPkts(t, dut, custAggID, custPorts, qn), queueDroppedPkts(t, dut, custAggID, custPorts, qn))
+			txPkts[i] = queueTransmitPkts(t, dut, custAggID, custPorts, qn)
+			dropped := queueDroppedPkts(t, dut, custAggID, custPorts, qn)
+			t.Logf("queue %s (priority %d) transmit-pkts: %d, dropped-pkts: %d", qn, i, txPkts[i], dropped)
+			if txPkts[i] == 0 && i >= 4 {
+				t.Errorf("queue %s: got 0 transmit-pkts, want > 0", qn)
+			}
+		}
+		for i := 1; i < len(qNames); i++ {
+			if txPkts[i] < txPkts[i-1] {
+				t.Errorf("priority %d (%s) transmit-pkts %d < priority %d (%s) %d; higher priority must not be starved by lower",
+					i, qNames[i], txPkts[i], i-1, qNames[i-1], txPkts[i-1])
+			}
+		}
+		for i := 0; i < len(shaperPir); i++ {
+			maxExpectedPkts := (shaperPir[i] / 8) * uint64(trafficDuration.Seconds()) / 64
+			t.Logf("queue %s: transmit-pkts %d, shaper max ~%d pkts (PIR %d bps)", qNames[i], txPkts[i], maxExpectedPkts, shaperPir[i])
+		}
+
+		// Phase 2: stop TC7, verify TC6 absorbs freed bandwidth.
+		top.Flows().Clear()
+		flows = buildEncapToIPFlows()
+		for i, f := range flows {
+			if f.MPLSFlow.MPLSExp == 7 {
+				f.Flowrate = 0
+			} else {
+				f.Flowrate = 12
+			}
+			createEncapToIPFlow(t, top, f, i == 0)
+		}
+		sendTraffic(t, dut, ate, trafficDuration)
+
+		for i, qn := range qNames {
+			got := queueTransmitPkts(t, dut, custAggID, custPorts, qn)
+			if i == 7 {
+				t.Logf("queue %s (stopped): transmit-pkts %d", qn, got)
+			} else if i == 6 {
+				t.Logf("queue %s (now highest active): transmit-pkts %d (was %d)", qn, got, txPkts[i])
+				if got <= txPkts[i] {
+					t.Errorf("queue %s: transmit-pkts %d did not increase after stopping TC7 (was %d)", qn, got, txPkts[i])
+				}
+			} else {
+				t.Logf("queue %s (priority %d): transmit-pkts %d", qn, i, got)
+			}
 		}
 	})
 
 	t.Run("PF-1.18.8_ExpeditedForwardingPriorityEncap", func(t *testing.T) {
 		qNames := qcNames
 
+		// Phase 1: escalating rates per TC to ensure congestion + priority ordering.
 		top.Flows().Clear()
 		flows := buildIPToEncapFlows()
 		for i, f := range flows {
-			f.Flowrate = 12
+			f.Flowrate = float32(10 + i*2)
 			createflow(t, top, f, i == 0)
 		}
 		sendTraffic(t, dut, ate, trafficDuration)
@@ -1339,10 +1420,52 @@ func TestPF118Traffic(t *testing.T) {
 		for _, agg := range []struct {
 			aggID string
 			ports []string
-		}{{core1AggID, core1Ports}, {core2AggID, core2Ports}} {
-			highest := qNames[len(qNames)-1]
-			if got := queueTransmitPkts(t, dut, agg.aggID, agg.ports, highest); got == 0 {
-				t.Errorf("highest priority queue %s on ports %v: got 0 transmit-pkts, want > 0", highest, agg.ports)
+			name  string
+		}{{core1AggID, core1Ports, "core1"}, {core2AggID, core2Ports, "core2"}} {
+			txPkts := make([]uint64, len(qNames))
+			for i, qn := range qNames {
+				txPkts[i] = queueTransmitPkts(t, dut, agg.aggID, agg.ports, qn)
+				t.Logf("%s queue %s (priority %d) transmit-pkts: %d", agg.name, qn, i, txPkts[i])
+			}
+			if txPkts[len(qNames)-1] == 0 {
+				t.Errorf("%s highest priority queue %s: got 0 transmit-pkts, want > 0", agg.name, qNames[len(qNames)-1])
+			}
+			for i := 1; i < len(qNames); i++ {
+				if txPkts[i] < txPkts[i-1] {
+					t.Errorf("%s priority %d (%s) transmit-pkts %d < priority %d (%s) %d; higher priority must not be starved by lower",
+						agg.name, i, qNames[i], txPkts[i], i-1, qNames[i-1], txPkts[i-1])
+				}
+			}
+		}
+
+		// Phase 2: stop TC7, verify TC6 absorbs freed bandwidth.
+		top.Flows().Clear()
+		flows = buildIPToEncapFlows()
+		for i, f := range flows {
+			if i == 7 {
+				f.Flowrate = 0
+			} else {
+				f.Flowrate = float32(10 + i*2)
+			}
+			createflow(t, top, f, i == 0)
+		}
+		sendTraffic(t, dut, ate, trafficDuration)
+
+		for _, agg := range []struct {
+			aggID string
+			ports []string
+			name  string
+		}{{core1AggID, core1Ports, "core1"}, {core2AggID, core2Ports, "core2"}} {
+			for i, qn := range qNames {
+				got := queueTransmitPkts(t, dut, agg.aggID, agg.ports, qn)
+				if i == 7 {
+					t.Logf("%s queue %s (stopped): transmit-pkts %d", agg.name, qn, got)
+				} else {
+					t.Logf("%s queue %s (priority %d): transmit-pkts %d", agg.name, qn, i, got)
+					if i == 6 && got == 0 {
+						t.Errorf("%s queue %s: got 0 transmit-pkts after stopping TC7, want > 0", agg.name, qn)
+					}
+				}
 			}
 		}
 	})
