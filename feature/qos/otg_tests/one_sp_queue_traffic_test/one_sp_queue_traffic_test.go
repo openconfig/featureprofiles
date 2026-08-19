@@ -704,12 +704,15 @@ func TestOneSPQueueTraffic(t *testing.T) {
 			ate.OTG().StopTraffic(t)
 
 			for trafficID := range trafficFlows {
-				gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Transmit().State(), time.Minute, func(val *ygnmi.Value[bool]) bool {
+				_, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Transmit().State(), time.Minute, func(val *ygnmi.Value[bool]) bool {
 					transmitState, present := val.Val()
 					return present && !transmitState
 				}).Await(t)
+				if !ok {
+					t.Fatalf("Flow %s did not stop transmitting within timeout", trafficID)
+				}
 			}
-			
+
 			otgutils.LogFlowMetrics(t, ate.OTG(), top)
 			for trafficID, data := range trafficFlows {
 				expectedLossPct := 100.0 - data.expectedThroughputPct
@@ -727,7 +730,7 @@ func TestOneSPQueueTraffic(t *testing.T) {
 				}
 				ateOutPkts[data.queue] += ateTxPkts
 				ateInPkts[data.queue] += ateRxPkts
-				
+
 				dutQosPktsAfterTraffic[data.queue] += gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State())
 				dutQosDroppedPktsAfterTraffic[data.queue] += gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State())
 				t.Logf("ateInPkts: %v, txPkts %v, Queue: %v", ateInPkts[data.queue], dutQosPktsAfterTraffic[data.queue], data.queue)
