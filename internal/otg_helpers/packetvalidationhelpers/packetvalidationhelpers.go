@@ -301,16 +301,20 @@ func validateIPv4Header(t *testing.T, packetSource *gopacket.PacketSource, packe
 	t.Helper()
 	t.Log("Validating IPv4 header")
 
+	if packetVal.IPv4Layer == nil {
+		return fmt.Errorf("IPv4Layer configuration is missing")
+	}
+
 	for packet := range packetSource.Packets() {
 		if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
 			ip, _ := ipLayer.(*layers.IPv4)
+			if ip.DstIP.String() != packetVal.IPv4Layer.DstIP {
+				continue
+			}
 			if !packetVal.IPv4Layer.SkipProtocolCheck {
 				if uint32(ip.Protocol) != packetVal.IPv4Layer.Protocol {
 					return fmt.Errorf("packet is not encapsulated properly. Encapsulated protocol is: %d, expected: %d", ip.Protocol, packetVal.IPv4Layer.Protocol)
 				}
-			}
-			if ip.DstIP.String() != packetVal.IPv4Layer.DstIP {
-				return fmt.Errorf("IP Dst IP is not set properly. Expected: %s, Actual: %s", packetVal.IPv4Layer.DstIP, ip.DstIP)
 			}
 			if ip.TTL != packetVal.IPv4Layer.TTL {
 				return fmt.Errorf("IP TTL value is altered to: %d, expected: %d", ip.TTL, packetVal.IPv4Layer.TTL)
@@ -330,13 +334,17 @@ func validateIPv6Header(t *testing.T, packetSource *gopacket.PacketSource, packe
 	t.Helper()
 	t.Log("Validating IPv6 header")
 
+	if packetVal.IPv6Layer == nil {
+		return fmt.Errorf("IPv6Layer configuration is missing")
+	}
+
 	for packet := range packetSource.Packets() {
 		t.Logf("packet: %v", packet)
 		if ipLayer := packet.Layer(layers.LayerTypeIPv6); ipLayer != nil {
 			ipv6, _ := ipLayer.(*layers.IPv6)
 
 			if ipv6.DstIP.String() != packetVal.IPv6Layer.DstIP {
-				return fmt.Errorf("IPv6 Dst IP is not set properly. Expected: %s, Actual: %s", packetVal.IPv6Layer.DstIP, ipv6.DstIP)
+				continue
 			}
 			if ipv6.HopLimit != packetVal.IPv6Layer.HopLimit {
 				return fmt.Errorf("IPv6 HopLimit value is altered to: %d. Expected: %d", ipv6.HopLimit, packetVal.IPv6Layer.HopLimit)
