@@ -320,6 +320,14 @@ func mplsGlobalStaticLspAttributes(t *testing.T, ni *oc.NetworkInstance, params 
 		egressv6.IncomingLabel = oc.UnionUint32(params.DecapPolicy.StaticLSPLabelIPv6)
 		egressv6.NextHop = ygot.String(params.DecapPolicy.StaticLSPNextHopIPv6)
 	}
+
+	if params.DecapPolicy.StaticLSPNameMulticast != "" {
+		mplsCfgMcast := ni.GetOrCreateMpls()
+		staticMplsCfgMcast := mplsCfgMcast.GetOrCreateLsps().GetOrCreateStaticLsp(params.DecapPolicy.StaticLSPNameMulticast)
+		egressMcast := staticMplsCfgMcast.GetOrCreateEgress()
+		egressMcast.IncomingLabel = oc.UnionUint32(params.DecapPolicy.StaticLSPLabelMulticast)
+		egressMcast.NextHop = ygot.String(params.DecapPolicy.StaticLSPNextHopMulticast)
+	}
 }
 
 // MPLSStaticLSPConfig configures the interface mpls static lsp.
@@ -342,12 +350,61 @@ func MPLSStaticLSPConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkIns
 			} else {
 				helpers.GnmiCLIConfig(t, dut, staticLSPArista)
 			}
+			if ocPFParams.DecapPolicy.StaticLSPNameMulticast != "" {
+				mcastCLI := fmt.Sprintf("mpls static top-label %d %s pop payload-type ipv4 access-list bypass\n",
+					ocPFParams.DecapPolicy.StaticLSPLabelMulticast, ocPFParams.DecapPolicy.StaticLSPNextHopMulticast)
+				helpers.GnmiCLIConfig(t, dut, mcastCLI)
+			}
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'mpls static lsp'", dut.Vendor())
 		}
 	} else {
 		mplsGlobalStaticLspAttributes(t, ni, ocPFParams)
 	}
+}
+
+// RefreshStaticLSP removes and re-adds the static MPLS LSP mapping for a given LSP
+// name, label, next hop and payload type. Used to validate that unrelated
+// address-family decap traffic is unaffected by a config refresh of a single
+// label's LSP mapping. Uses OC when supported, falling back to the same CLI
+// used by MPLSStaticLSPConfig under the StaticMplsUnsupported deviation.
+func RefreshStaticLSP(t *testing.T, dut *ondatra.DUTDevice, params DecapPolicyParams, payloadType string) {
+	t.Helper()
+	var lspName, nextHop string
+	var label uint32
+	switch payloadType {
+	case IPv4:
+		lspName = params.StaticLSPNameIPv4
+		label = params.StaticLSPLabelIPv4
+		nextHop = params.StaticLSPNextHopIPv4
+	case IPv6:
+		lspName = params.StaticLSPNameIPv6
+		label = params.StaticLSPLabelIPv6
+		nextHop = params.StaticLSPNextHopIPv6
+	default:
+		t.Fatalf("Unsupported payload type %q for RefreshStaticLSP", payloadType)
+	}
+	if deviations.StaticMplsUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			cmd := fmt.Sprintf("mpls static top-label %d %s pop payload-type %s access-list bypass", label, nextHop, payloadType)
+			t.Logf("Removing static LSP for label %d", label)
+			helpers.GnmiCLIConfig(t, dut, "no "+cmd)
+			t.Logf("Re-adding static LSP for label %d", label)
+			helpers.GnmiCLIConfig(t, dut, cmd)
+		default:
+			t.Logf("RefreshStaticLSP: no CLI mapping known for vendor %v, skipping", dut.Vendor())
+		}
+		return
+	}
+	lspPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Lsps().StaticLsp(lspName)
+	t.Logf("Removing static LSP %q for label %d", lspName, label)
+	gnmi.Delete(t, dut, lspPath.Config())
+	t.Logf("Re-adding static LSP %q for label %d", lspName, label)
+	staticLsp := &oc.NetworkInstance_Mpls_Lsps_StaticLsp{Name: ygot.String(lspName)}
+	staticLsp.GetOrCreateEgress().SetIncomingLabel(oc.UnionUint32(label))
+	staticLsp.GetOrCreateEgress().SetNextHop(nextHop)
+	gnmi.Replace(t, dut, lspPath.Config(), staticLsp)
 }
 
 // MPLSSRConfigBasic holds all parameters needed to configure MPLS and SR on the DUT.

@@ -2,6 +2,7 @@
 package mpls_gue_ipv4_decap_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -16,7 +17,10 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ondatra/otg"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -25,16 +29,36 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
+type TestFlow struct {
+	flowOuterConfig  *otgconfighelpers.Flow
+	flowInnerConfig  *otgconfighelpers.Flow
+	flowValidation   *otgvalidationhelpers.OTGValidation
+	packetValidation *packetvalidationhelpers.PacketValidation
+}
+
 const (
-	ethernetCsmacd = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	ieee8023adLag  = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	ethernetCsmacd         = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	ieee8023adLag          = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	udpPort                = 6635
+	policyName             = "customer1"
+	gueV6DecapPolicyName   = "gue-v6-decap-policy"
+	gueV6DecapRuleSeqID    = uint32(10)
+	multicastMPLSLabel     = uint32(99995)
+	pps                    = uint64(1000)
+	totalPackets           = uint32(10000)
+	minPacketsBeforeChange = uint64(2000)
+	trafficTimeout         = 2 * time.Minute
 )
 
 var (
-	top          = gosnappi.NewConfig()
-	aggID        string
-	custPorts    = []string{"port1", "port2"}
-	corePorts    = []string{"port3", "port4"}
+	top       = gosnappi.NewConfig()
+	aggID     string
+	aggID2    string
+	custAggID string
+	custPorts = []string{"port1", "port2"}
+	corePorts = []string{"port3", "port4"}
+	// corePorts2 are the member ports of Aggregate3, the 2nd ingress aggregate.
+	corePorts2   = []string{"port5", "port6"}
 	custIntfIPv4 = attrs.Attributes{
 		Desc:         "Customer_connect",
 		MTU:          1500,
@@ -68,18 +92,77 @@ var (
 		IPv4Len:      30,
 		Subinterface: 23,
 	}
+	// custIntfIPv4Global2 is the 2nd of the two required IPv4-only /30 global VLANs.
+	custIntfIPv4Global2 = attrs.Attributes{
+		Desc:         "Customer_connect_multicloud2",
+		MTU:          1500,
+		IPv4:         "169.254.0.37",
+		IPv4Len:      30,
+		Subinterface: 24,
+	}
+	// custIntfIPv6B is the 2nd of the two required IPv6-only /125 VLANs.
+	custIntfIPv6B = attrs.Attributes{
+		Desc:         "Customer_connectv6_2",
+		MTU:          1500,
+		IPv6:         "2600:2d00:0:1:9000:10:0:ca31",
+		IPv6Sec:      "2600:2d00:0:1:9000:10:0:ca33",
+		IPv6Len:      125,
+		Subinterface: 25,
+	}
 	custIntfIPv4JumboMTU = attrs.Attributes{
 		Desc:         "Customer_connect",
-		MTU:          9066,
+		MTU:          9080,
 		IPv4:         "169.254.0.53",
 		IPv4Len:      29,
 		Subinterface: 26,
+	}
+	// custIntfdualStack2/3/4 are the remaining 3 of the 4 required dual-stack VLANs.
+	custIntfdualStack2 = attrs.Attributes{
+		Desc:         "Customer_connect_dualstack2",
+		MTU:          1500,
+		IPv4:         "169.254.0.41",
+		IPv4Len:      29,
+		IPv6:         "2600:2d00:0:1:a000:10:0:ca31",
+		IPv6Sec:      "2600:2d00:0:1:a000:10:0:ca33",
+		IPv6Len:      125,
+		Subinterface: 27,
+	}
+	custIntfdualStack3 = attrs.Attributes{
+		Desc: "Customer_connect_dualstack3",
+		MTU:  1500,
+		// 169.254.0.56/29 (distinct from VLAN27's 169.254.0.40/29 block).
+		IPv4:         "169.254.0.57",
+		IPv4Len:      29,
+		IPv6:         "2600:2d00:0:1:b000:10:0:ca31",
+		IPv6Sec:      "2600:2d00:0:1:b000:10:0:ca33",
+		IPv6Len:      125,
+		Subinterface: 28,
+	}
+	custIntfdualStack4 = attrs.Attributes{
+		Desc: "Customer_connect_dualstack4",
+		MTU:  1500,
+		// 169.254.0.64/29 (distinct from VLAN26's 169.254.0.48/29 block).
+		IPv4:         "169.254.0.65",
+		IPv4Len:      29,
+		IPv6:         "2600:2d00:0:1:c000:10:0:ca31",
+		IPv6Sec:      "2600:2d00:0:1:c000:10:0:ca33",
+		IPv6Len:      125,
+		Subinterface: 29,
 	}
 	coreIntf = attrs.Attributes{
 		Desc:    "Core_Interface",
 		IPv4:    "194.0.2.1",
 		IPv6:    "2001:10:1:6::1",
-		MTU:     9202,
+		MTU:     9216,
+		IPv4Len: 24,
+		IPv6Len: 126,
+	}
+	// coreIntf2 is the DUT-side interface for Aggregate3, the 2nd ingress aggregate.
+	coreIntf2 = attrs.Attributes{
+		Desc:    "Core_Interface2",
+		IPv4:    "194.0.3.1",
+		IPv6:    "2001:10:1:7::1",
+		MTU:     9216,
 		IPv4Len: 24,
 		IPv6Len: 126,
 	}
@@ -87,7 +170,7 @@ var (
 	agg1 = &otgconfighelpers.Port{
 		Name:        "Port-Channel1",
 		AggMAC:      "02:00:01:01:01:07",
-		Interfaces:  []*otgconfighelpers.InterfaceProperties{interface1, interface2, interface3, interface4, interface8},
+		Interfaces:  []*otgconfighelpers.InterfaceProperties{interface1, interface2, interface3, interface4, interface8, interface10, interface11, interface12, interface13, interface14},
 		MemberPorts: []string{"port1", "port2"},
 		LagID:       1,
 		IsLag:       true,
@@ -144,6 +227,60 @@ var (
 		Vlan:        26,
 		IPv4Len:     29,
 	}
+	// interface10 pairs with custIntfIPv4Global2 (2nd IPv4-only /30 global VLAN).
+	interface10 = &otgconfighelpers.InterfaceProperties{
+		IPv4:        "169.254.0.38",
+		IPv4Gateway: "169.254.0.37",
+		Name:        "Port-Channel1.24",
+		MAC:         "02:00:01:01:01:14",
+		Vlan:        24,
+		IPv4Len:     30,
+	}
+	// interface11 pairs with custIntfIPv6B (2nd IPv6-only /125 VLAN).
+	interface11 = &otgconfighelpers.InterfaceProperties{
+		IPv6:        "2600:2d00:0:1:9000:10:0:ca32",
+		IPv6Gateway: "2600:2d00:0:1:9000:10:0:ca31",
+		Name:        "Port-Channel1.25",
+		MAC:         "02:00:01:01:01:15",
+		Vlan:        25,
+		IPv6Len:     125,
+	}
+	// interface12 pairs with custIntfdualStack2.
+	interface12 = &otgconfighelpers.InterfaceProperties{
+		IPv4:        "169.254.0.42",
+		IPv4Gateway: "169.254.0.41",
+		IPv6:        "2600:2d00:0:1:a000:10:0:ca32",
+		IPv6Gateway: "2600:2d00:0:1:a000:10:0:ca31",
+		Name:        "Port-Channel1.27",
+		MAC:         "02:00:01:01:01:16",
+		Vlan:        27,
+		IPv4Len:     29,
+		IPv6Len:     125,
+	}
+	// interface13 pairs with custIntfdualStack3.
+	interface13 = &otgconfighelpers.InterfaceProperties{
+		IPv4:        "169.254.0.58",
+		IPv4Gateway: "169.254.0.57",
+		IPv6:        "2600:2d00:0:1:b000:10:0:ca32",
+		IPv6Gateway: "2600:2d00:0:1:b000:10:0:ca31",
+		Name:        "Port-Channel1.28",
+		MAC:         "02:00:01:01:01:17",
+		Vlan:        28,
+		IPv4Len:     29,
+		IPv6Len:     125,
+	}
+	// interface14 pairs with custIntfdualStack4.
+	interface14 = &otgconfighelpers.InterfaceProperties{
+		IPv4:        "169.254.0.66",
+		IPv4Gateway: "169.254.0.65",
+		IPv6:        "2600:2d00:0:1:c000:10:0:ca32",
+		IPv6Gateway: "2600:2d00:0:1:c000:10:0:ca31",
+		Name:        "Port-Channel1.29",
+		MAC:         "02:00:01:01:01:18",
+		Vlan:        29,
+		IPv4Len:     29,
+		IPv6Len:     125,
+	}
 	interface7 = &otgconfighelpers.InterfaceProperties{
 		IPv4:        "194.0.2.2",
 		IPv6:        "2001:10:1:6::2",
@@ -154,68 +291,181 @@ var (
 		IPv4Len:     29,
 		IPv6Len:     126,
 	}
+	// interface9 pairs with coreIntf2, the 2nd ingress aggregate (Aggregate3).
+	interface9 = &otgconfighelpers.InterfaceProperties{
+		IPv4:        "194.0.3.2",
+		IPv6:        "2001:10:1:7::2",
+		IPv4Gateway: "194.0.3.1",
+		IPv6Gateway: "2001:10:1:7::1",
+		Name:        "Port-Channel3",
+		MAC:         "02:00:01:01:01:05",
+		IPv4Len:     29,
+		IPv6Len:     126,
+	}
+	// agg3 is the 2nd ingress aggregate (Aggregate3), sourced from ATE ports 5,6.
+	agg3 = &otgconfighelpers.Port{
+		Name:        "Port-Channel3",
+		AggMAC:      "02:00:01:01:01:06",
+		MemberPorts: []string{"port5", "port6"},
+		Interfaces:  []*otgconfighelpers.InterfaceProperties{interface9},
+		LagID:       3,
+		IsLag:       true,
+	}
 	// Custom IMIX settings for all flows.
 	sizeWeightProfile = []otgconfighelpers.SizeWeightPair{
 		{Size: 64, Weight: 20},
 		{Size: 128, Weight: 20},
 		{Size: 256, Weight: 20},
-		{Size: 512, Weight: 10},
-		{Size: 1500, Weight: 28},
-		{Size: 9000, Weight: 2},
+		{Size: 512, Weight: 20},
+		{Size: 1024, Weight: 20},
 	}
 
 	flowResolveArp = &otgvalidationhelpers.OTGValidation{
-		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{agg2.Name}},
+		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{agg2.Name, agg3.Name}},
 	}
-	nextHopResolutionIPv4 = &otgvalidationhelpers.OTGValidation{
-		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{agg1.Interfaces[0].Name, agg1.Interfaces[2].Name, agg1.Interfaces[3].Name, agg1.Interfaces[4].Name}},
-	}
-	nextHopResolutionIPv6 = &otgvalidationhelpers.OTGValidation{
-		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{agg1.Interfaces[1].Name, agg1.Interfaces[2].Name}},
-	}
+
 	// FlowOuterIPv4 Decap IPv4 Interface IPv4 Payload traffic params Outer Header.
 	FlowOuterIPv4 = &otgconfighelpers.Flow{
 		TxNames:           []string{agg2.Name + ".IPv4"},
 		RxNames:           []string{agg1.Interfaces[0].Name + ".IPv4"},
 		SizeWeightProfile: &sizeWeightProfile,
-		Flowrate:          45,
-		FlowName:          "MPLSOGUE traffic IPv4 interface IPv4 Payload",
+		FlowName:          "MPLSOGUETrafficIPv4InterfaceIPv4Payload",
 		EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg2.AggMAC},
-		IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "100.64.0.1", IPv4Dst: "11.1.1.1", IPv4SrcCount: 10000},
+		IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "100.64.0.1", IPv4Dst: "11.1.1.1", IPv4SrcCount: 1024},
 		MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: 99991, MPLSExp: 7},
-		UDPFlow:           &otgconfighelpers.UDPFlowParams{UDPSrcPort: 49152, UDPDstPort: 6635},
+		UDPFlow:           &otgconfighelpers.UDPFlowParams{UDPSrcPort: 49152, UDPDstPort: udpPort},
 	}
 	// FlowOuterIPv4Validation MPLSOGUE traffic IPv4 interface IPv4 Payload.
 	FlowOuterIPv4Validation = &otgvalidationhelpers.OTGValidation{
-		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{agg1.Interfaces[0].Name}, Ports: append(agg1.MemberPorts, agg2.MemberPorts...)},
+		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{agg1.Interfaces[0].Name}, Ports: agg1.MemberPorts},
 		Flow:      &otgvalidationhelpers.FlowParams{Name: FlowOuterIPv4.FlowName, TolerancePct: 0.5},
 	}
 	// FlowInnerIPv4 Inner Header IPv4 Payload.
 	FlowInnerIPv4 = &otgconfighelpers.Flow{
-		IPv4Flow: &otgconfighelpers.IPv4FlowParams{IPv4Src: "22.1.1.1", IPv4Dst: "21.1.1.1", IPv4SrcCount: 10000, RawPriority: 0, RawPriorityCount: 255},
-		TCPFlow:  &otgconfighelpers.TCPFlowParams{TCPSrcPort: 49152, TCPDstPort: 80, TCPSrcCount: 10000},
+		IPv4Flow: &otgconfighelpers.IPv4FlowParams{IPv4Src: "22.1.1.1", IPv4Dst: "21.1.1.1", IPv4SrcCount: 1024, RawPriority: 0, RawPriorityCount: 255},
+		TCPFlow:  &otgconfighelpers.TCPFlowParams{TCPSrcPort: 49152, TCPDstPort: 80, TCPSrcCount: 1024},
+	}
+	// FlowInnerIPv4Multicast Inner Header IPv4 multicast payload, per PF-1.19.4.
+	FlowInnerIPv4Multicast = &otgconfighelpers.Flow{
+		IPv4Flow: &otgconfighelpers.IPv4FlowParams{IPv4Src: "22.1.1.1", IPv4Dst: "232.1.1.1", IPv4SrcCount: 1024, RawPriority: 0, RawPriorityCount: 255},
+		TCPFlow:  &otgconfighelpers.TCPFlowParams{TCPSrcPort: 49152, TCPDstPort: 80, TCPSrcCount: 1024},
 	}
 	// FlowOuterIPv6 Decap IPv6 Interface IPv6 Payload traffic params Outer Header.
 	FlowOuterIPv6 = &otgconfighelpers.Flow{
 		TxNames:           []string{agg2.Name + ".IPv4"},
 		RxNames:           []string{agg1.Interfaces[1].Name + ".IPv6"},
 		SizeWeightProfile: &sizeWeightProfile,
-		Flowrate:          45,
-		FlowName:          "MPLSOGUE traffic IPv6 interface IPv6 Payload",
+		FlowName:          "MPLSOGUETrafficIPv6InterfaceIPv6Payload",
 		EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg2.AggMAC},
-		IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "100.64.0.1", IPv4Dst: "11.1.1.1", IPv4SrcCount: 10000},
+		IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "100.64.0.1", IPv4Dst: "11.1.1.1", IPv4SrcCount: 1024},
 		MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: 99992, MPLSExp: 7},
-		UDPFlow:           &otgconfighelpers.UDPFlowParams{UDPSrcPort: 49152, UDPDstPort: 6635},
+		UDPFlow:           &otgconfighelpers.UDPFlowParams{UDPSrcPort: 49152, UDPDstPort: udpPort},
 	}
 	// FlowOuterIPv6Validation MPLSOGUE traffic IPv6 interface IPv6 Payload.
 	FlowOuterIPv6Validation = &otgvalidationhelpers.OTGValidation{
-		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{agg1.Interfaces[1].Name}, Ports: append(agg1.MemberPorts, agg2.MemberPorts...)},
+		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{agg1.Interfaces[1].Name}, Ports: agg1.MemberPorts},
 		Flow:      &otgvalidationhelpers.FlowParams{Name: FlowOuterIPv6.FlowName, TolerancePct: 0.5},
 	}
 	// FlowInnerIPv6 Inner Header IPv6 Payload.
 	FlowInnerIPv6 = &otgconfighelpers.Flow{
-		IPv6Flow: &otgconfighelpers.IPv6FlowParams{IPv6Src: "2000:1::1", IPv6Dst: "3000:1::1", IPv6SrcCount: 10000, TrafficClass: 0, TrafficClassCount: 255},
-		TCPFlow:  &otgconfighelpers.TCPFlowParams{TCPSrcPort: 49152, TCPDstPort: 80, TCPSrcCount: 10000},
+		IPv6Flow: &otgconfighelpers.IPv6FlowParams{IPv6Src: "2000:1::1", IPv6Dst: "3000:1::1", IPv6SrcCount: 1024, HopLimit: 64, TrafficClass: 0, TrafficClassCount: 57},
+		TCPFlow:  &otgconfighelpers.TCPFlowParams{TCPSrcPort: 49152, TCPDstPort: 80, TCPSrcCount: 1024},
+	}
+	// FlowOuterIPv6InnerIPv6 Decap MPLSoGUE traffic with an IPv6 outer header and IPv6 inner payload.
+	FlowOuterIPv6InnerIPv6 = &otgconfighelpers.Flow{
+		TxNames:           []string{agg2.Name + ".IPv6"},
+		RxNames:           []string{agg1.Interfaces[1].Name + ".IPv6"},
+		SizeWeightProfile: &sizeWeightProfile,
+		FlowName:          "MPLSOGUETrafficIPv6OuterHeaderIPv6Payload",
+		EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg2.AggMAC},
+		IPv6Flow:          &otgconfighelpers.IPv6FlowParams{IPv6Src: interface7.IPv6, IPv6Dst: coreIntf.IPv6, IPv6SrcCount: 1024},
+		MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: 99992, MPLSExp: 7},
+		UDPFlow:           &otgconfighelpers.UDPFlowParams{UDPSrcPort: 49152, UDPDstPort: udpPort},
+	}
+	// FlowOuterIPv6OuterValidation MPLSOGUE traffic IPv6 outer header IPv6 payload.
+	FlowOuterIPv6OuterValidation = &otgvalidationhelpers.OTGValidation{
+		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{agg1.Interfaces[1].Name}, Ports: agg1.MemberPorts},
+		Flow:      &otgvalidationhelpers.FlowParams{Name: FlowOuterIPv6InnerIPv6.FlowName, TolerancePct: 0.5},
+	}
+	// FlowOuterIPv6InnerIPv4 Decap MPLSoGUE traffic with an IPv6 outer header and IPv4 inner payload.
+	FlowOuterIPv6InnerIPv4 = &otgconfighelpers.Flow{
+		TxNames:           []string{agg2.Name + ".IPv6"},
+		RxNames:           []string{agg1.Interfaces[0].Name + ".IPv4"},
+		SizeWeightProfile: &sizeWeightProfile,
+		FlowName:          "MPLSOGUETrafficIPv6OuterHeaderIPv4Payload",
+		EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg2.AggMAC},
+		IPv6Flow:          &otgconfighelpers.IPv6FlowParams{IPv6Src: interface7.IPv6, IPv6Dst: coreIntf.IPv6, IPv6SrcCount: 1024},
+		MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: 99991, MPLSExp: 7},
+		UDPFlow:           &otgconfighelpers.UDPFlowParams{UDPSrcPort: 49152, UDPDstPort: udpPort},
+	}
+	// FlowOuterIPv6InnerIPv4Validation MPLSOGUE traffic IPv6 outer header IPv4 payload.
+	FlowOuterIPv6InnerIPv4Validation = &otgvalidationhelpers.OTGValidation{
+		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{agg1.Interfaces[0].Name}, Ports: agg1.MemberPorts},
+		Flow:      &otgvalidationhelpers.FlowParams{Name: FlowOuterIPv6InnerIPv4.FlowName, TolerancePct: 0.5},
+	}
+	// FlowOuterIPv4Agg3 sources decap traffic from Aggregate3 (ATE ports 5,6), IPv4 payload.
+	FlowOuterIPv4Agg3 = &otgconfighelpers.Flow{
+		TxNames:           []string{agg3.Name + ".IPv4"},
+		RxNames:           []string{agg1.Interfaces[0].Name + ".IPv4"},
+		SizeWeightProfile: &sizeWeightProfile,
+		FlowName:          "MPLSOGUETrafficIPv4InterfaceIPv4PayloadAgg3",
+		EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg3.AggMAC},
+		IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "100.64.0.1", IPv4Dst: "11.1.1.1", IPv4SrcCount: 1024},
+		MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: 99991, MPLSExp: 7},
+		UDPFlow:           &otgconfighelpers.UDPFlowParams{UDPSrcPort: 49152, UDPDstPort: udpPort},
+	}
+	// FlowOuterIPv4Agg3Validation MPLSOGUE traffic IPv4 interface IPv4 Payload Agg3.
+	FlowOuterIPv4Agg3Validation = &otgvalidationhelpers.OTGValidation{
+		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{agg1.Interfaces[0].Name}, Ports: agg1.MemberPorts},
+		Flow:      &otgvalidationhelpers.FlowParams{Name: FlowOuterIPv4Agg3.FlowName, TolerancePct: 0.5},
+	}
+	// FlowOuterIPv6Agg3 sources decap traffic from Aggregate3 (ATE ports 5,6), IPv6 payload.
+	FlowOuterIPv6Agg3 = &otgconfighelpers.Flow{
+		TxNames:           []string{agg3.Name + ".IPv4"},
+		RxNames:           []string{agg1.Interfaces[1].Name + ".IPv6"},
+		SizeWeightProfile: &sizeWeightProfile,
+		FlowName:          "MPLSOGUETrafficIPv6InterfaceIPv6PayloadAgg3",
+		EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg3.AggMAC},
+		IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "100.64.0.1", IPv4Dst: "11.1.1.1", IPv4SrcCount: 1024},
+		MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: 99992, MPLSExp: 7},
+		UDPFlow:           &otgconfighelpers.UDPFlowParams{UDPSrcPort: 49152, UDPDstPort: udpPort},
+	}
+	// FlowOuterIPv6Agg3Validation MPLSOGUE traffic IPv6 interface IPv6 Payload Agg3.
+	FlowOuterIPv6Agg3Validation = &otgvalidationhelpers.OTGValidation{
+		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{agg1.Interfaces[1].Name}, Ports: agg1.MemberPorts},
+		Flow:      &otgvalidationhelpers.FlowParams{Name: FlowOuterIPv6Agg3.FlowName, TolerancePct: 0.5},
+	}
+	// FlowOuterIPv4Multicast Decap IPv4 Interface multicast payload traffic params Outer Header, sourced from Aggregate2 (PF-1.19.4).
+	FlowOuterIPv4Multicast = &otgconfighelpers.Flow{
+		TxNames:           []string{agg2.Name + ".IPv4"},
+		RxNames:           []string{agg1.Interfaces[0].Name + ".IPv4"},
+		SizeWeightProfile: &sizeWeightProfile,
+		FlowName:          "MPLSOGUETrafficIPv4InterfaceMulticastPayload",
+		EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg2.AggMAC},
+		IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "100.64.0.1", IPv4Dst: "11.1.1.1", IPv4SrcCount: 1024},
+		MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: multicastMPLSLabel, MPLSExp: 7},
+		UDPFlow:           &otgconfighelpers.UDPFlowParams{UDPSrcPort: 49152, UDPDstPort: udpPort},
+	}
+	// FlowOuterIPv4MulticastValidation MPLSOGUE traffic IPv4 interface multicast Payload.
+	FlowOuterIPv4MulticastValidation = &otgvalidationhelpers.OTGValidation{
+		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{agg1.Interfaces[0].Name}, Ports: agg1.MemberPorts},
+		Flow:      &otgvalidationhelpers.FlowParams{Name: FlowOuterIPv4Multicast.FlowName, TolerancePct: 0.5},
+	}
+	// FlowOuterIPv4MulticastAgg3 sources multicast decap traffic from Aggregate3 (ATE ports 5,6), per PF-1.19.4.
+	FlowOuterIPv4MulticastAgg3 = &otgconfighelpers.Flow{
+		TxNames:           []string{agg3.Name + ".IPv4"},
+		RxNames:           []string{agg1.Interfaces[0].Name + ".IPv4"},
+		SizeWeightProfile: &sizeWeightProfile,
+		FlowName:          "MPLSOGUETrafficIPv4InterfaceMulticastPayloadAgg3",
+		EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg3.AggMAC},
+		IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "100.64.0.1", IPv4Dst: "11.1.1.1", IPv4SrcCount: 1024},
+		MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: multicastMPLSLabel, MPLSExp: 7},
+		UDPFlow:           &otgconfighelpers.UDPFlowParams{UDPSrcPort: 49152, UDPDstPort: udpPort},
+	}
+	// FlowOuterIPv4MulticastAgg3Validation MPLSOGUE traffic IPv4 interface multicast Payload Agg3.
+	FlowOuterIPv4MulticastAgg3Validation = &otgvalidationhelpers.OTGValidation{
+		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{agg1.Interfaces[0].Name}, Ports: agg1.MemberPorts},
+		Flow:      &otgvalidationhelpers.FlowParams{Name: FlowOuterIPv4MulticastAgg3.FlowName, TolerancePct: 0.5},
 	}
 	validationsIPv4 = []packetvalidationhelpers.ValidationType{
 		packetvalidationhelpers.ValidateIPv4Header,
@@ -225,18 +475,69 @@ var (
 		PortName:    "port1",
 		CaptureName: "ipv4_decap",
 		Validations: validationsIPv4,
-		IPv4Layer:   &packetvalidationhelpers.IPv4Layer{DstIP: "21.1.1.1", Tos: 10, TTL: 64, Protocol: packetvalidationhelpers.TCP},
+		// DSCP(TOS) is swept across the full range 0-56 (see dscpSweepInner), so validate
+		// that the preserved value stays within that range rather than an exact match.
+		Flags:     &packetvalidationhelpers.ValidationFlags{ValidateTosRange: true},
+		IPv4Layer: &packetvalidationhelpers.IPv4Layer{DstIP: "21.1.1.1", TosMin: 0, TosMax: 56, TTL: 64, Protocol: packetvalidationhelpers.TCP},
+		TCPLayer:  &packetvalidationhelpers.TCPLayer{SrcPort: 49152, DstPort: 80},
+	}
+	// decapValidationIPv4Multicast validates DSCP/TTL preservation on the decapsulated
+	// multicast payload (PF-1.19.5).
+	decapValidationIPv4Multicast = &packetvalidationhelpers.PacketValidation{
+		PortName:    "port1",
+		CaptureName: "ipv4_multicast_decap",
+		Validations: validationsIPv4,
+		Flags:       &packetvalidationhelpers.ValidationFlags{ValidateTosRange: true},
+		IPv4Layer:   &packetvalidationhelpers.IPv4Layer{DstIP: "232.1.1.1", TosMin: 0, TosMax: 56, TTL: 64, Protocol: packetvalidationhelpers.TCP},
 		TCPLayer:    &packetvalidationhelpers.TCPLayer{SrcPort: 49152, DstPort: 80},
+	}
+	decapValidationIPv6OuterInnerIPv6 = &packetvalidationhelpers.PacketValidation{
+		PortName:    "port1",
+		CaptureName: "ipv6_outer_decap",
+		Validations: []packetvalidationhelpers.ValidationType{packetvalidationhelpers.ValidateIPv6Header},
+		Flags: &packetvalidationhelpers.ValidationFlags{
+			ValidateTrafficClassRange: true,
+			TrafficClassMin:           0,
+			TrafficClassMax:           56,
+		},
+		IPv6Layer: &packetvalidationhelpers.IPv6Layer{DstIP: "3000:1::1", HopLimit: 64},
+		TCPLayer:  &packetvalidationhelpers.TCPLayer{SrcPort: 49152, DstPort: 80},
+	}
+	decapValidationIPv6Inner = &packetvalidationhelpers.PacketValidation{
+		PortName:    "port1",
+		CaptureName: "ipv6_inner_decap",
+		Validations: []packetvalidationhelpers.ValidationType{packetvalidationhelpers.ValidateIPv6Header},
+		Flags: &packetvalidationhelpers.ValidationFlags{
+			ValidateTrafficClassRange: true,
+			TrafficClassMin:           0,
+			TrafficClassMax:           56,
+		},
+		IPv6Layer: &packetvalidationhelpers.IPv6Layer{DstIP: "3000:1::1", HopLimit: 64},
+	}
+	// decapValidationIPv6OuterInnerIPv4 validates the decapsulated inner IPv4 packet
+	// produced from a MPLSoGUE flow that used an IPv6 outer header (PF-1.19.v6).
+	decapValidationIPv6OuterInnerIPv4 = &packetvalidationhelpers.PacketValidation{
+		PortName:    "port1",
+		CaptureName: "ipv6_outer_ipv4_inner_decap",
+		Validations: []packetvalidationhelpers.ValidationType{packetvalidationhelpers.ValidateIPv4Header},
+		Flags:       &packetvalidationhelpers.ValidationFlags{ValidateTosRange: true},
+		IPv4Layer:   &packetvalidationhelpers.IPv4Layer{DstIP: "21.1.1.1", TosMin: 0, TosMax: 56, TTL: 64, Protocol: packetvalidationhelpers.TCP},
+		TCPLayer:    &packetvalidationhelpers.TCPLayer{SrcPort: 49152, DstPort: 80},
+	}
+	multicastEthHeaderValidation = &packetvalidationhelpers.PacketValidation{
+		PortName:      "port1",
+		CaptureName:   "ipv4_multicast_rewrite",
+		Validations:   []packetvalidationhelpers.ValidationType{packetvalidationhelpers.ValidateEthernetHeader},
+		EthernetLayer: &packetvalidationhelpers.EthernetLayer{DstMAC: interface1.MAC},
 	}
 )
 
-func ConfigureOTG(t *testing.T) {
+func ConfigureOTG(t *testing.T, ate *ondatra.ATEDevice) {
 	t.Helper()
 	top.Captures().Clear()
-	ate := ondatra.ATE(t, "ate")
 
 	// Create a slice of aggPortData for easier iteration
-	aggs := []*otgconfighelpers.Port{agg1, agg2}
+	aggs := []*otgconfighelpers.Port{agg1, agg2, agg3}
 
 	// Configure OTG Interfaces
 	for _, agg := range aggs {
@@ -247,23 +548,93 @@ func ConfigureOTG(t *testing.T) {
 
 // PF-1.19.1: Generate DUT Configuration
 func ConfigureDut(t *testing.T, dut *ondatra.DUTDevice, ocPFParams cfgplugins.OcPolicyForwardingParams) {
-	aggID = netutil.NextAggregateInterface(t, dut)
-	configureInterfaces(t, dut, custPorts, []*attrs.Attributes{&custIntfIPv4, &custIntfIPv6, &custIntfdualStack, &custIntfIPv4MultiCloud, &custIntfIPv4JumboMTU}, aggID)
-	configureInterfaceProperties(t, dut, aggID, &custIntfIPv4, ocPFParams)
-	configureInterfaceProperties(t, dut, aggID, &custIntfIPv6, ocPFParams)
-	configureInterfaceProperties(t, dut, aggID, &custIntfdualStack, ocPFParams)
-	configureInterfaceProperties(t, dut, aggID, &custIntfIPv4MultiCloud, ocPFParams)
-	configureInterfaceProperties(t, dut, aggID, &custIntfIPv4JumboMTU, ocPFParams)
+	custAggID = netutil.NextAggregateInterface(t, dut)
+	custSubinterfaces := []*attrs.Attributes{
+		&custIntfIPv4, &custIntfIPv6, &custIntfdualStack, &custIntfIPv4MultiCloud, &custIntfIPv4JumboMTU,
+		&custIntfIPv4Global2, &custIntfIPv6B, &custIntfdualStack2, &custIntfdualStack3, &custIntfdualStack4,
+	}
+	configureInterfaces(t, dut, custPorts, custSubinterfaces, custAggID)
+	for _, a := range custSubinterfaces {
+		configureInterfaceProperties(t, dut, custAggID, a, ocPFParams)
+	}
 	aggID = netutil.NextAggregateInterface(t, dut)
 	configureInterfaces(t, dut, corePorts, []*attrs.Attributes{&coreIntf}, aggID)
+	// Aggregate3 is the 2nd ingress aggregate (ATE ports 5,6).
+	aggID2 = netutil.NextAggregateInterface(t, dut)
+	configureInterfaces(t, dut, corePorts2, []*attrs.Attributes{&coreIntf2}, aggID2)
 	configureStaticRoute(t, dut)
+	disableLLDP(t, dut)
 	_, ni, pf := cfgplugins.SetupPolicyForwardingInfraOC(ocPFParams.NetworkInstanceName)
 	DecapMPLSInGUE(t, dut, pf, ni, ocPFParams)
+}
+
+func disableLLDP(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	batch := &gnmi.SetBatch{}
+	for _, port := range custPorts {
+		physPortName := dut.Port(t, port).Name()
+		gnmi.BatchReplace(batch, gnmi.OC().Lldp().Interface(physPortName).Config(), &oc.Lldp_Interface{
+			Name:    ygot.String(physPortName),
+			Enabled: ygot.Bool(false),
+		})
+	}
+	batch.Set(t, dut)
+}
+
+func waitForLAGUp(t *testing.T, dut *ondatra.DUTDevice, aggID string, ports []string) {
+	t.Helper()
+	for _, portID := range ports {
+		portName := dut.Port(t, portID).Name()
+		gnmi.Await(t, dut, gnmi.OC().Interface(portName).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
+		memberPath := gnmi.OC().Lacp().Interface(aggID).Member(portName).State()
+		_, ok := gnmi.Watch(t, dut, memberPath, 3*time.Minute, func(value *ygnmi.Value[*oc.Lacp_Interface_Member]) bool {
+			if !value.IsPresent() {
+				return false
+			}
+			member, present := value.Val()
+			return present && member.Synchronization == oc.Lacp_LacpSynchronizationType_IN_SYNC && member.GetCollecting() && member.GetDistributing()
+		}).Await(t)
+		if !ok {
+			t.Fatalf("LACP member %s in %s did not reach IN_SYNC/collecting/distributing", portName, aggID)
+		}
+	}
+	t.Logf("DUT LAG %s members are IN_SYNC, collecting, and distributing", aggID)
+}
+
+func waitForOTGLAGUp(t *testing.T, ate *ondatra.ATEDevice, agg *otgconfighelpers.Port) {
+	t.Helper()
+	_, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Lag(agg.Name).OperStatus().State(), 2*time.Minute, func(value *ygnmi.Value[otgtelemetry.E_Lag_OperStatus]) bool {
+		status, present := value.Val()
+		return present && status.String() == "UP"
+	}).Await(t)
+	if !ok {
+		t.Fatalf("OTG LAG %s did not reach UP", agg.Name)
+	}
+
+	_, ok = gnmi.Watch(t, ate.OTG(), gnmi.OTG().Lacp().State(), 2*time.Minute, func(value *ygnmi.Value[*otgtelemetry.Lacp]) bool {
+		lacp, present := value.Val()
+		if !present || lacp == nil {
+			return false
+		}
+		for _, portID := range agg.MemberPorts {
+			member := lacp.GetLagMember(ate.Port(t, portID).ID())
+			if member == nil || !member.GetCollecting() || !member.GetDistributing() {
+				return false
+			}
+		}
+		return true
+	}).Await(t)
+	if !ok {
+		t.Fatalf("OTG LAG %s members did not reach collecting/distributing", agg.Name)
+	}
+	t.Logf("OTG LAG %s is UP and members are collecting/distributing", agg.Name)
 }
 
 func TestSetup(t *testing.T) {
 	t.Log("PF-1.19.1: Generate DUT Configuration")
 	dut := ondatra.DUT(t, "dut")
+	ate := ondatra.ATE(t, "ate")
+
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	// Get default parameters for OC Policy Forwarding
@@ -271,7 +642,18 @@ func TestSetup(t *testing.T) {
 
 	// Pass ocPFParams to ConfigureDut
 	ConfigureDut(t, dut, ocPFParams)
-	ConfigureOTG(t)
+	ConfigureOTG(t, ate)
+	ate.OTG().StartProtocols(t)
+	waitForLAG(t, dut, ate)
+}
+
+func waitForLAG(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
+	for _, agg := range []*otgconfighelpers.Port{agg1, agg2, agg3} {
+		waitForOTGLAGUp(t, ate, agg)
+	}
+	waitForLAGUp(t, dut, custAggID, custPorts)
+	waitForLAGUp(t, dut, aggID, corePorts)
+	waitForLAGUp(t, dut, aggID2, corePorts2)
 }
 
 // GetDefaultOcPolicyForwardingParams provides default parameters for the generator,
@@ -280,7 +662,30 @@ func GetDefaultOcPolicyForwardingParams() cfgplugins.OcPolicyForwardingParams {
 	return cfgplugins.OcPolicyForwardingParams{
 		NetworkInstanceName: "DEFAULT",
 		InterfaceID:         "Agg1.10",
-		AppliedPolicyName:   "customer1",
+		AppliedPolicyName:   policyName,
+		InnerDstIPv4:        "11.0.0.0/8",
+		DecapPolicy: cfgplugins.DecapPolicyParams{
+			StaticLSPNameIPv4:         "Customer IPV4 in:99991 out:pop",
+			StaticLSPLabelIPv4:        99991,
+			StaticLSPNextHopIPv4:      interface1.IPv4,
+			StaticLSPNameIPv6:         "Customer IPV6 in:99992 out:pop",
+			StaticLSPLabelIPv6:        99992,
+			StaticLSPNextHopIPv6:      interface2.IPv6,
+			StaticLSPNameMulticast:    fmt.Sprintf("Customer Multicast in:%d out:pop", multicastMPLSLabel),
+			StaticLSPLabelMulticast:   multicastMPLSLabel,
+			StaticLSPNextHopMulticast: interface1.IPv4,
+		},
+	}
+}
+
+func ipv6OuterDecapParams(dut *ondatra.DUTDevice) cfgplugins.OcPolicyForwardingParams {
+	return cfgplugins.OcPolicyForwardingParams{
+		AppliedPolicyName:   policyName,
+		NetworkInstanceName: deviations.DefaultNetworkInstance(dut),
+		TunnelIP:            coreIntf.IPv6 + "/128",
+		GUEPort:             udpPort,
+		IPType:              cfgplugins.IPv6,
+		DecapProtocol:       "mpls",
 	}
 }
 
@@ -295,12 +700,12 @@ func configureInterfaceProperties(t *testing.T, dut *ondatra.DUTDevice, aggID st
 }
 
 // function should also include the OC config , within these deviations there should be a switch statement is needed
-// Modified to accept pf, ni, and ocPFParams
 func DecapMPLSInGUE(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, ni *oc.NetworkInstance, ocPFParams cfgplugins.OcPolicyForwardingParams) {
 	cfgplugins.MplsConfig(t, dut)
 	cfgplugins.QosClassificationConfig(t, dut)
 	cfgplugins.LabelRangeConfig(t, dut)
 	cfgplugins.DecapGroupConfigGue(t, dut, pf, ocPFParams)
+	cfgplugins.DecapGroupConfigGueIPv6Outer(t, dut, pf, ipv6OuterDecapParams(dut))
 	cfgplugins.MPLSStaticLSPConfig(t, dut, ni, ocPFParams)
 	if !deviations.PolicyForwardingOCUnsupported(dut) {
 		PushPolicyForwardingConfig(t, dut, ni)
@@ -311,14 +716,90 @@ func DecapMPLSInGUE(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance
 func TestMPLSOGUEDecapIPv4AndIPv6(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	t.Log("PF-1.19.2: Verify MPLSoGUE decapsulate action for IPv4 and IPv6 payload")
-	createflow(t, top, FlowOuterIPv4, FlowInnerIPv4, true)
-	createflow(t, top, FlowOuterIPv6, FlowInnerIPv6, false)
-	sendTraffic(t, ate)
-	if err := FlowOuterIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
-		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
+	testFlows := []TestFlow{
+		{flowOuterConfig: FlowOuterIPv4, flowInnerConfig: FlowInnerIPv4, flowValidation: FlowOuterIPv4Validation},
+		{flowOuterConfig: FlowOuterIPv6, flowInnerConfig: FlowInnerIPv6, flowValidation: FlowOuterIPv6Validation},
+		{flowOuterConfig: FlowOuterIPv4Agg3, flowInnerConfig: FlowInnerIPv4, flowValidation: FlowOuterIPv4Agg3Validation},
+		{flowOuterConfig: FlowOuterIPv6Agg3, flowInnerConfig: FlowInnerIPv6, flowValidation: FlowOuterIPv6Agg3Validation},
 	}
-	if err := FlowOuterIPv6Validation.ValidateLossOnFlows(t, ate); err != nil {
-		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
+
+	for _, flow := range testFlows {
+		createflow(t, top, flow.flowOuterConfig, flow.flowInnerConfig, true)
+		sendTraffic(t, ate, false)
+		if err := flow.flowValidation.ValidateLossOnFlows(t, ate); err != nil {
+			t.Errorf("ValidateLossOnFlows: got err: %q, want nil", err)
+		}
+		if err := flow.flowValidation.ValidateLoadBalanceOnLAG(t, ate); err != nil {
+			t.Errorf("ValidateLoadBalanceOnLAG: got err: %q, want nil", err)
+		}
+	}
+}
+
+// PF-1.19.3: Verify MPLSoGUE decapsulate action for IPv4 and IPv6 payload with
+// changes in IPv4 and IPv6 configs.
+func TestMPLSOGUEDecapIPv4Ipv6ConfigRefresh(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	ate := ondatra.ATE(t, "ate")
+	decapPolicy := GetDefaultOcPolicyForwardingParams().DecapPolicy
+	t.Log("PF-1.19.3: Verify MPLSoGUE decapsulate action for IPv4 and IPv6 payload with changes in IPv4 and IPv6 configs")
+	testFlows := []TestFlow{
+		{flowOuterConfig: FlowOuterIPv4, flowInnerConfig: FlowInnerIPv4, flowValidation: FlowOuterIPv4Validation},
+		{flowOuterConfig: FlowOuterIPv6, flowInnerConfig: FlowInnerIPv6, flowValidation: FlowOuterIPv6Validation},
+		{flowOuterConfig: FlowOuterIPv4Agg3, flowInnerConfig: FlowInnerIPv4, flowValidation: FlowOuterIPv4Agg3Validation},
+		{flowOuterConfig: FlowOuterIPv6Agg3, flowInnerConfig: FlowInnerIPv6, flowValidation: FlowOuterIPv6Agg3Validation},
+	}
+	for i, flow := range testFlows {
+		createflow(t, top, flow.flowOuterConfig, flow.flowInnerConfig, i == 0)
+	}
+	ipv4FlowValidations := []*otgvalidationhelpers.OTGValidation{FlowOuterIPv4Validation, FlowOuterIPv4Agg3Validation}
+	ipv6FlowValidations := []*otgvalidationhelpers.OTGValidation{FlowOuterIPv6Validation, FlowOuterIPv6Agg3Validation}
+
+	verifyLoss := func(step string, validations ...*otgvalidationhelpers.OTGValidation) {
+		for _, v := range validations {
+			if err := v.ValidateLossOnFlows(t, ate); err != nil {
+				t.Errorf("%s: ValidateLossOnFlows: got err: %q, want nil", step, err)
+			}
+		}
+	}
+
+	applyDuringTrafficAndValidate := func(step string, configChange func(), flowValidations ...*otgvalidationhelpers.OTGValidation) {
+		waitForMinPacketsPerFlow := func() {
+			for _, v := range flowValidations {
+				waitForPackets(t, ate.OTG(), v.Flow.Name, minPacketsBeforeChange, trafficTimeout)
+			}
+		}
+		sendTraffic(t, ate, false, waitForMinPacketsPerFlow, configChange)
+		verifyLoss(step, flowValidations...)
+	}
+
+	applyDuringTrafficAndValidate("IPv4 VLAN config refresh", func() { refreshInterfaceVLAN(t, dut, &custIntfIPv4) }, ipv6FlowValidations...)
+	applyDuringTrafficAndValidate("IPv6 VLAN config refresh", func() { refreshInterfaceVLAN(t, dut, &custIntfIPv6) }, ipv4FlowValidations...)
+	applyDuringTrafficAndValidate("IPv4 decap config refresh", func() { cfgplugins.RefreshStaticLSP(t, dut, decapPolicy, cfgplugins.IPv4) }, ipv6FlowValidations...)
+	applyDuringTrafficAndValidate("IPv6 decap config refresh", func() { cfgplugins.RefreshStaticLSP(t, dut, decapPolicy, cfgplugins.IPv6) }, ipv4FlowValidations...)
+}
+
+// PF-1.19.4: Verify MPLSoGUE decapsulate action for IPv4 multicast payload.
+func TestMPLSOGUEDecapIPv4Multicast(t *testing.T) {
+	ate := ondatra.ATE(t, "ate")
+	t.Log("PF-1.19.4: Verify MPLSoGUE decapsulate action for IPv4 multicast payload")
+	testFlows := []TestFlow{
+		{flowOuterConfig: FlowOuterIPv4Multicast, flowInnerConfig: FlowInnerIPv4Multicast, flowValidation: FlowOuterIPv4MulticastValidation},
+		{flowOuterConfig: FlowOuterIPv4MulticastAgg3, flowInnerConfig: FlowInnerIPv4Multicast, flowValidation: FlowOuterIPv4MulticastAgg3Validation},
+	}
+	for _, flow := range testFlows {
+		createflow(t, top, flow.flowOuterConfig, flow.flowInnerConfig, true)
+		top.Captures().Clear()
+		packetvalidationhelpers.ConfigurePacketCapture(t, top, multicastEthHeaderValidation)
+		sendTraffic(t, ate, true)
+		if err := flow.flowValidation.ValidateLossOnFlows(t, ate); err != nil {
+			t.Errorf("ValidateLossOnFlows(%s): got err: %q, want nil", flow.flowOuterConfig.FlowName, err)
+		}
+		if err := flow.flowValidation.ValidateLoadBalanceOnLAG(t, ate); err != nil {
+			t.Errorf("ValidateLoadBalanceOnLAG(): got err: %q, want nil", err)
+		}
+		if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, multicastEthHeaderValidation); err != nil {
+			t.Errorf("CaptureAndValidatePackets(multicast rewrite): got err: %q", err)
+		}
 	}
 }
 
@@ -326,104 +807,221 @@ func TestMPLSOGUEDecapIPv4AndIPv6(t *testing.T) {
 func TestMPLSOGUEDecapInnerPayloadPreserve(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	t.Log("PF-1.19.5: Verify MPLSoGUE DSCP/TTL preserve operation")
-	packetvalidationhelpers.ClearCapture(t, top, ate)
-	updateFlow(t, FlowOuterIPv4, FlowInnerIPv4, true, 100, 1000)
-	packetvalidationhelpers.ConfigurePacketCapture(t, top, decapValidationIPv4)
-	sendTrafficCapture(t, ate)
-	if err := FlowOuterIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
-		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
+	testFlows := []TestFlow{
+		{flowOuterConfig: FlowOuterIPv4, flowInnerConfig: FlowInnerIPv4, flowValidation: FlowOuterIPv4Validation, packetValidation: decapValidationIPv4},
+		{flowOuterConfig: FlowOuterIPv6, flowInnerConfig: FlowInnerIPv6, flowValidation: FlowOuterIPv6Validation, packetValidation: decapValidationIPv6Inner},
+		{flowOuterConfig: FlowOuterIPv4Multicast, flowInnerConfig: FlowInnerIPv4Multicast, flowValidation: FlowOuterIPv4MulticastValidation, packetValidation: decapValidationIPv4Multicast},
 	}
-	if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, decapValidationIPv4); err != nil {
-		t.Errorf("CaptureAndValidatePackets(): got err: %q", err)
+	for _, tf := range testFlows {
+		top.Captures().Clear()
+		packetvalidationhelpers.ConfigurePacketCapture(t, top, tf.packetValidation)
+		createflow(t, top, tf.flowOuterConfig, dscpSweepInner(tf.flowInnerConfig), true)
+		sendTraffic(t, ate, true)
+		if err := tf.flowValidation.ValidateLossOnFlows(t, ate); err != nil {
+			t.Errorf("ValidateLossOnFlows(%s): got err: %q, want nil", tf.flowOuterConfig.FlowName, err)
+		}
+		if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, tf.packetValidation); err != nil {
+			t.Errorf("CaptureAndValidatePackets(%s): got err: %q", tf.flowOuterConfig.FlowName, err)
+		}
 	}
 }
 
 // PF-1.19.6: Verify IPV4/IPV6 nexthop resolution of decap traffic
 func TestMPLSOGUEDecapNextHopResolution(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	totalPackets := uint32(100000)
-	pps := uint64(1000)
 	t.Log("PF-1.19.6: Verify IPV4/IPV6 nexthop resolution of decap traffic")
-	updateFlow(t, FlowOuterIPv4, FlowInnerIPv4, true, pps, totalPackets)
-	updateFlow(t, FlowOuterIPv6, FlowInnerIPv6, false, pps, totalPackets)
-	// Make sure the next hop resolution is done for IPv4 and IPv6 Interfaces facing towards customer Interfaces in OTG.
-	nextHopResolutionIPv4.IsIPv4Interfaceresolved(t, ate)
-	nextHopResolutionIPv6.IsIPv6Interfaceresolved(t, ate)
-	sendTraffic(t, ate)
-	if err := FlowOuterIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
-		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
+	testFlows := []TestFlow{
+		{flowOuterConfig: FlowOuterIPv4, flowInnerConfig: FlowInnerIPv4, flowValidation: FlowOuterIPv4Validation},
+		{flowOuterConfig: FlowOuterIPv6, flowInnerConfig: FlowInnerIPv6, flowValidation: FlowOuterIPv6Validation},
+		{flowOuterConfig: FlowOuterIPv4Agg3, flowInnerConfig: FlowInnerIPv4, flowValidation: FlowOuterIPv4Agg3Validation},
+		{flowOuterConfig: FlowOuterIPv6Agg3, flowInnerConfig: FlowInnerIPv6, flowValidation: FlowOuterIPv6Agg3Validation},
+		{flowOuterConfig: FlowOuterIPv4Multicast, flowInnerConfig: FlowInnerIPv4Multicast, flowValidation: FlowOuterIPv4MulticastValidation},
+		{flowOuterConfig: FlowOuterIPv4MulticastAgg3, flowInnerConfig: FlowInnerIPv4Multicast, flowValidation: FlowOuterIPv4MulticastAgg3Validation},
 	}
-	if err := FlowOuterIPv6Validation.ValidateLossOnFlows(t, ate); err != nil {
-		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
+	for i, flow := range testFlows {
+		createflow(t, top, flow.flowOuterConfig, dscpSweepInner(flow.flowInnerConfig), i == 0)
+	}
+
+	cfgplugins.ClearNeighbors(t, dut)
+	sendTraffic(t, ate, false)
+	for _, flow := range testFlows {
+		if err := flow.flowValidation.ValidateLossOnFlows(t, ate); err != nil {
+			t.Errorf("ValidateLossOnFlows(%s): got err: %q, want nil", flow.flowOuterConfig.FlowName, err)
+		}
 	}
 }
 
-func sendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
+// refreshInterfaceVLAN removes and re-adds a customer subinterface VLAN configuration,
+func refreshInterfaceVLAN(t *testing.T, dut *ondatra.DUTDevice, a *attrs.Attributes) {
+	t.Helper()
+	subIntfPath := gnmi.OC().Interface(custAggID).Subinterface(a.Subinterface)
+	t.Logf("Removing subinterface %s.%d", custAggID, a.Subinterface)
+	gnmi.Delete(t, dut, subIntfPath.Config())
+	t.Logf("Re-adding subinterface %s.%d", custAggID, a.Subinterface)
+	s := &oc.Interface_Subinterface{Index: ygot.Uint32(a.Subinterface)}
+	s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().SetVlanId(uint16(a.Subinterface))
+	configureInterfaceAddress(dut, s, a)
+	gnmi.Replace(t, dut, subIntfPath.Config(), s)
+}
+
+// PF-1.19.v6: Validate decapsulation of MPLS over GUE with an IPv6 outer header.
+func TestMPLSOGUEDecapIPv6OuterHeader(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	ate := ondatra.ATE(t, "ate")
+	t.Log("PF-1.19.v6: Verify MPLSoGUE decapsulate action for an IPv6 outer header")
+
+	testFlows := []TestFlow{
+		{flowOuterConfig: FlowOuterIPv6InnerIPv6, flowInnerConfig: FlowInnerIPv6, flowValidation: FlowOuterIPv6OuterValidation, packetValidation: decapValidationIPv6OuterInnerIPv6},
+		{flowOuterConfig: FlowOuterIPv6InnerIPv4, flowInnerConfig: FlowInnerIPv4, flowValidation: FlowOuterIPv6InnerIPv4Validation, packetValidation: decapValidationIPv6OuterInnerIPv4},
+	}
+	for _, flow := range testFlows {
+		top.Captures().Clear()
+		packetvalidationhelpers.ConfigurePacketCapture(t, top, flow.packetValidation)
+		createflow(t, top, flow.flowOuterConfig, dscpSweepInner(flow.flowInnerConfig), true)
+		sendTraffic(t, ate, true)
+		if err := flow.flowValidation.ValidateLossOnFlows(t, ate); err != nil {
+			t.Errorf("ValidateLossOnFlows(%s): got err: %q", flow.flowOuterConfig.FlowName, err)
+		}
+		if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, flow.packetValidation); err != nil {
+			t.Errorf("CaptureAndValidatePackets(%s): got err: %q", flow.flowOuterConfig.FlowName, err)
+		}
+		if err := verifyCounters(t, dut); err != nil {
+			t.Errorf("verifyCounters: got err: %q", err)
+		}
+	}
+}
+
+func verifyCounters(t *testing.T, dut *ondatra.DUTDevice) error {
+	t.Helper()
+
+	if deviations.GueGreDecapUnsupported(dut) {
+		t.Logf("Skipping PF rule matched-pkts check: deviation GueGreDecapUnsupported is set for vendor %v", dut.Vendor())
+		return nil
+	}
+	niName := GetDefaultOcPolicyForwardingParams().NetworkInstanceName
+	matchedPktsPath := gnmi.OC().NetworkInstance(niName).PolicyForwarding().Policy(gueV6DecapPolicyName).Rule(gueV6DecapRuleSeqID).MatchedPkts().State()
+	matchedPkts, ok := gnmi.Watch(t, dut, matchedPktsPath, 2*time.Minute, func(value *ygnmi.Value[uint64]) bool {
+		pkts, present := value.Val()
+		return present && pkts > 0
+	}).Await(t)
+	if !ok {
+		return fmt.Errorf("PF rule matched-pkts for policy %q rule %d: did not reach > 0", gueV6DecapPolicyName, gueV6DecapRuleSeqID)
+	}
+	pkts, _ := matchedPkts.Val()
+	t.Logf("PF rule matched-pkts for policy %q rule %d: %d", gueV6DecapPolicyName, gueV6DecapRuleSeqID, pkts)
+	return nil
+}
+
+func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, captureTraffic bool, midStreamActions ...func()) {
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
-	flowResolveArp.IsIPv4Interfaceresolved(t, ate)
+	waitForLAG(t, ondatra.DUT(t, "dut"), ate)
+	if err := flowResolveArp.IsIPv4Interfaceresolved(t, ate); err != nil {
+		t.Fatalf("IsIPv4Interfaceresolved(): got err: %q, want nil", err)
+	}
+	if err := flowResolveArp.IsIPv6Interfaceresolved(t, ate); err != nil {
+		t.Fatalf("IsIPv6Interfaceresolved(): got err: %q, want nil", err)
+	}
+	if captureTraffic {
+		cs := packetvalidationhelpers.StartCapture(t, ate)
+		defer packetvalidationhelpers.StopCapture(t, ate, cs)
+	}
 	ate.OTG().StartTraffic(t)
-	time.Sleep(120 * time.Second)
+	for _, action := range midStreamActions {
+		action()
+	}
+	for _, flow := range top.Flows().Items() {
+		waitForTraffic(t, ate.OTG(), flow.Name(), trafficTimeout)
+	}
 	ate.OTG().StopTraffic(t)
 }
 
-func sendTrafficCapture(t *testing.T, ate *ondatra.ATEDevice) {
-	ate.OTG().PushConfig(t, top)
-	ate.OTG().StartProtocols(t)
-	flowResolveArp.IsIPv4Interfaceresolved(t, ate)
-	cs := packetvalidationhelpers.StartCapture(t, ate)
-	ate.OTG().StartTraffic(t)
-	time.Sleep(60 * time.Second)
-	ate.OTG().StopTraffic(t)
-	packetvalidationhelpers.StopCapture(t, ate, cs)
+func waitForTraffic(t *testing.T, otg *otg.OTG, flowName string, timeout time.Duration) {
+	t.Logf("Waiting for traffic to stop on flow %s, with a total timeout of %s", flowName, timeout)
+	transmitPath := gnmi.OTG().Flow(flowName).Transmit().State()
+	_, ok := gnmi.Watch(t, otg, transmitPath, timeout, func(val *ygnmi.Value[bool]) bool {
+		transmitState, present := val.Val()
+		return present && !transmitState
+	}).Await(t)
+
+	if !ok {
+		t.Errorf("Traffic for flow %s did not stop within the timeout of %s", flowName, timeout)
+	} else {
+		t.Logf("Traffic for flow %s has stopped", flowName)
+	}
+}
+
+func waitForPackets(t *testing.T, otg *otg.OTG, flowName string, minPkts uint64, timeout time.Duration) {
+	pktsPath := gnmi.OTG().Flow(flowName).Counters().InPkts().State()
+	check := func(val *ygnmi.Value[uint64]) bool {
+		v, present := val.Val()
+		return present && v >= minPkts
+	}
+	if _, ok := gnmi.Watch(t, otg, pktsPath, timeout, check).Await(t); !ok {
+		t.Errorf("did not receive %d packets on flow %s within %v", minPkts, flowName, timeout)
+	} else {
+		t.Logf("Received at least %d packets on flow %s", minPkts, flowName)
+	}
 }
 
 func createflow(t *testing.T, top gosnappi.Config, paramsOuter *otgconfighelpers.Flow, paramsInner *otgconfighelpers.Flow, clearFlows bool) {
 	if clearFlows {
 		top.Flows().Clear()
 	}
-	paramsOuter.CreateFlow(top)
-	paramsOuter.AddEthHeader()
-	paramsOuter.AddIPv4Header()
-	paramsOuter.AddUDPHeader()
-	paramsOuter.AddMPLSHeader()
+	flow := *paramsOuter
+	flow.PpsRate = pps
+	flow.PacketsToSend = totalPackets
+	flow.CreateFlow(top)
+	flow.AddEthHeader()
+	switch {
+	case flow.IPv4Flow != nil:
+		flow.AddIPv4Header()
+	case flow.IPv6Flow != nil:
+		flow.AddIPv6Header()
+	}
+	flow.AddUDPHeader()
+	flow.AddMPLSHeader()
 	if paramsInner.IPv4Flow != nil {
-		*paramsOuter.IPv4Flow = *paramsInner.IPv4Flow
-		paramsOuter.AddIPv4Header()
+		flow.IPv4Flow = paramsInner.IPv4Flow
+		flow.AddIPv4Header()
 	}
 	if paramsInner.IPv6Flow != nil {
-		paramsOuter.IPv6Flow = paramsInner.IPv6Flow
-		paramsOuter.AddIPv6Header()
+		flow.IPv6Flow = paramsInner.IPv6Flow
+		flow.AddIPv6Header()
 	}
 	if paramsInner.TCPFlow != nil {
-		paramsOuter.TCPFlow = paramsInner.TCPFlow
-		paramsOuter.AddTCPHeader()
+		flow.TCPFlow = paramsInner.TCPFlow
+		flow.AddTCPHeader()
 	}
 	if paramsInner.UDPFlow != nil {
-		*paramsOuter.UDPFlow = *paramsInner.UDPFlow
-		paramsOuter.AddUDPHeader()
+		flow.UDPFlow = paramsInner.UDPFlow
+		flow.AddUDPHeader()
 	}
 }
 
-func updateFlow(t *testing.T, paramsOuter *otgconfighelpers.Flow, paramsInner *otgconfighelpers.Flow, clearFlows bool, pps uint64, totalPackets uint32) {
-	paramsOuter.PacketsToSend = totalPackets
-	paramsOuter.PpsRate = pps
-	paramsOuter.Flowrate = 0
-	if paramsInner.IPv6Flow != nil {
-		paramsInner.IPv6Flow.TrafficClassCount = 0
-		paramsInner.IPv6Flow.TrafficClass = 10
+// dscpSweepInner returns a deep copy of the inner flow that sweeps the full DSCP/ToS range (0-56)
+func dscpSweepInner(inner *otgconfighelpers.Flow) *otgconfighelpers.Flow {
+	sweep := *inner
+	if inner.IPv6Flow != nil {
+		v6 := *inner.IPv6Flow
+		v6.TrafficClass = 0
+		v6.TrafficClassCount = 57
+		sweep.IPv6Flow = &v6
 	}
-	if paramsInner.IPv4Flow != nil {
-		paramsInner.IPv4Flow.RawPriorityCount = 0
-		paramsInner.IPv4Flow.RawPriority = 10
-		if paramsInner.TCPFlow != nil {
-			paramsInner.TCPFlow.TCPSrcCount = 0
-			paramsInner.TCPFlow.TCPSrcPort = 49152
-		}
-		paramsOuter.IPv4Flow.IPv4Src = "100.64.0.1"
-		paramsOuter.IPv4Flow.IPv4Dst = "11.1.1.1"
+	if inner.IPv4Flow != nil {
+		v4 := *inner.IPv4Flow
+		v4.RawPriority = 0
+		v4.RawPriorityCount = 57
+		sweep.IPv4Flow = &v4
 	}
-	createflow(t, top, paramsOuter, paramsInner, clearFlows)
+	if inner.TCPFlow != nil {
+		tcp := *inner.TCPFlow
+		tcp.TCPSrcCount = 0
+		tcp.TCPSrcPort = 49152
+		sweep.TCPFlow = &tcp
+	}
+	return &sweep
 }
 
 func configureInterfaces(t *testing.T, dut *ondatra.DUTDevice, dutPorts []string, subinterfaces []*attrs.Attributes, aggID string) {
@@ -440,8 +1038,10 @@ func configureInterfaces(t *testing.T, dut *ondatra.DUTDevice, dutPorts []string
 
 	lacp := &oc.Lacp_Interface{Name: ygot.String(aggID)}
 	lacp.LacpMode = oc.Lacp_LacpActivityType_ACTIVE
+	// LACP period short (fast) is the default required timeout for member links.
+	lacp.Interval = oc.Lacp_LacpPeriodType_FAST
 	lacpPath := d.Lacp().Interface(aggID)
-	fptest.LogQuery(t, "LACP", lacpPath.Config(), lacp)
+	// fptest.LogQuery(t, "LACP", lacpPath.Config(), lacp)
 	gnmi.Replace(t, dut, lacpPath.Config(), lacp)
 	// TODO - to remove this sleep later
 	time.Sleep(5 * time.Second)
@@ -451,7 +1051,7 @@ func configureInterfaces(t *testing.T, dut *ondatra.DUTDevice, dutPorts []string
 	agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_LACP
 	agg.Type = ieee8023adLag
 	aggPath := d.Interface(aggID)
-	fptest.LogQuery(t, aggID, aggPath.Config(), agg)
+	// fptest.LogQuery(t, aggID, aggPath.Config(), agg)
 	gnmi.Replace(t, dut, aggPath.Config(), agg)
 
 	for _, port := range dutAggPorts {
@@ -461,6 +1061,9 @@ func configureInterfaces(t *testing.T, dut *ondatra.DUTDevice, dutPorts []string
 		}
 		intfPath := gnmi.OC().Interface(port.Name())
 		gnmi.Update(t, dut, intfPath.HoldTime().Config(), holdTimeConfig)
+		if !deviations.LoadIntervalNotSupported(dut) {
+			gnmi.Update(t, dut, intfPath.Rates().Config(), &oc.Interface_Rates{LoadInterval: ygot.Uint16(30)})
+		}
 	}
 }
 func configDUTInterface(i *oc.Interface, subinterfaces []*attrs.Attributes, dut *ondatra.DUTDevice) {
@@ -519,6 +1122,7 @@ func configureStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
 		Prefix:          "10.99.1.0/24",
 		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
 			"0": oc.UnionString("194.0.2.2"),
+			"1": oc.UnionString("194.0.3.2"),
 		},
 	}
 	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {

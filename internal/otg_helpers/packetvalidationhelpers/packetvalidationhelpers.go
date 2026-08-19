@@ -68,6 +68,8 @@ type ValidationType string
 const (
 	// ValidateVlanHeader validates the  VLAN header.
 	ValidateVlanHeader ValidationType = "ValidateVlanHeader"
+	// ValidateEthernetHeader validates the Ethernet destination address.
+	ValidateEthernetHeader ValidationType = "ValidateEthernetHeader"
 	// ValidateIPv4Header validates the  IPv4 header.
 	ValidateIPv4Header ValidationType = "ValidateIPv4Header"
 	// ValidateIPv6Header validates the IPv6 header.
@@ -94,6 +96,7 @@ type PacketValidation struct {
 	CaptureName      string
 	CaptureCount     int
 	VlanLayer        *VlanLayer
+	EthernetLayer    *EthernetLayer
 	IPv4Layer        *IPv4Layer
 	IPv6Layer        *IPv6Layer
 	GreLayer         *GreLayer
@@ -116,11 +119,23 @@ type VlanLayer struct {
 	VlanID uint16
 }
 
+// EthernetLayer holds the expected Ethernet destination address.
+type EthernetLayer struct {
+	DstMAC string
+}
+
 // ValidationFlags holds optional toggles that enable specific field-level
 // validations which are otherwise skipped when their value is zero/empty.
 type ValidationFlags struct {
 	// ValidateFlowLabel enables IPv6 flow-label validation against IPv6Layer.FlowLabel.
 	ValidateFlowLabel bool
+	// ValidateTosRange enables ranged DSCP(TOS) validation against
+	// IPv4Layer.TosMin/TosMax instead of an exact match against IPv4Layer.Tos.
+	ValidateTosRange bool
+	// ValidateTrafficClassRange enables ranged IPv6 traffic-class validation.
+	ValidateTrafficClassRange bool
+	TrafficClassMin           uint8
+	TrafficClassMax           uint8
 }
 
 // IPv4Layer is a struct to hold the IP layer parameters.
@@ -128,6 +143,8 @@ type IPv4Layer struct {
 	Protocol          uint32
 	DstIP             string
 	Tos               uint8
+	TosMin            uint8
+	TosMax            uint8
 	TTL               uint8
 	SkipProtocolCheck bool
 }
@@ -228,6 +245,10 @@ func CaptureAndValidatePackets(t *testing.T, ate *ondatra.ATEDevice, packetVal *
 			if err := validateVlanHeader(t, packetVal.packetSourceObj, packetVal); err != nil {
 				return err
 			}
+		case ValidateEthernetHeader:
+			if err := validateEthernetHeader(t, packetVal.packetSourceObj, packetVal); err != nil {
+				return err
+			}
 		case ValidateIPv4Header:
 			if err := validateIPv4Header(t, packetVal.packetSourceObj, packetVal); err != nil {
 				return err
@@ -296,6 +317,24 @@ func validateVlanHeader(t *testing.T, packetSource *gopacket.PacketSource, packe
 	return fmt.Errorf("no VLAN packets found")
 }
 
+func validateEthernetHeader(t *testing.T, packetSource *gopacket.PacketSource, packetVal *PacketValidation) error {
+	t.Helper()
+	t.Log("Validating Ethernet header")
+	if packetVal.EthernetLayer == nil {
+		return fmt.Errorf("EthernetLayer is nil in PacketValidation")
+	}
+	for packet := range packetSource.Packets() {
+		if ethernetLayer := packet.Layer(layers.LayerTypeEthernet); ethernetLayer != nil {
+			ethernet, _ := ethernetLayer.(*layers.Ethernet)
+			if ethernet.DstMAC.String() != packetVal.EthernetLayer.DstMAC {
+				return fmt.Errorf("ethernet destination MAC is not set properly. Expected: %s, Actual: %s", packetVal.EthernetLayer.DstMAC, ethernet.DstMAC)
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("no Ethernet packets found")
+}
+
 // validateIPv4Header validates the outer IPv4 header.
 func validateIPv4Header(t *testing.T, packetSource *gopacket.PacketSource, packetVal *PacketValidation) error {
 	t.Helper()
@@ -306,6 +345,7 @@ func validateIPv4Header(t *testing.T, packetSource *gopacket.PacketSource, packe
 	}
 
 	for packet := range packetSource.Packets() {
+		t.Logf("packet: %v", packet)
 		if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
 			ip, _ := ipLayer.(*layers.IPv4)
 			if ip.DstIP.String() != packetVal.IPv4Layer.DstIP {
@@ -319,7 +359,11 @@ func validateIPv4Header(t *testing.T, packetSource *gopacket.PacketSource, packe
 			if ip.TTL != packetVal.IPv4Layer.TTL {
 				return fmt.Errorf("IP TTL value is altered to: %d, expected: %d", ip.TTL, packetVal.IPv4Layer.TTL)
 			}
-			if ip.TOS != packetVal.IPv4Layer.Tos {
+			if packetVal.Flags != nil && packetVal.Flags.ValidateTosRange {
+				if ip.TOS < packetVal.IPv4Layer.TosMin || ip.TOS > packetVal.IPv4Layer.TosMax {
+					return fmt.Errorf("DSCP(TOS) value %d is out of expected range [%d, %d]", ip.TOS, packetVal.IPv4Layer.TosMin, packetVal.IPv4Layer.TosMax)
+				}
+			} else if ip.TOS != packetVal.IPv4Layer.Tos {
 				return fmt.Errorf("DSCP(TOS) value is altered to: %d, expected: %d", ip.TOS, packetVal.IPv4Layer.Tos)
 			}
 			// If validation is successful for one packet, we can return.
@@ -349,7 +393,11 @@ func validateIPv6Header(t *testing.T, packetSource *gopacket.PacketSource, packe
 			if ipv6.HopLimit != packetVal.IPv6Layer.HopLimit {
 				return fmt.Errorf("IPv6 HopLimit value is altered to: %d. Expected: %d", ipv6.HopLimit, packetVal.IPv6Layer.HopLimit)
 			}
-			if ipv6.TrafficClass != packetVal.IPv6Layer.TrafficClass {
+			if packetVal.Flags != nil && packetVal.Flags.ValidateTrafficClassRange {
+				if ipv6.TrafficClass < packetVal.Flags.TrafficClassMin || ipv6.TrafficClass > packetVal.Flags.TrafficClassMax {
+					return fmt.Errorf("traffic class value %d is out of expected range [%d, %d]", ipv6.TrafficClass, packetVal.Flags.TrafficClassMin, packetVal.Flags.TrafficClassMax)
+				}
+			} else if ipv6.TrafficClass != packetVal.IPv6Layer.TrafficClass {
 				return fmt.Errorf("traffic class value is altered to: %d. expected: %d", ipv6.TrafficClass, packetVal.IPv6Layer.TrafficClass)
 			}
 			if packetVal.Flags != nil && packetVal.Flags.ValidateFlowLabel && ipv6.FlowLabel != packetVal.IPv6Layer.FlowLabel {
