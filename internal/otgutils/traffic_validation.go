@@ -68,7 +68,6 @@ func ExpectedTrafficLoss(t testing.TB, otg *otg.OTG, flowName string, minLossPct
 	t.Fatalf("[%s] Generic Test Assertion Failure: Flow %s: got %v, want between %v and %v", fperrorspb.ErrorCategory_ERROR_CATEGORY_TEST_ASSERTION_FAILURE.String(), flowName, lossPct, minLossPct, maxLossPct)
 }
 
-
 // VerifyNoPacketLoss verifies that each of the given flows has a loss
 // percentage below 5% and reports an error otherwise.
 func VerifyNoPacketLoss(t testing.TB, otg *otg.OTG, allFlows []string) {
