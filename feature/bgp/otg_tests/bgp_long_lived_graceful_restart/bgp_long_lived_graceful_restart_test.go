@@ -1068,7 +1068,9 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 	t.Run("VerifyTrafficFailureAfterGRexpired", func(t *testing.T) {
 		t.Log("Send traffic again after GR timer has expired. This traffic should fail!")
 		sendTraffic(t, ate, trafficDuration)
-		otgutils.ConfirmPacketLoss(t, ate.OTG(), allFlows)
+		for _, flow := range allFlows {
+			otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow, 99.0, 100.0)
+		}
 	})
 
 	t.Run("RemoveAclInterface", func(t *testing.T) {
@@ -1201,7 +1203,9 @@ func TestTrafficWithGracefulRestart(t *testing.T) {
 	t.Run("VerifyTrafficFailureAfterGRexpired", func(t *testing.T) {
 		t.Log("Send Traffic Again after GR timer has expired. This traffic should fail!")
 		sendTraffic(t, ate, trafficDuration)
-		otgutils.ConfirmPacketLoss(t, ate.OTG(), allFlows)
+		for _, flow := range allFlows {
+			otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow, 99.0, 100.0)
+		}
 	})
 
 	t.Run("RemoveAclInterface", func(t *testing.T) {

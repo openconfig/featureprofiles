@@ -67,3 +67,31 @@ func ExpectedTrafficLoss(t testing.TB, otg *otg.OTG, flowName string, minLossPct
 
 	t.Fatalf("[%s] Generic Test Assertion Failure: Flow %s: got %v, want between %v and %v", fperrorspb.ErrorCategory_ERROR_CATEGORY_TEST_ASSERTION_FAILURE.String(), flowName, lossPct, minLossPct, maxLossPct)
 }
+
+
+// VerifyNoPacketLoss verifies that each of the given flows has a loss
+// percentage below 5% and reports an error otherwise.
+func VerifyNoPacketLoss(t testing.TB, otg *otg.OTG, allFlows []string) {
+	t.Helper()
+	LogFlowMetrics(t, otg, otg.FetchConfig(t))
+	for _, flow := range allFlows {
+		_, ok := gnmi.Watch(t, otg, gnmi.OTG().Flow(flow).State(), 15*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
+			flowState, present := val.Val()
+			if !present {
+				return false
+			}
+			txPackets := float64(flowState.GetCounters().GetOutPkts())
+			if txPackets == 0 {
+				return false
+			}
+			rxPackets := float64(flowState.GetCounters().GetInPkts())
+			lossPct := (txPackets - rxPackets) * 100 / txPackets
+			return lossPct < 5.0
+		}).Await(t)
+		if !ok {
+			t.Errorf("Traffic Loss Pct for Flow %s: expected loss < 5%%", flow)
+		} else {
+			t.Logf("Traffic Test Passed for flow %s!", flow)
+		}
+	}
+}

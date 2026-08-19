@@ -139,6 +139,17 @@ BGP Long-Lived Graceful Restart
                     ]
                   }
                 },
+                "peer-groups": {
+                  "peer-group": [
+                    {
+                      "peer-group-name": "BGP-PEER-GROUP-V4",
+                      "config": {
+                        "peer-group-name": "BGP-PEER-GROUP-V4",
+                        "peer-as": 64501
+                      }
+                    }
+                  ]
+                },
                 "neighbors": {
                   "neighbor": [
                     {
