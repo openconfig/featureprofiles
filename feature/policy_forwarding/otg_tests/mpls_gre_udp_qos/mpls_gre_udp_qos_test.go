@@ -1480,10 +1480,24 @@ func TestPF118Traffic(t *testing.T) {
 		sendTraffic(t, dut, ate, trafficDuration)
 
 		var totalLossPct float32
+		var anyForwarded bool
 		for _, f := range flows {
-			totalLossPct += flowValidation(f.FlowName).ReturnLossPercentage(t, ate)
+			lossPct := flowValidation(f.FlowName).ReturnLossPercentage(t, ate)
+			t.Logf("flow %s loss: %.2f%%", f.FlowName, lossPct)
+			totalLossPct += lossPct
+			if lossPct < 100 {
+				anyForwarded = true
+			}
 		}
-		t.Logf("Average loss across %d flows: %.2f%% (expect drops beyond configured PIR)", len(flows), totalLossPct/float32(len(flows)))
+		avgLoss := totalLossPct / float32(len(flows))
+		t.Logf("Average loss across %d flows: %.2f%%", len(flows), avgLoss)
+
+		if !anyForwarded {
+			t.Errorf("all flows show 100%% loss; policer should conform traffic up to PIR (2 Gbps)")
+		}
+		if avgLoss == 0 {
+			t.Errorf("average loss is 0%%; offered load exceeds PIR so policer must drop excess traffic")
+		}
 	})
 
 	t.Run("PF-1.18.10_PortHardwareDependency", func(t *testing.T) {
