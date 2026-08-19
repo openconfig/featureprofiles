@@ -1126,7 +1126,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 				}
 				maxLossPct := expectedLossPct + tolerance
 				otgutils.ExpectedTrafficLoss(t, ate.OTG(), trafficID, float64(minLossPct), float64(maxLossPct))
-				
+
 				ateOutPkts[data.queue] += gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().OutPkts().State())
 				ateInPkts[data.queue] += gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().InPkts().State())
 				dutQosPktsAfterTraffic[data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State())
