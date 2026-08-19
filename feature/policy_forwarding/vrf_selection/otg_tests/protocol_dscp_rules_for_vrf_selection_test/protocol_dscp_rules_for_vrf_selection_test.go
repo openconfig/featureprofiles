@@ -577,7 +577,7 @@ func TestPBR(t *testing.T) {
 	top := configureATE(t, ate, dut)
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
-	
+
 	routesToAdvertise := map[string]cfgplugins.RouteInfo{
 		"192.0.2.8/30":  {VRF: "VRF10", IPType: cfgplugins.IPv4, DefaultName: deviations.DefaultNetworkInstance(dut)},
 		"192.0.2.12/30": {VRF: "VRF20", IPType: cfgplugins.IPv4, DefaultName: deviations.DefaultNetworkInstance(dut)},
@@ -592,7 +592,7 @@ func TestPBR(t *testing.T) {
 	}
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 	cfgplugins.VerifyRoutes(t, dut, routesToAdvertise)
-	
+
 	// Ingress interface for policies
 	port1 := dut.Port(t, "port1")
 	port3 := dut.Port(t, "port3")
