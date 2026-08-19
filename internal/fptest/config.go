@@ -74,7 +74,7 @@ func GetDeviceConfig(t testing.TB, dev gnmi.DeviceOrOpts) *oc.Root {
 			vrfsStates := gnmi.GetAll(t, dev, gnmi.OC().NetworkInstanceAny().State())
 			for _, vrf := range vrfsStates {
 				// only needed for containerOp
-				if vrf.GetName() == "**iid" {
+				if _, ok := ciscoUnpushableNetworkInstances[vrf.GetName()]; ok {
 					continue
 				}
 				if vrf.GetName() == "DEFAULT" {
@@ -166,6 +166,7 @@ func GetDeviceConfig(t testing.TB, dev gnmi.DeviceOrOpts) *oc.Root {
 	}
 
 	pruneUnsupportedPaths(config)
+	PruneUnpushableNetworkInstances(config)
 
 	WriteQuery(t, "Touched", gnmi.OC().Config(), config)
 	return config
@@ -196,6 +197,30 @@ func pruneUnsupportedPaths(config *oc.Root) {
 	for _, ni := range config.NetworkInstance {
 		ni.Fdb = nil
 	}
+}
+
+// ciscoUnpushableNetworkInstances lists network instances that cannot be pushed
+// back to Cisco devices via gNMI because RSI rejects them as reserved names.
+var ciscoUnpushableNetworkInstances = map[string]struct{}{
+	"vrf-any": {},
+	"**iid":   {},
+}
+
+// PruneUnpushableNetworkInstances removes network instances that cannot be pushed
+// back to Cisco devices via gNMI because RSI rejects them as reserved names.
+func PruneUnpushableNetworkInstances(config *oc.Root) {
+	if config == nil {
+		return
+	}
+	for name := range config.NetworkInstance {
+		if _, ok := ciscoUnpushableNetworkInstances[name]; ok {
+			delete(config.NetworkInstance, name)
+		}
+	}
+}
+
+func pruneUnpushableNetworkInstances(config *oc.Root) {
+	PruneUnpushableNetworkInstances(config)
 }
 
 // setEthernetFromBase merges the ethernet config from the interfaces in base config into
