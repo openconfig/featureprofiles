@@ -27,6 +27,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gnoi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -58,6 +59,7 @@ const (
 	grTimer                  = 2 * time.Minute
 	grRestartTime            = 120
 	grStaleRouteTime         = 600
+	grStaleRouteTimeShort    = 120
 	ipv4SrcTraffic           = "192.0.2.2"
 	advertisedRoutesv4CIDR   = "203.0.113.1/32"
 	advertisedRoutesv6CIDR   = "2001:db8::203:0:113:1/128"
@@ -485,10 +487,10 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) (gosnappi.Config, []stri
 	bgpPeerName = ateDst.Name + ".BGP4.peer"
 	b2v4 := b2.Ipv4Interfaces().Add().SetIpv4Name(dev2v4.Name()).Peers().Add().SetName(bgpPeerName)
 	b2v4.SetPeerAddress(dev2v4.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
-	b2v4.GracefulRestart().SetEnableGr(true).SetRestartTime(uint32(grRestartTime))
+	b2v4.GracefulRestart().SetEnableGr(true).SetRestartTime(uint32(grRestartTime)).SetEnableLlgr(true).SetStaleTime(uint32(grStaleRouteTime))
 	b2v6 := b2.Ipv6Interfaces().Add().SetIpv6Name(dev2v6.Name()).Peers().Add().SetName(ateDst.Name + ".BGP6.peer")
 	b2v6.SetPeerAddress(dev2v6.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
-	b2v6.GracefulRestart().SetEnableGr(true).SetRestartTime(uint32(grRestartTime))
+	b2v6.GracefulRestart().SetEnableGr(true).SetRestartTime(uint32(grRestartTime)).SetEnableLlgr(true).SetStaleTime(uint32(grStaleRouteTime))
 
 	b2r4 := b2v4.V4Routes().Add().SetName("bgpNeti2")
 	b2r4.SetNextHopIpv4Address(dev2v4.Address()).
@@ -625,7 +627,7 @@ func removeNewPeers(t *testing.T, dut *ondatra.DUTDevice, nbrs []*bgpNeighbor) {
 	for _, nbr := range nbrs {
 		deleteWithRetry(t, dut, dutConfPath.Neighbor(nbr.neighborip).Config())
 	}
-	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
+
 }
 
 // setBgpPolicy is used to configure routing policy on DUT.
@@ -687,13 +689,80 @@ func configureDUTNewPeers(t *testing.T, dut *ondatra.DUTDevice, nbrs []*bgpNeigh
 		af6.Enabled = ygot.Bool(false)
 	}
 	updateWithRetry(t, dut, dutConfPath.Config(), niProto)
-	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
+
 }
 
 func createGracefulRestartAction(peerNames []string, restartDelay uint32) gosnappi.ControlAction {
 	grAction := gosnappi.NewControlAction()
 	grAction.Protocol().Bgp().InitiateGracefulRestart().SetPeerNames(peerNames).SetRestartDelay(restartDelay)
 	return grAction
+}
+
+// disableLLGRConf disable the LLGR helper so that stale routes are purged once the graceful restart timer expires.
+func disableLLGRConf(dut *ondatra.DUTDevice, as int) string {
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		return fmt.Sprintf(`
+		router bgp %d
+		no graceful-restart-helper long-lived`, as)
+	case ondatra.JUNIPER:
+		return `
+		protocols {
+			bgp {
+				graceful-restart {
+					long-lived {
+						receiver {
+							disable;
+						}
+					}
+				}
+			}
+		}`
+	default:
+		return ""
+	}
+}
+
+// enableLLGRConf enable the LLGR helper so that stale routes are retained for the long-lived stale time after the GR timer expires.
+func enableLLGRConf(dut *ondatra.DUTDevice, as int) string {
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		return fmt.Sprintf(`
+		router bgp %d
+		graceful-restart-helper long-lived`, as)
+	case ondatra.JUNIPER:
+		return fmt.Sprintf(`
+		protocols {
+			bgp {
+				graceful-restart {
+					long-lived {
+						receiver {
+							stale-time %d;
+						}
+					}
+				}
+			}
+		}`, grStaleRouteTime)
+	default:
+		return ""
+	}
+}
+
+// buildCliConfigRequest builds a gNMI SetRequest with cli-origin ASCII config.
+func buildCliConfigRequest(config string) *gpb.SetRequest {
+	gpbSetRequest := &gpb.SetRequest{
+		Update: []*gpb.Update{{
+			Path: &gpb.Path{
+				Origin: "cli",
+			},
+			Val: &gpb.TypedValue{
+				Value: &gpb.TypedValue_AsciiVal{
+					AsciiVal: config,
+				},
+			},
+		}},
+	}
+	return gpbSetRequest
 }
 
 // verifyGracefulRestart validates graceful restart telemetry on DUT.
@@ -844,7 +913,7 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 	t.Run("configureBGP", func(t *testing.T) {
 		dutConf := bgpWithNbr(dutAS, nbrList, dut)
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
-		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
+
 	})
 
 	var allFlows []string
@@ -869,9 +938,20 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 		otgutils.VerifyNoPacketLoss(t, ate.OTG(), allFlows)
 	})
 
+	if deviations.BgpLlgrOcUndefined(dut) {
+		gnmiClient := dut.RawAPIs().GNMI(t)
+		config := enableLLGRConf(dut, dutAS)
+		t.Logf("Push the LLGR enable CLI config:%s", dut.Vendor())
+		gpbSetRequest := buildCliConfigRequest(config)
+		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
+			t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
+		}
+	}
+
 	d := &oc.Root{}
 	ifName := dut.Port(t, "port2").Name()
 	iFace := d.GetOrCreateAcl().GetOrCreateInterface(ifName)
+	var grTriggerTime time.Time
 	t.Run("VerifyTrafficPasswithGRTimerWithAclApplied", func(t *testing.T) {
 		t.Log("Configure Acl to block BGP on port 179")
 		const stopDuration = 45 * time.Second
@@ -879,6 +959,7 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 		ate.OTG().StartTraffic(t)
 		startTime := time.Now()
 		t.Log("Trigger graceful restart on ATE")
+		grTriggerTime = time.Now()
 		ate.OTG().SetControlAction(t, createGracefulRestartAction([]string{bgpPeerName}, uint32(grRestartTime)))
 		gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configACL(d, aclName))
 		aclConf := configACLInterface(iFace, ifName)
@@ -968,6 +1049,16 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 		})
 	})
 
+	t.Run("VerifyTrafficPassBeyondGRTimerWithLLGR", func(t *testing.T) {
+		// Routes surviving past the GR restart timer is what distinguishes LLGR from plain graceful restart.
+		if elapsed := time.Since(grTriggerTime); elapsed < time.Duration(grRestartTime)*time.Second {
+			time.Sleep(time.Duration(grRestartTime)*time.Second - elapsed + 10*time.Second)
+		}
+		t.Log("Send traffic after the GR restart timer expired but within the LLGR stale time. Traffic should pass due to LLGR.")
+		sendTraffic(t, ate, trafficDuration)
+		otgutils.VerifyNoPacketLoss(t, ate.OTG(), allFlows)
+	})
+
 	t.Run("Wait till LLGR/Stale timer expires to delete long live routes.....", func(t *testing.T) {
 		replaceDuration := time.Since(startTime)
 		staleTime := time.Duration(grRestartTime+grStaleRouteTime) * time.Second
@@ -982,6 +1073,139 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 
 	t.Run("RemoveAclInterface", func(t *testing.T) {
 		t.Log("Removing ACL on the interface to restore BGP GR. Traffic should now pass!")
+		gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configAdmitAllACL(d, aclName))
+		aclPath := configACLInterface(iFace, ifName)
+		gnmi.Replace(t, dut, aclPath.Config(), iFace)
+	})
+
+	t.Run("VerifyBGPEstablished", func(t *testing.T) {
+		t.Logf("Waiting for BGP neighbor to establish...")
+		_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), 2*time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+			currState, ok := val.Val()
+			return ok && currState == oc.Bgp_Neighbor_SessionState_ESTABLISHED
+		}).Await(t)
+		if !ok {
+			fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
+			t.Errorf("BGP session not Established as expected")
+		}
+	})
+
+	t.Run("VerifyTrafficPassBGPRestored", func(t *testing.T) {
+		status := gnmi.Get(t, dut, nbrPath.SessionState().State())
+		if want := oc.Bgp_Neighbor_SessionState_ESTABLISHED; status != want {
+			t.Errorf("Get(BGP peer %s status): got %d, want %d", ateDst.IPv4, status, want)
+		}
+		sendTraffic(t, ate, trafficDuration)
+		otgutils.VerifyNoPacketLoss(t, ate.OTG(), allFlows)
+	})
+}
+
+func TestTrafficWithGracefulRestart(t *testing.T) {
+
+	dut := ondatra.DUT(t, "dut")
+	ate := ondatra.ATE(t, "ate")
+
+	t.Run("configureDut", func(t *testing.T) {
+		configureDUT(t, dut)
+		configureRoutePolicy(t, dut, "ALLOW", oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+	})
+
+	nbrList := buildNbrList(ateAS)
+	t.Run("configureBGP", func(t *testing.T) {
+		dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+		dutConf := bgpWithNbr(dutAS, nbrList, dut)
+		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
+		// Non-LLGR test: use a short stale-routes-time so routes are purged when the GR restart timer expires.
+		gnmi.Update(t, dut, dutConfPath.Bgp().Global().GracefulRestart().StaleRoutesTime().Config(), uint16(grStaleRouteTimeShort))
+	})
+
+	var allFlows []string
+	if ok := t.Run("configureATE", func(t *testing.T) {
+		_, allFlows, _ = configureATE(t, ate)
+	}); !ok {
+		panic("configureATE failed")
+	}
+
+	t.Run("verifyDUTPorts", func(t *testing.T) {
+		verifyPortsUp(t, dut.Device)
+	})
+
+	t.Run("VerifyBGPParameters", func(t *testing.T) {
+		checkBgpStatus(t, dut, nbrList)
+	})
+
+	t.Run("VerifyTrafficPassBeforeAcLBlock", func(t *testing.T) {
+		t.Log("Send traffic with GR timer enabled. Traffic should pass.")
+		sendTraffic(t, ate, trafficDuration)
+		otgutils.VerifyNoPacketLoss(t, ate.OTG(), allFlows)
+	})
+
+	if deviations.BgpLlgrOcUndefined(dut) {
+		gnmiClient := dut.RawAPIs().GNMI(t)
+		config := disableLLGRConf(dut, dutAS)
+		t.Logf("Push the CLI config:%s", dut.Vendor())
+		gpbSetRequest := buildCliConfigRequest(config)
+		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
+			t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
+		}
+	}
+
+	d := &oc.Root{}
+	ifName := dut.Port(t, "port2").Name()
+	iFace := d.GetOrCreateAcl().GetOrCreateInterface(ifName)
+	t.Run("VerifyTrafficPasswithGRTimerWithAclApplied", func(t *testing.T) {
+		t.Log("Configure ACL to block BGP on port 179")
+		const stopDuration = 45 * time.Second
+		t.Log("Starting traffic")
+		ate.OTG().StartTraffic(t)
+		startTime := time.Now()
+		t.Log("Trigger graceful restart on ATE")
+		ate.OTG().SetControlAction(t, createGracefulRestartAction([]string{bgpPeerName}, uint32(grRestartTime)))
+		gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configACL(d, aclName))
+		aclConf := configACLInterface(iFace, ifName)
+		gnmi.Replace(t, dut, aclConf.Config(), iFace)
+
+		t.Run("Verify graceful restart telemetry", func(t *testing.T) {
+			verifyGracefulRestart(t, dut)
+		})
+
+		replaceDuration := time.Since(startTime)
+		time.Sleep(grTimer - stopDuration - replaceDuration)
+
+		t.Log("Send traffic while GR timer is counting down. Traffic should pass as BGP GR is enabled!")
+		ate.OTG().StopTraffic(t)
+		t.Log("Traffic stopped")
+		otgutils.VerifyNoPacketLoss(t, ate.OTG(), allFlows)
+	})
+
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	nbrPath := statePath.Neighbor(ateDst.IPv4)
+	t.Run("VerifyBGPNOTEstablished", func(t *testing.T) {
+		t.Log("Waiting for BGP neighbor to be not in Established state after applying ACL DENY policy..")
+		_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), 2*time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+			currState, ok := val.Val()
+			return ok && currState != oc.Bgp_Neighbor_SessionState_ESTABLISHED
+		}).Await(t)
+		if !ok {
+			fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
+			t.Errorf("BGP session did not go Down as expected.")
+		}
+	})
+
+	startTime := time.Now()
+	t.Run("Wait till GR restart and stale-routes timers expire to purge routes", func(t *testing.T) {
+		staleTime := time.Duration(grRestartTime+grStaleRouteTimeShort) * time.Second
+		time.Sleep(staleTime - time.Since(startTime))
+	})
+
+	t.Run("VerifyTrafficFailureAfterGRexpired", func(t *testing.T) {
+		t.Log("Send Traffic Again after GR timer has expired. This traffic should fail!")
+		sendTraffic(t, ate, trafficDuration)
+		otgutils.ConfirmPacketLoss(t, ate.OTG(), allFlows)
+	})
+
+	t.Run("RemoveAclInterface", func(t *testing.T) {
+		t.Log("Removing Acl on the interface to restore BGP GR. Traffic should now pass!")
 		gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configAdmitAllACL(d, aclName))
 		aclPath := configACLInterface(iFace, ifName)
 		gnmi.Replace(t, dut, aclPath.Config(), iFace)
