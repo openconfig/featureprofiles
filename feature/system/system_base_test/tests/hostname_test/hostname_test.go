@@ -49,12 +49,19 @@ func TestHostname(t *testing.T) {
 	}
 
 	dut := ondatra.DUT(t, "dut")
+	config := gnmi.OC().System().Hostname()
+	state := gnmi.OC().System().Hostname()
+
+	initialHostname := dut.Name()
+	if val, present := gnmi.LookupConfig(t, dut, config.Config()).Val(); present {
+		initialHostname = val
+	}
+	t.Cleanup(func() {
+		gnmi.Replace(t, dut, config.Config(), initialHostname)
+	})
 
 	for _, testCase := range testCases {
 		t.Run(testCase.description, func(t *testing.T) {
-			config := gnmi.OC().System().Hostname()
-			state := gnmi.OC().System().Hostname()
-
 			gnmi.Replace(t, dut, config.Config(), testCase.hostname)
 
 			t.Run("Get Hostname Config", func(t *testing.T) {
@@ -103,12 +110,20 @@ func TestDomainName(t *testing.T) {
 	}
 
 	dut := ondatra.DUT(t, "dut")
+	config := gnmi.OC().System().DomainName()
+	state := gnmi.OC().System().DomainName()
+
+	initialDomainName, hasInitialDomainName := gnmi.LookupConfig(t, dut, config.Config()).Val()
+	t.Cleanup(func() {
+		if hasInitialDomainName {
+			gnmi.Replace(t, dut, config.Config(), initialDomainName)
+		} else {
+			gnmi.Delete(t, dut, config.Config())
+		}
+	})
 
 	for _, testCase := range testCases {
 		t.Run(testCase.description, func(t *testing.T) {
-			config := gnmi.OC().System().DomainName()
-			state := gnmi.OC().System().DomainName()
-
 			gnmi.Replace(t, dut, config.Config(), testCase.domainname)
 
 			t.Run("Get Domainname Config", func(t *testing.T) {
