@@ -6,9 +6,9 @@
 # The list of directories of CA contents, also the count of CAs built
 # in each directory.
 DEFAULT_DIRS=(01 02 10 1000 20000)
-if [ -n "$1" ]; then
-  echo "Using provided DIRS: $1"
-  IFS=',' read -r -a DIRS <<< "$1"
+if [ -n "$2" ]; then
+  echo "Using provided DIRS: $2"
+  IFS=',' read -r -a DIRS <<< "$2"
 else
   echo "Using default DIRS: ${DEFAULT_DIRS[*]}"
   DIRS=("${DEFAULT_DIRS[@]}")
