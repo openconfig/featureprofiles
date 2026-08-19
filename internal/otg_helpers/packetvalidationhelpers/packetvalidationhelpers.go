@@ -304,7 +304,7 @@ func validateIPv4Header(t *testing.T, packetSource *gopacket.PacketSource, packe
 	if packetVal.IPv4Layer == nil {
 		return fmt.Errorf("IPv4Layer configuration is missing")
 	}
-	
+
 	for packet := range packetSource.Packets() {
 		if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
 			ip, _ := ipLayer.(*layers.IPv4)
@@ -337,7 +337,7 @@ func validateIPv6Header(t *testing.T, packetSource *gopacket.PacketSource, packe
 	if packetVal.IPv6Layer == nil {
 		return fmt.Errorf("IPv6Layer configuration is missing")
 	}
-	
+
 	for packet := range packetSource.Packets() {
 		t.Logf("packet: %v", packet)
 		if ipLayer := packet.Layer(layers.LayerTypeIPv6); ipLayer != nil {
