@@ -11,29 +11,17 @@ Optics test requirements alongside the platform functional tests require optics 
 
 ## Procedure
 
-*   Step 1: Using `/components/component[name=%s]/state`, get the list of transceivers and validate the following leaves are set:
-    *   `/components/component/state/mfg-name`
-    *   `/components/component/transceiver/state/form-factor`
-    *   `/components/component/state/serial-no`
-    *   `/components/component/state/part-no`
-    *   `/components/component/state/firmware-version`
-    *   `/interfaces/interface/state/physical-channel`
-    *   `/interfaces/interface/state/transceiver`
+*   Step 1: Ensure interfaces and transceivers are enabled, wait for link UP, and validate inventory and telemetry:
+    *   Validate static inventory metadata: `/components/component/state/mfg-name`, `/components/component/transceiver/state/form-factor`, `/components/component/state/serial-no`, `/components/component/state/part-no`, `/components/component/state/firmware-version`, `/components/component/state/hardware-version`, `/components/component/state/description`, `/components/component/state/mfg-date`, `/components/component/transceiver/physical-channels/channel/state/index`, `/interfaces/interface/state/physical-channel`, `/interfaces/interface/state/transceiver`.
+    *   Validate dynamic telemetry instant values are within WARNING and CRITICAL lower/upper thresholds: module temperature, Tx output power, Rx input power, laser bias-current, and supply voltage.
 
-*   Step 2: Get list of components of type `TRANSCEIVER`. Verify the instant value is between the corresponding lower and upper thresholds for both `[severity]=WARNING` and `[severity]=CRITICAL`:
-    *   Module case temperature
-    *   Tx output power
-    *   Rx input power
-    *   Laser bias-current
-    *   Supply voltage
-
-*   Step 3: Flap the interface and verify telemetry updates:
+*   Step 2: Verify interface enable/disable lifecycle:
     *   Disable/shutdown interface: verify oper-status DOWN and output power drops.
-    *   Re-enable interface: verify oper-status UP and output power returns to normal.
+    *   Re-enable interface: wait for link UP and verify telemetry parameters return to normal within thresholds.
 
-*   Step 4: Verify transceiver config enabled on/off:
+*   Step 3: Verify transceiver config enabled on/off lifecycle:
     *   Set `/components/component/transceiver/config/enabled` to `false`: verify oper-status is not UP and transceiver disabled.
-    *   Set `/components/component/transceiver/config/enabled` to `true`: verify oper-status UP, optics power and laser normal.
+    *   Set `/components/component/transceiver/config/enabled` to `true`: wait for link UP and verify all telemetry parameters are valid and within thresholds.
 
 ## Canonical OC
 
