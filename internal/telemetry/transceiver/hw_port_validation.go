@@ -8,7 +8,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
-	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -16,12 +15,13 @@ import (
 
 // validateHWPortTelemetry validates the hw port telemetry.
 func validateHWPortTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port, params *cfgplugins.ConfigParameters, hwPortStream *samplestream.SampleStream[*oc.Component]) {
-	if p.PMD() == ondatra.PMD400GBASEZR || p.PMD() == ondatra.PMD400GBASEZRP {
-		// Skip HW Port validation for PMD400GBASEZR/PMD400GBASEZRP as it is not supported.
+	if !cfgplugins.IsBreakoutPort(dut, p, params) {
+		// Skip HW Port validation for non-breakout ports.
 		return
 	}
-	if deviations.BreakoutModeUnsupportedForEightHundredGb(dut) && params.PortSpeed == oc.IfEthernet_ETHERNET_SPEED_SPEED_800GB {
-		return
+	breakoutIndex := uint8(1)
+	if dut.Vendor() == ondatra.CISCO || dut.Vendor() == ondatra.JUNIPER {
+		breakoutIndex = uint8(0)
 	}
 	nextHWPortSample := hwPortStream.Next()
 	hwPortValue, ok := nextHWPortSample.Val()
@@ -36,12 +36,6 @@ func validateHWPortTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Po
 			want: params.HWPortNames[p.Name()],
 		},
 		{
-			desc:           "HW Port Location Validation",
-			path:           fmt.Sprintf(componentPath+"/state/location", params.HWPortNames[p.Name()]),
-			got:            hwPortValue.GetLocation(),
-			patternToMatch: strings.Replace(strings.Replace(params.TransceiverNames[p.Name()], "Ethernet", "", 1), "-transceiver", "", 1),
-		},
-		{
 			desc: "HW Port Type Validation",
 			path: fmt.Sprintf(componentPath+"/state/type", params.HWPortNames[p.Name()]),
 			got:  hwPortValue.GetType().(oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT),
@@ -49,28 +43,38 @@ func validateHWPortTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Po
 		},
 		{
 			desc: "HW Port Breakout Index Validation",
-			path: fmt.Sprintf(componentPath+"/port/breakout-mode/groups/group[index=1]/state/index", params.HWPortNames[p.Name()]),
-			got:  hwPortValue.GetPort().GetBreakoutMode().GetGroup(1).GetIndex(),
-			want: uint8(1),
+			path: fmt.Sprintf(componentPath+"/port/breakout-mode/groups/group[index=%v]/state/index", params.HWPortNames[p.Name()], breakoutIndex),
+			got:  hwPortValue.GetPort().GetBreakoutMode().GetGroup(breakoutIndex).GetIndex(),
+			want: breakoutIndex,
 		},
 		{
 			desc: "HW Port Breakout Speed Validation",
-			path: fmt.Sprintf(componentPath+"/port/breakout-mode/groups/group[index=1]/state/breakout-speed", params.HWPortNames[p.Name()]),
-			got:  hwPortValue.GetPort().GetBreakoutMode().GetGroup(1).GetBreakoutSpeed(),
+			path: fmt.Sprintf(componentPath+"/port/breakout-mode/groups/group[index=%v]/state/breakout-speed", params.HWPortNames[p.Name()], breakoutIndex),
+			got:  hwPortValue.GetPort().GetBreakoutMode().GetGroup(breakoutIndex).GetBreakoutSpeed(),
 			want: params.PortSpeed,
 		},
 		{
 			desc: "HW Port Number of Breakouts Validation",
-			path: fmt.Sprintf(componentPath+"/port/breakout-mode/groups/group[index=1]/state/num-breakouts", params.HWPortNames[p.Name()]),
-			got:  hwPortValue.GetPort().GetBreakoutMode().GetGroup(1).GetNumBreakouts(),
+			path: fmt.Sprintf(componentPath+"/port/breakout-mode/groups/group[index=%v]/state/num-breakouts", params.HWPortNames[p.Name()], breakoutIndex),
+			got:  hwPortValue.GetPort().GetBreakoutMode().GetGroup(breakoutIndex).GetNumBreakouts(),
 			want: uint8(1),
 		},
-		{
+	}
+	if dut.Vendor() != ondatra.CISCO {
+		tcs = append(tcs, testcase{
+			desc:           "HW Port Location Validation",
+			path:           fmt.Sprintf(componentPath+"/state/location", params.HWPortNames[p.Name()]),
+			got:            hwPortValue.GetLocation(),
+			patternToMatch: strings.Replace(strings.Replace(strings.Replace(params.TransceiverNames[p.Name()], "Ethernet", "", 1), "-transceiver", "", 1), ":XCVR0", "", 1),
+		})
+	}
+	if dut.Vendor() != ondatra.JUNIPER {
+		tcs = append(tcs, testcase{
 			desc: "HW Port Number of Physical Channels Validation",
-			path: fmt.Sprintf(componentPath+"/port/breakout-mode/groups/group[index=1]/state/num-physical-channels", params.HWPortNames[p.Name()]),
-			got:  hwPortValue.GetPort().GetBreakoutMode().GetGroup(1).GetNumPhysicalChannels(),
+			path: fmt.Sprintf(componentPath+"/port/breakout-mode/groups/group[index=%v]/state/num-physical-channels", params.HWPortNames[p.Name()], breakoutIndex),
+			got:  hwPortValue.GetPort().GetBreakoutMode().GetGroup(breakoutIndex).GetNumPhysicalChannels(),
 			want: params.NumPhysicalChannels,
-		},
+		})
 	}
 	for _, tc := range tcs {
 		t.Run(fmt.Sprintf("%s of %v", tc.desc, p.Name()), func(t *testing.T) {
