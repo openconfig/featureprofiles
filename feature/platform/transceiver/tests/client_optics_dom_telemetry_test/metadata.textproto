@@ -1,4 +1,4 @@
-# proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
 uuid: "290e7660-cec3-4ea8-bedb-9a94b6f1cf92"
@@ -21,6 +21,7 @@ platform_exceptions: {
   }
   deviations: {
     transceiver_thresholds_unsupported: false
+    transceiver_state_unsupported: true
   }
 }
 platform_exceptions: {

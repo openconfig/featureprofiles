@@ -16,6 +16,7 @@ package client_optics_dom_telemetry_test
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -241,6 +242,42 @@ func checkThreshold(t *testing.T, dut *ondatra.DUTDevice, params checkThresholdP
 	}
 }
 
+func getTransceiverChannelIndices(t *testing.T, dut *ondatra.DUTDevice, transceiverName string) []uint16 {
+	t.Helper()
+	component := gnmi.OC().Component(transceiverName)
+	seen := make(map[uint16]bool)
+	var indices []uint16
+
+	for _, chRes := range gnmi.LookupAll(t, dut, component.Transceiver().ChannelAny().Index().State()) {
+		if idx, ok := chRes.Val(); ok && !seen[idx] {
+			seen[idx] = true
+			indices = append(indices, idx)
+		}
+	}
+
+	if len(indices) == 0 {
+		compLookup := gnmi.Lookup(t, dut, component.State())
+		if comp, ok := compLookup.Val(); ok && comp != nil && comp.GetTransceiver() != nil {
+			for chIdx := range comp.GetTransceiver().Channel {
+				if !seen[chIdx] {
+					seen[chIdx] = true
+					indices = append(indices, chIdx)
+				}
+			}
+		}
+	}
+
+	if len(indices) == 0 {
+		indices = append(indices, 0)
+	}
+
+	sort.Slice(indices, func(i, j int) bool {
+		return indices[i] < indices[j]
+	})
+
+	return indices
+}
+
 func validateThresholds(t *testing.T, dut *ondatra.DUTDevice, transceiver string, isPortUp bool, sev oc.E_AlarmTypes_OPENCONFIG_ALARM_SEVERITY, component *platform.ComponentPath, opts []ygnmi.Option) {
 	t.Helper()
 	threshold := component.Transceiver().Threshold(sev)
@@ -266,42 +303,46 @@ func validateThresholds(t *testing.T, dut *ondatra.DUTDevice, transceiver string
 		transceiver: transceiver,
 		isPortUp:    isPortUp,
 		opts:        opts,
-		lowerPath:   threshold.InputPowerLower().State(),
-		upperPath:   threshold.InputPowerUpper().State(),
-		instantPath: component.Transceiver().Channel(0).InputPower().Instant().State(),
-		name:        "input-power",
-		ftName:      deviations.CiscoxrTransceiverFt(dut),
-	})
-	checkThreshold(t, dut, checkThresholdParams{
-		transceiver: transceiver,
-		isPortUp:    isPortUp,
-		opts:        opts,
-		lowerPath:   threshold.OutputPowerLower().State(),
-		upperPath:   threshold.OutputPowerUpper().State(),
-		instantPath: component.Transceiver().Channel(0).OutputPower().Instant().State(),
-		name:        "output-power",
-		ftName:      deviations.CiscoxrTransceiverFt(dut),
-	})
-	checkThreshold(t, dut, checkThresholdParams{
-		transceiver: transceiver,
-		isPortUp:    isPortUp,
-		opts:        opts,
-		lowerPath:   threshold.LaserBiasCurrentLower().State(),
-		upperPath:   threshold.LaserBiasCurrentUpper().State(),
-		instantPath: component.Transceiver().Channel(0).LaserBiasCurrent().Instant().State(),
-		name:        "laser-bias-current",
-		ftName:      deviations.CiscoxrTransceiverFt(dut),
-	})
-	checkThreshold(t, dut, checkThresholdParams{
-		transceiver: transceiver,
-		isPortUp:    isPortUp,
-		opts:        opts,
 		lowerPath:   threshold.SupplyVoltageLower().State(),
 		upperPath:   threshold.SupplyVoltageUpper().State(),
 		instantPath: component.Transceiver().SupplyVoltage().Instant().State(),
 		name:        "supply-voltage",
 		ftName:      deviations.CiscoxrTransceiverFt(dut),
 	})
+
+	channelIndices := getTransceiverChannelIndices(t, dut, transceiver)
+	for _, chIdx := range channelIndices {
+		checkThreshold(t, dut, checkThresholdParams{
+			transceiver: transceiver,
+			isPortUp:    isPortUp,
+			opts:        opts,
+			lowerPath:   threshold.InputPowerLower().State(),
+			upperPath:   threshold.InputPowerUpper().State(),
+			instantPath: component.Transceiver().Channel(chIdx).InputPower().Instant().State(),
+			name:        "input-power",
+			ftName:      deviations.CiscoxrTransceiverFt(dut),
+		})
+		checkThreshold(t, dut, checkThresholdParams{
+			transceiver: transceiver,
+			isPortUp:    isPortUp,
+			opts:        opts,
+			lowerPath:   threshold.OutputPowerLower().State(),
+			upperPath:   threshold.OutputPowerUpper().State(),
+			instantPath: component.Transceiver().Channel(chIdx).OutputPower().Instant().State(),
+			name:        "output-power",
+			ftName:      deviations.CiscoxrTransceiverFt(dut),
+		})
+		checkThreshold(t, dut, checkThresholdParams{
+			transceiver: transceiver,
+			isPortUp:    isPortUp,
+			opts:        opts,
+			lowerPath:   threshold.LaserBiasCurrentLower().State(),
+			upperPath:   threshold.LaserBiasCurrentUpper().State(),
+			instantPath: component.Transceiver().Channel(chIdx).LaserBiasCurrent().Instant().State(),
+			name:        "laser-bias-current",
+			ftName:      deviations.CiscoxrTransceiverFt(dut),
+		})
+	}
 }
 
 func validateOpticsTelemetry(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port, transceiverName string, isPortUp bool, checkMinOutPower bool, expectedMaxOutPower float64) {
@@ -339,28 +380,38 @@ func validateOpticsTelemetry(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.P
 	}
 
 	// Validate Output Powers
-	outputPowers := gnmi.LookupAll(t, dut.GNMIOpts().WithYGNMIOpts(opts...), channels.OutputPower().Instant().State())
-	outputPowerPathStr := getPathStr(channels.OutputPower().Instant().State().PathStruct())
-	if len(outputPowers) == 0 {
-		tracePath(t, outputPowerPathStr, statusFail, "Get outputPowers list: got 0, want > 0")
-	} else {
-		for _, outputPower := range outputPowers {
-			pStr, err := ygot.PathToString(outputPower.Path)
-			if err != nil {
-				pStr = outputPower.Path.String()
-			}
-			outPower, ok := outputPower.Val()
+	chIndices := getTransceiverChannelIndices(t, dut, transceiverName)
+	for _, chIdx := range chIndices {
+		outPowerQuery := component.Transceiver().Channel(chIdx).OutputPower().Instant().State()
+		outPowerPathStr := getPathStr(outPowerQuery.PathStruct())
+		watch := gnmi.Watch(t, dut.GNMIOpts().WithYGNMIOpts(opts...), outPowerQuery, intUpdateTime, func(val *ygnmi.Value[float64]) bool {
+			outPower, ok := val.Val()
 			if !ok {
-				tracePath(t, pStr, statusFail, "output power is not defined")
-				continue
+				return false
 			}
 			if outPower > expectedMaxOutPower {
-				tracePath(t, pStr, statusFail, "value %.2f is above maximum threshold <= %f", outPower, expectedMaxOutPower)
-			} else if checkMinOutPower && outPower < minOpticsPower {
-				tracePath(t, pStr, statusFail, "value %.2f is below minimum threshold >= %f", outPower, minOpticsPower)
-			} else {
-				tracePath(t, pStr, statusPass, "value %.2f is within expected range", outPower)
+				return false
 			}
+			if checkMinOutPower && outPower < minOpticsPower {
+				return false
+			}
+			return true
+		})
+		val, ok := watch.Await(t)
+		if !ok {
+			outPower, valOk := val.Val()
+			if !valOk {
+				tracePath(t, outPowerPathStr, statusFail, "output power is not defined")
+			} else if outPower > expectedMaxOutPower {
+				tracePath(t, outPowerPathStr, statusFail, "value %.2f is above maximum threshold <= %f", outPower, expectedMaxOutPower)
+			} else if checkMinOutPower && outPower < minOpticsPower {
+				tracePath(t, outPowerPathStr, statusFail, "value %.2f is below minimum threshold >= %f", outPower, minOpticsPower)
+			} else {
+				tracePath(t, outPowerPathStr, statusFail, "output power check timed out")
+			}
+		} else {
+			outPower, _ := val.Val()
+			tracePath(t, outPowerPathStr, statusPass, "value %.2f is within expected range", outPower)
 		}
 	}
 
@@ -717,14 +768,6 @@ func TestTransceiverConfigEnabled(t *testing.T) {
 				gnmi.Update(t, dut, cfgEnabledPath, false)
 				tracePath(t, cfgPathStr, statusPass, "Set transceiver enabled config: false")
 
-				statePath := transceiver.Enabled().State()
-				statePathStr := getPathStr(statePath.PathStruct())
-				if val, ok := gnmi.Lookup(t, dut, statePath).Val(); ok {
-					tracePath(t, statePathStr, statusPass, "Transceiver enabled state: %v", val)
-				} else {
-					tracePath(t, statePathStr, statusSkipped, "Transceiver enabled state not present on device")
-				}
-
 				operPath := gnmi.OC().Interface(dp.Name()).OperStatus().State()
 				operPathStr := getPathStr(operPath.PathStruct())
 				watch := gnmi.Watch(t, dut, operPath, intUpdateTime, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
@@ -737,23 +780,57 @@ func TestTransceiverConfigEnabled(t *testing.T) {
 				}
 				operStatus, _ := gnmi.Lookup(t, dut, operPath).Val()
 				tracePath(t, operPathStr, statusPass, "Reached expected non-UP operational status: %v", operStatus)
+
+				statePath := transceiver.Enabled().State()
+				statePathStr := getPathStr(statePath.PathStruct())
+				if deviations.TransceiverStateUnsupported(dut) {
+					tracePath(t, statePathStr, statusSkipped, "Skipping transceiver enabled state check due to deviation")
+				} else {
+					stateWatch := gnmi.Watch(t, dut, statePath, intUpdateTime, func(val *ygnmi.Value[bool]) bool {
+						v, ok := val.Val()
+						return ok && !v
+					})
+					if val, ok := stateWatch.Await(t); ok {
+						v, _ := val.Val()
+						tracePath(t, statePathStr, statusPass, "Transceiver enabled state: %v", v)
+					} else {
+						if v, ok := gnmi.Lookup(t, dut, statePath).Val(); ok {
+							tracePath(t, statePathStr, statusFail, "Transceiver enabled state: got %v, want false", v)
+						} else {
+							tracePath(t, statePathStr, statusSkipped, "Transceiver enabled state not present on device")
+						}
+					}
+				}
 			})
 
 			t.Run("Re-enable transceiver and verify link is UP, telemetry parameters normal", func(t *testing.T) {
 				gnmi.Update(t, dut, cfgEnabledPath, true)
 				tracePath(t, cfgPathStr, statusPass, "Set transceiver enabled config: true")
 
-				statePath := transceiver.Enabled().State()
-				statePathStr := getPathStr(statePath.PathStruct())
-				if val, ok := gnmi.Lookup(t, dut, statePath).Val(); ok {
-					tracePath(t, statePathStr, statusPass, "Transceiver enabled state: %v", val)
-				} else {
-					tracePath(t, statePathStr, statusSkipped, "Transceiver enabled state not present on device")
-				}
-
 				gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 				operPathStr := getPathStr(gnmi.OC().Interface(dp.Name()).OperStatus().State().PathStruct())
 				tracePath(t, operPathStr, statusPass, "Reached expected operational status: %v", oc.Interface_OperStatus_UP)
+
+				statePath := transceiver.Enabled().State()
+				statePathStr := getPathStr(statePath.PathStruct())
+				if deviations.TransceiverStateUnsupported(dut) {
+					tracePath(t, statePathStr, statusSkipped, "Skipping transceiver enabled state check due to deviation")
+				} else {
+					stateWatch := gnmi.Watch(t, dut, statePath, intUpdateTime, func(val *ygnmi.Value[bool]) bool {
+						v, ok := val.Val()
+						return ok && v
+					})
+					if val, ok := stateWatch.Await(t); ok {
+						v, _ := val.Val()
+						tracePath(t, statePathStr, statusPass, "Transceiver enabled state: %v", v)
+					} else {
+						if v, ok := gnmi.Lookup(t, dut, statePath).Val(); ok {
+							tracePath(t, statePathStr, statusFail, "Transceiver enabled state: got %v, want true", v)
+						} else {
+							tracePath(t, statePathStr, statusSkipped, "Transceiver enabled state not present on device")
+						}
+					}
+				}
 
 				// Validate telemetry when enabled: all paths valid and within thresholds
 				validateOpticsTelemetry(t, dut, dp, transceiverName, true, true, maxOpticsPower)
