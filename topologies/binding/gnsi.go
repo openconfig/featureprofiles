@@ -51,8 +51,4 @@ func (g gnsiConn) Enrollz() enrollzpb.TpmEnrollzServiceClient {
 	return enrollzpb.NewTpmEnrollzServiceClient(g.conn)
 }
 
-func (g gnsiConn) Enrollz() enrollzpb.TpmEnrollzServiceClient {
-	return enrollzpb.NewTpmEnrollzServiceClient(g.conn)
-}
-
 var _ = binding.GNSIClients(gnsiConn{})
