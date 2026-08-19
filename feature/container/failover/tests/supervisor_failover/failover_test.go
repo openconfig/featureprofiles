@@ -327,7 +327,7 @@ func TestContainerRemovalPersistence(t *testing.T) {
 	})
 }
 
-// TestDoubleFailoverImagePersistence implements CNTR-3.7.
+// TestDoubleFailoverImagePersistence implements CNTR-3.10.
 func TestDoubleFailoverImagePersistence(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
@@ -399,7 +399,7 @@ func TestDoubleFailoverImagePersistence(t *testing.T) {
 	})
 }
 
-// TestContainerPersistenceAfterColdReboot implements CNTR-3.8 checking container persistence after a chassis cold reboot.
+// TestContainerPersistenceAfterColdReboot implements CNTR-3.21 checking container persistence after a chassis cold reboot.
 func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
@@ -497,6 +497,234 @@ func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 
 		if err := verifyVolumeExistsEventually(ctx, t, cli, volName, timeout); err != nil {
 			t.Errorf("Volume persistence failed: %v", err)
+		}
+	})
+}
+
+// TestInterruptImageTransferFailover implements CNTR-3.7.
+func TestInterruptImageTransferFailover(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	ctx := context.Background()
+
+	if containerTarPath(t) == "" {
+		t.Skip("container_tar flag not set, skipping test")
+	}
+
+	standbyRPBefore, _, err := findRPs(t, dut)
+	if err != nil {
+		t.Fatalf("Failed to find RPs before switchover: %v", err)
+	}
+
+	cli := containerztest.Client(t, dut)
+
+	t.Cleanup(func() {
+		t.Log("Starting cleanup...")
+		cli := containerztest.Client(t, dut)
+		if err := cli.RemoveImage(ctx, imageName, tag, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+			t.Logf("Cleanup: failed to remove image %q:%q: %v", imageName, tag, err)
+		}
+		t.Log("Cleanup finished.")
+	})
+
+	// Ensure switchover is ready before we start the race
+	switchoverReady := gnmi.OC().Component(standbyRPBefore).SwitchoverReady()
+	gnmi.Await(t, dut, switchoverReady.State(), 5*time.Minute, true)
+
+	var transferInterrupted bool
+	t.Run("InterruptTransfer", func(t *testing.T) {
+		// Run PushImage in a background goroutine
+		errCh := make(chan error, 1)
+		go func() {
+			progCh, err := cli.PushImage(ctx, imageName, tag, containerTarPath(t), false)
+			if err != nil {
+				errCh <- fmt.Errorf("Initial call to PushImage failed: %v", err)
+				return
+			}
+			for prog := range progCh {
+				if prog.Error != nil {
+					transferInterrupted = true
+					errCh <- nil
+					return
+				}
+			}
+			errCh <- nil
+		}()
+
+		// Trigger switchover while transfer is happening
+		doSwitchover(t, dut, standbyRPBefore)
+
+		if err := <-errCh; err != nil {
+			t.Fatalf("PushImage failed to start: %v", err)
+		}
+	})
+
+	t.Run("VerifyInterruption", func(t *testing.T) {
+		waitForSwitchover(t, dut)
+
+		cli = containerztest.Client(t, dut) // Re-initialize client
+
+		t.Log("Verifying image state after interrupted transfer...")
+		err := verifyImageExists(ctx, t, cli, imageName, tag)
+		if transferInterrupted {
+			if err == nil {
+				t.Errorf("Image unexpectedly exists despite interrupted transfer")
+			} else {
+				t.Logf("Image not found after interrupted transfer (expected): %v", err)
+			}
+		} else {
+			if err != nil {
+				t.Errorf("Image not found, but transfer completed successfully before switchover: %v", err)
+			} else {
+				t.Logf("Image fully loaded as expected (transfer completed before switchover).")
+			}
+		}
+	})
+}
+
+// TestInterruptContainerStartFailover implements CNTR-3.8.
+func TestInterruptContainerStartFailover(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	ctx := context.Background()
+
+	if containerTarPath(t) == "" {
+		t.Skip("container_tar flag not set, skipping test")
+	}
+
+	cli := containerztest.Client(t, dut)
+
+	t.Cleanup(func() {
+		t.Log("Starting cleanup...")
+		cli := containerztest.Client(t, dut)
+		if err := cli.RemoveContainer(ctx, containerName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+			t.Logf("Cleanup: failed to remove container %q: %v", containerName, err)
+		}
+		if err := cli.RemoveImage(ctx, imageName, tag, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+			t.Logf("Cleanup: failed to remove image %q:%q: %v", imageName, tag, err)
+		}
+		t.Log("Cleanup finished.")
+	})
+
+	t.Run("Setup", func(t *testing.T) {
+		if err := loadImage(ctx, t, cli, imageName, tag, containerTarPath(t)); err != nil {
+			t.Fatalf("Failed to load image: %v", err)
+		}
+	})
+
+	standbyRPBefore, _, err := findRPs(t, dut)
+	if err != nil {
+		t.Fatalf("Failed to find RPs before switchover: %v", err)
+	}
+
+	switchoverReady := gnmi.OC().Component(standbyRPBefore).SwitchoverReady()
+	gnmi.Await(t, dut, switchoverReady.State(), 5*time.Minute, true)
+
+	var startErr error
+	t.Run("InterruptStart", func(t *testing.T) {
+		errCh := make(chan error, 1)
+		go func() {
+			_, err := cli.StartContainer(ctx, imageName, tag, "./cntrsrv", containerName)
+			errCh <- err
+		}()
+
+		doSwitchover(t, dut, standbyRPBefore)
+
+		startErr = <-errCh
+		if startErr != nil {
+			if status.Code(startErr) != codes.Unavailable && status.Code(startErr) != codes.Canceled && status.Code(startErr) != codes.DeadlineExceeded {
+				t.Fatalf("StartContainer failed with unexpected error: %v", startErr)
+			}
+		}
+	})
+
+	t.Run("VerifyInterruption", func(t *testing.T) {
+		waitForSwitchover(t, dut)
+
+		cli = containerztest.Client(t, dut)
+
+		t.Log("Verifying container state after interrupted start...")
+		err := verifyContainerState(ctx, t, cli, containerName, cpb.ListContainerResponse_RUNNING)
+		if startErr != nil {
+			if err == nil {
+				t.Errorf("Container unexpectedly reached RUNNING state despite switchover interruption")
+			} else {
+				t.Logf("Container is not RUNNING (expected): %v", err)
+			}
+		} else {
+			if err != nil {
+				t.Errorf("Container is not RUNNING, but StartContainer completed successfully before switchover: %v", err)
+			} else {
+				t.Logf("Container is RUNNING as expected (StartContainer completed before switchover).")
+			}
+		}
+	})
+}
+
+// TestInterruptVolumeCreationFailover implements CNTR-3.9.
+func TestInterruptVolumeCreationFailover(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	ctx := context.Background()
+
+	cli := containerztest.Client(t, dut)
+
+	t.Cleanup(func() {
+		t.Log("Starting cleanup...")
+		cli := containerztest.Client(t, dut)
+		if err := cli.RemoveVolume(ctx, volName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+			t.Logf("Cleanup: failed to remove volume %q: %v", volName, err)
+		}
+		t.Log("Cleanup finished.")
+	})
+
+	standbyRPBefore, _, err := findRPs(t, dut)
+	if err != nil {
+		t.Fatalf("Failed to find RPs before switchover: %v", err)
+	}
+
+	switchoverReady := gnmi.OC().Component(standbyRPBefore).SwitchoverReady()
+	gnmi.Await(t, dut, switchoverReady.State(), 5*time.Minute, true)
+
+	var volumeInterrupted bool
+	t.Run("InterruptVolumeCreation", func(t *testing.T) {
+		errCh := make(chan error, 1)
+		go func() {
+			volOpts := map[string]string{
+				"type":       "none",
+				"options":    "bind",
+				"mountpoint": "/tmp",
+			}
+			_, err := cli.CreateVolume(ctx, volName, "local", nil, volOpts)
+			errCh <- err
+		}()
+
+		doSwitchover(t, dut, standbyRPBefore)
+
+		if err := <-errCh; err != nil {
+			if status.Code(err) != codes.Unavailable && status.Code(err) != codes.Canceled && status.Code(err) != codes.DeadlineExceeded {
+				t.Fatalf("CreateVolume failed with unexpected error: %v", err)
+			}
+			volumeInterrupted = true
+		}
+	})
+
+	t.Run("VerifyInterruption", func(t *testing.T) {
+		waitForSwitchover(t, dut)
+
+		cli = containerztest.Client(t, dut)
+
+		t.Log("Verifying volume state after interrupted creation...")
+		err := verifyVolumeExists(ctx, t, cli, volName)
+		if volumeInterrupted {
+			if err == nil {
+				t.Errorf("Volume unexpectedly exists despite interrupted creation")
+			} else {
+				t.Logf("Volume not found after interrupted creation (expected): %v", err)
+			}
+		} else {
+			if err != nil {
+				t.Errorf("Volume not found, but CreateVolume completed successfully before switchover: %v", err)
+			} else {
+				t.Logf("Volume fully created as expected (creation completed before switchover).")
+			}
 		}
 	})
 }
