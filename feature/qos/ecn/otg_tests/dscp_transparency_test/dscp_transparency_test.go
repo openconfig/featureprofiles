@@ -590,6 +590,7 @@ func testNoCongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *on
 
 	// Wait for ALL tagged metrics to populate first
 	metricsByTag := waitForAndGetTaggedMetrics(t, ate, 64)
+	outPktsCache := make(map[string]uint64)
 
 	for dscpValue := 0; dscpValue < 64; dscpValue++ {
 		dscpAsHex := fmt.Sprintf("0x%02x", dscpValue)
@@ -602,6 +603,7 @@ func testNoCongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *on
 		}
 
 		for _, et := range ets {
+			verifyTaggedPkts(t, ate, et, dscpValue, atePort2.Name, outPktsCache)
 			if len(et.Tags) != 2 {
 				t.Errorf("expected two metric tags (dscp/ecn) but got %d", len(et.Tags))
 			}
@@ -991,4 +993,54 @@ func waitForAndGetTaggedMetrics(t *testing.T, ate *ondatra.ATEDevice, expectedMe
 	}
 	t.Fatalf("Timed out waiting for tagged metrics to populate on the ATE. Got %d, expected %d. Missing: %v", len(metricsByTag), expectedMetricCount, missing)
 	return nil
+}
+
+// verifyTaggedPkts verifies that the received packets for a DSCP tagged metric
+// mathematically align with the exact generated traffic using round-robin flow calculations.
+func verifyTaggedPkts(t *testing.T, ate *ondatra.ATEDevice, et *otgtelemetry.Flow_TaggedMetric, dscpValue int, atePortName string, outPktsCache map[string]uint64) {
+	t.Helper()
+	var queueName string
+	var numDscps int
+	var rangeStart int
+	switch {
+	case dscpValue <= 3:
+		queueName, numDscps, rangeStart = "BE1", 4, 0
+	case dscpValue <= 7:
+		queueName, numDscps, rangeStart = "BE0", 4, 4
+	case dscpValue <= 15:
+		queueName, numDscps, rangeStart = "AF1", 8, 8
+	case dscpValue <= 23:
+		queueName, numDscps, rangeStart = "AF2", 8, 16
+	case dscpValue <= 31:
+		queueName, numDscps, rangeStart = "AF3", 8, 24
+	case dscpValue <= 47:
+		queueName, numDscps, rangeStart = "AF4", 16, 32
+	default:
+		queueName, numDscps, rangeStart = "NC1", 16, 48
+	}
+
+	flowName := fmt.Sprintf("dscp-%s-%s", queueName, atePortName)
+
+	outPkts, ok := outPktsCache[flowName]
+	if !ok {
+		outPkts = gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().OutPkts().State())
+		outPktsCache[flowName] = outPkts
+	}
+
+	inPkts := et.GetCounters().GetInPkts()
+
+	base := outPkts / uint64(numDscps)
+	remainder := outPkts % uint64(numDscps)
+	offset := uint64(dscpValue - rangeStart)
+
+	expectedRx := base
+	if offset < remainder {
+		expectedRx++
+	}
+
+	t.Logf("DSCP %d (%s) on %s - Tag Rx: %d, Mathematically Expected: %d", dscpValue, queueName, atePortName, inPkts, expectedRx)
+
+	if inPkts != expectedRx {
+		t.Errorf("DSCP %d received %d packets, but mathematically expected %d based on round-robin generator calculations (flow total: %d, numDscps: %d)", dscpValue, inPkts, expectedRx, outPkts, numDscps)
+	}
 }
