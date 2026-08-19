@@ -33,7 +33,7 @@ jobs:
       - name: Get changed files
         if: ${{ env.GEMINI_API_KEY != '' }}
         id: changed-files-pr
-        uses: tj-actions/changed-files@v44
+        uses: tj-actions/changed-files@v46
         with:
           separator: ','
 
