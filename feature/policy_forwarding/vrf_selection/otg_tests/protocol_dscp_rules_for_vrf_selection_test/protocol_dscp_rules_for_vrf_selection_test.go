@@ -590,6 +590,7 @@ func TestPBR(t *testing.T) {
 		"192.0.2.20/30": {VRF: deviations.DefaultNetworkInstance(dut), IPType: cfgplugins.IPv4, DefaultName: deviations.DefaultNetworkInstance(dut)},
 		"192.0.2.32/30": {VRF: deviations.DefaultNetworkInstance(dut), IPType: cfgplugins.IPv4, DefaultName: deviations.DefaultNetworkInstance(dut)},
 	}
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 	cfgplugins.VerifyRoutes(t, dut, routesToAdvertise)
 	
 	// Ingress interface for policies
