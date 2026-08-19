@@ -110,6 +110,7 @@ func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flow
 	for _, flow := range flows {
 		flow.TxRx().Port().SetTxName(srcEndPoint.Name()).SetRxName(srcEndPoint.Name())
 		flow.Metrics().SetEnable(true)
+		flow.Duration().FixedPackets().SetPackets(uint32(targetPkts))
 		top.Flows().Append(flow)
 	}
 	ate.OTG().PushConfig(t, top)
@@ -136,7 +137,7 @@ func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flow
 		}
 	}()
 
-	// AWAIT LOGIC INSTEAD OF SLEEP
+	// Wait for OutPkts to reach the target
 	for _, flow := range flows {
 		_, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State(), time.Minute, func(val *ygnmi.Value[uint64]) bool {
 			pkts, present := val.Val()
