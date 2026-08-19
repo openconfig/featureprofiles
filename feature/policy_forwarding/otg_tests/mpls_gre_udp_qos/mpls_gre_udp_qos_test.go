@@ -1015,7 +1015,7 @@ func TestPF118Traffic(t *testing.T) {
 		top.Flows().Clear()
 		flows := buildEncapToIPFlows()
 		for i, f := range flows {
-			f.Flowrate = 5
+			f.Flowrate = 2
 			createEncapToIPFlow(t, top, f, i == 0)
 		}
 		sendTraffic(t, dut, ate, trafficDuration)
