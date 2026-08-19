@@ -269,14 +269,12 @@ func TestEnrollzTPM12(t *testing.T) {
 	rotDB := newAristaROTDBClient(t, dut)
 
 	for _, tc := range []struct {
-		id   string
 		desc string
 		fn   func(t *testing.T)
 	}{
 		{
-			"enrollz-2.1-SuccessfulEnrollment",
-			"Successful TPM 1.2 RotateAIK enrollment flow",
-			func(t *testing.T) {
+			desc: "enrollz-2.1: Successful TPM 1.2 RotateAIK enrollment",
+			fn: func(t *testing.T) {
 				deps := newTPM12Deps(enrollzClient(t, dut), rotDB, ownerCA)
 				rotateAIKCert(t, ctx, deps, activeCard())
 				if standby {
@@ -286,9 +284,8 @@ func TestEnrollzTPM12(t *testing.T) {
 			},
 		},
 		{
-			"enrollz-2.2-MissingControlCardSelection",
-			"RotateAIKCertRequest with missing control_card_selection",
-			func(t *testing.T) {
+			desc: "enrollz-2.2: Missing control_card_selection",
+			fn: func(t *testing.T) {
 				stream, err := enrollzC.RotateAIKCert(ctx)
 				if err != nil {
 					t.Fatalf("open stream: %v", err)
@@ -302,9 +299,8 @@ func TestEnrollzTPM12(t *testing.T) {
 			},
 		},
 		{
-			"enrollz-2.3-InvalidControlCardSelection",
-			"RotateAIKCertRequest with invalid control_card_selection",
-			func(t *testing.T) {
+			desc: "enrollz-2.3: Invalid control_card_selection",
+			fn: func(t *testing.T) {
 				stream, err := enrollzC.RotateAIKCert(ctx)
 				if err != nil {
 					t.Fatalf("open stream: %v", err)
@@ -323,9 +319,8 @@ func TestEnrollzTPM12(t *testing.T) {
 			},
 		},
 		{
-			"enrollz-2.4-MissingIssuerPublicKey",
-			"Initial RotateAIKCertRequest with missing issuer_public_key",
-			func(t *testing.T) {
+			desc: "enrollz-2.4: Missing issuer_public_key",
+			fn: func(t *testing.T) {
 				stream, err := enrollzC.RotateAIKCert(ctx)
 				if err != nil {
 					t.Fatalf("open stream: %v", err)
@@ -338,9 +333,8 @@ func TestEnrollzTPM12(t *testing.T) {
 			},
 		},
 		{
-			"enrollz-2.5-MalformedIssuerPublicKey",
-			"Initial RotateAIKCertRequest with malformed issuer_public_key",
-			func(t *testing.T) {
+			desc: "enrollz-2.5: Malformed issuer_public_key",
+			fn: func(t *testing.T) {
 				stream, err := enrollzC.RotateAIKCert(ctx)
 				if err != nil {
 					t.Fatalf("open stream: %v", err)
@@ -353,9 +347,8 @@ func TestEnrollzTPM12(t *testing.T) {
 			},
 		},
 		{
-			"enrollz-2.6-MissingSymmetricKeyBlob",
-			"RotateAIKCertRequest with issuer_cert_payload but missing symmetric_key_blob",
-			func(t *testing.T) {
+			desc: "enrollz-2.6: Missing symmetric_key_blob",
+			fn: func(t *testing.T) {
 				issuerKey, _ := rsa.GenerateKey(rand.Reader, 2048)
 				issuerPub, _ := x509.MarshalPKIXPublicKey(&issuerKey.PublicKey)
 				stream := openRotateAIKStream(t, ctx, enrollzC, &epb.RotateAIKCertRequest{
@@ -376,9 +369,8 @@ func TestEnrollzTPM12(t *testing.T) {
 			},
 		},
 		{
-			"enrollz-2.7-MissingAikCertBlob",
-			"RotateAIKCertRequest with issuer_cert_payload where aik_cert_blob is missing",
-			func(t *testing.T) {
+			desc: "enrollz-2.7: Missing aik_cert_blob",
+			fn: func(t *testing.T) {
 				issuerKey, _ := rsa.GenerateKey(rand.Reader, 2048)
 				issuerPub, _ := x509.MarshalPKIXPublicKey(&issuerKey.PublicKey)
 				stream := openRotateAIKStream(t, ctx, enrollzC, &epb.RotateAIKCertRequest{
@@ -399,9 +391,8 @@ func TestEnrollzTPM12(t *testing.T) {
 			},
 		},
 		{
-			"enrollz-2.8-SymmetricKeyBlobNotDecryptableWithEK",
-			"RotateAIKCertRequest with issuer_cert_payload where symmetric_key_blob is not decryptable with the device EK",
-			func(t *testing.T) {
+			desc: "enrollz-2.8: symmetric_key_blob not decryptable with EK",
+			fn: func(t *testing.T) {
 				issuerKey, _ := rsa.GenerateKey(rand.Reader, 2048)
 				issuerPub, _ := x509.MarshalPKIXPublicKey(&issuerKey.PublicKey)
 				stream := openRotateAIKStream(t, ctx, enrollzC, &epb.RotateAIKCertRequest{
@@ -427,9 +418,8 @@ func TestEnrollzTPM12(t *testing.T) {
 			},
 		},
 		{
-			"enrollz-2.9-MalformedSymmetricKeyBlob",
-			"RotateAIKCertRequest with malformed symmetric_key_blob (not valid RSAES-OAEP format)",
-			func(t *testing.T) {
+			desc: "enrollz-2.9: Malformed symmetric_key_blob",
+			fn: func(t *testing.T) {
 				issuerKey, _ := rsa.GenerateKey(rand.Reader, 2048)
 				issuerPub, _ := x509.MarshalPKIXPublicKey(&issuerKey.PublicKey)
 				stream := openRotateAIKStream(t, ctx, enrollzC, &epb.RotateAIKCertRequest{
@@ -451,9 +441,8 @@ func TestEnrollzTPM12(t *testing.T) {
 			},
 		},
 		{
-			"enrollz-2.10-AsymCAContentsDigestMismatch",
-			"RotateAIKCertRequest where symmetric_key_blob decrypts but TPM_ASYM_CA_CONTENTS digest does not match the AIK",
-			func(t *testing.T) {
+			desc: "enrollz-2.10: TPM_ASYM_CA_CONTENTS digest mismatch",
+			fn: func(t *testing.T) {
 				issuerKey, _ := rsa.GenerateKey(rand.Reader, 2048)
 				issuerPub, _ := x509.MarshalPKIXPublicKey(&issuerKey.PublicKey)
 				stream := openRotateAIKStream(t, ctx, enrollzC, &epb.RotateAIKCertRequest{
@@ -484,9 +473,8 @@ func TestEnrollzTPM12(t *testing.T) {
 			},
 		},
 		{
-			"enrollz-2.11-AikCertBlobNotDecryptable",
-			"RotateAIKCertRequest where aik_cert_blob is not decryptable with the recovered session key",
-			func(t *testing.T) {
+			desc: "enrollz-2.11: aik_cert_blob not decryptable with session key",
+			fn: func(t *testing.T) {
 				issuerKey, _ := rsa.GenerateKey(rand.Reader, 2048)
 				issuerPub, _ := x509.MarshalPKIXPublicKey(&issuerKey.PublicKey)
 				stream := openRotateAIKStream(t, ctx, enrollzC, &epb.RotateAIKCertRequest{
@@ -517,9 +505,8 @@ func TestEnrollzTPM12(t *testing.T) {
 			},
 		},
 		{
-			"enrollz-2.12-MalformedTPMSymCAAttestation",
-			"RotateAIKCertRequest where aik_cert_blob is a malformed TPM_SYM_CA_ATTESTATION structure",
-			func(t *testing.T) {
+			desc: "enrollz-2.12: Malformed TPM_SYM_CA_ATTESTATION",
+			fn: func(t *testing.T) {
 				issuerKey, _ := rsa.GenerateKey(rand.Reader, 2048)
 				issuerPub, _ := x509.MarshalPKIXPublicKey(&issuerKey.PublicKey)
 				stream := openRotateAIKStream(t, ctx, enrollzC, &epb.RotateAIKCertRequest{
@@ -550,9 +537,8 @@ func TestEnrollzTPM12(t *testing.T) {
 			},
 		},
 		{
-			"enrollz-2.13-MalformedDecryptedAikCert",
-			"RotateAIKCertRequest where the decrypted aik_cert_blob contains a malformed PEM certificate",
-			func(t *testing.T) {
+			desc: "enrollz-2.13: Malformed decrypted AIK cert PEM",
+			fn: func(t *testing.T) {
 				issuerKey, _ := rsa.GenerateKey(rand.Reader, 2048)
 				issuerPub, _ := x509.MarshalPKIXPublicKey(&issuerKey.PublicKey)
 				stream := openRotateAIKStream(t, ctx, enrollzC, &epb.RotateAIKCertRequest{
@@ -583,9 +569,8 @@ func TestEnrollzTPM12(t *testing.T) {
 			},
 		},
 		{
-			"enrollz-2.14-AikCertForDifferentAIKKey",
-			"aik_cert_blob contains a certificate for a different AIK public key than generated by the device",
-			func(t *testing.T) {
+			desc: "enrollz-2.14: AIK cert for different AIK key",
+			fn: func(t *testing.T) {
 				issuerKey, _ := rsa.GenerateKey(rand.Reader, 2048)
 				issuerPub, _ := x509.MarshalPKIXPublicKey(&issuerKey.PublicKey)
 				stream := openRotateAIKStream(t, ctx, enrollzC, &epb.RotateAIKCertRequest{
@@ -617,9 +602,8 @@ func TestEnrollzTPM12(t *testing.T) {
 			},
 		},
 		{
-			"enrollz-2.15-FinalizeBeforeAikCertReturned",
-			"Service sends finalize=true before device returns aik_cert in Phase 4",
-			func(t *testing.T) {
+			desc: "enrollz-2.15: Finalize before AIK cert returned",
+			fn: func(t *testing.T) {
 				issuerKey, _ := rsa.GenerateKey(rand.Reader, 2048)
 				issuerPub, _ := x509.MarshalPKIXPublicKey(&issuerKey.PublicKey)
 				stream := openRotateAIKStream(t, ctx, enrollzC, &epb.RotateAIKCertRequest{
@@ -636,9 +620,8 @@ func TestEnrollzTPM12(t *testing.T) {
 			},
 		},
 		{
-			"enrollz-2.16-PrematureStreamClose",
-			"Service closes the stream prematurely; enrollment is aborted and no cert is persisted",
-			func(t *testing.T) {
+			desc: "enrollz-2.16: Premature stream close",
+			fn: func(t *testing.T) {
 				issuerKey, _ := rsa.GenerateKey(rand.Reader, 2048)
 				issuerPub, _ := x509.MarshalPKIXPublicKey(&issuerKey.PublicKey)
 				stream, err := enrollzC.RotateAIKCert(ctx)
@@ -669,9 +652,8 @@ func TestEnrollzTPM12(t *testing.T) {
 			},
 		},
 		{
-			"enrollz-2.17-RebootDuringEnrollmentAndRestart",
-			"Reboot at any time during enrollment (before finalize) and restart enrollment successfully",
-			func(t *testing.T) {
+			desc: "enrollz-2.17: Reboot during enrollment and restart",
+			fn: func(t *testing.T) {
 				t.Log("Starting partial enrollment (Phase 1 only) to reach mid-enrollment state...")
 				issuerKey, _ := rsa.GenerateKey(rand.Reader, 2048)
 				issuerPub, _ := x509.MarshalPKIXPublicKey(&issuerKey.PublicKey)
@@ -705,9 +687,8 @@ func TestEnrollzTPM12(t *testing.T) {
 			},
 		},
 		{
-			"enrollz-2.18-RebootAfterSuccessfulEnrollment",
-			"Reboot after successful enrollment; AIK cert must persist",
-			func(t *testing.T) {
+			desc: "enrollz-2.18: Reboot after successful enrollment",
+			fn: func(t *testing.T) {
 				deps := newTPM12Deps(enrollzClient(t, dut), rotDB, ownerCA)
 				rotateAIKCert(t, ctx, deps, activeCard())
 				if standby {
@@ -727,8 +708,7 @@ func TestEnrollzTPM12(t *testing.T) {
 			},
 		},
 	} {
-		t.Run(tc.id, func(t *testing.T) {
-			t.Log(tc.desc)
+		t.Run(tc.desc, func(t *testing.T) {
 			tc.fn(t)
 		})
 	}
