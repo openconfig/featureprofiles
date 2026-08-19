@@ -1181,6 +1181,7 @@ func TestPF118Traffic(t *testing.T) {
 
 		applySchedulerOnOutput(t, dut, custAggID, bwSchedulerName, qNames)
 
+		// Phase 1: all TCs active under congestion.
 		top.Flows().Clear()
 		flows := buildEncapToIPFlows()
 		for i, f := range flows {
@@ -1189,14 +1190,41 @@ func TestPF118Traffic(t *testing.T) {
 		}
 		sendTraffic(t, dut, ate, trafficDuration)
 
+		baseTransmit := make(map[string]uint64)
 		for i, qn := range qNames {
 			got := queueTransmitPkts(t, dut, custAggID, custPorts, qn)
+			baseTransmit[qn] = got
 			t.Logf("queue %s (class %d) transmit-pkts: %d", qn, i, got)
 			if got == 0 {
 				t.Errorf("queue %s: got 0 transmit-pkts, want > 0 (minimum bandwidth not honored)", qn)
 			}
 			if dropped := queueDroppedPkts(t, dut, custAggID, custPorts, qn); dropped > 0 {
 				t.Logf("queue %s dropped-pkts: %d (congestion expected per README)", qn, dropped)
+			}
+		}
+
+		// Phase 2: stop TC0 and TC1, verify remaining TCs absorb bandwidth.
+		top.Flows().Clear()
+		flows = buildEncapToIPFlows()
+		for i, f := range flows {
+			if f.MPLSFlow.MPLSExp <= 1 {
+				f.Flowrate = 0
+			} else {
+				f.Flowrate = 12
+			}
+			createEncapToIPFlow(t, top, f, i == 0)
+		}
+		sendTraffic(t, dut, ate, trafficDuration)
+
+		for i, qn := range qNames {
+			got := queueTransmitPkts(t, dut, custAggID, custPorts, qn)
+			if i <= 1 {
+				t.Logf("queue %s (stopped): transmit-pkts %d", qn, got)
+			} else {
+				t.Logf("queue %s (active after stop): transmit-pkts %d (was %d)", qn, got, baseTransmit[qn])
+				if got <= baseTransmit[qn] {
+					t.Errorf("queue %s: transmit-pkts %d did not increase after stopping TC0/TC1 (was %d)", qn, got, baseTransmit[qn])
+				}
 			}
 		}
 	})
@@ -1206,6 +1234,7 @@ func TestPF118Traffic(t *testing.T) {
 
 		applySchedulerOnOutput(t, dut, custAggID, bwShaperSchedulerName, qNames)
 
+		// Phase 1: all TCs active, verify shaper limits on TC0-TC2.
 		top.Flows().Clear()
 		flows := buildEncapToIPFlows()
 		for i, f := range flows {
@@ -1214,11 +1243,43 @@ func TestPF118Traffic(t *testing.T) {
 		}
 		sendTraffic(t, dut, ate, trafficDuration)
 
+		// PIR limits for TC0-TC2 (bits/s); TC3+ have CIR-only (no hard cap).
+		pirLimits := []uint64{200_000_000, 300_000_000, 400_000_000}
 		for i, qn := range qNames {
 			got := queueTransmitPkts(t, dut, custAggID, custPorts, qn)
 			t.Logf("queue %s (class %d) transmit-pkts: %d", qn, i, got)
 			if got == 0 {
 				t.Errorf("queue %s: got 0 transmit-pkts, want > 0", qn)
+			}
+		}
+		for i := 0; i < len(pirLimits); i++ {
+			octets := queueTransmitPkts(t, dut, custAggID, custPorts, qNames[i])
+			maxExpectedPkts := (pirLimits[i] / 8) * uint64(trafficDuration.Seconds()) / 64
+			t.Logf("queue %s: transmit-pkts %d, shaper max ~%d pkts (PIR %d bps, %v)", qNames[i], octets, maxExpectedPkts, pirLimits[i], trafficDuration)
+		}
+
+		// Phase 2: stop TC0 and TC1, verify redistribution.
+		top.Flows().Clear()
+		flows = buildEncapToIPFlows()
+		for i, f := range flows {
+			if f.MPLSFlow.MPLSExp <= 1 {
+				f.Flowrate = 0
+			} else {
+				f.Flowrate = 12
+			}
+			createEncapToIPFlow(t, top, f, i == 0)
+		}
+		sendTraffic(t, dut, ate, trafficDuration)
+
+		for i, qn := range qNames {
+			got := queueTransmitPkts(t, dut, custAggID, custPorts, qn)
+			if i <= 1 {
+				t.Logf("queue %s (stopped): transmit-pkts %d", qn, got)
+			} else {
+				t.Logf("queue %s (active after stop): transmit-pkts %d", qn, got)
+				if got == 0 {
+					t.Errorf("queue %s: got 0 transmit-pkts after stopping TC0/TC1", qn)
+				}
 			}
 		}
 	})
