@@ -320,11 +320,14 @@ func validateVlanHeader(t *testing.T, packetSource *gopacket.PacketSource, packe
 func validateEthernetHeader(t *testing.T, packetSource *gopacket.PacketSource, packetVal *PacketValidation) error {
 	t.Helper()
 	t.Log("Validating Ethernet header")
+	if packetVal.EthernetLayer == nil {
+		return fmt.Errorf("EthernetLayer is nil in PacketValidation")
+	}
 	for packet := range packetSource.Packets() {
 		if ethernetLayer := packet.Layer(layers.LayerTypeEthernet); ethernetLayer != nil {
 			ethernet, _ := ethernetLayer.(*layers.Ethernet)
 			if ethernet.DstMAC.String() != packetVal.EthernetLayer.DstMAC {
-				return fmt.Errorf("Ethernet destination MAC is not set properly. Expected: %s, Actual: %s", packetVal.EthernetLayer.DstMAC, ethernet.DstMAC)
+				return fmt.Errorf("ethernet destination MAC is not set properly. Expected: %s, Actual: %s", packetVal.EthernetLayer.DstMAC, ethernet.DstMAC)
 			}
 			return nil
 		}
@@ -338,6 +341,7 @@ func validateIPv4Header(t *testing.T, packetSource *gopacket.PacketSource, packe
 	t.Log("Validating IPv4 header")
 
 	for packet := range packetSource.Packets() {
+		t.Logf("packet: %v", packet)
 		if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
 			ip, _ := ipLayer.(*layers.IPv4)
 			if !packetVal.IPv4Layer.SkipProtocolCheck {
