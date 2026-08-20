@@ -2358,3 +2358,8 @@ func GribiAaaRoleBasedAuthzUnsupported(dut *ondatra.DUTDevice) bool {
 func P4RTAaaRoleBasedAuthzUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetP4RtAaaRoleBasedAuthzUnsupported()
 }
+
+// SoftLoopBackOcUnsupported returns true if the device does not support OC configuration for soft loopback interfaces.
+func SoftLoopBackOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSoftLoopbackOcUnsupported()
+}

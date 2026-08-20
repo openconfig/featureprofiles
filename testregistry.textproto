@@ -689,6 +689,7 @@ test: {
   id: "PF-1.26"
   description: "Double GUEv1 Decapsulation for Overlay Probing"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/double_gue_decap/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/double_gue_decap/double_gue_decap_test.go"
 }
 test: {
   id: "PF-1.27"
