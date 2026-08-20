@@ -929,6 +929,7 @@ func createFlowV6(t *testing.T, ts *isissession.TestSession) {
 }
 
 func checkTraffic(t *testing.T, ts *isissession.TestSession, flowName string) {
+	t.Helper()
 	ts.ATE.OTG().StartTraffic(t)
 	time.Sleep(time.Second * 30)
 	ts.ATE.OTG().StopTraffic(t)
