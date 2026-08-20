@@ -925,6 +925,7 @@ test: {
   id: "RT-1.36"
   description: "AIGP feature support test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/aigp_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/aigp_test/aigp_test.go"
 }
 test: {
   id: "RT-1.4"

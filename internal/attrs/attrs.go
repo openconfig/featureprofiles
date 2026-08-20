@@ -131,6 +131,7 @@ func (a *Attributes) ConfigOCInterface(intf *oc.Interface, dut *ondatra.DUTDevic
 			a6.PrefixLength = ygot.Uint8(a.IPv6Len)
 		}
 	}
+
 	return intf
 }
 
