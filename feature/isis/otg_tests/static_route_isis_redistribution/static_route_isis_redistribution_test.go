@@ -18,11 +18,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/isissession"
@@ -48,7 +51,7 @@ const (
 	v6RoutePrefix   = uint32(64)
 	dp2v4Route      = "192.168.1.4"
 	dp2v4Prefix     = uint32(30)
-	dp2v6Route      = "2001:DB8::0"
+	dp2v6Route      = "2001:db8::"
 	dp2v6Prefix     = uint32(126)
 	v4Flow          = "v4Flow"
 	v6Flow          = "v6Flow"
@@ -190,22 +193,28 @@ func isisImportPolicyConfig(t *testing.T, dut *ondatra.DUTDevice, policyName str
 		gnmi.BatchReplace(batchSet, gnmi.OC().NetworkInstance(dni).TableConnection(srcProto, dstProto, addfmly).Config(), tableConn)
 
 		if deviations.SamePolicyAttachedToAllAfis(dut) {
-			if addfmly == oc.Types_ADDRESS_FAMILY_IPV4 {
-				addfmly = oc.Types_ADDRESS_FAMILY_IPV6
-			} else {
-				addfmly = oc.Types_ADDRESS_FAMILY_IPV4
+			otherAf := oc.Types_ADDRESS_FAMILY_IPV6
+			if addfmly == oc.Types_ADDRESS_FAMILY_IPV6 {
+				otherAf = oc.Types_ADDRESS_FAMILY_IPV4
 			}
-			tableConn1 := d.GetOrCreateNetworkInstance(dni).GetOrCreateTableConnection(srcProto, dstProto, addfmly)
+			tableConn1 := d.GetOrCreateNetworkInstance(dni).GetOrCreateTableConnection(srcProto, dstProto, otherAf)
 			tableConn1.SetImportPolicy([]string{policyName})
 			if !deviations.SkipSettingDisableMetricPropagation(dut) {
 				tableConn1.SetDisableMetricPropagation(metricPropagation)
 			}
-			gnmi.BatchReplace(batchSet, gnmi.OC().NetworkInstance(dni).TableConnection(srcProto, dstProto, addfmly).Config(), tableConn1)
+			gnmi.BatchReplace(batchSet, gnmi.OC().NetworkInstance(dni).TableConnection(srcProto, dstProto, otherAf).Config(), tableConn1)
 		}
 
 		batchSet.Set(t, dut)
 	} else if operation == "delete" {
 		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(dni).TableConnection(srcProto, dstProto, addfmly).Config())
+		if deviations.SamePolicyAttachedToAllAfis(dut) {
+			otherAf := oc.Types_ADDRESS_FAMILY_IPV6
+			if addfmly == oc.Types_ADDRESS_FAMILY_IPV6 {
+				otherAf = oc.Types_ADDRESS_FAMILY_IPV4
+			}
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(dni).TableConnection(srcProto, dstProto, otherAf).Config())
+		}
 	}
 }
 
@@ -370,7 +379,7 @@ func configureTagSet(t *testing.T, dut *ondatra.DUTDevice, tagSet string, tagVal
 	tagSetPath := gnmi.OC().RoutingPolicy().DefinedSets().TagSet(tagSet)
 	rpl := dutOcRoot.GetOrCreateRoutingPolicy()
 	tagSetPolicyDefinition := rpl.GetOrCreateDefinedSets().GetOrCreateTagSet(tagSet)
-	tagSetPolicyDefinition.SetTagValue([]oc.RoutingPolicy_DefinedSets_TagSet_TagValue_Union{oc.UnionString(fmt.Sprintf("%v", tagValue))})
+	tagSetPolicyDefinition.SetTagValue([]oc.RoutingPolicy_DefinedSets_TagSet_TagValue_Union{oc.UnionUint32(uint32(tagValue))})
 	gnmi.Replace(t, dut, tagSetPath.Config(), tagSetPolicyDefinition)
 }
 
@@ -399,12 +408,17 @@ func verifyRplConfig(t *testing.T, dut *ondatra.DUTDevice, tagSetName string, ta
 func verifyPrefix(t *testing.T, ts *isissession.TestSession, shouldBePresent bool) {
 
 	t.Run("Verify Route on OTG", func(t *testing.T) {
-		_, ok := gnmi.WatchAll(t, ts.ATE.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().Prefix(v4Route).State(), time.Minute, func(v *ygnmi.Value[*otgtelemetry.IsisRouter_LinkStateDatabase_Lsps_Tlvs_ExtendedIpv4Reachability_Prefix]) bool {
+		wantIP := net.ParseIP(v4Route)
+		_, ok := gnmi.WatchAll(t, ts.ATE.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().PrefixAny().State(), time.Minute, func(v *ygnmi.Value[*otgtelemetry.IsisRouter_LinkStateDatabase_Lsps_Tlvs_ExtendedIpv4Reachability_Prefix]) bool {
 			prefix, present := v.Val()
-			if !shouldBePresent {
-				return !present
+			if !present {
+				return false
 			}
-			return present && prefix.GetPrefix() == v4Route
+			gotIP := net.ParseIP(strings.Split(prefix.GetPrefix(), "/")[0])
+			if gotIP == nil {
+				return false
+			}
+			return gotIP.Equal(wantIP)
 		}).Await(t)
 		if shouldBePresent {
 			if !ok {
@@ -421,9 +435,17 @@ func verifyPrefix(t *testing.T, ts *isissession.TestSession, shouldBePresent boo
 func verifyV6Prefix(t *testing.T, ts *isissession.TestSession, shouldBePresent bool) {
 
 	t.Run("Verify Route on OTG", func(t *testing.T) {
-		_, ok := gnmi.WatchAll(t, ts.ATE.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().Ipv6Reachability().Prefix(v6Route).State(), time.Minute, func(v *ygnmi.Value[*otgtelemetry.IsisRouter_LinkStateDatabase_Lsps_Tlvs_Ipv6Reachability_Prefix]) bool {
+		wantIP := net.ParseIP(v6Route)
+		_, ok := gnmi.WatchAll(t, ts.ATE.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().Ipv6Reachability().PrefixAny().State(), time.Minute, func(v *ygnmi.Value[*otgtelemetry.IsisRouter_LinkStateDatabase_Lsps_Tlvs_Ipv6Reachability_Prefix]) bool {
 			prefix, present := v.Val()
-			return present && prefix.GetPrefix() == v6Route
+			if !present {
+				return false
+			}
+			gotIP := net.ParseIP(strings.Split(prefix.GetPrefix(), "/")[0])
+			if gotIP == nil {
+				return false
+			}
+			return gotIP.Equal(wantIP)
 		}).Await(t)
 		if shouldBePresent {
 			if !ok {
@@ -440,18 +462,24 @@ func verifyV6Prefix(t *testing.T, ts *isissession.TestSession, shouldBePresent b
 func verifyPrefixMetric(t *testing.T, ts *isissession.TestSession, expectedMetric uint32) {
 
 	t.Run("Verify Route Metric on OTG", func(t *testing.T) {
-		_, ok := gnmi.WatchAll(t, ts.ATE.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().Prefix(v4Route).Metric().State(), time.Minute, func(v *ygnmi.Value[uint32]) bool {
-			if !v.IsPresent() {
+		wantIP := net.ParseIP(v4Route)
+		_, ok := gnmi.WatchAll(t, ts.ATE.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().PrefixAny().State(), time.Minute, func(v *ygnmi.Value[*otgtelemetry.IsisRouter_LinkStateDatabase_Lsps_Tlvs_ExtendedIpv4Reachability_Prefix]) bool {
+			prefix, present := v.Val()
+			if !present {
 				return false
 			}
-			if metricInReceivedLsp, _ := v.Val(); metricInReceivedLsp == expectedMetric {
-				t.Logf("Metric matched for v4 route, got: %d & want: %d", metricInReceivedLsp, expectedMetric)
+			gotIP := net.ParseIP(strings.Split(prefix.GetPrefix(), "/")[0])
+			if gotIP == nil || !gotIP.Equal(wantIP) {
+				return false
+			}
+			if prefix.GetMetric() == expectedMetric {
+				t.Logf("Metric matched for v4 route, got: %d & want: %d", prefix.GetMetric(), expectedMetric)
 				return true
 			}
 			return false
 		}).Await(t)
 		if !ok {
-			t.Error("ERROR: Metrics mismatched for v4 route")
+			t.Errorf("ERROR: Metrics mismatched for v4 route, want %d", expectedMetric)
 		}
 	})
 }
@@ -459,18 +487,24 @@ func verifyPrefixMetric(t *testing.T, ts *isissession.TestSession, expectedMetri
 func verifyV6PrefixMetric(t *testing.T, ts *isissession.TestSession, expectedMetric uint32) {
 
 	t.Run("Verify Route Metric on OTG", func(t *testing.T) {
-		_, ok := gnmi.WatchAll(t, ts.ATE.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().Ipv6Reachability().Prefix(v6Route).Metric().State(), time.Minute, func(v *ygnmi.Value[uint32]) bool {
-			if !v.IsPresent() {
+		wantIP := net.ParseIP(v6Route)
+		_, ok := gnmi.WatchAll(t, ts.ATE.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().Ipv6Reachability().PrefixAny().State(), time.Minute, func(v *ygnmi.Value[*otgtelemetry.IsisRouter_LinkStateDatabase_Lsps_Tlvs_Ipv6Reachability_Prefix]) bool {
+			prefix, present := v.Val()
+			if !present {
 				return false
 			}
-			if metricInReceivedLsp, _ := v.Val(); metricInReceivedLsp == expectedMetric {
-				t.Logf("Metric matched for v6 route, got: %d & want: %d", metricInReceivedLsp, expectedMetric)
+			gotIP := net.ParseIP(strings.Split(prefix.GetPrefix(), "/")[0])
+			if gotIP == nil || !gotIP.Equal(wantIP) {
+				return false
+			}
+			if prefix.GetMetric() == expectedMetric {
+				t.Logf("Metric matched for v6 route, got: %d & want: %d", prefix.GetMetric(), expectedMetric)
 				return true
 			}
 			return false
 		}).Await(t)
 		if !ok {
-			t.Error("ERROR: Metrics mismatched for v6 route")
+			t.Errorf("ERROR: Metrics mismatched for v6 route, want %d", expectedMetric)
 		}
 	})
 }
@@ -584,6 +618,18 @@ func TestStaticToISISRedistribution(t *testing.T) {
 
 			otgutils.WaitForARP(t, ts.ATE.OTG(), ts.ATETop, "IPv4")
 			otgutils.WaitForARP(t, ts.ATE.OTG(), ts.ATETop, "IPv6")
+
+			routesToVerify := map[string]cfgplugins.RouteInfo{
+				fmt.Sprintf("%s/%d", advertisedIPv4.address, advertisedIPv4.prefix): {
+					VRF:    deviations.DefaultNetworkInstance(ts.DUT),
+					IPType: cfgplugins.IPv4,
+				},
+				fmt.Sprintf("%s/%d", advertisedIPv6.address, advertisedIPv6.prefix): {
+					VRF:    deviations.DefaultNetworkInstance(ts.DUT),
+					IPType: cfgplugins.IPv6,
+				},
+			}
+			cfgplugins.VerifyRoutes(t, ts.DUT, routesToVerify)
 		})
 	})
 
