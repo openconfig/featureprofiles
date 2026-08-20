@@ -443,6 +443,22 @@ func updateHWPortConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ondatra
 	switch {
 	case deviations.BreakoutModeUnsupportedForEightHundredGb(dut) && params.PortSpeed == oc.IfEthernet_ETHERNET_SPEED_SPEED_800GB:
 		return
+	case deviations.NumPhysyicalChannelsUnsupported(dut):
+		gnmi.BatchReplace(batch, gnmi.OC().Component(params.HWPortNames[p.Name()]).Config(), &oc.Component{
+			Name: ygot.String(params.HWPortNames[p.Name()]),
+			Port: &oc.Component_Port{
+				BreakoutMode: &oc.Component_Port_BreakoutMode{
+					Group: map[uint8]*oc.Component_Port_BreakoutMode_Group{
+						1: {
+							Index:         ygot.Uint8(1),
+							BreakoutSpeed: params.PortSpeed,
+							NumBreakouts:  ygot.Uint8(1),
+						},
+					},
+				},
+			},
+		})
+		return
 	case p.PMD() == ondatra.PMD400GBASEZR || p.PMD() == ondatra.PMD400GBASEZRP:
 		// No breakout mode config for 400GZR/400GZR Plus as it is not supported.
 		return
