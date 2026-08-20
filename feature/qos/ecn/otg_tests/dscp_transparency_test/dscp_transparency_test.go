@@ -589,7 +589,11 @@ func testNoCongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *on
 	}
 
 	// Wait for ALL tagged metrics to populate first
-	metricsByTag := waitForAndGetTaggedMetrics(t, ate, 64)
+	var expectedMetricIDs []string
+	for dscpValue := 0; dscpValue < 64; dscpValue++ {
+		expectedMetricIDs = append(expectedMetricIDs, fmt.Sprintf("dscp-%d-%s", dscpValue, atePort2.Name))
+	}
+	metricsByTag := waitForAndGetTaggedMetrics(t, ate, expectedMetricIDs)
 	outPktsCache := make(map[string]uint64)
 
 	for dscpValue := 0; dscpValue < 64; dscpValue++ {
@@ -597,7 +601,7 @@ func testNoCongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *on
 		ets := metricsByTag[fmt.Sprintf("dscp-%d-%s", dscpValue, atePort2.Name)]
 
 		if len(ets) != 1 {
-			t.Logf("got %d tag sets, but expected one, this probably indicates that the traffic for this dscp has"+
+			t.Logf("Got %d tag sets, but expected one, this probably indicates that the traffic for this dscp has"+
 				" some packets tagged 01 and some tagged 11 (congestion experienced) -- "+
 				"this should not happen in this test case, will continue validation...", len(ets))
 		}
@@ -653,14 +657,7 @@ func testCongestionCreateFlows(otgConfig gosnappi.Config, protocol string, dutPo
 			}
 			finalTargetFlowRate := baseRate * uint64(len(dscpValues))
 
-			createFlow(
-				otgConfig,
-				protocol,
-				finalTargetFlowRate,
-				dscpValues,
-				queueName,
-				sourceAtePort,
-			)
+			createFlow(otgConfig, protocol, finalTargetFlowRate, dscpValues, queueName, sourceAtePort)
 		}
 	}
 }
@@ -704,7 +701,13 @@ func testCongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *onda
 
 	var congestedFlowCount int
 
-	metricsByTag := waitForAndGetTaggedMetrics(t, ate, 128)
+	var expectedMetricIDs []string
+	for _, sourceAtePort := range []*attrs.Attributes{atePort2, atePort3} {
+		for dscpValue := 0; dscpValue < 64; dscpValue++ {
+			expectedMetricIDs = append(expectedMetricIDs, fmt.Sprintf("dscp-%d-%s", dscpValue, sourceAtePort.Name))
+		}
+	}
+	metricsByTag := waitForAndGetTaggedMetrics(t, ate, expectedMetricIDs)
 
 	// These should have the majority of traffic have ecn set.
 	for _, sourceAtePort := range []*attrs.Attributes{atePort2, atePort3} {
@@ -729,7 +732,7 @@ func testCongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *onda
 					valueAsHex := tag.GetTagValue().GetValueAsHex()
 					if strings.Contains(tagName, "dscp") {
 						if valueAsHex != dscpAsHex {
-							t.Errorf("expected dscp bit to be %x, but got %s", dscpAsHex, valueAsHex)
+							t.Errorf("Got value %s but expected dscp bit to be %x", valueAsHex, dscpAsHex)
 						}
 					} else if valueAsHex != "0x2" {
 						// Not dscp tag, and not 0x2, meaning ecn tag and congestion experienced.
@@ -793,14 +796,7 @@ func testNC1CongestionCreateFlows(otgConfig gosnappi.Config, protocol string, du
 		for queueName, dscpValues := range queueDscpMap {
 			finalTargetFlowRate := targetTotalFlowRate * uint64(len(dscpValues))
 
-			createFlow(
-				otgConfig,
-				protocol,
-				finalTargetFlowRate,
-				dscpValues,
-				queueName,
-				sourceAtePort,
-			)
+			createFlow(otgConfig, protocol, finalTargetFlowRate, dscpValues, queueName, sourceAtePort)
 		}
 	}
 }
@@ -843,7 +839,13 @@ func testNC1CongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *o
 	}
 
 	// Wait for ALL 48-63 tagged metrics to populate first
-	metricsByTag := waitForAndGetTaggedMetrics(t, ate, 32)
+	var expectedMetricIDs []string
+	for _, sourceAtePort := range []*attrs.Attributes{atePort2, atePort3} {
+		for dscpValue := 48; dscpValue < 64; dscpValue++ {
+			expectedMetricIDs = append(expectedMetricIDs, fmt.Sprintf("dscp-%d-%s", dscpValue, sourceAtePort.Name))
+		}
+	}
+	metricsByTag := waitForAndGetTaggedMetrics(t, ate, expectedMetricIDs)
 
 	var congestedFlowCount int
 
@@ -864,7 +866,7 @@ func testNC1CongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *o
 					valueAsHex := tag.GetTagValue().GetValueAsHex()
 					if strings.Contains(tagName, "dscp") {
 						if valueAsHex != dscpAsHex {
-							t.Errorf("expected dscp bit to be %x, but got %s", dscpAsHex, valueAsHex)
+							t.Errorf("Got value %s but expected dscp bit to be %x", valueAsHex, dscpAsHex)
 						}
 					} else if valueAsHex != "0x2" {
 						foundCongestion = true
@@ -923,23 +925,28 @@ func TestDSCPTransparency(t *testing.T) {
 }
 
 // waitForAndGetTaggedMetrics polls the ATE device via gNMI for tagged flow metrics
-// until the expected number of unique metrics are populated or a 5-minute timeout occurs.
+// until the expected unique metrics are populated or a 5-minute timeout occurs.
 //
 // Inputs:
 //   - t: The testing instance used for logging and error reporting.
 //   - ate: The ATE device to collect the flow metrics from.
-//   - expectedMetricCount: The number of distinct metric IDs expected (combinations of DSCP and port).
+//   - expectedMetricIDs: The list of distinct metric IDs expected (combinations of DSCP and port).
 //
 // Outputs:
 //   - A map where keys are strings formatted as "dscp-<dscp_value>-<port_name>" and
 //     values are slices of matching Flow_TaggedMetric objects.
 //
-// If the timeout is reached before expectedMetricCount distinct metrics are collected,
-// the test will fail fatally and report the missing metric IDs.
-func waitForAndGetTaggedMetrics(t *testing.T, ate *ondatra.ATEDevice, expectedMetricCount int) map[string][]*otgtelemetry.Flow_TaggedMetric {
+// If the timeout is reached before expected distinct metrics are collected,
+// the test will fail fatally and report the exact missing metric IDs.
+func waitForAndGetTaggedMetrics(t *testing.T, ate *ondatra.ATEDevice, expectedMetricIDs []string) map[string][]*otgtelemetry.Flow_TaggedMetric {
 	t.Helper()
 	deadline := time.Now().Add(5 * time.Minute)
 	taggedMetricsQuery := gnmi.OTG().FlowAny().TaggedMetricAny().State()
+
+	expectedSet := make(map[string]bool)
+	for _, id := range expectedMetricIDs {
+		expectedSet[id] = true
+	}
 
 	var metricsByTag map[string][]*otgtelemetry.Flow_TaggedMetric
 	var lastCount int
@@ -963,18 +970,20 @@ func waitForAndGetTaggedMetrics(t *testing.T, ate *ondatra.ATEDevice, expectedMe
 					dscpInt, err := strconv.ParseInt(strings.TrimPrefix(dscp, "0x"), 16, 64)
 					if err == nil {
 						metricID := fmt.Sprintf("dscp-%d-%s", dscpInt, port)
-						metricsByTag[metricID] = append(metricsByTag[metricID], et)
+						if expectedSet[metricID] {
+							metricsByTag[metricID] = append(metricsByTag[metricID], et)
+						}
 					}
 				}
 			}
 		}
 
-		if len(metricsByTag) >= expectedMetricCount {
+		if len(metricsByTag) >= len(expectedMetricIDs) {
 			return metricsByTag
 		}
 
 		if len(metricsByTag) != lastCount || time.Since(lastLogTime) > 10*time.Second {
-			t.Logf("Waiting for tagged metrics... collected %d/%d distinct metric IDs", len(metricsByTag), expectedMetricCount)
+			t.Logf("Waiting for tagged metrics... collected %d/%d distinct metric IDs", len(metricsByTag), len(expectedMetricIDs))
 			lastCount = len(metricsByTag)
 			lastLogTime = time.Now()
 		}
@@ -983,15 +992,12 @@ func waitForAndGetTaggedMetrics(t *testing.T, ate *ondatra.ATEDevice, expectedMe
 	}
 
 	var missing []string
-	for _, port := range []string{"atePort2", "atePort3"} {
-		for dscp := 0; dscp < 64; dscp++ {
-			metricID := fmt.Sprintf("dscp-%d-%s", dscp, port)
-			if _, ok := metricsByTag[metricID]; !ok {
-				missing = append(missing, metricID)
-			}
+	for _, id := range expectedMetricIDs {
+		if _, ok := metricsByTag[id]; !ok {
+			missing = append(missing, id)
 		}
 	}
-	t.Fatalf("Timed out waiting for tagged metrics to populate on the ATE. Got %d, expected %d. Missing: %v", len(metricsByTag), expectedMetricCount, missing)
+	t.Fatalf("Timed out waiting for tagged metrics to populate on the ATE. Got %d, expected %d. Missing: %v", len(metricsByTag), len(expectedMetricIDs), missing)
 	return nil
 }
 
