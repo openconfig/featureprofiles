@@ -254,14 +254,14 @@ func TestControllerCardPowerAdmin(t *testing.T) {
 
 	// Fetch both redundant roles concurrently in a single batched RPC
 	roleBatch := gnmi.OCBatch()
-	rolePath1 := gnmi.OC().Component(cs[0]).RedundantRole().State()
-	rolePath2 := gnmi.OC().Component(cs[1]).RedundantRole().State()
+	roleBatch.AddPaths(
+		gnmi.OC().Component(cs[0]).RedundantRole(),
+		gnmi.OC().Component(cs[1]).RedundantRole(),
+	)
+	val := gnmi.Get(t, dut, roleBatch.State())
 
-	roleBatch.AddPaths(rolePath1, rolePath2)
-	roleRes := roleBatch.Get(t, dut)
-
-	role1 := gnmi.Lookup(t, roleRes, rolePath1).Val(t)
-	role2 := gnmi.Lookup(t, roleRes, rolePath2).Val(t)
+	role1 := val.GetComponent(cs[0]).GetRedundantRole()
+	role2 := val.GetComponent(cs[1]).GetRedundantRole()
 
 	if (role1 == oc.Platform_ComponentRedundantRole_PRIMARY && role2 == oc.Platform_ComponentRedundantRole_SECONDARY) ||
 		(role1 == oc.Platform_ComponentRedundantRole_SECONDARY && role2 == oc.Platform_ComponentRedundantRole_PRIMARY) {
