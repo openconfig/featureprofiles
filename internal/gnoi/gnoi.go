@@ -117,7 +117,7 @@ func KillProcess(t *testing.T, dut *ondatra.DUTDevice, daemon Daemon, signal spb
 	time.Sleep(120 * time.Second)
 
 	if waitForRestart {
-		gnmi.WatchAll(
+		_, ok := gnmi.WatchAll(
 			t,
 			dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE)),
 			gnmi.OC().System().ProcessAny().State(),
@@ -129,7 +129,10 @@ func KillProcess(t *testing.T, dut *ondatra.DUTDevice, daemon Daemon, signal spb
 				}
 				return val.GetName() == daemonName && val.GetPid() != pid
 			},
-		)
+		).Await(t)
+		if !ok {
+			t.Fatalf("Timed out waiting for process %s to restart with a new PID", daemonName)
+		}
 	}
 }
 
