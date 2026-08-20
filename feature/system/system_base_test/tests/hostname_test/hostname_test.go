@@ -53,7 +53,7 @@ func TestHostname(t *testing.T) {
 	state := gnmi.OC().System().Hostname()
 
 	initialHostname := dut.Name()
-	if val, present := gnmi.LookupConfig(t, dut, config.Config()).Val(); present {
+	if val, present := gnmi.LookupConfig(t, dut, config.Config()).Val(); present && val != "" {
 		initialHostname = val
 	}
 	t.Cleanup(func() {
