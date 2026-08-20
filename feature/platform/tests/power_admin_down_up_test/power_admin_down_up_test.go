@@ -101,8 +101,8 @@ func TestControllerCardPowerAdmin(t *testing.T) {
 	for _, c := range cs {
 		comp := gnmi.OC().Component(c)
 		setupBatch.AddPaths(
-			comp.OperStatus().State(),
-			comp.SwitchoverReady().State(),
+			comp.OperStatus(),
+			comp.SwitchoverReady(),
 		)
 	}
 
@@ -198,8 +198,8 @@ func TestControllerCardPowerAdmin(t *testing.T) {
 		// Wait for standbyCC to become DISABLED, and activeCC to become ACTIVE concurrently.
 		switchBatch := gnmi.OCBatch()
 		switchBatch.AddPaths(
-			gnmi.OC().Component(standbyCC).OperStatus().State(),
-			gnmi.OC().Component(activeCC).OperStatus().State(),
+			gnmi.OC().Component(standbyCC).OperStatus(),
+			gnmi.OC().Component(activeCC).OperStatus(),
 		)
 		gnmi.Watch(t, dut, switchBatch.State(), 20*time.Minute, func(val *ygnmi.Value[*oc.Root]) bool {
 			root, present := val.Val()
@@ -231,8 +231,8 @@ func TestControllerCardPowerAdmin(t *testing.T) {
 	for _, c := range cs {
 		comp := gnmi.OC().Component(c)
 		verifyBatch.AddPaths(
-			comp.OperStatus().State(),
-			comp.SwitchoverReady().State(),
+			comp.OperStatus(),
+			comp.SwitchoverReady(),
 		)
 	}
 
