@@ -186,8 +186,7 @@ func TestControllerCardPowerAdmin(t *testing.T) {
 	}
 	t.Logf("Attempting to update newly elected PRIMARY controller card %s config to POWER_DISABLED", standbyCC)
 
-	var setErr *string
-	setErr = testt.CaptureFatal(t, func(t testing.TB) {
+	setErr := testt.CaptureFatal(t, func(t testing.TB) {
 		gnmi.Replace(t, dut, newActiveConfig, oc.Platform_ComponentPowerType_POWER_DISABLED)
 	})
 
