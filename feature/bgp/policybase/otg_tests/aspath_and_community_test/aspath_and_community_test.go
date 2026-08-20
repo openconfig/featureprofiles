@@ -260,17 +260,13 @@ func configureFlow(t *testing.T, bs *cfgplugins.BGPSession, prefixPair []string,
 	}
 }
 
-func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, prefixType string, testResults bool, index int) {
-	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow("flow"+prefixType+strconv.Itoa(index)).State())
-	framesTx := recvMetric.GetCounters().GetOutPkts()
-	framesRx := recvMetric.GetCounters().GetInPkts()
-
-	if framesTx == 0 {
-		t.Error("No traffic was generated and frames transmitted were 0")
-	} else if (testResults && framesRx == framesTx) || (!testResults && framesRx == 0) {
-		t.Logf("Traffic validation successful for criteria [%t] FramesTx: %d FramesRx: %d", testResults, framesTx, framesRx)
+func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, prefixType string, testResults bool, index int) {
+	defer otgutils.LogFlowMetrics(t, ate.OTG(), c)
+	flowName := "flow" + prefixType + strconv.Itoa(index)
+	if testResults {
+		otgutils.ExpectedTrafficLoss(t, ate.OTG(), flowName, 0, 0.99)
 	} else {
-		t.Errorf("Traffic validation failed for criteria [%t] FramesTx: %d FramesRx: %d", testResults, framesTx, framesRx)
+		otgutils.ExpectedTrafficLoss(t, ate.OTG(), flowName, 100, 100)
 	}
 }
 
@@ -308,8 +304,7 @@ func TestCommunitySet(t *testing.T) {
 		bs.ATE.OTG().StartTraffic(t)
 		time.Sleep(sleepTime * time.Second)
 		bs.ATE.OTG().StopTraffic(t)
-		otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
-		verifyTraffic(t, bs.ATE, "ipv4", testResults[index], index)
+		verifyTraffic(t, bs.ATE, bs.ATETop, "ipv4", testResults[index], index)
 
 		bs.ATETop.Flows().Clear()
 		t.Logf("Running traffic test for IPv6 prefixes: [%s, %s]. Expected Result: [%t]", prefixesV6[index][0], prefixesV6[index][1], testResults[index])
@@ -319,7 +314,6 @@ func TestCommunitySet(t *testing.T) {
 		bs.ATE.OTG().StartTraffic(t)
 		time.Sleep(sleepTime * time.Second)
 		bs.ATE.OTG().StopTraffic(t)
-		otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
-		verifyTraffic(t, bs.ATE, "ipv6", testResults[index], index)
+		verifyTraffic(t, bs.ATE, bs.ATETop, "ipv6", testResults[index], index)
 	}
 }
