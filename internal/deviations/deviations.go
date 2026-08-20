@@ -2358,3 +2358,8 @@ func GribiAaaRoleBasedAuthzUnsupported(dut *ondatra.DUTDevice) bool {
 func P4RTAaaRoleBasedAuthzUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetP4RtAaaRoleBasedAuthzUnsupported()
 }
+
+// DefaultPeerAsFilterOcUnsupported returns true if devices do not support default peer AS filter OC configuration.
+func DefaultPeerAsFilterOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDefaultPeerAsFilterOcUnsupported()
+}

@@ -1001,6 +1001,7 @@ test: {
   id: "RT-1.71"
   description: "BGP Disable Peer AS Filter (`disable-peer-as-filter`)"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_disable_peer_as_filter_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_disable_peer_as_filter_test/bgp_disable_peer_as_filter_test.go"
 }
 test: {
   id: "RT-1.73"
