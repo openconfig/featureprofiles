@@ -38,10 +38,10 @@ This test evaluates if all 64 combination of DSCP bits are transparently handled
     * attach classifier to DUTPort1 nad DUTPort2 ingress
 
 ### Sub Test #1 - No-Congestion 
-* Generate 64 flows of traffic form ATEPort1  toward ATEPort3
-    * each flow has distinct DSCP value
+* Generate 7 flows of traffic form ATEPort1 toward ATEPort3
+    * each flow corresponds to a QoS queue and has multiple distinct DSCP values
     * every packet has ECT(0) set
-    * all flows of equal bps rate.
+    * flows are configured with appropriate bps rates.
     * total load - 60% (60Gbps)
 * wait 1 minutes; stop traffic generation.
 * Verify using DUTPort3 telemetry that:
@@ -51,11 +51,11 @@ This test evaluates if all 64 combination of DSCP bits are transparently handled
 * verify on ATEPort3 that all received packet has ECT(0) ECN value
 
 ### Sub Test #2 - Congestion
-* Generate 64 flows of traffic form ATEPort1 and  64 flows of traffic form ATEPort2 toward ATEPort3
-    * each flow form ATEPort1 has distinct DSCP value 
-    * each flow form ATEPort2 has distinct DSCP value 
+* Generate 7 flows of traffic form ATEPort1 and 7 flows of traffic form ATEPort2 toward ATEPort3
+    * each flow form ATEPort1 corresponds to a QoS queue and has multiple distinct DSCP values
+    * each flow form ATEPort2 corresponds to a QoS queue and has multiple distinct DSCP values
     * every packet has ECT(0) set
-    * all flows are of equal bps rate.
+    * flows are configured with appropriate bps rates.
     * Offered load:
         * ATEPort1 - 60% (60Gbps)
         * ATEPort2 - 60% (60Gbps)
@@ -70,11 +70,11 @@ This test evaluates if all 64 combination of DSCP bits are transparently handled
     * vast majority (almost all) packets with DSCP 0-47 has CE ECN value.
 
 ### Sub Test #3 - NC1 congestion
-* Generate 16 flows of traffic form ATEPort1 and  16 flows of traffic form ATEPort2 toward ATEPort3
-    * each flow form ATEPort1 has distinct DSCP value from 48-63 range
-    * each flow form ATEPort2 has distinct DSCP value from 48-63 range
+* Generate 1 flow of traffic form ATEPort1 and 1 flow of traffic form ATEPort2 toward ATEPort3
+    * each flow form ATEPort1 has multiple distinct DSCP values from 48-63 range
+    * each flow form ATEPort2 has multiple distinct DSCP values from 48-63 range
     * every packet has ECT(0) set
-    * all flows are of equal bps rate.
+    * flows are configured with appropriate bps rates.
     * Offered load:
     * ATEPort1 - 60% (60Gbps)
     * ATEPort2 - 60% (60Gbps)
