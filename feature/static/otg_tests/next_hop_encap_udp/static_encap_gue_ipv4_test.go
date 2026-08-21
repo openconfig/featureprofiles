@@ -719,22 +719,28 @@ func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 
 func nextHopGroupPacketCounters(t *testing.T, dut *ondatra.DUTDevice, totalRxPkts uint64) bool {
 	t.Helper()
-	switch dut.Vendor() {
-	case ondatra.ARISTA:
-		response := cfgplugins.GetNextHopGroupCounters(t, dut)
-		for _, notif := range response.Notification {
-			for _, update := range notif.Update {
-				if len(update.Path.Elem) > 0 && update.Path.Elem[len(update.Path.Elem)-1].Name == "pkts" {
-					if v, ok := update.Val.Value.(*gnmipb.TypedValue_UintVal); ok {
-						if (float64(totalRxPkts)-float64(v.UintVal))*100/float64(totalRxPkts) <= tolerancePct {
-							return true
-						}
+	response := cfgplugins.GetNextHopGroupCounters(t, dut)
+	if response == nil {
+		t.Log("Next-hop group counters response is nil, skipping check.")
+		return false
+	}
+	for _, notif := range response.Notification {
+		for _, update := range notif.Update {
+			if len(update.Path.Elem) > 0 && update.Path.Elem[len(update.Path.Elem)-1].Name == "pkts" {
+				if v, ok := update.Val.Value.(*gnmipb.TypedValue_UintVal); ok {
+					if totalRxPkts == 0 {
+						return v.UintVal == 0
+					}
+					diff := float64(totalRxPkts) - float64(v.UintVal)
+					if diff < 0 {
+						diff = -diff
+					}
+					if diff*100/float64(totalRxPkts) <= tolerancePct {
+						return true
 					}
 				}
 			}
 		}
-	default:
-		t.Fatalf("Unsupported vendor for next-hop-group counters: %v", dut.Vendor())
 	}
 	return false
 }
