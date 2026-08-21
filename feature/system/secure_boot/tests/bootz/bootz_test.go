@@ -277,10 +277,14 @@ type statusTracker struct {
 	bootstrapRequests int
 	reports           []*bootzpb.ReportStatusRequest
 	checksum          string
+	notify            chan struct{}
 }
 
 func newStatusTracker(controlCards []string) *statusTracker {
-	return &statusTracker{ccSerial: append([]string(nil), controlCards...)}
+	return &statusTracker{
+		ccSerial: append([]string(nil), controlCards...),
+		notify:   make(chan struct{}),
+	}
 }
 
 func (s *statusTracker) interceptor() grpc.UnaryServerInterceptor {
@@ -294,21 +298,27 @@ func (s *statusTracker) interceptor() grpc.UnaryServerInterceptor {
 		defer s.mu.Unlock()
 		switch r := req.(type) {
 		case *bootzpb.GetBootstrapDataRequest:
-			_ = r
 			s.bootstrapRequests++
 			if br, ok := resp.(*bootzpb.GetBootstrapDataResponse); ok {
 				serialized := br.GetSerializedBootstrapData()
-				if len(serialized) == 0 {
-					return resp, nil
+				if len(serialized) > 0 {
+					sum := sha256.Sum256(serialized)
+					s.checksum = fmt.Sprintf("%x", sum[:])
 				}
-				sum := sha256.Sum256(serialized)
-				s.checksum = fmt.Sprintf("%x", sum[:])
 			}
+			s.signalLocked()
 		case *bootzpb.ReportStatusRequest:
 			s.reports = append(s.reports, proto.Clone(r).(*bootzpb.ReportStatusRequest))
+			s.signalLocked()
 		}
 		return resp, nil
 	}
+}
+
+// signalLocked wakes all current waiters. The caller must hold s.mu.
+func (s *statusTracker) signalLocked() {
+	close(s.notify)
+	s.notify = make(chan struct{})
 }
 
 func (s *statusTracker) bootstrapDataChecksum() string {
@@ -358,17 +368,29 @@ func (s *statusTracker) awaitControlCardStatus(t *testing.T, want bootzpb.Contro
 
 func (s *statusTracker) await(t *testing.T, timeout time.Duration, desc string, ok func() bool) {
 	t.Helper()
-	deadline := time.Now().Add(timeout)
-	for time.Now().Before(deadline) {
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	for {
 		s.mu.Lock()
 		done := ok()
+		notify := s.notify
 		s.mu.Unlock()
 		if done {
 			return
 		}
-		time.Sleep(10 * time.Second)
+		select {
+		case <-notify:
+		case <-timer.C:
+			s.mu.Lock()
+			if ok() {
+				s.mu.Unlock()
+				return
+			}
+			reports := append([]*bootzpb.ReportStatusRequest(nil), s.reports...)
+			s.mu.Unlock()
+			t.Fatalf("timed out waiting for %s; observed reports: %v", desc, reports)
+		}
 	}
-	t.Fatalf("timed out waiting for %s; observed reports: %v", desc, s.reports)
 }
 
 func initiateBootz(t *testing.T, dut *ondatra.DUTDevice) {
