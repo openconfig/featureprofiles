@@ -154,7 +154,9 @@ func runPostSSOVerification(t *testing.T, dut *ondatra.DUTDevice, criticalProcs 
 	}
 
 	for min := 2; min <= 10; min += 2 {
-		time.Sleep(2 * time.Minute)
+		gnmi.Watch(t, dut, gnmi.OC().System().State(), 2*time.Minute, func(val *ygnmi.Value[*oc.System]) bool {
+			return false
+		}).Await(t)
 		t.Logf("Verifying process and device health at %d minutes mark...", min)
 
 		infos, err := system.GetProcessInfo(t, dut, criticalProcs)
@@ -284,7 +286,7 @@ func TestSSOSoftwareStability(t *testing.T) {
 	// Create PERMIT-ALL routing policy
 	rp := bs.DUTConf.GetOrCreateRoutingPolicy()
 	pdef := rp.GetOrCreatePolicyDefinition(rplPermitAll)
-	stmt, err := pdef.AppendNewStatement("20")
+	stmt, err := pdef.AppendNewStatement("sso-permit-all-20")
 	if err != nil {
 		t.Fatalf("Failed to create routing policy statement: %v", err)
 	}
@@ -304,14 +306,26 @@ func TestSSOSoftwareStability(t *testing.T) {
 			nbr.PeerAs = ygot.Uint32(65002)
 		}
 		nbr.Enabled = ygot.Bool(true)
-		nbr.SendCommunityType = []oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_NONE}
-
-		nbrPolicy := nbr.GetOrCreateApplyPolicy()
-		nbrPolicy.SetExportPolicy([]string{rplPermitAll})
-		nbrPolicy.SetImportPolicy([]string{rplPermitAll})
 
 		nAfiSafi := nbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 		nAfiSafi.Enabled = ygot.Bool(true)
+
+		// Apply route policy to the neighbor.
+		// Note: Some vendors (like Cisco) do not support applying route policies directly
+		// under the BGP neighbor node. For those devices (handled by the RoutePolicyUnderAFIUnsupported deviation),
+		// the policy must be applied under the specific AFI/SAFI node instead.
+		if deviations.RoutePolicyUnderAFIUnsupported(dut) {
+			nbrPolicy := nbr.GetOrCreateApplyPolicy()
+			nbrPolicy.SetExportPolicy([]string{rplPermitAll})
+			nbrPolicy.SetImportPolicy([]string{rplPermitAll})
+		}
+
+		// Apply the route policy under AFI/SAFI for devices that require it (e.g., Cisco).
+		if !deviations.RoutePolicyUnderAFIUnsupported(dut) {
+			nbrPolicy := nAfiSafi.GetOrCreateApplyPolicy()
+			nbrPolicy.SetExportPolicy([]string{rplPermitAll})
+			nbrPolicy.SetImportPolicy([]string{rplPermitAll})
+		}
 	}
 
 	// 4. Configure QoS egress queue management profiles and map to all output ports
@@ -411,8 +425,9 @@ func TestSSOSoftwareStability(t *testing.T) {
 	t.Log("Wait for ARP resolution on OTG")
 	otgutils.WaitForARP(t, bs.ATE.OTG(), bs.ATETop, "IPv4")
 
+	// SYS-6.1.1 - Extended Post-SSO Traffic and Process Health Soak Test
 	// Step 1 - Start Background Traffic and Record Process State
-	t.Log("Step 1 - Initiating continuously background traffic")
+	t.Log("Step 1 - Start Background Traffic and Record Process State")
 	bs.ATE.OTG().StartTraffic(t)
 
 	// Wait for BGP traffic to stabilize instead of a pure sleep.
@@ -459,18 +474,18 @@ func TestSSOSoftwareStability(t *testing.T) {
 		t.Skipf("Skip test, not enough controller cards for switchover on %v: got %d, want >= 2", dut.Model(), len(controllerCards))
 	}
 
-	// Step 2 - Trigger Supervisor Switchover (First Switchover & Soak)
-	t.Log("Step 2 - Executing first supervisor switchover and validating 10m soak...")
+	// Step 2 - Trigger Supervisor Switchover
+	t.Log("Step 2 - Trigger Supervisor Switchover")
 	performSwitchover(t, dut, controllerCards)
 	runPostSSOVerification(t, dut, criticalProcs, qosBaselines, qosPorts, qosQueues, controllerCards)
 
-	// Step 3 - Soak Phase (Second Switchover & Soak)
-	t.Log("Step 3 - Executing second supervisor switchover and validating 10m soak...")
+	// Step 3 - Soak Phase
+	t.Log("Step 3 - Soak Phase")
 	performSwitchover(t, dut, controllerCards)
 	runPostSSOVerification(t, dut, criticalProcs, qosBaselines, qosPorts, qosQueues, controllerCards)
 
 	// Step 4 - Validation with pass/fail criteria
-	t.Log("Step 4 - Final validations and metric gathering...")
+	t.Log("Step 4 - Validation with pass/fail criteria")
 	t.Log("Stopping traffic...")
 	bs.ATE.OTG().StopTraffic(t)
 
