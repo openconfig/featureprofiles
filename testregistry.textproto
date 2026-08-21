@@ -66,6 +66,7 @@ test: {
   id: "ACCTZ-9.1"
   description: "gNSI.acctz.v1 (Accounting) Test Accounting Privilege Escalation"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/acctz/tests/AccountingPrivEscalation/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/acctz/tests/AccountingPrivEscalation/accounting_priv_escalation_test.go"
 }
 test: {
   id: "ACL-1.1"
@@ -787,6 +788,7 @@ test: {
   id: "RT-1.103"
   description: "DUT iBGP passive listener FNT with common router id"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_dynamic_neighbors/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_dynamic_neighbors/bgp_dynamic_neighbors_test.go"
 }
 test: {
   id: "RT-1.106"
@@ -1140,6 +1142,7 @@ test: {
   id: "RT-3.52"
   description: "Multidimensional test for Static GUE Encap/Decap based on BGP path selection and selective DSCP marking"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/encapsulation/otg_tests/staticgueencap_and_bgp_path_selection/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/encapsulation/otg_tests/staticgueencap_and_bgp_path_selection/staticgueencap_and_bgp_path_selection_test.go"
 }
 test: {
   id: "RT-3.53"
@@ -1535,6 +1538,12 @@ test: {
   description: "gRIBI Scaling - all scenarios but with minimal scaling parameters"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/gribi_full_scale/otg_tests/gribi_full_scale_down/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/gribi_full_scale/otg_tests/gribi_full_scale_down/gribi_full_scale_down_test.go"
+}
+test: {
+  id: "TE-14.7"
+  description: "gRIBI Scaling - full scale setup, target T3"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/gribi_full_scale/otg_tests/gribi_full_scale_t3/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/gribi_full_scale/otg_tests/gribi_full_scale_t3/gribi_full_scale_t3_test.go"
 }
 test: {
   id: "TE-15.1"
@@ -1951,6 +1960,7 @@ test: {
   id: "enrollz-1"
   description: "enrollz test for TPM 2.0 HMAC-based Enrollment flow"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/attestz/tests/enrollz_tpm20_hmac/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/attestz/tests/enrollz_tpm20_hmac/enrollz_tpm20_hmac_test.go"
 }
 test: {
   id: "enrollz-2"

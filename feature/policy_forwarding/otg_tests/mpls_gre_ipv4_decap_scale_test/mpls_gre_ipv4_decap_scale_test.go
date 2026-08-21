@@ -15,6 +15,7 @@ import (
 	otgconfighelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers"
 	otgvalidationhelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_validation_helpers"
 	"github.com/openconfig/featureprofiles/internal/otg_helpers/packetvalidationhelpers"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -542,7 +543,6 @@ func TestMPLSOGREDecapScale(t *testing.T) {
 		name                    string
 		outerFlow               *otgconfighelpers.Flow
 		innerFlow               *otgconfighelpers.Flow
-		flowValidator           func(*testing.T, *ondatra.ATEDevice) error
 		ecmpValidator           func(*testing.T, *ondatra.ATEDevice) error
 		validatePayloadPreserve bool
 		validationConfig        *packetvalidationhelpers.PacketValidation
@@ -551,21 +551,18 @@ func TestMPLSOGREDecapScale(t *testing.T) {
 			name:          "IPv4 Traffic Scale",
 			outerFlow:     flowOuterIPv4,
 			innerFlow:     flowInnerIPv4,
-			flowValidator: flowOuterIPv4Validation.ValidateLossOnFlows,
 			ecmpValidator: lagECMPValidation.ValidateECMPonLAG,
 		},
 		{
 			name:          "IPv6 Traffic Scale",
 			outerFlow:     flowOuterIPv6,
 			innerFlow:     flowInnerIPv6,
-			flowValidator: flowOuterIPv6Validation.ValidateLossOnFlows,
 			ecmpValidator: lagECMPValidationV6.ValidateECMPonLAG,
 		},
 		{
 			name:                    "IPv4 Payload Preserve",
 			outerFlow:               flowOuterIPv4,
 			innerFlow:               flowInnerIPv4,
-			flowValidator:           flowOuterIPv4Validation.ValidateLossOnFlows,
 			validatePayloadPreserve: true,
 			validationConfig:        decapValidationIPv4,
 		},
@@ -573,7 +570,6 @@ func TestMPLSOGREDecapScale(t *testing.T) {
 			name:                    "IPv6 Payload Preserve",
 			outerFlow:               flowOuterIPv6,
 			innerFlow:               flowInnerIPv6,
-			flowValidator:           flowOuterIPv6Validation.ValidateLossOnFlows,
 			validatePayloadPreserve: true,
 			validationConfig:        decapValidationIPv6,
 		},
@@ -594,9 +590,7 @@ func TestMPLSOGREDecapScale(t *testing.T) {
 				sendTraffic(t, ate)
 			}
 
-			if err := tc.flowValidator(t, ate); err != nil {
-				t.Errorf("validateLossOnFlows(): got err: %q, want nil", err)
-			}
+			otgutils.ExpectedTrafficLoss(t, ate.OTG(), tc.outerFlow.FlowName, 0, 0.5)
 
 			if tc.ecmpValidator != nil {
 				if err := tc.ecmpValidator(t, ate); err != nil {
