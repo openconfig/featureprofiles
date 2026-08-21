@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/helpers"
@@ -84,18 +85,13 @@ func NewStaticRouteCfg(batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUT
 		if deviations.StaticRouteToNHGOCUnsupported(d) {
 			switch d.Vendor() {
 			case ondatra.ARISTA:
-				if cfg.RemoveStaticRoute {
-					helpers.GnmiCLIConfig(cfg.T, d, fmt.Sprintf(`no ipv6 route %s nexthop-group %s`, cfg.Prefix, cfg.NexthopGroupName))
-				} else {
-					cli := fmt.Sprintf(`ipv6 route %s nexthop-group %s`, cfg.Prefix, cfg.NexthopGroupName)
-					helpers.GnmiCLIConfig(cfg.T, d, cli)
-					staticRouteToNextHopGroupCLI(cfg.T, d, *cfg)
-					cliConfigured = true
-				}
+				cli := fmt.Sprintf(`ipv6 route %s nexthop-group %s`, cfg.Prefix, cfg.NexthopGroupName)
+				helpers.GnmiCLIConfig(cfg.T, d, cli)
+				staticRouteToNextHopGroupCLI(cfg.T, d, *cfg)
+				cliConfigured = true
 			default:
 				return s, fmt.Errorf("deviation StaticRouteToNHGOCUnsupported is not handled for the dut: %s", d.Vendor())
 			}
-			return s, nil
 		} else {
 			nhg := s.GetOrCreateNextHopGroup()
 			nhg.SetName(cfg.NexthopGroupName)
@@ -224,7 +220,6 @@ func NewStaticVRFRoute(t *testing.T, batch *gnmi.SetBatch, cfg *StaticVRFRouteCf
 	sp := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(d))
 	gnmi.BatchUpdate(batch, sp.Config(), c)
 	gnmi.BatchReplace(batch, sp.Static(cfg.Prefix).Config(), s)
-
 	return s, nil
 }
 
@@ -241,186 +236,6 @@ func ConfigureStaticRoute(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetB
 
 	if _, err := NewStaticRouteCfg(batch, staticRoute, dut); err != nil {
 		t.Fatalf("Failed to configure static route %s: %v", cfg.Prefix, err)
-	}
-}
-
-// ConfigureStaticRoutesInVRF configures static routes via OpenConfig for named-VRF routes
-// without egress-vrf, and via CLI for egress-vrf or default-VRF routes (Arista).
-func ConfigureStaticRoutesInVRF(t *testing.T, dut *ondatra.DUTDevice, routes []*StaticRouteCfg) {
-	t.Helper()
-
-	// Group named-VRF routes without NextNetworkInstance for OC configuration.
-	ocRoutesByVRF := make(map[string][]*StaticRouteCfg)
-	for _, r := range routes {
-		if r.NextNetworkInstance == "" && r.NetworkInstance != "" {
-			ocRoutesByVRF[r.NetworkInstance] = append(ocRoutesByVRF[r.NetworkInstance], r)
-		}
-	}
-
-	// Configure named-VRF plain next-hop routes via OpenConfig.
-	for vrfName, vrfRoutes := range ocRoutesByVRF {
-		proto := &oc.NetworkInstance_Protocol{
-			Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
-			Name:       ygot.String(deviations.StaticProtocolName(dut)),
-		}
-		for _, r := range vrfRoutes {
-			sr := proto.GetOrCreateStatic(r.Prefix)
-			sr.Prefix = ygot.String(r.Prefix)
-			if r.NextHops != nil {
-				for idx, nhVal := range r.NextHops {
-					nh := sr.GetOrCreateNextHop(idx)
-					nh.Index = ygot.String(idx)
-					nh.NextHop = nhVal
-				}
-			} else if r.NextHopAddr != "" {
-				nh := sr.GetOrCreateNextHop("0")
-				nh.Index = ygot.String("0")
-				nh.NextHop = oc.UnionString(r.NextHopAddr)
-			}
-		}
-		sp := gnmi.OC().NetworkInstance(vrfName).Protocol(
-			oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-		gnmi.Update(t, dut, sp.Config(), proto)
-	}
-
-	if deviations.StaticRouteInVrfOcUnsupported(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			// Configure egress-vrf/default-VRF routes via CLI, batched into a single
-			// gNMI CLI Set to avoid one Set per route (expensive at scale).
-			var cliLines []string
-			for _, r := range routes {
-				if r.NextNetworkInstance == "" && r.NetworkInstance != "" {
-					continue // already handled via OC above
-				}
-				nextHop := r.NextHopAddr
-				if nextHop == "" && len(r.NextHops) > 0 {
-					for _, v := range r.NextHops {
-						if str, ok := v.(oc.UnionString); ok {
-							nextHop = string(str)
-							break
-						}
-					}
-				}
-				ipType := "ip"
-				for _, ch := range r.Prefix {
-					if ch == ':' {
-						ipType = "ipv6"
-						break
-					}
-				}
-				var cli string
-				switch {
-				case r.NextNetworkInstance != "" && r.NetworkInstance != "":
-					cli = fmt.Sprintf("%s route vrf %s %s egress-vrf %s %s",
-						ipType, r.NetworkInstance, r.Prefix, r.NextNetworkInstance, nextHop)
-				case r.NextNetworkInstance == "" && r.NetworkInstance == "":
-					// Default VRF, plain next-hop — no vrf qualifier.
-					cli = fmt.Sprintf("%s route %s %s", ipType, r.Prefix, nextHop)
-				default:
-					// NextNetworkInstance set but NetworkInstance is empty (edge case: egress from default VRF).
-					cli = fmt.Sprintf("%s route %s egress-vrf %s %s",
-						ipType, r.Prefix, r.NextNetworkInstance, nextHop)
-				}
-				cliLines = append(cliLines, cli)
-			}
-			if len(cliLines) > 0 {
-				helpers.GnmiCLIConfig(t, dut, strings.Join(cliLines, "\n"))
-			}
-		}
-	} else {
-		// Configure via OC: routes with NextNetworkInstance or in the default VRF.
-		for _, r := range routes {
-			if r.NextNetworkInstance == "" && r.NetworkInstance != "" {
-				continue // already handled via OC above
-			}
-			vrfName := r.NetworkInstance
-			if vrfName == "" {
-				vrfName = deviations.DefaultNetworkInstance(dut)
-			}
-			proto := &oc.NetworkInstance_Protocol{
-				Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
-				Name:       ygot.String(deviations.StaticProtocolName(dut)),
-			}
-			sr := proto.GetOrCreateStatic(r.Prefix)
-			sr.Prefix = ygot.String(r.Prefix)
-			if r.NextHops != nil {
-				for idx, v := range r.NextHops {
-					nh := sr.GetOrCreateNextHop(idx)
-					nh.Index = ygot.String(idx)
-					nh.NextHop = v
-					if r.NextNetworkInstance != "" {
-						nh.NextNetworkInstance = ygot.String(r.NextNetworkInstance)
-					}
-				}
-			} else {
-				nh := sr.GetOrCreateNextHop("0")
-				nh.Index = ygot.String("0")
-				nh.NextHop = oc.UnionString(r.NextHopAddr)
-				if r.NextNetworkInstance != "" {
-					nh.NextNetworkInstance = ygot.String(r.NextNetworkInstance)
-				}
-			}
-			sp := gnmi.OC().NetworkInstance(vrfName).Protocol(
-				oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-			gnmi.Update(t, dut, sp.Config(), proto)
-		}
-	}
-}
-
-// RemoveStaticRoutesInVRF removes the given static routes; it mirrors
-// ConfigureStaticRoutesInVRF, emitting "no" CLI on Arista and OC deletes elsewhere.
-func RemoveStaticRoutesInVRF(t *testing.T, dut *ondatra.DUTDevice, routes []*StaticRouteCfg) {
-	t.Helper()
-
-	if deviations.StaticRouteInVrfOcUnsupported(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			var cliLines []string
-			for _, r := range routes {
-				nextHop := r.NextHopAddr
-				if nextHop == "" && len(r.NextHops) > 0 {
-					for _, v := range r.NextHops {
-						if str, ok := v.(oc.UnionString); ok {
-							nextHop = string(str)
-							break
-						}
-					}
-				}
-				ipType := "ip"
-				if strings.Contains(r.Prefix, ":") {
-					ipType = "ipv6"
-				}
-				var cli string
-				switch {
-				case r.NextNetworkInstance != "" && r.NetworkInstance != "":
-					cli = fmt.Sprintf("%s route vrf %s %s egress-vrf %s %s",
-						ipType, r.NetworkInstance, r.Prefix, r.NextNetworkInstance, nextHop)
-				case r.NextNetworkInstance == "" && r.NetworkInstance == "":
-					cli = fmt.Sprintf("%s route %s %s", ipType, r.Prefix, nextHop)
-				case r.NextNetworkInstance == "" && r.NetworkInstance != "":
-					cli = fmt.Sprintf("%s route vrf %s %s %s", ipType, r.NetworkInstance, r.Prefix, nextHop)
-				default:
-					cli = fmt.Sprintf("%s route %s egress-vrf %s %s",
-						ipType, r.Prefix, r.NextNetworkInstance, nextHop)
-				}
-				cliLines = append(cliLines, "no "+cli)
-			}
-			if len(cliLines) > 0 {
-				helpers.GnmiCLIConfig(t, dut, strings.Join(cliLines, "\n"))
-			}
-		}
-		return
-	}
-
-	for _, r := range routes {
-		vrfName := r.NetworkInstance
-		if vrfName == "" {
-			vrfName = deviations.DefaultNetworkInstance(dut)
-		}
-		sp := gnmi.OC().NetworkInstance(vrfName).Protocol(
-			oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-		gnmi.Delete(t, dut, sp.Static(r.Prefix).Config())
 	}
 }
 
@@ -441,8 +256,21 @@ func DeleteStaticRouteNextHopLeaves(t *testing.T, dut *ondatra.DUTDevice, netIns
 		case "recurse":
 			gnmi.BatchDelete(b, nh.Recurse().Config())
 		default:
-			t.Errorf("Unsupported leaf to delete: %s", leaf)
+			t.Fatalf("Unsupported leaf to delete: %s", leaf)
 		}
+	}
+	b.Set(t, dut)
+}
+
+// DeleteStaticRouteNextHops deletes specific next hops from a static route.
+func DeleteStaticRouteNextHops(t *testing.T, dut *ondatra.DUTDevice, netInst string, prefix string, indexes ...string) {
+	t.Helper()
+	ni := normalizeNIName(netInst, dut)
+	sp := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+
+	b := &gnmi.SetBatch{}
+	for _, index := range indexes {
+		gnmi.BatchDelete(b, sp.Static(prefix).NextHop(index).Config())
 	}
 	b.Set(t, dut)
 }
@@ -454,9 +282,6 @@ func ValidateStaticRouteNextHopIndex(t *testing.T, dut *ondatra.DUTDevice, netIn
 	sp := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
 
 	gotStatic := gnmi.Get(t, dut, sp.Static(prefix).State())
-	if gotStatic == nil {
-		t.Fatalf("ValidateStaticRouteNextHopIndex: static route for prefix %s not found", prefix)
-	}
 
 	if got, want := len(gotStatic.NextHop), len(expectedNh); got != want {
 		t.Errorf("ValidateStaticRouteNextHopIndex: got %d nexthops, want %d", got, want)
@@ -470,6 +295,46 @@ func ValidateStaticRouteNextHopIndex(t *testing.T, dut *ondatra.DUTDevice, netIn
 		}
 		if got, want := nh.GetNextHop(), oc.UnionString(expectedAddr); got != want {
 			t.Errorf("ValidateStaticRouteNextHopIndex: index %s got next hop %s, want %s", index, got, want)
+		}
+	}
+}
+
+// ConfigureStaticRoute installs a static route into the default NI.
+func ConfigureStaticRoute(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, cfg ConfigureStaticRouteParams) {
+	t.Helper()
+	staticRoute := &StaticRouteCfg{
+		NetworkInstance: cfg.NetworkInstance,
+		Prefix:          cfg.Prefix,
+		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+			cfg.Index: oc.UnionString(cfg.NextHop),
+		},
+	}
+
+	if _, err := NewStaticRouteCfg(batch, staticRoute, dut); err != nil {
+		t.Fatalf("Failed to configure static route %s: %v", cfg.Prefix, err)
+	}
+}
+
+// ValidateStaticRouteConfigured validates both the routes are configured and reported correctly.
+func ValidateStaticRouteConfigured(t *testing.T, dut *ondatra.DUTDevice, netInst string, prefix string, sV4 *StaticRouteCfg) {
+	t.Helper()
+	sp := gnmi.OC().NetworkInstance(netInst).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+	gnmi.Await(t, dut, sp.Static(prefix).Prefix().State(), 120*time.Second, prefix)
+
+	if deviations.SkipStaticNexthopCheck(dut) {
+		nexthops := gnmi.LookupAll(t, dut, sp.Static(prefix).NextHopAny().NextHop().State())
+		if got, want := len(nexthops), len(sV4.NextHops); got != want {
+			t.Errorf("Static route next hop count - %s: got: %v, want: %v", prefix, got, want)
+		}
+	} else {
+		// Validate both the routes i.e. ipv4-route-[a|b] are configured and reported
+		// correctly
+		gotStatic := gnmi.Get(t, dut, sp.Static(prefix).State())
+		t.Logf("Static route %s: got: %v, want: %v", prefix, len(gotStatic.NextHop), len(sV4.NextHops))
+		for index, nextHop := range gotStatic.NextHop {
+			if got, want := nextHop.GetNextHop(), sV4.NextHops[index]; got != want {
+				t.Errorf("Static route %s: got: %v, want: %v", prefix, got, want)
+			}
 		}
 	}
 }
