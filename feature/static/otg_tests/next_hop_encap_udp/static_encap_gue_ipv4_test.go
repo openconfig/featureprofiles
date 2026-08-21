@@ -510,7 +510,6 @@ func mustProcessCapture(t *testing.T, otg *otg.OTG, port string) string {
 }
 
 func validatePackets(t *testing.T, filename string, protocolType string, outertos, innertos string, outerttl, innerttl uint8, outerPacket bool) {
-	var packetCount uint32 = 0
 
 	handle, err := pcap.OpenOffline(filename)
 	if err != nil {
@@ -524,7 +523,6 @@ func validatePackets(t *testing.T, filename string, protocolType string, outerto
 		if ipLayer == nil {
 			continue
 		}
-		packetCount += 1
 		ipOuterLayer, ok := ipLayer.(*layers.IPv6)
 		if !ok || ipOuterLayer == nil {
 			t.Errorf("outer IP layer not found %d", ipLayer)
