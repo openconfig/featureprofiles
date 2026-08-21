@@ -21,6 +21,7 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
@@ -51,6 +52,7 @@ const (
 	ethernetCsmacd   = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	decapFlowSrc     = "198.51.100.111"
 	dscpEncapA1      = 10
+	lossTolerance    = 1.0
 )
 
 // testArgs holds the objects needed by a test case.
@@ -329,6 +331,14 @@ func (a *testArgs) testIPv4BackUpSwitch(t *testing.T) {
 	a.client.AddEntries(t, []fluent.GRIBIEntry{nh4, nhg2}, []*client.OpResult{op6, op7})
 	a.client.AddIPv4(t, dstPfx, nhgid2, vrf2, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
 
+	// Validate programming using cfgplugins.VerifyRoutes and AFT check
+	cfgplugins.VerifyRoutes(t, a.dut, map[string]cfgplugins.RouteInfo{
+		dstPfx: {VRF: vrf1, IPType: cfgplugins.IPv4, DefaultName: deviations.DefaultNetworkInstance(a.dut)},
+	})
+	cfgplugins.VerifyRoutes(t, a.dut, map[string]cfgplugins.RouteInfo{
+		dstPfx: {VRF: vrf2, IPType: cfgplugins.IPv4, DefaultName: deviations.DefaultNetworkInstance(a.dut)},
+	})
+
 	// validate programming using AFT
 	// TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
 	a.aftCheck(t, dstPfx, vrf2)
@@ -416,6 +426,8 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow string, outPorts []*o
 	otgutils.LogPortMetrics(t, a.ate.OTG(), a.top)
 	otgutils.LogFlowMetrics(t, a.ate.OTG(), a.top)
 
+	otgutils.ExpectedTrafficLoss(t, a.ate.OTG(), flow, 0, lossTolerance)
+
 	// Get send and receive traffic
 	flowMetrics := gnmi.Get(t, a.ate.OTG(), gnmi.OTG().Flow(flow).State())
 	sentPkts := uint64(flowMetrics.GetCounters().GetOutPkts())
@@ -425,7 +437,7 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow string, outPorts []*o
 		t.Fatalf("Tx packets should be higher than 0")
 	}
 
-	// Check if traffic restores with in expected time in milliseconds during interface shut
+	// Check if traffic restores within expected time in milliseconds during interface shut
 	// else if there is no interface trigger, validate received packets (control+data) are more than send packets
 	t.Logf("Sent Packets: %v, Received packets: %v", sentPkts, receivedPkts)
 	diff := pktDiff(sentPkts, receivedPkts)
@@ -437,7 +449,7 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow string, outPorts []*o
 		}
 		t.Logf("Traffic loss during path change : %v msecs", fpm)
 	} else if diff > pktDropTolerance {
-		t.Error("Traffic didn't switch to the expected outgoing port")
+		t.Errorf("Traffic loss %v packets exceeded tolerance %v packets", diff, pktDropTolerance)
 	}
 }
 
