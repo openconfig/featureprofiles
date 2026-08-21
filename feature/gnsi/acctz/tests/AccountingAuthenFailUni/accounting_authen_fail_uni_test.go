@@ -77,15 +77,15 @@ const (
 )
 
 var (
-	serviceTable  []serviceEntry
-	scenarioTable = []scenarioEntry{
+	serviceTable  []*serviceEntry
+	scenarioTable = []*scenarioEntry{
 		{name: "empty-user-correct-pass", user: "", pass: successPassword, certFailure: false},
 		{name: "unknown-user-correct-pass", user: unconfiguredUser, pass: successPassword, certFailure: false},
 		{name: "success-user-empty-pass", user: acctzlib.SuccessUsername, pass: "", certFailure: false},
 		{name: "success-user-wrong-pass", user: acctzlib.SuccessUsername, pass: wrongPassword, certFailure: false},
 		{name: "success-user-wrong-cert", user: acctzlib.SuccessUsername, pass: successPassword, certFailure: true},
 	}
-	cliScenarioTable = []scenarioEntry{
+	cliScenarioTable = []*scenarioEntry{
 		{name: "empty-user-correct-pass", user: "", pass: successPassword, certFailure: false},
 		{name: "unknown-user-correct-pass", user: unconfiguredUser, pass: successPassword, certFailure: false},
 		{name: "success-user-empty-pass", user: acctzlib.SuccessUsername, pass: "", certFailure: false},
@@ -99,7 +99,7 @@ type serviceEntry struct {
 	name    string
 	target  string // host:port resolved from the binding file at runtime
 	svcType acctzpb.GrpcService_GrpcServiceType
-	rpcFn   func(*testing.T, rpcConfig) error
+	rpcFn   func(*testing.T, *rpcConfig) error
 }
 
 // scenarioEntry describes one credential-failure scenario.
@@ -142,7 +142,7 @@ type dialConfig struct {
 	wrongCert   tls.Certificate
 	wrongSSHKey ssh.Signer
 	svcType     acctzpb.GrpcService_GrpcServiceType
-	rpcFn       func(*testing.T, rpcConfig) error
+	rpcFn       func(*testing.T, *rpcConfig) error
 }
 
 // RecordReceiver is satisfied by any gRPC streaming client that can Recv accounting records.
@@ -164,7 +164,7 @@ type credentialer interface {
 
 // subtestConfig holds the parameters for a runVerifySubtest call.
 type subtestConfig struct {
-	res        dialResult
+	res        *dialResult
 	gotRecords []*acctzpb.RecordResponse
 	usedRecord []bool
 	t0         time.Time
@@ -172,20 +172,20 @@ type subtestConfig struct {
 
 // dialResult captures the outcome of one dialAndFail attempt.
 type dialResult struct {
-	rec  connRecord
+	rec  *connRecord
 	skip bool
 }
 
 // matchRecordConfig holds the parameters for a matchRecord call.
 type matchRecordConfig struct {
 	resp *acctzpb.RecordResponse
-	conn connRecord
+	conn *connRecord
 }
 
 // verifyRecordConfig holds the parameters for a verifyAuthenFailRecord call.
 type verifyRecordConfig struct {
 	resp *acctzpb.RecordResponse
-	conn connRecord
+	conn *connRecord
 	t0   time.Time
 }
 
@@ -197,12 +197,12 @@ type deviceRecordsConfig struct {
 }
 
 // buildServiceTable builds the gRPC service table using service targets from the DUT binding.
-func buildServiceTable(t *testing.T, dut *ondatra.DUTDevice) []serviceEntry {
+func buildServiceTable(t *testing.T, dut *ondatra.DUTDevice) []*serviceEntry {
 	t.Helper()
 	gnmiTarget := introspect.DUTDialer(t, dut, introspect.GNMI).DialTarget
 	gribiTarget := introspect.DUTDialer(t, dut, introspect.GRIBI).DialTarget
 	p4rtTarget := introspect.DUTDialer(t, dut, introspect.P4RT).DialTarget
-	return []serviceEntry{
+	return []*serviceEntry{
 		{name: "gnmi", target: gnmiTarget, svcType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GNMI, rpcFn: rpcGNMI},
 		{name: "gnoi", target: gnmiTarget, svcType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GNOI, rpcFn: rpcGNOI},
 		{name: "gnsi", target: gnmiTarget, svcType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GNSI, rpcFn: rpcGNSI},
@@ -219,9 +219,9 @@ func TestMain(m *testing.M) {
 // testCase defines a service/scenario test case and its dial result.
 type testCase struct {
 	name string
-	svc  serviceEntry
-	sc   scenarioEntry
-	res  dialResult
+	svc  *serviceEntry
+	sc   *scenarioEntry
+	res  *dialResult
 }
 
 // TestAccountingAuthenFailUni validates authentication-failure accounting across
@@ -265,14 +265,14 @@ func TestAccountingAuthenFailUni(t *testing.T) {
 	for _, sc := range cliScenarioTable {
 		tests = append(tests, testCase{
 			name: cliServiceName + "/" + sc.name,
-			svc:  serviceEntry{name: cliServiceName, target: cliTarget},
+			svc:  &serviceEntry{name: cliServiceName, target: cliTarget},
 			sc:   sc,
 		})
 	}
 
 	for i := range tests {
 		if i >= cliIdx {
-			rec, ok := dialAndFailSSH(t, dialConfig{
+			rec, ok := dialAndFailSSH(t, &dialConfig{
 				target:      tests[i].svc.target,
 				username:    tests[i].sc.user,
 				password:    tests[i].sc.pass,
@@ -280,10 +280,10 @@ func TestAccountingAuthenFailUni(t *testing.T) {
 				certFailure: tests[i].sc.certFailure,
 				wrongSSHKey: wrongSSHKey,
 			})
-			tests[i].res = dialResult{rec: rec, skip: !ok}
+			tests[i].res = &dialResult{rec: rec, skip: !ok}
 			continue
 		}
-		rec, ok := dialAndFail(t, dialConfig{
+		rec, ok := dialAndFail(t, &dialConfig{
 			target:      tests[i].svc.target,
 			username:    tests[i].sc.user,
 			password:    tests[i].sc.pass,
@@ -293,7 +293,7 @@ func TestAccountingAuthenFailUni(t *testing.T) {
 			svcType:     tests[i].svc.svcType,
 			rpcFn:       tests[i].svc.rpcFn,
 		})
-		tests[i].res = dialResult{rec: rec, skip: !ok}
+		tests[i].res = &dialResult{rec: rec, skip: !ok}
 	}
 	t.Logf("completed %d per-transaction connection attempts (including %d SSH/CLI attempts)",
 		len(tests), len(tests)-cliIdx)
@@ -319,7 +319,7 @@ func TestAccountingAuthenFailUni(t *testing.T) {
 	if err != nil {
 		t.Fatalf("recordSubscribe failed: %v", err)
 	}
-	gotRecords, err = deviceRecords(deviceRecordsConfig{t: t, client: acctzSubClient, deadline: collectDeadline})
+	gotRecords, err = deviceRecords(&deviceRecordsConfig{t: t, client: acctzSubClient, deadline: collectDeadline})
 	if err != nil {
 		t.Fatalf("failed receiving accounting records: %v", err)
 	}
@@ -347,7 +347,7 @@ func TestAccountingAuthenFailUni(t *testing.T) {
 			if tc.res.skip {
 				t.Skip("dial attempt skipped (TCP/gRPC setup failed)")
 			}
-			for _, verifyErr := range runVerifySubtest(subtestConfig{
+			for _, verifyErr := range runVerifySubtest(&subtestConfig{
 				res:        tc.res,
 				gotRecords: gotRecords,
 				usedRecord: usedRecord,
@@ -360,10 +360,10 @@ func TestAccountingAuthenFailUni(t *testing.T) {
 }
 
 // runVerifySubtest matches and validates the accounting record for a test case.
-func runVerifySubtest(cfg subtestConfig) []error {
+func runVerifySubtest(cfg *subtestConfig) []error {
 	matched := (*acctzpb.RecordResponse)(nil)
 	for j, resp := range cfg.gotRecords {
-		if !cfg.usedRecord[j] && matchRecord(matchRecordConfig{resp: resp, conn: cfg.res.rec}) {
+		if !cfg.usedRecord[j] && matchRecord(&matchRecordConfig{resp: resp, conn: cfg.res.rec}) {
 			cfg.usedRecord[j] = true
 			matched = resp
 			break
@@ -377,7 +377,7 @@ func runVerifySubtest(cfg subtestConfig) []error {
 			cfg.res.rec.username, cfg.res.rec.certFailure,
 		)}
 	}
-	return verifyAuthenFailRecord(verifyRecordConfig{resp: matched, conn: cfg.res.rec, t0: cfg.t0})
+	return verifyAuthenFailRecord(&verifyRecordConfig{resp: matched, conn: cfg.res.rec, t0: cfg.t0})
 }
 
 // GetRequestMetadata returns gRPC per-RPC metadata with username and password.
@@ -392,7 +392,7 @@ func (r *rpcCredentials) GetRequestMetadata(_ context.Context, _ ...string) (map
 func (r *rpcCredentials) RequireTransportSecurity() bool { return true }
 
 // rpcGNMI executes a gNMI Capabilities RPC.
-func rpcGNMI(t *testing.T, cfg rpcConfig) error {
+func rpcGNMI(t *testing.T, cfg *rpcConfig) error {
 	t.Helper()
 	_, err := gnmipb.NewGNMIClient(cfg.conn).Capabilities(cfg.ctx, &gnmipb.CapabilityRequest{})
 	if err != nil && !cfg.failOK {
@@ -402,7 +402,7 @@ func rpcGNMI(t *testing.T, cfg rpcConfig) error {
 }
 
 // rpcGNOI executes a gNOI System.Ping RPC.
-func rpcGNOI(t *testing.T, cfg rpcConfig) error {
+func rpcGNOI(t *testing.T, cfg *rpcConfig) error {
 	t.Helper()
 	stream, err := gnoipb.NewSystemClient(cfg.conn).Ping(cfg.ctx, &gnoipb.PingRequest{
 		Destination: pingDestination,
@@ -421,7 +421,7 @@ func rpcGNOI(t *testing.T, cfg rpcConfig) error {
 }
 
 // rpcGNSI executes a gNSI Acctz.RecordSubscribe RPC.
-func rpcGNSI(t *testing.T, cfg rpcConfig) error {
+func rpcGNSI(t *testing.T, cfg *rpcConfig) error {
 	t.Helper()
 	stream, err := acctzpb.NewAcctzStreamClient(cfg.conn).RecordSubscribe(
 		cfg.ctx,
@@ -438,7 +438,7 @@ func rpcGNSI(t *testing.T, cfg rpcConfig) error {
 }
 
 // rpcGRIBI executes a gRIBI Get RPC.
-func rpcGRIBI(t *testing.T, cfg rpcConfig) error {
+func rpcGRIBI(t *testing.T, cfg *rpcConfig) error {
 	t.Helper()
 	stream, err := gribi.NewGRIBIClient(cfg.conn).Get(cfg.ctx, &gribi.GetRequest{
 		NetworkInstance: &gribi.GetRequest_All{},
@@ -455,7 +455,7 @@ func rpcGRIBI(t *testing.T, cfg rpcConfig) error {
 }
 
 // rpcP4RT executes a P4RT Capabilities RPC.
-func rpcP4RT(t *testing.T, cfg rpcConfig) error {
+func rpcP4RT(t *testing.T, cfg *rpcConfig) error {
 	t.Helper()
 	_, err := p4pb.NewP4RuntimeClient(cfg.conn).Capabilities(cfg.ctx, &p4pb.CapabilitiesRequest{})
 	if err != nil && !cfg.failOK {
@@ -465,7 +465,7 @@ func rpcP4RT(t *testing.T, cfg rpcConfig) error {
 }
 
 // mustVerifyServiceConnectivity verifies connectivity to all configured services.
-func mustVerifyServiceConnectivity(t *testing.T, dut *ondatra.DUTDevice, serviceTable []serviceEntry) {
+func mustVerifyServiceConnectivity(t *testing.T, dut *ondatra.DUTDevice, serviceTable []*serviceEntry) {
 	t.Helper()
 	username, password := dutRPCCredentials(dut)
 	for _, svc := range serviceTable {
@@ -481,7 +481,7 @@ func mustVerifyServiceConnectivity(t *testing.T, dut *ondatra.DUTDevice, service
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), dialTimeout)
 		ctx = metadata.AppendToOutgoingContext(ctx, metadataKeyUsername, username, metadataKeyPassword, password)
-		if err := svc.rpcFn(t, rpcConfig{conn: conn, ctx: ctx, failOK: false}); err != nil {
+		if err := svc.rpcFn(t, &rpcConfig{conn: conn, ctx: ctx, failOK: false}); err != nil {
 			cancel()
 			conn.Close()
 			t.Fatalf("verifyConnectivity %s: %v", svc.name, err)
@@ -493,7 +493,7 @@ func mustVerifyServiceConnectivity(t *testing.T, dut *ondatra.DUTDevice, service
 }
 
 // dialAndFail performs a failed authentication attempt and records connection metadata.
-func dialAndFail(t *testing.T, cfg dialConfig) (connRecord, bool) {
+func dialAndFail(t *testing.T, cfg *dialConfig) (*connRecord, bool) {
 	used := false
 
 	t.Helper()
@@ -504,7 +504,7 @@ func dialAndFail(t *testing.T, cfg dialConfig) (connRecord, bool) {
 	rawConn, err := (&net.Dialer{}).DialContext(tcpCtx, "tcp", cfg.target)
 	if err != nil {
 		t.Logf("TCP pre-dial %s: %v (skipping)", cfg.target, err)
-		return connRecord{}, false
+		return nil, false
 	}
 
 	localAddr, localPort := mustHostPortInfo(t, rawConn.LocalAddr().String())
@@ -531,7 +531,7 @@ func dialAndFail(t *testing.T, cfg dialConfig) (connRecord, bool) {
 	if err != nil {
 		rawConn.Close()
 		t.Logf("grpc.NewClient %s: %v (skipping)", cfg.target, err)
-		return connRecord{}, false
+		return nil, false
 	}
 	defer grpcConn.Close()
 
@@ -543,12 +543,12 @@ func dialAndFail(t *testing.T, cfg dialConfig) (connRecord, bool) {
 		ctx = metadata.AppendToOutgoingContext(ctx, metadataKeyUsername, cfg.username, metadataKeyPassword, cfg.password)
 	}
 
-	_ = cfg.rpcFn(t, rpcConfig{conn: grpcConn, ctx: ctx, failOK: true})
+	_ = cfg.rpcFn(t, &rpcConfig{conn: grpcConn, ctx: ctx, failOK: true})
 
 	t.Logf("dial attempt: testCase=%s user=%q local=%s:%d remote=%s:%d cert=%v",
 		cfg.testName, cfg.username, localAddr, localPort, remoteAddr, remotePort, cfg.certFailure)
 
-	return connRecord{
+	return &connRecord{
 		serviceType: cfg.svcType,
 		localAddr:   localAddr,
 		localPort:   localPort,
@@ -561,7 +561,7 @@ func dialAndFail(t *testing.T, cfg dialConfig) (connRecord, bool) {
 }
 
 // matchRecord returns true if resp is the DUT accounting record for conn.
-func matchRecord(cfg matchRecordConfig) bool {
+func matchRecord(cfg *matchRecordConfig) bool {
 	resp := cfg.resp
 	conn := cfg.conn
 	si := resp.GetSessionInfo()
@@ -606,11 +606,11 @@ func matchRecord(cfg matchRecordConfig) bool {
 }
 
 // deviceRecords collects accounting records from the DUT stream until deadline elapses.
-func deviceRecords(cfg deviceRecordsConfig) ([]*acctzpb.RecordResponse, error) {
+func deviceRecords(cfg *deviceRecordsConfig) ([]*acctzpb.RecordResponse, error) {
 	cfg.t.Helper()
 
 	records := ([]*acctzpb.RecordResponse)(nil)
-	rChan := make(chan struct {
+	rChan := make(chan *struct {
 		record *acctzpb.RecordResponse
 		err    error
 	})
@@ -619,7 +619,7 @@ func deviceRecords(cfg deviceRecordsConfig) ([]*acctzpb.RecordResponse, error) {
 		defer close(rChan)
 		for {
 			resp, err := cfg.client.Recv()
-			rChan <- struct {
+			rChan <- &struct {
 				record *acctzpb.RecordResponse
 				err    error
 			}{resp, err}
@@ -649,7 +649,7 @@ func deviceRecords(cfg deviceRecordsConfig) ([]*acctzpb.RecordResponse, error) {
 }
 
 // verifyAuthenFailRecord validates an authentication-failure accounting record.
-func verifyAuthenFailRecord(cfg verifyRecordConfig) []error {
+func verifyAuthenFailRecord(cfg *verifyRecordConfig) []error {
 	validationErrs := ([]error)(nil)
 	resp := cfg.resp
 	conn := cfg.conn
@@ -912,7 +912,7 @@ func mustGenerateWrongSSHKey(t *testing.T) ssh.Signer {
 
 // dialAndFailSSH performs a failed SSH authentication attempt against the DUT's
 // CLI (CommandService) access method and records connection metadata, mirroring dialAndFail's gRPC handling.
-func dialAndFailSSH(t *testing.T, cfg dialConfig) (connRecord, bool) {
+func dialAndFailSSH(t *testing.T, cfg *dialConfig) (*connRecord, bool) {
 	t.Helper()
 
 	tcpCtx, tcpCancel := context.WithTimeout(context.Background(), dialTimeout)
@@ -921,7 +921,7 @@ func dialAndFailSSH(t *testing.T, cfg dialConfig) (connRecord, bool) {
 	rawConn, err := (&net.Dialer{}).DialContext(tcpCtx, "tcp", cfg.target)
 	if err != nil {
 		t.Logf("SSH TCP pre-dial %s: %v (skipping)", cfg.target, err)
-		return connRecord{}, false
+		return nil, false
 	}
 
 	localAddr, localPort := mustHostPortInfo(t, rawConn.LocalAddr().String())
@@ -950,7 +950,7 @@ func dialAndFailSSH(t *testing.T, cfg dialConfig) (connRecord, bool) {
 	t.Logf("SSH dial attempt: testCase=%s user=%q local=%s:%d remote=%s:%d wrongKey=%v",
 		cfg.testName, cfg.username, localAddr, localPort, remoteAddr, remotePort, cfg.certFailure)
 
-	return connRecord{
+	return &connRecord{
 		cmdSvcType:  acctzpb.CommandService_CMD_SERVICE_TYPE_CLI,
 		isCLI:       true,
 		localAddr:   localAddr,
