@@ -191,6 +191,11 @@ ip route %s nexthop-group nh_test_tunnel
 
 	// For platforms supporting gRIBI Encap Headers
 	defaultVRF := deviations.DefaultNetworkInstance(dut)
+	expectedResult := fluent.InstalledInFIB
+	if deviations.GRIBIRIBAckOnly(dut) {
+		expectedResult = fluent.InstalledInRIB
+	}
+
 	nh := fluent.NextHopEntry().
 		WithNetworkInstance(defaultVRF).
 		WithIndex(tunnelNHID).
@@ -206,19 +211,19 @@ ip route %s nexthop-group nh_test_tunnel
 	op1 := fluent.OperationResult().
 		WithNextHopOperation(tunnelNHID).
 		WithOperationType(constants.Add).
-		WithProgrammingResult(fluent.InstalledInFIB).
+		WithProgrammingResult(expectedResult).
 		AsResult()
 	op2 := fluent.OperationResult().
 		WithNextHopGroupOperation(tunnelNHGID).
 		WithOperationType(constants.Add).
-		WithProgrammingResult(fluent.InstalledInFIB).
+		WithProgrammingResult(expectedResult).
 		AsResult()
 
 	c.AddEntries(t, []fluent.GRIBIEntry{nh, nhg}, []*client.OpResult{op1, op2})
-	c.AddIPv4(t, overlayPrefix, tunnelNHGID, defaultVRF, defaultVRF, fluent.InstalledInFIB)
+	c.AddIPv4(t, overlayPrefix, tunnelNHGID, defaultVRF, defaultVRF, expectedResult)
 
 	return func() {
-		c.DeleteIPv4(t, overlayPrefix, defaultVRF, fluent.InstalledInFIB)
+		c.DeleteIPv4(t, overlayPrefix, defaultVRF, expectedResult)
 		delNH := fluent.NextHopEntry().WithNetworkInstance(defaultVRF).WithIndex(tunnelNHID)
 		delNHG := fluent.NextHopGroupEntry().WithNetworkInstance(defaultVRF).WithID(tunnelNHGID)
 		c.DeleteEntries(t, []fluent.GRIBIEntry{delNHG, delNH}, []*client.OpResult{})
@@ -239,6 +244,11 @@ func programUnderlayLPM(t *testing.T, dut *ondatra.DUTDevice, c *gribi.Client, d
 	var gribiEntries []fluent.GRIBIEntry
 	var expectedResults []*client.OpResult
 	var installedPrefixes []string
+
+	expectedResult := fluent.InstalledInFIB
+	if deviations.GRIBIRIBAckOnly(dut) {
+		expectedResult = fluent.InstalledInRIB
+	}
 
 	for i := 0; i < depth; i++ {
 		nhID := uint64(10 * (i + 1))
@@ -266,12 +276,12 @@ func programUnderlayLPM(t *testing.T, dut *ondatra.DUTDevice, c *gribi.Client, d
 		opNH := fluent.OperationResult().
 			WithNextHopOperation(nhID).
 			WithOperationType(constants.Add).
-			WithProgrammingResult(fluent.InstalledInFIB).
+			WithProgrammingResult(expectedResult).
 			AsResult()
 		opNHG := fluent.OperationResult().
 			WithNextHopGroupOperation(nhgID).
 			WithOperationType(constants.Add).
-			WithProgrammingResult(fluent.InstalledInFIB).
+			WithProgrammingResult(expectedResult).
 			AsResult()
 
 		gribiEntries = append(gribiEntries, nhEntry, nhgEntry)
@@ -284,7 +294,7 @@ func programUnderlayLPM(t *testing.T, dut *ondatra.DUTDevice, c *gribi.Client, d
 	// 2. Program IPv4 route entries for each layer
 	for i, prefix := range installedPrefixes {
 		nhgID := uint64(10 * (i + 1))
-		c.AddIPv4(t, prefix, nhgID, defaultVRF, defaultVRF, fluent.InstalledInFIB)
+		c.AddIPv4(t, prefix, nhgID, defaultVRF, defaultVRF, expectedResult)
 	}
 
 	topIP := underlayIPs[depth-1]
@@ -292,7 +302,7 @@ func programUnderlayLPM(t *testing.T, dut *ondatra.DUTDevice, c *gribi.Client, d
 	cleanup := func() {
 		// Delete IPv4 routes
 		for _, prefix := range installedPrefixes {
-			c.DeleteIPv4(t, prefix, defaultVRF, fluent.InstalledInFIB)
+			c.DeleteIPv4(t, prefix, defaultVRF, expectedResult)
 		}
 		// Delete NHGs and NHs in reverse order
 		var delEntries []fluent.GRIBIEntry
@@ -320,8 +330,15 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, ex
 	otgutils.WaitForARP(t, otg, top, "IPv4")
 
 	otg.StartTraffic(t)
+	trafficStopped := false
+	defer func() {
+		if !trafficStopped {
+			otg.StopTraffic(t)
+		}
+	}()
 	time.Sleep(trafficDuration)
 	otg.StopTraffic(t)
+	trafficStopped = true
 
 	otgutils.LogFlowMetrics(t, otg, top)
 	flowMetrics := gnmi.Get(t, otg, gnmi.OTG().Flow("Flow").State())
@@ -360,7 +377,7 @@ func TestTunnelRecursionMatrix(t *testing.T) {
 	// 2. Initialize gRIBI client
 	c := gribi.Client{
 		DUT:         dut,
-		FIBACK:      true,
+		FIBACK:      !deviations.GRIBIRIBAckOnly(dut),
 		Persistence: true,
 	}
 	if err := c.Start(t); err != nil {
