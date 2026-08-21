@@ -660,15 +660,7 @@ func validateTrafficLoss(t *testing.T, otgConfig *otg.OTG, config gosnappi.Confi
 	otgutils.LogFlowMetrics(t, otgConfig, config)
 	otgutils.LogPortMetrics(t, otgConfig, config)
 
-	outPkts := float32(gnmi.Get(t, otgConfig, gnmi.OTG().Flow(flowName).Counters().OutPkts().State()))
-	inPkts := float32(gnmi.Get(t, otgConfig, gnmi.OTG().Flow(flowName).Counters().InPkts().State()))
-	t.Logf("outPkts: %v, inPkts: %v", outPkts, inPkts)
-	if outPkts == 0 {
-		t.Fatalf("OutPkts for flow %s is 0, want > 0", flowName)
-	}
-	if got := ((outPkts - inPkts) * 100) / outPkts; got > 1 {
-		t.Fatalf("LossPct for flow %s: got %v, want < 1", flowName, got)
-	}
+	otgutils.ExpectedTrafficLoss(t, otgConfig, flowName, 0, 0)
 }
 
 func processCapture(t *testing.T, otg *otg.OTG, port string) string {
