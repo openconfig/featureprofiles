@@ -355,7 +355,7 @@ func configureGueDecap(t *testing.T, dut *ondatra.DUTDevice) {
 		cfgplugins.PushPolicyForwardingConfig(t, dut, ni)
 	}
 	t.Cleanup(func() {
-		cfgplugins.RemoveDecapGroupGue(t, dut, guePolicyName)
+		cfgplugins.RemoveDecapGroupGue(t, dut, cfgplugins.OcPolicyForwardingParams{AppliedPolicyName: guePolicyName})
 	})
 }
 
