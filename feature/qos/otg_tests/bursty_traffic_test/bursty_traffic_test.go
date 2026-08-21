@@ -492,6 +492,8 @@ func TestBurstyTraffic(t *testing.T) {
 				}
 
 			}
+			ate.OTG().StopProtocols(t)
+			time.Sleep(30 * time.Second)
 		})
 	}
 }
