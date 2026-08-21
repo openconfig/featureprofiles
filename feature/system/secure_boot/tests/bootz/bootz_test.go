@@ -700,7 +700,9 @@ func doHTTPRequest(t *testing.T, desc string, build func() (*http.Request, error
 				lastErr = fmt.Sprintf("%s: %s", resp.Status, string(body))
 			}
 		}
-		time.Sleep(30 * time.Second)
+		if attempt < 10 {
+			time.Sleep(2 * time.Second)
+		}
 	}
 	t.Fatalf("%s failed after retries: %s", desc, lastErr)
 	return nil
