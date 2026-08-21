@@ -516,38 +516,7 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, conf gosnappi.Config) {
 	otg := ate.OTG()
 	defer otgutils.LogFlowMetrics(t, otg, conf)
 	for _, flow := range conf.Flows().Items() {
-		gnmi.Watch(t, otg, gnmi.OTG().Flow(flow.Name()).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
-			f, present := val.Val()
-			if !present || f.GetCounters() == nil {
-				return false
-			}
-			txPackets := f.GetCounters().GetOutPkts()
-			rxPackets := f.GetCounters().GetInPkts()
-			if txPackets == 0 {
-				return false
-			}
-			if rxPackets > txPackets {
-				return false
-			}
-			lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
-			return int(lossPct) <= int(tolerancePct)
-		}).Await(t)
-
-		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).State())
-		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
-		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
-		if txPackets == 0 {
-			t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flow.Name())
-		}
-		if rxPackets > txPackets {
-			t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", rxPackets, txPackets)
-		}
-		lossPct := (txPackets - rxPackets) * 100 / txPackets
-		if int(lossPct) > int(tolerancePct) {
-			t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want <= %d", flow.Name(), lossPct, tolerancePct)
-		} else {
-			t.Logf("Traffic Test Passed! for flow %s", flow.Name())
-		}
+		otgutils.ExpectedTrafficLoss(t, otg, flow.Name(), 0, float64(tolerancePct)+0.99)
 	}
 }
 
