@@ -821,12 +821,21 @@ func DecapPolicyRulesandActionsGre(t *testing.T, pf *oc.NetworkInstance_PolicyFo
 func DecapPolicyRulesandActionsGue(t *testing.T, pf *oc.NetworkInstance_PolicyForwarding, params OcPolicyForwardingParams) {
 	t.Helper()
 
-	pols := pf.GetOrCreatePolicy("customer10")
+	policyName := "customer10"
+	if params.AppliedPolicyName != "" {
+		policyName = params.AppliedPolicyName
+	}
+	pols := pf.GetOrCreatePolicy(policyName)
 	var ruleSeq uint32 = 10
 	var protocol uint8 = 4
 
+	dstAddr := params.InnerDstIPv4
+	if params.DecapPolicy.IPv4DestAddress != "" {
+		dstAddr = params.DecapPolicy.IPv4DestAddress
+	}
+
 	rule10 := pols.GetOrCreateRule(ruleSeq)
-	rule10.GetOrCreateIpv4().DestinationAddress = ygot.String(params.InnerDstIPv4)
+	rule10.GetOrCreateIpv4().DestinationAddress = ygot.String(dstAddr)
 	rule10.GetOrCreateIpv4().Protocol = oc.UnionUint8(protocol)
 
 	rule10.GetOrCreateAction().DecapsulateGue = ygot.Bool(true)

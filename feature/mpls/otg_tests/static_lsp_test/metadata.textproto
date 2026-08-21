@@ -15,6 +15,7 @@ platform_exceptions:  {
     static_mpls_lsp_oc_unsupported:  true
     mpls_unsupported:  true
     gue_gre_decap_unsupported:  true
+    aggregate_atomic_update:  true
   }
 }
 platform_exceptions:  {

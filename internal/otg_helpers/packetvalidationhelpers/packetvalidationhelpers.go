@@ -128,6 +128,7 @@ type IPv4Layer struct {
 	Protocol          uint32
 	DstIP             string
 	Tos               uint8
+	AllowedTOSValues  []uint8
 	TTL               uint8
 	SkipProtocolCheck bool
 }
@@ -301,6 +302,16 @@ func validateIPv4Header(t *testing.T, packetSource *gopacket.PacketSource, packe
 	t.Helper()
 	t.Log("Validating IPv4 header")
 
+	if packetVal == nil || packetVal.IPv4Layer == nil {
+		return fmt.Errorf("IPv4 validation config is missing")
+	}
+
+	expectedTOS := make(map[uint8]struct{}, len(packetVal.IPv4Layer.AllowedTOSValues))
+	for _, tos := range packetVal.IPv4Layer.AllowedTOSValues {
+		expectedTOS[tos] = struct{}{}
+	}
+
+	seenValidPacket := false
 	for packet := range packetSource.Packets() {
 		if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
 			ip, _ := ipLayer.(*layers.IPv4)
@@ -315,12 +326,24 @@ func validateIPv4Header(t *testing.T, packetSource *gopacket.PacketSource, packe
 			if ip.TTL != packetVal.IPv4Layer.TTL {
 				return fmt.Errorf("IP TTL value is altered to: %d, expected: %d", ip.TTL, packetVal.IPv4Layer.TTL)
 			}
+			if len(expectedTOS) > 0 {
+				if _, ok := expectedTOS[ip.TOS]; !ok {
+					continue
+				}
+				seenValidPacket = true
+				return nil
+			}
 			if ip.TOS != packetVal.IPv4Layer.Tos {
 				return fmt.Errorf("DSCP(TOS) value is altered to: %d, expected: %d", ip.TOS, packetVal.IPv4Layer.Tos)
 			}
-			// If validation is successful for one packet, we can return.
 			return nil
 		}
+	}
+	if seenValidPacket {
+		return nil
+	}
+	if len(expectedTOS) > 0 {
+		return fmt.Errorf("no IPv4 packets with expected TOS values %v were found", packetVal.IPv4Layer.AllowedTOSValues)
 	}
 	return fmt.Errorf("no IPv4 packets found")
 }
