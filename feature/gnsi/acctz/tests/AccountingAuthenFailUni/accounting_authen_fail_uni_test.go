@@ -46,8 +46,10 @@ import (
 	p4pb "github.com/p4lang/p4runtime/go/p4/v1"
 	"golang.org/x/crypto/ssh"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -112,9 +114,8 @@ type scenarioEntry struct {
 
 // rpcConfig holds the parameters for a single RPC helper invocation.
 type rpcConfig struct {
-	conn   *grpc.ClientConn
-	ctx    context.Context
-	failOK bool
+	conn *grpc.ClientConn
+	ctx  context.Context
 }
 
 // connRecord captures the network metadata of one completed dial attempt.
@@ -191,9 +192,8 @@ type verifyRecordConfig struct {
 
 // deviceRecordsConfig holds the parameters for a deviceRecords call.
 type deviceRecordsConfig struct {
-	t        *testing.T
-	client   RecordReceiver
-	deadline time.Duration
+	t      *testing.T
+	client RecordReceiver
 }
 
 // buildServiceTable builds the gRPC service table using service targets from the DUT binding.
@@ -228,14 +228,6 @@ type testCase struct {
 // all per-transaction gRPC services discovered from the DUT binding.
 func TestAccountingAuthenFailUni(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	acctzUsername := ""
-	acctzPassword := ""
-	acctzTarget := ""
-	acctzConn := (*grpc.ClientConn)(nil)
-	acctzSubClient := (grpc.ServerStreamingClient[acctzpb.RecordResponse])(nil)
-	gotRecords := ([]*acctzpb.RecordResponse)(nil)
-	usedRecord := ([]bool)(nil)
-	err := error(nil)
 
 	serviceTable = buildServiceTable(t, dut)
 
@@ -298,9 +290,9 @@ func TestAccountingAuthenFailUni(t *testing.T) {
 	t.Logf("completed %d per-transaction connection attempts (including %d SSH/CLI attempts)",
 		len(tests), len(tests)-cliIdx)
 
-	acctzUsername, acctzPassword = dutRPCCredentials(dut)
-	acctzTarget = serviceTable[0].target
-	acctzConn, err = grpc.NewClient(
+	acctzUsername, acctzPassword := dutRPCCredentials(dut)
+	acctzTarget := serviceTable[0].target
+	acctzConn, err := grpc.NewClient(
 		acctzTarget,
 		grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
 			InsecureSkipVerify: true, //nolint:gosec
@@ -312,14 +304,17 @@ func TestAccountingAuthenFailUni(t *testing.T) {
 	}
 	defer acctzConn.Close()
 
-	acctzSubClient, err = acctzpb.NewAcctzStreamClient(acctzConn).RecordSubscribe(
-		t.Context(),
+	subCtx, subCancel := context.WithTimeout(t.Context(), collectDeadline)
+	defer subCancel()
+
+	acctzSubClient, err := acctzpb.NewAcctzStreamClient(acctzConn).RecordSubscribe(
+		subCtx,
 		&acctzpb.RecordRequest{Timestamp: timestamppb.New(t0)},
 	)
 	if err != nil {
 		t.Fatalf("recordSubscribe failed: %v", err)
 	}
-	gotRecords, err = deviceRecords(&deviceRecordsConfig{t: t, client: acctzSubClient, deadline: collectDeadline})
+	gotRecords, err := deviceRecords(&deviceRecordsConfig{t: t, client: acctzSubClient})
 	if err != nil {
 		t.Fatalf("failed receiving accounting records: %v", err)
 	}
@@ -340,7 +335,7 @@ func TestAccountingAuthenFailUni(t *testing.T) {
 		)
 	}
 
-	usedRecord = make([]bool, len(gotRecords))
+	usedRecord := make([]bool, len(gotRecords))
 	for _, tc := range tests {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
@@ -395,10 +390,7 @@ func (r *rpcCredentials) RequireTransportSecurity() bool { return true }
 func rpcGNMI(t *testing.T, cfg *rpcConfig) error {
 	t.Helper()
 	_, err := gnmipb.NewGNMIClient(cfg.conn).Capabilities(cfg.ctx, &gnmipb.CapabilityRequest{})
-	if err != nil && !cfg.failOK {
-		return fmt.Errorf("rpcGNMI: Capabilities failed: %w", err)
-	}
-	return nil
+	return err
 }
 
 // rpcGNOI executes a gNOI System.Ping RPC.
@@ -409,15 +401,10 @@ func rpcGNOI(t *testing.T, cfg *rpcConfig) error {
 		Count:       pingCount,
 	})
 	if err != nil {
-		if !cfg.failOK {
-			return fmt.Errorf("rpcGNOI: Ping failed: %w", err)
-		}
-		return nil
+		return err
 	}
-	if _, err = stream.Recv(); err != nil && !cfg.failOK {
-		return fmt.Errorf("rpcGNOI: Ping stream Recv failed: %w", err)
-	}
-	return nil
+	_, err = stream.Recv()
+	return err
 }
 
 // rpcGNSI executes a gNSI Acctz.RecordSubscribe RPC.
@@ -425,16 +412,14 @@ func rpcGNSI(t *testing.T, cfg *rpcConfig) error {
 	t.Helper()
 	stream, err := acctzpb.NewAcctzStreamClient(cfg.conn).RecordSubscribe(
 		cfg.ctx,
-		&acctzpb.RecordRequest{Timestamp: timestamppb.New(time.Now())},
+		// Offset into the past to tolerate clock skew between the tester and DUT.
+		&acctzpb.RecordRequest{Timestamp: timestamppb.New(time.Now().Add(-t0Offset))},
 	)
 	if err != nil {
-		if !cfg.failOK {
-			return fmt.Errorf("rpcGNSI: RecordSubscribe failed: %w", err)
-		}
-		return nil
+		return err
 	}
-	_, _ = stream.Recv()
-	return nil
+	_, err = stream.Recv()
+	return err
 }
 
 // rpcGRIBI executes a gRIBI Get RPC.
@@ -445,23 +430,17 @@ func rpcGRIBI(t *testing.T, cfg *rpcConfig) error {
 		Aft:             gribi.AFTType_IPV4,
 	})
 	if err != nil {
-		if !cfg.failOK {
-			return fmt.Errorf("rpcGRIBI: Get failed: %w", err)
-		}
-		return nil
+		return err
 	}
-	_, _ = stream.Recv()
-	return nil
+	_, err = stream.Recv()
+	return err
 }
 
 // rpcP4RT executes a P4RT Capabilities RPC.
 func rpcP4RT(t *testing.T, cfg *rpcConfig) error {
 	t.Helper()
 	_, err := p4pb.NewP4RuntimeClient(cfg.conn).Capabilities(cfg.ctx, &p4pb.CapabilitiesRequest{})
-	if err != nil && !cfg.failOK {
-		return fmt.Errorf("rpcP4RT: Capabilities failed: %w", err)
-	}
-	return nil
+	return err
 }
 
 // mustVerifyServiceConnectivity verifies connectivity to all configured services.
@@ -481,7 +460,7 @@ func mustVerifyServiceConnectivity(t *testing.T, dut *ondatra.DUTDevice, service
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), dialTimeout)
 		ctx = metadata.AppendToOutgoingContext(ctx, metadataKeyUsername, username, metadataKeyPassword, password)
-		if err := svc.rpcFn(t, &rpcConfig{conn: conn, ctx: ctx, failOK: false}); err != nil {
+		if err := svc.rpcFn(t, &rpcConfig{conn: conn, ctx: ctx}); err != nil {
 			cancel()
 			conn.Close()
 			t.Fatalf("verifyConnectivity %s: %v", svc.name, err)
@@ -543,7 +522,9 @@ func dialAndFail(t *testing.T, cfg *dialConfig) (*connRecord, bool) {
 		ctx = metadata.AppendToOutgoingContext(ctx, metadataKeyUsername, cfg.username, metadataKeyPassword, cfg.password)
 	}
 
-	_ = cfg.rpcFn(t, &rpcConfig{conn: grpcConn, ctx: ctx, failOK: true})
+	if err := cfg.rpcFn(t, &rpcConfig{conn: grpcConn, ctx: ctx}); err == nil {
+		t.Fatalf("dial attempt: testCase=%s RPC unexpectedly succeeded", cfg.testName)
+	}
 
 	t.Logf("dial attempt: testCase=%s user=%q local=%s:%d remote=%s:%d cert=%v",
 		cfg.testName, cfg.username, localAddr, localPort, remoteAddr, remotePort, cfg.certFailure)
@@ -605,46 +586,20 @@ func matchRecord(cfg *matchRecordConfig) bool {
 	return got == conn.username
 }
 
-// deviceRecords collects accounting records from the DUT stream until deadline elapses.
+// deviceRecords collects accounting records from the DUT stream until the context is done or stream closes.
 func deviceRecords(cfg *deviceRecordsConfig) ([]*acctzpb.RecordResponse, error) {
 	cfg.t.Helper()
 
-	records := ([]*acctzpb.RecordResponse)(nil)
-	rChan := make(chan *struct {
-		record *acctzpb.RecordResponse
-		err    error
-	})
-
-	go func() {
-		defer close(rChan)
-		for {
-			resp, err := cfg.client.Recv()
-			rChan <- &struct {
-				record *acctzpb.RecordResponse
-				err    error
-			}{resp, err}
-			if err != nil {
-				return
-			}
-		}
-	}()
-
-	timer := time.NewTimer(cfg.deadline)
-	defer timer.Stop()
-
+	var records []*acctzpb.RecordResponse
 	for {
-		select {
-		case <-timer.C:
-			return records, nil
-		case r, ok := <-rChan:
-			if !ok {
+		resp, err := cfg.client.Recv()
+		if err != nil {
+			if status.Code(err) == codes.Canceled || status.Code(err) == codes.DeadlineExceeded {
 				return records, nil
 			}
-			if r.err != nil {
-				return records, r.err
-			}
-			records = append(records, r.record)
+			return records, err
 		}
+		records = append(records, resp)
 	}
 }
 
@@ -944,7 +899,7 @@ func dialAndFailSSH(t *testing.T, cfg *dialConfig) (*connRecord, bool) {
 	} else {
 		client := ssh.NewClient(sc, chans, reqs)
 		client.Close()
-		t.Logf("dial attempt: testCase=%s SSH authentication unexpectedly succeeded", cfg.testName)
+		t.Fatalf("dial attempt: testCase=%s SSH authentication unexpectedly succeeded", cfg.testName)
 	}
 
 	t.Logf("SSH dial attempt: testCase=%s user=%q local=%s:%d remote=%s:%d wrongKey=%v",
