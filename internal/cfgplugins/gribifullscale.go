@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -1387,7 +1388,7 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 		}
 	}
 
-	t.Logf("BuildEncapDecapVRFs: entries for %d VRFs", len(encapVRFs)+1)
+	t.Logf("BuildEncapDecapVRFs: %d Encap VRFs (%d IPv4/VRF, %d IPv6/VRF), %d Decap entries", params.NumEncapVRFs, params.NumEncapIPv4PerVRF, params.NumEncapIPv6PerVRF, params.NumDecapEntries)
 	gSession := BatchModify(t, dut, ctx, allEntries, params.GRIBIBatchSize, 120*time.Second)
 	VerifyFIBProgrammed(t, gSession, wantPrefixesV4, wantPrefixesV6)
 	gSession.Close(t)
@@ -2263,9 +2264,80 @@ func FetchUniqueItems(t *testing.T, s []string) []string {
 	return uniqueList
 }
 
+func formatNHGLoadBalancing(params []NHGLoadBalancingParams) string {
+	if len(params) == 0 {
+		return "[]"
+	}
+	var items []string
+	for _, p := range params {
+		items = append(items, fmt.Sprintf("{%d%% -> %dNH}", p.Pct, p.NumNextHops))
+	}
+	return fmt.Sprintf("[%s]", strings.Join(items, ", "))
+}
+
+func formatNHGWeight(params []NHGWeightParams) string {
+	if len(params) == 0 {
+		return "[]"
+	}
+	var items []string
+	for _, p := range params {
+		cfgStr := "ECMP"
+		if w, ok := p.Config.(WCMP); ok {
+			cfgStr = fmt.Sprintf("WCMP1in%d", w.WeightGranularity)
+		}
+		items = append(items, fmt.Sprintf("{%d%% -> %s}", p.Pct, cfgStr))
+	}
+	return fmt.Sprintf("[%s]", strings.Join(items, ", "))
+}
+
+// LogScaleParams logs all scale configuration parameters for the test run.
+func LogScaleParams(t *testing.T, params ScaleParams) {
+	t.Helper()
+	var sb strings.Builder
+	sb.WriteString("\n============================================================\n")
+	sb.WriteString("                 gRIBI Scale Parameters                     \n")
+	sb.WriteString("============================================================\n")
+	sb.WriteString(fmt.Sprintf("  GRIBIBatchSize        : %d\n", params.GRIBIBatchSize))
+	sb.WriteString("  [Default VRF]\n")
+	sb.WriteString(fmt.Sprintf("    NumDefaultNH        : %d\n", params.NumDefaultNH))
+	sb.WriteString(fmt.Sprintf("    NumDefaultNHG       : %d\n", params.NumDefaultNHG))
+	sb.WriteString(fmt.Sprintf("    NumDefaultIPv4      : %d\n", params.NumDefaultIPv4))
+	sb.WriteString(fmt.Sprintf("    DefaultNHGLoadBal   : %s\n", formatNHGLoadBalancing(params.DefaultNHGLoadBalance)))
+	sb.WriteString(fmt.Sprintf("    DefaultNHGWeight    : %s\n", formatNHGWeight(params.DefaultNHGWeight)))
+	sb.WriteString("  [Transit VRF]\n")
+	sb.WriteString(fmt.Sprintf("    NumTransitNH        : %d\n", params.NumTransitNH))
+	sb.WriteString(fmt.Sprintf("    NumTransitNHG       : %d\n", params.NumTransitNHG))
+	sb.WriteString(fmt.Sprintf("    NumTransitIPv4      : %d\n", params.NumTransitIPv4))
+	sb.WriteString(fmt.Sprintf("    TransitNHGLoadBal   : %s\n", formatNHGLoadBalancing(params.TransitNHGLoadBalance)))
+	sb.WriteString(fmt.Sprintf("    TransitNHGWeight    : %s\n", formatNHGWeight(params.TransitNHGWeight)))
+	sb.WriteString("  [Repair VRF]\n")
+	sb.WriteString(fmt.Sprintf("    NumRepairNHG        : %d\n", params.NumRepairNHG))
+	sb.WriteString(fmt.Sprintf("    NumRepairIPv4       : %d\n", params.NumRepairIPv4))
+	sb.WriteString("  [Encap VRF]\n")
+	sb.WriteString(fmt.Sprintf("    NumEncapVRFs        : %d\n", params.NumEncapVRFs))
+	sb.WriteString(fmt.Sprintf("    NumUniqueEncapNH    : %d\n", params.NumUniqueEncapNH))
+	sb.WriteString(fmt.Sprintf("    NumEncapDefaultNHG  : %d\n", params.NumEncapDefaultNHG))
+	sb.WriteString(fmt.Sprintf("    NumEncapIPv4PerVRF  : %d\n", params.NumEncapIPv4PerVRF))
+	sb.WriteString(fmt.Sprintf("    NumEncapIPv6PerVRF  : %d\n", params.NumEncapIPv6PerVRF))
+	sb.WriteString(fmt.Sprintf("    EncapNHGLoadBal     : %s\n", formatNHGLoadBalancing(params.EncapNHGLoadBalance)))
+	sb.WriteString(fmt.Sprintf("    EncapNHGWeight      : %s\n", formatNHGWeight(params.EncapNHGWeight)))
+	sb.WriteString("  [Decap VRF]\n")
+	sb.WriteString(fmt.Sprintf("    NumDecapEntries     : %d\n", params.NumDecapEntries))
+	sb.WriteString(fmt.Sprintf("    DecapDestsSubsetPct : %d%%\n", params.DecapDestsSubsetPct))
+	sb.WriteString("  [Port / Traffic]\n")
+	sb.WriteString(fmt.Sprintf("    NumPort2VLANs       : %d\n", params.NumPort2VLANs))
+	sb.WriteString(fmt.Sprintf("    TrafficRateMpps     : %d\n", params.TrafficRateMpps))
+	sb.WriteString(fmt.Sprintf("    TrafficDuration     : %v\n", params.TrafficDuration))
+	sb.WriteString(fmt.Sprintf("    TrafficLossTol      : %d\n", params.TrafficLossTol))
+	sb.WriteString("============================================================\n")
+	t.Log(sb.String())
+}
+
 // validateScaleParams verifies that all scale configuration options are logically valid.
 func validateScaleParams(t *testing.T, params ScaleParams) {
 	t.Helper()
+
+	LogScaleParams(t, params)
 
 	// Default VRF category
 	validateNHGLoadBalance(t, "DefaultNHGLoadBalance", params.DefaultNHGLoadBalance)
