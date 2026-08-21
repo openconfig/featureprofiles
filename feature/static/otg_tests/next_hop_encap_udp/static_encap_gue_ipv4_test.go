@@ -16,6 +16,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	otgconfighelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -152,6 +153,12 @@ func TestMain(m *testing.M) {
 
 func mustConfigureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
+	// Configure Network instance type on DUT
+	t.Log("Configure/update Network Instance")
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
+
+	cfgplugins.EnableHardwareCounters(t, dut, "nexthop")
+
 	for _, l := range dutLagData {
 		b := &gnmi.SetBatch{}
 		// Create LAG interface
@@ -453,6 +460,12 @@ func verifyTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice,
 	} else {
 		t.Logf("ECMP hashing between LAGs is balanced. Difference: %f%%", ecmpError*100)
 	}
+
+	if nextHopGroupPacketCounters(t, dut, totalRxPkts) {
+		t.Log("Next-hop group packet counters match")
+	} else {
+		t.Error("next-hop group packet counters mismatch")
+	}
 }
 
 func enableCapture(t *testing.T, config gosnappi.Config, portNames []string) {
@@ -702,6 +715,28 @@ func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareInitCfg)
 
+}
+
+func nextHopGroupPacketCounters(t *testing.T, dut *ondatra.DUTDevice, totalRxPkts uint64) bool {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		response := cfgplugins.GetNextHopGroupCounters(t, dut)
+		for _, notif := range response.Notification {
+			for _, update := range notif.Update {
+				if len(update.Path.Elem) > 0 && update.Path.Elem[len(update.Path.Elem)-1].Name == "pkts" {
+					if v, ok := update.Val.Value.(*gnmipb.TypedValue_UintVal); ok {
+						if (float64(totalRxPkts)-float64(v.UintVal))*100/float64(totalRxPkts) <= tolerancePct {
+							return true
+						}
+					}
+				}
+			}
+		}
+	default:
+		t.Fatalf("Unsupported vendor for next-hop-group counters: %v", dut.Vendor())
+	}
+	return false
 }
 
 func TestGUEEncap(t *testing.T) {
