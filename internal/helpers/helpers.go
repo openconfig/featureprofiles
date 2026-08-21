@@ -346,3 +346,88 @@ func VerifyDUTDUTLoadBalance(t *testing.T, dut *ondatra.DUTDevice, params DUTDUT
 	}
 	return nil
 }
+
+// ValidateInterfaceConfigState validates whether the given interfaces' configuration matches the state on DUT.
+// It uses a batch watch to efficiently check large number of interfaces without flapping.
+func ValidateInterfaceConfigState(t *testing.T, dut *ondatra.DUTDevice, expected *oc.Root, timeout time.Duration) {
+	t.Helper()
+	t.Logf("Validating interface config and state matching on DUT...")
+
+	batch := gnmi.OCBatch()
+
+	// Prepare batch paths
+	for _, expectedIntf := range expected.Interface {
+		name := expectedIntf.GetName()
+		batch.AddPaths(
+			gnmi.OC().Interface(name).Description(),
+		)
+		if expectedIntf.GetType() == oc.IETFInterfaces_InterfaceType_ieee8023adLag {
+			subIntf := expectedIntf.GetSubinterface(0)
+			if subIntf != nil {
+				if subIntf.GetIpv4() != nil {
+					for expectedIP := range subIntf.GetIpv4().Address {
+						batch.AddPaths(gnmi.OC().Interface(name).Subinterface(0).Ipv4().Address(expectedIP).Ip())
+					}
+				}
+				if subIntf.GetIpv6() != nil {
+					for expectedIP := range subIntf.GetIpv6().Address {
+						batch.AddPaths(gnmi.OC().Interface(name).Subinterface(0).Ipv6().Address(expectedIP).Ip())
+					}
+				}
+			}
+		}
+	}
+
+	watch := gnmi.Watch(t, dut, batch.State(), timeout, func(val *ygnmi.Value[*oc.Root]) bool {
+		root, present := val.Val()
+		if !present {
+			return false
+		}
+
+		for _, expectedIntf := range expected.Interface {
+			name := expectedIntf.GetName()
+			gotIntf := root.GetInterface(name)
+			if gotIntf == nil {
+				return false
+			}
+
+			if gotIntf.GetDescription() != expectedIntf.GetDescription() {
+				return false
+			}
+
+			if expectedIntf.GetType() == oc.IETFInterfaces_InterfaceType_ieee8023adLag {
+				expectedSub := expectedIntf.GetSubinterface(0)
+				gotSub := gotIntf.GetSubinterface(0)
+
+				if expectedSub != nil && expectedSub.GetIpv4() != nil {
+					if gotSub == nil || gotSub.GetIpv4() == nil {
+						return false
+					}
+					for expectedIP := range expectedSub.GetIpv4().Address {
+						if gotSub.GetIpv4().GetAddress(expectedIP).GetIp() != expectedIP {
+							return false
+						}
+					}
+				}
+
+				if expectedSub != nil && expectedSub.GetIpv6() != nil {
+					if gotSub == nil || gotSub.GetIpv6() == nil {
+						return false
+					}
+					for expectedIP := range expectedSub.GetIpv6().Address {
+						if gotSub.GetIpv6().GetAddress(expectedIP).GetIp() != expectedIP {
+							return false
+						}
+					}
+				}
+			}
+		}
+		return true
+	})
+
+	if val, ok := watch.Await(t); !ok {
+		t.Fatalf("DUT interface state did not match expected config within timeout: %v", val)
+	} else {
+		t.Logf("Successfully validated interface state configuration")
+	}
+}
