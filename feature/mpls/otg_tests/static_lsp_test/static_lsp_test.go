@@ -55,8 +55,7 @@ const (
 	innerIPv6Dst = "2001:db8:2::2"
 
 	// Inner payload DSCP/TTL used to validate preservation across decap.
-	innerDSCP = 32
-	innerTTL  = 64
+	innerTTL = 64
 
 	trafficPPS     = 1000
 	trafficPackets = 10000
@@ -588,12 +587,6 @@ func innerIPv4Flow() *otgconfighelpers.Flow {
 			TCPDstPort:  80,
 			TCPDstCount: 1000,
 		},
-		UDPFlow: &otgconfighelpers.UDPFlowParams{
-			UDPSrcPort:  49152,
-			UDPSrcCount: 1000,
-			UDPDstPort:  5000,
-			UDPDstCount: 1000,
-		},
 	}
 }
 
@@ -616,33 +609,11 @@ func innerIPv6Flow() *otgconfighelpers.Flow {
 			TCPDstPort:  80,
 			TCPDstCount: 1000,
 		},
-		UDPFlow: &otgconfighelpers.UDPFlowParams{
-			UDPSrcPort:  49152,
-			UDPSrcCount: 1000,
-			UDPDstPort:  5000,
-			UDPDstCount: 1000,
-		},
 	}
 }
 
-// innerIPv4PreserveFlow returns inner IPv4 payload with specific DSCP/TTL for preservation validation.
-func innerIPv4PreserveFlow() *otgconfighelpers.Flow {
-	return &otgconfighelpers.Flow{
-		IPv4Flow: &otgconfighelpers.IPv4FlowParams{
-			IPv4Src: innerIPv4Src,
-			IPv4Dst: innerIPv4Dst,
-			TTL:     innerTTL,
-			DSCP:    innerDSCP,
-		},
-		TCPFlow: &otgconfighelpers.TCPFlowParams{
-			TCPSrcPort:  49152,
-			TCPSrcCount: 1000,
-			TCPDstPort:  80,
-			TCPDstCount: 1000,
-		},
-	}
-}
-
+// allIPv4TOSValuesForDSCPRange returns the IPv4 ToS byte values that correspond to
+// the DSCP range [start, end]
 func allIPv4TOSValuesForDSCPRange(start, end uint32) []uint8 {
 	vals := make([]uint8, 0, end-start+1)
 	for dscp := start; dscp <= end; dscp++ {
@@ -698,13 +669,10 @@ func createMPLSoGUEFlow(top gosnappi.Config, name string, txName string, txMAC s
 		f.IPv6Flow = inner.IPv6Flow
 		f.AddIPv6Header()
 	}
+	// The outer GUE encapsulation uses UDP, while the inner payload TCP
 	if inner.TCPFlow != nil {
 		f.TCPFlow = inner.TCPFlow
 		f.AddTCPHeader()
-	}
-	if inner.UDPFlow != nil {
-		f.UDPFlow = inner.UDPFlow
-		f.AddUDPHeader()
 	}
 }
 
