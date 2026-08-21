@@ -13,3 +13,20 @@ platform_exceptions: {
     gnoi_subcomponent_path: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    interface_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
+    gnoi_subcomponent_path: true
+  }
+}
