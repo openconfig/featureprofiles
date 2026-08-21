@@ -243,7 +243,7 @@ func verifyEgressStrictPrioritySchedulerTrafficIPv4(t *testing.T, dut *ondatra.D
 
 			count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).DroppedPkts().State(), timeout, isPresent).Await(t)
 			if !ok {
-				t.Errorf("DroppedPkts count for queue %s on interface %q not available within %v", dp3.Name(), queue, timeout)
+				t.Errorf("DroppedPkts count for queue %s on interface %q not available within %v", queue, dp3.Name(), timeout)
 			}
 			dutQosDroppedPktsBeforeTraffic[queue], _ = count.Val()
 		}
@@ -305,7 +305,7 @@ func verifyEgressStrictPrioritySchedulerTrafficIPv4(t *testing.T, dut *ondatra.D
 
 			count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).DroppedPkts().State(), timeout, isPresent).Await(t)
 			if !ok {
-				t.Errorf("DroppedPkts count for queue %s on interface %q not available within %v", dp3.Name(), queue, timeout)
+				t.Errorf("DroppedPkts count for queue %s on interface %q not available within %v", queue, dp3.Name(), timeout)
 			}
 			dutQueueDroppedPktsTotal, _ := count.Val()
 
@@ -499,7 +499,7 @@ func verifyEgressStrictPrioritySchedulerTrafficIPv6(t *testing.T, dut *ondatra.D
 
 			count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).DroppedPkts().State(), timeout, isPresent).Await(t)
 			if !ok {
-				t.Errorf("DroppedPkts count for queue %s on interface %q not available within %v", dp3.Name(), queue, timeout)
+				t.Errorf("DroppedPkts count for queue %s on interface %q not available within %v", queue, dp3.Name(), timeout)
 			}
 			dutQosDroppedPktsBeforeTraffic[queue], _ = count.Val()
 		}
@@ -553,7 +553,7 @@ func verifyEgressStrictPrioritySchedulerTrafficIPv6(t *testing.T, dut *ondatra.D
 
 			count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).DroppedPkts().State(), timeout, isPresent).Await(t)
 			if !ok {
-				t.Errorf("DroppedPkts count for queue %s on interface %q not available within %v", dp3.Name(), queue, timeout)
+				t.Errorf("DroppedPkts count for queue %s on interface %q not available within %v", queue, dp3.Name(), timeout)
 			}
 			dutQueueDroppedPktsTotal, _ := count.Val()
 
@@ -750,7 +750,7 @@ func verifyEgressStrictPrioritySchedulerTrafficMPLS(t *testing.T, dut *ondatra.D
 
 			count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).DroppedPkts().State(), timeout, isPresent).Await(t)
 			if !ok {
-				t.Errorf("DroppedPkts count for queue %s on interface %q not available within %v", dp3.Name(), queue, timeout)
+				t.Errorf("DroppedPkts count for queue %s on interface %q not available within %v", queue, dp3.Name(), timeout)
 			}
 			dutQosDroppedPktsBeforeTraffic[queue], _ = count.Val()
 		}
@@ -804,7 +804,7 @@ func verifyEgressStrictPrioritySchedulerTrafficMPLS(t *testing.T, dut *ondatra.D
 
 			count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).DroppedPkts().State(), timeout, isPresent).Await(t)
 			if !ok {
-				t.Errorf("DroppedPkts count for queue %s on interface %q not available within %v", dp3.Name(), queue, timeout)
+				t.Errorf("DroppedPkts count for queue %s on interface %q not available within %v", queue, dp3.Name(), timeout)
 			}
 			dutQueueDroppedPktsTotal, _ := count.Val()
 
