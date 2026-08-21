@@ -49,6 +49,7 @@ type OcPolicyForwardingParams struct {
 	NetworkInstanceName string
 	InterfaceID         string
 	AppliedPolicyName   string
+	RemovePolicyName    bool
 
 	// Policy Rule specific params
 	InnerDstIPv6       string
@@ -73,6 +74,7 @@ type OcPolicyForwardingParams struct {
 	Attributes         []*attrs.Attributes
 }
 
+// PolicyForwardingRule holds parameters for generating Policy Forwarding config for GRE.
 type PolicyForwardingRule struct {
 	Id                 uint32
 	Name               string
@@ -821,21 +823,12 @@ func DecapPolicyRulesandActionsGre(t *testing.T, pf *oc.NetworkInstance_PolicyFo
 func DecapPolicyRulesandActionsGue(t *testing.T, pf *oc.NetworkInstance_PolicyForwarding, params OcPolicyForwardingParams) {
 	t.Helper()
 
-	policyName := "customer10"
-	if params.AppliedPolicyName != "" {
-		policyName = params.AppliedPolicyName
-	}
-	pols := pf.GetOrCreatePolicy(policyName)
+	pols := pf.GetOrCreatePolicy("customer10")
 	var ruleSeq uint32 = 10
 	var protocol uint8 = 4
 
-	dstAddr := params.InnerDstIPv4
-	if params.DecapPolicy.IPv4DestAddress != "" {
-		dstAddr = params.DecapPolicy.IPv4DestAddress
-	}
-
 	rule10 := pols.GetOrCreateRule(ruleSeq)
-	rule10.GetOrCreateIpv4().DestinationAddress = ygot.String(dstAddr)
+	rule10.GetOrCreateIpv4().DestinationAddress = ygot.String(params.InnerDstIPv4)
 	rule10.GetOrCreateIpv4().Protocol = oc.UnionUint8(protocol)
 
 	rule10.GetOrCreateAction().DecapsulateGue = ygot.Bool(true)
@@ -881,7 +874,6 @@ func DecapGroupConfigGue(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
 			if ocPFParams.Dynamic {
-				t.Logf("Going into decap")
 				aristaGueDecapCLIConfig(t, dut, ocPFParams)
 			} else {
 				helpers.GnmiCLIConfig(t, dut, decapGroupGUEArista)
@@ -894,23 +886,20 @@ func DecapGroupConfigGue(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 	}
 }
 
-// RemoveDecapGroupGue removes the GUE decap-group configuration applied by DecapGroupConfigGue.
-func RemoveDecapGroupGue(t *testing.T, dut *ondatra.DUTDevice, policyName string) {
+// RemoveDecapGroupGue deletes a GUE decap-group previously created by
+// DecapGroupConfigGue, allowing tests to revert the DUT to its original state.
+func RemoveDecapGroupGue(t *testing.T, dut *ondatra.DUTDevice, ocPFParams OcPolicyForwardingParams) {
 	t.Helper()
 	if deviations.GueGreDecapUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			cli := fmt.Sprintf(`no ip decap-group type udp destination port 6635 payload mpls
-no ip decap-group gre-decap
-no ip decap-group %s
-`, policyName)
-			helpers.GnmiCLIConfig(t, dut, cli)
+			helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("no ip decap-group %s\n", ocPFParams.AppliedPolicyName))
 		default:
-			t.Errorf("Unsupported vendor %s for native command support for deviation 'decap-group config'", dut.Vendor())
+			t.Logf("Unsupported vendor %s for native command support for deviation 'decap-group removal'", dut.Vendor())
 		}
-		return
+	} else {
+		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Policy(ocPFParams.AppliedPolicyName).Config())
 	}
-	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Policy(policyName).Config())
 }
 
 // aristaGueDecapCLIConfig configures GUEDEcapConfig for Arista
@@ -923,12 +912,13 @@ func aristaGueDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPoli
 
 	cliConfig := fmt.Sprintf(`
 		                    ip decap-group type udp destination port %v payload %s
-							tunnel type %s-over-udp udp destination port %v
 							ip decap-group %s
 							tunnel type UDP
 							tunnel decap-ip %s
-							tunnel decap-interface %s
-							`, params.GUEPort, decapProto, params.IPType, params.GUEPort, params.AppliedPolicyName, params.TunnelIP, params.InterfaceID)
+							`, params.GUEPort, decapProto, params.AppliedPolicyName, params.TunnelIP)
+	if params.InterfaceID != "" {
+		cliConfig += fmt.Sprintf("tunnel decap-interface %s", params.InterfaceID)
+	}
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
 }
 
@@ -945,6 +935,38 @@ func aristaGreDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPoli
 			`, params.AppliedPolicyName, params.TunnelIP)
 	}
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
+
+}
+
+// QosClassificationConfig configures the interface qos classification.
+func ConfigureTOSGUE(t *testing.T, dut *ondatra.DUTDevice, policyName string, dscpValue uint32, port string, deleteTOS bool) {
+	if deviations.QosClassificationOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			if deleteTOS {
+				cli := fmt.Sprintf(`
+				policy-map type quality-of-service %s
+   					class class-default
+      				no set dscp %d`, policyName, dscpValue)
+				helpers.GnmiCLIConfig(t, dut, cli)
+			} else {
+				cli := fmt.Sprintf(`
+				policy-map type quality-of-service %s
+   					class class-default
+      				set dscp %d
+				
+				qos rewrite dscp
+
+				interface %s
+					service-policy type qos input %s
+					`, policyName, dscpValue, port, policyName)
+				helpers.GnmiCLIConfig(t, dut, cli)
+			}
+
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'qos classification'", dut.Vendor())
+		}
+	}
 
 }
 
@@ -1429,9 +1451,13 @@ func InterfacePolicyForwardingApply(t *testing.T, dut *ondatra.DUTDevice, params
 		// If deviations exist, apply configuration using vendor-specific CLI commands.
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			pfa := fmt.Sprintf(`interface %s
+			if params.RemovePolicyName {
+				helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("interface %s \n no traffic-policy input %s \n", params.InterfaceName, params.PolicyName))
+			} else {
+				pfa := fmt.Sprintf(`interface %s
 				traffic-policy input %s`, params.InterfaceName, params.PolicyName)
-			helpers.GnmiCLIConfig(t, dut, pfa)
+				helpers.GnmiCLIConfig(t, dut, pfa)
+			}
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'policy-forwarding config'", dut.Vendor())
 		}
