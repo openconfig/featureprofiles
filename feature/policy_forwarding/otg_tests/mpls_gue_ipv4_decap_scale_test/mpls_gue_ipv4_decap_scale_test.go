@@ -643,6 +643,14 @@ func sendTrafficWithTelemetry(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra
 		t.Fatalf("Failed to resolve IPv6 interface for ATE: %v, error: %v", ate, err)
 	}
 	ate.OTG().StartTraffic(t)
+	// monitor may call t.Fatalf, which unwinds the goroutine and would otherwise
+	// skip the stop below, leaving traffic running for the remaining subtests.
+	trafficStopped := false
+	defer func() {
+		if !trafficStopped {
+			ate.OTG().StopTraffic(t)
+		}
+	}()
 	start := time.Now()
 	if monitor != nil {
 		monitor(t)
@@ -651,6 +659,7 @@ func sendTrafficWithTelemetry(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra
 		time.Sleep(remaining)
 	}
 	ate.OTG().StopTraffic(t)
+	trafficStopped = true
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
 	otgutils.LogPortMetrics(t, ate.OTG(), top)
 }
@@ -1369,7 +1378,7 @@ func verifyV6ScaleDecapRules(t *testing.T, dut *ondatra.DUTDevice, wantRules int
 // configuration is used instead.
 func verifyV6ScaleDecapRulesCLI(t *testing.T, dut *ondatra.DUTDevice, params cfgplugins.GueDecapV6ScaleParams, wantRules int) error {
 	t.Helper()
-	got := cfgplugins.CountGueDecapV6ScaleRulesCLI(t, dut, params)
+	got := cfgplugins.CountGueDecapV6ScaleRulesNative(t, dut, params)
 	if got < 0 {
 		return fmt.Errorf("no native verification available for vendor %v; cannot confirm %d decap rules", dut.Vendor(), wantRules)
 	}
