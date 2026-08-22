@@ -80,23 +80,30 @@ func initializeMultiAdjISISScaleTestData(t *testing.T) *isisscalehelpers.TestDat
 			blockCount:     1,
 		},
 	}
-	aggregateCount := 8
-	subInterfacesCountPerAggregate := 12
+	// Use 4 aggregate LAG interfaces with 76 sub-interfaces each to establish 304 total
+	// IS-IS Level 2 multi-adjacencies (4 x 76 = 304). This enables running against standard 4-port
+	// physical testbeds (testbed_dut_ate_4links.textproto) while achieving the 304 scale requirement.
+	aggregateCount := 4
+	subInterfacesCountPerAggregate := 76
 	initialVlanID := 1000
 	initialIPv4Address := net.ParseIP("192.0.0.1")
 	initialIPv6Address := net.ParseIP("2001:db8::1")
 
-	// Create DUT data.
+	// Create DUT data with MD5 authentication key enabled.
 	dutData := &isisscalehelpers.DutData{
 		Lags: isisscalehelpers.CreateDUTAggregateInterfacesData(t, aggregateCount, subInterfacesCountPerAggregate, initialVlanID, initialIPv4Address, initialIPv6Address),
 		IsisData: &cfgplugins.ISISGlobalParams{
-			DUTArea:  "49.0001",
-			DUTSysID: "1920.0000.2001",
+			DUTArea:     "49.0001",
+			DUTSysID:    "1920.0000.2001",
+			ISISAuthKey: "google_isis_key",
 		},
 	}
 
-	// Create ATE data.
+	// Create ATE data and configure the matching MD5 authentication key across all emulated routers.
 	ateEmulatedRouterData := isisscalehelpers.CreateATEEmulatedRouterData(t, dutData.Lags)
+	for _, er := range ateEmulatedRouterData {
+		er.ISISAuthKey = "google_isis_key"
+	}
 	lagToErouterMap := make(map[int][]*otgconfighelpers.AteEmulatedRouterData)
 	for i := 0; i < aggregateCount; i++ {
 		lagToErouterMap[i] = ateEmulatedRouterData[i*subInterfacesCountPerAggregate : (i+1)*subInterfacesCountPerAggregate]
@@ -204,6 +211,15 @@ func TestISISScale(t *testing.T) {
 			t.Logf("===========Sleep for 5 minutes to check DUT stabilty===========")
 			// Test will not check any metrics for 5 minutes to make sure DUT is stable.
 			time.Sleep(5 * 60 * time.Second)
+
+			t.Run("Verify_ISIS_Auth_Telemetry", func(t *testing.T) {
+				if ok, err := isisscalehelpers.VerifyISISAuthTelemetry(t, dut, testInfo.CorrectISISAdjCount); !ok {
+					t.Errorf("ISIS Auth Telemetry verification failed: %v", err)
+				} else {
+					t.Logf("ISIS Auth Telemetry verification passed")
+				}
+			})
+
 			t.Run("LSP_Count", func(t *testing.T) {
 				// Check LSP Count
 				if deviations.ISISLSPTlvsOCUnsupported(dut) {
