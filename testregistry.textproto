@@ -14,6 +14,7 @@ test: {
   id: "ACCTZ-10.1"
   description: "gNSI.acctz.v1 (Accounting) Test Accounting Authentication Error - Multi-transaction"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/acctz/tests/AccountingAuthenErrorMulti/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/acctz/tests/AccountingAuthenErrorMulti/accounting_authen_error_multi_test.go"
 }
 test: {
   id: "ACCTZ-2.1"
