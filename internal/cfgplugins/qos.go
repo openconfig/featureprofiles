@@ -83,6 +83,20 @@ type SchedulerParams struct {
 	QueueName      string
 }
 
+// QoSQueueManagementProfile is a struct to hold the QoS WRED/Uniform configuration parameters.
+type QoSQueueManagementProfile struct {
+	Desc                      string
+	Name                      string
+	MinThreshold              uint64
+	MaxThreshold              uint64
+	MinThresholdPercent       uint64
+	MaxThresholdPercent       uint64
+	EnableEcn                 bool
+	Drop                      bool
+	MaxDropProbabilityPercent uint8
+	Weight                    uint32
+}
+
 func runCliCommand(t *testing.T, dut *ondatra.DUTDevice, cliCommand string) string {
 	cliClient := dut.RawAPIs().CLI(t)
 	output, err := cliClient.RunCommand(context.Background(), cliCommand)
@@ -545,5 +559,112 @@ func NewOneRateTwoColorScheduler(t *testing.T, dut *ondatra.DUTDevice, batch *gn
 		configureOneRateTwoColorSchedulerFromCLI(t, dut, params)
 	} else {
 		configureOneRateTwoColorSchedulerFromOC(batch, params)
+	}
+}
+
+// NewQoSQueueManagementProfile creates a QoS queue management profile configuration.
+func NewQoSQueueManagementProfile(t *testing.T, dut *ondatra.DUTDevice, q *oc.Qos, profiles []QoSQueueManagementProfile) *oc.Qos {
+	t.Logf("QoS QueueManagementProfile config cases: %v", profiles)
+	for _, p := range profiles {
+		qmp := q.GetOrCreateQueueManagementProfile(p.Name)
+		qmp.SetName(p.Name)
+		wred := qmp.GetOrCreateWred()
+		uniform := wred.GetOrCreateUniform()
+		uniform.SetEnableEcn(p.EnableEcn)
+		uniform.SetDrop(p.Drop)
+		if p.MinThreshold > 0 || p.MaxThreshold > 0 {
+			minThresh := p.MinThreshold
+			maxThresh := p.MaxThreshold
+			if deviations.EcnSameMinMaxThresholdUnsupported(dut) && minThresh == maxThresh {
+				minThresh = 8005632
+				maxThresh = 8011776
+			}
+			uniform.SetMinThreshold(minThresh)
+			uniform.SetMaxThreshold(maxThresh)
+		}
+		if p.MinThresholdPercent > 0 || p.MaxThresholdPercent > 0 {
+			uniform.SetMinThresholdPercent(p.MinThresholdPercent)
+			uniform.SetMaxThresholdPercent(p.MaxThresholdPercent)
+		}
+		uniform.SetMaxDropProbabilityPercent(p.MaxDropProbabilityPercent)
+		if !deviations.QosSetWeightConfigUnsupported(dut) {
+			uniform.SetWeight(p.Weight)
+		}
+	}
+	return q
+}
+
+// ValidateQueueManagementProfile validates the state leaves of a configured QoSQueueManagementProfile.
+func ValidateQueueManagementProfile(t *testing.T, dut *ondatra.DUTDevice, p QoSQueueManagementProfile) {
+	t.Helper()
+	wredUniform := gnmi.OC().Qos().QueueManagementProfile(p.Name).Wred().Uniform()
+	if deviations.QosGetStatePathUnsupported(dut) {
+		if got, want := gnmi.Get(t, dut, wredUniform.EnableEcn().Config()), p.EnableEcn; got != want {
+			t.Errorf("wredUniform.EnableEcn().Config(): got %v, want %v", got, want)
+		}
+		if got, want := gnmi.Get(t, dut, wredUniform.MaxDropProbabilityPercent().Config()), p.MaxDropProbabilityPercent; got != want {
+			t.Errorf("wredUniform.MaxDropProbabilityPercent().Config(): got %v, want %v", got, want)
+		}
+		if p.MinThreshold > 0 || p.MaxThreshold > 0 {
+			wantMin := p.MinThreshold
+			wantMax := p.MaxThreshold
+			if deviations.EcnSameMinMaxThresholdUnsupported(dut) && wantMin == wantMax {
+				wantMin = 8005632
+				wantMax = 8011776
+			}
+			if got, want := gnmi.Get(t, dut, wredUniform.MinThreshold().Config()), wantMin; got != want {
+				t.Errorf("wredUniform.MinThreshold().Config(): got %v, want %v", got, want)
+			}
+			if got, want := gnmi.Get(t, dut, wredUniform.MaxThreshold().Config()), wantMax; got != want {
+				t.Errorf("wredUniform.MaxThreshold().Config(): got %v, want %v", got, want)
+			}
+		}
+		if p.MinThresholdPercent > 0 || p.MaxThresholdPercent > 0 {
+			if got, want := gnmi.Get(t, dut, wredUniform.MinThresholdPercent().Config()), p.MinThresholdPercent; got != want {
+				t.Errorf("wredUniform.MinThresholdPercent().Config(): got %v, want %v", got, want)
+			}
+			if got, want := gnmi.Get(t, dut, wredUniform.MaxThresholdPercent().Config()), p.MaxThresholdPercent; got != want {
+				t.Errorf("wredUniform.MaxThresholdPercent().Config(): got %v, want %v", got, want)
+			}
+		}
+	} else {
+		if got, want := gnmi.Get(t, dut, wredUniform.EnableEcn().State()), p.EnableEcn; got != want {
+			t.Errorf("wredUniform.EnableEcn().State(): got %v, want %v", got, want)
+		}
+		if got, want := gnmi.Get(t, dut, wredUniform.MaxDropProbabilityPercent().State()), p.MaxDropProbabilityPercent; got != want {
+			t.Errorf("wredUniform.MaxDropProbabilityPercent().State(): got %v, want %v", got, want)
+		}
+		if !deviations.StatePathsUnsupported(dut) {
+			if p.MinThreshold > 0 || p.MaxThreshold > 0 {
+				wantMin := p.MinThreshold
+				wantMax := p.MaxThreshold
+				if deviations.EcnSameMinMaxThresholdUnsupported(dut) && wantMin == wantMax {
+					wantMin = 8005632
+					wantMax = 8011776
+				}
+				if got, want := gnmi.Get(t, dut, wredUniform.MinThreshold().State()), wantMin; got != want {
+					t.Errorf("wredUniform.MinThreshold().State(): got %v, want %v", got, want)
+				}
+				if got, want := gnmi.Get(t, dut, wredUniform.MaxThreshold().State()), wantMax; got != want {
+					t.Errorf("wredUniform.MaxThreshold().State(): got %v, want %v", got, want)
+				}
+			}
+			if p.MinThresholdPercent > 0 || p.MaxThresholdPercent > 0 {
+				if got, want := gnmi.Get(t, dut, wredUniform.MinThresholdPercent().State()), p.MinThresholdPercent; got != want {
+					t.Errorf("wredUniform.MinThresholdPercent().State(): got %v, want %v", got, want)
+				}
+				if got, want := gnmi.Get(t, dut, wredUniform.MaxThresholdPercent().State()), p.MaxThresholdPercent; got != want {
+					t.Errorf("wredUniform.MaxThresholdPercent().State(): got %v, want %v", got, want)
+				}
+			}
+		}
+	}
+	if !deviations.DropWeightLeavesUnsupported(dut) {
+		if got, want := gnmi.Get(t, dut, wredUniform.Drop().State()), p.Drop; got != want {
+			t.Errorf("wredUniform.Drop().State(): got %v, want %v", got, want)
+		}
+		if got, want := gnmi.Get(t, dut, wredUniform.Weight().State()), p.Weight; got != want {
+			t.Errorf("wredUniform.Weight().State(): got %v, want %v", got, want)
+		}
 	}
 }
