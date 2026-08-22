@@ -91,6 +91,9 @@ func TestAccountzRecordSubscribeFull(t *testing.T) {
 
 	// Filter out records that are not for the success or fail usernames.
 	var gotRecords []*acctzpb.RecordResponse
+	var allowRecords []*acctzpb.RecordResponse
+	var denyRecords []*acctzpb.RecordResponse
+
 	type key struct {
 		path string
 		id   string
@@ -115,8 +118,23 @@ func TestAccountzRecordSubscribeFull(t *testing.T) {
 		}
 
 		foundMap[key{path: path, id: id}] = true
-		gotRecords = append(gotRecords, r)
+		// This check is needed to handle delay in acctz record generation in failUser and successUser
+		if id == "bilbo" {
+			denyRecords = append(denyRecords, r)
+		} else {
+			t.Logf("ID : %v", id)
+			allowRecords = append(allowRecords, r)
+		}
 	}
+	if len(allowRecords) != len(denyRecords) {
+		t.Errorf("Got %d records, want %d", len(allowRecords), len(denyRecords))
+	} else {
+		for i := 0; i < len(allowRecords); i++ {
+			gotRecords = append(gotRecords, denyRecords[i])
+			gotRecords = append(gotRecords, allowRecords[i])
+		}
+	}
+
 	if len(wantRecords) != len(gotRecords) {
 		t.Errorf("Got %d records, want %d", len(gotRecords), len(wantRecords))
 	}
@@ -134,6 +152,7 @@ func TestAccountzRecordSubscribeFull(t *testing.T) {
 
 	var recordIdx int
 	var lastTimestampUnixMillis int64
+	var lastTimestampUnixNano int64
 	for recordIdx < len(gotRecords) && recordIdx < len(wantRecords) {
 		record := gotRecords[recordIdx]
 
@@ -142,11 +161,12 @@ func TestAccountzRecordSubscribeFull(t *testing.T) {
 		}
 
 		timestamp := record.Timestamp.AsTime()
-		if timestamp.UnixMilli() == lastTimestampUnixMillis {
+		if timestamp.UnixMilli() == lastTimestampUnixMillis && timestamp.UnixNano() == lastTimestampUnixNano {
 			// This ensures that timestamps are actually changing for each record.
 			t.Errorf("Timestamp is the same as the previous timestamp, this shouldn't be possible!, Record Details: %s", acctz.PrettyPrint(record))
 		}
 		lastTimestampUnixMillis = timestamp.UnixMilli()
+		lastTimestampUnixNano = timestamp.UnixNano()
 
 		// Verify acctz proto bits.
 		if diff := cmp.Diff(record, wantRecords[recordIdx], popts...); diff != "" {
