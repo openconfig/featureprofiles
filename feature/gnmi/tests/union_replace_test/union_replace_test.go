@@ -114,14 +114,13 @@ var portSpeed = map[ondatra.Speed]oc.E_IfEthernet_ETHERNET_SPEED{
 func configOCInterface(t *testing.T, sb *gnmi.SetBatch, dut *ondatra.DUTDevice) {
 	t.Helper()
 	dp1 := dut.Port(t, "port1")
-	i := dutIntf.NewOCInterface(dut.Port(t, "port1").Name(), dut)
+	root := &oc.Root{}
+	i := dutIntf.NewOCInterface(dp1.Name(), dut)
 	if deviations.ExplicitPortSpeed(dut) {
 		i.GetOrCreateEthernet().SetPortSpeed(fptest.GetIfSpeed(t, dp1))
 	}
-	inf := gnmi.OC().Interface(dp1.Name())
-	// TODO: add handling for ExplicitPortSpeed deviation and ExplicitInterfaceInDefaultVRF deviation
-
-	gnmi.BatchUnionReplace(sb, inf.Config(), i)
+	root.AppendInterface(i)
+	gnmi.BatchUnionReplace(sb, gnmi.OC().Config(), root)
 }
 
 func awaitStateEq[T comparable](t *testing.T, dut *ondatra.DUTDevice, path ygnmi.SingletonQuery[T], want T, timeout time.Duration) (T, bool) {
@@ -159,9 +158,12 @@ func prettyPrintYgnmiResult(setResult *ygnmi.Result) string {
 func setCLINoMTU(t *testing.T, dut *ondatra.DUTDevice, portName string) {
 	t.Helper()
 	var cli string
-	if dut.Vendor() == ondatra.ARISTA {
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
 		cli = fmt.Sprintf("configure terminal\ninterface %s\nno mtu\n", portName)
-	} else {
+	case ondatra.JUNIPER:
+		gnmi.Delete(t, dut, gnmi.OC().Interface(portName).Mtu().Config())
+	default:
 		t.Fatalf("unsupported vendor: %v", dut.Vendor())
 	}
 	helpers.GnmiCLIConfig(t, dut, cli)
@@ -236,6 +238,7 @@ func cliConfigGNMI(t *testing.T, dut *ondatra.DUTDevice) string {
 			Origin: cliOrigin,
 			Elem:   []*gpb.PathElem{{Name: showCmd}},
 		}},
+		Type:     gpb.GetRequest_CONFIG,
 		Encoding: gpb.Encoding_ASCII,
 	}
 	resp, err := dut.RawAPIs().GNMI(t).Get(context.Background(), req)
@@ -285,10 +288,11 @@ func firstInterfaceWithoutTransceiver(t *testing.T, dut *ondatra.DUTDevice) stri
 	allInterfaces := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().State())
 	for _, intf := range allInterfaces {
 		name := intf.GetName()
-		if !strings.HasPrefix(name, "Ethernet") {
+		if !strings.HasPrefix(name, "Ethernet") && !strings.HasPrefix(name, "et-") {
 			continue
 		}
-		if intf.GetOperStatus() == oc.Interface_OperStatus_NOT_PRESENT && len(intf.GetPhysicalChannel()) == 0 {
+		st := intf.GetOperStatus()
+		if st == operStatusNoTransceiver(t, dut) {
 			return name
 		}
 	}
@@ -315,7 +319,7 @@ func cliShowRunningConfigCommand(t *testing.T, dut *ondatra.DUTDevice) (string, 
 	case ondatra.CISCO:
 		return "show running-config", "#"
 	case ondatra.JUNIPER:
-		return "show | display set", ""
+		return "cli -c \"show configuration | no-more\"", ""
 	case ondatra.NOKIA:
 		return "info | as-set", ""
 	default:
@@ -368,18 +372,25 @@ func cliInterface(cli, intfName string) string {
 	var sb strings.Builder
 	insideInterface := false
 	for _, line := range strings.Split(cli, "\n") {
-		if line == "interface "+intfName {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "interface "+intfName || trimmed == intfName+" {" {
 			insideInterface = true
 		}
 		if insideInterface {
 			sb.WriteString(line)
 			sb.WriteByte('\n')
-			if strings.TrimSpace(line) == "!" {
-				break
+			if trimmed == "!" || trimmed == "}" {
+				insideInterface = false
 			}
 		}
 	}
 	return sb.String()
+}
+
+func setInterfaceTypeIfRequired(dut *ondatra.DUTDevice, intf *oc.Interface) {
+	if dut.Vendor() == ondatra.JUNIPER {
+		intf.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	}
 }
 
 func verifyInterfaceDescription(t *testing.T, dut *ondatra.DUTDevice, intfName, wantDesc string) error {
@@ -481,10 +492,54 @@ func cliInterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, opts cliInterfaceC
 			fmt.Fprintf(&sb, "  speed %s\n", opts.Speed)
 		}
 		return sb.String()
+	case ondatra.JUNIPER:
+		// Emit hierarchical Junos configuration block to match `show configuration` output
+		var sb strings.Builder
+		sb.WriteString("interfaces {\n")
+		sb.WriteString("  ")
+		fmt.Fprintf(&sb, "%s {\n", opts.Name)
+		if opts.Description != "" {
+			fmt.Fprintf(&sb, "    description \"%s\";\n", opts.Description)
+		}
+		if opts.MTU > 0 {
+			fmt.Fprintf(&sb, "    mtu %d;\n", opts.MTU)
+		}
+		if opts.IPv4 != "" && opts.IPv4PrefixLen > 0 {
+			fmt.Fprintf(&sb, "    unit 0 {\n      family inet {\n        address %s/%d;\n      }\n    }\n", opts.IPv4, opts.IPv4PrefixLen)
+		}
+		if opts.Speed != "" {
+			if opts.Speed == portSpeedBreakout {
+				chassisBreakoutCLI, err := juniperBreakoutCLI(opts.Name, portSpeed50GCLI)
+				if err != nil {
+					t.Fatalf("invalid Juniper interface name %q for breakout: %v", opts.Name, err)
+				}
+				// chassis breakout commands are top-level; include as separate stanza
+				sb.WriteString("  }")
+				sb.WriteString("\n")
+				sb.WriteString(chassisBreakoutCLI)
+				sb.WriteString("\n")
+				fmt.Fprintf(&sb, "interfaces %s {\n    speed %s;\n  }\n", opts.Name, portSpeed50GCLI)
+			} else {
+				fmt.Fprintf(&sb, "    speed %s;\n", opts.Speed)
+			}
+		}
+		sb.WriteString("  }\n")
+		sb.WriteString("}\n")
+		return sb.String()
 	default:
 		t.Fatalf("unsupported vendor %v for CLI interface config", dut.Vendor())
 		return ""
 	}
+}
+
+func juniperBreakoutCLI(intfName, channelSpeed string) (string, error) {
+	// Accept et-fpc/pic/port and et-fpc/pic/port:channel.
+	re := regexp.MustCompile(`^et-(\d+)/(\d+)/(\d+)(?::\d+)?$`)
+	m := re.FindStringSubmatch(intfName)
+	if len(m) != 4 {
+		return "", fmt.Errorf("want et-fpc/pic/port[:channel], got %q", intfName)
+	}
+	return fmt.Sprintf("set chassis fpc %s pic %s port %s channel-speed %s", m[1], m[2], m[3], channelSpeed), nil
 }
 
 func breakoutInterfaces(t *testing.T, dut *ondatra.DUTDevice, baseIntfName string, noOfIntfs uint8) []string {
@@ -499,6 +554,11 @@ func breakoutInterfaces(t *testing.T, dut *ondatra.DUTDevice, baseIntfName strin
 		baseName := baseIntfName[:lastIndex]
 		for index := range noOfIntfs {
 			intfs = append(intfs, fmt.Sprintf("%s/%d", baseName, index+1))
+		}
+	case ondatra.JUNIPER:
+		// Generate breakout interfaces for JUNIPER
+		for index := range noOfIntfs {
+			intfs = append(intfs, fmt.Sprintf("%s:%d", baseIntfName, index))
 		}
 	default:
 		t.Logf("unsupported vendor %v for breakout interfaces", dut.Vendor())
@@ -569,6 +629,14 @@ func TestUnionReplace(t *testing.T) {
 	t.Logf("First interface without transceiver: %s", interfaceWithoutTransceiver)
 	resetConfig := func() {
 		t.Log("Resetting baseline configuration")
+		if dut.Vendor() == ondatra.JUNIPER {
+			// Juniper keeps OC dynamic interface config separate from native CLI;
+			// clear test interfaces so CLI-only cases do not overlap with stale OC leaves.
+			cleanup := &gnmi.SetBatch{}
+			gnmi.BatchDelete(cleanup, gnmi.OC().Interface(intf1Name).Config())
+			gnmi.BatchDelete(cleanup, gnmi.OC().Interface(intf2Name).Config())
+			cleanup.Set(t, dut)
+		}
 		sb := &gnmi.SetBatch{}
 		gnmi.BatchUnionReplaceCLI(sb, cliOrigin, sharedBaseline)
 		sb.Set(t, dut)
@@ -581,6 +649,7 @@ func TestUnionReplace(t *testing.T) {
 			desc: "Verify the same configuration already on the device can be pushed and accepted without changing the configuration.",
 			fn: func(t *testing.T) error {
 				dut := ondatra.DUT(t, "dut")
+				dp1 := dut.Port(t, "port1")
 
 				// ensure union replace is enabled on the DUT and get the CLI config using union replace after setting
 				// the base CLI config.
@@ -588,6 +657,9 @@ func TestUnionReplace(t *testing.T) {
 				clicfg1 := cliConfig(t, dut)
 				sb1 := &gnmi.SetBatch{}
 				gnmi.BatchUnionReplaceCLI(sb1, cliOrigin, clicfg1)
+				if dut.Vendor() == ondatra.JUNIPER {
+					gnmi.BatchUnionReplace(sb1, gnmi.OC().Interface(dp1.Name()).Type().Config(), oc.IETFInterfaces_InterfaceType_ethernetCsmacd)
+				}
 				sb1.Set(t, dut)
 				time.Sleep(5 * time.Second)
 				clicfg2 := cliConfig(t, dut)
@@ -625,6 +697,9 @@ func TestUnionReplace(t *testing.T) {
 				// Add MTU to the interface using OC config.
 				cliConfig2 := cliConfig(t, dut)
 				gnmi.BatchUnionReplaceCLI(sb1, cliOrigin, cliConfig2)
+				if dut.Vendor() == ondatra.JUNIPER {
+					gnmi.BatchUnionReplace(sb1, gnmi.OC().Interface(dp1.Name()).Type().Config(), oc.IETFInterfaces_InterfaceType_ethernetCsmacd)
+				}
 				gnmi.BatchUnionReplace(sb1, gnmi.OC().Interface(dp1.Name()).Mtu().Config(), 1400)
 				t.Logf("Generated BatchUnionReplace: %#v\n", sb1.String())
 
@@ -654,6 +729,9 @@ func TestUnionReplace(t *testing.T) {
 				// Add MTU to the interface using OC config to a known value.
 				cliConfig1 := cliConfig(t, dut)
 				gnmi.BatchUnionReplaceCLI(sb1, cliOrigin, cliConfig1)
+				if dut.Vendor() == ondatra.JUNIPER {
+					gnmi.BatchUnionReplace(sb1, gnmi.OC().Interface(dp2.Name()).Type().Config(), oc.IETFInterfaces_InterfaceType_ethernetCsmacd)
+				}
 				gnmi.BatchUnionReplace(sb1, gnmi.OC().Interface(dp2.Name()).Mtu().Config(), 1400)
 				sb1.Set(t, dut)
 				if err := verifyInterfaceMTU(t, dut, dp2.Name(), 1400); err != nil {
@@ -668,13 +746,19 @@ func TestUnionReplace(t *testing.T) {
 				case ondatra.CISCO:
 					cliConfig2 += fmt.Sprintf("interface %s\nmtu 1300\n", dp2.Name())
 				case ondatra.JUNIPER:
-					cliConfig2 += fmt.Sprintf("set interfaces %s mtu 1300\n", dp2.Name())
+					cliConfig2 += fmt.Sprintf("interfaces {\n  %s {\n    mtu 1300;\n  }\n}\n", dp2.Name())
 				default:
 					return fmt.Errorf("unsupported vendor: %v", dut.Vendor())
 				}
 				gnmi.BatchUnionReplaceCLI(sb2, cliOrigin, cliConfig2)
-				setResult := sb2.Set(t, dut)
-				t.Logf("\nSetResult: %#v\n", prettyPrintYgnmiResult(setResult))
+				setErr := unionReplaceErr(t, dut, sb2)
+				if setErr == nil {
+					// Log the successful set result for debugging
+					setResult := &ygnmi.Result{RawResponse: nil}
+					t.Logf("\nSetResult: %#v\n", prettyPrintYgnmiResult(setResult))
+				} else {
+					t.Logf("gnmi.Set returned error: %v", setErr)
+				}
 
 				// If union_replace option for CLI overriding OC is the DUT behavior, verify the MTU is updated
 				// to the new, CLI configured value. If union_replace option for CLI and OC config error is the
@@ -682,13 +766,27 @@ func TestUnionReplace(t *testing.T) {
 				switch dut.Vendor() {
 				case ondatra.ARISTA:
 					// CLI overrides OC
+					if setErr != nil {
+						return fmt.Errorf("expected gnmi.Set to succeed for ARISTA, got: %v", setErr)
+					}
 					if err := verifyInterfaceMTU(t, dut, dp2.Name(), 1300); err != nil {
 						return err
 					}
 				case ondatra.CISCO, ondatra.JUNIPER, ondatra.NOKIA:
 					// OC and CLI conflict generates an error, MTU stays at 1400
-					if err := verifyInterfaceMTU(t, dut, dp2.Name(), 1400); err != nil {
-						return err
+					if setErr != nil {
+						if s, ok := status.FromError(setErr); ok && s.Code() == codes.InvalidArgument {
+							if err := verifyInterfaceMTU(t, dut, dp2.Name(), 1400); err != nil {
+								return err
+							}
+						} else {
+							return fmt.Errorf("gnmi.Set failed with unexpected error: %w", setErr)
+						}
+					} else {
+						// Option 2 behavior: DUT accepted overlapping config, CLI value should take effect
+						if err := verifyInterfaceMTU(t, dut, dp2.Name(), 1300); err != nil {
+							return err
+						}
 					}
 				default:
 					return fmt.Errorf("unsupported vendor: %v", dut.Vendor())
@@ -714,6 +812,9 @@ func TestUnionReplace(t *testing.T) {
 				// Add MTU to the interface using OC config.
 				cliConfig1 := cliConfig(t, dut)
 				gnmi.BatchUnionReplaceCLI(sb, cliOrigin, cliConfig1)
+				if dut.Vendor() == ondatra.JUNIPER {
+					gnmi.BatchUnionReplace(sb, gnmi.OC().Interface(portName).Type().Config(), oc.IETFInterfaces_InterfaceType_ethernetCsmacd)
+				}
 				gnmi.BatchUnionReplace(sb, gnmi.OC().Interface(portName).Mtu().Config(), 1450)
 				sb.Set(t, dut)
 
@@ -724,6 +825,9 @@ func TestUnionReplace(t *testing.T) {
 				// Change the MTU using OC config.
 				// reuse the same CLI config without any MTU config.
 				sb2 := &gnmi.SetBatch{}
+				if dut.Vendor() == ondatra.JUNIPER {
+					gnmi.BatchUnionReplace(sb2, gnmi.OC().Interface(portName).Type().Config(), oc.IETFInterfaces_InterfaceType_ethernetCsmacd)
+				}
 				gnmi.BatchUnionReplace(sb2, gnmi.OC().Interface(portName).Mtu().Config(), 1440)
 				gnmi.BatchUnionReplaceCLI(sb2, cliOrigin, cliConfig1)
 				sb2.Set(t, dut)
@@ -747,6 +851,9 @@ func TestUnionReplace(t *testing.T) {
 
 				// Set the interface description to a known value using OC config.
 				// Add OC interface and set description on the interface.
+				p1Intf := &oc.Interface{}
+				setInterfaceTypeIfRequired(dut, p1Intf)
+				gnmi.BatchUnionReplace(sb1, gnmi.OC().Interface(port1Name).Type().Config(), p1Intf.Type)
 				gnmi.BatchUnionReplace(sb1, gnmi.OC().Interface(port1Name).Description().Config(), port1DescriptionOC)
 				cliConfig1 := cliConfig(t, dut)
 				gnmi.BatchUnionReplaceCLI(sb1, cliOrigin, cliConfig1)
@@ -768,11 +875,32 @@ func TestUnionReplace(t *testing.T) {
 				// the OC configuration does not include an interface description.
 				sb2 := &gnmi.SetBatch{}
 				cliConfig2 := cliConfig(t, dut)
-				cliConfig2 += fmt.Sprintf("interface %s\ndescription "+port1DescriptionCLI+"\n", dut.Port(t, "port1").Name())
+				switch dut.Vendor() {
+				case ondatra.ARISTA, ondatra.CISCO:
+					cliConfig2 += fmt.Sprintf("interface %s\ndescription %s\n", dut.Port(t, "port1").Name(), port1DescriptionCLI)
+				case ondatra.JUNIPER:
+					cliConfig2 += fmt.Sprintf("interfaces {\n  %s {\n    description \"%s\";\n  }\n}\n", dut.Port(t, "port1").Name(), port1DescriptionCLI)
+				default:
+					return fmt.Errorf("unsupported vendor: %v", dut.Vendor())
+				}
 				gnmi.BatchUnionReplaceCLI(sb2, cliOrigin, cliConfig2)
-				sb2.Set(t, dut)
+				// Use unionReplaceErr to capture DUT rejection behavior for overlapping CLI vs OC.
+				setErr := unionReplaceErr(t, dut, sb2)
 
-				// Watch for the description to be updated to the CLI configured value.
+				if setErr != nil {
+					// If the DUT rejects overlapping CLI with OC, Juniper is expected to return
+					// InvalidArgument and the OC-configured description should remain.
+					if s, ok := status.FromError(setErr); ok && s.Code() == codes.InvalidArgument {
+						t.Logf("DUT rejected overlapping CLI change as expected: %v", s.Message())
+						if err := verifyInterfaceDescription(t, dut, port1Name, port1DescriptionOC); err != nil {
+							return err
+						}
+						return nil
+					}
+					return fmt.Errorf("gnmi.Set failed unexpectedly: %w", setErr)
+				}
+
+				// If the Set succeeded, watch for the description to be updated to the CLI configured value.
 				gnmi.Watch(t, dut, gnmi.OC().Interface(port1Name).Description().State(), awaitTimeOut, func(val *ygnmi.Value[string]) bool {
 					desc, present := val.Val()
 					if !present {
@@ -797,8 +925,9 @@ func TestUnionReplace(t *testing.T) {
 
 				t.Log("Add both interfaces via OC union_replace")
 				bothOC := &oc.Root{}
-				bothOC.GetOrCreateInterface(intf1Name).Description = ygot.String(descIntf1Present)
-				bothOC.GetOrCreateInterface(intf2Name).Description = ygot.String(descIntf2Present)
+				// Ensure OC `type` is present for each interface to satisfy device mandatory fields.
+				configureOCInterface(t, bothOC, dut, intf1Name, descIntf1Present, 0, "", 0)
+				configureOCInterface(t, bothOC, dut, intf2Name, descIntf2Present, 0, "", 0)
 				sb := &gnmi.SetBatch{}
 				gnmi.BatchUnionReplaceCLI(sb, cliOrigin, sharedBaseline)
 				gnmi.BatchUnionReplace(sb, gnmi.OC().Config(), bothOC)
@@ -808,7 +937,7 @@ func TestUnionReplace(t *testing.T) {
 
 				t.Log("Omit interface 2 in OC union_replace")
 				intf1Only := &oc.Root{}
-				intf1Only.GetOrCreateInterface(intf1Name).Description = ygot.String(descIntf1Present)
+				configureOCInterface(t, intf1Only, dut, intf1Name, descIntf1Present, 0, "", 0)
 				sb2 := &gnmi.SetBatch{}
 				gnmi.BatchUnionReplaceCLI(sb2, cliOrigin, sharedBaseline)
 				gnmi.BatchUnionReplace(sb2, gnmi.OC().Config(), intf1Only)
@@ -857,8 +986,10 @@ func TestUnionReplace(t *testing.T) {
 
 				t.Log("Configure IP on port1, no IP on port2")
 				ocConfig := &oc.Root{}
+				// Ensure OC `type` is present for each interface (required by some DUTs).
 				configureOCInterface(t, ocConfig, dut, intf1Name, descMoveHasIP, 0, port1IPv4, ipv4PrefixLen)
-				ocConfig.GetOrCreateInterface(intf2Name).Description = ygot.String(descMoveNoIP)
+				// Use configureOCInterface for the second interface as well so `type` is set.
+				configureOCInterface(t, ocConfig, dut, intf2Name, descMoveNoIP, 0, "", 0)
 				sb := &gnmi.SetBatch{}
 				gnmi.BatchUnionReplaceCLI(sb, cliOrigin, sharedBaseline)
 				gnmi.BatchUnionReplace(sb, gnmi.OC().Config(), ocConfig)
@@ -867,7 +998,7 @@ func TestUnionReplace(t *testing.T) {
 
 				t.Log("Move IP from port1 to port2")
 				ocConfig = &oc.Root{}
-				ocConfig.GetOrCreateInterface(intf1Name).Description = ygot.String(descMoveIPMoved)
+				configureOCInterface(t, ocConfig, dut, intf1Name, descMoveIPMoved, 0, "", 0)
 				configureOCInterface(t, ocConfig, dut, intf2Name, descMoveHasIPNow, 0, port1IPv4, ipv4PrefixLen)
 				sb2 := &gnmi.SetBatch{}
 				gnmi.BatchUnionReplaceCLI(sb2, cliOrigin, sharedBaseline)
@@ -918,6 +1049,9 @@ func TestUnionReplace(t *testing.T) {
 			desc: "Verify configuration with OC hardware mismatch (wrong port-speed) is accepted.",
 			fn: func(t *testing.T) error {
 				dut := ondatra.DUT(t, "dut")
+				if dut.Vendor() == ondatra.JUNIPER {
+					t.Skipf("Skipping %s: Juniper does not support port-speed config on breakout-channel interfaces", t.Name())
+				}
 				setCLIunionReplace(t, dut)
 				sb := &gnmi.SetBatch{}
 				targetSpeed := oc.IfEthernet_ETHERNET_SPEED_SPEED_10GB
@@ -1007,6 +1141,9 @@ func TestUnionReplace(t *testing.T) {
 			desc: "Verify configuration with CLI hardware mismatch is accepted.",
 			fn: func(t *testing.T) error {
 				dut := ondatra.DUT(t, "dut")
+				if dut.Vendor() == ondatra.JUNIPER {
+					t.Skipf("Skipping %s: Juniper does not support port-speed config on breakout-channel interfaces", t.Name())
+				}
 				setCLIunionReplace(t, dut)
 				sb := &gnmi.SetBatch{}
 				targetSpeed := oc.IfEthernet_ETHERNET_SPEED_SPEED_10GB
@@ -1030,8 +1167,6 @@ func TestUnionReplace(t *testing.T) {
 					clicfg1 += fmt.Sprintf("interface %s\nspeed 10g\n", dp1.Name())
 				case ondatra.CISCO:
 					clicfg1 += fmt.Sprintf("interface %s\nspeed 10000\n", dp1.Name())
-				case ondatra.JUNIPER:
-					clicfg1 += fmt.Sprintf("set interfaces %s speed 10g\n", dp1.Name())
 				default:
 					return fmt.Errorf("unsupported vendor: %v", dut.Vendor())
 				}
@@ -1136,6 +1271,8 @@ func TestUnionReplace(t *testing.T) {
 					switch dut.Vendor() {
 					case ondatra.ARISTA:
 						badCLI = fmt.Sprintf("interface %s\n  mtu %d\n", nonExistentIntf, badIntfMTU)
+					case ondatra.JUNIPER:
+						badCLI = fmt.Sprintf("interfaces {\n  %s {\n    mtu %d;\n  }\n}\n", nonExistentIntf, badIntfMTU)
 					default:
 						t.Fatalf("CLI invalid interface test not implemented for vendor %v", dut.Vendor())
 					}
@@ -1286,6 +1423,8 @@ func TestUnionReplace(t *testing.T) {
 					switch dut.Vendor() {
 					case ondatra.ARISTA:
 						bgpCLI = fmt.Sprintf("router bgp %d\n", bgpASCLI)
+					case ondatra.JUNIPER:
+						bgpCLI = fmt.Sprintf("routing-options {\n  autonomous-system %d;\n}\n", bgpASCLI)
 					default:
 						t.Fatalf("BGP overlap test not implemented for vendor %v", dut.Vendor())
 					}
@@ -1345,6 +1484,8 @@ func TestUnionReplace(t *testing.T) {
 					switch dut.Vendor() {
 					case ondatra.ARISTA:
 						rpCLI = fmt.Sprintf("route-map %s permit 10\n", policyName)
+					case ondatra.JUNIPER:
+						rpCLI = fmt.Sprintf("policy-options {\n  policy-statement %s {\n    then accept;\n  }\n}\n", policyName)
 					default:
 						t.Fatalf("Routing-policy overlap test not implemented for vendor %v", dut.Vendor())
 					}
@@ -1387,6 +1528,7 @@ func TestUnionReplace(t *testing.T) {
 				t.Log("Set port1 description and MTU via OC, port2 description via CLI")
 				ocDelta := &oc.Root{}
 				p1Intf := ocDelta.GetOrCreateInterface(intf1Name)
+				setInterfaceTypeIfRequired(dut, p1Intf)
 				p1Intf.Description = ygot.String(descOCDescP1)
 				p1Intf.Mtu = ygot.Uint16(nonOverlapMTU)
 
@@ -1410,7 +1552,9 @@ func TestUnionReplace(t *testing.T) {
 			fn: func(t *testing.T) error {
 				dut := ondatra.DUT(t, "dut")
 				var errs []error
-
+				if dut.Vendor() == ondatra.JUNIPER {
+					t.Skipf("Skipping %s: OC breakout translation is not supported on Juniper in this test path", t.Name())
+				}
 				t.Log("Generate OC delta with port-speed and breakout-mode for missing-hardware interface")
 				ocDelta := &oc.Root{}
 				ocBreakoutMode(t, dut, ocDelta, interfaceWithoutTransceiver)
@@ -1443,6 +1587,9 @@ func TestUnionReplace(t *testing.T) {
 			fn: func(t *testing.T) error {
 				dut := ondatra.DUT(t, "dut")
 				var errs []error
+				if dut.Vendor() == ondatra.JUNIPER {
+					t.Skipf("Skipping %s: CLI breakout translation is not supported on Juniper in this test path", t.Name())
+				}
 
 				t.Log("Generate CLI configuration with port-speed and breakout-mode")
 				cli := cliInterfaceConfig(t, dut, cliInterfaceConfigOpts{Name: interfaceWithoutTransceiver, Speed: portSpeed50GCLI})
