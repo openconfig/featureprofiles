@@ -17,7 +17,9 @@ package cfgplugins
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/helpers"
@@ -54,6 +56,14 @@ type StaticVRFRouteCfg struct {
 	ProtocolStr     string
 }
 
+// ConfigureStaticRouteParams contains the parameters required to configure a static route on the DUT.
+type ConfigureStaticRouteParams struct {
+	NetworkInstance string
+	Prefix          string
+	Index           string
+	NextHop         string
+}
+
 // NewStaticRouteCfg provides OC configuration for a static route for a specific NetworkInstance,
 // Prefix and NextHops.
 //
@@ -74,18 +84,13 @@ func NewStaticRouteCfg(batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUT
 		if deviations.StaticRouteToNHGOCUnsupported(d) {
 			switch d.Vendor() {
 			case ondatra.ARISTA:
-				if cfg.RemoveStaticRoute {
-					helpers.GnmiCLIConfig(cfg.T, d, fmt.Sprintf(`no ipv6 route %s nexthop-group %s`, cfg.Prefix, cfg.NexthopGroupName))
-				} else {
-					cli := fmt.Sprintf(`ipv6 route %s nexthop-group %s`, cfg.Prefix, cfg.NexthopGroupName)
-					helpers.GnmiCLIConfig(cfg.T, d, cli)
-					staticRouteToNextHopGroupCLI(cfg.T, d, *cfg)
-					cliConfigured = true
-				}
+				cli := fmt.Sprintf(`ipv6 route %s nexthop-group %s`, cfg.Prefix, cfg.NexthopGroupName)
+				helpers.GnmiCLIConfig(cfg.T, d, cli)
+				staticRouteToNextHopGroupCLI(cfg.T, d, *cfg)
+				cliConfigured = true
 			default:
 				return s, fmt.Errorf("deviation StaticRouteToNHGOCUnsupported is not handled for the dut: %s", d.Vendor())
 			}
-			return s, nil
 		} else {
 			nhg := s.GetOrCreateNextHopGroup()
 			nhg.SetName(cfg.NexthopGroupName)
@@ -208,16 +213,67 @@ func NewStaticVRFRoute(t *testing.T, batch *gnmi.SetBatch, cfg *StaticVRFRouteCf
 	sp := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(d))
 	gnmi.BatchUpdate(batch, sp.Config(), c)
 	gnmi.BatchReplace(batch, sp.Static(cfg.Prefix).Config(), s)
-
 	return s, nil
 }
 
-// ConfigureStaticRouteParams contains the parameters required to configure a static route on the DUT.
-type ConfigureStaticRouteParams struct {
-	NetworkInstance string
-	Prefix          string
-	Index           string
-	NextHop         string
+// DeleteStaticRouteNextHopLeaves deletes specific leaves of a next hop.
+func DeleteStaticRouteNextHopLeaves(t *testing.T, dut *ondatra.DUTDevice, netInst string, prefix string, index string, leaves ...string) {
+	t.Helper()
+	ni := normalizeNIName(netInst, dut)
+	sp := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+	nh := sp.Static(prefix).NextHop(index)
+
+	b := &gnmi.SetBatch{}
+	for _, leaf := range leaves {
+		switch strings.ToLower(leaf) {
+		case "metric":
+			gnmi.BatchDelete(b, nh.Metric().Config())
+		case "preference":
+			gnmi.BatchDelete(b, nh.Preference().Config())
+		case "recurse":
+			gnmi.BatchDelete(b, nh.Recurse().Config())
+		default:
+			t.Fatalf("Unsupported leaf to delete: %s", leaf)
+		}
+	}
+	b.Set(t, dut)
+}
+
+// DeleteStaticRouteNextHops deletes specific next hops from a static route.
+func DeleteStaticRouteNextHops(t *testing.T, dut *ondatra.DUTDevice, netInst string, prefix string, indexes ...string) {
+	t.Helper()
+	ni := normalizeNIName(netInst, dut)
+	sp := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+
+	b := &gnmi.SetBatch{}
+	for _, index := range indexes {
+		gnmi.BatchDelete(b, sp.Static(prefix).NextHop(index).Config())
+	}
+	b.Set(t, dut)
+}
+
+// ValidateStaticRouteNextHopIndex validates the next hop indexes and their addresses.
+func ValidateStaticRouteNextHopIndex(t *testing.T, dut *ondatra.DUTDevice, netInst string, prefix string, expectedNh map[string]string) {
+	t.Helper()
+	ni := normalizeNIName(netInst, dut)
+	sp := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+
+	gotStatic := gnmi.Get(t, dut, sp.Static(prefix).State())
+
+	if got, want := len(gotStatic.NextHop), len(expectedNh); got != want {
+		t.Errorf("ValidateStaticRouteNextHopIndex: got %d nexthops, want %d", got, want)
+	}
+
+	for index, expectedAddr := range expectedNh {
+		nh, ok := gotStatic.NextHop[index]
+		if !ok {
+			t.Errorf("ValidateStaticRouteNextHopIndex: missing expected index %s", index)
+			continue
+		}
+		if got, want := nh.GetNextHop(), oc.UnionString(expectedAddr); got != want {
+			t.Errorf("ValidateStaticRouteNextHopIndex: index %s got next hop %s, want %s", index, got, want)
+		}
+	}
 }
 
 // ConfigureStaticRoute installs a static route into the default NI.
@@ -233,5 +289,29 @@ func ConfigureStaticRoute(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetB
 
 	if _, err := NewStaticRouteCfg(batch, staticRoute, dut); err != nil {
 		t.Fatalf("Failed to configure static route %s: %v", cfg.Prefix, err)
+	}
+}
+
+// ValidateStaticRouteConfigured validates both the routes are configured and reported correctly.
+func ValidateStaticRouteConfigured(t *testing.T, dut *ondatra.DUTDevice, netInst string, prefix string, sV4 *StaticRouteCfg) {
+	t.Helper()
+	sp := gnmi.OC().NetworkInstance(netInst).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+	gnmi.Await(t, dut, sp.Static(prefix).Prefix().State(), 120*time.Second, prefix)
+
+	if deviations.SkipStaticNexthopCheck(dut) {
+		nexthops := gnmi.LookupAll(t, dut, sp.Static(prefix).NextHopAny().NextHop().State())
+		if got, want := len(nexthops), len(sV4.NextHops); got != want {
+			t.Errorf("Static route next hop count - %s: got: %v, want: %v", prefix, got, want)
+		}
+	} else {
+		// Validate both the routes i.e. ipv4-route-[a|b] are configured and reported
+		// correctly
+		gotStatic := gnmi.Get(t, dut, sp.Static(prefix).State())
+		t.Logf("Static route %s: got: %v, want: %v", prefix, len(gotStatic.NextHop), len(sV4.NextHops))
+		for index, nextHop := range gotStatic.NextHop {
+			if got, want := nextHop.GetNextHop(), sV4.NextHops[index]; got != want {
+				t.Errorf("Static route %s: got: %v, want: %v", prefix, got, want)
+			}
+		}
 	}
 }
