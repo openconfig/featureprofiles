@@ -11,10 +11,10 @@ This test evaluates if all 64 combination of DSCP bits are transparently handled
 ## Procedure
 
 ### Testbed configuration
-* Connect DUTPort1 with OTGPort1, DUTPort2 with OTGPort2, DUTPort2 with OTGPort2; Assigne IPv4 and IPv6 addresses on all.
+* Connect DUTPort1 with OTGPort1, DUTPort2 with OTGPort2, DUTPort3 with OTGPort3; Assign IPv4 and IPv6 addresses on all.
 * All 3 ports are of the same speed (100GE)
 * Configure QoS
-    * DSCP classifier for IPv4 and IPv4 as below:
+    * DSCP classifier for IPv4 and IPv6 as below:
         |DSCP (dec)|Traffic-group|
         |--|--|
         |48-63|NC1|
@@ -34,8 +34,775 @@ This test evaluates if all 64 combination of DSCP bits are transparently handled
        * max-drop-percentage: 100 
        * ecn: enabled
     * attach queue-management profile to queues NC1, AF4, AF3, AF2, AF1, BE0, BE1;
-    * attach scheduler-map to DUTPort3 egress
-    * attach classifier to DUTPort1 nad DUTPort2 ingress
+    * attach scheduler-map to DUTPort1 egress
+    * attach classifier to DUTPort2 and DUTPort3 ingress
+
+#### Canonical OC
+
+```json
+{
+  "qos": {
+    "classifiers": {
+      "classifier": [
+        {
+          "config": {
+            "name": "dscp_based_classifier_ipv4",
+            "type": "IPV4"
+          },
+          "name": "dscp_based_classifier_ipv4",
+          "terms": {
+            "term": [
+              {
+                "actions": {
+                  "config": {
+                    "target-group": "target-group-BE1"
+                  }
+                },
+                "conditions": {
+                  "ipv4": {
+                    "config": {
+                      "dscp-set": [
+                        0,
+                        1,
+                        2,
+                        3
+                      ]
+                    }
+                  }
+                },
+                "config": {
+                  "id": "0"
+                },
+                "id": "0"
+              },
+              {
+                "actions": {
+                  "config": {
+                    "target-group": "target-group-BE0"
+                  }
+                },
+                "conditions": {
+                  "ipv4": {
+                    "config": {
+                      "dscp-set": [
+                        4,
+                        5,
+                        6,
+                        7
+                      ]
+                    }
+                  }
+                },
+                "config": {
+                  "id": "1"
+                },
+                "id": "1"
+              },
+              {
+                "actions": {
+                  "config": {
+                    "target-group": "target-group-AF1"
+                  }
+                },
+                "conditions": {
+                  "ipv4": {
+                    "config": {
+                      "dscp-set": [
+                        8,
+                        9,
+                        10,
+                        11,
+                        12,
+                        13,
+                        14,
+                        15
+                      ]
+                    }
+                  }
+                },
+                "config": {
+                  "id": "2"
+                },
+                "id": "2"
+              },
+              {
+                "actions": {
+                  "config": {
+                    "target-group": "target-group-AF2"
+                  }
+                },
+                "conditions": {
+                  "ipv4": {
+                    "config": {
+                      "dscp-set": [
+                        16,
+                        17,
+                        18,
+                        19,
+                        20,
+                        21,
+                        22,
+                        23
+                      ]
+                    }
+                  }
+                },
+                "config": {
+                  "id": "3"
+                },
+                "id": "3"
+              },
+              {
+                "actions": {
+                  "config": {
+                    "target-group": "target-group-AF3"
+                  }
+                },
+                "conditions": {
+                  "ipv4": {
+                    "config": {
+                      "dscp-set": [
+                        24,
+                        25,
+                        26,
+                        27,
+                        28,
+                        29,
+                        30,
+                        31
+                      ]
+                    }
+                  }
+                },
+                "config": {
+                  "id": "4"
+                },
+                "id": "4"
+              },
+              {
+                "actions": {
+                  "config": {
+                    "target-group": "target-group-AF4"
+                  }
+                },
+                "conditions": {
+                  "ipv4": {
+                    "config": {
+                      "dscp-set": [
+                        32,
+                        33,
+                        34,
+                        35,
+                        36,
+                        37,
+                        38,
+                        39,
+                        40,
+                        41,
+                        42,
+                        43,
+                        44,
+                        45,
+                        46,
+                        47
+                      ]
+                    }
+                  }
+                },
+                "config": {
+                  "id": "5"
+                },
+                "id": "5"
+              },
+              {
+                "actions": {
+                  "config": {
+                    "target-group": "target-group-NC1"
+                  }
+                },
+                "conditions": {
+                  "ipv4": {
+                    "config": {
+                      "dscp-set": [
+                        48,
+                        49,
+                        50,
+                        51,
+                        52,
+                        53,
+                        54,
+                        55,
+                        56,
+                        57,
+                        58,
+                        59,
+                        60,
+                        61,
+                        62,
+                        63
+                      ]
+                    }
+                  }
+                },
+                "config": {
+                  "id": "6"
+                },
+                "id": "6"
+              }
+            ]
+          }
+        },
+        {
+          "config": {
+            "name": "dscp_based_classifier_ipv6",
+            "type": "IPV6"
+          },
+          "name": "dscp_based_classifier_ipv6",
+          "terms": {
+            "term": [
+              {
+                "actions": {
+                  "config": {
+                    "target-group": "target-group-BE1"
+                  }
+                },
+                "conditions": {
+                  "ipv6": {
+                    "config": {
+                      "dscp-set": [
+                        0,
+                        1,
+                        2,
+                        3
+                      ]
+                    }
+                  }
+                },
+                "config": {
+                  "id": "0"
+                },
+                "id": "0"
+              },
+              {
+                "actions": {
+                  "config": {
+                    "target-group": "target-group-BE0"
+                  }
+                },
+                "conditions": {
+                  "ipv6": {
+                    "config": {
+                      "dscp-set": [
+                        4,
+                        5,
+                        6,
+                        7
+                      ]
+                    }
+                  }
+                },
+                "config": {
+                  "id": "1"
+                },
+                "id": "1"
+              },
+              {
+                "actions": {
+                  "config": {
+                    "target-group": "target-group-AF1"
+                  }
+                },
+                "conditions": {
+                  "ipv6": {
+                    "config": {
+                      "dscp-set": [
+                        8,
+                        9,
+                        10,
+                        11,
+                        12,
+                        13,
+                        14,
+                        15
+                      ]
+                    }
+                  }
+                },
+                "config": {
+                  "id": "2"
+                },
+                "id": "2"
+              },
+              {
+                "actions": {
+                  "config": {
+                    "target-group": "target-group-AF2"
+                  }
+                },
+                "conditions": {
+                  "ipv6": {
+                    "config": {
+                      "dscp-set": [
+                        16,
+                        17,
+                        18,
+                        19,
+                        20,
+                        21,
+                        22,
+                        23
+                      ]
+                    }
+                  }
+                },
+                "config": {
+                  "id": "3"
+                },
+                "id": "3"
+              },
+              {
+                "actions": {
+                  "config": {
+                    "target-group": "target-group-AF3"
+                  }
+                },
+                "conditions": {
+                  "ipv6": {
+                    "config": {
+                      "dscp-set": [
+                        24,
+                        25,
+                        26,
+                        27,
+                        28,
+                        29,
+                        30,
+                        31
+                      ]
+                    }
+                  }
+                },
+                "config": {
+                  "id": "4"
+                },
+                "id": "4"
+              },
+              {
+                "actions": {
+                  "config": {
+                    "target-group": "target-group-AF4"
+                  }
+                },
+                "conditions": {
+                  "ipv6": {
+                    "config": {
+                      "dscp-set": [
+                        32,
+                        33,
+                        34,
+                        35,
+                        36,
+                        37,
+                        38,
+                        39,
+                        40,
+                        41,
+                        42,
+                        43,
+                        44,
+                        45,
+                        46,
+                        47
+                      ]
+                    }
+                  }
+                },
+                "config": {
+                  "id": "5"
+                },
+                "id": "5"
+              },
+              {
+                "actions": {
+                  "config": {
+                    "target-group": "target-group-NC1"
+                  }
+                },
+                "conditions": {
+                  "ipv6": {
+                    "config": {
+                      "dscp-set": [
+                        48,
+                        49,
+                        50,
+                        51,
+                        52,
+                        53,
+                        54,
+                        55,
+                        56,
+                        57,
+                        58,
+                        59,
+                        60,
+                        61,
+                        62,
+                        63
+                      ]
+                    }
+                  }
+                },
+                "config": {
+                  "id": "6"
+                },
+                "id": "6"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "forwarding-groups": {
+      "forwarding-group": [
+        {
+          "config": {
+            "name": "target-group-AF1",
+            "output-queue": "AF1"
+          },
+          "name": "target-group-AF1"
+        },
+        {
+          "config": {
+            "name": "target-group-AF2",
+            "output-queue": "AF2"
+          },
+          "name": "target-group-AF2"
+        },
+        {
+          "config": {
+            "name": "target-group-AF3",
+            "output-queue": "AF3"
+          },
+          "name": "target-group-AF3"
+        },
+        {
+          "config": {
+            "name": "target-group-AF4",
+            "output-queue": "AF4"
+          },
+          "name": "target-group-AF4"
+        },
+        {
+          "config": {
+            "name": "target-group-BE0",
+            "output-queue": "BE0"
+          },
+          "name": "target-group-BE0"
+        },
+        {
+          "config": {
+            "name": "target-group-BE1",
+            "output-queue": "BE1"
+          },
+          "name": "target-group-BE1"
+        },
+        {
+          "config": {
+            "name": "target-group-NC1",
+            "output-queue": "NC1"
+          },
+          "name": "target-group-NC1"
+        }
+      ]
+    },
+    "interfaces": {
+      "interface": [
+        {
+          "config": {
+            "interface-id": "port1"
+          },
+          "interface-id": "port1",
+          "output": {
+            "queues": {
+              "queue": [
+                {
+                  "config": {
+                    "name": "AF1",
+                    "queue-management-profile": "queueManagementProfile"
+                  },
+                  "name": "AF1"
+                },
+                {
+                  "config": {
+                    "name": "AF2",
+                    "queue-management-profile": "queueManagementProfile"
+                  },
+                  "name": "AF2"
+                },
+                {
+                  "config": {
+                    "name": "AF3",
+                    "queue-management-profile": "queueManagementProfile"
+                  },
+                  "name": "AF3"
+                },
+                {
+                  "config": {
+                    "name": "AF4",
+                    "queue-management-profile": "queueManagementProfile"
+                  },
+                  "name": "AF4"
+                },
+                {
+                  "config": {
+                    "name": "BE0",
+                    "queue-management-profile": "queueManagementProfile"
+                  },
+                  "name": "BE0"
+                },
+                {
+                  "config": {
+                    "name": "BE1",
+                    "queue-management-profile": "queueManagementProfile"
+                  },
+                  "name": "BE1"
+                },
+                {
+                  "config": {
+                    "name": "NC1",
+                    "queue-management-profile": "queueManagementProfile"
+                  },
+                  "name": "NC1"
+                }
+              ]
+            },
+            "scheduler-policy": {
+              "config": {
+                "name": "schedulerPolicy"
+              }
+            }
+          }
+        },
+        {
+          "config": {
+            "interface-id": "port2"
+          },
+          "input": {
+            "classifiers": {
+              "classifier": [
+                {
+                  "config": {
+                    "name": "dscp_based_classifier_ipv4",
+                    "type": "IPV4"
+                  },
+                  "type": "IPV4"
+                },
+                {
+                  "config": {
+                    "name": "dscp_based_classifier_ipv6",
+                    "type": "IPV6"
+                  },
+                  "type": "IPV6"
+                }
+              ]
+            }
+          },
+          "interface-id": "port2"
+        },
+        {
+          "config": {
+            "interface-id": "port3"
+          },
+          "input": {
+            "classifiers": {
+              "classifier": [
+                {
+                  "config": {
+                    "name": "dscp_based_classifier_ipv4",
+                    "type": "IPV4"
+                  },
+                  "type": "IPV4"
+                },
+                {
+                  "config": {
+                    "name": "dscp_based_classifier_ipv6",
+                    "type": "IPV6"
+                  },
+                  "type": "IPV6"
+                }
+              ]
+            }
+          },
+          "interface-id": "port3"
+        }
+      ]
+    },
+    "queue-management-profiles": {
+      "queue-management-profile": [
+        {
+          "config": {
+            "name": "queueManagementProfile"
+          },
+          "name": "queueManagementProfile",
+          "wred": {
+            "uniform": {
+              "config": {
+                "enable-ecn": true,
+                "max-drop-probability-percent": 100,
+                "max-threshold": "3000000",
+                "min-threshold": "80000"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "queues": {
+      "queue": [
+        {
+          "config": {
+            "name": "AF1"
+          },
+          "name": "AF1"
+        },
+        {
+          "config": {
+            "name": "AF2"
+          },
+          "name": "AF2"
+        },
+        {
+          "config": {
+            "name": "AF3"
+          },
+          "name": "AF3"
+        },
+        {
+          "config": {
+            "name": "AF4"
+          },
+          "name": "AF4"
+        },
+        {
+          "config": {
+            "name": "BE0"
+          },
+          "name": "BE0"
+        },
+        {
+          "config": {
+            "name": "BE1"
+          },
+          "name": "BE1"
+        },
+        {
+          "config": {
+            "name": "NC1"
+          },
+          "name": "NC1"
+        }
+      ]
+    },
+    "scheduler-policies": {
+      "scheduler-policy": [
+        {
+          "config": {
+            "name": "schedulerPolicy"
+          },
+          "name": "schedulerPolicy",
+          "schedulers": {
+            "scheduler": [
+              {
+                "config": {
+                  "priority": "STRICT",
+                  "sequence": 0
+                },
+                "inputs": {
+                  "input": [
+                    {
+                      "config": {
+                        "id": "NC1",
+                        "input-type": "QUEUE",
+                        "queue": "NC1"
+                      },
+                      "id": "NC1"
+                    }
+                  ]
+                },
+                "sequence": 0
+              },
+              {
+                "config": {
+                  "sequence": 1
+                },
+                "inputs": {
+                  "input": [
+                    {
+                      "config": {
+                        "id": "AF1",
+                        "input-type": "QUEUE",
+                        "queue": "AF1",
+                        "weight": "10"
+                      },
+                      "id": "AF1"
+                    },
+                    {
+                      "config": {
+                        "id": "AF2",
+                        "input-type": "QUEUE",
+                        "queue": "AF2",
+                        "weight": "10"
+                      },
+                      "id": "AF2"
+                    },
+                    {
+                      "config": {
+                        "id": "AF3",
+                        "input-type": "QUEUE",
+                        "queue": "AF3",
+                        "weight": "10"
+                      },
+                      "id": "AF3"
+                    },
+                    {
+                      "config": {
+                        "id": "AF4",
+                        "input-type": "QUEUE",
+                        "queue": "AF4",
+                        "weight": "10"
+                      },
+                      "id": "AF4"
+                    },
+                    {
+                      "config": {
+                        "id": "BE0",
+                        "input-type": "QUEUE",
+                        "queue": "BE0",
+                        "weight": "10"
+                      },
+                      "id": "BE0"
+                    },
+                    {
+                      "config": {
+                        "id": "BE1",
+                        "input-type": "QUEUE",
+                        "queue": "BE1",
+                        "weight": "10"
+                      },
+                      "id": "BE1"
+                    }
+                  ]
+                },
+                "sequence": 1
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+```
 
 ### Sub Test #1 - No-Congestion 
 * Generate 7 flows of traffic form ATEPort1 toward ATEPort3
