@@ -16,6 +16,7 @@
 package vrfpolicy
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -48,6 +49,8 @@ const (
 	niTeVrf111              = "TE_VRF_111"
 	niTeVrf222              = "TE_VRF_222"
 	decapFlowSrc            = "198.51.100.111"
+	ipipProtocol            = 4
+	ipv6ipProtocol          = 41
 )
 
 type ipInfo struct {
@@ -395,4 +398,49 @@ func DeletePolicyForwarding(t *testing.T, dut *ondatra.DUTDevice, portID string)
 	}
 	pfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID)
 	gnmi.Delete(t, dut, pfPath.Config())
+}
+
+// BuildScaledVRFSelectionPolicy creates a scaled VRF selection policy with 30 positive rules,
+// a ghost rule, and a catch-all rule, as required by RT-3.4.
+func BuildScaledVRFSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice, niName string) *oc.NetworkInstance_PolicyForwarding {
+	r := &oc.Root{}
+	ni := r.GetOrCreateNetworkInstance(niName)
+	niP := ni.GetOrCreatePolicyForwarding()
+	niPf := niP.GetOrCreatePolicy("HA_VRF_SELECTION")
+	niPf.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
+
+	// Rules 1-15: Match IPinIP (Protocol 4)
+	for i := 1; i <= 15; i++ {
+		pfR := niPf.GetOrCreateRule(uint32(i))
+		pfRProtoIP := pfR.GetOrCreateIpv4()
+		pfRProtoIP.Protocol = oc.UnionUint8(ipipProtocol) // IPinIP
+		// Unique IP prefix per VRF, e.g. 198.18.x.0/24
+		pfRProtoIP.SourceAddress = ygot.String(fmt.Sprintf("198.18.%d.0/24", i))
+		pfRAction := pfR.GetOrCreateAction()
+		pfRAction.NetworkInstance = ygot.String(fmt.Sprintf("VRF-V4-%d", i))
+	}
+
+	// Rules 16-30: Match IPv6inIP (Protocol 41)
+	for i := 1; i <= 15; i++ {
+		seq := i + 15
+		pfR := niPf.GetOrCreateRule(uint32(seq))
+		pfRProtoIP := pfR.GetOrCreateIpv4()
+		pfRProtoIP.Protocol = oc.UnionUint8(ipv6ipProtocol) // IPv6inIPv4
+		pfRProtoIP.SourceAddress = ygot.String(fmt.Sprintf("198.19.%d.0/24", i))
+		pfRAction := pfR.GetOrCreateAction()
+		pfRAction.NetworkInstance = ygot.String(fmt.Sprintf("VRF-V6-%d", i))
+	}
+
+	// Rule 31 (Ghost VRF)
+	pfR31 := niPf.GetOrCreateRule(31)
+	pfR31.GetOrCreateIpv4().Protocol = oc.UnionUint8(ipipProtocol)
+	pfR31.GetOrCreateIpv4().SourceAddress = ygot.String("198.20.0.0/24")
+	pfR31.GetOrCreateAction().NetworkInstance = ygot.String("VRF-GHOST")
+
+	// Rule 100 (Catch-All)
+	pfR100 := niPf.GetOrCreateRule(100)
+	pfR100.GetOrCreateIpv4().Protocol = oc.UnionUint8(ipipProtocol)
+	pfR100.GetOrCreateAction().NetworkInstance = ygot.String("VRF-V4-15")
+
+	return niP
 }
