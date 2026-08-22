@@ -19,12 +19,14 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/functional-translators/ftconsts"
 	"github.com/openconfig/ondatra"
 	"google.golang.org/grpc/metadata"
 
@@ -34,8 +36,8 @@ import (
 )
 
 const (
-	ip1      = "10.0.0.1/30"
-	ip2      = "10.0.0.2/30"
+	ip1      = "192.0.2.1/30"
+	ip2      = "192.0.2.2/30"
 	username = "macsec_test_user"
 	password = "macsec_test_password"
 )
@@ -82,16 +84,65 @@ interface %s
    mac security profile must_secure
 `, customKeyID, customSecretKey, port.Name(), ipv4)
 		dut.Config().New().WithText(cli).Append(t)
-		t.Logf("Configured MACsec on DUT %s, port %s", dut.Name(), port.Name())
+	} else if dut.Vendor() == ondatra.JUNIPER {
+		cli := fmt.Sprintf(`
+interfaces {
+    %s {
+        unit 0 {
+            family inet {
+                address %s;
+            }
+        }
+    }
+}
+security {
+    macsec {
+        connectivity-association CA_basic_1 {
+            security-mode static-cak;
+            cipher-suite gcm-aes-256;
+            pre-shared-key {
+                ckn %s;
+                cak "%s";
+            }
+        }
+        interfaces {
+            %s {
+                connectivity-association CA_basic_1;
+            }
+        }
+    }
+}
+`, port.Name(), ipv4, customKeyID, customSecretKey, port.Name())
+		gnmiClient := dut.RawAPIs().GNMI(t)
+		_, err := gnmiClient.Set(context.Background(), &gpb.SetRequest{
+			Update: []*gpb.Update{{
+				Path: &gpb.Path{
+					Origin: "cli",
+					Elem:   []*gpb.PathElem{},
+				},
+				Val: &gpb.TypedValue{
+					Value: &gpb.TypedValue_AsciiVal{
+						AsciiVal: cli,
+					},
+				},
+			}},
+		})
+		if err != nil {
+			t.Fatalf("Juniper config push failed on %s: %v", dut.Name(), err)
+		}
 	}
+	t.Logf("Configured MACsec on DUT %s, port %s", dut.Name(), port.Name())
 }
 
 func getTranslatedUpdates(t *testing.T, dut *ondatra.DUTDevice, ftName string) []*gpb.Update {
 	t.Helper()
-	ctx := metadata.AppendToOutgoingContext(context.Background(),
-		"username", username,
-		"password", password,
-	)
+	ctx := context.Background()
+	if dut.Vendor() == ondatra.ARISTA {
+		ctx = metadata.AppendToOutgoingContext(ctx,
+			"username", username,
+			"password", password,
+		)
+	}
 	gnmiClient := dut.RawAPIs().GNMI(t)
 
 	ft, ok := registrar.FunctionalTranslatorRegistry[ftName]
@@ -108,41 +159,122 @@ func getTranslatedUpdates(t *testing.T, dut *ondatra.DUTDevice, ftName string) [
 		t.Fatalf("No native paths found for functional translator %q", ftName)
 	}
 
-	resp, err := gnmiClient.Get(ctx, &gpb.GetRequest{
-		Path:     nativePaths,
-		Type:     gpb.GetRequest_STATE,
-		Encoding: gpb.Encoding_JSON_IETF,
-	})
-	if err != nil {
-		t.Fatalf("[%s] Failed to get native paths: %v", dut.Name(), err)
-	}
-
 	var updates []*gpb.Update
-	for _, notification := range resp.GetNotification() {
-		dummySR := &gpb.SubscribeResponse{
-			Response: &gpb.SubscribeResponse_Update{
-				Update: notification,
-			},
+
+	if dut.Vendor() == ondatra.JUNIPER {
+		// Juniper only supports CONFIG type for gNMI Get with junos origin,
+		// so use Subscribe ONCE to fetch state data instead.
+		// Also, Juniper rejects subscriptions with origin set, so strip it.
+		var subscriptions []*gpb.Subscription
+		for _, p := range nativePaths {
+			subPath := &gpb.Path{Elem: p.GetElem()}
+			subscriptions = append(subscriptions, &gpb.Subscription{Path: subPath})
 		}
-		translatedSR, err := ft.Translate(dummySR)
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		subClient, err := gnmiClient.Subscribe(ctx)
 		if err != nil {
-			t.Logf("[%s] Translation Failed: %v", dut.Name(), err)
-			continue
+			t.Fatalf("[%s] Failed to create Subscribe client: %v", dut.Name(), err)
 		}
-		if translatedSR == nil {
-			continue
+		if err := subClient.Send(&gpb.SubscribeRequest{
+			Request: &gpb.SubscribeRequest_Subscribe{
+				Subscribe: &gpb.SubscriptionList{
+					Subscription: subscriptions,
+					Mode:         gpb.SubscriptionList_ONCE,
+					Encoding:     gpb.Encoding_PROTO,
+				},
+			},
+		}); err != nil {
+			t.Fatalf("[%s] Failed to send Subscribe request: %v", dut.Name(), err)
 		}
-		updates = append(updates, translatedSR.GetUpdate().GetUpdate()...)
+		for {
+			resp, err := subClient.Recv()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				t.Fatalf("[%s] Subscribe Recv error: %v", dut.Name(), err)
+			}
+			if resp.GetSyncResponse() {
+				break
+			}
+			translatedSR, err := ft.Translate(resp)
+			if err != nil {
+				t.Logf("[%s] Translation Failed: %v", dut.Name(), err)
+				continue
+			}
+			if translatedSR == nil {
+				continue
+			}
+			updates = append(updates, translatedSR.GetUpdate().GetUpdate()...)
+		}
+	} else if dut.Vendor() == ondatra.ARISTA {
+		resp, err := gnmiClient.Get(ctx, &gpb.GetRequest{
+			Path:     nativePaths,
+			Type:     gpb.GetRequest_STATE,
+			Encoding: gpb.Encoding_JSON_IETF,
+		})
+		if err != nil {
+			t.Fatalf("[%s] Failed to get native paths: %v", dut.Name(), err)
+		}
+
+		for _, notification := range resp.GetNotification() {
+			dummySR := &gpb.SubscribeResponse{
+				Response: &gpb.SubscribeResponse_Update{
+					Update: notification,
+				},
+			}
+			translatedSR, err := ft.Translate(dummySR)
+			if err != nil {
+				t.Logf("[%s] Translation Failed: %v", dut.Name(), err)
+				continue
+			}
+			if translatedSR == nil {
+				continue
+			}
+			updates = append(updates, translatedSR.GetUpdate().GetUpdate()...)
+		}
 	}
 	return updates
 }
 
+func macsecFTName(t *testing.T, dut *ondatra.DUTDevice, counters bool) string {
+	t.Helper()
+
+	var ftName string
+	if counters {
+		ftName = deviations.MacsecCountersFt(dut)
+	} else {
+		ftName = deviations.MacsecStateFt(dut)
+	}
+	if ftName != "" {
+		return ftName
+	}
+
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		if counters {
+			return ftconsts.AristaMacsecCountersTranslator
+		}
+		return ftconsts.AristaMacsecStateFunctionalTranslator
+	case ondatra.JUNIPER:
+		if counters {
+			return ftconsts.JuniperMacsecCountersTranslator
+		}
+		return ftconsts.JuniperMacsecStateFunctionalTranslator
+	default:
+		t.Fatalf("[%s] No MACsec functional translator available for vendor %v", dut.Name(), dut.Vendor())
+	}
+
+	return ""
+}
+
 func verifyNoStatusOrCkn(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	if dut.Vendor() != ondatra.ARISTA {
+	if dut.Vendor() != ondatra.ARISTA && dut.Vendor() != ondatra.JUNIPER {
 		return
 	}
-	for _, update := range getTranslatedUpdates(t, dut, deviations.MacsecStateFt(dut)) {
+	for _, update := range getTranslatedUpdates(t, dut, macsecFTName(t, dut, false)) {
 		path := update.GetPath()
 		pathStr := ""
 		for _, elem := range path.GetElem() {
@@ -156,7 +288,7 @@ func verifyNoStatusOrCkn(t *testing.T, dut *ondatra.DUTDevice) {
 
 func verifyStatusAndCkn(t *testing.T, dut *ondatra.DUTDevice, expectedCkn string) {
 	t.Helper()
-	if dut.Vendor() != ondatra.ARISTA {
+	if dut.Vendor() != ondatra.ARISTA && dut.Vendor() != ondatra.JUNIPER {
 		return
 	}
 
@@ -164,7 +296,7 @@ func verifyStatusAndCkn(t *testing.T, dut *ondatra.DUTDevice, expectedCkn string
 	success := false
 	for i := 0; i < 10; i++ {
 		statusSecured := false
-		for _, update := range getTranslatedUpdates(t, dut, deviations.MacsecStateFt(dut)) {
+		for _, update := range getTranslatedUpdates(t, dut, macsecFTName(t, dut, false)) {
 			path := update.GetPath()
 			pathStr := ""
 			for _, elem := range path.GetElem() {
@@ -213,10 +345,10 @@ func verifyStatusAndCkn(t *testing.T, dut *ondatra.DUTDevice, expectedCkn string
 
 func getMacsecCounter(t *testing.T, dut *ondatra.DUTDevice, port string, counterName string) uint64 {
 	t.Helper()
-	if dut.Vendor() != ondatra.ARISTA {
+	if dut.Vendor() != ondatra.ARISTA && dut.Vendor() != ondatra.JUNIPER {
 		return 0
 	}
-	for _, update := range getTranslatedUpdates(t, dut, deviations.MacsecCountersFt(dut)) {
+	for _, update := range getTranslatedUpdates(t, dut, macsecFTName(t, dut, true)) {
 		path := update.GetPath()
 		foundInterface := false
 		for _, elem := range path.GetElem() {
@@ -242,7 +374,7 @@ func getMacsecCounter(t *testing.T, dut *ondatra.DUTDevice, port string, counter
 
 func verifyCounterIncrements(t *testing.T, dut *ondatra.DUTDevice, port string, counterName string) {
 	t.Helper()
-	if dut.Vendor() != ondatra.ARISTA {
+	if dut.Vendor() != ondatra.ARISTA && dut.Vendor() != ondatra.JUNIPER {
 		return
 	}
 	startVal := getMacsecCounter(t, dut, port, counterName)
@@ -265,7 +397,7 @@ func verifyCounterIncrements(t *testing.T, dut *ondatra.DUTDevice, port string, 
 
 func verifyCounterNonZero(t *testing.T, dut *ondatra.DUTDevice, port string, counterName string) {
 	t.Helper()
-	if dut.Vendor() != ondatra.ARISTA {
+	if dut.Vendor() != ondatra.ARISTA && dut.Vendor() != ondatra.JUNIPER {
 		return
 	}
 	success := false
@@ -350,7 +482,7 @@ func TestMacsecConfiguration(t *testing.T) {
 		configureMacsecOnDUT(t, dut2, port2, ip2, keyID, secretKey2)
 
 		// Push gNOI pings to guarantee a robust volume of encrypted (bad ICV) packets across the L3 channel
-		sendGnoiPing(t, dut1, "10.0.0.2")
+sendGnoiPing(t, dut1, strings.Split(ip2, "/")[0])
 
 		verifyCounterIncrements(t, dut2, port2.Name(), "rx-badicv-pkts")
 	})
