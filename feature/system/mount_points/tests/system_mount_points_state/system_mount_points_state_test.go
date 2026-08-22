@@ -55,6 +55,9 @@ func TestSystemMountPointState(t *testing.T) {
 			if utilized+available > size {
 				t.Errorf("Mount point %q has size %d less than the total of utilized %d and available space %d", mountPointName, size, utilized, available)
 			}
+			if storageComp, present := gnmi.Lookup(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().System().MountPoint(mountPointName).StorageComponent().State()).Val(); present {
+				t.Logf("Mount point %q has storage component: %s", mountPointName, storageComp)
+			}
 		})
 	}
 }
