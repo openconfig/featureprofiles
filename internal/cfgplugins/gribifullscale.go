@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -2302,9 +2303,95 @@ func validateScaleParams(t *testing.T, params ScaleParams) {
 	}
 }
 
+func formatUint64Leaf(val *uint64) string {
+	if val == nil {
+		return "N/A"
+	}
+	return fmt.Sprintf("%d", *val)
+}
+
+func formatUint8Leaf(val *uint8) string {
+	if val == nil {
+		return "N/A"
+	}
+	return fmt.Sprintf("%d%%", *val)
+}
+
+func formatBoolLeaf(val *bool) string {
+	if val == nil {
+		return "N/A"
+	}
+	return fmt.Sprintf("%t", *val)
+}
+
+// LogHWUtilization queries hardware resource utilization across all integrated circuit components on the DUT directly without requiring pre-discovered component names.
+func LogHWUtilization(t *testing.T, dut *ondatra.DUTDevice, monitorHWUtilization bool, stage string) {
+	t.Helper()
+	if !monitorHWUtilization {
+		return
+	}
+	resourceVals := gnmi.LookupAll(t, dut, gnmi.OC().ComponentAny().IntegratedCircuit().Utilization().ResourceAny().State())
+	t.Logf("Found %d HW resources for monitoring", len(resourceVals))
+	if len(resourceVals) == 0 {
+		return
+	}
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("\n=== [%s] HW Resource Utilization ===\n", stage))
+	sb.WriteString(fmt.Sprintf("%-20s | %-35s | %-12s | %-12s | %-12s | %-12s | %-14s | %-19s | %-12s | %-12s | %-10s\n",
+		"COMPONENT", "RESOURCE", "USED", "FREE", "MAX LIMIT", "COMMITTED", "HIGH WATERMARK", "LAST HIGH WATERMARK", "THRESH UPPER", "THRESH CLEAR", "EXCEEDED"))
+	sb.WriteString(strings.Repeat("-", 195) + "\n")
+
+	entriesLogged := 0
+	compSet := make(map[string]bool)
+	for _, val := range resourceVals {
+		res, ok := val.Val()
+		if !ok {
+			continue
+		}
+		compName := "UNKNOWN"
+		if path := val.Path; path != nil {
+			pathStr := path.String()
+			t.Logf("Path: %s", pathStr)
+			for _, elem := range path.GetElem() {
+				if elem.GetName() == "component" {
+					if name, ok := elem.GetKey()["name"]; ok {
+						compName = name
+						break
+					}
+				}
+			}
+		}
+		compSet[compName] = true
+		entriesLogged++
+		sb.WriteString(fmt.Sprintf("%-20s | %-35s | %-12s | %-12s | %-12s | %-12s | %-14s | %-19s | %-12s | %-12s | %-10s\n",
+			compName,
+			res.GetName(),
+			formatUint64Leaf(res.Used),
+			formatUint64Leaf(res.Free),
+			formatUint64Leaf(res.MaxLimit),
+			formatUint64Leaf(res.Committed),
+			formatUint64Leaf(res.HighWatermark),
+			formatUint64Leaf(res.LastHighWatermark),
+			formatUint8Leaf(res.UsedThresholdUpper),
+			formatUint8Leaf(res.UsedThresholdUpperClear),
+			formatBoolLeaf(res.UsedThresholdUpperExceeded)))
+	}
+
+	if entriesLogged > 0 {
+		t.Log(sb.String())
+		var compList []string
+		for comp := range compSet {
+			compList = append(compList, comp)
+		}
+		sort.Strings(compList)
+		t.Logf("[%s] Found %d unique components reporting utilization: %v", stage, len(compList), compList)
+	}
+}
+
 // RunFullScaleTest runs the complete set of configuration, programming, and traffic tests
 // for the given scale parameters.
-func RunFullScaleTest(t *testing.T, params ScaleParams, enablePacketCapture, compactOTGFlows bool) {
+func RunFullScaleTest(t *testing.T, params ScaleParams, enablePacketCapture, compactOTGFlows, monitorHWUtilization bool) {
 	t.Helper()
 
 	validateScaleParams(t, params)
@@ -2341,25 +2428,32 @@ func RunFullScaleTest(t *testing.T, params ScaleParams, enablePacketCapture, com
 	})
 
 	t.Run("Configure and validate FIB_PROGRAMMED, Hierarchical route structure", func(t *testing.T) {
+		LogHWUtilization(t, dut, monitorHWUtilization, "Pre-BuildDefaultVRF")
+
 		// DEFAULT VRF
 		t.Log("Default VRF entries (A/B/C)")
 		primaryDefaultPrefixes, backupDefaultPrefixes := BuildDefaultVRF(t, dut, ctx, defaultVRF, params)
+		LogHWUtilization(t, dut, monitorHWUtilization, "Post-BuildDefaultVRF")
 
 		// Static Groups
 		t.Log("Static groups (S1/S2)")
 		s1NHG, s2NHG := BuildStaticGroups(t, dut, ctx, defaultVRF, params.GRIBIBatchSize)
+		LogHWUtilization(t, dut, monitorHWUtilization, "Post-BuildStaticGroups")
 
 		// Repair VRF
 		t.Log("Repair VRF (F)")
 		BuildRepairVRF(t, dut, ctx, defaultVRF, s2NHG, params)
+		LogHWUtilization(t, dut, monitorHWUtilization, "Post-BuildRepairVRF")
 
 		// Transit VRFs
 		t.Log("Transit VRFs (D/E)")
 		BuildTransitVRFs(t, dut, ctx, defaultVRF, primaryDefaultPrefixes, backupDefaultPrefixes, s1NHG, s2NHG, params)
+		LogHWUtilization(t, dut, monitorHWUtilization, "Post-BuildTransitVRFs")
 
 		// Encap/Decap VRFs
 		t.Log("Encap/Decap VRFs (T3/T4)")
 		BuildEncapDecapVRFs(t, dut, ctx, defaultVRF, params)
+		LogHWUtilization(t, dut, monitorHWUtilization, "Post-BuildEncapDecapVRFs")
 	})
 
 	testCases := []TrafficTestCase{
@@ -2373,15 +2467,15 @@ func RunFullScaleTest(t *testing.T, params ScaleParams, enablePacketCapture, com
 		t.Run(tc.Name, func(t *testing.T) {
 			if tc.UseIMIX {
 				if tc.TestRepair {
-					t.Log("Running IMIX traffic — transit scenario only for repair testing, 30 Mpps aggregate")
+					t.Logf("Running IMIX traffic — transit scenario only for repair testing, %d Mpps aggregate", params.TrafficRateMpps)
 				} else {
-					t.Log("Running IMIX traffic — all 5 scenarios, 30 Mpps aggregate")
+					t.Logf("Running IMIX traffic — all 5 scenarios, %d Mpps aggregate", params.TrafficRateMpps)
 				}
 			} else {
 				if tc.TestRepair {
-					t.Log("Running fixed-size (64B) traffic — transit scenario only for repair testing, 30 Mpps aggregate")
+					t.Logf("Running fixed-size (64B) traffic — transit scenario only for repair testing, %d Mpps aggregate", params.TrafficRateMpps)
 				} else {
-					t.Log("Running fixed-size (64B) traffic — all 5 scenarios, 30 Mpps aggregate")
+					t.Logf("Running fixed-size (64B) traffic — all 5 scenarios, %d Mpps aggregate", params.TrafficRateMpps)
 				}
 			}
 			RunEndToEndTrafficValidation(t, ate, dut, ateConfig, dstMac, tc.UseIMIX, tc.TestRepair, enablePacketCapture, compactOTGFlows, params)
