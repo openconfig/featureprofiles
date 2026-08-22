@@ -32,6 +32,7 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
+
 var (
 	intf1 = attrs.Attributes{
 		Name:    "ate1",
@@ -843,7 +844,7 @@ func TestWrrTraffic(t *testing.T) {
 
 			ate.OTG().PushConfig(t, top)
 			ate.OTG().StartProtocols(t)
-			time.Sleep(30 * time.Second)
+			otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 
 			ateOutPkts := make(map[string]uint64)
 			ateInPkts := make(map[string]uint64)
@@ -868,13 +869,13 @@ func TestWrrTraffic(t *testing.T) {
 			for _, data := range trafficFlows {
 				count, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State(), timeout, isPresent).Await(t)
 				if !ok {
-					t.Errorf("TransmitPkts count for queue %q on interface %q not available within %v", dp3.Name(), data.queue, timeout)
+					t.Errorf("TransmitPkts count for queue %q on interface %q not available within %v", data.queue, dp3.Name(), timeout)
 				}
 				dutQosPktsBeforeTraffic[data.queue], _ = count.Val()
 
 				count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State(), timeout, isPresent).Await(t)
 				if !ok {
-					t.Errorf("DroppedPkts count for queue %q on interface %q not available within %v", dp3.Name(), data.queue, timeout)
+					t.Errorf("DroppedPkts count for queue %q on interface %q not available within %v", data.queue, dp3.Name(), timeout)
 				}
 				dutQosDroppedPktsBeforeTraffic[data.queue], _ = count.Val()
 			}
@@ -889,19 +890,20 @@ func TestWrrTraffic(t *testing.T) {
 
 			otgutils.LogFlowMetrics(t, ate.OTG(), top)
 			for trafficID, data := range trafficFlows {
-				minLossPct := float64(100.0 - (data.expectedThroughputPct + tolerance))
+				expectedLossPct := 100.0 - data.expectedThroughputPct
+				minLossPct := expectedLossPct - tolerance
 				if minLossPct < 0 {
 					minLossPct = 0
 				}
-				maxLossPct := float64(100.0 - (data.expectedThroughputPct - tolerance))
-				otgutils.ExpectedTrafficLoss(t, ate.OTG(), trafficID, minLossPct, maxLossPct)
+				maxLossPct := expectedLossPct + tolerance
+				otgutils.ExpectedTrafficLoss(t, ate.OTG(), trafficID, float64(minLossPct), float64(maxLossPct))
 
 				ateTxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().OutPkts().State())
 				ateRxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().InPkts().State())
 				ateOutPkts[data.queue] += ateTxPkts
 				ateInPkts[data.queue] += ateRxPkts
-				dutQosPktsAfterTraffic[data.queue] += gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State())
-				dutQosDroppedPktsAfterTraffic[data.queue] += gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State())
+				dutQosPktsAfterTraffic[data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State())
+				dutQosDroppedPktsAfterTraffic[data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State())
 				t.Logf("ateInPkts: %v, txPkts %v, Queue: %v", ateInPkts[data.queue], dutQosPktsAfterTraffic[data.queue], data.queue)
 				if ateTxPkts == 0 {
 					t.Fatalf("TxPkts == 0, want >0.")
@@ -1714,3 +1716,4 @@ func ConfigureCiscoQos(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 
 }
+
