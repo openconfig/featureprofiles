@@ -83,7 +83,7 @@ func TestGRIBIFullScaleT3(t *testing.T) {
 			{Pct: 100, NumNextHops: 2},
 		},
 		TransitNHGWeight: []cfgplugins.NHGWeightParams{
-			{Pct: 100, Config: cfgplugins.WCMP1in64},
+			{Pct: 100, Config: cfgplugins.ExplicitWeights{Weights: []uint64{1, 63}}},
 		},
 		NumTransitIPv4: 200_000,
 

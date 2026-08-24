@@ -278,6 +278,13 @@ type WCMP struct {
 
 func (WCMP) isWeightConfig() {}
 
+// ExplicitWeights defines an explicit list of weights for next-hops in a NextHopGroup.
+type ExplicitWeights struct {
+	Weights []uint64
+}
+
+func (ExplicitWeights) isWeightConfig() {}
+
 var (
 	// WCMP1 is a WCMP configuration representing a granularity of 1.
 	WCMP1 = WCMP{WeightGranularity: 1}
@@ -353,6 +360,16 @@ func (it *NHGBucketIterator) Next() []uint64 {
 		return weights
 	case WCMP:
 		return computeNHGWeights(c.WeightGranularity, actualNHCount)
+	case ExplicitWeights:
+		weights := make([]uint64, actualNHCount)
+		for idx := 0; idx < actualNHCount; idx++ {
+			if idx < len(c.Weights) {
+				weights[idx] = c.Weights[idx]
+			} else {
+				weights[idx] = 1
+			}
+		}
+		return weights
 	default:
 		weights := make([]uint64, actualNHCount)
 		for idx := 0; idx < actualNHCount; idx++ {
@@ -452,6 +469,10 @@ func validateNHGWeight(t *testing.T, name string, configs []NHGWeightParams) {
 		case WCMP:
 			if cfg.WeightGranularity == 0 {
 				t.Fatalf("validateNHGWeight: WeightGranularity must be greater than 0 for WCMP in %s", name)
+			}
+		case ExplicitWeights:
+			if len(cfg.Weights) == 0 {
+				t.Fatalf("validateNHGWeight: ExplicitWeights cannot be empty in %s", name)
 			}
 		default:
 			t.Fatalf("validateNHGWeight: unexpected type %T for WeightConfig in %s", spec.Config, name)
@@ -2284,6 +2305,8 @@ func formatNHGWeight(params []NHGWeightParams) string {
 		cfgStr := "ECMP"
 		if w, ok := p.Config.(WCMP); ok {
 			cfgStr = fmt.Sprintf("WCMP1in%d", w.WeightGranularity)
+		} else if ew, ok := p.Config.(ExplicitWeights); ok {
+			cfgStr = fmt.Sprintf("Explicit%v", ew.Weights)
 		}
 		items = append(items, fmt.Sprintf("{%d%% -> %s}", p.Pct, cfgStr))
 	}
