@@ -12,6 +12,7 @@ package afts_prefix_filtering_resilience_test
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"strings"
 	"testing"
@@ -38,18 +39,26 @@ import (
 )
 
 const (
-	vrfName            = "VRF-A"
-	v4PfxSet           = "PREFIX-SET-A"
+	vrfName = "VRF-A"
+	// v4PfxSet and v6PfxSet are kept as separate, address-family specific
+	// prefix-sets. Mixing IPv4 and IPv6 prefixes in a single prefix-set is not
+	// supported by all vendors.
+	v4PfxSet           = "PREFIX-SET-A-V4"
+	v6PfxSet           = "PREFIX-SET-A-V6"
 	ipv4Policy         = "POLICY-PREFIX-SET-A"
 	ipv6Policy         = "POLICY-PREFIX-SET-A"
 	matchAllPolicy     = "POLICY-MATCH-ALL"
 	vrfAPolicy         = "POLICY-PREFIX-SET-VRF-A"
-	vrfPrefixName      = "PREFIX-SET-VRF-A"
-	scaleIPv4Routes    = 5000
-	scaleIPv6Routes    = 2000
-	scaleSyncDeadline  = 5 * time.Minute
+	vrfPrefixNameV4    = "PREFIX-SET-VRF-A-V4"
+	vrfPrefixNameV6    = "PREFIX-SET-VRF-A-V6"
 	subscriptionWait   = 2 * time.Minute
 	aftConvergenceTime = 10 * time.Minute
+	// policyChangeWait is the maximum time allowed, per AFT-6.3.3, for a
+	// collector to observe prefixes newly admitted by a global-filter change.
+	policyChangeWait = 60 * time.Second
+	// streamTerminationWait is the maximum time to wait for an active gNMI AFT
+	// stream to terminate after the DUT reboot is issued.
+	streamTerminationWait = 2 * time.Minute
 	// maxRebootTime is the maximum time allowed for the DUT to complete the reboot.
 	maxRebootTime = 5 * time.Minute
 	// rebootPollInterval is the interval at which the DUT's reachability is polled during reboot.
@@ -80,9 +89,17 @@ const (
 	staticRouteIndex     = 100
 	pfxCount             = 1
 	aftFilterDUTAS       = 65001
+	// aftsPath is the AFT subtree used for the raw gNMI subscription checks.
+	aftsPath = "/network-instances/network-instance/afts"
 )
 
 var (
+	// AFT-6.3.2 user adjustable values: X (IPv4 routes), Y (IPv6 routes) and
+	// K (maximum allowed initial synchronization time).
+	scaleIPv4Routes   = flag.Int("scale_ipv4_routes", 5000, "Number of IPv4 routes (X) advertised from the ATE for the AFT-6.3.2 scale test.")
+	scaleIPv6Routes   = flag.Int("scale_ipv6_routes", 2000, "Number of IPv6 routes (Y) advertised from the ATE for the AFT-6.3.2 scale test.")
+	scaleSyncDeadline = flag.Duration("scale_sync_deadline", 300*time.Second, "Maximum allowed AFT initial synchronization time (K) for the AFT-6.3.2 scale test.")
+
 	dutPort1 = attrs.Attributes{
 		Desc:    "DUT to ATE Port 1",
 		MAC:     "02:00:02:02:02:02",
@@ -194,12 +211,12 @@ func TestAFTPrefixFilteringResilience(t *testing.T) {
 	aftpf.AwaitScaleBGPConvergence(t, dut, aftpf.BGPConvergenceParams{
 		NetworkInstance: deviations.DefaultNetworkInstance(dut),
 		V4Neighbor:      atePort1.IPv4, V6Neighbor: atePort1.IPv6,
-		V4RouteCount: scaleIPv4Routes, V6RouteCount: scaleIPv6Routes,
+		V4RouteCount: uint32(*scaleIPv4Routes), V6RouteCount: uint32(*scaleIPv6Routes),
 	})
 	aftpf.AwaitScaleBGPConvergence(t, dut, aftpf.BGPConvergenceParams{
 		NetworkInstance: vrfName,
 		V4Neighbor:      atePort2.IPv4, V6Neighbor: atePort2.IPv6,
-		V4RouteCount: scaleIPv4Routes, V6RouteCount: scaleIPv6Routes,
+		V4RouteCount: uint32(*scaleIPv4Routes), V6RouteCount: uint32(*scaleIPv6Routes),
 	})
 	tests := []struct {
 		name string
@@ -312,13 +329,13 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) (gosnappi.Config, []stri
 	// Advertise the scaled routes from the ATE instead of installing them as static routes: DEFAULT scale over port1 and VRF-A scale over port2.
 	aftpf.ConfigureATEScaleBGP(t, dev1, aftpf.ATEBGPParams{
 		DUTPort: dutPort1, ATEPort: atePort1, NamePrefix: "default-scale",
-		V4RouteCount: scaleIPv4Routes, V4BaseAddr: scaleV4Pfx, V4PrefixLen: scaleV4PfxLen,
-		V6RouteCount: scaleIPv6Routes, V6BaseAddr: scaleV6Pfx, V6PrefixLen: scaleV6PfxLen,
+		V4RouteCount: uint32(*scaleIPv4Routes), V4BaseAddr: scaleV4Pfx, V4PrefixLen: scaleV4PfxLen,
+		V6RouteCount: uint32(*scaleIPv6Routes), V6BaseAddr: scaleV6Pfx, V6PrefixLen: scaleV6PfxLen,
 	})
 	aftpf.ConfigureATEScaleBGP(t, dev2, aftpf.ATEBGPParams{
 		DUTPort: dutPort2, ATEPort: atePort2, NamePrefix: "vrfa-scale",
-		V4RouteCount: scaleIPv4Routes, V4BaseAddr: scaleVrfV4Pfx, V4PrefixLen: scaleV4PfxLen,
-		V6RouteCount: scaleIPv6Routes, V6BaseAddr: scaleVrfV6Pfx, V6PrefixLen: scaleV6PfxLen,
+		V4RouteCount: uint32(*scaleIPv4Routes), V4BaseAddr: scaleVrfV4Pfx, V4PrefixLen: scaleV4PfxLen,
+		V6RouteCount: uint32(*scaleIPv6Routes), V6BaseAddr: scaleVrfV6Pfx, V6PrefixLen: scaleV6PfxLen,
 	})
 	// Collect interface/device names
 	for _, dev := range topo.Devices().Items() {
@@ -350,10 +367,10 @@ func configureScaleBGP(t *testing.T, dut *ondatra.DUTDevice, defaultNI, nonDefau
 }
 
 // fetchAFT collects AFT telemetry from two independent sessions and validates consistency between them.
-func fetchAFT(t *testing.T, dut *ondatra.DUTDevice, aftSession1, aftSession2 *aftcache.AFTStreamSession, stoppingCondition aftcache.PeriodicHook, wantPrefixes map[string]bool) (*aftcache.AFTData, error) {
+func fetchAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, aftSession1, aftSession2 *aftcache.AFTStreamSession, stoppingCondition aftcache.PeriodicHook, wantPrefixes map[string]bool, timeout time.Duration) (*aftcache.AFTData, error) {
 	t.Helper()
-	aftpf.RunCollector(t, aftpf.RunCollectorParams{Ctx: context.Background(), Collector: aftSession1, Stop: stoppingCondition, Timeout: aftConvergenceTime})
-	aftpf.RunCollector(t, aftpf.RunCollectorParams{Ctx: context.Background(), Collector: aftSession2, Stop: stoppingCondition, Timeout: aftConvergenceTime})
+	aftpf.RunCollector(t, aftpf.RunCollectorParams{Ctx: ctx, Collector: aftSession1, Stop: stoppingCondition, Timeout: timeout})
+	aftpf.RunCollector(t, aftpf.RunCollectorParams{Ctx: ctx, Collector: aftSession2, Stop: stoppingCondition, Timeout: timeout})
 	aft1, err := aftSession1.ToAFT(t, dut)
 	if err != nil {
 		return nil, fmt.Errorf("error getting AFT from session1: %v", err)
@@ -386,15 +403,16 @@ func testAfterReboot(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	wantPrefixes := aftpf.GeneratePrefixes(t, aftpf.GeneratePrefixesParams{V4Prefixes: []string{matchPrefixAft1, matchPrefixAft2}, V6Prefixes: nil, PfxCount: pfxCount})
+	wantPrefixes := aftpf.GeneratePrefixes(t, aftpf.GeneratePrefixesParams{V4Prefixes: []string{matchPrefixAft1, matchPrefixAft2}, V6Prefixes: policyIPv6Prefixes, PfxCount: pfxCount})
 	// Verify configured policies before reboot.
 	verifyGlobalFilterPolicies(t, dut, ipv4Policy, ipv6Policy)
 	// Establish initial gNMI subscriptions.
-	aftSession1 := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
+	aftClient1 := aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx})
+	aftSession1 := aftcache.NewAFTStreamSession(ctx, t, aftClient1, dut)
 	aftSession2 := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
 	t.Log("Collecting initial filtered AFT entries")
-	stoppingCondition := aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, map[string]bool{atePort1.IPv4: true}, nil)
-	aftBefore, err := fetchAFT(t, dut, aftSession1, aftSession2, stoppingCondition, wantPrefixes)
+	stoppingCondition := aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true})
+	aftBefore, err := fetchAFT(ctx, t, dut, aftSession1, aftSession2, stoppingCondition, wantPrefixes, aftConvergenceTime)
 	if err != nil {
 		t.Fatalf("Failed to fetch initial AFT: %v", err)
 	}
@@ -406,6 +424,9 @@ func testAfterReboot(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	t.Log("Rebooting DUT")
 	rebootDUT(t, dut)
+	// The subscription is active while the DUT reboots; verify the stream is
+	// terminated by the DUT going down.
+	verifyStreamTerminated(ctx, t, aftClient1)
 	// Wait for DUT recovery.
 	waitForReboot(t, dut, lastBootTime)
 	// Verify policy persistence after reboot.
@@ -414,14 +435,53 @@ func testAfterReboot(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Re-establishing AFT subscriptions")
 	aftSession3 := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
 	aftSession4 := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
-	stoppingCondition2 := aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, map[string]bool{atePort1.IPv4: true}, nil)
-	aftAfter, err := fetchAFT(t, dut, aftSession3, aftSession4, stoppingCondition2, wantPrefixes)
+	stoppingCondition2 := aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true})
+	aftAfter, err := fetchAFT(ctx, t, dut, aftSession3, aftSession4, stoppingCondition2, wantPrefixes, aftConvergenceTime)
 	if err != nil {
 		t.Fatalf("Failed to fetch AFT after reboot: %v", err)
 	}
 	// Verify filtered entries after reboot.
 	verifyFilteredPrefixes(t, aftAfter, wantPrefixes, unexpectedPrefixes, true)
 	t.Log("AFT reboot validation completed successfully")
+}
+
+// verifyStreamTerminated verifies that a gNMI AFT subscription established on
+// the same client used before the reboot is torn down once the DUT goes down.
+// Only transport level errors are expected during the reboot window.
+func verifyStreamTerminated(ctx context.Context, t *testing.T, client gpb.GNMIClient) {
+	t.Helper()
+	subCtx, cancel := context.WithTimeout(ctx, streamTerminationWait)
+	defer cancel()
+	stream, err := client.Subscribe(subCtx)
+	if err != nil {
+		t.Logf("gNMI AFT stream terminated as expected after reboot: %v", err)
+		return
+	}
+	req := &gpb.SubscribeRequest{
+		Request: &gpb.SubscribeRequest_Subscribe{
+			Subscribe: &gpb.SubscriptionList{
+				Mode:     gpb.SubscriptionList_STREAM,
+				Encoding: gpb.Encoding_PROTO,
+				Subscription: []*gpb.Subscription{{
+					Path: gnmiPath(t, aftsPath),
+					Mode: gpb.SubscriptionMode_ON_CHANGE,
+				}},
+			},
+		},
+	}
+	if err := stream.Send(req); err != nil {
+		t.Logf("gNMI AFT stream terminated as expected after reboot: %v", err)
+		return
+	}
+	for {
+		if _, err := stream.Recv(); err != nil {
+			t.Logf("gNMI AFT stream terminated as expected after reboot: %v", err)
+			return
+		}
+		if subCtx.Err() != nil {
+			t.Fatalf("gNMI AFT stream did not terminate within %v after the reboot was issued", streamTerminationWait)
+		}
+	}
 }
 
 // verifyGlobalFilterPolicies verifies global-filter IPv4/IPv6 policies persisted.
@@ -531,50 +591,18 @@ func configureBasePolicies(t *testing.T, rp *oc.RoutingPolicy) {
 			PrefixSetNames: []string{v4PfxSet},
 			PrefixList:     policyIPv4Prefixes,
 			PrefixMode:     pfxMode,
+			MatchPrefixSet: true,
+			MatchSetOption: oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY,
 			PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
 		},
 		{
 			PolicyName:     ipv6Policy,
 			StatementNames: []string{"20"},
-			PrefixSetNames: []string{v4PfxSet},
+			PrefixSetNames: []string{v6PfxSet},
 			PrefixList:     policyIPv6Prefixes,
 			PrefixMode:     pfxMode,
-			PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
-		},
-		{
-			PolicyName:     "POLICY-SUBNET-V4",
-			StatementNames: []string{defaultStatementName},
-			PrefixSetNames: []string{"PREFIX-SET-SUBNET-V4"},
 			MatchPrefixSet: true,
-			PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
-		},
-		{
-			PolicyName:     "POLICY-SUBNET-V6",
-			StatementNames: []string{defaultStatementName},
-			PrefixSetNames: []string{"PREFIX-SET-SUBNET-V6"},
-			MatchPrefixSet: true,
-			PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
-		},
-		{
-			PolicyName:     "POLICY-MULTI-STMT",
-			StatementNames: []string{defaultStatementName, "20"},
-			PrefixSetNames: []string{"PREFIX-SET-A", "PREFIX-SET-SUBNET"},
-			MatchPrefixSet: true,
-			PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
-		},
-		{
-			PolicyName:     "POLICY-DENY-PREFIX-SET-A",
-			StatementNames: []string{defaultStatementName, "20"},
-			PrefixSetNames: []string{"PREFIX-SET-A", ""},
-			MatchPrefixSet: true,
-			PrefixDeny:     true,
-			PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
-		},
-		{
-			PolicyName:     "POLICY-TAG-MATCH",
-			StatementNames: []string{defaultStatementName},
-			MatchPrefixSet: true,
-			SetTag:         true,
+			MatchSetOption: oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY,
 			PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
 		},
 	}
@@ -584,20 +612,24 @@ func configureBasePolicies(t *testing.T, rp *oc.RoutingPolicy) {
 	// VRF policies require separate IPv4/IPv6 prefix modes.
 	aftpf.AddPrefixSetPolicy(t, rp,
 		aftpf.PrefixSetPolicyParams{
-			PolicyName:     "POLICY-PREFIX-SET-VRF-A",
+			PolicyName:     vrfAPolicy,
 			StatementNames: []string{defaultStatementName},
-			PrefixSetNames: []string{vrfPrefixName},
+			PrefixSetNames: []string{vrfPrefixNameV4},
 			PrefixList:     []string{vrfV4Pfx},
 			PrefixMode:     pfxV4MaskRange,
+			MatchPrefixSet: true,
+			MatchSetOption: oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY,
 			PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
 		})
 	aftpf.AddPrefixSetPolicy(t, rp,
 		aftpf.PrefixSetPolicyParams{
-			PolicyName:     "POLICY-PREFIX-SET-VRF-A",
+			PolicyName:     vrfAPolicy,
 			StatementNames: []string{"20"},
-			PrefixSetNames: []string{vrfPrefixName},
+			PrefixSetNames: []string{vrfPrefixNameV6},
 			PrefixList:     []string{vrfV6Pfx},
 			PrefixMode:     pfxV6MaskRange,
+			MatchPrefixSet: true,
+			MatchSetOption: oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY,
 			PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
 		})
 }
@@ -616,6 +648,7 @@ func configureScalePolicies(t *testing.T, rp *oc.RoutingPolicy, ipv4Prefixes, ip
 				PrefixList:     selectPercentagePrefixes(ipv4Prefixes, percent),
 				PrefixMode:     pfxMode,
 				MatchPrefixSet: true,
+				MatchSetOption: oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY,
 				PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
 			},
 			{
@@ -625,6 +658,7 @@ func configureScalePolicies(t *testing.T, rp *oc.RoutingPolicy, ipv4Prefixes, ip
 				PrefixList:     selectPercentagePrefixes(ipv6Prefixes, percent),
 				PrefixMode:     pfxMode,
 				MatchPrefixSet: true,
+				MatchSetOption: oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY,
 				PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
 			},
 		}
@@ -639,7 +673,7 @@ func configureScalePolicies(t *testing.T, rp *oc.RoutingPolicy, ipv4Prefixes, ip
 // route count, prefix length, and address step values.
 func generateScaleIPv4Prefixes(t *testing.T) []string {
 	t.Helper()
-	ips, err := iputil.GenerateIPsWithStep(scaleV4Pfx, scaleIPv4Routes, intStepV4)
+	ips, err := iputil.GenerateIPsWithStep(scaleV4Pfx, *scaleIPv4Routes, intStepV4)
 	if err != nil {
 		t.Fatalf("failed generating IPv4 prefixes: %v", err)
 	}
@@ -655,7 +689,7 @@ func generateScaleIPv4Prefixes(t *testing.T) []string {
 // route count, prefix length, and IPv6 address step values.
 func generateScaleIPv6Prefixes(t *testing.T) []string {
 	t.Helper()
-	ips, err := iputil.GenerateIPv6sWithStep(scaleV6Pfx, scaleIPv6Routes, intStepV6)
+	ips, err := iputil.GenerateIPv6sWithStep(scaleV6Pfx, *scaleIPv6Routes, intStepV6)
 	if err != nil {
 		t.Fatalf("failed generating IPv6 prefixes: %v", err)
 	}
@@ -671,7 +705,7 @@ func generateScaleIPv6Prefixes(t *testing.T) []string {
 func bootTime(t *testing.T, dut *ondatra.DUTDevice) (uint64, error) {
 	t.Helper()
 	var bootTime uint64
-	_, ok := gnmi.Watch(t, dut, gnmi.OC().System().BootTime().State(), scaleSyncDeadline, func(val *ygnmi.Value[uint64]) bool {
+	_, ok := gnmi.Watch(t, dut, gnmi.OC().System().BootTime().State(), maxRebootTime, func(val *ygnmi.Value[uint64]) bool {
 		var ok bool
 		bootTime, ok = val.Val()
 		return ok
@@ -784,15 +818,15 @@ func testScaleFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 	defer cancel()
 	var ipv4Prefixes, ipv6Prefixes []string
 	// Enumerate the scale routes advertised via BGP from the ATE
-	t.Logf("Using %d IPv4 and %d IPv6 BGP-advertised scale routes", scaleIPv4Routes, scaleIPv6Routes)
-	ipv4Pfs, err := iputil.GenerateIPsWithStep(scaleV4Pfx, scaleIPv4Routes, intStepV4)
+	t.Logf("Using %d IPv4 and %d IPv6 BGP-advertised scale routes", *scaleIPv4Routes, *scaleIPv6Routes)
+	ipv4Pfs, err := iputil.GenerateIPsWithStep(scaleV4Pfx, *scaleIPv4Routes, intStepV4)
 	if err != nil {
 		t.Fatalf("failed to generate DUT IPs: %v", err)
 	}
 	for _, ip := range ipv4Pfs {
 		ipv4Prefixes = append(ipv4Prefixes, fmt.Sprintf("%s/%d", ip, scaleV4PfxLen))
 	}
-	ipv6Pfs, err := iputil.GenerateIPv6sWithStep(scaleV6Pfx, scaleIPv6Routes, intStepV6)
+	ipv6Pfs, err := iputil.GenerateIPv6sWithStep(scaleV6Pfx, *scaleIPv6Routes, intStepV6)
 	if err != nil {
 		t.Fatalf("failed to generate DUT IPv6s: %v", err)
 	}
@@ -854,13 +888,15 @@ func testScaleFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Select expected prefixes
 			var selectedPrefixes []string
+			var wantPrefixes map[string]bool
 			var stoppingCondition aftcache.PeriodicHook
 			if tc.ipv4 {
 				selectedPrefixes = selectPercentagePrefixes(ipv4Prefixes, tc.matchPercent)
+				wantPrefixes = aftpf.GeneratePrefixes(t, aftpf.GeneratePrefixesParams{V4Prefixes: selectedPrefixes, V6Prefixes: nil, PfxCount: pfxCount})
 			} else {
 				selectedPrefixes = selectPercentagePrefixes(ipv6Prefixes, tc.matchPercent)
+				wantPrefixes = aftpf.GeneratePrefixes(t, aftpf.GeneratePrefixesParams{V4Prefixes: nil, V6Prefixes: selectedPrefixes, PfxCount: pfxCount})
 			}
-			wantPrefixes := aftpf.GeneratePrefixes(t, aftpf.GeneratePrefixesParams{V4Prefixes: selectedPrefixes, V6Prefixes: nil, PfxCount: pfxCount})
 			// Create subscriptions
 			aftSession1 := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
 			aftSession2 := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
@@ -873,15 +909,15 @@ func testScaleFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 			}
 			// Measure synchronization time
 			start := time.Now()
-			aftData, err := fetchAFT(t, dut, aftSession1, aftSession2, stoppingCondition, wantPrefixes)
+			aftData, err := fetchAFT(ctx, t, dut, aftSession1, aftSession2, stoppingCondition, wantPrefixes, *scaleSyncDeadline)
 			if err != nil {
 				t.Fatalf("Failed to fetch scaled AFT: %v", err)
 			}
 			syncDuration := time.Since(start)
 			t.Logf("Synchronization completed in %v", syncDuration)
 			// Verify synchronization time
-			if syncDuration > scaleSyncDeadline {
-				t.Fatalf("Synchronization exceeded limit got=%v want<=%v", syncDuration, scaleSyncDeadline)
+			if syncDuration > *scaleSyncDeadline {
+				t.Fatalf("Synchronization exceeded limit got=%v want<=%v", syncDuration, *scaleSyncDeadline)
 			}
 			// Verify filtering correctness
 			verifyFilteredPrefixes(t, aftData, wantPrefixes, unexpectedPrefixes, tc.ipv4)
@@ -951,8 +987,8 @@ func testPerNIFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Validating initial filtered AFT state")
 	defaultStop := aftcache.InitialSyncStoppingCondition(t, dut, defaultWant, map[string]bool{atePort1.IPv4: true}, nil)
 	vrfStop := aftcache.InitialSyncStoppingCondition(t, dut, vrfWant, map[string]bool{atePort2.IPv4: true}, nil)
-	aftpf.RunCollector(t, aftpf.RunCollectorParams{Ctx: context.Background(), Collector: collector1, Stop: defaultStop, Timeout: subscriptionWait})
-	aftpf.RunCollector(t, aftpf.RunCollectorParams{Ctx: context.Background(), Collector: collector2, Stop: vrfStop, Timeout: subscriptionWait})
+	aftpf.RunCollector(t, aftpf.RunCollectorParams{Ctx: ctx, Collector: collector1, Stop: defaultStop, Timeout: subscriptionWait})
+	aftpf.RunCollector(t, aftpf.RunCollectorParams{Ctx: ctx, Collector: collector2, Stop: vrfStop, Timeout: subscriptionWait})
 	defaultAFT, err := collector1.ToAFT(t, dut)
 	if err != nil {
 		t.Fatalf("Collector1 ToAFT failed: %v", err)
@@ -966,7 +1002,7 @@ func testPerNIFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 	aftpf.VerifyPrefixesAbsent(t, aftpf.PrefixesParams{InfoAFT: defaultAFT, Prefixes: []string{matchPrefixAbsent}})
 	// Validate Collector-2
 	aftpf.VerifyPrefixesPresent(t, aftpf.PrefixesParams{InfoAFT: vrfAFT, Prefixes: []string{matchVrfPfx1}})
-	aftpf.VerifyPrefixesAbsent(t, aftpf.PrefixesParams{InfoAFT: vrfAFT, Prefixes: []string{matchPrefixAft1, matchPrefixAft2}})
+	aftpf.VerifyPrefixesAbsent(t, aftpf.PrefixesParams{InfoAFT: vrfAFT, Prefixes: []string{matchPrefixAft1, matchPrefixAft2, matchVrfPfx3}})
 	// Add unmatched route to DEFAULT
 	// Neither collector should receive it
 	t.Log("Adding unmatched route to DEFAULT")
@@ -982,13 +1018,13 @@ func testPerNIFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 	// Collector1 should receive it
 	t.Log("Adding matched route to DEFAULT")
 	aftpf.AddSingleStaticRoute(t, dut, aftpf.AddStaticRouteParams{NetworkInstanceName: deviations.DefaultNetworkInstance(dut), Prefix: matchVrfPfx4, Index: fmt.Sprintf("%d", staticRouteIndex+902), NextHop: atePort1.IPv4})
-	waitForPrefixesPresent(t, dut, collector1, []string{matchVrfPfx4}, subscriptionWait, atePort1.IPv4)
+	waitForPrefixesPresent(ctx, t, dut, collector1, []string{matchVrfPfx4}, subscriptionWait, atePort1.IPv4)
 	mustVerifyPrefixAbsent(t, dut, collector2, matchVrfPfx4)
 	// Add matched subnet route to VRF-A
 	// Collector2 should receive it
 	t.Log("Adding matched subnet route to VRF-A")
 	aftpf.AddSingleStaticRoute(t, dut, aftpf.AddStaticRouteParams{NetworkInstanceName: vrfName, Prefix: matchVrfPfx2, Index: fmt.Sprintf("%d", staticRouteIndex+903), NextHop: atePort2.IPv4})
-	waitForPrefixesPresent(t, dut, collector2, []string{matchVrfPfx2}, subscriptionWait, atePort2.IPv4)
+	waitForPrefixesPresent(ctx, t, dut, collector2, []string{matchVrfPfx2}, subscriptionWait, atePort2.IPv4)
 	mustVerifyPrefixAbsent(t, dut, collector1, matchVrfPfx2)
 	// Change VRF-A policy to MATCH-ALL
 	t.Log("Changing VRF-A policy to POLICY-MATCH-ALL")
@@ -1000,10 +1036,10 @@ func testPerNIFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	aftpf.VerifyPrefixesPresent(t, aftpf.PrefixesParams{InfoAFT: defaultAFTAfter, Prefixes: policyIPv4Prefixes})
 	aftpf.VerifyPrefixesAbsent(t, aftpf.PrefixesParams{InfoAFT: defaultAFTAfter, Prefixes: []string{v4AbsentPfx1, v4AbsentPfx2}})
-	// Collector2 should now receive all VRF-A routes
+	// Collector2 should now receive all VRF-A routes within 60 seconds.
 	t.Log("Waiting for Collector2 to receive all VRF-A routes")
 	wantAllVRF := []string{matchPrefixAft1, matchVrfPfx1, matchVrfPfx3, matchVrfPfx2}
-	waitForPrefixesPresent(t, dut, collector2, wantAllVRF, subscriptionWait, atePort2.IPv4)
+	waitForPrefixesPresent(ctx, t, dut, collector2, wantAllVRF, policyChangeWait, atePort2.IPv4)
 	t.Log("Per-network-instance filtering validation completed successfully")
 }
 
@@ -1020,9 +1056,9 @@ func mustVerifyPrefixAbsent(t *testing.T, dut *ondatra.DUTDevice, session *aftca
 }
 
 // waitForPrefixesPresent validates all prefixes appear.
-func waitForPrefixesPresent(t *testing.T, dut *ondatra.DUTDevice, session *aftcache.AFTStreamSession, prefixes []string, timeout time.Duration, nextHop string) {
+func waitForPrefixesPresent(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, session *aftcache.AFTStreamSession, prefixes []string, timeout time.Duration, nextHop string) {
 	t.Helper()
 	wantPrefixes := aftpf.GeneratePrefixes(t, aftpf.GeneratePrefixesParams{V4Prefixes: prefixes, V6Prefixes: nil, PfxCount: pfxCount})
 	stoppingCondition := aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, map[string]bool{nextHop: true}, nil)
-	session.ListenUntil(context.Background(), t, timeout, stoppingCondition)
+	session.ListenUntil(ctx, t, timeout, stoppingCondition)
 }
