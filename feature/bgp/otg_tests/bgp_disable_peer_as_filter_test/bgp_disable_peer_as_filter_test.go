@@ -230,10 +230,7 @@ func verifyBGPCapabilities(t *testing.T, dut *ondatra.DUTDevice, nbrs []string) 
 func verifyDisablePeerASFilterStateOnNeighbors(t *testing.T, dut *ondatra.DUTDevice, nbrs []string, want bool) error {
 	t.Helper()
 	if deviations.DefaultPeerAsFilterOcUnsupported(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			t.Log("Skipping neighbor disable-peer-as-filter state validation: default-peer-as-filter OC unsupported on Arista devices")
-		}
+		t.Log("Skipping neighbor disable-peer-as-filter state validation: default-peer-as-filter OC unsupported")
 		return nil
 	}
 	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
@@ -250,10 +247,7 @@ func verifyDisablePeerASFilterStateOnNeighbors(t *testing.T, dut *ondatra.DUTDev
 func verifyDisablePeerASFilterStateOnPeerGroups(t *testing.T, dut *ondatra.DUTDevice, peerGroups []string, want bool) error {
 	t.Helper()
 	if deviations.DefaultPeerAsFilterOcUnsupported(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			t.Log("Skipping peer-group disable-peer-as-filter state validation: default-peer-as-filter OC unsupported")
-		}
+		t.Log("Skipping peer-group disable-peer-as-filter state validation: default-peer-as-filter OC unsupported")
 		return nil
 	}
 	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
@@ -508,6 +502,65 @@ type testCase struct {
 	atePort2AS          uint32 // AS number for ATE Port 2
 }
 
+// runTestCase executes the setup and verification steps for a single test case.
+func runTestCase(t *testing.T, dut *ondatra.DUTDevice, otgClient *otg.OTG, tc testCase) {
+	t.Helper()
+
+	// Reconfigure BGP with appropriate AS for Port 2
+	configureDUT(t, dut)
+	configureBGP(t, dut, tc.atePort2AS)
+
+	// Configure BGP with appropriate settings
+	b := &gnmi.SetBatch{}
+	bgpConfig := cfgplugins.BGPConfig{
+		ApplyOnPeerGroup: tc.peerGroup,
+		DutAS:            dutAS,
+		PeerGroupNames:   []string{peerGrpName1, peerGrpName2},
+		NeighborIPs:      []string{atePort1.IPv4, atePort2.IPv4, atePort1.IPv6, atePort2.IPv6},
+	}
+	tc.setupFunc(t, dut, b, bgpConfig)
+	b.Set(t, dut)
+
+	// Configure ATE and establish BGP sessions
+	config := configureOTG(t, otgClient, tc.asSeg, tc.atePort2AS)
+
+	// Verify BGP sessions are established
+	if err := verifyBGPTelemetry(t, dut, bgpConfig.NeighborIPs); err != nil {
+		t.Fatal(err)
+	}
+	if err := verifyOTGBGPTelemetry(t, otgClient, config, "ESTABLISHED"); err != nil {
+		t.Fatal(err)
+	}
+
+	if tc.peerGroup {
+		if err := verifyDisablePeerASFilterStateOnPeerGroups(t, dut, bgpConfig.PeerGroupNames, tc.disablePeerASFilter); err != nil {
+			t.Fatal(err)
+		}
+	} else {
+		if err := verifyDisablePeerASFilterStateOnNeighbors(t, dut, bgpConfig.NeighborIPs, tc.disablePeerASFilter); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if tc.verifyCapabilities {
+		if err := verifyBGPCapabilities(t, dut, bgpConfig.NeighborIPs); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Verify routes received according to test case expectations
+	if err := verifyReceivedRoutes(t, otgClient, atePort2.Name, tc.disablePeerASFilter); err != nil {
+		t.Error(err)
+	}
+
+	// Verify AS path if required by test case
+	if tc.verifyASPath {
+		if err := verifyReceivedRoutesWithAsPath(t, otgClient, atePort2.Name, tc.expectedASPath); err != nil {
+			t.Error(err)
+		}
+	}
+}
+
 func TestDisablePeerAsFilterPerBGPNeighbor(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
@@ -566,54 +619,7 @@ func TestDisablePeerAsFilterPerBGPNeighbor(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-
-			// Reconfigure BGP with appropriate AS for Port 2
-			configureDUT(t, dut)
-			configureBGP(t, dut, tc.atePort2AS)
-
-			// Configure BGP with appropriate settings
-			b := &gnmi.SetBatch{}
-			bgpConfig := cfgplugins.BGPConfig{
-				ApplyOnPeerGroup: false,
-				DutAS:            dutAS,
-				PeerGroupNames:   []string{peerGrpName1, peerGrpName2},
-				NeighborIPs:      []string{atePort1.IPv4, atePort2.IPv4, atePort1.IPv6, atePort2.IPv6},
-			}
-			tc.setupFunc(t, dut, b, bgpConfig)
-			b.Set(t, dut)
-
-			// Configure ATE and establish BGP sessions
-			config := configureOTG(t, otgClient, tc.asSeg, tc.atePort2AS)
-
-			// Verify BGP sessions are established
-			if err := verifyBGPTelemetry(t, dut, []string{atePort1.IPv4, atePort1.IPv6, atePort2.IPv4, atePort2.IPv6}); err != nil {
-				t.Fatal(err)
-			}
-			if err := verifyOTGBGPTelemetry(t, otgClient, config, "ESTABLISHED"); err != nil {
-				t.Fatal(err)
-			}
-
-			if err := verifyDisablePeerASFilterStateOnNeighbors(t, dut, bgpConfig.NeighborIPs, tc.disablePeerASFilter); err != nil {
-				t.Fatal(err)
-			}
-
-			if tc.verifyCapabilities {
-				if err := verifyBGPCapabilities(t, dut, bgpConfig.NeighborIPs); err != nil {
-					t.Fatal(err)
-				}
-			}
-
-			// Verify routes received according to test case expectations
-			if err := verifyReceivedRoutes(t, otgClient, atePort2.Name, tc.disablePeerASFilter); err != nil {
-				t.Error(err)
-			}
-
-			// Verify AS path if required by test case
-			if tc.verifyASPath {
-				if err := verifyReceivedRoutesWithAsPath(t, otgClient, atePort2.Name, tc.expectedASPath); err != nil {
-					t.Error(err)
-				}
-			}
+			runTestCase(t, dut, otgClient, tc)
 		})
 	}
 }
@@ -675,48 +681,7 @@ func TestDisablePeerAsFilterPerBGPPeerGroup(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-
-			// Reconfigure BGP with appropriate AS for Port 2
-			configureDUT(t, dut)
-			configureBGP(t, dut, tc.atePort2AS)
-
-			// Configure BGP with appropriate settings
-			b := &gnmi.SetBatch{}
-			bgpConfig := cfgplugins.BGPConfig{
-				ApplyOnPeerGroup: true,
-				DutAS:            dutAS,
-				PeerGroupNames:   []string{peerGrpName1, peerGrpName2},
-				NeighborIPs:      []string{atePort1.IPv4, atePort2.IPv4, atePort1.IPv6, atePort2.IPv6},
-			}
-			tc.setupFunc(t, dut, b, bgpConfig)
-			b.Set(t, dut)
-
-			// Configure ATE and establish BGP sessions
-			config := configureOTG(t, otgClient, tc.asSeg, tc.atePort2AS)
-
-			// Verify BGP sessions are established
-			if err := verifyBGPTelemetry(t, dut, []string{atePort1.IPv4, atePort1.IPv6, atePort2.IPv4, atePort2.IPv6}); err != nil {
-				t.Fatal(err)
-			}
-			if err := verifyOTGBGPTelemetry(t, otgClient, config, "ESTABLISHED"); err != nil {
-				t.Fatal(err)
-			}
-
-			if err := verifyDisablePeerASFilterStateOnPeerGroups(t, dut, bgpConfig.PeerGroupNames, tc.disablePeerASFilter); err != nil {
-				t.Fatal(err)
-			}
-
-			// Verify routes received according to test case expectations
-			if err := verifyReceivedRoutes(t, otgClient, atePort2.Name, tc.disablePeerASFilter); err != nil {
-				t.Error(err)
-			}
-
-			// Verify AS path if required by test case
-			if tc.verifyASPath {
-				if err := verifyReceivedRoutesWithAsPath(t, otgClient, atePort2.Name, tc.expectedASPath); err != nil {
-					t.Error(err)
-				}
-			}
+			runTestCase(t, dut, otgClient, tc)
 		})
 	}
 }
