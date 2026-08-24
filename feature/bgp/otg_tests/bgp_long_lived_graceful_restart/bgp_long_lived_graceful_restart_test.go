@@ -1107,6 +1107,16 @@ func TestTrafficWithGracefulRestart(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 
+	// Register cleanup for DUT configuration
+	t.Cleanup(func() {
+		t.Log("Cleaning up DUT configuration...")
+		dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+		gnmi.Delete(t, dut, dutConfPath.Config())
+		gnmi.Delete(t, dut, gnmi.OC().RoutingPolicy().Config())
+		gnmi.Delete(t, dut, gnmi.OC().Acl().Config())
+		t.Log("DUT cleanup complete")
+	})
+
 	t.Run("configureDut", func(t *testing.T) {
 		configureDUT(t, dut)
 		configureRoutePolicy(t, dut, "ALLOW", oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
