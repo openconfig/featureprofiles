@@ -32,7 +32,6 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-
 var (
 	intf1 = attrs.Attributes{
 		Name:    "ate1",
@@ -1734,4 +1733,3 @@ func ConfigureCiscoQos(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 
 }
-
