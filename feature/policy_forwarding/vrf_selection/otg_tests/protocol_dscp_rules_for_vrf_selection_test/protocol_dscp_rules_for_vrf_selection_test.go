@@ -23,6 +23,7 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
@@ -30,7 +31,6 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -38,6 +38,7 @@ const (
 	trafficDuration = 30 * time.Second
 	ipv4PrefixLen   = 30
 	ipv6PrefixLen   = 126
+	lossTolerance   = 1.0
 )
 
 // testArgs holds the objects needed by a test case.
@@ -486,7 +487,6 @@ func getIPinIPFlow(args *testArgs, src attrs.Attributes, dst attrs.Attributes, f
 
 	flow.Size().SetFixed(1024)
 	flow.Rate().SetPps(100)
-	flow.Duration().FixedPackets().SetPackets(100)
 	flow.Duration().Continuous()
 
 	return flow
@@ -494,7 +494,7 @@ func getIPinIPFlow(args *testArgs, src attrs.Attributes, dst attrs.Attributes, f
 
 // testTrafficFlows verifies traffic for one or more flows.
 func testTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, expectPass bool, flows ...gosnappi.Flow) {
-
+	t.Helper()
 	top.Flows().Clear()
 	for _, flow := range flows {
 		top.Flows().Append(flow)
@@ -519,50 +519,10 @@ func testTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config,
 	otgutils.LogFlowMetrics(t, ate.OTG(), otgTop)
 	for _, flow := range flows {
 		t.Run(flow.Name(), func(t *testing.T) {
-			t.Logf("*** Verifying %v traffic on OTG ... ", flow.Name())
-
-			if _, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Transmit().State(), 15*time.Second, func(val *ygnmi.Value[bool]) bool {
-				transmitState, present := val.Val()
-				return present && !transmitState
-			}).Await(t); !ok {
-				t.Fatalf("Timeout waiting for flow %s to stop transmitting", flow.Name())
-			}
-
-			outPktsRaw := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
-			if outPktsRaw == 0 {
-				t.Fatalf("OutPkts == 0, want >0.")
-			}
-			outPkts := float32(outPktsRaw)
-
-			var inPkts float32
 			if expectPass {
-				inPktsVal, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State(), 15*time.Second, func(val *ygnmi.Value[uint64]) bool {
-					v, present := val.Val()
-					return present && v == outPktsRaw
-				}).Await(t)
-				if ok {
-					inPktsRaw, _ := inPktsVal.Val()
-					inPkts = float32(inPktsRaw)
-				} else {
-					inPkts = float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State()))
-				}
+				otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), 0, lossTolerance)
 			} else {
-				inPkts = float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State()))
-			}
-
-			lossPct := (outPkts - inPkts) * 100 / outPkts
-
-			// log stats
-			t.Log("Flow LossPct: ", lossPct)
-			t.Log("Flow InPkts  : ", inPkts)
-			t.Log("Flow OutPkts : ", outPkts)
-
-			if (expectPass == true) && (lossPct == 0) {
-				t.Logf("Traffic for %v flow is passing as expected", flow.Name())
-			} else if (expectPass == false) && (lossPct == 100) {
-				t.Logf("Traffic for %v flow is failing as expected", flow.Name())
-			} else {
-				t.Fatalf("Traffic is not working as expected for flow: %v. LossPct: %f", flow.Name(), lossPct)
+				otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), 100, 100)
 			}
 		})
 	}
@@ -617,6 +577,21 @@ func TestPBR(t *testing.T) {
 	top := configureATE(t, ate, dut)
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
+
+	routesToAdvertise := map[string]cfgplugins.RouteInfo{
+		"192.0.2.8/30":  {VRF: "VRF10", IPType: cfgplugins.IPv4, DefaultName: deviations.DefaultNetworkInstance(dut)},
+		"192.0.2.12/30": {VRF: "VRF20", IPType: cfgplugins.IPv4, DefaultName: deviations.DefaultNetworkInstance(dut)},
+		"192.0.2.16/30": {VRF: "VRF30", IPType: cfgplugins.IPv4, DefaultName: deviations.DefaultNetworkInstance(dut)},
+		"192.0.2.36/30": {VRF: "VRF40", IPType: cfgplugins.IPv4, DefaultName: deviations.DefaultNetworkInstance(dut)},
+		"192.0.2.40/30": {VRF: "VRF50", IPType: cfgplugins.IPv4, DefaultName: deviations.DefaultNetworkInstance(dut)},
+		"192.0.2.44/30": {VRF: "VRF60", IPType: cfgplugins.IPv4, DefaultName: deviations.DefaultNetworkInstance(dut)},
+		"192.0.2.0/30":  {VRF: deviations.DefaultNetworkInstance(dut), IPType: cfgplugins.IPv4, DefaultName: deviations.DefaultNetworkInstance(dut)},
+		"192.0.2.4/30":  {VRF: deviations.DefaultNetworkInstance(dut), IPType: cfgplugins.IPv4, DefaultName: deviations.DefaultNetworkInstance(dut)},
+		"192.0.2.20/30": {VRF: deviations.DefaultNetworkInstance(dut), IPType: cfgplugins.IPv4, DefaultName: deviations.DefaultNetworkInstance(dut)},
+		"192.0.2.32/30": {VRF: deviations.DefaultNetworkInstance(dut), IPType: cfgplugins.IPv4, DefaultName: deviations.DefaultNetworkInstance(dut)},
+	}
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
+	cfgplugins.VerifyRoutes(t, dut, routesToAdvertise)
 
 	// Ingress interface for policies
 	port1 := dut.Port(t, "port1")
