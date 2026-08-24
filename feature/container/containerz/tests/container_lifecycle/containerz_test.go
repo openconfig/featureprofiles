@@ -1161,15 +1161,16 @@ func TestCapabilities(t *testing.T) {
 
 		// Confirm no orphaned container instance exists.
 		listCh, listErr := cli.ListContainer(ctx, true, 0, map[string][]string{"name": {instName}})
-		if listErr == nil {
-			for c := range listCh {
-				if c.Error != nil {
-					t.Errorf("ListContainer(name=%q) stream error: %v", instName, c.Error)
-					continue
-				}
-				if strings.TrimPrefix(c.Name, "/") == instName {
-					t.Errorf("ListContainer(name=%q) found unexpected orphaned container %q after failed start", instName, c.Name)
-				}
+		if listErr != nil {
+			t.Fatalf("ListContainer(name=%q) failed: %v", instName, listErr)
+		}
+		for c := range listCh {
+			if c.Error != nil {
+				t.Errorf("ListContainer(name=%q) stream error: %v", instName, c.Error)
+				continue
+			}
+			if strings.TrimPrefix(c.Name, "/") == instName {
+				t.Errorf("ListContainer(name=%q) found unexpected orphaned container %q after failed start", instName, c.Name)
 			}
 		}
 	})
