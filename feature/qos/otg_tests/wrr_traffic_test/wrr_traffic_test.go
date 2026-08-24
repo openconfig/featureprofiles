@@ -889,21 +889,39 @@ func TestWrrTraffic(t *testing.T) {
 			time.Sleep(10 * time.Second)
 
 			otgutils.LogFlowMetrics(t, ate.OTG(), top)
+
+			// Batch DUT QoS counter telemetry queries to avoid N+1 Get RPCs.
+			qosBatch := gnmi.OCBatch()
+			for _, data := range trafficFlows {
+				qPath := gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue)
+				qosBatch.AddPaths(
+					qPath.TransmitPkts(),
+					qPath.DroppedPkts(),
+				)
+			}
+			qosResults := gnmi.Get(t, dut, qosBatch.State())
+			if output := qosResults.GetQos().GetInterface(dp3.Name()).GetOutput(); output != nil {
+				for _, data := range trafficFlows {
+					if q := output.GetQueue(data.queue); q != nil {
+						dutQosPktsAfterTraffic[data.queue] = q.GetTransmitPkts()
+						dutQosDroppedPktsAfterTraffic[data.queue] = q.GetDroppedPkts()
+					}
+				}
+			}
+
 			for trafficID, data := range trafficFlows {
 				expectedLossPct := 100.0 - data.expectedThroughputPct
-				minLossPct := expectedLossPct - tolerance
+				minLossPct := float64(expectedLossPct - tolerance)
 				if minLossPct < 0 {
 					minLossPct = 0
 				}
-				maxLossPct := expectedLossPct + tolerance
-				otgutils.ExpectedTrafficLoss(t, ate.OTG(), trafficID, float64(minLossPct), float64(maxLossPct))
+				maxLossPct := float64(expectedLossPct + tolerance)
+				otgutils.ExpectedTrafficLoss(t, ate.OTG(), trafficID, minLossPct, maxLossPct)
 
 				ateTxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().OutPkts().State())
 				ateRxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().InPkts().State())
 				ateOutPkts[data.queue] += ateTxPkts
 				ateInPkts[data.queue] += ateRxPkts
-				dutQosPktsAfterTraffic[data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State())
-				dutQosDroppedPktsAfterTraffic[data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State())
 				t.Logf("ateInPkts: %v, txPkts %v, Queue: %v", ateInPkts[data.queue], dutQosPktsAfterTraffic[data.queue], data.queue)
 				if ateTxPkts == 0 {
 					t.Fatalf("TxPkts == 0, want >0.")
