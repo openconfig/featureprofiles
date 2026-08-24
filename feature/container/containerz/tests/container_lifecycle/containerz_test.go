@@ -1046,6 +1046,14 @@ func TestCapabilities(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	cli := containerztest.Client(t, dut)
 
+	t.Cleanup(func() {
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		if err := cli.RemoveImage(cleanupCtx, imageName, "latest", true); err != nil && status.Code(err) != codes.NotFound {
+			t.Logf("Cleanup: RemoveImage(%q, \"latest\") failed: %v", imageName, err)
+		}
+	})
+
 	// Ensure the base image is pushed.
 	t.Logf("Ensuring base image %s:latest is deployed...", imageName)
 	progCh, err := cli.PushImage(ctx, imageName, "latest", containerTarPath(t), false)
@@ -1153,7 +1161,7 @@ func TestCapabilities(t *testing.T) {
 		} else {
 			s, ok := status.FromError(err)
 			if !ok || (s.Code() != codes.InvalidArgument && s.Code() != codes.FailedPrecondition) {
-				t.Logf("StartContainer with invalid capability correctly failed with: %v (code: %s)", err, s.Code())
+				t.Errorf("StartContainer with invalid capability failed with unexpected error: %v (want InvalidArgument or FailedPrecondition)", err)
 			} else {
 				t.Logf("StartContainer with invalid capability correctly rejected with code %s: %v", s.Code(), err)
 			}
