@@ -1364,6 +1364,11 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/sflow/otg_tests/sflow_base_test/sflow_base_test.go"
 }
 test: {
+  id: "SFLOW-2"
+  description: "sFlow Sampling with Encapsulation and Decapsulation"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/sflow/otg_tests/sflow_encap_decap_test/README.md"
+}
+test: {
   id: "SR-1.1"
   description: "Transit forwarding to Node-SID via ISIS"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/mpls/sr/otg_tests/isis_node_sid_forward/README.md"
@@ -2227,9 +2232,4 @@ test: {
   description: "Sampling and Subscription Check"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnpsi/otg_tests/sampling_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnpsi/otg_tests/sampling_test/sampling_and_subscription_check_test.go"
-}
-test: {
-  id: "SFLOW-2"
-  description: "sFlow Sampling with Encapsulation and Decapsulation"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/sflow/otg_tests/sflow_encap_decap_test/README.md"
 }
