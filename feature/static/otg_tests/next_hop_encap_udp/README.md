@@ -211,14 +211,14 @@ Verify:
 *   Modify the flows in `RT-3.53.11` to use IPv6 destination IPv6-DST-NET 
     and repeat the traffic generation and validation.
 
-    ### RT-3.53.13: sFlow sampling for GUE encapsulated traffic (GUE-NHG)
+ ### RT-3.53.13: sFlow sampling for GUE encapsulated traffic (GUE-NHG)
 
 DUT and ATE actions:
 
-*   Configure sFlow on DUT (sampling ingress/egress interfaces).
-*   Generate IPv4 traffic from ATE:Port1 to IPv4-DST-NET (triggering GUE-NHG).
-*   Verify sFlow collector receives samples.
-*   Verify sFlow sample contains:
+    *   Configure sFlow on DUT (sampling ingress/egress interfaces).
+    *   Generate IPv4 traffic from ATE:Port1 to IPv4-DST-NET (triggering GUE-NHG).
+    *   Verify sFlow collector receives samples.
+    *   Verify sFlow sample contains:
     *   Ingress interface matches the ingress port (DUT:Port1).
     *   Egress interface matches the egress port (DUT:Port2-5).
     *   Sampled packet header matches the expected GUE encapsulated packet.
@@ -227,10 +227,10 @@ DUT and ATE actions:
 
 DUT and ATE actions:
 
-*   Configure sFlow on DUT.
-*   Generate IPv6 traffic from ATE:Port1 to IPv6-DST-NET (triggering GUE-NHGv6).
-*   Verify sFlow collector receives samples.
-*   Verify sFlow sample contains:
+    *   Configure sFlow on DUT.
+    *   Generate IPv6 traffic from ATE:Port1 to IPv6-DST-NET (triggering GUE-NHGv6).
+    *   Verify sFlow collector receives samples.
+    *   Verify sFlow sample contains:
     *   Ingress interface matches the ingress port.
     *   Egress interface matches the egress port.
     *   Sampled packet header matches the expected GUE encapsulated packet.
@@ -239,11 +239,11 @@ DUT and ATE actions:
 
 DUT and ATE actions:
 
-*   Configure sFlow on DUT.
-*   Configure Policy Forwarding to trigger GUE encapsulation (GUE-Policy).
-*   Generate traffic to trigger GUE-Policy.
-*   Verify sFlow collector receives samples.
-*   Verify sFlow sample contains:
+    *   Configure sFlow on DUT.
+    *   Configure Policy Forwarding to trigger GUE encapsulation (GUE-Policy).
+    *   Generate traffic to trigger GUE-Policy.
+    *   Verify sFlow collector receives samples.
+    *   Verify sFlow sample contains:
     *   Ingress interface matches the ingress port.
     *   Egress interface matches the egress port.
     *   Sampled packet header matches the expected GUE encapsulated packet.
@@ -360,6 +360,7 @@ paths:
     /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/src-ip:
     /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/src-udp-port:
     /network-instances/network-instance/protocols/protocol/static-routes/static/next-hop-group/config/name:
+
     # sflow config
     /sampling/sflow/config/enabled:
     /sampling/sflow/config/ingress-sampling-rate:
@@ -367,13 +368,16 @@ paths:
     /sampling/sflow/interfaces/interface/config/ingress-sampling-rate:
     /sampling/sflow/collectors/collector/config/address:
     /sampling/sflow/collectors/collector/config/port:
+
     # telemetry
     /interfaces/interface/state/counters/out-unicast-pkts:
     /network-instances/network-instance/afts/next-hops/next-hop/state/counters/packets-forwarded:
     /network-instances/network-instance/afts/next-hops/next-hop/state/counters/octets-forwarded:
+
     # sflow telemetry
     /sampling/sflow/state/enabled:
     /sampling/sflow/interfaces/interface/state/enabled:
+
 
 rpcs:
   gnmi:
