@@ -29,7 +29,9 @@ gRIBI-programmed encapsulation.
     *   Egress interface matches DUT Port 3.
     *   Sampled packet header matches the expected GRE encapsulated packet.
     *   Sampling rate matches configured rate.
+
 ### SFLOW-2.2: sFlow sampling with IPoverGRE Decap
+
 *   Configure IPoverGRE decapsulation on DUT.
 *   Send GRE encapsulated IPv4 traffic from ATE Port 1 to DUT Port 1.
 *   Verify DUT decapsulates traffic and sends decapsulated IPv4 packets to ATE Port 3.
