@@ -17,15 +17,11 @@ package ipsec_scale_test
 
 import (
 	"fmt"
-	"math"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
-	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
-	"github.com/openconfig/ygnmi/ygnmi"
-	"github.com/openconfig/ygot/ygot"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
@@ -33,12 +29,14 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/iputil"
+	otgvalidationhelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_validation_helpers"
 	packetvalidationhelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/packetvalidationhelpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -55,7 +53,6 @@ const (
 	tunnelVRF = "TUNNEL_VRF"
 
 	// Interface names.
-	tunnelIfName   = "Tunnel1"
 	loopbackIfName = "Loopback0"
 
 	// Loopback IPv6 addresses used as IPSec tunnel endpoints (RFC 3849).
@@ -149,25 +146,25 @@ var (
 	// DUT customer-facing (ATE-facing) interface configurations (RFC 5737 test networks).
 	// DUT1: VLAN 10 with MACsec
 	dut1CustIntf = attrs.Attributes{
-		Desc:    "DUT1 customer interface configuration",
-		IPv4:    "192.0.2.1",
-		IPv4Len: 30,
-		IPv6:    "2001:db8:1::1",
-		IPv6Len: 126,
-		MAC:     "00:00:11:01:01:03",
-		MTU:     9216,
-		ID:      10,
+		Desc:         "DUT1 customer interface configuration",
+		IPv4:         "192.0.2.1",
+		IPv4Len:      30,
+		IPv6:         "2001:db8:1::1",
+		IPv6Len:      126,
+		MAC:          "00:00:11:01:01:03",
+		MTU:          9216,
+		Subinterface: 10,
 	}
 	// DUT2: No VLAN
 	dut2CustIntf = attrs.Attributes{
-		Desc:    "DUT2 customer interface configuration",
-		IPv4:    "203.0.113.1",
-		IPv4Len: 30,
-		IPv6:    "2001:db8:2::1",
-		IPv6Len: 126,
-		MAC:     "00:00:12:02:02:03",
-		MTU:     9216,
-		ID:      0,
+		Desc:         "DUT2 customer interface configuration",
+		IPv4:         "203.0.113.1",
+		IPv4Len:      30,
+		IPv6:         "2001:db8:2::1",
+		IPv6Len:      126,
+		MAC:          "00:00:12:02:02:03",
+		MTU:          9216,
+		Subinterface: 0,
 	}
 
 	// DUT core interface configurations (IPv6-only for DUT-to-DUT links per RFC 5737 test networks)
@@ -235,419 +232,6 @@ var (
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
-}
-
-// configDUTInterface configures the DUT interface with the given attributes and applies necessary deviations.
-func configDUTInterface(t *testing.T, i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDevice) {
-	t.Helper()
-
-	i.Description = ygot.String(a.Desc)
-	if deviations.InterfaceEnabled(dut) {
-		i.Enabled = ygot.Bool(true)
-	}
-
-	// Keep subinterface 0 present with MTU enabled. Some devices require this
-	// base subinterface to exist even when traffic is configured on a tagged subinterface.
-	s0 := i.GetOrCreateSubinterface(0)
-	ipv4 := s0.GetOrCreateIpv4()
-	ipv6 := s0.GetOrCreateIpv6()
-	ipv4.Mtu = ygot.Uint16(a.MTU)
-	ipv6.Mtu = ygot.Uint32(uint32(a.MTU))
-	if deviations.InterfaceEnabled(dut) {
-		ipv4.Enabled = ygot.Bool(true)
-		ipv6.Enabled = ygot.Bool(true)
-	}
-
-	s := i.GetOrCreateSubinterface(a.ID)
-	s4 := s.GetOrCreateIpv4()
-	s6 := s.GetOrCreateIpv6()
-	s4.Mtu = ygot.Uint16(a.MTU)
-	s6.Mtu = ygot.Uint32(uint32(a.MTU))
-	if deviations.InterfaceEnabled(dut) {
-		s4.Enabled = ygot.Bool(true)
-		s6.Enabled = ygot.Bool(true)
-	}
-	if a.ID != 0 {
-		s.GetOrCreateVlan().
-			GetOrCreateMatch().
-			GetOrCreateSingleTagged().
-			SetVlanId(uint16(vlanID))
-	}
-	configureInterfaceAddress(dut, s, a)
-}
-
-// configureInterfaceAddress configures the IP addresses on the given subinterface based on the provided attributes.
-func configureInterfaceAddress(dut *ondatra.DUTDevice, s *oc.Interface_Subinterface, a *attrs.Attributes) {
-	s4 := s.GetOrCreateIpv4()
-	if deviations.InterfaceEnabled(dut) {
-		s4.Enabled = ygot.Bool(true)
-	}
-	if a.IPv4 != "" {
-		a4 := s4.GetOrCreateAddress(a.IPv4)
-		a4.PrefixLength = ygot.Uint8(a.IPv4Len)
-	}
-	s6 := s.GetOrCreateIpv6()
-	if deviations.InterfaceEnabled(dut) {
-		s6.Enabled = ygot.Bool(true)
-	}
-	if a.IPv6 != "" {
-		s6.GetOrCreateAddress(a.IPv6).PrefixLength = ygot.Uint8(a.IPv6Len)
-	}
-
-	if a.IPv6Sec != "" {
-		s62 := s.GetOrCreateIpv6()
-		if deviations.InterfaceEnabled(dut) {
-			s62.Enabled = ygot.Bool(true)
-		}
-		s62.GetOrCreateAddress(a.IPv6Sec).PrefixLength = ygot.Uint8(a.IPv6Len)
-	}
-}
-
-// aggregateSubinterfaceName returns the interface name to use for CLI-based VRF assignment.
-func aggregateSubinterfaceName(lagName string, subinterfaceID uint32) string {
-	if subinterfaceID == 0 {
-		return lagName
-	}
-	return fmt.Sprintf("%s.%d", lagName, subinterfaceID)
-}
-
-// assignAggregateToVRF assigns an aggregate/subinterface to the requested VRF using OC,
-// keeping VRF assignment separate from interface modelling.
-func assignAggregateToVRF(t *testing.T, dut *ondatra.DUTDevice, lagName string, subinterfaceID uint32, vrfName string) {
-	t.Helper()
-	if vrfName == "" {
-		return
-	}
-
-	intfName := aggregateSubinterfaceName(lagName, subinterfaceID)
-	d := gnmi.OC()
-	ni := d.NetworkInstance(vrfName).Interface(intfName)
-	gnmi.Update(t, dut, ni.Config(), &oc.NetworkInstance_Interface{
-		Id:           ygot.String(intfName),
-		Interface:    ygot.String(lagName),
-		Subinterface: ygot.Uint32(subinterfaceID),
-	})
-}
-
-// configureLAGInterface sets up the LAG aggregate interface, LACP, member ports, subinterfaces, and optional VRF assignment.
-func configureLAGInterface(t *testing.T, dut *ondatra.DUTDevice, lagName string, ports []*ondatra.Port, a *attrs.Attributes, vrfName string) {
-	t.Helper()
-	d := gnmi.OC()
-
-	// Configure aggregate interface first (some devices validate that the
-	// interface exists before accepting LACP config), then LACP, then members.
-	lacp := &oc.Lacp_Interface{Name: ygot.String(lagName)}
-	lacp.LacpMode = oc.Lacp_LacpActivityType_ACTIVE
-
-	agg := &oc.Interface{Name: ygot.String(lagName)}
-	// Only set high-level interface fields here; avoid creating subinterfaces
-	// or assigning IPs until the aggregate and members exist.
-	agg.Description = ygot.String(a.Desc)
-	if deviations.InterfaceEnabled(dut) {
-		agg.Enabled = ygot.Bool(true)
-	}
-	// Ensure lag-type is present so member ports can reference this aggregate.
-	agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_LACP
-	agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-
-	// First transaction: create the aggregate (without subinterfaces/IPs),
-	// create the LACP entry and configure member ports.
-	if deviations.AggregateAtomicUpdate(dut) {
-		batch := &gnmi.SetBatch{}
-		gnmi.BatchUpdate(batch, d.Interface(lagName).Config(), agg)
-		gnmi.BatchUpdate(batch, d.Lacp().Interface(lagName).Config(), lacp)
-		for _, p := range ports {
-			i := &oc.Interface{Name: ygot.String(p.Name())}
-			i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-			// i.Mtu = ygot.Uint16(a.MTU)
-			if deviations.InterfaceEnabled(dut) {
-				i.Enabled = ygot.Bool(true)
-			}
-			e := i.GetOrCreateEthernet()
-			e.AggregateId = ygot.String(lagName)
-			gnmi.BatchUpdate(batch, d.Interface(p.Name()).Config(), i)
-		}
-		batch.Set(t, dut)
-	} else {
-		gnmi.Update(t, dut, d.Interface(lagName).Config(), agg)
-		gnmi.Update(t, dut, d.Lacp().Interface(lagName).Config(), lacp)
-		for _, p := range ports {
-			i := &oc.Interface{Name: ygot.String(p.Name())}
-			i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-			// i.Mtu = ygot.Uint16(a.MTU)
-			if deviations.InterfaceEnabled(dut) {
-				i.Enabled = ygot.Bool(true)
-			}
-			e := i.GetOrCreateEthernet()
-			e.AggregateId = ygot.String(lagName)
-			gnmi.Update(t, dut, d.Interface(p.Name()).Config(), i)
-		}
-	}
-
-	// Assign VRF before programming IP addresses (moving into a VRF afterwards may
-	// clear the address). Use a.ID so tagged ATE-facing subinterfaces map correctly.
-	assignAggregateToVRF(t, dut, lagName, a.ID, vrfName)
-
-	if deviations.AggregateAtomicUpdate(dut) {
-		post := &gnmi.SetBatch{}
-		full := &oc.Interface{Name: ygot.String(lagName)}
-		full.GetOrCreateAggregation().LagType = agg.GetOrCreateAggregation().GetLagType()
-		full.Type = agg.Type
-		// Use helper to populate subinterface(s) and addresses.
-		configDUTInterface(t, full, a, dut)
-		gnmi.BatchUpdate(post, d.Interface(lagName).Config(), full)
-		post.Set(t, dut)
-	} else {
-		full := &oc.Interface{Name: ygot.String(lagName)}
-		full.GetOrCreateAggregation().LagType = agg.GetOrCreateAggregation().GetLagType()
-		full.Type = agg.Type
-		configDUTInterface(t, full, a, dut)
-		gnmi.Update(t, dut, d.Interface(lagName).Config(), full)
-	}
-}
-
-// createVRFs creates VRFs via OC, or via a single atomic CLI transaction on Arista
-// where the routing-enable commands have no OC equivalent.
-func createVRFs(t *testing.T, dut *ondatra.DUTDevice, vrfNames []string) {
-	t.Helper()
-	if len(vrfNames) == 0 {
-		return
-	}
-	if deviations.IpRoutingInVrfOcUnsupported(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			// Arista needs vrf instance + ip routing + ipv6 unicast-routing in one
-			// atomic CLI block; OC cannot express the routing-enable commands.
-			var b strings.Builder
-			for _, vrfName := range vrfNames {
-				if vrfName == "" {
-					continue
-				}
-				fmt.Fprintf(&b, "vrf instance %s\n!\nip routing vrf %s\n!\nipv6 unicast-routing vrf %s\n!\n",
-					vrfName, vrfName, vrfName)
-			}
-			if cli := b.String(); cli != "" {
-				t.Logf("Creating VRF(s) via CLI on Arista (routing-enable): %v", vrfNames)
-				helpers.GnmiCLIConfig(t, dut, cli)
-			}
-		}
-	} else {
-		// All other vendors: create VRF instance using OpenConfig.
-		d := gnmi.OC()
-		for _, vrfName := range vrfNames {
-			if vrfName == "" {
-				continue
-			}
-			ni := &oc.NetworkInstance{Name: ygot.String(vrfName)}
-			ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-			gnmi.Update(t, dut, d.NetworkInstance(vrfName).Config(), ni)
-		}
-		t.Logf("Applied OC VRF creation for %d VRF(s): %v", len(vrfNames), vrfNames)
-	}
-}
-
-// staticRoute represents a single static route entry.
-type staticRoute struct {
-	Prefix    string // destination prefix in CIDR notation
-	NextHop   string // next-hop IP address
-	VRF       string // source VRF (empty for the default VRF)
-	EgressVRF string // egress VRF for cross-VRF leaking (empty if not used)
-}
-
-// configureStaticRoutes configures static routes via OpenConfig for named-VRF routes
-// without egress-vrf, and via CLI for egress-vrf or default-VRF routes (Arista).
-func configureStaticRoutes(t *testing.T, dut *ondatra.DUTDevice, routes []staticRoute) {
-	t.Helper()
-
-	// Group named-VRF routes without egress-vrf for OC configuration.
-	ocRoutesByVRF := make(map[string][]staticRoute)
-	for _, r := range routes {
-		if r.EgressVRF == "" && r.VRF != "" {
-			ocRoutesByVRF[r.VRF] = append(ocRoutesByVRF[r.VRF], r)
-		}
-	}
-
-	// Configure named-VRF plain next-hop routes via OpenConfig.
-	for vrfName, vrfRoutes := range ocRoutesByVRF {
-		proto := &oc.NetworkInstance_Protocol{
-			Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
-			Name:       ygot.String(deviations.StaticProtocolName(dut)),
-		}
-		for _, r := range vrfRoutes {
-			sr := proto.GetOrCreateStatic(r.Prefix)
-			sr.Prefix = ygot.String(r.Prefix)
-			nh := sr.GetOrCreateNextHop("0")
-			nh.Index = ygot.String("0")
-			nh.NextHop = oc.UnionString(r.NextHop)
-		}
-		sp := gnmi.OC().NetworkInstance(vrfName).Protocol(
-			oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-		gnmi.Update(t, dut, sp.Config(), proto)
-	}
-
-	if deviations.StaticRouteInVrfOcUnsupported(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			// Configure egress-vrf/default-VRF routes via CLI, batched into a single
-			// gNMI CLI Set to avoid one Set per route (expensive at scale).
-			var cliLines []string
-			for _, r := range routes {
-				if r.EgressVRF == "" && r.VRF != "" {
-					continue // already handled via OC above
-				}
-				ipType := "ip"
-				for _, ch := range r.Prefix {
-					if ch == ':' {
-						ipType = "ipv6"
-						break
-					}
-				}
-				var cli string
-				switch {
-				case r.EgressVRF != "" && r.VRF != "":
-					cli = fmt.Sprintf("%s route vrf %s %s egress-vrf %s %s",
-						ipType, r.VRF, r.Prefix, r.EgressVRF, r.NextHop)
-				case r.EgressVRF == "" && r.VRF == "":
-					// Default VRF, plain next-hop — no vrf qualifier.
-					cli = fmt.Sprintf("%s route %s %s", ipType, r.Prefix, r.NextHop)
-				default:
-					// EgressVRF set but VRF is empty (edge case: egress from default VRF).
-					cli = fmt.Sprintf("%s route %s egress-vrf %s %s",
-						ipType, r.Prefix, r.EgressVRF, r.NextHop)
-				}
-				cliLines = append(cliLines, cli)
-			}
-			if len(cliLines) > 0 {
-				helpers.GnmiCLIConfig(t, dut, strings.Join(cliLines, "\n"))
-			}
-		}
-	} else {
-		// Configure via OC: routes with egress-vrf or in the default VRF.
-		for _, r := range routes {
-			if r.EgressVRF == "" && r.VRF != "" {
-				continue // already handled via OC above
-			}
-			vrfName := r.VRF
-			if vrfName == "" {
-				vrfName = deviations.DefaultNetworkInstance(dut)
-			}
-			proto := &oc.NetworkInstance_Protocol{
-				Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
-				Name:       ygot.String(deviations.StaticProtocolName(dut)),
-			}
-			sr := proto.GetOrCreateStatic(r.Prefix)
-			sr.Prefix = ygot.String(r.Prefix)
-			nh := sr.GetOrCreateNextHop("0")
-			nh.Index = ygot.String("0")
-			nh.NextHop = oc.UnionString(r.NextHop)
-			if r.EgressVRF != "" {
-				nh.NextNetworkInstance = ygot.String(r.EgressVRF)
-			}
-			sp := gnmi.OC().NetworkInstance(vrfName).Protocol(
-				oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-			gnmi.Update(t, dut, sp.Config(), proto)
-		}
-	}
-}
-
-func configureDUT(t *testing.T, dut *ondatra.DUTDevice,
-	portGroups [][]*ondatra.Port,
-	portAttrs []attrs.Attributes,
-	vrfName string) []string {
-
-	t.Helper()
-
-	if len(portGroups) != len(portAttrs) {
-		t.Fatalf("mismatched portGroups and portAttrs lengths")
-	}
-
-	// VRF should already be created by createVRF() before calling this
-	// Just configure the interfaces without VRF creation
-
-	lagNames := make([]string, 0, len(portGroups))
-	for i := range portGroups {
-		// Generate a unique aggregate ID per DUT per LAG.
-		lag := netutil.NextAggregateInterface(t, dut)
-		configureLAGInterface(t, dut, lag, portGroups[i], &portAttrs[i], vrfName)
-		lagNames = append(lagNames, lag)
-	}
-	return lagNames
-}
-
-// addCustomerAttachmentSubinterface adds a VLAN-tagged customer subinterface to an
-// existing aggregate and assigns it to the attachment's VRF. Physical-port MACsec
-// is inherited, so no extra MACsec config is needed.
-func addCustomerAttachmentSubinterface(t *testing.T, dut *ondatra.DUTDevice, lagName string, vlan uint16, a attrs.Attributes, vrfName string) {
-	t.Helper()
-
-	// Create the VLAN-tagged subinterface (no IP yet).
-	agg := &oc.Interface{Name: ygot.String(lagName)}
-	s := agg.GetOrCreateSubinterface(uint32(vlan))
-	s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().SetVlanId(vlan)
-	s4 := s.GetOrCreateIpv4()
-	s6 := s.GetOrCreateIpv6()
-	if deviations.InterfaceEnabled(dut) {
-		s4.Enabled = ygot.Bool(true)
-		s6.Enabled = ygot.Bool(true)
-	}
-	s4.Mtu = ygot.Uint16(a.MTU)
-	s6.Mtu = ygot.Uint32(uint32(a.MTU))
-	gnmi.Update(t, dut, gnmi.OC().Interface(lagName).Config(), agg)
-
-	// Assign the VRF before programming IPs; moving VRFs afterwards can clear them.
-	assignAggregateToVRF(t, dut, lagName, uint32(vlan), vrfName)
-
-	// Program the IP addresses on the subinterface.
-	aggIP := &oc.Interface{Name: ygot.String(lagName)}
-	sIP := aggIP.GetOrCreateSubinterface(uint32(vlan))
-	s4IP := sIP.GetOrCreateIpv4()
-	s6IP := sIP.GetOrCreateIpv6()
-	if deviations.InterfaceEnabled(dut) {
-		s4IP.Enabled = ygot.Bool(true)
-		s6IP.Enabled = ygot.Bool(true)
-	}
-	if a.IPv4 != "" {
-		s4IP.GetOrCreateAddress(a.IPv4).PrefixLength = ygot.Uint8(a.IPv4Len)
-	}
-	if a.IPv6 != "" {
-		s6IP.GetOrCreateAddress(a.IPv6).PrefixLength = ygot.Uint8(a.IPv6Len)
-	}
-	gnmi.Update(t, dut, gnmi.OC().Interface(lagName).Config(), aggIP)
-}
-func configureLoopback(t *testing.T, dut *ondatra.DUTDevice, lbName, ip string, prefixLen uint8, isIPv6 bool, batch *gnmi.SetBatch) {
-	t.Helper()
-
-	i := &oc.Interface{}
-	i.Name = ygot.String(lbName)
-	i.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
-
-	if deviations.InterfaceEnabled(dut) {
-		i.Enabled = ygot.Bool(true)
-	}
-
-	s0 := i.GetOrCreateSubinterface(0)
-
-	if isIPv6 {
-		ipv6 := s0.GetOrCreateIpv6()
-		if deviations.InterfaceEnabled(dut) {
-			ipv6.Enabled = ygot.Bool(true)
-		}
-		addr := ipv6.GetOrCreateAddress(ip)
-		addr.PrefixLength = ygot.Uint8(prefixLen)
-	} else {
-		ipv4 := s0.GetOrCreateIpv4()
-		if deviations.InterfaceEnabled(dut) {
-			ipv4.Enabled = ygot.Bool(true)
-		}
-		addr := ipv4.GetOrCreateAddress(ip)
-		addr.PrefixLength = ygot.Uint8(prefixLen)
-	}
-
-	if batch != nil {
-		gnmi.BatchUpdate(batch, gnmi.OC().Interface(lbName).Config(), i)
-	} else {
-		gnmi.Replace(t, dut, gnmi.OC().Interface(lbName).Config(), i)
-	}
 }
 
 func configureATE(t *testing.T) gosnappi.Config {
@@ -853,148 +437,6 @@ func configureATE(t *testing.T) gosnappi.Config {
 	return top
 }
 
-func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, cfg gosnappi.Config, flowName string, testResults bool) error {
-	t.Helper()
-
-	flowPath := gnmi.OTG().Flow(flowName).State()
-	watchTimeout := 2 * time.Minute
-
-	watch := gnmi.Watch(t, ate.OTG(), flowPath, watchTimeout, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
-		metric, ok := val.Val()
-		if !ok || metric == nil {
-			return false
-		}
-
-		framesTx := metric.GetCounters().GetOutPkts()
-		framesRx := metric.GetCounters().GetInPkts()
-		if framesTx == 0 {
-			return false
-		}
-
-		if testResults {
-			// Expect frames to be received.
-			return framesRx == framesTx
-		}
-
-		// Expect no frames to be received.
-		return framesRx == 0
-	})
-
-	last, ok := watch.Await(t)
-	if !ok {
-		recvMetric := gnmi.Get(t, ate.OTG(), flowPath)
-		framesTx := recvMetric.GetCounters().GetOutPkts()
-		framesRx := recvMetric.GetCounters().GetInPkts()
-
-		// If the final snapshot already matches expectations, treat as pass.
-		if testResults {
-			if framesTx > 0 && framesRx == framesTx {
-				t.Logf("%s: traffic verification passed: FramesTx: %d, FramesRx: %d", flowName, framesTx, framesRx)
-				return nil
-			}
-		} else {
-			if framesTx > 0 && framesRx == 0 {
-				t.Logf("%s: traffic verification passed: FramesTx: %d, FramesRx: %d", flowName, framesTx, framesRx)
-				return nil
-			}
-		}
-
-		var errMsg string
-		if testResults {
-			errMsg = fmt.Sprintf("%s: traffic verification did not pass: FramesTx: %d, FramesRx: %d, want FramesRx == FramesTx and FramesTx > 0", flowName, framesTx, framesRx)
-		} else {
-			errMsg = fmt.Sprintf("%s: traffic verification did not pass: FramesTx: %d, FramesRx: %d, want FramesRx == 0 and FramesTx > 0", flowName, framesTx, framesRx)
-		}
-		otgutils.LogFlowMetrics(t, ate.OTG(), cfg)
-		return fmt.Errorf("%s", errMsg)
-	}
-
-	recvMetric, present := last.Val()
-	if !present || recvMetric == nil {
-		recvMetric = gnmi.Get(t, ate.OTG(), flowPath)
-	}
-	framesTx := recvMetric.GetCounters().GetOutPkts()
-	framesRx := recvMetric.GetCounters().GetInPkts()
-	otgutils.LogFlowMetrics(t, ate.OTG(), cfg)
-	t.Logf("%s: traffic verification passed: FramesTx: %d, FramesRx: %d", flowName, framesTx, framesRx)
-	return nil
-}
-
-func waitForOTGLAGUP(t *testing.T, ate *ondatra.ATEDevice, lagName string, wantMembersUp uint64, timeout time.Duration) {
-	t.Helper()
-
-	otg := ate.OTG()
-
-	t.Logf("Waiting for OTG LAG %s to be UP with %d member(s)", lagName, wantMembersUp)
-
-	watch := gnmi.Watch(
-		t,
-		otg,
-		gnmi.OTG().Lag(lagName).State(),
-		timeout,
-		func(val *ygnmi.Value[*otgtelemetry.Lag]) bool {
-			lag, ok := val.Val()
-			if !ok || lag == nil {
-				return false
-			}
-
-			oper := lag.GetOperStatus()
-			membersUp := lag.GetCounters().GetMemberPortsUp()
-
-			if oper == otgtelemetry.Lag_OperStatus_UP && membersUp == wantMembersUp {
-				t.Logf("OTG LAG %s is UP with %d member(s) up", lagName, membersUp)
-				return true
-			}
-
-			t.Logf("Waiting OTG LAG %s: oper-status=%v member-ports-up=%d (want oper-status=UP, member-ports-up=%d)",
-				lagName, oper, membersUp, wantMembersUp)
-
-			return false
-		},
-	)
-
-	if _, ok := watch.Await(t); !ok {
-		finalOper := gnmi.Get(t, otg, gnmi.OTG().Lag(lagName).OperStatus().State())
-		finalMembers := gnmi.Get(t, otg, gnmi.OTG().Lag(lagName).Counters().MemberPortsUp().State())
-
-		t.Fatalf("OTG LAG %s did not become ready within %v: final oper-status=%v member-ports-up=%d (want oper-status=UP, member-ports-up=%d)",
-			lagName, timeout, finalOper, finalMembers, wantMembersUp)
-	}
-}
-
-func waitForOTGMACSecUp(t *testing.T, ate *ondatra.ATEDevice, ifName string, timeout time.Duration) {
-	t.Helper()
-
-	otg := ate.OTG()
-
-	t.Logf("Waiting for OTG MACsec session on %s to be UP", ifName)
-
-	watch := gnmi.Watch(
-		t,
-		otg,
-		gnmi.OTG().Macsec().Interface(ifName).SessionState().State(),
-		timeout,
-		func(val *ygnmi.Value[otgtelemetry.E_Interface_SessionState]) bool {
-			state, ok := val.Val()
-			if !ok {
-				t.Logf("Waiting MACsec session on %s: no value yet", ifName)
-				return false
-			}
-			if state != otgtelemetry.Interface_SessionState_UP {
-				t.Logf("Waiting MACsec session on %s: current state=%v, want UP", ifName, state)
-				return false
-			}
-			return true
-		},
-	)
-
-	if _, ok := watch.Await(t); !ok {
-		finalState := gnmi.Get(t, otg, gnmi.OTG().Macsec().Interface(ifName).SessionState().State())
-		t.Fatalf("MACsec session on %s did not come UP within %v, final state=%v",
-			ifName, timeout, finalState)
-	}
-}
-
 // tunnelBlock describes one block of parallel IPSec tunnels: size, global
 // index/name offset, tunnel VRF, and the loopback/overlay addressing schemes.
 // Distinct blocks (one per attachment) use non-overlapping schemes.
@@ -1051,7 +493,7 @@ func configureTunnelBlock(t *testing.T, dut1, dut2 *ondatra.DUTDevice, blk tunne
 	// Accumulate per-tunnel CLI blocks and reachability routes and push them once
 	// per DUT after the loop; one Set per tunnel is prohibitively slow at scale.
 	var dut1Tunnels, dut2Tunnels []string
-	var dut1ReachRoutes, dut2ReachRoutes []staticRoute
+	var dut1ReachRoutes, dut2ReachRoutes []*cfgplugins.StaticRouteCfg
 	dut1LoopbackBatch := &gnmi.SetBatch{}
 	dut2LoopbackBatch := &gnmi.SetBatch{}
 
@@ -1069,8 +511,20 @@ func configureTunnelBlock(t *testing.T, dut1, dut2 *ondatra.DUTDevice, blk tunne
 		profile := fmt.Sprintf("IPSEC_PROFILE_%d", n)
 
 		// Per-tunnel loopback endpoints.
-		configureLoopback(t, dut1, lbName, dut1LbV6, loopbackPrefixLen, true, dut1LoopbackBatch)
-		configureLoopback(t, dut2, lbName, dut2LbV6, loopbackPrefixLen, true, dut2LoopbackBatch)
+		cfgplugins.ConfigureLoopback(t, dut1, cfgplugins.LoopbackConfig{
+			Name:      lbName,
+			IP:        dut1LbV6,
+			PrefixLen: loopbackPrefixLen,
+			IsIPv6:    true,
+			Batch:     dut1LoopbackBatch,
+		})
+		cfgplugins.ConfigureLoopback(t, dut2, cfgplugins.LoopbackConfig{
+			Name:      lbName,
+			IP:        dut2LbV6,
+			PrefixLen: loopbackPrefixLen,
+			IsIPv6:    true,
+			Batch:     dut2LoopbackBatch,
+		})
 
 		dut1Cfg := cfgplugins.IPSecTunnelCfg{
 			TunnelName:  tunName,
@@ -1118,12 +572,12 @@ func configureTunnelBlock(t *testing.T, dut1, dut2 *ondatra.DUTDevice, blk tunne
 
 		// Reachability to the far-end loopback endpoint over both DUT-DUT core LAGs.
 		dut1ReachRoutes = append(dut1ReachRoutes,
-			staticRoute{Prefix: fmt.Sprintf("%s/128", dut2LbV6), NextHop: dut2CoreIntf2.IPv6},
-			staticRoute{Prefix: fmt.Sprintf("%s/128", dut2LbV6), NextHop: dut2CoreIntf1.IPv6},
+			&cfgplugins.StaticRouteCfg{Prefix: fmt.Sprintf("%s/128", dut2LbV6), NextHopAddr: dut2CoreIntf2.IPv6},
+			&cfgplugins.StaticRouteCfg{Prefix: fmt.Sprintf("%s/128", dut2LbV6), NextHopAddr: dut2CoreIntf1.IPv6},
 		)
 		dut2ReachRoutes = append(dut2ReachRoutes,
-			staticRoute{Prefix: fmt.Sprintf("%s/128", dut1LbV6), NextHop: dut1CoreIntf2.IPv6},
-			staticRoute{Prefix: fmt.Sprintf("%s/128", dut1LbV6), NextHop: dut1CoreIntf1.IPv6},
+			&cfgplugins.StaticRouteCfg{Prefix: fmt.Sprintf("%s/128", dut1LbV6), NextHopAddr: dut1CoreIntf2.IPv6},
+			&cfgplugins.StaticRouteCfg{Prefix: fmt.Sprintf("%s/128", dut1LbV6), NextHopAddr: dut1CoreIntf1.IPv6},
 		)
 
 		dut1TunnelV4NHs = append(dut1TunnelV4NHs, dut1TunnelV4s[i])
@@ -1145,111 +599,11 @@ func configureTunnelBlock(t *testing.T, dut1, dut2 *ondatra.DUTDevice, blk tunne
 	}
 
 	// Program all far-end loopback reachability routes in a single batched call
-	// per DUT (configureStaticRoutes coalesces them into one gNMI Set).
-	configureStaticRoutes(t, dut1, dut1ReachRoutes)
-	configureStaticRoutes(t, dut2, dut2ReachRoutes)
+	// per DUT (ConfigureStaticRoutesInVRF coalesces them into one gNMI Set).
+	cfgplugins.ConfigureStaticRoutesInVRF(t, dut1, dut1ReachRoutes)
+	cfgplugins.ConfigureStaticRoutesInVRF(t, dut2, dut2ReachRoutes)
 
 	return dut1TunnelV4NHs, dut2TunnelV4NHs, dut1TunnelV6NHs, dut2TunnelV6NHs
-}
-
-// waitForAllTunnelsUP waits for the IPSec tunnels numbered [startTunnel,
-// startTunnel+count-1] to reach UP state on both DUTs.
-func waitForAllTunnelsUP(t *testing.T, dut1, dut2 *ondatra.DUTDevice, startTunnel, count int, timeout time.Duration) {
-	t.Helper()
-
-	endTunnel := startTunnel + count - 1
-	t.Logf("Waiting for IPSec tunnels %d-%d to come UP on both DUTs (timeout: %v)...", startTunnel, endTunnel, timeout)
-
-	for i := startTunnel; i <= endTunnel; i++ {
-		tunName := fmt.Sprintf("Tunnel%d", i)
-
-		// Check DUT1 tunnel
-		path1 := gnmi.OC().Interface(tunName).OperStatus().State()
-		_, ok1 := gnmi.Watch(t, dut1, path1, timeout, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
-			status, present := val.Val()
-			return present && status == oc.Interface_OperStatus_UP
-		}).Await(t)
-		if !ok1 {
-			got1 := gnmi.Get(t, dut1, path1)
-			t.Fatalf("DUT1 tunnel %s did not come UP within %v, final status: %v", tunName, timeout, got1)
-		}
-
-		// Check DUT2 tunnel
-		path2 := gnmi.OC().Interface(tunName).OperStatus().State()
-		_, ok2 := gnmi.Watch(t, dut2, path2, timeout, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
-			status, present := val.Val()
-			return present && status == oc.Interface_OperStatus_UP
-		}).Await(t)
-		if !ok2 {
-			got2 := gnmi.Get(t, dut2, path2)
-			t.Fatalf("DUT2 tunnel %s did not come UP within %v, final status: %v", tunName, timeout, got2)
-		}
-
-		if (i-startTunnel+1)%32 == 0 || i == endTunnel {
-			t.Logf("Tunnels up through %d on both DUTs", i)
-		}
-	}
-
-	t.Logf("All IPSec tunnels %d-%d are UP on both DUTs", startTunnel, endTunnel)
-}
-
-func readMemberOutPkts(t *testing.T, dut *ondatra.DUTDevice, memberPorts []*ondatra.Port) map[string]uint64 {
-	t.Helper()
-	vals := make(map[string]uint64)
-	for _, p := range memberPorts {
-		vals[p.Name()] = gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Counters().OutPkts().State())
-	}
-	return vals
-}
-
-func verifyDUTDUTLoadBalance(t *testing.T, dut *ondatra.DUTDevice, memberPorts []*ondatra.Port, baseline map[string]uint64, tolerance float64, wantSingleLink bool) error {
-	t.Helper()
-
-	after := readMemberOutPkts(t, dut, memberPorts)
-	delta := make(map[string]uint64)
-	var total uint64
-	active := 0
-
-	for _, p := range memberPorts {
-		name := p.Name()
-		if after[name] > baseline[name] {
-			delta[name] = after[name] - baseline[name]
-		}
-		total += delta[name]
-		if delta[name] > 0 {
-			active++
-		}
-	}
-
-	if total == 0 {
-		return fmt.Errorf("no packets observed on DUT-to-DUT member links")
-	}
-
-	var errs []error
-
-	if wantSingleLink {
-		if active != 1 {
-			errs = append(errs, fmt.Errorf("single-link expectation failed: active members got %d, want 1", active))
-		}
-	} else {
-		if active != len(memberPorts) {
-			errs = append(errs, fmt.Errorf("balanced load expectation failed: active members got %d, want %d", active, len(memberPorts)))
-		}
-
-		evenShare := 1.0 / float64(len(memberPorts))
-		for _, p := range memberPorts {
-			name := p.Name()
-			share := float64(delta[name]) / float64(total)
-			if math.Abs(share-evenShare) > tolerance {
-				errs = append(errs, fmt.Errorf("member %s share got %.3f, want %.3f +/- %.3f", name, share, evenShare, tolerance))
-			}
-		}
-	}
-
-	if len(errs) > 0 {
-		return fmt.Errorf("load balance verification failed: %v", errs)
-	}
-	return nil
 }
 
 // custAttachment describes one additional device-max attachment (IPSEC-1.2.3/1.2.4):
@@ -1299,6 +653,206 @@ func attachmentTunnelCount(dut *ondatra.DUTDevice) int {
 	}
 }
 
+// aggregateSubinterfaceName returns the interface name to use for CLI-based VRF assignment.
+func aggregateSubinterfaceName(lagName string, subinterfaceID uint32) string {
+	if subinterfaceID == 0 {
+		return lagName
+	}
+	return fmt.Sprintf("%s.%d", lagName, subinterfaceID)
+}
+
+// assignAggregateToVRF assigns an aggregate/subinterface to the requested VRF using OC,
+// keeping VRF assignment separate from interface modelling.
+func assignAggregateToVRF(t *testing.T, dut *ondatra.DUTDevice, lagName string, subinterfaceID uint32, vrfName string) {
+	t.Helper()
+	if vrfName == "" {
+		return
+	}
+
+	intfName := aggregateSubinterfaceName(lagName, subinterfaceID)
+	d := gnmi.OC()
+	ni := d.NetworkInstance(vrfName).Interface(intfName)
+	gnmi.Update(t, dut, ni.Config(), &oc.NetworkInstance_Interface{
+		Id:           ygot.String(intfName),
+		Interface:    ygot.String(lagName),
+		Subinterface: ygot.Uint32(subinterfaceID),
+	})
+}
+
+// createVRFs creates VRFs via OC, or via a single atomic CLI transaction on Arista
+// where the routing-enable commands have no OC equivalent.
+func createVRFs(t *testing.T, dut *ondatra.DUTDevice, vrfNames []string) {
+	t.Helper()
+	if len(vrfNames) == 0 {
+		return
+	}
+	if deviations.IpRoutingInVrfOcUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			// Arista needs vrf instance + ip routing + ipv6 unicast-routing in one
+			// atomic CLI block; OC cannot express the routing-enable commands.
+			var b strings.Builder
+			for _, vrfName := range vrfNames {
+				if vrfName == "" {
+					continue
+				}
+				fmt.Fprintf(&b, "vrf instance %s\n!\nip routing vrf %s\n!\nipv6 unicast-routing vrf %s\n!\n",
+					vrfName, vrfName, vrfName)
+			}
+			if cli := b.String(); cli != "" {
+				t.Logf("Creating VRF(s) via CLI on Arista (routing-enable): %v", vrfNames)
+				helpers.GnmiCLIConfig(t, dut, cli)
+			}
+		}
+	} else {
+		// All other vendors: create VRF instance using OpenConfig.
+		d := gnmi.OC()
+		for _, vrfName := range vrfNames {
+			if vrfName == "" {
+				continue
+			}
+			ni := &oc.NetworkInstance{Name: ygot.String(vrfName)}
+			ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
+			gnmi.Update(t, dut, d.NetworkInstance(vrfName).Config(), ni)
+		}
+		t.Logf("Applied OC VRF creation for %d VRF(s): %v", len(vrfNames), vrfNames)
+	}
+}
+
+// configureLAGInterface sets up the LAG aggregate interface, LACP, member ports, subinterfaces, and optional VRF assignment.
+func configureLAGInterface(t *testing.T, dut *ondatra.DUTDevice, lagName string, ports []*ondatra.Port, a *attrs.Attributes, vrfName string) {
+	t.Helper()
+	d := gnmi.OC()
+
+	// Configure aggregate interface first, then LACP, then members.
+	lacp := &oc.Lacp_Interface{Name: ygot.String(lagName)}
+	lacp.LacpMode = oc.Lacp_LacpActivityType_ACTIVE
+
+	agg := &oc.Interface{Name: ygot.String(lagName)}
+	agg.Description = ygot.String(a.Desc)
+	if deviations.InterfaceEnabled(dut) {
+		agg.Enabled = ygot.Bool(true)
+	}
+	agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_LACP
+	agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+
+	subID := a.ID
+	if subID == 0 && a.Subinterface != 0 {
+		subID = a.Subinterface
+	}
+
+	// First transaction: create the aggregate (without subinterfaces/IPs),
+	// create the LACP entry and configure member ports.
+	if deviations.AggregateAtomicUpdate(dut) {
+		batch := &gnmi.SetBatch{}
+		gnmi.BatchUpdate(batch, d.Interface(lagName).Config(), agg)
+		gnmi.BatchUpdate(batch, d.Lacp().Interface(lagName).Config(), lacp)
+		for _, p := range ports {
+			i := &oc.Interface{Name: ygot.String(p.Name())}
+			i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+			if deviations.InterfaceEnabled(dut) {
+				i.Enabled = ygot.Bool(true)
+			}
+			e := i.GetOrCreateEthernet()
+			e.AggregateId = ygot.String(lagName)
+			gnmi.BatchUpdate(batch, d.Interface(p.Name()).Config(), i)
+		}
+		batch.Set(t, dut)
+	} else {
+		gnmi.Update(t, dut, d.Interface(lagName).Config(), agg)
+		gnmi.Update(t, dut, d.Lacp().Interface(lagName).Config(), lacp)
+		for _, p := range ports {
+			i := &oc.Interface{Name: ygot.String(p.Name())}
+			i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+			if deviations.InterfaceEnabled(dut) {
+				i.Enabled = ygot.Bool(true)
+			}
+			e := i.GetOrCreateEthernet()
+			e.AggregateId = ygot.String(lagName)
+			gnmi.Update(t, dut, d.Interface(p.Name()).Config(), i)
+		}
+	}
+
+	// Assign VRF before programming IP addresses.
+	assignAggregateToVRF(t, dut, lagName, subID, vrfName)
+
+	full := &oc.Interface{Name: ygot.String(lagName)}
+	full.GetOrCreateAggregation().LagType = agg.GetOrCreateAggregation().GetLagType()
+	full.Type = agg.Type
+	full.Description = ygot.String(a.Desc)
+	if deviations.InterfaceEnabled(dut) {
+		full.Enabled = ygot.Bool(true)
+	}
+	// Subinterface 0 with matching IPv4 and IPv6 MTU.
+	s0 := full.GetOrCreateSubinterface(0)
+	s0.GetOrCreateIpv4().Mtu = ygot.Uint16(a.MTU)
+	s0.GetOrCreateIpv6().Mtu = ygot.Uint32(uint32(a.MTU))
+	if deviations.InterfaceEnabled(dut) {
+		s0.GetOrCreateIpv4().Enabled = ygot.Bool(true)
+		s0.GetOrCreateIpv6().Enabled = ygot.Bool(true)
+	}
+	if subID != 0 {
+		s := full.GetOrCreateSubinterface(subID)
+		s.GetOrCreateIpv4().Mtu = ygot.Uint16(a.MTU)
+		s.GetOrCreateIpv6().Mtu = ygot.Uint32(uint32(a.MTU))
+		if deviations.InterfaceEnabled(dut) {
+			s.GetOrCreateIpv4().Enabled = ygot.Bool(true)
+			s.GetOrCreateIpv6().Enabled = ygot.Bool(true)
+		}
+		cfgplugins.ConfigureVLAN(s, dut, uint16(subID))
+		cfgplugins.ConfigureSubinterfaceIPs(s, dut, a.IPv4, a.IPv4Len, a.IPv6, a.IPv6Len)
+	} else {
+		cfgplugins.ConfigureSubinterfaceIPs(s0, dut, a.IPv4, a.IPv4Len, a.IPv6, a.IPv6Len)
+	}
+
+	if deviations.AggregateAtomicUpdate(dut) {
+		post := &gnmi.SetBatch{}
+		gnmi.BatchUpdate(post, d.Interface(lagName).Config(), full)
+		post.Set(t, dut)
+	} else {
+		gnmi.Update(t, dut, d.Interface(lagName).Config(), full)
+	}
+}
+
+// configureDUT configures the LAG aggregates on the DUT.
+func configureDUT(t *testing.T, dut *ondatra.DUTDevice, portGroups [][]*ondatra.Port, portAttrs []attrs.Attributes, vrfName string) []string {
+	t.Helper()
+
+	if len(portGroups) != len(portAttrs) {
+		t.Fatalf("mismatched portGroups and portAttrs lengths")
+	}
+
+	lagNames := make([]string, 0, len(portGroups))
+	for i := range portGroups {
+		lag := netutil.NextAggregateInterface(t, dut)
+		configureLAGInterface(t, dut, lag, portGroups[i], &portAttrs[i], vrfName)
+		lagNames = append(lagNames, lag)
+	}
+	return lagNames
+}
+
+// addCustomerAttachmentSubinterface adds a VLAN-tagged customer subinterface to an
+// existing aggregate and assigns it to the attachment's VRF.
+func addCustomerAttachmentSubinterface(t *testing.T, dut *ondatra.DUTDevice, lagName string, vlan uint16, a attrs.Attributes, vrfName string) {
+	t.Helper()
+
+	assignAggregateToVRF(t, dut, lagName, uint32(vlan), vrfName)
+
+	agg := &oc.Interface{Name: ygot.String(lagName)}
+	s := agg.GetOrCreateSubinterface(uint32(vlan))
+	cfgplugins.ConfigureVLAN(s, dut, vlan)
+	s4 := s.GetOrCreateIpv4()
+	s6 := s.GetOrCreateIpv6()
+	if deviations.InterfaceEnabled(dut) {
+		s4.Enabled = ygot.Bool(true)
+		s6.Enabled = ygot.Bool(true)
+	}
+	s4.Mtu = ygot.Uint16(a.MTU)
+	s6.Mtu = ygot.Uint32(uint32(a.MTU))
+	cfgplugins.ConfigureSubinterfaceIPs(s, dut, a.IPv4, a.IPv4Len, a.IPv6, a.IPv6Len)
+	gnmi.Update(t, dut, gnmi.OC().Interface(lagName).Config(), agg)
+}
+
 // buildAttachments computes n additional attachments with non-overlapping VLANs,
 // VRFs, IP addressing and tunnel blocks of perAttachmentTunnels tunnels each.
 func buildAttachments(n, perAttachmentTunnels int) []custAttachment {
@@ -1312,24 +866,24 @@ func buildAttachments(n, perAttachmentTunnels int) []custAttachment {
 			ate2MAC:   fmt.Sprintf("00:00:12:02:02:%02x", 0x20+k),
 		}
 		att.dut1Cust = attrs.Attributes{
-			Desc:    fmt.Sprintf("DUT1 attachment %d customer interface", k),
-			IPv4:    fmt.Sprintf("192.0.2.%d", 4*k+1),
-			IPv4Len: 30,
-			IPv6:    fmt.Sprintf("2001:db8:1:%x::1", k),
-			IPv6Len: 126,
-			MAC:     fmt.Sprintf("00:00:11:01:01:%02x", 0x40+k),
-			MTU:     9216,
-			ID:      uint32(att.vlanID),
+			Desc:         fmt.Sprintf("DUT1 attachment %d customer interface", k),
+			IPv4:         fmt.Sprintf("192.0.2.%d", 4*k+1),
+			IPv4Len:      30,
+			IPv6:         fmt.Sprintf("2001:db8:1:%x::1", k),
+			IPv6Len:      126,
+			MAC:          fmt.Sprintf("00:00:11:01:01:%02x", 0x40+k),
+			MTU:          9216,
+			Subinterface: uint32(att.vlanID),
 		}
 		att.dut2Cust = attrs.Attributes{
-			Desc:    fmt.Sprintf("DUT2 attachment %d customer interface", k),
-			IPv4:    fmt.Sprintf("203.0.113.%d", 4*k+1),
-			IPv4Len: 30,
-			IPv6:    fmt.Sprintf("2001:db8:2:%x::1", k),
-			IPv6Len: 126,
-			MAC:     fmt.Sprintf("00:00:12:02:02:%02x", 0x40+k),
-			MTU:     9216,
-			ID:      uint32(att.vlanID),
+			Desc:         fmt.Sprintf("DUT2 attachment %d customer interface", k),
+			IPv4:         fmt.Sprintf("203.0.113.%d", 4*k+1),
+			IPv4Len:      30,
+			IPv6:         fmt.Sprintf("2001:db8:2:%x::1", k),
+			IPv6Len:      126,
+			MAC:          fmt.Sprintf("00:00:12:02:02:%02x", 0x40+k),
+			MTU:          9216,
+			Subinterface: uint32(att.vlanID),
 		}
 		att.ate1 = attrs.Attributes{
 			Desc:    fmt.Sprintf("ATE1 attachment %d", k),
@@ -1398,102 +952,31 @@ func configureAttachments(t *testing.T, dut1, dut2 *ondatra.DUTDevice, dut1CustL
 
 		// DUT1 routing: customer return path towards ATE1, plus ECMP of customer
 		// traffic destined to ATE2 across every tunnel's DUT2-side next-hop.
-		dut1Routes := []staticRoute{
-			{Prefix: att.ate1V4Prefix, NextHop: att.ate1.IPv4, VRF: att.tunnelVRF, EgressVRF: att.custVRF},
-			{Prefix: att.ate1V6Prefix, NextHop: att.ate1.IPv6, VRF: att.tunnelVRF, EgressVRF: att.custVRF},
+		dut1Routes := []*cfgplugins.StaticRouteCfg{
+			{Prefix: att.ate1V4Prefix, NextHopAddr: att.ate1.IPv4, NetworkInstance: att.tunnelVRF, NextNetworkInstance: att.custVRF},
+			{Prefix: att.ate1V6Prefix, NextHopAddr: att.ate1.IPv6, NetworkInstance: att.tunnelVRF, NextNetworkInstance: att.custVRF},
 		}
 		for _, nh := range d2V4NHs {
-			dut1Routes = append(dut1Routes, staticRoute{Prefix: att.ate2V4Prefix, NextHop: nh, VRF: att.custVRF, EgressVRF: att.tunnelVRF})
+			dut1Routes = append(dut1Routes, &cfgplugins.StaticRouteCfg{Prefix: att.ate2V4Prefix, NextHopAddr: nh, NetworkInstance: att.custVRF, NextNetworkInstance: att.tunnelVRF})
 		}
 		for _, nh := range d2V6NHs {
-			dut1Routes = append(dut1Routes, staticRoute{Prefix: att.ate2V6Prefix, NextHop: nh, VRF: att.custVRF, EgressVRF: att.tunnelVRF})
+			dut1Routes = append(dut1Routes, &cfgplugins.StaticRouteCfg{Prefix: att.ate2V6Prefix, NextHopAddr: nh, NetworkInstance: att.custVRF, NextNetworkInstance: att.tunnelVRF})
 		}
-		configureStaticRoutes(t, dut1, dut1Routes)
+		cfgplugins.ConfigureStaticRoutesInVRF(t, dut1, dut1Routes)
 
 		// DUT2 routing: customer return path towards ATE2, plus ECMP of customer
 		// traffic destined to ATE1 across every tunnel's DUT1-side next-hop.
-		dut2Routes := []staticRoute{
-			{Prefix: att.ate2V4Prefix, NextHop: att.ate2.IPv4, VRF: att.tunnelVRF, EgressVRF: att.custVRF},
-			{Prefix: att.ate2V6Prefix, NextHop: att.ate2.IPv6, VRF: att.tunnelVRF, EgressVRF: att.custVRF},
+		dut2Routes := []*cfgplugins.StaticRouteCfg{
+			{Prefix: att.ate2V4Prefix, NextHopAddr: att.ate2.IPv4, NetworkInstance: att.tunnelVRF, NextNetworkInstance: att.custVRF},
+			{Prefix: att.ate2V6Prefix, NextHopAddr: att.ate2.IPv6, NetworkInstance: att.tunnelVRF, NextNetworkInstance: att.custVRF},
 		}
 		for _, nh := range d1V4NHs {
-			dut2Routes = append(dut2Routes, staticRoute{Prefix: att.ate1V4Prefix, NextHop: nh, VRF: att.custVRF, EgressVRF: att.tunnelVRF})
+			dut2Routes = append(dut2Routes, &cfgplugins.StaticRouteCfg{Prefix: att.ate1V4Prefix, NextHopAddr: nh, NetworkInstance: att.custVRF, NextNetworkInstance: att.tunnelVRF})
 		}
 		for _, nh := range d1V6NHs {
-			dut2Routes = append(dut2Routes, staticRoute{Prefix: att.ate1V6Prefix, NextHop: nh, VRF: att.custVRF, EgressVRF: att.tunnelVRF})
+			dut2Routes = append(dut2Routes, &cfgplugins.StaticRouteCfg{Prefix: att.ate1V6Prefix, NextHopAddr: nh, NetworkInstance: att.custVRF, NextNetworkInstance: att.tunnelVRF})
 		}
-		configureStaticRoutes(t, dut2, dut2Routes)
-	}
-}
-
-// removeTunnelRange deletes tunnels Tunnel[start..end] and loopbacks
-// Loopback[start-1..end-1] on both DUTs.
-func removeTunnelRange(t *testing.T, dut1, dut2 *ondatra.DUTDevice, startTunnel, endTunnel int) {
-	t.Helper()
-
-	for _, dut := range []*ondatra.DUTDevice{dut1, dut2} {
-		if deviations.IpsecOcUnsupported(dut) {
-			var lines []string
-			for n := startTunnel; n <= endTunnel; n++ {
-				lines = append(lines, fmt.Sprintf("no interface Tunnel%d", n))
-				lines = append(lines, fmt.Sprintf("no interface Loopback%d", n-1))
-			}
-			if len(lines) > 0 {
-				helpers.GnmiCLIConfig(t, dut, strings.Join(lines, "\n"))
-			}
-		} else {
-			for n := startTunnel; n <= endTunnel; n++ {
-				gnmi.Delete(t, dut, gnmi.OC().Interface(fmt.Sprintf("Tunnel%d", n)).Config())
-				gnmi.Delete(t, dut, gnmi.OC().Interface(fmt.Sprintf("Loopback%d", n-1)).Config())
-			}
-		}
-	}
-}
-
-// removeStaticRoutes removes the given static routes; it mirrors
-// configureStaticRoutes, emitting "no" CLI on Arista and OC deletes elsewhere.
-func removeStaticRoutes(t *testing.T, dut *ondatra.DUTDevice, routes []staticRoute) {
-	t.Helper()
-
-	if deviations.StaticRouteInVrfOcUnsupported(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			var cliLines []string
-			for _, r := range routes {
-				ipType := "ip"
-				if strings.Contains(r.Prefix, ":") {
-					ipType = "ipv6"
-				}
-				var cli string
-				switch {
-				case r.EgressVRF != "" && r.VRF != "":
-					cli = fmt.Sprintf("%s route vrf %s %s egress-vrf %s %s",
-						ipType, r.VRF, r.Prefix, r.EgressVRF, r.NextHop)
-				case r.EgressVRF == "" && r.VRF == "":
-					cli = fmt.Sprintf("%s route %s %s", ipType, r.Prefix, r.NextHop)
-				case r.EgressVRF == "" && r.VRF != "":
-					cli = fmt.Sprintf("%s route vrf %s %s %s", ipType, r.VRF, r.Prefix, r.NextHop)
-				default:
-					cli = fmt.Sprintf("%s route %s egress-vrf %s %s",
-						ipType, r.Prefix, r.EgressVRF, r.NextHop)
-				}
-				cliLines = append(cliLines, "no "+cli)
-			}
-			if len(cliLines) > 0 {
-				helpers.GnmiCLIConfig(t, dut, strings.Join(cliLines, "\n"))
-			}
-		}
-		return
-	}
-
-	for _, r := range routes {
-		vrfName := r.VRF
-		if vrfName == "" {
-			vrfName = deviations.DefaultNetworkInstance(dut)
-		}
-		sp := gnmi.OC().NetworkInstance(vrfName).Protocol(
-			oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-		gnmi.Delete(t, dut, sp.Static(r.Prefix).Config())
+		cfgplugins.ConfigureStaticRoutesInVRF(t, dut2, dut2Routes)
 	}
 }
 
@@ -1504,34 +987,37 @@ func trimBaseAttachment(t *testing.T, dut1, dut2 *ondatra.DUTDevice, perAttachme
 
 	// Remove tunnels/loopbacks with index [perAttachmentTunnels, numTunnels-1]
 	// (tunnel numbers [perAttachmentTunnels+1, numTunnels]).
-	removeTunnelRange(t, dut1, dut2, perAttachmentTunnels+1, numTunnels)
+	cfgplugins.RemoveTunnelRange(t, dut1, dut2, cfgplugins.TunnelRangeParams{
+		StartTunnel: perAttachmentTunnels + 1,
+		EndTunnel:   numTunnels,
+	})
 
 	blk := baseTunnelBlock(numTunnels)
-	var dut1Rm, dut2Rm []staticRoute
+	var dut1Rm, dut2Rm []*cfgplugins.StaticRouteCfg
 	for i := perAttachmentTunnels; i < numTunnels; i++ {
 		// Base customer-ECMP routes that pointed at the removed tunnels.
 		dut1Rm = append(dut1Rm,
-			staticRoute{Prefix: ate2IPv4Prefix, NextHop: d2V4NHs[i], VRF: ateVRF, EgressVRF: tunnelVRF},
-			staticRoute{Prefix: ate2IPv6Prefix, NextHop: d2V6NHs[i], VRF: ateVRF, EgressVRF: tunnelVRF},
+			&cfgplugins.StaticRouteCfg{Prefix: ate2IPv4Prefix, NextHopAddr: d2V4NHs[i], NetworkInstance: ateVRF, NextNetworkInstance: tunnelVRF},
+			&cfgplugins.StaticRouteCfg{Prefix: ate2IPv6Prefix, NextHopAddr: d2V6NHs[i], NetworkInstance: ateVRF, NextNetworkInstance: tunnelVRF},
 		)
 		dut2Rm = append(dut2Rm,
-			staticRoute{Prefix: ate1IPv4Prefix, NextHop: d1V4NHs[i], VRF: ateVRF, EgressVRF: tunnelVRF},
-			staticRoute{Prefix: ate1IPv6Prefix, NextHop: d1V6NHs[i], VRF: ateVRF, EgressVRF: tunnelVRF},
+			&cfgplugins.StaticRouteCfg{Prefix: ate1IPv4Prefix, NextHopAddr: d1V4NHs[i], NetworkInstance: ateVRF, NextNetworkInstance: tunnelVRF},
+			&cfgplugins.StaticRouteCfg{Prefix: ate1IPv6Prefix, NextHopAddr: d1V6NHs[i], NetworkInstance: ateVRF, NextNetworkInstance: tunnelVRF},
 		)
 		// Loopback reachability routes for the removed loopbacks (default VRF).
 		d1LbV6 := fmt.Sprintf(blk.lbV6Fmt1, i)
 		d2LbV6 := fmt.Sprintf(blk.lbV6Fmt2, i)
 		dut1Rm = append(dut1Rm,
-			staticRoute{Prefix: fmt.Sprintf("%s/128", d2LbV6), NextHop: dut2CoreIntf2.IPv6},
-			staticRoute{Prefix: fmt.Sprintf("%s/128", d2LbV6), NextHop: dut2CoreIntf1.IPv6},
+			&cfgplugins.StaticRouteCfg{Prefix: fmt.Sprintf("%s/128", d2LbV6), NextHopAddr: dut2CoreIntf2.IPv6},
+			&cfgplugins.StaticRouteCfg{Prefix: fmt.Sprintf("%s/128", d2LbV6), NextHopAddr: dut2CoreIntf1.IPv6},
 		)
 		dut2Rm = append(dut2Rm,
-			staticRoute{Prefix: fmt.Sprintf("%s/128", d1LbV6), NextHop: dut1CoreIntf2.IPv6},
-			staticRoute{Prefix: fmt.Sprintf("%s/128", d1LbV6), NextHop: dut1CoreIntf1.IPv6},
+			&cfgplugins.StaticRouteCfg{Prefix: fmt.Sprintf("%s/128", d1LbV6), NextHopAddr: dut1CoreIntf2.IPv6},
+			&cfgplugins.StaticRouteCfg{Prefix: fmt.Sprintf("%s/128", d1LbV6), NextHopAddr: dut1CoreIntf1.IPv6},
 		)
 	}
-	removeStaticRoutes(t, dut1, dut1Rm)
-	removeStaticRoutes(t, dut2, dut2Rm)
+	cfgplugins.RemoveStaticRoutesInVRF(t, dut1, dut1Rm)
+	cfgplugins.RemoveStaticRoutesInVRF(t, dut2, dut2Rm)
 }
 
 // addAttachmentOTG adds the ATE-side devices and flows for one additional
@@ -1666,8 +1152,18 @@ func TestIPSecScaleWithMACSecOverAggregatedLinks(t *testing.T) {
 	dut2CustLag := configureDUT(t, dut2, [][]*ondatra.Port{{dut2CustPort}}, []attrs.Attributes{dut2CustIntf}, ateVRF)[0]
 
 	// Configure loopback interfaces used as IPSec tunnel endpoints.
-	configureLoopback(t, dut1, loopbackIfName, dut1LoopbackIPv6, loopbackPrefixLen, true, nil)
-	configureLoopback(t, dut2, loopbackIfName, dut2LoopbackIPv6, loopbackPrefixLen, true, nil)
+	cfgplugins.ConfigureLoopback(t, dut1, cfgplugins.LoopbackConfig{
+		Name:      loopbackIfName,
+		IP:        dut1LoopbackIPv6,
+		PrefixLen: loopbackPrefixLen,
+		IsIPv6:    true,
+	})
+	cfgplugins.ConfigureLoopback(t, dut2, cfgplugins.LoopbackConfig{
+		Name:      loopbackIfName,
+		IP:        dut2LoopbackIPv6,
+		PrefixLen: loopbackPrefixLen,
+		IsIPv6:    true,
+	})
 
 	// Configure loopback interfaces used as IPSec tunnel endpoints.
 	// All per-tunnel loopback endpoints are configured by configureScaledTunnels below.
@@ -1690,31 +1186,31 @@ func TestIPSecScaleWithMACSecOverAggregatedLinks(t *testing.T) {
 
 	// DUT1 routing: customer return path towards ATE1, plus ECMP of customer
 	// traffic destined to ATE2 across every tunnel's DUT2-side next-hop.
-	dut1Routes := []staticRoute{
-		{Prefix: ate1IPv4Prefix, NextHop: ate1LagConfig.IPv4, VRF: tunnelVRF, EgressVRF: ateVRF},
-		{Prefix: ate1IPv6Prefix, NextHop: ate1LagConfig.IPv6, VRF: tunnelVRF, EgressVRF: ateVRF},
+	dut1Routes := []*cfgplugins.StaticRouteCfg{
+		{Prefix: ate1IPv4Prefix, NextHopAddr: ate1LagConfig.IPv4, NetworkInstance: tunnelVRF, NextNetworkInstance: ateVRF},
+		{Prefix: ate1IPv6Prefix, NextHopAddr: ate1LagConfig.IPv6, NetworkInstance: tunnelVRF, NextNetworkInstance: ateVRF},
 	}
 	for _, nh := range dut2TunnelV4NHs {
-		dut1Routes = append(dut1Routes, staticRoute{Prefix: ate2IPv4Prefix, NextHop: nh, VRF: ateVRF, EgressVRF: tunnelVRF})
+		dut1Routes = append(dut1Routes, &cfgplugins.StaticRouteCfg{Prefix: ate2IPv4Prefix, NextHopAddr: nh, NetworkInstance: ateVRF, NextNetworkInstance: tunnelVRF})
 	}
 	for _, nh := range dut2TunnelV6NHs {
-		dut1Routes = append(dut1Routes, staticRoute{Prefix: ate2IPv6Prefix, NextHop: nh, VRF: ateVRF, EgressVRF: tunnelVRF})
+		dut1Routes = append(dut1Routes, &cfgplugins.StaticRouteCfg{Prefix: ate2IPv6Prefix, NextHopAddr: nh, NetworkInstance: ateVRF, NextNetworkInstance: tunnelVRF})
 	}
-	configureStaticRoutes(t, dut1, dut1Routes)
+	cfgplugins.ConfigureStaticRoutesInVRF(t, dut1, dut1Routes)
 
 	// DUT2 routing: customer return path towards ATE2, plus ECMP of customer
 	// traffic destined to ATE1 across every tunnel's DUT1-side next-hop.
-	dut2Routes := []staticRoute{
-		{Prefix: ate2IPv4Prefix, NextHop: ate2LagConfig.IPv4, VRF: tunnelVRF, EgressVRF: ateVRF},
-		{Prefix: ate2IPv6Prefix, NextHop: ate2LagConfig.IPv6, VRF: tunnelVRF, EgressVRF: ateVRF},
+	dut2Routes := []*cfgplugins.StaticRouteCfg{
+		{Prefix: ate2IPv4Prefix, NextHopAddr: ate2LagConfig.IPv4, NetworkInstance: tunnelVRF, NextNetworkInstance: ateVRF},
+		{Prefix: ate2IPv6Prefix, NextHopAddr: ate2LagConfig.IPv6, NetworkInstance: tunnelVRF, NextNetworkInstance: ateVRF},
 	}
 	for _, nh := range dut1TunnelV4NHs {
-		dut2Routes = append(dut2Routes, staticRoute{Prefix: ate1IPv4Prefix, NextHop: nh, VRF: ateVRF, EgressVRF: tunnelVRF})
+		dut2Routes = append(dut2Routes, &cfgplugins.StaticRouteCfg{Prefix: ate1IPv4Prefix, NextHopAddr: nh, NetworkInstance: ateVRF, NextNetworkInstance: tunnelVRF})
 	}
 	for _, nh := range dut1TunnelV6NHs {
-		dut2Routes = append(dut2Routes, staticRoute{Prefix: ate1IPv6Prefix, NextHop: nh, VRF: ateVRF, EgressVRF: tunnelVRF})
+		dut2Routes = append(dut2Routes, &cfgplugins.StaticRouteCfg{Prefix: ate1IPv6Prefix, NextHopAddr: nh, NetworkInstance: ateVRF, NextNetworkInstance: tunnelVRF})
 	}
-	configureStaticRoutes(t, dut2, dut2Routes)
+	cfgplugins.ConfigureStaticRoutesInVRF(t, dut2, dut2Routes)
 
 	// Step: Configure ATE topology and flows.
 	top := configureATE(t)
@@ -1723,15 +1219,30 @@ func TestIPSecScaleWithMACSecOverAggregatedLinks(t *testing.T) {
 	otg.PushConfig(t, top)
 	otg.StartProtocols(t)
 
-	waitForOTGMACSecUp(t, ate, macsecPeerName, lagUpTimeout)
-	waitForOTGLAGUP(t, ate, ate1LagName, 1, lagUpTimeout)
-	waitForOTGLAGUP(t, ate, ate2LagName, 1, lagUpTimeout)
+	otgvalidationhelpers.WaitForOTGMACSecUp(t, ate, otgvalidationhelpers.WaitForMACSecParams{
+		InterfaceName: macsecPeerName,
+		Timeout:       lagUpTimeout,
+	})
+	otgvalidationhelpers.WaitForOTGLAGUP(t, ate, otgvalidationhelpers.LagParams{
+		LagName:       ate1LagName,
+		WantMembersUp: 1,
+		Timeout:       lagUpTimeout,
+	})
+	otgvalidationhelpers.WaitForOTGLAGUP(t, ate, otgvalidationhelpers.LagParams{
+		LagName:       ate2LagName,
+		WantMembersUp: 1,
+		Timeout:       lagUpTimeout,
+	})
 
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 
 	// Wait for the base attachment's IPSec tunnels to come UP on both DUTs.
-	waitForAllTunnelsUP(t, dut1, dut2, 1, numTunnels, tunnelUpTimeout)
+	helpers.WaitForAllIPSECTunnelsUP(t, dut1, dut2, helpers.WaitForIPSECTunnelsParams{
+		StartTunnel: 1,
+		Count:       numTunnels,
+		Timeout:     tunnelUpTimeout,
+	})
 
 	// Start the customer-port capture before traffic; it is consumed once by
 	// IPSEC-1.2.1 to confirm MACsec encryption.
@@ -1757,7 +1268,11 @@ func TestIPSecScaleWithMACSecOverAggregatedLinks(t *testing.T) {
 		}
 
 		for _, flowName := range flowNames {
-			if err := verifyTraffic(t, ate, top, flowName, true); err != nil {
+			if err := otgvalidationhelpers.VerifyTraffic(t, ate, otgvalidationhelpers.VerifyTrafficParams{
+				Config:      top,
+				FlowName:    flowName,
+				TestResults: true,
+			}); err != nil {
 				t.Errorf("traffic verification failed: %v", err)
 			}
 		}
@@ -1765,16 +1280,24 @@ func TestIPSecScaleWithMACSecOverAggregatedLinks(t *testing.T) {
 
 	// Phase 1 (IPSEC-1.2.1/1.2.2): single customer attachment, max tunnels.
 	t.Run("IPSEC-1.2.1: Verify IPv4 Connectivity over a Max # of Tunnels for Single Attachment", func(t *testing.T) {
-		pre := readMemberOutPkts(t, dut1, dut1CorePorts)
+		pre := helpers.ReadMemberOutPkts(t, dut1, dut1CorePorts)
 		runTrafficAndVerify(t, flowIPv4Fwd, flowIPv4Bwd)
-		if err := verifyDUTDUTLoadBalance(t, dut1, dut1CorePorts, pre, 0.25, false); err != nil {
+		if err := helpers.VerifyDUTDUTLoadBalance(t, dut1, helpers.DUTDUTLoadBalanceParams{
+			MemberPorts: dut1CorePorts,
+			Baseline:    pre,
+			Tolerance:   0.25,
+		}); err != nil {
 			t.Errorf("load balance verification failed: %v", err)
 		}
 	})
 	t.Run("IPSEC-1.2.2: Verify IPv6 Connectivity over a Max # of Tunnels for Single Attachment", func(t *testing.T) {
-		pre := readMemberOutPkts(t, dut1, dut1CorePorts)
+		pre := helpers.ReadMemberOutPkts(t, dut1, dut1CorePorts)
 		runTrafficAndVerify(t, flowIPv6Fwd, flowIPv6Bwd)
-		if err := verifyDUTDUTLoadBalance(t, dut1, dut1CorePorts, pre, 0.25, false); err != nil {
+		if err := helpers.VerifyDUTDUTLoadBalance(t, dut1, helpers.DUTDUTLoadBalanceParams{
+			MemberPorts: dut1CorePorts,
+			Baseline:    pre,
+			Tolerance:   0.25,
+		}); err != nil {
 			t.Errorf("load balance verification failed: %v", err)
 		}
 	})
@@ -1805,27 +1328,50 @@ func TestIPSecScaleWithMACSecOverAggregatedLinks(t *testing.T) {
 		// Re-push OTG with the extra attachment devices/flows and bring them up.
 		otg.PushConfig(t, top)
 		otg.StartProtocols(t)
-		waitForOTGMACSecUp(t, ate, macsecPeerName, lagUpTimeout)
-		waitForOTGLAGUP(t, ate, ate1LagName, 1, lagUpTimeout)
-		waitForOTGLAGUP(t, ate, ate2LagName, 1, lagUpTimeout)
+		otgvalidationhelpers.WaitForOTGMACSecUp(t, ate, otgvalidationhelpers.WaitForMACSecParams{
+			InterfaceName: macsecPeerName,
+			Timeout:       lagUpTimeout,
+		})
+		otgvalidationhelpers.WaitForOTGLAGUP(t, ate, otgvalidationhelpers.LagParams{
+			LagName:       ate1LagName,
+			WantMembersUp: 1,
+			Timeout:       lagUpTimeout,
+		})
+		otgvalidationhelpers.WaitForOTGLAGUP(t, ate, otgvalidationhelpers.LagParams{
+			LagName:       ate2LagName,
+			WantMembersUp: 1,
+			Timeout:       lagUpTimeout,
+		})
 		otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 		otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 		for _, att := range attachments {
-			waitForAllTunnelsUP(t, dut1, dut2, att.tunnels.startIndex+1, att.tunnels.numTunnels, tunnelUpTimeout)
+			helpers.WaitForAllIPSECTunnelsUP(t, dut1, dut2, helpers.WaitForIPSECTunnelsParams{
+				StartTunnel: att.tunnels.startIndex + 1,
+				Count:       att.tunnels.numTunnels,
+				Timeout:     tunnelUpTimeout,
+			})
 		}
 	}
 
 	t.Run("IPSEC-1.2.3: Verify IPv4 Connectivity over Device with Max # of Tunnels", func(t *testing.T) {
-		pre := readMemberOutPkts(t, dut1, dut1CorePorts)
+		pre := helpers.ReadMemberOutPkts(t, dut1, dut1CorePorts)
 		runTrafficAndVerify(t, append(append([]string{}, v4FwdFlows...), v4BwdFlows...)...)
-		if err := verifyDUTDUTLoadBalance(t, dut1, dut1CorePorts, pre, 0.25, false); err != nil {
+		if err := helpers.VerifyDUTDUTLoadBalance(t, dut1, helpers.DUTDUTLoadBalanceParams{
+			MemberPorts: dut1CorePorts,
+			Baseline:    pre,
+			Tolerance:   0.25,
+		}); err != nil {
 			t.Errorf("load balance verification failed: %v", err)
 		}
 	})
 	t.Run("IPSEC-1.2.4: Verify IPv6 Connectivity over Device with Max # of Tunnels", func(t *testing.T) {
-		pre := readMemberOutPkts(t, dut1, dut1CorePorts)
+		pre := helpers.ReadMemberOutPkts(t, dut1, dut1CorePorts)
 		runTrafficAndVerify(t, append(append([]string{}, v6FwdFlows...), v6BwdFlows...)...)
-		if err := verifyDUTDUTLoadBalance(t, dut1, dut1CorePorts, pre, 0.25, false); err != nil {
+		if err := helpers.VerifyDUTDUTLoadBalance(t, dut1, helpers.DUTDUTLoadBalanceParams{
+			MemberPorts: dut1CorePorts,
+			Baseline:    pre,
+			Tolerance:   0.25,
+		}); err != nil {
 			t.Errorf("load balance verification failed: %v", err)
 		}
 	})
