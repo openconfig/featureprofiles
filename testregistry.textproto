@@ -66,6 +66,7 @@ test: {
   id: "ACCTZ-9.1"
   description: "gNSI.acctz.v1 (Accounting) Test Accounting Privilege Escalation"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/acctz/tests/AccountingPrivEscalation/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/acctz/tests/AccountingPrivEscalation/accounting_priv_escalation_test.go"
 }
 test: {
   id: "ACL-1.1"
@@ -1142,6 +1143,7 @@ test: {
   id: "RT-3.52"
   description: "Multidimensional test for Static GUE Encap/Decap based on BGP path selection and selective DSCP marking"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/encapsulation/otg_tests/staticgueencap_and_bgp_path_selection/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/encapsulation/otg_tests/staticgueencap_and_bgp_path_selection/staticgueencap_and_bgp_path_selection_test.go"
 }
 test: {
   id: "RT-3.53"
@@ -1959,6 +1961,7 @@ test: {
   id: "enrollz-1"
   description: "enrollz test for TPM 2.0 HMAC-based Enrollment flow"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/attestz/tests/enrollz_tpm20_hmac/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/attestz/tests/enrollz_tpm20_hmac/enrollz_tpm20_hmac_test.go"
 }
 test: {
   id: "enrollz-2"
