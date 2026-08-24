@@ -475,7 +475,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) map[
 	ate.OTG().StartProtocols(t)
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 
-	// Run traffic for 2 minutes.
+	// Run traffic for 1 minute (adjusted from 2 to match other tests).
 	ate.OTG().StartTraffic(t)
 	time.Sleep(1 * time.Minute)
 	ate.OTG().StopTraffic(t)
