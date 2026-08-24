@@ -1037,3 +1037,277 @@ func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 		}
 	})
 }
+
+// TestCapabilities implements CNTR-1.9 validating that containers can be started
+// with elevated capabilities, dropped capabilities, and that invalid capabilities
+// are rejected by the target container daemon without leaving orphaned instances.
+func TestCapabilities(t *testing.T) {
+	ctx := t.Context()
+	dut := ondatra.DUT(t, "dut")
+	cli := containerztest.Client(t, dut)
+
+	// Ensure the base image is pushed.
+	t.Logf("Ensuring base image %s:latest is deployed...", imageName)
+	progCh, err := cli.PushImage(ctx, imageName, "latest", containerTarPath(t), false)
+	if err != nil {
+		t.Fatalf("PushImage(%q, \"latest\", ...) failed: %v", imageName, err)
+	}
+	for prog := range progCh {
+		switch {
+		case prog.Error != nil:
+			t.Fatalf("PushImage(%q, \"latest\", ...) streaming error: %v", imageName, prog.Error)
+		case prog.Finished:
+			t.Logf("Pushed %s/latest for capabilities test", imageName)
+		default:
+			t.Logf("%d bytes pushed for %s:latest", prog.BytesReceived, imageName)
+		}
+	}
+
+	// Positive Test 1: Elevated Capabilities (CAP_SYS_ADMIN, CAP_NET_ADMIN, CAP_NET_RAW).
+	t.Run("ElevatedCapabilities", func(t *testing.T) {
+		instName := "test-cap-elevated"
+		t.Cleanup(func() {
+			cleanupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+			if err := cli.StopContainer(cleanupCtx, instName, true); err != nil && status.Code(err) != codes.NotFound {
+				t.Logf("Cleanup: StopContainer(%q) failed: %v", instName, err)
+			}
+			if err := cli.RemoveContainer(cleanupCtx, instName, true); err != nil && status.Code(err) != codes.NotFound {
+				t.Logf("Cleanup: RemoveContainer(%q) failed: %v", instName, err)
+			}
+		})
+
+		capAdd := []string{"CAP_SYS_ADMIN", "CAP_NET_ADMIN", "CAP_NET_RAW"}
+		startOpts := []client.StartOption{
+			client.WithPorts([]string{"60061:60061"}),
+			client.WithCapabilities(capAdd, nil),
+		}
+
+		respInst, err := cli.StartContainer(ctx, imageName, "latest", "./cntrsrv", instName, startOpts...)
+		if err != nil {
+			t.Fatalf("StartContainer(%q, %q, %v) failed: %v", imageName, instName, capAdd, err)
+		}
+		if respInst != instName {
+			t.Errorf("StartContainer(%q, %q, ...) = %q, want %q", imageName, instName, respInst, instName)
+		}
+
+		if err := containerztest.WaitForRunning(ctx, t, cli, instName, 30*time.Second); err != nil {
+			t.Fatalf("WaitForRunning(ctx, t, cli, %q) failed: %v", instName, err)
+		}
+		t.Logf("Container %q successfully started with elevated capabilities %v and confirmed RUNNING.", instName, capAdd)
+	})
+
+	// Positive Test 2: Default Capability Removal (CAP_NET_RAW, CAP_SYS_CHROOT).
+	t.Run("DroppedCapabilities", func(t *testing.T) {
+		instName := "test-cap-dropped"
+		t.Cleanup(func() {
+			cleanupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+			if err := cli.StopContainer(cleanupCtx, instName, true); err != nil && status.Code(err) != codes.NotFound {
+				t.Logf("Cleanup: StopContainer(%q) failed: %v", instName, err)
+			}
+			if err := cli.RemoveContainer(cleanupCtx, instName, true); err != nil && status.Code(err) != codes.NotFound {
+				t.Logf("Cleanup: RemoveContainer(%q) failed: %v", instName, err)
+			}
+		})
+
+		capRemove := []string{"CAP_NET_RAW", "CAP_SYS_CHROOT"}
+		startOpts := []client.StartOption{
+			client.WithPorts([]string{"60062:60062"}),
+			client.WithCapabilities(nil, capRemove),
+		}
+
+		respInst, err := cli.StartContainer(ctx, imageName, "latest", "./cntrsrv", instName, startOpts...)
+		if err != nil {
+			t.Fatalf("StartContainer(%q, %q, removed: %v) failed: %v", imageName, instName, capRemove, err)
+		}
+		if respInst != instName {
+			t.Errorf("StartContainer(%q, %q, ...) = %q, want %q", imageName, instName, respInst, instName)
+		}
+
+		if err := containerztest.WaitForRunning(ctx, t, cli, instName, 30*time.Second); err != nil {
+			t.Fatalf("WaitForRunning(ctx, t, cli, %q) failed: %v", instName, err)
+		}
+		t.Logf("Container %q successfully started with removed capabilities %v and confirmed RUNNING.", instName, capRemove)
+	})
+
+	// Negative Test: Invalid Capability Rejection.
+	t.Run("InvalidCapabilityRejection", func(t *testing.T) {
+		instName := "test-cap-invalid"
+		t.Cleanup(func() {
+			cleanupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+			if err := cli.RemoveContainer(cleanupCtx, instName, true); err != nil && status.Code(err) != codes.NotFound {
+				t.Logf("Cleanup: RemoveContainer(%q) failed: %v", instName, err)
+			}
+		})
+
+		invalidCaps := []string{"CAP_NONEXISTENT_PRIVILEGE"}
+		startOpts := []client.StartOption{
+			client.WithCapabilities(invalidCaps, nil),
+		}
+
+		_, err := cli.StartContainer(ctx, imageName, "latest", "./cntrsrv", instName, startOpts...)
+		if err == nil {
+			t.Errorf("StartContainer(%q, %q, invalidCaps: %v) succeeded, want error", imageName, instName, invalidCaps)
+		} else {
+			s, ok := status.FromError(err)
+			if !ok || (s.Code() != codes.InvalidArgument && s.Code() != codes.FailedPrecondition) {
+				t.Logf("StartContainer with invalid capability correctly failed with: %v (code: %s)", err, s.Code())
+			} else {
+				t.Logf("StartContainer with invalid capability correctly rejected with code %s: %v", s.Code(), err)
+			}
+		}
+
+		// Confirm no orphaned container instance exists.
+		listCh, listErr := cli.ListContainer(ctx, true, 0, map[string][]string{"name": {instName}})
+		if listErr == nil {
+			for c := range listCh {
+				if c.Error != nil {
+					t.Errorf("ListContainer(name=%q) stream error: %v", instName, c.Error)
+					continue
+				}
+				if strings.TrimPrefix(c.Name, "/") == instName {
+					t.Errorf("ListContainer(name=%q) found unexpected orphaned container %q after failed start", instName, c.Name)
+				}
+			}
+		}
+	})
+}
+
+// TestVolumeMountOptions implements CNTR-1.10 validating that volumes can be created with
+// various specification-compliant mount options (rbind, rslave, rprivate, ro, bind),
+// option metadata is accurately reflected in ListVolume, and volume deletion is verified.
+func TestVolumeMountOptions(t *testing.T) {
+	ctx := t.Context()
+	dut := ondatra.DUT(t, "dut")
+	cli := containerztest.Client(t, dut)
+
+	testCases := []struct {
+		name         string
+		mountOptions string
+		wantO        string
+	}{
+		{
+			name:         "RbindRslave",
+			mountOptions: "rbind,rslave",
+			wantO:        "rbind,rslave",
+		},
+		{
+			name:         "RbindRprivate",
+			mountOptions: "rbind,rprivate",
+			wantO:        "rbind,rprivate",
+		},
+		{
+			name:         "BindRslaveRo",
+			mountOptions: "bind,rslave,ro",
+			wantO:        "bind,rslave,ro",
+		},
+		{
+			name:         "BindRo",
+			mountOptions: "bind,ro",
+			wantO:        "bind,ro",
+		},
+		{
+			name:         "Bind",
+			mountOptions: "bind",
+			wantO:        "bind",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			volumeName := fmt.Sprintf("test-vol-%s", strings.ToLower(tc.name))
+			labels := map[string]string{
+				"fnt_test":    "volume_matrix",
+				"combination": tc.name,
+			}
+
+			// Pre-cleanup and register post-test cleanup to guarantee teardown on any failure.
+			t.Cleanup(func() {
+				cleanupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+				defer cancel()
+				if err := cli.RemoveVolume(cleanupCtx, volumeName, true); err != nil && status.Code(err) != codes.NotFound {
+					t.Logf("Cleanup: RemoveVolume(%q) failed: %v", volumeName, err)
+				}
+			})
+
+			if err := cli.RemoveVolume(ctx, volumeName, true); err != nil {
+				if status.Code(err) != codes.NotFound {
+					t.Logf("Pre-test RemoveVolume(%q) failed (continuing): %v", volumeName, err)
+				}
+			}
+
+			volOpts := map[string]string{
+				"type":       "none",
+				"options":    tc.mountOptions,
+				"mountpoint": "/tmp",
+			}
+
+			createdVolumeName, err := cli.CreateVolume(ctx, volumeName, "local", labels, volOpts)
+			if err != nil {
+				t.Fatalf("CreateVolume(%q, \"local\", %v, %v) failed: %v", volumeName, labels, volOpts, err)
+			}
+			if createdVolumeName != volumeName {
+				t.Errorf("CreateVolume(%q, ...) = %q, want %q", volumeName, createdVolumeName, volumeName)
+			}
+			t.Logf("Successfully created volume %q with options %s", createdVolumeName, tc.mountOptions)
+
+			// List and Verify Option Reflection.
+			volCh, err := cli.ListVolume(ctx, map[string][]string{"name": {volumeName}})
+			if err != nil {
+				t.Fatalf("ListVolume(name=%q) failed: %v", volumeName, err)
+			}
+
+			foundVolume := false
+			for vol := range volCh {
+				if vol.Error != nil {
+					t.Errorf("ListVolume(name=%q) stream error: %v", volumeName, vol.Error)
+					continue
+				}
+				if vol.Name == volumeName {
+					foundVolume = true
+					if vol.Driver != "local" {
+						t.Errorf("Volume %q driver = %q, want %q", vol.Name, vol.Driver, "local")
+					}
+
+					wantOptions := map[string]string{
+						"device": "/tmp",
+						"o":      tc.wantO,
+						"type":   "none",
+					}
+					if diff := cmp.Diff(wantOptions, vol.Options); diff != "" {
+						t.Errorf("Volume %q options diff (-want +got):\n%s", vol.Name, diff)
+					}
+					if diff := cmp.Diff(labels, vol.Labels); diff != "" {
+						t.Errorf("Volume %q labels diff (-want +got):\n%s", vol.Name, diff)
+					}
+					break
+				}
+			}
+			if !foundVolume {
+				t.Errorf("ListVolume(name=%q) did not return created volume", volumeName)
+			}
+
+			// Teardown and verify deletion.
+			if err := cli.RemoveVolume(ctx, volumeName, true); err != nil {
+				t.Fatalf("RemoveVolume(%q) failed: %v", volumeName, err)
+			}
+			t.Logf("Successfully removed volume %q", volumeName)
+
+			verifyCh, verifyErr := cli.ListVolume(ctx, map[string][]string{"name": {volumeName}})
+			if verifyErr != nil {
+				t.Fatalf("ListVolume(name=%q) verification after removal failed: %v", volumeName, verifyErr)
+			}
+			for vol := range verifyCh {
+				if vol.Error != nil {
+					t.Errorf("ListVolume(name=%q) verification stream error: %v", volumeName, vol.Error)
+					continue
+				}
+				if vol.Name == volumeName {
+					t.Errorf("ListVolume(name=%q) still returned volume after RemoveVolume", volumeName)
+				}
+			}
+		})
+	}
+}

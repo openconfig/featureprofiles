@@ -160,6 +160,133 @@ Subsequently, the plugin is stopped using `gnoi.Containerz.StopPlugin` and remov
 2.  **Cold Reboot**: Trigger a cold reboot using `gnoi.System.Reboot`.
 3.  **Verify Recovery**: After the cold reboot, verify that the container is still `RUNNING` and the volume still exists using `gnoi.Containerz`.
 
+## CNTR-1.9: Container Capabilities Management
+
+Validate that `gnoi.Containerz.StartContainer` accurately applies Linux capabilities (via `CapAdd` and `CapDrop` / `StartContainerRequest.cap`) to container instances running on the target. Verify that elevated capabilities are granted, default capabilities can be dropped, invalid capabilities are rejected, and instances are cleanly cleaned up without orphaned state.
+
+### Positive Test 1: Elevated Capabilities (`CAP_SYS_ADMIN`, `CAP_NET_ADMIN`, `CAP_NET_RAW`)
+
+1.  **Start Container with Elevated Capabilities**:
+    *   Issue `gnoi.Containerz.StartContainer` with:
+        *   `image_name`: `cntrsrv_image`
+        *   `tag`: `latest`
+        *   `cmd`: `./cntrsrv`
+        *   `instance_name`: `test-cap-elevated`
+        *   `ports`: `[{ internal: 60061, external: 60061 }]`
+        *   `cap`:
+            *   `add`: `["CAP_SYS_ADMIN", "CAP_NET_ADMIN", "CAP_NET_RAW"]`
+    *   Verify that the RPC succeeds and returns `StartOK` containing
+        `instance_name: "test-cap-elevated"`.
+2.  **Verify Running State**:
+    *   Call `gnoi.Containerz.ListContainer` and confirm `test-cap-elevated`
+        transitions to `status: RUNNING`.
+3.  **Cleanup**:
+    *   Stop the container using `gnoi.Containerz.StopContainer` with
+        `instance_name: "test-cap-elevated"` and `force: true`.
+    *   Remove the container using `gnoi.Containerz.RemoveContainer` with
+        `name: "test-cap-elevated"` and `force: true`.
+
+### Positive Test 2: Capability Dropping (`CAP_NET_RAW`, `CAP_SYS_CHROOT`)
+
+1.  **Start Container with Dropped Capabilities**:
+    *   Issue `gnoi.Containerz.StartContainer` with:
+        *   `image_name`: `cntrsrv_image`
+        *   `tag`: `latest`
+        *   `cmd`: `./cntrsrv`
+        *   `instance_name`: `test-cap-dropped`
+        *   `ports`: `[{ internal: 60062, external: 60062 }]`
+        *   `cap`:
+            *   `remove`: `["CAP_NET_RAW", "CAP_SYS_CHROOT"]`
+    *   Verify that the RPC succeeds and returns `StartOK` containing
+        `instance_name: "test-cap-dropped"`.
+2.  **Verify Running State**:
+    *   Call `gnoi.Containerz.ListContainer` and confirm `test-cap-dropped`
+        transitions to `status: RUNNING`.
+3.  **Cleanup**:
+    *   Stop the container using `gnoi.Containerz.StopContainer` with
+        `instance_name: "test-cap-dropped"` and `force: true`.
+    *   Remove the container using `gnoi.Containerz.RemoveContainer` with
+        `name: "test-cap-dropped"` and `force: true`.
+
+### Negative Test: Invalid Capability Rejection
+
+1.  **Start Container with Invalid Capability**:
+    *   Issue `gnoi.Containerz.StartContainer` with:
+        *   `image_name`: `cntrsrv_image`
+        *   `tag`: `latest`
+        *   `instance_name`: `test-cap-invalid`
+        *   `cap`:
+            *   `add`: `["CAP_NONEXISTENT_PRIVILEGE"]`
+2.  **Verify Error Response**:
+    *   Verify that `gnoi.Containerz.StartContainer` fails and returns a
+        gRPC error with status code `INVALID_ARGUMENT` or
+        `FAILED_PRECONDITION`.
+3.  **Verify No Orphaned State**:
+    *   Call `gnoi.Containerz.ListContainer` with `all = true` and assert
+        that no container instance named `test-cap-invalid` exists on
+        the target.
+
+## CNTR-1.10: Volume Mount Driver Option Matrix and Reflection
+
+Validate that `gnoi.Containerz.CreateVolume` supports the standard OpenConfig
+`repeated string options` format across diverse Linux filesystem mount flag
+combinations (`rbind`, `rslave`, `rprivate`, `ro`, `bind`). Verify that
+`gnoi.Containerz.ListVolume` accurately reflects all configured mount options
+and volumes are cleanly deleted.
+
+### Procedure for Each Option Combination
+
+Iterate over the following specification-compliant option combinations:
+
+*   **Combination A (`rbind, rslave`)**: `options: ["rbind", "rslave"]`,
+    `mountpoint: "/tmp"`, `type: "none"`
+*   **Combination B (`rbind, rprivate`)**: `options: ["rbind", "rprivate"]`,
+    `mountpoint: "/tmp"`, `type: "none"`
+*   **Combination C (`bind, rslave, ro`)**:
+    `options: ["bind", "rslave", "ro"]`, `mountpoint: "/tmp"`, `type: "none"`
+*   **Combination D (`bind, ro`)**: `options: ["bind", "ro"]`, `mountpoint:
+    "/tmp"`, `type: "none"`
+*   **Combination E (`bind`)**: `options: ["bind"]`, `mountpoint: "/tmp"`,
+    `type: "none"`
+
+For each combination:
+
+1.  **Pre-test State Cleanup**:
+    *   Call `gnoi.Containerz.RemoveVolume` for `name:
+        "test-vol-<combination_name>"` with `force: true` to ensure no stale
+        volume exists from prior runs (ignore `NOT_FOUND` errors).
+2.  **Create Volume with Multi-Element Options**:
+    *   Call `gnoi.Containerz.CreateVolume` with:
+        *   `name`: `test-vol-<combination_name>`
+        *   `driver`: `DS_LOCAL`
+        *   `labels`: `{ "fnt_test": "volume_matrix", "combination":
+            "<combination_name>" }`
+        *   `local_mount_options`:
+            *   `type`: `TYPE_NONE`
+            *   `mountpoint`: `/tmp`
+            *   `options`: `<combination_options>`
+    *   Verify that the RPC succeeds and returns
+        `CreateVolumeResponse.name == "test-vol-<combination_name>"`.
+3.  **Verify Option Reflection via ListVolume**:
+    *   Call `gnoi.Containerz.ListVolume` filtering by `name:
+        ["test-vol-<combination_name>"]`.
+    *   For the returned volume in the response stream, verify:
+        *   `name` matches `test-vol-<combination_name>`.
+        *   `driver` equals `local`.
+        *   `options["type"]` equals `none`.
+        *   `options["device"]` equals `/tmp`.
+        *   `options["o"]` (or driver option field) accurately reflects and
+            preserves all configured mount flags (`rbind`, `rslave`, `rprivate`,
+            `ro`, `bind`).
+        *   `labels` match the input labels.
+4.  **Remove Volume and Verify Deletion**:
+    *   Call `gnoi.Containerz.RemoveVolume` with `name:
+        "test-vol-<combination_name>"` and `force: true`.
+    *   Verify that the removal RPC succeeds.
+    *   Call `gnoi.Containerz.ListVolume` filtering by `name:
+        ["test-vol-<combination_name>"]` and verify that the stream produces no
+        matching volume.
+
 ## Canonical OC
 
 <!-- This test does not require any specific OpenConfig configuration, so this section is empty to satisfy the validator. -->
