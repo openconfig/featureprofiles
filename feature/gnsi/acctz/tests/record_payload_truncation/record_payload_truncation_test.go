@@ -95,10 +95,7 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 
 	// Get the current time from the router via gNMI to avoid clock skew issues.
 	startTime := helpers.GetRouterTime(t, dut)
-	requestTimestamp := &timestamppb.Timestamp{
-		Seconds: startTime.Unix(),
-		Nanos:   0,
-	}
+	requestTimestamp := timestamppb.New(startTime.Truncate(time.Second))
 	request := &acctzpb.RecordRequest{
 		Timestamp: requestTimestamp,
 	}
