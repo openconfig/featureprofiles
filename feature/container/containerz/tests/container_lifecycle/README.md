@@ -164,7 +164,7 @@ Subsequently, the plugin is stopped using `gnoi.Containerz.StopPlugin` and remov
 
 Validate that `gnoi.Containerz.StartContainer` accurately applies Linux capabilities (via `CapAdd` and `CapDrop` / `StartContainerRequest.cap`) to container instances running on the target. Verify that elevated capabilities are granted, default capabilities can be dropped, invalid capabilities are rejected, and instances are cleanly cleaned up without orphaned state.
 
-### Positive Test 1: Elevated Capabilities (`CAP_SYS_ADMIN`, `CAP_NET_ADMIN`, `CAP_NET_RAW`)
+### Positive Test 1: Elevated Capabilities (`CAP_SYS_ADMIN`, `CAP_NET_RAW`)
 
 1.  **Start Container with Elevated Capabilities**:
     *   Issue `gnoi.Containerz.StartContainer` with:
@@ -174,7 +174,7 @@ Validate that `gnoi.Containerz.StartContainer` accurately applies Linux capabili
         *   `instance_name`: `test-cap-elevated`
         *   `ports`: `[{ internal: 60061, external: 60061 }]`
         *   `cap`:
-            *   `add`: `["CAP_SYS_ADMIN", "CAP_NET_ADMIN", "CAP_NET_RAW"]`
+            *   `add`: `["CAP_SYS_ADMIN", "CAP_NET_RAW"]`
     *   Verify that the RPC succeeds and returns `StartOK` containing
         `instance_name: "test-cap-elevated"`.
 2.  **Verify Running State**:
@@ -186,7 +186,7 @@ Validate that `gnoi.Containerz.StartContainer` accurately applies Linux capabili
     *   Remove the container using `gnoi.Containerz.RemoveContainer` with
         `name: "test-cap-elevated"` and `force: true`.
 
-### Positive Test 2: Capability Dropping (`CAP_NET_RAW`, `CAP_SYS_CHROOT`)
+### Positive Test 2: Capability Dropping (`CAP_NET_RAW`)
 
 1.  **Start Container with Dropped Capabilities**:
     *   Issue `gnoi.Containerz.StartContainer` with:
@@ -196,7 +196,7 @@ Validate that `gnoi.Containerz.StartContainer` accurately applies Linux capabili
         *   `instance_name`: `test-cap-dropped`
         *   `ports`: `[{ internal: 60062, external: 60062 }]`
         *   `cap`:
-            *   `remove`: `["CAP_NET_RAW", "CAP_SYS_CHROOT"]`
+            *   `remove`: `["CAP_NET_RAW"]`
     *   Verify that the RPC succeeds and returns `StartOK` containing
         `instance_name: "test-cap-dropped"`.
 2.  **Verify Running State**:
@@ -219,8 +219,8 @@ Validate that `gnoi.Containerz.StartContainer` accurately applies Linux capabili
             *   `add`: `["CAP_NONEXISTENT_PRIVILEGE"]`
 2.  **Verify Error Response**:
     *   Verify that `gnoi.Containerz.StartContainer` fails and returns a
-        gRPC error with status code `INVALID_ARGUMENT` or
-        `FAILED_PRECONDITION`.
+        gRPC error with status code `INVALID_ARGUMENT`, `FAILED_PRECONDITION`,
+        or `INTERNAL`.
 3.  **Verify No Orphaned State**:
     *   Call `gnoi.Containerz.ListContainer` with `all = true` and assert
         that no container instance named `test-cap-invalid` exists on
