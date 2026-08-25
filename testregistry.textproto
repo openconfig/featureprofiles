@@ -1036,8 +1036,8 @@ test: {
 }
 test: {
   id: "RT-14.3"
-  description: "Soft Drain vs Hard Drain Convergence Verification"
-  readme: "https://github.com/openconfig/featureprofiles/feature/isis/otg_tests/soft_drain_convergence_test/README.md"
+  description: "Soft Drain vs. Hard Drain Convergence Verification"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/otg_tests/soft_drain_convergence_test/README.md"
 }
 test: {
   id: "RT-2.1"
