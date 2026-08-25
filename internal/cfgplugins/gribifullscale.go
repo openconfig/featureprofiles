@@ -20,6 +20,7 @@ package cfgplugins
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"sort"
 	"strings"
@@ -159,6 +160,8 @@ const (
 // ============================================================
 
 var (
+	excludeTraffic = flag.Bool("exclude_traffic", false, "Exclude traffic generation and ATE/IXIA device interaction, testing only DUT gRIBI programming.")
+
 	// dutPort1Attr and atePort1Attr hold port1 L3 attributes.
 	dutPort1Attr = attrs.Attributes{
 		Name:    "DUT Ingress Port1",
@@ -2501,28 +2504,38 @@ func RunFullScaleTest(t *testing.T, params ScaleParams, enablePacketCapture, com
 	validateScaleParams(t, params)
 
 	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
 	defaultVRF := deviations.DefaultNetworkInstance(dut)
 	ctx := context.Background()
 
 	t.Log("Configuring DUT interfaces, VRFs, and VRF-selection policy")
 	ConfigureDUT(t, dut, params)
 
-	t.Log("Configuring ATE topology")
-	ateConfig, interfaceNamesList := ConfigureOTG(t, ate, dut, params)
-	ate.OTG().PushConfig(t, ateConfig)
-	time.Sleep(1 * time.Minute)
-	ate.OTG().StartProtocols(t)
-	time.Sleep(1 * time.Minute)
+	var ate *ondatra.ATEDevice
+	var ateConfig gosnappi.Config
+	var dstMac string
 
-	t.Log("Validating ARP resolution for IPv4 and IPv6 interfaces")
-	IsIPv4InterfaceARPresolved(t, ate, AddressFamilyParams{InterfaceNames: interfaceNamesList})
-	IsIPv6InterfaceARPresolved(t, ate, AddressFamilyParams{InterfaceNames: interfaceNamesList})
+	if !*excludeTraffic {
+		ate = ondatra.ATE(t, "ate")
 
-	// Fetch MAC address for port1.
-	// The ATE needs to resolve the MAC address of the DUT to send traffic to it.
-	intfName := atePort1Attr.Name + ".Eth"
-	dstMac := GetDUTMACAddress(t, ate, intfName, DUTPort1IPv4)
+		t.Log("Configuring ATE topology")
+		ateCfg, interfaceNamesList := ConfigureOTG(t, ate, dut, params)
+		ateConfig = ateCfg
+		ate.OTG().PushConfig(t, ateConfig)
+		time.Sleep(1 * time.Minute)
+		ate.OTG().StartProtocols(t)
+		time.Sleep(1 * time.Minute)
+
+		t.Log("Validating ARP resolution for IPv4 and IPv6 interfaces")
+		IsIPv4InterfaceARPresolved(t, ate, AddressFamilyParams{InterfaceNames: interfaceNamesList})
+		IsIPv6InterfaceARPresolved(t, ate, AddressFamilyParams{InterfaceNames: interfaceNamesList})
+
+		// Fetch MAC address for port1.
+		// The ATE needs to resolve the MAC address of the DUT to send traffic to it.
+		intfName := atePort1Attr.Name + ".Eth"
+		dstMac = GetDUTMACAddress(t, ate, intfName, DUTPort1IPv4)
+	} else {
+		t.Log("Flag -exclude_traffic is set: skipping ATE/IXIA configuration and ARP resolution")
+	}
 
 	t.Cleanup(func() {
 		gSession := NewGRIBIClient(t, dut)
@@ -2559,6 +2572,11 @@ func RunFullScaleTest(t *testing.T, params ScaleParams, enablePacketCapture, com
 		BuildEncapDecapVRFs(t, dut, ctx, defaultVRF, params)
 		LogHWUtilization(t, dut, monitorHWUtilization, "Post-BuildEncapDecapVRFs")
 	})
+
+	if *excludeTraffic {
+		t.Log("Flag -exclude_traffic is set: skipping traffic execution sub-tests")
+		return
+	}
 
 	testCases := []TrafficTestCase{
 		{Name: "FixedSize_64B", UseIMIX: false, TestRepair: false},
