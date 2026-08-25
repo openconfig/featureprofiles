@@ -114,7 +114,7 @@ paths:
   /interfaces/interface/config/name:
   /interfaces/interface/state/enabled:
   /interfaces/interface/state/oper-status:
-  /interfaces/interface/aggregation/members/member/state/interface:
+  /interfaces/interface/aggregation/state/member:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state:
 rpcs:
