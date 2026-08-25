@@ -208,10 +208,8 @@ paths:
 rpcs:
   gnmi:
     gNMI.Set:
-      union_replace: true
       delete: true
     gNMI.Get:
-      subscribes: true
     gNMI.Subscribe:
       on_change: true
 ```
