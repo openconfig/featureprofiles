@@ -165,7 +165,7 @@ func (p *pullRequest) createBuild(ctx context.Context, buildClient *cloudbuild.S
 					continue
 				}
 				for _, t := range physicalDevice.Tests {
-					if t.Status != "pending authorization" && t.Status != "failure" && t.Status != "failed" && t.Status != "success" && t.Status != "passed" {
+					if t.Status == "setup" || t.Status == "pending execution" || t.Status == "environment setup" || t.Status == "running" {
 						continue physicalDeviceLoop
 					}
 				}
