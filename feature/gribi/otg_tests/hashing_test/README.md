@@ -1,11 +1,117 @@
 # Hashing: Dataplane Hashing with Physical/Software Loopbacks
 
 ## Summary
-Verify Dataplane Hashing using a mix of physical loopback ports and software loopback interfaces across multiple Network Instances.
+Verify Dataplane Hashing (ECMP, WCMP, and Intra-LAG) using a combination of physical loopback ports and software terminal loopback interfaces across multiple Network Instances (`DEFAULT`, `TRANSIT`, `SELF_SITE`, `EGRESS`).
+
+The test suite validates hashing uniformity, weight enforcement, and anti-polarization across three traffic profiles:
+1. **Plain IPv4/IPv6 Traffic** (5-tuple entropy).
+2. **IPnIP Encapsulated Traffic** (Outer IP static, inner 5-tuple entropy).
+3. **IPnIP Decapsulated Traffic** (Post-decap inner header hashing).
 
 ## Topology
-The test requires a DUT and an ATE.
-The topology uses a multiple looped back ports configuration to route traffic through multiple hashing stages on the DUT.
+The testbed requires a DUT (`dut_8_loop_2_ate.testbed`) and an ATE.
+The topology utilizes 8 physical loopback pairs and 12 software terminal loopback interfaces to route and verify traffic across multiple hashing stages on the DUT.
+
+```mermaid
+graph LR
+    subgraph ATE ["ATE (Traffic Generator)"]
+        ate2["Port 2 (ixia2) - Ingress"]
+        ate1["Port 1 (ixia1) - Egress"]
+    end
+
+    subgraph DUT ["DUT (dut_8_loop_2_ate)"]
+        inPort["lc2_p10 (Ingress)"]
+        egPort["lc2_p9 (Egress)"]
+        
+        subgraph PhysLoops ["8 Physical Loopbacks"]
+            l1["lc1_p3 <--> lc2_p3 (Loop 1)"]
+            l2["lc1_p4 <--> lc2_p4 (Loop 2)"]
+            l3["lc1_p5 <--> lc2_p5 (Loop 3)"]
+            l4["lc1_p6 <--> lc2_p6 (Loop 4)"]
+            l5["lc1_p1 <--> lc2_p1 (Loop 5)"]
+            l6["lc2_p8 <--> lc1_p8 (Loop 6)"]
+            l7["lc2_p7 <--> lc1_p7 (Loop 7)"]
+            l8["lc2_p2 <--> lc1_p2 (Loop 8)"]
+        end
+        
+        subgraph SoftLoops ["12 Software Loopbacks"]
+            sl1["Stage 1 Soft Loops: 3 ports"]
+            sl2["Stage 2 Soft Loops: 4 ports"]
+            sl3["Stage 3 Soft Loops: 5 ports"]
+        end
+    end
+
+    ate2 <-->|Ingress Link| inPort
+    egPort <-->|Egress Link| ate1
+```
+
+### Port Details and Loopbacks
+The test utilizes physical loopback cables and software terminal loopbacks:
+- **Physical Loopbacks (8 pairs)**: Formed by connecting two physical ports on the DUT:
+  - **Loop 1**: `lc1_p3` <-> `lc2_p3` (Stage 1 -> Transit)
+  - **Loop 2**: `lc1_p4` <-> `lc2_p4` (Transit -> Egress)
+  - **Loop 3**: `lc1_p5` <-> `lc2_p5` (Transit -> Egress)
+  - **Loop 4**: `lc1_p6` <-> `lc2_p6` (Transit -> Self-Site)
+  - **Loop 5**: `lc1_p1` <-> `lc2_p1` (Transit -> Self-Site)
+  - **Loop 6**: `lc2_p8` <-> `lc1_p8` (Self-Site -> Egress)
+  - **Loop 7**: `lc2_p7` <-> `lc1_p7` (Self-Site -> Egress)
+  - **Loop 8**: `lc2_p2` <-> `lc1_p2` (Self-Site -> Egress)
+
+- **Software Loopbacks (12 ports in TERMINAL mode)**:
+  - **Stage 1 Soft Loops**: 3 ports configured in TERMINAL loopback mode, assigned to dedicated LAGs.
+  - **Stage 2 Soft Loops**: 4 ports configured in TERMINAL loopback mode, assigned to dedicated LAGs.
+  - **Stage 3 Soft Loops**: 5 ports configured in TERMINAL loopback mode, assigned to dedicated LAGs.
+  - Software loopback interfaces have ingress ACLs configured to drop all incoming packets to avoid loops.
+
+- **ATE Connections**:
+  - **ATE Port 1** (`ixia1`) connects to **DUT Port lc2_p9** (Egress sink).
+  - **ATE Port 2** (`ixia2`) connects to **DUT Port lc2_p10** (Ingress source).
+
+---
+
+## Traffic Profile Specifications
+
+All test scenarios are executed against the following three traffic profiles:
+
+### 1. Plain IP Traffic (IPv4 / IPv6)
+- **Header Structure**: Standard Ethernet + IPv4/IPv6 + UDP/TCP.
+- **Entropy Generation**:
+  - Destination IP: Random within target subnet `198.51.100.0/24`.
+  - Source IP: Incrementing / pseudo-random addresses across a /16 range.
+  - L4 Ports: Source and Destination UDP ports incremented across 1024–65535.
+- **Verification**: Evaluates native 5-tuple hash distribution across member next-hops.
+
+### 2. IPnIP Encapsulated Traffic (Encap)
+- **Header Structure**: Outer IPv4 Header + Inner IPv4 Header + UDP Payload.
+- **Outer Header**: Static Source and Destination IPv4 addresses (zero entropy in outer header).
+- **Inner Header**: 5-tuple varied IPv4 + UDP packets.
+- **Verification**: Verifies that the DUT hashing engine parses and computes hash keys from the **inner packet headers**, ensuring uniform distribution without tunnel polarization.
+
+### 3. IPnIP Decapsulated Traffic (Decap)
+- **Header Structure**: Ingress IPnIP packets matching a gRIBI decapsulation route.
+- **DUT Processing**: Outer IP tunnel header is stripped upon route lookup, and next-hop hash resolution is performed on the decapsulated inner packet.
+- **Verification**: Verifies post-decapsulation hashing uniformity across member next-hops.
+
+---
+
+## Tolerance and Evaluation Criteria
+
+The acceptable hashing distribution across any set of next-hops or LAG member links is defined with a **$\pm 2\%$ relative tolerance** of the ideal mathematical expectation:
+
+$$\text{Acceptable Ratio Range} = \text{Expected Ratio} \times (1 \pm 0.02)$$
+
+*Examples*:
+- Expected **12.50%** (8-wide ECMP) $\rightarrow$ Acceptable Range: **12.25% to 12.75%**
+- Expected **14.28%** (7-member LAG) $\rightarrow$ Acceptable Range: **14.00% to 14.57%**
+- Expected **33.33%** (3-wide equal) $\rightarrow$ Acceptable Range: **32.66% to 34.00%**
+- Expected **42.86%** (3:2:2 weight) $\rightarrow$ Acceptable Range: **42.00% to 43.71%**
+
+---
+
+## Test Scenario 1: Multi-Stage Max Fan-out (8-Wide ECMP & WCMP)
+
+### 1. Description
+Verifies end-to-end dataplane hashing across all three network instance stages (`DEFAULT`, `TRANSIT`, `SELF_SITE`) and ensures traffic reaches the `EGRESS` VRF on ATE Port 1.
 
 ```mermaid
 graph TD
@@ -25,7 +131,7 @@ graph TD
     
     Loop1 -->|VRF Assignment: lc2_p3 in Transit| TransitVRF{Transit VRF}
     
-    subgraph Stage2 ["Stage 2: Transit VRF (ECMP 8-wide)"]
+    subgraph Stage2 ["Stage 2: Transit VRF (ECMP / WCMP 8-wide)"]
         TransitVRF --> Loop2["Loop 2: lc1_p4 -> lc2_p4"]
         TransitVRF --> Loop3["Loop 3: lc1_p5 -> lc2_p5"]
         TransitVRF --> Loop4["Loop 4: lc1_p6 -> lc2_p6"]
@@ -47,7 +153,7 @@ graph TD
     Loop4 -->|VRF Assignment: lc2_p6 in Self-Site| SelfSiteVRF{Self-Site VRF}
     Loop5 -->|VRF Assignment: lc2_p1 in Self-Site| SelfSiteVRF
     
-    subgraph Stage3 ["Stage 3: Self-Site VRF (ECMP 8-wide)"]
+    subgraph Stage3 ["Stage 3: Self-Site VRF (ECMP / WCMP 8-wide)"]
         SelfSiteVRF --> Loop6["Loop 6: lc2_p8 -> lc1_p8"]
         SelfSiteVRF --> Loop7["Loop 7: lc2_p7 -> lc1_p7"]
         SelfSiteVRF --> Loop8["Loop 8: lc2_p2 -> lc1_p2"]
@@ -71,69 +177,108 @@ graph TD
     EgressVRF --> EgressPort["DUT Egress: lc2_p9"] --> Egress["ATE Egress: Port 1 (ixia1)"]
 ```
 
-### Port Details and Loopbacks
-The test utilizes physical loopback cables and software terminal loopbacks.
-Physical loopbacks are formed by connecting two ports on the same DUT:
-- **Loop 1**: `lc1_p3` <-> `lc2_p3`
-- **Loop 2**: `lc1_p4` <-> `lc2_p4`
-- **Loop 3**: `lc1_p5` <-> `lc2_p5`
-- **Loop 4**: `lc1_p6` <-> `lc2_p6`
-- **Loop 5**: `lc1_p1` <-> `lc2_p1` 
-- **Loop 6**: `lc2_p8` <-> `lc1_p8`
-- **Loop 7**: `lc2_p7` <-> `lc1_p7`
-- **Loop 8**: `lc2_p2` <-> `lc1_p2` 
+### 2. Sub-cases & Hashing Verification
 
-Software loopbacks (Terminal Loopbacks) are configured on the DUT ports:
-- **Stage 1 Soft Loops**: 3 ports configured in TERMINAL loopback mode, with each port assigned as the sole member of a dedicated Link Aggregation Group (LAG).
-- **Stage 2 Soft Loops**: 4 ports configured in TERMINAL loopback mode, with each port assigned as the sole member of a dedicated Link Aggregation Group (LAG).
-- **Stage 3 Soft Loops**: 5 ports configured in TERMINAL loopback mode, with each port assigned as the sole member of a dedicated Link Aggregation Group (LAG).
-Total 12 software loopbacks are dynamically discovered from the unused ports on the DUT and configured.
+#### **Sub-case 1.1: 8-Wide Uniform ECMP**
+- **gRIBI Programming**: Program NHG 2 (`TRANSIT`) and NHG 3 (`SELF_SITE`) with 8 equal weight next-hops (weight 1 each).
+- **Traffic Verification**:
+  - **Stage 1 (`DEFAULT`)**: ~70% to `lc1_p3` (68.6% – 71.4%), ~10% to each of 3 soft loops (9.8% – 10.2%).
+  - **Stage 2 (`TRANSIT`)**: ~12.5% to each of the 8 next-hops (12.25% – 12.75%).
+  - **Stage 3 (`SELF_SITE`)**: ~12.5% to each of the 8 next-hops (12.25% – 12.75%).
+  - **Egress**: Verify full traffic arrival on ATE Port 1 (`ixia1`).
+- **Traffic Profiles**: Execute for Plain IP, IPnIP Encap, and IPnIP Decap.
 
-ATE Connection:
-- **ATE Port 1** (ixia1) connects to **DUT Port lc2_p9** (Egress).
-- **ATE Port 2** (ixia2) connects to **DUT Port lc2_p10** (Ingress).
+#### **Sub-case 1.2: Equal Paths, Unequal Weights (8-Wide WCMP 1:2 Ratio)**
+- **gRIBI Programming**: Program 8 next-hops with a **1:2 weight ratio**:
+  - Weight `1` for Soft Loop interfaces.
+  - Weight `2` for Physical Loop interfaces.
+- **Traffic Verification**:
+  - **Soft Loops**: ~8.33% each (acceptable range: 8.16% – 8.50%).
+  - **Physical Loops**: ~16.66% each (acceptable range: 16.33% – 17.00%).
+- **Traffic Profiles**: Execute for Plain IP, IPnIP Encap, and IPnIP Decap.
 
-## Test Scenario 1: Hash Distribution 
+---
 
-### 1. Baseline Configuration
-- Configure all DUT ports as LAG interfaces (each port in its own LAG, e.g., `lc2_p10` in `lag110`).
-- Configure 12 discovered unused ports as soft loops (in TERMINAL loopback mode, each in its own LAG).
-- Configure Static ARP on all interfaces.
-- Configure ACLs on all soft loops to drop ingress traffic (to prevent loops/packet storm).
-- Configure Network Instances (VRFs): `TRANSIT`, `SELF_SITE`, `EGRESS`.
-- Assign interfaces to VRFs:
-  - Default VRF: Ingress `lc2_p10`, Stage 1 Soft Loops.
-  - `TRANSIT` VRF: `lc2_p3` (Loop 1 RX), `lc1_p4` (Loop 2 TX), `lc1_p5` (Loop 3 TX), `lc1_p6` (Loop 4 TX), `lc1_p1` (Loop 5 TX), Stage 2 Soft Loops.
-  - `SELF_SITE` VRF: `lc2_p6` (Loop 4 RX), `lc2_p1` (Loop 5 RX), `lc2_p8` (Loop 6 TX), `lc2_p7` (Loop 7 TX), `lc2_p2` (Loop 8 TX), Stage 3 Soft Loops.
-  - `EGRESS` VRF: `lc2_p4` (Loop 2 RX), `lc2_p5` (Loop 3 RX), `lc1_p8` (Loop 6 RX), `lc1_p7` (Loop 7 RX), `lc1_p2` (Loop 8 RX), `lc2_p9` (Egress).
+## Test Scenario 2: Intra-LAG Member Traffic Distribution
 
-### 2. Interface VRF Assignment Configuration
-Assign RX ports of the loopbacks to their respective VRFs to route traffic to the next stage VRF:
-- **On `lc2_p3` (Loop 1 RX)**: Assign to `TRANSIT` VRF.
-- **On `lc2_p6`, `lc2_p1` (Loop 4, 5 RX)**: Assign to `SELF_SITE` VRF.
-- **On `lc2_p4`, `lc2_p5` (Loop 2, 3 RX)**: Assign to `EGRESS` VRF.
-- **On `lc1_p8`, `lc1_p7`, `lc1_p2` (Loop 6, 7, 8 RX)**: Assign to `EGRESS` VRF.
+### 1. Description
+Verifies traffic load balancing across member links within a single Link Aggregation Group (LAG). Traffic received on the Ingress interface is looked up in the `TRANSIT` VRF and routed to a single Next-Hop consisting of a 7-member LAG bundle.
 
-### 3. gRIBI Programming
-- **Default VRF**:
-  - Route `198.51.100.0/24` -> NHG 1 (WCMP: `lc1_p3` weight 7, 3 soft loops weight 1 each).
-- **`TRANSIT` VRF**:
-  - Route `198.51.100.0/24` -> NHG 2 (ECMP 8-wide: `lc1_p4`, `lc1_p5`, `lc1_p6`, `lc1_p1` and 4 soft loops, weight 1 each).
-- **`SELF_SITE` VRF**:
-  - Route `198.51.100.0/24` -> NHG 3 (ECMP 8-wide: `lc2_p8`, `lc2_p7`, `lc2_p2` and 5 soft loops, weight 1 each).
-- **`EGRESS` VRF**:
-  - Route `198.51.100.0/24` -> NHG 4 (pointing to egress port `lc2_p9`).
+```mermaid
+graph TD
+    Ingress["ATE Ingress: Port 2 (ixia2)"] --> IngressPort["DUT Ingress: lc2_p10"]
+    IngressPort --> DefaultVRF["Default VRF (Loop 1 -> Transit)"]
+    DefaultVRF --> TransitVRF["Transit VRF"]
+    
+    subgraph SingleNH ["Single Next-Hop: 7-Member LAG"]
+        TransitVRF --> M1["Member Port 1: ~14.28%"]
+        TransitVRF --> M2["Member Port 2: ~14.28%"]
+        TransitVRF --> M3["Member Port 3: ~14.28%"]
+        TransitVRF --> M4["Member Port 4: ~14.28%"]
+        TransitVRF --> M5["Member Port 5: ~14.28%"]
+        TransitVRF --> M6["Member Port 6: ~14.28%"]
+        TransitVRF --> M7["Member Port 7: ~14.28%"]
+    end
+    
+    SingleNH --> EgressVRF["Egress VRF"] --> EgressPort["DUT Egress: lc2_p9"] --> Egress["ATE Egress (ixia1)"]
+```
 
-### 4. Traffic Verification
-- **Generate Test Traffic**: Send traffic from ATE Port 2 targeting random destination IP addresses within the `198.51.100.0/24` subnet. Vary the source IPv4 addresses, source UDP ports, and destination UDP ports to ensure sufficient entropy for hashing.
-- **Tolerance Threshold**: Hashing distribution tolerance is defined as ±2% of the expected value (relative). For example, with an expected value of 12.5%, the acceptable range is 12.25% to 12.75%.
-- **Verify Packet Distribution**:
-  - **Stage 1 (Default VRF)**: ~70% to `lc1_p3` (acceptable range: 68.6% – 71.4%), and ~10% to each of the 3 soft loops (acceptable range: 9.8% – 10.2%).
-  - **Stage 2 (Transit VRF)**: ~12.5% to each of the 8 members of NHG 2 (acceptable range: 12.25% – 12.75%).
-  - **Stage 3 (Self-Site VRF)**: ~12.5% to each of the 8 members of NHG 3 (acceptable range: 12.25% – 12.75%).
-  - **Egress**: All traffic routed to `EGRESS` VRF is received on ATE Port 1 (ixia1).
+### 2. Traffic Verification
+- **Expected Distribution**: Uniform distribution across all 7 active member links:
+  - **Per-Member Expected**: ~14.28% (acceptable range: **14.00% – 14.57%**).
+- **Traffic Profiles**: Execute for Plain IP, IPnIP Encap, and IPnIP Decap.
 
-## Canonical OC
+---
+
+## Test Scenario 3: Asymmetric Paths & Weighted Load Balancing (3-Wide LAGs)
+
+### 1. Description
+Assesses the ability of the dataplane hashing engine to handle asymmetric next-hop capacities and verifies that software-programmed weights either align with or override physical member link counts.
+
+The `TRANSIT` VRF is configured with **3 Next-Hops** having unequal member link capacities:
+- **LAG A**: 3 member links.
+- **LAG B**: 2 member links.
+- **LAG C**: 2 member links.
+
+```mermaid
+graph TD
+    TransitVRF["Transit VRF (3 Next-Hops with Asymmetric Capacity)"]
+    
+    subgraph AsymmetricPaths ["3 Next-Hops (Unequal Members)"]
+        TransitVRF -->|LAG A| LagA["LAG A: 3 Member Links"]
+        TransitVRF -->|LAG B| LagB["LAG B: 2 Member Links"]
+        TransitVRF -->|LAG C| LagC["LAG C: 2 Member Links"]
+    end
+    
+    LagA --> EgressVRF["Egress VRF"]
+    LagB --> EgressVRF
+    LagC --> EgressVRF
+    EgressVRF --> Egress["ATE Egress (ixia1)"]
+```
+
+### 2. Sub-cases & Hashing Verification
+
+#### **Sub-case 3.1: Capacity-Based Unequal Weights (3:2:2)**
+- **Goal**: Validates proportional distribution when weights align with physical link capacity.
+- **gRIBI Programming**: Program NHG with weights `3 : 2 : 2` matching the member counts of LAG A, LAG B, and LAG C.
+- **Expected Distribution**:
+  - **LAG A (weight 3)**: **~42.86%** (acceptable range: **42.00% – 43.71%**).
+  - **LAG B (weight 2)**: **~28.57%** (acceptable range: **28.00% – 29.14%**).
+  - **LAG C (weight 2)**: **~28.57%** (acceptable range: **28.00% – 29.14%**).
+- **Traffic Profiles**: Execute for Plain IP, IPnIP Encap, and IPnIP Decap.
+
+#### **Sub-case 3.2: Overriding Capacity with Equal Weights (1:1:1)**
+- **Goal**: Validates that software-configured weights strictly override physical underlying capacity.
+- **gRIBI Programming**: Program NHG with uniform weights `1 : 1 : 1` across LAG A, LAG B, and LAG C.
+- **Expected Distribution**:
+  - **LAG A (weight 1)**: **~33.33%** (acceptable range: **32.66% – 34.00%**).
+  - **LAG B (weight 1)**: **~33.33%** (acceptable range: **32.66% – 34.00%**).
+  - **LAG C (weight 1)**: **~33.33%** (acceptable range: **32.66% – 34.00%**).
+- **Traffic Profiles**: Execute for Plain IP, IPnIP Encap, and IPnIP Decap.
+
+---
+
+## Canonical OpenConfig Configuration
 
 ```json
 {
@@ -221,11 +366,27 @@ Assign RX ports of the loopbacks to their respective VRFs to route traffic to th
           ]
         },
         "name": "TRANSIT"
+      },
+      {
+        "config": {
+          "name": "SELF_SITE",
+          "type": "L3VRF"
+        },
+        "name": "SELF_SITE"
+      },
+      {
+        "config": {
+          "name": "EGRESS",
+          "type": "L3VRF"
+        },
+        "name": "EGRESS"
       }
     ]
   }
 }
 ```
+
+---
 
 ## OpenConfig Path and RPC Coverage
 
@@ -233,13 +394,24 @@ Assign RX ports of the loopbacks to their respective VRFs to route traffic to th
 paths:
   /interfaces/interface/config/name:
   /interfaces/interface/config/enabled:
+  /interfaces/interface/config/loopback-mode:
+  /interfaces/interface/ethernet/config/aggregate-id:
+  /interfaces/interface/aggregation/config/lag-type:
   /interfaces/interface/state/counters/in-pkts:
   /interfaces/interface/state/counters/out-pkts:
   /network-instances/network-instance/config/name:
   /network-instances/network-instance/config/type:
   /network-instances/network-instance/interfaces/interface/config/id:
   /network-instances/network-instance/interfaces/interface/config/interface:
+  /acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/config/set-name:
+  /acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/config/type:
+
 rpcs:
   gribi:
     gRIBI.Modify:
+    gRIBI.Flush:
+  gnmi:
+    gNMI.Set:
+    gNMI.Get:
+    gNMI.Subscribe:
 ```
