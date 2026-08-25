@@ -141,7 +141,7 @@ func buildExpectedCounts(t *testing.T, dut *ondatra.DUTDevice, breakoutPorts map
 // TODO: Refactor description string matching to direct ondatra.PMD enum comparisons once the
 // following upstream release chain completes:
 //  1. openconfig-transport-types.yang v1.5.0+ (via openconfig/public PR #1505) is merged, adding identities
-//     for ETH_800GBASE_2XLR4, ETH_800GBASE_2XPLR4, ETH_800GBASE_2XDR4, and ETH_100GBASE_LR.
+//     for ETH_800GBASE_2XLR4, ETH_800GBASE_2XPLR4, and ETH_800GBASE_2XDR4.
 //  2. github.com/openconfig/ondatra releases a version > v0.14.5 (e.g. v0.14.6+ or v0.15.0+) that imports
 //     these models and generates the corresponding PMD enum constants (e.g. ondatra.PMD800GBASE2XLR4).
 //  3. openconfig/featureprofiles updates go.mod to import that newer ondatra release.
@@ -162,7 +162,7 @@ func breakoutConfig(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.Port) (u
 
 	if port.Speed() == ondatra.Speed800Gb || port.PMD() == ondatra.PMD800GBASEZR || port.PMD() == ondatra.PMD800GBASEZRP {
 		if present {
-			if strings.Contains(descStr, "100G") || strings.Contains(descStr, "2PLR4") || strings.Contains(descStr, "8X100G") {
+			if strings.Contains(descStr, "100G") || strings.Contains(descStr, "2PLR4") || strings.Contains(descStr, "8X100G") || strings.Contains(descStr, "2DR4") || strings.Contains(descStr, "8X100FR") {
 				return 8, oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB, 1
 			}
 			if strings.Contains(descStr, "400G") || strings.Contains(descStr, "2FR4") || strings.Contains(descStr, "2LR4") || strings.Contains(descStr, "2X400G") {
