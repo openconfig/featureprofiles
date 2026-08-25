@@ -1705,17 +1705,35 @@ func validateTrafficTTL(t *testing.T, captureFile *os.File, expectedInHdrIP stri
 		if ipLayer == nil {
 			continue
 		}
-		ipPacket, _ := ipLayer.(*layers.IPv4)
-		if ipPacket.DstIP.String() != expectedInHdrIP {
+		ipPacket, ok := ipLayer.(*layers.IPv4)
+		if !ok || ipPacket == nil {
 			continue
-		}
-		packetCheckCount++
-		if ipPacket.TTL != (correspondingTTL - 1) {
-			t.Errorf("Decap TTL doesnt match; got:%d, want:%d", ipPacket.TTL, (correspondingTTL - 1))
 		}
 		innerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
 		ipInnerLayer := innerPacket.Layer(layers.LayerTypeIPv4)
 		ipv6InnerLayer := innerPacket.Layer(layers.LayerTypeIPv6)
+
+		var dstIP string
+		if ipInnerLayer != nil {
+			if ipInner, ok := ipInnerLayer.(*layers.IPv4); ok && ipInner != nil {
+				dstIP = ipInner.DstIP.String()
+			}
+		} else if ipv6InnerLayer != nil {
+			if ipv6Inner, ok := ipv6InnerLayer.(*layers.IPv6); ok && ipv6Inner != nil {
+				dstIP = ipv6Inner.DstIP.String()
+			}
+		} else {
+			dstIP = ipPacket.DstIP.String()
+		}
+
+		if dstIP != expectedInHdrIP {
+			continue
+		}
+
+		packetCheckCount++
+		if ipPacket.TTL != (correspondingTTL - 1) {
+			t.Errorf("Decap TTL doesnt match; got:%d, want:%d", ipPacket.TTL, (correspondingTTL - 1))
+		}
 		if ipInnerLayer != nil {
 			t.Errorf("validateTrafficTTL: packets are not decapped, inner IP header is not removed")
 		}
