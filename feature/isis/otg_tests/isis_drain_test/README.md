@@ -52,7 +52,7 @@ Verify that traffic can be drained out of DUT trunk interfaces by changing ISIS 
           "protocol": [
             {
               "identifier": "ISIS",
-              "name": "ISIS",
+              "name": "DEFAULT",
               "isis": {
                 "global": {
                   "lsp-bit": {
