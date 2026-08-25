@@ -1,0 +1,7 @@
+# proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "a3bfb6f8-7755-445e-b91f-e68263e2c81c"
+plan_id: "RT-5.17"
+description: "Physical Interface Drain via Admin Down"
+testbed: TESTBED_DUT_ATE_4LINKS
