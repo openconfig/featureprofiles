@@ -1282,6 +1282,11 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/import_export_multi_test/import_export_multi_test.go"
 }
 test: {
+  id: "RT-7.12"
+  description: "BGP Drain using Route Policy"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/bgp_drain_policy_test/README.md"
+}
+test: {
   id: "RT-7.2"
   description: "BGP Policy Community Set"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/community_test/README.md"
@@ -1646,6 +1651,12 @@ test: {
   description: "Base Hierarchical NHG Update"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/base_hierarchical_nhg_update/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/base_hierarchical_nhg_update/base_hierarchical_nhg_update_test.go"
+}
+test: {
+  id: "TE-3.8"
+  description: "gRIBI Tunnel Recursion over Multi-Level LPM Underlays"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/hierarchical_tunnel_recursion_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/hierarchical_tunnel_recursion_test/hierarchical_tunnel_recursion_test.go"
 }
 test: {
   id: "TE-4.1"
