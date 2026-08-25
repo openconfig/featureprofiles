@@ -1538,11 +1538,22 @@ type Metadata_Deviations struct {
 	GribiAaaRoleBasedAuthzUnsupported bool `protobuf:"varint,451,opt,name=gribi_aaa_role_based_authz_unsupported,json=gribiAaaRoleBasedAuthzUnsupported,proto3" json:"gribi_aaa_role_based_authz_unsupported,omitempty"`
 	// No P4RT AAA role based Authorization support
 	P4RtAaaRoleBasedAuthzUnsupported bool `protobuf:"varint,452,opt,name=p4rt_aaa_role_based_authz_unsupported,json=p4rtAaaRoleBasedAuthzUnsupported,proto3" json:"p4rt_aaa_role_based_authz_unsupported,omitempty"`
-	// Device that do not support soft loopback mode
-	// https://partnerissuetracker.corp.google.com/issues/542569522
-	SoftLoopbackOcUnsupported bool `protobuf:"varint,453,opt,name=soft_loopback_oc_unsupported,json=softLoopbackOcUnsupported,proto3" json:"soft_loopback_oc_unsupported,omitempty"`
-	unknownFields             protoimpl.UnknownFields
-	sizeCache                 protoimpl.SizeCache
+	// Extra minutes the device needs beyond the 5-minute base timeout for
+	// switchover-related waits (post-switchover verification, switchover-ready
+	// polling, and SwitchControlProcessor retry). Supervisors may restart
+	// containerz/Octa after a switchover; the new active needs extra time for
+	// Docker state to settle. Default 0 means no extra delay beyond 5 minutes.
+	SwitchoverStabilizeDelayM uint32 `protobuf:"varint,453,opt,name=switchover_stabilize_delay_m,json=switchoverStabilizeDelayM,proto3" json:"switchover_stabilize_delay_m,omitempty"`
+	// Device requires a fresh DialGNOI call after a supervisor switchover
+	// because the Ondatra gNOI cache still points at the old active.
+	// Tracking: https://github.com/openconfig/ondatra/issues/145
+	GnoiRequiresFreshDialAfterSwitchover bool `protobuf:"varint,454,opt,name=gnoi_requires_fresh_dial_after_switchover,json=gnoiRequiresFreshDialAfterSwitchover,proto3" json:"gnoi_requires_fresh_dial_after_switchover,omitempty"`
+	// Device requires explicit "write memory" before reboot to persist
+	// containerz config, and must skip config re-push after reboot to avoid
+	// restarting the management stack during warmup.
+	ContainerzRequireExplicitConfigSave bool `protobuf:"varint,455,opt,name=containerz_require_explicit_config_save,json=containerzRequireExplicitConfigSave,proto3" json:"containerz_require_explicit_config_save,omitempty"`
+	unknownFields                       protoimpl.UnknownFields
+	sizeCache                           protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -4494,9 +4505,23 @@ func (x *Metadata_Deviations) GetP4RtAaaRoleBasedAuthzUnsupported() bool {
 	return false
 }
 
-func (x *Metadata_Deviations) GetSoftLoopbackOcUnsupported() bool {
+func (x *Metadata_Deviations) GetSwitchoverStabilizeDelayM() uint32 {
 	if x != nil {
-		return x.SoftLoopbackOcUnsupported
+		return x.SwitchoverStabilizeDelayM
+	}
+	return 0
+}
+
+func (x *Metadata_Deviations) GetGnoiRequiresFreshDialAfterSwitchover() bool {
+	if x != nil {
+		return x.GnoiRequiresFreshDialAfterSwitchover
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetContainerzRequireExplicitConfigSave() bool {
+	if x != nil {
+		return x.ContainerzRequireExplicitConfigSave
 	}
 	return false
 }
@@ -4557,7 +4582,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xf0\x80\x02\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xa1\x82\x02\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -4569,7 +4594,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xf8\xf5\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xa9\xf7\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -4993,7 +5018,9 @@ const file_metadata_proto_rawDesc = "" +
 	"/vrf_selection_policy_non_default_ni_unsupported\x18\xc2\x03 \x01(\bR)vrfSelectionPolicyNonDefaultNiUnsupported\x12R\n" +
 	"&gribi_aaa_role_based_authz_unsupported\x18\xc3\x03 \x01(\bR!gribiAaaRoleBasedAuthzUnsupported\x12P\n" +
 	"%p4rt_aaa_role_based_authz_unsupported\x18\xc4\x03 \x01(\bR p4rtAaaRoleBasedAuthzUnsupported\x12@\n" +
-	"\x1csoft_loopback_oc_unsupported\x18\xc5\x03 \x01(\bR\x19softLoopbackOcUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"\x1cswitchover_stabilize_delay_m\x18\xc5\x03 \x01(\rR\x19switchoverStabilizeDelayM\x12X\n" +
+	")gnoi_requires_fresh_dial_after_switchover\x18\xc6\x03 \x01(\bR$gnoiRequiresFreshDialAfterSwitchover\x12U\n" +
+	"'containerz_require_explicit_config_save\x18\xc7\x03 \x01(\bR#containerzRequireExplicitConfigSaveJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02J\x06\b\xf1\x01\x10\xf2\x01J\x04\b1\x102\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +

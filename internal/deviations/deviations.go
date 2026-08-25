@@ -1889,6 +1889,30 @@ func ContainerzTLSInsecureSkipVerify(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetContainerzTlsInsecureSkipVerify()
 }
 
+// SwitchoverStabilizeDelayM returns extra minutes the device needs beyond the
+// 5-minute base timeout for switchover-related waits (post-switchover
+// verification, switchover-ready polling, and SwitchControlProcessor retry).
+// Default 0 means no extra delay beyond 5 minutes.
+func SwitchoverStabilizeDelayM(dut *ondatra.DUTDevice) uint32 {
+	return lookupDUTDeviations(dut).GetSwitchoverStabilizeDelayM()
+}
+
+// GnoiRequiresFreshDialAfterSwitchover returns true if the device requires a
+// fresh DialGNOI call after a supervisor switchover because the Ondatra gNOI
+// cache still points at the old active.
+// Tracking: https://github.com/openconfig/ondatra/issues/145
+func GnoiRequiresFreshDialAfterSwitchover(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGnoiRequiresFreshDialAfterSwitchover()
+}
+
+// ContainerzRequireExplicitConfigSave returns true if the device requires an
+// explicit "write memory" before reboot to persist containerz config, and must
+// skip config re-push after reboot to avoid restarting the management stack
+// during warmup. Default value is false.
+func ContainerzRequireExplicitConfigSave(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetContainerzRequireExplicitConfigSave()
+}
+
 // TemperatureSensorCheck returns true if the transceiver subcomponent should look for the temperature sensor
 func TemperatureSensorCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTemperatureSensorCheck()
