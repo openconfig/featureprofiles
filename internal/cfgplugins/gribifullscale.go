@@ -1027,30 +1027,40 @@ func NewGRIBIClient(t *testing.T, dut *ondatra.DUTDevice) *gribi.Client {
 	return c
 }
 
-// BatchModify pushes entries to the DUT in chunks of gribiBatchSize.
 func BatchModify(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, entries []fluent.GRIBIEntry, gribiBatchSize int, wTime time.Duration) *gribi.Client {
 	t.Helper()
 	gSession := NewGRIBIClient(t, dut)
 	if gribiBatchSize <= 0 {
 		gribiBatchSize = DefaultGRIBIBatchSize
 	}
-	for i := 0; i < len(entries); i += gribiBatchSize {
+	totalEntries := len(entries)
+	if totalEntries == 0 {
+		return gSession
+	}
+	totalBatches := (totalEntries + gribiBatchSize - 1) / gribiBatchSize
+	batchNum := 0
+	for i := 0; i < totalEntries; i += gribiBatchSize {
+		batchNum++
 		end := i + gribiBatchSize
-		if end > len(entries) {
-			end = len(entries)
+		if end > totalEntries {
+			end = totalEntries
 		}
+		t.Logf("Programming gRIBI batch %d/%d (%d entries, total: %d/%d entries)...", batchNum, totalBatches, end-i, end, totalEntries)
+		batchStart := time.Now()
 		gSession.AddEntries(t, entries[i:end], nil)
 		// TODO: Arista does not ack
-		if dut.Vendor() != ondatra.ARISTA {
-			if err := gSession.AwaitTimeout(context.Background(), t, 20*time.Second); err != nil {
-				t.Fatalf("gRIBI batch programming timeout: %v", err)
-			}
+		// if dut.Vendor() != ondatra.ARISTA {
+		if err := gSession.AwaitTimeout(ctx, t, 20*time.Second); err != nil {
+			t.Fatalf("gRIBI batch programming timeout on batch %d/%d after %v: %v", batchNum, totalBatches, time.Since(batchStart), err)
 		}
+		// }
+		t.Logf("Completed gRIBI batch %d/%d in %v", batchNum, totalBatches, time.Since(batchStart))
+		time.Sleep(1 * time.Second)
 	}
 	// TODO: A time.Sleep is used as a temporary workaround. This will be fixed once the underlying issue is resolved.
-	if dut.Vendor() == ondatra.ARISTA {
-		time.Sleep(wTime)
-	}
+	// if dut.Vendor() == ondatra.ARISTA {
+	// 	time.Sleep(wTime)
+	// }
 	ValidateGRIBIResults(t, gSession.Fluent(t).Results(t))
 	return gSession
 }
