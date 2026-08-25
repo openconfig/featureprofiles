@@ -1672,7 +1672,7 @@ func captureAndValidatePackets(t *testing.T, args *testArgs, packetVal *packetVa
 	}
 	f.Close()
 	if packetVal.validateTTL {
-		validateTrafficTTL(t, f)
+		validateTrafficTTL(t, f, packetVal.inHdrIP)
 	}
 	if packetVal.validateDecap {
 		validateTrafficDecap(t, f, packetVal.inHdrIP, packetVal.inHdrIPv6, packetVal.inHdrDscp, packetVal.inHdrEcn)
@@ -1688,7 +1688,7 @@ func captureAndValidatePackets(t *testing.T, args *testArgs, packetVal *packetVa
 	time.Sleep(30 * time.Second)
 }
 
-func validateTrafficTTL(t *testing.T, captureFile *os.File) {
+func validateTrafficTTL(t *testing.T, captureFile *os.File, expectedInHdrIP string) {
 	t.Helper()
 	pcapFileHandle, err := pcap.OpenOffline(captureFile.Name())
 	if err != nil {
@@ -1698,22 +1698,32 @@ func validateTrafficTTL(t *testing.T, captureFile *os.File) {
 	var packetCheckCount uint32 = 0
 	packetSource := gopacket.NewPacketSource(pcapFileHandle, pcapFileHandle.LinkType())
 	for packet := range packetSource.Packets() {
+		if packet.Layer(layers.LayerTypeUDP) == nil {
+			continue
+		}
 		ipLayer := packet.Layer(layers.LayerTypeIPv4)
-		if ipLayer != nil && packetCheckCount <= 3 {
-			packetCheckCount++
-			ipPacket, _ := ipLayer.(*layers.IPv4)
-			if ipPacket.TTL != (correspondingTTL - 1) {
-				t.Errorf("Decap TTL doesnt match; got:%d, want:%d", ipPacket.TTL, (correspondingTTL - 1))
-			}
-			innerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
-			ipInnerLayer := innerPacket.Layer(layers.LayerTypeIPv4)
-			ipv6InnerLayer := innerPacket.Layer(layers.LayerTypeIPv6)
-			if ipInnerLayer != nil {
-				t.Errorf("validateTrafficTTL: packets are not decapped, inner IP header is not removed")
-			}
-			if ipv6InnerLayer != nil {
-				t.Errorf("validateTrafficTTL: packets are not decapped, inner IPv6 header is not removed")
-			}
+		if ipLayer == nil {
+			continue
+		}
+		ipPacket, _ := ipLayer.(*layers.IPv4)
+		if ipPacket.DstIP.String() != expectedInHdrIP {
+			continue
+		}
+		packetCheckCount++
+		if ipPacket.TTL != (correspondingTTL - 1) {
+			t.Errorf("Decap TTL doesnt match; got:%d, want:%d", ipPacket.TTL, (correspondingTTL - 1))
+		}
+		innerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
+		ipInnerLayer := innerPacket.Layer(layers.LayerTypeIPv4)
+		ipv6InnerLayer := innerPacket.Layer(layers.LayerTypeIPv6)
+		if ipInnerLayer != nil {
+			t.Errorf("validateTrafficTTL: packets are not decapped, inner IP header is not removed")
+		}
+		if ipv6InnerLayer != nil {
+			t.Errorf("validateTrafficTTL: packets are not decapped, inner IPv6 header is not removed")
+		}
+		if packetCheckCount >= 5 {
+			break
 		}
 	}
 	if packetCheckCount == 0 {
