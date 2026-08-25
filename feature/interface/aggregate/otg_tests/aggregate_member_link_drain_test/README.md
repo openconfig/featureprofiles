@@ -86,7 +86,7 @@ Success Metrics:
     *   Verify `/interfaces/interface[name=<DUT_port-3>]/state/oper-status` transitions to `DOWN`.
     *   Verify LAG `/interfaces/interface[name=<PortChannel1>]/state/oper-status` remains `UP`.
     *   Verify BGP and IS-IS sessions over the LAG remain stable.
-    *   Verify 100% of traffic shifts to the single remaining active link (DUT port-4), with minimal packet loss.
+    *   Verify that traffic from ATE port-1 redistributes evenly to the remaining active member links (DUT ports 2 and 4) with minimal packet loss. Each link should carry ~50% of the traffic (within a ±5% tolerance).
 *   **Step 3:** Re-enable the member link.
     *   Use gNMI to set `/interfaces/interface[name=<DUT_port-3>]/config/enabled` to `true`.
     *   Verify traffic shifts back to load balance across DUT ports 2-4.
