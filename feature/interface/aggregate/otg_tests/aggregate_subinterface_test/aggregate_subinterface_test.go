@@ -490,7 +490,12 @@ func ensureLagMembersEnabled(t *testing.T, dut *ondatra.DUTDevice) {
 func setLagMemberAdminState(t *testing.T, dut *ondatra.DUTDevice, portID string, enabled bool) {
 	t.Helper()
 	portName := dut.Port(t, portID).Name()
-	gnmi.Update(t, dut, gnmi.OC().Interface(portName).Enabled().Config(), enabled)
+	ocIntf := &oc.Interface{
+		Name:    ygot.String(portName),
+		Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+		Enabled: ygot.Bool(true),
+	}
+	gnmi.Update(t, dut, gnmi.OC().Interface(portName).Config(), ocIntf)
 }
 
 func awaitLagOperStatusAny(t *testing.T, dut *ondatra.DUTDevice, lagName string, statuses ...oc.E_Interface_OperStatus) {
@@ -560,6 +565,8 @@ func TestAggregateSubinterface(t *testing.T) {
 		otg.StartProtocols(t)
 		awaitLAGMembersCollectingDistributing(t, dut, lag1Name, lag1Members)
 		awaitLAGMembersCollectingDistributing(t, dut, lag2Name, lag2Members)
+		gnmi.Await(t, dut, gnmi.OC().Interface(lag1Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_UP)
+		gnmi.Await(t, dut, gnmi.OC().Interface(lag2Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_UP)
 		otgutils.WaitForARP(t, otg, ateConfig, "IPv4")
 		otgutils.WaitForARP(t, otg, ateConfig, "IPv6")
 		for i := range 10 {
@@ -602,11 +609,10 @@ func TestAggregateSubinterface(t *testing.T) {
 		otg.StartProtocols(t)
 		awaitLAGMembersCollectingDistributing(t, dut, lag1Name, lag1Members)
 		awaitLAGMembersCollectingDistributing(t, dut, lag2Name, lag2Members)
-		otgutils.WaitForARP(t, otg, ateConfig, "IPv4")
-		otgutils.WaitForARP(t, otg, ateConfig, "IPv6")
-
 		gnmi.Await(t, dut, gnmi.OC().Interface(lag1Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_UP)
 		gnmi.Await(t, dut, gnmi.OC().Interface(lag2Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_UP)
+		otgutils.WaitForARP(t, otg, ateConfig, "IPv4")
+		otgutils.WaitForARP(t, otg, ateConfig, "IPv6")
 
 		baselineIn := retrieveLAGCounters(t, dut, lag1Name)
 		baselineOut := retrieveLAGCounters(t, dut, lag2Name)
@@ -658,11 +664,10 @@ func TestAggregateSubinterface(t *testing.T) {
 		otg.StartProtocols(t)
 		awaitLAGMembersCollectingDistributing(t, dut, lag1Name, lag1Members)
 		awaitLAGMembersCollectingDistributing(t, dut, lag2Name, lag2Members)
-		otgutils.WaitForARP(t, otg, ateConfig, "IPv4")
-		otgutils.WaitForARP(t, otg, ateConfig, "IPv6")
-
 		gnmi.Await(t, dut, gnmi.OC().Interface(lag1Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_UP)
 		gnmi.Await(t, dut, gnmi.OC().Interface(lag2Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_UP)
+		otgutils.WaitForARP(t, otg, ateConfig, "IPv4")
+		otgutils.WaitForARP(t, otg, ateConfig, "IPv6")
 
 		baselineIn := retrieveLAGCounters(t, dut, lag1Name)
 		baselineOut := retrieveLAGCounters(t, dut, lag2Name)
