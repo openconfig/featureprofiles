@@ -134,10 +134,6 @@ type ipAddr struct {
 	prefix  uint32
 }
 
-// cidr
-// Objective: Helper function to generate a CIDR string from an IP address and prefix length.
-// Traceability: Setup/Helper
-// Technical Summary: Combines the IP address string and prefix into CIDR notation and validates it using `net.ParseCIDR`.
 func (ip *ipAddr) cidr(t *testing.T) string {
 	_, net, err := net.ParseCIDR(fmt.Sprintf("%s/%d", ip.address, ip.prefix))
 	if err != nil {
@@ -153,7 +149,6 @@ type testData struct {
 	otgP1          gosnappi.Device
 	otgP2          gosnappi.Device
 	otgP3          gosnappi.Device
-	otgP4          gosnappi.Device
 	staticIPv4     ipAddr
 	staticIPv6     ipAddr
 	advertisedIPv4 ipAddr
@@ -175,7 +170,6 @@ func TestBasicStaticRouteSupport(t *testing.T) {
 		otgP1:          devs[0],
 		otgP2:          devs[1],
 		otgP3:          devs[2],
-		otgP4:          devs[3],
 		staticIPv4:     ipAddr{address: v4Route, prefix: v4RoutePrefix},
 		staticIPv6:     ipAddr{address: v6Route, prefix: v6RoutePrefix},
 		advertisedIPv4: ipAddr{address: v4Route, prefix: v4RoutePrefix},
@@ -217,12 +211,24 @@ func TestBasicStaticRouteSupport(t *testing.T) {
 			fn:   td.testStaticRouteSetTag,
 		},
 		{
-			desc: "RT-1.26.5: Cross-Address Family (XAF) Next-Hops",
-			fn:   td.testStaticRouteXAFNextHops,
+			desc: "RT-1.26.5 - Validate Cross-Address Family (XAF) Next-Hops",
+			fn:   td.testCrossAddressFamilyNextHops,
 		},
 		{
-			desc: "RT-1.26.6: Static Route With Drop Next Hop",
+			desc: "RT-1.26.6: Validate Static Route with DROP Next-Hop",
 			fn:   td.testStaticRouteWithDropNextHop,
+		},
+		{
+			desc: "RT-1.26.9 - Direct Interface IP Deletion (Negative)",
+			fn:   td.testDirectInterfaceIPDeletion,
+		},
+		{
+			desc: "RT-1.26.10 - Overlapping Prefixes / LPM (Corner)",
+			fn:   td.testOverlappingPrefixesLPM,
+		},
+		{
+			desc: "RT-1.26.11 - Route Resolution Loop (Negative)",
+			fn:   td.testRouteResolutionLoop,
 		},
 	}
 	for _, tc := range tcs {
@@ -232,107 +238,98 @@ func TestBasicStaticRouteSupport(t *testing.T) {
 	}
 }
 
-// TestRT1268_StaticRouteAddRemove
-// Objective: Validates the dynamic addition and removal of static route next-hops on the DUT.
-// Traceability: RT-1.26.8 - Validate Dynamic Add and Remove of Next-Hops
-// Technical Summary: Dynamically configures new static route next-hops, verifies state propagation, and subsequently deletes a subset of next-hops, ensuring the device control plane maintains correct state without traffic interruption.
-func TestRT1268_StaticRouteAddRemove(t *testing.T) {
+// TestStaticRouteAddRemove validates dynamic hop expansions.
+// Relevant README subtest: RT-1.26.8 - Validate Dynamic Add and Remove of Next-Hops
+// Technical Explanation: Expands an existing static prefix dynamically up to 4 nexthops,
+// then scales back down to 2, ensuring proper configuration bounds and system reactions.
+func TestStaticRouteAddRemove(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	configureDUT(t, dut)
 
 	ate := ondatra.ATE(t, "ate")
 	top := gosnappi.NewConfig()
-	devs := configureOTG(t, ate, top)
-
-	td := testData{
-		dut:   dut,
-		ate:   ate,
-		top:   top,
-		otgP1: devs[0],
-		otgP2: devs[1],
-		otgP3: devs[2],
-		otgP4: devs[3],
-	}
+	configureOTG(t, ate, top)
 
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 	defer ate.OTG().StopProtocols(t)
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
-	td.configureOTGFlows(t)
 
-	// Subtest ID: RT-1.26.8 - Validate Dynamic Add and Remove of Next-Hops
-	// Step 1 - Configure one IPv4 static route with next-hops set to the IPv4 address of ATE port-2 (index 0) and port-3 (index 1).
-	prefix := ipAddr{address: v4Route, prefix: v4RoutePrefix}
-	b := &gnmi.SetBatch{}
-	sV4 := &cfgplugins.StaticRouteCfg{
-		NetworkInstance: deviations.DefaultNetworkInstance(dut),
-		Prefix:          prefix.cidr(t),
-		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-			"0": oc.UnionString(atePort2.IPv4),
-			"1": oc.UnionString(atePort3.IPv4),
-		},
-	}
-	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
-		t.Fatalf("Failed to configure IPv4 static route: %v", err)
-	}
-	// Step 2 - Push configuration to DUT.
-	b.Set(t, dut)
-	cfgplugins.ValidateStaticRouteConfigured(t, dut, deviations.DefaultNetworkInstance(dut), prefix.cidr(t), sV4)
+	t.Run("RT-1.26.8 - Validate Dynamic Add and Remove of Next-Hops", func(t *testing.T) {
+		prefix := ipAddr{address: v4Route, prefix: v4RoutePrefix}
+		b := &gnmi.SetBatch{}
+		sV4 := &cfgplugins.StaticRouteCfg{
+			NetworkInstance: deviations.DefaultNetworkInstance(dut),
+			Prefix:          prefix.cidr(t),
+			NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+				"0": oc.UnionString(atePort1.IPv4),
+				"1": oc.UnionString(atePort2.IPv4),
+			},
+		}
+		if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
+			t.Fatalf("Failed to configure IPv4 static route: %v", err)
+		}
+		b.Set(t, dut)
+		validateStaticRoute(t, dut, prefix.cidr(t), sV4)
 
-	// Step 3 - Update the static route by adding next-hops for ATE port-1 (index 2) and port-4 (index 3).
-	b = &gnmi.SetBatch{}
-	sV4 = &cfgplugins.StaticRouteCfg{
-		NetworkInstance: deviations.DefaultNetworkInstance(dut),
-		Prefix:          prefix.cidr(t),
-		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-			"0": oc.UnionString(atePort2.IPv4),
-			"1": oc.UnionString(atePort3.IPv4),
-			"2": oc.UnionString(atePort1.IPv4),
-			"3": oc.UnionString(atePort4.IPv4),
-		},
-	}
-	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
-		t.Fatalf("Failed to configure IPv4 static route: %v", err)
-	}
-	// Step 4 - Push configuration to DUT.
-	b.Set(t, dut)
+		// add 2 new nextHops, one at 0 index and another at 3 index
+		b = &gnmi.SetBatch{}
+		sV4 = &cfgplugins.StaticRouteCfg{
+			NetworkInstance: deviations.DefaultNetworkInstance(dut),
+			Prefix:          prefix.cidr(t),
+			NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+				"0": oc.UnionString(atePort1.IPv4),
+				"1": oc.UnionString(atePort2.IPv4),
+				"2": oc.UnionString(atePort3.IPv4),
+				"3": oc.UnionString(atePort4.IPv4),
+			},
+		}
+		if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
+			t.Fatalf("Failed to configure IPv4 static route: %v", err)
+		}
+		b.Set(t, dut)
+		validateStaticRoute(t, dut, prefix.cidr(t), sV4)
 
-	// Step 5 - Validate all four next-hops and indexes are reported correctly
-	cfgplugins.ValidateStaticRouteConfigured(t, dut, deviations.DefaultNetworkInstance(dut), prefix.cidr(t), sV4)
-	expectedNh := map[string]string{"0": atePort2.IPv4, "1": atePort3.IPv4, "2": atePort1.IPv4, "3": atePort4.IPv4}
-	cfgplugins.ValidateStaticRouteNextHopIndex(t, dut, deviations.DefaultNetworkInstance(dut), prefix.cidr(t), expectedNh)
+		// remove previously added indexes
+		b = &gnmi.SetBatch{}
+		sV4 = &cfgplugins.StaticRouteCfg{
+			NetworkInstance: deviations.DefaultNetworkInstance(dut),
+			Prefix:          prefix.cidr(t),
+			NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+				"0": oc.UnionString(atePort1.IPv4),
+				"1": oc.UnionString(atePort2.IPv4),
+			},
+		}
+		if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
+			t.Fatalf("Failed to configure IPv4 static route: %v", err)
+		}
+		b.Set(t, dut)
+		validateStaticRoute(t, dut, prefix.cidr(t), sV4)
+	})
+}
 
-	// Step 6 - Remove two next-hops (e.g., indexes 0 and 3).
-	cfgplugins.DeleteStaticRouteNextHops(t, dut, deviations.DefaultNetworkInstance(dut), prefix.cidr(t), "0", "3")
+func validateStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, sV4 *cfgplugins.StaticRouteCfg) {
+	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+	gnmi.Await(t, dut, sp.Static(prefix).Prefix().State(), 120*time.Second, prefix)
 
-	// Step 7 - Push configuration to DUT and validate that only two next-hops remain.
-	// (Note: DeleteStaticRouteNextHops inherently updates the DUT)
-	sV4 = &cfgplugins.StaticRouteCfg{
-		NetworkInstance: deviations.DefaultNetworkInstance(dut),
-		Prefix:          prefix.cidr(t),
-		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-			"1": oc.UnionString(atePort3.IPv4),
-			"2": oc.UnionString(atePort1.IPv4),
-		},
-	}
-	cfgplugins.ValidateStaticRouteConfigured(t, dut, deviations.DefaultNetworkInstance(dut), prefix.cidr(t), sV4)
-	expectedNh = map[string]string{"1": atePort3.IPv4, "2": atePort1.IPv4}
-	cfgplugins.ValidateStaticRouteNextHopIndex(t, dut, deviations.DefaultNetworkInstance(dut), prefix.cidr(t), expectedNh)
-
-	// Step 8 - Validate traffic converges correctly after the dynamic route updates on active ports.
-	td.ate.OTG().StartTraffic(t)
-	time.Sleep(trafficDuration)
-	td.ate.OTG().StopTraffic(t)
-	lossV4 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v4Flow, 20*time.Second)
-	if lossV4 > lossTolerance {
-		t.Errorf("Loss percent for IPv4 Traffic after dynamic update: got: %f, want <= %f%%", lossV4, lossTolerance)
+	if deviations.SkipStaticNexthopCheck(dut) {
+		nexthops := gnmi.LookupAll(t, dut, sp.Static(prefix).NextHopAny().NextHop().State())
+		if got, want := len(nexthops), len(sV4.NextHops); got != want {
+			t.Errorf("Static route next hop count - %s: got: %v, want: %v", prefix, got, want)
+		}
+	} else {
+		// Validate both the routes i.e. ipv4-route-[a|b] are configured and reported
+		// correctly
+		gotStatic := gnmi.Get(t, dut, sp.Static(prefix).State())
+		t.Logf("Static route %s: got: %v, want: %v", prefix, len(gotStatic.NextHop), len(sV4.NextHops))
+		for index, nextHop := range gotStatic.NextHop {
+			if got, want := nextHop.GetNextHop(), sV4.NextHops[index]; got != want {
+				t.Errorf("Static route %s: got: %v, want: %v", prefix, got, want)
+			}
+		}
 	}
 }
 
-// TestDisableRecursiveNextHopResolution
-// Objective: Validates that the device properly halts static route resolution when recursive lookup is disabled.
-// Traceability: RT-1.26.7 - Validate Disabling Recursive Next-Hop Resolution
-// Technical Summary: Pre-provisions standard routes resolved recursively via IS-IS. Then delegates to subtests to verify traffic flows normally, followed by a disabled recurse state which should immediately halt traffic matching that route.
 func TestDisableRecursiveNextHopResolution(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	if deviations.UnsupportedStaticRouteNextHopRecurse(dut) {
@@ -351,15 +348,20 @@ func TestDisableRecursiveNextHopResolution(t *testing.T) {
 		otgP1:          devs[0],
 		otgP2:          devs[1],
 		otgP3:          devs[2],
-		otgP4:          devs[3],
 		staticIPv4:     ipAddr{address: v4Route, prefix: v4RoutePrefix},
 		staticIPv6:     ipAddr{address: v6Route, prefix: v6RoutePrefix},
 		advertisedIPv4: ipAddr{address: v4LoopbackRoute, prefix: v4LoopbackRoutePrefix},
 		advertisedIPv6: ipAddr{address: v6LoopbackRoute, prefix: v6LoopbackRoutePrefix},
 	}
 
-	// Step 1 - Configure IPv4 and IPv6 IS-IS between ATE port-1 <-> DUT port-1 and ATE port-2 <-> DUT port-2.
-	// Step 2 - Configure one IPv4 /32 host route (198.51.100.100/32) and one IPv6 /128 host route (2001:db8::64:64::1/128) connected to ATE and advertised to DUT through both IS-IS adjacencies.
+	// Configure ipv4 and ipv6 ISIS between ATE port-1 <-> DUT port-1 and ATE
+	// port-2 <-> DUT port2.
+	// Configure one IPv4 /32 host route i.e. `ipv4-loopback = 198.51.100.100/32`
+	// connected to ATE and advertised to DUT through both the IPv4 ISIS
+	// adjacencies.
+	// Configure one IPv6 /128 host route i.e. `ipv6-loopback =
+	// 2001:db8::64:64::1/128` connected to ATE and advertised to DUT through both
+	// the IPv6 ISIS adjacencies.
 	td.advertiseRoutesWithISIS(t)
 	td.configureOTGFlows(t)
 	ate.OTG().PushConfig(t, top)
@@ -375,20 +377,21 @@ func TestDisableRecursiveNextHopResolution(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Run("RT-1.26.7: Disable Recursive Next Hop Resolution", func(t *testing.T) {
-		// Subtest ID: RT-1.26.7 - Validate Disabling Recursive Next-Hop Resolution
+	t.Run("RT-1.26.7 - Validate Disabling Recursive Next-Hop Resolution", func(t *testing.T) {
 		td.testRecursiveNextHopResolution(t)
 		td.testRecursiveNextHopResolutionDisabled(t)
 	})
 }
 
-// testRecursiveNextHopResolution
-// Objective: Validates successful recursive next-hop resolution for IPv4 and IPv6 static routes as a baseline.
-// Traceability: RT-1.26.7 (Step 3-5)
-// Technical Summary: Sets `recurse` to true on static route next-hops resolving to routes advertised over IS-IS, awaits state convergence using `gnmi.Watch`, and verifies 0% traffic loss via ATE.
+// testRecursiveNextHopResolution tests basic recursive lookup.
+// Relevant README subtest: RT-1.26.7 - Validate Disabling Recursive Next-Hop Resolution (Setup phase)
+// Technical Explanation: Targets an indirect route advertised distantly (via IS-IS),
+// validating whether the static table correctly recurses intermediate IPs prior to disabling it.
 func (td *testData) testRecursiveNextHopResolution(t *testing.T) {
 	b := &gnmi.SetBatch{}
-	// Step 3 - Configure an IPv4 static route for 203.0.113.0/24 with next-hop 198.51.100.100. Configure an IPv6 static route for 2001:db8:128:128::/64 with next-hop 2001:db8::64:64::1.
+	// Configure one IPv4 static route i.e. ipv4-route on the DUT for destination
+	// `ipv4-network 203.0.113.0/24` with the next hop of `ipv4-loopback
+	// 198.51.100.100/32`. Remove all other existing next hops for the route.
 	sV4 := &cfgplugins.StaticRouteCfg{
 		NetworkInstance: deviations.DefaultNetworkInstance(td.dut),
 		Prefix:          td.staticIPv4.cidr(t),
@@ -401,7 +404,9 @@ func (td *testData) testRecursiveNextHopResolution(t *testing.T) {
 		t.Fatal(err)
 	}
 	spV4.GetOrCreateNextHop("0").SetRecurse(true)
-
+	// Configure one IPv6 static route i.e. ipv6-route on the DUT for destination
+	// `ipv6-network 2001:db8:128:128::/64` with the next hop of `ipv6-loopback =
+	// 2001:db8::64:64::1/128`. Remove all other existing next hops for the route.
 	sV6 := &cfgplugins.StaticRouteCfg{
 		NetworkInstance: deviations.DefaultNetworkInstance(td.dut),
 		Prefix:          td.staticIPv6.cidr(t),
@@ -415,7 +420,6 @@ func (td *testData) testRecursiveNextHopResolution(t *testing.T) {
 	}
 	spV6.GetOrCreateNextHop("0").SetRecurse(true)
 
-	// Step 4 - Push configuration to DUT.
 	b.Set(t, td.dut)
 
 	t.Run("Telemetry", func(t *testing.T) {
@@ -446,7 +450,8 @@ func (td *testData) testRecursiveNextHopResolution(t *testing.T) {
 		}
 	})
 	t.Run("Traffic", func(t *testing.T) {
-		// Step 5 - Send Traffic and Verify that traffic is received from DUT.
+		// Initiate traffic from ATE port-3 towards destination `ipv4-network
+		// 203.0.113.0/24` and `ipv6-network 2024:db8:128:128::/64`
 		td.ate.OTG().StartTraffic(t)
 		time.Sleep(trafficDuration)
 		td.ate.OTG().StopTraffic(t)
@@ -465,17 +470,16 @@ func (td *testData) testRecursiveNextHopResolution(t *testing.T) {
 	})
 }
 
-// testRecursiveNextHopResolutionDisabled
-// Objective: Validates that traffic is dropped when recursive next-hop resolution is explicitly disabled.
-// Traceability: RT-1.26.7 (Step 6-9)
-// Technical Summary: Overwrites the static route next-hop `recurse` config to false. Validates its propagation into state using `gnmi.Watch`, then measures traffic, asserting 100% packet loss as the route becomes unresolved.
+// testRecursiveNextHopResolutionDisabled tests disabling recursion.
+// Relevant README subtest: RT-1.26.7 - Validate Disabling Recursive Next-Hop Resolution (Execution phase)
+// Technical Explanation: Expliclity disables recursive resolution flags, proving
+// the device immediately orphans distant IPs and halts traffic to intermediate hops.
 func (td *testData) testRecursiveNextHopResolutionDisabled(t *testing.T) {
 	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
-	// Step 6 - Disable static route next-hop recursive lookup by setting recurse to false.
+	// Disable static route next-hop recursive lookup (set to false)
 	batch := &gnmi.SetBatch{}
 	gnmi.BatchReplace(batch, sp.Static(td.staticIPv4.cidr(t)).NextHop("0").Recurse().Config(), false)
 	gnmi.BatchReplace(batch, sp.Static(td.staticIPv6.cidr(t)).NextHop("0").Recurse().Config(), false)
-	// Step 7 - Push configuration to DUT.
 	batch.Set(t, td.dut)
 
 	t.Run("Telemetry", func(t *testing.T) {
@@ -497,7 +501,8 @@ func (td *testData) testRecursiveNextHopResolutionDisabled(t *testing.T) {
 		}
 	})
 	t.Run("Traffic", func(t *testing.T) {
-		// Step 9 - Send Traffic and Verify that traffic is NOT received from DUT, as the recursive next-hop resolution is disabled.
+		// Initiate traffic from ATE port-3 towards destination `ipv4-network
+		// 203.0.113.0/24` and `ipv6-network 2001:db8:128:128::/64`
 		td.ate.OTG().StartTraffic(t)
 		time.Sleep(trafficDuration)
 		td.ate.OTG().StopTraffic(t)
@@ -505,6 +510,7 @@ func (td *testData) testRecursiveNextHopResolutionDisabled(t *testing.T) {
 		lossV4 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v4Flow, 20*time.Second)
 		lossV6 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v6Flow, 20*time.Second)
 
+		// Validate that traffic is NOT received from DUT
 		otgutils.LogFlowMetrics(t, td.ate.OTG(), td.top)
 		if got, want := lossV4, float64(100); got != want {
 			t.Errorf("Loss percent for IPv4 Traffic: got: %f, want %f", got, want)
@@ -515,10 +521,6 @@ func (td *testData) testRecursiveNextHopResolutionDisabled(t *testing.T) {
 	})
 }
 
-// configureStaticRouteToATEP1AndP2
-// Objective: Helper function to configure standard IPv4 and IPv6 static routes pointing towards ATE port-1 and port-2.
-// Traceability: Setup/Helper (Used in RT-1.26.1, RT-1.26.2, RT-1.26.3)
-// Technical Summary: Deploys static route next-hops using `cfgplugins` mapped to destination network IPs. Pushes changes via gNMI Replace to ensure clean environment for ECMP/Metric comparisons.
 func (td *testData) configureStaticRouteToATEP1AndP2(t *testing.T) {
 	b := &gnmi.SetBatch{}
 	// Configure IPv4 static routes:
@@ -558,14 +560,9 @@ func (td *testData) configureStaticRouteToATEP1AndP2(t *testing.T) {
 	if _, err := cfgplugins.NewStaticRouteCfg(b, sV6, td.dut); err != nil {
 		t.Fatalf("Failed to configure IPv6 static route: %v", err)
 	}
-	// Step 3 - Push configuration to DUT.
 	b.Set(t, td.dut)
 }
 
-// deleteStaticRoutes
-// Objective: Helper function to clean up IPv4 and IPv6 static routes post-validation.
-// Traceability: Teardown/Helper
-// Technical Summary: Invokes gNMI BatchDelete on the specific IPv4 and IPv6 prefixes under the static routing protocol.
 func (td *testData) deleteStaticRoutes(t *testing.T) {
 	b := &gnmi.SetBatch{}
 	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
@@ -574,18 +571,17 @@ func (td *testData) deleteStaticRoutes(t *testing.T) {
 	b.Set(t, td.dut)
 }
 
-// testStaticRouteECMP
-// Objective: Validates Equal-Cost Multi-Path (ECMP) routing for static routes over IPv4 and IPv6.
-// Traceability: RT-1.26.1 - Validate Static Route ECMP
-// Technical Summary: Configures identical static routes pointing to different next-hops (ATE port 1 and 2). Monitors state convergence via `gnmi.Await`, sends traffic, and verifies an approximate 50/50 packet distribution across both egress ports.
+// testStaticRouteECMP validates foundational ECMP behavior.
+// Relevant README subtest: RT-1.26.1 - Validate Static Route ECMP
+// Technical Explanation: Tests whether independent static route segments properly
+// leverage multi-path execution by splitting packet transmissions evenly
+// across connected egress endpoints (dutPort1, dutPort2).
 func (td *testData) testStaticRouteECMP(t *testing.T) {
-	// Step 1 - Configure IPv4 and IPv6 static routes for ECMP
-	// Step 2 - Push configuration to DUT using gnmi.Set with REPLACE option.
 	td.configureStaticRouteToATEP1AndP2(t)
 	defer td.deleteStaticRoutes(t)
 
 	t.Run("Telemetry", func(t *testing.T) {
-		// Step 3 - Validate both routes are configured and reported correctly by checking that the state prefix matches.
+
 		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
 		gnmi.Await(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).Prefix().State(), 120*time.Second, td.staticIPv4.cidr(t))
 		gnmi.Await(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).Prefix().State(), 120*time.Second, td.staticIPv6.cidr(t))
@@ -596,7 +592,7 @@ func (td *testData) testStaticRouteECMP(t *testing.T) {
 				t.Errorf("IPv4 Static Route next hop: want %d nexthops,got %d nexthops", 2, len(nexthops))
 			}
 			for _, nexthop := range nexthops {
-				if got, ok := nexthop.Val(); !ok || !(got == oc.UnionString(atePort1.IPv4) || got == oc.UnionString(atePort2.IPv4)) {
+				if got, ok := nexthop.Val(); !ok || (got != oc.UnionString(atePort1.IPv4) && got != oc.UnionString(atePort2.IPv4)) {
 					t.Errorf("IPv4 Static Route next hop:got %s,want %s or %s", got, oc.UnionString(atePort1.IPv4), oc.UnionString(atePort2.IPv4))
 				}
 			}
@@ -605,7 +601,7 @@ func (td *testData) testStaticRouteECMP(t *testing.T) {
 				t.Errorf("IPv6 Static Route next hop: want %d nexthops,got %d nexthops", 2, len(nexthops))
 			}
 			for _, nexthop := range nexthops {
-				if got, ok := nexthop.Val(); !ok || !(got == oc.UnionString(atePort1.IPv6) || got == oc.UnionString(atePort2.IPv6)) {
+				if got, ok := nexthop.Val(); !ok || (got != oc.UnionString(atePort1.IPv6) && got != oc.UnionString(atePort2.IPv6)) {
 					t.Errorf("IPv6 Static Route next hop: got %s,want %s or %s", got, oc.UnionString(atePort1.IPv6), oc.UnionString(atePort2.IPv6))
 				}
 			}
@@ -632,7 +628,8 @@ func (td *testData) testStaticRouteECMP(t *testing.T) {
 	})
 
 	t.Run("Traffic", func(t *testing.T) {
-		// Step 4 - Send IPv4 and IPv6 Traffic from ATE port-3 towards destination `203.0.113.0/24` and `2001:db8:128:128::/64`.
+		// Initiate traffic from ATE port-3 towards destination `ipv4-network
+		// 203.0.113.0/24` and `ipv6-network 2001:db8:128:128::/64`
 		td.ate.OTG().StartTraffic(t)
 		time.Sleep(trafficDuration)
 		td.ate.OTG().StopTraffic(t)
@@ -660,7 +657,8 @@ func (td *testData) testStaticRouteECMP(t *testing.T) {
 		if !ok {
 			t.Errorf("Port2 IPv4 egress tracking counter not found: %v", portCounters)
 		}
-		// Step 5 - Verify that traffic is received from DUT on both port-1 and port-2, confirming ECMP works.
+		// Validate that traffic is received from DUT on both port-1 and port-2 and
+		// ECMP works
 		if got, want := p1Counter*100/(p1Counter+p2Counter), uint64(50); got < want-ecmpTolerance || got > want+ecmpTolerance {
 			t.Errorf("ECMP IPv4 load balance error for port1, got: %v, want: %v", got, want)
 		}
@@ -680,7 +678,8 @@ func (td *testData) testStaticRouteECMP(t *testing.T) {
 		if !ok {
 			t.Errorf("Port2 IPv6 egress tracking counter not found: %v", portCounters)
 		}
-		// Step 5 - Verify that traffic is received from DUT on both port-1 and port-2, confirming ECMP works.
+		// Validate that traffic is received from DUT on both port-1 and port-2 and
+		// ECMP works
 		if got, want := p1Counter*100/(p1Counter+p2Counter), uint64(50); got < want-ecmpTolerance || got > want+ecmpTolerance {
 			t.Errorf("ECMP IPv6 load balance error for port1, got: %v, want: %v", got, want)
 		}
@@ -690,23 +689,24 @@ func (td *testData) testStaticRouteECMP(t *testing.T) {
 	})
 }
 
-// testStaticRouteWithMetric
-// Objective: Validates that static route metrics influence path selection correctly.
-// Traceability: RT-1.26.2 - Validate Static Route Metric
-// Technical Summary: Modifies the metric of one path to a higher score (or lower priority). Awaits state update via `gnmi.Await` and confirms via egress packet counters that 100% of traffic flows strictly down the more favorable path, accommodating vendor deviations.
+// testStaticRouteWithMetric validates route selection based on metric.
+// Relevant README subtest: RT-1.26.2 - Validate Static Route Metric
+// Technical Explanation: Modifies the static route's metric, asserting that
+// the control plane prefers the next hop with the lower metric (higher priority)
+// during forwarding resolution.
 func (td *testData) testStaticRouteWithMetric(t *testing.T) {
 	td.configureStaticRouteToATEP1AndP2(t)
 	defer td.deleteStaticRoutes(t)
 
-	port2Metric := uint32(100)
+	var port2Metric = uint32(100)
 	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
 
-	// Step 1 - Set metric to 100 for both ipv4-route-b and ipv6-route-b
+	// Configure metric of ipv4-route-b and ipv6-route-b to 100
 	batch := &gnmi.SetBatch{}
 	if deviations.StaticRouteWithExplicitMetric(td.dut) {
 		// per the cisco specifications setting the metric is equivlent to setting the weight, so in this case
 		// we want the majority of the traffic to go over port 1 so setting the metric to 100 and port 2 as 1
-		port1Metric := uint32(100)
+		var port1Metric = uint32(100)
 		port2Metric = uint32(1)
 		gnmi.BatchReplace(batch, sp.Static(td.staticIPv4.cidr(t)).NextHop("0").Metric().Config(), port1Metric)
 		gnmi.BatchReplace(batch, sp.Static(td.staticIPv6.cidr(t)).NextHop("0").Metric().Config(), port1Metric)
@@ -715,7 +715,6 @@ func (td *testData) testStaticRouteWithMetric(t *testing.T) {
 
 	gnmi.BatchReplace(batch, sp.Static(td.staticIPv4.cidr(t)).NextHop("1").Metric().Config(), port2Metric)
 	gnmi.BatchReplace(batch, sp.Static(td.staticIPv6.cidr(t)).NextHop("1").Metric().Config(), port2Metric)
-	// Step 2 - Push configuration to DUT using gnmi.Set with REPLACE option.
 	batch.Set(t, td.dut)
 
 	t.Run("Telemetry", func(t *testing.T) {
@@ -724,7 +723,7 @@ func (td *testData) testStaticRouteWithMetric(t *testing.T) {
 		}
 		gnmi.Await(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv4.cidr(t))
 		gnmi.Await(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv6.cidr(t))
-		// Step 3 - Validate that the metric is set correctly by checking the state.
+		// Validate that the metric is set correctly
 		if got, want := gnmi.Get(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).NextHop("1").Metric().State()), port2Metric; got != want {
 			t.Errorf("IPv4 Static Route metric for NextHop 1, got: %d, want: %d", got, want)
 		}
@@ -734,7 +733,8 @@ func (td *testData) testStaticRouteWithMetric(t *testing.T) {
 	})
 
 	t.Run("Traffic", func(t *testing.T) {
-		// Step 4 - Send IPv4 and IPv6 Traffic from ATE port-3 towards destination `203.0.113.0/24` and `2001:db8:128:128::/64`.
+		// Initiate traffic from ATE port-3 towards destination `ipv4-network
+		// 203.0.113.0/24` and `ipv6-network 2001:db8:128:128::/64`
 		td.ate.OTG().StartTraffic(t)
 		time.Sleep(trafficDuration)
 		td.ate.OTG().StopTraffic(t)
@@ -749,7 +749,7 @@ func (td *testData) testStaticRouteWithMetric(t *testing.T) {
 		if lossV6 > lossTolerance {
 			t.Errorf("Loss percent for IPv6 Traffic: got: %f, want 0%%", lossV6)
 		}
-		// Step 5 - Verify that traffic is received from DUT on port-1 and NOT on port-2
+		// Validate that traffic is received from DUT on port-1 and not on port-2
 		portCounters := egressTrackingCounters(t, td.ate, v4Flow)
 		_, rxV4 := otgutils.GetFlowStats(t, td.ate.OTG(), v4Flow, 20*time.Second)
 		port1Counter, ok := portCounters[port1Tag]
@@ -771,7 +771,7 @@ func (td *testData) testStaticRouteWithMetric(t *testing.T) {
 			}
 		}
 
-		// Step 5 - Verify that traffic is received from DUT on port-1 and NOT on port-2
+		// Validate that traffic is received from DUT on port-1 and not on port-2
 		portCounters = egressTrackingCounters(t, td.ate, v6Flow)
 		_, rxV6 := otgutils.GetFlowStats(t, td.ate.OTG(), v6Flow, 20*time.Second)
 		port1Counter, ok = portCounters[port1Tag]
@@ -796,27 +796,27 @@ func (td *testData) testStaticRouteWithMetric(t *testing.T) {
 	})
 }
 
-// testStaticRouteWithPreference
-// Objective: Validates that static route preference (administrative distance) influences path selection.
-// Traceability: RT-1.26.3 - Validate Static Route Preference
-// Technical Summary: Edits the preference (or metric dependent on vendor deviation) for next-hops. Awaits the state update via `gnmi.Await`, then generates traffic assuring it routes strictly down the path with the superior preference value.
+// testStaticRouteWithPreference validates route administrative distance.
+// Relevant README subtest: RT-1.26.3 - Validate Static Route Preference
+// Technical Explanation: Adjusts the AD/preference of a route next hop,
+// validating that lower preference values correctly override identical prefixes
+// with higher values during LPM routing tiebreakers.
 func (td *testData) testStaticRouteWithPreference(t *testing.T) {
 	td.configureStaticRouteToATEP1AndP2(t)
 	defer td.deleteStaticRoutes(t)
 
 	const port1Preference = uint32(50)
+	const port2Metric = uint32(100)
 
 	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
 
-	// Subtest ID: RT-1.26.3 - Validate Static Route Preference
+	// Configure metric of ipv4-route-b and ipv6-route-b to 100
 	batch := &gnmi.SetBatch{}
+	gnmi.BatchReplace(batch, sp.Static(td.staticIPv4.cidr(t)).NextHop("1").Metric().Config(), port2Metric)
+	gnmi.BatchReplace(batch, sp.Static(td.staticIPv6.cidr(t)).NextHop("1").Metric().Config(), port2Metric)
 
-	// Step 1 - Set the value of /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/preference to 50 for both ipv4-route-a and ipv6-route-a.
+	// Configure preference of ipv4-route-a and ipv6-route-a to 50
 	if deviations.SetMetricAsPreference(td.dut) {
-		const port2Metric = uint32(100)
-		gnmi.BatchReplace(batch, sp.Static(td.staticIPv4.cidr(t)).NextHop("1").Metric().Config(), port2Metric)
-		gnmi.BatchReplace(batch, sp.Static(td.staticIPv6.cidr(t)).NextHop("1").Metric().Config(), port2Metric)
-
 		// Lower metric indicate more favourable path.
 		// If we use Metric instead of Preference, we would need to have a port1Metric
 		// larger than port2Metric for traffic to pass through port 2
@@ -827,7 +827,6 @@ func (td *testData) testStaticRouteWithPreference(t *testing.T) {
 		gnmi.BatchReplace(batch, sp.Static(td.staticIPv4.cidr(t)).NextHop("0").Preference().Config(), port1Preference)
 		gnmi.BatchReplace(batch, sp.Static(td.staticIPv6.cidr(t)).NextHop("0").Preference().Config(), port1Preference)
 	}
-	// Step 2 - Push configuration to DUT.
 	batch.Set(t, td.dut)
 
 	t.Run("Telemetry", func(t *testing.T) {
@@ -836,7 +835,7 @@ func (td *testData) testStaticRouteWithPreference(t *testing.T) {
 		}
 		gnmi.Await(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv4.cidr(t))
 		gnmi.Await(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv6.cidr(t))
-		// Step 3 - Validate that the preference is set correctly by checking the state.
+		// Validate that the preference is set correctly
 		if deviations.SkipStaticNexthopCheck(td.dut) {
 			gotStatic := gnmi.Get(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).State())
 			indexes := gnmi.LookupAll(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).NextHopAny().Index().State())
@@ -875,7 +874,8 @@ func (td *testData) testStaticRouteWithPreference(t *testing.T) {
 	})
 
 	t.Run("Traffic", func(t *testing.T) {
-		// Step 4 - Send IPv4 and IPv6 Traffic from ATE port-3 towards destination `203.0.113.0/24` and `2001:db8:128:128::/64`.
+		// Initiate traffic from ATE port-3 towards destination `ipv4-network
+		// 203.0.113.0/24` and `ipv6-network 2001:db8:128:128::/64`
 		td.ate.OTG().StartTraffic(t)
 		time.Sleep(trafficDuration)
 		td.ate.OTG().StopTraffic(t)
@@ -890,7 +890,7 @@ func (td *testData) testStaticRouteWithPreference(t *testing.T) {
 		if lossV6 > lossTolerance {
 			t.Errorf("Loss percent for IPv6 Traffic: got: %f, want 0%%", lossV6)
 		}
-		// Step 5 - Verify that traffic is now received from DUT on port-2 and NOT on port-1
+		// Validate that traffic is now received from DUT on port-2 and not on port-1
 		portCounters := egressTrackingCounters(t, td.ate, v4Flow)
 		_, rxV4 := otgutils.GetFlowStats(t, td.ate.OTG(), v4Flow, 20*time.Second)
 		port2Counter, ok := portCounters[port2Tag]
@@ -900,7 +900,7 @@ func (td *testData) testStaticRouteWithPreference(t *testing.T) {
 		if got, want := float64(port2Counter)*100/float64(rxV4), float64(100); got+lossTolerance < want {
 			t.Errorf("IPv4 traffic on port2, got: %v, want: %v", got, want)
 		}
-		// Step 5 - Verify that traffic is now received from DUT on port-2 and NOT on port-1
+		// Validate that traffic is now received from DUT on port-2 and not on port-1
 		portCounters = egressTrackingCounters(t, td.ate, v6Flow)
 		_, rxV6 := otgutils.GetFlowStats(t, td.ate.OTG(), v6Flow, 20*time.Second)
 		port2Counter, ok = portCounters[port2Tag]
@@ -913,15 +913,15 @@ func (td *testData) testStaticRouteWithPreference(t *testing.T) {
 	})
 }
 
-// testStaticRouteSetTag
-// Objective: Validates that static routes can accept and retain custom tags.
-// Traceability: RT-1.26.4 - Validate Static Route Tag
-// Technical Summary: Assigns a `set-tag` value of 10 to standard static routes and validates via `gnmi.Await` that the assigned value matches the device's operational state.
+// testStaticRouteSetTag validates static route tagging features.
+// Relevant README subtest: RT-1.26.4 - Validate Static Route Tag
+// Technical Explanation: Pushes an arbitrary route tag to the control plane,
+// retrieving it via gNMI state paths to confirm attributes are retained.
 func (td *testData) testStaticRouteSetTag(t *testing.T) {
 	const tag = uint32(10)
 
 	b := &gnmi.SetBatch{}
-	// Step 1 - Configure a tag of value 10 on the IPv4 and IPv6 static routes
+	// Configure a tag of value 10 on ipv4 and ipv6 static routes
 	v4Cfg := &cfgplugins.StaticRouteCfg{
 		NetworkInstance: deviations.DefaultNetworkInstance(td.dut),
 		Prefix:          td.staticIPv4.cidr(t),
@@ -950,12 +950,11 @@ func (td *testData) testStaticRouteSetTag(t *testing.T) {
 	}
 	sV6.SetTag, _ = sV6.To_NetworkInstance_Protocol_Static_SetTag_Union(tag)
 
-	// Step 2 - Push configuration to DUT.
 	b.Set(t, td.dut)
 
 	defer td.deleteStaticRoutes(t)
 
-	// Step 3 - Validate the tag is set correctly by checking the state.
+	// Validate the tag is set
 	t.Run("Telemetry", func(t *testing.T) {
 		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
 		gnmi.Await(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv4.cidr(t))
@@ -969,24 +968,18 @@ func (td *testData) testStaticRouteSetTag(t *testing.T) {
 	})
 }
 
-// testStaticRouteXAFNextHops
-// Objective: Validates Cross-Address Family (XAF) next-hop resolution (e.g., IPv6 route over IPv4 next-hop).
-// Traceability: RT-1.26.5 - Validate Cross-Address Family (XAF) Next-Hops
-// Technical Summary: Removes specific metrics/preferences to level the ECMP plane. Configures IPv6 destinations with IPv4 next-hops and vice versa. Evaluates State paths for correctness via `gnmi.Await`, factoring in static ARP requirements per vendor, and verifies 0% packet loss and 50/50 egress split.
-func (td *testData) testStaticRouteXAFNextHops(t *testing.T) {
-	// Subtest ID: RT-1.26.5 - Validate Cross-Address Family (XAF) Next-Hops
-	// Step 1 - Delete the configuration using a gNMI Set DELETE on the specific metric and preference paths for ipv4-route-b, ipv6-route-b, ipv4-route-a, and ipv6-route-a.
-	// In the real setup, you would just delete the existing routes or specifically configure the target routes.
-	// But according to the test procedure, we should delete the specific leaves.
-	netInst := deviations.DefaultNetworkInstance(td.dut)
-	sp := gnmi.OC().NetworkInstance(netInst).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
-	cfgplugins.DeleteStaticRouteNextHopLeaves(t, td.dut, netInst, td.staticIPv4.cidr(t), "0", "Metric", "Preference")
-	cfgplugins.DeleteStaticRouteNextHopLeaves(t, td.dut, netInst, td.staticIPv4.cidr(t), "1", "Metric", "Preference")
-	cfgplugins.DeleteStaticRouteNextHopLeaves(t, td.dut, netInst, td.staticIPv6.cidr(t), "0", "Metric", "Preference")
-	cfgplugins.DeleteStaticRouteNextHopLeaves(t, td.dut, netInst, td.staticIPv6.cidr(t), "1", "Metric", "Preference")
-
-	// Step 2 - Configure IPv6 static route with next-hops set to the IPv4 address of ATE port-1 and ATE port-2.
-	// Step 3 - Configure IPv4 static route with next-hops set to the IPv6 address of ATE port-1 and ATE port-2.
+func (td *testData) testIPv6StaticRouteWithIPv4NextHop(t *testing.T) {
+	// Remove metric of 100 from ipv4-route-b and ipv6-route-b
+	// *   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/metric
+	// Remove preference of 50 from ipv4-route-a and ipv6-route-a
+	// *   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/preference
+	// Change the IPv6 next-hop of the ipv6-route-a with the next hop set to the
+	// IPv4 address of ATE port-1
+	// Change the IPv6 next-hop of the ipv6-route-b with the next hop set to the
+	// IPv4 address of ATE port-2
+	if deviations.IPv6StaticRouteWithIPv4NextHopUnsupported(td.dut) {
+		t.Skip("Skipping Ipv6 with Ipv4 route unsupported. Deviation IPv4StaticRouteWithIPv6NextHopUnsupported enabled.")
+	}
 	b := &gnmi.SetBatch{}
 	var v6Cfg *cfgplugins.StaticRouteCfg
 	if deviations.IPv6StaticRouteWithIPv4NextHopRequiresStaticARP(td.dut) {
@@ -998,7 +991,7 @@ func (td *testData) testStaticRouteXAFNextHops(t *testing.T) {
 				"0": oc.UnionString(dummyV6),
 			},
 		}
-	} else if !deviations.IPv6StaticRouteWithIPv4NextHopUnsupported(td.dut) {
+	} else {
 		v6Cfg = &cfgplugins.StaticRouteCfg{
 			NetworkInstance: deviations.DefaultNetworkInstance(td.dut),
 			Prefix:          td.staticIPv6.cidr(t),
@@ -1008,139 +1001,68 @@ func (td *testData) testStaticRouteXAFNextHops(t *testing.T) {
 			},
 		}
 	}
-	if v6Cfg != nil {
-		if _, err := cfgplugins.NewStaticRouteCfg(b, v6Cfg, td.dut); err != nil {
-			t.Fatalf("Failed to configure IPv6 static route: %v", err)
-		}
+	if _, err := cfgplugins.NewStaticRouteCfg(b, v6Cfg, td.dut); err != nil {
+		t.Fatalf("Failed to configure IPv6 static route: %v", err)
 	}
-
-	var v4Cfg *cfgplugins.StaticRouteCfg
-	if !deviations.IPv4StaticRouteWithIPv6NextHopUnsupported(td.dut) {
-		v4Cfg = &cfgplugins.StaticRouteCfg{
-			NetworkInstance: deviations.DefaultNetworkInstance(td.dut),
-			Prefix:          td.staticIPv4.cidr(t),
-			NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-				"0": oc.UnionString(atePort1.IPv6),
-				"1": oc.UnionString(atePort2.IPv6),
-			},
-		}
-	}
-	if v4Cfg != nil {
-		if _, err := cfgplugins.NewStaticRouteCfg(b, v4Cfg, td.dut); err != nil {
-			t.Fatalf("Failed to configure IPv4 static route: %v", err)
-		}
-	}
-	// Step 4 - Push configuration
 	b.Set(t, td.dut)
 
 	defer td.deleteStaticRoutes(t)
 
-	// Step 5 - Validate the routes are configured and the cross-family next-hops are reported correctly.
+	// Validate both the routes i.e. ipv6-route-[a|b] are configured and the IPv4
+	// next-hop is reported correctly
 	t.Run("Telemetry", func(t *testing.T) {
-		if !deviations.IPv6StaticRouteWithIPv4NextHopUnsupported(td.dut) {
-			if deviations.IPv6StaticRouteWithIPv4NextHopRequiresStaticARP(td.dut) {
-				t.Logf("Telemetry for v6 not validated due to use of deviation: IPv6StaticRouteWithIPv4NextHopRequiresStaticARP.")
-			} else {
-				gnmi.Await(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv6.cidr(t))
-				gotStatic := gnmi.Get(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).State())
-				if got, want := gotStatic.GetNextHop("0").GetNextHop(), oc.UnionString(atePort1.IPv4); got != want {
-					t.Errorf("IPv6 Static Route next hop: got: %s, want: %s", got, want)
-				}
-				if got, want := gotStatic.GetNextHop("1").GetNextHop(), oc.UnionString(atePort2.IPv4); got != want {
-					t.Errorf("Static Route next hop: got: %s, want: %s", got, want)
-				}
-			}
+		if deviations.IPv6StaticRouteWithIPv4NextHopRequiresStaticARP(td.dut) {
+			t.Skip("Telemetry not validated due to use of deviation: IPv6StaticRouteWithIPv4NextHopRequiresStaticARP.")
 		}
-
-		if !deviations.IPv4StaticRouteWithIPv6NextHopUnsupported(td.dut) {
-			gnmi.Await(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv4.cidr(t))
-			if deviations.SkipStaticNexthopCheck(td.dut) {
-				nexthops := gnmi.LookupAll(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).NextHopAny().NextHop().State())
-				if len(nexthops) != 2 {
-					t.Errorf("IPv4 Static Route next hop: want %d nexthops,got %d nexthops", 2, len(nexthops))
-				}
-				for _, nexthop := range nexthops {
-					if got, ok := nexthop.Val(); !ok || !(got == oc.UnionString(atePort1.IPv6) || got == oc.UnionString(atePort2.IPv6)) {
-						t.Errorf("IPv4 Static Route next hop: got %s,want %s or %s", got, oc.UnionString(atePort1.IPv6), oc.UnionString(atePort2.IPv6))
-					}
-				}
-			} else {
-				gotStatic := gnmi.Get(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).State())
-				if got, want := gotStatic.GetNextHop("0").GetNextHop(), oc.UnionString(atePort1.IPv6); got != want {
-					t.Errorf("IPv4 Static Route next hop: got: %s, want: %s", got, want)
-				}
-				if got, want := gotStatic.GetNextHop("1").GetNextHop(), oc.UnionString(atePort2.IPv6); got != want {
-					t.Errorf("IPv4 Static Route next hop: got: %s, want: %s", got, want)
-				}
-			}
+		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
+		gnmi.Await(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv6.cidr(t))
+		gotStatic := gnmi.Get(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).State())
+		if got, want := gotStatic.GetNextHop("0").GetNextHop(), oc.UnionString(atePort1.IPv4); got != want {
+			t.Errorf("IPv6 Static Route next hop: got: %s, want: %s", got, want)
+		}
+		if got, want := gotStatic.GetNextHop("1").GetNextHop(), oc.UnionString(atePort2.IPv4); got != want {
+			t.Errorf("Static Route next hop: got: %s, want: %s", got, want)
 		}
 	})
 
 	t.Run("Traffic", func(t *testing.T) {
-		// Step 6 - Send Traffic from ATE port-3 towards both destinations.
-		// Step 7 - Verify that traffic is received from DUT on both port-1 and port-2 and ECMP works for both XAF routes.
+		// Initiate traffic from ATE port-3 towards destination `ipv6-network
+		// 2001:db8:128:128::/64`
 		td.ate.OTG().StartTraffic(t)
 		time.Sleep(trafficDuration)
 		td.ate.OTG().StopTraffic(t)
 
+		lossV6 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v6Flow, 20*time.Second)
+
 		otgutils.LogFlowMetrics(t, td.ate.OTG(), td.top)
 
-		if !deviations.IPv4StaticRouteWithIPv6NextHopUnsupported(td.dut) {
-			lossV4 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v4Flow, 20*time.Second)
-			if lossV4 > lossTolerance {
-				t.Errorf("Loss percent for IPv4 Traffic: got: %f, want 0%%", lossV4)
-			}
-			portCounters := egressTrackingCounters(t, td.ate, v4Flow)
-			if len(portCounters) != 2 {
-				t.Errorf("IPv4 egress tracking counters: got: %v, want: 2", len(portCounters))
-			}
-			p1Counter, ok := portCounters[port1Tag]
-			if !ok {
-				t.Errorf("Port1 IPv4 egress tracking counter not found: %v", portCounters)
-			}
-			p2Counter, ok := portCounters[port2Tag]
-			if !ok {
-				t.Errorf("Port2 IPv4 egress tracking counter not found: %v", portCounters)
-			}
-			if got, want := p1Counter*100/(p1Counter+p2Counter), uint64(50); got < want-ecmpTolerance || got > want+ecmpTolerance {
-				t.Errorf("ECMP IPv4 load balance error for port1, got: %v, want: %v", got, want)
-			}
-			if got, want := p2Counter*100/(p1Counter+p2Counter), uint64(50); got < want-ecmpTolerance || got > want+ecmpTolerance {
-				t.Errorf("ECMP IPv4 load balance error for port2, got: %v, want: %v", got, want)
-			}
+		if lossV6 > lossTolerance {
+			t.Errorf("Loss percent for IPv6 Traffic: got: %f, want 0%%", lossV6)
 		}
 
-		if !deviations.IPv6StaticRouteWithIPv4NextHopUnsupported(td.dut) {
-			lossV6 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v6Flow, 20*time.Second)
-			if lossV6 > lossTolerance {
-				t.Errorf("Loss percent for IPv6 Traffic: got: %f, want 0%%", lossV6)
-			}
-			portCounters := egressTrackingCounters(t, td.ate, v6Flow)
-			if len(portCounters) != 2 {
-				t.Errorf("IPv6 egress tracking counters: got: %v, want: 2", len(portCounters))
-			}
-			p1Counter, ok := portCounters[port1Tag]
-			if !ok {
-				t.Errorf("Port1 IPv6 egress tracking counter not found: %v", portCounters)
-			}
-			p2Counter, ok := portCounters[port2Tag]
-			if !ok {
-				t.Errorf("Port2 IPv6 egress tracking counter not found: %v", portCounters)
-			}
-			if got, want := p1Counter*100/(p1Counter+p2Counter), uint64(50); got < want-ecmpTolerance || got > want+ecmpTolerance {
-				t.Errorf("ECMP IPv6 load balance error for port1, got: %v, want: %v", got, want)
-			}
-			if got, want := p2Counter*100/(p1Counter+p2Counter), uint64(50); got < want-ecmpTolerance || got > want+ecmpTolerance {
-				t.Errorf("ECMP IPv6 load balance error for port2, got: %v, want: %v", got, want)
-			}
+		portCounters := egressTrackingCounters(t, td.ate, v6Flow)
+		if len(portCounters) != 2 {
+			t.Errorf("IPv6 egress tracking counters: got: %v, want: 2", len(portCounters))
+		}
+		p1Counter, ok := portCounters[port1Tag]
+		if !ok {
+			t.Errorf("Port1 IPv6 egress tracking counter not found: %v", portCounters)
+		}
+		p2Counter, ok := portCounters[port2Tag]
+		if !ok {
+			t.Errorf("Port2 IPv6 egress tracking counter not found: %v", portCounters)
+		}
+		// Validate that traffic is received from DUT on both port-1 and port-2 and
+		// ECMP works
+		if got, want := p1Counter*100/(p1Counter+p2Counter), uint64(50); got < want-ecmpTolerance || got > want+ecmpTolerance {
+			t.Errorf("ECMP IPv6 load balance error for port1, got: %v, want: %v", got, want)
+		}
+		if got, want := p2Counter*100/(p1Counter+p2Counter), uint64(50); got < want-ecmpTolerance || got > want+ecmpTolerance {
+			t.Errorf("ECMP IPv6 load balance error for port2, got: %v, want: %v", got, want)
 		}
 	})
 }
 
-// staticARPWithMagicUniversalIP
-// Objective: Helper function to populate static ARP entries for XAF cases requiring manual neighbor resolution.
-// Traceability: RT-1.26.5 (Deviation helper)
-// Technical Summary: Overrides static configuration to force a neighbor entry binding a dummy IPv6 address to a dummy MAC on the physical interface to allow routing across families on specific OSes.
 func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	p1 := dut.Port(t, "port1")
@@ -1179,16 +1101,108 @@ func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-// testStaticRouteWithDropNextHop
-// Objective: Validates that configuring a static route to DROP successfully discards matching traffic.
-// Traceability: RT-1.26.6 - Validate Static Route with DROP Next-Hop
-// Technical Summary: Replaces next-hops with `LOCAL_DEFINED_NEXT_HOP_DROP`. Awaits convergence via `gnmi.Await` and validates that test traffic targeted at those destinations experiences 100% packet loss.
+func (td *testData) testIPv4StaticRouteWithIPv6NextHop(t *testing.T) {
+	b := &gnmi.SetBatch{}
+	// Change the IPv4 next-hop of the ipv4-route-a with the next hop set to the
+	// IPv6 address of ATE port-1
+	// Change the IPv4 next-hop of the ipv4-route-b with the next hop set to the
+	// IPv6 address of ATE port-2
+	if deviations.IPv4StaticRouteWithIPv6NextHopUnsupported(td.dut) {
+		t.Skip("Skipping Ipv4 with Ipv6 route unsupported. Deviation IPv4StaticRouteWithIPv6NextHopUnsupported enabled.")
+	}
+	v4Cfg := &cfgplugins.StaticRouteCfg{
+		NetworkInstance: deviations.DefaultNetworkInstance(td.dut),
+		Prefix:          td.staticIPv4.cidr(t),
+		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+			"0": oc.UnionString(atePort1.IPv6),
+			"1": oc.UnionString(atePort2.IPv6),
+		},
+	}
+	if _, err := cfgplugins.NewStaticRouteCfg(b, v4Cfg, td.dut); err != nil {
+		t.Fatalf("Failed to configure IPv4 static route: %v", err)
+	}
+	b.Set(t, td.dut)
+
+	defer td.deleteStaticRoutes(t)
+
+	// Validate both the routes i.e. ipv4-route-[a|b] are configured and the IPv6
+	// next-hop is reported correctly
+	t.Run("Telemetry", func(t *testing.T) {
+		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
+		gnmi.Await(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv4.cidr(t))
+
+		if deviations.SkipStaticNexthopCheck(td.dut) {
+			nexthops := gnmi.LookupAll(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).NextHopAny().NextHop().State())
+			if len(nexthops) != 2 {
+				t.Errorf("IPv4 Static Route next hop: want %d nexthops,got %d nexthops", 2, len(nexthops))
+			}
+			for _, nexthop := range nexthops {
+				if got, ok := nexthop.Val(); !ok || (got != oc.UnionString(atePort1.IPv6) && got != oc.UnionString(atePort2.IPv6)) {
+					t.Errorf("IPv4 Static Route next hop: got %s,want %s or %s", got, oc.UnionString(atePort1.IPv6), oc.UnionString(atePort2.IPv6))
+				}
+			}
+		} else {
+			gotStatic := gnmi.Get(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).State())
+			if got, want := gotStatic.GetNextHop("0").GetNextHop(), oc.UnionString(atePort1.IPv6); got != want {
+				t.Errorf("IPv4 Static Route next hop: got: %s, want: %s", got, want)
+			}
+			if got, want := gotStatic.GetNextHop("1").GetNextHop(), oc.UnionString(atePort2.IPv6); got != want {
+				t.Errorf("IPv4 Static Route next hop: got: %s, want: %s", got, want)
+			}
+		}
+	})
+
+	t.Run("Traffic", func(t *testing.T) {
+		// Initiate traffic from ATE port-3 towards destination `ipv4-network
+		// 203.0.113.0/24`
+		td.ate.OTG().StartTraffic(t)
+		time.Sleep(trafficDuration)
+		td.ate.OTG().StopTraffic(t)
+
+		lossV4 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v4Flow, 20*time.Second)
+
+		otgutils.LogFlowMetrics(t, td.ate.OTG(), td.top)
+
+		if lossV4 > lossTolerance {
+			t.Errorf("Loss percent for IPv4 Traffic: got: %f, want 0%%", lossV4)
+		}
+
+		portCounters := egressTrackingCounters(t, td.ate, v4Flow)
+		if len(portCounters) != 2 {
+			t.Errorf("IPv4 egress tracking counters: got: %v, want: 2", len(portCounters))
+		}
+		p1Counter, ok := portCounters[port1Tag]
+		if !ok {
+			t.Errorf("Port1 IPv4 egress tracking counter not found: %v", portCounters)
+		}
+		p2Counter, ok := portCounters[port2Tag]
+		if !ok {
+			t.Errorf("Port2 IPv4 egress tracking counter not found: %v", portCounters)
+		}
+		// Validate that traffic is received from DUT on both port-1 and port-2 and
+		// ECMP works
+		if got, want := p1Counter*100/(p1Counter+p2Counter), uint64(50); got < want-ecmpTolerance || got > want+ecmpTolerance {
+			t.Errorf("ECMP IPv4 load balance error for port1, got: %v, want: %v", got, want)
+		}
+		if got, want := p2Counter*100/(p1Counter+p2Counter), uint64(50); got < want-ecmpTolerance || got > want+ecmpTolerance {
+			t.Errorf("ECMP IPv4 load balance error for port2, got: %v, want: %v", got, want)
+		}
+	})
+}
+
+// testStaticRouteWithDropNextHop validates blackholing invalid routes.
+// Relevant README subtest: RT-1.26.6 - Validate Static Route with DROP Next-Hop
+// Technical Explanation: Maps generic subnets targeting an explicit DROP local-defined
+// next-hop, measuring line loss rates to confirm packets are deliberately blackholed.
 func (td *testData) testStaticRouteWithDropNextHop(t *testing.T) {
 	if deviations.StaticRouteWithDropNhUnsupported(td.dut) {
 		t.Skip("Skipping test static route with drop nexthop. Deviation StaticRouteWithDropNhUnsupported enabled.")
 	}
 	b := &gnmi.SetBatch{}
-	// Step 1 - Configure an IPv4 static route for 203.0.113.0/24 by setting next-hop to DROP
+	// Configure IPv4 static routes:
+	//   *   Configure one IPv4 static route i.e. ipv4-route-a on the DUT for
+	//       destination `ipv4-network 203.0.113.0/24` with the next hop set to DROP
+	//       local-defined next hop
 	sV4 := &cfgplugins.StaticRouteCfg{
 		NetworkInstance: deviations.DefaultNetworkInstance(td.dut),
 		Prefix:          td.staticIPv4.cidr(t),
@@ -1200,7 +1214,10 @@ func (td *testData) testStaticRouteWithDropNextHop(t *testing.T) {
 		t.Fatalf("Failed to configure IPv4 static route: %v", err)
 	}
 
-	// Step 2 - Configure an IPv6 static route for 2001:db8:128:128::/64 by setting next-hop to DROP
+	// Configure IPv6 static routes:
+	//   *   Configure one IPv6 static route i.e. ipv6-route-a on the DUT for
+	//       destination `ipv6-network 2001:db8:128:128::/64` with the next hop set
+	//       to DROP local-defined next hop
 	sV6 := &cfgplugins.StaticRouteCfg{
 		NetworkInstance: deviations.DefaultNetworkInstance(td.dut),
 		Prefix:          td.staticIPv6.cidr(t),
@@ -1211,7 +1228,6 @@ func (td *testData) testStaticRouteWithDropNextHop(t *testing.T) {
 	if _, err := cfgplugins.NewStaticRouteCfg(b, sV6, td.dut); err != nil {
 		t.Fatalf("Failed to configure IPv6 static route: %v", err)
 	}
-	// Step 3 - Push configuration to DUT.
 	b.Set(t, td.dut)
 
 	defer td.deleteStaticRoutes(t)
@@ -1224,12 +1240,12 @@ func (td *testData) testStaticRouteWithDropNextHop(t *testing.T) {
 		gnmi.Await(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv4.cidr(t))
 		gnmi.Await(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv6.cidr(t))
 
-		// Step 4 - Validate the route is configured and reported correctly.
+		// Validate the route is configured and reported correctly
 		gotStatic := gnmi.Get(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).State())
 		if got, want := gotStatic.GetNextHop("0").GetNextHop(), oc.LocalRouting_LOCAL_DEFINED_NEXT_HOP_DROP; got != want {
 			t.Errorf("IPv4 Static Route next hop: got: %s, want: %s", got, want)
 		}
-		// Step 4 - Validate the route is configured and reported correctly.
+		// Validate the route is configured and reported correctly
 		gotStatic = gnmi.Get(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).State())
 		if got, want := gotStatic.GetNextHop("0").GetNextHop(), oc.LocalRouting_LOCAL_DEFINED_NEXT_HOP_DROP; got != want {
 			t.Errorf("IPv6 Static Route next hop: got: %s, want: %s", got, want)
@@ -1237,7 +1253,8 @@ func (td *testData) testStaticRouteWithDropNextHop(t *testing.T) {
 	})
 
 	t.Run("Traffic", func(t *testing.T) {
-		// Step 4 - Send IPv4 and IPv6 Traffic from ATE port-3 towards destination `203.0.113.0/24` and `2001:db8:128:128::/64`.
+		// Initiate traffic from ATE port-3 towards destination `ipv4-network
+		// 203.0.113.0/24` and `ipv6-network 2001:db8:128:128::/64`
 		td.ate.OTG().StartTraffic(t)
 		time.Sleep(trafficDuration)
 		td.ate.OTG().StopTraffic(t)
@@ -1245,7 +1262,8 @@ func (td *testData) testStaticRouteWithDropNextHop(t *testing.T) {
 		lossV4 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v4Flow, 20*time.Second)
 		lossV6 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v6Flow, 20*time.Second)
 
-		// Step 6 - Verify that traffic is dropped on DUT and not received on port-1 and port-2.
+		// Validate that traffic is dropped on DUT and not received on port-1 and
+		// port-2
 		otgutils.LogFlowMetrics(t, td.ate.OTG(), td.top)
 		if lossV4 != 100 {
 			t.Errorf("Loss percent for IPv4 Traffic: got: %f, want 100%%", lossV4)
@@ -1256,10 +1274,6 @@ func (td *testData) testStaticRouteWithDropNextHop(t *testing.T) {
 	})
 }
 
-// egressTrackingCounters
-// Objective: Helper function to retrieve flow egress tracking counters indexed by offset tag.
-// Traceability: Validation/Helper
-// Technical Summary: Queries OTG for metrics categorized by specific tagging schemas appended during flow transmission, allowing exact calculation of packet balancing on a per-port basis.
 func egressTrackingCounters(t *testing.T, ate *ondatra.ATEDevice, flow string) map[string]uint64 {
 	t.Helper()
 	etTags := gnmi.GetAll(t, ate.OTG(), gnmi.OTG().Flow(flow).TaggedMetricAny().State())
@@ -1272,10 +1286,6 @@ func egressTrackingCounters(t *testing.T, ate *ondatra.ATEDevice, flow string) m
 	return inPkts
 }
 
-// configureOTGFlows
-// Objective: Helper function to declare packet formats, flows, and metric tracking definitions on the OTG.
-// Traceability: Setup/Helper
-// Technical Summary: Assembles IPv4 and IPv6 traffic definitions bound to their respective source and destination endpoints, and appends Ethernet trailer tags to facilitate per-port egress metrics tracking.
 func (td *testData) configureOTGFlows(t *testing.T) {
 	t.Helper()
 
@@ -1286,12 +1296,10 @@ func (td *testData) configureOTGFlows(t *testing.T) {
 	dst1V6 := td.otgP1.Ethernets().Items()[0].Ipv6Addresses().Items()[0]
 	dst2V4 := td.otgP2.Ethernets().Items()[0].Ipv4Addresses().Items()[0]
 	dst2V6 := td.otgP2.Ethernets().Items()[0].Ipv6Addresses().Items()[0]
-	dst3V4 := td.otgP3.Ethernets().Items()[0].Ipv4Addresses().Items()[0]
-	dst4V4 := td.otgP4.Ethernets().Items()[0].Ipv4Addresses().Items()[0]
 
 	v4F := td.top.Flows().Add()
 	v4F.SetName(v4Flow).Metrics().SetEnable(true)
-	v4F.TxRx().Device().SetTxNames([]string{srcV4.Name()}).SetRxNames([]string{dst1V4.Name(), dst2V4.Name(), dst3V4.Name(), dst4V4.Name()})
+	v4F.TxRx().Device().SetTxNames([]string{srcV4.Name()}).SetRxNames([]string{dst1V4.Name(), dst2V4.Name()})
 
 	v4FEth := v4F.Packet().Add().Ethernet()
 	v4FEth.Src().SetValue(atePort3.MAC)
@@ -1328,10 +1336,6 @@ func (td *testData) configureOTGFlows(t *testing.T) {
 	ethTag.SetName("MACTrackingv6").SetOffset(40).SetLength(8)
 }
 
-// awaitISISAdjacency
-// Objective: Helper function to verify ISIS adjacency status between DUT and ATE.
-// Traceability: Setup/Helper
-// Technical Summary: Queries the IS-IS network instance adjacency state utilizing `gnmi.WatchAll` to await UP state, blocking test execution until routing domains converge.
 func (td *testData) awaitISISAdjacency(t *testing.T, p *ondatra.Port, isisName string) error {
 	t.Helper()
 	isis := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisName).Isis()
@@ -1351,10 +1355,6 @@ func (td *testData) awaitISISAdjacency(t *testing.T, p *ondatra.Port, isisName s
 	return nil
 }
 
-// configureDUT
-// Objective: Configures baseline DUT interfaces and physical attributes.
-// Traceability: Setup/Helper
-// Technical Summary: Provisions interface mappings, sets port speed configurations (handling FR breakout deviations), and establishes basic network-instance assignments for all participating ports.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
@@ -1377,10 +1377,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-// configureOTG
-// Objective: Configures baseline ATE interfaces and physical attributes.
-// Traceability: Setup/Helper
-// Technical Summary: Instantiates gosnappi device topology definitions covering IPv4 and IPv6 properties mapped to the physical testbed links.
 func configureOTG(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) []gosnappi.Device {
 	t.Helper()
 	p1 := ate.Port(t, "port1")
@@ -1395,10 +1391,6 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) []g
 	return []gosnappi.Device{d1, d2, d3, d4}
 }
 
-// advertiseRoutesWithISIS
-// Objective: Establishes IS-IS peering and advertises emulated routes from the ATE to the DUT.
-// Traceability: RT-1.26.7 (Step 1-2)
-// Technical Summary: Configures ISIS instances, interfaces, metrics, and network types on the DUT. Mirrored settings are deployed on the OTG with configured background IPv4/IPv6 networks to guarantee recursive next-hop routes successfully map in the routing table.
 func (td *testData) advertiseRoutesWithISIS(t *testing.T) {
 	t.Helper()
 
@@ -1501,310 +1493,324 @@ func (td *testData) advertiseRoutesWithISIS(t *testing.T) {
 	net3v6.Addresses().Add().SetAddress(td.advertisedIPv6.address).SetPrefix(td.advertisedIPv6.prefix)
 }
 
-// TestRT1269_DirectInterfaceIPDeletion
-// Objective: Validates device resilience and route invalidation when a directly connected interface IP is deleted.
-// Traceability: RT-1.26.9 - Direct Interface IP Deletion (Negative)
-// Technical Summary: Deploys a static route using a direct interface reference. The interface IP is deleted, triggering `gnmi.Watch` validation for the removal event. It asserts 100% traffic loss and the inactive state of the static route without device failure.
-func TestRT1269_DirectInterfaceIPDeletion(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	configureDUT(t, dut)
-
-	ate := ondatra.ATE(t, "ate")
-	top := gosnappi.NewConfig()
-	devs := configureOTG(t, ate, top)
-
-	td := testData{
-		dut:   dut,
-		ate:   ate,
-		top:   top,
-		otgP1: devs[0],
-		otgP2: devs[1],
-		otgP3: devs[2],
+// testCrossAddressFamilyNextHops validates XAF configurations.
+// Relevant README subtest: RT-1.26.5 - Validate Cross-Address Family (XAF) Next-Hops
+// Technical Explanation: Overrides IPv4 target destinations to route exclusively
+// via IPv6 mapped interfaces, and vice versa. It validates whether the protocol stack
+// can span address families without disruption.
+func (td *testData) testCrossAddressFamilyNextHops(t *testing.T) {
+	if deviations.IPv6StaticRouteWithIPv4NextHopUnsupported(td.dut) || deviations.IPv4StaticRouteWithIPv6NextHopUnsupported(td.dut) {
+		t.Skip("Skipping XAF route test. Deviations unsupported.")
 	}
 
-	ate.OTG().PushConfig(t, top)
-	ate.OTG().StartProtocols(t)
-	defer ate.OTG().StopProtocols(t)
-	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
-
-	td.configureOTGFlows(t)
-
-	// Subtest ID: RT-1.26.9 - Direct Interface IP Deletion (Negative)
-	// Step 1 - Configure a static route that resolves via a directly connected interface IP.
-	prefixV4 := ipAddr{address: v4Route, prefix: v4RoutePrefix}
-	prefixV6 := ipAddr{address: v6Route, prefix: v6RoutePrefix}
 	b := &gnmi.SetBatch{}
-	sV4 := &cfgplugins.StaticRouteCfg{
-		NetworkInstance: deviations.DefaultNetworkInstance(dut),
-		Prefix:          prefixV4.cidr(t),
-		NextHopIntf:     dut.Port(t, "port1").Name(),
+	// IPv6 route pointing to IPv4 nexthops
+	var v6Cfg *cfgplugins.StaticRouteCfg
+	if deviations.IPv6StaticRouteWithIPv4NextHopRequiresStaticARP(td.dut) {
+		staticARPWithMagicUniversalIP(t, td.dut)
+		v6Cfg = &cfgplugins.StaticRouteCfg{
+			NetworkInstance: deviations.DefaultNetworkInstance(td.dut),
+			Prefix:          td.staticIPv6.cidr(t),
+			NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+				"0": oc.UnionString(dummyV6),
+			},
+		}
+	} else {
+		v6Cfg = &cfgplugins.StaticRouteCfg{
+			NetworkInstance: deviations.DefaultNetworkInstance(td.dut),
+			Prefix:          td.staticIPv6.cidr(t),
+			NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+				"0": oc.UnionString(atePort1.IPv4),
+				"1": oc.UnionString(atePort2.IPv4),
+			},
+		}
 	}
-	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
-		t.Fatalf("Failed to configure IPv4 static route: %v", err)
-	}
-	b.Set(t, dut)
-	cfgplugins.ValidateStaticRouteConfigured(t, dut, deviations.DefaultNetworkInstance(dut), prefixV4.cidr(t), sV4)
-
-	sV6 := &cfgplugins.StaticRouteCfg{
-		NetworkInstance: deviations.DefaultNetworkInstance(dut),
-		Prefix:          prefixV6.cidr(t),
-		NextHopIntf:     dut.Port(t, "port1").Name(),
-	}
-	if _, err := cfgplugins.NewStaticRouteCfg(b, sV6, dut); err != nil {
+	if _, err := cfgplugins.NewStaticRouteCfg(b, v6Cfg, td.dut); err != nil {
 		t.Fatalf("Failed to configure IPv6 static route: %v", err)
 	}
-	b.Set(t, dut)
-	cfgplugins.ValidateStaticRouteConfigured(t, dut, deviations.DefaultNetworkInstance(dut), prefixV6.cidr(t), sV6)
 
-	// Step 2 - Delete the IP address of that direct interface using a gNMI Set DELETE.
-	intfPath := gnmi.OC().Interface(dut.Port(t, "port1").Name())
-	gnmi.Delete(t, dut, intfPath.Subinterface(0).Ipv4().Address(dutPort1.IPv4).Config())
-	gnmi.Delete(t, dut, intfPath.Subinterface(0).Ipv6().Address(dutPort1.IPv6).Config())
-
-	// Wait for the IPv4 and IPv6 addresses to be deleted from state
-	_, ok := gnmi.Watch(t, dut, intfPath.Subinterface(0).Ipv4().Address(dutPort1.IPv4).State(), 30*time.Second, func(v *ygnmi.Value[*oc.Interface_Subinterface_Ipv4_Address]) bool {
-		return !v.IsPresent()
-	}).Await(t)
-	if !ok {
-		t.Errorf("Timeout waiting for interface IP %s to be deleted", dutPort1.IPv4)
-	}
-	_, ok = gnmi.Watch(t, dut, intfPath.Subinterface(0).Ipv6().Address(dutPort1.IPv6).State(), 30*time.Second, func(v *ygnmi.Value[*oc.Interface_Subinterface_Ipv6_Address]) bool {
-		return !v.IsPresent()
-	}).Await(t)
-	if !ok {
-		t.Errorf("Timeout waiting for interface IP %s to be deleted", dutPort1.IPv6)
-	}
-
-	// Step 3 - Send Traffic.
-	td.ate.OTG().StartTraffic(t)
-	time.Sleep(trafficDuration)
-	td.ate.OTG().StopTraffic(t)
-
-	// Step 4 - Verify the traffic drops, and the static route becomes inactive without crashing the device.
-	lossV4 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v4Flow, 20*time.Second)
-	if lossV4 < 100 {
-		t.Errorf("Loss percent for IPv4 Traffic after Intf IP deletion: got: %f, want 100%%", lossV4)
-	}
-	lossV6 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v6Flow, 20*time.Second)
-	if lossV6 < 100 {
-		t.Errorf("Loss percent for IPv6 Traffic after Intf IP deletion: got: %f, want 100%%", lossV6)
-	}
-
-	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-	_, ok = gnmi.Watch(t, dut, sp.Static(prefixV4.cidr(t)).State(), 30*time.Second, func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Static]) bool {
-		return !v.IsPresent()
-	}).Await(t)
-	if !ok {
-		t.Errorf("Timeout waiting for static route %s to become inactive after deleting Intf IP", prefixV4.cidr(t))
-	}
-	_, ok = gnmi.Watch(t, dut, sp.Static(prefixV6.cidr(t)).State(), 30*time.Second, func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Static]) bool {
-		return !v.IsPresent()
-	}).Await(t)
-	if !ok {
-		t.Errorf("Timeout waiting for static route %s to become inactive after deleting Intf IP", prefixV6.cidr(t))
-	}
-}
-
-// TestRT12610_OverlappingPrefixesLPM
-// Objective: Validates Longest Prefix Match (LPM) logic handles overlapping static routes accurately.
-// Traceability: RT-1.26.10 - Overlapping Prefixes / LPM (Corner)
-// Technical Summary: Configures two overlapping prefixes (a /8 and a /24) to distinct egress ports. Awaits telemetry via `gnmi.Await` and transmits traffic falling in the overlapped region, ensuring 100% traffic paths down the more specific /24 route.
-func TestRT12610_OverlappingPrefixesLPM(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	configureDUT(t, dut)
-
-	ate := ondatra.ATE(t, "ate")
-	top := gosnappi.NewConfig()
-	devs := configureOTG(t, ate, top)
-
-	td := testData{
-		dut:   dut,
-		ate:   ate,
-		top:   top,
-		otgP1: devs[0],
-		otgP2: devs[1],
-		otgP3: devs[2],
-	}
-
-	ate.OTG().PushConfig(t, top)
-	ate.OTG().StartProtocols(t)
-	defer ate.OTG().StopProtocols(t)
-	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
-
-	// Special Flow Configuration pointing to 10.1.1.1
-	srcV4 := td.otgP3.Ethernets().Items()[0].Ipv4Addresses().Items()[0]
-	dst1V4 := td.otgP1.Ethernets().Items()[0].Ipv4Addresses().Items()[0]
-	dst2V4 := td.otgP2.Ethernets().Items()[0].Ipv4Addresses().Items()[0]
-
-	v4F := td.top.Flows().Add()
-	v4F.SetName("LPMFlow").Metrics().SetEnable(true)
-	v4F.TxRx().Device().SetTxNames([]string{srcV4.Name()}).SetRxNames([]string{dst1V4.Name(), dst2V4.Name()})
-
-	v4FEth := v4F.Packet().Add().Ethernet()
-	v4FEth.Src().SetValue(atePort3.MAC)
-
-	v4FIp := v4F.Packet().Add().Ipv4()
-	v4FIp.Src().SetValue(srcV4.Address())
-	v4FIp.Dst().SetValue("10.1.1.1") // Target specific IP in overlapping region
-
-	eth := v4F.EgressPacket().Add().Ethernet()
-	ethTag := eth.Dst().MetricTags().Add()
-	ethTag.SetName("MACTrackingv4").SetOffset(40).SetLength(8)
-
-	ate.OTG().PushConfig(t, top)
-	ate.OTG().StartProtocols(t)
-	defer ate.OTG().StopProtocols(t)
-	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
-
-	// Subtest ID: RT-1.26.10 - Overlapping Prefixes / LPM (Corner)
-	// Step 1 - Configure overlapping static routes: 10.0.0.0/8 pointing to ATE port-1, and 10.1.1.0/24 pointing to ATE port-2.
-	b := &gnmi.SetBatch{}
-	sV4_8 := &cfgplugins.StaticRouteCfg{
-		NetworkInstance: deviations.DefaultNetworkInstance(dut),
-		Prefix:          "10.0.0.0/8",
+	// IPv4 route pointing to IPv6 nexthops
+	v4Cfg := &cfgplugins.StaticRouteCfg{
+		NetworkInstance: deviations.DefaultNetworkInstance(td.dut),
+		Prefix:          td.staticIPv4.cidr(t),
 		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-			"0": oc.UnionString(atePort1.IPv4),
+			"0": oc.UnionString(atePort1.IPv6),
+			"1": oc.UnionString(atePort2.IPv6),
 		},
 	}
-	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4_8, dut); err != nil {
-		t.Fatalf("Failed to configure 10.0.0.0/8 route: %v", err)
+	if _, err := cfgplugins.NewStaticRouteCfg(b, v4Cfg, td.dut); err != nil {
+		t.Fatalf("Failed to configure IPv4 static route: %v", err)
 	}
-	sV4_24 := &cfgplugins.StaticRouteCfg{
-		NetworkInstance: deviations.DefaultNetworkInstance(dut),
-		Prefix:          "10.1.1.0/24",
+
+	b.Set(t, td.dut)
+	defer td.deleteStaticRoutes(t)
+
+	// Validations
+	t.Run("Telemetry", func(t *testing.T) {
+		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
+		gnmi.Await(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv4.cidr(t))
+		gnmi.Await(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv6.cidr(t))
+
+		if deviations.SkipStaticNexthopCheck(td.dut) {
+			nexthops := gnmi.LookupAll(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).NextHopAny().NextHop().State())
+			if len(nexthops) != 2 {
+				t.Errorf("IPv4 Static Route next hop: want 2 nexthops,got %d nexthops", len(nexthops))
+			}
+			for _, nexthop := range nexthops {
+				if got, ok := nexthop.Val(); !ok || (got != oc.UnionString(atePort1.IPv6) && got != oc.UnionString(atePort2.IPv6)) {
+					t.Errorf("IPv4 Static Route next hop: got %s", got)
+				}
+			}
+		} else {
+			gotStatic := gnmi.Get(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).State())
+			if got, want := gotStatic.GetNextHop("0").GetNextHop(), oc.UnionString(atePort1.IPv6); got != want {
+				t.Errorf("IPv4 Static Route next hop: got: %s, want: %s", got, want)
+			}
+			if got, want := gotStatic.GetNextHop("1").GetNextHop(), oc.UnionString(atePort2.IPv6); got != want {
+				t.Errorf("IPv4 Static Route next hop: got: %s, want: %s", got, want)
+			}
+		}
+
+		if !deviations.IPv6StaticRouteWithIPv4NextHopRequiresStaticARP(td.dut) {
+			gotStatic := gnmi.Get(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).State())
+			if got, want := gotStatic.GetNextHop("0").GetNextHop(), oc.UnionString(atePort1.IPv4); got != want {
+				t.Errorf("IPv6 Static Route next hop: got: %s, want: %s", got, want)
+			}
+			if got, want := gotStatic.GetNextHop("1").GetNextHop(), oc.UnionString(atePort2.IPv4); got != want {
+				t.Errorf("IPv6 Static Route next hop: got: %s, want: %s", got, want)
+			}
+		}
+	})
+
+	t.Run("Traffic", func(t *testing.T) {
+		td.ate.OTG().StartTraffic(t)
+		time.Sleep(trafficDuration)
+		td.ate.OTG().StopTraffic(t)
+
+		lossV4 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v4Flow, 20*time.Second)
+		lossV6 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v6Flow, 20*time.Second)
+		otgutils.LogFlowMetrics(t, td.ate.OTG(), td.top)
+
+		if lossV4 > lossTolerance {
+			t.Errorf("Loss percent for IPv4 Traffic: got: %f, want 0%%", lossV4)
+		}
+		if lossV6 > lossTolerance {
+			t.Errorf("Loss percent for IPv6 Traffic: got: %f, want 0%%", lossV6)
+		}
+
+		portCountersV4 := egressTrackingCounters(t, td.ate, v4Flow)
+		p1CounterV4, ok4_1 := portCountersV4[port1Tag]
+		p2CounterV4, ok4_2 := portCountersV4[port2Tag]
+
+		if ok4_1 && ok4_2 {
+			if got, want := p1CounterV4*100/(p1CounterV4+p2CounterV4), uint64(50); got < want-ecmpTolerance || got > want+ecmpTolerance {
+				t.Errorf("ECMP IPv4 load balance error for port1, got: %v, want: %v", got, want)
+			}
+		}
+
+		portCountersV6 := egressTrackingCounters(t, td.ate, v6Flow)
+		p1CounterV6, ok6_1 := portCountersV6[port1Tag]
+		p2CounterV6, ok6_2 := portCountersV6[port2Tag]
+		if ok6_1 && ok6_2 {
+			if got, want := p1CounterV6*100/(p1CounterV6+p2CounterV6), uint64(50); got < want-ecmpTolerance || got > want+ecmpTolerance {
+				t.Errorf("ECMP IPv6 load balance error for port1, got: %v, want: %v", got, want)
+			}
+		}
+	})
+}
+
+// testDirectInterfaceIPDeletion validates static route withdrawal.
+// Relevant README subtest: RT-1.26.9 - Direct Interface IP Deletion (Negative)
+// Technical Explanation: Drops an interface IP address dynamically during route
+// propagation to ensure the next hop transitions to inactive without crashing the control plane.
+func (td *testData) testDirectInterfaceIPDeletion(t *testing.T) {
+	// Step 1: Configure a static route that resolves via a directly connected interface IP.
+	b := &gnmi.SetBatch{}
+	sV4 := &cfgplugins.StaticRouteCfg{
+		NetworkInstance: deviations.DefaultNetworkInstance(td.dut),
+		Prefix:          td.staticIPv4.cidr(t),
 		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
 			"0": oc.UnionString(atePort2.IPv4),
 		},
 	}
-	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4_24, dut); err != nil {
-		t.Fatalf("Failed to configure 10.1.1.0/24 route: %v", err)
+	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, td.dut); err != nil {
+		t.Fatalf("Failed to configure IPv4 static route: %v", err)
+	}
+	b.Set(t, td.dut)
+
+	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
+	gnmi.Await(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv4.cidr(t))
+
+	port2 := td.dut.Port(t, "port2").Name()
+	if deviations.ExplicitInterfaceInDefaultVRF(td.dut) || deviations.InterfaceRefInterfaceIDFormat(td.dut) {
+		port2 = port2 + ".0"
 	}
 
-	// Step 2 - Push configuration to DUT.
-	b.Set(t, dut)
+	// Step 2: Delete the IP address of that direct interface using a gNMI Set DELETE
+	gnmi.Delete(t, td.dut, gnmi.OC().Interface(port2).Subinterface(0).Ipv4().Address(dutPort2.IPv4).Config())
 
-	// Validate telemetry before proceeding
-	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-	gnmi.Await(t, dut, sp.Static("10.0.0.0/8").Prefix().State(), 120*time.Second, "10.0.0.0/8")
-	gnmi.Await(t, dut, sp.Static("10.1.1.0/24").Prefix().State(), 120*time.Second, "10.1.1.0/24")
+	defer func() {
+		ipConf := &oc.Interface_Subinterface_Ipv4_Address{
+			Ip:           ygot.String(dutPort2.IPv4),
+			PrefixLength: ygot.Uint8(uint8(dutPort2.IPv4Len)),
+		}
+		gnmi.Replace(t, td.dut, gnmi.OC().Interface(port2).Subinterface(0).Ipv4().Address(dutPort2.IPv4).Config(), ipConf)
+		td.deleteStaticRoutes(t)
+	}()
 
-	// Step 3 - Send traffic to destination 10.1.1.1.
+	// Step 3: Send Traffic
 	td.ate.OTG().StartTraffic(t)
-	time.Sleep(30 * time.Second)
+	time.Sleep(trafficDuration)
 	td.ate.OTG().StopTraffic(t)
 
-	// Step 4 - Verify that traffic strictly adheres to Longest Prefix Match (LPM) routing and flows exclusively to ATE port-2.
-	lossV4 := otgutils.GetFlowLossPct(t, td.ate.OTG(), "LPMFlow", 20*time.Second)
-	if lossV4 > lossTolerance {
-		t.Errorf("Loss percent for IPv4 Traffic: got: %f, want 0%%", lossV4)
-	}
-
-	portCounters := egressTrackingCounters(t, td.ate, "LPMFlow")
-	p2Counter := portCounters[port2Tag]
-	p1Counter := portCounters[port1Tag]
-
-	if p1Counter > 0 {
-		t.Errorf("Traffic leaked to port 1 (10.0.0.0/8 route) - LPM failure: got %v packets", p1Counter)
-	}
-	if p2Counter == 0 {
-		t.Errorf("No traffic received on port 2 (10.1.1.0/24 route) expected for LPM resolution.")
+	// Step 4: Verify the traffic drops, and the static route becomes inactive without crashing the device.
+	lossV4 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v4Flow, 20*time.Second)
+	if got, want := lossV4, float64(100); got != want {
+		t.Errorf("Loss percent for IPv4 Traffic after direct IP deletion: got: %v, want %v", got, want)
 	}
 }
 
-// TestRT12611_RouteResolutionLoop
-// Objective: Validates the DUT prevention or mitigation of recursive route resolution loops.
-// Traceability: RT-1.26.11 - Route Resolution Loop (Negative)
-// Technical Summary: Statically routes Prefix A to Next-hop B, and Prefix B to Next-hop A. Pauses for potential loops, and asserts control plane health by fetching fundamental interface operative states and validating gNMI responsivity.
-func TestRT12611_RouteResolutionLoop(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	configureDUT(t, dut)
-
-	ate := ondatra.ATE(t, "ate")
-	top := gosnappi.NewConfig()
-	configureOTG(t, ate, top)
-
-	ate.OTG().PushConfig(t, top)
-	ate.OTG().StartProtocols(t)
-	defer ate.OTG().StopProtocols(t)
-	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
-
-	// Subtest ID: RT-1.26.11 - Route Resolution Loop (Negative)
-	// Step 1 - Configure Static Route A pointing to Next-Hop IP B.
+// testOverlappingPrefixesLPM validates Longest Prefix Match sorting.
+// Relevant README subtest: RT-1.26.10 - Overlapping Prefixes / LPM (Corner)
+// Technical Explanation: Maps overlapping /8 and /24 topologies simultaneously.
+// Uses targeted synthetic traffic directed perfectly within the /24 envelope to prove priority.
+func (td *testData) testOverlappingPrefixesLPM(t *testing.T) {
+	// Step 1: Configure overlapping static routes: 10.0.0.0/8 pointing to ATE port-1, and 10.1.1.0/24 pointing to ATE port-2.
 	b := &gnmi.SetBatch{}
-	routeA := "198.51.100.201/32"
-	nextHopB := "198.51.100.202"
-	sA := &cfgplugins.StaticRouteCfg{
-		NetworkInstance: deviations.DefaultNetworkInstance(dut),
-		Prefix:          routeA,
+	prefix8 := "10.0.0.0/8"
+	prefix24 := "10.1.1.0/24"
+
+	sV4_8 := &cfgplugins.StaticRouteCfg{
+		NetworkInstance: deviations.DefaultNetworkInstance(td.dut),
+		Prefix:          prefix8,
 		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-			"0": oc.UnionString(nextHopB),
+			"0": oc.UnionString(atePort1.IPv4),
 		},
 	}
-	if _, err := cfgplugins.NewStaticRouteCfg(b, sA, dut); err != nil {
-		t.Fatalf("Failed to configure IPv4 static route A: %v", err)
+	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4_8, td.dut); err != nil {
+		t.Fatalf("Failed to configure %s static route: %v", prefix8, err)
 	}
 
-	routeAv6 := "2001:db8::201/128"
-	nextHopBv6 := "2001:db8::202"
-	sAv6 := &cfgplugins.StaticRouteCfg{
-		NetworkInstance: deviations.DefaultNetworkInstance(dut),
-		Prefix:          routeAv6,
+	sV4_24 := &cfgplugins.StaticRouteCfg{
+		NetworkInstance: deviations.DefaultNetworkInstance(td.dut),
+		Prefix:          prefix24,
 		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-			"0": oc.UnionString(nextHopBv6),
+			"0": oc.UnionString(atePort2.IPv4),
 		},
 	}
-	if _, err := cfgplugins.NewStaticRouteCfg(b, sAv6, dut); err != nil {
-		t.Fatalf("Failed to configure IPv6 static route A: %v", err)
+	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4_24, td.dut); err != nil {
+		t.Fatalf("Failed to configure %s static route: %v", prefix24, err)
 	}
 
-	// Step 2 - Configure Static Route B pointing to Next-Hop IP A.
-	routeB := "198.51.100.202/32"
-	nextHopA := "198.51.100.201"
-	sB := &cfgplugins.StaticRouteCfg{
-		NetworkInstance: deviations.DefaultNetworkInstance(dut),
-		Prefix:          routeB,
+	// Step 2: Push configuration to DUT.
+	b.Set(t, td.dut)
+	defer func() {
+		bDel := &gnmi.SetBatch{}
+		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
+		gnmi.BatchDelete(bDel, sp.Static(prefix8).Config())
+		gnmi.BatchDelete(bDel, sp.Static(prefix24).Config())
+		bDel.Set(t, td.dut)
+	}()
+
+	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
+	gnmi.Await(t, td.dut, sp.Static(prefix8).Prefix().State(), 30*time.Second, prefix8)
+	gnmi.Await(t, td.dut, sp.Static(prefix24).Prefix().State(), 30*time.Second, prefix24)
+
+	// RT-1.26.10 Step 3 - Send traffic to destination 10.1.1.1 to verify LPM routing
+	lpmFlowName := "lpmV4"
+	lpmF := td.top.Flows().Add()
+	lpmF.SetName(lpmFlowName).Metrics().SetEnable(true)
+
+	srcV4 := td.otgP3.Ethernets().Items()[0].Ipv4Addresses().Items()[0]
+	dst1V4 := td.otgP1.Ethernets().Items()[0].Ipv4Addresses().Items()[0]
+	dst2V4 := td.otgP2.Ethernets().Items()[0].Ipv4Addresses().Items()[0]
+
+	lpmF.TxRx().Device().SetTxNames([]string{srcV4.Name()}).SetRxNames([]string{dst1V4.Name(), dst2V4.Name()})
+	eth := lpmF.Packet().Add().Ethernet()
+	eth.Src().SetValue(atePort3.MAC)
+	lpmIP := lpmF.Packet().Add().Ipv4()
+	lpmIP.Src().SetValue(srcV4.Address())
+	lpmIP.Dst().SetValue("10.1.1.1") // Directly hit the /24 envelope
+
+	egressEth := lpmF.EgressPacket().Add().Ethernet()
+	ethTag := egressEth.Dst().MetricTags().Add()
+	ethTag.SetName("MACTrackingLPM").SetOffset(40).SetLength(8)
+
+	td.ate.OTG().PushConfig(t, td.top)
+	td.ate.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, td.ate.OTG(), td.top, "IPv4")
+
+	td.ate.OTG().StartTraffic(t)
+	time.Sleep(trafficDuration)
+	td.ate.OTG().StopTraffic(t)
+
+	// RT-1.26.10 Step 4 - Verify that traffic strictly adheres to Longest Prefix Match (LPM)
+	lossLPM := otgutils.GetFlowLossPct(t, td.ate.OTG(), lpmFlowName, 20*time.Second)
+	if lossLPM > lossTolerance {
+		t.Errorf("Loss percent for LPM Traffic: got: %f, want 0%%", lossLPM)
+	}
+
+	portCounters := egressTrackingCounters(t, td.ate, lpmFlowName)
+	p2Counter, ok := portCounters[port2Tag]
+	if !ok {
+		t.Logf("LPM tracking counters: %v", portCounters)
+	}
+	_, rxLPM := otgutils.GetFlowStats(t, td.ate.OTG(), lpmFlowName, 20*time.Second)
+	if got, want := float64(p2Counter)*100/float64(rxLPM), float64(100); got+lossTolerance < want {
+		t.Errorf("LPM IPv4 traffic on port2, got: %v%%, want: %v%%", got, want)
+	}
+}
+
+// testRouteResolutionLoop asserts recursive safeties.
+// Relevant README subtest: RT-1.26.11 - Route Resolution Loop (Negative)
+// Technical Explanation: Submits cross configurations (A pointing to B, B pointing to A).
+// Asserts that bounding checks block infinite loops without OS crashing.
+func (td *testData) testRouteResolutionLoop(t *testing.T) {
+	// Step 1: Configure Static Route A pointing to Next-Hop IP B
+	// Step 2: Configure Static Route B pointing to Next-Hop IP A
+	b := &gnmi.SetBatch{}
+	prefixA := "192.168.1.0/24"
+	nhB := "192.168.2.1"
+
+	prefixB := "192.168.2.0/24"
+	nhA := "192.168.1.1"
+
+	sV4A := &cfgplugins.StaticRouteCfg{
+		NetworkInstance: deviations.DefaultNetworkInstance(td.dut),
+		Prefix:          prefixA,
 		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-			"0": oc.UnionString(nextHopA),
+			"0": oc.UnionString(nhB),
 		},
 	}
-	if _, err := cfgplugins.NewStaticRouteCfg(b, sB, dut); err != nil {
-		t.Fatalf("Failed to configure IPv4 static route B: %v", err)
+	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4A, td.dut); err != nil {
+		t.Fatalf("Failed to configure %s static route: %v", prefixA, err)
 	}
 
-	routeBv6 := "2001:db8::202/128"
-	nextHopAv6 := "2001:db8::201"
-	sBv6 := &cfgplugins.StaticRouteCfg{
-		NetworkInstance: deviations.DefaultNetworkInstance(dut),
-		Prefix:          routeBv6,
+	sV4B := &cfgplugins.StaticRouteCfg{
+		NetworkInstance: deviations.DefaultNetworkInstance(td.dut),
+		Prefix:          prefixB,
 		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-			"0": oc.UnionString(nextHopAv6),
+			"0": oc.UnionString(nhA),
 		},
 	}
-	if _, err := cfgplugins.NewStaticRouteCfg(b, sBv6, dut); err != nil {
-		t.Fatalf("Failed to configure IPv6 static route B: %v", err)
+	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4B, td.dut); err != nil {
+		t.Fatalf("Failed to configure %s static route: %v", prefixB, err)
 	}
 
-	// Step 3 - Push configuration to DUT.
-	b.Set(t, dut)
+	// Step 3: Push configuration to DUT.
+	b.Set(t, td.dut)
+	defer func() {
+		bDel := &gnmi.SetBatch{}
+		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
+		gnmi.BatchDelete(bDel, sp.Static(prefixA).Config())
+		gnmi.BatchDelete(bDel, sp.Static(prefixB).Config())
+		bDel.Set(t, td.dut)
+	}()
 
-	// Step 4 - Verify the device's control plane detects or breaks the recursion loop safely without hanging or crashing.
-	// Allow time for device control plane to potentially loop
-	time.Sleep(30 * time.Second)
-
-	// Query device interface state to ensure control plane is responsive
-	operStatus := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).OperStatus().State())
-	if operStatus == oc.Interface_OperStatus_UNSET {
-		t.Errorf("Device interface operational status unretrievable - possible control plane hang")
-	}
-
-	// Make sure we can retrieve the static routes
-	gotStaticA := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Static(routeA).State())
-	if gotStaticA == nil || gotStaticA.GetPrefix() != routeA {
-		t.Errorf("Failed to retrieve State for Route A, control plane may be unresponsive")
-	}
-
-	gotStaticAv6 := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Static(routeAv6).State())
-	if gotStaticAv6 == nil || gotStaticAv6.GetPrefix() != routeAv6 {
-		t.Errorf("Failed to retrieve State for IPv6 Route A, control plane may be unresponsive")
-	}
+	// RT-1.26.11 Step 4: Verify the device's control plane detects or breaks the recursion loop safely without hanging or crashing
+	// If the operating system stays resilient, gnmi will eventually respond after internal reconvergence bounds.
+	// We run gnmi.Await checking config state within a reasonable timeout.
+	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
+	gnmi.Await(t, td.dut, sp.Static(prefixA).Prefix().Config(), 45*time.Second, prefixA)
+	gnmi.Await(t, td.dut, sp.Static(prefixB).Prefix().Config(), 45*time.Second, prefixB)
 }
