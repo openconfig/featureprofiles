@@ -1012,6 +1012,10 @@ func TestIntfCounterUpdate(t *testing.T) {
 	v4.Dst().SetValue(ip4_2.Address())
 	otg.PushConfig(t, config)
 	otg.StartProtocols(t)
+
+	gnmi.Await(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
+	gnmi.Await(t, dut, gnmi.OC().Interface(dp2.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
+
 	otgutils.WaitForARP(t, ate.OTG(), config, "IPv4")
 
 	t.Log("Running traffic on DUT interfaces: ", dp1, dp2)
