@@ -31,22 +31,20 @@ import (
 
 // StaticRouteCfg defines commonly used attributes for setting a static route
 type StaticRouteCfg struct {
-	NetworkInstance     string
-	Prefix              string
-	NextHops            map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union
-	NextNetworkInstance string // Egress network instance for cross-VRF routing (e.g. egress-vrf)
-	IPType              string
-	NextHopAddr         string
-	NexthopGroup        bool
-	NexthopGroupName    string
-	Metric              uint32
-	Recurse             bool
-	T                   *testing.T
-	TrafficType         oc.E_Aft_EncapsulationHeaderType
-	PolicyName          string
-	Rule                string
-	NextHopIntf         string
-	RemoveStaticRoute   bool
+	NetworkInstance  string
+	Prefix           string
+	NextHops         map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union
+	IPType           string
+	NextHopAddr      string
+	NexthopGroup     bool
+	NexthopGroupName string
+	Metric           uint32
+	Recurse          bool
+	T                *testing.T
+	TrafficType      oc.E_Aft_EncapsulationHeaderType
+	PolicyName       string
+	Rule             string
+	NextHopIntf      string
 }
 
 // StaticVRFRouteCfg represents a static route configuration within a specific network instance (VRF). It defines the destination prefix, associated next-hop group, and the protocol string used for identification.
@@ -108,9 +106,6 @@ func NewStaticRouteCfg(batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUT
 			if cfg.Recurse {
 				nh.SetRecurse(cfg.Recurse)
 			}
-			if cfg.NextNetworkInstance != "" {
-				nh.NextNetworkInstance = ygot.String(cfg.NextNetworkInstance)
-			}
 		}
 	}
 	// Handle Interface-based NextHop (Resolution routes)
@@ -118,9 +113,6 @@ func NewStaticRouteCfg(batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUT
 		// Usually "0" is used as the index if only one interface is provided
 		nh := s.GetOrCreateNextHop("0")
 		nh.GetOrCreateInterfaceRef().Interface = ygot.String(cfg.NextHopIntf)
-		if cfg.NextNetworkInstance != "" {
-			nh.NextNetworkInstance = ygot.String(cfg.NextNetworkInstance)
-		}
 	}
 
 	if cliConfigured {
@@ -221,22 +213,6 @@ func NewStaticVRFRoute(t *testing.T, batch *gnmi.SetBatch, cfg *StaticVRFRouteCf
 	gnmi.BatchUpdate(batch, sp.Config(), c)
 	gnmi.BatchReplace(batch, sp.Static(cfg.Prefix).Config(), s)
 	return s, nil
-}
-
-// ConfigureStaticRoute installs a static route into the default NI.
-func ConfigureStaticRoute(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, cfg ConfigureStaticRouteParams) {
-	t.Helper()
-	staticRoute := &StaticRouteCfg{
-		NetworkInstance: cfg.NetworkInstance,
-		Prefix:          cfg.Prefix,
-		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-			cfg.Index: oc.UnionString(cfg.NextHop),
-		},
-	}
-
-	if _, err := NewStaticRouteCfg(batch, staticRoute, dut); err != nil {
-		t.Fatalf("Failed to configure static route %s: %v", cfg.Prefix, err)
-	}
 }
 
 // DeleteStaticRouteNextHopLeaves deletes specific leaves of a next hop.
