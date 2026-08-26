@@ -100,6 +100,9 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 		Timestamp: requestTimestamp,
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
 	acctzClient := dut.RawAPIs().GNSI(t).AcctzStream()
 	t.Logf("Sending acctz record subscribe request: %s", acctz.PrettyPrint(request))
 	acctzSubClient, err := acctzClient.RecordSubscribe(ctx, request, grpc.MaxCallRecvMsgSize(45000000))
@@ -114,11 +117,9 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 	go func() {
 		for {
 			resp, err := acctzSubClient.Recv()
+			res := recordRequestResult{record: resp, err: err}
 			select {
-			case recordChan <- recordRequestResult{
-				record: resp,
-				err:    err,
-			}:
+			case recordChan <- res:
 			case <-ctx.Done():
 				return
 			}
