@@ -61,6 +61,10 @@ var (
 		"Packets per second for generated traffic.")
 )
 
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
+
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
@@ -410,10 +414,9 @@ func normalize(xs []uint64) (ys []float64, sum uint64) {
 
 // generates a list of random tcp ports values
 func generateRandomPortList(count uint) []uint32 {
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	a := make([]uint32, count)
 	for index := range a {
-		a[index] = uint32(r.Intn(65535) + 1)
+		a[index] = uint32(rand.Intn(65535) + 1)
 	}
 	return a
 }
