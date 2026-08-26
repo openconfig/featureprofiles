@@ -171,7 +171,7 @@ var (
 	decapValidationIPv4 = &packetvalidationhelpers.PacketValidation{
 		PortName:    "port1",
 		CaptureName: "ipv4_decap",
-		Validations: validationsIPv4,
+		IPv4Layer:   &packetvalidationhelpers.IPv4Layer{DstIP: innerDstIPv4, Tos: 10, TTL: 64, Protocol: packetvalidationhelpers.TCP},
 		IPv4Layer:   &packetvalidationhelpers.IPv4Layer{DstIP: innerDstIPv4, Tos: 10, TTL: 64, SkipProtocolCheck: true},
 	}
 	decapValidationIPv6 = &packetvalidationhelpers.PacketValidation{
