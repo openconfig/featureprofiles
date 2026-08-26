@@ -110,29 +110,28 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 
 	sendOversizedPayload(t, dut)
 
-	for {
-		r := make(chan recordRequestResult)
-		go func(r chan recordRequestResult) {
+	recordChan := make(chan recordRequestResult)
+	go func() {
+		for {
 			resp, err := acctzSubClient.Recv()
-			r <- recordRequestResult{
+			recordChan <- recordRequestResult{
 				record: resp,
 				err:    err,
 			}
-		}(r)
-		var done bool
-		var resp recordRequestResult
-
-		select {
-		case rr := <-r:
-			resp = rr
-		case <-time.After(60 * time.Second):
-			done = true
+			if err != nil {
+				return
+			}
 		}
+	}()
 
-		if done {
+	for {
+		var resp recordRequestResult
+		select {
+		case resp = <-recordChan:
+		case <-time.After(60 * time.Second):
 			t.Fatal("Done receiving records and did not find our record...")
 		}
-
+		
 		if resp.err != nil {
 			t.Fatalf("Failed receiving record response, error: %s", resp.err)
 		}
