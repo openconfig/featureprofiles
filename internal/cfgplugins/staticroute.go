@@ -56,6 +56,14 @@ type StaticVRFRouteCfg struct {
 	ProtocolStr     string
 }
 
+// ConfigureStaticRouteParams contains the parameters required to configure a static route on the DUT.
+type ConfigureStaticRouteParams struct {
+	NetworkInstance string
+	Prefix          string
+	Index           string
+	NextHop         string
+}
+
 // NewStaticRouteCfg provides OC configuration for a static route for a specific NetworkInstance,
 // Prefix and NextHops.
 //
@@ -218,14 +226,6 @@ func NewStaticVRFRoute(t *testing.T, batch *gnmi.SetBatch, cfg *StaticVRFRouteCf
 	gnmi.BatchReplace(batch, sp.Static(cfg.Prefix).Config(), s)
 
 	return s, nil
-}
-
-// ConfigureStaticRouteParams contains the parameters required to configure a static route on the DUT.
-type ConfigureStaticRouteParams struct {
-	NetworkInstance string
-	Prefix          string
-	Index           string
-	NextHop         string
 }
 
 // ConfigureStaticRoute installs a static route into the default NI.
@@ -423,3 +423,49 @@ func RemoveStaticRoutesInVRF(t *testing.T, dut *ondatra.DUTDevice, routes []*Sta
 		gnmi.Delete(t, dut, sp.Static(r.Prefix).Config())
 	}
 }
+
+// DeleteStaticRouteNextHopLeaves deletes specific leaves of a next hop.
+func DeleteStaticRouteNextHopLeaves(t *testing.T, dut *ondatra.DUTDevice, netInst string, prefix string, index string, leaves ...string) {
+	t.Helper()
+	ni := normalizeNIName(netInst, dut)
+	sp := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+	nh := sp.Static(prefix).NextHop(index)
+
+	b := &gnmi.SetBatch{}
+	for _, leaf := range leaves {
+		switch strings.ToLower(leaf) {
+		case "metric":
+			gnmi.BatchDelete(b, nh.Metric().Config())
+		case "preference":
+			gnmi.BatchDelete(b, nh.Preference().Config())
+		case "recurse":
+			gnmi.BatchDelete(b, nh.Recurse().Config())
+		default:
+			t.Errorf("Unsupported leaf to delete: %s", leaf)
+		}
+	}
+	b.Set(t, dut)
+}
+
+// ValidateStaticRouteNextHopIndex validates the next hop indexes and their addresses.
+func ValidateStaticRouteNextHopIndex(t *testing.T, dut *ondatra.DUTDevice, netInst string, prefix string, expectedNh map[string]string) {
+	t.Helper()
+	ni := normalizeNIName(netInst, dut)
+	sp := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+
+	gotStatic := gnmi.Get(t, dut, sp.Static(prefix).State())
+
+	if got, want := len(gotStatic.NextHop), len(expectedNh); got != want {
+		t.Errorf("ValidateStaticRouteNextHopIndex: got %d nexthops, want %d", got, want)
+	}
+
+	for index, expectedAddr := range expectedNh {
+		nh, ok := gotStatic.NextHop[index]
+		if !ok {
+			t.Errorf("ValidateStaticRouteNextHopIndex: missing expected index %s", index)
+			continue
+		}
+		if got, want := nh.GetNextHop(), oc.UnionString(expectedAddr); got != want {
+			t.Errorf("ValidateStaticRouteNextHopIndex: index %s got next hop %s, want %s", index, got, want)
+		}
+	}
