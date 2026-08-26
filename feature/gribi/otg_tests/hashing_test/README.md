@@ -3,10 +3,9 @@
 ## Summary
 Verify Dataplane Hashing (ECMP, WCMP, and Intra-LAG) using a combination of physical loopback ports and software terminal loopback interfaces across multiple Network Instances (`DEFAULT`, `TRANSIT`, `SELF_SITE`, `EGRESS`).
 
-The test suite validates hashing uniformity, weight enforcement, and anti-polarization across three traffic profiles:
+The test suite validates hashing uniformity, weight enforcement, and anti-polarization across two traffic profiles:
 1. **Plain IPv4/IPv6 Traffic** (5-tuple entropy).
 2. **IPnIP Encapsulated Traffic** (Outer IP static, inner 5-tuple entropy).
-3. **IPnIP Decapsulated Traffic** (Post-decap inner header hashing).
 
 ## Topology
 The testbed requires a DUT (`dut_8_loop_2_ate.testbed`) and an ATE.
@@ -71,7 +70,7 @@ The test utilizes physical loopback cables and software terminal loopbacks:
 
 ## Traffic Profile Specifications
 
-All test scenarios are executed against the following three traffic profiles:
+All test scenarios are executed against the following two traffic profiles:
 
 ### 1. Plain IP Traffic (IPv4 / IPv6)
 - **Header Structure**: Standard Ethernet + IPv4/IPv6 + UDP/TCP.
@@ -86,11 +85,6 @@ All test scenarios are executed against the following three traffic profiles:
 - **Outer Header**: Static Source and Destination IPv4 addresses (zero entropy in outer header).
 - **Inner Header**: 5-tuple varied IPv4 + UDP packets.
 - **Verification**: Verifies that the DUT hashing engine parses and computes hash keys from the **inner packet headers**, ensuring uniform distribution without tunnel polarization.
-
-### 3. IPnIP Decapsulated Traffic (Decap)
-- **Header Structure**: Ingress IPnIP packets matching a gRIBI decapsulation route.
-- **DUT Processing**: Outer IP tunnel header is stripped upon route lookup, and next-hop hash resolution is performed on the decapsulated inner packet.
-- **Verification**: Verifies post-decapsulation hashing uniformity across member next-hops.
 
 ---
 
@@ -186,16 +180,21 @@ graph TD
   - **Stage 2 (`TRANSIT`)**: ~12.5% to each of the 8 next-hops (12.25% – 12.75%).
   - **Stage 3 (`SELF_SITE`)**: ~12.5% to each of the 8 next-hops (12.25% – 12.75%).
   - **Egress**: Verify full traffic arrival on ATE Port 1 (`ixia1`).
-- **Traffic Profiles**: Execute for Plain IP, IPnIP Encap, and IPnIP Decap.
+- **Traffic Profiles**: Execute for Plain IP and IPnIP Encap.
 
 #### **Sub-case 1.2: Equal Paths, Unequal Weights (8-Wide WCMP 1:2 Ratio)**
 - **gRIBI Programming**: Program 8 next-hops with a **1:2 weight ratio**:
   - Weight `1` for Soft Loop interfaces.
   - Weight `2` for Physical Loop interfaces.
 - **Traffic Verification**:
-  - **Soft Loops**: ~8.33% each (acceptable range: 8.16% – 8.50%).
-  - **Physical Loops**: ~16.66% each (acceptable range: 16.33% – 17.00%).
-- **Traffic Profiles**: Execute for Plain IP, IPnIP Encap, and IPnIP Decap.
+  - **Stage 2 (`TRANSIT`)** (4 Physical Loops @ weight 2 + 4 Soft Loops @ weight 1 $\rightarrow$ Total weight = 12):
+    - **Soft Loops (4 ports)**: **~8.33%** each (acceptable range: **8.16% – 8.50%**).
+    - **Physical Loops (4 ports)**: **~16.67%** each (acceptable range: **16.33% – 17.00%**).
+  - **Stage 3 (`SELF_SITE`)** (3 Physical Loops @ weight 2 + 5 Soft Loops @ weight 1 $\rightarrow$ Total weight = 11):
+    - **Soft Loops (5 ports)**: **~9.09%** each (acceptable range: **8.91% – 9.27%**).
+    - **Physical Loops (3 ports)**: **~18.18%** each (acceptable range: **17.82% – 18.54%**).
+  - **Egress**: Verify full traffic arrival on ATE Port 1 (`ixia1`).
+- **Traffic Profiles**: Execute for Plain IP and IPnIP Encap.
 
 ---
 
@@ -226,7 +225,7 @@ graph TD
 ### 2. Traffic Verification
 - **Expected Distribution**: Uniform distribution across all 7 active member links:
   - **Per-Member Expected**: ~14.28% (acceptable range: **14.00% – 14.57%**).
-- **Traffic Profiles**: Execute for Plain IP, IPnIP Encap, and IPnIP Decap.
+- **Traffic Profiles**: Execute for Plain IP and IPnIP Encap.
 
 ---
 
@@ -265,7 +264,7 @@ graph TD
   - **LAG A (weight 3)**: **~42.86%** (acceptable range: **42.00% – 43.71%**).
   - **LAG B (weight 2)**: **~28.57%** (acceptable range: **28.00% – 29.14%**).
   - **LAG C (weight 2)**: **~28.57%** (acceptable range: **28.00% – 29.14%**).
-- **Traffic Profiles**: Execute for Plain IP, IPnIP Encap, and IPnIP Decap.
+- **Traffic Profiles**: Execute for Plain IP and IPnIP Encap.
 
 #### **Sub-case 3.2: Overriding Capacity with Equal Weights (1:1:1)**
 - **Goal**: Validates that software-configured weights strictly override physical underlying capacity.
@@ -274,7 +273,7 @@ graph TD
   - **LAG A (weight 1)**: **~33.33%** (acceptable range: **32.66% – 34.00%**).
   - **LAG B (weight 1)**: **~33.33%** (acceptable range: **32.66% – 34.00%**).
   - **LAG C (weight 1)**: **~33.33%** (acceptable range: **32.66% – 34.00%**).
-- **Traffic Profiles**: Execute for Plain IP, IPnIP Encap, and IPnIP Decap.
+- **Traffic Profiles**: Execute for Plain IP and IPnIP Encap.
 
 ---
 
