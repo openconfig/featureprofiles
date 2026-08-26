@@ -1013,8 +1013,8 @@ func TestIntfCounterUpdate(t *testing.T) {
 	otg.PushConfig(t, config)
 	otg.StartProtocols(t)
 
-	gnmi.Await(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
-	gnmi.Await(t, dut, gnmi.OC().Interface(dp2.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
+	gnmi.Await(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), 2*time.Minute, operStatusUp)
+	gnmi.Await(t, dut, gnmi.OC().Interface(dp2.Name()).OperStatus().State(), 2*time.Minute, operStatusUp)
 
 	otgutils.WaitForARP(t, ate.OTG(), config, "IPv4")
 
