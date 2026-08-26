@@ -31,20 +31,21 @@ import (
 
 // StaticRouteCfg defines commonly used attributes for setting a static route
 type StaticRouteCfg struct {
-	NetworkInstance  string
-	Prefix           string
-	NextHops         map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union
-	IPType           string
-	NextHopAddr      string
-	NexthopGroup     bool
-	NexthopGroupName string
-	Metric           uint32
-	Recurse          bool
-	T                *testing.T
-	TrafficType      oc.E_Aft_EncapsulationHeaderType
-	PolicyName       string
-	Rule             string
-	NextHopIntf      string
+	NetworkInstance   string
+	Prefix            string
+	NextHops          map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union
+	IPType            string
+	NextHopAddr       string
+	NexthopGroup      bool
+	NexthopGroupName  string
+	Metric            uint32
+	Recurse           bool
+	T                 *testing.T
+	TrafficType       oc.E_Aft_EncapsulationHeaderType
+	PolicyName        string
+	Rule              string
+	NextHopIntf       string
+	RemoveStaticRoute bool
 }
 
 // StaticVRFRouteCfg represents a static route configuration within a specific network instance (VRF). It defines the destination prefix, associated next-hop group, and the protocol string used for identification.
@@ -72,6 +73,13 @@ func NewStaticRouteCfg(batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUT
 		return nil, errors.New("cfg must be defined")
 	}
 	ni := normalizeNIName(cfg.NetworkInstance, d)
+
+	if cfg.RemoveStaticRoute {
+		sp := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(d))
+		gnmi.BatchDelete(batch, sp.Static(cfg.Prefix).Config())
+		return nil, nil
+	}
+
 	c := &oc.NetworkInstance_Protocol{
 		Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
 		Name:       ygot.String(deviations.StaticProtocolName(d)),
@@ -83,13 +91,18 @@ func NewStaticRouteCfg(batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUT
 		if deviations.StaticRouteToNHGOCUnsupported(d) {
 			switch d.Vendor() {
 			case ondatra.ARISTA:
-				cli := fmt.Sprintf(`ipv6 route %s nexthop-group %s`, cfg.Prefix, cfg.NexthopGroupName)
-				helpers.GnmiCLIConfig(cfg.T, d, cli)
-				staticRouteToNextHopGroupCLI(cfg.T, d, *cfg)
-				cliConfigured = true
+				if cfg.RemoveStaticRoute {
+					helpers.GnmiCLIConfig(cfg.T, d, fmt.Sprintf(`no ipv6 route %s nexthop-group %s`, cfg.Prefix, cfg.NexthopGroupName))
+				} else {
+					cli := fmt.Sprintf(`ipv6 route %s nexthop-group %s`, cfg.Prefix, cfg.NexthopGroupName)
+					helpers.GnmiCLIConfig(cfg.T, d, cli)
+					staticRouteToNextHopGroupCLI(cfg.T, d, *cfg)
+					cliConfigured = true
+				}
 			default:
 				return s, fmt.Errorf("deviation StaticRouteToNHGOCUnsupported is not handled for the dut: %s", d.Vendor())
 			}
+			return s, nil
 		} else {
 			nhg := s.GetOrCreateNextHopGroup()
 			nhg.SetName(cfg.NexthopGroupName)
@@ -213,6 +226,13 @@ func NewStaticVRFRoute(t *testing.T, batch *gnmi.SetBatch, cfg *StaticVRFRouteCf
 	gnmi.BatchUpdate(batch, sp.Config(), c)
 	gnmi.BatchReplace(batch, sp.Static(cfg.Prefix).Config(), s)
 	return s, nil
+}
+
+// ConfigureStaticRoutesInVRF configures a static route inside a given VRF on the DUT.
+// It acts as a backwards compatibility wrapper.
+func ConfigureStaticRoutesInVRF(t *testing.T, batch *gnmi.SetBatch, cfg *StaticVRFRouteCfg, dut *ondatra.DUTDevice) (*oc.NetworkInstance_Protocol_Static, error) {
+	t.Helper()
+	return NewStaticVRFRoute(t, batch, cfg, dut)
 }
 
 // DeleteStaticRouteNextHopLeaves deletes specific leaves of a next hop.

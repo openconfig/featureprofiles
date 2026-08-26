@@ -153,6 +153,7 @@ type testData struct {
 	otgP1          gosnappi.Device
 	otgP2          gosnappi.Device
 	otgP3          gosnappi.Device
+	otgP4          gosnappi.Device
 	staticIPv4     ipAddr
 	staticIPv6     ipAddr
 	advertisedIPv4 ipAddr
@@ -174,6 +175,7 @@ func TestBasicStaticRouteSupport(t *testing.T) {
 		otgP1:          devs[0],
 		otgP2:          devs[1],
 		otgP3:          devs[2],
+		otgP4:          devs[3],
 		staticIPv4:     ipAddr{address: v4Route, prefix: v4RoutePrefix},
 		staticIPv6:     ipAddr{address: v6Route, prefix: v6RoutePrefix},
 		advertisedIPv4: ipAddr{address: v4Route, prefix: v4RoutePrefix},
@@ -240,12 +242,23 @@ func TestRT1268_StaticRouteAddRemove(t *testing.T) {
 
 	ate := ondatra.ATE(t, "ate")
 	top := gosnappi.NewConfig()
-	configureOTG(t, ate, top)
+	devs := configureOTG(t, ate, top)
+
+	td := testData{
+		dut:   dut,
+		ate:   ate,
+		top:   top,
+		otgP1: devs[0],
+		otgP2: devs[1],
+		otgP3: devs[2],
+		otgP4: devs[3],
+	}
 
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 	defer ate.OTG().StopProtocols(t)
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
+	td.configureOTGFlows(t)
 
 	// Subtest ID: RT-1.26.8 - Validate Dynamic Add and Remove of Next-Hops
 	// Step 1 - Configure one IPv4 static route with next-hops set to the IPv4 address of ATE port-2 (index 0) and port-3 (index 1).
@@ -305,6 +318,15 @@ func TestRT1268_StaticRouteAddRemove(t *testing.T) {
 	cfgplugins.ValidateStaticRouteConfigured(t, dut, deviations.DefaultNetworkInstance(dut), prefix.cidr(t), sV4)
 	expectedNh = map[string]string{"1": atePort3.IPv4, "2": atePort1.IPv4}
 	cfgplugins.ValidateStaticRouteNextHopIndex(t, dut, deviations.DefaultNetworkInstance(dut), prefix.cidr(t), expectedNh)
+
+	// Step 8 - Validate traffic converges correctly after the dynamic route updates on active ports.
+	td.ate.OTG().StartTraffic(t)
+	time.Sleep(trafficDuration)
+	td.ate.OTG().StopTraffic(t)
+	lossV4 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v4Flow, 20*time.Second)
+	if lossV4 > lossTolerance {
+		t.Errorf("Loss percent for IPv4 Traffic after dynamic update: got: %f, want <= %f%%", lossV4, lossTolerance)
+	}
 }
 
 // TestDisableRecursiveNextHopResolution
@@ -329,6 +351,7 @@ func TestDisableRecursiveNextHopResolution(t *testing.T) {
 		otgP1:          devs[0],
 		otgP2:          devs[1],
 		otgP3:          devs[2],
+		otgP4:          devs[3],
 		staticIPv4:     ipAddr{address: v4Route, prefix: v4RoutePrefix},
 		staticIPv6:     ipAddr{address: v6Route, prefix: v6RoutePrefix},
 		advertisedIPv4: ipAddr{address: v4LoopbackRoute, prefix: v4LoopbackRoutePrefix},
@@ -1263,10 +1286,12 @@ func (td *testData) configureOTGFlows(t *testing.T) {
 	dst1V6 := td.otgP1.Ethernets().Items()[0].Ipv6Addresses().Items()[0]
 	dst2V4 := td.otgP2.Ethernets().Items()[0].Ipv4Addresses().Items()[0]
 	dst2V6 := td.otgP2.Ethernets().Items()[0].Ipv6Addresses().Items()[0]
+	dst3V4 := td.otgP3.Ethernets().Items()[0].Ipv4Addresses().Items()[0]
+	dst4V4 := td.otgP4.Ethernets().Items()[0].Ipv4Addresses().Items()[0]
 
 	v4F := td.top.Flows().Add()
 	v4F.SetName(v4Flow).Metrics().SetEnable(true)
-	v4F.TxRx().Device().SetTxNames([]string{srcV4.Name()}).SetRxNames([]string{dst1V4.Name(), dst2V4.Name()})
+	v4F.TxRx().Device().SetTxNames([]string{srcV4.Name()}).SetRxNames([]string{dst1V4.Name(), dst2V4.Name(), dst3V4.Name(), dst4V4.Name()})
 
 	v4FEth := v4F.Packet().Add().Ethernet()
 	v4FEth.Src().SetValue(atePort3.MAC)
@@ -1506,29 +1531,48 @@ func TestRT1269_DirectInterfaceIPDeletion(t *testing.T) {
 
 	// Subtest ID: RT-1.26.9 - Direct Interface IP Deletion (Negative)
 	// Step 1 - Configure a static route that resolves via a directly connected interface IP.
-	prefix := ipAddr{address: v4Route, prefix: v4RoutePrefix}
+	prefixV4 := ipAddr{address: v4Route, prefix: v4RoutePrefix}
+	prefixV6 := ipAddr{address: v6Route, prefix: v6RoutePrefix}
 	b := &gnmi.SetBatch{}
 	sV4 := &cfgplugins.StaticRouteCfg{
 		NetworkInstance: deviations.DefaultNetworkInstance(dut),
-		Prefix:          prefix.cidr(t),
+		Prefix:          prefixV4.cidr(t),
 		NextHopIntf:     dut.Port(t, "port1").Name(),
 	}
 	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
 		t.Fatalf("Failed to configure IPv4 static route: %v", err)
 	}
 	b.Set(t, dut)
-	cfgplugins.ValidateStaticRouteConfigured(t, dut, deviations.DefaultNetworkInstance(dut), prefix.cidr(t), sV4)
+	cfgplugins.ValidateStaticRouteConfigured(t, dut, deviations.DefaultNetworkInstance(dut), prefixV4.cidr(t), sV4)
+
+	sV6 := &cfgplugins.StaticRouteCfg{
+		NetworkInstance: deviations.DefaultNetworkInstance(dut),
+		Prefix:          prefixV6.cidr(t),
+		NextHopIntf:     dut.Port(t, "port1").Name(),
+	}
+	if _, err := cfgplugins.NewStaticRouteCfg(b, sV6, dut); err != nil {
+		t.Fatalf("Failed to configure IPv6 static route: %v", err)
+	}
+	b.Set(t, dut)
+	cfgplugins.ValidateStaticRouteConfigured(t, dut, deviations.DefaultNetworkInstance(dut), prefixV6.cidr(t), sV6)
 
 	// Step 2 - Delete the IP address of that direct interface using a gNMI Set DELETE.
 	intfPath := gnmi.OC().Interface(dut.Port(t, "port1").Name())
 	gnmi.Delete(t, dut, intfPath.Subinterface(0).Ipv4().Address(dutPort1.IPv4).Config())
+	gnmi.Delete(t, dut, intfPath.Subinterface(0).Ipv6().Address(dutPort1.IPv6).Config())
 
-	// Wait for the IPv4 address to be deleted from state
+	// Wait for the IPv4 and IPv6 addresses to be deleted from state
 	_, ok := gnmi.Watch(t, dut, intfPath.Subinterface(0).Ipv4().Address(dutPort1.IPv4).State(), 30*time.Second, func(v *ygnmi.Value[*oc.Interface_Subinterface_Ipv4_Address]) bool {
 		return !v.IsPresent()
 	}).Await(t)
 	if !ok {
 		t.Errorf("Timeout waiting for interface IP %s to be deleted", dutPort1.IPv4)
+	}
+	_, ok = gnmi.Watch(t, dut, intfPath.Subinterface(0).Ipv6().Address(dutPort1.IPv6).State(), 30*time.Second, func(v *ygnmi.Value[*oc.Interface_Subinterface_Ipv6_Address]) bool {
+		return !v.IsPresent()
+	}).Await(t)
+	if !ok {
+		t.Errorf("Timeout waiting for interface IP %s to be deleted", dutPort1.IPv6)
 	}
 
 	// Step 3 - Send Traffic.
@@ -1541,13 +1585,23 @@ func TestRT1269_DirectInterfaceIPDeletion(t *testing.T) {
 	if lossV4 < 100 {
 		t.Errorf("Loss percent for IPv4 Traffic after Intf IP deletion: got: %f, want 100%%", lossV4)
 	}
+	lossV6 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v6Flow, 20*time.Second)
+	if lossV6 < 100 {
+		t.Errorf("Loss percent for IPv6 Traffic after Intf IP deletion: got: %f, want 100%%", lossV6)
+	}
 
 	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-	_, ok = gnmi.Watch(t, dut, sp.Static(prefix.cidr(t)).State(), 30*time.Second, func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Static]) bool {
+	_, ok = gnmi.Watch(t, dut, sp.Static(prefixV4.cidr(t)).State(), 30*time.Second, func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Static]) bool {
 		return !v.IsPresent()
 	}).Await(t)
 	if !ok {
-		t.Errorf("Timeout waiting for static route %s to become inactive after deleting Intf IP", prefix.cidr(t))
+		t.Errorf("Timeout waiting for static route %s to become inactive after deleting Intf IP", prefixV4.cidr(t))
+	}
+	_, ok = gnmi.Watch(t, dut, sp.Static(prefixV6.cidr(t)).State(), 30*time.Second, func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Static]) bool {
+		return !v.IsPresent()
+	}).Await(t)
+	if !ok {
+		t.Errorf("Timeout waiting for static route %s to become inactive after deleting Intf IP", prefixV6.cidr(t))
 	}
 }
 
@@ -1690,6 +1744,19 @@ func TestRT12611_RouteResolutionLoop(t *testing.T) {
 		t.Fatalf("Failed to configure IPv4 static route A: %v", err)
 	}
 
+	routeAv6 := "2001:db8::201/128"
+	nextHopBv6 := "2001:db8::202"
+	sAv6 := &cfgplugins.StaticRouteCfg{
+		NetworkInstance: deviations.DefaultNetworkInstance(dut),
+		Prefix:          routeAv6,
+		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+			"0": oc.UnionString(nextHopBv6),
+		},
+	}
+	if _, err := cfgplugins.NewStaticRouteCfg(b, sAv6, dut); err != nil {
+		t.Fatalf("Failed to configure IPv6 static route A: %v", err)
+	}
+
 	// Step 2 - Configure Static Route B pointing to Next-Hop IP A.
 	routeB := "198.51.100.202/32"
 	nextHopA := "198.51.100.201"
@@ -1702,6 +1769,19 @@ func TestRT12611_RouteResolutionLoop(t *testing.T) {
 	}
 	if _, err := cfgplugins.NewStaticRouteCfg(b, sB, dut); err != nil {
 		t.Fatalf("Failed to configure IPv4 static route B: %v", err)
+	}
+
+	routeBv6 := "2001:db8::202/128"
+	nextHopAv6 := "2001:db8::201"
+	sBv6 := &cfgplugins.StaticRouteCfg{
+		NetworkInstance: deviations.DefaultNetworkInstance(dut),
+		Prefix:          routeBv6,
+		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+			"0": oc.UnionString(nextHopAv6),
+		},
+	}
+	if _, err := cfgplugins.NewStaticRouteCfg(b, sBv6, dut); err != nil {
+		t.Fatalf("Failed to configure IPv6 static route B: %v", err)
 	}
 
 	// Step 3 - Push configuration to DUT.
@@ -1721,5 +1801,10 @@ func TestRT12611_RouteResolutionLoop(t *testing.T) {
 	gotStaticA := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Static(routeA).State())
 	if gotStaticA == nil || gotStaticA.GetPrefix() != routeA {
 		t.Errorf("Failed to retrieve State for Route A, control plane may be unresponsive")
+	}
+
+	gotStaticAv6 := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Static(routeAv6).State())
+	if gotStaticAv6 == nil || gotStaticAv6.GetPrefix() != routeAv6 {
+		t.Errorf("Failed to retrieve State for IPv6 Route A, control plane may be unresponsive")
 	}
 }
