@@ -57,6 +57,8 @@ var (
 		"Amount of time to pause before sending traffic.")
 	trafficDuration = flag.Duration("traffic_duration", 30*time.Second,
 		"Duration for sending traffic.")
+	trafficPPS = flag.Uint64("traffic_pps", 10000,
+		"Packets per second for generated traffic.")
 )
 
 func TestMain(m *testing.M) {
@@ -348,6 +350,7 @@ func createTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config)
 	}
 
 	flow.Size().SetFixed(200)
+	flow.Rate().SetPps(*trafficPPS)
 	ate.OTG().PushConfig(t, config)
 	ate.OTG().StartProtocols(t)
 }
@@ -407,9 +410,10 @@ func normalize(xs []uint64) (ys []float64, sum uint64) {
 
 // generates a list of random tcp ports values
 func generateRandomPortList(count uint) []uint32 {
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	a := make([]uint32, count)
 	for index := range a {
-		a[index] = uint32(rand.Intn(65536-1) + 1)
+		a[index] = uint32(r.Intn(65535) + 1)
 	}
 	return a
 }
