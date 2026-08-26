@@ -67,6 +67,7 @@ const (
 	nonDefaultVRF     = "VRF-1"
 	policyName        = "redirect-to-VRF1"
 	ipipProtocol      = 4
+	trafficPPS        = 10000
 )
 
 var (
@@ -453,7 +454,9 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) map[
 	flowipv4 := top.Flows().Add().SetName("flow")
 	flowipv4.Metrics().SetEnable(true)
 	flowipv4.TxRx().Port().SetTxName(atePort1.Name).SetRxNames([]string{atePort2.Name})
-	flowipv4.Size().SetFixed(100)
+	flowipv4.Size().SetFixed(300)
+	flowipv4.Rate().SetPps(trafficPPS)
+	flowipv4.Duration().Continuous()
 	e1 := flowipv4.Packet().Add().Ethernet()
 	e1.Src().SetValue(atePort1.MAC)
 	e1.Dst().SetValue(dstMac)
@@ -463,6 +466,9 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) map[
 	v4Inner := flowipv4.Packet().Add().Ipv4()
 	v4Inner.Src().Increment().SetStart(innerSrcIPv4Start).SetCount(ipv4FlowCount)
 	v4Inner.Dst().Increment().SetStart(innerDstIPv4Start).SetCount(ipv4FlowCount)
+	udp := flowipv4.Packet().Add().Udp()
+	udp.SrcPort().Increment().SetStart(1).SetCount(50000).SetStep(1)
+	udp.DstPort().Increment().SetStart(1).SetCount(50000).SetStep(1)
 	flowipv4.EgressPacket().Add().Ethernet()
 	vlan := flowipv4.EgressPacket().Add().Vlan()
 	vlanTag := vlan.Id().MetricTags().Add()
