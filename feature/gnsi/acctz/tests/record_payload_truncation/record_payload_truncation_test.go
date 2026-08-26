@@ -102,7 +102,7 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 
 	acctzClient := dut.RawAPIs().GNSI(t).AcctzStream()
 	t.Logf("Sending acctz record subscribe request: %s", acctz.PrettyPrint(request))
-	acctzSubClient, err := acctzClient.RecordSubscribe(context.Background(), request, grpc.MaxCallRecvMsgSize(45000000))
+	acctzSubClient, err := acctzClient.RecordSubscribe(ctx, request, grpc.MaxCallRecvMsgSize(45000000))
 	if err != nil {
 		t.Fatalf("Failed to subscribe to acctz records: %v", err)
 	}
@@ -114,9 +114,13 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 	go func() {
 		for {
 			resp, err := acctzSubClient.Recv()
-			recordChan <- recordRequestResult{
+			select {
+			case recordChan <- recordRequestResult{
 				record: resp,
 				err:    err,
+			}:
+			case <-ctx.Done():
+				return
 			}
 			if err != nil {
 				return
@@ -128,10 +132,10 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 		var resp recordRequestResult
 		select {
 		case resp = <-recordChan:
-		case <-time.After(60 * time.Second):
+		case <-ctx.Done():
 			t.Fatal("Done receiving records and did not find our record...")
 		}
-		
+
 		if resp.err != nil {
 			t.Fatalf("Failed receiving record response, error: %s", resp.err)
 		}
