@@ -1128,40 +1128,24 @@ func validatePrefixesWithAttributes(t *testing.T, ate *ondatra.ATEDevice, prefix
 
 }
 
-func validateV4PrefixesWithAftEntries(t *testing.T, dut *ondatra.DUTDevice, prefixAttrs []prefixAttributes) {
+func verifyRoutes(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	routesToAdvertise := make(map[string]cfgplugins.RouteInfo)
 	for _, ep := range prefixAttrs {
-		ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			Afts().Ipv4Entry(fmt.Sprintf("%s/32", ep.prefix))
-
-		watchFN := func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
-			entry, present := val.Val()
-			t.Log(entry.GetPrefix())
-			return present && entry.GetPrefix() == fmt.Sprintf("%s/32", ep.prefix) && entry.GetOriginProtocol() == oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
+		routesToAdvertise[fmt.Sprintf("%s/32", ep.prefix)] = cfgplugins.RouteInfo{
+			VRF:         deviations.DefaultNetworkInstance(dut),
+			IPType:      cfgplugins.IPv4,
+			DefaultName: deviations.DefaultNetworkInstance(dut),
 		}
-
-		if got, ok := gnmi.Watch(t, dut, ipv4Path.State(), time.Minute, watchFN).Await(t); !ok {
-			t.Errorf("Prefix not learnt: got %v, want %s", got, ep.prefix)
-		}
-		t.Logf("Prefix %s learnt by DUT...", ep.prefix)
 	}
-}
-
-func validateV6PrefixesWithAftEntries(t *testing.T, dut *ondatra.DUTDevice, prefixAttrs []prefixAttributes) {
-	for _, ep := range prefixAttrs {
-		ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			Afts().Ipv6Entry(fmt.Sprintf("%s/128", ep.prefix))
-
-		watchFN := func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
-			entry, present := val.Val()
-			t.Log(entry.GetPrefix())
-			return present && entry.GetPrefix() == fmt.Sprintf("%s/128", ep.prefix) && entry.GetOriginProtocol() == oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
+	for _, ep := range prefixV6Attrs {
+		routesToAdvertise[fmt.Sprintf("%s/128", ep.prefix)] = cfgplugins.RouteInfo{
+			VRF:         deviations.DefaultNetworkInstance(dut),
+			IPType:      cfgplugins.IPv6,
+			DefaultName: deviations.DefaultNetworkInstance(dut),
 		}
-
-		if got, ok := gnmi.Watch(t, dut, ipv4Path.State(), time.Minute, watchFN).Await(t); !ok {
-			t.Errorf("Prefix not learnt: got %v, want %s", got, ep.prefix)
-		}
-		t.Logf("Prefix %s learnt by DUT...", ep.prefix)
 	}
+	cfgplugins.VerifyRoutes(t, dut, routesToAdvertise)
 }
 
 func validateV6PrefixesWithAttributes(t *testing.T, ate *ondatra.ATEDevice, prefixAttrs []prefixAttributes) {
@@ -1269,17 +1253,22 @@ func validateExrr(t *testing.T, flowsWithNoERR []string, flowsWithNoLoss []strin
 	}
 
 	t.Logf("Time passed since graceful restart was initiated is %s", time.Since(startTime))
-	if time.Since(startTime) < time.Duration(params.GracefulRestartStaleRouteTime)*time.Second {
-		waitDuration = time.Duration(params.GracefulRestartStaleRouteTime)*time.Second - time.Since(startTime)
-		t.Logf("Waiting another %s seconds to ensure the stale route timer of %v expired", waitDuration, params.GracefulRestartStaleRouteTime)
+	staleRouteExpiry := time.Duration(params.GracefulRestartStaleRouteTime)*time.Second + 5*time.Second
+	if time.Since(startTime) < staleRouteExpiry {
+		waitDuration = staleRouteExpiry - time.Since(startTime)
+		t.Logf("Waiting another %s to ensure stale route timer expired and FIB settled", waitDuration)
 		time.Sleep(waitDuration)
 	} else {
 		t.Logf("Enough time passed to ensure the expiration of stale route timer of %v", params.GracefulRestartStaleRouteTime)
 	}
 
 	ate.OTG().StartTraffic(t)
-	waitDuration = time.Duration(triggerGrTimer*time.Second - time.Duration(params.GracefulRestartStaleRouteTime)*time.Second - 5*time.Second)
-	time.Sleep(waitDuration)
+	remainingTime := time.Duration(triggerGrTimer)*time.Second - time.Since(startTime) - 5*time.Second
+	if remainingTime < 10*time.Second {
+		remainingTime = 10 * time.Second
+	}
+	t.Logf("Running second traffic burst for %s", remainingTime)
+	time.Sleep(remainingTime)
 	ate.OTG().StopTraffic(t)
 
 	if hardReset {
@@ -1391,6 +1380,9 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 	ate.OTG().PushConfig(t, config)
 	ate.OTG().StartProtocols(t)
 
+	otgutils.WaitForARP(t, ate.OTG(), config, "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), config, "IPv6")
+
 	mustCheckBgpStatus(t, dut, routeCount)
 
 	flowsWithNoERR := []string{fmt.Sprintf("%s-%s-Ipv4", ipv4Prefix1, ipv4Prefix4),
@@ -1423,8 +1415,7 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 					t.Fatalf("checkBgpGRConfig failed: %v", err)
 				}
 
-				validateV4PrefixesWithAftEntries(t, dut, prefixAttrs)
-				validateV6PrefixesWithAftEntries(t, dut, prefixV6Attrs)
+				verifyRoutes(t, dut)
 				validatePrefixesWithAttributes(t, ate, prefixAttrs)
 				validateV6PrefixesWithAttributes(t, ate, prefixV6Attrs)
 				if err := validateTrafficFlows(t, ate, config, true); err != nil {
@@ -1730,6 +1721,9 @@ func TestBGPPGracefulRestartExtendedRouteRetentionOnPeerGroup(t *testing.T) {
 	ate.OTG().PushConfig(t, config)
 	ate.OTG().StartProtocols(t)
 
+	otgutils.WaitForARP(t, ate.OTG(), config, "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), config, "IPv6")
+
 	mustCheckBgpStatus(t, dut, routeCount)
 
 	flowsWithNoERR := []string{fmt.Sprintf("%s-%s-Ipv4", ipv4Prefix1, ipv4Prefix4),
@@ -1762,8 +1756,7 @@ func TestBGPPGracefulRestartExtendedRouteRetentionOnPeerGroup(t *testing.T) {
 					t.Fatalf("checkBgpGRConfig failed: %v", err)
 				}
 
-				validateV4PrefixesWithAftEntries(t, dut, prefixAttrs)
-				validateV6PrefixesWithAftEntries(t, dut, prefixV6Attrs)
+				verifyRoutes(t, dut)
 				validatePrefixesWithAttributes(t, ate, prefixAttrs)
 				validateV6PrefixesWithAttributes(t, ate, prefixV6Attrs)
 				if err := validateTrafficFlows(t, ate, config, true); err != nil {
