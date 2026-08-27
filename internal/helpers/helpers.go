@@ -18,6 +18,7 @@ package helpers
 import (
 	"context"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"testing"
@@ -227,4 +228,121 @@ func RunCliCommand(t *testing.T, dut *ondatra.DUTDevice, cliCommand string) stri
 		t.Fatalf("Failed to execute CLI command '%q': %v", cliCommand, err)
 	}
 	return output.Output()
+}
+
+// WaitForIPSECTunnelsParams contains parameters for waiting for a range of tunnels to come UP.
+type WaitForIPSECTunnelsParams struct {
+	StartTunnel int
+	Count       int
+	Timeout     time.Duration
+}
+
+// WaitForAllIPSECTunnelsUP waits for the IPSec tunnels numbered [startTunnel,
+// startTunnel+count-1] to reach UP state on both DUTs.
+func WaitForAllIPSECTunnelsUP(t *testing.T, dut1, dut2 *ondatra.DUTDevice, params WaitForIPSECTunnelsParams) {
+	t.Helper()
+
+	endTunnel := params.StartTunnel + params.Count - 1
+	t.Logf("Waiting for IPSec tunnels %d-%d to come UP on both DUTs (timeout: %v)...", params.StartTunnel, endTunnel, params.Timeout)
+
+	for i := params.StartTunnel; i <= endTunnel; i++ {
+		tunName := fmt.Sprintf("Tunnel%d", i)
+
+		// Check DUT1 tunnel
+		path1 := gnmi.OC().Interface(tunName).OperStatus().State()
+		_, ok1 := gnmi.Watch(t, dut1, path1, params.Timeout, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
+			status, present := val.Val()
+			return present && status == oc.Interface_OperStatus_UP
+		}).Await(t)
+		if !ok1 {
+			got1 := gnmi.Get(t, dut1, path1)
+			t.Fatalf("DUT1 tunnel %s did not come UP within %v, final status: %v", tunName, params.Timeout, got1)
+		}
+
+		// Check DUT2 tunnel
+		path2 := gnmi.OC().Interface(tunName).OperStatus().State()
+		_, ok2 := gnmi.Watch(t, dut2, path2, params.Timeout, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
+			status, present := val.Val()
+			return present && status == oc.Interface_OperStatus_UP
+		}).Await(t)
+		if !ok2 {
+			got2 := gnmi.Get(t, dut2, path2)
+			t.Fatalf("DUT2 tunnel %s did not come UP within %v, final status: %v", tunName, params.Timeout, got2)
+		}
+
+		if (i-params.StartTunnel+1)%32 == 0 || i == endTunnel {
+			t.Logf("Tunnels up through %d on both DUTs", i)
+		}
+	}
+
+	t.Logf("All IPSec tunnels %d-%d are UP on both DUTs", params.StartTunnel, endTunnel)
+}
+
+// ReadMemberOutPkts reads out-pkts telemetry counters for all specified member ports on the DUT.
+func ReadMemberOutPkts(t *testing.T, dut *ondatra.DUTDevice, memberPorts []*ondatra.Port) map[string]uint64 {
+	t.Helper()
+	vals := make(map[string]uint64)
+	for _, p := range memberPorts {
+		vals[p.Name()] = gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Counters().OutPkts().State())
+	}
+	return vals
+}
+
+// DUTDUTLoadBalanceParams contains parameters for verifying load balance across member ports.
+type DUTDUTLoadBalanceParams struct {
+	MemberPorts    []*ondatra.Port
+	Baseline       map[string]uint64
+	Tolerance      float64
+	WantSingleLink bool
+}
+
+// VerifyDUTDUTLoadBalance verifies that traffic delta across member ports matches the expected balance.
+func VerifyDUTDUTLoadBalance(t *testing.T, dut *ondatra.DUTDevice, params DUTDUTLoadBalanceParams) error {
+	t.Helper()
+
+	after := ReadMemberOutPkts(t, dut, params.MemberPorts)
+	delta := make(map[string]uint64)
+	var total uint64
+	active := 0
+
+	for _, p := range params.MemberPorts {
+		name := p.Name()
+		if after[name] > params.Baseline[name] {
+			delta[name] = after[name] - params.Baseline[name]
+		}
+		total += delta[name]
+		if delta[name] > 0 {
+			active++
+		}
+	}
+
+	if total == 0 {
+		return fmt.Errorf("no packets observed on DUT-to-DUT member links")
+	}
+
+	var errs []error
+
+	if params.WantSingleLink {
+		if active != 1 {
+			errs = append(errs, fmt.Errorf("single-link expectation failed: active members got %d, want 1", active))
+		}
+	} else {
+		if active != len(params.MemberPorts) {
+			errs = append(errs, fmt.Errorf("balanced load expectation failed: active members got %d, want %d", active, len(params.MemberPorts)))
+		}
+
+		evenShare := 1.0 / float64(len(params.MemberPorts))
+		for _, p := range params.MemberPorts {
+			name := p.Name()
+			share := float64(delta[name]) / float64(total)
+			if math.Abs(share-evenShare) > params.Tolerance {
+				errs = append(errs, fmt.Errorf("member %s share got %.3f, want %.3f +/- %.3f", name, share, evenShare, params.Tolerance))
+			}
+		}
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("load balance verification failed: %v", errs)
+	}
+	return nil
 }
