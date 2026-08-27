@@ -1465,13 +1465,19 @@ func (td *testData) testDirectInterfaceIPDeletion(t *testing.T) {
 		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
 			"0": oc.UnionString(atePort2.IPv4),
 		},
+		// FIX: Add this block to ensure the route cannot failover to IS-IS
+		// explicitly enforcing "Direct Interface IP" requirement from RT-1.26.9.
+		Metric: uint32(100),
 	}
 	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, td.dut); err != nil {
 		t.Fatalf("Failed to configure IPv4 static route: %v", err)
 	}
-	b.Set(t, td.dut)
 
 	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
+	// explicitly enforcing "Direct Interface IP" requirement from RT-1.26.9 by disabling recurse over ISIS backdoors.
+	gnmi.BatchReplace(b, sp.Static(td.staticIPv4.cidr(t)).NextHop("0").Recurse().Config(), false)
+	b.Set(t, td.dut)
+
 	gnmi.Await(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv4.cidr(t))
 
 	port2 := td.dut.Port(t, "port2").Name()
@@ -1482,12 +1488,21 @@ func (td *testData) testDirectInterfaceIPDeletion(t *testing.T) {
 	// Step 2: Delete the IP address of that direct interface using a gNMI Set DELETE
 	gnmi.Delete(t, td.dut, gnmi.OC().Interface(port2).Subinterface(0).Ipv4().Address(dutPort2.IPv4).Config())
 
+	// FIX: Add gnmi Wait block to verify the IP address has actually been removed from State!
+	t.Log("Awaiting state convergence for Interface IP deletion...")
+	gnmi.Watch(t, td.dut, gnmi.OC().Interface(port2).Subinterface(0).Ipv4().Address(dutPort2.IPv4).State(), 30*time.Second, func(val *ygnmi.Value[*oc.Interface_Subinterface_Ipv4_Address]) bool {
+		return !val.IsPresent()
+	}).Await(t)
+
 	defer func() {
 		ipConf := &oc.Interface_Subinterface_Ipv4_Address{
 			Ip:           ygot.String(dutPort2.IPv4),
 			PrefixLength: ygot.Uint8(uint8(dutPort2.IPv4Len)),
 		}
 		gnmi.Replace(t, td.dut, gnmi.OC().Interface(port2).Subinterface(0).Ipv4().Address(dutPort2.IPv4).Config(), ipConf)
+
+		// FIX: Wait for restored State
+		gnmi.Await(t, td.dut, gnmi.OC().Interface(port2).Subinterface(0).Ipv4().Address(dutPort2.IPv4).Ip().State(), 30*time.Second, dutPort2.IPv4)
 		td.deleteStaticRoutes(t)
 	}()
 
