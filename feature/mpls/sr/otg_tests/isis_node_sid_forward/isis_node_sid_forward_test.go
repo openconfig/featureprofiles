@@ -16,10 +16,12 @@
 package isis_node_sid_forward_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/isissession"
@@ -133,7 +135,7 @@ func configureOTG(t *testing.T, ts *isissession.TestSession) {
 
 	v4 := v4Flow.Packet().Add().Ipv4()
 	v4.Src().SetValue(isissession.ATEISISAttrs.IPv4)
-	v4.Dst().SetValue(ateV4Route) //
+	v4.Dst().SetValue(ateV4Route)
 
 	t.Log("Configuring v6 traffic flow ")
 
@@ -217,6 +219,7 @@ func verifySRCounters(t *testing.T, ts *isissession.TestSession, ate *ondatra.AT
 	if got := srIntf.OutPkts; got != ygot.Uint64(0) {
 		t.Errorf("FAIL- SR OutPkts is not zero, got %d, want %d", got, v4OutPkts)
 	}
+	t.Logf("SR InPkts: %d, SR OutPkts: %d", srIntf.InPkts, srIntf.OutPkts)
 }
 
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
@@ -260,13 +263,17 @@ func TestMPLSLabelBlockWithISIS(t *testing.T) {
 	t.Run("Traffic checks", func(t *testing.T) {
 		otgutils.WaitForARP(t, otg, ts.ATETop, "IPv4")
 		otgutils.WaitForARP(t, otg, ts.ATETop, "IPv6")
+		cfgplugins.VerifyRoutes(t, ts.DUT, map[string]cfgplugins.RouteInfo{
+			fmt.Sprintf("%s/%d", ateV4Route, plenIPv4): {IPType: cfgplugins.IPv4},
+			fmt.Sprintf("%s/%d", ateV6Route, plenIPv6): {IPType: cfgplugins.IPv6},
+		})
+
 		t.Logf("Starting traffic")
 		t.Log(otg.GetConfig(t))
 		otg.StartTraffic(t)
 		time.Sleep(time.Second * 15)
 		t.Logf("Stop traffic")
 		otg.StopTraffic(t)
-
 		verifyTraffic(t, ts.ATE, ts.ATETop)
 	})
 
