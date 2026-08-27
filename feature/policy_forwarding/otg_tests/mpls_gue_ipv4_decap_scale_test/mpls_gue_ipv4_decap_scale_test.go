@@ -781,7 +781,7 @@ func waitForOTGProtocolsUpWithRetry(t *testing.T, ate *ondatra.ATEDevice, config
 
 		if !ok {
 			if strict {
-				return fmt.Errorf("lag %s not UP", lag.Name())
+				return fmt.Errorf("LAG %s not UP", lag.Name())
 			}
 			return fmt.Errorf("retry needed: LAG %s not UP", lag.Name())
 		}
@@ -864,11 +864,11 @@ func validateECMPonLAGForFlow(f *otgconfighelpers.Flow) func(*testing.T, *ondatr
 	}
 }
 
-// createflow configure the traffic streams as per the readme. When the flow
+// createFlow configure the traffic streams as per the readme. When the flow
 // definition carries several TxNames, one OTG flow per transmit device is
 // created and the configured rate is shared between them, so that the total
 // offered rate stays the same while the traffic ingresses on both aggregates.
-func createflow(t *testing.T, top gosnappi.Config, outer *otgconfighelpers.Flow, inner *otgconfighelpers.Flow, clearFlows bool) {
+func createFlow(t *testing.T, top gosnappi.Config, outer *otgconfighelpers.Flow, inner *otgconfighelpers.Flow, clearFlows bool) {
 	t.Helper()
 
 	if clearFlows {
@@ -1001,7 +1001,7 @@ func updateFlow(t *testing.T, paramsOuter *otgconfighelpers.Flow, paramsInner *o
 			paramsOuter.IPv4Flow.IPv4Dst = outerDstIPv4
 		}
 	}
-	createflow(t, top, paramsOuter, paramsInner, clearFlows)
+	createFlow(t, top, paramsOuter, paramsInner, clearFlows)
 }
 
 // configureInterfaces configures a LAG (aggregate interface) and attaches DUT ports to it. It also applies LACP settings, enables aggregation, and sets hold-time for member interfaces.
@@ -1185,7 +1185,7 @@ func TestMPLSOGUEDecapScale(t *testing.T) {
 				packetvalidationhelpers.ConfigurePacketCapture(t, top, tc.validationConfig)
 				sendTrafficCapture(t, ate, dut, custAggID, netConfig)
 			} else {
-				createflow(t, top, tc.outerFlow, tc.innerFlow, true)
+				createFlow(t, top, tc.outerFlow, tc.innerFlow, true)
 				sendTraffic(t, ate, dut, custAggID, netConfig)
 			}
 
@@ -1593,8 +1593,8 @@ func testDecapScaleIPv6Outer(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.
 		}
 		// Both flows run simultaneously so that the combined line rate is at
 		// least v6ScaleLineRatePct of the ingress port capacity.
-		createflow(t, top, flowOuterV6ScaleIPv4Payload, flowInnerV6ScaleIPv4Payload, true)
-		createflow(t, top, flowOuterV6ScaleIPv6Payload, flowInnerV6ScaleIPv6Payload, false)
+		createFlow(t, top, flowOuterV6ScaleIPv4Payload, flowInnerV6ScaleIPv4Payload, true)
+		createFlow(t, top, flowOuterV6ScaleIPv6Payload, flowInnerV6ScaleIPv6Payload, false)
 		// Device health and the egress packet rates are monitored through gNMI
 		// Subscribe while the scaled traffic is running.
 		sendTrafficWithTelemetry(t, ate, dut, custAggID, netConfig, v6ScaleTrafficDuration, func(t *testing.T) {
@@ -1611,7 +1611,7 @@ func testDecapScaleIPv6Outer(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.
 		// balance is validated against the combined member-port counters rather
 		// than against a single flow's counters.
 		if err := validateV6ScaleECMPonLAG(t, ate, append(flowNames(flowOuterV6ScaleIPv4Payload), flowNames(flowOuterV6ScaleIPv6Payload)...)); err != nil {
-			t.Errorf("ecmpValidationFailed(): got err: %q, want nil", err)
+			t.Errorf("validateV6ScaleECMPonLAG(): got err: %q, want nil", err)
 		}
 		// Confirm every decap rule actually matched traffic, so that a rule that
 		// was programmed but never installed in hardware is detected.
@@ -1663,7 +1663,7 @@ func testDecapScaleIPv6Outer(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.
 				packetvalidationhelpers.ConfigurePacketCapture(t, top, tc.validationConfig)
 				sendTrafficCapture(t, ate, dut, custAggID, netConfig)
 				if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, tc.validationConfig); err != nil {
-					t.Errorf("captureAndValidatePackets(%s): got err: %q, want nil", tc.outer.FlowName, err)
+					t.Errorf("CaptureAndValidatePackets(%s) got err: %v, want nil", tc.outer.FlowName, err)
 				}
 			})
 		}
@@ -1696,9 +1696,8 @@ func verifyV6ScaleRuleMatchedPkts(t *testing.T, dut *ondatra.DUTDevice, wantRule
 	}
 	if len(zeroOctetRules) > 0 {
 		return fmt.Errorf("%d of %d decap rules reported 0 matched-octets (first offenders: %v); want non-zero octets on every rule", len(zeroOctetRules), wantRules, truncateUint32s(zeroOctetRules, v6ScaleZeroRuleLogLimit))
-	} else {
-		t.Logf("All %d decap rules reported matched-octets (total matched octets: %d)", wantRules, totalOctets)
 	}
+	t.Logf("All %d decap rules reported matched-octets (total matched octets: %d)", wantRules, totalOctets)
 	reportV6ScaleZeroRules(t, len(zeroRules), wantRules, total, fmt.Sprint(zeroRules))
 	return nil
 }
@@ -1718,8 +1717,10 @@ func verifyV6ScaleRuleMatchedPktsCLI(t *testing.T, dut *ondatra.DUTDevice, param
 		return fmt.Errorf("no native traffic-policy counter verification available for vendor %v", dut.Vendor())
 	}
 	names := cfgplugins.GueDecapV6ScaleRuleNames(params)
-	var zeroRules []string
-	var total uint64
+	var (
+		zeroRules []string
+		total     uint64
+	)
 	for _, name := range names {
 		pkts, ok := counters[name]
 		if !ok || pkts == 0 {
@@ -1784,7 +1785,7 @@ func validateV6ScaleECMPonLAG(t *testing.T, ate *ondatra.ATEDevice, flowNames []
 		deviation := math.Abs(expected-float64(got)) * 100 / expected
 		t.Logf("LAG member %s received %d frames (expected ~%.0f, deviation %.2f%%)", p, got, expected, deviation)
 		if deviation > v6ScaleECMPTolerancePct {
-			return fmt.Errorf("port %s packet count out of expected range: got %d, expected ~%.0f ±%v%%", p, got, expected, v6ScaleECMPTolerancePct)
+			return fmt.Errorf("port %s packet count mismatch: got %d, want within ~%.0f ±%v%%", p, got, expected, v6ScaleECMPTolerancePct)
 		}
 	}
 	return nil

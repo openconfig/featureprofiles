@@ -1673,13 +1673,13 @@ func DecapGroupConfigGueV6Scale(t *testing.T, dut *ondatra.DUTDevice, params Gue
 		}
 		return
 	}
-	decapPolicyRulesandActionsGueV6Scale(t, params)
+	decapPolicyRulesAndActionsGueV6Scale(t, params)
 }
 
-// decapPolicyRulesandActionsGueV6Scale builds the OC policy-forwarding policy
+// decapPolicyRulesAndActionsGueV6Scale builds the OC policy-forwarding policy
 // with one decapsulate-mpls-in-udp rule per unique outer IPv6 source address and
 // applies it to the ingress interfaces.
-func decapPolicyRulesandActionsGueV6Scale(t *testing.T, params GueDecapV6ScaleParams) {
+func decapPolicyRulesAndActionsGueV6Scale(t *testing.T, params GueDecapV6ScaleParams) {
 	t.Helper()
 	policy := params.PfInstance.GetOrCreatePolicy(params.PolicyID)
 	policy.PolicyId = ygot.String(params.PolicyID)
@@ -1709,7 +1709,7 @@ func decapPolicyRulesandActionsGueV6Scale(t *testing.T, params GueDecapV6ScalePa
 // The per-outer-source scale rules (one per unique outer IPv6 source address)
 // are expressed as an IPv6 traffic-policy applied on ingress, which is the EOS
 // equivalent of the OC policy-forwarding rules built by
-// DecapPolicyRulesandActionsGueV6Scale.
+// decapPolicyRulesAndActionsGueV6Scale.
 func configureGueDecapV6ScaleNative(t *testing.T, dut *ondatra.DUTDevice, params GueDecapV6ScaleParams) {
 	t.Helper()
 	helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("ip decap-group type udp destination port %d payload mpls\n!", params.GUEPort))
@@ -1953,8 +1953,13 @@ func parseNativeTrafficPolicyCounters(out string) map[string]uint64 {
 	counters := map[string]uint64{}
 	for _, line := range strings.Split(out, "\n") {
 		fields := strings.Fields(line)
-		name := ""
-		rest := []string{}
+		if len(fields) < 2 {
+			continue
+		}
+		var (
+			name string
+			rest []string
+		)
 		switch {
 		case len(fields) >= 4 && fields[0] == "match" && fields[1] == "rule:":
 			// "match rule: <name>: <n> packets"
