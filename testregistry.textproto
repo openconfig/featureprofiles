@@ -220,6 +220,7 @@ test: {
   id: "Certz-1"
   description: "gNSI Client Certificate Tests"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/client_certificates/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/client_certificates/client_certificates_test.go"
 }
 test: {
   id: "Certz-3"
