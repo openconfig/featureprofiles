@@ -712,7 +712,7 @@ func TestUpgrade(t *testing.T) {
 					continue
 				}
 				t.Logf("Found container: Name=%s, Image=%s, State=%s", cnt.Name, cnt.ImageName, cnt.State)
-				if (cnt.Name == instanceName || cnt.Name == "/"+instanceName || strings.TrimPrefix(cnt.Name, "/") == instanceName) &&
+				if strings.TrimPrefix(cnt.Name, "/") == instanceName &&
 					cnt.ImageName == expectedImage &&
 					cnt.State == cpb.ListContainerResponse_RUNNING.String() {
 					t.Logf("Container %s successfully upgraded to %s and is RUNNING.", instanceName, expectedImage)
