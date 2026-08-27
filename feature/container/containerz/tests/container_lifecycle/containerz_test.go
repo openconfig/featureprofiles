@@ -435,7 +435,6 @@ func TestStopContainer(t *testing.T) {
 				}
 				if strings.TrimPrefix(cntr.Name, "/") == instanceName && cntr.State != cpb.ListContainerResponse_STOPPED.String() {
 					isStillRunning = true
-					break
 				}
 			}
 			if !isStillRunning {
@@ -495,7 +494,6 @@ func TestStopContainer(t *testing.T) {
 				}
 				if strings.TrimPrefix(cntr.Name, "/") == instanceName && cntr.State != cpb.ListContainerResponse_STOPPED.String() {
 					isStillRunning = true
-					break
 				}
 			}
 			if !isStillRunning {
@@ -609,7 +607,6 @@ func TestVolumes(t *testing.T) {
 			for vol := range volChVerify {
 				if vol.Name == volumeName {
 					found = true
-					break
 				}
 			}
 			if !found {
@@ -707,7 +704,6 @@ func TestUpgrade(t *testing.T) {
 					cnt.State == cpb.ListContainerResponse_RUNNING.String() {
 					t.Logf("Container %s successfully upgraded to %s and is RUNNING.", instanceName, expectedImage)
 					foundUpgraded = true
-					break
 				}
 			}
 			if foundUpgraded {
@@ -1086,7 +1082,6 @@ func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 			for vol := range volCh {
 				if vol.Name == volName {
 					volFound = true
-					break
 				}
 			}
 			if volFound {
