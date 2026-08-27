@@ -259,6 +259,10 @@ func TestStaticRouteAddRemove(t *testing.T) {
 		// Step 1 - Configure one IPv4 static route with next-hops set to the IPv4
 		// address of ATE port-2 (index 0) and port-3 (index 1).
 		prefix := ipAddr{address: v4Route, prefix: v4RoutePrefix}
+		t.Cleanup(func() {
+			sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+			gnmi.Delete(t, dut, sp.Static(prefix.cidr(t)).Config())
+		})
 		b := &gnmi.SetBatch{}
 		sV4 := &cfgplugins.StaticRouteCfg{
 			NetworkInstance: deviations.DefaultNetworkInstance(dut),
@@ -328,6 +332,9 @@ func validateStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, sV
 		// Validate both the routes i.e. ipv4-route-[a|b] are configured and reported
 		// correctly
 		gotStatic := gnmi.Get(t, dut, sp.Static(prefix).State())
+		if got, want := len(gotStatic.NextHop), len(sV4.NextHops); got != want {
+			t.Errorf("Static route %s next hop count: got %d, want %d", prefix, got, want)
+		}
 		t.Logf("Static route %s: got: %v, want: %v", prefix, len(gotStatic.NextHop), len(sV4.NextHops))
 		for index, nextHop := range gotStatic.NextHop {
 			if got, want := nextHop.GetNextHop(), sV4.NextHops[index]; got != want {
@@ -1326,12 +1333,6 @@ func (td *testData) testCrossAddressFamilyNextHops(t *testing.T) {
 		t.Skip("Skipping XAF route test. Deviations unsupported.")
 	}
 
-	// Step 1 - Delete the configuration using a gNMI Set DELETE on the specific `metric` and `preference` paths for `ipv4-route-b`, `ipv6-route-b`, `ipv4-route-a`, and `ipv6-route-a`.
-	cfgplugins.DeleteStaticRouteNextHopLeaves(t, td.dut, deviations.DefaultNetworkInstance(td.dut), td.staticIPv4.cidr(t), "0", "metric", "preference")
-	cfgplugins.DeleteStaticRouteNextHopLeaves(t, td.dut, deviations.DefaultNetworkInstance(td.dut), td.staticIPv4.cidr(t), "1", "metric", "preference")
-	cfgplugins.DeleteStaticRouteNextHopLeaves(t, td.dut, deviations.DefaultNetworkInstance(td.dut), td.staticIPv6.cidr(t), "0", "metric", "preference")
-	cfgplugins.DeleteStaticRouteNextHopLeaves(t, td.dut, deviations.DefaultNetworkInstance(td.dut), td.staticIPv6.cidr(t), "1", "metric", "preference")
-
 	b := &gnmi.SetBatch{}
 	// Step 2 - Configure IPv6 static route `2001:db8:128:128::/64` with next-hops
 	// set to the IPv4 address of ATE port-1 and ATE port-2.
@@ -1373,9 +1374,12 @@ func (td *testData) testCrossAddressFamilyNextHops(t *testing.T) {
 		t.Fatalf("Failed to configure IPv4 static route: %v", err)
 	}
 
+	t.Cleanup(func() {
+		td.deleteStaticRoutes(t)
+	})
+
 	// Step 4 - Push configuration to DUT.
 	b.Set(t, td.dut)
-	defer td.deleteStaticRoutes(t)
 
 	// Step 5 - Validate the routes are configured and the cross-family next-hops are reported correctly
 	// Validations
@@ -1485,16 +1489,7 @@ func (td *testData) testDirectInterfaceIPDeletion(t *testing.T) {
 		port2 = port2 + ".0"
 	}
 
-	// Step 2: Delete the IP address of that direct interface using a gNMI Set DELETE
-	gnmi.Delete(t, td.dut, gnmi.OC().Interface(port2).Subinterface(0).Ipv4().Address(dutPort2.IPv4).Config())
-
-	// FIX: Add gnmi Wait block to verify the IP address has actually been removed from State!
-	t.Log("Awaiting state convergence for Interface IP deletion...")
-	gnmi.Watch(t, td.dut, gnmi.OC().Interface(port2).Subinterface(0).Ipv4().Address(dutPort2.IPv4).State(), 30*time.Second, func(val *ygnmi.Value[*oc.Interface_Subinterface_Ipv4_Address]) bool {
-		return !val.IsPresent()
-	}).Await(t)
-
-	defer func() {
+	t.Cleanup(func() {
 		ipConf := &oc.Interface_Subinterface_Ipv4_Address{
 			Ip:           ygot.String(dutPort2.IPv4),
 			PrefixLength: ygot.Uint8(uint8(dutPort2.IPv4Len)),
@@ -1504,7 +1499,16 @@ func (td *testData) testDirectInterfaceIPDeletion(t *testing.T) {
 		// FIX: Wait for restored State
 		gnmi.Await(t, td.dut, gnmi.OC().Interface(port2).Subinterface(0).Ipv4().Address(dutPort2.IPv4).Ip().State(), 30*time.Second, dutPort2.IPv4)
 		td.deleteStaticRoutes(t)
-	}()
+	})
+
+	// Step 2: Delete the IP address of that direct interface using a gNMI Set DELETE
+	gnmi.Delete(t, td.dut, gnmi.OC().Interface(port2).Subinterface(0).Ipv4().Address(dutPort2.IPv4).Config())
+
+	// FIX: Add gnmi Wait block to verify the IP address has actually been removed from State!
+	t.Log("Awaiting state convergence for Interface IP deletion...")
+	gnmi.Watch(t, td.dut, gnmi.OC().Interface(port2).Subinterface(0).Ipv4().Address(dutPort2.IPv4).State(), 30*time.Second, func(val *ygnmi.Value[*oc.Interface_Subinterface_Ipv4_Address]) bool {
+		return !val.IsPresent()
+	}).Await(t)
 
 	// Step 3: Send Traffic
 	td.ate.OTG().StartTraffic(t)
@@ -1550,15 +1554,16 @@ func (td *testData) testOverlappingPrefixesLPM(t *testing.T) {
 		t.Fatalf("Failed to configure %s static route: %v", prefix24, err)
 	}
 
-	// Step 2: Push configuration to DUT.
-	b.Set(t, td.dut)
-	defer func() {
+	t.Cleanup(func() {
 		bDel := &gnmi.SetBatch{}
 		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
 		gnmi.BatchDelete(bDel, sp.Static(prefix8).Config())
 		gnmi.BatchDelete(bDel, sp.Static(prefix24).Config())
 		bDel.Set(t, td.dut)
-	}()
+	})
+
+	// Step 2: Push configuration to DUT.
+	b.Set(t, td.dut)
 
 	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
 	gnmi.Await(t, td.dut, sp.Static(prefix8).Prefix().State(), 30*time.Second, prefix8)
@@ -1645,15 +1650,16 @@ func (td *testData) testRouteResolutionLoop(t *testing.T) {
 		t.Fatalf("Failed to configure %s static route: %v", prefixB, err)
 	}
 
-	// Step 3: Push configuration to DUT.
-	b.Set(t, td.dut)
-	defer func() {
+	t.Cleanup(func() {
 		bDel := &gnmi.SetBatch{}
 		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
 		gnmi.BatchDelete(bDel, sp.Static(prefixA).Config())
 		gnmi.BatchDelete(bDel, sp.Static(prefixB).Config())
 		bDel.Set(t, td.dut)
-	}()
+	})
+
+	// Step 3: Push configuration to DUT.
+	b.Set(t, td.dut)
 
 	// RT-1.26.11 Step 4: Verify the device's control plane detects or breaks the recursion loop safely without hanging or crashing
 	// If the operating system stays resilient, gnmi will eventually respond after internal reconvergence bounds.
