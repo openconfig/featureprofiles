@@ -1440,7 +1440,9 @@ func (td *testData) testCrossAddressFamilyNextHops(t *testing.T) {
 		p2CounterV4, ok4_2 := portCountersV4[port2Tag]
 
 		if ok4_1 && ok4_2 {
-			if got, want := p1CounterV4*100/(p1CounterV4+p2CounterV4), uint64(50); got < want-ecmpTolerance || got > want+ecmpTolerance {
+			if total := p1CounterV4 + p2CounterV4; total == 0 {
+				t.Errorf("ECMP IPv4 load balance error: total packets received is zero")
+			} else if got, want := p1CounterV4*100/total, uint64(50); got < want-ecmpTolerance || got > want+ecmpTolerance {
 				t.Errorf("ECMP IPv4 load balance error for port1, got: %v, want: %v", got, want)
 			}
 		}
@@ -1449,7 +1451,9 @@ func (td *testData) testCrossAddressFamilyNextHops(t *testing.T) {
 		p1CounterV6, ok6_1 := portCountersV6[port1Tag]
 		p2CounterV6, ok6_2 := portCountersV6[port2Tag]
 		if ok6_1 && ok6_2 {
-			if got, want := p1CounterV6*100/(p1CounterV6+p2CounterV6), uint64(50); got < want-ecmpTolerance || got > want+ecmpTolerance {
+			if total := p1CounterV6 + p2CounterV6; total == 0 {
+				t.Errorf("ECMP IPv6 load balance error: total packets received is zero")
+			} else if got, want := p1CounterV6*100/total, uint64(50); got < want-ecmpTolerance || got > want+ecmpTolerance {
 				t.Errorf("ECMP IPv6 load balance error for port1, got: %v, want: %v", got, want)
 			}
 		}
@@ -1609,7 +1613,9 @@ func (td *testData) testOverlappingPrefixesLPM(t *testing.T) {
 		t.Logf("LPM tracking counters: %v", portCounters)
 	}
 	_, rxLPM := otgutils.GetFlowStats(t, td.ate.OTG(), lpmFlowName, 20*time.Second)
-	if got, want := float64(p2Counter)*100/float64(rxLPM), float64(100); got+lossTolerance < want {
+	if rxLPM == 0 {
+		t.Errorf("LPM IPv4 traffic: received 0 packets, expected traffic to flow")
+	} else if got, want := float64(p2Counter)*100/float64(rxLPM), float64(100); got+lossTolerance < want {
 		t.Errorf("LPM IPv4 traffic on port2, got: %v%%, want: %v%%", got, want)
 	}
 }
