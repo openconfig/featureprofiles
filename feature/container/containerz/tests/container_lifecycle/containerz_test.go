@@ -615,6 +615,7 @@ func TestVolumes(t *testing.T) {
 			streamErr := false
 			for vol := range volChVerify {
 				if vol.Error != nil {
+					t.Logf("ListVolume error during pre-test volume check for %s: %v", volumeName, vol.Error)
 					streamErr = true
 					continue
 				}
