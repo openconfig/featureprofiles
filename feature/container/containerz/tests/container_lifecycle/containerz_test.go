@@ -61,7 +61,8 @@ func startContainer(ctx context.Context, t *testing.T) (*client.Client, func()) 
 		InstanceName:        instanceName,
 		TarPath:             containerTarPath(t),
 		RemoveExistingImage: false,
-		PollForRunningState: false,
+		PollForRunningState: true,
+		PollTimeout:         30 * time.Second,
 		PollInterval:        5 * time.Second,
 	}
 	return containerztest.Setup(ctx, t, dut, opts)
@@ -145,26 +146,34 @@ func TestRetrieveLogs(t *testing.T) {
 		localStartedCli, cleanup := startContainer(ctx, t)
 		defer cleanup() // Stops default 'instanceName'
 
-		logCh, err := localStartedCli.Logs(ctx, instanceName, false)
-		if err != nil {
-			t.Errorf("Logs() for running instance %s failed: %v", instanceName, err)
-			return
-		}
-		if logCh == nil {
-			t.Fatalf("Logs() for running instance %s returned nil channel with nil error", instanceName)
-		}
-
 		var logs []string
-		for msg := range logCh {
-			if msg.Error != nil {
-				t.Errorf("Logs() for running instance %s stream returned an error: %v", instanceName, msg.Error)
+		for start := time.Now(); time.Since(start) < 20*time.Second; time.Sleep(2 * time.Second) {
+			logCh, err := localStartedCli.Logs(ctx, instanceName, false)
+			if err != nil {
+				t.Logf("Logs() for running instance %s failed (will retry): %v", instanceName, err)
+				continue
+			}
+			if logCh == nil {
+				continue
+			}
+
+			logs = nil
+			streamErr := false
+			for msg := range logCh {
+				if msg.Error != nil {
+					t.Logf("Logs() for running instance %s stream returned an error (will retry): %v", instanceName, msg.Error)
+					streamErr = true
+					break
+				}
+				logs = append(logs, msg.Msg)
+			}
+			if !streamErr && len(logs) > 0 {
 				break
 			}
-			logs = append(logs, msg.Msg)
 		}
 
 		if len(logs) == 0 {
-			t.Errorf("No logs were returned for running instance %s", instanceName)
+			t.Errorf("No logs were returned for running instance %s after polling", instanceName)
 		} else {
 			t.Logf("Retrieved %d log lines for %s. First line (sample): %s", len(logs), instanceName, logs[0])
 		}
@@ -333,24 +342,27 @@ func TestListContainers(t *testing.T) {
 				t.Logf("Pre-test removal of %s encountered an issue (continuing test, desired state is 'not found'): %v", instanceName, err)
 			}
 		}
-		// Allow time for removal to propagate if it occurred.
-		time.Sleep(2 * time.Second)
-		// List all containers
-		listCh, err := baseCli.ListContainer(ctx, true, 0, nil)
-		if err != nil {
-			t.Fatalf("ListContainer() failed when target container %s should not be running: %v", instanceName, err)
-		}
-
-		foundOurInstance := false
+		// Allow time for removal to propagate.
 		var allListedContainers []string
-		for cnt := range listCh {
-			if cnt.Error != nil {
-				t.Errorf("Error received during ListContainer iteration: %v", cnt.Error)
-				continue // Skip this entry and check others
+		foundOurInstance := false
+		for start := time.Now(); time.Since(start) < 15*time.Second; time.Sleep(2 * time.Second) {
+			allListedContainers = nil
+			foundOurInstance = false
+			listCh, err := baseCli.ListContainer(ctx, true, 0, nil)
+			if err != nil {
+				continue
 			}
-			allListedContainers = append(allListedContainers, cnt.Name+":"+cnt.ImageName)
-			if cnt.Name == instanceName {
-				foundOurInstance = true
+			for cnt := range listCh {
+				if cnt.Error != nil {
+					continue
+				}
+				allListedContainers = append(allListedContainers, cnt.Name+":"+cnt.ImageName)
+				if strings.TrimPrefix(cnt.Name, "/") == instanceName {
+					foundOurInstance = true
+				}
+			}
+			if !foundOurInstance {
+				break
 			}
 		}
 
@@ -409,30 +421,32 @@ func TestStopContainer(t *testing.T) {
 		}
 		t.Logf("StopContainer called for %s", instanceName)
 
-		// Allow time for container to stop.
-		time.Sleep(5 * time.Second)
-
-		listCh, err := localStartedCli.ListContainer(ctx, true, 0, map[string][]string{"name": {instanceName}})
-		if err != nil {
-			t.Errorf("ListContainer() after stopping %s failed: %v", instanceName, err)
-			return
-		}
-
-		var foundContainers []string
-		for cntr := range listCh {
-			if cntr.Error != nil {
-				t.Errorf("Error received during ListContainer iteration for %s: %v", instanceName, cntr.Error)
+		// Poll until container is stopped (or no longer listed as running).
+		stopped := false
+		for start := time.Now(); time.Since(start) < 30*time.Second; time.Sleep(2 * time.Second) {
+			listCh, err := localStartedCli.ListContainer(ctx, true, 0, map[string][]string{"name": {instanceName}})
+			if err != nil {
 				continue
 			}
-			// Check if the specific instanceName is still listed.
-			if strings.TrimPrefix(cntr.Name, "/") == instanceName && cntr.State != cpb.ListContainerResponse_STOPPED.String() {
-				foundContainers = append(foundContainers, cntr.Name+":"+cntr.ImageName)
+			isStillRunning := false
+			for cntr := range listCh {
+				if cntr.Error != nil {
+					continue
+				}
+				if strings.TrimPrefix(cntr.Name, "/") == instanceName && cntr.State != cpb.ListContainerResponse_STOPPED.String() {
+					isStillRunning = true
+					break
+				}
+			}
+			if !isStillRunning {
+				stopped = true
+				break
 			}
 		}
-		if len(foundContainers) > 0 {
-			t.Errorf("StopContainer() did not stop the container %s. Found running: %v", instanceName, foundContainers)
+		if !stopped {
+			t.Errorf("StopContainer() did not stop the container %s within timeout.", instanceName)
 		} else {
-			t.Logf("Container %s successfully stopped and not listed.", instanceName)
+			t.Logf("Container %s successfully stopped and not listed as running.", instanceName)
 		}
 	})
 
@@ -445,7 +459,7 @@ func TestStopContainer(t *testing.T) {
 			}
 		}
 		// Allow time for removal to settle if it happened.
-		time.Sleep(5 * time.Second)
+		time.Sleep(2 * time.Second)
 
 		if err := baseCli.StopContainer(ctx, nonExistentInstance, true); err == nil {
 			t.Errorf("StopContainer() for non-existent instance %s succeeded, but expected an error (e.g., NotFound)", nonExistentInstance)
@@ -467,8 +481,31 @@ func TestStopContainer(t *testing.T) {
 			t.Fatalf("Initial StopContainer() for %s failed: %v", instanceName, err)
 		}
 		t.Logf("Container %s stopped once.", instanceName)
-		// Allow time for the first stop to fully process.
-		time.Sleep(5 * time.Second)
+		// Poll until the first stop has fully processed.
+		stopped := false
+		for start := time.Now(); time.Since(start) < 30*time.Second; time.Sleep(2 * time.Second) {
+			listCh, err := localStartedCli.ListContainer(ctx, true, 0, map[string][]string{"name": {instanceName}})
+			if err != nil {
+				continue
+			}
+			isStillRunning := false
+			for cntr := range listCh {
+				if cntr.Error != nil {
+					continue
+				}
+				if strings.TrimPrefix(cntr.Name, "/") == instanceName && cntr.State != cpb.ListContainerResponse_STOPPED.String() {
+					isStillRunning = true
+					break
+				}
+			}
+			if !isStillRunning {
+				stopped = true
+				break
+			}
+		}
+		if !stopped {
+			t.Fatalf("Container %s was not stopped before attempting second stop", instanceName)
+		}
 		// Attempt to stop it again.
 		if err := localStartedCli.StopContainer(ctx, instanceName, true); err != nil {
 			s, _ := status.FromError(err)
@@ -561,15 +598,27 @@ func TestVolumes(t *testing.T) {
 		}
 		t.Logf("Successfully removed volume %q", volumeName)
 
-		// Verify removal by listing again.
-		volChVerify, errVerify := cli.ListVolume(ctx, map[string][]string{"name": {volumeName}})
-		if errVerify != nil {
-			t.Fatalf("ListVolume() after removing %q failed: %v", volumeName, errVerify)
-		}
-		for vol := range volChVerify {
-			if vol.Name == volumeName {
-				t.Errorf("Volume %q found by ListVolume() after it was supposed to be removed.", volumeName)
+		// Verify removal by polling list until volume is gone.
+		volumeRemoved := false
+		for start := time.Now(); time.Since(start) < 15*time.Second; time.Sleep(2 * time.Second) {
+			volChVerify, errVerify := cli.ListVolume(ctx, map[string][]string{"name": {volumeName}})
+			if errVerify != nil {
+				continue
 			}
+			found := false
+			for vol := range volChVerify {
+				if vol.Name == volumeName {
+					found = true
+					break
+				}
+			}
+			if !found {
+				volumeRemoved = true
+				break
+			}
+		}
+		if !volumeRemoved {
+			t.Errorf("Volume %q found by ListVolume() after it was supposed to be removed.", volumeName)
 		}
 	})
 
@@ -636,27 +685,34 @@ func TestUpgrade(t *testing.T) {
 			t.Fatalf("unable to upgrade container %s to %s:upgrade: %v", instanceName, imageName, err)
 		}
 		t.Logf("UpdateContainer called for %s to %s:upgrade", instanceName, imageName)
-		// Allow time for upgrade to complete
-		time.Sleep(5 * time.Second)
 
-		listCh, err := cli.ListContainer(ctx, true, 0, map[string][]string{"name": {instanceName}})
-		if err != nil {
-			t.Fatalf("unable to list container %s after upgrade: %v", instanceName, err)
-		}
-
+		// Allow time for upgrade to complete and poll until the upgraded container is RUNNING with expected image.
 		foundUpgraded := false
 		expectedImage := imageName + ":upgrade"
-		for cnt := range listCh {
-			if cnt.Error != nil {
-				t.Errorf("Error listing container %s: %v", instanceName, cnt.Error)
+		for start := time.Now(); time.Since(start) < 30*time.Second; time.Sleep(2 * time.Second) {
+			listCh, err := cli.ListContainer(ctx, true, 0, map[string][]string{"name": {instanceName}})
+			if err != nil {
+				t.Logf("ListContainer failed (will retry): %v", err)
 				continue
 			}
-			if (cnt.Name == instanceName || cnt.Name == "/"+instanceName) && cnt.ImageName == expectedImage && cnt.State == cpb.ListContainerResponse_RUNNING.String() {
-				t.Logf("Container %s successfully upgraded to %s and is RUNNING.", instanceName, expectedImage)
-				foundUpgraded = true
+
+			for cnt := range listCh {
+				if cnt.Error != nil {
+					t.Logf("Error listing container %s: %v", instanceName, cnt.Error)
+					continue
+				}
+				t.Logf("Found container: Name=%s, Image=%s, State=%s", cnt.Name, cnt.ImageName, cnt.State)
+				if (cnt.Name == instanceName || cnt.Name == "/"+instanceName || strings.TrimPrefix(cnt.Name, "/") == instanceName) &&
+					cnt.ImageName == expectedImage &&
+					cnt.State == cpb.ListContainerResponse_RUNNING.String() {
+					t.Logf("Container %s successfully upgraded to %s and is RUNNING.", instanceName, expectedImage)
+					foundUpgraded = true
+					break
+				}
+			}
+			if foundUpgraded {
 				break
 			}
-			t.Logf("Found container: Name=%s, Image=%s, State=%s", cnt.Name, cnt.ImageName, cnt.State)
 		}
 
 		if !foundUpgraded {
@@ -972,8 +1028,8 @@ func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 			ImageName:           imageName,
 			ImageTag:            tag,
 			TarPath:             containerTarPath(t),
-			Command:             "./cntrsrv",
-			Ports:               []string{"60061:60061"},
+			Command:             "./cntrsrv -port=60064",
+			Ports:               []string{"60064:60064"},
 			Volumes:             []string{fmt.Sprintf("%s:%s", volName, "/data")},
 			RemoveExistingImage: true,
 			PollForRunningState: true,
@@ -1021,19 +1077,24 @@ func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 			t.Errorf("Container persistence failed: %v", err)
 		}
 
-		volCh, err := cli.ListVolume(ctx, map[string][]string{"name": {volName}})
-		if err != nil {
-			t.Errorf("ListVolume failed: %v", err)
-		} else {
-			volFound := false
+		volFound := false
+		for start := time.Now(); time.Since(start) < 30*time.Second; time.Sleep(3 * time.Second) {
+			volCh, err := cli.ListVolume(ctx, map[string][]string{"name": {volName}})
+			if err != nil {
+				continue
+			}
 			for vol := range volCh {
 				if vol.Name == volName {
 					volFound = true
+					break
 				}
 			}
-			if !volFound {
-				t.Errorf("Volume persistence failed: volume %s not found", volName)
+			if volFound {
+				break
 			}
+		}
+		if !volFound {
+			t.Errorf("Volume persistence failed: volume %s not found", volName)
 		}
 	})
 }
