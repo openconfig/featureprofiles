@@ -276,7 +276,7 @@ func ValidateStaticRouteNextHopIndex(t *testing.T, dut *ondatra.DUTDevice, netIn
 	t.Helper()
 	ni := normalizeNIName(netInst, dut)
 	sp := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-
+	gnmi.Await(t, dut, sp.Static(prefix).Prefix().State(), 30*time.Second, prefix)
 	gotStatic := gnmi.Get(t, dut, sp.Static(prefix).State())
 
 	if got, want := len(gotStatic.NextHop), len(expectedNh); got != want {
@@ -326,7 +326,9 @@ func ValidateStaticRouteConfigured(t *testing.T, dut *ondatra.DUTDevice, netInst
 		// Validate both the routes i.e. ipv4-route-[a|b] are configured and reported
 		// correctly
 		gotStatic := gnmi.Get(t, dut, sp.Static(prefix).State())
-		t.Logf("Static route %s: got: %v, want: %v", prefix, len(gotStatic.NextHop), len(sV4.NextHops))
+		if got, want := len(gotStatic.NextHop), len(sV4.NextHops); got != want {
+			t.Errorf("Static route %s next hop count: got %d, want %d", prefix, got, want)
+		}
 		for index, nextHop := range gotStatic.NextHop {
 			if got, want := nextHop.GetNextHop(), sV4.NextHops[index]; got != want {
 				t.Errorf("Static route %s: got: %v, want: %v", prefix, got, want)
