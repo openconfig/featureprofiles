@@ -315,7 +315,7 @@ func TestRetrieveLogs(t *testing.T) {
 					t.Errorf("Expected gRPC status code NotFound, FailedPrecondition, Internal or Unknown from channel for stopped instance %s, but got %s.", stoppedInstanceName, s.Code())
 				}
 				foundErrorOnChannel = true
-				break
+				continue
 			}
 			// If no error, it might be an actual log message from before the container stopped.
 			receivedLogs = append(receivedLogs, msg.Msg)
@@ -345,15 +345,19 @@ func TestListContainers(t *testing.T) {
 		// Allow time for removal to propagate.
 		var allListedContainers []string
 		foundOurInstance := false
+		var lastStreamErr error
 		for start := time.Now(); time.Since(start) < 15*time.Second; time.Sleep(2 * time.Second) {
 			allListedContainers = nil
 			foundOurInstance = false
+			lastStreamErr = nil
 			listCh, err := baseCli.ListContainer(ctx, true, 0, nil)
 			if err != nil {
+				lastStreamErr = err
 				continue
 			}
 			for cnt := range listCh {
 				if cnt.Error != nil {
+					lastStreamErr = cnt.Error
 					continue
 				}
 				allListedContainers = append(allListedContainers, cnt.Name+":"+cnt.ImageName)
@@ -361,12 +365,14 @@ func TestListContainers(t *testing.T) {
 					foundOurInstance = true
 				}
 			}
-			if !foundOurInstance {
+			if lastStreamErr == nil && !foundOurInstance {
 				break
 			}
 		}
 
-		if foundOurInstance {
+		if lastStreamErr != nil {
+			t.Errorf("ListContainer() encountered stream error during removal verification: %v", lastStreamErr)
+		} else if foundOurInstance {
 			t.Errorf("ListContainer() found instance %q when it should not be present. All listed containers: %v", instanceName, allListedContainers)
 		} else {
 			t.Logf("Instance %q correctly not found by ListContainer. All listed containers: %v", instanceName, allListedContainers)
@@ -429,15 +435,17 @@ func TestStopContainer(t *testing.T) {
 				continue
 			}
 			isStillRunning := false
+			streamErr := false
 			for cntr := range listCh {
 				if cntr.Error != nil {
+					streamErr = true
 					continue
 				}
 				if strings.TrimPrefix(cntr.Name, "/") == instanceName && cntr.State != cpb.ListContainerResponse_STOPPED.String() {
 					isStillRunning = true
 				}
 			}
-			if !isStillRunning {
+			if !streamErr && !isStillRunning {
 				stopped = true
 				break
 			}
@@ -488,15 +496,17 @@ func TestStopContainer(t *testing.T) {
 				continue
 			}
 			isStillRunning := false
+			streamErr := false
 			for cntr := range listCh {
 				if cntr.Error != nil {
+					streamErr = true
 					continue
 				}
 				if strings.TrimPrefix(cntr.Name, "/") == instanceName && cntr.State != cpb.ListContainerResponse_STOPPED.String() {
 					isStillRunning = true
 				}
 			}
-			if !isStillRunning {
+			if !streamErr && !isStillRunning {
 				stopped = true
 				break
 			}
@@ -581,8 +591,6 @@ func TestVolumes(t *testing.T) {
 				if diff := cmp.Diff(vol.Options, wantOptions); diff != "" {
 					t.Errorf("Volume %q returned a diff(-got, +want):\n%s", vol.Name, diff)
 				}
-
-				break
 			}
 		}
 		if !foundVolume {
@@ -604,12 +612,17 @@ func TestVolumes(t *testing.T) {
 				continue
 			}
 			found := false
+			streamErr := false
 			for vol := range volChVerify {
+				if vol.Error != nil {
+					streamErr = true
+					continue
+				}
 				if vol.Name == volumeName {
 					found = true
 				}
 			}
-			if !found {
+			if !streamErr && !found {
 				volumeRemoved = true
 				break
 			}
