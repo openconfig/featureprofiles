@@ -999,7 +999,7 @@ func flowValidationStrict(name string) *otgvalidationhelpers.OTGValidation {
 
 const queueCounterTimeout = 15 * time.Second
 
-var queueCounterIsPresent = func(val *ygnmi.Value[uint64]) bool { return val.IsPresent() }
+func queueCounterIsPresent(val *ygnmi.Value[uint64]) bool { return val.IsPresent() }
 
 func queueCounterCandidates(t *testing.T, dut *ondatra.DUTDevice, aggID string, ports []string) []string {
 	t.Helper()
