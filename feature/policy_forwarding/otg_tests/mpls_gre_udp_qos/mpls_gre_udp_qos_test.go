@@ -1176,7 +1176,7 @@ func TestPF118Traffic(t *testing.T) {
 
 		if err := flowValidation(flow.FlowName).ValidateLossOnFlows(t, ate); err != nil {
 			packetvalidationhelpers.ClearCapture(t, top, ate)
-			t.Errorf("ValidateLossOnFlows(): %v", err)
+			t.Errorf("ValidateLossOnFlows(%s) got err: %v, want nil", flow.FlowName, err)
 		}
 		if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, encapValidation); err != nil {
 			t.Errorf("CaptureAndValidatePackets(): %v", err)
