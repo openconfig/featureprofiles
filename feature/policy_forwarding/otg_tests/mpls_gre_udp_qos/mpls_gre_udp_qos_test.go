@@ -959,7 +959,7 @@ func createEncapToIPFlow(t *testing.T, top gosnappi.Config, f *encapToIPFlow, cl
 		f.Flow.IPv6Flow = f.innerIPv6
 		f.AddIPv6Header()
 	} else {
-		*f.IPv4Flow = *f.innerIPv4
+		f.IPv4Flow = f.innerIPv4
 		f.AddIPv4Header()
 	}
 	if f.innerTCP != nil {
