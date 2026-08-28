@@ -142,7 +142,6 @@ func TestBurstyTraffic(t *testing.T) {
 	intf1.AddToOTG(top, ap1, &dutPort1)
 	intf2.AddToOTG(top, ap2, &dutPort2)
 	intf3.AddToOTG(top, ap3, &dutPort3)
-	// ate.OTG().PushConfig(t, top)
 
 	queues := netutil.CommonTrafficQueues(t, dut)
 
@@ -464,6 +463,8 @@ func TestBurstyTraffic(t *testing.T) {
 
 				t.Logf("ateInPkts: %v, txPkts %v, Queue: %v", counters["ateInPkts"][data.queue], counters["dutQosPktsAfterTraffic"][data.queue], data.queue)
 				if ateTxPkts == 0 {
+					otgutils.LogPortMetrics(t, ate.OTG(), top)
+					otgutils.LogFlowMetrics(t, ate.OTG(), top)
 					t.Fatalf("TxPkts == 0, want >0.")
 				}
 				lossPct := (float32)((float64(ateTxPkts-ateRxPkts) * 100.0) / float64(ateTxPkts))
