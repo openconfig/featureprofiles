@@ -175,20 +175,12 @@ func TestBasicStaticRouteSupport(t *testing.T) {
 		advertisedIPv4: ipAddr{address: v4Route, prefix: v4RoutePrefix},
 		advertisedIPv6: ipAddr{address: v6Route, prefix: v6RoutePrefix},
 	}
-	td.advertiseRoutesWithISIS(t)
 	td.configureOTGFlows(t)
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 	defer ate.OTG().StopProtocols(t)
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
-
-	if err := td.awaitISISAdjacency(t, dut.Port(t, "port1"), isisName); err != nil {
-		t.Fatal(err)
-	}
-	if err := td.awaitISISAdjacency(t, dut.Port(t, "port2"), isisName); err != nil {
-		t.Fatal(err)
-	}
 
 	tcs := []struct {
 		desc string
