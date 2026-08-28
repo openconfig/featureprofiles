@@ -32,6 +32,10 @@ import (
 	"github.com/openconfig/ondatra"
 
 	gpb "github.com/openconfig/gribi/v1/proto/service"
+
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 const (
@@ -79,16 +83,17 @@ func (i Uint128) Decrement() Uint128 {
 //	  t.Fatalf("Could not initialize gRIBI: %v", err)
 //	}
 type Client struct {
-	DUT         *ondatra.DUTDevice
-	FIBACK      bool
-	Persistence bool
+	DUT            *ondatra.DUTDevice
+	FIBACK         bool
+	Persistence    bool
+	RedundancyMode fluent.RedundancyMode
 
 	// Unexport fields below.
 	fluentC    *fluent.GRIBIClient
 	electionID Uint128
 }
 
-// Fluent resturns the fluent client that can be used to directly call the gribi fluent APIs
+// Fluent returns the fluent client that can be used to directly call the gribi fluent APIs
 func (c *Client) Fluent(_ testing.TB) *fluent.GRIBIClient {
 	return c.fluentC
 }
@@ -119,7 +124,12 @@ func (c *Client) Start(t testing.TB) error {
 	c.fluentC = fluent.NewClient()
 	c.electionID = Uint128{Low: 1, High: 0}
 
-	conn := c.fluentC.Connection().WithStub(gribiC).WithRedundancyMode(fluent.ElectedPrimaryClient)
+	conn := c.fluentC.Connection().WithStub(gribiC)
+	if c.RedundancyMode != 0 {
+		conn = conn.WithRedundancyMode(c.RedundancyMode)
+	} else {
+		conn = conn.WithRedundancyMode(fluent.ElectedPrimaryClient)
+	}
 	conn.WithInitialElectionID(c.electionID.Low, c.electionID.High)
 	if c.Persistence {
 		conn.WithPersistence()
@@ -342,6 +352,50 @@ func (c *Client) AddIPv6(t testing.TB, prefix string, nhgIndex uint64, instance,
 	)
 }
 
+// AddIPv4s adds multiple IPv4Entry mappings to a given next hop group index within a given network instance.
+func (c *Client) AddIPv4s(t testing.TB, prefixes []string, nhgIndex uint64, instance, nhgInstance string, expectedResult fluent.ProgrammingResult) {
+	t.Helper()
+	var entries []fluent.GRIBIEntry
+	var results []*client.OpResult
+	for _, prefix := range prefixes {
+		ipv4Entry := fluent.IPv4Entry().WithPrefix(prefix).
+			WithNetworkInstance(instance).
+			WithNextHopGroup(nhgIndex)
+		if nhgInstance != "" && nhgInstance != instance {
+			ipv4Entry.WithNextHopGroupNetworkInstance(nhgInstance)
+		}
+		entries = append(entries, ipv4Entry)
+		results = append(results, fluent.OperationResult().
+			WithIPv4Operation(prefix).
+			WithOperationType(constants.Add).
+			WithProgrammingResult(expectedResult).
+			AsResult())
+	}
+	c.AddEntries(t, entries, results)
+}
+
+// AddIPv6s adds multiple IPv6Entry mappings to a given next hop group index within a given network instance.
+func (c *Client) AddIPv6s(t testing.TB, prefixes []string, nhgIndex uint64, instance, nhgInstance string, expectedResult fluent.ProgrammingResult) {
+	t.Helper()
+	var entries []fluent.GRIBIEntry
+	var results []*client.OpResult
+	for _, prefix := range prefixes {
+		ipv6Entry := fluent.IPv6Entry().WithPrefix(prefix).
+			WithNetworkInstance(instance).
+			WithNextHopGroup(nhgIndex)
+		if nhgInstance != "" && nhgInstance != instance {
+			ipv6Entry.WithNextHopGroupNetworkInstance(nhgInstance)
+		}
+		entries = append(entries, ipv6Entry)
+		results = append(results, fluent.OperationResult().
+			WithIPv6Operation(prefix).
+			WithOperationType(constants.Add).
+			WithProgrammingResult(expectedResult).
+			AsResult())
+	}
+	c.AddEntries(t, entries, results)
+}
+
 // DeleteIPv4 deletes an IPv4Entry within a network instance, given the route's prefix
 func (c *Client) DeleteIPv4(t testing.TB, prefix string, instance string, expectedResult fluent.ProgrammingResult) {
 	t.Helper()
@@ -451,4 +505,32 @@ func awaitTimeout(ctx context.Context, t testing.TB, c *fluent.GRIBIClient, time
 	subctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	return c.Await(subctx, t)
+}
+
+// AwaitAFTIPv4Entries waits for a list of IPv4 prefixes to be successfully installed in AFT.
+func AwaitAFTIPv4Entries(t testing.TB, dut *ondatra.DUTDevice, networkInstance string, prefixes []string) {
+	t.Helper()
+	for _, prefix := range prefixes {
+		ipv4Path := gnmi.OC().NetworkInstance(networkInstance).Afts().Ipv4Entry(prefix)
+		if _, found := gnmi.Watch(t, dut, ipv4Path.State(), 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+			value, present := val.Val()
+			return present && value.GetPrefix() == prefix
+		}).Await(t); !found {
+			t.Fatalf("Could not find IPv4 prefix %s in telemetry AFT", prefix)
+		}
+	}
+}
+
+// AwaitAFTIPv6Entries waits for a list of IPv6 prefixes to be successfully installed in AFT.
+func AwaitAFTIPv6Entries(t testing.TB, dut *ondatra.DUTDevice, networkInstance string, prefixes []string) {
+	t.Helper()
+	for _, prefix := range prefixes {
+		ipv6Path := gnmi.OC().NetworkInstance(networkInstance).Afts().Ipv6Entry(prefix)
+		if _, found := gnmi.Watch(t, dut, ipv6Path.State(), 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
+			value, present := val.Val()
+			return present && value.GetPrefix() == prefix
+		}).Await(t); !found {
+			t.Fatalf("Could not find IPv6 prefix %s in telemetry AFT", prefix)
+		}
+	}
 }
