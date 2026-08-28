@@ -733,7 +733,7 @@ func cleanupAristaQosTxQueues(t *testing.T, dut *ondatra.DUTDevice, qNames []str
 	helpers.GnmiCLIConfig(t, dut, cli.String())
 }
 
-func createflow(t *testing.T, top gosnappi.Config, params *otgconfighelpers.Flow, clearFlows bool) {
+func createFlow(t *testing.T, top gosnappi.Config, params *otgconfighelpers.Flow, clearFlows bool) {
 	t.Helper()
 	if clearFlows {
 		top.Flows().Clear()
@@ -1160,7 +1160,7 @@ func TestPF118Traffic(t *testing.T) {
 			VLANFlow:      &otgconfighelpers.VLANFlowParams{VLANId: uint32(custIntfTC0.Subinterface)},
 			IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: "12.1.1.1", IPv4Dst: "11.1.1.1", IPv4SrcCount: 100, DSCP: 4},
 		}
-		createflow(t, top, flow, true)
+		createFlow(t, top, flow, true)
 		packetvalidationhelpers.ConfigurePacketCapture(t, top, encapValidation)
 
 		ate.OTG().PushConfig(t, top)
@@ -1420,7 +1420,7 @@ func TestPF118Traffic(t *testing.T) {
 		flows := buildIPToEncapFlows()
 		for i, f := range flows {
 			f.Flowrate = float32(10 + i*2)
-			createflow(t, top, f, i == 0)
+			createFlow(t, top, f, i == 0)
 		}
 		sendTraffic(t, dut, ate, trafficDuration)
 
@@ -1454,7 +1454,7 @@ func TestPF118Traffic(t *testing.T) {
 			} else {
 				f.Flowrate = float32(10 + i*2)
 			}
-			createflow(t, top, f, i == 0)
+			createFlow(t, top, f, i == 0)
 		}
 		sendTraffic(t, dut, ate, trafficDuration)
 
@@ -1482,7 +1482,7 @@ func TestPF118Traffic(t *testing.T) {
 		flows := buildIPToEncapFlows()
 		for i, f := range flows {
 			f.Flowrate = 12
-			createflow(t, top, f, i == 0)
+			createFlow(t, top, f, i == 0)
 		}
 		sendTraffic(t, dut, ate, trafficDuration)
 
@@ -1534,8 +1534,8 @@ func TestPF118Traffic(t *testing.T) {
 			IPv6Flow: &otgconfighelpers.IPv6FlowParams{IPv6Src: "2001:db8:1::11", IPv6Dst: "2001:db8:1::1", TrafficClass: 0},
 		}
 		top.Flows().Clear()
-		createflow(t, top, highPrioFlow, true)
-		createflow(t, top, lowPrioFlow, false)
+		createFlow(t, top, highPrioFlow, true)
+		createFlow(t, top, lowPrioFlow, false)
 		sendTraffic(t, dut, ate, trafficDuration)
 
 		for _, f := range []*otgconfighelpers.Flow{highPrioFlow, lowPrioFlow} {
