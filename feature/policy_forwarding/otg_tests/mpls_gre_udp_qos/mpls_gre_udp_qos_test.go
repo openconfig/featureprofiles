@@ -781,11 +781,8 @@ func waitForLAGUp(t *testing.T, dut *ondatra.DUTDevice, aggID string, ports []st
 		gnmi.Await(t, dut, gnmi.OC().Interface(portName).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
 		memberPath := gnmi.OC().Lacp().Interface(aggID).Member(portName).State()
 		_, ok := gnmi.Watch(t, dut, memberPath, 3*time.Minute, func(value *ygnmi.Value[*oc.Lacp_Interface_Member]) bool {
-			if !value.IsPresent() {
-				return false
-			}
 			member, present := value.Val()
-			return present && member.Synchronization == oc.Lacp_LacpSynchronizationType_IN_SYNC && member.GetCollecting() && member.GetDistributing()
+			return present && member.GetSynchronization() == oc.Lacp_LacpSynchronizationType_IN_SYNC && member.GetCollecting() && member.GetDistributing()
 		}).Await(t)
 		if !ok {
 			t.Fatalf("LACP member %s in %s did not reach IN_SYNC/collecting/distributing", portName, aggID)
