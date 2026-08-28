@@ -351,7 +351,7 @@ func configureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func dscpRangeForTC(tc int) []uint8 {
-	var vals []uint8
+	vals := make([]uint8, 0, 8)
 	for i := 0; i < 8; i++ {
 		vals = append(vals, uint8(tc*8+i))
 	}
