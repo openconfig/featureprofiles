@@ -66,11 +66,9 @@ const (
 )
 
 var (
-	top gosnappi.Config = gosnappi.NewConfig()
+	top = gosnappi.NewConfig()
 
-	custAggID  string
-	core1AggID string
-	core2AggID string
+	custAggID, core1AggID, core2AggID string
 
 	custPorts  = []string{"port1", "port2"}
 	core1Ports = []string{"port3", "port4"}
@@ -197,6 +195,7 @@ func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func configureEncapMPLSInGREAndGUE(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
 		configureAristaEncap(t, dut)
@@ -249,6 +248,7 @@ func configureAristaEncap(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func configureDecapMPLSInGREAndGUE(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
 		configureAristaDecap(t, dut)
@@ -303,6 +303,7 @@ func configureAristaQosTxQueues(t *testing.T, dut *ondatra.DUTDevice, qNames []s
 }
 
 func configureQoS(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
 	qNames := qcNames
 	configureAristaQosTxQueues(t, dut, qNames)
 
@@ -358,6 +359,7 @@ func dscpRangeForTC(tc int) []uint8 {
 }
 
 func configureBandwidthScheduler(t *testing.T, dut *ondatra.DUTDevice, qNames []string) {
+	t.Helper()
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
 	sp := q.GetOrCreateSchedulerPolicy(bwSchedulerName)
@@ -380,6 +382,7 @@ func configureBandwidthScheduler(t *testing.T, dut *ondatra.DUTDevice, qNames []
 }
 
 func configureBandwidthShaperScheduler(t *testing.T, dut *ondatra.DUTDevice, qNames []string) {
+	t.Helper()
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
 	sp := q.GetOrCreateSchedulerPolicy(bwShaperSchedulerName)
@@ -416,6 +419,7 @@ func configureBandwidthShaperScheduler(t *testing.T, dut *ondatra.DUTDevice, qNa
 }
 
 func configurePriorityScheduler(t *testing.T, dut *ondatra.DUTDevice, qNames []string) {
+	t.Helper()
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
 	sp := q.GetOrCreateSchedulerPolicy(prioSchedulerName)
@@ -434,6 +438,7 @@ func configurePriorityScheduler(t *testing.T, dut *ondatra.DUTDevice, qNames []s
 }
 
 func configurePriorityShaperScheduler(t *testing.T, dut *ondatra.DUTDevice, qNames []string) {
+	t.Helper()
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
 	sp := q.GetOrCreateSchedulerPolicy(prioShaperSchedulerName)
@@ -458,6 +463,7 @@ func configurePriorityShaperScheduler(t *testing.T, dut *ondatra.DUTDevice, qNam
 }
 
 func configureIngressPolicer(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
 	batch := &gnmi.SetBatch{}
 	params := &cfgplugins.SchedulerParams{
 		SchedulerName:  ingressPolicerName,
@@ -587,6 +593,7 @@ func configureInterfaceAddress(dut *ondatra.DUTDevice, s *oc.Interface_Subinterf
 }
 
 func configureStaticRoutes(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
 	b := &gnmi.SetBatch{}
 	routes := []*cfgplugins.StaticRouteCfg{
 		{
