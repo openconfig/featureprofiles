@@ -113,6 +113,16 @@ func FindMatchingStrings(components []string, r *regexp.Regexp) []string {
 	return s
 }
 
+// AwaitSwitchoverReady waits for the active controller to report switchover-ready.
+// The active supervisor's switchover-ready leaf accurately reflects whether the
+// standby is ready to take over; the standby's own leaf is not reliably maintained.
+func AwaitSwitchoverReady(t *testing.T, dut *ondatra.DUTDevice, active string, timeout time.Duration) {
+	t.Helper()
+	switchoverReady := gnmi.OC().Component(active).SwitchoverReady()
+	gnmi.Await(t, dut, switchoverReady.State(), timeout, true)
+	t.Logf("SwitchoverReady: %v", gnmi.Get(t, dut, switchoverReady.State()))
+}
+
 // GetSubcomponentPath creates a gNMI path based on the component name.
 // If useNameOnly is true, returns a path to the specified name instead of a full subcomponent path.
 func GetSubcomponentPath(name string, useNameOnly bool) *tpb.Path {

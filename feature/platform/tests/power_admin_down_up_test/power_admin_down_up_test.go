@@ -25,6 +25,36 @@ func TestMain(m *testing.M) {
 func TestFabricPowerAdmin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	runPowerAdminTest(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC, 6*time.Minute)
+	fs := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC)
+
+	selected := ""
+	for _, f := range fs {
+		empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(f).Empty().State()).Val()
+		if ok && empty {
+			continue
+		}
+		removable, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(f).Removable().State()).Val()
+		if !ok || !removable {
+			continue
+		}
+		oper, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(f).OperStatus().State()).Val()
+		if !ok {
+			continue
+		}
+		if got, want := oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE; got != want {
+			continue
+		}
+		selected = f
+		break
+	}
+	if selected == "" {
+		t.Skip("No eligible fabric component found for power-admin-state validation.")
+	}
+	t.Run(selected, func(t *testing.T) {
+		before := helpers.FetchOperStatusUPIntfs(t, dut, false)
+		powerDownUp(t, dut, selected, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC, 6*time.Minute)
+		helpers.ValidateOperStatusUPIntfs(t, dut, before, 12*time.Minute)
+	})
 }
 
 func TestLinecardPowerAdmin(t *testing.T) {
@@ -81,6 +111,14 @@ func runPowerAdminTest(t *testing.T, dut *ondatra.DUTDevice, cType oc.E_Platform
 			helpers.ValidateOperStatusUPIntfs(t, dut, before, 20*time.Minute)
 		})
 	}
+	if selected == "" {
+		t.Skip("No eligible linecard component found for power-admin-state validation.")
+	}
+	t.Run(selected, func(t *testing.T) {
+		before := helpers.FetchOperStatusUPIntfs(t, dut, false)
+		powerDownUp(t, dut, selected, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD, 20*time.Minute)
+		helpers.ValidateOperStatusUPIntfs(t, dut, before, 12*time.Minute)
+	})
 }
 
 func TestControllerCardPowerAdmin(t *testing.T) {
