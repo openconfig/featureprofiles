@@ -795,7 +795,7 @@ func waitForOTGLAGUp(t *testing.T, ate *ondatra.ATEDevice, agg *otgconfighelpers
 	t.Helper()
 	_, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Lag(agg.Name).OperStatus().State(), 2*time.Minute, func(value *ygnmi.Value[otgtelemetry.E_Lag_OperStatus]) bool {
 		status, present := value.Val()
-		return present && status.String() == "UP"
+		return present && status == otgtelemetry.Lag_OperStatus_UP
 	}).Await(t)
 	if !ok {
 		t.Fatalf("OTG LAG %s did not reach UP", agg.Name)
