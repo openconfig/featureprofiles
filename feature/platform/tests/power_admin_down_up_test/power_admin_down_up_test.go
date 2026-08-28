@@ -111,14 +111,6 @@ func runPowerAdminTest(t *testing.T, dut *ondatra.DUTDevice, cType oc.E_Platform
 			helpers.ValidateOperStatusUPIntfs(t, dut, before, 20*time.Minute)
 		})
 	}
-	if selected == "" {
-		t.Skip("No eligible linecard component found for power-admin-state validation.")
-	}
-	t.Run(selected, func(t *testing.T) {
-		before := helpers.FetchOperStatusUPIntfs(t, dut, false)
-		powerDownUp(t, dut, selected, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD, 20*time.Minute)
-		helpers.ValidateOperStatusUPIntfs(t, dut, before, 12*time.Minute)
-	})
 }
 
 func TestControllerCardPowerAdmin(t *testing.T) {
