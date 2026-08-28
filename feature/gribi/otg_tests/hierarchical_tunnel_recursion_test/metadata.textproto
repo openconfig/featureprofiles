@@ -1,9 +1,9 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "bf5df0ee-79b7-460b-8146-3a1351fd56d7"
-plan_id: "TE-3.31"
-description: "Hierarchical weight resolution with PBF"
+uuid: "7c33751c-4e7f-4c07-9cf0-9e8416d34cca"
+plan_id: "TE-3.8"
+description: "gRIBI Tunnel Recursion over Multi-Level LPM Underlays"
 testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
@@ -11,9 +11,7 @@ platform_exceptions: {
   }
   deviations: {
     ipv4_missing_enabled: true
-    interface_id_format_required_for_policy_forwarding: true
-    pf_require_match_default_rule: true
-    pf_require_sequential_order_pbr_rules: true
+    interface_ref_interface_id_format: true
   }
 }
 platform_exceptions: {
@@ -43,4 +41,4 @@ platform_exceptions: {
     default_network_instance: "default"
   }
 }
-tags: TAGS_DATACENTER_EDGE
+tags: TAGS_TRANSIT
