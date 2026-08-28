@@ -1078,7 +1078,7 @@ func TestPF118Traffic(t *testing.T) {
 
 		for _, f := range flows {
 			if err := flowValidation(f.FlowName).ValidateLossOnFlows(t, ate); err != nil {
-				t.Errorf("ValidateLossOnFlows(%s): %v", f.FlowName, err)
+				t.Errorf("ValidateLossOnFlows(%s) got err: %v, want nil", f.FlowName, err)
 			}
 		}
 		for i, qn := range qNames {
