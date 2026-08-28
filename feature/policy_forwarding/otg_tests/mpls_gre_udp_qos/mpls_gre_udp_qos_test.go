@@ -1012,8 +1012,10 @@ func queueCounterCandidates(t *testing.T, dut *ondatra.DUTDevice, aggID string, 
 
 func queueTransmitPkts(t *testing.T, dut *ondatra.DUTDevice, aggID string, ports []string, queue string) uint64 {
 	t.Helper()
-	var total uint64
-	var anyPresent bool
+	var (
+		total      uint64
+		anyPresent bool
+	)
 	intfs := queueCounterCandidates(t, dut, aggID, ports)
 	for _, intf := range intfs {
 		val, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queue).TransmitPkts().State(), queueCounterTimeout, queueCounterIsPresent).Await(t)
@@ -1032,8 +1034,10 @@ func queueTransmitPkts(t *testing.T, dut *ondatra.DUTDevice, aggID string, ports
 
 func queueDroppedPkts(t *testing.T, dut *ondatra.DUTDevice, aggID string, ports []string, queue string) uint64 {
 	t.Helper()
-	var total uint64
-	var anyPresent bool
+	var (
+		total      uint64
+		anyPresent bool
+	)
 	intfs := queueCounterCandidates(t, dut, aggID, ports)
 	for _, intf := range intfs {
 		val, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queue).DroppedPkts().State(), queueCounterTimeout, queueCounterIsPresent).Await(t)
