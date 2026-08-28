@@ -35,24 +35,27 @@ import (
 )
 
 const (
-	ipv4PrefixLen   = 30
-	ipv6PrefixLen   = 126
-	ipv4Decap       = "10.2.2.2"
-	greDecapGrpName = "GRE-DECAP"
-	frameSize       = 128
-	packetsPerFlow  = 5
-	pps             = 100   // Packets per second
-	mplsLabelV4     = 99910 // Static Mpls currently supported range 16 - 99999 (99910 instead of 100010)
-	mplsLabelV6     = 99920 // Static Mpls currently supported range 16 - 99999 (99920 instead of 100020)
-	sleepTime       = 20
-	flowname        = "trafficItem"
-	tolerance       = 2
-	udpDecapPort    = 6080 // UDP destination port for GUE-like decapsulation
-	defaultNI       = "DEFAULT"
-	policyName      = "decap-policy"
-	policyId        = 1
-	lspName1        = "lsp1"
-	lspName2        = "lsp2"
+	ipv4PrefixLen    = 30
+	ipv6PrefixLen    = 126
+	ipv4Decap        = "10.2.2.2"
+	greDecapGrpName  = "GRE-DECAP"
+	frameSize        = 128
+	packetsPerFlow   = 5
+	pps              = 100   // Packets per second
+	mplsLabelV4      = 99910 // Static Mpls currently supported range 16 - 99999 (99910 instead of 100010)
+	mplsLabelV6      = 99920 // Static Mpls currently supported range 16 - 99999 (99920 instead of 100020)
+	sleepTime        = 20
+	flowname         = "trafficItem"
+	tolerance        = 2
+	udpDecapPort     = 6080 // Default UDP destination port for GUE-like decapsulation
+	udpDecapPortIPv4 = 6080 // UDP destination port for IPv4 payload GUE decapsulation
+	udpDecapPortIPv6 = 6081 // UDP destination port for IPv6 payload GUE decapsulation
+	udpDecapPortMPLS = 6082 // UDP destination port for MPLS payload GUE decapsulation
+	defaultNI        = "DEFAULT"
+	policyName       = "decap-policy"
+	policyId         = 1
+	lspName1         = "lsp1"
+	lspName2         = "lsp2"
 )
 
 var (
@@ -120,7 +123,7 @@ func TestEgressHandleTTL(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	configureDUT(t, dut)
-	config := configureATE(t)
+	config := configureATE(t, ate)
 	otgConfig := ate.OTG()
 	sfBatch := &gnmi.SetBatch{}
 	// Configure Static Route: MPLS label binding
@@ -291,7 +294,7 @@ func TestEgressHandleTTL(t *testing.T) {
 			TestFunc:    createIPv4oUDPFlow,
 		},
 		{
-			Name:        "Testcase-IPv4oUDPOuterTest",
+			Name:        "Testcase-IPv6oUDPOuterTest",
 			Description: "PF-1.9.22: IPv6oUDP traffic with inner TTL = 10 and outer TTL = 1",
 			InnerTTL:    10,
 			OuterTTL:    1,
@@ -358,51 +361,60 @@ func TestEgressHandleTTL(t *testing.T) {
 
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	d := gnmi.OC()
-	// Configure interfaces
-	p1 := dut.Port(t, "port1").Name()
-	i1 := dutPort1.NewOCInterface(p1, dut)
-	gnmi.Replace(t, dut, d.Interface(p1).Config(), i1)
+	p1 := dut.Port(t, "port1")
+	p2 := dut.Port(t, "port2")
 
-	p2 := dut.Port(t, "port2").Name()
-	i2 := dutPort2.NewOCInterface(p2, dut)
-	gnmi.Replace(t, dut, d.Interface(p2).Config(), i2)
+	configureDUTPort(t, dut, &dutPort1, p1)
+	configureDUTPort(t, dut, &dutPort2, p2)
 
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 }
 
-func configureATE(t *testing.T) gosnappi.Config {
+func configureDUTPort(t *testing.T, dut *ondatra.DUTDevice, attrs *attrs.Attributes, p *ondatra.Port) {
 	t.Helper()
-	t.Log("Configure ATE interfaces with BGP sessions and routes")
+	d := gnmi.OC()
+	i := attrs.NewOCInterface(p.Name(), dut)
+	i.Description = ygot.String(attrs.Desc)
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	if deviations.InterfaceEnabled(dut) {
+		i.Enabled = ygot.Bool(true)
+	}
+
+	i.GetOrCreateEthernet()
+	i4 := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+		i4.Enabled = ygot.Bool(true)
+	}
+	a := i4.GetOrCreateAddress(attrs.IPv4)
+	a.PrefixLength = ygot.Uint8(attrs.IPv4Len)
+
+	i6 := i.GetOrCreateSubinterface(0).GetOrCreateIpv6()
+	if deviations.InterfaceEnabled(dut) {
+		i6.Enabled = ygot.Bool(true)
+	}
+	a6 := i6.GetOrCreateAddress(attrs.IPv6)
+	a6.PrefixLength = ygot.Uint8(attrs.IPv6Len)
+
+	gnmi.Replace(t, dut, d.Interface(p.Name()).Config(), i)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, p.Name(), deviations.DefaultNetworkInstance(dut), 0)
+	}
+
+	if deviations.ExplicitPortSpeed(dut) {
+		fptest.SetPortSpeed(t, p)
+	}
+}
+
+func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
+	t.Helper()
+	t.Log("Configure ATE interfaces")
 
 	config := gosnappi.NewConfig()
 
-	// Add ports
-	port1 := config.Ports().Add().SetName("port1")
-	port2 := config.Ports().Add().SetName("port2")
-
-	// Configure port1
-	configureATEPorts(t, config, port1, atePort1, dutPort1)
-	// Configure port2
-	configureATEPorts(t, config, port2, atePort2, dutPort2)
+	atePort1.AddToOTG(config, ate.Port(t, "port1"), &dutPort1)
+	atePort2.AddToOTG(config, ate.Port(t, "port2"), &dutPort2)
 
 	return config
-}
-
-func configureATEPorts(t *testing.T, config gosnappi.Config, port gosnappi.Port, ate attrs.Attributes, dut attrs.Attributes) {
-	t.Helper()
-	dev := config.Devices().Add().SetName(ate.Name + ".dev")
-
-	eth := dev.Ethernets().Add().
-		SetName(ate.Name + ".Eth").
-		SetMac(ate.MAC)
-	eth.Connection().SetPortName(port.Name())
-
-	ipv4 := eth.Ipv4Addresses().Add().SetName(ate.Name + ".IPv4")
-	ipv4.SetAddress(ate.IPv4).SetGateway(dut.IPv4).SetPrefix(uint32(ate.IPv4Len))
-
-	ipv6 := eth.Ipv6Addresses().Add().SetName(ate.Name + ".IPv6")
-	ipv6.SetAddress(ate.IPv6).SetGateway(dut.IPv6).SetPrefix(uint32(ate.IPv6Len))
 }
 
 func addFlow(t *testing.T, config gosnappi.Config, flowValues *flowArgs) gosnappi.Flow {
@@ -439,10 +451,10 @@ func verifyTrafficFlow(t *testing.T, otgConfig *otg.OTG, config gosnappi.Config,
 	otgutils.LogFlowMetrics(t, otgConfig, config)
 	rxPkts := gnmi.Get(t, otgConfig, gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State())
 	txPkts := gnmi.Get(t, otgConfig, gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
-	lostPkt := txPkts - rxPkts
 	if txPkts == 0 {
 		t.Fatalf("txPkts == %d, want > 0.", txPkts)
 	}
+	lostPkt := txPkts - rxPkts
 	if got := (lostPkt * 100 / txPkts); got >= tolerance {
 		return false
 	}
@@ -452,6 +464,7 @@ func verifyTrafficFlow(t *testing.T, otgConfig *otg.OTG, config gosnappi.Config,
 func captureAndValidatePackets(t *testing.T, otgConfig *otg.OTG, packetVal *packetValidation, protocolType string) {
 	t.Helper()
 	packetCaptureGRE := processCapture(t, otgConfig, "port2")
+	defer os.Remove(packetCaptureGRE)
 	handle, err := pcap.OpenOffline(packetCaptureGRE)
 	if err != nil {
 		t.Fatal(err)
@@ -469,6 +482,7 @@ func captureAndValidatePackets(t *testing.T, otgConfig *otg.OTG, packetVal *pack
 func validateTrafficNonEncap(t *testing.T, packetSource *gopacket.PacketSource, expectedIP string, expectedTTL int, protocol string) {
 	t.Helper()
 	t.Logf("Validate non-encapsulated traffic for protocol: %s", protocol)
+	matched := false
 outer:
 	for packet := range packetSource.Packets() {
 		switch protocol {
@@ -481,11 +495,13 @@ outer:
 			gotTTL := ipPacket.TTL
 			gotDstIP := ipPacket.DstIP.String()
 
-			if gotDstIP == expectedIP && int(gotTTL) == expectedTTL {
-				t.Logf("Matched IPv4 packet: DstIP = %s, TTL = %d", gotDstIP, gotTTL)
-				break outer
-			} else {
-				t.Errorf("Failed to match IP/TTL, GotIP = %s, Expected IP = %s, GotTTL = %d, ExpectedTTL = %d", gotDstIP, expectedIP, gotTTL, expectedTTL)
+			if gotDstIP == expectedIP {
+				if int(gotTTL) == expectedTTL {
+					t.Logf("Matched IPv4 packet: DstIP = %s, TTL = %d", gotDstIP, gotTTL)
+					matched = true
+					break outer
+				}
+				t.Errorf("Failed to match TTL: GotIP = %s, Expected IP = %s, GotTTL = %d, ExpectedTTL = %d", gotDstIP, expectedIP, gotTTL, expectedTTL)
 				break outer
 			}
 
@@ -497,11 +513,13 @@ outer:
 			ipPacket := ipLayer.(*layers.IPv6)
 			gotHopLimit := ipPacket.HopLimit
 			gotDstIP := ipPacket.DstIP.String()
-			if gotDstIP == expectedIP && int(gotHopLimit) == expectedTTL {
-				t.Logf("Matched IPv6 packet: DstIP = %s, HopLimit = %d", gotDstIP, gotHopLimit)
-				break outer
-			} else {
-				t.Errorf("Failed to match IP/TTL, GotIP = %s, Expected IP = %s, GotHopLimit = %d, ExpectedHopLimit = %d", gotDstIP, expectedIP, gotHopLimit, expectedTTL)
+			if gotDstIP == expectedIP {
+				if int(gotHopLimit) == expectedTTL {
+					t.Logf("Matched IPv6 packet: DstIP = %s, HopLimit = %d", gotDstIP, gotHopLimit)
+					matched = true
+					break outer
+				}
+				t.Errorf("Failed to match HopLimit: GotIP = %s, Expected IP = %s, GotHopLimit = %d, ExpectedHopLimit = %d", gotDstIP, expectedIP, gotHopLimit, expectedTTL)
 				break outer
 			}
 
@@ -509,11 +527,15 @@ outer:
 			t.Fatalf("Unsupported protocol type: %s. Must be 'ipv4' or 'ipv6'", protocol)
 		}
 	}
+	if !matched {
+		t.Errorf("Did not find expected non-encapsulated packet with DstIP = %s, ExpectedTTL = %d", expectedIP, expectedTTL)
+	}
 }
 
 func validateTrafficDecap(t *testing.T, packetSource *gopacket.PacketSource, expectedIP string, expectedTTL int, protocol string) {
 	t.Helper()
 	t.Log("Validating decapsulated traffic: Inner DstIP and TTL/HopLimit")
+	matched := false
 outer:
 	for packet := range packetSource.Packets() {
 		switch protocol {
@@ -528,17 +550,19 @@ outer:
 
 			gotTTL := ipPacket.TTL
 			gotDstIP := ipPacket.DstIP.String()
-			if gotDstIP == expectedIP && int(gotTTL) == expectedTTL {
-				t.Logf("Matched IPv4 packet: DstIP = %s, TTL = %d", gotDstIP, gotTTL)
+			if gotDstIP == expectedIP {
+				if int(gotTTL) == expectedTTL {
+					t.Logf("Matched IPv4 packet: DstIP = %s, TTL = %d", gotDstIP, gotTTL)
 
-				// Decode inner packet from outer payload
-				innerPacket := gopacket.NewPacket(payload, nextLayerType, gopacket.Default)
-				if innerPacket.Layer(layers.LayerTypeIPv4) != nil {
-					t.Errorf("Packets are not decapped: inner IPv4 header still present.")
+					// Decode inner packet from outer payload
+					innerPacket := gopacket.NewPacket(payload, nextLayerType, gopacket.Default)
+					if innerPacket.Layer(layers.LayerTypeIPv4) != nil {
+						t.Errorf("Packets are not decapped: inner IPv4 header still present.")
+					}
+					matched = true
+					break outer
 				}
-				break outer
-			} else {
-				t.Errorf("Failed to match IP/TTL, GotIP = %s, Expected IP = %s, GotTTL = %d, ExpectedTTL = %d", gotDstIP, expectedIP, gotTTL, expectedTTL)
+				t.Errorf("Failed to match TTL: GotIP = %s, Expected IP = %s, GotTTL = %d, ExpectedTTL = %d", gotDstIP, expectedIP, gotTTL, expectedTTL)
 				break outer
 			}
 
@@ -554,23 +578,28 @@ outer:
 			gotHopLimit := ipPacket.HopLimit
 			gotDstIP := ipPacket.DstIP.String()
 
-			if gotDstIP == expectedIP && int(gotHopLimit) == expectedTTL {
-				t.Logf("Matched IPv6 packet: DstIP = %s, HopLimit = %d", gotDstIP, gotHopLimit)
+			if gotDstIP == expectedIP {
+				if int(gotHopLimit) == expectedTTL {
+					t.Logf("Matched IPv6 packet: DstIP = %s, HopLimit = %d", gotDstIP, gotHopLimit)
 
-				// Decode inner packet from outer payload
-				innerPacket := gopacket.NewPacket(payload, nextLayerType, gopacket.Default)
-				if innerPacket.Layer(layers.LayerTypeIPv6) != nil {
-					t.Errorf("Packets are not decapped: inner IPv6 header still present.")
+					// Decode inner packet from outer payload
+					innerPacket := gopacket.NewPacket(payload, nextLayerType, gopacket.Default)
+					if innerPacket.Layer(layers.LayerTypeIPv6) != nil {
+						t.Errorf("Packets are not decapped: inner IPv6 header still present.")
+					}
+					matched = true
+					break outer
 				}
-				break outer
-			} else {
-				t.Errorf("Failed to match IP/TTL, GotIP = %s, Expected IP = %s, GotHopLimit = %d, ExpectedHopLimit = %d", gotDstIP, expectedIP, gotHopLimit, expectedTTL)
+				t.Errorf("Failed to match HopLimit: GotIP = %s, Expected IP = %s, GotHopLimit = %d, ExpectedHopLimit = %d", gotDstIP, expectedIP, gotHopLimit, expectedTTL)
 				break outer
 			}
 
 		default:
 			t.Fatalf("Unsupported protocol type: %s. Must be 'ipv4' or 'ipv6'", protocol)
 		}
+	}
+	if !matched {
+		t.Errorf("Did not find expected decapsulated packet with DstIP = %s, ExpectedTTL = %d", expectedIP, expectedTTL)
 	}
 }
 
@@ -623,6 +652,7 @@ func otgOperation(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.OTG, conf
 
 	verifyPortsUp(t, dut.Device)
 	otgutils.WaitForARP(t, otgConfig, config, "IPv4")
+	otgutils.WaitForARP(t, otgConfig, config, "IPv6")
 	initialInUnicastPkts := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Counters().InUnicastPkts().State())
 	initialOutUnicastPkts := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port2").Name()).Counters().OutUnicastPkts().State())
 
@@ -648,6 +678,7 @@ func otgTrafficValidation(t *testing.T, otgConfig *otg.OTG, config gosnappi.Conf
 	otgConfig.StartProtocols(t)
 
 	otgutils.WaitForARP(t, otgConfig, config, "IPv4")
+	otgutils.WaitForARP(t, otgConfig, config, "IPv6")
 
 	otgConfig.StartTraffic(t)
 	time.Sleep(sleepTime * time.Second)
@@ -780,7 +811,6 @@ func createIPv6oMPLSoGREFlow(t *testing.T, dut *ondatra.DUTDevice, otgConfig *ot
 		otgOperation(t, dut, otgConfig, config, flow)
 		captureAndValidatePackets(t, otgConfig, &packetValidation{portName: atePort2.Name,
 			innerDstIP: atePort2.IPv6, innerTtl: expectedTTL2, validateDecap: true}, "ipv6")
-
 	} else {
 		otgTrafficValidation(t, otgConfig, config, flow)
 	}
@@ -789,12 +819,12 @@ func createIPv6oMPLSoGREFlow(t *testing.T, dut *ondatra.DUTDevice, otgConfig *ot
 func createIPv4oUDPFlow(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.OTG, config gosnappi.Config, innerTTL, outerTTL, mplsTTL int) {
 	t.Helper()
 	dp1 := dut.Port(t, "port1")
-	cfgplugins.ConfigureDutWithGueDecap(t, dut, udpDecapPort, "ipv4", ipv4Decap, dp1.Name(), policyName, policyId)
+	cfgplugins.ConfigureDutWithGueDecap(t, dut, udpDecapPortIPv4, "ip", ipv4Decap, dp1.Name(), policyName, policyId)
 	config.Flows().Clear()
 	flow := addFlow(t, config, &flowArgs{flowName: flowname + "-ipv4",
 		outerSrcIP: atePort1.IPv4, outerDstIP: ipv4Decap, outerIpv4Ttl: outerTTL, ipv4Flow: true})
 	udpHeader := flow.Packet().Add().Udp()
-	udpHeader.DstPort().SetValue(udpDecapPort)
+	udpHeader.DstPort().SetValue(udpDecapPortIPv4)
 	innerv4Header := flow.Packet().Add().Ipv4()
 	innerv4Header.Src().SetValue(atePort1.IPv4)
 	innerv4Header.Dst().SetValue(atePort2.IPv4)
@@ -813,12 +843,12 @@ func createIPv4oUDPFlow(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.OTG
 func createIPv6oUDPFlow(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.OTG, config gosnappi.Config, innerTTL, outerTTL, mplsTTL int) {
 	t.Helper()
 	dp1 := dut.Port(t, "port1")
-	cfgplugins.ConfigureDutWithGueDecap(t, dut, udpDecapPort, "ipv6", ipv4Decap, dp1.Name(), policyName, policyId)
+	cfgplugins.ConfigureDutWithGueDecap(t, dut, udpDecapPortIPv6, "ipv6", ipv4Decap, dp1.Name(), policyName, policyId)
 	config.Flows().Clear()
 	flow := addFlow(t, config, &flowArgs{flowName: flowname + "-ipv6",
 		outerSrcIP: atePort1.IPv4, outerDstIP: ipv4Decap, outerIpv4Ttl: outerTTL, ipv4Flow: true})
 	udpHeader := flow.Packet().Add().Udp()
-	udpHeader.DstPort().SetValue(udpDecapPort)
+	udpHeader.DstPort().SetValue(udpDecapPortIPv6)
 	innerv6Header := flow.Packet().Add().Ipv6()
 	innerv6Header.Src().SetValue(atePort1.IPv6)
 	innerv6Header.Dst().SetValue(atePort2.IPv6)
@@ -836,12 +866,12 @@ func createIPv6oUDPFlow(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.OTG
 func createIPv4oMPLSoUDPFlow(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.OTG, config gosnappi.Config, innerTTL, outerTTL, mplsTTL int) {
 	t.Helper()
 	dp1 := dut.Port(t, "port1")
-	cfgplugins.ConfigureDutWithGueDecap(t, dut, udpDecapPort, "mpls", ipv4Decap, dp1.Name(), policyName, policyId)
+	cfgplugins.ConfigureDutWithGueDecap(t, dut, udpDecapPortMPLS, "mpls", ipv4Decap, dp1.Name(), policyName, policyId)
 	config.Flows().Clear()
 	flow := addFlow(t, config, &flowArgs{flowName: flowname + "-ipv4",
 		outerSrcIP: atePort1.IPv4, outerDstIP: ipv4Decap, outerIpv4Ttl: outerTTL, ipv4Flow: true})
 	udpHeader := flow.Packet().Add().Udp()
-	udpHeader.DstPort().SetValue(udpDecapPort)
+	udpHeader.DstPort().SetValue(udpDecapPortMPLS)
 	mplsHeader := flow.Packet().Add().Mpls()
 	mplsHeader.Label().SetValue(mplsLabelV4)
 	mplsHeader.TimeToLive().SetValue(uint32(mplsTTL))
@@ -865,11 +895,13 @@ func createIPv4oMPLSoUDPFlow(t *testing.T, dut *ondatra.DUTDevice, otgConfig *ot
 
 func createIPv6oMPLSoUDPFlow(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.OTG, config gosnappi.Config, innerTTL, outerTTL, mplsTTL int) {
 	t.Helper()
+	dp1 := dut.Port(t, "port1")
+	cfgplugins.ConfigureDutWithGueDecap(t, dut, udpDecapPortMPLS, "mpls", ipv4Decap, dp1.Name(), policyName, policyId)
 	config.Flows().Clear()
 	flow := addFlow(t, config, &flowArgs{flowName: flowname + "-ipv6",
 		outerSrcIP: atePort1.IPv4, outerDstIP: ipv4Decap, outerIpv4Ttl: outerTTL, ipv4Flow: true})
 	udpHeader := flow.Packet().Add().Udp()
-	udpHeader.DstPort().SetValue(udpDecapPort)
+	udpHeader.DstPort().SetValue(udpDecapPortMPLS)
 	mplsHeader := flow.Packet().Add().Mpls()
 	mplsHeader.Label().SetValue(mplsLabelV6)
 	mplsHeader.TimeToLive().SetValue(uint32(mplsTTL))
@@ -916,7 +948,6 @@ func stopCapture(t *testing.T, otg *otg.OTG, cs gosnappi.ControlState) {
 func processCapture(t *testing.T, otg *otg.OTG, port string) string {
 	t.Helper()
 	bytes := otg.GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(port))
-	time.Sleep(30 * time.Second)
 	capturePktFile, err := os.CreateTemp("", "pcap")
 	if err != nil {
 		t.Errorf("ERROR: Could not create temporary pcap file: %v\n", err)
