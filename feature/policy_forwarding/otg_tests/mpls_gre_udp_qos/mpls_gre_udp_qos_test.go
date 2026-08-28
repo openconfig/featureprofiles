@@ -613,7 +613,7 @@ func configureStaticRoutes(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	for _, r := range routes {
 		if _, err := cfgplugins.NewStaticRouteCfg(b, r, dut); err != nil {
-			t.Fatalf("Failed to configure static route %s: %v", r.Prefix, err)
+			t.Fatalf("failed to configure static route %s: %v", r.Prefix, err)
 		}
 	}
 	b.Set(t, dut)
