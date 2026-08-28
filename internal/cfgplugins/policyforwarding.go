@@ -698,7 +698,7 @@ func PolicyForwardingConfigScale(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.
 		}
 		return nil
 	} else {
-		ruleSeq := uint32(1)
+		//ruleSeq := uint32(1)
 		for i := 1; i <= encapparams.Count; i++ {
 			// https://partnerissuetracker.corp.google.com/issues/417988636
 			//  pols := pf.GetOrCreatePolicy(fmt.Sprintf("tp_cloud_id_3_%d", i))
@@ -708,7 +708,7 @@ func PolicyForwardingConfigScale(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.
 			// rule.GetOrCreateAction().SetNextHopGroup(groupName)
 			// rule.GetOrCreateAction().SetTtl(1)
 		}
-		ruleSeq++
+		//ruleSeq++
 		gnmi.BatchReplace(sb, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config(), pf)
 		return sb
 	}
@@ -801,7 +801,7 @@ func RulesAndActions(params OcPolicyForwardingParams, pf *oc.NetworkInstance_Pol
 	// TODO: sancheetaroy - Set the action to count
 	// rule8.GetOrCreateAction().Count = ygot.Bool(true)
 	// rule8.GetOrCreateAction().NextHopGroup = ygot.String(params.CloudV6NHG)
-	ruleSeq++
+	//ruleSeq++
 }
 
 // DecapPolicyRulesandActionsGre configures the "decap MPLS in GRE" policy and related MPLS global and static LSP settings.
