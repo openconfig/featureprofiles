@@ -516,7 +516,7 @@ func registerQueuesOnPhysicalPort(t *testing.T, dut *ondatra.DUTDevice, intfName
 func configureInterfaces(t *testing.T, dut *ondatra.DUTDevice, dutPorts []string, subinterfaces []*attrs.Attributes, aggID string) {
 	t.Helper()
 	d := gnmi.OC()
-	dutAggPorts := []*ondatra.Port{}
+	dutAggPorts := make([]*ondatra.Port, 0, len(dutPorts))
 	for _, port := range dutPorts {
 		dutAggPorts = append(dutAggPorts, dut.Port(t, port))
 	}
