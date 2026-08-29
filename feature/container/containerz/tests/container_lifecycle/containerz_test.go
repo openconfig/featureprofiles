@@ -1185,7 +1185,7 @@ func TestCapabilities(t *testing.T) {
 }
 
 // TestVolumeMountOptions implements CNTR-1.10 validating that volumes can be created with
-// various specification-compliant mount options (rbind, rslave, rprivate, ro, bind),
+// various specification-compliant mount options (rbind, rslave, rprivate, ro, bind, private, slave),
 // option metadata is accurately reflected in ListVolume, and volume deletion is verified.
 func TestVolumeMountOptions(t *testing.T) {
 	ctx := t.Context()
@@ -1213,14 +1213,24 @@ func TestVolumeMountOptions(t *testing.T) {
 			wantO:        "bind,rslave,ro",
 		},
 		{
-			name:         "BindRo",
-			mountOptions: "bind,ro",
-			wantO:        "bind,ro",
+			name:         "BindSlaveRo",
+			mountOptions: "bind,slave,ro",
+			wantO:        "bind,slave,ro",
+		},
+		{
+			name:         "BindSlave",
+			mountOptions: "bind,slave",
+			wantO:        "bind,slave",
 		},
 		{
 			name:         "BindPrivate",
 			mountOptions: "bind,private",
 			wantO:        "bind,private",
+		},
+		{
+			name:         "BindRo",
+			mountOptions: "bind,ro",
+			wantO:        "bind,ro",
 		},
 		{
 			name:         "Bind",
