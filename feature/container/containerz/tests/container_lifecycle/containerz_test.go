@@ -1218,6 +1218,11 @@ func TestVolumeMountOptions(t *testing.T) {
 			wantO:        "bind,ro",
 		},
 		{
+			name:         "BindPrivate",
+			mountOptions: "bind,private",
+			wantO:        "bind,private",
+		},
+		{
 			name:         "Bind",
 			mountOptions: "bind",
 			wantO:        "bind",

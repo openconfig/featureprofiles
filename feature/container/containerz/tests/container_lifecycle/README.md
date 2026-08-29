@@ -230,7 +230,7 @@ Validate that `gnoi.Containerz.StartContainer` accurately applies Linux capabili
 
 Validate that `gnoi.Containerz.CreateVolume` supports the standard OpenConfig
 `repeated string options` format across diverse Linux filesystem mount flag
-combinations (`rbind`, `rslave`, `rprivate`, `ro`, `bind`). Verify that
+combinations (`rbind`, `rslave`, `rprivate`, `ro`, `bind`, `private`). Verify that
 `gnoi.Containerz.ListVolume` accurately reflects all configured mount options
 and volumes are cleanly deleted.
 
@@ -246,7 +246,9 @@ Iterate over the following specification-compliant option combinations:
     `options: ["bind", "rslave", "ro"]`, `mountpoint: "/tmp"`, `type: "none"`
 *   **Combination D (`bind, ro`)**: `options: ["bind", "ro"]`, `mountpoint:
     "/tmp"`, `type: "none"`
-*   **Combination E (`bind`)**: `options: ["bind"]`, `mountpoint: "/tmp"`,
+*   **Combination E (`bind, private`)**: `options: ["bind", "private"]`,
+    `mountpoint: "/tmp"`, `type: "none"`
+*   **Combination F (`bind`)**: `options: ["bind"]`, `mountpoint: "/tmp"`,
     `type: "none"`
 
 For each combination:
@@ -277,7 +279,7 @@ For each combination:
         *   `options["device"]` equals `/tmp`.
         *   `options["o"]` (or driver option field) accurately reflects and
             preserves all configured mount flags (`rbind`, `rslave`, `rprivate`,
-            `ro`, `bind`).
+            `ro`, `bind`, `private`).
         *   `labels` match the input labels.
 4.  **Remove Volume and Verify Deletion**:
     *   Call `gnoi.Containerz.RemoveVolume` with `name:
