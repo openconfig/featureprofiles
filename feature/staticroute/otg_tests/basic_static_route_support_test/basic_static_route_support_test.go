@@ -1246,7 +1246,7 @@ func (td *testData) advertiseRoutesWithISIS(t *testing.T) {
 			isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 		}
 	}
-	if deviations.ExplicitInterfaceInDefaultVRF(td.dut) || deviations.InterfaceRefInterfaceIDFormat(td.dut) {
+	if deviations.InterfaceRefInterfaceIDFormat(td.dut) {
 		p1Name += ".0"
 		p2Name += ".0"
 	}
@@ -1481,7 +1481,7 @@ func (td *testData) testDirectInterfaceIPDeletion(t *testing.T) {
 	gnmi.Await(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv4.cidr(t))
 
 	port2 := td.dut.Port(t, "port2").Name()
-	if deviations.ExplicitInterfaceInDefaultVRF(td.dut) || deviations.InterfaceRefInterfaceIDFormat(td.dut) {
+	if deviations.InterfaceRefInterfaceIDFormat(td.dut) {
 		port2 = port2 + ".0"
 	}
 
