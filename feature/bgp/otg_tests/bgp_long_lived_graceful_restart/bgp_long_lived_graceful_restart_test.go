@@ -59,7 +59,6 @@ const (
 	grTimer                  = 2 * time.Minute
 	grRestartTime            = 120
 	grStaleRouteTime         = 600
-	grStaleRouteTimeShort    = 120
 	ipv4SrcTraffic           = "192.0.2.2"
 	advertisedRoutesv4CIDR   = "203.0.113.1/32"
 	advertisedRoutesv6CIDR   = "2001:db8::203:0:113:1/128"
@@ -991,8 +990,6 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 		}
 	})
 
-	startTime := time.Now()
-
 	dutNbr1 := &bgpNeighbor{as: ateAS, neighborip: atePort1SubIntf2.IPv4, isV4: true}
 	dutNbr2 := &bgpNeighbor{as: ateAS, neighborip: atePort1SubIntf3.IPv4, isV4: true}
 	dutNbr3 := &bgpNeighbor{as: ateAS, neighborip: atePort1SubIntf4.IPv4, isV4: true}
@@ -1060,9 +1057,11 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 	})
 
 	t.Run("Wait till LLGR/Stale timer expires to delete long live routes.....", func(t *testing.T) {
-		replaceDuration := time.Since(startTime)
+		elapsed := time.Since(grTriggerTime)
 		staleTime := time.Duration(grRestartTime+grStaleRouteTime) * time.Second
-		time.Sleep(staleTime - replaceDuration)
+		if elapsed < staleTime {
+			time.Sleep(staleTime - elapsed)
+		}
 	})
 
 	t.Run("VerifyTrafficFailureAfterGRexpired", func(t *testing.T) {
@@ -1127,8 +1126,6 @@ func TestTrafficWithGracefulRestart(t *testing.T) {
 		dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 		dutConf := bgpWithNbr(dutAS, nbrList, dut)
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
-		// Non-LLGR test: use a short stale-routes-time so routes are purged when the GR restart timer expires.
-		gnmi.Update(t, dut, dutConfPath.Bgp().Global().GracefulRestart().StaleRoutesTime().Config(), uint16(grStaleRouteTimeShort))
 	})
 
 	var allFlows []string
@@ -1165,6 +1162,7 @@ func TestTrafficWithGracefulRestart(t *testing.T) {
 	d := &oc.Root{}
 	ifName := dut.Port(t, "port2").Name()
 	iFace := d.GetOrCreateAcl().GetOrCreateInterface(ifName)
+	var grTriggerTime time.Time
 	t.Run("VerifyTrafficPasswithGRTimerWithAclApplied", func(t *testing.T) {
 		t.Log("Configure ACL to block BGP on port 179")
 		const stopDuration = 45 * time.Second
@@ -1172,6 +1170,7 @@ func TestTrafficWithGracefulRestart(t *testing.T) {
 		ate.OTG().StartTraffic(t)
 		startTime := time.Now()
 		t.Log("Trigger graceful restart on ATE")
+		grTriggerTime = time.Now()
 		ate.OTG().SetControlAction(t, createGracefulRestartAction([]string{bgpPeerName}, uint32(grRestartTime)))
 		gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configACL(d, aclName))
 		aclConf := configACLInterface(iFace, ifName)
@@ -1204,10 +1203,15 @@ func TestTrafficWithGracefulRestart(t *testing.T) {
 		}
 	})
 
-	startTime := time.Now()
-	t.Run("Wait till GR restart and stale-routes timers expire to purge routes", func(t *testing.T) {
-		staleTime := time.Duration(grRestartTime+grStaleRouteTimeShort) * time.Second
-		time.Sleep(staleTime - time.Since(startTime))
+	t.Run("WaitForGRTimerExpiry", func(t *testing.T) {
+		// Wait for GR restart timer to fully expire before testing traffic failure
+		elapsed := time.Since(grTriggerTime)
+		grTime := time.Duration(grRestartTime) * time.Second
+		if elapsed < grTime {
+			waitTime := grTime - elapsed + 10*time.Second // add buffer
+			t.Logf("Waiting %v for GR timer to expire...", waitTime)
+			time.Sleep(waitTime)
+		}
 	})
 
 	t.Run("VerifyTrafficFailureAfterGRexpired", func(t *testing.T) {
