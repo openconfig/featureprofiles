@@ -2862,9 +2862,6 @@ func RunTrafficTestCases(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTD
 			RunEndToEndTrafficValidation(t, ate, dut, ateConfig, dutIngressMAC, tc.UseIMIX, tc.TestRepair, enablePacketCapture, compactOTGFlows, params)
 		})
 	}
-
-	t.Log("Done running traffic tests")
-	ondatra.Debug().Breakpoint(t)
 }
 
 // RunFullScaleTest runs the complete set of configuration, programming, and traffic tests
@@ -2894,9 +2891,6 @@ func RunFullScaleTest(t *testing.T, params ScaleParams, enablePacketCapture, com
 	t.Run("Configure and validate FIB_PROGRAMMED, Hierarchical route structure", func(t *testing.T) {
 		ProgramGRIBIRoutes(t, dut, defaultVRF, params, monitorHWUtilization)
 	})
-
-	t.Log("Done configuring GRIBI")
-	ondatra.Debug().Breakpoint(t)
 
 	if !*excludeTraffic {
 		RunTrafficTestCases(t, ate, dut, ateConfig, dutIngressMAC, enablePacketCapture, compactOTGFlows, params)
