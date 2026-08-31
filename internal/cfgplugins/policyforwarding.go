@@ -1264,14 +1264,17 @@ func ConfigureDutWithGueDecap(t *testing.T, dut *ondatra.DUTDevice, guePort int,
 	if deviations.DecapsulateGueOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
+			payloadType := ipType
+			if strings.EqualFold(ipType, "ipv4") {
+				payloadType = "ip"
+			}
 			cliConfig := fmt.Sprintf(`
-                            ip decap-group type udp destination port %[1]d payload %[2]s 
-                            tunnel type %[2]s-over-udp udp destination port %[1]d
-                            ip decap-group test
-                            tunnel type UDP
-                            tunnel decap-ip %[3]s
-                            tunnel decap-interface %[4]s
-                            `, guePort, ipType, tunIP, decapInt)
+						ip decap-group type udp destination port %[1]d payload %[2]s
+						ip decap-group %[3]s
+						tunnel type UDP
+						tunnel decap-ip %[4]s
+						tunnel decap-interface %[5]s
+					`, guePort, payloadType, policyName, tunIP, decapInt)
 			helpers.GnmiCLIConfig(t, dut, cliConfig)
 
 		default:
