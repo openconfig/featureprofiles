@@ -1180,6 +1180,7 @@ func (td *testData) awaitISISAdjacency(t *testing.T, p *ondatra.Port, isisName s
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
+	batch := &gnmi.SetBatch{}
 	for _, dutPorts := range []*attrs.Attributes{&dutPort1, &dutPort2, &dutPort3, &dutPort4} {
 		dutPort := dut.Port(t, dutPorts.Name)
 		dutInt := dutPorts.NewOCInterface(dutPort.Name(), dut)
@@ -1194,9 +1195,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 		gnmi.Replace(t, dut, gnmi.OC().Interface(dutPort.Name()).Config(), dutInt)
 		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-			fptest.AssignToNetworkInstance(t, dut, dutPort.Name(), deviations.DefaultNetworkInstance(dut), 0)
+			cfgplugins.AssignInterfaceToNetworkInstance(t, batch, dut, dutPort.Name(), &cfgplugins.NetworkInstanceParams{Default: true}, 0)
 		}
 	}
+	batch.Set(t, dut)
 }
 
 func configureOTG(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) []gosnappi.Device {
