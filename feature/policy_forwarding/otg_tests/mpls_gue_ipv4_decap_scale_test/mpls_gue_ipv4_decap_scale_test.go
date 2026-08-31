@@ -177,79 +177,48 @@ var (
 		},
 	}
 	// flowOuterIPv4 Decap IPv4 Interface IPv4 Payload traffic params Outer Header.
-	flowOuterIPv4 = &otgconfighelpers.Flow{
-		// The traffic generator supports a single Tx device per flow, so
-		// createflow splits this definition into one OTG flow per TxName. Both
-		// core facing aggregates therefore receive MPLSoGUE traffic
-		// simultaneously, as required by the README test environment.
-		TxNames:           []string{agg2.Interfaces[0].Name + ".IPv4", agg3.Interfaces[0].Name + ".IPv4"},
-		RxNames:           []string{},
-		SizeWeightProfile: &sizeWeightProfile,
-		Flowrate:          100,
-		PacketsToSend:     totalPkts,
-		FlowName:          "MPLSOGUE-IPv4-Traffic",
-		EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg2.AggMAC},
-		IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: outerSrcIPv4, IPv4Dst: outerDstIPv4, IPv4SrcCount: outerSrcCount},
-		MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: mplsV4Label, MPLSExp: 7, MPLSLabelCount: mplsLabelCount},
-		UDPFlow:           &otgconfighelpers.UDPFlowParams{UDPSrcPort: innerSrcPort, UDPDstPort: udpDstPort, UDPSrcCount: flowSrcCount},
-	}
-	// flowOuterIPv4Validation MPLSOGUE traffic IPv4 interface IPv4 Payload.
-	flowOuterIPv4Validation = &otgvalidationhelpers.OTGValidation{
-		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{}, Ports: allFlowPorts()},
-		Flow:      &otgvalidationhelpers.FlowParams{Name: flowOuterIPv4.FlowName, TolerancePct: tolerancePct},
-	}
+	flowOuterIPv4 = newOuterGUEFlow(outerFlowParams{
+		name:        "MPLSOGUE-IPv4-Traffic",
+		txSuffix:    ".IPv4",
+		mplsLabel:   mplsV4Label,
+		flowRate:    100,
+		srcMAC:      agg2.AggMAC,
+		srcCount:    outerSrcCount,
+		udpSrcPort:  innerSrcPort,
+		udpSrcCount: flowSrcCount,
+	})
 	// flowInnerIPv4 Inner Header IPv4 Payload.
 	flowInnerIPv4 = &otgconfighelpers.Flow{
 		IPv4Flow: &otgconfighelpers.IPv4FlowParams{IPv4Src: innerSrcIPv4, IPv4Dst: innerDstIPv4, IPv4SrcCount: flowSrcCount, DSCP: innerDSCPMin, DSCPCount: innerDSCPCount},
 		TCPFlow:  &otgconfighelpers.TCPFlowParams{TCPSrcPort: innerSrcPort, TCPDstPort: 80, TCPSrcCount: flowSrcCount},
 	}
 	// flowOuterIPv6 Decap IPv6 Interface IPv6 Payload traffic params Outer Header.
-	flowOuterIPv6 = &otgconfighelpers.Flow{
-		// The traffic generator supports a single Tx device per flow, so
-		// createflow splits this definition into one OTG flow per TxName, one
-		// per core facing aggregate.
-		TxNames:           []string{agg2.Interfaces[0].Name + ".IPv6", agg3.Interfaces[0].Name + ".IPv6"},
-		RxNames:           []string{},
-		SizeWeightProfile: &sizeWeightProfile,
-		Flowrate:          100,
-		PacketsToSend:     totalPkts,
-		FlowName:          "MPLSOGUE-IPv6-Traffic",
-		EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg2.AggMAC},
-		IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: outerSrcIPv4, IPv4Dst: outerDstIPv4, IPv4SrcCount: outerSrcCount},
-		MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: mplsV6Label, MPLSExp: 7, MPLSLabelCount: mplsLabelCount},
-		UDPFlow:           &otgconfighelpers.UDPFlowParams{UDPSrcPort: innerSrcPort, UDPDstPort: udpDstPort},
-	}
-	// flowOuterIPv6Validation MPLSOGUE traffic IPv6 interface IPv6 Payload.
-	flowOuterIPv6Validation = &otgvalidationhelpers.OTGValidation{
-		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{}, Ports: allFlowPorts()},
-		Flow:      &otgvalidationhelpers.FlowParams{Name: flowOuterIPv6.FlowName, TolerancePct: tolerancePct},
-	}
+	// The outer header stays IPv4 here; only the transmitting OTG device and the
+	// MPLS label differ from flowOuterIPv4.
+	flowOuterIPv6 = newOuterGUEFlow(outerFlowParams{
+		name:       "MPLSOGUE-IPv6-Traffic",
+		txSuffix:   ".IPv6",
+		mplsLabel:  mplsV6Label,
+		flowRate:   100,
+		srcMAC:     agg2.AggMAC,
+		srcCount:   outerSrcCount,
+		udpSrcPort: innerSrcPort,
+	})
 	// flowInnerIPv6 Inner Header IPv6 Payload.
 	flowInnerIPv6 = &otgconfighelpers.Flow{
 		IPv6Flow: &otgconfighelpers.IPv6FlowParams{IPv6Src: innerSrcIPv6, IPv6Dst: innerDstIPv6, IPv6SrcCount: flowSrcCount, TrafficClass: innerDSCPMin, TrafficClassCount: innerDSCPCount, TrafficClassStep: innerTrafficClassStep},
 		TCPFlow:  &otgconfighelpers.TCPFlowParams{TCPSrcPort: innerSrcPort, TCPDstPort: 80, TCPSrcCount: flowSrcCount},
 	}
 	// flowOuterMcast is the “outer” MPLS‐encapsulated flow whose payload is an IPv4+UDP multicast packet.
-	flowOuterMcast = &otgconfighelpers.Flow{
-		// The traffic generator supports a single Tx device per flow, so
-		// createflow splits this definition into one OTG flow per TxName, one
-		// per core facing aggregate.
-		TxNames:           []string{agg2.Interfaces[0].Name + ".IPv4", agg3.Interfaces[0].Name + ".IPv4"},
-		RxNames:           []string{},
-		SizeWeightProfile: &sizeWeightProfile,
-		Flowrate:          100,
-		PacketsToSend:     totalPkts,
-		FlowName:          "MPLSoGUE-Mcast-Traffic",
-		EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg2.AggMAC},
-		IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: outerSrcIPv4, IPv4Dst: outerDstIPv4, IPv4SrcCount: outerSrcCount},
-		MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: mplsV4Label, MPLSExp: 7, MPLSLabelCount: mplsLabelCount},
-		UDPFlow:           &otgconfighelpers.UDPFlowParams{UDPSrcPort: innerSrcPort, UDPDstPort: udpDstPort},
-	}
-	// flowOuterMcastValidation MPLSOGUE traffic IPv4 interface IPv4 Payload.
-	flowOuterMcastValidation = &otgvalidationhelpers.OTGValidation{
-		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{}, Ports: allFlowPorts()},
-		Flow:      &otgvalidationhelpers.FlowParams{Name: flowOuterMcast.FlowName, TolerancePct: tolerancePct},
-	}
+	flowOuterMcast = newOuterGUEFlow(outerFlowParams{
+		name:       "MPLSoGUE-Mcast-Traffic",
+		txSuffix:   ".IPv4",
+		mplsLabel:  mplsV4Label,
+		flowRate:   100,
+		srcMAC:     agg2.AggMAC,
+		srcCount:   outerSrcCount,
+		udpSrcPort: innerSrcPort,
+	})
 	// flowInnerMcast is the “inner” multicast payload (IPv4 + UDP to the same group).
 	flowInnerMcast = &otgconfighelpers.Flow{
 		IPv4Flow: &otgconfighelpers.IPv4FlowParams{IPv4Src: innerSrcIPv4, IPv4Dst: mcastDst, IPv4SrcCount: flowSrcCount, DSCP: innerDSCPMin, DSCPCount: innerDSCPCount},
@@ -286,25 +255,17 @@ var (
 
 	// flowOuterV6ScaleIPv4Payload is the MPLSoGUE flow with a unique IPv6 outer
 	// header carrying an IPv4 inner payload.
-	flowOuterV6ScaleIPv4Payload = &otgconfighelpers.Flow{
-		// The traffic generator supports a single Tx device per flow, so
-		// createflow splits this definition into one OTG flow per TxName and
-		// shares the configured rate between them.
-		TxNames:           []string{agg2.Interfaces[0].Name + ".IPv6", agg3.Interfaces[0].Name + ".IPv6"},
-		RxNames:           []string{},
-		SizeWeightProfile: &sizeWeightProfile,
-		Flowrate:          v6ScaleLineRatePct / 2,
-		PacketsToSend:     totalPkts,
-		FlowName:          "MPLSOGUE-V6Outer-Scale-IPv4-Payload",
-		EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg2.AggMAC},
-		IPv6Flow:          &otgconfighelpers.IPv6FlowParams{IPv6Src: v6ScaleOuterSrcIPv6, IPv6Dst: v6ScaleOuterDstIPv6, IPv6SrcCount: v6ScaleFlowCount},
-		MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: mplsV4Label, MPLSExp: 7, MPLSLabelCount: mplsLabelCount},
-		UDPFlow:           &otgconfighelpers.UDPFlowParams{UDPSrcPort: v6ScaleEphemeralMin, UDPDstPort: udpDstPort, UDPSrcCount: v6ScaleFlowCount},
-	}
-	flowOuterV6ScaleIPv4PayloadValidation = &otgvalidationhelpers.OTGValidation{
-		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{}, Ports: allFlowPorts()},
-		Flow:      &otgvalidationhelpers.FlowParams{Name: flowOuterV6ScaleIPv4Payload.FlowName, TolerancePct: 0},
-	}
+	flowOuterV6ScaleIPv4Payload = newOuterGUEFlow(outerFlowParams{
+		name:        "MPLSOGUE-V6Outer-Scale-IPv4-Payload",
+		txSuffix:    ".IPv6",
+		v6Outer:     true,
+		mplsLabel:   mplsV4Label,
+		flowRate:    v6ScaleLineRatePct / 2,
+		srcMAC:      agg2.AggMAC,
+		srcCount:    v6ScaleFlowCount,
+		udpSrcPort:  v6ScaleEphemeralMin,
+		udpSrcCount: v6ScaleFlowCount,
+	})
 	flowInnerV6ScaleIPv4Payload = &otgconfighelpers.Flow{
 		IPv4Flow: &otgconfighelpers.IPv4FlowParams{IPv4Src: innerSrcIPv4, IPv4Dst: innerDstIPv4, IPv4SrcCount: v6ScaleFlowCount, DSCP: innerDSCPMin, DSCPCount: innerDSCPCount},
 		UDPFlow:  &otgconfighelpers.UDPFlowParams{UDPSrcPort: v6ScaleEphemeralMin, UDPDstPort: 80, UDPSrcCount: v6ScaleFlowCount},
@@ -312,25 +273,17 @@ var (
 
 	// flowOuterV6ScaleIPv6Payload is the MPLSoGUE flow with a unique IPv6 outer
 	// header carrying an IPv6 inner payload.
-	flowOuterV6ScaleIPv6Payload = &otgconfighelpers.Flow{
-		// The traffic generator supports a single Tx device per flow, so
-		// createflow splits this definition into one OTG flow per TxName and
-		// shares the configured rate between them.
-		TxNames:           []string{agg2.Interfaces[0].Name + ".IPv6", agg3.Interfaces[0].Name + ".IPv6"},
-		RxNames:           []string{},
-		SizeWeightProfile: &sizeWeightProfile,
-		Flowrate:          v6ScaleLineRatePct / 2,
-		PacketsToSend:     totalPkts,
-		FlowName:          "MPLSOGUE-V6Outer-Scale-IPv6-Payload",
-		EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg3.AggMAC},
-		IPv6Flow:          &otgconfighelpers.IPv6FlowParams{IPv6Src: v6ScaleOuterSrcIPv6, IPv6Dst: v6ScaleOuterDstIPv6, IPv6SrcCount: v6ScaleFlowCount},
-		MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: mplsV6Label, MPLSExp: 7, MPLSLabelCount: mplsLabelCount},
-		UDPFlow:           &otgconfighelpers.UDPFlowParams{UDPSrcPort: v6ScaleEphemeralMin, UDPDstPort: udpDstPort, UDPSrcCount: v6ScaleFlowCount},
-	}
-	flowOuterV6ScaleIPv6PayloadValidation = &otgvalidationhelpers.OTGValidation{
-		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{}, Ports: allFlowPorts()},
-		Flow:      &otgvalidationhelpers.FlowParams{Name: flowOuterV6ScaleIPv6Payload.FlowName, TolerancePct: 0},
-	}
+	flowOuterV6ScaleIPv6Payload = newOuterGUEFlow(outerFlowParams{
+		name:        "MPLSOGUE-V6Outer-Scale-IPv6-Payload",
+		txSuffix:    ".IPv6",
+		v6Outer:     true,
+		mplsLabel:   mplsV6Label,
+		flowRate:    v6ScaleLineRatePct / 2,
+		srcMAC:      agg3.AggMAC,
+		srcCount:    v6ScaleFlowCount,
+		udpSrcPort:  v6ScaleEphemeralMin,
+		udpSrcCount: v6ScaleFlowCount,
+	})
 	flowInnerV6ScaleIPv6Payload = &otgconfighelpers.Flow{
 		IPv6Flow: &otgconfighelpers.IPv6FlowParams{IPv6Src: innerSrcIPv6, IPv6Dst: innerDstIPv6, IPv6SrcCount: v6ScaleFlowCount, TrafficClass: innerDSCPMin, TrafficClassCount: innerDSCPCount, TrafficClassStep: innerTrafficClassStep},
 		UDPFlow:  &otgconfighelpers.UDPFlowParams{UDPSrcPort: v6ScaleEphemeralMin, UDPDstPort: 80, UDPSrcCount: v6ScaleFlowCount},
@@ -354,6 +307,68 @@ var (
 		IPv6Layer:   &packetvalidationhelpers.IPv6Layer{DstIP: innerDstIPv6, TrafficClass: 10, HopLimit: 64},
 	}
 )
+
+// outerFlowParams captures the only attributes that differ between the
+// MPLSoGUE outer flows; everything else (IMIX profile, MPLS EXP/label count,
+// GUE destination port, dual ingress transmit endpoints) is shared and is
+// filled in by newOuterGUEFlow.
+type outerFlowParams struct {
+	// name is the OTG flow name.
+	name string
+	// txSuffix selects the transmitting OTG device of both core facing
+	// aggregates, either ".IPv4" or ".IPv6".
+	txSuffix string
+	// v6Outer selects an IPv6 outer header instead of the default IPv4 one.
+	v6Outer bool
+	// mplsLabel is the first label of the MPLSoGUE label stack.
+	mplsLabel uint32
+	// flowRate is the offered rate, in percent of the port line rate.
+	flowRate float32
+	// srcMAC is the outer Ethernet source MAC.
+	srcMAC string
+	// srcCount is the number of unique outer source addresses.
+	srcCount uint32
+	// udpSrcPort / udpSrcCount describe the GUE UDP source port range.
+	udpSrcPort  uint32
+	udpSrcCount uint32
+}
+
+// newOuterGUEFlow builds an MPLSoGUE outer flow from the attributes that vary
+// between the test flows.
+//
+// The traffic generator supports a single Tx device per flow, so createFlow
+// later splits the returned definition into one OTG flow per TxName. Both core
+// facing aggregates therefore receive MPLSoGUE traffic simultaneously, as
+// required by the README test environment.
+func newOuterGUEFlow(flowParams outerFlowParams) *otgconfighelpers.Flow {
+	f := &otgconfighelpers.Flow{
+		TxNames:           []string{agg2.Interfaces[0].Name + flowParams.txSuffix, agg3.Interfaces[0].Name + flowParams.txSuffix},
+		RxNames:           []string{},
+		SizeWeightProfile: &sizeWeightProfile,
+		Flowrate:          flowParams.flowRate,
+		PacketsToSend:     totalPkts,
+		FlowName:          flowParams.name,
+		EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: flowParams.srcMAC},
+		MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: flowParams.mplsLabel, MPLSExp: 7, MPLSLabelCount: mplsLabelCount},
+		UDPFlow:           &otgconfighelpers.UDPFlowParams{UDPSrcPort: flowParams.udpSrcPort, UDPDstPort: udpDstPort, UDPSrcCount: flowParams.udpSrcCount},
+	}
+	if flowParams.v6Outer {
+		f.IPv6Flow = &otgconfighelpers.IPv6FlowParams{IPv6Src: v6ScaleOuterSrcIPv6, IPv6Dst: v6ScaleOuterDstIPv6, IPv6SrcCount: flowParams.srcCount}
+		return f
+	}
+	f.IPv4Flow = &otgconfighelpers.IPv4FlowParams{IPv4Src: outerSrcIPv4, IPv4Dst: outerDstIPv4, IPv4SrcCount: flowParams.srcCount}
+	return f
+}
+
+// newFlowValidation builds the loss validation of a flow. Every flow is
+// validated on the same set of ports; the ingress interface names are appended
+// once the Aggregate1 subinterfaces have been generated.
+func newFlowValidation(flowName string, tolerancePct float32) *otgvalidationhelpers.OTGValidation {
+	return &otgvalidationhelpers.OTGValidation{
+		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{}, Ports: allFlowPorts()},
+		Flow:      &otgvalidationhelpers.FlowParams{Name: flowName, TolerancePct: tolerancePct},
+	}
+}
 
 // allFlowPorts returns the egress (customer) LAG member ports together with
 // the member ports of both core facing aggregates, which transmit the
@@ -563,17 +578,11 @@ func configureDUTAndOTG(t *testing.T) (*ondatra.DUTDevice, string, *networkConfi
 	ocPFParams.DecapPolicy.DecapMPLSParams.MplsStaticLabelsForIPv6 = mplsV6Labels
 	// Pass ocPFParams to configureDut
 	custAggID := configureDUT(t, dut, netConfig, ocPFParams)
-	// after agg1.Interfaces has been populated...
+	// Bind the flows to the Rx device names, now that agg1.Interfaces has been
+	// populated.
 	for _, intf := range agg1.Interfaces {
-		// tell the validator which ingress interfaces to watch
-		flowOuterIPv4Validation.Interface.Names = append(flowOuterIPv4Validation.Interface.Names, intf.Name)
-		// tell the flow which Rx device names to bind to
 		flowOuterIPv4.RxNames = append(flowOuterIPv4.RxNames, intf.Name+".IPv4")
-
-		flowOuterIPv6Validation.Interface.Names = append(flowOuterIPv6Validation.Interface.Names, intf.Name)
 		flowOuterIPv6.RxNames = append(flowOuterIPv6.RxNames, intf.Name+".IPv6")
-		// and for multicast:
-		flowOuterMcastValidation.Interface.Names = append(flowOuterMcastValidation.Interface.Names, intf.Name)
 		flowOuterMcast.RxNames = append(flowOuterMcast.RxNames, intf.Name+".IPv4")
 	}
 	configureOTG(t)
@@ -837,34 +846,7 @@ func flowNames(f *otgconfighelpers.Flow) []string {
 	return names
 }
 
-// validateLossOnAllFlows returns a validator that checks the loss of every OTG
-// flow generated for the given flow definition.
-func validateLossOnAllFlows(v *otgvalidationhelpers.OTGValidation, f *otgconfighelpers.Flow) func(*testing.T, *ondatra.ATEDevice) error {
-	return func(t *testing.T, ate *ondatra.ATEDevice) error {
-		for _, name := range flowNames(f) {
-			sub := *v
-			fp := *v.Flow
-			fp.Name = name
-			sub.Flow = &fp
-			if err := sub.ValidateLossOnFlows(t, ate); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-}
-
-// validateECMPonLAGForFlow returns a validator that checks the egress LAG
-// balance across all OTG flows generated for the given flow definition. The
-// per-flow helper cannot be used directly because the sub flows share the same
-// egress LAG member ports.
-func validateECMPonLAGForFlow(f *otgconfighelpers.Flow) func(*testing.T, *ondatra.ATEDevice) error {
-	return func(t *testing.T, ate *ondatra.ATEDevice) error {
-		return validateV6ScaleECMPonLAG(t, ate, flowNames(f))
-	}
-}
-
-// createFlow configure the traffic streams as per the readme. When the flow
+// createFlow configures the traffic streams as per the README. When the flow
 // definition carries several TxNames, one OTG flow per transmit device is
 // created and the configured rate is shared between them, so that the total
 // offered rate stays the same while the traffic ingresses on both aggregates.
@@ -1123,86 +1105,56 @@ func pushPolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.Net
 	gnmi.Replace(t, dut, niPath, ni)
 }
 
+// scaleTestCase describes one MPLSoGUE decapsulation scenario. A nil
+// captureConfig selects the loss/ECMP scale validation; a non-nil one selects
+// the payload-preserve capture validation.
+type scaleTestCase struct {
+	name          string
+	outer         *otgconfighelpers.Flow
+	inner         *otgconfighelpers.Flow
+	captureConfig *packetvalidationhelpers.PacketValidation
+}
+
 func TestMPLSOGUEDecapScale(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	dut, custAggID, netConfig := configureDUTAndOTG(t)
-	tests := []struct {
-		name                    string
-		outerFlow               *otgconfighelpers.Flow
-		innerFlow               *otgconfighelpers.Flow
-		flowValidator           func(*testing.T, *ondatra.ATEDevice) error
-		ecmpValidator           func(*testing.T, *ondatra.ATEDevice) error
-		validatePayloadPreserve bool
-		validationConfig        *packetvalidationhelpers.PacketValidation
-	}{
-		{
-			name:          "IPv4 Traffic Scale",
-			outerFlow:     flowOuterIPv4,
-			innerFlow:     flowInnerIPv4,
-			flowValidator: validateLossOnAllFlows(flowOuterIPv4Validation, flowOuterIPv4),
-			ecmpValidator: validateECMPonLAGForFlow(flowOuterIPv4),
-		},
-		{
-			name:          "IPv6 Traffic Scale",
-			outerFlow:     flowOuterIPv6,
-			innerFlow:     flowInnerIPv6,
-			flowValidator: validateLossOnAllFlows(flowOuterIPv6Validation, flowOuterIPv6),
-			ecmpValidator: validateECMPonLAGForFlow(flowOuterIPv6),
-		},
-		{
-			name:          "Multicast Traffic Scale",
-			outerFlow:     flowOuterMcast,
-			innerFlow:     flowInnerMcast,
-			flowValidator: validateLossOnAllFlows(flowOuterMcastValidation, flowOuterMcast),
-			ecmpValidator: validateECMPonLAGForFlow(flowOuterMcast),
-		},
-		{
-			name:                    "IPv4 Payload Preserve",
-			outerFlow:               flowOuterIPv4,
-			innerFlow:               flowInnerIPv4,
-			flowValidator:           validateLossOnAllFlows(flowOuterIPv4Validation, flowOuterIPv4),
-			validatePayloadPreserve: true,
-			validationConfig:        decapValidationIPv4,
-		},
-		{
-			name:                    "IPv6 Payload Preserve",
-			outerFlow:               flowOuterIPv6,
-			innerFlow:               flowInnerIPv6,
-			flowValidator:           validateLossOnAllFlows(flowOuterIPv6Validation, flowOuterIPv6),
-			validatePayloadPreserve: true,
-			validationConfig:        decapValidationIPv6,
-		},
+	tests := []scaleTestCase{
+		{name: "IPv4 Traffic Scale", outer: flowOuterIPv4, inner: flowInnerIPv4},
+		{name: "IPv6 Traffic Scale", outer: flowOuterIPv6, inner: flowInnerIPv6},
+		{name: "Multicast Traffic Scale", outer: flowOuterMcast, inner: flowInnerMcast},
+		{name: "IPv4 Payload Preserve", outer: flowOuterIPv4, inner: flowInnerIPv4, captureConfig: decapValidationIPv4},
+		{name: "IPv6 Payload Preserve", outer: flowOuterIPv6, inner: flowInnerIPv6, captureConfig: decapValidationIPv6},
 	}
 
 	packetvalidationhelpers.ClearCapture(t, top, ate)
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Logf("Running test: %s", tc.name)
-
-			if tc.validatePayloadPreserve {
-				updateFlow(t, tc.outerFlow, tc.innerFlow, true, ratePPS, totalPkts)
-				packetvalidationhelpers.ConfigurePacketCapture(t, top, tc.validationConfig)
+			if tc.captureConfig != nil {
+				updateFlow(t, tc.outer, tc.inner, true, ratePPS, totalPkts)
+				packetvalidationhelpers.ConfigurePacketCapture(t, top, tc.captureConfig)
 				sendTrafficCapture(t, ate, dut, custAggID, netConfig)
-			} else {
-				createFlow(t, top, tc.outerFlow, tc.innerFlow, true)
-				sendTraffic(t, ate, dut, custAggID, netConfig)
+				if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, tc.captureConfig); err != nil {
+					t.Errorf("CaptureAndValidatePackets(%s) got err: %v, want nil", tc.outer.FlowName, err)
+				}
+				return
 			}
 
-			if err := tc.flowValidator(t, ate); err != nil {
-				t.Errorf("validateLossOnFlows(): got err: %q, want nil", err)
-			}
+			createFlow(t, top, tc.outer, tc.inner, true)
+			sendTraffic(t, ate, dut, custAggID, netConfig)
 
-			if tc.ecmpValidator != nil {
-				if err := tc.ecmpValidator(t, ate); err != nil {
-					t.Errorf("ecmpValidationFailed(): got err: %q, want nil", err)
+			// createFlow splits a multi-TxName definition into one OTG flow per
+			// transmit device, so every generated sub flow is validated.
+			for _, name := range flowNames(tc.outer) {
+				validation := newFlowValidation(name, tolerancePct)
+				if err := validation.ValidateLossOnFlows(t, ate); err != nil {
+					t.Errorf("ValidateLossOnFlows(%s) got err: %v, want nil", name, err)
 				}
 			}
-
-			if tc.validatePayloadPreserve {
-				if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, tc.validationConfig); err != nil {
-					t.Errorf("captureAndValidatePackets(): got err: %q", err)
-				}
+			// The sub flows share the egress LAG member ports, so the balance is
+			// checked once against their combined counters.
+			if err := validateV6ScaleECMPonLAG(t, ate, flowNames(tc.outer)); err != nil {
+				t.Errorf("validateV6ScaleECMPonLAG(%s) got err: %v, want nil", tc.outer.FlowName, err)
 			}
 		})
 	}
@@ -1357,7 +1309,7 @@ func verifyV6ScaleDecapRules(t *testing.T, dut *ondatra.DUTDevice, wantRules int
 			_, present := val.Val()
 			return present
 		}).Await(t); !ok {
-		return fmt.Errorf("policy %q rule %d not programmed within %v", v6ScalePolicyID, wantRules, v6ScaleSetTimeout)
+		return fmt.Errorf("policy %v rule %d not programmed within %v", v6ScalePolicyID, wantRules, v6ScaleSetTimeout)
 	}
 	seqIDs := gnmi.LookupAll(t, dut, policyPath.RuleAny().SequenceId().State())
 	got := 0
@@ -1367,9 +1319,9 @@ func verifyV6ScaleDecapRules(t *testing.T, dut *ondatra.DUTDevice, wantRules int
 		}
 	}
 	if got != wantRules {
-		return fmt.Errorf("policy %q programmed rules: got %d, want %d", v6ScalePolicyID, got, wantRules)
+		return fmt.Errorf("policy %v programmed rules: got %d, want %d", v6ScalePolicyID, got, wantRules)
 	}
-	t.Logf("Policy %q reports all %d IPv6 decap rules programmed", v6ScalePolicyID, got)
+	t.Logf("Policy %v reports all %d IPv6 decap rules programmed", v6ScalePolicyID, got)
 	return nil
 }
 
@@ -1383,9 +1335,9 @@ func verifyV6ScaleDecapRulesCLI(t *testing.T, dut *ondatra.DUTDevice, params cfg
 		return fmt.Errorf("no native verification available for vendor %v; cannot confirm %d decap rules", dut.Vendor(), wantRules)
 	}
 	if got != wantRules {
-		return fmt.Errorf("policy %q programmed rules (native config): got %d, want %d", params.PolicyID, got, wantRules)
+		return fmt.Errorf("policy %v programmed rules (native config): got %d, want %d", params.PolicyID, got, wantRules)
 	}
-	t.Logf("Native configuration reports all %d IPv6 decap rules programmed for policy %q", got, params.PolicyID)
+	t.Logf("Native configuration reports all %d IPv6 decap rules programmed for policy %v", got, params.PolicyID)
 	return nil
 }
 
@@ -1553,9 +1505,7 @@ func testDecapScaleIPv6Outer(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.
 	t.Helper()
 	// Bind the egress (Aggregate1) subinterfaces to the scale flows.
 	for _, intf := range agg1.Interfaces {
-		flowOuterV6ScaleIPv4PayloadValidation.Interface.Names = append(flowOuterV6ScaleIPv4PayloadValidation.Interface.Names, intf.Name)
 		flowOuterV6ScaleIPv4Payload.RxNames = append(flowOuterV6ScaleIPv4Payload.RxNames, intf.Name+".IPv4")
-		flowOuterV6ScaleIPv6PayloadValidation.Interface.Names = append(flowOuterV6ScaleIPv6PayloadValidation.Interface.Names, intf.Name)
 		flowOuterV6ScaleIPv6Payload.RxNames = append(flowOuterV6ScaleIPv6Payload.RxNames, intf.Name+".IPv6")
 	}
 	// testDecapScaleIPv6Outer's t is the top-level test, so capture it for the
@@ -1601,17 +1551,20 @@ func testDecapScaleIPv6Outer(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.
 			validateSystemHealth(t, collectSystemHealth(t, dut), "During scaled traffic")
 			collectEgressPacketRates(t, dut)
 		})
-		if err := validateLossOnAllFlows(flowOuterV6ScaleIPv4PayloadValidation, flowOuterV6ScaleIPv4Payload)(t, ate); err != nil {
-			t.Errorf("validateLossOnFlows(%s): got err: %q, want nil", flowOuterV6ScaleIPv4Payload.FlowName, err)
-		}
-		if err := validateLossOnAllFlows(flowOuterV6ScaleIPv6PayloadValidation, flowOuterV6ScaleIPv6Payload)(t, ate); err != nil {
-			t.Errorf("validateLossOnFlows(%s): got err: %q, want nil", flowOuterV6ScaleIPv6Payload.FlowName, err)
+		// The scale flows must forward with zero loss, so every generated sub flow
+		// is validated against a zero tolerance.
+		for _, f := range []*otgconfighelpers.Flow{flowOuterV6ScaleIPv4Payload, flowOuterV6ScaleIPv6Payload} {
+			for _, name := range flowNames(f) {
+				if err := newFlowValidation(name, 0).ValidateLossOnFlows(t, ate); err != nil {
+					t.Errorf("ValidateLossOnFlows(%s) got err: %v, want nil", name, err)
+				}
+			}
 		}
 		// All the scale sub flows egress the same LAG simultaneously, so the
 		// balance is validated against the combined member-port counters rather
 		// than against a single flow's counters.
 		if err := validateV6ScaleECMPonLAG(t, ate, append(flowNames(flowOuterV6ScaleIPv4Payload), flowNames(flowOuterV6ScaleIPv6Payload)...)); err != nil {
-			t.Errorf("validateV6ScaleECMPonLAG(): got err: %q, want nil", err)
+			t.Errorf("validateV6ScaleECMPonLAG(): got err: %v, want nil", err)
 		}
 		// Confirm every decap rule actually matched traffic, so that a rule that
 		// was programmed but never installed in hardware is detected.
