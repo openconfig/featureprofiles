@@ -6,7 +6,6 @@ import (
 
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 // AwaitDUTReboot waits for the DUT to boot by monitoring the System BootTime state.
@@ -17,23 +16,25 @@ func AwaitDUTReboot(t *testing.T, dut *ondatra.DUTDevice, lastBootTime uint64) u
 
 	// Use gnmi.Watch to block until the BootTime is strictly greater than the pre-reboot BootTime.
 	// We wait up to 30 minutes for the chassis to fully reboot and gNMI to come back online.
-	val, ok := gnmi.Watch(t, dut, gnmi.OC().System().BootTime().State(), 30*time.Minute, func(val *ygnmi.Value[uint64]) bool {
-		newTime, present := val.Val()
-		if !present {
-			return false
+	var newTime uint64
+	var ok bool
+	timeout := 30 * time.Minute
+	start := time.Now()
+	for time.Since(start) < timeout {
+		if val, present := gnmi.Lookup(t, dut, gnmi.OC().System().BootTime().State()).Val(); present {
+			if val > lastBootTime || lastBootTime == 0 {
+				newTime = val
+				ok = true
+				break
+			}
 		}
-		// Consider the reboot complete only when the system registers a completely new epoch boot time.
-		if newTime > lastBootTime || lastBootTime == 0 {
-			return true
-		}
-		return false
-	}).Await(t)
+		time.Sleep(10 * time.Second)
+	}
 
 	if !ok {
 		t.Fatalf("Timeout waiting for device boot time to update. Expected BootTime > %d", lastBootTime)
 	}
 
-	newTime, _ := val.Val()
 	t.Logf("Device rebooted successfully. New boot time: %d", newTime)
 	return newTime
 }
