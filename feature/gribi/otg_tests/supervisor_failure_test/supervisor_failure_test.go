@@ -142,9 +142,17 @@ func generateIPv4Prefixes(t testing.TB, startIP string, count int) []string {
 	t.Helper()
 	var prefixes []string
 	ip := net.ParseIP(startIP).To4()
+	if ip == nil {
+		t.Fatalf("Invalid start IPv4 address: %s", startIP)
+	}
 	for i := 0; i < count; i++ {
-		prefixes = append(prefixes, fmt.Sprintf("%d.%d.%d.%d/32", ip[0], ip[1], ip[2], ip[3]))
-		ip[3]++
+		prefixes = append(prefixes, fmt.Sprintf("%s/32", ip.String()))
+		for j := len(ip) - 1; j >= 0; j-- {
+			ip[j]++
+			if ip[j] > 0 {
+				break
+			}
+		}
 	}
 	return prefixes
 }
@@ -154,9 +162,17 @@ func generateIPv6Prefixes(t testing.TB, startIP string, count int) []string {
 	t.Helper()
 	var prefixes []string
 	ip := net.ParseIP(startIP).To16()
+	if ip == nil {
+		t.Fatalf("Invalid start IPv6 address: %s", startIP)
+	}
 	for i := 0; i < count; i++ {
 		prefixes = append(prefixes, fmt.Sprintf("%s/128", ip.String()))
-		ip[15]++
+		for j := len(ip) - 1; j >= 0; j-- {
+			ip[j]++
+			if ip[j] > 0 {
+				break
+			}
+		}
 	}
 	return prefixes
 }
@@ -372,6 +388,7 @@ func TestSupFailure(t *testing.T) {
 
 	t.Logf("TE-8.2.1: Send traffic from ATE port-1 to the 100 prefixes (50 IPv4 and 50 IPv6)...")
 	ate.OTG().StartTraffic(t)
+	defer ate.OTG().StopTraffic(t)
 
 	// Wait for traffic to flow and stabilize at 0% loss before initiating switchover
 	otgutils.ExpectedTrafficLoss(t, args.ate.OTG(), "Flow TE-8.2.1 IPv4", 0, 0)
@@ -399,17 +416,19 @@ func TestSupFailure(t *testing.T) {
 
 	startSwitchover := time.Now()
 	t.Logf("Wait for new Primary controller to boot up by polling the telemetry output.")
-	_, ok := gnmi.Watch(t, dut, gnmi.OC().System().CurrentDatetime().State(), time.Duration(maxSwitchoverTime)*time.Second, func(val *ygnmi.Value[string]) bool {
-		currentTime, present := val.Val()
-		if present {
+	var currentTime string
+	for {
+		t.Logf("Time elapsed %.2f seconds since switchover started.", time.Since(startSwitchover).Seconds())
+		time.Sleep(30 * time.Second)
+		if val, present := gnmi.Lookup(t, dut, gnmi.OC().System().CurrentDatetime().State()).Val(); present {
+			currentTime = val
 			t.Logf("Controller switchover has completed successfully with received time: %v", currentTime)
+			break
 		}
-		return present
-	}).Await(t)
-	if !ok {
-		t.Fatalf("Controller switchover did not complete successfully within %.2f seconds", float64(maxSwitchoverTime))
+		if uint64(time.Since(startSwitchover).Seconds()) > maxSwitchoverTime {
+			t.Fatalf("Controller switchover did not complete successfully within %d seconds", maxSwitchoverTime)
+		}
 	}
-	t.Logf("Controller switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
 
 	// Old secondary controller becomes primary after switchover.
 	primaryAfterSwitch := secondaryBeforeSwitch
