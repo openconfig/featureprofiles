@@ -759,47 +759,47 @@ func verifyMatchingCommunityTelemetryV6(t *testing.T, dut *ondatra.DUTDevice, at
 		t.Errorf("Prefix not found, want: %s", advertisedIPv6.address)
 	}
 }
-
 func bgpISISRedistribution(t *testing.T, dut *ondatra.DUTDevice, operation string) {
-	dni := deviations.DefaultNetworkInstance(dut)
-	root := &oc.Root{}
+	// 1. Handle direct device configuration first
 	if deviations.EnableTableConnections(dut) {
 		fptest.ConfigEnableTbNative(t, dut)
 	}
-	tableConn := root.GetOrCreateNetworkInstance(dni).GetOrCreateTableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, oc.Types_ADDRESS_FAMILY_IPV4)
-	if operation == "set" {
-		if !deviations.SkipSettingDisableMetricPropagation(dut) {
-			tableConn.SetDisableMetricPropagation(false)
-		}
-		if !deviations.DefaultRoutePolicyUnsupported(dut) {
-			tableConn.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
-		}
-		tableConn.SetImportPolicy([]string{v4RoutePolicy})
-		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(dni).TableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, oc.Types_ADDRESS_FAMILY_IPV4).Config(), tableConn)
-	} else if operation == "delete" {
-		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(dni).TableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, oc.Types_ADDRESS_FAMILY_IPV4).Config())
-	}
-}
 
+	// 2. Build the configuration batch using the standard plugin
+	b := &gnmi.SetBatch{}
+	cfgplugins.ConfigureTableConnection(t, dut, b, &cfgplugins.TableConnectionCfg{
+		SrcProto:                 oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
+		DstProto:                 oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS,
+		Afi:                      oc.Types_ADDRESS_FAMILY_IPV4,
+		ImportPolicies:           []string{v4RoutePolicy},
+		DisableMetricPropagation: false,
+		DefaultImportPolicy:      oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE,
+		Delete:                   operation == "delete",
+	})
+
+	// 3. Execute the batch
+	b.Set(t, dut)
+}
 func bgpISISRedistributionV6(t *testing.T, dut *ondatra.DUTDevice, operation string) {
-	dni := deviations.DefaultNetworkInstance(dut)
-	root := &oc.Root{}
+	// 1. Handle direct device configuration first
 	if deviations.EnableTableConnections(dut) {
 		fptest.ConfigEnableTbNative(t, dut)
 	}
-	tableConn := root.GetOrCreateNetworkInstance(dni).GetOrCreateTableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, oc.Types_ADDRESS_FAMILY_IPV6)
-	if operation == "set" {
-		if !deviations.SkipSettingDisableMetricPropagation(dut) {
-			tableConn.SetDisableMetricPropagation(false)
-		}
-		if !deviations.DefaultRoutePolicyUnsupported(dut) {
-			tableConn.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
-		}
-		tableConn.SetImportPolicy([]string{v6RoutePolicy})
-		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(dni).TableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, oc.Types_ADDRESS_FAMILY_IPV6).Config(), tableConn)
-	} else if operation == "delete" {
-		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(dni).TableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, oc.Types_ADDRESS_FAMILY_IPV6).Config())
-	}
+
+	// 2. Build the configuration batch using the standard plugin
+	b := &gnmi.SetBatch{}
+	cfgplugins.ConfigureTableConnection(t, dut, b, &cfgplugins.TableConnectionCfg{
+		SrcProto:                 oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
+		DstProto:                 oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS,
+		Afi:                      oc.Types_ADDRESS_FAMILY_IPV6,
+		ImportPolicies:           []string{v6RoutePolicy},
+		DisableMetricPropagation: false,
+		DefaultImportPolicy:      oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE,
+		Delete:                   operation == "delete",
+	})
+
+	// 3. Execute the batch
+	b.Set(t, dut)
 }
 func bgpISISRedistributionWithRouteTagPolicy(t *testing.T, dut *ondatra.DUTDevice, afi oc.E_Types_ADDRESS_FAMILY) {
 	dni := deviations.DefaultNetworkInstance(dut)
@@ -1019,49 +1019,6 @@ func deleteSharedNexthopStaticRouteV6(t *testing.T, dut *ondatra.DUTDevice) {
 		oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
 		deviations.StaticProtocolName(dut)).Static(advertisedIPv6.cidr(t)).Config())
 }
-
-func staticISISRedistribution(t *testing.T, dut *ondatra.DUTDevice, operation string) {
-	dni := deviations.DefaultNetworkInstance(dut)
-	root := &oc.Root{}
-	if deviations.EnableTableConnections(dut) {
-		fptest.ConfigEnableTbNative(t, dut)
-	}
-	tableConn := root.GetOrCreateNetworkInstance(dni).GetOrCreateTableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, oc.Types_ADDRESS_FAMILY_IPV4)
-	if operation == "set" {
-		if !deviations.SkipSettingDisableMetricPropagation(dut) {
-			tableConn.SetDisableMetricPropagation(false)
-		}
-		if !deviations.DefaultRoutePolicyUnsupported(dut) {
-			tableConn.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
-		}
-		tableConn.SetImportPolicy([]string{v4RoutePolicy})
-		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(dni).TableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, oc.Types_ADDRESS_FAMILY_IPV4).Config(), tableConn)
-	} else if operation == "delete" {
-		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(dni).TableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, oc.Types_ADDRESS_FAMILY_IPV4).Config())
-	}
-}
-
-func staticISISRedistributionV6(t *testing.T, dut *ondatra.DUTDevice, operation string) {
-	dni := deviations.DefaultNetworkInstance(dut)
-	root := &oc.Root{}
-	if deviations.EnableTableConnections(dut) {
-		fptest.ConfigEnableTbNative(t, dut)
-	}
-	tableConn := root.GetOrCreateNetworkInstance(dni).GetOrCreateTableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, oc.Types_ADDRESS_FAMILY_IPV6)
-	if operation == "set" {
-		if !deviations.SkipSettingDisableMetricPropagation(dut) {
-			tableConn.SetDisableMetricPropagation(false)
-		}
-		if !deviations.DefaultRoutePolicyUnsupported(dut) {
-			tableConn.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
-		}
-		tableConn.SetImportPolicy([]string{v6RoutePolicy})
-		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(dni).TableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, oc.Types_ADDRESS_FAMILY_IPV6).Config(), tableConn)
-	} else if operation == "delete" {
-		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(dni).TableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, oc.Types_ADDRESS_FAMILY_IPV6).Config())
-	}
-}
-
 func applySharedNexthopRoutePolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	matchingPrefixRoutePolicy(t, dut)
 
@@ -1070,9 +1027,31 @@ func applySharedNexthopRoutePolicy(t *testing.T, dut *ondatra.DUTDevice) {
 		deleteSharedNexthopStaticRoute(t, dut)
 	})
 
-	staticISISRedistribution(t, dut, "set")
+	// Enable Table Connections if the deviation requires it
+	if deviations.EnableTableConnections(dut) {
+		fptest.ConfigEnableTbNative(t, dut)
+	}
+
+	b := &gnmi.SetBatch{}
+	cfgplugins.ConfigureTableConnection(t, dut, b, &cfgplugins.TableConnectionCfg{
+		SrcProto:                 oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+		DstProto:                 oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS,
+		Afi:                      oc.Types_ADDRESS_FAMILY_IPV4,
+		ImportPolicies:           []string{v4RoutePolicy},
+		DisableMetricPropagation: false,
+		DefaultImportPolicy:      oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE,
+	})
+	b.Set(t, dut)
+
 	t.Cleanup(func() {
-		staticISISRedistribution(t, dut, "delete")
+		bCleanup := &gnmi.SetBatch{}
+		cfgplugins.ConfigureTableConnection(t, dut, bCleanup, &cfgplugins.TableConnectionCfg{
+			SrcProto: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+			DstProto: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS,
+			Afi:      oc.Types_ADDRESS_FAMILY_IPV4,
+			Delete:   true,
+		})
+		bCleanup.Set(t, dut)
 	})
 }
 
@@ -1084,8 +1063,30 @@ func applySharedNexthopRoutePolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 		deleteSharedNexthopStaticRouteV6(t, dut)
 	})
 
-	staticISISRedistributionV6(t, dut, "set")
+	// Enable Table Connections if the deviation requires it
+	if deviations.EnableTableConnections(dut) {
+		fptest.ConfigEnableTbNative(t, dut)
+	}
+
+	b := &gnmi.SetBatch{}
+	cfgplugins.ConfigureTableConnection(t, dut, b, &cfgplugins.TableConnectionCfg{
+		SrcProto:                 oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+		DstProto:                 oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS,
+		Afi:                      oc.Types_ADDRESS_FAMILY_IPV6,
+		ImportPolicies:           []string{v6RoutePolicy},
+		DisableMetricPropagation: false,
+		DefaultImportPolicy:      oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE,
+	})
+	b.Set(t, dut)
+
 	t.Cleanup(func() {
-		staticISISRedistributionV6(t, dut, "delete")
+		bCleanup := &gnmi.SetBatch{}
+		cfgplugins.ConfigureTableConnection(t, dut, bCleanup, &cfgplugins.TableConnectionCfg{
+			SrcProto: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+			DstProto: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS,
+			Afi:      oc.Types_ADDRESS_FAMILY_IPV6,
+			Delete:   true,
+		})
+		bCleanup.Set(t, dut)
 	})
 }
