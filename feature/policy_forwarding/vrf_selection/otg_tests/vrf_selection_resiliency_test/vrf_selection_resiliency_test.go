@@ -206,6 +206,7 @@ func TestVRFSelectionResiliency(t *testing.T) {
 
 	// Wait for ARP resolution
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 	ate.OTG().StartTraffic(t)
 
 	// RT-3.4.1 Step 4: Validating perfect isolation, default fallbacks, ghost drops, and shadow routes
