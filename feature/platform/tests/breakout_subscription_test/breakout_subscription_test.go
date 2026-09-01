@@ -565,6 +565,8 @@ func chassisReboot(t *testing.T, dut *ondatra.DUTDevice) {
 			t.Logf("Waiting for all components on the DUT to match pre-reboot state")
 		}
 
+		slices.Sort(preCompMatrix)
+		slices.Sort(postCompMatrix)
 		rebootDiff := cmp.Diff(preCompMatrix, postCompMatrix)
 		if rebootDiff == "" {
 			t.Logf("All components on the DUT are in responsive state")
@@ -671,12 +673,12 @@ func checkSyncResponse(t *testing.T, stream gpb.GNMI_SubscribeClient) {
 	startTime := time.Now()
 	for {
 		resp, err := stream.Recv()
+		if err != nil {
+			t.Fatalf("[Fail]: While receiving the subscription response %v", err)
+		}
 		if resp.GetSyncResponse() == true {
 			t.Logf("Received sync_response!")
 			break
-		}
-		if err != nil {
-			t.Errorf("[Error]: While receieving the subcription response %v", err)
 		}
 		if time.Since(startTime) > syncResponseWaitTimeOut {
 			t.Fatalf("[Fail]:Didn't receive sync_response. Time limit = %v  exceeded", syncResponseWaitTimeOut)
