@@ -82,13 +82,94 @@ N/A
 
 ## Protocol/RPC Parameter Coverage
 
-* **gRIBI**:
-  * `ModifyRequest`:
-    * `operation` (repeated `AFTOperation`)
-    * `SessionParameters`:
-      * `ack_type`: `RIB_ACK`
-      * `redundancy`: `SINGLE_PRIMARY`
-      * `persistence`: `PRESERVE`
+## Canonical OC
+
+```json
+{
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "dutPort1",
+          "enabled": true,
+          "name": "port1",
+          "type": "iana-if-type:ethernetCsmacd"
+        },
+        "name": "port1",
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "config": {
+                "index": 0
+              },
+              "index": 0,
+              "ipv4": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "192.0.2.1",
+                        "prefix-length": 30
+                      },
+                      "ip": "192.0.2.1"
+                    }
+                  ]
+                },
+                "config": {
+                  "enabled": true
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "config": {
+          "description": "dutPort2",
+          "enabled": true,
+          "name": "port2",
+          "type": "iana-if-type:ethernetCsmacd"
+        },
+        "name": "port2",
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "config": {
+                "index": 0
+              },
+              "index": 0,
+              "ipv4": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "192.0.2.5",
+                        "prefix-length": 30
+                      },
+                      "ip": "192.0.2.5"
+                    },
+                    {
+                      "config": {
+                        "ip": "192.0.2.9",
+                        "prefix-length": 30,
+                        "type": "SECONDARY"
+                      },
+                      "ip": "192.0.2.9"
+                    }
+                  ]
+                },
+                "config": {
+                  "enabled": true
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
 
 ## OpenConfig Path and RPC Coverage
 
