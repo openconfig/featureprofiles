@@ -112,8 +112,12 @@ func TestVRFSelectionResiliency(t *testing.T) {
 	s1.GetOrCreateIpv4().GetOrCreateAddress("100.64.0.1").PrefixLength = ygot.Uint8(24)
 
 	// Step 1: Initial VRF Binding for ingress
+	ingressID := p1.Name()
+	if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
+		ingressID = p1.Name() + ".0"
+	}
 	niPfw := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding()
-	i1fwd := niPfw.GetOrCreateInterface(p1.Name())
+	i1fwd := niPfw.GetOrCreateInterface(ingressID)
 	i1fwd.ApplyVrfSelectionPolicy = ygot.String(policyName)
 	if !deviations.InterfaceRefConfigUnsupported(dut) {
 		i1fwd.GetOrCreateInterfaceRef().Interface = ygot.String(p1.Name())
@@ -124,29 +128,29 @@ func TestVRFSelectionResiliency(t *testing.T) {
 	// Port-2 (Egress 1)
 	for i := 1; i <= 10; i++ {
 		configEgressSubIntf(dut, d, p2, idx, fmt.Sprintf("VRF-V4-%d", i))
-		configStaticRoute(d, dut, fmt.Sprintf("VRF-V4-%d", i), fmt.Sprintf("203.0.113.%d/32", i), fmt.Sprintf("192.168.%d.2", idx), "", "")
+		configStaticRoute(d, dut, fmt.Sprintf("VRF-V4-%d", i), fmt.Sprintf("203.0.113.%d/32", i), fmt.Sprintf("100.64.%d.2", idx), "", "")
 		idx++
 	}
 	configEgressSubIntf(dut, d, p2, idx, deviations.DefaultNetworkInstance(dut)) // DEFAULT
-	configStaticRoute(d, dut, deviations.DefaultNetworkInstance(dut), "0.0.0.0/0", fmt.Sprintf("192.168.%d.2", idx), "::/0", fmt.Sprintf("2001:db8:%d::2", idx))
+	configStaticRoute(d, dut, deviations.DefaultNetworkInstance(dut), "0.0.0.0/0", fmt.Sprintf("100.64.%d.2", idx), "::/0", fmt.Sprintf("2001:db8:%d::2", idx))
 	idx++
 
 	// Port-3 (Egress 2)
 	for i := 11; i <= 15; i++ {
 		configEgressSubIntf(dut, d, p3, idx, fmt.Sprintf("VRF-V4-%d", i))
-		configStaticRoute(d, dut, fmt.Sprintf("VRF-V4-%d", i), fmt.Sprintf("203.0.113.%d/32", i), fmt.Sprintf("192.168.%d.2", idx), "", "")
+		configStaticRoute(d, dut, fmt.Sprintf("VRF-V4-%d", i), fmt.Sprintf("203.0.113.%d/32", i), fmt.Sprintf("100.64.%d.2", idx), "", "")
 		idx++
 	}
 	for i := 1; i <= 5; i++ {
 		configEgressSubIntf(dut, d, p3, idx, fmt.Sprintf("VRF-V6-%d", i))
-		configStaticRoute(d, dut, fmt.Sprintf("VRF-V6-%d", i), fmt.Sprintf("203.0.113.%d/32", i), fmt.Sprintf("192.168.%d.2", idx), fmt.Sprintf("2001:db8:a:%d::/128", i), fmt.Sprintf("2001:db8:%d::2", idx))
+		configStaticRoute(d, dut, fmt.Sprintf("VRF-V6-%d", i), fmt.Sprintf("203.0.113.%d/32", i), fmt.Sprintf("100.64.%d.2", idx), fmt.Sprintf("2001:db8:a:%d::/128", i), fmt.Sprintf("2001:db8:%d::2", idx))
 		idx++
 	}
 
 	// Port-4 (Egress 3)
 	for i := 6; i <= 15; i++ {
 		configEgressSubIntf(dut, d, p4, idx, fmt.Sprintf("VRF-V6-%d", i))
-		configStaticRoute(d, dut, fmt.Sprintf("VRF-V6-%d", i), fmt.Sprintf("203.0.113.%d/32", i), fmt.Sprintf("192.168.%d.2", idx), fmt.Sprintf("2001:db8:a:%d::/128", i), fmt.Sprintf("2001:db8:%d::2", idx))
+		configStaticRoute(d, dut, fmt.Sprintf("VRF-V6-%d", i), fmt.Sprintf("203.0.113.%d/32", i), fmt.Sprintf("100.64.%d.2", idx), fmt.Sprintf("2001:db8:a:%d::/128", i), fmt.Sprintf("2001:db8:%d::2", idx))
 		idx++
 	}
 
