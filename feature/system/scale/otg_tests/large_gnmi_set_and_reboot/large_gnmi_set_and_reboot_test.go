@@ -46,7 +46,7 @@ func TestLargeGNMISetAndReboot(t *testing.T) {
 		lag.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_LACP
 
 		subIntf := lag.GetOrCreateSubinterface(0)
-		v4Addr := fmt.Sprintf("10.0.%d.%d", lagIndex/252, (lagIndex%252)+1)
+		v4Addr := fmt.Sprintf("100.64.%d.%d", lagIndex/252, (lagIndex%252)+1)
 		subIntf.GetOrCreateIpv4().GetOrCreateAddress(v4Addr).PrefixLength = ygot.Uint8(24)
 		subIntf.GetOrCreateIpv6().GetOrCreateAddress(fmt.Sprintf("2001:db8::%x", lagIndex)).PrefixLength = ygot.Uint8(64)
 
@@ -72,6 +72,15 @@ func TestLargeGNMISetAndReboot(t *testing.T) {
 	for i := 0; i < 300; i++ {
 		createLAG(1)
 	}
+
+	t.Cleanup(func() {
+		t.Logf("Cleaning up configured interfaces...")
+		b := &gnmi.SetBatch{}
+		for _, intf := range d.Interface {
+			gnmi.BatchDelete(b, gnmi.OC().Interface(*intf.Name).Config())
+		}
+		b.Set(t, dut)
+	})
 
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -99,11 +108,7 @@ func TestLargeGNMISetAndReboot(t *testing.T) {
 		defer wg.Done()
 		<-setInitiated
 		t.Logf("SYS-5.1.1 - Step 3: Starting gNOI Reboot in Goroutine")
-		gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
-		if err != nil {
-			t.Errorf("Error dialing gNOI: %v", err)
-			return
-		}
+		gnoiClient := dut.RawAPIs().GNOI(t)
 		rebootRequest := &spb.RebootRequest{
 			Method:  spb.RebootMethod_COLD,
 			Message: "SYS-5.1 Parallel Cold Reboot",
@@ -112,7 +117,7 @@ func TestLargeGNMISetAndReboot(t *testing.T) {
 
 		ctxWithTimeout, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
-		_, err = gnoiClient.System().Reboot(ctxWithTimeout, rebootRequest)
+		_, err := gnoiClient.System().Reboot(ctxWithTimeout, rebootRequest)
 		if err != nil {
 			t.Logf("SYS-5.1.1 - Step 3 NOTE: gNOI Reboot returned error, possibly transport closing: %v", err)
 		} else {
@@ -163,35 +168,51 @@ func TestLargeGNMISetAndReboot(t *testing.T) {
 	helpers.ValidateInterfaceConfigState(t, dut, d, 2*time.Minute)
 
 	// Iterate over our generated structure to assert it actually committed on the Config tree.
+	gotInterfaces := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().Config())
+	gotIntfMap := make(map[string]*oc.Interface)
+	for _, intf := range gotInterfaces {
+		gotIntfMap[intf.GetName()] = intf
+	}
+
 	for _, expectedIntf := range d.Interface {
 		name := expectedIntf.GetName()
-
-		// Config Verification
-		descPathConfig := gnmi.OC().Interface(name).Description().Config()
-		gotDescConfig := gnmi.Get(t, dut, descPathConfig)
-		if want := expectedIntf.GetDescription(); gotDescConfig != want {
-			t.Errorf("Interface %s Config description: got %v, want %v", name, gotDescConfig, want)
+		gotIntf, ok := gotIntfMap[name]
+		if !ok {
+			t.Errorf("Interface %s not found in Config", name)
+			continue
 		}
 
-		// If it's a LAG, we check its IP for Config.
+		if want := expectedIntf.GetDescription(); gotIntf.GetDescription() != want {
+			t.Errorf("Interface %s Config description: got %v, want %v", name, gotIntf.GetDescription(), want)
+		}
+
 		if expectedIntf.GetType() == oc.IETFInterfaces_InterfaceType_ieee8023adLag {
 			subIntf := expectedIntf.GetSubinterface(0)
+			gotSub := gotIntf.GetSubinterface(0)
 			if subIntf != nil {
+				if gotSub == nil {
+					t.Errorf("Interface %s subinterface 0 not found in Config", name)
+					continue
+				}
 				if subIntf.GetIpv4() != nil {
+					if gotSub.GetIpv4() == nil {
+						t.Errorf("Interface %s IPv4 Config not found", name)
+						continue
+					}
 					for expectedIP := range subIntf.GetIpv4().Address {
-						// Config IPv4 Verification
-						ipv4ConfigPath := gnmi.OC().Interface(name).Subinterface(0).Ipv4().Address(expectedIP).Ip().Config()
-						if got := gnmi.Get(t, dut, ipv4ConfigPath); got != expectedIP {
-							t.Errorf("Interface %s IPv4 Config address: got %v, want %v", name, got, expectedIP)
+						if gotAddr := gotSub.GetIpv4().GetAddress(expectedIP); gotAddr == nil || gotAddr.GetIp() != expectedIP {
+							t.Errorf("Interface %s IPv4 Config address: got %v, want %v", name, gotAddr.GetIp(), expectedIP)
 						}
 					}
 				}
 				if subIntf.GetIpv6() != nil {
+					if gotSub.GetIpv6() == nil {
+						t.Errorf("Interface %s IPv6 Config not found", name)
+						continue
+					}
 					for expectedIP := range subIntf.GetIpv6().Address {
-						// Config IPv6 Verification
-						ipv6ConfigPath := gnmi.OC().Interface(name).Subinterface(0).Ipv6().Address(expectedIP).Ip().Config()
-						if got := gnmi.Get(t, dut, ipv6ConfigPath); got != expectedIP {
-							t.Errorf("Interface %s IPv6 Config address: got %v, want %v", name, got, expectedIP)
+						if gotAddr := gotSub.GetIpv6().GetAddress(expectedIP); gotAddr == nil || gotAddr.GetIp() != expectedIP {
+							t.Errorf("Interface %s IPv6 Config address: got %v, want %v", name, gotAddr.GetIp(), expectedIP)
 						}
 					}
 				}
