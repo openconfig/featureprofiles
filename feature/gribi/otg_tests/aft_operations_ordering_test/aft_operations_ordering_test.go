@@ -75,16 +75,20 @@ var (
 	}
 
 	dutPort2 = attrs.Attributes{
-		Desc:    "dutPort2",
-		IPv4:    "192.0.2.5",
-		IPv4Len: ipv4PrefixLen,
+		Desc:       "dutPort2",
+		IPv4:       "192.0.2.5",
+		IPv4Len:    ipv4PrefixLen,
+		IPv4Sec:    "192.0.2.9",
+		IPv4LenSec: ipv4PrefixLen,
 	}
 
 	atePort2 = attrs.Attributes{
-		Name:    "atePort2",
-		MAC:     "02:00:02:01:01:01",
-		IPv4:    "192.0.2.6",
-		IPv4Len: ipv4PrefixLen,
+		Name:       "atePort2",
+		MAC:        "02:00:02:01:01:01",
+		IPv4:       "192.0.2.6",
+		IPv4Len:    ipv4PrefixLen,
+		IPv4Sec:    "192.0.2.10",
+		IPv4LenSec: ipv4PrefixLen,
 	}
 
 	dstIP1 = "192.0.2.6"
@@ -106,6 +110,11 @@ func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDe
 	}
 	s4a := s4.GetOrCreateAddress(a.IPv4)
 	s4a.PrefixLength = ygot.Uint8(a.IPv4Len)
+	if a.IPv4Sec != "" {
+		s4a2 := s4.GetOrCreateAddress(a.IPv4Sec)
+		s4a2.PrefixLength = ygot.Uint8(a.IPv4LenSec)
+		s4a2.Type = oc.IfIp_Ipv4AddressType_SECONDARY
+	}
 
 	return i
 }
@@ -122,6 +131,11 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2, dut))
+
+	t.Cleanup(func() {
+		gnmi.Delete(t, dut, gnmi.OC().Interface(p1.Name()).Config())
+		gnmi.Delete(t, dut, gnmi.OC().Interface(p2.Name()).Config())
+	})
 
 	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, p1)
@@ -153,6 +167,11 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	eth2.Ipv4Addresses().Add().SetName(atePort2.Name + ".IPv4").
 		SetAddress(atePort2.IPv4).SetGateway(dutPort2.IPv4).
 		SetPrefix(uint32(atePort2.IPv4Len))
+	if atePort2.IPv4Sec != "" {
+		eth2.Ipv4Addresses().Add().SetName(atePort2.Name + ".IPv4Sec").
+			SetAddress(atePort2.IPv4Sec).SetGateway(dutPort2.IPv4Sec).
+			SetPrefix(uint32(atePort2.IPv4LenSec))
+	}
 
 	return top
 }
