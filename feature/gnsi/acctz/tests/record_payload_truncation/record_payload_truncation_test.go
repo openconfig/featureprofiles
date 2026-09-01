@@ -32,6 +32,8 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+const maxNIs = 100
+
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
@@ -46,7 +48,7 @@ func sendOversizedPayload(t *testing.T, dut *ondatra.DUTDevice) {
 	// giant set of network instances + static routes which should hopefully work for everyone.
 	ocRoot := &oc.Root{}
 
-	for i := 0; i < 150; i++ {
+	for i := 0; i < maxNIs; i++ {
 		ni := ocRoot.GetOrCreateNetworkInstance(fmt.Sprintf("acctz-test-ni-%d", i))
 		ni.SetDescription("This is a pointlessly long description in order to make the payload bigger.")
 		ni.SetType(oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF)
@@ -72,7 +74,7 @@ func sendOversizedPayload(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Fatalf("Failed to dial gNMI with custom message size: %v", err)
 	}
 	t.Cleanup(func() {
-		for i := 0; i < 150; i++ {
+		for i := 0; i < maxNIs; i++ {
 			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(fmt.Sprintf("acctz-test-ni-%d", i)).Config())
 		}
 	})
@@ -91,40 +93,47 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 		helpers.GnmiCLIConfig(t, dut, communitySetCLIConfig)
 	}
 
-	startTime := time.Now()
+	// Get the current time from the router via gNMI to avoid clock skew issues.
+	startTime := helpers.GetRouterTime(t, dut)
+	requestTimestamp := timestamppb.New(startTime.Truncate(time.Second))
 	request := &acctzpb.RecordRequest{
-		Timestamp: timestamppb.New(startTime),
+		Timestamp: requestTimestamp,
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
 
 	acctzClient := dut.RawAPIs().GNSI(t).AcctzStream()
 	t.Logf("Sending acctz record subscribe request: %s", acctz.PrettyPrint(request))
-	acctzSubClient, err := acctzClient.RecordSubscribe(context.Background(), request, grpc.MaxCallRecvMsgSize(45000000))
+	acctzSubClient, err := acctzClient.RecordSubscribe(ctx, request, grpc.MaxCallRecvMsgSize(45000000))
 	if err != nil {
 		t.Fatalf("Failed to subscribe to acctz records: %v", err)
 	}
+	defer acctzSubClient.CloseSend()
 
 	sendOversizedPayload(t, dut)
 
-	for {
-		r := make(chan recordRequestResult)
-		go func(r chan recordRequestResult) {
+	recordChan := make(chan recordRequestResult)
+	go func() {
+		for {
 			resp, err := acctzSubClient.Recv()
-			r <- recordRequestResult{
-				record: resp,
-				err:    err,
+			res := recordRequestResult{record: resp, err: err}
+			select {
+			case recordChan <- res:
+			case <-ctx.Done():
+				return
 			}
-		}(r)
-		var done bool
-		var resp recordRequestResult
-
-		select {
-		case rr := <-r:
-			resp = rr
-		case <-time.After(60 * time.Second):
-			done = true
+			if err != nil {
+				return
+			}
 		}
+	}()
 
-		if done {
+	for {
+		var resp recordRequestResult
+		select {
+		case resp = <-recordChan:
+		case <-ctx.Done():
 			t.Fatal("Done receiving records and did not find our record...")
 		}
 

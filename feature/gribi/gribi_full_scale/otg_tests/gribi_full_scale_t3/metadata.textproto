@@ -1,11 +1,10 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "4e8e63f7-c8e8-41aa-bc0b-e5ff963a5d3c"
-plan_id: "TE-14.6"
-description: "gRIBI Scaling - all scenarios but with minimal scaling parameters"
+uuid: "ed72d555-ef0d-4808-aa1f-fab2d99c9149"
+plan_id: "TE-14.7"
+description: "gRIBI Scaling - full scale setup, target T3"
 testbed: TESTBED_DUT_ATE_2LINKS
-
 platform_exceptions: {
   platform: {
     vendor: ARISTA
@@ -14,9 +13,9 @@ platform_exceptions: {
     omit_l2_mtu: true
     interface_enabled: true
     default_network_instance: "default"
+    unreferenced_aft_fib_ack_unsupported: true
   }
 }
-
 platform_exceptions: {
   platform: {
     vendor: NOKIA
@@ -27,7 +26,6 @@ platform_exceptions: {
     interface_enabled: true
   }
 }
-
 platform_exceptions: {
   platform: {
     vendor: JUNIPER
@@ -37,7 +35,6 @@ platform_exceptions: {
     interface_ref_interface_id_format: true
   }
 }
-
 platform_exceptions: {
   platform: {
     vendor: CISCO

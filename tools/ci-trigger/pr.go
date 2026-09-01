@@ -160,12 +160,12 @@ func (p *pullRequest) createBuild(ctx context.Context, buildClient *cloudbuild.S
 		}
 	physicalDeviceLoop:
 		for _, physicalDevice := range p.Physical {
-			if physicalDevice.Type == d {
+			if physicalDevice.Type.Vendor == d.Vendor && (d.HardwareModel == "" || physicalDevice.Type.HardwareModel == d.HardwareModel) {
 				if len(physicalDevice.Tests) == 0 {
 					continue
 				}
 				for _, t := range physicalDevice.Tests {
-					if t.Status != "pending authorization" {
+					if t.Status == "setup" || t.Status == "pending execution" || t.Status == "environment setup" || t.Status == "running" {
 						continue physicalDeviceLoop
 					}
 				}

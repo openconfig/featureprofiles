@@ -38,8 +38,9 @@ import (
 )
 
 var (
-	enablePacketCapture = flag.Bool("enable_packet_capture", false, "Enable packet capture and deep packet inspection validation.")
-	compactOTGFlows     = flag.Bool("compact_otg_flows", true, "Compact OTG flows to reduce the number of flows due to OTG port limits.")
+	enablePacketCapture  = flag.Bool("enable_packet_capture", false, "Enable packet capture and deep packet inspection validation.")
+	compactOTGFlows      = flag.Bool("compact_otg_flows", true, "Compact OTG flows to reduce the number of flows due to OTG port limits.")
+	monitorHWUtilization = flag.Bool("monitor_hw_utilization", true, "Enable hardware resource utilization monitoring on the DUT.")
 )
 
 // ============================================================
@@ -61,7 +62,8 @@ func TestMain(m *testing.M) {
 func TestGRIBIFullScaleDown(t *testing.T) {
 	params := cfgplugins.ScaleParams{
 		// gRIBI & System parameters
-		GRIBIBatchSize: 256,
+		GRIBIBatchSize:    256,
+		GRIBIBatchTimeout: 5 * time.Second,
 
 		// Default VRF parameters
 		NumDefaultNH:  2,
@@ -69,7 +71,9 @@ func TestGRIBIFullScaleDown(t *testing.T) {
 		DefaultNHGLoadBalance: []cfgplugins.NHGLoadBalancingParams{
 			{Pct: 100, NumNextHops: 2},
 		},
-		PctNHG512:      80,
+		DefaultNHGWeight: []cfgplugins.NHGWeightParams{
+			{Pct: 100, Config: cfgplugins.ECMP{}},
+		},
 		NumDefaultIPv4: 2,
 
 		// Transit VRF parameters
@@ -77,6 +81,9 @@ func TestGRIBIFullScaleDown(t *testing.T) {
 		NumTransitNHG: 2,
 		TransitNHGLoadBalance: []cfgplugins.NHGLoadBalancingParams{
 			{Pct: 100, NumNextHops: 2},
+		},
+		TransitNHGWeight: []cfgplugins.NHGWeightParams{
+			{Pct: 100, Config: cfgplugins.WCMP1in64},
 		},
 		NumTransitIPv4: 1,
 
@@ -90,8 +97,12 @@ func TestGRIBIFullScaleDown(t *testing.T) {
 		NumEncapIPv6PerVRF: 1,
 		NumUniqueEncapNH:   1,
 		NumEncapDefaultNHG: 1,
-		PctEncap8NH:        75,
-		PctEncap32NH:       20,
+		EncapNHGLoadBalance: []cfgplugins.NHGLoadBalancingParams{
+			{Pct: 100, NumNextHops: 1},
+		},
+		EncapNHGWeight: []cfgplugins.NHGWeightParams{
+			{Pct: 100, Config: cfgplugins.WCMP1in32},
+		},
 
 		// Decap VRF parameters
 		NumDecapEntries:     1,
@@ -105,5 +116,5 @@ func TestGRIBIFullScaleDown(t *testing.T) {
 		TrafficDuration: 1 * time.Minute,
 		TrafficLossTol:  5,
 	}
-	cfgplugins.RunFullScaleTest(t, params, *enablePacketCapture, *compactOTGFlows)
+	cfgplugins.RunFullScaleTest(t, params, *enablePacketCapture, *compactOTGFlows, *monitorHWUtilization)
 }

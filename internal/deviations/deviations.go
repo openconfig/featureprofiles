@@ -1881,6 +1881,38 @@ func NonStandardGRPCPort(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNonStandardGrpcPort()
 }
 
+// ContainerzTLSInsecureSkipVerify returns true if the device's containerz
+// service presents a self-signed TLS certificate that cannot be verified
+// against a trusted CA. When true, dialContainer uses TLS with
+// InsecureSkipVerify. Default value is false.
+func ContainerzTLSInsecureSkipVerify(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetContainerzTlsInsecureSkipVerify()
+}
+
+// SwitchoverStabilizeDelayM returns extra minutes the device needs beyond the
+// 5-minute base timeout for switchover-related waits (post-switchover
+// verification, switchover-ready polling, and SwitchControlProcessor retry).
+// Default 0 means no extra delay beyond 5 minutes.
+func SwitchoverStabilizeDelayM(dut *ondatra.DUTDevice) uint32 {
+	return lookupDUTDeviations(dut).GetSwitchoverStabilizeDelayM()
+}
+
+// GnoiRequiresFreshDialAfterSwitchover returns true if the device requires a
+// fresh DialGNOI call after a supervisor switchover because the Ondatra gNOI
+// cache still points at the old active.
+// Tracking: https://github.com/openconfig/ondatra/issues/145
+func GnoiRequiresFreshDialAfterSwitchover(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGnoiRequiresFreshDialAfterSwitchover()
+}
+
+// ContainerzRequireExplicitConfigSave returns true if the device requires an
+// explicit "write memory" before reboot to persist containerz config, and must
+// skip config re-push after reboot to avoid restarting the management stack
+// during warmup. Default value is false.
+func ContainerzRequireExplicitConfigSave(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetContainerzRequireExplicitConfigSave()
+}
+
 // TemperatureSensorCheck returns true if the transceiver subcomponent should look for the temperature sensor
 func TemperatureSensorCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTemperatureSensorCheck()
@@ -2070,14 +2102,12 @@ func FpgaFt(dut *ondatra.DUTDevice) string {
 
 // AcctzRecordFailCommandUnsupported  returns true if the device does not support Acctz record for fail user
 // Juniper: https://partnerissuetracker.corp.google.com/issues/500649430
-
 func AcctzRecordFailCommandUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAcctzRecordFailCommandUnsupported()
 }
 
-// AcctzRecordFailCommandUnsupported  returns true if the device does not support Acctz record for fail user
+// AcctzRecordFailGrpcUnsupported returns true if the device does not support Acctz record for fail user
 // Juniper: https://partnerissuetracker.corp.google.com/issues/500627000
-
 func AcctzRecordFailGrpcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAcctzRecordFailGrpcUnsupported()
 }
@@ -2278,6 +2308,13 @@ func LacpInterfaceFallbackOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLacpInterfaceFallbackOcUnsupported()
 }
 
+// BgpDynamicNeighborPrefixUnsupported returns true if the device accepts the
+// OpenConfig dynamic-neighbor-prefix configuration via gNMI without error, but does not actually program it (silently ignored).
+// Arista: https://partnerissuetracker.corp.google.com/u/2/issues/534817001
+func BgpDynamicNeighborPrefixUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpDynamicNeighborPrefixUnsupported()
+}
+
 // VlanSubinterfaceOCUnsupported returns true if the device does not support OC config for VLAN subinterfaces.
 // Arista: https://partnerissuetracker.corp.google.com/issues/494280147
 func VlanSubinterfaceOCUnsupported(dut *ondatra.DUTDevice) bool {
@@ -2312,4 +2349,34 @@ func IpRoutingInVrfOcUnsupported(dut *ondatra.DUTDevice) bool {
 // MacsecOcUnsupported returns true if device does not support OC configuration for MACSEC.
 func MacsecOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMacsecOcUnsupported()
+}
+
+// AftsGlobalFilterPolicyOCUnsupported returns true if "/network-instances/network-instance/afts/global-filter-policy" OC path is not supported.
+// Arista: b/514565554
+func AftsGlobalFilterPolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAftsGlobalFilterPolicyOcUnsupported()
+}
+
+// AftsGlobalFilterPolicyConfigReferenceValidationUnsupported returns true if the
+// device does not validate references from an AFT global-filter policy.
+// Arista: https://partnerissuetracker.corp.google.com/issues/491765154#comment10
+func AftsGlobalFilterPolicyConfigReferenceValidationUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAftsGlobalFilterPolicyConfigReferenceValidationUnsupported()
+}
+
+// VrfSelectionPolicyNonDefaultNIUnsupported returns true if device does not support configuring VRF selection policy under non-default network instance.
+func VrfSelectionPolicyNonDefaultNIUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetVrfSelectionPolicyNonDefaultNiUnsupported()
+}
+
+// GribiAaaRoleBasedAuthzUnsupported returns true if no gRIBI AAA role based Authorization support
+// Arista: https://partnerissuetracker.corp.google.com/issues/542639968#comment8
+func GribiAaaRoleBasedAuthzUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGribiAaaRoleBasedAuthzUnsupported()
+}
+
+// P4RTAaaRoleBasedAuthzUnsupported returns true if no P4RT AAA role based Authorization support
+// Arista: https://partnerissuetracker.corp.google.com/issues/542639968#comment8
+func P4RTAaaRoleBasedAuthzUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetP4RtAaaRoleBasedAuthzUnsupported()
 }
