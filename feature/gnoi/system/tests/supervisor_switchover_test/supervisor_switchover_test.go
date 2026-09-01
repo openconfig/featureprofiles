@@ -32,7 +32,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
@@ -58,12 +57,6 @@ var (
 		Name:    "ateSrc",
 		IPv4:    "192.0.2.2",
 		MAC:     "02:00:01:01:01:01",
-		IPv4Len: ipv4PrefixLen,
-	}
-	ateDst = attrs.Attributes{
-		Name:    "ateDst",
-		IPv4:    "198.51.100.2",
-		MAC:     "02:00:02:01:01:01",
 		IPv4Len: ipv4PrefixLen,
 	}
 )
@@ -220,27 +213,7 @@ func verifyZeroTrafficLoss(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Co
 	otg := ate.OTG()
 	otgutils.LogFlowMetrics(t, otg, top)
 	for _, f := range top.Flows().Items() {
-		var txPkts, rxPkts uint64
-		var lossPct float32
-		_, ok := gnmi.Watch(t, otg, gnmi.OTG().Flow(f.Name()).State(), 1*time.Minute, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
-			flowMetrics, present := val.Val()
-			if !present || flowMetrics == nil || flowMetrics.GetCounters() == nil {
-				return false
-			}
-			txPkts = flowMetrics.GetCounters().GetOutPkts()
-			rxPkts = flowMetrics.GetCounters().GetInPkts()
-			lossPct = ygot.BinaryToFloat32(flowMetrics.GetLossPct())
-			return txPkts > 0
-		}).Await(t)
-		if !ok {
-			t.Errorf("Flow %s did not transmit any packets", f.Name())
-			continue
-		}
-		if lossPct > 0 {
-			t.Errorf("Flow %s experienced packet loss: Tx = %d, Rx = %d, LossPct = %f", f.Name(), txPkts, rxPkts, lossPct)
-		} else {
-			t.Logf("Flow %s verified zero packet loss (Tx=%d, Rx=%d)", f.Name(), txPkts, rxPkts)
-		}
+		otgutils.ExpectedTrafficLoss(t, otg, f.Name(), 0, 0.1)
 	}
 }
 

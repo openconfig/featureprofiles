@@ -265,7 +265,6 @@ func SetControllerCardPowerState(t *testing.T, dut *ondatra.DUTDevice, cardName 
 	gnmi.Replace(t, dut, c.ControllerCard().PowerAdminState().Config(), powerType)
 
 	power, ok := gnmi.Await(t, dut, c.ControllerCard().PowerAdminState().State(), timeout, powerType).Val()
-	power, ok := gnmi.Await(t, dut, c.ControllerCard().PowerAdminState().State(), timeout, powerType).Val()
 	if !ok {
 		t.Fatalf("Component %s, power-admin-state got: %v, want: %v", cardName, power, powerType)
 	}
@@ -275,7 +274,6 @@ func SetControllerCardPowerState(t *testing.T, dut *ondatra.DUTDevice, cardName 
 	if powerType == oc.Platform_ComponentPowerType_POWER_ENABLED {
 		wantOper = oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE
 	}
-	oper, ok := gnmi.Await(t, dut, c.OperStatus().State(), timeout, wantOper).Val()
 	oper, ok := gnmi.Await(t, dut, c.OperStatus().State(), timeout, wantOper).Val()
 	if !ok {
 		t.Fatalf("Component %s oper-status, got: %v, want: %v", cardName, oper, wantOper)
