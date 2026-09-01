@@ -296,7 +296,7 @@ func TestVRFSelectionResiliency(t *testing.T) {
 
 	// Wait for policy detachment propagation
 	interfaceID := p1.Name()
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+	if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
 		interfaceID = p1.Name() + ".0"
 	}
 	gnmi.Watch(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID).ApplyVrfSelectionPolicy().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
