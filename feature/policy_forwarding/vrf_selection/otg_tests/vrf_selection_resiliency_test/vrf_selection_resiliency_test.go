@@ -314,4 +314,4 @@ func TestVRFSelectionResiliency(t *testing.T) {
 	ate.OTG().StartTraffic(t)
 
 	vrfpolicy.ValidateFallbackTraffic(t, ate, top)
-	}
+}
