@@ -158,7 +158,7 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	lp1.Lacp().SetActorActivity("active").SetActorPortNumber(1).SetActorPortPriority(1).SetLacpduTimeout(0)
 
 	lp2 := lag.Ports().Add().SetPortName(p2.ID())
-	lp2.Ethernet().SetMac(ateDst.MAC).SetName(p2.ID() + ".mac")
+	lp2.Ethernet().SetMac(ateSrc.MAC).SetName(p2.ID() + ".mac")
 	lp2.Lacp().SetActorActivity("active").SetActorPortNumber(2).SetActorPortPriority(1).SetLacpduTimeout(0)
 
 	dev := top.Devices().Add().SetName(ateSrc.Name)
