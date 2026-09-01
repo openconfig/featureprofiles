@@ -19,7 +19,6 @@ import (
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -51,24 +50,37 @@ func DeviationCiscoTableConnectionsStatictoBGPMetricPropagation(t *testing.T, du
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
 }
 
-// ConfigureTableConnection sets or deletes a table connection redistribution policy on the DUT.
-func ConfigureTableConnection(t *testing.T, dut *ondatra.DUTDevice, srcProto, dstProto oc.E_PolicyTypes_INSTALL_PROTOCOL_TYPE, afi oc.E_Types_ADDRESS_FAMILY, importPolicies []string, disableMetricPropagation bool, defaultImportPolicy oc.E_RoutingPolicy_DefaultPolicyType, operation string) {
+// TableConnectionCfg holds the configuration parameters for a table connection.
+type TableConnectionCfg struct {
+	SrcProto                 oc.E_PolicyTypes_INSTALL_PROTOCOL_TYPE
+	DstProto                 oc.E_PolicyTypes_INSTALL_PROTOCOL_TYPE
+	Afi                      oc.E_Types_ADDRESS_FAMILY
+	ImportPolicies           []string
+	DisableMetricPropagation bool
+	DefaultImportPolicy      oc.E_RoutingPolicy_DefaultPolicyType
+	Delete                   bool
+}
+
+// ConfigureTableConnection appends a table connection redistribution policy configuration to the batch.
+func ConfigureTableConnection(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, cfg *TableConnectionCfg) *gnmi.SetBatch {
 	dni := deviations.DefaultNetworkInstance(dut)
-	if deviations.EnableTableConnections(dut) {
-		fptest.ConfigEnableTbNative(t, dut)
+
+	if cfg.Delete {
+		gnmi.BatchDelete(sb, gnmi.OC().NetworkInstance(dni).TableConnection(cfg.SrcProto, cfg.DstProto, cfg.Afi).Config())
+		return sb
 	}
-	if operation == "delete" {
-		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(dni).TableConnection(srcProto, dstProto, afi).Config())
-		return
-	}
+
 	root := &oc.Root{}
-	tableConn := root.GetOrCreateNetworkInstance(dni).GetOrCreateTableConnection(srcProto, dstProto, afi)
+	tableConn := root.GetOrCreateNetworkInstance(dni).GetOrCreateTableConnection(cfg.SrcProto, cfg.DstProto, cfg.Afi)
+
 	if !deviations.SkipSettingDisableMetricPropagation(dut) {
-		tableConn.SetDisableMetricPropagation(disableMetricPropagation)
+		tableConn.SetDisableMetricPropagation(cfg.DisableMetricPropagation)
 	}
 	if !deviations.DefaultRoutePolicyUnsupported(dut) {
-		tableConn.SetDefaultImportPolicy(defaultImportPolicy)
+		tableConn.SetDefaultImportPolicy(cfg.DefaultImportPolicy)
 	}
-	tableConn.SetImportPolicy(importPolicies)
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(dni).TableConnection(srcProto, dstProto, afi).Config(), tableConn)
+	tableConn.SetImportPolicy(cfg.ImportPolicies)
+
+	gnmi.BatchUpdate(sb, gnmi.OC().NetworkInstance(dni).TableConnection(cfg.SrcProto, cfg.DstProto, cfg.Afi).Config(), tableConn)
+	return sb
 }
