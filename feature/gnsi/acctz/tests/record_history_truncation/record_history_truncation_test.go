@@ -36,7 +36,7 @@ func TestAccountzRecordHistoryTruncation(t *testing.T) {
 
 	// Run a CLI command to populate the accounting history buffer per test procedure.
 	dut.CLI().Run(t, "show version")
-	
+
 	bootTime := gnmi.Get(t, dut, gnmi.OC().System().BootTime().State())
 
 	// Try to get records from 1 day prior to device's boot time.
