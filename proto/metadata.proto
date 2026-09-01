@@ -1376,7 +1376,7 @@ message Metadata {
     // .subinterface index with Interface-ref container specifically for policy forwarding usecase
     // Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/523054650
     bool interface_id_format_required_for_policy_forwarding = 434;
-    
+
     // Device reports resource utilization at the chassis component level
     // rather than at the integrated-circuit component level.
     // Arista: https://partnerissuetracker.corp.google.com/issues/523026741
@@ -1421,7 +1421,7 @@ message Metadata {
     // Arista: https://partnerissuetracker.corp.google.com/issues/514565554
     bool afts_global_filter_policy_oc_unsupported = 446;
     // Device accepts the OpenConfig BGP dynamic-neighbor-prefix
-    // path via gNMI but silently ignores it — the corresponding "bgp listen range" is never programmed. 
+    // path via gNMI but silently ignores it — the corresponding "bgp listen range" is never programmed.
     // Arista: https://partnerissuetracker.corp.google.com/u/2/issues/534817001
     bool bgp_dynamic_neighbor_prefix_unsupported = 447;
 
@@ -1460,6 +1460,10 @@ message Metadata {
     // containerz config, and must skip config re-push after reboot to avoid
     // restarting the management stack during warmup.
     bool containerz_require_explicit_config_save = 455;
+
+    // gNOI KillProcess RPC expects a name which differs from the name in /system/processes/process list
+    // Arista https://partnerissuetracker.corp.google.com/issues/489304077
+    bool kill_process_different_yang_name = 456;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;

@@ -2375,6 +2375,13 @@ func GribiAaaRoleBasedAuthzUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGribiAaaRoleBasedAuthzUnsupported()
 }
 
+// KillProcessHasDifferentName returns true if gNOI KillProcess RPC expects a name
+// which differs from the name in /system/processes/process list
+// Arista https://partnerissuetracker.corp.google.com/issues/489304077
+func KillProcessHasDifferentName(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetKillProcessDifferentYangName()
+}
+
 // P4RTAaaRoleBasedAuthzUnsupported returns true if no P4RT AAA role based Authorization support
 // Arista: https://partnerissuetracker.corp.google.com/issues/542639968#comment8
 func P4RTAaaRoleBasedAuthzUnsupported(dut *ondatra.DUTDevice) bool {
