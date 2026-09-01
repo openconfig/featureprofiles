@@ -277,7 +277,7 @@ graph TD
 
 ---
 
-## Canonical OpenConfig Configuration
+## Canonical OC
 
 ```json
 {
