@@ -276,8 +276,9 @@ func SetControllerCardPowerState(t *testing.T, dut *ondatra.DUTDevice, cardName 
 		wantOper = oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE
 	}
 	oper, ok := gnmi.Await(t, dut, c.OperStatus().State(), timeout, wantOper).Val()
+	oper, ok := gnmi.Await(t, dut, c.OperStatus().State(), timeout, wantOper).Val()
 	if !ok {
-		t.Errorf("Component %s oper-status, got: %v, want: %v", cardName, oper, wantOper)
+		t.Fatalf("Component %s oper-status, got: %v, want: %v", cardName, oper, wantOper)
 	}
 	t.Logf("Component %s, oper-status after %.2f minutes: %v", cardName, time.Since(start).Minutes(), oper)
 }
