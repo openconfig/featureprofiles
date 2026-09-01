@@ -291,7 +291,7 @@ func TestVRFSelectionResiliency(t *testing.T) {
 
 		t.Logf("RT-3.4.3 - Step 2: Validating autonomous recovery")
 		vrfpolicy.ValidateBaselineTraffic(t, ate, top)
-
+	}
 	// RT-3.4.4 - Policy Deletion
 	t.Logf("RT-3.4.4 - Step 1 & 2: Delete VRF Selection Policy & Push Configuration")
 	vrfpolicy.DeletePolicyForwarding(t, dut, p1.Name())
@@ -314,4 +314,4 @@ func TestVRFSelectionResiliency(t *testing.T) {
 	ate.OTG().StartTraffic(t)
 
 	vrfpolicy.ValidateFallbackTraffic(t, ate, top)
-}
+	}
