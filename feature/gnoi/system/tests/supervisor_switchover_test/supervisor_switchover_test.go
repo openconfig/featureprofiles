@@ -17,7 +17,6 @@ package supervisor_switchover_test
 import (
 	"context"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
@@ -73,29 +72,6 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-// replaceInterfaceConfig safely replaces interface configuration and emits actionable
-// diagnostics if the vendor YANG translator rejects the interface name or type.
-func replaceInterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, path ygnmi.ConfigQuery[*oc.Interface], intf *oc.Interface) {
-	t.Helper()
-	defer func() {
-		if r := recover(); r != nil {
-			errStr := fmt.Sprintf("%v", r)
-			if strings.Contains(errStr, "invalid interface type") ||
-				strings.Contains(errStr, "bad-element") ||
-				strings.Contains(errStr, "load failure on translation changes") ||
-				strings.Contains(errStr, "could not parse json element value") ||
-				strings.Contains(errStr, "Must match the pattern") {
-				t.Fatalf("gNMI Replace failed with vendor schema/translation error on interface %q (type: %v).\n"+
-					"DIAGNOSTIC HINT: Ensure you are not hardcoding vendor-specific LAG/interface names (e.g., using 'Port-Channel1' on JUNOS or NOKIA).\n"+
-					"Always allocate LAG names dynamically using netutil.NextAggregateInterface(t, dut).\n"+
-					"Original error: %v", intf.GetName(), intf.GetType(), r)
-			}
-			panic(r)
-		}
-	}()
-	gnmi.Replace(t, dut, path, intf)
-}
-
 // configureDUT configures two physical ports and an LACP bundle on the DUT.
 // Corresponds to README section "Test environment setup":
 // * Configure an LACP port-channel across 2 DUT ports connected to the IXIA/ATE.
@@ -119,8 +95,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) ([]*ondatra.Port, string
 		batch.Set(t, dut)
 	})
 
-	// 1. Configure the aggregate LACP interface first so that lag-type
-	// is present before member Ethernet interfaces reference it.
+	batch := &gnmi.SetBatch{}
+
+	// 1. Configure the aggregate LACP interface
 	t.Logf("Configuring aggregate LACP interface %q with LagType=LACP...", lagName)
 	lagIntf := &oc.Interface{Name: ygot.String(lagName)}
 	lagIntf.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
@@ -133,16 +110,15 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) ([]*ondatra.Port, string
 		s4.Enabled = ygot.Bool(true)
 	}
 	s4.GetOrCreateAddress(dutSrc.IPv4).PrefixLength = ygot.Uint8(dutSrc.IPv4Len)
-	replaceInterfaceConfig(t, dut, gnmi.OC().Interface(lagName).Config(), lagIntf)
-	t.Logf("Successfully configured aggregate interface %q", lagName)
+
+	gnmi.BatchReplace(batch, gnmi.OC().Interface(lagName).Config(), lagIntf)
 
 	if !deviations.LacpInterfaceFallbackOCUnsupported(dut) {
 		t.Logf("Configuring LACP parameters on aggregate interface %q...", lagName)
 		lacp := &oc.Lacp_Interface{Name: ygot.String(lagName)}
 		lacp.LacpMode = oc.Lacp_LacpActivityType_ACTIVE
 		lacp.Interval = oc.Lacp_LacpPeriodType_FAST
-		gnmi.Replace(t, dut, gnmi.OC().Lacp().Interface(lagName).Config(), lacp)
-		t.Logf("Successfully configured LACP parameters on %q", lagName)
+		gnmi.BatchReplace(batch, gnmi.OC().Lacp().Interface(lagName).Config(), lacp)
 	}
 
 	// 2. Configure member Ethernet interfaces and bind them to the aggregate interface.
@@ -153,9 +129,13 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) ([]*ondatra.Port, string
 		intf.Enabled = ygot.Bool(true)
 		eth := intf.GetOrCreateEthernet()
 		eth.AggregateId = ygot.String(lagName)
-		replaceInterfaceConfig(t, dut, gnmi.OC().Interface(port.Name()).Config(), intf)
-		t.Logf("Successfully configured member interface %q", port.Name())
+		gnmi.BatchReplace(batch, gnmi.OC().Interface(port.Name()).Config(), intf)
 	}
+
+	// Execute batch
+	t.Logf("Applying batch configuration for aggregate, LACP, and members...")
+	batch.Set(t, dut)
+	t.Logf("Successfully applied batch configuration")
 
 	return ports, lagName
 }
