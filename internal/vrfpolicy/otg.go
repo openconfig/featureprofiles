@@ -43,31 +43,31 @@ func ConfigureOTGTopology(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDev
 	dev1 := top.Devices().Add().SetName("dev-port1")
 	eth1 := dev1.Ethernets().Add().SetName("eth-port1").SetMac("02:1a:c0:00:00:01")
 	eth1.Connection().SetPortName(p1.Name())
-	eth1.Ipv4Addresses().Add().SetName("ipv4-port1").SetAddress("192.168.0.2").SetGateway("192.168.0.1").SetPrefix(24)
+	eth1.Ipv4Addresses().Add().SetName("ipv4-port1").SetAddress("100.64.0.2").SetGateway("100.64.0.1").SetPrefix(24)
 
 	// Port 2 devices (Egress 1 - 10 positive v4, 1 default)
 	idx := 1
 	for i := 1; i <= 10; i++ {
-		addDevice(top, p2Name, fmt.Sprintf("dev-v4-%d", i), fmt.Sprintf("02:1a:c0:00:02:%02x", idx), idx, fmt.Sprintf("192.168.%d.2", idx), fmt.Sprintf("192.168.%d.1", idx), "")
+		addDevice(top, p2Name, fmt.Sprintf("dev-v4-%d", i), fmt.Sprintf("02:1a:c0:00:02:%02x", idx), idx, fmt.Sprintf("100.64.%d.2", idx), fmt.Sprintf("100.64.%d.1", idx), "")
 		idx++
 	}
 	// Port 2 Default
-	addDevice(top, p2Name, "dev-default", "02:1a:c0:00:02:ff", idx, fmt.Sprintf("192.168.%d.2", idx), fmt.Sprintf("192.168.%d.1", idx), fmt.Sprintf("2001:db8:%d::2", idx))
+	addDevice(top, p2Name, "dev-default", "02:1a:c0:00:02:ff", idx, fmt.Sprintf("100.64.%d.2", idx), fmt.Sprintf("100.64.%d.1", idx), fmt.Sprintf("2001:db8:%d::2", idx))
 	idx++
 
 	// Port 3 (Egress 2 - 5 positive v4, 5 positive v6)
 	for i := 11; i <= 15; i++ {
-		addDevice(top, p3Name, fmt.Sprintf("dev-v4-%d", i), fmt.Sprintf("02:1a:c0:00:03:%02x", idx), idx, fmt.Sprintf("192.168.%d.2", idx), fmt.Sprintf("192.168.%d.1", idx), "")
+		addDevice(top, p3Name, fmt.Sprintf("dev-v4-%d", i), fmt.Sprintf("02:1a:c0:00:03:%02x", idx), idx, fmt.Sprintf("100.64.%d.2", idx), fmt.Sprintf("100.64.%d.1", idx), "")
 		idx++
 	}
 	for i := 1; i <= 5; i++ {
-		addDevice(top, p3Name, fmt.Sprintf("dev-v6-%d", i), fmt.Sprintf("02:1a:c0:01:03:%02x", idx), idx, fmt.Sprintf("192.168.%d.2", idx), fmt.Sprintf("192.168.%d.1", idx), fmt.Sprintf("2001:db8:%d::2", idx))
+		addDevice(top, p3Name, fmt.Sprintf("dev-v6-%d", i), fmt.Sprintf("02:1a:c0:01:03:%02x", idx), idx, fmt.Sprintf("100.64.%d.2", idx), fmt.Sprintf("100.64.%d.1", idx), fmt.Sprintf("2001:db8:%d::2", idx))
 		idx++
 	}
 
 	// Port 4 (Egress 3 - 10 positive v6)
 	for i := 6; i <= 15; i++ {
-		addDevice(top, p4Name, fmt.Sprintf("dev-v6-%d", i), fmt.Sprintf("02:1a:c0:01:04:%02x", idx), idx, fmt.Sprintf("192.168.%d.2", idx), fmt.Sprintf("192.168.%d.1", idx), fmt.Sprintf("2001:db8:%d::2", idx))
+		addDevice(top, p4Name, fmt.Sprintf("dev-v6-%d", i), fmt.Sprintf("02:1a:c0:01:04:%02x", idx), idx, fmt.Sprintf("100.64.%d.2", idx), fmt.Sprintf("100.64.%d.1", idx), fmt.Sprintf("2001:db8:%d::2", idx))
 		idx++
 	}
 }
