@@ -201,14 +201,7 @@ func isisImportPolicyConfig(t *testing.T, dut *ondatra.DUTDevice, policyName str
 				tableConn1.SetDisableMetricPropagation(metricPropagation)
 			}
 			gnmi.BatchReplace(batchSet, gnmi.OC().NetworkInstance(dni).TableConnection(srcProto, dstProto, otherAf).Config(), tableConn1)
-
-			// Ensure global oc.IsisTypes_AFI_TYPE_IPV4 and oc.IsisTypes_AFI_TYPE_IPV6 remain enabled so Arista Octa preserves address-family ipv6 unicast
-
-			glob := d.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isissession.ISISName).GetOrCreateIsis().GetOrCreateGlobal()
-			glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-			glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-			gnmi.BatchUpdate(batchSet, gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isissession.ISISName).Isis().Global().Config(), glob)
-		}
+			}
 
 		batchSet.Set(t, dut)
 	} else if operation == "delete" {
@@ -219,14 +212,6 @@ func isisImportPolicyConfig(t *testing.T, dut *ondatra.DUTDevice, policyName str
 				otherAf = oc.Types_ADDRESS_FAMILY_IPV4
 			}
 			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(dni).TableConnection(srcProto, dstProto, otherAf).Config())
-
-			// Ensure global oc.IsisTypes_AFI_TYPE_IPV4 and oc.IsisTypes_AFI_TYPE_IPV6 remain enabled so Arista Octa preserves address-family ipv6 unicast
-
-			d2 := &oc.Root{}
-			glob := d2.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isissession.ISISName).GetOrCreateIsis().GetOrCreateGlobal()
-			glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-			glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-			gnmi.Update(t, dut, gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isissession.ISISName).Isis().Global().Config(), glob)
 		}
 	}
 }
