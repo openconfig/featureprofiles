@@ -47,6 +47,8 @@ platform_exceptions:  {
     skip_static_nexthop_check:  true
     ipv6_static_route_with_ipv4_nh_unsupported:  true
     interface_enabled:  true
+    explicit_interface_in_default_vrf: true
+    default_network_instance: "default"
   }
 }
 platform_exceptions:  {
