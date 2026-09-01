@@ -1287,6 +1287,10 @@ func (td *testData) advertiseRoutesWithISIS(t *testing.T) {
 		isisIntfLevel := isisIntf.GetOrCreateLevel(2)
 		isisIntfLevel.Enabled = ygot.Bool(true)
 
+		if deviations.ISISInterfaceLevel1DisableRequired(td.dut) {
+			isisIntf.GetOrCreateLevel(1).Enabled = ygot.Bool(false)
+		}
+
 		isisIntfLevelAfiv4 := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
 		isisIntfLevelAfiv4.Metric = ygot.Uint32(10)
 		isisIntfLevelAfiv4.Enabled = ygot.Bool(true)
