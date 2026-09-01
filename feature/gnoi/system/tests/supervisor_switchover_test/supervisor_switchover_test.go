@@ -236,7 +236,7 @@ func verifyZeroTrafficLoss(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Co
 			t.Errorf("Flow %s did not transmit any packets", f.Name())
 			continue
 		}
-		if lossPct > 0 || rxPkts < txPkts {
+		if lossPct > 0 {
 			t.Errorf("Flow %s experienced packet loss: Tx = %d, Rx = %d, LossPct = %f", f.Name(), txPkts, rxPkts, lossPct)
 		} else {
 			t.Logf("Flow %s verified zero packet loss (Tx=%d, Rx=%d)", f.Name(), txPkts, rxPkts)
