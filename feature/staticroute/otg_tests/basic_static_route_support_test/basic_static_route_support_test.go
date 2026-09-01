@@ -296,7 +296,24 @@ func TestStaticRouteAddRemove(t *testing.T) {
 		validateStaticRoute(t, dut, prefix.cidr(t), sV4)
 
 		// Step 6 - Remove two next-hops (e.g., indexes 0 and 3).
-		cfgplugins.DeleteStaticRouteNextHops(t, dut, deviations.DefaultNetworkInstance(dut), prefix.cidr(t), "0", "3")
+
+		if dut.Vendor() == ondatra.JUNIPER {
+			b := &gnmi.SetBatch{}
+			sV4Removed := &cfgplugins.StaticRouteCfg{
+				NetworkInstance: deviations.DefaultNetworkInstance(dut),
+				Prefix:          prefix.cidr(t),
+				NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+					"1": oc.UnionString(atePort3.IPv4),
+					"2": oc.UnionString(atePort1.IPv4),
+				},
+			}
+			if _, err := cfgplugins.NewStaticRouteCfg(b, sV4Removed, dut); err != nil {
+				t.Fatalf("Failed to configure IPv4 static route: %v", err)
+			}
+			b.Set(t, dut)
+		} else {
+			cfgplugins.DeleteStaticRouteNextHops(t, dut, deviations.DefaultNetworkInstance(dut), prefix.cidr(t), "0", "3")
+		}
 
 		// Step 7 - Push configuration to DUT and validate that only two next-hops remain.
 		sV4Removed := &cfgplugins.StaticRouteCfg{
@@ -1481,9 +1498,6 @@ func (td *testData) testDirectInterfaceIPDeletion(t *testing.T) {
 	gnmi.Await(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv4.cidr(t))
 
 	port2 := td.dut.Port(t, "port2").Name()
-	if deviations.InterfaceRefInterfaceIDFormat(td.dut) {
-		port2 = port2 + ".0"
-	}
 
 	t.Cleanup(func() {
 		ipConf := &oc.Interface_Subinterface_Ipv4_Address{
@@ -1663,6 +1677,6 @@ func (td *testData) testRouteResolutionLoop(t *testing.T) {
 	// If the operating system stays resilient, gnmi will eventually respond after internal reconvergence bounds.
 	// We run gnmi.Await checking config state within a reasonable timeout.
 	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
-	gnmi.Await(t, td.dut, sp.Static(prefixA).Prefix().Config(), 45*time.Second, prefixA)
-	gnmi.Await(t, td.dut, sp.Static(prefixB).Prefix().Config(), 45*time.Second, prefixB)
+	gnmi.Await(t, td.dut, sp.Static(prefixA).Prefix().State(), 45*time.Second, prefixA)
+	gnmi.Await(t, td.dut, sp.Static(prefixB).Prefix().State(), 45*time.Second, prefixB)
 }
