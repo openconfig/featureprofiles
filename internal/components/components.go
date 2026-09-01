@@ -265,8 +265,9 @@ func SetControllerCardPowerState(t *testing.T, dut *ondatra.DUTDevice, cardName 
 	gnmi.Replace(t, dut, c.ControllerCard().PowerAdminState().Config(), powerType)
 
 	power, ok := gnmi.Await(t, dut, c.ControllerCard().PowerAdminState().State(), timeout, powerType).Val()
+	power, ok := gnmi.Await(t, dut, c.ControllerCard().PowerAdminState().State(), timeout, powerType).Val()
 	if !ok {
-		t.Errorf("Component %s, power-admin-state got: %v, want: %v", cardName, power, powerType)
+		t.Fatalf("Component %s, power-admin-state got: %v, want: %v", cardName, power, powerType)
 	}
 	t.Logf("Component %s, power-admin-state after %.2f minutes: %v", cardName, time.Since(start).Minutes(), power)
 
