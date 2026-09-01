@@ -46,6 +46,7 @@ platform_exceptions:  {
     interface_ref_interface_id_format:  true
     skip_static_nexthop_check:  true
     ipv6_static_route_with_ipv4_nh_unsupported:  true
+    interface_enabled:  true
   }
 }
 platform_exceptions:  {
@@ -54,6 +55,8 @@ platform_exceptions:  {
   }
   deviations:  {
     explicit_interface_in_default_vrf:  true
+    interface_enabled:  true
+    missing_isis_interface_afi_safi_enable:  true
   }
 }
 tags:  TAGS_DATACENTER_EDGE
