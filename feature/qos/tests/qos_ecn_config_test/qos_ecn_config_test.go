@@ -338,10 +338,7 @@ func testDP135TeardownAndCleanup(t *testing.T, q *oc.Qos) {
 
 	// Step 1: Detach the queue-management-profile from output queue.
 	t.Log("Step 1 - Detach queue-management-profile from output queue")
-	intf := q.GetOrCreateInterface(dp.Name())
-	queue := intf.GetOrCreateOutput().GetOrCreateQueue(queueName)
-	queue.QueueManagementProfile = nil
-	gnmi.Replace(t, dut, gnmi.OC().Qos().Interface(dp.Name()).Output().Queue(queueName).Config(), queue)
+	gnmi.Delete(t, dut, gnmi.OC().Qos().Interface(dp.Name()).Output().Queue(queueName).QueueManagementProfile().Config())
 
 	// Step 2: Validate profile is detached.
 	t.Log("Step 2 - Validate profile is detached from output queue")

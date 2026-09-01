@@ -562,6 +562,11 @@ func NewOneRateTwoColorScheduler(t *testing.T, dut *ondatra.DUTDevice, batch *gn
 	}
 }
 
+const (
+	ciscoMinThreshold = uint64(8005632)
+	ciscoMaxThreshold = uint64(8011776)
+)
+
 // NewQoSQueueManagementProfile creates a QoS queue management profile configuration.
 func NewQoSQueueManagementProfile(t *testing.T, dut *ondatra.DUTDevice, q *oc.Qos, profiles []QoSQueueManagementProfile) *oc.Qos {
 	t.Logf("QoS QueueManagementProfile config cases: %v", profiles)
@@ -576,8 +581,8 @@ func NewQoSQueueManagementProfile(t *testing.T, dut *ondatra.DUTDevice, q *oc.Qo
 			minThresh := p.MinThreshold
 			maxThresh := p.MaxThreshold
 			if deviations.EcnSameMinMaxThresholdUnsupported(dut) && minThresh == maxThresh {
-				minThresh = 8005632
-				maxThresh = 8011776
+				minThresh = ciscoMinThreshold
+				maxThresh = ciscoMaxThreshold
 			}
 			uniform.SetMinThreshold(minThresh)
 			uniform.SetMaxThreshold(maxThresh)
@@ -609,8 +614,8 @@ func ValidateQueueManagementProfile(t *testing.T, dut *ondatra.DUTDevice, p QoSQ
 			wantMin := p.MinThreshold
 			wantMax := p.MaxThreshold
 			if deviations.EcnSameMinMaxThresholdUnsupported(dut) && wantMin == wantMax {
-				wantMin = 8005632
-				wantMax = 8011776
+				wantMin = ciscoMinThreshold
+				wantMax = ciscoMaxThreshold
 			}
 			if got, want := gnmi.Get(t, dut, wredUniform.MinThreshold().Config()), wantMin; got != want {
 				t.Errorf("wredUniform.MinThreshold().Config(): got %v, want %v", got, want)
@@ -639,8 +644,8 @@ func ValidateQueueManagementProfile(t *testing.T, dut *ondatra.DUTDevice, p QoSQ
 				wantMin := p.MinThreshold
 				wantMax := p.MaxThreshold
 				if deviations.EcnSameMinMaxThresholdUnsupported(dut) && wantMin == wantMax {
-					wantMin = 8005632
-					wantMax = 8011776
+					wantMin = ciscoMinThreshold
+					wantMax = ciscoMaxThreshold
 				}
 				if got, want := gnmi.Get(t, dut, wredUniform.MinThreshold().State()), wantMin; got != want {
 					t.Errorf("wredUniform.MinThreshold().State(): got %v, want %v", got, want)
