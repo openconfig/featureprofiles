@@ -285,10 +285,7 @@ func TestVRFSelectionResiliency(t *testing.T) {
 		gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
 
 		t.Logf("RT-3.4.3 - Step 2: Validating autonomous recovery")
-		// Give BGP and linecard time to restore forwarding entries
-		time.Sleep(2 * time.Minute)
 		vrfpolicy.ValidateBaselineTraffic(t, ate, top)
-	}
 
 	// RT-3.4.4 - Policy Deletion
 	t.Logf("RT-3.4.4 - Step 1 & 2: Delete VRF Selection Policy & Push Configuration")
