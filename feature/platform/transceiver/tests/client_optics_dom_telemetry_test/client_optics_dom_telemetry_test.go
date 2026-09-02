@@ -345,6 +345,105 @@ func validateThresholds(t *testing.T, dut *ondatra.DUTDevice, transceiver string
 	}
 }
 
+type checkNestedThresholdParams struct {
+	transceiver   string
+	opts          []ygnmi.Option
+	warnLowerPath ygnmi.SingletonQuery[float64]
+	warnUpperPath ygnmi.SingletonQuery[float64]
+	critLowerPath ygnmi.SingletonQuery[float64]
+	critUpperPath ygnmi.SingletonQuery[float64]
+	name          string
+	ftName        string
+}
+
+func checkNestedThreshold(t *testing.T, dut *ondatra.DUTDevice, params checkNestedThresholdParams) {
+	t.Helper()
+	opts := append([]ygnmi.Option{}, params.opts...)
+	if params.ftName != "" {
+		opts = append(opts, getOptsForFunctionalTranslator(t, dut, params.ftName)...)
+	}
+
+	wlV, wlOK := gnmi.Lookup(t, dut.GNMIOpts().WithYGNMIOpts(opts...), params.warnLowerPath).Val()
+	wuV, wuOK := gnmi.Lookup(t, dut.GNMIOpts().WithYGNMIOpts(opts...), params.warnUpperPath).Val()
+	clV, clOK := gnmi.Lookup(t, dut.GNMIOpts().WithYGNMIOpts(opts...), params.critLowerPath).Val()
+	cuV, cuOK := gnmi.Lookup(t, dut.GNMIOpts().WithYGNMIOpts(opts...), params.critUpperPath).Val()
+
+	warnLowerStr := getPathStr(params.warnLowerPath.PathStruct())
+	warnUpperStr := getPathStr(params.warnUpperPath.PathStruct())
+
+	// Validate nested-threshold rules: critical_lower <= warning_lower and warning_upper <= critical_upper
+	if clOK && wlOK {
+		if clV > wlV {
+			tracePath(t, warnLowerStr, statusFail, "Transceiver %s: critical_lower (%v) must be <= warning_lower (%v) for %s", params.transceiver, clV, wlV, params.name)
+		} else {
+			tracePath(t, warnLowerStr, statusPass, "Transceiver %s: critical_lower (%v) <= warning_lower (%v) for %s", params.transceiver, clV, wlV, params.name)
+		}
+	}
+	if wuOK && cuOK {
+		if wuV > cuV {
+			tracePath(t, warnUpperStr, statusFail, "Transceiver %s: warning_upper (%v) must be <= critical_upper (%v) for %s", params.transceiver, wuV, cuV, params.name)
+		} else {
+			tracePath(t, warnUpperStr, statusPass, "Transceiver %s: warning_upper (%v) <= critical_upper (%v) for %s", params.transceiver, wuV, cuV, params.name)
+		}
+	}
+}
+
+func validateNestedThresholds(t *testing.T, dut *ondatra.DUTDevice, transceiver string, component *platform.ComponentPath, opts []ygnmi.Option) {
+	t.Helper()
+	warnThreshold := component.Transceiver().Threshold(oc.AlarmTypes_OPENCONFIG_ALARM_SEVERITY_WARNING)
+	critThreshold := component.Transceiver().Threshold(oc.AlarmTypes_OPENCONFIG_ALARM_SEVERITY_CRITICAL)
+
+	checkNestedThreshold(t, dut, checkNestedThresholdParams{
+		transceiver:   transceiver,
+		opts:          opts,
+		warnLowerPath: warnThreshold.ModuleTemperatureLower().State(),
+		warnUpperPath: warnThreshold.ModuleTemperatureUpper().State(),
+		critLowerPath: critThreshold.ModuleTemperatureLower().State(),
+		critUpperPath: critThreshold.ModuleTemperatureUpper().State(),
+		name:          "module-temperature",
+	})
+	checkNestedThreshold(t, dut, checkNestedThresholdParams{
+		transceiver:   transceiver,
+		opts:          opts,
+		warnLowerPath: warnThreshold.SupplyVoltageLower().State(),
+		warnUpperPath: warnThreshold.SupplyVoltageUpper().State(),
+		critLowerPath: critThreshold.SupplyVoltageLower().State(),
+		critUpperPath: critThreshold.SupplyVoltageUpper().State(),
+		name:          "supply-voltage",
+		ftName:        deviations.CiscoxrTransceiverFt(dut),
+	})
+	checkNestedThreshold(t, dut, checkNestedThresholdParams{
+		transceiver:   transceiver,
+		opts:          opts,
+		warnLowerPath: warnThreshold.InputPowerLower().State(),
+		warnUpperPath: warnThreshold.InputPowerUpper().State(),
+		critLowerPath: critThreshold.InputPowerLower().State(),
+		critUpperPath: critThreshold.InputPowerUpper().State(),
+		name:          "input-power",
+		ftName:        deviations.CiscoxrTransceiverFt(dut),
+	})
+	checkNestedThreshold(t, dut, checkNestedThresholdParams{
+		transceiver:   transceiver,
+		opts:          opts,
+		warnLowerPath: warnThreshold.OutputPowerLower().State(),
+		warnUpperPath: warnThreshold.OutputPowerUpper().State(),
+		critLowerPath: critThreshold.OutputPowerLower().State(),
+		critUpperPath: critThreshold.OutputPowerUpper().State(),
+		name:          "output-power",
+		ftName:        deviations.CiscoxrTransceiverFt(dut),
+	})
+	checkNestedThreshold(t, dut, checkNestedThresholdParams{
+		transceiver:   transceiver,
+		opts:          opts,
+		warnLowerPath: warnThreshold.LaserBiasCurrentLower().State(),
+		warnUpperPath: warnThreshold.LaserBiasCurrentUpper().State(),
+		critLowerPath: critThreshold.LaserBiasCurrentLower().State(),
+		critUpperPath: critThreshold.LaserBiasCurrentUpper().State(),
+		name:          "laser-bias-current",
+		ftName:        deviations.CiscoxrTransceiverFt(dut),
+	})
+}
+
 func validateOpticsTelemetry(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port, transceiverName string, isPortUp bool, checkMinOutPower bool, expectedMaxOutPower float64) {
 	t.Helper()
 	component := gnmi.OC().Component(transceiverName)
@@ -486,6 +585,7 @@ func validateOpticsTelemetry(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.P
 		} {
 			validateThresholds(t, dut, transceiverName, isPortUp, sev, component, laserOpts)
 		}
+		validateNestedThresholds(t, dut, transceiverName, component, laserOpts)
 	}
 }
 
