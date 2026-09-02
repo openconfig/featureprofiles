@@ -31,13 +31,13 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
@@ -701,26 +701,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	// Configure loopback interface.
-	loopbackIntfName = netutil.LoopbackInterface(t, dut, 0)
-	lo0 := gnmi.OC().Interface(loopbackIntfName).Subinterface(0)
-	ipv4Addrs := gnmi.LookupAll(t, dut, lo0.Ipv4().AddressAny().State())
-	ipv6Addrs := gnmi.LookupAll(t, dut, lo0.Ipv6().AddressAny().State())
-	if len(ipv4Addrs) == 0 && len(ipv6Addrs) == 0 {
-		loop1 := dutlo0Attrs.NewOCInterface(loopbackIntfName, dut)
-		loop1.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
-		gnmi.Update(t, dut, d.Interface(loopbackIntfName).Config(), loop1)
-	} else {
-		v4, ok := ipv4Addrs[0].Val()
-		if ok {
-			dutlo0Attrs.IPv4 = v4.GetIp()
-		}
-		v6, ok := ipv6Addrs[0].Val()
-		if ok {
-			dutlo0Attrs.IPv6 = v6.GetIp()
-		}
-		t.Logf("Got DUT IPv4 loopback address: %v", dutlo0Attrs.IPv4)
-		t.Logf("Got DUT IPv6 loopback address: %v", dutlo0Attrs.IPv6)
-	}
+	loopbackIntfName = helpers.GetOrCreateLoopback(t, dut, 0, 0, &dutlo0Attrs)
 
 	for _, p := range portList {
 		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
@@ -1691,7 +1672,7 @@ func captureAndValidatePackets(t *testing.T, args *testArgs, packetVal *packetVa
 	}
 	f.Close()
 	if packetVal.validateTTL {
-		validateTrafficTTL(t, f)
+		validateTrafficTTL(t, f, packetVal.inHdrIP)
 	}
 	if packetVal.validateDecap {
 		validateTrafficDecap(t, f, packetVal.inHdrIP, packetVal.inHdrIPv6, packetVal.inHdrDscp, packetVal.inHdrEcn)
@@ -1707,7 +1688,7 @@ func captureAndValidatePackets(t *testing.T, args *testArgs, packetVal *packetVa
 	time.Sleep(30 * time.Second)
 }
 
-func validateTrafficTTL(t *testing.T, captureFile *os.File) {
+func validateTrafficTTL(t *testing.T, captureFile *os.File, expectedInHdrIP string) {
 	t.Helper()
 	pcapFileHandle, err := pcap.OpenOffline(captureFile.Name())
 	if err != nil {
@@ -1717,22 +1698,50 @@ func validateTrafficTTL(t *testing.T, captureFile *os.File) {
 	var packetCheckCount uint32 = 0
 	packetSource := gopacket.NewPacketSource(pcapFileHandle, pcapFileHandle.LinkType())
 	for packet := range packetSource.Packets() {
+		if packet.Layer(layers.LayerTypeUDP) == nil {
+			continue
+		}
 		ipLayer := packet.Layer(layers.LayerTypeIPv4)
-		if ipLayer != nil && packetCheckCount <= 3 {
-			packetCheckCount++
-			ipPacket, _ := ipLayer.(*layers.IPv4)
-			if ipPacket.TTL != (correspondingTTL - 1) {
-				t.Errorf("Decap TTL doesnt match; got:%d, want:%d", ipPacket.TTL, (correspondingTTL - 1))
+		if ipLayer == nil {
+			continue
+		}
+		ipPacket, ok := ipLayer.(*layers.IPv4)
+		if !ok || ipPacket == nil {
+			continue
+		}
+		innerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
+		ipInnerLayer := innerPacket.Layer(layers.LayerTypeIPv4)
+		ipv6InnerLayer := innerPacket.Layer(layers.LayerTypeIPv6)
+
+		var dstIP string
+		if ipInnerLayer != nil {
+			if ipInner, ok := ipInnerLayer.(*layers.IPv4); ok && ipInner != nil {
+				dstIP = ipInner.DstIP.String()
 			}
-			innerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
-			ipInnerLayer := innerPacket.Layer(layers.LayerTypeIPv4)
-			ipv6InnerLayer := innerPacket.Layer(layers.LayerTypeIPv6)
-			if ipInnerLayer != nil {
-				t.Errorf("validateTrafficTTL: packets are not decapped, inner IP header is not removed")
+		} else if ipv6InnerLayer != nil {
+			if ipv6Inner, ok := ipv6InnerLayer.(*layers.IPv6); ok && ipv6Inner != nil {
+				dstIP = ipv6Inner.DstIP.String()
 			}
-			if ipv6InnerLayer != nil {
-				t.Errorf("validateTrafficTTL: packets are not decapped, inner IPv6 header is not removed")
-			}
+		} else {
+			dstIP = ipPacket.DstIP.String()
+		}
+
+		if dstIP != expectedInHdrIP {
+			continue
+		}
+
+		packetCheckCount++
+		if ipPacket.TTL != (correspondingTTL - 1) {
+			t.Errorf("Decap TTL doesnt match; got:%d, want:%d", ipPacket.TTL, (correspondingTTL - 1))
+		}
+		if ipInnerLayer != nil {
+			t.Errorf("validateTrafficTTL: packets are not decapped, inner IP header is not removed")
+		}
+		if ipv6InnerLayer != nil {
+			t.Errorf("validateTrafficTTL: packets are not decapped, inner IPv6 header is not removed")
+		}
+		if packetCheckCount >= 5 {
+			break
 		}
 	}
 	if packetCheckCount == 0 {

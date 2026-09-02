@@ -23,12 +23,16 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/helpers"
+	"github.com/openconfig/featureprofiles/internal/security/acctz"
 	acctzpb "github.com/openconfig/gnsi/acctz"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+const maxNIs = 100
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
@@ -44,7 +48,7 @@ func sendOversizedPayload(t *testing.T, dut *ondatra.DUTDevice) {
 	// giant set of network instances + static routes which should hopefully work for everyone.
 	ocRoot := &oc.Root{}
 
-	for i := 0; i < 50; i++ {
+	for i := 0; i < maxNIs; i++ {
 		ni := ocRoot.GetOrCreateNetworkInstance(fmt.Sprintf("acctz-test-ni-%d", i))
 		ni.SetDescription("This is a pointlessly long description in order to make the payload bigger.")
 		ni.SetType(oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF)
@@ -63,7 +67,18 @@ func sendOversizedPayload(t *testing.T, dut *ondatra.DUTDevice) {
 			nh1.NextHop = oc.UnionString(nhAddress)
 		}
 	}
-	gnmi.Update(t, dut, gnmi.OC().Config(), ocRoot)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	gnmiClient, err := dut.RawAPIs().BindingDUT().DialGNMI(ctx, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(45000000), grpc.MaxCallSendMsgSize(45000000)))
+	if err != nil {
+		t.Fatalf("Failed to dial gNMI with custom message size: %v", err)
+	}
+	t.Cleanup(func() {
+		for i := 0; i < maxNIs; i++ {
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(fmt.Sprintf("acctz-test-ni-%d", i)).Config())
+		}
+	})
+	gnmi.Update(t, dut.GNMIOpts().WithClient(gnmiClient), gnmi.OC().Config(), ocRoot)
 }
 
 func TestAccountzRecordPayloadTruncation(t *testing.T) {
@@ -78,38 +93,47 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 		helpers.GnmiCLIConfig(t, dut, communitySetCLIConfig)
 	}
 
-	startTime := time.Now()
+	// Get the current time from the router via gNMI to avoid clock skew issues.
+	startTime := helpers.GetRouterTime(t, dut)
+	requestTimestamp := timestamppb.New(startTime.Truncate(time.Second))
+	request := &acctzpb.RecordRequest{
+		Timestamp: requestTimestamp,
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
 
 	acctzClient := dut.RawAPIs().GNSI(t).AcctzStream()
-	acctzSubClient, err := acctzClient.RecordSubscribe(context.Background(), &acctzpb.RecordRequest{
-		Timestamp: timestamppb.New(startTime),
-	})
+	t.Logf("Sending acctz record subscribe request: %s", acctz.PrettyPrint(request))
+	acctzSubClient, err := acctzClient.RecordSubscribe(ctx, request, grpc.MaxCallRecvMsgSize(45000000))
 	if err != nil {
 		t.Fatalf("Failed to subscribe to acctz records: %v", err)
 	}
+	defer acctzSubClient.CloseSend()
 
 	sendOversizedPayload(t, dut)
 
-	for {
-		r := make(chan recordRequestResult)
-		go func(r chan recordRequestResult) {
+	recordChan := make(chan recordRequestResult)
+	go func() {
+		for {
 			resp, err := acctzSubClient.Recv()
-			r <- recordRequestResult{
-				record: resp,
-				err:    err,
+			res := recordRequestResult{record: resp, err: err}
+			select {
+			case recordChan <- res:
+			case <-ctx.Done():
+				return
 			}
-		}(r)
-		var done bool
-		var resp recordRequestResult
-
-		select {
-		case rr := <-r:
-			resp = rr
-		case <-time.After(60 * time.Second):
-			done = true
+			if err != nil {
+				return
+			}
 		}
+	}()
 
-		if done {
+	for {
+		var resp recordRequestResult
+		select {
+		case resp = <-recordChan:
+		case <-ctx.Done():
 			t.Fatal("Done receiving records and did not find our record...")
 		}
 
@@ -117,7 +141,7 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 			t.Fatalf("Failed receiving record response, error: %s", resp.err)
 		}
 
-		t.Logf("Received record: %v", resp.record)
+		t.Logf("Received record: %v", acctz.PrettyPrint(resp.record))
 
 		grpcServiceRecord := resp.record.GetGrpcService()
 		if grpcServiceRecord == nil {
@@ -139,7 +163,7 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 			continue
 		}
 
-		t.Logf("Found truncated record: %v", resp.record)
+		t.Logf("Found truncated record: %v", acctz.PrettyPrint(resp.record))
 		break
 	}
 }
