@@ -169,9 +169,7 @@ func TestDeleteInterface(t *testing.T) {
 		if deviations.InterfaceEnabled(dut) {
 			intf2.Enabled = ygot.Bool(true)
 		}
-		
-		config.GetOrCreateInterface(p1.Name()).Description = ygot.String(want1)
-		config.GetOrCreateInterface(p2.Name()).Description = ygot.String(want2)
+
 		op.push(t, dut, config, scope)
 
 		t.Run("VerifyBeforeDelete", func(t *testing.T) {
