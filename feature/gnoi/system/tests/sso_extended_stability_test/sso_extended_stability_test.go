@@ -154,7 +154,7 @@ func runPostSSOVerification(t *testing.T, dut *ondatra.DUTDevice, criticalProcs 
 	}
 
 	for min := 2; min <= 10; min += 2 {
-		gnmi.Watch(t, dut, gnmi.OC().System().State(), 2*time.Minute, func(val *ygnmi.Value[*oc.System]) bool {
+		gnmi.Watch(t, dut, gnmi.OC().System().CurrentDatetime().State(), 2*time.Minute, func(val *ygnmi.Value[string]) bool {
 			return false
 		}).Await(t)
 		t.Logf("Verifying process and device health at %d minutes mark...", min)
@@ -198,8 +198,7 @@ func runPostSSOVerification(t *testing.T, dut *ondatra.DUTDevice, criticalProcs 
 	t.Log("Validating the new active RP is switchover ready...")
 	rpStandbyAfter, rpActiveAfter := components.FindStandbyControllerCard(t, dut, controllerCards)
 	t.Logf("Detected rpStandby before switchover sequence: %v, rpActive before: %v", rpStandbyAfter, rpActiveAfter)
-	switchoverReady := gnmi.OC().Component(rpActiveAfter).SwitchoverReady()
-	gnmi.Await(t, dut, switchoverReady.State(), 30*time.Minute, true)
+	components.AwaitSwitchoverReady(t, dut, rpActiveAfter, 30*time.Minute)
 }
 
 func TestSSOSoftwareStability(t *testing.T) {
@@ -409,6 +408,10 @@ func TestSSOSoftwareStability(t *testing.T) {
 
 	// Post configuration to DUT & Start protocols
 	bs.PushAndStart(t)
+	t.Cleanup(func() {
+		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("TRANSIT_VRF").Config())
+		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DECAP_TE_VRF").Config())
+	})
 
 	t.Log("Verify DUT BGP sessions established in VRFs")
 	for _, vrf := range []string{"TRANSIT_VRF", "DECAP_TE_VRF"} {
@@ -429,28 +432,19 @@ func TestSSOSoftwareStability(t *testing.T) {
 	// Step 1 - Start Background Traffic and Record Process State
 	t.Log("Step 1 - Start Background Traffic and Record Process State")
 	bs.ATE.OTG().StartTraffic(t)
+	trafficStarted := true
+	t.Cleanup(func() {
+		if trafficStarted {
+			bs.ATE.OTG().StopTraffic(t)
+		}
+	})
 
 	// Wait for BGP traffic to stabilize instead of a pure sleep.
 	t.Log("Waiting for traffic to stabilize (10s continuous zero loss expected within 1 minute)...")
-	startConv := time.Now()
-	for {
-		if time.Since(startConv) > 60*time.Second {
-			t.Fatalf("Traffic did not stabilize with 0%% loss within 60s")
-		}
-		converged := true
-		for _, flow := range []string{"AF4_Flow", "BE0_Flow"} {
-			loss := otgutils.GetFlowLossPct(t, bs.ATE.OTG(), flow, 10*time.Second)
-			if loss > 0.0 {
-				converged = false
-				t.Logf("Traffic not yet stabilized: flow %s has loss %f%%", flow, loss)
-				break
-			}
-		}
-		if converged {
-			t.Log("Traffic achieved 0% continuous loss.")
-			break
-		}
+	for _, flow := range []string{"AF4_Flow", "BE0_Flow"} {
+		otgutils.ExpectedTrafficLoss(t, bs.ATE.OTG(), flow, 0.0, 0.0)
 	}
+	t.Log("Traffic achieved 0% continuous loss.")
 
 	// 7. Find critical hardware and routing processes to monitor
 	criticalProcs := findRunningCriticalProcesses(t, dut)
@@ -488,6 +482,7 @@ func TestSSOSoftwareStability(t *testing.T) {
 	t.Log("Step 4 - Validation with pass/fail criteria")
 	t.Log("Stopping traffic...")
 	bs.ATE.OTG().StopTraffic(t)
+	trafficStarted = false
 
 	// Log traffic stats and verify final traffic loss is 0%
 	otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
