@@ -361,7 +361,8 @@ func FindISISLSPCount(t *testing.T, dut *ondatra.DUTDevice, waitTime time.Durati
 // It returns a boolean indicating whether the check passed and an error if any check fails.
 func VerifyISISAuthTelemetry(t *testing.T, dut *ondatra.DUTDevice, isisInterfaceCount int) (bool, error) {
 	t.Helper()
-	isisProto := gnmi.OC().NetworkInstance(defaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, defaultNetworkInstance).Isis()
+	dnc := deviations.DefaultNetworkInstance(dut)
+	isisProto := gnmi.OC().NetworkInstance(dnc).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, dnc).Isis()
 
 	// 1. Query and verify Global Level 2 LSP database authentication state
 	lspAuthVals := gnmi.LookupAll(t, dut, isisProto.LevelAny().Authentication().State())
