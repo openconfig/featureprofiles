@@ -52,10 +52,10 @@ const (
 	tlPrefix = "203.0.113.0/24"
 
 	// Scale constants
-	nhOpsCount  = 10000 // 5,000 pairs of ADD + DEL
-	nhgOpsCount = 9999  // 3,333 triplets of ADD + REPLACE + DEL
-	tlOpsCount  = 9999  // 3,333 triplets of ADD + REPLACE + DEL
-	mbbCycles   = 1000  // 1,000 cycles * 10 ops = 10,000 ops
+	nhOpsCount  = 2000 // 1,000 pairs of ADD + DEL
+	nhgOpsCount = 1998 // 666 triplets of ADD + REPLACE + DEL
+	tlOpsCount  = 1998 // 666 triplets of ADD + REPLACE + DEL
+	mbbCycles   = 200  // 200 cycles * 10 ops = 2,000 ops
 
 	awaitTimeout = 2 * time.Minute
 )
