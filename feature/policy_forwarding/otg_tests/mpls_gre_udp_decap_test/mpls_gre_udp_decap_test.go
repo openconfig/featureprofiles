@@ -336,6 +336,7 @@ func configureInputPolicy(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
 		AppliedPolicyName: policyName,
 	}
 	cfgplugins.InterfacePolicyForwardingConfig(t, dut, nil, "", pf, ocPFParams)
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(defaultNIName).PolicyForwarding().Interface(interfaceName).Config(), pf.GetInterface(interfaceName))
 }
 
 func configureDecapPolicyForwarding(t *testing.T, dut *ondatra.DUTDevice, interfaceName string) {
