@@ -413,19 +413,7 @@ func testTraffic(t *testing.T, args testArgs) {
 	time.Sleep(1 * time.Minute)
 	args.ate.OTG().StopTraffic(t)
 	otgutils.LogFlowMetrics(t, args.ate.OTG(), args.top)
-
-	flowMetrics := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Flow("Flow").Counters().State())
-	txPkts := float32(flowMetrics.GetInPkts())
-	rxPkts := float32(flowMetrics.GetOutPkts())
-	if txPkts == 0 {
-		t.Fatalf("Tx packets should be higher than 0")
-	}
-
-	if got := (txPkts - rxPkts) * 100 / txPkts; got > 0 {
-		t.Errorf("LossPct got %f, want 0", got)
-	} else {
-		t.Logf("Traffic flows fine from ATE-port1 to ATE-port2.")
-	}
+	otgutils.ExpectedTrafficLoss(t, args.ate.OTG(), "Flow", 0, 0)
 }
 
 // validateSwitchoverStatus is to validate switchover status.

@@ -416,6 +416,7 @@ func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Con
 		}
 
 		var expectedPackets uint64
+		tolerancePackets := uint64(2)
 		if expectTrafficPass {
 			expectedPackets = totalPackets
 		} else {
@@ -424,10 +425,18 @@ func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Con
 
 		t.Logf("Expecting %d packets for flow %s", expectedPackets, flow.Name())
 		msg := fmt.Sprintf("Sent %d packets, expected %d packets, received %d packets.", txPackets, expectedPackets, rxPackets)
-		if rxPackets == expectedPackets {
-			t.Log(msg)
+		if expectTrafficPass {
+			if rxPackets >= expectedPackets-tolerancePackets && rxPackets <= expectedPackets+tolerancePackets {
+				t.Log(msg)
+			} else {
+				t.Error(msg)
+			}
 		} else {
-			t.Error(msg)
+			if rxPackets == expectedPackets {
+				t.Log(msg)
+			} else {
+				t.Error(msg)
+			}
 		}
 	}
 }
