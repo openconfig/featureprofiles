@@ -13,7 +13,9 @@ Optics test requirements alongside the platform functional tests require optics 
 
 *   Step 1: Ensure interfaces and transceivers are enabled, wait for link UP, and validate inventory and telemetry:
     *   Validate static inventory metadata: `/components/component/state/mfg-name`, `/components/component/transceiver/state/form-factor`, `/components/component/state/serial-no`, `/components/component/state/part-no`, `/components/component/state/firmware-version`, `/components/component/state/hardware-version`, `/components/component/state/description`, `/components/component/state/mfg-date`, `/components/component/transceiver/physical-channels/channel/state/index`, `/interfaces/interface/state/physical-channel`, `/interfaces/interface/state/transceiver`.
-    *   Validate dynamic telemetry instant values are within WARNING and CRITICAL lower/upper thresholds: module temperature, Tx output power, Rx input power, laser bias-current, and supply voltage.
+    *   Validate dynamic telemetry instant values are within the normal operating range bounded by WARNING and CRITICAL lower/upper thresholds (i.e., no threshold alarms are expected to be triggered during normal operation): module temperature, Tx output power, Rx input power, laser bias-current, and supply voltage.
+        *   Nested-threshold rules apply: `critical_lower <= warning_lower <= instant <= warning_upper <= critical_upper`.
+        *   Some hardware platforms or pluggables may report equal values for warning and critical thresholds (e.g., `warning_upper == critical_upper` or `warning_lower == critical_lower`), which is valid and supported.
 
 *   Step 2: Verify interface enable/disable lifecycle:
     *   Disable/shutdown interface: verify oper-status DOWN and output power drops.
