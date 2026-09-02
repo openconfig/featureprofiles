@@ -14,6 +14,7 @@ test: {
   id: "ACCTZ-10.1"
   description: "gNSI.acctz.v1 (Accounting) Test Accounting Authentication Error - Multi-transaction"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/acctz/tests/AccountingAuthenErrorMulti/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/acctz/tests/AccountingAuthenErrorMulti/accounting_authen_error_multi_test.go"
 }
 test: {
   id: "ACCTZ-2.1"
@@ -61,11 +62,13 @@ test: {
   id: "ACCTZ-8.1"
   description: "gNSI.acctz.v1 (Accounting) Test Accounting Authentication Failure - Uni-transaction"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/acctz/tests/AccountingAuthenFailUni/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/acctz/tests/AccountingAuthenFailUni/accounting_authen_fail_uni_test.go"
 }
 test: {
   id: "ACCTZ-9.1"
   description: "gNSI.acctz.v1 (Accounting) Test Accounting Privilege Escalation"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/acctz/tests/AccountingPrivEscalation/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/acctz/tests/AccountingPrivEscalation/accounting_priv_escalation_test.go"
 }
 test: {
   id: "ACL-1.1"
@@ -435,6 +438,7 @@ test: {
   id: "IPSEC-1.2"
   description: "IPSec Scaling with MACSec over aggregated links."
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/ipsec/otg_tests/ipsec_scale/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/ipsec/otg_tests/ipsec_scale/ipsec_scale_test.go"
 }
 test: {
   id: "IPSEC-1.3"
@@ -1141,6 +1145,7 @@ test: {
   id: "RT-3.52"
   description: "Multidimensional test for Static GUE Encap/Decap based on BGP path selection and selective DSCP marking"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/encapsulation/otg_tests/staticgueencap_and_bgp_path_selection/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/encapsulation/otg_tests/staticgueencap_and_bgp_path_selection/staticgueencap_and_bgp_path_selection_test.go"
 }
 test: {
   id: "RT-3.53"
@@ -1206,6 +1211,11 @@ test: {
   id: "RT-5.16"
   description: "LACP Member Linecard Reboot"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/lacp/otg_tests/lacp_member_reboot_test/README.md"
+}
+test: {
+  id: "RT-5.19"
+  description: "LAG Member-Link Drain"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/aggregate/otg_tests/aggregate_member_link_drain_test/README.md"
 }
 test: {
   id: "RT-5.2"
@@ -1278,6 +1288,11 @@ test: {
   description: "BGP Policy - Import/Export Policy Action Using Multiple Criteria"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/import_export_multi_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/import_export_multi_test/import_export_multi_test.go"
+}
+test: {
+  id: "RT-7.12"
+  description: "BGP Drain using Route Policy"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/bgp_drain_policy_test/README.md"
 }
 test: {
   id: "RT-7.2"
@@ -1646,6 +1661,12 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/base_hierarchical_nhg_update/base_hierarchical_nhg_update_test.go"
 }
 test: {
+  id: "TE-3.8"
+  description: "gRIBI Tunnel Recursion over Multi-Level LPM Underlays"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/hierarchical_tunnel_recursion_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/hierarchical_tunnel_recursion_test/hierarchical_tunnel_recursion_test.go"
+}
+test: {
   id: "TE-4.1"
   description: "Base Leader Election"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/base_leader_election_test/README.md"
@@ -1958,11 +1979,13 @@ test: {
   id: "enrollz-1"
   description: "enrollz test for TPM 2.0 HMAC-based Enrollment flow"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/attestz/tests/enrollz_tpm20_hmac/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/attestz/tests/enrollz_tpm20_hmac/enrollz_tpm20_hmac_test.go"
 }
 test: {
   id: "enrollz-2"
   description: "enrollz test for TPM 1.2 Enrollment flow"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/attestz/tests/enrollz_tpm12/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/attestz/tests/enrollz_tpm12/enrollz_tpm12_test.go"
 }
 test: {
   id: "example-0.1"
