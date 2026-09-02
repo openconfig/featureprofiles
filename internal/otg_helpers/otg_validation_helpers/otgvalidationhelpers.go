@@ -177,7 +177,8 @@ func (v *OTGValidation) ValidateECMPonLAG(t *testing.T, ate *ondatra.ATEDevice) 
 	return nil
 }
 
-func (v *OTGValidation) ValidateLoadBalanceOnLAG(t *testing.T, ate *ondatra.ATEDevice) error {
+func (v *OTGValidation) ValidateLoadBalanceOnLAG(t *testing.T, ate *ondatra.ATEDevice, tolerancePct float64) error {
+	t.Helper()
 	if len(v.Interface.Ports) == 0 {
 		return fmt.Errorf("no ports specified for load balance validation")
 	}
@@ -185,8 +186,8 @@ func (v *OTGValidation) ValidateLoadBalanceOnLAG(t *testing.T, ate *ondatra.ATED
 	if totalPkts == 0 {
 		return fmt.Errorf("total packets received is zero, cannot validate load balancing")
 	}
-	tolerancePct := 0.02
-	var portPackets []uint64
+
+	portPackets := make([]uint64, 0, len(v.Interface.Ports))
 	for _, port := range v.Interface.Ports {
 		portPackets = append(portPackets, gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(port).Counters().InFrames().State()))
 	}
@@ -196,9 +197,10 @@ func (v *OTGValidation) ValidateLoadBalanceOnLAG(t *testing.T, ate *ondatra.ATED
 		return fmt.Errorf("expected packets per port is zero")
 	}
 	tolerance := uint64(float64(expectedPkts) * tolerancePct)
-	for i, pPkts := range portPackets {
-		if got := (math.Abs(float64(expectedPkts)-float64(pPkts)) * 100) / float64(expectedPkts); got > float64(tolerance) {
-			return fmt.Errorf("port %d packet count out of expected range: got %d, expected ~%d ±%d", i+1, pPkts, expectedPkts, tolerance)
+	for i, pkts := range portPackets {
+		diff := uint64(math.Abs(float64(expectedPkts) - float64(pkts)))
+		if diff > tolerance {
+			return fmt.Errorf("port %d packet count mismatch: got %d, want within %d ± %d", i+1, pkts, expectedPkts, tolerance)
 		}
 	}
 

@@ -134,8 +134,6 @@ type ValidationFlags struct {
 	ValidateTosRange bool
 	// ValidateTrafficClassRange enables ranged IPv6 traffic-class validation.
 	ValidateTrafficClassRange bool
-	TrafficClassMin           uint8
-	TrafficClassMax           uint8
 }
 
 // IPv4Layer is a struct to hold the IP layer parameters.
@@ -151,11 +149,13 @@ type IPv4Layer struct {
 
 // IPv6Layer is a struct to hold the IP layer parameters.
 type IPv6Layer struct {
-	DstIP        string
-	TrafficClass uint8
-	HopLimit     uint8
-	NextHeader   uint32
-	FlowLabel    uint32
+	DstIP           string
+	TrafficClass    uint8
+	TrafficClassMin uint8
+	TrafficClassMax uint8
+	HopLimit        uint8
+	NextHeader      uint32
+	FlowLabel       uint32
 }
 
 // GreLayer is a struct to hold the GRE layer parameters.
@@ -325,9 +325,12 @@ func validateEthernetHeader(t *testing.T, packetSource *gopacket.PacketSource, p
 	}
 	for packet := range packetSource.Packets() {
 		if ethernetLayer := packet.Layer(layers.LayerTypeEthernet); ethernetLayer != nil {
-			ethernet, _ := ethernetLayer.(*layers.Ethernet)
+			ethernet, ok := ethernetLayer.(*layers.Ethernet)
+			if !ok {
+				return fmt.Errorf("failed to extract ethernet layer")
+			}
 			if ethernet.DstMAC.String() != packetVal.EthernetLayer.DstMAC {
-				return fmt.Errorf("ethernet destination MAC is not set properly. Expected: %s, Actual: %s", packetVal.EthernetLayer.DstMAC, ethernet.DstMAC)
+				return fmt.Errorf("ethernet destination MAC mismatch: got %s, want %s", ethernet.DstMAC, packetVal.EthernetLayer.DstMAC)
 			}
 			return nil
 		}
@@ -345,7 +348,6 @@ func validateIPv4Header(t *testing.T, packetSource *gopacket.PacketSource, packe
 	}
 
 	for packet := range packetSource.Packets() {
-		t.Logf("packet: %v", packet)
 		if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
 			ip, _ := ipLayer.(*layers.IPv4)
 			if ip.DstIP.String() != packetVal.IPv4Layer.DstIP {
@@ -353,18 +355,18 @@ func validateIPv4Header(t *testing.T, packetSource *gopacket.PacketSource, packe
 			}
 			if !packetVal.IPv4Layer.SkipProtocolCheck {
 				if uint32(ip.Protocol) != packetVal.IPv4Layer.Protocol {
-					return fmt.Errorf("packet is not encapsulated properly. Encapsulated protocol is: %d, expected: %d", ip.Protocol, packetVal.IPv4Layer.Protocol)
+					return fmt.Errorf("encapsulated protocol mismatch: got %d, want %d", ip.Protocol, packetVal.IPv4Layer.Protocol)
 				}
 			}
 			if ip.TTL != packetVal.IPv4Layer.TTL {
-				return fmt.Errorf("IP TTL value is altered to: %d, expected: %d", ip.TTL, packetVal.IPv4Layer.TTL)
+				return fmt.Errorf("IP TTL value mismatch: got %d, want %d", ip.TTL, packetVal.IPv4Layer.TTL)
 			}
 			if packetVal.Flags != nil && packetVal.Flags.ValidateTosRange {
 				if ip.TOS < packetVal.IPv4Layer.TosMin || ip.TOS > packetVal.IPv4Layer.TosMax {
 					return fmt.Errorf("DSCP(TOS) value %d is out of expected range [%d, %d]", ip.TOS, packetVal.IPv4Layer.TosMin, packetVal.IPv4Layer.TosMax)
 				}
 			} else if ip.TOS != packetVal.IPv4Layer.Tos {
-				return fmt.Errorf("DSCP(TOS) value is altered to: %d, expected: %d", ip.TOS, packetVal.IPv4Layer.Tos)
+				return fmt.Errorf("DSCP(TOS) value mismatch: got %d, want %d", ip.TOS, packetVal.IPv4Layer.Tos)
 			}
 			// If validation is successful for one packet, we can return.
 			return nil
@@ -373,7 +375,7 @@ func validateIPv4Header(t *testing.T, packetSource *gopacket.PacketSource, packe
 	return fmt.Errorf("no IPv4 packets found")
 }
 
-// validateIPv6Header validates the outer IPv4 header.
+// validateIPv6Header validates the outer IPv6 header.
 func validateIPv6Header(t *testing.T, packetSource *gopacket.PacketSource, packetVal *PacketValidation) error {
 	t.Helper()
 	t.Log("Validating IPv6 header")
@@ -383,7 +385,6 @@ func validateIPv6Header(t *testing.T, packetSource *gopacket.PacketSource, packe
 	}
 
 	for packet := range packetSource.Packets() {
-		t.Logf("packet: %v", packet)
 		if ipLayer := packet.Layer(layers.LayerTypeIPv6); ipLayer != nil {
 			ipv6, _ := ipLayer.(*layers.IPv6)
 
@@ -391,21 +392,21 @@ func validateIPv6Header(t *testing.T, packetSource *gopacket.PacketSource, packe
 				continue
 			}
 			if ipv6.HopLimit != packetVal.IPv6Layer.HopLimit {
-				return fmt.Errorf("IPv6 HopLimit value is altered to: %d. Expected: %d", ipv6.HopLimit, packetVal.IPv6Layer.HopLimit)
+				return fmt.Errorf("IPv6 HopLimit mismatch: got %d, want %d", ipv6.HopLimit, packetVal.IPv6Layer.HopLimit)
 			}
 			if packetVal.Flags != nil && packetVal.Flags.ValidateTrafficClassRange {
-				if ipv6.TrafficClass < packetVal.Flags.TrafficClassMin || ipv6.TrafficClass > packetVal.Flags.TrafficClassMax {
-					return fmt.Errorf("traffic class value %d is out of expected range [%d, %d]", ipv6.TrafficClass, packetVal.Flags.TrafficClassMin, packetVal.Flags.TrafficClassMax)
+				if ipv6.TrafficClass < packetVal.IPv6Layer.TrafficClassMin || ipv6.TrafficClass > packetVal.IPv6Layer.TrafficClassMax {
+					return fmt.Errorf("traffic class value %d is out of expected range [%d, %d]", ipv6.TrafficClass, packetVal.IPv6Layer.TrafficClassMin, packetVal.IPv6Layer.TrafficClassMax)
 				}
 			} else if ipv6.TrafficClass != packetVal.IPv6Layer.TrafficClass {
-				return fmt.Errorf("traffic class value is altered to: %d. expected: %d", ipv6.TrafficClass, packetVal.IPv6Layer.TrafficClass)
+				return fmt.Errorf("traffic class mismatch: got %d, want %d", ipv6.TrafficClass, packetVal.IPv6Layer.TrafficClass)
 			}
 			if packetVal.Flags != nil && packetVal.Flags.ValidateFlowLabel && ipv6.FlowLabel != packetVal.IPv6Layer.FlowLabel {
-				return fmt.Errorf("IPv6 flow label is not set properly. Expected: %d, Actual: %d", packetVal.IPv6Layer.FlowLabel, ipv6.FlowLabel)
+				return fmt.Errorf("IPv6 flow label mismatch: got %d, want %d", ipv6.FlowLabel, packetVal.IPv6Layer.FlowLabel)
 			}
 			if packetVal.IPv6Layer.NextHeader != 0 {
 				if uint32(ipv6.NextHeader) != packetVal.IPv6Layer.NextHeader {
-					return fmt.Errorf("next header value is altered to: %d. expected: %d", ipv6.NextHeader, packetVal.IPv6Layer.NextHeader)
+					return fmt.Errorf("next header value mismatch: got %d, want %d", ipv6.NextHeader, packetVal.IPv6Layer.NextHeader)
 				}
 			}
 			// If validation is successful for one packet, we can return.

@@ -836,8 +836,10 @@ func DecapPolicyRulesAndActionsGueIPv6Outer(t *testing.T, pf *oc.NetworkInstance
 	t.Helper()
 
 	policy := pf.GetOrCreatePolicy("gue-v6-decap-policy")
-	var ruleSeq uint32 = 10
-	var protocolUDP uint8 = 17
+	const (
+		ruleSeq     = 10
+		protocolUDP = 17
+	)
 
 	rule10 := policy.GetOrCreateRule(ruleSeq)
 	rule10.GetOrCreateIpv6().DestinationAddress = ygot.String(params.TunnelIP)
@@ -905,6 +907,7 @@ func DecapGroupConfigGue(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 // DecapGroupConfigGueIPv6Outer configures the interface decap-group for MPLSoGUE traffic
 // carrying an IPv6 outer header (PF-1.19.v6).
 func DecapGroupConfigGueIPv6Outer(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, ocPFParams OcPolicyForwardingParams) {
+	t.Helper()
 	if deviations.GueGreDecapUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
@@ -933,8 +936,7 @@ func aristaGueDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPoli
 							tunnel decap-ip %s
 							`, params.GUEPort, decapProto, decapProto, params.GUEPort, params.AppliedPolicyName, params.TunnelIP)
 	if params.InterfaceID != "" {
-		cliConfig += fmt.Sprintf(`tunnel decap-interface %s
-								`, params.InterfaceID)
+		cliConfig += fmt.Sprintf("tunnel decap-interface %s\n", params.InterfaceID)
 	}
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
 }

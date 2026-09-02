@@ -370,8 +370,10 @@ func MPLSStaticLSPConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkIns
 // used by MPLSStaticLSPConfig under the StaticMplsUnsupported deviation.
 func RefreshStaticLSP(t *testing.T, dut *ondatra.DUTDevice, params DecapPolicyParams, payloadType string) {
 	t.Helper()
-	var lspName, nextHop string
-	var label uint32
+	var (
+		lspName, nextHop string
+		label            uint32
+	)
 	switch payloadType {
 	case IPv4:
 		lspName = params.StaticLSPNameIPv4
