@@ -932,8 +932,8 @@ test: {
 test: {
   id: "RT-1.4"
   description: "BGP Graceful Restart"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/gracefulrestart/ate_tests/bgp_graceful_restart_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/gracefulrestart/ate_tests/bgp_graceful_restart_test/bgp_graceful_restart_test.go"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/gracefulrestart/otg_tests/bgp_graceful_restart_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/gracefulrestart/otg_tests/bgp_graceful_restart_test/bgp_graceful_restart_test.go"
 }
 test: {
   id: "RT-1.5"
