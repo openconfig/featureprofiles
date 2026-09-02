@@ -1557,7 +1557,7 @@ func ConfigureSoftwareLoopback(t *testing.T, dut *ondatra.DUTDevice, InterfaceNa
 		helpers.GnmiCLIConfig(t, dut, cli)
 	} else {
 		t.Logf("software loopback OC is not available for vendor: %s", dut.Vendor())
-  }
+	}
 }
 
 // LoopbackConfig contains parameters for configuring a loopback interface.
