@@ -62,7 +62,8 @@ func TestMain(m *testing.M) {
 func TestGRIBIFullScaleDown(t *testing.T) {
 	params := cfgplugins.ScaleParams{
 		// gRIBI & System parameters
-		GRIBIBatchSize: 256,
+		GRIBIBatchSize:    256,
+		GRIBIBatchTimeout: 5 * time.Second,
 
 		// Default VRF parameters
 		NumDefaultNH:  2,
