@@ -32,7 +32,6 @@ import (
 	"google.golang.org/grpc/status"
 
 	cpb "github.com/openconfig/gnoi/containerz"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
 const (
