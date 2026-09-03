@@ -438,6 +438,21 @@ func computeNHGBuckets(numNHG int, req []NHGLoadBalancingParams) []nhgLoadBalanc
 	return buckets
 }
 
+// AreAllNHsReferenced returns true if every next hop from 0 to numNH-1 is referenced
+// by at least one next hop group under the given load balancing parameters, and false otherwise.
+func AreAllNHsReferenced(numNH int, numNHG int, lbParams []NHGLoadBalancingParams) bool {
+	if numNH <= 0 || numNHG <= 0 || len(lbParams) == 0 {
+		return false
+	}
+	buckets := computeNHGBuckets(numNHG, lbParams)
+	totalSlots := 0
+	for _, b := range buckets {
+		actualNHCount := min(b.numLoadBalancingNH, numNH)
+		totalSlots += b.numNHG * actualNHCount
+	}
+	return totalSlots >= numNH
+}
+
 // computeNHGWeightBuckets converts the NHG target weight sum spec from percentage-based to
 // absolute group counts.
 func computeNHGWeightBuckets(numNHG int, req []NHGWeightParams) []nhgWeightBucket {
@@ -595,9 +610,9 @@ type ScaleParams struct {
 	// The number of NextHopGroups in the repair VRF
 	NumRepairNHG int
 
-	NumEncapVRFs       int
-	NumUniqueEncapNH   int
-	NumEncapDefaultNHG int
+	NumEncapVRFs      int
+	NumEncapNHPerVRF  int
+	NumEncapNHGPerVRF int
 	// The load-balancing parameters for NextHopGroups in Encap VRF.
 	// e.g. EncapNHGLoadBalance: []cfgplugins.NHGLoadBalancingParams{
 	// 	{Pct: 75, NumNextHops: 4},
@@ -1195,6 +1210,12 @@ func buildNHGs(networkInstance string, baseNHGID uint64, numNHG int, baseNHID ui
 	return groups
 }
 
+// splitDefaultVRFPrimaryBackup returns the number of next hops and next hop groups
+// for each partition (primary and backup) in the Default VRF.
+func splitDefaultVRFPrimaryBackup(params ScaleParams) (int, int) {
+	return max(params.NumDefaultNH/2, 1), max(params.NumDefaultNHG/2, 1)
+}
+
 // BuildDefaultVRF generates NHs, NHGs, and IPv4 entries for the default VRF.
 func BuildDefaultVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, defaultVRF string, params ScaleParams) ([]string, []string) {
 	t.Helper()
@@ -1213,8 +1234,7 @@ func BuildDefaultVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, 
 	nhgEntries := []fluent.GRIBIEntry{}
 	ipv4Entries := []fluent.GRIBIEntry{}
 
-	numNHPart := max(params.NumDefaultNH/2, 1)
-	numNHGPart := max(params.NumDefaultNHG/2, 1)
+	numNHPart, numNHGPart := splitDefaultVRFPrimaryBackup(params)
 	numIPv4Part := max(params.NumDefaultIPv4/2, 1)
 	nhgBaseBackup := nhgBase + uint64(numNHGPart)
 
@@ -1294,6 +1314,16 @@ func BuildStaticGroups(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context
 	return s1NHG, s2NHG
 }
 
+// splitTransitVRFPrimaryBackup returns the (primaryNH, primaryNHG, backupNH, backupNHG) counts
+// for the Transit VRFs (TE_VRF_111 and TE_VRF_222).
+func splitTransitVRFPrimaryBackup(params ScaleParams) (primaryNH, primaryNHG, backupNH, backupNHG int) {
+	primaryNH = max(params.NumTransitNH/2, 1)
+	primaryNHG = max(params.NumTransitNHG/2, 1)
+	backupNH = max(params.NumTransitNH-primaryNH, 0)
+	backupNHG = max(params.NumTransitNHG-primaryNHG, 0)
+	return primaryNH, primaryNHG, backupNH, backupNHG
+}
+
 // BuildTransitVRFs generates entries for TE_VRF_111 and TE_VRF_222.
 func BuildTransitVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, defaultVRF string, primaryDefaultPrefixes, backupDefaultPrefixes []string, s1NHG, s2NHG uint64, params ScaleParams) {
 	t.Helper()
@@ -1339,22 +1369,15 @@ func BuildTransitVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context,
 		validatePrefixesV4[vrfName] = []string{fmt.Sprintf("%s/%d", vrfPrefixes[0], IPv4HostMask)}
 	}
 
-	nhPrimaryCount := int(max(params.NumTransitNH/2, 1))
-	nhgPrimaryCount := int(max(params.NumTransitNHG/2, 1))
-	nhPrimaryOffset := uint64(0)
-	nhgPrimaryOffset := uint64(0)
+	nhPrimaryCount, nhgPrimaryCount, nhBackupCount, nhgBackupCount := splitTransitVRFPrimaryBackup(params)
 	buildTransitVRF(TransitVRF111Str, TransitVRF111PrefixStart, primaryDefaultPrefixes,
-		NHBaseTransit+nhPrimaryOffset, nhPrimaryCount,
-		NHGBaseTransit+nhgPrimaryOffset, nhgPrimaryCount,
+		NHBaseTransit, nhPrimaryCount,
+		NHGBaseTransit, nhgPrimaryCount,
 		s1NHG)
 
-	nhBackupCount := params.NumTransitNH - nhPrimaryCount
-	nhgBackupCount := params.NumTransitNHG - nhgPrimaryCount
-	nhBackupOffset := uint64(nhPrimaryCount)
-	nhgBackupOffset := uint64(nhgPrimaryCount)
 	buildTransitVRF(TransitVRF222Str, TransitVRF222PrefixStart, backupDefaultPrefixes,
-		NHBaseTransit+nhBackupOffset, nhBackupCount,
-		NHGBaseTransit+nhgBackupOffset, nhgBackupCount,
+		NHBaseTransit+uint64(nhPrimaryCount), nhBackupCount,
+		NHGBaseTransit+uint64(nhgPrimaryCount), nhgBackupCount,
 		s2NHG)
 
 	t.Logf("BuildTransitVRFs: %d NHs total, %d NHGs total", params.NumTransitNH, params.NumTransitNHG)
@@ -1425,9 +1448,10 @@ func BuildRepairVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, d
 func BuildEncapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, defaultVRF string, monitorHWUtilization bool, params ScaleParams) {
 	t.Helper()
 
-	numOfTunnelsToUse := min(params.NumUniqueEncapNH, params.NumTransitIPv4)
+	totalEncapNH := params.NumEncapVRFs * params.NumEncapNHPerVRF
+	numOfTunnelsToUse := min(totalEncapNH, params.NumTransitIPv4)
 	if numOfTunnelsToUse <= 0 {
-		t.Fatalf("BuildEncapVRFs: numOfTunnelsToUse (%d) must be greater than 0 (NumUniqueEncapNH=%d, NumTransitIPv4=%d)", numOfTunnelsToUse, params.NumUniqueEncapNH, params.NumTransitIPv4)
+		t.Fatalf("BuildEncapVRFs: numOfTunnelsToUse (%d) must be greater than 0 (totalEncapNH=%d, NumTransitIPv4=%d)", numOfTunnelsToUse, totalEncapNH, params.NumTransitIPv4)
 	}
 	tunnelDsts, err := iputil.GenerateIPsWithStep(TransitVRF111PrefixStart, numOfTunnelsToUse, CommonPrefixStep)
 	if err != nil {
@@ -1445,10 +1469,10 @@ func BuildEncapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, d
 	nhgBaseIdx := fallbackNHGID + 1
 
 	encapVRFNames := BuildEncapVRFNames(params.NumEncapVRFs)
-	numNHPerVrf := max(params.NumUniqueEncapNH/params.NumEncapVRFs, 1)
-	numNHGPerVrf := max(params.NumEncapDefaultNHG/params.NumEncapVRFs, 1)
 
-	buildEncapVRF := func(vi int, vrf string, nhOffset int, numNHForThisVrf int, nhgOffset int, numNHGForThisVrf int) {
+	buildEncapVRF := func(vi int, vrf string) {
+		nhOffset := vi * params.NumEncapNHPerVRF
+		nhgOffset := vi * params.NumEncapNHGPerVRF
 		nhEntries := []fluent.GRIBIEntry{}
 		nhgEntries := []fluent.GRIBIEntry{}
 		ipEntries := []fluent.GRIBIEntry{}
@@ -1461,7 +1485,7 @@ func BuildEncapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, d
 		}
 
 		// Create NextHops assigned ONLY to this VRF
-		for i := 0; i < numNHForThisVrf; i++ {
+		for i := 0; i < params.NumEncapNHPerVRF; i++ {
 			globalNHIdx := nhOffset + i
 			nhEntry, _ := gribi.NHEntry(nhBaseIdx+uint64(globalNHIdx), "Encap", defaultVRF, fluent.InstalledInFIB,
 				&gribi.NHOptions{Src: IPv4OuterSrc111, Dest: tunnelDsts[globalNHIdx%numOfTunnelsToUse], VrfName: TransitVRF111Str})
@@ -1472,9 +1496,9 @@ func BuildEncapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, d
 		nhgEntries = append(nhgEntries, buildNHGs(
 			defaultVRF,
 			nhgBaseIdx+uint64(nhgOffset),
-			numNHGForThisVrf,
+			params.NumEncapNHGPerVRF,
 			nhBaseIdx+uint64(nhOffset),
-			numNHForThisVrf,
+			params.NumEncapNHPerVRF,
 			params.EncapNHGLoadBalance,
 			params.EncapNHGWeight,
 			0,
@@ -1486,7 +1510,7 @@ func BuildEncapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, d
 			t.Fatalf("Failed to generate IPv4 prefixes for VRF %s (vi=%d): %v", vrf, vi, v4Err)
 		}
 		for i, host := range v4Prefixes {
-			v4NHGID := nhgBaseIdx + uint64(nhgOffset+(i%numNHGForThisVrf))
+			v4NHGID := nhgBaseIdx + uint64(nhgOffset+(i%params.NumEncapNHGPerVRF))
 			ipEntries = append(ipEntries, fluent.IPv4Entry().WithNetworkInstance(vrf).
 				WithPrefix(fmt.Sprintf("%s/%d", host, IPv4HostMask)).
 				WithNextHopGroup(v4NHGID).WithNextHopGroupNetworkInstance(defaultVRF))
@@ -1499,7 +1523,7 @@ func BuildEncapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, d
 			t.Fatalf("Failed to generate IPv6 prefixes for VRF %s (vi=%d): %v", vrf, vi, v6Err)
 		}
 		for i, pfx := range v6Prefixes {
-			v6NHGID := nhgBaseIdx + uint64(nhgOffset+(i%numNHGForThisVrf))
+			v6NHGID := nhgBaseIdx + uint64(nhgOffset+(i%params.NumEncapNHGPerVRF))
 			ipEntries = append(ipEntries, fluent.IPv6Entry().WithNetworkInstance(vrf).
 				WithPrefix(fmt.Sprintf("%s/%d", pfx, IPv6HostMask)).
 				WithNextHopGroup(v6NHGID).WithNextHopGroupNetworkInstance(defaultVRF))
@@ -1520,7 +1544,7 @@ func BuildEncapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, d
 		wantPrefixesV6[vrf] = append(wantPrefixesV6[vrf], "::/0")
 
 		t.Logf("BuildEncapVRF: VRF %s (%d/%d): %d NHs, %d NHGs, %d IPv4, %d IPv6 entries", vrf, vi+1,
-			len(encapVRFNames), numNHForThisVrf, numNHGForThisVrf, params.NumEncapIPv4PerVRF,
+			len(encapVRFNames), params.NumEncapNHPerVRF, params.NumEncapNHGPerVRF, params.NumEncapIPv4PerVRF,
 			params.NumEncapIPv6PerVRF)
 
 		ProgramAndVerifyGribiEntries(t, dut, ctx, nhEntries, nhgEntries, ipEntries, params, func(gSession *gribi.Client) {
@@ -1531,19 +1555,7 @@ func BuildEncapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, d
 	}
 
 	for vi, vrf := range encapVRFNames {
-		nhOffset := vi * numNHPerVrf
-		numNHForThisVrf := numNHPerVrf
-		if vi == params.NumEncapVRFs-1 {
-			numNHForThisVrf = max(params.NumUniqueEncapNH-nhOffset, 1)
-		}
-
-		nhgOffset := vi * numNHGPerVrf
-		numNHGForThisVrf := numNHGPerVrf
-		if vi == params.NumEncapVRFs-1 {
-			numNHGForThisVrf = max(params.NumEncapDefaultNHG-nhgOffset, 1)
-		}
-
-		buildEncapVRF(vi, vrf, nhOffset, numNHForThisVrf, nhgOffset, numNHGForThisVrf)
+		buildEncapVRF(vi, vrf)
 	}
 }
 
@@ -1608,6 +1620,11 @@ func VerifyFIBProgrammed(t *testing.T, c *gribi.Client, wantPrefixesV4 map[strin
 // ProgramGRIBIRoutes programs all VRFs and routes (Default, Static, Repair, Transit, Decap, Encap) via gRIBI.
 func ProgramGRIBIRoutes(t *testing.T, dut *ondatra.DUTDevice, defaultVRF string, params ScaleParams, monitorHWUtilization bool) {
 	t.Helper()
+	defer func() {
+		if t.Failed() {
+			LogHWUtilization(t, dut, monitorHWUtilization, "Failure-GRIBIRoutes")
+		}
+	}()
 	ctx := context.Background()
 
 	LogHWUtilization(t, dut, monitorHWUtilization, "Pre-BuildDefaultVRF")
@@ -2679,8 +2696,8 @@ func LogScaleParams(t *testing.T, params ScaleParams) {
 	sb.WriteString(fmt.Sprintf("    NumRepairIPv4       : %d\n", params.NumRepairIPv4))
 	sb.WriteString("  [Encap VRF]\n")
 	sb.WriteString(fmt.Sprintf("    NumEncapVRFs        : %d\n", params.NumEncapVRFs))
-	sb.WriteString(fmt.Sprintf("    NumUniqueEncapNH    : %d\n", params.NumUniqueEncapNH))
-	sb.WriteString(fmt.Sprintf("    NumEncapDefaultNHG  : %d\n", params.NumEncapDefaultNHG))
+	sb.WriteString(fmt.Sprintf("    NumEncapNHPerVRF    : %d\n", params.NumEncapNHPerVRF))
+	sb.WriteString(fmt.Sprintf("    NumEncapNHGPerVRF   : %d\n", params.NumEncapNHGPerVRF))
 	sb.WriteString(fmt.Sprintf("    NumEncapIPv4PerVRF  : %d\n", params.NumEncapIPv4PerVRF))
 	sb.WriteString(fmt.Sprintf("    NumEncapIPv6PerVRF  : %d\n", params.NumEncapIPv6PerVRF))
 	sb.WriteString(fmt.Sprintf("    EncapNHGLoadBal     : %s\n", formatNHGLoadBalancing(params.EncapNHGLoadBalance)))
@@ -2697,6 +2714,69 @@ func LogScaleParams(t *testing.T, params ScaleParams) {
 	t.Log(sb.String())
 }
 
+// validateDefaultVRFParams verifies scale parameters specific to the Default VRF.
+func validateDefaultVRFParams(t *testing.T, params ScaleParams) {
+	t.Helper()
+	if params.NumDefaultNH <= 0 {
+		t.Fatalf("validateDefaultVRFParams: NumDefaultNH (%d) must be greater than 0", params.NumDefaultNH)
+	}
+	if params.NumDefaultNHG <= 0 {
+		t.Fatalf("validateDefaultVRFParams: NumDefaultNHG (%d) must be greater than 0", params.NumDefaultNHG)
+	}
+	validateNHGLoadBalance(t, "DefaultNHGLoadBalance", params.DefaultNHGLoadBalance)
+	validateNHGWeight(t, "DefaultNHGWeight", params.DefaultNHGWeight)
+	numNHPart, numNHGPart := splitDefaultVRFPrimaryBackup(params)
+	if !AreAllNHsReferenced(numNHPart, numNHGPart, params.DefaultNHGLoadBalance) {
+		t.Fatalf("validateDefaultVRFParams: not all Default VRF next hops (%d) will be referenced by next hop groups (%d) given DefaultNHGLoadBalance", params.NumDefaultNH, params.NumDefaultNHG)
+	}
+}
+
+// validateEncapVRFParams verifies scale parameters specific to the Encap VRFs.
+func validateEncapVRFParams(t *testing.T, params ScaleParams) {
+	t.Helper()
+	if params.NumEncapVRFs <= 0 {
+		t.Fatalf("validateEncapVRFParams: NumEncapVRFs (%d) must be greater than 0", params.NumEncapVRFs)
+	}
+	if params.NumEncapNHPerVRF <= 0 {
+		t.Fatalf("validateEncapVRFParams: NumEncapNHPerVRF (%d) must be greater than 0", params.NumEncapNHPerVRF)
+	}
+	if params.NumEncapNHGPerVRF <= 0 {
+		t.Fatalf("validateEncapVRFParams: NumEncapNHGPerVRF (%d) must be greater than 0", params.NumEncapNHGPerVRF)
+	}
+	if params.NumTransitIPv4 == 0 {
+		t.Fatalf("validateEncapVRFParams: NumTransitIPv4 must be greater than 0 when NumEncapNHPerVRF (%d) is greater than 0", params.NumEncapNHPerVRF)
+	}
+	validateNHGLoadBalance(t, "EncapNHGLoadBalance", params.EncapNHGLoadBalance)
+	validateNHGWeight(t, "EncapNHGWeight", params.EncapNHGWeight)
+
+	if !AreAllNHsReferenced(params.NumEncapNHPerVRF, params.NumEncapNHGPerVRF, params.EncapNHGLoadBalance) {
+		t.Fatalf("validateEncapVRFParams: not all Encap VRF next hops (%d) will be referenced by next hop groups (%d) given EncapNHGLoadBalance", params.NumEncapNHPerVRF, params.NumEncapNHGPerVRF)
+	}
+}
+
+// validateTransitVRFParams verifies scale parameters specific to the Transit VRFs.
+func validateTransitVRFParams(t *testing.T, params ScaleParams) {
+	t.Helper()
+	if params.NumTransitNH < 2 {
+		t.Fatalf("validateTransitVRFParams: NumTransitNH (%d) must be at least 2 to support both primary and repaired transit VRFs", params.NumTransitNH)
+	}
+	if params.NumTransitNHG < 2 {
+		t.Fatalf("validateTransitVRFParams: NumTransitNHG (%d) must be at least 2 to support both primary and repaired transit VRFs", params.NumTransitNHG)
+	}
+	validateNHGLoadBalance(t, "TransitNHGLoadBalance", params.TransitNHGLoadBalance)
+	validateNHGWeight(t, "TransitNHGWeight", params.TransitNHGWeight)
+
+	nhPrimaryCount, nhgPrimaryCount, nhBackupCount, nhgBackupCount := splitTransitVRFPrimaryBackup(params)
+	if !AreAllNHsReferenced(nhPrimaryCount, nhgPrimaryCount, params.TransitNHGLoadBalance) {
+		t.Fatalf("validateTransitVRFParams: not all primary Transit VRF next hops (%d) will be referenced by next hop groups (%d) given TransitNHGLoadBalance", nhPrimaryCount, nhgPrimaryCount)
+	}
+	if nhBackupCount > 0 && nhgBackupCount > 0 {
+		if !AreAllNHsReferenced(nhBackupCount, nhgBackupCount, params.TransitNHGLoadBalance) {
+			t.Fatalf("validateTransitVRFParams: not all backup Transit VRF next hops (%d) will be referenced by next hop groups (%d) given TransitNHGLoadBalance", nhBackupCount, nhgBackupCount)
+		}
+	}
+}
+
 // validateScaleParams verifies that all scale configuration options are logically valid.
 func validateScaleParams(t *testing.T, params ScaleParams) {
 	t.Helper()
@@ -2708,21 +2788,10 @@ func validateScaleParams(t *testing.T, params ScaleParams) {
 	}
 
 	// Default VRF category
-	validateNHGLoadBalance(t, "DefaultNHGLoadBalance", params.DefaultNHGLoadBalance)
-	validateNHGWeight(t, "DefaultNHGWeight", params.DefaultNHGWeight)
+	validateDefaultVRFParams(t, params)
 
 	// Encap VRF category
-	if params.NumEncapVRFs <= 0 {
-		t.Fatalf("validateScaleParams: NumEncapVRFs (%d) must be greater than 0", params.NumEncapVRFs)
-	}
-	if params.NumEncapDefaultNHG < params.NumEncapVRFs {
-		t.Fatalf("validateScaleParams: NumEncapDefaultNHG (%d) must be greater than or equal to NumEncapVRFs (%d)", params.NumEncapDefaultNHG, params.NumEncapVRFs)
-	}
-	if params.NumUniqueEncapNH > 0 && params.NumTransitIPv4 == 0 {
-		t.Fatalf("validateScaleParams: NumTransitIPv4 must be greater than 0 when NumUniqueEncapNH (%d) is greater than 0", params.NumUniqueEncapNH)
-	}
-	validateNHGLoadBalance(t, "EncapNHGLoadBalance", params.EncapNHGLoadBalance)
-	validateNHGWeight(t, "EncapNHGWeight", params.EncapNHGWeight)
+	validateEncapVRFParams(t, params)
 
 	// Decap VRF category
 	if params.NumDecapEntries < 0 {
@@ -2738,8 +2807,7 @@ func validateScaleParams(t *testing.T, params ScaleParams) {
 	}
 
 	// Transit VRF category
-	validateNHGLoadBalance(t, "TransitNHGLoadBalance", params.TransitNHGLoadBalance)
-	validateNHGWeight(t, "TransitNHGWeight", params.TransitNHGWeight)
+	validateTransitVRFParams(t, params)
 
 	// General/Other validations
 	if params.NumPort2VLANs <= 0 {
