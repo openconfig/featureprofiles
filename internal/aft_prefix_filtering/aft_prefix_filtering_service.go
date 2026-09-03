@@ -274,7 +274,7 @@ func ConfigureATE(t *testing.T, ate *ondatra.ATEDevice) (gosnappi.Config, []stri
 // (1.5M IPv4 and 500k IPv6).
 func ConfigureBGP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, ni *oc.NetworkInstance) {
 	t.Helper()
-	configureBGPInstance(t, ni, DUTPort1.IPv4, []bgpNeighborSpec{
+	configureBGPInstance(t, dut, ni, DUTPort1.IPv4, []bgpNeighborSpec{
 		{address: ATEPort1.IPv4, peerGroup: bgpV4PeerGroup, v4: true},
 		{address: ATEPort2.IPv6, peerGroup: bgpV6PeerGroup, v4: false},
 	})
@@ -314,7 +314,7 @@ func ConfigureScaleBGP(t *testing.T, dut *ondatra.DUTDevice, cfg BGPParams) {
 	t.Helper()
 	v4PeerGroup := fmt.Sprintf("%s-%s", bgpV4PeerGroup, cfg.NetworkInstance.GetName())
 	v6PeerGroup := fmt.Sprintf("%s-%s", bgpV6PeerGroup, cfg.NetworkInstance.GetName())
-	configureBGPInstance(t, cfg.NetworkInstance, cfg.RouterID, []bgpNeighborSpec{
+	configureBGPInstance(t, dut, cfg.NetworkInstance, cfg.RouterID, []bgpNeighborSpec{
 		{address: cfg.V4Neighbor, peerGroup: v4PeerGroup, v4: true},
 		{address: cfg.V6Neighbor, peerGroup: v6PeerGroup, v4: false},
 	})
@@ -334,9 +334,8 @@ type bgpNeighborSpec struct {
 
 // configureBGPInstance configures a complete eBGP protocol instance in the given network instance.
 // It applies the supplied router ID and single-AFI neighbors with the accept-all import/export policy.
-func configureBGPInstance(t *testing.T, ni *oc.NetworkInstance, routerID string, neighbors []bgpNeighborSpec) {
+func configureBGPInstance(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkInstance, routerID string, neighbors []bgpNeighborSpec) {
 	t.Helper()
-	dut := ondatra.DUT(t, "dut")
 	if ni == nil {
 		t.Fatalf("Network Instance is not configured")
 	}
@@ -539,6 +538,9 @@ func DialGNMI(t *testing.T, dut *ondatra.DUTDevice) (gpb.GNMIClient, error) {
 // The afts/global-filter augment (openconfig-aft-global-filter.yang, added in
 // openconfig/public >= 3.3.0) is not yet present in the ondatra `oc` bindings,
 // so the path is constructed manually.
+//
+// TODO: Replace this manually-constructed path with the generated OC bindings
+// once Ondatra regenerates its `oc` package against openconfig/public >= 3.3.0.
 func globalFilterPolicyPath(niName, leaf string) *gpb.Path {
 	return &gpb.Path{
 		Origin: "openconfig",
