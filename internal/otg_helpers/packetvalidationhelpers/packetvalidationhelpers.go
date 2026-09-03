@@ -4,6 +4,7 @@ package packetvalidationhelpers
 import (
 	"fmt"
 	"os"
+	"sort"
 	"testing"
 
 	"github.com/google/gopacket"
@@ -330,11 +331,12 @@ func validateIPv4Header(t *testing.T, packetSource *gopacket.PacketSource, packe
 			if ip.TTL != packetVal.IPv4Layer.TTL {
 				return fmt.Errorf("IP TTL value is altered to: %d, expected: %d", ip.TTL, packetVal.IPv4Layer.TTL)
 			}
-			if len(expectedTOS) > 0 {
-				if _, ok := expectedTOS[ip.TOS]; !ok {
-					continue
+			if len(packetVal.IPv4Layer.AllowedTOSValues) > 0 {
+				delete(expectedTOS, ip.TOS)
+				if len(expectedTOS) == 0 {
+					return nil
 				}
-				return nil
+				continue
 			}
 			if packetVal.IPv4Layer.Tos != 0 {
 				if ip.TOS != packetVal.IPv4Layer.Tos {
@@ -345,8 +347,22 @@ func validateIPv4Header(t *testing.T, packetSource *gopacket.PacketSource, packe
 			return nil
 		}
 	}
-	if len(expectedTOS) > 0 {
-		return fmt.Errorf("no IPv4 packets with expected TOS values %v were found", packetVal.IPv4Layer.AllowedTOSValues)
+	if len(packetVal.IPv4Layer.AllowedTOSValues) > 0 {
+		missing := make([]uint8, 0, len(expectedTOS))
+		for tos := range expectedTOS {
+			missing = append(missing, tos)
+		}
+		sort.Slice(missing, func(i, j int) bool { return missing[i] < missing[j] })
+		// TOS = DSCP << 2, so DSCP = TOS >> 2.
+		missingDSCP := make([]uint8, len(missing))
+		expectedDSCP := make([]uint8, len(packetVal.IPv4Layer.AllowedTOSValues))
+		for i, tos := range missing {
+			missingDSCP[i] = tos >> 2
+		}
+		for i, tos := range packetVal.IPv4Layer.AllowedTOSValues {
+			expectedDSCP[i] = tos >> 2
+		}
+		return fmt.Errorf("not all expected DSCP values were preserved; missing DSCP values: %v (TOS: %v); expected all DSCP values: %v (TOS: %v)", missingDSCP, missing, expectedDSCP, packetVal.IPv4Layer.AllowedTOSValues)
 	}
 	return fmt.Errorf("no IPv4 packets found")
 }
