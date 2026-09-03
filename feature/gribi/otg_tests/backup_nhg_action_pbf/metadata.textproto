@@ -11,7 +11,7 @@ platform_exceptions: {
   }
   deviations: {
     ipv4_missing_enabled: true
-    interface_ref_interface_id_format: true
+    interface_id_format_required_for_policy_forwarding: true
     pf_require_match_default_rule: true
     pf_require_sequential_order_pbr_rules: true    
   }
@@ -36,6 +36,8 @@ platform_exceptions: {
     interface_config_vrf_before_address: true
     interface_enabled: true
     default_network_instance: "default"
+    backup_nhg_requires_vrf_with_decap: true
+    vrf_selection_policy_non_default_ni_unsupported: true
   }
 }
 tags: TAGS_DATACENTER_EDGE
