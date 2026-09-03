@@ -177,7 +177,7 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/baseline/certz_baseline_test.go"
 }
 test: {
-  id: "CERTZ-2"
+  id: "Certz-2"
   description: "Server Certificate"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/server_certificates/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/server_certificates/server_certificates_test.go"
