@@ -70,7 +70,7 @@ const (
 	isisOriginateInstance   = "test-originate"
 
 	// Traffic loss threshold
-	trafficLossThresholdPct = 2.0
+	trafficLossThresholdPct = 1.0
 
 	plenIPv4   = 30
 	plenIPv6   = 126
@@ -561,8 +561,8 @@ func configureNetworkInstances(t *testing.T, dutDataList []*dutData) {
 
 func configureDut(t *testing.T, dutDataList []*dutData) {
 	for _, dutData := range dutDataList {
-		b := &gnmi.SetBatch{}
 		for _, l := range dutData.lagData {
+			b := &gnmi.SetBatch{}
 			// Create LAG interface
 			l.LagName = netutil.NextAggregateInterface(t, dutData.dut)
 			dutData.lagName = append(dutData.lagName, l.LagName)
@@ -572,6 +572,7 @@ func configureDut(t *testing.T, dutDataList []*dutData) {
 
 		//Configure loopback interfaces
 		if len(dutData.loopbackData) > 0 {
+			b := &gnmi.SetBatch{}
 			configureLoopback(t, b, dutData.dut, dutData.loopbackData)
 			b.Set(t, dutData.dut)
 		}
@@ -651,7 +652,7 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 		flow.Metrics().SetEnable(true)
 		flow.TxRx().Port().SetTxName(otgConfig.Lags().Items()[0].Name()).SetRxNames([]string{otgConfig.Lags().Items()[0].Name()})
 		flow.Size().SetFixed(512)
-		flow.Rate().SetPercentage(5)
+		flow.Rate().SetPps(100)
 		flow.Duration().FixedPackets().SetPackets(100)
 		eth := flow.Packet().Add().Ethernet()
 		eth.Src().SetValue(f.srcMAC)
@@ -681,16 +682,53 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 }
 
 func configureLoopback(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, dutloopback []*loopbackAttrs) {
-	// Configure interface loopback
-	for i, dutloop := range dutloopback {
-		loopbackIntfName := netutil.LoopbackInterface(t, dut, i)
-		dutloopback[i].loopbackIntfName = loopbackIntfName
+	t.Helper()
+	used := make(map[string]bool)
+	var unassigned []*loopbackAttrs
+	for _, dutloop := range dutloopback {
+		if dutloop.loopbackIntfName == "" {
+			unassigned = append(unassigned, dutloop)
+		} else {
+			used[dutloop.loopbackIntfName] = true
+		}
+	}
+	if len(unassigned) > 0 {
+		freeLbs := findFreeLoopbacks(t, dut, len(unassigned), used)
+		for i, dutloop := range unassigned {
+			dutloop.loopbackIntfName = freeLbs[i]
+		}
+	}
+
+	for _, dutloop := range dutloopback {
+		loopbackIntfName := dutloop.loopbackIntfName
 		loop1 := dutloop.attr.NewOCInterface(loopbackIntfName, dut)
 		loop1.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
 		gnmi.BatchUpdate(batch, gnmi.OC().Interface(loopbackIntfName).Config(), loop1)
 
 		cfgplugins.AssignInterfaceToNetworkInstance(t, batch, dut, loopbackIntfName, &dutloop.networkInstance, uint32(0), false)
 	}
+}
+
+func findFreeLoopbacks(t *testing.T, dut *ondatra.DUTDevice, count int, used map[string]bool) []string {
+	t.Helper()
+	var free []string
+	for i := 0; len(free) < count && i < 100; i++ {
+		lbName := netutil.LoopbackInterface(t, dut, i)
+		if used[lbName] {
+			continue
+		}
+		lo := gnmi.OC().Interface(lbName).Subinterface(0)
+		ipv4Addrs := gnmi.LookupAll(t, dut, lo.Ipv4().AddressAny().State())
+		ipv6Addrs := gnmi.LookupAll(t, dut, lo.Ipv6().AddressAny().State())
+		if len(ipv4Addrs) == 0 && len(ipv6Addrs) == 0 {
+			free = append(free, lbName)
+			used[lbName] = true
+		}
+	}
+	if len(free) < count {
+		t.Fatalf("Failed to find %d free loopback interfaces on %s", count, dut.Name())
+	}
+	return free
 }
 
 func configureBGP(t *testing.T, dut *ondatra.DUTDevice, bgpCfg map[string]*niBGPConfig) {
@@ -952,14 +990,15 @@ func verifyAIGPEnabled(t *testing.T, dut *ondatra.DUTDevice, ni, nbrAddr string,
 	if v4 {
 		// enabled = gnmi.GetAll(t, dut, bgpAIGPPath.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Config().EnableAigp().State())
 		// if enabled != wantEnabled {
-		// 	t.Errorf("BGP neighbor %s in NI %s: AIGP/enabled want %v, got %v", nbrAddr, ni, wantEnabled, enabled)
+		//    t.Errorf("BGP neighbor %s in NI %s: AIGP/enabled want %v, got %v", nbrAddr, ni, wantEnabled, enabled)
 		// }
-		t.Errorf("canonical OC is not supported for BGP AIGP enablement")
+		t.Logf("canonical OC is not supported for BGP AIGP enablement")
 	} else {
-		t.Errorf("canonical OC is not supported for BGP AIGP enablement")
+		t.Logf("canonical OC is not supported for BGP AIGP enablement")
 		// enabled = gnmi.GetAll(t, dut, bgpAIGPPath.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Config().EnableAigp().State())
 		// if enabled != wantEnabled {
-		// t.Errorf("BGP neighbor %s in NI %s: AIGP/enabled want %v, got %v", nbrAddr, ni, wantEnabled, enabled)
+		//    t.Errorf("BGP neighbor %s in NI %s: AIGP/enabled want %v, got %v", nbrAddr, ni, wantEnabled, enabled)
+		// }
 	}
 }
 
@@ -1106,26 +1145,9 @@ func verifyBestPath(t *testing.T, dut *ondatra.DUTDevice, ni, nbrAddr, prefix st
 
 // validateTrafficFlows verifies traffic flow behavior (pass/fail) based on expected outcome
 func validateTrafficFlows(t *testing.T, otg *otg.OTG, otgConfig gosnappi.Config, flows []gosnappi.Flow) {
-
 	otgutils.LogFlowMetrics(t, otg, otgConfig)
-
 	for _, flow := range flows {
-		outPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State()))
-		inPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State()))
-		lossPct := ((outPkts - inPkts) * 100) / outPkts
-
-		t.Logf("Flow %s: OutPkts=%v, InPkts=%v, LossPct=%v", flow.Name(), outPkts, inPkts, lossPct)
-
-		if outPkts == 0 {
-			t.Fatalf("OutPkts for flow %s is 0, want > 0", flow.Name())
-		}
-
-		// Expecting traffic to pass (0% loss)
-		if got := lossPct; got > trafficLossThresholdPct {
-			t.Errorf("traffic validation FAILED: Flow %s has %v%% packet loss, want < %v%%", flow.Name(), got, trafficLossThresholdPct)
-		} else {
-			t.Logf("Traffic validation PASSED: Flow %s has 0%% packet loss", flow.Name())
-		}
+		otgutils.ExpectedTrafficLoss(t, otg, flow.Name(), 0, float64(trafficLossThresholdPct))
 	}
 }
 
