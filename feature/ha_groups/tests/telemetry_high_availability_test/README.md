@@ -21,31 +21,25 @@ Telemetry: Firewall High Availability
 
 #### Configuration
 
-* configure FW cluster between DUT1 and DUT2 with preemption enabled
-* DUT1 with low priority
-* DUT2 with high priority
-* Configure a link group with 4 links between DUT1 and DUT2
+* We assume FW1 and FW2 are configured with high availability.
+* We assume FW1 to be have the below configurions.
+  - FW1 is configured with priority 90
+  - FW2 is configured with priority 100
 
-### HA-1.0.1: Verify FW Cluster correctly reports the active/primary state, control/data links state, interface groups state.
+### HA-1.0: Verify FW Cluster correctly reports active/primary state before and after event, verify config ha-enabled and ha-mode works as expected.
 
 * Verify FW Cluster correctly reports the active/primary state
-* Verify control/data links state
-* Verify interface groups state
+  - Initially FW1 is expected to be in ACTIVE state
+  - FW2 is expected to be in PASSIVE state
+* Trigger an event to change the HA state of FW1 and FW2
+  - After the event validate the HA state on FW1 is PASSIVE
+  - and FW2 HA state is ACTIVE
+* config ha-enabled and ha-mode and verify the below oc path hold the
+  configured value
+  -/ha-groups/ha-group/config/ha-enabled
+  -/ha-groups/ha-group/config/ha-mode
 
-### HA-1.0.2: FW Cluster correctly reports HA state changes in the event of an operator triggered failover.
-
-* On Active device, suspend high-availability.
-* Passive device should detect suspension and become Active
-* Verify the state change the Firewall device.
-* Bring back the suspended device to functional state.
-* Verify the cluster status.
-
-### HA-1.0.3: FW Cluster correctly reports HA state changes in the event of a failure either of the FW Cluster or its links.
-
-* On the Active device verify link monitoring
-* Trigger restart system on Active FW cluster
-* Verify state/ha-state on Passive device, the state should change to active
-* Wait for previous active to come up, verify the active state is preempted once the device is "UP"
+### TODO: validate /ha-groups/ha-group/state/ha-peer-state which is currently not supported in openconfig-fw-high-availability
 
 #### Canonical OC
 
@@ -77,10 +71,10 @@ Telemetry: Firewall High Availability
 paths:
   /ha-groups/ha-group/state/ha-state:
   /ha-groups/ha-group/config/ha-enabled:
+  /ha-groups/ha-group/config/ha-mode:
 
 rpcs:
   gnmi:
-    gNMI.Subscribe:
     gNMI.Set:
     gNMI.Get:
 ```

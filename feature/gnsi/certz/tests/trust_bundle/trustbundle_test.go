@@ -22,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	setupService "github.com/openconfig/featureprofiles/feature/gnsi/certz/tests/internal/setup_service"
+	"github.com/openconfig/featureprofiles/feature/gnsi/certz/tests/internal/setup_service"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/gnmi/proto/gnmi"
 	certzpb "github.com/openconfig/gnsi/certz"
@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	dirPath                  = "../../test_data/"
+	scriptPath               = "../../test_data/"
 	timeOutVar time.Duration = 2 * time.Minute
 )
 
@@ -56,8 +56,35 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
+// verifyServices explicitly validates connections for all required gRPC services: gNMI, gNOI, gNSI, gRIBI, and P4RT.
+func verifyServices(t *testing.T, caCert *x509.CertPool, expectedResult bool, san, serverAddr, username, password string, cert tls.Certificate, mismatch bool) bool {
+	t.Helper()
+	t.Logf("%s: Verifying gNMI, gNOI, gNSI, gRIBI, and P4RT connections.", time.Now().String())
+	if result := setup_service.VerifyGnmi(t, caCert, san, serverAddr, username, password, cert, mismatch); !result {
+		t.Errorf("gNMI service validation failed: got %v, want %v", result, expectedResult)
+		return false
+	}
+	if result := setup_service.VerifyGnoi(t, caCert, san, serverAddr, username, password, cert, mismatch); !result {
+		t.Errorf("gNOI service validation failed: got %v, want %v", result, expectedResult)
+		return false
+	}
+	if result := setup_service.VerifyGnsi(t, caCert, san, serverAddr, username, password, cert, mismatch); !result {
+		t.Errorf("gNSI service validation failed: got %v, want %v", result, expectedResult)
+		return false
+	}
+	if result := setup_service.VerifyGribi(t, caCert, san, serverAddr, username, password, cert, mismatch); !result {
+		t.Errorf("gRIBI service validation failed: got %v, want %v", result, expectedResult)
+		return false
+	}
+	if result := setup_service.VerifyP4rt(t, caCert, san, serverAddr, username, password, cert, mismatch); !result {
+		t.Errorf("P4RT service validation failed: got %v, want %v", result, expectedResult)
+		return false
+	}
+	return true
+}
+
 // TestTrustBundle tests the load of server certificate and key from each of the following CA sets
-// ca-01/ca-02/ca-10/ca-1000 of both rsa and ecdsa keytype.
+// ca-01/ca-02/ca-10/ca-1000/ca-20000 of both rsa and ecdsa keytype.
 func TestTrustBundleCert(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
@@ -68,10 +95,11 @@ func TestTrustBundleCert(t *testing.T) {
 	username := creds.RPCUsername()
 	password := creds.RPCPassword()
 	t.Logf("%s:STATUS:Validation of all services that are using gRPC before certz rotation.", logTime)
-	gnmiClient, gnsiC := setupService.PreInitCheck(context.Background(), t, dut)
+	gnmiClient, gnsiC := setup_service.PreInitCheck(context.Background(), t, dut)
+	dirPath := t.TempDir()
 	//Generate testdata certificates.
 	t.Logf("%s:Creation of test data.", logTime)
-	if err := setupService.TestdataMakeCleanup(t, dirPath, timeOutVar, "./mk_cas.sh"); err != nil {
+	if err := setup_service.TestdataMakeCleanup(t, scriptPath, timeOutVar, "./mk_cas.sh", dirPath); err != nil {
 		t.Logf("%s:STATUS:Generation of testdata certificates failed!: %v", logTime, err)
 	}
 	//Create a certz client.
@@ -79,7 +107,7 @@ func TestTrustBundleCert(t *testing.T) {
 	certzClient := gnsiC.Certz()
 	t.Logf("%s:STATUS:Precheck:checking baseline sslprofile list.", logTime)
 	//Get sslprofile list.
-	if getResp := setupService.GetSslProfilelist(ctx, t, certzClient, &certzpb.GetProfileListRequest{}); slices.Contains(getResp.SslProfileIds, testProfile) {
+	if getResp := setup_service.GetSslProfilelist(ctx, t, certzClient, &certzpb.GetProfileListRequest{}); slices.Contains(getResp.SslProfileIds, testProfile) {
 		t.Fatalf("%s:STATUS:profileID %s already exists.", logTime, testProfile)
 	}
 	//Add new sslprofileID.
@@ -90,7 +118,7 @@ func TestTrustBundleCert(t *testing.T) {
 		t.Logf("%s:STATUS:Received the AddProfileResponse %v.", logTime, addProfileResponse)
 	}
 	//Get sslprofile list after new sslprofile addition.
-	if getResp := setupService.GetSslProfilelist(ctx, t, certzClient, &certzpb.GetProfileListRequest{}); !slices.Contains(getResp.SslProfileIds, testProfile) {
+	if getResp := setup_service.GetSslProfilelist(ctx, t, certzClient, &certzpb.GetProfileListRequest{}); !slices.Contains(getResp.SslProfileIds, testProfile) {
 		t.Fatalf("%s:STATUS:newly added profileID is not seen.", logTime)
 	} else {
 		t.Logf("%s:STATUS:new profileID %s is seen in sslprofile list", logTime, testProfile)
@@ -197,20 +225,44 @@ func TestTrustBundleCert(t *testing.T) {
 			newTLScreds:     true,
 			scale:           true,
 		},
+		{
+			desc:            "Certz4.1:Load the key-type rsa trustbundle with 20000CA configuration",
+			serverCertFile:  dirPath + "ca-20000/server-rsa-a-cert.pem",
+			serverKeyFile:   dirPath + "ca-20000/server-rsa-a-key.pem",
+			trustBundleFile: dirPath + "ca-20000/trust_bundle_20000_rsa.p7b",
+			clientCertFile:  dirPath + "ca-20000/client-rsa-a-cert.pem",
+			clientKeyFile:   dirPath + "ca-20000/client-rsa-a-key.pem",
+			cversion:        "v9",
+			bversion:        "bundle9",
+			newTLScreds:     true,
+			scale:           true,
+		},
+		{
+			desc:            "Certz4.1:Load the key-type ecdsa trustbundle with 20000CA configuration",
+			serverCertFile:  dirPath + "ca-20000/server-ecdsa-a-cert.pem",
+			serverKeyFile:   dirPath + "ca-20000/server-ecdsa-a-key.pem",
+			trustBundleFile: dirPath + "ca-20000/trust_bundle_20000_ecdsa.p7b",
+			clientCertFile:  dirPath + "ca-20000/client-ecdsa-a-cert.pem",
+			clientKeyFile:   dirPath + "ca-20000/client-ecdsa-a-key.pem",
+			cversion:        "v10",
+			bversion:        "bundle10",
+			newTLScreds:     true,
+			scale:           true,
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Logf("%s:STATUS:Starting test case: %s", logTime, tc.desc)
 			//Read the serverSAN (Subject Alternative Name) from the certificate used for TLS verification.
-			serverSAN := setupService.ReadDecodeServerCertificate(t, tc.serverCertFile)
+			serverSAN := setup_service.ReadDecodeServerCertificate(t, tc.serverCertFile)
 			//Build serverCertEntity for the server certificate rotation.
-			serverCert := setupService.CreateCertzChain(t, setupService.CertificateChainRequest{
-				RequestType:    setupService.EntityTypeCertificateChain,
+			serverCert := setup_service.CreateCertzChain(t, setup_service.CertificateChainRequest{
+				RequestType:    setup_service.EntityTypeCertificateChain,
 				ServerCertFile: tc.serverCertFile,
 				ServerKeyFile:  tc.serverKeyFile})
-			serverCertEntity := setupService.CreateCertzEntity(t, setupService.EntityTypeCertificateChain, &serverCert, tc.cversion)
+			serverCertEntity := setup_service.CreateCertzEntity(t, setup_service.EntityTypeCertificateChain, &serverCert, tc.cversion)
 			//Create a new Cert Pool and add the certs from the trust bundle.
-			pkcs7certs, pkcs7data, err := setupService.Loadpkcs7TrustBundle(tc.trustBundleFile)
+			pkcs7certs, pkcs7data, err := setup_service.Loadpkcs7TrustBundle(tc.trustBundleFile)
 			if err != nil {
 				t.Fatalf("%s:STATUS:failed to load trust bundle: %v", logTime, err)
 			}
@@ -219,7 +271,7 @@ func TestTrustBundleCert(t *testing.T) {
 				newCaCert.AddCert(c)
 			}
 			//Build trustBundleEntity for the server certificate rotation.
-			trustBundleEntity := setupService.CreateCertzEntity(t, setupService.EntityTypeTrustBundle, string(pkcs7data), tc.bversion)
+			trustBundleEntity := setup_service.CreateCertzEntity(t, setup_service.EntityTypeTrustBundle, string(pkcs7data), tc.bversion)
 			//Load Client certificate.
 			newClientCert, err := tls.LoadX509KeyPair(tc.clientCertFile, tc.clientKeyFile)
 			if err != nil {
@@ -232,7 +284,7 @@ func TestTrustBundleCert(t *testing.T) {
 				if err != nil {
 					t.Fatalf("%s:STATUS:%s:Failed to load previous client cert: %v", logTime, tc.desc, err)
 				}
-				oldPkcs7certs, oldPkcs7data, err := setupService.Loadpkcs7TrustBundle(prevTrustBundleFile)
+				oldPkcs7certs, oldPkcs7data, err := setup_service.Loadpkcs7TrustBundle(prevTrustBundleFile)
 				if err != nil {
 					t.Fatalf("%s:STATUS:%sFailed to load previous trust bundle,data %v with %v", logTime, tc.desc, oldPkcs7data, err)
 				}
@@ -242,11 +294,11 @@ func TestTrustBundleCert(t *testing.T) {
 					prevCaCert.AddCert(c)
 				}
 				//Before rotation,validation of all services with existing certificates.
-				if result := setupService.ServicesValidationCheck(t, prevCaCert, expectedResult, serverSAN, serverAddr, username, password, prevClientCert, tc.mismatch); !result {
+				if result := verifyServices(t, prevCaCert, expectedResult, serverSAN, serverAddr, username, password, prevClientCert, tc.mismatch); !result {
 					t.Fatalf("%s:STATUS:%s:service validation failed before rotate- got %v, want %v.", logTime, tc.desc, result, expectedResult)
 				}
 				//Retrieve the connection with previous TLS credentials for certz rotation.
-				conn := setupService.CreateNewDialOption(t, prevClientCert, prevCaCert, serverSAN, username, password, serverAddr)
+				conn := setup_service.CreateNewDialOption(t, prevClientCert, prevCaCert, serverSAN, username, password, serverAddr)
 				defer conn.Close()
 				certzClient = certzpb.NewCertzClient(conn)
 				gnmiClient = gnmi.NewGNMIClient(conn)
@@ -255,13 +307,20 @@ func TestTrustBundleCert(t *testing.T) {
 			}
 			//Initiate trustbundle rotation.
 			t.Logf("STATUS:%s Initiating Certz rotation with server cert: %s and trust bundle: %s.", tc.desc, tc.serverCertFile, tc.trustBundleFile)
-			if success := setupService.CertzRotate(ctx, t, newCaCert, certzClient, gnmiClient, newClientCert, dut, username, password, serverSAN, serverAddr, testProfile, tc.newTLScreds, tc.mismatch, tc.scale, &serverCertEntity, &trustBundleEntity); !success {
+			startTime := time.Now()
+			if success := setup_service.CertzRotate(ctx, t, newCaCert, certzClient, gnmiClient, newClientCert, dut, username, password, serverSAN, serverAddr, testProfile, tc.newTLScreds, tc.mismatch, tc.scale, &serverCertEntity, &trustBundleEntity); !success {
 				t.Fatalf("%s:STATUS: %s:CertzRotation failed.", logTime, tc.desc)
 			}
-			t.Logf("%s:STATUS:%s: TrustBundle rotation completed!", logTime, tc.desc)
+			elapsed := time.Since(startTime)
+			t.Logf("%s:STATUS:%s: TrustBundle rotation completed in %v!", logTime, tc.desc, elapsed)
+			// Certz-4.1 requirement: loading a new trust_bundle should not take longer than 120 seconds.
+			const maxTrustBundleLoadDuration = 120 * time.Second
+			if elapsed > maxTrustBundleLoadDuration {
+				t.Fatalf("%s:STATUS:%s: TrustBundle rotation took %v, exceeding maximum allowed duration of %v.", logTime, tc.desc, elapsed, maxTrustBundleLoadDuration)
+			}
 			//Post rotate validation of all services.
 			t.Run("Verification of new connection after successful trustBundle rotation", func(t *testing.T) {
-				if result := setupService.ServicesValidationCheck(t, newCaCert, expectedResult, serverSAN, serverAddr, username, password, newClientCert, tc.mismatch); !result {
+				if result := verifyServices(t, newCaCert, expectedResult, serverSAN, serverAddr, username, password, newClientCert, tc.mismatch); !result {
 					t.Fatalf("STATUS:%s:service validation failed after rotate- got %v, want %v.", tc.desc, result, expectedResult)
 				}
 				t.Logf("%s:STATUS:%s:service validation done!", logTime, tc.desc)
@@ -274,7 +333,7 @@ func TestTrustBundleCert(t *testing.T) {
 	}
 	t.Logf("%s:STATUS:Cleanup of test data.", logTime)
 	//Cleanup of test data.
-	if err := setupService.TestdataMakeCleanup(t, dirPath, timeOutVar, "./cleanup.sh"); err != nil {
+	if err := setup_service.TestdataMakeCleanup(t, scriptPath, timeOutVar, "./cleanup.sh", dirPath); err != nil {
 		t.Logf("%s:STATUS:Cleanup of testdata certificates failed!: %v", logTime, err)
 	}
 	t.Logf("%s:STATUS:Test completed!", logTime)
