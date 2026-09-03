@@ -1668,6 +1668,12 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/hierarchical_tunnel_recursion_test/hierarchical_tunnel_recursion_test.go"
 }
 test: {
+  id: "TE-3.9"
+  description: "gRIBI AFT Operations Ordering"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/aft_operations_ordering_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/aft_operations_ordering_test/aft_operations_ordering_test.go"
+}
+test: {
   id: "TE-4.1"
   description: "Base Leader Election"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/base_leader_election_test/README.md"
