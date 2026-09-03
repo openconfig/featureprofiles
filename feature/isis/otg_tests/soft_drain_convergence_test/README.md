@@ -42,21 +42,26 @@ shutdown. Dual-stack (IPv4 and IPv6) traffic is used to evaluate convergence.
 * Step 1 - Generate DUT configuration.
 * Step 2 - Push configuration to DUT using `gNMI.Set` with `REPLACE` option. Wait
   for IS-IS and BGP neighbor adjacencies to be fully UP.
-* Step 3 - Start continuous background IPv4 and IPv6 traffic from ATE Port 1
+* Step 3 - Use `gNMI.Get` or `gNMI.Subscribe` to verify the control plane has
+  converged before beginning the data-plane soak. Validate that the BGP routes are
+  programmed in the hardware forwarding table (FIB) by ensuring the number of installed
+  prefixes equals the expected 100,000 for the corresponding AFI/SAFI:
+  * `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/installed`
+* Step 4 - Start continuous background IPv4 and IPv6 traffic from ATE Port 1
   and Port 2 to the destination networks. Set a fixed, high transmission rate
   (e.g., 100,000 packets per second per flow) to accurately measure convergence
   in milliseconds.
-* Step 4 - Validate 0% packet loss for a soak period of 10 seconds to ensure a
+* Step 5 - Validate 0% packet loss for a soak period of 10 seconds to ensure a
   stable baseline.
-* Step 5 - Disable the active interface to ATE Port 3 using `gNMI.Set` (UPDATE)
+* Step 6 - Disable the active interface to ATE Port 3 using `gNMI.Set` (UPDATE)
   by setting `/interfaces/interface[name=<port3>]/config/enabled` to `false`.
-* Step 6 - Measure packet loss duration until BGP/ISIS reconverges on the
+* Step 7 - Measure packet loss duration until BGP/ISIS reconverges on the
   alternate path (ATE Port 4). Calculate the loss duration:
   `loss_duration_ms = (tx_frames - rx_frames) / (tx_rate_pps) * 1000`. Record
   the loss duration.
-* Step 7 - Re-enable the interface on DUT Port 3 using `gNMI.Set` (UPDATE) by
+* Step 8 - Re-enable the interface on DUT Port 3 using `gNMI.Set` (UPDATE) by
   setting `/interfaces/interface[name=<port3>]/config/enabled` to `true`.
-* Step 8 - Wait for the IS-IS adjacency to recover, BGP to reconverge, and
+* Step 9 - Wait for the IS-IS adjacency to recover, BGP to reconverge, and
   verify traffic load balances again across Port 3 and Port 4 with 0% packet
   loss.
 
@@ -147,13 +152,19 @@ shutdown. Dual-stack (IPv4 and IPv6) traffic is used to evaluate convergence.
 }
 ```
 
-* Step 3 - Wait for traffic to entirely shift to the alternate path (ATE Port
+* Step 3 - Use `gNMI.Get` or `gNMI.Subscribe` to verify the route shift via
+  telemetry on the DUT, accounting for potential BGP Next-Hop tracking delays due
+  to scanner timers. Verify that the active next-hop group for the advertised prefixes
+  has updated to the alternate path (ATE Port 4) in the Abstract Forwarding Table (AFT):
+  * IPv4: `/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry[prefix=<prefix>]/state/next-hop-group`
+  * IPv6: `/network-instances/network-instance/afts/ipv6-unicast/ipv6-entry[prefix=<prefix>]/state/next-hop-group`
+* Step 4 - Wait for traffic to entirely shift to the alternate path (ATE Port
   4). Measure the packet loss during the metric change process.
-* Step 4 - Once traffic has completely shifted, disable the interface to ATE
+* Step 5 - Once traffic has completely shifted, disable the interface to ATE
   Port 3 using `gNMI.Set` (UPDATE) by setting `/interfaces/interface[name=<port3>]/config/enabled`
   to `false`.
-* Step 5 - Measure the packet loss during this subsequent link shutdown.
-* Step 6 - Validation with pass/fail criteria:
+* Step 6 - Measure the packet loss during this subsequent link shutdown.
+* Step 7 - Validation with pass/fail criteria:
   * **Pass**: The packet loss duration during the metric change in RT-14.3.2
     must be near zero, and the packet loss during the subsequent link shutdown
     must be zero. The total packet loss duration for RT-14.3.2 must be at least
@@ -162,7 +173,7 @@ shutdown. Dual-stack (IPv4 and IPv6) traffic is used to evaluate convergence.
   * **Fail**: Traffic loss duration during soft drain is equivalent to hard
     drain, or traffic does not smoothly shift away from the soft-drained
     interface.
-* Step 7 - Restoration: Re-enable the interface on DUT Port 3 using `gNMI.Set`
+* Step 8 - Restoration: Re-enable the interface on DUT Port 3 using `gNMI.Set`
   (UPDATE) by setting `/interfaces/interface[name=<port3>]/config/enabled` to
   `true`. Wait for the IS-IS adjacency to recover. Then restore the IS-IS metric
   to its original value and verify traffic load balances again across Port 3 and
