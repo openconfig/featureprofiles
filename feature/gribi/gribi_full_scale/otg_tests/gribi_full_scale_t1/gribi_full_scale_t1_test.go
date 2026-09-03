@@ -60,7 +60,8 @@ func TestMain(m *testing.M) {
 func TestGRIBIFullScaleT1(t *testing.T) {
 	params := cfgplugins.ScaleParams{
 		// gRIBI & System parameters
-		GRIBIBatchSize: 2_000,
+		GRIBIBatchSize:    2_000,
+		GRIBIBatchTimeout: 20 * time.Second,
 
 		// Default VRF parameters
 		NumDefaultNH:   1_000,
@@ -96,8 +97,8 @@ func TestGRIBIFullScaleT1(t *testing.T) {
 		NumEncapVRFs:       5,
 		NumEncapIPv4PerVRF: 4_140,
 		NumEncapIPv6PerVRF: 5_060,
-		NumUniqueEncapNH:   14_000,
-		NumEncapDefaultNHG: 3_500,
+		NumEncapNHPerVRF:   2_800,
+		NumEncapNHGPerVRF:  700,
 		EncapNHGLoadBalance: []cfgplugins.NHGLoadBalancingParams{
 			{Pct: 75, NumNextHops: 4},
 			{Pct: 20, NumNextHops: 8},
@@ -121,7 +122,7 @@ func TestGRIBIFullScaleT1(t *testing.T) {
 		// Traffic parameters
 		TrafficRateMpps: 30_000_000,
 		TrafficDuration: 5 * time.Minute,
-		TrafficLossTol:  5,
+		TrafficLossTol:  0,
 	}
 	cfgplugins.RunFullScaleTest(t, params, *enablePacketCapture, *compactOTGFlows, *monitorHWUtilization)
 }
