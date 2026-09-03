@@ -1,19 +1,16 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "20184b9e-0cb6-42ec-a280-ec157acaa832"
-plan_id: "TE-11.21"
-description: "Backup NHG: Multiple NH with PBF"
-testbed: TESTBED_DUT_ATE_4LINKS
+uuid: "8d75e47a-6b45-4228-a42e-15104d49a023"
+plan_id: "TE-3.9"
+description: "gRIBI AFT Operations Ordering"
+testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
     vendor: CISCO
   }
   deviations: {
     ipv4_missing_enabled: true
-    interface_id_format_required_for_policy_forwarding: true
-    pf_require_match_default_rule: true
-    pf_require_sequential_order_pbr_rules: true   
   }
 }
 platform_exceptions: {
@@ -30,12 +27,15 @@ platform_exceptions: {
     vendor: ARISTA
   }
   deviations: {
-    omit_l2_mtu: true
     interface_enabled: true
     default_network_instance: "default"
-    interface_config_vrf_before_address: true
-    backup_nhg_requires_vrf_with_decap: true
-    vrf_selection_policy_non_default_ni_unsupported: true
   }
 }
-tags: TAGS_DATACENTER_EDGE
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    interface_enabled: true
+  }
+}
