@@ -1,0 +1,17 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "fb9c7064-3063-47cb-a585-e332de49c2a1"
+plan_id: "RT-3.4"
+description: "VRF Selection Policy Hardware Programming with Linecard and Supervisor Resiliency"
+testbed: TESTBED_DUT_ATE_4LINKS
+
+platform_exceptions:  {
+  platform:  {
+    vendor:  ARISTA
+  }
+  deviations:  {
+    interface_enabled:  true
+    default_network_instance:  "default"
+  }
+}
