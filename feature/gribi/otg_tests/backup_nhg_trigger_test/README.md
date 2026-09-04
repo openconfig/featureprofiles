@@ -42,7 +42,7 @@ Configure the following IP addresses on interfaces:
 * Destination prefixes:
   * IPv4 data destination: `192.0.2.0/24` (target host: `192.0.2.1`)
   * IPv6 data destination: `2001:db8:feed::/64` (target host: `2001:db8:feed::1`)
-  * Transit tunnel destination IPs: `10.40.193.1/32`, `10.40.193.2/32`
+  * Transit tunnel destination IPs: `198.18.193.1/32`, `198.18.193.2/32`
 * Network instances / VRFs:
   * `DEFAULT`
   * `TRANSIT_VRF` (non-default VRF for transit route resolution)
