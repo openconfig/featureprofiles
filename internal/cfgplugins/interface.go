@@ -75,6 +75,8 @@ type DUTAggData struct {
 	SubInterfaces   []*DUTSubInterfaceData
 	OndatraPortsIdx []int
 	OndatraPorts    []*ondatra.Port
+	DutPortsIdx     []int
+	DutPorts        []*ondatra.Port
 	LagName         string
 	LacpParams      *LACPParams
 	AggType         oc.E_IfAggregate_AggregationType
@@ -108,6 +110,14 @@ type Attributes struct {
 func (d *DUTAggData) PopulateOndatraPorts(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, v := range d.OndatraPortsIdx {
 		d.OndatraPorts = append(d.OndatraPorts, dut.Port(t, "port"+strconv.Itoa(v+1)))
+	}
+}
+
+// PopulateDUTPorts populates the DUTPorts field of the DutLagData from the DUTPortsIdx
+// field.
+func (d *DUTAggData) PopulateDUTPorts(t *testing.T, dut *ondatra.DUTDevice) {
+	for _, v := range d.DutPortsIdx {
+		d.DutPorts = append(d.DutPorts, dut.Port(t, "port"+strconv.Itoa(v+1)))
 	}
 }
 
@@ -960,6 +970,18 @@ func NewAggregateInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatc
 	gnmi.BatchDelete(b, gnmi.OC().Interface(aggID).Aggregation().MinLinks().Config())
 
 	l.PopulateOndatraPorts(t, dut)
+	if len(l.OndatraPorts) != 0 {
+		for _, op := range l.OndatraPorts {
+			AddPortToAggregate(t, dut, aggID, l.OndatraPorts, b, op)
+		}
+	}
+	l.PopulateDUTPorts(t, dut)
+	if len(l.DutPorts) != 0 {
+		for _, op := range l.DutPorts {
+			AddPortToAggregate(t, dut, aggID, l.DutPorts, b, op)
+		}
+	}
+
 	for _, op := range l.OndatraPorts {
 		AddPortToAggregate(t, dut, aggID, l.OndatraPorts, b, op)
 	}
@@ -1192,9 +1214,11 @@ func AddInterfaceMTUOps(b *gnmi.SetBatch, dut *ondatra.DUTDevice, intfName strin
 
 // StaticARPEntry defines per-port static ARP mapping.
 type StaticARPEntry struct {
-	PortName string // DUT port name (e.g., "port2")
-	MagicIP  string // Per-port IP (e.g., "192.0.2.1")
-	MagicMAC string // Per-port MAC (e.g., "00:1A:2B:3C:4D:5E")
+	PortName      string // DUT port name (e.g., "port2")
+	MagicIP       string // Per-port IP (e.g., "192.0.2.1")
+	MagicMAC      string // Per-port MAC (e.g., "00:1A:2B:3C:4D:5E")
+	IPType        string
+	InterfaceName string // Interface name (e.g., "Ethernet1")
 }
 
 // StaticARPConfig holds all per-port static ARP entries.
@@ -1498,6 +1522,41 @@ func ConfigureLACPFallbackCLI(t *testing.T, dut *ondatra.DUTDevice, lagIntfName 
 		helpers.GnmiCLIConfig(t, dut, cli)
 	default:
 		t.Fatalf("configureLACPFallbackCLI: unsupported vendor %s", dut.Vendor())
+	}
+}
+
+func ConfigureStaticArp(t *testing.T, dut *ondatra.DUTDevice, params StaticARPEntry) {
+	t.Helper()
+	if deviations.StaticArpOCUnsupported(dut) {
+		cli := ""
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			if params.IPType == "v4" {
+				cli = fmt.Sprintf("arp %s %s arpa", params.MagicIP, params.MagicMAC)
+			} else {
+				cli = fmt.Sprintf("ipv6 neighbor %s %s %s", params.MagicIP, params.InterfaceName, params.MagicMAC)
+			}
+			helpers.GnmiCLIConfig(t, dut, cli)
+		default:
+			t.Fatalf("configureStaticArp: unsupported vendor %s", dut.Vendor())
+		}
+	}
+}
+
+func ConfigureSoftwareLoopback(t *testing.T, dut *ondatra.DUTDevice, InterfaceName string) {
+	t.Helper()
+	cli := ""
+	if deviations.SoftLoopBackOcUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			cli = fmt.Sprintf("interface %s\n", InterfaceName)
+			cli += " traffic-loopback source system device mac"
+		default:
+			t.Fatalf("configureSoftwareLoopback: unsupported vendor %s", dut.Vendor())
+		}
+		helpers.GnmiCLIConfig(t, dut, cli)
+	} else {
+		t.Logf("software loopback OC is not available for vendor: %s", dut.Vendor())
 	}
 }
 
