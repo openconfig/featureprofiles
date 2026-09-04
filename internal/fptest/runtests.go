@@ -85,6 +85,8 @@ func testbedPathFromMetadata() (string, error) {
 		mpb.Metadata_TESTBED_DUT_400ZR_PLUS:           "dut_400zr_plus.testbed",
 		mpb.Metadata_TESTBED_DUT_400ZR_100G_4LINKS:    "dut_400zr_100g_4links.testbed",
 		mpb.Metadata_TESTBED_DUT_400FR_100G_4LINKS:    "dut_400fr_100g_4links.testbed",
+		mpb.Metadata_TESTBED_DUT_800ZR:                "dut_800zr.testbed",
+		mpb.Metadata_TESTBED_DUT_800ZR_PLUS:           "dut_800zr_plus.testbed",
 		mpb.Metadata_TESTBED_DUT_2LINKS:               "dut_2links.testbed",
 		mpb.Metadata_TESTBED_DUT_8_LOOP_2_ATE:         "dut_8_loop_2_ate.testbed",
 		mpb.Metadata_TESTBED_ATE_DUT1_4LINKS_DUT2_ATE: "ate_dut1_4links_dut2_ate.testbed",

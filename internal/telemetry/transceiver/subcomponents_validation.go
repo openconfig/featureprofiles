@@ -9,6 +9,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 // validateTempSensorTelemetry validates the temperature sensor telemetry.
@@ -16,7 +17,13 @@ func validateTempSensorTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondatr
 	if dut.Vendor() != ondatra.NOKIA {
 		return
 	}
-	nextTemperatureSensorSample := temperatureSensorStream.Next()
+	nextTemperatureSensorSample, ok := temperatureSensorStream.AwaitNext(timeout, func(v *ygnmi.Value[*oc.Component]) bool {
+		val, present := v.Val()
+		return present && isTemperatureSensorStreamReady(val, p, params)
+	})
+	if !ok {
+		t.Fatalf("Temperature sensor %v is not ready after %v minutes.", params.TempSensorNames[p.Name()], timeout.Minutes())
+	}
 	temperatureSensorValue, ok := nextTemperatureSensorSample.Val()
 	if !ok {
 		t.Fatalf("Sensor Component value is empty for port %v.", p.Name())
@@ -72,4 +79,28 @@ func validateTempSensorTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondatr
 			}
 		})
 	}
+}
+
+// isTemperatureSensorStreamReady returns true if the temperature sensor stream sample is ready
+// for validation (name, temperature leaves, and alarm) for this port and config params.
+func isTemperatureSensorStreamReady(val *oc.Component, p *ondatra.Port, params *cfgplugins.ConfigParameters) bool {
+	if val.GetName() != params.TempSensorNames[p.Name()] {
+		return false
+	}
+	t := val.GetTemperature()
+	if t == nil {
+		return false
+	}
+	inst := t.GetInstant()
+	max := t.GetMax()
+	if inst < minAllowedTemperature || inst > maxAllowedTemperature {
+		return false
+	}
+	if max < minAllowedTemperature || max > maxAllowedTemperature {
+		return false
+	}
+	if t.GetAlarmStatus() {
+		return false
+	}
+	return true
 }

@@ -617,6 +617,14 @@ func ToggleInterfaceState(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port,
 		}
 	}
 	gnmi.Replace(t, p.Device(), gnmi.OC().Interface(p.Name()).Config(), i)
+	if deviations.ExplicitBreakoutInterfaceConfig(dut) &&
+		!(deviations.BreakoutModeUnsupportedForEightHundredGb(dut) && params.PortSpeed == oc.IfEthernet_ETHERNET_SPEED_SPEED_800GB) {
+		gnmi.Replace(t, p.Device(), gnmi.OC().Interface(p.Name()+"/1").Config(), &oc.Interface{
+			Name:    ygot.String(p.Name() + "/1"),
+			Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+			Enabled: ygot.Bool(params.Enabled),
+		})
+	}
 }
 
 // InterfaceInitialize assigns OpMode with value received through operationalMode flag.
