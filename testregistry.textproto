@@ -1041,6 +1041,12 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/otg_tests/base_adjacencies_test/base_adjacencies_test.go"
 }
 test: {
+  id: "RT-1.66"
+  description: "Internal BGP multipath ECMP"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/multipath/otg_tests/internal_bgp_multipath_ecmp_test/README.md"
+  exec: " "
+}  
+test: {
   id: "RT-2.10"
   description: "IS-IS change LSP lifetime"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/otg_tests/isis_change_lsp_lifetime_test/README.md"
