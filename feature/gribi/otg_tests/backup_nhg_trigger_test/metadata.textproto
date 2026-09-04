@@ -1,0 +1,41 @@
+# proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "9c19b0d4-8d4e-4f1a-b673-f16cebc6da91"
+plan_id: "TE-11.4"
+description: "gRIBI BACKUP_ACTIVATE Hardware Convergence & FIB ACK Verification"
+testbed: TESTBED_DUT_ATE_4LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+    interface_ref_interface_id_format: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    explicit_interface_in_default_vrf: true
+    static_protocol_name: "static"
+    interface_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    omit_l2_mtu: true
+    static_protocol_name: "STATIC"
+    interface_config_vrf_before_address: true
+    interface_enabled: true
+    default_network_instance: "default"
+    backup_nhg_requires_vrf_with_decap: true
+    vrf_selection_policy_non_default_ni_unsupported: true
+  }
+}
+tags: TAGS_TRANSIT
