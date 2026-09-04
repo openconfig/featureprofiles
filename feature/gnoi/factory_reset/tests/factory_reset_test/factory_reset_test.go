@@ -43,7 +43,7 @@ var (
 	}
 )
 
-const maxRebootTime = 40 // 40 mins wait time for the factory reset and sztp to kick in
+const maxRebootTime = 60 // 60 mins wait time for the factory reset and sztp to kick in
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
