@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "16166927-5ff3-4271-9f5d-29f70b64973a"
+plan_id: "RT-5.17"
+description: "Aggregate Interface (LAG) Drain via Admin Down"
+testbed: TESTBED_DUT_ATE_2LINKS
