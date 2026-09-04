@@ -748,9 +748,9 @@ func sameAS(nbrs []*BgpNeighbor) bool {
 // handleMultipathDeviation implements the deviation logic whether multipath config
 // at the afisafi level is supported or not. It updates the root object with the
 // necessary configuration.
-func handleMultipathDeviation(t *testing.T, dut *ondatra.DUTDevice, root *oc.Root, cfg BGPNeighborsConfig) error {
+func handleMultipathDeviation(t *testing.T, dut *ondatra.DUTDevice, root *oc.Root, cfg BGPNeighborsConfig, protocolName string) error {
 	t.Helper()
-	bgp := root.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
+	bgp := root.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, protocolName).GetOrCreateBgp()
 	// Handle MultipathUnderAfiSafi deviation and Configure Multipath for Cisco
 	if deviations.EnableMultipathUnderAfiSafi(dut) {
 		switch dut.Vendor() {
@@ -805,6 +805,8 @@ type BGPNeighborsConfig struct {
 	PeerGrpNameV6 string
 	// List of BGP neighbors to be configured.
 	Nbrs []*BgpNeighbor
+	// Name of the protocol for the BGP neighbors.
+	ProtocolName string
 }
 
 // CreateBGPNeighbors creates BGP neighbors for the given router ID, peer group names, and
@@ -821,9 +823,14 @@ func CreateBGPNeighbors(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch,
 	}
 	peerAS := cfg.Nbrs[0].PeerAS
 
+	protocolName := cfg.ProtocolName
+	if protocolName == "" {
+		protocolName = "BGP"
+	}
+
 	root := &oc.Root{}
 	ni := root.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	protocol := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	protocol := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, protocolName)
 	bgp := protocol.GetOrCreateBgp()
 
 	global := bgp.GetOrCreateGlobal()
@@ -852,7 +859,7 @@ func CreateBGPNeighbors(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch,
 	applyPolicyV6.SetImportPolicy([]string{ALLOW})
 	applyPolicyV6.SetExportPolicy([]string{ALLOW})
 
-	if err := handleMultipathDeviation(t, dut, root, cfg); err != nil {
+	if err := handleMultipathDeviation(t, dut, root, cfg, protocolName); err != nil {
 		return err
 	}
 
@@ -876,7 +883,7 @@ func CreateBGPNeighbors(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch,
 	if err := handleMaxPrefixesDeviation(t, dut, sb, cfg); err != nil {
 		return err
 	}
-	gnmi.BatchUpdate(sb, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), root.GetNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP"))
+	gnmi.BatchUpdate(sb, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, protocolName).Config(), root.GetNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, protocolName))
 	return nil
 }
 
