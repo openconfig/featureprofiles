@@ -509,7 +509,7 @@ func verifyMatchingPrefixTelemetry(t *testing.T, dut *ondatra.DUTDevice, ate *on
 }
 
 func verifyNonMatchingCommunityTelemetry(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
-	commSet := gnmi.Get[*oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet](t, dut, gnmi.OC().RoutingPolicy().DefinedSets().BgpDefinedSets().CommunitySet(v4CommunitySet).State())
+	commSet := gnmi.Get[*oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet](t, dut, gnmi.OC().RoutingPolicy().DefinedSets().BgpDefinedSets().CommunitySet(v6CommunitySet).State())
 	if commSet == nil {
 		t.Errorf("Community set is nil, want non-nil")
 	}
@@ -530,7 +530,7 @@ func verifyNonMatchingCommunityTelemetry(t *testing.T, dut *ondatra.DUTDevice, a
 }
 
 func verifyMatchingCommunityTelemetry(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
-	commSet := gnmi.Get[*oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet](t, dut, gnmi.OC().RoutingPolicy().DefinedSets().BgpDefinedSets().CommunitySet(v4CommunitySet).State())
+	commSet := gnmi.Get[*oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet](t, dut, gnmi.OC().RoutingPolicy().DefinedSets().BgpDefinedSets().CommunitySet(v6CommunitySet).State())
 	if commSet == nil {
 		t.Errorf("Community set is nil, want non-nil")
 	}
@@ -712,12 +712,16 @@ func verifyMatchingPrefixTelemetryV6(t *testing.T, dut *ondatra.DUTDevice, ate *
 		t.Errorf("Prefix is nil, want: %s", advertisedIPv6.cidr(t))
 	}
 
-	_, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().Ipv6Reachability().Prefix(advertisedIPv6.address).State(), 60*time.Second, func(v *ygnmi.Value[*otgtelemetry.IsisRouter_LinkStateDatabase_Lsps_Tlvs_Ipv6Reachability_Prefix]) bool {
+	// Normalize the IPv6 address to its standard compressed format (e.g. 2001:db8:128:128::)
+	compressedAddr := net.ParseIP(advertisedIPv6.address).String()
+
+	_, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().Ipv6Reachability().Prefix(compressedAddr).State(), 60*time.Second, func(v *ygnmi.Value[*otgtelemetry.IsisRouter_LinkStateDatabase_Lsps_Tlvs_Ipv6Reachability_Prefix]) bool {
 		prefix, present := v.Val()
-		return present && prefix.GetPrefix() == advertisedIPv6.address
+		return present && prefix.GetPrefix() == compressedAddr
 	}).Await(t)
+
 	if !ok {
-		t.Errorf("Prefix not found, want: %s", advertisedIPv6.address)
+		t.Errorf("Prefix not found, want: %s", compressedAddr)
 	}
 }
 
@@ -967,6 +971,7 @@ func verifyMatchingPrefixWithRestartTelemetry(t *testing.T, ts *isissession.Test
 
 func verifyMatchingPrefixWithRestartTelemetryV6(t *testing.T, ts *isissession.TestSession) {
 	verifyMatchingPrefixTelemetryV6(t, ts.DUT, ts.ATE)
+	time.Sleep(2 * time.Minute)
 	t.Log("Restarting routing process via gNOI...")
 	gnoi.RestartRoutingProcess(t, ts.DUT)
 
