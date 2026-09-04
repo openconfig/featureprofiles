@@ -813,8 +813,8 @@ test: {
 test: {
   id: "RT-1.14"
   description: "BGP Long-Lived Graceful Restart"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/ate_tests/bgp_long_lived_graceful_restart/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/ate_tests/bgp_long_lived_graceful_restart/bgp_long_lived_graceful_restart_test.go"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_long_lived_graceful_restart/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_long_lived_graceful_restart/bgp_long_lived_graceful_restart_test.go"
 }
 test: {
   id: "RT-1.15"
