@@ -1635,9 +1635,9 @@ func ConfigureCLIDecapVRFMode(t *testing.T, dut *ondatra.DUTDevice) {
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
 }
 
-// GueDecapV6ScaleParams holds the parameters used to program a scaled MPLSoGUE
+// GueDecapIPv6ScaleParams holds the parameters used to program a scaled MPLSoGUE
 // decapsulation configuration matching on unique IPv6 outer headers.
-type GueDecapV6ScaleParams struct {
+type GueDecapIPv6ScaleParams struct {
 	// PolicyID is the policy-forwarding policy name.
 	PolicyID string
 	// OuterSrcIPv6s is the list of unique outer IPv6 source addresses; one
@@ -1660,29 +1660,29 @@ type GueDecapV6ScaleParams struct {
 	NetworkInstanceName string
 }
 
-// DecapGroupConfigGueV6Scale configures scaled MPLS-over-GUE decapsulation
+// DecapGroupConfigGueIPv6Scale configures scaled MPLS-over-GUE decapsulation
 // matching unique IPv6 outer headers. On platforms where policy-forwarding OC
 // is unsupported the equivalent native configuration is pushed instead, so that
 // the operational intent (decapsulate MPLSoGUE arriving on the IPv6 decap range
 // and forward the inner payload) is identical in both cases.
-func DecapGroupConfigGueV6Scale(t *testing.T, dut *ondatra.DUTDevice, params GueDecapV6ScaleParams) {
+func DecapGroupConfigGueIPv6Scale(t *testing.T, dut *ondatra.DUTDevice, params GueDecapIPv6ScaleParams) {
 	t.Helper()
 	if deviations.GueGreDecapUnsupported(dut) || deviations.PolicyForwardingOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			configureGueDecapV6ScaleNative(t, dut, params)
+			configureGueDecapIPv6ScaleNative(t, dut, params)
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'decap-group config'", dut.Vendor())
 		}
 		return
 	}
-	decapPolicyRulesAndActionsGueV6Scale(t, params)
+	decapPolicyRulesAndActionsGueIPv6Scale(t, params)
 }
 
-// decapPolicyRulesAndActionsGueV6Scale builds the OC policy-forwarding policy
+// decapPolicyRulesAndActionsGueIPv6Scale builds the OC policy-forwarding policy
 // with one decapsulate-mpls-in-udp rule per unique outer IPv6 source address and
 // applies it to the ingress interfaces.
-func decapPolicyRulesAndActionsGueV6Scale(t *testing.T, params GueDecapV6ScaleParams) {
+func decapPolicyRulesAndActionsGueIPv6Scale(t *testing.T, params GueDecapIPv6ScaleParams) {
 	t.Helper()
 	policy := params.PfInstance.GetOrCreatePolicy(params.PolicyID)
 	policy.PolicyId = ygot.String(params.PolicyID)
@@ -1701,7 +1701,7 @@ func decapPolicyRulesAndActionsGueV6Scale(t *testing.T, params GueDecapV6ScalePa
 	}
 }
 
-// configureGueDecapV6ScaleNative configures MPLSoGUE decapsulation for an IPv6
+// configureGueDecapIPv6ScaleNative configures MPLSoGUE decapsulation for an IPv6
 // outer header through the device's native configuration.
 //
 // EOS models decapsulation groups as a single address-family agnostic construct
@@ -1712,11 +1712,11 @@ func decapPolicyRulesAndActionsGueV6Scale(t *testing.T, params GueDecapV6ScalePa
 // The per-outer-source scale rules (one per unique outer IPv6 source address)
 // are expressed as an IPv6 traffic-policy applied on ingress, which is the EOS
 // equivalent of the OC policy-forwarding rules built by
-// decapPolicyRulesAndActionsGueV6Scale.
-func configureGueDecapV6ScaleNative(t *testing.T, dut *ondatra.DUTDevice, params GueDecapV6ScaleParams) {
+// decapPolicyRulesAndActionsGueIPv6Scale.
+func configureGueDecapIPv6ScaleNative(t *testing.T, dut *ondatra.DUTDevice, params GueDecapIPv6ScaleParams) {
 	t.Helper()
 	helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("ip decap-group type udp destination port %d payload mpls\n!", params.GUEPort))
-	setV6ScaleDecapGroupNative(t, dut, params, true)
+	setIPv6ScaleDecapGroupNative(t, dut, params, true)
 
 	// Per-rule counters are not maintained unless the counter granularity is
 	// enabled. This must be configured before the traffic policy is created and
@@ -1728,7 +1728,7 @@ func configureGueDecapV6ScaleNative(t *testing.T, dut *ondatra.DUTDevice, params
 	b.WriteString("traffic-policies\n")
 	b.WriteString(fmt.Sprintf("   traffic-policy %s\n", params.PolicyID))
 	for i, src := range params.OuterSrcIPv6s {
-		b.WriteString(fmt.Sprintf("      match %s ipv6\n", v6ScaleMatchName(i)))
+		b.WriteString(fmt.Sprintf("      match %s ipv6\n", ipv6ScaleMatchName(i)))
 		b.WriteString(fmt.Sprintf("         source prefix %s/%d\n", src, params.SrcPrefixLen))
 		b.WriteString(fmt.Sprintf("         protocol udp destination port %d\n", params.GUEPort))
 		b.WriteString("         actions\n")
@@ -1742,29 +1742,29 @@ func configureGueDecapV6ScaleNative(t *testing.T, dut *ondatra.DUTDevice, params
 	helpers.GnmiCLIConfig(t, dut, b.String())
 }
 
-// v6ScaleDecapGroupTemplate is the native decapsulation group carrying the
+// ipv6ScaleDecapGroupTemplate is the native decapsulation group carrying the
 // MPLSoGUE traffic; the address family is inferred from the decap-ip value.
-const v6ScaleDecapGroupTemplate = `
+const ipv6ScaleDecapGroupTemplate = `
 ip decap-group %s
   tunnel type udp
   tunnel decap-ip %s
   tunnel overlay mpls qos map mpls-traffic-class to traffic-class
 !`
 
-// setV6ScaleDecapGroupNative creates or removes the MPLSoGUE decap group
+// setIPv6ScaleDecapGroupNative creates or removes the MPLSoGUE decap group
 // through the device's native configuration.
-func setV6ScaleDecapGroupNative(t *testing.T, dut *ondatra.DUTDevice, params GueDecapV6ScaleParams, enabled bool) {
+func setIPv6ScaleDecapGroupNative(t *testing.T, dut *ondatra.DUTDevice, params GueDecapIPv6ScaleParams, enabled bool) {
 	t.Helper()
 	if !enabled {
 		helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("no ip decap-group %s\n!", params.PolicyID))
 		return
 	}
-	helpers.GnmiCLIConfig(t, dut, fmt.Sprintf(v6ScaleDecapGroupTemplate, params.PolicyID, params.DecapIPv6Prefix))
+	helpers.GnmiCLIConfig(t, dut, fmt.Sprintf(ipv6ScaleDecapGroupTemplate, params.PolicyID, params.DecapIPv6Prefix))
 }
 
-// v6ScaleMatchPrefix is the name prefix used for the per-source traffic
+// ipv6ScaleMatchPrefix is the name prefix used for the per-source traffic
 // policy match rules, so that they can be counted back from the running config.
-const v6ScaleMatchPrefix = "gue-decap-v6-rule-"
+const ipv6ScaleMatchPrefix = "gue-decap-v6-rule-"
 
 // trafficPolicyCounterCmds lists the counter-granularity configurations
 // used to enable per-rule traffic-policy counters. The accepted syntax differs
@@ -1873,28 +1873,28 @@ func gnmiNativeConfigNonFatal(t *testing.T, dut *ondatra.DUTDevice, config strin
 	}
 	// Bound the Set so an unresponsive gNMI server surfaces as an error the
 	// caller can log and recover from, instead of hanging the test.
-	ctx, cancel := context.WithTimeout(context.Background(), cliConfigSetTimeout)
+	ctx, cancel := context.WithTimeout(t.Context(), cliConfigSetTimeout)
 	defer cancel()
 	_, err = dut.RawAPIs().GNMI(t).Set(ctx, req)
 	return err
 }
 
-// v6ScaleMatchName returns the traffic-policy match rule name for the i-th
+// ipv6ScaleMatchName returns the traffic-policy match rule name for the i-th
 // outer IPv6 source address.
-func v6ScaleMatchName(i int) string {
-	return fmt.Sprintf("%s%d", v6ScaleMatchPrefix, i+1)
+func ipv6ScaleMatchName(i int) string {
+	return fmt.Sprintf("%s%d", ipv6ScaleMatchPrefix, i+1)
 }
 
-// GueDecapV6ScaleRuleCounters returns the matched packet count of every
+// GueDecapIPv6ScaleRuleCounters returns the matched packet count of every
 // per-outer-source decap rule programmed through the native/CLI path, keyed by
 // the rule name. It is the native equivalent of the OC
 // .../rules/rule/state/matched-pkts telemetry.
 //
 // A nil map is returned when the vendor has no native implementation.
-func GueDecapV6ScaleRuleCounters(t *testing.T, dut *ondatra.DUTDevice, params GueDecapV6ScaleParams) map[string]uint64 {
+func GueDecapIPv6ScaleRuleCounters(t *testing.T, dut *ondatra.DUTDevice, params GueDecapIPv6ScaleParams) map[string]uint64 {
 	t.Helper()
 	if !deviations.PolicyRuleCountersOCUnsupported(dut) {
-		return gueDecapV6ScaleRuleCountersOC(t, dut, params)
+		return gueDecapIPv6ScaleRuleCountersOC(t, dut, params)
 	}
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
@@ -1915,10 +1915,10 @@ func GueDecapV6ScaleRuleCounters(t *testing.T, dut *ondatra.DUTDevice, params Gu
 	}
 }
 
-// gueDecapV6ScaleRuleCountersOC reads the OpenConfig matched-pkts counter of
+// gueDecapIPv6ScaleRuleCountersOC reads the OpenConfig matched-pkts counter of
 // every decap rule, keyed by the same rule names the native path reports so
 // that both paths are interchangeable to callers.
-func gueDecapV6ScaleRuleCountersOC(t *testing.T, dut *ondatra.DUTDevice, params GueDecapV6ScaleParams) map[string]uint64 {
+func gueDecapIPv6ScaleRuleCountersOC(t *testing.T, dut *ondatra.DUTDevice, params GueDecapIPv6ScaleParams) map[string]uint64 {
 	t.Helper()
 	policyPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Policy(params.PolicyID)
 	counters := make(map[string]uint64, len(params.OuterSrcIPv6s))
@@ -1927,7 +1927,7 @@ func gueDecapV6ScaleRuleCountersOC(t *testing.T, dut *ondatra.DUTDevice, params 
 		if !ok {
 			continue
 		}
-		counters[v6ScaleMatchName(i)] = pkts
+		counters[ipv6ScaleMatchName(i)] = pkts
 	}
 	return counters
 }
@@ -1972,7 +1972,7 @@ func parseNativeTrafficPolicyCounters(out string) map[string]uint64 {
 			name = strings.TrimSuffix(fields[0], ":")
 			rest = fields[1:]
 		}
-		if !strings.HasPrefix(name, v6ScaleMatchPrefix) {
+		if !strings.HasPrefix(name, ipv6ScaleMatchPrefix) {
 			continue
 		}
 		for _, f := range rest {
@@ -1986,28 +1986,28 @@ func parseNativeTrafficPolicyCounters(out string) map[string]uint64 {
 	return counters
 }
 
-// SetGueDecapV6ScaleDecapGroup enables or disables the MPLSoGUE decap group.
+// SetGueDecapIPv6ScaleDecapGroup enables or disables the MPLSoGUE decap group.
 //
 // Disabling it makes the DUT forward the encapsulated packets without
 // terminating the tunnel, so that the outer IPv6 header remains visible to the
 // ingress classifiers and the per-outer-source counters can be observed.
-func SetGueDecapV6ScaleDecapGroup(t *testing.T, dut *ondatra.DUTDevice, params GueDecapV6ScaleParams) {
+func SetGueDecapIPv6ScaleDecapGroup(t *testing.T, dut *ondatra.DUTDevice, params GueDecapIPv6ScaleParams) {
 	t.Helper()
 	if !deviations.GueGreDecapUnsupported(dut) && !deviations.PolicyForwardingOCUnsupported(dut) {
-		setGueDecapV6ScaleDecapActionOC(t, dut, params, params.Enabled)
+		setGueDecapIPv6ScaleDecapActionOC(t, dut, params, params.Enabled)
 		return
 	}
 	if dut.Vendor() != ondatra.ARISTA {
 		t.Logf("Unsupported vendor %s for native MPLSoGUE decap group configuration", dut.Vendor())
 		return
 	}
-	setV6ScaleDecapGroupNative(t, dut, params, params.Enabled)
+	setIPv6ScaleDecapGroupNative(t, dut, params, params.Enabled)
 }
 
-// setGueDecapV6ScaleDecapActionOC toggles the decapsulate-mpls-in-udp action of
+// setGueDecapIPv6ScaleDecapActionOC toggles the decapsulate-mpls-in-udp action of
 // every decap rule in a single batched gNMI Set, leaving the match criteria (and
 // therefore the per-rule counters) in place.
-func setGueDecapV6ScaleDecapActionOC(t *testing.T, dut *ondatra.DUTDevice, params GueDecapV6ScaleParams, enabled bool) {
+func setGueDecapIPv6ScaleDecapActionOC(t *testing.T, dut *ondatra.DUTDevice, params GueDecapIPv6ScaleParams, enabled bool) {
 	t.Helper()
 	policyPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Policy(params.PolicyID)
 	sb := &gnmi.SetBatch{}
@@ -2018,9 +2018,9 @@ func setGueDecapV6ScaleDecapActionOC(t *testing.T, dut *ondatra.DUTDevice, param
 	t.Logf("Set decapsulate-mpls-in-udp=%v on %d rules of policy %q", enabled, len(params.OuterSrcIPv6s), params.PolicyID)
 }
 
-// ClearGueDecapV6ScaleCounters resets the per-outer-source counters so that a
+// ClearGueDecapIPv6ScaleCounters resets the per-outer-source counters so that a
 // subsequent traffic run can be measured in isolation.
-func ClearGueDecapV6ScaleCounters(t *testing.T, dut *ondatra.DUTDevice, params GueDecapV6ScaleParams) {
+func ClearGueDecapIPv6ScaleCounters(t *testing.T, dut *ondatra.DUTDevice, params GueDecapIPv6ScaleParams) {
 	t.Helper()
 	if !deviations.PolicyRuleCountersOCUnsupported(dut) {
 		t.Logf("Policy rule counters are read-only in OpenConfig; skipping counter reset for policy %q", params.PolicyID)
@@ -2031,26 +2031,25 @@ func ClearGueDecapV6ScaleCounters(t *testing.T, dut *ondatra.DUTDevice, params G
 			t.Logf("Clearing traffic-policy counters failed: %v", err)
 		}
 	}
-
 }
 
-// GueDecapV6ScaleRuleNames returns the names of all per-outer-source decap rules
-// that DecapGroupConfigGueV6Scale programs for the given parameters.
-func GueDecapV6ScaleRuleNames(params GueDecapV6ScaleParams) []string {
+// GueDecapIPv6ScaleRuleNames returns the names of all per-outer-source decap rules
+// that DecapGroupConfigGueIPv6Scale programs for the given parameters.
+func GueDecapIPv6ScaleRuleNames(params GueDecapIPv6ScaleParams) []string {
 	names := make([]string, 0, len(params.OuterSrcIPv6s))
 	for i := range params.OuterSrcIPv6s {
-		names = append(names, v6ScaleMatchName(i))
+		names = append(names, ipv6ScaleMatchName(i))
 	}
 	return names
 }
 
-// CountGueDecapV6ScaleRulesNative returns the number of per-outer-source decap
+// CountGueDecapIPv6ScaleRulesNative returns the number of per-outer-source decap
 // rules currently programmed through the native/CLI path. It is the CLI
 // equivalent of counting the OC policy-forwarding rules in state.
-func CountGueDecapV6ScaleRulesNative(t *testing.T, dut *ondatra.DUTDevice, params GueDecapV6ScaleParams) int {
+func CountGueDecapIPv6ScaleRulesNative(t *testing.T, dut *ondatra.DUTDevice, params GueDecapIPv6ScaleParams) int {
 	t.Helper()
 	if !deviations.PolicyForwardingOCUnsupported(dut) {
-		return countGueDecapV6ScaleRulesOC(t, dut, params)
+		return countGueDecapIPv6ScaleRulesOC(t, dut, params)
 	}
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
@@ -2059,20 +2058,20 @@ func CountGueDecapV6ScaleRulesNative(t *testing.T, dut *ondatra.DUTDevice, param
 		// nested match rules. Read the whole traffic-policies configuration and
 		// count the generated rule names instead.
 		out := helpers.RunCliCommand(t, dut, "show running-config all section traffic-policies")
-		if !strings.Contains(out, v6ScaleMatchPrefix) {
+		if !strings.Contains(out, ipv6ScaleMatchPrefix) {
 			out = helpers.RunCliCommand(t, dut, "show running-config")
 		}
 		count := 0
 		for _, line := range strings.Split(out, "\n") {
 			fields := strings.Fields(line)
-			if len(fields) >= 2 && fields[0] == "match" && strings.HasPrefix(fields[1], v6ScaleMatchPrefix) {
+			if len(fields) >= 2 && fields[0] == "match" && strings.HasPrefix(fields[1], ipv6ScaleMatchPrefix) {
 				count++
 			}
 		}
 		if count == 0 {
 			// Help debugging: show whether the policy exists at all and whether
 			// it is applied to the ingress interfaces.
-			t.Logf("No %q match rules found. traffic-policy %q present in running-config: %v", v6ScaleMatchPrefix, params.PolicyID, strings.Contains(out, "traffic-policy "+params.PolicyID))
+			t.Logf("No %q match rules found. traffic-policy %q present in running-config: %v", ipv6ScaleMatchPrefix, params.PolicyID, strings.Contains(out, "traffic-policy "+params.PolicyID))
 			t.Logf("traffic-policies running-config:\n%s", out)
 		}
 		return count
@@ -2082,9 +2081,9 @@ func CountGueDecapV6ScaleRulesNative(t *testing.T, dut *ondatra.DUTDevice, param
 	}
 }
 
-// countGueDecapV6ScaleRulesOC counts the decap rules present in the OpenConfig
+// countGueDecapIPv6ScaleRulesOC counts the decap rules present in the OpenConfig
 // policy-forwarding state of the policy.
-func countGueDecapV6ScaleRulesOC(t *testing.T, dut *ondatra.DUTDevice, params GueDecapV6ScaleParams) int {
+func countGueDecapIPv6ScaleRulesOC(t *testing.T, dut *ondatra.DUTDevice, params GueDecapIPv6ScaleParams) int {
 	t.Helper()
 	policyPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Policy(params.PolicyID)
 	count := 0
@@ -2096,9 +2095,9 @@ func countGueDecapV6ScaleRulesOC(t *testing.T, dut *ondatra.DUTDevice, params Gu
 	return count
 }
 
-// RemoveDecapGroupConfigGueV6Scale reverts the configuration applied by
-// DecapGroupConfigGueV6Scale.
-func RemoveDecapGroupConfigGueV6Scale(t *testing.T, dut *ondatra.DUTDevice, params GueDecapV6ScaleParams) {
+// RemoveDecapGroupConfigGueIPv6Scale reverts the configuration applied by
+// DecapGroupConfigGueIPv6Scale.
+func RemoveDecapGroupConfigGueIPv6Scale(t *testing.T, dut *ondatra.DUTDevice, params GueDecapIPv6ScaleParams) {
 	t.Helper()
 	if deviations.GueGreDecapUnsupported(dut) || deviations.PolicyForwardingOCUnsupported(dut) {
 		switch dut.Vendor() {

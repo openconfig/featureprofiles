@@ -4,7 +4,7 @@ package mpls_gue_ipv4_decap_scale_test
 import (
 	"fmt"
 	"math"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -35,29 +35,29 @@ func TestMain(m *testing.M) {
 }
 
 const (
-	ieee8023adLag       = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-	mplsLabelCount      = 2000
-	intCount            = 2000
-	mplsV4Label         = 99991
-	mplsV6Label         = 110993
-	dutIntStartIPv4     = "169.254.0.1"
-	otgIntStartIPv4     = "169.254.0.2"
-	dutIntStartIPv6     = "2000:0:0:1::1"
-	otgIntStartIPv6     = "2000:0:0:1::2"
-	intStepV4           = "0.0.0.4"
-	intStepV6           = "0:0:0:1::"
-	staticRoutePrefix   = "10.99.1.0/24"
-	staticRouteV6Prefix = "3000:1::/64"
-	staticRouteNextHop  = "194.0.2.2"
-	outerSrcIPv4        = "100.64.0.1"
-	outerDstIPv4        = "11.1.1.1"
-	innerSrcIPv4        = "22.1.1.1"
-	innerDstIPv4        = "21.1.1.1"
-	innerSrcIPv6        = "2000:1::1"
-	innerDstIPv6        = "3000:1::1"
-	mcastDst            = "239.1.1.1"
-	udpDstPort          = 6635
-	flowSrcCount        = 10000
+	ieee8023adLag         = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	mplsLabelCount        = 2000
+	subintfCount          = 2000
+	mplsIPv4Label         = 99991
+	mplsIPv6Label         = 110993
+	dutStartIPv4          = "169.254.0.1"
+	otgStartIPv4          = "169.254.0.2"
+	dutStartIPv6          = "2000:0:0:1::1"
+	otgStartIPv6          = "2000:0:0:1::2"
+	stepIPv4              = "0.0.0.4"
+	stepIPv6              = "0:0:0:1::"
+	staticRoutePrefix     = "10.99.1.0/24"
+	staticRouteIPv6Prefix = "3000:1::/64"
+	staticRouteNextHop    = "194.0.2.2"
+	outerSrcIPv4          = "100.64.0.1"
+	outerDstIPv4          = "11.1.1.1"
+	innerSrcIPv4          = "22.1.1.1"
+	innerDstIPv4          = "21.1.1.1"
+	innerSrcIPv6          = "2000:1::1"
+	innerDstIPv6          = "3000:1::1"
+	mcastDst              = "239.1.1.1"
+	udpDstPort            = 6635
+	flowSrcCount          = 10000
 	// outerSrcCount is the number of unique outer IPv4 source addresses. The
 	// README requires 1000+ sources taken from 100.64.0.0/22, which only holds
 	// 1024 addresses, so the count is capped accordingly.
@@ -91,35 +91,35 @@ const (
 	// LACP convergence at this scale needs more than the previous 3 minutes.
 	lagUpTimeout = 5 * time.Minute
 	// PF-1.20.v6 constants: scaled decapsulation with an IPv6 outer header.
-	v6ScaleFlowCount    = 1000            // Number of unique outer IPv6 flows/decap rules.
-	v6ScaleOuterSrcIPv6 = "2001:db8:1::1" // First outer IPv6 source address.
-	// v6ScaleOuterSrcStep is the step used to derive the 1000 unique outer IPv6
+	ipv6ScaleFlowCount    = 1000            // Number of unique outer IPv6 flows/decap rules.
+	ipv6ScaleOuterSrcIPv6 = "2001:db8:1::1" // First outer IPv6 source address.
+	// ipv6ScaleOuterSrcStep is the step used to derive the 1000 unique outer IPv6
 	// sources. It must match the increment the ATE applies to the IPv6 source
 	// field (gosnappi increments the address by 1), otherwise the traffic never
 	// matches the per-source decap rules programmed on the DUT.
-	v6ScaleOuterSrcStep = "::1"
-	v6ScaleOuterDstIPv6 = "2001:db8:2::1" // Outer IPv6 destination (decap address on the DUT).
-	// v6ScaleDecapPrefix is the IPv6 decap range owned by the DUT that the outer
+	ipv6ScaleOuterSrcStep = "::1"
+	ipv6ScaleOuterDstIPv6 = "2001:db8:2::1" // Outer IPv6 destination (decap address on the DUT).
+	// ipv6ScaleDecapPrefix is the IPv6 decap range owned by the DUT that the outer
 	// destination addresses of the MPLSoGUE traffic fall within.
-	v6ScaleDecapPrefix = "2001:db8:2::/64"
-	// v6ScaleLoopbackID selects the DUT loopback that owns the outer IPv6
-	// destination address, and v6ScaleDecapLoopbackLen is its prefix length.
-	v6ScaleLoopbackID       = 1
-	v6ScaleDecapLoopbackLen = 128
-	v6ScalePolicyID         = "gue-decap-scale-v6"
-	v6ScaleSrcPrefixLen     = 128
-	v6ScaleEphemeralMin     = 49152 // Lower bound of the ephemeral port range.
-	v6ScaleEphemeralMax     = 65535 // Upper bound of the ephemeral port range.
-	// v6ScaleLineRatePct is the aggregate line rate of the combined streams
+	ipv6ScaleDecapPrefix = "2001:db8:2::/64"
+	// ipv6ScaleLoopbackID selects the DUT loopback that owns the outer IPv6
+	// destination address, and ipv6ScaleDecapLoopbackLen is its prefix length.
+	ipv6ScaleLoopbackID       = 1
+	ipv6ScaleDecapLoopbackLen = 128
+	ipv6ScalePolicyID         = "gue-decap-scale-v6"
+	ipv6ScaleSrcPrefixLen     = 128
+	ipv6ScaleEphemeralMin     = 49152 // Lower bound of the ephemeral port range.
+	ipv6ScaleEphemeralMax     = 65535 // Upper bound of the ephemeral port range.
+	// ipv6ScaleLineRatePct is the aggregate line rate of the combined streams
 	// (>= 50% of the ingress port capacity as required by the README).
-	v6ScaleLineRatePct = 50
-	// v6ScaleSetTimeout bounds the gNMI Set that programs the 1000 decap rules.
-	v6ScaleSetTimeout = 5 * time.Minute
-	// v6ScaleECMPTolerancePct is the allowed deviation from a perfectly even
+	ipv6ScaleLineRatePct = 50
+	// ipv6ScaleSetTimeout bounds the gNMI Set that programs the 1000 decap rules.
+	ipv6ScaleSetTimeout = 5 * time.Minute
+	// ipv6ScaleECMPTolerancePct is the allowed deviation from a perfectly even
 	// distribution across the egress LAG member ports.
-	v6ScaleECMPTolerancePct = 5.0
-	// v6ScaleZeroRuleLogLimit bounds how many non-matching rule names are logged.
-	v6ScaleZeroRuleLogLimit = 20
+	ipv6ScaleECMPTolerancePct = 5.0
+	// ipv6ScaleZeroRuleLogLimit bounds how many non-matching rule names are logged.
+	ipv6ScaleZeroRuleLogLimit = 20
 	// healthThresholdPct is the maximum acceptable CPU/memory utilization.
 	healthThresholdPct = 80
 	// healthSubSampleInterval is the SAMPLE interval requested on the gNMI
@@ -127,14 +127,14 @@ const (
 	healthSubSampleInterval = 5 * time.Second
 	// healthCPUSubDuration / healthMemSubDuration / egressRateSubDuration are the
 	// durations of the /system/cpus, /system/memory and egress interface counter
-	// subscriptions respectively. Their sum must stay below v6ScaleTrafficDuration
+	// subscriptions respectively. Their sum must stay below ipv6ScaleTrafficDuration
 	// so that every sample is taken while traffic is running.
 	healthCPUSubDuration  = 25 * time.Second
 	healthMemSubDuration  = 15 * time.Second
 	egressRateSubDuration = 20 * time.Second
-	// v6ScaleTrafficDuration is how long traffic runs in the PF-1.20.v6 scale
+	// ipv6ScaleTrafficDuration is how long traffic runs in the PF-1.20.v6 scale
 	// test, sized to cover the telemetry subscriptions above.
-	v6ScaleTrafficDuration = 90 * time.Second
+	ipv6ScaleTrafficDuration = 90 * time.Second
 )
 
 var (
@@ -180,7 +180,7 @@ var (
 	flowOuterIPv4 = newOuterGUEFlow(outerFlowParams{
 		name:        "MPLSOGUE-IPv4-Traffic",
 		txSuffix:    ".IPv4",
-		mplsLabel:   mplsV4Label,
+		mplsLabel:   mplsIPv4Label,
 		flowRate:    100,
 		srcMAC:      agg2.AggMAC,
 		srcCount:    outerSrcCount,
@@ -198,7 +198,7 @@ var (
 	flowOuterIPv6 = newOuterGUEFlow(outerFlowParams{
 		name:       "MPLSOGUE-IPv6-Traffic",
 		txSuffix:   ".IPv6",
-		mplsLabel:  mplsV6Label,
+		mplsLabel:  mplsIPv6Label,
 		flowRate:   100,
 		srcMAC:     agg2.AggMAC,
 		srcCount:   outerSrcCount,
@@ -213,7 +213,7 @@ var (
 	flowOuterMcast = newOuterGUEFlow(outerFlowParams{
 		name:       "MPLSoGUE-Mcast-Traffic",
 		txSuffix:   ".IPv4",
-		mplsLabel:  mplsV4Label,
+		mplsLabel:  mplsIPv4Label,
 		flowRate:   100,
 		srcMAC:     agg2.AggMAC,
 		srcCount:   outerSrcCount,
@@ -249,58 +249,58 @@ var (
 	coreAggIntfID  string
 	coreAggIntfID2 string
 
-	// v6ScaleOuterSrcIPv6s holds the 1000 unique outer IPv6 source addresses used
+	// ipv6ScaleOuterSrcIPv6s holds the 1000 unique outer IPv6 source addresses used
 	// both for the PBR decap rules on the DUT and for the ATE traffic streams.
-	v6ScaleOuterSrcIPv6s []string
+	ipv6ScaleOuterSrcIPv6s []string
 
-	// flowOuterV6ScaleIPv4Payload is the MPLSoGUE flow with a unique IPv6 outer
+	// flowOuterIPv6ScaleIPv4Payload is the MPLSoGUE flow with a unique IPv6 outer
 	// header carrying an IPv4 inner payload.
-	flowOuterV6ScaleIPv4Payload = newOuterGUEFlow(outerFlowParams{
-		name:        "MPLSOGUE-V6Outer-Scale-IPv4-Payload",
+	flowOuterIPv6ScaleIPv4Payload = newOuterGUEFlow(outerFlowParams{
+		name:        "MPLSOGUE-IPv6Outer-Scale-IPv4-Payload",
 		txSuffix:    ".IPv6",
-		v6Outer:     true,
-		mplsLabel:   mplsV4Label,
-		flowRate:    v6ScaleLineRatePct / 2,
+		isIPv6Outer: true,
+		mplsLabel:   mplsIPv4Label,
+		flowRate:    ipv6ScaleLineRatePct / 2,
 		srcMAC:      agg2.AggMAC,
-		srcCount:    v6ScaleFlowCount,
-		udpSrcPort:  v6ScaleEphemeralMin,
-		udpSrcCount: v6ScaleFlowCount,
+		srcCount:    ipv6ScaleFlowCount,
+		udpSrcPort:  ipv6ScaleEphemeralMin,
+		udpSrcCount: ipv6ScaleFlowCount,
 	})
-	flowInnerV6ScaleIPv4Payload = &otgconfighelpers.Flow{
-		IPv4Flow: &otgconfighelpers.IPv4FlowParams{IPv4Src: innerSrcIPv4, IPv4Dst: innerDstIPv4, IPv4SrcCount: v6ScaleFlowCount, DSCP: innerDSCPMin, DSCPCount: innerDSCPCount},
-		UDPFlow:  &otgconfighelpers.UDPFlowParams{UDPSrcPort: v6ScaleEphemeralMin, UDPDstPort: 80, UDPSrcCount: v6ScaleFlowCount},
+	flowInnerIPv6ScaleIPv4Payload = &otgconfighelpers.Flow{
+		IPv4Flow: &otgconfighelpers.IPv4FlowParams{IPv4Src: innerSrcIPv4, IPv4Dst: innerDstIPv4, IPv4SrcCount: ipv6ScaleFlowCount, DSCP: innerDSCPMin, DSCPCount: innerDSCPCount},
+		UDPFlow:  &otgconfighelpers.UDPFlowParams{UDPSrcPort: ipv6ScaleEphemeralMin, UDPDstPort: 80, UDPSrcCount: ipv6ScaleFlowCount},
 	}
 
-	// flowOuterV6ScaleIPv6Payload is the MPLSoGUE flow with a unique IPv6 outer
+	// flowOuterIPv6ScaleIPv6Payload is the MPLSoGUE flow with a unique IPv6 outer
 	// header carrying an IPv6 inner payload.
-	flowOuterV6ScaleIPv6Payload = newOuterGUEFlow(outerFlowParams{
-		name:        "MPLSOGUE-V6Outer-Scale-IPv6-Payload",
+	flowOuterIPv6ScaleIPv6Payload = newOuterGUEFlow(outerFlowParams{
+		name:        "MPLSOGUE-IPv6Outer-Scale-IPv6-Payload",
 		txSuffix:    ".IPv6",
-		v6Outer:     true,
-		mplsLabel:   mplsV6Label,
-		flowRate:    v6ScaleLineRatePct / 2,
+		isIPv6Outer: true,
+		mplsLabel:   mplsIPv6Label,
+		flowRate:    ipv6ScaleLineRatePct / 2,
 		srcMAC:      agg3.AggMAC,
-		srcCount:    v6ScaleFlowCount,
-		udpSrcPort:  v6ScaleEphemeralMin,
-		udpSrcCount: v6ScaleFlowCount,
+		srcCount:    ipv6ScaleFlowCount,
+		udpSrcPort:  ipv6ScaleEphemeralMin,
+		udpSrcCount: ipv6ScaleFlowCount,
 	})
-	flowInnerV6ScaleIPv6Payload = &otgconfighelpers.Flow{
-		IPv6Flow: &otgconfighelpers.IPv6FlowParams{IPv6Src: innerSrcIPv6, IPv6Dst: innerDstIPv6, IPv6SrcCount: v6ScaleFlowCount, TrafficClass: innerDSCPMin, TrafficClassCount: innerDSCPCount, TrafficClassStep: innerTrafficClassStep},
-		UDPFlow:  &otgconfighelpers.UDPFlowParams{UDPSrcPort: v6ScaleEphemeralMin, UDPDstPort: 80, UDPSrcCount: v6ScaleFlowCount},
+	flowInnerIPv6ScaleIPv6Payload = &otgconfighelpers.Flow{
+		IPv6Flow: &otgconfighelpers.IPv6FlowParams{IPv6Src: innerSrcIPv6, IPv6Dst: innerDstIPv6, IPv6SrcCount: ipv6ScaleFlowCount, TrafficClass: innerDSCPMin, TrafficClassCount: innerDSCPCount, TrafficClassStep: innerTrafficClassStep},
+		UDPFlow:  &otgconfighelpers.UDPFlowParams{UDPSrcPort: ipv6ScaleEphemeralMin, UDPDstPort: 80, UDPSrcCount: ipv6ScaleFlowCount},
 	}
-	// decapValidationV6ScaleIPv4 / decapValidationV6ScaleIPv6 confirm at packet
+	// decapValidationIPv6ScaleIPv4 / decapValidationIPv6ScaleIPv6 confirm at packet
 	// level that the DUT actually removed the outer IPv6/UDP/MPLS (MPLSoGUE)
 	// headers of the PF-1.20.v6 scale flows and forwarded the inner payload with
 	// its DSCP/traffic-class and TTL/hop-limit preserved. Zero loss alone does not
 	// prove decapsulation, so these captures back the "DUT successfully
 	// decapsulates all 1000 flows" pass criterion.
-	decapValidationV6ScaleIPv4 = &packetvalidationhelpers.PacketValidation{
+	decapValidationIPv6ScaleIPv4 = &packetvalidationhelpers.PacketValidation{
 		PortName:    "port1",
 		CaptureName: "v6_scale_ipv4_decap",
 		Validations: validationsIPv4,
 		IPv4Layer:   &packetvalidationhelpers.IPv4Layer{DstIP: innerDstIPv4, Tos: 10, TTL: 64, SkipProtocolCheck: true},
 	}
-	decapValidationV6ScaleIPv6 = &packetvalidationhelpers.PacketValidation{
+	decapValidationIPv6ScaleIPv6 = &packetvalidationhelpers.PacketValidation{
 		PortName:    "port2",
 		CaptureName: "v6_scale_ipv6_decap",
 		Validations: validationsIPv6,
@@ -318,8 +318,8 @@ type outerFlowParams struct {
 	// txSuffix selects the transmitting OTG device of both core facing
 	// aggregates, either ".IPv4" or ".IPv6".
 	txSuffix string
-	// v6Outer selects an IPv6 outer header instead of the default IPv4 one.
-	v6Outer bool
+	// isIPv6Outer selects an IPv6 outer header instead of the default IPv4 one.
+	isIPv6Outer bool
 	// mplsLabel is the first label of the MPLSoGUE label stack.
 	mplsLabel uint32
 	// flowRate is the offered rate, in percent of the port line rate.
@@ -352,8 +352,8 @@ func newOuterGUEFlow(flowParams outerFlowParams) *otgconfighelpers.Flow {
 		MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: flowParams.mplsLabel, MPLSExp: 7, MPLSLabelCount: mplsLabelCount},
 		UDPFlow:           &otgconfighelpers.UDPFlowParams{UDPSrcPort: flowParams.udpSrcPort, UDPDstPort: udpDstPort, UDPSrcCount: flowParams.udpSrcCount},
 	}
-	if flowParams.v6Outer {
-		f.IPv6Flow = &otgconfighelpers.IPv6FlowParams{IPv6Src: v6ScaleOuterSrcIPv6, IPv6Dst: v6ScaleOuterDstIPv6, IPv6SrcCount: flowParams.srcCount}
+	if flowParams.isIPv6Outer {
+		f.IPv6Flow = &otgconfighelpers.IPv6FlowParams{IPv6Src: ipv6ScaleOuterSrcIPv6, IPv6Dst: ipv6ScaleOuterDstIPv6, IPv6SrcCount: flowParams.srcCount}
 		return f
 	}
 	f.IPv4Flow = &otgconfighelpers.IPv4FlowParams{IPv4Src: outerSrcIPv4, IPv4Dst: outerDstIPv4, IPv4SrcCount: flowParams.srcCount}
@@ -374,9 +374,7 @@ func newFlowValidation(flowName string, tolerancePct float32) *otgvalidationhelp
 // the member ports of both core facing aggregates, which transmit the
 // MPLSoGUE traffic.
 func allFlowPorts() []string {
-	ports := append([]string{}, agg1.MemberPorts...)
-	ports = append(ports, agg2.MemberPorts...)
-	return append(ports, agg3.MemberPorts...)
+	return slices.Concat(agg1.MemberPorts, agg2.MemberPorts, agg3.MemberPorts)
 }
 
 type networkConfig struct {
@@ -388,25 +386,25 @@ type networkConfig struct {
 }
 
 // generateNetConfig generates and returns a networkConfig object containing IPv4, IPv6, and MAC address allocations for both DUT and OTG interfaces.
-func generateNetConfig(t *testing.T, intCount int) (*networkConfig, error) {
+func generateNetConfig(t *testing.T, subintfCount int) (*networkConfig, error) {
 	t.Helper()
-	dutIPs, err := iputil.GenerateIPsWithStep(dutIntStartIPv4, intCount, intStepV4)
+	dutIPs, err := iputil.GenerateIPsWithStep(dutStartIPv4, subintfCount, stepIPv4)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate DUT IPs: %w", err)
 	}
 
-	otgIPs, err := iputil.GenerateIPsWithStep(otgIntStartIPv4, intCount, intStepV4)
+	otgIPs, err := iputil.GenerateIPsWithStep(otgStartIPv4, subintfCount, stepIPv4)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate OTG IPs: %w", err)
 	}
 
-	otgMACs := iputil.GenerateMACs("00:00:00:00:00:AA", intCount, "00:00:00:00:00:01")
-	dutIPsV6, err := iputil.GenerateIPv6sWithStep(dutIntStartIPv6, intCount, intStepV6)
+	otgMACs := iputil.GenerateMACs("00:00:00:00:00:AA", subintfCount, "00:00:00:00:00:01")
+	dutIPsV6, err := iputil.GenerateIPv6sWithStep(dutStartIPv6, subintfCount, stepIPv6)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate DUT IPv6s: %w", err)
 	}
 
-	otgIPsV6, err := iputil.GenerateIPv6sWithStep(otgIntStartIPv6, intCount, intStepV6)
+	otgIPsV6, err := iputil.GenerateIPv6sWithStep(otgStartIPv6, subintfCount, stepIPv6)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate OTG IPv6s: %w", err)
 	}
@@ -444,7 +442,7 @@ func configureOTG(t *testing.T) {
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice, netConfig *networkConfig, ocPFParams cfgplugins.OcPolicyForwardingParams) string {
 	t.Helper()
 	var interfaces []*attrs.Attributes
-	for i := range intCount {
+	for i := range subintfCount {
 		interfaces = append(interfaces, &attrs.Attributes{
 			Desc:         "Customer_connect",
 			MTU:          dutMtu,
@@ -536,27 +534,27 @@ func configureDUTAndOTG(t *testing.T) (*ondatra.DUTDevice, string, *networkConfi
 	t.Log("PF-1.20.1: Generate DUT Configuration")
 	dut := ondatra.DUT(t, "dut")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
-	netConfig, err := generateNetConfig(t, intCount)
+	netConfig, err := generateNetConfig(t, subintfCount)
 	if err != nil {
 		t.Fatalf("Error generating net config: %v", err)
 	}
-	mplsV4Labels := func() []int {
+	mplsIPv4Labels := func() []int {
 		r := make([]int, mplsLabelCount)
 		for i := range r {
-			r[i] = mplsV4Label + i
+			r[i] = mplsIPv4Label + i
 		}
 		return r
 	}()
 
-	mplsV6Labels := func() []int {
+	mplsIPv6Labels := func() []int {
 		r := make([]int, mplsLabelCount)
 		for i := range r {
-			r[i] = mplsV6Label + i
+			r[i] = mplsIPv6Label + i
 		}
 		return r
 	}()
 
-	for i := range intCount {
+	for i := range subintfCount {
 		agg1.Interfaces = append(agg1.Interfaces, &otgconfighelpers.InterfaceProperties{
 			Name:        fmt.Sprintf("agg1port%d", i+1),
 			IPv4:        netConfig.OtgIPv4s[i],
@@ -574,8 +572,8 @@ func configureDUTAndOTG(t *testing.T) (*ondatra.DUTDevice, string, *networkConfi
 	ocPFParams := defaultOCPolicyForwardingParams()
 
 	// Pass ocPFParams to ConfigureDut
-	ocPFParams.DecapPolicy.DecapMPLSParams.MplsStaticLabels = mplsV4Labels
-	ocPFParams.DecapPolicy.DecapMPLSParams.MplsStaticLabelsForIPv6 = mplsV6Labels
+	ocPFParams.DecapPolicy.DecapMPLSParams.MplsStaticLabels = mplsIPv4Labels
+	ocPFParams.DecapPolicy.DecapMPLSParams.MplsStaticLabelsForIPv6 = mplsIPv6Labels
 	// Pass ocPFParams to configureDut
 	custAggID := configureDUT(t, dut, netConfig, ocPFParams)
 	// Bind the flows to the Rx device names, now that agg1.Interfaces has been
@@ -1088,7 +1086,7 @@ func configureStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	sV6 := &cfgplugins.StaticRouteCfg{
 		NetworkInstance: deviations.DefaultNetworkInstance(dut),
-		Prefix:          staticRouteV6Prefix,
+		Prefix:          staticRouteIPv6Prefix,
 		NextHops:        map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{"1": oc.UnionString(agg2interface.IPv6Gateway)},
 	}
 
@@ -1153,8 +1151,8 @@ func TestMPLSOGUEDecapScale(t *testing.T) {
 			}
 			// The sub flows share the egress LAG member ports, so the balance is
 			// checked once against their combined counters.
-			if err := validateV6ScaleECMPonLAG(t, ate, flowNames(tc.outer)); err != nil {
-				t.Errorf("validateV6ScaleECMPonLAG(%s) got err: %v, want nil", tc.outer.FlowName, err)
+			if err := validateIPv6ScaleECMPonLAG(t, ate, flowNames(tc.outer)); err != nil {
+				t.Errorf("validateIPv6ScaleECMPonLAG(%s) got err: %v, want nil", tc.outer.FlowName, err)
 			}
 		})
 	}
@@ -1189,24 +1187,24 @@ func healthSubOpts(t *testing.T, dut *ondatra.DUTDevice) *gnmi.Opts {
 	return dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(healthSubSampleInterval))
 }
 
-// generateV6ScaleOuterSources returns v6ScaleFlowCount unique outer IPv6 source
+// generateIPv6ScaleOuterSources returns ipv6ScaleFlowCount unique outer IPv6 source
 // addresses used to program the decap rules and to generate the ATE streams.
-func generateV6ScaleOuterSources(t *testing.T) []string {
+func generateIPv6ScaleOuterSources(t *testing.T) []string {
 	t.Helper()
 
 	// The README requires the UDP source ports to vary within the ephemeral
 	// range 49152-65535; confirm the generated streams stay inside it.
-	if v6ScaleEphemeralMin+v6ScaleFlowCount-1 > v6ScaleEphemeralMax {
-		t.Fatalf("UDP source ports %d-%d exceed the ephemeral range %d-%d", v6ScaleEphemeralMin, v6ScaleEphemeralMin+v6ScaleFlowCount-1, v6ScaleEphemeralMin, v6ScaleEphemeralMax)
+	if ipv6ScaleEphemeralMin+ipv6ScaleFlowCount-1 > ipv6ScaleEphemeralMax {
+		t.Fatalf("UDP source ports %d-%d exceed the ephemeral range %d-%d", ipv6ScaleEphemeralMin, ipv6ScaleEphemeralMin+ipv6ScaleFlowCount-1, ipv6ScaleEphemeralMin, ipv6ScaleEphemeralMax)
 	}
-	srcs, err := iputil.GenerateIPv6sWithStep(v6ScaleOuterSrcIPv6, v6ScaleFlowCount, v6ScaleOuterSrcStep)
+	srcs, err := iputil.GenerateIPv6sWithStep(ipv6ScaleOuterSrcIPv6, ipv6ScaleFlowCount, ipv6ScaleOuterSrcStep)
 	if err != nil {
-		t.Fatalf("Failed to generate %d unique outer IPv6 sources: %v", v6ScaleFlowCount, err)
+		t.Fatalf("Failed to generate %d unique outer IPv6 sources: %v", ipv6ScaleFlowCount, err)
 	}
 	return srcs
 }
 
-// configureV6ScaleDecapPolicy programs v6ScaleFlowCount unique MPLSoGUE decap
+// configureIPv6ScaleDecapPolicy programs ipv6ScaleFlowCount unique MPLSoGUE decap
 // rules (one per unique outer IPv6 source address) in a single gNMI Set
 // operation and applies the resulting policy to the ingress aggregate interface.
 //
@@ -1215,7 +1213,7 @@ func generateV6ScaleOuterSources(t *testing.T) []string {
 // group and QoS classification), which is what makes the DUT pop the MPLS label
 // stack from the UDP payload and forward the inner IPv4/IPv6 packet.
 //
-// The gNMI Set is expected to complete within v6ScaleSetTimeout; the test fails
+// The gNMI Set is expected to complete within ipv6ScaleSetTimeout; the test fails
 // if the device rejects the configuration (e.g. TCAM exhaustion) or times out.
 //
 // It returns true when the rules were programmed through the OC
@@ -1225,18 +1223,18 @@ func generateV6ScaleOuterSources(t *testing.T) []string {
 // parent is the top-level test; all revert operations are registered on it so
 // that the configuration survives until every subtest (including the traffic
 // subtest) has finished.
-func configureV6ScaleDecapPolicy(t *testing.T, parent *testing.T, dut *ondatra.DUTDevice, srcs []string, ingressAggIDs []string) (bool, cfgplugins.GueDecapV6ScaleParams) {
+func configureIPv6ScaleDecapPolicy(t *testing.T, parent *testing.T, dut *ondatra.DUTDevice, srcs []string, ingressAggIDs []string) (bool, cfgplugins.GueDecapIPv6ScaleParams) {
 	t.Helper()
 	ocProgrammed := !deviations.GueGreDecapUnsupported(dut) && !deviations.PolicyForwardingOCUnsupported(dut)
 	root := &oc.Root{}
 	ni := root.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	ni.SetType(oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 	pf := ni.GetOrCreatePolicyForwarding()
-	guePFParams := cfgplugins.GueDecapV6ScaleParams{
-		PolicyID:            v6ScalePolicyID,
+	guePFParams := cfgplugins.GueDecapIPv6ScaleParams{
+		PolicyID:            ipv6ScalePolicyID,
 		OuterSrcIPv6s:       srcs,
-		SrcPrefixLen:        v6ScaleSrcPrefixLen,
-		DecapIPv6Prefix:     v6ScaleDecapPrefix,
+		SrcPrefixLen:        ipv6ScaleSrcPrefixLen,
+		DecapIPv6Prefix:     ipv6ScaleDecapPrefix,
 		GUEPort:             udpDstPort,
 		IngressInterfaceIDs: ingressAggIDs,
 		PfInstance:          pf,
@@ -1249,10 +1247,10 @@ func configureV6ScaleDecapPolicy(t *testing.T, parent *testing.T, dut *ondatra.D
 	// The outer IPv6 destination of the MPLSoGUE traffic must be owned by the
 	// DUT, otherwise the packets are never attracted to the decapsulation engine
 	// and are dropped instead of being decapsulated and forwarded.
-	configureV6ScaleDecapDestination(t, parent, dut)
+	configureIPv6ScaleDecapDestination(t, parent, dut)
 	t.Logf("Pushing %d IPv6 outer-header MPLSoGUE decap rules with a single gNMI Set...", len(srcs))
 	start := time.Now()
-	cfgplugins.DecapGroupConfigGueV6Scale(t, dut, guePFParams)
+	cfgplugins.DecapGroupConfigGueIPv6Scale(t, dut, guePFParams)
 	if ocProgrammed {
 		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(ni.GetName()).PolicyForwarding().Config(), pf)
 	}
@@ -1262,22 +1260,22 @@ func configureV6ScaleDecapPolicy(t *testing.T, parent *testing.T, dut *ondatra.D
 	// configuration.
 	parent.Cleanup(func() {
 		guePFParams.NetworkInstanceName = ni.GetName()
-		cfgplugins.RemoveDecapGroupConfigGueV6Scale(parent, dut, guePFParams)
+		cfgplugins.RemoveDecapGroupConfigGueIPv6Scale(parent, dut, guePFParams)
 	})
-	if elapsed > v6ScaleSetTimeout {
-		t.Errorf("gNMI Set of %d IPv6 decap rules took %v, want <= %v", len(srcs), elapsed, v6ScaleSetTimeout)
+	if elapsed > ipv6ScaleSetTimeout {
+		t.Errorf("gNMI Set of %d IPv6 decap rules took %v, want <= %v", len(srcs), elapsed, ipv6ScaleSetTimeout)
 		return ocProgrammed, guePFParams
 	}
 	t.Logf("gNMI Set of %d IPv6 MPLSoGUE decap rules completed in %v", len(srcs), elapsed)
 	return ocProgrammed, guePFParams
 }
 
-// configureV6ScaleDecapDestination assigns the outer IPv6 destination address of
+// configureIPv6ScaleDecapDestination assigns the outer IPv6 destination address of
 // the MPLSoGUE traffic to a DUT loopback so the traffic is routed to the DUT
-// itself and hits the decapsulation group covering v6ScaleDecapPrefix.
-func configureV6ScaleDecapDestination(t *testing.T, parent *testing.T, dut *ondatra.DUTDevice) {
+// itself and hits the decapsulation group covering ipv6ScaleDecapPrefix.
+func configureIPv6ScaleDecapDestination(t *testing.T, parent *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	loopName := netutil.LoopbackInterface(t, dut, v6ScaleLoopbackID)
+	loopName := netutil.LoopbackInterface(t, dut, ipv6ScaleLoopbackID)
 	lo := &oc.Interface{
 		Name: ygot.String(loopName),
 		Type: oc.IETFInterfaces_InterfaceType_softwareLoopback,
@@ -1290,26 +1288,26 @@ func configureV6ScaleDecapDestination(t *testing.T, parent *testing.T, dut *onda
 	if deviations.InterfaceEnabled(dut) {
 		s6.Enabled = ygot.Bool(true)
 	}
-	s6.GetOrCreateAddress(v6ScaleOuterDstIPv6).PrefixLength = ygot.Uint8(v6ScaleDecapLoopbackLen)
+	s6.GetOrCreateAddress(ipv6ScaleOuterDstIPv6).PrefixLength = ygot.Uint8(ipv6ScaleDecapLoopbackLen)
 	gnmi.Update(t, dut, gnmi.OC().Interface(loopName).Config(), lo)
-	t.Logf("Configured decap destination %s/%d on %s", v6ScaleOuterDstIPv6, v6ScaleDecapLoopbackLen, loopName)
+	t.Logf("Configured decap destination %s/%d on %s", ipv6ScaleOuterDstIPv6, ipv6ScaleDecapLoopbackLen, loopName)
 	parent.Cleanup(func() {
-		gnmi.Delete(parent, dut, gnmi.OC().Interface(loopName).Subinterface(0).Ipv6().Address(v6ScaleOuterDstIPv6).Config())
+		gnmi.Delete(parent, dut, gnmi.OC().Interface(loopName).Subinterface(0).Ipv6().Address(ipv6ScaleOuterDstIPv6).Config())
 	})
 }
 
-// verifyV6ScaleDecapRules confirms via telemetry that all programmed rules are
+// verifyIPv6ScaleDecapRules confirms via telemetry that all programmed rules are
 // present on the DUT after the scaled gNMI Set operation.
-func verifyV6ScaleDecapRules(t *testing.T, dut *ondatra.DUTDevice, wantRules int) error {
+func verifyIPv6ScaleDecapRules(t *testing.T, dut *ondatra.DUTDevice, wantRules int) error {
 	t.Helper()
-	policyPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Policy(v6ScalePolicyID)
+	policyPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Policy(ipv6ScalePolicyID)
 	// Wait for the last programmed rule to be reflected in state before counting.
-	if _, ok := gnmi.Watch(t, dut, policyPath.Rule(uint32(wantRules)).SequenceId().State(), v6ScaleSetTimeout,
+	if _, ok := gnmi.Watch(t, dut, policyPath.Rule(uint32(wantRules)).SequenceId().State(), ipv6ScaleSetTimeout,
 		func(val *ygnmi.Value[uint32]) bool {
 			_, present := val.Val()
 			return present
 		}).Await(t); !ok {
-		return fmt.Errorf("policy %v rule %d not programmed within %v", v6ScalePolicyID, wantRules, v6ScaleSetTimeout)
+		return fmt.Errorf("policy %v rule %d not programmed within %v", ipv6ScalePolicyID, wantRules, ipv6ScaleSetTimeout)
 	}
 	seqIDs := gnmi.LookupAll(t, dut, policyPath.RuleAny().SequenceId().State())
 	got := 0
@@ -1319,18 +1317,18 @@ func verifyV6ScaleDecapRules(t *testing.T, dut *ondatra.DUTDevice, wantRules int
 		}
 	}
 	if got != wantRules {
-		return fmt.Errorf("policy %v programmed rules: got %d, want %d", v6ScalePolicyID, got, wantRules)
+		return fmt.Errorf("policy %v programmed rules: got %d, want %d", ipv6ScalePolicyID, got, wantRules)
 	}
-	t.Logf("Policy %v reports all %d IPv6 decap rules programmed", v6ScalePolicyID, got)
+	t.Logf("Policy %v reports all %d IPv6 decap rules programmed", ipv6ScalePolicyID, got)
 	return nil
 }
 
-// verifyV6ScaleDecapRulesCLI confirms that all decap rules were programmed on
+// verifyIPv6ScaleDecapRulesCLI confirms that all decap rules were programmed on
 // platforms where policy-forwarding OC is unsupported and the equivalent native
 // configuration is used instead.
-func verifyV6ScaleDecapRulesCLI(t *testing.T, dut *ondatra.DUTDevice, params cfgplugins.GueDecapV6ScaleParams, wantRules int) error {
+func verifyIPv6ScaleDecapRulesCLI(t *testing.T, dut *ondatra.DUTDevice, params cfgplugins.GueDecapIPv6ScaleParams, wantRules int) error {
 	t.Helper()
-	got := cfgplugins.CountGueDecapV6ScaleRulesNative(t, dut, params)
+	got := cfgplugins.CountGueDecapIPv6ScaleRulesNative(t, dut, params)
 	if got < 0 {
 		return fmt.Errorf("no native verification available for vendor %v; cannot confirm %d decap rules", dut.Vendor(), wantRules)
 	}
@@ -1386,7 +1384,7 @@ func collectSystemHealth(t *testing.T, dut *ondatra.DUTDevice) systemHealth {
 		}
 	}
 	if len(instants) > 0 {
-		sort.Slice(instants, func(i, j int) bool { return instants[i] < instants[j] })
+		slices.Sort(instants)
 		h.sustainedCPUPct = instants[len(instants)/2]
 	}
 	if h.cpuSamples == 0 {
@@ -1505,29 +1503,29 @@ func testDecapScaleIPv6Outer(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.
 	t.Helper()
 	// Bind the egress (Aggregate1) subinterfaces to the scale flows.
 	for _, intf := range agg1.Interfaces {
-		flowOuterV6ScaleIPv4Payload.RxNames = append(flowOuterV6ScaleIPv4Payload.RxNames, intf.Name+".IPv4")
-		flowOuterV6ScaleIPv6Payload.RxNames = append(flowOuterV6ScaleIPv6Payload.RxNames, intf.Name+".IPv6")
+		flowOuterIPv6ScaleIPv4Payload.RxNames = append(flowOuterIPv6ScaleIPv4Payload.RxNames, intf.Name+".IPv4")
+		flowOuterIPv6ScaleIPv6Payload.RxNames = append(flowOuterIPv6ScaleIPv6Payload.RxNames, intf.Name+".IPv6")
 	}
 	// testDecapScaleIPv6Outer's t is the top-level test, so capture it for the
 	// cleanup registrations that must outlive the individual subtests.
 	parent := t
 	// Shared between the two subtests so that the per-rule counters can be read
 	// back after traffic has been forwarded.
-	var guePFParams cfgplugins.GueDecapV6ScaleParams
+	var guePFParams cfgplugins.GueDecapIPv6ScaleParams
 	var ocProgrammed bool
 	t.Run("PF-1.20.v6: Program 1000 unique IPv6 outer header decap rules", func(t *testing.T) {
-		v6ScaleOuterSrcIPv6s = generateV6ScaleOuterSources(t)
+		ipv6ScaleOuterSrcIPv6s = generateIPv6ScaleOuterSources(t)
 		if err := validateSystemHealth(t, collectSystemHealth(t, dut), "Before scaled gNMI Set"); err != nil {
 			t.Error(err)
 		}
 		// Both ingress (core facing) aggregates carry the MPLSoGUE traffic.
-		ocProgrammed, guePFParams = configureV6ScaleDecapPolicy(t, parent, dut, v6ScaleOuterSrcIPv6s, []string{coreAggIntfID, coreAggIntfID2})
+		ocProgrammed, guePFParams = configureIPv6ScaleDecapPolicy(t, parent, dut, ipv6ScaleOuterSrcIPv6s, []string{coreAggIntfID, coreAggIntfID2})
 		if ocProgrammed {
-			if err := verifyV6ScaleDecapRules(t, dut, v6ScaleFlowCount); err != nil {
+			if err := verifyIPv6ScaleDecapRules(t, dut, ipv6ScaleFlowCount); err != nil {
 				t.Error(err)
 			}
 		} else {
-			if err := verifyV6ScaleDecapRulesCLI(t, dut, guePFParams, v6ScaleFlowCount); err != nil {
+			if err := verifyIPv6ScaleDecapRulesCLI(t, dut, guePFParams, ipv6ScaleFlowCount); err != nil {
 				t.Error(err)
 			}
 		}
@@ -1542,18 +1540,18 @@ func testDecapScaleIPv6Outer(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.
 			}
 		}
 		// Both flows run simultaneously so that the combined line rate is at
-		// least v6ScaleLineRatePct of the ingress port capacity.
-		createFlow(t, top, flowOuterV6ScaleIPv4Payload, flowInnerV6ScaleIPv4Payload, true)
-		createFlow(t, top, flowOuterV6ScaleIPv6Payload, flowInnerV6ScaleIPv6Payload, false)
+		// least ipv6ScaleLineRatePct of the ingress port capacity.
+		createFlow(t, top, flowOuterIPv6ScaleIPv4Payload, flowInnerIPv6ScaleIPv4Payload, true)
+		createFlow(t, top, flowOuterIPv6ScaleIPv6Payload, flowInnerIPv6ScaleIPv6Payload, false)
 		// Device health and the egress packet rates are monitored through gNMI
 		// Subscribe while the scaled traffic is running.
-		sendTrafficWithTelemetry(t, ate, dut, custAggID, netConfig, v6ScaleTrafficDuration, func(t *testing.T) {
+		sendTrafficWithTelemetry(t, ate, dut, custAggID, netConfig, ipv6ScaleTrafficDuration, func(t *testing.T) {
 			validateSystemHealth(t, collectSystemHealth(t, dut), "During scaled traffic")
 			collectEgressPacketRates(t, dut)
 		})
 		// The scale flows must forward with zero loss, so every generated sub flow
 		// is validated against a zero tolerance.
-		for _, f := range []*otgconfighelpers.Flow{flowOuterV6ScaleIPv4Payload, flowOuterV6ScaleIPv6Payload} {
+		for _, f := range []*otgconfighelpers.Flow{flowOuterIPv6ScaleIPv4Payload, flowOuterIPv6ScaleIPv6Payload} {
 			for _, name := range flowNames(f) {
 				if err := newFlowValidation(name, 0).ValidateLossOnFlows(t, ate); err != nil {
 					t.Errorf("ValidateLossOnFlows(%s) got err: %v, want nil", name, err)
@@ -1563,13 +1561,13 @@ func testDecapScaleIPv6Outer(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.
 		// All the scale sub flows egress the same LAG simultaneously, so the
 		// balance is validated against the combined member-port counters rather
 		// than against a single flow's counters.
-		if err := validateV6ScaleECMPonLAG(t, ate, append(flowNames(flowOuterV6ScaleIPv4Payload), flowNames(flowOuterV6ScaleIPv6Payload)...)); err != nil {
-			t.Errorf("validateV6ScaleECMPonLAG(): got err: %v, want nil", err)
+		if err := validateIPv6ScaleECMPonLAG(t, ate, append(flowNames(flowOuterIPv6ScaleIPv4Payload), flowNames(flowOuterIPv6ScaleIPv6Payload)...)); err != nil {
+			t.Errorf("validateIPv6ScaleECMPonLAG(): got err: %v, want nil", err)
 		}
 		// Confirm every decap rule actually matched traffic, so that a rule that
 		// was programmed but never installed in hardware is detected.
 		if ocProgrammed {
-			if err := verifyV6ScaleRuleMatchedPkts(t, dut, v6ScaleFlowCount); err != nil {
+			if err := verifyIPv6ScaleRuleMatchedPkts(t, dut, ipv6ScaleFlowCount); err != nil {
 				t.Error(err)
 			}
 			return
@@ -1581,12 +1579,12 @@ func testDecapScaleIPv6Outer(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.
 		// in a dedicated pass with the decap group temporarily removed, which
 		// leaves the outer header intact on ingress.
 		guePFParams.Enabled = false
-		cfgplugins.SetGueDecapV6ScaleDecapGroup(t, dut, guePFParams)
+		cfgplugins.SetGueDecapIPv6ScaleDecapGroup(t, dut, guePFParams)
 		defer func() {
 			guePFParams.Enabled = true
-			cfgplugins.SetGueDecapV6ScaleDecapGroup(t, dut, guePFParams)
+			cfgplugins.SetGueDecapIPv6ScaleDecapGroup(t, dut, guePFParams)
 		}()
-		cfgplugins.ClearGueDecapV6ScaleCounters(t, dut, guePFParams)
+		cfgplugins.ClearGueDecapIPv6ScaleCounters(t, dut, guePFParams)
 		// Forwarding is intentionally not validated in this pass: without the
 		// decap group the outer destination is a local DUT address, so the
 		// packets are consumed by the DUT instead of being decapsulated and
@@ -1595,7 +1593,7 @@ func testDecapScaleIPv6Outer(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.
 		// with zero loss in the pass above.
 		t.Log("Re-sending traffic with the decap group removed to measure per-rule classification; 0 Rx on the ATE is expected in this pass")
 		sendTraffic(t, ate, dut, custAggID, netConfig)
-		verifyV6ScaleRuleMatchedPktsCLI(t, dut, guePFParams)
+		verifyIPv6ScaleRuleMatchedPktsCLI(t, dut, guePFParams)
 	})
 	t.Run("PF-1.20.v6: Verify MPLSoGUE headers are removed and inner payload preserved", func(t *testing.T) {
 		// The pass above proves zero loss; this pass proves at packet level that
@@ -1607,8 +1605,8 @@ func testDecapScaleIPv6Outer(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.
 			outer, inner     *otgconfighelpers.Flow
 			validationConfig *packetvalidationhelpers.PacketValidation
 		}{
-			{"IPv4 payload", flowOuterV6ScaleIPv4Payload, flowInnerV6ScaleIPv4Payload, decapValidationV6ScaleIPv4},
-			{"IPv6 payload", flowOuterV6ScaleIPv6Payload, flowInnerV6ScaleIPv6Payload, decapValidationV6ScaleIPv6},
+			{"IPv4 payload", flowOuterIPv6ScaleIPv4Payload, flowInnerIPv6ScaleIPv4Payload, decapValidationIPv6ScaleIPv4},
+			{"IPv6 payload", flowOuterIPv6ScaleIPv6Payload, flowInnerIPv6ScaleIPv6Payload, decapValidationIPv6ScaleIPv6},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				packetvalidationhelpers.ClearCapture(t, top, ate)
@@ -1623,11 +1621,11 @@ func testDecapScaleIPv6Outer(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.
 	})
 }
 
-// verifyV6ScaleRuleMatchedPkts checks the OC matched-pkts and matched-octets
+// verifyIPv6ScaleRuleMatchedPkts checks the OC matched-pkts and matched-octets
 // counters of every decap rule and reports the rules that never matched a packet.
-func verifyV6ScaleRuleMatchedPkts(t *testing.T, dut *ondatra.DUTDevice, wantRules int) error {
+func verifyIPv6ScaleRuleMatchedPkts(t *testing.T, dut *ondatra.DUTDevice, wantRules int) error {
 	t.Helper()
-	policyPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Policy(v6ScalePolicyID)
+	policyPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Policy(ipv6ScalePolicyID)
 	var zeroRules []uint32
 	var zeroOctetRules []uint32
 	var total, totalOctets uint64
@@ -1648,16 +1646,16 @@ func verifyV6ScaleRuleMatchedPkts(t *testing.T, dut *ondatra.DUTDevice, wantRule
 		totalOctets += octets
 	}
 	if len(zeroOctetRules) > 0 {
-		return fmt.Errorf("%d of %d decap rules reported 0 matched-octets (first offenders: %v); want non-zero octets on every rule", len(zeroOctetRules), wantRules, truncateUint32s(zeroOctetRules, v6ScaleZeroRuleLogLimit))
+		return fmt.Errorf("%d of %d decap rules reported 0 matched-octets (first offenders: %v); want non-zero octets on every rule", len(zeroOctetRules), wantRules, truncateUint32s(zeroOctetRules, ipv6ScaleZeroRuleLogLimit))
 	}
 	t.Logf("All %d decap rules reported matched-octets (total matched octets: %d)", wantRules, totalOctets)
-	reportV6ScaleZeroRules(t, len(zeroRules), wantRules, total, fmt.Sprint(zeroRules))
+	reportIPv6ScaleZeroRules(t, len(zeroRules), wantRules, total, fmt.Sprint(zeroRules))
 	return nil
 }
 
-// verifyV6ScaleRuleMatchedPktsCLI checks the native per-rule packet counters via
+// verifyIPv6ScaleRuleMatchedPktsCLI checks the native per-rule packet counters via
 // "show traffic-policy <policy> counters" and reports the rules that never matched a packet.
-func verifyV6ScaleRuleMatchedPktsCLI(t *testing.T, dut *ondatra.DUTDevice, params cfgplugins.GueDecapV6ScaleParams) error {
+func verifyIPv6ScaleRuleMatchedPktsCLI(t *testing.T, dut *ondatra.DUTDevice, params cfgplugins.GueDecapIPv6ScaleParams) error {
 	t.Helper()
 	// Without counter granularity the "count" actions are not backed by counter
 	// resources and always read 0. Enable them through the native CLI rather than
@@ -1665,11 +1663,11 @@ func verifyV6ScaleRuleMatchedPktsCLI(t *testing.T, dut *ondatra.DUTDevice, param
 	if !cfgplugins.TrafficPolicyCountersEnabled(t, dut) && !cfgplugins.EnableTrafficPolicyCounters(t, dut) {
 		return fmt.Errorf("traffic-policy counters are not enabled on %v; per-rule matched-packet validation cannot be performed", dut.Vendor())
 	}
-	counters := cfgplugins.GueDecapV6ScaleRuleCounters(t, dut, params)
+	counters := cfgplugins.GueDecapIPv6ScaleRuleCounters(t, dut, params)
 	if counters == nil {
 		return fmt.Errorf("no native traffic-policy counter verification available for vendor %v", dut.Vendor())
 	}
-	names := cfgplugins.GueDecapV6ScaleRuleNames(params)
+	names := cfgplugins.GueDecapIPv6ScaleRuleNames(params)
 	var (
 		zeroRules []string
 		total     uint64
@@ -1682,15 +1680,15 @@ func verifyV6ScaleRuleMatchedPktsCLI(t *testing.T, dut *ondatra.DUTDevice, param
 		}
 		total += pkts
 	}
-	if err := reportV6ScaleZeroRules(t, len(zeroRules), len(names), total, strings.Join(truncateStrings(zeroRules, v6ScaleZeroRuleLogLimit), ", ")); err != nil {
+	if err := reportIPv6ScaleZeroRules(t, len(zeroRules), len(names), total, strings.Join(truncateStrings(zeroRules, ipv6ScaleZeroRuleLogLimit), ", ")); err != nil {
 		return err
 	}
 	return nil
 }
 
-// reportV6ScaleZeroRules fails the test when any decap rule did not match a
+// reportIPv6ScaleZeroRules fails the test when any decap rule did not match a
 // packet, and logs the aggregate matched packet count otherwise.
-func reportV6ScaleZeroRules(t *testing.T, zeroCount, wantRules int, totalPkts uint64, zeroSample string) error {
+func reportIPv6ScaleZeroRules(t *testing.T, zeroCount, wantRules int, totalPkts uint64, zeroSample string) error {
 	t.Helper()
 	if zeroCount > 0 {
 		return fmt.Errorf("%d of %d decap rules matched 0 packets (first offenders: %s); want all rules to match traffic", zeroCount, wantRules, zeroSample)
@@ -1715,14 +1713,14 @@ func truncateUint32s(s []uint32, limit int) []uint32 {
 	return s[:limit]
 }
 
-// validateV6ScaleECMPonLAG verifies that the decapsulated traffic of all the
+// validateIPv6ScaleECMPonLAG verifies that the decapsulated traffic of all the
 // given flows is distributed evenly across the egress LAG member ports.
 //
 // The shared ValidateECMPonLAG helper compares each member port against half of
 // a single flow's received packets, which under-counts when several flows share
 // the same LAG. Here the expected per-port share is derived from the sum of the
 // flows' received packets.
-func validateV6ScaleECMPonLAG(t *testing.T, ate *ondatra.ATEDevice, flowNames []string) error {
+func validateIPv6ScaleECMPonLAG(t *testing.T, ate *ondatra.ATEDevice, flowNames []string) error {
 	t.Helper()
 	var totalPkts uint64
 	for _, name := range flowNames {
@@ -1737,8 +1735,8 @@ func validateV6ScaleECMPonLAG(t *testing.T, ate *ondatra.ATEDevice, flowNames []
 		got := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, p).ID()).Counters().InFrames().State())
 		deviation := math.Abs(expected-float64(got)) * 100 / expected
 		t.Logf("LAG member %s received %d frames (expected ~%.0f, deviation %.2f%%)", p, got, expected, deviation)
-		if deviation > v6ScaleECMPTolerancePct {
-			return fmt.Errorf("port %s packet count mismatch: got %d, want within ~%.0f ±%v%%", p, got, expected, v6ScaleECMPTolerancePct)
+		if deviation > ipv6ScaleECMPTolerancePct {
+			return fmt.Errorf("port %s packet count mismatch: got %d, want within ~%.0f ±%v%%", p, got, expected, ipv6ScaleECMPTolerancePct)
 		}
 	}
 	return nil
