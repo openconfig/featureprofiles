@@ -177,12 +177,6 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/baseline/certz_baseline_test.go"
 }
 test: {
-  id: "CERTZ-2"
-  description: "Server Certificate"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/server_certificates/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/server_certificates/server_certificates_test.go"
-}
-test: {
   id: "CERTZ-4"
   description: "gNSI Trust Bundle"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/gnsi/certz/tests/trust_bundle/README.md"
@@ -220,6 +214,12 @@ test: {
   id: "Certz-1"
   description: "gNSI Client Certificate Tests"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/client_certificates/README.md"
+}
+test: {
+  id: "Certz-2"
+  description: "Server Certificate"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/server_certificates/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/server_certificates/server_certificates_test.go"
 }
 test: {
   id: "Certz-3"
@@ -1665,6 +1665,12 @@ test: {
   description: "gRIBI Tunnel Recursion over Multi-Level LPM Underlays"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/hierarchical_tunnel_recursion_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/hierarchical_tunnel_recursion_test/hierarchical_tunnel_recursion_test.go"
+}
+test: {
+  id: "TE-3.9"
+  description: "gRIBI AFT Operations Ordering"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/aft_operations_ordering_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/aft_operations_ordering_test/aft_operations_ordering_test.go"
 }
 test: {
   id: "TE-4.1"
