@@ -142,15 +142,6 @@ rpcs:
   gnmi:
     gNMI.Set:
     gNMI.Subscribe:
-  gribi:
-    Modify:
-      ModifyRequest:
-        AFTOperation:
-          next_hop_group:
-            NextHopGroupKey: id
-            NextHopGroup: next_hop
-              NextHopKey: index
-              NextHop: weight
 ```
 
 ## Required DUT platform
