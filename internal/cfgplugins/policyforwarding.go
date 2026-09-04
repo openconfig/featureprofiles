@@ -819,19 +819,42 @@ func DecapPolicyRulesandActionsGre(t *testing.T, pf *oc.NetworkInstance_PolicyFo
 	rule10.GetOrCreateAction().DecapsulateGre = ygot.Bool(true)
 }
 
-// DecapPolicyRulesandActionsGue configures the "decap MPLS in GUE" policy and related MPLS global and static LSP settings.
-func DecapPolicyRulesandActionsGue(t *testing.T, pf *oc.NetworkInstance_PolicyForwarding, params OcPolicyForwardingParams) {
+// DecapPolicyRulesandActionsGue configures and applies a policy forwarding rule to match UDP GUE traffic and enable GUE decapsulation.
+func DecapPolicyRulesandActionsGue(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
 	t.Helper()
 
-	pols := pf.GetOrCreatePolicy("customer10")
-	var ruleSeq uint32 = 10
-	var protocol uint8 = 4
+	d := &oc.Root{}
+	ni := d.GetOrCreateNetworkInstance(params.NetworkInstanceName)
+	pf := ni.GetOrCreatePolicyForwarding()
+	pol := pf.GetOrCreatePolicy(params.AppliedPolicyName)
+	rule := pol.GetOrCreateRule(1)
 
-	rule10 := pols.GetOrCreateRule(ruleSeq)
-	rule10.GetOrCreateIpv4().DestinationAddress = ygot.String(params.InnerDstIPv4)
-	rule10.GetOrCreateIpv4().Protocol = oc.UnionUint8(protocol)
+	sb := &gnmi.SetBatch{}
 
-	rule10.GetOrCreateAction().DecapsulateGue = ygot.Bool(true)
+	prefixSetName := params.AppliedPolicyName + "-dst-prefix-set"
+	if strings.Contains(params.TunnelIP, ":") {
+		prefixSet := d.GetOrCreateDefinedSets().GetOrCreateIpv6PrefixSet(prefixSetName)
+		prefixSet.Prefix = []string{params.TunnelIP}
+		gnmi.BatchUpdate(sb, gnmi.OC().DefinedSets().Ipv6PrefixSet(prefixSetName).Config(), prefixSet)
+		ip6 := rule.GetOrCreateIpv6()
+		ip6.DestinationAddressPrefixSet = ygot.String(prefixSetName)
+		ip6.Protocol = oc.PacketMatchTypes_IP_PROTOCOL_IP_UDP
+	} else {
+		prefixSet := d.GetOrCreateDefinedSets().GetOrCreateIpv4PrefixSet(prefixSetName)
+		prefixSet.Prefix = []string{params.TunnelIP}
+		gnmi.BatchUpdate(sb, gnmi.OC().DefinedSets().Ipv4PrefixSet(prefixSetName).Config(), prefixSet)
+		ip4 := rule.GetOrCreateIpv4()
+		ip4.DestinationAddressPrefixSet = ygot.String(prefixSetName)
+		ip4.Protocol = oc.PacketMatchTypes_IP_PROTOCOL_IP_UDP
+	}
+	rule.GetOrCreateTransport().SetDestinationPort(oc.UnionUint16(params.GUEPort))
+	rule.GetOrCreateAction().DecapsulateGue = ygot.Bool(true)
+
+	iface := pf.GetOrCreateInterface(params.InterfaceID)
+	iface.ApplyForwardingPolicy = ygot.String(params.AppliedPolicyName)
+
+	gnmi.BatchUpdate(sb, gnmi.OC().NetworkInstance(params.NetworkInstanceName).PolicyForwarding().Config(), pf)
+	sb.Set(t, dut)
 }
 
 // ApplyPolicyToInterfaceOC configures the policy-forwarding interfaces section to apply the specified
@@ -882,7 +905,7 @@ func DecapGroupConfigGue(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 			t.Logf("Unsupported vendor %s for native command support for deviation 'decap-group config'", dut.Vendor())
 		}
 	} else {
-		DecapPolicyRulesandActionsGue(t, pf, ocPFParams)
+		DecapPolicyRulesandActionsGue(t, dut, ocPFParams)
 	}
 }
 
