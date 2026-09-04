@@ -2,7 +2,17 @@
 
 ## Summary
 
-Validate that the software-driven/external gRIBI `BACKUP_ACTIVATE` AFT operation triggers immediate dataplane failover to the configured `backup_next_hop_group`, and verify that the `FIB_PROGRAMMED` status in `ModifyResponse` strictly correlates with committed hardware ASIC path switching with zero traffic loss during failover and recovery. In addition, validate telemetry streaming on operational state leaves (`backup-active`) only after hardware FIB programming completes, query feedback via the gRIBI `Get` RPC, graceful restoration upon deletion (`op: DELETE`), dual-stack (IPv4 and IPv6) forwarding behaviors, hierarchical tunnel group activation across multiple egress trunks, and error handling for invalid requests, including non-existent groups, groups lacking a backup path, and deletion of an active NHG with backup enabled.
+Validate that the software-driven/external gRIBI `BACKUP_ACTIVATE` AFT operation triggers immediate dataplane failover to the configured `backup_next_hop_group`, and verify that the `FIB_PROGRAMMED` status in `ModifyResponse` strictly correlates with committed hardware ASIC path switching with zero traffic loss during failover and recovery. In addition, validate telemetry streaming on operational state leaves (`backup-active`) only after hardware FIB programming completes, query feedback via the gRIBI `Get` RPC, graceful restoration upon deletion (`op: DELETE`), dual-stack (IPv4 and IPv6) forwarding behaviors, hierarchical tunnel group activation across multiple egress trunks, and robust exception handling. This includes rejecting operations on non-existent groups, groups lacking a backup path, deletion of active groups, reverse deletion of inactive triggers, hardware resource reclamation, local gRIBI process restart resilience, Non-Stop Routing (NSR) supervisor switchover synchronization, and asynchronous late-binding of backup next-hop groups.
+
+## Feature Interactions & Architectural Dependencies
+
+`BACKUP_ACTIVATE` is a trigger, not the mechanism that creates the backup path. The primary and backup next hops and next-hop groups, including the primary group's `backup_next_hop_group` reference, must first be installed through ordinary gRIBI `ADD` operations and acknowledged with `RIB_AND_FIB_ACK`. The backup NHG is therefore programmed and available in the FIB before activation; `BACKUP_ACTIVATE` selects that already-installed group for forwarding. Removing the trigger restores the primary group, while deleting referenced groups is expected to fail until the trigger is removed.
+
+Implementations supporting NSR must preserve and synchronize the gRIBI ownership, NHG relationship, active backup-trigger state, and resulting RIB/FIB programming status to the standby process or control-plane component. A switchover or process restart must reconcile the persisted trigger and both NHGs before advertising `backup-active`; it must not transiently select the primary path, lose the backup relationship, or report `FIB_PROGRAMMED` before hardware programming is complete. The restart scenario in TE-11.4.5 verifies this behavior and requires forwarding continuity and no duplicate or orphaned AFT entries.
+
+The forwarding driver should pre-resolve backup next hops, including ARP/ND and egress rewrite entries, and install them in a dormant hardware FRR indirection entry. Activation should atomically switch the hardware pointer rather than perform route recomputation or neighbor resolution during failover.
+
+The mechanism complements physical link-down or BFD-driven FRR by handling gray failures, remote blackholes, and VIP drains detected by external probers while the local carrier remains up. Hardware forwarding must remain decoupled from the gRIBI process lifecycle, and deleting an NHG must release FRR indirection entries, next-hop pointers, TCAM, and SRAM allocations without silicon-state leaks.
 
 ## Topology
 
@@ -99,21 +109,53 @@ Validate dual-stack support by executing the `BACKUP_ACTIVATE` lifecycle for IPv
 Validate `BACKUP_ACTIVATE` behavior in hierarchical encapsulation and transit tunnel fast-reroute environments across all four testbed ports.
 
 1. Configure the hierarchical forwarding pipeline via gRIBI:
-   * In `DEFAULT`, configure `NextHop#301` as IP-in-IP with `src_ip: 198.51.100.1`, `dst_ip: 10.40.193.1`, and `network_instance: TRANSIT_VRF`; configure `NextHop#302` similarly with `dst_ip: 10.40.193.2`.
+  * In `DEFAULT`, configure `NextHop#301` as IP-in-IP with `src_ip: 198.51.100.1`, `dst_ip: 198.18.193.1`, and `network_instance: TRANSIT_VRF`; configure `NextHop#302` similarly with `dst_ip: 198.18.193.2`.
    * In `DEFAULT`, configure `NextHopGroup#310` (backup tunnel group) containing `NextHop#302`, and `NextHopGroup#300` (primary tunnel group) containing `NextHop#301` with `backup_next_hop_group: 310`. Point IPv4 entry `192.0.2.0/24` to `NextHopGroup#300`.
    * In `TRANSIT_VRF`, configure `NextHop#401` via DUT port-2 to `198.51.100.6`, `NextHop#402` via DUT port-3 to `198.51.100.10`, and `NextHop#403` via DUT port-4 to `198.51.100.14`.
-   * Configure `NextHopGroup#402` containing `NextHop#402`, `NextHopGroup#400` containing `NextHop#401` with `backup_next_hop_group: 402`, and `NextHopGroup#410` containing `NextHop#403`. Point `10.40.193.1/32` to `NextHopGroup#400` and `10.40.193.2/32` to `NextHopGroup#410`.
+  * Configure `NextHopGroup#402` containing `NextHop#402`, `NextHopGroup#400` containing `NextHop#401` with `backup_next_hop_group: 402`, and `NextHopGroup#410` containing `NextHop#403`. Point `198.18.193.1/32` to `NextHopGroup#400` and `198.18.193.2/32` to `NextHopGroup#410`.
 2. Verify all entries are confirmed with `FIB_PROGRAMMED`.
-3. Send traffic from ATE port-1 to `192.0.2.1` and verify egress on ATE port-2 with an IP-in-IP outer destination of `10.40.193.1`.
-4. Activate `backup_activate` for `NextHopGroup#400` with `op: ADD` and `ack_type: RIB_AND_FIB_ACK`. Verify `FIB_PROGRAMMED`, failover to `NextHopGroup#402` via ATE port-3 while retaining outer destination `10.40.193.1`, zero loss, and `backup-active: true`.
-5. Activate `backup_activate` for `NextHopGroup#300`. Verify `FIB_PROGRAMMED`, failover to `NextHopGroup#310` via ATE port-4, and outer destination `10.40.193.2` with zero loss.
+3. Send traffic from ATE port-1 to `192.0.2.1` and verify egress on ATE port-2 with an IP-in-IP outer destination of `198.18.193.1`.
+4. Activate `backup_activate` for `NextHopGroup#400` with `op: ADD` and `ack_type: RIB_AND_FIB_ACK`. Verify `FIB_PROGRAMMED`, failover to `NextHopGroup#402` via ATE port-3 while retaining outer destination `198.18.193.1`, zero loss, and `backup-active: true`.
+5. Activate `backup_activate` for `NextHopGroup#300`. Verify `FIB_PROGRAMMED`, failover to `NextHopGroup#310` via ATE port-4, and outer destination `198.18.193.2` with zero loss.
 6. Delete `backup_activate` for `NextHopGroup#300` and `NextHopGroup#400`. Verify `FIB_PROGRAMMED` and zero-loss restoration to the primary path on ATE port-2.
 
 ### TE-11.4.4: Negative scenarios
 
 1. Target non-existent `NextHopGroup#999999` with `op: ADD`, `network_instance: "DEFAULT"`, `entry: backup_activate { next_hop_group: 999999 }`, and `ack_type: RIB_AND_FIB_ACK`. Verify rejection with `FIB_FAILED` or `RIB_FAILED`, with no forwarding-table or telemetry changes.
-2. Program `NextHop#501` in `NextHopGroup#500` without a `backup_next_hop_group`. Activate `backup_activate` for group 500 and verify `FIB_FAILED` or `RIB_FAILED`; traffic must continue via `NextHop#501` without disruption.
-3. Program `NextHop#601` in `NextHopGroup#600` with `backup_next_hop_group: 610`, where group 610 contains `NextHop#602`. Activate backup for group 600 and verify `FIB_PROGRAMMED`. Attempt to delete group 600 while backup activation remains active; verify dependency validation rejects the deletion without orphaned or inconsistent hardware state. Delete `backup_activate` first, then verify group 600 can be deleted successfully.
+2. Target non-existent `NextHopGroup#999999` with `op: DELETE`, `network_instance: "DEFAULT"`, `entry: backup_activate { next_hop_group: 999999 }`, and `ack_type: RIB_AND_FIB_ACK`. Verify rejection with `FIB_FAILED` or `RIB_FAILED`, with no forwarding-table or telemetry changes.
+3. Program `NextHop#501` in `NextHopGroup#500` without a `backup_next_hop_group`. Activate `backup_activate` for group 500 and verify `FIB_FAILED` or `RIB_FAILED`; traffic must continue via `NextHop#501` without disruption.
+4. Program `NextHop#601` in `NextHopGroup#600` with `backup_next_hop_group: 610`, where group 610 contains `NextHop#602`. Activate backup for group 600 and verify `FIB_PROGRAMMED`. Attempt to delete group 600 while backup activation remains active; verify dependency validation rejects the deletion without orphaned or inconsistent hardware state. Delete `backup_activate` first, then verify group 600 can be deleted successfully.
+  After deletion, verify that all hardware resources allocated to `NextHopGroup#600` are completely freed, with no residual ASIC entries, resource counters, memory allocations, or silicon state leaks.
+
+### TE-11.4.5: gRIBI process restart during active backup
+
+Validate that a local device process restart while `BACKUP_ACTIVATE` is active reconciles the control-plane state without data-plane traffic loss or core dumps.
+
+1. Program the IPv4 forwarding entries and primary/backup next-hop groups from TE-11.4.1, activate `backup_activate` for `NextHopGroup#10`, and verify `FIB_PROGRAMMED`, `backup-active: true`, and traffic forwarding via ATE port-3.
+2. Start continuous IPv4 traffic from ATE port-1 to `192.0.2.1`, record packet loss and forwarding counters, and trigger a restart of the device's local gRIBI process while preserving the DUT and ASIC state.
+3. Verify the process returns to service and reconciles the persisted gRIBI and `BACKUP_ACTIVATE` state. The active backup remains installed, `backup-active` returns or remains `true` only after FIB reconciliation, and traffic continues via ATE port-3 with zero packet loss.
+4. Verify there are no core dumps, unexpected process crashes, stale or duplicate AFT entries, or inconsistent RIB/FIB status. Issue a gRIBI `Get` and confirm the active `backup_activate` entry is `PROGRAMMED` in both RIB and FIB.
+5. Delete `backup_activate` and verify `FIB_PROGRAMMED`, `backup-active: false` after FIB restoration, and zero-loss recovery of traffic to the primary path on ATE port-2.
+
+### TE-11.4.6: High availability and Non-Stop Routing supervisor switchover
+
+Validate that active `BACKUP_ACTIVATE` state is synchronized across redundant supervisors and that traffic remains on the backup path during a switchover.
+
+1. Verify redundant controller cards report `PRIMARY` and `SECONDARY` through `/components/component/state/redundant-role`, and that the standby supervisor is ready.
+2. Under continuous traffic, activate `backup_activate` for `NextHopGroup#10`. Verify `FIB_PROGRAMMED`, `backup-active: true`, and forwarding via ATE port-3.
+3. Issue the gNOI `system.System.SwitchControlProcessor` RPC and verify that the standby supervisor assumes the `PRIMARY` role.
+4. Verify that traffic remains on the backup path with zero loss or only the vendor-documented sub-second NSR convergence loss, without reverting to the primary path.
+5. Connect a gRIBI client to the new supervisor and issue `gRIBI.Get`. Verify the active trigger remains `PROGRAMMED` in both RIB and FIB and telemetry continues to report `backup-active: true`.
+6. Delete the trigger from the new supervisor and verify `FIB_PROGRAMMED`, zero-loss restoration to ATE port-2, and `backup-active: false`.
+
+### TE-11.4.7: Asynchronous late binding of backup next-hop groups
+
+Validate that a backup NHG can be attached after primary forwarding is already active without disrupting traffic.
+
+1. Program `NextHop#701` and `NextHopGroup#700` without a backup reference, bind `192.0.2.0/24` to group 700, and verify `FIB_PROGRAMMED`, primary forwarding via ATE port-2, an unpopulated backup reference, and `backup-active: false`.
+2. While traffic continues, program `NextHop#702` and `NextHopGroup#720`, then update group 700 to add `backup_next_hop_group: 720`. Verify `FIB_PROGRAMMED`, zero traffic loss, telemetry showing backup group 720, and `backup-active: false`.
+3. Activate `backup_activate` for group 700 and verify `FIB_PROGRAMMED`, a zero-loss shift to ATE port-3, and `backup-active: true`.
+4. Delete the trigger and verify `FIB_PROGRAMMED`, zero-loss restoration to ATE port-2, and `backup-active: false`.
 
 ## Canonical OC
 
@@ -207,13 +249,17 @@ rpcs:
   gnmi:
     gNMI.Set:
     gNMI.Subscribe:
+      on_change: true
     gNMI.Get:
   gribi:
     gRIBI.Modify:
     gRIBI.Flush:
     gRIBI.Get:
+  gnoi:
+    system.System.KillProcess:
+    system.System.SwitchControlProcessor:
 ```
 
 ## Minimum DUT Platform Requirement
 
-vRX if the vendor implementation supports FIB-ACK simulation, otherwise FFF.
+MFF for subtests requiring redundant controller-card switchover (TE-11.4.6); vRX or FFF for all other subtests.
