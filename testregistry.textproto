@@ -2137,6 +2137,11 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/otg_tests/drained_configuration_convergence_time/drained_configuration_convergence_time_bgp_test.go"
 }
 test: {
+  id: "gNMI-1.30"
+  description: "gNMI Telemetry Performance under Dynamic Control Plane Churn"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/otg_tests/telemetry_under_churn_test/README.md"
+}
+test: {
   id: "gNMI-1.4"
   description: "Telemetry: Inventory"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/telemetry_inventory_test/README.md"
