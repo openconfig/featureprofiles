@@ -2131,15 +2131,15 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/integrated_circuit/otg_tests/pipeline_counters_drop_test/pipeline_counters_drop_test.go"
 }
 test: {
-  id: "gNMI-1.30"
-  description: "gNMI Telemetry Performance under Dynamic Control Plane Churn"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/otg_tests/telemetry_under_churn_test/README.md"
-}
-test: {
   id: "gNMI-1.3"
   description: "Benchmarking: Drained Configuration Convergence Time"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/otg_tests/drained_configuration_convergence_time/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/otg_tests/drained_configuration_convergence_time/drained_configuration_convergence_time_bgp_test.go"
+}
+test: {
+  id: "gNMI-1.30"
+  description: "gNMI Telemetry Performance under Dynamic Control Plane Churn"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/otg_tests/telemetry_under_churn_test/README.md"
 }
 test: {
   id: "gNMI-1.4"
