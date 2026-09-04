@@ -1508,7 +1508,6 @@ test: {
   id: "TE-11.4"
   description: "gRIBI BACKUP_ACTIVATE Hardware Convergence & FIB ACK Verification"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/backup_nhg_trigger_test/README.md"
-  exec: " "
 }
 test: {
   id: "TE-13.1"
