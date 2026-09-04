@@ -23,6 +23,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/qoscfg"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -104,6 +105,18 @@ func TestMain(m *testing.M) {
 //     - https://github.com/karimra/gnmic/blob/main/README.md
 //
 
+func startTrafficOnFlows(t *testing.T, flowNames []string, ate *ondatra.ATEDevice) {
+	flowStart := gosnappi.NewControlState()
+	flowStart.Traffic().FlowTransmit().SetFlowNames(flowNames).SetState(gosnappi.StateTrafficFlowTransmitState.START)
+	ate.OTG().SetControlState(t, flowStart)
+}
+
+func stopTrafficOnFlows(t *testing.T, flowNames []string, ate *ondatra.ATEDevice) {
+	flowStop := gosnappi.NewControlState()
+	flowStop.Traffic().FlowTransmit().SetFlowNames(flowNames).SetState(gosnappi.StateTrafficFlowTransmitState.STOP)
+	ate.OTG().SetControlState(t, flowStop)
+}
+
 func TestBurstyTraffic(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp1 := dut.Port(t, "port1")
@@ -129,7 +142,6 @@ func TestBurstyTraffic(t *testing.T) {
 	intf1.AddToOTG(top, ap1, &dutPort1)
 	intf2.AddToOTG(top, ap2, &dutPort2)
 	intf3.AddToOTG(top, ap3, &dutPort3)
-	ate.OTG().PushConfig(t, top)
 
 	queues := netutil.CommonTrafficQueues(t, dut)
 
@@ -341,32 +353,41 @@ func TestBurstyTraffic(t *testing.T) {
 		trafficFlows: be1TrafficFlows,
 	}}
 
+	for _, trFlows := range cases {
+		trafficFlows := trFlows.trafficFlows
+		for trafficID, data := range trafficFlows {
+			t.Logf("Configuring flow %s", trafficID)
+			flow := top.Flows().Add().SetName(trafficID)
+			flow.Metrics().SetEnable(true)
+			flow.TxRx().Device().SetTxNames([]string{data.inputIntf.Name + ".IPv4"}).SetRxNames([]string{intf3.Name + ".IPv4"})
+			ethHeader := flow.Packet().Add().Ethernet()
+			ethHeader.Src().SetValue(data.inputIntf.MAC)
+
+			ipHeader := flow.Packet().Add().Ipv4()
+			ipHeader.Src().SetValue(data.inputIntf.IPv4)
+			ipHeader.Dst().SetValue(intf3.IPv4)
+			ipHeader.Priority().Dscp().Phb().SetValue(uint32(data.dscp))
+
+			flow.Size().SetFixed(uint32(data.frameSize))
+			flow.Rate().SetPercentage(float32(data.trafficRate))
+			flow.Duration().Burst().SetPackets(uint32(data.burstPackets)).SetGap(uint32(data.burstMinGap))
+			flow.Duration().Burst().InterBurstGap().SetBytes(float64(data.burstGap))
+
+		}
+
+	}
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
+
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
+
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			trafficFlows := tc.trafficFlows
-			top.Flows().Clear()
-
-			for trafficID, data := range trafficFlows {
-				t.Logf("Configuring flow %s", trafficID)
-				flow := top.Flows().Add().SetName(trafficID)
-				flow.Metrics().SetEnable(true)
-				flow.TxRx().Device().SetTxNames([]string{data.inputIntf.Name + ".IPv4"}).SetRxNames([]string{intf3.Name + ".IPv4"})
-				ethHeader := flow.Packet().Add().Ethernet()
-				ethHeader.Src().SetValue(data.inputIntf.MAC)
-
-				ipHeader := flow.Packet().Add().Ipv4()
-				ipHeader.Src().SetValue(data.inputIntf.IPv4)
-				ipHeader.Dst().SetValue(intf3.IPv4)
-				ipHeader.Priority().Dscp().Phb().SetValue(uint32(data.dscp))
-
-				flow.Size().SetFixed(uint32(data.frameSize))
-				flow.Rate().SetPercentage(float32(data.trafficRate))
-				flow.Duration().Burst().SetPackets(uint32(data.burstPackets)).SetGap(uint32(data.burstMinGap))
-				flow.Duration().Burst().InterBurstGap().SetBytes(float64(data.burstGap))
-
-			}
-			ate.OTG().PushConfig(t, top)
-			ate.OTG().StartProtocols(t)
+			var flowNames []string
+			for trafficID, _ := range trafficFlows {
+				flowNames = append(flowNames, trafficID)
+			}	
 
 			var counterNames []string
 			counters := make(map[string]map[string]uint64)
@@ -422,13 +443,14 @@ func TestBurstyTraffic(t *testing.T) {
 			t.Logf("Running traffic 2 on DUT interfaces: %s => %s ", dp2.Name(), dp3.Name())
 			t.Logf("Sending traffic flows: \n%v\n\n", trafficFlows)
 			time.Sleep(30 * time.Second)
-			ate.OTG().StartTraffic(t)
+			startTrafficOnFlows(t, flowNames, ate)
 			time.Sleep(30 * time.Second)
-			ate.OTG().StopTraffic(t)
+			stopTrafficOnFlows(t, flowNames, ate)
 			time.Sleep(60 * time.Second)
 
 			for trafficID, data := range trafficFlows {
 				flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().State())
+				t.Log("trafficID - ", trafficID, ", Tx: ", flowMetrics.GetOutPkts(), ", RX: ", flowMetrics.GetInPkts())
 				ateTxPkts := flowMetrics.GetOutPkts()
 				ateRxPkts := flowMetrics.GetInPkts()
 				counters["ateOutPkts"][data.queue] += ateTxPkts
@@ -441,6 +463,8 @@ func TestBurstyTraffic(t *testing.T) {
 
 				t.Logf("ateInPkts: %v, txPkts %v, Queue: %v", counters["ateInPkts"][data.queue], counters["dutQosPktsAfterTraffic"][data.queue], data.queue)
 				if ateTxPkts == 0 {
+					otgutils.LogPortMetrics(t, ate.OTG(), top)
+					otgutils.LogFlowMetrics(t, ate.OTG(), top)
 					t.Fatalf("TxPkts == 0, want >0.")
 				}
 				lossPct := (float32)((float64(ateTxPkts-ateRxPkts) * 100.0) / float64(ateTxPkts))
@@ -488,6 +512,8 @@ func TestBurstyTraffic(t *testing.T) {
 			}
 		})
 	}
+	ate.OTG().StopTraffic(t)
+	ate.OTG().StopProtocols(t)
 }
 
 func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
