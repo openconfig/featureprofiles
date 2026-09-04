@@ -84,7 +84,7 @@ Validate gRIBI Get RPC.
     *   Wait for gNMI AFT telemetry to reflect the state of this entry (should not be present or not programmed in the FIB).
 *   **Step 3 - Validate Get RPC:**
     *   Issue a `Get` RPC from gRIBI-A for the `DEFAULT` network instance.
-    *   Ensure that the `IPEntry` for `203.0.113.0/24` is returned with `fib_status` = `NOT_PROGRAMMED` and `rib_status` = `PROGRAMMED`, or verify it is not returned at all, depending on implementation specifics for unresolved next-hops.
+    *   Ensure that the `IPEntry` for `203.0.113.0/24` is returned with `fib_status` = `NOT_PROGRAMMED` and `rib_status` = `PROGRAMMED`.
 
 ### TestID-5.1.6 - Negative Test Cases
 
@@ -151,4 +151,4 @@ rpcs:
 
 ## Required DUT platform
 
-* FFF
+FFF
