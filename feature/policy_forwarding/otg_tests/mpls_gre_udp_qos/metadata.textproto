@@ -4,7 +4,7 @@
 uuid: "2beaac46-9b7b-49c4-9bde-62ad530aa5c5"
 plan_id: "PF-1.18"
 description: "MPLSoGRE and MPLSoGUE QoS"
-testbed: TESTBED_DUT_ATE_4LINKS
+testbed: TESTBED_DUT_ATE_8LINKS
 platform_exceptions: {
   platform: {
     vendor: ARISTA
@@ -22,6 +22,8 @@ platform_exceptions: {
     qos_classification_unsupported: true
     policy_forwarding_unsupported: true
     interface_policy_forwarding_unsupported: true
+    qos_two_rate_three_color_policer_oc_unsupported: true
+    qos_scheduler_ingress_policer_unsupported: true
   }
 }
 platform_exceptions: {

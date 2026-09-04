@@ -639,6 +639,7 @@ test: {
   id: "PF-1.18"
   description: "MPLSoGRE and MPLSoGUE QoS"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/mpls_gre_udp_qos/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/mpls_gre_udp_qos/mpls_gre_udp_qos_test.go"
 }
 test: {
   id: "PF-1.19"
