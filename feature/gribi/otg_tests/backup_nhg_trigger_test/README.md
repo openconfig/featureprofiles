@@ -200,7 +200,7 @@ paths:
   /network-instances/network-instance/afts/next-hops/next-hop/ip-in-ip/state/src-ip:
   /network-instances/network-instance/afts/next-hops/next-hop/ip-in-ip/state/dst-ip:
   # TODO: Proposed OpenConfig paths for backup activation state and structural list.
-  # See https://github.com/openconfig/public/pull/1234
+  # See https://github.com/openconfig/public/pull/1541
   # /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/backup-active
   # /network-instances/network-instance/afts/backup-activate/backup-activate/state/next-hop-group
 rpcs:
