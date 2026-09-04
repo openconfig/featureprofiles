@@ -734,11 +734,7 @@ func enableLLGRConf(dut *ondatra.DUTDevice, as int) string {
 		protocols {
 			bgp {
 				graceful-restart {
-					long-lived {
-						receiver {
-							stale-time %d;
-						}
-					}
+					stale-routes-time %d;
 				}
 			}
 		}`, grStaleRouteTime)
@@ -888,18 +884,34 @@ func gnmiOperationWithRetry(t *testing.T, opName string, retryCount int, op func
 	t.Fatalf("%s failed after %d attempts", opName, retryCount)
 }
 
+func cleanupDUT(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	t.Log("Cleaning up DUT configuration...")
+	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	gnmi.Delete(t, dut, dutConfPath.Config())
+	if gnmi.Lookup(t, dut, gnmi.OC().RoutingPolicy().PolicyDefinition("ALLOW").Config()).IsPresent() {
+		gnmi.Delete(t, dut, gnmi.OC().RoutingPolicy().PolicyDefinition("ALLOW").Config())
+	}
+	if gnmi.Lookup(t, dut, gnmi.OC().RoutingPolicy().PolicyDefinition(setMEDPolicy).Config()).IsPresent() {
+		gnmi.Delete(t, dut, gnmi.OC().RoutingPolicy().PolicyDefinition(setMEDPolicy).Config())
+	}
+	ifName := dut.Port(t, "port2").Name()
+	if gnmi.Lookup(t, dut, gnmi.OC().Acl().Interface(ifName).Config()).IsPresent() {
+		gnmi.Delete(t, dut, gnmi.OC().Acl().Interface(ifName).Config())
+	}
+	if gnmi.Lookup(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config()).IsPresent() {
+		gnmi.Delete(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config())
+	}
+	t.Log("DUT cleanup complete")
+}
+
 func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 
 	// Register cleanup for DUT configuration
 	t.Cleanup(func() {
-		t.Log("Cleaning up DUT configuration...")
-		dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-		gnmi.Delete(t, dut, dutConfPath.Config())
-		gnmi.Delete(t, dut, gnmi.OC().RoutingPolicy().Config())
-		gnmi.Delete(t, dut, gnmi.OC().Acl().Config())
-		t.Log("DUT cleanup complete")
+		cleanupDUT(t, dut)
 	})
 
 	t.Run("configureDut", func(t *testing.T) {
@@ -1108,12 +1120,7 @@ func TestTrafficWithGracefulRestart(t *testing.T) {
 
 	// Register cleanup for DUT configuration
 	t.Cleanup(func() {
-		t.Log("Cleaning up DUT configuration...")
-		dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-		gnmi.Delete(t, dut, dutConfPath.Config())
-		gnmi.Delete(t, dut, gnmi.OC().RoutingPolicy().Config())
-		gnmi.Delete(t, dut, gnmi.OC().Acl().Config())
-		t.Log("DUT cleanup complete")
+		cleanupDUT(t, dut)
 	})
 
 	t.Run("configureDut", func(t *testing.T) {
