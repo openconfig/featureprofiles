@@ -41,6 +41,13 @@ duts {
    cli: "service certz"
    cli: "service credentialz"
    cli: "service acctz"
+   cli: "management api gribi"
+   cli: "transport grpc default"
+   cli: "ssl profile GNSI_PROFILE"
+   cli: "p4-runtime"
+   cli: "no shutdown"
+   cli: "transport grpc default"
+   cli: "ssl profile GNSI_PROFILE"
   }
 
   # Options specific to gNMI.  Remove if not needed.
@@ -63,6 +70,20 @@ duts {
     max_recv_msg_size: 40000000
   }
 
+  gribi {
+    target: "dut-proxy-hostname:9340"
+    skip_verify: true
+    insecure: false
+    timeout: 180
+  }
+
+  p4rt {
+    target: "dut-proxy-hostname:9559"
+    skip_verify: true
+    insecure: false
+    timeout: 180
+  }
+ 
   # Before this binding can be used with a topology, add ports mapping
   # from its topology ID to the actual port name on the device.
   ports {
