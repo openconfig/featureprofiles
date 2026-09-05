@@ -33,14 +33,14 @@ preventing traffic leakage into the native BGP underlay.
 ### TE-1.22.1 - IPv4 Strict FIB Precedence Blackholing at Scale
 
 *   Step 1 - Base Route Injection
-    *   Inject 1,000 IPv4 BGP routes (`198.51.0.0/24` through `198.51.3.231/24`) from ATE Port 1, with next-hop pointing to ATE Port 1.
-    *   Use `gNMI Subscribe` to verify the routes are installed in the AFT: `/network-instances/network-instance[name=DEFAULT]/afts/ipv4-unicast/ipv4-entry[prefix=198.51.x.0/24]/state/prefix`.
-    *   Send IPv4 traffic from ATE Port 3 cycling through all 1,000 destinations (`198.51.0.1` through `198.51.3.231.1`).
+    *   Inject 1,000 IPv4 BGP routes (`10.0.0.0/24` through `10.3.231.0/24`) from ATE Port 1, with next-hop pointing to ATE Port 1.
+    *   Use `gNMI Subscribe` to verify the routes are installed in the AFT: `/network-instances/network-instance[name=DEFAULT]/afts/ipv4-unicast/ipv4-entry[prefix=10.x.y.0/24]/state/prefix` (for all 1,000 prefixes).
+    *   Send IPv4 traffic from ATE Port 3 cycling through all 1,000 destinations (`10.0.0.1` through `10.3.231.1`).
     *   Verify 0% traffic loss (< 0.1% tolerance) at ATE Port 1 Rx.
 
 *   Step 2 - gRIBI Route Programming
-    *   Using gRIBI, program 1,000 more specific IPv4 routes (`198.51.0.0/25` through `198.51.3.231/25`) pointing to a NextHopGroup containing a single NextHop of ATE Port 2.
-    *   Use `gNMI Subscribe` to verify the 1,000 gRIBI routes are successfully programmed in the AFT: `/network-instances/network-instance[name=DEFAULT]/afts/ipv4-unicast/ipv4-entry[prefix=198.51.x.0/25]/state/prefix`.
+    *   Using gRIBI, program 1,000 more specific IPv4 routes (`10.0.0.0/25` through `10.3.231.0/25`) pointing to a NextHopGroup containing a single NextHop of ATE Port 2.
+    *   Use `gNMI Subscribe` to verify the 1,000 gRIBI routes are successfully programmed in the AFT: `/network-instances/network-instance[name=DEFAULT]/afts/ipv4-unicast/ipv4-entry[prefix=10.x.y.0/25]/state/prefix`.
 
 *   Step 3 - Traffic Forwarding Update
     *   Send IPv4 traffic from ATE Port 3 cycling through all 1,000 destinations.
@@ -56,7 +56,7 @@ preventing traffic leakage into the native BGP underlay.
         *   Exactly 100% of the traffic is dropped (blackholed) by the DUT. ATE Port 1 and Port 2 Rx must receive 0 packets.
         *   Verify via `gNMI Get` that `/interfaces/interface[name=port1]/state/counters/out-pkts` and `/interfaces/interface[name=port2]/state/counters/out-pkts` do not increment during the traffic run.
         *   Verify via `gNMI Get` that `/interfaces/interface[name=port3]/state/counters/in-pkts` increments appropriately, proving traffic enters the hardware but is intentionally dropped.
-        *   Verify via `gNMI Get` that the 1,000 gRIBI routes remain programmed in the AFT (`/network-instances/network-instance[name=DEFAULT]/afts/ipv4-unicast/ipv4-entry[prefix=198.51.x.0/25]/state/prefix`).
+        *   Verify via `gNMI Get` that the 1,000 gRIBI routes remain programmed in the AFT (`/network-instances/network-instance[name=DEFAULT]/afts/ipv4-unicast/ipv4-entry[prefix=10.x.y.0/25]/state/prefix`).
     *   Fail Criteria: Traffic is forwarded out DUT Port 1 (BGP underlay route fallback) or the gRIBI routes are automatically withdrawn from the AFT.
 
 #### Canonical OC
