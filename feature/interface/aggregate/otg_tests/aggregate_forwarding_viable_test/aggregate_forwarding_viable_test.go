@@ -237,8 +237,12 @@ func (tc *testArgs) setupAggregateAtomically(t *testing.T) {
 
 // clearAggregate delete any previously existing members of aggregate.
 func (tc *testArgs) clearAggregate(t *testing.T) {
+	t.Helper()
+
 	// Clear the aggregate minlink.
 	gnmi.Delete(t, tc.dut, gnmi.OC().Interface(tc.aggID).Aggregation().MinLinks().Config())
+	// Clear the aggregate lag type.
+	gnmi.Delete(t, tc.dut, gnmi.OC().Interface(tc.aggID).Aggregation().LagType().Config())
 
 	// Clear the members of the aggregate.
 	for _, port := range tc.dutPorts[1:] {
@@ -607,6 +611,7 @@ func TestAggregateForwardingViable(t *testing.T) {
 			aggID:    aggID,
 		}
 		t.Run(fmt.Sprintf("LagType=%s", lagType), func(t *testing.T) {
+			args.clearAggregate(t)
 			args.configureATE(t)
 			args.configureDUT(t)
 			args.verifyDUT(t)
