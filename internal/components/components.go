@@ -248,3 +248,24 @@ func OpticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *on
 	}
 	return opticalChannelName
 }
+
+// WaitForSwitchover verifies the stability of the SUP cards after switchover by polling the system datetime.
+func WaitForSwitchover(t *testing.T, dut *ondatra.DUTDevice, maxSwitchoverTime time.Duration) {
+	t.Helper()
+	startSwitchover := time.Now()
+	t.Logf("Wait for new active RP to boot up by watching the system datetime telemetry.")
+
+	watch := gnmi.Watch(t, dut, gnmi.OC().System().CurrentDatetime().State(), maxSwitchoverTime, func(val *ygnmi.Value[string]) bool {
+		receivedTime, present := val.Val()
+		return present && receivedTime != ""
+	})
+
+	currentTime, ok := watch.Await(t)
+	if !ok {
+		t.Fatalf("RP switchover timed out after %v: system datetime not reachable", maxSwitchoverTime)
+	}
+
+	val, _ := currentTime.Val()
+	t.Logf("RP switchover has completed successfully with received time: %v", val)
+	t.Logf("RP switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
+}
