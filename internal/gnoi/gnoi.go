@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/system"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
@@ -116,7 +117,7 @@ func KillProcess(t *testing.T, dut *ondatra.DUTDevice, daemon Daemon, signal spb
 	time.Sleep(120 * time.Second)
 
 	if waitForRestart {
-		gnmi.WatchAll(
+		_, ok := gnmi.WatchAll(
 			t,
 			dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE)),
 			gnmi.OC().System().ProcessAny().State(),
@@ -128,7 +129,10 @@ func KillProcess(t *testing.T, dut *ondatra.DUTDevice, daemon Daemon, signal spb
 				}
 				return val.GetName() == daemonName && val.GetPid() != pid
 			},
-		)
+		).Await(t)
+		if !ok {
+			t.Fatalf("Timed out waiting for process %s to restart with a new PID", daemonName)
+		}
 	}
 }
 
@@ -143,4 +147,14 @@ func FetchProcessName(dut *ondatra.DUTDevice, daemon Daemon) (string, error) {
 		return "", fmt.Errorf("daemon %s not defined for vendor %s", daemon, dut.Vendor().String())
 	}
 	return d, nil
+}
+
+// RestartRoutingProcess restarts the routing daemon on the DUT via gNOI and waits for it to restart.
+// If the device does not support restarting the routing process via gNOI, the test is skipped.
+func RestartRoutingProcess(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	if deviations.RoutingRestartViaGnoiUnsupported(dut) {
+		t.Skip("Skipping routing restart via gNOI due to deviation")
+	}
+	KillProcess(t, dut, ROUTING, SigTerm, true, true)
 }
