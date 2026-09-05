@@ -27,7 +27,6 @@ platform_exceptions: {
   }
   deviations: {
     explicit_interface_in_default_vrf: true
-    qos_octets: true
     interface_enabled: true
     qos_queue_requires_id: true
   }
