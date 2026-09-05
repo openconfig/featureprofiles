@@ -23,6 +23,7 @@ This test validates the support for AIGP ensuring the following use-cases
 ```
 #### IPV4 Addresses Lag1 (Table 1)
 
+
 Device | vlan 10 | vlan 20 | vlan 30 | vlan 40
 :------| :----------| :-------- | :---------| :-------:
 DUT 1  | 198.51.100.1/30 | 198.51.100.5/30 | 198.51.100.9/30 | 198.51.100.13/30
