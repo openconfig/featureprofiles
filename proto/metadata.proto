@@ -1402,7 +1402,9 @@ message Metadata {
     bool vlan_subinterface_oc_unsupported = 440;
 
     // Device has max route count based on specific platform
-    // Juniper : For devices which has different max route count based on platform, this deviation can be used to set the max route count for the device. This will be used in scale test cases to set the max route count for the device.
+    // Juniper : For devices which has different max route count based on platform,
+    // this deviation can be used to set the max route count for the device. This
+    // will be used in scale test cases to set the max route count for the device.
     uint32 max_out_fib_route_count = 441;
 
     // https://partnerissuetracker.corp.google.com/issues/536260803
@@ -1420,6 +1422,7 @@ message Metadata {
     // Devices that do not support afts global filter policy
     // Arista: https://partnerissuetracker.corp.google.com/issues/514565554
     bool afts_global_filter_policy_oc_unsupported = 446;
+
     // Device accepts the OpenConfig BGP dynamic-neighbor-prefix
     // path via gNMI but silently ignores it — the corresponding "bgp listen range" is never programmed. 
     // Arista: https://partnerissuetracker.corp.google.com/u/2/issues/534817001
@@ -1444,22 +1447,27 @@ message Metadata {
     // No P4RT AAA role based Authorization support
     bool p4rt_aaa_role_based_authz_unsupported = 452;
 
+
+    // Device does not support configuring route-reflector-client
+    // Juniper: b/534122367
+    bool route_reflector_client_unsupported = 453;
+
     // Extra minutes the device needs beyond the 5-minute base timeout for
     // switchover-related waits (post-switchover verification, switchover-ready
     // polling, and SwitchControlProcessor retry). Supervisors may restart
     // containerz/Octa after a switchover; the new active needs extra time for
     // Docker state to settle. Default 0 means no extra delay beyond 5 minutes.
-    uint32 switchover_stabilize_delay_m = 453;
+    uint32 switchover_stabilize_delay_m = 454;
 
     // Device requires a fresh DialGNOI call after a supervisor switchover
     // because the Ondatra gNOI cache still points at the old active.
     // Tracking: https://github.com/openconfig/ondatra/issues/145
-    bool gnoi_requires_fresh_dial_after_switchover = 454;
+    bool gnoi_requires_fresh_dial_after_switchover = 455;
 
     // Device requires explicit "write memory" before reboot to persist
     // containerz config, and must skip config re-push after reboot to avoid
     // restarting the management stack during warmup.
-    bool containerz_require_explicit_config_save = 455;
+    bool containerz_require_explicit_config_save = 456;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
