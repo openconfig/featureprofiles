@@ -165,7 +165,7 @@ paths:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decap-fallback-network-instance:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/config/sequence-id:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/adjacencies/adjacency/state/adj-state:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state:
 
 rpcs:
   gnmi:
