@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/system"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
@@ -57,6 +58,11 @@ var (
 			OCAGENT: "sr_oc_mgmt_server",
 			P4RT:    "sr_grpc_server",
 			ROUTING: "sr_bgp_mgr",
+		},
+	}
+	daemonYANGNameOverride = map[ondatra.Vendor]map[Daemon]string{
+		ondatra.ARISTA: {
+			ROUTING: "Bgp",
 		},
 	}
 )
@@ -96,9 +102,15 @@ func KillProcess(t *testing.T, dut *ondatra.DUTDevice, daemon Daemon, signal spb
 	if err != nil {
 		t.Fatalf("Daemon %s not defined for vendor %s", daemon, dut.Vendor().String())
 	}
-	pid := system.FindProcessIDByName(t, dut, daemonName)
+	yangName := daemonName
+	if deviations.KillProcessHasDifferentName(dut) {
+		if override := fetchYANGNameOverride(dut, daemon); override != "" {
+			yangName = override
+		}
+	}
+	pid := system.FindProcessIDByName(t, dut, yangName)
 	if pid == 0 {
-		t.Fatalf("process %s not found on device", daemonName)
+		t.Fatalf("process %s not found on device", yangName)
 	}
 
 	gnoiClient := dut.RawAPIs().GNOI(t)
@@ -126,7 +138,7 @@ func KillProcess(t *testing.T, dut *ondatra.DUTDevice, daemon Daemon, signal spb
 				if !ok {
 					return false
 				}
-				return val.GetName() == daemonName && val.GetPid() != pid
+				return val.GetName() == yangName && val.GetPid() != pid
 			},
 		)
 	}
@@ -143,4 +155,13 @@ func FetchProcessName(dut *ondatra.DUTDevice, daemon Daemon) (string, error) {
 		return "", fmt.Errorf("daemon %s not defined for vendor %s", daemon, dut.Vendor().String())
 	}
 	return d, nil
+}
+
+// fetchYANGNameOverride returns the name of the daemon
+// as it presents in the YANG tree, based on the vendor-defined map of overrides.
+func fetchYANGNameOverride(dut *ondatra.DUTDevice, daemon Daemon) string {
+	if daemons, ok := daemonYANGNameOverride[dut.Vendor()]; ok {
+		return daemons[daemon]
+	}
+	return ""
 }
