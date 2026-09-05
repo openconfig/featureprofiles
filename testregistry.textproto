@@ -955,9 +955,9 @@ test: {
 }
 test: {
   id: "RT-1.53"
-  description: "prefix-list test"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/prefix_set_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/prefix_set_test/prefix_set_test.go"
+  description: "prefix_set_resilience_test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/prefix_set_resilience_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/prefix_set_resilience_test/prefix_set_resilience_test.go"
 }
 test: {
   id: "RT-1.54"
