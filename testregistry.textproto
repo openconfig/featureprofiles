@@ -1469,6 +1469,11 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/my_station_mac/otg_tests/my_station_mac_test/my_station_mac_test.go"
 }
 test: {
+  id: "TE-1.7"
+  description: "gNMI interface config impacts gRIBI next hop"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gnmi_intf_config_impacts_gribi_nh_test/README.md"
+}
+test: {
   id: "TE-10"
   description: "gRIBI MPLS Forwarding"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/mpls_forwarding/README.md"

@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "d16916db-0208-4b03-a257-e6dfe5a1eabf"
+plan_id: "TE-1.7"
+description: "gNMI interface config impacts gRIBI next hop"
+testbed: TESTBED_DUT_ATE_4LINKS
