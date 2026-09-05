@@ -143,8 +143,8 @@ paths:
   /network-instances/network-instance/afts/next-hops/next-hop/state/ip-address:
   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/state/prefix:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/adjacencies/adjacency/state/adjacency-state:
-  /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/extended-ipv4-reachability/prefixes/prefix/state/prefix:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state:
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/prefix:
 
 rpcs:
   gnmi:
