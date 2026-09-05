@@ -22,7 +22,9 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"sync"
@@ -248,7 +250,7 @@ func CertzRotate(ctx context.Context, t *testing.T, newcaCert *x509.CertPool, ce
 	uploadRequest := &certzpb.UploadRequest{Entities: entities}
 	rotateRequest := &certzpb.RotateCertificateRequest_Certificates{Certificates: uploadRequest}
 	rotateCertRequest := &certzpb.RotateCertificateRequest{
-		ForceOverwrite: false,
+		ForceOverwrite: true,
 		SslProfileId:   profileID,
 		RotateRequest:  rotateRequest,
 	}
@@ -441,12 +443,21 @@ func ValidateGnsiAuthzGetRequest(ctx context.Context, t *testing.T, authzClient 
 	t.Logf("Verifying gNSI Authz GetRequest.")
 	rsp, err := authzClient.Get(ctx, &authzpb.GetRequest{})
 	if err != nil {
+		if mismatch {
+			t.Logf("Expected connection failure for certificate mismatch: %v", err)
+			return true
+		}
 		statusError, _ := status.FromError(err)
 		if statusError.Code() == codes.FailedPrecondition {
 			t.Logf("Expected error FAILED_PRECONDITION seen for authz Get Request with err:%v.", err)
 		} else {
 			t.Errorf("Unexpected error during authz Get Request with err:%v.", err)
+			return false
 		}
+	}
+	if mismatch {
+		t.Errorf("Expected connection failure for certificate mismatch, but RPC succeeded")
+		return false
 	}
 	t.Logf("gNSI authz get response is %s", rsp)
 	return true
@@ -495,7 +506,7 @@ func VerifyGnoi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 	}
 	defer conn.Close()
 	sysClient := spb.NewSystemClient(conn)
-	result := ValidateGnoiPingRequest(ctx, t, sysClient, false)
+	result := ValidateGnoiPingRequest(ctx, t, sysClient, mismatch)
 	conn.Close()
 	return result
 }
@@ -504,8 +515,26 @@ func VerifyGnoi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 func ValidateGnoiPingRequest(ctx context.Context, t *testing.T, sysClient spb.SystemClient, mismatch bool) bool {
 
 	t.Logf("Verifying gNOI Ping Request.")
-	if _, err := sysClient.Ping(ctx, &spb.PingRequest{}); err != nil {
+	pingClient, err := sysClient.Ping(ctx, &spb.PingRequest{Destination: "127.0.0.1", Count: 1})
+	if err != nil {
+		if mismatch {
+			t.Logf("Expected connection failure for certificate mismatch: %v", err)
+			return true
+		}
 		t.Fatalf("Unable to connect gnoiClient %v", err)
+	}
+	_, err = pingClient.Recv()
+	if err != nil {
+		if mismatch {
+			t.Logf("Expected connection failure for certificate mismatch: %v", err)
+			return true
+		}
+		t.Errorf("gNOI Ping request failed with err: %v", err)
+		return false
+	}
+	if mismatch {
+		t.Errorf("Expected connection failure for certificate mismatch, but RPC succeeded")
+		return false
 	}
 	return true
 }
@@ -563,7 +592,16 @@ func ValidateGnmiCapabilityRequest(ctx context.Context, t *testing.T, gnmiClient
 	t.Logf("Verifying gNMI Capability Request.")
 	response, err := gnmiClient.Capabilities(ctx, &gnmipb.CapabilityRequest{})
 	if err != nil {
-		t.Fatalf("gNMI Capability request failed with err: %v", err)
+		if mismatch {
+			t.Logf("Expected connection failure for certificate mismatch: %v", err)
+			return true
+		}
+		t.Errorf("gNMI Capability request failed with err: %v", err)
+		return false
+	}
+	if mismatch {
+		t.Errorf("Expected connection failure for certificate mismatch, but RPC succeeded")
+		return false
 	}
 	t.Logf("VerifyGnmi:gNMI response: %s", response.GNMIVersion)
 	return true
@@ -620,9 +658,29 @@ func VerifyGribi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username,
 func ValidateGribiGetRequest(ctx context.Context, t *testing.T, gRibiClient gribipb.GRIBIClient, mismatch bool) bool {
 
 	t.Logf("Verifying gRIBI GetRequest.")
-	_, err := gRibiClient.Get(ctx, &gribipb.GetRequest{})
+	getClient, err := gRibiClient.Get(ctx, &gribipb.GetRequest{
+		NetworkInstance: &gribipb.GetRequest_All{},
+		Aft:             gribipb.AFTType_IPV4,
+	})
 	if err != nil {
+		if mismatch {
+			t.Logf("Expected connection failure for certificate mismatch: %v", err)
+			return true
+		}
 		t.Fatalf("Failed to connect GribiClient with error:%v.", err)
+	}
+	_, err = getClient.Recv()
+	if err != nil && !errors.Is(err, io.EOF) {
+		if mismatch {
+			t.Logf("Expected connection failure for certificate mismatch: %v", err)
+			return true
+		}
+		t.Errorf("gRIBI GetRequest failed with err: %v", err)
+		return false
+	}
+	if mismatch {
+		t.Errorf("Expected connection failure for certificate mismatch, but RPC succeeded")
+		return false
 	}
 	return true
 }
@@ -675,8 +733,18 @@ func VerifyP4rt(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 func ValidateP4RtCapabilitiesRequest(ctx context.Context, t *testing.T, p4rtClient p4rtpb.P4RuntimeClient, mismatch bool) bool {
 
 	t.Logf("Verifying P4Rt Capability Request.")
-	if _, err := p4rtClient.Capabilities(ctx, &p4rtpb.CapabilitiesRequest{}); err != nil {
-		t.Fatalf("Failed to connect P4rtClient with error %v.", err)
+	_, err := p4rtClient.Capabilities(ctx, &p4rtpb.CapabilitiesRequest{})
+	if err != nil {
+		if mismatch {
+			t.Logf("Expected connection failure for certificate mismatch: %v", err)
+			return true
+		}
+		t.Errorf("P4Rt Capabilities request failed with err: %v", err)
+		return false
+	}
+	if mismatch {
+		t.Errorf("Expected connection failure for certificate mismatch, but RPC succeeded")
+		return false
 	}
 	return true
 }

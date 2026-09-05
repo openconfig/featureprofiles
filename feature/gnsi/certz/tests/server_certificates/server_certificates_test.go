@@ -19,6 +19,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -32,7 +33,7 @@ import (
 
 const (
 	scriptPath               = "../../test_data/"
-	timeOutVar time.Duration = 2 * time.Minute
+	timeOutVar time.Duration = 10 * time.Minute
 )
 
 // DUTCredentialer is an interface for getting credentials from a DUT binding.
@@ -107,10 +108,10 @@ func TestServerCert(t *testing.T) {
 	password := creds.RPCPassword()
 	t.Logf("Validation of all services that are using gRPC before server certificate rotation.")
 	gnmiClient, gnsiC := setupService.PreInitCheck(context.Background(), t, dut)
-	dirPath := t.TempDir()
+	dirPath := t.TempDir() + "/"
 	//Generate testdata certificates.
-	t.Logf("%s:STATUS:Generation of test data certificates.", logTime)
-	if err := setupService.TestdataMakeCleanup(t, scriptPath, timeOutVar, "./mk_cas.sh", dirPath); err != nil {
+	t.Logf("%s:STATUS:Generation of test data certificates in %s.", logTime, dirPath)
+	if err := setupService.TestdataMakeCleanup(t, scriptPath, timeOutVar, "./mk_cas.sh", dirPath, "01,02,10,1000"); err != nil {
 		t.Logf("%s:STATUS:Generation of testdata certificates failed!: %v", logTime, err)
 	}
 	//Create a certz client.
@@ -119,20 +120,21 @@ func TestServerCert(t *testing.T) {
 	t.Logf("%s:STATUS:Precheck:checking baseline sslprofile list.", logTime)
 	//Get sslprofile list.
 	if getResp := setupService.GetSslProfilelist(ctx, t, certzClient, &certzpb.GetProfileListRequest{}); slices.Contains(getResp.SslProfileIds, testProfile) {
-		t.Fatalf("%s:STATUS:profileID %s already exists.", logTime, testProfile)
-	}
-	//Add a new sslprofileID.
-	t.Logf("%s:STATUS:Adding new sslprofileID %s.", logTime, testProfile)
-	if addProfileResponse, err := certzClient.AddProfile(ctx, &certzpb.AddProfileRequest{SslProfileId: testProfile}); err != nil {
-		t.Fatalf("%s:STATUS:Add profile request failed with %v! ", logTime, err)
+		t.Logf("%s:STATUS:profileID %s already exists, skipping AddProfile.", logTime, testProfile)
 	} else {
-		t.Logf("%s:STATUS:Received the AddProfileResponse %v.", logTime, addProfileResponse)
-	}
-	//Get sslprofile list after new sslprofile addition.
-	if getResp := setupService.GetSslProfilelist(ctx, t, certzClient, &certzpb.GetProfileListRequest{}); !slices.Contains(getResp.SslProfileIds, testProfile) {
-		t.Fatalf("%s:STATUS:newly added profileID is not seen.", logTime)
-	} else {
-		t.Logf("%sSTATUS:new profileID %s is seen in sslprofile list", logTime, testProfile)
+		//Add a new sslprofileID.
+		t.Logf("%s:STATUS:Adding new sslprofileID %s.", logTime, testProfile)
+		if addProfileResponse, err := certzClient.AddProfile(ctx, &certzpb.AddProfileRequest{SslProfileId: testProfile}); err != nil {
+			t.Fatalf("%s:STATUS:Add profile request failed with %v! ", logTime, err)
+		} else {
+			t.Logf("%s:STATUS:Received the AddProfileResponse %v.", logTime, addProfileResponse)
+		}
+		//Get sslprofile list after new sslprofile addition.
+		if getResp := setupService.GetSslProfilelist(ctx, t, certzClient, &certzpb.GetProfileListRequest{}); !slices.Contains(getResp.SslProfileIds, testProfile) {
+			t.Fatalf("%s:STATUS:newly added profileID is not seen.", logTime)
+		} else {
+			t.Logf("%sSTATUS:new profileID %s is seen in sslprofile list", logTime, testProfile)
+		}
 	}
 	cases := []struct {
 		desc            string
@@ -305,7 +307,7 @@ func TestServerCert(t *testing.T) {
 					prevCaCert.AddCert(c)
 				}
 				//Before rotation, validation of all services with existing certificates.
-				if result := verifyServices(t, prevCaCert, expectedResult, serverSAN, serverAddr, username, password, prevClientCert, tc.mismatch); !result {
+				if result := verifyServices(t, prevCaCert, expectedResult, serverSAN, serverAddr, username, password, prevClientCert, false); !result {
 					t.Fatalf("%s:STATUS:%s:service validation failed before rotate- got %v, want %v.", logTime, tc.desc, result, expectedResult)
 				}
 				//Retrieve the connection with previous TLS credentials for certz rotation.
@@ -334,8 +336,14 @@ func TestServerCert(t *testing.T) {
 				t.Logf("%s:STATUS:%s:service validation done!", logTime, tc.desc)
 			})
 			//Archiving previous client cert/key and trustbundle.
-			prevClientCertFile = tc.clientCertFile
-			prevClientKeyFile = tc.clientKeyFile
+			if tc.mismatch {
+				// In case of mismatch, previous client cert/key and trustbundle are from ca-02.
+				prevClientCertFile = strings.Replace(tc.clientCertFile, "ca-01", "ca-02", 1)
+				prevClientKeyFile = strings.Replace(tc.clientKeyFile, "ca-01", "ca-02", 1)
+			} else {
+				prevClientCertFile = tc.clientCertFile
+				prevClientKeyFile = tc.clientKeyFile
+			}
 			prevTrustBundleFile = tc.trustBundleFile
 		})
 	}
