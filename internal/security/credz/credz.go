@@ -24,6 +24,7 @@ import (
 	"math/rand"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -497,7 +498,7 @@ func CreateHostCertificate(t *testing.T, dut *ondatra.DUTDevice, dir string, dut
 	}
 }
 
-func createHibaKeysCopy(t *testing.T, keysDir string) {
+func createHibaKeysCopy(t *testing.T, certsDir, keysDir string) {
 	keyFiles := []string{
 		"ca",
 		"ca.pub",
@@ -519,9 +520,10 @@ func createHibaKeysCopy(t *testing.T, keysDir string) {
 
 	for _, keyFile := range keyFiles {
 		var input []byte
-		input, err = os.ReadFile(keyFile)
+		srcPath := filepath.Join(certsDir, keyFile)
+		input, err = os.ReadFile(srcPath)
 		if err != nil {
-			t.Errorf("Error reading file %v, error: %s", keyFile, err)
+			t.Fatalf("Error reading file %v, error: %s", srcPath, err)
 			return
 		}
 		err = os.WriteFile(fmt.Sprintf("%s/%s", keysDir, keyFile), input, 0o600)
@@ -634,21 +636,15 @@ func createHibaKeysGen(t *testing.T, hibaCa, hibaGen, keysDir string) {
 
 // CreateHibaKeys creates/copies hiba granted keys/certificates in the specified directory.
 // If hiba tool is not installed on the testbed, ensure following files (generated after executing steps
-// from https://github.com/google/hiba/blob/main/CA.md) are present in the test directory :
-// feature/security/gnsi/credentialz/tests/hiba_authentication/ca,
-// feature/security/gnsi/credentialz/tests/hiba_authentication/ca.pub,
-// feature/security/gnsi/credentialz/tests/hiba_authentication/hosts/dut,
-// feature/security/gnsi/credentialz/tests/hiba_authentication/hosts/dut.pub,
-// feature/security/gnsi/credentialz/tests/hiba_authentication/hosts/dut-cert.pub,
-// feature/security/gnsi/credentialz/tests/hiba_authentication/users/testuser,
-// feature/security/gnsi/credentialz/tests/hiba_authentication/users/testuser.pub,
-// feature/security/gnsi/credentialz/tests/hiba_authentication/users/testuser-cert.pub,
-func CreateHibaKeys(t *testing.T, dut *ondatra.DUTDevice, keysDir string) {
+// from https://github.com/google/hiba/blob/main/CA.md) are present in certsDir :
+// ca, ca.pub, hosts/dut, hosts/dut.pub, hosts/dut-cert.pub,
+// users/testuser, users/testuser.pub, users/testuser-cert.pub
+func CreateHibaKeys(t *testing.T, dut *ondatra.DUTDevice, certsDir, keysDir string) {
 	hibaCa, _ := exec.LookPath("hiba-ca.sh")
 	hibaGen, _ := exec.LookPath("hiba-gen")
 	if hibaCa == "" || hibaGen == "" {
-		t.Log("hiba-ca and/or hiba-gen not found on path, will try to use certs in local test dir if present.")
-		createHibaKeysCopy(t, keysDir)
+		t.Logf("hiba-ca and/or hiba-gen not found on path, will try to use certs in %q if present.", certsDir)
+		createHibaKeysCopy(t, certsDir, keysDir)
 	} else {
 		createHibaKeysGen(t, hibaCa, hibaGen, keysDir)
 	}
