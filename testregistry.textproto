@@ -1607,6 +1607,10 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/mpls_in_udp/otg_tests/mpls_over_udp_tunnel_hashing_test/mpls_over_udp_tunnel_hashing_test.go"
 }
 test: {
+  id: "TE-18.4"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_flush/README.md"
+}
+test: {
   id: "TE-2.1"
   description: "gRIBI IPv4 Entry"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/ipv4_entry_test/README.md"
