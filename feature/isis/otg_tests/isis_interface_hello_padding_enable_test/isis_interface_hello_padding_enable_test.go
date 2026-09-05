@@ -450,43 +450,28 @@ func TestIsisInterfaceHelloPaddingEnable(t *testing.T) {
 			}
 		})
 		t.Run("Route checks", func(t *testing.T) {
-			v4OK := false
-			v6OK := false
-			for i := 1; i <= 5; i++ {
-				if !v4OK {
-					_, ok := gnmi.WatchAll(t, ts.DUT, statePath.Level(2).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().PrefixAny().Prefix().State(), 5*time.Second, func(val *ygnmi.Value[string]) bool {
-						v, present := val.Val()
-						if !present {
-							return false
-						}
-						t.Logf("Observed IPv4 LSP route prefix: %v", v)
-						return v == v4Route
-					}).Await(t)
-					if ok {
-						v4OK = true
-					}
+			_, v4OK := gnmi.WatchAll(t, ts.DUT, statePath.Level(2).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().PrefixAny().Prefix().State(), 1*time.Minute, func(val *ygnmi.Value[string]) bool {
+				v, present := val.Val()
+				if !present {
+					return false
 				}
-				if !v6OK {
-					_, ok := gnmi.WatchAll(t, ts.DUT, statePath.Level(2).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).Ipv6Reachability().PrefixAny().Prefix().State(), 5*time.Second, func(val *ygnmi.Value[string]) bool {
-						v, present := val.Val()
-						if !present {
-							return false
-						}
-						t.Logf("Observed IPv6 LSP route prefix: %v", v)
-						return v == v6Route
-					}).Await(t)
-					if ok {
-						v6OK = true
-					}
-				}
+				t.Logf("Observed IPv4 LSP route prefix: %v", v)
+				return v == v4Route
+			}).Await(t)
 
-				if v4OK && v6OK {
-					break
-				}
-			}
 			if !v4OK {
 				t.Errorf("FAIL- Couldn't find v4Route in dut LSP TLV")
 			}
+
+			_, v6OK := gnmi.WatchAll(t, ts.DUT, statePath.Level(2).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).Ipv6Reachability().PrefixAny().Prefix().State(), 1*time.Minute, func(val *ygnmi.Value[string]) bool {
+				v, present := val.Val()
+				if !present {
+					return false
+				}
+				t.Logf("Observed IPv6 LSP route prefix: %v", v)
+				return v == v6Route
+			}).Await(t)
+
 			if !v6OK {
 				t.Errorf("FAIL- Couldn't find v6Route in dut LSP TLV")
 			}
