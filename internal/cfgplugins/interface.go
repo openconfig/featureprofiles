@@ -186,9 +186,19 @@ func (om *OperationalModeList) Default(t *testing.T, dut *ondatra.DUTDevice) Ope
 			t.Fatalf("Unsupported vendor: %v", dut.Vendor())
 		}
 	case ondatra.PMD800GBASEZR:
-		return OperationalModeList{1, 3} // 800G : 1 (8x112G), 400G : 3 (4x112G)
+		switch dut.Vendor() {
+		case ondatra.CISCO:
+			return OperationalModeList{6001} // Cisco 800G ZR mode on 800G ZR+ optics.
+		default:
+			return OperationalModeList{1, 3} // 800G : 1 (8x112G), 400G : 3 (4x112G)
+		}
 	case ondatra.PMD800GBASEZRP:
-		return OperationalModeList{8, 4} // 800G : 8 (8x112G), 400G : 4 (4x112G)
+		switch dut.Vendor() {
+		case ondatra.CISCO:
+			return OperationalModeList{6001} // Cisco 800G ZR+ mode on 800G ZR+ optics.
+		default:
+			return OperationalModeList{8, 4} // 800G : 8 (8x112G), 400G : 4 (4x112G)
+		}
 	default:
 		t.Fatalf("Unsupported PMD type: %v", p.PMD())
 	}
@@ -390,7 +400,7 @@ func NewInterfaceConfigAll(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.Set
 		case ondatra.PMD800GBASEZR, ondatra.PMD800GBASEZRP:
 			params.FormFactor = oc.TransportTypes_TRANSCEIVER_FORM_FACTOR_TYPE_OSFP
 			switch params.OperationalMode {
-			case 1, 2, 8:
+			case 1, 2, 8, 6001, 6002:
 				params.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_800GB
 				params.NumPhysicalChannels = 8
 				params.RateClass = oc.TransportTypes_TRIBUTARY_RATE_CLASS_TYPE_TRIB_RATE_800G
@@ -534,7 +544,6 @@ func updateOTNChannelConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ond
 			Description:        ygot.String("OTN Logical Channel"),
 			Index:              ygot.Uint32(params.OTNIndexes[p.Name()]),
 			LogicalChannelType: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_OTN,
-			TribProtocol:       params.TribProtocol,
 			Assignment: map[uint32]*oc.TerminalDevice_Channel_Assignment{
 				firstAssignmentIndex: {
 					Index:          ygot.Uint32(firstAssignmentIndex),
@@ -545,6 +554,9 @@ func updateOTNChannelConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ond
 				},
 			},
 		}
+	}
+	if !deviations.OTNChannelTribUnsupported(dut) {
+		ch.TribProtocol = params.TribProtocol
 	}
 	if !deviations.TerminalDeviceChannelAdminStateUnsupported(dut) && !deviations.OTNToETHAssignment(dut) {
 		ch.AdminState = oc.TerminalDevice_AdminStateType_ENABLED
@@ -577,7 +589,7 @@ func updateETHChannelConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ond
 		},
 	}
 	if deviations.EthChannelAssignmentCiscoNumbering(dut) {
-		assignment[0].Index = ygot.Uint32(1)
+		assignment[assignmentIndex].Index = ygot.Uint32(1)
 	}
 	channel := &oc.TerminalDevice_Channel{
 		Description:        ygot.String("ETH Logical Channel"),
