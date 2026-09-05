@@ -1470,7 +1470,7 @@ test: {
 }
 test: {
   id: "TE-1.7"
-  description: "gNMI interface config impacts gRIBI next hop"
+  description: "gNMI Interface Config Change Impacting gRIBI NextHop"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gnmi_intf_config_impacts_gribi_nh_test/README.md"
 }
 test: {
