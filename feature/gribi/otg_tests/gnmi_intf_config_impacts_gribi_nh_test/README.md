@@ -47,9 +47,9 @@ Configure the baseline interfaces on the DUT.
   "openconfig-interfaces:interfaces": {
     "interface": [
       {
-        "name": "Port-Channel1",
+        "name": "Ethernet1/1/2",
         "config": {
-          "name": "Port-Channel1",
+          "name": "Ethernet1/1/2",
           "enabled": true,
           "mtu": 1500
         },
@@ -136,7 +136,7 @@ Configure the baseline interfaces on the DUT.
 * Step 2 - Change the MTU of DUT port-2 via gNMI Set replacing `/interfaces/interface[name=Ethernet1/1/2]/config/mtu` to `500`.
 * Step 3 - Send continuous IPv4 traffic with a packet size of 1500 bytes from ATE port-1 to a prefix solely destined to DUT port-2 (e.g., `203.0.113.255`).
 * Step 4 - Verify traffic drops to exactly 0 pps for this prefix.
-* Step 5 - Verify via gNMI Get that the interface error counters (e.g., `/interfaces/interface[name=Ethernet1/1/2]/state/counters/in-oversize-frames` or `in-errors`) increment correspondingly to the dropped traffic.
+* Step 5 - Verify via gNMI Get that the interface error counters (e.g., `/interfaces/interface[name=Ethernet1/1/2]/ethernet/state/counters/in-oversize-frames` or `in-errors`) increment correspondingly to the dropped traffic.
 * Step 6 - Revert the MTU of DUT port-2 to `1500` via gNMI Set and verify traffic resumes with 0% loss.
 
 ## OpenConfig Path and RPC Coverage
@@ -147,7 +147,7 @@ paths:
   /interfaces/interface/state/oper-status:
   /interfaces/interface/config/mtu:
   /interfaces/interface/state/mtu:
-  /interfaces/interface/state/counters/in-oversize-frames:
+  /interfaces/interface/ethernet/state/counters/in-oversize-frames:
   /interfaces/interface/state/counters/in-errors:
   /network-instances/network-instance/afts/next-hops/next-hop/state/index:
   /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group:
@@ -158,7 +158,6 @@ rpcs:
   gnmi:
     gNMI.Get:
     gNMI.Set:
-      union_replace: true
     gNMI.Subscribe:
       on_change: true
 ```
