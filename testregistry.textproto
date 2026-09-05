@@ -1420,6 +1420,7 @@ test: {
   id: "SYS-6.1"
   description: "SSO Extended Forwarding and Stability Validation"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/sso_extended_stability_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/sso_extended_stability_test/sso_extended_stability_test.go"
 }
 test: {
   id: "Storage-1.1"
