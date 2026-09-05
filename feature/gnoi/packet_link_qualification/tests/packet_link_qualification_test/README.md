@@ -35,6 +35,11 @@ and 100g links within 1 DUTs.
     *   Issue List qualifications request again.
     *   Verify that the qualification has been deleted successfully by checking
         List response.
+*   Validate LLDP neighbor status before running Link Qualification:
+    *   Query the OpenConfig LLDP state paths via gNMI to confirm the DUT sees its correct ATE peer on both ports:
+        *   `/lldp/interfaces/interface/neighbors/neighbor/state/port-id`
+        *   `/lldp/interfaces/interface/neighbors/neighbor/state/chassis-id`
+    *   Assert that the discovered peer ID does not match the local interface/chassis ID.
 *   Set a port as the NEAR_END (generator) device for Packet Based Link Qual.
     *   Issue gnoi.LinkQualification Create RPC to the device and provide
         following parameters:
@@ -82,6 +87,18 @@ and 100g links within 1 DUTs.
             are 0
         *   Ensure that RPC status code is 0 for success.
         *   Packets sent count matches with packets received.
+*   Verify that the hardware loopback has been disabled and LLDP neighborship recovers after deleting the Link Qualification sessions:
+    *   Execute the `LinkQualification.Delete` RPC to clear the session.
+    *   Periodically query the gNMI LLDP neighbor path for both ports over a 60-second window.
+    *   Assert that the neighbor's Chassis/Port ID is correctly updated to the ATE peer.
+    *   Assert that the neighbor's ID is NOT the local DUT's own Chassis/Port ID.
+    *   Confirm that no LLDP table updates or flaps are triggered, proving the ASIC loopback is disabled.
+
+## Canonical OC
+
+```json
+{}
+```
 
 ## OpenConfig Path and RPC Coverage
 
@@ -91,6 +108,8 @@ paths used for test setup are not listed here.
 ```yaml
 paths:
   /interfaces/interface/state/oper-status:
+  /lldp/interfaces/interface/neighbors/neighbor/state/port-id:
+  /lldp/interfaces/interface/neighbors/neighbor/state/chassis-id:
 rpcs:
   gnoi:
     packet_link_qualification.LinkQualification.Capabilities:
@@ -99,3 +118,4 @@ rpcs:
     packet_link_qualification.LinkQualification.Get:
     packet_link_qualification.LinkQualification.List:
 ```
+
