@@ -59,6 +59,22 @@ preventing traffic leakage into the native BGP underlay.
         *   Verify via `gNMI Get` that the 1,000 gRIBI routes remain programmed in the AFT (`/network-instances/network-instance[name=DEFAULT]/afts/ipv4-unicast/ipv4-entry[prefix=198.51.x.0/25]/state/prefix`).
     *   Fail Criteria: Traffic is forwarded out DUT Port 1 (BGP underlay route fallback) or the gRIBI routes are automatically withdrawn from the AFT.
 
+#### Canonical OC
+
+```json
+{
+  "network-instances": {
+    "network-instance": [
+      {
+        "name": "DEFAULT",
+        "config": {
+          "name": "DEFAULT"
+        }
+      }
+    ]
+  }
+}
+
 ### TE-1.22.2 - IPv6 Strict FIB Precedence Blackholing at Scale
 
 *   Step 1 - Base Route Injection
