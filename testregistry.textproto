@@ -193,6 +193,24 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/container/containerz/tests/container_lifecycle/containerz_test.go"
 }
 test: {
+  id: "CNTR-1.9"
+  description: "Container Capabilities Provisioning and Validation"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/container/containerz/tests/container_lifecycle/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/container/containerz/tests/container_lifecycle/containerz_test.go"
+}
+test: {
+  id: "CNTR-1.10"
+  description: "Volume Mount Driver Option Matrix and Reflection"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/container/containerz/tests/container_lifecycle/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/container/containerz/tests/container_lifecycle/containerz_test.go"
+}
+test: {
+  id: "CNTR-1.11"
+  description: "Comprehensive Container Capabilities Matrix and Deviation Enforcement"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/container/containerz/tests/container_lifecycle/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/container/containerz/tests/container_lifecycle/containerz_test.go"
+}
+test: {
   id: "CNTR-2"
   description: "Container network connectivity tests"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/container/networking/tests/container_connectivity/README.md"
