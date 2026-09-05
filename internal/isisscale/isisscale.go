@@ -356,6 +356,66 @@ func FindISISLSPCount(t *testing.T, dut *ondatra.DUTDevice, waitTime time.Durati
 
 }
 
+// VerifyISISAuthTelemetry verifies that IS-IS authentication telemetry is enabled and valid
+// for both the Level 2 LSP database and the interface hello authentication across all configured interfaces.
+// It returns a boolean indicating whether the check passed and an error if any check fails.
+func VerifyISISAuthTelemetry(t *testing.T, dut *ondatra.DUTDevice, isisInterfaceCount int) (bool, error) {
+	t.Helper()
+	dnc := deviations.DefaultNetworkInstance(dut)
+	isisProto := gnmi.OC().NetworkInstance(dnc).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, dnc).Isis()
+
+	// 1. Query and verify Global Level 2 LSP database authentication state
+	lspAuthVals := gnmi.LookupAll(t, dut, isisProto.LevelAny().Authentication().State())
+	if len(lspAuthVals) == 0 {
+		return false, fmt.Errorf("Authentication is not configured for ISIS Database")
+	}
+	lspAuthFound := false
+	for _, lspAuth := range lspAuthVals {
+		if val, ok := lspAuth.Val(); ok {
+			if val.GetEnabled() {
+				lspAuthFound = true
+				t.Logf("LSP Auth Telemetry State: Enabled=%v, AuthType=%v, AuthMode=%v", val.GetEnabled(), val.GetAuthType(), val.GetAuthMode())
+			}
+		}
+	}
+	if !lspAuthFound {
+		return false, fmt.Errorf("Authentication is not configured for ISIS Database")
+	}
+
+	// 2. Query and verify Interface Hello Authentication State across all interfaces
+	helloAuthCount := 0
+	if deviations.SetISISAuthWithInterfaceAuthenticationContainer(dut) {
+		intfAuthVals := gnmi.LookupAll(t, dut, isisProto.InterfaceAny().Authentication().State())
+		if len(intfAuthVals) == 0 {
+			return false, fmt.Errorf("Interface Auth Telemetry State is not present in telemetry stream")
+		}
+		for _, intfAuth := range intfAuthVals {
+			if val, ok := intfAuth.Val(); ok {
+				if val.GetEnabled() {
+					helloAuthCount++
+				}
+			}
+		}
+	} else {
+		helloAuthVals := gnmi.LookupAll(t, dut, isisProto.InterfaceAny().LevelAny().HelloAuthentication().State())
+		if len(helloAuthVals) == 0 {
+			return false, fmt.Errorf("Interface Hello Auth Telemetry State is not present in telemetry stream")
+		}
+		for _, helloAuth := range helloAuthVals {
+			if val, ok := helloAuth.Val(); ok {
+				if val.GetEnabled() {
+					helloAuthCount++
+				}
+			}
+		}
+	}
+	if helloAuthCount < isisInterfaceCount {
+		return false, fmt.Errorf("Interface Hello Auth Telemetry State mismatch: expected at least %d enabled interfaces, got %d", isisInterfaceCount, helloAuthCount)
+	}
+
+	return true, nil
+}
+
 // FindProtocolSummaryRouteCount finds the number of routes for the given protocol and address family.
 // It does this by watching the AFT summary periodically in a STREAM telemetry call and counting the number of routes.
 // It returns the number of routes and a boolean indicating whether the count reached the nominal count or not.

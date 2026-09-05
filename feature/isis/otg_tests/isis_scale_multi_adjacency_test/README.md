@@ -20,44 +20,36 @@ different circumstances e.g static (with no route flaps) dynamic state
 
 ### Testbed type
 
-[TESTBED_DUT_ATE_8LINKS](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_8.testbed)
+[TESTBED_DUT_ATE_4LINKS](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_4.testbed)
 
 ### Topology
 
 ```mermaid
 graph RL
-    Block1[ISIS Block1] <--> R101
-    Block3[ISIS Block3] <--> R301
-    Block5[ISIS Block5] <--> R501
-    Block7[ISIS Block7] <--> R701
-    Block9[ISIS Block9] <--> R101
-    Block11[ISIS Block11] <--> R301
-    ISIS_Dynamic_Block[ISIS Dynamic Block] <--> R501
-    R201 <--> Block2[ISIS Block2]
-    R401 <--> Block4[ISIS Block4]
-    R601 <--> Block6[ISIS Block6]
-    R801 <--> Block8[ISIS Block8]
-    R201 <--> Block10[ISIS Block10]
-    R401 <--> Block12[ISIS Block12]    
-    R101[ATE router R101] <--> |IS-IS |DUT[DUT]
-    R301[ATE router R301] <--> |IS-IS| DUT[DUT]
-    R501[ATE router R501] <--> |IS-IS| DUT[DUT]
-    R701[ATE router R701] <--> |IS-IS| DUT[DUT]
-    DUT <--> | IS-IS | R201[ATE router R201]
-    DUT <--> | IS-IS | R401[ATE router R401]
-    DUT <--> | IS-IS | R601[ATE router R601]
-    DUT <--> | IS-IS | R801[ATE router R801]
-    DUT <====> | IS-IS x88 Adjacencies  | Rest_Of_ERs[ATE Routers]
+    Block1[ISIS Blocks: RoutersTypeA_1..4] <--> R101[ATE Router R101]
+    Block2[ISIS Blocks: RoutersTypeB_1..4] <--> R201[ATE Router R201]
+    Block3[ISIS Blocks: RoutersTypeC_1..4] <--> R301[ATE Router R301]
+    Block4[ISIS Blocks: Dynamic_1] <--> R401[ATE Router R401]
+    R101 <--> |IS-IS (Agg1.1001)| DUT[DUT]
+    R201 <--> |IS-IS (Agg2.1101)| DUT[DUT]
+    R301 <--> |IS-IS (Agg3.1201)| DUT[DUT]
+    R401 <--> |IS-IS (Agg4.1301)| DUT[DUT]
+    DUT <====> | IS-IS x300 Adjacencies (Agg1..Agg4 Subinterfaces) | Rest_Of_ERs[ATE Routers R102..R176, R202..R276, R302..R376, R402..R476]
 ```
+
 ### DUT and OTG properties
 
 
-Device  |  Port1 IPv4 | Port1 IPv6 | Port2 IPv4 | Port2 IPv6 | Port3 IPv4 | Port3 IPv6| ISIS AREA | ISIS ID
-:------ | :-------------- | :------------- | :--------- | :-------- | :-------- | :--------:
-DUT     | 192.168.0.13/30 | 2003:db8::1/126  | 192.168.0.17/30 | 2004:db8::1/126 |192.168.0.21/30 | 2005:db8::1/126 | 49001| 640000000002
-ATE R1  | 192.168.0.6/30| 2001:db8::2/126 |N/A|N/A|N/A|N/A| 49001| 640000000003
-ATE R2  | N/A|N/A| 192.168.0.10/30 | 2002:db8::2/126|N/A|N/A| 49001| 640000000004
-ATE R3  | N/A|N/A| N/A|N/A|192.168.0.22/30 | 2005:db8::2/126| 49001| 640000000005
+| Device / Aggregate | Port | DUT IPv4 Subnet Base | DUT IPv6 Subnet Base | ATE IPv4 Subnet Base | ATE IPv6 Subnet Base | IS-IS Area | IS-IS SysID | VLAN Range | Adjacencies |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| DUT Agg1 | Port 1 | 192.0.0.1/30 | 2001:db8::1/126 | 192.0.0.2/30 | 2001:db8::2/126 | 49.0001 | 1920.0000.2001 | 1001 - 1076 | 76 |
+| DUT Agg2 | Port 2 | 192.0.1.53/30 | 2001:db8::131/126 | 192.0.1.54/30 | 2001:db8::132/126 | 49.0001 | 1920.0000.2001 | 1101 - 1176 | 76 |
+| DUT Agg3 | Port 3 | 192.0.2.105/30 | 2001:db8::261/126 | 192.0.2.106/30 | 2001:db8::262/126 | 49.0001 | 1920.0000.2001 | 1201 - 1276 | 76 |
+| DUT Agg4 | Port 4 | 192.0.3.157/30 | 2001:db8::391/126 | 192.0.3.158/30 | 2001:db8::392/126 | 49.0001 | 1920.0000.2001 | 1301 - 1376 | 76 |
+| ATE R101..R176 | Port 1 | 192.0.0.1/30 (peer) | 2001:db8::1/126 (peer) | 192.0.0.2/30 | 2001:db8::2/126 | 49001 | 640000000101..176 | 1001 - 1076 | 76 |
+| ATE R201..R276 | Port 2 | 192.0.1.53/30 (peer) | 2001:db8::131/126 (peer) | 192.0.1.54/30 | 2001:db8::132/126 | 49001 | 640000000201..276 | 1101 - 1176 | 76 |
+| ATE R301..R376 | Port 3 | 192.0.2.105/30 (peer) | 2001:db8::261/126 (peer) | 192.0.2.106/30 | 2001:db8::262/126 | 49001 | 640000000301..376 | 1201 - 1276 | 76 |
+| ATE R401..R476 | Port 4 | 192.0.3.157/30 (peer) | 2001:db8::391/126 (peer) | 192.0.3.158/30 | 2001:db8::392/126 | 49001 | 640000000401..476 | 1301 - 1376 | 76 |
 
 All Simulated ISIS blocks on OTG will have a grid topology with the below specs
 
