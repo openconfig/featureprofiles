@@ -1625,6 +1625,11 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/base_hierarchical_route_installation_test/base_hierarchical_route_installation_test.go"
 }
 test: {
+  id: "TE-3.10"
+  description: "gRIBI WCMP Group Resizing and Weight Changes"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/dynamic_wcmp_group_resizing_test/README.md"
+}
+test: {
   id: "TE-3.2"
   description: "Traffic Balancing According to Weights"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/weighted_balancing_test/README.md"
