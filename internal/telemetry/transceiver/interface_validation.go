@@ -15,39 +15,40 @@ import (
 
 // validateInterfaceTelemetry validates the interface telemetry.
 func validateInterfaceTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port, params *cfgplugins.ConfigParameters, wantOperStatus oc.E_Interface_OperStatus, interfaceStream *samplestream.SampleStream[*oc.Interface]) {
+	interfaceName := cfgplugins.InterfaceName(dut, p, params)
 	nextInterfaceSample, ok := interfaceStream.AwaitNext(timeout, func(v *ygnmi.Value[*oc.Interface]) bool {
 		val, present := v.Val()
 		return present && val.GetOperStatus() == wantOperStatus
 	})
 	if !ok {
-		t.Fatalf("Interface %v is not %v after %v minutes.", p.Name(), wantOperStatus, timeout.Minutes())
+		t.Fatalf("Interface %v is not %v after %v minutes.", interfaceName, wantOperStatus, timeout.Minutes())
 	}
 	interfaceValue, ok := nextInterfaceSample.Val()
 	if !ok {
-		t.Fatalf("Interface value is empty for port %v.", p.Name())
+		t.Fatalf("Interface value is empty for port %v.", interfaceName)
 	}
 	tcs := []testcase{
 		{
 			desc: "Interface Name Validation",
-			path: fmt.Sprintf(interfacePath+"/state/name", p.Name()),
+			path: fmt.Sprintf(interfacePath+"/state/name", interfaceName),
 			got:  interfaceValue.GetName(),
-			want: p.Name(),
+			want: interfaceName,
 		},
 		{
 			desc: "Interface OperStatus Validation",
-			path: fmt.Sprintf(interfacePath+"/state/oper-status", p.Name()),
+			path: fmt.Sprintf(interfacePath+"/state/oper-status", interfaceName),
 			got:  interfaceValue.GetOperStatus(),
 			want: wantOperStatus,
 		},
 		{
 			desc: "Interface Type Validation",
-			path: fmt.Sprintf(interfacePath+"/state/type", p.Name()),
+			path: fmt.Sprintf(interfacePath+"/state/type", interfaceName),
 			got:  interfaceValue.GetType(),
 			want: oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
 		},
 		{
 			desc: "Interface Enabled Validation",
-			path: fmt.Sprintf(interfacePath+"/state/enabled", p.Name()),
+			path: fmt.Sprintf(interfacePath+"/state/enabled", interfaceName),
 			got:  interfaceValue.GetEnabled(),
 			want: wantOperStatus == oc.Interface_OperStatus_UP,
 		},
@@ -61,17 +62,17 @@ func validateInterfaceTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondatra
 		tcs = append(tcs, []testcase{
 			{
 				desc: "Interface Ethernet Speed Validation",
-				path: fmt.Sprintf(interfacePath+"/ethernet/state/port-speed", p.Name()),
+				path: fmt.Sprintf(interfacePath+"/ethernet/state/port-speed", interfaceName),
 				got:  interfaceValue.GetEthernet().GetPortSpeed(),
 				want: params.PortSpeed,
 			},
 		}...)
 	}
 	for _, tc := range tcs {
-		t.Run(fmt.Sprintf("%s of %v", tc.desc, p.Name()), func(t *testing.T) {
-			t.Logf("\n%s: %s = %v\n\n", p.Name(), tc.path, tc.got)
+		t.Run(fmt.Sprintf("%s of %v", tc.desc, interfaceName), func(t *testing.T) {
+			t.Logf("\n%s: %s = %v\n\n", interfaceName, tc.path, tc.got)
 			if diff := cmp.Diff(tc.got, tc.want); diff != "" {
-				t.Errorf("\n%s: %s, diff (-got +want):\n%s\n\n", p.Name(), tc.path, diff)
+				t.Errorf("\n%s: %s, diff (-got +want):\n%s\n\n", interfaceName, tc.path, diff)
 			}
 		})
 	}
