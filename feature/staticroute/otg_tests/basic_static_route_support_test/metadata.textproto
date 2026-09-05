@@ -46,6 +46,23 @@ platform_exceptions:  {
     interface_ref_interface_id_format:  true
     skip_static_nexthop_check:  true
     ipv6_static_route_with_ipv4_nh_unsupported:  true
+    interface_enabled:  true
+    explicit_interface_in_default_vrf: true
+    default_network_instance: "default"
+  }
+}
+platform_exceptions:  {
+  platform:  {
+    vendor:  NOKIA
+  }
+  deviations:  {
+    explicit_interface_in_default_vrf:  true
+    interface_enabled:  true
+    missing_isis_interface_afi_safi_enable:  true
+    static_protocol_name: "static"
+    set_metric_as_preference: true
+    missing_value_for_defaults: true
+    isis_interface_level1_disable_required: true
   }
 }
 tags:  TAGS_DATACENTER_EDGE
