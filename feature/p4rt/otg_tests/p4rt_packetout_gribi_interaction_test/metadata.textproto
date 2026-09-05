@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "bcd7b760-8213-444f-9096-2b0704ff55ba"
+plan_id: "P4RT-3.3"
+description: "P4RT Packet-Out Interaction with gRIBI"
+testbed: TESTBED_DUT_ATE_4LINKS
