@@ -29,6 +29,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/gnmi/oc/ocpath"
 	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -247,4 +248,35 @@ func OpticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *on
 		t.Fatalf("Associated Optical Channel for Transceiver (%v) not found!", transceiverName)
 	}
 	return opticalChannelName
+}
+
+// SetControllerCardPowerState modifies the power-admin-state of a specific controller card (POWER_DISABLED / POWER_ENABLED)
+// and awaits state and oper-status confirmation, incorporating deviations (e.g. PowerDisableEnableLeafRefValidation).
+func SetControllerCardPowerState(t *testing.T, dut *ondatra.DUTDevice, cardName string, powerType oc.E_Platform_ComponentPowerType, timeout time.Duration) {
+	t.Helper()
+	c := gnmi.OC().Component(cardName)
+	if deviations.PowerDisableEnableLeafRefValidation(dut) {
+		gnmi.Update(t, dut, c.Config(), &oc.Component{
+			Name: ygot.String(cardName),
+		})
+	}
+	start := time.Now()
+	t.Logf("Setting %s power-admin-state to %v", cardName, powerType)
+	gnmi.Replace(t, dut, c.ControllerCard().PowerAdminState().Config(), powerType)
+
+	power, ok := gnmi.Await(t, dut, c.ControllerCard().PowerAdminState().State(), timeout, powerType).Val()
+	if !ok {
+		t.Fatalf("Component %s, power-admin-state got: %v, want: %v", cardName, power, powerType)
+	}
+	t.Logf("Component %s, power-admin-state after %.2f minutes: %v", cardName, time.Since(start).Minutes(), power)
+
+	wantOper := oc.PlatformTypes_COMPONENT_OPER_STATUS_DISABLED
+	if powerType == oc.Platform_ComponentPowerType_POWER_ENABLED {
+		wantOper = oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE
+	}
+	oper, ok := gnmi.Await(t, dut, c.OperStatus().State(), timeout, wantOper).Val()
+	if !ok {
+		t.Fatalf("Component %s oper-status, got: %v, want: %v", cardName, oper, wantOper)
+	}
+	t.Logf("Component %s, oper-status after %.2f minutes: %v", cardName, time.Since(start).Minutes(), oper)
 }
