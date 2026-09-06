@@ -335,3 +335,8 @@ func (f *Flow) AddCustomHeader() {
 	customHeader := f.flow.Packet().Add().Custom()
 	customHeader.SetBytes(f.CustomFlow.Bytes)
 }
+
+// GetFlow will return the flow object
+func (f *Flow) GetFlow() gosnappi.Flow {
+	return f.flow
+}

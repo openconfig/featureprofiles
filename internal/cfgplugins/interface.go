@@ -1500,3 +1500,49 @@ func ConfigureLACPFallbackCLI(t *testing.T, dut *ondatra.DUTDevice, lagIntfName 
 		t.Fatalf("configureLACPFallbackCLI: unsupported vendor %s", dut.Vendor())
 	}
 }
+
+// LoopbackConfig contains parameters for configuring a loopback interface.
+type LoopbackConfig struct {
+	Name      string
+	IP        string
+	PrefixLen uint8
+	IsIPv6    bool
+	Batch     *gnmi.SetBatch
+}
+
+// ConfigureLoopback configures a loopback interface with IPv4 or IPv6 addressing.
+func ConfigureLoopback(t *testing.T, dut *ondatra.DUTDevice, cfg LoopbackConfig) {
+	t.Helper()
+
+	i := &oc.Interface{}
+	i.Name = ygot.String(cfg.Name)
+	i.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
+
+	if deviations.InterfaceEnabled(dut) {
+		i.Enabled = ygot.Bool(true)
+	}
+
+	s0 := i.GetOrCreateSubinterface(0)
+
+	if cfg.IsIPv6 {
+		ipv6 := s0.GetOrCreateIpv6()
+		if deviations.InterfaceEnabled(dut) {
+			ipv6.Enabled = ygot.Bool(true)
+		}
+		addr := ipv6.GetOrCreateAddress(cfg.IP)
+		addr.PrefixLength = ygot.Uint8(cfg.PrefixLen)
+	} else {
+		ipv4 := s0.GetOrCreateIpv4()
+		if deviations.InterfaceEnabled(dut) {
+			ipv4.Enabled = ygot.Bool(true)
+		}
+		addr := ipv4.GetOrCreateAddress(cfg.IP)
+		addr.PrefixLength = ygot.Uint8(cfg.PrefixLen)
+	}
+
+	if cfg.Batch != nil {
+		gnmi.BatchUpdate(cfg.Batch, gnmi.OC().Interface(cfg.Name).Config(), i)
+	} else {
+		gnmi.Replace(t, dut, gnmi.OC().Interface(cfg.Name).Config(), i)
+	}
+}

@@ -36,8 +36,9 @@ import (
 )
 
 var (
-	enablePacketCapture = flag.Bool("enable_packet_capture", false, "Enable packet capture and deep packet inspection validation.")
-	compactOTGFlows     = flag.Bool("compact_otg_flows", true, "Compact OTG flows to reduce the number of flows due to OTG port limits.")
+	enablePacketCapture  = flag.Bool("enable_packet_capture", false, "Enable packet capture and deep packet inspection validation.")
+	compactOTGFlows      = flag.Bool("compact_otg_flows", true, "Compact OTG flows to reduce the number of flows due to OTG port limits.")
+	monitorHWUtilization = flag.Bool("monitor_hw_utilization", true, "Enable hardware resource utilization monitoring on the DUT.")
 )
 
 // ============================================================
@@ -59,7 +60,8 @@ func TestMain(m *testing.M) {
 func TestGRIBIFullScaleT0(t *testing.T) {
 	params := cfgplugins.ScaleParams{
 		// gRIBI & System parameters
-		GRIBIBatchSize: 256,
+		GRIBIBatchSize:    256,
+		GRIBIBatchTimeout: 20 * time.Second,
 
 		// Default VRF parameters
 		NumDefaultNH:   1_000,
@@ -83,7 +85,7 @@ func TestGRIBIFullScaleT0(t *testing.T) {
 			{Pct: 100, NumNextHops: 2},
 		},
 		TransitNHGWeight: []cfgplugins.NHGWeightParams{
-			{Pct: 100, Config: cfgplugins.WCMP1in64},
+			{Pct: 100, Config: cfgplugins.ExplicitWeights{Weights: []uint64{1, 63}}},
 		},
 		NumTransitIPv4: 12_600,
 
@@ -118,9 +120,9 @@ func TestGRIBIFullScaleT0(t *testing.T) {
 		NumPort2VLANs: 640,
 
 		// Traffic parameters
-		TrafficRateMpps: 100_000,
+		TrafficRateMpps: 30_000_000,
 		TrafficDuration: 5 * time.Minute,
-		TrafficLossTol:  5,
+		TrafficLossTol:  0,
 	}
-	cfgplugins.RunFullScaleTest(t, params, *enablePacketCapture, *compactOTGFlows)
+	cfgplugins.RunFullScaleTest(t, params, *enablePacketCapture, *compactOTGFlows, *monitorHWUtilization)
 }
