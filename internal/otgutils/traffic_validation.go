@@ -76,7 +76,7 @@ func VerifyNoPacketLoss(t testing.TB, otg *otg.OTG, allFlows []string) {
 	for _, flow := range allFlows {
 		_, ok := gnmi.Watch(t, otg, gnmi.OTG().Flow(flow).State(), 15*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
 			flowState, present := val.Val()
-			if !present {
+			if !present || flowState == nil || flowState.GetCounters() == nil {
 				return false
 			}
 			txPackets := float64(flowState.GetCounters().GetOutPkts())

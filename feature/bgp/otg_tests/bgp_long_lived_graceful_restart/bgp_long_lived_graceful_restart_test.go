@@ -932,7 +932,7 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 	if ok := t.Run("configureATE", func(t *testing.T) {
 		_, allFlows, ateBgpPeers = configureATE(t, ate)
 	}); !ok {
-		panic("configureATE failed")
+		t.Fatalf("configureATE failed")
 	}
 
 	t.Run("verifyDUTPorts", func(t *testing.T) {
@@ -968,6 +968,12 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 		const stopDuration = 45 * time.Second
 		t.Log("Starting traffic")
 		ate.OTG().StartTraffic(t)
+		trafficStopped := false
+		defer func() {
+			if !trafficStopped {
+				ate.OTG().StopTraffic(t)
+			}
+		}()
 		startTime := time.Now()
 		t.Log("Trigger graceful restart on ATE")
 		grTriggerTime = time.Now()
@@ -984,6 +990,7 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 		time.Sleep(grTimer - stopDuration - replaceDuration)
 		t.Log("Send traffic while GR timer is counting down. Traffic should pass as BGP GR is enabled!")
 		ate.OTG().StopTraffic(t)
+		trafficStopped = true
 		t.Log("Traffic stopped")
 		otgutils.VerifyNoPacketLoss(t, ate.OTG(), allFlows)
 	})
@@ -1139,7 +1146,7 @@ func TestTrafficWithGracefulRestart(t *testing.T) {
 	if ok := t.Run("configureATE", func(t *testing.T) {
 		_, allFlows, _ = configureATE(t, ate)
 	}); !ok {
-		panic("configureATE failed")
+		t.Fatalf("configureATE failed")
 	}
 
 	t.Run("verifyDUTPorts", func(t *testing.T) {
@@ -1175,6 +1182,12 @@ func TestTrafficWithGracefulRestart(t *testing.T) {
 		const stopDuration = 45 * time.Second
 		t.Log("Starting traffic")
 		ate.OTG().StartTraffic(t)
+		trafficStopped := false
+		defer func() {
+			if !trafficStopped {
+				ate.OTG().StopTraffic(t)
+			}
+		}()
 		startTime := time.Now()
 		t.Log("Trigger graceful restart on ATE")
 		grTriggerTime = time.Now()
@@ -1192,6 +1205,7 @@ func TestTrafficWithGracefulRestart(t *testing.T) {
 
 		t.Log("Send traffic while GR timer is counting down. Traffic should pass as BGP GR is enabled!")
 		ate.OTG().StopTraffic(t)
+		trafficStopped = true
 		t.Log("Traffic stopped")
 		otgutils.VerifyNoPacketLoss(t, ate.OTG(), allFlows)
 	})
