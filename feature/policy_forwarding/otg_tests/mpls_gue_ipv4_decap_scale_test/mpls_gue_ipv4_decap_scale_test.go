@@ -2,6 +2,7 @@
 package mpls_gue_ipv4_decap_scale_test
 
 import (
+	"cmp"
 	"fmt"
 	"math"
 	"slices"
@@ -15,8 +16,8 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/iputil"
-	otgconfighelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers"
-	otgvalidationhelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_validation_helpers"
+	"github.com/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers"
+	"github.com/openconfig/featureprofiles/internal/otg_helpers/otg_validation_helpers"
 	"github.com/openconfig/featureprofiles/internal/otg_helpers/packetvalidationhelpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
@@ -617,29 +618,16 @@ func decapMPLSInGUE(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance
 	}
 }
 
-// sendTraffic push the OTG config and start the protocols/traffic and get the flow/port metrics.
-func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, custAggID string, netConfig *networkConfig) {
-	t.Helper()
-	pushAndStartProtocols(t, ate, top, pushStartWaitTime)
-	waitForSubinterfacesUp(t, dut, custAggID, netConfig, 180*time.Second)
-	if err := flowResolveArp.IsIPv4Interfaceresolved(t, ate); err != nil {
-		t.Fatalf("Failed to resolve IPv4 interface for ATE: %v, error: %v", ate, err)
-	}
-	if err := flowResolveArp.IsIPv6Interfaceresolved(t, ate); err != nil {
-		t.Fatalf("Failed to resolve IPv6 interface for ATE: %v, error: %v", ate, err)
-	}
-	ate.OTG().StartTraffic(t)
-	time.Sleep(sleepTime * time.Second)
-	ate.OTG().StopTraffic(t)
-	otgutils.LogFlowMetrics(t, ate.OTG(), top)
-	otgutils.LogPortMetrics(t, ate.OTG(), top)
+// trafficOptions defines the optional behavior for a traffic run.
+type trafficOptions struct {
+	duration time.Duration
+	capture  bool
+	monitor  func(*testing.T)
 }
 
-// sendTrafficWithTelemetry starts the traffic, runs the supplied gNMI Subscribe
-// based telemetry monitor while the traffic is running, and then stops the
-// traffic. Traffic runs for at least trafficDuration so that every subscription
-// samples a loaded device.
-func sendTrafficWithTelemetry(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, custAggID string, netConfig *networkConfig, trafficDuration time.Duration, monitor func(*testing.T)) {
+// runTraffic prepares the ATE and DUT, optionally captures traffic, runs the
+// supplied telemetry monitor, and logs traffic metrics after traffic stops.
+func runTraffic(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, custAggID string, netConfig *networkConfig, opts trafficOptions) {
 	t.Helper()
 	pushAndStartProtocols(t, ate, top, pushStartWaitTime)
 	waitForSubinterfacesUp(t, dut, custAggID, netConfig, 180*time.Second)
@@ -649,20 +637,27 @@ func sendTrafficWithTelemetry(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra
 	if err := flowResolveArp.IsIPv6Interfaceresolved(t, ate); err != nil {
 		t.Fatalf("Failed to resolve IPv6 interface for ATE: %v, error: %v", ate, err)
 	}
-	ate.OTG().StartTraffic(t)
-	// monitor may call t.Fatalf, which unwinds the goroutine and would otherwise
-	// skip the stop below, leaving traffic running for the remaining subtests.
+	var cs gosnappi.ControlState
+	if opts.capture {
+		cs = packetvalidationhelpers.StartCapture(t, ate)
+	}
 	trafficStopped := false
+	// Traffic must always be stopped before the capture is torn down, so both
+	// operations are performed by a single deferred cleanup in that order.
 	defer func() {
 		if !trafficStopped {
 			ate.OTG().StopTraffic(t)
 		}
+		if opts.capture {
+			packetvalidationhelpers.StopCapture(t, ate, cs)
+		}
 	}()
+	ate.OTG().StartTraffic(t)
 	start := time.Now()
-	if monitor != nil {
-		monitor(t)
+	if opts.monitor != nil {
+		opts.monitor(t)
 	}
-	if remaining := trafficDuration - time.Since(start); remaining > 0 {
+	if remaining := opts.duration - time.Since(start); remaining > 0 {
 		time.Sleep(remaining)
 	}
 	ate.OTG().StopTraffic(t)
@@ -671,48 +666,44 @@ func sendTrafficWithTelemetry(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra
 	otgutils.LogPortMetrics(t, ate.OTG(), top)
 }
 
+// sendTraffic push the OTG config and start the protocols/traffic and get the flow/port metrics.
+func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, custAggID string, netConfig *networkConfig) {
+	t.Helper()
+	runTraffic(t, ate, dut, custAggID, netConfig, trafficOptions{duration: sleepTime * time.Second})
+}
+
+// sendTrafficWithTelemetry starts the traffic, runs the supplied gNMI Subscribe
+// based telemetry monitor while the traffic is running, and then stops the
+// traffic. Traffic runs for at least trafficDuration so that every subscription
+// samples a loaded device.
+func sendTrafficWithTelemetry(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, custAggID string, netConfig *networkConfig, trafficDuration time.Duration, monitor func(*testing.T)) {
+	t.Helper()
+	runTraffic(t, ate, dut, custAggID, netConfig, trafficOptions{duration: trafficDuration, monitor: monitor})
+}
+
 // sendTrafficCapture push the OTG config and start/stop the capture/traffic to validate the captured packets.
 func sendTrafficCapture(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, custAggID string, netConfig *networkConfig) {
 	t.Helper()
-	pushAndStartProtocols(t, ate, top, pushStartWaitTime)
-	waitForSubinterfacesUp(t, dut, custAggID, netConfig, 180*time.Second)
-	if err := flowResolveArp.IsIPv4Interfaceresolved(t, ate); err != nil {
-		t.Fatalf("Failed to resolve IPv4 interface for ATE: %v, error: %v", ate, err)
-	}
-	// The IPv6 payload-preserve capture transmits from the IPv6 device, so its
-	// gateway must be resolved before the flow is started as well.
-	if err := flowResolveArp.IsIPv6Interfaceresolved(t, ate); err != nil {
-		t.Fatalf("Failed to resolve IPv6 interface for ATE: %v, error: %v", ate, err)
-	}
-	cs := packetvalidationhelpers.StartCapture(t, ate)
-	ate.OTG().StartTraffic(t)
-	time.Sleep(sleepTime * time.Second)
-	ate.OTG().StopTraffic(t)
-	packetvalidationhelpers.StopCapture(t, ate, cs)
+	runTraffic(t, ate, dut, custAggID, netConfig, trafficOptions{duration: sleepTime * time.Second, capture: true})
 }
 
 // pushAndStartProtocols pushes the OTG configuration to the ATE, starts all control-plane protocols, waits for protocol convergence, and optionally stops the protocols after the provided duration.
 func pushAndStartProtocols(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, pushStartWaitTime time.Duration) {
 	t.Helper()
-
 	t.Log("Pushing OTG config...")
 	ate.OTG().PushConfig(t, top)
 	time.Sleep(pushStartWaitTime)
 	t.Log("Starting protocols...")
 	ate.OTG().StartProtocols(t)
-
 	if err := waitForOTGProtocolsUpWithRetry(t, ate, top, pushStartWaitTime, false); err != nil {
 		t.Log("Protocols not UP on first attempt, restarting once...")
-
 		// Restart once
 		ate.OTG().StopProtocols(t)
 		ate.OTG().StartProtocols(t)
-
 		if err := waitForOTGProtocolsUpWithRetry(t, ate, top, pushStartWaitTime, true); err != nil {
 			t.Fatalf("Protocols failed to come UP even after restart: %v", err)
 		}
 	}
-
 	t.Log("Protocols are stable and ready")
 }
 
@@ -720,7 +711,6 @@ func pushAndStartProtocols(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Co
 func waitForSubinterfacesUp(t *testing.T, dut *ondatra.DUTDevice, aggID string, netConfig *networkConfig, timeout time.Duration) {
 	t.Helper()
 	t.Logf("Waiting for subinterfaces on %s...", aggID)
-
 	for i := range netConfig.DutIPv4s {
 		subif := uint32(i + 1)
 		// -------------------------------
@@ -754,7 +744,6 @@ func waitForSubinterfacesUp(t *testing.T, dut *ondatra.DUTDevice, aggID string, 
 			t.Fatalf("IPv6 not configured on %s.%d", aggID, subif)
 		}
 	}
-
 	t.Log("All subinterfaces are configured successfully")
 }
 
@@ -768,7 +757,6 @@ func waitForOTGProtocolsUpWithRetry(t *testing.T, ate *ondatra.ATEDevice, config
 				state, present := val.Val()
 				return present && state == otgtelemetry.Port_Link_UP
 			}).Await(t)
-
 		if !ok {
 			if strict {
 				return fmt.Errorf("port %s not UP", p.Name())
@@ -785,7 +773,6 @@ func waitForOTGProtocolsUpWithRetry(t *testing.T, ate *ondatra.ATEDevice, config
 				state, present := val.Val()
 				return present && state == otgtelemetry.Lag_OperStatus_UP
 			}).Await(t)
-
 		if !ok {
 			if strict {
 				return fmt.Errorf("LAG %s not UP", lag.Name())
@@ -794,7 +781,6 @@ func waitForOTGProtocolsUpWithRetry(t *testing.T, ate *ondatra.ATEDevice, config
 		}
 		t.Logf("LAG %s is UP", lag.Name())
 	}
-
 	return nil
 }
 
@@ -869,9 +855,7 @@ func createFlow(t *testing.T, top gosnappi.Config, outer *otgconfighelpers.Flow,
 // name, source MAC and rate are adjusted accordingly.
 func createFlowForTx(t *testing.T, top gosnappi.Config, outer *otgconfighelpers.Flow, inner *otgconfighelpers.Flow, txName string) {
 	t.Helper()
-
 	outerCopy := *outer
-
 	if txName != "" {
 		n := len(outer.TxNames)
 		outerCopy.TxNames = []string{txName}
@@ -882,7 +866,6 @@ func createFlowForTx(t *testing.T, top gosnappi.Config, outer *otgconfighelpers.
 			outerCopy.PacketsToSend = outer.PacketsToSend / uint32(n)
 		}
 	}
-
 	if outer.EthFlow != nil {
 		eth := *outer.EthFlow
 		if agg := txAggregate(txName); txName != "" && agg != nil {
@@ -910,10 +893,8 @@ func createFlowForTx(t *testing.T, top gosnappi.Config, outer *otgconfighelpers.
 		mpls := *outer.MPLSFlow
 		outerCopy.MPLSFlow = &mpls
 	}
-
 	outerCopy.CreateFlow(top)
 	outerCopy.AddEthHeader()
-
 	if outerCopy.IPv4Flow != nil {
 		outerCopy.AddIPv4Header()
 	}
@@ -926,26 +907,22 @@ func createFlowForTx(t *testing.T, top gosnappi.Config, outer *otgconfighelpers.
 	if outerCopy.MPLSFlow != nil {
 		outerCopy.AddMPLSHeader()
 	}
-
 	if inner != nil {
 		if inner.IPv4Flow != nil {
 			ipv4 := *inner.IPv4Flow
 			outerCopy.IPv4Flow = &ipv4
 			outerCopy.AddIPv4Header()
 		}
-
 		if inner.IPv6Flow != nil {
 			ipv6 := *inner.IPv6Flow
 			outerCopy.IPv6Flow = &ipv6
 			outerCopy.AddIPv6Header()
 		}
-
 		if inner.TCPFlow != nil {
 			tcp := *inner.TCPFlow
 			outerCopy.TCPFlow = &tcp
 			outerCopy.AddTCPHeader()
 		}
-
 		if inner.UDPFlow != nil {
 			udp := *inner.UDPFlow
 			outerCopy.UDPFlow = &udp
@@ -996,13 +973,11 @@ func configureInterfaces(t *testing.T, dut *ondatra.DUTDevice, dutPorts []string
 		cfgplugins.DeleteAggregate(t, dut, aggID, dutAggPorts)
 		cfgplugins.SetupAggregateAtomically(t, dut, aggID, dutAggPorts)
 	}
-
 	lacp := &oc.Lacp_Interface{Name: ygot.String(aggID)}
 	lacp.LacpMode = oc.Lacp_LacpActivityType_ACTIVE
 	lacpPath := d.Lacp().Interface(aggID)
 	fptest.LogQuery(t, "LACP", lacpPath.Config(), lacp)
 	gnmi.Replace(t, dut, lacpPath.Config(), lacp)
-
 	agg := &oc.Interface{Name: ygot.String(aggID)}
 	configDUTInterface(t, agg, subinterfaces, dut)
 	agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_LACP
@@ -1010,7 +985,6 @@ func configureInterfaces(t *testing.T, dut *ondatra.DUTDevice, dutPorts []string
 	aggPath := d.Interface(aggID)
 	fptest.LogQuery(t, aggID, aggPath.Config(), agg)
 	gnmi.Replace(t, dut, aggPath.Config(), agg)
-
 	for _, port := range dutAggPorts {
 		holdTimeConfig := &oc.Interface_HoldTime{Up: ygot.Uint32(carrierDelayUp), Down: ygot.Uint32(carrierDelayDown)}
 		intfPath := gnmi.OC().Interface(port.Name())
@@ -1062,7 +1036,6 @@ func configureInterfaceAddress(t *testing.T, dut *ondatra.DUTDevice, s *oc.Inter
 	if a.IPv6 != "" {
 		s6.GetOrCreateAddress(a.IPv6).PrefixLength = ygot.Uint8(a.IPv6Len)
 	}
-
 	if a.IPv6Sec != "" {
 		s62 := s.GetOrCreateIpv6()
 		if deviations.InterfaceEnabled(dut) {
@@ -1125,7 +1098,6 @@ func TestMPLSOGUEDecapScale(t *testing.T) {
 	}
 
 	packetvalidationhelpers.ClearCapture(t, top, ate)
-
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.captureConfig != nil {
@@ -1137,10 +1109,8 @@ func TestMPLSOGUEDecapScale(t *testing.T) {
 				}
 				return
 			}
-
 			createFlow(t, top, tc.outer, tc.inner, true)
 			sendTraffic(t, ate, dut, custAggID, netConfig)
-
 			// createFlow splits a multi-TxName definition into one OTG flow per
 			// transmit device, so every generated sub flow is validated.
 			for _, name := range flowNames(tc.outer) {
@@ -1156,7 +1126,6 @@ func TestMPLSOGUEDecapScale(t *testing.T) {
 			}
 		})
 	}
-
 	// PF-1.20.v6 reuses the environment configured above instead of rebuilding the
 	// full 2000-subinterface scale setup.
 	testDecapScaleIPv6Outer(t, ate, dut, custAggID, netConfig)
@@ -1166,7 +1135,6 @@ func TestMPLSOGUEDecapScale(t *testing.T) {
 // PF-1.20.v6: Validate scaled decapsulation of MPLS over GUE with 1000 unique
 // IPv6 outer header flows.
 // -----------------------------------------------------------------------------
-
 // systemHealth holds a snapshot of the DUT CPU/memory telemetry.
 type systemHealth struct {
 	maxCPUInstantPct uint8
@@ -1191,7 +1159,6 @@ func healthSubOpts(t *testing.T, dut *ondatra.DUTDevice) *gnmi.Opts {
 // addresses used to program the decap rules and to generate the ATE streams.
 func generateIPv6ScaleOuterSources(t *testing.T) []string {
 	t.Helper()
-
 	// The README requires the UDP source ports to vary within the ephemeral
 	// range 49152-65535; confirm the generated streams stay inside it.
 	if ipv6ScaleEphemeralMin+ipv6ScaleFlowCount-1 > ipv6ScaleEphemeralMax {
@@ -1339,6 +1306,69 @@ func verifyIPv6ScaleDecapRulesCLI(t *testing.T, dut *ondatra.DUTDevice, params c
 	return nil
 }
 
+// collectMetricValues establishes a gNMI Subscribe on a wildcard leaf (for
+// example the per-core CPU counters) for the given duration and returns the
+// values of every sample that carried data.
+func collectMetricValues[T any](t *testing.T, opts *gnmi.Opts, query ygnmi.WildcardQuery[T], duration time.Duration, metricName string) []T {
+	t.Helper()
+	var samples []T
+	for _, s := range gnmi.CollectAll(t, opts, query, duration).Await(t) {
+		if v, ok := s.Val(); ok {
+			samples = append(samples, v)
+		}
+	}
+	if len(samples) == 0 {
+		t.Errorf("gNMI Subscribe to %s returned no samples in %v", metricName, duration)
+	}
+	return samples
+}
+
+// collectLeafValues is the singleton (non wildcard) counterpart of collectMetricValues.
+func collectLeafValues[T any](t *testing.T, opts *gnmi.Opts, query ygnmi.SingletonQuery[T], duration time.Duration, metricName string) []T {
+	t.Helper()
+	var samples []T
+	for _, s := range gnmi.Collect(t, opts, query, duration).Await(t) {
+		if v, ok := s.Val(); ok {
+			samples = append(samples, v)
+		}
+	}
+	if len(samples) == 0 {
+		t.Errorf("gNMI Subscribe to %s returned no samples in %v", metricName, duration)
+	}
+	return samples
+}
+
+// latestValue returns the most recently streamed value, or the zero value when
+// nothing was collected.
+func latestValue[T any](samples []T) T {
+	var zero T
+	if len(samples) == 0 {
+		return zero
+	}
+	return samples[len(samples)-1]
+}
+
+// medianValue returns the median of the streamed values, or the zero value when
+// nothing was collected. The input order is not preserved.
+func medianValue[T cmp.Ordered](samples []T) T {
+	var zero T
+	if len(samples) == 0 {
+		return zero
+	}
+	slices.Sort(samples)
+	return samples[len(samples)/2]
+}
+
+// peakValue returns the largest streamed value, or the zero value when nothing
+// was collected.
+func peakValue[T cmp.Ordered](samples []T) T {
+	var zero T
+	if len(samples) == 0 {
+		return zero
+	}
+	return slices.Max(samples)
+}
+
 // collectSystemHealth establishes a gNMI Subscribe (SAMPLE mode) to
 // /system/cpus/cpu/state/total/instant, /system/cpus/cpu/state/total/avg,
 // /system/memory/state/physical, /system/memory/state/free and
@@ -1353,68 +1383,21 @@ func collectSystemHealth(t *testing.T, dut *ondatra.DUTDevice) systemHealth {
 	t.Helper()
 	h := systemHealth{}
 	opts := healthSubOpts(t, dut)
-
-	// /system/cpus/cpu/state/total/instant and .../avg across all cores.
-	//
-	// The leaves are subscribed individually rather than subscribing to the
-	// parent container: a SAMPLE subscription on a container yields updates that
-	// ygnmi has to unmarshal into a struct, and any sample that carries no data
-	// (or a delete) makes it fail with "invalid input to DeepCopy, got nil
-	// value". Leaf subscriptions return plain scalars and are unaffected.
 	cpuDur := healthCPUSubDuration / 2
-	var instants []uint8
-	for _, s := range gnmi.CollectAll(t, opts, gnmi.OC().System().CpuAny().Total().Instant().State(), cpuDur).Await(t) {
-		v, ok := s.Val()
-		if !ok {
-			continue
-		}
-		h.cpuSamples++
-		instants = append(instants, v)
-		if v > h.maxCPUInstantPct {
-			h.maxCPUInstantPct = v
-		}
-	}
-	for _, s := range gnmi.CollectAll(t, opts, gnmi.OC().System().CpuAny().Total().Avg().State(), cpuDur).Await(t) {
-		v, ok := s.Val()
-		if !ok {
-			continue
-		}
-		if v > h.maxCPUAvgPct {
-			h.maxCPUAvgPct = v
-		}
-	}
-	if len(instants) > 0 {
-		slices.Sort(instants)
-		h.sustainedCPUPct = instants[len(instants)/2]
-	}
-	if h.cpuSamples == 0 {
-		t.Errorf("gNMI Subscribe to /system/cpus/cpu/state/total/instant returned no samples in %v", cpuDur)
-	}
-
-	// /system/memory/state/physical, /free and /used, again subscribed as
-	// individual leaves for the reason described above.
+	instants := collectMetricValues(t, opts, gnmi.OC().System().CpuAny().Total().Instant().State(), cpuDur, "/system/cpus/cpu/state/total/instant")
+	avgs := collectMetricValues(t, opts, gnmi.OC().System().CpuAny().Total().Avg().State(), cpuDur, "/system/cpus/cpu/state/total/avg")
+	h.cpuSamples = len(instants)
+	h.maxCPUInstantPct = peakValue(instants)
+	h.maxCPUAvgPct = peakValue(avgs)
+	h.sustainedCPUPct = medianValue(instants)
 	memDur := healthMemSubDuration / 3
-	collectMemLeaf := func(path ygnmi.SingletonQuery[uint64], name string) (uint64, int) {
-		var last uint64
-		samples := 0
-		for _, s := range gnmi.Collect(t, opts, path, memDur).Await(t) {
-			v, ok := s.Val()
-			if !ok {
-				continue
-			}
-			samples++
-			last = v
-		}
-		if samples == 0 {
-			t.Errorf("gNMI Subscribe to %s returned no samples in %v", name, memDur)
-		}
-		return last, samples
-	}
-	var physSamples, usedSamples, freeSamples int
-	h.memoryPhysical, physSamples = collectMemLeaf(gnmi.OC().System().Memory().Physical().State(), "/system/memory/state/physical")
-	h.memoryUsed, usedSamples = collectMemLeaf(gnmi.OC().System().Memory().Used().State(), "/system/memory/state/used")
-	h.memoryFree, freeSamples = collectMemLeaf(gnmi.OC().System().Memory().Free().State(), "/system/memory/state/free")
-	h.memorySamples = physSamples + usedSamples + freeSamples
+	physical := collectLeafValues(t, opts, gnmi.OC().System().Memory().Physical().State(), memDur, "/system/memory/state/physical")
+	used := collectLeafValues(t, opts, gnmi.OC().System().Memory().Used().State(), memDur, "/system/memory/state/used")
+	free := collectLeafValues(t, opts, gnmi.OC().System().Memory().Free().State(), memDur, "/system/memory/state/free")
+	h.memoryPhysical = latestValue(physical)
+	h.memoryUsed = latestValue(used)
+	h.memoryFree = latestValue(free)
+	h.memorySamples = len(physical) + len(used) + len(free)
 	// Some platforms do not report /physical; fall back to used+free so that the
 	// utilization can still be validated against the threshold.
 	total := h.memoryPhysical
