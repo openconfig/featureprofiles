@@ -4,6 +4,7 @@ package packetvalidationhelpers
 import (
 	"fmt"
 	"os"
+	"sort"
 	"testing"
 
 	"github.com/google/gopacket"
@@ -128,6 +129,7 @@ type IPv4Layer struct {
 	Protocol          uint32
 	DstIP             string
 	Tos               uint8
+	AllowedTOSValues  []uint8
 	TTL               uint8
 	SkipProtocolCheck bool
 }
@@ -301,26 +303,66 @@ func validateIPv4Header(t *testing.T, packetSource *gopacket.PacketSource, packe
 	t.Helper()
 	t.Log("Validating IPv4 header")
 
+	if packetVal == nil || packetVal.IPv4Layer == nil {
+		return fmt.Errorf("IPv4Layer configuration is missing")
+	}
+
+	expectedTOS := make(map[uint8]struct{}, len(packetVal.IPv4Layer.AllowedTOSValues))
+	for _, tos := range packetVal.IPv4Layer.AllowedTOSValues {
+		expectedTOS[tos] = struct{}{}
+	}
+
 	for packet := range packetSource.Packets() {
 		if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
 			ip, _ := ipLayer.(*layers.IPv4)
+			if packetVal.IPv4Layer.DstIP != "" && ip.DstIP.String() != packetVal.IPv4Layer.DstIP {
+				continue
+			}
 			if !packetVal.IPv4Layer.SkipProtocolCheck {
 				if uint32(ip.Protocol) != packetVal.IPv4Layer.Protocol {
 					return fmt.Errorf("packet is not encapsulated properly. Encapsulated protocol is: %d, expected: %d", ip.Protocol, packetVal.IPv4Layer.Protocol)
 				}
 			}
-			if ip.DstIP.String() != packetVal.IPv4Layer.DstIP {
-				return fmt.Errorf("IP Dst IP is not set properly. Expected: %s, Actual: %s", packetVal.IPv4Layer.DstIP, ip.DstIP)
+			if packetVal.IPv4Layer.DstIP != "" {
+				if ip.DstIP.String() != packetVal.IPv4Layer.DstIP {
+					return fmt.Errorf("IP Dst IP is not set properly. Expected: %s, Actual: %s", packetVal.IPv4Layer.DstIP, ip.DstIP)
+				}
 			}
 			if ip.TTL != packetVal.IPv4Layer.TTL {
 				return fmt.Errorf("IP TTL value is altered to: %d, expected: %d", ip.TTL, packetVal.IPv4Layer.TTL)
 			}
-			if ip.TOS != packetVal.IPv4Layer.Tos {
-				return fmt.Errorf("DSCP(TOS) value is altered to: %d, expected: %d", ip.TOS, packetVal.IPv4Layer.Tos)
+			if len(packetVal.IPv4Layer.AllowedTOSValues) > 0 {
+				delete(expectedTOS, ip.TOS)
+				if len(expectedTOS) == 0 {
+					return nil
+				}
+				continue
+			}
+			if packetVal.IPv4Layer.Tos != 0 {
+				if ip.TOS != packetVal.IPv4Layer.Tos {
+					return fmt.Errorf("DSCP(TOS) value is altered to: %d, expected: %d", ip.TOS, packetVal.IPv4Layer.Tos)
+				}
 			}
 			// If validation is successful for one packet, we can return.
 			return nil
 		}
+	}
+	if len(packetVal.IPv4Layer.AllowedTOSValues) > 0 {
+		missing := make([]uint8, 0, len(expectedTOS))
+		for tos := range expectedTOS {
+			missing = append(missing, tos)
+		}
+		sort.Slice(missing, func(i, j int) bool { return missing[i] < missing[j] })
+		// TOS = DSCP << 2, so DSCP = TOS >> 2.
+		missingDSCP := make([]uint8, len(missing))
+		expectedDSCP := make([]uint8, len(packetVal.IPv4Layer.AllowedTOSValues))
+		for i, tos := range missing {
+			missingDSCP[i] = tos >> 2
+		}
+		for i, tos := range packetVal.IPv4Layer.AllowedTOSValues {
+			expectedDSCP[i] = tos >> 2
+		}
+		return fmt.Errorf("not all expected DSCP values were preserved; missing DSCP values: %v (TOS: %v); expected all DSCP values: %v (TOS: %v)", missingDSCP, missing, expectedDSCP, packetVal.IPv4Layer.AllowedTOSValues)
 	}
 	return fmt.Errorf("no IPv4 packets found")
 }
@@ -330,19 +372,29 @@ func validateIPv6Header(t *testing.T, packetSource *gopacket.PacketSource, packe
 	t.Helper()
 	t.Log("Validating IPv6 header")
 
+	if packetVal.IPv6Layer == nil {
+		return fmt.Errorf("IPv6Layer configuration is missing")
+	}
+
 	for packet := range packetSource.Packets() {
-		t.Logf("packet: %v", packet)
 		if ipLayer := packet.Layer(layers.LayerTypeIPv6); ipLayer != nil {
 			ipv6, _ := ipLayer.(*layers.IPv6)
-
-			if ipv6.DstIP.String() != packetVal.IPv6Layer.DstIP {
-				return fmt.Errorf("IPv6 Dst IP is not set properly. Expected: %s, Actual: %s", packetVal.IPv6Layer.DstIP, ipv6.DstIP)
+			if packetVal.IPv6Layer.DstIP != "" && ipv6.DstIP.String() != packetVal.IPv6Layer.DstIP {
+				continue
 			}
+			if packetVal.IPv6Layer.DstIP != "" {
+				if ipv6.DstIP.String() != packetVal.IPv6Layer.DstIP {
+					return fmt.Errorf("IPv6 Dst IP is not set properly. Expected: %s, Actual: %s", packetVal.IPv6Layer.DstIP, ipv6.DstIP)
+				}
+			}
+
 			if ipv6.HopLimit != packetVal.IPv6Layer.HopLimit {
 				return fmt.Errorf("IPv6 HopLimit value is altered to: %d. Expected: %d", ipv6.HopLimit, packetVal.IPv6Layer.HopLimit)
 			}
-			if ipv6.TrafficClass != packetVal.IPv6Layer.TrafficClass {
-				return fmt.Errorf("traffic class value is altered to: %d. expected: %d", ipv6.TrafficClass, packetVal.IPv6Layer.TrafficClass)
+			if packetVal.IPv6Layer.TrafficClass != 0 {
+				if ipv6.TrafficClass != packetVal.IPv6Layer.TrafficClass {
+					return fmt.Errorf("traffic class value is altered to: %d. expected: %d", ipv6.TrafficClass, packetVal.IPv6Layer.TrafficClass)
+				}
 			}
 			if packetVal.Flags != nil && packetVal.Flags.ValidateFlowLabel && ipv6.FlowLabel != packetVal.IPv6Layer.FlowLabel {
 				return fmt.Errorf("IPv6 flow label is not set properly. Expected: %d, Actual: %d", packetVal.IPv6Layer.FlowLabel, ipv6.FlowLabel)
@@ -364,31 +416,43 @@ func validateInnerIPv4Header(t *testing.T, packetSource *gopacket.PacketSource, 
 	t.Helper()
 	t.Log("Validating inner IPv4 header")
 
+	var encapPacket gopacket.Packet
+
+	innerLayer := *packetVal.InnerIPLayerIPv4
+	protocol := innerLayer.Protocol
+
 	for packet := range packetSource.Packets() {
-		if greLayer := packet.Layer(layers.LayerTypeGRE); greLayer != nil {
-			gre := greLayer.(*layers.GRE)
-			encapPacket := gopacket.NewPacket(gre.Payload, gre.NextLayerType(), gopacket.Default)
-
-			if ipLayer := encapPacket.Layer(layers.LayerTypeIPv4); ipLayer != nil {
-				ip, _ := ipLayer.(*layers.IPv4)
-
+		if protocol == packetVal.UDPLayer.DstPort {
+			udpLayer := packet.Layer(layers.LayerTypeUDP)
+			udp, _ := udpLayer.(*layers.UDP)
+			encapPacket = gopacket.NewPacket(udp.Payload, layers.LayerTypeIPv4, gopacket.Default)
+			innerLayer.Protocol = 0
+		} else {
+			if greLayer := packet.Layer(layers.LayerTypeGRE); greLayer != nil {
+				gre := greLayer.(*layers.GRE)
+				encapPacket = gopacket.NewPacket(gre.Payload, gre.NextLayerType(), gopacket.Default)
+			}
+		}
+		if ipLayer := encapPacket.Layer(layers.LayerTypeIPv4); ipLayer != nil {
+			ip, _ := ipLayer.(*layers.IPv4)
+			if packetVal.InnerIPLayerIPv4.DstIP != "" {
 				if ip.DstIP.String() != packetVal.InnerIPLayerIPv4.DstIP {
 					return fmt.Errorf("IP Dst IP is not set properly. Expected: %s, Actual: %s", packetVal.InnerIPLayerIPv4.DstIP, ip.DstIP)
 				}
-				if ip.TTL != packetVal.InnerIPLayerIPv4.TTL {
-					return fmt.Errorf("IP TTL value is altered to: %d. Expected: %d", ip.TTL, packetVal.InnerIPLayerIPv4.TTL)
-				}
-				if ip.TOS != packetVal.InnerIPLayerIPv4.Tos {
-					return fmt.Errorf("DSCP(TOS) value is altered to: %d .Expected: %d", ip.TOS, packetVal.InnerIPLayerIPv4.Tos)
-				}
-				if packetVal.InnerIPLayerIPv4.Protocol != 0 {
-					if uint32(ip.Protocol) != packetVal.InnerIPLayerIPv4.Protocol {
-						return fmt.Errorf("protocol value is altered to: %d. expected: %d", ip.Protocol, packetVal.InnerIPLayerIPv4.Protocol)
-					}
-				}
-				// If validation is successful for one packet, we can return.
-				return nil
 			}
+			if ip.TTL != packetVal.InnerIPLayerIPv4.TTL {
+				return fmt.Errorf("IP TTL value is altered to: %d. Expected: %d", ip.TTL, packetVal.InnerIPLayerIPv4.TTL)
+			}
+			if ip.TOS != packetVal.InnerIPLayerIPv4.Tos {
+				return fmt.Errorf("DSCP(TOS) value is altered to: %d .Expected: %d", ip.TOS, packetVal.InnerIPLayerIPv4.Tos)
+			}
+			if innerLayer.Protocol != 0 {
+				if uint32(ip.Protocol) != packetVal.InnerIPLayerIPv4.Protocol {
+					return fmt.Errorf("protocol value is altered to: %d. expected: %d", ip.Protocol, packetVal.InnerIPLayerIPv4.Protocol)
+				}
+			}
+			// If validation is successful for one packet, we can return.
+			return nil
 		}
 	}
 	return fmt.Errorf("no inner IPv4 packets found")
@@ -399,30 +463,40 @@ func validateInnerIPv6Header(t *testing.T, packetSource *gopacket.PacketSource, 
 	t.Helper()
 	t.Log("Validating inner IPv6 header")
 
-	for packet := range packetSource.Packets() {
-		if greLayer := packet.Layer(layers.LayerTypeGRE); greLayer != nil {
-			gre := greLayer.(*layers.GRE)
-			encapPacket := gopacket.NewPacket(gre.Payload, gre.NextLayerType(), gopacket.Default)
+	var encapPacket gopacket.Packet
+	innerLayer := *packetVal.InnerIPLayerIPv6
+	protocol := innerLayer.NextHeader
 
-			if ipv6Layer := encapPacket.Layer(layers.LayerTypeIPv6); ipv6Layer != nil {
-				ipv6, _ := ipv6Layer.(*layers.IPv6)
-				if ipv6.DstIP.String() != packetVal.InnerIPLayerIPv6.DstIP {
-					return fmt.Errorf("IPv6 Dst IP is not set properly. Expected: %s, Actual: %s", packetVal.InnerIPLayerIPv6.DstIP, ipv6.DstIP)
-				}
-				if ipv6.HopLimit != packetVal.InnerIPLayerIPv6.HopLimit {
-					return fmt.Errorf("IPv6 HopLimit value is altered to: %d. Expected: %d", ipv6.HopLimit, packetVal.InnerIPLayerIPv6.HopLimit)
-				}
-				if ipv6.TrafficClass != packetVal.InnerIPLayerIPv6.TrafficClass {
-					return fmt.Errorf("traffic class value is altered to: %d. expected: %d", ipv6.TrafficClass, packetVal.InnerIPLayerIPv6.TrafficClass)
-				}
-				if packetVal.InnerIPLayerIPv6.NextHeader != 0 {
-					if uint32(ipv6.NextHeader) != packetVal.InnerIPLayerIPv6.NextHeader {
-						return fmt.Errorf("next header value is altered to: %d. expected: %d", ipv6.NextHeader, packetVal.InnerIPLayerIPv6.NextHeader)
-					}
-				}
-				// If validation is successful for one packet, we can return.
-				return nil
+	for packet := range packetSource.Packets() {
+		if protocol == packetVal.UDPLayer.DstPort {
+			udpLayer := packet.Layer(layers.LayerTypeUDP)
+			udp, _ := udpLayer.(*layers.UDP)
+			encapPacket = gopacket.NewPacket(udp.Payload, layers.LayerTypeIPv6, gopacket.Default)
+			innerLayer.NextHeader = 0
+		} else {
+			if greLayer := packet.Layer(layers.LayerTypeGRE); greLayer != nil {
+				gre := greLayer.(*layers.GRE)
+				encapPacket = gopacket.NewPacket(gre.Payload, gre.NextLayerType(), gopacket.Default)
 			}
+		}
+		if ipv6Layer := encapPacket.Layer(layers.LayerTypeIPv6); ipv6Layer != nil {
+			ipv6, _ := ipv6Layer.(*layers.IPv6)
+			if ipv6.DstIP.String() != packetVal.InnerIPLayerIPv6.DstIP {
+				return fmt.Errorf("IPv6 Dst IP is not set properly. Expected: %s, Actual: %s", packetVal.InnerIPLayerIPv6.DstIP, ipv6.DstIP)
+			}
+			if ipv6.HopLimit != packetVal.InnerIPLayerIPv6.HopLimit {
+				return fmt.Errorf("IPv6 HopLimit value is altered to: %d. Expected: %d", ipv6.HopLimit, packetVal.InnerIPLayerIPv6.HopLimit)
+			}
+			if ipv6.TrafficClass != packetVal.InnerIPLayerIPv6.TrafficClass {
+				return fmt.Errorf("traffic class value is altered to: %d. expected: %d", ipv6.TrafficClass, packetVal.InnerIPLayerIPv6.TrafficClass)
+			}
+			if packetVal.InnerIPLayerIPv6.NextHeader != 0 {
+				if uint32(ipv6.NextHeader) != packetVal.InnerIPLayerIPv6.NextHeader {
+					return fmt.Errorf("next header value is altered to: %d. expected: %d", ipv6.NextHeader, packetVal.InnerIPLayerIPv6.NextHeader)
+				}
+			}
+			// If validation is successful for one packet, we can return.
+			return nil
 		}
 	}
 	return fmt.Errorf("no inner IPv6 packets found")
@@ -496,8 +570,10 @@ func validateUDPHeader(t *testing.T, packetSource *gopacket.PacketSource, packet
 			if uint32(udp.DstPort) != packetVal.UDPLayer.DstPort {
 				return fmt.Errorf("UDP Dst Port is not set properly. Expected: %d, Actual: %d", packetVal.UDPLayer.DstPort, udp.DstPort)
 			}
-			if uint32(udp.SrcPort) != packetVal.UDPLayer.SrcPort {
-				return fmt.Errorf("UDP Src Port is not set properly. Expected: %d, Actual: %d", packetVal.UDPLayer.SrcPort, udp.SrcPort)
+			if packetVal.UDPLayer.SrcPort != 0 {
+				if uint32(udp.SrcPort) != packetVal.UDPLayer.SrcPort {
+					return fmt.Errorf("UDP Src Port is not set properly. Expected: %d, Actual: %d", packetVal.UDPLayer.SrcPort, udp.SrcPort)
+				}
 			}
 			// If validation is successful for one packet, we can return.
 			return nil

@@ -141,6 +141,7 @@ func TestOneSPQueueTraffic(t *testing.T) {
 	intf1.AddToOTG(top, ap1, &dutPort1)
 	intf2.AddToOTG(top, ap2, &dutPort2)
 	intf3.AddToOTG(top, ap3, &dutPort3)
+	ate.OTG().PushConfig(t, top)
 
 	var tolerance float32 = 2.0
 
@@ -699,20 +700,37 @@ func TestOneSPQueueTraffic(t *testing.T) {
 			t.Logf("Running traffic 2 on DUT interfaces: %s => %s ", dp2.Name(), dp3.Name())
 			t.Logf("Sending traffic flows: \n%v\n\n", trafficFlows)
 			ate.OTG().StartTraffic(t)
-			time.Sleep(30 * time.Second)
+			time.Sleep(60 * time.Second)
 			ate.OTG().StopTraffic(t)
+
+			for trafficID := range trafficFlows {
+				_, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Transmit().State(), time.Minute, func(val *ygnmi.Value[bool]) bool {
+					transmitState, present := val.Val()
+					return present && !transmitState
+				}).Await(t)
+				if !ok {
+					t.Fatalf("Flow %s did not stop transmitting within timeout", trafficID)
+				}
+			}
 
 			otgutils.LogFlowMetrics(t, ate.OTG(), top)
 			for trafficID, data := range trafficFlows {
 				expectedLossPct := 100.0 - data.expectedThroughputPct
-				minLossPct := expectedLossPct - tolerance
+				minLossPct := float64(expectedLossPct - tolerance)
 				if minLossPct < 0 {
 					minLossPct = 0
 				}
-				maxLossPct := expectedLossPct + tolerance
-				otgutils.ExpectedTrafficLoss(t, ate.OTG(), trafficID, float64(minLossPct), float64(maxLossPct))
-				ateOutPkts[data.queue] += gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().OutPkts().State())
-				ateInPkts[data.queue] += gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().InPkts().State())
+				maxLossPct := float64(expectedLossPct + tolerance)
+				otgutils.ExpectedTrafficLoss(t, ate.OTG(), trafficID, minLossPct, maxLossPct)
+
+				ateTxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().OutPkts().State())
+				ateRxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().InPkts().State())
+				if ateTxPkts == 0 {
+					t.Fatalf("TxPkts == 0 for flow %s, want >0.", trafficID)
+				}
+				ateOutPkts[data.queue] += ateTxPkts
+				ateInPkts[data.queue] += ateRxPkts
+
 				dutQosPktsAfterTraffic[data.queue] += gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State())
 				dutQosDroppedPktsAfterTraffic[data.queue] += gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State())
 				t.Logf("ateInPkts: %v, txPkts %v, Queue: %v", ateInPkts[data.queue], dutQosPktsAfterTraffic[data.queue], data.queue)
@@ -753,17 +771,17 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 	}{{
 		desc:      "Input interface port1",
 		intfName:  dp1.Name(),
-		ipAddr:    "198.51.100.0",
+		ipAddr:    dutPort1.IPv4,
 		prefixLen: 31,
 	}, {
 		desc:      "Input interface port2",
 		intfName:  dp2.Name(),
-		ipAddr:    "198.51.100.2",
+		ipAddr:    dutPort2.IPv4,
 		prefixLen: 31,
 	}, {
 		desc:      "Output interface port3",
 		intfName:  dp3.Name(),
-		ipAddr:    "198.51.100.4",
+		ipAddr:    dutPort3.IPv4,
 		prefixLen: 31,
 	}}
 
