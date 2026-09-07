@@ -225,8 +225,8 @@ func NewStaticMplsLspPushLabel(t *testing.T, dut *ondatra.DUTDevice, lspName str
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	mplsCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateMpls()
 	staticMplsCfg := mplsCfg.GetOrCreateLsps().GetOrCreateStaticLsp(lspName)
-	staticMplsCfg.GetOrCreateEgress().GetOrCreateLspNextHop(lspNextHopIndex).SetIpAddress(nextHopIP)
-	staticMplsCfg.GetOrCreateEgress().GetOrCreateLspNextHop(lspNextHopIndex).SetPushLabel(oc.UnionUint32(mplsPushLabel))
+	staticMplsCfg.GetOrCreateIngress().SetNextHop(nextHopIP)
+	staticMplsCfg.GetOrCreateIngress().SetPushLabel(oc.UnionUint32(mplsPushLabel))
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
 }
 
@@ -282,6 +282,28 @@ func MPLSStaticLSPByPass(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDev
 
 		gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
 	}
+}
+
+// RemoveMPLSStaticLSP removes a static MPLS label binding configured by MPLSStaticLSP.
+func RemoveMPLSStaticLSP(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, lspName string, incomingLabel uint32, nextHopIP string, protocolType string, byPass bool) {
+	if deviations.StaticMplsLspOCUnsupported(dut) {
+		cliConfig := ""
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			bypassStr := ""
+			if byPass {
+				bypassStr = " access-list bypass"
+			}
+			cliConfig = fmt.Sprintf(`
+					no mpls static top-label %v %s pop payload-type %s%s
+					`, incomingLabel, nextHopIP, protocolType, bypassStr)
+			helpers.GnmiCLIConfig(t, dut, cliConfig)
+		default:
+			t.Errorf("Deviation StaticMplsLspOCUnsupported is not handled for the dut: %v", dut.Vendor())
+		}
+		return
+	}
+	gnmi.BatchDelete(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Lsps().StaticLsp(lspName).Config())
 }
 
 // mplsGlobalStaticLspAttributes configures the MPLS global static LSP attributes.
