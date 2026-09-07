@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "bcaf2a3e-8b0b-4032-9efe-116aba4ef2bd"
+plan_id: "RT-5.19"
+description: "LAG Member-Link Drain"
+testbed: TESTBED_DUT_ATE_4LINKS
