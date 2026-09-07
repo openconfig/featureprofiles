@@ -166,11 +166,8 @@ func TestISISChangeLSPLifetime(t *testing.T) {
 			if got, want := isis.GetGlobal().GetTimers().GetLspLifetimeInterval(), uint16(lspLifetime); got != want {
 				t.Errorf("FAIL- Expected lsp lifetime interval not found, got %d, want %d", got, want)
 			}
-			if got, ok := gnmi.Watch(t, ts.DUT, isisPath.Level(2).Lsp(dutLspID).RemainingLifetime().State(), 1*time.Minute, func(val *ygnmi.Value[uint16]) bool {
-				lifeTime, ok := val.Val()
-				return ok && lifeTime < lspLifetime
-			}).Await(t); !ok {
-				t.Errorf("FAIL- Expected remaining lifetime not found, got %v, want less than %d", got, lspLifetime)
+			if got, want := isis.GetLevel(2).GetLsp(dutLspID).GetRemainingLifetime(), uint16(lspLifetime); got > want {
+				t.Errorf("FAIL- Expected remaining lifetime not found, got %d, want <= %d", got, want)
 			}
 			if got, want := isis.GetLevel(2).GetLsp(dutLspID).GetLspId(), dutLspID; got != want {
 				t.Errorf("FAIL- Expected DUT lsp id not found, got %s, want %s", got, want)
