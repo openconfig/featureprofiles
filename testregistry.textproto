@@ -554,6 +554,11 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/google_discovery_protocol_packetout_lag_test/google_discovery_protocol_packetout_lag_test.go"
 }
 test: {
+  id: "P4RT-3.3"
+  description: "P4RT Packet-Out Interaction with gRIBI"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/p4rt_packetout_gribi_interaction_test/README.md"
+}
+test: {
   id: "P4RT-5.1"
   description: "Traceroute: PacketIn"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/traceroute_packetin_test/README.md"
@@ -813,8 +818,8 @@ test: {
 test: {
   id: "RT-1.14"
   description: "BGP Long-Lived Graceful Restart"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/ate_tests/bgp_long_lived_graceful_restart/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/ate_tests/bgp_long_lived_graceful_restart/bgp_long_lived_graceful_restart_test.go"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_long_lived_graceful_restart/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_long_lived_graceful_restart/bgp_long_lived_graceful_restart_test.go"
 }
 test: {
   id: "RT-1.15"
@@ -928,6 +933,7 @@ test: {
   id: "RT-1.36"
   description: "AIGP feature support test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/aigp_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/aigp_test/aigp_test.go"
 }
 test: {
   id: "RT-1.4"
@@ -1033,6 +1039,11 @@ test: {
   description: "GRIBI Route Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_route_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_route_test/gribi_route_test.go"
+}
+test: {
+  id: "RT-14.3"
+  description: "Soft Drain vs. Hard Drain Convergence Verification"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/otg_tests/soft_drain_convergence_test/README.md"
 }
 test: {
   id: "RT-2.1"
@@ -1467,6 +1478,11 @@ test: {
   description: "My Station MAC"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/my_station_mac/otg_tests/my_station_mac_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/my_station_mac/otg_tests/my_station_mac_test/my_station_mac_test.go"
+}
+test: {
+  id: "TE-1.7"
+  description: "gNMI Interface Config Change Impacting gRIBI NextHop"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gnmi_intf_config_impacts_gribi_nh_test/README.md"
 }
 test: {
   id: "TE-10"
