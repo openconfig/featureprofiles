@@ -554,14 +554,14 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/google_discovery_protocol_packetout_lag_test/google_discovery_protocol_packetout_lag_test.go"
 }
 test: {
-  id: "P4RT-3.4"
-  description: "P4RT Packet-In Interaction with gRIBI"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/p4rt_packetin_gribi_interaction_test/README.md"
-}
-test: {
   id: "P4RT-3.3"
   description: "P4RT Packet-Out Interaction with gRIBI"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/p4rt_packetout_gribi_interaction_test/README.md"
+}
+test: {
+  id: "P4RT-3.4"
+  description: "P4RT Packet-In Interaction with gRIBI"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/p4rt_packetin_gribi_interaction_test/README.md"
 }
 test: {
   id: "P4RT-5.1"
