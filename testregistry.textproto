@@ -559,6 +559,11 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/p4rt_packetout_gribi_interaction_test/README.md"
 }
 test: {
+  id: "P4RT-3.4"
+  description: "P4RT Packet-In Interaction with gRIBI"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/p4rt_packetin_gribi_interaction_test/README.md"
+}
+test: {
   id: "P4RT-5.1"
   description: "Traceroute: PacketIn"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/traceroute_packetin_test/README.md"
