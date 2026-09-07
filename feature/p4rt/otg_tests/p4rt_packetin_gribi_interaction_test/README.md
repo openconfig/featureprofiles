@@ -11,7 +11,7 @@ interface counters and AFTs remains accurate.
 
 ## Testbed type
 
-* [`TESTBED_DUT_ATE_4_LINKS`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_4.testbed)
+* [`TESTBED_DUT_ATE_4LINKS`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_4.testbed)
 
 ## Procedure
 
