@@ -509,7 +509,7 @@ func verifyMatchingPrefixTelemetry(t *testing.T, dut *ondatra.DUTDevice, ate *on
 }
 
 func verifyNonMatchingCommunityTelemetry(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
-	commSet := gnmi.Get[*oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet](t, dut, gnmi.OC().RoutingPolicy().DefinedSets().BgpDefinedSets().CommunitySet(v6CommunitySet).State())
+	commSet := gnmi.Get[*oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet](t, dut, gnmi.OC().RoutingPolicy().DefinedSets().BgpDefinedSets().CommunitySet(v4CommunitySet).State())
 	if commSet == nil {
 		t.Errorf("Community set is nil, want non-nil")
 	}
@@ -530,7 +530,7 @@ func verifyNonMatchingCommunityTelemetry(t *testing.T, dut *ondatra.DUTDevice, a
 }
 
 func verifyMatchingCommunityTelemetry(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
-	commSet := gnmi.Get[*oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet](t, dut, gnmi.OC().RoutingPolicy().DefinedSets().BgpDefinedSets().CommunitySet(v6CommunitySet).State())
+	commSet := gnmi.Get[*oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet](t, dut, gnmi.OC().RoutingPolicy().DefinedSets().BgpDefinedSets().CommunitySet(v4CommunitySet).State())
 	if commSet == nil {
 		t.Errorf("Community set is nil, want non-nil")
 	}
