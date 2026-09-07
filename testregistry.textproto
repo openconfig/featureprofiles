@@ -559,6 +559,11 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/p4rt_packetout_gribi_interaction_test/README.md"
 }
 test: {
+  id: "P4RT-3.4"
+  description: "P4RT Packet-In Interaction with gRIBI"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/p4rt_packetin_gribi_interaction_test/README.md"
+}
+test: {
   id: "P4RT-5.1"
   description: "Traceroute: PacketIn"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/traceroute_packetin_test/README.md"
@@ -1480,6 +1485,11 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/my_station_mac/otg_tests/my_station_mac_test/my_station_mac_test.go"
 }
 test: {
+  id: "TE-1.21"
+  description: "gRIBI Tunnel Fallback to Native Routing"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/fallback_to_native_routing_test/README.md"
+}
+test: {
   id: "TE-1.7"
   description: "gNMI Interface Config Change Impacting gRIBI NextHop"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gnmi_intf_config_impacts_gribi_nh_test/README.md"
@@ -1639,6 +1649,11 @@ test: {
   description: "Base Hierarchical Route Installation"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/base_hierarchical_route_installation_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/base_hierarchical_route_installation_test/base_hierarchical_route_installation_test.go"
+}
+test: {
+  id: "TE-3.10"
+  description: "gRIBI WCMP Group Resizing and Weight Changes"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/dynamic_wcmp_group_resizing_test/README.md"
 }
 test: {
   id: "TE-3.2"
