@@ -16,6 +16,10 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
+const (
+	isisAuthKey = "google_isis_key"
+)
+
 type descriptor struct {
 	name           string
 	dimension      []int
@@ -95,14 +99,14 @@ func initializeMultiAdjISISScaleTestData(t *testing.T) *isisscalehelpers.TestDat
 		IsisData: &cfgplugins.ISISGlobalParams{
 			DUTArea:     "49.0001",
 			DUTSysID:    "1920.0000.2001",
-			ISISAuthKey: "google_isis_key",
+			ISISAuthKey: isisAuthKey,
 		},
 	}
 
 	// Create ATE data and configure the matching MD5 authentication key across all emulated routers.
 	ateEmulatedRouterData := isisscalehelpers.CreateATEEmulatedRouterData(t, dutData.Lags)
 	for _, er := range ateEmulatedRouterData {
-		er.ISISAuthKey = "google_isis_key"
+		er.ISISAuthKey = isisAuthKey
 	}
 	lagToErouterMap := make(map[int][]*otgconfighelpers.AteEmulatedRouterData)
 	for i := 0; i < aggregateCount; i++ {
@@ -207,10 +211,6 @@ func TestISISScale(t *testing.T) {
 			default:
 				t.Fatalf("check failed: not all ISIS adjacencies are up : need %v up adjacencies got %v", testInfo.CorrectISISAdjCount, count)
 			}
-
-			t.Logf("===========Sleep for 5 minutes to check DUT stabilty===========")
-			// Test will not check any metrics for 5 minutes to make sure DUT is stable.
-			time.Sleep(5 * 60 * time.Second)
 
 			t.Run("Verify_ISIS_Auth_Telemetry", func(t *testing.T) {
 				if ok, err := isisscalehelpers.VerifyISISAuthTelemetry(t, dut, testInfo.CorrectISISAdjCount); !ok {
