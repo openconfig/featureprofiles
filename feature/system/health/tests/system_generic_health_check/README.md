@@ -80,6 +80,9 @@ paths:
     /interfaces/interface/subinterfaces/subinterface/state/counters/in-unknown-protos:
     /interfaces/interface/subinterfaces/subinterface/state/counters/out-discards:
     /interfaces/interface/subinterfaces/subinterface/state/counters/out-errors:
+    /interfaces/interface/subinterfaces/subinterface/state/counters/out-octets:
+    /interfaces/interface/subinterfaces/subinterface/state/admin-status:
+    /interfaces/interface/subinterfaces/subinterface/state/description:
     /interfaces/interface/ethernet/state/counters/in-mac-pause-frames:
     /interfaces/interface/ethernet/state/counters/out-mac-pause-frames:
     /interfaces/interface/ethernet/state/counters/in-crc-errors:
