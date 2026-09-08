@@ -3,6 +3,7 @@ package mpls_gre_udp_qos_test
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -1010,48 +1011,64 @@ func queueCounterCandidates(t *testing.T, dut *ondatra.DUTDevice, aggID string, 
 	return intfs
 }
 
-func queueTransmitPkts(t *testing.T, dut *ondatra.DUTDevice, aggID string, ports []string, queue string) uint64 {
+var (
+	queueCounterMu    sync.Mutex
+	queueCounterCache = map[string][]string{} // "aggID|counterKind" -> confirmed-reporting interfaces
+)
+
+// sumQueueCounter sums a per-queue counter across the interfaces known to report it for aggID.
+// The reporting subset of queueCounterCandidates is discovered once per (aggID, counterKind) and
+// cached, so later calls skip re-probing (each a queueCounterTimeout wait) candidates that never report.
+func sumQueueCounter(t *testing.T, dut *ondatra.DUTDevice, aggID string, ports []string, counterKind, queue string, fetch func(intf string) (uint64, bool)) uint64 {
 	t.Helper()
-	var (
-		total      uint64
-		anyPresent bool
-	)
-	intfs := queueCounterCandidates(t, dut, aggID, ports)
+	key := aggID + "|" + counterKind
+	queueCounterMu.Lock()
+	intfs, cached := queueCounterCache[key]
+	queueCounterMu.Unlock()
+
+	if !cached {
+		var reporting []string
+		for _, intf := range queueCounterCandidates(t, dut, aggID, ports) {
+			if _, ok := fetch(intf); ok {
+				reporting = append(reporting, intf)
+			}
+		}
+		queueCounterMu.Lock()
+		queueCounterCache[key] = reporting
+		queueCounterMu.Unlock()
+		intfs = reporting
+	}
+
+	if len(intfs) == 0 {
+		t.Errorf("%s for queue %s not available on any of %v within %v", counterKind, queue, queueCounterCandidates(t, dut, aggID, ports), queueCounterTimeout)
+		return 0
+	}
+	var total uint64
 	for _, intf := range intfs {
-		val, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queue).TransmitPkts().State(), queueCounterTimeout, queueCounterIsPresent).Await(t)
-		if ok {
-			anyPresent = true
-			got, _ := val.Val()
-			t.Logf("queue %s transmit-pkts on %s: %d", queue, intf, got)
+		if got, ok := fetch(intf); ok {
+			t.Logf("queue %s %s on %s: %d", queue, counterKind, intf, got)
 			total += got
 		}
-	}
-	if !anyPresent {
-		t.Errorf("transmit-pkts for queue %s not available on any of %v within %v", queue, intfs, queueCounterTimeout)
 	}
 	return total
 }
 
+func queueTransmitPkts(t *testing.T, dut *ondatra.DUTDevice, aggID string, ports []string, queue string) uint64 {
+	t.Helper()
+	return sumQueueCounter(t, dut, aggID, ports, "transmit-pkts", queue, func(intf string) (uint64, bool) {
+		val, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queue).TransmitPkts().State(), queueCounterTimeout, queueCounterIsPresent).Await(t)
+		got, _ := val.Val()
+		return got, ok
+	})
+}
+
 func queueDroppedPkts(t *testing.T, dut *ondatra.DUTDevice, aggID string, ports []string, queue string) uint64 {
 	t.Helper()
-	var (
-		total      uint64
-		anyPresent bool
-	)
-	intfs := queueCounterCandidates(t, dut, aggID, ports)
-	for _, intf := range intfs {
+	return sumQueueCounter(t, dut, aggID, ports, "dropped-pkts", queue, func(intf string) (uint64, bool) {
 		val, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queue).DroppedPkts().State(), queueCounterTimeout, queueCounterIsPresent).Await(t)
-		if ok {
-			anyPresent = true
-			got, _ := val.Val()
-			t.Logf("queue %s dropped-pkts on %s: %d", queue, intf, got)
-			total += got
-		}
-	}
-	if !anyPresent {
-		t.Errorf("dropped-pkts for queue %s not available on any of %v within %v", queue, intfs, queueCounterTimeout)
-	}
-	return total
+		got, _ := val.Val()
+		return got, ok
+	})
 }
 
 // collectQueueTxPkts gathers per-queue transmit-pkts counters in qNames order.
