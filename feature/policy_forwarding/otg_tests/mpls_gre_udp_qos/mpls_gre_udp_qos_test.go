@@ -844,99 +844,75 @@ type encapToIPFlow struct {
 	innerTCP  *otgconfighelpers.TCPFlowParams
 }
 
+// encapOuterSpec is the GRE- or GUE-tunneled outer encapsulation shared by several encap flow variants.
+type encapOuterSpec struct {
+	txOTG                      *otgconfighelpers.InterfaceProperties
+	srcMAC, outerSrc, outerDst string
+	isGRE                      bool
+}
+
+// encapFlowSpec describes one encap-to-IP traffic variant repeated across all 8 MPLS traffic classes.
+type encapFlowSpec struct {
+	namePrefix                 string
+	outer                      encapOuterSpec
+	labelBase                  uint32
+	innerSrc, innerDst         string // used when !ipv6
+	ipv6                       bool
+	innerIPv6Src, innerIPv6Dst string
+	tcpDstPort                 uint32 // 0 means no inner TCP header
+}
+
+func encapFlowSpecs() []encapFlowSpec {
+	gre := encapOuterSpec{txOTG: core1OTG, srcMAC: agg2.AggMAC, outerSrc: "100.64.0.1", outerDst: outerGREDstCore1, isGRE: true}
+	gue := encapOuterSpec{txOTG: core2OTG, srcMAC: agg3.AggMAC, outerSrc: "100.64.1.1", outerDst: outerGUEDstCore2, isGRE: false}
+	return []encapFlowSpec{
+		{namePrefix: "MPLSoGRE", outer: gre, labelBase: 99990, innerSrc: "50.1.1.1", innerDst: "11.1.1.1", tcpDstPort: 80},
+		{namePrefix: "MPLSoGUE", outer: gue, labelBase: 99890, innerSrc: "50.1.2.1", innerDst: "11.1.1.1", tcpDstPort: 80},
+		// Multicast inner payload flows using dedicated multicast MPLS labels.
+		{namePrefix: "MPLSoGRE-mcast", outer: gre, labelBase: 99980, innerSrc: "50.1.1.1", innerDst: mcastDst},
+		{namePrefix: "MPLSoGUE-mcast", outer: gue, labelBase: 99880, innerSrc: "50.1.2.1", innerDst: mcastDst},
+		// IPv6 inner payload flows.
+		{namePrefix: "MPLSoGRE-v6", outer: gre, labelBase: 99970, ipv6: true, innerIPv6Src: "2001:db8:100::1", innerIPv6Dst: "2001:db8:200::1", tcpDstPort: 443},
+		{namePrefix: "MPLSoGUE-v6", outer: gue, labelBase: 99870, ipv6: true, innerIPv6Src: "2001:db8:100::1", innerIPv6Dst: "2001:db8:200::1", tcpDstPort: 443},
+	}
+}
+
+func newEncapFlow(s encapFlowSpec, tc int) *encapToIPFlow {
+	f := &encapToIPFlow{
+		Flow: &otgconfighelpers.Flow{
+			TxNames:           []string{s.outer.txOTG.Name + ".IPv4"},
+			RxNames:           []string{custOTG0.Name + ".IPv4"},
+			SizeWeightProfile: &sizeWeightProfile,
+			Flowrate:          8,
+			FlowName:          fmt.Sprintf("%s-tc%d-%s", s.namePrefix, tc, s.outer.txOTG.Name),
+			EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: s.outer.srcMAC},
+			IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: s.outer.outerSrc, IPv4Dst: s.outer.outerDst, IPv4SrcCount: 1000},
+			MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: s.labelBase + uint32(tc), MPLSExp: uint32(tc)},
+		},
+	}
+	if s.outer.isGRE {
+		f.GREFlow = &otgconfighelpers.GREFlowParams{Protocol: otgconfighelpers.IanaMPLSEthertype}
+	} else {
+		f.UDPFlow = &otgconfighelpers.UDPFlowParams{UDPSrcPort: 49152, UDPDstPort: gueDstPort}
+	}
+	if s.ipv6 {
+		f.innerIPv6 = &otgconfighelpers.IPv6FlowParams{IPv6Src: s.innerIPv6Src, IPv6Dst: s.innerIPv6Dst, IPv6SrcCount: 1000}
+	} else {
+		f.innerIPv4 = &otgconfighelpers.IPv4FlowParams{IPv4Src: s.innerSrc, IPv4Dst: s.innerDst, IPv4SrcCount: 1000}
+	}
+	if s.tcpDstPort != 0 {
+		f.innerTCP = &otgconfighelpers.TCPFlowParams{TCPSrcPort: 49152, TCPDstPort: s.tcpDstPort, TCPSrcCount: 1000}
+	}
+	return f
+}
+
 func buildEncapToIPFlows() []*encapToIPFlow {
+	specs := encapFlowSpecs()
 	var flows []*encapToIPFlow
 	for tc := 0; tc < 8; tc++ {
-		flows = append(flows, &encapToIPFlow{
-			Flow: &otgconfighelpers.Flow{
-				TxNames:           []string{core1OTG.Name + ".IPv4"},
-				RxNames:           []string{custOTG0.Name + ".IPv4"},
-				SizeWeightProfile: &sizeWeightProfile,
-				Flowrate:          8,
-				FlowName:          fmt.Sprintf("MPLSoGRE-tc%d-%s", tc, core1OTG.Name),
-				EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg2.AggMAC},
-				IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "100.64.0.1", IPv4Dst: outerGREDstCore1, IPv4SrcCount: 1000},
-				GREFlow:           &otgconfighelpers.GREFlowParams{Protocol: otgconfighelpers.IanaMPLSEthertype},
-				MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: uint32(99990 + tc), MPLSExp: uint32(tc)},
-			},
-			innerIPv4: &otgconfighelpers.IPv4FlowParams{IPv4Src: "50.1.1.1", IPv4Dst: "11.1.1.1", IPv4SrcCount: 1000},
-			innerTCP:  &otgconfighelpers.TCPFlowParams{TCPSrcPort: 49152, TCPDstPort: 80, TCPSrcCount: 1000},
-		})
-		flows = append(flows, &encapToIPFlow{
-			Flow: &otgconfighelpers.Flow{
-				TxNames:           []string{core2OTG.Name + ".IPv4"},
-				RxNames:           []string{custOTG0.Name + ".IPv4"},
-				SizeWeightProfile: &sizeWeightProfile,
-				Flowrate:          8,
-				FlowName:          fmt.Sprintf("MPLSoGUE-tc%d-%s", tc, core2OTG.Name),
-				EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg3.AggMAC},
-				IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "100.64.1.1", IPv4Dst: outerGUEDstCore2, IPv4SrcCount: 1000},
-				UDPFlow:           &otgconfighelpers.UDPFlowParams{UDPSrcPort: 49152, UDPDstPort: gueDstPort},
-				MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: uint32(99890 + tc), MPLSExp: uint32(tc)},
-			},
-			innerIPv4: &otgconfighelpers.IPv4FlowParams{IPv4Src: "50.1.2.1", IPv4Dst: "11.1.1.1", IPv4SrcCount: 1000},
-			innerTCP:  &otgconfighelpers.TCPFlowParams{TCPSrcPort: 49152, TCPDstPort: 80, TCPSrcCount: 1000},
-		})
-		// Multicast inner payload flows using dedicated multicast MPLS labels.
-		flows = append(flows, &encapToIPFlow{
-			Flow: &otgconfighelpers.Flow{
-				TxNames:           []string{core1OTG.Name + ".IPv4"},
-				RxNames:           []string{custOTG0.Name + ".IPv4"},
-				SizeWeightProfile: &sizeWeightProfile,
-				Flowrate:          8,
-				FlowName:          fmt.Sprintf("MPLSoGRE-mcast-tc%d-%s", tc, core1OTG.Name),
-				EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg2.AggMAC},
-				IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "100.64.0.1", IPv4Dst: outerGREDstCore1, IPv4SrcCount: 1000},
-				GREFlow:           &otgconfighelpers.GREFlowParams{Protocol: otgconfighelpers.IanaMPLSEthertype},
-				MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: uint32(99980 + tc), MPLSExp: uint32(tc)},
-			},
-			innerIPv4: &otgconfighelpers.IPv4FlowParams{IPv4Src: "50.1.1.1", IPv4Dst: mcastDst, IPv4SrcCount: 1000},
-		})
-		flows = append(flows, &encapToIPFlow{
-			Flow: &otgconfighelpers.Flow{
-				TxNames:           []string{core2OTG.Name + ".IPv4"},
-				RxNames:           []string{custOTG0.Name + ".IPv4"},
-				SizeWeightProfile: &sizeWeightProfile,
-				Flowrate:          8,
-				FlowName:          fmt.Sprintf("MPLSoGUE-mcast-tc%d-%s", tc, core2OTG.Name),
-				EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg3.AggMAC},
-				IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "100.64.1.1", IPv4Dst: outerGUEDstCore2, IPv4SrcCount: 1000},
-				UDPFlow:           &otgconfighelpers.UDPFlowParams{UDPSrcPort: 49152, UDPDstPort: gueDstPort},
-				MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: uint32(99880 + tc), MPLSExp: uint32(tc)},
-			},
-			innerIPv4: &otgconfighelpers.IPv4FlowParams{IPv4Src: "50.1.2.1", IPv4Dst: mcastDst, IPv4SrcCount: 1000},
-		})
-		// IPv6 inner payload flows.
-		flows = append(flows, &encapToIPFlow{
-			Flow: &otgconfighelpers.Flow{
-				TxNames:           []string{core1OTG.Name + ".IPv4"},
-				RxNames:           []string{custOTG0.Name + ".IPv4"},
-				SizeWeightProfile: &sizeWeightProfile,
-				Flowrate:          8,
-				FlowName:          fmt.Sprintf("MPLSoGRE-v6-tc%d-%s", tc, core1OTG.Name),
-				EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg2.AggMAC},
-				IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "100.64.0.1", IPv4Dst: outerGREDstCore1, IPv4SrcCount: 1000},
-				GREFlow:           &otgconfighelpers.GREFlowParams{Protocol: otgconfighelpers.IanaMPLSEthertype},
-				MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: uint32(99970 + tc), MPLSExp: uint32(tc)},
-			},
-			innerIPv6: &otgconfighelpers.IPv6FlowParams{IPv6Src: "2001:db8:100::1", IPv6Dst: "2001:db8:200::1", IPv6SrcCount: 1000},
-			innerTCP:  &otgconfighelpers.TCPFlowParams{TCPSrcPort: 49152, TCPDstPort: 443, TCPSrcCount: 1000},
-		})
-		flows = append(flows, &encapToIPFlow{
-			Flow: &otgconfighelpers.Flow{
-				TxNames:           []string{core2OTG.Name + ".IPv4"},
-				RxNames:           []string{custOTG0.Name + ".IPv4"},
-				SizeWeightProfile: &sizeWeightProfile,
-				Flowrate:          8,
-				FlowName:          fmt.Sprintf("MPLSoGUE-v6-tc%d-%s", tc, core2OTG.Name),
-				EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg3.AggMAC},
-				IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "100.64.1.1", IPv4Dst: outerGUEDstCore2, IPv4SrcCount: 1000},
-				UDPFlow:           &otgconfighelpers.UDPFlowParams{UDPSrcPort: 49152, UDPDstPort: gueDstPort},
-				MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: uint32(99870 + tc), MPLSExp: uint32(tc)},
-			},
-			innerIPv6: &otgconfighelpers.IPv6FlowParams{IPv6Src: "2001:db8:100::1", IPv6Dst: "2001:db8:200::1", IPv6SrcCount: 1000},
-			innerTCP:  &otgconfighelpers.TCPFlowParams{TCPSrcPort: 49152, TCPDstPort: 443, TCPSrcCount: 1000},
-		})
+		for _, s := range specs {
+			flows = append(flows, newEncapFlow(s, tc))
+		}
 	}
 	return flows
 }
