@@ -7,3 +7,4 @@ openconfig_public/
 # used by `make proto/...`
 protobuf-import/
 *.log
+sample.rest

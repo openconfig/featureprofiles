@@ -254,6 +254,16 @@ network-instances {
     behavior.
 
 ```
+IPv4Entry {0.0.0.0/0 (ENCAP_TE_VRF_A)} -> NHG#1003 (DEFAULT VRF) -> {
+  {NH#1003, DEFAULT VRF},
+} // fallback routeto reidirect to DEFAULT vrf
+NHG#1003 (DEFAULT VRF) {
+  {NH#1003, DEFAULT VRF}
+}
+NH#1003 -> {
+  network_instance: "DEFAULT"
+}
+
 IPv4Entry {138.0.11.0/24 (ENCAP_TE_VRF_A)} -> NHG#101 (DEFAULT VRF) -> {
   {NH#101, DEFAULT VRF, weight:1},
   {NH#102, DEFAULT VRF, weight:3},
@@ -474,6 +484,10 @@ be routed to the DEFAULT VRF for further lookup.
 3.  Validate that the traffic is routed per the BGP-ISIS routes (in the DEFAULT
     VR) out of DUT port-8.
 
+#### Canonical OC
+```json
+{}
+```
 ## Config Parameter Coverage
 
 *   network-instances/network-instance/name
@@ -506,15 +520,66 @@ be routed to the DEFAULT VRF for further lookup.
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  /interfaces/interface/config/description:
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/config/name:
+  /interfaces/interface/config/type:
+  /interfaces/interface/state/oper-status:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/state/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled:
+  /network-instances/network-instance/config/name:
+  /network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-vrf-selection-policy:
+  /network-instances/network-instance/policy-forwarding/policies/policy/config/policy-id:
+  /network-instances/network-instance/policy-forwarding/policies/policy/config/type:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decap-fallback-network-instance:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decap-network-instance:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/network-instance:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/state/decap-fallback-network-instance:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/config/sequence-id:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/dscp-set:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/protocol:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/source-address:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/state/dscp-set:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/state/source-address:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/dscp-set:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/state/dscp-set:
+  /network-instances/network-instance/protocols/protocol/bgp/global/config/as:
+  /network-instances/network-instance/protocols/protocol/bgp/global/config/router-id:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/enabled:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-as:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-group:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/config/local-address:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/peer-as:
+  /network-instances/network-instance/protocols/protocol/config/enabled:
+  /network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/config/enabled:
+  /network-instances/network-instance/protocols/protocol/isis/global/config/instance:
+  /network-instances/network-instance/protocols/protocol/isis/global/config/level-capability:
+  /network-instances/network-instance/protocols/protocol/isis/global/config/net:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/circuit-type:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/enabled:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/config/metric:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/config/enabled:
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/config/metric-style:
+  /system/state/boot-time:
+  /system/state/current-datetime:
 rpcs:
   gnmi:
     gNMI.Get:
     gNMI.Set:
     gNMI.Subscribe:
   gribi:
+    gRIBI.Flush:
     gRIBI.Get:
     gRIBI.Modify:
-    gRIBI.Flush:
 ```
 
 ## Required DUT platform

@@ -23,6 +23,7 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
@@ -354,6 +355,7 @@ func configureExportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, operatio
 		t.Fatalf("AppendNewStatement(%s) failed: %v", v4ASPStatement, err)
 	}
 	stmt1.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().SetAsn(dutAS)
+	stmt1.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().SetRepeatN(1)
 
 	if deviations.FlattenPolicyWithMultipleStatements(dut) {
 		stmt2, err := pdef1.AppendNewStatement(v4MedStatement)
@@ -579,6 +581,7 @@ func configureExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, operat
 		t.Fatalf("AppendNewStatement(%s) failed: %v", v6ASPStatement, err)
 	}
 	stmt1.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().SetAsn(dutAS)
+	stmt1.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().SetRepeatN(1)
 
 	if deviations.FlattenPolicyWithMultipleStatements(dut) {
 		stmt2, err := pdef1.AppendNewStatement(v6MedStatement)
@@ -737,22 +740,45 @@ func createFlowV6(t *testing.T, td testData, fc flowConfig) {
 }
 
 func checkTraffic(t *testing.T, td testData, flowName string) {
+	defer otgutils.LogFlowMetrics(t, td.ate.OTG(), td.top)
+	defer otgutils.LogPortMetrics(t, td.ate.OTG(), td.top)
 	td.ate.OTG().StartTraffic(t)
 	time.Sleep(time.Second * 30)
 	td.ate.OTG().StopTraffic(t)
 
-	otgutils.LogFlowMetrics(t, td.ate.OTG(), td.top)
-	otgutils.LogPortMetrics(t, td.ate.OTG(), td.top)
+	gnmi.Watch(t, td.ate.OTG(), gnmi.OTG().Flow(flowName).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
+		recvMetric, ok := val.Val()
+		if !ok {
+			return false
+		}
+		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
+		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
+		if txPackets == 0 {
+			return false
+		}
+		if rxPackets > txPackets {
+			return false
+		}
+		lossPct := (txPackets - rxPackets) * 100 / txPackets
+		return int(lossPct) <= int(1)
+	}).Await(t)
 
-	t.Log("Checking flow telemetry...")
 	recvMetric := gnmi.Get(t, td.ate.OTG(), gnmi.OTG().Flow(flowName).State())
 	txPackets := recvMetric.GetCounters().GetOutPkts()
 	rxPackets := recvMetric.GetCounters().GetInPkts()
-	lostPackets := txPackets - rxPackets
-	lossPct := lostPackets * 100 / txPackets
 
-	if lossPct > 1 {
-		t.Errorf("FAIL- Got %v%% packet loss for %s ; expected < 1%%", lossPct, flowName)
+	if txPackets == 0 {
+		t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flowName)
+	}
+	if rxPackets > txPackets {
+		t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", rxPackets, txPackets)
+	}
+
+	lostPackets := txPackets - rxPackets
+	lossPct := float32(lostPackets) * 100 / float32(txPackets)
+
+	if int(lossPct) > int(1) {
+		t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want <= 1", flowName, lossPct)
 	}
 }
 
@@ -914,6 +940,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
+	}
+
+	if deviations.BgpRibStreamingConfigRequired(dut) {
+		cfgplugins.DeviationBgpRibStreamingConfigRequired(t, dut)
 	}
 }
 

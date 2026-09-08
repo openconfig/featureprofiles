@@ -131,6 +131,49 @@ type AFTData struct {
 	NextHops map[uint64]*aftNextHop
 }
 
+// FilterByPrefixes returns a new AFTData containing only the specified prefixes
+// and their associated NextHopGroups and NextHops.
+func (a *AFTData) FilterByPrefixes(wantPrefixes map[string]bool) *AFTData {
+	// Track which prefixes and NHG IDs we want to keep
+	filteredPrefixes := make(map[string]uint64)
+	usedNHGIDs := make(map[uint64]bool)
+
+	// Copy only wanted prefixes and track which NHGs are used
+	for prefix := range wantPrefixes {
+		if nhgID, ok := a.Prefixes[prefix]; ok {
+			filteredPrefixes[prefix] = nhgID
+			usedNHGIDs[nhgID] = true
+		}
+	}
+
+	// Filter NextHopGroups to only include those referenced by wantPrefixes
+	filteredNHGs := make(map[uint64]*aftNextHopGroup)
+	usedNHIDs := make(map[uint64]bool)
+	for nhgID := range usedNHGIDs {
+		if nhg, ok := a.NextHopGroups[nhgID]; ok {
+			filteredNHGs[nhgID] = nhg
+			// Collect all NH IDs from this NHG
+			for _, nhID := range nhg.NHIDs {
+				usedNHIDs[nhID] = true
+			}
+		}
+	}
+
+	// Filter NextHops to only include those referenced by the filtered NextHopGroups
+	filteredNHs := make(map[uint64]*aftNextHop)
+	for nhID := range usedNHIDs {
+		if nh, ok := a.NextHops[nhID]; ok {
+			filteredNHs[nhID] = nh
+		}
+	}
+
+	return &AFTData{
+		Prefixes:      filteredPrefixes,
+		NextHopGroups: filteredNHGs,
+		NextHops:      filteredNHs,
+	}
+}
+
 // aftCache is the AFT streaming cache.
 type aftCache struct {
 	cache  *cache.Cache // Cache used to store AFT notifications during streaming.
@@ -473,6 +516,7 @@ type AFTStreamSession struct {
 	notifications     []*gnmipb.SubscribeResponse
 	missingPrefixes   map[string]bool
 	failingNHPrefixes map[string]bool
+	debugMode         bool
 }
 
 func (ss *AFTStreamSession) sessionPrefix() string {
@@ -487,7 +531,15 @@ func NewAFTStreamSession(ctx context.Context, t *testing.T, c gnmipb.GNMIClient,
 		notifications:     []*gnmipb.SubscribeResponse{},
 		missingPrefixes:   make(map[string]bool),
 		failingNHPrefixes: make(map[string]bool),
+		debugMode:         false,
 	}
+}
+
+// WithDebug enables the storage of all gNMI notifications for debugging purposes.
+// Warning: This will significantly increase memory usage.
+func (ss *AFTStreamSession) WithDebug() *AFTStreamSession {
+	ss.debugMode = true
+	return ss
 }
 
 // NotificationHook is a function that will be called when each notification is received, before updating the AFT cache.
@@ -575,8 +627,10 @@ func (ss *AFTStreamSession) listenUntil(ctx context.Context, t *testing.T, timeo
 				// Context cancellation can hit this code path from the stream sending a context cancellation error.
 				t.Fatalf("error from gNMI stream: %v", resp.err)
 			}
-			ss.notifications = append(ss.notifications, resp.notification)
-
+			// Only store notifications if debug mode is enabled.
+			if ss.debugMode {
+				ss.notifications = append(ss.notifications, resp.notification)
+			}
 			for _, hook := range preUpdateHooks {
 				err := hook.NotificationFunc(ss.Cache, resp.notification)
 				if err != nil {
@@ -586,7 +640,9 @@ func (ss *AFTStreamSession) listenUntil(ctx context.Context, t *testing.T, timeo
 			err := ss.Cache.addAFTNotification(resp.notification)
 			switch {
 			case errors.Is(err, cache.ErrStale):
-				t.Logf("Received stale notification with timestamp %v (current time: %v)", time.Unix(0, resp.notification.GetUpdate().GetTimestamp()), time.Now())
+				// TODO: The log line below is currently commented out to avoid stale log messages. Uncomment it later if the additional logging is required.
+				// t.Logf("Received stale notification with timestamp %v (current time: %v)", time.Unix(0, resp.notification.GetUpdate().GetTimestamp()), time.Now())
+				continue
 			case err != nil:
 				t.Fatalf("error updating AFT cache with response %v: %v", resp.notification, err)
 			}
@@ -917,6 +973,7 @@ func parseNHG(t *testing.T, n *gnmipb.Notification) (uint64, *aftNextHopGroup, e
 		NHIDs:     []uint64{},
 		NHWeights: map[uint64]uint64{},
 	}
+	nhidSeen := make(map[uint64]struct{})
 	for _, u := range updates {
 		p, err = ygot.PathToSchemaPath(u.Path)
 		if strings.HasPrefix(p, nextHopGroupConditionPath) {
@@ -933,7 +990,11 @@ func parseNHG(t *testing.T, n *gnmipb.Notification) (uint64, *aftNextHopGroup, e
 		// Match for the path of the form:
 		// /network-instances/network-instance/DEFAULT/afts/next-hop-groups/next-hop-group[id=<id>]/state/index
 		case strings.HasSuffix(p, "state/index"):
-			nhg.NHIDs = append(nhg.NHIDs, u.Val.GetUintVal())
+			id := u.Val.GetUintVal()
+			if _, exists := nhidSeen[id]; !exists {
+				nhidSeen[id] = struct{}{}
+				nhg.NHIDs = append(nhg.NHIDs, id)
+			}
 		case p == nextHopWeightPath:
 			nhID, err := strconv.ParseUint(u.Path.GetElem()[6].GetKey()["index"], 10, 64)
 			if err != nil {
@@ -1071,4 +1132,88 @@ func writeNotifications(t *testing.T, notifications []*gnmipb.SubscribeResponse,
 		}
 	}
 	return path, nil
+}
+
+// Notifications return the AFT stream notifications.
+func (ss *AFTStreamSession) Notifications() []*gnmipb.SubscribeResponse {
+	return ss.notifications
+}
+
+// notificationMatch tracks whether the expected update/delete notifications have been observed in the gNMI stream.
+type notificationMatch struct {
+	updateFound bool
+	deleteFound bool
+}
+
+// NotificationExpectation defines prefixes that should appear as UPDATE and/or DELETE notifications in the gNMI stream.
+type NotificationExpectation struct {
+	AddPrefix        string
+	DeletePrefix     string
+	NotificationWait time.Duration
+}
+
+// WaitForNotification returns a PeriodicHook that waits for the expected update
+// and/or delete notifications specified in NotificationExpectation. The hook
+// completes successfully once all requested notifications are observed.
+func WaitForNotification(t *testing.T, cfg NotificationExpectation) PeriodicHook {
+	t.Helper()
+	start := time.Now()
+	return PeriodicHook{
+		Description: "Wait for notification",
+		PeriodicFunc: func(ss *AFTStreamSession) (bool, error) {
+			match := notificationMatch{
+				updateFound: cfg.AddPrefix == "",
+				deleteFound: cfg.DeletePrefix == "",
+			}
+			for _, resp := range ss.Notifications() {
+				update := resp.GetUpdate()
+				if update == nil {
+					// Ignore SubscribeResponse messages that do not contain an Update,
+					// such as SyncResponse.
+					continue
+				}
+				if !match.updateFound && hasUpdateNotification(update, cfg.AddPrefix) {
+					match.updateFound = true
+				}
+				if !match.deleteFound && hasDeleteNotification(update, cfg.DeletePrefix) {
+					match.deleteFound = true
+				}
+				if match.updateFound && match.deleteFound {
+					return true, nil
+				}
+			}
+			if time.Since(start) > cfg.NotificationWait {
+				return false, fmt.Errorf("timed out waiting for update(%q) delete(%q)", cfg.AddPrefix, cfg.DeletePrefix)
+			}
+			return false, nil
+		},
+	}
+}
+
+// hasUpdateNotification returns true if the specified prefix appears in any UPDATE path within the notification.
+func hasUpdateNotification(update *gnmipb.Notification, prefix string) bool {
+	for _, upd := range update.GetUpdate() {
+		for _, elem := range upd.GetPath().GetElem() {
+			for _, keyVal := range elem.GetKey() {
+				if keyVal == prefix {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// hasDeleteNotification returns true if the specified prefix appears in any DELETE path within the notification.
+func hasDeleteNotification(update *gnmipb.Notification, prefix string) bool {
+	for _, del := range update.GetDelete() {
+		for _, elem := range del.GetElem() {
+			for _, keyVal := range elem.GetKey() {
+				if keyVal == prefix {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
