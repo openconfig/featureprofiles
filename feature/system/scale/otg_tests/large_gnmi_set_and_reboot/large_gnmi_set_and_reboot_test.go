@@ -55,9 +55,19 @@ func TestLargeGNMISetAndReboot(t *testing.T) {
 		}
 	}
 
+	// Constants for scale limits and validation targets
+	const (
+		dualPortLAGCount   = 200
+		portsPerDualLAG    = 2
+		singlePortLAGCount = 300
+		portsPerSingleLAG  = 1
+		requiredPhysPorts  = 700
+		testInterfaceIndex = 100
+	)
+
 	// The README strictly requires 700 physical ports. If the lab router (e.g., a VM) is too small, gracefully skip.
-	if len(physPorts) < 700 {
-		t.Skipf("SYS-5.1 scale test requires 700 physical ports, but DUT only has %d. Skipping test.", len(physPorts))
+	if len(physPorts) < requiredPhysPorts {
+		t.Skipf("SYS-5.1 scale test requires %d physical ports, but DUT only has %d. Skipping test.", requiredPhysPorts, len(physPorts))
 	}
 
 	// Define the root config to collect interfaces in a batch map.
@@ -95,12 +105,13 @@ func TestLargeGNMISetAndReboot(t *testing.T) {
 	}
 
 	// SYS-5.1.1 - gNMI Batch Set and reboot immediately.
-	// Step 1: Configure description and IP addresses on all 700 Physical and 500 LAG interfaces.
-	for i := 0; i < 200; i++ {
-		createLAG(2)
+	// Step 1: Configure description and IP addresses on all physical and LAG interfaces.
+	for i := 0; i < dualPortLAGCount; i++ {
+		createLAG(portsPerDualLAG)
 	}
-	for i := 0; i < 300; i++ {
-		createLAG(1)
+
+	for i := 0; i < singlePortLAGCount; i++ {
+		createLAG(portsPerSingleLAG)
 	}
 
 	t.Cleanup(func() {
@@ -248,7 +259,7 @@ func TestLargeGNMISetAndReboot(t *testing.T) {
 	}
 
 	// SYS-5.1.2 - Step 3: Issue a gNMI Set request to configure a test description on any one DUT interface.
-	testInterface := fmt.Sprintf("%s100", aggrPrefix)
+	testInterface := fmt.Sprintf("%s%d", aggrPrefix, testInterfaceIndex)
 	testDesc := "Test description post-reboot"
 	t.Logf("SYS-5.1.2 - Step 3: Applying new description %q to %s to test configuration database unlock", testDesc, testInterface)
 	gnmi.Update(t, dut, gnmi.OC().Interface(testInterface).Description().Config(), testDesc)
