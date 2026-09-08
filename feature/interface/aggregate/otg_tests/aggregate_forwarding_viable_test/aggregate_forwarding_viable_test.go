@@ -460,17 +460,7 @@ func (tc *testArgs) portWantsNotViable(t *testing.T) []float64 {
 
 // debugATEFlows logs detailed tracking information on traffic flows and find if there is any loss pct in the flow.
 func debugATEFlows(t *testing.T, ate *ondatra.ATEDevice, flow gosnappi.Flow, lp linkPairs) {
-
-	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).State())
-	txPackets := float32(recvMetric.GetCounters().GetOutPkts())
-	rxPackets := float32(recvMetric.GetCounters().GetInPkts())
-	if txPackets == 0 {
-		t.Fatalf("Tx packets should be higher than 0")
-	}
-	lostPackets := txPackets - rxPackets
-	if got := lostPackets * 100 / txPackets; got > 0 {
-		t.Fatalf("LossPct for flow %s: got %f, want 0", flow.Name(), got)
-	}
+	otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), 0, 0)
 }
 
 // verifyCounterDiff finds the difference between counter values before and after sending traffic. It also calculates if there is any packet loss.
