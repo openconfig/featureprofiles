@@ -14,12 +14,26 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygnmi/ygnmi"git 
 	"github.com/openconfig/ygot/ygot"
 )
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
+}
+
+// getLAGPrefix dynamically returns the correct LAG name prefix for the given vendor.
+func getLAGPrefix(dut *ondatra.DUTDevice) string {
+	switch dut.Vendor() {
+	case ondatra.NOKIA:
+		return "lag-"
+	case ondatra.JUNIPER:
+		return "ae"
+	case ondatra.ARISTA, ondatra.CISCO:
+		return "Port-Channel"
+	default:
+		return "port-channel"
+	}
 }
 
 func TestLargeGNMISetAndReboot(t *testing.T) {
@@ -29,15 +43,32 @@ func TestLargeGNMISetAndReboot(t *testing.T) {
 	bootTimeBeforeReboot := gnmi.Get(t, dut, gnmi.OC().System().BootTime().State())
 	t.Logf("DUT boot time before reboot: %v", bootTimeBeforeReboot)
 
+	// Fetch dynamically correct LAG prefix locally
+	aggrPrefix := getLAGPrefix(dut)
+
+	// Dynamically fetch actual physical hardware ports to bypass strict vendor validation
+	var physPorts []string
+	allIntfs := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().State())
+	for _, intf := range allIntfs {
+		if intf.GetType() == oc.IETFInterfaces_InterfaceType_ethernetCsmacd {
+			physPorts = append(physPorts, intf.GetName())
+		}
+	}
+
+	// The README strictly requires 700 physical ports. If the lab router (e.g., a VM) is too small, gracefully skip.
+	if len(physPorts) < 700 {
+		t.Skipf("SYS-5.1 scale test requires 700 physical ports, but DUT only has %d. Skipping test.", len(physPorts))
+	}
+
 	// Define the root config to collect interfaces in a batch map.
 	d := &oc.Root{}
 
-	portIndex := 1
+	portIndex := 0
 	lagIndex := 1
 
-	// Helper function to generate aggregate LAGs and member physical interfaces.
+	// Helper function to generate aggregate LAGs and map them to REAL physical interfaces.
 	createLAG := func(memberCount int) {
-		lagName := fmt.Sprintf("port-channel%d", lagIndex)
+		lagName := fmt.Sprintf("%s%d", aggrPrefix, lagIndex)
 		lag := d.GetOrCreateInterface(lagName)
 		lag.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
 		lag.Enabled = ygot.Bool(true)
@@ -51,12 +82,12 @@ func TestLargeGNMISetAndReboot(t *testing.T) {
 		subIntf.GetOrCreateIpv6().GetOrCreateAddress(fmt.Sprintf("2001:db8::%x", lagIndex)).PrefixLength = ygot.Uint8(64)
 
 		for i := 0; i < memberCount; i++ {
-			portName := fmt.Sprintf("port%d", portIndex)
+			portName := physPorts[portIndex] // Use the REAL hardware port name fetched from DUT
 			p := d.GetOrCreateInterface(portName)
 			p.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 			p.Enabled = ygot.Bool(true)
 			p.Name = ygot.String(portName)
-			p.Description = ygot.String(fmt.Sprintf("Physical port %d", portIndex))
+			p.Description = ygot.String(fmt.Sprintf("Physical member for %s", lagName))
 			p.GetOrCreateEthernet().AggregateId = ygot.String(lagName)
 			portIndex++
 		}
@@ -64,8 +95,7 @@ func TestLargeGNMISetAndReboot(t *testing.T) {
 	}
 
 	// SYS-5.1.1 - gNMI Batch Set and reboot immediately.
-	// SYS-5.1.1 - Step 1: Create a gNMI batch configuration to:
-	// Configure description and IP addresses on all 700 Physical and 500 LAG interfaces.
+	// Step 1: Configure description and IP addresses on all 700 Physical and 500 LAG interfaces.
 	for i := 0; i < 200; i++ {
 		createLAG(2)
 	}
@@ -87,7 +117,6 @@ func TestLargeGNMISetAndReboot(t *testing.T) {
 
 	setInitiated := make(chan struct{})
 
-	// Trigger goroutines for parallel operations.
 	// Thread 1: Perform the large gNMI Batch Set.
 	go func() {
 		defer wg.Done()
@@ -139,7 +168,6 @@ func TestLargeGNMISetAndReboot(t *testing.T) {
 		t.Errorf("Boot time did not increase after reboot. Before: %v, After: %v", bootTimeBeforeReboot, bootTimeAfterReboot)
 	}
 
-	// Validate OS, BIOS, and BootLoader software versions dynamically.
 	compTypes := []oc.E_PlatformTypes_OPENCONFIG_SOFTWARE_COMPONENT{
 		oc.PlatformTypes_OPENCONFIG_SOFTWARE_COMPONENT_OPERATING_SYSTEM,
 		oc.PlatformTypes_OPENCONFIG_SOFTWARE_COMPONENT_BIOS,
@@ -167,7 +195,6 @@ func TestLargeGNMISetAndReboot(t *testing.T) {
 
 	helpers.ValidateInterfaceConfigState(t, dut, d, 2*time.Minute)
 
-	// Iterate over our generated structure to assert it actually committed on the Config tree.
 	gotInterfaces := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().Config())
 	gotIntfMap := make(map[string]*oc.Interface)
 	for _, intf := range gotInterfaces {
@@ -221,7 +248,7 @@ func TestLargeGNMISetAndReboot(t *testing.T) {
 	}
 
 	// SYS-5.1.2 - Step 3: Issue a gNMI Set request to configure a test description on any one DUT interface.
-	testInterface := "port-channel100"
+	testInterface := fmt.Sprintf("%s100", aggrPrefix)
 	testDesc := "Test description post-reboot"
 	t.Logf("SYS-5.1.2 - Step 3: Applying new description %q to %s to test configuration database unlock", testDesc, testInterface)
 	gnmi.Update(t, dut, gnmi.OC().Interface(testInterface).Description().Config(), testDesc)
