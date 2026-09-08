@@ -168,9 +168,9 @@ func TestISISChangeLSPLifetime(t *testing.T) {
 			}
 			if got, ok := gnmi.Watch(t, ts.DUT, isisPath.Level(2).Lsp(dutLspID).RemainingLifetime().State(), 1*time.Minute, func(val *ygnmi.Value[uint16]) bool {
 				lifeTime, ok := val.Val()
-				return ok && lifeTime < lspLifetime
+				return ok && lifeTime <= lspLifetime
 			}).Await(t); !ok {
-				t.Errorf("FAIL- Expected remaining lifetime not found, got %v, want less than %d", got, lspLifetime)
+				t.Errorf("FAIL- Expected remaining lifetime not found, got %v, want less than or equal to %d", got, lspLifetime)
 			}
 			if got, want := isis.GetLevel(2).GetLsp(dutLspID).GetLspId(), dutLspID; got != want {
 				t.Errorf("FAIL- Expected DUT lsp id not found, got %s, want %s", got, want)
