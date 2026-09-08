@@ -197,6 +197,77 @@ This test checks that the static protocol name is usable.
 
 *   gNMI.Set
 
+## Canonical OC
+
+```json
+{
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "dut:port1",
+          "name": "port1"
+        },
+        "name": "port1",
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "config": {
+                "index": 0
+              },
+              "index": 0,
+              "ipv4": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "192.0.2.1",
+                        "prefix-length": 30
+                      },
+                      "ip": "192.0.2.1"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "config": {
+          "description": "dut:port2",
+          "name": "port2"
+        },
+        "name": "port2",
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "config": {
+                "index": 0
+              },
+              "index": 0,
+              "ipv4": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "192.0.2.5",
+                        "prefix-length": 30
+                      },
+                      "ip": "192.0.2.5"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
