@@ -59,7 +59,7 @@ const (
 	decapGREGroup      = "gre-decap"
 	decapGUEGroup      = "gue-decap"
 
-	trafficDuration        = 60 * time.Second
+	trafficDuration        = 25 * time.Second
 	lossTolerancePct       = float32(3.0)
 	strictLossTolerancePct = float32(0.0)
 	innerDSCPCapture       = 10
