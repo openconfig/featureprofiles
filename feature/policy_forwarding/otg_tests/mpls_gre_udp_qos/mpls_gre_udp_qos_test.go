@@ -154,7 +154,7 @@ var (
 	}
 )
 
-func ConfigureOTG(t *testing.T) {
+func configureOTG(t *testing.T) {
 	t.Helper()
 	top.Captures().Clear()
 	ate := ondatra.ATE(t, "ate")
@@ -164,7 +164,7 @@ func ConfigureOTG(t *testing.T) {
 	ate.OTG().PushConfig(t, top)
 }
 
-func ConfigureDut(t *testing.T, dut *ondatra.DUTDevice) {
+func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	configureHardwareInit(t, dut)
 
 	custAggID = netutil.NextAggregateInterface(t, dut)
@@ -620,9 +620,9 @@ func configureStaticRoutes(t *testing.T, dut *ondatra.DUTDevice) {
 	b.Set(t, dut)
 }
 
-// cleanupDut reverts all DUT configuration applied by ConfigureDut, in the reverse
+// cleanupDUT reverts all DUT configuration applied by ConfigureDut, in the reverse
 // order it was applied, so the DUT is left in its original state.
-func cleanupDut(t *testing.T, dut *ondatra.DUTDevice) {
+func cleanupDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	cleanupQoS(t, dut)
 	cleanupDecapMPLSInGREAndGUE(t, dut)
@@ -1093,12 +1093,12 @@ func assertIncreased(t *testing.T, qn string, got, base uint64) {
 func TestPF118Traffic(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	t.Cleanup(func() { cleanupDut(t, dut) })
+	t.Cleanup(func() { cleanupDUT(t, dut) })
 
 	t.Run("PF-1.18.1_Setup", func(t *testing.T) {
 		fptest.ConfigureDefaultNetworkInstance(t, dut)
-		ConfigureDut(t, dut)
-		ConfigureOTG(t)
+		configureDUT(t, dut)
+		configureOTG(t)
 	})
 
 	t.Run("PF-1.18.2_MPLSTrafficClassClassification", func(t *testing.T) {
