@@ -203,6 +203,7 @@ This test checks that the static protocol name is usable.
 paths:
   /interfaces/interface/name:
   /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/state/prefix-length:
   /network-instances/network-instance/name:
 rpcs:
   gnmi:
