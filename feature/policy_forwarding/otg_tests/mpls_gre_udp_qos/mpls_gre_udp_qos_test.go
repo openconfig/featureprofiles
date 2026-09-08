@@ -1054,6 +1054,49 @@ func queueDroppedPkts(t *testing.T, dut *ondatra.DUTDevice, aggID string, ports 
 	return total
 }
 
+// collectQueueTxPkts gathers per-queue transmit-pkts counters in qNames order.
+func collectQueueTxPkts(t *testing.T, dut *ondatra.DUTDevice, aggID string, ports []string, qNames []string) []uint64 {
+	t.Helper()
+	txPkts := make([]uint64, len(qNames))
+	for i, qn := range qNames {
+		txPkts[i] = queueTransmitPkts(t, dut, aggID, ports, qn)
+	}
+	return txPkts
+}
+
+// setEncapFlowRates sets Flowrate to 0 for TCs in stoppedTCs and to activeRate otherwise.
+func setEncapFlowRates(flows []*encapToIPFlow, stoppedTCs map[int]bool, activeRate float32) {
+	for _, f := range flows {
+		if stoppedTCs[int(f.MPLSFlow.MPLSExp)] {
+			f.Flowrate = 0
+		} else {
+			f.Flowrate = activeRate
+		}
+	}
+}
+
+// assertNonDecreasingPriority fails if a lower-priority queue outpaces a higher-priority one, or the top queue is silent.
+func assertNonDecreasingPriority(t *testing.T, label string, qNames []string, txPkts []uint64) {
+	t.Helper()
+	if txPkts[len(txPkts)-1] == 0 {
+		t.Errorf("%shighest priority queue %s: got 0 transmit-pkts, want > 0", label, qNames[len(qNames)-1])
+	}
+	for i := 1; i < len(qNames); i++ {
+		if txPkts[i] < txPkts[i-1] {
+			t.Errorf("%spriority %d (%s) transmit-pkts %d < priority %d (%s) %d; higher priority must not be starved by lower",
+				label, i, qNames[i], txPkts[i], i-1, qNames[i-1], txPkts[i-1])
+		}
+	}
+}
+
+// assertIncreased fails if got did not grow past base, e.g. after freeing bandwidth by stopping another TC.
+func assertIncreased(t *testing.T, qn string, got, base uint64) {
+	t.Helper()
+	if got <= base {
+		t.Errorf("queue %s: transmit-pkts %d did not increase after freeing bandwidth (was %d)", qn, got, base)
+	}
+}
+
 func TestPF118Traffic(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
@@ -1192,18 +1235,15 @@ func TestPF118Traffic(t *testing.T) {
 		// Phase 1: all TCs active under congestion.
 		top.Flows().Clear()
 		flows := buildEncapToIPFlows()
+		setEncapFlowRates(flows, nil, 12)
 		for i, f := range flows {
-			f.Flowrate = 12
 			createEncapToIPFlow(t, top, f, i == 0)
 		}
 		sendTraffic(t, dut, ate, trafficDuration)
 
-		baseTransmit := make(map[string]uint64)
+		baseTransmit := collectQueueTxPkts(t, dut, custAggID, custPorts, qNames)
 		for i, qn := range qNames {
-			got := queueTransmitPkts(t, dut, custAggID, custPorts, qn)
-			baseTransmit[qn] = got
-			t.Logf("queue %s (class %d) transmit-pkts: %d", qn, i, got)
-			if got == 0 {
+			if baseTransmit[i] == 0 {
 				t.Errorf("queue %s: got 0 transmit-pkts, want > 0 (minimum bandwidth not honored)", qn)
 			}
 			if dropped := queueDroppedPkts(t, dut, custAggID, custPorts, qn); dropped > 0 {
@@ -1214,26 +1254,18 @@ func TestPF118Traffic(t *testing.T) {
 		// Phase 2: stop TC0 and TC1, verify remaining TCs absorb bandwidth.
 		top.Flows().Clear()
 		flows = buildEncapToIPFlows()
+		setEncapFlowRates(flows, map[int]bool{0: true, 1: true}, 12)
 		for i, f := range flows {
-			if f.MPLSFlow.MPLSExp <= 1 {
-				f.Flowrate = 0
-			} else {
-				f.Flowrate = 12
-			}
 			createEncapToIPFlow(t, top, f, i == 0)
 		}
 		sendTraffic(t, dut, ate, trafficDuration)
 
+		afterStop := collectQueueTxPkts(t, dut, custAggID, custPorts, qNames)
 		for i, qn := range qNames {
-			got := queueTransmitPkts(t, dut, custAggID, custPorts, qn)
 			if i <= 1 {
-				t.Logf("queue %s (stopped): transmit-pkts %d", qn, got)
-			} else {
-				t.Logf("queue %s (active after stop): transmit-pkts %d (was %d)", qn, got, baseTransmit[qn])
-				if got <= baseTransmit[qn] {
-					t.Errorf("queue %s: transmit-pkts %d did not increase after stopping TC0/TC1 (was %d)", qn, got, baseTransmit[qn])
-				}
+				continue
 			}
+			assertIncreased(t, qn, afterStop[i], baseTransmit[i])
 		}
 	})
 
@@ -1245,49 +1277,41 @@ func TestPF118Traffic(t *testing.T) {
 		// Phase 1: all TCs active, verify shaper limits on TC0-TC2.
 		top.Flows().Clear()
 		flows := buildEncapToIPFlows()
+		setEncapFlowRates(flows, nil, 12)
 		for i, f := range flows {
-			f.Flowrate = 12
 			createEncapToIPFlow(t, top, f, i == 0)
 		}
 		sendTraffic(t, dut, ate, trafficDuration)
 
-		// PIR limits for TC0-TC2 (bits/s); TC3+ have CIR-only (no hard cap).
-		pirLimits := []uint64{200_000_000, 300_000_000, 400_000_000}
+		txPkts := collectQueueTxPkts(t, dut, custAggID, custPorts, qNames)
 		for i, qn := range qNames {
-			got := queueTransmitPkts(t, dut, custAggID, custPorts, qn)
-			t.Logf("queue %s (class %d) transmit-pkts: %d", qn, i, got)
-			if got == 0 {
+			if txPkts[i] == 0 {
 				t.Errorf("queue %s: got 0 transmit-pkts, want > 0", qn)
 			}
 		}
-		for i := 0; i < len(pirLimits); i++ {
-			octets := queueTransmitPkts(t, dut, custAggID, custPorts, qNames[i])
+		// PIR limits for TC0-TC2 (bits/s); TC3+ have CIR-only (no hard cap).
+		pirLimits := []uint64{200_000_000, 300_000_000, 400_000_000}
+		for i := range pirLimits {
 			maxExpectedPkts := (pirLimits[i] / 8) * uint64(trafficDuration.Seconds()) / 64
-			t.Logf("queue %s: transmit-pkts %d, shaper max ~%d pkts (PIR %d bps, %v)", qNames[i], octets, maxExpectedPkts, pirLimits[i], trafficDuration)
+			t.Logf("queue %s: transmit-pkts %d, shaper max ~%d pkts (PIR %d bps, %v)", qNames[i], txPkts[i], maxExpectedPkts, pirLimits[i], trafficDuration)
 		}
 
 		// Phase 2: stop TC0 and TC1, verify redistribution.
 		top.Flows().Clear()
 		flows = buildEncapToIPFlows()
+		setEncapFlowRates(flows, map[int]bool{0: true, 1: true}, 12)
 		for i, f := range flows {
-			if f.MPLSFlow.MPLSExp <= 1 {
-				f.Flowrate = 0
-			} else {
-				f.Flowrate = 12
-			}
 			createEncapToIPFlow(t, top, f, i == 0)
 		}
 		sendTraffic(t, dut, ate, trafficDuration)
 
+		afterStop := collectQueueTxPkts(t, dut, custAggID, custPorts, qNames)
 		for i, qn := range qNames {
-			got := queueTransmitPkts(t, dut, custAggID, custPorts, qn)
 			if i <= 1 {
-				t.Logf("queue %s (stopped): transmit-pkts %d", qn, got)
-			} else {
-				t.Logf("queue %s (active after stop): transmit-pkts %d", qn, got)
-				if got == 0 {
-					t.Errorf("queue %s: got 0 transmit-pkts after stopping TC0/TC1", qn)
-				}
+				continue
+			}
+			if afterStop[i] == 0 {
+				t.Errorf("queue %s: got 0 transmit-pkts after stopping TC0/TC1", qn)
 			}
 		}
 	})
@@ -1300,53 +1324,26 @@ func TestPF118Traffic(t *testing.T) {
 		// Phase 1: all TCs active under strict priority with congestion.
 		top.Flows().Clear()
 		flows := buildEncapToIPFlows()
+		setEncapFlowRates(flows, nil, 12)
 		for i, f := range flows {
-			f.Flowrate = 12
 			createEncapToIPFlow(t, top, f, i == 0)
 		}
 		sendTraffic(t, dut, ate, trafficDuration)
 
-		txPkts := make([]uint64, len(qNames))
-		for i, qn := range qNames {
-			txPkts[i] = queueTransmitPkts(t, dut, custAggID, custPorts, qn)
-			t.Logf("queue %s (priority %d) transmit-pkts: %d", qn, i, txPkts[i])
-		}
-		if txPkts[len(qNames)-1] == 0 {
-			t.Errorf("highest priority queue %s: got 0 transmit-pkts, want > 0", qNames[len(qNames)-1])
-		}
-		for i := 1; i < len(qNames); i++ {
-			if txPkts[i] < txPkts[i-1] {
-				t.Errorf("priority %d (%s) transmit-pkts %d < priority %d (%s) %d; higher priority must not be starved by lower",
-					i, qNames[i], txPkts[i], i-1, qNames[i-1], txPkts[i-1])
-			}
-		}
+		txPkts := collectQueueTxPkts(t, dut, custAggID, custPorts, qNames)
+		assertNonDecreasingPriority(t, "", qNames, txPkts)
 
 		// Phase 2: stop TC7, verify TC6 absorbs freed bandwidth.
 		top.Flows().Clear()
 		flows = buildEncapToIPFlows()
+		setEncapFlowRates(flows, map[int]bool{7: true}, 12)
 		for i, f := range flows {
-			if f.MPLSFlow.MPLSExp == 7 {
-				f.Flowrate = 0
-			} else {
-				f.Flowrate = 12
-			}
 			createEncapToIPFlow(t, top, f, i == 0)
 		}
 		sendTraffic(t, dut, ate, trafficDuration)
 
-		for i, qn := range qNames {
-			got := queueTransmitPkts(t, dut, custAggID, custPorts, qn)
-			if i == 7 {
-				t.Logf("queue %s (stopped): transmit-pkts %d", qn, got)
-			} else if i == 6 {
-				t.Logf("queue %s (now highest active): transmit-pkts %d (was %d)", qn, got, txPkts[i])
-				if got <= txPkts[i] {
-					t.Errorf("queue %s: transmit-pkts %d did not increase after stopping TC7 (was %d)", qn, got, txPkts[i])
-				}
-			} else {
-				t.Logf("queue %s (priority %d): transmit-pkts %d", qn, i, got)
-			}
-		}
+		afterStop := collectQueueTxPkts(t, dut, custAggID, custPorts, qNames)
+		assertIncreased(t, qNames[6], afterStop[6], txPkts[6])
 	})
 
 	t.Run("PF-1.18.7_ExpeditedForwardingPriorityShaper", func(t *testing.T) {
@@ -1357,30 +1354,24 @@ func TestPF118Traffic(t *testing.T) {
 		// Phase 1: all TCs active under strict priority + shaper.
 		top.Flows().Clear()
 		flows := buildEncapToIPFlows()
+		setEncapFlowRates(flows, nil, 12)
 		for i, f := range flows {
-			f.Flowrate = 12
 			createEncapToIPFlow(t, top, f, i == 0)
 		}
 		sendTraffic(t, dut, ate, trafficDuration)
 
-		// OneRateTwoColor PIR for TC0-TC3 (bits/s).
-		shaperPir := []uint64{100_000_000, 150_000_000, 200_000_000, 250_000_000}
-		txPkts := make([]uint64, len(qNames))
+		txPkts := collectQueueTxPkts(t, dut, custAggID, custPorts, qNames)
 		for i, qn := range qNames {
-			txPkts[i] = queueTransmitPkts(t, dut, custAggID, custPorts, qn)
 			dropped := queueDroppedPkts(t, dut, custAggID, custPorts, qn)
-			t.Logf("queue %s (priority %d) transmit-pkts: %d, dropped-pkts: %d", qn, i, txPkts[i], dropped)
+			t.Logf("queue %s dropped-pkts: %d", qn, dropped)
 			if txPkts[i] == 0 && i >= 4 {
 				t.Errorf("queue %s: got 0 transmit-pkts, want > 0", qn)
 			}
 		}
-		for i := 1; i < len(qNames); i++ {
-			if txPkts[i] < txPkts[i-1] {
-				t.Errorf("priority %d (%s) transmit-pkts %d < priority %d (%s) %d; higher priority must not be starved by lower",
-					i, qNames[i], txPkts[i], i-1, qNames[i-1], txPkts[i-1])
-			}
-		}
-		for i := 0; i < len(shaperPir); i++ {
+		assertNonDecreasingPriority(t, "", qNames, txPkts)
+		// OneRateTwoColor PIR for TC0-TC3 (bits/s).
+		shaperPir := []uint64{100_000_000, 150_000_000, 200_000_000, 250_000_000}
+		for i := range shaperPir {
 			maxExpectedPkts := (shaperPir[i] / 8) * uint64(trafficDuration.Seconds()) / 64
 			t.Logf("queue %s: transmit-pkts %d, shaper max ~%d pkts (PIR %d bps)", qNames[i], txPkts[i], maxExpectedPkts, shaperPir[i])
 		}
@@ -1388,33 +1379,23 @@ func TestPF118Traffic(t *testing.T) {
 		// Phase 2: stop TC7, verify TC6 absorbs freed bandwidth.
 		top.Flows().Clear()
 		flows = buildEncapToIPFlows()
+		setEncapFlowRates(flows, map[int]bool{7: true}, 12)
 		for i, f := range flows {
-			if f.MPLSFlow.MPLSExp == 7 {
-				f.Flowrate = 0
-			} else {
-				f.Flowrate = 12
-			}
 			createEncapToIPFlow(t, top, f, i == 0)
 		}
 		sendTraffic(t, dut, ate, trafficDuration)
 
-		for i, qn := range qNames {
-			got := queueTransmitPkts(t, dut, custAggID, custPorts, qn)
-			if i == 7 {
-				t.Logf("queue %s (stopped): transmit-pkts %d", qn, got)
-			} else if i == 6 {
-				t.Logf("queue %s (now highest active): transmit-pkts %d (was %d)", qn, got, txPkts[i])
-				if got <= txPkts[i] {
-					t.Errorf("queue %s: transmit-pkts %d did not increase after stopping TC7 (was %d)", qn, got, txPkts[i])
-				}
-			} else {
-				t.Logf("queue %s (priority %d): transmit-pkts %d", qn, i, got)
-			}
-		}
+		afterStop := collectQueueTxPkts(t, dut, custAggID, custPorts, qNames)
+		assertIncreased(t, qNames[6], afterStop[6], txPkts[6])
 	})
 
 	t.Run("PF-1.18.8_ExpeditedForwardingPriorityEncap", func(t *testing.T) {
 		qNames := qcNames
+		aggs := []struct {
+			aggID string
+			ports []string
+			name  string
+		}{{core1AggID, core1Ports, "core1"}, {core2AggID, core2Ports, "core2"}}
 
 		// Phase 1: escalating rates per TC to ensure congestion + priority ordering.
 		top.Flows().Clear()
@@ -1425,25 +1406,9 @@ func TestPF118Traffic(t *testing.T) {
 		}
 		sendTraffic(t, dut, ate, trafficDuration)
 
-		for _, agg := range []struct {
-			aggID string
-			ports []string
-			name  string
-		}{{core1AggID, core1Ports, "core1"}, {core2AggID, core2Ports, "core2"}} {
-			txPkts := make([]uint64, len(qNames))
-			for i, qn := range qNames {
-				txPkts[i] = queueTransmitPkts(t, dut, agg.aggID, agg.ports, qn)
-				t.Logf("%s queue %s (priority %d) transmit-pkts: %d", agg.name, qn, i, txPkts[i])
-			}
-			if txPkts[len(qNames)-1] == 0 {
-				t.Errorf("%s highest priority queue %s: got 0 transmit-pkts, want > 0", agg.name, qNames[len(qNames)-1])
-			}
-			for i := 1; i < len(qNames); i++ {
-				if txPkts[i] < txPkts[i-1] {
-					t.Errorf("%s priority %d (%s) transmit-pkts %d < priority %d (%s) %d; higher priority must not be starved by lower",
-						agg.name, i, qNames[i], txPkts[i], i-1, qNames[i-1], txPkts[i-1])
-				}
-			}
+		for _, agg := range aggs {
+			txPkts := collectQueueTxPkts(t, dut, agg.aggID, agg.ports, qNames)
+			assertNonDecreasingPriority(t, agg.name+" ", qNames, txPkts)
 		}
 
 		// Phase 2: stop TC7, verify TC6 absorbs freed bandwidth.
@@ -1459,21 +1424,10 @@ func TestPF118Traffic(t *testing.T) {
 		}
 		sendTraffic(t, dut, ate, trafficDuration)
 
-		for _, agg := range []struct {
-			aggID string
-			ports []string
-			name  string
-		}{{core1AggID, core1Ports, "core1"}, {core2AggID, core2Ports, "core2"}} {
-			for i, qn := range qNames {
-				got := queueTransmitPkts(t, dut, agg.aggID, agg.ports, qn)
-				if i == 7 {
-					t.Logf("%s queue %s (stopped): transmit-pkts %d", agg.name, qn, got)
-				} else {
-					t.Logf("%s queue %s (priority %d): transmit-pkts %d", agg.name, qn, i, got)
-					if i == 6 && got == 0 {
-						t.Errorf("%s queue %s: got 0 transmit-pkts after stopping TC7, want > 0", agg.name, qn)
-					}
-				}
+		for _, agg := range aggs {
+			afterStop := collectQueueTxPkts(t, dut, agg.aggID, agg.ports, qNames)
+			if afterStop[6] == 0 {
+				t.Errorf("%s queue %s: got 0 transmit-pkts after stopping TC7, want > 0", agg.name, qNames[6])
 			}
 		}
 	})
