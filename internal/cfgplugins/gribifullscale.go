@@ -125,6 +125,9 @@ const (
 	CommonPrefixStep     = "0.0.0.1"
 	CommonIPv6PrefixStep = "::1"
 
+	// Hardware resource utilization monitoring parameters.
+	HWUtilizationSettleDuration = 10 * time.Second
+
 	// gRIBI batch programming parameters.
 	DefaultGRIBIBatchSize = 2_000
 
@@ -291,6 +294,12 @@ func (ExplicitWeights) isWeightConfig() {}
 var (
 	// WCMP1 is a WCMP configuration representing a granularity of 1.
 	WCMP1 = WCMP{WeightGranularity: 1}
+	// WCMP1in4 is a WCMP configuration representing a granularity of 1/4.
+	WCMP1in4 = WCMP{WeightGranularity: 4}
+	// WCMP1in8 is a WCMP configuration representing a granularity of 1/8.
+	WCMP1in8 = WCMP{WeightGranularity: 8}
+	// WCMP1in16 is a WCMP configuration representing a granularity of 1/16.
+	WCMP1in16 = WCMP{WeightGranularity: 16}
 	// WCMP1in32 is a WCMP configuration representing a granularity of 1/32.
 	WCMP1in32 = WCMP{WeightGranularity: 32}
 	// WCMP1in64 is a WCMP configuration representing a granularity of 1/64.
@@ -1551,7 +1560,7 @@ func BuildEncapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, d
 			VerifyFIBProgrammed(t, gSession, wantPrefixesV4, wantPrefixesV6)
 		})
 
-		LogHWUtilization(t, dut, monitorHWUtilization, fmt.Sprintf("Post-BuildEncapVRF-%s", vrf))
+		LogHWUtilization(t, dut, monitorHWUtilization, fmt.Sprintf("Post-BuildEncapVRF-%s", vrf), HWUtilizationSettleDuration)
 	}
 
 	for vi, vrf := range encapVRFNames {
@@ -1622,37 +1631,37 @@ func ProgramGRIBIRoutes(t *testing.T, dut *ondatra.DUTDevice, defaultVRF string,
 	t.Helper()
 	defer func() {
 		if t.Failed() {
-			LogHWUtilization(t, dut, monitorHWUtilization, "Failure-GRIBIRoutes")
+			LogHWUtilization(t, dut, monitorHWUtilization, "Failure-GRIBIRoutes", HWUtilizationSettleDuration)
 		}
 	}()
 	ctx := context.Background()
 
-	LogHWUtilization(t, dut, monitorHWUtilization, "Pre-BuildDefaultVRF")
+	LogHWUtilization(t, dut, monitorHWUtilization, "Pre-BuildDefaultVRF", 0)
 
 	// DEFAULT VRF
 	t.Log("Default VRF entries (A/B/C)")
 	primaryDefaultPrefixes, backupDefaultPrefixes := BuildDefaultVRF(t, dut, ctx, defaultVRF, params)
-	LogHWUtilization(t, dut, monitorHWUtilization, "Post-BuildDefaultVRF")
+	LogHWUtilization(t, dut, monitorHWUtilization, "Post-BuildDefaultVRF", HWUtilizationSettleDuration)
 
 	// Static Groups
 	t.Log("Static groups (S1/S2)")
 	s1NHG, s2NHG := BuildStaticGroups(t, dut, ctx, defaultVRF, params)
-	LogHWUtilization(t, dut, monitorHWUtilization, "Post-BuildStaticGroups")
-
-	// Repair VRF
-	t.Log("Repair VRF (F)")
-	BuildRepairVRF(t, dut, ctx, defaultVRF, s2NHG, params)
-	LogHWUtilization(t, dut, monitorHWUtilization, "Post-BuildRepairVRF")
+	LogHWUtilization(t, dut, monitorHWUtilization, "Post-BuildStaticGroups", 0)
 
 	// Transit VRFs
 	t.Log("Transit VRFs (D/E)")
 	BuildTransitVRFs(t, dut, ctx, defaultVRF, primaryDefaultPrefixes, backupDefaultPrefixes, s1NHG, s2NHG, params)
-	LogHWUtilization(t, dut, monitorHWUtilization, "Post-BuildTransitVRFs")
+	LogHWUtilization(t, dut, monitorHWUtilization, "Post-BuildTransitVRFs", HWUtilizationSettleDuration)
+
+	// Repair VRF
+	t.Log("Repair VRF (F)")
+	BuildRepairVRF(t, dut, ctx, defaultVRF, s2NHG, params)
+	LogHWUtilization(t, dut, monitorHWUtilization, "Post-BuildRepairVRF", HWUtilizationSettleDuration)
 
 	// Decap VRF
 	t.Log("Decap VRF (T4)")
 	BuildDecapVRF(t, dut, ctx, defaultVRF, params)
-	LogHWUtilization(t, dut, monitorHWUtilization, "Post-BuildDecapVRF")
+	LogHWUtilization(t, dut, monitorHWUtilization, "Post-BuildDecapVRF", HWUtilizationSettleDuration)
 
 	// Encap VRFs
 	t.Log("Encap VRFs (T3)")
@@ -2837,10 +2846,15 @@ func formatBoolLeaf(val *bool) string {
 }
 
 // LogHWUtilization queries hardware resource utilization across all integrated circuit components on the DUT directly without requiring pre-discovered component names.
-func LogHWUtilization(t *testing.T, dut *ondatra.DUTDevice, monitorHWUtilization bool, stage string) {
+// If waitDuration > 0, it sleeps before querying to allow hardware utilization metrics to settle.
+func LogHWUtilization(t *testing.T, dut *ondatra.DUTDevice, monitorHWUtilization bool, stage string, waitDuration time.Duration) {
 	t.Helper()
 	if !monitorHWUtilization {
 		return
+	}
+	if waitDuration > 0 {
+		t.Logf("[%s] Sleeping %v before querying HW utilization...", stage, waitDuration)
+		time.Sleep(waitDuration)
 	}
 	resourceVals := gnmi.LookupAll(t, dut, gnmi.OC().ComponentAny().IntegratedCircuit().Utilization().ResourceAny().State())
 	t.Logf("Found %d HW resources for monitoring", len(resourceVals))
