@@ -223,15 +223,18 @@ func advBGPRouteFromOTG(t *testing.T, args *otgTestArgs, asSeg []uint32) {
 // verifyPrefixesTelemetry validates the installed and sent prefix counts on the DUT.
 func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr string, wantInstalled, wantSent uint32) {
 	t.Helper()
-	time.Sleep(45 * time.Second)
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	prefixesv4 := statePath.Neighbor(nbr).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
-	if gotInstalled := gnmi.Get(t, dut, prefixesv4.Installed().State()); gotInstalled != wantInstalled {
-		t.Errorf("Installed prefixes mismatch: got %v, want %v", gotInstalled, wantInstalled)
-	}
-	if gotSent := gnmi.Get(t, dut, prefixesv4.Sent().State()); gotSent != wantSent {
-		t.Errorf("Sent prefixes mismatch: got %v, want %v", gotSent, wantSent)
-	}
+
+	gnmi.Watch(t, dut, prefixesv4.Installed().State(), 45*time.Second, func(val *ygnmi.Value[uint32]) bool {
+		got, ok := val.Val()
+		return ok && got == wantInstalled
+	}).Await(t)
+
+	gnmi.Watch(t, dut, prefixesv4.Sent().State(), 45*time.Second, func(val *ygnmi.Value[uint32]) bool {
+		got, ok := val.Val()
+		return ok && got == wantSent
+	}).Await(t)
 }
 
 // configureRoutePolicy sets up basic routing policies to accept routes.
