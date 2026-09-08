@@ -524,7 +524,6 @@ func createHibaKeysCopy(t *testing.T, certsDir, keysDir string) {
 		input, err = os.ReadFile(srcPath)
 		if err != nil {
 			t.Fatalf("Error reading file %v, error: %s", srcPath, err)
-			return
 		}
 		err = os.WriteFile(fmt.Sprintf("%s/%s", keysDir, keyFile), input, 0o600)
 		if err != nil {
