@@ -565,7 +565,7 @@ func updateETHChannelConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ond
 	if !deviations.EthChannelIngressParametersUnsupported(dut) {
 		ingress = &oc.TerminalDevice_Channel_Ingress{
 			Interface:   ygot.String(p.Name()),
-			Transceiver: ygot.String(params.TransceiverNames[p.Name()]),
+			//Transceiver: ygot.String(params.TransceiverNames[p.Name()]),
 		}
 	}
 	assignment := map[uint32]*oc.TerminalDevice_Channel_Assignment{
@@ -775,6 +775,7 @@ func ConfigETHChannel(t *testing.T, dut *ondatra.DUTDevice, interfaceName, trans
 	if !deviations.EthChannelIngressParametersUnsupported(dut) {
 		ingress = &oc.TerminalDevice_Channel_Ingress{
 			Interface:   ygot.String(interfaceName),
+			//Transceiver: ygot.String(transceiverName),
 		}
 	}
 	var assignment = map[uint32]*oc.TerminalDevice_Channel_Assignment{
