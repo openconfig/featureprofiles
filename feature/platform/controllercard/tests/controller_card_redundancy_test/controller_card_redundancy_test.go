@@ -312,6 +312,13 @@ func testControllerCardRedundancy(t *testing.T, dut *ondatra.DUTDevice, controll
 
 	// Initiate a RP switchover
 	gnoiClient := dut.RawAPIs().GNOI(t)
+	if deviations.GnoiRequiresFreshDialAfterSwitchover(dut) {
+		freshClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
+		if err != nil {
+			t.Fatalf("Failed to dial fresh gNOI client: %v", err)
+		}
+		gnoiClient = freshClient
+	}
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
 	switchoverRequest := &spb.SwitchControlProcessorRequest{
 		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch, useNameOnly),
@@ -326,6 +333,13 @@ func testControllerCardRedundancy(t *testing.T, dut *ondatra.DUTDevice, controll
 	t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
 	// Polling the device to verify the stability of the device.
 	waitForSwitchover(t, dut)
+	if deviations.GnoiRequiresFreshDialAfterSwitchover(dut) {
+		freshClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
+		if err != nil {
+			t.Fatalf("Failed to dial fresh gNOI client after switchover: %v", err)
+		}
+		gnoiClient = freshClient
+	}
 	rpStandbyAfterSwitch, rpActiveAfterSwitch := components.FindStandbyControllerCard(t, dut, controllerCards)
 	switchoverReadyActiverp := gnmi.OC().Component(rpActiveAfterSwitch).SwitchoverReady()
 	switchoverReadyStandbyrp := gnmi.OC().Component(rpStandbyAfterSwitch).SwitchoverReady()
@@ -448,6 +462,13 @@ func testControllerCardLastRebootTime(t *testing.T, dut *ondatra.DUTDevice, cont
 	lastRebootTimeBefore := gnmi.Get(t, dut, lastRebootTime.State())
 	// Reboot the standby controller card
 	gnoiClient := dut.RawAPIs().GNOI(t)
+	if deviations.GnoiRequiresFreshDialAfterSwitchover(dut) {
+		freshClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
+		if err != nil {
+			t.Fatalf("Failed to dial fresh gNOI client: %v", err)
+		}
+		gnoiClient = freshClient
+	}
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
 	rebootControllerCardRequest := &spb.RebootRequest{
 		Method: spb.RebootMethod_COLD,
