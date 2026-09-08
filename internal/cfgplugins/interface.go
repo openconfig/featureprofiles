@@ -775,7 +775,6 @@ func ConfigETHChannel(t *testing.T, dut *ondatra.DUTDevice, interfaceName, trans
 	if !deviations.EthChannelIngressParametersUnsupported(dut) {
 		ingress = &oc.TerminalDevice_Channel_Ingress{
 			Interface:   ygot.String(interfaceName),
-			Transceiver: ygot.String(transceiverName),
 		}
 	}
 	var assignment = map[uint32]*oc.TerminalDevice_Channel_Assignment{
