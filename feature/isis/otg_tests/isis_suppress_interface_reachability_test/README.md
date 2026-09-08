@@ -45,7 +45,7 @@ flowchart LR
   * Loopback0: `203.0.113.1/32`, `2001:db8:2::1/128` (Passive)
 * **ATE:**
   * Port 1: `192.0.2.2/30`, `2001:db8::2/126`, NET `49.0001.1920.0000.2002.00`
-  * Port 2: `198.51.100.2/30`, `2001:db8:1::2/126`,
+  * Port 2: `198.51.100.2/30`, `2001:db8:1::1/126`,
     NET `49.0001.1920.0000.2003.00`
 * **IS-IS Parameters:**
   * Level Capability: Level 2
@@ -61,13 +61,14 @@ flowchart LR
    * Port 2: IPv4 `198.51.100.1/30`, IPv6 `2001:db8:1::1/126`, Broadcast.
    * Loopback0: IPv4 `203.0.113.1/32`, IPv6 `2001:db8:2::1/128`, `passive: true`.
 2. Enable IS-IS Level 2 globally on the DUT with NET `49.0001.1920.0000.2001.00`, wide metric, and address families `IPV4` and `IPV6`.
-3. Configure ATE interfaces:
+3. Verify via telemetry that global NET is correctly configured and active in state (`/network-instances/network-instance/protocols/protocol/isis/global/state/net`).
+4. Configure ATE interfaces:
    * Port 1: IPv4 `192.0.2.2/30`, IPv6 `2001:db8::2/126`, IS-IS Level 2 emulation (NET `49.0001.1920.0000.2002.00`, Point-to-Point).
    * Port 2: IPv4 `198.51.100.2/30`, IPv6 `2001:db8:1::2/126`, IS-IS Level 2 emulation (NET `49.0001.1920.0000.2003.00`, Broadcast).
-4. Establish IS-IS Level 2 adjacencies on Port 1 and Port 2.
-5. Verify via telemetry that adjacencies on Port 1 and Port 2 reach `UP` state.
+5. Establish IS-IS Level 2 adjacencies on Port 1 and Port 2.
+6. Verify via telemetry that adjacencies on Port 1 and Port 2 reach `UP` state.
 
-### RT-2.19.1: Default Reachability Advertisement (Mode `NONE`)
+### RT-2.19.1 - Default Reachability Advertisement (Mode NONE)
 
 * **Goal**: Validate that in default mode (`NONE`), the DUT advertises IP reachability TLVs for all active and passive interfaces.
 * **Procedure**:
@@ -77,7 +78,7 @@ flowchart LR
      * Verify Extended IPv4 Reachability (TLV 135) and IPv6 Reachability (TLV 236) are present for Port 1, Port 2, and Loopback0.
   4. Verify IS-IS adjacencies on Port 1 and Port 2 remain in `UP` state.
 
-### RT-2.19.2: Suppress All Interfaces Reachability (Mode `ALL`)
+### RT-2.19.2 - Suppress All Interfaces Reachability (Mode ALL)
 
 * **Goal**: Validate that when suppression mode is set to `ALL`, the DUT omits prefix reachability TLVs for all interfaces while maintaining IS-IS adjacencies.
 * **Procedure**:
@@ -88,7 +89,7 @@ flowchart LR
      * Verify IS-IS neighbor TLVs (TLV 22 / TLV 222) continue to be advertised.
   4. Verify IS-IS adjacencies on Port 1 and Port 2 remain continuously `UP`.
 
-### RT-2.19.3: Suppress Non-Passive Interfaces Reachability (Mode `NON_PASSIVE`)
+### RT-2.19.3 - Suppress Non-Passive Interfaces Reachability (Mode NON_PASSIVE)
 
 * **Goal**: Validate that setting suppression mode to `NON_PASSIVE` suppresses active transit interfaces while continuing to advertise passive interfaces.
 * **Procedure**:
@@ -99,7 +100,7 @@ flowchart LR
      * Verify TLV 135 and TLV 236 are omitted for non-passive Port 1 and Port 2.
   4. Verify IS-IS adjacencies on Port 1 and Port 2 remain in `UP` state.
 
-### RT-2.19.4: Suppress Non-Passive Point-to-Point Interfaces Reachability (Mode `NON_PASSIVE_POINT_TO_POINT`)
+### RT-2.19.4 - Suppress Non-Passive Point-to-Point Interfaces Reachability (Mode NON_PASSIVE_POINT_TO_POINT)
 
 * **Goal**: Validate that setting suppression mode to `NON_PASSIVE_POINT_TO_POINT` suppresses only point-to-point active interfaces while preserving reachability for broadcast and passive interfaces.
 * **Procedure**:
@@ -109,7 +110,7 @@ flowchart LR
      * Verify TLV 135 (IPv4) and TLV 236 (IPv6) are present for Loopback0 and Port 2 (Broadcast).
      * Verify TLV 135 and TLV 236 are omitted for Port 1 (Point-to-Point).
   4. Verify IS-IS adjacencies on Port 1 and Port 2 remain in `UP` state.
-  5. Restore DUT configuration to default (`suppress-interface-reachability: NONE`) to leave the testbed in a clean state.
+  5. Register a cleanup action (e.g., using `t.Cleanup()`) to restore the DUT configuration to default (`suppress-interface-reachability: NONE`) to leave the testbed in a clean state.
 
 ## Canonical OC
 
@@ -219,6 +220,7 @@ paths:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/circuit-type:
 
   ## State paths
+  /network-instances/network-instance/protocols/protocol/isis/global/state/net:
   /network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/state/afi-name:
   /network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/state/safi-name:
   /network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/state/enabled:
