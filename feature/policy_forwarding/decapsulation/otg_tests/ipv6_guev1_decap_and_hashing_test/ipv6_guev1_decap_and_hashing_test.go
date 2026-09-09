@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ipv4_guev1_decap_and_hashing_test
+package ipv6_guev1_decap_and_hashing_test
 
 import (
 	"bytes"
@@ -86,7 +86,7 @@ const (
 // IP Addresses and Attributes
 var (
 	// DUT Loopback0 (GUE Decap Address)
-	dutLo0 = attrs.Attributes{Desc: "DUT Loopback0", IPv4: "192.168.3.2", IPv4Len: loopbackPfxLen, IPv6: "2001:db8:c000::1", IPv6Len: loopbackPfxLenV6}
+	dutLo0 = attrs.Attributes{Desc: "DUT Loopback0", IPv4: "198.18.3.2", IPv4Len: loopbackPfxLen, IPv6: "2001:db8:c000::1", IPv6Len: loopbackPfxLenV6}
 
 	// DUT Port1 <> ATE Port1 (ATE1)
 	dutP1 = attrs.Attributes{Desc: "DUT Port1", IPv4: "192.0.1.1", IPv6: "2001:db8:1::1", MAC: "02:00:01:02:02:02", IPv4Len: plenIPv4, IPv6Len: plenIPv6}
@@ -104,7 +104,7 @@ var (
 	ateLag2 = attrs.Attributes{Name: "ateLag2", IPv4: "192.0.4.2", IPv6: "2001:db8:4::2", MAC: "02:00:04:01:01:01", IPv4Len: plenIPv4, IPv6Len: plenIPv6}
 
 	// ATE3 Loopback (for ISIS passive demo)
-	ate3Lo = attrs.Attributes{Name: "ate3Lo0", IPv4: "192.168.3.1", IPv6: "2001:db8:10::1", IPv4Len: loopbackPfxLen, IPv6Len: loopbackPfxLenV6}
+	ate3Lo = attrs.Attributes{Name: "ate3Lo0", IPv4: "198.18.3.1", IPv6: "2001:db8:10::1", IPv4Len: loopbackPfxLen, IPv6Len: loopbackPfxLenV6}
 
 	// DUT Port7 <--> ATE P7 (Represents ATE5 in diagram)
 	dutP7 = attrs.Attributes{Desc: "DUT Port7", IPv4: "192.0.7.1", IPv6: "2001:db8:7::1", MAC: "02:00:05:02:02:02", IPv4Len: plenIPv4, IPv6Len: plenIPv6}
@@ -118,7 +118,7 @@ var (
 	host3IPv6Start   = "2001:db8:120::"
 	host4IPv4Start   = "198.51.130.0"
 	host4IPv6Start   = "2001:db8:130::"
-	ate1LoopbackIP   = "172.16.1.0"
+	ate1LoopbackIP   = "198.18.1.0"
 	ate1LoopbackIPv6 = "2001:db8:1:1::1"
 	timeout          = 1 * time.Minute
 	aggID1           = "Port-Channel"
