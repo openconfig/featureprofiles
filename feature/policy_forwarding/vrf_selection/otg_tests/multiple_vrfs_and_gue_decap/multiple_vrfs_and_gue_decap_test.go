@@ -268,7 +268,7 @@ func getDefaultOcPolicyForwardingParams(t *testing.T, dut *ondatra.DUTDevice, gu
 		tunnelIP = dutlo0Attrs.IPv6
 	}
 	return cfgplugins.OcPolicyForwardingParams{
-		NetworkInstanceName: deviations.DefaultBgpInstanceName(dut),
+		NetworkInstanceName: deviations.DefaultNetworkInstance(dut),
 		InterfaceID:         dut.Port(t, "port1").Name(),
 		AppliedPolicyName:   policyName,
 		TunnelIP:            tunnelIP,
@@ -576,6 +576,10 @@ func trafficStartStop(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 // validateTrafficLoss - validate traffic loss on each flows
 func validateTrafficLoss(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, flowNames []string) {
 	t.Helper()
+	defer func() {
+		ate.OTG().StopTraffic(t)
+		otgutils.LogFlowMetrics(t, ate.OTG(), config)
+	}()
 	for _, flow := range flowNames {
 		outPkts, inPkts := otgutils.GetFlowStats(t, ate.OTG(), flow, 10*time.Second)
 		t.Logf("Flow %s: OutPkts (tx): %v, InPkts (rx): %v", flow, outPkts, inPkts)
@@ -587,8 +591,6 @@ func validateTrafficLoss(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.C
 			t.Fatalf("LossPct for flow %s: got %v, want 0", flow, lossPct)
 		}
 	}
-	ate.OTG().StopTraffic(t)
-	otgutils.LogFlowMetrics(t, ate.OTG(), config)
 }
 
 // configureRouteLeaking - route leaking from default to non default VRF
