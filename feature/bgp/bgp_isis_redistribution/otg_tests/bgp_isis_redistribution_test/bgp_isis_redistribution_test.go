@@ -16,6 +16,11 @@ package bgp_isis_redistribution_test
 
 import (
 	"fmt"
+	"net"
+	"strconv"
+	"testing"
+	"time"
+
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -30,10 +35,6 @@ import (
 	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
-	"net"
-	"strconv"
-	"testing"
-	"time"
 )
 
 const (

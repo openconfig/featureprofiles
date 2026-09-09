@@ -16,12 +16,13 @@ package cfgplugins
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"testing"
 )
 
 // DeviationCiscoTableConnectionsStatictoBGPMetricPropagation is used as an alternative to
