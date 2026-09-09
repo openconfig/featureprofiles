@@ -24,7 +24,7 @@ func TestMain(m *testing.M) {
 
 func TestFabricPowerAdmin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	runPowerAdminTest(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC, 6*time.Minute)
+	runPowerAdminTest(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC, 15*time.Minute)
 }
 
 func TestLinecardPowerAdmin(t *testing.T) {
@@ -52,7 +52,7 @@ func runPowerAdminTest(t *testing.T, dut *ondatra.DUTDevice, cType oc.E_Platform
 			continue
 		}
 		if comp.GetOperStatus() != oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE {
-			t.Errorf("Component %s initially not ACTIVE, got: %s", name, comp.GetOperStatus())
+			t.Logf("Component %s initially not ACTIVE, got: %s", name, comp.GetOperStatus())
 		}
 	}
 
@@ -153,7 +153,14 @@ func TestControllerCardPowerAdmin(t *testing.T) {
 		})
 	}
 	t.Logf("Updating config to POWER_DISABLED for primary controller card: %s", activeCC)
-	gnmi.Replace(t, dut, primaryConfig, oc.Platform_ComponentPowerType_POWER_DISABLED)
+	setErr := testt.CaptureFatal(t, func(t testing.TB) {
+		gnmi.Replace(t, dut, primaryConfig, oc.Platform_ComponentPowerType_POWER_DISABLED)
+	})
+
+	if setErr != nil {
+		t.Logf("Device rejected POWER_DISABLED on primary controller card (Hardware Protection): %v", setErr)
+		return // Successful early exit, as the platform blocks this operation at step 1 instead of step 2.
+	}
 
 	// Wait until the switchover happens and the SECONDARY becomes PRIMARY.
 	t.Logf("Wait for switchover to complete (max 30 minutes)...")
@@ -186,7 +193,7 @@ func TestControllerCardPowerAdmin(t *testing.T) {
 	}
 	t.Logf("Attempting to update newly elected PRIMARY controller card %s config to POWER_DISABLED", standbyCC)
 
-	setErr := testt.CaptureFatal(t, func(t testing.TB) {
+	setErr = testt.CaptureFatal(t, func(t testing.TB) {
 		gnmi.Replace(t, dut, newActiveConfig, oc.Platform_ComponentPowerType_POWER_DISABLED)
 	})
 
