@@ -367,6 +367,7 @@ func TestBurstyTraffic(t *testing.T) {
 			}
 			ate.OTG().PushConfig(t, top)
 			ate.OTG().StartProtocols(t)
+			time.Sleep(10 * time.Second) // required to make sure protocol packets are counted in initial queue stats dump
 
 			var counterNames []string
 			counters := make(map[string]map[string]uint64)
@@ -459,8 +460,8 @@ func TestBurstyTraffic(t *testing.T) {
 				dutPktCounterDiff := counters["dutQosPktsAfterTraffic"][data.queue] - counters["dutQosPktsBeforeTraffic"][data.queue]
 				atePktCounterDiff := counters["ateInPkts"][data.queue]
 				t.Logf("Queue %q: atePktCounterDiff: %v dutPktCounterDiff: %v", data.queue, atePktCounterDiff, dutPktCounterDiff)
-				if dutPktCounterDiff < atePktCounterDiff {
-					t.Errorf("Get dutPktCounterDiff for queue %q: got %v, want >= %v", data.queue, dutPktCounterDiff, atePktCounterDiff)
+				if dutPktCounterDiff != atePktCounterDiff {
+					t.Errorf("Get dutPktCounterDiff for queue %q: got %v, want  %v", data.queue, dutPktCounterDiff, atePktCounterDiff)
 				}
 
 				dutDropPktCounterDiff := counters["dutQosDroppedPktsAfterTraffic"][data.queue] - counters["dutQosDroppedPktsBeforeTraffic"][data.queue]
@@ -473,16 +474,15 @@ func TestBurstyTraffic(t *testing.T) {
 				ateOctetCounterDiff := counters["ateInPkts"][data.queue] * uint64(data.frameSize)
 				t.Logf("Queue %q: ateOctetCounterDiff: %v dutOctetCounterDiff: %v", data.queue, ateOctetCounterDiff, dutOctetCounterDiff)
 				if !deviations.QOSOctets(dut) {
-					if dutOctetCounterDiff < ateOctetCounterDiff {
-						t.Errorf("Get dutOctetCounterDiff for queue %q: got %v, want >= %v", data.queue, dutOctetCounterDiff, ateOctetCounterDiff)
+					if dutOctetCounterDiff != ateOctetCounterDiff {
+						t.Errorf("Get dutOctetCounterDiff for queue %q: got %v, want  %v", data.queue, dutOctetCounterDiff, ateOctetCounterDiff)
 					}
 				}
 
-				ateDropOctetCounterDiff := (counters["ateOutPkts"][data.queue] - counters["ateInPkts"][data.queue]) * uint64(data.frameSize)
 				dutDropOctetCounterDiff := counters["dutQosDroppedOctetsAfterTraffic"][data.queue] - counters["dutQosDroppedOctetsBeforeTraffic"][data.queue]
-				t.Logf("Queue %q: ateDropOctetCounterDiff: %v dutDropOctetCounterDiff: %v", data.queue, ateDropOctetCounterDiff, dutDropOctetCounterDiff)
-				if dutDropOctetCounterDiff < ateDropOctetCounterDiff {
-					t.Errorf("Get dutDropOctetCounterDiff for queue %q: got %v, want >= %v", data.queue, dutDropOctetCounterDiff, ateDropOctetCounterDiff)
+				t.Logf("Queue %q: dutDropOctetCounterDiff: %v", data.queue, dutDropOctetCounterDiff)
+				if dutDropOctetCounterDiff != 0 {
+					t.Errorf("Get dutDropOctetCounterDiff for queue %q: got %v, want 0", data.queue, dutDropOctetCounterDiff)
 				}
 
 			}
