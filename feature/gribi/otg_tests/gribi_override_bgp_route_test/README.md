@@ -5,7 +5,7 @@ Verify that a gRIBI-injected tunnel route for a specific prefix correctly overri
 
 ## Testbed type
 
-* [`featureprofiles/topologies/atedut_3.testbed`](https://github.com/openconfig/featureprofiles/tree/main/topologies/atedut_3.testbed)
+* [`TESTBED_DUT_ATE_4LINKS`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_4.testbed)
 
 ## Topology
 
