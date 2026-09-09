@@ -357,7 +357,7 @@ func TestECNEnabledTraffic(t *testing.T) {
 					pkts, _ := val.Val()
 					dutQosPktsAfterTraffic[queue] = pkts
 				} else {
-					t.Logf("Warning: TransmitPkts count for queue %q on interface %q did not reach expected value within timeout", p3.Name(), queue)
+t.Logf("Warning: TransmitPkts count for queue %q on interface %q did not reach expected value within timeout", queue, p3.Name())
 					dutQosPktsAfterTraffic[queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(p3.Name()).Output().Queue(queue).TransmitPkts().State())
 				}
 				dutQosDroppedPktsAfterTraffic[queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(p3.Name()).Output().Queue(queue).DroppedPkts().State())
