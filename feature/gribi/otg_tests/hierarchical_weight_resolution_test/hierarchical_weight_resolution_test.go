@@ -40,8 +40,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -69,6 +67,7 @@ const (
 	nonDefaultVRF     = "VRF-1"
 	policyName        = "redirect-to-VRF1"
 	ipipProtocol      = 4
+	trafficPPS        = 10000
 )
 
 var (
@@ -367,7 +366,7 @@ func applyForwardingPolicy(t *testing.T, ingressPort string) {
 	d := &oc.Root{}
 	dut := ondatra.DUT(t, "dut")
 	interfaceID := ingressPort
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+	if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
 		interfaceID = ingressPort + ".0"
 	}
 	pfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID)
@@ -455,7 +454,9 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) map[
 	flowipv4 := top.Flows().Add().SetName("flow")
 	flowipv4.Metrics().SetEnable(true)
 	flowipv4.TxRx().Port().SetTxName(atePort1.Name).SetRxNames([]string{atePort2.Name})
-	flowipv4.Size().SetFixed(100)
+	flowipv4.Size().SetFixed(300)
+	flowipv4.Rate().SetPps(trafficPPS)
+	flowipv4.Duration().Continuous()
 	e1 := flowipv4.Packet().Add().Ethernet()
 	e1.Src().SetValue(atePort1.MAC)
 	e1.Dst().SetValue(dstMac)
@@ -465,6 +466,9 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) map[
 	v4Inner := flowipv4.Packet().Add().Ipv4()
 	v4Inner.Src().Increment().SetStart(innerSrcIPv4Start).SetCount(ipv4FlowCount)
 	v4Inner.Dst().Increment().SetStart(innerDstIPv4Start).SetCount(ipv4FlowCount)
+	udp := flowipv4.Packet().Add().Udp()
+	udp.SrcPort().Increment().SetStart(1024).SetCount(50000).SetStep(1)
+	udp.DstPort().Increment().SetStart(1024).SetCount(50000).SetStep(1)
 	flowipv4.EgressPacket().Add().Ethernet()
 	vlan := flowipv4.EgressPacket().Add().Vlan()
 	vlanTag := vlan.Id().MetricTags().Add()
@@ -478,39 +482,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) map[
 	time.Sleep(1 * time.Minute)
 	ate.OTG().StopTraffic(t)
 
-	gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flowipv4.Name()).State(), 45*time.Second, func(v *ygnmi.Value[*otgtelemetry.Flow]) bool {
-		val, present := v.Val()
-		if !present {
-			return false
-		}
-		tx := val.GetCounters().GetOutPkts()
-		rx := val.GetCounters().GetInPkts()
-		if tx == 0 {
-			return false
-		}
-		if rx > tx {
-			return false
-		}
-		lossPct := float32(tx-rx) * 100 / float32(tx)
-		return int(lossPct) <= 0
-	}).Await(t)
-
-	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowipv4.Name()).State())
-	txPkts := recvMetric.GetCounters().GetOutPkts()
-	rxPkts := recvMetric.GetCounters().GetInPkts()
-
-	if txPkts == 0 {
-		t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flowipv4.Name())
-	}
-
-	if rxPkts > txPkts {
-		t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", rxPkts, txPkts)
-	}
-
-	lossPct := float32(txPkts-rxPkts) * 100 / float32(txPkts)
-	if int(lossPct) > 0 {
-		t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want <= 0", flowipv4.Name(), lossPct)
-	}
+	otgutils.ExpectedTrafficLoss(t, ate.OTG(), flowipv4.Name(), 0, 0.99)
 
 	// Compare traffic distribution with the wanted results.
 	results := filterPacketReceived(t, "flow", ate)

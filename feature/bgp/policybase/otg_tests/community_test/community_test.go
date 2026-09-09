@@ -29,8 +29,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
-	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 const (
@@ -208,44 +206,10 @@ func configureFlow(t *testing.T, bs *cfgplugins.BGPSession, prefixPair []string,
 
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, prefixType string, testResults bool, index int) {
 	flowName := "flow" + prefixType + strconv.Itoa(index)
-	gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flowName).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
-		recvMetric, present := val.Val()
-		if !present {
-			return false
-		}
-		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
-		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
-		if txPackets == 0 {
-			return false
-		}
-		if rxPackets > txPackets {
-			return false
-		}
-		lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
-		if testResults {
-			return int(lossPct) <= int(0)
-		} else {
-			return int(lossPct) >= int(100)
-		}
-	}).Await(t)
-
-	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).State())
-	txPackets := float32(recvMetric.GetCounters().GetOutPkts())
-	rxPackets := float32(recvMetric.GetCounters().GetInPkts())
-
-	if txPackets == 0 {
-		t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flowName)
-	}
-	if rxPackets > txPackets {
-		t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", rxPackets, txPackets)
-	}
-
-	lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
-
-	if (testResults && int(lossPct) <= int(0)) || (!testResults && int(lossPct) >= int(100)) {
-		t.Logf("Traffic validation successful for criteria [%t] FramesTx: %f FramesRx: %f", testResults, txPackets, rxPackets)
+	if testResults {
+		otgutils.ExpectedTrafficLoss(t, ate.OTG(), flowName, 0, 0.99)
 	} else {
-		t.Errorf("Generic Test Assertion Failure: Flow %s: got loss %v%%, want <=0%% (testResults=%t)", flowName, lossPct, testResults)
+		otgutils.ExpectedTrafficLoss(t, ate.OTG(), flowName, 100, 100)
 	}
 }
 

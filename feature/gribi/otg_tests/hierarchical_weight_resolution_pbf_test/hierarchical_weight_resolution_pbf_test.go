@@ -41,8 +41,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -370,7 +368,7 @@ func applyForwardingPolicy(t *testing.T, ingressPort string) {
 	d := &oc.Root{}
 	dut := ondatra.DUT(t, "dut")
 	interfaceID := ingressPort
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+	if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
 		interfaceID = ingressPort + ".0"
 	}
 	pfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID)
@@ -477,41 +475,12 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) map[
 	ate.OTG().StartProtocols(t)
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 
-	// Run traffic for 2 minutes.
+	// Run traffic for 1 minute (adjusted from 2 to match other tests).
 	ate.OTG().StartTraffic(t)
 	time.Sleep(1 * time.Minute)
 	ate.OTG().StopTraffic(t)
 
-	gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flowipv4.Name()).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
-		recvMetric, ok := val.Val()
-		if !ok || recvMetric.GetCounters() == nil {
-			return false
-		}
-		txPkts := recvMetric.GetCounters().GetOutPkts()
-		rxPkts := recvMetric.GetCounters().GetInPkts()
-		if txPkts == 0 {
-			return false
-		}
-		if rxPkts > txPkts {
-			return false
-		}
-		lossPct := float32(txPkts-rxPkts) * 100 / float32(txPkts)
-		return int(lossPct) <= 0
-	}).Await(t)
-
-	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowipv4.Name()).State())
-	txPkts := recvMetric.GetCounters().GetOutPkts()
-	rxPkts := recvMetric.GetCounters().GetInPkts()
-	if txPkts == 0 {
-		t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flowipv4.Name())
-	}
-	if rxPkts > txPkts {
-		t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", rxPkts, txPkts)
-	}
-	lossPct := float32(txPkts-rxPkts) * 100 / float32(txPkts)
-	if int(lossPct) > 0 {
-		t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want <= 0", flowipv4.Name(), lossPct)
-	}
+	otgutils.ExpectedTrafficLoss(t, ate.OTG(), flowipv4.Name(), 0, 0.99)
 
 	// Compare traffic distribution with the wanted results.
 	results := filterPacketReceived(t, "flow", ate)

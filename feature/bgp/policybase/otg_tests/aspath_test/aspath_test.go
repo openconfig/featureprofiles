@@ -29,8 +29,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
-	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 const (
@@ -204,40 +202,10 @@ func incrementIPSlice(ipSlice []string) []string {
 
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, ports int, testResults bool) {
 	defer otgutils.LogFlowMetrics(t, ate.OTG(), c)
-	// compare the flows transmitted and received instead of the ports counters
-	gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow("flow").State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
-		recvMetric, present := val.Val()
-		if !present {
-			return false
-		}
-		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
-		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
-		if txPackets == 0 {
-			return false
-		}
-		if rxPackets > txPackets {
-			return false
-		}
-		lossPct := (txPackets - rxPackets) * 100.0 / txPackets
-		if testResults {
-			return int(lossPct) <= int(5)
-		}
-		return int(lossPct) >= int(99)
-	}).Await(t)
-
-	framesTx := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow("flow").State()).GetCounters().GetOutPkts())
-	framesRx := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow("flow").State()).GetCounters().GetInPkts())
-	if framesTx == 0 {
-		t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow flow")
-	}
-	if framesRx > framesTx {
-		t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", framesRx, framesTx)
-	}
-	lossPct := (framesTx - framesRx) * 100.0 / framesTx
-	if (testResults && int(lossPct) <= int(5)) || (!testResults && int(lossPct) >= int(99)) {
-		t.Logf("Traffic validation successful for criteria [%t] FramesTx: %f FramesRx: %f", testResults, framesTx, framesRx)
+	if testResults {
+		otgutils.ExpectedTrafficLoss(t, ate.OTG(), "flow", 0, 5.99)
 	} else {
-		t.Errorf("Generic Test Assertion Failure: Flow flow: got %f loss, want 0%% (testResults=%t)", lossPct, testResults)
+		otgutils.ExpectedTrafficLoss(t, ate.OTG(), "flow", 99, 100)
 	}
 }
 
