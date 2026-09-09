@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "3c78e2d4-fb53-446d-9187-51c851af1188"
+plan_id: "TE-1.22"
+description: "Traffic Blackhole on gRIBI Invalid Next-Hop (Strict FIB Precedence)"
+testbed: TESTBED_DUT_ATE_4LINKS
