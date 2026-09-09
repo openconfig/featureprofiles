@@ -2,7 +2,7 @@
 # proto-message: Metadata
 
 uuid: "b2184e4f-2114-48f1-9c8e-5b62e49c7161"
-plan_id: "TE-2.1"
+plan_id: "TE-2.3"
 description: "gRIBI IPv6 Entry with Prefix Length > 64"
 testbed: TESTBED_DUT_ATE_4LINKS
 platform_exceptions: {

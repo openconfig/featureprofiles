@@ -1,4 +1,4 @@
-# TE-2.1: gRIBI IPv6 Entry with Prefix Length > 64
+# TE-2.3: gRIBI IPv6 Entry with Prefix Length > 64
 
 ## Summary
 
@@ -110,4 +110,21 @@ rpcs:
     gRIBI.Flush:
     gRIBI.Get:
     gRIBI.Modify:
+```
+
+## Canonical OC
+
+```json
+{
+  "network-instances": {
+    "network-instance": [
+      {
+        "name": "DEFAULT",
+        "config": {
+          "name": "DEFAULT"
+        }
+      }
+    ]
+  }
+}
 ```

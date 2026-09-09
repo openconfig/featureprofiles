@@ -181,6 +181,13 @@ func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Update(t, dut, sp.Config(), static2)
 	gnmi.Update(t, dut, gnmi.OC().Interface(p2.Name()).Config(), configStaticArp(p2, nh1IpAddr, staticDstMAC))
 	gnmi.Update(t, dut, gnmi.OC().Interface(p3.Name()).Config(), configStaticArp(p3, nh2IpAddr, staticDstMAC))
+
+	t.Cleanup(func() {
+		gnmi.Delete(t, dut, sp.Static(dummyIPCIDR1).Config())
+		gnmi.Delete(t, dut, sp.Static(dummyIPCIDR2).Config())
+		gnmi.Delete(t, dut, gnmi.OC().Interface(p2.Name()).Subinterface(0).Ipv6().Neighbor(nh1IpAddr).Config())
+		gnmi.Delete(t, dut, gnmi.OC().Interface(p3.Name()).Subinterface(0).Ipv6().Neighbor(nh2IpAddr).Config())
+	})
 }
 
 // TestIPv6Entry tests IPv6Entry forwarding with prefix length > 64.
@@ -480,13 +487,6 @@ func TestIPv6Entry(t *testing.T) {
 						}
 						p2 := dut.Port(t, "port2")
 						p3 := dut.Port(t, "port3")
-						if tc.gribiMACOverrideWithStaticARPStaticRoute {
-							sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-							gnmi.Delete(t, dut, sp.Static(nh1IpAddr+"/128").Config())
-							gnmi.Delete(t, dut, sp.Static(nh2IpAddr+"/128").Config())
-							gnmi.Delete(t, dut, gnmi.OC().Interface(p2.Name()).Subinterface(0).Ipv6().Neighbor(nh1IpAddr).Config())
-							gnmi.Delete(t, dut, gnmi.OC().Interface(p3.Name()).Subinterface(0).Ipv6().Neighbor(nh2IpAddr).Config())
-						}
 						if tc.gribiMACOverrideWithStaticARP {
 							gnmi.Delete(t, dut, gnmi.OC().Interface(p2.Name()).Subinterface(0).Ipv6().Neighbor(nh1IpAddr).Config())
 							gnmi.Delete(t, dut, gnmi.OC().Interface(p3.Name()).Subinterface(0).Ipv6().Neighbor(nh2IpAddr).Config())

@@ -1650,6 +1650,12 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/ipv4_entry_with_aggregate_ports_test/ipv4_entry_with_aggregate_ports_test.go"
 }
 test: {
+  id: "TE-2.3"
+  description: "gRIBI IPv6 Entry with Prefix Length > 64"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/ipv6_entry_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/ipv6_entry_test/ipv6_entry_test.go"
+}
+test: {
   id: "TE-3.1"
   description: "Base Hierarchical Route Installation"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/base_hierarchical_route_installation_test/README.md"
