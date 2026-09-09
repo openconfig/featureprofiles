@@ -1936,7 +1936,7 @@ func ConfigureBGPEnablePeerAsFilterPeer(t *testing.T, dut *ondatra.DUTDevice, ba
 	return batch
 }
 
-// ConfigureBGPWithDisablePeerAsFilter enables disable-peer-as-filter at peer group level
+// ConfigureBGPDisablePeerAsFilter enables disable-peer-as-filter at peer group level
 func ConfigureBGPDisablePeerAsFilter(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, params BGPConfig) *gnmi.SetBatch {
 	t.Helper()
 	if batch == nil {

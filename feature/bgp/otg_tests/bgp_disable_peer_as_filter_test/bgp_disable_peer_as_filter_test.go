@@ -207,14 +207,18 @@ func verifyBGPCapabilities(t *testing.T, dut *ondatra.DUTDevice, nbrs []string) 
 	t.Helper()
 	t.Logf("Verifying BGP capabilities for neighbors: %v", nbrs)
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	bgp := gnmi.Get(t, dut, statePath.State())
 	for _, nbr := range nbrs {
-		nbrPath := statePath.Neighbor(nbr)
+		n, ok := bgp.Neighbor[nbr]
+		if !ok {
+			return fmt.Errorf("neighbor %s state is missing", nbr)
+		}
 		capabilities := map[oc.E_BgpTypes_BGP_CAPABILITY]bool{
 			oc.BgpTypes_BGP_CAPABILITY_ROUTE_REFRESH: false,
 			oc.BgpTypes_BGP_CAPABILITY_ASN32:         false,
 			oc.BgpTypes_BGP_CAPABILITY_MPBGP:         false,
 		}
-		for _, cap := range gnmi.Get(t, dut, nbrPath.SupportedCapabilities().State()) {
+		for _, cap := range n.SupportedCapabilities {
 			capabilities[cap] = true
 		}
 		for cap, present := range capabilities {
@@ -234,8 +238,13 @@ func verifyDisablePeerASFilterStateOnNeighbors(t *testing.T, dut *ondatra.DUTDev
 		return nil
 	}
 	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	bgp := gnmi.Get(t, dut, bgpPath.State())
 	for _, nbr := range nbrs {
-		got := gnmi.Get(t, dut, bgpPath.Neighbor(nbr).AsPathOptions().DisablePeerAsFilter().State())
+		n, ok := bgp.Neighbor[nbr]
+		if !ok || n.AsPathOptions == nil || n.AsPathOptions.DisablePeerAsFilter == nil {
+			return fmt.Errorf("disable-peer-as-filter state for neighbor %s is missing", nbr)
+		}
+		got := n.AsPathOptions.GetDisablePeerAsFilter()
 		if got != want {
 			return fmt.Errorf("disable-peer-as-filter state for neighbor %s got %v, want %v", nbr, got, want)
 		}
@@ -251,8 +260,13 @@ func verifyDisablePeerASFilterStateOnPeerGroups(t *testing.T, dut *ondatra.DUTDe
 		return nil
 	}
 	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	bgp := gnmi.Get(t, dut, bgpPath.State())
 	for _, pg := range peerGroups {
-		got := gnmi.Get(t, dut, bgpPath.PeerGroup(pg).AsPathOptions().DisablePeerAsFilter().State())
+		p, ok := bgp.PeerGroup[pg]
+		if !ok || p.AsPathOptions == nil || p.AsPathOptions.DisablePeerAsFilter == nil {
+			return fmt.Errorf("disable-peer-as-filter state for peer-group %s is missing", pg)
+		}
+		got := p.AsPathOptions.GetDisablePeerAsFilter()
 		if got != want {
 			return fmt.Errorf("disable-peer-as-filter state for peer-group %s got %v, want %v", pg, got, want)
 		}
@@ -507,7 +521,6 @@ func runTestCase(t *testing.T, dut *ondatra.DUTDevice, otgClient *otg.OTG, tc te
 	t.Helper()
 
 	// Reconfigure BGP with appropriate AS for Port 2
-	configureDUT(t, dut)
 	configureBGP(t, dut, tc.atePort2AS)
 
 	// Configure BGP with appropriate settings
