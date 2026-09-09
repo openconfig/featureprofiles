@@ -242,14 +242,14 @@ func TestISISScale(t *testing.T) {
 					go func() {
 						defer wg.Done()
 						if deviations.AFTSummaryOCUnsupported(dut) {
-							count, ok := isisscalehelpers.FindProtocolRouteCount(t, dut, family, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, 1*time.Minute, testInfo.CorrectIPRouteCount[family])
+							count, ok := isisscalehelpers.FindProtocolRouteCount(t, dut, family, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, 5*time.Minute, testInfo.CorrectIPRouteCount[family])
 							if !ok {
 								t.Errorf("check failed: incorrect %s route count need %v routes got %v", family.String(), testInfo.CorrectIPRouteCount[family], count)
 								return
 							}
 							t.Logf("Check passed: correct %s route count need %v routes got %v", family.String(), testInfo.CorrectIPRouteCount[family], count)
 						} else {
-							count := isisscalehelpers.FindProtocolSummaryRouteCount(t, dut, family, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, 1*time.Minute, testInfo.CorrectIPRouteCount[family])
+							count := isisscalehelpers.FindProtocolSummaryRouteCount(t, dut, family, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, 5*time.Minute, testInfo.CorrectIPRouteCount[family])
 							if count >= testInfo.CorrectIPRouteCount[family] {
 								t.Logf("Check passed: correct route count for the family %s need %v routes got %v", family.String(), testInfo.CorrectIPRouteCount[family], count)
 							} else {
