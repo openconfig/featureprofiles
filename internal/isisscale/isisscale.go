@@ -367,7 +367,7 @@ func VerifyISISAuthTelemetry(t *testing.T, dut *ondatra.DUTDevice, isisInterface
 	// 1. Query and verify Global Level 2 LSP database authentication state
 	lspAuthVals := gnmi.LookupAll(t, dut, isisProto.LevelAny().Authentication().State())
 	if len(lspAuthVals) == 0 {
-		return false, fmt.Errorf("Authentication is not configured for ISIS Database")
+		return false, fmt.Errorf("authentication is not configured for ISIS Database")
 	}
 	lspAuthFound := false
 	for _, lspAuth := range lspAuthVals {
@@ -379,7 +379,7 @@ func VerifyISISAuthTelemetry(t *testing.T, dut *ondatra.DUTDevice, isisInterface
 		}
 	}
 	if !lspAuthFound {
-		return false, fmt.Errorf("Authentication is not configured for ISIS Database")
+		return false, fmt.Errorf("authentication is not configured for ISIS Database")
 	}
 
 	// 2. Query and verify Interface Hello Authentication State across all interfaces
@@ -387,7 +387,7 @@ func VerifyISISAuthTelemetry(t *testing.T, dut *ondatra.DUTDevice, isisInterface
 	if deviations.SetISISAuthWithInterfaceAuthenticationContainer(dut) {
 		intfAuthVals := gnmi.LookupAll(t, dut, isisProto.InterfaceAny().Authentication().State())
 		if len(intfAuthVals) == 0 {
-			return false, fmt.Errorf("Interface Auth Telemetry State is not present in telemetry stream")
+			return false, fmt.Errorf("interface auth telemetry state is not present in telemetry stream")
 		}
 		for _, intfAuth := range intfAuthVals {
 			if val, ok := intfAuth.Val(); ok {
@@ -399,7 +399,7 @@ func VerifyISISAuthTelemetry(t *testing.T, dut *ondatra.DUTDevice, isisInterface
 	} else {
 		helloAuthVals := gnmi.LookupAll(t, dut, isisProto.InterfaceAny().LevelAny().HelloAuthentication().State())
 		if len(helloAuthVals) == 0 {
-			return false, fmt.Errorf("Interface Hello Auth Telemetry State is not present in telemetry stream")
+			return false, fmt.Errorf("interface hello auth telemetry state is not present in telemetry stream")
 		}
 		for _, helloAuth := range helloAuthVals {
 			if val, ok := helloAuth.Val(); ok {
@@ -410,7 +410,7 @@ func VerifyISISAuthTelemetry(t *testing.T, dut *ondatra.DUTDevice, isisInterface
 		}
 	}
 	if helloAuthCount < isisInterfaceCount {
-		return false, fmt.Errorf("Interface Hello Auth Telemetry State mismatch: expected at least %d enabled interfaces, got %d", isisInterfaceCount, helloAuthCount)
+		return false, fmt.Errorf("interface hello auth telemetry state mismatch: expected at least %d enabled interfaces, got %d", isisInterfaceCount, helloAuthCount)
 	}
 
 	return true, nil

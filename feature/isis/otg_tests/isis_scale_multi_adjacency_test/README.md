@@ -34,7 +34,7 @@ graph RL
     R201 <--> |IS-IS (Agg2.1101)| DUT[DUT]
     R301 <--> |IS-IS (Agg3.1201)| DUT[DUT]
     R401 <--> |IS-IS (Agg4.1301)| DUT[DUT]
-    DUT <====> | IS-IS x300 Adjacencies (Agg1..Agg4 Subinterfaces) | Rest_Of_ERs[ATE Routers R102..R176, R202..R276, R302..R376, R402..R476]
+    DUT <--> |IS-IS x300 Adjacencies (Agg1..Agg4 Subinterfaces)| Rest_Of_ERs[ATE Routers R102..R176, R202..R276, R302..R376, R402..R476]
 ```
 
 ### DUT and OTG properties
@@ -152,6 +152,7 @@ Dynamic1 | 12x12 | 56 | 4 | 57.0.0.0/8
 ## Canonical OC
 
 ```json
+{
   "openconfig-network-instance:network-instances": {
     "network-instance": [
       {
@@ -214,8 +215,8 @@ Dynamic1 | 12x12 | 56 | 4 | 57.0.0.0/8
                     },
                     "spf": {
                       "config": {
-                        "spf-first-interval": 200,
-                        "spf-hold-interval": 2000
+                        "spf-first-interval": "200",
+                        "spf-hold-interval": "2000"
                       }
                     }
                   }
@@ -305,7 +306,7 @@ Dynamic1 | 12x12 | 56 | 4 | 57.0.0.0/8
                       },
                       "timers": {
                         "config": {
-                          "lsp-pacing-interval": 50
+                          "lsp-pacing-interval": "50"
                         }
                       }
                     },
