@@ -1495,6 +1495,11 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/strict_fib_precedence_blackhole_test/README.md"
 }
 test: {
+  id: "TE-1.4"
+  description: "gRIBI Recursive Route Resolution under Routing Protocol Churn"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/recursive_route_resolution_protocol_churn_test/README.md"
+}
+test: {
   id: "TE-1.7"
   description: "gNMI Interface Config Change Impacting gRIBI NextHop"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gnmi_intf_config_impacts_gribi_nh_test/README.md"
