@@ -38,7 +38,7 @@ const (
 	decapInnerv6     = "2001:db8:50::/60"
 
 	// Other mid/inner v4/v6 addresses
-	midSrcIPv4           = "198.51.200.1"
+	midSrcIPv4           = "198.51.100.201"
 	midSrcIPv6           = "2001:db8:2::1"
 	srcHostv4            = "203.0.113.1"
 	srcHostv6            = "2001:db8:3::1"
@@ -51,8 +51,8 @@ const (
 	staticDstHostIpv6 = "2001:db8:3::100/128"
 
 	// Dummy next-hop ips for system loopback
-	dummyNextHopIPv4 = "3.0.0.3"
-	dummyNextHopIPv6 = "6000::3"
+	dummyNextHopIPv4 = "198.18.0.3"
+	dummyNextHopIPv6 = "2001:db8:6000::3"
 
 	// GUE UDP port and UDP mismatch port for negative test
 	gueProtocolPort = 6080
@@ -113,8 +113,8 @@ var (
 
 	dutPort3Lag = attrs.Attributes{
 		Desc:    "description Recirculation-Aggregate-PortChannel",
-		IPv4:    "3.0.0.1",
-		IPv6:    "6000::1",
+		IPv4:    "198.18.0.1",
+		IPv6:    "2001:db8:6000::1",
 		IPv4Len: aggregateV4Prefix,
 		IPv6Len: aggregateV6Prefix,
 	}
@@ -129,10 +129,10 @@ var (
 
 	dutLagData = []*cfgplugins.DUTAggData{
 		{
-			Attributes:  dutPort3Lag,
-			DutPortsIdx: []int{2},
-			LacpParams:  lacpParams,
-			AggType:     oc.IfAggregate_AggregationType_STATIC,
+			Attributes:      dutPort3Lag,
+			OndatraPortsIdx: []int{2},
+			LacpParams:      lacpParams,
+			AggType:         oc.IfAggregate_AggregationType_STATIC,
 		},
 	}
 
@@ -183,7 +183,7 @@ func mustConfigureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		b.Set(t, dut)
 
 		// Configure traffic loopback on the interface
-		cfgplugins.ConfigureSoftwareLoopback(t, dut, dut.Port(t, "port"+strconv.Itoa(l.DutPortsIdx[0]+1)).Name())
+		cfgplugins.ConfigureSoftwareLoopback(t, dut, dut.Port(t, "port"+strconv.Itoa(l.OndatraPortsIdx[0]+1)).Name())
 	}
 
 	port1DstMac = gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
@@ -287,16 +287,16 @@ func mustConfigureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	if _, err := cfgplugins.NewStaticRouteCfg(b, sV6, dut); err != nil {
 		t.Fatalf("Failed to configure IPv6 static route: %v", err)
 	}
-	b.Set(t, dut)
 
 	t.Log("Configuring Static ARP")
 	staticArp := cfgplugins.StaticARPEntry{
-		MagicIP:  dummyNextHopIPv4,
-		MagicMAC: port1DstMac,
-		IPType:   "v4",
+		MagicIP:       dummyNextHopIPv4,
+		MagicMAC:      port1DstMac,
+		IPType:        "v4",
+		InterfaceName: dutLagData[0].LagName,
 	}
 
-	cfgplugins.ConfigureStaticArp(t, dut, staticArp)
+	cfgplugins.ConfigureStaticArp(t, dut, b, staticArp)
 
 	staticArpv6 := cfgplugins.StaticARPEntry{
 		MagicIP:       dummyNextHopIPv6,
@@ -305,7 +305,9 @@ func mustConfigureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		InterfaceName: dutLagData[0].LagName,
 	}
 
-	cfgplugins.ConfigureStaticArp(t, dut, staticArpv6)
+	cfgplugins.ConfigureStaticArp(t, dut, b, staticArpv6)
+	b.Set(t, dut)
+
 }
 
 func configureOTG(t *testing.T, otg *ondatra.ATEDevice) gosnappi.Config {
@@ -371,9 +373,9 @@ func createflow(top gosnappi.Config, params *otgconfighelpers.Flow, paramsMiddle
 func sendTrafficCapture(t *testing.T, ate *ondatra.ATEDevice) {
 	cs := packetvalidationhelpers.StartCapture(t, ate)
 	ate.OTG().StartTraffic(t)
-	time.Sleep(60 * time.Second)
+	time.Sleep(5 * time.Second)
 	ate.OTG().StopTraffic(t)
-	time.Sleep(60 * time.Second)
+	time.Sleep(2 * time.Second)
 	packetvalidationhelpers.StopCapture(t, ate, cs)
 }
 
@@ -577,9 +579,52 @@ func testgueV6DstUnreachable(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	verifyDecapCountersOnInterfaces(t, dut, ate, tc.flow.flows.FlowName, before)
 }
 
+func removeDecapGroups(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	for _, name := range []string{decapOuterName, decapInnerNameV4, decapInnerNameV6} {
+		cfgplugins.RemoveDecapGroupGue(t, dut, cfgplugins.OcPolicyForwardingParams{
+			AppliedPolicyName: name,
+		})
+	}
+}
+
+func removeStaticRoutes(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	routes := []*cfgplugins.StaticRouteCfg{
+		{
+			NetworkInstance: deviations.DefaultNetworkInstance(dut),
+			Prefix:          decapInnerv4,
+			NextHopAddr:     dummyNextHopIPv4,
+		},
+		{
+			NetworkInstance: deviations.DefaultNetworkInstance(dut),
+			Prefix:          decapInnerv6,
+			NextHopAddr:     dummyNextHopIPv6,
+		},
+		{
+			NetworkInstance: deviations.DefaultNetworkInstance(dut),
+			Prefix:          staticDstHostIp,
+			NextHopAddr:     ateP2.IPv4,
+		},
+		{
+			NetworkInstance: deviations.DefaultNetworkInstance(dut),
+			Prefix:          staticDstHostIpv6,
+			NextHopAddr:     ateP2.IPv6,
+		},
+	}
+	cfgplugins.RemoveStaticRoutesInVRF(t, dut, routes)
+}
+
 func TestDoubleGueDecap(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
+
+	t.Cleanup(func() {
+		t.Log("Cleaning up double GUE decap test configuration")
+		ate.OTG().StopTraffic(t)
+		removeStaticRoutes(t, dut)
+		removeDecapGroups(t, dut)
+	})
 
 	mustConfigureDUT(t, dut)
 

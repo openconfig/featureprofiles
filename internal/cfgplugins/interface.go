@@ -76,11 +76,9 @@ type DUTAggData struct {
 	SubInterfaces   []*DUTSubInterfaceData
 	OndatraPortsIdx []int
 	OndatraPorts    []*ondatra.Port
-	DutPortsIdx     []int
-	DutPorts        []*ondatra.Port
-	LagName         string
-	LacpParams      *LACPParams
-	AggType         oc.E_IfAggregate_AggregationType
+	LagName    string
+	LacpParams *LACPParams
+	AggType    oc.E_IfAggregate_AggregationType
 }
 
 // Attributes is a type for the attributes of a port.
@@ -111,14 +109,6 @@ type Attributes struct {
 func (d *DUTAggData) PopulateOndatraPorts(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, v := range d.OndatraPortsIdx {
 		d.OndatraPorts = append(d.OndatraPorts, dut.Port(t, "port"+strconv.Itoa(v+1)))
-	}
-}
-
-// PopulateDUTPorts populates the DUTPorts field of the DutLagData from the DUTPortsIdx
-// field.
-func (d *DUTAggData) PopulateDUTPorts(t *testing.T, dut *ondatra.DUTDevice) {
-	for _, v := range d.DutPortsIdx {
-		d.DutPorts = append(d.DutPorts, dut.Port(t, "port"+strconv.Itoa(v+1)))
 	}
 }
 
@@ -980,16 +970,6 @@ func NewAggregateInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatc
 			AddPortToAggregate(t, dut, aggID, l.OndatraPorts, b, op)
 		}
 	}
-	l.PopulateDUTPorts(t, dut)
-	if len(l.DutPorts) != 0 {
-		for _, op := range l.DutPorts {
-			AddPortToAggregate(t, dut, aggID, l.DutPorts, b, op)
-		}
-	}
-
-	for _, op := range l.OndatraPorts {
-		AddPortToAggregate(t, dut, aggID, l.OndatraPorts, b, op)
-	}
 
 	if l.Attributes.IPv4 == "" && l.Attributes.IPv6 == "" {
 		if !deviations.InterfaceEnabled(dut) {
@@ -1533,22 +1513,29 @@ func ConfigureLACPFallbackCLI(t *testing.T, dut *ondatra.DUTDevice, lagIntfName 
 	}
 }
 
-func ConfigureStaticArp(t *testing.T, dut *ondatra.DUTDevice, params StaticARPEntry) {
+func ConfigureStaticArp(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, params StaticARPEntry) {
 	t.Helper()
-	if deviations.StaticArpOCUnsupported(dut) {
-		cli := ""
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			if params.IPType == "v4" {
-				cli = fmt.Sprintf("arp %s %s arpa", params.MagicIP, params.MagicMAC)
-			} else {
-				cli = fmt.Sprintf("ipv6 neighbor %s %s %s", params.MagicIP, params.InterfaceName, params.MagicMAC)
-			}
-			helpers.GnmiCLIConfig(t, dut, cli)
-		default:
-			t.Fatalf("configureStaticArp: unsupported vendor %s", dut.Vendor())
-		}
+	intfName := params.InterfaceName
+	if intfName == "" {
+		intfName = params.PortName
 	}
+	if intfName == "" {
+		t.Fatalf("ConfigureStaticArp: InterfaceName or PortName must be specified for OpenConfig configuration")
+	}
+	i := &oc.Interface{Name: ygot.String(intfName)}
+	s := i.GetOrCreateSubinterface(0)
+	if params.IPType == "v4" {
+		s4 := s.GetOrCreateIpv4()
+		n4 := s4.GetOrCreateNeighbor(params.MagicIP)
+		n4.LinkLayerAddress = ygot.String(params.MagicMAC)
+		gnmi.BatchUpdate(sb, gnmi.OC().Interface(params.InterfaceName).Subinterface(0).Ipv4().Neighbor(params.MagicIP).Config(), n4)
+	} else {
+		s6 := s.GetOrCreateIpv6()
+		n6 := s6.GetOrCreateNeighbor(params.MagicIP)
+		n6.LinkLayerAddress = ygot.String(params.MagicMAC)
+		gnmi.BatchUpdate(sb, gnmi.OC().Interface(params.InterfaceName).Subinterface(0).Ipv6().Neighbor(params.MagicIP).Config(), n6)
+	}
+
 }
 
 func ConfigureSoftwareLoopback(t *testing.T, dut *ondatra.DUTDevice, InterfaceName string) {
