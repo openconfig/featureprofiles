@@ -1650,6 +1650,11 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/ipv4_entry_with_aggregate_ports_test/ipv4_entry_with_aggregate_ports_test.go"
 }
 test: {
+  id: "TE-2.3"
+  description: "gRIBI Tunnel Programming over Active BGP"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_override_bgp_route_test/README.md"
+}
+test: {
   id: "TE-3.1"
   description: "Base Hierarchical Route Installation"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/base_hierarchical_route_installation_test/README.md"
