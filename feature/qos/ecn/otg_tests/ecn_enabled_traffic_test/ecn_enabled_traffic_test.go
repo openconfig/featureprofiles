@@ -349,7 +349,7 @@ func TestECNEnabledTraffic(t *testing.T) {
 					continue
 				}
 				// Watch for ATE rx packets to be available in QoS TransmitPkts
-val, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(p3.Name()).Output().Queue(queue).TransmitPkts().State(), timeout, func(v *ygnmi.Value[uint64]) bool {
+				val, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(p3.Name()).Output().Queue(queue).TransmitPkts().State(), timeout, func(v *ygnmi.Value[uint64]) bool {
 					pkts, present := v.Val()
 					return present && pkts >= dutQosPktsBeforeTraffic[queue]+ateInPkts[queue]
 				}).Await(t)
@@ -357,7 +357,7 @@ val, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(p3.Name()).Output().Queu
 					pkts, _ := val.Val()
 					dutQosPktsAfterTraffic[queue] = pkts
 				} else {
-t.Logf("Warning: TransmitPkts count for queue %q on interface %q did not reach expected value within timeout", queue, p3.Name())
+					t.Logf("Warning: TransmitPkts count for queue %q on interface %q did not reach expected value within timeout", queue, p3.Name())
 					dutQosPktsAfterTraffic[queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(p3.Name()).Output().Queue(queue).TransmitPkts().State())
 				}
 				dutQosDroppedPktsAfterTraffic[queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(p3.Name()).Output().Queue(queue).DroppedPkts().State())
