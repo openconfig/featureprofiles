@@ -30,11 +30,11 @@ graph RL
     Block2[ISIS Blocks: RoutersTypeB_1..4] <--> R201[ATE Router R201]
     Block3[ISIS Blocks: RoutersTypeC_1..4] <--> R301[ATE Router R301]
     Block4[ISIS Blocks: Dynamic_1] <--> R401[ATE Router R401]
-    R101 <--> |IS-IS (Agg1.1001)| DUT[DUT]
-    R201 <--> |IS-IS (Agg2.1101)| DUT[DUT]
-    R301 <--> |IS-IS (Agg3.1201)| DUT[DUT]
-    R401 <--> |IS-IS (Agg4.1301)| DUT[DUT]
-    DUT <--> |IS-IS x300 Adjacencies (Agg1..Agg4 Subinterfaces)| Rest_Of_ERs[ATE Routers R102..R176, R202..R276, R302..R376, R402..R476]
+    R101 <--> |"IS-IS (Agg1.1001)"| DUT[DUT]
+    R201 <--> |"IS-IS (Agg2.1101)"| DUT[DUT]
+    R301 <--> |"IS-IS (Agg3.1201)"| DUT[DUT]
+    R401 <--> |"IS-IS (Agg4.1301)"| DUT[DUT]
+    DUT <--> |"IS-IS x300 Adjacencies (Agg1..Agg4 Subinterfaces)"| Rest_Of_ERs[ATE Routers R102..R176, R202..R276, R302..R376, R402..R476]
 ```
 
 ### DUT and OTG properties
