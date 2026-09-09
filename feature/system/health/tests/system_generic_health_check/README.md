@@ -52,6 +52,8 @@ rpcs:
 paths:
   ## Config Parameter coverage
 
+    /components/component/cpu/utilization/state/avg:
+       platform_type: ["CPU"]
     /components/component/state/memory/available:
        platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU"]
     /components/component/state/memory/utilized:
