@@ -3,6 +3,7 @@ package transceiver
 import (
 	"fmt"
 	"math"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -18,6 +19,8 @@ const (
 	maxAllowedCDValue                = 2400
 	inactiveCDValue                  = 1.0
 	inactivePower                    = -30.0
+	inactiveOutputPower              = -40.0
+	frequencyToleranceMHz            = 1800.0
 	powerLoss                        = 2.0
 	powerReadingError                = 1.0
 	minAllowedCarrierFrequencyOffset = -3600.0
@@ -66,12 +69,10 @@ func validateOpticalChannelTelemetry(t *testing.T, p *ondatra.Port, params *cfgp
 			want: params.OperationalMode,
 		},
 		{
-			desc:       "Optical Channel Frequency Validation",
-			path:       fmt.Sprintf(componentPath+"/optical-channel/state/frequency", params.OpticalChannelNames[p.Name()]),
-			got:        float64(opticalChannelValue.GetOpticalChannel().GetFrequency()),
-			operStatus: oc.Interface_OperStatus_UP,
-			maxAllowed: float64(params.Frequency) + maxAllowedCarrierFrequencyOffset,
-			minAllowed: float64(params.Frequency) + minAllowedCarrierFrequencyOffset,
+			desc: "Optical Channel Frequency Validation",
+			path: fmt.Sprintf(componentPath+"/optical-channel/state/frequency", params.OpticalChannelNames[p.Name()]),
+			got:  opticalChannelValue.GetOpticalChannel().GetFrequency(),
+			want: params.Frequency,
 		},
 		{
 			desc: "Optical Channel Target Output Power Validation",
@@ -272,8 +273,8 @@ func validateOpticalChannelTelemetry(t *testing.T, p *ondatra.Port, params *cfgp
 			path:       fmt.Sprintf(componentPath+"/optical-channel/state/carrier-frequency-offset/instant", params.OpticalChannelNames[p.Name()]),
 			got:        opticalChannelValue.GetOpticalChannel().GetCarrierFrequencyOffset().GetInstant(),
 			operStatus: oc.Interface_OperStatus_UP,
-			minAllowed: minAllowedCarrierFrequencyOffset,
-			maxAllowed: maxAllowedCarrierFrequencyOffset,
+			minAllowed: -frequencyToleranceMHz,
+			maxAllowed: frequencyToleranceMHz,
 		},
 		{
 			desc:       "Optical Channel Instant Carrier Frequency Offset Validation",
@@ -349,7 +350,11 @@ func validateOpticalChannelTelemetry(t *testing.T, p *ondatra.Port, params *cfgp
 				if !ok {
 					t.Errorf("\n%s: %s, invalid type: \n got %v want float64\n\n", p.Name(), tc.path, tc.got)
 				}
-				if val > tc.maxAllowed {
+				if strings.Contains(tc.path, "output-power/instant") {
+					if math.Abs(val-inactiveOutputPower) > powerReadingError {
+						t.Errorf("\n%s: %s, out of range:\n got %v want %v (±%v)\n\n", p.Name(), tc.path, tc.got, inactiveOutputPower, powerReadingError)
+					}
+				} else if val > tc.maxAllowed {
 					t.Errorf("\n%s: %s, out of range:\n got %v want <= %v\n\n", p.Name(), tc.path, tc.got, tc.maxAllowed)
 				}
 			default:
@@ -372,11 +377,15 @@ func isOpticalChannelStreamReady(val *oc.Component, operStatus oc.E_Interface_Op
 			val.GetOpticalChannel().GetInputPower().GetAvg() <= (val.GetOpticalChannel().GetInputPower().GetMax()+math.Abs(val.GetOpticalChannel().GetInputPower().GetMax())*errorTolerance) &&
 			val.GetOpticalChannel().GetInputPower().GetAvg() >= (val.GetOpticalChannel().GetInputPower().GetMin()-math.Abs(val.GetOpticalChannel().GetInputPower().GetMin())*errorTolerance) &&
 			val.GetOpticalChannel().GetInputPower().GetInstant() <= (val.GetOpticalChannel().GetInputPower().GetMax()+math.Abs(val.GetOpticalChannel().GetInputPower().GetMax())*errorTolerance) &&
-			val.GetOpticalChannel().GetInputPower().GetInstant() >= (val.GetOpticalChannel().GetInputPower().GetMin()-math.Abs(val.GetOpticalChannel().GetInputPower().GetMin())*errorTolerance)
+			val.GetOpticalChannel().GetInputPower().GetInstant() >= (val.GetOpticalChannel().GetInputPower().GetMin()-math.Abs(val.GetOpticalChannel().GetInputPower().GetMin())*errorTolerance) &&
+			val.GetOpticalChannel().GetOutputPower().GetMin() >= (params.TargetOpticalPower-powerReadingError) &&
+			val.GetOpticalChannel().GetOutputPower().GetMin() <= (params.TargetOpticalPower+powerReadingError) &&
+			val.GetOpticalChannel().GetChromaticDispersion().GetInstant() == val.GetOpticalChannel().GetChromaticDispersion().GetAvg()
 	default:
 		return val.GetOpticalChannel().GetInputPower().GetMax() <= inactivePower &&
 			val.GetOpticalChannel().GetInputPower().GetMin() <= inactivePower &&
 			val.GetOpticalChannel().GetInputPower().GetAvg() <= inactivePower &&
-			val.GetOpticalChannel().GetInputPower().GetInstant() <= inactivePower
+			val.GetOpticalChannel().GetInputPower().GetInstant() <= inactivePower &&
+			val.GetOpticalChannel().GetOutputPower().GetInstant() <= inactiveOutputPower
 	}
 }
