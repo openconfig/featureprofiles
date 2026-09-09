@@ -1175,13 +1175,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		if deviations.IPv6StaticRouteWithIPv4NextHopRequiresStaticARP(dut) {
 			if dutPort.Name() == dut.Port(t, "port1").Name() {
 				dutInt.GetOrCreateSubinterface(0).GetOrCreateIpv4().GetOrCreateNeighbor(atePort1.IPv4).LinkLayerAddress = ygot.String(atePort1.MAC)
-				// Inject recursive routing dummy IP for Arista XAF constraint
-				dutInt.GetOrCreateSubinterface(0).GetOrCreateIpv6().GetOrCreateNeighbor("2001:db8::192:0:2:fe").LinkLayerAddress = ygot.String(atePort1.MAC)
 			}
 			if dutPort.Name() == dut.Port(t, "port2").Name() {
 				dutInt.GetOrCreateSubinterface(0).GetOrCreateIpv4().GetOrCreateNeighbor(atePort2.IPv4).LinkLayerAddress = ygot.String(atePort2.MAC)
-				// Inject recursive routing dummy IP for Arista XAF constraint
-				dutInt.GetOrCreateSubinterface(0).GetOrCreateIpv6().GetOrCreateNeighbor("2001:db8::192:0:2:ff").LinkLayerAddress = ygot.String(atePort2.MAC)
 			}
 		}
 		gnmi.Replace(t, dut, gnmi.OC().Interface(dutPort.Name()).Config(), dutInt)
@@ -1362,9 +1358,8 @@ func (td *testData) testCrossAddressFamilyNextHops(t *testing.T) {
 	v6Nh1 := oc.UnionString(atePort1.IPv4)
 	v6Nh2 := oc.UnionString(atePort2.IPv4)
 	if deviations.IPv6StaticRouteWithIPv4NextHopRequiresStaticARP(td.dut) {
-		v6Nh1 = oc.UnionString("2001:db8::192:0:2:fe")
-		v6Nh2 = oc.UnionString("2001:db8::192:0:2:ff")
-		staticARPWithMagicUniversalIP(t, td.dut)
+		v6Nh1 = oc.UnionString(atePort1.IPv6)
+		v6Nh2 = oc.UnionString(atePort2.IPv6)
 	}
 	v6Cfg = &cfgplugins.StaticRouteCfg{
 		NetworkInstance: deviations.DefaultNetworkInstance(td.dut),
@@ -1712,50 +1707,4 @@ func (td *testData) testRouteResolutionLoop(t *testing.T) {
 	// Note: We avoid checking sp.Static(prefix).Prefix().State() because some network OSes (e.g. Juniper)
 	// silently drop or hide route state telemetry for invalid/looping configurations to prevent hangs.
 	gnmi.Get(t, td.dut, gnmi.OC().System().State())
-}
-
-func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-	p1 := dut.Port(t, "port1")
-	p2 := dut.Port(t, "port2")
-	dummyIP1 := "2001:db8::192:0:2:fe"
-	dummyIP2 := "2001:db8::192:0:2:ff"
-	dummyIPCIDR1 := dummyIP1 + "/128"
-	dummyIPCIDR2 := dummyIP2 + "/128"
-
-	s1 := &oc.NetworkInstance_Protocol_Static{
-		Prefix: ygot.String(dummyIPCIDR1),
-		NextHop: map[string]*oc.NetworkInstance_Protocol_Static_NextHop{
-			"0": {
-				Index: ygot.String("0"),
-				InterfaceRef: &oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{
-					Interface:    ygot.String(p1.Name()),
-					Subinterface: ygot.Uint32(0),
-				},
-			},
-		},
-	}
-	s2 := &oc.NetworkInstance_Protocol_Static{
-		Prefix: ygot.String(dummyIPCIDR2),
-		NextHop: map[string]*oc.NetworkInstance_Protocol_Static_NextHop{
-			"0": {
-				Index: ygot.String("0"),
-				InterfaceRef: &oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{
-					Interface:    ygot.String(p2.Name()),
-					Subinterface: ygot.Uint32(0),
-				},
-			},
-		},
-	}
-
-	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-	staticPatch := &oc.NetworkInstance_Protocol{
-		Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
-		Name:       ygot.String(deviations.StaticProtocolName(dut)),
-		Static: map[string]*oc.NetworkInstance_Protocol_Static{
-			dummyIPCIDR1: s1,
-			dummyIPCIDR2: s2,
-		},
-	}
-	gnmi.Update(t, dut, sp.Config(), staticPatch)
 }
