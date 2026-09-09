@@ -120,16 +120,35 @@ var (
 	debugNotifications   = flag.Bool("debug_notifications", false, "Enable full AFT notification recording")
 )
 
-// getRouteCount returns the expected route count for the given dut and IP family.
-func getRouteCount(dut *ondatra.DUTDevice, afi IPFamily) uint32 {
+// getRouteCount returns the expected route count for the given dut, IP family,
+// and optional prefix length for IPv6.
+func getRouteCount(dut *ondatra.DUTDevice, afi IPFamily, prefixLen ...uint32) uint32 {
+	var pfx uint32
+	if len(prefixLen) > 0 {
+		pfx = prefixLen[0]
+	}
+
 	if deviations.LowScaleAft(dut) {
 		if afi == IPv4 {
 			return bgpRouteCountIPv4LowScale
 		}
+		switch pfx {
+		case advertisedRoutesV6Prefix64:
+			return bgpRouteCountIPv6LowScale64
+		case advertisedRoutesV6Prefix128:
+			return bgpRouteCountIPv6LowScale128
+		}
 		return bgpRouteCountIPv6LowScale64 + bgpRouteCountIPv6LowScale128
 	}
+
 	if afi == IPv4 {
 		return bgpRouteCountIPv4Default
+	}
+	switch pfx {
+	case advertisedRoutesV6Prefix64:
+		return bgpRouteCountIPv6Default64
+	case advertisedRoutesV6Prefix128:
+		return bgpRouteCountIPv6Default128
 	}
 	return bgpRouteCountIPv6Default64 + bgpRouteCountIPv6Default128
 }
@@ -494,11 +513,11 @@ func (tc *testCase) configureBGPDev(dev gosnappi.Device, ipv4 gosnappi.DeviceIpv
 	routesV6.Addresses().Add().
 		SetAddress(bgpRoutev6128).
 		SetPrefix(advertisedRoutesV6Prefix128).
-		SetCount(bgpRouteCountIPv6Default128)
+		SetCount(getRouteCount(tc.dut, IPv6, advertisedRoutesV6Prefix128))
 	routesV6.Addresses().Add().
 		SetAddress(bgpRoutev664).
 		SetPrefix(advertisedRoutesV6Prefix64).
-		SetCount(bgpRouteCountIPv6Default64)
+		SetCount(getRouteCount(tc.dut, IPv6, advertisedRoutesV6Prefix64))
 }
 
 func (tc *testCase) generateWantPrefixes(t *testing.T) map[string]bool {
@@ -506,10 +525,10 @@ func (tc *testCase) generateWantPrefixes(t *testing.T) map[string]bool {
 	for pfix := range netutil.GenCIDRs(t, startingBGPRouteIPv4, int(getRouteCount(tc.dut, IPv4))) {
 		wantPrefixes[pfix] = true
 	}
-	for pfix6128 := range netutil.GenCIDRs(t, startingBGPRouteIPv6128, int(bgpRouteCountIPv6Default128)) {
+	for pfix6128 := range netutil.GenCIDRs(t, startingBGPRouteIPv6128, int(getRouteCount(tc.dut, IPv6, advertisedRoutesV6Prefix128))) {
 		wantPrefixes[pfix6128] = true
 	}
-	for pfix664 := range netutil.GenCIDRs(t, startingBGPRouteIPv664, int(bgpRouteCountIPv6Default64)) {
+	for pfix664 := range netutil.GenCIDRs(t, startingBGPRouteIPv664, int(getRouteCount(tc.dut, IPv6, advertisedRoutesV6Prefix64))) {
 		wantPrefixes[pfix664] = true
 	}
 	return wantPrefixes
@@ -700,10 +719,10 @@ func TestBGP(t *testing.T) {
 		if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv4, int(getRouteCount(dut, IPv4)), wantNHCount, true); err != nil {
 			t.Errorf("failed to verify IPv4 BGP prefixes: %v", err)
 		}
-		if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv6128, int(bgpRouteCountIPv6Default128), wantNHCount, true); err != nil {
+		if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv6128, int(getRouteCount(dut, IPv6, advertisedRoutesV6Prefix128)), wantNHCount, true); err != nil {
 			t.Errorf("failed to verify IPv6 BGP prefixes: %v", err)
 		}
-		if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv664, int(bgpRouteCountIPv6Default64), wantNHCount, true); err != nil {
+		if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv664, int(getRouteCount(dut, IPv6, advertisedRoutesV6Prefix64)), wantNHCount, true); err != nil {
 			t.Errorf("failed to verify IPv6 BGP prefixes: %v", err)
 		}
 		return aft

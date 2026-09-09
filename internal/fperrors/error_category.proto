@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package openconfig.featureprofiles.fperrors;
+
+option go_package = "github.com/openconfig/featureprofiles/internal/fperrors/fperrors_go_proto";
+
+// ErrorCategory categorizes the failures in featureprofiles tests.
+enum ErrorCategory {
+  ERROR_CATEGORY_UNSPECIFIED = 0;
+  // Indicates that OTG or DUT traffic generation completely failed (e.g., 0 tx packets).
+  ERROR_CATEGORY_TRAFFIC_GENERATION_FAILED = 1;
+  // Indicates an anomaly in traffic validation, such as Rx > Tx packets.
+  ERROR_CATEGORY_TRAFFIC_VALIDATION_ANOMALY = 2;
+  // Indicates a generic test assertion failure, such as loss percentage out of bounds.
+  ERROR_CATEGORY_TEST_ASSERTION_FAILURE = 3;
+}

@@ -1,0 +1,25 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "d28e3096-e2ba-4c9b-bb1e-9a65bd6840ed"
+plan_id:  "Hashing"
+description:  "Dataplane Hashing with Physical/Software Loopbacks"
+testbed:  TESTBED_DUT_8_LOOP_2_ATE
+platform_exceptions:  {
+  platform:  {
+    vendor:  ARISTA
+  }
+  deviations:  {
+    interface_enabled:  true
+    default_network_instance:  "default"
+  }
+}
+platform_exceptions:  {
+  platform:  {
+    vendor:  NOKIA
+  }
+  deviations:  {
+    explicit_interface_in_default_vrf:  true
+    default_network_instance:  "DEFAULT"
+  }
+}

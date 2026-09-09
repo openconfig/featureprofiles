@@ -49,6 +49,15 @@ var (
 
 // TestNtpServerConfigurability validates that NTP servers can be configured on the DUT.
 func TestNtpServerConfigurability(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	loopbackIntfName := netutil.LoopbackInterface(t, dut, loopbackIntf[dut.Vendor()])
+
+	defaultVrf := deviations.DefaultNetworkInstance(dut)
+
+	if dut.Vendor() == ondatra.NOKIA {
+		helpers.GnmiCLIConfig(t, dut, "/ system delete ntp")
+	}
+
 	testCases := []struct {
 		description string
 		addresses   []string
@@ -58,13 +67,13 @@ func TestNtpServerConfigurability(t *testing.T) {
 		{
 			description: "4x IPv4 NTP in default VRF",
 			addresses:   []string{"192.0.2.1", "192.0.2.2", "192.0.2.3", "192.0.2.4"},
-			vrf:         "DEFAULT",
+			vrf:         defaultVrf,
 			ipv4:        true,
 		},
 		{
 			description: "4x IPv6 NTP (RFC5952) in default VRF",
 			addresses:   []string{"2001:db8::1", "2001:db8::2", "2001:db8::3", "2001:db8::4"},
-			vrf:         "DEFAULT",
+			vrf:         defaultVrf,
 			ipv4:        false,
 		},
 		{
@@ -81,10 +90,8 @@ func TestNtpServerConfigurability(t *testing.T) {
 		},
 	}
 
-	dut := ondatra.DUT(t, "dut")
-	loopbackIntfName := netutil.LoopbackInterface(t, dut, loopbackIntf[dut.Vendor()])
 	for _, testCase := range testCases {
-		if testCase.vrf != "" {
+		if testCase.vrf != defaultVrf {
 			createVRF(t, dut, testCase.vrf)
 			addLoopbackToVRF(t, dut, testCase.vrf, loopbackIntfName)
 		}
@@ -95,7 +102,7 @@ func TestNtpServerConfigurability(t *testing.T) {
 		if deviations.NtpSourceAddressUnsupported(dut) {
 			t.Run(testCase.description, func(t *testing.T) {
 				for _, address := range testCase.addresses {
-					if testCase.vrf != "" {
+					if testCase.vrf != defaultVrf {
 						ntpServer := fmt.Sprintf("ntp server vrf %s %s version 4 source %s ", testCase.vrf, address, loopbackIntfName)
 						helpers.GnmiCLIConfig(t, dut, ntpServer)
 					} else {
@@ -103,26 +110,29 @@ func TestNtpServerConfigurability(t *testing.T) {
 						helpers.GnmiCLIConfig(t, dut, ntpServer)
 					}
 				}
+
 				ntpPath := gnmi.OC().System().Ntp()
 				ntpState := gnmi.Get(t, dut, ntpPath.State())
+
 				for _, address := range testCase.addresses {
 					ntpServer := ntpState.GetServer(address)
 					if ntpServer == nil {
 						t.Errorf("Missing NTP server from NTP state: %s", address)
 					}
-					if got, want := ntpServer.GetNetworkInstance(), testCase.vrf; want != "" && got != want {
-						t.Errorf("Incorrect NTP Server network instance for address %s: got %s, want %s", address, got, want)
+
+					if got, want := ntpServer.GetNetworkInstance(), testCase.vrf; want != defaultVrf && got != want {
+						t.Errorf("Incorrect NTP Server network instance for address %s: got %s, want %s", address, got, testCase.vrf)
 					}
 				}
 			})
 		} else {
 			t.Run(testCase.description, func(t *testing.T) {
 				ntpPath := gnmi.OC().System().Ntp()
-
 				d := &oc.Root{}
 
 				ntp := d.GetOrCreateSystem().GetOrCreateNtp()
 				ntp.SetEnabled(true)
+
 				for _, address := range testCase.addresses {
 					server := ntp.GetOrCreateServer(address)
 					if testCase.ipv4 {
@@ -130,9 +140,8 @@ func TestNtpServerConfigurability(t *testing.T) {
 					} else {
 						server.SetSourceAddress(dutlo0Attrs.IPv6)
 					}
-					if testCase.vrf != "" {
-						server.SetNetworkInstance(testCase.vrf)
-					}
+
+					server.SetNetworkInstance(testCase.vrf)
 				}
 
 				gnmi.Replace(t, dut, ntpPath.Config(), ntp)
@@ -143,8 +152,9 @@ func TestNtpServerConfigurability(t *testing.T) {
 					if ntpServer == nil {
 						t.Errorf("Missing NTP server from NTP state: %s", address)
 					}
-					if got, want := ntpServer.GetNetworkInstance(), testCase.vrf; want != "" && got != want {
-						t.Errorf("Incorrect NTP Server network instance for address %s: got %s, want %s", address, got, want)
+
+					if got, want := ntpServer.GetNetworkInstance(), testCase.vrf; want != defaultVrf && got != want {
+						t.Errorf("Incorrect NTP Server network instance for address %s: got %s, want %s", address, got, testCase.vrf)
 					}
 				}
 			})
@@ -168,5 +178,6 @@ func addLoopbackToVRF(t *testing.T, dut *ondatra.DUTDevice, vrfname string, loop
 	i.Description = ygot.String(fmt.Sprintf("Port %s", loopbackIntfName))
 	si := i.GetOrCreateSubinterface(0)
 	si.Enabled = ygot.Bool(true)
+
 	gnmi.Update(t, dut, gnmi.OC().Interface(loopbackIntfName).Config(), i)
 }
