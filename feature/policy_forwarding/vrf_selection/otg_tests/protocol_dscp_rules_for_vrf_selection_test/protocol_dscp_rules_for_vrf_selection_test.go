@@ -754,7 +754,7 @@ func TestPBR(t *testing.T) {
 			ingressPortName := tc.ingressPort.Name()
 			d := &oc.Root{}
 			interfaceID := ingressPortName
-			if deviations.InterfaceRefInterfaceIDFormat(dut) {
+			if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
 				interfaceID = ingressPortName + ".0"
 			}
 			pfIntf := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(interfaceID)
@@ -785,7 +785,7 @@ func TestPBR(t *testing.T) {
 				gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config(), multiPolicy)
 				defer gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Policy("L3_Port3").Config())
 				interface3ID := port3.Name()
-				if deviations.InterfaceRefInterfaceIDFormat(dut) {
+				if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
 					interface3ID = port3.Name() + ".0"
 				}
 				pfIntfPort3 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(interface3ID)
