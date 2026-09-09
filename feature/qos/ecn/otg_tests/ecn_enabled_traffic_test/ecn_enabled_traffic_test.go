@@ -318,6 +318,7 @@ func TestECNEnabledTraffic(t *testing.T) {
 			t.Logf("Running traffic 1 on DUT interfaces: %s => %s ", p1.Name(), p3.Name())
 			t.Logf("Running traffic 2 on DUT interfaces: %s => %s ", p2.Name(), p3.Name())
 			t.Logf("Sending traffic flows: \n%v\n\n", tfs)
+			otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 			ate.OTG().StartTraffic(t)
 			time.Sleep(15 * time.Second)
 			ate.OTG().StopTraffic(t)
