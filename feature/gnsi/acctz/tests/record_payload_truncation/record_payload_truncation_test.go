@@ -32,7 +32,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-const maxNIs = 100
+const maxNIs = 150
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
