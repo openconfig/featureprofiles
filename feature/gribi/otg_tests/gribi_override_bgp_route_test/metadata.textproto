@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "8161c39c-7e40-46e2-a20f-4913c42ba046"
+plan_id: "TE-2.3"
+description: "gRIBI Tunnel Programming over Active BGP"
+testbed: TESTBED_DUT_ATE_2LINKS
