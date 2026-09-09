@@ -33,6 +33,7 @@ platform_exceptions: {
     vendor: CISCO
   }
   deviations: {
+    routing_restart_via_gnoi_unsupported: true
     skip_isis_set_level:  true
     skip_isis_set_metric_style_type:  true
     bgp_conditions_match_community_set_unsupported: true

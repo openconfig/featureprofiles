@@ -16,11 +16,6 @@ package bgp_isis_redistribution_test
 
 import (
 	"fmt"
-	"net"
-	"strconv"
-	"testing"
-	"time"
-
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -35,6 +30,10 @@ import (
 	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
+	"net"
+	"strconv"
+	"testing"
+	"time"
 )
 
 const (
@@ -100,8 +99,16 @@ type testCase struct {
 	desc                string
 	applyPolicyFunc     func(t *testing.T, dut *ondatra.DUTDevice)
 	verifyTelemetryFunc func(t *testing.T, ts *isissession.TestSession)
+	skipFunc            func(t *testing.T, dut *ondatra.DUTDevice)
 	testTraffic         bool
 	ipv4                bool
+}
+
+func skipRoutingRestart(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	if deviations.RoutingRestartViaGnoiUnsupported(dut) {
+		t.Skip("Skipping routing restart via gNOI due to deviation")
+	}
 }
 
 func TestBGPToISISRedistribution(t *testing.T) {
@@ -142,6 +149,7 @@ func TestBGPToISISRedistribution(t *testing.T) {
 			desc:                "Verify BGP-to-ISIS redistributed routes persist after routing daemon restart",
 			applyPolicyFunc:     matchingPrefixRoutePolicy,
 			verifyTelemetryFunc: verifyMatchingPrefixWithRestartTelemetry,
+			skipFunc:            skipRoutingRestart,
 			testTraffic:         true,
 			ipv4:                true,
 		},
@@ -150,6 +158,7 @@ func TestBGPToISISRedistribution(t *testing.T) {
 			desc:                "Verify BGP-to-ISIS redistributed routes persist after routing daemon restart with Shared Nexthop",
 			applyPolicyFunc:     applySharedNexthopRoutePolicy,
 			verifyTelemetryFunc: verifyMatchingPrefixWithRestartTelemetry,
+			skipFunc:            skipRoutingRestart,
 			testTraffic:         true,
 			ipv4:                true,
 		},
@@ -192,6 +201,7 @@ func TestBGPToISISRedistribution(t *testing.T) {
 			desc:                "Verify IPv6 BGP-to-ISIS redistributed routes persist after routing daemon restart",
 			applyPolicyFunc:     matchingPrefixRoutePolicyV6,
 			verifyTelemetryFunc: verifyMatchingPrefixWithRestartTelemetryV6,
+			skipFunc:            skipRoutingRestart,
 			testTraffic:         true,
 			ipv4:                false,
 		},
@@ -200,6 +210,7 @@ func TestBGPToISISRedistribution(t *testing.T) {
 			desc:                "Verify IPv6 BGP-to-ISIS redistributed routes persist after routing daemon restart with Shared Nexthop",
 			applyPolicyFunc:     applySharedNexthopRoutePolicyV6,
 			verifyTelemetryFunc: verifyMatchingPrefixWithRestartTelemetryV6,
+			skipFunc:            skipRoutingRestart,
 			testTraffic:         true,
 			ipv4:                false,
 		},
@@ -226,6 +237,9 @@ func TestBGPToISISRedistribution(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Logf("Description: %s", tc.desc)
+			if tc.skipFunc != nil {
+				tc.skipFunc(t, ts.DUT)
+			}
 			tc.applyPolicyFunc(t, ts.DUT)
 			if tc.ipv4 {
 				bgpISISRedistribution(t, ts.DUT, "set")
@@ -234,13 +248,18 @@ func TestBGPToISISRedistribution(t *testing.T) {
 				bgpISISRedistributionV6(t, ts.DUT, "set")
 				defer bgpISISRedistributionV6(t, ts.DUT, "delete")
 			}
-			tc.verifyTelemetryFunc(t, ts)
 			if tc.testTraffic {
 				if tc.ipv4 {
 					createFlow(t, ts)
-					checkTraffic(t, ts, v4FlowName)
 				} else {
 					createFlowV6(t, ts)
+				}
+			}
+			tc.verifyTelemetryFunc(t, ts)
+			if tc.testTraffic {
+				if tc.ipv4 {
+					checkTraffic(t, ts, v4FlowName)
+				} else {
 					checkTraffic(t, ts, v6FlowName)
 				}
 			}
@@ -426,6 +445,72 @@ func matchingCommunityRoutePolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
+func waitForIPv4PrefixAbsent(t *testing.T, ate *ondatra.ATEDevice, prefix string, timeout time.Duration) {
+	t.Helper()
+	// Check if prefix is currently present in OTG LSDB (e.g. from a previous subtest).
+	// If present, wait for DUT route withdrawal to propagate to OTG.
+	prefixes := gnmi.LookupAll(t, ate.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().Prefix(prefix).State())
+	hasPrefix := false
+	for _, p := range prefixes {
+		if val, ok := p.Val(); ok && val.GetPrefix() == prefix {
+			hasPrefix = true
+			break
+		}
+	}
+	if hasPrefix {
+		t.Logf("Prefix %s is currently present in LSDB; waiting for withdrawal...", prefix)
+		_, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().Prefix(prefix).State(), timeout, func(v *ygnmi.Value[*otgtelemetry.IsisRouter_LinkStateDatabase_Lsps_Tlvs_ExtendedIpv4Reachability_Prefix]) bool {
+			_, present := v.Val()
+			return !present
+		}).Await(t)
+		if !ok {
+			t.Errorf("Timed out waiting for prefix %s to be withdrawn from LSDB", prefix)
+		}
+		return
+	}
+
+	_, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().Prefix(prefix).State(), timeout, func(v *ygnmi.Value[*otgtelemetry.IsisRouter_LinkStateDatabase_Lsps_Tlvs_ExtendedIpv4Reachability_Prefix]) bool {
+		pfx, present := v.Val()
+		return present && pfx.GetPrefix() == prefix
+	}).Await(t)
+	if ok {
+		t.Errorf("Prefix found, not want: %s", prefix)
+	}
+}
+
+func waitForIPv6PrefixAbsent(t *testing.T, ate *ondatra.ATEDevice, prefix string, timeout time.Duration) {
+	t.Helper()
+	// Check if prefix is currently present in OTG LSDB (e.g. from a previous subtest).
+	// If present, wait for DUT route withdrawal to propagate to OTG.
+	prefixes := gnmi.LookupAll(t, ate.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().Ipv6Reachability().Prefix(prefix).State())
+	hasPrefix := false
+	for _, p := range prefixes {
+		if val, ok := p.Val(); ok && val.GetPrefix() == prefix {
+			hasPrefix = true
+			break
+		}
+	}
+	if hasPrefix {
+		t.Logf("Prefix %s is currently present in LSDB; waiting for withdrawal...", prefix)
+		_, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().Ipv6Reachability().Prefix(prefix).State(), timeout, func(v *ygnmi.Value[*otgtelemetry.IsisRouter_LinkStateDatabase_Lsps_Tlvs_Ipv6Reachability_Prefix]) bool {
+			_, present := v.Val()
+			return !present
+		}).Await(t)
+		if !ok {
+			t.Errorf("Timed out waiting for prefix %s to be withdrawn from LSDB", prefix)
+		}
+		return
+	}
+
+	_, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().Ipv6Reachability().Prefix(prefix).State(), timeout, func(v *ygnmi.Value[*otgtelemetry.IsisRouter_LinkStateDatabase_Lsps_Tlvs_Ipv6Reachability_Prefix]) bool {
+		pfx, present := v.Val()
+		return present && pfx.GetPrefix() == prefix
+	}).Await(t)
+	if ok {
+		t.Errorf("Prefix found, not want: %s", prefix)
+	}
+}
+
 func verifyNonMatchingPrefixTelemetry(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 	rPolicy := gnmi.Get[*oc.RoutingPolicy](t, dut, gnmi.OC().RoutingPolicy().State())
 
@@ -480,13 +565,7 @@ func verifyNonMatchingPrefixTelemetry(t *testing.T, dut *ondatra.DUTDevice, ate 
 		t.Errorf("Import policy: %v, want: %s", importPolicy, []string{v4RoutePolicy})
 	}
 
-	_, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().Prefix(advertisedIPv4.address).State(), 30*time.Second, func(v *ygnmi.Value[*otgtelemetry.IsisRouter_LinkStateDatabase_Lsps_Tlvs_ExtendedIpv4Reachability_Prefix]) bool {
-		prefix, present := v.Val()
-		return present && prefix.GetPrefix() == advertisedIPv4.address
-	}).Await(t)
-	if ok {
-		t.Errorf("Prefix found, not want: %s", advertisedIPv4.address)
-	}
+	waitForIPv4PrefixAbsent(t, ate, advertisedIPv4.address, 30*time.Second)
 }
 
 func verifyMatchingPrefixTelemetry(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
@@ -520,13 +599,7 @@ func verifyNonMatchingCommunityTelemetry(t *testing.T, dut *ondatra.DUTDevice, a
 		t.Errorf("Community set member: %v, want: %s or %d", commSetMember, nonMatchingCommunityVal, cm)
 	}
 
-	_, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().Prefix(advertisedIPv4.address).State(), 30*time.Second, func(v *ygnmi.Value[*otgtelemetry.IsisRouter_LinkStateDatabase_Lsps_Tlvs_ExtendedIpv4Reachability_Prefix]) bool {
-		_, present := v.Val()
-		return !present
-	}).Await(t)
-	if ok {
-		t.Errorf("Prefix found, not want: %s", advertisedIPv4.address)
-	}
+	waitForIPv4PrefixAbsent(t, ate, advertisedIPv4.address, 30*time.Second)
 }
 
 func verifyMatchingCommunityTelemetry(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
@@ -693,13 +766,7 @@ func verifyNonMatchingPrefixTelemetryV6(t *testing.T, dut *ondatra.DUTDevice, at
 		t.Errorf("Import policy: %v, want: %s", importPolicy, []string{v6RoutePolicy})
 	}
 
-	_, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().Ipv6Reachability().Prefix(advertisedIPv6.address).State(), 60*time.Second, func(v *ygnmi.Value[*otgtelemetry.IsisRouter_LinkStateDatabase_Lsps_Tlvs_Ipv6Reachability_Prefix]) bool {
-		prefix, present := v.Val()
-		return present && prefix.GetPrefix() == advertisedIPv6.address
-	}).Await(t)
-	if ok {
-		t.Errorf("Prefix found, not want: %s", advertisedIPv6.address)
-	}
+	waitForIPv6PrefixAbsent(t, ate, advertisedIPv6.address, 60*time.Second)
 }
 
 func verifyMatchingPrefixTelemetryV6(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
@@ -712,16 +779,13 @@ func verifyMatchingPrefixTelemetryV6(t *testing.T, dut *ondatra.DUTDevice, ate *
 		t.Errorf("Prefix is nil, want: %s", advertisedIPv6.cidr(t))
 	}
 
-	// Normalize the IPv6 address to its standard compressed format (e.g. 2001:db8:128:128::)
-	compressedAddr := net.ParseIP(advertisedIPv6.address).String()
-
-	_, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().Ipv6Reachability().Prefix(compressedAddr).State(), 60*time.Second, func(v *ygnmi.Value[*otgtelemetry.IsisRouter_LinkStateDatabase_Lsps_Tlvs_Ipv6Reachability_Prefix]) bool {
+	_, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().Ipv6Reachability().Prefix(advertisedIPv6.address).State(), 60*time.Second, func(v *ygnmi.Value[*otgtelemetry.IsisRouter_LinkStateDatabase_Lsps_Tlvs_Ipv6Reachability_Prefix]) bool {
 		prefix, present := v.Val()
-		return present && prefix.GetPrefix() == compressedAddr
+		return present && prefix.GetPrefix() == advertisedIPv6.address
 	}).Await(t)
 
 	if !ok {
-		t.Errorf("Prefix not found, want: %s", compressedAddr)
+		t.Errorf("Prefix not found, want: %s", advertisedIPv6.address)
 	}
 }
 
@@ -735,13 +799,7 @@ func verifyNonMatchingCommunityTelemetryV6(t *testing.T, dut *ondatra.DUTDevice,
 		t.Errorf("Community set member: %v, want: %s or %d", commSetMember, nonMatchingCommunityVal, cm)
 	}
 
-	_, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().Ipv6Reachability().Prefix(advertisedIPv6.address).State(), 60*time.Second, func(v *ygnmi.Value[*otgtelemetry.IsisRouter_LinkStateDatabase_Lsps_Tlvs_Ipv6Reachability_Prefix]) bool {
-		_, present := v.Val()
-		return !present
-	}).Await(t)
-	if ok {
-		t.Errorf("Prefix found, not want: %s", advertisedIPv6.address)
-	}
+	waitForIPv6PrefixAbsent(t, ate, advertisedIPv6.address, 60*time.Second)
 }
 
 func verifyMatchingCommunityTelemetryV6(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
@@ -957,6 +1015,9 @@ func containsValue[T comparable](slice []T, val T) bool {
 }
 
 func verifyMatchingPrefixWithRestartTelemetry(t *testing.T, ts *isissession.TestSession) {
+	if deviations.RoutingRestartViaGnoiUnsupported(ts.DUT) {
+		t.Skip("Skipping routing restart via gNOI due to deviation")
+	}
 	verifyMatchingPrefixTelemetry(t, ts.DUT, ts.ATE)
 	t.Log("Restarting routing process via gNOI...")
 	gnoi.RestartRoutingProcess(t, ts.DUT)
@@ -970,8 +1031,10 @@ func verifyMatchingPrefixWithRestartTelemetry(t *testing.T, ts *isissession.Test
 }
 
 func verifyMatchingPrefixWithRestartTelemetryV6(t *testing.T, ts *isissession.TestSession) {
+	if deviations.RoutingRestartViaGnoiUnsupported(ts.DUT) {
+		t.Skip("Skipping routing restart via gNOI due to deviation")
+	}
 	verifyMatchingPrefixTelemetryV6(t, ts.DUT, ts.ATE)
-	time.Sleep(2 * time.Minute)
 	t.Log("Restarting routing process via gNOI...")
 	gnoi.RestartRoutingProcess(t, ts.DUT)
 

@@ -112,6 +112,18 @@ func KillProcess(t *testing.T, dut *ondatra.DUTDevice, daemon Daemon, signal spb
 	_, err = gnoiClient.System().KillProcess(context.Background(), killProcessRequest)
 	if err != nil {
 		t.Logf("Error: %v in executing the kill process %v", err.Error(), daemonName)
+		if signal == SigTerm {
+			t.Logf("Retrying with SIGNAL_KILL (cold restart)...")
+			currentPid := system.FindProcessIDByName(t, dut, daemonName)
+			if currentPid != 0 {
+				killProcessRequest.Pid = uint32(currentPid)
+			}
+			killProcessRequest.Signal = SigKill
+			_, err = gnoiClient.System().KillProcess(context.Background(), killProcessRequest)
+		}
+		if err != nil {
+			t.Fatalf("Failed to kill process %v: %v", daemonName, err)
+		}
 	}
 
 	time.Sleep(120 * time.Second)
@@ -119,7 +131,7 @@ func KillProcess(t *testing.T, dut *ondatra.DUTDevice, daemon Daemon, signal spb
 	if waitForRestart {
 		_, ok := gnmi.WatchAll(
 			t,
-			dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE)),
+			dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE)),
 			gnmi.OC().System().ProcessAny().State(),
 			time.Minute,
 			func(p *ygnmi.Value[*oc.System_Process]) bool {
