@@ -76,9 +76,9 @@ type DUTAggData struct {
 	SubInterfaces   []*DUTSubInterfaceData
 	OndatraPortsIdx []int
 	OndatraPorts    []*ondatra.Port
-	LagName    string
-	LacpParams *LACPParams
-	AggType    oc.E_IfAggregate_AggregationType
+	LagName         string
+	LacpParams      *LACPParams
+	AggType         oc.E_IfAggregate_AggregationType
 }
 
 // Attributes is a type for the attributes of a port.
