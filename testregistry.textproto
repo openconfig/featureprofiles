@@ -177,12 +177,6 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/baseline/certz_baseline_test.go"
 }
 test: {
-  id: "CERTZ-2"
-  description: "Server Certificate"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/server_certificates/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/server_certificates/server_certificates_test.go"
-}
-test: {
   id: "CERTZ-4"
   description: "gNSI Trust Bundle"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/gnsi/certz/tests/trust_bundle/README.md"
@@ -220,6 +214,12 @@ test: {
   id: "Certz-1"
   description: "gNSI Client Certificate Tests"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/client_certificates/README.md"
+}
+test: {
+  id: "Certz-2"
+  description: "Server Certificate"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/server_certificates/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/server_certificates/server_certificates_test.go"
 }
 test: {
   id: "Certz-3"
@@ -554,6 +554,16 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/google_discovery_protocol_packetout_lag_test/google_discovery_protocol_packetout_lag_test.go"
 }
 test: {
+  id: "P4RT-3.3"
+  description: "P4RT Packet-Out Interaction with gRIBI"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/p4rt_packetout_gribi_interaction_test/README.md"
+}
+test: {
+  id: "P4RT-3.4"
+  description: "P4RT Packet-In Interaction with gRIBI"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/p4rt_packetin_gribi_interaction_test/README.md"
+}
+test: {
   id: "P4RT-5.1"
   description: "Traceroute: PacketIn"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/traceroute_packetin_test/README.md"
@@ -813,8 +823,8 @@ test: {
 test: {
   id: "RT-1.14"
   description: "BGP Long-Lived Graceful Restart"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/ate_tests/bgp_long_lived_graceful_restart/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/ate_tests/bgp_long_lived_graceful_restart/bgp_long_lived_graceful_restart_test.go"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_long_lived_graceful_restart/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_long_lived_graceful_restart/bgp_long_lived_graceful_restart_test.go"
 }
 test: {
   id: "RT-1.15"
@@ -928,6 +938,7 @@ test: {
   id: "RT-1.36"
   description: "AIGP feature support test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/aigp_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/aigp_test/aigp_test.go"
 }
 test: {
   id: "RT-1.4"
@@ -1033,6 +1044,11 @@ test: {
   description: "GRIBI Route Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_route_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_route_test/gribi_route_test.go"
+}
+test: {
+  id: "RT-14.3"
+  description: "Soft Drain vs. Hard Drain Convergence Verification"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/otg_tests/soft_drain_convergence_test/README.md"
 }
 test: {
   id: "RT-2.1"
@@ -1469,6 +1485,21 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/my_station_mac/otg_tests/my_station_mac_test/my_station_mac_test.go"
 }
 test: {
+  id: "TE-1.21"
+  description: "gRIBI Tunnel Fallback to Native Routing"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/fallback_to_native_routing_test/README.md"
+}
+test: {
+  id: "TE-1.22"
+  description: "Traffic Blackhole on gRIBI Invalid Next-Hop (Strict FIB Precedence)"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/strict_fib_precedence_blackhole_test/README.md"
+}
+test: {
+  id: "TE-1.7"
+  description: "gNMI Interface Config Change Impacting gRIBI NextHop"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gnmi_intf_config_impacts_gribi_nh_test/README.md"
+}
+test: {
   id: "TE-10"
   description: "gRIBI MPLS Forwarding"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/mpls_forwarding/README.md"
@@ -1625,6 +1656,11 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/base_hierarchical_route_installation_test/base_hierarchical_route_installation_test.go"
 }
 test: {
+  id: "TE-3.10"
+  description: "gRIBI WCMP Group Resizing and Weight Changes"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/dynamic_wcmp_group_resizing_test/README.md"
+}
+test: {
   id: "TE-3.2"
   description: "Traffic Balancing According to Weights"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/weighted_balancing_test/README.md"
@@ -1665,6 +1701,12 @@ test: {
   description: "gRIBI Tunnel Recursion over Multi-Level LPM Underlays"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/hierarchical_tunnel_recursion_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/hierarchical_tunnel_recursion_test/hierarchical_tunnel_recursion_test.go"
+}
+test: {
+  id: "TE-3.9"
+  description: "gRIBI AFT Operations Ordering"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/aft_operations_ordering_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/aft_operations_ordering_test/aft_operations_ordering_test.go"
 }
 test: {
   id: "TE-4.1"
