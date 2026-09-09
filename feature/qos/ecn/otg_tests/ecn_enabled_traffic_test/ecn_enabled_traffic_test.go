@@ -349,7 +349,7 @@ func TestECNEnabledTraffic(t *testing.T) {
 					continue
 				}
 				// Watch for ATE rx packets to be available in QoS TransmitPkts
-				val, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(p3.Name()).Output().Queue(queue).TransmitPkts().State(), time.Minute, func(v *ygnmi.Value[uint64]) bool {
+val, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(p3.Name()).Output().Queue(queue).TransmitPkts().State(), timeout, func(v *ygnmi.Value[uint64]) bool {
 					pkts, present := v.Val()
 					return present && pkts >= dutQosPktsBeforeTraffic[queue]+ateInPkts[queue]
 				}).Await(t)
