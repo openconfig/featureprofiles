@@ -22,6 +22,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/featureprofiles/internal/qoscfg"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -421,33 +422,37 @@ func TestBurstyTraffic(t *testing.T) {
 			t.Logf("Running traffic 1 on DUT interfaces: %s => %s ", dp1.Name(), dp3.Name())
 			t.Logf("Running traffic 2 on DUT interfaces: %s => %s ", dp2.Name(), dp3.Name())
 			t.Logf("Sending traffic flows: \n%v\n\n", trafficFlows)
-			time.Sleep(30 * time.Second)
 			ate.OTG().StartTraffic(t)
 			time.Sleep(30 * time.Second)
 			ate.OTG().StopTraffic(t)
-			time.Sleep(60 * time.Second)
 
+			uniqueQueues := make(map[string]bool)
 			for trafficID, data := range trafficFlows {
+				uniqueQueues[data.queue] = true
+				loss := float64(100.0 - data.expectedThroughputPct)
+				otgutils.ExpectedTrafficLoss(t, ate.OTG(), trafficID, loss, loss)
+
 				flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().State())
 				ateTxPkts := flowMetrics.GetOutPkts()
 				ateRxPkts := flowMetrics.GetInPkts()
 				counters["ateOutPkts"][data.queue] += ateTxPkts
 				counters["ateInPkts"][data.queue] += ateRxPkts
+			}
 
-				counters["dutQosPktsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State())
-				counters["dutQosOctetsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitOctets().State())
-				counters["dutQosDroppedPktsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State())
-				counters["dutQosDroppedOctetsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State())
+			for queue := range uniqueQueues {
+				_, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).TransmitPkts().State(), timeout, func(val *ygnmi.Value[uint64]) bool {
+					count, present := val.Val()
+					return present && count >= counters["dutQosPktsBeforeTraffic"][queue]+counters["ateInPkts"][queue]
+				}).Await(t)
+				if !ok {
+					t.Errorf("TransmitPkts count for queue %q on interface %q failed to reach expected value", queue, dp3.Name())
+				}
+				counters["dutQosPktsAfterTraffic"][queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).TransmitPkts().State())
+				counters["dutQosOctetsAfterTraffic"][queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).TransmitOctets().State())
+				counters["dutQosDroppedPktsAfterTraffic"][queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).DroppedPkts().State())
+				counters["dutQosDroppedOctetsAfterTraffic"][queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).DroppedOctets().State())
 
-				t.Logf("ateInPkts: %v, txPkts %v, Queue: %v", counters["ateInPkts"][data.queue], counters["dutQosPktsAfterTraffic"][data.queue], data.queue)
-				if ateTxPkts == 0 {
-					t.Fatalf("TxPkts == 0, want >0.")
-				}
-				lossPct := (float32)((float64(ateTxPkts-ateRxPkts) * 100.0) / float64(ateTxPkts))
-				t.Logf("Get flow %q: lossPct: %.2f%% or rxPct: %.2f%%, want: %.2f%%\n\n", data.queue, lossPct, 100.0-lossPct, data.expectedThroughputPct)
-				if got, want := 100.0-lossPct, data.expectedThroughputPct; got != want {
-					t.Errorf("Get(throughput for queue %q): got %.2f%%, want %.2f%%", data.queue, got, want)
-				}
+				t.Logf("ateInPkts: %v, txPkts: %v, Queue: %v", counters["ateInPkts"][queue], counters["dutQosPktsAfterTraffic"][queue], queue)
 			}
 
 			// Check QoS egress packet counters are updated correctly.
