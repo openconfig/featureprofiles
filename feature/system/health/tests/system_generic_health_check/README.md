@@ -54,6 +54,16 @@ paths:
 
     /components/component/cpu/utilization/state/avg:
        platform_type: ["CPU"]
+    /components/component/integrated-circuit/pipeline-counters/drop/fabric-block/state/lost-packets:
+       platform_type: ["INTEGRATED_CIRCUIT"]
+    /components/component/integrated-circuit/pipeline-counters/drop/lookup-block/state/acl-drops:
+       platform_type: ["INTEGRATED_CIRCUIT"]
+    /components/component/integrated-circuit/pipeline-counters/drop/lookup-block/state/incorrect-software-state:
+       platform_type: ["INTEGRATED_CIRCUIT"]
+    /components/component/integrated-circuit/pipeline-counters/drop/lookup-block/state/invalid-packet:
+       platform_type: ["INTEGRATED_CIRCUIT"]
+    /components/component/integrated-circuit/pipeline-counters/drop/lookup-block/state/no-nexthop:
+       platform_type: ["INTEGRATED_CIRCUIT"]
     /components/component/state/memory/available:
        platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU"]
     /components/component/state/memory/utilized:
