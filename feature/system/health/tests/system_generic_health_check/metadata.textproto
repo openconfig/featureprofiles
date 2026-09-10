@@ -16,6 +16,7 @@ platform_exceptions: {
     qos_voq_drop_counter_unsupported: true
     qos_inqueue_drop_counter_unsupported: true
     interface_counters_in_unknown_protos_unsupported: true
+    subinterface_packet_counters_missing: true
   }
 }
 platform_exceptions: {
