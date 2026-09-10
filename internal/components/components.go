@@ -24,7 +24,6 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	tpb "github.com/openconfig/gnoi/types"
-	tpb "github.com/openconfig/gnoi/types/types_go_proto"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
