@@ -28,7 +28,7 @@ platform_exceptions: {
 platform_exceptions: {
   platform: {
     vendor: JUNIPER
-    hardware_model_regex: "PTX10002-36QDD|PTX12008"
+    hardware_model_regex: "PTX10002-36QDD|PTX12008|PTX10002-36-OD|PTX12012"
   }
   deviations: {
     max_out_fib_route_count: 3750000
