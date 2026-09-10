@@ -231,7 +231,7 @@ func configureAristaEncap(t *testing.T, dut *ondatra.DUTDevice) {
 		IPFamily:       "V4Udp",
 		NexthopGrpName: gueNHGName,
 		DstIp:          []string{outerGUEDstCore1, outerGUEDstCore2},
-		SrcIp:          core1AggID,
+		SrcIp:          core1Intf.IPv4,
 		DstUdpPort:     gueDstPort,
 		TTL:            64,
 	})
