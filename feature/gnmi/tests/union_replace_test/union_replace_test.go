@@ -369,34 +369,61 @@ func configureOCInterface(t *testing.T, root *oc.Root, dut *ondatra.DUTDevice, i
 }
 
 func cliInterface(cli, intfName string) string {
-	var sb strings.Builder
-	insideInterface := false
+	var result strings.Builder
+	inInterface := false
+	braceMode := false
 	braceDepth := 0
+
 	for _, line := range strings.Split(cli, "\n") {
 		trimmed := strings.TrimSpace(line)
-		braceDelimited := trimmed == "interface "+intfName+" {" || trimmed == intfName+" {"
-		if trimmed == "interface "+intfName || braceDelimited {
-			insideInterface = true
-			if braceDelimited {
-				braceDepth = strings.Count(line, "{") - strings.Count(line, "}")
+
+		if !inInterface {
+			switch trimmed {
+			case "interface " + intfName:
+				inInterface = true
+			case "interface " + intfName + " {", intfName + " {":
+				inInterface = true
+				braceMode = true
+				braceDepth = 1
+			}
+			if !inInterface {
+				continue
 			}
 		}
-		if insideInterface {
-			sb.WriteString(line)
-			sb.WriteByte('\n')
-			if braceDepth > 0 {
-				if !braceDelimited {
-					braceDepth += strings.Count(line, "{") - strings.Count(line, "}")
-				}
-				if braceDepth <= 0 {
-					insideInterface = false
-				}
-			} else if trimmed == "!" || trimmed == "}" {
-				insideInterface = false
+
+		result.WriteString(line)
+		result.WriteByte('\n')
+
+		if braceMode {
+			braceDepth += countUnquotedBraces(line, '{')
+			braceDepth -= countUnquotedBraces(line, '}')
+			if braceDepth == 0 {
+				break
 			}
+		} else if trimmed == "!" || trimmed == "}" {
+			break
 		}
 	}
-	return sb.String()
+	return result.String()
+}
+
+func countUnquotedBraces(line string, brace rune) int {
+	count := 0
+	inQuotes := false
+	escaped := false
+	for _, char := range line {
+		switch {
+		case escaped:
+			escaped = false
+		case char == '\\':
+			escaped = inQuotes
+		case char == '"':
+			inQuotes = !inQuotes
+		case !inQuotes && char == brace:
+			count++
+		}
+	}
+	return count
 }
 
 func setInterfaceTypeIfRequired(dut *ondatra.DUTDevice, intf *oc.Interface) {
