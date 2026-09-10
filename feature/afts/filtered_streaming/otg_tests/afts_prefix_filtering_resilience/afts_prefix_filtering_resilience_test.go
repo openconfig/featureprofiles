@@ -12,9 +12,11 @@ package afts_prefix_filtering_resilience_test
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -36,6 +38,8 @@ import (
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -89,6 +93,10 @@ const (
 	staticRouteIndex     = 100
 	pfxCount             = 1
 	aftFilterDUTAS       = 65001
+	// unmatchedPrefixOffset is the offset, past the first un-matched prefix of a
+	// scale pool, at which an additional un-matched prefix is verified to be
+	// absent from the filtered AFT.
+	unmatchedPrefixOffset = 10
 	// aftsPath is the AFT subtree used for the raw gNMI subscription checks.
 	aftsPath = "/network-instances/network-instance/afts"
 )
@@ -96,9 +104,10 @@ const (
 var (
 	// AFT-6.3.2 user adjustable values: X (IPv4 routes), Y (IPv6 routes) and
 	// K (maximum allowed initial synchronization time).
-	scaleIPv4Routes   = flag.Int("scale_ipv4_routes", 5000, "Number of IPv4 routes (X) advertised from the ATE for the AFT-6.3.2 scale test.")
-	scaleIPv6Routes   = flag.Int("scale_ipv6_routes", 2000, "Number of IPv6 routes (Y) advertised from the ATE for the AFT-6.3.2 scale test.")
-	scaleSyncDeadline = flag.Duration("scale_sync_deadline", 300*time.Second, "Maximum allowed AFT initial synchronization time (K) for the AFT-6.3.2 scale test.")
+	scaleIPv4Routes = flag.Int("scale_ipv4_routes", 5000, "Number of IPv4 routes (X) advertised from the ATE for the AFT-6.3.2 scale test.")
+	scaleIPv6Routes = flag.Int("scale_ipv6_routes", 2000, "Number of IPv6 routes (Y) advertised from the ATE for the AFT-6.3.2 scale test.")
+	// Synchronization exceeded limit with 120 seconds so increase to 180 seconds to avoid test failure. The actual convergence time is expected to be much lower than this limit.
+	scaleSyncDeadline = flag.Duration("scale_sync_deadline", 180*time.Second, "Maximum allowed AFT initial synchronization time (K) for the AFT-6.3.2 scale test.")
 
 	dutPort1 = attrs.Attributes{
 		Desc:    "DUT to ATE Port 1",
@@ -158,10 +167,14 @@ var (
 		"100.64.1.0/24",
 		"203.0.113.128/28",
 	}
-	unexpectedPrefixes = []string{
-		"10.0.0.0/8",
-		"172.16.0.0/16",
-		"192.168.0.0/16",
+	// rebootUnmatchedPrefixes are routes that ARE installed in the DUT's DEFAULT
+	// network instance (see defaultIPv4Prefixes / defaultIPv6Prefixes) but are
+	// deliberately NOT part of POLICY-PREFIX-SET-A (see policyIPv4Prefixes /
+	// policyIPv6Prefixes). Their absence from the streamed AFT is what proves
+	// the global filter is actually dropping un-matched routes.
+	rebootUnmatchedPrefixes = []string{
+		"100.64.0.0/24",
+		"2001:db8:2::2/128",
 	}
 	vrfV6Prefixes = []string{
 		"2001:db8:2::/64",
@@ -208,16 +221,7 @@ func TestAFTPrefixFilteringResilience(t *testing.T) {
 	ate.OTG().StartProtocols(t)
 	cfgplugins.IsIPv4InterfaceARPresolved(t, ate, cfgplugins.AddressFamilyParams{InterfaceNames: interfaceNamesList})
 	cfgplugins.IsIPv6InterfaceARPresolved(t, ate, cfgplugins.AddressFamilyParams{InterfaceNames: interfaceNamesList})
-	aftpf.AwaitScaleBGPConvergence(t, dut, aftpf.BGPConvergenceParams{
-		NetworkInstance: deviations.DefaultNetworkInstance(dut),
-		V4Neighbor:      atePort1.IPv4, V6Neighbor: atePort1.IPv6,
-		V4RouteCount: uint32(*scaleIPv4Routes), V6RouteCount: uint32(*scaleIPv6Routes),
-	})
-	aftpf.AwaitScaleBGPConvergence(t, dut, aftpf.BGPConvergenceParams{
-		NetworkInstance: vrfName,
-		V4Neighbor:      atePort2.IPv4, V6Neighbor: atePort2.IPv6,
-		V4RouteCount: uint32(*scaleIPv4Routes), V6RouteCount: uint32(*scaleIPv6Routes),
-	})
+	awaitScaleBGPConvergence(t, dut)
 	tests := []struct {
 		name string
 		test func(t *testing.T, dut *ondatra.DUTDevice)
@@ -367,10 +371,14 @@ func configureScaleBGP(t *testing.T, dut *ondatra.DUTDevice, defaultNI, nonDefau
 }
 
 // fetchAFT collects AFT telemetry from two independent sessions and validates consistency between them.
+// Per AFT-6.3.2 the two subscriptions must stream simultaneously, so both
+// collectors are run concurrently and the caller's elapsed time therefore
+// reflects the true concurrent synchronization time rather than the sum of two
+// sequential collections.
 func fetchAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, aftSession1, aftSession2 *aftcache.AFTStreamSession, stoppingCondition aftcache.PeriodicHook, wantPrefixes map[string]bool, timeout time.Duration) (*aftcache.AFTData, error) {
 	t.Helper()
-	aftpf.RunCollector(t, aftpf.RunCollectorParams{Ctx: ctx, Collector: aftSession1, Stop: stoppingCondition, Timeout: timeout})
-	aftpf.RunCollector(t, aftpf.RunCollectorParams{Ctx: ctx, Collector: aftSession2, Stop: stoppingCondition, Timeout: timeout})
+	runCollectorsConcurrently(t, aftpf.RunCollectorParams{Ctx: ctx, Collector: aftSession1, Stop: stoppingCondition, Timeout: timeout},
+		aftpf.RunCollectorParams{Ctx: ctx, Collector: aftSession2, Stop: stoppingCondition, Timeout: timeout})
 	aft1, err := aftSession1.ToAFT(t, dut)
 	if err != nil {
 		return nil, fmt.Errorf("error getting AFT from session1: %v", err)
@@ -379,8 +387,8 @@ func fetchAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, aftSess
 	if err != nil {
 		return nil, fmt.Errorf("error getting AFT from session2: %v", err)
 	}
-	filteredAFT1 := filterAFTByPrefixes(aft1, wantPrefixes)
-	filteredAFT2 := filterAFTByPrefixes(aft2, wantPrefixes)
+	filteredAFT1 := aft1.FilterByPrefixes(wantPrefixes)
+	filteredAFT2 := aft2.FilterByPrefixes(wantPrefixes)
 	sortSlices := cmpopts.SortSlices(
 		func(a, b uint64) bool {
 			return a < b
@@ -392,9 +400,45 @@ func fetchAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, aftSess
 	return aft1, nil
 }
 
-// filterAFTByPrefixes filters only required prefixes and associated NHGs and NHs from full AFT data.
-func filterAFTByPrefixes(aft *aftcache.AFTData, wantPrefixes map[string]bool) *aftcache.AFTData {
-	return aft.FilterByPrefixes(wantPrefixes)
+// runCollectorsConcurrently starts every supplied AFT collector at the same
+// time and returns once all of them have satisfied their stopping condition.
+// AFT-6.3.2 requires the subscriptions to stream simultaneously; running the
+// collectors back to back would instead measure the sum of two sequential
+// synchronizations and would never exercise the DUT's ability to serve
+// concurrent AFT subscribers.
+func runCollectorsConcurrently(t *testing.T, cfgs ...aftpf.RunCollectorParams) {
+	t.Helper()
+	var wg sync.WaitGroup
+	for _, cfg := range cfgs {
+		wg.Add(1)
+		go func(cfg aftpf.RunCollectorParams) {
+			defer wg.Done()
+			aftpf.RunCollector(t, cfg)
+		}(cfg)
+	}
+	wg.Wait()
+	// A collector failing inside its goroutine marks the test as failed but
+	// cannot abort it from there, so stop the test here on the main goroutine.
+	if t.Failed() {
+		t.FailNow()
+	}
+}
+
+// awaitScaleBGPConvergence waits for the eBGP sessions in the default network
+// instance and in the non-default VRF to establish and for the expected scale
+// IPv4/IPv6 route counts to be installed.
+func awaitScaleBGPConvergence(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	aftpf.AwaitScaleBGPConvergence(t, dut, aftpf.BGPConvergenceParams{
+		NetworkInstance: deviations.DefaultNetworkInstance(dut),
+		V4Neighbor:      atePort1.IPv4, V6Neighbor: atePort1.IPv6,
+		V4RouteCount: uint32(*scaleIPv4Routes), V6RouteCount: uint32(*scaleIPv6Routes),
+	})
+	aftpf.AwaitScaleBGPConvergence(t, dut, aftpf.BGPConvergenceParams{
+		NetworkInstance: vrfName,
+		V4Neighbor:      atePort2.IPv4, V6Neighbor: atePort2.IPv6,
+		V4RouteCount: uint32(*scaleIPv4Routes), V6RouteCount: uint32(*scaleIPv6Routes),
+	})
 }
 
 // testAfterReboot validates that AFT filtering policies and filtered entries
@@ -416,21 +460,31 @@ func testAfterReboot(t *testing.T, dut *ondatra.DUTDevice) {
 	if err != nil {
 		t.Fatalf("Failed to fetch initial AFT: %v", err)
 	}
-	verifyFilteredPrefixes(t, aftBefore, wantPrefixes, unexpectedPrefixes, true)
+	verifyFilteredPrefixes(t, aftBefore, wantPrefixes, rebootUnmatchedPrefixes, true)
 	// Get initial boot time.
 	lastBootTime, err := bootTime(t, dut)
 	if err != nil {
 		t.Fatalf("Failed to get boot time: %v", err)
 	}
+	// Open an additional AFT subscription on the same client used before the
+	// reboot and keep it active across the reboot so that its termination can be
+	// asserted on the pre-existing stream (rather than on a new subscription
+	// created after the DUT is already down).
+	monitoredStream := startAFTStream(ctx, t, aftClient1)
 	t.Log("Rebooting DUT")
 	rebootDUT(t, dut)
 	// The subscription is active while the DUT reboots; verify the stream is
 	// terminated by the DUT going down.
-	verifyStreamTerminated(ctx, t, aftClient1)
+	verifyStreamTerminated(t, monitoredStream)
 	// Wait for DUT recovery.
 	waitForReboot(t, dut, lastBootTime)
 	// Verify policy persistence after reboot.
 	verifyGlobalFilterPolicies(t, dut, ipv4Policy, ipv6Policy)
+	// The reboot tears down the eBGP sessions, so wait for them to re-establish
+	// and for the scale routes to be re-learned before continuing. Otherwise the
+	// subsequent subtests would start against a partially converged RIB/AFT.
+	t.Log("Waiting for BGP sessions and scale routes to re-converge after reboot")
+	awaitScaleBGPConvergence(t, dut)
 	// Re-establish subscriptions.
 	t.Log("Re-establishing AFT subscriptions")
 	aftSession3 := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
@@ -441,21 +495,18 @@ func testAfterReboot(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Fatalf("Failed to fetch AFT after reboot: %v", err)
 	}
 	// Verify filtered entries after reboot.
-	verifyFilteredPrefixes(t, aftAfter, wantPrefixes, unexpectedPrefixes, true)
+	verifyFilteredPrefixes(t, aftAfter, wantPrefixes, rebootUnmatchedPrefixes, true)
 	t.Log("AFT reboot validation completed successfully")
 }
 
-// verifyStreamTerminated verifies that a gNMI AFT subscription established on
-// the same client used before the reboot is torn down once the DUT goes down.
-// Only transport level errors are expected during the reboot window.
-func verifyStreamTerminated(ctx context.Context, t *testing.T, client gpb.GNMIClient) {
+// startAFTStream establishes an AFT ON_CHANGE subscription on the given client
+// and returns the active stream. The stream is intentionally left open so that
+// its termination can be observed later.
+func startAFTStream(ctx context.Context, t *testing.T, client gpb.GNMIClient) gpb.GNMI_SubscribeClient {
 	t.Helper()
-	subCtx, cancel := context.WithTimeout(ctx, streamTerminationWait)
-	defer cancel()
-	stream, err := client.Subscribe(subCtx)
+	stream, err := client.Subscribe(ctx)
 	if err != nil {
-		t.Logf("gNMI AFT stream terminated as expected after reboot: %v", err)
-		return
+		t.Fatalf("Failed to establish gNMI AFT subscription before reboot: %v", err)
 	}
 	req := &gpb.SubscribeRequest{
 		Request: &gpb.SubscribeRequest_Subscribe{
@@ -470,18 +521,69 @@ func verifyStreamTerminated(ctx context.Context, t *testing.T, client gpb.GNMICl
 		},
 	}
 	if err := stream.Send(req); err != nil {
+		t.Fatalf("Failed to send gNMI AFT subscribe request before reboot: %v", err)
+	}
+	return stream
+}
+
+// verifyStreamTerminated verifies that the gNMI AFT subscription that was
+// already active before the reboot is torn down once the DUT goes down. Only
+// transport level errors are expected during the reboot window; if no error is
+// observed within streamTerminationWait the test fails, since a client side
+// timeout is not a valid proof of stream termination.
+func verifyStreamTerminated(t *testing.T, stream gpb.GNMI_SubscribeClient) {
+	t.Helper()
+	errCh := make(chan error, 1)
+	go func() {
+		for {
+			if _, err := stream.Recv(); err != nil {
+				errCh <- err
+				return
+			}
+		}
+	}()
+	select {
+	case err := <-errCh:
+		// A deadline/cancellation raised by the test's own context means the
+		// client gave up, not that the DUT terminated the stream.
+		if isContextError(err) {
+			t.Fatalf("gNMI AFT stream ended due to a client side context error, not DUT stream termination: %v", err)
+		}
+		if !isEndpointUnreachableError(err) {
+			t.Fatalf("gNMI AFT stream ended with non-endpoint error during reboot window: %v", err)
+		}
 		t.Logf("gNMI AFT stream terminated as expected after reboot: %v", err)
-		return
+	case <-time.After(streamTerminationWait):
+		t.Fatalf("gNMI AFT stream did not terminate within %v after the reboot was issued", streamTerminationWait)
 	}
-	for {
-		if _, err := stream.Recv(); err != nil {
-			t.Logf("gNMI AFT stream terminated as expected after reboot: %v", err)
-			return
-		}
-		if subCtx.Err() != nil {
-			t.Fatalf("gNMI AFT stream did not terminate within %v after the reboot was issued", streamTerminationWait)
-		}
+}
+
+// isContextError reports whether err was caused by the client context being
+// cancelled or exceeding its deadline, rather than by the DUT closing the RPC.
+func isContextError(err error) bool {
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		return true
 	}
+	switch status.Code(err) {
+	case codes.DeadlineExceeded, codes.Canceled:
+		return true
+	}
+	return false
+}
+
+// isEndpointUnreachableError reports whether err indicates the DUT endpoint
+// became unreachable while rebooting.
+func isEndpointUnreachableError(err error) bool {
+	if status.Code(err) == codes.Unavailable {
+		return true
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "connection refused") ||
+		strings.Contains(msg, "no route to host") ||
+		strings.Contains(msg, "network is unreachable") ||
+		strings.Contains(msg, "broken pipe") ||
+		strings.Contains(msg, "transport is closing") ||
+		strings.Contains(msg, "eof")
 }
 
 // verifyGlobalFilterPolicies verifies global-filter IPv4/IPv6 policies persisted.
@@ -493,30 +595,47 @@ func verifyGlobalFilterPolicies(t *testing.T, dut *ondatra.DUTDevice, wantIPv4Po
 			aftpf.VerifyGlobalFilterPoliciesCLI(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{V4Policy: wantIPv4Policy, V6Policy: wantIPv6Policy})
 		}
 	} else {
-		const (
-			ocPolicyPathV4 = "/network-instances/network-instance/afts/global-filter/config/ipv4-policy"
-			ocPolicyPathV6 = "/network-instances/network-instance/afts/global-filter/config/ipv6-policy"
-		)
+		// network-instance is a keyed list, so the query must be scoped to a
+		// single instance. Without the [name=...] key the DUT would either
+		// reject the request or return the global-filter policies of every
+		// network instance, and the last notification received would
+		// non-deterministically overwrite the values checked below.
+		niName := deviations.DefaultNetworkInstance(dut)
+		ocPolicyConfigPathV4 := fmt.Sprintf("/network-instances/network-instance[name=%s]/afts/global-filter/config/ipv4-policy", niName)
+		ocPolicyConfigPathV6 := fmt.Sprintf("/network-instances/network-instance[name=%s]/afts/global-filter/config/ipv6-policy", niName)
+		ocPolicyStatePathV4 := fmt.Sprintf("/network-instances/network-instance[name=%s]/afts/global-filter/state/ipv4-policy", niName)
+		ocPolicyStatePathV6 := fmt.Sprintf("/network-instances/network-instance[name=%s]/afts/global-filter/state/ipv6-policy", niName)
 		gnmiClient, err := dut.RawAPIs().BindingDUT().DialGNMI(context.Background())
 		if err != nil {
 			t.Fatalf("Failed to dial GNMI: %v", err)
 		}
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		req := &gpb.GetRequest{
+		configReq := &gpb.GetRequest{
 			Path: []*gpb.Path{
-				gnmiPath(t, ocPolicyPathV4),
-				gnmiPath(t, ocPolicyPathV6),
+				gnmiPath(t, ocPolicyConfigPathV4),
+				gnmiPath(t, ocPolicyConfigPathV6),
 			},
 			Type: gpb.GetRequest_CONFIG,
 		}
-		resp, err := gnmiClient.Get(ctx, req)
+		configResp, err := gnmiClient.Get(ctx, configReq)
 		if err != nil {
-			t.Fatalf("GNMI Get failed: %v", err)
+			t.Fatalf("GNMI Get for global-filter config failed: %v", err)
 		}
-		var gotIPv4Policy string
-		var gotIPv6Policy string
-		for _, notif := range resp.GetNotification() {
+		stateReq := &gpb.GetRequest{
+			Path: []*gpb.Path{
+				gnmiPath(t, ocPolicyStatePathV4),
+				gnmiPath(t, ocPolicyStatePathV6),
+			},
+			Type: gpb.GetRequest_STATE,
+		}
+		stateResp, err := gnmiClient.Get(ctx, stateReq)
+		if err != nil {
+			t.Fatalf("GNMI Get for global-filter state failed: %v", err)
+		}
+		var gotConfigIPv4Policy string
+		var gotConfigIPv6Policy string
+		for _, notif := range configResp.GetNotification() {
 			for _, upd := range notif.GetUpdate() {
 				path, err := ygot.PathToString(upd.GetPath())
 				if err != nil {
@@ -525,19 +644,42 @@ func verifyGlobalFilterPolicies(t *testing.T, dut *ondatra.DUTDevice, wantIPv4Po
 				val := upd.GetVal().GetStringVal()
 				switch {
 				case strings.Contains(path, "ipv4-policy"):
-					gotIPv4Policy = val
+					gotConfigIPv4Policy = val
 				case strings.Contains(path, "ipv6-policy"):
-					gotIPv6Policy = val
+					gotConfigIPv6Policy = val
 				}
 			}
 		}
-		if gotIPv4Policy != wantIPv4Policy {
-			t.Fatalf("IPv4 policy mismatch got=%s want=%s", gotIPv4Policy, wantIPv4Policy)
+		var gotStateIPv4Policy string
+		var gotStateIPv6Policy string
+		for _, notif := range stateResp.GetNotification() {
+			for _, upd := range notif.GetUpdate() {
+				path, err := ygot.PathToString(upd.GetPath())
+				if err != nil {
+					t.Fatalf("PathToString failed: %v", err)
+				}
+				val := upd.GetVal().GetStringVal()
+				switch {
+				case strings.Contains(path, "ipv4-policy"):
+					gotStateIPv4Policy = val
+				case strings.Contains(path, "ipv6-policy"):
+					gotStateIPv6Policy = val
+				}
+			}
 		}
-		if gotIPv6Policy != wantIPv6Policy {
-			t.Fatalf("IPv6 policy mismatch got=%s want=%s", gotIPv6Policy, wantIPv6Policy)
+		if gotConfigIPv4Policy != wantIPv4Policy {
+			t.Fatalf("IPv4 config policy mismatch got=%s want=%s", gotConfigIPv4Policy, wantIPv4Policy)
 		}
-		t.Logf("Verified persisted global-filter policies IPv4=%s IPv6=%s", gotIPv4Policy, gotIPv6Policy)
+		if gotConfigIPv6Policy != wantIPv6Policy {
+			t.Fatalf("IPv6 config policy mismatch got=%s want=%s", gotConfigIPv6Policy, wantIPv6Policy)
+		}
+		if gotStateIPv4Policy != wantIPv4Policy {
+			t.Fatalf("IPv4 state policy mismatch got=%s want=%s", gotStateIPv4Policy, wantIPv4Policy)
+		}
+		if gotStateIPv6Policy != wantIPv6Policy {
+			t.Fatalf("IPv6 state policy mismatch got=%s want=%s", gotStateIPv6Policy, wantIPv6Policy)
+		}
+		t.Logf("Verified persisted global-filter config/state policies for %s: ipv4=%s ipv6=%s", niName, gotConfigIPv4Policy, gotConfigIPv6Policy)
 	}
 }
 
@@ -753,21 +895,24 @@ func waitForReboot(t *testing.T, dut *ondatra.DUTDevice, lastBootTime uint64) {
 			}
 		}
 	}
-	t.Logf("Device boot time: %.2f seconds.", time.Since(startReboot).Seconds())
-	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
-	_, err := dut.RawAPIs().BindingDUT().DialGNMI(t.Context())
-	if err != nil {
-		t.Fatalf("Failed to dial GNMI after reboot: %v", err)
-	}
-	// Wait for boot time to change.
-	_, ok := gnmi.Watch(t, dut, gnmi.OC().System().BootTime().State(), maxRebootTime, bootTimePredicate(lastBootTime)).Await(t)
+	t.Logf("DUT became reachable again after %.2f seconds; waiting for the boot time telemetry to update.", time.Since(startReboot).Seconds())
+	// No explicit gNMI dial is performed here: gRPC dialing in Go is
+	// non-blocking, so a successful Dial would not prove the gNMI server is
+	// serving again. The Watch below issues real RPCs and is therefore the
+	// actual readiness check.
+	// Wait for boot time to change. The Watch below already returns the boot
+	// time it last observed, so the value is reused instead of starting another
+	// watch just to read it back.
+	val, ok := gnmi.Watch(t, dut, gnmi.OC().System().BootTime().State(), maxRebootTime, bootTimePredicate(lastBootTime)).Await(t)
 	if !ok {
-		currentBootTime, _ := bootTime(t, dut)
-		t.Fatalf("Boot time did not update after reboot. Current: %d, Last: %d", currentBootTime, lastBootTime)
+		lastObserved, present := val.Val()
+		if !present {
+			t.Fatalf("Boot time did not update after reboot; no boot time reported. Last: %d", lastBootTime)
+		}
+		t.Fatalf("Boot time did not update after reboot. Current: %d, Last: %d", lastObserved, lastBootTime)
 	}
-	t.Logf("Device boot time: %.2f seconds.", time.Since(startReboot).Seconds())
-	currentBootTime, _ := bootTime(t, dut)
-	t.Logf("Boot time successfully changed from %d to %d", lastBootTime, currentBootTime)
+	currentBootTime, _ := val.Val()
+	t.Logf("Reboot completed in %.2f seconds; boot time successfully changed from %d to %d.", time.Since(startReboot).Seconds(), lastBootTime, currentBootTime)
 }
 
 // bootTimePredicate returns a predicate that evaluates to true when the DUT
@@ -814,8 +959,6 @@ func rebootDUT(t *testing.T, dut *ondatra.DUTDevice) {
 //  6. Verify only expected filtered prefixes are streamed.
 func testScaleFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	var ipv4Prefixes, ipv6Prefixes []string
 	// Enumerate the scale routes advertised via BGP from the ATE
 	t.Logf("Using %d IPv4 and %d IPv6 BGP-advertised scale routes", *scaleIPv4Routes, *scaleIPv6Routes)
@@ -886,15 +1029,25 @@ func testScaleFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			// Scope the streaming context to this scenario. Each scenario opens two
+			// AFT stream sessions, and every session starts a background reader
+			// goroutine that lives until its context is cancelled. Cancelling here
+			// tears the sessions down at the end of the scenario so that the DUT
+			// never has to serve the subscriptions of all scenarios at once.
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 			// Select expected prefixes
 			var selectedPrefixes []string
+			var unmatchedPrefixes []string
 			var wantPrefixes map[string]bool
 			var stoppingCondition aftcache.PeriodicHook
 			if tc.ipv4 {
 				selectedPrefixes = selectPercentagePrefixes(ipv4Prefixes, tc.matchPercent)
+				unmatchedPrefixes = unmatchedScalePrefixes(ipv4Prefixes, tc.matchPercent)
 				wantPrefixes = aftpf.GeneratePrefixes(t, aftpf.GeneratePrefixesParams{V4Prefixes: selectedPrefixes, V6Prefixes: nil, PfxCount: pfxCount})
 			} else {
 				selectedPrefixes = selectPercentagePrefixes(ipv6Prefixes, tc.matchPercent)
+				unmatchedPrefixes = unmatchedScalePrefixes(ipv6Prefixes, tc.matchPercent)
 				wantPrefixes = aftpf.GeneratePrefixes(t, aftpf.GeneratePrefixesParams{V4Prefixes: nil, V6Prefixes: selectedPrefixes, PfxCount: pfxCount})
 			}
 			// Create subscriptions
@@ -920,16 +1073,18 @@ func testScaleFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 				t.Fatalf("Synchronization exceeded limit got=%v want<=%v", syncDuration, *scaleSyncDeadline)
 			}
 			// Verify filtering correctness
-			verifyFilteredPrefixes(t, aftData, wantPrefixes, unexpectedPrefixes, tc.ipv4)
-			t.Logf("Verified scale filtering for %s", tc.name)
+			verifyFilteredPrefixes(t, aftData, wantPrefixes, unmatchedPrefixes, tc.ipv4)
+			t.Logf("Verified scale filtering for %s: %d matched prefixes present, %d unmatched prefixes absent", tc.name, len(selectedPrefixes), len(unmatchedPrefixes))
 		})
 	}
 }
 
 // verifyFilteredPrefixes validates that the AFT contains all expected prefixes
 // after applying the filter policy and does not contain prefixes that should
-// have been filtered out.
-func verifyFilteredPrefixes(t *testing.T, aftPrefixes *aftcache.AFTData, wantPrefixes map[string]bool, unexpectedPrefixes []string, ipv4 bool) {
+// have been filtered out. unmatchedPrefixes must contain routes that are
+// actually installed on the DUT but excluded by the active filter policy;
+// prefixes that were never advertised would make the negative check vacuous.
+func verifyFilteredPrefixes(t *testing.T, aftPrefixes *aftcache.AFTData, wantPrefixes map[string]bool, unmatchedPrefixes []string, ipv4 bool) {
 	t.Helper()
 	addressFamily := "IPv6"
 	if ipv4 {
@@ -941,10 +1096,10 @@ func verifyFilteredPrefixes(t *testing.T, aftPrefixes *aftcache.AFTData, wantPre
 			t.Fatalf("Expected %s prefix missing from filtered AFT: %s", addressFamily, pfx)
 		}
 	}
-	// Verify prefixes expected to be filtered out are absent.
-	for _, pfx := range unexpectedPrefixes {
+	// Verify installed-but-unmatched prefixes were filtered out.
+	for _, pfx := range unmatchedPrefixes {
 		if _, ok := aftPrefixes.Prefixes[pfx]; ok {
-			t.Fatalf("Unexpected %s prefix present after filtering: %s", addressFamily, pfx)
+			t.Fatalf("Unmatched %s prefix present after filtering: %s", addressFamily, pfx)
 		}
 	}
 	t.Logf("Verified %s filtered prefixes", addressFamily)
@@ -957,6 +1112,38 @@ func selectPercentagePrefixes(prefixes []string, percent int) []string {
 		count = 1
 	}
 	return prefixes[:count]
+}
+
+// unmatchedScalePrefixes returns representative prefixes from the portion of
+// the scale pool that the active policy does NOT match, i.e. everything after
+// the percentage-based subset returned by selectPercentagePrefixes. These
+// prefixes are advertised by the ATE and are therefore present in the DUT's
+// unfiltered AFT, so asserting their absence from the streamed AFT validates
+// that the global filter drops un-matched routes. Representative prefixes are
+// taken at the filter boundary (first unmatched prefix), at a fixed offset
+// beyond the boundary, and at the end of the pool, instead of every remaining
+// prefix, to keep the verification inexpensive.
+func unmatchedScalePrefixes(prefixes []string, matchPercent int) []string {
+	matchedCount := len(selectPercentagePrefixes(prefixes, matchPercent))
+	if matchedCount >= len(prefixes) {
+		return nil
+	}
+	unmatched := prefixes[matchedCount:]
+	boundaryOffsets := []int{0, unmatchedPrefixOffset, len(unmatched) - 1}
+	selected := make(map[string]bool)
+	var result []string
+	for _, offset := range boundaryOffsets {
+		if offset < 0 || offset >= len(unmatched) {
+			continue
+		}
+		prefix := unmatched[offset]
+		if selected[prefix] {
+			continue
+		}
+		selected[prefix] = true
+		result = append(result, prefix)
+	}
+	return result
 }
 
 // testPerNIFiltering validates:
@@ -1003,29 +1190,37 @@ func testPerNIFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 	// Validate Collector-2
 	aftpf.VerifyPrefixesPresent(t, aftpf.PrefixesParams{InfoAFT: vrfAFT, Prefixes: []string{matchVrfPfx1}})
 	aftpf.VerifyPrefixesAbsent(t, aftpf.PrefixesParams{InfoAFT: vrfAFT, Prefixes: []string{matchPrefixAft1, matchPrefixAft2, matchVrfPfx3}})
-	// Add unmatched route to DEFAULT
-	// Neither collector should receive it
-	t.Log("Adding unmatched route to DEFAULT")
+	// Install the routes that must be filtered out together with a canary route
+	// that each collector IS expected to receive. The canary is matched by the
+	// collector's own policy, so its arrival proves the stream was live and the
+	// DUT had time to propagate updates. Only once the canary has been observed
+	// can the absence of the unmatched routes be treated as evidence of
+	// filtering rather than of the test checking too early.
+	t.Log("Adding routes that must be filtered out, plus per-collector canary routes")
 	aftpf.AddSingleStaticRoute(t, dut, aftpf.AddStaticRouteParams{NetworkInstanceName: deviations.DefaultNetworkInstance(dut), Prefix: v4AbsentPfx1, Index: fmt.Sprintf("%d", staticRouteIndex+900), NextHop: atePort1.IPv4})
-	mustVerifyPrefixAbsent(t, dut, collector1, v4AbsentPfx1)
-	mustVerifyPrefixAbsent(t, dut, collector2, v4AbsentPfx1)
-	// Add unmatched route
-	t.Log("Adding unmatched route to DEFAULT")
 	aftpf.AddSingleStaticRoute(t, dut, aftpf.AddStaticRouteParams{NetworkInstanceName: deviations.DefaultNetworkInstance(dut), Prefix: v4AbsentPfx2, Index: fmt.Sprintf("%d", staticRouteIndex+901), NextHop: atePort1.IPv4})
-	mustVerifyPrefixAbsent(t, dut, collector1, v4AbsentPfx2)
-	mustVerifyPrefixAbsent(t, dut, collector2, v4AbsentPfx2)
-	// Add matched exact route to DEFAULT
-	// Collector1 should receive it
-	t.Log("Adding matched route to DEFAULT")
+	// Canary for Collector-1: matched by POLICY-PREFIX-SET-A in DEFAULT.
 	aftpf.AddSingleStaticRoute(t, dut, aftpf.AddStaticRouteParams{NetworkInstanceName: deviations.DefaultNetworkInstance(dut), Prefix: matchVrfPfx4, Index: fmt.Sprintf("%d", staticRouteIndex+902), NextHop: atePort1.IPv4})
-	waitForPrefixesPresent(ctx, t, dut, collector1, []string{matchVrfPfx4}, subscriptionWait, atePort1.IPv4)
-	mustVerifyPrefixAbsent(t, dut, collector2, matchVrfPfx4)
-	// Add matched subnet route to VRF-A
-	// Collector2 should receive it
-	t.Log("Adding matched subnet route to VRF-A")
+	// Canary for Collector-2: matched by POLICY-PREFIX-SET-VRF-A in VRF-A.
 	aftpf.AddSingleStaticRoute(t, dut, aftpf.AddStaticRouteParams{NetworkInstanceName: vrfName, Prefix: matchVrfPfx2, Index: fmt.Sprintf("%d", staticRouteIndex+903), NextHop: atePort2.IPv4})
-	waitForPrefixesPresent(ctx, t, dut, collector2, []string{matchVrfPfx2}, subscriptionWait, atePort2.IPv4)
-	mustVerifyPrefixAbsent(t, dut, collector1, matchVrfPfx2)
+	// Collector-1 must receive its own canary and must never receive the routes
+	// excluded by its filter, nor the VRF-A canary.
+	t.Log("Observing Collector-1 stream for leaked prefixes")
+	verifyPrefixesFilteredDuringStream(ctx, t, dut, collector1, prefixLeakCheckParams{
+		CollectorName:     "Collector1",
+		CanaryPrefix:      matchVrfPfx4,
+		ForbiddenPrefixes: []string{v4AbsentPfx1, v4AbsentPfx2, matchVrfPfx2},
+		Timeout:           subscriptionWait,
+	})
+	// Collector-2 must receive its own canary and must never receive the DEFAULT
+	// routes, nor the DEFAULT canary.
+	t.Log("Observing Collector-2 stream for leaked prefixes")
+	verifyPrefixesFilteredDuringStream(ctx, t, dut, collector2, prefixLeakCheckParams{
+		CollectorName:     "Collector2",
+		CanaryPrefix:      matchVrfPfx2,
+		ForbiddenPrefixes: []string{v4AbsentPfx1, v4AbsentPfx2, matchVrfPfx4},
+		Timeout:           subscriptionWait,
+	})
 	// Change VRF-A policy to MATCH-ALL
 	t.Log("Changing VRF-A policy to POLICY-MATCH-ALL")
 	aftpf.ConfigureGlobalFilterPolicies(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{V4Policy: matchAllPolicy, V6Policy: matchAllPolicy, VRFName: vrfName})
@@ -1036,6 +1231,11 @@ func testPerNIFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	aftpf.VerifyPrefixesPresent(t, aftpf.PrefixesParams{InfoAFT: defaultAFTAfter, Prefixes: policyIPv4Prefixes})
 	aftpf.VerifyPrefixesAbsent(t, aftpf.PrefixesParams{InfoAFT: defaultAFTAfter, Prefixes: []string{v4AbsentPfx1, v4AbsentPfx2}})
+	// The filter-policy reconfiguration may cause the DUT to terminate
+	// Collector 2's stream, so re-establish the subscription and validate the
+	// full set of VRF-A prefixes after SYNC on the new stream.
+	t.Log("Re-establishing Collector2 subscription after the VRF-A filter policy change")
+	collector2 = reestablishAFTSession(ctx, t, dut)
 	// Collector2 should now receive all VRF-A routes within 60 seconds.
 	t.Log("Waiting for Collector2 to receive all VRF-A routes")
 	wantAllVRF := []string{matchPrefixAft1, matchVrfPfx1, matchVrfPfx3, matchVrfPfx2}
@@ -1043,22 +1243,68 @@ func testPerNIFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Per-network-instance filtering validation completed successfully")
 }
 
-// mustVerifyPrefixAbsent validates prefix absent.
-func mustVerifyPrefixAbsent(t *testing.T, dut *ondatra.DUTDevice, session *aftcache.AFTStreamSession, prefix string) {
-	t.Helper()
-	aft, err := session.ToAFT(t, dut)
-	if err != nil {
-		t.Fatalf("ToAFT failed: %v", err)
-	}
-	if _, ok := aft.Prefixes[prefix]; ok {
-		t.Fatalf("Unexpected prefix received: %s", prefix)
-	}
+// prefixLeakCheckParams holds the parameters used to verify, on a live AFT
+// stream, that filtered-out prefixes never reach a collector.
+type prefixLeakCheckParams struct {
+	// CollectorName identifies the collector in log and failure messages.
+	CollectorName string
+	// CanaryPrefix is a prefix the collector IS expected to receive. Observing
+	// it proves the stream is live and that the DUT has propagated the routes
+	// installed alongside it.
+	CanaryPrefix string
+	// ForbiddenPrefixes lists prefixes the collector must never receive.
+	ForbiddenPrefixes []string
+	// Timeout bounds how long the stream is observed while waiting for the
+	// canary prefix.
+	Timeout time.Duration
 }
 
-// waitForPrefixesPresent validates all prefixes appear.
+// verifyPrefixesFilteredDuringStream listens on the collector's live AFT stream
+// until the canary prefix is received, failing as soon as any forbidden prefix
+// appears. Listening on the stream, rather than inspecting the cached snapshot
+// synchronously right after installing a route, ensures the DUT has been given
+// time to propagate updates: a snapshot read taken immediately after a route is
+// added would pass even if the DUT leaked that route moments later.
+func verifyPrefixesFilteredDuringStream(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, session *aftcache.AFTStreamSession, cfg prefixLeakCheckParams) {
+	t.Helper()
+	stoppingCondition := aftcache.PeriodicHook{
+		Description: fmt.Sprintf("%s: await canary %s while checking for leaked prefixes", cfg.CollectorName, cfg.CanaryPrefix),
+		PeriodicFunc: func(ss *aftcache.AFTStreamSession) (bool, error) {
+			aft, err := ss.ToAFT(t, dut)
+			if err != nil {
+				return false, err
+			}
+			for _, prefix := range cfg.ForbiddenPrefixes {
+				if _, ok := aft.Prefixes[prefix]; ok {
+					return false, fmt.Errorf("%s received filtered-out prefix %s", cfg.CollectorName, prefix)
+				}
+			}
+			if _, ok := aft.Prefixes[cfg.CanaryPrefix]; !ok {
+				return false, nil
+			}
+			t.Logf("%s received canary prefix %s; no filtered-out prefixes leaked", cfg.CollectorName, cfg.CanaryPrefix)
+			return true, nil
+		},
+	}
+	session.ListenUntil(ctx, t, cfg.Timeout, stoppingCondition)
+}
+
+// waitForPrefixesPresent validates that all prefixes appear on the collector's
+// stream after SYNC, using the existing aftcache streaming API.
 func waitForPrefixesPresent(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, session *aftcache.AFTStreamSession, prefixes []string, timeout time.Duration, nextHop string) {
 	t.Helper()
 	wantPrefixes := aftpf.GeneratePrefixes(t, aftpf.GeneratePrefixesParams{V4Prefixes: prefixes, V6Prefixes: nil, PfxCount: pfxCount})
 	stoppingCondition := aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, map[string]bool{nextHop: true}, nil)
 	session.ListenUntil(ctx, t, timeout, stoppingCondition)
+}
+
+// reestablishAFTSession dials a new gNMI client and returns a fresh AFT stream
+// session. It is used after a global-filter policy reconfiguration, which the
+// DUT is allowed to answer by terminating the existing AFT subscription. The
+// previous session's stream may therefore already be closed, and continuing to
+// listen on it would fail instead of validating the new filter behaviour, so
+// the verification is always performed on a re-established subscription.
+func reestablishAFTSession(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) *aftcache.AFTStreamSession {
+	t.Helper()
+	return aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
 }
