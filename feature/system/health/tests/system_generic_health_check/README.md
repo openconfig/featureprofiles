@@ -52,6 +52,18 @@ rpcs:
 paths:
   ## Config Parameter coverage
 
+    /components/component/cpu/utilization/state/avg:
+       platform_type: ["CPU"]
+    /components/component/integrated-circuit/pipeline-counters/drop/fabric-block/state/lost-packets:
+       platform_type: ["INTEGRATED_CIRCUIT"]
+    /components/component/integrated-circuit/pipeline-counters/drop/lookup-block/state/acl-drops:
+       platform_type: ["INTEGRATED_CIRCUIT"]
+    /components/component/integrated-circuit/pipeline-counters/drop/lookup-block/state/incorrect-software-state:
+       platform_type: ["INTEGRATED_CIRCUIT"]
+    /components/component/integrated-circuit/pipeline-counters/drop/lookup-block/state/invalid-packet:
+       platform_type: ["INTEGRATED_CIRCUIT"]
+    /components/component/integrated-circuit/pipeline-counters/drop/lookup-block/state/no-nexthop:
+       platform_type: ["INTEGRATED_CIRCUIT"]
     /components/component/state/memory/available:
        platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU"]
     /components/component/state/memory/utilized:
@@ -80,6 +92,9 @@ paths:
     /interfaces/interface/subinterfaces/subinterface/state/counters/in-unknown-protos:
     /interfaces/interface/subinterfaces/subinterface/state/counters/out-discards:
     /interfaces/interface/subinterfaces/subinterface/state/counters/out-errors:
+    /interfaces/interface/subinterfaces/subinterface/state/counters/out-octets:
+    /interfaces/interface/subinterfaces/subinterface/state/admin-status:
+    /interfaces/interface/subinterfaces/subinterface/state/description:
     /interfaces/interface/ethernet/state/counters/in-mac-pause-frames:
     /interfaces/interface/ethernet/state/counters/out-mac-pause-frames:
     /interfaces/interface/ethernet/state/counters/in-crc-errors:

@@ -322,6 +322,7 @@ type NexthopGroupUDPParams struct {
 	Index              string
 	DstIp              []string
 	SrcIp              string
+	SrcInterface       string
 	DstUdpPort         uint16
 	SrcUdpPort         uint16
 	TTL                uint8
@@ -400,11 +401,17 @@ func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, params
 					tunnelDst += fmt.Sprintf("entry %d tunnel-destination %s \n", i, addr)
 				}
 				cli = fmt.Sprintf(`
+					qos rewrite ipv4-over-udp inner dscp disabled
+					qos rewrite ipv6-over-udp inner dscp disabled
 					nexthop-group %s type %s
-					tunnel-source intf %s
 					fec hierarchical
    					%s
-					`, params.NexthopGrpName, groupType, params.SrcIp, tunnelDst)
+					`, params.NexthopGrpName, groupType, tunnelDst)
+				if params.SrcInterface != "" {
+					cli += fmt.Sprintf("tunnel-source intf %s", params.SrcInterface)
+				} else {
+					cli += fmt.Sprintf("tunnel-source %s", params.SrcIp)
+				}
 				helpers.GnmiCLIConfig(t, dut, cli)
 			}
 			if params.TTL != 0 {
@@ -449,6 +456,32 @@ func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, params
 		ueh1.GetOrCreateUdpV4().SetDscp(params.DSCP)
 		ueh1.GetOrCreateUdpV4().SetDstUdpPort(params.DstUdpPort)
 		ueh1.GetOrCreateUdpV4().SetSrcUdpPort(params.SrcUdpPort)
+	}
+}
+
+// RemoveNextHopGroupConfigForIpOverUdp deletes a nexthop-group previously created
+// by NextHopGroupConfigForIpOverUdp, allowing tests to revert the DUT to its
+// original state.
+func RemoveNextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, params NexthopGroupUDPParams) {
+	t.Helper()
+	if deviations.NextHopGroupOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			var groupType string
+			switch params.IPFamily {
+			case "V4Udp":
+				groupType = "ipv4-over-udp"
+			case "V6Udp":
+				groupType = "ipv6-over-udp"
+			default:
+				t.Fatalf("Unsupported address family type %q", params.IPFamily)
+			}
+			helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("no nexthop-group %s type %s\n", params.NexthopGrpName, groupType))
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group removal'", dut.Vendor())
+		}
+	} else if params.NetworkInstanceObj != nil {
+		params.NetworkInstanceObj.GetOrCreateStatic().DeleteNextHopGroup(params.NexthopGrpName)
 	}
 }
 
