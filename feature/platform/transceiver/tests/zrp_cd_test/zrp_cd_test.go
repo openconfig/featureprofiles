@@ -2,7 +2,6 @@ package zrp_cd_test
 
 import (
 	"flag"
-	"reflect"
 	"testing"
 	"time"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 const (
@@ -36,8 +36,27 @@ func TestMain(m *testing.M) {
 }
 
 func verifyCDValue(t *testing.T, dut1 *ondatra.DUTDevice, pStream *samplestream.SampleStream[float64], sensorName string, operStatus oc.E_Interface_OperStatus) float64 {
-	cdSampleNexts := pStream.Nexts(2)
-	cdSample := cdSampleNexts[1]
+	cdSample, ok := pStream.AwaitNext(timeout, func(v *ygnmi.Value[float64]) bool {
+		val, present := v.Val()
+		if !present {
+			return false
+		}
+		switch operStatus {
+		case oc.Interface_OperStatus_DOWN:
+			return val == inActiveCDValue
+		case oc.Interface_OperStatus_UP:
+			return val >= minCDValue && val <= maxCDValue
+		default:
+			return false
+		}
+	})
+	if !ok {
+		t.Fatalf("CD telemetry %s did not settle to expected value for %v within %v", sensorName, operStatus, timeout)
+	}
+	cdSampleNexts := pStream.All()
+	if n := len(cdSampleNexts); n > 2 {
+		cdSampleNexts = cdSampleNexts[n-2:]
+	}
 	t.Logf("CDSampleNexts %v", cdSampleNexts)
 	if cdSample == nil {
 		t.Fatalf("CD telemetry %s was not streamed in the most recent subscription interval", sensorName)
@@ -46,10 +65,6 @@ func verifyCDValue(t *testing.T, dut1 *ondatra.DUTDevice, pStream *samplestream.
 	if !ok {
 		t.Fatalf("CD %q telemetry is not present", cdSample)
 	}
-	if reflect.TypeOf(cdVal).Kind() != reflect.Float64 {
-		t.Fatalf("CD value is not type float64")
-	}
-	// Check CD return value of correct type
 	switch operStatus {
 	case oc.Interface_OperStatus_DOWN:
 		if cdVal != inActiveCDValue {
