@@ -1041,6 +1041,10 @@ func TestDefaultPowerAdminState(t *testing.T) {
 			if c.GetType() == nil || c.GetType() != componentType[compName] {
 				continue
 			}
+			// Skip if the slot is empty
+			if c.GetEmpty() {
+				continue
+			}
 			switch compName {
 			case "Fabric":
 				fabrics = append(fabrics, c)
