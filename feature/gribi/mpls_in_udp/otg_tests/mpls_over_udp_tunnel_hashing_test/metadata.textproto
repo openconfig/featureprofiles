@@ -15,5 +15,6 @@ platform_exceptions:  {
     interface_enabled:  true
     default_network_instance:  "default"
     gribi_encap_header_unsupported:  true
+    disable_hardware_nexthop_proxy: true
   }
 }
