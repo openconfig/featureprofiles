@@ -161,12 +161,12 @@ func setCLINoMTU(t *testing.T, dut *ondatra.DUTDevice, portName string) {
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
 		cli = fmt.Sprintf("configure terminal\ninterface %s\nno mtu\n", portName)
+		helpers.GnmiCLIConfig(t, dut, cli)
 	case ondatra.JUNIPER:
 		gnmi.Delete(t, dut, gnmi.OC().Interface(portName).Mtu().Config())
 	default:
 		t.Fatalf("unsupported vendor: %v", dut.Vendor())
 	}
-	helpers.GnmiCLIConfig(t, dut, cli)
 	// Wait for the MTU to be removed (i.e., not equal to 1500).
 	gnmi.Watch(t, dut, gnmi.OC().Interface(portName).Mtu().State(), awaitTimeOut, func(val *ygnmi.Value[uint16]) bool {
 		m, present := val.Val()
@@ -371,15 +371,27 @@ func configureOCInterface(t *testing.T, root *oc.Root, dut *ondatra.DUTDevice, i
 func cliInterface(cli, intfName string) string {
 	var sb strings.Builder
 	insideInterface := false
+	braceDepth := 0
 	for _, line := range strings.Split(cli, "\n") {
 		trimmed := strings.TrimSpace(line)
-		if trimmed == "interface "+intfName || trimmed == intfName+" {" {
+		braceDelimited := trimmed == "interface "+intfName+" {" || trimmed == intfName+" {"
+		if trimmed == "interface "+intfName || braceDelimited {
 			insideInterface = true
+			if braceDelimited {
+				braceDepth = strings.Count(line, "{") - strings.Count(line, "}")
+			}
 		}
 		if insideInterface {
 			sb.WriteString(line)
 			sb.WriteByte('\n')
-			if trimmed == "!" || trimmed == "}" {
+			if braceDepth > 0 {
+				if !braceDelimited {
+					braceDepth += strings.Count(line, "{") - strings.Count(line, "}")
+				}
+				if braceDepth <= 0 {
+					insideInterface = false
+				}
+			} else if trimmed == "!" || trimmed == "}" {
 				insideInterface = false
 			}
 		}
@@ -760,36 +772,26 @@ func TestUnionReplace(t *testing.T) {
 					t.Logf("gnmi.Set returned error: %v", setErr)
 				}
 
-				// If union_replace option for CLI overriding OC is the DUT behavior, verify the MTU is updated
-				// to the new, CLI configured value. If union_replace option for CLI and OC config error is the
-				// DUT behavior, verify the MTU is not updated to the new, CLI configured value.
-				switch dut.Vendor() {
-				case ondatra.ARISTA:
-					// CLI overrides OC
+				// The union_replace specification permits either CLI precedence or overlap
+				// rejection. Select the expected behavior through the deviation metadata.
+				if deviations.CLITakesPrecedenceOverOC(dut) {
 					if setErr != nil {
-						return fmt.Errorf("expected gnmi.Set to succeed for ARISTA, got: %v", setErr)
+						return fmt.Errorf("expected gnmi.Set to succeed when CLI takes precedence over OC, got: %v", setErr)
 					}
 					if err := verifyInterfaceMTU(t, dut, dp2.Name(), 1300); err != nil {
 						return err
 					}
-				case ondatra.CISCO, ondatra.JUNIPER, ondatra.NOKIA:
-					// OC and CLI conflict generates an error, MTU stays at 1400
-					if setErr != nil {
-						if s, ok := status.FromError(setErr); ok && s.Code() == codes.InvalidArgument {
-							if err := verifyInterfaceMTU(t, dut, dp2.Name(), 1400); err != nil {
-								return err
-							}
-						} else {
-							return fmt.Errorf("gnmi.Set failed with unexpected error: %w", setErr)
-						}
-					} else {
-						// Option 2 behavior: DUT accepted overlapping config, CLI value should take effect
-						if err := verifyInterfaceMTU(t, dut, dp2.Name(), 1300); err != nil {
-							return err
-						}
+				} else {
+					if setErr == nil {
+						return fmt.Errorf("expected gnmi.Set to reject overlapping CLI and OC configuration")
 					}
-				default:
-					return fmt.Errorf("unsupported vendor: %v", dut.Vendor())
+					s, ok := status.FromError(setErr)
+					if !ok || s.Code() != codes.InvalidArgument {
+						return fmt.Errorf("gnmi.Set failed with unexpected error: %w", setErr)
+					}
+					if err := verifyInterfaceMTU(t, dut, dp2.Name(), 1400); err != nil {
+						return err
+					}
 				}
 				return nil
 			},
@@ -853,7 +855,9 @@ func TestUnionReplace(t *testing.T) {
 				// Add OC interface and set description on the interface.
 				p1Intf := &oc.Interface{}
 				setInterfaceTypeIfRequired(dut, p1Intf)
-				gnmi.BatchUnionReplace(sb1, gnmi.OC().Interface(port1Name).Type().Config(), p1Intf.Type)
+				if dut.Vendor() == ondatra.JUNIPER {
+					gnmi.BatchUnionReplace(sb1, gnmi.OC().Interface(port1Name).Type().Config(), p1Intf.Type)
+				}
 				gnmi.BatchUnionReplace(sb1, gnmi.OC().Interface(port1Name).Description().Config(), port1DescriptionOC)
 				cliConfig1 := cliConfig(t, dut)
 				gnmi.BatchUnionReplaceCLI(sb1, cliOrigin, cliConfig1)
@@ -888,9 +892,13 @@ func TestUnionReplace(t *testing.T) {
 				setErr := unionReplaceErr(t, dut, sb2)
 
 				if setErr != nil {
-					// If the DUT rejects overlapping CLI with OC, Juniper is expected to return
-					// InvalidArgument and the OC-configured description should remain.
-					if s, ok := status.FromError(setErr); ok && s.Code() == codes.InvalidArgument {
+					// Juniper may reject overlapping CLI and OC configuration with InvalidArgument;
+					// in that case the OC-configured description must remain unchanged.
+					if dut.Vendor() == ondatra.JUNIPER {
+						s, ok := status.FromError(setErr)
+						if !ok || s.Code() != codes.InvalidArgument {
+							return fmt.Errorf("gnmi.Set failed unexpectedly: %w", setErr)
+						}
 						t.Logf("DUT rejected overlapping CLI change as expected: %v", s.Message())
 						if err := verifyInterfaceDescription(t, dut, port1Name, port1DescriptionOC); err != nil {
 							return err

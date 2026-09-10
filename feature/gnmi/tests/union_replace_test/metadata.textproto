@@ -35,3 +35,11 @@ platform_exceptions: {
     default_network_instance: "default"
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    cli_takes_precedence_over_oc: true
+  }
+}
