@@ -47,6 +47,9 @@ const (
 	RPLPermitAll = "PERMIT-ALL"
 	// ALLOW policy
 	ALLOW = "ALLOW"
+	// BGPName is the protocol name used for the BGP protocol instance
+	// configured by this package.
+	BGPName = "BGP"
 
 	// DutAS dut AS
 	DutAS = uint32(65501)
@@ -139,7 +142,7 @@ var (
 		IPv6Len: plenIPv6,
 	}
 
-	bgpName = "BGP"
+	bgpName = BGPName
 
 	// PortCount1 use this for topology of 1 ports
 	PortCount1 PortCount = 1
@@ -1872,4 +1875,25 @@ func DeleteExtendedRouteRetention(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi
 		t.Log("Add OC path when available :/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/extended-route-retention/state/retention-time")
 	}
 	return sb
+}
+
+// VerifyBGPNeighborSessionState checks if the BGP neighbor session state matches the expected state within the specified timeout.
+func VerifyBGPNeighborSessionState(t *testing.T, dut *ondatra.DUTDevice, neighborAddress string, wantEstablished bool, timeout time.Duration) {
+	t.Helper()
+	dni := deviations.DefaultNetworkInstance(dut)
+	nSessionState := gnmi.OC().NetworkInstance(dni).Protocol(PTBGP, bgpName).Bgp().Neighbor(neighborAddress).SessionState().State()
+
+	watch := gnmi.Watch(t, dut, nSessionState, timeout, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+		state, ok := val.Val()
+		isEstablished := ok && state == oc.Bgp_Neighbor_SessionState_ESTABLISHED
+		return isEstablished == wantEstablished
+	})
+	if val, ok := watch.Await(t); !ok {
+		wantDesc := "ESTABLISHED"
+		if !wantEstablished {
+			wantDesc = "not ESTABLISHED"
+		}
+		t.Fatalf("BGP neighbor %s session-state: got %v, want %s within %v", neighborAddress, val, wantDesc, timeout)
+	}
+	t.Logf("BGP neighbor %s session-state reached wantEstablished=%v", neighborAddress, wantEstablished)
 }

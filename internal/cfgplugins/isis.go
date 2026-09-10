@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -282,4 +284,70 @@ func GenerateDynamicRouteWithISIS(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi
 		gnmi.BatchReplace(sb, dc.NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_LOCAL_AGGREGATE, localAggregateName).Config(), aggProto)
 		sb.Set(t, dut)
 	}
+}
+
+// VerifyISISAdjacencyState waits until the IS-IS Level-2 adjacency on ifaceName
+// reaches the desired state: an UP adjacency when wantUp is true, or no UP
+// adjacency (the adjacency down or removed from the table) when wantUp is
+// false. It fails the test if the desired state is not reached within timeout.
+func VerifyISISAdjacencyState(t *testing.T, dut *ondatra.DUTDevice, ifaceName string, wantUp bool, timeout time.Duration) {
+	t.Helper()
+
+	if (deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut)) && !strings.Contains(ifaceName, ".") {
+		ifaceName += ".0"
+	}
+
+	dni := deviations.DefaultNetworkInstance(dut)
+	adjPath := gnmi.OC().
+		NetworkInstance(dni).
+		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, dni).
+		Isis().
+		Interface(ifaceName).
+		Level(2).
+		AdjacencyAny().
+		AdjacencyState().
+		State()
+
+	anyUp := func() bool {
+		for _, adj := range gnmi.LookupAll(t, dut, adjPath) {
+			if state, ok := adj.Val(); ok && state == oc.Isis_IsisInterfaceAdjState_UP {
+				return true
+			}
+		}
+		return false
+	}
+
+	if wantUp {
+		watch := gnmi.WatchAll(t, dut, adjPath, timeout, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
+			state, ok := val.Val()
+			return ok && state == oc.Isis_IsisInterfaceAdjState_UP
+		})
+		if val, ok := watch.Await(t); !ok {
+			t.Fatalf("IS-IS L2 adjacency on %s: got %v, want UP within %v", ifaceName, val, timeout)
+		}
+		t.Logf("IS-IS L2 adjacency on %s reached wantUp=true", ifaceName)
+		return
+	}
+
+	// For wantUp=false the adjacency transitions to DOWN/INIT and is then
+	// typically removed from the table. A WatchAll on AdjacencyAny() yields no
+	// samples once the entry is gone, so check for an already-absent adjacency
+	// first, then watch for it to leave UP, and finally re-check via LookupAll
+	// (an absent/non-UP list is the desired down state).
+	if !anyUp() {
+		t.Logf("IS-IS L2 adjacency on %s reached wantUp=false", ifaceName)
+		return
+	}
+	watch := gnmi.WatchAll(t, dut, adjPath, timeout, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
+		state, ok := val.Val()
+		return !ok || state != oc.Isis_IsisInterfaceAdjState_UP
+	})
+	if _, ok := watch.Await(t); ok {
+		t.Logf("IS-IS L2 adjacency on %s reached wantUp=false", ifaceName)
+		return
+	}
+	if anyUp() {
+		t.Fatalf("IS-IS L2 adjacency on %s: still UP, want not UP within %v", ifaceName, timeout)
+	}
+	t.Logf("IS-IS L2 adjacency on %s reached wantUp=false", ifaceName)
 }
