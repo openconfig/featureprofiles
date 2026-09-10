@@ -1042,9 +1042,9 @@ func TestDefaultPowerAdminState(t *testing.T) {
 				continue
 			}
 			// Skip if the slot is empty
-                        if c.GetEmpty() {
-                               continue
-                       }
+			if c.GetEmpty() {
+				continue
+			}
 			switch compName {
 			case "Fabric":
 				fabrics = append(fabrics, c)
