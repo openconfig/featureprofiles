@@ -125,6 +125,9 @@ const (
 	CommonPrefixStep     = "0.0.0.1"
 	CommonIPv6PrefixStep = "::1"
 
+	// Hardware resource utilization monitoring parameters.
+	HWUtilizationSettleDuration = 10 * time.Second
+
 	// gRIBI batch programming parameters.
 	DefaultGRIBIBatchSize = 2_000
 
@@ -291,6 +294,12 @@ func (ExplicitWeights) isWeightConfig() {}
 var (
 	// WCMP1 is a WCMP configuration representing a granularity of 1.
 	WCMP1 = WCMP{WeightGranularity: 1}
+	// WCMP1in4 is a WCMP configuration representing a granularity of 1/4.
+	WCMP1in4 = WCMP{WeightGranularity: 4}
+	// WCMP1in8 is a WCMP configuration representing a granularity of 1/8.
+	WCMP1in8 = WCMP{WeightGranularity: 8}
+	// WCMP1in16 is a WCMP configuration representing a granularity of 1/16.
+	WCMP1in16 = WCMP{WeightGranularity: 16}
 	// WCMP1in32 is a WCMP configuration representing a granularity of 1/32.
 	WCMP1in32 = WCMP{WeightGranularity: 32}
 	// WCMP1in64 is a WCMP configuration representing a granularity of 1/64.
@@ -1445,7 +1454,7 @@ func BuildRepairVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, d
 }
 
 // BuildEncapVRFs generates all encap NH/NHG/IPv4/IPv6 entries and programs each VRF individually.
-func BuildEncapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, defaultVRF string, monitorHWUtilization bool, params ScaleParams) {
+func BuildEncapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, defaultVRF string, tracker *HWUtilizationTracker, monitorHWUtilization bool, params ScaleParams) {
 	t.Helper()
 
 	totalEncapNH := params.NumEncapVRFs * params.NumEncapNHPerVRF
@@ -1551,7 +1560,7 @@ func BuildEncapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, d
 			VerifyFIBProgrammed(t, gSession, wantPrefixesV4, wantPrefixesV6)
 		})
 
-		LogHWUtilization(t, dut, monitorHWUtilization, fmt.Sprintf("Post-BuildEncapVRF-%s", vrf))
+		RecordHWUtilization(t, dut, tracker, monitorHWUtilization, fmt.Sprintf("Post-Encap-%s", vrf), HWUtilizationSettleDuration)
 	}
 
 	for vi, vrf := range encapVRFNames {
@@ -1618,45 +1627,48 @@ func VerifyFIBProgrammed(t *testing.T, c *gribi.Client, wantPrefixesV4 map[strin
 }
 
 // ProgramGRIBIRoutes programs all VRFs and routes (Default, Static, Repair, Transit, Decap, Encap) via gRIBI.
-func ProgramGRIBIRoutes(t *testing.T, dut *ondatra.DUTDevice, defaultVRF string, params ScaleParams, monitorHWUtilization bool) {
+func ProgramGRIBIRoutes(t *testing.T, dut *ondatra.DUTDevice, defaultVRF string, params ScaleParams, tracker *HWUtilizationTracker, monitorHWUtilization bool) {
 	t.Helper()
 	defer func() {
 		if t.Failed() {
-			LogHWUtilization(t, dut, monitorHWUtilization, "Failure-GRIBIRoutes")
+			RecordHWUtilization(t, dut, tracker, monitorHWUtilization, "Failure-GRIBIRoutes", HWUtilizationSettleDuration)
+		}
+		if monitorHWUtilization {
+			GenerateHWUtilizationReport(t, tracker)
 		}
 	}()
 	ctx := context.Background()
 
-	LogHWUtilization(t, dut, monitorHWUtilization, "Pre-BuildDefaultVRF")
+	RecordHWUtilization(t, dut, tracker, monitorHWUtilization, "Pre-Default", 0)
 
 	// DEFAULT VRF
 	t.Log("Default VRF entries (A/B/C)")
 	primaryDefaultPrefixes, backupDefaultPrefixes := BuildDefaultVRF(t, dut, ctx, defaultVRF, params)
-	LogHWUtilization(t, dut, monitorHWUtilization, "Post-BuildDefaultVRF")
+	RecordHWUtilization(t, dut, tracker, monitorHWUtilization, "Post-Default", HWUtilizationSettleDuration)
 
 	// Static Groups
 	t.Log("Static groups (S1/S2)")
 	s1NHG, s2NHG := BuildStaticGroups(t, dut, ctx, defaultVRF, params)
-	LogHWUtilization(t, dut, monitorHWUtilization, "Post-BuildStaticGroups")
-
-	// Repair VRF
-	t.Log("Repair VRF (F)")
-	BuildRepairVRF(t, dut, ctx, defaultVRF, s2NHG, params)
-	LogHWUtilization(t, dut, monitorHWUtilization, "Post-BuildRepairVRF")
+	RecordHWUtilization(t, dut, tracker, monitorHWUtilization, "Post-Static", 0)
 
 	// Transit VRFs
 	t.Log("Transit VRFs (D/E)")
 	BuildTransitVRFs(t, dut, ctx, defaultVRF, primaryDefaultPrefixes, backupDefaultPrefixes, s1NHG, s2NHG, params)
-	LogHWUtilization(t, dut, monitorHWUtilization, "Post-BuildTransitVRFs")
+	RecordHWUtilization(t, dut, tracker, monitorHWUtilization, "Post-Transit", HWUtilizationSettleDuration)
+
+	// Repair VRF
+	t.Log("Repair VRF (F)")
+	BuildRepairVRF(t, dut, ctx, defaultVRF, s2NHG, params)
+	RecordHWUtilization(t, dut, tracker, monitorHWUtilization, "Post-Repair", HWUtilizationSettleDuration)
 
 	// Decap VRF
 	t.Log("Decap VRF (T4)")
 	BuildDecapVRF(t, dut, ctx, defaultVRF, params)
-	LogHWUtilization(t, dut, monitorHWUtilization, "Post-BuildDecapVRF")
+	RecordHWUtilization(t, dut, tracker, monitorHWUtilization, "Post-Decap", HWUtilizationSettleDuration)
 
 	// Encap VRFs
 	t.Log("Encap VRFs (T3)")
-	BuildEncapVRFs(t, dut, ctx, defaultVRF, monitorHWUtilization, params)
+	BuildEncapVRFs(t, dut, ctx, defaultVRF, tracker, monitorHWUtilization, params)
 }
 
 // FlushGRIBIRoutes establishes a gRIBI session to the DUT, flushes all entries, and closes the session.
@@ -2815,47 +2827,57 @@ func validateScaleParams(t *testing.T, params ScaleParams) {
 	}
 }
 
-func formatUint64Leaf(val *uint64) string {
-	if val == nil {
-		return "N/A"
-	}
-	return fmt.Sprintf("%d", *val)
+// HWResourceKey uniquely identifies a hardware resource on a specific switch component.
+type HWResourceKey struct {
+	Component string // e.g. "SwitchChip2", "SwitchChip3/0"
+	Name      string // e.g. "FecLevel1/Routing/-", "LEM/-/-"
 }
 
-func formatUint8Leaf(val *uint8) string {
-	if val == nil {
-		return "N/A"
-	}
-	return fmt.Sprintf("%d%%", *val)
+// HWResourceMetric holds lean hardware utilization counters for a single resource.
+type HWResourceMetric struct {
+	Key      HWResourceKey
+	Used     uint64
+	Free     uint64
+	MaxLimit uint64
 }
 
-func formatBoolLeaf(val *bool) string {
-	if val == nil {
-		return "N/A"
-	}
-	return fmt.Sprintf("%t", *val)
+// HWStageSnapshot captures the complete state of switch HW resources at a specific test stage.
+type HWStageSnapshot struct {
+	Stage     string
+	Timestamp time.Time
+	Resources map[HWResourceKey]HWResourceMetric
 }
 
-// LogHWUtilization queries hardware resource utilization across all integrated circuit components on the DUT directly without requiring pre-discovered component names.
-func LogHWUtilization(t *testing.T, dut *ondatra.DUTDevice, monitorHWUtilization bool, stage string) {
+// HWUtilizationTracker stores the ordered progression of HW snapshots across stages.
+type HWUtilizationTracker struct {
+	snapshots []HWStageSnapshot
+}
+
+// Record appends a snapshot to the tracker.
+func (tr *HWUtilizationTracker) Record(snapshot HWStageSnapshot) {
+	tr.snapshots = append(tr.snapshots, snapshot)
+}
+
+// Snapshots returns the recorded snapshots.
+func (tr *HWUtilizationTracker) Snapshots() []HWStageSnapshot {
+	return tr.snapshots
+}
+
+// FetchHWUtilizationSnapshot queries hardware resource utilization across all integrated circuit components on the DUT.
+// If waitDuration > 0, it sleeps before querying to allow hardware utilization metrics to settle.
+func FetchHWUtilizationSnapshot(t *testing.T, dut *ondatra.DUTDevice, stage string, waitDuration time.Duration) HWStageSnapshot {
 	t.Helper()
-	if !monitorHWUtilization {
-		return
+	if waitDuration > 0 {
+		t.Logf("[%s] Sleeping %v before querying HW utilization...", stage, waitDuration)
+		time.Sleep(waitDuration)
 	}
 	resourceVals := gnmi.LookupAll(t, dut, gnmi.OC().ComponentAny().IntegratedCircuit().Utilization().ResourceAny().State())
-	t.Logf("Found %d HW resources for monitoring", len(resourceVals))
-	if len(resourceVals) == 0 {
-		return
+	t.Logf("[%s] Found %d HW resources for monitoring", stage, len(resourceVals))
+	snapshot := HWStageSnapshot{
+		Stage:     stage,
+		Timestamp: time.Now(),
+		Resources: make(map[HWResourceKey]HWResourceMetric, len(resourceVals)),
 	}
-
-	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("\n=== [%s] HW Resource Utilization ===\n", stage))
-	sb.WriteString(fmt.Sprintf("%-20s | %-35s | %-12s | %-12s | %-12s | %-12s | %-14s | %-19s | %-12s | %-12s | %-10s\n",
-		"COMPONENT", "RESOURCE", "USED", "FREE", "MAX LIMIT", "COMMITTED", "HIGH WATERMARK", "LAST HIGH WATERMARK", "THRESH UPPER", "THRESH CLEAR", "EXCEEDED"))
-	sb.WriteString(strings.Repeat("-", 195) + "\n")
-
-	entriesLogged := 0
-	compSet := make(map[string]bool)
 	for _, val := range resourceVals {
 		res, ok := val.Val()
 		if !ok {
@@ -2863,8 +2885,6 @@ func LogHWUtilization(t *testing.T, dut *ondatra.DUTDevice, monitorHWUtilization
 		}
 		compName := "UNKNOWN"
 		if path := val.Path; path != nil {
-			pathStr := path.String()
-			t.Logf("Path: %s", pathStr)
 			for _, elem := range path.GetElem() {
 				if elem.GetName() == "component" {
 					if name, ok := elem.GetKey()["name"]; ok {
@@ -2874,31 +2894,228 @@ func LogHWUtilization(t *testing.T, dut *ondatra.DUTDevice, monitorHWUtilization
 				}
 			}
 		}
-		compSet[compName] = true
-		entriesLogged++
-		sb.WriteString(fmt.Sprintf("%-20s | %-35s | %-12s | %-12s | %-12s | %-12s | %-14s | %-19s | %-12s | %-12s | %-10s\n",
-			compName,
-			res.GetName(),
-			formatUint64Leaf(res.Used),
-			formatUint64Leaf(res.Free),
-			formatUint64Leaf(res.MaxLimit),
-			formatUint64Leaf(res.Committed),
-			formatUint64Leaf(res.HighWatermark),
-			formatUint64Leaf(res.LastHighWatermark),
-			formatUint8Leaf(res.UsedThresholdUpper),
-			formatUint8Leaf(res.UsedThresholdUpperClear),
-			formatBoolLeaf(res.UsedThresholdUpperExceeded)))
+		key := HWResourceKey{
+			Component: compName,
+			Name:      res.GetName(),
+		}
+		snapshot.Resources[key] = HWResourceMetric{
+			Key:      key,
+			Used:     res.GetUsed(),
+			Free:     res.GetFree(),
+			MaxLimit: res.GetMaxLimit(),
+		}
+	}
+	return snapshot
+}
+
+// LogHWUtilization logs the hardware resource utilization for a single stage snapshot in a lean tabular format.
+func LogHWUtilization(t *testing.T, snapshot HWStageSnapshot) {
+	t.Helper()
+	if len(snapshot.Resources) == 0 {
+		t.Logf("[%s] No HW resources reported", snapshot.Stage)
+		return
 	}
 
-	if entriesLogged > 0 {
-		t.Log(sb.String())
-		var compList []string
-		for comp := range compSet {
-			compList = append(compList, comp)
-		}
-		sort.Strings(compList)
-		t.Logf("[%s] Found %d unique components reporting utilization: %v", stage, len(compList), compList)
+	keys := make([]HWResourceKey, 0, len(snapshot.Resources))
+	for k := range snapshot.Resources {
+		keys = append(keys, k)
 	}
+	sort.Slice(keys, func(i, j int) bool {
+		if keys[i].Component != keys[j].Component {
+			return keys[i].Component < keys[j].Component
+		}
+		return keys[i].Name < keys[j].Name
+	})
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("\n=== [%s] HW Resource Utilization ===\n", snapshot.Stage))
+	sb.WriteString(fmt.Sprintf("%-20s | %-35s | %-12s | %-12s | %-12s | %-8s\n",
+		"COMPONENT", "RESOURCE", "USED", "FREE", "MAX LIMIT", "USED %"))
+	sb.WriteString(strings.Repeat("-", 108) + "\n")
+
+	for _, k := range keys {
+		m := snapshot.Resources[k]
+		usedPctStr := "N/A"
+		if m.MaxLimit > 0 {
+			pct := (float64(m.Used) / float64(m.MaxLimit)) * 100.0
+			usedPctStr = fmt.Sprintf("%.2f%%", pct)
+		}
+		sb.WriteString(fmt.Sprintf("%-20s | %-35s | %-12d | %-12d | %-12d | %-8s\n",
+			m.Key.Component,
+			m.Key.Name,
+			m.Used,
+			m.Free,
+			m.MaxLimit,
+			usedPctStr))
+	}
+	t.Log(sb.String())
+}
+
+// RecordHWUtilization fetches a hardware utilization snapshot if monitoring is enabled,
+// records it in the tracker, and logs the snapshot.
+func RecordHWUtilization(t *testing.T, dut *ondatra.DUTDevice, tracker *HWUtilizationTracker, monitorHWUtilization bool, stage string, waitDuration time.Duration) HWStageSnapshot {
+	t.Helper()
+	if !monitorHWUtilization {
+		return HWStageSnapshot{Stage: stage}
+	}
+	snapshot := FetchHWUtilizationSnapshot(t, dut, stage, waitDuration)
+	if tracker != nil {
+		tracker.Record(snapshot)
+	}
+	LogHWUtilization(t, snapshot)
+	return snapshot
+}
+
+// GenerateHWUtilizationReport generates and logs an executive summary table tracking the progression
+// of hardware resource utilization metrics across test stages.
+func GenerateHWUtilizationReport(t *testing.T, tracker *HWUtilizationTracker) {
+	t.Helper()
+	if tracker == nil || len(tracker.snapshots) == 0 {
+		t.Log("GenerateHWUtilizationReport: no hardware utilization snapshots recorded")
+		return
+	}
+	snapshots := tracker.snapshots
+	if len(snapshots) < 2 {
+		t.Logf("GenerateHWUtilizationReport: only %d snapshot recorded, progression requires at least 2 stages", len(snapshots))
+		return
+	}
+
+	// 1. Collect all unique HWResourceKeys across all snapshots.
+	allKeysMap := make(map[HWResourceKey]bool)
+	for _, snap := range snapshots {
+		for k := range snap.Resources {
+			allKeysMap[k] = true
+		}
+	}
+
+	// 2. Identify keys that changed (max(Used) > min(Used)).
+	var changingKeys []HWResourceKey
+	for k := range allKeysMap {
+		var minUsed, maxUsed uint64
+		hasData := false
+		for _, snap := range snapshots {
+			if m, ok := snap.Resources[k]; ok {
+				if !hasData {
+					minUsed = m.Used
+					maxUsed = m.Used
+					hasData = true
+				} else {
+					if m.Used < minUsed {
+						minUsed = m.Used
+					}
+					if m.Used > maxUsed {
+						maxUsed = m.Used
+					}
+				}
+			}
+		}
+		if hasData && maxUsed > minUsed {
+			changingKeys = append(changingKeys, k)
+		}
+	}
+
+	if len(changingKeys) == 0 {
+		t.Log("GenerateHWUtilizationReport: no hardware resource utilization metrics changed across stages")
+		return
+	}
+
+	// 3. Sort changing keys deterministically by Component, then Name.
+	sort.Slice(changingKeys, func(i, j int) bool {
+		if changingKeys[i].Component != changingKeys[j].Component {
+			return changingKeys[i].Component < changingKeys[j].Component
+		}
+		return changingKeys[i].Name < changingKeys[j].Name
+	})
+
+	// 4. Build headers: COMPONENT, RESOURCE, MAX LIMIT, followed by each stage name.
+	headers := []string{"COMPONENT", "RESOURCE", "MAX LIMIT"}
+	for _, snap := range snapshots {
+		headers = append(headers, snap.Stage)
+	}
+
+	// 5. Build 2D rows (one row per changing resource).
+	rows := make([][]string, 0, len(changingKeys))
+	for _, k := range changingKeys {
+		var maxLimit uint64
+		for _, snap := range snapshots {
+			if m, ok := snap.Resources[k]; ok {
+				maxLimit = m.MaxLimit
+				break
+			}
+		}
+
+		row := []string{k.Component, k.Name, fmt.Sprintf("%d", maxLimit)}
+		var prevUsed uint64
+		hasPrev := false
+		for _, snap := range snapshots {
+			m, exists := snap.Resources[k]
+			var cell string
+			if !exists {
+				cell = "N/A"
+				hasPrev = false
+			} else {
+				pctStr := "N/A"
+				if maxLimit > 0 {
+					pct := (float64(m.Used) / float64(maxLimit)) * 100.0
+					pctStr = fmt.Sprintf("%.1f%%", pct)
+				}
+				if !hasPrev {
+					cell = fmt.Sprintf("%d (%s)", m.Used, pctStr)
+				} else {
+					delta := int64(m.Used) - int64(prevUsed)
+					cell = fmt.Sprintf("%d (%+d, %s)", m.Used, delta, pctStr)
+				}
+				prevUsed = m.Used
+				hasPrev = true
+			}
+			row = append(row, cell)
+		}
+		rows = append(rows, row)
+	}
+
+	// 6. Calculate column widths.
+	colWidths := make([]int, len(headers))
+	for c, h := range headers {
+		colWidths[c] = len(h)
+	}
+	for _, row := range rows {
+		for c, cell := range row {
+			if len(cell) > colWidths[c] {
+				colWidths[c] = len(cell)
+			}
+		}
+	}
+
+	// 7. Format table.
+	var sb strings.Builder
+	sb.WriteString("\n=== HW RESOURCE UTILIZATION PROGRESSION REPORT ===\n")
+	for c, h := range headers {
+		if c > 0 {
+			sb.WriteString(" | ")
+		}
+		sb.WriteString(fmt.Sprintf("%-*s", colWidths[c], h))
+	}
+	sb.WriteString("\n")
+
+	for c := range headers {
+		if c > 0 {
+			sb.WriteString("-+-")
+		}
+		sb.WriteString(strings.Repeat("-", colWidths[c]))
+	}
+	sb.WriteString("\n")
+
+	for _, row := range rows {
+		for c, cell := range row {
+			if c > 0 {
+				sb.WriteString(" | ")
+			}
+			sb.WriteString(fmt.Sprintf("%-*s", colWidths[c], cell))
+		}
+		sb.WriteString("\n")
+	}
+
+	t.Log(sb.String())
 }
 
 // RunTrafficTestCases iterates through the configured traffic test cases (fixed-size, IMIX, repair)
@@ -2952,12 +3169,18 @@ func RunFullScaleTest(t *testing.T, params ScaleParams, enablePacketCapture, com
 		t.Log("Flag -exclude_traffic is set: skipping ATE/IXIA configuration and ARP resolution")
 	}
 
+	tracker := &HWUtilizationTracker{}
+
 	t.Cleanup(func() {
+		if monitorHWUtilization {
+			t.Log("=== Final Hardware Utilization Progression Report (End of Test) ===")
+			GenerateHWUtilizationReport(t, tracker)
+		}
 		FlushGRIBIRoutes(t, dut)
 	})
 
 	t.Run("Configure and validate FIB_PROGRAMMED, Hierarchical route structure", func(t *testing.T) {
-		ProgramGRIBIRoutes(t, dut, defaultVRF, params, monitorHWUtilization)
+		ProgramGRIBIRoutes(t, dut, defaultVRF, params, tracker, monitorHWUtilization)
 	})
 
 	if !*excludeTraffic {
