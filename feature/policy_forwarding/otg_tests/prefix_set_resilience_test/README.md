@@ -1,4 +1,4 @@
-# RT-1.53: prefix-list test
+# RT-1.53: prefix_set_resilience_test
 
 ## Summary
 
