@@ -830,7 +830,7 @@ func applyForwardingPolicy(t *testing.T, dut *ondatra.DUTDevice, ingressPort str
 	t.Logf("Applying forwarding policy on interface %v ... ", ingressPort)
 	d := &oc.Root{}
 	interfaceID := ingressPort
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+	if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
 		interfaceID = ingressPort + ".0"
 	}
 	pfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID)
@@ -988,22 +988,11 @@ func validateTrafficFlows(t *testing.T, args *testArgs, flows []gosnappi.Flow, c
 	otgutils.LogFlowMetrics(t, otg, args.topo)
 
 	for _, flow := range flows {
-		outPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State()))
-		inPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State()))
-
-		if outPkts == 0 {
-			t.Fatalf("OutPkts for flow %s is 0, want > 0", flow)
-		}
 		if match {
-			if got := ((outPkts - inPkts) * 100) / outPkts; got > 0 {
-				t.Fatalf("LossPct for flow %s: got %v, want 0", flow.Name(), got)
-			}
+			otgutils.ExpectedTrafficLoss(t, otg, flow.Name(), 0, 0)
 		} else {
-			if got := ((outPkts - inPkts) * 100) / outPkts; got != 100 {
-				t.Fatalf("LossPct for flow %s: got %v, want 100", flow.Name(), got)
-			}
+			otgutils.ExpectedTrafficLoss(t, otg, flow.Name(), 100, 100)
 		}
-
 	}
 }
 
