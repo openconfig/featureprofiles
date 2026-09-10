@@ -1456,10 +1456,18 @@ message Metadata {
     // Tracking: https://github.com/openconfig/ondatra/issues/145
     bool gnoi_requires_fresh_dial_after_switchover = 454;
 
+    // Device requires delay before issuing a back-to-back switchover request.
+    uint32 gnoi_back_to_back_switchover_delay_s = 459;
+
+    // Device accepts back-to-back switchover request without error, instead of gracefully rejecting it.
+    bool back_to_back_switchover_request_accepted = 460;
+
     // Device requires explicit "write memory" before reboot to persist
     // containerz config, and must skip config re-push after reboot to avoid
     // restarting the management stack during warmup.
     bool containerz_require_explicit_config_save = 455;
+
+
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;

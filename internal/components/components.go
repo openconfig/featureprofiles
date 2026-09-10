@@ -24,6 +24,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	tpb "github.com/openconfig/gnoi/types"
+	tpb "github.com/openconfig/gnoi/types/types_go_proto"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -202,13 +203,38 @@ func (y Y) FindByType(ctx context.Context, want oc.Component_Type_Union) ([]stri
 func FindStandbyControllerCard(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) (string, string) {
 	var activeCC, standbyCC string
 	for _, supervisor := range supervisors {
-		watch := gnmi.Watch(t, dut, gnmi.OC().Component(supervisor).RedundantRole().State(), 10*time.Minute, func(val *ygnmi.Value[oc.E_Platform_ComponentRedundantRole]) bool {
-			return val.IsPresent()
-		})
-		if val, ok := watch.Await(t); !ok {
-			t.Fatalf("DUT did not reach target state within %v: got %v", 10*time.Minute, val)
+		// Use a robust polling loop with bound contexts to prevent zombie Subscribe hangs
+		// when the control plane is actively flapping.
+		start := time.Now()
+		var role oc.E_Platform_ComponentRedundantRole
+
+		c, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.Name()))
+		if err != nil {
+			t.Fatalf("Failed to create ygnmi client for FindStandbyControllerCard: %v", err)
 		}
-		role := gnmi.Get(t, dut, gnmi.OC().Component(supervisor).RedundantRole().State())
+
+		for time.Since(start) < 10*time.Minute {
+			var opts []ygnmi.Option
+			// Use discrete Get probes for everything except Juniper, which strictly requires Subscribe
+			if dut.Vendor() != ondatra.JUNIPER {
+				opts = append(opts, ygnmi.WithUseGet())
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			val, err := ygnmi.Lookup(ctx, c, gnmi.OC().Component(supervisor).RedundantRole().State(), opts...)
+			cancel()
+			if err == nil {
+				if r, present := val.Val(); present {
+					role = r
+					break
+				}
+			}
+			time.Sleep(10 * time.Second)
+		}
+
+		if role == oc.Platform_ComponentRedundantRole_UNSET {
+			t.Fatalf("DUT did not reach target state within %v for %v", 10*time.Minute, supervisor)
+		}
+
 		t.Logf("Component(supervisor).RedundantRole().Get(t): %v, Role: %v", supervisor, role)
 		if role == standbyController {
 			standbyCC = supervisor
@@ -266,7 +292,7 @@ func SetControllerCardPowerState(t *testing.T, dut *ondatra.DUTDevice, cardName 
 
 	power, ok := gnmi.Await(t, dut, c.ControllerCard().PowerAdminState().State(), timeout, powerType).Val()
 	if !ok {
-		t.Fatalf("Component %s, power-admin-state got: %v, want: %v", cardName, power, powerType)
+		t.Errorf("Component %s, power-admin-state got: %v, want: %v", cardName, power, powerType)
 	}
 	t.Logf("Component %s, power-admin-state after %.2f minutes: %v", cardName, time.Since(start).Minutes(), power)
 
@@ -276,7 +302,7 @@ func SetControllerCardPowerState(t *testing.T, dut *ondatra.DUTDevice, cardName 
 	}
 	oper, ok := gnmi.Await(t, dut, c.OperStatus().State(), timeout, wantOper).Val()
 	if !ok {
-		t.Fatalf("Component %s oper-status, got: %v, want: %v", cardName, oper, wantOper)
+		t.Errorf("Component %s oper-status, got: %v, want: %v", cardName, oper, wantOper)
 	}
 	t.Logf("Component %s, oper-status after %.2f minutes: %v", cardName, time.Since(start).Minutes(), oper)
 }

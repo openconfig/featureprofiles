@@ -246,6 +246,11 @@ func Ipv6DiscardedPktsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIpv6DiscardedPktsUnsupported()
 }
 
+// BackToBackSwitchoverRequestAccepted returns true if the device accepts back-to-back switchover requests without error, instead of gracefully rejecting it.
+func BackToBackSwitchoverRequestAccepted(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBackToBackSwitchoverRequestAccepted()
+}
+
 // LinkQualWaitAfterDeleteRequired returns whether the device requires additional time to complete post delete link qualification cleanup.
 func LinkQualWaitAfterDeleteRequired(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLinkQualWaitAfterDeleteRequired()
@@ -1903,6 +1908,12 @@ func SwitchoverStabilizeDelayM(dut *ondatra.DUTDevice) uint32 {
 // Tracking: https://github.com/openconfig/ondatra/issues/145
 func GnoiRequiresFreshDialAfterSwitchover(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGnoiRequiresFreshDialAfterSwitchover()
+}
+
+// GnoiBackToBackSwitchoverDelayS returns the delay in seconds before issuing
+// a back-to-back switchover request.
+func GnoiBackToBackSwitchoverDelayS(dut *ondatra.DUTDevice) uint32 {
+	return lookupDUTDeviations(dut).GetGnoiBackToBackSwitchoverDelayS()
 }
 
 // ContainerzRequireExplicitConfigSave returns true if the device requires an
