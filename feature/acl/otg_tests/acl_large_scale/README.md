@@ -47,8 +47,8 @@ G[ATE:PORT4] <--IPv4-IPv6--> H[DUT:PORT4];
 
     *   DUT port-4 IPv4 address ```dp4-v4 = 192.168.1.13/30```
     *   ATE port-4 IPv4 address ```ap4-v4 = 192.168.1.14/30```
-    *   DUT port-4 IPv6 address ```dp4-v6 = 2001:DB8::c/126```
-    *   ATE port-4 IPv6 address ```ap4-v6 = 2001:DB8::d/126```
+    *   DUT port-4 IPv6 address ```dp4-v6 = 2001:DB8::d/126```
+    *   ATE port-4 IPv6 address ```ap4-v6 = 2001:DB8::e/126```
 
 *   Configure eBGP from each ATE port and establish a connection with DUT such that
     DUT port-1 (AS 65001) - ATE port-1 (AS 65002)
