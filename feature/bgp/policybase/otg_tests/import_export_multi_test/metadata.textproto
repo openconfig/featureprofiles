@@ -33,8 +33,6 @@ platform_exceptions: {
     skip_setting_statement_for_policy: true
     default_route_policy_unsupported: true
     skip_checking_attribute_index: true
-    skip_bgp_send_community_type: true
-    bgp_set_med_action_unsupported: true
   }
 }
 platform_exceptions: {
