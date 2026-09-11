@@ -453,7 +453,7 @@ func testModifyIPv4AddDelAdd(t *testing.T, args *testArgs) {
 
 	t.Run("Telemetry", func(t *testing.T) {
 		ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateDstNetCIDR)
-		if got, ok := gnmi.Watch(t, args.dut, ipv4Path.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		if got, ok := gnmi.Watch(t, args.dut, ipv4Path.State(), awaitDuration, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
 			ipv4Entry, present := val.Val()
 			return present && ipv4Entry.GetPrefix() == ateDstNetCIDR
 		}).Await(t); !ok {
