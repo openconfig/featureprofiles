@@ -35,15 +35,35 @@ While standard sFlow sampling captures packets at the ingress pipeline, egress s
 2. Configure ATE Port 1 and Port 2 with matching IP addresses and verify bidirectional reachability (ARP / NDP resolution).
 3. Ensure no prior sFlow configuration exists on the DUT.
 
+---
+
 ### SFLOW-2.1: Configure Interface-Level Egress Sampling via OpenConfig
 
-#### 1. Generate DUT Configuration
-
-Configure global sFlow and enable egress sampling on DUT Port 2 with a sampling rate of 1:1,000,000 (or the minimum rate supported by the platform):
+#### Canonical OC
 
 ```json
 {
-  "openconfig-sampling:sampling": {
+  "interfaces": {
+    "interface": [
+      {
+        "name": "port2",
+        "config": {
+          "name": "port2"
+        }
+      }
+    ]
+  },
+  "network-instances": {
+    "network-instance": [
+      {
+        "name": "DEFAULT",
+        "config": {
+          "name": "DEFAULT"
+        }
+      }
+    ]
+  },
+  "sampling": {
     "sflow": {
       "config": {
         "enabled": true,
@@ -80,42 +100,43 @@ Configure global sFlow and enable egress sampling on DUT Port 2 with a sampling 
 }
 ```
 
-#### 2. Push Configuration
-* Push the configuration to the DUT using `gNMI.Set` (Update/Replace).
-
-#### 3. Telemetry Validation
-* Query telemetry using `gNMI.Get` or `gNMI.Subscribe` and verify:
+* Step 2 - Push configuration to DUT using `gNMI.Set` (Update/Replace).
+* Step 3 - Verify Telemetry using `gNMI.Get` or `gNMI.Subscribe`:
   * `/sampling/sflow/state/enabled` is `true`.
   * `/sampling/sflow/collectors/collector[address=192.0.2.2][port=6343]/state/address` matches `192.0.2.2`.
   * `/sampling/sflow/interfaces/interface[name=port2]/state/enabled` is `true`.
   * `/sampling/sflow/interfaces/interface[name=port2]/state/egress-sampling-rate` matches `1000000` (or the configured rate).
 
+---
 
 ### SFLOW-2.2: Verify Egress sFlow Packet Generation on Traffic Flow
 
-#### 1. Traffic Generation
-* Configure ATE Port 1 to transmit IPv4 and IPv6 traffic towards destinations reachable via DUT Port 2.
-* Set traffic rate high enough to generate statistically meaningful samples based on the configured sampling rate (e.g. 100,000 pps for 1,000,000 sampling rate over 60–120 seconds).
-* Start sFlow packet capture on ATE Port 2 listening on UDP port 6343.
+* Step 1 - Traffic Generation:
+  * Configure ATE Port 1 to transmit IPv4 and IPv6 traffic towards destinations reachable via DUT Port 2.
+  * Set traffic rate high enough to generate statistically meaningful samples based on the configured sampling rate (e.g. 100,000 pps for 1,000,000 sampling rate over 60–120 seconds).
+  * Start sFlow packet capture on ATE Port 2 listening on UDP port 6343.
 
-#### 2. Verification
-* Verify that sFlow datagrams (UDP port 6343) arrive at ATE Port 2 from source IP `192.0.2.1`.
-* Parse captured sFlow datagrams and verify:
-  * sFlow version is 5.
-  * Agent address matches the configured source IP address (`192.0.2.1`).
-  * Flow sample records are present.
-  * In the flow record, the **output interface** (`output_interface` / `egress interface index`) matches the SNMP ifIndex of DUT Port 2.
-  * The number of captured samples conforms to the expected sampling rate within statistical tolerance (e.g. ±20%).
+* Step 2 - Telemetry and Packet Verification:
+  * Verify that sFlow datagrams (UDP port 6343) arrive at ATE Port 2 from source IP `192.0.2.1`.
+  * Parse captured sFlow datagrams and verify:
+    * sFlow version is 5.
+    * Agent address matches the configured source IP address (`192.0.2.1`).
+    * Flow sample records are present.
+    * In the flow record, the **output interface** (`output_interface` / `egress interface index`) matches the SNMP ifIndex of DUT Port 2.
+    * The number of captured samples conforms to the expected sampling rate within statistical tolerance (e.g. ±20%).
+
+---
 
 ### SFLOW-2.3: Disable Egress Sampling and Verify Teardown
 
-#### 1. Disable Configuration
-* Remove `egress-sampling-rate` from DUT Port 2, or set `/sampling/sflow/interfaces/interface[name=port2]/config/enabled` to `false`.
+* Step 1 - Disable Configuration:
+  * Remove `egress-sampling-rate` from DUT Port 2, or set `/sampling/sflow/interfaces/interface[name=port2]/config/enabled` to `false`.
 
-#### 2. Telemetry and Traffic Verification
-* Verify telemetry reflects the disabled state.
-* Transmit traffic from ATE Port 1 to ATE Port 2 and confirm no further sFlow sample datagrams are generated or exported by the DUT.
+* Step 2 - Telemetry and Traffic Verification:
+  * Verify telemetry reflects the disabled state.
+  * Transmit traffic from ATE Port 1 to ATE Port 2 and confirm no further sFlow sample datagrams are generated or exported by the DUT.
 
+---
 
 ## OpenConfig Path and RPC Coverage
 
@@ -146,8 +167,6 @@ paths:
 rpcs:
   gnmi:
     gNMI.Set:
-      union_replace: true
     gNMI.Subscribe:
-      on_change: true
 ```
 

@@ -1397,7 +1397,7 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/sflow/otg_tests/sflow_base_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/sflow/otg_tests/sflow_base_test/sflow_base_test.go"
 }
-tests {
+test: {
   id: "SFLOW-2"
   description: "sFlow Egress Sampling Configuration and Verification"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/sflow/otg_tests/sflow_egress_test/README.md"
