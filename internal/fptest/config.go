@@ -26,6 +26,9 @@ var (
 
 	// Flags to ensure test passes without any dependency to the device config
 	baseOCConfigIsPresent = flag.Bool("base_oc_config_is_present", false, "No OC config is loaded on router, so Get config on the root returns no data.")
+
+	// TestInfraID is the SPIFFE-ID used by test infra clients.
+	TestInfraID = flag.String("test_infra_id", "*/cafyauto", "SPIFFE-ID used by test infra clients")
 )
 
 // GetDeviceConfig gets a full config from a device but refurbishes it enough so it can be

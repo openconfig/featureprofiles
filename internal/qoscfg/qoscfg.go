@@ -35,7 +35,11 @@ func SetForwardingGroup(t *testing.T, dut *ondatra.DUTDevice, qos *oc.Qos, group
 // SetInputClassifier sets an input classifier in the specified QoS config.
 func SetInputClassifier(t *testing.T, dut *ondatra.DUTDevice, qos *oc.Qos, intfID string, classType oc.E_Input_Classifier_Type, className string) {
 	t.Helper()
-	intf := qos.GetOrCreateInterface(intfID)
+	qosIntfID := intfID
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		qosIntfID += ".0"
+	}
+	intf := qos.GetOrCreateInterface(qosIntfID)
 	intf.GetOrCreateInterfaceRef().SetInterface(intfID)
 	if dut.Vendor() != ondatra.CISCO {
 		intf.GetOrCreateInterfaceRef().SetSubinterface(0)

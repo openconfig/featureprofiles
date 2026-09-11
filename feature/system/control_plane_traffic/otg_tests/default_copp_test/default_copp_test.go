@@ -385,7 +385,42 @@ func (ce *commonEntities) testCoppSystemHelper(t *testing.T, tc *coppSystemTestc
 	finalCounters := gnmi.Get(t, ce.dut, gnmi.OC().Interface(ce.dut.Port(t, dutIncomingPort).Name()).Counters().State())
 	finalInPkts := finalCounters.GetInPkts()
 	t.Logf("Final incoming packets: %v", finalInPkts)
-	finalPktCounts := ce.getDroppedPktCounts(t, tc.counters)
+	// TODO: b/540356827 gnmi.Watch doesn't work with arista-platform-control-plane-traffic-counters:l3-lpm-overflow
+	var finalPktCounts []float64
+	timeout := 45 * time.Second
+	pollInterval := 5 * time.Second
+
+	for start := time.Now(); ; {
+		finalPktCounts = ce.getDroppedPktCounts(t, tc.counters)
+
+		allMatched := true
+		for idx := range tc.counters {
+			if tc.increasedDropCount && finalPktCounts[idx] <= initialPktCounts[idx] {
+				allMatched = false
+				t.Logf("Waiting for counter %s to increase. Current: %v, Initial: %v", tc.counters[idx], finalPktCounts[idx], initialPktCounts[idx])
+				break
+			}
+			if !tc.increasedDropCount && finalPktCounts[idx] != initialPktCounts[idx] {
+				allMatched = false
+				break
+			}
+		}
+
+		if allMatched {
+			break // The counters reached the expected state
+		}
+
+		if !tc.increasedDropCount {
+			break // If we expect NO drops and they increased, break
+		}
+
+		if time.Since(start) > timeout {
+			t.Logf("Timeout reached waiting for telemetry updates.")
+			break
+		}
+
+		time.Sleep(pollInterval)
+	}
 	for idx, counter := range tc.counters {
 		if tc.increasedDropCount && finalPktCounts[idx] <= initialPktCounts[idx] {
 			t.Errorf("testCoppSystemHelper: Drop count validation failed for testcase: %s, counter: %s. Final dropped pkt count: %v, Initial dropped pkt count: %v", tc.name, counter, finalPktCounts[idx], initialPktCounts[idx])
