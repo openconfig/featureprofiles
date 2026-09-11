@@ -358,8 +358,8 @@ func (tc *testCase) waitForBGPSessionsDown(t *testing.T, ipv4nbrs []string, ipv6
 	verifySessionDown := func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 		state, ok := val.Val()
 		if !ok {
-			t.Logf("BGP session state not found for neighbor %s, considering down", val.Path.String())
-			return true
+			t.Logf("BGP session state not found for neighbor %s", val.Path.String())
+			return false
 		}
 		t.Logf("BGP session state for neighbor %s: %s", val.Path.String(), state.String())
 		return state != oc.Bgp_Neighbor_SessionState_ESTABLISHED
