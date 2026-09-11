@@ -761,41 +761,22 @@ func TestBGP(t *testing.T) {
 	}
 
 	// Step 1: Initial state verification (BGP: 2 NHs, ISIS: 1 NH)
-	aft := verifyAFTState("Initial AFT verification", 2, wantIPv4NHs, wantIPv6NHs)
+	verifyAFTState("Initial AFT verification", 2, wantIPv4NHs, wantIPv6NHs)
 
 	// Verify ISIS prefixes are present in AFT.
 	t.Log("Verifying ISIS prefixes in AFT...")
-	var isisErr error
-	isisDeadline := time.Now().Add(2 * time.Minute)
-	for {
-		latestAFT := aft
-		if time.Now().After(isisDeadline) {
-			break
-		}
-		if err := tc.verifyPrefixes(t, latestAFT, startingISISRouteIPv4, isisRouteCount, 1, false); err != nil {
-			isisErr = fmt.Errorf("failed to verify IPv4 ISIS prefixes: %w", err)
-			time.Sleep(2 * time.Second)
-			if curAFT, aerr := aftSession1.ToAFT(t, tc.dut); aerr == nil {
-				aft = curAFT
-			}
-			continue
-		}
-		if err := tc.verifyPrefixes(t, latestAFT, startingISISRouteIPv6, isisRouteCount, 1, false); err != nil {
-			isisErr = fmt.Errorf("failed to verify IPv6 ISIS prefixes: %w", err)
-			time.Sleep(2 * time.Second)
-			if curAFT, aerr := aftSession1.ToAFT(t, tc.dut); aerr == nil {
-				aft = curAFT
-			}
-			continue
-		}
-		isisErr = nil
-		break
+	wantISISPrefixes := make(map[string]bool)
+	for pfix := range netutil.GenCIDRs(t, startingISISRouteIPv4, isisRouteCount) {
+		wantISISPrefixes[pfix] = true
 	}
-	if isisErr != nil {
-		t.Errorf("ISIS verification failed: %v", isisErr)
-	} else {
-		t.Log("ISIS verification completed")
+	for pfix := range netutil.GenCIDRs(t, startingISISRouteIPv6, isisRouteCount) {
+		wantISISPrefixes[pfix] = true
 	}
+	isisStoppingCondition := aftcache.InitialSyncStoppingCondition(t, dut, wantISISPrefixes, map[string]bool{ateP1.IPv4: true}, map[string]bool{ateP1.IPv6: true})
+	if _, err := tc.fetchAFT(t, aftSession1, aftSession2, isisStoppingCondition, wantISISPrefixes); err != nil {
+		t.Fatalf("Failed to verify ISIS prefixes in AFT: %v", err)
+	}
+	t.Log("ISIS verification completed")
 
 	// Step 2: Stop Port2 interface to create Churn (BGP: 1 NH)
 	t.Log("SubTest 2: Stopping Port2 interface to create Churn")
