@@ -24,6 +24,7 @@ platform_exceptions: {
   deviations: {
     ipv6_discarded_pkts_unsupported: true
     load_interval_not_supported: true
+    default_subinterface_packet_counters_missing: true
   }
 }
 platform_exceptions: {
