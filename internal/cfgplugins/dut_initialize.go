@@ -358,6 +358,7 @@ system datapath secondary-default-lookup admin-state enable
 `
 
 	aristaOptimizeFIBAndCounters = `
+   ip hardware fib hierarchical next-hop max-level 3
    ip hardware fib next-hop weight-deviation 2.0
    ip hardware fib programmed error action preserved
    hardware fec programmed all
