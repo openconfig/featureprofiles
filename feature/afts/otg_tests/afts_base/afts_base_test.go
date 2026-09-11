@@ -651,8 +651,8 @@ type testCase struct {
 	name        string
 	dut         *ondatra.DUTDevice
 	ate         *ondatra.ATEDevice
-	gnmiClient1 gnmigrpc.GNMIClient
-	gnmiClient2 gnmigrpc.GNMIClient
+	gnmiClient1 gnmipb.GNMIClient
+	gnmiClient2 gnmipb.GNMIClient
 	ts          *isissession.TestSession
 }
 
