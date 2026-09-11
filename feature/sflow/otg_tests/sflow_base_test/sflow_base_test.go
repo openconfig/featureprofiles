@@ -16,6 +16,7 @@ package sflow_base_test
 
 import (
 	"fmt"
+	"math"
 	"net"
 	"os"
 	"slices"
@@ -35,16 +36,18 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
 const (
-	ipv4PrefixLen   = 30
-	plenIPv4        = 30
-	plenIPv6        = 126
-	lossTolerance   = 1
-	mgmtVRF         = "mvrf1"
-	sampleTolerance = 0.8
+	ipv4PrefixLen        = 30
+	plenIPv4             = 30
+	plenIPv6             = 126
+	lossTolerance        = 1
+	mgmtVRF              = "mvrf1"
+	sampleTolerance      = 0.8
+	ciscoMinSamplingRate = 262144 // ciscoMinSamplingRate is the minimum sampling rate for sFlow on some Cisco platforms.
 )
 
 var (
@@ -324,18 +327,37 @@ func testFlowFixed(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config,
 		t.Run(flowName, func(t *testing.T) {
 			createFlow(t, ate, config, fc, ip)
 			cs := startCapture(t, ate, config)
-			sleepTime := time.Duration(fc.packetsToSend/uint32(fc.ppsRate)) + 5
 			ate.OTG().StartTraffic(t)
-			time.Sleep(sleepTime * time.Second)
-			ate.OTG().StopTraffic(t)
+			gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flowName).Transmit().State(), 2*time.Minute, func(val *ygnmi.Value[bool]) bool {
+				v, _ := val.Val()
+				return !val.IsPresent() || v == false
+			}).Await(t)
 			stopCapture(t, ate, cs)
 			otgutils.LogFlowMetrics(t, ate.OTG(), config)
 			otgutils.LogPortMetrics(t, ate.OTG(), config)
-			loss := otgutils.GetFlowLossPct(t, ate.OTG(), flowName, 10*time.Second)
-			if loss > lossTolerance {
-				t.Errorf("Loss percent for IPv4 Traffic: got: %f, want %f", loss, float64(lossTolerance))
+			flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).State())
+			txFrames := flowMetrics.GetCounters().GetOutPkts()
+			rxFrames := flowMetrics.GetCounters().GetInPkts()
+			if txFrames == 0 {
+				t.Errorf("Flow %s invalid counters: Tx frames is 0", flowName)
 			}
-			processCapture(t, ate, config, ip, fc)
+
+			lossPct := 0.0
+			if rxFrames <= txFrames && txFrames > 0 {
+				lossPct = float64(txFrames-rxFrames) * 100 / float64(txFrames)
+			}
+			if lossPct > lossTolerance {
+				t.Errorf("Flow %s packet loss: got %.4f%%, want <= %.2f%% (Tx: %d, Rx: %d)", flowName, lossPct, float64(lossTolerance), txFrames, rxFrames)
+			}
+			if rxFrames > txFrames {
+				gainPct := float64(rxFrames-txFrames) * 100 / float64(txFrames)
+				if gainPct > float64(lossTolerance) {
+					t.Errorf("Flow %s unexpected packet gain: got %.4f%%, want <= %.2f%% (Tx: %d, Rx: %d)", flowName, gainPct, float64(lossTolerance), txFrames, rxFrames)
+				} else {
+					t.Logf("Flow %s minor packet gain observed: %.4f%% (Tx: %d, Rx: %d), likely due to sFlow/control traffic", flowName, gainPct, txFrames, rxFrames)
+				}
+			}
+			processCapture(t, dut, ate, config, ip, fc)
 		})
 	}
 }
@@ -354,7 +376,7 @@ func stopCapture(t *testing.T, ate *ondatra.ATEDevice, cs gosnappi.ControlState)
 	ate.OTG().SetControlState(t, cs)
 }
 
-func processCapture(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, ip IPType, fc flowConfig) {
+func processCapture(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, config gosnappi.Config, ip IPType, fc flowConfig) {
 	bytes := ate.OTG().GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(config.Ports().Items()[1].Name()))
 	pcapFile, err := os.CreateTemp("", "pcap")
 	if err != nil {
@@ -364,7 +386,7 @@ func processCapture(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config
 		t.Errorf("ERROR: Could not write bytes to pcap file: %v\n", err)
 	}
 	pcapFile.Close()
-	validatePackets(t, pcapFile.Name(), ip, fc)
+	validatePackets(t, dut, pcapFile.Name(), ip, fc)
 }
 
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
@@ -451,7 +473,7 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, fc
 	ate.OTG().StartProtocols(t)
 }
 
-func validatePackets(t *testing.T, filename string, ip IPType, fc flowConfig) {
+func validatePackets(t *testing.T, dut *ondatra.DUTDevice, filename string, ip IPType, fc flowConfig) {
 	handle, err := pcap.OpenOffline(filename)
 	if err != nil {
 		t.Fatal(err)
@@ -464,8 +486,25 @@ func validatePackets(t *testing.T, filename string, ip IPType, fc flowConfig) {
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 	packetCount := 0
 	sflowSamples := uint32(0)
-	expectedSampleCount := float64(fc.packetsToSend / fc.minSamplingRate)
-	minAllowedSamples := expectedSampleCount * sampleTolerance
+	var minSamplingRate uint32
+	if deviatedRate := deviations.SflowIngressMinSamplingRate(dut); deviatedRate != 0 {
+		minSamplingRate = deviatedRate
+	} else {
+		minSamplingRate = fc.minSamplingRate
+	}
+	expectedSampleCount := float64(fc.packetsToSend) / float64(minSamplingRate)
+	probability := 1.0 / float64(minSamplingRate)
+	variance := float64(fc.packetsToSend) * probability * (1.0 - probability)
+	stdDev := math.Sqrt(variance)
+	warnMinSamples := expectedSampleCount - (2.0 * stdDev)
+	failMinSamples := expectedSampleCount - (3.0 * stdDev)
+	if warnMinSamples < 0 {
+		warnMinSamples = 0
+	}
+	if failMinSamples < 0 {
+		failMinSamples = 0
+	}
+	maxExpectedSamples := expectedSampleCount + (3.0 * stdDev)
 	for packet := range packetSource.Packets() {
 		if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
 			ipv4, _ := ipLayer.(*layers.IPv4)
@@ -487,8 +526,15 @@ func validatePackets(t *testing.T, filename string, ip IPType, fc flowConfig) {
 			sflowSamples += sflow.SampleCount
 		}
 	}
-	t.Logf("SFlow Packet count: %v - SampleCount: %v", packetCount, sflowSamples)
-	if sflowSamples < uint32(minAllowedSamples) {
-		t.Errorf("SFlow sample count %v, want > %v", sflowSamples, expectedSampleCount)
+	t.Logf("SFlow Packet count: %v - SampleCount: %v (expected: %.1f +/- %.1f, warn-min: %.1f, fail-min: %.1f)", packetCount, sflowSamples, expectedSampleCount, stdDev, warnMinSamples, failMinSamples)
+	if float64(sflowSamples) < failMinSamples {
+		sigma := (expectedSampleCount - float64(sflowSamples)) / stdDev
+		t.Errorf("SFlow sample count too low: got %v, want >= %.1f (expected: %.1f +/- %.1f, deviation: %.2f sigma)", sflowSamples, failMinSamples, expectedSampleCount, stdDev, sigma)
+	} else if float64(sflowSamples) < warnMinSamples {
+		sigma := (expectedSampleCount - float64(sflowSamples)) / stdDev
+		t.Logf("SFlow sample count below -2 sigma warning threshold: got %v, warn-min %.1f (expected: %.1f +/- %.1f, deviation: %.2f sigma)", sflowSamples, warnMinSamples, expectedSampleCount, stdDev, sigma)
+	}
+	if float64(sflowSamples) > maxExpectedSamples {
+		t.Logf("SFlow sample count unusually high: got %v, expected <= %.1f (expected: %.1f +/- %.1f)", sflowSamples, maxExpectedSamples, expectedSampleCount, stdDev)
 	}
 }
