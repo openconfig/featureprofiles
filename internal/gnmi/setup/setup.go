@@ -225,7 +225,7 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 
 		// ISIS configs.
 		intfName := dp.Name()
-		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut) {
 			intfName = dp.Name() + ".0"
 		}
 		isisIntf := isis.GetOrCreateInterface(intfName)
@@ -399,7 +399,7 @@ func VerifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, ISISInstance).Isis()
 	for _, dp := range dut.Ports() {
 		intfName := dp.Name()
-		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut) {
 			intfName = dp.Name() + ".0"
 		}
 		nbrPath := statePath.Interface(intfName)

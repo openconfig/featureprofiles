@@ -4,4 +4,13 @@
 uuid: "ee3fdf0d-610f-4808-899a-8d0057fa6962"
 plan_id: "INT-1.1"
 description: "Interface Performance"
-testbed: TESTBED_DUT_ATE_2LINKS
+testbed: TESTBED_DUT_ATE_34LINKS
+platform_exceptions:  {
+  platform:  {
+    vendor:  ARISTA
+  }
+  deviations:  {
+    interface_enabled:  true
+    default_network_instance:  "default"    
+  }
+}

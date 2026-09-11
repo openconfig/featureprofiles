@@ -48,6 +48,7 @@ platform_exceptions: {
     missing_value_for_defaults: true
     max_ecmp_paths: true
     explicit_interface_in_default_vrf: false
+    decap_nh_with_nexthop_ni_unsupported: true
   }
 }
 tags: TAGS_TRANSIT

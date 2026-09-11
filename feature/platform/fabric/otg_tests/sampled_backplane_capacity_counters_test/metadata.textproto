@@ -7,14 +7,6 @@ description: "gNMI subscribe with sample mode for backplane capacity counters"
 testbed: TESTBED_DUT
 platform_exceptions: {
   platform: {
-    vendor: CISCO
-  }
-  deviations: {
-    ipv4_missing_enabled: true
-  }
-}
-platform_exceptions: {
-  platform: {
     vendor: ARISTA
   }
   deviations: {

@@ -35,7 +35,7 @@ func TestMPLSLabelPushDepth(t *testing.T) {
 	c.Connection().WithStub(gribic)
 
 	for numLabels := 1; numLabels <= maxLabelDepth; numLabels++ {
-		t.Run(fmt.Sprintf("TE-9.1: Push MPLS labels to MPLS payload: %d labels", numLabels), func(t *testing.T) {
+		t.Run(fmt.Sprintf("TE-9.1.1: Push MPLS labels to MPLS payload: %d labels", numLabels), func(t *testing.T) {
 			labels := []uint32{}
 			for i := 0; i < numLabels; i++ {
 				labels = append(labels, uint32(baseLabel+i))
@@ -64,7 +64,7 @@ func TestMPLSPushToIP(t *testing.T) {
 	baseLabel := 42
 	numLabels := 20
 	for labelc := 1; labelc <= numLabels; labelc++ {
-		t.Run(fmt.Sprintf("TE-9.2: Push MPLS labels to IP packet: %d labels", labelc), func(t *testing.T) {
+		t.Run(fmt.Sprintf("TE-9.1.2: Push MPLS labels to IP packet: %d labels", labelc), func(t *testing.T) {
 			labels := []uint32{}
 			for i := 0; i < labelc; i++ {
 				labels = append(labels, uint32(baseLabel+i))
@@ -88,7 +88,7 @@ func TestPopTopLabel(t *testing.T) {
 	c := fluent.NewClient()
 	c.Connection().WithStub(gribic)
 
-	t.Run("TE-9.3: Pop top MPLS label", func(t *testing.T) {
+	t.Run("TE-9.1.3: Pop top MPLS label", func(t *testing.T) {
 		mplsT := mplsutil.New(c, mplsutil.PopTopLabel, deviations.DefaultNetworkInstance(dut), nil)
 		mplsT.ConfigureDevices(t, ondatra.DUT(t, "dut"), ondatra.ATE(t, "ate"))
 		mplsT.ProgramGRIBI(t)
@@ -106,7 +106,7 @@ func TestPopNLabels(t *testing.T) {
 	c.Connection().WithStub(gribic)
 
 	for _, stack := range [][]uint32{{100}, {100, 42}, {100, 42, 43, 44, 45}} {
-		t.Run(fmt.Sprintf("TE-9.4: Pop N Labels From Stack: stack %v", stack), func(t *testing.T) {
+		t.Run(fmt.Sprintf("TE-9.1.4: Pop N Labels From Stack: stack %v", stack), func(t *testing.T) {
 			mplsT := mplsutil.New(c, mplsutil.PopNLabels, deviations.DefaultNetworkInstance(dut), &mplsutil.Args{
 				LabelsToPop: stack,
 			})

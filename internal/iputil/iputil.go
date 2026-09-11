@@ -21,6 +21,8 @@ import (
 	"math"
 	"math/big"
 	"net"
+	"net/netip"
+	"strings"
 )
 
 // GenerateIPs creates list of n IPs using ipBlock
@@ -212,4 +214,112 @@ func NextIPMultiSteps(ip net.IP, count int) net.IP {
 		}(nextIPAddress)
 	}
 	return nextIPAddress
+}
+
+// GenerateIPv6s generates a list of consecutive IPv6 addresses starting from a given base IP.
+func GenerateIPv6s(baseIP net.IP, n int) ([]string, error) {
+	entries := make([]string, 0, n)
+
+	if baseIP == nil {
+		return nil, fmt.Errorf("invalid IPv6 address")
+	}
+	ip := baseIP.To16()
+	if ip == nil || baseIP.To4() != nil {
+		return nil, fmt.Errorf("not a valid IPv6 address")
+	}
+
+	baseInt := new(big.Int).SetBytes(ip)
+	pmax := new(big.Int).Lsh(big.NewInt(1), 128) // 2^128
+
+	for i := 0; i < n; i++ {
+		nextInt := new(big.Int).Add(baseInt, big.NewInt(int64(i)))
+		nextInt.Mod(nextInt, pmax) // wrap around if overflow
+		ipBytes := nextInt.FillBytes(make([]byte, 16))
+		entries = append(entries, net.IP(ipBytes).String())
+	}
+
+	return entries, nil
+}
+
+// IncrementMAC increments the given MAC address by `i` and returns the result.
+// This is just a convenience wrapper around GenerateMACs.
+func IncrementMAC(startMAC string, i int) (string, error) {
+	macs := GenerateMACs(startMAC, i, "00:00:00:00:00:01")
+	if len(macs) == 0 {
+		return "", fmt.Errorf("failed to generate MAC address")
+	}
+	return macs[0], nil
+}
+
+// IPEqual compares two strings by parsing them as IP addresses for semantic equality.
+// If parsing fails for either, it falls back to a standard direct string comparison.
+func IPEqual(got, want string) bool {
+	gotIP, errG := netip.ParseAddr(got)
+	wantIP, errW := netip.ParseAddr(want)
+	if errG == nil && errW == nil {
+		return gotIP == wantIP
+	}
+	return got == want
+}
+
+// generateIPv6 creates IPv6 Entries given the totalCount and starting prefix
+func GenerateIPv6(startIP string, count uint64) ([]string, error) {
+	if startIP == "" {
+		return nil, fmt.Errorf("invalid IPv6 address")
+	}
+
+	_, netCIDR, _ := net.ParseCIDR(startIP)
+
+	if netCIDR == nil {
+		return nil, fmt.Errorf("parsed CIDR is nil for input: %s", startIP)
+	}
+
+	// Ensure it's IPv6
+	ipBytes := netCIDR.IP.To16()
+	if ipBytes == nil || netCIDR.IP.To4() != nil {
+		return nil, fmt.Errorf("IPv4 address given, expected IPv6: %s", startIP)
+	}
+
+	maskSize, bits := netCIDR.Mask.Size()
+	if bits != 128 {
+		return nil, fmt.Errorf("expected IPv6 mask, got %d bits", bits)
+	}
+
+	ip := new(big.Int).SetBytes(ipBytes)
+	mask := new(big.Int).SetBytes(netCIDR.Mask)
+	networkIP := new(big.Int).And(ip, mask)
+
+	step := new(big.Int).Lsh(big.NewInt(1), uint(128-maskSize))
+	hostOffset := big.NewInt(1)
+	pmax := new(big.Int).Lsh(big.NewInt(1), 128)
+
+	if count == 0 {
+		count = 1
+	}
+
+	entries := []string{}
+	for i := uint64(0); i < count; i++ {
+		nextInt := new(big.Int).Mul(new(big.Int).SetUint64(i), step)
+		nextInt.Add(nextInt, networkIP)
+		nextInt.Add(nextInt, hostOffset)
+		nextInt.Mod(nextInt, pmax)
+		ipv6 := nextInt.FillBytes(make([]byte, 16))
+		entries = append(entries, net.IP(ipv6).String())
+	}
+	return entries, nil
+}
+
+// IPv4ToHex converts an IPv4 address string (e.g., "192.168.0.1")
+// into an 8-character uppercase hex string (e.g., "C0A80001").
+func IPv4ToHex(ipStr string) (string, error) {
+	ip := net.ParseIP(strings.TrimSpace(ipStr))
+	if ip == nil {
+		return "", fmt.Errorf("invalid IP address: %q", ipStr)
+	}
+	ip4 := ip.To4()
+	if ip4 == nil {
+		return "", fmt.Errorf("not an IPv4 address: %q", ipStr)
+	}
+	// Format each byte as two hex digits.
+	return fmt.Sprintf("%02X%02X%02X%02X", ip4[0], ip4[1], ip4[2], ip4[3]), nil
 }

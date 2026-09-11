@@ -23,6 +23,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
@@ -52,6 +53,7 @@ const (
 	acceptPolicy         = "PERMIT-ALL"
 	matchStdCommunitySet = "match_std_comms"
 	addStdCommunitySet   = "add_std_comms"
+	totalPackets         = 1000
 )
 
 var (
@@ -186,6 +188,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	// Configure Community Sets on DUT
 	for _, communitySet := range communitySets {
 		configureCommunitySet(t, dut, communitySet)
+	}
+
+	if deviations.BgpRibStreamingConfigRequired(dut) {
+		cfgplugins.DeviationBgpRibStreamingConfigRequired(t, dut)
 	}
 }
 
@@ -466,7 +472,7 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 		SetTxNames([]string{iDut2Ipv4.Name()}).
 		SetRxNames(dstBgp4PeerRoutes)
 	flowipv4.Size().SetFixed(512)
-	flowipv4.Duration().FixedPackets().SetPackets(1000)
+	flowipv4.Duration().FixedPackets().SetPackets(totalPackets)
 	e1 := flowipv4.Packet().Add().Ethernet()
 	e1.Src().SetValue(iDut2Eth.Mac())
 	v4 := flowipv4.Packet().Add().Ipv4()
@@ -486,7 +492,7 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 		SetTxNames([]string{iDut2Ipv6.Name()}).
 		SetRxNames(dstBgp6PeerRoutes)
 	flowipv6.Size().SetFixed(512)
-	flowipv6.Duration().FixedPackets().SetPackets(1000)
+	flowipv6.Duration().FixedPackets().SetPackets(totalPackets)
 	e2 := flowipv6.Packet().Add().Ethernet()
 	e2.Src().SetValue(iDut2Eth.Mac())
 	v6 := flowipv6.Packet().Add().Ipv6()
@@ -508,21 +514,9 @@ func sendTraffic(t *testing.T, otg *otg.OTG) {
 
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, conf gosnappi.Config) {
 	otg := ate.OTG()
-	otgutils.LogFlowMetrics(t, otg, conf)
+	defer otgutils.LogFlowMetrics(t, otg, conf)
 	for _, flow := range conf.Flows().Items() {
-		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).State())
-		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
-		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
-		if txPackets == 0 {
-			t.Fatalf("TxPkts = 0, want > 0")
-		}
-		lostPackets := txPackets - rxPackets
-		lossPct := lostPackets * 100 / txPackets
-		if lossPct > tolerancePct {
-			t.Errorf("Traffic Loss Pct for Flow %s: got %v, want max %v pct failure", flow.Name(), lossPct, tolerancePct)
-		} else {
-			t.Logf("Traffic Test Passed! for flow %s", flow.Name())
-		}
+		otgutils.ExpectedTrafficLoss(t, otg, flow.Name(), 0, float64(tolerancePct)+0.99)
 	}
 }
 

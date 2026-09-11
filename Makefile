@@ -13,21 +13,13 @@
 # limitations under the License.
 
 ROOT_DIR:=$(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
-GO_PROTOS:=proto/feature_go_proto/feature.pb.go proto/metadata_go_proto/metadata.pb.go proto/ocpaths_go_proto/ocpaths.pb.go proto/ocrpcs_go_proto/ocrpcs.pb.go proto/nosimage_go_proto/nosimage.pb.go topologies/proto/binding/binding.pb.go
+GO_PROTOS:=proto/feature_go_proto/feature.pb.go proto/metadata_go_proto/metadata.pb.go proto/ocpaths_go_proto/ocpaths.pb.go proto/ocrpcs_go_proto/ocrpcs.pb.go proto/nosimage_go_proto/nosimage.pb.go proto/testregistry_go_proto/testregistry.pb.go topologies/proto/binding/binding.pb.go
 
-.PHONY: all clean protos validate_paths protoimports
-all: openconfig_public protos validate_paths
+.PHONY: all clean protos protoimports sync-test-registry
+all: openconfig_public protos
 
 openconfig_public:
 	tools/clone_oc_public.sh openconfig_public
-
-validate_paths: openconfig_public proto/feature_go_proto/feature.pb.go
-	go run -v tools/validate_paths.go \
-		-alsologtostderr \
-		--feature_root=$(CURDIR)/feature/ \
-		--yang_roots=$(CURDIR)/openconfig_public/release/models/,$(CURDIR)/openconfig_public/third_party/ \
-		--yang_skip_roots=$(CURDIR)/openconfig_public/release/models/wifi \
-		--feature_files=${FEATURE_FILES}
 
 protos: $(GO_PROTOS)
 
@@ -83,6 +75,9 @@ topologies/proto/binding/binding.pb.go: topologies/proto/binding.proto protoimpo
 	mkdir -p topologies/proto/binding
 	protoc -I='protobuf-import' --proto_path=topologies/proto --go_out=. --go_opt=Mbinding.proto=topologies/proto/binding binding.proto
 	goimports -w topologies/proto/binding/binding.pb.go
+
+sync-test-registry:
+	go run tools/sync_test_registry/sync_test_registry.go -logtostderr
 
 clean:
 	rm -f $(GO_PROTOS)

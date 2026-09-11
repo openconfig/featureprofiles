@@ -126,13 +126,37 @@ vRX if the vendor implementation supports FIB-ACK simulation, otherwise FFF.
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  /interfaces/interface/config/description:
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/config/type:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/config/link-layer-address:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled:
+  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group:
+  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group-network-instance:
+  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/origin-protocol:
+  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix:
+  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/index:
+  /network-instances/network-instance/afts/next-hops/next-hop/state/ip-address:
+  /network-instances/network-instance/afts/next-hops/next-hop/state/mac-address:
+  /network-instances/network-instance/config/type:
+  /network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-vrf-selection-policy:
+  /network-instances/network-instance/policy-forwarding/interfaces/interface/interface-ref/config/interface:
+  /network-instances/network-instance/policy-forwarding/interfaces/interface/interface-ref/config/subinterface:
+  /network-instances/network-instance/protocols/protocol/config/identifier:
+  /network-instances/network-instance/protocols/protocol/config/name:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/index:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/interface-ref/config/interface:
 rpcs:
   gnmi:
     gNMI.Get:
     gNMI.Set:
     gNMI.Subscribe:
   gribi:
+    gRIBI.Flush:
     gRIBI.Get:
     gRIBI.Modify:
-    gRIBI.Flush:
 ```

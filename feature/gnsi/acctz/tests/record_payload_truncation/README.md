@@ -20,7 +20,14 @@ TODO(OCRPC): Record may not be complete
 
 ```yaml
 paths:
-    # Accounting does not currently support any telemetry; see https://github.com/openconfig/gnsi/issues/97 where it might become /system/aaa/acctz/XXX
+  /network-instances/network-instance/config/description:
+  /network-instances/network-instance/config/name:
+  /network-instances/network-instance/config/type:
+  /network-instances/network-instance/protocols/protocol/config/identifier:
+  /network-instances/network-instance/protocols/protocol/config/name:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/index:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop:
 rpcs:
   gnsi:
     acctz.v1.Acctz.RecordSubscribe:

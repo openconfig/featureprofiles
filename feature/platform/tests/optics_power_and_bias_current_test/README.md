@@ -77,6 +77,12 @@ to Automatic Test Equipment (ATE).
     *   Verify /interfaces/interface/state/oper-status is UP.
     *   Repeat Step1 and Step2.
 
+## Canonical OC
+
+```json
+{}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test.
@@ -106,6 +112,12 @@ paths:
   /components/component/transceiver/physical-channels/channel/state/output-power/instant:
     platform_type: ["TRANSCEIVER"]
   /components/component/transceiver/state/form-factor:
+    platform_type: ["TRANSCEIVER"]
+  /components/component/transceiver/state/vendor:
+    platform_type: ["TRANSCEIVER"]
+  /components/component/transceiver/state/vendor-part:
+    platform_type: ["TRANSCEIVER"]
+  /components/component/transceiver/state/vendor-rev:
     platform_type: ["TRANSCEIVER"]
   /components/component/transceiver/thresholds/threshold/state/input-power-lower:
     platform_type: ["TRANSCEIVER"]
