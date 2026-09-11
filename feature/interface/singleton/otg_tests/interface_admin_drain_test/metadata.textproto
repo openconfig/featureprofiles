@@ -5,3 +5,14 @@ uuid: "a3bfb6f8-7755-445e-b91f-e68263e2c81c"
 plan_id: "RT-5.17"
 description: "Physical Interface Drain via Admin Down"
 testbed: TESTBED_DUT_ATE_4LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    default_network_instance: "default"
+    isis_mpls_unsupported: true
+    isis_instance_enabled_required: true
+    missing_value_for_defaults: true
+  }
+}
