@@ -514,6 +514,8 @@ func configureATE(t *testing.T, otg *otg.OTG) gosnappi.Config {
 	t.Logf("Pushing config to ATE and starting protocols...")
 	otg.PushConfig(t, config)
 	otg.StartProtocols(t)
+	otgutils.WaitForARP(t, otg, config, "IPv4")
+	otgutils.WaitForARP(t, otg, config, "IPv6")
 	return config
 }
 
