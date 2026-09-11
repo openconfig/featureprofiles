@@ -286,6 +286,16 @@ func GenerateDynamicRouteWithISIS(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi
 	}
 }
 
+// ISISInterfaceName returns the IS-IS interface name to use in OC paths for
+// ifaceName, appending the ".0" subinterface suffix when the DUT's deviations
+// require the interface to be referenced by its subinterface ID.
+func ISISInterfaceName(dut *ondatra.DUTDevice, ifaceName string) string {
+	if (deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut)) && !strings.Contains(ifaceName, ".") {
+		ifaceName += ".0"
+	}
+	return ifaceName
+}
+
 // VerifyISISAdjacencyState waits until the IS-IS Level-2 adjacency on ifaceName
 // reaches the desired state: an UP adjacency when wantUp is true, or no UP
 // adjacency (the adjacency down or removed from the table) when wantUp is
@@ -293,9 +303,7 @@ func GenerateDynamicRouteWithISIS(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi
 func VerifyISISAdjacencyState(t *testing.T, dut *ondatra.DUTDevice, ifaceName string, wantUp bool, timeout time.Duration) {
 	t.Helper()
 
-	if (deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut)) && !strings.Contains(ifaceName, ".") {
-		ifaceName += ".0"
-	}
+	ifaceName = ISISInterfaceName(dut, ifaceName)
 
 	dni := deviations.DefaultNetworkInstance(dut)
 	adjPath := gnmi.OC().
@@ -307,15 +315,6 @@ func VerifyISISAdjacencyState(t *testing.T, dut *ondatra.DUTDevice, ifaceName st
 		AdjacencyAny().
 		AdjacencyState().
 		State()
-
-	anyUp := func() bool {
-		for _, adj := range gnmi.LookupAll(t, dut, adjPath) {
-			if state, ok := adj.Val(); ok && state == oc.Isis_IsisInterfaceAdjState_UP {
-				return true
-			}
-		}
-		return false
-	}
 
 	if wantUp {
 		watch := gnmi.WatchAll(t, dut, adjPath, timeout, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
@@ -329,25 +328,28 @@ func VerifyISISAdjacencyState(t *testing.T, dut *ondatra.DUTDevice, ifaceName st
 		return
 	}
 
-	// For wantUp=false the adjacency transitions to DOWN/INIT and is then
-	// typically removed from the table. A WatchAll on AdjacencyAny() yields no
-	// samples once the entry is gone, so check for an already-absent adjacency
-	// first, then watch for it to leave UP, and finally re-check via LookupAll
-	// (an absent/non-UP list is the desired down state).
-	if !anyUp() {
-		t.Logf("IS-IS L2 adjacency on %s reached wantUp=false", ifaceName)
-		return
+	// For wantUp=false the adjacency either transitions to a non-UP state or,
+	// as many implementations do, is removed from the table entirely. A
+	// wildcard WatchAll stops yielding samples once the list entry is deleted
+	// and would time out, so poll the adjacency list and succeed as soon as no
+	// UP adjacency remains.
+	anyUp := func() bool {
+		for _, adj := range gnmi.LookupAll(t, dut, adjPath) {
+			if state, ok := adj.Val(); ok && state == oc.Isis_IsisInterfaceAdjState_UP {
+				return true
+			}
+		}
+		return false
 	}
-	watch := gnmi.WatchAll(t, dut, adjPath, timeout, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
-		state, ok := val.Val()
-		return !ok || state != oc.Isis_IsisInterfaceAdjState_UP
-	})
-	if _, ok := watch.Await(t); ok {
-		t.Logf("IS-IS L2 adjacency on %s reached wantUp=false", ifaceName)
-		return
+	deadline := time.Now().Add(timeout)
+	for {
+		if !anyUp() {
+			t.Logf("IS-IS L2 adjacency on %s reached wantUp=false", ifaceName)
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("IS-IS L2 adjacency on %s: still UP, want not UP within %v", ifaceName, timeout)
+		}
+		time.Sleep(time.Second)
 	}
-	if anyUp() {
-		t.Fatalf("IS-IS L2 adjacency on %s: still UP, want not UP within %v", ifaceName, timeout)
-	}
-	t.Logf("IS-IS L2 adjacency on %s reached wantUp=false", ifaceName)
 }

@@ -55,12 +55,17 @@ const (
 	port1V6Prefix        = "2001:db8:2::/64"
 	port3V4Prefix        = "203.0.113.128/25"
 	port3V6Prefix        = "2001:db8:3::/64"
+	streamOneDstV4       = "203.0.113.10"
+	streamOneDstV6       = "2001:db8:2::10"
+	streamTwoDstV4       = "203.0.113.130"
+	streamTwoDstV6       = "2001:db8:3::10"
 	bgpConvergeTimeout   = 90 * time.Second
 	isisConvergeTimeout  = 60 * time.Second
 	ifaceStatusTimeout   = 30 * time.Second
 	ifaceUpTimeout       = 60 * time.Second
 	outPktsSettleTimeout = 15 * time.Second
 	flowTxTimeout        = 60 * time.Second
+	neighborTimeout      = 60 * time.Second
 	minFlowTxPkts        = 100
 )
 
@@ -103,9 +108,10 @@ func advertiseBGPRoutes(t *testing.T, bs *cfgplugins.BGPSession, idx int, v4Pref
 	otgconfighelpers.AddBGPV6Routes(v6Peer, dev.Name()+"-v6-routes", []string{v6Prefix})
 }
 
-// configureTrafficStreams builds the four unidirectional flows from ATE
-// Port 2 (a v4 and v6 flow toward each of port1 and port3) described in the
-// README, using otgconfighelpers.Flow.
+// configureTrafficStreams builds the flows from ATE Port 2 toward the
+// port1/port3 prefixes (a v4 and v6 flow for each). Each flow sets the OTG
+// bidirectional flag so a reverse sub-flow (port1/port3 -> ATE Port 2) is
+// generated automatically under the same flow name, using otgconfighelpers.Flow.
 func configureTrafficStreams(t *testing.T, bs *cfgplugins.BGPSession) {
 	t.Helper()
 	srcDev := bs.ATEIntfs[1] // port2, ingress traffic generator
@@ -117,11 +123,12 @@ func configureTrafficStreams(t *testing.T, bs *cfgplugins.BGPSession) {
 			suffix = ".IPv6"
 		}
 		f := &otgconfighelpers.Flow{
-			FlowName:  name,
-			TxNames:   []string{srcDev.Name() + suffix},
-			RxNames:   []string{dstDev + suffix},
-			FrameSize: 512,
-			Flowrate:  10,
+			FlowName:      name,
+			TxNames:       []string{srcDev.Name() + suffix},
+			RxNames:       []string{dstDev + suffix},
+			FrameSize:     512,
+			Flowrate:      100,
+			Bidirectional: true,
 		}
 		f.CreateFlow(bs.ATETop)
 		f.EthFlow = &otgconfighelpers.EthFlowParams{SrcMAC: bs.ATEPorts[1].MAC}
@@ -135,10 +142,10 @@ func configureTrafficStreams(t *testing.T, bs *cfgplugins.BGPSession) {
 		}
 	}
 
-	newFlow(streamOneFlowV4, bs.ATEIntfs[0].Name(), "203.0.113.10", false)
-	newFlow(streamOneFlowV6, bs.ATEIntfs[0].Name(), "2001:db8:2::10", true)
-	newFlow(streamTwoFlowV4, bs.ATEIntfs[2].Name(), "203.0.113.130", false)
-	newFlow(streamTwoFlowV6, bs.ATEIntfs[2].Name(), "2001:db8:3::10", true)
+	newFlow(streamOneFlowV4, bs.ATEIntfs[0].Name(), streamOneDstV4, false)
+	newFlow(streamOneFlowV6, bs.ATEIntfs[0].Name(), streamOneDstV6, true)
+	newFlow(streamTwoFlowV4, bs.ATEIntfs[2].Name(), streamTwoDstV4, false)
+	newFlow(streamTwoFlowV6, bs.ATEIntfs[2].Name(), streamTwoDstV6, true)
 }
 
 // waitForFlowTx blocks until the named OTG flow has transmitted at least
@@ -159,7 +166,7 @@ func waitForFlowTx(t *testing.T, ate *ondatra.ATEDevice, flowName string, minPkt
 // adjacencies UP.
 func verifyProtocolsUp(t *testing.T, dut *ondatra.DUTDevice, bs *cfgplugins.BGPSession) {
 	t.Helper()
-	cfgplugins.VerifyDUTBGPEstablished(t, dut, bgpConvergeTimeout)
+	cfgplugins.VerifyDUTBGPEstablished(t, dut, cfgplugins.VerifyBGPPeerOptions{Duration: bgpConvergeTimeout})
 	cfgplugins.VerifyOTGBGPEstablished(t, bs.ATE, bgpConvergeTimeout)
 	cfgplugins.VerifyISISAdjacencyState(t, dut, bs.OndatraDUTPorts[0].Name(), true, isisConvergeTimeout)
 	cfgplugins.VerifyISISAdjacencyState(t, dut, bs.OndatraDUTPorts[2].Name(), true, isisConvergeTimeout)
@@ -232,24 +239,22 @@ func waitForOperStatus(t *testing.T, dut *ondatra.DUTDevice, portName string, wa
 }
 
 // verifyOutPktsStopped confirms DUT egress on the drained port has ceased:
-// after admin-down the out-pkts counter must stop advancing. A frozen counter
-// emits no further on-change telemetry, so we watch for any *increase* over the
-// settle window and treat the absence of one (watch timeout) as "settled". By
-// the time this runs the BGP/IS-IS teardown checks have already elapsed, so the
-// post-drain stats flush is complete. The ATE loss check is the authoritative
-// drain signal; this confirms it from the DUT side.
-func verifyOutPktsStopped(t *testing.T, dut *ondatra.DUTDevice, portName string, timeout time.Duration) {
+// after admin-down the out-pkts counter must stop advancing. It compares two
+// reads of the counter separated by the settle window; gnmi.Get fails the test
+// if the counter is absent, so a DUT that simply stops publishing out-pkts is
+// not treated as a pass. By the time this runs the BGP/IS-IS teardown checks
+// have already elapsed, so the post-drain stats flush is complete. The ATE loss
+// check is the authoritative drain signal; this confirms it from the DUT side.
+func verifyOutPktsStopped(t *testing.T, dut *ondatra.DUTDevice, portName string, settle time.Duration) {
 	t.Helper()
-	base := gnmi.Get(t, dut, gnmi.OC().Interface(portName).Counters().OutPkts().State())
-	val, ok := gnmi.Watch(t, dut, gnmi.OC().Interface(portName).Counters().OutPkts().State(), timeout, func(val *ygnmi.Value[uint64]) bool {
-		got, present := val.Val()
-		return present && got > base
-	}).Await(t)
-	if ok {
-		got, _ := val.Val()
-		t.Fatalf("Interface %s out-pkts still advancing after admin-down: %d -> %d within %v", portName, base, got, timeout)
+	path := gnmi.OC().Interface(portName).Counters().OutPkts().State()
+	base := gnmi.Get(t, dut, path)
+	time.Sleep(settle)
+	after := gnmi.Get(t, dut, path)
+	if after > base {
+		t.Fatalf("Interface %s out-pkts still advancing after admin-down: %d -> %d over %v", portName, base, after, settle)
 	}
-	t.Logf("Interface %s out-pkts settled after admin-down at %d", portName, base)
+	t.Logf("Interface %s out-pkts settled after admin-down at %d over %v", portName, after, settle)
 }
 
 // verifyFIBInstalled confirms the un-drained port1 prefixes are re-installed
@@ -310,9 +315,7 @@ func verifyNoBGPFlap(t *testing.T, dut *ondatra.DUTDevice, neighbor string, base
 // value across the drain window means the adjacency flapped (README RT-5.17.1).
 func captureISISUpTimestamp(t *testing.T, dut *ondatra.DUTDevice, ifaceName string) (uint64, bool) {
 	t.Helper()
-	if (deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut)) && !strings.Contains(ifaceName, ".") {
-		ifaceName += ".0"
-	}
+	ifaceName = cfgplugins.ISISInterfaceName(dut, ifaceName)
 	dni := deviations.DefaultNetworkInstance(dut)
 	upPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, dni).Isis().Interface(ifaceName).Level(2).AdjacencyAny().UpTimestamp().State()
 	for _, v := range gnmi.LookupAll(t, dut, upPath) {
@@ -362,10 +365,12 @@ func verifyNoRateDegradation(t *testing.T, ate *ondatra.ATEDevice, flowName stri
 	t.Logf("Flow %s no rate degradation: in-frame-rate %.0f ~ out-frame-rate %.0f", flowName, rxRate, txRate)
 }
 
-// waitForFlowRestart waits until the flow's Tx counter has been cleared after
-// a stop/start (dropped below its pre-restart value) and then climbed back to
-// at least minPkts, so loss is measured over the new window and never the old
-// one.
+// waitForFlowRestart waits until a stopped/started flow has carried fresh
+// traffic in the new window. It accepts either the OTG zeroing the Tx counter
+// on restart (a drop below the pre-restart value, then climbing to minPkts) or,
+// when the OTG keeps cumulative counters, the counter advancing by at least
+// minPkts beyond the pre-restart value, so a non-zeroing OTG is not a false
+// failure.
 func waitForFlowRestart(t *testing.T, ate *ondatra.ATEDevice, flowName string, priorTx, minPkts uint64, timeout time.Duration) {
 	t.Helper()
 	sawReset := priorTx == 0
@@ -374,24 +379,47 @@ func waitForFlowRestart(t *testing.T, ate *ondatra.ATEDevice, flowName string, p
 		if !present {
 			return false
 		}
-		if !sawReset {
-			if got >= priorTx {
-				return false
-			}
+		if !sawReset && got < priorTx {
 			sawReset = true
 		}
-		return got >= minPkts
+		if sawReset {
+			return got >= minPkts
+		}
+		return got >= priorTx+minPkts
 	}).Await(t)
 	if !ok {
-		t.Fatalf("Flow %s did not reset and re-transmit at least %d packets within %v", flowName, minPkts, timeout)
+		t.Fatalf("Flow %s did not carry at least %d fresh packets within %v", flowName, minPkts, timeout)
+	}
+}
+
+// waitForNeighborsUp blocks until each given OTG device has resolved both an
+// IPv4 and IPv6 neighbor entry. Unlike otgutils.WaitForARP, which scans the
+// whole topology, it is scoped to specific devices so it can skip a drained
+// port whose neighbor will never resolve while still ensuring the still-up
+// ports are resolved before a measurement window restarts.
+func waitForNeighborsUp(t *testing.T, ate *ondatra.ATEDevice, devs []gosnappi.Device) {
+	t.Helper()
+	for _, dev := range devs {
+		ethName := dev.Ethernets().Items()[0].Name()
+		if _, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(ethName).Ipv4NeighborAny().LinkLayerAddress().State(), neighborTimeout, func(val *ygnmi.Value[string]) bool {
+			return val.IsPresent()
+		}).Await(t); !ok {
+			t.Fatalf("OTG interface %s did not resolve an IPv4 neighbor within %v", ethName, neighborTimeout)
+		}
+		if _, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(ethName).Ipv6NeighborAny().LinkLayerAddress().State(), neighborTimeout, func(val *ygnmi.Value[string]) bool {
+			return val.IsPresent()
+		}).Await(t); !ok {
+			t.Fatalf("OTG interface %s did not resolve an IPv6 neighbor within %v", ethName, neighborTimeout)
+		}
 	}
 }
 
 // resetTrafficCounters stops and restarts the OTG flows so their cumulative
 // Tx/Rx counters zero out, letting each phase measure loss over its own window
 // rather than the whole test run. When resolveNeighbors is true (all ports
-// expected up) it re-resolves ARP/ND before restarting; it then blocks until
-// each flow's counter has cleared and carried fresh traffic.
+// expected up) it re-resolves ARP/ND across the whole topology before
+// restarting; otherwise it re-resolves only the still-up ports. It then blocks
+// until each flow's counter has cleared and carried fresh traffic.
 func resetTrafficCounters(t *testing.T, bs *cfgplugins.BGPSession, flows []string, resolveNeighbors bool) {
 	t.Helper()
 	otg := bs.ATE.OTG()
@@ -407,6 +435,12 @@ func resetTrafficCounters(t *testing.T, bs *cfgplugins.BGPSession, flows []strin
 	if resolveNeighbors {
 		otgutils.WaitForARP(t, otg, bs.ATETop, "IPv4")
 		otgutils.WaitForARP(t, otg, bs.ATETop, "IPv6")
+	} else {
+		// Port 1 is drained and its neighbor will never resolve, so re-resolve
+		// only the still-up ports (port2 ingress, port3/port4 egress/transit)
+		// rather than blocking on the whole topology, keeping the fresh
+		// measurement window free of unresolved-neighbor drops.
+		waitForNeighborsUp(t, bs.ATE, []gosnappi.Device{bs.ATEIntfs[1], bs.ATEIntfs[2], bs.ATEIntfs[3]})
 	}
 	otg.StartTraffic(t)
 

@@ -142,8 +142,6 @@ var (
 		IPv6Len: plenIPv6,
 	}
 
-	bgpName = BGPName
-
 	// PortCount1 use this for topology of 1 ports
 	PortCount1 PortCount = 1
 	// PortCount2 use this for topology of 2 ports
@@ -338,7 +336,7 @@ func (bs *BGPSession) WithEBGP(t *testing.T, afiTypes []oc.E_BgpTypes_AFI_SAFI_T
 		}
 	}
 
-	niProtocol := bs.DUTConf.GetOrCreateNetworkInstance(bs.networkInstance).GetOrCreateProtocol(PTBGP, bgpName)
+	niProtocol := bs.DUTConf.GetOrCreateNetworkInstance(bs.networkInstance).GetOrCreateProtocol(PTBGP, BGPName)
 	neighborConfig := bs.buildNeigborConfig(isSamePG, isSameAS, bgpPorts)
 	niProtocol.Bgp = BuildBGPOCConfig(t, bs.DUT, dutPort1.IPv4, afiTypes, neighborConfig)
 
@@ -426,7 +424,7 @@ func VerifyDUTBGPEstablished(t *testing.T, dut *ondatra.DUTDevice, opts ...Verif
 			dni = opts[0].NetworkInstance
 		}
 	}
-	nSessionState := gnmi.OC().NetworkInstance(dni).Protocol(PTBGP, bgpName).Bgp().NeighborAny().SessionState().State()
+	nSessionState := gnmi.OC().NetworkInstance(dni).Protocol(PTBGP, BGPName).Bgp().NeighborAny().SessionState().State()
 	watch := gnmi.WatchAll(t, dut, nSessionState, timeout, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 		state, ok := val.Val()
 		if !ok || state != oc.Bgp_Neighbor_SessionState_ESTABLISHED {
@@ -1881,12 +1879,14 @@ func DeleteExtendedRouteRetention(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi
 func VerifyBGPNeighborSessionState(t *testing.T, dut *ondatra.DUTDevice, neighborAddress string, wantEstablished bool, timeout time.Duration) {
 	t.Helper()
 	dni := deviations.DefaultNetworkInstance(dut)
-	nSessionState := gnmi.OC().NetworkInstance(dni).Protocol(PTBGP, bgpName).Bgp().Neighbor(neighborAddress).SessionState().State()
+	nSessionState := gnmi.OC().NetworkInstance(dni).Protocol(PTBGP, BGPName).Bgp().Neighbor(neighborAddress).SessionState().State()
 
 	watch := gnmi.Watch(t, dut, nSessionState, timeout, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 		state, ok := val.Val()
-		isEstablished := ok && state == oc.Bgp_Neighbor_SessionState_ESTABLISHED
-		return isEstablished == wantEstablished
+		if !ok {
+			return false
+		}
+		return (state == oc.Bgp_Neighbor_SessionState_ESTABLISHED) == wantEstablished
 	})
 	if val, ok := watch.Await(t); !ok {
 		wantDesc := "ESTABLISHED"
