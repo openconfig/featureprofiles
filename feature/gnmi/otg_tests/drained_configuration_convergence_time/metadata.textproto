@@ -45,6 +45,6 @@ platform_exceptions: {
     vendor: CISCO
   }
   deviations: {
-    bgp_set_med_action_unsupported: true
+    set_isis_auth_with_interface_authentication_container: true
   }
 }
