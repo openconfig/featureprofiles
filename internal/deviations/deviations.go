@@ -2395,3 +2395,9 @@ func BgpAdjRibOcUnsupported(dut *ondatra.DUTDevice) bool {
 func AigpMetricIncrement(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAigpMetricIncrement()
 }
+
+// DecapNHWithoutNextHopNIUnsupported returns true if Decap NH without NextHopNetworkInstance is not supported
+// Nokia: https://partnerissuetracker.corp.google.com/issues/529388485
+func DecapNHWithoutNextHopNIUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDecapNhWithoutNexthopNiUnsupported()
+}
