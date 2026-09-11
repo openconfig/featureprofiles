@@ -329,27 +329,30 @@ func VerifyISISAdjacencyState(t *testing.T, dut *ondatra.DUTDevice, ifaceName st
 	}
 
 	// For wantUp=false the adjacency either transitions to a non-UP state or,
-	// as many implementations do, is removed from the table entirely. A
-	// wildcard WatchAll stops yielding samples once the list entry is deleted
-	// and would time out, so poll the adjacency list and succeed as soon as no
-	// UP adjacency remains.
-	anyUp := func() bool {
-		for _, adj := range gnmi.LookupAll(t, dut, adjPath) {
-			if state, ok := adj.Val(); ok && state == oc.Isis_IsisInterfaceAdjState_UP {
-				return true
+	// as many implementations do, is removed from the table entirely. A wildcard
+	// WatchAll stops yielding samples once the list entry is deleted, so watch
+	// the persistent Level-2 container and succeed once none of its adjacencies
+	// are UP.
+	levelPath := gnmi.OC().
+		NetworkInstance(dni).
+		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, dni).
+		Isis().
+		Interface(ifaceName).
+		Level(2)
+	watch := gnmi.Watch(t, dut, levelPath.State(), timeout, func(val *ygnmi.Value[*oc.NetworkInstance_Protocol_Isis_Interface_Level]) bool {
+		level, ok := val.Val()
+		if !ok || level == nil {
+			return true
+		}
+		for _, adj := range level.Adjacency {
+			if adj.AdjacencyState == oc.Isis_IsisInterfaceAdjState_UP {
+				return false
 			}
 		}
-		return false
+		return true
+	})
+	if _, ok := watch.Await(t); !ok {
+		t.Fatalf("IS-IS L2 adjacency on %s: still UP, want not UP within %v", ifaceName, timeout)
 	}
-	deadline := time.Now().Add(timeout)
-	for {
-		if !anyUp() {
-			t.Logf("IS-IS L2 adjacency on %s reached wantUp=false", ifaceName)
-			return
-		}
-		if time.Now().After(deadline) {
-			t.Fatalf("IS-IS L2 adjacency on %s: still UP, want not UP within %v", ifaceName, timeout)
-		}
-		time.Sleep(time.Second)
-	}
+	t.Logf("IS-IS L2 adjacency on %s reached wantUp=false", ifaceName)
 }

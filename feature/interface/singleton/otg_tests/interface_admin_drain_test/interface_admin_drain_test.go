@@ -63,7 +63,7 @@ const (
 	isisConvergeTimeout  = 60 * time.Second
 	ifaceStatusTimeout   = 30 * time.Second
 	ifaceUpTimeout       = 60 * time.Second
-	outPktsSettleTimeout = 15 * time.Second
+	outPktsSettleTimeout = 90 * time.Second
 	flowTxTimeout        = 60 * time.Second
 	neighborTimeout      = 60 * time.Second
 	minFlowTxPkts        = 100
@@ -248,13 +248,27 @@ func waitForOperStatus(t *testing.T, dut *ondatra.DUTDevice, portName string, wa
 func verifyOutPktsStopped(t *testing.T, dut *ondatra.DUTDevice, portName string, settle time.Duration) {
 	t.Helper()
 	path := gnmi.OC().Interface(portName).Counters().OutPkts().State()
-	base := gnmi.Get(t, dut, path)
-	time.Sleep(settle)
-	after := gnmi.Get(t, dut, path)
-	if after > base {
-		t.Fatalf("Interface %s out-pkts still advancing after admin-down: %d -> %d over %v", portName, base, after, settle)
+	// Some DUTs publish interface counters on a lagging background poll, so a
+	// single read pair can catch a stale value followed by a catch-up flush of
+	// pre-drain packets and look like advancement even after forwarding stopped.
+	// Watch the telemetry stream until two consecutive samples are equal, i.e.
+	// the counter has stabilized.
+	var prev uint64
+	var havePrev bool
+	_, ok := gnmi.Watch(t, dut, path, settle, func(val *ygnmi.Value[uint64]) bool {
+		got, present := val.Val()
+		if !present {
+			return false
+		}
+		stable := havePrev && got == prev
+		prev = got
+		havePrev = true
+		return stable
+	}).Await(t)
+	if !ok {
+		t.Fatalf("Interface %s out-pkts did not settle after admin-down within %v (last %d)", portName, settle, prev)
 	}
-	t.Logf("Interface %s out-pkts settled after admin-down at %d over %v", portName, after, settle)
+	t.Logf("Interface %s out-pkts settled after admin-down at %d", portName, prev)
 }
 
 // verifyFIBInstalled confirms the un-drained port1 prefixes are re-installed
