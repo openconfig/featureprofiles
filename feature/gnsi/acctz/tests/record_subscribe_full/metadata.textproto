@@ -31,6 +31,8 @@ platform_exceptions: {
     vendor: ARISTA
   }
   deviations: {
+    gribi_aaa_role_based_authz_unsupported: true
+    p4rt_aaa_role_based_authz_unsupported: true
     p4rt_capabilities_unsupported: true
   }
 }

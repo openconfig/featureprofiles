@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "8551f556-a525-423e-b3e8-2ff0c8bdfef1"
+plan_id: "SYS-6.1"
+description: "SSO Extended Forwarding and Stability Validation"
+testbed: TESTBED_DUT_ATE_4LINKS

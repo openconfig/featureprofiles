@@ -7,6 +7,16 @@ description:  "Management network-instance default static route"
 testbed:  TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    static_protocol_name: "STATIC"
+    interface_config_vrf_before_address: true
+  }
+}
+platform_exceptions: {
+  platform: {
     vendor: CISCO
   }
   deviations: {

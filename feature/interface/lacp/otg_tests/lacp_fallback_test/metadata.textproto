@@ -12,5 +12,7 @@ platform_exceptions: {
   deviations: {
     interface_enabled: true
     default_network_instance: "default"
+    lacp_interface_fallback_oc_unsupported: true
+    vlan_subinterface_oc_unsupported: true
   }
 }
