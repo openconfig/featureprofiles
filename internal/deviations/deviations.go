@@ -2395,3 +2395,8 @@ func BgpAdjRibOcUnsupported(dut *ondatra.DUTDevice) bool {
 func AigpMetricIncrement(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAigpMetricIncrement()
 }
+
+// DefaultPeerAsFilterOcUnsupported returns true if devices do not support default peer AS filter OC configuration.
+func DefaultPeerAsFilterOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDefaultPeerAsFilterOcUnsupported()
+}
