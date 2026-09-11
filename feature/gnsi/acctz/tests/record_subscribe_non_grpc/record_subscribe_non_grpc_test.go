@@ -16,7 +16,6 @@ package recordsubscribenongrpc_test
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"strings"
 	"testing"
@@ -28,6 +27,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/security/acctz"
 	acctzpb "github.com/openconfig/gnsi/acctz"
 	"github.com/openconfig/ondatra"
@@ -42,23 +42,20 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func prettyPrint(i any) string {
-	s, _ := json.MarshalIndent(i, "", "\t")
-	return string(s)
-}
-
 var (
 	staticBinding = flag.Bool("static_binding", false, "set this flag to true if test is run for testbed using static binding")
 )
 
 func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+
+	setupVendorSpecificAcctzConfig(t, dut)
+
 	acctz.SetupUsers(t, dut, true)
 	var records []*acctzpb.RecordResponse
 
-	// Put enough time between the test starting and any prior events so we can easily know where
-	// our records start.
-	startTime := time.Now().Add(-10 * time.Second)
+	// Get the current time from the router via gNMI to avoid clock skew issues.
+	startTime := helpers.GetRouterTime(t, dut)
 
 	newRecords := acctz.SendSuccessCliCommand(t, dut, *staticBinding)
 	records = append(records, newRecords...)
@@ -76,11 +73,13 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 
 	// Get gNSI record subscribe client.
 	requestTimestamp := &timestamppb.Timestamp{
-		Seconds: 0,
+		Seconds: startTime.Unix(),
 		Nanos:   0,
 	}
+	request := &acctzpb.RecordRequest{Timestamp: requestTimestamp}
 	acctzClient := dut.RawAPIs().GNSI(t).AcctzStream()
-	acctzSubClient, err := acctzClient.RecordSubscribe(context.Background(), &acctzpb.RecordRequest{Timestamp: requestTimestamp})
+	t.Logf("Sending acctz record subscribe request: %s", acctz.PrettyPrint(request))
+	acctzSubClient, err := acctzClient.RecordSubscribe(context.Background(), request)
 	if err != nil {
 		t.Fatalf("Failed sending accountz record request, error: %s", err)
 	}
@@ -131,7 +130,7 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 			t.Log("Done receiving records (timeout or manual break)...")
 			break
 		}
-		t.Logf("Received record: %s", prettyPrint(resp.record))
+		t.Logf("Received record: %s", acctz.PrettyPrint(resp.record))
 
 		if resp.err != nil {
 			t.Fatalf("Failed receiving record response, error: %s", resp.err)
@@ -174,7 +173,7 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 		timestamp := resp.record.Timestamp.AsTime()
 		if timestamp.UnixMilli() == lastTimestampUnixMillis {
 			// This ensures that timestamps are actually changing for each record.
-			t.Errorf("Timestamp is the same as the previous timestamp, this shouldn't be possible!, Record Details: %s", prettyPrint(resp.record))
+			t.Errorf("Timestamp is the same as the previous timestamp, this shouldn't be possible!, Record Details: %s", acctz.PrettyPrint(resp.record))
 		}
 		lastTimestampUnixMillis = timestamp.UnixMilli()
 
@@ -192,7 +191,7 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 
 		// Verify record timestamp is after request timestamp.
 		if !timestamp.After(requestTimestamp.AsTime()) {
-			t.Errorf("Record timestamp is before record request timestamp %v, Record Details: %v", requestTimestamp.AsTime(), prettyPrint(resp.record))
+			t.Errorf("Record timestamp is before record request timestamp %v, Record Details: %v", requestTimestamp.AsTime(), acctz.PrettyPrint(resp.record))
 		}
 
 		// This channel check maybe should just go away entirely -- see:
@@ -201,25 +200,39 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 		// useful info in this field to identify a "session" (even if it isn't necessarily ssh/grpc
 		// directly).
 		if resp.record.GetSessionInfo().GetChannelId() == "" && !deviations.AcctzRecordSessionChannelIdUnsupported(dut) {
-			t.Errorf("Channel Id is not populated for record: %v", prettyPrint(resp.record))
+			t.Errorf("Channel Id is not populated for record: %v", acctz.PrettyPrint(resp.record))
 		}
 
 		// Tty only set for ssh records.
 		if resp.record.GetSessionInfo().GetTty() == "" {
-			t.Errorf("Should have tty allocated but not set, Record Details: %s", prettyPrint(resp.record))
+			t.Errorf("Should have tty allocated but not set, Record Details: %s", acctz.PrettyPrint(resp.record))
 		}
 
 		// Verify authz detail is populated for denied cmds.
 		authzInfo := resp.record.GetCmdService().GetAuthz()
 		if authzInfo.Status == acctzpb.AuthzDetail_AUTHZ_STATUS_DENY && authzInfo.GetDetail() == "" {
-			t.Errorf("Authorization detail is not populated for record: %v", prettyPrint(resp.record))
+			t.Errorf("Authorization detail is not populated for record: %v", acctz.PrettyPrint(resp.record))
 		}
 
-		t.Logf("Processed Record: %s", prettyPrint(resp.record))
+		t.Logf("Processed Record: %s", acctz.PrettyPrint(resp.record))
 		recordIdx++
 	}
 	t.Logf("recordIdx: %d, len(records): %d", recordIdx, len(records))
 	if recordIdx != len(records) {
 		t.Fatal("Did not process all records.")
+	}
+}
+
+// setupVendorSpecificAcctzConfig applies vendor-specific accounting configuration needed
+// before running acctz tests.
+func setupVendorSpecificAcctzConfig(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.CISCO:
+		// Enable CLI command accounting to ensure records are generated for CLI commands.
+		helpers.GnmiCLIConfig(t, dut, "aaa accounting commands default start-stop local\naaa authorization commands default none\n")
+		// Increase gRPC accounting queue size to avoid record loss
+		// during longer test executions with background activity.
+		helpers.GnmiCLIConfig(t, dut, "grpc\n aaa accounting queue-size 512\n")
 	}
 }

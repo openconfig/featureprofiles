@@ -17,7 +17,9 @@ func TestMain(m *testing.M) {
 }
 
 const (
-	customVRFName = "customVRFName"
+	customVRFName     = "customVRFName"
+	gNMIPort          = 50055
+	transportSecurity = true
 )
 
 var (
@@ -77,9 +79,9 @@ func ConfigureDUT(batch *gnmi.SetBatch, t *testing.T, dut *ondatra.DUTDevice) {
 
 	// Configure default network instance.
 	cfgplugins.NewNetworkInstance(t, dut, batch, &dutPort1NetworkInstanceIParams)
-
 	// Configure gNMI server on default network instance.
-	cfgplugins.CreateGNMIServer(t, dut, batch, &dutPort1NetworkInstanceIParams)
+	cfgplugins.CreateGNMIServer(t, dut, batch, &dutPort1NetworkInstanceIParams, gNMIPort, deviations.RequireTransportSecurity(dut))
+
 }
 
 // ConfigureAdditionalNetworkInstance configures a new network instance in DUT and changes the network instance of port2
@@ -94,9 +96,8 @@ func ConfigureAdditionalNetworkInstance(batch *gnmi.SetBatch, t *testing.T, dut 
 
 	// Configure non-default network instance.
 	cfgplugins.NewNetworkInstance(t, dut, batch, &dutPort2NetworkInstanceIParams)
-
 	// Configure non-default gNMI server.
-	cfgplugins.CreateGNMIServer(t, dut, batch, &dutPort2NetworkInstanceIParams)
+	cfgplugins.CreateGNMIServer(t, dut, batch, &dutPort2NetworkInstanceIParams, gNMIPort, deviations.RequireTransportSecurity(dut))
 }
 
 func ValidateNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
@@ -130,7 +131,11 @@ func ValidateNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 		serverName := gnmiServer.GetName()
 		// Using gnmiServer.GetName() to get the state is better than hardcoding.
 		serverState := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer(serverName).State())
-
+		// Skip for the internal Juniper system serverName DEFAULT
+		if dut.Vendor() == ondatra.JUNIPER && serverName == "DEFAULT" {
+			t.Logf("Skipping internal Juniper system server placeholder: %s", serverName)
+			continue
+		}
 		switch serverName {
 		case customGnmiServerName:
 			validateGnmiServerState(t, serverState)
