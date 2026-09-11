@@ -282,11 +282,11 @@ func countBGPWithdrawnRoutes(t *testing.T, ate *ondatra.ATEDevice, portName stri
 	if err != nil {
 		t.Fatalf("Could not create temporary pcap file: %v", err)
 	}
+	defer os.Remove(f.Name())
+	defer f.Close()
 	if _, err := f.Write(packetBytes); err != nil {
 		t.Fatalf("Could not write packetBytes to pcap file: %v", err)
 	}
-	defer os.Remove(f.Name()) // Clean up the temporary file
-	f.Close()
 
 	handle, err := pcap.OpenOffline(f.Name())
 	if err != nil {
@@ -479,6 +479,15 @@ func TestBGPDrainPolicy(t *testing.T) {
 				cs := gosnappi.NewControlState()
 				cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
 				bs.ATE.OTG().SetControlState(t, cs)
+
+				captureStopped := false
+				defer func() {
+					if !captureStopped {
+						csStop := gosnappi.NewControlState()
+						csStop.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
+						bs.ATE.OTG().SetControlState(t, csStop)
+					}
+				}()
 
 				bs.ATE.OTG().StartProtocols(t)
 				cfgplugins.VerifyDUTBGPEstablished(t, dut)
