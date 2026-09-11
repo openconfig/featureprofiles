@@ -24,7 +24,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/featureprofiles/internal/qoscfg"
-	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -386,9 +385,9 @@ func TestBurstyTraffic(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			trafficFlows := tc.trafficFlows
 			var flowNames []string
-			for trafficID, _ := range trafficFlows {
+			for trafficID := range trafficFlows {
 				flowNames = append(flowNames, trafficID)
-			}	
+			}
 
 			var counterNames []string
 			counters := make(map[string]map[string]uint64)
