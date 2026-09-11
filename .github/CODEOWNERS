@@ -15,7 +15,7 @@
 /feature/afts/         @openconfig/featureprofiles-owner-aft
 /feature/bgp/          @openconfig/featureprofiles-owner-bgp
 /feature/dhcp/         @alokmtri-g
-/feature/ethernet/     @ram-mac
+/feature/ethernet/     @alokmtri-g
 /feature/gribi/        @openconfig/featureprofiles-owner-gribi
 /feature/gribi/mpls_in_udp/       @openconfig/featureprofiles-owner-gribi-mpls-in-udp
 /feature/interface/    @openconfig/featureprofiles-owner-interface
@@ -27,7 +27,7 @@
 /feature/platform/           @openconfig/featureprofiles-owner-platform
 /feature/platform/transceiver  @openconfig/featureprofiles-owner-platform-transceiver
 /feature/qos/                @openconfig/featureprofiles-owner-qos
-/feature/routing_policy/     @swetha-haridasula
+/feature/routing_policy/     @openconfig/featureprofiles-owner-bgp
 /feature/sampling/           @masood-shah
 /feature/security            @openconfig/featureprofiles-owner-security
 /feature/gnsi/		     @openconfig/featureprofiles-owner-security
