@@ -45,8 +45,8 @@ const (
 	routeCount       = 1
 	vrf1             = "vrfA"
 	vrf2             = "vrfB"
-	fps              = 1000000 // traffic frames per second
-	switchovertime   = 250.0   // switchovertime during interface shut in milliseconds
+	fps              = 10000 // traffic frames per second
+	switchovertime   = 250.0 // switchovertime during interface shut in milliseconds
 	ethernetCsmacd   = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 )
 
