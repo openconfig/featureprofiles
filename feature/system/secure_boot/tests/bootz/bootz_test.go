@@ -47,9 +47,10 @@ import (
 	frpb "github.com/openconfig/gnoi/factory_reset"
 	authzpb "github.com/openconfig/gnsi/authz"
 	"github.com/openconfig/ondatra"
+	ondatrabinding "github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/testt"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
@@ -417,18 +418,8 @@ func initiateBootz(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	cli := dut.RawAPIs().CLI(t)
-	if res, err := cli.RunCommand(context.Background(), "ztp terminate noprompt"); err != nil {
-		t.Fatalf("failed to terminate existing ZTP: %v", err)
-	} else {
-		t.Log(res.Output())
-	}
-	time.Sleep(30 * time.Second)
-	if res, err := cli.RunCommand(context.Background(), "ztp clean noprompt"); err != nil {
-		t.Fatalf("failed to clean ZTP state: %v", err)
-	} else {
-		t.Log(res.Output())
-	}
-	time.Sleep(30 * time.Second)
+	runZTPCommand(t, cli, "ztp terminate noprompt", "ztp terminated")
+	runZTPCommand(t, cli, "ztp clean noprompt", "all ztp files have been removed")
 	if res, err := cli.RunCommand(context.Background(), "run rm -rf /var/log/ztp.log\nztp initiate management noprompt"); err != nil {
 		t.Fatalf("failed to initiate ZTP: %v", err)
 	} else if strings.Contains(strings.ToLower(res.Output()), "error") {
@@ -436,24 +427,33 @@ func initiateBootz(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
+func runZTPCommand(t *testing.T, cli ondatrabinding.CLIClient, command, completion string) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	res, err := cli.RunCommand(ctx, command)
+	if err != nil {
+		t.Fatalf("failed to run %q: %v", command, err)
+	}
+	output := res.Output()
+	t.Log(output)
+	if !strings.Contains(strings.ToLower(output), completion) {
+		t.Fatalf("%q did not complete successfully: %s", command, output)
+	}
+}
+
 func awaitBootzStatus(t *testing.T, dut *ondatra.DUTDevice, want oc.E_Bootz_Status, timeout time.Duration) {
 	t.Helper()
-	deadline := time.Now().Add(timeout)
-	for time.Now().Before(deadline) {
-		var got oc.E_Bootz_Status
-		if errMsg := testt.CaptureFatal(t, func(tb testing.TB) {
-			got = gnmi.Get(tb, dut, gnmi.OC().System().Bootz().Status().State())
-		}); errMsg == nil {
+	_, ok := gnmi.Watch(t, dut, gnmi.OC().System().Bootz().Status().State(), timeout, func(val *ygnmi.Value[oc.E_Bootz_Status]) bool {
+		got, present := val.Val()
+		if present {
 			t.Logf("Observed Bootz status: %s", got)
-			if got == want {
-				return
-			}
-		} else {
-			t.Logf("Bootz status lookup failed while waiting for %s: %s", want, *errMsg)
 		}
-		time.Sleep(15 * time.Second)
+		return present && got == want
+	}).Await(t)
+	if !ok {
+		t.Fatalf("timed out waiting for Bootz status %s", want)
 	}
-	t.Fatalf("timed out waiting for Bootz status %s", want)
 }
 
 func validateBootzTelemetry(t *testing.T, dut *ondatra.DUTDevice, preLastAttempt uint64, wantChecksum string) {
@@ -699,9 +699,6 @@ func doHTTPRequest(t *testing.T, desc string, build func() (*http.Request, error
 				}
 				lastErr = fmt.Sprintf("%s: %s", resp.Status, string(body))
 			}
-		}
-		if attempt < 10 {
-			time.Sleep(2 * time.Second)
 		}
 	}
 	t.Fatalf("%s failed after retries: %s", desc, lastErr)
