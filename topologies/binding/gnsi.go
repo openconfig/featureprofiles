@@ -47,7 +47,6 @@ func (g gnsiConn) Acctz() accpb.AcctzClient {
 func (g gnsiConn) AcctzStream() accpb.AcctzStreamClient {
 	return accpb.NewAcctzStreamClient(g.conn)
 }
-
 func (g gnsiConn) Enrollz() enrollzpb.TpmEnrollzServiceClient {
 	return enrollzpb.NewTpmEnrollzServiceClient(g.conn)
 }
