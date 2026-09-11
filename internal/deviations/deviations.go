@@ -2380,3 +2380,18 @@ func GribiAaaRoleBasedAuthzUnsupported(dut *ondatra.DUTDevice) bool {
 func P4RTAaaRoleBasedAuthzUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetP4RtAaaRoleBasedAuthzUnsupported()
 }
+
+// AIGPRouteMetricNotSupported returns true if AIGP route metric is not supported.
+func AIGPRouteMetricNotSupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAigpRouteMetricNotSupported()
+}
+
+// BgpAdjRibOcUnsupported returns true if BGP adjacency rib OC is not supported.
+func BgpAdjRibOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpAdjRibOcUnsupported()
+}
+
+// AigpMetricIncrement returns true if AIGP metric increment is not supported.
+func AigpMetricIncrement(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAigpMetricIncrement()
+}

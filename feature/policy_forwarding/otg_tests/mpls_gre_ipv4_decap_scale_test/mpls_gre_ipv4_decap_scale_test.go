@@ -25,6 +25,11 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
+// TestMain calls main function.
+func TestMain(m *testing.M) {
+	fptest.RunTests(m)
+}
+
 const (
 	ieee8023adLag          = oc.IETFInterfaces_InterfaceType_ieee8023adLag
 	mplsLabelCount         = 2000
