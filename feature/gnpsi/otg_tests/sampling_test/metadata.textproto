@@ -16,4 +16,15 @@ platform_exceptions:  {
     gnpsi_oc_unsupported: true
   }
 }
+
+platform_exceptions:  {
+  platform:  {
+    vendor:  JUNIPER
+  }
+  deviations:  {
+    interface_enabled:  true
+    gnpsi_oc_unsupported: true
+  }
+}
+
 tags:  TAGS_AGGREGATION
