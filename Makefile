@@ -13,7 +13,7 @@
 # limitations under the License.
 
 ROOT_DIR:=$(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
-GO_PROTOS:=proto/feature_go_proto/feature.pb.go proto/metadata_go_proto/metadata.pb.go proto/ocpaths_go_proto/ocpaths.pb.go proto/ocrpcs_go_proto/ocrpcs.pb.go proto/nosimage_go_proto/nosimage.pb.go proto/testregistry_go_proto/testregistry.pb.go topologies/proto/binding/binding.pb.go
+GO_PROTOS:=proto/feature_go_proto/feature.pb.go proto/metadata_go_proto/metadata.pb.go proto/ocpaths_go_proto/ocpaths.pb.go proto/ocrpcs_go_proto/ocrpcs.pb.go proto/nosimage_go_proto/nosimage.pb.go proto/testregistry_go_proto/testregistry.pb.go proto/release_intent_go_proto/release_intent.pb.go topologies/proto/binding/binding.pb.go
 
 .PHONY: all clean protos protoimports sync-test-registry
 all: openconfig_public protos
@@ -70,6 +70,11 @@ proto/testregistry_go_proto/testregistry.pb.go: proto/testregistry.proto protoim
 	mkdir -p proto/testregistry_go_proto
 	protoc -I='protobuf-import' --proto_path=proto --go_out=./proto/testregistry_go_proto --go_opt=paths=source_relative --go_opt=Mtestregistry.proto=proto/testregistry_go_proto testregistry.proto
 	goimports -w proto/testregistry_go_proto/testregistry.pb.go
+
+proto/release_intent_go_proto/release_intent.pb.go: proto/release_intent.proto
+	mkdir -p proto/release_intent_go_proto
+	protoc --proto_path=proto --go_out=./ --go_opt=Mrelease_intent.proto=proto/release_intent_go_proto proto/release_intent.proto
+	goimports -w proto/release_intent_go_proto/release_intent.pb.go
 
 topologies/proto/binding/binding.pb.go: topologies/proto/binding.proto protoimports
 	mkdir -p topologies/proto/binding

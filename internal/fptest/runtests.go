@@ -17,6 +17,7 @@ package fptest
 import (
 	"flag"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strconv"
 	"testing"
@@ -26,10 +27,17 @@ import (
 	"github.com/openconfig/featureprofiles/internal/metadata"
 	"github.com/openconfig/featureprofiles/internal/pathutil"
 	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
+	ripb "github.com/openconfig/featureprofiles/proto/release_intent_go_proto"
 	"github.com/openconfig/featureprofiles/topologies/binding"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ygnmi/ygnmi"
+	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/proto"
+)
+
+var (
+	intent = flag.String("intent", "", "Path to ReleaseIntent textproto file. If specified, tests whose plan ID is not in the intent are skipped.")
 )
 
 // RunTests initializes the appropriate binding and runs the tests.
@@ -45,6 +53,25 @@ import (
 func RunTests(m *testing.M) {
 	if err := initMetadata(); err != nil {
 		log.Errorf("Unable to initialize test metadata: %v", err)
+	}
+	if !flag.Parsed() {
+		flag.Parse()
+	}
+	if *intent != "" {
+		intended, err := isTestIntended(*intent, metadata.Get())
+		if err != nil {
+			log.Errorf("Failed to evaluate intent flag %q: %v", *intent, err)
+		} else if !intended {
+			planID := ""
+			if md := metadata.Get(); md != nil {
+				planID = md.GetPlanId()
+			}
+			log.Infof("Skipping test (plan ID %q): not included in execution intent %q", planID, *intent)
+			fmt.Println("=== RUN   TestMain")
+			fmt.Printf("    Skipping test (plan ID %q): not included in execution intent\n", planID)
+			fmt.Println("--- SKIP: TestMain (0.00s)")
+			return
+		}
 	}
 	ygnmi.WithDatapointValidator(datapointValidator)
 	ondatra.RunTests(m, binding.New)
@@ -126,4 +153,46 @@ func datapointValidator(dp *ygnmi.DataPoint) error {
 	}
 
 	return nil
+}
+
+// isTestIntended reports whether the test with the given metadata is intended to run
+// according to the ReleaseIntent file specified by intentPath.
+// If intentPath is empty, all tests are considered intended.
+// If md is nil or md.GetPlanId() is empty, the test is considered unintended.
+func isTestIntended(intentPath string, md *mpb.Metadata) (bool, error) {
+	if intentPath == "" {
+		return true, nil
+	}
+	if md == nil || md.GetPlanId() == "" {
+		return false, nil
+	}
+
+	filePath := intentPath
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		if rootPath, err := pathutil.RootPath(); err == nil {
+			candidate := filepath.Join(rootPath, intentPath)
+			if _, err := os.Stat(candidate); err == nil {
+				filePath = candidate
+			}
+		}
+	}
+
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return false, fmt.Errorf("failed to read release intent file %q: %w", filePath, err)
+	}
+
+	var relIntent ripb.ReleaseIntent
+	if err := prototext.Unmarshal(data, &relIntent); err != nil {
+		if pErr := proto.Unmarshal(data, &relIntent); pErr != nil {
+			return false, fmt.Errorf("failed to parse release intent file %q: %w", filePath, err)
+		}
+	}
+
+	for _, id := range relIntent.GetIntendedTestIds() {
+		if id == md.GetPlanId() {
+			return true, nil
+		}
+	}
+	return false, nil
 }
