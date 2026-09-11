@@ -346,3 +346,85 @@ func VerifyDUTDUTLoadBalance(t *testing.T, dut *ondatra.DUTDevice, params DUTDUT
 	}
 	return nil
 }
+
+// AwaitSupervisorRoles awaits the expected redundant roles for two supervisors,
+// gracefully bypassing transient gNMI disconnection EOF errors during switchovers
+// by relying exclusively on robust gnmi.Await queries.
+func AwaitSupervisorRoles(t *testing.T, dut *ondatra.DUTDevice, expectedPrimary, expectedSecondary string, timeout time.Duration) {
+	t.Helper()
+
+	// Both Arista and Nokia devices exhibit fatal errors with gNMI Subscribe streams
+	// immediately following a supervisor failover. Arista accepts the stream but hangs
+	// silently for up to 30 minutes, while Nokia instantly aborts the stream with an EOF.
+	// However, we observed that both devices correctly respond to gNMI Get requests
+	// within milliseconds. To fix this loophole, we use a robust polling loop mapping
+	// ygnmi.WithUseGet() to strictly avoid any Subscribe RPCs during the reset window.
+
+	c, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.Name()))
+	if err != nil {
+		t.Fatalf("Failed to create ygnmi client: %v", err)
+	}
+
+	qPrimary := gnmi.OC().Component(expectedPrimary).RedundantRole().State()
+	qSecondary := gnmi.OC().Component(expectedSecondary).RedundantRole().State()
+
+	primaryReady := false
+	secondaryReady := false
+
+	t.Logf("Starting robust gNMI Get polling loop for %v. Awaiting %s=PRIMARY, %s=SECONDARY...", timeout, expectedPrimary, expectedSecondary)
+
+	start := time.Now()
+	for time.Since(start) < timeout {
+		var opts []ygnmi.Option
+		if dut.Vendor() == ondatra.ARISTA || dut.Vendor() == ondatra.NOKIA || dut.Vendor() == ondatra.CISCO {
+			opts = append(opts, ygnmi.WithUseGet())
+		}
+		if !primaryReady {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			val, err := ygnmi.Lookup(ctx, c, qPrimary, opts...)
+			cancel()
+			if err != nil {
+				t.Logf("DEBUG: [%.1fs] Error fetching primary role: %v", time.Since(start).Seconds(), err)
+			} else {
+				if role, present := val.Val(); present {
+					t.Logf("DEBUG: [%.1fs] %s RedundantRole = %v", time.Since(start).Seconds(), expectedPrimary, role)
+					if role == oc.Platform_ComponentRedundantRole_PRIMARY {
+						primaryReady = true
+						t.Logf("SUCCESS: Supervisor %q reached PRIMARY role.", expectedPrimary)
+					}
+				}
+			}
+		}
+
+		if !secondaryReady {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			val, err := ygnmi.Lookup(ctx, c, qSecondary, opts...)
+			cancel()
+			if err != nil {
+				t.Logf("DEBUG: [%.1fs] Error fetching secondary role: %v", time.Since(start).Seconds(), err)
+			} else {
+				if role, present := val.Val(); present {
+					t.Logf("DEBUG: [%.1fs] %s RedundantRole = %v", time.Since(start).Seconds(), expectedSecondary, role)
+					if role == oc.Platform_ComponentRedundantRole_SECONDARY {
+						secondaryReady = true
+						t.Logf("SUCCESS: Supervisor %q reached SECONDARY role.", expectedSecondary)
+					}
+				}
+			}
+		}
+
+		if primaryReady && secondaryReady {
+			return
+		}
+
+		time.Sleep(10 * time.Second)
+	}
+
+	if !primaryReady {
+		t.Errorf("Supervisor %q failed to reach PRIMARY role within %v", expectedPrimary, timeout)
+	}
+	if !secondaryReady {
+		t.Errorf("Supervisor %q failed to reach SECONDARY role within %v", expectedSecondary, timeout)
+	}
+	t.Fatalf("Supervisor switchover validation failed due to timeout.")
+}

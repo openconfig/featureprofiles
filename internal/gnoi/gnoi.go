@@ -21,12 +21,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/system"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/ygnmi"
 )
 
@@ -143,4 +146,65 @@ func FetchProcessName(dut *ondatra.DUTDevice, daemon Daemon) (string, error) {
 		return "", fmt.Errorf("daemon %s not defined for vendor %s", daemon, dut.Vendor().String())
 	}
 	return d, nil
+}
+
+// InitiateSupervisorSwitchover triggers a gNOI SwitchControlProcessor RPC to the requested target supervisor.
+func InitiateSupervisorSwitchover(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, standbySupervisor string) *spb.SwitchControlProcessorResponse {
+	t.Helper()
+	gnoiClient := dut.RawAPIs().GNOI(t)
+	useNameOnly := deviations.GNOISubcomponentPath(dut)
+	switchoverRequest := &spb.SwitchControlProcessorRequest{
+		ControlProcessor: components.GetSubcomponentPath(standbySupervisor, useNameOnly),
+	}
+	t.Logf("switchoverRequest: %v", switchoverRequest)
+	switchoverResponse, err := gnoiClient.System().SwitchControlProcessor(ctx, switchoverRequest)
+	if err != nil {
+		t.Fatalf("Failed to perform control processor switchover with unexpected err: %v", err)
+	}
+	t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
+
+	want := standbySupervisor
+	got := ""
+	if useNameOnly {
+		if len(switchoverResponse.GetControlProcessor().GetElem()) > 0 {
+			got = switchoverResponse.GetControlProcessor().GetElem()[0].GetName()
+		}
+	} else {
+		if len(switchoverResponse.GetControlProcessor().GetElem()) > 1 {
+			got = switchoverResponse.GetControlProcessor().GetElem()[1].GetKey()["name"]
+		}
+	}
+	if got != want {
+		t.Fatalf("switchoverResponse.GetControlProcessor() card name: got %v, want %v", got, want)
+	}
+	if got, want := switchoverResponse.GetVersion(), ""; got == want {
+		t.Errorf("switchoverResponse.GetVersion(): got %v, want non-empty version", got)
+	}
+	if got := switchoverResponse.GetUptime(); got == 0 {
+		t.Errorf("switchoverResponse.GetUptime(): got %v, want > 0", got)
+	}
+	return switchoverResponse
+}
+
+// WaitForSwitchoverCompletion polls gNMI CurrentDatetime until the newly promoted supervisor responds or maxSwitchoverTime exceeds.
+func WaitForSwitchoverCompletion(t *testing.T, dut *ondatra.DUTDevice, startSwitchover time.Time, maxSwitchoverTime time.Duration) {
+	t.Helper()
+	t.Logf("Wait for new active RP to boot up by polling the telemetry output.")
+	for {
+		var currentTime string
+		t.Logf("Time elapsed %.2f seconds since switchover started.", time.Since(startSwitchover).Seconds())
+		time.Sleep(30 * time.Second)
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+		}); errMsg != nil {
+			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+		} else {
+			t.Logf("RP switchover has completed successfully with received time: %v", currentTime)
+			break
+		}
+		if time.Since(startSwitchover) >= maxSwitchoverTime {
+			t.Fatalf("time.Since(startSwitchover): got %v, want < %v", time.Since(startSwitchover), maxSwitchoverTime)
+		}
+	}
+	t.Logf("RP switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
 }
