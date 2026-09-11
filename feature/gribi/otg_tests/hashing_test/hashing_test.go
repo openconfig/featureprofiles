@@ -33,6 +33,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
+	"google3/third_party/openconfig/ygnmi/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -48,6 +49,44 @@ const (
 	vrfEgress     = "EGRESS"
 	ateIngressMAC = "02:00:00:00:00:02"
 	ateEgressMAC  = "02:00:00:00:00:01"
+
+	// Next Hop Group IDs
+	nhgIDDefault  uint64 = 1
+	nhgIDTransit  uint64 = 2
+	nhgIDSelfSite uint64 = 3
+	nhgIDEgress   uint64 = 4
+
+	// Stage 1 Next Hop IDs
+	nhIDLoop1 uint64 = 101
+	nhIDSoft0 uint64 = 111
+	nhIDSoft1 uint64 = 112
+	nhIDSoft2 uint64 = 113
+
+	// Stage 2 Next Hop IDs
+	nhIDLoop2 uint64 = 201
+	nhIDLoop3 uint64 = 202
+	nhIDLoop4 uint64 = 203
+	nhIDLoop5 uint64 = 204
+	nhIDSoft3 uint64 = 211
+	nhIDSoft4 uint64 = 212
+	nhIDSoft5 uint64 = 213
+	nhIDSoft6 uint64 = 214
+
+	// Stage 3 Next Hop IDs
+	nhIDLoop6  uint64 = 301
+	nhIDLoop7  uint64 = 302
+	nhIDLoop8  uint64 = 303
+	nhIDSoft7  uint64 = 311
+	nhIDSoft8  uint64 = 312
+	nhIDSoft9  uint64 = 313
+	nhIDSoft10 uint64 = 314
+	nhIDSoft11 uint64 = 315
+
+	// Stage 4 (Egress) Next Hop ID
+	nhIDEgress uint64 = 401
+
+	// Minimum ingress packets required to guarantee ECMP/WCMP hashing convergence within +-3% tolerance
+	minPacketsForHashing uint64 = 50000
 )
 
 func getPeerIP(t *testing.T, ipStr string) string {
@@ -285,21 +324,21 @@ func programGRIBIVRF(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, 
 
 	portNHs := map[uint64]nhDetail{
 		// Stage 1 NH (in Default VRF): Loop 1 TX (lc1_p3) -> Loop 1 RX (lc2_p3)
-		101: {txPortName: "lc1_p3", rxPortName: "lc2_p3", vrfName: defNI},
+		nhIDLoop1: {txPortName: "lc1_p3", rxPortName: "lc2_p3", vrfName: defNI},
 
 		// Stage 2 NHs (in Transit VRF): Loops 2, 3, 4, 5
-		201: {txPortName: "lc1_p4", rxPortName: "lc2_p4", vrfName: vrfTransit},
-		202: {txPortName: "lc1_p5", rxPortName: "lc2_p5", vrfName: vrfTransit},
-		203: {txPortName: "lc1_p6", rxPortName: "lc2_p6", vrfName: vrfTransit},
-		204: {txPortName: "lc1_p1", rxPortName: "lc2_p1", vrfName: vrfTransit},
+		nhIDLoop2: {txPortName: "lc1_p4", rxPortName: "lc2_p4", vrfName: vrfTransit},
+		nhIDLoop3: {txPortName: "lc1_p5", rxPortName: "lc2_p5", vrfName: vrfTransit},
+		nhIDLoop4: {txPortName: "lc1_p6", rxPortName: "lc2_p6", vrfName: vrfTransit},
+		nhIDLoop5: {txPortName: "lc1_p1", rxPortName: "lc2_p1", vrfName: vrfTransit},
 
 		// Stage 3 NHs (in Self-Site VRF): Loops 6, 7, 8
-		301: {txPortName: "lc2_p8", rxPortName: "lc1_p8", vrfName: vrfSelfSite},
-		302: {txPortName: "lc2_p7", rxPortName: "lc1_p7", vrfName: vrfSelfSite},
-		303: {txPortName: "lc2_p2", rxPortName: "lc1_p2", vrfName: vrfSelfSite},
+		nhIDLoop6: {txPortName: "lc2_p8", rxPortName: "lc1_p8", vrfName: vrfSelfSite},
+		nhIDLoop7: {txPortName: "lc2_p7", rxPortName: "lc1_p7", vrfName: vrfSelfSite},
+		nhIDLoop8: {txPortName: "lc2_p2", rxPortName: "lc1_p2", vrfName: vrfSelfSite},
 
 		// Egress VRF NH: DUT Egress lc2_p9 -> ATE ixia1
-		401: {txPortName: "lc2_p9", rxPortName: "", vrfName: vrfEgress},
+		nhIDEgress: {txPortName: "lc2_p9", rxPortName: "", vrfName: vrfEgress},
 	}
 
 	var entries []fluent.GRIBIEntry
@@ -332,9 +371,9 @@ func programGRIBIVRF(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, 
 
 	// Program soft Next Hops (referencing LAGs)
 	softNHIDs := []uint64{
-		111, 112, 113, // Stage 1 (3 soft hops: Soft 0, 1, 2)
-		211, 212, 213, 214, // Stage 2 (4 soft hops: Soft 3, 4, 5, 6)
-		311, 312, 313, 314, 315, // Stage 3 (5 soft hops: Soft 7, 8, 9, 10, 11)
+		nhIDSoft0, nhIDSoft1, nhIDSoft2, // Stage 1 (3 soft hops: Soft 0, 1, 2)
+		nhIDSoft3, nhIDSoft4, nhIDSoft5, nhIDSoft6, // Stage 2 (4 soft hops: Soft 3, 4, 5, 6)
+		nhIDSoft7, nhIDSoft8, nhIDSoft9, nhIDSoft10, nhIDSoft11, // Stage 3 (5 soft hops: Soft 7, 8, 9, 10, 11)
 	}
 	softVRFs := []string{
 		defNI, defNI, defNI,
@@ -357,50 +396,50 @@ func programGRIBIVRF(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, 
 	}
 
 	// NHG 1: Default VRF (Ingress) -> Stage 1 WCMP (7:1:1:1)
-	nhg1 := fluent.NextHopGroupEntry().WithNetworkInstance(defNI).WithID(1).
-		AddNextHop(101, 7). // Loop 1 (lc1_p3)
-		AddNextHop(111, 1). // Soft 0
-		AddNextHop(112, 1). // Soft 1
-		AddNextHop(113, 1)  // Soft 2
+	nhg1 := fluent.NextHopGroupEntry().WithNetworkInstance(defNI).WithID(nhgIDDefault).
+		AddNextHop(nhIDLoop1, 7). // Loop 1 (lc1_p3)
+		AddNextHop(nhIDSoft0, 1). // Soft 0
+		AddNextHop(nhIDSoft1, 1). // Soft 1
+		AddNextHop(nhIDSoft2, 1)  // Soft 2
 	entries = append(entries, nhg1)
 
 	// NHG 2: Transit VRF -> Stage 2 ECMP (8-wide)
-	nhg2 := fluent.NextHopGroupEntry().WithNetworkInstance(vrfTransit).WithID(2).
-		AddNextHop(201, 1). // Loop 2 (lc1_p4)
-		AddNextHop(202, 1). // Loop 3 (lc1_p5)
-		AddNextHop(203, 1). // Loop 4 (lc1_p6)
-		AddNextHop(204, 1). // Loop 5 (lc1_p1)
-		AddNextHop(211, 1). // Soft 3
-		AddNextHop(212, 1). // Soft 4
-		AddNextHop(213, 1). // Soft 5
-		AddNextHop(214, 1)  // Soft 6
+	nhg2 := fluent.NextHopGroupEntry().WithNetworkInstance(vrfTransit).WithID(nhgIDTransit).
+		AddNextHop(nhIDLoop2, 1). // Loop 2 (lc1_p4)
+		AddNextHop(nhIDLoop3, 1). // Loop 3 (lc1_p5)
+		AddNextHop(nhIDLoop4, 1). // Loop 4 (lc1_p6)
+		AddNextHop(nhIDLoop5, 1). // Loop 5 (lc1_p1)
+		AddNextHop(nhIDSoft3, 1). // Soft 3
+		AddNextHop(nhIDSoft4, 1). // Soft 4
+		AddNextHop(nhIDSoft5, 1). // Soft 5
+		AddNextHop(nhIDSoft6, 1)  // Soft 6
 	entries = append(entries, nhg2)
 
 	// NHG 3: Self-Site VRF -> Stage 3 ECMP (8-wide)
-	nhg3 := fluent.NextHopGroupEntry().WithNetworkInstance(vrfSelfSite).WithID(3).
-		AddNextHop(301, 1). // Loop 6 (lc2_p8)
-		AddNextHop(302, 1). // Loop 7 (lc2_p7)
-		AddNextHop(303, 1). // Loop 8 (lc2_p2)
-		AddNextHop(311, 1). // Soft 7
-		AddNextHop(312, 1). // Soft 8
-		AddNextHop(313, 1). // Soft 9
-		AddNextHop(314, 1). // Soft 10
-		AddNextHop(315, 1)  // Soft 11
+	nhg3 := fluent.NextHopGroupEntry().WithNetworkInstance(vrfSelfSite).WithID(nhgIDSelfSite).
+		AddNextHop(nhIDLoop6, 1). // Loop 6 (lc2_p8)
+		AddNextHop(nhIDLoop7, 1). // Loop 7 (lc2_p7)
+		AddNextHop(nhIDLoop8, 1). // Loop 8 (lc2_p2)
+		AddNextHop(nhIDSoft7, 1). // Soft 7
+		AddNextHop(nhIDSoft8, 1). // Soft 8
+		AddNextHop(nhIDSoft9, 1). // Soft 9
+		AddNextHop(nhIDSoft10, 1). // Soft 10
+		AddNextHop(nhIDSoft11, 1)  // Soft 11
 	entries = append(entries, nhg3)
 
 	// NHG 4: Egress VRF -> Egress Port lc2_p9
-	nhg4 := fluent.NextHopGroupEntry().WithNetworkInstance(vrfEgress).WithID(4).
-		AddNextHop(401, 1)
+	nhg4 := fluent.NextHopGroupEntry().WithNetworkInstance(vrfEgress).WithID(nhgIDEgress).
+		AddNextHop(nhIDEgress, 1)
 	entries = append(entries, nhg4)
 
 	// Route definitions for Plain IP (198.51.0.0/16) and Encap (172.16.0.0/16)
 	subnets := []string{plainSubnet, encapSubnet}
 	for _, pfx := range subnets {
 		entries = append(entries,
-			fluent.IPv4Entry().WithNetworkInstance(defNI).WithPrefix(pfx).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(defNI),
-			fluent.IPv4Entry().WithNetworkInstance(vrfTransit).WithPrefix(pfx).WithNextHopGroup(2).WithNextHopGroupNetworkInstance(vrfTransit),
-			fluent.IPv4Entry().WithNetworkInstance(vrfSelfSite).WithPrefix(pfx).WithNextHopGroup(3).WithNextHopGroupNetworkInstance(vrfSelfSite),
-			fluent.IPv4Entry().WithNetworkInstance(vrfEgress).WithPrefix(pfx).WithNextHopGroup(4).WithNextHopGroupNetworkInstance(vrfEgress),
+			fluent.IPv4Entry().WithNetworkInstance(defNI).WithPrefix(pfx).WithNextHopGroup(nhgIDDefault).WithNextHopGroupNetworkInstance(defNI),
+			fluent.IPv4Entry().WithNetworkInstance(vrfTransit).WithPrefix(pfx).WithNextHopGroup(nhgIDTransit).WithNextHopGroupNetworkInstance(vrfTransit),
+			fluent.IPv4Entry().WithNetworkInstance(vrfSelfSite).WithPrefix(pfx).WithNextHopGroup(nhgIDSelfSite).WithNextHopGroupNetworkInstance(vrfSelfSite),
+			fluent.IPv4Entry().WithNetworkInstance(vrfEgress).WithPrefix(pfx).WithNextHopGroup(nhgIDEgress).WithNextHopGroupNetworkInstance(vrfEgress),
 		)
 	}
 
@@ -416,7 +455,7 @@ func TestHashing(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	// Perform cleanup of LAGs and VRFs before test
-	cleanupDevice(t, dut)
+	cleanupDevice(t, dut, nil)
 
 	// Register test cleanup for gRIBI and DUT configuration
 	gClient := &gribi.Client{
@@ -429,12 +468,13 @@ func TestHashing(t *testing.T) {
 	}
 	gClient.BecomeLeader(t)
 
+	var discoveredPorts []string
 	t.Cleanup(func() {
 		t.Log("Flushing gRIBI entries and cleaning up DUT configuration...")
 		if err := gribi.FlushAll(gClient.Fluent(t)); err != nil {
 			t.Logf("Failed to flush gRIBI entries during cleanup: %v", err)
 		}
-		cleanupDevice(t, dut)
+		cleanupDevice(t, dut, discoveredPorts)
 		gClient.Close(t)
 	})
 
@@ -444,7 +484,7 @@ func TestHashing(t *testing.T) {
 		excludePorts = append(excludePorts, p.Name())
 	}
 
-	discoveredPorts := discoverSoftLoops(t, dut, 12, excludePorts)
+	discoveredPorts = discoverSoftLoops(t, dut, 12, excludePorts)
 	cleanDiscoveredPorts(t, dut, discoveredPorts)
 
 	softLoopIPs := []string{
@@ -553,26 +593,26 @@ func TestHashing(t *testing.T) {
 		}
 
 		// NHG 2: Transit VRF -> Stage 2 (8-wide)
-		nhg2 := fluent.NextHopGroupEntry().WithNetworkInstance(vrfTransit).WithID(2).
-			AddNextHop(201, physWeight). // Loop 2 (lc1_p4)
-			AddNextHop(202, physWeight). // Loop 3 (lc1_p5)
-			AddNextHop(203, physWeight). // Loop 4 (lc1_p6)
-			AddNextHop(204, physWeight). // Loop 5 (lc1_p1)
-			AddNextHop(211, 1).          // Soft 3
-			AddNextHop(212, 1).          // Soft 4
-			AddNextHop(213, 1).          // Soft 5
-			AddNextHop(214, 1)           // Soft 6
+		nhg2 := fluent.NextHopGroupEntry().WithNetworkInstance(vrfTransit).WithID(nhgIDTransit).
+			AddNextHop(nhIDLoop2, physWeight). // Loop 2 (lc1_p4)
+			AddNextHop(nhIDLoop3, physWeight). // Loop 3 (lc1_p5)
+			AddNextHop(nhIDLoop4, physWeight). // Loop 4 (lc1_p6)
+			AddNextHop(nhIDLoop5, physWeight). // Loop 5 (lc1_p1)
+			AddNextHop(nhIDSoft3, 1).          // Soft 3
+			AddNextHop(nhIDSoft4, 1).          // Soft 4
+			AddNextHop(nhIDSoft5, 1).          // Soft 5
+			AddNextHop(nhIDSoft6, 1)           // Soft 6
 
 		// NHG 3: Self-Site VRF -> Stage 3 (8-wide)
-		nhg3 := fluent.NextHopGroupEntry().WithNetworkInstance(vrfSelfSite).WithID(3).
-			AddNextHop(301, physWeight). // Loop 6 (lc2_p8)
-			AddNextHop(302, physWeight). // Loop 7 (lc2_p7)
-			AddNextHop(303, physWeight). // Loop 8 (lc2_p2)
-			AddNextHop(311, 1).          // Soft 7
-			AddNextHop(312, 1).          // Soft 8
-			AddNextHop(313, 1).          // Soft 9
-			AddNextHop(314, 1).          // Soft 10
-			AddNextHop(315, 1)           // Soft 11
+		nhg3 := fluent.NextHopGroupEntry().WithNetworkInstance(vrfSelfSite).WithID(nhgIDSelfSite).
+			AddNextHop(nhIDLoop6, physWeight). // Loop 6 (lc2_p8)
+			AddNextHop(nhIDLoop7, physWeight). // Loop 7 (lc2_p7)
+			AddNextHop(nhIDLoop8, physWeight). // Loop 8 (lc2_p2)
+			AddNextHop(nhIDSoft7, 1).          // Soft 7
+			AddNextHop(nhIDSoft8, 1).          // Soft 8
+			AddNextHop(nhIDSoft9, 1).          // Soft 9
+			AddNextHop(nhIDSoft10, 1).         // Soft 10
+			AddNextHop(nhIDSoft11, 1)          // Soft 11
 
 		c := gClient.Fluent(t)
 		c.Modify().AddEntry(t, nhg2, nhg3)
@@ -596,9 +636,14 @@ func TestHashing(t *testing.T) {
 		t.Log("Starting traffic...")
 		ate.OTG().StartTraffic(t)
 
-		sleepDuration := 45 * time.Second
-		t.Logf("Waiting for %v to collect stats...", sleepDuration)
-		time.Sleep(sleepDuration)
+		t.Logf("Waiting for ingress port %s to receive at least %d packets (timeout %v)...", ingressPortName, minPacketsForHashing, 45*time.Second)
+		_, ok := gnmi.Watch(t, dut, ingressCounterPath, 45*time.Second, func(val *ygnmi.Value[uint64]) bool {
+			pkts, present := val.Val()
+			return present && pkts >= initialIngress+minPacketsForHashing
+		}).Await(t)
+		if !ok {
+			t.Logf("Warning: Ingress packets did not reach %d within timeout, continuing with received traffic", minPacketsForHashing)
+		}
 
 		logRuntimeDebug(t, dut, portToLagMap)
 
@@ -872,10 +917,15 @@ func discoverSoftLoops(t *testing.T, dut *ondatra.DUTDevice, count int, excludeP
 func getEgressPacketsPhys(t *testing.T, dut *ondatra.DUTDevice, ports []string) map[string]uint64 {
 	t.Helper()
 	stats := make(map[string]uint64)
+	batch := gnmi.OCBatch()
 	for _, portName := range ports {
-		outPkts, present := gnmi.Lookup(t, dut, gnmi.OC().Interface(portName).Counters().OutPkts().State()).Val()
-		if present {
-			stats[portName] = outPkts
+		batch.AddPaths(gnmi.OC().Interface(portName).Counters().OutPkts())
+	}
+	rootVal := gnmi.Get(t, dut, batch.State())
+
+	for _, portName := range ports {
+		if intf := rootVal.GetInterface(portName); intf != nil && intf.Counters != nil {
+			stats[portName] = intf.GetCounters().GetOutPkts()
 		} else {
 			t.Logf("Warning: counter not present for port %s", portName)
 			stats[portName] = 0
@@ -1016,10 +1066,26 @@ func configStaticArpLag(lagName string, ipv4addr string, macAddr string) *oc.Int
 	return i
 }
 
-func cleanupDevice(t *testing.T, dut *ondatra.DUTDevice) {
+func cleanupDevice(t *testing.T, dut *ondatra.DUTDevice, softLoops []string) {
 	t.Helper()
 	t.Log("Performing cleanup of LAGs and VRFs...")
 	d := gnmi.OC()
+
+	if len(softLoops) > 0 {
+		cleanDiscoveredPorts(t, dut, softLoops)
+		batchACL := &gnmi.SetBatch{}
+		for _, portName := range softLoops {
+			params := cfgplugins.AclParams{
+				Name:    fmt.Sprintf("drop_rx_%s", portName),
+				ACLType: oc.Acl_ACL_TYPE_ACL_IPV4,
+				Intf:    portName,
+				Ingress: true,
+			}
+			cfgplugins.DeleteACL(t, batchACL, params)
+		}
+		t.Logf("Deleting ACLs on soft loops: %v", softLoops)
+		batchACL.Set(t, dut)
+	}
 
 	interfaces := gnmi.LookupAll(t, dut, d.InterfaceAny().Config())
 
@@ -1227,14 +1293,42 @@ func configureStaticARP(t *testing.T, dut *ondatra.DUTDevice, portToLagMap map[s
 
 func logRuntimeDebug(t *testing.T, dut *ondatra.DUTDevice, portToLagMap map[string]string) {
 	t.Helper()
-	t.Log("Logging Ingress Counters for Loop RX ports:")
 	rxPorts := []string{"lc2_p3", "lc2_p4", "lc2_p5", "lc2_p6", "lc2_p1", "lc1_p8", "lc1_p7", "lc1_p2"}
+
+	batch := gnmi.OCBatch()
 	for _, portID := range rxPorts {
 		p := dut.Port(t, portID)
 		lagName := portToLagMap[p.Name()]
-		inPkts, present := gnmi.Lookup(t, dut, gnmi.OC().Interface(lagName).Counters().InPkts().State()).Val()
-		if present {
-			t.Logf("  Port %s (%s) InPackets: %d", portID, lagName, inPkts)
+		batch.AddPaths(gnmi.OC().Interface(lagName).Counters().InPkts())
+	}
+
+	for portID := range vrfPortMap {
+		p := dut.Port(t, portID)
+		pName := p.Name()
+		lagName := portToLagMap[pName]
+		batch.AddPaths(
+			gnmi.OC().Interface(pName).OperStatus(),
+			gnmi.OC().Interface(pName).AdminStatus(),
+			gnmi.OC().Interface(pName).Counters().InPkts(),
+			gnmi.OC().Interface(pName).Counters().OutPkts(),
+			gnmi.OC().Interface(pName).Counters().InErrors(),
+			gnmi.OC().Interface(pName).Counters().OutErrors(),
+			gnmi.OC().Interface(lagName).OperStatus(),
+			gnmi.OC().Interface(lagName).AdminStatus(),
+			gnmi.OC().Interface(lagName).Counters().InErrors(),
+			gnmi.OC().Interface(lagName).Counters().OutErrors(),
+			gnmi.OC().Interface(lagName).Ethernet().MacAddress(),
+		)
+	}
+
+	rootVal := gnmi.Get(t, dut, batch.State())
+
+	t.Log("Logging Ingress Counters for Loop RX ports:")
+	for _, portID := range rxPorts {
+		p := dut.Port(t, portID)
+		lagName := portToLagMap[p.Name()]
+		if intf := rootVal.GetInterface(lagName); intf != nil && intf.Counters != nil && intf.Counters.InPkts != nil {
+			t.Logf("  Port %s (%s) InPackets: %d", portID, lagName, intf.GetCounters().GetInPkts())
 		} else {
 			t.Logf("  Port %s (%s) InPackets: N/A", portID, lagName)
 		}
@@ -1243,21 +1337,39 @@ func logRuntimeDebug(t *testing.T, dut *ondatra.DUTDevice, portToLagMap map[stri
 	t.Log("Logging Interface Status:")
 	for portID := range vrfPortMap {
 		p := dut.Port(t, portID)
-		lagName := portToLagMap[p.Name()]
+		pName := p.Name()
+		lagName := portToLagMap[pName]
 
-		pOper := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State())
-		pAdmin := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).AdminStatus().State())
-		pInPkts, _ := gnmi.Lookup(t, dut, gnmi.OC().Interface(p.Name()).Counters().InPkts().State()).Val()
-		pOutPkts, _ := gnmi.Lookup(t, dut, gnmi.OC().Interface(p.Name()).Counters().OutPkts().State()).Val()
-		pInErr, _ := gnmi.Lookup(t, dut, gnmi.OC().Interface(p.Name()).Counters().InErrors().State()).Val()
-		pOutErr, _ := gnmi.Lookup(t, dut, gnmi.OC().Interface(p.Name()).Counters().OutErrors().State()).Val()
-		t.Logf("  Phys Port %s (%s): Admin=%v, Oper=%v, InPkts=%v, OutPkts=%v, InErr=%v, OutErr=%v", portID, p.Name(), pAdmin, pOper, pInPkts, pOutPkts, pInErr, pOutErr)
+		var pAdmin oc.E_Interface_AdminStatus
+		var pOper oc.E_Interface_OperStatus
+		var pInPkts, pOutPkts, pInErr, pOutErr uint64
+		if pIntf := rootVal.GetInterface(pName); pIntf != nil {
+			pAdmin = pIntf.GetAdminStatus()
+			pOper = pIntf.GetOperStatus()
+			if pIntf.Counters != nil {
+				pInPkts = pIntf.GetCounters().GetInPkts()
+				pOutPkts = pIntf.GetCounters().GetOutPkts()
+				pInErr = pIntf.GetCounters().GetInErrors()
+				pOutErr = pIntf.GetCounters().GetOutErrors()
+			}
+		}
+		t.Logf("  Phys Port %s (%s): Admin=%v, Oper=%v, InPkts=%v, OutPkts=%v, InErr=%v, OutErr=%v", portID, pName, pAdmin, pOper, pInPkts, pOutPkts, pInErr, pOutErr)
 
-		lOper := gnmi.Get(t, dut, gnmi.OC().Interface(lagName).OperStatus().State())
-		lAdmin := gnmi.Get(t, dut, gnmi.OC().Interface(lagName).AdminStatus().State())
-		lInErr, _ := gnmi.Lookup(t, dut, gnmi.OC().Interface(lagName).Counters().InErrors().State()).Val()
-		lOutErr, _ := gnmi.Lookup(t, dut, gnmi.OC().Interface(lagName).Counters().OutErrors().State()).Val()
-		macState, _ := gnmi.Lookup(t, dut, gnmi.OC().Interface(lagName).Ethernet().MacAddress().State()).Val()
+		var lAdmin oc.E_Interface_AdminStatus
+		var lOper oc.E_Interface_OperStatus
+		var lInErr, lOutErr uint64
+		var macState string
+		if lIntf := rootVal.GetInterface(lagName); lIntf != nil {
+			lAdmin = lIntf.GetAdminStatus()
+			lOper = lIntf.GetOperStatus()
+			if lIntf.Counters != nil {
+				lInErr = lIntf.GetCounters().GetInErrors()
+				lOutErr = lIntf.GetCounters().GetOutErrors()
+			}
+			if lIntf.Ethernet != nil {
+				macState = lIntf.GetEthernet().GetMacAddress()
+			}
+		}
 		t.Logf("  LAG %s: Admin=%v, Oper=%v, InErr=%v, OutErr=%v, StateMAC=%s", lagName, lAdmin, lOper, lInErr, lOutErr, macState)
 	}
 }
