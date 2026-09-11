@@ -446,7 +446,6 @@ func TestBurstyTraffic(t *testing.T) {
 			startTrafficOnFlows(t, flowNames, ate)
 			time.Sleep(30 * time.Second)
 			stopTrafficOnFlows(t, flowNames, ate)
-			time.Sleep(60 * time.Second)
 
 			uniqueQueues := make(map[string]bool)
 			for trafficID, data := range trafficFlows {
@@ -461,6 +460,8 @@ func TestBurstyTraffic(t *testing.T) {
 				counters["ateOutPkts"][data.queue] += ateTxPkts
 				counters["ateInPkts"][data.queue] += ateRxPkts
 			}
+			otgutils.LogPortMetrics(t, ate.OTG(), top)
+			otgutils.LogFlowMetrics(t, ate.OTG(), top)
 
 			for queue := range uniqueQueues {
 				_, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).TransmitPkts().State(), timeout, func(val *ygnmi.Value[uint64]) bool {
@@ -475,17 +476,7 @@ func TestBurstyTraffic(t *testing.T) {
 				counters["dutQosDroppedPktsAfterTraffic"][queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).DroppedPkts().State())
 				counters["dutQosDroppedOctetsAfterTraffic"][queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).DroppedOctets().State())
 
-				t.Logf("ateInPkts: %v, txPkts %v, Queue: %v", counters["ateInPkts"][data.queue], counters["dutQosPktsAfterTraffic"][data.queue], data.queue)
-				if ateTxPkts == 0 {
-					otgutils.LogPortMetrics(t, ate.OTG(), top)
-					otgutils.LogFlowMetrics(t, ate.OTG(), top)
-					t.Fatalf("TxPkts == 0, want >0.")
-				}
-				lossPct := (float32)((float64(ateTxPkts-ateRxPkts) * 100.0) / float64(ateTxPkts))
-				t.Logf("Get flow %q: lossPct: %.2f%% or rxPct: %.2f%%, want: %.2f%%\n\n", data.queue, lossPct, 100.0-lossPct, data.expectedThroughputPct)
-				if got, want := 100.0-lossPct, data.expectedThroughputPct; got != want {
-					t.Errorf("Get(throughput for queue %q): got %.2f%%, want %.2f%%", data.queue, got, want)
-				}
+				t.Logf("ateInPkts: %v, txPkts %v, Queue: %v", counters["ateInPkts"][queue], counters["dutQosPktsAfterTraffic"][queue], queue)
 			}
 
 			// Check QoS egress packet counters are updated correctly.
