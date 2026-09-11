@@ -87,6 +87,8 @@ paths:
        platform_type: ["FABRIC"]
     /components/component/linecard/config/power-admin-state:
        platform_type: ["LINECARD"]
+    /components/component/linecard/state/slot-id:
+       platform_type: ["LINECARD"]
 
 rpcs:
   gnmi:

@@ -16,6 +16,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	otgconfighelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -590,22 +591,11 @@ func findISISAdjCountNonStream(t *testing.T, dut *ondatra.DUTDevice, timeout tim
 	return len(isisAdjIDs), true
 }
 
-func checkTraffic(t *testing.T, ate *ondatra.ATEDevice, trafficFlows []gosnappi.Flow) []error {
+func checkTraffic(t *testing.T, ate *ondatra.ATEDevice, trafficFlows []gosnappi.Flow) {
 	t.Helper()
-	var errs []error
 	for _, f := range trafficFlows {
-		outBytes := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(f.Name()).Counters().OutOctets().State()))
-		inBytes := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(f.Name()).Counters().InOctets().State()))
-		fmt.Printf("Flow: %s, OutBytes: %v, InBytes: %v\n", f.Name(), outBytes, inBytes)
-		rate := f.Rate().Kbps() * 1000 / 8
-		if int(outBytes) == 0 {
-			t.Errorf("outbytes for flow %s is 0, want > 0", f.Name())
-		} else if got := ((outBytes - inBytes) * 100) / outBytes; got > 0 {
-			downTime := (outBytes - inBytes) / float32(rate)
-			errs = append(errs, fmt.Errorf("\ncheck failed: losspct and downtime for flow %s:\n	got %v percent loss and %v seconds downtime, want 0 percent loss and 0 seconds downtime", f.Name(), got, downTime))
-		}
+		otgutils.ExpectedTrafficLoss(t, ate.OTG(), f.Name(), 0, 0)
 	}
-	return errs
 }
 
 func findISISActiveLSPCount(t *testing.T, dut *ondatra.DUTDevice, waitTime time.Duration, nominalCount int) (int, bool) {
@@ -869,14 +859,7 @@ func TestISISScale(t *testing.T) {
 				time.Sleep(30 * time.Second)
 				testInfo.ateData.ATE.OTG().StopTraffic(t)
 				// Check Traffic Loss
-				errs := checkTraffic(t, testInfo.ateData.ATE, testInfo.ateData.TrafficFlows)
-				if len(errs) > 0 {
-					for _, err := range errs {
-						t.Errorf("%v", err.Error())
-					}
-				} else {
-					t.Logf("Check passed: no traffic loss found for the flows")
-				}
+				checkTraffic(t, testInfo.ateData.ATE, testInfo.ateData.TrafficFlows)
 			})
 		})
 	}
