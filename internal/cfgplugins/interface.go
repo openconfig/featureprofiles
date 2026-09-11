@@ -965,8 +965,10 @@ func NewAggregateInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatc
 	gnmi.BatchDelete(b, gnmi.OC().Interface(aggID).Aggregation().MinLinks().Config())
 
 	l.PopulateOndatraPorts(t, dut)
-	for _, op := range l.OndatraPorts {
-		AddPortToAggregate(t, dut, aggID, l.OndatraPorts, b, op)
+	if len(l.OndatraPorts) != 0 {
+		for _, op := range l.OndatraPorts {
+			AddPortToAggregate(t, dut, aggID, l.OndatraPorts, b, op)
+		}
 	}
 
 	if l.Attributes.IPv4 == "" && l.Attributes.IPv6 == "" {
@@ -1200,9 +1202,11 @@ func AddInterfaceMTUOps(b *gnmi.SetBatch, dut *ondatra.DUTDevice, intfName strin
 
 // StaticARPEntry defines per-port static ARP mapping.
 type StaticARPEntry struct {
-	PortName string // DUT port name (e.g., "port2")
-	MagicIP  string // Per-port IP (e.g., "192.0.2.1")
-	MagicMAC string // Per-port MAC (e.g., "00:1A:2B:3C:4D:5E")
+	PortName      string // DUT port name (e.g., "port2")
+	MagicIP       string // Per-port IP (e.g., "192.0.2.1")
+	MagicMAC      string // Per-port MAC (e.g., "00:1A:2B:3C:4D:5E")
+	IPType        string
+	InterfaceName string // Interface name (e.g., "Ethernet1")
 }
 
 // StaticARPConfig holds all per-port static ARP entries.
@@ -1506,6 +1510,48 @@ func ConfigureLACPFallbackCLI(t *testing.T, dut *ondatra.DUTDevice, lagIntfName 
 		helpers.GnmiCLIConfig(t, dut, cli)
 	default:
 		t.Fatalf("configureLACPFallbackCLI: unsupported vendor %s", dut.Vendor())
+	}
+}
+
+func ConfigureStaticArp(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, params StaticARPEntry) {
+	t.Helper()
+	intfName := params.InterfaceName
+	if intfName == "" {
+		intfName = params.PortName
+	}
+	if intfName == "" {
+		t.Fatalf("ConfigureStaticArp: InterfaceName or PortName must be specified for OpenConfig configuration")
+	}
+	i := &oc.Interface{Name: ygot.String(intfName)}
+	s := i.GetOrCreateSubinterface(0)
+	if params.IPType == "v4" {
+		s4 := s.GetOrCreateIpv4()
+		n4 := s4.GetOrCreateNeighbor(params.MagicIP)
+		n4.LinkLayerAddress = ygot.String(params.MagicMAC)
+		gnmi.BatchUpdate(sb, gnmi.OC().Interface(params.InterfaceName).Subinterface(0).Ipv4().Neighbor(params.MagicIP).Config(), n4)
+	} else {
+		s6 := s.GetOrCreateIpv6()
+		n6 := s6.GetOrCreateNeighbor(params.MagicIP)
+		n6.LinkLayerAddress = ygot.String(params.MagicMAC)
+		gnmi.BatchUpdate(sb, gnmi.OC().Interface(params.InterfaceName).Subinterface(0).Ipv6().Neighbor(params.MagicIP).Config(), n6)
+	}
+
+}
+
+func ConfigureSoftwareLoopback(t *testing.T, dut *ondatra.DUTDevice, InterfaceName string) {
+	t.Helper()
+	cli := ""
+	if deviations.SoftLoopBackOcUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			cli = fmt.Sprintf("interface %s\n", InterfaceName)
+			cli += " traffic-loopback source system device mac"
+		default:
+			t.Fatalf("configureSoftwareLoopback: unsupported vendor %s", dut.Vendor())
+		}
+		helpers.GnmiCLIConfig(t, dut, cli)
+	} else {
+		t.Logf("software loopback OC is not available for vendor: %s", dut.Vendor())
 	}
 }
 

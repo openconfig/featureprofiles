@@ -2395,3 +2395,8 @@ func BgpAdjRibOcUnsupported(dut *ondatra.DUTDevice) bool {
 func AigpMetricIncrement(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAigpMetricIncrement()
 }
+
+// SoftLoopBackOcUnsupported returns true if the device does not support OC configuration for soft loopback interfaces.
+func SoftLoopBackOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSoftLoopbackOcUnsupported()
+}
