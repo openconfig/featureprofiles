@@ -224,18 +224,22 @@ func TestAFTPrefixFilteringResilience(t *testing.T) {
 	awaitScaleBGPConvergence(t, dut)
 	tests := []struct {
 		name string
+		desc string
 		test func(t *testing.T, dut *ondatra.DUTDevice)
 	}{
 		{
-			name: "AFT-6.3.1-ValidationAfterDeviceReboot",
+			name: "AFTValidationAfterDeviceReboot",
+			desc: "AFT-6.3.1-ValidationAfterDeviceReboot",
 			test: testAfterReboot,
 		},
 		{
-			name: "AFT-6.3.2-ScaleTest",
+			name: "AFTScaleTest",
+			desc: "AFT-6.3.2-ScaleTest",
 			test: testScaleFiltering,
 		},
 		{
-			name: "AFT-6.3.3-PerNetworkInstanceFiltering",
+			name: "AFTPerNetworkInstanceFiltering",
+			desc: "AFT-6.3.3-PerNetworkInstanceFiltering",
 			test: testPerNIFiltering,
 		},
 	}
@@ -395,7 +399,7 @@ func fetchAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, aftSess
 		},
 	)
 	if diff := cmp.Diff(filteredAFT1, filteredAFT2, sortSlices); diff != "" {
-		return nil, fmt.Errorf("aft inconsistency detected: %s", diff)
+		return nil, fmt.Errorf("aft inconsistency detected: %q", diff)
 	}
 	return aft1, nil
 }
@@ -445,7 +449,7 @@ func awaitScaleBGPConvergence(t *testing.T, dut *ondatra.DUTDevice) {
 // are preserved across a DUT reboot.
 func testAfterReboot(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	wantPrefixes := aftpf.GeneratePrefixes(t, aftpf.GeneratePrefixesParams{V4Prefixes: []string{matchPrefixAft1, matchPrefixAft2}, V6Prefixes: policyIPv6Prefixes, PfxCount: pfxCount})
 	// Verify configured policies before reboot.
@@ -605,11 +609,11 @@ func verifyGlobalFilterPolicies(t *testing.T, dut *ondatra.DUTDevice, wantIPv4Po
 		ocPolicyConfigPathV6 := fmt.Sprintf("/network-instances/network-instance[name=%s]/afts/global-filter/config/ipv6-policy", niName)
 		ocPolicyStatePathV4 := fmt.Sprintf("/network-instances/network-instance[name=%s]/afts/global-filter/state/ipv4-policy", niName)
 		ocPolicyStatePathV6 := fmt.Sprintf("/network-instances/network-instance[name=%s]/afts/global-filter/state/ipv6-policy", niName)
-		gnmiClient, err := dut.RawAPIs().BindingDUT().DialGNMI(context.Background())
+		gnmiClient, err := dut.RawAPIs().BindingDUT().DialGNMI(t.Context())
 		if err != nil {
 			t.Fatalf("Failed to dial GNMI: %v", err)
 		}
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
 		configReq := &gpb.GetRequest{
 			Path: []*gpb.Path{
@@ -668,18 +672,18 @@ func verifyGlobalFilterPolicies(t *testing.T, dut *ondatra.DUTDevice, wantIPv4Po
 			}
 		}
 		if gotConfigIPv4Policy != wantIPv4Policy {
-			t.Fatalf("IPv4 config policy mismatch got=%s want=%s", gotConfigIPv4Policy, wantIPv4Policy)
+			t.Fatalf("IPv4 config policy mismatch got=%q want=%q", gotConfigIPv4Policy, wantIPv4Policy)
 		}
 		if gotConfigIPv6Policy != wantIPv6Policy {
-			t.Fatalf("IPv6 config policy mismatch got=%s want=%s", gotConfigIPv6Policy, wantIPv6Policy)
+			t.Fatalf("IPv6 config policy mismatch got=%q want=%q", gotConfigIPv6Policy, wantIPv6Policy)
 		}
 		if gotStateIPv4Policy != wantIPv4Policy {
-			t.Fatalf("IPv4 state policy mismatch got=%s want=%s", gotStateIPv4Policy, wantIPv4Policy)
+			t.Fatalf("IPv4 state policy mismatch got=%q want=%q", gotStateIPv4Policy, wantIPv4Policy)
 		}
 		if gotStateIPv6Policy != wantIPv6Policy {
-			t.Fatalf("IPv6 state policy mismatch got=%s want=%s", gotStateIPv6Policy, wantIPv6Policy)
+			t.Fatalf("IPv6 state policy mismatch got=%q want=%q", gotStateIPv6Policy, wantIPv6Policy)
 		}
-		t.Logf("Verified persisted global-filter config/state policies for %s: ipv4=%s ipv6=%s", niName, gotConfigIPv4Policy, gotConfigIPv6Policy)
+		t.Logf("Verified persisted global-filter config/state policies for %q: ipv4=%q ipv6=%q", niName, gotConfigIPv4Policy, gotConfigIPv6Policy)
 	}
 }
 
@@ -688,7 +692,7 @@ func gnmiPath(t *testing.T, path string) *gpb.Path {
 	t.Helper()
 	p, err := ygot.StringToPath(path, ygot.StructuredPath)
 	if err != nil {
-		t.Fatalf("Failed to parse path %s: %v", path, err)
+		t.Fatalf("Failed to parse path %q: %v", path, err)
 	}
 	return p
 }
@@ -837,8 +841,7 @@ func generateScaleIPv6Prefixes(t *testing.T) []string {
 	}
 	prefixes := make([]string, 0, len(ips))
 	for _, ip := range ips {
-		prefixes = append(prefixes,
-			fmt.Sprintf("%s/%d", ip, scaleV6PfxLen))
+		prefixes = append(prefixes, fmt.Sprintf("%s/%d", ip, scaleV6PfxLen))
 	}
 	return prefixes
 }
@@ -884,7 +887,7 @@ func waitForReboot(t *testing.T, dut *ondatra.DUTDevice, lastBootTime uint64) {
 						t.Logf("Device is now unreachable. Waiting for it to come back up.")
 						deviceWentDown = true
 					}
-					t.Logf("Time elapsed %.2f seconds, DUT not reachable yet: %s.", time.Since(startReboot).Seconds(), *errMsg)
+					t.Logf("Time elapsed %.2f seconds, DUT not reachable yet: %q.", time.Since(startReboot).Seconds(), *errMsg)
 				} else {
 					if deviceWentDown {
 						t.Logf("Device rebooted successfully with received time: %v.", currentTime)
@@ -933,14 +936,14 @@ func rebootDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		Message: "Reboot without delay",
 		Force:   true,
 	}
-	gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
+	gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(t.Context())
 	if err != nil {
 		t.Fatalf("Error dialing gNOI: %v", err)
 	}
 	bootTimeBeforeReboot := gnmi.Get(t, dut, gnmi.OC().System().BootTime().State())
 	t.Logf("DUT boot time before reboot: %v", bootTimeBeforeReboot)
 	t.Log("Sending reboot request to DUT")
-	ctxWithTimeout, cancel := context.WithTimeout(context.Background(), maxRebootTime)
+	ctxWithTimeout, cancel := context.WithTimeout(t.Context(), maxRebootTime)
 	defer cancel()
 	if _, err = gnoiClient.System().Reboot(ctxWithTimeout, rebootRequest); err != nil {
 		t.Fatalf("Failed to reboot DUT with unexpected err: %v", err)
@@ -1034,7 +1037,7 @@ func testScaleFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 			// goroutine that lives until its context is cancelled. Cancelling here
 			// tears the sessions down at the end of the scenario so that the DUT
 			// never has to serve the subscriptions of all scenarios at once.
-			ctx, cancel := context.WithCancel(context.Background())
+			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 			// Select expected prefixes
 			var selectedPrefixes []string
@@ -1074,7 +1077,7 @@ func testScaleFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 			}
 			// Verify filtering correctness
 			verifyFilteredPrefixes(t, aftData, wantPrefixes, unmatchedPrefixes, tc.ipv4)
-			t.Logf("Verified scale filtering for %s: %d matched prefixes present, %d unmatched prefixes absent", tc.name, len(selectedPrefixes), len(unmatchedPrefixes))
+			t.Logf("Verified scale filtering for %q: %d matched prefixes present, %d unmatched prefixes absent", tc.name, len(selectedPrefixes), len(unmatchedPrefixes))
 		})
 	}
 }
@@ -1093,16 +1096,16 @@ func verifyFilteredPrefixes(t *testing.T, aftPrefixes *aftcache.AFTData, wantPre
 	// Verify prefixes expected to pass the filter are present.
 	for pfx := range wantPrefixes {
 		if _, ok := aftPrefixes.Prefixes[pfx]; !ok {
-			t.Fatalf("Expected %s prefix missing from filtered AFT: %s", addressFamily, pfx)
+			t.Fatalf("Expected %q prefix missing from filtered AFT: %q", addressFamily, pfx)
 		}
 	}
 	// Verify installed-but-unmatched prefixes were filtered out.
 	for _, pfx := range unmatchedPrefixes {
 		if _, ok := aftPrefixes.Prefixes[pfx]; ok {
-			t.Fatalf("Unmatched %s prefix present after filtering: %s", addressFamily, pfx)
+			t.Fatalf("Unmatched %q prefix present after filtering: %q", addressFamily, pfx)
 		}
 	}
-	t.Logf("Verified %s filtered prefixes", addressFamily)
+	t.Logf("Verified %q filtered prefixes", addressFamily)
 }
 
 // selectPercentagePrefixes selects percentage-based subset.
@@ -1157,7 +1160,7 @@ func unmatchedScalePrefixes(prefixes []string, matchPercent int) []string {
 // 7. Collector stability during filter updates.
 func testPerNIFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	// Configure NI-specific AFT filters
 	t.Log("Configuring per-network-instance AFT filters")
@@ -1268,7 +1271,7 @@ type prefixLeakCheckParams struct {
 func verifyPrefixesFilteredDuringStream(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, session *aftcache.AFTStreamSession, cfg prefixLeakCheckParams) {
 	t.Helper()
 	stoppingCondition := aftcache.PeriodicHook{
-		Description: fmt.Sprintf("%s: await canary %s while checking for leaked prefixes", cfg.CollectorName, cfg.CanaryPrefix),
+		Description: fmt.Sprintf("%q: await canary %q while checking for leaked prefixes", cfg.CollectorName, cfg.CanaryPrefix),
 		PeriodicFunc: func(ss *aftcache.AFTStreamSession) (bool, error) {
 			aft, err := ss.ToAFT(t, dut)
 			if err != nil {
@@ -1276,13 +1279,13 @@ func verifyPrefixesFilteredDuringStream(ctx context.Context, t *testing.T, dut *
 			}
 			for _, prefix := range cfg.ForbiddenPrefixes {
 				if _, ok := aft.Prefixes[prefix]; ok {
-					return false, fmt.Errorf("%s received filtered-out prefix %s", cfg.CollectorName, prefix)
+					return false, fmt.Errorf("%q received filtered-out prefix %q", cfg.CollectorName, prefix)
 				}
 			}
 			if _, ok := aft.Prefixes[cfg.CanaryPrefix]; !ok {
 				return false, nil
 			}
-			t.Logf("%s received canary prefix %s; no filtered-out prefixes leaked", cfg.CollectorName, cfg.CanaryPrefix)
+			t.Logf("%q received canary prefix %q; no filtered-out prefixes leaked", cfg.CollectorName, cfg.CanaryPrefix)
 			return true, nil
 		},
 	}
