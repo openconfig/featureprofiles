@@ -70,6 +70,7 @@ func setEthernetFromBase(t testing.TB, config *oc.Root) {
 
 // filterBaselineConfig filters the baseline config to remove unwanted fields.
 func filterBaselineConfig(baselineConfig *oc.Root) {
+	fptest.PruneUnpushableNetworkInstances(baselineConfig)
 	for _, ni := range baselineConfig.NetworkInstance {
 		for _, p := range ni.Protocol {
 			if p.Bgp != nil {
@@ -239,6 +240,7 @@ func buildGNMISetRequest(t *testing.T, metadataText string, baselineConfig *oc.R
 	}
 
 	accompaniedPath := gnmi.OC().Config().PathStruct()
+	fptest.PruneUnpushableNetworkInstances(baselineConfig)
 	gpbSetRequest.Update = append(gpbSetRequest.Update, buildGNMIUpdate(t, accompaniedPath, baselineConfig))
 	return gpbSetRequest
 }
