@@ -524,7 +524,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 		aggPath := d.Interface(aggID)
 		fptest.LogQuery(t, aggID, aggPath.Config(), aggInt)
 		gnmi.Replace(t, dut, aggPath.Config(), aggInt)
-		if deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut) {
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 			fptest.AssignToNetworkInstance(t, dut, aggID, deviations.DefaultNetworkInstance(dut), 0)
 		}
 		for _, port := range portList {
@@ -760,10 +760,11 @@ func configureDUTISIS(t *testing.T, dut *ondatra.DUTDevice, aggIDs []string) {
 		isisLevel2.Enabled = ygot.Bool(true)
 	}
 	for _, aggID := range aggIDs {
-		isisIntf := isis.GetOrCreateInterface(aggID)
+		intf := aggID
 		if deviations.InterfaceRefInterfaceIDFormat(dut) {
-			isisIntf = isis.GetOrCreateInterface(aggID + ".0")
+			intf = aggID + ".0"
 		}
+		isisIntf := isis.GetOrCreateInterface(intf)
 		isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(aggID)
 		isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 
@@ -804,11 +805,12 @@ func changeMetric(t *testing.T, dut *ondatra.DUTDevice, intf string, metric uint
 	t.Logf("Updating ISIS metric of LAG2 equal to LAG3 ")
 	d := &oc.Root{}
 	netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	netInstance.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE
 	isis := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).GetOrCreateIsis()
-	isisIntfLevel := isis.GetOrCreateInterface(intf).GetOrCreateLevel(2)
 	if deviations.InterfaceRefInterfaceIDFormat(dut) {
-		isisIntfLevel = isis.GetOrCreateInterface(intf + ".0").GetOrCreateLevel(2)
+		intf += ".0"
 	}
+	isisIntfLevel := isis.GetOrCreateInterface(intf).GetOrCreateLevel(2)
 	isisIntfLevelAfiv4 := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
 	isisIntfLevelAfiv4.Metric = ygot.Uint32(metric)
 	isisIntfLevelAfiv6 := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST)
@@ -943,11 +945,11 @@ func configureOTGBGP(t *testing.T, dev gosnappi.Device, agg *aggPortData, advV4,
 // configForwardingViable is to set forwarding viable on DUT ports
 func configForwardingViable(t *testing.T, dut *ondatra.DUTDevice, dutPorts []*ondatra.Port, forwardingViable bool) {
 	for _, port := range dutPorts {
-		if forwardingViable {
-			gnmi.Update(t, dut, gnmi.OC().Interface(port.Name()).ForwardingViable().Config(), forwardingViable)
-		} else {
-			gnmi.Update(t, dut, gnmi.OC().Interface(port.Name()).ForwardingViable().Config(), forwardingViable)
-		}
+		// Ensure the interface "type" is present in the config; some DUTs
+		// require the mandatory 'type' statement when updating sub-leaves
+		// such as forwarding-viable. Set member ports to ethernetCsmacd.
+		gnmi.Update(t, dut, gnmi.OC().Interface(port.Name()).Type().Config(), ethernetCsmacd)
+		gnmi.Update(t, dut, gnmi.OC().Interface(port.Name()).ForwardingViable().Config(), forwardingViable)
 	}
 }
 
