@@ -1,0 +1,8 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "307a9ab1-5617-49ad-9b89-b0906ed9a750"
+plan_id: "RT-5.16"
+description: "IPv6 Dynamic Neighbor Discovery (NDP) State Transitions"
+testbed: TESTBED_DUT_ATE_2LINKS
+
