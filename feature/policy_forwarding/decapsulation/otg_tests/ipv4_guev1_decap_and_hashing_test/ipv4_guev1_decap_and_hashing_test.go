@@ -54,7 +54,7 @@ const (
 	dutAreaAddress       = "49.0001"
 	dutSysID             = "1920.0000.2001"
 	ateSysID             = "64000000000"
-	UDPSrcPort           = 5996
+	UDPSrcPort           = 1000
 	UDPDstPort           = 6080
 	UDPDstPortNeg        = 6085
 	testSrcPort          = 14
@@ -708,7 +708,7 @@ func configureFlows(t *testing.T, otgConfig gosnappi.Config, macAddress string, 
 	if immediateHeader {
 		udpOuter.SrcPort().SetValue(UDPSrcPort)
 	} else {
-		udpOuter.SrcPort().Increment().SetStart(UDPSrcPort).SetStep(1).SetCount(10)
+		udpOuter.SrcPort().Increment().SetStart(UDPSrcPort).SetStep(1).SetCount(1000)
 	}
 	if incr == 13 || incr == 14 {
 		udpOuter.DstPort().SetValue(UDPDstPortNeg)
@@ -731,7 +731,7 @@ func configureFlows(t *testing.T, otgConfig gosnappi.Config, macAddress string, 
 		if immediateHeader {
 			udpMiddle.SrcPort().SetValue(UDPSrcPort - 1)
 		} else {
-			udpMiddle.SrcPort().Increment().SetStart(UDPSrcPort - 1).SetStep(1).SetCount(10)
+			udpMiddle.SrcPort().Increment().SetStart(UDPSrcPort - 1).SetStep(1).SetCount(1000)
 		}
 		udpMiddle.DstPort().SetValue(UDPDstPort)
 
@@ -778,7 +778,7 @@ func configureFlows(t *testing.T, otgConfig gosnappi.Config, macAddress string, 
 			ipInner.Dst().SetValue(constH4v6)
 		}
 		udp := flow.Packet().Add().Udp()
-		udp.SrcPort().Increment().SetStart(UDPSrcPort - 1).SetStep(1).SetCount(10)
+		udp.SrcPort().Increment().SetStart(UDPSrcPort - 1).SetStep(1).SetCount(1000)
 		udp.DstPort().SetValue(UDPSrcPort - 2)
 	case 8, 10:
 		ipInner := flow.Packet().Add().Ipv6()
