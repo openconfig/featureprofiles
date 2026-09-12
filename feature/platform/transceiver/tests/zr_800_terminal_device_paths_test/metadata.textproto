@@ -41,6 +41,8 @@ platform_exceptions: {
     eth_channel_assignment_cisco_numbering: true
     otn_channel_assignment_cisco_numbering: true
     terminal_device_channel_admin_state_unsupported: true
+    breakout_mode_unsupported_for_eight_hundred_gb: true
+    port_speed_duplex_mode_unsupported_for_interface_config: true
   }
 }
 platform_exceptions: {
