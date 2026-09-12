@@ -84,6 +84,7 @@ type properties struct {
 	installPositionAndComponentValidation bool
 	nameValidation                        bool
 	partNoValidation                      bool
+	removableValidation                   bool
 	serialNoValidation                    bool
 	mfgNameValidation                     bool
 	mfgDateValidation                     bool
@@ -189,6 +190,7 @@ func TestHardwareCards(t *testing.T) {
 				installPositionAndComponentValidation: true,
 				nameValidation:                        true,
 				partNoValidation:                      true,
+				removableValidation:                   true,
 				serialNoValidation:                    true,
 				mfgNameValidation:                     true,
 				mfgDateValidation:                     false,
@@ -206,6 +208,7 @@ func TestHardwareCards(t *testing.T) {
 				idValidation:          false,
 				nameValidation:        true,
 				partNoValidation:      true,
+				removableValidation:   true,
 				serialNoValidation:    true,
 				mfgNameValidation:     false,
 				mfgDateValidation:     false,
@@ -223,6 +226,7 @@ func TestHardwareCards(t *testing.T) {
 				idValidation:          false,
 				nameValidation:        true,
 				partNoValidation:      true,
+				removableValidation:   true,
 				serialNoValidation:    true,
 				mfgNameValidation:     false,
 				mfgDateValidation:     false,
@@ -241,6 +245,7 @@ func TestHardwareCards(t *testing.T) {
 				installPositionAndComponentValidation: true,
 				nameValidation:                        true,
 				partNoValidation:                      true,
+				removableValidation:                   true,
 				serialNoValidation:                    true,
 				mfgNameValidation:                     true,
 				mfgDateValidation:                     false,
@@ -259,6 +264,7 @@ func TestHardwareCards(t *testing.T) {
 				installPositionAndComponentValidation: true,
 				nameValidation:                        true,
 				partNoValidation:                      true,
+				removableValidation:                   true,
 				serialNoValidation:                    true,
 				mfgNameValidation:                     true,
 				mfgDateValidation:                     false,
@@ -277,6 +283,7 @@ func TestHardwareCards(t *testing.T) {
 				installPositionAndComponentValidation: true,
 				nameValidation:                        true,
 				partNoValidation:                      true,
+				removableValidation:                   true,
 				serialNoValidation:                    true,
 				mfgNameValidation:                     true,
 				mfgDateValidation:                     false,
@@ -296,6 +303,7 @@ func TestHardwareCards(t *testing.T) {
 				installPositionAndComponentValidation: true,
 				nameValidation:                        true,
 				partNoValidation:                      true,
+				removableValidation:                   true,
 				serialNoValidation:                    true,
 				mfgNameValidation:                     true,
 				mfgDateValidation:                     false,
@@ -667,6 +675,14 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 					if id == "" {
 						t.Errorf("Component %s Id: got empty string, want non-empty string", cName)
 					}
+				}
+			}
+
+			if p.removableValidation {
+				if card.Removable == nil {
+					t.Errorf("Component %s Removable: leaf /components/component/state/removable is missing in telemetry", cName)
+				} else {
+					t.Logf("Component %s Removable: %v", cName, card.GetRemovable())
 				}
 			}
 
