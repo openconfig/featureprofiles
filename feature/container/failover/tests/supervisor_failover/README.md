@@ -41,53 +41,378 @@ This is the tarball that will be used during tests.
 
 ## CNTR-3.1: Image Persistence
 
-1.  **Load Image**: Using `gnoi.Containerz.Deploy`, load a container image onto the device.
-2.  **Verify Load**: Verify the image exists on the device using `gnoi.Containerz.List`.
-3.  **Trigger Failover**: Identify the standby control processor using gNMI and trigger a switchover using `gnoi.System.SwitchControlProcessor`.
-4.  **Verify Persistence**: After the switchover, verify the loaded image is still available on the new primary control processor.
+### Test Setup
+
+*   **Topology:** `TESTBED_DUT` (Single DUT with dual control processors).
+*   **Variables:** Let `<IMAGE_NAME>` be the test container `cntrsrv_image:latest`.
+
+### Procedure
+
+1.  **Load Image:** Establish a gNOI connection to the primary control processor and load `<IMAGE_NAME>` using `gnoi.Containerz.Deploy`.
+2.  **Verify Load:** Call `gnoi.Containerz.ListImage` to verify `<IMAGE_NAME>` is present on the device.
+3.  **Identify Standby:** Query the gNMI paths `/components/component/state/redundant-role` and `/components/component/state/switchover-ready` to identify the standby control processor and verify it is ready.
+4.  **Trigger Failover:** Trigger a switchover to the standby control processor using `gnoi.System.SwitchControlProcessor`. Wait for the new primary to stabilize.
+5.  **Verify Persistence:** Establish a new gNOI connection to the newly active primary control processor. Call `gnoi.Containerz.ListImage` to verify the image persisted.
+
+#### Pass/Fail Criteria
+
+*   **Pass:** The `<IMAGE_NAME>` is successfully returned on the new primary control processor.
+*   **Fail:** The RPC returns an error, times out, or the image is absent from the device after the switchover.
 
 ## CNTR-3.2, CNTR-3.3, CNTR-3.4: Container and Volume Persistence
 
-1.  **Setup**:
-    *   Using `gnoi.Containerz.CreateVolume`, create a volume.
-    *   Using `gnoi.Containerz.Deploy`, load a container image.
-    *   Using `gnoi.Containerz.Start`, start a container that mounts the created volume.
-2.  **Verify Setup**: Verify the container is in a `RUNNING` state and the volume exists.
-3.  **Trigger Failover**: Identify the standby control processor using gNMI. Trigger a switchover using `gnoi.System.SwitchControlProcessor`.
-4.  **Verify Recovery**: After the switchover, verify that the container is still `RUNNING` and the volume still exists using `gnoi.Containerz`.
+### Test Setup
+
+*   **Topology:** `TESTBED_DUT`
+*   **Variables:** Let `<IMAGE_NAME>` be `cntrsrv_image:latest`. Let `<VOLUME_NAME>` be a unique volume name.
+
+### Procedure
+
+1.  **Setup Volume:** Using `gnoi.Containerz.CreateVolume`, create a volume named `<VOLUME_NAME>`.
+2.  **Deploy Image:** Using `gnoi.Containerz.Deploy`, load `<IMAGE_NAME>`.
+3.  **Start Container:** Using `gnoi.Containerz.StartContainer`, start a container that mounts `<VOLUME_NAME>`.
+4.  **Verify Setup:** Call `gnoi.Containerz.ListContainer` and `ListVolume` to verify the container is in a `RUNNING` state and the volume exists.
+5.  **Identify Standby:** Query `/components/component/state/redundant-role` and `/components/component/state/switchover-ready` to ensure the standby RE is ready.
+6.  **Trigger Failover:** Trigger a switchover using `gnoi.System.SwitchControlProcessor`.
+7.  **Verify Recovery:** After switchover, call `ListContainer` and `ListVolume` on the new primary.
+
+#### Pass/Fail Criteria
+
+*   **Pass:** The container is still `RUNNING` and the volume still exists.
+*   **Fail:** The container is `STOPPED`, missing, or the volume is missing.
 
 ## CNTR-3.5: Image Removal Persistence
 
-1.  **Load and Remove Image**: Load a container image, then remove it using `gnoi.Containerz.Deploy` with the `image_delete` option.
-2.  **Verify Removal**: Verify the image no longer exists on the device.
-3.  **Trigger Failover**: Trigger a control processor switchover.
-4.  **Verify Persistence of Removal**: After the switchover, verify the image does not exist on the new primary control processor.
+### Test Setup
+
+*   **Topology:** `TESTBED_DUT`
+*   **Variables:** Let `<IMAGE_NAME>` be `cntrsrv_image:latest`.
+
+### Procedure
+
+1.  **Load and Remove Image:** Load `<IMAGE_NAME>`, then remove it using `gnoi.Containerz.RemoveImage`.
+2.  **Verify Removal:** Call `gnoi.Containerz.ListImage` and verify the image no longer exists.
+3.  **Identify Standby:** Query `/components/component/state/redundant-role` and `/components/component/state/switchover-ready` to ensure the standby RE is ready.
+4.  **Trigger Failover:** Trigger a switchover using `gnoi.System.SwitchControlProcessor`.
+5.  **Verify Persistence of Removal:** Call `gnoi.Containerz.ListImage` to list images on the new primary.
+
+#### Pass/Fail Criteria
+
+*   **Pass:** The image does not exist on the new primary control processor.
+*   **Fail:** The removed image reappears after the switchover.
 
 ## CNTR-3.6: Container Removal Persistence
 
-1.  **Start and Remove Container**: Start a container, then remove it using `gnoi.Containerz.Remove`.
-2.  **Verify Removal**: Verify the container no longer exists.
-3.  **Trigger Failover**: Trigger a control processor switchover.
-4.  **Verify Persistence of Removal**: After the switchover, verify the container does not exist on the new primary control processor.
+### Test Setup
 
-## CNTR-3.7: Double Failover Image Persistence
+*   **Topology:** `TESTBED_DUT`
 
-1.  **Load Image**: Load a container image onto the device.
-2.  **First Failover**: Trigger a control processor switchover to the standby.
-3.  **Verify Persistence**: After the first switchover, verify the image is still available on the new primary.
-4.  **Second Failover**: Trigger another control processor switchover, returning to the original primary.
-5.  **Verify Final Persistence**: After the second switchover, verify the image is still available.
+### Procedure
 
-## CNTR-3.8: Container Persistence On Cold Reboot
+1.  **Start and Remove Container:** Load the image, start a container, then remove it using `gnoi.Containerz.RemoveContainer`.
+2.  **Verify Removal:** Call `gnoi.Containerz.ListContainer` and verify the container no longer exists.
+3.  **Identify Standby:** Query `/components/component/state/redundant-role` and `/components/component/state/switchover-ready` to ensure the standby RE is ready.
+4.  **Trigger Failover:** Trigger a switchover.
+5.  **Verify Persistence of Removal:** Call `ListContainer` on the new primary.
 
-1.  **Setup**:
-    *   Using `gnoi.Containerz.CreateVolume`, create a volume.
-    *   Using `gnoi.Containerz.Deploy`, load a container image.
-    *   Using `gnoi.Containerz.Start`, start a container that mounts the created volume.
-2.  **Verify Setup**: Verify the container is in a `RUNNING` state and the volume exists.
-2.  **Cold Reboot**: Trigger a cold reboot using `gnoi.System.Reboot`.
-3.  **Verify Recovery**: After the cold reboot, verify that the container is still `RUNNING` and the volume still exists using `gnoi.Containerz`.
+#### Pass/Fail Criteria
 
+*   **Pass:** The container does not exist on the new primary.
+*   **Fail:** The removed container reappears after the switchover.
+
+## CNTR-3.7: Interrupt Image Transfer During Failover
+
+### Test Setup
+
+*   **Topology:** `TESTBED_DUT`
+*   **Variables:** Identify or build a deliberately large dummy image (e.g., >2GB) to ensure the transfer takes sufficient time (e.g., >30 seconds).
+
+### Procedure
+
+1.  **Identify Standby:** Query `/components/component/state/redundant-role` and `/components/component/state/switchover-ready` to ensure the standby RE is ready.
+2.  **Interrupt Transfer:** Initiate transferring the large image to the device via `gnoi.Containerz.Deploy`.
+3.  **Trigger Failover:** While the transfer is actively in progress, trigger a switchover using `gnoi.System.SwitchControlProcessor`.
+4.  **Verify Interruption:** After the switchover on the new primary, call `gnoi.Containerz.ListImage` to check the image presence.
+
+#### Pass/Fail Criteria
+
+*   **Pass:** The dummy image is not present or successfully loaded on the new primary.
+*   **Fail:** The system crashes, stop responding, or the partial image remains in an inconsistent state.
+
+## CNTR-3.8: Interrupt Container Start During Failover
+
+### Test Setup
+
+*   **Topology:** `TESTBED_DUT`
+*   **Variables:** `<IMAGE_NAME>` = `cntrsrv_image:latest`.
+
+### Procedure
+
+1.  **Setup:** Load the `<IMAGE_NAME>` onto the device.
+2.  **Identify Standby:** Query `/components/component/state/redundant-role` and `/components/component/state/switchover-ready` to ensure the standby RE is ready.
+3.  **Interrupt Start:** Initiate starting the container using `gnoi.Containerz.StartContainer`.
+4.  **Trigger Failover:** Immediately before the container reaches the `RUNNING` state, trigger a switchover.
+5.  **Verify Interruption:** Call `gnoi.Containerz.ListContainer` on the new primary.
+
+#### Pass/Fail Criteria
+
+*   **Pass:** The container is not present or is not in a `RUNNING` state on the new primary.
+*   **Fail:** The container enters an inconsistent state or causes the system to stop responding.
+
+## CNTR-3.9: Interrupt Volume Creation During Failover
+
+### Test Setup
+
+*   **Topology:** `TESTBED_DUT`
+
+### Procedure
+
+1.  **Identify Standby:** Query `/components/component/state/redundant-role` and `/components/component/state/switchover-ready` to ensure the standby RE is ready.
+2.  **Interrupt Volume Creation:** Initiate creating a volume via `gnoi.Containerz.CreateVolume`.
+3.  **Trigger Failover:** Immediately trigger a switchover using `gnoi.System.SwitchControlProcessor`.
+4.  **Verify Interruption:** Call `gnoi.Containerz.ListVolume` on the new primary.
+
+#### Pass/Fail Criteria
+
+*   **Pass:** The intended volume does not exist or is fully cleaned up.
+*   **Fail:** A partial or corrupted volume exists.
+
+## CNTR-3.10: Double Failover Image Persistence
+
+### Test Setup
+
+*   **Topology:** `TESTBED_DUT`
+*   **Variables:** `<IMAGE_NAME>` = `cntrsrv_image:latest`.
+
+### Procedure
+
+1.  **Load Image:** Load `<IMAGE_NAME>` onto the device.
+2.  **First Failover:** Query `/components/component/state/redundant-role` and `/components/component/state/switchover-ready` to identify the standby RE. Trigger a switchover to the standby.
+3.  **Verify Persistence:** After the first switchover, verify `<IMAGE_NAME>` is still available on the new primary.
+4.  **Second Failover:** Once the original primary recovers and becomes the new standby (verify via `/components/component/state/redundant-role` and `/components/component/state/switchover-ready`), trigger another switchover back to it.
+5.  **Verify Final Persistence:** Call `gnoi.Containerz.ListImage` on the newly active primary (original RE).
+
+#### Pass/Fail Criteria
+
+*   **Pass:** The image remains available on the device after the second failover.
+*   **Fail:** The image is lost or corrupted after returning to the original RE.
+
+## CNTR-3.11: Double Failover Container Persistence
+
+### Test Setup
+
+*   **Topology:** `TESTBED_DUT`
+*   **Variables:** `<IMAGE_NAME>` = `cntrsrv_image:latest`.
+
+### Procedure
+
+1.  **Setup:** Load `<IMAGE_NAME>` and start a container. Verify it is `RUNNING` via `gnoi.Containerz.ListContainer`.
+2.  **First Failover:** Trigger a switchover to the standby control processor.
+3.  **Second Failover:** Wait for stabilization and for the original primary to become the `READY` standby. Trigger another switchover back.
+4.  **Verify Final State:** Call `gnoi.Containerz.ListContainer`.
+
+#### Pass/Fail Criteria
+
+*   **Pass:** The container has persisted and remains in the `RUNNING` state.
+*   **Fail:** The container is missing, `STOPPED`, or `EXITED`.
+
+## CNTR-3.12: Double Failover Container Stop Persistence
+
+### Test Setup
+
+*   **Topology:** `TESTBED_DUT`
+*   **Variables:** `<IMAGE_NAME>` = `cntrsrv_image:latest`.
+
+### Procedure
+
+1.  **Setup:** Load `<IMAGE_NAME>` and start a container.
+2.  **First Failover:** Trigger a switchover to the standby control processor.
+3.  **Stop Container:** Wait for stabilization, then stop the container via `gnoi.Containerz.StopContainer`. Verify it is `STOPPED`.
+4.  **Second Failover:** Trigger another switchover back to the original primary.
+5.  **Verify Final State:** Call `gnoi.Containerz.ListContainer`.
+
+#### Pass/Fail Criteria
+
+*   **Pass:** The container remains in the `STOPPED` state and did not automatically restart.
+*   **Fail:** The container erroneously restarts or is missing.
+
+## CNTR-3.13: Double Failover Volume Persistence
+
+### Test Setup
+
+*   **Topology:** `TESTBED_DUT`
+
+### Procedure
+
+1.  **Setup:** Create a volume via `gnoi.Containerz.CreateVolume`.
+2.  **First Failover:** Trigger a switchover to the standby control processor.
+3.  **Second Failover:** Once stabilized, trigger another switchover back to the original primary.
+4.  **Verify Final State:** Call `gnoi.Containerz.ListVolume`.
+
+#### Pass/Fail Criteria
+
+*   **Pass:** The volume is still available and intact.
+*   **Fail:** The volume is lost, corrupted, or inaccessible.
+
+## CNTR-3.14: Double Failover Container and Volume Persistence
+
+### Test Setup
+
+*   **Topology:** `TESTBED_DUT`
+*   **Variables:** Let `<VOLUME_NAME>` be a unique volume name.
+
+### Procedure
+
+1.  **Setup:** Create `<VOLUME_NAME>` and start a container that mounts it. Verify it is `RUNNING` and associated with the volume.
+2.  **First Failover:** Trigger a switchover to the standby control processor.
+3.  **Second Failover:** Once stabilized, trigger another switchover back to the original primary.
+4.  **Verify Final State:** Call `gnoi.Containerz.ListContainer` and `ListVolume`.
+
+#### Pass/Fail Criteria
+
+*   **Pass:** The container is `RUNNING` and successfully maintains its mount association to `<VOLUME_NAME>`.
+*   **Fail:** The container fails to start, or loses its volume mount.
+
+## CNTR-3.15: Container Placement: LC_PRIMARY
+
+### Test Setup
+
+*   **Topology:** `TESTBED_DUT`
+
+### Procedure
+
+1.  **Start Primary Container:** Start a container specifying the location tag `LC_PRIMARY` via `gnoi.Containerz.StartContainer`.
+2.  **Verify Active Placement:** Call `gnoi.Containerz.ListContainer` on the active control processor to confirm the container is running.
+3.  **Trigger Switchover:** Identify the standby control processor and trigger a switchover using `gnoi.System.SwitchControlProcessor`. Wait for the new primary to boot up and establish telemetry.
+4.  **Verify Backup Absence:** Re-initialize the gNOI client and call `gnoi.Containerz.ListContainer` on the new primary (former standby).
+
+#### Pass/Fail Criteria
+
+*   **Pass:** The container appears in the `RUNNING` state during step 2, and is completely absent during step 4 (confirming it did not spawn on the standby).
+*   **Fail:** The container fails to spawn on the active primary, or erroneously spawns on the standby processor.
+
+## CNTR-3.16: Container Placement: LC_BACKUP
+
+### Test Setup
+
+*   **Topology:** `TESTBED_DUT`
+
+### Procedure
+
+1.  **Start Backup Container:** Start a container specifying the location tag `LC_BACKUP` via `gnoi.Containerz.StartContainer`.
+2.  **Verify Active Absence:** Call `gnoi.Containerz.ListContainer` on the active control processor to confirm the container is absent.
+3.  **Trigger Switchover:** Identify the standby control processor and trigger a switchover using `gnoi.System.SwitchControlProcessor`. Wait for the new primary to boot up and establish telemetry.
+4.  **Verify Backup Placement:** Re-initialize the gNOI client and call `gnoi.Containerz.ListContainer` on the new primary (former standby).
+
+#### Pass/Fail Criteria
+
+*   **Pass:** The container is absent during step 2, but appears in the `RUNNING` state during step 4 (confirming it successfully spawned exclusively on the standby).
+*   **Fail:** The container erroneously spawns on the active primary, or fails to spawn on the standby processor.
+
+## CNTR-3.17: Container Placement: LC_ALL
+
+### Test Setup
+
+*   **Topology:** `TESTBED_DUT`
+
+### Procedure
+
+1.  **Start All Container:** Start a container specifying the location tag `LC_ALL` via `gnoi.Containerz.StartContainer`.
+2.  **Verify Active Placement:** Call `gnoi.Containerz.ListContainer` on the active control processor to confirm the container is running.
+3.  **Trigger Switchover:** Identify the standby control processor and trigger a switchover using `gnoi.System.SwitchControlProcessor`. Wait for the new primary to boot up and establish telemetry.
+4.  **Verify Backup Placement:** Re-initialize the gNOI client and call `gnoi.Containerz.ListContainer` on the new primary (former standby).
+
+#### Pass/Fail Criteria
+
+*   **Pass:** The container is instantiated and `RUNNING` on both the initial primary processor and the new primary processor post-switchover.
+*   **Fail:** The container fails to spawn on either processor.
+
+## CNTR-3.18: Container Persistence: LC_PRIMARY Failover
+
+### Test Setup
+
+*   **Topology:** `TESTBED_DUT`
+
+### Procedure
+
+1.  **Start Container:** Start a container with location tag `LC_PRIMARY`.
+2.  **Trigger Failover:** Trigger a control processor switchover using `gnoi.System.SwitchControlProcessor`.
+3.  **Verify Location:** Once the old backup transitions to the new primary role, establish a gNOI connection to it. Call `gnoi.Containerz.ListContainer`.
+
+#### Pass/Fail Criteria
+
+*   **Pass:** The container dynamically migrated or instantiated to run on the new primary RE.
+*   **Fail:** The container is absent from the new primary.
+
+## CNTR-3.19: Container Persistence: LC_BACKUP Failover
+
+### Test Setup
+
+*   **Topology:** `TESTBED_DUT`
+
+### Procedure
+
+1.  **Start Container:** Start a container with location tag `LC_BACKUP`. Ensure it runs only on the backup processor.
+2.  **Trigger Failover:** Trigger a control processor switchover.
+3.  **Verify Location:** Establish gNOI connections to both the new primary and the new backup (once available). Call `gnoi.Containerz.ListContainer` on both.
+
+#### Pass/Fail Criteria
+
+*   **Pass:** The container stops running on the new primary and is exclusively running on the new backup.
+*   **Fail:** The container runs on the new primary or fails to migrate to the new backup.
+
+## CNTR-3.20: Container Persistence: LC_ALL Failover
+
+### Test Setup
+
+*   **Topology:** `TESTBED_DUT`
+
+### Procedure
+
+1.  **Start Container:** Start a container with location tag `LC_ALL`. Ensure instances run on both processors.
+2.  **Trigger Failover:** Trigger a control processor switchover.
+3.  **Verify Location:** Immediately after switchover, verify the container continues running on the new primary. Once the new backup processor comes online, verify a second instance spawns on it.
+
+#### Pass/Fail Criteria
+
+*   **Pass:** The container runs on the new primary and later on the new backup.
+*   **Fail:** The container fails to persist on the new primary or fails to spawn on the new backup.
+
+## CNTR-3.21: Container Persistence On Cold Reboot
+
+### Test Setup
+
+*   **Topology:** `TESTBED_DUT`
+*   **Variables:** Let `<VOLUME_NAME>` be a unique volume name and `<IMAGE_NAME>` be `cntrsrv_image:latest`.
+
+### Procedure
+
+1.  **Setup:** Create `<VOLUME_NAME>`, deploy `<IMAGE_NAME>`, and start a container that mounts `<VOLUME_NAME>`. Verify it is `RUNNING`.
+2.  **Cold Reboot:** Trigger a cold reboot using `gnoi.System.Reboot`.
+3.  **Verify Recovery:** After the cold reboot, establish a gNOI connection to the primary. Call `gnoi.Containerz.ListContainer` and `ListVolume`.
+
+#### Pass/Fail Criteria
+
+*   **Pass:** The container is `RUNNING` and the volume exists.
+*   **Fail:** The container or volume is absent.
+
+## CNTR-3.22: Volume Data Integrity Across Failover
+
+### Test Setup
+
+*   **Topology:** `TESTBED_DUT`
+
+### Procedure
+
+1.  **Setup:** Create a volume, deploy the image, and start a container that mounts this volume. Ensure the application is running.
+2.  **Write Data:** Send an RPC or HTTP request to the application's exposed endpoint to write a unique verifiable string (e.g., a UUID or timestamp) to a file within the mounted volume path.
+3.  **Trigger Failover:** Trigger a switchover to the standby control processor using `gnoi.System.SwitchControlProcessor`.
+4.  **Verify Integrity:** Once the container recovers on the new primary, send another request to read the file from the volume.
+
+#### Pass/Fail Criteria
+
+*   **Pass:** The returned contents perfectly match the unique string written prior to the failover.
+*   **Fail:** The file is missing, empty, or contains corrupted/mismatched data.
 
 ## Canonical OC
 
@@ -101,10 +426,19 @@ This is the tarball that will be used during tests.
 The below yaml defines the RPCs intended to be covered by this test.
 
 ```yaml
+paths:
+  /components/component/state/redundant-role:
+    platform_type: ["CONTROLLER_CARD"]
+  /components/component/state/switchover-ready:
+    platform_type: ["CONTROLLER_CARD"]
 rpcs:
   gnoi:
     containerz.Containerz.Deploy:
     containerz.Containerz.StartContainer:
+    containerz.Containerz.StopContainer:
+    containerz.Containerz.RemoveImage:
+    containerz.Containerz.RemoveContainer:
+    containerz.Containerz.ListImage:
     containerz.Containerz.ListContainer:
     containerz.Containerz.CreateVolume:
     containerz.Containerz.ListVolume:
