@@ -11,6 +11,9 @@ and 100g links within 1 DUTs.
 *   dut1:port 3 <--> port 4:dut1 - 100G ports (port 1 and 2 as singleton and memberlink)
 ## Procedure
 
+*   **System Health Pre-Check**:
+    *   Query `/system/alarms/alarm/state/id` and `/system/alarms/alarm/state/text` to ensure no active alarms exist.
+    *   Check for any pre-existing core dumps for the which could be different for each vendor (for example `SandOam` agent on the Arista) and report it to the logs.
 *   Connect the ports as per topology.
     *   Validate the link qualification Capabilities response.
         *   MaxHistoricalResultsPerInterface is >= 2.
@@ -73,6 +76,12 @@ and 100g links within 1 DUTs.
         *   RPCSyncedTiming:
             *   Reflector timers should be same as the ones on the generator.
         *   Verify reflector interface oper-state is 'TESTING'
+*   **Monitor Agent Health during execution**:
+    *   While the link qualification is running (state is `QUALIFICATION_STATE_RUNNING`):
+        *   Query `/system/processes/process/state/name` and `/system/processes/process/state/start-time` via gNMI.
+        *   Verify that the `SandOam` process is present and its `start-time` remains stable (does not change, which would indicate a process restart).
+        *   Subscribe to `/system/messages/state/message/msg` and `/system/messages/state/message/app-name` via gNMI.
+        *   Assert that no warning or error messages are generated for the `SandOam` app (e.g., matching `EXCESSIVE_WARMUP_DELAY` or `STARTUP_FAILED`).
 *   Get the result by issuing gnoi.LinkQualification Get RPC to gather the
     result of link qualification. Provide the following parameter:
     *   Id: The identifier used above on the NEAR_END side.
@@ -82,6 +91,9 @@ and 100g links within 1 DUTs.
             are 0
         *   Ensure that RPC status code is 0 for success.
         *   Packets sent count matches with packets received.
+*   **System Health Post-Audit**:
+    *   After the link qualification completes, verify that `/system/alarms/alarm/state/id` remains clear of related alarms.
+    *   Verify that no new core dumps for the `SandOam` agent were generated during the test.
 
 ## OpenConfig Path and RPC Coverage
 
@@ -91,6 +103,12 @@ paths used for test setup are not listed here.
 ```yaml
 paths:
   /interfaces/interface/state/oper-status:
+  /system/alarms/alarm/state/id:
+  /system/alarms/alarm/state/text:
+  /system/processes/process/state/name:
+  /system/processes/process/state/start-time:
+  /system/messages/state/message/msg:
+  /system/messages/state/message/app-name:
 rpcs:
   gnoi:
     packet_link_qualification.LinkQualification.Capabilities:
@@ -99,3 +117,4 @@ rpcs:
     packet_link_qualification.LinkQualification.Get:
     packet_link_qualification.LinkQualification.List:
 ```
+
