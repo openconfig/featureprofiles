@@ -434,6 +434,14 @@ func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, params
 				helpers.GnmiCLIConfig(t, dut, cli)
 			}
 
+			if params.DeleteTtl {
+				cli = fmt.Sprintf(
+					`nexthop-group %s type %s
+					no ttl %v
+					`, params.NexthopGrpName, groupType, params.TTL)
+				helpers.GnmiCLIConfig(t, dut, cli)
+			}
+
 			if params.DstUdpPort != 0 {
 				cli = fmt.Sprintf(`tunnel type %s udp destination port %v`, groupType, params.DstUdpPort)
 				helpers.GnmiCLIConfig(t, dut, cli)
