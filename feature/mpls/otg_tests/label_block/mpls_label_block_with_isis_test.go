@@ -454,7 +454,7 @@ func TestMPLSLabelBlockWithISIS(t *testing.T) {
 	if err := ts.PushAndStart(t); err != nil {
 		t.Fatalf("PushAndStart failed: %v", err)
 	}
-	time.Sleep(time.Minute * 2)
+	otgutils.WaitForARP(t, otg, ts.ATETop, "IPv4")
 
 	// Checking ISIS
 	verifyISIS(t, ts)

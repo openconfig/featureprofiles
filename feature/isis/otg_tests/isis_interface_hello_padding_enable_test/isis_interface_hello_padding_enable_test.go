@@ -236,6 +236,7 @@ func TestIsisInterfaceHelloPaddingEnable(t *testing.T) {
 	// is still becoming operational after the OTG configuration push.
 	gnmi.Await(t, ts.DUT, gnmi.OC().Interface(ts.DUTPort1.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
 	gnmi.Await(t, otg, gnmi.OTG().Port(ts.ATEPort1.ID()).Link().State(), 2*time.Minute, otgtelemetry.Port_Link_UP)
+	otgutils.WaitForARP(t, otg, ts.ATETop, "IPv4")
 
 	statePath := isissession.ISISPath(ts.DUT)
 	intfName := ts.DUTPort1.Name()
