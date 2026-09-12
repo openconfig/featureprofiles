@@ -104,11 +104,19 @@ func configureISIS(t *testing.T, ts *isissession.TestSession) {
 	isisIntfLevel2.LevelNumber = ygot.Uint8(2)
 	isisIntfLevel2.SetEnabled(true)
 	isisIntfLevel2.Enabled = ygot.Bool(true)
-
-	isisIntfLevel2.GetOrCreateHelloAuthentication().Enabled = ygot.Bool(true)
-	isisIntfLevel2.GetHelloAuthentication().AuthPassword = ygot.String(password)
-	isisIntfLevel2.GetHelloAuthentication().AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
-	isisIntfLevel2.GetHelloAuthentication().AuthMode = oc.IsisTypes_AUTH_MODE_MD5
+	if deviations.SetISISAuthWithInterfaceAuthenticationContainer(ts.DUT) {
+		intfAuth := intf.GetOrCreateAuthentication()
+		intfAuth.Enabled = ygot.Bool(true)
+		intfAuth.AuthPassword = ygot.String(password)
+		intfAuth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+		intfAuth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
+	} else {
+		helloAuth := isisIntfLevel2.GetOrCreateHelloAuthentication()
+		helloAuth.Enabled = ygot.Bool(true)
+		helloAuth.AuthPassword = ygot.String(password)
+		helloAuth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+		helloAuth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
+	}
 
 	isisIntfLevel2.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	isisIntfLevel2.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric = ygot.Uint32(v4Metric)
@@ -184,8 +192,10 @@ func TestISISLevelPassive(t *testing.T) {
 	pcl := ts.DUTConf.GetNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isissession.ISISName)
 	fptest.LogQuery(t, "Protocol ISIS", isissession.ProtocolPath(ts.DUT).Config(), pcl)
 
-	ts.PushAndStart(t)
-	time.Sleep(time.Minute * 2)
+	if err := ts.PushAndStart(t); err != nil {
+		t.Fatalf("PushAndStart failed: %v", err)
+	}
+	otgutils.WaitForARP(t, otg, ts.ATETop, "IPv4")
 
 	statePath := isissession.ISISPath(ts.DUT)
 	intfName := ts.DUTPort1.Name()

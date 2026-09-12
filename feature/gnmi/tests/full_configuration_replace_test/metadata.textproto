@@ -7,6 +7,14 @@ description: "Benchmarking: Full Configuration Replace"
 testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    set_isis_auth_with_interface_authentication_container: true
+  }
+}
+platform_exceptions: {
+  platform: {
     vendor: NOKIA
   }
   deviations: {

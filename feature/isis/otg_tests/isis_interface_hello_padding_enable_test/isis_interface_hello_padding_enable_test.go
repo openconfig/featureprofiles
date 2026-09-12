@@ -28,6 +28,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -129,10 +130,19 @@ func configureISIS(t *testing.T, ts *isissession.TestSession) {
 	isisIntfLevel.LevelNumber = ygot.Uint8(2)
 	isisIntfLevel.SetEnabled(true)
 	isisIntfLevel.Enabled = ygot.Bool(true)
-	isisIntfLevel.GetOrCreateHelloAuthentication().Enabled = ygot.Bool(true)
-	isisIntfLevel.GetHelloAuthentication().AuthPassword = ygot.String(password)
-	isisIntfLevel.GetHelloAuthentication().AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
-	isisIntfLevel.GetHelloAuthentication().AuthMode = oc.IsisTypes_AUTH_MODE_MD5
+	if deviations.SetISISAuthWithInterfaceAuthenticationContainer(ts.DUT) {
+		intfAuth := intf.GetOrCreateAuthentication()
+		intfAuth.Enabled = ygot.Bool(true)
+		intfAuth.AuthPassword = ygot.String(password)
+		intfAuth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+		intfAuth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
+	} else {
+		helloAuth := isisIntfLevel.GetOrCreateHelloAuthentication()
+		helloAuth.Enabled = ygot.Bool(true)
+		helloAuth.AuthPassword = ygot.String(password)
+		helloAuth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+		helloAuth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
+	}
 
 	isisIntfLevelTimers := isisIntfLevel.GetOrCreateTimers()
 	isisIntfLevelTimers.HelloInterval = ygot.Uint32(5)
@@ -218,14 +228,21 @@ func TestIsisInterfaceHelloPaddingEnable(t *testing.T) {
 	pcl := ts.DUTConf.GetNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isissession.ISISName)
 	fptest.LogQuery(t, "Protocol ISIS", isissession.ProtocolPath(ts.DUT).Config(), pcl)
 
-	ts.PushAndStart(t)
+	if err := ts.PushAndStart(t); err != nil {
+		t.Fatalf("PushAndStart failed: %v", err)
+	}
+
+	// Do not consume the IS-IS adjacency timeout while either end of the link
+	// is still becoming operational after the OTG configuration push.
+	gnmi.Await(t, ts.DUT, gnmi.OC().Interface(ts.DUTPort1.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
+	gnmi.Await(t, otg, gnmi.OTG().Port(ts.ATEPort1.ID()).Link().State(), 2*time.Minute, otgtelemetry.Port_Link_UP)
+	otgutils.WaitForARP(t, otg, ts.ATETop, "IPv4")
 
 	statePath := isissession.ISISPath(ts.DUT)
 	intfName := ts.DUTPort1.Name()
 	if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) || deviations.InterfaceRefInterfaceIDFormat(ts.DUT) {
 		intfName += ".0"
 	}
-	deadline := time.Now().Add(1 * time.Minute)
 	t.Run("Isis telemetry", func(t *testing.T) {
 
 		// Checking adjacency
@@ -309,6 +326,7 @@ func TestIsisInterfaceHelloPaddingEnable(t *testing.T) {
 		})
 		t.Run("Adjacency state checks", func(t *testing.T) {
 			adjPath := statePath.Interface(intfName).Level(2).Adjacency(ateSysID)
+			deadline := time.Now().Add(time.Minute)
 
 			if got := gnmi.Get(t, ts.DUT, adjPath.SystemId().State()); got != ateSysID {
 				t.Errorf("FAIL- Expected neighbor system id not found, got %s, want %s", got, ateSysID)
@@ -374,6 +392,7 @@ func TestIsisInterfaceHelloPaddingEnable(t *testing.T) {
 		})
 		t.Run("System level counter checks", func(t *testing.T) {
 			if deviations.MissingValueForDefaults(ts.DUT) {
+				deadline := time.Now().Add(time.Minute)
 				missingValueForDefaults := deviations.MissingValueForDefaults(ts.DUT)
 				sysCounts := isissession.ISISPath(ts.DUT).Level(2).SystemLevelCounters()
 				validators := []check.Validator{

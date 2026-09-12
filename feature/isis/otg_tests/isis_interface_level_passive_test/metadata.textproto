@@ -27,6 +27,7 @@ platform_exceptions: {
     isis_interface_level_passive_unsupported: true
     isis_dis_sysid_unsupported: true
     isis_database_overloads_unsupported: true
+    set_isis_auth_with_interface_authentication_container: true
   }
 }
 platform_exceptions: {
