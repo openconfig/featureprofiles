@@ -38,7 +38,18 @@ following features:
     *   /interfaces/interface[name='port']/state/counters/out-pkts
     *   /interfaces/interface[name='port']/subinterfaces/subinterface[index='index-id']/ipv4/state/counters/in-pkts
     *   /interfaces/interface[name='port']/subinterfaces/subinterface[index='index-id']/ipv6/state/counters/in-pkts
-   
+
+*   **Dynamic Interface Counter Freshness Under Traffic (b/440241619)**
+
+    Verify that the OpenConfig egress counters dynamically update in real-time under active traffic (including encapsulated traffic) and reflect rate changes within a strict latency window.
+
+    *   Config Push: Apply a standard WBB interface configuration, enabling both basic interface counters and IP-in-IP tunnel encapsulation.
+    *   Initial Flow (Low Rate): Inject traffic from the ATE at R1 = 10,000 pps.
+    *   Verify Telemetry: Query `/interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-pkts` via gNMI STREAM and assert that the rate matches 10,000 pps.
+    *   Step-Up Flow (High Rate): Abruptly increase the traffic injection rate to R2 = 100,000 pps.
+    *   Freshness & Latency Assertion:
+        *   Begin a timer at the moment of the rate change.
+        *   Verify that the streamed telemetry updates successfully reflect the new rate of 100,000 pps within <= 15 seconds.
 
 *   Subinterfaces counters:
 
@@ -70,6 +81,74 @@ following features:
 
     *   TODO: /interfaces/interface/state/cpu
     *   TODO: /interfaces/interface/state/management
+
+#### Canonical OC
+
+```json
+{
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "Input interface port1",
+          "enabled": true,
+          "name": "port1",
+          "type": "ethernetCsmacd"
+        },
+        "name": "port1",
+        "rates": {
+          "config": {
+            "load-interval": 30
+          }
+        },
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "config": {
+                "enabled": true,
+                "index": 0
+              },
+              "index": 0,
+              "ipv4": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "198.51.100.0",
+                        "prefix-length": 31
+                      },
+                      "ip": "198.51.100.0"
+                    }
+                  ]
+                },
+                "config": {
+                  "enabled": true
+                }
+              },
+              "ipv6": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "2001:db8::1",
+                        "prefix-length": 126
+                      },
+                      "ip": "2001:db8::1"
+                    }
+                  ]
+                },
+                "config": {
+                  "enabled": true
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
 
 ## Testbed type
 
@@ -149,4 +228,5 @@ rpcs:
 
 ## Minimum DUT platform requirement
 * FFF - fixed form factor
+
 
