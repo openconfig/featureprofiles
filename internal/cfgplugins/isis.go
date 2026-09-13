@@ -49,7 +49,7 @@ type ISISMetricParams struct {
 
 // NewISISWithMetric configures IS-IS on the DUT with wide metrics, max-ECMP-paths, and an
 // explicit per-interface metric on each of params.Interfaces
-func NewISISWithMetric(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, params ISISMetricParams) {
+func NewISISWithMetric(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, params ISISMetricParams) *gnmi.SetBatch {
 	t.Helper()
 	netInstance := (&oc.Root{}).GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	prot := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, params.InstanceName)
@@ -133,6 +133,7 @@ func NewISISWithMetric(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatc
 	}
 
 	gnmi.BatchUpdate(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, params.InstanceName).Config(), prot)
+	return batch
 }
 
 // ISISInterfaceMetricParams holds the parameters needed to change an existing IS-IS interface's
@@ -144,7 +145,7 @@ type ISISInterfaceMetricParams struct {
 }
 
 // ChangeISISMetric batches an update to the Level 2 IPv4/IPv6 IS-IS metric of params.Interface
-func ChangeISISMetric(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, params ISISInterfaceMetricParams) {
+func ChangeISISMetric(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, params ISISInterfaceMetricParams) *gnmi.SetBatch {
 	t.Helper()
 	t.Logf("Changing metric to %v on interface %v", params.Metric, params.Interface)
 	intf := InterfaceRefID(dut, params.Interface)
@@ -157,7 +158,8 @@ func ChangeISISMetric(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, pa
 		l1.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric = ygot.Uint32(params.Metric)
 		l1.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric = ygot.Uint32(params.Metric)
 	}
-	gnmi.BatchUpdate(b, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, params.InstanceName).Isis().Config(), isis)
+	gnmi.BatchUpdate(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, params.InstanceName).Isis().Config(), isis)
+	return batch
 }
 
 // NewISIS configures the DUT with ISIS protocol.
