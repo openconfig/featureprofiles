@@ -351,7 +351,7 @@ func configureDUTAndOTG(t *testing.T) (*ondatra.DUTDevice, string, *networkConfi
 		}
 		flowResolveArp.Interface.Names = append(flowResolveArp.Interface.Names, iface.Name)
 	}
-	
+
 	// Start OTG protocols (including LACP) on ATE before configuring DUT LAGs.
 	configureOTG(t)
 
@@ -362,7 +362,7 @@ func configureDUTAndOTG(t *testing.T) (*ondatra.DUTDevice, string, *networkConfi
 	ocPFParams.DecapPolicy.DecapMPLSParams.MplsStaticLabels = mplsStaticLabels
 	ocPFParams.DecapPolicy.DecapMPLSParams.MplsStaticLabelsForIPv6 = mplsStaticLabelsForIpv6
 	custAggID, coreAggID := configureDUT(t, dut, netConfig, ocPFParams)
-	
+
 	waitForLAGUp(t, dut, custAggID, custPorts)
 	waitForLAGUp(t, dut, coreAggID, corePorts)
 	waitForSubinterfacesUp(t, dut, custAggID, netConfig, 180*time.Second)
