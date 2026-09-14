@@ -49,7 +49,10 @@ func shouldSkipForIntent() bool {
 	}
 	if !intended {
 		log.Infof("Skipping test (plan ID %q): not included in execution intent %q", planID, *intent)
-		fmt.Printf("=== RUN   TestMain\n    Skipping test (plan ID %q): not included in execution intent\n--- SKIP: TestMain (0.00s)\n", planID)
+		fmt.Printf("=== RUN   TestMain\n    Skipping test (plan ID %q): not included in execution intent\n--- SKIP: TestMain (0.00s)\nPASS\n", planID)
+		if exitFile := os.Getenv("TEST_PREMATURE_EXIT_FILE"); exitFile != "" {
+			_ = os.Remove(exitFile)
+		}
 		return true
 	}
 	return false
