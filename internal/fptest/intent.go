@@ -15,6 +15,7 @@
 package fptest
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -33,26 +34,51 @@ var (
 	intent = flag.String("intent", "", "Path to ReleaseIntent textproto file. If specified, tests whose plan ID is not in the intent are skipped.")
 )
 
-// shouldSkipForIntent checks the --intent flag and returns true if the current test
-// should be skipped because its plan ID is not included in the release intent.
-func shouldSkipForIntent() bool {
-	if !flag.Parsed() {
-		flag.Parse()
+// skipOutput returns the Go test output reporting that the test was skipped.
+//
+// RunTests returns without ever calling m.Run when a test is not in the
+// release intent, so the testing package never reports a result for it.  These
+// lines reproduce what the testing package would have printed, so that a
+// harness parsing the test output records a skipped result instead of an empty
+// test run.  This is the Go test output protocol; TestSkipOutput pins it.
+func skipOutput(planID string) string {
+	return fmt.Sprintf("=== RUN   TestMain\n    Skipping test (plan ID %q): not included in execution intent\n--- SKIP: TestMain (0.00s)\nPASS\n", planID)
+}
+
+// clearPrematureExit removes the file a test harness uses to detect a test
+// binary that exited before running its tests.  RunTests returns early by
+// design when a test is not in the release intent, which would otherwise be
+// reported as a premature exit rather than as the skip or error it is.
+func clearPrematureExit() {
+	f := os.Getenv("TEST_PREMATURE_EXIT_FILE")
+	if f == "" {
+		return
 	}
+	if err := os.Remove(f); err != nil && !errors.Is(err, os.ErrNotExist) {
+		log.Warningf("Failed to remove premature exit file %q: %v", f, err)
+	}
+}
+
+// shouldSkipForIntent reports whether the current test should be skipped
+// because its plan ID is not included in the release intent given by --intent.
+//
+// Flags must already be parsed; every RunTests entry point guarantees this.
+func shouldSkipForIntent() bool {
 	if *intent == "" {
 		return false
 	}
 	planID := metadata.Get().GetPlanId()
 	intended, err := isTestIntended(*intent, planID)
 	if err != nil {
+		// Clear the premature exit marker first, so the harness reports this
+		// error rather than the abrupt exit that log.Exitf is about to cause.
+		clearPrematureExit()
 		log.Exitf("Failed to evaluate intent flag %q: %v", *intent, err)
 	}
 	if !intended {
 		log.Infof("Skipping test (plan ID %q): not included in execution intent %q", planID, *intent)
-		fmt.Printf("=== RUN   TestMain\n    Skipping test (plan ID %q): not included in execution intent\n--- SKIP: TestMain (0.00s)\nPASS\n", planID)
-		if exitFile := os.Getenv("TEST_PREMATURE_EXIT_FILE"); exitFile != "" {
-			_ = os.Remove(exitFile)
-		}
+		fmt.Print(skipOutput(planID))
+		clearPrematureExit()
 		return true
 	}
 	return false
@@ -70,9 +96,13 @@ func isTestIntended(intentPath, planID string) (bool, error) {
 		return false, nil
 	}
 	data, err := os.ReadFile(intentPath)
-	if err != nil {
-		if root, rErr := pathutil.RootPath(); rErr == nil {
-			data, err = os.ReadFile(filepath.Join(root, intentPath))
+	if err != nil && !filepath.IsAbs(intentPath) {
+		// Retry relative to the repository root, keeping the original error so
+		// that a failure names the path the caller actually passed.
+		if root, rootErr := pathutil.RootPath(); rootErr == nil {
+			if rootData, rootReadErr := os.ReadFile(filepath.Join(root, intentPath)); rootReadErr == nil {
+				data, err = rootData, nil
+			}
 		}
 	}
 	if err != nil {
