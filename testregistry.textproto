@@ -139,6 +139,7 @@ test: {
   id: "AFT-6.3"
   description: "AFT Prefix Filtering Resilience"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/filtered_streaming/otg_tests/afts_prefix_filtering_resilience/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/filtered_streaming/otg_tests/afts_prefix_filtering_resilience/afts_prefix_filtering_resilience_test.go"
 }
 test: {
   id: "AFT-6.4"
@@ -185,6 +186,7 @@ test: {
   id: "CFM-1.1"
   description: "CFM over ETHoCWoMPLSoGRE"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/cfm/otg_tests/cfm_base/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/cfm/otg_tests/cfm_base/cfm_base_test.go"
 }
 test: {
   id: "CNTR-1"
@@ -943,8 +945,8 @@ test: {
 test: {
   id: "RT-1.4"
   description: "BGP Graceful Restart"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/gracefulrestart/ate_tests/bgp_graceful_restart_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/gracefulrestart/ate_tests/bgp_graceful_restart_test/bgp_graceful_restart_test.go"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/gracefulrestart/otg_tests/bgp_graceful_restart_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/gracefulrestart/otg_tests/bgp_graceful_restart_test/bgp_graceful_restart_test.go"
 }
 test: {
   id: "RT-1.5"
@@ -1653,6 +1655,12 @@ test: {
   description: "gRIBI IPv4 Entry With Aggregate Ports"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/ipv4_entry_with_aggregate_ports_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/ipv4_entry_with_aggregate_ports_test/ipv4_entry_with_aggregate_ports_test.go"
+}
+test: {
+  id: "TE-2.3"
+  description: "gRIBI IPv6 Entry with Prefix Length > 64"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/ipv6_entry_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/ipv6_entry_test/ipv6_entry_test.go"
 }
 test: {
   id: "TE-3.1"
