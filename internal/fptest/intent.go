@@ -30,23 +30,23 @@ import (
 )
 
 var (
-	intent = flag.String("intent", "", "Path to ReleaseIntent textproto file. If specified, tests whose plan ID is not in the intent are skipped.")
+	releaseIntent = flag.String("release_intent", "", "Path to ReleaseIntent textproto file. If specified, tests whose plan ID is not in the release intent are skipped.")
 )
 
-// shouldSkipForIntent checks the --intent flag and returns true if the current test
-// should be skipped because its plan ID is not included in the release intent.
-func shouldSkipForIntent() bool {
-	if *intent == "" {
+// skipIfNotIntended checks the --release_intent flag and skips the current test
+// if its plan ID is not included in the release intent.
+func skipIfNotIntended() bool {
+	if *releaseIntent == "" {
 		return false
 	}
 	planID := metadata.Get().GetPlanId()
-	intended, err := isTestIntended(*intent, planID)
+	intended, err := isTestIntended(*releaseIntent, planID)
 	if err != nil {
-		log.Exitf("Failed to evaluate intent flag %q: %v", *intent, err)
+		log.Exitf("Failed to evaluate --release_intent flag %q: %v", *releaseIntent, err)
 	}
 	if !intended {
-		log.Infof("Skipping test (plan ID %q): not included in execution intent %q", planID, *intent)
-		fmt.Printf("=== RUN   TestMain\n    Skipping test (plan ID %q): not included in execution intent\n--- SKIP: TestMain (0.00s)\nPASS\n", planID)
+		log.Infof("Skipping test (plan ID %q): not included in release intent %q", planID, *releaseIntent)
+		fmt.Printf("=== RUN   TestMain\n    Skipping test (plan ID %q): not included in release intent\n--- SKIP: TestMain (0.00s)\nPASS\n", planID)
 		_ = os.Remove(os.Getenv("TEST_PREMATURE_EXIT_FILE"))
 		return true
 	}
