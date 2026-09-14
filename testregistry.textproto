@@ -139,6 +139,7 @@ test: {
   id: "AFT-6.3"
   description: "AFT Prefix Filtering Resilience"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/filtered_streaming/otg_tests/afts_prefix_filtering_resilience/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/filtered_streaming/otg_tests/afts_prefix_filtering_resilience/afts_prefix_filtering_resilience_test.go"
 }
 test: {
   id: "AFT-6.4"
@@ -1228,6 +1229,11 @@ test: {
   id: "RT-5.16"
   description: "LACP Member Linecard Reboot"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/lacp/otg_tests/lacp_member_reboot_test/README.md"
+}
+test: {
+  id: "RT-5.17"
+  description: "Physical Interface Drain via Admin Down"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/singleton/otg_tests/interface_admin_drain_test/README.md"
 }
 test: {
   id: "RT-5.19"
