@@ -1,0 +1,16 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "07341742-d9d9-4f32-b881-9c5b43083bd2"
+plan_id: "LB-1.1"
+description: "ECMP Hashing Polarization Detection"
+testbed: TESTBED_DUT_ATE_5LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    aggregate_atomic_update: true
+    gribi_riback_only: false
+  }
+}
