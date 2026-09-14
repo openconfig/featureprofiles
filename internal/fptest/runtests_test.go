@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
 	ripb "github.com/openconfig/featureprofiles/proto/release_intent_go_proto"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ygnmi/ygnmi"
@@ -125,70 +124,63 @@ intended_test_ids: "gNOI-4.1"
 	tests := []struct {
 		name       string
 		intentPath string
-		md         *mpb.Metadata
+		planID     string
 		want       bool
 		wantErr    bool
 	}{
 		{
 			name:       "empty intent allows all tests",
 			intentPath: "",
-			md:         &mpb.Metadata{PlanId: "ACL-1.2"},
+			planID:     "ACL-1.2",
 			want:       true,
 			wantErr:    false,
 		},
 		{
 			name:       "test plan ID in textproto intent",
 			intentPath: textprotoPath,
-			md:         &mpb.Metadata{PlanId: "ACL-1.2"},
+			planID:     "ACL-1.2",
 			want:       true,
 			wantErr:    false,
 		},
 		{
 			name:       "second test plan ID in textproto intent",
 			intentPath: textprotoPath,
-			md:         &mpb.Metadata{PlanId: "gNOI-4.1"},
+			planID:     "gNOI-4.1",
 			want:       true,
 			wantErr:    false,
 		},
 		{
 			name:       "test plan ID not in textproto intent",
 			intentPath: textprotoPath,
-			md:         &mpb.Metadata{PlanId: "TE-3.8"},
+			planID:     "TE-3.8",
 			want:       false,
 			wantErr:    false,
 		},
 		{
 			name:       "test plan ID in binary proto intent",
 			intentPath: binaryProtoPath,
-			md:         &mpb.Metadata{PlanId: "TE-1.21"},
+			planID:     "TE-1.21",
 			want:       true,
-			wantErr:    false,
-		},
-		{
-			name:       "nil metadata with intent set is not intended",
-			intentPath: textprotoPath,
-			md:         nil,
-			want:       false,
 			wantErr:    false,
 		},
 		{
 			name:       "empty plan ID with intent set is not intended",
 			intentPath: textprotoPath,
-			md:         &mpb.Metadata{PlanId: ""},
+			planID:     "",
 			want:       false,
 			wantErr:    false,
 		},
 		{
 			name:       "nonexistent intent file returns error",
 			intentPath: filepath.Join(tmpDir, "nonexistent.textproto"),
-			md:         &mpb.Metadata{PlanId: "ACL-1.2"},
+			planID:     "ACL-1.2",
 			want:       false,
 			wantErr:    true,
 		},
 		{
 			name:       "invalid intent file content returns error",
 			intentPath: invalidProtoPath,
-			md:         &mpb.Metadata{PlanId: "ACL-1.2"},
+			planID:     "ACL-1.2",
 			want:       false,
 			wantErr:    true,
 		},
@@ -196,12 +188,12 @@ intended_test_ids: "gNOI-4.1"
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := isTestIntended(tc.intentPath, tc.md)
+			got, err := isTestIntended(tc.intentPath, tc.planID)
 			if (err != nil) != tc.wantErr {
-				t.Fatalf("isTestIntended(%q, %v) error = %v, wantErr %v", tc.intentPath, tc.md, err, tc.wantErr)
+				t.Fatalf("isTestIntended(%q, %q) error = %v, wantErr %v", tc.intentPath, tc.planID, err, tc.wantErr)
 			}
 			if got != tc.want {
-				t.Errorf("isTestIntended(%q, %v) = %v, want %v", tc.intentPath, tc.md, got, tc.want)
+				t.Errorf("isTestIntended(%q, %q) = %v, want %v", tc.intentPath, tc.planID, got, tc.want)
 			}
 		})
 	}

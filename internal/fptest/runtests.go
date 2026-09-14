@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"testing"
 	"unicode/utf8"
@@ -54,22 +55,15 @@ func RunTests(m *testing.M) {
 	if err := initMetadata(); err != nil {
 		log.Errorf("Unable to initialize test metadata: %v", err)
 	}
-	if !flag.Parsed() {
-		flag.Parse()
-	}
 	if *intent != "" {
-		intended, err := isTestIntended(*intent, metadata.Get())
+		planID := metadata.Get().GetPlanId()
+		intended, err := isTestIntended(*intent, planID)
 		if err != nil {
-			log.Errorf("Failed to evaluate intent flag %q: %v", *intent, err)
-		} else if !intended {
-			planID := ""
-			if md := metadata.Get(); md != nil {
-				planID = md.GetPlanId()
-			}
+			log.Exitf("Failed to evaluate intent flag %q: %v", *intent, err)
+		}
+		if !intended {
 			log.Infof("Skipping test (plan ID %q): not included in execution intent %q", planID, *intent)
-			fmt.Println("=== RUN   TestMain")
-			fmt.Printf("    Skipping test (plan ID %q): not included in execution intent\n", planID)
-			fmt.Println("--- SKIP: TestMain (0.00s)")
+			fmt.Printf("=== RUN   TestMain\n    Skipping test (plan ID %q): not included in execution intent\n--- SKIP: TestMain (0.00s)\n", planID)
 			return
 		}
 	}
@@ -80,6 +74,9 @@ func RunTests(m *testing.M) {
 func initMetadata() error {
 	if err := metadata.Init(); err != nil {
 		return err
+	}
+	if planID := metadata.Get().GetPlanId(); planID != "" {
+		ondatra.Report().AddSuiteProperty("test.plan_id", planID)
 	}
 
 	// Set the testbed path from the metadata if it is not set.
@@ -156,44 +153,31 @@ func datapointValidator(dp *ygnmi.DataPoint) error {
 	return nil
 }
 
-// isTestIntended reports whether the test with the given metadata is intended to run
+// isTestIntended reports whether the test with the given planID is intended to run
 // according to the ReleaseIntent file specified by intentPath.
 // If intentPath is empty, all tests are considered intended.
-// If md is nil or md.GetPlanId() is empty, the test is considered unintended.
-func isTestIntended(intentPath string, md *mpb.Metadata) (bool, error) {
+// If planID is empty, the test is considered unintended.
+func isTestIntended(intentPath, planID string) (bool, error) {
 	if intentPath == "" {
 		return true, nil
 	}
-	if md == nil || md.GetPlanId() == "" {
+	if planID == "" {
 		return false, nil
 	}
-
-	filePath := intentPath
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		if rootPath, err := pathutil.RootPath(); err == nil {
-			candidate := filepath.Join(rootPath, intentPath)
-			if _, err := os.Stat(candidate); err == nil {
-				filePath = candidate
-			}
+	data, err := os.ReadFile(intentPath)
+	if err != nil {
+		if root, rErr := pathutil.RootPath(); rErr == nil {
+			data, err = os.ReadFile(filepath.Join(root, intentPath))
 		}
 	}
-
-	data, err := os.ReadFile(filePath)
 	if err != nil {
-		return false, fmt.Errorf("failed to read release intent file %q: %w", filePath, err)
+		return false, fmt.Errorf("failed to read release intent file %q: %w", intentPath, err)
 	}
-
 	var relIntent ripb.ReleaseIntent
 	if err := prototext.Unmarshal(data, &relIntent); err != nil {
 		if pErr := proto.Unmarshal(data, &relIntent); pErr != nil {
-			return false, fmt.Errorf("failed to parse release intent file %q: %w", filePath, err)
+			return false, fmt.Errorf("failed to parse release intent file %q: %w", intentPath, err)
 		}
 	}
-
-	for _, id := range relIntent.GetIntendedTestIds() {
-		if id == md.GetPlanId() {
-			return true, nil
-		}
-	}
-	return false, nil
+	return slices.Contains(relIntent.GetIntendedTestIds(), planID), nil
 }
