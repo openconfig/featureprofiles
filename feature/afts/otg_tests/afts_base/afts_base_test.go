@@ -781,7 +781,6 @@ func TestBGP(t *testing.T) {
 	// Step 2: Stop Port2 interface to create Churn (BGP: 1 NH)
 	t.Log("SubTest 2: Stopping Port2 interface to create Churn")
 	tc.otgInterfaceState(t, port2Name, gosnappi.StatePortLinkState.DOWN)
-	defer tc.otgInterfaceState(t, port2Name, gosnappi.StatePortLinkState.UP)
 	t.Log("Waiting for Port2 BGP sessions to go down...")
 	if err := tc.waitForBGPSessionsDown(t, []string{ateP2.IPv4}, []string{ateP2.IPv6}); err != nil {
 		t.Fatalf("BGP session for port2 did not go down: %v", err)
@@ -795,7 +794,6 @@ func TestBGP(t *testing.T) {
 	// Step 3: Stop Port1 interface to create full Churn (BGP: deletion expected)
 	t.Log("SubTest 3: Stopping Port1 interface to remove Churn")
 	tc.otgInterfaceState(t, port1Name, gosnappi.StatePortLinkState.DOWN)
-	defer tc.otgInterfaceState(t, port1Name, gosnappi.StatePortLinkState.UP)
 	t.Log("Waiting for Port1 BGP sessions to go down...")
 	if err := tc.waitForBGPSessionsDown(t, []string{ateP1.IPv4}, []string{ateP1.IPv6}); err != nil {
 		t.Fatalf("BGP session for port1 did not go down: %v", err)
