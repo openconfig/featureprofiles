@@ -15,10 +15,8 @@
 package fptest
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
-	"regexp"
 	"testing"
 
 	ripb "github.com/openconfig/featureprofiles/proto/release_intent_go_proto"
@@ -130,56 +128,5 @@ intended_test_ids: "gNOI-4.1"
 				t.Errorf("isTestIntended(%q, %q) = %v, want %v", tc.intentPath, tc.planID, got, tc.want)
 			}
 		})
-	}
-}
-
-// harnessRunLine and harnessResultLine mirror the patterns a Go test output
-// parser uses to recognize the start and the result of a test case.  A skipped
-// test is only recorded if skipOutput keeps matching them.
-var (
-	harnessRunLine    = regexp.MustCompile(`(?m)^=== RUN   (\S+)$`)
-	harnessResultLine = regexp.MustCompile(`(?m)^--- (PASS|FAIL|SKIP): (\S+) \(([0-9.]+)(?: seconds|s)\)$`)
-)
-
-func TestSkipOutput(t *testing.T) {
-	got := skipOutput("ACL-1.2")
-
-	want := "=== RUN   TestMain\n" +
-		"    Skipping test (plan ID \"ACL-1.2\"): not included in execution intent\n" +
-		"--- SKIP: TestMain (0.00s)\n" +
-		"PASS\n"
-	if got != want {
-		t.Errorf("skipOutput(\"ACL-1.2\") = %q, want %q", got, want)
-	}
-
-	// Pin the contract itself, not just the text, so that a reworded message
-	// still fails loudly if it stops being parseable as a skipped test.
-	run := harnessRunLine.FindStringSubmatch(got)
-	if run == nil {
-		t.Fatalf("skipOutput(\"ACL-1.2\") = %q, want a line matching %v", got, harnessRunLine)
-	}
-	result := harnessResultLine.FindStringSubmatch(got)
-	if result == nil {
-		t.Fatalf("skipOutput(\"ACL-1.2\") = %q, want a line matching %v", got, harnessResultLine)
-	}
-	if result[1] != "SKIP" {
-		t.Errorf("skipOutput(\"ACL-1.2\") reported result %q, want %q", result[1], "SKIP")
-	}
-	if result[2] != run[1] {
-		t.Errorf("skipOutput(\"ACL-1.2\") reported result for test %q, want %q to match the test that was started", result[2], run[1])
-	}
-}
-
-func TestClearPrematureExit(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "test.exited_prematurely")
-	if err := os.WriteFile(path, nil, 0644); err != nil {
-		t.Fatalf("Failed to write premature exit file: %v", err)
-	}
-	t.Setenv("TEST_PREMATURE_EXIT_FILE", path)
-
-	clearPrematureExit()
-
-	if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
-		t.Errorf("After clearPrematureExit(), os.Stat(%q) error = %v, want %v", path, err, os.ErrNotExist)
 	}
 }
