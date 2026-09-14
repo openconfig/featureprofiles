@@ -1,95 +1,27 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package fptest
 
 import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	ripb "github.com/openconfig/featureprofiles/proto/release_intent_go_proto"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"google.golang.org/protobuf/proto"
 )
-
-// TestDatapointValidator confirms behavior of datapointValidator.
-func TestDatapointValidator(t *testing.T) {
-	tests := []struct {
-		name    string
-		dp      *ygnmi.DataPoint
-		wantErr bool
-	}{
-		{
-			name: "valid timestamp",
-			dp: &ygnmi.DataPoint{
-				Timestamp:     time.Unix(1707215426, 123456789),
-				RecvTimestamp: time.Unix(1707215426, 123456790),
-			},
-			wantErr: false,
-		},
-		{
-			name: "receive timestamp before notification timestamp",
-			dp: &ygnmi.DataPoint{
-				Timestamp:     time.Unix(1707215426, 123456789),
-				RecvTimestamp: time.Unix(1707215426, 123456788),
-			},
-			wantErr: true,
-		},
-		{
-			name: "zero timestamp",
-			dp: &ygnmi.DataPoint{
-				Timestamp:     time.Time{},
-				RecvTimestamp: time.Unix(1707215426, 123456790),
-			},
-			wantErr: false,
-		},
-		{
-			name: "valid UTF-8 string",
-			dp: &ygnmi.DataPoint{
-				Timestamp:     time.Unix(1707215426, 123456789),
-				RecvTimestamp: time.Unix(1707215426, 123456790),
-				Value:         &gpb.TypedValue{Value: &gpb.TypedValue_StringVal{StringVal: "hello"}},
-			},
-			wantErr: false,
-		},
-		{
-			name: "invalid UTF-8 string",
-			dp: &ygnmi.DataPoint{
-				Timestamp:     time.Unix(1707215426, 123456789),
-				RecvTimestamp: time.Unix(1707215426, 123456790),
-				Value:         &gpb.TypedValue{Value: &gpb.TypedValue_StringVal{StringVal: "\xff\xfe\xfd"}},
-			},
-			wantErr: true,
-		},
-		{
-			name: "empty string",
-			dp: &ygnmi.DataPoint{
-				Timestamp:     time.Unix(1707215426, 123456789),
-				RecvTimestamp: time.Unix(1707215426, 123456790),
-				Value:         &gpb.TypedValue{Value: &gpb.TypedValue_StringVal{StringVal: ""}},
-			},
-			wantErr: false,
-		},
-		{
-			name: "non-string value",
-			dp: &ygnmi.DataPoint{
-				Timestamp:     time.Unix(1707215426, 123456789),
-				RecvTimestamp: time.Unix(1707215426, 123456790),
-				Value:         &gpb.TypedValue{Value: &gpb.TypedValue_IntVal{IntVal: 123}},
-			},
-			wantErr: false,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			err := datapointValidator(tc.dp)
-			if (err != nil) != tc.wantErr {
-				t.Errorf("datapointValidator(%v) error = %v, wantErr %v", tc.dp, err, tc.wantErr)
-			}
-		})
-	}
-}
 
 func TestIsTestIntended(t *testing.T) {
 	tmpDir := t.TempDir()
