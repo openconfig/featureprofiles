@@ -75,9 +75,6 @@ func initMetadata() error {
 	if err := metadata.Init(); err != nil {
 		return err
 	}
-	if planID := metadata.Get().GetPlanId(); planID != "" {
-		ondatra.Report().AddSuiteProperty("test.plan_id", planID)
-	}
 
 	// Set the testbed path from the metadata if it is not set.
 	flag.Parse()
