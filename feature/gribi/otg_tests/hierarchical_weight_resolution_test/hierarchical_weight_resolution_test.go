@@ -62,8 +62,6 @@ const (
 	innerDstIPv4Start = "198.19.0.0"
 	ipv4PrefixLen     = 30
 	ipv4FlowCount     = 65000
-	innerSrcPortStart = 1
-	innerDstPortStart = 536
 	nhEntryIP1        = "192.0.2.111"
 	nhEntryIP2        = "192.0.2.222"
 	nonDefaultVRF     = "VRF-1"
@@ -468,12 +466,9 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) map[
 	v4Inner := flowipv4.Packet().Add().Ipv4()
 	v4Inner.Src().Increment().SetStart(innerSrcIPv4Start).SetCount(ipv4FlowCount)
 	v4Inner.Dst().Increment().SetStart(innerDstIPv4Start).SetCount(ipv4FlowCount)
-	// Add a deterministic, unique and different UDP port pair for each inner
-	// IPv4 value. Source ports span 1..65000 and destination ports span
-	// 536..65535, so each pair differs by 535 while remaining 16-bit values.
-	udpInner := flowipv4.Packet().Add().Udp()
-	udpInner.SrcPort().Increment().SetStart(innerSrcPortStart).SetStep(1).SetCount(ipv4FlowCount)
-	udpInner.DstPort().Increment().SetStart(innerDstPortStart).SetStep(1).SetCount(ipv4FlowCount)
+	udp := flowipv4.Packet().Add().Udp()
+	udp.SrcPort().Increment().SetStart(1024).SetCount(50000).SetStep(1)
+	udp.DstPort().Increment().SetStart(1024).SetCount(50000).SetStep(1)
 	flowipv4.EgressPacket().Add().Ethernet()
 	vlan := flowipv4.EgressPacket().Add().Vlan()
 	vlanTag := vlan.Id().MetricTags().Add()
