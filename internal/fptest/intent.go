@@ -25,6 +25,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/metadata"
 	"github.com/openconfig/featureprofiles/internal/pathutil"
 	ripb "github.com/openconfig/featureprofiles/proto/release_intent_go_proto"
+	"github.com/openconfig/ondatra"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 )
@@ -36,19 +37,21 @@ var (
 // skipIfNotIntended checks the --release_intent flag and skips the current test
 // if its plan ID is not included in the release intent.
 func skipIfNotIntended() bool {
-	if *releaseIntent == "" {
-		return false
-	}
 	planID := metadata.Get().GetPlanId()
-	intended, err := isTestIntended(*releaseIntent, planID)
-	if err != nil {
-		log.Exitf("Failed to evaluate --release_intent flag %q: %v", *releaseIntent, err)
+	if *releaseIntent != "" {
+		intended, err := isTestIntended(*releaseIntent, planID)
+		if err != nil {
+			log.Exitf("Failed to evaluate --release_intent flag %q: %v", *releaseIntent, err)
+		}
+		if !intended {
+			log.Infof("Skipping test (plan ID %q): not included in release intent %q", planID, *releaseIntent)
+			fmt.Printf("=== RUN   TestMain\n    Skipping test (plan ID %q): not included in release intent\n--- SKIP: TestMain (0.00s)\nPASS\n", planID)
+			_ = os.Remove(os.Getenv("TEST_PREMATURE_EXIT_FILE"))
+			return true
+		}
 	}
-	if !intended {
-		log.Infof("Skipping test (plan ID %q): not included in release intent %q", planID, *releaseIntent)
-		fmt.Printf("=== RUN   TestMain\n    Skipping test (plan ID %q): not included in release intent\n--- SKIP: TestMain (0.00s)\nPASS\n", planID)
-		_ = os.Remove(os.Getenv("TEST_PREMATURE_EXIT_FILE"))
-		return true
+	if planID != "" {
+		ondatra.Report().AddSuiteProperty("test.plan_id", planID)
 	}
 	return false
 }
