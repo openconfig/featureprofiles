@@ -1477,6 +1477,10 @@ message Metadata {
 
     // Devices that donot support AIGP metric increment when IGP metric to original destination is zero
     bool aigp_metric_increment = 458;
+    
+    // Device that do not support soft loopback mode
+    // https://partnerissuetracker.corp.google.com/issues/542569522
+    bool soft_loopback_oc_unsupported = 459;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
