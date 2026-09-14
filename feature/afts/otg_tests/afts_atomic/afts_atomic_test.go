@@ -399,6 +399,7 @@ func TestAtomic(t *testing.T) {
 
 			t.Log("Modifying port state to create churn.")
 			tc.churn()
+			defer tc.revert()
 			for _, stoppingCondition := range tc.stoppingConditions {
 				aftSession.ListenUntilPreUpdateHook(subtestCTX, t, aftConvergenceTime, []aftcache.NotificationHook{aftcache.VerifyAtomicFlagHook(t)}, stoppingCondition)
 			}
