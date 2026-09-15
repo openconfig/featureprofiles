@@ -139,6 +139,7 @@ test: {
   id: "AFT-6.3"
   description: "AFT Prefix Filtering Resilience"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/filtered_streaming/otg_tests/afts_prefix_filtering_resilience/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/filtered_streaming/otg_tests/afts_prefix_filtering_resilience/afts_prefix_filtering_resilience_test.go"
 }
 test: {
   id: "AFT-6.4"
@@ -185,6 +186,7 @@ test: {
   id: "CFM-1.1"
   description: "CFM over ETHoCWoMPLSoGRE"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/cfm/otg_tests/cfm_base/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/cfm/otg_tests/cfm_base/cfm_base_test.go"
 }
 test: {
   id: "CNTR-1"
@@ -552,6 +554,16 @@ test: {
   description: "Google Discovery Protocol: PacketOut with LAG"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/google_discovery_protocol_packetout_lag_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/google_discovery_protocol_packetout_lag_test/google_discovery_protocol_packetout_lag_test.go"
+}
+test: {
+  id: "P4RT-3.3"
+  description: "P4RT Packet-Out Interaction with gRIBI"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/p4rt_packetout_gribi_interaction_test/README.md"
+}
+test: {
+  id: "P4RT-3.4"
+  description: "P4RT Packet-In Interaction with gRIBI"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/p4rt_packetin_gribi_interaction_test/README.md"
 }
 test: {
   id: "P4RT-5.1"
@@ -933,8 +945,8 @@ test: {
 test: {
   id: "RT-1.4"
   description: "BGP Graceful Restart"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/gracefulrestart/ate_tests/bgp_graceful_restart_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/gracefulrestart/ate_tests/bgp_graceful_restart_test/bgp_graceful_restart_test.go"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/gracefulrestart/otg_tests/bgp_graceful_restart_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/gracefulrestart/otg_tests/bgp_graceful_restart_test/bgp_graceful_restart_test.go"
 }
 test: {
   id: "RT-1.5"
@@ -1034,6 +1046,11 @@ test: {
   description: "GRIBI Route Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_route_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_route_test/gribi_route_test.go"
+}
+test: {
+  id: "RT-14.3"
+  description: "Soft Drain vs. Hard Drain Convergence Verification"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/otg_tests/soft_drain_convergence_test/README.md"
 }
 test: {
   id: "RT-2.1"
@@ -1214,6 +1231,11 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/lacp/otg_tests/lacp_member_reboot_test/README.md"
 }
 test: {
+  id: "RT-5.17"
+  description: "Physical Interface Drain via Admin Down"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/singleton/otg_tests/interface_admin_drain_test/README.md"
+}
+test: {
   id: "RT-5.19"
   description: "LAG Member-Link Drain"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/aggregate/otg_tests/aggregate_member_link_drain_test/README.md"
@@ -1378,6 +1400,11 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/sflow/otg_tests/sflow_base_test/sflow_base_test.go"
 }
 test: {
+  id: "SFLOW-2"
+  description: "sFlow Egress Sampling Configuration and Verification"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/sflow/otg_tests/sflow_egress_test/README.md"
+}
+test: {
   id: "SR-1.1"
   description: "Transit forwarding to Node-SID via ISIS"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/mpls/sr/otg_tests/isis_node_sid_forward/README.md"
@@ -1468,6 +1495,21 @@ test: {
   description: "My Station MAC"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/my_station_mac/otg_tests/my_station_mac_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/my_station_mac/otg_tests/my_station_mac_test/my_station_mac_test.go"
+}
+test: {
+  id: "TE-1.21"
+  description: "gRIBI Tunnel Fallback to Native Routing"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/fallback_to_native_routing_test/README.md"
+}
+test: {
+  id: "TE-1.22"
+  description: "Traffic Blackhole on gRIBI Invalid Next-Hop (Strict FIB Precedence)"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/strict_fib_precedence_blackhole_test/README.md"
+}
+test: {
+  id: "TE-1.7"
+  description: "gNMI Interface Config Change Impacting gRIBI NextHop"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gnmi_intf_config_impacts_gribi_nh_test/README.md"
 }
 test: {
   id: "TE-10"
@@ -1620,10 +1662,21 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/ipv4_entry_with_aggregate_ports_test/ipv4_entry_with_aggregate_ports_test.go"
 }
 test: {
+  id: "TE-2.3"
+  description: "gRIBI IPv6 Entry with Prefix Length > 64"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/ipv6_entry_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/ipv6_entry_test/ipv6_entry_test.go"
+}
+test: {
   id: "TE-3.1"
   description: "Base Hierarchical Route Installation"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/base_hierarchical_route_installation_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/base_hierarchical_route_installation_test/base_hierarchical_route_installation_test.go"
+}
+test: {
+  id: "TE-3.10"
+  description: "gRIBI WCMP Group Resizing and Weight Changes"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/dynamic_wcmp_group_resizing_test/README.md"
 }
 test: {
   id: "TE-3.2"
@@ -1981,6 +2034,7 @@ test: {
   id: "bootz"
   description: "General bootz bootstrap tests"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/bootz_test.go"
 }
 test: {
   id: "enrollz-1"
