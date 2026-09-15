@@ -5,3 +5,36 @@ uuid: "f6e729a8-348b-4a57-b08e-1736b4859a11"
 plan_id: "SFLOW-2"
 description: "sFlow Egress Sampling Configuration and Verification"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+    sflow_ingress_min_sampling_rate: 262144
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
+    static_protocol_name: "static"
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    omit_l2_mtu: true
+    interface_config_vrf_before_address: true
+    interface_enabled: true
+    default_network_instance: "default"
+    static_protocol_name: "STATIC"
+    sflow_source_address_update_unsupported: true
+    sflow_egress_sampling_rate_unsupported: true
+    fr_breakout_fix: true
+  }
+}

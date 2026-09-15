@@ -34,6 +34,7 @@ type SFlowGlobalParams struct {
 	SrcAddrV6       string
 	IP              string
 	MinSamplingRate uint32
+	Egress          bool
 }
 
 // NewSFlowGlobalCfg takes optional input of sflow global and sfcollector and returns OC
@@ -45,14 +46,36 @@ func NewSFlowGlobalCfg(t *testing.T, batch *gnmi.SetBatch, newcfg *oc.Sampling_S
 	if newcfg == nil {
 		c.Enabled = ygot.Bool(true)
 		c.SampleSize = ygot.Uint16(256)
-		// override ingress sampling rate if default value of 1000000 is not supported
-		if deviations.SflowIngressMinSamplingRate(d) != 0 {
-			switch d.Vendor() {
-			case ondatra.CISCO:
-				c.SetIngressSamplingRate(deviations.SflowIngressMinSamplingRate(d))
+		c.Dscp = ygot.Uint8(8)
+		if p.Egress {
+			port2Name := d.Port(t, "port2").Name()
+			intfCfg := c.GetOrCreateInterface(port2Name)
+			intfCfg.Enabled = ygot.Bool(true)
+			if deviations.SflowEgressSamplingRateUnsupported(d) {
+				// Arista EOS does not support /sampling/sflow/interfaces/interface/config/egress-sampling-rate
+				// over OpenConfig gNMI (b/562517133). Instead, sampling rate is configured globally via
+				// /sampling/sflow/config/ingress-sampling-rate (CLI: sflow sample <rate>) and egress sampling
+				// is enabled per-interface via CLI (sflow egress enable).
+				c.SetIngressSamplingRate(p.MinSamplingRate)
+				switch d.Vendor() {
+				case ondatra.ARISTA:
+					helpers.GnmiCLIConfig(t, d, fmt.Sprintf("interface %s\nsflow egress enable", port2Name))
+				}
+			} else {
+				intfCfg.SetEgressSamplingRate(p.MinSamplingRate)
 			}
 		} else {
-			c.SetIngressSamplingRate(p.MinSamplingRate)
+			// override ingress sampling rate if default value of 1000000 is not supported
+			if deviations.SflowIngressMinSamplingRate(d) != 0 {
+				switch d.Vendor() {
+				case ondatra.CISCO:
+					c.SetIngressSamplingRate(deviations.SflowIngressMinSamplingRate(d))
+				}
+			} else {
+				c.SetIngressSamplingRate(p.MinSamplingRate)
+			}
+			c.GetOrCreateInterface(d.Port(t, "port1").Name()).Enabled = ygot.Bool(true)
+			c.GetOrCreateInterface(d.Port(t, "port2").Name()).Enabled = ygot.Bool(true)
 		}
 		cp := &SFlowCollectorParams{
 			Ni:        p.Ni,
@@ -61,9 +84,6 @@ func NewSFlowGlobalCfg(t *testing.T, batch *gnmi.SetBatch, newcfg *oc.Sampling_S
 			SrcAddrV6: p.SrcAddrV6,
 			IP:        p.IP,
 		}
-		c.Dscp = ygot.Uint8(8)
-		c.GetOrCreateInterface(d.Port(t, "port1").Name()).Enabled = ygot.Bool(true)
-		c.GetOrCreateInterface(d.Port(t, "port2").Name()).Enabled = ygot.Bool(true)
 		coll := NewSFlowCollector(t, batch, nil, d, cp)
 		for _, col := range coll {
 			c.AppendCollector(col)
@@ -73,6 +93,18 @@ func NewSFlowGlobalCfg(t *testing.T, batch *gnmi.SetBatch, newcfg *oc.Sampling_S
 	}
 	gnmi.BatchReplace(batch, gnmi.OC().Sampling().Sflow().Config(), c)
 	return c
+}
+
+// DisableSFlowEgressCfg disables egress sFlow sampling on the specified port.
+func DisableSFlowEgressCfg(t *testing.T, d *ondatra.DUTDevice, portName string) {
+	t.Helper()
+	if deviations.SflowEgressSamplingRateUnsupported(d) {
+		switch d.Vendor() {
+		case ondatra.ARISTA:
+			helpers.GnmiCLIConfig(t, d, fmt.Sprintf("interface %s\nno sflow egress enable", portName))
+		}
+	}
+	gnmi.Replace(t, d, gnmi.OC().Sampling().Sflow().Interface(portName).Enabled().Config(), false)
 }
 
 // SFlowCollectorParams defines parameters for the SFlow collector configuration.
