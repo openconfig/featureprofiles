@@ -5,8 +5,8 @@
 This test verifies OpenConfig configuration and telemetry for interface-level **egress sFlow sampling**, as well as the receipt and structure of egress-sampled flow records on an external sFlow collector.
 
 While standard sFlow sampling captures packets at the ingress pipeline, egress sFlow enables sampling of packets as they egress the device (after header modifications, routing, and encapsulation). This test verifies that:
-1. Interface-level `egress-sampling-rate` can be configured via OpenConfig gNMI.
-2. The operational state for `egress-sampling-rate` and interface `enabled` reflect correctly in telemetry.
+1. Interface-level `egress-sampling-rate` can be configured via OpenConfig gNMI (or global `ingress-sampling-rate` + CLI `sflow egress enable` on Arista EOS devices where interface-level `egress-sampling-rate` is unsupported over gNMI).
+2. The operational state for sampling rate and interface `enabled` reflect correctly in telemetry.
 3. Transmitted traffic through the configured egress interface generates valid sFlow datagrams sent to the collector.
 4. Captured flow samples correctly identify the sampled egress interface.
 
@@ -169,4 +169,3 @@ rpcs:
     gNMI.Set:
     gNMI.Subscribe:
 ```
-
