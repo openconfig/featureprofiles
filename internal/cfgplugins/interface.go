@@ -76,6 +76,8 @@ type DUTAggData struct {
 	SubInterfaces   []*DUTSubInterfaceData
 	OndatraPortsIdx []int
 	OndatraPorts    []*ondatra.Port
+	DutPortsIdx     []int
+	DutPorts        []*ondatra.Port
 	LagName         string
 	LacpParams      *LACPParams
 	AggType         oc.E_IfAggregate_AggregationType
@@ -109,6 +111,14 @@ type Attributes struct {
 func (d *DUTAggData) PopulateOndatraPorts(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, v := range d.OndatraPortsIdx {
 		d.OndatraPorts = append(d.OndatraPorts, dut.Port(t, "port"+strconv.Itoa(v+1)))
+	}
+}
+
+// PopulateDUTPorts populates the DUTPorts field of the DutLagData from the DUTPortsIdx
+// field.
+func (d *DUTAggData) PopulateDUTPorts(t *testing.T, dut *ondatra.DUTDevice) {
+	for _, v := range d.DutPortsIdx {
+		d.DutPorts = append(d.DutPorts, dut.Port(t, "port"+strconv.Itoa(v+1)))
 	}
 }
 
@@ -965,8 +975,15 @@ func NewAggregateInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatc
 	gnmi.BatchDelete(b, gnmi.OC().Interface(aggID).Aggregation().MinLinks().Config())
 
 	l.PopulateOndatraPorts(t, dut)
-	for _, op := range l.OndatraPorts {
-		AddPortToAggregate(t, dut, aggID, l.OndatraPorts, b, op)
+	if len(l.OndatraPorts) != 0 {
+		for _, op := range l.OndatraPorts {
+			AddPortToAggregate(t, dut, aggID, l.OndatraPorts, b, op)
+		}
+	} else {
+		l.PopulateDUTPorts(t, dut)
+		for _, op := range l.DutPorts {
+			AddPortToAggregate(t, dut, aggID, l.DutPorts, b, op)
+		}
 	}
 
 	if l.Attributes.IPv4 == "" && l.Attributes.IPv6 == "" {
