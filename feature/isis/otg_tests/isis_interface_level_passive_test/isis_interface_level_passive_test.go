@@ -104,19 +104,11 @@ func configureISIS(t *testing.T, ts *isissession.TestSession) {
 	isisIntfLevel2.LevelNumber = ygot.Uint8(2)
 	isisIntfLevel2.SetEnabled(true)
 	isisIntfLevel2.Enabled = ygot.Bool(true)
-	if deviations.SetISISAuthWithInterfaceAuthenticationContainer(ts.DUT) {
-		intfAuth := intf.GetOrCreateAuthentication()
-		intfAuth.Enabled = ygot.Bool(true)
-		intfAuth.AuthPassword = ygot.String(password)
-		intfAuth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
-		intfAuth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
-	} else {
-		helloAuth := isisIntfLevel2.GetOrCreateHelloAuthentication()
-		helloAuth.Enabled = ygot.Bool(true)
-		helloAuth.AuthPassword = ygot.String(password)
-		helloAuth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
-		helloAuth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
-	}
+	intfAuth := intf.GetOrCreateAuthentication()
+	intfAuth.Enabled = ygot.Bool(true)
+	intfAuth.AuthPassword = ygot.String(password)
+	intfAuth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+	intfAuth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
 
 	isisIntfLevel2.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	isisIntfLevel2.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric = ygot.Uint32(v4Metric)
