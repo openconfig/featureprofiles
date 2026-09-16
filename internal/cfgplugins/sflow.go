@@ -46,6 +46,9 @@ func NewSFlowGlobalCfg(t *testing.T, batch *gnmi.SetBatch, newcfg *oc.Sampling_S
 	if newcfg == nil {
 		c.Enabled = ygot.Bool(true)
 		c.SampleSize = ygot.Uint16(256)
+		if p == nil {
+			t.Fatal("SFlowGlobalParams parameter 'p' must not be nil when newcfg is nil")
+		}
 		c.Dscp = ygot.Uint8(8)
 		if p.Egress {
 			port2Name := d.Port(t, "port2").Name()
