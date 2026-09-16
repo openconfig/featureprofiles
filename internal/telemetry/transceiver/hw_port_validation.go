@@ -16,8 +16,8 @@ import (
 
 // validateHWPortTelemetry validates the hw port telemetry.
 func validateHWPortTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port, params *cfgplugins.ConfigParameters, hwPortStream *samplestream.SampleStream[*oc.Component]) {
-	if p.PMD() == ondatra.PMD400GBASEZR || p.PMD() == ondatra.PMD400GBASEZRP {
-		// Skip HW Port validation for PMD400GBASEZR/PMD400GBASEZRP as it is not supported.
+	if p.PMD() == ondatra.PMD400GBASEZR || p.PMD() == ondatra.PMD400GBASEZRP || p.PMD() == ondatra.PMD800GBASEZR || p.PMD() == ondatra.PMD800GBASEZRP {
+		// Skip HW Port validation for PMD400GBASEZR/PMD400GBASEZRP/PMD800GBASEZR/PMD800GBASEZRP as it is not supported.
 		return
 	}
 	if deviations.BreakoutModeUnsupportedForEightHundredGb(dut) && params.PortSpeed == oc.IfEthernet_ETHERNET_SPEED_SPEED_800GB {
