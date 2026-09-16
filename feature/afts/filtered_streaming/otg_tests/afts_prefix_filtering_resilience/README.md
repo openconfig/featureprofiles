@@ -61,10 +61,10 @@ Use the test environment and routing policies described in
 ### AFT-6.3.2 - Scale Test
 
 - Let `X` be the number of IPv4 routes to advertise from the ATE. **(User
-  Adjustable Value, default: 5000)**
+  Adjustable Value, default: 1500000)**
 
 - Let `Y` be the number of IPv6 routes to advertise from the ATE. **(User
-  Adjustable Value, default: 2000)**
+  Adjustable Value, default: 500000)**
 
 - Let `K` be the maximum allowed synchronization time in seconds. **(User
   Adjustable Value, default: 120)**
@@ -96,17 +96,19 @@ respective filters.
 
 - Configure two network instances on the DUT: `DEFAULT` and `VRF-A`.
 
+- Configure the prefix-set to allow 5000 prefixes in each instance to stream after filtering.
+
 - Populate both instances with distinct static routes. The prefix
   `198.51.100.0/24` appears in both instances to verify filter independence.
 
-  - `DEFAULT`: `198.51.100.0/24`, `203.0.113.0/28`, `100.64.0.0/24`
-  - `VRF-A`: `198.51.100.0/24`, `100.64.1.0/24`, `203.0.113.128/28`
+  - `DEFAULT`: example prefixes `198.51.100.0/24`, `203.0.113.0/28`, `100.64.0.0/24`
+  - `VRF-A`: example prefixes `198.51.100.0/24`, `100.64.1.0/24`, `203.0.113.128/28`
 
 - Configure the following routing policies:
 
-  - `POLICY-PREFIX-SET-A`: Matches `198.51.100.0/24`, `203.0.113.0/28`, and
+  - `POLICY-PREFIX-SET-A`: Matches includes `198.51.0.0/16`, `203.0.113.0/28`, and
     `198.51.100.1/32`.
-  - `POLICY-PREFIX-SET-VRF-A`: Matches `100.64.1.0/24` and subnets up to
+  - `POLICY-PREFIX-SET-VRF-A`: Matches, including `100.64.0.0/16` and subnets up to
     `/32`.
   - `POLICY-MATCH-ALL`: Matches all routes.
 
@@ -131,11 +133,11 @@ respective filters.
 - **Collector 2**: Establishes a gNMI subscription to AFT paths within the
   `VRF-A` network instance.
 
-- Collector 1: Verify `SYNC` and receipt of only `198.51.100.0/24` and
+- Collector 1: Verify `SYNC` and receipt of allowed prefixes including `198.51.100.0/24` and
   `203.0.113.0/28` from `DEFAULT`. Verify all expected next-hop-groups and
   next-hops are received normally. Verify `100.64.0.0/24` is **not** received.
 
-- Collector 2: Verify `SYNC` and receipt of only `100.64.1.0/24` from `VRF-A`.
+- Collector 2: Verify `SYNC` and receipt of allowed prefixes including `100.64.1.0/24` from `VRF-A`.
   Verify all expected next-hop-groups and next-hops are received normally.
   Verify `198.51.100.0/24` and `203.0.113.128/28` are **not** received.
 
