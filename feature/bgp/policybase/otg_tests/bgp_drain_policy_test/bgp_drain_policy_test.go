@@ -49,6 +49,8 @@ const (
 	routeV6Start      = "2001:db8:1::1"
 	routeV4Prefix     = 32
 	routeV6Prefix     = 128
+	importPolicyName  = "ALLOW_IMPORT"
+	exportPolicyName  = "ALLOW_EXPORT"
 	denyAllPolicy     = "DENY_ALL"
 	v4FlowName        = "drain-v4"
 	v6FlowName        = "drain-v6"
@@ -81,6 +83,20 @@ func configureRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, params routing
 	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 }
 
+func configureBaseBGPPolicies(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	configureRoutingPolicy(t, dut, routingPolicy{
+		policyName: importPolicyName,
+		statement:  "allow-import-statement",
+		action:     oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
+	})
+	configureRoutingPolicy(t, dut, routingPolicy{
+		policyName: exportPolicyName,
+		statement:  "allow-export-statement",
+		action:     oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
+	})
+}
+
 func configureDUTBGP(t *testing.T, as uint32, routerID string, nbrs []*cfgplugins.BgpNeighbor, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	t.Helper()
 	d := &oc.Root{}
@@ -92,6 +108,8 @@ func configureDUTBGP(t *testing.T, as uint32, routerID string, nbrs []*cfgplugin
 	globalOpts := []cfgplugins.GlobalOption{
 		cfgplugins.WithAS(as),
 		cfgplugins.WithRouterID(routerID),
+		cfgplugins.WithGlobalAfiSafiEnabled(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, true),
+		cfgplugins.WithGlobalAfiSafiEnabled(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, true),
 	}
 	cfgplugins.ConfigureGlobal(bgp, dut, globalOpts...)
 
@@ -112,10 +130,14 @@ func configureDUTBGP(t *testing.T, as uint32, routerID string, nbrs []*cfgplugin
 
 	for _, nbr := range nbrs {
 		bgpNbr := bgp.GetOrCreateNeighbor(nbr.Neighborip)
-		cfgplugins.ConfigurePeer(bgpNbr, dut,
+		peerOpts := []cfgplugins.PeerOption{
 			cfgplugins.WithPeerGroup(nbr.PeerGrp, nbr.PeerAS, "", "", false),
-			cfgplugins.WithPeerAfiSafiEnabled(nbr.IsV4, "", "", false),
+		}
+
+		peerOpts = append(peerOpts, cfgplugins.WithPeerAfiSafiEnabled(nbr.IsV4, importPolicyName, exportPolicyName, false),
+			cfgplugins.ApplyPeerPerAfiSafiRoutingPolicy(nbr.IsV4, importPolicyName, exportPolicyName, false),
 		)
+		cfgplugins.ConfigurePeer(bgpNbr, dut, peerOpts...)
 	}
 	return niProto
 }
@@ -233,10 +255,11 @@ func verifyTrafficState(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Confi
 	}
 }
 
-func removeExportPolicy(t *testing.T, dut *ondatra.DUTDevice, nbr string, afi oc.E_BgpTypes_AFI_SAFI_TYPE) {
+func clearDUTBGPConfig(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.DefaultBgpInstanceName(dut)).Bgp()
-	gnmi.Delete(t, dut, bgpPath.Neighbor(nbr).AfiSafi(afi).ApplyPolicy().ExportPolicy().Config())
+	niProtoPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.DefaultBgpInstanceName(dut))
+	gnmi.Delete(t, dut, niProtoPath.Bgp().Config())
+	gnmi.Delete(t, dut, niProtoPath.Config())
 }
 
 func parsePathAttrs(b []byte) (withdrawn int) {
@@ -406,10 +429,10 @@ func TestBGPDrainPolicy(t *testing.T) {
 	t.Cleanup(func() {
 		t.Log("Cleaning up BGP and routing policy config on DUT and stopping OTG protocols")
 		ate.OTG().StopProtocols(t)
-		removeExportPolicy(t, dut, ateP2.IPv4, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-		removeExportPolicy(t, dut, ateP2.IPv6, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+		clearDUTBGPConfig(t, dut)
+		gnmi.Delete(t, dut, gnmi.OC().RoutingPolicy().PolicyDefinition(importPolicyName).Config())
+		gnmi.Delete(t, dut, gnmi.OC().RoutingPolicy().PolicyDefinition(exportPolicyName).Config())
 		gnmi.Delete(t, dut, gnmi.OC().RoutingPolicy().PolicyDefinition(denyAllPolicy).Config())
-		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.DefaultBgpInstanceName(dut)).Config())
 	})
 
 	t.Log("configure DUT interfaces")
@@ -418,6 +441,8 @@ func TestBGPDrainPolicy(t *testing.T) {
 	}
 
 	t.Log("configure BGP on DUT")
+	t.Log("configure base import/export routing policies on DUT")
+	configureBaseBGPPolicies(t, dut)
 	nbrs := []*cfgplugins.BgpNeighbor{
 		{LocalAS: cfgplugins.DutAS, PeerAS: cfgplugins.AteAS1, Neighborip: ateP1.IPv4, IsV4: true, PeerGrp: cfgplugins.BGPPeerGroup1},
 		{LocalAS: cfgplugins.DutAS, PeerAS: cfgplugins.AteAS1, Neighborip: ateP1.IPv6, IsV4: false, PeerGrp: cfgplugins.BGPPeerGroup1},
@@ -521,8 +546,8 @@ func TestBGPDrainPolicy(t *testing.T) {
 			name: "Remove Policy and Restore",
 			run: func(t *testing.T) {
 				t.Log("remove export policy from ATE port2 neighbor for both AFI/SAFI")
-				removeExportPolicy(t, dut, ateP2.IPv4, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-				removeExportPolicy(t, dut, ateP2.IPv6, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+				applyExportPolicy(t, dut, ateP2.IPv4, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, exportPolicyName)
+				applyExportPolicy(t, dut, ateP2.IPv6, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, exportPolicyName)
 
 				ate.OTG().StartTraffic(t)
 
@@ -565,8 +590,8 @@ func TestBGPDrainPolicy(t *testing.T) {
 					bgpV4Peer2: uint64(routeCount),
 					bgpV6Peer2: uint64(0),
 				}, false, true)
-
-				removeExportPolicy(t, dut, ateP2.IPv4, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+				// Wait for the OTG prefixes to reflect the removal of the export policy
+				applyExportPolicy(t, dut, ateP2.IPv4, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, exportPolicyName)
 			},
 		},
 		{
