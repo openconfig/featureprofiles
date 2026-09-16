@@ -1872,21 +1872,10 @@ func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, conf gosnappi.Config) {
 // verifyTraffic verifies the traffic flow.
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, conf gosnappi.Config) {
 	otg := ate.OTG()
-	otgutils.LogFlowMetrics(t, otg, conf)
+	defer otgutils.LogFlowMetrics(t, otg, conf)
 	for _, flow := range conf.Flows().Items() {
-		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).State())
-		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
-		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
-		if txPackets == 0 {
-			t.Fatalf("TxPkts = 0, want > 0")
-		}
-		lostPackets := txPackets - rxPackets
-		lossPct := lostPackets * 100 / txPackets
-		if lossPct > tolerancePct {
-			t.Fatalf("Traffic Loss Pct for Flow %s: got %v, want max %v pct failure", flow.Name(), lossPct, tolerancePct)
-		} else {
-			t.Logf("Traffic Test Passed! for flow %s", flow.Name())
-		}
+		flowName := flow.Name()
+		otgutils.ExpectedTrafficLoss(t, otg, flowName, 0, float64(tolerancePct)+0.99)
 	}
 }
 

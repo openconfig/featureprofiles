@@ -1,4 +1,4 @@
-# Pathz: Path-level Authorization (1-3) tests
+# Pathz: Path-level Authorization (1-4) tests
 
 ## Summary
 
@@ -168,6 +168,22 @@ This test verifies the `gNSI.Pathz.Probe` RPC functionality.
     *   Call `gNSI.Pathz.Probe` specifying `polcy_instance: POLICY_INSTANCE_ACTIVE`.
         *   Expect: `action: ACTION_PERMIT` (still using active `v1` policy).
     *   Abort the rotation.
+
+### Pathz-4: Policy Removal via CLI
+
+This test verifies that a Pathz policy can be removed from the device using vendor-native CLI commands, and that this removal is correctly reflected in the gNSI Pathz service.
+
+#### Procedure:
+
+1.  **Push Policy**:
+    *   Use `gNSI.Pathz.Rotate` to push a test Pathz policy and finalize it.
+2.  **Verify Policy Active**:
+    *   Call `gNSI.Pathz.Get` and verify that the returned policy is active.
+3.  **Removal via CLI**:
+    *   Access the DUT via vendor-native CLI (using console or SSH).
+    *   Execute the vendor-specific command to remove the Pathz policy.
+4.  **Verify Policy Cleared**:
+    *   Call `gNSI.Pathz.Get` and verify that no policy is returned (or an empty policy is returned, or the RPC returns an error indicating no policy is configured).
 
 ## Canonical OC
 

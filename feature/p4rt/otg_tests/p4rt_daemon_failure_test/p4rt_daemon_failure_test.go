@@ -322,15 +322,18 @@ func TestP4RTDaemonFailure(t *testing.T) {
 		// Verify interfaceID did not change since the last time we read it.
 		changedID, notOk := watchID.Await(t)
 		if notOk {
-			t.Errorf("DUT changed /interfaces/interface/state/id during p4rt process restart.  want: %q got: %q", dutPort1.ID, changedID.String())
+			t.Errorf("DUT changed /interfaces/interface/state/id during p4rt process restart.  want: %d got: %q", dutPort1.ID, changedID.String())
 		}
-		t.Logf("OK: no change detected in /interfaces/interface/state/id want:%q got:%q", dutPort1.ID, changedID.String())
+		t.Logf("OK: no change detected in /interfaces/interface/state/id want:%d got:%q", dutPort1.ID, changedID.String())
 	}
 
 	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).State())
 	txPackets := float32(recvMetric.GetCounters().GetOutPkts())
 	rxPackets := float32(recvMetric.GetCounters().GetInPkts())
 	lostPackets := txPackets - rxPackets
+	if txPackets == 0 {
+		t.Fatalf("txPackets == 0, want > 0")
+	}
 	lossPct := lostPackets * 100 / txPackets
 
 	if lossPct > lossTolerance {

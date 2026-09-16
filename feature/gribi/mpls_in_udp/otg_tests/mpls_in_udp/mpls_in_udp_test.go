@@ -712,7 +712,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 func applyForwardingPolicy(t *testing.T, dut *ondatra.DUTDevice, ingressPort string) {
 	d := &oc.Root{}
 	interfaceID := ingressPort
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+	if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
 		interfaceID = ingressPort + ".0"
 	}
 
@@ -834,30 +834,10 @@ func validateTrafficFlows(t *testing.T, args *testArgs, flows []gosnappi.Flow, c
 	otgutils.LogFlowMetrics(t, otg, args.topo)
 
 	for _, flow := range flows {
-		outPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State()))
-		inPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State()))
-		lossPct := ((outPkts - inPkts) * 100) / outPkts
-
-		t.Logf("Flow %s: OutPkts=%v, InPkts=%v, LossPct=%v", flow.Name(), outPkts, inPkts, lossPct)
-
-		if outPkts == 0 {
-			t.Fatalf("OutPkts for flow %s is 0, want > 0", flow.Name())
-		}
-
 		if match {
-			// Expecting traffic to pass (0% loss)
-			if got := lossPct; got > 0 {
-				t.Fatalf("Traffic validation FAILED: Flow %s has %v%% packet loss, want 0%%", flow.Name(), got)
-			} else {
-				t.Logf("Traffic validation PASSED: Flow %s has 0%% packet loss", flow.Name())
-			}
+			otgutils.ExpectedTrafficLoss(t, otg, flow.Name(), 0, 0)
 		} else {
-			// Expecting traffic to fail (100% loss)
-			if got := lossPct; got != 100 {
-				t.Fatalf("Traffic validation FAILED: Flow %s has %v%% packet loss, want 100%%", flow.Name(), got)
-			} else {
-				t.Logf("Traffic validation PASSED: Flow %s has 100%% packet loss", flow.Name())
-			}
+			otgutils.ExpectedTrafficLoss(t, otg, flow.Name(), 100, 100)
 		}
 	}
 }

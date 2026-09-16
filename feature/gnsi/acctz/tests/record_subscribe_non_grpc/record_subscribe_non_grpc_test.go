@@ -16,7 +16,6 @@ package recordsubscribenongrpc_test
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"strings"
 	"testing"
@@ -41,11 +40,6 @@ type recordRequestResult struct {
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
-}
-
-func prettyPrint(i any) string {
-	s, _ := json.MarshalIndent(i, "", "\t")
-	return string(s)
 }
 
 var (
@@ -82,8 +76,10 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 		Seconds: startTime.Unix(),
 		Nanos:   0,
 	}
+	request := &acctzpb.RecordRequest{Timestamp: requestTimestamp}
 	acctzClient := dut.RawAPIs().GNSI(t).AcctzStream()
-	acctzSubClient, err := acctzClient.RecordSubscribe(context.Background(), &acctzpb.RecordRequest{Timestamp: requestTimestamp})
+	t.Logf("Sending acctz record subscribe request: %s", acctz.PrettyPrint(request))
+	acctzSubClient, err := acctzClient.RecordSubscribe(context.Background(), request)
 	if err != nil {
 		t.Fatalf("Failed sending accountz record request, error: %s", err)
 	}
@@ -134,7 +130,7 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 			t.Log("Done receiving records (timeout or manual break)...")
 			break
 		}
-		t.Logf("Received record: %s", prettyPrint(resp.record))
+		t.Logf("Received record: %s", acctz.PrettyPrint(resp.record))
 
 		if resp.err != nil {
 			t.Fatalf("Failed receiving record response, error: %s", resp.err)
@@ -177,7 +173,7 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 		timestamp := resp.record.Timestamp.AsTime()
 		if timestamp.UnixMilli() == lastTimestampUnixMillis {
 			// This ensures that timestamps are actually changing for each record.
-			t.Errorf("Timestamp is the same as the previous timestamp, this shouldn't be possible!, Record Details: %s", prettyPrint(resp.record))
+			t.Errorf("Timestamp is the same as the previous timestamp, this shouldn't be possible!, Record Details: %s", acctz.PrettyPrint(resp.record))
 		}
 		lastTimestampUnixMillis = timestamp.UnixMilli()
 
@@ -195,7 +191,7 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 
 		// Verify record timestamp is after request timestamp.
 		if !timestamp.After(requestTimestamp.AsTime()) {
-			t.Errorf("Record timestamp is before record request timestamp %v, Record Details: %v", requestTimestamp.AsTime(), prettyPrint(resp.record))
+			t.Errorf("Record timestamp is before record request timestamp %v, Record Details: %v", requestTimestamp.AsTime(), acctz.PrettyPrint(resp.record))
 		}
 
 		// This channel check maybe should just go away entirely -- see:
@@ -204,21 +200,21 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 		// useful info in this field to identify a "session" (even if it isn't necessarily ssh/grpc
 		// directly).
 		if resp.record.GetSessionInfo().GetChannelId() == "" && !deviations.AcctzRecordSessionChannelIdUnsupported(dut) {
-			t.Errorf("Channel Id is not populated for record: %v", prettyPrint(resp.record))
+			t.Errorf("Channel Id is not populated for record: %v", acctz.PrettyPrint(resp.record))
 		}
 
 		// Tty only set for ssh records.
 		if resp.record.GetSessionInfo().GetTty() == "" {
-			t.Errorf("Should have tty allocated but not set, Record Details: %s", prettyPrint(resp.record))
+			t.Errorf("Should have tty allocated but not set, Record Details: %s", acctz.PrettyPrint(resp.record))
 		}
 
 		// Verify authz detail is populated for denied cmds.
 		authzInfo := resp.record.GetCmdService().GetAuthz()
 		if authzInfo.Status == acctzpb.AuthzDetail_AUTHZ_STATUS_DENY && authzInfo.GetDetail() == "" {
-			t.Errorf("Authorization detail is not populated for record: %v", prettyPrint(resp.record))
+			t.Errorf("Authorization detail is not populated for record: %v", acctz.PrettyPrint(resp.record))
 		}
 
-		t.Logf("Processed Record: %s", prettyPrint(resp.record))
+		t.Logf("Processed Record: %s", acctz.PrettyPrint(resp.record))
 		recordIdx++
 	}
 	t.Logf("recordIdx: %d, len(records): %d", recordIdx, len(records))
