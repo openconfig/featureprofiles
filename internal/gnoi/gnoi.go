@@ -45,6 +45,7 @@ var (
 			OCAGENT: "emsd",
 			P4RT:    "emsd",
 			ROUTING: "emsd",
+			ISIS:    "isis",
 		},
 		ondatra.JUNIPER: {
 			GRIBI:   "rpd",
@@ -101,7 +102,12 @@ func KillProcess(t *testing.T, dut *ondatra.DUTDevice, daemon Daemon, signal spb
 		t.Fatalf("process %s not found on device", daemonName)
 	}
 
-	gnoiClient := dut.RawAPIs().GNOI(t)
+	// A controller switchover can invalidate the cached TCP channel, even
+	// after the DUT becomes reachable again. Dial a fresh client for the RPC.
+	gnoiClient, dialErr := dut.RawAPIs().BindingDUT().DialGNOI(t.Context())
+	if dialErr != nil {
+		t.Fatalf("failed to dial gNOI: %v", dialErr)
+	}
 	killProcessRequest := &spb.KillProcessRequest{
 		Signal:  signal,
 		Name:    daemonName,
