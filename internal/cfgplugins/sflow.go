@@ -45,6 +45,9 @@ func NewSFlowGlobalCfg(t *testing.T, batch *gnmi.SetBatch, newcfg *oc.Sampling_S
 	if newcfg == nil {
 		c.Enabled = ygot.Bool(true)
 		c.SampleSize = ygot.Uint16(256)
+		if p == nil {
+			t.Fatal("SFlowGlobalParams parameter 'p' must not be nil when newcfg is nil")
+		}
 		c.SetIngressSamplingRate(p.MinSamplingRate)
 		cp := &SFlowCollectorParams{
 			Ni:        p.Ni,
