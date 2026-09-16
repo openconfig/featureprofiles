@@ -316,9 +316,9 @@ func configureOTG(t *testing.T, otg *otg.OTG, asSeg []uint32, asSEQMode bool) go
 		SetPrefix(uint32(advertisedRoutesv4Prefix)).
 		SetCount(routeCount)
 
-	// The source peer is eBGP, so include its ASN as an AS_SEQUENCE. This makes
-	// the first AS in the received AS_SEQUENCE match the configured peer ASN.
-	bgpNeti1AsPath := bgpNeti1Bgp4PeerRoutes.AsPath().SetAsSetMode(gosnappi.BgpAsPathAsSetMode.INCLUDE_AS_SEQ)
+	// The source peer is eBGP, so prepend its ASN to the first AS_SEQUENCE.
+	// This makes the first AS in the received path match the configured peer ASN.
+	bgpNeti1AsPath := bgpNeti1Bgp4PeerRoutes.AsPath().SetAsSetMode(gosnappi.BgpAsPathAsSetMode.PREPEND_TO_FIRST_SEGMENT)
 
 	if asSEQMode {
 		bgpNeti1AsPath.Segments().Add().SetAsNumbers(asSeg).SetType(gosnappi.BgpAsPathSegmentType.AS_SEQ)
