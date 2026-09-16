@@ -76,6 +76,125 @@ BGP Long-Lived Graceful Restart
 *   /neighbors/neighbor/afi-safis/afi-safi/graceful-restart/state/received 
 *   /neighbors/neighbor/afi-safis/afi-safi/graceful-restart/state/advertised 
 
+## Canonical OC
+
+```json
+{
+  "network-instances": {
+    "network-instance": [
+      {
+        "name": "DEFAULT",
+        "config": {
+          "name": "DEFAULT"
+        },
+        "protocols": {
+          "protocol": [
+            {
+              "identifier": "BGP",
+              "name": "BGP",
+              "config": {
+                "identifier": "BGP",
+                "name": "BGP"
+              },
+              "bgp": {
+                "global": {
+                  "config": {
+                    "as": 64500,
+                    "router-id": "192.0.2.5"
+                  },
+                  "graceful-restart": {
+                    "config": {
+                      "enabled": true,
+                      "helper-only": false,
+                      "restart-time": 120,
+                      "stale-routes-time": 600
+                    }
+                  },
+                  "afi-safis": {
+                    "afi-safi": [
+                      {
+                        "afi-safi-name": "IPV4_UNICAST",
+                        "config": {
+                          "afi-safi-name": "IPV4_UNICAST",
+                          "enabled": true
+                        },
+                        "graceful-restart": {
+                          "config": {
+                            "enabled": true
+                          }
+                        }
+                      },
+                      {
+                        "afi-safi-name": "IPV6_UNICAST",
+                        "config": {
+                          "afi-safi-name": "IPV6_UNICAST",
+                          "enabled": true
+                        },
+                        "graceful-restart": {
+                          "config": {
+                            "enabled": true
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "peer-groups": {
+                  "peer-group": [
+                    {
+                      "peer-group-name": "BGP-PEER-GROUP-V4",
+                      "config": {
+                        "peer-group-name": "BGP-PEER-GROUP-V4",
+                        "peer-as": 64501
+                      }
+                    }
+                  ]
+                },
+                "neighbors": {
+                  "neighbor": [
+                    {
+                      "neighbor-address": "192.0.2.2",
+                      "config": {
+                        "neighbor-address": "192.0.2.2",
+                        "peer-as": 64501,
+                        "peer-group": "BGP-PEER-GROUP-V4"
+                      },
+                      "graceful-restart": {
+                        "config": {
+                          "enabled": true,
+                          "helper-only": false,
+                          "restart-time": 120,
+                          "stale-routes-time": 600
+                        }
+                      },
+                      "afi-safis": {
+                        "afi-safi": [
+                          {
+                            "afi-safi-name": "IPV4_UNICAST",
+                            "config": {
+                              "afi-safi-name": "IPV4_UNICAST",
+                              "enabled": true
+                            },
+                            "graceful-restart": {
+                              "config": {
+                                "enabled": true
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
 ## OpenConfig Path and RPC Coverage
 
 ```yaml

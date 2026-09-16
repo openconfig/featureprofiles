@@ -43,8 +43,8 @@ The test is configured with the following parameters defined in `gribi_full_scal
 * `NumEncapVRFs`: `16`
 * `NumEncapIPv4PerVRF`: `9,000`
 * `NumEncapIPv6PerVRF`: `11,000`
-* `NumUniqueEncapNH`: `32,000`
-* `NumEncapDefaultNHG`: `8,000`
+* `NumEncapNHPerVRF`: `2,000`
+* `NumEncapNHGPerVRF`: `500`
 * `EncapNHGLoadBalance`:
   * 75% NHGs load-balance across 4 NHs
   * 20% NHGs load-balance across 8 NHs
