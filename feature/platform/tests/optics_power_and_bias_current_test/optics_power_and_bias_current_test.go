@@ -181,6 +181,16 @@ func validateThresholds(t *testing.T, dut *ondatra.DUTDevice, transceiver string
 		name:        "output-power",
 		ftName:      deviations.CiscoxrTransceiverFt(dut),
 	})
+	checkThreshold(t, dut, checkThresholdParams{
+		transceiver: transceiver,
+		isPortUp:    isPortUp,
+		opts:        opts,
+		lowerPath:   threshold.LaserBiasCurrentLower().State(),
+		upperPath:   threshold.LaserBiasCurrentUpper().State(),
+		instantPath: component.Transceiver().Channel(0).LaserBiasCurrent().Instant().State(),
+		name:        "laser-bias-current",
+		ftName:      deviations.CiscoxrTransceiverFt(dut),
+	})
 }
 func TestOpticsPowerBiasCurrent(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
