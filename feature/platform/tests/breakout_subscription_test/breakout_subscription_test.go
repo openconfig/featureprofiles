@@ -926,11 +926,9 @@ func linecardDown(t testing.TB, dut *ondatra.DUTDevice, fpc string, lcs []string
 	}
 
 	c := gnmi.OC().Component(fpc)
-	if deviations.PowerDisableEnableLeafRefValidation(dut) {
-		gnmi.Update(t, dut, c.Config(), &oc.Component{
-			Name: ygot.String(fpc),
-		})
-	}
+	gnmi.Update(t, dut, c.Config(), &oc.Component{
+		Name: ygot.String(fpc),
+	})
 	config := c.Linecard().PowerAdminState().Config()
 	t.Logf("Starting %s POWER_DISABLE", fpc)
 	gnmi.Replace(t, dut, config, oc.Platform_ComponentPowerType_POWER_DISABLED)

@@ -218,11 +218,9 @@ func toggleLinecardPower(t *testing.T, dut *ondatra.DUTDevice, lineCardName stri
 	var logAction string
 	c := gnmi.OC().Component(lineCardName)
 	config = c.Linecard().PowerAdminState().Config()
-	if deviations.PowerDisableEnableLeafRefValidation(dut) {
-		gnmi.Update(t, dut, c.Config(), &oc.Component{
-			Name: ygot.String(lineCardName),
-		})
-	}
+	gnmi.Update(t, dut, c.Config(), &oc.Component{
+		Name: ygot.String(lineCardName),
+	})
 	if powerUp {
 		expectedStatus = oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE
 		logAction = "enable"
