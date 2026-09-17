@@ -69,7 +69,8 @@ func setEthernetFromBase(t testing.TB, config *oc.Root) {
 }
 
 // filterBaselineConfig filters the baseline config to remove unwanted fields.
-func filterBaselineConfig(baselineConfig *oc.Root) {
+func filterBaselineConfig(vendor ondatra.Vendor, baselineConfig *oc.Root) {
+	fptest.PruneUnpushableNetworkInstances(vendor, baselineConfig)
 	for _, ni := range baselineConfig.NetworkInstance {
 		for _, p := range ni.Protocol {
 			if p.Bgp != nil {
@@ -193,7 +194,7 @@ func extractMetadataAnnotation(t *testing.T, gnmiClient gpb.GNMIClient, dut *ond
 }
 
 // buildGNMISetRequest builds gnmi set request with protobuf-metadata
-func buildGNMISetRequest(t *testing.T, metadataText string, baselineConfig *oc.Root, size int) *gpb.SetRequest {
+func buildGNMISetRequest(t *testing.T, vendor ondatra.Vendor, metadataText string, baselineConfig *oc.Root, size int) *gpb.SetRequest {
 	var trimSize float64
 
 	// For 100KB and 1M cases trim the data according to proto and base64encoding overheads
@@ -239,6 +240,7 @@ func buildGNMISetRequest(t *testing.T, metadataText string, baselineConfig *oc.R
 	}
 
 	accompaniedPath := gnmi.OC().Config().PathStruct()
+	fptest.PruneUnpushableNetworkInstances(vendor, baselineConfig)
 	gpbSetRequest.Update = append(gpbSetRequest.Update, buildGNMIUpdate(t, accompaniedPath, baselineConfig))
 	return gpbSetRequest
 }
@@ -298,7 +300,7 @@ func testLargeMetadata(t *testing.T, gnmiClient gpb.GNMIClient, dut *ondatra.DUT
 	largeMetadata := base64.StdEncoding.EncodeToString(randomBytes)
 	largeMetadata = largeMetadata[:size]
 	// send large metadata update request in one goroutine
-	gpbSetRequest := buildGNMISetRequest(t, largeMetadata, baselineConfig, size)
+	gpbSetRequest := buildGNMISetRequest(t, dut.Vendor(), largeMetadata, baselineConfig, size)
 	t.Log("gnmiClient Set large metadataconfig request")
 	_, err = gnmiClient.Set(context.Background(), gpbSetRequest)
 	if err != nil {
@@ -324,13 +326,13 @@ func TestLargeSetConsistency(t *testing.T) {
 		oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 
 	baselineConfig := fptest.GetDeviceConfig(t, dut)
-	filterBaselineConfig(baselineConfig)
+	filterBaselineConfig(dut.Vendor(), baselineConfig)
 	setEthernetFromBase(t, baselineConfig)
 	gnmiClient := dut.RawAPIs().GNMI(t)
 
 	// send 1st update request in one goroutine
 	sizeMetadata1 := len(shortStringMetadata1)
-	gpbSetRequest := buildGNMISetRequest(t, shortStringMetadata1, baselineConfig, sizeMetadata1)
+	gpbSetRequest := buildGNMISetRequest(t, dut.Vendor(), shortStringMetadata1, baselineConfig, sizeMetadata1)
 	t.Log("gnmiClient Set 1st large config")
 	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
 		t.Fatalf("gnmi.Set unexpected error: %v", err)
@@ -347,7 +349,7 @@ func TestLargeSetConsistency(t *testing.T) {
 
 	// sending 2nd update request in one goroutine
 	sizeMetadata2 := len(shortStringMetadata2)
-	gpbSetRequest = buildGNMISetRequest(t, shortStringMetadata2, baselineConfig, sizeMetadata2)
+	gpbSetRequest = buildGNMISetRequest(t, dut.Vendor(), shortStringMetadata2, baselineConfig, sizeMetadata2)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -403,7 +405,7 @@ func TestLargeMetadataConfigPush(t *testing.T) {
 		oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 
 	baselineConfig := fptest.GetDeviceConfig(t, dut)
-	filterBaselineConfig(baselineConfig)
+	filterBaselineConfig(dut.Vendor(), baselineConfig)
 	setEthernetFromBase(t, baselineConfig)
 	gnmiClient := dut.RawAPIs().GNMI(t)
 

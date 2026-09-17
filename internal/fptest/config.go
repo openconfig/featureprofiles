@@ -55,7 +55,11 @@ func GetDeviceConfig(t testing.TB, dev gnmi.DeviceOrOpts) *oc.Root {
 				intf.Mtu = nil
 				intf.HoldTime = nil
 				for _, sub := range intf.Subinterface {
+					if sub.Ipv4 != nil {
+						sub.Ipv4.Neighbor = nil
+					}
 					if sub.Ipv6 != nil {
+						sub.Ipv6.Neighbor = nil
 						sub.Ipv6.Autoconf = nil
 						if adv := sub.Ipv6.GetRouterAdvertisement(); adv != nil {
 							adv.Suppress = nil
@@ -70,7 +74,7 @@ func GetDeviceConfig(t testing.TB, dev gnmi.DeviceOrOpts) *oc.Root {
 			vrfsStates := gnmi.GetAll(t, dev, gnmi.OC().NetworkInstanceAny().State())
 			for _, vrf := range vrfsStates {
 				// only needed for containerOp
-				if vrf.GetName() == "**iid" {
+				if _, ok := ciscoUnpushableNetworkInstances[vrf.GetName()]; ok {
 					continue
 				}
 				if vrf.GetName() == "DEFAULT" {
@@ -162,6 +166,7 @@ func GetDeviceConfig(t testing.TB, dev gnmi.DeviceOrOpts) *oc.Root {
 	}
 
 	pruneUnsupportedPaths(config)
+	PruneUnpushableNetworkInstances(ondatra.DUT(t, "dut").Vendor(), config)
 
 	WriteQuery(t, "Touched", gnmi.OC().Config(), config)
 	return config
@@ -191,6 +196,26 @@ func CopyDeviceConfig(t testing.TB, dut *ondatra.DUTDevice, config *oc.Root) *oc
 func pruneUnsupportedPaths(config *oc.Root) {
 	for _, ni := range config.NetworkInstance {
 		ni.Fdb = nil
+	}
+}
+
+// ciscoUnpushableNetworkInstances lists network instances that cannot be pushed
+// back to Cisco devices via gNMI because RSI rejects them as reserved names.
+var ciscoUnpushableNetworkInstances = map[string]struct{}{
+	"vrf-any": {},
+	"**iid":   {},
+}
+
+// PruneUnpushableNetworkInstances removes network instances that cannot be pushed
+// back to Cisco devices via gNMI because RSI rejects them as reserved names.
+func PruneUnpushableNetworkInstances(vendor ondatra.Vendor, config *oc.Root) {
+	if vendor != ondatra.CISCO || config == nil {
+		return
+	}
+	for name := range config.NetworkInstance {
+		if _, ok := ciscoUnpushableNetworkInstances[name]; ok {
+			delete(config.NetworkInstance, name)
+		}
 	}
 }
 

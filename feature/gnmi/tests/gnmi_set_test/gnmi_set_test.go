@@ -848,6 +848,7 @@ func forEachPushOp(
 ) {
 	baselineConfigOnce.Do(func() {
 		baselineConfig = fptest.GetDeviceConfig(t, dut)
+		fptest.PruneUnpushableNetworkInstances(dut.Vendor(), baselineConfig)
 		for _, ni := range baselineConfig.NetworkInstance {
 			for _, p := range ni.Protocol {
 				if p.Bgp != nil {
