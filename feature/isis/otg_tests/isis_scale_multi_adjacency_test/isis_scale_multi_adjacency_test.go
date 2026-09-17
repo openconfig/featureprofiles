@@ -13,7 +13,9 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	isisscalehelpers "github.com/openconfig/featureprofiles/internal/isisscale"
 	otgconfighelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers"
+	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 const (
@@ -266,6 +268,20 @@ func TestISISScale(t *testing.T) {
 				testInfo.ATEData.ATE.OTG().StartTraffic(t)
 				time.Sleep(60 * time.Second)
 				testInfo.ATEData.ATE.OTG().StopTraffic(t)
+				// Wait for traffic to stop
+				for _, flow := range testInfo.ATEData.TrafficFlows {
+
+					transmitPath := gnmi.OTG().Flow(flow.Name()).Transmit().State()
+					checkState := func(val *ygnmi.Value[bool]) bool {
+						transmitState, present := val.Val()
+						return present && !transmitState
+					}
+
+					if _, ok := gnmi.Watch(t, testInfo.ATEData.ATE.OTG(), transmitPath, 2*time.Minute, checkState).Await(t); !ok {
+						t.Errorf("traffic for flow %s did not stop within the timeout of %v", flow.Name(), 2*time.Minute)
+					}
+				}
+
 				// Check Traffic Loss
 				errs := isisscalehelpers.CheckTraffic(t, testInfo.ATEData.ATE, testInfo.ATEData.TrafficFlows)
 				if len(errs) > 0 {
