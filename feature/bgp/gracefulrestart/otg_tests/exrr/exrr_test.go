@@ -1032,22 +1032,11 @@ func verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, flows []string) {
 	t.Helper()
 	otg := ate.OTG()
 	c := otg.FetchConfig(t)
-	otgutils.LogFlowMetrics(t, otg, c)
+	defer otgutils.LogFlowMetrics(t, otg, c)
 
 	for _, f := range flows {
 		t.Logf("Verifying flow metrics for flow %s\n", f)
-		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(f).State())
-		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
-		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
-		lostPackets := txPackets - rxPackets
-		if txPackets == 0 {
-			t.Fatalf("Tx packets should be higher than 0 for flow %s", f)
-		}
-		if lossPct := lostPackets * 100 / txPackets; lossPct < 5.0 {
-			t.Logf("Traffic received as expected! Got %v loss", lossPct)
-		} else {
-			t.Errorf("traffic verification failed, Loss Pct for Flow %s: got %f", f, lossPct)
-		}
+		otgutils.ExpectedTrafficLoss(t, otg, f, 0, 4.99)
 	}
 }
 
@@ -1055,21 +1044,10 @@ func confirmPacketLoss(t *testing.T, ate *ondatra.ATEDevice, flows []string) {
 	t.Helper()
 	otg := ate.OTG()
 	c := otg.FetchConfig(t)
-	otgutils.LogFlowMetrics(t, otg, c)
+	defer otgutils.LogFlowMetrics(t, otg, c)
 	for _, f := range flows {
 		t.Logf("Verifying flow metrics for flow %s\n", f)
-		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(f).State())
-		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
-		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
-		lostPackets := txPackets - rxPackets
-		if txPackets == 0 {
-			t.Fatalf("Tx packets should be higher than 0 for flow %s", f)
-		}
-		if lossPct := lostPackets * 100 / txPackets; lossPct > 99.0 {
-			t.Logf("Traffic received as expected! Loss seen as expected: got %v, want 100%% ", lossPct)
-		} else {
-			t.Errorf("traffic %s is expected to fail: got %f, want 100%% failure", f, lossPct)
-		}
+		otgutils.ExpectedTrafficLoss(t, otg, f, 100, 100)
 	}
 }
 
@@ -1150,40 +1128,24 @@ func validatePrefixesWithAttributes(t *testing.T, ate *ondatra.ATEDevice, prefix
 
 }
 
-func validateV4PrefixesWithAftEntries(t *testing.T, dut *ondatra.DUTDevice, prefixAttrs []prefixAttributes) {
+func verifyRoutes(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	routesToAdvertise := make(map[string]cfgplugins.RouteInfo)
 	for _, ep := range prefixAttrs {
-		ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			Afts().Ipv4Entry(fmt.Sprintf("%s/32", ep.prefix))
-
-		watchFN := func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
-			entry, present := val.Val()
-			t.Log(entry.GetPrefix())
-			return present && entry.GetPrefix() == fmt.Sprintf("%s/32", ep.prefix) && entry.GetOriginProtocol() == oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
+		routesToAdvertise[fmt.Sprintf("%s/32", ep.prefix)] = cfgplugins.RouteInfo{
+			VRF:         deviations.DefaultNetworkInstance(dut),
+			IPType:      cfgplugins.IPv4,
+			DefaultName: deviations.DefaultNetworkInstance(dut),
 		}
-
-		if got, ok := gnmi.Watch(t, dut, ipv4Path.State(), time.Minute, watchFN).Await(t); !ok {
-			t.Errorf("Prefix not learnt: got %v, want %s", got, ep.prefix)
-		}
-		t.Logf("Prefix %s learnt by DUT...", ep.prefix)
 	}
-}
-
-func validateV6PrefixesWithAftEntries(t *testing.T, dut *ondatra.DUTDevice, prefixAttrs []prefixAttributes) {
-	for _, ep := range prefixAttrs {
-		ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			Afts().Ipv6Entry(fmt.Sprintf("%s/128", ep.prefix))
-
-		watchFN := func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
-			entry, present := val.Val()
-			t.Log(entry.GetPrefix())
-			return present && entry.GetPrefix() == fmt.Sprintf("%s/128", ep.prefix) && entry.GetOriginProtocol() == oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
+	for _, ep := range prefixV6Attrs {
+		routesToAdvertise[fmt.Sprintf("%s/128", ep.prefix)] = cfgplugins.RouteInfo{
+			VRF:         deviations.DefaultNetworkInstance(dut),
+			IPType:      cfgplugins.IPv6,
+			DefaultName: deviations.DefaultNetworkInstance(dut),
 		}
-
-		if got, ok := gnmi.Watch(t, dut, ipv4Path.State(), time.Minute, watchFN).Await(t); !ok {
-			t.Errorf("Prefix not learnt: got %v, want %s", got, ep.prefix)
-		}
-		t.Logf("Prefix %s learnt by DUT...", ep.prefix)
 	}
+	cfgplugins.VerifyRoutes(t, dut, routesToAdvertise)
 }
 
 func validateV6PrefixesWithAttributes(t *testing.T, ate *ondatra.ATEDevice, prefixAttrs []prefixAttributes) {
@@ -1241,36 +1203,21 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.
 	t.Logf("=== TRAFFIC FLOW VALIDATION START (expecting match=%v) ===", match)
 
 	otg := ate.OTG()
+	defer otgutils.LogPortMetrics(t, otg, config)
+	defer otgutils.LogFlowMetrics(t, otg, config)
 
 	otg.StartTraffic(t)
 	time.Sleep(trafficDuration)
 	otg.StopTraffic(t)
 
-	otgutils.LogPortMetrics(t, otg, config)
-	otgutils.LogFlowMetrics(t, otg, config)
-
 	for _, flow := range config.Flows().Items() {
-		outPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State()))
-		inPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State()))
-		lossPct := ((outPkts - inPkts) * 100) / outPkts
-
-		t.Logf("Flow %s: OutPkts=%v, InPkts=%v, LossPct=%v", flow.Name(), outPkts, inPkts, lossPct)
-
-		if outPkts == 0 {
-			return fmt.Errorf("outpkts for flow %s is 0, want > 0", flow.Name())
-		}
-
 		if match {
 			// Expecting traffic to pass (0% loss)
-			if got := lossPct; got > 0 {
-				return fmt.Errorf("traffic validation FAILED: Flow %s has %v%% packet loss, want 0%%", flow.Name(), got)
-			}
+			otgutils.ExpectedTrafficLoss(t, otg, flow.Name(), 0, 0.99)
 			t.Logf("Traffic validation PASSED: Flow %s has 0%% packet loss", flow.Name())
 		} else {
 			// Expecting traffic to fail (100% loss)
-			if got := lossPct; got != 100 {
-				return fmt.Errorf("traffic validation FAILED: Flow %s has %v%% packet loss, want 100%%", flow.Name(), got)
-			}
+			otgutils.ExpectedTrafficLoss(t, otg, flow.Name(), 100, 100)
 			t.Logf("Traffic validation PASSED: Flow %s has 100%% packet loss", flow.Name())
 		}
 	}
@@ -1306,17 +1253,22 @@ func validateExrr(t *testing.T, flowsWithNoERR []string, flowsWithNoLoss []strin
 	}
 
 	t.Logf("Time passed since graceful restart was initiated is %s", time.Since(startTime))
-	if time.Since(startTime) < time.Duration(params.GracefulRestartStaleRouteTime)*time.Second {
-		waitDuration = time.Duration(params.GracefulRestartStaleRouteTime)*time.Second - time.Since(startTime)
-		t.Logf("Waiting another %s seconds to ensure the stale route timer of %v expired", waitDuration, params.GracefulRestartStaleRouteTime)
+	staleRouteExpiry := time.Duration(params.GracefulRestartStaleRouteTime)*time.Second + 5*time.Second
+	if time.Since(startTime) < staleRouteExpiry {
+		waitDuration = staleRouteExpiry - time.Since(startTime)
+		t.Logf("Waiting another %s to ensure stale route timer expired and FIB settled", waitDuration)
 		time.Sleep(waitDuration)
 	} else {
 		t.Logf("Enough time passed to ensure the expiration of stale route timer of %v", params.GracefulRestartStaleRouteTime)
 	}
 
 	ate.OTG().StartTraffic(t)
-	waitDuration = time.Duration(triggerGrTimer*time.Second - time.Duration(params.GracefulRestartStaleRouteTime)*time.Second - 5*time.Second)
-	time.Sleep(waitDuration)
+	remainingTime := time.Duration(triggerGrTimer)*time.Second - time.Since(startTime) - 5*time.Second
+	if remainingTime < 10*time.Second {
+		remainingTime = 10 * time.Second
+	}
+	t.Logf("Running second traffic burst for %s", remainingTime)
+	time.Sleep(remainingTime)
 	ate.OTG().StopTraffic(t)
 
 	if hardReset {
@@ -1428,6 +1380,9 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 	ate.OTG().PushConfig(t, config)
 	ate.OTG().StartProtocols(t)
 
+	otgutils.WaitForARP(t, ate.OTG(), config, "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), config, "IPv6")
+
 	mustCheckBgpStatus(t, dut, routeCount)
 
 	flowsWithNoERR := []string{fmt.Sprintf("%s-%s-Ipv4", ipv4Prefix1, ipv4Prefix4),
@@ -1460,8 +1415,7 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 					t.Fatalf("checkBgpGRConfig failed: %v", err)
 				}
 
-				validateV4PrefixesWithAftEntries(t, dut, prefixAttrs)
-				validateV6PrefixesWithAftEntries(t, dut, prefixV6Attrs)
+				verifyRoutes(t, dut)
 				validatePrefixesWithAttributes(t, ate, prefixAttrs)
 				validateV6PrefixesWithAttributes(t, ate, prefixV6Attrs)
 				if err := validateTrafficFlows(t, ate, config, true); err != nil {
@@ -1767,6 +1721,9 @@ func TestBGPPGracefulRestartExtendedRouteRetentionOnPeerGroup(t *testing.T) {
 	ate.OTG().PushConfig(t, config)
 	ate.OTG().StartProtocols(t)
 
+	otgutils.WaitForARP(t, ate.OTG(), config, "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), config, "IPv6")
+
 	mustCheckBgpStatus(t, dut, routeCount)
 
 	flowsWithNoERR := []string{fmt.Sprintf("%s-%s-Ipv4", ipv4Prefix1, ipv4Prefix4),
@@ -1799,8 +1756,7 @@ func TestBGPPGracefulRestartExtendedRouteRetentionOnPeerGroup(t *testing.T) {
 					t.Fatalf("checkBgpGRConfig failed: %v", err)
 				}
 
-				validateV4PrefixesWithAftEntries(t, dut, prefixAttrs)
-				validateV6PrefixesWithAftEntries(t, dut, prefixV6Attrs)
+				verifyRoutes(t, dut)
 				validatePrefixesWithAttributes(t, ate, prefixAttrs)
 				validateV6PrefixesWithAttributes(t, ate, prefixV6Attrs)
 				if err := validateTrafficFlows(t, ate, config, true); err != nil {

@@ -31,6 +31,29 @@ Test `used-threshold-upper` configuration and telemetry for hardware resources.
 
 *   Get utilization percentages again and validate decrease in utilization.
 
+## Canonical OC
+
+```json
+{
+  "system": {
+    "utilization": {
+      "resources": {
+        "resource": [
+          {
+            "name": "Routing/Resource6",
+            "config": {
+              "name": "Routing/Resource6",
+              "used-threshold-upper": 60,
+              "used-threshold-upper-clear": 50
+            }
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 This example yaml defines the OC paths intended to be covered by this test.  OC paths used for test environment setup are not required to be listed here.
@@ -50,6 +73,14 @@ paths:
   /components/component/integrated-circuit/utilization/resources/resource/state/used:
     platform_type: ["INTEGRATED_CIRCUIT"]
   /components/component/integrated-circuit/utilization/resources/resource/state/free:
+    platform_type: ["INTEGRATED_CIRCUIT"]
+  /components/component/integrated-circuit/utilization/resources/resource/state/max-limit:
+    platform_type: ["INTEGRATED_CIRCUIT"]
+  /components/component/integrated-circuit/utilization/resources/resource/state/used-threshold-upper:
+    platform_type: ["INTEGRATED_CIRCUIT"]
+  /components/component/integrated-circuit/utilization/resources/resource/state/used-threshold-upper-clear:
+    platform_type: ["INTEGRATED_CIRCUIT"]
+  /components/component/integrated-circuit/utilization/resources/resource/state/used-threshold-upper-exceeded:
     platform_type: ["INTEGRATED_CIRCUIT"]
 rpcs:
   gnmi:
