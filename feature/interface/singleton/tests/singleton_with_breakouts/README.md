@@ -6,16 +6,16 @@ This test ensures that all singleton interfaces irrespective of their breakout c
 ## Testbed
 This test requires a DUT with the following setup
 * The DUT should have following PMDs
-  * 1x400G-FR4+
-  * 4x100G-DR4+
-  * 1x100G-LR
-  * 1x100G-FR
-  * 2x400G-FR4
-  * 2x400G-LR4
-  * 8x100G-LR
-  * 8x100G-FR
+  * 1x400G-FR4+ (`ETH_400GBASE_FR4` / `400GBASE_FR4`)
+  * 4x100G-DR4+ (`ETH_400GBASE_DR4` / `400GBASE_DR4`)
+  * 1x100G-LR (`ETH_100GBASE_LR4` / `100GBASE_LR4`)
+  * 1x100G-FR (`ETH_100GBASE_FR` / `100GBASE_FR`)
+  * 2x400G-FR4 (`ETH_800GBASE_2XFR4` / `800GBASE_2XFR4`)
+  * 2x400G-LR4 (`ETH_800GBASE_2XLR4` / `800GBASE-2xLR4`)
+  * 8x100G-LR (`ETH_800GBASE_2XPLR4` / `800GBASE-2xPLR4`)
+  * 8x100G-FR (`ETH_800GBASE_2XDR4` / `800GBASE-2xDR4`)
 * ATE connections are not required.
-* Note: Due to the current lack of explicit Ondatra PMD constants for some optics in `ondatra v0.14.5` (e.g. 800G breakouts and 100G-LR), the test automation uses component descriptions to identify PMD types and apply the correct breakout configuration. This description matching can be replaced with direct PMD enum checking once `openconfig-transport-types v1.5.0+` (from `openconfig/public` PR #1505) is integrated into a future Ondatra release (`> v0.14.5`) and imported into `featureprofiles`.
+* Note: `openconfig-transport-types v1.5.0` (merged in `openconfig/public` PR #1505) defines the OpenConfig PMD identities `ETH_800GBASE_2XDR4` (`800GBASE-2xDR4`), `ETH_800GBASE_2XLR4` (`800GBASE-2xLR4`), and `ETH_800GBASE_2XPLR4` (`800GBASE-2xPLR4`) alongside `ETH_800GBASE_2XFR4` (`800GBASE_2XFR4`). Until a future Ondatra release imports `openconfig-transport-types v1.5.0` and exposes corresponding `ondatra.PMD` enum constants, the test automation matches both `ondatra.PMD` values and component/transceiver PMD names and descriptions to apply the appropriate breakout configuration.
 
 
 ## Procedure

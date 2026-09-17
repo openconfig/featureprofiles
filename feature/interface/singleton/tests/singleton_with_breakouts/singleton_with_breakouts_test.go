@@ -138,53 +138,103 @@ func buildExpectedCounts(t *testing.T, dut *ondatra.DUTDevice, breakoutPorts map
 // breakoutConfig determines the breakout parameters (number of channels, channel speed, index)
 // for a given physical port.
 //
-// TODO: Refactor description string matching to direct ondatra.PMD enum comparisons once the
-// following upstream release chain completes:
-//  1. openconfig-transport-types.yang v1.5.0+ (via openconfig/public PR #1505) is merged, adding identities
-//     for ETH_800GBASE_2XLR4, ETH_800GBASE_2XPLR4, and ETH_800GBASE_2XDR4.
-//  2. github.com/openconfig/ondatra releases a version > v0.14.5 (e.g. v0.14.6+ or v0.15.0+) that imports
-//     these models and generates the corresponding PMD enum constants (e.g. ondatra.PMD800GBASE2XLR4).
-//  3. openconfig/featureprofiles updates go.mod to import that newer ondatra release.
+// Note: openconfig-transport-types.yang v1.5.0 (merged in openconfig/public PR #1505) defines
+// the OpenConfig PMD identities ETH_800GBASE_2XDR4 (800GBASE-2xDR4), ETH_800GBASE_2XLR4
+// (800GBASE-2xLR4), and ETH_800GBASE_2XPLR4 (800GBASE-2xPLR4), alongside ETH_800GBASE_2XFR4
+// (800GBASE_2XFR4).
 //
-// Until then, description string matching is required as devices reporting these PMD strings are decoded
-// as PMD_UNSPECIFIED by ondatra v0.14.5.
+// TODO: Once github.com/openconfig/ondatra releases a version that imports
+// openconfig-transport-types v1.5.0 and exposes the corresponding ondatra.PMD enum constants,
+// and openconfig/featureprofiles updates go.mod to import that release, add the direct
+// ondatra.PMD enum constants alongside the OpenConfig PMD identity/description checks below.
 func breakoutConfig(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.Port) (uint8, oc.E_IfEthernet_ETHERNET_SPEED, uint8) {
 	hardwarePort := gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).HardwarePort().State())
 	descVal, present := gnmi.Lookup(t, dut, gnmi.OC().Component(hardwarePort).Description().State()).Val()
-	descStr := ""
-	if present {
-		descStr = strings.ToUpper(descVal)
-	}
 
-	if port.PMD() == ondatra.PMD400GBASEDR4 || (port.Speed() == ondatra.Speed400Gb && strings.Contains(descStr, "100G")) {
+	var pmdParts []string
+	pmdParts = append(pmdParts, strings.ToUpper(port.PMD().String()))
+	if present && descVal != "" {
+		pmdParts = append(pmdParts, strings.ToUpper(descVal))
+	}
+	if trName, trPresent := gnmi.Lookup(t, dut, gnmi.OC().Interface(port.Name()).Transceiver().State()).Val(); trPresent && trName != "" {
+		if trDesc, trDescPresent := gnmi.Lookup(t, dut, gnmi.OC().Component(trName).Description().State()).Val(); trDescPresent && trDesc != "" {
+			pmdParts = append(pmdParts, strings.ToUpper(trDesc))
+		}
+	}
+	descStr := strings.Join(pmdParts, " ")
+
+	// 4x100G-DR4+ (ETH_400GBASE_DR4 / 400GBASE_DR4)
+	if port.PMD() == ondatra.PMD400GBASEDR4 ||
+		strings.Contains(descStr, "ETH_400GBASE_DR4") ||
+		strings.Contains(descStr, "400GBASE_DR4") ||
+		strings.Contains(descStr, "400GBASE-DR4") ||
+		(port.Speed() == ondatra.Speed400Gb && strings.Contains(descStr, "100G")) {
 		return 4, oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB, 1
 	}
 
-	if port.Speed() == ondatra.Speed800Gb || port.PMD() == ondatra.PMD800GBASEZR || port.PMD() == ondatra.PMD800GBASEZRP {
-		if present {
-			if strings.Contains(descStr, "100G") || strings.Contains(descStr, "2PLR4") || strings.Contains(descStr, "8X100G") || strings.Contains(descStr, "2DR4") || strings.Contains(descStr, "8X100FR") {
-				return 8, oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB, 1
-			}
-			if strings.Contains(descStr, "400G") || strings.Contains(descStr, "2FR4") || strings.Contains(descStr, "2LR4") || strings.Contains(descStr, "2X400G") {
-				return 2, oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB, 4
-			}
+	// 800G breakouts:
+	// - 8x100G-LR: ETH_800GBASE_2XPLR4 ("800GBASE-2xPLR4")
+	// - 8x100G-FR: ETH_800GBASE_2XDR4 ("800GBASE-2xDR4")
+	// - 2x400G-FR4: ETH_800GBASE_2XFR4 ("800GBASE_2XFR4")
+	// - 2x400G-LR4: ETH_800GBASE_2XLR4 ("800GBASE-2xLR4")
+	if port.Speed() == ondatra.Speed800Gb ||
+		port.PMD() == ondatra.PMD800GBASEZR ||
+		port.PMD() == ondatra.PMD800GBASEZRP ||
+		strings.Contains(descStr, "800G") {
+		if strings.Contains(descStr, "ETH_800GBASE_2XPLR4") ||
+			strings.Contains(descStr, "800GBASE-2XPLR4") ||
+			strings.Contains(descStr, "800GBASE_2XPLR4") ||
+			strings.Contains(descStr, "2XPLR4") ||
+			strings.Contains(descStr, "2PLR4") ||
+			strings.Contains(descStr, "ETH_800GBASE_2XDR4") ||
+			strings.Contains(descStr, "800GBASE-2XDR4") ||
+			strings.Contains(descStr, "800GBASE_2XDR4") ||
+			strings.Contains(descStr, "2XDR4") ||
+			strings.Contains(descStr, "2DR4") ||
+			strings.Contains(descStr, "8X100G") ||
+			strings.Contains(descStr, "8X100FR") ||
+			strings.Contains(descStr, "100G") {
+			return 8, oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB, 1
+		}
+		if strings.Contains(descStr, "ETH_800GBASE_2XFR4") ||
+			strings.Contains(descStr, "800GBASE_2XFR4") ||
+			strings.Contains(descStr, "800GBASE-2XFR4") ||
+			strings.Contains(descStr, "2XFR4") ||
+			strings.Contains(descStr, "2FR4") ||
+			strings.Contains(descStr, "ETH_800GBASE_2XLR4") ||
+			strings.Contains(descStr, "800GBASE-2XLR4") ||
+			strings.Contains(descStr, "800GBASE_2XLR4") ||
+			strings.Contains(descStr, "2XLR4") ||
+			strings.Contains(descStr, "2LR4") ||
+			strings.Contains(descStr, "2X400G") ||
+			strings.Contains(descStr, "400G") {
+			return 2, oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB, 4
 		}
 		t.Logf("Could not detect breakout mode from description %q, defaulting to 2x400G", descVal)
 		return 2, oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB, 4
 	}
 
-	// 1x400G-FR4+ (No breakout)
-	if port.PMD() == ondatra.PMD400GBASEFR4 || strings.Contains(descStr, "400G-FR4") {
+	// 1x400G-FR4+ (ETH_400GBASE_FR4 / 400GBASE_FR4 - No breakout)
+	if port.PMD() == ondatra.PMD400GBASEFR4 ||
+		strings.Contains(descStr, "ETH_400GBASE_FR4") ||
+		strings.Contains(descStr, "400GBASE_FR4") ||
+		strings.Contains(descStr, "400G-FR4") {
 		return 0, oc.IfEthernet_ETHERNET_SPEED_UNSET, 0
 	}
 
-	// 1x100G-LR (No breakout)
-	if port.PMD() == ondatra.PMD100GBASELR4 || strings.Contains(descStr, "100G-LR") {
+	// 1x100G-LR (ETH_100GBASE_LR4 / 100GBASE_LR4 - No breakout)
+	if port.PMD() == ondatra.PMD100GBASELR4 ||
+		strings.Contains(descStr, "ETH_100GBASE_LR4") ||
+		strings.Contains(descStr, "100GBASE_LR4") ||
+		strings.Contains(descStr, "100G-LR") {
 		return 0, oc.IfEthernet_ETHERNET_SPEED_UNSET, 0
 	}
 
-	// 1x100G-FR (No breakout)
-	if port.PMD() == ondatra.PMD100GBASEFR || strings.Contains(descStr, "100G-FR") {
+	// 1x100G-FR (ETH_100GBASE_FR / 100GBASE_FR - No breakout)
+	if port.PMD() == ondatra.PMD100GBASEFR ||
+		strings.Contains(descStr, "ETH_100GBASE_FR") ||
+		strings.Contains(descStr, "100GBASE_FR") ||
+		strings.Contains(descStr, "100G-FR") {
 		return 0, oc.IfEthernet_ETHERNET_SPEED_UNSET, 0
 	}
 
