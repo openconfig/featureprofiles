@@ -107,12 +107,16 @@ func transportCredentials(req *cpb.DialRequest) (credentials.TransportCredential
 		}
 		tlsConfig.RootCAs = roots
 	}
-	if len(tlsCreds.GetCertificate()) != 0 || len(tlsCreds.GetPrivateKey()) != 0 {
+	hasCert := len(tlsCreds.GetCertificate()) != 0
+	hasKey := len(tlsCreds.GetPrivateKey()) != 0
+	if hasCert && hasKey {
 		cert, err := tls.X509KeyPair(tlsCreds.GetCertificate(), tlsCreds.GetPrivateKey())
 		if err != nil {
 			return nil, fmt.Errorf("error loading client certificate: %w", err)
 		}
 		tlsConfig.Certificates = []tls.Certificate{cert}
+	} else if hasCert || hasKey {
+		return nil, fmt.Errorf("both client certificate and private key must be provided")
 	}
 	return credentials.NewTLS(tlsConfig), nil
 }
