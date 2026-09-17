@@ -69,8 +69,7 @@ func setEthernetFromBase(t testing.TB, config *oc.Root) {
 }
 
 // filterBaselineConfig filters the baseline config to remove unwanted fields.
-func filterBaselineConfig(vendor ondatra.Vendor, baselineConfig *oc.Root) {
-	fptest.PruneUnpushableNetworkInstances(vendor, baselineConfig)
+func filterBaselineConfig(baselineConfig *oc.Root) {
 	for _, ni := range baselineConfig.NetworkInstance {
 		for _, p := range ni.Protocol {
 			if p.Bgp != nil {
