@@ -206,7 +206,7 @@ func FindStandbyControllerCard(t *testing.T, dut *ondatra.DUTDevice, supervisors
 		// when the control plane is actively flapping.
 		start := time.Now()
 		var role oc.E_Platform_ComponentRedundantRole
-		
+
 		c, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.Name()))
 		if err != nil {
 			t.Fatalf("Failed to create ygnmi client for FindStandbyControllerCard: %v", err)
@@ -229,7 +229,7 @@ func FindStandbyControllerCard(t *testing.T, dut *ondatra.DUTDevice, supervisors
 			}
 			time.Sleep(10 * time.Second)
 		}
-		
+
 		if role == oc.Platform_ComponentRedundantRole_UNSET {
 			t.Fatalf("DUT did not reach target state within %v for %v", 10*time.Minute, supervisor)
 		}
@@ -283,7 +283,7 @@ func SetControllerCardPowerState(t *testing.T, dut *ondatra.DUTDevice, cardName 
 	if deviations.PowerDisableEnableLeafRefValidation(dut) {
 		gnmi.Update(t, dut, c.Config(), &oc.Component{
 			Name: ygot.String(cardName),
-		})	
+		})
 	}
 	start := time.Now()
 	t.Logf("Setting %s power-admin-state to %v", cardName, powerType)
@@ -343,4 +343,3 @@ func SetControllerCardPowerState(t *testing.T, dut *ondatra.DUTDevice, cardName 
 		t.Errorf("Component %s oper-status did not reach %v within %v", cardName, wantOper, timeout)
 	}
 }
-

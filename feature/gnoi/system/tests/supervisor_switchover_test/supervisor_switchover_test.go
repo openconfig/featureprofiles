@@ -577,4 +577,3 @@ func testPowerDisabledStandby(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 
 	verifyZeroTrafficLoss(t, ate, top)
 }
-

@@ -25,9 +25,9 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
@@ -451,4 +451,3 @@ func AwaitSupervisorRoles(t *testing.T, dut *ondatra.DUTDevice, expectedPrimary,
 	}
 	t.Fatalf("Supervisor switchover validation failed due to timeout.")
 }
-
