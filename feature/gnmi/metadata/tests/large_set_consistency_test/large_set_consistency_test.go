@@ -325,7 +325,7 @@ func TestLargeSetConsistency(t *testing.T) {
 		oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 
 	baselineConfig := fptest.GetDeviceConfig(t, dut)
-	filterBaselineConfig(dut.Vendor(), baselineConfig)
+    filterBaselineConfig(baselineConfig)
 	setEthernetFromBase(t, baselineConfig)
 	gnmiClient := dut.RawAPIs().GNMI(t)
 
