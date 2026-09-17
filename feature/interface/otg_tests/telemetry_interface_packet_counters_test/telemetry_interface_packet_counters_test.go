@@ -262,35 +262,38 @@ func TestInterfaceCounters(t *testing.T) {
 	}
 }
 
-// verifyCounters verifies the interface counters are updated on every subscription request spaced at 30s time interval.
+// verifyCounters checks that in-pkts and out-pkts each strictly increment on
+// every ~30s SAMPLE interval. Cross-port |inDelta-outDelta| is not compared
+// per interval because the two Collect streams are independent subscriptions
+// whose DUT stats-batching windows are not synchronized.
 func verifyCounters(t *testing.T, dut *ondatra.DUTDevice, inPkts, outPkts []*ygnmi.Value[uint64]) bool {
+	t.Helper()
 	counterOK := true
-	inValFirst, _ := inPkts[0].Val()
-	outValFirst, _ := outPkts[0].Val()
-	inValFinal, _ := inPkts[len(inPkts)-1].Val()
-	outValFinal, _ := outPkts[len(inPkts)-1].Val()
 
-	if inValFinal == inValFirst || outValFinal == outValFirst {
-		t.Errorf("Counters not incremented: Initial Incoming Packets: %d, Final Incoming Packets: %d, Initial Outgoing Packets: %d,  Final Outgoing Packets: %d", inValFirst, inValFinal, outValFirst, outValFinal)
-		counterOK = false
-		return counterOK
+	if len(inPkts) < 2 || len(outPkts) < 2 {
+		t.Errorf("Need at least 2 SAMPLE values, got in=%d out=%d", len(inPkts), len(outPkts))
+		return false
 	}
 
-	t.Logf("Logging, length of inPkts: %d, length of outPkts: %d", len(inPkts), len(outPkts))
-	t.Logf("inpkts: %v, outPkts: %v", inPkts, outPkts)
-	tolerance := uint64(70)
+	t.Logf("in-pkts: %d samples, out-pkts: %d samples", len(inPkts), len(outPkts))
 	for i := 1; i < len(inPkts); i++ {
-		inValOld, _ := inPkts[i-1].Val()
-		outValOld, _ := outPkts[i-1].Val()
-		inValLatest, _ := inPkts[i].Val()
-		outValLatest, _ := outPkts[i].Val()
-		inValDelta := inValLatest - inValOld
-		outValDelta := outValLatest - outValOld
-		t.Logf("Incoming Packets: %d, Outgoing Packets: %d", inValLatest, outValLatest)
-		if inValLatest == inValOld || outValLatest == outValOld || outValDelta <= inValDelta-tolerance || outValDelta >= inValDelta+tolerance {
-			t.Errorf("Comparison with previous iteration: Incoming Packets Delta : %d, Outgoing Packets Delta: %d, Tolerance: %d", inValDelta, outValDelta, tolerance)
+		inOld, _ := inPkts[i-1].Val()
+		inNew, _ := inPkts[i].Val()
+		inDelta := inNew - inOld
+		t.Logf("in-pkts sample %d: %d (delta %d)", i, inNew, inDelta)
+		if inNew <= inOld {
+			t.Errorf("in-pkts did not increment between sample %d and %d: %d -> %d", i-1, i, inOld, inNew)
 			counterOK = false
-			break
+		}
+	}
+	for i := 1; i < len(outPkts); i++ {
+		outOld, _ := outPkts[i-1].Val()
+		outNew, _ := outPkts[i].Val()
+		outDelta := outNew - outOld
+		t.Logf("out-pkts sample %d: %d (delta %d)", i, outNew, outDelta)
+		if outNew <= outOld {
+			t.Errorf("out-pkts did not increment between sample %d and %d: %d -> %d", i-1, i, outOld, outNew)
+			counterOK = false
 		}
 	}
 	return counterOK
@@ -310,6 +313,11 @@ func validateInAndOutPktsPerSecond(t *testing.T, dut *ondatra.DUTDevice, i1, i2 
 	if got := verifyCounters(t, dut, inInterfaceCountersPkts, outInterfaceCountersPkts); got == false {
 		pktCounterOK = false
 		t.Fatalf("Interface Packet Counters are not updated every 30 second")
+	}
+
+	if deviations.SubinterfacePacketCountersMissing(dut) {
+		t.Log("Skipping IPv4/IPv6 subinterface SAMPLE: SubinterfacePacketCountersMissing")
+		return pktCounterOK
 	}
 
 	// Subscribe to sub-interface ipv4 counters
@@ -456,16 +464,9 @@ func TestIntfCounterUpdate(t *testing.T) {
 
 	otg.StartTraffic(t)
 	time.Sleep(2 * time.Second)
-	// Validate per second interface counters are updated
-	t.Run("Check intf counters subscription", func(t *testing.T) {
-		inAndOutPktsPerSecoundCounterOK := validateInAndOutPktsPerSecond(t, dut, i1, i2)
-		if !inAndOutPktsPerSecoundCounterOK {
-			t.Errorf("Interface Packet Counters are not updated per second")
-		}
-	})
-	otg.StopTraffic(t)
 
-	// Check interface status is up.
+	// Check interface status before the long SAMPLE Collect; the 300s
+	// subscription can leave Ondatra's cached gNMI client unusable.
 	ds1 := gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State())
 	if want := oc.Interface_OperStatus_UP; ds1 != want {
 		t.Errorf("Get(DUT port1 status): got %v, want %v", ds1, want)
@@ -474,6 +475,15 @@ func TestIntfCounterUpdate(t *testing.T) {
 	if want := oc.Interface_OperStatus_UP; ds2 != want {
 		t.Errorf("Get(DUT port2 status): got %v, want %v", ds2, want)
 	}
+
+	// Validate per second interface counters are updated
+	t.Run("Check intf counters subscription", func(t *testing.T) {
+		inAndOutPktsPerSecondCounterOK := validateInAndOutPktsPerSecond(t, dut, i1, i2)
+		if !inAndOutPktsPerSecondCounterOK {
+			t.Errorf("Interface Packet Counters are not updated per second")
+		}
+	})
+	otg.StopTraffic(t)
 
 	// Verifying the ate port link state
 	for _, p := range config.Ports().Items() {
