@@ -460,6 +460,7 @@ func TestTC1ValidateTimersConfig(t *testing.T) {
 func TestTC2LongDown(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
+	defer OTGInterfaceUP(t, ate)
 
 	var otgStateChangeTs, DutLastChangeTS2 time.Time
 	var expectedOper, actualOper string
@@ -514,6 +515,7 @@ func TestTC3ShortUP(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
+	defer OTGInterfaceUP(t, ate)
 
 	t.Run("Start sending Ethernet Remote Fault on OTG", func(t *testing.T) {
 
@@ -561,6 +563,7 @@ func TestTC4SLongUP(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
+	defer OTGInterfaceUP(t, ate)
 
 	t.Run("Start sending Ethernet Remote Fault on OTG", func(t *testing.T) {
 
@@ -602,6 +605,7 @@ func TestTC5ShortDOWN(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
+	defer OTGInterfaceUP(t, ate)
 
 	var time1 time.Time
 	var change1 *oc.Interface
@@ -609,7 +613,7 @@ func TestTC5ShortDOWN(t *testing.T) {
 	// Construct the hold-time config object
 	holdTimeConfig := &oc.Interface_HoldTime{
 		Up:   ygot.Uint32(upTimer),
-		Down: ygot.Uint32(2000),
+		Down: ygot.Uint32(5000),
 	}
 
 	t.Run("Update hold timer configs down", func(t *testing.T) {
