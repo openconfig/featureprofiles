@@ -348,7 +348,7 @@ func TestLargeSetConsistency(t *testing.T) {
 
 	// sending 2nd update request in one goroutine
 	sizeMetadata2 := len(shortStringMetadata2)
-	gpbSetRequest = buildGNMISetRequest(t, dut.Vendor(), shortStringMetadata2, baselineConfig, sizeMetadata2)
+    gpbSetRequest = buildGNMISetRequest(t, shortStringMetadata2, baselineConfig, sizeMetadata2)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
