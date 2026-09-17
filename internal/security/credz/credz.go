@@ -104,7 +104,7 @@ func GeneratePassword() string {
 func sendHostParametersRequest(t *testing.T, dut *ondatra.DUTDevice, request *cpb.RotateHostParametersRequest) {
 	t.Helper()
 	credzClient := dut.RawAPIs().GNSI(t).Credentialz()
-	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	credzRotateClient, err := credzClient.RotateHostParameters(ctx)
 	if err != nil {
@@ -147,7 +147,7 @@ func sendHostParametersRequest(t *testing.T, dut *ondatra.DUTDevice, request *cp
 func sendAccountCredentialsRequest(t *testing.T, dut *ondatra.DUTDevice, request *cpb.RotateAccountCredentialsRequest) {
 	t.Helper()
 	credzClient := dut.RawAPIs().GNSI(t).Credentialz()
-	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	credzRotateClient, err := credzClient.RotateAccountCredentials(ctx)
 	if err != nil {
