@@ -35,6 +35,7 @@ import (
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
+   	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 )
 
 const (
