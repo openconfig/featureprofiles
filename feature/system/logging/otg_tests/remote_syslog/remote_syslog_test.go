@@ -160,6 +160,23 @@ func TestRemoteSyslog(t *testing.T) {
 			configureDUTLoopback(t, dut, &tc.vrf)
 			configureStaticRoute(t, dut, tc.vrf)
 			configureSyslog(t, dut, tc.vrf)
+
+			t.Cleanup(func() {
+				gnmi.Delete(t, dut, gnmi.OC().System().Logging().Config())
+				gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(tc.vrf).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT").Static(v4Route+"/30").Config())
+				gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(tc.vrf).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT").Static(v6Route+"/126").Config())
+				if tc.vrf != deviations.DefaultNetworkInstance(dut) {
+					gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(tc.vrf).Config())
+					// Restore default network instance association
+					if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+						fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
+						fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
+						fptest.AssignToNetworkInstance(t, dut, lb, deviations.DefaultNetworkInstance(dut), 0)
+					}
+				}
+				flipATEPort(t, dut, ate, top, "port2", true)
+			})
+
 			ate.OTG().StartProtocols(t)
 			time.Sleep(30 * time.Second)
 
@@ -180,22 +197,6 @@ func TestRemoteSyslog(t *testing.T) {
 			otgutils.LogPortMetrics(t, ate.OTG(), top)
 
 			processCapture(t, ate, top)
-
-			t.Cleanup(func() {
-				gnmi.Delete(t, dut, gnmi.OC().System().Logging().Config())
-				gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(tc.vrf).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT").Static(v4Route+"/30").Config())
-				gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(tc.vrf).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT").Static(v6Route+"/126").Config())
-				if tc.vrf != deviations.DefaultNetworkInstance(dut) {
-					gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(tc.vrf).Config())
-					// Restore default network instance association
-					if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-						fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
-						fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
-						fptest.AssignToNetworkInstance(t, dut, lb, deviations.DefaultNetworkInstance(dut), 0)
-					}
-				}
-				flipATEPort(t, dut, ate, top, "port2", true)
-			})
 		})
 	}
 }
