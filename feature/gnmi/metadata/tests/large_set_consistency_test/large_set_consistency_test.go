@@ -193,7 +193,7 @@ func extractMetadataAnnotation(t *testing.T, gnmiClient gpb.GNMIClient, dut *ond
 }
 
 // buildGNMISetRequest builds gnmi set request with protobuf-metadata
-func buildGNMISetRequest(t *testing.T, vendor ondatra.Vendor, metadataText string, baselineConfig *oc.Root, size int) *gpb.SetRequest {
+func buildGNMISetRequest(t *testing.T, metadataText string, baselineConfig *oc.Root, size int) *gpb.SetRequest {
 	var trimSize float64
 
 	// For 100KB and 1M cases trim the data according to proto and base64encoding overheads
