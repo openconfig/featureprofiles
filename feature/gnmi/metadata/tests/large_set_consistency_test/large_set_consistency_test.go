@@ -299,7 +299,7 @@ func testLargeMetadata(t *testing.T, gnmiClient gpb.GNMIClient, dut *ondatra.DUT
 	largeMetadata := base64.StdEncoding.EncodeToString(randomBytes)
 	largeMetadata = largeMetadata[:size]
 	// send large metadata update request in one goroutine
-	gpbSetRequest := buildGNMISetRequest(t, dut.Vendor(), largeMetadata, baselineConfig, size)
+    gpbSetRequest := buildGNMISetRequest(t, largeMetadata, baselineConfig, size)
 	t.Log("gnmiClient Set large metadataconfig request")
 	_, err = gnmiClient.Set(context.Background(), gpbSetRequest)
 	if err != nil {
