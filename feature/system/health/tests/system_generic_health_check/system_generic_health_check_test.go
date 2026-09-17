@@ -443,10 +443,13 @@ func TestComponentsNoHighMemoryUtilization(t *testing.T) {
 	cardList := append(controllerCards, chassisCards...)
 	cardList = append(cardList, lineCards...)
 	if len(cardList) == 0 {
-		if platform := helpers.AristaPlatform(t, dut); platform == "strata" {
-			// Arista Strata fixed-system does not support this path
-			t.Logf("ERROR: No card has been found.")
-			return
+		if dut.Vendor() == ondatra.ARISTA {
+			platform := helpers.AristaPlatform(t, dut)
+			if platform == "strata" {
+				// Arista Strata fixed-system does not support this path
+				t.Logf("ERROR: No card has been found.")
+				return
+			}
 		}
 		t.Errorf("ERROR: No card has been found.")
 	}
