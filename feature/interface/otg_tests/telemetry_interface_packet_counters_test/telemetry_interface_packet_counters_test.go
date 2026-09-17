@@ -551,6 +551,10 @@ func configureAristaHardwareCounterFeatures(t *testing.T, dut *ondatra.DUTDevice
 
 	helpers.GnmiCLIConfig(t, dut, "hardware counter feature ip in\n")
 	helpers.GnmiCLIConfig(t, dut, "hardware counter feature ip out\n")
+	t.Cleanup(func() {
+		helpers.GnmiCLIConfig(t, dut, "no hardware counter feature ip in\n")
+		helpers.GnmiCLIConfig(t, dut, "no hardware counter feature ip out\n")
+	})
 }
 
 func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
