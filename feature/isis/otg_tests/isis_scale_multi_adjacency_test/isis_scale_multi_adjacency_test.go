@@ -13,6 +13,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	isisscalehelpers "github.com/openconfig/featureprofiles/internal/isisscale"
 	otgconfighelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers"
+	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
@@ -178,6 +179,25 @@ func initializeMultiAdjISISScaleTestData(t *testing.T) *isisscalehelpers.TestDat
 	}
 }
 
+func waitForTrafficToStop(t *testing.T, ate *ondatra.ATEDevice, flows []string) {
+	var wg sync.WaitGroup
+	for _, flowName := range flows {
+		wg.Add(1)
+		go func(name string) {
+			defer wg.Done()
+			transmitPath := gnmi.OTG().Flow(name).Transmit().State()
+			checkState := func(val *ygnmi.Value[bool]) bool {
+				transmitState, present := val.Val()
+				return present && !transmitState
+			}
+			if _, ok := gnmi.Watch(t, ate.OTG(), transmitPath, 2*time.Minute, checkState).Await(t); !ok {
+				t.Errorf("traffic for flow %s did not stop within the timeout of 2m", name)
+			}
+		}(flowName)
+	}
+	wg.Wait()
+}
+
 func TestISISScale(t *testing.T) {
 	for _, f := range []func(*testing.T) *isisscalehelpers.TestData{
 		initializeMultiAdjISISScaleTestData,
@@ -268,19 +288,12 @@ func TestISISScale(t *testing.T) {
 				testInfo.ATEData.ATE.OTG().StartTraffic(t)
 				time.Sleep(60 * time.Second)
 				testInfo.ATEData.ATE.OTG().StopTraffic(t)
-				// Wait for traffic to stop
+
+				var flowNames []string
 				for _, flow := range testInfo.ATEData.TrafficFlows {
-
-					transmitPath := gnmi.OTG().Flow(flow.Name()).Transmit().State()
-					checkState := func(val *ygnmi.Value[bool]) bool {
-						transmitState, present := val.Val()
-						return present && !transmitState
-					}
-
-					if _, ok := gnmi.Watch(t, testInfo.ATEData.ATE.OTG(), transmitPath, 2*time.Minute, checkState).Await(t); !ok {
-						t.Errorf("traffic for flow %s did not stop within the timeout of %v", flow.Name(), 2*time.Minute)
-					}
+					flowNames = append(flowNames, flow.Name())
 				}
+				waitForTrafficToStop(t, testInfo.ATEData.ATE, flowNames)
 
 				// Check Traffic Loss
 				errs := isisscalehelpers.CheckTraffic(t, testInfo.ATEData.ATE, testInfo.ATEData.TrafficFlows)
