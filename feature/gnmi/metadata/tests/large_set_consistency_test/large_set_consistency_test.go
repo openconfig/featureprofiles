@@ -331,7 +331,7 @@ func TestLargeSetConsistency(t *testing.T) {
 
 	// send 1st update request in one goroutine
 	sizeMetadata1 := len(shortStringMetadata1)
-	gpbSetRequest := buildGNMISetRequest(t, dut.Vendor(), shortStringMetadata1, baselineConfig, sizeMetadata1)
+    gpbSetRequest := buildGNMISetRequest(t, shortStringMetadata1, baselineConfig, sizeMetadata1)
 	t.Log("gnmiClient Set 1st large config")
 	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
 		t.Fatalf("gnmi.Set unexpected error: %v", err)
