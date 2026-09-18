@@ -6,7 +6,7 @@ Verify that traffic can be drained out of DUT trunk interfaces by changing ISIS 
 
 ## Testbed type
 
-* [`atedut_3.testbed`](https://github.com/openconfig/featureprofiles/tree/main/topologies)
+* [`TESTBED_DUT_ATE_4LINKS`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_4.testbed)
 
 ## Procedure
 
@@ -30,15 +30,15 @@ Verify that traffic can be drained out of DUT trunk interfaces by changing ISIS 
 
 * Step 1 - Continuing from the previous subtest, ensure ATE Port-2 advertises transit networks.
 * Step 2 - Establish an iBGP session from ATE Port-1 to the DUT's loopback interface to simulate control plane traffic.
-* Step 3 - Send transit traffic (ATE Port-1 -> DUT -> ATE Port-2) and local traffic (ATE Port-1 -> DUT Loopback).
+* Step 3 - Send transit traffic from ATE Port-1 destined to the networks advertised by ATE Port-2. Concurrently, send local traffic from ATE Port-1 destined to the DUT's Loopback IP.
 * Step 4 - Set the ISIS Overload bit to `true` via gNMI Set on path `/network-instances/network-instance/protocols/protocol/isis/global/lsp-bit/overload-bit/config/set-bit`.
 * Step 5 - Use gNMI Get to verify the telemetry state `/network-instances/network-instance/protocols/protocol/isis/global/lsp-bit/overload-bit/state/set-bit` reflects the `true` configuration.
-* Step 6 - Wait for convergence. Verify that transit traffic to ATE Port-2 drops to 0 (routed around the DUT) with no false positives.
-* Step 7 - Verify that local traffic (and the iBGP session) to the DUT loopback experiences 0% loss (Control Plane Preservation).
-* Step 8 - Verify that toggling the overload-bit config does not flap or reset the existing IS-IS adjacencies by checking that the state path `/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state` remains `UP` (Adjacency Stability).
+* Step 6 - Wait for convergence. Verify that transit traffic to ATE Port-2 drops to 0. (Because the DUT is no longer valid for transit routing and there are no alternate paths in this topology, ATE Port-1 will stop forwarding this traffic).
+* Step 7 - Verify that local traffic (and the iBGP session) to the DUT loopback experiences 0% loss (The overload bit prevents transit routing, but the DUT itself remains reachable).
+* Step 8 - Verify that setting the overload bit does not flap or reset the existing IS-IS adjacencies by checking that the state path `/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state` remains `UP` (Adjacency Stability).
 * Step 9 - Clear the ISIS Overload bit by setting it to `false` via gNMI Set on path `/network-instances/network-instance/protocols/protocol/isis/global/lsp-bit/overload-bit/config/set-bit`.
 * Step 10 - Verify the telemetry state reflects the change to `false`.
-* Step 11 - Verify that transit IPv4 and IPv6 traffic recovers and is once again successfully forwarded through the DUT to ATE Port-2 with 0% steady-state loss.
+* Step 11 - Verify that transit IPv4 and IPv6 traffic recovers and is once again successfully forwarded through the DUT to ATE Port-2 with 0% steady-state loss (as the DUT is once again a valid transit node).
 
 #### Canonical OC
 
