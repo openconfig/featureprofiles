@@ -40,6 +40,7 @@ func TestMain(m *testing.M) {
 // Topology:
 //   dut1:port1 <--> port2:dut1 - 400g links (as singleton and memberlink)
 //   dut1:port3 <--> port4:dut1 - 100g links(as singleton and memberlink)
+//   dut1:port5 <--> port6:dut1 - 800g links (as singleton and memberlink)
 //
 // Test notes:
 //
@@ -54,12 +55,16 @@ type aggPortData struct {
 	dutPort2IPv4  string
 	dutPort3IPv4  string
 	dutPort4IPv4  string
+	dutPort5IPv4  string
+	dutPort6IPv4  string
 	dutAgg1Name   string
 	dutAgg2Name   string
 	aggPortIDDUT1 uint32
 	aggPortIDDUT2 uint32
 	aggPortIDDUT3 uint32
 	aggPortIDDUT4 uint32
+	aggPortIDDUT5 uint32
+	aggPortIDDUT6 uint32
 	aggPortID1    uint32
 	aggPortID2    uint32
 }
@@ -92,12 +97,16 @@ var (
 		dutPort2IPv4:  "192.0.2.5",
 		dutPort3IPv4:  "192.0.2.9",
 		dutPort4IPv4:  "192.0.2.13",
+		dutPort5IPv4:  "192.0.2.17",
+		dutPort6IPv4:  "192.0.2.21",
 		dutAgg1Name:   "lag3",
 		dutAgg2Name:   "lag4",
 		aggPortIDDUT1: 10,
 		aggPortIDDUT2: 11,
 		aggPortIDDUT3: 12,
 		aggPortIDDUT4: 13,
+		aggPortIDDUT5: 14,
+		aggPortIDDUT6: 15,
 	}
 )
 
@@ -313,11 +322,16 @@ func configureDUTAggregate(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Po
 		agg1.port2IPV4 = agg1.dutPort2IPv4
 		agg1.aggPortID1 = agg1.aggPortIDDUT1
 		agg1.aggPortID2 = agg1.aggPortIDDUT2
-	} else {
+	} else if speed == "100g" {
 		agg1.port1IPV4 = agg1.dutPort3IPv4
 		agg1.port2IPV4 = agg1.dutPort4IPv4
 		agg1.aggPortID1 = agg1.aggPortIDDUT3
 		agg1.aggPortID2 = agg1.aggPortIDDUT4
+	} else if speed == "800g" {
+		agg1.port1IPV4 = agg1.dutPort5IPv4
+		agg1.port2IPV4 = agg1.dutPort6IPv4
+		agg1.aggPortID1 = agg1.aggPortIDDUT5
+		agg1.aggPortID2 = agg1.aggPortIDDUT6
 	}
 
 	for _, dp := range []*ondatra.Port{dp1, dp2} {
@@ -380,8 +394,8 @@ func configureDUTAggregate(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Po
 	}
 
 	// Wait for LAG interfaces to be UP
-	gnmi.Await(t, dut, gnmi.OC().Interface(aggID1).OperStatus().State(), 12*time.Minute, oc.Interface_OperStatus_UP)
-	gnmi.Await(t, dut, gnmi.OC().Interface(aggID2).OperStatus().State(), 12*time.Minute, oc.Interface_OperStatus_UP)
+	gnmi.Await(t, dut, gnmi.OC().Interface(aggID1).OperStatus().State(), 60*time.Second, oc.Interface_OperStatus_UP)
+	gnmi.Await(t, dut, gnmi.OC().Interface(aggID2).OperStatus().State(), 60*time.Second, oc.Interface_OperStatus_UP)
 }
 
 func testLinkQualification(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Port, dp2 *ondatra.Port, plqID string, aggregate bool) {
@@ -606,13 +620,16 @@ func TestLinkQualification(t *testing.T) {
 	port2 := dut.Port(t, "port2")
 	port3 := dut.Port(t, "port3")
 	port4 := dut.Port(t, "port4")
+	port5 := dut.Port(t, "port5")
+	port6 := dut.Port(t, "port6")
 	t.Logf("dut: %v", dut.Name())
 	t.Logf("PLQ will run on 400g links on dut port1 name: %v, dut port2 name : %v", port1.Name(), port2.Name())
 	t.Logf("PLQ will run on 100g links on dut port3 name: %v, dut port4 name : %v", port3.Name(), port4.Name())
+	t.Logf("PLQ will run on 800g links on dut port5 name: %v, dut port6 name : %v", port5.Name(), port6.Name())
 
 	d := gnmi.OC()
 
-	for _, p := range []string{"port1", "port2", "port3", "port4"} {
+	for _, p := range []string{"port1", "port2", "port3", "port4", "port5", "port6"} {
 		port := dut.Port(t, p)
 		i := &oc.Interface{Name: ygot.String(port.Name())}
 		gnmi.Replace(t, dut, d.Interface(port.Name()).Config(), configInterfaceMTU(i, dut))
@@ -651,6 +668,18 @@ func TestLinkQualification(t *testing.T) {
 		testFunc:  testLinkQualification,
 		aggregate: true,
 		speed:     "100g",
+	}, {
+		desc:      "Singleton Interface LinkQualification on 800g links",
+		plqID:     fmt.Sprintf("%s:%s-%s:%s", dut.Name(), port5.Name(), dut.Name(), port6.Name()),
+		testFunc:  testLinkQualification,
+		aggregate: false,
+		speed:     "800g",
+	}, {
+		desc:      "Member Link LinkQualification on 800g links",
+		plqID:     fmt.Sprintf("%s:%s-%s:%s-aggregate", dut.Name(), port5.Name(), dut.Name(), port6.Name()),
+		testFunc:  testLinkQualification,
+		aggregate: true,
+		speed:     "800g",
 	}}
 
 	for _, tc := range cases {
@@ -665,6 +694,11 @@ func TestLinkQualification(t *testing.T) {
 					configureDUTAggregate(t, dut, port3, port4, tc.speed)
 				}
 				tc.testFunc(t, dut, port3, port4, tc.plqID, tc.aggregate)
+			} else if tc.speed == "800g" {
+				if tc.aggregate {
+					configureDUTAggregate(t, dut, port5, port6, tc.speed)
+				}
+				tc.testFunc(t, dut, port5, port6, tc.plqID, tc.aggregate)
 			}
 		})
 	}
