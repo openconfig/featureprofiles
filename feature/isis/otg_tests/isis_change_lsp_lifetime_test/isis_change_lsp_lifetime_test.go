@@ -23,8 +23,10 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/isissession"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -34,17 +36,18 @@ func TestMain(m *testing.M) {
 }
 
 const (
-	lspLifetime = 500
-	v4Route1    = "203.0.113.0"
-	v6Route1    = "2001:db8::203:0:113:0"
-	v4Route     = "203.0.113.0/30"
-	v6Route     = "2001:db8::203:0:113:0/126"
-	v4IP        = "203.0.113.1"
-	v6IP        = "2001:db8::203:0:113:1"
-	v4NetName   = "isisv4Net"
-	v6NetName   = "isisv6Net"
-	v4FlowName  = "v4Flow"
-	v6FlowName  = "v6Flow"
+	lspLifetime        = 500
+	lspRefreshInterval = 60
+	v4Route1           = "203.0.113.0"
+	v6Route1           = "2001:db8::203:0:113:0"
+	v4Route            = "203.0.113.0/30"
+	v6Route            = "2001:db8::203:0:113:0/126"
+	v4IP               = "203.0.113.1"
+	v6IP               = "2001:db8::203:0:113:1"
+	v4NetName          = "isisv4Net"
+	v6NetName          = "isisv6Net"
+	v4FlowName         = "v4Flow"
+	v6FlowName         = "v6Flow"
 )
 
 // configureISIS configures isis on DUT.
@@ -65,7 +68,9 @@ func configureISIS(t *testing.T, ts *isissession.TestSession) {
 	globalIsis.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	globalIsis.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	globalIsis.LevelCapability = oc.Isis_LevelType_LEVEL_2
-	globalIsis.GetOrCreateTimers().LspLifetimeInterval = ygot.Uint16(lspLifetime)
+	isisTimers := globalIsis.GetOrCreateTimers()
+	isisTimers.LspLifetimeInterval = ygot.Uint16(lspLifetime)
+	isisTimers.LspRefreshInterval = ygot.Uint16(lspRefreshInterval)
 }
 
 // configureOTG configures isis and traffic on OTG.
@@ -130,7 +135,14 @@ func TestISISChangeLSPLifetime(t *testing.T) {
 	pcl := ts.DUTConf.GetNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isissession.ISISName)
 	fptest.LogQuery(t, "Protocol ISIS", isissession.ProtocolPath(ts.DUT).Config(), pcl)
 
-	ts.PushAndStart(t)
+	if err := ts.PushAndStart(t); err != nil {
+		t.Fatalf("PushAndStart failed: %v", err)
+	}
+
+	// Do not consume protocol convergence time while either end of the link is
+	// still becoming operational after the OTG configuration push.
+	gnmi.Await(t, ts.DUT, gnmi.OC().Interface(ts.DUTPort1.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
+	gnmi.Await(t, otg, gnmi.OTG().Port(ts.ATEPort1.ID()).Link().State(), 2*time.Minute, otgtelemetry.Port_Link_UP)
 	time.Sleep(time.Minute * 2)
 
 	isisPath := isissession.ISISPath(ts.DUT)
@@ -213,7 +225,10 @@ func TestISISChangeLSPLifetime(t *testing.T) {
 			checksum1 := isis.GetLevel(2).GetLsp(dutLspID).GetChecksum()
 			lspSent1 := gnmi.Get(t, ts.DUT, isisPath.Interface(intfName).Level(2).PacketCounters().Lsp().Sent().State())
 
-			_, ok := gnmi.Watch(t, ts.DUT, isisPath.Interface(intfName).Level(2).PacketCounters().Lsp().Sent().State(), time.Minute*4, func(val *ygnmi.Value[uint32]) bool {
+			_, ok := gnmi.Watch(t, ts.DUT.GNMIOpts().WithYGNMIOpts(
+				ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE),
+				ygnmi.WithSampleInterval(10*time.Second),
+			), isisPath.Interface(intfName).Level(2).PacketCounters().Lsp().Sent().State(), time.Minute*4, func(val *ygnmi.Value[uint32]) bool {
 				lspSent2, ok := val.Val()
 				if !ok || lspSent2 <= lspSent1 {
 					return false

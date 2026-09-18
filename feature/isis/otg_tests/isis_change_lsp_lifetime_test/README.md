@@ -16,7 +16,8 @@
         This parameter can be updated using the LSP lifetime parameter.
         LSP lifetime indicates how long the LSP PDU originated by the DUT should remain in the network. 
         The DUT regenerates the LSP PDU typically ~300 seconds before its expiration.
-    * Change the LSP lifetime to 500secs    
+    * Change the LSP lifetime to 500 seconds.
+    * Configure the LSP refresh interval to 60 seconds so that LSP regeneration can be verified deterministically.
     * Verify that IS-IS adjacency for IPv4 and IPV6 address family is coming up.
     * Verify that IPv4 and IPv6 prefixes that are advertised by ATE correctly installed into DUTs route and forwarding table.
     * Verify that the updated LSP lifetime is reflected in isis database output.
@@ -28,6 +29,7 @@
 paths:
   ## Config Parameter Coverage
   /network-instances/network-instance/protocols/protocol/isis/global/timers/config/lsp-lifetime-interval:
+  /network-instances/network-instance/protocols/protocol/isis/global/timers/config/lsp-refresh-interval:
 
   ## Telemetry Parameter Coverage
   /network-instances/network-instance/protocols/protocol/isis/global/timers/state/lsp-lifetime-interval:
