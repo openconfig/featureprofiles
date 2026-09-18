@@ -74,6 +74,11 @@ const (
 	// PTBGP is shorthand for the long oc protocol type constant
 	PTBGP        = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
 	routeTimeout = 30 * time.Second
+
+	// bgpSessionEstablished and bgpSessionNotEstablished describe the expected
+	// BGP neighbor session state in verification messages.
+	bgpSessionEstablished    = "ESTABLISHED"
+	bgpSessionNotEstablished = "not ESTABLISHED"
 )
 
 var (
@@ -1889,9 +1894,9 @@ func VerifyBGPNeighborSessionState(t *testing.T, dut *ondatra.DUTDevice, neighbo
 		return (state == oc.Bgp_Neighbor_SessionState_ESTABLISHED) == wantEstablished
 	})
 	if val, ok := watch.Await(t); !ok {
-		wantDesc := "ESTABLISHED"
+		wantDesc := bgpSessionEstablished
 		if !wantEstablished {
-			wantDesc = "not ESTABLISHED"
+			wantDesc = bgpSessionNotEstablished
 		}
 		t.Fatalf("BGP neighbor %s session-state: got %v, want %s within %v", neighborAddress, val, wantDesc, timeout)
 	}
