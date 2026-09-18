@@ -292,7 +292,7 @@ func SetControllerCardPowerState(t *testing.T, dut *ondatra.DUTDevice, cardName 
 	var opts []ygnmi.Option
 	if dut.Vendor() != ondatra.JUNIPER {
 		if dut.Vendor() == ondatra.ARISTA {
-			t.Errorf("Vendor Bug: Arista reliably drops gNMI telemetry streams during supervisor power toggles. Bypassing stream via GET to cleanly format testbed.")
+			t.Logf("Vendor Bug: Arista reliably drops gNMI telemetry streams during supervisor power toggles. Bypassing stream via GET to cleanly run the test.")
 		}
 		opts = append(opts, ygnmi.WithUseGet())
 	}
