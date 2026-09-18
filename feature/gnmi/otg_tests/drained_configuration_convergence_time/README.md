@@ -12,6 +12,12 @@ peers.
 
 First port is used as ingress port to send routes from ATE to DUT.
 
+Configure IS-IS interface authentication at
+`/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication/config`
+using the `enabled`, `auth-password`, `auth-mode`, and `auth-type` leaves. This
+replaces level-specific configuration under
+`/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/hello-authentication/config`.
+
 For each of the following configurations, generate complete device
 configuration and measure time for the operation to complete (as
 defined in the case):
@@ -27,11 +33,15 @@ defined in the case):
     *   BGP AS_PATH prepend:
         *   At t=0, send Set to DUT changing BGP policy for each session
             to prepend AS_PATH.
+        *   Replace the complete peer-group AFI-SAFI `apply-policy/config`
+            parent when changing the export policy.
         *   Measure time between t=0 and all BGP received routes on ATE
             to report change in as path.
     *   TODO: BGP MED manipulation.   
         *   At t=0, send Set to DUT changing BGP policy for each session to
             set MED to non-default value.
+        *   Replace the complete peer-group AFI-SAFI `apply-policy/config`
+            parent when changing the export policy.
         *   Measure time between t=0 and all BGP received routes on ATE to
             report changed metric.
 
@@ -47,6 +57,8 @@ paths:
   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med-action:
   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/repeat-n:
   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/asn:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/export-policy:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/metric:
   /network-instances/network-instance/protocols/protocol/isis/global/lsp-bit/overload-bit/state/set-bit:
 
