@@ -125,6 +125,10 @@ func ValidateNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 
 	// As per `CreateGNMIServer`, the custom gNMI server is prefixed with "gnxi-".
 	customGnmiServerName := "gnxi-" + customVRFName
+	defaultGNMIServerName := deviations.DefaultNiGnmiServerName(dut)
+	if dut.Vendor() == ondatra.CISCO {
+		defaultGNMIServerName = findDefaultGNMIServerName(t, gnmiServerList, customGnmiServerName)
+	}
 
 	var defaultValidated, customValidated bool
 	for _, gnmiServer := range gnmiServerList {
@@ -141,7 +145,7 @@ func ValidateNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 			validateGnmiServerState(t, serverState)
 			customValidated = true
 		// Handle default gNMI server, which could have several names.
-		case "DEFAULT", deviations.DefaultNetworkInstance(dut), deviations.DefaultNiGnmiServerName(dut):
+		case "DEFAULT", deviations.DefaultNetworkInstance(dut), defaultGNMIServerName:
 			// To avoid validating the same server multiple times if names overlap.
 			if !defaultValidated {
 				validateGnmiServerState(t, serverState)
@@ -156,6 +160,27 @@ func ValidateNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	if !customValidated {
 		t.Errorf("Custom gNMI server '%s' was not found or validated.", customGnmiServerName)
 	}
+}
+
+// findDefaultGNMIServerName returns the name of the server advertising GNMI,
+// excluding the custom server created by this test.
+func findDefaultGNMIServerName(t *testing.T, servers []*oc.System_GrpcServer, customServerName string) string {
+	t.Helper()
+
+	for _, server := range servers {
+		if server.GetName() == customServerName {
+			continue
+		}
+		for _, service := range server.GetServices() {
+			if service == oc.SystemGrpc_GRPC_SERVICE_GNMI {
+				t.Logf("Discovered default gNMI server: %s", server.GetName())
+				return server.GetName()
+			}
+		}
+	}
+
+	t.Fatal("Default server advertising GNMI was not found")
+	return ""
 }
 
 // validateGnmiServerState checks and logs the state of a gNMI server.
