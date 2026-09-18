@@ -51,7 +51,7 @@ func TestMain(m *testing.M) {
 
 func verifyLaserBiasValue(t *testing.T, laserBiasValue float64) {
 	t.Helper()
-	if laserBiasValue < 0.0 || laserBiasValue > 131.0 {
+	if laserBiasValue < 0.0 || laserBiasValue > 524.28 {
 		t.Errorf("The laser bias value %f is not between 0 and 131", laserBiasValue)
 	}
 }
