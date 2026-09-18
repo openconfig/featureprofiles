@@ -823,9 +823,11 @@ func TestWrrTraffic(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			trafficFlows := tc.trafficFlows
 			top.Flows().Clear()
+			queueNames := make(map[string]struct{})
 
 			for trafficID, data := range trafficFlows {
 				t.Logf("Configuring flow %s", trafficID)
+				queueNames[data.queue] = struct{}{}
 				flow := top.Flows().Add().SetName(trafficID)
 				flow.Metrics().SetEnable(true)
 				flow.TxRx().Device().SetTxNames([]string{data.inputIntf.Name + ".IPv4"}).SetRxNames([]string{intf3.Name + ".IPv4"})
@@ -852,31 +854,33 @@ func TestWrrTraffic(t *testing.T) {
 			dutQosDroppedPktsBeforeTraffic := make(map[string]uint64)
 			dutQosDroppedPktsAfterTraffic := make(map[string]uint64)
 
-			// Set the initial counters to 0.
-			for _, data := range trafficFlows {
-				ateOutPkts[data.queue] = 0
-				ateInPkts[data.queue] = 0
-				dutQosPktsBeforeTraffic[data.queue] = 0
-				dutQosPktsAfterTraffic[data.queue] = 0
-				dutQosDroppedPktsBeforeTraffic[data.queue] = 0
-				dutQosDroppedPktsAfterTraffic[data.queue] = 0
+			// Set the initial counters to 0 for each unique queue.
+			for queue := range queueNames {
+				ateOutPkts[queue] = 0
+				ateInPkts[queue] = 0
+				dutQosPktsBeforeTraffic[queue] = 0
+				dutQosPktsAfterTraffic[queue] = 0
+				dutQosDroppedPktsBeforeTraffic[queue] = 0
+				dutQosDroppedPktsAfterTraffic[queue] = 0
 			}
 
 			// Get QoS egress packet counters before the traffic.
 			const timeout = time.Minute
 			isPresent := func(val *ygnmi.Value[uint64]) bool { return val.IsPresent() }
-			for _, data := range trafficFlows {
-				count, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State(), timeout, isPresent).Await(t)
+			for queue := range queueNames {
+				count, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).TransmitPkts().State(), timeout, isPresent).Await(t)
 				if !ok {
-					t.Errorf("TransmitPkts count for queue %q on interface %q not available within %v", data.queue, dp3.Name(), timeout)
+					t.Errorf("TransmitPkts count for queue %q on interface %q not available within %v", queue, dp3.Name(), timeout)
+					continue
 				}
-				dutQosPktsBeforeTraffic[data.queue], _ = count.Val()
+				dutQosPktsBeforeTraffic[queue], _ = count.Val()
 
-				count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State(), timeout, isPresent).Await(t)
+				count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).DroppedPkts().State(), timeout, isPresent).Await(t)
 				if !ok {
-					t.Errorf("DroppedPkts count for queue %q on interface %q not available within %v", data.queue, dp3.Name(), timeout)
+					t.Errorf("DroppedPkts count for queue %q on interface %q not available within %v", queue, dp3.Name(), timeout)
+					continue
 				}
-				dutQosDroppedPktsBeforeTraffic[data.queue], _ = count.Val()
+				dutQosDroppedPktsBeforeTraffic[queue], _ = count.Val()
 			}
 
 			t.Logf("Running traffic 1 on DUT interfaces: %s => %s ", dp1.Name(), dp3.Name())
@@ -885,28 +889,9 @@ func TestWrrTraffic(t *testing.T) {
 			ate.OTG().StartTraffic(t)
 			time.Sleep(tc.trafficDuration)
 			ate.OTG().StopTraffic(t)
-			time.Sleep(10 * time.Second)
+			trafficStopTime := time.Now()
 
 			otgutils.LogFlowMetrics(t, ate.OTG(), top)
-
-			// Batch DUT QoS counter telemetry queries to avoid N+1 Get RPCs.
-			qosBatch := gnmi.OCBatch()
-			for _, data := range trafficFlows {
-				qPath := gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue)
-				qosBatch.AddPaths(
-					qPath.TransmitPkts(),
-					qPath.DroppedPkts(),
-				)
-			}
-			qosResults := gnmi.Get(t, dut, qosBatch.State())
-			if output := qosResults.GetQos().GetInterface(dp3.Name()).GetOutput(); output != nil {
-				for _, data := range trafficFlows {
-					if q := output.GetQueue(data.queue); q != nil {
-						dutQosPktsAfterTraffic[data.queue] = q.GetTransmitPkts()
-						dutQosDroppedPktsAfterTraffic[data.queue] = q.GetDroppedPkts()
-					}
-				}
-			}
 
 			for trafficID, data := range trafficFlows {
 				expectedLossPct := 100.0 - data.expectedThroughputPct
@@ -921,10 +906,51 @@ func TestWrrTraffic(t *testing.T) {
 				ateRxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().InPkts().State())
 				ateOutPkts[data.queue] += ateTxPkts
 				ateInPkts[data.queue] += ateRxPkts
-				t.Logf("ateInPkts: %v, txPkts %v, Queue: %v", ateInPkts[data.queue], dutQosPktsAfterTraffic[data.queue], data.queue)
 				if ateTxPkts == 0 {
 					t.Fatalf("TxPkts == 0, want >0.")
 				}
+			}
+
+			// QoS MA publishes counters periodically. Wait for source samples taken
+			// after traffic stopped, and for transmit-pkts to contain all packets
+			// observed by the ATE.
+			const counterConvergenceTimeout = 90 * time.Second
+			awaitCounter := func(counterName, queue string, query ygnmi.SingletonQuery[uint64], before, delta uint64) uint64 {
+				t.Helper()
+				want := before + delta
+				isConverged := func(val *ygnmi.Value[uint64]) bool {
+					got, present := val.Val()
+					return present && val.Timestamp.After(trafficStopTime) && got >= want
+				}
+				count, ok := gnmi.Watch(t, dut, query, counterConvergenceTimeout, isConverged).Await(t)
+				if count == nil {
+					t.Errorf("No %s sample for queue %q on interface %q within %v; want >= %d with source timestamp after %v", counterName, queue, dp3.Name(), counterConvergenceTimeout, want, trafficStopTime)
+					return 0
+				}
+				got, present := count.Val()
+				if !ok || !present {
+					t.Errorf("%s for queue %q on interface %q did not converge within %v: got %d (present=%v), want >= %d; source timestamp %v, receive timestamp %v, want source timestamp after %v", counterName, queue, dp3.Name(), counterConvergenceTimeout, got, present, want, count.Timestamp, count.RecvTimestamp, trafficStopTime)
+					return got
+				}
+				t.Logf("%s for queue %q converged to %d (want >= %d), source timestamp %v, receive timestamp %v", counterName, queue, got, want, count.Timestamp, count.RecvTimestamp)
+				return got
+			}
+
+			for queue := range queueNames {
+				dutQosPktsAfterTraffic[queue] = awaitCounter(
+					"transmit-pkts",
+					queue,
+					gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).TransmitPkts().State(),
+					dutQosPktsBeforeTraffic[queue],
+					ateInPkts[queue],
+				)
+				dutQosDroppedPktsAfterTraffic[queue] = awaitCounter(
+					"dropped-pkts",
+					queue,
+					gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).DroppedPkts().State(),
+					dutQosDroppedPktsBeforeTraffic[queue],
+					0,
+				)
 			}
 
 			// Check QoS egress packet counters are updated correctly.
@@ -934,14 +960,14 @@ func TestWrrTraffic(t *testing.T) {
 			t.Logf("QoS dutQosDroppedPktsAfterTraffic: %v", dutQosDroppedPktsAfterTraffic)
 			t.Logf("QoS ateOutPkts: %v", ateOutPkts)
 			t.Logf("QoS ateInPkts: %v", ateInPkts)
-			for _, data := range trafficFlows {
-				qosCounterDiff := dutQosPktsAfterTraffic[data.queue] - dutQosPktsBeforeTraffic[data.queue]
-				ateCounterDiff := ateInPkts[data.queue]
-				ateDropCounterDiff := ateOutPkts[data.queue] - ateInPkts[data.queue]
-				dutDropCounterDiff := dutQosDroppedPktsAfterTraffic[data.queue] - dutQosDroppedPktsBeforeTraffic[data.queue]
-				t.Logf("QoS queue %q: ateDropCounterDiff: %v dutDropCounterDiff: %v", data.queue, ateDropCounterDiff, dutDropCounterDiff)
+			for queue := range queueNames {
+				qosCounterDiff := dutQosPktsAfterTraffic[queue] - dutQosPktsBeforeTraffic[queue]
+				ateCounterDiff := ateInPkts[queue]
+				ateDropCounterDiff := ateOutPkts[queue] - ateInPkts[queue]
+				dutDropCounterDiff := dutQosDroppedPktsAfterTraffic[queue] - dutQosDroppedPktsBeforeTraffic[queue]
+				t.Logf("QoS queue %q: ateDropCounterDiff: %v dutDropCounterDiff: %v", queue, ateDropCounterDiff, dutDropCounterDiff)
 				if qosCounterDiff < ateCounterDiff {
-					t.Errorf("Get telemetry packet update for queue %q: got %v, want >= %v", data.queue, qosCounterDiff, ateCounterDiff)
+					t.Errorf("Get telemetry packet update for queue %q: got %v, want >= %v", queue, qosCounterDiff, ateCounterDiff)
 				}
 			}
 		})
