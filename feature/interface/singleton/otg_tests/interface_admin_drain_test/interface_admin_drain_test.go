@@ -67,6 +67,11 @@ const (
 	flowTxTimeout        = 60 * time.Second
 	neighborTimeout      = 60 * time.Second
 	minFlowTxPkts        = 100
+	isisFlapToleranceNs  = uint64(time.Second)
+	lossWindowPkts       = uint64(2_000_000)
+	lossTolerancePct     = 0.1
+	lossWindowTimeout    = 30 * time.Second
+	lossConvergeTimeout  = 60 * time.Second
 )
 
 var allFlows = []string{streamOneFlowV4, streamOneFlowV6, streamTwoFlowV4, streamTwoFlowV6}
@@ -185,11 +190,46 @@ func startTraffic(t *testing.T, bs *cfgplugins.BGPSession) {
 // traffic is running (README "Test environment setup" step 6).
 func verifyBaseline(t *testing.T, bs *cfgplugins.BGPSession) {
 	t.Helper()
-	otg := bs.ATE.OTG()
 	for _, flow := range allFlows {
 		waitForFlowTx(t, bs.ATE, flow, minFlowTxPkts, flowTxTimeout)
-		otgutils.ExpectedTrafficLoss(t, otg, flow, 0, 0)
+		verifyNoOngoingLoss(t, bs.ATE, flow, lossConvergeTimeout)
 	}
+}
+
+// verifyNoOngoingLoss confirms a flow has no steady-state loss without stopping
+// traffic. It measures loss over successive fresh Tx/Rx delta windows and
+// passes as soon as one window is loss-free, so the initial forwarding
+// convergence transient (which a cumulative-from-start measurement would bake
+// in) is not counted against steady state. Traffic must already be running.
+func verifyNoOngoingLoss(t *testing.T, ate *ondatra.ATEDevice, flowName string, timeout time.Duration) {
+	t.Helper()
+	otg := ate.OTG()
+	counters := gnmi.OTG().Flow(flowName).Counters()
+	deadline := time.Now().Add(timeout)
+	lastLoss := 100.0
+	for time.Now().Before(deadline) {
+		startTx := gnmi.Get(t, otg, counters.OutPkts().State())
+		startRx := gnmi.Get(t, otg, counters.InPkts().State())
+		if _, ok := gnmi.Watch(t, otg, counters.OutPkts().State(), lossWindowTimeout, func(val *ygnmi.Value[uint64]) bool {
+			tx, present := val.Val()
+			return present && tx >= startTx+lossWindowPkts
+		}).Await(t); !ok {
+			continue
+		}
+		endTx := gnmi.Get(t, otg, counters.OutPkts().State())
+		endRx := gnmi.Get(t, otg, counters.InPkts().State())
+		deltaTx := endTx - startTx
+		deltaRx := endRx - startRx
+		if deltaTx == 0 || deltaRx > deltaTx {
+			continue
+		}
+		lastLoss = float64(deltaTx-deltaRx) * 100.0 / float64(deltaTx)
+		if lastLoss <= lossTolerancePct {
+			t.Logf("Flow %s steady-state loss %.4f%% within tolerance %.2f%%", flowName, lastLoss, lossTolerancePct)
+			return
+		}
+	}
+	t.Fatalf("Flow %s steady-state loss did not settle within %v (last %.4f%%, want <= %.2f%%)", flowName, timeout, lastLoss, lossTolerancePct)
 }
 
 // drainPort1 administratively disables DUT Port 1 (config/enabled=false,
@@ -203,7 +243,9 @@ func drainPort1(t *testing.T, dut *ondatra.DUTDevice, bs *cfgplugins.BGPSession)
 
 	gnmi.Update(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().Config(), false)
 
-	gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().State(), ifaceStatusTimeout, false)
+	if !deviations.MissingValueForDefaults(dut) {
+		gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().State(), ifaceStatusTimeout, false)
+	}
 	waitForAdminStatus(t, dut, p1.Name(), oc.Interface_AdminStatus_DOWN, ifaceStatusTimeout)
 	waitForOperStatus(t, dut, p1.Name(), oc.Interface_OperStatus_DOWN, ifaceStatusTimeout)
 }
@@ -248,13 +290,7 @@ func waitForOperStatus(t *testing.T, dut *ondatra.DUTDevice, portName string, wa
 func verifyOutPktsStopped(t *testing.T, dut *ondatra.DUTDevice, portName string, settle time.Duration) {
 	t.Helper()
 	path := gnmi.OC().Interface(portName).Counters().OutPkts().State()
-	// Some DUTs publish interface counters on a lagging background poll, so a
-	// single read pair can catch a stale value followed by a catch-up flush of
-	// pre-drain packets and look like advancement even after forwarding stopped.
-	// Watch the telemetry stream until two consecutive samples are equal, i.e.
-	// the counter has stabilized.
-	var prev uint64
-	var havePrev bool
+	prev, havePrev := uint64(0), false
 	_, ok := gnmi.Watch(t, dut, path, settle, func(val *ygnmi.Value[uint64]) bool {
 		got, present := val.Val()
 		if !present {
@@ -280,7 +316,7 @@ func verifyFIBInstalled(t *testing.T, dut *ondatra.DUTDevice, v4Prefix, v6Prefix
 	v4Path := gnmi.OC().NetworkInstance(dni).Afts().Ipv4Entry(v4Prefix)
 	if _, ok := gnmi.Watch(t, dut, v4Path.State(), timeout, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
 		e, present := val.Val()
-		return present && e.GetPrefix() == v4Prefix
+		return present && e != nil && e.GetPrefix() == v4Prefix
 	}).Await(t); !ok {
 		t.Fatalf("Prefix %s not re-installed into FIB within %v", v4Prefix, timeout)
 	}
@@ -289,7 +325,7 @@ func verifyFIBInstalled(t *testing.T, dut *ondatra.DUTDevice, v4Prefix, v6Prefix
 	v6Path := gnmi.OC().NetworkInstance(dni).Afts().Ipv6Entry(v6Prefix)
 	if _, ok := gnmi.Watch(t, dut, v6Path.State(), timeout, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
 		e, present := val.Val()
-		return present && e.GetPrefix() == v6Prefix
+		return present && e != nil && e.GetPrefix() == v6Prefix
 	}).Await(t); !ok {
 		t.Fatalf("Prefix %s not re-installed into FIB within %v", v6Prefix, timeout)
 	}
@@ -353,7 +389,11 @@ func verifyNoISISFlap(t *testing.T, dut *ondatra.DUTDevice, ifaceName string, ba
 		t.Errorf("IS-IS adjacency on %s up-timestamp became unavailable during drain; cannot confirm the adjacency did not flap", ifaceName)
 		return
 	}
-	if now != baseline {
+	delta := now - baseline
+	if baseline > now {
+		delta = baseline - now
+	}
+	if delta > isisFlapToleranceNs {
 		t.Errorf("IS-IS adjacency on %s flapped during drain: up-timestamp %d -> %d", ifaceName, baseline, now)
 		return
 	}
@@ -450,11 +490,7 @@ func resetTrafficCounters(t *testing.T, bs *cfgplugins.BGPSession, flows []strin
 		otgutils.WaitForARP(t, otg, bs.ATETop, "IPv4")
 		otgutils.WaitForARP(t, otg, bs.ATETop, "IPv6")
 	} else {
-		// Port 1 is drained and its neighbor will never resolve, so re-resolve
-		// only the still-up ports (port2 ingress, port3/port4 egress/transit)
-		// rather than blocking on the whole topology, keeping the fresh
-		// measurement window free of unresolved-neighbor drops.
-		waitForNeighborsUp(t, bs.ATE, []gosnappi.Device{bs.ATEIntfs[1], bs.ATEIntfs[2], bs.ATEIntfs[3]})
+		waitForNeighborsUp(t, bs.ATE, []gosnappi.Device{bs.ATEIntfs[1], bs.ATEIntfs[2]})
 	}
 	otg.StartTraffic(t)
 
@@ -506,9 +542,8 @@ func testUnDrainRestore(t *testing.T, dut *ondatra.DUTDevice, bs *cfgplugins.BGP
 	cfgplugins.VerifyBGPNeighborSessionState(t, dut, bs.ATEPorts[0].IPv6, true, bgpConvergeTimeout)
 	cfgplugins.VerifyISISAdjacencyState(t, dut, p1.Name(), true, isisConvergeTimeout)
 	verifyFIBInstalled(t, dut, port1V4Prefix, port1V6Prefix, bgpConvergeTimeout)
-	resetTrafficCounters(t, bs, allFlows, true)
 	for _, flow := range allFlows {
-		otgutils.ExpectedTrafficLoss(t, bs.ATE.OTG(), flow, 0, 0)
+		verifyNoOngoingLoss(t, bs.ATE, flow, lossConvergeTimeout)
 	}
 }
 

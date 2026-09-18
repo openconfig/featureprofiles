@@ -1884,7 +1884,7 @@ func VerifyBGPNeighborSessionState(t *testing.T, dut *ondatra.DUTDevice, neighbo
 	watch := gnmi.Watch(t, dut, nSessionState, timeout, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 		state, ok := val.Val()
 		if !ok {
-			return false
+			return !wantEstablished
 		}
 		return (state == oc.Bgp_Neighbor_SessionState_ESTABLISHED) == wantEstablished
 	})

@@ -16,3 +16,13 @@ platform_exceptions: {
     missing_value_for_defaults: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    interface_enabled: true
+    ipv4_missing_enabled: true
+    missing_value_for_defaults: true
+  }
+}
