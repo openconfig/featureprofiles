@@ -245,8 +245,12 @@ func TestBackupNHGAction(t *testing.T) {
 		configureDUT(t, dut)
 	}
 	if deviations.BackupNHGRequiresVrfWithDecap(dut) {
+		vrfSelectionNI := vrfA
+		if deviations.VrfSelectionPolicyNonDefaultNIUnsupported(dut) {
+			vrfSelectionNI = deviations.DefaultNetworkInstance(dut)
+		}
 		d := &oc.Root{}
-		ni := d.GetOrCreateNetworkInstance(vrfA)
+		ni := d.GetOrCreateNetworkInstance(vrfSelectionNI)
 		pf := ni.GetOrCreatePolicyForwarding()
 		fp1 := pf.GetOrCreatePolicy(policyID)
 		fp1.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
@@ -255,7 +259,7 @@ func TestBackupNHGAction(t *testing.T) {
 		p1 := dut.Port(t, "port1")
 		intf := pf.GetOrCreateInterface(p1.Name())
 		intf.ApplyVrfSelectionPolicy = ygot.String(policyID)
-		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfA).PolicyForwarding().Config(), pf)
+		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfSelectionNI).PolicyForwarding().Config(), pf)
 	}
 
 	addStaticRoute(t, dut)
@@ -719,14 +723,8 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good []gosnappi.
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
 
 	for _, flow := range good {
-		outPkts := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State()))
+		otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), 0, 0)
 		inPkts := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State()))
-		if outPkts == 0 {
-			t.Fatalf("OutPkts for flow %s is 0, want > 0", flow)
-		}
-		if got := ((outPkts - inPkts) * 100) / outPkts; got > 0 {
-			t.Fatalf("LossPct for flow %s: got %v, want 0", flow.Name(), got)
-		}
 		etPath := gnmi.OTG().Flow(flow.Name()).TaggedMetricAny()
 		ets := gnmi.GetAll(t, ate.OTG(), etPath.State())
 		if got := len(ets); got != 1 {
@@ -756,13 +754,6 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good []gosnappi.
 	}
 
 	for _, flow := range bad {
-		outPkts := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State()))
-		inPkts := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State()))
-		if outPkts == 0 {
-			t.Fatalf("OutPkts for flow %s is 0, want > 0", flow)
-		}
-		if got := ((outPkts - inPkts) * 100) / outPkts; got < 100 {
-			t.Fatalf("LossPct for flow %s: got %v, want 100", flow.Name(), got)
-		}
+		otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), 100, 100)
 	}
 }

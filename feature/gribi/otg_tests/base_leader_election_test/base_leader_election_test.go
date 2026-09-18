@@ -221,17 +221,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, s
 	// Check the flow statistics
 	otgutils.LogFlowMetrics(t, otg, config)
 	for _, f := range config.Flows().Items() {
-		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(f.Name()).State())
-		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
-		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
-		lostPackets := txPackets - rxPackets
-		if txPackets == 0 {
-			t.Fatalf("TxPkts == 0, want > 0")
-		}
-		lossPct := lostPackets * 100 / txPackets
-		if lossPct > 0 && recvMetric.GetCounters().GetOutPkts() > 0 {
-			t.Errorf("Loss Pct for %s got %v, want 0", f.Name(), lossPct)
-		}
+		otgutils.ExpectedTrafficLoss(t, otg, f.Name(), 0, 0)
 	}
 }
 

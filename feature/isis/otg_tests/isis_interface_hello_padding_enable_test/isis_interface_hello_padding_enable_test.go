@@ -516,19 +516,7 @@ func TestIsisInterfaceHelloPaddingEnable(t *testing.T) {
 			otgutils.LogPortMetrics(t, otg, ts.ATETop)
 
 			for _, flow := range []string{v4FlowName, v6FlowName} {
-				t.Log("Checking flow telemetry...")
-				recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(flow).State())
-				txPackets := recvMetric.GetCounters().GetOutPkts()
-				rxPackets := recvMetric.GetCounters().GetInPkts()
-				lostPackets := txPackets - rxPackets
-				if txPackets == 0 {
-					t.Fatalf("txPackets == 0, want > 0")
-				}
-				lossPct := lostPackets * 100 / txPackets
-
-				if lossPct > 1 {
-					t.Errorf("FAIL- Got %v%% packet loss for %s ; expected < 1%%", lossPct, flow)
-				}
+				otgutils.ExpectedTrafficLoss(t, otg, flow, 0, 1)
 			}
 		})
 	})
