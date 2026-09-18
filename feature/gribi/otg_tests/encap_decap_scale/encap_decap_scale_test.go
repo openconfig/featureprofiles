@@ -893,8 +893,6 @@ type testArgs struct {
 
 func TestGribiEncapDecapScaling(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	overrideScaleParams(dut)
-
 	ate := ondatra.ATE(t, "ate")
 	ctx := context.Background()
 	gribic := dut.RawAPIs().GRIBI(t)
