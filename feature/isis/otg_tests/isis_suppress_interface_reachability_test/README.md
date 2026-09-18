@@ -2,18 +2,14 @@
 
 ## Summary
 
-This test validates that the Device Under Test (DUT) can suppress the
-advertisement of IP reachability (TLV 135 for IPv4 and TLV 236 for IPv6) within
-IS-IS Link State Protocol Data Units (LSPs).
+This test validates that the DUT can suppress the advertisement of IP reachability (TLV 135 for IPv4 and TLV 236 for IPv6) within IS-IS LSPs.
 
 The test validates:
 
 * Suppression mode at global address-family level (`NONE`, `ALL`, `NON_PASSIVE`, `NON_PASSIVE_POINT_TO_POINT`).
 * Verification that suppression configuration and telemetry state match.
-* Verification via Automated Test Equipment (ATE) that advertised LSPs
-  correctly include or omit the expected prefix reachability TLVs.
-* Ensuring IS-IS adjacencies remain fully established across all valid interfaces
-  during suppression changes.
+* Verification via ATE that advertised LSPs correctly include or omit the expected prefix reachability TLVs.
+* Ensuring IS-IS adjacencies remain fully established across all valid interfaces during suppression changes.
 
 ## Testbed type
 
@@ -45,8 +41,7 @@ flowchart LR
   * Loopback0: `203.0.113.1/32`, `2001:db8:2::1/128` (Passive)
 * **ATE:**
   * Port 1: `192.0.2.2/30`, `2001:db8::2/126`, NET `49.0001.1920.0000.2002.00`
-  * Port 2: `198.51.100.2/30`, `2001:db8:1::1/126`,
-    NET `49.0001.1920.0000.2003.00`
+  * Port 2: `198.51.100.2/30`, `2001:db8:1::2/126`, NET `49.0001.1920.0000.2003.00`
 * **IS-IS Parameters:**
   * Level Capability: Level 2
   * Metric Style: Wide
@@ -56,17 +51,11 @@ flowchart LR
 
 ### Test environment setup
 
-1. Configure DUT interfaces:
-   * Port 1: IPv4 `192.0.2.1/30`, IPv6 `2001:db8::1/126`, Point-to-Point.
-   * Port 2: IPv4 `198.51.100.1/30`, IPv6 `2001:db8:1::1/126`, Broadcast.
-   * Loopback0: IPv4 `203.0.113.1/32`, IPv6 `2001:db8:2::1/128`, `passive: true`.
+1. Configure DUT and ATE interfaces as defined in the topology.
 2. Enable IS-IS Level 2 globally on the DUT with NET `49.0001.1920.0000.2001.00`, wide metric, and address families `IPV4` and `IPV6`.
 3. Verify via telemetry that global NET is correctly configured and active in state (`/network-instances/network-instance/protocols/protocol/isis/global/state/net`).
-4. Configure ATE interfaces:
-   * Port 1: IPv4 `192.0.2.2/30`, IPv6 `2001:db8::2/126`, IS-IS Level 2 emulation (NET `49.0001.1920.0000.2002.00`, Point-to-Point).
-   * Port 2: IPv4 `198.51.100.2/30`, IPv6 `2001:db8:1::2/126`, IS-IS Level 2 emulation (NET `49.0001.1920.0000.2003.00`, Broadcast).
-5. Establish IS-IS Level 2 adjacencies on Port 1 and Port 2.
-6. Verify via telemetry that adjacencies on Port 1 and Port 2 reach `UP` state.
+4. Establish IS-IS Level 2 adjacencies on Port 1 and Port 2.
+5. Verify via telemetry that adjacencies on Port 1 and Port 2 reach `UP` state.
 
 ### RT-2.19.1 - Default Reachability Advertisement (Mode NONE)
 
@@ -78,6 +67,7 @@ flowchart LR
      * Verify Extended IPv4 Reachability (TLV 135) and IPv6 Reachability (TLV 236) are present for Port 1, Port 2, and Loopback0.
   4. Verify IS-IS adjacencies on Port 1 and Port 2 remain in `UP` state.
 
+
 ### RT-2.19.2 - Suppress All Interfaces Reachability (Mode ALL)
 
 * **Goal**: Validate that when suppression mode is set to `ALL`, the DUT omits prefix reachability TLVs for all interfaces while maintaining IS-IS adjacencies.
@@ -86,7 +76,6 @@ flowchart LR
   2. Verify via telemetry that global `suppress-interface-reachability` is `ALL` for IPv4 and IPv6.
   3. Inspect DUT's advertised LSPs received on ATE:
      * Verify TLV 135 (IPv4) and TLV 236 (IPv6) are omitted for Port 1, Port 2, and Loopback0.
-     * Verify IS-IS neighbor TLVs (TLV 22 / TLV 222) continue to be advertised.
   4. Verify IS-IS adjacencies on Port 1 and Port 2 remain continuously `UP`.
 
 ### RT-2.19.3 - Suppress Non-Passive Interfaces Reachability (Mode NON_PASSIVE)
@@ -162,37 +151,8 @@ flowchart LR
                       "49.0001.1920.0000.2001.00"
                     ]
                   }
-                },
-                "interfaces": {
-                  "interface": [
-                    {
-                      "config": {
-                        "circuit-type": "POINT_TO_POINT",
-                        "enabled": true,
-                        "interface-id": "Port1"
-                      },
-                      "interface-id": "Port1"
-                    },
-                    {
-                      "config": {
-                        "circuit-type": "BROADCAST",
-                        "enabled": true,
-                        "interface-id": "Port2"
-                      },
-                      "interface-id": "Port2"
-                    },
-                    {
-                      "config": {
-                        "enabled": true,
-                        "interface-id": "Loopback0",
-                        "passive": true
-                      },
-                      "interface-id": "Loopback0"
-                    }
-                  ]
                 }
-              },
-              "name": "DEFAULT"
+              }
             }
           ]
         }
@@ -237,7 +197,3 @@ rpcs:
     gNMI.Set:
     gNMI.Subscribe:
 ```
-
-## Required DUT platform
-
-* FFF
