@@ -3973,3 +3973,26 @@ deviations: {
     }
   }
 }
+
+deviations: {
+  name: "sflow_egress_sampling_rate_unsupported"
+  type: DEVIATION_TYPE_CLI
+  impacted_paths: {
+    ocpaths: {
+      name: "/sampling/sflow/interfaces/interface/config/egress-sampling-rate"
+    }
+    ocpaths: {
+      name: "/sampling/sflow/interfaces/interface/state/egress-sampling-rate"
+    }
+  }
+  platforms: {
+    issue_url: "https://partnerissuetracker.corp.google.com/issues/562517133"
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    clis: {
+      commands: "interface.*\nsflow egress enable"
+    }
+  }
+}

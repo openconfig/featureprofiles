@@ -2395,3 +2395,9 @@ func BgpAdjRibOcUnsupported(dut *ondatra.DUTDevice) bool {
 func AigpMetricIncrement(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAigpMetricIncrement()
 }
+
+// SflowEgressSamplingRateUnsupported returns true if sFlow interface egress-sampling-rate is unsupported over OpenConfig gNMI.
+// Arista: https://partnerissuetracker.corp.google.com/issues/562517133
+func SflowEgressSamplingRateUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSflowEgressSamplingRateUnsupported()
+}
