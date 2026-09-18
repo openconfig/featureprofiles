@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "e37b7bcf-17c7-49cb-b696-ec4df940dcad"
+plan_id: "RT-2.19"
+description: "IS-IS Suppress Interface Reachability"
+testbed: TESTBED_DUT_ATE_2LINKS
