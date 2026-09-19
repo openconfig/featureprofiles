@@ -34,6 +34,134 @@ type ISISGlobalParams struct {
 	ISISAuthKey         string
 }
 
+// ISISMetricParams holds the parameters needed to configure IS-IS with an explicit
+// per-interface metric and max-ECMP-paths, plus a passive loopback interface.
+type ISISMetricParams struct {
+	InstanceName string
+	AreaAddress  string
+	SystemID     string
+	MaxEcmpPaths uint8
+	BaseMetric   uint32
+	Interfaces   []string
+	LoopbackIntf string
+	LspOverload  bool
+}
+
+// NewISISWithMetric configures IS-IS on the DUT with wide metrics, max-ECMP-paths, and an
+// explicit per-interface metric on each of params.Interfaces
+func NewISISWithMetric(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, params ISISMetricParams) *gnmi.SetBatch {
+	t.Helper()
+	netInstance := (&oc.Root{}).GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	prot := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, params.InstanceName)
+	prot.Enabled = ygot.Bool(true)
+	isis := prot.GetOrCreateIsis()
+
+	globalISIS := isis.GetOrCreateGlobal()
+	if !deviations.IsisMplsUnsupported(dut) {
+		// Explicit Disable the default igp-ldp-sync enabled global leaf
+		globalISIS.GetOrCreateMpls().GetOrCreateIgpLdpSync().Enabled = ygot.Bool(false)
+	}
+	if deviations.ISISInstanceEnabledRequired(dut) {
+		globalISIS.Instance = ygot.String(params.InstanceName)
+	}
+	globalISIS.LevelCapability = oc.Isis_LevelType_LEVEL_2
+	globalISIS.Net = []string{fmt.Sprintf("%v.%v.00", params.AreaAddress, params.SystemID)}
+	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+
+	if deviations.GlobalMaxEcmpPathsUnsupported(dut) {
+		globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).SetMaxEcmpPaths(params.MaxEcmpPaths)
+		globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).SetMaxEcmpPaths(params.MaxEcmpPaths)
+	} else {
+		globalISIS.SetMaxEcmpPaths(params.MaxEcmpPaths)
+	}
+
+	globalISIS.GetOrCreateLspBit().GetOrCreateOverloadBit().SetBit = ygot.Bool(params.LspOverload)
+
+	isisLevel2 := isis.GetOrCreateLevel(2)
+	isisLevel2.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
+	if deviations.ISISLevelEnabled(dut) {
+		isisLevel2.Enabled = ygot.Bool(true)
+	}
+
+	for _, intfName := range params.Interfaces {
+		intf := InterfaceRefID(dut, intfName)
+		isisIntf := isis.GetOrCreateInterface(intf)
+		if !deviations.IsisMplsUnsupported(dut) {
+			// Explicit Disable the default igp-ldp-sync enabled interface level leaf
+			isisIntf.GetOrCreateMpls().GetOrCreateIgpLdpSync().Enabled = ygot.Bool(false)
+		}
+		isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(intfName)
+		isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+		if deviations.InterfaceRefConfigUnsupported(dut) {
+			isisIntf.InterfaceRef = nil
+		}
+		isisIntf.Enabled = ygot.Bool(true)
+		isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
+		isisIntf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+		isisIntf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+		if deviations.ISISInterfaceAfiUnsupported(dut) {
+			isisIntf.Af = nil
+		}
+
+		isisIntfLevel := isisIntf.GetOrCreateLevel(2)
+		isisIntfLevel.Enabled = ygot.Bool(true)
+
+		isisIntfLevelAfiv4 := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
+		isisIntfLevelAfiv4.Metric = ygot.Uint32(params.BaseMetric)
+		isisIntfLevelAfiv4.Enabled = ygot.Bool(true)
+		isisIntfLevelAfiv6 := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST)
+		isisIntfLevelAfiv6.Metric = ygot.Uint32(params.BaseMetric)
+		isisIntfLevelAfiv6.Enabled = ygot.Bool(true)
+		if deviations.MissingIsisInterfaceAfiSafiEnable(dut) {
+			isisIntfLevelAfiv4.Enabled = nil
+			isisIntfLevelAfiv6.Enabled = nil
+		}
+	}
+
+	if params.LoopbackIntf != "" {
+		lbIntfName := InterfaceRefID(dut, params.LoopbackIntf)
+		lbIsisIntf := isis.GetOrCreateInterface(lbIntfName)
+		lbIsisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(params.LoopbackIntf)
+		lbIsisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+		if deviations.InterfaceRefConfigUnsupported(dut) {
+			lbIsisIntf.InterfaceRef = nil
+		}
+		lbIsisIntf.Enabled = ygot.Bool(true)
+		lbIsisIntf.Passive = ygot.Bool(true)
+		lbIsisIntf.GetOrCreateLevel(2).Enabled = ygot.Bool(true)
+	}
+
+	gnmi.BatchUpdate(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, params.InstanceName).Config(), prot)
+	return batch
+}
+
+// ISISInterfaceMetricParams holds the parameters needed to change an existing IS-IS interface's
+// IPv4/IPv6 metric.
+type ISISInterfaceMetricParams struct {
+	InstanceName string
+	Interface    string
+	Metric       uint32
+}
+
+// ChangeISISMetric batches an update to the Level 2 IPv4/IPv6 IS-IS metric of params.Interface
+func ChangeISISMetric(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, params ISISInterfaceMetricParams) *gnmi.SetBatch {
+	t.Helper()
+	t.Logf("Changing metric to %v on interface %v", params.Metric, params.Interface)
+	intf := InterfaceRefID(dut, params.Interface)
+	isis := &oc.NetworkInstance_Protocol_Isis{}
+	isisIntfLevel := isis.GetOrCreateInterface(intf).GetOrCreateLevel(2)
+	isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric = ygot.Uint32(params.Metric)
+	isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric = ygot.Uint32(params.Metric)
+	if deviations.ISISRequireSameL1MetricWithL2Metric(dut) {
+		l1 := isis.GetOrCreateInterface(intf).GetOrCreateLevel(1)
+		l1.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric = ygot.Uint32(params.Metric)
+		l1.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric = ygot.Uint32(params.Metric)
+	}
+	gnmi.BatchUpdate(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, params.InstanceName).Isis().Config(), isis)
+	return batch
+}
+
 // NewISIS configures the DUT with ISIS protocol.
 func NewISIS(t *testing.T, dut *ondatra.DUTDevice, ISISData *ISISGlobalParams, b *gnmi.SetBatch) *oc.Root {
 	t.Helper()
