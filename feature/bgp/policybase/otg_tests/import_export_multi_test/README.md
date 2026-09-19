@@ -145,7 +145,7 @@ functions.
 #### RT-7.11.2 Attach multi_policy as import policy
 
 * Use gnmi Set REPLACE option to apply the policy on the DUT bgp neighbor to the ATE port 1.
-  * at this subtree level: /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy
+  * at this subtree level: /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config
     * Set the value `config/import-policy` = "multi-policy"
 
 #### RT-7.11.3 Verify import_multi_policy expected attributes are present
@@ -159,8 +159,10 @@ functions.
 This replace method should guarantee that the previous step's import-policy is removed.
 
 * Use gnmi Set REPLACE option to apply the policy on the DUT bgp neighbor to the ATE port 1.
-  * at this subtree level: /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy
+  * at this subtree level: /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config
     * Set the value `config/export-policy` = "multi-policy"
+  * Configure `STANDARD` and `EXTENDED` send-community types on the exporting
+    neighbor at `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/config/send-community-type`.
 
 #### RT-7.11.5 Verify export_multi_policy expected attributes are present
 
@@ -214,6 +216,7 @@ paths:
   # Policy for bgp attachment
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/config/send-community-type:
 
   ## State Paths ##
   # Policy definition state
