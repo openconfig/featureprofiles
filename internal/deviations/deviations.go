@@ -556,6 +556,7 @@ func ISISCounterPartChangesUnsupported(dut *ondatra.DUTDevice) bool {
 
 // SkipTCPNegotiatedMSSCheck returns true for devices that do not
 // support telemetry to check negotiated tcp mss value.
+// Arista: https://partnerissuetracker.corp.google.com/issues/312256594
 func SkipTCPNegotiatedMSSCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipTcpNegotiatedMssCheck()
 }
