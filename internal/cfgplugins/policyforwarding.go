@@ -457,7 +457,6 @@ func InterfacePolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, a *at
 		}
 	} else {
 		ApplyPolicyToInterfaceOC(t, pf, params.InterfaceID, params.AppliedPolicyName)
-
 	}
 }
 
