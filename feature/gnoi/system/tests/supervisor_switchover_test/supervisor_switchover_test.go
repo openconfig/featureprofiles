@@ -280,6 +280,7 @@ func TestSupervisorSwitchover(t *testing.T) {
 	otg.StartProtocols(t)
 
 	verifyLACPState(t, dut, dutPorts, lagName)
+	otgutils.WaitForARP(t, otg, otgTop, "IPv4")
 	// Start continuous data-plane traffic. Must run continuously for the entire test suite.
 	otg.StartTraffic(t)
 	t.Cleanup(func() {

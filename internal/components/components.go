@@ -222,7 +222,8 @@ func FindStandbyControllerCard(t *testing.T, dut *ondatra.DUTDevice, supervisors
 			val, err := ygnmi.Lookup(ctx, c, gnmi.OC().Component(supervisor).RedundantRole().State(), opts...)
 			cancel()
 			if err == nil {
-				if r, present := val.Val(); present {
+				if r, present := val.Val(); present && r !=
+					oc.Platform_ComponentRedundantRole_UNSET {
 					role = r
 					break
 				}

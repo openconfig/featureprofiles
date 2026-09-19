@@ -1460,9 +1460,6 @@ message Metadata {
     // Device requires delay before issuing a back-to-back switchover request.
     uint32 gnoi_back_to_back_switchover_delay_s = 459;
 
-    // Device accepts back-to-back switchover request without error, instead of gracefully rejecting it.
-    bool back_to_back_switchover_request_accepted = 460;
-
     // Device does not support gNMI Subscribe during switchover recovery and requires gNMI Get polling instead.
     bool switchover_subscribe_unsupported = 461;
 
