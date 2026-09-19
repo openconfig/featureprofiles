@@ -20,6 +20,11 @@
 For each section of configuration below, prepare a gnmi.SetBatch  with all the configuration items appended to one SetBatch.  Then apply the configuration to the DUT in one gnmi.Set using the `replace` option.
 > WARNING: Replace operations should be performed at an appropriate level in the config tree to ensure that preexisting configuration objects necessary for DUT management access and base operation are not removed.
 
+When import or export policy lists change, send the Replace operation to the complete
+`/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config`
+parent. Populate the `import-policy`, `export-policy`, and applicable `default-import-policy` and `default-export-policy`
+leaves in that parent.
+
 #### Initial Setup:
 
 *   Connect DUT port-1, 2 to ATE port-1, 2
