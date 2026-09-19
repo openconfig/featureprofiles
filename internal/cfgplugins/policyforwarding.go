@@ -1216,14 +1216,21 @@ func trafficPolicyCliConfig(t *testing.T, dut *ondatra.DUTDevice, policyName str
 	}
 }
 
-// Configure GRE decapsulated. Adding deviation when device doesn't support OC
-func NewConfigureGRETunnel(t *testing.T, dut *ondatra.DUTDevice, decapIp string, decapGrpName string) {
+// GRETunnelParams contains the parameters required to configure a GRE decapsulation tunnel.
+type GRETunnelParams struct {
+	DecapIP        string
+	DecapGroupName string
+	DecapInterface string
+}
+
+// NewConfigureGRETunnel configures GRE decapsulation on the DUT and returns the batch.
+func NewConfigureGRETunnel(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, cfg GRETunnelParams) *gnmi.SetBatch {
 	if deviations.GreDecapsulationOCUnsupported(dut) {
 		var decapIPAddr string
-		if strings.Contains(decapIp, "/") {
-			decapIPAddr = strings.Split(decapIp, "/")[0]
+		if strings.Contains(cfg.DecapIP, "/") {
+			decapIPAddr = strings.Split(cfg.DecapIP, "/")[0]
 		} else {
-			decapIPAddr = decapIp
+			decapIPAddr = cfg.DecapIP
 		}
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
@@ -1231,37 +1238,32 @@ func NewConfigureGRETunnel(t *testing.T, dut *ondatra.DUTDevice, decapIp string,
 			ip decap-group %s
 			 tunnel type gre
 			 tunnel decap-ip %s
-			`, decapGrpName, decapIPAddr)
+			`, cfg.DecapGroupName, decapIPAddr)
 			helpers.GnmiCLIConfig(t, dut, cliConfig)
-
 		default:
 			t.Errorf("deviation GreDecapsulationUnsupported is not handled for the dut: %v", dut.Vendor())
 		}
-	} else {
-		d := &oc.Root{}
-		ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-		ni1.SetType(oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-		npf := ni1.GetOrCreatePolicyForwarding()
-		np := npf.GetOrCreatePolicy("PBR-MAP")
-		np.PolicyId = ygot.String("PBR-MAP")
-		np.Type = oc.Policy_Type_PBR_POLICY
-
-		npRule := np.GetOrCreateRule(10)
-		ip := npRule.GetOrCreateIpv4()
-		ip.DestinationAddressPrefixSet = ygot.String(decapIp)
-		npAction := npRule.GetOrCreateAction()
-		npAction.DecapsulateGre = ygot.Bool(true)
-
-		port := dut.Port(t, "port1")
-		ingressPort := port.Name()
-		t.Logf("Applying forwarding policy on interface %v ... ", ingressPort)
-
-		intf := npf.GetOrCreateInterface(ingressPort)
-		intf.ApplyForwardingPolicy = ygot.String("PBR-MAP")
-		intf.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
-
-		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), ni1)
+		return batch
 	}
+	d := &oc.Root{}
+	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	ni1.SetType(oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	npf := ni1.GetOrCreatePolicyForwarding()
+	np := npf.GetOrCreatePolicy(cfg.DecapGroupName)
+	np.PolicyId = ygot.String(cfg.DecapGroupName)
+	np.Type = oc.Policy_Type_PBR_POLICY
+	npRule := np.GetOrCreateRule(0)
+	ip := npRule.GetOrCreateIpv4()
+	ip.DestinationAddress = ygot.String(cfg.DecapIP)
+	ip.Protocol = oc.PacketMatchTypes_IP_PROTOCOL_IP_GRE
+	npAction := npRule.GetOrCreateAction()
+	npAction.DecapsulateGre = ygot.Bool(true)
+	t.Logf("Applying forwarding policy on interface %v ... ", cfg.DecapInterface)
+	intf := npf.GetOrCreateInterface(cfg.DecapInterface)
+	intf.ApplyForwardingPolicy = ygot.String(cfg.DecapGroupName)
+	intf.GetOrCreateInterfaceRef().Interface = ygot.String(cfg.DecapInterface)
+	gnmi.BatchUpdate(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), ni1)
+	return batch
 }
 
 // ConfigureDutWithGueDecap configures the DUT to decapsulate GUE (Generic UDP Encapsulation) traffic. It supports both native CLI configuration (for vendors like Arista) and OpenConfig (GNMI) configuration.
@@ -2119,4 +2121,144 @@ func RemoveDecapGroupConfigGueIPv6Scale(t *testing.T, dut *ondatra.DUTDevice, pa
 		gnmi.Delete(t, dut, pfPath.Interface(intfID).ApplyForwardingPolicy().Config())
 	}
 	gnmi.Delete(t, dut, pfPath.Policy(params.PolicyID).Config())
+}
+
+// GUEDecapParams contains the parameters required to configure GUE
+// decapsulation on the DUT.
+type GUEDecapParams struct {
+	GUEPort    int
+	IPType     string
+	TunnelIP   string
+	DecapInt   string
+	PolicyName string
+	PolicyID   int
+}
+
+// NewConfigureDutWithGueDecap configures the DUT to decapsulate GUE traffic.
+// It supports native CLI configuration for devices that do not support the
+// required OpenConfig configuration and OpenConfig configuration otherwise.
+func NewConfigureDutWithGueDecap(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, params GUEDecapParams) *gnmi.SetBatch {
+	t.Helper()
+	t.Logf("Configure DUT with decapsulation UDP port %v", params.GUEPort)
+	payloadType := params.IPType
+	if deviations.DecapsulateGueOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			if strings.EqualFold(params.IPType, "ipv4") {
+				payloadType = "ip"
+			}
+			// The global tunnel type binding is required in addition to the
+			// decap-group so the UDP destination port is associated with the
+			// payload type.
+			cliConfig := fmt.Sprintf(`
+				ip decap-group type udp destination port %[1]d payload %[2]s
+				tunnel type %[3]s-over-udp udp destination port %[1]d
+				ip decap-group %[4]s
+					tunnel type udp
+					tunnel decap-ip %[5]s
+			`,
+				params.GUEPort, payloadType, params.IPType, params.PolicyName, params.TunnelIP)
+			helpers.GnmiCLIConfig(t, dut, cliConfig)
+		default:
+			t.Errorf(
+				"deviation DecapsulateGueOCUnsupported is not handled for the DUT: %v",
+				dut.Vendor(),
+			)
+		}
+		return batch
+	}
+	d := &oc.Root{}
+	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	ni1.SetType(oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	npf := ni1.GetOrCreatePolicyForwarding()
+	np := npf.GetOrCreatePolicy(params.PolicyName)
+	np.PolicyId = ygot.String(params.PolicyName)
+	np.Type = oc.Policy_Type_PBR_POLICY
+	npRule := np.GetOrCreateRule(uint32(params.PolicyID))
+	if strings.Contains(params.TunnelIP, ":") {
+		payloadType = "ipv6"
+	}
+	if strings.EqualFold(payloadType, "ipv6") {
+		ip := npRule.GetOrCreateIpv6()
+		ip.DestinationAddress = ygot.String(params.TunnelIP)
+		ip.Protocol = oc.PacketMatchTypes_IP_PROTOCOL_IP_UDP
+	} else {
+		ip := npRule.GetOrCreateIpv4()
+		ip.DestinationAddress = ygot.String(params.TunnelIP)
+		ip.Protocol = oc.PacketMatchTypes_IP_PROTOCOL_IP_UDP
+	}
+	npRule.GetOrCreateTransport().SetDestinationPort(oc.UnionUint16(params.GUEPort))
+	npAction := npRule.GetOrCreateAction()
+	if strings.EqualFold(params.IPType, "mpls") {
+		npAction.DecapsulateMplsInUdp = ygot.Bool(true)
+	} else {
+		npAction.DecapsulateGue = ygot.Bool(true)
+	}
+	t.Logf("Applying forwarding policy %v on interface %v ...", params.PolicyName, params.DecapInt)
+	intf := npf.GetOrCreateInterface(params.DecapInt)
+	intf.ApplyForwardingPolicy = ygot.String(params.PolicyName)
+	intf.GetOrCreateInterfaceRef().Interface = ygot.String(params.DecapInt)
+	gnmi.BatchUpdate(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), ni1)
+	return batch
+}
+
+// NewRemoveDutGueDecap removes the GUE decapsulation configuration previously applied by
+// NewConfigureDutWithGueDecap for the same params, restoring the DUT to its original state.
+func NewRemoveDutGueDecap(t *testing.T, dut *ondatra.DUTDevice, params GUEDecapParams) {
+	t.Helper()
+	t.Logf("Removing GUE decapsulation configuration for UDP port %v", params.GUEPort)
+	if deviations.DecapsulateGueOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			payloadType := params.IPType
+			if strings.EqualFold(params.IPType, "ipv4") {
+				payloadType = "ip"
+			}
+			cliConfig := fmt.Sprintf(`
+				no ip decap-group %[1]s
+				no tunnel type %[2]s-over-udp udp destination port %[3]d
+				no ip decap-group type udp destination port %[3]d payload %[4]s
+			`,
+				params.PolicyName, params.IPType, params.GUEPort, payloadType)
+			helpers.GnmiCLIConfig(t, dut, cliConfig)
+		default:
+			t.Logf(
+				"Skipping GUE decap-group removal: deviation DecapsulateGueOCUnsupported is not handled for the DUT: %v",
+				dut.Vendor(),
+			)
+		}
+		return
+	}
+	pf := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding()
+	// A dedicated batch is used so that only the deletes below are pushed to the DUT.
+	cleanupBatch := &gnmi.SetBatch{}
+	gnmi.BatchDelete(cleanupBatch, pf.Interface(params.DecapInt).Config())
+	gnmi.BatchDelete(cleanupBatch, pf.Policy(params.PolicyName).Config())
+	cleanupBatch.Set(t, dut)
+}
+
+// NewRemoveGRETunnel removes the GRE decapsulation configuration previously applied by
+// NewConfigureGRETunnel for the same params, restoring the DUT to its original state.
+func NewRemoveGRETunnel(t *testing.T, dut *ondatra.DUTDevice, cfg GRETunnelParams) {
+	t.Helper()
+	t.Logf("Removing GRE decapsulation configuration for decap-group %v", cfg.DecapGroupName)
+	if deviations.GreDecapsulationOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("no ip decap-group %s\n", cfg.DecapGroupName))
+		default:
+			t.Logf(
+				"Skipping GRE decap-group removal: deviation GreDecapsulationOCUnsupported is not handled for the DUT: %v",
+				dut.Vendor(),
+			)
+		}
+		return
+	}
+	pf := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding()
+	// A dedicated batch is used here: the setup batch still holds every interface/LSP/GRE update
+	// applied during configuration and reusing it would re-push all of it along with the deletes.
+	cleanupBatch := &gnmi.SetBatch{}
+	gnmi.BatchDelete(cleanupBatch, pf.Interface(cfg.DecapInterface).Config())
+	gnmi.BatchDelete(cleanupBatch, pf.Policy(cfg.DecapGroupName).Config())
+	cleanupBatch.Set(t, dut)
 }
