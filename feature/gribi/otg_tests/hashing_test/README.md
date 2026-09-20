@@ -118,16 +118,16 @@ graph TD
     Ixia["ATE Ingress: Port 1 (ixia2)"] --> IngressPort1["Ingress: Port 1 (lc2_p10)"]
     
     subgraph IngressVRF ["Ingress VRF (NHG_01: 1:1:1:1 ECMP)"]
-        IngressPort1 -->|25% (Weight 1)| IngressP2["Port 2 (lc1_p3)"]
-        IngressPort1 -->|25% (Weight 1)| IngressP3["Port 3 (lc1_p4)"]
-        IngressPort1 -->|25% (Weight 1)| IngressP4["Port 4 (lc1_p5)"]
-        IngressPort1 -->|25% (Weight 1)| IngressP5["Port 5 (lc1_p6)"]
+        IngressPort1 -->|"25% (Weight 1)"| IngressP2["Port 2 (lc1_p3)"]
+        IngressPort1 -->|"25% (Weight 1)"| IngressP3["Port 3 (lc1_p4)"]
+        IngressPort1 -->|"25% (Weight 1)"| IngressP4["Port 4 (lc1_p5)"]
+        IngressPort1 -->|"25% (Weight 1)"| IngressP5["Port 5 (lc1_p6)"]
     end
 
-    IngressP2 -->|Loop 1 (25%)| SelfSiteP2["SelfSite: Port 2 (lc2_p3)"]
-    IngressP3 -->|Loop 2 (25%)| SelfSiteP3["SelfSite: Port 3 (lc2_p4)"]
-    IngressP4 -->|Loop 3 (25%)| EgressP4["Egress: Port 4 (lc2_p5)"]
-    IngressP5 -->|Loop 4 (25%)| EgressP5["Egress: Port 5 (lc2_p6)"]
+    IngressP2 -->|"Loop 1 (25%)"| SelfSiteP2["SelfSite: Port 2 (lc2_p3)"]
+    IngressP3 -->|"Loop 2 (25%)"| SelfSiteP3["SelfSite: Port 3 (lc2_p4)"]
+    IngressP4 -->|"Loop 3 (25%)"| EgressP4["Egress: Port 4 (lc2_p5)"]
+    IngressP5 -->|"Loop 4 (25%)"| EgressP5["Egress: Port 5 (lc2_p6)"]
 
     subgraph SelfSiteVRF ["SelfSite VRF (NHG_02: 1:1:1:1 ECMP)"]
         SelfSiteP2 -.->|ECMP| SelfSiteP6["Port 6 (lc1_p1): 12.5%"]
@@ -140,10 +140,10 @@ graph TD
         SelfSiteP3 -.->|ECMP| SelfSiteP9
     end
 
-    SelfSiteP6 -->|Loop 5 (12.5%)| EgressP6["Egress: Port 6 (lc2_p1)"]
-    SelfSiteP7 -->|Loop 6 (12.5%)| EgressP7["Egress: Port 7 (lc2_p8)"]
-    SelfSiteP8 -->|Loop 7 (12.5%)| EgressP8["Egress: Port 8 (lc2_p7)"]
-    SelfSiteP9 -->|Loop 8 (12.5%)| EgressP9["Egress: Port 9 (lc2_p2)"]
+    SelfSiteP6 -->|"Loop 5 (12.5%)"| EgressP6["Egress: Port 6 (lc2_p1)"]
+    SelfSiteP7 -->|"Loop 6 (12.5%)"| EgressP7["Egress: Port 7 (lc2_p8)"]
+    SelfSiteP8 -->|"Loop 7 (12.5%)"| EgressP8["Egress: Port 8 (lc2_p7)"]
+    SelfSiteP9 -->|"Loop 8 (12.5%)"| EgressP9["Egress: Port 9 (lc2_p2)"]
 
     subgraph EgressVRF ["Egress VRF (6-Stream Arrival)"]
         EgressP4 --> EgressOut["Port 10 (lc2_p9)"]
