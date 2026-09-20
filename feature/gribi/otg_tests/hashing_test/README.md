@@ -96,54 +96,56 @@ $$\text{Acceptable Ratio Range} = \text{Expected Ratio} \times (1 \pm 0.02)$$
 ## Test Scenario 1: Multi-Stage ECMP & Anti-Polarization Hashing
 
 ### 1. Description
-Verifies end-to-end dataplane hashing across `DEFAULT` (Ingress), `SELF_SITE`, and `EGRESS` network instances using an 8-loop topology:
-- **Ingress VRF (`DEFAULT`)**: Evaluates 4-way ECMP (1:1:1:1 equal weight) across:
-  - **Port 2 (`lc1_p3` -> SelfSite)**: Weight 1 (25%)
-  - **Port 3 (`lc1_p4` -> SelfSite)**: Weight 1 (25%)
-  - **Port 4 (`lc1_p5` -> Egress)**: Weight 1 (25%)
-  - **Port 5 (`lc1_p6` -> Egress)**: Weight 1 (25%)
-  Total weight: 4. Split is 50% to `SELF_SITE` and 50% to `EGRESS`.
-- **SelfSite VRF (`SELF_SITE`)**: Receives 50% of traffic on Ports 2 & 3. Evaluates 4-way ECMP (1:1:1:1) across:
-  - **Port 6 (`lc1_p1` -> Egress)**: Weight 1 (12.5% of total traffic)
-  - **Port 7 (`lc1_p8` -> Egress)**: Weight 1 (12.5% of total traffic)
-  - **Port 8 (`lc1_p7` -> Egress)**: Weight 1 (12.5% of total traffic)
-  - **Port 9 (`lc1_p2` -> Egress)**: Weight 1 (12.5% of total traffic)
+Verifies end-to-end dataplane hashing across `DEFAULT` (Ingress), `SELF_SITE`, and `EGRESS` network instances using an 8-loop topology across two sub-cases:
+
+#### **Sub-case 1.1: Multi-Stage WCMP Hashing (4:3:2:1)**
+- **Ingress VRF (`DEFAULT`)**: Evaluates 4-way WCMP (4:3:2:1 weights) across:
+  - **Port 2 (`lc1_p3` -> SelfSite)**: Weight 4 (40.0%)
+  - **Port 3 (`lc1_p4` -> SelfSite)**: Weight 3 (30.0%)
+  - **Port 4 (`lc1_p5` -> Egress)**: Weight 2 (20.0%)
+  - **Port 5 (`lc1_p6` -> Egress)**: Weight 1 (10.0%)
+  Total weight: 10. Split is 70% to `SELF_SITE` (Ports 2 & 3) and 30% direct to `EGRESS` (Ports 4 & 5).
+- **SelfSite VRF (`SELF_SITE`)**: Receives 70% of traffic. Evaluates 4-way ECMP (1:1:1:1 equal weight) across:
+  - **Port 6 (`lc1_p1` -> Egress)**: 17.5% of total traffic (25% of SelfSite share)
+  - **Port 7 (`lc1_p8` -> Egress)**: 17.5% of total traffic (25% of SelfSite share)
+  - **Port 8 (`lc1_p7` -> Egress)**: 17.5% of total traffic (25% of SelfSite share)
+  - **Port 9 (`lc1_p2` -> Egress)**: 17.5% of total traffic (25% of SelfSite share)
 - **Egress VRF (`EGRESS`)**: Recombines all 6 forwarded streams:
-  - Direct from Ingress: Port 4 (25%), Port 5 (25%)
-  - Indirect via SelfSite: Port 6 (12.5%), Port 7 (12.5%), Port 8 (12.5%), Port 9 (12.5%)
+  - Direct from Ingress: Port 4 (20%), Port 5 (10%)
+  - Indirect via SelfSite: Ports 6, 7, 8, 9 (17.5% each)
   Total arriving: 100%. All forwarded out Port 10 (`lc2_p9`) to ATE Egress (`ixia1`).
 
 ```mermaid
 graph TD
     Ixia["ATE Ingress: Port 1 (ixia2)"] --> IngressPort1["Ingress: Port 1 (lc2_p10)"]
     
-    subgraph IngressVRF ["Ingress VRF (NHG_01: 1:1:1:1 ECMP)"]
-        IngressPort1 -->|"25% (Weight 1)"| IngressP2["Port 2 (lc1_p3)"]
-        IngressPort1 -->|"25% (Weight 1)"| IngressP3["Port 3 (lc1_p4)"]
-        IngressPort1 -->|"25% (Weight 1)"| IngressP4["Port 4 (lc1_p5)"]
-        IngressPort1 -->|"25% (Weight 1)"| IngressP5["Port 5 (lc1_p6)"]
+    subgraph IngressVRF ["Ingress VRF (NHG_01: 4:3:2:1 WCMP)"]
+        IngressPort1 -->|"40% (Weight 4)"| IngressP2["Port 2 (lc1_p3)"]
+        IngressPort1 -->|"30% (Weight 3)"| IngressP3["Port 3 (lc1_p4)"]
+        IngressPort1 -->|"20% (Weight 2)"| IngressP4["Port 4 (lc1_p5)"]
+        IngressPort1 -->|"10% (Weight 1)"| IngressP5["Port 5 (lc1_p6)"]
     end
 
-    IngressP2 -->|"Loop 1 (25%)"| SelfSiteP2["SelfSite: Port 2 (lc2_p3)"]
-    IngressP3 -->|"Loop 2 (25%)"| SelfSiteP3["SelfSite: Port 3 (lc2_p4)"]
-    IngressP4 -->|"Loop 3 (25%)"| EgressP4["Egress: Port 4 (lc2_p5)"]
-    IngressP5 -->|"Loop 4 (25%)"| EgressP5["Egress: Port 5 (lc2_p6)"]
+    IngressP2 -->|"Loop 1 (40%)"| SelfSiteP2["SelfSite: Port 2 (lc2_p3)"]
+    IngressP3 -->|"Loop 2 (30%)"| SelfSiteP3["SelfSite: Port 3 (lc2_p4)"]
+    IngressP4 -->|"Loop 3 (20%)"| EgressP4["Egress: Port 4 (lc2_p5)"]
+    IngressP5 -->|"Loop 4 (10%)"| EgressP5["Egress: Port 5 (lc2_p6)"]
 
-    subgraph SelfSiteVRF ["SelfSite VRF (NHG_02: 1:1:1:1 ECMP)"]
-        SelfSiteP2 -.->|ECMP| SelfSiteP6["Port 6 (lc1_p1): 12.5%"]
-        SelfSiteP2 -.->|ECMP| SelfSiteP7["Port 7 (lc1_p8): 12.5%"]
-        SelfSiteP2 -.->|ECMP| SelfSiteP8["Port 8 (lc1_p7): 12.5%"]
-        SelfSiteP2 -.->|ECMP| SelfSiteP9["Port 9 (lc1_p2): 12.5%"]
+    subgraph SelfSiteVRF ["SelfSite VRF (NHG_02: 1:1:1:1 ECMP - 70% Share)"]
+        SelfSiteP2 -.->|ECMP| SelfSiteP6["Port 6 (lc1_p1): 17.5%"]
+        SelfSiteP2 -.->|ECMP| SelfSiteP7["Port 7 (lc1_p8): 17.5%"]
+        SelfSiteP2 -.->|ECMP| SelfSiteP8["Port 8 (lc1_p7): 17.5%"]
+        SelfSiteP2 -.->|ECMP| SelfSiteP9["Port 9 (lc1_p2): 17.5%"]
         SelfSiteP3 -.->|ECMP| SelfSiteP6
         SelfSiteP3 -.->|ECMP| SelfSiteP7
         SelfSiteP3 -.->|ECMP| SelfSiteP8
         SelfSiteP3 -.->|ECMP| SelfSiteP9
     end
 
-    SelfSiteP6 -->|"Loop 5 (12.5%)"| EgressP6["Egress: Port 6 (lc2_p1)"]
-    SelfSiteP7 -->|"Loop 6 (12.5%)"| EgressP7["Egress: Port 7 (lc2_p8)"]
-    SelfSiteP8 -->|"Loop 7 (12.5%)"| EgressP8["Egress: Port 8 (lc2_p7)"]
-    SelfSiteP9 -->|"Loop 8 (12.5%)"| EgressP9["Egress: Port 9 (lc2_p2)"]
+    SelfSiteP6 -->|"Loop 5 (17.5%)"| EgressP6["Egress: Port 6 (lc2_p1)"]
+    SelfSiteP7 -->|"Loop 6 (17.5%)"| EgressP7["Egress: Port 7 (lc2_p8)"]
+    SelfSiteP8 -->|"Loop 7 (17.5%)"| EgressP8["Egress: Port 8 (lc2_p7)"]
+    SelfSiteP9 -->|"Loop 8 (17.5%)"| EgressP9["Egress: Port 9 (lc2_p2)"]
 
     subgraph EgressVRF ["Egress VRF (6-Stream Arrival)"]
         EgressP4 --> EgressOut["Port 10 (lc2_p9)"]
@@ -157,28 +159,73 @@ graph TD
     EgressOut --> ATE_Egress["ATE Egress: Port 10 (ixia1)"]
 ```
 
+#### **Sub-case 1.2: Multi-Stage ECMP Hashing (1:1:1:1)**
+- **Ingress VRF (`DEFAULT`)**: Evaluates 4-way ECMP (1:1:1:1 equal weight) across Ports 2, 3, 4, 5 (25.0% each).
+  Total weight: 4. Split is 50% to `SELF_SITE` (Ports 2 & 3) and 50% to `EGRESS` (Ports 4 & 5).
+- **SelfSite VRF (`SELF_SITE`)**: Receives 50% of traffic. Evaluates 4-way ECMP (1:1:1:1) across Ports 6, 7, 8, 9 (12.5% of total traffic each).
+- **Egress VRF (`EGRESS`)**: Recombines all 6 streams:
+  - Direct from Ingress: Port 4 (25%), Port 5 (25%)
+  - Indirect via SelfSite: Ports 6, 7, 8, 9 (12.5% each)
+  Total arriving: 100%. All forwarded out Port 10 (`lc2_p9`) to ATE Egress (`ixia1`).
+
+```mermaid
+graph TD
+    Ixia["ATE Ingress: Port 1 (ixia2)"] --> IngressPort1["Ingress: Port 1 (lc2_p10)"]
+    
+    subgraph IngressVRF_ECMP ["Ingress VRF (NHG_01: 1:1:1:1 ECMP)"]
+        IngressPort1 -->|"25% (Weight 1)"| IngressP2_e["Port 2 (lc1_p3)"]
+        IngressPort1 -->|"25% (Weight 1)"| IngressP3_e["Port 3 (lc1_p4)"]
+        IngressPort1 -->|"25% (Weight 1)"| IngressP4_e["Port 4 (lc1_p5)"]
+        IngressPort1 -->|"25% (Weight 1)"| IngressP5_e["Port 5 (lc1_p6)"]
+    end
+
+    IngressP2_e -->|"Loop 1 (25%)"| SelfSiteP2_e["SelfSite: Port 2 (lc2_p3)"]
+    IngressP3_e -->|"Loop 2 (25%)"| SelfSiteP3_e["SelfSite: Port 3 (lc2_p4)"]
+    IngressP4_e -->|"Loop 3 (25%)"| EgressP4_e["Egress: Port 4 (lc2_p5)"]
+    IngressP5_e -->|"Loop 4 (25%)"| EgressP5_e["Egress: Port 5 (lc2_p6)"]
+
+    subgraph SelfSiteVRF_ECMP ["SelfSite VRF (NHG_02: 1:1:1:1 ECMP - 50% Share)"]
+        SelfSiteP2_e -.->|ECMP| SelfSiteP6_e["Port 6 (lc1_p1): 12.5%"]
+        SelfSiteP2_e -.->|ECMP| SelfSiteP7_e["Port 7 (lc1_p8): 12.5%"]
+        SelfSiteP2_e -.->|ECMP| SelfSiteP8_e["Port 8 (lc1_p7): 12.5%"]
+        SelfSiteP2_e -.->|ECMP| SelfSiteP9_e["Port 9 (lc1_p2): 12.5%"]
+        SelfSiteP3_e -.->|ECMP| SelfSiteP6_e
+        SelfSiteP3_e -.->|ECMP| SelfSiteP7_e
+        SelfSiteP3_e -.->|ECMP| SelfSiteP8_e
+        SelfSiteP3_e -.->|ECMP| SelfSiteP9_e
+    end
+
+    SelfSiteP6_e -->|"Loop 5 (12.5%)"| EgressP6_e["Egress: Port 6 (lc2_p1)"]
+    SelfSiteP7_e -->|"Loop 6 (12.5%)"| EgressP7_e["Egress: Port 7 (lc2_p8)"]
+    SelfSiteP8_e -->|"Loop 7 (12.5%)"| EgressP8_e["Egress: Port 8 (lc2_p7)"]
+    SelfSiteP9_e -->|"Loop 8 (12.5%)"| EgressP9_e["Egress: Port 9 (lc2_p2)"]
+
+    subgraph EgressVRF_ECMP ["Egress VRF (6-Stream Arrival)"]
+        EgressP4_e --> EgressOut_e["Port 10 (lc2_p9)"]
+        EgressP5_e --> EgressOut_e
+        EgressP6_e --> EgressOut_e
+        EgressP7_e --> EgressOut_e
+        EgressP8_e --> EgressOut_e
+        EgressP9_e --> EgressOut_e
+    end
+
+    EgressOut_e --> ATE_Egress_e["ATE Egress: Port 10 (ixia1)"]
+```
+
 ### 2. Traffic Verification
 
-- **Stage 1 (`DEFAULT` / Ingress VRF)**:
-  - **Port 2 (`lc1_p3`)**: **~25.0%** (acceptable range: **24.5% – 25.5%**).
-  - **Port 3 (`lc1_p4`)**: **~25.0%** (acceptable range: **24.5% – 25.5%**).
-  - **Port 4 (`lc1_p5`)**: **~25.0%** (acceptable range: **24.5% – 25.5%**).
-  - **Port 5 (`lc1_p6`)**: **~25.0%** (acceptable range: **24.5% – 25.5%**).
-- **Stage 2 (`SELF_SITE` VRF)**:
-  - **Port 6 (`lc1_p1`)**: **~25.0%** of SelfSite traffic (acceptable range: **24.5% – 25.5%**).
-  - **Port 7 (`lc1_p8`)**: **~25.0%** of SelfSite traffic (acceptable range: **24.5% – 25.5%**).
-  - **Port 8 (`lc1_p7`)**: **~25.0%** of SelfSite traffic (acceptable range: **24.5% – 25.5%**).
-  - **Port 9 (`lc1_p2`)**: **~25.0%** of SelfSite traffic (acceptable range: **24.5% – 25.5%**).
-- **Stage 3 (`EGRESS` VRF Multi-Stream Arrival)**:
-  - **Direct Stream 1 (Port 4)**: **~25.0%** of total traffic (acceptable range: **24.5% – 25.5%**).
-  - **Direct Stream 2 (Port 5)**: **~25.0%** of total traffic (acceptable range: **24.5% – 25.5%**).
-  - **Via SelfSite (Port 6)**: **~12.5%** of total traffic (acceptable range: **12.25% – 12.75%**).
-  - **Via SelfSite (Port 7)**: **~12.5%** of total traffic (acceptable range: **12.25% – 12.75%**).
-  - **Via SelfSite (Port 8)**: **~12.5%** of total traffic (acceptable range: **12.25% – 12.75%**).
-  - **Via SelfSite (Port 9)**: **~12.5%** of total traffic (acceptable range: **12.25% – 12.75%**).
-- **Stage 4 (Egress Arrival)**:
-  - Verify 100% full traffic arrival on ATE Port 10 (`ixia1`).
-- **Traffic Profiles**: Execute for Plain IP and IPnIP Encap.
+- **Sub-case 1.1 (WCMP 4:3:2:1 Expected)**:
+  - **Stage 1 (Ingress)**: Port 2: **40.0%**, Port 3: **30.0%**, Port 4: **20.0%**, Port 5: **10.0%** (acceptable: $\pm2\%$ relative).
+  - **Stage 2 (SelfSite)**: Ports 6, 7, 8, 9: **25.0%** each of SelfSite volume.
+  - **Stage 3 (Egress Multi-Stream)**: Port 4 (20.0%), Port 5 (10.0%), Ports 6, 7, 8, 9 (**17.5% each**).
+  - **Stage 4 (ATE Arrival)**: 100% full arrival on ATE Port 10 (0 packet loss).
+
+- **Sub-case 1.2 (ECMP 1:1:1:1 Expected)**:
+  - **Stage 1 (Ingress)**: Ports 2, 3, 4, 5: **25.0% each** (acceptable: $\pm2\%$ relative).
+  - **Stage 2 (SelfSite)**: Ports 6, 7, 8, 9: **25.0% each** of SelfSite volume.
+  - **Stage 3 (Egress Multi-Stream)**: Port 4 (25.0%), Port 5 (25.0%), Ports 6, 7, 8, 9 (**12.5% each**).
+  - **Stage 4 (ATE Arrival)**: 100% full arrival on ATE Port 10 (0 packet loss).
+
 - **Traffic Profiles**: Execute for Plain IP and IPnIP Encap.
 
 ---
