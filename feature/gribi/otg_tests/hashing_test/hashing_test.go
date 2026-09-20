@@ -21,19 +21,18 @@ import (
 	"strings"
 	"testing"
 	"time"
-
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
-	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -50,43 +49,14 @@ const (
 	ateIngressMAC = "02:00:00:00:00:02"
 	ateEgressMAC  = "02:00:00:00:00:01"
 
-	// Next Hop Group IDs
-	nhgIDDefault  uint64 = 1
-	nhgIDTransit  uint64 = 2
-	nhgIDSelfSite uint64 = 3
-	nhgIDEgress   uint64 = 4
-
-	// Stage 1 Next Hop IDs
-	nhIDLoop1 uint64 = 101
-	nhIDSoft0 uint64 = 111
-	nhIDSoft1 uint64 = 112
-	nhIDSoft2 uint64 = 113
-
-	// Stage 2 Next Hop IDs
-	nhIDLoop2 uint64 = 201
-	nhIDLoop3 uint64 = 202
-	nhIDLoop4 uint64 = 203
-	nhIDLoop5 uint64 = 204
-	nhIDSoft3 uint64 = 211
-	nhIDSoft4 uint64 = 212
-	nhIDSoft5 uint64 = 213
-	nhIDSoft6 uint64 = 214
-
-	// Stage 3 Next Hop IDs
-	nhIDLoop6  uint64 = 301
-	nhIDLoop7  uint64 = 302
-	nhIDLoop8  uint64 = 303
-	nhIDSoft7  uint64 = 311
-	nhIDSoft8  uint64 = 312
-	nhIDSoft9  uint64 = 313
-	nhIDSoft10 uint64 = 314
-	nhIDSoft11 uint64 = 315
-
-	// Stage 4 (Egress) Next Hop ID
+	// Egress Next Hop ID
 	nhIDEgress uint64 = 401
 
-	// Minimum ingress packets required to guarantee ECMP/WCMP hashing convergence within +-3% tolerance
-	minPacketsForHashing uint64 = 50000
+	// Minimum ingress packets required to guarantee ECMP/WCMP hashing convergence within +-2% tolerance
+	minPacketsForHashing uint64 = 1000000
+
+	// Minimum traffic transmission duration to average PPS and hashing distribution
+	trafficDuration = 120 * time.Second
 )
 
 func getPeerIP(t *testing.T, ipStr string) string {
@@ -157,25 +127,19 @@ var vrfPortMap = map[string]struct {
 	"lc2_p1": {ip: "192.0.2.26", loopbackMode: oc.Interfaces_LoopbackModeType_NONE},
 
 	// Loop 6 (Stage 3 Self-Site -> Egress)
-	"lc2_p8": {ip: "192.0.2.29", loopbackMode: oc.Interfaces_LoopbackModeType_NONE},
-	"lc1_p8": {ip: "192.0.2.30", loopbackMode: oc.Interfaces_LoopbackModeType_NONE},
+	"lc1_p8": {ip: "192.0.2.29", loopbackMode: oc.Interfaces_LoopbackModeType_NONE},
+	"lc2_p8": {ip: "192.0.2.30", loopbackMode: oc.Interfaces_LoopbackModeType_NONE},
 
 	// Loop 7 (Stage 3 Self-Site -> Egress)
-	"lc2_p7": {ip: "192.0.2.33", loopbackMode: oc.Interfaces_LoopbackModeType_NONE},
-	"lc1_p7": {ip: "192.0.2.34", loopbackMode: oc.Interfaces_LoopbackModeType_NONE},
+	"lc1_p7": {ip: "192.0.2.33", loopbackMode: oc.Interfaces_LoopbackModeType_NONE},
+	"lc2_p7": {ip: "192.0.2.34", loopbackMode: oc.Interfaces_LoopbackModeType_NONE},
 
 	// Loop 8 (Stage 3 Self-Site -> Egress)
-	"lc2_p2": {ip: "192.0.2.37", loopbackMode: oc.Interfaces_LoopbackModeType_NONE},
-	"lc1_p2": {ip: "192.0.2.38", loopbackMode: oc.Interfaces_LoopbackModeType_NONE},
+	"lc1_p2": {ip: "192.0.2.37", loopbackMode: oc.Interfaces_LoopbackModeType_NONE},
+	"lc2_p2": {ip: "192.0.2.38", loopbackMode: oc.Interfaces_LoopbackModeType_NONE},
 }
 
-type softLoopInfo struct {
-	physName string
-	ip       string
-	mac      string
-}
-
-func configureDUTVRF(t *testing.T, dut *ondatra.DUTDevice, softLoops []softLoopInfo, portToLagMap map[string]string, portToMacMap map[string]string) {
+func configureDUTVRF(t *testing.T, dut *ondatra.DUTDevice, portToLagMap map[string]string, portToMacMap map[string]string) {
 	t.Helper()
 	d := gnmi.OC()
 	defNI := deviations.DefaultNetworkInstance(dut)
@@ -197,22 +161,6 @@ func configureDUTVRF(t *testing.T, dut *ondatra.DUTDevice, softLoops []softLoopI
 		// Populate Physical Interface
 		physIntf := root.GetOrCreateInterface(p.Name())
 		populatePhysicalInterfaceForLAG(dut, physIntf, p.Name(), lagName, true, cfg.loopbackMode)
-	}
-
-	// Populate Soft Loops Interfaces
-	for _, sl := range softLoops {
-		lagName := portToLagMap[sl.physName]
-
-		// Populate LAG Interface
-		lagIntf := root.GetOrCreateInterface(lagName)
-		populateLAGInterface(dut, lagIntf, lagName, sl.ip, plen, true)
-		if deviations.MemberLinkLoopbackUnsupported(dut) {
-			lagIntf.LoopbackMode = oc.Interfaces_LoopbackModeType_TERMINAL
-		}
-
-		// Populate Physical Interface
-		physIntf := root.GetOrCreateInterface(sl.physName)
-		populatePhysicalInterfaceForLAG(dut, physIntf, sl.physName, lagName, true, oc.Interfaces_LoopbackModeType_TERMINAL)
 	}
 
 	t.Log("Pushing atomic interface configuration...")
@@ -241,27 +189,22 @@ func configureDUTVRF(t *testing.T, dut *ondatra.DUTDevice, softLoops []softLoopI
 
 	// 4. Assign LAG Interfaces to VRFs
 	vrfAssignments := map[string]string{
-		// Transit VRF: Loop 1 RX + Loops 2, 3, 4, 5 TX
-		"lc2_p3": vrfTransit,
-		"lc1_p4": vrfTransit,
-		"lc1_p5": vrfTransit,
-		"lc1_p6": vrfTransit,
-		"lc1_p1": vrfTransit,
+		// SelfSite VRF:
+		"lc2_p3": vrfSelfSite, // Loop 1 RX (Port 2 from Ingress)
+		"lc2_p4": vrfSelfSite, // Loop 2 RX (Port 3 from Ingress)
+		"lc1_p1": vrfSelfSite, // Loop 5 TX (Port 6 to Egress)
+		"lc1_p8": vrfSelfSite, // Loop 6 TX (Port 7 to Egress)
+		"lc1_p7": vrfSelfSite, // Loop 7 TX (Port 8 to Egress)
+		"lc1_p2": vrfSelfSite, // Loop 8 TX (Port 9 to Egress)
 
-		// Self-Site VRF: Loops 4, 5 RX + Loops 6, 7, 8 TX
-		"lc2_p6": vrfSelfSite,
-		"lc2_p1": vrfSelfSite,
-		"lc2_p8": vrfSelfSite,
-		"lc2_p7": vrfSelfSite,
-		"lc2_p2": vrfSelfSite,
-
-		// Egress VRF: Loops 2, 3 RX + Loops 6, 7, 8 RX + Egress Port
-		"lc2_p4": vrfEgress,
-		"lc2_p5": vrfEgress,
-		"lc1_p8": vrfEgress,
-		"lc1_p7": vrfEgress,
-		"lc1_p2": vrfEgress,
-		"lc2_p9": vrfEgress,
+		// Egress VRF:
+		"lc2_p5": vrfEgress, // Loop 3 RX (Port 4 from Ingress)
+		"lc2_p6": vrfEgress, // Loop 4 RX (Port 5 from Ingress)
+		"lc2_p1": vrfEgress, // Loop 5 RX (Port 6 from SelfSite)
+		"lc2_p8": vrfEgress, // Loop 6 RX (Port 7 from SelfSite)
+		"lc2_p7": vrfEgress, // Loop 7 RX (Port 8 from SelfSite)
+		"lc2_p2": vrfEgress, // Loop 8 RX (Port 9 from SelfSite)
+		"lc2_p9": vrfEgress, // DUT Egress Port -> ATE Egress (Port 10 / ixia1)
 	}
 
 	for portID, vrfName := range vrfAssignments {
@@ -270,7 +213,7 @@ func configureDUTVRF(t *testing.T, dut *ondatra.DUTDevice, softLoops []softLoopI
 		fptest.AssignToNetworkInstance(t, dut, lagName, vrfName, 0)
 	}
 
-	// Assign remaining physical ports in vrfPortMap to default VRF if required (lc2_p10, lc1_p3)
+	// Assign remaining physical ports in vrfPortMap to default VRF if required (lc2_p10, lc1_p3, lc1_p4, lc1_p5)
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		for portID := range vrfPortMap {
 			if _, assigned := vrfAssignments[portID]; !assigned {
@@ -281,36 +224,9 @@ func configureDUTVRF(t *testing.T, dut *ondatra.DUTDevice, softLoops []softLoopI
 			}
 		}
 	}
-
-	// Assign soft loops LAGs to VRFs
-	for i, sl := range softLoops {
-		var vrfName string
-		switch {
-		case i >= 3 && i <= 6:
-			vrfName = vrfTransit
-		case i >= 7 && i <= 11:
-			vrfName = vrfSelfSite
-		default:
-			// 0, 1, 2 stay in default VRF
-			if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-				vrfName = defNI
-			}
-		}
-		if vrfName != "" {
-			lagName := portToLagMap[sl.physName]
-			fptest.AssignToNetworkInstance(t, dut, lagName, vrfName, 0)
-		}
-	}
-
-	// 5. Configure ACL Drop on RX for all soft loops
-	var softLoopLags []string
-	for _, sl := range softLoops {
-		softLoopLags = append(softLoopLags, portToLagMap[sl.physName])
-	}
-	configureSoftLoopACLsPhys(t, dut, softLoopLags)
 }
 
-func programGRIBIVRF(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, gClient *gribi.Client, softLoops []softLoopInfo, portToLagMap map[string]string, portToMacMap map[string]string) {
+func programGRIBIVRF(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, gClient *gribi.Client, portToLagMap map[string]string, portToMacMap map[string]string) {
 	t.Helper()
 
 	c := gClient.Fluent(t)
@@ -323,21 +239,28 @@ func programGRIBIVRF(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, 
 	}
 
 	portNHs := map[uint64]nhDetail{
-		// Stage 1 NH (in Default VRF): Loop 1 TX (lc1_p3) -> Loop 1 RX (lc2_p3)
-		nhIDLoop1: {txPortName: "lc1_p3", rxPortName: "lc2_p3", vrfName: defNI},
+		// Ingress (Default VRF) NextHops:
+		// NH 2: Port 2 (lc1_p3 -> lc2_p3 in SelfSite)
+		2: {txPortName: "lc1_p3", rxPortName: "lc2_p3", vrfName: defNI},
+		// NH 3: Port 3 (lc1_p4 -> lc2_p4 in SelfSite)
+		3: {txPortName: "lc1_p4", rxPortName: "lc2_p4", vrfName: defNI},
+		// NH 4: Port 4 (lc1_p5 -> lc2_p5 in Egress)
+		4: {txPortName: "lc1_p5", rxPortName: "lc2_p5", vrfName: defNI},
+		// NH 5: Port 5 (lc1_p6 -> lc2_p6 in Egress)
+		5: {txPortName: "lc1_p6", rxPortName: "lc2_p6", vrfName: defNI},
 
-		// Stage 2 NHs (in Transit VRF): Loops 2, 3, 4, 5
-		nhIDLoop2: {txPortName: "lc1_p4", rxPortName: "lc2_p4", vrfName: vrfTransit},
-		nhIDLoop3: {txPortName: "lc1_p5", rxPortName: "lc2_p5", vrfName: vrfTransit},
-		nhIDLoop4: {txPortName: "lc1_p6", rxPortName: "lc2_p6", vrfName: vrfTransit},
-		nhIDLoop5: {txPortName: "lc1_p1", rxPortName: "lc2_p1", vrfName: vrfTransit},
+		// SelfSite VRF NextHops:
+		// NH 6: Port 6 (lc1_p1 -> lc2_p1 in Egress)
+		6: {txPortName: "lc1_p1", rxPortName: "lc2_p1", vrfName: vrfSelfSite},
+		// NH 7: Port 7 (lc1_p8 -> lc2_p8 in Egress)
+		7: {txPortName: "lc1_p8", rxPortName: "lc2_p8", vrfName: vrfSelfSite},
+		// NH 8: Port 8 (lc1_p7 -> lc2_p7 in Egress)
+		8: {txPortName: "lc1_p7", rxPortName: "lc2_p7", vrfName: vrfSelfSite},
+		// NH 9: Port 9 (lc1_p2 -> lc2_p2 in Egress)
+		9: {txPortName: "lc1_p2", rxPortName: "lc2_p2", vrfName: vrfSelfSite},
 
-		// Stage 3 NHs (in Self-Site VRF): Loops 6, 7, 8
-		nhIDLoop6: {txPortName: "lc2_p8", rxPortName: "lc1_p8", vrfName: vrfSelfSite},
-		nhIDLoop7: {txPortName: "lc2_p7", rxPortName: "lc1_p7", vrfName: vrfSelfSite},
-		nhIDLoop8: {txPortName: "lc2_p2", rxPortName: "lc1_p2", vrfName: vrfSelfSite},
-
-		// Egress VRF NH: DUT Egress lc2_p9 -> ATE ixia1
+		// Egress VRF NextHop:
+		// NH 10: Port 10 (lc2_p9 -> ATE ixia1)
 		nhIDEgress: {txPortName: "lc2_p9", rxPortName: "", vrfName: vrfEgress},
 	}
 
@@ -369,77 +292,34 @@ func programGRIBIVRF(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, 
 		entries = append(entries, nh)
 	}
 
-	// Program soft Next Hops (referencing LAGs)
-	softNHIDs := []uint64{
-		nhIDSoft0, nhIDSoft1, nhIDSoft2, // Stage 1 (3 soft hops: Soft 0, 1, 2)
-		nhIDSoft3, nhIDSoft4, nhIDSoft5, nhIDSoft6, // Stage 2 (4 soft hops: Soft 3, 4, 5, 6)
-		nhIDSoft7, nhIDSoft8, nhIDSoft9, nhIDSoft10, nhIDSoft11, // Stage 3 (5 soft hops: Soft 7, 8, 9, 10, 11)
-	}
-	softVRFs := []string{
-		defNI, defNI, defNI,
-		vrfTransit, vrfTransit, vrfTransit, vrfTransit,
-		vrfSelfSite, vrfSelfSite, vrfSelfSite, vrfSelfSite, vrfSelfSite,
-	}
-
-	for i, sl := range softLoops {
-		nhID := softNHIDs[i]
-		vrfName := softVRFs[i]
-		lagName := portToLagMap[sl.physName]
-		peerIP := getPeerIP(t, sl.ip)
-		nh := fluent.NextHopEntry().
-			WithNetworkInstance(vrfName).
-			WithIndex(nhID).
-			WithIPAddress(peerIP).
-			WithMacAddress(sl.mac).
-			WithInterfaceRef(lagName)
-		entries = append(entries, nh)
-	}
-
-	// NHG 1: Default VRF (Ingress) -> Stage 1 WCMP (7:1:1:1)
-	nhg1 := fluent.NextHopGroupEntry().WithNetworkInstance(defNI).WithID(nhgIDDefault).
-		AddNextHop(nhIDLoop1, 7). // Loop 1 (lc1_p3)
-		AddNextHop(nhIDSoft0, 1). // Soft 0
-		AddNextHop(nhIDSoft1, 1). // Soft 1
-		AddNextHop(nhIDSoft2, 1)  // Soft 2
+	// NHG 1: Default VRF (Ingress) -> 4-way ECMP (1:1:1:1) across NH 2, 3, 4, 5
+	nhg1 := fluent.NextHopGroupEntry().WithNetworkInstance(defNI).WithID(1).
+		AddNextHop(2, 1).
+		AddNextHop(3, 1).
+		AddNextHop(4, 1).
+		AddNextHop(5, 1)
 	entries = append(entries, nhg1)
 
-	// NHG 2: Transit VRF -> Stage 2 ECMP (8-wide)
-	nhg2 := fluent.NextHopGroupEntry().WithNetworkInstance(vrfTransit).WithID(nhgIDTransit).
-		AddNextHop(nhIDLoop2, 1). // Loop 2 (lc1_p4)
-		AddNextHop(nhIDLoop3, 1). // Loop 3 (lc1_p5)
-		AddNextHop(nhIDLoop4, 1). // Loop 4 (lc1_p6)
-		AddNextHop(nhIDLoop5, 1). // Loop 5 (lc1_p1)
-		AddNextHop(nhIDSoft3, 1). // Soft 3
-		AddNextHop(nhIDSoft4, 1). // Soft 4
-		AddNextHop(nhIDSoft5, 1). // Soft 5
-		AddNextHop(nhIDSoft6, 1)  // Soft 6
+	// NHG 2: SelfSite VRF -> 4-way ECMP (1:1:1:1) across NH 6, 7, 8, 9
+	nhg2 := fluent.NextHopGroupEntry().WithNetworkInstance(vrfSelfSite).WithID(2).
+		AddNextHop(6, 1).
+		AddNextHop(7, 1).
+		AddNextHop(8, 1).
+		AddNextHop(9, 1)
 	entries = append(entries, nhg2)
 
-	// NHG 3: Self-Site VRF -> Stage 3 ECMP (8-wide)
-	nhg3 := fluent.NextHopGroupEntry().WithNetworkInstance(vrfSelfSite).WithID(nhgIDSelfSite).
-		AddNextHop(nhIDLoop6, 1). // Loop 6 (lc2_p8)
-		AddNextHop(nhIDLoop7, 1). // Loop 7 (lc2_p7)
-		AddNextHop(nhIDLoop8, 1). // Loop 8 (lc2_p2)
-		AddNextHop(nhIDSoft7, 1). // Soft 7
-		AddNextHop(nhIDSoft8, 1). // Soft 8
-		AddNextHop(nhIDSoft9, 1). // Soft 9
-		AddNextHop(nhIDSoft10, 1). // Soft 10
-		AddNextHop(nhIDSoft11, 1)  // Soft 11
-	entries = append(entries, nhg3)
-
-	// NHG 4: Egress VRF -> Egress Port lc2_p9
-	nhg4 := fluent.NextHopGroupEntry().WithNetworkInstance(vrfEgress).WithID(nhgIDEgress).
+	// NHG 3: Egress VRF -> Egress port lc2_p9
+	nhg3 := fluent.NextHopGroupEntry().WithNetworkInstance(vrfEgress).WithID(3).
 		AddNextHop(nhIDEgress, 1)
-	entries = append(entries, nhg4)
+	entries = append(entries, nhg3)
 
 	// Route definitions for Plain IP (198.51.0.0/16) and Encap (172.16.0.0/16)
 	subnets := []string{plainSubnet, encapSubnet}
 	for _, pfx := range subnets {
 		entries = append(entries,
-			fluent.IPv4Entry().WithNetworkInstance(defNI).WithPrefix(pfx).WithNextHopGroup(nhgIDDefault).WithNextHopGroupNetworkInstance(defNI),
-			fluent.IPv4Entry().WithNetworkInstance(vrfTransit).WithPrefix(pfx).WithNextHopGroup(nhgIDTransit).WithNextHopGroupNetworkInstance(vrfTransit),
-			fluent.IPv4Entry().WithNetworkInstance(vrfSelfSite).WithPrefix(pfx).WithNextHopGroup(nhgIDSelfSite).WithNextHopGroupNetworkInstance(vrfSelfSite),
-			fluent.IPv4Entry().WithNetworkInstance(vrfEgress).WithPrefix(pfx).WithNextHopGroup(nhgIDEgress).WithNextHopGroupNetworkInstance(vrfEgress),
+			fluent.IPv4Entry().WithNetworkInstance(defNI).WithPrefix(pfx).WithNextHopGroup(1).WithNextHopGroupNetworkInstance(defNI),
+			fluent.IPv4Entry().WithNetworkInstance(vrfSelfSite).WithPrefix(pfx).WithNextHopGroup(2).WithNextHopGroupNetworkInstance(vrfSelfSite),
+			fluent.IPv4Entry().WithNetworkInstance(vrfEgress).WithPrefix(pfx).WithNextHopGroup(3).WithNextHopGroupNetworkInstance(vrfEgress),
 		)
 	}
 
@@ -453,9 +333,14 @@ func programGRIBIVRF(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, 
 
 func TestHashing(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	defNI := deviations.DefaultNetworkInstance(dut)
 
 	// Perform cleanup of LAGs and VRFs before test
-	cleanupDevice(t, dut, nil)
+	cleanupDevice(t, dut)
+
+	if dut.Vendor() == ondatra.NOKIA {
+		helpers.GnmiCLIConfig(t, dut, "system load-balancing hash-options per-complex-randomization true")
+	}
 
 	// Register test cleanup for gRIBI and DUT configuration
 	gClient := &gribi.Client{
@@ -468,30 +353,14 @@ func TestHashing(t *testing.T) {
 	}
 	gClient.BecomeLeader(t)
 
-	var discoveredPorts []string
 	t.Cleanup(func() {
 		t.Log("Flushing gRIBI entries and cleaning up DUT configuration...")
 		if err := gribi.FlushAll(gClient.Fluent(t)); err != nil {
 			t.Logf("Failed to flush gRIBI entries during cleanup: %v", err)
 		}
-		cleanupDevice(t, dut, discoveredPorts)
+		cleanupDevice(t, dut)
 		gClient.Close(t)
 	})
-
-	// Discover 12 soft loops dynamically from unused equipped breakout interfaces
-	var excludePorts []string
-	for _, p := range dut.Ports() {
-		excludePorts = append(excludePorts, p.Name())
-	}
-
-	discoveredPorts = discoverSoftLoops(t, dut, 12, excludePorts)
-	cleanDiscoveredPorts(t, dut, discoveredPorts)
-
-	softLoopIPs := []string{
-		"192.0.2.41", "192.0.2.45", "192.0.2.49", // Stage 1 (0, 1, 2)
-		"192.0.2.53", "192.0.2.57", "192.0.2.61", "192.0.2.65", // Stage 2 (3, 4, 5, 6)
-		"192.0.2.69", "192.0.2.73", "192.0.2.77", "192.0.2.81", "192.0.2.85", // Stage 3 (7, 8, 9, 10, 11)
-	}
 
 	portToLagMap := make(map[string]string)
 	portToMacMap := make(map[string]string)
@@ -507,22 +376,7 @@ func TestHashing(t *testing.T) {
 		lagIndex++
 	}
 
-	var softLoops []softLoopInfo
-	for i, phys := range discoveredPorts {
-		lagName := getLagName(dut, lagIndex)
-		mac := getMacForLagIndex(lagIndex)
-		portToLagMap[phys] = lagName
-		portToMacMap[phys] = mac
-		softLoops = append(softLoops, softLoopInfo{
-			physName: phys,
-			ip:       softLoopIPs[i],
-			mac:      mac,
-		})
-		t.Logf("Mapping soft port %d (%s) to %s (MAC: %s)", i, phys, lagName, mac)
-		lagIndex++
-	}
-
-	configureDUTVRF(t, dut, softLoops, portToLagMap, portToMacMap)
+	configureDUTVRF(t, dut, portToLagMap, portToMacMap)
 
 	// Update physical ports in portToMacMap with actual router MACs from DUT telemetry
 	for portID := range vrfPortMap {
@@ -536,94 +390,29 @@ func TestHashing(t *testing.T) {
 		}
 	}
 
-	configureStaticARP(t, dut, portToLagMap, portToMacMap, softLoops)
+	configureStaticARP(t, dut, portToLagMap, portToMacMap)
 
 	ctx := context.Background()
-	programGRIBIVRF(ctx, t, dut, gClient, softLoops, portToLagMap, portToMacMap)
+	programGRIBIVRF(ctx, t, dut, gClient, portToLagMap, portToMacMap)
 
 	ate := ondatra.ATE(t, "ate")
 
-	// Build verification port lists (Stage 1, Stage 2, Stage 3)
-	// Stage 1: Loop 1 TX (lc1_p3) + Soft Loops 0, 1, 2
-	stage1Port0 := dut.Port(t, "lc1_p3").Name()
-	stage1Ports := []string{
-		portToLagMap[stage1Port0],
-		portToLagMap[softLoops[0].physName],
-		portToLagMap[softLoops[1].physName],
-		portToLagMap[softLoops[2].physName],
-	}
-
-	// Stage 2: Loops 2, 3, 4, 5 TX + Soft Loops 3, 4, 5, 6
-	transitPorts := []string{
-		portToLagMap[dut.Port(t, "lc1_p4").Name()],
-		portToLagMap[dut.Port(t, "lc1_p5").Name()],
-		portToLagMap[dut.Port(t, "lc1_p6").Name()],
-		portToLagMap[dut.Port(t, "lc1_p1").Name()],
-		portToLagMap[softLoops[3].physName],
-		portToLagMap[softLoops[4].physName],
-		portToLagMap[softLoops[5].physName],
-		portToLagMap[softLoops[6].physName],
-	}
-
-	// Stage 3: Loops 6, 7, 8 TX + Soft Loops 7, 8, 9, 10, 11
-	selfSitePorts := []string{
-		portToLagMap[dut.Port(t, "lc2_p8").Name()],
-		portToLagMap[dut.Port(t, "lc2_p7").Name()],
-		portToLagMap[dut.Port(t, "lc2_p2").Name()],
-		portToLagMap[softLoops[7].physName],
-		portToLagMap[softLoops[8].physName],
-		portToLagMap[softLoops[9].physName],
-		portToLagMap[softLoops[10].physName],
-		portToLagMap[softLoops[11].physName],
-	}
-
+	lag2 := portToLagMap[dut.Port(t, "lc1_p3").Name()]
+	lag3 := portToLagMap[dut.Port(t, "lc1_p4").Name()]
+	lag4 := portToLagMap[dut.Port(t, "lc1_p5").Name()]
+	lag5 := portToLagMap[dut.Port(t, "lc1_p6").Name()]
+	lag6 := portToLagMap[dut.Port(t, "lc1_p1").Name()]
+	lag7 := portToLagMap[dut.Port(t, "lc1_p8").Name()]
+	lag8 := portToLagMap[dut.Port(t, "lc1_p7").Name()]
+	lag9 := portToLagMap[dut.Port(t, "lc1_p2").Name()]
 	egressLagName := portToLagMap[dut.Port(t, "lc2_p9").Name()]
 
-	allVerifyPorts := append(stage1Ports, transitPorts...)
-	allVerifyPorts = append(allVerifyPorts, selfSitePorts...)
-	allVerifyPorts = append(allVerifyPorts, egressLagName)
+	allVerifyPorts := []string{lag2, lag3, lag4, lag5, lag6, lag7, lag8, lag9, egressLagName}
 
 	ingressPortName := dut.Port(t, "lc2_p10").Name()
 	ingressCounterPath := gnmi.OC().Interface(ingressPortName).Counters().InPkts().State()
 
-	updateScenario1NHGs := func(unequalWeights bool) {
-		var physWeight uint64 = 1
-		if unequalWeights {
-			physWeight = 2
-		}
-
-		// NHG 2: Transit VRF -> Stage 2 (8-wide)
-		nhg2 := fluent.NextHopGroupEntry().WithNetworkInstance(vrfTransit).WithID(nhgIDTransit).
-			AddNextHop(nhIDLoop2, physWeight). // Loop 2 (lc1_p4)
-			AddNextHop(nhIDLoop3, physWeight). // Loop 3 (lc1_p5)
-			AddNextHop(nhIDLoop4, physWeight). // Loop 4 (lc1_p6)
-			AddNextHop(nhIDLoop5, physWeight). // Loop 5 (lc1_p1)
-			AddNextHop(nhIDSoft3, 1).          // Soft 3
-			AddNextHop(nhIDSoft4, 1).          // Soft 4
-			AddNextHop(nhIDSoft5, 1).          // Soft 5
-			AddNextHop(nhIDSoft6, 1)           // Soft 6
-
-		// NHG 3: Self-Site VRF -> Stage 3 (8-wide)
-		nhg3 := fluent.NextHopGroupEntry().WithNetworkInstance(vrfSelfSite).WithID(nhgIDSelfSite).
-			AddNextHop(nhIDLoop6, physWeight). // Loop 6 (lc2_p8)
-			AddNextHop(nhIDLoop7, physWeight). // Loop 7 (lc2_p7)
-			AddNextHop(nhIDLoop8, physWeight). // Loop 8 (lc2_p2)
-			AddNextHop(nhIDSoft7, 1).          // Soft 7
-			AddNextHop(nhIDSoft8, 1).          // Soft 8
-			AddNextHop(nhIDSoft9, 1).          // Soft 9
-			AddNextHop(nhIDSoft10, 1).         // Soft 10
-			AddNextHop(nhIDSoft11, 1)          // Soft 11
-
-		c := gClient.Fluent(t)
-		c.Modify().AddEntry(t, nhg2, nhg3)
-		ctxTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
-		defer cancel()
-		if err := c.Await(ctxTimeout, t); err != nil {
-			t.Fatalf("Error updating NHGs: %v", err)
-		}
-	}
-
-	runTrafficAndVerify := func(t *testing.T, profileName string, setupFlow func(flow gosnappi.Flow), unequalWeights bool) {
+	runTrafficAndVerify := func(t *testing.T, profileName string, isWCMP bool, setupFlow func(flow gosnappi.Flow)) {
 		t.Logf("=== Starting Traffic Profile: %s ===", profileName)
 		otgConfig := configureOTGForFlow(t, ate, setupFlow)
 		otgutils.WaitForARP(t, ate.OTG(), otgConfig, "IPv4")
@@ -633,17 +422,9 @@ func TestHashing(t *testing.T) {
 		initialIngress := gnmi.Get(t, dut, ingressCounterPath)
 		initialPhysCounters := getPhysicalPortCounters(t, dut)
 
-		t.Log("Starting traffic...")
+		t.Logf("Starting traffic for %v (minimum 2 mins)...", trafficDuration)
 		ate.OTG().StartTraffic(t)
-
-		t.Logf("Waiting for ingress port %s to receive at least %d packets (timeout %v)...", ingressPortName, minPacketsForHashing, 45*time.Second)
-		_, ok := gnmi.Watch(t, dut, ingressCounterPath, 45*time.Second, func(val *ygnmi.Value[uint64]) bool {
-			pkts, present := val.Val()
-			return present && pkts >= initialIngress+minPacketsForHashing
-		}).Await(t)
-		if !ok {
-			t.Logf("Warning: Ingress packets did not reach %d within timeout, continuing with received traffic", minPacketsForHashing)
-		}
+		time.Sleep(trafficDuration)
 
 		logRuntimeDebug(t, dut, portToLagMap)
 
@@ -687,58 +468,90 @@ func TestHashing(t *testing.T) {
 			t.Logf("DUT LAG %s OutPkts: Initial = %d, Final = %d, Delta = %d", lagName, initVal, finalVal, deltas[lagName])
 		}
 
-		// 1. Stage 1 Hashing (Default VRF WCMP: 7:1:1:1 ratio)
-		t.Run("Stage 1: Ingress WCMP Hashing", func(t *testing.T) {
-			p1_3 := dut.Port(t, "lc1_p3")
-			expected := []expectedRatio{
-				{portID: portToLagMap[p1_3.Name()], name: "Loop 1 (lc1_p3)", ratio: 0.70},
-				{portID: portToLagMap[softLoops[0].physName], name: "Soft 0", ratio: 0.10},
-				{portID: portToLagMap[softLoops[1].physName], name: "Soft 1", ratio: 0.10},
-				{portID: portToLagMap[softLoops[2].physName], name: "Soft 2", ratio: 0.10},
-			}
-			verifyWCMPDistribution(t, "Default VRF (Stage 1)", deltas, expected)
-		})
-
-		// 2. Stage 2 Hashing (Transit VRF)
-		t.Run("Stage 2: Transit VRF Hashing", func(t *testing.T) {
-			if !unequalWeights {
-				verifyDistribution(t, "TRANSIT", deltas, transitPorts, 0.1250)
-			} else {
-				expectedStage2 := []expectedRatio{
-					{portID: portToLagMap[dut.Port(t, "lc1_p4").Name()], name: "Loop 2 (lc1_p4)", ratio: 2.0 / 12.0},
-					{portID: portToLagMap[dut.Port(t, "lc1_p5").Name()], name: "Loop 3 (lc1_p5)", ratio: 2.0 / 12.0},
-					{portID: portToLagMap[dut.Port(t, "lc1_p6").Name()], name: "Loop 4 (lc1_p6)", ratio: 2.0 / 12.0},
-					{portID: portToLagMap[dut.Port(t, "lc1_p1").Name()], name: "Loop 5 (lc1_p1)", ratio: 2.0 / 12.0},
-					{portID: portToLagMap[softLoops[3].physName], name: "Soft 3", ratio: 1.0 / 12.0},
-					{portID: portToLagMap[softLoops[4].physName], name: "Soft 4", ratio: 1.0 / 12.0},
-					{portID: portToLagMap[softLoops[5].physName], name: "Soft 5", ratio: 1.0 / 12.0},
-					{portID: portToLagMap[softLoops[6].physName], name: "Soft 6", ratio: 1.0 / 12.0},
+		// 1. Stage 1 Hashing
+		t.Run("Stage 1: Ingress Hashing", func(t *testing.T) {
+			var expectedStage1 []expectedRatio
+			var testName string
+			if isWCMP {
+				testName = "Default VRF (Stage 1 WCMP 4:3:2:1)"
+				expectedStage1 = []expectedRatio{
+					{portID: lag2, name: "Port 2: LAG 2 (lc1_p3 -> SelfSite)", ratio: 0.40},
+					{portID: lag3, name: "Port 3: LAG 3 (lc1_p4 -> SelfSite)", ratio: 0.30},
+					{portID: lag4, name: "Port 4: LAG 4 (lc1_p5 -> Egress)", ratio: 0.20},
+					{portID: lag5, name: "Port 5: LAG 5 (lc1_p6 -> Egress)", ratio: 0.10},
 				}
-				verifyWCMPDistribution(t, "TRANSIT (Stage 2 Unequal)", deltas, expectedStage2)
-			}
-		})
-
-		// 3. Stage 3 Hashing (Self-Site VRF)
-		t.Run("Stage 3: Self-Site VRF Hashing", func(t *testing.T) {
-			if !unequalWeights {
-				verifyDistribution(t, "SELF_SITE", deltas, selfSitePorts, 0.1250)
 			} else {
-				expectedStage3 := []expectedRatio{
-					{portID: portToLagMap[dut.Port(t, "lc2_p8").Name()], name: "Loop 6 (lc2_p8)", ratio: 2.0 / 11.0},
-					{portID: portToLagMap[dut.Port(t, "lc2_p7").Name()], name: "Loop 7 (lc2_p7)", ratio: 2.0 / 11.0},
-					{portID: portToLagMap[dut.Port(t, "lc2_p2").Name()], name: "Loop 8 (lc2_p2)", ratio: 2.0 / 11.0},
-					{portID: portToLagMap[softLoops[7].physName], name: "Soft 7", ratio: 1.0 / 11.0},
-					{portID: portToLagMap[softLoops[8].physName], name: "Soft 8", ratio: 1.0 / 11.0},
-					{portID: portToLagMap[softLoops[9].physName], name: "Soft 9", ratio: 1.0 / 11.0},
-					{portID: portToLagMap[softLoops[10].physName], name: "Soft 10", ratio: 1.0 / 11.0},
-					{portID: portToLagMap[softLoops[11].physName], name: "Soft 11", ratio: 1.0 / 11.0},
+				testName = "Default VRF (Stage 1 ECMP 1:1:1:1)"
+				expectedStage1 = []expectedRatio{
+					{portID: lag2, name: "Port 2: LAG 2 (lc1_p3 -> SelfSite)", ratio: 0.25},
+					{portID: lag3, name: "Port 3: LAG 3 (lc1_p4 -> SelfSite)", ratio: 0.25},
+					{portID: lag4, name: "Port 4: LAG 4 (lc1_p5 -> Egress)", ratio: 0.25},
+					{portID: lag5, name: "Port 5: LAG 5 (lc1_p6 -> Egress)", ratio: 0.25},
 				}
-				verifyWCMPDistribution(t, "SELF_SITE (Stage 3 Unequal)", deltas, expectedStage3)
 			}
+			stage1Deltas := map[string]uint64{
+				lag2: deltas[lag2],
+				lag3: deltas[lag3],
+				lag4: deltas[lag4],
+				lag5: deltas[lag5],
+			}
+			verifyWCMPDistribution(t, testName, stage1Deltas, expectedStage1)
 		})
 
-		// 4. Egress Traffic Arrival Verification
-		t.Run("Stage 4: Egress Traffic Arrival", func(t *testing.T) {
+		// 2. Stage 2 Hashing (SelfSite VRF 1:1:1:1 ECMP)
+		t.Run("Stage 2: SelfSite VRF ECMP Hashing", func(t *testing.T) {
+			expectedStage2 := []expectedRatio{
+				{portID: lag6, name: "Port 6: LAG 6 (lc1_p1 -> Egress)", ratio: 0.25},
+				{portID: lag7, name: "Port 7: LAG 7 (lc1_p8 -> Egress)", ratio: 0.25},
+				{portID: lag8, name: "Port 8: LAG 8 (lc1_p7 -> Egress)", ratio: 0.25},
+				{portID: lag9, name: "Port 9: LAG 9 (lc1_p2 -> Egress)", ratio: 0.25},
+			}
+			stage2Deltas := map[string]uint64{
+				lag6: deltas[lag6],
+				lag7: deltas[lag7],
+				lag8: deltas[lag8],
+				lag9: deltas[lag9],
+			}
+			verifyWCMPDistribution(t, "SelfSite VRF (Stage 2 ECMP 1:1:1:1)", stage2Deltas, expectedStage2)
+		})
+
+		// 3. Stage 3 (Egress Multi-Stream Arrival)
+		t.Run("Stage 3: Egress Multi-Stream Arrival", func(t *testing.T) {
+			var expectedStage3 []expectedRatio
+			if isWCMP {
+				// SelfSite receives 70% total. 4-way ECMP gives 70%/4 = 17.5% per link.
+				expectedStage3 = []expectedRatio{
+					{portID: lag4, name: "Port 4: LAG 4 (Direct)", ratio: 0.20},
+					{portID: lag5, name: "Port 5: LAG 5 (Direct)", ratio: 0.10},
+					{portID: lag6, name: "Port 6: LAG 6 (via SelfSite)", ratio: 0.175},
+					{portID: lag7, name: "Port 7: LAG 7 (via SelfSite)", ratio: 0.175},
+					{portID: lag8, name: "Port 8: LAG 8 (via SelfSite)", ratio: 0.175},
+					{portID: lag9, name: "Port 9: LAG 9 (via SelfSite)", ratio: 0.175},
+				}
+			} else {
+				// SelfSite receives 50% total. 4-way ECMP gives 50%/4 = 12.5% per link.
+				expectedStage3 = []expectedRatio{
+					{portID: lag4, name: "Port 4: LAG 4 (Direct)", ratio: 0.25},
+					{portID: lag5, name: "Port 5: LAG 5 (Direct)", ratio: 0.25},
+					{portID: lag6, name: "Port 6: LAG 6 (via SelfSite)", ratio: 0.125},
+					{portID: lag7, name: "Port 7: LAG 7 (via SelfSite)", ratio: 0.125},
+					{portID: lag8, name: "Port 8: LAG 8 (via SelfSite)", ratio: 0.125},
+					{portID: lag9, name: "Port 9: LAG 9 (via SelfSite)", ratio: 0.125},
+				}
+			}
+			stage3Deltas := map[string]uint64{
+				lag4: deltas[lag4],
+				lag5: deltas[lag5],
+				lag6: deltas[lag6],
+				lag7: deltas[lag7],
+				lag8: deltas[lag8],
+				lag9: deltas[lag9],
+			}
+			verifyWCMPDistribution(t, "Egress Multi-Stream Arrival", stage3Deltas, expectedStage3)
+		})
+
+		// 4. Stage 4: Full Traffic Arrival on ATE Egress
+		t.Run("Stage 4: Egress Port Arrival", func(t *testing.T) {
 			egressDelta := deltas[egressLagName]
 			t.Logf("DUT Egress LAG %s OutPkts delta: %d", egressLagName, egressDelta)
 			if egressDelta == 0 {
@@ -757,11 +570,11 @@ func TestHashing(t *testing.T) {
 				eth := flow.Packet().Add().Ethernet()
 				eth.Src().SetValue(ateIngressMAC)
 				ip := flow.Packet().Add().Ipv4()
-				ip.Src().Increment().SetStart("10.0.0.1").SetCount(60000).SetStep("0.0.0.1")
-				ip.Dst().Increment().SetStart("198.51.0.1").SetCount(60000).SetStep("0.0.0.1")
+				ip.Src().Increment().SetStart("10.0.0.1").SetCount(1009).SetStep("0.0.0.1")
+				ip.Dst().Increment().SetStart("198.51.0.1").SetCount(1013).SetStep("0.0.0.1")
 				udp := flow.Packet().Add().Udp()
-				udp.SrcPort().Increment().SetStart(1024).SetCount(60000).SetStep(1)
-				udp.DstPort().Increment().SetStart(1024).SetCount(60000).SetStep(1)
+				udp.SrcPort().Increment().SetStart(1024).SetCount(1019).SetStep(1)
+				udp.DstPort().Increment().SetStart(1024).SetCount(1021).SetStep(1)
 			},
 		},
 		{
@@ -771,147 +584,373 @@ func TestHashing(t *testing.T) {
 				eth.Src().SetValue(ateIngressMAC)
 				outer := flow.Packet().Add().Ipv4()
 				outer.Src().SetValue("10.10.10.1")
-				outer.Dst().SetValue("172.16.0.1")
+				outer.Dst().Increment().SetStart("172.16.0.1").SetCount(254).SetStep("0.0.0.1")
 				inner := flow.Packet().Add().Ipv4()
-				inner.Src().Increment().SetStart("10.0.0.1").SetCount(60000).SetStep("0.0.0.1")
-				inner.Dst().Increment().SetStart("172.16.0.1").SetCount(60000).SetStep("0.0.0.1")
+				inner.Src().Increment().SetStart("10.0.0.1").SetCount(1009).SetStep("0.0.0.1")
+				inner.Dst().Increment().SetStart("198.51.0.1").SetCount(1013).SetStep("0.0.0.1")
 				udp := flow.Packet().Add().Udp()
-				udp.SrcPort().Increment().SetStart(1024).SetCount(60000).SetStep(1)
-				udp.DstPort().Increment().SetStart(1024).SetCount(60000).SetStep(1)
+				udp.SrcPort().Increment().SetStart(1024).SetCount(1019).SetStep(1)
+				udp.DstPort().Increment().SetStart(1024).SetCount(1021).SetStep(1)
 			},
 		},
 	}
 
-	subcases := []struct {
-		name           string
-		unequalWeights bool
-	}{
-		{name: "Subcase_1_1_Uniform_ECMP", unequalWeights: false},
-		{name: "Subcase_1_2_Unequal_WCMP", unequalWeights: true},
-	}
-
-	for _, sc := range subcases {
-		t.Run(sc.name, func(t *testing.T) {
-			updateScenario1NHGs(sc.unequalWeights)
+	// Scenario 1: Multi-Stage WCMP & ECMP
+	t.Run("Scenario_1_Hash_Distribution", func(t *testing.T) {
+		t.Run("Subcase_1_1_WCMP_4_3_2_1", func(t *testing.T) {
+			nhg1WCMP := fluent.NextHopGroupEntry().WithNetworkInstance(defNI).WithID(1).
+				AddNextHop(2, 4).
+				AddNextHop(3, 3).
+				AddNextHop(4, 2).
+				AddNextHop(5, 1)
+			c := gClient.Fluent(t)
+			c.Modify().AddEntry(t, nhg1WCMP)
+			ctxTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
+			defer cancel()
+			if err := c.Await(ctxTimeout, t); err != nil {
+				t.Fatalf("Failed to program NHG1 WCMP: %v", err)
+			}
 			for _, p := range profiles {
 				t.Run(p.name, func(t *testing.T) {
-					runTrafficAndVerify(t, p.name, p.flowSetter, sc.unequalWeights)
+					runTrafficAndVerify(t, p.name, true /* isWCMP */, p.flowSetter)
 				})
 			}
 		})
-	}
-}
 
-// getBreakoutParentPrefix returns the parent connector/prefix for a breakout port.
-// For Nokia: "ethernet-1/2/1" -> "ethernet-1/2/"
-// For Arista: "Ethernet1/2/1" -> "Ethernet1/2/"
-// For Juniper: "et-0/0/1:0" -> "et-0/0/1:"
-// For Cisco: "FourHundredGigE0/0/0/1/1" -> "FourHundredGigE0/0/0/1/"
-func getBreakoutParentPrefix(name string) string {
-	if idx := strings.LastIndex(name, ":"); idx != -1 {
-		return name[:idx+1]
-	}
-	if idx := strings.LastIndex(name, "/"); idx != -1 {
-		return name[:idx+1]
-	}
-	return name
-}
-
-func discoverSoftLoops(t *testing.T, dut *ondatra.DUTDevice, count int, excludePorts []string) []string {
-	t.Helper()
-	interfaces := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().State())
-
-	excludeMap := make(map[string]bool)
-	excludePrefixes := make(map[string]bool)
-
-	for _, p := range excludePorts {
-		excludeMap[p] = true
-		prefix := getBreakoutParentPrefix(p)
-		if prefix != p {
-			excludePrefixes[prefix] = true
-		}
-	}
-
-	var candidateBreakouts []string
-	var candidateOthers []string
-
-	for _, intf := range interfaces {
-		name := intf.GetName()
-		if excludeMap[name] {
-			continue
-		}
-
-		// Check if interface shares a parent breakout group with an excluded/used port
-		parentPrefix := getBreakoutParentPrefix(name)
-		if excludePrefixes[parentPrefix] {
-			t.Logf("Excluding port %s: shares parent breakout prefix %s with used/testbed port", name, parentPrefix)
-			continue
-		}
-
-		// Exclude interfaces that are part of a LAG / aggregate
-		if intf.Ethernet != nil && intf.Ethernet.AggregateId != nil {
-			continue
-		}
-
-		// Exclude active uplinks / connected ports (OperStatus UP)
-		if intf.OperStatus == oc.Interface_OperStatus_UP {
-			t.Logf("Excluding port %s: OperStatus is UP (active uplink / connected link)", name)
-			continue
-		}
-
-		nameLower := strings.ToLower(name)
-		isEthType := intf.Type == oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-		isEthName := strings.Contains(nameLower, "ethernet") ||
-			strings.Contains(nameLower, "gige") ||
-			strings.HasPrefix(nameLower, "et-") ||
-			strings.HasPrefix(nameLower, "ge-") ||
-			strings.HasPrefix(nameLower, "xe-") ||
-			strings.HasPrefix(nameLower, "hu") ||
-			strings.HasPrefix(nameLower, "fh") ||
-			strings.HasPrefix(nameLower, "te")
-
-		if !isEthType && !isEthName {
-			continue
-		}
-
-		// Exclude interfaces with existing IPv4 configuration
-		hasIP := false
-		if intf.Subinterface != nil {
-			for _, sub := range intf.Subinterface {
-				if sub != nil && sub.Ipv4 != nil && len(sub.Ipv4.Address) > 0 {
-					hasIP = true
-					break
-				}
+		t.Run("Subcase_1_2_ECMP_1_1_1_1", func(t *testing.T) {
+			nhg1ECMP := fluent.NextHopGroupEntry().WithNetworkInstance(defNI).WithID(1).
+				AddNextHop(2, 1).
+				AddNextHop(3, 1).
+				AddNextHop(4, 1).
+				AddNextHop(5, 1)
+			c := gClient.Fluent(t)
+			c.Modify().AddEntry(t, nhg1ECMP)
+			ctxTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
+			defer cancel()
+			if err := c.Await(ctxTimeout, t); err != nil {
+				t.Fatalf("Failed to program NHG1 ECMP: %v", err)
 			}
+			for _, p := range profiles {
+				t.Run(p.name, func(t *testing.T) {
+					runTrafficAndVerify(t, p.name, false /* isWCMP */, p.flowSetter)
+				})
+			}
+		})
+	})
+
+	// Scenario 2: Intra-LAG Member Traffic Distribution
+	t.Run("Scenario_2_Intra_LAG", func(t *testing.T) {
+		t.Log("=== Starting Scenario 2: Intra-LAG Member Traffic Distribution ===")
+		lag201 := getLagName(dut, 201)
+		lag202 := getLagName(dut, 202)
+
+		txPortIDs := []string{"lc1_p4", "lc1_p5", "lc1_p6", "lc1_p1", "lc1_p8", "lc1_p7", "lc1_p2"}
+		rxPortIDs := []string{"lc2_p4", "lc2_p5", "lc2_p6", "lc2_p1", "lc2_p8", "lc2_p7", "lc2_p2"}
+
+		b := &gnmi.SetBatch{}
+		d := gnmi.OC()
+
+		// Populate lag201 (TX) and lag202 (RX)
+		lagIntf201 := &oc.Interface{Name: ygot.String(lag201), Type: oc.IETFInterfaces_InterfaceType_ieee8023adLag, Enabled: ygot.Bool(true)}
+		populateLAGInterface(dut, lagIntf201, lag201, "198.18.201.1", plen, true)
+		gnmi.BatchUpdate(b, d.Interface(lag201).Config(), lagIntf201)
+
+		lagIntf202 := &oc.Interface{Name: ygot.String(lag202), Type: oc.IETFInterfaces_InterfaceType_ieee8023adLag, Enabled: ygot.Bool(true)}
+		populateLAGInterface(dut, lagIntf202, lag202, "198.18.201.2", plen, true)
+		gnmi.BatchUpdate(b, d.Interface(lag202).Config(), lagIntf202)
+
+		// Reassign the 7 TX physical ports to lag201
+		for _, pID := range txPortIDs {
+			p := dut.Port(t, pID)
+			gnmi.BatchUpdate(b, d.Interface(p.Name()).Ethernet().AggregateId().Config(), lag201)
 		}
-		if hasIP {
-			t.Logf("Excluding port %s: has existing IP configuration", name)
-			continue
+		// Reassign the 7 RX physical ports to lag202
+		for _, pID := range rxPortIDs {
+			p := dut.Port(t, pID)
+			gnmi.BatchUpdate(b, d.Interface(p.Name()).Ethernet().AggregateId().Config(), lag202)
 		}
 
-		// Prioritize breakout channelized ports over raw connectors
-		if strings.Count(name, "/") >= 2 || strings.Contains(name, ":") {
-			candidateBreakouts = append(candidateBreakouts, name)
-		} else {
-			candidateOthers = append(candidateOthers, name)
+		mac201 := getMacForLagIndex(201)
+		mac202 := getMacForLagIndex(202)
+		gnmi.BatchUpdate(b, d.Interface(lag201).Config(), configStaticArpLag(lag201, "198.18.201.2", mac202))
+		gnmi.BatchUpdate(b, d.Interface(lag202).Config(), configStaticArpLag(lag202, "198.18.201.1", mac201))
+
+		b.Set(t, dut)
+
+		// Reassign Loop 1 RX (lc2_p3) to vrfTransit (unbind from SELF_SITE first)
+		pLoop1RX := dut.Port(t, "lc2_p3")
+		lagLoop1RX := portToLagMap[pLoop1RX.Name()]
+		gnmi.Delete(t, dut, d.NetworkInstance(vrfSelfSite).Interface(fmt.Sprintf("%s.0", lagLoop1RX)).Config())
+		fptest.AssignToNetworkInstance(t, dut, lagLoop1RX, vrfTransit, 0)
+
+		fptest.AssignToNetworkInstance(t, dut, lag201, vrfTransit, 0)
+		fptest.AssignToNetworkInstance(t, dut, lag202, vrfEgress, 0)
+
+		// In DEFAULT VRF, route 100% of traffic to Loop 1 TX (NH 2)
+		nhgDef100 := fluent.NextHopGroupEntry().WithNetworkInstance(defNI).WithID(100).AddNextHop(2, 1)
+		ipv4DefPlain := fluent.IPv4Entry().WithNetworkInstance(defNI).WithPrefix(plainSubnet).WithNextHopGroup(100)
+		ipv4DefEncap := fluent.IPv4Entry().WithNetworkInstance(defNI).WithPrefix(encapSubnet).WithNextHopGroup(100)
+
+		// Program gRIBI for Scenario 2
+		nh501 := fluent.NextHopEntry().
+			WithNetworkInstance(vrfTransit).
+			WithIndex(501).
+			WithIPAddress("198.18.201.2").
+			WithMacAddress(mac202).
+			WithInterfaceRef(lag201)
+
+		nhg501 := fluent.NextHopGroupEntry().
+			WithNetworkInstance(vrfTransit).
+			WithID(501).
+			AddNextHop(501, 1)
+
+		ipv4Transit2Plain := fluent.IPv4Entry().
+			WithNetworkInstance(vrfTransit).
+			WithPrefix(plainSubnet).
+			WithNextHopGroup(501)
+
+		ipv4Transit2Encap := fluent.IPv4Entry().
+			WithNetworkInstance(vrfTransit).
+			WithPrefix(encapSubnet).
+			WithNextHopGroup(501)
+
+		c := gClient.Fluent(t)
+		c.Modify().AddEntry(t, nhgDef100, ipv4DefPlain, ipv4DefEncap, nh501, nhg501, ipv4Transit2Plain, ipv4Transit2Encap)
+		ctxTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+		if err := c.Await(ctxTimeout, t); err != nil {
+			t.Fatalf("Error updating gRIBI for Scenario 2: %v", err)
 		}
-	}
 
-	var discovered []string
-	discovered = append(discovered, candidateBreakouts...)
-	if len(discovered) < count {
-		discovered = append(discovered, candidateOthers...)
-	}
+		for _, p := range profiles {
+			t.Run(p.name, func(t *testing.T) {
+				otgConfig := configureOTGForFlow(t, ate, p.flowSetter)
+				otgutils.WaitForARP(t, ate.OTG(), otgConfig, "IPv4")
 
-	if len(discovered) > count {
-		discovered = discovered[:count]
-	}
+				initialPhysCounters := getPhysicalPortCounters(t, dut)
+				initialCounters := getEgressPacketsPhys(t, dut, []string{egressLagName})
 
-	if len(discovered) < count {
-		t.Fatalf("Could not find enough unused leftover interfaces. Need %d, found %d: %v", count, len(discovered), discovered)
-	}
-	t.Logf("Discovered %d safe leftover soft loop interfaces: %v", len(discovered), discovered)
-	return discovered
+				t.Logf("Running traffic for %v (minimum 2 mins)...", trafficDuration)
+				ate.OTG().StartTraffic(t)
+				time.Sleep(trafficDuration)
+				ate.OTG().StopTraffic(t)
+				finalPhysCounters := getPhysicalPortCounters(t, dut)
+				finalCounters := getEgressPacketsPhys(t, dut, []string{egressLagName})
+
+				var totalMemberPkts uint64
+				memberDeltas := make(map[string]uint64)
+				for _, pID := range txPortIDs {
+					p := dut.Port(t, pID)
+					delta := finalPhysCounters[p.Name()].outPkts - initialPhysCounters[p.Name()].outPkts
+					memberDeltas[p.Name()] = delta
+					totalMemberPkts += delta
+				}
+
+				t.Logf("Scenario 2 (7-Member LAG %s) Total Member OutPkts: %d", lag201, totalMemberPkts)
+				if totalMemberPkts == 0 {
+					t.Errorf("Scenario 2 total packets is 0")
+					return
+				}
+
+				expectedRatio := 1.0 / 7.0
+				minExpected := expectedRatio * 0.98
+				maxExpected := expectedRatio * 1.02
+
+				for _, pID := range txPortIDs {
+					p := dut.Port(t, pID)
+					delta := memberDeltas[p.Name()]
+					ratio := float64(delta) / float64(totalMemberPkts)
+					t.Logf("  Member %s (%s): %d packets, ratio: %.4f (expected: %.4f [%.4f, %.4f])", pID, p.Name(), delta, ratio, expectedRatio, minExpected, maxExpected)
+					if ratio < minExpected || ratio > maxExpected {
+						t.Errorf("  Member %s (%s) ratio %.4f is out of expected range [%.4f, %.4f]", pID, p.Name(), ratio, minExpected, maxExpected)
+					}
+				}
+
+				egressDelta := finalCounters[egressLagName] - initialCounters[egressLagName]
+				t.Logf("DUT Egress LAG %s OutPkts delta: %d", egressLagName, egressDelta)
+				if egressDelta == 0 {
+					t.Errorf("DUT Egress LAG %s received 0 packets in Scenario 2", egressLagName)
+				}
+			})
+		}
+	})
+
+	// Scenario 3: Asymmetric Paths & Weighted Load Balancing (3-Wide LAGs)
+	t.Run("Scenario_3_Asymmetric_LAGs", func(t *testing.T) {
+		t.Log("=== Starting Scenario 3: Asymmetric Paths & Weighted Load Balancing ===")
+		lag201 := getLagName(dut, 201)
+		lag202 := getLagName(dut, 202)
+		lag203 := getLagName(dut, 203) // LAG A TX (3 members)
+		lag204 := getLagName(dut, 204) // LAG A RX (3 members)
+		lag205 := getLagName(dut, 205) // LAG B TX (2 members)
+		lag206 := getLagName(dut, 206) // LAG B RX (2 members)
+		lag207 := getLagName(dut, 207) // LAG C TX (2 members)
+		lag208 := getLagName(dut, 208) // LAG C RX (2 members)
+
+		lagATX := []string{"lc1_p4", "lc1_p5", "lc1_p6"}
+		lagARX := []string{"lc2_p4", "lc2_p5", "lc2_p6"}
+		lagBTX := []string{"lc1_p1", "lc1_p8"}
+		lagBRX := []string{"lc2_p1", "lc2_p8"}
+		lagCTX := []string{"lc1_p7", "lc1_p2"}
+		lagCRX := []string{"lc2_p7", "lc2_p2"}
+
+		b := &gnmi.SetBatch{}
+		d := gnmi.OC()
+
+		// Unassign and delete lag201 and lag202 from Scenario 2
+		gnmi.BatchDelete(b, d.NetworkInstance(vrfTransit).Interface(fmt.Sprintf("%s.0", lag201)).Config())
+		gnmi.BatchDelete(b, d.NetworkInstance(vrfEgress).Interface(fmt.Sprintf("%s.0", lag202)).Config())
+		gnmi.BatchDelete(b, d.Interface(lag201).Config())
+		gnmi.BatchDelete(b, d.Interface(lag202).Config())
+
+		// Populate LAG A, B, C TX & RX
+		lagConfigs := []struct {
+			txName string
+			rxName string
+			txIP   string
+			rxIP   string
+			txIdx  int
+			rxIdx  int
+		}{
+			{lag203, lag204, "198.18.203.1", "198.18.203.2", 203, 204},
+			{lag205, lag206, "198.18.205.1", "198.18.205.2", 205, 206},
+			{lag207, lag208, "198.18.207.1", "198.18.207.2", 207, 208},
+		}
+
+		for _, cfg := range lagConfigs {
+			intfTX := &oc.Interface{Name: ygot.String(cfg.txName), Type: oc.IETFInterfaces_InterfaceType_ieee8023adLag, Enabled: ygot.Bool(true)}
+			populateLAGInterface(dut, intfTX, cfg.txName, cfg.txIP, plen, true)
+			gnmi.BatchUpdate(b, d.Interface(cfg.txName).Config(), intfTX)
+
+			intfRX := &oc.Interface{Name: ygot.String(cfg.rxName), Type: oc.IETFInterfaces_InterfaceType_ieee8023adLag, Enabled: ygot.Bool(true)}
+			populateLAGInterface(dut, intfRX, cfg.rxName, cfg.rxIP, plen, true)
+			gnmi.BatchUpdate(b, d.Interface(cfg.rxName).Config(), intfRX)
+
+			macTX := getMacForLagIndex(cfg.txIdx)
+			macRX := getMacForLagIndex(cfg.rxIdx)
+			gnmi.BatchUpdate(b, d.Interface(cfg.txName).Config(), configStaticArpLag(cfg.txName, cfg.rxIP, macRX))
+			gnmi.BatchUpdate(b, d.Interface(cfg.rxName).Config(), configStaticArpLag(cfg.rxName, cfg.txIP, macTX))
+		}
+
+		// Reassign member ports
+		for _, pID := range lagATX {
+			p := dut.Port(t, pID)
+			gnmi.BatchUpdate(b, d.Interface(p.Name()).Ethernet().AggregateId().Config(), lag203)
+		}
+		for _, pID := range lagARX {
+			p := dut.Port(t, pID)
+			gnmi.BatchUpdate(b, d.Interface(p.Name()).Ethernet().AggregateId().Config(), lag204)
+		}
+		for _, pID := range lagBTX {
+			p := dut.Port(t, pID)
+			gnmi.BatchUpdate(b, d.Interface(p.Name()).Ethernet().AggregateId().Config(), lag205)
+		}
+		for _, pID := range lagBRX {
+			p := dut.Port(t, pID)
+			gnmi.BatchUpdate(b, d.Interface(p.Name()).Ethernet().AggregateId().Config(), lag206)
+		}
+		for _, pID := range lagCTX {
+			p := dut.Port(t, pID)
+			gnmi.BatchUpdate(b, d.Interface(p.Name()).Ethernet().AggregateId().Config(), lag207)
+		}
+		for _, pID := range lagCRX {
+			p := dut.Port(t, pID)
+			gnmi.BatchUpdate(b, d.Interface(p.Name()).Ethernet().AggregateId().Config(), lag208)
+		}
+
+		b.Set(t, dut)
+
+		fptest.AssignToNetworkInstance(t, dut, lag203, vrfTransit, 0)
+		fptest.AssignToNetworkInstance(t, dut, lag205, vrfTransit, 0)
+		fptest.AssignToNetworkInstance(t, dut, lag207, vrfTransit, 0)
+		fptest.AssignToNetworkInstance(t, dut, lag204, vrfEgress, 0)
+		fptest.AssignToNetworkInstance(t, dut, lag206, vrfEgress, 0)
+		fptest.AssignToNetworkInstance(t, dut, lag208, vrfEgress, 0)
+
+		// Program gRIBI NextHops 601, 602, 603
+		nh601 := fluent.NextHopEntry().WithNetworkInstance(vrfTransit).WithIndex(601).WithIPAddress("198.18.203.2").WithMacAddress(getMacForLagIndex(204)).WithInterfaceRef(lag203)
+		nh602 := fluent.NextHopEntry().WithNetworkInstance(vrfTransit).WithIndex(602).WithIPAddress("198.18.205.2").WithMacAddress(getMacForLagIndex(206)).WithInterfaceRef(lag205)
+		nh603 := fluent.NextHopEntry().WithNetworkInstance(vrfTransit).WithIndex(603).WithIPAddress("198.18.207.2").WithMacAddress(getMacForLagIndex(208)).WithInterfaceRef(lag207)
+
+		scenario3Subcases := []struct {
+			name        string
+			weights     []uint64 // A, B, C
+			expectedExp []expectedRatio
+		}{
+			{
+				name:    "Subcase_3_1_Capacity_Based_3_2_2",
+				weights: []uint64{3, 2, 2},
+				expectedExp: []expectedRatio{
+					{portID: lag203, name: "LAG A (3 members)", ratio: 3.0 / 7.0},
+					{portID: lag205, name: "LAG B (2 members)", ratio: 2.0 / 7.0},
+					{portID: lag207, name: "LAG C (2 members)", ratio: 2.0 / 7.0},
+				},
+			},
+			{
+				name:    "Subcase_3_2_Uniform_Override_1_1_1",
+				weights: []uint64{1, 1, 1},
+				expectedExp: []expectedRatio{
+					{portID: lag203, name: "LAG A (3 members)", ratio: 1.0 / 3.0},
+					{portID: lag205, name: "LAG B (2 members)", ratio: 1.0 / 3.0},
+					{portID: lag207, name: "LAG C (2 members)", ratio: 1.0 / 3.0},
+				},
+			},
+		}
+
+		scenario3VerifyPorts := []string{lag203, lag205, lag207, egressLagName}
+
+		for _, sc := range scenario3Subcases {
+			t.Run(sc.name, func(t *testing.T) {
+				nhg601 := fluent.NextHopGroupEntry().WithNetworkInstance(vrfTransit).WithID(601).
+					AddNextHop(601, sc.weights[0]).
+					AddNextHop(602, sc.weights[1]).
+					AddNextHop(603, sc.weights[2])
+
+				ipv4Transit3Plain := fluent.IPv4Entry().WithNetworkInstance(vrfTransit).WithPrefix(plainSubnet).WithNextHopGroup(601)
+				ipv4Transit3Encap := fluent.IPv4Entry().WithNetworkInstance(vrfTransit).WithPrefix(encapSubnet).WithNextHopGroup(601)
+
+				c := gClient.Fluent(t)
+				c.Modify().AddEntry(t, nh601, nh602, nh603, nhg601, ipv4Transit3Plain, ipv4Transit3Encap)
+				ctxTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
+				defer cancel()
+				if err := c.Await(ctxTimeout, t); err != nil {
+					t.Fatalf("Error updating gRIBI for Scenario 3: %v", err)
+				}
+
+				for _, p := range profiles {
+					t.Run(p.name, func(t *testing.T) {
+						otgConfig := configureOTGForFlow(t, ate, p.flowSetter)
+						otgutils.WaitForARP(t, ate.OTG(), otgConfig, "IPv4")
+
+						initialCounters := getEgressPacketsPhys(t, dut, scenario3VerifyPorts)
+
+						t.Logf("Running traffic for %v (minimum 2 mins)...", trafficDuration)
+						ate.OTG().StartTraffic(t)
+						time.Sleep(trafficDuration)
+						ate.OTG().StopTraffic(t)
+						finalCounters := getEgressPacketsPhys(t, dut, scenario3VerifyPorts)
+
+						deltas := make(map[string]uint64)
+						for _, lagName := range scenario3VerifyPorts {
+							if finalCounters[lagName] >= initialCounters[lagName] {
+								deltas[lagName] = finalCounters[lagName] - initialCounters[lagName]
+							} else {
+								deltas[lagName] = finalCounters[lagName]
+							}
+						}
+
+						verifyWCMPDistribution(t, fmt.Sprintf("Scenario 3 (%s)", sc.name), deltas, sc.expectedExp)
+
+						egressDelta := deltas[egressLagName]
+						t.Logf("DUT Egress LAG %s OutPkts delta: %d", egressLagName, egressDelta)
+						if egressDelta == 0 {
+							t.Errorf("DUT Egress LAG %s received 0 packets in Scenario 3", egressLagName)
+						}
+					})
+				}
+			})
+		}
+	})
 }
 
 func getEgressPacketsPhys(t *testing.T, dut *ondatra.DUTDevice, ports []string) map[string]uint64 {
@@ -968,32 +1007,6 @@ func getPhysicalPortCounters(t *testing.T, dut *ondatra.DUTDevice) map[string]po
 	return stats
 }
 
-func configureSoftLoopACLsPhys(t *testing.T, dut *ondatra.DUTDevice, softLoops []string) {
-	t.Helper()
-	batch := &gnmi.SetBatch{}
-
-	for _, portName := range softLoops {
-		params := cfgplugins.AclParams{
-			Name:    fmt.Sprintf("drop_rx_%s", portName),
-			ACLType: oc.Acl_ACL_TYPE_ACL_IPV4,
-			Intf:    portName,
-			Ingress: true,
-			Terms: []cfgplugins.AclTerm{
-				{
-					SeqID:  10,
-					Permit: false,
-					IPSrc:  "0.0.0.0/0",
-					IPDst:  "0.0.0.0/0",
-				},
-			},
-		}
-		cfgplugins.ConfigureACL(t, dut, batch, params)
-	}
-
-	t.Logf("Applying ACLs to soft loops: %v", softLoops)
-	batch.Set(t, dut)
-}
-
 func populateLAGInterface(dut *ondatra.DUTDevice, i *oc.Interface, lagName string, ip string, prefixLen uint8, enabled bool) {
 	i.Name = ygot.String(lagName)
 	i.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
@@ -1011,18 +1024,6 @@ func populateLAGInterface(dut *ondatra.DUTDevice, i *oc.Interface, lagName strin
 	a.PrefixLength = ygot.Uint8(prefixLen)
 }
 
-func cleanDiscoveredPorts(t *testing.T, dut *ondatra.DUTDevice, ports []string) {
-	t.Helper()
-	t.Logf("Cleaning stale config on discovered soft loop ports: %v", ports)
-	batch := &gnmi.SetBatch{}
-	for _, p := range ports {
-		gnmi.BatchDelete(batch, gnmi.OC().Interface(p).Ethernet().PortSpeed().Config())
-		gnmi.BatchDelete(batch, gnmi.OC().Interface(p).Ethernet().AggregateId().Config())
-		gnmi.BatchDelete(batch, gnmi.OC().Interface(p).LoopbackMode().Config())
-	}
-	batch.Set(t, dut)
-}
-
 func populatePhysicalInterfaceForLAG(dut *ondatra.DUTDevice, i *oc.Interface, portName string, aggID string, enabled bool, loopbackMode oc.E_Interfaces_LoopbackModeType) {
 	i.Name = ygot.String(portName)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
@@ -1038,19 +1039,22 @@ func populatePhysicalInterfaceForLAG(dut *ondatra.DUTDevice, i *oc.Interface, po
 
 func configureStaticARPIngressAndEgress(t *testing.T, dut *ondatra.DUTDevice, portToLagMap map[string]string) {
 	t.Helper()
+	b := &gnmi.SetBatch{}
 	// Ingress LAG static ARP -> ATE ixia2
 	pIn := dut.Port(t, "lc2_p10")
 	lagIn := portToLagMap[pIn.Name()]
 	cfgIn := vrfPortMap["lc2_p10"]
 	peerIPIn := getPeerIP(t, cfgIn.ip)
-	gnmi.Update(t, dut, gnmi.OC().Interface(lagIn).Config(), configStaticArpLag(lagIn, peerIPIn, ateIngressMAC))
+	gnmi.BatchUpdate(b, gnmi.OC().Interface(lagIn).Config(), configStaticArpLag(lagIn, peerIPIn, ateIngressMAC))
 
 	// Egress LAG static ARP -> ATE ixia1
 	pEg := dut.Port(t, "lc2_p9")
 	lagEg := portToLagMap[pEg.Name()]
 	cfgEg := vrfPortMap["lc2_p9"]
 	peerIPEg := getPeerIP(t, cfgEg.ip)
-	gnmi.Update(t, dut, gnmi.OC().Interface(lagEg).Config(), configStaticArpLag(lagEg, peerIPEg, ateEgressMAC))
+	gnmi.BatchUpdate(b, gnmi.OC().Interface(lagEg).Config(), configStaticArpLag(lagEg, peerIPEg, ateEgressMAC))
+
+	b.Set(t, dut)
 }
 
 func configStaticArpLag(lagName string, ipv4addr string, macAddr string) *oc.Interface {
@@ -1066,31 +1070,13 @@ func configStaticArpLag(lagName string, ipv4addr string, macAddr string) *oc.Int
 	return i
 }
 
-func cleanupDevice(t *testing.T, dut *ondatra.DUTDevice, softLoops []string) {
+func cleanupDevice(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	t.Log("Performing cleanup of LAGs and VRFs...")
 	d := gnmi.OC()
 
-	if len(softLoops) > 0 {
-		cleanDiscoveredPorts(t, dut, softLoops)
-		batchACL := &gnmi.SetBatch{}
-		for _, portName := range softLoops {
-			params := cfgplugins.AclParams{
-				Name:    fmt.Sprintf("drop_rx_%s", portName),
-				ACLType: oc.Acl_ACL_TYPE_ACL_IPV4,
-				Intf:    portName,
-				Ingress: true,
-			}
-			cfgplugins.DeleteACL(t, batchACL, params)
-		}
-		t.Logf("Deleting ACLs on soft loops: %v", softLoops)
-		batchACL.Set(t, dut)
-	}
-
-	interfaces := gnmi.LookupAll(t, dut, d.InterfaceAny().Config())
-
 	targetLags := make(map[string]bool)
-	for i := 101; i <= 140; i++ {
+	for i := 101; i <= 220; i++ {
 		targetLags[getLagName(dut, i)] = true
 		targetLags[fmt.Sprintf("lag%d", i)] = true
 	}
@@ -1102,26 +1088,22 @@ func cleanupDevice(t *testing.T, dut *ondatra.DUTDevice, softLoops []string) {
 		gnmi.BatchDelete(batch1, d.Acl().Interface(lagName).Config())
 	}
 
-	for _, intfVal := range interfaces {
-		intf, present := intfVal.Val()
-		if !present {
-			continue
-		}
-		name := intf.GetName()
-		if intf.Ethernet != nil && intf.Ethernet.AggregateId != nil {
-			lagName := *intf.Ethernet.AggregateId
-			if targetLags[lagName] {
-				t.Logf("Reverting member port %s (was in %s)", name, lagName)
-				cleanIntf := &oc.Interface{
-					Name:    ygot.String(name),
-					Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
-					Enabled: ygot.Bool(true),
-				}
-				gnmi.BatchReplace(batch1, d.Interface(name).Config(), cleanIntf)
-			}
-		}
+	// Unassign LAG interfaces and subinterfaces from default VRF
+	defNI := deviations.DefaultNetworkInstance(dut)
+	for lagName := range targetLags {
+		gnmi.BatchDelete(batch1, d.NetworkInstance(defNI).Interface(lagName).Config())
+		gnmi.BatchDelete(batch1, d.NetworkInstance(defNI).Interface(fmt.Sprintf("%s.0", lagName)).Config())
 	}
-	t.Log("Executing stage 1 cleanup (member ports & ACLs)...")
+
+	// Explicitly remove aggregate-id and loopback-mode from all ports configured by the test
+	for portID := range vrfPortMap {
+		p := dut.Port(t, portID)
+		t.Logf("Reverting member port %s", p.Name())
+		gnmi.BatchDelete(batch1, d.Interface(p.Name()).Ethernet().AggregateId().Config())
+		gnmi.BatchDelete(batch1, d.Interface(p.Name()).LoopbackMode().Config())
+	}
+
+	t.Log("Executing stage 1 cleanup (member ports, default VRF unbind, & ACLs)...")
 	batch1.Set(t, dut)
 
 	batch2 := &gnmi.SetBatch{}
@@ -1131,7 +1113,7 @@ func cleanupDevice(t *testing.T, dut *ondatra.DUTDevice, softLoops []string) {
 		gnmi.BatchDelete(batch2, d.NetworkInstance(vrf).Config())
 	}
 
-	gnmi.BatchDelete(batch2, d.NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config())
+	gnmi.BatchDelete(batch2, d.NetworkInstance(defNI).PolicyForwarding().Config())
 
 	for lagName := range targetLags {
 		gnmi.BatchDelete(batch2, d.Interface(lagName).Config())
@@ -1182,7 +1164,7 @@ func configureOTGForFlow(t *testing.T, ate *ondatra.ATEDevice, setupFlow func(fl
 	flow.Metrics().SetEnable(true)
 	flow.TxRx().Device().SetTxNames([]string{ip1.Name()}).SetRxNames([]string{ip2.Name()})
 	flow.Size().SetFixed(512)
-	flow.Rate().SetPps(5000)
+	flow.Rate().SetPps(500000)
 	flow.Duration().Continuous()
 
 	setupFlow(flow)
@@ -1245,7 +1227,7 @@ func verifyDistribution(t *testing.T, name string, deltas map[string]uint64, por
 	}
 }
 
-func configureStaticARP(t *testing.T, dut *ondatra.DUTDevice, portToLagMap map[string]string, portToMacMap map[string]string, softLoops []softLoopInfo) {
+func configureStaticARP(t *testing.T, dut *ondatra.DUTDevice, portToLagMap map[string]string, portToMacMap map[string]string) {
 	t.Helper()
 	d := gnmi.OC()
 
@@ -1264,6 +1246,7 @@ func configureStaticARP(t *testing.T, dut *ondatra.DUTDevice, portToLagMap map[s
 		{"lc2_p2", "lc1_p2"}, // Loop 8
 	}
 
+	batch := &gnmi.SetBatch{}
 	for _, pair := range pairs {
 		port1 := dut.Port(t, pair.p1)
 		port2 := dut.Port(t, pair.p2)
@@ -1277,23 +1260,17 @@ func configureStaticARP(t *testing.T, dut *ondatra.DUTDevice, portToLagMap map[s
 		mac2 := portToMacMap[port2.Name()]
 
 		t.Logf("Configuring static ARP on %s for %s (%s)", lag1, ip2, mac2)
-		gnmi.Update(t, dut, d.Interface(lag1).Config(), configStaticArpLag(lag1, ip2, mac2))
+		gnmi.BatchUpdate(batch, d.Interface(lag1).Config(), configStaticArpLag(lag1, ip2, mac2))
 		t.Logf("Configuring static ARP on %s for %s (%s)", lag2, ip1, mac1)
-		gnmi.Update(t, dut, d.Interface(lag2).Config(), configStaticArpLag(lag2, ip1, mac1))
+		gnmi.BatchUpdate(batch, d.Interface(lag2).Config(), configStaticArpLag(lag2, ip1, mac1))
 	}
 
-	// Soft loops static ARP
-	for _, sl := range softLoops {
-		lagName := portToLagMap[sl.physName]
-		peerIP := getPeerIP(t, sl.ip)
-		t.Logf("Configuring static ARP on soft loop %s for %s (%s)", lagName, peerIP, sl.mac)
-		gnmi.Update(t, dut, d.Interface(lagName).Config(), configStaticArpLag(lagName, peerIP, sl.mac))
-	}
+	batch.Set(t, dut)
 }
 
 func logRuntimeDebug(t *testing.T, dut *ondatra.DUTDevice, portToLagMap map[string]string) {
 	t.Helper()
-	rxPorts := []string{"lc2_p3", "lc2_p4", "lc2_p5", "lc2_p6", "lc2_p1", "lc1_p8", "lc1_p7", "lc1_p2"}
+	rxPorts := []string{"lc2_p3", "lc2_p4", "lc2_p5", "lc2_p6", "lc2_p1", "lc2_p8", "lc2_p7", "lc2_p2"}
 
 	batch := gnmi.OCBatch()
 	for _, portID := range rxPorts {
@@ -1317,7 +1294,6 @@ func logRuntimeDebug(t *testing.T, dut *ondatra.DUTDevice, portToLagMap map[stri
 			gnmi.OC().Interface(lagName).AdminStatus(),
 			gnmi.OC().Interface(lagName).Counters().InErrors(),
 			gnmi.OC().Interface(lagName).Counters().OutErrors(),
-			gnmi.OC().Interface(lagName).Ethernet().MacAddress(),
 		)
 	}
 
@@ -1358,7 +1334,6 @@ func logRuntimeDebug(t *testing.T, dut *ondatra.DUTDevice, portToLagMap map[stri
 		var lAdmin oc.E_Interface_AdminStatus
 		var lOper oc.E_Interface_OperStatus
 		var lInErr, lOutErr uint64
-		var macState string
 		if lIntf := rootVal.GetInterface(lagName); lIntf != nil {
 			lAdmin = lIntf.GetAdminStatus()
 			lOper = lIntf.GetOperStatus()
@@ -1366,10 +1341,8 @@ func logRuntimeDebug(t *testing.T, dut *ondatra.DUTDevice, portToLagMap map[stri
 				lInErr = lIntf.GetCounters().GetInErrors()
 				lOutErr = lIntf.GetCounters().GetOutErrors()
 			}
-			if lIntf.Ethernet != nil {
-				macState = lIntf.GetEthernet().GetMacAddress()
-			}
 		}
-		t.Logf("  LAG %s: Admin=%v, Oper=%v, InErr=%v, OutErr=%v, StateMAC=%s", lagName, lAdmin, lOper, lInErr, lOutErr, macState)
+		t.Logf("  LAG %s: Admin=%v, Oper=%v, InErr=%v, OutErr=%v", lagName, lAdmin, lOper, lInErr, lOutErr)
 	}
+}
 }
