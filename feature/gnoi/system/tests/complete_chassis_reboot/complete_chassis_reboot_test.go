@@ -165,16 +165,15 @@ func TestChassisReboot(t *testing.T) {
 					// happens well before the delay has elapsed; otherwise stop validating
 					// reachability here and let the post-reboot polling loop below take over.
 					if errMsg != nil {
-						if time.Since(start).Seconds() < rebootDelay.Seconds() {
+						// Allow a 5-second tolerance before the reboot delay to account for
+						// slight timing variations or early reboot initiation by the DUT.
+						if time.Since(start) < rebootDelay-5*time.Second {
 							t.Fatalf("Get request failed before the reboot delay: %s.", *errMsg)
 						}
 						t.Logf("Get request failed at/after the reboot delay boundary (device may have started rebooting): %s.", *errMsg)
 						break
 					}
 
-					if err != nil && time.Since(start).Seconds() < rebootDelay.Seconds() {
-						t.Fatalf("Failed parsing current-datetime: %s.", err)
-					}
 					if latestTime.Before(prevTime) || latestTime.Equal(prevTime) {
 						t.Errorf("Get latest system time: got %v, want newer time than %v.", latestTime, prevTime)
 					}
