@@ -410,7 +410,7 @@ test: {
 }
 test: {
   id: "Hashing"
-  description: "Dataplane Hashing with Physical/Software Loopbacks"
+  description: "Dataplane Hashing with Physical Loopbacks"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/hashing_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/hashing_test/hashing_test.go"
 }
