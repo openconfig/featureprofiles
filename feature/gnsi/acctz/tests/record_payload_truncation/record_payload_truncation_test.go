@@ -53,7 +53,7 @@ func sendOversizedPayload(t *testing.T, dut *ondatra.DUTDevice) {
 		ni.SetDescription("This is a pointlessly long description in order to make the payload bigger.")
 		ni.SetType(oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF)
 		staticProtocol := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-		nhAddress := fmt.Sprintf("192.%d.2.1", i)
+		nhAddress := fmt.Sprintf("100.64.%d.1", i)
 		nstatRoutes := 0
 		switch dut.Vendor() {
 		case ondatra.JUNIPER:
