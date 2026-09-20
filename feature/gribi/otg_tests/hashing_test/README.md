@@ -1,7 +1,7 @@
-# Hashing: Dataplane Hashing with Physical/Software Loopbacks
+# Hashing: Dataplane Hashing with Physical Loopbacks
 
 ## Summary
-Verify Dataplane Hashing (ECMP, WCMP, and Intra-LAG) using a combination of physical loopback ports and software terminal loopback interfaces across multiple Network Instances (`DEFAULT`, `TRANSIT`, `SELF_SITE`, `EGRESS`).
+Verify Dataplane Hashing (ECMP, WCMP, and Intra-LAG) using physical loopback ports across multiple Network Instances (`DEFAULT`, `SELF_SITE`, `EGRESS`).
 
 The test suite validates hashing uniformity, weight enforcement, and anti-polarization across two traffic profiles:
 1. **Plain IPv4/IPv6 Traffic** (5-tuple entropy).
@@ -9,34 +9,28 @@ The test suite validates hashing uniformity, weight enforcement, and anti-polari
 
 ## Topology
 The testbed requires a DUT (`dut_8_loop_2_ate.testbed`) and an ATE.
-The topology utilizes 8 physical loopback pairs and 12 software terminal loopback interfaces to route and verify traffic across multiple hashing stages on the DUT.
+The topology utilizes physical loopback pairs to route and verify traffic across multiple hashing stages on the DUT without relying on software drop loops.
 
 ```mermaid
 graph LR
     subgraph ATE ["ATE (Traffic Generator)"]
-        ate2["Port 2 (ixia2) - Ingress"]
-        ate1["Port 1 (ixia1) - Egress"]
+        ate2["Port 1 (ixia2) - Ingress"]
+        ate1["Port 10 (ixia1) - Egress"]
     end
 
     subgraph DUT ["DUT (dut_8_loop_2_ate)"]
-        inPort["lc2_p10 (Ingress)"]
-        egPort["lc2_p9 (Egress)"]
+        inPort["lc2_p10 (Ingress Port 1)"]
+        egPort["lc2_p9 (Egress Port 10)"]
         
-        subgraph PhysLoops ["8 Physical Loopbacks"]
-            l1["lc1_p3 <--> lc2_p3 (Loop 1)"]
-            l2["lc1_p4 <--> lc2_p4 (Loop 2)"]
-            l3["lc1_p5 <--> lc2_p5 (Loop 3)"]
-            l4["lc1_p6 <--> lc2_p6 (Loop 4)"]
-            l5["lc1_p1 <--> lc2_p1 (Loop 5)"]
-            l6["lc2_p8 <--> lc1_p8 (Loop 6)"]
-            l7["lc2_p7 <--> lc1_p7 (Loop 7)"]
-            l8["lc2_p2 <--> lc1_p2 (Loop 8)"]
-        end
-        
-        subgraph SoftLoops ["12 Software Loopbacks"]
-            sl1["Stage 1 Soft Loops: 3 ports"]
-            sl2["Stage 2 Soft Loops: 4 ports"]
-            sl3["Stage 3 Soft Loops: 5 ports"]
+        subgraph PhysLoops ["Physical Loopbacks (8 Loops)"]
+            l1["lc1_p3 <--> lc2_p3 (Loop 1: Ingress -> SelfSite)"]
+            l2["lc1_p4 <--> lc2_p4 (Loop 2: Ingress -> SelfSite)"]
+            l3["lc1_p5 <--> lc2_p5 (Loop 3: Ingress -> Egress)"]
+            l4["lc1_p6 <--> lc2_p6 (Loop 4: Ingress -> Egress)"]
+            l5["lc1_p1 <--> lc2_p1 (Loop 5: SelfSite -> Egress)"]
+            l6["lc1_p8 <--> lc2_p8 (Loop 6: SelfSite -> Egress)"]
+            l7["lc1_p7 <--> lc2_p7 (Loop 7: SelfSite -> Egress)"]
+            l8["lc1_p2 <--> lc2_p2 (Loop 8: SelfSite -> Egress)"]
         end
     end
 
@@ -45,26 +39,20 @@ graph LR
 ```
 
 ### Port Details and Loopbacks
-The test utilizes physical loopback cables and software terminal loopbacks:
-- **Physical Loopbacks (8 pairs)**: Formed by connecting two physical ports on the DUT:
-  - **Loop 1**: `lc1_p3` <-> `lc2_p3` (Stage 1 -> Transit)
-  - **Loop 2**: `lc1_p4` <-> `lc2_p4` (Transit -> Egress)
-  - **Loop 3**: `lc1_p5` <-> `lc2_p5` (Transit -> Egress)
-  - **Loop 4**: `lc1_p6` <-> `lc2_p6` (Transit -> Self-Site)
-  - **Loop 5**: `lc1_p1` <-> `lc2_p1` (Transit -> Self-Site)
-  - **Loop 6**: `lc2_p8` <-> `lc1_p8` (Self-Site -> Egress)
-  - **Loop 7**: `lc2_p7` <-> `lc1_p7` (Self-Site -> Egress)
-  - **Loop 8**: `lc2_p2` <-> `lc1_p2` (Self-Site -> Egress)
-
-- **Software Loopbacks (12 ports in TERMINAL mode)**:
-  - **Stage 1 Soft Loops**: 3 ports configured in TERMINAL loopback mode, assigned to dedicated LAGs.
-  - **Stage 2 Soft Loops**: 4 ports configured in TERMINAL loopback mode, assigned to dedicated LAGs.
-  - **Stage 3 Soft Loops**: 5 ports configured in TERMINAL loopback mode, assigned to dedicated LAGs.
-  - Software loopback interfaces have ingress ACLs configured to drop all incoming packets to avoid loops.
+The test utilizes all 8 physical loopback cables and 2 ATE links on `dut_8_loop_2_ate.testbed`:
+- **Physical Loopbacks**:
+  - **Loop 1 (Port 2)**: `lc1_p3` (Ingress) <-> `lc2_p3` (SelfSite)
+  - **Loop 2 (Port 3)**: `lc1_p4` (Ingress) <-> `lc2_p4` (SelfSite)
+  - **Loop 3 (Port 4)**: `lc1_p5` (Ingress) <-> `lc2_p5` (Egress)
+  - **Loop 4 (Port 5)**: `lc1_p6` (Ingress) <-> `lc2_p6` (Egress)
+  - **Loop 5 (Port 6)**: `lc1_p1` (SelfSite) <-> `lc2_p1` (Egress)
+  - **Loop 6 (Port 7)**: `lc1_p8` (SelfSite) <-> `lc2_p8` (Egress)
+  - **Loop 7 (Port 8)**: `lc1_p7` (SelfSite) <-> `lc2_p7` (Egress)
+  - **Loop 8 (Port 9)**: `lc1_p2` (SelfSite) <-> `lc2_p2` (Egress)
 
 - **ATE Connections**:
-  - **ATE Port 1** (`ixia1`) connects to **DUT Port lc2_p9** (Egress sink).
-  - **ATE Port 2** (`ixia2`) connects to **DUT Port lc2_p10** (Ingress source).
+  - **ATE Ingress Port 1** (`ixia2`) connects to **DUT Port lc2_p10** (Ingress source).
+  - **ATE Egress Port 10** (`ixia1`) connects to **DUT Port lc2_p9** (Egress sink).
 
 ---
 
@@ -82,9 +70,11 @@ All test scenarios are executed against the following two traffic profiles:
 
 ### 2. IPnIP Encapsulated Traffic (Encap)
 - **Header Structure**: Outer IPv4 Header + Inner IPv4 Header + UDP Payload.
-- **Outer Header**: Static Source and Destination IPv4 addresses (zero entropy in outer header).
-- **Inner Header**: 5-tuple varied IPv4 + UDP packets.
-- **Verification**: Verifies that the DUT hashing engine parses and computes hash keys from the **inner packet headers**, ensuring uniform distribution without tunnel polarization.
+- **Outer Header**:
+  - Source IP: Static `10.10.10.1`.
+  - Destination IP: Incrementing across `172.16.0.1` to `172.16.0.254` (count 254).
+- **Inner Header**: 5-tuple varied IPv4 + UDP packets (1,009 src IPs, 1,013 dst IPs, 1,019 src UDP ports, 1,021 dst UDP ports).
+- **Verification**: Verifies that the DUT hashing engine parses and computes hash keys from both outer and inner packet headers, ensuring uniform distribution without tunnel polarization.
 
 ---
 
@@ -95,105 +85,100 @@ The acceptable hashing distribution across any set of next-hops or LAG member li
 $$\text{Acceptable Ratio Range} = \text{Expected Ratio} \times (1 \pm 0.02)$$
 
 *Examples*:
-- Expected **12.50%** (8-wide ECMP) $\rightarrow$ Acceptable Range: **12.25% to 12.75%**
-- Expected **14.28%** (7-member LAG) $\rightarrow$ Acceptable Range: **14.00% to 14.57%**
+- Expected **20.00%** (1/5 share) $\rightarrow$ Acceptable Range: **19.60% to 20.40%**
 - Expected **33.33%** (3-wide equal) $\rightarrow$ Acceptable Range: **32.66% to 34.00%**
+- Expected **60.00%** (6/10 weight) $\rightarrow$ Acceptable Range: **58.80% to 61.20%**
+- Expected **14.28%** (7-member LAG) $\rightarrow$ Acceptable Range: **14.00% to 14.57%**
 - Expected **42.86%** (3:2:2 weight) $\rightarrow$ Acceptable Range: **42.00% to 43.71%**
 
 ---
 
-## Test Scenario 1: Multi-Stage Max Fan-out (8-Wide ECMP & WCMP)
+## Test Scenario 1: Multi-Stage ECMP & Anti-Polarization Hashing
 
 ### 1. Description
-Verifies end-to-end dataplane hashing across all three network instance stages (`DEFAULT`, `TRANSIT`, `SELF_SITE`) and ensures traffic reaches the `EGRESS` VRF on ATE Port 1.
+Verifies end-to-end dataplane hashing across `DEFAULT` (Ingress), `SELF_SITE`, and `EGRESS` network instances using an 8-loop topology:
+- **Ingress VRF (`DEFAULT`)**: Evaluates 4-way ECMP (1:1:1:1 equal weight) across:
+  - **Port 2 (`lc1_p3` -> SelfSite)**: Weight 1 (25%)
+  - **Port 3 (`lc1_p4` -> SelfSite)**: Weight 1 (25%)
+  - **Port 4 (`lc1_p5` -> Egress)**: Weight 1 (25%)
+  - **Port 5 (`lc1_p6` -> Egress)**: Weight 1 (25%)
+  Total weight: 4. Split is 50% to `SELF_SITE` and 50% to `EGRESS`.
+- **SelfSite VRF (`SELF_SITE`)**: Receives 50% of traffic on Ports 2 & 3. Evaluates 4-way ECMP (1:1:1:1) across:
+  - **Port 6 (`lc1_p1` -> Egress)**: Weight 1 (12.5% of total traffic)
+  - **Port 7 (`lc1_p8` -> Egress)**: Weight 1 (12.5% of total traffic)
+  - **Port 8 (`lc1_p7` -> Egress)**: Weight 1 (12.5% of total traffic)
+  - **Port 9 (`lc1_p2` -> Egress)**: Weight 1 (12.5% of total traffic)
+- **Egress VRF (`EGRESS`)**: Recombines all 6 forwarded streams:
+  - Direct from Ingress: Port 4 (25%), Port 5 (25%)
+  - Indirect via SelfSite: Port 6 (12.5%), Port 7 (12.5%), Port 8 (12.5%), Port 9 (12.5%)
+  Total arriving: 100%. All forwarded out Port 10 (`lc2_p9`) to ATE Egress (`ixia1`).
 
 ```mermaid
 graph TD
-    Ingress["ATE Ingress: Port 2 (ixia2)"] -->|Traffic| IngressPort["DUT Ingress: lc2_p10"]
-    IngressPort --> DefaultVRF{Default VRF}
+    Ixia["ATE Ingress: Port 1 (ixia2)"] --> IngressPort1["Ingress: Port 1 (lc2_p10)"]
     
-    subgraph Stage1 ["Stage 1: Default VRF (WCMP 7:1:1:1)"]
-        DefaultVRF -->|70%| Loop1["Loop 1: lc1_p3 -> lc2_p3"]
-        DefaultVRF -->|10%| SL0["Soft Loop 0: lag118"]
-        DefaultVRF -->|10%| SL1["Soft Loop 1: lag119"]
-        DefaultVRF -->|10%| SL2["Soft Loop 2: lag120"]
+    subgraph IngressVRF ["Ingress VRF (NHG_01: 1:1:1:1 ECMP)"]
+        IngressPort1 -->|25% (Weight 1)| IngressP2["Port 2 (lc1_p3)"]
+        IngressPort1 -->|25% (Weight 1)| IngressP3["Port 3 (lc1_p4)"]
+        IngressPort1 -->|25% (Weight 1)| IngressP4["Port 4 (lc1_p5)"]
+        IngressPort1 -->|25% (Weight 1)| IngressP5["Port 5 (lc1_p6)"]
     end
-    
-    SL0 --> Drop1["ACL Drop"]
-    SL1 --> Drop1
-    SL2 --> Drop1
-    
-    Loop1 -->|VRF Assignment: lc2_p3 in Transit| TransitVRF{Transit VRF}
-    
-    subgraph Stage2 ["Stage 2: Transit VRF (ECMP / WCMP 8-wide)"]
-        TransitVRF --> Loop2["Loop 2: lc1_p4 -> lc2_p4"]
-        TransitVRF --> Loop3["Loop 3: lc1_p5 -> lc2_p5"]
-        TransitVRF --> Loop4["Loop 4: lc1_p6 -> lc2_p6"]
-        TransitVRF --> Loop5["Loop 5: lc1_p1 -> lc2_p1"]
-        TransitVRF --> SL3["Soft Loop 3: lag121"]
-        TransitVRF --> SL4["Soft Loop 4: lag122"]
-        TransitVRF --> SL5["Soft Loop 5: lag123"]
-        TransitVRF --> SL6["Soft Loop 6: lag124"]
+
+    IngressP2 -->|Loop 1 (25%)| SelfSiteP2["SelfSite: Port 2 (lc2_p3)"]
+    IngressP3 -->|Loop 2 (25%)| SelfSiteP3["SelfSite: Port 3 (lc2_p4)"]
+    IngressP4 -->|Loop 3 (25%)| EgressP4["Egress: Port 4 (lc2_p5)"]
+    IngressP5 -->|Loop 4 (25%)| EgressP5["Egress: Port 5 (lc2_p6)"]
+
+    subgraph SelfSiteVRF ["SelfSite VRF (NHG_02: 1:1:1:1 ECMP)"]
+        SelfSiteP2 -.->|ECMP| SelfSiteP6["Port 6 (lc1_p1): 12.5%"]
+        SelfSiteP2 -.->|ECMP| SelfSiteP7["Port 7 (lc1_p8): 12.5%"]
+        SelfSiteP2 -.->|ECMP| SelfSiteP8["Port 8 (lc1_p7): 12.5%"]
+        SelfSiteP2 -.->|ECMP| SelfSiteP9["Port 9 (lc1_p2): 12.5%"]
+        SelfSiteP3 -.->|ECMP| SelfSiteP6
+        SelfSiteP3 -.->|ECMP| SelfSiteP7
+        SelfSiteP3 -.->|ECMP| SelfSiteP8
+        SelfSiteP3 -.->|ECMP| SelfSiteP9
     end
-    
-    SL3 --> Drop2["ACL Drop"]
-    SL4 --> Drop2
-    SL5 --> Drop2
-    SL6 --> Drop2
-    
-    Loop2 -->|VRF Assignment: lc2_p4 in Egress| EgressVRF{Egress VRF}
-    Loop3 -->|VRF Assignment: lc2_p5 in Egress| EgressVRF
-    
-    Loop4 -->|VRF Assignment: lc2_p6 in Self-Site| SelfSiteVRF{Self-Site VRF}
-    Loop5 -->|VRF Assignment: lc2_p1 in Self-Site| SelfSiteVRF
-    
-    subgraph Stage3 ["Stage 3: Self-Site VRF (ECMP / WCMP 8-wide)"]
-        SelfSiteVRF --> Loop6["Loop 6: lc2_p8 -> lc1_p8"]
-        SelfSiteVRF --> Loop7["Loop 7: lc2_p7 -> lc1_p7"]
-        SelfSiteVRF --> Loop8["Loop 8: lc2_p2 -> lc1_p2"]
-        SelfSiteVRF --> SL7["Soft Loop 7: lag125"]
-        SelfSiteVRF --> SL8["Soft Loop 8: lag126"]
-        SelfSiteVRF --> SL9["Soft Loop 9: lag127"]
-        SelfSiteVRF --> SL10["Soft Loop 10: lag128"]
-        SelfSiteVRF --> SL11["Soft Loop 11: lag129"]
+
+    SelfSiteP6 -->|Loop 5 (12.5%)| EgressP6["Egress: Port 6 (lc2_p1)"]
+    SelfSiteP7 -->|Loop 6 (12.5%)| EgressP7["Egress: Port 7 (lc2_p8)"]
+    SelfSiteP8 -->|Loop 7 (12.5%)| EgressP8["Egress: Port 8 (lc2_p7)"]
+    SelfSiteP9 -->|Loop 8 (12.5%)| EgressP9["Egress: Port 9 (lc2_p2)"]
+
+    subgraph EgressVRF ["Egress VRF (6-Stream Arrival)"]
+        EgressP4 --> EgressOut["Port 10 (lc2_p9)"]
+        EgressP5 --> EgressOut
+        EgressP6 --> EgressOut
+        EgressP7 --> EgressOut
+        EgressP8 --> EgressOut
+        EgressP9 --> EgressOut
     end
-    
-    SL7 --> Drop3["ACL Drop"]
-    SL8 --> Drop3
-    SL9 --> Drop3
-    SL10 --> Drop3
-    SL11 --> Drop3
-    
-    Loop6 -->|VRF Assignment: lc1_p8 in Egress| EgressVRF
-    Loop7 -->|VRF Assignment: lc1_p7 in Egress| EgressVRF
-    Loop8 -->|VRF Assignment: lc1_p2 in Egress| EgressVRF
-    
-    EgressVRF --> EgressPort["DUT Egress: lc2_p9"] --> Egress["ATE Egress: Port 1 (ixia1)"]
+
+    EgressOut --> ATE_Egress["ATE Egress: Port 10 (ixia1)"]
 ```
 
-### 2. Sub-cases & Hashing Verification
+### 2. Traffic Verification
 
-#### **Sub-case 1.1: 8-Wide Uniform ECMP**
-- **gRIBI Programming**: Program NHG 2 (`TRANSIT`) and NHG 3 (`SELF_SITE`) with 8 equal weight next-hops (weight 1 each).
-- **Traffic Verification**:
-  - **Stage 1 (`DEFAULT`)**: ~70% to `lc1_p3` (68.6% – 71.4%), ~10% to each of 3 soft loops (9.8% – 10.2%).
-  - **Stage 2 (`TRANSIT`)**: ~12.5% to each of the 8 next-hops (12.25% – 12.75%).
-  - **Stage 3 (`SELF_SITE`)**: ~12.5% to each of the 8 next-hops (12.25% – 12.75%).
-  - **Egress**: Verify full traffic arrival on ATE Port 1 (`ixia1`).
+- **Stage 1 (`DEFAULT` / Ingress VRF)**:
+  - **Port 2 (`lc1_p3`)**: **~25.0%** (acceptable range: **24.5% – 25.5%**).
+  - **Port 3 (`lc1_p4`)**: **~25.0%** (acceptable range: **24.5% – 25.5%**).
+  - **Port 4 (`lc1_p5`)**: **~25.0%** (acceptable range: **24.5% – 25.5%**).
+  - **Port 5 (`lc1_p6`)**: **~25.0%** (acceptable range: **24.5% – 25.5%**).
+- **Stage 2 (`SELF_SITE` VRF)**:
+  - **Port 6 (`lc1_p1`)**: **~25.0%** of SelfSite traffic (acceptable range: **24.5% – 25.5%**).
+  - **Port 7 (`lc1_p8`)**: **~25.0%** of SelfSite traffic (acceptable range: **24.5% – 25.5%**).
+  - **Port 8 (`lc1_p7`)**: **~25.0%** of SelfSite traffic (acceptable range: **24.5% – 25.5%**).
+  - **Port 9 (`lc1_p2`)**: **~25.0%** of SelfSite traffic (acceptable range: **24.5% – 25.5%**).
+- **Stage 3 (`EGRESS` VRF Multi-Stream Arrival)**:
+  - **Direct Stream 1 (Port 4)**: **~25.0%** of total traffic (acceptable range: **24.5% – 25.5%**).
+  - **Direct Stream 2 (Port 5)**: **~25.0%** of total traffic (acceptable range: **24.5% – 25.5%**).
+  - **Via SelfSite (Port 6)**: **~12.5%** of total traffic (acceptable range: **12.25% – 12.75%**).
+  - **Via SelfSite (Port 7)**: **~12.5%** of total traffic (acceptable range: **12.25% – 12.75%**).
+  - **Via SelfSite (Port 8)**: **~12.5%** of total traffic (acceptable range: **12.25% – 12.75%**).
+  - **Via SelfSite (Port 9)**: **~12.5%** of total traffic (acceptable range: **12.25% – 12.75%**).
+- **Stage 4 (Egress Arrival)**:
+  - Verify 100% full traffic arrival on ATE Port 10 (`ixia1`).
 - **Traffic Profiles**: Execute for Plain IP and IPnIP Encap.
-
-#### **Sub-case 1.2: Equal Paths, Unequal Weights (8-Wide WCMP 1:2 Ratio)**
-- **gRIBI Programming**: Program 8 next-hops with a **1:2 weight ratio**:
-  - Weight `1` for Soft Loop interfaces.
-  - Weight `2` for Physical Loop interfaces.
-- **Traffic Verification**:
-  - **Stage 2 (`TRANSIT`)** (4 Physical Loops @ weight 2 + 4 Soft Loops @ weight 1 $\rightarrow$ Total weight = 12):
-    - **Soft Loops (4 ports)**: **~8.33%** each (acceptable range: **8.16% – 8.50%**).
-    - **Physical Loops (4 ports)**: **~16.67%** each (acceptable range: **16.33% – 17.00%**).
-  - **Stage 3 (`SELF_SITE`)** (3 Physical Loops @ weight 2 + 5 Soft Loops @ weight 1 $\rightarrow$ Total weight = 11):
-    - **Soft Loops (5 ports)**: **~9.09%** each (acceptable range: **8.91% – 9.27%**).
-    - **Physical Loops (3 ports)**: **~18.18%** each (acceptable range: **17.82% – 18.54%**).
-  - **Egress**: Verify full traffic arrival on ATE Port 1 (`ixia1`).
 - **Traffic Profiles**: Execute for Plain IP and IPnIP Encap.
 
 ---
