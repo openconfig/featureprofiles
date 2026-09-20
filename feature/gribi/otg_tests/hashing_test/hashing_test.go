@@ -1345,4 +1345,3 @@ func logRuntimeDebug(t *testing.T, dut *ondatra.DUTDevice, portToLagMap map[stri
 		t.Logf("  LAG %s: Admin=%v, Oper=%v, InErr=%v, OutErr=%v", lagName, lAdmin, lOper, lInErr, lOutErr)
 	}
 }
-}
