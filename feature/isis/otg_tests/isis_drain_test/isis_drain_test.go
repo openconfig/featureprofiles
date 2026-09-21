@@ -534,6 +534,7 @@ func validateTrafficLoss(t *testing.T, otg *otg.OTG, flowName string, minLossPct
 	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 		otgutils.ExpectedTrafficLoss(t, otg, flowName, minLossPct, maxLossPct)
 	}); errMsg != nil {
+		t.Logf("validateTrafficLoss: captured error message: %s", *errMsg)
 		return fmt.Errorf("validateTrafficLoss: unexpected traffic loss on flow %s: %s", flowName, *errMsg)
 	}
 	return nil

@@ -158,7 +158,7 @@ func ChangeISISMetric(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch
 		l1.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric = ygot.Uint32(params.Metric)
 		l1.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric = ygot.Uint32(params.Metric)
 	}
-	gnmi.BatchUpdate(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, params.InstanceName).Isis().Config(), isis)
+	gnmi.BatchUpdate(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, params.InstanceName).Isis().Interface(intf).Config(), isis.GetInterface(intf))
 	return batch
 }
 
