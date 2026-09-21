@@ -717,22 +717,21 @@ func WithLinePort(t *testing.T, dut *ondatra.DUTDevice, och string) OpticalChann
 }
 
 // ConfigOpticalChannel configures the optical channel.
-func ConfigOpticalChannel(t *testing.T, dut *ondatra.DUTDevice, och string, frequency uint64, targetOpticalPower float64, operationalMode uint16, opts ...OpticalChannelOpt) {
-	opticalChannel := &oc.Component_OpticalChannel{
-		OperationalMode:   ygot.Uint16(operationalMode),
-		Frequency:         ygot.Uint64(frequency),
-		TargetOutputPower: ygot.Float64(targetOpticalPower),
+func WithLinePort(t *testing.T, dut *ondatra.DUTDevice, och string) OpticalChannelOpt {
+	t.Helper()
+	return func(oc *oc.Component_OpticalChannel) {
+		if !deviations.LinePortUnsupported(dut) {
+			val, ok := gnmi.Watch(t, dut, gnmi.OC().Component(och).OpticalChannel().LinePort().State(), 30*time.Second, func(val *ygnmi.Value[string]) bool {
+				v, present := val.Val()
+				return present && v != ""
+			}).Await(t)
+			if !ok {
+				t.Fatalf("LinePort state not populated for optical channel %s", och)
+			}
+			linePort, _ := val.Val()
+			oc.LinePort = ygot.String(linePort)
+		}
 	}
-	for _, opt := range opts {
-		opt(opticalChannel)
-	}
-	if opticalChannel.GetLinePort() != "" {
-		t.Logf("LinePort was configured for optical channel %s: %s", och, opticalChannel.GetLinePort())
-	}
-	gnmi.Replace(t, dut, gnmi.OC().Component(och).Config(), &oc.Component{
-		Name:           ygot.String(och),
-		OpticalChannel: opticalChannel,
-	})
 }
 
 // ConfigOTNChannel configures the OTN channel.
