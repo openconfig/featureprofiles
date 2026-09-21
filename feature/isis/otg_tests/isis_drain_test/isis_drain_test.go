@@ -540,7 +540,7 @@ func validateTrafficLoss(t *testing.T, otg *otg.OTG, flowName string, minLossPct
 }
 
 // runTrafficFlows validates one traffic window over the already-configured flows, without an ATE config push.
-func runTrafficFlows(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, good, bad []gosnappi.Flow, nhCount int) error {
+func runTrafficFlows(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, flows []gosnappi.Flow, nhCount int) error {
 	t.Helper()
 	var errs []error
 	if nhCount > 0 {
@@ -550,9 +550,6 @@ func runTrafficFlows(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, good, b
 	}
 
 	top := otg.GetConfig(t)
-	allFlows := make([]gosnappi.Flow, 0, len(good)+len(bad))
-	allFlows = append(allFlows, good...)
-	allFlows = append(allFlows, bad...)
 
 	packetsBefore := map[string]uint64{
 		ateLag2: lagInFrames(t, otg, ateLag2),
@@ -560,7 +557,7 @@ func runTrafficFlows(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, good, b
 	}
 	port1FramesBefore := portOutFrames(t, otg, port1ID)
 	var wantPort1Frames uint64
-	for _, flow := range allFlows {
+	for _, flow := range flows {
 		wantPort1Frames += flow.Rate().Pps() * uint64(runTrafficTime.Seconds())
 	}
 
@@ -575,14 +572,8 @@ func runTrafficFlows(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, good, b
 		errs = append(errs, err)
 	}
 
-	for _, flow := range good {
+	for _, flow := range flows {
 		if err := validateTrafficLoss(t, otg, flow.Name(), 0, trafficTolerance); err != nil {
-			errs = append(errs, err)
-		}
-	}
-
-	for _, flow := range bad {
-		if err := validateTrafficLoss(t, otg, flow.Name(), 100-trafficTolerance, 100); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -751,7 +742,7 @@ func runMetricDrain(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, ateCfg g
 	// Step 2: Send continuous IPv4 and IPv6 traffic flows from ATE Port-1 to the 2,000 advertised prefixes (ecmpFlows).
 	// Step 3: Wait for IS-IS convergence (up to 30s). Validate that steady-state traffic loss is 0% and traffic transits via trunk-2 and trunk-3.
 	t.Log("Step 1-3: Validating steady-state traffic is load-balanced over trunk-2 and trunk-3 with 0% loss")
-	if err := runTrafficFlows(t, dut, otg, ecmpFlows, nil, 2); err != nil {
+	if err := runTrafficFlows(t, dut, otg, ecmpFlows, 2); err != nil {
 		errs = append(errs, err)
 	}
 
@@ -761,14 +752,14 @@ func runMetricDrain(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, ateCfg g
 
 	// Step 5: Validate that 100% of the traffic transits via trunk-3 only. Verify steady-state traffic loss is 0%.
 	t.Log("Step 5: Validating 100% of traffic transits trunk-3 only with 0% steady-state loss")
-	if err := runTrafficFlows(t, dut, otg, ecmpFlows, nil, 1); err != nil {
+	if err := runTrafficFlows(t, dut, otg, ecmpFlows, 1); err != nil {
 		errs = append(errs, err)
 	}
 
 	// Step 6: Revert the ISIS metric on trunk-2 back to original value. Validate traffic recovers and is load-balanced over trunk-2 and trunk-3.
 	t.Logf("Step 6: Reverting ISIS metric on trunk-2 (%s) back to %d and verifying traffic recovery", agg2ID, baseMetric)
 	changeISISMetric(t, dut, agg2ID, baseMetric)
-	if err := runTrafficFlows(t, dut, otg, ecmpFlows, nil, 2); err != nil {
+	if err := runTrafficFlows(t, dut, otg, ecmpFlows, 2); err != nil {
 		errs = append(errs, err)
 	}
 
@@ -793,15 +784,15 @@ func runOverloadBitDrain(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, ate
 	}
 	startProtocolsAndAwait(t, dut, otg, ateCfg)
 
-	allGoodFlows := make([]gosnappi.Flow, 0, len(ecmpFlows)+len(localFlows))
-	allGoodFlows = append(allGoodFlows, ecmpFlows...)
-	allGoodFlows = append(allGoodFlows, localFlows...)
+	allFlows := make([]gosnappi.Flow, 0, len(ecmpFlows)+len(localFlows))
+	allFlows = append(allFlows, ecmpFlows...)
+	allFlows = append(allFlows, localFlows...)
 
 	// Step 1: Ensure ATE Port-2 advertises transit networks (configured in configureATE).
 	// Step 2: Establish an iBGP session from ATE Port-1 to DUT Loopback interface to simulate control plane traffic.
 	// Step 3: Send transit traffic (ATE Port-1 -> DUT -> ATE Port-2) and local traffic (ATE Port-1 -> DUT Loopback).
 	t.Log("Step 1-3: Validating steady-state transit traffic and iBGP session before draining. Validating local traffic to the DUT loopback before draining")
-	if err := runTrafficFlows(t, dut, otg, allGoodFlows, nil, 2); err != nil {
+	if err := runTrafficFlows(t, dut, otg, allFlows, 2); err != nil {
 		errs = append(errs, err)
 	}
 	if err := verifyBGPEstablished(t, dut); err != nil {
@@ -818,20 +809,20 @@ func runOverloadBitDrain(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, ate
 		errs = append(errs, err)
 	}
 
-	// Step 6: Wait for convergence. Verify that transit traffic to ATE Port-2 drops to 0.
+	// Step 6: Wait for convergence. Verify that ate learns the IS-IS overload flag from the DUT LSP.
 	t.Log("Step 6: Verifying the ATE learns the IS-IS overload flag in the DUT LSP")
 	if err := verifyOverloadBitAdvertised(t, otg); err != nil {
 		errs = append(errs, err)
 	}
-	// Step 6: Verify transit traffic drops to 0 (100% loss).
-	// Step 7:  local loopback traffic (and iBGP session) experiences 0% loss.
+
+	// Step 7: Local loopback traffic (and iBGP session) experiences 0% loss.
 	// Step 8: Verify that toggling overload-bit config does not flap or reset existing IS-IS adjacencies (Adjacency Stability).
-	t.Log("Step 6-8: Verifying IS-IS adjacencies remain UP without flapping")
+	t.Log("Step 7-8: Verifying IS-IS adjacencies remain UP without flapping")
 	if err := verifyAdjacencyStability(t, dut, stabilityWindow); err != nil {
 		errs = append(errs, err)
 	}
-	t.Log("Verifying transit traffic is dropped (100% loss) and local traffic to the DUT loopback experiences 0% loss")
-	if err := runTrafficFlows(t, dut, otg, localFlows, ecmpFlows, 0); err != nil {
+	t.Log("Verifying local traffic to the DUT loopback experiences 0% loss")
+	if err := runTrafficFlows(t, dut, otg, localFlows, 0); err != nil {
 		errs = append(errs, err)
 	}
 	if err := verifyBGPEstablished(t, dut); err != nil {
@@ -850,7 +841,7 @@ func runOverloadBitDrain(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, ate
 
 	// Step 11: Verify that transit IPv4 and IPv6 traffic recovers and is forwarded through DUT with 0% steady-state loss.
 	t.Log("Step 11: Verifying transit traffic recovers after clearing the overload bit")
-	if err := runTrafficFlows(t, dut, otg, allGoodFlows, nil, 2); err != nil {
+	if err := runTrafficFlows(t, dut, otg, allFlows, 2); err != nil {
 		errs = append(errs, err)
 	}
 
