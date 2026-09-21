@@ -51,9 +51,6 @@ const (
 	// Egress Next Hop ID
 	nhIDEgress uint64 = 401
 
-	// Minimum ingress packets required to guarantee ECMP/WCMP hashing convergence within +-2% tolerance
-	minPacketsForHashing uint64 = 1000000
-
 	// Minimum traffic transmission duration to average PPS and hashing distribution
 	trafficDuration = 120 * time.Second
 )
@@ -1203,28 +1200,6 @@ func verifyWCMPDistribution(t *testing.T, name string, deltas map[string]uint64,
 	}
 }
 
-func verifyDistribution(t *testing.T, name string, deltas map[string]uint64, ports []string, expectedRatio float64) {
-	t.Helper()
-	var total uint64
-	for _, portID := range ports {
-		total += deltas[portID]
-	}
-	t.Logf("VRF %s Total Egress Packets: %d", name, total)
-	if total == 0 {
-		t.Errorf("VRF %s total packets is 0, cannot verify distribution", name)
-		return
-	}
-
-	minExpected := expectedRatio * 0.98
-	maxExpected := expectedRatio * 1.02
-	for _, portID := range ports {
-		ratio := float64(deltas[portID]) / float64(total)
-		t.Logf("  Port %s: %d packets, ratio: %.4f (expected: %.4f [%.4f, %.4f])", portID, deltas[portID], ratio, expectedRatio, minExpected, maxExpected)
-		if ratio < minExpected || ratio > maxExpected {
-			t.Errorf("  Port %s ratio %.4f is out of expected range [%.4f, %.4f]", portID, ratio, minExpected, maxExpected)
-		}
-	}
-}
 
 func configureStaticARP(t *testing.T, dut *ondatra.DUTDevice, portToLagMap map[string]string, portToMacMap map[string]string) {
 	t.Helper()
