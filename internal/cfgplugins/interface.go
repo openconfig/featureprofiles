@@ -707,10 +707,10 @@ func ToggleInterface(t *testing.T, dut *ondatra.DUTDevice, intf string, isEnable
 type OpticalChannelOpt func(*oc.Component_OpticalChannel)
 
 // WithLinePort sets the line-port for the optical channel if supported by the DUT.
-func WithLinePort(dut *ondatra.DUTDevice, och string) OpticalChannelOpt {
+func WithLinePort(t *testing.T, dut *ondatra.DUTDevice, och string) OpticalChannelOpt {
 	return func(oc *oc.Component_OpticalChannel) {
 		if !deviations.LinePortUnsupported(dut) {
-			linePort := strings.ReplaceAll(och, "OpticalChannel", "Optics")
+			linePort := gnmi.Get(t, dut, gnmi.OC().Component(och).OpticalChannel().LinePort().State())
 			oc.LinePort = ygot.String(linePort)
 		}
 	}
