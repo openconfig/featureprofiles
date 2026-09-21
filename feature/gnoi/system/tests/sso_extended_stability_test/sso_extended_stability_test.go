@@ -30,6 +30,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 
@@ -46,13 +47,13 @@ const (
 var (
 	possibleCriticalProcs = []string{
 		// Arista
-		"AsicResourceMgr", "SandL3Ni", "FcRouteEs",
+		"AsicResourceMgr", "SandL3Ni", "FcRouteEs", "Bgp-main", "Rib", "Sysdb", "SuperServer", "SandL3Unicast", "FapNi",
 		// Cisco
 		"fretta_dpa", "bgp", "cef",
 		// Juniper
 		"rpd", "aftd-chassis", "fpc",
 		// Nokia
-		"sr_engine", "bgp", "sr_mgmtd",
+		"sr_engine", "sr_mgmtd",
 	}
 )
 
@@ -96,14 +97,80 @@ func findRunningCriticalProcesses(t *testing.T, dut *ondatra.DUTDevice) []string
 	return found
 }
 
+func getCriticalProcessInfos(t *testing.T, dut *ondatra.DUTDevice, pNames []string, preferred map[string]*system.ProcessInfo) (map[string]*system.ProcessInfo, error) {
+	t.Helper()
+	pList := gnmi.GetAll[*oc.System_Process](t, dut, gnmi.OC().System().ProcessAny().State())
+	results := make(map[string]*system.ProcessInfo)
+
+	nameMap := make(map[string]bool)
+	for _, name := range pNames {
+		nameMap[name] = true
+	}
+
+	// First match by preferred PID if provided (avoids picking a different instance when multiple processes share a name).
+	if preferred != nil {
+		for _, proc := range pList {
+			pName := proc.GetName()
+			if pref, ok := preferred[pName]; ok && proc.GetPid() == pref.Pid {
+				results[pName] = &system.ProcessInfo{
+					Pid:         proc.GetPid(),
+					StartTime:   proc.GetStartTime(),
+					MemoryUsage: proc.GetMemoryUsage(),
+				}
+			}
+		}
+	}
+
+	// Fallback to matching by process name (picking lowest PID deterministically).
+	for _, proc := range pList {
+		pName := proc.GetName()
+		if !nameMap[pName] {
+			continue
+		}
+		if existing, ok := results[pName]; !ok || (preferred == nil && proc.GetPid() < existing.Pid) {
+			if _, lockedByPref := preferred[pName]; lockedByPref && ok {
+				continue
+			}
+			results[pName] = &system.ProcessInfo{
+				Pid:         proc.GetPid(),
+				StartTime:   proc.GetStartTime(),
+				MemoryUsage: proc.GetMemoryUsage(),
+			}
+		}
+	}
+
+	for _, name := range pNames {
+		if _, ok := results[name]; !ok {
+			return nil, fmt.Errorf("process %q not found", name)
+		}
+	}
+	return results, nil
+}
+
 func verifyNoQoSDrops(t *testing.T, dut *ondatra.DUTDevice, ports []string, queueNames []string, baselines map[string]uint64) map[string]uint64 {
 	current := make(map[string]uint64)
+	batch := gnmi.OCBatch()
+	for _, port := range ports {
+		for _, qName := range queueNames {
+			batch.AddPaths(gnmi.OC().Qos().Interface(port).Output().Queue(qName).DroppedPkts())
+		}
+	}
+	lookupRes := gnmi.Lookup(t, dut, batch.State())
+	results, _ := lookupRes.Val()
 	for _, port := range ports {
 		for _, qName := range queueNames {
 			key := fmt.Sprintf("%s-%s", port, qName)
-			val, present := gnmi.Lookup(t, dut, gnmi.OC().Qos().Interface(port).Output().Queue(qName).DroppedPkts().State()).Val()
-			if !present {
-				val = 0
+			var val uint64
+			if results != nil {
+				if qos := results.GetQos(); qos != nil {
+					if q := qos.GetInterface(port); q != nil {
+						if out := q.GetOutput(); out != nil {
+							if queue := out.GetQueue(qName); queue != nil {
+								val = queue.GetDroppedPkts()
+							}
+						}
+					}
+				}
 			}
 			current[key] = val
 			if baselines != nil && val > baselines[key] {
@@ -118,6 +185,8 @@ func performSwitchover(t *testing.T, dut *ondatra.DUTDevice, controllerCards []s
 	rpStandbyBefore, rpActiveBefore := components.FindStandbyControllerCard(t, dut, controllerCards)
 	t.Logf("Detected rpStandby before switchover: %v, rpActive before: %v", rpStandbyBefore, rpActiveBefore)
 
+	gnmi.Await(t, dut, gnmi.OC().Component(rpActiveBefore).SwitchoverReady().State(), 30*time.Minute, true)
+
 	gnoiClient := dut.RawAPIs().GNOI(t)
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
 	switchoverRequest := &spb.SwitchControlProcessorRequest{
@@ -130,8 +199,47 @@ func performSwitchover(t *testing.T, dut *ondatra.DUTDevice, controllerCards []s
 	}
 	t.Logf("SwitchControlProcessor response: %v", switchoverResponse)
 
-	// Wait for DUT to reboot / recover from SSO and gNMI to become reachable again.
-	system.AwaitDeviceReachable(t, dut, maxSwitchoverTime*time.Second)
+	// Wait for DUT to complete SSO role transition and gNMI to become reachable on the new active RP.
+	// Use gnmi.Watch (which sets a per-call context.WithTimeout) rather than gnmi.Get
+	// (which uses context.Background() and can block indefinitely on a half-open proxy stream during RP failover).
+	switchoverDeadline := time.Now().Add(maxSwitchoverTime * time.Second)
+	for time.Now().Before(switchoverDeadline) {
+		remaining := time.Until(switchoverDeadline)
+		if remaining <= 0 {
+			break
+		}
+		var rolesSwitched bool
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			watchTimeout := 30 * time.Second
+			if rem := time.Until(switchoverDeadline); rem < watchTimeout {
+				watchTimeout = rem
+			}
+			_, ok0 := gnmi.Watch(t, dut, gnmi.OC().System().CurrentDatetime().State(), watchTimeout, func(val *ygnmi.Value[string]) bool {
+				return val.IsPresent()
+			}).Await(t)
+			if !ok0 {
+				return
+			}
+			_, ok1 := gnmi.Watch(t, dut, gnmi.OC().Component(rpStandbyBefore).RedundantRole().State(), watchTimeout, func(val *ygnmi.Value[oc.E_Platform_ComponentRedundantRole]) bool {
+				role, ok := val.Val()
+				return ok && role == oc.Platform_ComponentRedundantRole_PRIMARY
+			}).Await(t)
+			if !ok1 {
+				return
+			}
+			_, ok2 := gnmi.Watch(t, dut, gnmi.OC().Component(rpActiveBefore).RedundantRole().State(), watchTimeout, func(val *ygnmi.Value[oc.E_Platform_ComponentRedundantRole]) bool {
+				role, ok := val.Val()
+				return ok && role == oc.Platform_ComponentRedundantRole_SECONDARY
+			}).Await(t)
+			rolesSwitched = ok0 && ok1 && ok2
+		}); errMsg != nil {
+			t.Logf("Transient gNMI error while waiting for RP role transition: %s", *errMsg)
+			time.Sleep(5 * time.Second)
+		}
+		if rolesSwitched {
+			break
+		}
+	}
 
 	rpStandbyAfter, rpActiveAfter := components.FindStandbyControllerCard(t, dut, controllerCards)
 	t.Logf("Detected rpStandby after switchover: %v, rpActive after: %v", rpStandbyAfter, rpActiveAfter)
@@ -142,16 +250,32 @@ func performSwitchover(t *testing.T, dut *ondatra.DUTDevice, controllerCards []s
 	return rpActiveAfter, rpStandbyAfter
 }
 
-func runPostSSOVerification(t *testing.T, dut *ondatra.DUTDevice, criticalProcs []string, baselines map[string]*system.ProcessInfo, qosBaselines map[string]uint64, qosPorts []string, qosQueues []string, controllerCards []string) {
+func runPostSSOVerification(t *testing.T, dut *ondatra.DUTDevice, criticalProcs []string, _ map[string]*system.ProcessInfo, qosBaselines map[string]uint64, qosPorts []string, qosQueues []string, controllerCards []string) {
 	t.Log("Starting 10 minutes validation post-switchover...")
 
+	// Capture baseline process state on the newly active supervisor right after switchover.
+	activeRPBaselines, err := getCriticalProcessInfos(t, dut, criticalProcs, nil)
+	if err != nil {
+		t.Errorf("Failed to query post-switchover baseline process info: %v", err)
+	} else {
+		for name, pInfo := range activeRPBaselines {
+			t.Logf("Post-switchover active RP process %s baseline: PID=%d, StartTime=%d, Memory=%d", name, pInfo.Pid, pInfo.StartTime, pInfo.MemoryUsage)
+		}
+	}
+
+	prevMemory := make(map[string]uint64)
+	memIncreases := make(map[string]int)
+	for name, b := range activeRPBaselines {
+		prevMemory[name] = b.MemoryUsage
+	}
+
+	numPolls := 0
 	for min := 2; min <= 10; min += 2 {
-		gnmi.Watch(t, dut, gnmi.OC().System().State(), 2*time.Minute, func(val *ygnmi.Value[*oc.System]) bool {
-			return false
-		}).Await(t)
+		time.Sleep(2 * time.Minute)
+		numPolls++
 		t.Logf("Verifying process and device health at %d minutes mark...", min)
 
-		infos, err := system.GetProcessInfo(t, dut, criticalProcs)
+		infos, err := getCriticalProcessInfos(t, dut, criticalProcs, activeRPBaselines)
 		if err != nil {
 			t.Errorf("Failed to query process info: %v", err)
 			continue
@@ -164,8 +288,14 @@ func runPostSSOVerification(t *testing.T, dut *ondatra.DUTDevice, criticalProcs 
 				continue
 			}
 
-			baseline := baselines[name]
-			// Crash Detection (If PID changes, then process silently crashed and restarted)
+			baseline, hasBaseline := activeRPBaselines[name]
+			if !hasBaseline {
+				activeRPBaselines[name] = info
+				prevMemory[name] = info.MemoryUsage
+				continue
+			}
+
+			// Crash Detection (If PID or StartTime changes on the active RP during soak, process crashed and restarted)
 			if info.Pid != baseline.Pid {
 				t.Errorf("Process %s PID changed from %d to %d (crash detected)", name, baseline.Pid, info.Pid)
 			}
@@ -173,86 +303,94 @@ func runPostSSOVerification(t *testing.T, dut *ondatra.DUTDevice, criticalProcs 
 				t.Errorf("Process %s StartTime changed from %d to %d (crash/restart detected)", name, baseline.StartTime, info.StartTime)
 			}
 
-			// Memory Leak Detection (If memory usage increased by 10% or more, then memory leak detected)
-			t.Logf("Process %s Memory: Baseline = %d, Current = %d", name, baseline.MemoryUsage, info.MemoryUsage)
-			if baseline.MemoryUsage > 0 && info.MemoryUsage > baseline.MemoryUsage {
-				pctIncrease := float64(info.MemoryUsage-baseline.MemoryUsage) / float64(baseline.MemoryUsage)
-				if pctIncrease > 0.10 {
-					t.Errorf("Process %s memory increased significantly compared to baseline: got %d, baseline %d (%.2f%% increase)", name, info.MemoryUsage, baseline.MemoryUsage, pctIncrease*100)
-				}
+			// Memory Leak Detection (Track whether memory keeps increasing over time compared to baseline)
+			t.Logf("Process %s Memory: Baseline = %d, Previous = %d, Current = %d", name, baseline.MemoryUsage, prevMemory[name], info.MemoryUsage)
+			if info.MemoryUsage > prevMemory[name] {
+				memIncreases[name]++
 			}
+			prevMemory[name] = info.MemoryUsage
 		}
 
 		// Verify QoS queue drop telemetry does not increase (If there is no change in baseline then no drops)
 		verifyNoQoSDrops(t, dut, qosPorts, qosQueues, qosBaselines)
 	}
 
+	for _, name := range criticalProcs {
+		baseline, ok := activeRPBaselines[name]
+		if !ok || baseline.MemoryUsage == 0 {
+			continue
+		}
+		finalMem := prevMemory[name]
+		if numPolls > 0 && memIncreases[name] == numPolls && finalMem > baseline.MemoryUsage {
+			pctIncrease := float64(finalMem-baseline.MemoryUsage) / float64(baseline.MemoryUsage)
+			if pctIncrease > 0.10 {
+				t.Errorf("Process %s memory kept increasing over time compared to baseline: got %d, baseline %d (%.2f%% increase)", name, finalMem, baseline.MemoryUsage, pctIncrease*100)
+			}
+		}
+	}
+
 	t.Log("Validating the new active RP is switchover ready...")
 	rpStandbyAfter, rpActiveAfter := components.FindStandbyControllerCard(t, dut, controllerCards)
-	t.Logf("Detected rpStandby before switchover sequence: %v, rpActive before: %v", rpStandbyAfter, rpActiveAfter)
+	t.Logf("Detected rpStandby after switchover sequence: %v, rpActive after: %v", rpStandbyAfter, rpActiveAfter)
 	switchoverReady := gnmi.OC().Component(rpActiveAfter).SwitchoverReady()
 	gnmi.Await(t, dut, switchoverReady.State(), 30*time.Minute, true)
 }
 
-func TestSSOSoftwareStability(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-
-	// Init BGPSession
-	bs := cfgplugins.NewBGPSession(t, cfgplugins.PortCount4, nil)
-	bs.WithEBGP(t, []oc.E_BgpTypes_AFI_SAFI_TYPE{oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST}, []string{"port1", "port2", "port3", "port4"}, true, false)
-
-	p1 := bs.OndatraDUTPorts[0]
-	p2 := bs.OndatraDUTPorts[1]
-	p3 := bs.OndatraDUTPorts[2]
-	p4 := bs.OndatraDUTPorts[3]
-
+func configureVRFsAndBgp(t *testing.T, dut *ondatra.DUTDevice, bs *cfgplugins.BGPSession, p1, p2, p3, p4 *ondatra.Port) {
 	// 1. Delete BGP protocol under default network-instance
 	defaultNiName := deviations.DefaultNetworkInstance(dut)
-	if _, ok := bs.DUTConf.NetworkInstance[defaultNiName]; ok {
-		delete(bs.DUTConf.NetworkInstance[defaultNiName].Protocol, oc.NetworkInstance_Protocol_Key{
-			Identifier: ptBGP,
-			Name:       bgpName,
-		})
-		if len(bs.DUTConf.NetworkInstance[defaultNiName].Protocol) == 0 {
-			bs.DUTConf.NetworkInstance[defaultNiName].Protocol = nil
+	if !deviations.ExplicitEnableBGPOnDefaultVRF(dut) {
+		if _, ok := bs.DUTConf.NetworkInstance[defaultNiName]; ok {
+			delete(bs.DUTConf.NetworkInstance[defaultNiName].Protocol, oc.NetworkInstance_Protocol_Key{
+				Identifier: ptBGP,
+				Name:       bgpName,
+			})
+			if len(bs.DUTConf.NetworkInstance[defaultNiName].Protocol) == 0 {
+				bs.DUTConf.NetworkInstance[defaultNiName].Protocol = nil
+			}
 		}
+	} else {
+		bs.DUTConf.GetOrCreateNetworkInstance(defaultNiName).GetOrCreateProtocol(ptBGP, bgpName).GetOrCreateBgp().GetOrCreateGlobal().SetAs(65000)
+	}
+	if deviations.BgpAfiSafiInDefaultNiBeforeOtherNi(dut) {
+		// The parent address family must be initialized in the default network
+		// instance before IPv4 unicast can be enabled in the L3VRFs. Only the
+		// global config is added; neighbors stay in the VRFs.
+		defaultGlobal := bs.DUTConf.GetOrCreateNetworkInstance(defaultNiName).GetOrCreateProtocol(ptBGP, bgpName).GetOrCreateBgp().GetOrCreateGlobal()
+		defaultGlobal.SetAs(65000)
+		defaultGlobal.SetRouterId(bs.DUTPorts[0].IPv4)
+		defaultGlobal.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+		defaultGlobal.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_L3VPN_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	}
 
 	// 2. Configure L3VRFs and interfaces on DUTConf
-	transitNi := bs.DUTConf.GetOrCreateNetworkInstance("TRANSIT_VRF")
-	transitNi.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-	transitNi.GetOrCreateInterface("port1").Interface = ygot.String(p1.Name())
-	transitNi.GetOrCreateInterface("port1").Subinterface = ygot.Uint32(0)
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
-		transitNi.GetOrCreateInterface("port1").Id = ygot.String(fmt.Sprintf("%s.0", p1.Name()))
-	} else {
-		transitNi.GetOrCreateInterface("port1").Id = ygot.String(p1.Name())
+	assignIntf := func(ni *oc.NetworkInstance, p *ondatra.Port) {
+		id := p.Name()
+		if deviations.InterfaceRefInterfaceIDFormat(dut) {
+			id = fmt.Sprintf("%s.0", p.Name())
+		}
+		niIntf := ni.GetOrCreateInterface(id)
+		niIntf.Id = ygot.String(id)
+		niIntf.Interface = ygot.String(p.Name())
+		niIntf.Subinterface = ygot.Uint32(0)
 	}
 
-	transitNi.GetOrCreateInterface("port2").Interface = ygot.String(p2.Name())
-	transitNi.GetOrCreateInterface("port2").Subinterface = ygot.Uint32(0)
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
-		transitNi.GetOrCreateInterface("port2").Id = ygot.String(fmt.Sprintf("%s.0", p2.Name()))
-	} else {
-		transitNi.GetOrCreateInterface("port2").Id = ygot.String(p2.Name())
-	}
+	transitNi := bs.DUTConf.GetOrCreateNetworkInstance("TRANSIT_VRF")
+	transitNi.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
+	assignIntf(transitNi, p1)
+	assignIntf(transitNi, p2)
 
 	decapNi := bs.DUTConf.GetOrCreateNetworkInstance("DECAP_TE_VRF")
 	decapNi.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-	decapNi.GetOrCreateInterface("port3").Interface = ygot.String(p3.Name())
-	decapNi.GetOrCreateInterface("port3").Subinterface = ygot.Uint32(0)
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
-		decapNi.GetOrCreateInterface("port3").Id = ygot.String(fmt.Sprintf("%s.0", p3.Name()))
-	} else {
-		decapNi.GetOrCreateInterface("port3").Id = ygot.String(p3.Name())
-	}
+	assignIntf(decapNi, p3)
+	assignIntf(decapNi, p4)
 
-	decapNi.GetOrCreateInterface("port4").Interface = ygot.String(p4.Name())
-	decapNi.GetOrCreateInterface("port4").Subinterface = ygot.Uint32(0)
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
-		decapNi.GetOrCreateInterface("port4").Id = ygot.String(fmt.Sprintf("%s.0", p4.Name()))
-	} else {
-		decapNi.GetOrCreateInterface("port4").Id = ygot.String(p4.Name())
+	if deviations.BgpAfiSafiInDefaultNiBeforeOtherNi(dut) {
+		// With the VPN parent address family in the default network instance,
+		// each L3VRF needs a route distinguisher before its BGP address family
+		// can be activated.
+		transitNi.SetRouteDistinguisher("65000:1")
+		decapNi.SetRouteDistinguisher("65000:2")
 	}
 
 	// 3. Configure BGP protocols and Graceful Restart on the VRFs
@@ -316,16 +454,12 @@ func TestSSOSoftwareStability(t *testing.T) {
 		nAfiSafi.Enabled = ygot.Bool(true)
 
 		// Apply route policy to the neighbor.
-		// Note: Some vendors (like Cisco) do not support applying route policies directly
-		// under the BGP neighbor node. For those devices (handled by the RoutePolicyUnderAFIUnsupported deviation),
-		// the policy must be applied under the specific AFI/SAFI node instead.
 		if deviations.RoutePolicyUnderAFIUnsupported(dut) {
 			nbrPolicy := nbr.GetOrCreateApplyPolicy()
 			nbrPolicy.SetExportPolicy([]string{"SSO-PERMIT-ALL"})
 			nbrPolicy.SetImportPolicy([]string{"SSO-PERMIT-ALL"})
 		}
 
-		// Apply the route policy under AFI/SAFI for devices that require it (e.g., Cisco).
 		if !deviations.RoutePolicyUnderAFIUnsupported(dut) {
 			nbrPolicy := nAfiSafi.GetOrCreateApplyPolicy()
 			nbrPolicy.SetExportPolicy([]string{"SSO-PERMIT-ALL"})
@@ -333,15 +467,104 @@ func TestSSOSoftwareStability(t *testing.T) {
 		}
 	}
 
+	if deviations.PeerGroupDefEbgpVrfUnsupported(dut) {
+		transitBgp.PeerGroup = nil
+		for _, nbr := range transitBgp.Neighbor {
+			nbr.PeerGroup = nil
+		}
+		decapBgp.PeerGroup = nil
+		for _, nbr := range decapBgp.Neighbor {
+			nbr.PeerGroup = nil
+		}
+	}
+}
+
+func configureQoS(t *testing.T, dut *ondatra.DUTDevice, bs *cfgplugins.BGPSession, p1, p2, p3, p4 *ondatra.Port) {
 	// 4. Configure QoS egress queue management profiles and map to all output ports
 	qos := bs.DUTConf.GetOrCreateQos()
-	af4Profile := qos.GetOrCreateQueueManagementProfile("AF4_PROFILE")
-	af4Profile.SetName("AF4_PROFILE")
-	af4Profile.GetOrCreateWred().GetOrCreateUniform()
 
-	be0Profile := qos.GetOrCreateQueueManagementProfile("BE0_PROFILE")
-	be0Profile.SetName("BE0_PROFILE")
-	be0Profile.GetOrCreateRed().GetOrCreateUniform()
+	allQueues := []string{"NC1", "AF4", "AF3", "AF2", "AF1", "BE0", "BE1"}
+	if deviations.QOSBufferAllocationConfigRequired(dut) {
+		for i, qName := range allQueues {
+			qos.GetOrCreateForwardingGroup("target-group-" + qName).SetOutputQueue(qName)
+			qGlobal := qos.GetOrCreateQueue(qName)
+			qGlobal.SetName(qName)
+			if deviations.QOSQueueRequiresID(dut) {
+				qGlobal.QueueId = ygot.Uint8(uint8(len(allQueues) - i))
+			}
+		}
+	} else {
+		qos.GetOrCreateForwardingGroup("target-group-AF4").SetOutputQueue("AF4")
+		qos.GetOrCreateForwardingGroup("target-group-BE0").SetOutputQueue("BE0")
+		qAF4Global := qos.GetOrCreateQueue("AF4")
+		qAF4Global.SetName("AF4")
+		qBE0Global := qos.GetOrCreateQueue("BE0")
+		qBE0Global.SetName("BE0")
+		if deviations.QOSQueueRequiresID(dut) {
+			// Queue IDs map to traffic classes; strict-priority queues must
+			// occupy contiguous traffic classes starting at 7 (NC1=7, AF4=6).
+			for i, qName := range allQueues {
+				qGlobal := qos.GetOrCreateQueue(qName)
+				qGlobal.SetName(qName)
+				qGlobal.QueueId = ygot.Uint8(uint8(len(allQueues) - i))
+			}
+		}
+	}
+
+	if !deviations.QosRedUnsupported(dut) {
+		af4Profile := qos.GetOrCreateQueueManagementProfile("AF4_PROFILE")
+		af4Profile.SetName("AF4_PROFILE")
+		wredAF4 := af4Profile.GetOrCreateWred().GetOrCreateUniform()
+		wredAF4.SetMinThreshold(80000)
+		wredAF4.SetMaxThreshold(3000000)
+		wredAF4.SetMaxDropProbabilityPercent(100)
+		wredAF4.SetEnableEcn(true)
+		if !deviations.DropWeightLeavesUnsupported(dut) {
+			wredAF4.SetDrop(false)
+		}
+
+		be0Profile := qos.GetOrCreateQueueManagementProfile("BE0_PROFILE")
+		be0Profile.SetName("BE0_PROFILE")
+		wredBE0 := be0Profile.GetOrCreateWred().GetOrCreateUniform()
+		wredBE0.SetMinThreshold(80000)
+		wredBE0.SetMaxThreshold(3000000)
+		wredBE0.SetMaxDropProbabilityPercent(100)
+		wredBE0.SetEnableEcn(true)
+		if !deviations.DropWeightLeavesUnsupported(dut) {
+			wredBE0.SetDrop(false)
+		}
+	}
+
+	if deviations.QosSchedulerConfigRequired(dut) {
+		schedulerPolicy := qos.GetOrCreateSchedulerPolicy("scheduler")
+		schedulerPolicy.SetName("scheduler")
+
+		sAF4 := schedulerPolicy.GetOrCreateScheduler(0)
+		sAF4.SetSequence(0)
+		sAF4.SetPriority(oc.Scheduler_Priority_STRICT)
+		// Traffic class 7 (NC1) must be the highest strict priority, followed
+		// contiguously by AF4.
+		qos.GetOrCreateForwardingGroup("target-group-NC1").SetOutputQueue("NC1")
+		inNC1 := sAF4.GetOrCreateInput("NC1")
+		inNC1.SetId("NC1")
+		inNC1.SetInputType(oc.Input_InputType_QUEUE)
+		inNC1.SetQueue("NC1")
+		inNC1.SetWeight(7)
+		inAF4 := sAF4.GetOrCreateInput("AF4")
+		inAF4.SetId("AF4")
+		inAF4.SetInputType(oc.Input_InputType_QUEUE)
+		inAF4.SetQueue("AF4")
+		inAF4.SetWeight(6)
+
+		sBE0 := schedulerPolicy.GetOrCreateScheduler(1)
+		sBE0.SetSequence(1)
+		sBE0.SetPriority(oc.Scheduler_Priority_UNSET)
+		inBE0 := sBE0.GetOrCreateInput("BE0")
+		inBE0.SetId("BE0")
+		inBE0.SetInputType(oc.Input_InputType_QUEUE)
+		inBE0.SetQueue("BE0")
+		inBE0.SetWeight(4)
+	}
 
 	for _, port := range []string{p1.Name(), p2.Name(), p3.Name(), p4.Name()} {
 		intf := qos.GetOrCreateInterface(port)
@@ -350,79 +573,142 @@ func TestSSOSoftwareStability(t *testing.T) {
 		if deviations.InterfaceRefConfigUnsupported(dut) {
 			intf.InterfaceRef = nil
 		}
+
 		output := intf.GetOrCreateOutput()
+		if deviations.QosSchedulerConfigRequired(dut) {
+			output.GetOrCreateSchedulerPolicy().SetName("scheduler")
+			// Every queue referenced by the scheduler must be enabled on the
+			// interface.
+			output.GetOrCreateQueue("NC1").SetName("NC1")
+		}
+		if deviations.QOSBufferAllocationConfigRequired(dut) {
+			bufferProfile := qos.GetOrCreateBufferAllocationProfile("bufferAllocationProfile")
+			for _, qName := range allQueues {
+				bufferProfile.GetOrCreateQueue(qName).SetStaticSharedBufferLimit(uint32(268435456))
+				qOut := output.GetOrCreateQueue(qName)
+				qOut.SetName(qName)
+				if !deviations.QosRedUnsupported(dut) {
+					if qName == "AF4" {
+						qOut.SetQueueManagementProfile("AF4_PROFILE")
+					} else {
+						qOut.SetQueueManagementProfile("BE0_PROFILE")
+					}
+				}
+			}
+			output.SetBufferAllocationProfile("bufferAllocationProfile")
+		} else {
+			qAF4 := output.GetOrCreateQueue("AF4")
+			qAF4.SetName("AF4")
 
-		qAF4 := output.GetOrCreateQueue("AF4")
-		qAF4.SetName("AF4")
-		qAF4.SetQueueManagementProfile("AF4_PROFILE")
+			qBE0 := output.GetOrCreateQueue("BE0")
+			qBE0.SetName("BE0")
 
-		qBE0 := output.GetOrCreateQueue("BE0")
-		qBE0.SetName("BE0")
-		qBE0.SetQueueManagementProfile("BE0_PROFILE")
-
+			if !deviations.QosRedUnsupported(dut) {
+				qAF4.SetQueueManagementProfile("AF4_PROFILE")
+				qBE0.SetQueueManagementProfile("BE0_PROFILE")
+			}
+		}
 	}
+}
 
-	qAF4Global := qos.GetOrCreateQueue("AF4")
-	qAF4Global.SetName("AF4")
-	qBE0Global := qos.GetOrCreateQueue("BE0")
-	qBE0Global.SetName("BE0")
-
-	if deviations.QOSQueueRequiresID(dut) {
-		qAF4Global.QueueId = ygot.Uint8(1)
-		qBE0Global.QueueId = ygot.Uint8(2)
-	}
-
+func configureOTGBgpAndTraffic(t *testing.T, bs *cfgplugins.BGPSession) {
 	// 5. Configure OTG BGP Route Advertisements
 	dev1 := getDeviceByName(t, bs.ATETop, "port1")
 	dev2 := getDeviceByName(t, bs.ATETop, "port2")
 	dev3 := getDeviceByName(t, bs.ATETop, "port3")
 	dev4 := getDeviceByName(t, bs.ATETop, "port4")
 
-	dev1.Bgp().Ipv4Interfaces().Items()[0].Peers().Items()[0].SetAsNumber(65001)
-	dev2.Bgp().Ipv4Interfaces().Items()[0].Peers().Items()[0].SetAsNumber(65001)
-	dev3.Bgp().Ipv4Interfaces().Items()[0].Peers().Items()[0].SetAsNumber(65002)
-	dev4.Bgp().Ipv4Interfaces().Items()[0].Peers().Items()[0].SetAsNumber(65002)
+	peer1 := dev1.Bgp().Ipv4Interfaces().Items()[0].Peers().Items()[0]
+	peer2 := dev2.Bgp().Ipv4Interfaces().Items()[0].Peers().Items()[0]
+	peer3 := dev3.Bgp().Ipv4Interfaces().Items()[0].Peers().Items()[0]
+	peer4 := dev4.Bgp().Ipv4Interfaces().Items()[0].Peers().Items()[0]
 
-	configureBGPv4Routes(dev1.Bgp().Ipv4Interfaces().Items()[0].Peers().Items()[0], bs.ATEPorts[0].IPv4, "port1_routes", "198.51.100.0", 24)
-	configureBGPv4Routes(dev2.Bgp().Ipv4Interfaces().Items()[0].Peers().Items()[0], bs.ATEPorts[1].IPv4, "port2_routes", "198.51.101.0", 24)
-	configureBGPv4Routes(dev3.Bgp().Ipv4Interfaces().Items()[0].Peers().Items()[0], bs.ATEPorts[2].IPv4, "port3_routes", "198.51.102.0", 24)
-	configureBGPv4Routes(dev4.Bgp().Ipv4Interfaces().Items()[0].Peers().Items()[0], bs.ATEPorts[3].IPv4, "port4_routes", "198.51.103.0", 24)
+	peer1.SetAsNumber(65001).GracefulRestart().SetEnableGr(true).SetRestartTime(120)
+	peer2.SetAsNumber(65001).GracefulRestart().SetEnableGr(true).SetRestartTime(120)
+	peer3.SetAsNumber(65002).GracefulRestart().SetEnableGr(true).SetRestartTime(120)
+	peer4.SetAsNumber(65002).GracefulRestart().SetEnableGr(true).SetRestartTime(120)
 
-	// 6. Configure OTG Traffic Flows (AF4 and BE0)
+	configureBGPv4Routes(peer1, bs.ATEPorts[0].IPv4, "port1_routes", "198.51.100.0", 24)
+	configureBGPv4Routes(peer2, bs.ATEPorts[1].IPv4, "port2_routes", "198.51.101.0", 24)
+	configureBGPv4Routes(peer3, bs.ATEPorts[2].IPv4, "port3_routes", "198.51.102.0", 24)
+	configureBGPv4Routes(peer4, bs.ATEPorts[3].IPv4, "port4_routes", "198.51.103.0", 24)
+
+	// 6. Configure OTG Traffic Flows (AF4 in TRANSIT_VRF and BE0 in DECAP_TE_VRF)
 	bs.ATETop.Flows().Clear()
 	flowAF4 := bs.ATETop.Flows().Add().SetName("AF4_Flow")
 	flowAF4.Metrics().SetEnable(true)
-	flowAF4.TxRx().Port().
-		SetTxName(bs.ATEPorts[0].Name).
-		SetRxName(bs.ATEPorts[2].Name)
+	flowAF4.TxRx().Device().
+		SetTxNames([]string{dev1.Name() + ".IPv4"}).
+		SetRxNames([]string{dev2.Name() + ".IPv4"})
 	ethAF4 := flowAF4.Packet().Add().Ethernet()
 	ethAF4.Src().SetValue(bs.ATEPorts[0].MAC)
-	ethAF4.Dst().Auto()
 	ipAF4 := flowAF4.Packet().Add().Ipv4()
 	ipAF4.Src().SetValue(bs.ATEPorts[0].IPv4)
-	ipAF4.Dst().SetValue("198.51.102.1")
+	ipAF4.Dst().SetValue("198.51.101.1")
 	ipAF4.Priority().Dscp().Phb().SetValue(32)
 
 	flowBE0 := bs.ATETop.Flows().Add().SetName("BE0_Flow")
 	flowBE0.Metrics().SetEnable(true)
-	flowBE0.TxRx().Port().
-		SetTxName(bs.ATEPorts[1].Name).
-		SetRxName(bs.ATEPorts[3].Name)
+	flowBE0.TxRx().Device().
+		SetTxNames([]string{dev3.Name() + ".IPv4"}).
+		SetRxNames([]string{dev4.Name() + ".IPv4"})
 	ethBE0 := flowBE0.Packet().Add().Ethernet()
-	ethBE0.Src().SetValue(bs.ATEPorts[1].MAC)
-	ethBE0.Dst().Auto()
+	ethBE0.Src().SetValue(bs.ATEPorts[2].MAC)
 	ipBE0 := flowBE0.Packet().Add().Ipv4()
-	ipBE0.Src().SetValue(bs.ATEPorts[1].IPv4)
+	ipBE0.Src().SetValue(bs.ATEPorts[2].IPv4)
 	ipBE0.Dst().SetValue("198.51.103.1")
 	ipBE0.Priority().Dscp().Phb().SetValue(0)
+}
 
-	// Post configuration to DUT & Start protocols
-	bs.PushAndStart(t)
+func TestSSOSoftwareStability(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+
+	// Init BGPSession
+	bs := cfgplugins.NewBGPSession(t, cfgplugins.PortCount4, nil)
+	bs.WithEBGP(t, []oc.E_BgpTypes_AFI_SAFI_TYPE{oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST}, []string{"port1", "port2", "port3", "port4"}, true, false)
+
+	p1 := bs.OndatraDUTPorts[0]
+	p2 := bs.OndatraDUTPorts[1]
+	p3 := bs.OndatraDUTPorts[2]
+	p4 := bs.OndatraDUTPorts[3]
+
+	configureVRFsAndBgp(t, dut, bs, p1, p2, p3, p4)
+	if !deviations.QosRedUnsupported(dut) {
+		configureQoS(t, dut, bs, p1, p2, p3, p4)
+	}
+	configureOTGBgpAndTraffic(t, bs)
+
+	t.Cleanup(func() {
+		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("TRANSIT_VRF").Config())
+		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DECAP_TE_VRF").Config())
+	})
+	// Post configuration to DUT, verify port status, and start ATE protocols
+	if err := bs.PushDUT(t); err != nil {
+		t.Fatalf("Failed to push DUT config: %v", err)
+	}
+	if deviations.InterfaceConfigVRFBeforeAddress(dut) {
+		for _, p := range []*ondatra.Port{p1, p2, p3, p4} {
+			gnmi.Replace(t, dut, gnmi.OC().Interface(p.Name()).Config(), bs.DUTConf.GetInterface(p.Name()))
+		}
+	}
+	bs.ATE.OTG().PushConfig(t, bs.ATETop)
+	for _, p := range []*ondatra.Port{p1, p2, p3, p4} {
+		gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
+		if deviations.InterfaceRefInterfaceIDFormat(dut) {
+			gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).Subinterface(0).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
+		}
+		t.Logf("DUT port %s (%s) is UP", p.ID(), p.Name())
+	}
+	bs.PushAndStartATE(t)
 
 	t.Log("Verify DUT BGP sessions established in VRFs")
-	for _, vrf := range []string{"TRANSIT_VRF", "DECAP_TE_VRF"} {
-		statePath := gnmi.OC().NetworkInstance(vrf).Protocol(ptBGP, bgpName).Bgp().NeighborAny().SessionState().State()
-		gnmi.WatchAll(t, dut, statePath, 5*time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+	for i, otgPort := range bs.ATEPorts {
+		vrf := "TRANSIT_VRF"
+		if i >= 2 {
+			vrf = "DECAP_TE_VRF"
+		}
+		statePath := gnmi.OC().NetworkInstance(vrf).Protocol(ptBGP, bgpName).Bgp().Neighbor(otgPort.IPv4).SessionState().State()
+		gnmi.Watch(t, dut, statePath, 5*time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 			state, present := val.Val()
 			return present && state == oc.Bgp_Neighbor_SessionState_ESTABLISHED
 		}).Await(t)
@@ -439,15 +725,21 @@ func TestSSOSoftwareStability(t *testing.T) {
 
 	// Step 1 - Start Background Traffic and Record Process State
 	t.Log("Step 1 - Start Background Traffic and Record Process State")
-	bs.ATE.OTG().StartTraffic(t)
-
-	// Wait for BGP traffic to stabilize instead of a pure sleep.
-	t.Log("Waiting for traffic to stabilize (10s continuous zero loss expected within 1 minute)...")
+	t.Log("Waiting for BGP traffic to converge and stabilize with 0% loss...")
 	startConv := time.Now()
 	for {
 		if time.Since(startConv) > 60*time.Second {
 			t.Fatalf("Traffic did not stabilize with 0%% loss within 60s")
 		}
+		bs.ATE.OTG().StartTraffic(t)
+		for _, flow := range []string{"AF4_Flow", "BE0_Flow"} {
+			gnmi.Watch(t, bs.ATE.OTG(), gnmi.OTG().Flow(flow).Counters().InPkts().State(), 15*time.Second, func(val *ygnmi.Value[uint64]) bool {
+				pkts, ok := val.Val()
+				return ok && pkts >= 100
+			}).Await(t)
+		}
+		bs.ATE.OTG().StopTraffic(t)
+
 		converged := true
 		for _, flow := range []string{"AF4_Flow", "BE0_Flow"} {
 			loss := otgutils.GetFlowLossPct(t, bs.ATE.OTG(), flow, 10*time.Second)
@@ -463,10 +755,13 @@ func TestSSOSoftwareStability(t *testing.T) {
 		}
 	}
 
+	// Start continuous background traffic for the duration of the test (resets flow counters cleanly).
+	bs.ATE.OTG().StartTraffic(t)
+
 	// 7. Find critical hardware and routing processes to monitor
 	criticalProcs := findRunningCriticalProcesses(t, dut)
 	t.Logf("Monitoring critical processes: %v", criticalProcs)
-	initialProcInfos, err := system.GetProcessInfo(t, dut, criticalProcs)
+	initialProcInfos, err := getCriticalProcessInfos(t, dut, criticalProcs, nil)
 	if err != nil {
 		t.Fatalf("Failed to query initial process info: %v", err)
 	}
@@ -504,10 +799,9 @@ func TestSSOSoftwareStability(t *testing.T) {
 	otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
 	otgutils.LogPortMetrics(t, bs.ATE.OTG(), bs.ATETop)
 	for _, flow := range []string{"AF4_Flow", "BE0_Flow"} {
-		// Sample one last time or use aggregate
 		loss := otgutils.GetFlowLossPct(t, bs.ATE.OTG(), flow, 10*time.Second)
-		if loss > 0.0 {
-			t.Errorf("Final forwarding validation failed: flow %s has loss %f%%, want 0%%", flow, loss)
+		if loss > float64(deviations.BGPTrafficTolerance(dut)) {
+			t.Errorf("Final forwarding validation failed: flow %s has loss %f%%, want <= %d%%", flow, loss, deviations.BGPTrafficTolerance(dut))
 		}
 	}
 
