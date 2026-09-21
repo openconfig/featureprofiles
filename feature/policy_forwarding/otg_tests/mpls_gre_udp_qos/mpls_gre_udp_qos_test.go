@@ -567,7 +567,7 @@ func configDUTInterface(i *oc.Interface, subinterfaces []*attrs.Attributes, dut 
 		}
 		if a.Subinterface != 0 {
 			s := i.GetOrCreateSubinterface(a.Subinterface)
-			s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().SetVlanId(uint16(a.Subinterface))
+			cfgplugins.ConfigureVLAN(s, dut, uint16(a.Subinterface))
 			configureInterfaceAddress(dut, s, a)
 		} else {
 			configureInterfaceAddress(dut, s1, a)
