@@ -17,6 +17,7 @@ require (
 	github.com/kr/pretty v0.3.1
 	github.com/open-traffic-generator/snappi/gosnappi v1.61.1
 	github.com/openconfig/attestz v0.6.15
+	github.com/openconfig/bootz v0.7.1
 	github.com/openconfig/containerz v0.0.0-20260402080039-aa3f8fb7974b
 	github.com/openconfig/entity-naming v0.0.0-20251204192329-8cf2fdebf3c1
 	github.com/openconfig/functional-translators v0.0.0-20260121084228-b2e67ece1e44
@@ -32,6 +33,7 @@ require (
 	github.com/openconfig/kne v0.1.18
 	github.com/openconfig/models-ci v1.0.2-0.20231113233730-f0986391428e
 	github.com/openconfig/ondatra v0.14.7
+	github.com/openconfig/qualification-reporter v0.1.0
 	github.com/openconfig/replayer v0.0.0-20240110192655-4e9cf83d8d30
 	github.com/openconfig/testt v0.0.0-20251119232631-fbbd49c39452
 	github.com/openconfig/ygnmi v0.15.0
@@ -135,7 +137,6 @@ require (
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
-	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d // indirect
@@ -146,7 +147,6 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/networkop/meshnet-cni v0.3.1-0.20230525201116-d7c306c635cf // indirect
 	github.com/open-traffic-generator/keng-operator v0.3.28 // indirect
-	github.com/openconfig/bootz v0.7.1 // indirect
 	github.com/openconfig/grpctunnel v0.1.0 // indirect
 	github.com/openconfig/lemming/operator v0.2.0 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
