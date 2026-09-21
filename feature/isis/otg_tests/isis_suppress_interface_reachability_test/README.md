@@ -105,7 +105,7 @@ flowchart LR
 
 ```json
 {
-  "openconfig-network-instance:network-instances": {
+  "network-instances": {
     "network-instance": [
       {
         "config": {
@@ -116,18 +116,18 @@ flowchart LR
           "protocol": [
             {
               "config": {
-                "identifier": "openconfig-policy-types:ISIS",
+                "identifier": "ISIS",
                 "name": "DEFAULT"
               },
-              "identifier": "openconfig-policy-types:ISIS",
+              "identifier": "ISIS",
               "isis": {
                 "global": {
                   "afi-safi": {
                     "af": [
                       {
-                        "afi-name": "openconfig-isis-types:IPV4",
+                        "afi-name": "IPV4",
                         "config": {
-                          "afi-name": "openconfig-isis-types:IPV4",
+                          "afi-name": "IPV4",
                           "enabled": true,
                           "safi-name": "openconfig-isis-types:UNICAST",
                           "suppress-interface-reachability": "NON_PASSIVE"
@@ -135,9 +135,9 @@ flowchart LR
                         "safi-name": "openconfig-isis-types:UNICAST"
                       },
                       {
-                        "afi-name": "openconfig-isis-types:IPV6",
+                        "afi-name": "IPV6",
                         "config": {
-                          "afi-name": "openconfig-isis-types:IPV6",
+                          "afi-name": "IPV6",
                           "enabled": true,
                           "safi-name": "openconfig-isis-types:UNICAST",
                           "suppress-interface-reachability": "NON_PASSIVE"
