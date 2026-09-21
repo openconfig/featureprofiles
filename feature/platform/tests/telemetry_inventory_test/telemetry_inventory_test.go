@@ -590,9 +590,8 @@ func TestPowerSupplyTelemetry(t *testing.T) {
 
 		pName := psu.GetName()
 		t.Run(pName, func(t *testing.T) {
-			psuState := gnmi.Lookup(t, dut, gnmi.OC().Component(pName).PowerSupply().State())
-			psVal, present := psuState.Val()
-			if !present {
+			psVal := psu.GetPowerSupply()
+			if psVal == nil {
 				t.Fatalf("PowerSupply %s state is not present in telemetry", pName)
 			}
 
