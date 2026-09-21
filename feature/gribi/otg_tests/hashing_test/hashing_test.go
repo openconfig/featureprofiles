@@ -51,6 +51,16 @@ const (
 	// Egress Next Hop ID
 	nhIDEgress uint64 = 401
 
+	// Hierarchical gRIBI constants in DEFAULT VRF
+	nhgIDSelfSiteUnderlay uint64 = 10
+	nhgIDEgressUnderlay   uint64 = 20
+	nhIDSelfSiteVirtual   uint64 = 100
+	nhIDEgressVirtual     uint64 = 200
+	underlayIPSelfSite           = "198.18.10.1"
+	underlayIPEgress             = "198.18.20.1"
+	underlayRouteSelfSite        = "198.18.10.1/32"
+	underlayRouteEgress          = "198.18.20.1/32"
+
 	// Minimum traffic transmission duration to average PPS and hashing distribution
 	trafficDuration = 120 * time.Second
 )
@@ -102,35 +112,35 @@ var vrfPortMap = map[string]struct {
 	// Egress to ATE (ixia1)
 	"lc2_p9": {ip: "192.0.2.5", loopbackMode: oc.Interfaces_LoopbackModeType_NONE},
 
-	// Loop 1 (Stage 1 -> Stage 2 Transit)
+	// Loop 1 (Ingress -> SelfSite)
 	"lc1_p3": {ip: "192.0.2.9", loopbackMode: oc.Interfaces_LoopbackModeType_NONE},
 	"lc2_p3": {ip: "192.0.2.10", loopbackMode: oc.Interfaces_LoopbackModeType_NONE},
 
-	// Loop 2 (Stage 2 Transit -> Egress)
+	// Loop 2 (Ingress -> SelfSite)
 	"lc1_p4": {ip: "192.0.2.13", loopbackMode: oc.Interfaces_LoopbackModeType_NONE},
 	"lc2_p4": {ip: "192.0.2.14", loopbackMode: oc.Interfaces_LoopbackModeType_NONE},
 
-	// Loop 3 (Stage 2 Transit -> Egress)
+	// Loop 3 (Ingress -> Egress)
 	"lc1_p5": {ip: "192.0.2.17", loopbackMode: oc.Interfaces_LoopbackModeType_NONE},
 	"lc2_p5": {ip: "192.0.2.18", loopbackMode: oc.Interfaces_LoopbackModeType_NONE},
 
-	// Loop 4 (Stage 2 Transit -> Stage 3 Self-Site)
+	// Loop 4 (Ingress -> Egress)
 	"lc1_p6": {ip: "192.0.2.21", loopbackMode: oc.Interfaces_LoopbackModeType_NONE},
 	"lc2_p6": {ip: "192.0.2.22", loopbackMode: oc.Interfaces_LoopbackModeType_NONE},
 
-	// Loop 5 (Stage 2 Transit -> Stage 3 Self-Site)
+	// Loop 5 (SelfSite -> Egress)
 	"lc1_p1": {ip: "192.0.2.25", loopbackMode: oc.Interfaces_LoopbackModeType_NONE},
 	"lc2_p1": {ip: "192.0.2.26", loopbackMode: oc.Interfaces_LoopbackModeType_NONE},
 
-	// Loop 6 (Stage 3 Self-Site -> Egress)
+	// Loop 6 (SelfSite -> Egress)
 	"lc1_p8": {ip: "192.0.2.29", loopbackMode: oc.Interfaces_LoopbackModeType_NONE},
 	"lc2_p8": {ip: "192.0.2.30", loopbackMode: oc.Interfaces_LoopbackModeType_NONE},
 
-	// Loop 7 (Stage 3 Self-Site -> Egress)
+	// Loop 7 (SelfSite -> Egress)
 	"lc1_p7": {ip: "192.0.2.33", loopbackMode: oc.Interfaces_LoopbackModeType_NONE},
 	"lc2_p7": {ip: "192.0.2.34", loopbackMode: oc.Interfaces_LoopbackModeType_NONE},
 
-	// Loop 8 (Stage 3 Self-Site -> Egress)
+	// Loop 8 (SelfSite -> Egress)
 	"lc1_p2": {ip: "192.0.2.37", loopbackMode: oc.Interfaces_LoopbackModeType_NONE},
 	"lc2_p2": {ip: "192.0.2.38", loopbackMode: oc.Interfaces_LoopbackModeType_NONE},
 }
@@ -288,12 +298,40 @@ func programGRIBIVRF(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, 
 		entries = append(entries, nh)
 	}
 
-	// NHG 1: Default VRF (Ingress) -> 4-way ECMP (1:1:1:1) across NH 2, 3, 4, 5
-	nhg1 := fluent.NextHopGroupEntry().WithNetworkInstance(defNI).WithID(1).
+	// Hierarchical gRIBI in DEFAULT VRF:
+	// Level 2 (Underlay) NHG 10: SelfSite path (Ports 2 & 3: lc1_p3, lc1_p4)
+	nhg10 := fluent.NextHopGroupEntry().WithNetworkInstance(defNI).WithID(nhgIDSelfSiteUnderlay).
 		AddNextHop(2, 1).
-		AddNextHop(3, 1).
+		AddNextHop(3, 1)
+	entries = append(entries, nhg10)
+
+	// Underlay Route 10: 198.18.10.1/32 -> NHG 10
+	ipRoute10 := fluent.IPv4Entry().WithNetworkInstance(defNI).WithPrefix(underlayRouteSelfSite).
+		WithNextHopGroup(nhgIDSelfSiteUnderlay).WithNextHopGroupNetworkInstance(defNI)
+	entries = append(entries, ipRoute10)
+
+	// Level 2 (Underlay) NHG 20: Egress path (Ports 4 & 5: lc1_p5, lc1_p6)
+	nhg20 := fluent.NextHopGroupEntry().WithNetworkInstance(defNI).WithID(nhgIDEgressUnderlay).
 		AddNextHop(4, 1).
 		AddNextHop(5, 1)
+	entries = append(entries, nhg20)
+
+	// Underlay Route 20: 198.18.20.1/32 -> NHG 20
+	ipRoute20 := fluent.IPv4Entry().WithNetworkInstance(defNI).WithPrefix(underlayRouteEgress).
+		WithNextHopGroup(nhgIDEgressUnderlay).WithNextHopGroupNetworkInstance(defNI)
+	entries = append(entries, ipRoute20)
+
+	// Level 1 (Overlay) Virtual NextHops resolving recursively via underlay routes
+	nh100 := fluent.NextHopEntry().WithNetworkInstance(defNI).WithIndex(nhIDSelfSiteVirtual).
+		WithIPAddress(underlayIPSelfSite)
+	nh200 := fluent.NextHopEntry().WithNetworkInstance(defNI).WithIndex(nhIDEgressVirtual).
+		WithIPAddress(underlayIPEgress)
+	entries = append(entries, nh100, nh200)
+
+	// Level 1 (Overlay) NHG 1: Points to Virtual NHs 100 & 200 (initially 1:1)
+	nhg1 := fluent.NextHopGroupEntry().WithNetworkInstance(defNI).WithID(1).
+		AddNextHop(nhIDSelfSiteVirtual, 1).
+		AddNextHop(nhIDEgressVirtual, 1)
 	entries = append(entries, nhg1)
 
 	// NHG 2: SelfSite VRF -> 4-way ECMP (1:1:1:1) across NH 6, 7, 8, 9
@@ -594,17 +632,26 @@ func TestHashing(t *testing.T) {
 	// Scenario 1: Multi-Stage WCMP & ECMP
 	t.Run("Scenario_1_Hash_Distribution", func(t *testing.T) {
 		t.Run("Subcase_1_1_WCMP_4_3_2_1", func(t *testing.T) {
+			// Hierarchical WCMP programming in DEFAULT VRF:
+			// Level 1: NH 100 (SelfSite, weight 7), NH 200 (Egress, weight 3) -> 70% / 30%
 			nhg1WCMP := fluent.NextHopGroupEntry().WithNetworkInstance(defNI).WithID(1).
+				AddNextHop(nhIDSelfSiteVirtual, 7).
+				AddNextHop(nhIDEgressVirtual, 3)
+			// Level 2 SelfSite: Port 2 (weight 4), Port 3 (weight 3) -> 40% / 30% of total
+			nhg10WCMP := fluent.NextHopGroupEntry().WithNetworkInstance(defNI).WithID(nhgIDSelfSiteUnderlay).
 				AddNextHop(2, 4).
-				AddNextHop(3, 3).
+				AddNextHop(3, 3)
+			// Level 2 Egress: Port 4 (weight 2), Port 5 (weight 1) -> 20% / 10% of total
+			nhg20WCMP := fluent.NextHopGroupEntry().WithNetworkInstance(defNI).WithID(nhgIDEgressUnderlay).
 				AddNextHop(4, 2).
 				AddNextHop(5, 1)
+
 			c := gClient.Fluent(t)
-			c.Modify().AddEntry(t, nhg1WCMP)
+			c.Modify().AddEntry(t, nhg10WCMP, nhg20WCMP, nhg1WCMP)
 			ctxTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 			defer cancel()
 			if err := c.Await(ctxTimeout, t); err != nil {
-				t.Fatalf("Failed to program NHG1 WCMP: %v", err)
+				t.Fatalf("Failed to program Hierarchical NHGs for WCMP: %v", err)
 			}
 			for _, p := range profiles {
 				t.Run(p.name, func(t *testing.T) {
@@ -614,17 +661,26 @@ func TestHashing(t *testing.T) {
 		})
 
 		t.Run("Subcase_1_2_ECMP_1_1_1_1", func(t *testing.T) {
+			// Hierarchical ECMP programming in DEFAULT VRF:
+			// Level 1: NH 100 (SelfSite, weight 1), NH 200 (Egress, weight 1) -> 50% / 50%
 			nhg1ECMP := fluent.NextHopGroupEntry().WithNetworkInstance(defNI).WithID(1).
+				AddNextHop(nhIDSelfSiteVirtual, 1).
+				AddNextHop(nhIDEgressVirtual, 1)
+			// Level 2 SelfSite: Port 2 (weight 1), Port 3 (weight 1) -> 25% / 25% of total
+			nhg10ECMP := fluent.NextHopGroupEntry().WithNetworkInstance(defNI).WithID(nhgIDSelfSiteUnderlay).
 				AddNextHop(2, 1).
-				AddNextHop(3, 1).
+				AddNextHop(3, 1)
+			// Level 2 Egress: Port 4 (weight 1), Port 5 (weight 1) -> 25% / 25% of total
+			nhg20ECMP := fluent.NextHopGroupEntry().WithNetworkInstance(defNI).WithID(nhgIDEgressUnderlay).
 				AddNextHop(4, 1).
 				AddNextHop(5, 1)
+
 			c := gClient.Fluent(t)
-			c.Modify().AddEntry(t, nhg1ECMP)
+			c.Modify().AddEntry(t, nhg10ECMP, nhg20ECMP, nhg1ECMP)
 			ctxTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 			defer cancel()
 			if err := c.Await(ctxTimeout, t); err != nil {
-				t.Fatalf("Failed to program NHG1 ECMP: %v", err)
+				t.Fatalf("Failed to program Hierarchical NHGs for ECMP: %v", err)
 			}
 			for _, p := range profiles {
 				t.Run(p.name, func(t *testing.T) {
