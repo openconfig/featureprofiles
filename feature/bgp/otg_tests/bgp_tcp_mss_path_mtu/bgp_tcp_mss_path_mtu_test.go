@@ -550,8 +550,11 @@ func TestTcpMssPathMtu(t *testing.T) {
 		configureISIS(t, dut1, dut1PortNames, dut1AreaAddress, dut1SysID)
 	})
 
+	ateIPAddr := fmt.Sprintf("%s/%d", atePort1.IPv4, uint32(32))
+	t.Cleanup(func() {
+		gnmi.Delete(t, dut2, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut2)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut2)).Static(ateIPAddr).Config())
+	})
 	if !t.Run("Configure static route on DUT2 to ATE to establish multihop iBGP session", func(t *testing.T) {
-		ateIPAddr := fmt.Sprintf("%s/%d", atePort1.IPv4, uint32(32))
 		configStaticRoute(t, dut2, ateIPAddr, dut1Port2.IPv4)
 		// Some platforms do not expose static or connected routes through OC AFT
 		// telemetry. The multihop BGP session below is the end-to-end proof that
