@@ -1200,7 +1200,6 @@ func verifyWCMPDistribution(t *testing.T, name string, deltas map[string]uint64,
 	}
 }
 
-
 func configureStaticARP(t *testing.T, dut *ondatra.DUTDevice, portToLagMap map[string]string, portToMacMap map[string]string) {
 	t.Helper()
 	d := gnmi.OC()
