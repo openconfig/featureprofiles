@@ -1183,7 +1183,9 @@ func ProgramAndVerifyGribiEntries(
 	}
 
 	// Parse results, check for errors and log failures.
-	ValidateGRIBIResults(t, gSession)
+	if !ValidateGRIBIResults(t, gSession) {
+		t.Fatalf("ProgramAndVerifyGribiEntries: gRIBI programming failed")
+	}
 
 	if verifyFunc != nil {
 		verifyFunc(gSession)
@@ -1684,6 +1686,7 @@ func FlushGRIBIRoutes(t *testing.T, dut *ondatra.DUTDevice) {
 // It groups results by OperationID to verify that every AFT operation achieved FIB_PROGRAMMED.
 // If an operation received RIB_PROGRAMMED but not FIB_PROGRAMMED, or experienced a server/client error,
 // it is treated as a failure. It counts totals and logs the first 10 failures for each category.
+// Returns true if there were no failures, false otherwise.
 func ValidateGRIBIResults(t *testing.T, gSession *gribi.Client) bool {
 	t.Helper()
 
@@ -1900,7 +1903,7 @@ func ValidateGRIBIResults(t *testing.T, gSession *gribi.Client) bool {
 		}
 	}
 
-	return hasFailure
+	return !hasFailure
 }
 
 // VerifyHierarchicalResolution spot-checks TE_VRF_111 prefixes for FIB_PROGRAMMED and non-zero NHG via gNMI AFT.
@@ -2898,11 +2901,17 @@ func FetchHWUtilizationSnapshot(t *testing.T, dut *ondatra.DUTDevice, stage stri
 			Component: compName,
 			Name:      res.GetName(),
 		}
+		maxLimit := res.GetMaxLimit()
+		// If max limit is not set, calculate it based on used and free resources.
+		if maxLimit == 0 {
+			maxLimit = res.GetUsed() + res.GetFree()
+		}
+
 		snapshot.Resources[key] = HWResourceMetric{
 			Key:      key,
 			Used:     res.GetUsed(),
 			Free:     res.GetFree(),
-			MaxLimit: res.GetMaxLimit(),
+			MaxLimit: maxLimit,
 		}
 	}
 	return snapshot
