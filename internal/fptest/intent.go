@@ -36,16 +36,13 @@ var releaseIntent = flag.String("release_intent", "", "Path to the ReleaseIntent
 // so that an unusable intent file fails the run loudly instead of silently
 // skipping every test.
 //
+// The caller must have parsed flags already, otherwise --release_intent reads
+// as empty and the filter silently lets every test through.
+//
 // As a side effect, it publishes the plan ID as a suite property when the test
 // does run. This must happen before ondatra.RunTests so that the JSON-Lines
 // ledger records the plan ID rather than falling back to the binary name.
 func skipIfNotIntended() bool {
-	// RunTests calls this even when initMetadata failed, and initMetadata
-	// returns before its own flag.Parse when metadata is missing. Parse here so
-	// that a bad metadata file cannot silently disable the intent filter.
-	if !flag.Parsed() {
-		flag.Parse()
-	}
 	var planID string
 	if md := metadata.Get(); md != nil {
 		planID = md.GetPlanId()

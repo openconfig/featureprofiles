@@ -43,6 +43,10 @@ import (
 //	  fptest.RunTests(m)
 //	}
 func RunTests(m *testing.M) {
+	// Parse before anything reads a flag: initMetadata returns early when
+	// metadata.textproto is missing, and skipIfNotIntended still has to see
+	// --release_intent on that path.
+	flag.Parse()
 	if err := initMetadata(); err != nil {
 		log.Errorf("Unable to initialize test metadata: %v", err)
 	}
@@ -59,7 +63,6 @@ func initMetadata() error {
 	}
 
 	// Set the testbed path from the metadata if it is not set.
-	flag.Parse()
 	if flagVal := flag.Lookup("testbed").Value; flagVal.String() == "" {
 		testbedPath, err := testbedPathFromMetadata()
 		if err != nil {
