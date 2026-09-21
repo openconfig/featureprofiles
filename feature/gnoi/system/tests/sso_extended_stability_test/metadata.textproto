@@ -5,3 +5,52 @@ uuid: "8551f556-a525-423e-b3e8-2ff0c8bdfef1"
 plan_id: "SYS-6.1"
 description: "SSO Extended Forwarding and Stability Validation"
 testbed: TESTBED_DUT_ATE_4LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    default_network_instance: "default"
+    explicit_enable_bgp_on_default_vrf: true
+    peer_group_def_ebgp_vrf_unsupported: true
+    interface_enabled: true
+    omit_l2_mtu: true
+    interface_config_vrf_before_address: true
+    gnoi_subcomponent_path: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    interface_ref_interface_id_format: true
+    interface_enabled: true
+    qos_red_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+    qos_queue_requires_id: true
+    drop_weight_leaves_unsupported: true
+    qos_scheduler_config_required: true
+    bgp_afi_safi_in_default_ni_before_other_ni: true
+    peer_group_def_ebgp_vrf_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
+    interface_ref_interface_id_format: true
+    route_policy_under_afi_unsupported: true
+    qos_queue_requires_id: true
+    qos_buffer_allocation_config_required: true
+  }
+}
