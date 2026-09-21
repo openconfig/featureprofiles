@@ -531,7 +531,7 @@ func configureInterfaces(t *testing.T, dut *ondatra.DUTDevice, dutPorts []string
 	lacpPath := d.Lacp().Interface(aggID)
 	fptest.LogQuery(t, "LACP", lacpPath.Config(), lacp)
 	gnmi.Replace(t, dut, lacpPath.Config(), lacp)
-	time.Sleep(5 * time.Second)
+	gnmi.Await(t, dut, lacpPath.LacpMode().State(), 10*time.Second, oc.Lacp_LacpActivityType_ACTIVE)
 
 	agg := &oc.Interface{Name: ygot.String(aggID)}
 	configDUTInterface(agg, subinterfaces, dut)
