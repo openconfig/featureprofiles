@@ -41,7 +41,6 @@ const (
 	controlcardType   = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
 	bgpName           = "BGP"
 	ptBGP             = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
-	rplPermitAll      = "PERMIT-ALL"
 )
 
 var (
@@ -143,18 +142,11 @@ func performSwitchover(t *testing.T, dut *ondatra.DUTDevice, controllerCards []s
 	return rpActiveAfter, rpStandbyAfter
 }
 
-func runPostSSOVerification(t *testing.T, dut *ondatra.DUTDevice, criticalProcs []string, qosBaselines map[string]uint64, qosPorts []string, qosQueues []string, controllerCards []string) {
+func runPostSSOVerification(t *testing.T, dut *ondatra.DUTDevice, criticalProcs []string, baselines map[string]*system.ProcessInfo, qosBaselines map[string]uint64, qosPorts []string, qosQueues []string, controllerCards []string) {
 	t.Log("Starting 10 minutes validation post-switchover...")
-	baselines, err := system.GetProcessInfo(t, dut, criticalProcs)
-	if err != nil {
-		t.Fatalf("Failed to query baseline process info post-switchover: %v", err)
-	}
-	for name, pInfo := range baselines {
-		t.Logf("Post-switchover process %s baseline: PID=%d, StartTime=%d, Memory=%d", name, pInfo.Pid, pInfo.StartTime, pInfo.MemoryUsage)
-	}
 
 	for min := 2; min <= 10; min += 2 {
-		gnmi.Watch(t, dut, gnmi.OC().System().CurrentDatetime().State(), 2*time.Minute, func(val *ygnmi.Value[string]) bool {
+		gnmi.Watch(t, dut, gnmi.OC().System().State(), 2*time.Minute, func(val *ygnmi.Value[*oc.System]) bool {
 			return false
 		}).Await(t)
 		t.Logf("Verifying process and device health at %d minutes mark...", min)
@@ -173,7 +165,7 @@ func runPostSSOVerification(t *testing.T, dut *ondatra.DUTDevice, criticalProcs 
 			}
 
 			baseline := baselines[name]
-			// Crash Detection
+			// Crash Detection (If PID changes, then process silently crashed and restarted)
 			if info.Pid != baseline.Pid {
 				t.Errorf("Process %s PID changed from %d to %d (crash detected)", name, baseline.Pid, info.Pid)
 			}
@@ -181,7 +173,7 @@ func runPostSSOVerification(t *testing.T, dut *ondatra.DUTDevice, criticalProcs 
 				t.Errorf("Process %s StartTime changed from %d to %d (crash/restart detected)", name, baseline.StartTime, info.StartTime)
 			}
 
-			// Memory Leak Detection
+			// Memory Leak Detection (If memory usage increased by 10% or more, then memory leak detected)
 			t.Logf("Process %s Memory: Baseline = %d, Current = %d", name, baseline.MemoryUsage, info.MemoryUsage)
 			if baseline.MemoryUsage > 0 && info.MemoryUsage > baseline.MemoryUsage {
 				pctIncrease := float64(info.MemoryUsage-baseline.MemoryUsage) / float64(baseline.MemoryUsage)
@@ -191,14 +183,15 @@ func runPostSSOVerification(t *testing.T, dut *ondatra.DUTDevice, criticalProcs 
 			}
 		}
 
-		// Verify QoS queue drop telemetry does not increase
+		// Verify QoS queue drop telemetry does not increase (If there is no change in baseline then no drops)
 		verifyNoQoSDrops(t, dut, qosPorts, qosQueues, qosBaselines)
 	}
 
 	t.Log("Validating the new active RP is switchover ready...")
 	rpStandbyAfter, rpActiveAfter := components.FindStandbyControllerCard(t, dut, controllerCards)
 	t.Logf("Detected rpStandby before switchover sequence: %v, rpActive before: %v", rpStandbyAfter, rpActiveAfter)
-	components.AwaitSwitchoverReady(t, dut, rpActiveAfter, 30*time.Minute)
+	switchoverReady := gnmi.OC().Component(rpActiveAfter).SwitchoverReady()
+	gnmi.Await(t, dut, switchoverReady.State(), 30*time.Minute, true)
 }
 
 func TestSSOSoftwareStability(t *testing.T) {
@@ -220,6 +213,9 @@ func TestSSOSoftwareStability(t *testing.T) {
 			Identifier: ptBGP,
 			Name:       bgpName,
 		})
+		if len(bs.DUTConf.NetworkInstance[defaultNiName].Protocol) == 0 {
+			bs.DUTConf.NetworkInstance[defaultNiName].Protocol = nil
+		}
 	}
 
 	// 2. Configure L3VRFs and interfaces on DUTConf
@@ -271,6 +267,10 @@ func TestSSOSoftwareStability(t *testing.T) {
 	transitGR.StaleRoutesTime = ygot.Uint16(300)
 	transitGlobal.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 
+	transitPg := transitBgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1)
+	transitPg.PeerAs = ygot.Uint32(65001)
+	transitPg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+
 	decapBgpProto := decapNi.GetOrCreateProtocol(ptBGP, bgpName)
 	decapBgp := decapBgpProto.GetOrCreateBgp()
 	decapGlobal := decapBgp.GetOrCreateGlobal()
@@ -282,10 +282,14 @@ func TestSSOSoftwareStability(t *testing.T) {
 	decapGR.StaleRoutesTime = ygot.Uint16(300)
 	decapGlobal.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 
+	decapPg := decapBgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1)
+	decapPg.PeerAs = ygot.Uint32(65002)
+	decapPg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+
 	// Create PERMIT-ALL routing policy
 	rp := bs.DUTConf.GetOrCreateRoutingPolicy()
-	pdef := rp.GetOrCreatePolicyDefinition(rplPermitAll)
-	stmt, err := pdef.AppendNewStatement("sso-permit-all-20")
+	pdef := rp.GetOrCreatePolicyDefinition("SSO-PERMIT-ALL")
+	stmt, err := pdef.AppendNewStatement("SSO-PERMIT-ALL-STMT")
 	if err != nil {
 		t.Fatalf("Failed to create routing policy statement: %v", err)
 	}
@@ -300,9 +304,11 @@ func TestSSOSoftwareStability(t *testing.T) {
 		if i == 0 || i == 1 {
 			nbr = transitBgp.GetOrCreateNeighbor(peerAddress)
 			nbr.PeerAs = ygot.Uint32(65001)
+			nbr.PeerGroup = ygot.String(cfgplugins.BGPPeerGroup1)
 		} else {
 			nbr = decapBgp.GetOrCreateNeighbor(peerAddress)
 			nbr.PeerAs = ygot.Uint32(65002)
+			nbr.PeerGroup = ygot.String(cfgplugins.BGPPeerGroup1)
 		}
 		nbr.Enabled = ygot.Bool(true)
 
@@ -315,15 +321,15 @@ func TestSSOSoftwareStability(t *testing.T) {
 		// the policy must be applied under the specific AFI/SAFI node instead.
 		if deviations.RoutePolicyUnderAFIUnsupported(dut) {
 			nbrPolicy := nbr.GetOrCreateApplyPolicy()
-			nbrPolicy.SetExportPolicy([]string{rplPermitAll})
-			nbrPolicy.SetImportPolicy([]string{rplPermitAll})
+			nbrPolicy.SetExportPolicy([]string{"SSO-PERMIT-ALL"})
+			nbrPolicy.SetImportPolicy([]string{"SSO-PERMIT-ALL"})
 		}
 
 		// Apply the route policy under AFI/SAFI for devices that require it (e.g., Cisco).
 		if !deviations.RoutePolicyUnderAFIUnsupported(dut) {
 			nbrPolicy := nAfiSafi.GetOrCreateApplyPolicy()
-			nbrPolicy.SetExportPolicy([]string{rplPermitAll})
-			nbrPolicy.SetImportPolicy([]string{rplPermitAll})
+			nbrPolicy.SetExportPolicy([]string{"SSO-PERMIT-ALL"})
+			nbrPolicy.SetImportPolicy([]string{"SSO-PERMIT-ALL"})
 		}
 	}
 
@@ -331,13 +337,11 @@ func TestSSOSoftwareStability(t *testing.T) {
 	qos := bs.DUTConf.GetOrCreateQos()
 	af4Profile := qos.GetOrCreateQueueManagementProfile("AF4_PROFILE")
 	af4Profile.SetName("AF4_PROFILE")
-	af4Wred := af4Profile.GetOrCreateWred()
-	af4Wred.GetOrCreateUniform().SetEnableEcn(true)
+	af4Profile.GetOrCreateWred().GetOrCreateUniform()
 
 	be0Profile := qos.GetOrCreateQueueManagementProfile("BE0_PROFILE")
 	be0Profile.SetName("BE0_PROFILE")
-	be0Wred := be0Profile.GetOrCreateWred()
-	be0Wred.GetOrCreateUniform().SetEnableEcn(true)
+	be0Profile.GetOrCreateRed().GetOrCreateUniform()
 
 	for _, port := range []string{p1.Name(), p2.Name(), p3.Name(), p4.Name()} {
 		intf := qos.GetOrCreateInterface(port)
@@ -355,16 +359,17 @@ func TestSSOSoftwareStability(t *testing.T) {
 		qBE0 := output.GetOrCreateQueue("BE0")
 		qBE0.SetName("BE0")
 		qBE0.SetQueueManagementProfile("BE0_PROFILE")
+
 	}
 
-	if deviations.QOSQueueRequiresID(dut) {
-		qAF4 := qos.GetOrCreateQueue("AF4")
-		qAF4.Name = ygot.String("AF4")
-		qAF4.QueueId = ygot.Uint8(1)
+	qAF4Global := qos.GetOrCreateQueue("AF4")
+	qAF4Global.SetName("AF4")
+	qBE0Global := qos.GetOrCreateQueue("BE0")
+	qBE0Global.SetName("BE0")
 
-		qBE0 := qos.GetOrCreateQueue("BE0")
-		qBE0.Name = ygot.String("BE0")
-		qBE0.QueueId = ygot.Uint8(2)
+	if deviations.QOSQueueRequiresID(dut) {
+		qAF4Global.QueueId = ygot.Uint8(1)
+		qBE0Global.QueueId = ygot.Uint8(2)
 	}
 
 	// 5. Configure OTG BGP Route Advertisements
@@ -372,6 +377,11 @@ func TestSSOSoftwareStability(t *testing.T) {
 	dev2 := getDeviceByName(t, bs.ATETop, "port2")
 	dev3 := getDeviceByName(t, bs.ATETop, "port3")
 	dev4 := getDeviceByName(t, bs.ATETop, "port4")
+
+	dev1.Bgp().Ipv4Interfaces().Items()[0].Peers().Items()[0].SetAsNumber(65001)
+	dev2.Bgp().Ipv4Interfaces().Items()[0].Peers().Items()[0].SetAsNumber(65001)
+	dev3.Bgp().Ipv4Interfaces().Items()[0].Peers().Items()[0].SetAsNumber(65002)
+	dev4.Bgp().Ipv4Interfaces().Items()[0].Peers().Items()[0].SetAsNumber(65002)
 
 	configureBGPv4Routes(dev1.Bgp().Ipv4Interfaces().Items()[0].Peers().Items()[0], bs.ATEPorts[0].IPv4, "port1_routes", "198.51.100.0", 24)
 	configureBGPv4Routes(dev2.Bgp().Ipv4Interfaces().Items()[0].Peers().Items()[0], bs.ATEPorts[1].IPv4, "port2_routes", "198.51.101.0", 24)
@@ -408,10 +418,6 @@ func TestSSOSoftwareStability(t *testing.T) {
 
 	// Post configuration to DUT & Start protocols
 	bs.PushAndStart(t)
-	t.Cleanup(func() {
-		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("TRANSIT_VRF").Config())
-		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DECAP_TE_VRF").Config())
-	})
 
 	t.Log("Verify DUT BGP sessions established in VRFs")
 	for _, vrf := range []string{"TRANSIT_VRF", "DECAP_TE_VRF"} {
@@ -429,22 +435,33 @@ func TestSSOSoftwareStability(t *testing.T) {
 	otgutils.WaitForARP(t, bs.ATE.OTG(), bs.ATETop, "IPv4")
 
 	// SYS-6.1.1 - Extended Post-SSO Traffic and Process Health Soak Test
+	t.Log("=== SYS-6.1.1 - Extended Post-SSO Traffic and Process Health Soak Test ===")
+
 	// Step 1 - Start Background Traffic and Record Process State
 	t.Log("Step 1 - Start Background Traffic and Record Process State")
 	bs.ATE.OTG().StartTraffic(t)
-	trafficStarted := true
-	t.Cleanup(func() {
-		if trafficStarted {
-			bs.ATE.OTG().StopTraffic(t)
-		}
-	})
 
 	// Wait for BGP traffic to stabilize instead of a pure sleep.
 	t.Log("Waiting for traffic to stabilize (10s continuous zero loss expected within 1 minute)...")
-	for _, flow := range []string{"AF4_Flow", "BE0_Flow"} {
-		otgutils.ExpectedTrafficLoss(t, bs.ATE.OTG(), flow, 0.0, 0.0)
+	startConv := time.Now()
+	for {
+		if time.Since(startConv) > 60*time.Second {
+			t.Fatalf("Traffic did not stabilize with 0%% loss within 60s")
+		}
+		converged := true
+		for _, flow := range []string{"AF4_Flow", "BE0_Flow"} {
+			loss := otgutils.GetFlowLossPct(t, bs.ATE.OTG(), flow, 10*time.Second)
+			if loss > 0.0 {
+				converged = false
+				t.Logf("Traffic not yet stabilized: flow %s has loss %f%%", flow, loss)
+				break
+			}
+		}
+		if converged {
+			t.Log("Traffic achieved 0% continuous loss.")
+			break
+		}
 	}
-	t.Log("Traffic achieved 0% continuous loss.")
 
 	// 7. Find critical hardware and routing processes to monitor
 	criticalProcs := findRunningCriticalProcesses(t, dut)
@@ -471,18 +488,17 @@ func TestSSOSoftwareStability(t *testing.T) {
 	// Step 2 - Trigger Supervisor Switchover
 	t.Log("Step 2 - Trigger Supervisor Switchover")
 	performSwitchover(t, dut, controllerCards)
-	runPostSSOVerification(t, dut, criticalProcs, qosBaselines, qosPorts, qosQueues, controllerCards)
+	runPostSSOVerification(t, dut, criticalProcs, initialProcInfos, qosBaselines, qosPorts, qosQueues, controllerCards)
 
 	// Step 3 - Soak Phase
 	t.Log("Step 3 - Soak Phase")
 	performSwitchover(t, dut, controllerCards)
-	runPostSSOVerification(t, dut, criticalProcs, qosBaselines, qosPorts, qosQueues, controllerCards)
+	runPostSSOVerification(t, dut, criticalProcs, initialProcInfos, qosBaselines, qosPorts, qosQueues, controllerCards)
 
 	// Step 4 - Validation with pass/fail criteria
 	t.Log("Step 4 - Validation with pass/fail criteria")
 	t.Log("Stopping traffic...")
 	bs.ATE.OTG().StopTraffic(t)
-	trafficStarted = false
 
 	// Log traffic stats and verify final traffic loss is 0%
 	otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
