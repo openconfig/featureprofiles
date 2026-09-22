@@ -7,6 +7,131 @@
 - Applicable to both IPv4 and IPv6 BGP neighbors
 - Single level nesting is sufficient
 
+## Canonical OC
+
+```json
+{
+  "network-instances": {
+    "network-instance": [
+      {
+        "config": {
+          "name": "DEFAULT"
+        },
+        "name": "DEFAULT",
+        "protocols": {
+          "protocol": [
+            {
+              "bgp": {
+                "neighbors": {
+                  "neighbor": [
+                    {
+                      "afi-safis": {
+                        "afi-safi": [
+                          {
+                            "afi-safi-name": "IPV4_UNICAST",
+                            "apply-policy": {
+                              "config": {
+                                "export-policy": [
+                                  "asp-policy-v4"
+                                ]
+                              }
+                            },
+                            "config": {
+                              "afi-safi-name": "IPV4_UNICAST"
+                            }
+                          }
+                        ]
+                      },
+                      "config": {
+                        "neighbor-address": "192.0.2.2"
+                      },
+                      "neighbor-address": "192.0.2.2"
+                    }
+                  ]
+                }
+              },
+              "config": {
+                "identifier": "BGP",
+                "name": "BGP"
+              },
+              "identifier": "BGP",
+              "name": "BGP"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "routing-policy": {
+    "policy-definitions": {
+      "policy-definition": [
+        {
+          "config": {
+            "name": "asp-policy-v4"
+          },
+          "name": "asp-policy-v4",
+          "statements": {
+            "statement": [
+              {
+                "actions": {
+                  "bgp-actions": {
+                    "set-as-path-prepend": {
+                      "config": {
+                        "asn": 65656,
+                        "repeat-n": 1
+                      }
+                    }
+                  },
+                  "config": {
+                    "policy-result": "ACCEPT_ROUTE"
+                  }
+                },
+                "conditions": {
+                  "config": {
+                    "call-policy": "med-policy-v4"
+                  }
+                },
+                "config": {
+                  "name": "asp-statement-v4"
+                },
+                "name": "asp-statement-v4"
+              }
+            ]
+          }
+        },
+        {
+          "config": {
+            "name": "med-policy-v4"
+          },
+          "name": "med-policy-v4",
+          "statements": {
+            "statement": [
+              {
+                "actions": {
+                  "bgp-actions": {
+                    "config": {
+                      "set-med": 1000,
+                      "set-med-action": "SET"
+                    }
+                  },
+                  "config": {
+                    "policy-result": "ACCEPT_ROUTE"
+                  }
+                },
+                "config": {
+                  "name": "med-statement-v4"
+                },
+                "name": "med-statement-v4"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
 ## Testbed type
 
 *   https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_2.testbed

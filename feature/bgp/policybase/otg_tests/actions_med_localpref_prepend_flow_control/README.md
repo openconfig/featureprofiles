@@ -10,6 +10,100 @@
 - verify ```NEXT-STATEMENT``` flow-control action
 - Applicable to both IPv4 and IPv6 BGP neighbors
 
+## Canonical OC
+
+```json
+{
+  "network-instances": {
+    "network-instance": [
+      {
+        "config": {
+          "name": "DEFAULT"
+        },
+        "name": "DEFAULT",
+        "protocols": {
+          "protocol": [
+            {
+              "bgp": {
+                "neighbors": {
+                  "neighbor": [
+                    {
+                      "afi-safis": {
+                        "afi-safi": [
+                          {
+                            "afi-safi-name": "IPV4_UNICAST",
+                            "apply-policy": {
+                              "config": {
+                                "export-policy": [
+                                  "med-policy"
+                                ],
+                                "import-policy": [
+                                  "med-policy"
+                                ]
+                              }
+                            },
+                            "config": {
+                              "afi-safi-name": "IPV4_UNICAST"
+                            }
+                          }
+                        ]
+                      },
+                      "config": {
+                        "neighbor-address": "192.0.2.6"
+                      },
+                      "neighbor-address": "192.0.2.6"
+                    }
+                  ]
+                }
+              },
+              "config": {
+                "identifier": "BGP",
+                "name": "BGP"
+              },
+              "identifier": "BGP",
+              "name": "BGP"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "routing-policy": {
+    "policy-definitions": {
+      "policy-definition": [
+        {
+          "config": {
+            "name": "med-policy"
+          },
+          "name": "med-policy",
+          "statements": {
+            "statement": [
+              {
+                "actions": {
+                  "bgp-actions": {
+                    "config": {
+                      "set-med": 50,
+                      "set-med-action": "SET"
+                    }
+                  },
+                  "config": {
+                    "policy-result": "ACCEPT_ROUTE"
+                  }
+                },
+                "config": {
+                  "name": "match-statement-1"
+                },
+                "name": "match-statement-1"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
 ## Testbed type
 
 *   https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_2.testbed
