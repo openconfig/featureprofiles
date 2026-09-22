@@ -12,6 +12,7 @@ platform_exceptions: {
   deviations: {
     ipv4_missing_enabled: true
     subnet_mask_change_required: true
+    max_out_fib_route_count: 2500000
   }
 }
 platform_exceptions: {
@@ -21,6 +22,25 @@ platform_exceptions: {
   deviations: {
     explicit_interface_in_default_vrf: true
     interface_enabled: true
+    max_out_fib_route_count: 2600000
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+    hardware_model_regex: "PTX10002-36QDD|PTX12008"
+  }
+  deviations: {
+    max_out_fib_route_count: 3750000
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+    hardware_model_regex: "PTX10008"
+  }
+  deviations: {
+    max_out_fib_route_count: 2500000
   }
 }
 platform_exceptions: {
@@ -32,6 +52,7 @@ platform_exceptions: {
     interface_enabled: true
     default_network_instance: "default"
     bgp_missing_oc_max_prefixes_configuration: true
+    max_out_fib_route_count: 2500000
   }
 }
 tags: TAGS_TRANSIT

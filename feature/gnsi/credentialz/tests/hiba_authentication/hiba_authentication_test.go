@@ -175,6 +175,6 @@ func TestCredentialz(t *testing.T) {
 		// Remove host artifacts from the dut.
 		// credz.RotateAuthenticationArtifacts(t, dut, "", "", "", 0)
 		// SSH configuration cleanup on DUT
-		credz.SSHCleanup(t, dut)
+		// credz.SSHCleanup(t, dut)
 	})
 }

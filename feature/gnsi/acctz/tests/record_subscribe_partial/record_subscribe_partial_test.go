@@ -15,7 +15,6 @@ package recordsubscribepartial_test
 
 import (
 	"context"
-	"encoding/json"
 	"slices"
 	"testing"
 	"time"
@@ -40,11 +39,6 @@ type recordRequestResult struct {
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
-}
-
-func prettyPrint(i any) string {
-	s, _ := json.MarshalIndent(i, "", "\t")
-	return string(s)
 }
 
 func TestAccountzRecordSubscribePartial(t *testing.T) {
@@ -87,8 +81,10 @@ func TestAccountzRecordSubscribePartial(t *testing.T) {
 		Seconds: startTime.Unix(),
 		Nanos:   0,
 	}
+	request := &acctzpb.RecordRequest{Timestamp: requestTimestamp}
 	acctzClient := dut.RawAPIs().GNSI(t).AcctzStream()
-	acctzSubClient, err := acctzClient.RecordSubscribe(t.Context(), &acctzpb.RecordRequest{Timestamp: requestTimestamp})
+	t.Logf("Sending acctz record subscribe request: %s", acctz.PrettyPrint(request))
+	acctzSubClient, err := acctzClient.RecordSubscribe(t.Context(), request)
 	if err != nil {
 		t.Fatalf("Failed sending accountz record request, error: %s", err)
 	}
@@ -155,13 +151,13 @@ func TestAccountzRecordSubscribePartial(t *testing.T) {
 		record := gotRecords[recordIdx]
 
 		if record.GetHistoryIstruncated() {
-			t.Errorf("History is truncated but it shouldn't be, Record Details: %s", prettyPrint(record))
+			t.Errorf("History is truncated but it shouldn't be, Record Details: %s", acctz.PrettyPrint(record))
 		}
 
 		timestamp := record.Timestamp.AsTime()
 		if timestamp.UnixMilli() == lastTimestampUnixMillis {
 			// This ensures that timestamps are actually changing for each record.
-			t.Errorf("Timestamp is the same as the previous timestamp, this shouldn't be possible!, Record Details: %s", prettyPrint(record))
+			t.Errorf("Timestamp is the same as the previous timestamp, this shouldn't be possible!, Record Details: %s", acctz.PrettyPrint(record))
 		}
 		lastTimestampUnixMillis = timestamp.UnixMilli()
 
@@ -172,7 +168,7 @@ func TestAccountzRecordSubscribePartial(t *testing.T) {
 
 		// Verify record timestamp is after request timestamp.
 		if !timestamp.After(startTime) {
-			t.Errorf("Record timestamp is before record request timestamp %v, Record Details: %v", requestTimestamp.AsTime(), prettyPrint(record))
+			t.Errorf("Record timestamp is before record request timestamp %v, Record Details: %v", requestTimestamp.AsTime(), acctz.PrettyPrint(record))
 		}
 
 		// This channel check maybe should just go away entirely -- see:
@@ -181,16 +177,16 @@ func TestAccountzRecordSubscribePartial(t *testing.T) {
 		// useful info in this field to identify a "session" (even if it isn't necessarily ssh/grpc
 		// directly).
 		if record.GetSessionInfo().GetChannelId() == "" && !deviations.AcctzRecordFailCommandUnsupported(dut) {
-			t.Errorf("Channel Id is not populated for record: %v", prettyPrint(record))
+			t.Errorf("Channel Id is not populated for record: %v", acctz.PrettyPrint(record))
 		}
 
 		// Verify authz detail is populated for denied rpcs.
 		authzInfo := record.GetGrpcService().GetAuthz()
 		if authzInfo.GetStatus() == acctzpb.AuthzDetail_AUTHZ_STATUS_DENY && authzInfo.GetDetail() == "" {
-			t.Errorf("Authorization detail is not populated for record: %v", prettyPrint(record))
+			t.Errorf("Authorization detail is not populated for record: %v", acctz.PrettyPrint(record))
 		}
 
-		t.Logf("Processed Record: %s", prettyPrint(record))
+		t.Logf("Processed Record: %s", acctz.PrettyPrint(record))
 		recordIdx++
 	}
 }
