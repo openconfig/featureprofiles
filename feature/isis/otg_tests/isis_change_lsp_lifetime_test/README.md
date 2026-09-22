@@ -4,6 +4,69 @@
 
 * Changing the lsp lifetime and verifying isis lsp parameters
 
+## Canonical OC
+
+```json
+{
+  "openconfig-network-instance:network-instances": {
+    "network-instance": [
+      {
+        "config": {
+          "name": "DEFAULT"
+        },
+        "name": "DEFAULT",
+        "protocols": {
+          "protocol": [
+            {
+              "config": {
+                "identifier": "openconfig-policy-types:ISIS",
+                "name": "DEFAULT"
+              },
+              "identifier": "openconfig-policy-types:ISIS",
+              "isis": {
+                "global": {
+                  "afi-safi": {
+                    "af": [
+                      {
+                        "afi-name": "openconfig-isis-types:IPV4",
+                        "config": {
+                          "afi-name": "openconfig-isis-types:IPV4",
+                          "enabled": true,
+                          "safi-name": "openconfig-isis-types:UNICAST"
+                        },
+                        "safi-name": "openconfig-isis-types:UNICAST"
+                      },
+                      {
+                        "afi-name": "openconfig-isis-types:IPV6",
+                        "config": {
+                          "afi-name": "openconfig-isis-types:IPV6",
+                          "enabled": true,
+                          "safi-name": "openconfig-isis-types:UNICAST"
+                        },
+                        "safi-name": "openconfig-isis-types:UNICAST"
+                      }
+                    ]
+                  },
+                  "config": {
+                    "level-capability": "LEVEL_2"
+                  },
+                  "timers": {
+                    "config": {
+                      "lsp-lifetime-interval": 500,
+                      "lsp-refresh-interval": 60
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
+
 ## Topology
 
 * ATE:port1 <-> port1:DUT:port2 <-> ATE:port2
