@@ -1236,6 +1236,11 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/singleton/otg_tests/interface_admin_drain_test/README.md"
 }
 test: {
+  id: "RT-5.18"
+  description: "Aggregate Interface (LAG) Drain via Admin Down"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/aggregate/otg_tests/aggregate_admin_down_drain_test/README.md"
+}
+test: {
   id: "RT-5.19"
   description: "LAG Member-Link Drain"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/aggregate/otg_tests/aggregate_member_link_drain_test/README.md"
@@ -1505,6 +1510,11 @@ test: {
   id: "TE-1.22"
   description: "Traffic Blackhole on gRIBI Invalid Next-Hop (Strict FIB Precedence)"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/strict_fib_precedence_blackhole_test/README.md"
+}
+test: {
+  id: "TE-1.3"
+  description: "P4RT ACL Interaction with gRIBI Forwarding"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/p4rt_acl_gribi_interaction_test/README.md"
 }
 test: {
   id: "TE-1.4"
