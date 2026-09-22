@@ -105,6 +105,8 @@ func TestIpv4EntryOnAggregatePort(t *testing.T) {
 		validateTrafficFlows(t, ate, []string{f1}, []string{})
 	})
 
+	defer aggregatePortState(t, dut, ate, []string{"port2", "port3"}, true)
+
 	t.Run("Aggregate Port2 disabled", func(t *testing.T) {
 		aggregatePortState(t, dut, ate, []string{"port2"}, false)
 		validateTrafficFlows(t, ate, []string{f1}, []string{})
