@@ -1903,10 +1903,21 @@ func verifySystemHealth(t *testing.T, dut *ondatra.DUTDevice) dutInfo {
 	return dutInfo
 }
 
+func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	// Hierarchical FEC resolution is Arista specific; other vendors get "".
+	hardwareInitCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureHierarchicalFIB)
+	if hardwareInitCfg == "" {
+		return
+	}
+	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareInitCfg)
+}
+
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutData *dutData) {
 	t.Logf("===========Configuring DUT===========")
 	t.Helper()
 	var cfgDutPorts []cfgplugins.Attributes
+	configureHardwareInit(t, dut)
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	for _, l := range dutData.lags {
