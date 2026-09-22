@@ -16,7 +16,10 @@ This test verify correctness of gNMI setReques REPLACE operation for routing pol
   * Configure standard send-community for the peer-group IPv4 AFI-SAFI at
     `/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/config/send-community-type`.
   * Configure policy "test-policy" and apply using setRequest Replace at `openconfig/routing-policy/`
-  ```
+
+### Canonical OC
+
+  ```json
   {
     "openconfig-routing-policy:routing-policy": {
       "defined-sets": {
