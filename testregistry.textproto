@@ -1507,6 +1507,11 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/strict_fib_precedence_blackhole_test/README.md"
 }
 test: {
+  id: "TE-1.3"
+  description: "P4RT ACL Interaction with gRIBI Forwarding"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/p4rt_acl_gribi_interaction_test/README.md"
+}
+test: {
   id: "TE-1.4"
   description: "gRIBI Recursive Route Resolution under Routing Protocol Churn"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/recursive_route_resolution_protocol_churn_test/README.md"
