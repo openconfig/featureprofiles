@@ -1507,6 +1507,11 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/strict_fib_precedence_blackhole_test/README.md"
 }
 test: {
+  id: "TE-1.4"
+  description: "gRIBI Recursive Route Resolution under Routing Protocol Churn"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/recursive_route_resolution_protocol_churn_test/README.md"
+}
+test: {
   id: "TE-1.7"
   description: "gNMI Interface Config Change Impacting gRIBI NextHop"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gnmi_intf_config_impacts_gribi_nh_test/README.md"
@@ -2196,6 +2201,11 @@ test: {
   description: "Benchmarking: Drained Configuration Convergence Time"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/otg_tests/drained_configuration_convergence_time/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/otg_tests/drained_configuration_convergence_time/drained_configuration_convergence_time_bgp_test.go"
+}
+test: {
+  id: "gNMI-1.30"
+  description: "gNMI Telemetry Performance under Dynamic Control Plane Churn"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/otg_tests/telemetry_under_churn_test/README.md"
 }
 test: {
   id: "gNMI-1.4"
