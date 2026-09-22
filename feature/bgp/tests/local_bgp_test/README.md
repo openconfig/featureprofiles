@@ -126,6 +126,7 @@ paths:
    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities:
    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/hold-time:
    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/keepalive-interval:
+   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/state/negotiated-hold-time:
    /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/description:
    /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/import-policy:
    /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/export-policy:

@@ -16,10 +16,12 @@
 package isis_node_sid_forward_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/isissession"
@@ -27,8 +29,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -135,7 +135,7 @@ func configureOTG(t *testing.T, ts *isissession.TestSession) {
 
 	v4 := v4Flow.Packet().Add().Ipv4()
 	v4.Src().SetValue(isissession.ATEISISAttrs.IPv4)
-	v4.Dst().SetValue(ateV4Route) //
+	v4.Dst().SetValue(ateV4Route)
 
 	t.Log("Configuring v6 traffic flow ")
 
@@ -200,36 +200,11 @@ func verifySRCounters(t *testing.T, ts *isissession.TestSession, ate *ondatra.AT
 	d := ts.DUTConf
 	networkInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT))
 
-	gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(v4FlowName).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
-		recvMetric, ok := val.Val()
-		if !ok || recvMetric.GetCounters() == nil {
-			return false
-		}
-		txPkts := recvMetric.GetCounters().GetOutPkts()
-		rxPkts := recvMetric.GetCounters().GetInPkts()
-		if txPkts == 0 {
-			return false
-		}
-		if rxPkts > txPkts {
-			return false
-		}
-		lossPct := float32(txPkts-rxPkts) * 100 / float32(txPkts)
-		return int(lossPct) <= 0
-	}).Await(t)
+	otgutils.ExpectedTrafficLoss(t, ate.OTG(), v4FlowName, 0, 0.99)
 
 	recvMetricV4 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v4FlowName).State())
 	txPkts := recvMetricV4.GetCounters().GetOutPkts()
 	rxPkts := recvMetricV4.GetCounters().GetInPkts()
-	if txPkts == 0 {
-		t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", v4FlowName)
-	}
-	if rxPkts > txPkts {
-		t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", rxPkts, txPkts)
-	}
-	lossPct := float32(txPkts-rxPkts) * 100 / float32(txPkts)
-	if int(lossPct) > 0 {
-		t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want <= 0", v4FlowName, lossPct)
-	}
 	v4InPkts := rxPkts
 	v4OutPkts := txPkts
 	// Get SR Counters
@@ -244,44 +219,14 @@ func verifySRCounters(t *testing.T, ts *isissession.TestSession, ate *ondatra.AT
 	if got := srIntf.OutPkts; got != ygot.Uint64(0) {
 		t.Errorf("FAIL- SR OutPkts is not zero, got %d, want %d", got, v4OutPkts)
 	}
+	t.Logf("SR InPkts: %d, SR OutPkts: %d", srIntf.InPkts, srIntf.OutPkts)
 }
 
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
 	defer otgutils.LogFlowMetrics(t, ate.OTG(), top)
 	defer otgutils.LogPortMetrics(t, ate.OTG(), top)
 	for _, flowName := range []string{v4FlowName, v6FlowName} {
-		gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flowName).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
-			recvMetric, ok := val.Val()
-			if !ok || recvMetric.GetCounters() == nil {
-				return false
-			}
-			txPkts := recvMetric.GetCounters().GetOutPkts()
-			rxPkts := recvMetric.GetCounters().GetInPkts()
-			if txPkts == 0 {
-				return false
-			}
-			if rxPkts > txPkts {
-				return false
-			}
-			lossPct := float32(txPkts-rxPkts) * 100 / float32(txPkts)
-			return int(lossPct) <= 0
-		}).Await(t)
-
-		recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).State())
-		txPkts := recvMetric.GetCounters().GetOutPkts()
-		rxPkts := recvMetric.GetCounters().GetInPkts()
-		if txPkts == 0 {
-			t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flowName)
-		}
-		if rxPkts > txPkts {
-			t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", rxPkts, txPkts)
-		}
-		lossPct := float32(txPkts-rxPkts) * 100 / float32(txPkts)
-		if int(lossPct) > 0 {
-			t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want <= 0", flowName, lossPct)
-		} else {
-			t.Logf("Traffic validation successful for [%s] FramesTx: %d FramesRx: %d", flowName, txPkts, rxPkts)
-		}
+		otgutils.ExpectedTrafficLoss(t, ate.OTG(), flowName, 0, 0.99)
 	}
 }
 
@@ -318,13 +263,17 @@ func TestMPLSLabelBlockWithISIS(t *testing.T) {
 	t.Run("Traffic checks", func(t *testing.T) {
 		otgutils.WaitForARP(t, otg, ts.ATETop, "IPv4")
 		otgutils.WaitForARP(t, otg, ts.ATETop, "IPv6")
+		cfgplugins.VerifyRoutes(t, ts.DUT, map[string]cfgplugins.RouteInfo{
+			fmt.Sprintf("%s/%d", ateV4Route, plenIPv4): {IPType: cfgplugins.IPv4},
+			fmt.Sprintf("%s/%d", ateV6Route, plenIPv6): {IPType: cfgplugins.IPv6},
+		})
+
 		t.Logf("Starting traffic")
 		t.Log(otg.GetConfig(t))
 		otg.StartTraffic(t)
 		time.Sleep(time.Second * 15)
 		t.Logf("Stop traffic")
 		otg.StopTraffic(t)
-
 		verifyTraffic(t, ts.ATE, ts.ATETop)
 	})
 
