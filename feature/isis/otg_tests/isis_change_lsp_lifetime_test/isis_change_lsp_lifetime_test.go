@@ -141,8 +141,12 @@ func TestISISChangeLSPLifetime(t *testing.T) {
 
 	// Do not consume protocol convergence time while either end of the link is
 	// still becoming operational after the OTG configuration push.
-	gnmi.Await(t, ts.DUT, gnmi.OC().Interface(ts.DUTPort1.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
+gnmi.Await(t, ts.DUT, gnmi.OC().Interface(ts.DUTPort1.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
 	gnmi.Await(t, otg, gnmi.OTG().Port(ts.ATEPort1.ID()).Link().State(), 2*time.Minute, otgtelemetry.Port_Link_UP)
+	gnmi.Watch(t, otg, gnmi.OTG().Interface(ts.ATEPort1.Name()+".IPv4").IPv4Neighbor(ts.DUTPort1IP).LinkLayerAddress().State(), 2*time.Minute, func(val *ygnmi.Value[string]) bool {
+		valStr, ok := val.Val()
+		return ok && valStr != ""
+	})
 	time.Sleep(time.Minute * 2)
 
 	isisPath := isissession.ISISPath(ts.DUT)
