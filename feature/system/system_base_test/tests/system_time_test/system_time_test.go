@@ -65,6 +65,7 @@ func TestBootTime(t *testing.T) {
 // configuration update.
 //
 // config_path:/system/config/domain-name
+// telemetry_path:/system/state/domain-name
 // telemetry_path:/system/state/last-configuration-timestamp
 func TestLastConfigurationTimestamp(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
@@ -95,13 +96,17 @@ func TestLastConfigurationTimestamp(t *testing.T) {
 		targetDomain = "updated.test.name.example"
 	}
 	gnmi.Replace(t, dut, domainConfig.Config(), targetDomain)
+	gnmi.Await(t, dut, domainConfig.State(), time.Minute, targetDomain)
 
 	val, ok := gnmi.Watch(t, dut, lastCfgTS.State(), time.Minute, func(v *ygnmi.Value[uint64]) bool {
 		ts, present := v.Val()
 		return present && ts > initialTS
 	}).Await(t)
 	if !ok {
-		updatedTS, _ := val.Val()
+		var updatedTS uint64
+		if val != nil {
+			updatedTS, _ = val.Val()
+		}
 		t.Errorf("/system/state/last-configuration-timestamp did not increase after config change: initial %d, got %d", initialTS, updatedTS)
 		return
 	}
