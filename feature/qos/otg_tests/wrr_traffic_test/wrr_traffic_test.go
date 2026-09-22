@@ -870,15 +870,13 @@ func TestWrrTraffic(t *testing.T) {
 			for queue := range queueNames {
 				count, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).TransmitPkts().State(), timeout, isPresent).Await(t)
 				if !ok {
-					t.Errorf("TransmitPkts count for queue %q on interface %q not available within %v", queue, dp3.Name(), timeout)
-					continue
+					t.Fatalf("TransmitPkts count for queue %q on interface %q not available within %v", queue, dp3.Name(), timeout)
 				}
 				dutQosPktsBeforeTraffic[queue], _ = count.Val()
 
 				count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).DroppedPkts().State(), timeout, isPresent).Await(t)
 				if !ok {
-					t.Errorf("DroppedPkts count for queue %q on interface %q not available within %v", queue, dp3.Name(), timeout)
-					continue
+					t.Fatalf("DroppedPkts count for queue %q on interface %q not available within %v", queue, dp3.Name(), timeout)
 				}
 				dutQosDroppedPktsBeforeTraffic[queue], _ = count.Val()
 			}
@@ -911,7 +909,7 @@ func TestWrrTraffic(t *testing.T) {
 				}
 			}
 
-			// QoS MA publishes counters periodically. Wait for source samples taken
+			// QoS MA publishes counters periodically. Wait for samples received
 			// after traffic stopped, and for transmit-pkts to contain all packets
 			// observed by the ATE.
 			const counterConvergenceTimeout = 90 * time.Second
@@ -920,16 +918,16 @@ func TestWrrTraffic(t *testing.T) {
 				want := before + delta
 				isConverged := func(val *ygnmi.Value[uint64]) bool {
 					got, present := val.Val()
-					return present && val.Timestamp.After(trafficStopTime) && got >= want
+					return present && val.RecvTimestamp.After(trafficStopTime) && got >= want
 				}
 				count, ok := gnmi.Watch(t, dut, query, counterConvergenceTimeout, isConverged).Await(t)
 				if count == nil {
-					t.Errorf("No %s sample for queue %q on interface %q within %v; want >= %d with source timestamp after %v", counterName, queue, dp3.Name(), counterConvergenceTimeout, want, trafficStopTime)
+					t.Errorf("No %s sample for queue %q on interface %q within %v; want >= %d with receive timestamp after %v", counterName, queue, dp3.Name(), counterConvergenceTimeout, want, trafficStopTime)
 					return 0
 				}
 				got, present := count.Val()
 				if !ok || !present {
-					t.Errorf("%s for queue %q on interface %q did not converge within %v: got %d (present=%v), want >= %d; source timestamp %v, receive timestamp %v, want source timestamp after %v", counterName, queue, dp3.Name(), counterConvergenceTimeout, got, present, want, count.Timestamp, count.RecvTimestamp, trafficStopTime)
+					t.Errorf("%s for queue %q on interface %q did not converge within %v: got %d (present=%v), want >= %d; source timestamp %v, receive timestamp %v, want receive timestamp after %v", counterName, queue, dp3.Name(), counterConvergenceTimeout, got, present, want, count.Timestamp, count.RecvTimestamp, trafficStopTime)
 					return got
 				}
 				t.Logf("%s for queue %q converged to %d (want >= %d), source timestamp %v, receive timestamp %v", counterName, queue, got, want, count.Timestamp, count.RecvTimestamp)
