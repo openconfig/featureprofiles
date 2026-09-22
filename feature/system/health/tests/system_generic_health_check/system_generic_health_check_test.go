@@ -61,6 +61,7 @@ const (
 	lineCardType       = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD
 	fabricCardType     = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC
 	controllerCardType = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
+	chassisCardType    = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS
 )
 
 // coreFileCheck function is used to check if cores are found on the DUT.
