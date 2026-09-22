@@ -18,6 +18,7 @@ platform_exceptions: {
     vendor: JUNIPER
   }
   deviations: {
+    interface_ref_interface_id_format: true
     scheduler_input_weight_limit: true
   }
 }

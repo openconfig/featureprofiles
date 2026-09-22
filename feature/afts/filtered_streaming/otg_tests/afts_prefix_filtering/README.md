@@ -24,6 +24,8 @@ See also:
 
 - Basic interface configuration is applied to the `DUT` and `ATE`.
 
+- Base profile includes 2 BGP peers sending 2M (1.5M IPv4 and 500k IPv6).
+
 - The DUT is pre-configured with static routes to populate the AFT. Routes
   include a mix of IPv4 and IPv6 prefixes drawn from RFC 5737 test address
   space (see IP address conventions in `CONTRIBUTING.md`). At minimum the
@@ -36,32 +38,32 @@ See also:
 
   - `POLICY-MATCH-ALL`: Matches all routes (unconditional accept).
 
-  - `POLICY-PREFIX-SET-A`: Matches a specific set of IPv4 prefixes:
+  - `POLICY-PREFIX-SET-A`: Matches a specific set of IPv4 prefixes: 
     `198.51.100.0/24`, `203.0.113.0/28`, and `198.51.100.1/32`.
 
-  - `POLICY-PREFIX-SET-B`: Matches a specific set of IPv6 prefixes:
+  - `POLICY-PREFIX-SET-B`: Matches a specific set of IPv6 prefixes: 
     `2001:DB8:2::/64` and `2001:DB8:2::1/128`.
 
-  - `POLICY-PREFIX-SET-VRF-A`: Matches any IPv4 prefix within
-    `100.64.1.0/24` with a masklength range of `/24` to `/32`.
+  - `POLICY-PREFIX-SET-VRF-A`: Matches at least 5000 IPv4 prefixes within
+    `100.64.0.0/16` with a masklength range of `/24` to `/32`.
 
-  - `POLICY-SUBNET`: Matches any IPv4 prefix within `203.0.113.0/24` with a
-    masklength range of `/25` to `/32` (i.e., any subnet of that block).
+  - `POLICY-SUBNET`: Matches any IPv4 prefix within `203.0.0.0/16` with a
+    masklength range of `/25` to `/32` (i.e., any subnet of that block). Matches filter should at least stream 5000 prefixes.
 
   - `POLICY-SUBNET-V6`: Matches any IPv6 prefix within `2001:DB8:3::/64`
     with a masklength range of `/65` to `/128` (i.e., any subnet of that
-    block).
+    block). Matches filter should atleast strem 5000 prefixes.
 
   - `POLICY-MULTI-STMT`: Two accept statements — statement 10 matches
-    `PREFIX-SET-A` (ACCEPT_ROUTE), statement 20 matches `PREFIX-SET-SUBNET`
+    `PREFIX-SET-A` (ACCEPT_ROUTE), statement 10 matches `PREFIX-SET-SUBNET`
     (ACCEPT_ROUTE). Used to verify that all matching statements contribute to
-    the filtered view.
+    the filtered view.  Matches filter should atleast strem 5000 prefixes
 
-  - `POLICY-DENY-PREFIX-SET-A`: Statement 10 explicitly denies prefixes in
+  - `POLICY-DENY-PREFIX-SET-A`: Statement 20 explicitly denies prefixes in
     `PREFIX-SET-A` (REJECT_ROUTE); statement 20 accepts all remaining routes
     (unconditional ACCEPT_ROUTE). The prefix-set acts as an exclusion list.
 
-  - `POLICY-TAG-MATCH`: Statement 10 matches routes carrying tag `999`
+  - `POLICY-TAG-MATCH`: Statement 100 matches routes carrying tag `999`
     (ACCEPT_ROUTE). No installed route uses this tag, so the policy matches
     nothing.
 
@@ -86,8 +88,8 @@ both policies is covered in
 - Ensure `DUT` has `POLICY-PREFIX-SET-A` configured to match prefixes
   `198.51.100.0/24`, `203.0.113.0/28`, and `198.51.100.1/32`.
 
-- Ensure the DUT's AFT contains entries for `198.51.100.0/24`,
-  `203.0.113.0/28`, and at least one non-matching prefix (`100.64.0.0/24`).
+- Ensure the DUT's AFT contains entries for prefixes including `198.51.100.0/24`,
+  `203.0.113.0/28`, along with a non-matching prefix (`100.64.0.0/24`).
 
 - Configure the global-filter leaf for the address family under test to the
   selected policy. For example, when testing `POLICY-PREFIX-SET-A`:
@@ -195,7 +197,7 @@ subscribe: {
   and
   `/network-instances/network-instance/afts/global-filter/state/ipv6-policy`.
 
-- Verify that the previously excluded prefix `100.64.0.0/24` is now received,
+- Verify that the previously excluded prefixes, for example `100.64.0.0/24`, are now received,
   confirming the filter has been lifted.
 
 ### AFT-6.1.2 - Validation with Non-Existent Policy

@@ -13,36 +13,34 @@ This test verifies if a large config can be pushed and/or pulled via gNMI SetReq
 
 ### sub-Test 1: SetRequest
 [TODO: [issue #2407](https://github.com/openconfig/featureprofiles/issues/2407) ]
-* Store indexes of ACTIVE and BACKUP Controller Card in "previous_Active" and "previous_BACKUP"
+* Store indexes of ACTIVE and BACKUP Controller Card in "previous_ACTIVE" and "previous_BACKUP"
 * Initiate Control Card switchover using gNOI SwitchControlProcessorRequest; store timestamp in "SwitchControlProcessorRequest_time"
-* Wait for `SwitchControlProcessorResponce` but no longer then 120s. If not received, test FAILED.
-* Immediately after receiving `SwitchControlProcessorResponce` for  gNOI switchover, send gNMI `setRequest` with a prepared large config. Store timestamp as "SwitchControlProcessorResponce_time".
-* Wait for `SetResponce` but no longer than 30s.
-  * If not received, the test  wait 10s and send gNMI `setRequest` with prepared large config. Repaet Wait for `SetResponce`.
-  * If received at time <= "SwitchControlProcessorResponce"+110s and a non-zero grpc status code is returned, wait 10s and send gNMI `setRequest` with prepared large config. Repeat Wait for `SetResponce`
-  * If received at time > "SwitchControlProcessorResponce"+110s and a non-zero grpc status code is returned, test FAILED
-  * If received at time <= "SwitchControlProcessorResponce"+120s and SUCCESS is returned, proceed
-* Retrieve configuration from DUT DUT using gNMI `GetRequest`.
+* Wait for `SwitchControlProcessorResponse` but no longer than 120s. If not received, test FAILED.
+* Immediately after receiving `SwitchControlProcessorResponse` for gNOI switchover, send gNMI `setRequest` with a prepared large config. Store timestamp as "SwitchControlProcessorResponse_time".
+* Wait for `SetResponse` but no longer than 30s.
+  * If not received, the test waits 10s and sends gNMI `setRequest` with prepared large config. Repeat Wait for `SetResponse`.
+  * If received at time <= "SwitchControlProcessorResponse"+110s and a non-zero grpc status code is returned, wait 10s and send gNMI `setRequest` with prepared large config. Repeat Wait for `SetResponse`
+  * If received at time > "SwitchControlProcessorResponse"+110s and a non-zero grpc status code is returned, test FAILED
+  * If received at time <= "SwitchControlProcessorResponse"+120s and SUCCESS is returned, proceed
+* Retrieve configuration from DUT using gNMI `GetRequest`.
 * Verify:
-  * The gNMI `setResponce` has been received within 120s after `setRequest` by comparing with "SwitchControlProcessorResponse_time", and
-  * The gNOI `SwitchControlProcessorResponce` has been received and switchover was executed by DUT (compare "previous_ACRIVE" with DUT state), and
-  * The configuration retrieved from DUT is the same as one prepared^1
-^1 some small deviations are expected. This is OK to verify that the retrieve configuration is not smaller in size than the prepared one, and has the same number of interfaces, BGP neighbors. 
+  * The gNMI `SetResponse` has been received within 120s after `setRequest` by comparing with "SwitchControlProcessorResponse_time", and
+  * The gNOI `SwitchControlProcessorResponse` has been received and switchover was executed by DUT (compare "previous_ACTIVE" with DUT state), and
+  * Count the logical elements in the response to ensure the total number of configured LAG interfaces and BGP neighbors exactly matches the intended configuration.
 
 ### sub-Test 2: GetRequest
 [TODO: [issue #2451](https://github.com/openconfig/featureprofiles/issues/2451) ]
-* Store indexes of ACTIVE and BACKUP Controller Card in "previous_Active" and "previous_BACKUP"
-* Retrive full configuration using gNMI `getRequest` and store as "PreviousFullConfig"
+* Store indexes of ACTIVE and BACKUP Controller Card in "previous_ACTIVE" and "previous_BACKUP"
+* **Verify (Before):** Query the device via `GetRequest` and assert that all Interfaces and BGP neighbors are present *before* the switchover.
 * Initiate Control Card switchover using gNOI SwitchControlProcessorRequest; store timestamp in "SwitchControlProcessorRequest_time"
-* Wait for `SwitchControlProcessorResponce` but no longer then 120s. If not received, test FAILED.
-* Immediately after receiving `SwitchControlProcessorResponce` for  gNOI switchover, send gNMI `getRequest`. Store timestamp as "SwitchControlProcessorResponce_time".
-* Wait for `getResponce` but no longer than 10s.
-  * If not received, the test  wait 10s and send gNMI `getRequest`. Reapeat from "Wait for `getResponce` but no longer than 10s" above.
-  * If received at time <= "SwitchControlProcessorResponce"+110s and a non-zero grpc status code is returned, wait 10s and send gNMI `getRequest`. Reapeat from "Wait for `getResponce` but no longer than 10s" above.
-  * If received at time > "SwitchControlProcessorResponce"+110s and a non-zero grpc status code is returned, test FAILED
-  * If received at time <= "SwitchControlProcessorResponce"+120s and SUCCESS is returned, store retrived configuration as "CurrentFullConfiguration" than proceed
-
-* Verify if "PreviousFullConfig" == "CurrentFullConfiguration". If TRUE, test passed, elese test failed.
+* Wait for `SwitchControlProcessorResponse` but no longer than 120s. If not received, test FAILED.
+* Immediately after receiving `SwitchControlProcessorResponse` for gNOI switchover, send gNMI `getRequest`. Store timestamp as "SwitchControlProcessorResponse_time".
+* Wait for `getResponse` but no longer than 10s.
+  * If not received, the test waits 10s and sends gNMI `getRequest`. Repeat from "Wait for `getResponse` but no longer than 10s" above.
+  * If received at time <= "SwitchControlProcessorResponse"+110s and a non-zero grpc status code is returned, wait 10s and send gNMI `getRequest`. Repeat from "Wait for `getResponse` but no longer than 10s" above.
+  * If received at time > "SwitchControlProcessorResponse"+110s and a non-zero grpc status code is returned, test FAILED
+  * If received at time <= "SwitchControlProcessorResponse"+120s and SUCCESS is returned. 
+* **Verify (After):** Once the gNMI agent is responsive, count the configured elements again. If the number of Interfaces and BGP neighbors matches the "Before" snapshot, the test passes.
 
 ## Testbed topology
 dut.testbed
@@ -53,6 +51,210 @@ N/A
 ## Telemetry Parameter coverage
 N/A
 
+## Canonical OC
+
+```json
+
+{
+  "interfaces": {
+    "interface": [
+      {
+        "aggregation": {
+          "config": {
+            "lag-type": "STATIC"
+          }
+        },
+        "config": {
+          "description": "LAG Interface 1",
+          "enabled": true,
+          "name": "lag1",
+          "type": "ieee8023adLag"
+        },
+        "name": "lag1",
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "config": {
+                "index": 0
+              },
+              "index": 0,
+              "ipv4": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "192.0.2.10",
+                        "prefix-length": 31
+                      },
+                      "ip": "192.0.2.10"
+                    }
+                  ]
+                },
+                "config": {
+                  "enabled": true
+                }
+              },
+              "ipv6": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "2001:db8::1:1",
+                        "prefix-length": 127
+                      },
+                      "ip": "2001:db8::1:1"
+                    }
+                  ]
+                },
+                "config": {
+                  "enabled": true
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "config": {
+          "enabled": true,
+          "name": "port1",
+          "type": "ethernetCsmacd"
+        },
+        "ethernet": {
+          "config": {
+            "aggregate-id": "lag1"
+          }
+        },
+        "name": "port1"
+      }
+    ]
+  },
+  "network-instances": {
+    "network-instance": [
+      {
+        "config": {
+          "name": "DEFAULT",
+          "type": "DEFAULT_INSTANCE"
+        },
+        "name": "DEFAULT",
+        "protocols": {
+          "protocol": [
+            {
+              "bgp": {
+                "global": {
+                  "afi-safis": {
+                    "afi-safi": [
+                      {
+                        "afi-safi-name": "IPV4_UNICAST",
+                        "config": {
+                          "afi-safi-name": "IPV4_UNICAST",
+                          "enabled": true
+                        }
+                      },
+                      {
+                        "afi-safi-name": "IPV6_UNICAST",
+                        "config": {
+                          "afi-safi-name": "IPV6_UNICAST",
+                          "enabled": true
+                        }
+                      }
+                    ]
+                  },
+                  "config": {
+                    "as": 65536,
+                    "router-id": "192.0.2.1"
+                  }
+                },
+                "neighbors": {
+                  "neighbor": [
+                    {
+                      "afi-safis": {
+                        "afi-safi": [
+                          {
+                            "afi-safi-name": "IPV4_UNICAST",
+                            "config": {
+                              "afi-safi-name": "IPV4_UNICAST",
+                              "enabled": true
+                            }
+                          },
+                          {
+                            "afi-safi-name": "IPV6_UNICAST",
+                            "config": {
+                              "afi-safi-name": "IPV6_UNICAST",
+                              "enabled": false
+                            }
+                          }
+                        ]
+                      },
+                      "config": {
+                        "enabled": true,
+                        "neighbor-address": "192.0.2.5",
+                        "peer-as": 64501,
+                        "peer-group": "BGP-PEER-GROUP1"
+                      },
+                      "neighbor-address": "192.0.2.5"
+                    }
+                  ]
+                },
+                "peer-groups": {
+                  "peer-group": [
+                    {
+                      "config": {
+                        "peer-as": 64501,
+                        "peer-group-name": "BGP-PEER-GROUP1"
+                      },
+                      "peer-group-name": "BGP-PEER-GROUP1"
+                    }
+                  ]
+                }
+              },
+              "config": {
+                "identifier": "BGP",
+                "name": "BGP"
+              },
+              "identifier": "BGP",
+              "name": "BGP"
+            },
+            {
+              "config": {
+                "enabled": true,
+                "identifier": "ISIS",
+                "name": "DEFAULT"
+              },
+              "identifier": "ISIS",
+              "isis": {
+                "global": {
+                  "config": {
+                    "instance": "DEFAULT"
+                  }
+                },
+                "interfaces": {
+                  "interface": [
+                    {
+                      "config": {
+                        "circuit-type": "POINT_TO_POINT",
+                        "interface-id": "lag1"
+                      },
+                      "interface-id": "lag1"
+                    }
+                  ]
+                }
+              },
+              "name": "DEFAULT"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "system": {
+    "config": {
+      "hostname": "ondatraHost"
+    }
+  }
+}
+```
+  
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test.
@@ -91,7 +293,3 @@ rpcs:
     gNMI.Set:
     gNMI.Subscribe:
 ```
-
-## DUT
-
-MFF

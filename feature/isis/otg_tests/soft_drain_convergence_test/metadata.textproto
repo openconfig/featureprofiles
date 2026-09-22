@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "025f6b5e-3f29-4831-9364-479c864c461e"
+plan_id: "RT-14.3"
+description: "Soft Drain vs. Hard Drain Convergence Verification"
+testbed: TESTBED_DUT_ATE_4LINKS

@@ -50,7 +50,7 @@ Perform this test with both the RSA and ECDSA types.
    3) Use the gNSI Rotate RPC to load the newly created trust_bundle file
       on the server.
 
-   4) Test that the bundle is properly loaded, using the Probe RPC.
+   4) Test that the bundle is properly loaded, using the gNSI Authz Probe RPC.
       Note that the same certificate is properly served by the server.
 
    5) Send the Finalize RPC to the server.
@@ -91,6 +91,13 @@ TODO(OCRPC): Record may not be complete
 rpcs:
   gnsi:
     certz.v1.Certz.Rotate:
+```
+
+
+## Canonical OC
+
+```json
+{}
 ```
 
 
