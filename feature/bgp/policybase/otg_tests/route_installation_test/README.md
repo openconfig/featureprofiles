@@ -4,6 +4,46 @@
 
 Base BGP policy configuration and route installation.
 
+## Canonical OC
+
+```json
+{
+  "routing-policy": {
+    "policy-definitions": {
+      "policy-definition": [
+        {
+          "config": {
+            "name": "SET-MED-PREF"
+          },
+          "name": "SET-MED-PREF",
+          "statements": {
+            "statement": [
+              {
+                "actions": {
+                  "bgp-actions": {
+                    "config": {
+                      "set-med": 100,
+                      "set-med-action": "SET"
+                    }
+                  },
+                  "config": {
+                    "policy-result": "ACCEPT_ROUTE"
+                  }
+                },
+                "config": {
+                  "name": "20"
+                },
+                "name": "20"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
 ## Procedure
 
 *   Establish eBGP sessions between:
