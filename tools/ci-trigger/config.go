@@ -59,6 +59,7 @@ const (
 // authorizedTeams is the list of GitHub organization teams authorized to launch Cloud Build jobs.
 var authorizedTeams = []string{
 	"featureprofiles-writers",
+	"featureprofiles-fptest-partners",
 }
 
 // triggerKeywords is the list of authorized keywords to launch a test.  The
