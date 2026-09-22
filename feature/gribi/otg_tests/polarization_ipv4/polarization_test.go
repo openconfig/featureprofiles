@@ -58,16 +58,16 @@ const (
 	// that some OTG software/hardware combinations enforce.
 	replayBatchSize = 15000
 
-	// tolerancePct is the acceptable deviation from expected distribution.
-	// Set high enough to accommodate natural hash variance on small replay sets.
-	// expressed as a percentage of total packets.
+	// tolerancePct is the acceptable deviation from the expected per-port
+	// distribution (imbalance), expressed as a percentage of total packets.
+	// Distinct from lossTolerancePct. Weighted ECMP imbalance must stay within 2%.
 	tolerancePct = 2
 
 	// lossTolerancePct bounds end-to-end traffic loss. The gRIBI forwarding tree
 	// spans both LAGs, so any meaningful loss means the DUT dropped forwarded
 	// traffic on one of ports2-5. Kept tight because LAG/ECMP forwarding of the
 	// installed routes is expected to be lossless.
-	lossTolerancePct = 0.5
+	lossTolerancePct = 0.2
 
 	// All test traffic and control-plane addresses use only reserved ranges —
 	// RFC 5737 documentation blocks (192.0.2.0/24, 198.51.100.0/24,
@@ -469,6 +469,12 @@ func TestPolarization(t *testing.T) {
 	topo := configureATE(t, ate)
 
 	t.Log("=== Phase 3/4: Programming gRIBI entries ===")
+	t.Cleanup(func() {
+		flushGRIBIEntries(t, dut)
+		gnmi.Delete(t, dut, gnmi.OC().Interface(agg1ID).Config())
+		gnmi.Delete(t, dut, gnmi.OC().Interface(agg2ID).Config())
+		gnmi.Delete(t, dut, gnmi.OC().Interface("Loopback0").Config())
+	})
 	createGRIBIEntries(t, dut)
 
 	t.Log("=== Setup complete, starting polarization iterations ===")
@@ -527,10 +533,10 @@ func TestPolarization(t *testing.T) {
 				batchCaptured, batchDropped, batchDeduped := sanitizeReplayTuples(batchCaptured)
 				allCaptured = append(allCaptured, batchCaptured...)
 
-				p2 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port("port2").State()).GetCounters().GetInFrames()
-				p3 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port("port3").State()).GetCounters().GetInFrames()
-				p4 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port("port4").State()).GetCounters().GetInFrames()
-				p5 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port("port5").State()).GetCounters().GetInFrames()
+				p2 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port("port2").Counters().InFrames().State())
+				p3 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port("port3").Counters().InFrames().State())
+				p4 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port("port4").Counters().InFrames().State())
+				p5 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port("port5").Counters().InFrames().State())
 				port2Total += p2
 				port3Total += p3
 				port4Total += p4
@@ -593,8 +599,6 @@ func TestPolarization(t *testing.T) {
 		})
 	}
 
-	t.Log("=== All iterations passed, flushing gRIBI entries ===")
-	flushGRIBIEntries(t, dut)
 	t.Log("=== Test complete ===")
 }
 
@@ -788,6 +792,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, agg1ID, agg2ID string) {
 	a1v4 := s1.GetOrCreateIpv4().GetOrCreateAddress("198.19.1.1")
 	a1v4.Ip = ygot.String("198.19.1.1")
 	a1v4.PrefixLength = ygot.Uint8(plen24)
+	// Static ARP for gRIBI next-hops. These NH IPs live on the LAG subnets and
+	// are not the ATE L3 addresses, so dynamic ARP/ND is not used here.
 	s1.GetOrCreateIpv4().GetOrCreateNeighbor("198.19.1.23").LinkLayerAddress = ygot.String("00:11:22:33:44:55")
 	s1.GetOrCreateIpv4().GetOrCreateNeighbor("198.19.1.24").LinkLayerAddress = ygot.String("12:11:22:33:44:55")
 
@@ -804,7 +810,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, agg1ID, agg2ID string) {
 	a2v4.PrefixLength = ygot.Uint8(plen24)
 	s2.GetOrCreateIpv4().GetOrCreateNeighbor("198.19.2.2").LinkLayerAddress = ygot.String("02:11:22:33:44:55")
 	s2.GetOrCreateIpv4().GetOrCreateNeighbor("198.19.2.3").LinkLayerAddress = ygot.String("03:11:22:33:44:55")
-	s2.GetOrCreateIpv4().GetOrCreateNeighbor("198.19.2.24").LinkLayerAddress = ygot.String("03:11:22:33:44:55")
+	s2.GetOrCreateIpv4().GetOrCreateNeighbor("198.19.2.24").LinkLayerAddress = ygot.String("04:11:22:33:44:55")
 
 	gnmi.Update(t, dut, d.Interface(lag1.GetName()).Config(), lag1)
 	gnmi.Update(t, dut, d.Interface(lag2.GetName()).Config(), lag2)
@@ -894,6 +900,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	t.Log("Pushing ATE config and starting protocols")
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 
 	return top
 }
@@ -905,6 +912,7 @@ func pushSingleFlow(t *testing.T, ate *ondatra.ATEDevice, topo gosnappi.Config, 
 		&atePort2, &atePort3, &atePort4, &atePort5)
 	ate.OTG().PushConfig(t, topo)
 	ate.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, ate.OTG(), topo, "IPv4")
 }
 
 func createStaticFlow(t *testing.T, name string, ate *ondatra.ATEDevice, ateTop gosnappi.Config, flows []packetTuples, dsts ...*attrs.Attributes) string {
@@ -954,11 +962,11 @@ func createStaticFlow(t *testing.T, name string, ate *ondatra.ATEDevice, ateTop 
 func runSingleFlow(t *testing.T, ate *ondatra.ATEDevice, flowName string, batchLen int) {
 	t.Helper()
 	ate.OTG().StartTraffic(t)
+	defer ate.OTG().StopTraffic(t)
 
 	flowTimeout := time.Duration(batchLen/trafficPps+120) * time.Second
 	t.Logf("Waiting for flow %s (%d pkts, timeout %v)", flowName, batchLen, flowTimeout)
 	txPackets, rxPackets := otgutils.GetFlowStats(t, ate.OTG(), flowName, flowTimeout)
-	ate.OTG().StopTraffic(t)
 
 	if txPackets == 0 {
 		t.Fatalf("Flow %s: TxPkts == 0, want > 0", flowName)

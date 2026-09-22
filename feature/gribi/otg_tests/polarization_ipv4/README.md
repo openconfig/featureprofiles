@@ -1,4 +1,4 @@
-# LB-1.1: Load Balancing Hashing Polarization Detection
+# LB-1.1: wECMP Hashing Polarization Detection
 
 ## Summary
 
@@ -16,16 +16,64 @@ linear, they remain correlated and the test fails.
                   +-------+
    ATE:port1 --->| port1 |
                  |       |
-                 |  DUT  |---> port2 \
-                 |       |---> port3 / LAG 1
+                 |  DUT  |---> port2 \  LAG 1 (capture + assert on port2)
+                 |       |---> port3 /
                  |       |
-                 |       |---> port4 \
-                 +-------+---> port5 / LAG 2
+                 |       |---> port4 \  LAG 2 (mixed dump bucket)
+                 +-------+---> port5 /
 ```
 
-*   **Ingress**: ATE port1 -> DUT port1 (L3 interface)
-*   **LAG 1** (ports 2, 3): target capture port group
-*   **LAG 2** (ports 4, 5): secondary path group
+*   **Ingress**: ATE port1 -> DUT port1 (L3 interface). Port1 is not a
+    polarization measurement point.
+*   **LAG 1** (ports 2, 3): target path. **port2** is the only port used
+    for capture and the polarization assertion. **port3** is the other
+    member of the same LAG and is expected to carry a similar share, but
+    is not asserted independently.
+*   **LAG 2** (ports 4, 5): secondary path used as a mixed dump bucket.
+    Three recursive next-hops land on the same bundle, so port4 and port5
+    cannot be used to detect polarization.
+
+With default weights the forwarding tree is:
+
+```
+ATE port1
+   |
+   v
+198.51.100.0/24
+   |
+   v
+NHG 101  (8:1)
+   |
+   |-- 8/9 (~88.9%) --> NH 1011 --> 203.0.113.1 --> NHG 2010 (8:1)
+   |                        |
+   |                        |-- 8/9 of 88.9% = ~79.0% --> NH 1501 --> LAG1
+   |                        |                                    |
+   |                        |                          +---------+---------+
+   |                        |                          |                   |
+   |                        |                        port2              port3
+   |                        |                       ~39.5%             ~39.5%
+   |                        |                    (capture+assert)     (same path,
+   |                        |                                         not asserted)
+   |                        |
+   |                        `-- 1/9 of 88.9% = ~9.9% --> NH 1601 ----+
+   |                                                                  |
+   `-- 1/9 (~11.1%) --> NH 1012 --> 203.0.113.2 --> NHG 3000 (1:1)    |
+                                |                                     |
+                                |-- 1/2 of 11.1% = ~5.6% --> NH 1602 -+
+                                |                                     |
+                                `-- 1/2 of 11.1% = ~5.6% --> NH 1603 -+
+                                                                      |
+                                                                      v
+                                                             LAG2 (mixed bucket)
+                                                         three recursive NHs
+                                                         land on the same bundle
+                                                         (~9.9% + ~5.6% + ~5.6%)
+                                                                      |
+                                                            +---------+---------+
+                                                            |                   |
+                                                          port4               port5
+                                                         ~10.5%              ~10.5%
+```
 
 ## Procedure
 
@@ -83,12 +131,13 @@ round:
     start capture on port2, send traffic, stop and download capture,
     accumulate captured packets and per-port Rx counters. Each batch also
     asserts the flow is delivered without loss (Rx ≈ Tx).
-3.  **Assert**: Verify the DUT forwarded the traffic without loss — the frames
-    received across ports2-5 must account for nearly all packets sent this round
-    — then verify that port2 received the expected share of total packets
-    (derived from NHG weights) within a configurable 2% tolerance. The loss
-    check runs first so that drops on ports3-5 cannot be masked by the
-    port2-only distribution check.
+3.  **Assert**: Two independent checks, in order:
+    *   **Loss** (`lossTolerancePct`, 0.2%): frames received across
+        ports2-5 must account for nearly all packets sent this round.
+        Drops on ports3-5 cannot be masked by the port2-only distribution
+        check.
+    *   **Imbalance / polarization** (`tolerancePct`, 2%): port2 received
+        the expected share of total packets (derived from NHG weights).
 4.  **Feed back**: The packets captured on port2 across all batches
     become the sole input for the next round. The packet count shrinks
     each round (~39.5% retained per round with default weights).
@@ -112,9 +161,9 @@ port2 is captured and available for replay in the next round.
 
 ### Pass/Fail Criteria
 
-*   **Pass**: In every round, the DUT forwards all injected traffic without
-    loss (frames received across ports2-5 ≈ packets sent) and port2 receives the
-    expected share of injected packets (within 2% of total).
+*   **Pass**: In every round, loss stays within 0.2% (frames received
+    across ports2-5 ≈ packets sent) and port2 receives the expected share
+    of injected packets (within 2% imbalance of total).
 *   **Fail**: The DUT drops forwarded traffic on any of ports2-5, or port2
     receives significantly more or less than expected, indicating flows remained
     correlated (polarized) despite the hash perturbation.
@@ -162,6 +211,8 @@ rpcs:
 *   Add IP-in-IP encap flow variant
 *   Add IP-in-IP decap flow variant
 *   Add IP-in-IP transit flow variant
+*   Optional: extra TGEN ports or a two-DUT topology so polarization can
+    be measured on every LAG member instead of port2 only
 
 ## Minimum DUT Platform Requirement
 
