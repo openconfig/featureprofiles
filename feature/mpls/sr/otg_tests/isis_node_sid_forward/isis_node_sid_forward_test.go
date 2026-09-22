@@ -283,9 +283,9 @@ func TestMPLSLabelBlockWithISIS(t *testing.T) {
 	configureOTG(t, ts)
 	ts.PushAndStart(t)
 	ts.MustAdjacency(t)
-	waitForDUTRoutes(t, dut)
 
 	verifyMPLSSR(t, ts)
+	waitForDUTRoutes(t, dut)
 
 	// Traffic checks
 	otg := ts.ATE.OTG()
