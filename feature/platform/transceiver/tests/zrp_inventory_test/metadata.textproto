@@ -12,6 +12,7 @@ platform_exceptions: {
   deviations: {
     default_network_instance: "default"
     missing_port_to_optical_channel_component_mapping: true
+    terminal_device_channel_admin_state_unsupported: true
   }
 }
 platform_exceptions: {
@@ -20,6 +21,7 @@ platform_exceptions: {
   }
   deviations: {
     component_mfg_date_unsupported: true
+    terminal_device_channel_admin_state_unsupported: true
   }
 }
 platform_exceptions: {

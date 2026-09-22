@@ -14,7 +14,7 @@
 package recordsubscribepartial_test
 
 import (
-	"encoding/json"
+	"context"
 	"slices"
 	"testing"
 	"time"
@@ -24,6 +24,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/security/acctz"
 	acctzpb "github.com/openconfig/gnsi/acctz"
 	"github.com/openconfig/ondatra"
@@ -40,16 +41,19 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func prettyPrint(i any) string {
-	s, _ := json.MarshalIndent(i, "", "\t")
-	return string(s)
-}
-
 func TestAccountzRecordSubscribePartial(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	acctz.SetupUsers(t, dut, false)
 
-	startTime := time.Now()
+	setupVendorSpecificAcctzConfig(t, dut)
+
+	if dut.Vendor() == ondatra.ARISTA {
+		acctz.SetupUsers(t, dut, true)
+	} else {
+		acctz.SetupUsers(t, dut, false)
+	}
+
+	// Get the current time from the router via gNMI to avoid clock skew issues.
+	startTime := helpers.GetRouterTime(t, dut)
 	// Start sending rpc's after 5 seconds to be able to properly test the timestamps.
 	time.Sleep(5 * time.Second)
 
@@ -77,8 +81,10 @@ func TestAccountzRecordSubscribePartial(t *testing.T) {
 		Seconds: startTime.Unix(),
 		Nanos:   0,
 	}
+	request := &acctzpb.RecordRequest{Timestamp: requestTimestamp}
 	acctzClient := dut.RawAPIs().GNSI(t).AcctzStream()
-	acctzSubClient, err := acctzClient.RecordSubscribe(t.Context(), &acctzpb.RecordRequest{Timestamp: requestTimestamp})
+	t.Logf("Sending acctz record subscribe request: %s", acctz.PrettyPrint(request))
+	acctzSubClient, err := acctzClient.RecordSubscribe(t.Context(), request)
 	if err != nil {
 		t.Fatalf("Failed sending accountz record request, error: %s", err)
 	}
@@ -107,8 +113,14 @@ func TestAccountzRecordSubscribePartial(t *testing.T) {
 		path := r.GetGrpcService().GetRpcName()
 		id := r.GetSessionInfo().GetUser().GetIdentity()
 		// Skip if the path is not in the list of paths to be tested or if the id is not a success or fail username.
-		if !slices.Contains(acctz.TestPaths, path) || !slices.Contains([]string{acctz.SuccessUsername, acctz.FailUsername}, id) {
-			continue
+		if dut.Vendor() == ondatra.ARISTA {
+			if !slices.Contains(acctz.TestPaths, path) || !slices.Contains([]string{acctz.SuccessUsername, acctz.FailAuthorizeUsername}, id) {
+				continue
+			}
+		} else {
+			if !slices.Contains(acctz.TestPaths, path) || !slices.Contains([]string{acctz.SuccessUsername, acctz.FailAuthenticateUsername}, id) {
+				continue
+			}
 		}
 		if foundMap[key{path: path, id: id}] {
 			continue
@@ -128,24 +140,24 @@ func TestAccountzRecordSubscribePartial(t *testing.T) {
 	// and compare them manually later.
 	popts := []cmp.Option{
 		protocmp.Transform(),
-		protocmp.IgnoreFields(&acctzpb.RecordResponse{}, "timestamp", "task_ids"),
+		protocmp.IgnoreFields(&acctzpb.RecordResponse{}, "timestamp", "task_ids", "component_name"),
 		protocmp.IgnoreFields(&acctzpb.AuthzDetail{}, "detail"),
-		protocmp.IgnoreFields(&acctzpb.SessionInfo{}, "ip_proto", "channel_id", "local_address", "local_port", "remote_address", "remote_port", "status", "authn"),
+		protocmp.IgnoreFields(&acctzpb.SessionInfo{}, "ip_proto", "channel_id", "local_address", "local_port", "remote_address", "remote_port", "status", "authn", "tty"),
 		protocmp.IgnoreFields(&acctzpb.UserDetail{}, "role"),
-		protocmp.IgnoreFields(&acctzpb.GrpcService{}, "proto_val", "payload_istruncated"),
+		protocmp.IgnoreFields(&acctzpb.GrpcService{}, "proto_val", "payload_istruncated", "string_val"),
 	}
 
 	for recordIdx < len(gotRecords) && recordIdx < len(wantRecords) {
 		record := gotRecords[recordIdx]
 
 		if record.GetHistoryIstruncated() {
-			t.Errorf("History is truncated but it shouldn't be, Record Details: %s", prettyPrint(record))
+			t.Errorf("History is truncated but it shouldn't be, Record Details: %s", acctz.PrettyPrint(record))
 		}
 
 		timestamp := record.Timestamp.AsTime()
 		if timestamp.UnixMilli() == lastTimestampUnixMillis {
 			// This ensures that timestamps are actually changing for each record.
-			t.Errorf("Timestamp is the same as the previous timestamp, this shouldn't be possible!, Record Details: %s", prettyPrint(record))
+			t.Errorf("Timestamp is the same as the previous timestamp, this shouldn't be possible!, Record Details: %s", acctz.PrettyPrint(record))
 		}
 		lastTimestampUnixMillis = timestamp.UnixMilli()
 
@@ -156,7 +168,7 @@ func TestAccountzRecordSubscribePartial(t *testing.T) {
 
 		// Verify record timestamp is after request timestamp.
 		if !timestamp.After(startTime) {
-			t.Errorf("Record timestamp is before record request timestamp %v, Record Details: %v", requestTimestamp.AsTime(), prettyPrint(record))
+			t.Errorf("Record timestamp is before record request timestamp %v, Record Details: %v", requestTimestamp.AsTime(), acctz.PrettyPrint(record))
 		}
 
 		// This channel check maybe should just go away entirely -- see:
@@ -164,17 +176,17 @@ func TestAccountzRecordSubscribePartial(t *testing.T) {
 		// In case of Nokia this is being set to the aaa session id just to have some hopefully
 		// useful info in this field to identify a "session" (even if it isn't necessarily ssh/grpc
 		// directly).
-		if record.GetSessionInfo().GetChannelId() == "" {
-			t.Errorf("Channel Id is not populated for record: %v", prettyPrint(record))
+		if record.GetSessionInfo().GetChannelId() == "" && !deviations.AcctzRecordFailCommandUnsupported(dut) {
+			t.Errorf("Channel Id is not populated for record: %v", acctz.PrettyPrint(record))
 		}
 
 		// Verify authz detail is populated for denied rpcs.
 		authzInfo := record.GetGrpcService().GetAuthz()
 		if authzInfo.GetStatus() == acctzpb.AuthzDetail_AUTHZ_STATUS_DENY && authzInfo.GetDetail() == "" {
-			t.Errorf("Authorization detail is not populated for record: %v", prettyPrint(record))
+			t.Errorf("Authorization detail is not populated for record: %v", acctz.PrettyPrint(record))
 		}
 
-		t.Logf("Processed Record: %s", prettyPrint(record))
+		t.Logf("Processed Record: %s", acctz.PrettyPrint(record))
 		recordIdx++
 	}
 }
@@ -185,31 +197,53 @@ type recvClient interface {
 
 func deviceRecords(t *testing.T, client recvClient, deadline time.Duration) ([]*acctzpb.RecordResponse, error) {
 	rChan := make(chan recordRequestResult)
-	defer close(rChan)
-	go func(ch chan recordRequestResult, c recvClient) {
+	// Use a context to signal the producer goroutine to stop if we return early (timeout or error).
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	go func() {
 		defer func() {
 			if r := recover(); r != nil {
+				// Prevent goroutine from crashing if send is attempted on a closed channel.
 				return
 			}
 		}()
 		for {
-			resp, err := c.Recv()
-			ch <- recordRequestResult{record: resp, err: err}
+			resp, err := client.Recv()
+			select {
+			case <-ctx.Done():
+				return
+			case rChan <- recordRequestResult{record: resp, err: err}:
+				if err != nil {
+					return
+				}
+			}
 		}
-	}(rChan, client)
+	}()
+
 	var rs []*acctzpb.RecordResponse
-	startTime := time.Now()
-	for time.Since(startTime) < deadline {
+	limit := time.After(deadline)
+	for {
 		select {
 		case r := <-rChan:
 			if r.err != nil {
-				close(rChan)
 				return rs, r.err
 			}
 			rs = append(rs, r.record)
-		case <-time.After(10 * time.Second):
-			continue
+		case <-limit:
+			return rs, nil
 		}
 	}
-	return rs, nil
+}
+
+// setupVendorSpecificAcctzConfig applies vendor-specific accounting configuration needed
+// before running acctz tests.
+func setupVendorSpecificAcctzConfig(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.CISCO:
+		// Increase gRPC accounting queue size to avoid record loss
+		// during longer test executions with background activity.
+		helpers.GnmiCLIConfig(t, dut, "grpc\n aaa accounting queue-size 512\n")
+	}
 }

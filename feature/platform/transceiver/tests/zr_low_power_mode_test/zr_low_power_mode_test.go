@@ -33,7 +33,7 @@ import (
 )
 
 const (
-	intUpdateTime                 = 2 * time.Minute
+	intUpdateTime                 = 5 * time.Minute
 	targetOutputPowerdBm          = -10
 	targetOutputPowerTolerancedBm = 1
 	targetFrequencyMHz            = 193100000

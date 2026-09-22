@@ -5,3 +5,12 @@ uuid:  "ded8e821-3503-4a1b-a675-2f4ba117c5ee"
 plan_id:  "gNMI-1.24"
 description:  "gNMI Leaf-List Update Test"
 testbed:  TESTBED_DUT
+
+platform_exceptions:  {
+  platform:  {
+    vendor:  NOKIA
+  }
+  deviations:  {
+    default_network_instance: "mgmt"
+  }
+}

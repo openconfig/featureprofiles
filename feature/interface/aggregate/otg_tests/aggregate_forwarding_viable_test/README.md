@@ -1,5 +1,11 @@
 # RT-5.4: Aggregate Forwarding Viable
 
+## Canonical OC
+
+```json
+{}
+```
+
 ## Summary
 
 Ensure that forwarding-viable transition does not result in packet loss.
@@ -8,26 +14,26 @@ Ensure that port set with forwarding-viable=false can receive all type of traffi
 
 ## Procedure
 
-*   Connect ATE port-1 to DUT port-1, and ATE ports 2 through 9 to DUT ports 2-9. Configure ATE and DUT ports 2-9 to be part of a LAG.
+*   Connect ATE port-1 to DUT port-1, and ATE ports 2 through 8 to DUT ports 2-8. Configure ATE and DUT ports 2-8 to be part of a LAG.
 
 *   For both Static LAG and LACP:
 [TODO: https://github.com/openconfig/featureprofiles/issues/1553;]
-    *   Run traffic bidirectionally between ATA port-1 and ATE port2-9;
+    *   Run traffic bidirectionally between ATA port-1 and ATE port2-8;
         *   ensure all ports has bidirectional traffic.
-        *   ensure that traffic is load-balanced across all port2-9
+        *   ensure that traffic is load-balanced across all port2-8
         *   ensure ther is no packet losses in steady state (no congestion).
-    *   Make the forwarding-viable transitions from TRUE --> FALSE on a single port within the LAG on the DUT (one of ports 2-9).
+    *   Make the forwarding-viable transitions from TRUE --> FALSE on a single port within the LAG on the DUT (one of ports 2-8).
         *   ensure that above DUT's port is not sending any traffic to ATE (hence corresponding ATE port do not recive any traffic)
-        *   ensure that DUT load-balance traffic across remaing ports of LAG (7 out of port2-9)
+        *   ensure that DUT load-balance traffic across remaing ports of LAG (6 out of port2-8)
         *   ensure that above DUT's port is receiving  traffic from coresponding ATE port
         *   ensure that there is no packet losses in steady state. (some very few packet could be lost right during transition)
-        *   ensure that DUT recives ~equal traffic on all ports of LAG (all port2-9)
-    *   Make the forwarding-viable transitions from FALSE --> TRUE on a single port within the LAG on the DUT (one of ports 2-9).
+        *   ensure that DUT recives ~equal traffic on all ports of LAG (all port2-8)
+    *   Make the forwarding-viable transitions from FALSE --> TRUE on a single port within the LAG on the DUT (one of ports 2-8).
         *   ensure that above DUT's port is sending traffic to ATE (hence corresponding ATE port do recive traffic)
-        *   ensure that DUT load-balance traffic across all ports of LAG (all port2-9)
+        *   ensure that DUT load-balance traffic across all ports of LAG (all port2-8)
         *   ensure that above DUT's port is receiving  traffic from coresponding ATE port
         *   ensure that there is no packet losses in steady state. (some very few packet could be lost right during transition)
-        *   ensure that DUT recives load-balanced traffic across all ports of LAG (all port2-9)
+        *   ensure that DUT recives load-balanced traffic across all ports of LAG (all port2-8)
 
 ## Config Parameter coverage
 
@@ -54,6 +60,26 @@ None
 The below yaml defines the OC paths intended to be covered by this test.
 
 ```yaml
+paths:
+  /interfaces/interface/aggregation/config/lag-type:
+  /interfaces/interface/aggregation/config/min-links:
+  /interfaces/interface/config/description:
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/config/forwarding-viable:
+  /interfaces/interface/config/type:
+  /interfaces/interface/ethernet/config/aggregate-id:
+  /interfaces/interface/ethernet/config/port-speed:
+  /interfaces/interface/state/counters/in-octets:
+  /interfaces/interface/state/counters/in-unicast-pkts:
+  /interfaces/interface/state/counters/out-octets:
+  /interfaces/interface/state/counters/out-unicast-pkts:
+  /interfaces/interface/state/forwarding-viable:
+  /interfaces/interface/state/oper-status:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled:
+  /lacp/interfaces/interface/config/lacp-mode:
 rpcs:
   gnmi:
     gNMI.Set:

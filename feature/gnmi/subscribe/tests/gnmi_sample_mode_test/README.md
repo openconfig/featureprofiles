@@ -46,14 +46,11 @@ The below yaml defines the OC paths intended to be covered by this test.  OC pat
 
 
 ```yaml
-
 paths:
-## Config Paths ##
-/interfaces/interface/config/description:	
-
-## State Paths ##
-/interfaces/interface/state/description:
-
+  /interfaces/interface/config/description:
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/state/admin-status:
+  /interfaces/interface/state/description:
 rpcs:
   gnmi:
     gNMI.Subscribe:

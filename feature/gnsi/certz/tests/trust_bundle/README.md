@@ -174,6 +174,13 @@ rpcs:
     certz.v1.Certz.GetProfileList:
 ```
 
+## Canonical OC
+
+```json
+{
+
+}
+```
 
 ## Minimum DUT Platform Requirement
 

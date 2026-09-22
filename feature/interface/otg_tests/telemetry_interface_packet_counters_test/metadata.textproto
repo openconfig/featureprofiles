@@ -44,7 +44,7 @@ platform_exceptions: {
     ipv6_discarded_pkts_unsupported: true
     default_network_instance: "default"
     load_interval_not_supported: true
-
+    default_subinterface_packet_counters_missing: true
   }
 }
 

@@ -11,6 +11,8 @@ platform_exceptions: {
   }
   deviations: {
     ipv4_missing_enabled: true
+    community_member_regex_unsupported: true
+    send_max_unsupported: true
   }
 }
 platform_exceptions: {

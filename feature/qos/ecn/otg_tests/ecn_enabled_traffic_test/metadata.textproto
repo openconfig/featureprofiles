@@ -11,11 +11,15 @@ platform_exceptions: {
   }
   deviations: {
     ipv4_missing_enabled: true
+    qos_queue_requires_id: true
   }
 }
 platform_exceptions: {
   platform: {
     vendor: JUNIPER
+  }
+  deviations: {
+    interface_ref_interface_id_format: true
   }
 }
 platform_exceptions: {

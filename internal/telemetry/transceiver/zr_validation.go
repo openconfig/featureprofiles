@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	samplingInterval = 1 * time.Second
+	samplingInterval = 10 * time.Second
 	errorTolerance   = 0.05
 	timeout          = 10 * time.Minute
 )
@@ -124,6 +124,12 @@ func TerminalDevicePathsTest(t *testing.T, tp *TunableParamters) {
 					validateEthernetChannelTelemetry(t, dut, p, params, ethStreams[p.Name()])
 				}
 
+				// Close all streams.
+				for _, p := range dut.Ports() {
+					ethStreams[p.Name()].Close()
+					otnStreams[p.Name()].Close()
+					interfaceStreams[p.Name()].Close()
+				}
 			}
 		}
 	}
@@ -220,6 +226,15 @@ func PlatformPathsTest(t *testing.T, tp *TunableParamters) {
 					validateTempSensorTelemetry(t, dut, p, params, oc.Interface_OperStatus_DOWN, tempSensorStreams[p.Name()])
 					validateOpticalChannelTelemetry(t, p, params, oc.Interface_OperStatus_UP, ochStreams[p.Name()])
 					validateHWPortTelemetry(t, dut, p, params, hwPortStreams[p.Name()])
+				}
+
+				// Close all streams.
+				for _, p := range dut.Ports() {
+					ochStreams[p.Name()].Close()
+					trStreams[p.Name()].Close()
+					hwPortStreams[p.Name()].Close()
+					interfaceStreams[p.Name()].Close()
+					tempSensorStreams[p.Name()].Close()
 				}
 			}
 		}

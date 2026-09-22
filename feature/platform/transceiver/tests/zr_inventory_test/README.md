@@ -92,6 +92,24 @@ Validate 400ZR modules report correct inventory information.
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  /components/component/state/firmware-version:
+    platform_type: [TRANSCEIVER]
+  /components/component/state/hardware-version:
+    platform_type: [TRANSCEIVER]
+  /components/component/state/mfg-date:
+    platform_type: [TRANSCEIVER]
+  /components/component/state/mfg-name:
+    platform_type: [TRANSCEIVER]
+  /components/component/state/part-no:
+    platform_type: [TRANSCEIVER]
+  /components/component/state/serial-no:
+    platform_type: [TRANSCEIVER]
+  /components/component/state/type:
+    platform_type: [TRANSCEIVER]
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/state/oper-status:
+  /interfaces/interface/state/transceiver:
 rpcs:
   gnmi:
     gNMI.Get:

@@ -18,7 +18,7 @@
 package main
 
 import (
-	goflag "flag"
+	"flag"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -28,7 +28,6 @@ import (
 	"github.com/openconfig/featureprofiles/tools/internal/canonicalocspec"
 	"github.com/openconfig/featureprofiles/tools/internal/fpciutil"
 	"github.com/openconfig/ygot/ygot"
-	flag "github.com/spf13/pflag"
 	"golang.org/x/exp/maps"
 )
 
@@ -57,6 +56,10 @@ func (m stringMap) Type() string {
 func (m stringMap) Set(readmePath string) error {
 	m[readmePath] = struct{}{}
 	return nil
+}
+
+func (m stringMap) Get() any {
+	return m
 }
 
 // New registers a flagset with the configuration needed by this binary.
@@ -101,9 +104,7 @@ func isValidOC(canonicalOC ygot.GoStruct) error {
 }
 
 func main() {
-	flag.CommandLine.AddGoFlagSet(goflag.CommandLine) // for compatibility with glog
 	flag.Parse()
-
 	fileCount := flag.NArg()
 	var files []string
 	switch {

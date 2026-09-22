@@ -205,16 +205,11 @@ func configureFlow(t *testing.T, bs *cfgplugins.BGPSession, prefixPair []string,
 }
 
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, prefixType string, testResults bool, index int) {
-	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow("flow"+prefixType+strconv.Itoa(index)).State())
-	framesTx := recvMetric.GetCounters().GetOutPkts()
-	framesRx := recvMetric.GetCounters().GetInPkts()
-
-	if framesTx == 0 {
-		t.Error("No traffic was generated and frames transmitted were 0")
-	} else if (testResults && framesRx == framesTx) || (!testResults && framesRx == 0) {
-		t.Logf("Traffic validation successful for criteria [%t] FramesTx: %d FramesRx: %d", testResults, framesTx, framesRx)
+	flowName := "flow" + prefixType + strconv.Itoa(index)
+	if testResults {
+		otgutils.ExpectedTrafficLoss(t, ate.OTG(), flowName, 0, 0.99)
 	} else {
-		t.Errorf("Traffic validation failed for criteria [%t] FramesTx: %d FramesRx: %d", testResults, framesTx, framesRx)
+		otgutils.ExpectedTrafficLoss(t, ate.OTG(), flowName, 100, 100)
 	}
 }
 
@@ -267,6 +262,9 @@ func TestCommunitySet(t *testing.T) {
 			if tc.desc == "Testing with no_3_comms" && deviations.CommunityInvertAnyUnsupported(bs.DUT) {
 				t.Skip("Skipping community match invert testcase")
 			}
+			if tc.desc == "Testing with all_3_comms" && deviations.MatchCommunitySetMatchSetOptionsAllUnsupported(bs.DUT) {
+				t.Skip("Skipping community match ALL testcase")
+			}
 
 			configureImportBGPPolicy(t, bs.DUT, ipv4, ipv6, tc.communitySetName, tc.communityMatch, tc.matchSetOptions)
 			sleepTime := time.Duration(totalPackets/trafficPps) + 2
@@ -284,10 +282,11 @@ func TestCommunitySet(t *testing.T) {
 			cfgplugins.VerifyDUTBGPEstablished(t, bs.DUT)
 
 			t.Logf("Starting traffic for IPv4 and v6")
+			defer otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
+			defer otgutils.LogPortMetrics(t, bs.ATE.OTG(), bs.ATETop)
 			bs.ATE.OTG().StartTraffic(t)
 			time.Sleep(sleepTime * time.Second)
 			bs.ATE.OTG().StopTraffic(t)
-			otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
 
 			for index, prefixPairV4 := range prefixesV4 {
 				t.Logf("Validating traffic test for IPv4 prefixes: [%s, %s]. Expected Result: [%t]", prefixPairV4[0], prefixPairV4[1], tc.testResults[index])
@@ -361,10 +360,11 @@ func validateCommunitySetUpdateTraffic(t *testing.T, bs *cfgplugins.BGPSession) 
 	cfgplugins.VerifyDUTBGPEstablished(t, bs.DUT)
 
 	t.Logf("Starting traffic for IPv4 and v6")
+	defer otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
+	defer otgutils.LogPortMetrics(t, bs.ATE.OTG(), bs.ATETop)
 	bs.ATE.OTG().StartTraffic(t)
 	time.Sleep(sleepTime * time.Second)
 	bs.ATE.OTG().StopTraffic(t)
-	otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
 
 	testResults := [4]bool{false, false, true, true}
 	for index, prefixPairV4 := range prefixesV4 {

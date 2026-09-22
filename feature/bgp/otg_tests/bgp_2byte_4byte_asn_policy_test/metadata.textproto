@@ -32,6 +32,7 @@ platform_exceptions: {
     interface_enabled: true
     default_network_instance: "default"
     match_as_path_set_unsupported: true
+    bgp_default_policy_behavior_accept_route: true
   }
 }
 tags: TAGS_AGGREGATION
