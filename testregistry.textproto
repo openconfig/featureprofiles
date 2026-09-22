@@ -816,6 +816,11 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_two_tier_route_propagation_test/README.md"
 }
 test: {
+  id: "RT-1.109"
+  description: "BGP Streaming Telemetry and Operational State Verification"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_streaming_telemetry_test/README.md"
+}
+test: {
   id: "RT-1.11"
   description: "BGP remove private AS"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_remove_private_as/README.md"
