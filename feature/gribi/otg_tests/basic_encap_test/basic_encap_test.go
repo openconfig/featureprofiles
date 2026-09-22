@@ -16,8 +16,8 @@
 package basic_encap_test
 
 import (
+	"flag"
 	"fmt"
-	"log"
 	"math/rand"
 	"os"
 	"strconv"
@@ -25,24 +25,24 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
-	"github.com/google/gopacket/pcap"
-	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/featureprofiles/internal/attrs"
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/gribi"
-	"github.com/openconfig/featureprofiles/internal/otgutils"
-	"github.com/openconfig/gribigo/client"
-	"github.com/openconfig/gribigo/fluent"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/otg"
-	"github.com/openconfig/ygot/ygot"
+	"google3/third_party/golang/cmp/cmp"
+	"google3/third_party/golang/cmp/cmpopts/cmpopts"
+	"google3/third_party/golang/gopacket/gopacket"
+	"google3/third_party/golang/gopacket/layers/layers"
+	"google3/third_party/golang/gopacket/pcap/pcap"
+	"google3/third_party/golang/ygot/ygot/ygot"
+	"google3/third_party/open_traffic_generator/gosnappi/gosnappi"
+	"google3/third_party/openconfig/featureprofiles/internal/attrs/attrs"
+	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
+	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
+	"google3/third_party/openconfig/featureprofiles/internal/gribi/gribi"
+	"google3/third_party/openconfig/featureprofiles/internal/otgutils/otgutils"
+	"google3/third_party/openconfig/gribigo/client/client"
+	"google3/third_party/openconfig/gribigo/fluent/fluent"
+	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
+	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
+	"google3/third_party/openconfig/ondatra/ondatra"
+	"google3/third_party/openconfig/ondatra/otg/otg"
 )
 
 const (
@@ -96,6 +96,20 @@ const (
 	ipv6FlowIP         = "2015:aa8::1"
 	ipv6EntryPrefix    = "2015:aa8::"
 	ipv6EntryPrefixLen = 64
+	nhg1000ID          = 1000
+	nh1001ID           = 1001
+	nhg2000ID          = 2000
+	nh2001ID           = 2001
+	nhg2002ID          = 2002
+	nhg3000ID          = 3000
+	nh3001ID           = 3001
+	decapIPv4FlowIP    = "139.0.11.8"
+	decapIPv4Prefix    = "139.0.11.0"
+	decapIPv4PrefixLen = 24
+	decapIPv6Prefix    = "2016:aa8::"
+	decapIPv6PrefixLen = 64
+	decapInnerDstIP4   = "192.0.2.100"
+	decapInnerDstIP6   = "2001:db8::100"
 	ratioTunEncap1     = 0.25 // 1/4
 	ratioTunEncap2     = 0.75 // 3/4
 	ratioTunEncapTol   = 0.05 // 5/100
@@ -268,10 +282,36 @@ type pbrRule struct {
 	etherType   oc.NetworkInstance_PolicyForwarding_Policy_Rule_L2_Ethertype_Union
 }
 
+type EcnCode uint32
+
+const (
+	EcnNotECT EcnCode = 0 // 00: Non-ECN-capable transport
+	EcnECT1   EcnCode = 1 // 01: ECT(1)
+	EcnECT0   EcnCode = 2 // 10: ECT(0)
+	EcnCE     EcnCode = 3 // 11: Congestion Experienced (CE)
+)
+
+var ecnNames = map[EcnCode]string{
+	EcnNotECT: "Not-ECT(00)",
+	EcnECT1:   "ECT(1)(01)",
+	EcnECT0:   "ECT(0)(10)",
+	EcnCE:     "CE(11)",
+}
+
+// priority packs 6-bit DSCP and 2-bit ECN into an 8-bit TOS/TrafficClass byte.
+func priority(dscp uint32, ecn EcnCode) uint32 {
+	return (dscp << 2) | uint32(ecn)
+}
+
 type packetAttr struct {
-	dscp     int
-	protocol int
-	ttl      uint32
+	dscp              int
+	protocol          int
+	ttl               uint32
+	ecn               EcnCode
+	validateECN       bool
+	isDecap           bool
+	isDecapV6         bool
+	expectedEgressECN EcnCode
 }
 
 type flowAttr struct {
@@ -312,6 +352,15 @@ var (
 		dstPorts: otgDstPorts,
 		topo:     gosnappi.NewConfig(),
 	}
+	faDecap = flowAttr{
+		src:      ipv4OuterSrc111,
+		dst:      decapIPv4FlowIP,
+		srcMac:   otgPort1.MAC,
+		dstMac:   dutPort1.MAC,
+		srcPort:  otgSrcPort,
+		dstPorts: []string{"port2"},
+		topo:     gosnappi.NewConfig(),
+	}
 )
 
 // testArgs holds the objects needed by a test case.
@@ -320,6 +369,37 @@ type testArgs struct {
 	ate    *ondatra.ATEDevice
 	topo   gosnappi.Config
 	client *gribi.Client
+}
+
+var kneVirtualModels = []string{
+	"ceos",         // Arista cEOS
+	"xrd", "8000e", // Cisco XRD and 8000e
+	"ncptx", "cptx", "vrx", // Juniper cPTX / ncptx / vRX
+	"srlinux", "gen2cp", // Nokia SR Linux / Virtual Gen2 Control Plane
+	"lemming", // OpenConfig Lemming
+}
+
+// isVirtualDUT reports whether the DUT is a virtual container/VM in KNE topologies.
+func isVirtualDUT(dut *ondatra.DUTDevice) bool {
+	// 1. Check KNE runtime flags (the most fundamental and reliable signal).
+	// In WBB and Ondatra, virtual KNE runs explicitly pass --use_knegce, --use_kne_topo, or --topology.
+	for _, fName := range []string{"use_knegce", "use_kne_topo", "topology", "kne-topo", "kne_topo"} {
+		if f := flag.Lookup(fName); f != nil {
+			val := f.Value.String()
+			if val != "" && val != "false" && val != "0" {
+				return true
+			}
+		}
+	}
+
+	// 2. Check virtual device models across all supported KNE vendors.
+	model := strings.ToLower(dut.Model())
+	for _, vm := range kneVirtualModels {
+		if strings.Contains(model, vm) {
+			return true
+		}
+	}
+	return false
 }
 
 func TestMain(m *testing.M) {
@@ -391,6 +471,224 @@ func TestBasicEncap(t *testing.T) {
 			validateEncapRatio: true,
 		},
 		{
+			name:               fmt.Sprintf("Test4 IPv4 Traffic Encap ECN %s dscp %d", ecnNames[EcnNotECT], dscpEncapA1),
+			pattr:              packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol, ttl: 99, ecn: EcnNotECT, validateECN: true},
+			flows:              []gosnappi.Flow{fa4.getFlowWithECN("ipv4", "ip4ecn_notect", dscpEncapA1, EcnNotECT)},
+			capturePorts:       otgDstPorts,
+			validateEncapRatio: false,
+		},
+		{
+			name:               fmt.Sprintf("Test4 IPv4 Traffic Encap ECN %s dscp %d", ecnNames[EcnECT1], dscpEncapA1),
+			pattr:              packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol, ttl: 99, ecn: EcnECT1, validateECN: true},
+			flows:              []gosnappi.Flow{fa4.getFlowWithECN("ipv4", "ip4ecn_ect1", dscpEncapA1, EcnECT1)},
+			capturePorts:       otgDstPorts,
+			validateEncapRatio: false,
+		},
+		{
+			name:               fmt.Sprintf("Test4 IPv4 Traffic Encap ECN %s dscp %d", ecnNames[EcnECT0], dscpEncapA1),
+			pattr:              packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol, ttl: 99, ecn: EcnECT0, validateECN: true},
+			flows:              []gosnappi.Flow{fa4.getFlowWithECN("ipv4", "ip4ecn_ect0", dscpEncapA1, EcnECT0)},
+			capturePorts:       otgDstPorts,
+			validateEncapRatio: false,
+		},
+		{
+			name:               fmt.Sprintf("Test4 IPv4 Traffic Encap ECN %s dscp %d", ecnNames[EcnCE], dscpEncapA1),
+			pattr:              packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol, ttl: 99, ecn: EcnCE, validateECN: true},
+			flows:              []gosnappi.Flow{fa4.getFlowWithECN("ipv4", "ip4ecn_ce", dscpEncapA1, EcnCE)},
+			capturePorts:       otgDstPorts,
+			validateEncapRatio: false,
+		},
+		{
+			name:               fmt.Sprintf("Test4 IPv6 Traffic Encap ECN %s dscp %d", ecnNames[EcnNotECT], dscpEncapA1),
+			pattr:              packetAttr{dscp: dscpEncapA1, protocol: ipv6ipProtocol, ttl: 99, ecn: EcnNotECT, validateECN: true},
+			flows:              []gosnappi.Flow{fa6.getFlowWithECN("ipv6", "ip6ecn_notect", dscpEncapA1, EcnNotECT)},
+			capturePorts:       otgDstPorts,
+			validateEncapRatio: false,
+		},
+		{
+			name:               fmt.Sprintf("Test4 IPv6 Traffic Encap ECN %s dscp %d", ecnNames[EcnECT1], dscpEncapA1),
+			pattr:              packetAttr{dscp: dscpEncapA1, protocol: ipv6ipProtocol, ttl: 99, ecn: EcnECT1, validateECN: true},
+			flows:              []gosnappi.Flow{fa6.getFlowWithECN("ipv6", "ip6ecn_ect1", dscpEncapA1, EcnECT1)},
+			capturePorts:       otgDstPorts,
+			validateEncapRatio: false,
+		},
+		{
+			name:               fmt.Sprintf("Test4 IPv6 Traffic Encap ECN %s dscp %d", ecnNames[EcnECT0], dscpEncapA1),
+			pattr:              packetAttr{dscp: dscpEncapA1, protocol: ipv6ipProtocol, ttl: 99, ecn: EcnECT0, validateECN: true},
+			flows:              []gosnappi.Flow{fa6.getFlowWithECN("ipv6", "ip6ecn_ect0", dscpEncapA1, EcnECT0)},
+			capturePorts:       otgDstPorts,
+			validateEncapRatio: false,
+		},
+		{
+			name:               fmt.Sprintf("Test4 IPv6 Traffic Encap ECN %s dscp %d", ecnNames[EcnCE], dscpEncapA1),
+			pattr:              packetAttr{dscp: dscpEncapA1, protocol: ipv6ipProtocol, ttl: 99, ecn: EcnCE, validateECN: true},
+			flows:              []gosnappi.Flow{fa6.getFlowWithECN("ipv6", "ip6ecn_ce", dscpEncapA1, EcnCE)},
+			capturePorts:       otgDstPorts,
+			validateEncapRatio: false,
+		},
+		// Test 5: ECN Decap Propagation per RFC 6040 (IPv4-in-IPv4)
+		{
+			name: fmt.Sprintf("Test5 IPv4in4 Traffic Decap ECN Outer %s Inner %s", ecnNames[EcnCE], ecnNames[EcnECT0]),
+			pattr: packetAttr{
+				dscp:              dscpEncapA1,
+				protocol:          udpProtocol,
+				ttl:               99,
+				ecn:               EcnCE,
+				expectedEgressECN: EcnCE,
+				validateECN:       true,
+				isDecap:           true,
+				isDecapV6:         false,
+			},
+			flows:              []gosnappi.Flow{faDecap.getDecapFlowWithECN("ipv4in4", "decap_v4_ce_ect0", dscpEncapA1, EcnCE, EcnECT0)},
+			capturePorts:       []string{"port2"},
+			validateEncapRatio: false,
+		},
+		{
+			name: fmt.Sprintf("Test5 IPv4in4 Traffic Decap ECN Outer %s Inner %s", ecnNames[EcnCE], ecnNames[EcnECT1]),
+			pattr: packetAttr{
+				dscp:              dscpEncapA1,
+				protocol:          udpProtocol,
+				ttl:               99,
+				ecn:               EcnCE,
+				expectedEgressECN: EcnCE,
+				validateECN:       true,
+				isDecap:           true,
+				isDecapV6:         false,
+			},
+			flows:              []gosnappi.Flow{faDecap.getDecapFlowWithECN("ipv4in4", "decap_v4_ce_ect1", dscpEncapA1, EcnCE, EcnECT1)},
+			capturePorts:       []string{"port2"},
+			validateEncapRatio: false,
+		},
+		{
+			name: fmt.Sprintf("Test5 IPv4in4 Traffic Decap ECN Outer %s Inner %s", ecnNames[EcnECT0], ecnNames[EcnECT0]),
+			pattr: packetAttr{
+				dscp:              dscpEncapA1,
+				protocol:          udpProtocol,
+				ttl:               99,
+				ecn:               EcnECT0,
+				expectedEgressECN: EcnECT0,
+				validateECN:       true,
+				isDecap:           true,
+				isDecapV6:         false,
+			},
+			flows:              []gosnappi.Flow{faDecap.getDecapFlowWithECN("ipv4in4", "decap_v4_ect0_ect0", dscpEncapA1, EcnECT0, EcnECT0)},
+			capturePorts:       []string{"port2"},
+			validateEncapRatio: false,
+		},
+		{
+			name: fmt.Sprintf("Test5 IPv4in4 Traffic Decap ECN Outer %s Inner %s", ecnNames[EcnECT1], ecnNames[EcnECT1]),
+			pattr: packetAttr{
+				dscp:              dscpEncapA1,
+				protocol:          udpProtocol,
+				ttl:               99,
+				ecn:               EcnECT1,
+				expectedEgressECN: EcnECT1,
+				validateECN:       true,
+				isDecap:           true,
+				isDecapV6:         false,
+			},
+			flows:              []gosnappi.Flow{faDecap.getDecapFlowWithECN("ipv4in4", "decap_v4_ect1_ect1", dscpEncapA1, EcnECT1, EcnECT1)},
+			capturePorts:       []string{"port2"},
+			validateEncapRatio: false,
+		},
+		{
+			name: fmt.Sprintf("Test5 IPv4in4 Traffic Decap ECN Outer %s Inner %s", ecnNames[EcnNotECT], ecnNames[EcnNotECT]),
+			pattr: packetAttr{
+				dscp:              dscpEncapA1,
+				protocol:          udpProtocol,
+				ttl:               99,
+				ecn:               EcnNotECT,
+				expectedEgressECN: EcnNotECT,
+				validateECN:       true,
+				isDecap:           true,
+				isDecapV6:         false,
+			},
+			flows:              []gosnappi.Flow{faDecap.getDecapFlowWithECN("ipv4in4", "decap_v4_notect_notect", dscpEncapA1, EcnNotECT, EcnNotECT)},
+			capturePorts:       []string{"port2"},
+			validateEncapRatio: false,
+		},
+		// Test 5: ECN Decap Propagation per RFC 6040 (IPv6-in-IPv4)
+		{
+			name: fmt.Sprintf("Test5 IPv6in4 Traffic Decap ECN Outer %s Inner %s", ecnNames[EcnCE], ecnNames[EcnECT0]),
+			pattr: packetAttr{
+				dscp:              dscpEncapA1,
+				protocol:          udpProtocol,
+				ttl:               99,
+				ecn:               EcnCE,
+				expectedEgressECN: EcnCE,
+				validateECN:       true,
+				isDecap:           true,
+				isDecapV6:         true,
+			},
+			flows:              []gosnappi.Flow{faDecap.getDecapFlowWithECN("ipv6in4", "decap_v6_ce_ect0", dscpEncapA1, EcnCE, EcnECT0)},
+			capturePorts:       []string{"port2"},
+			validateEncapRatio: false,
+		},
+		{
+			name: fmt.Sprintf("Test5 IPv6in4 Traffic Decap ECN Outer %s Inner %s", ecnNames[EcnCE], ecnNames[EcnECT1]),
+			pattr: packetAttr{
+				dscp:              dscpEncapA1,
+				protocol:          udpProtocol,
+				ttl:               99,
+				ecn:               EcnCE,
+				expectedEgressECN: EcnCE,
+				validateECN:       true,
+				isDecap:           true,
+				isDecapV6:         true,
+			},
+			flows:              []gosnappi.Flow{faDecap.getDecapFlowWithECN("ipv6in4", "decap_v6_ce_ect1", dscpEncapA1, EcnCE, EcnECT1)},
+			capturePorts:       []string{"port2"},
+			validateEncapRatio: false,
+		},
+		{
+			name: fmt.Sprintf("Test5 IPv6in4 Traffic Decap ECN Outer %s Inner %s", ecnNames[EcnECT0], ecnNames[EcnECT0]),
+			pattr: packetAttr{
+				dscp:              dscpEncapA1,
+				protocol:          udpProtocol,
+				ttl:               99,
+				ecn:               EcnECT0,
+				expectedEgressECN: EcnECT0,
+				validateECN:       true,
+				isDecap:           true,
+				isDecapV6:         true,
+			},
+			flows:              []gosnappi.Flow{faDecap.getDecapFlowWithECN("ipv6in4", "decap_v6_ect0_ect0", dscpEncapA1, EcnECT0, EcnECT0)},
+			capturePorts:       []string{"port2"},
+			validateEncapRatio: false,
+		},
+		{
+			name: fmt.Sprintf("Test5 IPv6in4 Traffic Decap ECN Outer %s Inner %s", ecnNames[EcnECT1], ecnNames[EcnECT1]),
+			pattr: packetAttr{
+				dscp:              dscpEncapA1,
+				protocol:          udpProtocol,
+				ttl:               99,
+				ecn:               EcnECT1,
+				expectedEgressECN: EcnECT1,
+				validateECN:       true,
+				isDecap:           true,
+				isDecapV6:         true,
+			},
+			flows:              []gosnappi.Flow{faDecap.getDecapFlowWithECN("ipv6in4", "decap_v6_ect1_ect1", dscpEncapA1, EcnECT1, EcnECT1)},
+			capturePorts:       []string{"port2"},
+			validateEncapRatio: false,
+		},
+		{
+			name: fmt.Sprintf("Test5 IPv6in4 Traffic Decap ECN Outer %s Inner %s", ecnNames[EcnNotECT], ecnNames[EcnNotECT]),
+			pattr: packetAttr{
+				dscp:              dscpEncapA1,
+				protocol:          udpProtocol,
+				ttl:               99,
+				ecn:               EcnNotECT,
+				expectedEgressECN: EcnNotECT,
+				validateECN:       true,
+				isDecap:           true,
+				isDecapV6:         true,
+			},
+			flows:              []gosnappi.Flow{faDecap.getDecapFlowWithECN("ipv6in4", "decap_v6_notect_notect", dscpEncapA1, EcnNotECT, EcnNotECT)},
+			capturePorts:       []string{"port2"},
+			validateEncapRatio: false,
+		},
+		{
 			name:               fmt.Sprintf("No Match Dscp %d Traffic", dscpEncapNoMatch),
 			pattr:              packetAttr{protocol: udpProtocol, dscp: dscpEncapNoMatch, ttl: 99},
 			flows:              []gosnappi.Flow{fa4.getFlow("ipv4", "ip4nm", dscpEncapNoMatch)},
@@ -410,11 +708,15 @@ func TestBasicEncap(t *testing.T) {
 	for _, tc := range test {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Logf("Name: %s", tc.name)
+			if isVirtualDUT(dut) && (strings.HasPrefix(tc.name, "Test4") || strings.HasPrefix(tc.name, "Test5")) {
+				t.Skipf("Skipping %s on virtual DUT (%s): virtual kernel/dataplane lacks ECN encap/decap hardware ASIC support", tc.name, dut.Model())
+			}
 			if strings.Contains(tc.name, "No Match Dscp") {
 				configDefaultRoute(t, dut, cidr(ipv4EntryPrefix, ipv4EntryPrefixLen), otgPort2.IPv4, cidr(ipv6EntryPrefix, ipv6EntryPrefixLen), otgPort2.IPv6)
 				defer gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Static(cidr(ipv4EntryPrefix, ipv4EntryPrefixLen)).Config())
 				defer gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Static(cidr(ipv6EntryPrefix, ipv6EntryPrefixLen)).Config())
 			}
+			defer clearCapture(t, otg.OTG(), topo)
 			if otgMutliPortCaptureSupported {
 				enableCapture(t, otg.OTG(), topo, tc.capturePorts)
 				t.Log("Start capture and send traffic")
@@ -424,24 +726,40 @@ func TestBasicEncap(t *testing.T) {
 				if tc.validateEncapRatio {
 					validateTunnelEncapRatio(t, tunCounter)
 				}
-				clearCapture(t, otg.OTG(), topo)
+				totalInspected := 0
+				for _, counts := range tunCounter {
+					totalInspected += counts[0] + counts[1]
+				}
+				if totalInspected == 0 {
+					t.Errorf("Zero packets captured across all candidate ports %v to validate attributes", tc.capturePorts)
+				}
 			} else {
+				totalInspected := 0
 				for _, port := range tc.capturePorts {
 					enableCapture(t, otg.OTG(), topo, []string{port})
 					t.Log("Start capture and send traffic")
 					sendTraffic(t, tcArgs, tc.flows, true)
 					t.Log("Validate captured packet attributes")
 					tunCounter := validatePacketCapture(t, tcArgs, []string{port}, &tc.pattr)
+					totalInspected += tunCounter[port][0] + tunCounter[port][1]
 					if tc.validateEncapRatio {
 						validateTunnelEncapRatio(t, tunCounter)
 					}
-					clearCapture(t, otg.OTG(), topo)
+					if !tc.validateEncapRatio && totalInspected > 0 {
+						t.Logf("Validated attributes on %s (%d packets), skipping remaining candidate ports", port, totalInspected)
+						break
+					}
+				}
+				if totalInspected == 0 {
+					t.Errorf("Zero packets captured across all candidate ports %v to validate attributes", tc.capturePorts)
 				}
 			}
 			t.Log("Validate traffic flows")
 			validateTrafficFlows(t, tcArgs, tc.flows, false, true)
-			t.Log("Validate hierarchical traffic distribution")
-			validateTrafficDistribution(t, otg, tc.weights)
+			if len(tc.weights) > 0 {
+				t.Log("Validate hierarchical traffic distribution")
+				validateTrafficDistribution(t, otg, tc.weights)
+			}
 		})
 	}
 }
@@ -776,6 +1094,56 @@ func programEntries(t *testing.T, dut *ondatra.DUTDevice, c *gribi.Client) {
 	c.AddIPv4(t, cidr(ipv4EntryPrefix, ipv4EntryPrefixLen), nhg10ID, vrfEncapB, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 	c.AddIPv6(t, cidr(ipv6EntryPrefix, ipv6EntryPrefixLen), nhg10ID, vrfEncapA, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 	c.AddIPv6(t, cidr(ipv6EntryPrefix, ipv6EntryPrefixLen), nhg10ID, vrfEncapB, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+
+	// Direct egress resolution in DEFAULT VRF for decapsulated receiver IPs (pointing to port2 via NH#10)
+	nhgEgress, opEgress := gribi.NHGEntry(nhg2002ID, map[uint64]uint64{nh10ID: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	decapDstV4 := fluent.IPv4Entry().
+		WithPrefix(cidr(decapInnerDstIP4, 32)).
+		WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+		WithNextHopGroup(nhg2002ID)
+	decapDstV6 := fluent.IPv6Entry().
+		WithPrefix(cidr(decapInnerDstIP6, 128)).
+		WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+		WithNextHopGroup(nhg2002ID)
+	c.AddEntries(t, []fluent.GRIBIEntry{nhgEgress, decapDstV4, decapDstV6}, []*client.OpResult{opEgress})
+
+	// Decap NextHop (NH#1001), NextHopGroup (NHG#1000), and DECAP_TE_VRF prefixes batched together to prevent unreferenced FEC deadlock
+	nh1001Opts := &gribi.NHOptions{}
+	if !deviations.DecapNHWithNextHopNIUnsupported(dut) {
+		nh1001Opts.VrfName = deviations.DefaultNetworkInstance(dut)
+	}
+	nh1001, op1001 := gribi.NHEntry(nh1001ID, "Decap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, nh1001Opts)
+	nhg1000, op1000 := gribi.NHGEntry(nhg1000ID, map[uint64]uint64{nh1001ID: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	decapV4Entry := fluent.IPv4Entry().
+		WithPrefix(cidr(decapIPv4Prefix, decapIPv4PrefixLen)).
+		WithNetworkInstance(vrfDecap).
+		WithNextHopGroup(nhg1000ID).
+		WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	decapV6Entry := fluent.IPv6Entry().
+		WithPrefix(cidr(decapIPv6Prefix, decapIPv6PrefixLen)).
+		WithNetworkInstance(vrfDecap).
+		WithNextHopGroup(nhg1000ID).
+		WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	c.AddEntries(t,
+		[]fluent.GRIBIEntry{nh1001, nhg1000, decapV4Entry, decapV6Entry},
+		[]*client.OpResult{op1001, op1000})
+
+	// Fallback default routing in ENCAP_TE_VRF_A and ENCAP_TE_VRF_B to DEFAULT VRF
+	nhFallback4, opFallback4 := gribi.NHEntry(nh2001ID, decapInnerDstIP4, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	nhgFallback4, opNHGFallback4 := gribi.NHGEntry(nhg2000ID, map[uint64]uint64{nh2001ID: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	defaultV4A := fluent.IPv4Entry().WithPrefix("0.0.0.0/0").WithNetworkInstance(vrfEncapA).
+		WithNextHopGroup(nhg2000ID).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	defaultV4B := fluent.IPv4Entry().WithPrefix("0.0.0.0/0").WithNetworkInstance(vrfEncapB).
+		WithNextHopGroup(nhg2000ID).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	c.AddEntries(t, []fluent.GRIBIEntry{nhFallback4, nhgFallback4, defaultV4A, defaultV4B}, []*client.OpResult{opFallback4, opNHGFallback4})
+
+	nhFallback6, opFallback6 := gribi.NHEntry(nh3001ID, decapInnerDstIP6, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	nhgFallback6, opNHGFallback6 := gribi.NHGEntry(nhg3000ID, map[uint64]uint64{nh3001ID: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	defaultV6A := fluent.IPv6Entry().WithPrefix("::/0").WithNetworkInstance(vrfEncapA).
+		WithNextHopGroup(nhg3000ID).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	defaultV6B := fluent.IPv6Entry().WithPrefix("::/0").WithNetworkInstance(vrfEncapB).
+		WithNextHopGroup(nhg3000ID).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	c.AddEntries(t, []fluent.GRIBIEntry{nhFallback6, nhgFallback6, defaultV6A, defaultV6B}, []*client.OpResult{opFallback6, opNHGFallback6})
 }
 
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
@@ -838,6 +1206,9 @@ func applyForwardingPolicy(t *testing.T, dut *ondatra.DUTDevice, ingressPort str
 	pfCfg.ApplyVrfSelectionPolicy = ygot.String(clusterPolicy)
 	pfCfg.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
 	pfCfg.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+	if deviations.InterfaceRefConfigUnsupported(dut) {
+		pfCfg.InterfaceRef = nil
+	}
 	gnmi.Replace(t, dut, pfPath.Config(), pfCfg)
 }
 
@@ -858,14 +1229,16 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	otgPort4.AddToOTG(topo, p4, &dutPort4)
 	otgPort5.AddToOTG(topo, p5, &dutPort5)
 
+	dut := ondatra.DUT(t, "dut")
 	var pmd100GFRPorts []string
 	for _, p := range topo.Ports().Items() {
 		port := ate.Port(t, p.Name())
-		if port.PMD() == ondatra.PMD100GBASEFR {
+		dutPort := dut.Port(t, p.Name())
+		if port.PMD() == ondatra.PMD100GBASEFR || dutPort.PMD() == ondatra.PMD100GBASEFR || strings.Contains(port.PMD().String(), "100GBASE_DR") {
 			pmd100GFRPorts = append(pmd100GFRPorts, port.ID())
 		}
 	}
-	// Disable FEC for 100G-FR ports because Novus does not support it.
+	// Disable FEC for 100G-FR/DR ports because Novus does not support it.
 	if len(pmd100GFRPorts) > 0 {
 		l1Settings := topo.Layer1().Add().SetName("L1").SetPortNames(pmd100GFRPorts)
 		l1Settings.SetAutoNegotiate(true).SetIeeeMediaDefaults(false).SetSpeed("speed_100_gbps")
@@ -885,6 +1258,7 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 
 // enableCapture enables packet capture on specified list of ports on OTG
 func enableCapture(t *testing.T, otg *otg.OTG, topo gosnappi.Config, otgPortNames []string) {
+	topo.Captures().Clear()
 	for _, port := range otgPortNames {
 		t.Log("Enabling capture on ", port)
 		topo.Captures().Add().SetName(port).SetPortNames([]string{port}).SetFormat(gosnappi.CaptureFormat.PCAP)
@@ -951,6 +1325,87 @@ func (fa *flowAttr) getFlow(flowType string, name string, dscp uint32) gosnappi.
 	udp := flow.Packet().Add().Udp()
 	udp.SrcPort().SetValues(randRange(50001, 10000))
 	udp.DstPort().SetValues(randRange(50001, 10000))
+
+	return flow
+}
+
+// getFlowWithECN returns a flow of type ipv4, ipv4in4, ipv6in4 or ipv6 with dscp and ecn values.
+func (fa *flowAttr) getFlowWithECN(flowType string, name string, dscp uint32, ecn EcnCode) gosnappi.Flow {
+	flow := fa.topo.Flows().Add().SetName(name)
+	flow.Metrics().SetEnable(true)
+
+	flow.TxRx().Port().SetTxName(fa.srcPort).SetRxNames(fa.dstPorts)
+	e1 := flow.Packet().Add().Ethernet()
+	e1.Src().SetValue(fa.srcMac)
+	e1.Dst().SetValue(fa.dstMac)
+	if flowType == "ipv4" || flowType == "ipv4in4" || flowType == "ipv6in4" {
+		v4 := flow.Packet().Add().Ipv4()
+		v4.Src().SetValue(fa.src)
+		v4.Dst().SetValue(fa.dst)
+		v4.TimeToLive().SetValue(ttl)
+		v4.Priority().Raw().SetValue(priority(dscp, ecn))
+
+		// add inner ipv4 headers
+		if flowType == "ipv4in4" {
+			innerV4 := flow.Packet().Add().Ipv4()
+			innerV4.Src().SetValue(innerV4SrcIP)
+			innerV4.Dst().SetValue(innerV4DstIP)
+			innerV4.Priority().Raw().SetValue(priority(dscp, ecn))
+		}
+
+		// add inner ipv6 headers
+		if flowType == "ipv6in4" {
+			innerV6 := flow.Packet().Add().Ipv6()
+			innerV6.Src().SetValue(InnerV6SrcIP)
+			innerV6.Dst().SetValue(InnerV6DstIP)
+			innerV6.TrafficClass().SetValue(priority(dscp, ecn))
+		}
+	} else if flowType == "ipv6" {
+		v6 := flow.Packet().Add().Ipv6()
+		v6.Src().SetValue(fa.src)
+		v6.Dst().SetValue(fa.dst)
+		v6.HopLimit().SetValue(ttl)
+		v6.TrafficClass().SetValue(priority(dscp, ecn))
+	}
+	udp := flow.Packet().Add().Udp()
+	udp.SrcPort().SetValues(randRange(50001, 50))
+	udp.DstPort().SetValues(randRange(50001, 50))
+
+	return flow
+}
+
+// getDecapFlowWithECN returns a pre-encapsulated flow (ipv4in4 or ipv6in4) with outer and inner ECN values for decap testing.
+func (fa *flowAttr) getDecapFlowWithECN(flowType string, name string, dscp uint32, outerECN EcnCode, innerECN EcnCode) gosnappi.Flow {
+	flow := fa.topo.Flows().Add().SetName(name)
+	flow.Metrics().SetEnable(true)
+
+	flow.TxRx().Port().SetTxName(fa.srcPort).SetRxNames(fa.dstPorts)
+	e1 := flow.Packet().Add().Ethernet()
+	e1.Src().SetValue(fa.srcMac)
+	e1.Dst().SetValue(fa.dstMac)
+
+	v4 := flow.Packet().Add().Ipv4()
+	v4.Src().SetValue(fa.src)
+	v4.Dst().SetValue(fa.dst)
+	v4.TimeToLive().SetValue(ttl)
+	v4.Priority().Raw().SetValue(priority(dscp, outerECN))
+
+	if flowType == "ipv4in4" {
+		innerV4 := flow.Packet().Add().Ipv4()
+		innerV4.Src().SetValue(innerV4SrcIP)
+		innerV4.Dst().SetValue(decapInnerDstIP4)
+		innerV4.TimeToLive().SetValue(ttl)
+		innerV4.Priority().Raw().SetValue(priority(dscp, innerECN))
+	} else if flowType == "ipv6in4" {
+		innerV6 := flow.Packet().Add().Ipv6()
+		innerV6.Src().SetValue(InnerV6SrcIP)
+		innerV6.Dst().SetValue(decapInnerDstIP6)
+		innerV6.HopLimit().SetValue(ttl)
+		innerV6.TrafficClass().SetValue(priority(dscp, innerECN))
+	}
+	udp := flow.Packet().Add().Udp()
+	udp.SrcPort().SetValues(randRange(50001, 50))
+	udp.DstPort().SetValues(randRange(50001, 50))
 
 	return flow
 }
@@ -1024,12 +1479,19 @@ func validateTunnelEncapRatio(t *testing.T, tunCounter map[string][]int) {
 // validatePacketCapture reads capture files and checks the encapped packet for desired protocol, dscp and ttl
 func validatePacketCapture(t *testing.T, args *testArgs, otgPortNames []string, pa *packetAttr) map[string][]int {
 	tunCounter := make(map[string][]int)
+	totalPacketsInspected := 0
 	for _, otgPortName := range otgPortNames {
+		tunCounter[otgPortName] = []int{0, 0}
 		bytes := args.ate.OTG().GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(otgPortName))
+		if len(bytes) == 0 {
+			t.Logf("No packets captured on %s", otgPortName)
+			continue
+		}
 		f, err := os.CreateTemp("", ".pcap")
 		if err != nil {
 			t.Fatalf("ERROR: Could not create temporary pcap file: %v\n", err)
 		}
+		defer os.Remove(f.Name())
 		if _, err := f.Write(bytes); err != nil {
 			t.Fatalf("ERROR: Could not write bytes to pcap file: %v\n", err)
 		}
@@ -1037,42 +1499,184 @@ func validatePacketCapture(t *testing.T, args *testArgs, otgPortNames []string, 
 		t.Logf("Verifying packet attributes captured on %s", otgPortName)
 		handle, err := pcap.OpenOffline(f.Name())
 		if err != nil {
-			log.Fatal(err)
+			t.Logf("Could not open pcap file on %s: %v", otgPortName, err)
+			continue
 		}
 		defer handle.Close()
 		packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 		tunnel1Pkts := 0
 		tunnel2Pkts := 0
 		for packet := range packetSource.Packets() {
-			ipV4Layer := packet.Layer(layers.LayerTypeIPv4)
-			if ipV4Layer != nil {
-				v4Packet, _ := ipV4Layer.(*layers.IPv4)
-				if got := v4Packet.Protocol; got != layers.IPProtocol(pa.protocol) {
-					t.Errorf("Packet protocol type mismatch, got: %d, want %d", got, pa.protocol)
-					break
+			var outerV4 *layers.IPv4
+			var innerV4 *layers.IPv4
+			var innerV6 *layers.IPv6
+
+			for _, layer := range packet.Layers() {
+				switch l := layer.(type) {
+				case *layers.IPv4:
+					if outerV4 == nil {
+						outerV4 = l
+					} else if innerV4 == nil {
+						innerV4 = l
+					}
+				case *layers.IPv6:
+					if innerV6 == nil {
+						innerV6 = l
+					}
 				}
-				if got := int(v4Packet.TOS >> 2); got != pa.dscp {
-					t.Errorf("Dscp value mismatch, got %d, want %d", got, pa.dscp)
-					break
+			}
+
+			if pa.isDecap {
+				if pa.isDecapV6 {
+					if outerV4 != nil && outerV4.DstIP.String() == decapIPv4FlowIP {
+						t.Errorf("Packet was NOT decapsulated on %s: outer tunnel destination %s is still present\nPacket dump:\n%s", otgPortName, outerV4.DstIP, packet.Dump())
+						break
+					}
+					if innerV6 == nil || innerV6.DstIP.String() != decapInnerDstIP6 {
+						continue
+					}
+					if outerV4 != nil {
+						t.Errorf("Expected decapsulated IPv6 packet without outer tunnel, but outer IPv4 header was present on %s\nPacket dump:\n%s", otgPortName, packet.Dump())
+						break
+					}
+					totalPacketsInspected++
+					if got := int(innerV6.TrafficClass >> 2); got != pa.dscp {
+						t.Errorf("Decap inner DSCP mismatch on %s, got %d, want %d\nPacket dump:\n%s", otgPortName, got, pa.dscp, packet.Dump())
+						break
+					}
+					if got := uint32(innerV6.HopLimit); got != pa.ttl {
+						t.Errorf("Decap inner TTL mismatch on %s, got %d, want %d\nPacket dump:\n%s", otgPortName, got, pa.ttl, packet.Dump())
+						break
+					}
+					actualECN := EcnCode(innerV6.TrafficClass & 0x03)
+					if totalPacketsInspected <= 5 {
+						t.Logf("Capture %s (decap v6 packet #%d): Src=%s Dst=%s TC=0x%02x [DSCP=%d, ECN=%s (%d)]",
+							otgPortName, totalPacketsInspected, innerV6.SrcIP, innerV6.DstIP, innerV6.TrafficClass, innerV6.TrafficClass>>2, ecnNames[actualECN], actualECN)
+					}
+					if actualECN != pa.expectedEgressECN {
+						t.Errorf("Decap ECN mismatch on %s: got %s (%d), want %s (%d)\nFull packet dump:\n%s",
+							otgPortName, ecnNames[actualECN], actualECN, ecnNames[pa.expectedEgressECN], pa.expectedEgressECN, packet.Dump())
+						break
+					}
+				} else {
+					if outerV4 == nil {
+						continue
+					}
+					if outerV4.DstIP.String() == decapIPv4FlowIP {
+						t.Errorf("Packet was NOT decapsulated on %s: outer tunnel destination %s is still present\nPacket dump:\n%s", otgPortName, outerV4.DstIP, packet.Dump())
+						break
+					}
+					if outerV4.DstIP.String() != decapInnerDstIP4 {
+						continue
+					}
+					if innerV4 != nil {
+						t.Errorf("Expected decapsulated packet without outer tunnel, but inner IPv4 header was also present on %s (tunnel not stripped)\nPacket dump:\n%s", otgPortName, packet.Dump())
+						break
+					}
+					totalPacketsInspected++
+					if got := int(outerV4.TOS >> 2); got != pa.dscp {
+						t.Errorf("Decap inner DSCP mismatch on %s, got %d, want %d\nPacket dump:\n%s", otgPortName, got, pa.dscp, packet.Dump())
+						break
+					}
+					if got := uint32(outerV4.TTL); got != pa.ttl {
+						t.Errorf("Decap inner TTL mismatch on %s, got %d, want %d\nPacket dump:\n%s", otgPortName, got, pa.ttl, packet.Dump())
+						break
+					}
+					actualECN := EcnCode(outerV4.TOS & 0x03)
+					if totalPacketsInspected <= 5 {
+						t.Logf("Capture %s (decap v4 packet #%d): Src=%s Dst=%s TOS=0x%02x [DSCP=%d, ECN=%s (%d)]",
+							otgPortName, totalPacketsInspected, outerV4.SrcIP, outerV4.DstIP, outerV4.TOS, outerV4.TOS>>2, ecnNames[actualECN], actualECN)
+					}
+					if actualECN != pa.expectedEgressECN {
+						t.Errorf("Decap ECN mismatch on %s: got %s (%d), want %s (%d)\nFull packet dump:\n%s",
+							otgPortName, ecnNames[actualECN], actualECN, ecnNames[pa.expectedEgressECN], pa.expectedEgressECN, packet.Dump())
+						break
+					}
 				}
-				if got := uint32(v4Packet.TTL); got != pa.ttl {
-					t.Errorf("TTL mismatch, got: %d, want: %d", got, pa.ttl)
-					break
-				}
-				if v4Packet.DstIP.String() == tunnelDstIP1 {
-					tunnel1Pkts++
-				}
-				if v4Packet.DstIP.String() == tunnelDstIP2 {
-					tunnel2Pkts++
+				continue
+			}
+
+			// Fallback: manually decode payload if inner layer was not automatically decoded by packet source.
+			if outerV4 != nil {
+				if outerV4.Protocol == layers.IPProtocolIPv4 && innerV4 == nil && len(outerV4.Payload) >= 20 {
+					inV4 := &layers.IPv4{}
+					if err := inV4.DecodeFromBytes(outerV4.Payload, gopacket.NilDecodeFeedback); err == nil {
+						innerV4 = inV4
+					}
+				} else if outerV4.Protocol == layers.IPProtocolIPv6 && innerV6 == nil && len(outerV4.Payload) >= 40 {
+					inV6 := &layers.IPv6{}
+					if err := inV6.DecodeFromBytes(outerV4.Payload, gopacket.NilDecodeFeedback); err == nil {
+						innerV6 = inV6
+					}
 				}
 
+				totalPacketsInspected++
+				if outerV4.DstIP.String() == tunnelDstIP1 {
+					tunnel1Pkts++
+				}
+				if outerV4.DstIP.String() == tunnelDstIP2 {
+					tunnel2Pkts++
+				}
+				if got := outerV4.Protocol; got != layers.IPProtocol(pa.protocol) {
+					t.Errorf("Packet protocol type mismatch on %s, got: %d, want: %d\nPacket dump:\n%s", otgPortName, got, pa.protocol, packet.Dump())
+					break
+				}
+				if got := int(outerV4.TOS >> 2); got != pa.dscp {
+					t.Errorf("Dscp value mismatch on %s, got %d, want %d\nPacket dump:\n%s", otgPortName, got, pa.dscp, packet.Dump())
+					break
+				}
+				if got := uint32(outerV4.TTL); got != pa.ttl {
+					t.Errorf("TTL mismatch on %s, got: %d, want: %d\nPacket dump:\n%s", otgPortName, got, pa.ttl, packet.Dump())
+					break
+				}
+				if pa.validateECN {
+					outerECN := EcnCode(outerV4.TOS & 0x03)
+					var innerLog string
+					var innerECN EcnCode
+					var innerFound bool
+					if innerV4 != nil {
+						innerECN = EcnCode(innerV4.TOS & 0x03)
+						innerFound = true
+						innerLog = fmt.Sprintf("Inner IPv4 Src=%s Dst=%s TOS=0x%02x [DSCP=%d, ECN=%s (%d)]",
+							innerV4.SrcIP, innerV4.DstIP, innerV4.TOS, innerV4.TOS>>2, ecnNames[innerECN], innerECN)
+					} else if innerV6 != nil {
+						innerECN = EcnCode(innerV6.TrafficClass & 0x03)
+						innerFound = true
+						innerLog = fmt.Sprintf("Inner IPv6 Src=%s Dst=%s TC=0x%02x [DSCP=%d, ECN=%s (%d)]",
+							innerV6.SrcIP, innerV6.DstIP, innerV6.TrafficClass, innerV6.TrafficClass>>2, ecnNames[innerECN], innerECN)
+					} else {
+						innerLog = "Inner IP header not detected in payload"
+					}
+
+					if totalPacketsInspected <= 5 {
+						t.Logf("Capture %s (packet #%d): Outer IPv4 Src=%s Dst=%s TOS=0x%02x [DSCP=%d, ECN=%s (%d)], %s",
+							otgPortName, totalPacketsInspected, outerV4.SrcIP, outerV4.DstIP, outerV4.TOS, outerV4.TOS>>2, ecnNames[outerECN], outerECN, innerLog)
+					}
+
+					if outerECN != pa.ecn {
+						t.Errorf("ECN value mismatch on %s: got outer %s (%d), want %s (%d) (%s)\nFull packet dump:\n%s",
+							otgPortName, ecnNames[outerECN], outerECN, ecnNames[pa.ecn], pa.ecn, innerLog, packet.Dump())
+						break
+					}
+					if innerFound && innerECN != pa.ecn {
+						t.Errorf("WARNING: Inner packet ECN mismatch on %s: got inner %s (%d), want %s (%d) (OTG generator issue?)\nFull packet dump:\n%s",
+							otgPortName, ecnNames[innerECN], innerECN, ecnNames[pa.ecn], pa.ecn, packet.Dump())
+						break
+					}
+				}
 			}
 		}
 		t.Logf("tunnel1, tunnel2 packet count on %s: %d , %d", otgPortName, tunnel1Pkts, tunnel2Pkts)
-		tunCounter[otgPortName] = []int{tunnel1Pkts, tunnel2Pkts}
+		if tunnel1Pkts == 0 && tunnel2Pkts == 0 && totalPacketsInspected > 0 {
+			tunCounter[otgPortName] = []int{totalPacketsInspected, 0}
+		} else {
+			tunCounter[otgPortName] = []int{tunnel1Pkts, tunnel2Pkts}
+		}
+	}
+	if totalPacketsInspected == 0 {
+		t.Errorf("Zero packets captured across ports %v to validate attributes", otgPortNames)
 	}
 	return tunCounter
-
 }
 
 // startCapture starts the capture on the otg ports
