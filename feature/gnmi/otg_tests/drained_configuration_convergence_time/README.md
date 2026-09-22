@@ -4,6 +4,127 @@
 
 Measure performance of drained configuration being applied.
 
+## Canonical OC
+
+```json
+{
+  "network-instances": {
+    "network-instance": [
+      {
+        "config": {
+          "name": "DEFAULT"
+        },
+        "name": "DEFAULT",
+        "protocols": {
+          "protocol": [
+            {
+              "bgp": {
+                "peer-groups": {
+                  "peer-group": [
+                    {
+                      "afi-safis": {
+                        "afi-safi": [
+                          {
+                            "afi-safi-name": "IPV4_UNICAST",
+                            "apply-policy": {
+                              "config": {
+                                "export-policy": [
+                                  "SET-MED"
+                                ]
+                              }
+                            },
+                            "config": {
+                              "afi-safi-name": "IPV4_UNICAST",
+                              "enabled": true
+                            }
+                          }
+                        ]
+                      },
+                      "config": {
+                        "peer-as": 64501,
+                        "peer-group-name": "BGP-PEER-GROUP"
+                      },
+                      "peer-group-name": "BGP-PEER-GROUP"
+                    }
+                  ]
+                }
+              },
+              "config": {
+                "identifier": "BGP",
+                "name": "BGP"
+              },
+              "identifier": "BGP",
+              "name": "BGP"
+            },
+            {
+              "config": {
+                "identifier": "ISIS",
+                "name": "DEFAULT"
+              },
+              "identifier": "ISIS",
+              "isis": {
+                "interfaces": {
+                  "interface": [
+                    {
+                      "authentication": {
+                        "config": {
+                          "auth-mode": "MD5",
+                          "auth-password": "ISISAuthPassword",
+                          "auth-type": "SIMPLE_KEY",
+                          "enabled": true
+                        }
+                      },
+                      "config": {
+                        "interface-id": "port1"
+                      },
+                      "interface-id": "port1"
+                    }
+                  ]
+                }
+              },
+              "name": "DEFAULT"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "routing-policy": {
+    "policy-definitions": {
+      "policy-definition": [
+        {
+          "config": {
+            "name": "SET-MED"
+          },
+          "name": "SET-MED",
+          "statements": {
+            "statement": [
+              {
+                "actions": {
+                  "bgp-actions": {
+                    "config": {
+                      "set-med": 25,
+                      "set-med-action": "SET"
+                    }
+                  },
+                  "config": {
+                    "policy-result": "ACCEPT_ROUTE"
+                  }
+                },
+                "config": {
+                  "name": "30"
+                },
+                "name": "30"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
 ## Procedure
 
 Configure DUT with maximum number of IS-IS adjacencies, and BGP
