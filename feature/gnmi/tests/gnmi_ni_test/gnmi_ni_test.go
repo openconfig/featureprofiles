@@ -168,9 +168,10 @@ func findDefaultGNMIServerName(t *testing.T, servers []*oc.System_GrpcServer, cu
 	t.Helper()
 
 	for _, server := range servers {
-		if server.GetName() == customServerName {
+		if server == nil {
 			continue
 		}
+		if server.GetName() == customServerName {
 		for _, service := range server.GetServices() {
 			if service == oc.SystemGrpc_GRPC_SERVICE_GNMI {
 				t.Logf("Discovered default gNMI server: %s", server.GetName())
