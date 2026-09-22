@@ -157,6 +157,7 @@ func TestLowPowerMode(t *testing.T) {
 			// FIXED: Use deviation check to avoid blocking on unsupported devices
 			currentSamplingInterval := samplingInterval
 			if !deviations.SkipOpticalChannelOutputPowerInterval(dut) {
+				// Removed extra time.Second multiplier in optical channel interval state check
 				currentSamplingInterval = time.Duration(gnmi.Get(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Interval().State()))
 			}
 

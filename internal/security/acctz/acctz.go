@@ -25,6 +25,7 @@ import (
 	"net"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -48,7 +49,9 @@ import (
 	p4pb "github.com/p4lang/p4runtime/go/p4/v1"
 	"golang.org/x/crypto/ssh"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -65,20 +68,23 @@ const (
 	failAuthorizeUsername    = "failauthuser" // username for failed authorization
 	FailAuthorizeUsername    = failAuthorizeUsername
 	failAuthorizePassword    = "failauthpasswordTest123!"
-	failRoleName             = "acctz-fp-test-fail" // role for failed authorization
-	failDenyRoleName         = "acctz-fp-deny-fail" // role for failed deny authorization
-	successCliCommand        = "show version"
-	failCliCommand           = "show version"
-	failDenyCliCommand       = "/.*"
-	shellCommand             = "uname -a"
-	gnmiCapabilitiesPath     = "/gnmi.gNMI/Capabilities"
-	gnoiPingPath             = "/gnoi.system.System/Ping"
-	gnoiTimePath             = "/gnoi.system.System/Time"
-	gnsiGetPath              = "/gnsi.authz.v1.Authz/Get"
-	gribiGetPath             = "/gribi.gRIBI/Get"
-	p4rtCapabilitiesPath     = "/p4.v1.P4Runtime/Capabilities"
-	defaultSSHPort           = 22
-	ipProto                  = 6
+	// privEscUsername is a low-privilege (operator-level) user used for privilege escalation
+	privEscUsername      = "acctzRegularUser"
+	privEscPassword      = "acctzPass123"
+	failRoleName         = "acctz-fp-test-fail" // role for failed authorization
+	failDenyRoleName     = "acctz-fp-deny-fail" // role for failed deny authorization
+	successCliCommand    = "show version"
+	failCliCommand       = "show version"
+	failDenyCliCommand   = "/.*"
+	shellCommand         = "uname -a"
+	gnmiCapabilitiesPath = "/gnmi.gNMI/Capabilities"
+	gnoiPingPath         = "/gnoi.system.System/Ping"
+	gnoiTimePath         = "/gnoi.system.System/Time"
+	gnsiGetPath          = "/gnsi.authz.v1.Authz/Get"
+	gribiGetPath         = "/gribi.gRIBI/Get"
+	p4rtCapabilitiesPath = "/p4.v1.P4Runtime/Capabilities"
+	defaultSSHPort       = 22
+	ipProto              = 6
 )
 
 var (
@@ -88,6 +94,12 @@ var (
 	// TestPaths is the list of paths to be tested for acctz.
 	TestPaths = []string{gnmiCapabilitiesPath, gnoiPingPath, gnoiTimePath, gnsiGetPath, gribiGetPath, p4rtCapabilitiesPath}
 )
+
+// PrettyPrint prints rpc requests/responses in a pretty format.
+func PrettyPrint(i any) string {
+	s, _ := json.MarshalIndent(i, "", "\t")
+	return string(s)
+}
 
 // var gRPCClientAddr net.Addr
 func setupUserPassword(t *testing.T, dut *ondatra.DUTDevice, username, password string) {
@@ -116,6 +128,7 @@ func setupUserPassword(t *testing.T, dut *ondatra.DUTDevice, username, password 
 	if err != nil {
 		t.Fatalf("Failed fetching credentialz rotate account credentials client, error: %s", err)
 	}
+	t.Logf("Sending credentialz rotate account request: %s", PrettyPrint(request))
 	err = credzRotateClient.Send(request)
 	if err != nil {
 		t.Fatalf("Failed sending credentialz rotate account credentials request, error: %s", err)
@@ -281,24 +294,69 @@ func juniperSetup(t *testing.T, dut *ondatra.DUTDevice, configureFailCliRole boo
 
 func aristaFailAuthzCliRole(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	// Configure a role that denies Authorization for rpcs.
+	// Step 1: Clear any lingering AAA command authorization from previous runs,
+	// create the deny-all role, configure users, management, and basic AAA.
+	// "aaa authorization commands all default local" is NOT included here because
+	// it takes effect within the configure session and blocks the implicit commit
+	// for gNMI users with "Unknown role".
 	commands := []string{
 		"configure",
+		"no aaa authorization commands all default local",
 		fmt.Sprintf("role %s", failRoleName),
 		"   10 deny command .*",
+		"exit",
 		fmt.Sprintf("username %s privilege 15 role network-admin secret %s", SuccessUsername, successPassword),
 		fmt.Sprintf("username %s privilege 15 role acctz-fp-test-fail secret %s", FailUsername, failPassword),
 		fmt.Sprintf("username %s privilege 15 role acctz-fp-test-fail secret %s", failAuthorizeUsername, failAuthorizePassword),
-		"aaa authentication login default local",
-		"aaa authorization exec default local",
-		"aaa authorization commands all default local",
 		"management ssh",
 		"   authentication protocol password",
 		"management api gnmi",
 		"   transport grpc default",
+		"      aaa config-commands disabled",
+		"      authentication username priority metadata",
 		"      authorization requests",
 		"   transport grpc mgmt",
+		"      aaa config-commands disabled",
+		"      authentication username priority metadata",
 		"      authorization requests",
+		"aaa authentication login default local",
+		"aaa authorization exec default local",
+	}
+	helpers.GnmiCLIConfig(t, dut, strings.Join(commands, "\n"))
+
+	// Step 2: Enable command authorization in a separate call. After step 1
+	// committed successfully, the users and roles are in the running config,
+	// so this commit can proceed.
+	authzCommands := []string{
+		"configure",
+		"aaa authorization commands all default local",
+	}
+	helpers.GnmiCLIConfig(t, dut, strings.Join(authzCommands, "\n"))
+}
+
+func aristaCleanupAuthzCliRole(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	t.Log("Cleaning up Arista AAA configuration and test users")
+	commands := []string{
+		"configure",
+		"aaa authentication login default group tacacs+ local",
+		"aaa authorization exec default group tacacs+ local",
+		"aaa authorization commands all default group tacacs+ local",
+		fmt.Sprintf("no username %s", SuccessUsername),
+		fmt.Sprintf("no username %s", FailUsername),
+		fmt.Sprintf("no username %s", failAuthorizeUsername),
+		"management ssh",
+		"   no authentication protocol password",
+		"management api gnmi",
+		"   transport grpc default",
+		"      no aaa config-commands",
+		"      no authorization requests",
+		"      no authentication username priority",
+		"   transport grpc mgmt",
+		"      no aaa config-commands",
+		"      no authorization requests",
+		"      no authentication username priority",
+		fmt.Sprintf("no role %s", failRoleName),
 	}
 	helpers.GnmiCLIConfig(t, dut, strings.Join(commands, "\n"))
 }
@@ -333,8 +391,7 @@ func SetupUsers(t *testing.T, dut *ondatra.DUTDevice, configureFailCliRole bool)
 		auth := &oc.System_Aaa_Authentication{}
 		successUser := auth.GetOrCreateUser(SuccessUsername)
 		successUser.SetRole(oc.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN)
-		failAuthenticateUser := auth.GetOrCreateUser(FailAuthenticateUsername)
-		failAuthenticateUser.SetRole(oc.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN)
+		auth.GetOrCreateUser(FailAuthenticateUsername)
 		failAuthorizeUser := auth.GetOrCreateUser(failAuthorizeUsername)
 		if configureFailCliRole {
 			var SetRequest *gnmipb.SetRequest
@@ -345,6 +402,9 @@ func SetupUsers(t *testing.T, dut *ondatra.DUTDevice, configureFailCliRole bool)
 				SetRequest = nokiaFailCliRole(t)
 			case ondatra.ARISTA:
 				aristaFailAuthzCliRole(t, dut)
+				t.Cleanup(func() {
+					aristaCleanupAuthzCliRole(t, dut)
+				})
 			}
 			// _, policyBefore := authz.Get(t, dut)
 			// t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint(t))
@@ -469,8 +529,8 @@ func GetNokiaCustomAcctzClient(t *testing.T, dut *ondatra.DUTDevice) AcctzStream
 // 	return resolvedTarget.String()
 // }
 
-// getSSHTarget returns the target for the SSH service.
-func getSSHTarget(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) string {
+// GetSSHTarget returns the target for the SSH service.
+func GetSSHTarget(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) string {
 	if staticBinding {
 		f := flag.Lookup("binding")
 		if f == nil {
@@ -679,6 +739,22 @@ func dialSSH(t *testing.T, dut *ondatra.DUTDevice, username, password, target st
 	return conn, w
 }
 
+func getHostPortInfo(t *testing.T, addr string) (string, uint32) {
+	t.Helper()
+	host, portStr, err := net.SplitHostPort(addr)
+	if err != nil {
+		t.Fatalf("Failed splitting host and port for %q: %v", addr, err)
+	}
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		t.Fatalf("Failed parsing port %q from %q: %v", portStr, addr, err)
+	}
+	if port < 0 || port > 65535 {
+		t.Fatalf("Port %d from %q is outside valid TCP/UDP range", port, addr)
+	}
+	return host, uint32(port)
+}
+
 func getMetadataKeys(dut *ondatra.DUTDevice) (string, string) {
 	return "username", "password"
 }
@@ -699,7 +775,7 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		failpass = failAuthorizePassword
 	} else {
 		failuser = FailAuthenticateUsername
-		failpass = failAuthenticatePassword
+		failpass = failPassword
 	}
 	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, failuser, passKey, failpass))
 	var gnmiClient gnmipb.GNMIClient
@@ -725,10 +801,10 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	}
 	// Send an unsuccessful gNMI capabilities request (bad creds in context).
 	_, err1 := gnmiClient.Capabilities(ctx, &gnmipb.CapabilityRequest{})
-	if err1 != nil {
-		t.Logf("Got expected error fetching capabilities with bad creds, error: %s", err1)
+	if err1 != nil && status.Code(err1) == codes.PermissionDenied {
+		t.Logf("Got expected error fetching capabilities with no permissions, error: %s", err1)
 	} else {
-		t.Logf("Did not get expected error fetching capabilities with bad creds. %v", err1)
+		t.Errorf("Did not get expected error fetching capabilities with no permissions. %v", err1)
 	}
 
 	if !deviations.AcctzRecordFailGrpcUnsupported(dut) {
@@ -832,7 +908,7 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		failpass = failAuthorizePassword
 	} else {
 		failuser = FailAuthenticateUsername
-		failpass = failAuthenticatePassword
+		failpass = failPassword
 	}
 	var gnoiSystemClient systempb.SystemClient
 	ctx := context.Background()
@@ -860,8 +936,10 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	if dut.Vendor() == ondatra.NOKIA {
 		rpcName = gnoiTimePath
 		_, err = gnoiSystemClient.Time(ctx, &systempb.TimeRequest{})
-		if err != nil {
-			t.Logf("Got expected error getting gnoi system time with bad creds, error: %s", err)
+		if err != nil && status.Code(err) == codes.PermissionDenied {
+			t.Logf("Got expected error getting gnoi system time with no permissions, error: %s", err)
+		} else {
+			t.Errorf("Did not get expected error getting gnoi system time with no permissions. error: %s", err)
 		}
 	} else {
 		rpcName = gnoiPingPath
@@ -873,8 +951,10 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 			t.Errorf("Got unexpected error getting gnoi system ping client, error: %s", err1)
 		}
 		_, err = gnoiSystemPingClient.Recv()
-		if err != nil {
-			t.Logf("Got expected error getting gnoi system ping with bad creds, error: %s", err)
+		if err != nil && status.Code(err) == codes.PermissionDenied {
+			t.Logf("Got expected error getting gnoi system ping with no permissions, error: %s", err)
+		} else {
+			t.Errorf("Did not get expected error getting gnoi system ping with no permissions. error: %s", err)
 		}
 	}
 
@@ -991,7 +1071,7 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		failpass = failAuthorizePassword
 	} else {
 		failuser = FailAuthenticateUsername
-		failpass = failAuthenticatePassword
+		failpass = failPassword
 	}
 	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, failuser, passKey, failpass))
 	var authzClient authzpb.AuthzClient
@@ -1014,10 +1094,10 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	// Send an unsuccessful gNSI authz get request (bad creds in context), we don't
 	// care about receiving on it, just want to make the request.
 	_, err := authzClient.Get(ctx, &authzpb.GetRequest{})
-	if err != nil {
-		t.Logf("Got expected error fetching authz policy with bad creds, error: %s", err)
+	if err != nil && status.Code(err) == codes.PermissionDenied {
+		t.Logf("Got expected error fetching authz policy with no permissions, error: %s", err)
 	} else {
-		t.Logf("Did not get expected error fetching authz policy with bad creds.")
+		t.Errorf("Did not get expected error fetching authz policy with no permissions. error: %s", err)
 	}
 	if !deviations.AcctzRecordFailGrpcUnsupported(dut) {
 		records = append(records, &acctzpb.RecordResponse{
@@ -1113,7 +1193,7 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespon
 		failpass = failAuthorizePassword
 	} else {
 		failuser = FailAuthenticateUsername
-		failpass = failAuthenticatePassword
+		failpass = failPassword
 	}
 	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, failuser, passKey, failpass))
 
@@ -1134,9 +1214,19 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespon
 	if err != nil {
 		t.Fatalf("Got unexpected error during gribi get request, error: %s", err)
 	}
+	rpcExpStatus := acctzpb.AuthzDetail_AUTHZ_STATUS_DENY
 	_, err = gribiGetClient.Recv()
-	if err != nil {
-		t.Logf("Got expected error during gribi recv request, error: %s", err)
+	if deviations.GribiAaaRoleBasedAuthzUnsupported(dut) {
+		rpcExpStatus = acctzpb.AuthzDetail_AUTHZ_STATUS_PERMIT
+		if err != nil && !errors.Is(err, io.EOF) {
+			t.Errorf("Got unexpected error during gribi recv request, error: %s", err)
+		}
+	} else {
+		if err != nil && status.Code(err) == codes.PermissionDenied {
+			t.Logf("Got expected error during gribi recv request with no permissions, error: %s", err)
+		} else {
+			t.Errorf("Did not get expected error during gribi recv request with no permissions. error: %s", err)
+		}
 	}
 
 	records = append(records, &acctzpb.RecordResponse{
@@ -1145,7 +1235,7 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespon
 				ServiceType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GRIBI,
 				RpcName:     gribiGetPath,
 				Authz: &acctzpb.AuthzDetail{
-					Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY, gribiGetPath),
+					Status: expectedAuthzStatus(dut, rpcExpStatus, gribiGetPath),
 				},
 			},
 		},
@@ -1273,7 +1363,7 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		failpass = failAuthorizePassword
 	} else {
 		failuser = FailAuthenticateUsername
-		failpass = failAuthenticatePassword
+		failpass = failPassword
 	}
 	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, failuser, passKey, failpass))
 
@@ -1281,9 +1371,19 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	if err != nil {
 		t.Fatalf("Got unexpected error during p4rt get request, error: %s", err)
 	}
+	rpcExpStatus := acctzpb.AuthzDetail_AUTHZ_STATUS_DENY
 	_, err = p4rtclient.Capabilities(ctx, &p4pb.CapabilitiesRequest{})
-	if err != nil {
-		t.Logf("Got expected error getting p4rt capabilities with no creds, error: %s", err)
+	if deviations.P4RTAaaRoleBasedAuthzUnsupported(dut) {
+		rpcExpStatus = acctzpb.AuthzDetail_AUTHZ_STATUS_PERMIT
+		if err != nil {
+			t.Errorf("Got unexpected error during p4rt capabilities request, error: %s", err)
+		}
+	} else {
+		if err != nil && status.Code(err) == codes.PermissionDenied {
+			t.Logf("Got expected error getting p4rt capabilities with no permissions, error: %s", err)
+		} else {
+			t.Errorf("Did not get expected error fetching pr4t capabilities with no permissions, error: %s", err)
+		}
 	}
 	if !deviations.AcctzRecordFailGrpcUnsupported(dut) {
 		records = append(records, &acctzpb.RecordResponse{
@@ -1292,7 +1392,7 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 					ServiceType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_P4RT,
 					RpcName:     p4rtCapabilitiesPath,
 					Authz: &acctzpb.AuthzDetail{
-						Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY, p4rtCapabilitiesPath),
+						Status: expectedAuthzStatus(dut, rpcExpStatus, p4rtCapabilitiesPath),
 					},
 				},
 			},
@@ -1364,7 +1464,7 @@ func SendSuccessCliCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding b
 	// Per https://github.com/openconfig/featureprofiles/issues/2637, waiting to see what the
 	// "best"/"preferred" way is to get the v4/v6 of the dut. For now, we use this workaround
 	// because ssh isn't exposed in introspection.
-	target := getSSHTarget(t, dut, staticBinding)
+	target := GetSSHTarget(t, dut, staticBinding)
 
 	var records []*acctzpb.RecordResponse
 
@@ -1446,7 +1546,7 @@ func SendFailCliCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool
 	// Per https://github.com/openconfig/featureprofiles/issues/2637, waiting to see what the
 	// "best"/"preferred" way is to get the v4/v6 of the dut. For now, we use this workaround
 	// because ssh isn't exposed in introspection.
-	target := getSSHTarget(t, dut, staticBinding)
+	target := GetSSHTarget(t, dut, staticBinding)
 
 	var records []*acctzpb.RecordResponse
 
@@ -1544,7 +1644,7 @@ func SendShellCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) 
 	// Per https://github.com/openconfig/featureprofiles/issues/2637, waiting to see what the
 	// "best"/"preferred" way is to get the v4/v6 of the dut. For now, we use this workaround
 	// because ssh isn't exposed in introspection.
-	target := getSSHTarget(t, dut, staticBinding)
+	target := GetSSHTarget(t, dut, staticBinding)
 
 	var records []*acctzpb.RecordResponse
 	shellUsername := SuccessUsername
@@ -1622,10 +1722,163 @@ func SendShellCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) 
 	return records
 }
 
-func expectedAuthzStatus(dut *ondatra.DUTDevice, status acctzpb.AuthzDetail_AuthzStatus, rpcName string) acctzpb.AuthzDetail_AuthzStatus {
-	if dut.Vendor() == ondatra.NOKIA && status == acctzpb.AuthzDetail_AUTHZ_STATUS_DENY {
-		return acctzpb.AuthzDetail_AUTHZ_STATUS_ERROR
+func enableAccountingStartStop(t *testing.T, dut *ondatra.DUTDevice) {
+	var cliCommand string
+	switch dut.Vendor() {
+	case ondatra.CISCO:
+		cliCommand = "aaa accounting commands default start-stop local"
+	case ondatra.ARISTA:
+		cliCommand = "aaa accounting commands all default start-stop logging"
 	}
+	if cliCommand != "" {
+		helpers.GnmiCLIConfig(t, dut, cliCommand)
+	}
+}
+
+func configureRegularUser(t *testing.T, dut *ondatra.DUTDevice) {
+	auth := &oc.System_Aaa_Authentication{}
+	u := auth.GetOrCreateUser(privEscUsername)
+	u.SetRole(oc.UnionString("network-operator"))
+	ondatragnmi.Update(t, dut, ondatragnmi.OC().System().Aaa().Authentication().Config(), auth)
+	t.Logf("Created user %s with role network-operator", privEscUsername)
+}
+
+func configureEnableAuth(t *testing.T, dut *ondatra.DUTDevice) {
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		helpers.GnmiCLIConfig(t, dut, "aaa authentication enable default local\nenable password acctzEnable")
+		setupUserPassword(t, dut, privEscUsername, privEscPassword)
+	case ondatra.CISCO:
+		helpers.GnmiCLIConfig(t, dut, "aaa authentication enable default local\nenable secret acctzEnable")
+	}
+}
+
+func SendPrivEscalation(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool, expectPass bool) []*acctzpb.RecordResponse {
+	target := GetSSHTarget(t, dut, staticBinding)
+	var records []*acctzpb.RecordResponse
+
+	enableAccountingStartStop(t, dut)
+	configureRegularUser(t, dut)
+	configureEnableAuth(t, dut)
+
+	var user, password string
+	var recordStatus acctzpb.AuthnDetail_AuthnStatus
+	if expectPass {
+		user = SuccessUsername
+		password = successPassword
+		recordStatus = acctzpb.AuthnDetail_AUTHN_STATUS_SUCCESS
+	} else {
+		user = privEscUsername
+		password = privEscPassword
+		recordStatus = acctzpb.AuthnDetail_AUTHN_STATUS_FAIL
+	}
+
+	sshConn, w := dialSSH(t, dut, user, password, target)
+	remoteIP, remotePort := getHostPortInfo(t, sshConn.LocalAddr().String())
+	localIP, localPort := getHostPortInfo(t, target)
+	defer func() {
+		time.Sleep(6 * time.Second)
+		err := sshConn.Close()
+		if err != nil {
+			t.Logf("Error closing tcp(ssh) connection, will ignore, error: %s", err)
+		}
+	}()
+
+	privEscCmd := getPrivEscalationCommand(dut)
+	_, err := w.Write([]byte(privEscCmd + "\n"))
+	if err != nil {
+		t.Fatalf("Failed sending privilege escalation command, error: %s", err)
+	}
+
+	time.Sleep(2 * time.Second)
+
+	_, err = w.Write([]byte("wrongpassword\n"))
+	if err != nil {
+		t.Fatalf("Failed sending privilege escalation password, error: %s", err)
+	}
+
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		records = append(records, &acctzpb.RecordResponse{
+			ServiceRequest: &acctzpb.RecordResponse_CmdService{
+				CmdService: &acctzpb.CommandService{
+					ServiceType: acctzpb.CommandService_CMD_SERVICE_TYPE_CLI,
+				},
+			},
+			SessionInfo: &acctzpb.SessionInfo{
+				Status:        acctzpb.SessionInfo_SESSION_STATUS_ENABLE,
+				LocalAddress:  localIP,
+				LocalPort:     localPort,
+				RemoteAddress: remoteIP,
+				RemotePort:    remotePort,
+				IpProto:       ipProto,
+				Authn: &acctzpb.AuthnDetail{
+					Type:   acctzpb.AuthnDetail_AUTHN_TYPE_PASSWORD,
+					Status: recordStatus,
+				},
+				User: &acctzpb.UserDetail{
+					Identity: user,
+				},
+			},
+		})
+	case ondatra.CISCO:
+		records = append(records, &acctzpb.RecordResponse{
+			ServiceRequest: &acctzpb.RecordResponse_CmdService{
+				CmdService: &acctzpb.CommandService{
+					ServiceType: acctzpb.CommandService_CMD_SERVICE_TYPE_CLI,
+				},
+			},
+			SessionInfo: &acctzpb.SessionInfo{
+				Status:        acctzpb.SessionInfo_SESSION_STATUS_OPERATION,
+				LocalAddress:  localIP,
+				LocalPort:     localPort,
+				RemoteAddress: remoteIP,
+				RemotePort:    remotePort,
+				IpProto:       ipProto,
+				User: &acctzpb.UserDetail{
+					Identity: user,
+					Role:     "root-lr, cisco-support",
+				},
+			},
+		})
+	default:
+		records = append(records, &acctzpb.RecordResponse{
+			ServiceRequest: &acctzpb.RecordResponse_CmdService{
+				CmdService: &acctzpb.CommandService{
+					ServiceType: acctzpb.CommandService_CMD_SERVICE_TYPE_CLI,
+				},
+			},
+			SessionInfo: &acctzpb.SessionInfo{
+				Status:        acctzpb.SessionInfo_SESSION_STATUS_ENABLE,
+				LocalAddress:  localIP,
+				LocalPort:     localPort,
+				RemoteAddress: remoteIP,
+				RemotePort:    remotePort,
+				IpProto:       ipProto,
+				Authn: &acctzpb.AuthnDetail{
+					Type:   acctzpb.AuthnDetail_AUTHN_TYPE_PASSWORD,
+					Status: acctzpb.AuthnDetail_AUTHN_STATUS_FAIL,
+				},
+				User: &acctzpb.UserDetail{
+					Identity: user,
+				},
+			},
+		})
+	}
+
+	return records
+}
+
+func getPrivEscalationCommand(dut *ondatra.DUTDevice) string {
+	switch dut.Vendor() {
+	case ondatra.ARISTA, ondatra.CISCO:
+		return "configure terminal"
+	default:
+		return ""
+	}
+}
+
+func expectedAuthzStatus(dut *ondatra.DUTDevice, status acctzpb.AuthzDetail_AuthzStatus, rpcName string) acctzpb.AuthzDetail_AuthzStatus {
 	if dut.Vendor() == ondatra.ARISTA && rpcName == gribiGetPath && status == acctzpb.AuthzDetail_AUTHZ_STATUS_DENY {
 		return acctzpb.AuthzDetail_AUTHZ_STATUS_PERMIT
 	}

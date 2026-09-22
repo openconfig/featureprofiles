@@ -1,0 +1,30 @@
+# proto-file: github.com/openconfig/kne/proto/topo.proto
+# proto-message: Topology
+name: "juniper-ncptx-dut"
+nodes: {
+    name: "dut"
+    vendor: JUNIPER
+    model: "ncptx"
+    os: "evo"
+    config: {
+        image: "ncptx:latest"
+        config_path: "/home/evo/configdisk"
+        config_file: "juniper.conf"
+        file: "bx-config.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "grpc-server-cert"
+                key_name: "N/A"
+                key_size: 4096
+            }
+        }
+        env: {
+            key: "CPTX_COSIM"
+            value: "BX"
+        }
+        env: {
+            key: "JUNOS_EVOLVED_CONTAINER"
+            value: "1"
+        }
+    }
+}

@@ -4,7 +4,7 @@
 uuid:  "01e97eb5-b01c-4d26-a1e4-8cf29d1e2245"
 plan_id:  "PF-1.20"
 description:  "MPLSoGUE IPV4 decapsulation of IPV4/IPV6 payload scale test"
-testbed:  TESTBED_DUT_ATE_4LINKS
+testbed:  TESTBED_DUT_ATE_8LINKS
 platform_exceptions: {
   platform: {
     vendor: ARISTA
@@ -20,5 +20,6 @@ platform_exceptions: {
   gue_gre_decap_unsupported: true
   static_mpls_unsupported: true
   default_network_instance: "default"
+  policy_rule_counters_oc_unsupported: true
   }
 }
