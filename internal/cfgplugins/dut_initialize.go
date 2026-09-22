@@ -355,7 +355,7 @@ hardware tcam
 `
 
 	nokiaSecondaryDefaultLookup = `
-platform resource_management mdb-profile id 2
+platform resource-management mdb-profile id 2
 system datapath secondary-default-lookup admin-state enable
 `
 
