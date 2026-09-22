@@ -7,6 +7,103 @@ matching and policy nesting as well as and actions in a single BGP import
 policy.  Additional combinations may be added in the future as additonal
 subtests.
 
+## Canonical OC
+
+```json
+{
+  "network-instances": {
+    "network-instance": [
+      {
+        "config": {
+          "name": "DEFAULT"
+        },
+        "name": "DEFAULT",
+        "protocols": {
+          "protocol": [
+            {
+              "bgp": {
+                "neighbors": {
+                  "neighbor": [
+                    {
+                      "afi-safis": {
+                        "afi-safi": [
+                          {
+                            "afi-safi-name": "IPV4_UNICAST",
+                            "apply-policy": {
+                              "config": {
+                                "default-export-policy": "REJECT_ROUTE",
+                                "default-import-policy": "REJECT_ROUTE",
+                                "export-policy": [
+                                  "multiPolicy"
+                                ]
+                              }
+                            },
+                            "config": {
+                              "afi-safi-name": "IPV4_UNICAST",
+                              "send-community-type": [
+                                "STANDARD",
+                                "EXTENDED"
+                              ]
+                            }
+                          }
+                        ]
+                      },
+                      "config": {
+                        "neighbor-address": "192.0.2.6"
+                      },
+                      "neighbor-address": "192.0.2.6"
+                    }
+                  ]
+                }
+              },
+              "config": {
+                "identifier": "BGP",
+                "name": "BGP"
+              },
+              "identifier": "BGP",
+              "name": "BGP"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "routing-policy": {
+    "policy-definitions": {
+      "policy-definition": [
+        {
+          "config": {
+            "name": "multiPolicy"
+          },
+          "name": "multiPolicy",
+          "statements": {
+            "statement": [
+              {
+                "actions": {
+                  "bgp-actions": {
+                    "config": {
+                      "set-med": 100,
+                      "set-med-action": "SET"
+                    }
+                  },
+                  "config": {
+                    "policy-result": "ACCEPT_ROUTE"
+                  }
+                },
+                "config": {
+                  "name": "match_aspath_set_med"
+                },
+                "name": "match_aspath_set_med"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
 ## Testbed type
 
 * [2 port ATE to DUT](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_2.testbed)
