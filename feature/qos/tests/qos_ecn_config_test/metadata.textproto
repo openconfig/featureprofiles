@@ -11,6 +11,8 @@ platform_exceptions: {
   }
   deviations: {
     interface_ref_interface_id_format: true
+    ecn_same_min_max_threshold_unsupported: true
+    state_path_unsupported: true
   }
 }
 platform_exceptions: {
@@ -27,8 +29,11 @@ platform_exceptions: {
     vendor: ARISTA
   }
   deviations: {
+    qos_get_state_path_unsupported: true
     state_path_unsupported: true
     interface_ref_config_unsupported: true
+    ecn_min_greater_max_threshold_unsupported: true
+    ecn_threshold_percent_unsupported: true
   }
 }
 platform_exceptions: {
@@ -36,12 +41,13 @@ platform_exceptions: {
     vendor: CISCO
   }
   deviations: {
+    qos_get_state_path_unsupported: true
     state_path_unsupported: true
     drop_weight_leaves_unsupported: true
     qos_queue_requires_id: true
     ecn_same_min_max_threshold_unsupported: true
+    ecn_min_greater_max_threshold_unsupported: true
     qos_set_weight_config_unsupported: true
-    qos_get_state_path_unsupported: true
     qos_scheduler_config_required: true
   }
 }

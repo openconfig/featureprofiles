@@ -2395,3 +2395,13 @@ func BgpAdjRibOcUnsupported(dut *ondatra.DUTDevice) bool {
 func AigpMetricIncrement(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAigpMetricIncrement()
 }
+
+// EcnMinGreaterMaxThresholdUnsupported returns true if device does not support bounds validation for ECN thresholds.
+func EcnMinGreaterMaxThresholdUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEcnMinGreaterMaxThresholdUnsupported()
+}
+
+// EcnThresholdPercentUnsupported returns true if device does not support percentage-based ECN thresholds.
+func EcnThresholdPercentUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEcnThresholdPercentUnsupported()
+}

@@ -1479,6 +1479,15 @@ message Metadata {
     // Devices that donot support AIGP metric increment when IGP metric to original destination is zero
     bool aigp_metric_increment = 458;
 
+     // Devices that do not support validating that max threshold is strictly greater than min threshold.
+    // ARISTA & CISCO: https://partnerissuetracker.corp.google.com/...
+    bool ecn_min_greater_max_threshold_unsupported = 459;
+
+    // Devices that do not support percentage-based ECN thresholds (min/max-threshold-percent).
+    // ARISTA
+    bool ecn_threshold_percent_unsupported = 460;
+
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }

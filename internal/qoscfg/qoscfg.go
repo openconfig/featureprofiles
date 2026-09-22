@@ -30,7 +30,7 @@ func SetForwardingGroup(t *testing.T, dut *ondatra.DUTDevice, qos *oc.Qos, group
 	t.Helper()
 	qos.GetOrCreateForwardingGroup(groupName).SetOutputQueue(queueName)
 	qos.GetOrCreateQueue(queueName)
-	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
+	gnmi.Update(t, dut, gnmi.OC().Qos().Config(), qos)
 }
 
 // SetInputClassifier sets an input classifier in the specified QoS config.
@@ -49,7 +49,7 @@ func SetInputClassifier(t *testing.T, dut *ondatra.DUTDevice, qos *oc.Qos, intfI
 		intf.InterfaceRef = nil
 	}
 	intf.GetOrCreateInput().GetOrCreateClassifier(classType).SetName(className)
-	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
+	gnmi.Update(t, dut, gnmi.OC().Qos().Config(), qos)
 }
 
 // SetOutputQueueManagementProfile sets an output queue management profile on the specified interface queue.
@@ -72,4 +72,47 @@ func SetOutputQueueManagementProfile(t *testing.T, dut *ondatra.DUTDevice, qos *
 		output.SetBufferAllocationProfile("ballocprofile")
 	}
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
+}
+
+// ConfigureIPv4DSCPClassifier creates an IPv4 classifier that matches the specified DSCP value.
+func ConfigureIPv4DSCPClassifier(t *testing.T, qos *oc.Qos, className string, targetGroup string, dscp uint8) {
+	t.Helper()
+	classifier := qos.GetOrCreateClassifier(className)
+	classifier.SetName(className)
+	classifier.SetType(oc.Qos_Classifier_Type_IPV4)
+	term := classifier.GetOrCreateTerm("term1")
+	term.SetId("term1")
+	term.GetOrCreateConditions().GetOrCreateIpv4().SetDscp(dscp)
+	if targetGroup != "" {
+		term.GetOrCreateActions().SetTargetGroup(targetGroup)
+	}
+}
+
+// BuildOutputQueueManagementProfile attaches a queue management profile to a specified interface queue without applying it.
+func BuildOutputQueueManagementProfile(dut *ondatra.DUTDevice, qos *oc.Qos, intfID, queueName, profileName string) {
+	qosIntfID := intfID
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		qosIntfID += ".0"
+	}
+	intf := qos.GetOrCreateInterface(qosIntfID)
+	intf.SetInterfaceId(qosIntfID)
+	intf.GetOrCreateInterfaceRef().SetInterface(intfID)
+	if dut.Vendor() != ondatra.CISCO {
+		intf.GetOrCreateInterfaceRef().SetSubinterface(0)
+	}
+	if deviations.InterfaceRefConfigUnsupported(dut) {
+		intf.InterfaceRef = nil
+	}
+
+	if deviations.QOSQueueRequiresID(dut) {
+		q1 := qos.GetOrCreateQueue(queueName)
+		q1.Name = ygot.String(queueName)
+		q1.QueueId = ygot.Uint8(0)
+	}
+
+	queue := intf.GetOrCreateOutput().GetOrCreateQueue(queueName)
+	queue.SetName(queueName)
+	if profileName != "" {
+		queue.SetQueueManagementProfile(profileName)
+	}
 }

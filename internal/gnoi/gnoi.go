@@ -144,3 +144,15 @@ func FetchProcessName(dut *ondatra.DUTDevice, daemon Daemon) (string, error) {
 	}
 	return d, nil
 }
+
+// SwitchControlProcessor triggers a supervisor switchover on the device.
+func SwitchControlProcessor(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	gnoiClient := dut.RawAPIs().GNOI(t)
+	req := &spb.SwitchControlProcessorRequest{}
+	_, err := gnoiClient.System().SwitchControlProcessor(context.Background(), req)
+	if err != nil {
+		t.Fatalf("Failed to execute SwitchControlProcessor: %v", err)
+	}
+	t.Log("Successfully triggered SwitchControlProcessor")
+}
