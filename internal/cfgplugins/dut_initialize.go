@@ -52,6 +52,7 @@ const (
 	FeatureHierarchicalFIB
 	FeatureSecondaryDefaultLookup
 	FeatureAnpf
+	FeatureHighScale
 
 	aristaTcamProfileMplsTracking = `
 hardware counter feature traffic-policy in
@@ -1498,6 +1499,18 @@ router general
 !
    `
 
+const ciscoHighScale = `no hw-module profile cef cbf forward-class-list 0 5
+no hw-module profile cef sropt enable
+no hw-module profile cef dark-bw enable
+no hw-module profile cef te-tunnel highscale-no-ldp-over-te
+no hw-module profile route scale ipv6-unicast connected-prefix high
+hw-module profile cef hash ip-field-duplication
+hw-module profile pbr vrf-redirect
+hw-module profile qos qos-stats-push-collection
+hw-module profile cef iptunnel scale
+hw-module profile npu-compatibility Q200
+hw-module local-station-mac 0010.0010.0010`
+
 var (
 	aristaTcamProfileMap = map[FeatureType]string{
 		FeatureMplsTracking:           aristaTcamProfileMplsTracking,
@@ -1518,6 +1531,10 @@ var (
 
 	nokiaHardwareInitMap = map[FeatureType]string{
 		FeatureSecondaryDefaultLookup: nokiaSecondaryDefaultLookup,
+	}
+
+	ciscoHardwareInitMap = map[FeatureType]string{
+		FeatureHighScale: ciscoHighScale,
 	}
 )
 
@@ -1549,6 +1566,8 @@ func NewDUTHardwareInit(t *testing.T, dut *ondatra.DUTDevice, feature FeatureTyp
 		return aristaTcamProfileMap[feature]
 	case ondatra.NOKIA:
 		return nokiaHardwareInitMap[feature]
+	case ondatra.CISCO:
+		return ciscoHardwareInitMap[feature]
 	default:
 		return ""
 	}
