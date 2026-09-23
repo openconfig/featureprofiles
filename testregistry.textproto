@@ -827,6 +827,11 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_remove_private_as/bgp_remove_private_as_test.go"
 }
 test: {
+  id: "RT-1.110"
+  description: "Single-Hop BFD over eBGP Subinterfaces"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_single_hop_bfd_test/README.md"
+}
+test: {
   id: "RT-1.12"
   description: "BGP always compare MED"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_always_compare_med/README.md"
