@@ -505,6 +505,9 @@ func testgueV6Decap(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice
 	otgObj.PushConfig(t, otgConfig)
 	otgObj.StartProtocols(t)
 
+	otgutils.WaitForARP(t, otgObj, otgConfig, "ipv4")
+	otgutils.WaitForARP(t, otgObj, otgConfig, "ipv6")
+
 	sendTrafficCapture(t, ate)
 	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
 	verifyTrafficFlow(t, ate, tc.flow.flows.FlowName, false)
@@ -640,7 +643,7 @@ func TestDoubleGueDecap(t *testing.T) {
 					IsTxRxPort: true,
 					FlowName:   "flowType1",
 					EthFlow:    &otgconfighelpers.EthFlowParams{SrcMAC: otgPorts["port1"].MAC, DstMAC: port1DstMac},
-					IPv6Flow:   &otgconfighelpers.IPv6FlowParams{IPv6Src: ateP1.IPv6, IPv6Dst: decapOuterIp, TrafficClass: 35, HopLimit: 70},
+					IPv6Flow:   &otgconfighelpers.IPv6FlowParams{IPv6Src: ateP1.IPv6, IPv6Dst: decapOuterIp, TrafficClass: 35 << 2, HopLimit: 70},
 					UDPFlow:    &otgconfighelpers.UDPFlowParams{UDPDstPort: gueProtocolPort, SetUDPCheckSum: true, UDPCheckSum: 0},
 				},
 				middleParams: otgconfighelpers.Flow{
@@ -674,15 +677,15 @@ func TestDoubleGueDecap(t *testing.T) {
 					IsTxRxPort: true,
 					FlowName:   "flowType2",
 					EthFlow:    &otgconfighelpers.EthFlowParams{SrcMAC: otgPorts["port1"].MAC, DstMAC: port1DstMac},
-					IPv6Flow:   &otgconfighelpers.IPv6FlowParams{IPv6Src: ateP1.IPv6, IPv6Dst: decapOuterIp, TrafficClass: 35, HopLimit: 70},
+					IPv6Flow:   &otgconfighelpers.IPv6FlowParams{IPv6Src: ateP1.IPv6, IPv6Dst: decapOuterIp, TrafficClass: 35 << 2, HopLimit: 70},
 					UDPFlow:    &otgconfighelpers.UDPFlowParams{UDPDstPort: gueProtocolPort, SetUDPCheckSum: true, UDPCheckSum: 0},
 				},
 				middleParams: otgconfighelpers.Flow{
-					IPv6Flow: &otgconfighelpers.IPv6FlowParams{IPv6Src: midSrcIPv6, IPv6Dst: strings.Split(decapInnerv6, "/")[0], TrafficClass: 32, HopLimit: 60},
+					IPv6Flow: &otgconfighelpers.IPv6FlowParams{IPv6Src: midSrcIPv6, IPv6Dst: strings.Split(decapInnerv6, "/")[0], TrafficClass: 32 << 2, HopLimit: 60},
 					UDPFlow:  &otgconfighelpers.UDPFlowParams{UDPDstPort: gueProtocolPort},
 				},
 				innerParams: otgconfighelpers.Flow{
-					IPv6Flow: &otgconfighelpers.IPv6FlowParams{IPv6Src: srcHostv6, IPv6Dst: dstHostv6, TrafficClass: 20, HopLimit: 50},
+					IPv6Flow: &otgconfighelpers.IPv6FlowParams{IPv6Src: srcHostv6, IPv6Dst: dstHostv6, TrafficClass: 20 << 2, HopLimit: 50},
 				},
 			},
 
@@ -692,7 +695,7 @@ func TestDoubleGueDecap(t *testing.T) {
 				Validations: []packetvalidationhelpers.ValidationType{packetvalidationhelpers.ValidateIPv6Header},
 				IPv6Layer: &packetvalidationhelpers.IPv6Layer{
 					HopLimit:     49,
-					TrafficClass: 20,
+					TrafficClass: 20 << 2,
 					DstIP:        dstHostv6,
 				},
 			},
@@ -707,7 +710,7 @@ func TestDoubleGueDecap(t *testing.T) {
 					IsTxRxPort: true,
 					FlowName:   "flowType3",
 					EthFlow:    &otgconfighelpers.EthFlowParams{SrcMAC: otgPorts["port1"].MAC, DstMAC: port1DstMac},
-					IPv6Flow:   &otgconfighelpers.IPv6FlowParams{IPv6Src: ateP1.IPv6, IPv6Dst: decapOuterIp, TrafficClass: 35, HopLimit: 70},
+					IPv6Flow:   &otgconfighelpers.IPv6FlowParams{IPv6Src: ateP1.IPv6, IPv6Dst: decapOuterIp, TrafficClass: 35 << 2, HopLimit: 70},
 					UDPFlow:    &otgconfighelpers.UDPFlowParams{UDPDstPort: gueProtocolPort, SetUDPCheckSum: true, UDPCheckSum: 0},
 				},
 				middleParams: otgconfighelpers.Flow{
@@ -729,7 +732,7 @@ func TestDoubleGueDecap(t *testing.T) {
 					IsTxRxPort: true,
 					FlowName:   "flowType1",
 					EthFlow:    &otgconfighelpers.EthFlowParams{SrcMAC: otgPorts["port1"].MAC, DstMAC: port1DstMac},
-					IPv6Flow:   &otgconfighelpers.IPv6FlowParams{IPv6Src: ateP1.IPv6, IPv6Dst: decapOuterIp, TrafficClass: 35, HopLimit: 70},
+					IPv6Flow:   &otgconfighelpers.IPv6FlowParams{IPv6Src: ateP1.IPv6, IPv6Dst: decapOuterIp, TrafficClass: 35 << 2, HopLimit: 70},
 					UDPFlow:    &otgconfighelpers.UDPFlowParams{UDPDstPort: gueProtocolPort, SetUDPCheckSum: true, UDPCheckSum: 0},
 				},
 				middleParams: otgconfighelpers.Flow{
@@ -751,15 +754,15 @@ func TestDoubleGueDecap(t *testing.T) {
 					IsTxRxPort: true,
 					FlowName:   "flowType2",
 					EthFlow:    &otgconfighelpers.EthFlowParams{SrcMAC: otgPorts["port1"].MAC, DstMAC: port1DstMac},
-					IPv6Flow:   &otgconfighelpers.IPv6FlowParams{IPv6Src: ateP1.IPv6, IPv6Dst: decapOuterIp, TrafficClass: 35, HopLimit: 70},
+					IPv6Flow:   &otgconfighelpers.IPv6FlowParams{IPv6Src: ateP1.IPv6, IPv6Dst: decapOuterIp, TrafficClass: 35 << 2, HopLimit: 70},
 					UDPFlow:    &otgconfighelpers.UDPFlowParams{UDPDstPort: gueProtocolPort, SetUDPCheckSum: true, UDPCheckSum: 0},
 				},
 				middleParams: otgconfighelpers.Flow{
-					IPv6Flow: &otgconfighelpers.IPv6FlowParams{IPv6Src: midSrcIPv6, IPv6Dst: strings.Split(decapInnerv6, "/")[0], TrafficClass: 32, HopLimit: 60},
+					IPv6Flow: &otgconfighelpers.IPv6FlowParams{IPv6Src: midSrcIPv6, IPv6Dst: strings.Split(decapInnerv6, "/")[0], TrafficClass: 32 << 2, HopLimit: 60},
 					UDPFlow:  &otgconfighelpers.UDPFlowParams{UDPDstPort: gueProtocolPort},
 				},
 				innerParams: otgconfighelpers.Flow{
-					IPv6Flow: &otgconfighelpers.IPv6FlowParams{IPv6Src: srcHostv6, IPv6Dst: dstHostv6Unreachable, TrafficClass: 20, HopLimit: 50},
+					IPv6Flow: &otgconfighelpers.IPv6FlowParams{IPv6Src: srcHostv6, IPv6Dst: dstHostv6Unreachable, TrafficClass: 20 << 2, HopLimit: 50},
 				},
 			},
 			testFunc: testgueV6DstUnreachable,
