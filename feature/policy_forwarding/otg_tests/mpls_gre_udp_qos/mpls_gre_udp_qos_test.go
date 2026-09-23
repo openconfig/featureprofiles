@@ -619,8 +619,6 @@ func configureStaticRoutes(t *testing.T, dut *ondatra.DUTDevice) {
 	b.Set(t, dut)
 }
 
-// cleanupDUT reverts all DUT configuration applied by ConfigureDut, in the reverse
-// order it was applied, so the DUT is left in its original state.
 func cleanupDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	cleanupQoS(t, dut)
@@ -774,8 +772,6 @@ func sendTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, d
 	waitForTrafficStopped(t, ate, top.Flows().Items()[0].Name(), 10*time.Second)
 }
 
-// waitForTrafficStopped watches one representative flow's transmit state as a cheap proxy for
-// "all flows have stopped", instead of a blind sleep after StopTraffic.
 func waitForTrafficStopped(t *testing.T, ate *ondatra.ATEDevice, flowName string, timeout time.Duration) {
 	t.Helper()
 	_, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flowName).Transmit().State(), timeout, func(val *ygnmi.Value[bool]) bool {
@@ -856,22 +852,20 @@ type encapToIPFlow struct {
 	innerTCP  *otgconfighelpers.TCPFlowParams
 }
 
-// encapOuterSpec is the GRE- or GUE-tunneled outer encapsulation shared by several encap flow variants.
 type encapOuterSpec struct {
 	txOTG                      *otgconfighelpers.InterfaceProperties
 	srcMAC, outerSrc, outerDst string
 	isGRE                      bool
 }
 
-// encapFlowSpec describes one encap-to-IP traffic variant repeated across all 8 MPLS traffic classes.
 type encapFlowSpec struct {
 	namePrefix                 string
 	outer                      encapOuterSpec
 	labelBase                  uint32
-	innerSrc, innerDst         string // used when !ipv6
+	innerSrc, innerDst         string
 	ipv6                       bool
 	innerIPv6Src, innerIPv6Dst string
-	tcpDstPort                 uint32 // 0 means no inner TCP header
+	tcpDstPort                 uint32
 }
 
 func encapFlowSpecs() []encapFlowSpec {
@@ -880,10 +874,8 @@ func encapFlowSpecs() []encapFlowSpec {
 	return []encapFlowSpec{
 		{namePrefix: "MPLSoGRE", outer: gre, labelBase: 99990, innerSrc: "50.1.1.1", innerDst: "11.1.1.1", tcpDstPort: 80},
 		{namePrefix: "MPLSoGUE", outer: gue, labelBase: 99890, innerSrc: "50.1.2.1", innerDst: "11.1.1.1", tcpDstPort: 80},
-		// Multicast inner payload flows using dedicated multicast MPLS labels.
 		{namePrefix: "MPLSoGRE-mcast", outer: gre, labelBase: 99980, innerSrc: "50.1.1.1", innerDst: mcastDst},
 		{namePrefix: "MPLSoGUE-mcast", outer: gue, labelBase: 99880, innerSrc: "50.1.2.1", innerDst: mcastDst},
-		// IPv6 inner payload flows.
 		{namePrefix: "MPLSoGRE-v6", outer: gre, labelBase: 99970, ipv6: true, innerIPv6Src: "2001:db8:100::1", innerIPv6Dst: "2001:db8:200::1", tcpDstPort: 443},
 		{namePrefix: "MPLSoGUE-v6", outer: gue, labelBase: 99870, ipv6: true, innerIPv6Src: "2001:db8:100::1", innerIPv6Dst: "2001:db8:200::1", tcpDstPort: 443},
 	}
@@ -1001,12 +993,9 @@ func queueCounterCandidates(t *testing.T, dut *ondatra.DUTDevice, aggID string, 
 
 var (
 	queueCounterMu    sync.Mutex
-	queueCounterCache = map[string][]string{} // "aggID|counterKind" -> confirmed-reporting interfaces
+	queueCounterCache = map[string][]string{}
 )
 
-// sumQueueCounter sums a per-queue counter across the interfaces known to report it for aggID.
-// The reporting subset of queueCounterCandidates is discovered once per (aggID, counterKind) and
-// cached, so later calls skip re-probing (each a queueCounterTimeout wait) candidates that never report.
 func sumQueueCounter(t *testing.T, dut *ondatra.DUTDevice, aggID string, ports []string, counterKind, queue string, fetch func(intf string) (uint64, bool)) uint64 {
 	t.Helper()
 	key := aggID + "|" + counterKind
@@ -1028,7 +1017,6 @@ func sumQueueCounter(t *testing.T, dut *ondatra.DUTDevice, aggID string, ports [
 	}
 
 	if len(intfs) == 0 {
-		// No candidate interface streamed this leaf at all, which points to missing QoS telemetry/attachment rather than a traffic-forwarding failure.
 		t.Errorf("%s for queue %s not available on any of %v within %v (QoS output-queue telemetry never streamed for these interfaces; verify the scheduler-policy is attached before treating this as lost traffic)", counterKind, queue, queueCounterCandidates(t, dut, aggID, ports), queueCounterTimeout)
 		return 0
 	}
@@ -1060,7 +1048,6 @@ func queueDroppedPkts(t *testing.T, dut *ondatra.DUTDevice, aggID string, ports 
 	})
 }
 
-// collectQueueTxPkts gathers per-queue transmit-pkts counters in qNames order.
 func collectQueueTxPkts(t *testing.T, dut *ondatra.DUTDevice, aggID string, ports []string, qNames []string) []uint64 {
 	t.Helper()
 	txPkts := make([]uint64, len(qNames))
@@ -1070,7 +1057,6 @@ func collectQueueTxPkts(t *testing.T, dut *ondatra.DUTDevice, aggID string, port
 	return txPkts
 }
 
-// setEncapFlowRates sets Flowrate to 0 for TCs in stoppedTCs and to activeRate otherwise.
 func setEncapFlowRates(flows []*encapToIPFlow, stoppedTCs map[int]bool, activeRate float32) {
 	for _, f := range flows {
 		if stoppedTCs[int(f.MPLSFlow.MPLSExp)] {
@@ -1081,7 +1067,6 @@ func setEncapFlowRates(flows []*encapToIPFlow, stoppedTCs map[int]bool, activeRa
 	}
 }
 
-// assertNonDecreasingPriority fails if a lower-priority queue outpaces a higher-priority one, or the top queue is silent.
 func assertNonDecreasingPriority(t *testing.T, label string, qNames []string, txPkts []uint64) {
 	t.Helper()
 	if txPkts[len(txPkts)-1] == 0 {
@@ -1095,7 +1080,6 @@ func assertNonDecreasingPriority(t *testing.T, label string, qNames []string, tx
 	}
 }
 
-// assertIncreased fails if got did not grow past base, e.g. after freeing bandwidth by stopping another TC.
 func assertIncreased(t *testing.T, qn string, got, base uint64) {
 	t.Helper()
 	if got <= base {
@@ -1238,8 +1222,6 @@ func TestPF118Traffic(t *testing.T) {
 		qNames := qcNames
 
 		applySchedulerOnOutput(t, dut, custAggID, bwSchedulerName, qNames)
-
-		// Phase 1: all TCs active under congestion.
 		top.Flows().Clear()
 		flows := buildEncapToIPFlows()
 		setEncapFlowRates(flows, nil, 12)
@@ -1257,8 +1239,6 @@ func TestPF118Traffic(t *testing.T) {
 				t.Logf("queue %s dropped-pkts: %d (congestion expected per README)", qn, dropped)
 			}
 		}
-
-		// Phase 2: stop TC0 and TC1, verify remaining TCs absorb bandwidth.
 		top.Flows().Clear()
 		flows = buildEncapToIPFlows()
 		setEncapFlowRates(flows, map[int]bool{0: true, 1: true}, 12)
@@ -1281,7 +1261,6 @@ func TestPF118Traffic(t *testing.T) {
 
 		applySchedulerOnOutput(t, dut, custAggID, bwShaperSchedulerName, qNames)
 
-		// Phase 1: all TCs active, verify shaper limits on TC0-TC2.
 		top.Flows().Clear()
 		flows := buildEncapToIPFlows()
 		setEncapFlowRates(flows, nil, 12)
@@ -1296,14 +1275,12 @@ func TestPF118Traffic(t *testing.T) {
 				t.Errorf("queue %s: got 0 transmit-pkts, want > 0", qn)
 			}
 		}
-		// PIR limits for TC0-TC2 (bits/s); TC3+ have CIR-only (no hard cap).
 		pirLimits := []uint64{200_000_000, 300_000_000, 400_000_000}
 		for i := range pirLimits {
 			maxExpectedPkts := (pirLimits[i] / 8) * uint64(trafficDuration.Seconds()) / 64
 			t.Logf("queue %s: transmit-pkts %d, shaper max ~%d pkts (PIR %d bps, %v)", qNames[i], txPkts[i], maxExpectedPkts, pirLimits[i], trafficDuration)
 		}
 
-		// Phase 2: stop TC0 and TC1, verify redistribution.
 		top.Flows().Clear()
 		flows = buildEncapToIPFlows()
 		setEncapFlowRates(flows, map[int]bool{0: true, 1: true}, 12)
@@ -1328,7 +1305,6 @@ func TestPF118Traffic(t *testing.T) {
 
 		applySchedulerOnOutput(t, dut, custAggID, prioSchedulerName, qNames)
 
-		// Phase 1: all TCs active under strict priority with congestion.
 		top.Flows().Clear()
 		flows := buildEncapToIPFlows()
 		setEncapFlowRates(flows, nil, 12)
@@ -1340,7 +1316,6 @@ func TestPF118Traffic(t *testing.T) {
 		txPkts := collectQueueTxPkts(t, dut, custAggID, custPorts, qNames)
 		assertNonDecreasingPriority(t, "", qNames, txPkts)
 
-		// Phase 2: stop TC7, verify TC6 absorbs freed bandwidth.
 		top.Flows().Clear()
 		flows = buildEncapToIPFlows()
 		setEncapFlowRates(flows, map[int]bool{7: true}, 12)
@@ -1358,7 +1333,6 @@ func TestPF118Traffic(t *testing.T) {
 
 		applySchedulerOnOutput(t, dut, custAggID, prioShaperSchedulerName, qNames)
 
-		// Phase 1: all TCs active under strict priority + shaper.
 		top.Flows().Clear()
 		flows := buildEncapToIPFlows()
 		setEncapFlowRates(flows, nil, 12)
@@ -1376,14 +1350,13 @@ func TestPF118Traffic(t *testing.T) {
 			}
 		}
 		assertNonDecreasingPriority(t, "", qNames, txPkts)
-		// OneRateTwoColor PIR for TC0-TC3 (bits/s).
+
 		shaperPir := []uint64{100_000_000, 150_000_000, 200_000_000, 250_000_000}
 		for i := range shaperPir {
 			maxExpectedPkts := (shaperPir[i] / 8) * uint64(trafficDuration.Seconds()) / 64
 			t.Logf("queue %s: transmit-pkts %d, shaper max ~%d pkts (PIR %d bps)", qNames[i], txPkts[i], maxExpectedPkts, shaperPir[i])
 		}
 
-		// Phase 2: stop TC7, verify TC6 absorbs freed bandwidth.
 		top.Flows().Clear()
 		flows = buildEncapToIPFlows()
 		setEncapFlowRates(flows, map[int]bool{7: true}, 12)
@@ -1404,7 +1377,6 @@ func TestPF118Traffic(t *testing.T) {
 			name  string
 		}{{core1AggID, core1Ports, "core1"}, {core2AggID, core2Ports, "core2"}}
 
-		// Phase 1: escalating rates per TC to ensure congestion + priority ordering.
 		top.Flows().Clear()
 		flows := buildIPToEncapFlows()
 		for i, f := range flows {
@@ -1418,7 +1390,6 @@ func TestPF118Traffic(t *testing.T) {
 			assertNonDecreasingPriority(t, agg.name+" ", qNames, txPkts)
 		}
 
-		// Phase 2: stop TC7, verify TC6 absorbs freed bandwidth.
 		top.Flows().Clear()
 		flows = buildIPToEncapFlows()
 		for i, f := range flows {
