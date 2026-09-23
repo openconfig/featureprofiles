@@ -811,6 +811,11 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_rt_membership/README.md"
 }
 test: {
+  id: "RT-1.107"
+  description: "BGP FIB Isolation and Peer Soft Drain"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_fib_isolation_and_drain_test/README.md"
+}
+test: {
   id: "RT-1.108"
   description: "Two-Tier BGP Route Propagation and Attribute Transparency"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_two_tier_route_propagation_test/README.md"
