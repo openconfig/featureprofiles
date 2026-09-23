@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "8c9d0e1f-2a3b-4c5d-9e0f-1a2b3c4d5e6f"
+plan_id: "RT-1.108"
+description: "Two-Tier BGP Route Propagation and Attribute Transparency"
+testbed: TESTBED_DUT_ATE_4LINKS
