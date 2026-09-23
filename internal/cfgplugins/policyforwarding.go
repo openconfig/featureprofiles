@@ -1546,7 +1546,7 @@ func ConfigureVRFSelectionPolicyOC(t *testing.T, dut *ondatra.DUTDevice, encapVR
 				fallback = TransitVRF111Str
 			}
 			for _, proto := range []oc.UnionUint8{4, 41} {
-				r := pol.GetOrCreateRule(seq)
+				r := pol.GetOrCreateRule(seqIDOffset(dut, seq))
 				ip4 := r.GetOrCreateIpv4()
 				ip4.Protocol = proto
 				ip4.SourceAddress = ygot.String(fmt.Sprintf("%s/%d", src, IPv4HostMask))
@@ -1570,7 +1570,7 @@ func ConfigureVRFSelectionPolicyOC(t *testing.T, dut *ondatra.DUTDevice, encapVR
 		{4, IPv4OuterSrc111, TransitVRF111Str},
 		{41, IPv4OuterSrc111, TransitVRF111Str},
 	} {
-		r := pol.GetOrCreateRule(seq)
+		r := pol.GetOrCreateRule(seqIDOffset(dut, seq))
 		ip4 := r.GetOrCreateIpv4()
 		ip4.Protocol = entry.proto
 		ip4.SourceAddress = ygot.String(fmt.Sprintf("%s/%d", entry.src, IPv4HostMask))
@@ -1584,26 +1584,26 @@ func ConfigureVRFSelectionPolicyOC(t *testing.T, dut *ondatra.DUTDevice, encapVR
 	for i, vrf := range encapVRFs {
 		d1, d2 := EncapVRFDSCP(i)
 		dscpSet := []uint8{d1, d2}
-		r4 := pol.GetOrCreateRule(seq)
+		r4 := pol.GetOrCreateRule(seqIDOffset(dut, seq))
 		r4.GetOrCreateIpv4().DscpSet = dscpSet
 		r4.GetOrCreateAction().NetworkInstance = ygot.String(vrf)
 		seq++
-		r6 := pol.GetOrCreateRule(seq)
+		r6 := pol.GetOrCreateRule(seqIDOffset(dut, seq))
 		r6.GetOrCreateIpv6().DscpSet = dscpSet
 		r6.GetOrCreateAction().NetworkInstance = ygot.String(vrf)
 		seq++
 	}
 
 	if deviations.PfRequireMatchDefaultRule(dut) {
-		r4 := pol.GetOrCreateRule(seq)
+		r4 := pol.GetOrCreateRule(seqIDOffset(dut, seq))
 		r4.GetOrCreateL2().SetEthertype(oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4)
 		r4.GetOrCreateAction().NetworkInstance = ygot.String(defaultVRF)
 		seq++
-		r6 := pol.GetOrCreateRule(seq)
+		r6 := pol.GetOrCreateRule(seqIDOffset(dut, seq))
 		r6.GetOrCreateL2().SetEthertype(oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV6)
 		r6.GetOrCreateAction().NetworkInstance = ygot.String(defaultVRF)
 	} else {
-		pol.GetOrCreateRule(seq).GetOrCreateAction().NetworkInstance = ygot.String(defaultVRF)
+		pol.GetOrCreateRule(seqIDOffset(dut, seq)).GetOrCreateAction().NetworkInstance = ygot.String(defaultVRF)
 	}
 
 	interfaceID := p1.Name()
