@@ -913,10 +913,23 @@ func ConfigureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 		rebootRequired = ConfigureTcam(t, dut)
 	} else if dut.Vendor() == ondatra.NOKIA {
 		rebootRequired = EnableSecondaryDefaultLookup(t, dut)
+	} else if dut.Vendor() == ondatra.CISCO {
+		rebootRequired = ConfigureCiscoHardwareInit(t, dut)
 	}
 	if rebootRequired {
 		RebootChassis(t, dut)
 	}
+}
+
+// ConfigureCiscoHardwareInit pushes Cisco-specific hardware init configs required for full scale testing.
+func ConfigureCiscoHardwareInit(t *testing.T, dut *ondatra.DUTDevice) bool {
+	t.Helper()
+	cliConfig := NewDUTHardwareInit(t, dut, FeatureHighScale)
+	if cliConfig != "" {
+		PushDUTHardwareInitConfig(t, dut, cliConfig)
+		return true
+	}
+	return false
 }
 
 // ConfigureTcam pushes Arista-specific hardware init configs for TCAM to allocate enough space
