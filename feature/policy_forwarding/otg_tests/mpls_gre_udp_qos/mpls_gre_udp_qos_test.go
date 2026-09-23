@@ -531,7 +531,6 @@ func configureInterfaces(t *testing.T, dut *ondatra.DUTDevice, dutPorts []string
 	lacpPath := d.Lacp().Interface(aggID)
 	fptest.LogQuery(t, "LACP", lacpPath.Config(), lacp)
 	gnmi.Replace(t, dut, lacpPath.Config(), lacp)
-	time.Sleep(5 * time.Second)
 
 	agg := &oc.Interface{Name: ygot.String(aggID)}
 	configDUTInterface(agg, subinterfaces, dut)
@@ -772,7 +771,20 @@ func sendTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, d
 	ate.OTG().StartTraffic(t)
 	time.Sleep(dur)
 	ate.OTG().StopTraffic(t)
-	time.Sleep(10 * time.Second)
+	waitForTrafficStopped(t, ate, top.Flows().Items()[0].Name(), 10*time.Second)
+}
+
+// waitForTrafficStopped watches one representative flow's transmit state as a cheap proxy for
+// "all flows have stopped", instead of a blind sleep after StopTraffic.
+func waitForTrafficStopped(t *testing.T, ate *ondatra.ATEDevice, flowName string, timeout time.Duration) {
+	t.Helper()
+	_, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flowName).Transmit().State(), timeout, func(val *ygnmi.Value[bool]) bool {
+		transmitting, present := val.Val()
+		return present && !transmitting
+	}).Await(t)
+	if !ok {
+		t.Logf("flow %s transmit state did not report stopped within %v; counters may still be settling", flowName, timeout)
+	}
 }
 
 func waitForLAGUp(t *testing.T, dut *ondatra.DUTDevice, aggID string, ports []string) {
@@ -1167,7 +1179,8 @@ func TestPF118Traffic(t *testing.T) {
 		ate.OTG().StartTraffic(t)
 		time.Sleep(10 * time.Second)
 		ate.OTG().StopTraffic(t)
-		time.Sleep(10 * time.Second)
+		otgutils.GetFlowStats(t, ate.OTG(), dscpCaptureGRE.FlowName, 10*time.Second)
+		otgutils.GetFlowStats(t, ate.OTG(), dscpCaptureGUE.FlowName, 10*time.Second)
 		packetvalidationhelpers.StopCapture(t, ate, cs)
 		if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, innerCapture); err != nil {
 			t.Errorf("CaptureAndValidatePackets(inner DSCP/dest-IP after decap): %v", err)
@@ -1208,7 +1221,7 @@ func TestPF118Traffic(t *testing.T) {
 		ate.OTG().StartTraffic(t)
 		time.Sleep(30 * time.Second)
 		ate.OTG().StopTraffic(t)
-		time.Sleep(30 * time.Second)
+		otgutils.GetFlowStats(t, ate.OTG(), flow.FlowName, 30*time.Second)
 		packetvalidationhelpers.StopCapture(t, ate, cs)
 
 		if err := flowValidation(flow.FlowName).ValidateLossOnFlows(t, ate); err != nil {
