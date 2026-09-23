@@ -804,9 +804,9 @@ type CheckForDefaultRoutesParams struct {
 	IPv6Route       string
 }
 
-// CheckForDefaultRoutes checks for the presence of IPv4 and IPv6 default routes
-// in the DUT's static routing table.
-func CheckForDefaultRoutes(t *testing.T, cfg *CheckForDefaultRoutesParams) {
+// CheckForDefaultRoutes reports whether the IPv4 and IPv6 default routes are
+// present in the DUT's static routing table.
+func CheckForDefaultRoutes(t *testing.T, cfg *CheckForDefaultRoutesParams) (v4Present, v6Present bool) {
 	t.Helper()
 
 	staticProtoName := deviations.StaticProtocolName(cfg.DUT)
@@ -814,19 +814,19 @@ func CheckForDefaultRoutes(t *testing.T, cfg *CheckForDefaultRoutesParams) {
 		NetworkInstance(cfg.NetworkInstance).
 		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, staticProtoName)
 
-	v4Present := gnmi.Lookup(t, cfg.DUT, staticProto.Static(cfg.IPv4Route).State()).IsPresent()
-	v6Present := gnmi.Lookup(t, cfg.DUT, staticProto.Static(cfg.IPv6Route).State()).IsPresent()
+	v4Present = gnmi.Lookup(t, cfg.DUT, staticProto.Static(cfg.IPv4Route).State()).IsPresent()
+	v6Present = gnmi.Lookup(t, cfg.DUT, staticProto.Static(cfg.IPv6Route).State()).IsPresent()
 
 	if v4Present && v6Present {
 		t.Logf("AFT-6.2: IPv4 and IPv6 default routes are already present in network-instance %s's static routing table.",
 			cfg.NetworkInstance)
-		return
+		return v4Present, v6Present
 	}
 
 	t.Logf("WARNING: Precondition failed: default route(s) missing from network-instance %s's static routing table "+
-		"(IPv4 present: %v, IPv6 present: %v). Please preconfigure %s and %s as data-plane static routes. "+
-		"Otherwise check for InitialSyncStoppingCondition will fail.",
+		"(IPv4 present: %v, IPv6 present: %v). Please preconfigure %s and %s as data-plane static routes.",
 		cfg.NetworkInstance, v4Present, v6Present, cfg.IPv4Route, cfg.IPv6Route)
+	return v4Present, v6Present
 }
 
 // AddPrefixToPrefixSetParams defines parameters for adding a prefix to a prefix-set.
