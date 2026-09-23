@@ -2403,3 +2403,10 @@ func AigpMetricIncrement(dut *ondatra.DUTDevice) bool {
 func PowerSupplyTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPowerSupplyTelemetryUnsupported()
 }
+
+// GribiCloseClientBeforeSwitchover returns true if the device requires
+// gracefully closing the pre-switchover gRIBI client before triggering a
+// supervisor switchover to prevent proxy EOF errors.
+func GribiCloseClientBeforeSwitchover(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGribiCloseClientBeforeSwitchover()
+}

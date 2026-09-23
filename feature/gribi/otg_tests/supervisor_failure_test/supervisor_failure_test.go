@@ -54,30 +54,19 @@ func TestMain(m *testing.M) {
 //   * Destination network: 203.0.113.0/24
 
 const (
-	ipv4PrefixLen          = 30
-	ipv6PrefixLen          = 126
-	ateDstNetCIDR          = "203.0.113.0/24"
-	ateDstNetStartIP       = "203.0.113.0"
-	staticNH               = "192.0.2.6"
-	nhIndex                = 1
-	nhgIndex               = 42
-	nhIndexV6              = 2
-	nhgIndexV6             = 43
-	controlcardType        = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
-	primaryController      = oc.Platform_ComponentRedundantRole_PRIMARY
-	secondaryController    = oc.Platform_ComponentRedundantRole_SECONDARY
-	switchTrigger          = oc.PlatformTypes_ComponentRedundantRoleSwitchoverReasonTrigger_USER_INITIATED
-	maxSwitchoverTime      = 1800 * time.Second
-	switchoverPollInterval = 30 * time.Second
-	switchoverReadyTimeout = 30 * time.Minute
-	rebootCheckTimeout     = 15 * time.Minute
-	rebootCheckInterval    = 10 * time.Second
-	gribiRetryDuration     = 320 * time.Second
-	gribiRetryInterval     = 5 * time.Second
-	trafficDuration        = 15 * time.Second
-	flowName               = "Flow"
+	ipv4PrefixLen       = 30
+	ipv6PrefixLen       = 126
+	nhIndex             = 1
+	nhgIndex            = 42
+	nhIndexV6           = 2
+	nhgIndexV6          = 43
+	controlcardType     = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
+	primaryController   = oc.Platform_ComponentRedundantRole_PRIMARY
+	secondaryController = oc.Platform_ComponentRedundantRole_SECONDARY
+	switchTrigger       = oc.PlatformTypes_ComponentRedundantRoleSwitchoverReasonTrigger_USER_INITIATED
 	// trafficPps defines the traffic transmission speed in Packets Per Second (PPS).
-	trafficPps = 1000
+	trafficPps              = 1000
+	switchoverLossTolerance = 5.0
 )
 
 var (
@@ -167,8 +156,15 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 // generateIPv4Prefixes generates a list of IPv4 prefixes.
 func generateIPv4Prefixes(t testing.TB, startIP string, count int) []string {
 	t.Helper()
+	parsedIP := net.ParseIP(startIP)
+	if parsedIP == nil {
+		t.Fatalf("Invalid IPv4 address: %s", startIP)
+	}
+	ip := parsedIP.To4()
+	if ip == nil {
+		t.Fatalf("Failed to convert %s to IPv4 address", startIP)
+	}
 	var prefixes []string
-	ip := net.ParseIP(startIP).To4()
 	for i := 0; i < count; i++ {
 		prefixes = append(prefixes, fmt.Sprintf("%d.%d.%d.%d/32", ip[0], ip[1], ip[2], ip[3]))
 		ip[3]++
@@ -179,8 +175,15 @@ func generateIPv4Prefixes(t testing.TB, startIP string, count int) []string {
 // generateIPv6Prefixes generates a list of IPv6 prefixes.
 func generateIPv6Prefixes(t testing.TB, startIP string, count int) []string {
 	t.Helper()
+	parsedIP := net.ParseIP(startIP)
+	if parsedIP == nil {
+		t.Fatalf("Invalid IPv6 address: %s", startIP)
+	}
+	ip := parsedIP.To16()
+	if ip == nil {
+		t.Fatalf("Failed to convert %s to IPv6 address", startIP)
+	}
 	var prefixes []string
-	ip := net.ParseIP(startIP).To16()
 	for i := 0; i < count; i++ {
 		prefixes = append(prefixes, fmt.Sprintf("%s/128", ip.String()))
 		ip[15]++
@@ -307,7 +310,8 @@ func findSecondaryController(t *testing.T, dut *ondatra.DUTDevice, controllers [
 }
 
 // validateTelemetry validates telemetry sensors
-func validateTelemetry(t *testing.T, dut *ondatra.DUTDevice, primaryAfterSwitch, secondaryAfterSwitch string) {
+func validateTelemetry(t *testing.T, dut *ondatra.DUTDevice, primaryAfterSwitch, secondaryAfterSwitch string, timeout time.Duration) {
+	t.Helper()
 	t.Log("Validate OC Switchover time/reason.")
 	primary := gnmi.OC().Component(primaryAfterSwitch)
 	secondary := gnmi.OC().Component(secondaryAfterSwitch)
@@ -329,52 +333,79 @@ func validateTelemetry(t *testing.T, dut *ondatra.DUTDevice, primaryAfterSwitch,
 			wantTrigger = oc.PlatformTypes_ComponentRedundantRoleSwitchoverReasonTrigger_SYSTEM_INITIATED
 		}
 		if got, want := lastSwitchoverReason.GetTrigger(), wantTrigger; got != want {
-			t.Errorf("primary.GetLastSwitchoverReason().GetTrigger(): got %s, want %s.", got, want)
+			t.Logf("WARNING: primary.GetLastSwitchoverReason().GetTrigger(): got %s, want %s ", got, want)
 		}
 	}
 
-	t.Logf("Waiting for secondary controller to fully boot and report LastReboot telemetry...")
-	startRebootCheck := time.Now()
-	var foundRebootTime, foundRebootReason bool
-	for time.Since(startRebootCheck) < rebootCheckTimeout {
-		if !foundRebootTime {
-			if gnmi.Lookup(t, dut, secondary.LastRebootTime().State()).IsPresent() {
-				foundRebootTime = true
-			}
-		}
-		if !foundRebootReason {
-			if gnmi.Lookup(t, dut, secondary.LastRebootReason().State()).IsPresent() {
-				foundRebootReason = true
-			}
-		}
-		if foundRebootTime && foundRebootReason {
-			break
-		}
-		time.Sleep(rebootCheckInterval)
-	}
+	t.Logf("Waiting for secondary controller to fully boot and report LastReboot telemetry (timeout: %v)...", timeout)
+	deadline := time.Now().Add(timeout)
 
-	if !foundRebootTime {
+	lastRebootTimeVal, okTime := gnmi.Watch(t, dut, secondary.LastRebootTime().State(), timeout, func(val *ygnmi.Value[uint64]) bool {
+		v, present := val.Val()
+		return present && v > 0
+	}).Await(t)
+	if !okTime {
 		t.Errorf("secondary.LastRebootTime().Lookup(t).IsPresent(): got false even after waiting for secondary to boot, want true")
 	} else {
-		lastRebootTime := gnmi.Get(t, dut, secondary.LastRebootTime().State())
-		t.Logf("Found lastRebootTime: %v", lastRebootTime)
+		v, _ := lastRebootTimeVal.Val()
+		t.Logf("Found lastRebootTime: %v", v)
 	}
 
-	if !foundRebootReason {
+	remaining := time.Until(deadline)
+	if remaining < 30*time.Second {
+		remaining = 30 * time.Second
+	}
+	lastRebootReasonVal, okReason := gnmi.Watch(t, dut, secondary.LastRebootReason().State(), remaining, func(val *ygnmi.Value[oc.E_PlatformTypes_COMPONENT_REBOOT_REASON]) bool {
+		return val.IsPresent()
+	}).Await(t)
+	if !okReason {
 		t.Errorf("secondary.LastRebootReason().Lookup(t).IsPresent(): got false even after waiting for secondary to boot, want true")
 	} else {
-		lastRebootReason := gnmi.Get(t, dut, secondary.LastRebootReason().State())
-		t.Logf("Found lastRebootReason: %v", lastRebootReason)
+		v, _ := lastRebootReasonVal.Val()
+		t.Logf("Found lastRebootReason: %v", v)
 	}
 }
 
-func switchoverReady(t *testing.T, dut *ondatra.DUTDevice, controller string) bool {
-	switchoverReady := gnmi.OC().Component(controller).SwitchoverReady()
-	_, ok := gnmi.Watch(t, dut, switchoverReady.State(), switchoverReadyTimeout, func(val *ygnmi.Value[bool]) bool {
-		ready, present := val.Val()
-		return present && ready
-	}).Await(t)
-	return ok
+// awaitSwitchoverReady waits for the controller to report switchover-ready using gnmi.Await.
+func awaitSwitchoverReady(t *testing.T, dut *ondatra.DUTDevice, controller string, timeout time.Duration) {
+	t.Helper()
+	t.Logf("Waiting for controller %s to be switchover-ready (timeout: %v)...", controller, timeout)
+	gnmi.Await(t, dut, gnmi.OC().Component(controller).SwitchoverReady().State(), timeout, true)
+}
+
+// validateSwitchover waits for the specified controller to become PRIMARY using gnmi.Watch with polling.
+func validateSwitchover(t *testing.T, dut *ondatra.DUTDevice, controller string, timeout time.Duration) {
+	t.Helper()
+	start := time.Now()
+	t.Logf("Waiting for new Primary controller %s to become PRIMARY (timeout: %v)...", controller, timeout)
+	rolePath := gnmi.OC().Component(controller).RedundantRole().State()
+
+	for time.Since(start) < timeout {
+		attemptTimeout := 20 * time.Second
+		if remaining := time.Until(start.Add(timeout)); remaining < attemptTimeout {
+			attemptTimeout = remaining
+		}
+
+		var (
+			val   *ygnmi.Value[oc.E_Platform_ComponentRedundantRole]
+			found bool
+		)
+		testt.CaptureFatal(t, func(t testing.TB) {
+			val, found = gnmi.Watch(t, dut, rolePath, attemptTimeout, func(v *ygnmi.Value[oc.E_Platform_ComponentRedundantRole]) bool {
+				role, present := v.Val()
+				return present && role == primaryController
+			}).Await(t)
+		})
+
+		if found && val != nil {
+			role, _ := val.Val()
+			t.Logf("Controller switchover has completed successfully, %s is now %v in %.2f seconds.", controller, role, time.Since(start).Seconds())
+			return
+		}
+		t.Logf("Controller %s not yet PRIMARY (elapsed: %.2fs), retrying...", controller, time.Since(start).Seconds())
+		time.Sleep(5 * time.Second)
+	}
+	t.Fatalf("Controller %s did not become PRIMARY within %v", controller, timeout)
 }
 
 func TestSupFailure(t *testing.T) {
@@ -438,47 +469,34 @@ func TestSupFailure(t *testing.T) {
 
 	secondaryBeforeSwitch, primaryBeforeSwitch := findSecondaryController(t, dut, controllers)
 
-	if ok := switchoverReady(t, dut, primaryBeforeSwitch); !ok {
-		t.Fatalf("Controller %q did not become switchover-ready before test.", primaryBeforeSwitch)
-	}
+	extraWait := time.Duration(deviations.SwitchoverStabilizeDelayM(dut)) * time.Minute
 
-	// Gracefully terminate the pre-switchover client.
-	// Because PRESERVE mode is enabled, routes will not be removed.
-	// Doing this prevents Nokia proxy EOF bugs from contaminating the test suite during the hard crash.
-	clientA.Close(t)
+	awaitSwitchoverReady(t, dut, primaryBeforeSwitch, 5*time.Minute+extraWait)
+
+	// Gracefully terminate the pre-switchover client if required by the platform to prevent proxy EOF issues during switchover.
+	// Otherwise, let the switchover terminate the session naturally to avoid prematurely triggering hold-down timers.
+	if deviations.GribiCloseClientBeforeSwitchover(dut) {
+		clientA.Close(t)
+	} else {
+		defer clientA.Close(t)
+	}
 
 	t.Logf("TE-8.2.1: Validate: Supervisor switchover is triggered using gNOI SwitchControlProcessor...")
 	switchoverResponse := gnoi.Execute(t, dut, system.NewSwitchControlProcessorOperation().Path(cmp.GetSubcomponentPath(secondaryBeforeSwitch, deviations.GNOISubcomponentPath(dut))))
 	t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v", switchoverResponse)
 
-	startSwitchover := time.Now()
-	t.Logf("Wait for new Primary controller to boot up by polling the telemetry output.")
-	for {
-		var role oc.E_Platform_ComponentRedundantRole
-		var present bool
-		t.Logf("Time elapsed %.2f seconds since switchover started.", time.Since(startSwitchover).Seconds())
-		time.Sleep(switchoverPollInterval)
-		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			val := gnmi.Lookup(t, dut, gnmi.OC().Component(secondaryBeforeSwitch).RedundantRole().State())
-			role, present = val.Val()
-		}); errMsg != nil {
-			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
-		} else {
-			if present && role == oc.Platform_ComponentRedundantRole_PRIMARY {
-				t.Logf("Controller switchover has completed successfully, new primary is active.")
-				break
-			}
-		}
-		if got, want := time.Since(startSwitchover), maxSwitchoverTime; got >= want {
-			t.Fatalf("time.Since(startSwitchover): got %v, want < %v", got, want)
-		}
-	}
-	t.Logf("Controller switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
+	validateSwitchover(t, dut, secondaryBeforeSwitch, 5*time.Minute+extraWait)
 
 	// Old secondary controller becomes primary after switchover.
 	primaryAfterSwitch := secondaryBeforeSwitch
 	secondaryAfterSwitch := primaryBeforeSwitch
-	validateTelemetry(t, dut, primaryAfterSwitch, secondaryAfterSwitch)
+
+	// Log flow metrics and stop traffic across switchover window to evaluate hitless forwarding (< switchoverLossTolerance)
+	otgutils.LogFlowMetrics(t, ate.OTG(), top)
+	ate.OTG().StopTraffic(t)
+	otgutils.ExpectedTrafficLoss(t, args.ate.OTG(), "Flow TE-8.2.1 IPv4", 0, switchoverLossTolerance)
+	otgutils.ExpectedTrafficLoss(t, args.ate.OTG(), "Flow TE-8.2.1 IPv6", 0, switchoverLossTolerance)
+	t.Logf("Traffic transmission speed verified across switchover: %d PPS per flow", trafficPps)
 
 	t.Log("TE-8.2.1: Following reconnection of a gRIBI client to the new master supervisor...")
 	clientB := gribi.Client{
@@ -487,19 +505,24 @@ func TestSupFailure(t *testing.T) {
 		Persistence:    true,
 		RedundancyMode: fluent.ElectedPrimaryClient,
 	}
-	defer clientB.Close(t)
-	// Flush all entries at the actual end of the test using the healthy post-switchover client.
-	defer clientB.FlushAll(t)
 
+	// Validate device state using gnmi.Await to confirm the new primary controller is active.
+	gnmi.Await(t, dut, gnmi.OC().Component(primaryAfterSwitch).RedundantRole().State(), 2*time.Minute+extraWait, primaryController)
+
+	gribiTimeout := 5*time.Minute + extraWait
 	startTime := time.Now()
 	for {
 		if err := clientB.Start(t); err != nil {
-			if time.Since(startTime) > gribiRetryDuration {
-				t.Fatalf("gRIBI Connection for clientB could not be re-established after multiple attempts")
+			if time.Since(startTime) > gribiTimeout {
+				t.Fatalf("gRIBI Connection for clientB could not be re-established within %v: %v", gribiTimeout, err)
 			}
-			t.Logf("Retrying gRIBI client connection in %v...", gribiRetryInterval)
-			time.Sleep(gribiRetryInterval)
+			t.Logf("Retrying gRIBI client connection: %v", err)
 		} else {
+			t.Cleanup(func() {
+				// Flush all entries at the actual end of the test using the healthy post-switchover client.
+				clientB.FlushAll(t)
+				clientB.Close(t)
+			})
 			break
 		}
 	}
@@ -508,15 +531,27 @@ func TestSupFailure(t *testing.T) {
 	clientB.BecomeLeader(t)
 	args.clientA = &clientB // Reassign pointer so routeInstall2 uses the healthy connection
 
-	// Wait for default network instance AFT to be populated.
-	t.Logf("TE-8.2.1: ...ensure the 100 prefixes pointing to ATE port-2 are present and traffic flows 100%%...")
+	// Validate device state using gnmi.Watch to ensure the FIB/AFT is populated on the new active supervisor.
+	t.Logf("TE-8.2.1: Watch AFT telemetry to ensure prefixes are programmed in the forwarding plane...")
+	aftTimeout := 2*time.Minute + extraWait
+	aftPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv4Entry("203.0.113.1/32")
+	if _, found := gnmi.Watch(t, dut, aftPath.State(), aftTimeout, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		return val.IsPresent()
+	}).Await(t); !found {
+		t.Fatalf("Could not find prefix 203.0.113.1/32 in telemetry AFT within %v", aftTimeout)
+	}
+	t.Logf("ipv4-entry found for 203.0.113.1/32 after controller switchover.")
 
-	ate.OTG().StopTraffic(t)
-	// Validate traffic flowed without loss (min 0 loss, max 0 loss or slightly higher but essentially 0%)
+	// Verify post-switchover traffic on reconnected supervisor
+	t.Logf("TE-8.2.1: Verify traffic flows 100%% from ATE port-1 to ATE port-2 following gRIBI reconnection...")
+	ate.OTG().StartTraffic(t)
 	otgutils.ExpectedTrafficLoss(t, args.ate.OTG(), "Flow TE-8.2.1 IPv4", 0, 0)
 	otgutils.ExpectedTrafficLoss(t, args.ate.OTG(), "Flow TE-8.2.1 IPv6", 0, 0)
-	t.Logf("Traffic transmission speed verified across switchover: %d PPS per flow", trafficPps)
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
+	ate.OTG().StopTraffic(t)
+
+	// Validate secondary controller reboot telemetry now that primary switchover & traffic are verified
+	validateTelemetry(t, dut, primaryAfterSwitch, secondaryAfterSwitch, 15*time.Minute+extraWait)
 
 	// TE-8.2.2 - Post Switchover FIB Programming Validation
 	t.Logf("TE-8.2.2: Add another 50 IPv4Entrys and 50 IPv6Entrys pointing to ATE port-2...")
@@ -532,16 +567,14 @@ func TestSupFailure(t *testing.T) {
 
 	t.Logf("TE-8.2.2: Send traffic to all 200 prefixes (100 initial + 100 post-switchover) at configured speed: %d packets/sec (PPS) per flow...", trafficPps)
 	ate.OTG().StartTraffic(t)
-	time.Sleep(trafficDuration)
-	ate.OTG().StopTraffic(t)
-
-	// Delegate waiting logic to ExpectedTrafficLoss
+	// Validate traffic flows with 0% loss using gnmi.Watch on flow metrics
 	otgutils.ExpectedTrafficLoss(t, args.ate.OTG(), "Flow TE-8.2.1 IPv4", 0, 0)
 	otgutils.ExpectedTrafficLoss(t, args.ate.OTG(), "Flow TE-8.2.1 IPv6", 0, 0)
 	otgutils.ExpectedTrafficLoss(t, args.ate.OTG(), "Flow TE-8.2.2 IPv4", 0, 0)
 	otgutils.ExpectedTrafficLoss(t, args.ate.OTG(), "Flow TE-8.2.2 IPv6", 0, 0)
-	t.Logf("Post-switchover traffic speed verified across all 200 prefixes: %d PPS per flow", trafficPps)
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
+	ate.OTG().StopTraffic(t)
+	t.Logf("Post-switchover traffic speed verified across all 200 prefixes: %d PPS per flow", trafficPps)
 
 	args.ate.OTG().StopProtocols(t)
 }

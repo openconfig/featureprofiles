@@ -1486,6 +1486,10 @@ message Metadata {
     // Arista: https://partnerissuetracker.corp.google.com/issues/562517133
     bool sflow_egress_sampling_rate_unsupported = 460;
 
+    // Device requires gracefully closing the pre-switchover gRIBI client before
+    // triggering a supervisor switchover to prevent proxy EOF errors.
+    bool gribi_close_client_before_switchover = 461;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }
