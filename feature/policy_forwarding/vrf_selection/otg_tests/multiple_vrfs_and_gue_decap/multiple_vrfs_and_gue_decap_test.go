@@ -210,6 +210,7 @@ func TestMultipleVrfsAndGueDecap(t *testing.T) {
 	verifyBGPTelemetry(t, dut)
 	verifyLeakedRoutes(t, dut)
 	verifyLeakedRoutesV6(t, dut)
+	verifyNoOtherRoutesInVRF(t, dut)
 
 	testCases := []testCase{
 		{
@@ -880,7 +881,8 @@ func configureIPv6Traffic(t *testing.T, topo gosnappi.Config, specs []trafficFlo
 		ipHeader := flow.Packet().Add().Ipv6()
 		ipHeader.Src().SetValue(tc.srcIp)
 		ipHeader.Dst().SetValue(tc.dstIp)
-		ipHeader.TrafficClass().SetValue(uint32(tc.priority))
+		// IPv6 traffic-class byte holds DSCP in the 6 MSBs, so shift the DSCP left by 2.
+		ipHeader.TrafficClass().SetValue(uint32(tc.priority) << 2)
 		udpHeader := flow.Packet().Add().Udp()
 		udpHeader.SrcPort().SetValue(14)
 		udpHeader.DstPort().SetValue(uint32(15))
@@ -908,7 +910,8 @@ func configureEncappedTraffic(t *testing.T, topo gosnappi.Config, specs []traffi
 		outerIpHeader := flow.Packet().Add().Ipv6()
 		outerIpHeader.Src().SetValue(atePort1.IPv6)
 		outerIpHeader.Dst().SetValue(dutlo0Attrs.IPv6)
-		outerIpHeader.TrafficClass().SetValue(uint32(tc.priority))
+		// IPv6 traffic-class byte holds DSCP in the 6 MSBs, so shift the DSCP left by 2.
+		outerIpHeader.TrafficClass().SetValue(uint32(tc.priority) << 2)
 		outerudpHeader := flow.Packet().Add().Udp()
 		outerudpHeader.SrcPort().SetValue(5996)
 		outerudpHeader.DstPort().SetValue(uint32(guePort))
@@ -926,7 +929,7 @@ func configureEncappedTraffic(t *testing.T, topo gosnappi.Config, specs []traffi
 			innerIpHeader := flow.Packet().Add().Ipv6()
 			innerIpHeader.Src().SetValue(tc.srcIp)
 			innerIpHeader.Dst().SetValue(tc.dstIp)
-			innerIpHeader.TrafficClass().SetValue(uint32(tc.priority))
+			innerIpHeader.TrafficClass().SetValue(uint32(tc.priority) << 2)
 			innerudpHeader := flow.Packet().Add().Udp()
 			innerudpHeader.SrcPort().SetValue(14)
 			innerudpHeader.DstPort().SetValue(uint32(15))
@@ -1062,6 +1065,35 @@ func verifyLeakedRoutesV6(t *testing.T, dut *ondatra.DUTDevice) {
 			t.Errorf("Route %s was not leaked into %s unexpectedly", advroute, nonDefaultVrfName)
 		} else {
 			t.Logf("Route %s was successfully leaked into %s as expected", advroute, nonDefaultVrfName)
+		}
+	}
+}
+
+// verifyNoOtherRoutesInVRF verifies that the non-default VRF only learns routes through
+// leaking from the default VRF, per the README requirement that there are no other routes
+// learned into the non-default VRF. Since the VRF has no interfaces or protocols of its own,
+// every route present in it must also be present in the default VRF.
+func verifyNoOtherRoutesInVRF(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	defaultNI := deviations.DefaultNetworkInstance(dut)
+
+	defaultV4 := map[string]bool{}
+	for _, entry := range gnmi.GetAll(t, dut, gnmi.OC().NetworkInstance(defaultNI).Afts().Ipv4EntryAny().State()) {
+		defaultV4[entry.GetPrefix()] = true
+	}
+	for _, entry := range gnmi.GetAll(t, dut, gnmi.OC().NetworkInstance(nonDefaultVrfName).Afts().Ipv4EntryAny().State()) {
+		if !defaultV4[entry.GetPrefix()] {
+			t.Errorf("IPv4 route %s in %s is not present in %s: only routes leaked from the default VRF should exist", entry.GetPrefix(), nonDefaultVrfName, defaultNI)
+		}
+	}
+
+	defaultV6 := map[string]bool{}
+	for _, entry := range gnmi.GetAll(t, dut, gnmi.OC().NetworkInstance(defaultNI).Afts().Ipv6EntryAny().State()) {
+		defaultV6[entry.GetPrefix()] = true
+	}
+	for _, entry := range gnmi.GetAll(t, dut, gnmi.OC().NetworkInstance(nonDefaultVrfName).Afts().Ipv6EntryAny().State()) {
+		if !defaultV6[entry.GetPrefix()] {
+			t.Errorf("IPv6 route %s in %s is not present in %s: only routes leaked from the default VRF should exist", entry.GetPrefix(), nonDefaultVrfName, defaultNI)
 		}
 	}
 }
