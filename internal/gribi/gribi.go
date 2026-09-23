@@ -32,10 +32,6 @@ import (
 	"github.com/openconfig/ondatra"
 
 	gpb "github.com/openconfig/gribi/v1/proto/service"
-
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 const (
@@ -505,32 +501,4 @@ func awaitTimeout(ctx context.Context, t testing.TB, c *fluent.GRIBIClient, time
 	subctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	return c.Await(subctx, t)
-}
-
-// AwaitAFTIPv4Entries waits for a list of IPv4 prefixes to be successfully installed in AFT.
-func AwaitAFTIPv4Entries(t testing.TB, dut *ondatra.DUTDevice, networkInstance string, prefixes []string) {
-	t.Helper()
-	for _, prefix := range prefixes {
-		ipv4Path := gnmi.OC().NetworkInstance(networkInstance).Afts().Ipv4Entry(prefix)
-		if _, found := gnmi.Watch(t, dut, ipv4Path.State(), 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
-			value, present := val.Val()
-			return present && value.GetPrefix() == prefix
-		}).Await(t); !found {
-			t.Fatalf("Could not find IPv4 prefix %s in telemetry AFT", prefix)
-		}
-	}
-}
-
-// AwaitAFTIPv6Entries waits for a list of IPv6 prefixes to be successfully installed in AFT.
-func AwaitAFTIPv6Entries(t testing.TB, dut *ondatra.DUTDevice, networkInstance string, prefixes []string) {
-	t.Helper()
-	for _, prefix := range prefixes {
-		ipv6Path := gnmi.OC().NetworkInstance(networkInstance).Afts().Ipv6Entry(prefix)
-		if _, found := gnmi.Watch(t, dut, ipv6Path.State(), 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
-			value, present := val.Val()
-			return present && value.GetPrefix() == prefix
-		}).Await(t); !found {
-			t.Fatalf("Could not find IPv6 prefix %s in telemetry AFT", prefix)
-		}
-	}
 }
