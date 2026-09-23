@@ -811,10 +811,30 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_rt_membership/README.md"
 }
 test: {
+  id: "RT-1.107"
+  description: "BGP FIB Isolation and Peer Soft Drain"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_fib_isolation_and_drain_test/README.md"
+}
+test: {
+  id: "RT-1.108"
+  description: "Two-Tier BGP Route Propagation and Attribute Transparency"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_two_tier_route_propagation_test/README.md"
+}
+test: {
+  id: "RT-1.109"
+  description: "BGP Streaming Telemetry and Operational State Verification"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_streaming_telemetry_test/README.md"
+}
+test: {
   id: "RT-1.11"
   description: "BGP remove private AS"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_remove_private_as/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_remove_private_as/bgp_remove_private_as_test.go"
+}
+test: {
+  id: "RT-1.110"
+  description: "Single-Hop BFD over eBGP Subinterfaces"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_single_hop_bfd_test/README.md"
 }
 test: {
   id: "RT-1.12"

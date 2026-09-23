@@ -111,6 +111,11 @@
     *   **Use `t.Cleanup()`:** All cleanup operations, whether for gNMI configurations or raw CLI commands, must be registered using `t.Cleanup()` to guarantee they are executed even if the test fails or panics early.
     *   **README Cleanup Specification:** All test plan `README.md` files must explicitly include a cleanup/teardown step (or `### Cleanup` section) specifying that any state or configuration modified during the test (e.g., disabled interfaces, drained links, altered protocol states) is reverted and the DUT is restored to its baseline operational state upon test completion. Reviewers must flag `README.md` test plans that leave interfaces or protocols in a degraded/disabled state without an explicit cleanup step.
     
+*   **Bug references:**
+
+    * References to bugs may be made using deviations.  Accessible URL format should be used, such as https://issuetracker.google.com/xxxx format links in the internal/deviations/deviations.textproto file.
+    * TODO items in a README may be documented.  It is preferred to reference to GitHub repositories or other publicly accessible URLs.  Bug tracking URLs may be used as a last resort.
+    * Internal project tracking bugs should not be referenced in README or test code.
 
 ### **2. Deviation Guidelines**
 
