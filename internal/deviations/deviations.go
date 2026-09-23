@@ -2396,6 +2396,12 @@ func AigpMetricIncrement(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAigpMetricIncrement()
 }
 
+// PowerSupplyTelemetryUnsupported returns true if device does not support power supply telemetry.
+// Cisco: https://b.corp.google.com/issues/307454993
+func PowerSupplyTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPowerSupplyTelemetryUnsupported()
+}
+
 // SoftLoopBackOcUnsupported returns true if the device does not support OC configuration for soft loopback interfaces.
 func SoftLoopBackOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSoftLoopbackOcUnsupported()
