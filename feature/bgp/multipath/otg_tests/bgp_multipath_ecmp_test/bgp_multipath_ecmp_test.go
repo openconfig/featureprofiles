@@ -29,6 +29,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -146,16 +147,36 @@ func verifyECMPLoadBalance(t *testing.T, ate *ondatra.ATEDevice, pc int, expecte
 }
 
 func checkPacketLoss(t *testing.T, ate *ondatra.ATEDevice) {
+	gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow("flow").State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
+		recvMetric, present := val.Val()
+		if !present {
+			return false
+		}
+		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
+		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
+		if txPackets == 0 {
+			return false
+		}
+		if rxPackets > txPackets {
+			return false
+		}
+		lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
+		return int(lossPct) == int(lossTolerancePct)
+	}).Await(t)
+
 	countersPath := gnmi.OTG().Flow("flow").Counters()
-	rxPackets := gnmi.Get(t, ate.OTG(), countersPath.InPkts().State())
-	txPackets := gnmi.Get(t, ate.OTG(), countersPath.OutPkts().State())
+	rxPackets := float32(gnmi.Get(t, ate.OTG(), countersPath.InPkts().State()))
+	txPackets := float32(gnmi.Get(t, ate.OTG(), countersPath.OutPkts().State()))
 	lostPackets := txPackets - rxPackets
-	if txPackets < 1 {
-		t.Fatalf("Tx packets should be higher than 0")
+	if txPackets == 0 {
+		t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow flow")
+	}
+	if rxPackets > txPackets {
+		t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", rxPackets, txPackets)
 	}
 
-	if got := lostPackets * 100 / txPackets; got != lossTolerancePct {
-		t.Errorf("Packet loss percentage for flow: got %v, want %v", got, lossTolerancePct)
+	if got := float32(lostPackets) * 100 / float32(txPackets); int(got) != int(lossTolerancePct) {
+		t.Errorf("Generic Test Assertion Failure: Flow flow: got %v, want == %v", got, lossTolerancePct)
 	}
 }
 
