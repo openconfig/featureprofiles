@@ -2401,3 +2401,9 @@ func AigpMetricIncrement(dut *ondatra.DUTDevice) bool {
 func PowerSupplyTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPowerSupplyTelemetryUnsupported()
 }
+
+// UnauthorizedAccessErrorUnsupported returns true if device does not support unauthorized access error.
+// Arista: https://partnerissuetracker.corp.google.com/issues/565204169
+func UnauthorizedAccessErrorUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUnauthorizedAccessErrorUnsupported()
+}
