@@ -49,5 +49,6 @@ platform_exceptions: {
   }
   deviations: {
     eth_channel_ingress_parameters_unsupported: true
+    num_physical_channels_unsupported: true
   }
 }
