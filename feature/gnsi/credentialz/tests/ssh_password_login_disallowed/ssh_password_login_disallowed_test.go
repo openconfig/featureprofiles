@@ -16,7 +16,6 @@ package sshpasswordlogindisallowed_test
 
 import (
 	"context"
-	"fmt"
 	"os"
 
 	"google.golang.org/grpc/codes"
@@ -41,7 +40,6 @@ const (
 	userPrincipal   = "my_principal"
 	command         = "show version"
 	maxSSHRetryTime = 120 // Unit is seconds.
-	passwordVersion = "v1.0"
 )
 
 func TestMain(m *testing.M) {
@@ -49,16 +47,9 @@ func TestMain(m *testing.M) {
 }
 
 func TestCredentialz(t *testing.T) {
-	version := fmt.Sprintf("%s-%d", passwordVersion, time.Now().Unix())
-
 	dut := ondatra.DUT(t, "dut")
+	// target := credz.GetDutTarget(t, dut)
 	recordStartTime := timestamppb.New(time.Now())
-
-	credz.RotateAuthenticationTypes(t, dut, []cpb.AuthenticationType{
-		cpb.AuthenticationType_AUTHENTICATION_TYPE_PASSWORD,
-		cpb.AuthenticationType_AUTHENTICATION_TYPE_PUBKEY,
-		cpb.AuthenticationType_AUTHENTICATION_TYPE_KBDINTERACTIVE,
-	})
 
 	// Create temporary directory for storing ssh keys/certificates.
 	dir, err := os.MkdirTemp("", "")
@@ -82,19 +73,16 @@ func TestCredentialz(t *testing.T) {
 	credz.CreateSSHKeyPairAlgo(t, dir, username, algo)
 	credz.CreateUserCertificate(t, dir, userPrincipal)
 
-	// Setup user and password on DUT.
+	// Setup user and password.
 	credz.SetupUser(t, dut, username)
 	password := credz.GeneratePassword()
-	credz.RotateUserPassword(t, dut, username, password, version, uint64(time.Now().Unix()))
+	credz.RotateUserPassword(t, dut, username, password, credz.GenerateVersion(), uint64(time.Now().Unix()))
 
-	credz.RotateTrustedUserCA(t, dut, dir, version, uint64(time.Now().Unix()))
-
-	// Restrict authentication to public key only (disallow password).
+	credz.RotateTrustedUserCA(t, dut, dir)
 	credz.RotateAuthenticationTypes(t, dut, []cpb.AuthenticationType{
 		cpb.AuthenticationType_AUTHENTICATION_TYPE_PUBKEY,
 	})
-
-	credz.RotateAuthorizedPrincipal(t, dut, username, userPrincipal, version, uint64(time.Now().Unix()))
+	credz.RotateAuthorizedPrincipal(t, dut, username, userPrincipal)
 
 	t.Run("auth should fail ssh password authentication disallowed", func(t *testing.T) {
 		var startingRejectCounter, startingLastRejectTime uint64
@@ -119,7 +107,7 @@ func TestCredentialz(t *testing.T) {
 			time.Sleep(5 * time.Second)
 		}
 
-		// Verify ssh reject counters incremented appropriately.
+		// Verify ssh counters.
 		if !deviations.SSHServerCountersUnsupported(dut) {
 			endingRejectCounter, endingLastRejectTime := credz.GetRejectTelemetry(t, dut)
 			if endingRejectCounter <= startingRejectCounter {
@@ -141,6 +129,7 @@ func TestCredentialz(t *testing.T) {
 		ctx, cancel := context.WithTimeout(t.Context(), 120*time.Second)
 		defer cancel()
 		startTime := time.Now()
+		// var conn *ssh.Client
 		var conn binding.SSHClient
 		for {
 			conn, err = credz.SSHWithCertificate(ctx, t, dut, username, dir)
@@ -156,17 +145,15 @@ func TestCredentialz(t *testing.T) {
 			time.Sleep(5 * time.Second)
 		}
 
-		// Send command for accounting verification. RunCommand runs to completion and
-		// returns a binding.CommandResult, which exposes only Output()/Error() and holds
-		// no session/stream resources, so there is nothing to close here. Connection
-		// cleanup is handled by conn.Close() above.
-		res, err := conn.RunCommand(ctx, command)
+		// Send command for accounting.
+		sess, err := conn.RunCommand(ctx, "show version")
 		if err != nil {
-			t.Fatalf("Failed running command %q, error: %s", command, err)
+			t.Fatalf("Failed creating ssh session, error: %s", err)
 		}
-		t.Logf("Command %q output: %s", command, res.Output())
+		defer sess.Output()
+		sess.Output()
 
-		// Verify ssh accept counters incremented appropriately.
+		// Verify ssh counters.
 		if !deviations.SSHServerCountersUnsupported(dut) {
 			endingAcceptCounter, endingLastAcceptTime := credz.GetAcceptTelemetry(t, dut)
 			if endingAcceptCounter <= startingAcceptCounter {
@@ -177,7 +164,7 @@ func TestCredentialz(t *testing.T) {
 			}
 		}
 
-		// Verify accounting record for the authenticated user.
+		// Verify accounting record.
 		acctzClient := dut.RawAPIs().GNSI(t).AcctzStream()
 		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
@@ -228,8 +215,5 @@ func TestCredentialz(t *testing.T) {
 			cpb.AuthenticationType_AUTHENTICATION_TYPE_PUBKEY,
 			cpb.AuthenticationType_AUTHENTICATION_TYPE_KBDINTERACTIVE,
 		})
-		credz.RotateUserPassword(t, dut, username, "", "", 0)
-		credz.RotateAuthorizedPrincipal(t, dut, username, "", "", 0)
-		credz.RotateTrustedUserCA(t, dut, "", "", 0)
 	})
 }

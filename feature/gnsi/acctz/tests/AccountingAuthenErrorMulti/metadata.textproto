@@ -5,3 +5,21 @@ uuid:  "1b955b4a-40f0-44e1-b1d4-21f71b02a926"
 plan_id:  "ACCTZ-10.1"
 description:  "gNSI.acctz.v1 (Accounting) Test Accounting Authentication Error - Multi-transaction"
 testbed:  TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"    
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    interface_enabled: true
+    ipv4_missing_enabled: true
+  }
+}
