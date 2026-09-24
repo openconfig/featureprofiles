@@ -55,7 +55,7 @@ const (
 	dutAreaAddress       = "49.0001"
 	dutSysID             = "1920.0000.2001"
 	ateSysID             = "64000000000"
-	UDPSrcPort           = 5996
+	UDPSrcPort           = 1000
 	UDPDstPort           = 6080
 	UDPDstPortNeg        = 6085
 	testSrcPort          = 14
@@ -715,7 +715,7 @@ func configureFlows(t *testing.T, otgConfig gosnappi.Config, macAddress string, 
 		if mode == flowModeSinglePathL3 {
 			udpMiddle.SrcPort().SetValue(UDPSrcPort)
 		} else {
-			udpMiddle.SrcPort().Increment().SetStart(UDPSrcPort - 1).SetStep(1).SetCount(flowCount)
+			udpMiddle.SrcPort().Increment().SetStart(UDPSrcPort - 1).SetStep(1).SetCount(outerSrcPortCount)
 		}
 		udpMiddle.DstPort().SetValue(UDPDstPort)
 		if incr == 1 {
@@ -780,7 +780,7 @@ func configureFlows(t *testing.T, otgConfig gosnappi.Config, macAddress string, 
 		if mode == flowModeSinglePathL3 {
 			udp.SrcPort().SetValue(UDPSrcPort - 1)
 		} else {
-			udp.SrcPort().Increment().SetStart(UDPSrcPort - 1).SetStep(1).SetCount(flowCount)
+			udp.SrcPort().Increment().SetStart(UDPSrcPort - 1).SetStep(1).SetCount(outerSrcPortCount)
 		}
 		udp.DstPort().SetValue(UDPSrcPort - 2)
 	case 8, 10:
