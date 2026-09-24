@@ -228,6 +228,14 @@ func refreshReport(id int, headSHA string) {
 		glog.Errorf("Skipping report refresh for PR%d: setup error: %s", id, err)
 		return
 	}
+	defer func() {
+		if t.pubsubClient != nil {
+			t.pubsubClient.Close()
+		}
+		if t.storClient != nil {
+			t.storClient.Close()
+		}
+	}()
 
 	if err := t.updateReport(ctx, id, headSHA); err != nil {
 		glog.Errorf("Failed to refresh report for PR%d commit %q: %s", id, headSHA, err)
