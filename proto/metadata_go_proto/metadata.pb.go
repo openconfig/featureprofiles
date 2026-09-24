@@ -1552,6 +1552,11 @@ type Metadata_Deviations struct {
 	// because the Ondatra gNOI cache still points at the old active.
 	// Tracking: https://github.com/openconfig/ondatra/issues/145
 	GnoiRequiresFreshDialAfterSwitchover bool `protobuf:"varint,454,opt,name=gnoi_requires_fresh_dial_after_switchover,json=gnoiRequiresFreshDialAfterSwitchover,proto3" json:"gnoi_requires_fresh_dial_after_switchover,omitempty"`
+	// Device requires delay before issuing a back-to-back switchover request.
+	GnoiBackToBackSwitchoverDelayS uint32 `protobuf:"varint,460,opt,name=gnoi_back_to_back_switchover_delay_s,json=gnoiBackToBackSwitchoverDelayS,proto3" json:"gnoi_back_to_back_switchover_delay_s,omitempty"`
+	// Device does not support gNMI Subscribe during switchover recovery and
+	// requires gNMI Get polling instead.
+	SwitchoverSubscribeUnsupported bool `protobuf:"varint,461,opt,name=switchover_subscribe_unsupported,json=switchoverSubscribeUnsupported,proto3" json:"switchover_subscribe_unsupported,omitempty"`
 	// Device requires explicit "write memory" before reboot to persist
 	// containerz config, and must skip config re-push after reboot to avoid
 	// restarting the management stack during warmup.
@@ -4540,6 +4545,20 @@ func (x *Metadata_Deviations) GetGnoiRequiresFreshDialAfterSwitchover() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetGnoiBackToBackSwitchoverDelayS() uint32 {
+	if x != nil {
+		return x.GnoiBackToBackSwitchoverDelayS
+	}
+	return 0
+}
+
+func (x *Metadata_Deviations) GetSwitchoverSubscribeUnsupported() bool {
+	if x != nil {
+		return x.SwitchoverSubscribeUnsupported
+	}
+	return false
+}
+
 func (x *Metadata_Deviations) GetContainerzRequireExplicitConfigSave() bool {
 	if x != nil {
 		return x.ContainerzRequireExplicitConfigSave
@@ -4631,7 +4650,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"Ȅ\x02\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xe2\x85\x02\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -4643,7 +4662,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xb0\xf9\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xca\xfa\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -5068,7 +5087,9 @@ const file_metadata_proto_rawDesc = "" +
 	"&gribi_aaa_role_based_authz_unsupported\x18\xc3\x03 \x01(\bR!gribiAaaRoleBasedAuthzUnsupported\x12P\n" +
 	"%p4rt_aaa_role_based_authz_unsupported\x18\xc4\x03 \x01(\bR p4rtAaaRoleBasedAuthzUnsupported\x12@\n" +
 	"\x1cswitchover_stabilize_delay_m\x18\xc5\x03 \x01(\rR\x19switchoverStabilizeDelayM\x12X\n" +
-	")gnoi_requires_fresh_dial_after_switchover\x18\xc6\x03 \x01(\bR$gnoiRequiresFreshDialAfterSwitchover\x12U\n" +
+	")gnoi_requires_fresh_dial_after_switchover\x18\xc6\x03 \x01(\bR$gnoiRequiresFreshDialAfterSwitchover\x12M\n" +
+	"$gnoi_back_to_back_switchover_delay_s\x18\xcc\x03 \x01(\rR\x1egnoiBackToBackSwitchoverDelayS\x12I\n" +
+	" switchover_subscribe_unsupported\x18\xcd\x03 \x01(\bR\x1eswitchoverSubscribeUnsupported\x12U\n" +
 	"'containerz_require_explicit_config_save\x18\xc7\x03 \x01(\bR#containerzRequireExplicitConfigSave\x12E\n" +
 	"\x1faigp_route_metric_not_supported\x18\xc8\x03 \x01(\bR\x1baigpRouteMetricNotSupported\x12;\n" +
 	"\x1abgp_adj_rib_oc_unsupported\x18\xc9\x03 \x01(\bR\x16bgpAdjRibOcUnsupported\x123\n" +
