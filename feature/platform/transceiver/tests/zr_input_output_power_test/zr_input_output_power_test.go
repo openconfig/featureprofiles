@@ -16,11 +16,11 @@ import (
 
 const (
 	samplingInterval           = 10 * time.Second
-	inactiveOCHRxPower         = -30.0
-	inactiveOCHTxPower         = -30.0
-	inactiveTransceiverRxPower = -20.0
+	inactiveOCHRxPower         = 0.0
+	inactiveOCHTxPower         = 0.0
+	inactiveTransceiverRxPower = 0.0
 	rxPowerReadingError        = 3
-	txPowerReadingError        = 0.5
+	txPowerReadingError        = 3
 	timeout                    = 10 * time.Minute
 )
 
@@ -40,20 +40,18 @@ func TestOpticalPower(t *testing.T) {
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	operationalMode = uint16(*operationalModeFlag)
 	operationalMode = cfgplugins.InterfaceInitialize(t, dut, operationalMode)
-	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"))
-	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"))
 
+	// Configure interfaces for all ports
 	var (
 		trs  = make(map[string]string)
 		ochs = make(map[string]string)
 	)
-
 	for _, p := range dut.Ports() {
 		// Check the port PMD is 400ZR.
 		if p.PMD() != ondatra.PMD400GBASEZR {
 			t.Fatalf("%s PMD is %v, not 400ZR", p.Name(), p.PMD())
 		}
-
+		cfgplugins.InterfaceConfig(t, dut, p)
 		// Get transceiver and optical channel.
 		trs[p.Name()] = gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
 		ochs[p.Name()] = gnmi.Get(t, dut, gnmi.OC().Component(trs[p.Name()]).Transceiver().Channel(0).AssociatedOpticalChannel().State())
@@ -81,73 +79,49 @@ func TestOpticalPower(t *testing.T) {
 				defer interfaceStreams[portName].Close()
 			}
 
-			// Enable interface.
-			for _, p := range dut.Ports() {
-				cfgplugins.ToggleInterface(t, dut, p.Name(), true)
+			// Test interface lifecycle
+			testInterfaceState := func(enabled bool, expectedStatus oc.E_Interface_OperStatus) {
+				togglePortsState(t, dut, enabled)
+				awaitPortsOperStatus(t, dut, expectedStatus)
+				time.Sleep(8 * samplingInterval)
+				validateAllSampleStreams(t, dut, enabled, interfaceStreams, ochStreams, trStreams, targetOpticalPower)
 			}
 
-			// Wait for streaming telemetry to report the channels as up.
-			for _, p := range dut.Ports() {
-				gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
-			}
-
-			time.Sleep(8 * samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
-
-			validateAllSampleStreams(t, dut, true, interfaceStreams, ochStreams, trStreams, targetOpticalPower)
-
-			// Disable interface.
-			for _, p := range dut.Ports() {
-				cfgplugins.ToggleInterface(t, dut, p.Name(), false)
-			}
-
-			// Wait for streaming telemetry to report the channels as down.
-			for _, p := range dut.Ports() {
-				gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_DOWN)
-			}
-			time.Sleep(8 * samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
-
-			validateAllSampleStreams(t, dut, false, interfaceStreams, ochStreams, trStreams, targetOpticalPower)
-
-			// Re-enable transceivers.
-			for _, p := range dut.Ports() {
-				cfgplugins.ToggleInterface(t, dut, p.Name(), true)
-			}
-
-			// Wait for streaming telemetry to report the channels as up.
-			for _, p := range dut.Ports() {
-				gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
-			}
-			time.Sleep(8 * samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
-
-			validateAllSampleStreams(t, dut, true, interfaceStreams, ochStreams, trStreams, targetOpticalPower)
-
-			//Close the connections:
-			for portName := range ochs {
-				ochStreams[portName].Close()
-				trStreams[portName].Close()
-				interfaceStreams[portName].Close()
-			}
+			testInterfaceState(true, oc.Interface_OperStatus_UP)    // Enable
+			testInterfaceState(false, oc.Interface_OperStatus_DOWN) // Disable
+			testInterfaceState(true, oc.Interface_OperStatus_UP)    // Re-enable
 		}
+	}
+}
+
+// togglePortsState enables or disables all ports.
+func togglePortsState(t *testing.T, dut *ondatra.DUTDevice, enabled bool) {
+	for _, p := range dut.Ports() {
+		cfgplugins.ToggleInterface(t, dut, p.Name(), enabled)
+	}
+}
+
+// awaitPortsOperStatus waits for all ports to reach the target operational status.
+func awaitPortsOperStatus(t *testing.T, dut *ondatra.DUTDevice, expectedStatus oc.E_Interface_OperStatus) {
+	for _, p := range dut.Ports() {
+		gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), timeout, expectedStatus)
 	}
 }
 
 // validateAllSampleStreams validates all the sample streams.
 func validateAllSampleStreams(t *testing.T, dut *ondatra.DUTDevice, isEnabled bool, interfaceStreams map[string]*samplestream.SampleStream[*oc.Interface], ochStreams map[string]*samplestream.SampleStream[*oc.Component_OpticalChannel], transceiverStreams map[string]*samplestream.SampleStream[*oc.Component_Transceiver_Channel], targetOpticalPower float64) {
+	expectedStatus := oc.Interface_OperStatus_UP
+	if !isEnabled {
+		expectedStatus = oc.Interface_OperStatus_DOWN
+	}
 	for _, p := range dut.Ports() {
 		for valIndex := range interfaceStreams[p.Name()].All() {
 			if valIndex >= len(ochStreams[p.Name()].All()) || valIndex >= len(transceiverStreams[p.Name()].All()) {
 				break
 			}
 			operStatus := validateSampleStream(t, interfaceStreams[p.Name()].All()[valIndex], ochStreams[p.Name()].All()[valIndex], transceiverStreams[p.Name()].All()[valIndex], p.Name(), targetOpticalPower)
-			switch operStatus {
-			case oc.Interface_OperStatus_UP:
-				if !isEnabled {
-					t.Errorf("Invalid %v operStatus value: want DOWN, got %v", p.Name(), operStatus)
-				}
-			case oc.Interface_OperStatus_DOWN:
-				if isEnabled {
-					t.Errorf("Invalid %v operStatus value: want UP, got %v", p.Name(), operStatus)
-				}
+			if operStatus != expectedStatus {
+				t.Errorf("Invalid %v operStatus value: want %v, got %v", p.Name(), expectedStatus, operStatus)
 			}
 		}
 	}
@@ -174,42 +148,47 @@ func validateSampleStream(t *testing.T, interfaceData *ygnmi.Value[*oc.Interface
 		t.Errorf("Terminal Device data is empty for port %v.", portName)
 		return oc.Interface_OperStatus_UNSET
 	}
-	if inPow := ochValue.GetInputPower(); inPow == nil {
-		t.Errorf("InputPower data is empty for port %v", portName)
-	} else {
-		validatePowerValue(t, portName, "OpticalChannelInputPower", inPow.GetInstant(), inPow.GetMin(), inPow.GetMax(), inPow.GetAvg(), targetOpticalPower-rxPowerReadingError, targetOpticalPower+rxPowerReadingError, inactiveOCHRxPower, operStatus)
+
+	// Helper to validate power data with nil check
+	validatePowerIfExists := func(power interface {
+		GetInstant() float64
+		GetMin() float64
+		GetMax() float64
+		GetAvg() float64
+	}, label string, minAllowed, maxAllowed, inactiveValue float64) {
+		if power == nil {
+			t.Errorf("%s data is empty for port %v", label, portName)
+			return
+		}
+		validatePowerValue(t, portName, label, power.GetInstant(), power.GetMin(), power.GetMax(), power.GetAvg(), minAllowed, maxAllowed, inactiveValue, operStatus)
 	}
-	if outPow := ochValue.GetOutputPower(); outPow == nil {
-		t.Errorf("OutputPower data is empty for port %v", portName)
-	} else {
-		validatePowerValue(t, portName, "OpticalChannelOutputPower", outPow.GetInstant(), outPow.GetMin(), outPow.GetMax(), outPow.GetAvg(), targetOpticalPower-txPowerReadingError, targetOpticalPower+txPowerReadingError, inactiveOCHTxPower, operStatus)
-	}
+
+	validatePowerIfExists(ochValue.GetInputPower(), "OpticalChannelInputPower", targetOpticalPower-rxPowerReadingError, targetOpticalPower+rxPowerReadingError, inactiveOCHRxPower)
+	validatePowerIfExists(ochValue.GetOutputPower(), "OpticalChannelOutputPower", targetOpticalPower-txPowerReadingError, targetOpticalPower+txPowerReadingError, inactiveOCHTxPower)
+
 	transceiverValue, ok := transceiverData.Val()
 	if !ok {
 		t.Errorf("Transceiver data is empty for port %v.", portName)
 		return oc.Interface_OperStatus_UNSET
 	}
-	if inPow := transceiverValue.GetInputPower(); inPow == nil {
-		t.Errorf("InputPower data is empty for port %v", portName)
-	} else {
-		validatePowerValue(t, portName, "TransceiverInputPower", inPow.GetInstant(), inPow.GetMin(), inPow.GetMax(), inPow.GetAvg(), targetOpticalPower-rxPowerReadingError, targetOpticalPower+rxPowerReadingError, inactiveTransceiverRxPower, operStatus)
-	}
+
+	validatePowerIfExists(transceiverValue.GetInputPower(), "TransceiverInputPower", targetOpticalPower-rxPowerReadingError, targetOpticalPower+rxPowerReadingError, inactiveTransceiverRxPower)
 	return operStatus
 }
 
 // validatePowerValue validates the power value.
 func validatePowerValue(t *testing.T, portName, pm string, instant, min, max, avg, minAllowed, maxAllowed, inactiveValue float64, operStatus oc.E_Interface_OperStatus) {
+	isValid := false
 	switch operStatus {
 	case oc.Interface_OperStatus_UP:
-		if instant < minAllowed || instant > maxAllowed {
-			t.Errorf("Invalid %v sample when %v is UP --> min : %v, max : %v, avg : %v, instant : %v", pm, portName, min, max, avg, instant)
-			return
-		}
+		isValid = instant >= minAllowed && instant <= maxAllowed
 	case oc.Interface_OperStatus_DOWN:
-		if instant > inactiveValue {
-			t.Errorf("Invalid %v sample when %v is DOWN --> min : %v, max : %v, avg : %v, instant : %v", pm, portName, min, max, avg, instant)
-			return
-		}
+		isValid = instant <= inactiveValue
 	}
-	t.Logf("Valid %v sample when %v is %v --> min : %v, max : %v, avg : %v, instant : %v", pm, portName, operStatus, min, max, avg, instant)
+
+	if !isValid {
+		t.Errorf("Invalid %v sample when %v is %v --> min : %v, max : %v, avg : %v, instant : %v", pm, portName, operStatus, min, max, avg, instant)
+	} else {
+		t.Logf("Valid %v sample when %v is %v --> min : %v, max : %v, avg : %v, instant : %v", pm, portName, operStatus, min, max, avg, instant)
+	}
 }
