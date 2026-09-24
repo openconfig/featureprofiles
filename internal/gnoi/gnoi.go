@@ -51,6 +51,7 @@ var (
 			OCAGENT: "mgd-api",
 			P4RT:    "p4-switch",
 			ROUTING: "rpd",
+			GNPSI:   "svcsProxy",
 		},
 		ondatra.NOKIA: {
 			GRIBI:   "sr_grpc_server",
