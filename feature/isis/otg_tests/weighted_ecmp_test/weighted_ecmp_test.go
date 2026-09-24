@@ -216,7 +216,7 @@ func TestWeightedECMPForISIS(t *testing.T) {
 				return false
 			}
 		}).Await(t); !ok {
-			t.Errorf("LAG %s or member interfaces of LAG not UP on ATE", lag.Name())
+			t.Fatalf("LAG %s or member interfaces of LAG not UP on ATE", lag.Name())
 		}
 	}
 
