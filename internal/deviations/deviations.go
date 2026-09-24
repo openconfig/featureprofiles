@@ -2410,3 +2410,9 @@ func EcnMinGreaterMaxThresholdUnsupported(dut *ondatra.DUTDevice) bool {
 func EcnThresholdPercentUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEcnThresholdPercentUnsupported()
 }
+
+// PowerSupplyTelemetryUnsupported returns true if device does not support power supply telemetry.
+// Cisco: https://b.corp.google.com/issues/307454993
+func PowerSupplyTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPowerSupplyTelemetryUnsupported()
+}

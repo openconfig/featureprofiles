@@ -1570,20 +1570,23 @@ type Metadata_Deviations struct {
 	BgpAdjRibOcUnsupported bool `protobuf:"varint,457,opt,name=bgp_adj_rib_oc_unsupported,json=bgpAdjRibOcUnsupported,proto3" json:"bgp_adj_rib_oc_unsupported,omitempty"`
 	// Devices that donot support AIGP metric increment when IGP metric to original destination is zero
 	AigpMetricIncrement bool `protobuf:"varint,458,opt,name=aigp_metric_increment,json=aigpMetricIncrement,proto3" json:"aigp_metric_increment,omitempty"`
+	// Device does not support power supply telemetry.
+	// Cisco: https://b.corp.google.com/issues/307454993
+	PowerSupplyTelemetryUnsupported bool `protobuf:"varint,459,opt,name=power_supply_telemetry_unsupported,json=powerSupplyTelemetryUnsupported,proto3" json:"power_supply_telemetry_unsupported,omitempty"`
 	// Devices that do not validate that max-threshold is strictly greater than
 	// min-threshold, so a min > max configuration is accepted instead of
 	// rejected.
 	// NOKIA, ARISTA, CISCO. TODO: add partner issue tracker links.
-	EcnMinGreaterMaxThresholdUnsupported bool `protobuf:"varint,459,opt,name=ecn_min_greater_max_threshold_unsupported,json=ecnMinGreaterMaxThresholdUnsupported,proto3" json:"ecn_min_greater_max_threshold_unsupported,omitempty"`
+	EcnMinGreaterMaxThresholdUnsupported bool `protobuf:"varint,460,opt,name=ecn_min_greater_max_threshold_unsupported,json=ecnMinGreaterMaxThresholdUnsupported,proto3" json:"ecn_min_greater_max_threshold_unsupported,omitempty"`
 	// Devices that do not support percentage-based ECN thresholds
 	// (min-threshold-percent / max-threshold-percent).
 	// ARISTA, CISCO. TODO: add partner issue tracker links.
-	EcnThresholdPercentUnsupported bool `protobuf:"varint,460,opt,name=ecn_threshold_percent_unsupported,json=ecnThresholdPercentUnsupported,proto3" json:"ecn_threshold_percent_unsupported,omitempty"`
+	EcnThresholdPercentUnsupported bool `protobuf:"varint,461,opt,name=ecn_threshold_percent_unsupported,json=ecnThresholdPercentUnsupported,proto3" json:"ecn_threshold_percent_unsupported,omitempty"`
 	// Devices that do not support a supervisor switchover via
 	// gNOI system.System.SwitchControlProcessor, typically because the platform
 	// has a single control processor.
 	// NOKIA, CISCO.
-	SupervisorSwitchoverUnsupported bool `protobuf:"varint,461,opt,name=supervisor_switchover_unsupported,json=supervisorSwitchoverUnsupported,proto3" json:"supervisor_switchover_unsupported,omitempty"`
+	SupervisorSwitchoverUnsupported bool `protobuf:"varint,462,opt,name=supervisor_switchover_unsupported,json=supervisorSwitchoverUnsupported,proto3" json:"supervisor_switchover_unsupported,omitempty"`
 	unknownFields                   protoimpl.UnknownFields
 	sizeCache                       protoimpl.SizeCache
 }
@@ -4579,6 +4582,13 @@ func (x *Metadata_Deviations) GetAigpMetricIncrement() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetPowerSupplyTelemetryUnsupported() bool {
+	if x != nil {
+		return x.PowerSupplyTelemetryUnsupported
+	}
+	return false
+}
+
 func (x *Metadata_Deviations) GetEcnMinGreaterMaxThresholdUnsupported() bool {
 	if x != nil {
 		return x.EcnMinGreaterMaxThresholdUnsupported
@@ -4656,7 +4666,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xed\x85\x02\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xbb\x86\x02\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -4668,7 +4678,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xd5\xfa\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xa3\xfb\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -5097,10 +5107,11 @@ const file_metadata_proto_rawDesc = "" +
 	"'containerz_require_explicit_config_save\x18\xc7\x03 \x01(\bR#containerzRequireExplicitConfigSave\x12E\n" +
 	"\x1faigp_route_metric_not_supported\x18\xc8\x03 \x01(\bR\x1baigpRouteMetricNotSupported\x12;\n" +
 	"\x1abgp_adj_rib_oc_unsupported\x18\xc9\x03 \x01(\bR\x16bgpAdjRibOcUnsupported\x123\n" +
-	"\x15aigp_metric_increment\x18\xca\x03 \x01(\bR\x13aigpMetricIncrement\x12X\n" +
-	")ecn_min_greater_max_threshold_unsupported\x18\xcb\x03 \x01(\bR$ecnMinGreaterMaxThresholdUnsupported\x12J\n" +
-	"!ecn_threshold_percent_unsupported\x18\xcc\x03 \x01(\bR\x1eecnThresholdPercentUnsupported\x12K\n" +
-	"!supervisor_switchover_unsupported\x18\xcd\x03 \x01(\bR\x1fsupervisorSwitchoverUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"\x15aigp_metric_increment\x18\xca\x03 \x01(\bR\x13aigpMetricIncrement\x12L\n" +
+	"\"power_supply_telemetry_unsupported\x18\xcb\x03 \x01(\bR\x1fpowerSupplyTelemetryUnsupported\x12X\n" +
+	")ecn_min_greater_max_threshold_unsupported\x18\xcc\x03 \x01(\bR$ecnMinGreaterMaxThresholdUnsupported\x12J\n" +
+	"!ecn_threshold_percent_unsupported\x18\xcd\x03 \x01(\bR\x1eecnThresholdPercentUnsupported\x12K\n" +
+	"!supervisor_switchover_unsupported\x18\xce\x03 \x01(\bR\x1fsupervisorSwitchoverUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02J\x06\b\xf1\x01\x10\xf2\x01J\x04\b1\x102\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
