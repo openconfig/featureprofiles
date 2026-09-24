@@ -1710,7 +1710,7 @@ func SendShellCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) 
 			IpProto: ipProto,
 			Authn: &acctzpb.AuthnDetail{
 				Type:   acctzpb.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
-				Status: acctzpb.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
+				Status: acctzpb.AuthnDetail_AUTHN_STATUS_SUCCESS,
 			},
 			User: &acctzpb.UserDetail{
 				Identity: shellUsername,
