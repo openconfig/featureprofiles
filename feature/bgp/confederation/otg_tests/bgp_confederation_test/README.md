@@ -308,6 +308,16 @@ AS `64500` in the `AS_PATH` and never observes internal Member-AS numbers
         the external peer; or
     *   Traffic loss is greater than 0%.
 
+### Cleanup
+
+1.  Revert all BGP configurations on **DUT 1** and **DUT 2** (including the
+    BGP confederation `identifier`, `member-as` lists, BGP neighbors, and
+    peer-groups) via gNMI `Set` to restore both devices to their baseline
+    operational state.
+2.  Remove the configured IPv4/IPv6 interface addresses, loopback interfaces,
+    and routing policies (`ALLOW`) on both **DUT 1** and **DUT 2**, and stop
+    all protocols and traffic flows on the **ATE**.
+
 ## Canonical OC
 
 ```json
