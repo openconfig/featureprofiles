@@ -639,8 +639,8 @@ func TestTC5ShortDOWN(t *testing.T) {
 	})
 
 	t.Run("Verify Short Down Results", func(t *testing.T) {
-		if change1 == nil {
-			t.Fatalf("Bypassing verification step: initial state pointer 'change1' failed to populate in previous subtest.")
+		if change1 == nil || change1.LastChange == nil {
+			t.Fatalf("Bypassing verification step: initial state pointer 'change1' or 'change1.LastChange' failed to populate in previous subtest.")
 		}
 
 		// Start building the log message
