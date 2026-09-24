@@ -39,7 +39,6 @@ const (
 	restartWait         = 40
 	trafficPps          = 100
 	trafficFrameSize    = 512
-	trafficDuration     = time.Duration(trafficFrameSize / trafficPps)
 	lossTolerancePct    = 2
 	v4FlowName          = "ipv4_flow"
 	v6FlowName          = "ipv6_flow"
@@ -50,8 +49,6 @@ const (
 	sleepTime           = 10 * time.Second
 
 	controlcardType   = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
-	activeController  = oc.Platform_ComponentRedundantRole_PRIMARY
-	standbyController = oc.Platform_ComponentRedundantRole_SECONDARY
 	maxSwitchoverTime = 900
 )
 
@@ -144,7 +141,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	isisGracefulRestart := globalISIS.GetOrCreateGracefulRestart()
 	isisGracefulRestart.SetEnabled(true)
-	isisGracefulRestart.SetHelperOnly(true)
+	isisGracefulRestart.SetHelperOnly(false)
 	isisGracefulRestart.SetRestartTime(gracefulRestartTime)
 
 	isisConf := []*isisConfig{
@@ -173,6 +170,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	// Push ISIS configuration to DUT
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	gnmi.Replace(t, dut, dc.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Config(), isisProtocol)
 }
 
@@ -296,7 +294,7 @@ func verifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntf []string)
 			if present && state == oc.Isis_IsisInterfaceAdjState_UP {
 				t.Logf("IS-IS state on %v has adjacencies", intfName)
 			}
-			return true
+			return present && state == oc.Isis_IsisInterfaceAdjState_UP
 		}).Await(t)
 		if !ok {
 			t.Logf("IS-IS state on %v has no adjacencies", intfName)
@@ -370,7 +368,6 @@ func TestGracefulRestart(t *testing.T) {
 	createTrafficFlows(t, otgConfig, v4FlowName, v6FlowName)
 	ate.OTG().PushConfig(t, otgConfig)
 	ate.OTG().StartProtocols(t)
-	time.Sleep(20 * time.Second)
 	verifyISISTelemetry(t, dut, []string{dut.Port(t, "port1").Name(), dut.Port(t, "port2").Name()})
 
 	type testCase struct {
@@ -449,18 +446,20 @@ func testGrHelper(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, 
 		t.Error("traffic loss for flow is more than expected")
 	}
 
-	otgvalidationhelpers.ValidateOTGISISTelemetry(t, ate, expectedISISAdj)
-
-	time.Sleep(sleepTime)
 	t.Log("Verify ISIS is up again after GR timeout expiry")
 	verifyISISTelemetry(t, dut, []string{dut.Port(t, "port1").Name(), dut.Port(t, "port2").Name()})
+	// The ATE restart action is configured with restart-after=40s. Validate
+	// terminal GR telemetry only after the restart window, not while the
+	// action is still expected to report RESTARTING/INPROGRESS.
+	otgvalidationhelpers.ValidateOTGISISTelemetry(t, ate, expectedISISAdj)
 
 	// Initiating graceful restart, validating traffic loss after graceful restart expires before restart time
 	t.Logf("Validating traffic loss after after Restart Time expiry")
 	otg.SetControlAction(t, cs)
 
-	//The graceful restart timer is set to 30, validating traffic as soon as it expires before it initiate restart
-	time.Sleep(29 * time.Second)
+	// Start measuring after the 30-second holding timer expires, while the
+	// ATE ISIS router is still down and before restart-after=40s.
+	time.Sleep((gracefulRestartTime + 1) * time.Second)
 	otg.StartTraffic(t)
 	time.Sleep(5 * time.Second)
 	otg.StopTraffic(t)
@@ -492,7 +491,7 @@ func testISISWithControllerCardSwitchOver(t *testing.T, dut *ondatra.DUTDevice, 
 	time.Sleep(sleepTime)
 	otg.StopTraffic(t)
 	if verifyTraffic(t, otg, otgConfig, false) {
-		t.Error("traffic loss for flow is more than expected")
+		t.Fatal("unhealthy traffic baseline; refusing to start controller-card switchover")
 	}
 
 	// TODO: Not able to verify because of HW limitation. Adding the below deviation instead creating new one
@@ -514,8 +513,8 @@ func testISISWithControllerCardSwitchOver(t *testing.T, dut *ondatra.DUTDevice, 
 		switchoverReady := gnmi.OC().Component(rpActiveBeforeSwitch).SwitchoverReady()
 		gnmi.Await(t, dut, switchoverReady.State(), 30*time.Minute, true)
 		t.Logf("SwitchoverReady().Get(t): %v", gnmi.Get(t, dut, switchoverReady.State()))
-		if got, want := gnmi.Get(t, dut, switchoverReady.State()), true; got != want {
-			t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
+		if got := gnmi.Get(t, dut, switchoverReady.State()); got != true {
+			t.Errorf("switchoverReady.Get(t): got %v, want %v", got, true)
 		}
 
 		intfsOperStatusUPBeforeSwitch := helpers.FetchOperStatusUPIntfs(t, dut, *args.CheckInterfacesInBinding)
@@ -524,7 +523,12 @@ func testISISWithControllerCardSwitchOver(t *testing.T, dut *ondatra.DUTDevice, 
 			t.Errorf("get the number of intfsOperStatusUP interfaces for %q: got %v, want > %v", dut.Name(), got, want)
 		}
 
-		gnoiClient := dut.RawAPIs().GNOI(t)
+		// Use a newly dialed client for the trigger. The cached client may still
+		// refer to the controller that is about to become standby.
+		gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(t.Context())
+		if err != nil {
+			t.Fatalf("failed to dial gNOI: %v", err)
+		}
 		useNameOnly := deviations.GNOISubcomponentPath(dut)
 		switchoverRequest := &spb.SwitchControlProcessorRequest{
 			ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch, useNameOnly),
@@ -541,9 +545,6 @@ func testISISWithControllerCardSwitchOver(t *testing.T, dut *ondatra.DUTDevice, 
 		for {
 			var currentTime string
 			t.Logf("Time elapsed %.2f seconds since switchover started.", time.Since(startSwitchover).Seconds())
-			if !verifyTraffic(t, otg, otgConfig, false) {
-				break
-			}
 			time.Sleep(60 * time.Second)
 			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 				currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
@@ -557,6 +558,13 @@ func testISISWithControllerCardSwitchOver(t *testing.T, dut *ondatra.DUTDevice, 
 			if got, want := uint64(time.Since(startSwitchover).Seconds()), uint64(maxSwitchoverTime); got >= want {
 				t.Fatalf("time.Since(startSwitchover): got %v, want < %v", got, want)
 			}
+		}
+		verifyISISTelemetry(t, dut, []string{dut.Port(t, "port1").Name(), dut.Port(t, "port2").Name()})
+		otg.StartTraffic(t)
+		time.Sleep(sleepTime)
+		otg.StopTraffic(t)
+		if verifyTraffic(t, otg, otgConfig, false) {
+			t.Fatal("traffic did not recover after controller-card switchover")
 		}
 	}
 
