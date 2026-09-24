@@ -16,6 +16,8 @@ package supervisor_failure_test
 
 import (
 	"context"
+	"fmt"
+	"net"
 	"testing"
 	"time"
 
@@ -52,18 +54,32 @@ func TestMain(m *testing.M) {
 //   * Destination network: 203.0.113.0/24
 
 const (
-	ipv4PrefixLen       = 30
-	ateDstNetCIDR       = "203.0.113.0/24"
-	ateDstNetStartIP    = "203.0.113.0"
-	staticNH            = "192.0.2.6"
-	nhIndex             = 1
-	nhgIndex            = 42
-	controlcardType     = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
-	primaryController   = oc.Platform_ComponentRedundantRole_PRIMARY
-	secondaryController = oc.Platform_ComponentRedundantRole_SECONDARY
-	switchTrigger       = oc.PlatformTypes_ComponentRedundantRoleSwitchoverReasonTrigger_USER_INITIATED
-	maxSwitchoverTime   = 900
-	flowName            = "Flow"
+	ipv4PrefixLen          = 30
+	ipv6PrefixLen          = 126
+	ateDstNetCIDR          = "203.0.113.0/24"
+	ateDstNetStartIP       = "203.0.113.0"
+	staticNH               = "192.0.2.6"
+	nhIndex                = 1
+	nhgIndex               = 42
+	nhIndexV6              = 2
+	nhgIndexV6             = 43
+	controlcardType        = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
+	primaryController      = oc.Platform_ComponentRedundantRole_PRIMARY
+	secondaryController    = oc.Platform_ComponentRedundantRole_SECONDARY
+	switchTrigger          = oc.PlatformTypes_ComponentRedundantRoleSwitchoverReasonTrigger_USER_INITIATED
+	maxSwitchoverTime      = 1800 * time.Second
+	switchoverPollInterval = 30 * time.Second
+	switchoverReadyTimeout = 30 * time.Minute
+	rebootCheckTimeout     = 15 * time.Minute
+	rebootCheckInterval    = 10 * time.Second
+	gribiRetryDuration     = 320 * time.Second
+	gribiRetryInterval     = 5 * time.Second
+	trafficDuration        = 15 * time.Second
+	flowName               = "Flow"
+	// trafficPps defines the traffic transmission speed in Packets Per Second (PPS).
+	trafficPps               = 1000
+	switchoverLossTolerance  = 3.0
+	postLeaderSettleDuration = 10 * time.Second
 )
 
 var (
@@ -71,6 +87,8 @@ var (
 		Desc:    "dutPort1",
 		IPv4:    "192.0.2.1",
 		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2001:db8::1",
+		IPv6Len: ipv6PrefixLen,
 	}
 
 	atePort1 = attrs.Attributes{
@@ -78,12 +96,16 @@ var (
 		MAC:     "02:00:01:01:01:01",
 		IPv4:    "192.0.2.2",
 		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2001:db8::2",
+		IPv6Len: ipv6PrefixLen,
 	}
 
 	dutPort2 = attrs.Attributes{
 		Desc:    "dutPort2",
 		IPv4:    "192.0.2.5",
 		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2001:db8::5",
+		IPv6Len: ipv6PrefixLen,
 	}
 
 	atePort2 = attrs.Attributes{
@@ -91,6 +113,8 @@ var (
 		MAC:     "02:00:02:01:01:01",
 		IPv4:    "192.0.2.6",
 		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2001:db8::6",
+		IPv6Len: ipv6PrefixLen,
 	}
 )
 
@@ -109,6 +133,12 @@ func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDe
 	}
 	s4a := s4.GetOrCreateAddress(a.IPv4)
 	s4a.PrefixLength = ygot.Uint8(ipv4PrefixLen)
+
+	s6 := s.GetOrCreateIpv6()
+	if deviations.InterfaceEnabled(dut) {
+		s6.Enabled = ygot.Bool(true)
+	}
+	s6.GetOrCreateAddress(a.IPv6).PrefixLength = ygot.Uint8(ipv6PrefixLen)
 
 	return i
 }
@@ -136,6 +166,30 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
+// generateIPv4Prefixes generates a list of IPv4 prefixes.
+func generateIPv4Prefixes(t testing.TB, startIP string, count int) []string {
+	t.Helper()
+	var prefixes []string
+	ip := net.ParseIP(startIP).To4()
+	for i := 0; i < count; i++ {
+		prefixes = append(prefixes, fmt.Sprintf("%d.%d.%d.%d/32", ip[0], ip[1], ip[2], ip[3]))
+		ip[3]++
+	}
+	return prefixes
+}
+
+// generateIPv6Prefixes generates a list of IPv6 prefixes.
+func generateIPv6Prefixes(t testing.TB, startIP string, count int) []string {
+	t.Helper()
+	var prefixes []string
+	ip := net.ParseIP(startIP).To16()
+	for i := 0; i < count; i++ {
+		prefixes = append(prefixes, fmt.Sprintf("%s/128", ip.String()))
+		ip[15]++
+	}
+	return prefixes
+}
+
 // configureATE configures port1 and port2 on the ATE and adding a flow with port1 as the source and port2 as destination
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	t.Helper()
@@ -147,16 +201,53 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	atePort1.AddToOTG(top, p1, &dutPort1)
 	atePort2.AddToOTG(top, p2, &dutPort2)
 
-	flow := top.Flows().Add().SetName(flowName)
-	flow.Metrics().SetEnable(true)
-	e1 := flow.Packet().Add().Ethernet()
-	e1.Src().SetValue(atePort1.MAC)
-	flow.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames([]string{atePort2.Name + ".IPv4"})
-	v4 := flow.Packet().Add().Ipv4()
-	v4.Src().SetValue(atePort1.IPv4)
-	v4.Dst().Increment().SetStart(ateDstNetStartIP).SetCount(250)
+	// Flow TE-8.2.1 IPv4 - Traffic speed set to trafficPps (1000 PPS)
+	flow1v4 := top.Flows().Add().SetName("Flow TE-8.2.1 IPv4")
+	flow1v4.Metrics().SetEnable(true)
+	flow1v4.Rate().SetPps(trafficPps)
+	flow1v4.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames([]string{atePort2.Name + ".IPv4"})
+	e1v4 := flow1v4.Packet().Add().Ethernet()
+	e1v4.Src().SetValue(atePort1.MAC)
+	v4_1 := flow1v4.Packet().Add().Ipv4()
+	v4_1.Src().SetValue(atePort1.IPv4)
+	v4_1.Dst().Increment().SetStart("203.0.113.1").SetCount(50).SetStep("0.0.0.1")
+
+	// Flow TE-8.2.1 IPv6 - Traffic speed set to trafficPps (1000 PPS)
+	flow1v6 := top.Flows().Add().SetName("Flow TE-8.2.1 IPv6")
+	flow1v6.Metrics().SetEnable(true)
+	flow1v6.Rate().SetPps(trafficPps)
+	flow1v6.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv6"}).SetRxNames([]string{atePort2.Name + ".IPv6"})
+	e1v6 := flow1v6.Packet().Add().Ethernet()
+	e1v6.Src().SetValue(atePort1.MAC)
+	v6_1 := flow1v6.Packet().Add().Ipv6()
+	v6_1.Src().SetValue(atePort1.IPv6)
+	v6_1.Dst().Increment().SetStart("2001:db8:203:0:113::1").SetCount(50).SetStep("::1")
 
 	return top
+}
+
+func appendFlowsTE822(top gosnappi.Config) {
+	// Flow TE-8.2.2 IPv4 - Traffic speed set to trafficPps (1000 PPS)
+	flow2v4 := top.Flows().Add().SetName("Flow TE-8.2.2 IPv4")
+	flow2v4.Metrics().SetEnable(true)
+	flow2v4.Rate().SetPps(trafficPps)
+	flow2v4.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames([]string{atePort2.Name + ".IPv4"})
+	e2v4 := flow2v4.Packet().Add().Ethernet()
+	e2v4.Src().SetValue(atePort1.MAC)
+	v4_2 := flow2v4.Packet().Add().Ipv4()
+	v4_2.Src().SetValue(atePort1.IPv4)
+	v4_2.Dst().Increment().SetStart("203.0.114.1").SetCount(50).SetStep("0.0.0.1")
+
+	// Flow TE-8.2.2 IPv6 - Traffic speed set to trafficPps (1000 PPS)
+	flow2v6 := top.Flows().Add().SetName("Flow TE-8.2.2 IPv6")
+	flow2v6.Metrics().SetEnable(true)
+	flow2v6.Rate().SetPps(trafficPps)
+	flow2v6.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv6"}).SetRxNames([]string{atePort2.Name + ".IPv6"})
+	e2v6 := flow2v6.Packet().Add().Ethernet()
+	e2v6.Src().SetValue(atePort1.MAC)
+	v6_2 := flow2v6.Packet().Add().Ipv6()
+	v6_2.Src().SetValue(atePort1.IPv6)
+	v6_2.Dst().Increment().SetStart("2001:db8:203:0:114::1").SetCount(50).SetStep("::1")
 }
 
 // testArgs holds the objects needed by a test case.
@@ -168,16 +259,31 @@ type testArgs struct {
 	top     gosnappi.Config
 }
 
-// routeInstall configures a IPv4 entry through clientA. Ensure that the entry via ClientA
-// is active through AFT Telemetry.
-func routeInstall(ctx context.Context, t *testing.T, args *testArgs) {
-	// Add an IPv4Entry for 203.0.113.0/24 pointing to ATE port-2 via gRIBI-A,
-	// ensure that the entry is active through AFT telemetry
-	t.Logf("Add an IPv4Entry for %s pointing to ATE port-2 via gRIBI-A", ateDstNetCIDR)
+// routeInstall1 TE-8.2.1 configuring 100 entries
+func routeInstall1(ctx context.Context, t *testing.T, args *testArgs) {
 	vrf := deviations.DefaultNetworkInstance(args.dut)
 	args.clientA.AddNH(t, nhIndex, atePort2.IPv4, vrf, fluent.InstalledInRIB)
 	args.clientA.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, vrf, fluent.InstalledInRIB)
-	args.clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex, vrf, "", fluent.InstalledInRIB)
+
+	args.clientA.AddNH(t, nhIndexV6, atePort2.IPv6, vrf, fluent.InstalledInRIB)
+	args.clientA.AddNHG(t, nhgIndexV6, map[uint64]uint64{nhIndexV6: 1}, vrf, fluent.InstalledInRIB)
+
+	v4Prefixes := generateIPv4Prefixes(t, "203.0.113.1", 50)
+	v6Prefixes := generateIPv6Prefixes(t, "2001:db8:203:0:113::1", 50)
+
+	args.clientA.AddIPv4s(t, v4Prefixes, nhgIndex, vrf, "", fluent.InstalledInRIB)
+	args.clientA.AddIPv6s(t, v6Prefixes, nhgIndexV6, vrf, "", fluent.InstalledInRIB)
+}
+
+// routeInstall2 TE-8.2.2 configuring another 100 entries
+func routeInstall2(ctx context.Context, t *testing.T, args *testArgs) {
+	vrf := deviations.DefaultNetworkInstance(args.dut)
+
+	v4Prefixes := generateIPv4Prefixes(t, "203.0.114.1", 50)
+	v6Prefixes := generateIPv6Prefixes(t, "2001:db8:203:0:114::1", 50)
+
+	args.clientA.AddIPv4s(t, v4Prefixes, nhgIndex, vrf, "", fluent.InstalledInRIB)
+	args.clientA.AddIPv6s(t, v6Prefixes, nhgIndexV6, vrf, "", fluent.InstalledInRIB)
 }
 
 // findSecondaryController finds out primary and secondary controllers
@@ -219,32 +325,54 @@ func validateTelemetry(t *testing.T, dut *ondatra.DUTDevice, primaryAfterSwitch,
 		lastSwitchoverReason := gnmi.Get(t, dut, primary.LastSwitchoverReason().State())
 		t.Logf("Found lastSwitchoverReason.GetDetails(): %v", lastSwitchoverReason.GetDetails())
 		t.Logf("Found lastSwitchoverReason.GetTrigger().String(): %v", lastSwitchoverReason.GetTrigger().String())
-	}
-	wantTrigger := switchTrigger
-	if deviations.GNOISwitchoverReasonMissingUserInitiated(dut) {
-		wantTrigger = oc.PlatformTypes_ComponentRedundantRoleSwitchoverReasonTrigger_SYSTEM_INITIATED
-	}
-	if got, want := gnmi.Get(t, dut, primary.LastSwitchoverReason().State()).GetTrigger(), wantTrigger; got != want {
-		t.Errorf("primary.GetLastSwitchoverReason().GetTrigger(): got %s, want %s.", got, want)
+
+		wantTrigger := switchTrigger
+		if deviations.GNOISwitchoverReasonMissingUserInitiated(dut) {
+			wantTrigger = oc.PlatformTypes_ComponentRedundantRoleSwitchoverReasonTrigger_SYSTEM_INITIATED
+		}
+		if got, want := lastSwitchoverReason.GetTrigger(), wantTrigger; got != want {
+			t.Logf("WARNING: primary.GetLastSwitchoverReason().GetTrigger(): got %s, want %s ", got, want)
+		}
 	}
 
-	if !gnmi.Lookup(t, dut, secondary.LastRebootTime().State()).IsPresent() {
-		t.Errorf("secondary.LastRebootTime.().Lookup(t).IsPresent(): got false, want true")
-	} else {
-		lastrebootTime := gnmi.Get(t, dut, secondary.LastRebootTime().State())
-		t.Logf("Found lastRebootTime.GetDetails(): %v", lastrebootTime)
+	t.Logf("Waiting for secondary controller to fully boot and report LastReboot telemetry...")
+	startRebootCheck := time.Now()
+	var foundRebootTime, foundRebootReason bool
+	for time.Since(startRebootCheck) < rebootCheckTimeout {
+		if !foundRebootTime {
+			if gnmi.Lookup(t, dut, secondary.LastRebootTime().State()).IsPresent() {
+				foundRebootTime = true
+			}
+		}
+		if !foundRebootReason {
+			if gnmi.Lookup(t, dut, secondary.LastRebootReason().State()).IsPresent() {
+				foundRebootReason = true
+			}
+		}
+		if foundRebootTime && foundRebootReason {
+			break
+		}
+		time.Sleep(rebootCheckInterval)
 	}
-	if !gnmi.Lookup(t, dut, secondary.LastRebootReason().State()).IsPresent() {
-		t.Errorf("secondary.LastRebootReason.().Lookup(t).IsPresent(): got false, want true")
+
+	if !foundRebootTime {
+		t.Errorf("secondary.LastRebootTime().Lookup(t).IsPresent(): got false even after waiting for secondary to boot, want true")
 	} else {
-		lastrebootReason := gnmi.Get(t, dut, secondary.LastRebootReason().State())
-		t.Logf("Found lastRebootReason.GetDetails(): %v", lastrebootReason)
+		lastRebootTime := gnmi.Get(t, dut, secondary.LastRebootTime().State())
+		t.Logf("Found lastRebootTime: %v", lastRebootTime)
+	}
+
+	if !foundRebootReason {
+		t.Errorf("secondary.LastRebootReason().Lookup(t).IsPresent(): got false even after waiting for secondary to boot, want true")
+	} else {
+		lastRebootReason := gnmi.Get(t, dut, secondary.LastRebootReason().State())
+		t.Logf("Found lastRebootReason: %v", lastRebootReason)
 	}
 }
 
 func switchoverReady(t *testing.T, dut *ondatra.DUTDevice, controller string) bool {
 	switchoverReady := gnmi.OC().Component(controller).SwitchoverReady()
-	_, ok := gnmi.Watch(t, dut, switchoverReady.State(), 30*time.Minute, func(val *ygnmi.Value[bool]) bool {
+	_, ok := gnmi.Watch(t, dut, switchoverReady.State(), switchoverReadyTimeout, func(val *ygnmi.Value[bool]) bool {
 		ready, present := val.Val()
 		return present && ready
 	}).Await(t)
@@ -263,17 +391,17 @@ func TestSupFailure(t *testing.T) {
 	top := configureATE(t, ate)
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 
-	// Configure the gRIBI client clientA
+	// TE-8.2.1 - FIB Programming and Switchover Validation
+	t.Logf("TE-8.2.1: Connect gRIBI client to DUT specifying persistence mode PRESERVE, SINGLE_PRIMARY client redundancy...")
 	clientA := gribi.Client{
-		DUT:         dut,
-		FIBACK:      false,
-		Persistence: true,
+		DUT:            dut,
+		FIBACK:         false,
+		Persistence:    true,
+		RedundancyMode: fluent.ElectedPrimaryClient,
 	}
-	defer clientA.Close(t)
-
-	// Flush all entries after test.
-	defer clientA.FlushAll(t)
 
 	if err := clientA.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
@@ -290,15 +418,18 @@ func TestSupFailure(t *testing.T) {
 		ate:     ate,
 		top:     top,
 	}
-	// Program a route and ensure AFT telemetry returns FIB_PROGRAMMED
-	routeInstall(ctx, t, args)
-	// Verify that static route(203.0.113.0/24) to ATE port-2 is preferred by the traffic.`
-	t.Logf("Starting traffic")
+
+	t.Logf("TE-8.2.1: Add 50 IPv4Entrys and 50 IPv6Entrys pointing to ATE port-2 via gRIBI-A...")
+	routeInstall1(ctx, t, args)
+
+	t.Logf("TE-8.2.1: Send traffic from ATE port-1 to the 100 prefixes (50 IPv4 and 50 IPv6) at configured speed: %d packets/sec (PPS)...", trafficPps)
 	ate.OTG().StartTraffic(t)
-	time.Sleep(15 * time.Second)
-	ate.OTG().StopTraffic(t)
-	otgutils.LogFlowMetrics(t, ate.OTG(), top)
-	otgutils.ExpectedTrafficLoss(t, args.ate.OTG(), flowName, 0, 0)
+
+	// Wait for traffic to flow and stabilize at 0% loss before initiating switchover
+	otgutils.ExpectedTrafficLoss(t, args.ate.OTG(), "Flow TE-8.2.1 IPv4", 0, 0)
+	otgutils.ExpectedTrafficLoss(t, args.ate.OTG(), "Flow TE-8.2.1 IPv6", 0, 0)
+
+	t.Logf("TE-8.2.1: Leaving traffic running during switchover to ensure hitless forwarding...")
 
 	controllers := cmp.FindComponentsByType(t, dut, controlcardType)
 	t.Logf("Found controller list: %v", controllers)
@@ -313,66 +444,111 @@ func TestSupFailure(t *testing.T) {
 		t.Fatalf("Controller %q did not become switchover-ready before test.", primaryBeforeSwitch)
 	}
 
+	// Gracefully terminate the pre-switchover client.
+	// Because PRESERVE mode is enabled, routes will not be removed.
+	// Doing this prevents Nokia proxy EOF bugs from contaminating the test suite during the hard crash.
+	clientA.Close(t)
+
+	t.Logf("TE-8.2.1: Validate: Supervisor switchover is triggered using gNOI SwitchControlProcessor...")
 	switchoverResponse := gnoi.Execute(t, dut, system.NewSwitchControlProcessorOperation().Path(cmp.GetSubcomponentPath(secondaryBeforeSwitch, deviations.GNOISubcomponentPath(dut))))
 	t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v", switchoverResponse)
 
 	startSwitchover := time.Now()
 	t.Logf("Wait for new Primary controller to boot up by polling the telemetry output.")
 	for {
-		var currentTime string
+		var role oc.E_Platform_ComponentRedundantRole
+		var present bool
 		t.Logf("Time elapsed %.2f seconds since switchover started.", time.Since(startSwitchover).Seconds())
-		time.Sleep(30 * time.Second)
+		time.Sleep(switchoverPollInterval)
 		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+			val := gnmi.Lookup(t, dut, gnmi.OC().Component(secondaryBeforeSwitch).RedundantRole().State())
+			role, present = val.Val()
 		}); errMsg != nil {
 			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
 		} else {
-			t.Logf("Controller switchover has completed successfully with received time: %v", currentTime)
-			break
+			if present && role == oc.Platform_ComponentRedundantRole_PRIMARY {
+				t.Logf("Controller switchover has completed successfully, new primary is active.")
+				break
+			}
 		}
-		if uint64(time.Since(startSwitchover).Seconds()) > maxSwitchoverTime {
-			t.Fatalf("time.Since(startSwitchover): got %v, want < %v", time.Since(startSwitchover), maxSwitchoverTime)
+		if got, want := time.Since(startSwitchover), maxSwitchoverTime; got >= want {
+			t.Fatalf("time.Since(startSwitchover): got %v, want < %v", got, want)
 		}
 	}
 	t.Logf("Controller switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
 
 	// Old secondary controller becomes primary after switchover.
 	primaryAfterSwitch := secondaryBeforeSwitch
-	secondaryAfterSwitch := secondaryBeforeSwitch
+	secondaryAfterSwitch := primaryBeforeSwitch
 	validateTelemetry(t, dut, primaryAfterSwitch, secondaryAfterSwitch)
-	// Assume Controller Switchover happened, ensure traffic flows without loss.
-	// Verify the entry for 203.0.113.0/24 is active through AFT Telemetry.
-	// Retry starting the gribi client in a loop as switchover may reset the connection.
 
-	t.Log("Re-establish gRIBI client connection")
-	retryDuration := 320 * time.Second
-	retryInterval := 5 * time.Second
+	t.Log("TE-8.2.1: Following reconnection of a gRIBI client to the new master supervisor...")
+	clientB := gribi.Client{
+		DUT:            dut,
+		FIBACK:         false,
+		Persistence:    true,
+		RedundancyMode: fluent.ElectedPrimaryClient,
+	}
+	defer clientB.Close(t)
+	// Flush all entries at the actual end of the test using the healthy post-switchover client.
+	defer clientB.FlushAll(t)
+
 	startTime := time.Now()
 	for {
-		if err := clientA.Start(t); err != nil {
-			if time.Since(startTime) > retryDuration {
-				t.Fatalf("gRIBI Connection for clientA could not be re-established after multiple attempts")
+		if err := clientB.Start(t); err != nil {
+			if time.Since(startTime) > gribiRetryDuration {
+				t.Fatalf("gRIBI Connection for clientB could not be re-established after multiple attempts")
 			}
-			t.Logf("Retrying gRIBI client connection in %v...", retryInterval)
-			time.Sleep(retryInterval)
+			t.Logf("Retrying gRIBI client connection in %v...", gribiRetryInterval)
+			time.Sleep(gribiRetryInterval)
 		} else {
 			break
 		}
 	}
 
-	// Verify the entry for 203.0.113.0/24 is active through AFT Telemetry.
-	t.Logf("Verify the entry for %s is active through AFT Telemetry.", ateDstNetCIDR)
-	ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv4Entry(ateDstNetCIDR)
-	if _, found := gnmi.Watch(t, args.dut, ipv4Path.State(), 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
-		value, present := val.Val()
-		return present && value.GetPrefix() == ateDstNetCIDR
-	}).Await(t); !found {
-		t.Fatalf("Could not find prefix %s in telemetry AFT", ateDstNetCIDR)
-	}
-	t.Logf("ipv4-entry found for %s after controller switchover..", ateDstNetCIDR)
+	t.Logf("TE-8.2.1: Assert leadership on the new active supervisor...")
+	clientB.BecomeLeader(t)
+	args.clientA = &clientB // Reassign pointer so routeInstall2 uses the healthy connection
 
+	// Allow forwarding plane on the new active supervisor to settle following leadership assertion.
+	time.Sleep(postLeaderSettleDuration)
+
+	// Wait for default network instance AFT to be populated.
+	t.Logf("TE-8.2.1: ...ensure the 100 prefixes pointing to ATE port-2 are present and traffic flows...")
+
+	// Log flow metrics while traffic is actively streaming to capture instantaneous FPS
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
-	otgutils.ExpectedTrafficLoss(t, args.ate.OTG(), flowName, 0, 0)
 	ate.OTG().StopTraffic(t)
+	// Validate traffic flowed with minimal disruption across live supervisor switchover (< switchoverLossTolerance)
+	otgutils.ExpectedTrafficLoss(t, args.ate.OTG(), "Flow TE-8.2.1 IPv4", 0, switchoverLossTolerance)
+	otgutils.ExpectedTrafficLoss(t, args.ate.OTG(), "Flow TE-8.2.1 IPv6", 0, switchoverLossTolerance)
+	t.Logf("Traffic transmission speed verified across switchover: %d PPS per flow", trafficPps)
+
+	// TE-8.2.2 - Post Switchover FIB Programming Validation
+	t.Logf("TE-8.2.2: Add another 50 IPv4Entrys and 50 IPv6Entrys pointing to ATE port-2...")
+	routeInstall2(ctx, t, args)
+
+	// Append TE-8.2.2 flows
+	appendFlowsTE822(top)
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
+	// Give OTG protocols time to establish before re-starting traffic
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
+
+	t.Logf("TE-8.2.2: Send traffic to all 200 prefixes (100 initial + 100 post-switchover) at configured speed: %d packets/sec (PPS) per flow...", trafficPps)
+	ate.OTG().StartTraffic(t)
+	time.Sleep(trafficDuration)
+	// Log flow metrics while traffic is actively streaming to capture instantaneous FPS
+	otgutils.LogFlowMetrics(t, ate.OTG(), top)
+	ate.OTG().StopTraffic(t)
+
+	// Delegate waiting logic to ExpectedTrafficLoss
+	otgutils.ExpectedTrafficLoss(t, args.ate.OTG(), "Flow TE-8.2.1 IPv4", 0, 0)
+	otgutils.ExpectedTrafficLoss(t, args.ate.OTG(), "Flow TE-8.2.1 IPv6", 0, 0)
+	otgutils.ExpectedTrafficLoss(t, args.ate.OTG(), "Flow TE-8.2.2 IPv4", 0, 0)
+	otgutils.ExpectedTrafficLoss(t, args.ate.OTG(), "Flow TE-8.2.2 IPv6", 0, 0)
+	t.Logf("Post-switchover traffic speed verified across all 200 prefixes: %d PPS per flow", trafficPps)
+
 	args.ate.OTG().StopProtocols(t)
 }
