@@ -296,7 +296,7 @@ IPv4Entry {203.10.113.2/32 (TE_VRF_111)} -> NHG#1 (DEFAULT VRF) -> <omitted for 
 // When packets match decap rules in vrf_selection_policy_c, the outer IP header is removed
 // and inner packet lookup occurs in DECAP_TE_VRF.
 
-IPv4Entry {139.0.11.0/24 (DECAP_TE_VRF)} -> NHG#1000 (DEFAULT VRF) -> {
+IPv4Entry {198.18.11.0/24 (DECAP_TE_VRF)} -> NHG#1000 (DEFAULT VRF) -> {
   {NH#1001, DEFAULT VRF}
 }
 NH#1001 -> {
@@ -304,7 +304,7 @@ NH#1001 -> {
   network_instance: "DEFAULT"
 }
 
-IPv6Entry {2016:aa8::/64 (DECAP_TE_VRF)} -> NHG#1000 (DEFAULT VRF) -> {
+IPv6Entry {2001:db8:2016::/64 (DECAP_TE_VRF)} -> NHG#1000 (DEFAULT VRF) -> {
   {NH#1001, DEFAULT VRF}
 }
 
@@ -411,7 +411,7 @@ the end receiver per RFC 6040 / RFC 3168:
     packets to DUT port-1:
     *   Outer IPv4 header source address matching decap rule in
         `vrf_selection_policy_c` (`ipv4_outer_src_111 = 198.51.100.111`).
-    *   Outer destination IP matching tunnel endpoint prefix (`139.0.11.8`).
+    *   Outer destination IP matching tunnel endpoint prefix (`198.18.11.8`).
     *   Inner packet destination addressed to receiver in the DEFAULT VRF.
 2.  Test combinations of outer and inner ECN codepoints:
     *   **Congestion Marking Propagation**:

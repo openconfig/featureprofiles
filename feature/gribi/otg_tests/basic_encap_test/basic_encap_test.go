@@ -25,24 +25,24 @@ import (
 	"testing"
 	"time"
 
-	"google3/third_party/golang/cmp/cmp"
-	"google3/third_party/golang/cmp/cmpopts/cmpopts"
-	"google3/third_party/golang/gopacket/gopacket"
-	"google3/third_party/golang/gopacket/layers/layers"
-	"google3/third_party/golang/gopacket/pcap/pcap"
-	"google3/third_party/golang/ygot/ygot/ygot"
-	"google3/third_party/open_traffic_generator/gosnappi/gosnappi"
-	"google3/third_party/openconfig/featureprofiles/internal/attrs/attrs"
-	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
-	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
-	"google3/third_party/openconfig/featureprofiles/internal/gribi/gribi"
-	"google3/third_party/openconfig/featureprofiles/internal/otgutils/otgutils"
-	"google3/third_party/openconfig/gribigo/client/client"
-	"google3/third_party/openconfig/gribigo/fluent/fluent"
-	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
-	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
-	"google3/third_party/openconfig/ondatra/ondatra"
-	"google3/third_party/openconfig/ondatra/otg/otg"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
+	"github.com/google/gopacket/pcap"
+	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/gribigo/client"
+	"github.com/openconfig/gribigo/fluent"
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/otg"
+	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -103,10 +103,10 @@ const (
 	nhg2002ID          = 2002
 	nhg3000ID          = 3000
 	nh3001ID           = 3001
-	decapIPv4FlowIP    = "139.0.11.8"
-	decapIPv4Prefix    = "139.0.11.0"
+	decapIPv4FlowIP    = "198.18.11.8"
+	decapIPv4Prefix    = "198.18.11.0"
 	decapIPv4PrefixLen = 24
-	decapIPv6Prefix    = "2016:aa8::"
+	decapIPv6Prefix    = "2001:db8:2016::"
 	decapIPv6PrefixLen = 64
 	decapInnerDstIP4   = "192.0.2.100"
 	decapInnerDstIP6   = "2001:db8::100"
@@ -1491,18 +1491,20 @@ func validatePacketCapture(t *testing.T, args *testArgs, otgPortNames []string, 
 		if err != nil {
 			t.Fatalf("ERROR: Could not create temporary pcap file: %v\n", err)
 		}
-		defer os.Remove(f.Name())
+		pcapPath := f.Name()
 		if _, err := f.Write(bytes); err != nil {
+			f.Close()
+			os.Remove(pcapPath)
 			t.Fatalf("ERROR: Could not write bytes to pcap file: %v\n", err)
 		}
 		f.Close()
 		t.Logf("Verifying packet attributes captured on %s", otgPortName)
-		handle, err := pcap.OpenOffline(f.Name())
+		handle, err := pcap.OpenOffline(pcapPath)
 		if err != nil {
+			os.Remove(pcapPath)
 			t.Logf("Could not open pcap file on %s: %v", otgPortName, err)
 			continue
 		}
-		defer handle.Close()
 		packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 		tunnel1Pkts := 0
 		tunnel2Pkts := 0
@@ -1666,6 +1668,8 @@ func validatePacketCapture(t *testing.T, args *testArgs, otgPortNames []string, 
 				}
 			}
 		}
+		handle.Close()
+		os.Remove(pcapPath)
 		t.Logf("tunnel1, tunnel2 packet count on %s: %d , %d", otgPortName, tunnel1Pkts, tunnel2Pkts)
 		if tunnel1Pkts == 0 && tunnel2Pkts == 0 && totalPacketsInspected > 0 {
 			tunCounter[otgPortName] = []int{totalPacketsInspected, 0}
