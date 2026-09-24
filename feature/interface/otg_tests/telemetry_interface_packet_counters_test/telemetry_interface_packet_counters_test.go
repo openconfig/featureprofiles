@@ -226,6 +226,16 @@ func TestInterfaceCounters(t *testing.T) {
 		counter: ipv4Counters.OutPkts().State(),
 		skip:    skipSubinterfacePacketCountersMissing,
 	}, {
+		desc:    "IPv4InOctets",
+		path:    ipv4CounterPath + "in-octets",
+		counter: ipv4Counters.InOctets().State(),
+		skip:    skipSubinterfacePacketCountersMissing,
+	}, {
+		desc:    "IPv4OutOctets",
+		path:    ipv4CounterPath + "out-octets",
+		counter: ipv4Counters.OutOctets().State(),
+		skip:    skipSubinterfacePacketCountersMissing,
+	}, {
 		desc:    "IPv6InPkts",
 		path:    ipv6CounterPath + "in-pkts",
 		counter: ipv6Counters.InPkts().State(),
@@ -234,6 +244,16 @@ func TestInterfaceCounters(t *testing.T) {
 		desc:    "IPv6OutPkts",
 		path:    ipv6CounterPath + "out-pkts",
 		counter: ipv6Counters.OutPkts().State(),
+		skip:    skipSubinterfacePacketCountersMissing,
+	}, {
+		desc:    "IPv6InOctets",
+		path:    ipv6CounterPath + "in-octets",
+		counter: ipv6Counters.InOctets().State(),
+		skip:    skipSubinterfacePacketCountersMissing,
+	}, {
+		desc:    "IPv6OutOctets",
+		path:    ipv6CounterPath + "out-octets",
+		counter: ipv6Counters.OutOctets().State(),
 		skip:    skipSubinterfacePacketCountersMissing,
 	}, {
 		desc:    "IPv6InDiscardedPkts",
@@ -262,33 +282,49 @@ func TestInterfaceCounters(t *testing.T) {
 	}
 }
 
+const (
+	packetCounterTolerance = uint64(70)
+	octetCounterTolerance  = uint64(70 * 1500)
+)
+
 // verifyCounters verifies the interface counters are updated on every subscription request spaced at 30s time interval.
-func verifyCounters(t *testing.T, dut *ondatra.DUTDevice, inPkts, outPkts []*ygnmi.Value[uint64]) bool {
+func verifyCounters(t *testing.T, dut *ondatra.DUTDevice, inVal, outVal []*ygnmi.Value[uint64], tolerance uint64, counterType string) bool {
+	if counterType == "" {
+		counterType = "Packets"
+	}
 	counterOK := true
-	inValFirst, _ := inPkts[0].Val()
-	outValFirst, _ := outPkts[0].Val()
-	inValFinal, _ := inPkts[len(inPkts)-1].Val()
-	outValFinal, _ := outPkts[len(inPkts)-1].Val()
+	inValFirst, _ := inVal[0].Val()
+	outValFirst, _ := outVal[0].Val()
+	inValFinal, _ := inVal[len(inVal)-1].Val()
+	outValFinal, _ := outVal[len(inVal)-1].Val()
 
 	if inValFinal == inValFirst || outValFinal == outValFirst {
-		t.Errorf("Counters not incremented: Initial Incoming Packets: %d, Final Incoming Packets: %d, Initial Outgoing Packets: %d,  Final Outgoing Packets: %d", inValFirst, inValFinal, outValFirst, outValFinal)
+		t.Errorf("Counters not incremented: Initial Incoming %s: %d, Final Incoming %s: %d, Initial Outgoing %s: %d,  Final Outgoing %s: %d", counterType, inValFirst, counterType, inValFinal, counterType, outValFirst, counterType, outValFinal)
 		counterOK = false
 		return counterOK
 	}
 
-	t.Logf("Logging, length of inPkts: %d, length of outPkts: %d", len(inPkts), len(outPkts))
-	t.Logf("inpkts: %v, outPkts: %v", inPkts, outPkts)
-	tolerance := uint64(70)
-	for i := 1; i < len(inPkts); i++ {
-		inValOld, _ := inPkts[i-1].Val()
-		outValOld, _ := outPkts[i-1].Val()
-		inValLatest, _ := inPkts[i].Val()
-		outValLatest, _ := outPkts[i].Val()
+	t.Logf("Logging, length of in %s: %d, length of out %s: %d", counterType, len(inVal), counterType, len(outVal))
+	t.Logf("in %s: %v, out %s: %v", counterType, inVal, counterType, outVal)
+	if tolerance == 0 {
+		tolerance = packetCounterTolerance
+	}
+	for i := 1; i < len(inVal); i++ {
+		inValOld, _ := inVal[i-1].Val()
+		outValOld, _ := outVal[i-1].Val()
+		inValLatest, _ := inVal[i].Val()
+		outValLatest, _ := outVal[i].Val()
 		inValDelta := inValLatest - inValOld
 		outValDelta := outValLatest - outValOld
-		t.Logf("Incoming Packets: %d, Outgoing Packets: %d", inValLatest, outValLatest)
-		if inValLatest == inValOld || outValLatest == outValOld || outValDelta <= inValDelta-tolerance || outValDelta >= inValDelta+tolerance {
-			t.Errorf("Comparison with previous iteration: Incoming Packets Delta : %d, Outgoing Packets Delta: %d, Tolerance: %d", inValDelta, outValDelta, tolerance)
+		t.Logf("Incoming %s: %d, Outgoing %s: %d", counterType, inValLatest, counterType, outValLatest)
+		var diff uint64
+		if outValDelta > inValDelta {
+			diff = outValDelta - inValDelta
+		} else {
+			diff = inValDelta - outValDelta
+		}
+		if inValLatest == inValOld || outValLatest == outValOld || diff >= tolerance {
+			t.Errorf("Comparison with previous iteration: Incoming %s Delta : %d, Outgoing %s Delta: %d, Tolerance: %d", counterType, inValDelta, counterType, outValDelta, tolerance)
 			counterOK = false
 			break
 		}
@@ -301,35 +337,68 @@ func validateInAndOutPktsPerSecond(t *testing.T, dut *ondatra.DUTDevice, i1, i2 
 		time.Sleep(10 * time.Second)
 		return true
 	}
-	// Subscribe to input/output interface counters
+	sampleOpts := dut.GNMIOpts().WithYGNMIOpts(
+		ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE),
+		ygnmi.WithSampleInterval(30*time.Second),
+	)
+
+	// Initiate all collections concurrently during the same 300s traffic window
+	inIntfSamples := gnmi.Collect(t, sampleOpts, i1.Counters().InPkts().State(), 300*time.Second)
+	outIntfSamples := gnmi.Collect(t, sampleOpts, i2.Counters().OutPkts().State(), 300*time.Second)
+
+	inIPv4PktsSamples := gnmi.Collect(t, sampleOpts, i1.Subinterface(0).Ipv4().Counters().InPkts().State(), 300*time.Second)
+	outIPv4PktsSamples := gnmi.Collect(t, sampleOpts, i2.Subinterface(0).Ipv4().Counters().OutPkts().State(), 300*time.Second)
+
+	inIPv4OctetSamples := gnmi.Collect(t, sampleOpts, i1.Subinterface(0).Ipv4().Counters().InOctets().State(), 300*time.Second)
+	outIPv4OctetSamples := gnmi.Collect(t, sampleOpts, i2.Subinterface(0).Ipv4().Counters().OutOctets().State(), 300*time.Second)
+
+	inIPv6PktsSamples := gnmi.Collect(t, sampleOpts, i1.Subinterface(0).Ipv6().Counters().InPkts().State(), 300*time.Second)
+	outIPv6PktsSamples := gnmi.Collect(t, sampleOpts, i2.Subinterface(0).Ipv6().Counters().OutPkts().State(), 300*time.Second)
+
+	inIPv6OctetSamples := gnmi.Collect(t, sampleOpts, i1.Subinterface(0).Ipv6().Counters().InOctets().State(), 300*time.Second)
+	outIPv6OctetSamples := gnmi.Collect(t, sampleOpts, i2.Subinterface(0).Ipv6().Counters().OutOctets().State(), 300*time.Second)
+
+	// Await all samples (running concurrently over the same 300s window)
+	inIntfPkts := inIntfSamples.Await(t)
+	outIntfPkts := outIntfSamples.Await(t)
+
+	inIPv4Pkts := inIPv4PktsSamples.Await(t)
+	outIPv4Pkts := outIPv4PktsSamples.Await(t)
+
+	inIPv4Octets := inIPv4OctetSamples.Await(t)
+	outIPv4Octets := outIPv4OctetSamples.Await(t)
+
+	inIPv6Pkts := inIPv6PktsSamples.Await(t)
+	outIPv6Pkts := outIPv6PktsSamples.Await(t)
+
+	inIPv6Octets := inIPv6OctetSamples.Await(t)
+	outIPv6Octets := outIPv6OctetSamples.Await(t)
+
+	// Verify all counters
 	pktCounterOK := true
-	inInterfaceCountersSamples := gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), i1.Counters().InPkts().State(), 300*time.Second)
-	outInterfaceCountersSamples := gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), i2.Counters().OutPkts().State(), 300*time.Second)
-	inInterfaceCountersPkts := inInterfaceCountersSamples.Await(t)
-	outInterfaceCountersPkts := outInterfaceCountersSamples.Await(t)
-	if got := verifyCounters(t, dut, inInterfaceCountersPkts, outInterfaceCountersPkts); got == false {
+	if got := verifyCounters(t, dut, inIntfPkts, outIntfPkts, packetCounterTolerance, "Packets"); !got {
 		pktCounterOK = false
-		t.Fatalf("Interface Packet Counters are not updated every 30 second")
+		t.Errorf("Interface Packet Counters are not updated every 30 second")
 	}
 
-	// Subscribe to sub-interface ipv4 counters
-	inSubInterfaceSamples := gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), i1.Subinterface(0).Ipv4().Counters().InPkts().State(), 300*time.Second)
-	outSubInterfaceSamples := gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), i2.Subinterface(0).Ipv4().Counters().OutPkts().State(), 300*time.Second)
-	inSubInterfacePkts := inSubInterfaceSamples.Await(t)
-	outSubInterfacePkts := outSubInterfaceSamples.Await(t)
-	if got := verifyCounters(t, dut, inSubInterfacePkts, outSubInterfacePkts); got == false {
+	if got := verifyCounters(t, dut, inIPv4Pkts, outIPv4Pkts, packetCounterTolerance, "Packets"); !got {
 		pktCounterOK = false
-		t.Fatalf("Sub-interface IPv4 Packet Counters are not updated every 30 second")
+		t.Errorf("Sub-interface IPv4 Packet Counters are not updated every 30 second")
 	}
 
-	// Subscribe to sub-interface ipv6 counters
-	inSubInterfaceIpv6Samples := gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), i1.Subinterface(0).Ipv6().Counters().InPkts().State(), 300*time.Second)
-	outSubInterfaceIpv6Samples := gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), i2.Subinterface(0).Ipv6().Counters().OutPkts().State(), 300*time.Second)
-	inSubInterfaceIpv6Pkts := inSubInterfaceIpv6Samples.Await(t)
-	outSubInterfaceIpv6Pkts := outSubInterfaceIpv6Samples.Await(t)
-	if got := verifyCounters(t, dut, inSubInterfaceIpv6Pkts, outSubInterfaceIpv6Pkts); got == false {
+	if got := verifyCounters(t, dut, inIPv4Octets, outIPv4Octets, octetCounterTolerance, "Octets"); !got {
 		pktCounterOK = false
-		t.Fatalf("Sub-interface IPv6 Packet Counters are not updated every 30 second")
+		t.Errorf("Sub-interface IPv4 Octet Counters are not updated every 30 second")
+	}
+
+	if got := verifyCounters(t, dut, inIPv6Pkts, outIPv6Pkts, packetCounterTolerance, "Packets"); !got {
+		pktCounterOK = false
+		t.Errorf("Sub-interface IPv6 Packet Counters are not updated every 30 second")
+	}
+
+	if got := verifyCounters(t, dut, inIPv6Octets, outIPv6Octets, octetCounterTolerance, "Octets"); !got {
+		pktCounterOK = false
+		t.Errorf("Sub-interface IPv6 Octet Counters are not updated every 30 second")
 	}
 
 	return pktCounterOK
