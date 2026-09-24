@@ -632,6 +632,11 @@ func QosGetStatePathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosGetStatePathUnsupported()
 }
 
+// SupervisorSwitchoverUnsupported returns whether the device does not support supervisor switchover.
+func SupervisorSwitchoverUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSupervisorSwitchoverUnsupported()
+}
+
 // InterfaceRefInterfaceIDFormat returns if device is required to use interface-id format of interface name + .subinterface index with Interface-ref container
 func InterfaceRefInterfaceIDFormat(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfaceRefInterfaceIdFormat()

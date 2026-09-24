@@ -22,6 +22,8 @@ platform_exceptions: {
   deviations: {
     qos_queue_requires_id: true
     qos_buffer_allocation_config_required: true
+    ecn_min_greater_max_threshold_unsupported: true
+    supervisor_switchover_unsupported: true
   }
 }
 platform_exceptions: {
@@ -47,7 +49,9 @@ platform_exceptions: {
     qos_queue_requires_id: true
     ecn_same_min_max_threshold_unsupported: true
     ecn_min_greater_max_threshold_unsupported: true
+    ecn_threshold_percent_unsupported: true
     qos_set_weight_config_unsupported: true
     qos_scheduler_config_required: true
+    supervisor_switchover_unsupported: true
   }
 }

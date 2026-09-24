@@ -21,6 +21,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/system"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
@@ -145,14 +147,27 @@ func FetchProcessName(dut *ondatra.DUTDevice, daemon Daemon) (string, error) {
 	return d, nil
 }
 
-// SwitchControlProcessor triggers a supervisor switchover on the device.
-func SwitchControlProcessor(t *testing.T, dut *ondatra.DUTDevice) {
+// SwitchControlProcessor triggers a switchover to the standby controller card
+// following the gNOI-3.3 supervisor switchover pattern. It returns false
+// without sending any RPC when the DUT reports fewer than two controller cards,
+// since a switchover is not possible. On success it returns true together with
+// the names of the previously active and previously standby controller cards.
+func SwitchControlProcessor(t *testing.T, dut *ondatra.DUTDevice) (switched bool, prevActive, prevStandby string) {
 	t.Helper()
-	gnoiClient := dut.RawAPIs().GNOI(t)
-	req := &spb.SwitchControlProcessorRequest{}
-	_, err := gnoiClient.System().SwitchControlProcessor(context.Background(), req)
-	if err != nil {
-		t.Fatalf("Failed to execute SwitchControlProcessor: %v", err)
+	cards := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
+	if len(cards) < 2 {
+		t.Logf("DUT reports %d controller card(s) %v; supervisor switchover is not applicable", len(cards), cards)
+		return false, "", ""
 	}
-	t.Log("Successfully triggered SwitchControlProcessor")
+	standby, active := components.FindStandbyControllerCard(t, dut, cards)
+	gnmi.Await(t, dut, gnmi.OC().Component(active).SwitchoverReady().State(), 30*time.Minute, true)
+	req := &spb.SwitchControlProcessorRequest{
+		ControlProcessor: components.GetSubcomponentPath(standby, deviations.GNOISubcomponentPath(dut)),
+	}
+	t.Logf("SwitchControlProcessorRequest: %v", req)
+	if _, err := dut.RawAPIs().GNOI(t).System().SwitchControlProcessor(context.Background(), req); err != nil {
+		t.Fatalf("SwitchControlProcessor(%v) failed: %v", req, err)
+	}
+	t.Logf("Successfully triggered SwitchControlProcessor from %q to %q", active, standby)
+	return true, active, standby
 }
