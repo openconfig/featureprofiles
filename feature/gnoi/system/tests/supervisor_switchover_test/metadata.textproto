@@ -11,5 +11,38 @@ platform_exceptions: {
   }
   deviations: {
     gnoi_subcomponent_path: true
+    gnoi_switchover_reason_missing_user_initiated: true
+    switchover_subscribe_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    interface_enabled: true
+    switchover_subscribe_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
+    explicit_interface_in_default_vrf: true
+    skip_controller_card_power_admin: true
+    switchover_stabilize_delay_m: 1
+    gnoi_back_to_back_switchover_delay_s: 5
+    switchover_subscribe_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    power_disable_enable_leaf_ref_validation: true
+    switchover_subscribe_unsupported: true
   }
 }
