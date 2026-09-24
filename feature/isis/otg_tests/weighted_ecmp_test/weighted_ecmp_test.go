@@ -225,7 +225,7 @@ func TestWeightedECMPForISIS(t *testing.T) {
 		ipv4Entry, present := val.Val()
 		return present && ipv4Entry.GetPrefix() == v4Prefix
 	}).Await(t); !ok {
-		t.Errorf("IPv4 route %s not found in AFT, got %v", v4Prefix, got)
+		t.Fatalf("IPv4 route %s not found in AFT, got %v", v4Prefix, got)
 	}
 	v6Prefix := "2010:db8:64:64::/64"
 	if got, ok := gnmi.Watch(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv6Entry(v6Prefix).State(), 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
