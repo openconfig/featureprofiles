@@ -75,14 +75,21 @@ func Client(t *testing.T, dut *ondatra.DUTDevice) *client.Client {
 		// direct ip6tables rule as the reliable alternative.
 		dut.CLI().Run(t, "enable\nbash sudo ip netns exec ns-mgmt ip6tables -I EOS_INPUT 1 -p tcp --dport 60061 -j ACCEPT")
 	case ondatra.CISCO:
-		dut.Config().New().WithCiscoText(`
-			appmgr
-			  docker vrf mgmt
-			  docker allow-sensitive-paths
-			ipv6 access-list restrict-access-ipv6
-			  ! open port for cntrsrv from PROD
-			  permit tcp any any eq 60061
-		`).Append(t)
+		dut.CLI().Run(t, "appmgr docker allow-sensitive-paths")
+		if _, err := dut.RawAPIs().GNMI(t).Set(context.Background(), &gpb.SetRequest{
+			Update: []*gpb.Update{{
+				Path: &gpb.Path{
+					Origin: "cli",
+				},
+				Val: &gpb.TypedValue{
+					Value: &gpb.TypedValue_AsciiVal{
+						AsciiVal: "ipv6 access-list restrict-access-ipv6\n  ! open port for cntrsrv from PROD\n  permit tcp any any eq 60061",
+					},
+				},
+			}},
+		}); err != nil {
+			t.Fatalf("Failed to configure Cisco ACL via gNMI CLI origin: %v", err)
+		}
 		t.Logf("Waiting for device to ingest its config.")
 		time.Sleep(time.Minute)
 	case ondatra.NOKIA, ondatra.JUNIPER:
