@@ -232,7 +232,7 @@ func TestWeightedECMPForISIS(t *testing.T) {
 		ipv6Entry, present := val.Val()
 		return present && ipv6Entry.GetPrefix() == v6Prefix
 	}).Await(t); !ok {
-		t.Errorf("IPv6 route %s not found in AFT, got %v", v6Prefix, got)
+		t.Fatalf("IPv6 route %s not found in AFT, got %v", v6Prefix, got)
 	}
 
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
