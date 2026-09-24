@@ -158,13 +158,14 @@ func breakoutConfig(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.Port) (u
 
 	// Early exit for OpenConfig PMD identities and standard names.
 	switch strings.ToUpper(port.PMD().String()) {
-	case "PMD_400GBASE_DR4", "ETH_400GBASE_DR4", "400GBASE_DR4", "400GBASE-DR4":
+	case "PMD_400GBASE_DR4", "ETH_400GBASE_DR4", "400GBASE_DR4", "400GBASE-DR4", "400G-DR4", "OSFP-400G-DR4":
 		return 4, oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB, 1
-	case "PMD_800GBASE_2XPLR4", "ETH_800GBASE_2XPLR4", "800GBASE-2XPLR4", "800GBASE_2XPLR4",
-		"PMD_800GBASE_2XDR4", "ETH_800GBASE_2XDR4", "800GBASE-2XDR4", "800GBASE_2XDR4":
+	case "PMD_800GBASE_2XPLR4", "ETH_800GBASE_2XPLR4", "800GBASE-2XPLR4", "800GBASE_2XPLR4", "OSFP-800G-2PLR4",
+		"PMD_800GBASE_2XDR4", "ETH_800GBASE_2XDR4", "800GBASE-2XDR4", "800GBASE_2XDR4", "OSFP-800G-2DR4",
+		"PMD_800GBASE_DR8", "ETH_800GBASE_DR8", "800GBASE-DR8", "800GBASE_DR8", "OSFP-800G-DR8+", "800G-DR8+":
 		return 8, oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB, 1
-	case "PMD_800GBASE_2XFR4", "ETH_800GBASE_2XFR4", "800GBASE_2XFR4", "800GBASE-2XFR4",
-		"PMD_800GBASE_2XLR4", "ETH_800GBASE_2XLR4", "800GBASE-2XLR4", "800GBASE_2XLR4":
+	case "PMD_800GBASE_2XFR4", "ETH_800GBASE_2XFR4", "800GBASE_2XFR4", "800GBASE-2XFR4", "OSFP-800G-2FR4",
+		"PMD_800GBASE_2XLR4", "ETH_800GBASE_2XLR4", "800GBASE-2XLR4", "800GBASE_2XLR4", "OSFP-800G-2LR4":
 		return 2, oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB, 4
 	case "PMD_400GBASE_FR4", "ETH_400GBASE_FR4", "400GBASE_FR4", "400GBASE-FR4",
 		"PMD_100GBASE_LR4", "ETH_100GBASE_LR4", "100GBASE_LR4", "100GBASE-LR4",
@@ -189,17 +190,19 @@ func breakoutConfig(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.Port) (u
 	// Match token-level PMD identities or optic types in component/transceiver descriptions.
 	for _, token := range strings.Fields(descStr) {
 		switch token {
-		case "ETH_400GBASE_DR4", "400GBASE_DR4", "400GBASE-DR4":
+		case "ETH_400GBASE_DR4", "400GBASE_DR4", "400GBASE-DR4", "400G-DR4", "OSFP-400G-DR4", "1X400G-DR4":
 			return 4, oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB, 1
-		case "ETH_800GBASE_2XPLR4", "800GBASE-2XPLR4", "800GBASE_2XPLR4", "2XPLR4", "2PLR4",
-			"ETH_800GBASE_2XDR4", "800GBASE-2XDR4", "800GBASE_2XDR4", "2XDR4", "2DR4",
+		case "ETH_800GBASE_2XPLR4", "800GBASE-2XPLR4", "800GBASE_2XPLR4", "OSFP-800G-2PLR4", "8X100G-2PLR4", "2XPLR4", "2PLR4",
+			"ETH_800GBASE_2XDR4", "800GBASE-2XDR4", "800GBASE_2XDR4", "OSFP-800G-2DR4", "2XDR4", "2DR4",
+			"ETH_800GBASE_DR8", "800GBASE-DR8", "800GBASE_DR8", "OSFP-800G-DR8+", "800G-DR8+", "8X100G-DR8+", "DR8+", "DR8",
 			"8X100G", "8X100FR":
 			return 8, oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB, 1
-		case "ETH_800GBASE_2XFR4", "800GBASE_2XFR4", "800GBASE-2XFR4", "2XFR4", "2FR4",
-			"ETH_800GBASE_2XLR4", "800GBASE-2XLR4", "800GBASE_2XLR4", "2XLR4", "2LR4",
+		case "ETH_800GBASE_2XFR4", "800GBASE_2XFR4", "800GBASE-2XFR4", "OSFP-800G-2FR4", "2X400G-2FR4", "2XFR4", "2FR4",
+			"ETH_800GBASE_2XLR4", "800GBASE-2XLR4", "800GBASE_2XLR4", "OSFP-800G-2LR4", "2X400G-2LR4", "2XLR4", "2LR4",
 			"2X400G":
 			return 2, oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB, 4
-		case "ETH_400GBASE_FR4", "400GBASE_FR4", "400GBASE-FR4", "400G-FR4",
+		case "ETH_800GBASE_ZR", "800GBASE_ZR", "800GBASE-ZR", "PMD_800G_ZR", "OSFP-800G-ZR", "1X800G-ZR", "800G-ZR",
+			"ETH_400GBASE_FR4", "400GBASE_FR4", "400GBASE-FR4", "400G-FR4",
 			"ETH_100GBASE_LR4", "100GBASE_LR4", "100GBASE-LR4", "100G-LR",
 			"ETH_100GBASE_FR", "100GBASE_FR", "100GBASE-FR", "100G-FR":
 			return 0, oc.IfEthernet_ETHERNET_SPEED_UNSET, 0
@@ -208,7 +211,7 @@ func breakoutConfig(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.Port) (u
 
 	// Fallback substring and speed-based matching for composite hardware descriptions.
 	switch {
-	case containsAny(descStr, "400GBASE_DR4", "400GBASE-DR4"),
+	case containsAny(descStr, "400GBASE_DR4", "400GBASE-DR4", "400G-DR4"),
 		port.Speed() == ondatra.Speed400Gb && strings.Contains(descStr, "100G"):
 		return 4, oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB, 1
 
@@ -217,10 +220,14 @@ func breakoutConfig(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.Port) (u
 		port.PMD() == ondatra.PMD800GBASEZRP,
 		strings.Contains(descStr, "800G"):
 		switch {
-		case containsAny(descStr, "2XPLR4", "2PLR4", "2XDR4", "2DR4", "8X100G", "8X100FR", "100G"):
+		case containsAny(descStr, "2XPLR4", "2PLR4", "2XDR4", "2DR4", "DR8+", "DR8", "8X100G", "8X100FR", "100G"):
 			return 8, oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB, 1
 		case containsAny(descStr, "2XFR4", "2FR4", "2XLR4", "2LR4", "2X400G", "400G"):
 			return 2, oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB, 4
+		case port.PMD() == ondatra.PMD800GBASEZR,
+			port.PMD() == ondatra.PMD800GBASEZRP,
+			containsAny(descStr, "800G-ZR", "800GBASE-ZR", "800G_ZR", "1X800G", "ZR"):
+			return 0, oc.IfEthernet_ETHERNET_SPEED_UNSET, 0
 		default:
 			t.Logf("Could not detect breakout mode from description %q, defaulting to 2x400G", descVal)
 			return 2, oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB, 4
