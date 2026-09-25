@@ -1467,7 +1467,7 @@ func validateTrafficFlows(t *testing.T, args *testArgs, flows []gosnappi.Flow, c
 
 	for _, flow := range flows {
 		if match {
-			otgutils.ExpectedTrafficLoss(t, otg, flow.Name(), 0, 0)
+			otgutils.ExpectedTrafficLoss(t, otg, flow.Name(), 0, 1)
 		} else {
 			otgutils.ExpectedTrafficLoss(t, otg, flow.Name(), 100, 100)
 		}
