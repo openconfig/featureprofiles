@@ -2401,3 +2401,8 @@ func AigpMetricIncrement(dut *ondatra.DUTDevice) bool {
 func PowerSupplyTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPowerSupplyTelemetryUnsupported()
 }
+
+// TempSensorNamePattern returns the pattern used to identify temperature sensors for this DUT.
+func TempSensorNamePattern(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetTempSensorNamePattern()
+}

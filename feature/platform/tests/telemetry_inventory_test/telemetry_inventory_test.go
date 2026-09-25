@@ -391,8 +391,11 @@ func findComponentsListByType(t *testing.T, dut *ondatra.DUTDevice) map[string][
 					continue
 				}
 			case "TempSensor":
-				if *args.TempSensorNamePattern != "" &&
-					!isCompNameExpected(t, c.GetName(), *args.TempSensorNamePattern) {
+				pattern := *args.TempSensorNamePattern
+				if d := deviations.TempSensorNamePattern(dut); d != "" {
+					pattern = d
+				}
+				if pattern != "" && !isCompNameExpected(t, c.GetName(), pattern) {
 					continue
 				}
 			case "Fan":
@@ -526,6 +529,7 @@ func TestTempSensor(t *testing.T) {
 		}
 
 		sName := sensor.GetName()
+
 		t.Run(sName, func(t *testing.T) {
 
 			t.Logf("TempSensor %s Id: %s", sName, sensor.GetId())
