@@ -65,7 +65,7 @@ const (
 )
 
 var (
-	ateAS1 = uint32(500)
+	ateAS1 = uint32(100)
 	dutSrc = attrs.Attributes{
 		Desc:    "DUT to ATE source",
 		IPv4:    "192.0.2.1",
@@ -275,7 +275,7 @@ func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr string, w
 
 // configureOTG configures the interfaces and BGP protocols on an ATE, including
 // advertising some(faked) networks over BGP.
-func configureOTG(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, asSeg []uint32, asSEQMode bool) gosnappi.Config {
+func configureOTG(t *testing.T, otg *otg.OTG, asSeg []uint32, asSEQMode bool) gosnappi.Config {
 	t.Helper()
 	config := gosnappi.NewConfig()
 	port1 := config.Ports().Add().SetName("port1")
@@ -299,12 +299,7 @@ func configureOTG(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, asSeg []ui
 
 	iDut1Bgp := iDut1Dev.Bgp().SetRouterId(iDut1Ipv4.Address())
 	iDut1Bgp4Peer := iDut1Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut1Ipv4.Name()).Peers().Add().SetName(ateSrc.Name + ".BGP4.peer")
-	switch dut.Vendor() {
-	case ondatra.ARISTA, ondatra.CISCO:
-		iDut1Bgp4Peer.SetPeerAddress(dutSrc.IPv4).SetAsNumber(ateAS1).SetAsType(gosnappi.BgpV4PeerAsType.IBGP)
-	default:
-		iDut1Bgp4Peer.SetPeerAddress(dutSrc.IPv4).SetAsNumber(ateAS1).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
-	}
+	iDut1Bgp4Peer.SetPeerAddress(dutSrc.IPv4).SetAsNumber(ateAS1).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
 	iDut1Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
 
 	iDut2Bgp := iDut2Dev.Bgp().SetRouterId(iDut2Ipv4.Address())
@@ -321,7 +316,9 @@ func configureOTG(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, asSeg []ui
 		SetPrefix(uint32(advertisedRoutesv4Prefix)).
 		SetCount(routeCount)
 
-	bgpNeti1AsPath := bgpNeti1Bgp4PeerRoutes.AsPath().SetAsSetMode(gosnappi.BgpAsPathAsSetMode.INCLUDE_AS_SET)
+	// The source peer is eBGP, so prepend its ASN to the first AS_SEQUENCE.
+	// This makes the first AS in the received path match the configured peer ASN.
+	bgpNeti1AsPath := bgpNeti1Bgp4PeerRoutes.AsPath().SetAsSetMode(gosnappi.BgpAsPathAsSetMode.PREPEND_TO_FIRST_SEGMENT)
 
 	if asSEQMode {
 		bgpNeti1AsPath.Segments().Add().SetAsNumbers(asSeg).SetType(gosnappi.BgpAsPathSegmentType.AS_SEQ)
@@ -376,20 +373,14 @@ func verifyOTGBGPTelemetry(t *testing.T, otg *otg.OTG, c gosnappi.Config, state 
 }
 
 // verifyBGPAsPath is to Validate AS Path attribute using bgp rib telemetry on ATE.
-func verifyBGPAsPath(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, config gosnappi.Config, asSeg []uint32, removeASPath bool) {
+func verifyBGPAsPath(t *testing.T, otg *otg.OTG, asSeg []uint32, removeASPath bool) {
 	t.Helper()
 	_, ok := gnmi.WatchAll(t, otg, gnmi.OTG().BgpPeer(ateDst.Name+".BGP4.peer").UnicastIpv4PrefixAny().State(),
 		time.Minute, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
 			return v.IsPresent()
 		}).Await(t)
 
-	var wantASSeg []uint32
-	switch dut.Vendor() {
-	case ondatra.ARISTA, ondatra.CISCO:
-		wantASSeg = []uint32{dutAS}
-	default:
-		wantASSeg = []uint32{dutAS, ateAS1}
-	}
+	wantASSeg := []uint32{dutAS, ateAS1}
 
 	if removeASPath {
 		for _, as := range asSeg {
@@ -450,13 +441,6 @@ func TestRemovePrivateAS(t *testing.T) {
 	otg := ate.OTG()
 	var otgConfig gosnappi.Config
 
-	switch dut.Vendor() {
-	case ondatra.ARISTA, ondatra.CISCO:
-		ateAS1 = dutAS
-	default:
-		ateAS1 = 100
-	}
-
 	t.Run("Configure DUT interfaces", func(t *testing.T) {
 		configureDUT(t, dut)
 	})
@@ -503,7 +487,7 @@ func TestRemovePrivateAS(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Logf("Start OTG Config.")
-			otgConfig = configureOTG(t, dut, otg, tc.asSeg, tc.asSEQMode)
+			otgConfig = configureOTG(t, otg, tc.asSeg, tc.asSEQMode)
 
 			t.Log("Verifying port status.")
 			verifyPortsUp(t, dut.Device)
@@ -521,13 +505,13 @@ func TestRemovePrivateAS(t *testing.T) {
 			verifyPrefixesTelemetry(t, dut, ateDst.IPv4, 0, routeCount)
 
 			t.Log("Verify AS Path list received at ate Port2 including private AS number.")
-			verifyBGPAsPath(t, dut, otg, otgConfig, tc.asSeg, !removeASPath)
+			verifyBGPAsPath(t, otg, tc.asSeg, !removeASPath)
 
 			t.Log("Configure remove private AS on DUT.")
 			gnmi.Update(t, dut, dutConfPath.Bgp().PeerGroup(peerGrpName2).RemovePrivateAs().Config(), oc.Bgp_RemovePrivateAsOption_PRIVATE_AS_REMOVE_ALL)
 
 			t.Log("Private AS numbers should be stripped off while advertising BGP routes into public AS.")
-			verifyBGPAsPath(t, dut, otg, otgConfig, tc.asSeg, removeASPath)
+			verifyBGPAsPath(t, otg, tc.asSeg, removeASPath)
 
 			otg.StopProtocols(t)
 			time.Sleep(30 * time.Second)
