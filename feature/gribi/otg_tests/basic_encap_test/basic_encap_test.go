@@ -1131,11 +1131,11 @@ func programEntries(t *testing.T, dut *ondatra.DUTDevice, c *gribi.Client) {
 		[]*client.OpResult{opEgress})
 
 	// Decap NextHop (NH#1001), NextHopGroup (NHG#1000), and DECAP_TE_VRF prefixes batched together to prevent unreferenced FEC deadlock
-	nh1001Opts := &gribi.NHOptions{}
+	var nh1001Opts []*gribi.NHOptions
 	if !deviations.DecapNHWithNextHopNIUnsupported(dut) {
-		nh1001Opts.VrfName = deviations.DefaultNetworkInstance(dut)
+		nh1001Opts = append(nh1001Opts, &gribi.NHOptions{VrfName: deviations.DefaultNetworkInstance(dut)})
 	}
-	nh1001, op1001 := gribi.NHEntry(nh1001ID, "Decap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, nh1001Opts)
+	nh1001, op1001 := gribi.NHEntry(nh1001ID, "Decap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, nh1001Opts...)
 	nhg1000, op1000 := gribi.NHGEntry(nhg1000ID, map[uint64]uint64{nh1001ID: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 	decapV4Entry := fluent.IPv4Entry().
 		WithPrefix(cidr(decapIPv4Prefix, decapIPv4PrefixLen)).
