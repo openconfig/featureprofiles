@@ -75,7 +75,11 @@ func SetOutputQueueManagementProfile(t *testing.T, dut *ondatra.DUTDevice, qos *
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
 }
 
-// ConfigureIPv4DSCPClassifier creates an IPv4 classifier that matches the specified DSCP value.
+// ConfigureIPv4DSCPClassifier adds IPv4 classifier className to qos with one
+// term that matches dscp and, if targetGroup is non-empty, sends matching
+// packets to that forwarding group. It only edits qos; nothing is pushed to
+// the DUT. On DUTs with deviations.QOSQueueRequiresID the term ID is "0" and
+// the match uses dscp-set instead of dscp.
 func ConfigureIPv4DSCPClassifier(t *testing.T, dut *ondatra.DUTDevice, qos *oc.Qos, className string, targetGroup string, dscp uint8) {
 	t.Helper()
 	classifier := qos.GetOrCreateClassifier(className)
@@ -97,11 +101,8 @@ func ConfigureIPv4DSCPClassifier(t *testing.T, dut *ondatra.DUTDevice, qos *oc.Q
 	}
 }
 
-// QosInterfaceID returns the key of the OpenConfig qos/interfaces list entry that
-// corresponds to intfID.
-//
-// The list is keyed by the interface name. Devices that declare
-// deviations.InterfaceRefInterfaceIDFormat key it by the subinterface name instead.
+// QosInterfaceID returns the qos/interfaces list key for intfID: intfID
+// itself, or "<intfID>.0" on DUTs with deviations.InterfaceRefInterfaceIDFormat.
 func QosInterfaceID(dut *ondatra.DUTDevice, intfID string) string {
 	if deviations.InterfaceRefInterfaceIDFormat(dut) {
 		return intfID + ".0"
@@ -109,13 +110,10 @@ func QosInterfaceID(dut *ondatra.DUTDevice, intfID string) string {
 	return intfID
 }
 
-// QosClassifierInterfaceID returns the key of the OpenConfig qos/interfaces list
-// entry that SetInputClassifier uses for intfID.
-//
-// This is not always the same key as QosInterfaceID. Devices that declare
-// deviations.QOSBufferAllocationConfigRequired reject an input classifier attached
-// to the interface itself and require the subinterface, but still key the output
-// queue list by the interface name.
+// QosClassifierInterfaceID returns the qos/interfaces list key that
+// SetInputClassifier uses for intfID. It matches QosInterfaceID, except that
+// DUTs with deviations.QOSBufferAllocationConfigRequired also use "<intfID>.0",
+// because they accept input classifiers only on the subinterface.
 func QosClassifierInterfaceID(dut *ondatra.DUTDevice, intfID string) string {
 	if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.QOSBufferAllocationConfigRequired(dut) {
 		return intfID + ".0"
@@ -123,7 +121,19 @@ func QosClassifierInterfaceID(dut *ondatra.DUTDevice, intfID string) string {
 	return intfID
 }
 
-// BuildOutputQueueManagementProfile attaches a queue management profile to a specified interface queue without applying it.
+// BuildOutputQueueManagementProfile edits qos so that output queue queueName
+// on interface intfID uses queue management profile profileName. If
+// profileName is empty, the queue is created without a profile. It only edits
+// qos; push it with ReplaceQueueManagementProfile.
+//
+// It also adds the config some DUTs require before a profile can be attached:
+//   - deviations.QOSQueueRequiresID: adds queueName to the top-level queue list
+//     with queue ID 0.
+//   - deviations.QOSBufferAllocationConfigRequired: creates buffer allocation
+//     profile "ballocprofile" and attaches it to the interface output.
+//   - deviations.QosSchedulerConfigRequired: adds queue "7" and scheduler
+//     policy "scheduler" (queue "7" strict priority, queueName weight 1) and
+//     attaches the policy to the interface output.
 func BuildOutputQueueManagementProfile(dut *ondatra.DUTDevice, qos *oc.Qos, intfID, queueName, profileName string) {
 	qosIntfID := QosInterfaceID(dut, intfID)
 	intf := qos.GetOrCreateInterface(qosIntfID)
@@ -187,37 +197,25 @@ func BuildOutputQueueManagementProfile(dut *ondatra.DUTDevice, qos *oc.Qos, intf
 	}
 }
 
-// ReplaceQueueManagementProfile pushes qos to the device in a single gNMI Set
-// transaction, applying the queue management profile and the interface output
-// queue it is attached to with the REPLACE option, and the rest of qos with the
-// UPDATE option.
+// ReplaceQueueManagementProfile pushes qos to the DUT in one gNMI SetRequest:
+//   - REPLACE queue management profile profileName.
+//   - REPLACE output queue queueName on interface intfID.
+//   - UPDATE (merge) the rest of qos.
 //
-// BuildOutputQueueManagementProfile must have been called on qos beforehand with
-// the same intfID, queueName and profileName, so that qos already describes both
-// of the subtrees being replaced.
+// Only these two subtrees are replaced, so each test case gets a clean profile
+// and queue without deleting the classifier, forwarding group and queues
+// created during test setup. gNMI applies all replaces before updates, so the
+// supporting config (e.g. buffer allocation and scheduler policies) is merged
+// after the two subtrees are rewritten.
 //
-// A REPLACE of the whole /qos subtree cannot be used here. That subtree also
-// holds the input classifier, the forwarding group and the queue installed
-// while setting up the test environment, none of which are rebuilt by the
-// individual test cases, so replacing it would tear down the very configuration
-// the queue management profile is being attached to.
-//
-// Replacing only the profile and the output queue keeps the scope to the two
-// subtrees each test case fully defines, so neither inherits leaves left behind
-// by a preceding case. The remaining supporting configuration in qos, such as
-// the top level queue list and the buffer allocation and scheduler policies
-// that some devices require before a queue management profile may be attached,
-// is merged with UPDATE. gNMI groups a SetRequest by operation and applies every
-// replace before every update, regardless of the order in which the operations
-// were added to the batch, so the two subtrees are rewritten from scratch and
-// the supporting configuration is then merged around them.
+// Call BuildOutputQueueManagementProfile with the same arguments first. The
+// test fails if qos does not contain the profile or the output queue.
 func ReplaceQueueManagementProfile(t *testing.T, dut *ondatra.DUTDevice, qos *oc.Qos, intfID, queueName, profileName string) {
 	t.Helper()
 	qosIntfID := QosInterfaceID(dut, intfID)
 
-	// Look the subtrees up rather than creating them. Replacing a subtree that
-	// the caller never populated would erase whatever the device currently holds
-	// at that path instead of configuring it.
+	// Fail on missing subtrees: replacing a path with an empty value would
+	// delete the existing device config at that path.
 	profile := qos.QueueManagementProfile[profileName]
 	if profile == nil {
 		t.Fatalf("ReplaceQueueManagementProfile: qos does not describe queue management profile %q", profileName)
@@ -235,7 +233,9 @@ func ReplaceQueueManagementProfile(t *testing.T, dut *ondatra.DUTDevice, qos *oc
 	batch.Set(t, dut)
 }
 
-// ConfigureInterfaceSetup sets up the test interface and subinterface configuration vendor-neutrally.
+// ConfigureInterfaceSetup merges (gNMI UPDATE) an ethernetCsmacd interface
+// config for port dp onto the DUT. It also creates subinterface 0, except on
+// DUTs with deviations.QosSchedulerConfigRequired.
 func ConfigureInterfaceSetup(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port) {
 	t.Helper()
 	intfConfig := &oc.Interface{Name: ygot.String(dp.Name())}
@@ -246,33 +246,23 @@ func ConfigureInterfaceSetup(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.P
 	gnmi.Update(t, dut, gnmi.OC().Interface(dp.Name()).Config(), intfConfig)
 }
 
-// qosStateUnsupported reports whether the QoS OpenConfig state paths must be
-// substituted by the corresponding config paths on this device.
+// qosStateUnsupported reports whether the DUT lacks QoS state paths, in which
+// case the matching config paths are read instead.
 func qosStateUnsupported(dut *ondatra.DUTDevice) bool {
 	return deviations.QosGetStatePathUnsupported(dut) || deviations.StatePathsUnsupported(dut)
 }
 
-// configPollInterval is how often the configuration datastore is re-read while
-// waiting for a leaf to converge. State paths are event driven and do not use it.
+// configPollInterval is the delay between config path reads in verifyLeaf.
 const configPollInterval = 2 * time.Second
 
-// verifyLeaf waits until the value at the QoS leaf satisfies pred, reporting an
-// error describing want if it does not converge within timeout.
+// verifyLeaf waits up to timeout for a QoS leaf to satisfy pred, and reports a
+// test error showing want as the expected value if it does not.
 //
-// Validation is performed against the OpenConfig state path. Devices that declare
-// deviations.QosGetStatePathUnsupported or deviations.StatePathsUnsupported do not
-// expose the QoS state subtree, so the equivalent config path is read back instead.
-//
-// The config read-back intentionally uses gNMI Get rather than a Subscribe-based
-// Watch, because some gNMI agents resolve SUBSCRIBE against the operational
-// datastore only, which has no backing for config-only containers. Ondatra maps
-// config queries issued through Get and Lookup onto the gNMI Get RPC for the
-// devices that require it, whereas Await and Watch always use Subscribe.
-//
-// Get has no streaming equivalent of the Watch timeout, so the config branch polls
-// until the same deadline. Most call sites follow an acknowledged SetRequest and
-// converge on the first read, but a read that follows a control processor
-// switchover needs the device to finish repopulating its configuration first.
+// By default it watches the state path. On DUTs without QoS state support (see
+// qosStateUnsupported) it instead polls the config path with gNMI Get every
+// configPollInterval. Get is used because some devices do not serve
+// config-only paths over Subscribe, and polling allows for slow convergence,
+// such as after a control processor switchover.
 func verifyLeaf[T any](t testing.TB, dut *ondatra.DUTDevice, state ygnmi.SingletonQuery[T], config ygnmi.ConfigQuery[T], timeout time.Duration, want string, pred func(*ygnmi.Value[T]) bool) {
 	t.Helper()
 	if qosStateUnsupported(dut) {
@@ -297,7 +287,8 @@ func verifyLeaf[T any](t testing.TB, dut *ondatra.DUTDevice, state ygnmi.Singlet
 	}
 }
 
-// VerifyLeaf validates that a QoS leaf reports want.
+// VerifyLeaf checks that a QoS leaf equals want within timeout. It reads the
+// state path, or the config path on DUTs without QoS state support.
 func VerifyLeaf[T comparable](t testing.TB, dut *ondatra.DUTDevice, state ygnmi.SingletonQuery[T], config ygnmi.ConfigQuery[T], want T, timeout time.Duration) {
 	t.Helper()
 	verifyLeaf(t, dut, state, config, timeout, fmt.Sprintf("%v", want), func(v *ygnmi.Value[T]) bool {
@@ -306,8 +297,8 @@ func VerifyLeaf[T comparable](t testing.TB, dut *ondatra.DUTDevice, state ygnmi.
 	})
 }
 
-// VerifyLeafRemoved validates that a QoS leaf reports no value, using the same
-// state versus config path selection as VerifyLeaf.
+// VerifyLeafRemoved checks that a QoS leaf has no value within timeout. It
+// reads the same state or config path as VerifyLeaf.
 func VerifyLeafRemoved[T comparable](t testing.TB, dut *ondatra.DUTDevice, state ygnmi.SingletonQuery[T], config ygnmi.ConfigQuery[T], timeout time.Duration) {
 	t.Helper()
 	verifyLeaf(t, dut, state, config, timeout, "no value", func(v *ygnmi.Value[T]) bool {
@@ -315,12 +306,10 @@ func VerifyLeafRemoved[T comparable](t testing.TB, dut *ondatra.DUTDevice, state
 	})
 }
 
-// VerifyLeafDetached validates that a QoS leaf reports no value, or reports a value
-// other than any of unwanted, using the same state versus config path selection as
-// VerifyLeaf.
-//
-// This is weaker than VerifyLeafRemoved on purpose: a leaf that has been detached
-// may legitimately fall back to a default rather than disappear.
+// VerifyLeafDetached checks that a QoS leaf, within timeout, is either unset or
+// set to a value not in unwanted. It reads the same state or config path as
+// VerifyLeaf. Use it instead of VerifyLeafRemoved when a removed leaf may fall
+// back to a default value rather than disappear.
 func VerifyLeafDetached[T comparable](t testing.TB, dut *ondatra.DUTDevice, state ygnmi.SingletonQuery[T], config ygnmi.ConfigQuery[T], unwanted []T, timeout time.Duration) {
 	t.Helper()
 	verifyLeaf(t, dut, state, config, timeout, fmt.Sprintf("no value or a value other than %v", unwanted), func(v *ygnmi.Value[T]) bool {
