@@ -59,15 +59,47 @@ criteria.
                 "peer-groups": {
                   "peer-group": [
                     {
-                      "apply-policy": {
-                        "config": {
-                          "export-policy": [
-                            "EXPORT-POLICY"
-                          ],
-                          "import-policy": [
-                            "IMPORT-POLICY"
-                          ]
-                        }
+                      "afi-safis": {
+                        "afi-safi": [
+                          {
+                            "afi-safi-name": "IPV4_UNICAST",
+                            "apply-policy": {
+                              "config": {
+                                "export-policy": [
+                                  "EXPORT-POLICY"
+                                ],
+                                "import-policy": [
+                                  "IMPORT-POLICY"
+                                ]
+                              }
+                            },
+                            "config": {
+                              "afi-safi-name": "IPV4_UNICAST",
+                              "send-community-type": [
+                                "STANDARD"
+                              ]
+                            }
+                          },
+                          {
+                            "afi-safi-name": "IPV6_UNICAST",
+                            "apply-policy": {
+                              "config": {
+                                "export-policy": [
+                                  "EXPORT-POLICY"
+                                ],
+                                "import-policy": [
+                                  "IMPORT-POLICY"
+                                ]
+                              }
+                            },
+                            "config": {
+                              "afi-safi-name": "IPV6_UNICAST",
+                              "send-community-type": [
+                                "STANDARD"
+                              ]
+                            }
+                          }
+                        ]
                       },
                       "config": {
                         "peer-group-name": "DEFAULT"
@@ -220,6 +252,8 @@ criteria.
     * DUT port 1 to ATE port 1.
     * DUT port 2 to ATE port 2.
   * Configure ATE port 1 with an external type BGP session to DUT port 1.
+    * Configure standard send-community for the peer-group IPv4 and IPv6
+      AFI-SAFIs at `/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/config/send-community-type`.
     * Advertise ipv4 and ipv6 prefixes to DUT port 1 using the following communities:
       * prefix-set-1 with 2 ipv6 and 2 ipv4 routes without communities.
       * prefix-set-2 with 2 ipv6 and 2 ipv4 routes with communities `[5:5, 6:6 ]`.
@@ -265,8 +299,8 @@ criteria.
   * For each policy-definition created, run a subtest (RT-7.8.2.x-neighbor-<policy_name_here>) to
     * Use gnmi Set REPLACE option for:
       * `/routing-policy/policy-definitions` to configure the policy
-      * Use `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy`
-        to apply the policy on the DUT bgp neighbor to the ATE port 1.
+      * Replace `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config`
+        with `import-policy` set to the policy being applied on the DUT BGP neighbor to ATE port 1.
     * Verify routes are received on ATE port 1 for all prefixes (since all routes are accepted by policies).
     * Verify expected communities are present in ATE.
     * Verify expected communities are present in DUT state.
@@ -277,8 +311,8 @@ criteria.
   * For each policy-definition created, run a sub-test (RT-7.8.2.x-peer-group-<policy_name_here>) to
     * Use gnmi Set REPLACE option for:
       * `/routing-policy/policy-definitions` to configure the policy
-      * Use `/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/import-policy`
-        to apply the policy on the DUT bgp neighbor to the ATE port 1.
+      * Replace `/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config`
+        with `import-policy` set to the policy being applied on the DUT BGP peer-group to ATE port 1.
     * Verify expected communities are present in ATE.
     * Verify expected communities are present in DUT state.
       * Do not fail test if this path is not supported, only log results
@@ -297,6 +331,7 @@ paths:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/config/send-community-type:
   /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-member:
   /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/match-set-options:
   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community/config/method:
