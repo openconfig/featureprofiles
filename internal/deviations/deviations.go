@@ -2401,3 +2401,29 @@ func AigpMetricIncrement(dut *ondatra.DUTDevice) bool {
 func PowerSupplyTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPowerSupplyTelemetryUnsupported()
 }
+
+// PathzUnauthorizedAccessErrorUnsupported returns true if device does not support unauthorized access error.
+// Arista: https://partnerissuetracker.corp.google.com/issues/565204169
+func PathzUnauthorizedAccessErrorUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPathzUnauthorizedAccessErrorUnsupported()
+}
+
+// PathzCountersUnsupported returns true if device does not support the per-path gNMI pathz policy
+// counters (access-accepts/access-rejects).
+// Arista: https://partnerissuetracker.corp.google.com/issues/565204169
+func PathzCountersUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPathzCountersUnsupported()
+}
+
+// PathzForceOverwriteUnsupported returns true if device does not reject a pathz Rotate that changes
+// policy content under an already-committed version without force_overwrite (freshness not enforced).
+// Arista: https://partnerissuetracker.corp.google.com/issues/565204169
+func PathzForceOverwriteUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPathzForceOverwriteUnsupported()
+}
+
+// PathzPolicyRemovalViaCliUnsupported returns true if device does not support CLI to remove pathz policy
+// Arista: https://partnerissuetracker.corp.google.com/issues/565204169
+func PathzPolicyRemovalViaCliUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPathzPolicyRemovalViaCliUnsupported()
+}

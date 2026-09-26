@@ -5,3 +5,15 @@ uuid:  "a1d80b16-fae3-4b7a-9945-481e14791bd2"
 plan_id:  "Pathz"
 description:  "Path-level Authorization (1-4) tests"
 testbed:  TESTBED_DUT
+
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    pathz_unauthorized_access_error_unsupported: true
+    pathz_counters_unsupported: true
+    pathz_force_overwrite_unsupported: true
+    pathz_policy_removal_via_cli_unsupported: true
+  }
+}
