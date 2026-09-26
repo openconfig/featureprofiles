@@ -68,19 +68,35 @@ func TestMain(m *testing.M) {
 //     - DUT software version is the same after the reboot.
 //
 // Topology:
-//   dut:port1 <--> ate:port1
+//
+//	dut:port1 <--> ate:port1
 //
 // Test notes:
-//  - A RebootRequest requests the specified target be rebooted using the specified
-//    method after the specified delay.  Only the DEFAULT method with a delay of 0
-//    is guaranteed to be accepted for all target types.
-//  - A RebootMethod determines what should be done with a target when a Reboot is
-//    requested.  Only the COLD method is required to be supported by all
-//    targets.  Methods the target does not support should result in failure.
+//   - A RebootRequest requests the specified target be rebooted using the specified
+//     method after the specified delay.  Only the DEFAULT method with a delay of 0
+//     is guaranteed to be accepted for all target types.
+//   - A RebootMethod determines what should be done with a target when a Reboot is
+//     requested.  Only the COLD method is required to be supported by all
+//     targets.  Methods the target does not support should result in failure.
 //
-//  - gnoi operation commands can be sent and tested using CLI command grpcurl.
-//    https://github.com/fullstorydev/grpcurl
-//
+//   - gnoi operation commands can be sent and tested using CLI command grpcurl.
+//     https://github.com/fullstorydev/grpcurl
+
+// activeCompSet returns the set of component names whose oper-status is ACTIVE.
+// Using only ACTIVE components for the pre/post reboot comparison makes the check
+// platform-agnostic: it does not depend on whether a platform reports DISABLED,
+// UNSET, INACTIVE, or other transient states consistently across reboots.
+func activeCompSet(t *testing.T, dut *ondatra.DUTDevice) map[string]bool {
+	t.Helper()
+	comps := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
+	active := make(map[string]bool)
+	for _, c := range comps {
+		if c.GetOperStatus() == oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE {
+			active[c.GetName()] = true
+		}
+	}
+	return active
+}
 
 func TestChassisReboot(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
@@ -107,20 +123,27 @@ func TestChassisReboot(t *testing.T) {
 			}},
 	}
 
-	versions := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().SoftwareVersion().State())
-	expectedVersion := uniqueSortedStrings(t, versions)
-	t.Logf("DUT software version: %v", expectedVersion)
-
-	preRebootCompStatus := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().OperStatus().State())
-	preRebootCompDebug := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
-	var preCompMatrix []string
-	for _, preComp := range preRebootCompDebug {
-		if preComp.GetOperStatus() != oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET {
-			preCompMatrix = append(preCompMatrix, preComp.GetName()+":"+preComp.GetOperStatus().String())
-		}
-	}
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
+			// Capture pre-reboot baseline inside each subtest so that each reboot
+			// is compared against the actual state of the DUT at the start of that
+			// iteration, rather than a potentially stale snapshot from before a
+			// prior reboot.
+			versions := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().SoftwareVersion().State())
+			expectedVersion := uniqueSortedStrings(t, versions)
+			t.Logf("DUT software version before reboot: %v", expectedVersion)
+
+			preActiveComps := activeCompSet(t, dut)
+			t.Logf("Pre-reboot active component count: %v", len(preActiveComps))
+
+			preRebootCompDebug := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
+			var preCompMatrix []string
+			for _, preComp := range preRebootCompDebug {
+				if preComp.GetOperStatus() != oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET {
+					preCompMatrix = append(preCompMatrix, preComp.GetName()+":"+preComp.GetOperStatus().String())
+				}
+			}
+
 			gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(t.Context())
 			if err != nil {
 				t.Fatalf("Error dialing gNOI: %v", err)
@@ -215,7 +238,7 @@ func TestChassisReboot(t *testing.T) {
 			}
 
 			startComp := time.Now()
-			t.Logf("Wait for all the components on DUT to come up.")
+			t.Logf("Wait for all previously active components on DUT to become ACTIVE.")
 			{
 				ticker := time.NewTicker(componentPollInterval)
 				defer ticker.Stop()
@@ -225,6 +248,14 @@ func TestChassisReboot(t *testing.T) {
 				for {
 					select {
 					case <-timeout:
+						postActiveComps := activeCompSet(t, dut)
+						var missing []string
+						for name := range preActiveComps {
+							if !postActiveComps[name] {
+								missing = append(missing, name)
+							}
+						}
+						sort.Strings(missing)
 						postRebootCompDebug := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
 						var postCompMatrix []string
 						for _, postComp := range postRebootCompDebug {
@@ -235,12 +266,18 @@ func TestChassisReboot(t *testing.T) {
 						if rebootDiff := cmp.Diff(preCompMatrix, postCompMatrix); rebootDiff != "" {
 							t.Logf("[DEBUG] Unexpected diff after reboot (-component missing from pre reboot, +component added from pre reboot): %v.", rebootDiff)
 						}
-						postRebootCompStatus := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().OperStatus().State())
-						t.Fatalf("Timeout exceeded: There's a difference in components obtained in pre reboot: %v and post reboot: %v.", len(preRebootCompStatus), len(postRebootCompStatus))
+						t.Fatalf("Timeout exceeded: the following components were ACTIVE before reboot but are not ACTIVE after reboot: %v", missing)
 					case <-ticker.C:
-						postRebootCompStatus := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().OperStatus().State())
-						if len(preRebootCompStatus) == len(postRebootCompStatus) {
-							t.Logf("All components on the DUT are in responsive state after %.2f seconds.", time.Since(startComp).Seconds())
+						postActiveComps := activeCompSet(t, dut)
+						allUp := true
+						for name := range preActiveComps {
+							if !postActiveComps[name] {
+								allUp = false
+								break
+							}
+						}
+						if allUp {
+							t.Logf("All previously active components on the DUT are ACTIVE again after %.2f seconds.", time.Since(startComp).Seconds())
 							break compLoop
 						}
 					}
