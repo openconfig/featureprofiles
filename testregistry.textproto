@@ -775,6 +775,7 @@ test: {
   id: "Pathz"
   description: "Path-level Authorization (1-4) tests"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/pathz/tests/pathz/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/pathz/tests/pathz/pathz_test.go"
 }
 test: {
   id: "RELAY-1.1"
