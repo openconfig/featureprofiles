@@ -82,7 +82,6 @@ func TestDeployAndStartContainer(t *testing.T) {
 			ImageTag:            "latest",
 			TarPath:             containerTarPath(t),
 			Command:             "./cntrsrv",
-			Ports:               []string{"60061:60061"},
 			RemoveExistingImage: true,
 			PollForRunningState: true,
 			PollTimeout:         30 * time.Second,
@@ -100,7 +99,7 @@ func TestDeployAndStartContainer(t *testing.T) {
 		instanceName := "test-non-existent-img"
 		dut := ondatra.DUT(t, "dut")
 		cli := containerztest.Client(t, dut) // Get client for this subtest.
-		if _, err := cli.StartContainer(ctx, nonExistentImageName, "latest", "./cmd", instanceName, client.WithPorts([]string{"60061:60061"})); err == nil {
+		if _, err := cli.StartContainer(ctx, nonExistentImageName, "latest", "./cmd", instanceName, client.WithNetwork("host")); err == nil {
 			t.Errorf("Expected error when starting container with non-existent image %s, but got nil", nonExistentImageName)
 			// Attempt to clean up if it somehow started
 			if removeErr := cli.RemoveContainer(ctx, instanceName, true); removeErr != nil {
@@ -120,7 +119,7 @@ func TestDeployAndStartContainer(t *testing.T) {
 		instanceName := "test-non-existent-tag"
 		dut := ondatra.DUT(t, "dut")
 		cli := containerztest.Client(t, dut)
-		if _, err := cli.StartContainer(ctx, imageName, nonExistentTag, "./cmd", instanceName, client.WithPorts([]string{"60061:60061"})); err == nil {
+		if _, err := cli.StartContainer(ctx, imageName, nonExistentTag, "./cmd", instanceName, client.WithNetwork("host")); err == nil {
 			t.Errorf("Expected error when starting container %s with non-existent tag %s, but got nil", imageName, nonExistentTag)
 			if removeErr := cli.RemoveContainer(ctx, instanceName, true); removeErr != nil {
 				t.Logf("Cleanup: Failed to remove container: %s after unexpected start: %v", instanceName, removeErr)
@@ -254,7 +253,6 @@ func TestRetrieveLogs(t *testing.T) {
 			ImageTag:            "latest",
 			TarPath:             containerTarPath(t),
 			Command:             "./cntrsrv",
-			Ports:               []string{"60062:60062"},
 			RemoveExistingImage: false,
 			PollForRunningState: true,
 			PollTimeout:         30 * time.Second,
@@ -692,7 +690,7 @@ func TestUpgrade(t *testing.T) {
 			}
 		}
 
-		if _, err := cli.UpdateContainer(ctx, imageName, "upgrade", "./cntrsrv", instanceName, false, client.WithPorts([]string{"60061:60061"})); err != nil {
+		if _, err := cli.UpdateContainer(ctx, imageName, "upgrade", "./cntrsrv", instanceName, false, client.WithNetwork("host")); err != nil {
 			t.Fatalf("unable to upgrade container %s to %s:upgrade: %v", instanceName, imageName, err)
 		}
 		t.Logf("UpdateContainer called for %s to %s:upgrade", instanceName, imageName)
@@ -736,7 +734,7 @@ func TestUpgrade(t *testing.T) {
 		defer cleanup()
 
 		nonExistentImage := "non-existent-image-for-upgrade"
-		if _, err := cli.UpdateContainer(ctx, nonExistentImage, "latest", "./cntrsrv", instanceName, false, client.WithPorts([]string{"60061:60061"})); err == nil {
+		if _, err := cli.UpdateContainer(ctx, nonExistentImage, "latest", "./cntrsrv", instanceName, false, client.WithNetwork("host")); err == nil {
 			t.Errorf("UpdateContainer to non-existent image %s succeeded, expected error", nonExistentImage)
 		} else {
 			t.Logf("Got expected error when upgrading to non-existent image %s: %v", nonExistentImage, err)
@@ -755,7 +753,7 @@ func TestUpgrade(t *testing.T) {
 
 		nonExistentTag := "non-existent-tag-for-upgrade"
 		// Ensure the base image 'imageName:latest' exists from startContainer.
-		if _, err := cli.UpdateContainer(ctx, imageName, nonExistentTag, "./cntrsrv", instanceName, false, client.WithPorts([]string{"60061:60061"})); err == nil {
+		if _, err := cli.UpdateContainer(ctx, imageName, nonExistentTag, "./cntrsrv", instanceName, false, client.WithNetwork("host")); err == nil {
 			t.Errorf("UpdateContainer to image %s with non-existent tag %s succeeded, expected error", imageName, nonExistentTag)
 		} else {
 			t.Logf("Got expected error when upgrading to image %s with non-existent tag %s: %v", imageName, nonExistentTag, err)
@@ -774,7 +772,7 @@ func TestUpgrade(t *testing.T) {
 			t.Logf("Pre-test removal of %s failed (continuing): %v", nonExistentInstance, err)
 		}
 
-		if _, err := baseCli.UpdateContainer(ctx, imageName, "latest", "./cntrsrv", nonExistentInstance, false, client.WithPorts([]string{"60061:60061"})); err == nil {
+		if _, err := baseCli.UpdateContainer(ctx, imageName, "latest", "./cntrsrv", nonExistentInstance, false, client.WithNetwork("host")); err == nil {
 			t.Errorf("UpdateContainer for non-existent instance %s succeeded, expected error", nonExistentInstance)
 		} else {
 			t.Logf("Got expected error when upgrading non-existent instance %s: %v", nonExistentInstance, err)
@@ -1038,8 +1036,7 @@ func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 			ImageName:           imageName,
 			ImageTag:            tag,
 			TarPath:             containerTarPath(t),
-			Command:             "./cntrsrv -port=60064",
-			Ports:               []string{"60064:60064"},
+			Command:             "./cntrsrv",
 			Volumes:             []string{fmt.Sprintf("%s:%s", volName, "/data")},
 			RemoveExistingImage: true,
 			PollForRunningState: true,
