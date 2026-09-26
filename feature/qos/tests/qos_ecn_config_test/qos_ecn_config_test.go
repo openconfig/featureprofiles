@@ -40,28 +40,62 @@ const (
 	DeviatedMaxThreshold = (uint64(8011776))
 )
 
-// wantWeight is the WRED exponential weighting factor applied to every ECN profile
-// in this test.
-//
-// The test specification lists the weight leaf among the paths it covers but does
-// not state a value for it, so this matches the value the DP-1.2 QoS policy config
-// test configures on the same leaf. Zero selects the instantaneous queue depth
-// rather than a moving average.
+// wantWeight is the WRED weight set on every ECN profile. The README gives no
+// value, so 0 (instantaneous queue depth) is used, matching the DP-1.2 test.
 const wantWeight = uint32(0)
+
+// ecnProfiles lists every queue management profile this test may create.
+var ecnProfiles = []string{"ECN_PROFILE_1", "ECN_PROFILE_2", "ECN_PROFILE_3", "ECN_PROFILE_NEG"}
+
+// removeECNConfig detaches the ECN profile from queueName on dp and deletes all
+// ecnProfiles, logging and ignoring errors. Used by t.Cleanup if DP-1.3.5 did not complete.
+func removeECNConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port, queueName string) {
+	t.Helper()
+	bestEffort := func(desc string, fn func(t testing.TB)) {
+		if msg := testt.CaptureFatal(t, fn); msg != nil {
+			t.Logf("Cleanup: %s failed (ignored): %s", desc, *msg)
+		}
+	}
+	qosIntfID := qoscfg.QosInterfaceID(dut, dp.Name())
+	bestEffort("detach queue management profile", func(t testing.TB) {
+		gnmi.Delete(t, dut, gnmi.OC().Qos().Interface(qosIntfID).Output().Queue(queueName).QueueManagementProfile().Config())
+	})
+	for _, p := range ecnProfiles {
+		bestEffort("delete queue management profile "+p, func(t testing.TB) {
+			gnmi.Delete(t, dut, gnmi.OC().Qos().QueueManagementProfile(p).Config())
+		})
+	}
+}
 
 func TestQosEcnConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp1 := dut.Port(t, "port1")
 
+	// teardownVerified is set when DP-1.3.5 removes and verifies all ECN config.
+	teardownVerified := false
+	// Safety net for DP-1.3.5: registered before any configuration is pushed so
+	// the ECN config is removed even if a subtest panics before DP-1.3.5 runs.
+	// It does nothing when DP-1.3.5 already completed successfully.
+	t.Cleanup(func() {
+		if teardownVerified {
+			return
+		}
+		t.Log("DP-1.3.5 did not complete; removing ECN configuration (best effort)")
+		removeECNConfig(t, dut, dp1, "0")
+	})
+
 	// DP-1.3 Test environment setup
 	t.Run("Test environment setup", func(t *testing.T) {
+		// DP-1.3 Test environment setup: DUT port-1 connects to ATE port-1
+		// (testbed). Configure the DUT port-1 interface used by all subtests.
 		qoscfg.ConfigureInterfaceSetup(t, dut, dp1)
 
-		//  Step 1 - Generate DUT configuration
+		// DP-1.3 Test environment setup: Build the base QoS config (classifier,
+		// forwarding group, queue "0").
 		qos := &oc.Root{}
 		q := qos.GetOrCreateQos()
 
-		// DP-1.3 Step: Create an input IPv4 classifier to match traffic intended for the QoS queue being tested
+		// DP-1.3 Test environment setup: Create an input IPv4 classifier to match traffic intended for the QoS queue being tested
 		className := "ipv4_dscp_classifier"
 		targetGroupName := "target-group-0"
 		qoscfg.ConfigureIPv4DSCPClassifier(t, dut, q, className, targetGroupName, 10 /* dscp 10 for example */)
@@ -74,14 +108,14 @@ func TestQosEcnConfig(t *testing.T) {
 
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 
-		// DP-1.3 Step: Apply the classifier to the input of DUT port-1
+		// DP-1.3 Test environment setup: Apply the classifier to the input of DUT port-1
 		// For Juniper, we must NOT pass the same `q` struct containing the classifiers
 		// to the Interface/Input logic, or else `gnmi.Update` will push both mappings together.
 		d2 := &oc.Root{}
 		q2 := d2.GetOrCreateQos()
 		qoscfg.SetInputClassifier(t, dut, q2, dp1.Name(), oc.Input_Classifier_Type_IPV4, className)
 
-		// DP-1.3 Step: Validate the classifier is applied to the input of DUT port-1.
+		// DP-1.3 Test environment setup: Validate the classifier is applied to the input of DUT port-1.
 		inClassifierPath := gnmi.OC().Qos().Interface(qoscfg.QosClassifierInterfaceID(dut, dp1.Name())).Input().Classifier(oc.Input_Classifier_Type_IPV4)
 		qoscfg.VerifyLeaf(t, dut, inClassifierPath.Name().State(), inClassifierPath.Name().Config(), className, time.Minute)
 	})
@@ -102,6 +136,9 @@ func TestQosEcnConfig(t *testing.T) {
 			uniform.SetWeight(wantWeight)
 		}
 
+		// DP-1.3.1 Step 1: min-threshold = max-threshold = 81920 (80KB). Devices with
+		// deviations.EcnSameMinMaxThresholdUnsupported cannot set equal values, so the
+		// closest supported pair (DeviatedMinThreshold/DeviatedMaxThreshold) is used.
 		var wantMinThreshold uint64 = 81920
 		var wantMaxThreshold uint64 = 81920
 		if deviations.EcnSameMinMaxThresholdUnsupported(dut) {
@@ -117,7 +154,9 @@ func TestQosEcnConfig(t *testing.T) {
 		// DP-1.3.1 Step 2 - Push configuration to DUT using gNMI Set with REPLACE option.
 		qoscfg.ReplaceQueueManagementProfile(t, dut, q, dp1.Name(), queueName, profileName)
 
-		// DP-1.3.1 Step 3 - Validation with pass/fail criteria
+		// DP-1.3.1 Step 3 - Validation with pass/fail criteria: verify each
+		// wred/uniform state leaf (config leaf on devices without QoS state
+		// support) using gnmi.Watch/Await via qoscfg.VerifyLeaf.
 		uniformPath := gnmi.OC().Qos().QueueManagementProfile(profileName).Wred().Uniform()
 		qoscfg.VerifyLeaf(t, dut, uniformPath.EnableEcn().State(), uniformPath.EnableEcn().Config(), true, time.Minute)
 		qoscfg.VerifyLeaf(t, dut, uniformPath.MaxDropProbabilityPercent().State(), uniformPath.MaxDropProbabilityPercent().Config(), 100, time.Minute)
@@ -147,7 +186,10 @@ func TestQosEcnConfig(t *testing.T) {
 			t.Log("Waiting for device to reconnect...")
 			startT := time.Now()
 			for {
-				// Sleep is absolutely necessary here to prevent gNMI connection spam during supervisor switchover reboot, as gnmi.Await cannot catch native dial panics.
+				// DP-1.3.1 Step 5: Wait for the new active supervisor. gNMI is unreachable
+				// during the switchover, so gnmi.Watch/Await fail on dial and cannot wait
+				// across the outage. A 30s back-off between reconnect attempts is therefore
+				// required (same pattern as feature/gnoi/system/tests/supervisor_switchover_test).
 				time.Sleep(30 * time.Second)
 				errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 					gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
@@ -162,6 +204,7 @@ func TestQosEcnConfig(t *testing.T) {
 			}
 
 			// DP-1.3.1 Step 6 - Once the new supervisor is active, repeat checks
+			// from Steps 3 and 4. Also verify the previous standby card is now active.
 			cards := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
 			if _, newActive := components.FindStandbyControllerCard(t, dut, cards); newActive != prevStandby {
 				t.Errorf("Active controller card after switchover: got %q, want %q", newActive, prevStandby)
@@ -207,7 +250,9 @@ func TestQosEcnConfig(t *testing.T) {
 		// DP-1.3.2 Step 2 - Push configuration to DUT using gNMI Set with REPLACE option.
 		qoscfg.ReplaceQueueManagementProfile(t, dut, q, dp1.Name(), queueName, profileName)
 
-		// DP-1.3.2 Step 3 - Validation with pass/fail criteria
+		// DP-1.3.2 Step 3 - Validation with pass/fail criteria: verify each
+		// wred/uniform state leaf (config leaf on devices without QoS state
+		// support) using gnmi.Watch/Await via qoscfg.VerifyLeaf.
 		uniformPath := gnmi.OC().Qos().QueueManagementProfile(profileName).Wred().Uniform()
 		qoscfg.VerifyLeaf(t, dut, uniformPath.EnableEcn().State(), uniformPath.EnableEcn().Config(), true, time.Minute)
 		qoscfg.VerifyLeaf(t, dut, uniformPath.MinThreshold().State(), uniformPath.MinThreshold().Config(), 3276800, time.Minute)
@@ -253,7 +298,9 @@ func TestQosEcnConfig(t *testing.T) {
 		// DP-1.3.3 Step 2 - Push configuration to DUT using gNMI Set with REPLACE option.
 		qoscfg.ReplaceQueueManagementProfile(t, dut, q, dp1.Name(), queueName, profileName)
 
-		// DP-1.3.3 Step 3 - Validation with pass/fail criteria
+		// DP-1.3.3 Step 3 - Validation with pass/fail criteria: verify each
+		// wred/uniform state leaf (config leaf on devices without QoS state
+		// support) using gnmi.Watch/Await via qoscfg.VerifyLeaf.
 		uniformPath := gnmi.OC().Qos().QueueManagementProfile(profileName).Wred().Uniform()
 		qoscfg.VerifyLeaf(t, dut, uniformPath.EnableEcn().State(), uniformPath.EnableEcn().Config(), true, time.Minute)
 		qoscfg.VerifyLeaf(t, dut, uniformPath.MinThresholdPercent().State(), uniformPath.MinThresholdPercent().Config(), 1, time.Minute)
@@ -273,12 +320,14 @@ func TestQosEcnConfig(t *testing.T) {
 	})
 
 	t.Run("DP-1.3.4 - Negative Test Cases", func(t *testing.T) {
-		// DP-1.3.4 Step 1 - Generate DUT configuration
+		// DP-1.3.4: Shared QoS config for the negative tests below. Each negative
+		// test verifies the DUT rejects the gNMI Set.
 		qos := &oc.Root{}
 		q := qos.GetOrCreateQos()
 		profileName := "ECN_PROFILE_NEG"
 
-		// Negative Test 1: min-threshold > max-threshold
+		// DP-1.3.4 Negative Test 1: min-threshold (81920) > max-threshold (40960).
+		// Verify the gNMI Set is rejected.
 		t.Run("Negative Test 1 (min > max threshold)", func(t *testing.T) {
 			if deviations.EcnMinGreaterMaxThresholdUnsupported(dut) {
 				t.Skip("Device does not support validating min-threshold > max-threshold")
@@ -305,7 +354,8 @@ func TestQosEcnConfig(t *testing.T) {
 			q.DeleteQueueManagementProfile(profileName)
 		})
 
-		// Negative Test 2: Invalid max-drop-probability-percent
+		// DP-1.3.4 Negative Test 2: max-drop-probability-percent = 101 (out of
+		// range). Verify the gNMI Set is rejected.
 		t.Run("Negative Test 2 (invalid max-drop-prob)", func(t *testing.T) {
 			uniform := q.GetOrCreateQueueManagementProfile(profileName).GetOrCreateWred().GetOrCreateUniform()
 			uniform.SetMaxDropProbabilityPercent(101)
@@ -318,7 +368,8 @@ func TestQosEcnConfig(t *testing.T) {
 			}
 		})
 
-		// Negative Test 3: Non-existent Profile Assignment
+		// DP-1.3.4 Negative Test 3: assign non-existent profile "BOGUS_PROFILE" to
+		// queue "0". Verify the gNMI Set is rejected.
 		t.Run("Negative Test 3 (non-existent profile)", func(t *testing.T) {
 			queueName := "0"
 			qoscfg.BuildOutputQueueManagementProfile(dut, q, dp1.Name(), queueName, "BOGUS_PROFILE")
@@ -332,7 +383,8 @@ func TestQosEcnConfig(t *testing.T) {
 			qoscfg.BuildOutputQueueManagementProfile(dut, q, dp1.Name(), queueName, "ECN_PROFILE_2")
 		})
 
-		// Negative Test 4: Invalid Profile Deletion
+		// DP-1.3.4 Negative Test 4: delete ECN_PROFILE_2 while it is applied to
+		// queue "0". Verify the deletion is rejected.
 		t.Run("Negative Test 4 (delete active profile)", func(t *testing.T) {
 			// Profile ECN_PROFILE_2 is actively applied from DP-1.3.2. Attempt to delete it.
 			deletedProfile := q.QueueManagementProfile["ECN_PROFILE_2"]
@@ -376,5 +428,8 @@ func TestQosEcnConfig(t *testing.T) {
 			profilePath := gnmi.OC().Qos().QueueManagementProfile(profileName)
 			qoscfg.VerifyLeafRemoved(t, dut, profilePath.State(), profilePath.Config(), time.Minute)
 		}
+
+		// DP-1.3.5 complete: the t.Cleanup safety net is not needed.
+		teardownVerified = !t.Failed()
 	})
 }
