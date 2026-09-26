@@ -2,7 +2,7 @@
 
 ## Summary
 
-Test basic encapsulation behaviors.
+Test basic encapsulation and decapsulation behaviors, including DSCP, TTL, and Explicit Congestion Notification (ECN) preservation during IP-in-IP encapsulation and congestion propagation during decapsulation per RFC 6040.
 
 ## Topology
 
@@ -291,6 +291,37 @@ IPv4Entry {192.0.2.222/32 (DEFAUlT VRF)} -> NHG#3 (DEFAULT VRF) -> {
 // 203.10.113.2 is the tunnel IP address. Note that the NHG#1 is shared by both tunnels.
 
 IPv4Entry {203.10.113.2/32 (TE_VRF_111)} -> NHG#1 (DEFAULT VRF) -> <omitted for brevity>
+
+// Decapsulation AFTs in DECAP_TE_VRF:
+// When packets match decap rules in vrf_selection_policy_c, the outer IP header is removed
+// and inner packet lookup occurs in DECAP_TE_VRF.
+
+IPv4Entry {198.18.11.0/24 (DECAP_TE_VRF)} -> NHG#1000 (DEFAULT VRF) -> {
+  {NH#1001, DEFAULT VRF}
+}
+NH#1001 -> {
+  decapsulate_header: OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
+  network_instance: "DEFAULT"
+}
+
+IPv6Entry {2001:db8:2016::/64 (DECAP_TE_VRF)} -> NHG#1000 (DEFAULT VRF) -> {
+  {NH#1001, DEFAULT VRF}
+}
+
+// Fallback default routing entries in ENCAP_TE_VRF_A to DEFAULT VRF:
+IPv4Entry {0.0.0.0/0 (ENCAP_TE_VRF_A)} -> NHG#2000 (DEFAULT VRF) -> {
+  {NH#2001, DEFAULT VRF, ip_address: 192.0.2.100}
+}
+IPv4Entry {192.0.2.100/32 (DEFAULT VRF)} -> NHG#2002 (DEFAULT VRF) -> {
+  {NH#2003, DEFAULT VRF, mac_address: magic_mac, interface-ref: dut-port-2-interface}
+}
+
+IPv6Entry {::/0 (ENCAP_TE_VRF_A)} -> NHG#3000 (DEFAULT VRF) -> {
+  {NH#3001, DEFAULT VRF, ip_address: 2001:db8::100}
+}
+IPv6Entry {2001:db8::100/128 (DEFAULT VRF)} -> NHG#3002 (DEFAULT VRF) -> {
+  {NH#3003, DEFAULT VRF, mac_address: magic_mac, interface-ref: dut-port-2-interface}
+}
 ```
 
 ## Procedure
@@ -347,6 +378,79 @@ this test we’ll focus on tunnel traffic identification using
         the weight.
     *   The DSCP value is copied from the inner header to the outer header.
     *   The TTL value is copied from the inner header to the outer header.
+
+#### Test-4, ECN Encap Copy
+
+Validate that the 2-bit ECN codepoints are correctly copied and preserved from
+the inner IP header to the outer tunnel IP header during encapsulation across
+all defined ECN states:
+
+*   ECN codepoints tested:
+    *   `00`: Not-ECT (Not ECN-Capable Transport)
+    *   `01`: ECT(1) (ECN-Capable Transport 1)
+    *   `10`: ECT(0) (ECN-Capable Transport 0)
+    *   `11`: CE (Congestion Experienced)
+*   Traffic types:
+    *   Native IPv4 traffic to `138.0.11.8` (inner IPv4, encapsulated as 4in4).
+    *   Native IPv6 traffic to `2015:aa8::1` (inner IPv6, encapsulated as 6in4).
+*   Validate that:
+    *   100% of egress packets are encapsulated with an outer IPv4 tunnel header.
+    *   For each flow, the 2-bit ECN field of the outer IPv4 header (`TOS & 0x03`)
+        matches the 2-bit ECN field of the inner packet header (`inner
+        TOS & 0x03` for IPv4 or `inner TrafficClass & 0x03` for IPv6). For
+        platforms adhering to RFC 3168 Section 9.1.1 / RFC 6040 Section 4.1
+        Compatibility Mode (such as Juniper PTX), an arriving inner `ECT(1)` packet
+        may be encapsulated as outer `ECT(0)`.
+    *   DSCP and TTL copy behavior remains compliant with Test-1 and Test-2.
+    *   Zero packet loss across all flows.
+
+#### Test-5, ECN Decap Propagation (RFC 6040)
+
+Validate that the DUT decapsulates tunneled traffic and propagates congestion
+notifications from the outer tunnel header to the inner IP header delivered to
+the end receiver per RFC 6040 / RFC 3168:
+
+1.  Send pre-encapsulated IP-in-IP (IP protocol 4) and 6in4 (IP protocol 41)
+    packets to DUT port-1:
+    *   Outer IPv4 header source address matching decap rule in
+        `vrf_selection_policy_c` (`ipv4_outer_src_111 = 198.51.100.111`).
+    *   Outer destination IP matching tunnel endpoint prefix (`198.18.11.8`).
+    *   Inner packet destination addressed to receiver in the DEFAULT VRF.
+2.  Test combinations of outer and inner ECN codepoints:
+    *   **Congestion Marking Propagation**:
+        *   Outer = `11` (CE), Inner = `10` (ECT(0)) -> Expected Decapped Inner =
+            `11` (CE).
+        *   Outer = `11` (CE), Inner = `01` (ECT(1)) -> Expected Decapped Inner =
+            `11` (CE).
+    *   **Normal / Non-Congested Transport**:
+        *   Outer = `10` (ECT(0)), Inner = `10` (ECT(0)) -> Expected Decapped Inner
+            = `10` (ECT(0)).
+        *   Outer = `01` (ECT(1)), Inner = `01` (ECT(1)) -> Expected Decapped Inner
+            = `01` (ECT(1)).
+        *   Outer = `00` (Not-ECT), Inner = `00` (Not-ECT) -> Expected Decapped Inner
+            = `00` (Not-ECT).
+3.  Validate that:
+    *   The DUT decapsulates the packets (removes outer IPv4 tunnel header).
+    *   The decapsulated inner packet is forwarded out egress port-2 according
+        to the DEFAULT VRF route.
+    *   When the outer tunnel header indicates congestion (`CE = 11`) on an
+        ECN-capable inner packet (`ECT(0)` or `ECT(1)`), the inner packet has
+        its ECN field updated to `CE (11)` upon egress.
+    *   When the outer header does not indicate congestion, the inner packet ECN
+        bits remain unchanged.
+    *   Decap fallback to DEFAULT VRF functions correctly when no explicit
+        matching route exists in `ENCAP_TE_VRF_A`.
+    *   Zero packet loss across all valid flows.
+    *   Note: Test-5 specifically tests tunnel decapsulation, TTL preservation,
+        and RFC 6040 ECN congestion propagation. Default platform egress Class of
+        Service (CoS) drop-precedence remarking on physical interfaces (e.g. Junos
+        mapping AF11 to CS1) is permitted and logged.
+
+## Canonical OC
+
+```json
+{}
+```
 
 ## Config Parameter Coverage
 
