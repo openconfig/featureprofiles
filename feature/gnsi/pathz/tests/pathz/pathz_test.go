@@ -417,31 +417,17 @@ func configureGRPCServerMTLS(t *testing.T, dut *ondatra.DUTDevice, grpcServerNam
 			}
 		}
 	}
-	// Binding the SSL profile via certificate-id makes the DUT reload TLS on the gRPC transport,
-	// resetting the in-flight gNMI session (Unavailable/EOF) even though the config is applied.
-	for _, server := range servers {
-		if _, err := ygnmi.Replace(t.Context(), yc, gnmi.OC().System().GrpcServer(server).CertificateId().Config(), profileID); err != nil && !isConnectionReset(err) {
-			t.Fatalf("failed to bind ssl profile %q to grpc-server %q: %v", profileID, server, err)
-		}
-	}
-	// authentication username priority x509-spiffe-full is Arista-native and not expressible in
-	// OpenConfig. The "-full" variant uses the ENTIRE client-cert SPIFFE URI (e.g.
-	// spiffe://.../role/admin) as the pathz principal, so it matches the "user" in the upload policy.
-	// aaa config-commands disabled stops config-applies from being gated by AAA command
-	// authorization, leaving pathz as the sole authority (else group-permitted writes are rejected
-	// with InvalidArgument "failed to apply: authorization denied" before pathz is consulted).
-	runConfigViaCLI(t, dut, fmt.Sprintf(
-		"management api gnmi\ntransport grpc %s\naaa config-commands disabled\nauthentication username priority x509-spiffe-full",
-		grpcServerName))
+	// Register SPIFFE/AAA revert cleanup first so it runs last in LIFO order.
 	t.Cleanup(func() {
 		revertConfigViaCLI(t, dut, fmt.Sprintf(
 			"management api gnmi\ntransport grpc %s\nno authentication username priority x509-spiffe-full\naaa config-commands",
 			grpcServerName))
 	})
-	// Registered after the SPIFFE/AAA revert so LIFO runs THIS first: the binding's gNMI client is
-	// locked out by the now-mTLS transport, so restore certificate-id over an admin-cert connection
-	// (service pathz is already disabled by the LIFO-earlier cleanup, and AAA command-authz is still
-	// disabled here, so the write is accepted), then delete the test SSL profile over the CLI.
+	// Register certificate-id restore cleanup second so it runs first in LIFO order.
+	// The binding's gNMI client is locked out by the now-mTLS transport, so restore
+	// certificate-id over an admin-cert connection (service pathz is already disabled
+	// by the LIFO-earlier cleanup, and AAA command-authz is still disabled here, so
+	// the write is accepted), then delete the test SSL profile over the CLI.
 	t.Cleanup(func() {
 		adminGNMI, err := dialGNMIAs(t, dut, adminCert, caCert)
 		if err != nil {
@@ -464,6 +450,23 @@ func configureGRPCServerMTLS(t *testing.T, dut *ondatra.DUTDevice, grpcServerNam
 		}
 		revertConfigViaCLI(t, dut, fmt.Sprintf("management security\nno ssl profile %s", profileID))
 	})
+	// Binding the SSL profile via certificate-id makes the DUT reload TLS on the gRPC transport,
+	// resetting the in-flight gNMI session (Unavailable/EOF) even though the config is applied.
+	for _, server := range servers {
+		if _, err := ygnmi.Replace(t.Context(), yc, gnmi.OC().System().GrpcServer(server).CertificateId().Config(), profileID); err != nil && !isConnectionReset(err) {
+			t.Fatalf("failed to bind ssl profile %q to grpc-server %q: %v", profileID, server, err)
+		}
+	}
+	// authentication username priority x509-spiffe-full is Arista-native and not expressible in
+	// OpenConfig. The "-full" variant uses the ENTIRE client-cert SPIFFE URI (e.g.
+	// spiffe://.../role/admin) as the pathz principal, so it matches the "user" in the upload policy.
+	// aaa config-commands disabled stops config-applies from being gated by AAA command
+	// authorization, leaving pathz as the sole authority (else group-permitted writes are rejected
+	// with InvalidArgument "failed to apply: authorization denied" before pathz is consulted).
+	runConfigViaCLI(t, dut, fmt.Sprintf(
+		"management api gnmi\ntransport grpc %s\naaa config-commands disabled\nauthentication username priority x509-spiffe-full",
+		grpcServerName))
+
 }
 
 // isConnectionReset reports whether err is the transport reset the DUT returns when committing the
@@ -819,10 +822,10 @@ func disableRequestAuthorizationCLI(t *testing.T, dut *ondatra.DUTDevice, grpcTr
 	cmd.WriteString("management api gnmi\n")
 	cmd.WriteString(fmt.Sprintf("transport grpc %s\n", grpcTransportName))
 	cmd.WriteString("no authorization requests\n")
-	helpers.GnmiCLIConfig(t, dut, cmd.String())
 	t.Cleanup(func() {
 		revertConfigViaCLI(t, dut, fmt.Sprintf("management api gnmi\ntransport grpc %s\nauthorization requests", grpcTransportName))
 	})
+	helpers.GnmiCLIConfig(t, dut, cmd.String())
 }
 
 // enablePathzServiceCLI enables the gNSI Pathz service on the DUT via vendor-native CLI, run over
@@ -834,10 +837,10 @@ func enablePathzServiceCLI(t *testing.T, dut *ondatra.DUTDevice, grpcTransportNa
 		t.Logf("no known native command to enable the gNSI Pathz service for vendor %v; skipping (assuming it is pre-enabled)", dut.Vendor())
 		return
 	}
-	runConfigViaCLI(t, dut, fmt.Sprintf("management api gnsi\ntransport gnmi %s\nservice pathz", grpcTransportName))
 	t.Cleanup(func() {
 		revertConfigViaCLI(t, dut, fmt.Sprintf("management api gnsi\ntransport gnmi %s\nno service pathz", grpcTransportName))
 	})
+	runConfigViaCLI(t, dut, fmt.Sprintf("management api gnsi\ntransport gnmi %s\nservice pathz", grpcTransportName))
 }
 
 // awaitPathzServing polls the DUT's gNSI Pathz service until it stops reporting Unimplemented,
@@ -1078,6 +1081,7 @@ func pathzSandboxVersionRaw(ctx context.Context, client gpb.GNMIClient) (version
 func awaitPathzSandboxVersionRaw(ctx context.Context, t *testing.T, client gpb.GNMIClient, wantVersion string, timeout time.Duration) {
 	t.Helper()
 	const pollInterval = 500 * time.Millisecond
+	ticker := time.NewTicker(pollInterval)
 	for {
 		version, ok, err := pathzSandboxVersionRaw(ctx, client)
 		if err == nil && ((wantVersion == "" && !ok) || version == wantVersion) {
@@ -1087,7 +1091,7 @@ func awaitPathzSandboxVersionRaw(ctx context.Context, t *testing.T, client gpb.G
 		case <-ctx.Done():
 			t.Errorf("SANDBOX pathz policy telemetry did not reach version %q within %v", wantVersion, timeout)
 			return
-		case <-time.After(pollInterval):
+		case <-ticker.C:
 		}
 	}
 }
