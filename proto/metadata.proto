@@ -1483,6 +1483,23 @@ message Metadata {
     // Cisco: https://b.corp.google.com/issues/307454993
     bool power_supply_telemetry_unsupported = 459;
 
+    // Devices that do not validate that max-threshold is strictly greater than
+    // min-threshold, so a min > max configuration is accepted instead of
+    // rejected.
+    // NOKIA, ARISTA, CISCO. TODO: add partner issue tracker links.
+    bool ecn_min_greater_max_threshold_unsupported = 460;
+
+    // Devices that do not support percentage-based ECN thresholds
+    // (min-threshold-percent / max-threshold-percent).
+    // ARISTA, CISCO. TODO: add partner issue tracker links.
+    bool ecn_threshold_percent_unsupported = 461;
+
+    // Devices that do not support a supervisor switchover via
+    // gNOI system.System.SwitchControlProcessor, typically because the platform
+    // has a single control processor.
+    // NOKIA, CISCO.
+    bool supervisor_switchover_unsupported = 462;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }

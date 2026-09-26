@@ -632,6 +632,11 @@ func QosGetStatePathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosGetStatePathUnsupported()
 }
 
+// SupervisorSwitchoverUnsupported returns whether the device does not support supervisor switchover.
+func SupervisorSwitchoverUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSupervisorSwitchoverUnsupported()
+}
+
 // InterfaceRefInterfaceIDFormat returns if device is required to use interface-id format of interface name + .subinterface index with Interface-ref container
 func InterfaceRefInterfaceIDFormat(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfaceRefInterfaceIdFormat()
@@ -2394,6 +2399,16 @@ func BgpAdjRibOcUnsupported(dut *ondatra.DUTDevice) bool {
 // AigpMetricIncrement returns true if AIGP metric increment is not supported.
 func AigpMetricIncrement(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAigpMetricIncrement()
+}
+
+// EcnMinGreaterMaxThresholdUnsupported returns true if device does not support bounds validation for ECN thresholds.
+func EcnMinGreaterMaxThresholdUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEcnMinGreaterMaxThresholdUnsupported()
+}
+
+// EcnThresholdPercentUnsupported returns true if device does not support percentage-based ECN thresholds.
+func EcnThresholdPercentUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEcnThresholdPercentUnsupported()
 }
 
 // PowerSupplyTelemetryUnsupported returns true if device does not support power supply telemetry.
