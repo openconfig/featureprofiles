@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"math"
 	"net"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -33,6 +34,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -42,6 +44,7 @@ const (
 	targetOutputPowerTolerancedBm = 1
 	targetFrequencyMHz            = 193100000
 	targetFrequencyToleranceMHz   = 100000
+	aggregateSearchLimit          = 50
 
 	vlanInterfaceCLITemplate = `interface vlan %d
    ip address %s/%d
@@ -1570,4 +1573,41 @@ func ConfigureLoopback(t *testing.T, dut *ondatra.DUTDevice, cfg LoopbackConfig)
 	} else {
 		gnmi.Replace(t, dut, gnmi.OC().Interface(cfg.Name).Config(), i)
 	}
+}
+
+// NextAggregates is like netutil.NextAggregateInterface but obtains multiple aggregate interfaces.
+func NextAggregates(t *testing.T, dut *ondatra.DUTDevice, n int) ([]string, error) {
+	firstAgg := netutil.NextAggregateInterface(t, dut)
+	numRE := regexp.MustCompile(`(\d+)$`)
+	loc := numRE.FindStringIndex(firstAgg)
+	if loc == nil {
+		return nil, fmt.Errorf("Cannot extract trailing integer from %q", firstAgg)
+	}
+	start, err := strconv.Atoi(firstAgg[loc[0]:loc[1]])
+	if err != nil {
+		return nil, fmt.Errorf("Cannot extract integer from %q: %v", firstAgg, err)
+	}
+	aggs := []string{firstAgg}
+	for i := start + 1; len(aggs) < n; i++ {
+		if i-start > n+aggregateSearchLimit {
+			return nil, fmt.Errorf("could not find %d aggregate interfaces after %d attempts", n, i-start)
+		}
+
+		agg := firstAgg[:loc[0]] + strconv.Itoa(i) + firstAgg[loc[1]:]
+		// some aggregate interface after firstAgg may already be present in the system.
+		_, present := gnmi.Lookup(t, dut, gnmi.OC().Interface(agg).Name().State()).Val()
+		if !present {
+			aggs = append(aggs, agg)
+		}
+	}
+	return aggs, nil
+}
+
+// InterfaceRefID returns interface ref format for intfName, appending the
+// ".0" subinterface suffix when the DUT requires it.
+func InterfaceRefID(dut *ondatra.DUTDevice, intfName string) string {
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		return intfName + ".0"
+	}
+	return intfName
 }
