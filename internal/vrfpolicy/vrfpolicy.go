@@ -16,6 +16,8 @@
 package vrfpolicy
 
 import (
+	"fmt"
+	"strconv"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -339,7 +341,82 @@ func ConfigureVRFSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice, policyNam
 	gnmi.Replace(t, dut, dutForwardingPath.Config(), niForwarding)
 }
 
+// BuildHA_VRFSelectionPolicy builds the massive HA_VRF_SELECTION policy for the resiliency test.
+func BuildHA_VRFSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice, niName string, policyName string) *oc.NetworkInstance_PolicyForwarding {
+	var pfRuleList []*policyFwRule
+
+	// Rules 1-15: IPv4 in IPv4 rules
+	for i := 1; i <= 15; i++ {
+		niDst := "VRF-V4-" + strconv.Itoa(i)
+		srcIP := fmt.Sprintf("198.51.100.%d/32", i)
+		v4Info := &ipInfo{protocol: 4, sourceAddr: srcIP}
+		pfRuleList = append(pfRuleList, &policyFwRule{
+			seqID:  uint32(i),
+			ipv4:   v4Info,
+			action: &action{networkInstance: niDst},
+		})
+	}
+
+	// Rules 16-30: IPv6 with Next Header 41 (IPv6 encapsulation)
+	if dut.Vendor() != ondatra.CISCO {
+		for i := 1; i <= 15; i++ {
+			niDst := "VRF-V6-" + strconv.Itoa(i)
+			srcIP := fmt.Sprintf("2001:db8:100::%d/128", i)
+			pfRuleList = append(pfRuleList, &policyFwRule{
+				seqID:  uint32(15 + i),
+				ipv6:   &ipInfo{sourceAddr: srcIP, protocol: 41},
+				action: &action{networkInstance: niDst},
+			})
+		}
+	}
+
+	// Rule 31: Ghost VRF rule
+	r31Info := &ipInfo{protocol: 4, sourceAddr: "198.51.100.31/32"}
+	pfRuleList = append(pfRuleList, &policyFwRule{
+		seqID:  31,
+		ipv4:   r31Info,
+		action: &action{networkInstance: "VRF-GHOST"},
+	})
+
+	// Rule 100: Catch-all rule
+	r100Info := &ipInfo{protocol: 4}
+	if dut.Vendor() == ondatra.CISCO {
+		r100Info.sourceAddr = "198.51.100.100/32" // Match shadow flow explicitly to maintain symmetrical TCAM lengths
+	}
+	pfRuleList = append(pfRuleList, &policyFwRule{
+		seqID:  100,
+		ipv4:   r100Info,
+		action: &action{networkInstance: "VRF-V4-15"},
+	})
+
+	return buildVRFSelectionPolicy(niName, policyName, pfRuleList)
+}
+
+// ConfigureHA_VRFSelectionPolicy configures the HA_VRF_SELECTION policy on the default NI and applies it.
+func ConfigureHA_VRFSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice, policyName string) {
+	t.Helper()
+
+	port1 := dut.Port(t, "port1")
+	interfaceID := port1.Name()
+	if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
+		interfaceID = interfaceID + ".0"
+	}
+
+	niForwarding := BuildHA_VRFSelectionPolicy(t, dut, deviations.DefaultNetworkInstance(dut), policyName)
+	dutForwardingPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding()
+
+	interface1 := niForwarding.GetOrCreateInterface(interfaceID)
+	interface1.ApplyVrfSelectionPolicy = ygot.String(policyName)
+	interface1.GetOrCreateInterfaceRef().Interface = ygot.String(port1.Name())
+	interface1.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+	if deviations.InterfaceRefConfigUnsupported(dut) {
+		interface1.InterfaceRef = nil
+	}
+	gnmi.Replace(t, dut, dutForwardingPath.Config(), niForwarding)
+}
+
 func buildVRFSelectionPolicy(niName string, policyName string, pfRules []*policyFwRule) *oc.NetworkInstance_PolicyForwarding {
+
 	r := &oc.Root{}
 	ni := r.GetOrCreateNetworkInstance(niName)
 	niP := ni.GetOrCreatePolicyForwarding()
@@ -359,10 +436,16 @@ func buildVRFSelectionPolicy(niName string, policyName string, pfRules []*policy
 			if pfRule.ipv4.sourceAddr != "" {
 				pfRProtoIP.SourceAddress = ygot.String(pfRule.ipv4.sourceAddr)
 			}
-		} else {
+		} else if pfRule.ipv6 != nil {
 			pfRProtoIP := pfR.GetOrCreateIpv6()
 			if pfRule.ipv6.dscpSet != nil {
 				pfRProtoIP.DscpSet = pfRule.ipv6.dscpSet
+			}
+			if pfRule.ipv6.protocol != 0 {
+				pfRProtoIP.Protocol = pfRule.ipv6.protocol
+			}
+			if pfRule.ipv6.sourceAddr != "" {
+				pfRProtoIP.SourceAddress = ygot.String(pfRule.ipv6.sourceAddr)
 			}
 		}
 
