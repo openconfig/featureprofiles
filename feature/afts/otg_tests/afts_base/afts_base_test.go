@@ -14,6 +14,7 @@
 package afts_base_test
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"strings"
@@ -35,9 +36,11 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/ygnmi"
 
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
+	spb "github.com/openconfig/gnoi/system"
 )
 
 func TestMain(m *testing.M) {
@@ -481,6 +484,42 @@ func (tc *testCase) configureATE(t *testing.T) {
 		SetGateway(dutP2.IPv6).
 		SetPrefix(v6PrefixLen)
 
+	d2ISIS := d2.Isis().
+		SetName(d2.Name() + ".isis").
+		SetSystemId(isisSystemID)
+	d2ISIS.Basic().
+		SetIpv4TeRouterId(d2IPv4.Address()).
+		SetHostname("ixia-c-port2")
+	d2ISIS.Advanced().SetAreaAddresses([]string{"49"})
+	d2ISISInt := d2ISIS.Interfaces().
+		Add().
+		SetName(d2ISIS.Name() + ".intf").
+		SetEthName(d2Eth.Name()).
+		SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT).
+		SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2).
+		SetMetric(10)
+	d2ISISInt.TrafficEngineering().Add().PriorityBandwidths()
+	d2ISISInt.Advanced().SetAutoAdjustMtu(true).SetAutoAdjustArea(true).SetAutoAdjustSupportedProtocols(true)
+
+	d2ISISRoute := d2ISIS.V4Routes().Add().SetName(d2ISIS.Name() + ".rr")
+	d2ISISRoute.Addresses().
+		Add().
+		SetAddress(isisRoute).
+		SetPrefix(advertisedRoutesV4Prefix).
+		SetCount(isisRouteCount)
+
+	d2ISISRouteV6 := d2ISIS.V6Routes().Add().SetName(d2ISISRoute.Name() + ".v6")
+	d2ISISRouteV6.Addresses().
+		Add().
+		SetAddress(isisRoutev6).
+		SetPrefix(advertisedRoutesV6Prefix128).
+		SetCount(isisRouteCount)
+	d2ISISRouteV6.Addresses().
+		Add().
+		SetAddress(isisRoutev6).
+		SetPrefix(advertisedRoutesV6Prefix64).
+		SetCount(isisRouteCount)
+
 	tc.configureBGPDev(d2, d2IPv4, d2IPv6)
 
 	ate.OTG().PushConfig(t, config)
@@ -510,11 +549,11 @@ func (tc *testCase) configureBGPDev(dev gosnappi.Device, ipv4 gosnappi.DeviceIpv
 	routesV6.Addresses().Add().
 		SetAddress(bgpRoutev6128).
 		SetPrefix(advertisedRoutesV6Prefix128).
-		SetCount(getRouteCount(tc.dut, IPv6, advertisedRoutesV6Prefix128))
+		SetCount(bgpRouteCountIPv6Default128)
 	routesV6.Addresses().Add().
 		SetAddress(bgpRoutev664).
 		SetPrefix(advertisedRoutesV6Prefix64).
-		SetCount(getRouteCount(tc.dut, IPv6, advertisedRoutesV6Prefix64))
+		SetCount(bgpRouteCountIPv6Default64)
 }
 
 func (tc *testCase) generateWantPrefixes(t *testing.T) map[string]bool {
@@ -522,10 +561,10 @@ func (tc *testCase) generateWantPrefixes(t *testing.T) map[string]bool {
 	for pfix := range netutil.GenCIDRs(t, startingBGPRouteIPv4, int(getRouteCount(tc.dut, IPv4))) {
 		wantPrefixes[pfix] = true
 	}
-	for pfix6128 := range netutil.GenCIDRs(t, startingBGPRouteIPv6128, int(getRouteCount(tc.dut, IPv6, advertisedRoutesV6Prefix128))) {
+	for pfix6128 := range netutil.GenCIDRs(t, startingBGPRouteIPv6128, int(bgpRouteCountIPv6Default128)) {
 		wantPrefixes[pfix6128] = true
 	}
-	for pfix664 := range netutil.GenCIDRs(t, startingBGPRouteIPv664, int(getRouteCount(tc.dut, IPv6, advertisedRoutesV6Prefix64))) {
+	for pfix664 := range netutil.GenCIDRs(t, startingBGPRouteIPv664, int(bgpRouteCountIPv6Default64)) {
 		wantPrefixes[pfix664] = true
 	}
 	return wantPrefixes
@@ -719,10 +758,10 @@ func TestBGP(t *testing.T) {
 		if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv4, int(getRouteCount(dut, IPv4)), wantNHCount, true); err != nil {
 			t.Errorf("failed to verify IPv4 BGP prefixes: %v", err)
 		}
-		if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv6128, int(getRouteCount(dut, IPv6, advertisedRoutesV6Prefix128)), wantNHCount, true); err != nil {
+		if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv6128, int(bgpRouteCountIPv6Default128), wantNHCount, true); err != nil {
 			t.Errorf("failed to verify IPv6 BGP prefixes: %v", err)
 		}
-		if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv664, int(getRouteCount(dut, IPv6, advertisedRoutesV6Prefix64)), wantNHCount, true); err != nil {
+		if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv664, int(bgpRouteCountIPv6Default64), wantNHCount, true); err != nil {
 			t.Errorf("failed to verify IPv6 BGP prefixes: %v", err)
 		}
 		return aft
