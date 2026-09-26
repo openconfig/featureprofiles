@@ -11,6 +11,9 @@ platform_exceptions: {
     vendor: ARISTA
   }
   deviations: {
-    unauthorized_access_error_unsupported: true
+    pathz_unauthorized_access_error_unsupported: true
+    pathz_counters_unsupported: true
+    pathz_force_overwrite_unsupported: true
+    pathz_policy_removal_via_cli_unsupported: true
   }
 }

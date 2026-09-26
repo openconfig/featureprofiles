@@ -1485,8 +1485,22 @@ message Metadata {
 
     // Device does not support unauthorized access error
     // Arista: https://partnerissuetracker.corp.google.com/issues/565204169
-    bool unauthorized_access_error_unsupported = 460;
-    
+    bool pathz_unauthorized_access_error_unsupported = 460;
+
+    // Device does not support the per-path gNMI pathz policy counters
+    // (access-accepts/access-rejects).
+    // Arista: https://partnerissuetracker.corp.google.com/issues/565204169
+    bool pathz_counters_unsupported = 461;
+
+    // Device does not reject a pathz Rotate that changes policy content under an
+    // already-committed version without force_overwrite (freshness not enforced).
+    // Arista: https://partnerissuetracker.corp.google.com/issues/565204169
+    bool pathz_force_overwrite_unsupported = 462;
+
+    // Device does not support cli to remove pathz policy
+    // Arista: https://partnerissuetracker.corp.google.com/issues/565204169
+    bool pathz_policy_removal_via_cli_unsupported = 463;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }

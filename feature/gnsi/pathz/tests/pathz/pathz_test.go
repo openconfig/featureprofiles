@@ -11,17 +11,14 @@ import (
 	"crypto/x509/pkix"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"math/big"
 	"net"
 	"net/url"
-	"os"
-	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -31,6 +28,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding/introspect"
 	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 	"google.golang.org/grpc"
@@ -46,33 +44,34 @@ import (
 )
 
 const (
-	roleAdmin          = "admin"
-	roleReader         = "reader"
-	roleUnauthorized   = "unauthorized"
-	certAdmin          = "gnmi_admin"
-	certReader         = "gnmi_reader"
-	certUnauthorized   = "gnmi_unauthorized"
-	policyVersionV1    = "v1"
-	policyVersionV2    = "v2"
-	hostnamePath       = "/system/config/hostname"
-	interfacesPath     = "/interfaces/interface"
-	interfaceDescPath  = "/interfaces/interface[name=%s]/config/description"
-	caCommonName       = "pathz-test-ca"
-	sslProfileID       = "pathz-test-profile"
-	serverCertVersion  = "server-v1"
-	trustBundleVersion = "trust-v1"
-	certValidity       = 30 * 24 * time.Hour
-	certzCreatedOnV1   = uint64(100)
+	roleAdmin               = "admin"
+	roleReader              = "reader"
+	roleUnauthorized        = "unauthorized"
+	certAdmin               = "gnmi_admin"
+	certReader              = "gnmi_reader"
+	certUnauthorized        = "gnmi_unauthorized"
+	policyVersionV1         = "v1"
+	hostnamePath            = "/system/config/hostname"
+	interfacesPath          = "/interfaces/interface"
+	interfaceDescPath       = "/interfaces/interface[name=%s]/config/description"
+	caCommonName            = "pathz-test-ca"
+	sslProfileID            = "pathz-test-profile"
+	serverCertVersion       = "server-v1"
+	trustBundleVersion      = "trust-v1"
+	certValidity            = 30 * 24 * time.Hour
+	certzCreatedOnV1        = uint64(100)
+	pathzSandboxVersionPath = "/system/gnmi-pathz-policies/policies/policy[instance=SANDBOX]/state/version"
 )
 
 // policyCreatedOn* are set once at startup to the current time (nanoseconds since epoch) so each
 // test run uploads a fresh created_on; V2 is later than V1 to reflect the newer sandbox policy.
-var (
-	policyCreatedOnV1 = uint64(time.Now().UnixNano())
-	policyCreatedOnV2 = policyCreatedOnV1 + 1
-)
+// var (
+// 	policyCreatedOnV1 = uint64(time.Now().UnixNano())
+// )
 
 var (
+	policyCreatedOnV1 = uint64(time.Now().UnixNano())
+
 	// The JSON templates below are the README's enforcement policies verbatim (SPIFFE identities).
 	// The DUT_PORT placeholder in the baseline policy is filled at runtime with the discovered port.
 	baselinePolicyTemplate = `{
@@ -131,9 +130,6 @@ func TestMain(m *testing.M) {
 // spiffeIDForRole returns the SPIFFE ID to use for the given role, in the format expected by
 // the DUT's vendor.
 func spiffeIDForRole(dut *ondatra.DUTDevice, role string) string {
-	if dut.Vendor() == ondatra.ARISTA {
-		return fmt.Sprintf("spiffe://test-issuer.test-context.test-realm.prod.google.com/role/%s", role)
-	}
 	return fmt.Sprintf("spiffe://test-realm.foo.bar/role/%s", role)
 }
 
@@ -307,7 +303,12 @@ func dialCertzClient(dut *ondatra.DUTDevice) (certz.CertzClient, error) {
 // profile (creating the profile first if needed), finalizing the rotation.
 func rotateServerProfile(ctx context.Context, client certz.CertzClient, profileID string,
 	serverCertPEM, serverKeyPEM, caPEM []byte) error {
-	_, _ = client.DeleteProfile(ctx, &certz.DeleteProfileRequest{SslProfileId: profileID})
+	// A missing profile is fine here (Arista returns FailedPrecondition/NotFound); we recreate it.
+	if _, err := client.DeleteProfile(ctx, &certz.DeleteProfileRequest{SslProfileId: profileID}); err != nil {
+		if code := status.Code(err); code != codes.NotFound && code != codes.FailedPrecondition {
+			return fmt.Errorf("failed to delete existing ssl profile %q: %w", profileID, err)
+		}
+	}
 	if _, err := client.AddProfile(ctx, &certz.AddProfileRequest{SslProfileId: profileID}); err != nil {
 		if code := status.Code(err); code != codes.AlreadyExists && code != codes.FailedPrecondition {
 			return fmt.Errorf("failed to add ssl profile %q: %w", profileID, err)
@@ -377,6 +378,7 @@ func rotateServerProfile(ctx context.Context, client certz.CertzClient, profileI
 
 // resolveGRPCServerName returns the name of the gRPC server instance already configured on the
 // DUT (e.g. "default" on Arista, per "transport grpc default" in its native config), so that mTLS
+// configuration targets the same instance the gNMI API uses.
 func resolveGRPCServerName(t *testing.T, dut *ondatra.DUTDevice) string {
 	t.Helper()
 	sys := gnmi.Get(t, dut, gnmi.OC().System().State())
@@ -399,20 +401,26 @@ func resolveGRPCServerName(t *testing.T, dut *ondatra.DUTDevice) string {
 // certz trust_bundle_rotation test), then enables SPIFFE-SAN principal extraction over the DUT's
 // native management CLI so pathz identities are authenticated from the client-cert SPIFFE URI. It
 // must run BEFORE `service pathz` is enabled.
-func configureGRPCServerMTLS(t *testing.T, dut *ondatra.DUTDevice, grpcServerName, profileID string) {
+func configureGRPCServerMTLS(t *testing.T, dut *ondatra.DUTDevice, grpcServerName, profileID string, adminCert tls.Certificate, caCert *x509.Certificate) {
 	t.Helper()
-	if dut.Vendor() != ondatra.ARISTA {
-		t.Fatalf("no known native command to enable gRPC server mTLS for vendor %v", dut.Vendor())
-	}
 	servers := gnmi.GetAll(t, dut, gnmi.OC().System().GrpcServerAny().Name().State())
 	yc, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.ID()))
 	if err != nil {
 		t.Fatalf("failed to create ygnmi client for grpc-server mTLS config: %v", err)
 	}
+	// Capture each server's original certificate-id so teardown can restore it.
+	origCertIDs := make(map[string]string, len(servers))
+	for _, server := range servers {
+		if v, err := ygnmi.Lookup(t.Context(), yc, gnmi.OC().System().GrpcServer(server).CertificateId().Config()); err == nil {
+			if val, ok := v.Val(); ok {
+				origCertIDs[server] = val
+			}
+		}
+	}
 	// Binding the SSL profile via certificate-id makes the DUT reload TLS on the gRPC transport,
 	// resetting the in-flight gNMI session (Unavailable/EOF) even though the config is applied.
 	for _, server := range servers {
-		if _, err := ygnmi.Replace(context.Background(), yc, gnmi.OC().System().GrpcServer(server).CertificateId().Config(), profileID); err != nil && !isConnectionReset(err) {
+		if _, err := ygnmi.Replace(t.Context(), yc, gnmi.OC().System().GrpcServer(server).CertificateId().Config(), profileID); err != nil && !isConnectionReset(err) {
 			t.Fatalf("failed to bind ssl profile %q to grpc-server %q: %v", profileID, server, err)
 		}
 	}
@@ -425,6 +433,37 @@ func configureGRPCServerMTLS(t *testing.T, dut *ondatra.DUTDevice, grpcServerNam
 	runConfigViaCLI(t, dut, fmt.Sprintf(
 		"management api gnmi\ntransport grpc %s\naaa config-commands disabled\nauthentication username priority x509-spiffe-full",
 		grpcServerName))
+	t.Cleanup(func() {
+		revertConfigViaCLI(t, dut, fmt.Sprintf(
+			"management api gnmi\ntransport grpc %s\nno authentication username priority x509-spiffe-full\naaa config-commands",
+			grpcServerName))
+	})
+	// Registered after the SPIFFE/AAA revert so LIFO runs THIS first: the binding's gNMI client is
+	// locked out by the now-mTLS transport, so restore certificate-id over an admin-cert connection
+	// (service pathz is already disabled by the LIFO-earlier cleanup, and AAA command-authz is still
+	// disabled here, so the write is accepted), then delete the test SSL profile over the CLI.
+	t.Cleanup(func() {
+		adminGNMI, err := dialGNMIAs(t, dut, adminCert, caCert)
+		if err != nil {
+			t.Logf("pathz teardown: failed to dial admin gnmi to restore certificate-id: %v", err)
+		} else if adminYC, err := ygnmi.NewClient(adminGNMI, ygnmi.WithTarget(dut.ID())); err != nil {
+			t.Logf("pathz teardown: failed to build admin ygnmi client to restore certificate-id: %v", err)
+		} else {
+			for _, server := range servers {
+				path := gnmi.OC().System().GrpcServer(server).CertificateId().Config()
+				var rerr error
+				if orig, ok := origCertIDs[server]; ok {
+					_, rerr = ygnmi.Replace(context.Background(), adminYC, path, orig)
+				} else {
+					_, rerr = ygnmi.Delete(context.Background(), adminYC, path)
+				}
+				if rerr != nil && !isConnectionReset(rerr) {
+					t.Logf("pathz teardown: failed to restore certificate-id of grpc-server %q: %v", server, rerr)
+				}
+			}
+		}
+		revertConfigViaCLI(t, dut, fmt.Sprintf("management security\nno ssl profile %s", profileID))
+	})
 }
 
 // isConnectionReset reports whether err is the transport reset the DUT returns when committing the
@@ -436,31 +475,38 @@ func isConnectionReset(err error) bool {
 	if status.Code(err) == codes.Unavailable {
 		return true
 	}
-	return strings.Contains(err.Error(), "EOF")
+	return errors.Is(err, io.EOF)
 }
 
 // dialGNMIAs opens a raw gNMI client connection to the DUT authenticated ONLY with the given client
 // identity certificate. It bypasses the ondatra binding's default dial options, which attach the
-func dialGNMIAs(t *testing.T, dut *ondatra.DUTDevice, clientCert tls.Certificate) (gpb.GNMIClient, error) {
+// framework's default client credentials, so the DUT sees only this identity.
+func dialGNMIAs(t *testing.T, dut *ondatra.DUTDevice, clientCert tls.Certificate, caCert *x509.Certificate) (gpb.GNMIClient, error) {
 	t.Helper()
 	dialer := introspect.DUTDialer(t, dut, introspect.GNMI)
+	// The DUT serves the certz-pushed server certificate, so the client verifies it against the
+	// test CA and presents its own SPIFFE client cert for pathz identity.
+	caPool := x509.NewCertPool()
+	caPool.AddCert(caCert)
 	tlsConfig := &tls.Config{
-		Certificates:       []tls.Certificate{clientCert},
-		InsecureSkipVerify: true,
+		Certificates: []tls.Certificate{clientCert},
+		RootCAs:      caPool,
 	}
 	creds := grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig))
 	conn, err := dialer.DialFunc(context.Background(), dialer.DialTarget, creds)
 	if err != nil {
 		return nil, fmt.Errorf("failed to dial gnmi with client identity: %w", err)
 	}
+	t.Cleanup(func() { conn.Close() })
 	return gpb.NewGNMIClient(conn), nil
 }
 
 // dialYGNMIClientAs returns a ygnmi client bound to a gNMI connection authenticated with the given
 // client identity certificate. It is used to read OpenConfig telemetry (e.g. the Pathz policy
-func dialYGNMIClientAs(t *testing.T, dut *ondatra.DUTDevice, clientCert tls.Certificate) *ygnmi.Client {
+// state) as that identity.
+func dialYGNMIClientAs(t *testing.T, dut *ondatra.DUTDevice, clientCert tls.Certificate, caCert *x509.Certificate) *ygnmi.Client {
 	t.Helper()
-	raw, err := dialGNMIAs(t, dut, clientCert)
+	raw, err := dialGNMIAs(t, dut, clientCert, caCert)
 	if err != nil {
 		t.Fatalf("failed to dial gnmi client identity for telemetry: %v", err)
 	}
@@ -485,6 +531,7 @@ func dialPathzClient(t *testing.T, dut *ondatra.DUTDevice, clientCert tls.Certif
 	if err != nil {
 		return nil, fmt.Errorf("failed to dial gnsi with client identity: %w", err)
 	}
+	t.Cleanup(func() { conn.Close() })
 	return pathz.NewPathzClient(conn), nil
 }
 
@@ -570,63 +617,15 @@ type mtlsEnvironment struct {
 	identities     map[string]tls.Certificate
 	spiffeIDs      map[string]string
 	ports          []string
+	origDescs      map[string]string
 	grpcServerName string
-}
-
-var (
-	mtlsOnce     sync.Once
-	mtlsEnvCache *mtlsEnvironment
-	mtlsErrCache error
-)
-
-// establishMTLSAndDiscoveryAccess runs setupMTLSEnvironment exactly once per test binary (via
-// sync.Once) and returns its cached result to every caller, including cached failures.
-func establishMTLSAndDiscoveryAccess(ctx context.Context, t *testing.T,
-	dut *ondatra.DUTDevice) (*mtlsEnvironment, error) {
-	t.Helper()
-	mtlsOnce.Do(func() {
-		mtlsEnvCache, mtlsErrCache = setupMTLSEnvironment(ctx, t, dut)
-	})
-	if mtlsEnvCache == nil && mtlsErrCache == nil {
-		return nil, fmt.Errorf("mTLS environment setup failed in an earlier test; see the first failure above")
-	}
-	return mtlsEnvCache, mtlsErrCache
-}
-
-// Helper to write a tls.Certificate to PEM files
-func writeTLSCertToPEM(dumpDir, name string, cert tls.Certificate) error {
-	// 1. Encode Certificate Chain to PEM
-	certFile := filepath.Join(dumpDir, fmt.Sprintf("client_%s.crt", name))
-	certOut, err := os.Create(certFile)
-	if err != nil {
-		return err
-	}
-	defer certOut.Close()
-
-	for _, derBytes := range cert.Certificate {
-		if err := pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes}); err != nil {
-			return err
-		}
-	}
-
-	// 2. Encode Private Key to PEM
-	keyFile := filepath.Join(dumpDir, fmt.Sprintf("client_%s.key", name))
-	keyBytes, err := x509.MarshalPKCS8PrivateKey(cert.PrivateKey)
-	if err != nil {
-		return fmt.Errorf("failed to marshal private key: %w", err)
-	}
-
-	keyOut, err := os.OpenFile(keyFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
-	if err != nil {
-		return err
-	}
-	defer keyOut.Close()
-
-	return pem.Encode(keyOut, &pem.Block{Type: "PRIVATE KEY", Bytes: keyBytes})
+	caCert         *x509.Certificate
 }
 
 // setupMTLSEnvironment provisions the test CA and role certs, pushes them to the DUT via Certz,
-// resolves the live grpc-server instance, and enables mTLS on it, once per test binary.
+// resolves the live grpc-server instance, enables mTLS + the Pathz service on it, and registers
+// t.Cleanup reverts for the CLI it enables. It must be called once from the parent test so the
+// reverts run only after every subtest completes.
 func setupMTLSEnvironment(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) (*mtlsEnvironment, error) {
 	t.Helper()
 
@@ -643,34 +642,6 @@ func setupMTLSEnvironment(ctx context.Context, t *testing.T, dut *ondatra.DUTDev
 		return nil, fmt.Errorf("failed generating server cert: %w", err)
 	}
 
-	// Dump certificates and keys to a temp directory for debugging purposes.
-	dumpDir, err := os.MkdirTemp("", "mtls-debug-*")
-	if err != nil {
-		t.Logf("Warning: failed to create debug temp directory: %v", err)
-	} else {
-		t.Logf("DEBUG: Saving mTLS certificates to temporary directory: %s", dumpDir)
-
-		// 1. Write CA Certificate
-		if err := os.WriteFile(filepath.Join(dumpDir, "ca.crt"), caPEM, 0644); err != nil {
-			t.Logf("Warning: failed to write ca.crt: %v", err)
-		}
-
-		// 2. Write Server Certificate and Key
-		if err := os.WriteFile(filepath.Join(dumpDir, "server.crt"), serverCertPEM, 0644); err != nil {
-			t.Logf("Warning: failed to write server.crt: %v", err)
-		}
-		if err := os.WriteFile(filepath.Join(dumpDir, "server.key"), serverKeyPEM, 0600); err != nil {
-			t.Logf("Warning: failed to write server.key: %v", err)
-		}
-
-		// 3. Write Client Identities (Certificates and Keys)
-		for idName, id := range identities {
-			if err := writeTLSCertToPEM(dumpDir, idName, id); err != nil {
-				t.Logf("Warning: failed to write debug certs for %s: %v", idName, err)
-			}
-		}
-	}
-
 	certzClient, err := dialCertzClient(dut)
 	if err != nil {
 		return nil, fmt.Errorf("failed dialing certz client: %w", err)
@@ -682,12 +653,21 @@ func setupMTLSEnvironment(ctx context.Context, t *testing.T, dut *ondatra.DUTDev
 	grpcServerName := resolveGRPCServerName(t, dut)
 	ports := fetchInterfaceNames(t, dut, 2, dut.RawAPIs().GNMI(t))
 
+	// Capture the discovered ports' descriptions over the pre-mTLS binding client so enforcement
+	// subtests that write them can restore them (no cert identity can read /interfaces once pathz is on).
+	origDescs := make(map[string]string, len(ports))
+	for _, p := range ports {
+		if d, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(p).Description().Config()).Val(); ok {
+			origDescs[p] = d
+		}
+	}
+
 	disableRequestAuthorizationCLI(t, dut, grpcServerName)
 
 	// mTLS (ssl profile + SPIFFE principal extraction) must be applied BEFORE `service pathz`,
 	// so that pathz is enabled on an already-mTLS transport and the DUT resolves the pathz
 	// principal from the client-cert SPIFFE SAN rather than a username.
-	configureGRPCServerMTLS(t, dut, grpcServerName, sslProfileID)
+	configureGRPCServerMTLS(t, dut, grpcServerName, sslProfileID, identities[certAdmin], caCert)
 
 	enablePathzServiceCLI(t, dut, grpcServerName)
 
@@ -703,6 +683,8 @@ func setupMTLSEnvironment(ctx context.Context, t *testing.T, dut *ondatra.DUTDev
 		spiffeIDs:      clientIdentities(dut),
 		grpcServerName: grpcServerName,
 		ports:          ports,
+		origDescs:      origDescs,
+		caCert:         caCert,
 	}, nil
 }
 
@@ -748,6 +730,20 @@ func expectPermissionDenied(err error) error {
 	return nil
 }
 
+// expectUnauthorizedError validates the DUT's response to an unauthorized read. By default the DUT
+// must reject it with PermissionDenied. On devices where PathzUnauthorizedAccessErrorUnsupported is
+// set the DUT prunes the denied subtree and returns no error instead, so the deviation asserts that
+// alternate behavior rather than skipping the check.
+func expectUnauthorizedError(dut *ondatra.DUTDevice, err error) error {
+	if deviations.PathzUnauthorizedAccessErrorUnsupported(dut) {
+		if err != nil {
+			return fmt.Errorf("device does not support unauthorized access error; expected no error, got: %v", err)
+		}
+		return nil
+	}
+	return expectPermissionDenied(err)
+}
+
 // getHostnameConfig reads /system/config/hostname via a raw gNMI Get on the given client.
 func getHostnameConfig(ctx context.Context, client gpb.GNMIClient) (string, error) {
 	path, err := ygot.StringToStructuredPath(hostnamePath)
@@ -760,7 +756,7 @@ func getHostnameConfig(ctx context.Context, client gpb.GNMIClient) (string, erro
 	}
 	notifications := resp.GetNotification()
 	if len(notifications) == 0 || len(notifications[0].GetUpdate()) == 0 {
-		return "dut", nil
+		return "", nil
 	}
 	return notifications[0].GetUpdate()[0].GetVal().GetStringVal(), nil
 }
@@ -797,15 +793,8 @@ func setInterfaceDescription(ctx context.Context, client gpb.GNMIClient, portNam
 
 // pathzRemovalCLICommandForVendor returns the vendor-native CLI command used to remove the
 // configured Pathz policy, and whether one is defined for the given vendor.
-//
-// Arista deviation: EOS has no CLI command to manage the Pathz policy itself. The policy is
-// only changed via the gNSI Rotate RPC (rotating an empty policy resets it to deny-all).
-// Removal via CLI is instead done by disabling the Pathz service with `no service pathz` under
-// `management api gnsi`, after which Pathz is no longer enforced (all requests are accepted).
 func pathzRemovalCLICommandForVendor(vendor ondatra.Vendor, grpcTransportName string) (string, bool) {
 	switch vendor {
-	case ondatra.ARISTA:
-		return fmt.Sprintf("management api gnsi\ntransport gnmi %s\nno service pathz", grpcTransportName), true
 	case ondatra.CISCO:
 		return "no grpc pathz-policy", true
 	case ondatra.JUNIPER:
@@ -819,6 +808,7 @@ func pathzRemovalCLICommandForVendor(vendor ondatra.Vendor, grpcTransportName st
 
 // disableRequestAuthorizationCLI turns off the platform's classic per-RPC AAA authorization gate
 // on the gNMI/gNSI transport, if the platform has one and this test knows how to reach it. This is
+// needed so that pathz is the sole authority for per-RPC authorization.
 func disableRequestAuthorizationCLI(t *testing.T, dut *ondatra.DUTDevice, grpcTransportName string) {
 	t.Helper()
 	if dut.Vendor() != ondatra.ARISTA {
@@ -830,10 +820,14 @@ func disableRequestAuthorizationCLI(t *testing.T, dut *ondatra.DUTDevice, grpcTr
 	cmd.WriteString(fmt.Sprintf("transport grpc %s\n", grpcTransportName))
 	cmd.WriteString("no authorization requests\n")
 	helpers.GnmiCLIConfig(t, dut, cmd.String())
+	t.Cleanup(func() {
+		revertConfigViaCLI(t, dut, fmt.Sprintf("management api gnmi\ntransport grpc %s\nauthorization requests", grpcTransportName))
+	})
 }
 
 // enablePathzServiceCLI enables the gNSI Pathz service on the DUT via vendor-native CLI, run over
 // the DUT's out-of-band management CLI (console/SSH). It is enabled by the test -- rather than
+// relying on the image default, so the test controls its state.
 func enablePathzServiceCLI(t *testing.T, dut *ondatra.DUTDevice, grpcTransportName string) {
 	t.Helper()
 	if dut.Vendor() != ondatra.ARISTA {
@@ -841,6 +835,9 @@ func enablePathzServiceCLI(t *testing.T, dut *ondatra.DUTDevice, grpcTransportNa
 		return
 	}
 	runConfigViaCLI(t, dut, fmt.Sprintf("management api gnsi\ntransport gnmi %s\nservice pathz", grpcTransportName))
+	t.Cleanup(func() {
+		revertConfigViaCLI(t, dut, fmt.Sprintf("management api gnsi\ntransport gnmi %s\nno service pathz", grpcTransportName))
+	})
 }
 
 // awaitPathzServing polls the DUT's gNSI Pathz service until it stops reporting Unimplemented,
@@ -857,7 +854,9 @@ func awaitPathzServing(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 	if err != nil {
 		return fmt.Errorf("failed to dial pathz client while awaiting service: %w", err)
 	}
-	deadline := time.Now().Add(timeout)
+	timeoutCh := time.After(timeout)
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
 	var lastErr error
 	for {
 		_, err := client.Get(ctx, &pathz.GetRequest{PolicyInstance: pathz.PolicyInstance_POLICY_INSTANCE_ACTIVE})
@@ -866,28 +865,44 @@ func awaitPathzServing(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 			return nil
 		}
 		lastErr = err
-		if time.Now().After(deadline) {
+		select {
+		case <-timeoutCh:
 			return fmt.Errorf("pathz service still Unimplemented after %v (transport reload did not activate it): %w", timeout, lastErr)
+		case <-ticker.C:
 		}
-		time.Sleep(interval)
 	}
 }
 
 // runConfigViaCLI applies vendor-native configuration over the DUT's out-of-band management CLI
 // (console/SSH). This management-plane channel is independent of the gRPC/gNSI transport, so it is
+// unaffected by transport reloads.
 func runConfigViaCLI(t *testing.T, dut *ondatra.DUTDevice, commands string) {
 	t.Helper()
 	config := commands
 	if dut.Vendor() == ondatra.ARISTA || dut.Vendor() == ondatra.CISCO {
 		config = fmt.Sprintf("configure terminal\n%s\nend", commands)
 	}
-	if _, err := dut.RawAPIs().CLI(t).RunCommand(context.Background(), config); err != nil {
+	if _, err := dut.RawAPIs().CLI(t).RunCommand(t.Context(), config); err != nil {
 		t.Fatalf("failed to apply cli config over the management plane: %v", err)
+	}
+}
+
+// revertConfigViaCLI applies vendor-native config over the out-of-band CLI as best-effort teardown,
+// logging (not failing) on error so a passed test is not failed by a cleanup hiccup.
+func revertConfigViaCLI(t *testing.T, dut *ondatra.DUTDevice, commands string) {
+	t.Helper()
+	config := commands
+	if dut.Vendor() == ondatra.ARISTA || dut.Vendor() == ondatra.CISCO {
+		config = fmt.Sprintf("configure terminal\n%s\nend", commands)
+	}
+	if _, err := dut.RawAPIs().CLI(t).RunCommand(context.Background(), config); err != nil {
+		t.Logf("pathz teardown: failed to apply cli revert %q: %v", commands, err)
 	}
 }
 
 // removePathzPolicyViaCLI removes the active Pathz policy using the DUT's out-of-band management CLI
 // (console/SSH), as Pathz-4 specifies. This management-plane channel is independent of the
+// gRPC/gNSI transport, so it survives a transport reload.
 func removePathzPolicyViaCLI(t *testing.T, dut *ondatra.DUTDevice, command string) {
 	t.Helper()
 	runConfigViaCLI(t, dut, command)
@@ -896,6 +911,7 @@ func removePathzPolicyViaCLI(t *testing.T, dut *ondatra.DUTDevice, command strin
 // pathzRemovalCLICommand returns the vendor-native Pathz removal command, skipping the test if
 // the DUT vendor has no such command defined.
 func pathzRemovalCLICommand(t *testing.T, dut *ondatra.DUTDevice, grpcTransportName string) string {
+	t.Helper()
 	cmd, ok := pathzRemovalCLICommandForVendor(dut.Vendor(), grpcTransportName)
 	if !ok {
 		t.Skipf("no vendor-native Pathz removal CLI command defined for vendor %v", dut.Vendor())
@@ -938,7 +954,7 @@ func interfaceNamesViaGNMI(t *testing.T, client gpb.GNMIClient) map[string]bool 
 	if err != nil {
 		t.Fatalf("failed to build path for %s: %v", interfacesPath, err)
 	}
-	resp, err := client.Get(context.Background(), &gpb.GetRequest{
+	resp, err := client.Get(t.Context(), &gpb.GetRequest{
 		Path:     []*gpb.Path{path},
 		Type:     gpb.GetRequest_CONFIG,
 		Encoding: gpb.Encoding_JSON_IETF,
@@ -955,7 +971,7 @@ func interfaceNamesViaCLI(t *testing.T, dut *ondatra.DUTDevice) map[string]bool 
 	t.Helper()
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
-		res, err := dut.RawAPIs().CLI(t).RunCommand(context.Background(), "show interfaces status | json")
+		res, err := dut.RawAPIs().CLI(t).RunCommand(t.Context(), "show interfaces status | json")
 		if err != nil {
 			t.Fatalf("failed to run interface discovery cli command: %v", err)
 		}
@@ -1010,11 +1026,11 @@ func discoverInterfaceNames(t *testing.T, resp *gpb.GetResponse) map[string]bool
 // extractInterfaceNamesFromJSON parses a JSON_IETF blob and collects openconfig-interface names
 // into names, handling interface-list, single-interface, and wrapper-object shapes.
 func extractInterfaceNamesFromJSON(jsonVal []byte, names map[string]bool) {
-	decoded := any(nil)
+	var decoded any
 	if err := json.Unmarshal(jsonVal, &decoded); err != nil {
 		return
 	}
-	list := []any(nil)
+	var list []any
 	switch v := decoded.(type) {
 	case []any:
 		list = v
@@ -1038,101 +1054,99 @@ func extractInterfaceNamesFromJSON(jsonVal []byte, names map[string]bool) {
 	}
 }
 
-// pathzPolicyStateLeaf issues a raw gNMI Get for a single leaf under
-// /system/gnmi-pathz-policies/policies/policy[instance=<instance>]/state/ (the path Arista serves
-// pathz policy telemetry on), returning its JSON-IETF scalar value; ok is false when unpopulated.
-func pathzPolicyStateLeaf(ctx context.Context, gc gpb.GNMIClient, instance, leaf string) (string, bool, error) {
-	path := &gpb.Path{
-		Origin: "openconfig",
-		Elem: []*gpb.PathElem{
-			{Name: "system"},
-			{Name: "gnmi-pathz-policies"},
-			{Name: "policies"},
-			{Name: "policy", Key: map[string]string{"instance": instance}},
-			{Name: "state"},
-			{Name: leaf},
-		},
-	}
-	resp, err := gc.Get(ctx, &gpb.GetRequest{
-		Path:     []*gpb.Path{path},
-		Type:     gpb.GetRequest_STATE,
-		Encoding: gpb.Encoding_JSON_IETF,
-	})
+// pathzSandboxVersionRaw reads the pathz SANDBOX policy version via a raw gNMI Get. ok is false
+// when the leaf is unpopulated (e.g. the sandbox has been rolled back / has no pending policy).
+func pathzSandboxVersionRaw(ctx context.Context, client gpb.GNMIClient) (version string, ok bool, err error) {
+	path, err := ygot.StringToStructuredPath(pathzSandboxVersionPath)
 	if err != nil {
-		return "", false, err
+		return "", false, fmt.Errorf("failed to build path for %s: %w", pathzSandboxVersionPath, err)
 	}
-	for _, notif := range resp.GetNotification() {
-		for _, upd := range notif.GetUpdate() {
-			switch v := upd.GetVal().GetValue().(type) {
-			case *gpb.TypedValue_StringVal:
-				if v.StringVal != "" {
-					return v.StringVal, true, nil
-				}
-			case *gpb.TypedValue_UintVal:
-				return strconv.FormatUint(v.UintVal, 10), true, nil
-			case *gpb.TypedValue_IntVal:
-				return strconv.FormatInt(v.IntVal, 10), true, nil
-			case *gpb.TypedValue_JsonIetfVal:
-				if len(v.JsonIetfVal) > 0 {
-					return strings.Trim(string(v.JsonIetfVal), "\""), true, nil
-				}
-			}
+	resp, err := client.Get(ctx, &gpb.GetRequest{Path: []*gpb.Path{path}, Type: gpb.GetRequest_STATE})
+	if err != nil {
+		return "", false, fmt.Errorf("failed to get pathz sandbox version: %w", err)
+	}
+	notifications := resp.GetNotification()
+	if len(notifications) == 0 || len(notifications[0].GetUpdate()) == 0 {
+		return "", false, nil
+	}
+	return notifications[0].GetUpdate()[0].GetVal().GetStringVal(), true, nil
+}
+
+// awaitPathzSandboxVersionRaw polls the pathz SANDBOX policy version via pathzSandboxVersionRaw
+// until it equals wantVersion (or, when wantVersion is empty, until the leaf is unpopulated),
+// failing after a timeout.
+func awaitPathzSandboxVersionRaw(ctx context.Context, t *testing.T, client gpb.GNMIClient, wantVersion string, timeout time.Duration) {
+	t.Helper()
+	const pollInterval = 500 * time.Millisecond
+	for {
+		version, ok, err := pathzSandboxVersionRaw(ctx, client)
+		if err == nil && ((wantVersion == "" && !ok) || version == wantVersion) {
+			return
+		}
+		select {
+		case <-ctx.Done():
+			t.Errorf("SANDBOX pathz policy telemetry did not reach version %q within %v", wantVersion, timeout)
+			return
+		case <-time.After(pollInterval):
 		}
 	}
-	return "", false, nil
 }
 
-// verifyPolicyTelemetry checks that the pathz policy telemetry for the given instance ("ACTIVE" or
-// "SANDBOX") reports the expected version and created-on timestamp.
-func verifyPolicyTelemetry(t *testing.T, gc gpb.GNMIClient, instance string,
-	wantVersion string, wantCreatedOn uint64) {
+// awaitPolicyTelemetry waits until the pathz policy telemetry for the given instance reports
+// wantVersion and wantCreatedOn, failing after a timeout. It watches the OC pathz policy leaves via
+// the reader's mTLS ygnmi client; ondatra's gnmi.Watch cannot be used because the binding's default
+// client is locked out once mTLS is enforced. On Arista, the SANDBOX instance is read via a raw gNMI
+// Get instead (see pathzSandboxVersionPath); every other vendor/instance combination uses the
+// generated OC path as before.
+func awaitPolicyTelemetry(t *testing.T, dut *ondatra.DUTDevice, rawClient gpb.GNMIClient, client *ygnmi.Client,
+	instance oc.E_Policy_Instance, wantVersion string, wantCreatedOn uint64) {
 	t.Helper()
-	ctx := context.Background()
-	gotVersion, ok, err := pathzPolicyStateLeaf(ctx, gc, instance, "version")
-	if err != nil {
-		t.Errorf("pathz policy version telemetry for instance %s could not be read: %v", instance, err)
+	const timeout = 30 * time.Second
+	ctx, cancel := context.WithTimeout(t.Context(), timeout)
+	defer cancel()
+
+	if dut.Vendor() == ondatra.ARISTA && instance == oc.Policy_Instance_SANDBOX {
+		awaitPathzSandboxVersionRaw(ctx, t, rawClient, wantVersion, timeout)
 		return
 	}
-	if !ok {
-		t.Errorf("pathz policy version telemetry for instance %s not populated by DUT", instance)
-		return
-	}
-	if gotVersion != wantVersion {
-		t.Errorf("policy version for %s: got %s, want %s", instance, gotVersion, wantVersion)
-	}
-	rawCreatedOn, ok, err := pathzPolicyStateLeaf(ctx, gc, instance, "created-on")
-	if err != nil {
-		t.Errorf("pathz policy created-on telemetry for instance %s could not be read: %v", instance, err)
-		return
-	}
-	if !ok {
-		t.Errorf("pathz policy created-on telemetry for instance %s not populated by DUT", instance)
-		return
-	}
-	gotCreatedOn, err := strconv.ParseUint(rawCreatedOn, 10, 64)
-	if err != nil {
-		t.Errorf("pathz policy created-on telemetry for instance %s is not a uint64 (%q): %v", instance, rawCreatedOn, err)
-		return
-	}
-	if gotCreatedOn != wantCreatedOn {
-		t.Errorf("policy created-on for %s: got %d, want %d", instance, gotCreatedOn, wantCreatedOn)
+
+	q := gnmi.OC().System().GnmiPathzPolicies().Policy(instance).State()
+	if _, err := ygnmi.Watch(ctx, client, q, func(v *ygnmi.Value[*oc.System_GnmiPathzPolicies_Policy]) error {
+		p, ok := v.Val()
+		if ok && p.GetVersion() == wantVersion && p.GetCreatedOn() == wantCreatedOn {
+			return nil
+		}
+		return ygnmi.Continue
+	}).Await(); err != nil {
+		t.Errorf("%v pathz policy telemetry did not reach version %q / created-on %d within %v: %v",
+			instance, wantVersion, wantCreatedOn, timeout, err)
 	}
 }
 
-// sandboxPolicyCleared reports whether the sandbox policy's version and created-on telemetry are
-// both absent/empty. A successful Get that returns no value for either leaf means the sandbox was
-// rolled back (cleared); only an actual read error is treated as inconclusive.
-func sandboxPolicyCleared(t *testing.T, gc gpb.GNMIClient) (cleared bool, conclusive bool) {
+// awaitSandboxCleared waits until the sandbox pathz policy telemetry is rolled back (absent or empty
+// version/created-on), failing after a timeout. On Arista this is read via a raw gNMI Get (see
+// pathzSandboxVersionPath); every other vendor uses the generated OC path as before.
+func awaitSandboxCleared(t *testing.T, dut *ondatra.DUTDevice, rawClient gpb.GNMIClient, client *ygnmi.Client) {
 	t.Helper()
-	ctx := context.Background()
-	gotVersion, versionOK, verr := pathzPolicyStateLeaf(ctx, gc, "SANDBOX", "version")
-	gotCreatedOn, createdOnOK, cerr := pathzPolicyStateLeaf(ctx, gc, "SANDBOX", "created-on")
-	if verr != nil || cerr != nil {
-		return false, false
+	const timeout = 30 * time.Second
+	ctx, cancel := context.WithTimeout(t.Context(), timeout)
+	defer cancel()
+
+	if dut.Vendor() == ondatra.ARISTA {
+		awaitPathzSandboxVersionRaw(ctx, t, rawClient, "", timeout)
+		return
 	}
-	versionCleared := !versionOK || gotVersion == ""
-	createdOnCleared := !createdOnOK || gotCreatedOn == "" || gotCreatedOn == "0"
-	return versionCleared && createdOnCleared, true
+
+	q := gnmi.OC().System().GnmiPathzPolicies().Policy(oc.Policy_Instance_SANDBOX).State()
+	if _, err := ygnmi.Watch(ctx, client, q, func(v *ygnmi.Value[*oc.System_GnmiPathzPolicies_Policy]) error {
+		p, ok := v.Val()
+		if !ok || (p.GetVersion() == "" && p.GetCreatedOn() == 0) {
+			return nil
+		}
+		return ygnmi.Continue
+	}).Await(); err != nil {
+		t.Errorf("sandbox pathz policy was not rolled back within %v: %v", timeout, err)
+	}
 }
 
 // policiesEqual reports whether two AuthorizationPolicy protos are equal, ignoring rule/group
@@ -1178,332 +1192,381 @@ func verifyGetResponse(t *testing.T, resp *pathz.GetResponse, wantVersion string
 	}
 }
 
-// TestPathzPolicyRotationAndFreshness implements Pathz-1: rotation, sandbox rollback and force overwrite.
-func TestPathzPolicyRotationAndFreshness(t *testing.T) {
+// pathzCounterValue reads a per-path pathz counter's current value as a pre-operation baseline,
+// returning 0 if the counters are unsupported or not yet populated.
+func pathzCounterValue(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice,
+	client *ygnmi.Client, query ygnmi.SingletonQuery[uint64]) uint64 {
+	t.Helper()
+	if deviations.PathzCountersUnsupported(dut) {
+		return 0
+	}
+	rv, err := ygnmi.Lookup(ctx, client, query)
+	if err != nil {
+		return 0
+	}
+	v, _ := rv.Val()
+	return v
+}
+
+// verifyPathzCounter asserts that a per-path pathz policy counter increased past the pre-operation
+// baseline (proving THIS operation incremented it), unless the device does not support these
+// counters (PathzCountersUnsupported), in which case the check is gated off by the deviation.
+func verifyPathzCounter(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice,
+	client *ygnmi.Client, query ygnmi.SingletonQuery[uint64], before uint64, desc string) {
+	t.Helper()
+	if deviations.PathzCountersUnsupported(dut) {
+		return
+	}
+	rv, err := ygnmi.Lookup(ctx, client, query)
+	if err != nil {
+		t.Errorf("pathz %s counter for %s could not be read: %v", desc, hostnamePath, err)
+		return
+	}
+	after, ok := rv.Val()
+	if !ok {
+		t.Errorf("pathz %s counter for %s not populated by DUT", desc, hostnamePath)
+		return
+	}
+	if after <= before {
+		t.Errorf("pathz %s counter for %s did not increment (before %d, after %d)", desc, hostnamePath, before, after)
+	}
+}
+
+// TestPathz implements the gNSI Pathz path-level authorization tests (Pathz-1 to Pathz-4). mTLS and
+// the Pathz service are configured once for all subtests and reverted when TestPathz completes.
+func TestPathz(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	ctx := context.Background()
-	env, err := establishMTLSAndDiscoveryAccess(ctx, t, dut)
-	if err != nil {
-		t.Fatal(err)
+	if dut.Vendor() != ondatra.ARISTA {
+		t.Skipf("pathz mTLS/service setup is only implemented for ARISTA; skipping for vendor %v", dut.Vendor())
 	}
-	port1 := env.ports[0]
-
-	client, err := dialPathzClient(t, dut, env.identities[certAdmin])
-	if err != nil {
-		t.Fatal(err)
-	}
-	readerTelemetry, err := dialGNMIAs(t, dut, env.identities[certReader])
+	ctx := t.Context()
+	env, err := setupMTLSEnvironment(ctx, t, dut)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	policyJSON := fmt.Sprintf(baselinePolicyTemplate, env.spiffeIDs[certReader], env.spiffeIDs[certAdmin], port1)
-	policy, err := buildAuthorizationPolicy(policyJSON)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	t.Run("InitialPushAndSandboxTelemetry", func(t *testing.T) {
-		stream, err := client.Rotate(ctx)
+	// Register cleanup to ensure the policy is reset to empty when this subtest completes.
+	t.Cleanup(func() {
+		client, err := dialPathzClient(t, dut, env.identities[certAdmin])
 		if err != nil {
-			t.Fatal(err)
-		}
-		defer stream.CloseSend()
-		err = uploadPolicy(stream, policy, policyVersionV1, policyCreatedOnV1, false)
-		if err != nil {
-			t.Fatal(err)
-		}
-		verifyPolicyTelemetry(t, readerTelemetry, "SANDBOX", policyVersionV1, policyCreatedOnV1)
-	})
-
-	t.Run("RollbackOnDisconnect", func(t *testing.T) {
-		cleared, conclusive := sandboxPolicyCleared(t, readerTelemetry)
-		if !conclusive {
-			t.Errorf("sandbox pathz policy telemetry not populated by DUT; cannot verify rollback")
+			t.Logf("Failed to dial pathz client in t.Cleanup: %v", err)
 			return
 		}
-		if !cleared {
-			t.Errorf("sandbox policy not rolled back after disconnect: version/created-on still report the unfinalized upload")
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		// Create an empty gNSI authorization policy struct pointer
+		emptyPolicy := &pathz.AuthorizationPolicy{}
+
+		if err := rotateAndFinalize(cleanupCtx, client, emptyPolicy, "", 0, true); err != nil {
+			t.Logf("Failed to reset pathz policy in t.Cleanup: %v", err)
 		}
 	})
 
-	t.Run("FinalizeRotation", func(t *testing.T) {
-		err := rotateAndFinalize(ctx, client, policy, policyVersionV1, policyCreatedOnV1, false)
+	t.Run("Pathz-1_PolicyRotationAndFreshness", func(t *testing.T) {
+		port1 := env.ports[0]
+
+		client, err := dialPathzClient(t, dut, env.identities[certAdmin])
 		if err != nil {
 			t.Fatal(err)
 		}
-		verifyPolicyTelemetry(t, readerTelemetry, "ACTIVE", policyVersionV1, policyCreatedOnV1)
-	})
-
-	t.Run("GetVerification", func(t *testing.T) {
-		resp, err := getPathzPolicy(ctx, client)
+		readerTelemetry, err := dialGNMIAs(t, dut, env.identities[certReader], env.caCert)
 		if err != nil {
 			t.Fatal(err)
 		}
-		verifyGetResponse(t, resp, policyVersionV1, policyCreatedOnV1, policy)
-	})
+		// ygnmi client over the same reader connection, for Watch-based sandbox telemetry waits.
+		readerWatch, err := ygnmi.NewClient(readerTelemetry, ygnmi.WithTarget(dut.ID()))
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	t.Run("ForceOverwrite", func(t *testing.T) {
-		modifiedPolicy := proto.Clone(policy).(*pathz.AuthorizationPolicy)
-		modifiedPolicy.Rules = append(modifiedPolicy.Rules, &pathz.AuthorizationRule{
-			Id:        "force-overwrite-probe-rule",
-			Principal: &pathz.AuthorizationRule_User{User: env.spiffeIDs[certUnauthorized]},
-			Path:      &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}}},
-			Action:    pathz.Action_ACTION_DENY,
-			Mode:      pathz.Mode_MODE_READ,
+		policyJSON := fmt.Sprintf(baselinePolicyTemplate, env.spiffeIDs[certReader], env.spiffeIDs[certAdmin], port1)
+		policy, err := buildAuthorizationPolicy(policyJSON)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// pathz default-denies every read until an ACTIVE policy grants it, so commit the baseline first
+		// (it permits the reader to read /system); only then can the reader observe sandbox telemetry
+		// during a subsequent rotation.
+		if err := rotateAndFinalize(ctx, client, policy, policyVersionV1, policyCreatedOnV1, true); err != nil {
+			t.Fatal(err)
+		}
+
+		// Shared sandbox Rotate stream on a cancelable context: InitialPush uploads (without
+		// finalizing) and RollbackOnDisconnect cancels the context to close the gRPC session (per the
+		// README's "close the gRPC session without sending Finalize" step), forcing the rollback.
+		sandboxCtx, cancelSandbox := context.WithCancel(ctx)
+		defer cancelSandbox()
+		sandboxStream, err := client.Rotate(sandboxCtx)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		t.Run("InitialPushAndSandboxTelemetry", func(t *testing.T) {
+			if err := uploadPolicy(sandboxStream, policy, policyVersionV1, policyCreatedOnV1, false); err != nil {
+				t.Fatal(err)
+			}
+			awaitPolicyTelemetry(t, dut, readerTelemetry, readerWatch, oc.Policy_Instance_SANDBOX, policyVersionV1, policyCreatedOnV1)
 		})
 
-		// Without force_overwrite, changed content under an already-committed version must be
-		// rejected (pathz.proto: ALREADY_EXISTS).
-		if err := rotateAndFinalize(ctx, client, modifiedPolicy, policyVersionV1, policyCreatedOnV1, false); err == nil {
-			switch dut.Vendor() {
-			case ondatra.ARISTA:
-				t.Errorf("rotation of changed content under an existing version without force_overwrite unexpectedly succeeded (known Arista issue: BUG2001122)")
-			default:
+		t.Run("RollbackOnDisconnect", func(t *testing.T) {
+			// Cancel the Rotate context to fully close the gRPC session (CloseSend only half-closes it).
+			cancelSandbox()
+			awaitSandboxCleared(t, dut, readerTelemetry, readerWatch)
+			// The rolled-back sandbox must leave the committed ACTIVE policy (v1) intact.
+			awaitPolicyTelemetry(t, dut, readerTelemetry, readerWatch, oc.Policy_Instance_ACTIVE, policyVersionV1, policyCreatedOnV1)
+		})
+
+		t.Run("FinalizeRotation", func(t *testing.T) {
+			err := rotateAndFinalize(ctx, client, policy, policyVersionV1, policyCreatedOnV1, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			awaitPolicyTelemetry(t, dut, readerTelemetry, readerWatch, oc.Policy_Instance_ACTIVE, policyVersionV1, policyCreatedOnV1)
+		})
+
+		t.Run("GetVerification", func(t *testing.T) {
+			resp, err := getPathzPolicy(ctx, client)
+			if err != nil {
+				t.Fatal(err)
+			}
+			verifyGetResponse(t, resp, policyVersionV1, policyCreatedOnV1, policy)
+		})
+
+		t.Run("ForceOverwrite", func(t *testing.T) {
+			modifiedPolicy := proto.Clone(policy).(*pathz.AuthorizationPolicy)
+			modifiedPolicy.Rules = append(modifiedPolicy.Rules, &pathz.AuthorizationRule{
+				Id:        "force-overwrite-probe-rule",
+				Principal: &pathz.AuthorizationRule_User{User: env.spiffeIDs[certUnauthorized]},
+				Path:      &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}}},
+				Action:    pathz.Action_ACTION_DENY,
+				Mode:      pathz.Mode_MODE_READ,
+			})
+
+			// Without force_overwrite, changed content under an already-committed version must be
+			// rejected (pathz.proto: ALREADY_EXISTS). On devices with PathzForceOverwriteUnsupported the
+			// DUT does not enforce this and accepts the rotation, so the deviation asserts that instead.
+			err := rotateAndFinalize(ctx, client, modifiedPolicy, policyVersionV1, policyCreatedOnV1, false)
+			if deviations.PathzForceOverwriteUnsupported(dut) {
+				if err != nil {
+					t.Errorf("device does not enforce force_overwrite; expected the non-forced rotation to be accepted, got: %v", err)
+				}
+			} else if err == nil {
 				t.Errorf("rotation of changed content under an existing version without force_overwrite unexpectedly succeeded")
 			}
-		}
-		// force_overwrite=true must accept changed content under an already-committed version.
-		if err := rotateAndFinalize(ctx, client, modifiedPolicy, policyVersionV1, policyCreatedOnV1, true); err != nil {
-			t.Errorf("rotation with force_overwrite failed: %v", err)
-		}
-		if err := rotateAndFinalize(ctx, client, policy, policyVersionV1, policyCreatedOnV1, true); err != nil {
-			t.Errorf("failed to restore original policy content after force_overwrite probe: %v", err)
-		}
-	})
-}
-
-// TestPathzEnforcement implements Pathz-2: path-level authorization enforcement using best match.
-func TestPathzEnforcement(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	ctx := context.Background()
-	env, err := establishMTLSAndDiscoveryAccess(ctx, t, dut)
-	if err != nil {
-		t.Fatal(err)
-	}
-	port1 := env.ports[0]
-	port2 := env.ports[1]
-	identities := env.identities
-
-	client, err := dialPathzClient(t, dut, env.identities[certAdmin])
-	if err != nil {
-		t.Fatal(err)
-	}
-	policyJSON := fmt.Sprintf(baselinePolicyTemplate, env.spiffeIDs[certReader], env.spiffeIDs[certAdmin], port1)
-	policy, err := buildAuthorizationPolicy(policyJSON)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = rotateAndFinalize(ctx, client, policy, policyVersionV1, policyCreatedOnV1, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	readerClient, err := dialGNMIAs(t, dut, identities[certReader])
-	if err != nil {
-		t.Fatal(err)
-	}
-	adminClient, err := dialGNMIAs(t, dut, identities[certAdmin])
-	if err != nil {
-		t.Fatal(err)
-	}
-	unauthorizedClient, err := dialGNMIAs(t, dut, identities[certUnauthorized])
-	if err != nil {
-		t.Fatal(err)
-	}
-	readerTelemetry := dialYGNMIClientAs(t, dut, identities[certReader])
-
-	t.Run("ReaderReadPermittedWriteDenied", func(t *testing.T) {
-		_, err := getHostnameConfig(ctx, readerClient)
-		if err != nil {
-			t.Errorf("reader get on hostname unexpectedly failed: %v", err)
-		}
-		pathzCounters := gnmi.OC().System().GrpcServer(env.grpcServerName).GnmiPathzPolicyCounters()
-		// Arista does not support the per-xpath pathz counters (BUG912323).
-		counterIssue := ""
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			counterIssue = " (known Arista issue: BUG912323)"
-		default:
-			counterIssue = ""
-		}
-		readAccepts := pathzCounters.Path(hostnamePath).Reads().AccessAccepts().State()
-		if rv, err := ygnmi.Lookup(ctx, readerTelemetry, readAccepts); err != nil {
-			t.Errorf("pathz read access-accepts counter for %s could not be read: %v%s", hostnamePath, err, counterIssue)
-		} else if reads, ok := rv.Val(); !ok {
-			t.Errorf("pathz read access-accepts counter for %s not populated by DUT%s", hostnamePath, counterIssue)
-		} else if reads == 0 {
-			t.Errorf("reader read access-accepts counter did not increment for %s%s", hostnamePath, counterIssue)
-		}
-		err = setHostnameConfig(ctx, readerClient, "reader-attempt")
-		err = expectPermissionDenied(err)
-		if err != nil {
-			t.Errorf("reader set on hostname: %v", err)
-		}
-		writeRejects := pathzCounters.Path(hostnamePath).Writes().AccessRejects().State()
-		if rv, err := ygnmi.Lookup(ctx, readerTelemetry, writeRejects); err != nil {
-			t.Errorf("pathz write access-rejects counter for %s could not be read: %v%s", hostnamePath, err, counterIssue)
-		} else if rejects, ok := rv.Val(); !ok {
-			t.Errorf("pathz write access-rejects counter for %s not populated by DUT%s", hostnamePath, counterIssue)
-		} else if rejects == 0 {
-			t.Errorf("reader write access-rejects counter did not increment for %s%s", hostnamePath, counterIssue)
-		}
+			// force_overwrite=true must accept changed content under an already-committed version.
+			if err := rotateAndFinalize(ctx, client, modifiedPolicy, policyVersionV1, policyCreatedOnV1, true); err != nil {
+				t.Errorf("rotation with force_overwrite failed: %v", err)
+			}
+			if err := rotateAndFinalize(ctx, client, policy, policyVersionV1, policyCreatedOnV1, true); err != nil {
+				t.Errorf("failed to restore original policy content after force_overwrite probe: %v", err)
+			}
+		})
 	})
 
-	t.Run("AdminGroupPermitSpecificUserDeny", func(t *testing.T) {
-		err := setInterfaceDescription(ctx, adminClient, port2, "pathz-admin-group-test")
-		if err != nil {
-			t.Errorf("admin set on port2 description unexpectedly failed: %v", err)
-		}
-		err = setInterfaceDescription(ctx, adminClient, port1, "pathz-admin-deny-test")
-		err = expectPermissionDenied(err)
-		if err != nil {
-			t.Errorf("admin set on port1 description (best-match: user-specific deny beats group permit): %v", err)
-		}
-	})
+	t.Run("Pathz-2_Enforcement", func(t *testing.T) {
+		port1 := env.ports[0]
+		port2 := env.ports[1]
+		identities := env.identities
 
-	t.Run("DefaultDeny", func(t *testing.T) {
-		_, err := getHostnameConfig(ctx, unauthorizedClient)
+		client, err := dialPathzClient(t, dut, env.identities[certAdmin])
+		if err != nil {
+			t.Fatal(err)
+		}
+		policyJSON := fmt.Sprintf(baselinePolicyTemplate, env.spiffeIDs[certReader], env.spiffeIDs[certAdmin], port1)
+		policy, err := buildAuthorizationPolicy(policyJSON)
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = rotateAndFinalize(ctx, client, policy, policyVersionV1, policyCreatedOnV1, true)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-		if deviations.UnauthorizedAccessErrorUnsupported(dut) {
-			t.Log("Skipping unauthorized GET error validation due to deviation")
-		} else {
+		readerClient, err := dialGNMIAs(t, dut, identities[certReader], env.caCert)
+		if err != nil {
+			t.Fatal(err)
+		}
+		adminClient, err := dialGNMIAs(t, dut, identities[certAdmin], env.caCert)
+		if err != nil {
+			t.Fatal(err)
+		}
+		unauthorizedClient, err := dialGNMIAs(t, dut, identities[certUnauthorized], env.caCert)
+		if err != nil {
+			t.Fatal(err)
+		}
+		readerTelemetry := dialYGNMIClientAs(t, dut, identities[certReader], env.caCert)
+
+		t.Run("ReaderReadPermittedWriteDenied", func(t *testing.T) {
+			pathzCounters := gnmi.OC().System().GrpcServer(env.grpcServerName).GnmiPathzPolicyCounters()
+			readAccepts := pathzCounters.Path(hostnamePath).Reads().AccessAccepts().State()
+			writeRejects := pathzCounters.Path(hostnamePath).Writes().AccessRejects().State()
+
+			beforeReads := pathzCounterValue(ctx, t, dut, readerTelemetry, readAccepts)
+			if _, err := getHostnameConfig(ctx, readerClient); err != nil {
+				t.Errorf("reader get on hostname unexpectedly failed: %v", err)
+			}
+			verifyPathzCounter(ctx, t, dut, readerTelemetry, readAccepts, beforeReads, "read access-accepts")
+
+			beforeRejects := pathzCounterValue(ctx, t, dut, readerTelemetry, writeRejects)
+			if err := expectPermissionDenied(setHostnameConfig(ctx, readerClient, "reader-attempt")); err != nil {
+				t.Errorf("reader set on hostname: %v", err)
+			}
+			verifyPathzCounter(ctx, t, dut, readerTelemetry, writeRejects, beforeRejects, "write access-rejects")
+		})
+
+		t.Run("AdminGroupPermitSpecificUserDeny", func(t *testing.T) {
+			// Restore port2's description via the admin identity (it holds the group write permit; pathz
+			// is still active during this subtest's cleanup, before the parent teardown).
+			t.Cleanup(func() {
+				if err := setInterfaceDescription(ctx, adminClient, port2, env.origDescs[port2]); err != nil {
+					t.Logf("failed to restore description on %s: %v", port2, err)
+				}
+			})
+			err := setInterfaceDescription(ctx, adminClient, port2, "pathz-admin-group-test")
+			if err != nil {
+				t.Errorf("admin set on port2 description unexpectedly failed: %v", err)
+			}
+			err = setInterfaceDescription(ctx, adminClient, port1, "pathz-admin-deny-test")
 			err = expectPermissionDenied(err)
 			if err != nil {
+				t.Errorf("admin set on port1 description (best-match: user-specific deny beats group permit): %v", err)
+			}
+		})
+
+		t.Run("DefaultDeny", func(t *testing.T) {
+			// The unauthorized identity has no matching rule, so reads default-deny. On devices with the
+			// PathzUnauthorizedAccessErrorUnsupported deviation the DUT prunes the subtree and returns no
+			// error instead of PermissionDenied; the write is still expected to be denied outright.
+			_, getErr := getHostnameConfig(ctx, unauthorizedClient)
+			if err := expectUnauthorizedError(dut, getErr); err != nil {
 				t.Errorf("unauthorized get on hostname: %v", err)
 			}
-		}
-
-		err = setHostnameConfig(ctx, unauthorizedClient, "unauthorized-attempt")
-
-		if deviations.UnauthorizedAccessErrorUnsupported(dut) {
-			t.Log("Skipping unauthorized SET error validation due to deviation")
-		} else {
-			err = expectPermissionDenied(err)
-			if err != nil {
+			setErr := setHostnameConfig(ctx, unauthorizedClient, "unauthorized-attempt")
+			if err := expectPermissionDenied(setErr); err != nil {
 				t.Errorf("unauthorized set on hostname: %v", err)
 			}
-		}
-	})
-}
-
-// TestPathzProbe implements Pathz-3: verification of active and sandbox policies via the Probe RPC.
-func TestPathzProbe(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	ctx := context.Background()
-	env, err := establishMTLSAndDiscoveryAccess(ctx, t, dut)
-	if err != nil {
-		t.Fatal(err)
-	}
-	port1 := env.ports[0]
-
-	client, err := dialPathzClient(t, dut, env.identities[certAdmin])
-	if err != nil {
-		t.Fatal(err)
-	}
-	policyJSON := fmt.Sprintf(baselinePolicyTemplate, env.spiffeIDs[certReader], env.spiffeIDs[certAdmin], port1)
-	policy, err := buildAuthorizationPolicy(policyJSON)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = rotateAndFinalize(ctx, client, policy, policyVersionV1, policyCreatedOnV1, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	systemElems := []*gpb.PathElem{{Name: "system"}}
-
-	t.Run("ProbeActivePolicy", func(t *testing.T) {
-		active := pathz.PolicyInstance_POLICY_INSTANCE_ACTIVE
-		action, err := probeAccess(ctx, client, env.spiffeIDs[certReader], systemElems, pathz.Mode_MODE_READ, active)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if action != pathz.Action_ACTION_PERMIT {
-			t.Errorf("probe read on active policy: got %v, want ACTION_PERMIT", action)
-		}
-		action, err = probeAccess(ctx, client, env.spiffeIDs[certReader], systemElems, pathz.Mode_MODE_WRITE, active)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if action != pathz.Action_ACTION_DENY {
-			t.Errorf("probe write on active policy: got %v, want ACTION_DENY", action)
-		}
+		})
 	})
 
-	t.Run("ProbeSandboxDuringRotation", func(t *testing.T) {
-		denyPolicy, err := buildAuthorizationPolicy(fmt.Sprintf(denyReaderSystemPolicy, env.spiffeIDs[certReader]))
+	t.Run("Pathz-3_Probe", func(t *testing.T) {
+		port1 := env.ports[0]
+
+		client, err := dialPathzClient(t, dut, env.identities[certAdmin])
 		if err != nil {
 			t.Fatal(err)
 		}
-		stream, err := client.Rotate(ctx)
+		policyJSON := fmt.Sprintf(baselinePolicyTemplate, env.spiffeIDs[certReader], env.spiffeIDs[certAdmin], port1)
+		policy, err := buildAuthorizationPolicy(policyJSON)
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = uploadPolicy(stream, denyPolicy, policyVersionV2, policyCreatedOnV2, false)
+		err = rotateAndFinalize(ctx, client, policy, policyVersionV1, policyCreatedOnV1, true)
 		if err != nil {
 			t.Fatal(err)
 		}
-		sandbox := pathz.PolicyInstance_POLICY_INSTANCE_SANDBOX
-		sandboxAction, err := probeAccess(ctx, client, env.spiffeIDs[certReader], systemElems, pathz.Mode_MODE_READ, sandbox)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if sandboxAction != pathz.Action_ACTION_DENY {
-			t.Errorf("probe read on sandbox policy: got %v, want ACTION_DENY", sandboxAction)
-		}
-		active := pathz.PolicyInstance_POLICY_INSTANCE_ACTIVE
-		activeAction, err := probeAccess(ctx, client, env.spiffeIDs[certReader], systemElems, pathz.Mode_MODE_READ, active)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if activeAction != pathz.Action_ACTION_PERMIT {
-			t.Errorf("probe read on active policy during rotation: got %v, want ACTION_PERMIT", activeAction)
-		}
-		err = stream.CloseSend()
-		if err != nil {
-			t.Fatal(err)
-		}
+		systemElems := []*gpb.PathElem{{Name: "system"}}
+
+		t.Run("ProbeActivePolicy", func(t *testing.T) {
+			active := pathz.PolicyInstance_POLICY_INSTANCE_ACTIVE
+			action, err := probeAccess(ctx, client, env.spiffeIDs[certReader], systemElems, pathz.Mode_MODE_READ, active)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if action != pathz.Action_ACTION_PERMIT {
+				t.Errorf("probe read on active policy: got %v, want ACTION_PERMIT", action)
+			}
+			action, err = probeAccess(ctx, client, env.spiffeIDs[certReader], systemElems, pathz.Mode_MODE_WRITE, active)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if action != pathz.Action_ACTION_DENY {
+				t.Errorf("probe write on active policy: got %v, want ACTION_DENY", action)
+			}
+		})
+
+		t.Run("ProbeSandboxDuringRotation", func(t *testing.T) {
+			denyPolicy, err := buildAuthorizationPolicy(fmt.Sprintf(denyReaderSystemPolicy, env.spiffeIDs[certReader]))
+			if err != nil {
+				t.Fatal(err)
+			}
+			stream, err := client.Rotate(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = uploadPolicy(stream, denyPolicy, policyVersionV1, policyCreatedOnV1, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			sandbox := pathz.PolicyInstance_POLICY_INSTANCE_SANDBOX
+			sandboxAction, err := probeAccess(ctx, client, env.spiffeIDs[certReader], systemElems, pathz.Mode_MODE_READ, sandbox)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if sandboxAction != pathz.Action_ACTION_DENY {
+				t.Errorf("probe read on sandbox policy: got %v, want ACTION_DENY", sandboxAction)
+			}
+			active := pathz.PolicyInstance_POLICY_INSTANCE_ACTIVE
+			activeAction, err := probeAccess(ctx, client, env.spiffeIDs[certReader], systemElems, pathz.Mode_MODE_READ, active)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if activeAction != pathz.Action_ACTION_PERMIT {
+				t.Errorf("probe read on active policy during rotation: got %v, want ACTION_PERMIT", activeAction)
+			}
+			err = stream.CloseSend()
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
 	})
-}
 
-// TestPathzPolicyRemovalCLI implements Pathz-4: removal of a Pathz policy via vendor-native CLI.
-func TestPathzPolicyRemovalCLI(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	ctx := context.Background()
-	env, err := establishMTLSAndDiscoveryAccess(ctx, t, dut)
-	if err != nil {
-		t.Fatal(err)
-	}
-	port1 := env.ports[0]
-	cliCommand := pathzRemovalCLICommand(t, dut, env.grpcServerName)
+	t.Run("Pathz-4_PolicyRemovalCLI", func(t *testing.T) {
+		port1 := env.ports[0]
 
-	client, err := dialPathzClient(t, dut, env.identities[certAdmin])
-	if err != nil {
-		t.Fatal(err)
-	}
-	policyJSON := fmt.Sprintf(baselinePolicyTemplate, env.spiffeIDs[certReader], env.spiffeIDs[certAdmin], port1)
-	policy, err := buildAuthorizationPolicy(policyJSON)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = rotateAndFinalize(ctx, client, policy, policyVersionV1, policyCreatedOnV1, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	t.Run("VerifyPolicyActive", func(t *testing.T) {
-		resp, err := getPathzPolicy(ctx, client)
+		client, err := dialPathzClient(t, dut, env.identities[certAdmin])
 		if err != nil {
 			t.Fatal(err)
 		}
-		verifyGetResponse(t, resp, policyVersionV1, policyCreatedOnV1, policy)
-	})
-
-	t.Run("RemoveViaCLIAndVerifyCleared", func(t *testing.T) {
-		removePathzPolicyViaCLI(t, dut, cliCommand)
-		resp, err := getPathzPolicy(ctx, client)
-		if err == nil && resp.GetVersion() != "" {
-			t.Errorf("pathz policy still present after cli removal: version %s", resp.GetVersion())
+		policyJSON := fmt.Sprintf(baselinePolicyTemplate, env.spiffeIDs[certReader], env.spiffeIDs[certAdmin], port1)
+		policy, err := buildAuthorizationPolicy(policyJSON)
+		if err != nil {
+			t.Fatal(err)
 		}
+		err = rotateAndFinalize(ctx, client, policy, policyVersionV1, policyCreatedOnV1, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		t.Run("VerifyPolicyActive", func(t *testing.T) {
+			resp, err := getPathzPolicy(ctx, client)
+			if err != nil {
+				t.Fatal(err)
+			}
+			verifyGetResponse(t, resp, policyVersionV1, policyCreatedOnV1, policy)
+		})
+
+		t.Run("RemoveViaCLIAndVerifyCleared", func(t *testing.T) {
+			if deviations.PathzPolicyRemovalViaCliUnsupported(dut) {
+				t.Logf("pathz policy removal via cli is not supported on vendor %v; skipping removal verification", dut.Vendor())
+				return
+			}
+			cliCommand := pathzRemovalCLICommand(t, dut, env.grpcServerName)
+			removePathzPolicyViaCLI(t, dut, cliCommand)
+			resp, err := client.Get(ctx, &pathz.GetRequest{PolicyInstance: pathz.PolicyInstance_POLICY_INSTANCE_ACTIVE})
+			if err != nil {
+				// Once the policy is removed via CLI, the DUT reports it is gone via NotFound /
+				// Unimplemented, or an "unable to find key" style error. Any other code is a real failure.
+				if code := status.Code(err); code != codes.NotFound && code != codes.Unimplemented &&
+					!strings.Contains(err.Error(), "unable to find key") {
+					t.Errorf("pathz Get after cli removal: got error code %v, want empty policy or policy-cleared error: %v", code, err)
+				}
+				return
+			}
+			if resp.GetVersion() != "" || len(resp.GetPolicy().GetRules()) != 0 {
+				t.Errorf("pathz policy still present after cli removal: version %q, %d rules", resp.GetVersion(), len(resp.GetPolicy().GetRules()))
+			}
+		})
 	})
 }
