@@ -19,7 +19,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"flag"
-	"fmt"
 	"slices"
 	"testing"
 	"time"
@@ -33,7 +32,7 @@ import (
 )
 
 const (
-	dirPath = "../../test_data/"
+	scriptPath = "../../test_data/"
 )
 
 // DUTCredentialer is an interface for getting credentials from
@@ -51,7 +50,7 @@ var (
 	prevTrustBundleFile string          = ""
 	expectedResult      bool            = true
 	success             bool
-	certsList           = flag.String("certsList", "01,02,1,1000", "Number of Certificate Sets to generate for this test. Comma separated string")
+	certsList           = flag.String("certsList", "01,02,10,1000", "Number of Certificate Sets to generate for this test. Comma separated string")
 	certsTimeout        = flag.Duration("certsTimeout", 10*time.Minute, "Time duration for cert generation and cleanup. Increase if more certs are to be generated")
 
 	certsString = func() string {
@@ -79,10 +78,10 @@ func TestServerCertRotation(t *testing.T) {
 	password := creds.RPCPassword()
 	t.Logf("%s:STATUS:Validation of all services that are using gRPC before certz rotation.", time.Now().String())
 	gnmiClient, gnsiC := setup_service.PreInitCheck(context.Background(), t, dut)
+	dirPath := t.TempDir() + "/"
 	//Generate testdata certificates.
-	t.Logf("%s:Creation of test data.", time.Now().String())
-	command := fmt.Sprintf("./mk_cas.sh %v", certsString())
-	if err := setup_service.TestdataMakeCleanup(t, dirPath, certsTimeOutVar(), command); err != nil {
+	t.Logf("%s:Creation of test data in %s.", time.Now().String(), dirPath)
+	if err := setup_service.TestdataMakeCleanup(t, scriptPath, certsTimeOutVar(), "./mk_cas.sh", dirPath, certsString()); err != nil {
 		t.Fatalf("%s:STATUS:Generation of testdata certificates failed!: %v", time.Now().String(), err)
 	}
 	//Create a certz client.
@@ -91,20 +90,21 @@ func TestServerCertRotation(t *testing.T) {
 	t.Logf("%s:STATUS:Precheck:checking baseline sslprofile list.", time.Now().String())
 	//Get sslprofile list.
 	if getResp := setup_service.GetSslProfilelist(ctx, t, certzClient, &certzpb.GetProfileListRequest{}); slices.Contains(getResp.SslProfileIds, testProfile) {
-		t.Fatalf("%s:STATUS:profileID %s already exists.", time.Now().String(), testProfile)
-	}
-	//Add new sslprofileID.
-	t.Logf("%s:Adding new empty sslprofile ID %s.", time.Now().String(), testProfile)
-	if addProfileResponse, err := certzClient.AddProfile(ctx, &certzpb.AddProfileRequest{SslProfileId: testProfile}); err != nil {
-		t.Fatalf("%s:STATUS:Add profile request failed with %v! ", time.Now().String(), err)
+		t.Logf("%s:STATUS:profileID %s already exists, skipping AddProfile.", time.Now().String(), testProfile)
 	} else {
-		t.Logf("%s:STATUS:Received the AddProfileResponse %v.", time.Now().String(), addProfileResponse)
-	}
-	//Get sslprofile list after new sslprofile addition.
-	if getResp := setup_service.GetSslProfilelist(ctx, t, certzClient, &certzpb.GetProfileListRequest{}); !slices.Contains(getResp.SslProfileIds, testProfile) {
-		t.Fatalf("%s:STATUS:newly added profileID is not seen.", time.Now().String())
-	} else {
-		t.Logf("%s:STATUS:new profileID %s is seen in sslprofile list", time.Now().String(), testProfile)
+		//Add new sslprofileID.
+		t.Logf("%s:Adding new empty sslprofile ID %s.", time.Now().String(), testProfile)
+		if addProfileResponse, err := certzClient.AddProfile(ctx, &certzpb.AddProfileRequest{SslProfileId: testProfile}); err != nil {
+			t.Fatalf("%s:STATUS:Add profile request failed with %v! ", time.Now().String(), err)
+		} else {
+			t.Logf("%s:STATUS:Received the AddProfileResponse %v.", time.Now().String(), addProfileResponse)
+		}
+		//Get sslprofile list after new sslprofile addition.
+		if getResp := setup_service.GetSslProfilelist(ctx, t, certzClient, &certzpb.GetProfileListRequest{}); !slices.Contains(getResp.SslProfileIds, testProfile) {
+			t.Fatalf("%s:STATUS:newly added profileID is not seen.", time.Now().String())
+		} else {
+			t.Logf("%s:STATUS:new profileID %s is seen in sslprofile list", time.Now().String(), testProfile)
+		}
 	}
 	cases := []struct {
 		desc                 string
@@ -248,7 +248,7 @@ func TestServerCertRotation(t *testing.T) {
 	}
 	t.Logf("%s:STATUS:Cleanup of test data.", time.Now().String())
 	//Cleanup of test data.
-	if err := setup_service.TestdataMakeCleanup(t, dirPath, certsTimeOutVar(), "./cleanup.sh"); err != nil {
+	if err := setup_service.TestdataMakeCleanup(t, scriptPath, certsTimeOutVar(), "./cleanup.sh", dirPath); err != nil {
 		t.Logf("%s:STATUS:Cleanup of testdata certificates failed!: %v", time.Now().String(), err)
 	}
 	t.Logf("%s:STATUS: Testdata cleanup completed!", time.Now().String())
