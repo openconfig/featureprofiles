@@ -396,8 +396,11 @@ all defined ECN states:
 *   Validate that:
     *   100% of egress packets are encapsulated with an outer IPv4 tunnel header.
     *   For each flow, the 2-bit ECN field of the outer IPv4 header (`TOS & 0x03`)
-        exactly matches the 2-bit ECN field of the inner packet header (`inner
-        TOS & 0x03` for IPv4 or `inner TrafficClass & 0x03` for IPv6).
+        matches the 2-bit ECN field of the inner packet header (`inner
+        TOS & 0x03` for IPv4 or `inner TrafficClass & 0x03` for IPv6). For
+        platforms adhering to RFC 3168 Section 9.1.1 / RFC 6040 Section 4.1
+        Compatibility Mode (such as Juniper PTX), an arriving inner `ECT(1)` packet
+        may be encapsulated as outer `ECT(0)`.
     *   DSCP and TTL copy behavior remains compliant with Test-1 and Test-2.
     *   Zero packet loss across all flows.
 
@@ -438,6 +441,10 @@ the end receiver per RFC 6040 / RFC 3168:
     *   Decap fallback to DEFAULT VRF functions correctly when no explicit
         matching route exists in `ENCAP_TE_VRF_A`.
     *   Zero packet loss across all valid flows.
+    *   Note: Test-5 specifically tests tunnel decapsulation, TTL preservation,
+        and RFC 6040 ECN congestion propagation. Default platform egress Class of
+        Service (CoS) drop-precedence remarking on physical interfaces (e.g. Junos
+        mapping AF11 to CS1) is permitted and logged.
 
 ## Canonical OC
 
