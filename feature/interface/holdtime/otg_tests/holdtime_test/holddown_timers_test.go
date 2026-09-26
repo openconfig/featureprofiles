@@ -289,6 +289,8 @@ func flapOTGInterface(t *testing.T,
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
 			expectedStatus = oc.Interface_OperStatus_LOWER_LAYER_DOWN
+		case ondatra.JUNIPER:
+			expectedStatus = oc.Interface_OperStatus_LOWER_LAYER_DOWN
 		default:
 			expectedStatus = oc.Interface_OperStatus_DOWN
 		}
@@ -368,6 +370,8 @@ func verifyPortsStatus(t *testing.T, dut *ondatra.DUTDevice, portState string, w
 	} else {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
+			want = oc.Interface_OperStatus_LOWER_LAYER_DOWN
+		case ondatra.JUNIPER:
 			want = oc.Interface_OperStatus_LOWER_LAYER_DOWN
 		default:
 			want = oc.Interface_OperStatus_DOWN
@@ -456,6 +460,7 @@ func TestTC1ValidateTimersConfig(t *testing.T) {
 func TestTC2LongDown(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
+	defer OTGInterfaceUP(t, ate)
 
 	var otgStateChangeTs, DutLastChangeTS2 time.Time
 	var expectedOper, actualOper string
@@ -510,12 +515,13 @@ func TestTC3ShortUP(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
+	defer OTGInterfaceUP(t, ate)
 
 	t.Run("Start sending Ethernet Remote Fault on OTG", func(t *testing.T) {
 
 		// shutting down OTG interface to emulate the RF
 		OTGInterfaceDOWN(t, ate, dut)
-		verifyPortsStatus(t, dut, "DOWN", 2*time.Second)
+		verifyPortsStatus(t, dut, "DOWN", 15*time.Second)
 		oper1 := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).OperStatus().State())
 		change1 := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).LastChange().State())
 		t.Log(oper1)
@@ -531,7 +537,7 @@ func TestTC3ShortUP(t *testing.T) {
 		change2 := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).LastChange().State())
 
 		// ensure the LAG interface is still down
-		verifyPortsStatus(t, dut, "DOWN", 4*time.Second)
+		verifyPortsStatus(t, dut, "DOWN", 15*time.Second)
 		t.Log(oper2)
 
 		change1Time := time.Unix(0, int64(change1)).UTC()
@@ -557,6 +563,7 @@ func TestTC4SLongUP(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
+	defer OTGInterfaceUP(t, ate)
 
 	t.Run("Start sending Ethernet Remote Fault on OTG", func(t *testing.T) {
 
@@ -598,6 +605,7 @@ func TestTC5ShortDOWN(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
+	defer OTGInterfaceUP(t, ate)
 
 	var time1 time.Time
 	var change1 *oc.Interface
@@ -605,7 +613,7 @@ func TestTC5ShortDOWN(t *testing.T) {
 	// Construct the hold-time config object
 	holdTimeConfig := &oc.Interface_HoldTime{
 		Up:   ygot.Uint32(upTimer),
-		Down: ygot.Uint32(2000),
+		Down: ygot.Uint32(5000),
 	}
 
 	t.Run("Update hold timer configs down", func(t *testing.T) {

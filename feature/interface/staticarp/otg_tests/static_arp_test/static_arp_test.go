@@ -29,6 +29,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -292,6 +293,38 @@ func testFlow(
 	}
 }
 
+func verifyNeighborMAC(t *testing.T, dut *ondatra.DUTDevice, expectedMAC string) {
+	t.Helper()
+	port1 := dut.Port(t, "port1")
+	opts := fptest.GetOptsForFunctionalTranslator(t, deviations.ArpFT(dut))
+
+	cases := []struct {
+		desc      string
+		ip        string
+		telemetry ygnmi.SingletonQuery[string]
+	}{
+		{
+			desc:      "IPv4",
+			ip:        ateSrc.IPv4,
+			telemetry: gnmi.OC().Interface(port1.Name()).Subinterface(0).Ipv4().Neighbor(ateSrc.IPv4).LinkLayerAddress().State(),
+		},
+		{
+			desc:      "IPv6",
+			ip:        ateSrc.IPv6,
+			telemetry: gnmi.OC().Interface(port1.Name()).Subinterface(0).Ipv6().Neighbor(ateSrc.IPv6).LinkLayerAddress().State(),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			actualMAC := gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), tc.telemetry)
+			if !strings.EqualFold(actualMAC, expectedMAC) {
+				t.Errorf("Actual MAC for %s got %q, want %q", tc.ip, actualMAC, expectedMAC)
+			}
+		})
+	}
+}
+
 func TestStaticARP(t *testing.T) {
 	// Configure the DUT with dynamic ARP.
 	configureDUT(t, noStaticMAC)
@@ -304,6 +337,10 @@ func TestStaticARP(t *testing.T) {
 	dstMac := gnmi.Get(t, ate.OTG(), gnmi.OTG().Interface(ateSrc.Name+".Eth").Ipv4Neighbor(dutSrc.IPv4).LinkLayerAddress().State())
 
 	t.Run("NotPoisoned", func(t *testing.T) {
+		t.Run("TelemetryCheck", func(t *testing.T) {
+			dut := ondatra.DUT(t, "dut")
+			verifyNeighborMAC(t, dut, ateSrc.MAC)
+		})
 		t.Run("IPv4", func(t *testing.T) {
 			testFlow(t, ate, config, "IPv4", dstMac, false)
 		})
@@ -316,6 +353,10 @@ func TestStaticARP(t *testing.T) {
 	configureDUT(t, poisonedMAC)
 
 	t.Run("Poisoned", func(t *testing.T) {
+		t.Run("TelemetryCheck", func(t *testing.T) {
+			dut := ondatra.DUT(t, "dut")
+			verifyNeighborMAC(t, dut, poisonedMAC)
+		})
 		t.Run("IPv4", func(t *testing.T) {
 			testFlow(t, ate, config, "IPv4", dstMac, true)
 		})

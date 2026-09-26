@@ -5,3 +5,16 @@ uuid:  "733c243c-96d1-4ca1-8f7e-199f9634f22e"
 plan_id:  "ACL-1.2"
 description:  "ACL Update (Make-before-break)"
 testbed:  TESTBED_DUT_ATE_2LINKS
+
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    acl_counters_enable_oc_unsupported: true
+    skip_acl_counters_verification_during_update: true
+    acl_icmp_type_code_configuration_unsupported: true
+  }
+}

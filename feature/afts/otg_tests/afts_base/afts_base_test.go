@@ -1,4 +1,3 @@
-//
 // Copyright 2025 Google LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +15,7 @@ package afts_base_test
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"strings"
 	"sync"
@@ -85,7 +85,6 @@ const (
 	bgpRouteCountIPv4Default     = 2000000
 	bgpRouteCountIPv6Default64   = 900000
 	bgpRouteCountIPv6Default128  = 100000
-	maxRebootTime                = 20
 )
 
 var (
@@ -120,18 +119,38 @@ var (
 	port2Name            = "port2"
 	prevNHGIDIPv4        = uint64(0)
 	prevNHGIDIPv6        = uint64(0)
+	debugNotifications   = flag.Bool("debug_notifications", false, "Enable full AFT notification recording")
 )
 
-// getRouteCount returns the expected route count for the given dut and IP family.
-func getRouteCount(dut *ondatra.DUTDevice, afi IPFamily) uint32 {
+// getRouteCount returns the expected route count for the given dut, IP family,
+// and optional prefix length for IPv6.
+func getRouteCount(dut *ondatra.DUTDevice, afi IPFamily, prefixLen ...uint32) uint32 {
+	var pfx uint32
+	if len(prefixLen) > 0 {
+		pfx = prefixLen[0]
+	}
+
 	if deviations.LowScaleAft(dut) {
 		if afi == IPv4 {
 			return bgpRouteCountIPv4LowScale
 		}
+		switch pfx {
+		case advertisedRoutesV6Prefix64:
+			return bgpRouteCountIPv6LowScale64
+		case advertisedRoutesV6Prefix128:
+			return bgpRouteCountIPv6LowScale128
+		}
 		return bgpRouteCountIPv6LowScale64 + bgpRouteCountIPv6LowScale128
 	}
+
 	if afi == IPv4 {
 		return bgpRouteCountIPv4Default
+	}
+	switch pfx {
+	case advertisedRoutesV6Prefix64:
+		return bgpRouteCountIPv6Default64
+	case advertisedRoutesV6Prefix128:
+		return bgpRouteCountIPv6Default128
 	}
 	return bgpRouteCountIPv6Default64 + bgpRouteCountIPv6Default128
 }
@@ -219,6 +238,7 @@ func (tc *testCase) configureDUT(t *testing.T) error {
 	if _, err = ts.AwaitAdjacency(); err != nil {
 		return fmt.Errorf("no IS-IS adjacency formed: %v", err)
 	}
+	tc.ts = ts
 	return nil
 }
 
@@ -304,6 +324,7 @@ func updateNeighborMaxPrefix(t *testing.T, dut *ondatra.DUTDevice, neighbors []*
 	}
 }
 func (tc *testCase) waitForBGPSessions(t *testing.T, ipv4nbrs []string, ipv6nbrs []string) error {
+	t.Helper()
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(tc.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	verifySessionState := func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 		state, ok := val.Val()
@@ -329,6 +350,38 @@ func (tc *testCase) waitForBGPSessions(t *testing.T, ipv4nbrs []string, ipv6nbrs
 		if !ok {
 			fptest.LogQuery(t, "BGPv6 reported state", nbrPathv6.State(), gnmi.Get(t, tc.dut, nbrPathv6.State()))
 			return fmt.Errorf("BGP session with %s not established", nbr)
+		}
+	}
+	return nil
+}
+
+func (tc *testCase) waitForBGPSessionsDown(t *testing.T, ipv4nbrs []string, ipv6nbrs []string) error {
+	t.Helper()
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(tc.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	verifySessionDown := func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+		state, ok := val.Val()
+		if !ok {
+			t.Logf("BGP session state not found for neighbor %s", val.Path.String())
+			return false
+		}
+		t.Logf("BGP session state for neighbor %s: %s", val.Path.String(), state.String())
+		return state != oc.Bgp_Neighbor_SessionState_ESTABLISHED
+	}
+
+	for _, nbr := range ipv4nbrs {
+		nbrPath := statePath.Neighbor(nbr)
+		_, ok := gnmi.Watch(t, tc.dut, nbrPath.SessionState().State(), bgpTimeout, verifySessionDown).Await(t)
+		if !ok {
+			fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, tc.dut, nbrPath.State()))
+			return fmt.Errorf("BGP session with %s still established", nbr)
+		}
+	}
+	for _, nbr := range ipv6nbrs {
+		nbrPathv6 := statePath.Neighbor(nbr)
+		_, ok := gnmi.Watch(t, tc.dut, nbrPathv6.SessionState().State(), bgpTimeout, verifySessionDown).Await(t)
+		if !ok {
+			fptest.LogQuery(t, "BGPv6 reported state", nbrPathv6.State(), gnmi.Get(t, tc.dut, nbrPathv6.State()))
+			return fmt.Errorf("BGPv6 session with %s still established", nbr)
 		}
 	}
 	return nil
@@ -578,10 +631,11 @@ func (tc *testCase) verifyPrefixes(t *testing.T, aft *aftcache.AFTData, ip strin
 
 // fetchAFT starts two independent gNMI collectors to stream AFT data from the DUT.
 // It waits until both collectors satisfy the provided stoppingCondition.
-// After the stopping condition is met, it compares the AFT data collected by both sessions.
-// If the data is identical, it returns a single copy of the collected AFT data.
+// After the stopping condition is met, it compares only the wantPrefixes from both sessions.
+// If the wantPrefixes data is identical, it returns a single copy of the collected AFT data.
 // Otherwise, it returns an error indicating the inconsistency.
-func (tc *testCase) fetchAFT(t *testing.T, aftSession1, aftSession2 *aftcache.AFTStreamSession, stoppingCondition aftcache.PeriodicHook) (*aftcache.AFTData, error) {
+// If either stream fails, it returns an error immediately without comparison.
+func (tc *testCase) fetchAFT(t *testing.T, aftSession1, aftSession2 *aftcache.AFTStreamSession, stoppingCondition aftcache.PeriodicHook, wantPrefixes map[string]bool) (*aftcache.AFTData, error) {
 	t.Helper()
 
 	var wg sync.WaitGroup
@@ -605,16 +659,30 @@ func (tc *testCase) fetchAFT(t *testing.T, aftSession1, aftSession2 *aftcache.AF
 	if err != nil {
 		return nil, fmt.Errorf("error getting AFT from session 2: %v", err)
 	}
+
+	// Extract only wantPrefixes from both sessions for comparison
+	filteredAFT1 := tc.filterAFTByPrefixes(aft1, wantPrefixes)
+	filteredAFT2 := tc.filterAFTByPrefixes(aft2, wantPrefixes)
+
 	sortSlices := cmpopts.SortSlices(func(a, b uint64) bool { return a < b })
-	if diff := cmp.Diff(aft1, aft2, sortSlices); diff != "" {
-		return nil, fmt.Errorf("afts from two sessions are not consistent: %s", diff)
+	if diff := cmp.Diff(filteredAFT1, filteredAFT2, sortSlices); diff != "" {
+		return nil, fmt.Errorf("afts from two sessions are not consistent for wantPrefixes: %s", diff)
 	}
 	return aft1, nil
 }
 
+// filterAFTByPrefixes extracts only the specified prefixes and their associated NHGs/NHs from AFT data.
+// Since aftNextHopGroup and aftNextHop are unexported, we create a new AFTData by copying
+// only the wanted prefixes and their dependencies from the full AFT.
+func (tc *testCase) filterAFTByPrefixes(aft *aftcache.AFTData, wantPrefixes map[string]bool) *aftcache.AFTData {
+	return aft.FilterByPrefixes(wantPrefixes)
+}
+
 func (tc *testCase) otgInterfaceState(t *testing.T, portName string, state gosnappi.StatePortLinkStateEnum) {
+	t.Helper()
+	p := tc.ate.Port(t, portName)
 	portStateAction := gosnappi.NewControlState()
-	portStateAction.Port().Link().SetPortNames([]string{portName}).SetState(state)
+	portStateAction.Port().Link().SetPortNames([]string{p.ID()}).SetState(state)
 	tc.ate.OTG().SetControlState(t, portStateAction)
 }
 
@@ -624,6 +692,7 @@ type testCase struct {
 	ate         *ondatra.ATEDevice
 	gnmiClient1 gnmipb.GNMIClient
 	gnmiClient2 gnmipb.GNMIClient
+	ts          *isissession.TestSession
 }
 
 func TestBGP(t *testing.T) {
@@ -648,7 +717,7 @@ func TestBGP(t *testing.T) {
 	// TODO: - Add  deviation if any HW profile change is required
 	if tc.dut.Vendor() == ondatra.CISCO {
 		t.Log("Configuring DUT HW profile for Cisco and rebooting DUT")
-		if err := tc.configureHwProfile(t); err != nil {
+		if err := helpers.ConfigureHwProfile(t, tc.dut); err != nil {
 			t.Fatalf("failed to configure DUT HW profile: %v", err)
 		}
 	}
@@ -657,7 +726,7 @@ func TestBGP(t *testing.T) {
 	defer func() {
 		if tc.dut.Vendor() == ondatra.CISCO {
 			t.Log("Restoring DUT HW profile for Cisco and rebooting DUT")
-			if err := tc.configureDefaultHwProfile(t); err != nil {
+			if err := helpers.ConfigureDefaultHwProfile(t, tc.dut); err != nil {
 				t.Fatalf("failed to restore DUT HW profile: %v", err)
 			}
 		}
@@ -670,12 +739,19 @@ func TestBGP(t *testing.T) {
 	aftSession1 := aftcache.NewAFTStreamSession(t.Context(), t, tc.gnmiClient1, tc.dut)
 	aftSession2 := aftcache.NewAFTStreamSession(t.Context(), t, tc.gnmiClient2, tc.dut)
 
+	// Enable debug mode if the flag is set, which will record all gNMI notifications to memory for later analysis. Requires a bigger RAM allocation for the test process, so it's disabled by default.
+	if *debugNotifications {
+		aftSession1.WithDebug()
+		aftSession2.WithDebug()
+		t.Log("DEBUG MODE ENABLED: Recording all gNMI notifications to memory.")
+	}
+
 	// Helper function for verifying AFT state when given prefixes and expected next hops.
 	verifyAFTState := func(desc string, wantNHCount int, wantV4NHs, wantV6NHs map[string]bool) *aftcache.AFTData {
 		t.Helper()
 		t.Log(desc)
 		stoppingCondition := aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, wantV4NHs, wantV6NHs)
-		aft, err := tc.fetchAFT(t, aftSession1, aftSession2, stoppingCondition)
+		aft, err := tc.fetchAFT(t, aftSession1, aftSession2, stoppingCondition, wantPrefixes)
 		if err != nil {
 			t.Fatalf("failed to get AFT Cache: %v", err)
 		}
@@ -697,26 +773,58 @@ func TestBGP(t *testing.T) {
 	}
 	tc.configureATE(t)
 
+	// Ensure OTG ports are left in a healthy state (link UP) even if the test fails or aborts.
+	t.Cleanup(func() {
+		t.Logf("Restoring OTG port %s link state to UP", port1Name)
+		tc.otgInterfaceState(t, port1Name, gosnappi.StatePortLinkState.UP)
+	})
+	t.Cleanup(func() {
+		t.Logf("Restoring OTG port %s link state to UP", port2Name)
+		tc.otgInterfaceState(t, port2Name, gosnappi.StatePortLinkState.UP)
+	})
+
+	// Ensure OTG protocols are stopped at the end of the test.
+	t.Cleanup(func() {
+		t.Log("Stopping OTG protocols")
+		ate.OTG().StopProtocols(t)
+	})
+
+	t.Log("Waiting for ISIS adjacency to establish...")
+	if _, err := tc.ts.AwaitAdjacency(); err != nil {
+		t.Fatalf("Unable to establish ISIS adjacency: %v", err)
+	}
+
 	t.Log("Waiting for BGP neighbor to establish...")
 	if err := tc.waitForBGPSessions(t, []string{ateP1.IPv4, ateP2.IPv4}, []string{ateP1.IPv6, ateP2.IPv6}); err != nil {
 		t.Fatalf("Unable to establish BGP session: %v", err)
 	}
 
 	// Step 1: Initial state verification (BGP: 2 NHs, ISIS: 1 NH)
-	aft := verifyAFTState("Initial AFT verification", 2, wantIPv4NHs, wantIPv6NHs)
+	verifyAFTState("Initial AFT verification", 2, wantIPv4NHs, wantIPv6NHs)
 
 	// Verify ISIS prefixes are present in AFT.
-	if err := tc.verifyPrefixes(t, aft, startingISISRouteIPv4, isisRouteCount, 1, false); err != nil {
-		t.Errorf("failed to verify IPv4 ISIS prefixes: %v", err)
+	t.Log("Verifying ISIS prefixes in AFT...")
+	wantISISPrefixes := make(map[string]bool)
+	for pfix := range netutil.GenCIDRs(t, startingISISRouteIPv4, isisRouteCount) {
+		wantISISPrefixes[pfix] = true
 	}
-	if err := tc.verifyPrefixes(t, aft, startingISISRouteIPv6, isisRouteCount, 1, false); err != nil {
-		t.Errorf("failed to verify IPv6 ISIS prefixes: %v", err)
+	for pfix := range netutil.GenCIDRs(t, startingISISRouteIPv6, isisRouteCount) {
+		wantISISPrefixes[pfix] = true
+	}
+	isisStoppingCondition := aftcache.InitialSyncStoppingCondition(t, dut, wantISISPrefixes, map[string]bool{ateP1.IPv4: true}, map[string]bool{ateP1.IPv6: true})
+	if _, err := tc.fetchAFT(t, aftSession1, aftSession2, isisStoppingCondition, wantISISPrefixes); err != nil {
+		t.Fatalf("Failed to verify ISIS prefixes in AFT: %v", err)
 	}
 	t.Log("ISIS verification completed")
 
 	// Step 2: Stop Port2 interface to create Churn (BGP: 1 NH)
 	t.Log("SubTest 2: Stopping Port2 interface to create Churn")
 	tc.otgInterfaceState(t, port2Name, gosnappi.StatePortLinkState.DOWN)
+	t.Log("Waiting for Port2 BGP sessions to go down...")
+	if err := tc.waitForBGPSessionsDown(t, []string{ateP2.IPv4}, []string{ateP2.IPv6}); err != nil {
+		t.Fatalf("BGP session for port2 did not go down: %v", err)
+	}
+	t.Log("Verifying Port1 BGP sessions remain established...")
 	if err := tc.waitForBGPSessions(t, []string{ateP1.IPv4}, []string{ateP1.IPv6}); err != nil {
 		t.Fatalf("Unable to establish BGP session: %v", err)
 	}
@@ -725,8 +833,13 @@ func TestBGP(t *testing.T) {
 	// Step 3: Stop Port1 interface to create full Churn (BGP: deletion expected)
 	t.Log("SubTest 3: Stopping Port1 interface to remove Churn")
 	tc.otgInterfaceState(t, port1Name, gosnappi.StatePortLinkState.DOWN)
+	t.Log("Waiting for Port1 BGP sessions to go down...")
+	if err := tc.waitForBGPSessionsDown(t, []string{ateP1.IPv4}, []string{ateP1.IPv6}); err != nil {
+		t.Fatalf("BGP session for port1 did not go down: %v", err)
+	}
 	sc := aftcache.DeletionStoppingCondition(t, dut, wantPrefixes)
-	if _, err := tc.fetchAFT(t, aftSession1, aftSession2, sc); err != nil {
+	// Expecting all prefixes deleted, so pass empty map for wantPrefixes validation
+	if _, err := tc.fetchAFT(t, aftSession1, aftSession2, sc, map[string]bool{}); err != nil {
 		t.Fatalf("failed to get AFT Cache after deletion: %v", err)
 	}
 
@@ -746,79 +859,4 @@ func TestBGP(t *testing.T) {
 		t.Fatalf("Unable to establish BGP session: %v", err)
 	}
 	verifyAFTState("AFT verification after port 2 up", 2, wantIPv4NHs, wantIPv6NHs)
-}
-
-// configureHwProfile configures all the interfaces and BGP on the DUT.
-func (tc *testCase) configureHwProfile(t *testing.T) error {
-	ciscoConfig := `hw-module profile route scale lpm tcam-banks
-		hw-module profile cef iptunnel scale`
-	helpers.GnmiCLIConfig(t, tc.dut, ciscoConfig)
-	tc.rebootDUT(t)
-	return nil
-}
-
-// configureDefaultHwProfile configures all the interfaces and BGP on the DUT.
-func (tc *testCase) configureDefaultHwProfile(t *testing.T) error {
-	ciscoConfig := `no hw-module profile route scale lpm tcam-banks
-		no hw-module profile cef iptunnel scale`
-	helpers.GnmiCLIConfig(t, tc.dut, ciscoConfig)
-	tc.rebootDUT(t)
-	return nil
-}
-
-func (tc *testCase) rebootDUT(t *testing.T) {
-	t.Helper()
-	rebootRequest := &spb.RebootRequest{
-		Method:  spb.RebootMethod_COLD,
-		Delay:   0,
-		Message: "Reboot chassis without delay",
-		Force:   true,
-	}
-	gnoiClient, err := tc.dut.RawAPIs().BindingDUT().DialGNOI(t.Context())
-	if err != nil {
-		t.Fatalf("Error dialing gNOI: %v", err)
-	}
-	bootTimeBeforeReboot := gnmi.Get(t, tc.dut, gnmi.OC().System().BootTime().State())
-	t.Logf("DUT boot time before reboot: %v %v", bootTimeBeforeReboot, time.Now())
-	t.Log("Sending reboot request to DUT")
-
-	ctxWithTimeout, cancel := context.WithTimeout(t.Context(), 8*time.Minute)
-	defer cancel()
-	_, err = gnoiClient.System().Reboot(ctxWithTimeout, rebootRequest)
-	defer gnoiClient.System().CancelReboot(t.Context(), &spb.CancelRebootRequest{})
-	if err != nil {
-		t.Fatalf("Failed to reboot chassis with unexpected err: %v", err)
-	}
-
-	// Wait for the device to become reachable again.
-	dut := ondatra.DUT(t, "dut")
-	deviceBootStatus(t, dut)
-	t.Logf("Device is reachable, waiting for boot time to update.")
-
-	bootTimeAfterReboot := gnmi.Get(t, tc.dut, gnmi.OC().System().BootTime().State())
-	t.Logf("DUT boot time after reboot: %v", bootTimeAfterReboot)
-}
-
-func deviceBootStatus(t *testing.T, dut *ondatra.DUTDevice) {
-	startReboot := time.Now()
-	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
-	for {
-		var currentTime string
-		t.Logf("Time elapsed %.2f minutes since reboot started.", time.Since(startReboot).Minutes())
-
-		time.Sleep(3 * time.Minute)
-		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
-		}); errMsg != nil {
-			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
-		} else {
-			t.Logf("Device rebooted successfully with received time: %v", currentTime)
-			break
-		}
-
-		if uint64(time.Since(startReboot).Minutes()) > maxRebootTime {
-			t.Fatalf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
-		}
-	}
-	t.Logf("Device boot time: %.2f minutes", time.Since(startReboot).Minutes())
 }

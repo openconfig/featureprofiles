@@ -241,15 +241,46 @@ Tests that traceroute for a packet with a route lookup miss has an unset target_
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
+paths:
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/config/name:
+  /interfaces/interface/config/type:
+  /interfaces/interface/state/oper-status:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/state/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/ip:
+  /network-instances/network-instance/config/name:
+  /network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-vrf-selection-policy:
+  /network-instances/network-instance/policy-forwarding/policies/policy/config/policy-id:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decap-fallback-network-instance:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decap-network-instance:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/network-instance:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/state/decap-fallback-network-instance:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/config/sequence-id:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/dscp-set:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/protocol:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/source-address:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/state/dscp-set:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/state/source-address:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/dscp-set:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/state/dscp-set:
+  /network-instances/network-instance/protocols/protocol/bgp/global/config/as:
+  /network-instances/network-instance/protocols/protocol/bgp/global/config/router-id:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/enabled:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-as:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/config/local-address:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state:
 rpcs:
   gnmi:
     gNMI.Get:
     gNMI.Set:
     gNMI.Subscribe:
   gribi:
+    gRIBI.Flush:
     gRIBI.Get:
     gRIBI.Modify:
-    gRIBI.Flush:
 ```
 
 ## Config parameter coverage

@@ -14,6 +14,9 @@ Creation of test data for use in TLS tests.
    * server_cert.cnf/server_cert_ext.cnf - server openssl profile configuration
    * client_cert.cnf/client_cert_ext.cnf - client openssl profile configuration
 
+## TODO:Perform this for the permutations of 20000 CA trust_bundle configurations
+
+
 Each CA set includes, for both RSA and ECDSA signature types:
   * CA key
   * CA public certificate

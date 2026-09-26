@@ -69,6 +69,14 @@ behaviour on the DUT.
 The below yaml defines the OC paths intended to be covered by this test.
 
 ```yaml
+paths:
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/state/counters/out-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
+  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group:
+  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id:
+  /network-instances/network-instance/afts/next-hops/next-hop/state/ip-address:
 rpcs:
   gnmi:
     gNMI.Set:

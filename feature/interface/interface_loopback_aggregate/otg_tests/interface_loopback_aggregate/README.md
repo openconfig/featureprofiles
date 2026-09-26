@@ -21,18 +21,16 @@ Ensure Interface mode can be set to loopback mode and can be added as part of st
 The below YAML defines the OC paths intended to be covered by this test. OC paths used for test setup are not listed here.
 
 ```yaml
-openconfig_paths:
-  ## Config paths
-    /interfaces/interface/config/loopback-mode:
-    /interfaces/interface/ethernet/config/port-speed:
-    /interfaces/interface/ethernet/config/duplex-mode:
-    /interfaces/interface/ethernet/config/aggregate-id:
-    /interfaces/interface/aggregation/config/lag-type:
-    /interfaces/interface/aggregation/config/min-links:
-
-  ## Telemetry paths
-    /interfaces/interface/state/loopback-mode:
-
+paths:
+  /interfaces/interface/ethernet/state/aggregate-id:
+  /interfaces/interface/state/oper-status:
+  /interfaces/interface/config/loopback-mode:
+  /interfaces/interface/ethernet/config/port-speed:
+  /interfaces/interface/ethernet/config/duplex-mode:
+  /interfaces/interface/ethernet/config/aggregate-id:
+  /interfaces/interface/aggregation/config/lag-type:
+  /interfaces/interface/aggregation/config/min-links:
+  /interfaces/interface/state/loopback-mode:
 rpcs:
   gnmi:
     gNMI.Set:

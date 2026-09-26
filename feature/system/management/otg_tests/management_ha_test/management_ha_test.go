@@ -103,6 +103,7 @@ func TestManagementHA1(t *testing.T) {
 		g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_L3VPN_IPV6_UNICAST).Enabled = ygot.Bool(true)
 	}
 	bgp := bs.DUTConf.GetOrCreateNetworkInstance(mgmtVRFName).GetOrCreateProtocol(cfgplugins.PTBGP, "BGP").GetOrCreateBgp()
+	bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 	bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp()
 
 	if deviations.SetNoPeerGroup(dut) || deviations.PeerGroupDefEbgpVrfUnsupported(dut) {
@@ -262,8 +263,8 @@ func createFlowV6(t *testing.T, bs *cfgplugins.BGPSession) {
 	v6 := v6Flow.Packet().Add().Ipv6()
 	v6.Src().SetValue(ateNetPrefix)
 	v6.Dst().Increment().SetStart(prefixesStart).SetCount(1)
-	icmp1 := v6Flow.Packet().Add().Icmp()
-	icmp1.SetEcho(gosnappi.NewFlowIcmpEcho())
+	icmp1 := v6Flow.Packet().Add().Icmpv6()
+	icmp1.SetEcho(gosnappi.NewFlowIcmpv6Echo())
 
 	bs.ATE.OTG().PushConfig(t, bs.ATETop)
 	bs.ATE.OTG().StartProtocols(t)

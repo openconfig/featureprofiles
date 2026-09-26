@@ -36,6 +36,19 @@ Validate 400ZR optics module reports correct firmware version.
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  /components/component/optical-channel/config/frequency:
+    platform_type: [OPTICAL_CHANNEL]
+  /components/component/optical-channel/config/operational-mode:
+    platform_type: [OPTICAL_CHANNEL]
+  /components/component/optical-channel/config/target-output-power:
+    platform_type: [OPTICAL_CHANNEL]
+  /components/component/state/firmware-version:
+    platform_type: [TRANSCEIVER]
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/config/type:
+  /interfaces/interface/state/oper-status:
+  /interfaces/interface/state/transceiver:
 rpcs:
   gnmi:
     gNMI.Get:
