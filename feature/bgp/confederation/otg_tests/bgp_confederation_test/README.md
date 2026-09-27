@@ -354,7 +354,9 @@ absence check:
 1.  **Positive control**: Before advertising the route range with OTG route
     state control, record the OTG `bgpv4-metrics` / `bgpv6-metrics`
     `routes_advertised` counter of the sending ATE peer. After advertising it,
-    wait until the counter increases. This proves that the ATE sent an UPDATE
+    wait until the counter increases (for example, up to 60 seconds; if the
+    counter does not increase, the subtest fails as inconclusive). This
+    proves that the ATE sent an UPDATE
     for the route; it does not prove the exact AS_PATH encoding, because the
     DUT rejects the route and its AS_PATH is therefore not visible in
     `adj-rib-in-post` or `loc-rib`. Optionally, for the looped routes in
@@ -383,10 +385,12 @@ peers is recorded. A NOTIFICATION sent by the DUT would mean that it treated
 a looped or malformed route as a session error instead of discarding the
 route.
 
-The **baseline** of these counters is recorded in RT-1.111.1, after every
-session is individually `ESTABLISHED` and after the negative route ranges were
-withdrawn (base configuration step 11). The counters are compared with the
-baseline at the end of RT-1.111.1, RT-1.111.6, and RT-1.111.7. If a subtest
+The **baseline** of `established-transitions` and `session_flap_count` is
+recorded in RT-1.111.1, after every session is individually `ESTABLISHED` and
+after the negative route ranges were withdrawn (base configuration step 11);
+`notifications_received` is recorded at the start of RT-1.111.6 and
+RT-1.111.7. The counters are compared with these values at the end of
+RT-1.111.1 (session stability counters only), RT-1.111.6, and RT-1.111.7. If a subtest
 reports a change, the next subtest first waits again for each session to be
 `ESTABLISHED` and records a new baseline, so that one reset is reported only
 once and does not make every later subtest fail.
@@ -469,8 +473,11 @@ this as a deviation.
     route ranges are withdrawn at the end of RT-1.111.6 and RT-1.111.7 in all
     cases).
 *   On any failure, the test collects the DUT neighbor `session-state`, the
-    DUT `loc-rib` prefixes, and the OTG BGP peer metrics to help tell a DUT
-    problem from an ATE or test problem.
+    DUT neighbor `messages/sent/state/last-notification-error-code` and
+    `messages/received/state/last-notification-error-code`, the DUT
+    `loc-rib` prefixes, and the OTG BGP peer metrics (including the
+    `notifications_sent` and `notifications_received` counters) to help tell
+    a DUT problem from an ATE or test problem.
 
 ---
 
@@ -482,9 +489,9 @@ up.
 
 #### Step 1: Verify Confederation State Telemetry
 
-1.  Apply the base configuration from
-    [Test environment setup](#test-environment-setup).
-2.  Using gNMI `Subscribe` (`ON_CHANGE`), read:
+1.  With the base configuration applied
+    ([Test environment setup](#test-environment-setup), steps 1-12), read
+    the following leaves using gNMI `Subscribe` (`ON_CHANGE`):
     *   `/network-instances/network-instance/protocols/protocol/bgp/global/state/as`
     *   `/network-instances/network-instance/protocols/protocol/bgp/global/confederation/state/identifier`
     *   `/network-instances/network-instance/protocols/protocol/bgp/global/confederation/state/member-as`
@@ -857,7 +864,8 @@ not a protocol error, so the BGP sessions must stay up.
     [Negative Route Ranges](#negative-route-ranges-advertise-and-withdraw)).
     Do not push a new ATE configuration.
 4.  Wait until each of the four `routes_advertised` counters has increased
-    (positive control, see
+    (for example, up to 60 seconds; if the counter does not increase, the
+    subtest fails as inconclusive) (positive control, see
     [Absence Check Procedure](#absence-check-procedure-applies-to-rt-11116-and-rt-11117)).
 
 #### Step 2: Verify the Looped Routes Are Rejected
@@ -925,9 +933,10 @@ having a malformed AS_PATH according to RFC 4271 Section 6.3. RFC 7606, which
 updates the error handling of RFC 4271, states in Section 7.2 that an UPDATE
 message with a malformed AS_PATH attribute SHALL be handled using the
 "treat-as-withdraw" approach. The expected behavior is therefore that the
-route is discarded (treated as withdrawn) and the BGP session stays up. If an
-implementation resets the session instead, that behavior must be documented
-as a deviation.
+route is discarded (treated as withdrawn) and the BGP session stays up. A
+session reset instead of treat-as-withdraw is a failure of the RFC 7606
+requirement; a deviation is acceptable only if agreed in review and tracked by
+a vendor bug.
 
 #### Step 1: Advertise Malformed Routes
 
@@ -944,7 +953,9 @@ as a deviation.
     [Negative Route Ranges](#negative-route-ranges-advertise-and-withdraw)).
     Do not push a new ATE configuration.
 4.  Wait until each of the four `routes_advertised` counters has increased
-    (positive control).
+    (for example, up to 60 seconds; if the counter does not increase, the
+    subtest fails as inconclusive) (positive control, see
+    [Absence Check Procedure](#absence-check-procedure-applies-to-rt-11116-and-rt-11117)).
 
 #### Step 2: Verify the Malformed Routes Are Not Accepted
 
@@ -979,10 +990,11 @@ as a deviation.
     *   The route set check passes for all six ATE BGP peers.
 *   **Fail**: The positive control fails; any malformed prefix is accepted
     into `adj-rib-in-post` or `loc-rib`, or advertised to any ATE port; the
-    route set check fails; or a base prefix is lost. A session reset (the
-    session leaves `ESTABLISHED`, a session stability counter changes, or an
-    ATE peer receives a NOTIFICATION) is a failure unless it is covered by a
-    documented deviation.
+    route set check fails; or a base prefix is lost. A session reset instead
+    of treat-as-withdraw (the session leaves `ESTABLISHED`, a session
+    stability counter changes, or an ATE peer receives a NOTIFICATION) is a
+    failure of the RFC 7606 requirement; a deviation is acceptable only if
+    agreed in review and tracked by a vendor bug.
 
 After this subtest, withdraw `EXT-MALFORMED` and `CONFED-MALFORMED` with OTG
 route state control (`gosnappi.StateProtocolRouteState.WITHDRAW`, see
