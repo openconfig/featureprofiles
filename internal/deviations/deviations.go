@@ -2415,16 +2415,6 @@ func SwitchedVlanUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSwitchedVlanUnsupported()
 }
 
-// QOSQueueIndexRequired returns if device should configure QOS queue along with queue-index.
-func QOSQueueIndexRequired(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetQosQueueIndexRequired()
-}
-
-// QOSMaxBurstSizeRequired returns if device should configure QOS maximum-burst-size.
-func QOSMaxBurstSizeRequired(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetQosMaxBurstSizeRequired()
-}
-
 // QosRedUnsupported returns true if device does not support RED under queue-management-profiles.
 func QosRedUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosRedUnsupported()

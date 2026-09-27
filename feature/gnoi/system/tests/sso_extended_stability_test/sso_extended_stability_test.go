@@ -590,7 +590,7 @@ func configureQoS(t *testing.T, dut *ondatra.DUTDevice, bs *cfgplugins.BGPSessio
 				if !deviations.QosRedUnsupported(dut) {
 					if qName == "AF4" {
 						qOut.SetQueueManagementProfile("AF4_PROFILE")
-					} else {
+					} else if qName == "BE0" {
 						qOut.SetQueueManagementProfile("BE0_PROFILE")
 					}
 				}
@@ -681,6 +681,13 @@ func TestSSOSoftwareStability(t *testing.T) {
 	t.Cleanup(func() {
 		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("TRANSIT_VRF").Config())
 		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DECAP_TE_VRF").Config())
+		gnmi.Delete(t, dut, gnmi.OC().RoutingPolicy().PolicyDefinition("SSO-PERMIT-ALL").Config())
+		if deviations.ExplicitEnableBGPOnDefaultVRF(dut) || deviations.BgpAfiSafiInDefaultNiBeforeOtherNi(dut) {
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(ptBGP, bgpName).Config())
+		}
+		if !deviations.QosRedUnsupported(dut) {
+			gnmi.Delete(t, dut, gnmi.OC().Qos().Config())
+		}
 	})
 	// Post configuration to DUT, verify port status, and start ATE protocols
 	if err := bs.PushDUT(t); err != nil {
@@ -726,33 +733,9 @@ func TestSSOSoftwareStability(t *testing.T) {
 	// Step 1 - Start Background Traffic and Record Process State
 	t.Log("Step 1 - Start Background Traffic and Record Process State")
 	t.Log("Waiting for BGP traffic to converge and stabilize with 0% loss...")
-	startConv := time.Now()
-	for {
-		if time.Since(startConv) > 60*time.Second {
-			t.Fatalf("Traffic did not stabilize with 0%% loss within 60s")
-		}
-		bs.ATE.OTG().StartTraffic(t)
-		for _, flow := range []string{"AF4_Flow", "BE0_Flow"} {
-			gnmi.Watch(t, bs.ATE.OTG(), gnmi.OTG().Flow(flow).Counters().InPkts().State(), 15*time.Second, func(val *ygnmi.Value[uint64]) bool {
-				pkts, ok := val.Val()
-				return ok && pkts >= 100
-			}).Await(t)
-		}
-		bs.ATE.OTG().StopTraffic(t)
-
-		converged := true
-		for _, flow := range []string{"AF4_Flow", "BE0_Flow"} {
-			loss := otgutils.GetFlowLossPct(t, bs.ATE.OTG(), flow, 10*time.Second)
-			if loss > 0.0 {
-				converged = false
-				t.Logf("Traffic not yet stabilized: flow %s has loss %f%%", flow, loss)
-				break
-			}
-		}
-		if converged {
-			t.Log("Traffic achieved 0% continuous loss.")
-			break
-		}
+	bs.ATE.OTG().StartTraffic(t)
+	for _, flow := range []string{"AF4_Flow", "BE0_Flow"} {
+		otgutils.ExpectedTrafficLoss(t, bs.ATE.OTG(), flow, 0, 0, 60)
 	}
 
 	// Start continuous background traffic for the duration of the test (resets flow counters cleanly).
