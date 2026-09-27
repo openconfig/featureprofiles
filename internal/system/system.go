@@ -16,7 +16,6 @@
 package system
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -46,38 +45,6 @@ type ProcessInfo struct {
 	Pid         uint64
 	StartTime   uint64
 	MemoryUsage uint64
-}
-
-// GetProcessInfo returns the PID, Start Time, and Memory Usage of the named processes.
-func GetProcessInfo(t *testing.T, dut *ondatra.DUTDevice, pNames []string) (map[string]*ProcessInfo, error) {
-	t.Helper()
-	pList := gnmi.GetAll[*oc.System_Process](t, dut, gnmi.OC().System().ProcessAny().State())
-	results := make(map[string]*ProcessInfo)
-
-	nameMap := make(map[string]bool)
-	for _, name := range pNames {
-		nameMap[name] = true
-	}
-
-	for _, proc := range pList {
-		pName := proc.GetName()
-		if nameMap[pName] {
-			if _, ok := results[pName]; !ok {
-				results[pName] = &ProcessInfo{
-					Pid:         proc.GetPid(),
-					StartTime:   proc.GetStartTime(),
-					MemoryUsage: proc.GetMemoryUsage(),
-				}
-			}
-		}
-	}
-
-	for _, name := range pNames {
-		if _, ok := results[name]; !ok {
-			return nil, fmt.Errorf("process %q not found", name)
-		}
-	}
-	return results, nil
 }
 
 // AwaitDeviceReachable waits for the device to become reachable via gNMI after an event like a reboot or switchover.
