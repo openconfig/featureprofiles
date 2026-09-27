@@ -47,6 +47,9 @@ unicast:
     5.2)**: LOCAL_PREF and MED received from the iBGP peer are sent unchanged
     to the neighboring Member-AS, and the NEXT_HOP is either unchanged (the
     default described in Section 5.1) or set to the DUT's own address.
+    LOCAL_PREF received from the neighboring Member-AS is accepted and sent
+    unchanged to the iBGP peer (RFC 4271 Section 5.1.5 exception for BGP
+    confederations).
 4.  **No confederation information leaks to the external peer (RFC 5065
     Section 5)**: No `AS_CONFED_*` segment and no Member-AS number is sent to
     `ATE:port1`, and LOCAL_PREF is not sent to `ATE:port1` (RFC 4271
@@ -64,10 +67,15 @@ directions between every pair of ATE ports, for both IPv4 and IPv6.
 
 The following are **not covered** by this test: RFC 5065 Section 4.1 rule c.3
 (first remaining segment is an `AS_SET`), the rules for routes originated by
-the DUT itself, the `AS_CONFED_SET` segment type, and the RFC 5065
+the DUT itself, the `AS_CONFED_SET` segment type, NEXT_HOP pinning via an
+export policy on the confederation-eBGP session, and the RFC 5065
 Section 5.3 path selection rules (for example, not counting `AS_CONFED_*`
-segments in AS_PATH length). Path selection is a candidate for a follow-up
-test that needs two paths to the same prefix.
+segments in AS_PATH length). NEXT_HOP pinning and path selection are
+candidates for follow-up tests. Path selection needs two paths to the same
+prefix; these can be advertised from the existing ATE ports (for example from
+`ATE:port1` and `ATE:port3`), so no new ports are required. The RFC 1997
+well-known communities (`NO_EXPORT`, `NO_EXPORT_SUBCONFED`) at the
+confederation boundary are also left to a follow-up test.
 
 ## Testbed type
 
@@ -159,7 +167,7 @@ the UPDATE.
 | `EXT` | `ATE:port1` | `203.0.113.0/26` | `2001:db8:100::/48` | `AS_SEQ [64510]` | not sent | not sent | Base |
 | `IBGP` | `ATE:port2` | `198.51.100.0/26` | `2001:db8:200::/48` | Empty | `200` | `50` | Base |
 | `IBGP-CONFED` | `ATE:port2` | `198.51.100.192/26` | `2001:db8:201::/48` | `AS_CONFED_SEQUENCE [64503]` | `100` | not sent | Base |
-| `CONFED` | `ATE:port3` | `198.51.100.64/26` | `2001:db8:300::/48` | `AS_CONFED_SEQUENCE [64502]` | not sent | not sent | Base |
+| `CONFED` | `ATE:port3` | `198.51.100.64/26` | `2001:db8:300::/48` | `AS_CONFED_SEQUENCE [64502]` | `150` | not sent | Base |
 | `CONFED-TRANSIT` | `ATE:port3` | `203.0.113.128/26` | `2001:db8:302::/48` | `AS_CONFED_SEQUENCE [64502]`, `AS_SEQ [64511]` | not sent | not sent | Base |
 | `CONFED-LOOP` | `ATE:port3` | `198.51.100.128/26` | `2001:db8:301::/48` | `AS_CONFED_SEQUENCE [64502, 64501]` | not sent | not sent | RT-1.111.6 |
 | `EXT-LOOP` | `ATE:port1` | `203.0.113.64/26` | `2001:db8:101::/48` | `AS_SEQ [64510, 64500]` | not sent | not sent | RT-1.111.6 |
@@ -180,7 +188,7 @@ every route range sets both flags explicitly:
 | `EXT` | `as_set_mode` = `include_as_seq`, no segments | `include_local_preference` = `false`, `include_multi_exit_discriminator` = `false` |
 | `IBGP` | `as_set_mode` = `do_not_include_local_as`, no segments | `include_local_preference` = `true`, `local_preference` = `200`, `include_multi_exit_discriminator` = `true`, `multi_exit_discriminator` = `50` |
 | `IBGP-CONFED` | `do_not_include_local_as`; segment `as_confed_seq` `[64503]` | `include_local_preference` = `true`, `local_preference` = `100`, `include_multi_exit_discriminator` = `false` |
-| `CONFED` | `do_not_include_local_as`; segment `as_confed_seq` `[64502]` | `include_local_preference` = `false`, `include_multi_exit_discriminator` = `false` |
+| `CONFED` | `do_not_include_local_as`; segment `as_confed_seq` `[64502]` | `include_local_preference` = `true`, `local_preference` = `150`, `include_multi_exit_discriminator` = `false` |
 | `CONFED-TRANSIT` | `do_not_include_local_as`; segments `as_confed_seq` `[64502]`, then `as_seq` `[64511]` | `include_local_preference` = `false`, `include_multi_exit_discriminator` = `false` |
 | `CONFED-LOOP` | `do_not_include_local_as`; segment `as_confed_seq` `[64502, 64501]` | `include_local_preference` = `false`, `include_multi_exit_discriminator` = `false` |
 | `EXT-LOOP` | `do_not_include_local_as`; segment `as_seq` `[64510, 64500]` | `include_local_preference` = `false`, `include_multi_exit_discriminator` = `false` |
@@ -188,7 +196,10 @@ every route range sets both flags explicitly:
 | `CONFED-MALFORMED` | `do_not_include_local_as`; segment `as_seq` `[64502]` | `include_local_preference` = `false`, `include_multi_exit_discriminator` = `false` |
 
 The AS_PATH checks on the DUT RIB in RT-1.111.2, RT-1.111.3, and RT-1.111.5
-also confirm that the ATE encoded each AS_PATH as intended.
+also confirm that the ATE encoded the AS_PATH of each accepted (base) route as
+intended. For the rejected routes in RT-1.111.6 and RT-1.111.7, the positive
+control only proves that an UPDATE was sent, not its exact AS_PATH (see
+[Absence Check Procedure](#absence-check-procedure-applies-to-rt-11116-and-rt-11117)).
 
 #### ATE Traffic Flows (Table 4)
 
@@ -198,7 +209,7 @@ prefix advertised by the transmitting ATE port, and the destination address is
 inside the prefix advertised by the receiving ATE port. No traffic is sent to
 any DUT address.
 
-| Flow name | Tx port | Rx port | Source IP | Destination IP | Used in |
+| Flow name | Tx port | Rx port | Source IP | Destination IP | Verifies routes of |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `v4-p2-to-p3` | `ATE:port2` | `ATE:port3` | `198.51.100.1` | `198.51.100.65` | RT-1.111.2 |
 | `v6-p2-to-p3` | `ATE:port2` | `ATE:port3` | `2001:db8:200::1` | `2001:db8:300::1` | RT-1.111.2 |
@@ -216,6 +227,16 @@ any DUT address.
 Together these flows exercise both directions between every pair of ATE ports.
 The routes `IBGP-CONFED` and `CONFED-TRANSIT` are used only for control plane
 checks; they use the same forwarding paths as `IBGP` and `CONFED`.
+
+All 12 flows are run once, together, in a single traffic phase at the end of
+RT-1.111.5, after the control plane checks of RT-1.111.2 to RT-1.111.5 have
+passed (see
+[RT-1.111.5 Step 4](#step-4-verify-traffic-for-all-flows)). Every flow is
+evaluated separately against the
+[traffic criteria](#traffic-passfail-criteria-applies-to-every-flow-check), and
+the result of each flow is reported with the subtest named in the "Verifies
+routes of" column. Running one traffic phase avoids starting and stopping
+traffic four times and keeps the total test time short.
 
 #### DUT and ATE Base Configuration
 
@@ -256,17 +277,62 @@ checks; they use the same forwarding paths as `IBGP` and `CONFED`.
         `capability.ipv6_unicast` by default. On every IPv4 peer set
         `ipv4_unicast` = `true` and `ipv6_unicast` = `false`; on every IPv6
         peer set `ipv4_unicast` = `false` and `ipv6_unicast` = `true`.
-8.  Configure the ATE route ranges marked "Base" in Table 3 (`EXT`, `IBGP`,
-    `IBGP-CONFED`, `CONFED`, and `CONFED-TRANSIT`) with the OTG settings
-    above. The other route ranges are added in RT-1.111.6 and RT-1.111.7.
+8.  Configure **all** route ranges in Table 3 with the OTG settings above: the
+    "Base" ranges (`EXT`, `IBGP`, `IBGP-CONFED`, `CONFED`, and
+    `CONFED-TRANSIT`) and the negative ranges (`CONFED-LOOP`, `EXT-LOOP`,
+    `EXT-MALFORMED`, and `CONFED-MALFORMED`). The ATE configuration is pushed
+    only once in this test.
 9.  Configure the flows in Table 4, but do not start them yet.
-10. Push the ATE configuration and start protocols. Wait for ARP and IPv6
-    neighbor discovery to complete for all three links.
+10. Push the ATE configuration and start protocols.
+11. Immediately after protocols start, withdraw the four negative route
+    ranges with OTG route state control (see
+    [Negative Route Ranges](#negative-route-ranges-advertise-and-withdraw)).
+12. Wait for ARP and IPv6 neighbor discovery to complete for all three
+    links.
 
 NOTE: OTG does not configure a remote AS for a BGP peer, so the ATE does not
 itself check which AS the DUT uses in its OPEN message. The use of
 Confederation Identifier `64500` toward `ATE:port1` is verified through the
 AS_PATH received by `ATE:port1` in RT-1.111.4.
+
+#### Negative Route Ranges (Advertise and Withdraw)
+
+Pushing a new configuration to the ATE with OTG `SetConfig` replaces the whole
+configuration, restarts protocols, tears down the BGP sessions, and can reset
+the OTG counters. Therefore the negative route ranges are part of the single
+base ATE configuration and are only advertised and withdrawn at runtime with
+OTG route state control, as already done in other featureprofiles tests (for
+example `feature/bgp/prefixlimit/otg_tests/bgp_prefix_limit_test`):
+
+```go
+cs := gosnappi.NewControlState()
+cs.Protocol().Route().SetNames(routeNames).SetState(gosnappi.StateProtocolRouteState.WITHDRAW) // or ADVERTISE
+otg.SetControlState(t, cs)
+```
+
+*   **After protocols start**: withdraw `CONFED-LOOP`, `EXT-LOOP`,
+    `EXT-MALFORMED`, and `CONFED-MALFORMED`.
+*   **RT-1.111.6**: advertise `CONFED-LOOP` and `EXT-LOOP`, then withdraw them
+    at the end of the subtest.
+*   **RT-1.111.7**: advertise `EXT-MALFORMED` and `CONFED-MALFORMED`, then
+    withdraw them at the end of the subtest.
+
+The withdraw at the end of RT-1.111.6 and RT-1.111.7 is always performed,
+also when the subtest fails, so that each subtest restores the ATE route state
+even on failure and a failure in one subtest does not affect the next one (see
+[Error Handling](#error-handling)).
+
+OTG has no option to keep a route range withdrawn when protocols start, so the
+negative ranges may be advertised for a short time before step 11 withdraws
+them. This is harmless for the looped routes, which the DUT rejects. For the
+malformed routes, a DUT that resets the session instead of using
+treat-as-withdraw may flap once at startup. RT-1.111.1 therefore records the
+[session stability baseline](#session-stability-checks) only after step 11,
+checks that none of the negative prefixes is present in the DUT `loc-rib`
+before RT-1.111.2 starts, and RT-1.111.7 checks the malformed-route behavior
+explicitly. A session reset caused by a malformed route, also at startup, is
+not a test artifact: it is a failure of the RFC 7606 treat-as-withdraw
+requirement.
 
 All DUT telemetry in this test is read with gNMI `Subscribe` in `ON_CHANGE`
 mode (for example, `gnmi.Watch` / `gnmi.Await` in Ondatra), which matches the
@@ -285,15 +351,126 @@ A negative result ("the prefix is not present") is only meaningful if the ATE
 actually sent the route and the DUT had time to process it. For every
 absence check:
 
-1.  **Positive control**: Before adding the new route range, record the OTG
-    `bgpv4-metrics` / `bgpv6-metrics` `routes_advertised` counter of the
-    sending ATE peer. After adding it, wait until the counter increases by
-    `1`. Optionally, if the DUT supports `adj-rib-in-pre`, also confirm that
-    the prefix is visible there (informational only).
+1.  **Positive control**: Before advertising the route range with OTG route
+    state control, record the OTG `bgpv4-metrics` / `bgpv6-metrics`
+    `routes_advertised` counter of the sending ATE peer. After advertising it,
+    wait until the counter increases. This proves that the ATE sent an UPDATE
+    for the route; it does not prove the exact AS_PATH encoding, because the
+    DUT rejects the route and its AS_PATH is therefore not visible in
+    `adj-rib-in-post` or `loc-rib`. Optionally, for the looped routes in
+    RT-1.111.6 only, if the DUT supports `adj-rib-in-pre`, also confirm that
+    the prefix and its AS_PATH are visible there (informational only; not
+    applicable to the malformed routes in RT-1.111.7, which are treated as
+    withdrawn).
 2.  **Hold window**: Then watch the checked location for a hold window of `30`
     seconds (for example, a `gnmi.Watch` on the DUT RIB that must time out
     without the prefix appearing, and repeated OTG `bgp-prefix` state reads).
     The prefix must stay absent for the whole window.
+
+#### Session Stability Checks
+
+The negative subtests must not cause any BGP session to reset. Session
+stability is checked with two independent counters, both mandatory:
+
+1.  **DUT**: `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/established-transitions`
+    for each of the six DUT neighbors.
+2.  **ATE**: the OTG `bgpv4-metrics` / `bgpv6-metrics` `session_flap_count`
+    for each of the six ATE BGP peers.
+
+In addition, for RT-1.111.6 and RT-1.111.7, the OTG `bgpv4-metrics` /
+`bgpv6-metrics` `notifications_received` counter of each of the six ATE BGP
+peers is recorded. A NOTIFICATION sent by the DUT would mean that it treated
+a looped or malformed route as a session error instead of discarding the
+route.
+
+The **baseline** of these counters is recorded in RT-1.111.1, after every
+session is individually `ESTABLISHED` and after the negative route ranges were
+withdrawn (base configuration step 11). The counters are compared with the
+baseline at the end of RT-1.111.1, RT-1.111.6, and RT-1.111.7. If a subtest
+reports a change, the next subtest first waits again for each session to be
+`ESTABLISHED` and records a new baseline, so that one reset is reported only
+once and does not make every later subtest fail.
+
+If a DUT does not report `established-transitions`, this must be documented
+as a deviation; the DUT check is then skipped (and logged), and only the ATE
+`session_flap_count` check is used.
+
+#### Route Set Check Procedure
+
+The per-prefix checks in each subtest confirm that the expected routes are
+present. The route set check additionally confirms that no unexpected route
+leaks to any ATE peer, and that each address family stays on its own
+sessions. It is run for each of the six ATE BGP peers at the end of
+RT-1.111.5 and at the end of the hold window of RT-1.111.6 and RT-1.111.7
+(before the negative route ranges are withdrawn).
+
+For each ATE peer, read all prefixes it has received from the DUT (OTG
+`bgp-prefix` state) and check, in this order:
+
+1.  **Forbidden set**: none of the received prefixes is in the forbidden set.
+    This check applies to **all** received prefixes, before any echo
+    exemption in step 3. The forbidden set is:
+    *   All eight negative prefixes (`CONFED-LOOP`, `EXT-LOOP`,
+        `EXT-MALFORMED`, and `CONFED-MALFORMED`, IPv4 and IPv6), even if the
+        same ATE peer advertised them.
+    *   All prefixes of the other address family: an IPv4 peer must receive
+        no IPv6 prefix, and an IPv6 peer must receive no IPv4 prefix.
+2.  **Expected set**: every prefix in the expected set of the peer (table
+    below, for the address family of the peer) is received.
+3.  **Echo exemption**: other received prefixes that the same ATE peer
+    advertised itself (the DUT sending a route back to the peer it learned
+    it from) are ignored, because implementations differ in whether they
+    send such routes.
+4.  Any other received prefix is a failure.
+
+| ATE peer | Expected set (base routes) | Ignored if received (echo) |
+| :--- | :--- | :--- |
+| `ATE:port1` | `CONFED`, `IBGP`, `IBGP-CONFED`, `CONFED-TRANSIT` | `EXT` |
+| `ATE:port2` | `EXT`, `CONFED`, `CONFED-TRANSIT` | `IBGP`, `IBGP-CONFED` |
+| `ATE:port3` | `EXT`, `IBGP`, `IBGP-CONFED` | `CONFED`, `CONFED-TRANSIT` |
+
+The route set check passes only if steps 1, 2, and 4 find no error for every
+ATE peer.
+
+#### AS_PATH Telemetry Semantics
+
+The AS_PATH checks in this test use the following interpretation of the
+OpenConfig and OTG AS_PATH representations:
+
+*   On the DUT, `attr-sets/attr-set/as-path/as-segment/state/index` `0` is the
+    leftmost (first) segment of the AS_PATH, `1` is the next segment, and so
+    on.
+*   In each segment, the `member` list is in AS_PATH order: the leftmost
+    (most recently prepended) AS number is first. For example,
+    `AS_CONFED_SEQUENCE [64501, 64503]` means that `64501` was prepended to
+    `[64503]`.
+*   Segment types are compared using the OpenConfig enumeration values
+    (`AS_SEQ`, `AS_SET`, `AS_CONFED_SEQUENCE`, `AS_CONFED_SET`) on the DUT and
+    the OTG values (`as_seq`, `as_set`, `as_confed_seq`, `as_confed_set`) on
+    the ATE.
+*   An empty AS_PATH is reported as no `as-segment` entries on the DUT and no
+    segments on the ATE.
+
+An implementation that reports a different order or indexing must document
+this as a deviation.
+
+#### Error Handling
+
+*   A failure to apply the DUT or ATE base configuration, or a BGP session
+    that does not reach `ESTABLISHED` in RT-1.111.1, stops the test, because
+    no later result would be meaningful.
+*   In the other subtests, each failed check is reported separately with the
+    expected and the observed value, and the remaining checks of the subtest
+    still run.
+*   A failed positive control (the ATE did not send the route) makes the
+    absence check of that route inconclusive; this is reported as a failure,
+    never as a pass.
+*   Each subtest restores the ATE route state even on failure (the negative
+    route ranges are withdrawn at the end of RT-1.111.6 and RT-1.111.7 in all
+    cases).
+*   On any failure, the test collects the DUT neighbor `session-state`, the
+    DUT `loc-rib` prefixes, and the OTG BGP peer metrics to help tell a DUT
+    problem from an ATE or test problem.
 
 ---
 
@@ -314,21 +491,54 @@ up.
 
 #### Step 2: Verify BGP Sessions
 
-1.  For each of the six neighbors in the base configuration, wait for
+1.  For **each** of the six neighbors in the base configuration separately,
+    wait for
     `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state`
-    to become `ESTABLISHED`.
+    to become `ESTABLISHED`. A check that returns as soon as any one neighbor
+    is `ESTABLISHED` is not sufficient.
+2.  For **each** of the six ATE BGP peers separately, wait for the OTG BGP
+    peer `session_state` to become `up`.
+
+#### Step 3: Record the Session Stability Baseline
+
+1.  After all twelve sessions (six on the DUT, six on the ATE) are
+    established, and after the negative route ranges were withdrawn (base
+    configuration step 11), record the baseline of the
+    [session stability counters](#session-stability-checks): DUT
+    `established-transitions` for the six neighbors, and OTG
+    `session_flap_count` for the six ATE BGP peers.
+
+#### Step 4: Verify the Negative Prefixes Are Absent at Startup
+
+1.  For a hold window of 30 seconds, check that none of the eight negative
+    prefixes (`198.51.100.128/26`, `2001:db8:301::/48`, `203.0.113.64/26`,
+    `2001:db8:101::/48`, `203.0.113.192/27`, `2001:db8:102::/48`,
+    `203.0.113.224/27`, and `2001:db8:303::/48`) is present in the DUT
+    `loc-rib`. This confirms that a possible short advertisement at protocol
+    start did not leave any state behind before RT-1.111.2 starts.
+2.  At the end of the hold window, compare the session stability counters
+    with the baseline.
 
 #### RT-1.111.1 Pass/Fail Criteria
 
 *   **Pass**:
     *   `global/state/as` equals `64501`.
     *   `global/confederation/state/identifier` equals `64500`.
-    *   `global/confederation/state/member-as` equals `[64502]`.
+    *   `global/confederation/state/member-as` equals `[64502]`. Some
+        implementations also report the local Member-AS in this leaf; the
+        value `[64501, 64502]` is accepted only if the DUT documents this
+        with a deviation.
     *   All six neighbors (`192.0.2.2`, `2001:db8::2`, `192.0.2.6`,
         `2001:db8::6`, `192.0.2.10`, `2001:db8::a`) report `session-state`
-        `ESTABLISHED`.
+        `ESTABLISHED`, and all six ATE BGP peers report `session_state` `up`.
+    *   None of the eight negative prefixes is in the DUT `loc-rib` during
+        the hold window.
+    *   DUT `established-transitions` and OTG `session_flap_count` are
+        unchanged from the baseline for every session.
 *   **Fail**: Any of the state leaves is missing or differs from the
-    configured value, or any session does not reach `ESTABLISHED`.
+    configured value (other than the accepted `member-as` deviation), any
+    session does not reach `ESTABLISHED`, a negative prefix is present in the
+    DUT `loc-rib`, or any session stability counter changed.
 
 ---
 
@@ -339,6 +549,23 @@ its own Member-AS, it SHALL NOT modify the AS_PATH. The routes `CONFED` and
 `CONFED-TRANSIT` are received from Member-AS `64502` on `DUT:port3` and
 advertised by the DUT to the iBGP peer on `DUT:port2`.
 
+This subtest also checks LOCAL_PREF received from the neighboring Member-AS.
+RFC 4271 Section 5.1.5 contains two rules for LOCAL_PREF, and both make an
+exception for BGP confederations:
+
+*   Sending: "A BGP speaker MUST NOT include this attribute in UPDATE messages
+    it sends to external peers, except in the case of BGP Confederations
+    [RFC3065]."
+*   Receiving: "If it is contained in an UPDATE message that is received from
+    an external peer, then this attribute MUST be ignored by the receiving
+    speaker, except in the case of BGP Confederations [RFC3065]."
+
+RFC 5065 Section 5.2 also removes the restriction against sending LOCAL_PREF
+between Member-ASes. The ATE therefore sends `CONFED` with LOCAL_PREF `150`
+from `ATE:port3`, and the DUT must keep this value and send it unchanged to
+the iBGP peer on `ATE:port2`. RT-1.111.4 still requires that LOCAL_PREF is not
+sent to the external peer on `ATE:port1`.
+
 #### Step 1: Verify DUT RIB
 
 1.  On the DUT, find the `adj-rib-in-post` routes for `198.51.100.64/26` and
@@ -348,18 +575,18 @@ advertised by the DUT to the iBGP peer on `DUT:port2`.
 2.  Read the AS_PATH segments of that `attr-set`:
     *   `/network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/as-path/as-segment/state/type`
     *   `/network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/as-path/as-segment/state/member`
-3.  Confirm that the four prefixes are present in the DUT `loc-rib`.
+3.  For `198.51.100.64/26` and `2001:db8:300::/48` (`CONFED`), also read
+    `/network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/local-pref`.
+4.  Confirm that the four prefixes are present in the DUT `loc-rib`.
 
 #### Step 2: Verify Routes Received by `ATE:port2`
 
 1.  On `ATE:port2`, read the OTG BGP prefix state (`bgp-prefix` states for the
     IPv4 and IPv6 peers) for the same four prefixes, and inspect the received
-    AS_PATH segments.
+    AS_PATH segments and, for `CONFED`, the `local_preference`.
 
-#### Step 3: Verify Traffic
-
-1.  Start flows `v4-p2-to-p3` and `v6-p2-to-p3` for 30 seconds, stop them, and
-    check the counters.
+Flows `v4-p2-to-p3` and `v6-p2-to-p3` are checked in the single traffic phase
+at the end of RT-1.111.5.
 
 #### RT-1.111.2 Pass/Fail Criteria
 
@@ -376,11 +603,18 @@ advertised by the DUT to the iBGP peer on `DUT:port2`.
         an AS_PATH of exactly two segments: `as_confed_seq` `[64502]`, then
         `as_seq` `[64511]`.
     *   The DUT did not prepend `64501` or `64500` to any of these AS_PATHs.
+    *   On the DUT, the `attr-set` for `198.51.100.64/26` and
+        `2001:db8:300::/48` has `local-pref` `150`.
+    *   `ATE:port2` reports `local_preference` `150` for `198.51.100.64/26`
+        and `2001:db8:300::/48`.
     *   Flows `v4-p2-to-p3` and `v6-p2-to-p3` meet the
-        [traffic criteria](#traffic-passfail-criteria-applies-to-every-flow-check).
-*   **Fail**: A prefix is missing on the DUT or `ATE:port2`, the AS_PATH
+        [traffic criteria](#traffic-passfail-criteria-applies-to-every-flow-check)
+        in the traffic phase of RT-1.111.5.
+*   **Fail**: A prefix is missing on the DUT or `ATE:port2`; the AS_PATH
     received by `ATE:port2` differs from the AS_PATH received by the DUT (for
-    example, `64501` was prepended), or traffic loss is observed.
+    example, `64501` was prepended); the LOCAL_PREF of `CONFED` is not `150`
+    on the DUT or on `ATE:port2` (for example, it was ignored and replaced by
+    the default value); or traffic loss is observed.
 
 ---
 
@@ -441,10 +675,8 @@ requires of the DUT's default behavior for confederation-eBGP sessions.
     inspect the AS_PATH segments, `local_preference`,
     `multi_exit_discriminator`, and `ipv4_next_hop` / `ipv6_next_hop`.
 
-#### Step 3: Verify Traffic
-
-1.  Start flows `v4-p3-to-p2` and `v6-p3-to-p2` for 30 seconds, stop them, and
-    check the counters.
+Flows `v4-p3-to-p2` and `v6-p3-to-p2` are checked in the single traffic phase
+at the end of RT-1.111.5.
 
 #### RT-1.111.3 Pass/Fail Criteria
 
@@ -469,7 +701,8 @@ requires of the DUT's default behavior for confederation-eBGP sessions.
         `ipv6_next_hop` for `2001:db8:200::/48` equal to either `2001:db8::6`
         or `2001:db8::9`. The observed behavior is logged.
     *   Flows `v4-p3-to-p2` and `v6-p3-to-p2` meet the
-        [traffic criteria](#traffic-passfail-criteria-applies-to-every-flow-check).
+        [traffic criteria](#traffic-passfail-criteria-applies-to-every-flow-check)
+        in the traffic phase of RT-1.111.5.
 *   **Fail**: A prefix is missing on `ATE:port3`; an AS_PATH differs from the
     expected value (for example, `64501` is sent as an `AS_SEQ`, `64500`
     appears, or `64501` is placed in a new segment instead of being prepended
@@ -496,9 +729,10 @@ that are not members of the local confederation.
 | `CONFED-TRANSIT` | `AS_CONFED_SEQUENCE [64502]`, `AS_SEQ [64511]` | c.1, c.2 | `AS_SEQ [64500, 64511]` (one segment) |
 
 RFC 4271 Section 5.1.5 states that a speaker MUST NOT include LOCAL_PREF in
-UPDATE messages sent to external peers (except within a confederation), so
-`ATE:port1` must not receive LOCAL_PREF even though the DUT received LOCAL_PREF
-`200` for `IBGP` and `100` for `IBGP-CONFED`.
+UPDATE messages sent to external peers (except in the case of BGP
+Confederations, which applies only to peers inside the confederation), so
+`ATE:port1` must not receive LOCAL_PREF even though the DUT has LOCAL_PREF
+`200` for `IBGP`, `100` for `IBGP-CONFED`, and `150` for `CONFED`.
 
 #### Step 1: Verify Routes Received by `ATE:port1`
 
@@ -508,10 +742,8 @@ UPDATE messages sent to external peers (except within a confederation), so
     `2001:db8:302::/48`, and inspect the AS_PATH segments,
     `local_preference`, and the next hop.
 
-#### Step 2: Verify Traffic
-
-1.  Start flows `v4-p1-to-p3`, `v6-p1-to-p3`, `v4-p1-to-p2`, and `v6-p1-to-p2`
-    for 30 seconds, stop them, and check the counters.
+Flows `v4-p1-to-p3`, `v6-p1-to-p3`, `v4-p1-to-p2`, and `v6-p1-to-p2` are
+checked in the single traffic phase at the end of RT-1.111.5.
 
 #### RT-1.111.4 Pass/Fail Criteria
 
@@ -529,7 +761,8 @@ UPDATE messages sent to external peers (except within a confederation), so
         (`ipv6_next_hop`) `2001:db8::1` for IPv6 prefixes. A link-local IPv6
         next hop, if also sent, is not checked.
     *   The four flows meet the
-        [traffic criteria](#traffic-passfail-criteria-applies-to-every-flow-check).
+        [traffic criteria](#traffic-passfail-criteria-applies-to-every-flow-check)
+        in the traffic phase of RT-1.111.5.
 *   **Fail**: A prefix is missing on `ATE:port1`; the AS_PATH contains any
     confederation segment or Member-AS number; the AS_PATH differs from the
     expected value (for example, `64500` is placed in a new segment instead of
@@ -561,10 +794,19 @@ The route `EXT` arrives from external AS `64510` with `AS_SEQ [64510]`.
     `203.0.113.0/26` and `2001:db8:100::/48` and inspect the AS_PATH
     segments.
 
-#### Step 3: Verify Traffic
+#### Step 3: Route Set Check
 
-1.  Start flows `v4-p3-to-p1`, `v6-p3-to-p1`, `v4-p2-to-p1`, and `v6-p2-to-p1`
-    for 30 seconds, stop them, and check the counters.
+1.  Run the [route set check](#route-set-check-procedure) for all six ATE BGP
+    peers. At this point all base routes are advertised and all negative
+    route ranges are withdrawn.
+
+#### Step 4: Verify Traffic for All Flows
+
+1.  Start all 12 flows in Table 4 together, run them for 30 seconds, and stop
+    them.
+2.  Evaluate every flow separately against the
+    [traffic criteria](#traffic-passfail-criteria-applies-to-every-flow-check),
+    and report the result of each flow with the subtest named in Table 4.
 
 #### RT-1.111.5 Pass/Fail Criteria
 
@@ -576,11 +818,17 @@ The route `EXT` arrives from external AS `64510` with `AS_SEQ [64510]`.
         then `as_seq` with `as_numbers` `[64510]`.
     *   `ATE:port2` receives both prefixes with an AS_PATH of exactly one
         segment of type `as_seq` with `as_numbers` `[64510]`.
-    *   The four flows meet the
-        [traffic criteria](#traffic-passfail-criteria-applies-to-every-flow-check).
+    *   The route set check passes for all six ATE BGP peers.
+    *   Each of the 12 flows meets the
+        [traffic criteria](#traffic-passfail-criteria-applies-to-every-flow-check);
+        the flows of RT-1.111.2, RT-1.111.3, and RT-1.111.4 are reported with
+        those subtests.
 *   **Fail**: A prefix is missing; `ATE:port3` receives `64501` as an `as_seq`
     instead of an `as_confed_seq`, or receives `64500`; `ATE:port2` receives
-    any AS other than `64510`; or traffic loss is observed.
+    any AS other than `64510`; the route set check fails (a forbidden prefix,
+    a prefix of the other address family, or an unexpected prefix is
+    received, or an expected prefix is missing); or traffic loss is observed
+    on any flow.
 
 ---
 
@@ -595,15 +843,21 @@ not a protocol error, so the BGP sessions must stay up.
 
 #### Step 1: Advertise Looped Routes
 
-1.  Record the OTG `routes_advertised` counters of the `ATE:port1` and
+1.  Wait for each of the six DUT neighbors and six ATE BGP peers to be
+    established, and confirm that the
+    [session stability baseline](#session-stability-checks) is current
+    (record a new one if a previous subtest reported a change). Record the
+    OTG `notifications_received` counters of the six ATE BGP peers.
+2.  Record the OTG `routes_advertised` counters of the `ATE:port1` and
     `ATE:port3` IPv4 and IPv6 peers.
-2.  On `ATE:port3`, add the route range `CONFED-LOOP` from Table 3
-    (`AS_CONFED_SEQUENCE [64502, 64501]`).
-3.  On `ATE:port1`, add the route range `EXT-LOOP` from Table 3
-    (`AS_SEQ [64510, 64500]`).
-4.  Push the updated ATE configuration and advertise the new route ranges.
-5.  Wait until each of the four `routes_advertised` counters has increased by
-    `1` (positive control, see
+3.  Advertise the already configured route ranges `CONFED-LOOP` (on
+    `ATE:port3`, `AS_CONFED_SEQUENCE [64502, 64501]`) and `EXT-LOOP` (on
+    `ATE:port1`, `AS_SEQ [64510, 64500]`) with OTG route state control
+    (`gosnappi.StateProtocolRouteState.ADVERTISE`, see
+    [Negative Route Ranges](#negative-route-ranges-advertise-and-withdraw)).
+    Do not push a new ATE configuration.
+4.  Wait until each of the four `routes_advertised` counters has increased
+    (positive control, see
     [Absence Check Procedure](#absence-check-procedure-applies-to-rt-11116-and-rt-11117)).
 
 #### Step 2: Verify the Looped Routes Are Rejected
@@ -616,12 +870,17 @@ not a protocol error, so the BGP sessions must stay up.
 3.  Check that the six BGP sessions are still `ESTABLISHED` and that the
     base prefixes (`EXT`, `IBGP`, `IBGP-CONFED`, `CONFED`, and
     `CONFED-TRANSIT`) are still in the DUT `loc-rib`.
+4.  At the end of the hold window, compare DUT `established-transitions`,
+    OTG `session_flap_count`, and OTG `notifications_received` with the
+    values recorded in Step 1.
+5.  Run the [route set check](#route-set-check-procedure) for all six ATE BGP
+    peers, before the looped route ranges are withdrawn.
 
 #### RT-1.111.6 Pass/Fail Criteria
 
 *   **Pass**:
     *   The positive control passed (all four `routes_advertised` counters
-        increased by `1`).
+        increased).
     *   None of `198.51.100.128/26`, `2001:db8:301::/48`, `203.0.113.64/26`,
         or `2001:db8:101::/48` appears in the DUT `loc-rib` during the hold
         window.
@@ -629,12 +888,21 @@ not a protocol error, so the BGP sessions must stay up.
         or `ATE:port3` from the DUT during the hold window.
     *   All six BGP sessions remain `ESTABLISHED`, and all base prefixes
         remain in the DUT `loc-rib`.
+    *   DUT `established-transitions` and OTG `session_flap_count` are
+        unchanged for every session.
+    *   OTG `notifications_received` is unchanged for all six ATE BGP peers
+        (the DUT sent no NOTIFICATION).
+    *   The route set check passes for all six ATE BGP peers.
 *   **Fail**: The positive control fails (the result is then inconclusive and
     the subtest fails), any looped prefix is installed in the DUT `loc-rib`
-    or advertised to any ATE port, any session leaves `ESTABLISHED`, or a
-    base prefix is lost.
+    or advertised to any ATE port, any session leaves `ESTABLISHED` or a
+    session stability counter changes, any ATE peer receives a NOTIFICATION,
+    the route set check fails, or a base prefix is lost.
 
-After this subtest, withdraw `CONFED-LOOP` and `EXT-LOOP` from the ATE.
+After this subtest, withdraw `CONFED-LOOP` and `EXT-LOOP` with OTG route state
+control (`gosnappi.StateProtocolRouteState.WITHDRAW`, see
+[Negative Route Ranges](#negative-route-ranges-advertise-and-withdraw)). The
+withdraw is performed also when the subtest fails.
 
 ---
 
@@ -663,13 +931,20 @@ as a deviation.
 
 #### Step 1: Advertise Malformed Routes
 
-1.  Record the OTG `routes_advertised` counters of the `ATE:port1` and
+1.  Wait for each of the six DUT neighbors and six ATE BGP peers to be
+    established, and confirm that the
+    [session stability baseline](#session-stability-checks) is current
+    (record a new one if a previous subtest reported a change). Record the
+    OTG `notifications_received` counters of the six ATE BGP peers.
+2.  Record the OTG `routes_advertised` counters of the `ATE:port1` and
     `ATE:port3` IPv4 and IPv6 peers.
-2.  On `ATE:port1`, add the route range `EXT-MALFORMED` from Table 3.
-3.  On `ATE:port3`, add the route range `CONFED-MALFORMED` from Table 3.
-4.  Push the updated ATE configuration and advertise the new route ranges.
-5.  Wait until each of the four `routes_advertised` counters has increased by
-    `1` (positive control).
+3.  Advertise the already configured route ranges `EXT-MALFORMED` (on
+    `ATE:port1`) and `CONFED-MALFORMED` (on `ATE:port3`) with OTG route state
+    control (`gosnappi.StateProtocolRouteState.ADVERTISE`, see
+    [Negative Route Ranges](#negative-route-ranges-advertise-and-withdraw)).
+    Do not push a new ATE configuration.
+4.  Wait until each of the four `routes_advertised` counters has increased
+    (positive control).
 
 #### Step 2: Verify the Malformed Routes Are Not Accepted
 
@@ -681,6 +956,11 @@ as a deviation.
 3.  During the same window, check that `session-state` of all six neighbors
     stays `ESTABLISHED`, and that the base prefixes are still in the DUT
     `loc-rib`.
+4.  At the end of the hold window, compare DUT `established-transitions`,
+    OTG `session_flap_count`, and OTG `notifications_received` with the
+    values recorded in Step 1.
+5.  Run the [route set check](#route-set-check-procedure) for all six ATE BGP
+    peers, before the malformed route ranges are withdrawn.
 
 #### RT-1.111.7 Pass/Fail Criteria
 
@@ -692,26 +972,42 @@ as a deviation.
     *   None of these four prefixes is received by any ATE port from the DUT.
     *   All six BGP sessions remain `ESTABLISHED` (treat-as-withdraw), and
         all base prefixes remain in the DUT `loc-rib`.
+    *   DUT `established-transitions` and OTG `session_flap_count` are
+        unchanged for every session.
+    *   OTG `notifications_received` is unchanged for all six ATE BGP peers
+        (the DUT sent no NOTIFICATION).
+    *   The route set check passes for all six ATE BGP peers.
 *   **Fail**: The positive control fails; any malformed prefix is accepted
-    into `adj-rib-in-post` or `loc-rib`, or advertised to any ATE port; or a
-    base prefix is lost. A session reset (the session leaves `ESTABLISHED`)
-    is a failure unless it is covered by a documented deviation.
+    into `adj-rib-in-post` or `loc-rib`, or advertised to any ATE port; the
+    route set check fails; or a base prefix is lost. A session reset (the
+    session leaves `ESTABLISHED`, a session stability counter changes, or an
+    ATE peer receives a NOTIFICATION) is a failure unless it is covered by a
+    documented deviation.
 
-After this subtest, withdraw `EXT-MALFORMED` and `CONFED-MALFORMED` from the
-ATE.
+After this subtest, withdraw `EXT-MALFORMED` and `CONFED-MALFORMED` with OTG
+route state control (`gosnappi.StateProtocolRouteState.WITHDRAW`, see
+[Negative Route Ranges](#negative-route-ranges-advertise-and-withdraw)). The
+withdraw is performed also when the subtest fails.
 
 ---
 
 ### Cleanup
 
-1.  Stop all traffic flows and BGP protocols on the ATE.
-2.  On the DUT, remove the BGP configuration added by this test (six
-    neighbors, the three peer-groups, the confederation `identifier` and
-    `member-as` configuration, and the global BGP configuration) using gNMI
-    `Set`.
-3.  On the DUT, remove the routing policy `ALLOW` and the IPv4 and IPv6
-    addresses on `DUT:port1`, `DUT:port2`, and `DUT:port3`, restoring the DUT
-    to its baseline configuration.
+Cleanup runs at the end of the test even when one or more subtests failed.
+The steps are performed in the following order, so that the DUT does not
+receive BGP updates while its configuration is being removed, and no object
+is removed while another object still references it:
+
+1.  Stop all traffic flows and then all protocols (BGP) on the ATE.
+2.  On the DUT, remove the BGP configuration added by this test using gNMI
+    `Set`: first the six neighbors, then the three peer-groups, then the
+    confederation `identifier` and `member-as` configuration and the global
+    BGP configuration.
+3.  On the DUT, remove the routing policy `ALLOW`, which is no longer
+    referenced by any peer-group.
+4.  On the DUT, remove the IPv4 and IPv6 addresses on `DUT:port1`,
+    `DUT:port2`, and `DUT:port3`, restoring the DUT to its baseline
+    configuration.
 
 ## Canonical OC
 
@@ -1298,6 +1594,7 @@ paths:
   /network-instances/network-instance/protocols/protocol/bgp/global/confederation/state/identifier:
   /network-instances/network-instance/protocols/protocol/bgp/global/confederation/state/member-as:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/established-transitions:
   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/state/prefix:
   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/state/attr-index:
   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/loc-rib/routes/route/state/prefix:
