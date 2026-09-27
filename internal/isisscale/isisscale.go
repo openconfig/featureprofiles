@@ -104,6 +104,8 @@ func CreateATEData(lagToErouterMap map[int][]*otgconfighelpers.AteEmulatedRouter
 
 func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 	hardwareInitCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureEnableAFTSummaries)
+	// Hierarchical FEC resolution is Arista specific; other vendors get "".
+	hardwareInitCfg += cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureHierarchicalFIB)
 	if hardwareInitCfg == "" {
 		return
 	}
