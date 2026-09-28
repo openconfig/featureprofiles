@@ -137,7 +137,7 @@ func unusedAggregateInterfaces(t *testing.T, dut *ondatra.DUTDevice, n int) []st
 //     subinterfaces (VLANs 101-110) using IPv4 198.51.111.1/24..198.51.120.1/24 and
 //     IPv6 2001:db8:111::1/64..2001:db8:120::1/64.
 //   - Standalone Port: DUT Port 7 with IPv4 198.51.102.1/24 and IPv6 2001:db8:102::1/64.
-//   - Traffic Source Port: DUT Port 8 with IPv4 10.0.0.1/24 and IPv6 2001:db8:a::1/64.
+//   - Traffic Source Port: DUT Port 8 with IPv4 198.51.108.1/24 and IPv6 2001:db8:108::1/64.
 //
 // It returns the name of the DUT LAG 1 interface.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) string {
@@ -192,7 +192,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) string {
 	//   - Ports 3 & 4: Enabled physical member ports for Static LAG 1.
 	//   - Ports 5 & 6: Enabled physical member ports for Static LAG 2.
 	//   - Port 7: Standalone routed L3 port (198.51.102.1/24, 2001:db8:102::1/64).
-	//   - Port 8: Traffic source routed L3 port (10.0.0.1/24, 2001:db8:a::1/64).
+	//   - Port 8: Traffic source routed L3 port (198.51.108.1/24, 2001:db8:108::1/64).
 	portBatch := &gnmi.SetBatch{}
 	for i, a := range dutPorts {
 		iObj := &oc.Interface{Name: ygot.String(dut.Port(t, a.Name).Name())}
@@ -464,7 +464,7 @@ func createTraffic(top gosnappi.Config, flowName, dstV4Net, dstV6Net string, rxV
 }
 
 // createScaleTraffic creates 10 IPv4 and 10 IPv6 OTG flow groups (20 Flow Groups total, well within the 64 Flow Group
-// hardware limit on ATE Port 8) that exercise all 100 IPv4 static routes (10.1.0.0/24..10.1.99.0/24) and all 100 IPv6
+// hardware limit on ATE Port 8) that exercise all 100 IPv4 static routes (100.64.0.0/24..100.64.99.0/24) and all 100 IPv6
 // static routes (2001:db8:1000::/64..2001:db8:1099::/64) across the 10 ATE LAG 2 VLAN subinterfaces (VLAN 101..110) and ATE Port 7
 // (RT-1.73.5 Step 2 onwards). As in createTraffic, every flow varies each 5-tuple field over many values
 // (17 sources, 10 destinations, 31 UDP source ports, 29 UDP destination ports; pairwise coprime counts)
@@ -480,7 +480,7 @@ func createScaleTraffic(top gosnappi.Config) {
 		rxV4 := []string{fmt.Sprintf("LAG2_IPv4_%d", vlanID), "port7.IPv4"}
 		rxV6 := []string{fmt.Sprintf("LAG2_IPv6_%d", vlanID), "port7.IPv6"}
 
-		// IPv4 flow group for nhIndex covering the 10 routes: 10.1.(k).1, 10.1.(k+10).1, ..., 10.1.(k+90).1
+		// IPv4 flow group for nhIndex covering the 10 routes: 100.64.(k).1, 100.64.(k+10).1, ..., 100.64.(k+90).1
 		v4F := top.Flows().Add().SetName(fmt.Sprintf("scale_nh%d_v4", nhIndex))
 		v4F.Metrics().SetEnable(true)
 		v4F.TxRx().Device().SetTxNames([]string{"port8.IPv4"}).SetRxNames(rxV4)
@@ -491,7 +491,7 @@ func createScaleTraffic(top gosnappi.Config) {
 		eth.Dst().Auto()
 		v4 := v4F.Packet().Add().Ipv4()
 		v4.Src().Increment().SetStart(srcV4Addr).SetStep("0.0.0.1").SetCount(17)
-		v4.Dst().Increment().SetStart(fmt.Sprintf("10.1.%d.1", k)).SetStep("0.0.10.0").SetCount(10)
+		v4.Dst().Increment().SetStart(fmt.Sprintf("100.64.%d.1", k)).SetStep("0.0.10.0").SetCount(10)
 		udp4 := v4F.Packet().Add().Udp()
 		udp4.SrcPort().Increment().SetStart(10000).SetStep(7).SetCount(31)
 		udp4.DstPort().Increment().SetStart(20000).SetStep(13).SetCount(29)
@@ -942,9 +942,9 @@ func canonicalPrefix(s string) string {
 }
 
 // scalePrefixes returns the IPv4 and IPv6 prefix of RT-1.73.5 scale route i (0-99):
-// 10.1.0.0/24..10.1.99.0/24 and 2001:db8:1000::/64..2001:db8:1099::/64.
+// 100.64.0.0/24..100.64.99.0/24 and 2001:db8:1000::/64..2001:db8:1099::/64.
 func scalePrefixes(i int) (string, string) {
-	return fmt.Sprintf("10.1.%d.0/24", i), fmt.Sprintf("2001:db8:10%02d::/64", i)
+	return fmt.Sprintf("100.64.%d.0/24", i), fmt.Sprintf("2001:db8:10%02d::/64", i)
 }
 
 // scaleRoutes returns prefix -> next-hops for the 200 RT-1.73.5 scale routes, where nextHops(i)
@@ -1005,8 +1005,12 @@ func TestStaticRouteResiliency(t *testing.T) {
 	t.Run("RT-1.73.1: Validate Static Route with VLAN Interface (SVI)", func(t *testing.T) {
 		// RT-1.73.1 Step 1 & Step 2: Configure static routes for 203.0.113.0/24 and 2001:db8:213::/64
 		// pointing to next-hops 198.51.100.2 and 2001:db8:100::2 (ATE Port 1 via VLAN 10 SVI) and push via gNMI Set Replace.
+		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+		t.Cleanup(func() {
+			gnmi.Delete(t, dut, sp.Static("203.0.113.0/24").Config())
+			gnmi.Delete(t, dut, sp.Static("2001:db8:213::/64").Config())
+		})
 		configureRoute(t, dut, "203.0.113.0/24", "2001:db8:213::/64", []string{"198.51.100.2"}, []string{"2001:db8:100::2"})
-
 		// RT-1.73.1 Step 3: Start IPv4 and IPv6 traffic from ATE Port 8 destined to 203.0.113.1 and 2001:db8:213::1.
 		top.Flows().Clear()
 		createTraffic(top, "traffic_svi", "203.0.113.1", "2001:db8:213::1", []string{"port1.IPv4"}, []string{"port1.IPv6"})
@@ -1061,6 +1065,11 @@ func TestStaticRouteResiliency(t *testing.T) {
 
 	// RT-1.73.3 - Control Plane Resilience on LAG Failure
 	t.Run("RT-1.73.3: Control Plane Resilience on LAG Failure", func(t *testing.T) {
+		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+		t.Cleanup(func() {
+			gnmi.Delete(t, dut, sp.Static("203.0.114.0/24").Config())
+			gnmi.Delete(t, dut, sp.Static("2001:db8:214::/64").Config())
+		})
 		// Builds directly on RT-1.73.2 with its traffic still flowing; traffic is stopped in Step 5.
 		trafficRunning := true
 		defer func() {
@@ -1076,12 +1085,12 @@ func TestStaticRouteResiliency(t *testing.T) {
 		portStateAction.Port().Link().SetPortNames([]string{p3.ID(), p4.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
 		ate.OTG().SetControlState(t, portStateAction)
 		portsRestored := false
-		defer func() {
+		t.Cleanup(func() {
 			if !portsRestored {
 				portStateAction.Port().Link().SetPortNames([]string{p3.ID(), p4.ID()}).SetState(gosnappi.StatePortLinkState.UP)
 				ate.OTG().SetControlState(t, portStateAction)
 			}
-		}()
+		})
 
 		// RT-1.73.3 Step 2: Verify via gNMI state (/interfaces/interface/state/oper-status) that DUT LAG 1 transitions
 		// to DOWN / LOWER_LAYER_DOWN, and that the still-running traffic is dropped. awaitFlowsDropped watches the
@@ -1094,6 +1103,9 @@ func TestStaticRouteResiliency(t *testing.T) {
 		// RT-1.73.3 Step 3: Perform an unrelated gNMI Set operation (updating description on DUT Port 7)
 		// and verify it succeeds without throwing an "unreachable next-hop" error and is applied in state.
 		dutP7 := dut.Port(t, "port7").Name()
+		t.Cleanup(func() {
+			gnmi.Delete(t, dut, gnmi.OC().Interface(dutP7).Description().Config())
+		})
 		gnmi.Update(t, dut, gnmi.OC().Interface(dutP7).Description().Config(), "test_description")
 		gnmi.Await(t, dut, gnmi.OC().Interface(dutP7).Description().State(), trafficWaitTime, "test_description")
 
@@ -1123,6 +1135,11 @@ func TestStaticRouteResiliency(t *testing.T) {
 	t.Run("RT-1.73.4: Validate ECMP and FIB Reprogramming Across Multiple LAGs", func(t *testing.T) {
 		// RT-1.73.4 Step 1 & Step 2: Configure static routes for 203.0.115.0/24 and 2001:db8:215::/64
 		// with two next-hops: ATE LAG 1 (198.51.101.2 / 2001:db8:101::2) and ATE LAG 2 first subinterface (198.51.111.2 / 2001:db8:111::2).
+		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+		t.Cleanup(func() {
+			gnmi.Delete(t, dut, sp.Static("203.0.115.0/24").Config())
+			gnmi.Delete(t, dut, sp.Static("2001:db8:215::/64").Config())
+		})
 		configureRoute(t, dut, "203.0.115.0/24", "2001:db8:215::/64", []string{"198.51.101.2", "198.51.111.2"}, []string{"2001:db8:101::2", "2001:db8:111::2"})
 
 		// RT-1.73.4 Step 2 & Step 3: Start IPv4/IPv6 traffic from ATE Port 8 and verify load-balancing across all 4 LAG member ports (Ports 3, 4, 5, and 6).
@@ -1180,8 +1197,17 @@ func TestStaticRouteResiliency(t *testing.T) {
 			return []string{atePorts[6].IPv4}, []string{atePorts[6].IPv6}
 		}
 
-		// RT-1.73.5 Step 1 (Scale Routes): Configure 100 IPv4 static routes (10.1.0.0/24..10.1.99.0/24)
+		// RT-1.73.5 Step 1 (Scale Routes): Configure 100 IPv4 static routes (100.64.0.0/24..100.64.99.0/24)
 		// and 100 IPv6 static routes (2001:db8:1000::/64..2001:db8:1099::/64) distributed evenly across the 10 ATE LAG 2 subinterface IPs.
+		t.Cleanup(func() {
+			b := &gnmi.SetBatch{}
+			for i := 0; i < numScaleRoutes; i++ {
+				v4Prefix, v6Prefix := scalePrefixes(i)
+				gnmi.BatchDelete(b, sp.Static(v4Prefix).Config())
+				gnmi.BatchDelete(b, sp.Static(v6Prefix).Config())
+			}
+			b.Set(t, dut)
+		})
 		replaceStaticRoutes(t, dut, scaleRoutes(lag2NHs))
 
 		// RT-1.73.5 Step 2 (Verify Scale): Start traffic from ATE Port 8 to all 200 route destinations
@@ -1236,11 +1262,11 @@ func TestStaticRouteResiliency(t *testing.T) {
 		dutP7 := dut.Port(t, "port7").Name()
 		gnmi.Update(t, dut, gnmi.OC().Interface(dutP7).Enabled().Config(), false)
 		p7Restored := false
-		defer func() {
+		t.Cleanup(func() {
 			if !p7Restored {
 				gnmi.Update(t, dut, gnmi.OC().Interface(dutP7).Enabled().Config(), true)
 			}
-		}()
+		})
 		awaitInterfaceDown(t, dut, dutP7, trafficWaitTime)
 		// Keep packets received before the disable, which OTG counters may report late, out of the drop window.
 		awaitFlowsDropped(t, ate, top, trafficWaitTime)
