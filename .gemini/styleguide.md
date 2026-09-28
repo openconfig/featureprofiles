@@ -50,11 +50,46 @@
     *   Environment setup code should be placed in a function named
         setupEnvironment and called from TestMain
     *   Use `t.Run` for subtests so output clearly reflects passed/failed steps.
-    *   **Avoid `time.Sleep`**: Use `gnmi.Watch` with `.Await` for waiting on
-        conditions.
+    *   **Eliminating Polling Loops and Static Sleeps (CRITICAL / HIGH PRIORITY):**
+        *   **Anti-pattern:** Relying on static `time.Sleep` calls, or building custom `for` loops that poll telemetry state with `time.Sleep(pollInterval)`.
+        *   **Correction:** The use of `gnmi.Watch` with `.Await(t)` is mandatory to detect desired states in real-time. Custom polling loops are banned.
+        *   **BAD (Do not do this):**
+            ```go
+            for {
+                val := gnmi.Get(t, dut, path)
+                if val == expected { break }
+                time.Sleep(2 * time.Second)
+            }
+            ```
+        *   **GOOD (Do this instead):**
+            ```go
+            gnmi.Watch(t, dut, path, timeout, func(val *ygnmi.Value[Type]) bool {
+                v, present := val.Val()
+                return present && v == expected
+            }).Await(t)
+            ```
     *   **Querying Counters:** Always use a `gnmi.Watch` loop to wait for a specific counter value to be reached before querying it.
+    *   All variables used as denominators in arithmetic operations (especially dynamic metric counters like `txPackets`) must be explicitly checked against zero before division to prevent runtime panics.
     *   **OTG Start Protocols:** Prior to invoking OTG start protocols, explicitly call `WaitForARP` function to maintain test stability.
       
+        *   **OTG traffic neighbor resolution:** For tests that configure and
+                start OTG (traffic generator) protocols and traffic, ensure neighbor
+                resolution (ARP for IPv4 or ND for IPv6) has completed before
+                starting traffic. Specifically:
+
+                - After `StartProtocols(t)` and before `StartTraffic(t)`, call the
+                    appropriate helper: `otgutils.WaitForARP(t, otg, config, "IPv4")`
+                    or `otgutils.WaitForARP(t, otg, config, "IPv6")` depending on the
+                    address family used by the flows.
+                - If a helper function calls `StartTraffic()`, the caller must ensure
+                    the matching `WaitForARP(...)` has already completed; do not rely on
+                    `StartTraffic()` to implicitly resolve neighbors.
+                - For dual-stack tests that send both IPv4 and IPv6 traffic, wait for
+                    both families before starting traffic.
+
+                This prevents initial packets from being dropped due to unresolved
+                neighbor entries and makes traffic validation deterministic.
+
 *   **Enums:**
 
     *   Do not use numerical enum values (e.g., `6`). Use the ygot-generated
@@ -74,7 +109,13 @@
     *   **Mandatory State Reversion:** Tests must always leave the system in the exact original state it was in prior to the test execution, regardless of whether the test passes or fails. This requirement applies to both standard gNMI `Set` configurations and raw/native CLI commands (e.g., using `helpers.GnmiCLIConfig`). The PR MUST include corresponding cleanup operations to revert any changes made during the test.
     *   **SSH and AAA State:** Pay special attention to AAA and SSH configurations. If a test modifies SSH authentication (e.g., `management ssh authentication protocol password`), the cleanup routine MUST explicitly negate that specific command (e.g., `management ssh \n no authentication protocol`) rather than relying on generic default commands that might wipe baseline lab configurations.
     *   **Use `t.Cleanup()`:** All cleanup operations, whether for gNMI configurations or raw CLI commands, must be registered using `t.Cleanup()` to guarantee they are executed even if the test fails or panics early.
+    *   **README Cleanup Specification:** All test plan `README.md` files must explicitly include a cleanup/teardown step (or `### Cleanup` section) specifying that any state or configuration modified during the test (e.g., disabled interfaces, drained links, altered protocol states) is reverted and the DUT is restored to its baseline operational state upon test completion. Reviewers must flag `README.md` test plans that leave interfaces or protocols in a degraded/disabled state without an explicit cleanup step.
     
+*   **Bug references:**
+
+    * References to bugs may be made using deviations.  Accessible URL format should be used, such as https://issuetracker.google.com/xxxx format links in the internal/deviations/deviations.textproto file.
+    * TODO items in a README may be documented.  It is preferred to reference to GitHub repositories or other publicly accessible URLs.  Bug tracking URLs may be used as a last resort.
+    * Internal project tracking bugs should not be referenced in README or test code.
 
 ### **2. Deviation Guidelines**
 

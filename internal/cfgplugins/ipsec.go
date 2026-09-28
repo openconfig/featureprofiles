@@ -17,6 +17,7 @@ package cfgplugins
 import (
 	"fmt"
 	"net"
+	"strings"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -364,4 +365,34 @@ func DeleteTunnelInterface(t *testing.T, dut *ondatra.DUTDevice, tunnelName stri
 	}
 
 	return batch
+}
+
+// TunnelRangeParams contains parameters for removing a range of tunnels and loopbacks.
+type TunnelRangeParams struct {
+	StartTunnel int
+	EndTunnel   int
+}
+
+// RemoveTunnelRange deletes tunnels Tunnel[start..end] and loopbacks
+// Loopback[start-1..end-1] on both DUTs.
+func RemoveTunnelRange(t *testing.T, dut1, dut2 *ondatra.DUTDevice, params TunnelRangeParams) {
+	t.Helper()
+
+	for _, dut := range []*ondatra.DUTDevice{dut1, dut2} {
+		if deviations.IpsecOcUnsupported(dut) {
+			var lines []string
+			for n := params.StartTunnel; n <= params.EndTunnel; n++ {
+				lines = append(lines, fmt.Sprintf("no interface Tunnel%d", n))
+				lines = append(lines, fmt.Sprintf("no interface Loopback%d", n-1))
+			}
+			if len(lines) > 0 {
+				helpers.GnmiCLIConfig(t, dut, strings.Join(lines, "\n"))
+			}
+		} else {
+			for n := params.StartTunnel; n <= params.EndTunnel; n++ {
+				gnmi.Delete(t, dut, gnmi.OC().Interface(fmt.Sprintf("Tunnel%d", n)).Config())
+				gnmi.Delete(t, dut, gnmi.OC().Interface(fmt.Sprintf("Loopback%d", n-1)).Config())
+			}
+		}
+	}
 }
