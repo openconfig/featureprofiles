@@ -75,7 +75,7 @@ func TestRouteReflector(t *testing.T) {
 		true,
 	)
 	dni := deviations.DefaultNetworkInstance(bs.DUT)
-	bgp := bs.DUTConf.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(cfgplugins.PTBGP, "BGP").GetOrCreateBgp().GetOrCreateGlobal()
+	bgp := bs.DUTConf.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(cfgplugins.PTBGP, deviations.DefaultBgpInstanceName(bs.DUT)).GetOrCreateBgp().GetOrCreateGlobal()
 	bgp.SetRouterId(dutLoopback.IPv4)
 
 	configureDUT(t, bs)
@@ -152,23 +152,28 @@ func configureDUT(t *testing.T, bs *cfgplugins.BGPSession) *cfgplugins.BGPSessio
 	t.Helper()
 
 	dni := deviations.DefaultNetworkInstance(bs.DUT)
-	bgp := bs.DUTConf.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(cfgplugins.PTBGP, "BGP").GetOrCreateBgp()
+	bgp := bs.DUTConf.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(cfgplugins.PTBGP, deviations.DefaultBgpInstanceName(bs.DUT)).GetOrCreateBgp()
 
 	// Increase the received and accepted prefix limits.
-	afiSafiV4 := bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-	afiSafiV4.GetOrCreateIpv4Unicast().GetOrCreatePrefixLimitReceived().MaxPrefixes = ygot.Uint32(10000000)
-	afiSafiV4.GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit().MaxPrefixes = ygot.Uint32(2000000)
-	afiSafiV6 := bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-	afiSafiV6.GetOrCreateIpv6Unicast().GetOrCreatePrefixLimitReceived().MaxPrefixes = ygot.Uint32(10000000)
-	afiSafiV6.GetOrCreateIpv6Unicast().GetOrCreatePrefixLimit().MaxPrefixes = ygot.Uint32(2000000)
-
+	if !deviations.PrefixLimitConfigUnsupported(bs.DUT) {
+		afiSafiV4 := bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+		afiSafiV4.GetOrCreateIpv4Unicast().GetOrCreatePrefixLimitReceived().MaxPrefixes = ygot.Uint32(10000000)
+		afiSafiV4.GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit().MaxPrefixes = ygot.Uint32(2000000)
+		afiSafiV6 := bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+		afiSafiV6.GetOrCreateIpv6Unicast().GetOrCreatePrefixLimitReceived().MaxPrefixes = ygot.Uint32(10000000)
+		afiSafiV6.GetOrCreateIpv6Unicast().GetOrCreatePrefixLimit().MaxPrefixes = ygot.Uint32(2000000)
+	}
+	localAddressLeaf := dutLoopback.IPv4
+	if bs.DUT.Vendor() == ondatra.CISCO {
+		localAddressLeaf = lb
+	}
 	// dutPort2 -> atePort2 peer (ibgp session)
 	ateIBGPN2IPv4 := bgp.GetOrCreateNeighbor(otgIsisPort2LoopV4)
 	ateIBGPN2IPv4.PeerGroup = ygot.String(cfgplugins.BGPPeerGroup1)
 	ateIBGPN2IPv4.PeerAs = ygot.Uint32(cfgplugins.DutAS)
 	ateIBGPN2IPv4.Enabled = ygot.Bool(true)
 	bgpNbrT := ateIBGPN2IPv4.GetOrCreateTransport()
-	bgpNbrT.LocalAddress = ygot.String(dutLoopback.IPv4)
+	bgpNbrT.LocalAddress = ygot.String(localAddressLeaf)
 	routeReflector := ateIBGPN2IPv4.GetOrCreateRouteReflector()
 	routeReflector.RouteReflectorClient = ygot.Bool(true)
 	// routeReflector.RouteReflectorClusterId = oc.UnionString(dutLoopback.IPv4)
@@ -201,7 +206,7 @@ func configureDUT(t *testing.T, bs *cfgplugins.BGPSession) *cfgplugins.BGPSessio
 	ateIBGPN3IPv4.PeerAs = ygot.Uint32(cfgplugins.DutAS)
 	ateIBGPN3IPv4.Enabled = ygot.Bool(true)
 	bgpNbrT = ateIBGPN3IPv4.GetOrCreateTransport()
-	bgpNbrT.LocalAddress = ygot.String(dutLoopback.IPv4)
+	bgpNbrT.LocalAddress = ygot.String(localAddressLeaf)
 	routeReflector = ateIBGPN3IPv4.GetOrCreateRouteReflector()
 	routeReflector.RouteReflectorClient = ygot.Bool(true)
 	// routeReflector.RouteReflectorClusterId = oc.UnionString(dutLoopback.IPv4)
@@ -325,6 +330,9 @@ func configureISIS(t *testing.T, bs *cfgplugins.BGPSession, intfName []string) {
 	}
 
 	for _, intf := range intfName {
+		if deviations.InterfaceRefInterfaceIDFormat(bs.DUT) {
+			intf += ".0"
+		}
 		isisIntf := isis.GetOrCreateInterface(intf)
 		isisIntf.Enabled = ygot.Bool(true)
 		isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
@@ -353,7 +361,7 @@ func verifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntf []string)
 
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
 	for _, intfName := range dutIntf {
-		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut) {
 			intfName = intfName + ".0"
 		}
 		nbrPath := statePath.Interface(intfName)
@@ -385,7 +393,7 @@ func verifyBgpTelemetry(t *testing.T, bs *cfgplugins.BGPSession) {
 
 	var nbrIP = []string{bs.ATEPorts[0].IPv4, bs.ATEPorts[0].IPv6, otgIsisPort2LoopV4, otgIsisPort2LoopV6, otgIsisPort3LoopV4, otgIsisPort3LoopV6}
 	t.Logf("Verifying BGP state.")
-	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(bs.DUT)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(bs.DUT)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.DefaultBgpInstanceName(bs.DUT)).Bgp()
 
 	for _, nbr := range nbrIP {
 		nbrPath := bgpPath.Neighbor(nbr)
@@ -412,7 +420,7 @@ func verifyBGPCapabilities(t *testing.T, bs *cfgplugins.BGPSession) {
 
 	t.Log("Verifying BGP capabilities.")
 	var nbrIP = []string{bs.ATEPorts[0].IPv4, bs.ATEPorts[0].IPv6, otgIsisPort2LoopV4, otgIsisPort2LoopV6, otgIsisPort3LoopV4, otgIsisPort3LoopV6}
-	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(bs.DUT)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(bs.DUT)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.DefaultBgpInstanceName(bs.DUT)).Bgp()
 	for _, nbr := range nbrIP {
 		nbrPath := statePath.Neighbor(nbr)
 		capabilities := map[oc.E_BgpTypes_BGP_CAPABILITY]bool{
@@ -514,7 +522,7 @@ func createInternetPrefixesV6(t *testing.T) []netip.Prefix {
 
 func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr string, wantSent uint32, isV4 bool) {
 	t.Helper()
-	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.DefaultBgpInstanceName(dut)).Bgp()
 	t.Logf("Prefix telemetry on DUT for peer %v", nbr)
 
 	var prefixPath *netinstbgp.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_PrefixesPath

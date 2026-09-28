@@ -96,8 +96,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.AssignToNetworkInstance(t, dut, dp1.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
 
-	applyForwardingPolicy(t, dp1.Name())
-
 	// configure 16 L3 subinterfaces under DUT port#2 and assign them to DEFAULT vrf
 	configureDUTSubIfs(t, d, dut, dp2)
 }
@@ -138,7 +136,7 @@ func applyForwardingPolicy(t *testing.T, ingressPort string) {
 	d := &oc.Root{}
 	dut := ondatra.DUT(t, "dut")
 	interfaceID := ingressPort
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+	if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
 		interfaceID = ingressPort + ".0"
 	}
 	pfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID)
@@ -313,7 +311,13 @@ func TestScaling(t *testing.T) {
 			V4ReEncapNHGCount:     *fpargs.V4ReEncapNHGCount,
 		},
 	)
+
 	createFlow(t, ate, top, vrfConfigs[1])
+
+	t.Log("ARP resolved. Applying Forwarding Policy now")
+	dp1 := dut.Port(t, "port1")
+	applyForwardingPolicy(t, dp1.Name())
+
 	var maxEntries int = 10000
 	for _, vrfConfig := range vrfConfigs {
 		entries := append(vrfConfig.NHs, vrfConfig.NHGs...)
@@ -376,25 +380,15 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, vrfTC
 
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
-	otgutils.WaitForARP(t, ate.OTG(), top, "flow")
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 }
 
 func checkTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
+	defer otgutils.LogFlowMetrics(t, ate.OTG(), top)
+	defer otgutils.LogPortMetrics(t, ate.OTG(), top)
 	ate.OTG().StartTraffic(t)
 	time.Sleep(time.Second * 30)
 	ate.OTG().StopTraffic(t)
 
-	otgutils.LogFlowMetrics(t, ate.OTG(), top)
-	otgutils.LogPortMetrics(t, ate.OTG(), top)
-
-	t.Log("Checking flow telemetry...")
-	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow("flow").State())
-	txPackets := recvMetric.GetCounters().GetOutPkts()
-	rxPackets := recvMetric.GetCounters().GetInPkts()
-	lostPackets := txPackets - rxPackets
-	lossPct := lostPackets * 100 / txPackets
-
-	if lossPct > 1 {
-		t.Errorf("FAIL- Got %v%% packet loss for %s ; expected < 1%%", lossPct, "flow")
-	}
+	otgutils.ExpectedTrafficLoss(t, ate.OTG(), "flow", 0, 1)
 }

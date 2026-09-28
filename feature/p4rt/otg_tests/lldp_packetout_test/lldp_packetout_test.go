@@ -37,6 +37,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 	p4pb "github.com/p4lang/p4runtime/go/p4/v1"
 )
@@ -47,7 +48,7 @@ const (
 )
 
 var (
-	p4InfoFile                       = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
+	p4InfoFile                       = flag.String("p4info_file_location", "../../data/wbb.p4info.pb.txt", "Path to the p4info file.")
 	streamName                       = "p4rt"
 	lldpInLayers layers.EthernetType = 0x88cc
 	deviceID                         = *ygot.Uint64(1)
@@ -164,7 +165,14 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 			sendPackets(t, test.client, packets, packetCount)
 
 			// Wait for ate stats to be populated
-			time.Sleep(60 * time.Second)
+			if test.expectPass {
+				gnmi.Watch(t, args.ate.OTG(), gnmi.OTG().Port(port).Counters().InFrames().State(), time.Minute, func(val *ygnmi.Value[uint64]) bool {
+					count, present := val.Val()
+					return present && count >= counter0 && (count-counter0 >= uint64(float64(packetCount)*0.95))
+				}).Await(t)
+			} else {
+				time.Sleep(10 * time.Second)
+			}
 
 			// Check packet counters after packet out
 			counter1 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port(port).Counters().InFrames().State())

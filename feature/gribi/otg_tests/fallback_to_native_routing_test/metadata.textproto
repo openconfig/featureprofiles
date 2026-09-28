@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "88fd6df8-9316-40cf-82d0-e8e05de4b468"
+plan_id: "TE-1.21"
+description: "gRIBI Tunnel Fallback to Native Routing"
+testbed: TESTBED_DUT_ATE_4LINKS

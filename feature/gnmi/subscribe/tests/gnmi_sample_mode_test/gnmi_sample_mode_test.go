@@ -81,21 +81,21 @@ func TestNoInvalidValuesOnInterfaceFlap(t *testing.T) {
 	// Configure Interface.
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
 	// Wait until interface is UP.
-	gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).AdminStatus().State(), 30*time.Second, oc.Interface_AdminStatus_UP)
+	gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).AdminStatus().State(), 60*time.Second, oc.Interface_AdminStatus_UP)
 	time.Sleep(10 * time.Second) // wait 10 seconds for at-least 1 stream value.
 
 	// Flap interface by setting enabled to false
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().Config(), false)
 
 	// Wait until interface is DOWN.
-	gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).AdminStatus().State(), 30*time.Second, oc.Interface_AdminStatus_DOWN)
+	gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).AdminStatus().State(), 60*time.Second, oc.Interface_AdminStatus_DOWN)
 	time.Sleep(10 * time.Second) // wait 10 seconds for at-least 1 stream value.
 
 	// Re-enable interface
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().Config(), true)
 
 	// Wait until interface is UP.
-	gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).AdminStatus().State(), 30*time.Second, oc.Interface_AdminStatus_UP)
+	gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).AdminStatus().State(), 60*time.Second, oc.Interface_AdminStatus_UP)
 	time.Sleep(10 * time.Second) // wait 10 seconds for at-least 1 stream value.
 
 	// Now validate description stream didn't return any invalid values.

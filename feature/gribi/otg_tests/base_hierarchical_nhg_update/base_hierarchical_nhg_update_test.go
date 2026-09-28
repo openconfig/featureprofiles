@@ -280,11 +280,13 @@ type transitKey struct{}
 // testBaseHierarchialNHGwithVrfPolW verifies recursive IPv4 Entry for
 // 198.51.100.0/24 (a) with vrf selection w
 func testBaseHierarchialNHGwithVrfPolW(ctx context.Context, t *testing.T, args *testArgs) {
-
+	configureDUT(t, args.dut)
 	// Remove interface from VRF-1.
 	gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(vrfName).Config())
 	p1 := args.dut.Port(t, "port1")
-	gnmi.Update(t, args.dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), args.dut))
+	if !deviations.GRIBIMACOverrideWithStaticARP(args.dut) {
+		gnmi.Update(t, args.dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), args.dut))
+	}
 	if deviations.ExplicitInterfaceInDefaultVRF(args.dut) {
 		fptest.AssignToNetworkInstance(t, args.dut, p1.Name(), deviations.DefaultNetworkInstance(args.dut), 0)
 	}
@@ -608,9 +610,7 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad, lb []
 			macFilter = pMACFilter
 		}
 		if !change {
-			if got := getLossPct(t, flow.Name()); got > 0 {
-				t.Errorf("LossPct for flow %s: got %v, want 0", flow.Name(), got)
-			}
+			otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), 0, 0)
 		}
 		etPath := gnmi.OTG().Flow(flow.Name()).TaggedMetricAny()
 		ets := gnmi.GetAll(t, ate.OTG(), etPath.State())
@@ -642,9 +642,7 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad, lb []
 			macFilter = pMACFilter
 		}
 		if !change {
-			if diff := cmp.Diff(float32(lbPct), getLossPct(t, flow.Name()), cmpopts.EquateApprox(0, lbPrecision)); diff != "" {
-				t.Errorf("Received number of packets -want,+got:\n%s", diff)
-			}
+			otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), float64(100.0-lbPct-lbPrecision), float64(100.0-lbPct+lbPrecision))
 		}
 		etPath := gnmi.OTG().Flow(flow.Name()).TaggedMetricAny()
 		ets := gnmi.GetAll(t, ate.OTG(), etPath.State())
@@ -664,9 +662,7 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad, lb []
 	}
 	for _, flow := range bad {
 		if !change {
-			if got := getLossPct(t, flow.Name()); got < 100 {
-				t.Errorf("LossPct for flow %s: got %v, want 100", flow.Name(), got)
-			}
+			otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), 100, 100)
 		}
 	}
 
@@ -854,6 +850,8 @@ func testImplementDrain(ctx context.Context, t *testing.T, args *testArgs) {
 
 	t.Log("Validate traffic switching from  ate port4 back to ate port2 and ate port3")
 	validateTrafficFlows(t, args.ate, nil, []gosnappi.Flow{p4Flow}, []gosnappi.Flow{p2Flow, p3Flow}, switchTrafficToPort2AndPort3FromPort4, args.client, true)
+	t.Log("Unconfig interfaces after Drain test")
+	defer deleteDrainConfig(t, args.dut)
 
 }
 
@@ -874,6 +872,30 @@ func deleteinterfaceconfig(t *testing.T, dut *ondatra.DUTDevice) {
 		gnmi.Delete(t, dut, d.Interface(p3.Name()).Subinterface(0).Config())
 		gnmi.Delete(t, dut, d.Interface(p4.Name()).Subinterface(0).Config())
 	}
+}
+
+// deleteDrainConfig unconfigs interfaces after drain test
+func deleteDrainConfig(t *testing.T, dut *ondatra.DUTDevice) {
+
+	p2 := dut.Port(t, "port2")
+	p3 := dut.Port(t, "port3")
+	p4 := dut.Port(t, "port4")
+
+	i2 := &oc.Interface{Name: ygot.String(btrunk2)}
+	i3 := &oc.Interface{Name: ygot.String(btrunk3)}
+	i4 := &oc.Interface{Name: ygot.String(btrunk4)}
+
+	gnmi.Delete(t, dut, gnmi.OC().Interface(btrunk2).Config())
+	gnmi.Delete(t, dut, gnmi.OC().Interface(btrunk3).Config())
+	gnmi.Delete(t, dut, gnmi.OC().Interface(btrunk4).Config())
+
+	gnmi.Delete(t, dut, gnmi.OC().Interface(p2.Name()).Config())
+	gnmi.Delete(t, dut, gnmi.OC().Interface(p3.Name()).Config())
+	gnmi.Delete(t, dut, gnmi.OC().Interface(p4.Name()).Config())
+	gnmi.Delete(t, dut, gnmi.OC().Interface(*i2.Name).Config())
+	gnmi.Delete(t, dut, gnmi.OC().Interface(*i3.Name).Config())
+	gnmi.Delete(t, dut, gnmi.OC().Interface(*i4.Name).Config())
+
 }
 
 // configDUTDrain configures ports for drain test.
@@ -961,19 +983,4 @@ func addStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
 	ipv4Nh1.NextHop, _ = ipv4Nh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union(atePort3.IPv4)
 	ipv4Nh2.NextHop, _ = ipv4Nh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union(atePort4.IPv4)
 	gnmi.Update(t, dut, d.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), ni)
-}
-
-// getLossPct returns the loss percentage for a given flow
-func getLossPct(t *testing.T, flowName string) float32 {
-	t.Helper()
-	otg := ondatra.ATE(t, "ate").OTG()
-	flowStats := gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).State())
-	txPackets := flowStats.GetCounters().GetOutPkts()
-	rxPackets := flowStats.GetCounters().GetInPkts()
-	lostPackets := txPackets - rxPackets
-	if txPackets == 0 {
-		t.Fatalf("Tx packets should be higher than 0 for flow %s", flowName)
-	}
-	lossPct := 100 * (float32(lostPackets) / float32(txPackets))
-	return lossPct
 }

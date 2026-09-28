@@ -26,6 +26,13 @@ Validate gNOI RPC can get reboot status and cancel the reboot
 The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
 ```yaml
+paths:
+  /components/component/state/name:
+    platform_type: [CONTROLLER_CARD]
+  /components/component/state/redundant-role:
+    platform_type: [CONTROLLER_CARD]
+  /components/component/state/type:
+    platform_type: [CONTROLLER_CARD]
 rpcs:
   gnoi:
     system.System.CancelReboot:

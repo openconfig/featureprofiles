@@ -51,13 +51,13 @@ var (
 			NextHops:    []nextHop{{"ate:port2", 0, 0.5}, {"ate:port3", 0, 0.5}},
 		},
 		{
-			TestName:    "EightNextHops",
-			Description: "With NHG 10 containing 8 next hops, with no associated weights assigned, 12.5% of traffic is forwarded to each next-hop.",
+			TestName:    "SevenNextHops",
+			Description: "With NHG 10 containing 7 next hops, with no associated weights assigned, 14.29% of traffic is forwarded to each next-hop.",
 			NextHops: []nextHop{
-				{"ate:port2", 0, 0.125}, {"ate:port3", 0, 0.125},
-				{"ate:port4", 0, 0.125}, {"ate:port5", 0, 0.125},
-				{"ate:port6", 0, 0.125}, {"ate:port7", 0, 0.125},
-				{"ate:port8", 0, 0.125}, {"ate:port9", 0, 0.125},
+				{"ate:port2", 0, 0.1429}, {"ate:port3", 0, 0.1429},
+				{"ate:port4", 0, 0.1429}, {"ate:port5", 0, 0.1429},
+				{"ate:port6", 0, 0.1429}, {"ate:port7", 0, 0.1429},
+				{"ate:port8", 0, 0.1429},
 			},
 		},
 

@@ -66,7 +66,7 @@ Verify that DUT drops AF4, AF3, AF2, AF1, BE1 and BE0 before NC1.
 
     *   Configure strict priority queue for NC1.
     *   Configure WRR for AF4, AF3, AF2, AF1, BE1 and BE0 with weight 48, 12, 8,
-        4, 2 and 1 respectively.
+        4, 1 and 1 respectively.
 
 *   NC1 vs AF4 traffic test
 
@@ -91,6 +91,99 @@ Verify that DUT drops AF4, AF3, AF2, AF1, BE1 and BE0 before NC1.
     *   NC1 vs AF1
     *   NC1 vs BE1
     *   NC1 vs BE0
+#### Canonical OC
+```json
+{
+  "qos": {
+    "scheduler-policies": {
+      "scheduler-policy": [
+        {
+          "config": {
+            "name": "0"
+          },
+          "name": "0",
+          "schedulers": {
+            "scheduler": [
+              {
+                "config": {
+                  "sequence": 0
+                },
+                "inputs": {
+                  "input": [
+                    {
+                      "config": {
+                        "id": "NC1",
+                        "weight": "100"
+                      },
+                      "id": "NC1"
+                    }
+                  ]
+                },
+                "sequence": 0
+              }
+            ]
+          }
+        },
+        {
+          "config": {
+            "name": "1"
+          },
+          "name": "1",
+          "schedulers": {
+            "scheduler": [
+              {
+                "config": {
+                  "sequence": 1
+                },
+                "inputs": {
+                  "input": [
+                    {
+                      "config": {
+                        "id": "AF1",
+                        "weight": "4"
+                      },
+                      "id": "AF1"
+                    },
+                    {
+                      "config": {
+                        "id": "AF2",
+                        "weight": "48"
+                      },
+                      "id": "AF2"
+                    },
+                    {
+                      "config": {
+                        "id": "AF3",
+                        "weight": "12"
+                      },
+                      "id": "AF3"
+                    },
+                    {
+                      "config": {
+                        "id": "BE0",
+                        "weight": "1"
+                      },
+                      "id": "BE0"
+                    },
+                    {
+                      "config": {
+                        "id": "BE1",
+                        "weight": "1"
+                      },
+                      "id": "BE1"
+                    }
+                  ]
+                },
+                "sequence": 1
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+```
 
 ## Config parameter coverage
 

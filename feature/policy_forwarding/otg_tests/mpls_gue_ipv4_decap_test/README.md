@@ -1,4 +1,4 @@
-# PF-1.19 - MPLSoGUE IPV4 decapsulation of IPV4/IPV6 payload 
+# PF-1.19: MPLSoGUE IPV4 decapsulation of IPV4/IPV6 payload 
 
 ## Summary
 This test verifies MPLSoGUE decapsulation of IP traffic using static MPLS LSP configuration. MPLSoGUE Traffic on ingress to the DUT is decapsulated and IPV4/IPV6 payload is forwarded towards the IPV4/IPV6 egress nexthop.
@@ -25,7 +25,7 @@ Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
 * Egress Ports: Aggregate1
     * Traffic is forwarded (egress) on Aggregate1 (ATE Ports 1,2) .
 
-## PF-1.19.1 Generate config for MPLS in GRE decap and push to DUT
+## PF-1.19.1: Generate config for MPLS in GRE decap and push to DUT
 #### Configuration
 
 #### Aggregate1 is the egress port having following configuration:
@@ -168,57 +168,104 @@ Generate traffic (100K packets at 1000 pps) on ATE Ports 3,4,5,6 having:
 Verify:
 * No packet loss when forwarding with counters incrementing corresponding to traffic
 
-## Canonical OpenConfig for policy-forwarding matching ipv4 and decapsulate GRE
+## PF-1.19.v6: Validate decapsulation of MPLS over GUE with an IPv6 outer header
+
+### Test Setup
+1. Connect the DUT to the ATE matching the testbed topology.
+2. Port 1 acts as the ingress interface for GUE traffic.
+3. Port 2 acts as the egress interface for the inner payload.
+
+### Configuration
+1. Configure IPv6 subinterfaces on both the ingress and egress ports (Port 1 and Port 2).
+2. Configure a Policy-Based Routing (PBR) rule on the DUT to identify incoming GUE traffic. The match criteria must include:
+    * The outer IPv6 Destination Address (DUT's IPv6 IP).
+    * IPv6 Next Header set to UDP (17).
+    * Specific UDP destination port indicating GUE.
+3. Apply the decapsulation action by configuring `/network-instances/network-instance[name=default]/policy-forwarding/policies/policy/rules/rule/action/config/decap-network-instance` pointing to the appropriate routing network instance (e.g., `default`) that will process the inner payload.
+
+#### Canonical OC Configuration
 ```json
 {
-  "network-instances": {
-    "network-instance": {
-      "DEFAULT": {
+  "openconfig-network-instance:network-instances": {
+    "network-instance": [
+      {
         "name": "default",
+        "config": {
+          "name": "default",
+          "type": "openconfig-network-instance-types:DEFAULT_INSTANCE"
+        },
         "policy-forwarding": {
           "policies": {
             "policy": [
               {
+                "policy-id": "gue-v6-decap-policy",
                 "config": {
-                  "policy-id": "decap MPLS in GRE"
+                  "policy-id": "gue-v6-decap-policy",
+                  "type": "PBR_POLICY"
                 },
                 "rules": {
                   "rule": [
                     {
+                      "sequence-id": 10,
                       "config": {
-                        "sequence-id": 1
+                        "sequence-id": 10
                       },
-                      "ipv4": {
+                      "ipv6": {
                         "config": {
-                          "destination-address": "169.254.125.155/28",
-                          "protocol": "IP"
+                          "destination-address": "2001:db8::1/128",
+                          "protocol": 17
+                        }
+                      },
+                      "transport": {
+                        "config": {
+                          "destination-port": 6080
                         }
                       },
                       "action": {
-                        "decapsulate-mpls-in-udp": true
-                      },
-                      "sequence-id": 1
+                        "config": {
+                          "decapsulate-gue": true,
+                          "decap-network-instance": "default"
+                        }
+                      }
                     }
                   ]
                 }
               }
             ]
           }
+        }
+      }
+    ]
+  }
+}
+```
+
+### Telemetry (gNMI Subscribe)
+* Subscribe to ingress and egress interface packet counters:
+  * `/interfaces/interface/state/counters/in-pkts`
+  * `/interfaces/interface/state/counters/out-pkts`
+* Subscribe to PBR rule match counters (if supported by the platform) to verify the policy is hit:
+  * `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts`
+
+### Traffic Execution
+1. Generate MPLS over GUE traffic from the ATE on Port 1.
+2. Ensure the outer header is IPv6 with the Source IP set to the ATE and the Destination IP set to the DUT's IPv6 address.
+3. Construct the inner payload as standard IPv4 or IPv6 routed traffic destined for an ATE subnet connected to the egress port (Port 2).
+
+### Pass/Fail Criteria
+* **Pass**: The DUT correctly identifies the GUE traffic, strips the IPv6 outer header, the UDP header, and the MPLS labels. It performs a route lookup on the inner payload and forwards it out the egress port (Port 2). The ATE receives the pristine inner payload on Port 2 with zero packet loss. The matched PBR rule counters and interface transit counters increment accordingly.
+* **Fail**: Packets are dropped at the ingress interface, the DUT forwards the packet without decapsulating, or the DUT crashes due to IPv6 GUE decap parsing errors.
+
+## Canonical OC
+```json
+{
+  "network-instances": {
+    "network-instance": [
+      {
+        "config": {
+          "name": "default"
         },
         "mpls": {
-          "global": {
-            "interface-attributes": {
-              "interface": [
-                {
-                  "config": {
-                    "interface-id": "Aggregate4",
-                    "mpls-enabled": false
-                  },
-                  "interface-id": "Aggregate4"
-                }
-              ]
-            }
-          },
           "lsps": {
             "static-lsps": {
               "static-lsp": [
@@ -229,10 +276,10 @@ Verify:
                   "egress": {
                     "config": {
                       "incoming-label": 40571,
-                      "next-hop": "169.254.1.138",
-                      "pipe-mode": true, # TODO: Add to OC data models, following https: //datatracker.ietf.org/doc/html/rfc3270#section-2.6.2
+                      "next-hop": "169.254.1.138"
                     }
-                  }
+                  },
+                  "name": "Customer IPV4 in:40571 out:pop"
                 },
                 {
                   "config": {
@@ -241,29 +288,51 @@ Verify:
                   "egress": {
                     "config": {
                       "incoming-label": 40572,
-                      "next-hop": "2600:2d00:0:1:4000:15:69:2072",
-                      "pipe-mode": true, # TODO: Add to OC data models, following https: //datatracker.ietf.org/doc/html/rfc3270#section-2.6.2
+                      "next-hop": "2600:2d00:0:1:4000:15:69:2072"
                     }
-                  }
-                },
-                {
-                  "config": {
-                    "name": "Customer multicast in:40573 out:pop"
                   },
-                  "egress": {
-                    "config": {
-                      "incoming-label": 40573,
-                      "next-hop": "239.0.1.1", # Multicast traffic must be sent out with L2 multicast header based on IP Multicast address even though there is no PIM on the egress interface
-                      "pipe-mode": true, # TODO: Add to OC data models, following https: //datatracker.ietf.org/doc/html/rfc3270#section-2.6.2
-                    }
-                  }
+                  "name": "Customer IPV6 in:40572 out:pop"
                 }
               ]
             }
           }
+        },
+        "name": "default",
+        "policy-forwarding": {
+          "policies": {
+            "policy": [
+              {
+                "config": {
+                  "policy-id": "customer10"
+                },
+                "policy-id": "customer10",
+                "rules": {
+                  "rule": [
+                    {
+                      "action": {
+                        "config": {
+                          "decapsulate-gue": true
+                        }
+                      },
+                      "config": {
+                        "sequence-id": 10
+                      },
+                      "ipv4": {
+                        "config": {
+                          "destination-address": "169.254.125.155/28",
+                          "protocol": 4
+                        }
+                      },
+                      "sequence-id": 10
+                    }
+                  ]
+                }
+              }
+            ]
+          }
         }
       }
-    }
+    ]
   }
 }
 ```
@@ -279,6 +348,10 @@ paths:
     
   # Config paths for GRE decap
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-mpls-in-udp:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decap-network-instance:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/destination-address:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/protocol:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/transport/config/destination-port:
 
   /interfaces/interface/state/counters/in-discards:
   /interfaces/interface/state/counters/in-errors:

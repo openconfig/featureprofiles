@@ -1,8 +1,14 @@
-# PF-1.7 Decapsulate MPLS in GRE and UDP
+# PF-1.7: Decapsulate MPLS in GRE and UDP
 
 Create a policy-forwarding configuration using gNMI to decapsulate MPLS
 in GRE and UDP packets which are sent to a IP from a decap pool or loopback address and apply to
 the DUT.
+Create a policy-forwarding configuration using gNMI to decapsulate MPLS
+in GRE and UDP packets which are sent to an IP from a decap pool or 
+loopback address and apply to the DUT.  Configure a static MPLS LSP
+which maps the decapsulated MPLS packets to an egress LSP (causing
+the label to be popped) and forwards the packets to a next-hop in a
+non-default network-instance.
 
 ## Topology
 
@@ -32,40 +38,74 @@ outer_ip-ttl =        "64"
 
 ### PF-1.7.1 - MPLS in GRE decapsulation set by gNMI
 
-Canonical OpenConfig for policy forwarding, matching IP prefix with action
-decapsulate in GRE.
+## Canonical OC
 
 ```json
 {
-  "openconfig-network-instance": {
-    "network-instances": [
+  "network-instances": {
+    "network-instance": [
       {
-        "afts": {
-          "policy-forwarding": {
-            "policies": [
+        "name": "DEFAULT",
+        "policy-forwarding": {
+          "policies": {
+            "policy": [
               {
                 "config": {
-                  "policy-id": "default decap rule",
-                  "type": "PBR_POLICY"
+                  "policy-id": "decap MPLS in GRE"
                 },
-                "policy": "default decap rule",
-                "rules": [
-                  {
-                    "config": {
-                      "sequence-id": 1,
-                    },
-                    "ipv6": {
+                "rules": {
+                  "rule": [
+                    {
                       "config": {
-                        "destination-address": "decap_ipv6"
+                        "sequence-id": 1
+                      },
+                      "ipv4": {
+                        "config": {
+                          "destination-address": "169.254.125.155/28"
+                        }
+                      },
+                      "action": {
+                        "config": {
+                          "decapsulate-gre": true
+                        }
                       }
-                    },
-                    "action": {
-                      "decapsulate-mpls-in-gre": TRUE  
-                     }
-                  }
-                ]
+                    }
+                  ]
+                }
               }
-            ]  
+            ]
+          }
+        },
+        "mpls": {
+          "global": {
+            "interface-attributes": {
+              "interface": [
+                {
+                  "config": {
+                    "interface-id": "Aggregate2",
+                    "mpls-enabled": false
+                  },
+                  "interface-id": "Aggregate2"
+                }
+              ]
+            }
+          },
+          "lsps": {
+            "static-lsps": {
+              "static-lsp": [
+                {
+                  "config": {
+                    "name": "Customer IPV4 in:40571 out:pop"
+                  },
+                  "egress": {
+                    "config": {
+                      "incoming-label": 40571,
+                      "next-hop": "169.254.1.138"
+                    }
+                  }
+                }
+              ]
+            }
           }
         }
       }
@@ -76,46 +116,82 @@ decapsulate in GRE.
 * Push the gNMI the policy forwarding configuration
 * Push the configuration to DUT using gnmi.Set with REPLACE option
 * Configure ATE port 1 with traffic flow
-  * Flow should have a packet encap format : outer_decap_gre_ipv6 <- MPLS label <- inner_decap_ipv6
+  * Flow1 should have a packet encap format : outer_decap_gre_ipv4 <- MPLS label <- inner_decap_ipv4
+  * Flow2 should have a packet encap format : outer_decap_gre_ipv4 <- MPLS label <- inner_decap_ipv6
+* Configure MPLS Static route to point to a next hop IP that is resolved towards ATE port 2
 * Generate traffic from ATE port 1
-* Validate ATE port 2 receives the innermost IPv4 traffic with correct VLAN and inner_decap_ipv6
+* Validate ATE port 2 receives both Flow1 and Flow2 innermost IPv4 and IPv6 traffic with correct VLAN and based on the MPLS static route
 
 ### PF-1.7.2 - MPLS in UDP decapsulation set by gNMI
 
-Canonical OpenConfig for policy forwarding, matching IP prefix with action
-decapsulate MPLS in UDP.
+## Canonical OC
 
 ```json
 {
-  "openconfig-network-instance": {
-    "network-instances": [
+  "network-instances": {
+    "network-instance": [
       {
-        "afts": {
-          "policy-forwarding": {
-            "policies": [
+        "name": "default",
+        "policy-forwarding": {
+          "policies": {
+            "policy": [
               {
                 "config": {
-                  "policy-id": "default decap rule",
-                  "type": "PBR_POLICY"
+                  "policy-id": "decap MPLS in UDP"
                 },
-                "policy": "default decap rule",
-                "rules": [
-                  {
-                    "config": {
-                      "sequence-id": 1,
-                    },
-                    "ipv6": {
+                "rules": {
+                  "rule": [
+                    {
                       "config": {
-                        "destination-address": "decap_ipv6"
+                        "sequence-id": 1
+                      },
+                      "ipv4": {
+                        "config": {
+                          "destination-address": "169.254.126.155/28"
+                        }
+                      },
+                      "action": {
+                        "config": {
+                          "decapsulate-mpls-in-udp": true
+                        }
                       }
-                    },
-                    "action": {
-                      "decapsulate-mpls-in-udp": TRUE  
-                     }
-                  }
-                ]
+                    }
+                  ]
+                }
               }
-            ]  
+            ]
+          }
+        },
+        "mpls": {
+          "global": {
+            "interface-attributes": {
+              "interface": [
+                {
+                  "config": {
+                    "interface-id": "Aggregate4",
+                    "mpls-enabled": false
+                  },
+                  "interface-id": "Aggregate4"
+                }
+              ]
+            }
+          },
+          "lsps": {
+            "static-lsps": {
+              "static-lsp": [
+                {
+                  "config": {
+                    "name": "Customer IPV4 in:40571 out:pop"
+                  },
+                  "egress": {
+                    "config": {
+                      "incoming-label": 40571,
+                      "next-hop": "169.254.1.138"
+                    }
+                  }
+                }
+              ]
+            }
           }
         }
       }
@@ -142,6 +218,9 @@ paths:
   # Paths added for PF-1.7.2 - MPLS in UDP decapsulation set by gNMI
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-mpls-in-udp:
 
+  #TODO: Add OC for next-network-instance see https://github.com/openconfig/public/pull/1395
+  # set the network-instance to be used for the egress LSP next-hop
+  # TODO: /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/nh-network-instance
 
 rpcs:
   gnmi:

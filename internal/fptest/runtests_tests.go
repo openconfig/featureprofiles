@@ -8,6 +8,7 @@ import (
 	"github.com/openconfig/ygnmi/ygnmi"
 )
 
+// TestDatapointValidator confirms behavior of datapointValidator.
 func TestDatapointValidator(t *testing.T) {
 	tests := []struct {
 		name    string

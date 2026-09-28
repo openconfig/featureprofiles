@@ -18,6 +18,7 @@ platform_exceptions: {
     interface_enabled: true
     default_network_instance: "default"
     skip_setting_disable_metric_propagation: true
+    match_as_path_set_unsupported: true
   }
 }
 

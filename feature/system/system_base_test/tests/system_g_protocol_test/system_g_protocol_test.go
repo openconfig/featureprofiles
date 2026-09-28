@@ -40,29 +40,38 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func dialConn(t *testing.T, dut *ondatra.DUTDevice, svc introspect.Service, wantPort uint32) *grpc.ClientConn {
+func dialConn(t *testing.T, dut *ondatra.DUTDevice, svc introspect.Service, wantPort uint32, nonStandardPort bool) *grpc.ClientConn {
 	t.Helper()
 	if svc == introspect.GNOI || svc == introspect.GNSI {
 		// Renaming service name due to gnoi and gnsi always residing on same port as gnmi.
 		svc = introspect.GNMI
 	}
 	dialer := introspect.DUTDialer(t, dut, svc)
-	if dialer.DevicePort != int(wantPort) {
-		t.Fatalf("DUT is not listening on correct port for %q: got %d, want %d", svc, dialer.DevicePort, wantPort)
+	t.Logf("Dialing %s on %s (Port: %d)", svc, dialer.DialTarget, dialer.DevicePort)
+	if !nonStandardPort {
+		if dialer.DevicePort != int(wantPort) {
+			t.Fatalf("DUT is not listening on standard port for %q: got %d, want %d", svc, dialer.DevicePort, wantPort)
+		}
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	conn, err := dialer.Dial(ctx)
 	if err != nil {
-		t.Fatalf("grpc.Dial failed to: %q", dialer.DialTarget)
+		t.Fatalf("grpc.Dial failed to: %q, port: %d, error: %v", dialer.DialTarget, dialer.DevicePort, err)
 	}
+	t.Logf("Successfully dialed %s on %s (Port: %d)", svc, dialer.DialTarget, dialer.DevicePort)
 	return conn
 }
 
 // TestGNMIClient validates that the DUT listens on standard gNMI Port.
 func TestGNMIClient(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	conn := dialConn(t, dut, introspect.GNMI, 9339)
+	var conn *grpc.ClientConn
+	if deviations.NonStandardGRPCPort(dut) {
+		conn = dialConn(t, dut, introspect.GNMI, 9339, true)
+	} else {
+		conn = dialConn(t, dut, introspect.GNMI, 9339, false)
+	}
 	c := gpb.NewGNMIClient(conn)
 
 	var req *gpb.GetRequest
@@ -86,7 +95,12 @@ func TestGNMIClient(t *testing.T) {
 // TestGNOIClient validates that the DUT listens on standard gNOI Port.
 func TestGNOIClient(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	conn := dialConn(t, dut, introspect.GNOI, 9339)
+	var conn *grpc.ClientConn
+	if deviations.NonStandardGRPCPort(dut) {
+		conn = dialConn(t, dut, introspect.GNOI, 9339, true)
+	} else {
+		conn = dialConn(t, dut, introspect.GNOI, 9339, false)
+	}
 	c := spb.NewSystemClient(conn)
 	if _, err := c.Ping(context.Background(), &spb.PingRequest{}); err != nil {
 		t.Fatalf("gnoi.system.Ping failed: %v", err)
@@ -96,7 +110,12 @@ func TestGNOIClient(t *testing.T) {
 // TestGNSIClient validates that the DUT listens on standard gNSI Port.
 func TestGNSIClient(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	conn := dialConn(t, dut, introspect.GNSI, 9339)
+	var conn *grpc.ClientConn
+	if deviations.NonStandardGRPCPort(dut) {
+		conn = dialConn(t, dut, introspect.GNSI, 9339, true)
+	} else {
+		conn = dialConn(t, dut, introspect.GNSI, 9339, false)
+	}
 	c := authzpb.NewAuthzClient(conn)
 	rsp, err := c.Get(context.Background(), &authzpb.GetRequest{})
 	if err != nil {
@@ -113,7 +132,7 @@ func TestGNSIClient(t *testing.T) {
 // TestGRIBIClient validates that the DUT listens on standard gRIBI Port.
 func TestGRIBIClient(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	conn := dialConn(t, dut, introspect.GRIBI, 9340)
+	conn := dialConn(t, dut, introspect.GRIBI, 9340, false)
 	c := gribipb.NewGRIBIClient(conn)
 	if _, err := c.Get(context.Background(), &gribipb.GetRequest{}); err != nil {
 		t.Fatalf("gribi.Get failed: %v", err)
@@ -123,7 +142,7 @@ func TestGRIBIClient(t *testing.T) {
 // TestP4RTClient validates that the DUT listens on standard P4RT Port.
 func TestP4RTClient(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	conn := dialConn(t, dut, introspect.P4RT, 9559)
+	conn := dialConn(t, dut, introspect.P4RT, 9559, false)
 	c := p4rtpb.NewP4RuntimeClient(conn)
 	if deviations.P4RTCapabilitiesUnsupported(dut) {
 		if _, err := c.Read(context.Background(), &p4rtpb.ReadRequest{

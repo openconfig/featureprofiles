@@ -1,14 +1,15 @@
 # gNMI-1.17: Controller card redundancy test
 
 ## Summary
-- collect inventory data for each controller card
-- Verify last restart time is updated
+
+- Collect inventory data for each controller card.
+- Verify that the last restart time is updated.
 
 ## Procedure
 
-### test 1 Contyroller Card inventory
+### gNMI-1.17.1: Controller Card Inventory Test
 
-* collect following attributes for each component of CONTROLLER_CARD type and verify corectness (mostly non-empty string)
+* Collect the following attributes for each component of `CONTROLLER_CARD` type and verify correctness (mostly non-empty strings):
   *   /components/component/state/empty
   *   /components/component/state/location
   *   /components/component/state/oper-status
@@ -19,8 +20,7 @@
   *   /components/component/state/last-switchover-reason/details
   *   /components/component/state/last-reboot-time
   *   /components/component/state/last-reboot-reason
- 
-  *   /components/component/state/description             
+  *   /components/component/state/description
   *   /components/component/state/hardware-version
   *   /components/component/state/id
   *   /components/component/state/mfg-name
@@ -30,77 +30,54 @@
   *   /components/component/state/serial-no
   *   /components/component/state/type
 
-* store list of present components of CONTROLLER_CARD type
+* Store the list of present components of `CONTROLLER_CARD` type.
 
-### test 2 switchover
-* Verify that all controller_cards have `switchover-ready=TRUE`
-* Collect and store `redundant-role` for each controller_card as "previous-role"
-* Initiate controller-card switchover
-* Try periodicaly (60 sec interval)  get `state/redundant-role` and `state/switchover-ready` of both CONTROLLER_CARDS  untill sucesfully recived responce, but no longer then 20 min.
-  * Collect `redundant-role` for each controller_card. Compare it with "previous-role"
-    * for controller_card of **current** "PRIMARY" role, **previous** role must be "SECONDARY"
-    * for controller_card of **current** "SECONDARY" role, **previous** role must be "PRIMARY"
-* Keep periodicly get `state/switchover-ready` until (`switchover-ready=TRUE` on all controller_cards OR `last-switchover-time` is moret then 20min ago)
-  * Wait(5min)
-  * Verify that all controller_cards has `switchover-ready=TRUE`; if so test PASSED
+### gNMI-1.17.2: Controller Card Switchover Test
 
-### test 3 Redundancy
-* Verify that all controller_cards has `switchover-ready=TRUE`
-* Select component with `redundant-role=PRIMARY`, store name as "previous_primary"
-* Perfom Controller_Card switchover and then power down "previous_primary" component. Wait 5s.
-* Collect `redundant-role` and `oper-status` from all components of CONTROLLER_CARD type as collected in test 1;
-  * verify that "previous_primary" controller `oper-status` is **not** `ACTIVE` and/or its
-`power-admin-state` is `POWER_DISABLED`; 
-  * verify that at exectly one controller_card has `redundant-role=PRIMARY` and `oper-status=ACTIVE`
-  * Depending on implementation, above leaves may be not returned for "previous_primary" controller_card.
-    This satisfy condition of this controller's `oper-status` is **not** `ACTIVE`, and it's `redundant-role`
-    is not `PRIMARY`
-  * if gNMI client can get this information, it is asumed controller card redundancy works. 
-    More torough tests of failover are part of forwarding tests.
-* Power up "previous_primary" controller card
-* Wait untill all controller_cards has `switchover-ready=TRUE` (cleanup)
- 
-### test 4 last reboot time
-* Select component with `redundant-role=SECONDARY`
-* store last-reboot-time for this component as "previous-reboot-time"
+* Verify that all controller cards have `switchover-ready=TRUE`.
+* Collect and store the `redundant-role` for each controller card as "previous-role".
+* Initiate controller card switchover.
+* Periodically (60 sec interval) attempt to get `state/redundant-role` and `state/switchover-ready` for both CONTROLLER_CARDS until a successful response is received, but for no longer than 20 min.
+  * Collect `redundant-role` for each controller card. Compare it with the "previous-role".
+    * For the controller card with the **current** "PRIMARY" role, the **previous** role must be "SECONDARY".
+    * For the controller card with the **current** "SECONDARY" role, the **previous** role must be "PRIMARY".
+* Periodically check `state/switchover-ready` until (`switchover-ready=TRUE` on all controller cards OR `last-switchover-time` is more than 20 min ago).
+  * Wait (5 min).
+  * Verify that all controller cards have `switchover-ready=TRUE`; if so, the test PASSED.
+
+### gNMI-1.17.3: Controller Card Redundancy Test
+
+* Verify that all controller cards have `switchover-ready=TRUE`.
+* Select the component with `redundant-role=PRIMARY` and store its name as "previous_primary".
+* Verify and power down the "previous_primary" component which should have already been switch over in the previous sub-test. Wait 5s.
+* Collect `redundant-role` and `oper-status` from all components of `CONTROLLER_CARD` type as collected in test 1.
+  * Verify that the "previous_primary" controller `oper-status` is **not** `ACTIVE` and/or its `power-admin-state` is `POWER_DISABLED`.
+  * Verify that exactly one controller card has `redundant-role=PRIMARY` and `oper-status=ACTIVE`.
+  * Depending on the implementation, the above leaves may not be returned for the "previous_primary" controller card. This satisfies the condition that this controller's `oper-status` is **not** `ACTIVE`, and its `redundant-role` is not `PRIMARY`.
+  * If the gNMI client can get this information, it is assumed that controller card redundancy works. More thorough tests of failover are part of forwarding tests.
+* Power up the "previous_primary" controller card.
+* Wait until all controller cards have `switchover-ready=TRUE` (cleanup).
+
+### gNMI-1.17.4: Controller Card Verify Last Reboot Test
+
+* Select the component with `redundant-role=SECONDARY`.
+* Store the `last-reboot-time` for this component as "previous-reboot-time".
 * Power down this component, wait 60 sec.
-* Power up this component
-* Wait
-* get last-reboot-time and compare with "previous-reboot-time"
-  * "previous-reboot-time" must be smaller (earlier) then recently collected last-reboot-time
+* Power up this component.
+* Wait.
+* Get the `last-reboot-time` and compare it with the "previous-reboot-time".
+  * The "previous-reboot-time" must be smaller (earlier) than the recently collected `last-reboot-time`.
 
-## Config Parameter coverage
-
-*   /components/component/controller_card/config/power-admin-state
-
-## Telemetry Parameter coverage
-
-*   /components/component/controller-card/state/power-admin-state
-  *   /components/component/state/empty
-  *   /components/component/state/location
-  *   /components/component/state/oper-status
-  *   /components/component/state/switchover-ready
-  *   /components/component/state/redundant-role
-  *   /components/component/state/last-switchover-time
-  *   /components/component/state/last-switchover-reason/trigger
-  *   /components/component/state/last-switchover-reason/details
-  *   /components/component/state/last-reboot-time
-  *   /components/component/state/last-reboot-reason
-  *   /components/component/state/description             
-  *   /components/component/state/hardware-version
-  *   /components/component/state/id
-  *   /components/component/state/mfg-name
-  *   /components/component/state/name
-  *   /components/component/state/parent
-  *   /components/component/state/part-no
-  *   /components/component/state/serial-no
-  *   /components/component/state/type
+## Canonical OC
+```json
+{}
+```
 
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
 paths:
-  ## State paths
+  # Telemetry Parameter coverage
     /components/component/controller-card/state/power-admin-state:
       platform_type: ["CONTROLLER_CARD"]
     /components/component/state/empty:
@@ -154,4 +131,5 @@ rpcs:
 ```
 
 ## Minimum DUT platform requirement
+
 *   MFF

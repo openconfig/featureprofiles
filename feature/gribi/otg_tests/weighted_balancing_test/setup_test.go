@@ -57,7 +57,13 @@ var (
 		"Amount of time to pause before sending traffic.")
 	trafficDuration = flag.Duration("traffic_duration", 30*time.Second,
 		"Duration for sending traffic.")
+	trafficPPS = flag.Uint64("traffic_pps", 10000,
+		"Packets per second for generated traffic.")
 )
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
@@ -189,13 +195,9 @@ func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
 		if i := dutInterface(dp, dut); i != nil {
 			if dp.PMD() == ondatra.PMD100GBASEFR {
 				e := i.GetOrCreateEthernet()
-				if !deviations.AutoNegotiateUnsupported(dut) {
+				if deviations.FrBreakoutFix(dut) {
 					e.AutoNegotiate = ygot.Bool(false)
-				}
-				if !deviations.DuplexModeUnsupported(dut) {
 					e.DuplexMode = oc.Ethernet_DuplexMode_FULL
-				}
-				if !deviations.PortSpeedUnsupported(dut) {
 					e.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
 				}
 			}
@@ -352,6 +354,7 @@ func createTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config)
 	}
 
 	flow.Size().SetFixed(200)
+	flow.Rate().SetPps(*trafficPPS)
 	ate.OTG().PushConfig(t, config)
 	ate.OTG().StartProtocols(t)
 }
@@ -413,7 +416,7 @@ func normalize(xs []uint64) (ys []float64, sum uint64) {
 func generateRandomPortList(count uint) []uint32 {
 	a := make([]uint32, count)
 	for index := range a {
-		a[index] = uint32(rand.Intn(65536-1) + 1)
+		a[index] = uint32(rand.Intn(65535) + 1)
 	}
 	return a
 }

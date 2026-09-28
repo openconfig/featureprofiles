@@ -9,4 +9,8 @@ platform_exceptions: {
   platform: {
     vendor: JUNIPER
   }
+  deviations: {
+    interface_ref_interface_id_format: true
+    qos_queue_requires_id: true
+  }
 }

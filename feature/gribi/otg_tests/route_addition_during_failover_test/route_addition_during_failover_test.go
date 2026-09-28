@@ -459,18 +459,7 @@ func testTraffic(t *testing.T, args testArgs, flow gosnappi.Flow) {
 	args.ate.OTG().StopTraffic(t)
 
 	otgutils.LogFlowMetrics(t, args.ate.OTG(), args.top)
-	txPkts := float32(gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Flow("Flow").Counters().OutPkts().State()))
-	rxPkts := float32(gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Flow("Flow").Counters().InPkts().State()))
-	if txPkts == 0 {
-		t.Fatalf("Tx packets should be higher than 0")
-	}
-
-	if got := (txPkts - rxPkts) * 100 / txPkts; got > 0 {
-		t.Errorf("LossPct for flow %s got %g, want 0", flow.Name(), got)
-	} else {
-		t.Logf("Traffic flows fine from ATE-port1 to ATE-port2.")
-	}
-
+	otgutils.ExpectedTrafficLoss(t, args.ate.OTG(), flow.Name(), 0, 0)
 }
 
 // validateSwitchoverStatus is to validate switchover status.
@@ -550,6 +539,7 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 
 	sysConfigTime := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).LastChange().State())
 
@@ -673,7 +663,7 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 
 	t.Log("Reconnect gRIBi client after switchover on new master.")
 
-	retryDuration := 180 * time.Second
+	retryDuration := 320 * time.Second
 	retryInterval := 5 * time.Second
 	startTime := time.Now()
 

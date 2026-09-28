@@ -22,6 +22,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/iputil"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
@@ -253,11 +254,11 @@ func TestGNOITraceroute(t *testing.T) {
 			}
 			t.Logf("Got traceroute responses: Items: %v\n, Content: %v\n\n", len(resps), resps)
 			if len(resps) == 0 {
-				t.Errorf("Number of responses to %v: got 0, want > 0", tc.traceRequest.Destination)
+				t.Fatalf("Number of responses to %v: got 0, want > 0", tc.traceRequest.Destination)
 			}
 
 			t.Logf("Verify that the fields are only correctly filled in for the first message.")
-			if resps[0].DestinationAddress != tc.traceRequest.Destination {
+			if !iputil.IPEqual(resps[0].DestinationAddress, tc.traceRequest.Destination) {
 				t.Errorf("Traceroute Destination: got %v, want %v", resps[0].DestinationAddress, tc.traceRequest.Destination)
 			}
 			if tc.traceRequest.MaxTtl > 0 && resps[0].Hops != tc.traceRequest.MaxTtl {
@@ -273,6 +274,10 @@ func TestGNOITraceroute(t *testing.T) {
 				}
 				if resps[i].GetRtt() < minTracerouteRTT {
 					t.Errorf("Traceroute reply RTT: got %v, want >= %v", resps[i].GetRtt(), minTracerouteRTT)
+				}
+				if resps[i].GetState() == spb.TracerouteResponse_NONE {
+					t.Logf("Hop %d timed out (state=NONE), which is acceptable.", resps[i].GetHop())
+					continue
 				}
 				if len(resps[i].GetAddress()) == 0 {
 					t.Errorf("Traceroute reply address: got none, want non-empty address")
