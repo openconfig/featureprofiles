@@ -237,7 +237,7 @@ func BuildVRFConfig(dut *ondatra.DUTDevice, egressIPs []string, param Param) []*
 
 	v4VIPAddrs = NewIPPool(iputil.GenerateIPs(V4VIPIPBlock, (param.V4TunnelNHGCount*param.V4TunnelNHGSplitCount)+2))
 
-	// VRF_RP
+	// VRF_RD
 
 	// * do the same as Transit VRF
 	// * but with decap to default NHG

@@ -669,30 +669,10 @@ func configureDUTLoopback(t *testing.T, dut *ondatra.DUTDevice, id int, dutLoopb
 }
 
 func verifyTrafficNodeSID(t *testing.T, ate *ondatra.ATEDevice) {
-	recvMetricV4 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v4FlowNameNodeSID).State())
-	recvMetricV6 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v6FlowNameNodeSID).State())
-
-	framesTxV4 := recvMetricV4.GetCounters().GetOutPkts()
-	framesRxV4 := recvMetricV4.GetCounters().GetInPkts()
-	framesTxV6 := recvMetricV6.GetCounters().GetOutPkts()
-	framesRxV6 := recvMetricV6.GetCounters().GetInPkts()
-
 	t.Logf("Starting V4 traffic validation")
-	if framesTxV4 == 0 {
-		t.Error("No traffic was generated and frames transmitted were 0")
-	} else if framesRxV4 == framesTxV4 {
-		t.Logf("Traffic validation successful for [%s] FramesTx: %d FramesRx: %d", v4FlowNameNodeSID, framesTxV4, framesRxV4)
-	} else {
-		t.Errorf("Traffic validation failed for [%s] FramesTx: %d FramesRx: %d", v4FlowNameNodeSID, framesTxV4, framesRxV4)
-	}
+	otgutils.ExpectedTrafficLoss(t, ate.OTG(), v4FlowNameNodeSID, 0, 0)
 	t.Logf("Starting V6 traffic validation")
-	if framesTxV6 == 0 {
-		t.Error("No traffic was generated and frames transmitted were 0")
-	} else if framesRxV6 == framesTxV6 {
-		t.Logf("Traffic validation successful for [%s] FramesTx: %d FramesRx: %d", v6FlowNameNodeSID, framesTxV6, framesRxV6)
-	} else {
-		t.Errorf("Traffic validation failed for [%s] FramesTx: %d FramesRx: %d", v6FlowNameNodeSID, framesTxV6, framesRxV6)
-	}
+	otgutils.ExpectedTrafficLoss(t, ate.OTG(), v6FlowNameNodeSID, 0, 0)
 }
 
 // startCapture starts the capture on the otg ports

@@ -892,23 +892,14 @@ func createFlowV6(t *testing.T, ts *isissession.TestSession) {
 }
 
 func checkTraffic(t *testing.T, ts *isissession.TestSession, flowName string) {
+	defer otgutils.LogFlowMetrics(t, ts.ATE.OTG(), ts.ATETop)
+	defer otgutils.LogPortMetrics(t, ts.ATE.OTG(), ts.ATETop)
 	ts.ATE.OTG().StartTraffic(t)
 	time.Sleep(time.Second * 30)
 	ts.ATE.OTG().StopTraffic(t)
 
-	otgutils.LogFlowMetrics(t, ts.ATE.OTG(), ts.ATETop)
-	otgutils.LogPortMetrics(t, ts.ATE.OTG(), ts.ATETop)
-
 	t.Log("Checking flow telemetry...")
-	recvMetric := gnmi.Get(t, ts.ATE.OTG(), gnmi.OTG().Flow(flowName).State())
-	txPackets := recvMetric.GetCounters().GetOutPkts()
-	rxPackets := recvMetric.GetCounters().GetInPkts()
-	lostPackets := txPackets - rxPackets
-	lossPct := lostPackets * 100 / txPackets
-
-	if lossPct > 1 {
-		t.Errorf("FAIL- Got %v%% packet loss for %s ; expected < 1%%", lossPct, flowName)
-	}
+	otgutils.ExpectedTrafficLoss(t, ts.ATE.OTG(), flowName, 0, 1)
 }
 
 func containsValue[T comparable](slice []T, val T) bool {
