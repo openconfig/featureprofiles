@@ -1446,7 +1446,7 @@ func ConfigureSVI(t *testing.T, dut *ondatra.DUTDevice, params SVIParams) {
 
 	// IPv4 Configuration
 	v4 := rv.GetOrCreateIpv4()
-	if deviations.InterfaceEnabled(dut) || deviations.IPv4MissingEnabled(dut) {
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 		v4.Enabled = ygot.Bool(true)
 	}
 	v4Addr := v4.GetOrCreateAddress(params.IPv4)
