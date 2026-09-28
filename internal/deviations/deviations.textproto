@@ -3973,3 +3973,23 @@ deviations: {
     }
   }
 }
+
+deviations: {
+  name: "switched_vlan_unsupported"
+  type: DEVIATION_TYPE_UNSPECIFIED
+  platforms: {
+    issue_url: "b/00000000"
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+    deviation_values: {
+      oc_standard_value: {
+        bool_val: false
+      }
+      vendor_specific_value: {
+        bool_val: true
+      }
+    }
+  }
+}
