@@ -20,6 +20,7 @@ platform_exceptions: {
     vendor: JUNIPER
   }
   deviations: {
+    interface_ref_interface_id_format: true
     ecn_profile_required_definition: true
     no_zero_suppression: true
   }

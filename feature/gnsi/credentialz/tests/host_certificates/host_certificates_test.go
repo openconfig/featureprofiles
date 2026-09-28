@@ -22,22 +22,21 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/openconfig/ondatra/gnmi"
-
 	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/security/credz"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 	"golang.org/x/crypto/ssh"
 )
 
 const (
-	hostCertificateVersion = "v1.0"
+	username = "testuser"
 )
 
 var (
-	username                 = "testuser"
-	passwordVersion          = "v1.0"
+	passwordVersion          = credz.GenerateVersion()
+	hostCertificateVersion   = credz.GenerateVersion()
 	hostCertificateCreatedOn = uint64(time.Now().Unix())
 	passwordCreatedOn        = uint64(time.Now().Unix())
 )
@@ -63,8 +62,10 @@ func TestCredentialz(t *testing.T) {
 	credz.CreateSSHKeyPair(t, dir, "ca")
 	credz.CreateSSHKeyPair(t, dir, dut.ID())
 	credz.RotateAuthenticationArtifacts(t, dut, dir, "", hostCertificateVersion, hostCertificateCreatedOn)
-	dutKey := credz.GetDutPublicKey(t, dut)
+	dutKey := credz.GetDutPublicKey(t, dut, "ssh-ed25519")
 	credz.CreateHostCertificate(t, dut, dir, dutKey)
+	hostCertificateVersion = credz.GenerateVersion()
+	hostCertificateCreatedOn = uint64(time.Now().Unix())
 	credz.RotateAuthenticationArtifacts(t, dut, "", dir, hostCertificateVersion, hostCertificateCreatedOn)
 
 	t.Run("dut should return signed host certificate", func(t *testing.T) {
@@ -83,9 +84,6 @@ func TestCredentialz(t *testing.T) {
 		}
 		wantHostKey := strings.Trim(string(ssh.MarshalAuthorizedKey(cert.Key)), "\n")
 		gotHostKey := credz.GetConfiguredHostKey(t, dut, "ssh-ed25519", *args.Fqdn)
-		if err != nil {
-			t.Fatalf("Failed parsing host certificate from device: %s", err)
-		}
 
 		// Verify correct host certificate is returned by the dut.
 		if diff := cmp.Diff(gotHostKey, wantHostKey); diff != "" {
@@ -102,7 +100,12 @@ func TestCredentialz(t *testing.T) {
 			)
 		}
 		gotHostCertificateCreatedOn := sshServer.GetActiveHostCertificateCreatedOn()
-		if got, want := gotHostCertificateCreatedOn, hostCertificateCreatedOn; got != want {
+		wantHostCertificateCreatedOn := hostCertificateCreatedOn
+		switch dut.Vendor() {
+		case ondatra.NOKIA:
+			wantHostCertificateCreatedOn *= 1e9
+		}
+		if got, want := gotHostCertificateCreatedOn, wantHostCertificateCreatedOn; got != want {
 			t.Errorf(
 				"Telemetry reports host certificate created on is not correct\n\twant: %d\n\tgot: %d",
 				want, got,

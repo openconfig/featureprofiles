@@ -19,6 +19,7 @@ platform_exceptions: {
     bgp_community_member_is_a_string: true
     skip_bgp_send_community_type: true
     match_as_path_set_unsupported: true
+    bgp_rib_streaming_config_required: true
   }
 }
 platform_exceptions: {

@@ -135,9 +135,18 @@ type ipAddr struct {
 	prefix  uint32
 }
 
+func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	hardwarePfCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeaturePolicyForwarding)
+	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwarePfCfg)
+}
+
 // configureDUT configures all the interfaces and BGP on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	dc := gnmi.OC()
+
+	t.Log("Configuring DUT hardware profile for Policy Forwarding")
+	configureHardwareInit(t, dut)
 
 	for _, portAttr := range []attrs.Attributes{dutP1, dutP2, dutP3} {
 		p := dut.Port(t, portAttr.Name).Name()

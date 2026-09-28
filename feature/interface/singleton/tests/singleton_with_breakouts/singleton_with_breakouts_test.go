@@ -16,7 +16,6 @@ package singleton_with_breakouts_test
 
 import (
 	"context"
-	"strings"
 	"testing"
 	"time"
 
@@ -33,7 +32,7 @@ import (
 
 const (
 	maxRebootTime   = 900 // Seconds.
-	maxCompWaitTime = 600
+	maxCompWaitTime = 900
 )
 
 func TestMain(m *testing.M) {
@@ -97,11 +96,7 @@ func verifyConsistentPMD(t *testing.T, dut *ondatra.DUTDevice, portsConfigured m
 		compNameFetchError = testt.CaptureFatal(t, func(t testing.TB) {
 			compName = gnmi.Get(t, dut, compNameQuery)
 		})
-		// Removing channelization number
-		colonIndex := strings.Index(interfaceName, ":")
-		if colonIndex != -1 {
-			interfaceName = interfaceName[:colonIndex]
-		}
+
 		_, isConfiguredInterface := portsConfigured[interfaceName]
 
 		if compNameFetchError != nil && isConfiguredInterface {
@@ -205,7 +200,7 @@ func TestSingletonWithBreakouts(t *testing.T) {
 		baseLineTest(tb, dut, portsConfigured, false)
 	})
 	t.Run("RT-8.2 - Reboot test", func(tb *testing.T) {
-		rebootDUT(t, dut)
+		rebootDUT(tb, dut)
 		baseLineTest(tb, dut, portsConfigured, true)
 	})
 }

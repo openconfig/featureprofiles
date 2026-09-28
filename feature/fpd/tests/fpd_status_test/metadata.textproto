@@ -1,7 +1,0 @@
-# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
-# proto-message: Metadata
-
-uuid: "ae0affb7-4367-4a91-a963-f90701cacf58"
-plan_id: "FPD-1.1"
-description: "FPD Status Test"
-testbed: TESTBED_DUT

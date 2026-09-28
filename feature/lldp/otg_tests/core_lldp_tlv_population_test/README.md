@@ -17,9 +17,46 @@ Determine LLDP advertisement and reception operates correctly.
         configuration of lldp/interfaces/interface/config/enabled (TRUE or
         FALSE) on any interface.
 
+## Canonical OC
+
+```json
+{
+  "openconfig-lldp:lldp": {
+    "config": {
+      "enabled": true,
+      "system-description": "DUT"
+    },
+    "interfaces": {
+      "interface": [
+        {
+          "name": "port1",
+          "config": {
+            "enabled": true,
+            "name": "port1"
+          }
+        }
+      ]
+    }
+  },
+  "openconfig-interfaces:interfaces": {
+    "interface": [
+      {
+        "name": "port1",
+        "config": {
+          "enabled": true,
+          "name": "port1",
+          "type": "iana-if-type:ethernetCsmacd"
+        }
+      }
+    ]
+  }
+}
+```
+
 ## OpenConfig Path and RPC Coverage
 
-The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
+The below yaml defines the OC paths intended to be covered by this test.
+OC paths used for test setup are not listed here.
 
 ```yaml
 paths:
@@ -33,11 +70,13 @@ paths:
   /lldp/interfaces/interface/neighbors/neighbor/state/chassis-id:
   /lldp/interfaces/interface/neighbors/neighbor/state/chassis-id-type:
   /lldp/interfaces/interface/neighbors/neighbor/state/port-id:
-  /lldp/interfaces/interface/neighbors/neighbor/state/system-name:
+  /lldp/interfaces/interface/neighbors/neighbor/state/port-id-type:
   /lldp/interfaces/interface/neighbors/neighbor/state/system-description:
+  /lldp/interfaces/interface/neighbors/neighbor/state/system-name:
   /lldp/interfaces/interface/state/name:
   /lldp/state/chassis-id:
   /lldp/state/chassis-id-type:
+  /lldp/state/system-description:
   /lldp/state/system-name:
 
 rpcs:

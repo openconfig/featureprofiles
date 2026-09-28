@@ -392,7 +392,7 @@ func configureGribi(t *testing.T, dut *ondatra.DUTDevice) {
 			fluent.NextHopGroupEntry().
 				WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 				WithID(nhgID).
-				AddNextHop(nhID, uint64(i+1)),
+				AddNextHop(nhID, 1),
 		)
 
 		// --- Create IPv6 route triggering MPLS-in-UDP encapsulation ---

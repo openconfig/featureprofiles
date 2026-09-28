@@ -350,7 +350,7 @@ func TestHardwareCards(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			if tc.desc == "Storage" && deviations.StorageComponentUnsupported(dut) {
 				t.Skipf("Telemetry path /components/component/storage is not supported.")
-			} else if tc.desc == "Fabric" && *args.NumLinecards <= 0 {
+			} else if tc.desc == "Fabric" && *args.NumFabrics <= 0 {
 				t.Skip("Skip Fabric Telemetry check for fixed form factor devices.")
 			} else if tc.desc == "Linecard" && *args.NumLinecards <= 0 {
 				t.Skip("Skip Linecard Telemetry check for fixed form factor devices.")
@@ -561,6 +561,62 @@ func TestTempSensor(t *testing.T) {
 			t.Logf("TempSensor %s Temperature MaxTime: %v", sName, sensor.GetTemperature().GetMaxTime())
 			if sensor.Temperature.MaxTime == nil {
 				t.Errorf("TempSensor %s: Temperature MaxTime is nil", sName)
+			}
+		})
+	}
+}
+
+func TestPowerSupplyTelemetry(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	if deviations.PowerSupplyTelemetryUnsupported(dut) {
+		t.Skip("Skip PowerSupplyTelemetry test due to deviation power_supply_telemetry_unsupported.")
+	}
+	psus := findComponentsListByType(t, dut)["PowerSupply"]
+	if len(psus) == 0 {
+		t.Fatalf("Get PowerSupply list for %q: got 0, want > 0", dut.Model())
+	}
+	t.Logf("PowerSupply components count: %d", len(psus))
+
+	for _, psu := range psus {
+		if psu.Name == nil {
+			t.Errorf("Encountered a PowerSupply component with no Name")
+			continue
+		}
+
+		if psu.GetEmpty() {
+			t.Logf("Skipping empty PowerSupply slot: %s", psu.GetName())
+			continue
+		}
+
+		pName := psu.GetName()
+		t.Run(pName, func(t *testing.T) {
+			psVal := psu.GetPowerSupply()
+			if psVal == nil {
+				t.Fatalf("PowerSupply %s state is not present in telemetry", pName)
+			}
+
+			if psVal.InputCurrent == nil {
+				t.Errorf("PowerSupply %s: /components/component/power-supply/state/input-current is nil", pName)
+			} else {
+				t.Logf("PowerSupply %s InputCurrent: %v Amps", pName, psVal.GetInputCurrent())
+			}
+
+			if psVal.InputVoltage == nil {
+				t.Errorf("PowerSupply %s: /components/component/power-supply/state/input-voltage is nil", pName)
+			} else {
+				t.Logf("PowerSupply %s InputVoltage: %v Volts", pName, psVal.GetInputVoltage())
+			}
+
+			if psVal.OutputCurrent == nil {
+				t.Errorf("PowerSupply %s: /components/component/power-supply/state/output-current is nil", pName)
+			} else {
+				t.Logf("PowerSupply %s OutputCurrent: %v Amps", pName, psVal.GetOutputCurrent())
+			}
+
+			if psVal.OutputVoltage == nil {
+				t.Errorf("PowerSupply %s: /components/component/power-supply/state/output-voltage is nil", pName)
+			} else {
+				t.Logf("PowerSupply %s OutputVoltage: %v Volts", pName, psVal.GetOutputVoltage())
 			}
 		})
 	}
@@ -1039,6 +1095,10 @@ func TestDefaultPowerAdminState(t *testing.T) {
 	for compName := range componentType {
 		for _, c := range components {
 			if c.GetType() == nil || c.GetType() != componentType[compName] {
+				continue
+			}
+			// Skip if the slot is empty
+			if c.GetEmpty() {
 				continue
 			}
 			switch compName {

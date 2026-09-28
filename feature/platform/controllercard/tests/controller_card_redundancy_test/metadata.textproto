@@ -14,3 +14,11 @@ platform_exceptions: {
     gnoi_subcomponent_reboot_status_unsupported: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    skip_controller_card_power_admin: true
+  }
+}

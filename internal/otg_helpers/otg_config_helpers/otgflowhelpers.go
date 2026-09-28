@@ -50,6 +50,7 @@ type Flow struct {
 	TCPFlow           *TCPFlowParams
 	UDPFlow           *UDPFlowParams
 	MPLSFlow          *MPLSFlowParams
+	CustomFlow        *CustomFlowParams
 	flow              gosnappi.Flow
 }
 
@@ -96,6 +97,7 @@ type IPv6FlowParams struct {
 	HopLimit          uint32
 	TrafficClass      uint32
 	TrafficClassCount uint32
+	TrafficClassStep  uint32
 }
 
 // TCPFlowParams is a struct to hold TCP traffic parameters.
@@ -121,6 +123,11 @@ type MPLSFlowParams struct {
 	MPLSLabelCount uint32
 	MPLSExpCount   uint32
 	MPLSLabelStep  uint32
+}
+
+// CustomFlowParams is a struct to hold custom header parameters.
+type CustomFlowParams struct {
+	Bytes string
 }
 
 // SizeWeightPair represents a custom Size profile for a traffic flow.
@@ -287,7 +294,10 @@ func (f *Flow) AddIPv6Header() {
 	}
 	if f.IPv6Flow.TrafficClass != 0 || f.IPv6Flow.TrafficClassCount != 0 {
 		if f.IPv6Flow.TrafficClassCount != 0 {
-			ipv6Hdr.TrafficClass().Increment().SetStart(f.IPv6Flow.TrafficClass).SetCount(f.IPv6Flow.TrafficClassCount)
+			tc := ipv6Hdr.TrafficClass().Increment().SetStart(f.IPv6Flow.TrafficClass).SetCount(f.IPv6Flow.TrafficClassCount)
+			if f.IPv6Flow.TrafficClassStep != 0 {
+				tc.SetStep(f.IPv6Flow.TrafficClassStep)
+			}
 		} else {
 			ipv6Hdr.TrafficClass().SetValue(f.IPv6Flow.TrafficClass)
 		}
@@ -322,4 +332,15 @@ func (f *Flow) AddUDPHeader() {
 	} else {
 		udpHdr.DstPort().SetValue(f.UDPFlow.UDPDstPort)
 	}
+}
+
+// AddCustomHeader adds an custom header to the flow.
+func (f *Flow) AddCustomHeader() {
+	customHeader := f.flow.Packet().Add().Custom()
+	customHeader.SetBytes(f.CustomFlow.Bytes)
+}
+
+// GetFlow will return the flow object
+func (f *Flow) GetFlow() gosnappi.Flow {
+	return f.flow
 }

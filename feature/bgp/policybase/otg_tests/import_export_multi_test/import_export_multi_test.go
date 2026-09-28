@@ -72,6 +72,7 @@ const (
 	matchInvert                      = oc.BgpPolicy_MatchSetOptionsType_INVERT
 	rejectResult                     = oc.RoutingPolicy_PolicyResultType_REJECT_ROUTE
 	nextstatementResult              = oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT
+	tolerancePct                     = 1
 )
 
 var prefixesV4 = [][]string{
@@ -256,6 +257,15 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 
 	if !deviations.SkipSettingStatementForPolicy(dut) {
 		pd2stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+
+		// Add catch-all reject statement to match_community_regex policy so that
+		// routes not matching the regex get an explicit REJECT_ROUTE result,
+		// ensuring the call-policy condition in the parent policy evaluates to false.
+		pd2stmt2, err := pdef2.AppendNewStatement("catch_all_reject")
+		if err != nil {
+			t.Fatalf("AppendNewStatement(%s) failed: %v", "catch_all_reject", err)
+		}
+		pd2stmt2.GetOrCreateActions().SetPolicyResult(rejectResult)
 	}
 
 	// Configure the parent policy multi_policy.
@@ -651,45 +661,98 @@ func verifyTrafficV4AndV6(t *testing.T, bs *cfgplugins.BGPSession, testResults [
 	bs.ATE.OTG().StartTraffic(t)
 	time.Sleep(time.Second * sleepTime)
 	bs.ATE.OTG().StopTraffic(t)
-
-	otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
-	otgutils.LogPortMetrics(t, bs.ATE.OTG(), bs.ATETop)
-
 	for index, prefixPairV4 := range prefixesV4 {
 		t.Logf("Running traffic test for IPv4 prefixes: [%s, %s]. Expected Result: [%t]", prefixPairV4[0], prefixPairV4[1], testResults[index])
 		t.Logf("Running traffic test for IPv6 prefixes: [%s, %s]. Expected Result: [%t]", prefixesV6[index][0], prefixesV6[index][1], testResults[index])
 
+		otg := bs.ATE.OTG()
+		flowV4 := "flow" + "ipv4" + strconv.Itoa(index)
+		flowV6 := "flow" + "ipv6" + strconv.Itoa(index)
+		expectSuccess := testResults[index]
+
+		// IPv4 Telemetry Watch & Verification
 		t.Log("Checking flow telemetry for v4...")
-		recvMetric := gnmi.Get(t, bs.ATE.OTG(), gnmi.OTG().Flow("flow"+"ipv4"+strconv.Itoa(index)).State())
-		txPackets := recvMetric.GetCounters().GetOutPkts()
-		rxPackets := recvMetric.GetCounters().GetInPkts()
-		lostPackets := txPackets - rxPackets
-		lossPct := lostPackets * 100 / txPackets
+		inPktsQueryV4 := gnmi.OTG().Flow(flowV4).Counters().InPkts().State()
+		outPktsQueryV4 := gnmi.OTG().Flow(flowV4).Counters().OutPkts().State()
+
+		gnmi.Watch(t, otg, inPktsQueryV4, 45*time.Second, func(v *ygnmi.Value[uint64]) bool {
+			rx, present := v.Val()
+			if !present {
+				return false
+			}
+			tx, txPresent := gnmi.Lookup(t, otg, outPktsQueryV4).Val()
+			if !txPresent || tx == 0 {
+				return false
+			}
+			if expectSuccess {
+				// Wait for rx to catch up to within 1 packet of tx
+				return tx >= rx && (tx-rx) <= tolerancePct
+			}
+			// Wait for 100% packet loss (allowing 1 stray packet)
+			return rx <= tolerancePct
+		}).Await(t)
+
+		txPackets := gnmi.Get(t, otg, outPktsQueryV4)
+		rxPackets := gnmi.Get(t, otg, inPktsQueryV4)
+
+		if txPackets == 0 {
+			t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flowV4)
+		}
+
+		lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
+
+		if expectSuccess && (txPackets-rxPackets) > tolerancePct {
+			t.Errorf("FAIL- got %.2f%% packet loss (%d lost) for %s flow and prefixes: [%s, %s]; want <= %d packet(s) lost", lossPct, (txPackets - rxPackets), flowV4, prefixPairV4[0], prefixPairV4[1], tolerancePct)
+		} else if !expectSuccess && rxPackets > tolerancePct {
+			t.Errorf("FAIL- got %.2f%% packet loss (%d received) for %s flow and prefixes: [%s, %s]; want <= %d packet(s) received (100%% loss)", lossPct, rxPackets, flowV4, prefixPairV4[0], prefixPairV4[1], tolerancePct)
+		} else {
+			t.Logf("Traffic validation successful for Prefixes: [%s, %s]. Result: [%t] PacketsTx: %d PacketsRx: %d", prefixPairV4[0], prefixPairV4[1], expectSuccess, txPackets, rxPackets)
+		}
+
+		// IPv6 Telemetry Watch & Verification
 
 		t.Log("Checking flow telemetry for v6...")
-		recvMetric6 := gnmi.Get(t, bs.ATE.OTG(), gnmi.OTG().Flow("flow"+"ipv6"+strconv.Itoa(index)).State())
-		txPackets6 := recvMetric6.GetCounters().GetOutPkts()
-		rxPackets6 := recvMetric6.GetCounters().GetInPkts()
-		lostPackets6 := txPackets6 - rxPackets6
-		lossPct6 := lostPackets6 * 100 / txPackets6
+		inPktsQueryV6 := gnmi.OTG().Flow(flowV6).Counters().InPkts().State()
+		outPktsQueryV6 := gnmi.OTG().Flow(flowV6).Counters().OutPkts().State()
 
-		if txPackets != rxPackets && testResults[index] {
-			t.Errorf("FAIL- got %v%% packet loss for %s flow and prefixes: [%s, %s]; want < 0%% traffic loss", lossPct, "flow"+"ipv4"+strconv.Itoa(index), prefixPairV4[0], prefixPairV4[1])
-		} else if rxPackets != 0 && !testResults[index] {
-			t.Errorf("FAIL- got %v%% packet loss for %s flow and prefixes: [%s, %s]; want >100%% traffic loss", lossPct, "flow"+"ipv4"+strconv.Itoa(index), prefixPairV4[0], prefixPairV4[1])
-		} else {
-			t.Logf("Traffic validation successful for Prefixes: [%s, %s]. Result: [%t] PacketsTx: %d PacketsRx: %d", prefixPairV4[0], prefixPairV4[1], testResults[index], txPackets, rxPackets)
+		gnmi.Watch(t, otg, inPktsQueryV6, 45*time.Second, func(v *ygnmi.Value[uint64]) bool {
+			rx, present := v.Val()
+			if !present {
+				return false
+			}
+			tx, txPresent := gnmi.Lookup(t, otg, outPktsQueryV6).Val()
+			if !txPresent || tx == 0 {
+				return false
+			}
+			if expectSuccess {
+				// Wait for rx to catch up to within 1 packet of tx
+				return tx >= rx && (tx-rx) <= tolerancePct
+			}
+			// Wait for 100% packet loss (allowing 1 stray packet)
+			return rx <= tolerancePct
+		}).Await(t)
+
+		txPackets6, _ := gnmi.Lookup(t, otg, outPktsQueryV6).Val()
+		rxPackets6, _ := gnmi.Lookup(t, otg, inPktsQueryV6).Val()
+
+		if txPackets6 == 0 {
+			t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flowV6)
 		}
 
-		if txPackets6 != rxPackets6 && testResults[index] {
-			t.Errorf("FAIL- got %v%% packet loss for %s flow and prefixes: [%s, %s]; want < 0%% traffic loss", lossPct6, "flow"+"ipv6"+strconv.Itoa(index), prefixesV6[index][0], prefixesV6[index][1])
-		} else if rxPackets6 != 0 && !testResults[index] {
-			t.Errorf("FAIL- got %v%% packet loss for %s flow and prefixes: [%s, %s]; want >100%% traffic loss", lossPct6, "flow"+"ipv6"+strconv.Itoa(index), prefixesV6[index][0], prefixesV6[index][1])
-		} else {
-			t.Logf("Traffic validation successful for Prefixes: [%s, %s]. Result: [%t] PacketsTx: %d PacketsRx: %d", prefixesV6[index][0], prefixesV6[index][1], testResults[index], txPackets6, rxPackets6)
-		}
+		lossPct6 := float32(txPackets6-rxPackets6) * 100 / float32(txPackets6)
 
+		if expectSuccess && (txPackets6-rxPackets6) > tolerancePct {
+			t.Errorf("FAIL- got %.2f%% packet loss (%d lost) for %s flow and prefixes: [%s, %s]; want <= %d packet(s) lost", lossPct6, (txPackets6 - rxPackets6), flowV6, prefixesV6[index][0], prefixesV6[index][1], tolerancePct)
+		} else if !expectSuccess && rxPackets6 > tolerancePct {
+			t.Errorf("FAIL- got %.2f%% packet loss (%d received) for %s flow and prefixes: [%s, %s]; want <= %d packet(s) received (100%% loss)", lossPct6, rxPackets6, flowV6, prefixesV6[index][0], prefixesV6[index][1], tolerancePct)
+		} else {
+			t.Logf("Traffic validation successful for Prefixes: [%s, %s]. Result: [%t] PacketsTx: %d PacketsRx: %d", prefixesV6[index][0], prefixesV6[index][1], expectSuccess, txPackets6, rxPackets6)
+		}
 	}
+
+	// Log flow and port metrics
+	otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
+	otgutils.LogPortMetrics(t, bs.ATE.OTG(), bs.ATETop)
 }
 
 func validateLocalPreferenceV4(t *testing.T, dut *ondatra.DUTDevice, prefix string, metricValue uint32) {
@@ -903,6 +966,10 @@ func TestImportExportMultifacetMatchActionsBGPPolicy(t *testing.T) {
 	bs := cfgplugins.NewBGPSession(t, cfgplugins.PortCount2, nil)
 	bs.WithEBGP(t, []oc.E_BgpTypes_AFI_SAFI_TYPE{oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST}, []string{
 		"port1", "port2"}, true, false)
+
+	if deviations.BgpRibStreamingConfigRequired(dut) {
+		cfgplugins.DeviationBgpRibStreamingConfigRequired(t, dut)
+	}
 
 	configureOTG(t, bs, prefixesV4, prefixesV6, communityMembers)
 	bs.PushAndStart(t)

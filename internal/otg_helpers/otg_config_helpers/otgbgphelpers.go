@@ -47,11 +47,12 @@ type ISISInterfaceAttrs struct {
 
 // ISISAttrs defines attributes for an ISIS routing process.
 type ISISAttrs struct {
-	Name          string
-	SystemID      string
-	Hostname      string
-	AreaAddresses []string
-	Interfaces    []*ISISInterfaceAttrs
+	Name                string
+	SystemID            string
+	Hostname            string
+	AreaAddresses       []string
+	Interfaces          []*ISISInterfaceAttrs
+	SetLearnedLspFilter bool
 }
 
 // BGPPeerOption is a function to set BGPPeerAttrs options.
@@ -469,7 +470,7 @@ func CreateBGPASPath(asNumbers []uint32, segmentType gosnappi.BgpAsPathSegmentTy
 func ConfigureISIS(t *testing.T, dev gosnappi.Device, attrs *ISISAttrs) gosnappi.DeviceIsisRouter {
 	t.Helper()
 	isis := dev.Isis().SetName(attrs.Name).SetSystemId(attrs.SystemID)
-	isis.Basic().SetHostname(attrs.Hostname).SetLearnedLspFilter(true)
+	isis.Basic().SetHostname(attrs.Hostname).SetLearnedLspFilter(attrs.SetLearnedLspFilter)
 	isis.Advanced().SetAreaAddresses(attrs.AreaAddresses)
 
 	for _, intfAttrs := range attrs.Interfaces {

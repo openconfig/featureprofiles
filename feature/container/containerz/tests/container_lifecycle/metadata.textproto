@@ -12,6 +12,7 @@ platform_exceptions: {
   }
   deviations: {
     containerz_oc_unsupported: true
+    containerz_require_explicit_config_save: true
   }
 }
 
@@ -21,5 +22,14 @@ platform_exceptions: {
   }
   deviations: {
     containerz_plugin_rpc_unsupported: true
+  }
+}
+
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    containerz_retrieve_logs_unsupported: true
   }
 }

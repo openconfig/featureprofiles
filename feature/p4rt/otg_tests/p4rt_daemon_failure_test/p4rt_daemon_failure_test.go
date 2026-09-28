@@ -25,6 +25,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gnoi"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/featureprofiles/internal/p4rtutils"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
@@ -179,6 +180,8 @@ func startTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) gos
 	otg.PushConfig(t, top)
 	otg.StartProtocols(t)
 
+	otgutils.WaitForARP(t, otg, top, "IPv4")
+
 	otg.StartTraffic(t)
 
 	return flow
@@ -322,15 +325,18 @@ func TestP4RTDaemonFailure(t *testing.T) {
 		// Verify interfaceID did not change since the last time we read it.
 		changedID, notOk := watchID.Await(t)
 		if notOk {
-			t.Errorf("DUT changed /interfaces/interface/state/id during p4rt process restart.  want: %q got: %q", dutPort1.ID, changedID.String())
+			t.Errorf("DUT changed /interfaces/interface/state/id during p4rt process restart.  want: %d got: %q", dutPort1.ID, changedID.String())
 		}
-		t.Logf("OK: no change detected in /interfaces/interface/state/id want:%q got:%q", dutPort1.ID, changedID.String())
+		t.Logf("OK: no change detected in /interfaces/interface/state/id want:%d got:%q", dutPort1.ID, changedID.String())
 	}
 
 	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).State())
 	txPackets := float32(recvMetric.GetCounters().GetOutPkts())
 	rxPackets := float32(recvMetric.GetCounters().GetInPkts())
 	lostPackets := txPackets - rxPackets
+	if txPackets == 0 {
+		t.Fatalf("txPackets == 0, want > 0")
+	}
 	lossPct := lostPackets * 100 / txPackets
 
 	if lossPct > lossTolerance {
