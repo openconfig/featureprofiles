@@ -103,9 +103,12 @@ NHG 101  (8:1)
     from these weights. With the default weights, port2 receives ~39.5%
     of traffic.
 
-4.  Configure ATE ports on the same subnets as the LAGs. Each gRIBI
-    next-hop is an ATE address, and both the ATE and the DUT resolve
-    those adjacencies with ARP. No static neighbors are configured.
+4.  Configure two static LAGs on the ATE that mirror the DUT bundles
+    (ports 2+3 and ports 4+5). Each gRIBI next-hop is an ATE device on
+    one of those LAGs: NH 1501 on LAG 1, and NHs 1601, 1602, and 1603 on
+    LAG 2. The ATE and the DUT resolve every adjacency with ARP; no static
+    neighbors are configured. Because both sides are LAGs, ARP works
+    whichever member carries the request or reply.
 5.  Generate a large set of unique IPv4/UDP flow tuples (varying source IP and
     UDP ports, fixed destination IP within `198.51.100.0/24`). All addresses are
     confined to reserved ranges only — RFC 5737 documentation blocks
