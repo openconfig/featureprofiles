@@ -47,10 +47,12 @@ const (
 	FeatureACLCounters
 	FeatureAnPF
 	FeatureIngressARP
+	FeatureCFM
 	FeatureOptimizeFIBAndCounters
 	FeatureHierarchicalFIB
 	FeatureSecondaryDefaultLookup
 	FeatureAnpf
+	FeatureHighScale
 
 	aristaTcamProfileMplsTracking = `
 hardware counter feature traffic-policy in
@@ -354,10 +356,12 @@ hardware tcam
 `
 
 	nokiaSecondaryDefaultLookup = `
+platform resource-management mdb-profile id 2
 system datapath secondary-default-lookup admin-state enable
 `
 
 	aristaOptimizeFIBAndCounters = `
+   ip hardware fib hierarchical next-hop max-level 3
    ip hardware fib next-hop weight-deviation 2.0
    ip hardware fib programmed error action preserved
    hardware fec programmed all
@@ -402,6 +406,125 @@ hardware tcam
     !
     `
 
+	aristaTcamProfileCFM = `
+      hardware tcam
+   profile anPF
+      system-rule overriding-action redirect
+      !
+      feature acl vlan ipv6 egress
+         key field forwarding-type
+         action count
+         packet ipv6 forwarding bridged
+         packet ipv6 forwarding routed
+      !
+      feature cfm
+         packet ipv4 forwarding bridged
+         packet ipv6 forwarding bridged
+         packet non-ip forwarding bridged
+      !
+      feature flow tracking sampled ipv4
+         key size limit 160
+         key field dst-ip ip-frag ip-protocol l4-dst-port l4-src-port src-ip vlan vrf
+         action count sample
+         packet ipv4 forwarding bridged
+         packet ipv4 forwarding routed
+         packet ipv4 forwarding routed multicast
+      !
+      feature interface-policing
+         action count police-interface
+         packet ipv4 forwarding routed
+         packet ipv6 forwarding routed
+      !
+      feature l2-protocol forwarding
+         key size limit 160
+         key field dst-mac vlan-tag-format
+         action redirect-to-cpu
+         packet non-ip forwarding bridged
+      !
+      feature mirror ip
+         key size limit 160
+         key field dscp dst-ip ip-frag ip-protocol l4-dst-port l4-ops l4-src-port src-ip tcp-control
+         action count mirror
+         packet ipv4 forwarding bridged
+         packet ipv4 forwarding routed
+         packet ipv4 forwarding routed multicast
+         packet ipv4 non-vxlan forwarding routed decap
+      !
+      feature mpls
+         key size limit 160
+         action drop redirect set-ecn
+         packet ipv4 mpls ipv4 forwarding mpls decap
+         packet ipv4 mpls ipv6 forwarding mpls decap
+         packet mpls ipv4 forwarding mpls
+         packet mpls ipv6 forwarding mpls
+         packet mpls non-ip forwarding mpls
+      !
+      feature mpls pop ingress
+      !
+      feature mpls pop ingress multicast
+         packet mpls ipv4 forwarding mpls php
+         packet mpls ipv6 forwarding mpls php
+      !
+      feature qos ip
+         sequence 90
+         port qualifier size 2 bits
+         key field dscp dst-ip forwarding-type ip-frag ip-protocol l4-dst-port l4-ops-7b l4-src-port outer-vlan-id src-ip tcp-control vlan-tag-format
+         action count set-drop-precedence set-dscp set-policer set-tc
+         packet ipv4 forwarding bridged
+         packet ipv4 forwarding routed
+         packet ipv4 forwarding routed multicast
+         packet ipv4 mpls ipv4 forwarding mpls decap
+         packet ipv4 mpls ipv6 forwarding mpls decap
+         packet ipv4 non-vxlan forwarding routed decap
+      !
+      feature qos ipv6
+         port qualifier size 2 bits
+         key field dst-ipv6 ipv6-next-header ipv6-traffic-class l4-dst-port l4-src-port src-ipv6-high src-ipv6-low
+         action count set-drop-precedence set-dscp set-policer set-tc
+         packet ipv6 forwarding routed
+      !
+      feature qos mac
+         key size limit 160
+         port qualifier size 2 bits
+         key field forwarding-type ipv6-traffic-class mpls-traffic-class vlan
+         action count set-dscp set-policer set-tc
+         packet ipv6 forwarding bridged
+         packet mpls forwarding bridged decap
+         packet mpls ipv4 forwarding mpls
+         packet mpls ipv6 forwarding mpls
+         packet mpls non-ip forwarding mpls
+         packet non-ip forwarding bridged
+      !
+      feature traffic-policy port ipv4
+         port qualifier size 12 bits
+         key field dscp dst-ip-label dst-mac ip-frag ip-fragment-offset ip-length ip-protocol ipv4-mc l4-dst-port l4-src-port src-ip-label src-mac tcp-control ttl
+         action copy-ttl count drop redirect set-dscp set-fwd-layer-index set-tc set-ttl
+         packet ipv4 forwarding bridged
+         packet ipv4 forwarding routed
+         packet ipv4 mpls ipv4 forwarding mpls decap
+         packet ipv4 non-vxlan forwarding routed decap
+         packet mpls ipv4 forwarding bridged
+         packet mpls ipv4 forwarding mpls
+         packet mpls ipv4 forwarding routed decap
+      !
+      feature traffic-policy port ipv6
+         port qualifier size 12 bits
+         key field dst-ipv6-label dst-mac hop-limit ipv6-length ipv6-mc ipv6-next-header ipv6-traffic-class l4-dst-port l4-src-port src-ipv6-label src-mac tcp-control
+         action copy-ttl count drop redirect set-dscp set-fwd-layer-index set-tc set-ttl
+         packet ipv4 mpls ipv6 forwarding mpls decap
+         packet ipv6 forwarding bridged
+         packet ipv6 forwarding routed
+         packet ipv6 forwarding routed decap
+         packet mpls ipv6 forwarding bridged
+         packet mpls ipv6 forwarding mpls
+         packet mpls ipv6 forwarding routed decap
+      !
+      feature tunnel vxlan
+         key size limit 160
+         packet ipv4 vxlan eth ipv4 forwarding routed decap
+         packet ipv4 vxlan forwarding bridged decap
+   system profile anPF
+   `
 	aristaEnableAFTSummaries = `
    management api models
       !
@@ -1376,6 +1499,18 @@ router general
 !
    `
 
+const ciscoHighScale = `no hw-module profile cef cbf forward-class-list 0 5
+no hw-module profile cef sropt enable
+no hw-module profile cef dark-bw enable
+no hw-module profile cef te-tunnel highscale-no-ldp-over-te
+no hw-module profile route scale ipv6-unicast connected-prefix high
+hw-module profile cef hash ip-field-duplication
+hw-module profile pbr vrf-redirect
+hw-module profile qos qos-stats-push-collection
+hw-module profile cef iptunnel scale
+hw-module profile npu-compatibility Q200
+hw-module local-station-mac 0010.0010.0010`
+
 var (
 	aristaTcamProfileMap = map[FeatureType]string{
 		FeatureMplsTracking:           aristaTcamProfileMplsTracking,
@@ -1389,12 +1524,17 @@ var (
 		FeatureAnPF:                   aristaAnPF,
 		FeatureIngressARP:             aristaIngressARP,
 		FeatureOptimizeFIBAndCounters: aristaOptimizeFIBAndCounters,
+		FeatureCFM:                    aristaTcamProfileCFM,
 		FeatureAnpf:                   aristaAnpfTcamProfile,
 		FeatureHierarchicalFIB:        aristaHierarchicalFIB,
 	}
 
 	nokiaHardwareInitMap = map[FeatureType]string{
 		FeatureSecondaryDefaultLookup: nokiaSecondaryDefaultLookup,
+	}
+
+	ciscoHardwareInitMap = map[FeatureType]string{
+		FeatureHighScale: ciscoHighScale,
 	}
 )
 
@@ -1426,6 +1566,8 @@ func NewDUTHardwareInit(t *testing.T, dut *ondatra.DUTDevice, feature FeatureTyp
 		return aristaTcamProfileMap[feature]
 	case ondatra.NOKIA:
 		return nokiaHardwareInitMap[feature]
+	case ondatra.CISCO:
+		return ciscoHardwareInitMap[feature]
 	default:
 		return ""
 	}

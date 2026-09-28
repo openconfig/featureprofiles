@@ -1309,11 +1309,6 @@ func SrIgpConfigUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSrIgpConfigUnsupported()
 }
 
-// SetISISAuthWithInterfaceAuthenticationContainer returns true if Isis Authentication is blocked for one level specific config for P2P links, and the corresponding hello-authentication leafs can be set with ISIS Interface/Authentication container.
-func SetISISAuthWithInterfaceAuthenticationContainer(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSetIsisAuthWithInterfaceAuthenticationContainer()
-}
-
 // GreGueTunnelInterfaceOcUnsupported returns true if GRE/GUE tunnel interface oc is unsupported
 func GreGueTunnelInterfaceOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGreGueTunnelInterfaceOcUnsupported()
@@ -2394,6 +2389,12 @@ func BgpAdjRibOcUnsupported(dut *ondatra.DUTDevice) bool {
 // AigpMetricIncrement returns true if AIGP metric increment is not supported.
 func AigpMetricIncrement(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAigpMetricIncrement()
+}
+
+// PowerSupplyTelemetryUnsupported returns true if device does not support power supply telemetry.
+// Cisco: https://b.corp.google.com/issues/307454993
+func PowerSupplyTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPowerSupplyTelemetryUnsupported()
 }
 
 // DecapNHWithoutNextHopNIUnsupported returns true if Decap NH without NextHopNetworkInstance is not supported
