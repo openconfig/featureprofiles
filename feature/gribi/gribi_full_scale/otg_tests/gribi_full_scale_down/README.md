@@ -37,8 +37,8 @@ The test is configured with the following parameters defined in `gribi_full_scal
 * `NumEncapVRFs`: `1`
 * `NumEncapIPv4PerVRF`: `1`
 * `NumEncapIPv6PerVRF`: `1`
-* `NumUniqueEncapNH`: `1`
-* `NumEncapDefaultNHG`: `1`
+* `NumEncapNHPerVRF`: `1`
+* `NumEncapNHGPerVRF`: `1`
 * `EncapNHGLoadBalance`: 100% of NHGs pointing to 1 NH
 * `EncapNHGWeight`: 100% WCMP granularity `1/32`
 

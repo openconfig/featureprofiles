@@ -1309,11 +1309,6 @@ func SrIgpConfigUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSrIgpConfigUnsupported()
 }
 
-// SetISISAuthWithInterfaceAuthenticationContainer returns true if Isis Authentication is blocked for one level specific config for P2P links, and the corresponding hello-authentication leafs can be set with ISIS Interface/Authentication container.
-func SetISISAuthWithInterfaceAuthenticationContainer(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSetIsisAuthWithInterfaceAuthenticationContainer()
-}
-
 // GreGueTunnelInterfaceOcUnsupported returns true if GRE/GUE tunnel interface oc is unsupported
 func GreGueTunnelInterfaceOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGreGueTunnelInterfaceOcUnsupported()
@@ -2102,14 +2097,12 @@ func FpgaFt(dut *ondatra.DUTDevice) string {
 
 // AcctzRecordFailCommandUnsupported  returns true if the device does not support Acctz record for fail user
 // Juniper: https://partnerissuetracker.corp.google.com/issues/500649430
-
 func AcctzRecordFailCommandUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAcctzRecordFailCommandUnsupported()
 }
 
-// AcctzRecordFailCommandUnsupported  returns true if the device does not support Acctz record for fail user
+// AcctzRecordFailGrpcUnsupported returns true if the device does not support Acctz record for fail user
 // Juniper: https://partnerissuetracker.corp.google.com/issues/500627000
-
 func AcctzRecordFailGrpcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAcctzRecordFailGrpcUnsupported()
 }
@@ -2381,4 +2374,25 @@ func GribiAaaRoleBasedAuthzUnsupported(dut *ondatra.DUTDevice) bool {
 // Arista: https://partnerissuetracker.corp.google.com/issues/542639968#comment8
 func P4RTAaaRoleBasedAuthzUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetP4RtAaaRoleBasedAuthzUnsupported()
+}
+
+// AIGPRouteMetricNotSupported returns true if AIGP route metric is not supported.
+func AIGPRouteMetricNotSupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAigpRouteMetricNotSupported()
+}
+
+// BgpAdjRibOcUnsupported returns true if BGP adjacency rib OC is not supported.
+func BgpAdjRibOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpAdjRibOcUnsupported()
+}
+
+// AigpMetricIncrement returns true if AIGP metric increment is not supported.
+func AigpMetricIncrement(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAigpMetricIncrement()
+}
+
+// PowerSupplyTelemetryUnsupported returns true if device does not support power supply telemetry.
+// Cisco: https://b.corp.google.com/issues/307454993
+func PowerSupplyTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPowerSupplyTelemetryUnsupported()
 }

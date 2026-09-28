@@ -242,7 +242,7 @@ func applyPolicy(t *testing.T, dut *ondatra.DUTDevice, intfName string, policyNa
 	d := &oc.Root{}
 	ni := deviations.DefaultNetworkInstance(dut)
 	interfaceID := intfName
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+	if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
 		interfaceID = intfName + ".0"
 	}
 	path := gnmi.OC().NetworkInstance(ni).PolicyForwarding().Interface(interfaceID)
@@ -273,7 +273,7 @@ func applyPolicy(t *testing.T, dut *ondatra.DUTDevice, intfName string, policyNa
 func deletePolicy(t *testing.T, dut *ondatra.DUTDevice, intfName string) {
 	t.Helper()
 	interfaceID := intfName
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+	if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
 		interfaceID = intfName + ".0"
 	}
 	t.Logf("Deleting policy from interface %s", interfaceID)

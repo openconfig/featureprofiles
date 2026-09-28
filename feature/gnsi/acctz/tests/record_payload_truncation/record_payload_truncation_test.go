@@ -93,40 +93,47 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 		helpers.GnmiCLIConfig(t, dut, communitySetCLIConfig)
 	}
 
-	startTime := time.Now()
+	// Get the current time from the router via gNMI to avoid clock skew issues.
+	startTime := helpers.GetRouterTime(t, dut)
+	requestTimestamp := timestamppb.New(startTime.Truncate(time.Second))
 	request := &acctzpb.RecordRequest{
-		Timestamp: timestamppb.New(startTime),
+		Timestamp: requestTimestamp,
 	}
+
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Minute)
+	defer cancel()
 
 	acctzClient := dut.RawAPIs().GNSI(t).AcctzStream()
 	t.Logf("Sending acctz record subscribe request: %s", acctz.PrettyPrint(request))
-	acctzSubClient, err := acctzClient.RecordSubscribe(context.Background(), request, grpc.MaxCallRecvMsgSize(45000000))
+	acctzSubClient, err := acctzClient.RecordSubscribe(ctx, request, grpc.MaxCallRecvMsgSize(45000000))
 	if err != nil {
 		t.Fatalf("Failed to subscribe to acctz records: %v", err)
 	}
+	defer acctzSubClient.CloseSend()
 
 	sendOversizedPayload(t, dut)
 
-	for {
-		r := make(chan recordRequestResult)
-		go func(r chan recordRequestResult) {
+	recordChan := make(chan recordRequestResult)
+	go func() {
+		for {
 			resp, err := acctzSubClient.Recv()
-			r <- recordRequestResult{
-				record: resp,
-				err:    err,
+			res := recordRequestResult{record: resp, err: err}
+			select {
+			case recordChan <- res:
+			case <-ctx.Done():
+				return
 			}
-		}(r)
-		var done bool
-		var resp recordRequestResult
-
-		select {
-		case rr := <-r:
-			resp = rr
-		case <-time.After(60 * time.Second):
-			done = true
+			if err != nil {
+				return
+			}
 		}
+	}()
 
-		if done {
+	for {
+		var resp recordRequestResult
+		select {
+		case resp = <-recordChan:
+		case <-ctx.Done():
 			t.Fatal("Done receiving records and did not find our record...")
 		}
 
