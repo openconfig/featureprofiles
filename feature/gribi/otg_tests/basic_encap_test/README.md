@@ -2,7 +2,7 @@
 
 ## Summary
 
-Test basic encapsulation and decapsulation behaviors, including DSCP, TTL, and Explicit Congestion Notification (ECN) preservation during IP-in-IP encapsulation and congestion propagation during decapsulation per RFC 6040.
+Test basic encapsulation and decapsulation behaviors, including DSCP, TTL, and Explicit Congestion Notification (ECN) bit management during IP-in-IP encapsulation and congestion propagation during decapsulation.
 
 ## Topology
 
@@ -398,17 +398,16 @@ all defined ECN states:
     *   For each flow, the 2-bit ECN field of the outer IPv4 header (`TOS & 0x03`)
         matches the 2-bit ECN field of the inner packet header (`inner
         TOS & 0x03` for IPv4 or `inner TrafficClass & 0x03` for IPv6). For
-        platforms adhering to RFC 3168 Section 9.1.1 / RFC 6040 Section 4.1
-        Compatibility Mode (such as Juniper PTX), an arriving inner `ECT(1)` packet
-        may be encapsulated as outer `ECT(0)`.
+        platforms adhering to RFC 3168 Section 9.1.1 (such as Juniper PTX),
+        an arriving inner `ECT(1)` packet is encapsulated as outer `ECT(0)`.
     *   DSCP and TTL copy behavior remains compliant with Test-1 and Test-2.
     *   Zero packet loss across all flows.
 
-#### Test-5, ECN Decap Propagation (RFC 6040)
+#### Test-5, ECN Decap Congestion Propagation
 
 Validate that the DUT decapsulates tunneled traffic and propagates congestion
 notifications from the outer tunnel header to the inner IP header delivered to
-the end receiver per RFC 6040 / RFC 3168:
+the end receiver:
 
 1.  Send pre-encapsulated IP-in-IP (IP protocol 4) and 6in4 (IP protocol 41)
     packets to DUT port-1:
@@ -442,9 +441,22 @@ the end receiver per RFC 6040 / RFC 3168:
         matching route exists in `ENCAP_TE_VRF_A`.
     *   Zero packet loss across all valid flows.
     *   Note: Test-5 specifically tests tunnel decapsulation, TTL preservation,
-        and RFC 6040 ECN congestion propagation. Default platform egress Class of
+        and ECN congestion propagation. Default platform egress Class of
         Service (CoS) drop-precedence remarking on physical interfaces (e.g. Junos
         mapping AF11 to CS1) is permitted and logged.
+
+### ECN Standards & Platform Support
+
+Two specifications govern Explicit Congestion Notification (ECN) handling in IP tunnels:
+*   **RFC 3168 (Section 9.1.1)**: Specifies that the encapsulator sets the outgoing outer ECN field to `ECT(0)` whenever the arriving inner header is either `ECT(0)` or `ECT(1)`.
+*   **RFC 6040 (Section 4.1)**: Specifies copying `ECT(1)` to the outer header in Normal Mode.
+
+Platform compliance in this test suite:
+*   **Encapsulation**:
+    *   **Juniper (PTX)**: Implements **RFC 3168** encapsulation (inner `ECT(1)` is encapsulated as outer `ECT(0)`).
+    *   **Arista, Cisco, Nokia**: Implement **RFC 6040** encapsulation (inner `ECT(1)` is mirrored as outer `ECT(1)`).
+*   **Decapsulation**:
+    *   All tested platforms (including Juniper) propagate outer tunnel congestion (`CE = 11`) to the decapsulated inner packet per RFC 6040 decapsulation rules.
 
 ## Canonical OC
 

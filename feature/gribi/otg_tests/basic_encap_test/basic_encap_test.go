@@ -526,7 +526,7 @@ func TestBasicEncap(t *testing.T) {
 			capturePorts:       otgDstPorts,
 			validateEncapRatio: false,
 		},
-		// Test 5: ECN Decap Propagation per RFC 6040 (IPv4-in-IPv4)
+		// Test 5: ECN Decap Congestion Propagation (IPv4-in-IPv4)
 		{
 			name: fmt.Sprintf("Test5 IPv4in4 Traffic Decap ECN Outer %s Inner %s", ecnNames[EcnCE], ecnNames[EcnECT0]),
 			pattr: packetAttr{
@@ -607,7 +607,7 @@ func TestBasicEncap(t *testing.T) {
 			capturePorts:       []string{"port2"},
 			validateEncapRatio: false,
 		},
-		// Test 5: ECN Decap Propagation per RFC 6040 (IPv6-in-IPv4)
+		// Test 5: ECN Decap Congestion Propagation (IPv6-in-IPv4)
 		{
 			name: fmt.Sprintf("Test5 IPv6in4 Traffic Decap ECN Outer %s Inner %s", ecnNames[EcnCE], ecnNames[EcnECT0]),
 			pattr: packetAttr{
@@ -1566,7 +1566,7 @@ func validatePacketCapture(t *testing.T, args *testArgs, otgPortNames []string, 
 					}
 					totalPacketsInspected++
 					if got := int(innerV6.TrafficClass >> 2); got != pa.dscp {
-						// Note: TE-16.1 specifically tests Explicit Congestion Notification (ECN) decap propagation per RFC 6040.
+						// Note: TE-16.1 specifically tests Explicit Congestion Notification (ECN) decap congestion propagation.
 						// On some hardware platforms (e.g. Juniper Junos default CoS), packets entering default
 						// egress queues without an explicit CoS rewrite rule have their drop-precedence bits remarked
 						// (e.g. AF11 / DSCP 10 remarked to CS1 / DSCP 8). Log a notice rather than failing the ECN test.
@@ -1603,7 +1603,7 @@ func validatePacketCapture(t *testing.T, args *testArgs, otgPortNames []string, 
 					}
 					totalPacketsInspected++
 					if got := int(outerV4.TOS >> 2); got != pa.dscp {
-						// Note: TE-16.1 specifically tests Explicit Congestion Notification (ECN) decap propagation per RFC 6040.
+						// Note: TE-16.1 specifically tests Explicit Congestion Notification (ECN) decap congestion propagation.
 						// On some hardware platforms (e.g. Juniper Junos default CoS), packets entering default
 						// egress queues without an explicit CoS rewrite rule have their drop-precedence bits remarked
 						// (e.g. AF11 / DSCP 10 remarked to CS1 / DSCP 8). Log a notice rather than failing the ECN test.
@@ -1685,12 +1685,11 @@ func validatePacketCapture(t *testing.T, args *testArgs, otgPortNames []string, 
 					}
 
 					if outerECN != pa.ecn {
-						// Under RFC 3168 Section 9.1.1 and RFC 6040 Section 4.1 Compatibility Mode,
-						// both ECT(0) and ECT(1) represent ECN-Capable Transport (ECT).
-						// Some hardware ASICs (e.g. Juniper PTX Express silicon) implement RFC 3168 compatibility mode
-						// and encapsulate any arriving ECT packet (whether inner ECT(0) or ECT(1)) as outer ECT(0).
+						// Under RFC 3168 Section 9.1.1, tunnel encapsulators set the outgoing outer ECN field
+						// to ECT(0) whenever the arriving inner header is ECT(0) or ECT(1).
+						// Juniper PTX hardware implements RFC 3168 encapsulation.
 						if pa.ecn == EcnECT1 && outerECN == EcnECT0 && args.dut.Vendor() == ondatra.JUNIPER {
-							t.Logf("Notice on %s: DUT (%s) encapsulated inner ECT(1) as outer ECT(0) per RFC 3168 / RFC 6040 Compatibility Mode (%s)",
+							t.Logf("Notice on %s: DUT (%s) encapsulated inner ECT(1) as outer ECT(0) per RFC 3168 (%s)",
 								otgPortName, args.dut.Vendor(), innerLog)
 						} else {
 							t.Errorf("ECN value mismatch on %s: got outer %s (%d), want %s (%d) (%s)\nFull packet dump:\n%s",
