@@ -64,3 +64,4 @@ platform_exceptions:  {
     isis_interface_level1_disable_required: true
   }
 }
+tags:  TAGS_DATACENTER_EDGE
