@@ -188,7 +188,9 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 	top := configureATE(t, ate)
 
 	client := installGRIBIRoutes(t, dut, ate, top, aggIDs[1])
-	defer gribi.FlushAll(client)
+	t.Cleanup(func() {
+		gribi.FlushAll(client)
+	})
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 	for _, aggID := range aggIDs {
