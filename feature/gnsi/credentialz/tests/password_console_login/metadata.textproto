@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "902e381c-8196-436e-8f5b-f945e57ff855"
+plan_id: "Credentialz-1"
+description: "Password console login"
+testbed: TESTBED_DUT

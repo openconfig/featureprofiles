@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "e3de5b66-038d-4895-8dff-93ee2a7cf5d9"
+plan_id:  "IPSEC-1.3"
+description:  "IPSec Packet-Order with MACSec over aggregated links."
+testbed:  TESTBED_DUT_ATE_2LINKS

@@ -227,6 +227,7 @@ func TestCase_FixWithPlatformExceptions(t *testing.T) {
 					},
 				},
 			},
+			Tags: []mpb.Metadata_Tags{mpb.Metadata_TAGS_AGGREGATION},
 		},
 	}
 	if err := tc.fix(); err != nil {
@@ -248,6 +249,7 @@ func TestCase_FixWithPlatformExceptions(t *testing.T) {
 				},
 			},
 		},
+		Tags: []mpb.Metadata_Tags{mpb.Metadata_TAGS_AGGREGATION},
 	}
 	if diff := cmp.Diff(want, got, tcopts...); diff != "" {
 		t.Errorf("fixed -want,+got:\n%s", diff)

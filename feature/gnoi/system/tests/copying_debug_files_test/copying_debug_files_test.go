@@ -18,26 +18,31 @@ import (
 	"testing"
 	"time"
 
+	comps "github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/system"
 	hpb "github.com/openconfig/gnoi/healthz"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
 var (
-	bgpProcName = map[ondatra.Vendor]string{
-		ondatra.NOKIA:   "sr_bgp_mgr",
-		ondatra.ARISTA:  "Bgp-main",
+	processName = map[ondatra.Vendor]string{
+		ondatra.NOKIA:   "sr_qos_mgr",
+		ondatra.ARISTA:  "IpRib",
 		ondatra.JUNIPER: "rpd",
+		ondatra.CISCO:   "ifmgr",
 	}
 	components = map[ondatra.Vendor]string{
 		ondatra.ARISTA:  "Chassis",
-		ondatra.CISCO:   "Chassis",
+		ondatra.CISCO:   "Rack 0",
 		ondatra.JUNIPER: "CHASSIS0",
 		ondatra.NOKIA:   "Chassis",
 	}
+	componentName = map[string]string{}
 )
 
 func TestMain(m *testing.M) {
@@ -53,8 +58,8 @@ func TestMain(m *testing.M) {
 //   DUT
 //
 // Test notes:
-//. Note: Initiating checkin to experimental
-//  - KillProcess system call is used to kill bgp process.
+// Note: Initiating checkin to experimental
+//  - KillProcess system call is used to kill a process.
 //  - The healthz call needs to be modified to reflect the right component and its path.
 //
 //  - gnoi operation commands can be sent and tested using CLI command grpcurl.
@@ -64,57 +69,96 @@ func TestMain(m *testing.M) {
 func TestCopyingDebugFiles(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	gnoiClient := dut.RawAPIs().GNOI(t)
-	if _, ok := bgpProcName[dut.Vendor()]; !ok {
-		t.Fatalf("Please add support for vendor %v in var bgpProcName", dut.Vendor())
+	if _, ok := processName[dut.Vendor()]; !ok {
+		t.Fatalf("Please add support for vendor %v in var processName", dut.Vendor())
+	}
+	pID := system.FindProcessIDByName(t, dut, processName[dut.Vendor()])
+	if pID == 0 {
+		t.Fatalf("process %v not found on device", processName[dut.Vendor()])
 	}
 	killProcessRequest := &spb.KillProcessRequest{
 		Signal:  spb.KillProcessRequest_SIGNAL_KILL,
-		Name:    bgpProcName[dut.Vendor()],
-		Pid:     findProcessByName(context.Background(), t, dut, bgpProcName[dut.Vendor()]),
+		Name:    processName[dut.Vendor()],
+		Pid:     uint32(pID),
 		Restart: true,
 	}
 	processKillResponse, err := gnoiClient.System().KillProcess(context.Background(), killProcessRequest)
 	if err != nil {
-		t.Fatalf("Failed to restart process %v with unexpected err: %v", bgpProcName[dut.Vendor()], err)
+		t.Fatalf("Failed to restart process %v with unexpected err: %v", processName[dut.Vendor()], err)
 	}
 
 	t.Logf("gnoiClient.System().KillProcess() response: %v, err: %v", processKillResponse, err)
 	t.Logf("Wait 60 seconds for process to restart ...")
 	time.Sleep(60 * time.Second)
 
-	componentName := map[string]string{"name": components[dut.Vendor()]}
-	req := &hpb.GetRequest{
-		Path: &tpb.Path{
-			Elem: []*tpb.PathElem{
-				{
-					Name: "components",
-				},
-				{
-					Name: "component",
-					Key:  componentName,
-				},
-			},
+	ccList := comps.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
+	t.Logf("Found CONTROLLER_CARD list: %v", ccList)
+	var activeCC string
+	if deviations.ChassisGetRPCUnsupported(dut) {
+		if len(ccList) < 2 {
+			switch dut.Vendor() {
+			case ondatra.CISCO:
+				activeCC = "0/RP0/CPU0"
+			}
+		} else {
+			standbyControllerName, activeControllerName := comps.FindStandbyControllerCard(t, dut, ccList)
+			t.Logf("Standby RP: %v, Active RP: %v", standbyControllerName, activeControllerName)
+			activeCC = activeControllerName
+		}
+		componentName = map[string]string{"name": activeCC + "-" + processName[dut.Vendor()]} // example: 0/RP0/CPU0-ifmgr
+	} else {
+		componentName = map[string]string{"name": components[dut.Vendor()]}
+	}
+	t.Logf("Component Name: %v", componentName)
+
+	// Define the path once so it's consistent for both Check and Get
+	healthPath := &tpb.Path{
+		Elem: []*tpb.PathElem{
+			{Name: "components"},
+			{Name: "component", Key: componentName},
 		},
 	}
-	validResponse, err := gnoiClient.Healthz().Get(context.Background(), req)
-	t.Logf("Error: %v", err)
-	t.Logf("Response: %v", (validResponse))
-	if err != nil {
-		t.Fatalf("Unexpected error on healthz get response after restart of %v: %v", bgpProcName[dut.Vendor()], err)
+	if !deviations.SkipOrigin(dut) {
+		healthPath.Origin = "openconfig"
 	}
-}
 
-// findProcessByName uses telemetry to find out the PID of a process
-func findProcessByName(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, pName string) uint32 {
-	pList := gnmi.GetAll(t, dut, gnmi.OC().System().ProcessAny().State())
-	var pID uint32
-	for _, proc := range pList {
-		if proc.GetName() == pName {
-			pID = uint32(proc.GetPid())
-			t.Logf("Pid of daemon '%s' is '%d'", pName, pID)
-		}
+	// Trigger an active health check using Check()
+	checkReq := &hpb.CheckRequest{
+		Path: healthPath,
 	}
-	return pID
+	t.Logf("Triggering Healthz Check for %v", componentName)
+	if _, checkErr := gnoiClient.Healthz().Check(context.Background(), checkReq); checkErr != nil {
+		t.Logf("Warning: Healthz Check failed (may not be supported for this component): %v", checkErr)
+	}
+
+	// Poll for the results using Get()
+	req := &hpb.GetRequest{
+		Path: healthPath,
+	}
+
+	var validResponse *hpb.GetResponse
+	for i := 0; i < 5; i++ {
+		validResponse, err = gnoiClient.Healthz().Get(context.Background(), req)
+		if err == nil {
+			break
+		}
+		t.Logf("Healthz Get attempt %d failed: %v", i+1, err)
+		time.Sleep(30 * time.Second)
+	}
+	if dut.Vendor() == ondatra.JUNIPER {
+		t.Logf("Waiting 120s between Healthz RPC calls for Juniper...")
+		time.Sleep(120 * time.Second)
+	}
+	t.Logf("Error: %v", err)
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		t.Log("Skip logging validResponse for Arista")
+	default:
+		t.Logf("Response: %v", validResponse)
+	}
+	if err != nil {
+		t.Errorf("Unexpected error on healthz get response after restart of %v: %v", processName[dut.Vendor()], err)
+	}
 }
 
 func TestChassisComponentArtifacts(t *testing.T) {
@@ -135,6 +179,9 @@ func TestChassisComponentArtifacts(t *testing.T) {
 			},
 		},
 	}
+	if !deviations.SkipOrigin(dut) {
+		chkReq.Path.Origin = "openconfig"
+	}
 	t.Logf("Executing Healthz Check RPC for component %v", componentName["name"])
 	chkRes, err := gnoiClient.Healthz().Check(context.Background(), chkReq)
 	if err != nil {
@@ -148,10 +195,10 @@ func TestChassisComponentArtifacts(t *testing.T) {
 	t.Logf("Artifacts received for component %v: %v", componentName["name"], artifacts)
 	// Fetch artifact details by executing ArtifactRequest and passing the artifact ID along.
 	for _, artifact := range artifacts {
-		artId := artifact.GetId()
-		t.Logf("Executing ArtifactRequest for artifact ID %v", artId)
+		artID := artifact.GetId()
+		t.Logf("Executing ArtifactRequest for artifact ID %v", artID)
 		artReq := &hpb.ArtifactRequest{
-			Id: artId,
+			Id: artID,
 		}
 		// Verify that a valid response is received.
 		artRes, err := gnoiClient.Healthz().Artifact(context.Background(), artReq)
@@ -159,9 +206,9 @@ func TestChassisComponentArtifacts(t *testing.T) {
 			t.Fatalf("Unexpected error on executing Healthz Artifact RPC: %v", err)
 		}
 		h1, err := artRes.Header()
-		t.Logf("Header of artifact %v: %v", artId, h1)
+		t.Logf("Header of artifact %v: %v", artID, h1)
 		if err != nil {
-			t.Fatalf("Unexpected error when fetching the header of artifact %v: %v", artId, err)
+			t.Fatalf("Unexpected error when fetching the header of artifact %v: %v", artID, err)
 		}
 	}
 }

@@ -1,0 +1,179 @@
+# RT-7.2: BGP Policy Community Set
+
+## Summary
+
+BGP policy configuration for Community Sets
+
+## Subtests
+
+* RT-7.2.1 - Setup BGP sessions
+  * Generate config for 2 DUT ports, with DUT port 1 eBGP session to ATE port 1.
+  * Generate config for ATE 2 ports, with ATE port 1 eBGP session to DUT port 1.
+  * Configure ATE port 1 to advertise ipv4 and ipv6 prefixes to DUT port 1 using the following communities:
+    * prefix-set-1 with 2 routes with communities `[100:1, 200:2, 300:3]`
+    * prefix-set-2 with 2 routes with communities `[100:1, 101:1, 200:1]`
+    * prefix-set-3 with 2 routes with communities `[109:1]`
+    * prefix-set-4 with 2 routes with communities `[400:1]`
+
+  * For IPv4 and IPv6 prefixes:
+    * Observe received prefixes at ATE port-2.
+  * Generate traffic from ATE port-2 to ATE port-1.
+  * Validate that traffic can be received on ATE port-1 for all installed
+        routes.
+
+* RT-7.2.2 - Validate community-set
+  * Configure the following community sets on the DUT.
+    * Create a community-set named `any_my_3_comms` with members as follows:
+      * `{ community-member = [ "100:1", "200:2", "300:3" ] }`
+    * Create a community-set named `all_3_comms` with members and match options as follows:
+      * `{ community-member = [ "100:1", "200:2", "300:3" ] }`
+    * Create a community-set named `no_3_comms` with members and match options as follows:
+      * `{ community-member = [ "100:1", "200:2", "300:3" ]}`
+    * Create a community-set named `any_my_regex_comms` with members and match options as follows:
+      * `{ community-member = [ "10[0-9]:1" ] }`
+
+  * Create a `policy-definition` named 'community-match' with the following `statements`
+    * statement[name='accept_any_3_comms']/
+      * conditions/bgp-conditions/match-community-set/config/community-set = 'any_my_3_comms'
+      * conditions/bgp-conditions/match-community-set/config/match-set-options = ANY
+      * actions/config/policy-result = ACCEPT_ROUTE
+    * statement[name='accept_all_3_comms']/
+      * conditions/bgp-conditions/match-community-set/config/community-set = 'all_3_comms'
+      * conditions/bgp-conditions/match-community-set/config/match-set-options = ALL
+      * actions/config/policy-result = ACCEPT_ROUTE
+    * statement[name='accept_no_3_comms']/
+      * conditions/bgp-conditions/match-community-set/config/community-set = 'no_3_comms'
+      * conditions/bgp-conditions/match-community-set/config/match-set-options = INVERT
+      * actions/config/policy-result = ACCEPT_ROUTE
+    * statement[name='accept_any_my_regex_comms']/
+      * conditions/bgp-conditions/match-community-set/config/community-set = 'all_3_comms'
+      * conditions/bgp-conditions/match-community-set/config/match-set-options = ANY
+      * actions/config/policy-result = ACCEPT_ROUTE
+
+  * Send traffic from ATE port-2 to all prefix-sets.
+    * Verify traffic is received on ATE port 1 for accepted prefixes.
+    * Verify traffic is not received on ATE port 1 for rejected prefixes.
+
+* RT-7.2.3 - Update community set and validate
+  1. Configure a community-set named `update_comm_set` with "100:1" as member.
+
+  2. Create a `policy-definition` named 'community-match' with the following `statements`
+    * statement[name='accept_update_comm_set']/
+      * conditions/bgp-conditions/match-community-set/config/community-set = 'update_comm_set'
+      * conditions/bgp-conditions/match-community-set/config/match-set-options = INVERT
+      * actions/config/policy-result = ACCEPT_ROUTE
+
+  3. Send traffic from ATE port-2 to all prefix-sets.
+    * Verify traffic is received on ATE port 1 for accepted prefixes for all community set except "100:1".
+    * Verify traffic is not received on ATE port 1 for rejected prefixes for community set "100:1".
+
+  4. Update the community-set named `update_comm_set` with "200:2" as member.
+
+  5. Send traffic from ATE port-2 to all prefix-sets.
+    * Verify traffic is received on ATE port 1 for accepted prefixes for all community set except "200:1".
+    * Verify traffic is not received on ATE port 1 for rejected prefixes for community set "200:1". 
+
+
+
+### Expected community matches
+
+| prefix-set   | any_my_3_comms | all_3_comms | no_3_comms | any_my_regex_comms |
+| ------------ | -------------- | ----------- | ---------- | ------------------ |
+| prefix-set-1 | accept         | accept      | reject     | accept             |
+| prefix-set-2 | accept         | reject      | reject     | accept             |
+| prefix-set-3 | reject         | reject      | accept     | accept             |
+| prefix-set-4 | reject         | reject      | accept     | reject             |
+
+## Config Parameter Coverage
+
+### Policy definition
+
+* /routing-policy/policy-definitions/policy-definition/config/name
+* /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
+
+### Policy for community-set match
+
+* /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-set-name
+* /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-member
+* /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/match-set-options
+* /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-community-set/config/community-set
+* /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-community-set/config/match-set-options
+* /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
+* /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/
+import-policy
+
+## Telemetry Parameter Coverage
+
+### Policy definition state
+
+* /routing-policy/policy-definitions/policy-definition/state/name
+* /routing-policy/policy-definitions/policy-definition/statements/statement/state/name
+
+### Policy for community-set match state
+
+* /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/state/community-set-name
+* /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/state/community-member
+* /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/state/match-set-options
+* /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/state/community-set
+
+### Paths to verify policy state
+
+* /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/export-policy
+* /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/import-policy
+
+### Paths to verify prefixes sent and received
+
+* /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/sent
+* /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy
+* /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received
+* /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/installed
+
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths intended to be covered by this test. OC
+paths used for test setup are not listed here.
+
+```yaml
+paths:
+  ## Config paths
+  ### Policy definition
+  /routing-policy/policy-definitions/policy-definition/config/name:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/config/name:
+  ### Policy for community-set match
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-set-name:
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-member:
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/match-set-options:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-community-set/config/community-set:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-community-set/config/match-set-options:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy:
+
+  ## State paths
+  ### Policy definition state
+
+  /routing-policy/policy-definitions/policy-definition/state/name:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/state/name:
+
+  ### Policy for community-set match state
+
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/state/community-set-name:
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/state/community-member:
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/state/match-set-options:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/state/community-set:
+
+  ### Paths to verify policy state
+
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/export-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/import-policy:
+
+  ### Paths to verify prefixes sent and received
+
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/sent:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/installed:
+rpcs:
+  gnmi:
+    gNMI.Set:
+    gNMI.Subscribe:
+```

@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -155,7 +156,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 	ap1 := ate.Port(t, "port1")
 	ap2 := ate.Port(t, "port2")
 	ap3 := ate.Port(t, "port3")
-	top := ate.OTG().NewConfig(t)
+	top := gosnappi.NewConfig()
 
 	intf1.AddToOTG(top, ap1, &dutPort1)
 	intf2.AddToOTG(top, ap2, &dutPort2)
@@ -780,7 +781,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           0.7,
 			dscp:                  56,
 			expectedThroughputPct: 100.0,
-			queue:                 queues.BE1,
+			queue:                 queues.NC1,
 			inputIntf:             intf2,
 		},
 		"intf2-be1": {
@@ -1115,26 +1116,22 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			ate.OTG().StartTraffic(t)
 			time.Sleep(30 * time.Second)
 			ate.OTG().StopTraffic(t)
-			time.Sleep(30 * time.Second)
 
 			otgutils.LogFlowMetrics(t, ate.OTG(), top)
 			for trafficID, data := range trafficFlows {
+				expectedLossPct := 100.0 - data.expectedThroughputPct
+				minLossPct := expectedLossPct - tolerance
+				if minLossPct < 0 {
+					minLossPct = 0
+				}
+				maxLossPct := expectedLossPct + tolerance
+				otgutils.ExpectedTrafficLoss(t, ate.OTG(), trafficID, float64(minLossPct), float64(maxLossPct))
+
 				ateOutPkts[data.queue] += gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().OutPkts().State())
 				ateInPkts[data.queue] += gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().InPkts().State())
-				dutQosPktsAfterTraffic[data.queue] += gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State())
-				dutQosDroppedPktsAfterTraffic[data.queue] += gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State())
+				dutQosPktsAfterTraffic[data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State())
+				dutQosDroppedPktsAfterTraffic[data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State())
 				t.Logf("ateInPkts: %v, txPkts %v, Queue: %v", ateInPkts[data.queue], dutQosPktsAfterTraffic[data.queue], data.queue)
-
-				ateTxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().OutPkts().State())
-				ateRxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().InPkts().State())
-				if ateTxPkts == 0 {
-					t.Fatalf("TxPkts == 0, want >0.")
-				}
-				lossPct := (float32)((float64(ateTxPkts-ateRxPkts) * 100.0) / float64(ateTxPkts))
-				t.Logf("Get flow %q: lossPct: %.2f%% or rxPct: %.2f%%, want: %.2f%%\n\n", data.queue, lossPct, 100.0-lossPct, data.expectedThroughputPct)
-				if got, want := 100.0-lossPct, data.expectedThroughputPct; got < want-tolerance || got > want+tolerance {
-					t.Errorf("Get(throughput for queue %q): got %.2f%%, want within [%.2f%%, %.2f%%]", data.queue, got, want-tolerance, want+tolerance)
-				}
 			}
 
 			// Check QoS egress packet counters are updated correctly.

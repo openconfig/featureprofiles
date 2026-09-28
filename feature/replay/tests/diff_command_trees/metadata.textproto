@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "2cba9ffc-173d-49c2-8c02-f141561e339f"
+plan_id:  "Replay-1.1"
+description:  "Record/replay diff command trees test"
+testbed:  TESTBED_DUT

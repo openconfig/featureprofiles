@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "ae08977f-4907-4d23-8cc4-6c2d8b0cfe05"
+plan_id: "TR-6.2"
+description: "Local logging destinations"
+testbed: TESTBED_DUT

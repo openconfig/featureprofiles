@@ -10,8 +10,7 @@ platform_exceptions: {
     vendor: JUNIPER
   }
   deviations: {
-    state_path_unsupported: true
-    drop_weight_leaves_unsupported: true
-    explicit_interface_ref_definition: true
+    interface_ref_interface_id_format: true
+    qos_queue_requires_id: true
   }
 }

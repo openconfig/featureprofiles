@@ -51,12 +51,15 @@ const (
 
 	// gcpPhysicalTestTopic is the name of the pubsub topic in gcpProjectID for launching physical tests.
 	gcpPhysicalTestTopic = "featureprofiles-physical-tests"
+
+	// gcpCloudBuildServiceAccount is the service account used by all Cloud Build jobs launched for KNE tests.
+	gcpCloudBuildServiceAccount = "fp-kne-cloudbuild@disco-idea-817.iam.gserviceaccount.com"
 )
 
 // authorizedTeams is the list of GitHub organization teams authorized to launch Cloud Build jobs.
 var authorizedTeams = []string{
-	"featureprofiles-maintainers",
-	"featureprofiles-quattro-tl",
+	"featureprofiles-writers",
+	"featureprofiles-fptest-partners",
 }
 
 // triggerKeywords is the list of authorized keywords to launch a test.  The
@@ -67,32 +70,34 @@ var triggerKeywords = map[string][]deviceType{
 		{Vendor: opb.Device_ARISTA, HardwareModel: "cEOS"},
 		{Vendor: opb.Device_CISCO, HardwareModel: "8000E"},
 		{Vendor: opb.Device_CISCO, HardwareModel: "XRd"},
-		{Vendor: opb.Device_JUNIPER, HardwareModel: "cPTX"},
+		{Vendor: opb.Device_JUNIPER, HardwareModel: "ncPTX"},
 		{Vendor: opb.Device_NOKIA, HardwareModel: "SR Linux"},
 		{Vendor: opb.Device_OPENCONFIG, HardwareModel: "Lemming"},
 	},
 	"/fptest physical": {
-		{Vendor: opb.Device_ARISTA, HardwareModel: "7808"},
-		{Vendor: opb.Device_CISCO, HardwareModel: "8808"},
-		{Vendor: opb.Device_JUNIPER, HardwareModel: "PTX10008"},
-		{Vendor: opb.Device_NOKIA, HardwareModel: "7250 IXR-10e"},
+		{Vendor: opb.Device_ARISTA},
+		{Vendor: opb.Device_CISCO},
+		{Vendor: opb.Device_JUNIPER},
+		{Vendor: opb.Device_NOKIA},
 	},
 	"/fptest virtual": {
 		{Vendor: opb.Device_ARISTA, HardwareModel: "cEOS"},
 		{Vendor: opb.Device_CISCO, HardwareModel: "8000E"},
 		{Vendor: opb.Device_CISCO, HardwareModel: "XRd"},
-		{Vendor: opb.Device_JUNIPER, HardwareModel: "cPTX"},
+		{Vendor: opb.Device_JUNIPER, HardwareModel: "ncPTX"},
 		{Vendor: opb.Device_NOKIA, HardwareModel: "SR Linux"},
 		{Vendor: opb.Device_OPENCONFIG, HardwareModel: "Lemming"},
 	},
-	"/fptest arista-7808":        {{Vendor: opb.Device_ARISTA, HardwareModel: "7808"}},
+	// Physical device triggers (vendor-level)
+	"/fptest arista-physical":  {{Vendor: opb.Device_ARISTA}},
+	"/fptest cisco-physical":   {{Vendor: opb.Device_CISCO}},
+	"/fptest juniper-physical": {{Vendor: opb.Device_JUNIPER}},
+	"/fptest nokia-physical":   {{Vendor: opb.Device_NOKIA}},
+
 	"/fptest arista-ceos":        {{Vendor: opb.Device_ARISTA, HardwareModel: "cEOS"}},
 	"/fptest cisco-8000e":        {{Vendor: opb.Device_CISCO, HardwareModel: "8000E"}},
-	"/fptest cisco-8808":         {{Vendor: opb.Device_CISCO, HardwareModel: "8808"}},
 	"/fptest cisco-xrd":          {{Vendor: opb.Device_CISCO, HardwareModel: "XRd"}},
-	"/fptest juniper-cptx":       {{Vendor: opb.Device_JUNIPER, HardwareModel: "cPTX"}},
-	"/fptest juniper-ptx10008":   {{Vendor: opb.Device_JUNIPER, HardwareModel: "PTX10008"}},
-	"/fptest nokia-7250":         {{Vendor: opb.Device_NOKIA, HardwareModel: "7250 IXR-10e"}},
+	"/fptest juniper-ncptx":      {{Vendor: opb.Device_JUNIPER, HardwareModel: "ncPTX"}},
 	"/fptest nokia-srl":          {{Vendor: opb.Device_NOKIA, HardwareModel: "SR Linux"}},
 	"/fptest openconfig-lemming": {{Vendor: opb.Device_OPENCONFIG, HardwareModel: "Lemming"}},
 
@@ -100,7 +105,6 @@ var triggerKeywords = map[string][]deviceType{
 	"/fptest ceos":    {{Vendor: opb.Device_ARISTA, HardwareModel: "cEOS"}},
 	"/fptest 8000e":   {{Vendor: opb.Device_CISCO, HardwareModel: "8000E"}},
 	"/fptest xrd":     {{Vendor: opb.Device_CISCO, HardwareModel: "XRd"}},
-	"/fptest cptx":    {{Vendor: opb.Device_JUNIPER, HardwareModel: "cPTX"}},
 	"/fptest srl":     {{Vendor: opb.Device_NOKIA, HardwareModel: "SR Linux"}},
 	"/fptest lemming": {{Vendor: opb.Device_OPENCONFIG, HardwareModel: "Lemming"}},
 }
@@ -110,27 +114,27 @@ var virtualDeviceTypes = []deviceType{
 	{Vendor: opb.Device_ARISTA, HardwareModel: "cEOS"},
 	{Vendor: opb.Device_CISCO, HardwareModel: "8000E"},
 	{Vendor: opb.Device_CISCO, HardwareModel: "XRd"},
-	{Vendor: opb.Device_JUNIPER, HardwareModel: "cPTX"},
+	{Vendor: opb.Device_JUNIPER, HardwareModel: "ncPTX"},
 	{Vendor: opb.Device_NOKIA, HardwareModel: "SR Linux"},
 	{Vendor: opb.Device_OPENCONFIG, HardwareModel: "Lemming"},
 }
 
 // virtualDeviceMachineType is a map of virtual machines to their expected machine type requirement.
 var virtualDeviceMachineType = map[deviceType]string{
-	{Vendor: opb.Device_ARISTA, HardwareModel: "cEOS"}:        "e2-standard-8",
-	{Vendor: opb.Device_CISCO, HardwareModel: "8000E"}:        "n2-standard-8",
-	{Vendor: opb.Device_CISCO, HardwareModel: "XRd"}:          "e2-standard-8",
-	{Vendor: opb.Device_JUNIPER, HardwareModel: "cPTX"}:       "n2-standard-16",
-	{Vendor: opb.Device_NOKIA, HardwareModel: "SR Linux"}:     "e2-standard-8",
-	{Vendor: opb.Device_OPENCONFIG, HardwareModel: "Lemming"}: "e2-standard-8",
+	{Vendor: opb.Device_ARISTA, HardwareModel: "cEOS"}:        "e2-standard-16",
+	{Vendor: opb.Device_CISCO, HardwareModel: "8000E"}:        "n2-standard-32",
+	{Vendor: opb.Device_CISCO, HardwareModel: "XRd"}:          "e2-standard-16",
+	{Vendor: opb.Device_JUNIPER, HardwareModel: "ncPTX"}:      "e2-standard-16",
+	{Vendor: opb.Device_NOKIA, HardwareModel: "SR Linux"}:     "e2-standard-16",
+	{Vendor: opb.Device_OPENCONFIG, HardwareModel: "Lemming"}: "e2-standard-16",
 }
 
 // physicalDeviceTypes is a list of device types that can execute tests on real hardware.
 var physicalDeviceTypes = []deviceType{
-	{Vendor: opb.Device_ARISTA, HardwareModel: "7808"},
-	{Vendor: opb.Device_CISCO, HardwareModel: "8808"},
-	{Vendor: opb.Device_JUNIPER, HardwareModel: "PTX10008"},
-	{Vendor: opb.Device_NOKIA, HardwareModel: "7250 IXR-10e"},
+	{Vendor: opb.Device_ARISTA},
+	{Vendor: opb.Device_CISCO},
+	{Vendor: opb.Device_JUNIPER},
+	{Vendor: opb.Device_NOKIA},
 }
 
 func titleCase(input string) string {
@@ -142,15 +146,15 @@ var commentTpl = template.Must(template.New("commentTpl").Funcs(template.FuncMap
 {{ if .Virtual }}
 ### Virtual Devices
 
-| Device | Test | Test Documentation | Job | Raw Log |
-| --- | --- | --- | --- | --- |
-{{ range .Virtual }}| {{ .Type.Vendor.String | titleCase }} {{ .Type.HardwareModel }} | {{ range .Tests }}[![status]({{ .BadgeURL }})]({{ .TestURL }})<br />{{ end }} | {{ range .Tests }}[{{ .Name }}: {{ .Description }}]({{ .DocURL }})<br />{{ end }} | {{ if and .CloudBuildLogURL .CloudBuildID }}[{{ printf "%.8s" .CloudBuildID }}]({{ .CloudBuildLogURL }}){{ end }} | {{ if .CloudBuildRawLogURL }}[Log]({{ .CloudBuildRawLogURL }}){{ end }} |
+| Device | Test | Status | Test Documentation | Job | Raw Log |
+| --- | --- | --- | --- | --- | --- |
+{{ range .Virtual }}| {{ .Type.Vendor.String | titleCase }} {{ .Type.HardwareModel }} | {{ range .Tests }}[![status]({{ .BadgeURL }})]({{ .TestURL }})<br />{{ end }} | {{ range .Tests }}{{ .Name }}: {{ .Status }}<br />{{ end }} | {{ range .Tests }}[{{ .Name }}: {{ .Description }}]({{ .DocURL }})<br />{{ end }} | {{ if and .CloudBuildLogURL .CloudBuildID }}[{{ printf "%.8s" .CloudBuildID }}]({{ .CloudBuildLogURL }}){{ end }} | {{ if .CloudBuildRawLogURL }}[Log]({{ .CloudBuildRawLogURL }}){{ end }} |
 {{ end }}{{ end }}{{ if .Physical }}
 ### Hardware Devices
 
-| Device | Test | Test Documentation | Raw Log |
-| --- | --- | --- | --- |
-{{ range .Physical }}| {{ .Type.Vendor.String | titleCase }} {{ .Type.HardwareModel }} | {{ range .Tests }}[![status]({{ .BadgeURL }})]({{ .TestURL }})<br />{{ end }} | {{ range .Tests }}[{{ .Name }}: {{ .Description }}]({{ .DocURL }})<br />{{ end }} | {{ if .CloudBuildRawLogURL }}[Log]({{ .CloudBuildRawLogURL }}){{ end }} |
+| Device | Test | Status | Test Documentation | Raw Log |
+| --- | --- | --- | --- | --- |
+{{ range .Physical }}| {{ .Type.Vendor.String | titleCase }} {{ .Type.HardwareModel }} | {{ range .Tests }}[![status]({{ .BadgeURL }})]({{ .TestURL }})<br />{{ end }} | {{ range .Tests }}{{ .Name }}: {{ .Status }}<br />{{ end }} | {{ range .Tests }}[{{ .Name }}: {{ .Description }}]({{ .DocURL }})<br />{{ end }} | {{ if .CloudBuildRawLogURL }}[Log]({{ .CloudBuildRawLogURL }}){{ end }} |
 {{ end }}{{ end }}{{ if and (not .Virtual) (not .Physical) }}
 No tests identified for validation.
 {{ end }}

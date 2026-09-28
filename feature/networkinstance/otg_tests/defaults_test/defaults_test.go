@@ -18,9 +18,11 @@ package ni_address_families_test
 
 import (
 	"fmt"
+	"slices"
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -102,6 +104,7 @@ var (
 		IPv6Len: 64,
 		MAC:     "02:00:02:01:01:01",
 	}
+	kneDeviceModelList = []string{"ncptx", "ceos", "srlinux", "xrd"}
 )
 
 // TestDefaultAddressFamilies verifies that both IPv4 and IPv6 are enabled by default without a need for additional
@@ -110,7 +113,7 @@ var (
 func TestDefaultAddressFamilies(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	top := ate.OTG().NewConfig(t)
+	top := gosnappi.NewConfig()
 
 	p1 := ate.Port(t, "port1")
 	p2 := ate.Port(t, "port2")
@@ -136,8 +139,6 @@ func TestDefaultAddressFamilies(t *testing.T) {
 	v6 := v6Flow.Packet().Add().Ipv6()
 	v6.Src().SetValue(atePort1.IPv6)
 	v6.Dst().SetValue(atePort2.IPv6)
-
-	ate.OTG().PushConfig(t, top)
 
 	cases := []struct {
 		desc   string
@@ -175,10 +176,18 @@ func TestDefaultAddressFamilies(t *testing.T) {
 
 			fptest.LogQuery(t, "test configuration", gnmi.OC().Config(), d)
 			gnmi.Update(t, dut, gnmi.OC().Config(), d)
-
+			ate.OTG().PushConfig(t, top)
 			ate.OTG().StartProtocols(t)
 			otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 			otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
+
+			// https://github.com/openconfig/featureprofiles/issues/3410
+			// Below code will be removed once ixia issue is fixed.
+			if slices.Contains(kneDeviceModelList, dut.Model()) {
+				ate.OTG().StartTraffic(t)
+				time.Sleep(15 * time.Second)
+				ate.OTG().StopTraffic(t)
+			}
 
 			ate.OTG().StartTraffic(t)
 			time.Sleep(15 * time.Second)

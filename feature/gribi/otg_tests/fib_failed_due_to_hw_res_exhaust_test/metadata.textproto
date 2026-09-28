@@ -1,0 +1,58 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "4f04fb5b-5bc0-4214-a74d-2a30c0433078"
+plan_id: "TE-9.3"
+description: "FIB FAILURE DUE TO HARDWARE RESOURCE EXHAUST"
+testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+    subnet_mask_change_required: true
+    max_out_fib_route_count: 2500000
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    explicit_interface_in_default_vrf: true
+    interface_enabled: true
+    max_out_fib_route_count: 2600000
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+    hardware_model_regex: "PTX10002-36QDD|PTX12008"
+  }
+  deviations: {
+    max_out_fib_route_count: 3750000
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+    hardware_model_regex: "PTX10008"
+  }
+  deviations: {
+    max_out_fib_route_count: 2500000
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    omit_l2_mtu: true
+    interface_enabled: true
+    default_network_instance: "default"
+    bgp_missing_oc_max_prefixes_configuration: true
+    max_out_fib_route_count: 2500000
+  }
+}
+tags: TAGS_TRANSIT

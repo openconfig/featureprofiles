@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "65492a13-cccd-461a-9fc4-f47f1d45fa1b"
+plan_id: "Replay-1.2"
+description: "P4RT Replay Test"
+testbed: TESTBED_DUT

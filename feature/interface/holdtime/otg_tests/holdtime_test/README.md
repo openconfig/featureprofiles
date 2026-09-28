@@ -13,13 +13,13 @@ Verify oper-state behaviour
 *   Get hold-time state from device and check if it matches what was send in configuration. (some implementation may round-up/round-down values)
 ### TC2 - long down:
 *   Read timestamp of last oper-status change  form DUT port-1 
-*   Start sending Ethernet Remote Fault (RF) from OTG port-1 (or other mean which disable laser on OTG); read and store timestamp form OTG of this operation (OTG_STATE_CHANGE_TS).
-*   wait 1000 ms
+*   Start sending Ethernet Remote Fault (RF) from OTG port-1 (or other mean which disable laser on OTG); read and store the current time from DUT.
+*   wait 500 ms
 *   Read timestamp of last oper-status change  form DUT port-1 (DUT_LAST_CHANGE_TS)
 *   Verify that DUT LAG:
   * oper-status is DOWN
   * oper-status last change time has changed 
-  * DUT_LAST_CHANGE_TS = OTG_STATE_CHANGE_TS + 300ms +/- tolerance; Use tolerance of 200ms.
+  * DUT_LAST_CHANGE_TS = OTG_STATE_CHANGE_TS + 300ms +/- tolerance; Use tolerance of 700ms. (Ideal tolerance value is 200ms. But since we are reading the current time from DUT in step 2 instead of OTG we are accounting for processing delays)
 *   Stop sending Ethernet Remote Fault (RF) from OTG port-1 
 ### TC3 - short up:
 *   Start sending Ethernet Remote Fault (RF) from OTG port-1 (or other mean which disable laser on OTG)
@@ -42,29 +42,54 @@ Verify oper-state behaviour
   * DUT_LAST_CHANGE_TS = OTG_STATE_CHANGE_TS + 5000ms +/- tolerance; Use tolerance of 200ms.
 
 ### TC5 - short down:
+*   Configure hold-time down 5000ms and hold-time up 5000ms  
 *   Read timestamp of last oper-status change   
-*   Start sending Ethernet Remote Fault (RF) from OTG port-1 for **200ms** 
+*   Start sending Ethernet Remote Fault (RF) from OTG port-1 for **200ms** ; Use tolerance of 300ms
 *   Verify that DUT LAG:
   * oper-status is UP
   * oper-status last change time has NOT changed
 *   Stop sending Ethernet Remote Fault (RF) from OTG port-1 
 
-## Config Parameter Coverage
+## OpenConfig Path and RPC Coverage
 
-*   /interfaces/interface/hold-time/config/up
-*   /interfaces/interface/hold-time/config/down
+The below yaml defines the OC paths and RPC intended to be covered by this test.
 
-## Telemetry Parameter Coverage
+```yaml
+paths:
+  /interfaces/interface/hold-time/config/up:
+  /interfaces/interface/hold-time/config/down:
+  /interfaces/interface/state/oper-status:
+  /interfaces/interface/state/last-change:
 
-*   /interfaces/interface/hold-time/config/up
-*   /interfaces/interface/hold-time/config/down
-*   /interfaces/interface/state/oper-status
-*   /interfaces/interface/state/last-change
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
+```
+## Canonical OC
 
-## Protocol/RPC Parameter Coverage
-
-None
-
+```json
+{
+  "interfaces": {
+    "interface": [
+      {
+        "name": "port-1",
+        "hold-time": {
+          "config": {
+            "up": 5000,
+            "down": 300
+          }
+        },
+        "state": {
+          "oper-status": "UP",
+          "last-change": "0"
+        }
+      }
+    ]
+  }
+}
+```
 ## Minimum DUT Platform Requirement
 
 FFF

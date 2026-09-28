@@ -17,29 +17,74 @@ Determine LLDP advertisement and reception operates correctly.
         configuration of lldp/interfaces/interface/config/enabled (TRUE or
         FALSE) on any interface.
 
-## Config Parameter coverage
+## Canonical OC
 
-*   /lldp/config/enabled
-*   /lldp/interfaces/interface/config/enabled
+```json
+{
+  "openconfig-lldp:lldp": {
+    "config": {
+      "enabled": true,
+      "system-description": "DUT"
+    },
+    "interfaces": {
+      "interface": [
+        {
+          "name": "port1",
+          "config": {
+            "enabled": true,
+            "name": "port1"
+          }
+        }
+      ]
+    }
+  },
+  "openconfig-interfaces:interfaces": {
+    "interface": [
+      {
+        "name": "port1",
+        "config": {
+          "enabled": true,
+          "name": "port1",
+          "type": "iana-if-type:ethernetCsmacd"
+        }
+      }
+    ]
+  }
+}
+```
 
-## Telemetry Parameter coverage
+## OpenConfig Path and RPC Coverage
 
-*   /lldp/interfaces/interface/neighbors/neighbor/state/chassis-id
-*   /lldp/interfaces/interface/neighbors/neighbor/state/chassis-id-subtype
-*   /lldp/interfaces/interface/neighbors/neighbor/state/port-id
-*   /lldp/interfaces/interface/neighbors/neighbor/state/port-id-subtype
-*   /lldp/interfaces/interface/neighbors/neighbor/state/system-name
-*   /lldp/interfaces/interface/state/name
-*   /lldp/state/chassis-id
-*   /lldp/state/chassis-id-type
-*   /lldp/state/system-name
+The below yaml defines the OC paths intended to be covered by this test.
+OC paths used for test setup are not listed here.
 
-## Protocol/RPC Parameter coverage
+```yaml
+paths:
+  ## Config Paths ##
+  /lldp/config/enabled:
+  /lldp/config/system-description:
+  /lldp/interfaces/interface/config/enabled:
+  /lldp/interfaces/interface/config/name:
 
-LLDP:
+  ## State Paths ##
+  /lldp/interfaces/interface/neighbors/neighbor/state/chassis-id:
+  /lldp/interfaces/interface/neighbors/neighbor/state/chassis-id-type:
+  /lldp/interfaces/interface/neighbors/neighbor/state/port-id:
+  /lldp/interfaces/interface/neighbors/neighbor/state/port-id-type:
+  /lldp/interfaces/interface/neighbors/neighbor/state/system-description:
+  /lldp/interfaces/interface/neighbors/neighbor/state/system-name:
+  /lldp/interfaces/interface/state/name:
+  /lldp/state/chassis-id:
+  /lldp/state/chassis-id-type:
+  /lldp/state/system-description:
+  /lldp/state/system-name:
 
-*   /lldp/config/enabled = true
-*   /lldp/interfaces/interface/config/enabled = true
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+
+```
 
 ## Minimum DUT platform requirement
 

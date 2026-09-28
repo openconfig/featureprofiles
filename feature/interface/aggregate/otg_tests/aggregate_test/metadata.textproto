@@ -4,7 +4,7 @@
 uuid: "43591332-f2c8-4ba6-8957-f010bc0f3cd1"
 plan_id: "RT-5.2"
 description: "Aggregate Interfaces"
-testbed: TESTBED_DUT_ATE_9LINKS_LAG
+testbed: TESTBED_DUT_ATE_8LINKS_LAG
 platform_exceptions: {
   platform: {
     vendor: CISCO
@@ -18,7 +18,6 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
-    explicit_port_speed: true
     explicit_interface_in_default_vrf: true
     aggregate_atomic_update: true
     interface_enabled: true

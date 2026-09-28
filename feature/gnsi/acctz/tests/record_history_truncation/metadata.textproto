@@ -1,0 +1,8 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "3ac6b788-687a-41c7-9324-0afb8d789e15"
+plan_id:  "ACCTZ-4.1"
+description:  "Record History Truncation"
+testbed:  TESTBED_DUT
+platform_exceptions:  {}

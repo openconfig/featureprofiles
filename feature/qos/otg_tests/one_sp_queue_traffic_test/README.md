@@ -66,7 +66,7 @@ Verify that DUT drops AF4, AF3, AF2, AF1, BE1 and BE0 before NC1.
 
     *   Configure strict priority queue for NC1.
     *   Configure WRR for AF4, AF3, AF2, AF1, BE1 and BE0 with weight 48, 12, 8,
-        4, 2 and 1 respectively.
+        4, 1 and 1 respectively.
 
 *   NC1 vs AF4 traffic test
 
@@ -91,6 +91,99 @@ Verify that DUT drops AF4, AF3, AF2, AF1, BE1 and BE0 before NC1.
     *   NC1 vs AF1
     *   NC1 vs BE1
     *   NC1 vs BE0
+#### Canonical OC
+```json
+{
+  "qos": {
+    "scheduler-policies": {
+      "scheduler-policy": [
+        {
+          "config": {
+            "name": "0"
+          },
+          "name": "0",
+          "schedulers": {
+            "scheduler": [
+              {
+                "config": {
+                  "sequence": 0
+                },
+                "inputs": {
+                  "input": [
+                    {
+                      "config": {
+                        "id": "NC1",
+                        "weight": "100"
+                      },
+                      "id": "NC1"
+                    }
+                  ]
+                },
+                "sequence": 0
+              }
+            ]
+          }
+        },
+        {
+          "config": {
+            "name": "1"
+          },
+          "name": "1",
+          "schedulers": {
+            "scheduler": [
+              {
+                "config": {
+                  "sequence": 1
+                },
+                "inputs": {
+                  "input": [
+                    {
+                      "config": {
+                        "id": "AF1",
+                        "weight": "4"
+                      },
+                      "id": "AF1"
+                    },
+                    {
+                      "config": {
+                        "id": "AF2",
+                        "weight": "48"
+                      },
+                      "id": "AF2"
+                    },
+                    {
+                      "config": {
+                        "id": "AF3",
+                        "weight": "12"
+                      },
+                      "id": "AF3"
+                    },
+                    {
+                      "config": {
+                        "id": "BE0",
+                        "weight": "1"
+                      },
+                      "id": "BE0"
+                    },
+                    {
+                      "config": {
+                        "id": "BE1",
+                        "weight": "1"
+                      },
+                      "id": "BE1"
+                    }
+                  ]
+                },
+                "sequence": 1
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+```
 
 ## Config parameter coverage
 
@@ -136,3 +229,59 @@ Verify that DUT drops AF4, AF3, AF2, AF1, BE1 and BE0 before NC1.
 *   /qos/interfaces/interface/output/queues/queue/state/transmit-octets
 *   /qos/interfaces/interface/output/queues/queue/state/dropped-pkts
 *   /qos/interfaces/interface/output/queues/queue/state/dropped-octets
+
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths intended to be covered by this test. OC
+paths used for test setup are not listed here.
+
+```yaml
+paths:
+  ## Config paths:
+  /qos/forwarding-groups/forwarding-group/config/name:
+  /qos/forwarding-groups/forwarding-group/config/output-queue:
+  /qos/queues/queue/config/name:
+  /qos/classifiers/classifier/config/name:
+  /qos/classifiers/classifier/config/type:
+  /qos/classifiers/classifier/terms/term/actions/config/target-group:
+  /qos/classifiers/classifier/terms/term/conditions/ipv4/config/dscp-set:
+  /qos/classifiers/classifier/terms/term/conditions/ipv6/config/dscp-set:
+  /qos/classifiers/classifier/terms/term/config/id:
+  /qos/interfaces/interface/output/queues/queue/config/name:
+  /qos/interfaces/interface/input/classifiers/classifier/config/name:
+  /qos/interfaces/interface/output/scheduler-policy/config/name:
+  /qos/scheduler-policies/scheduler-policy/config/name:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/priority:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/sequence:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/type:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/id:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/input-type:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/queue:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/weight:
+
+  ## State paths:
+  /qos/forwarding-groups/forwarding-group/state/name:
+  /qos/forwarding-groups/forwarding-group/state/output-queue:
+  /qos/queues/queue/state/name:
+  /qos/classifiers/classifier/state/name:
+  /qos/classifiers/classifier/state/type:
+  /qos/classifiers/classifier/terms/term/actions/state/target-group:
+  /qos/classifiers/classifier/terms/term/conditions/ipv4/state/dscp-set:
+  /qos/classifiers/classifier/terms/term/conditions/ipv6/state/dscp-set:
+  /qos/classifiers/classifier/terms/term/state/id:
+  /qos/interfaces/interface/output/queues/queue/state/name:
+  /qos/interfaces/interface/input/classifiers/classifier/state/name:
+  /qos/interfaces/interface/output/scheduler-policy/state/name:
+  /qos/scheduler-policies/scheduler-policy/state/name:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/state/priority:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/state/sequence:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/state/type:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/state/id:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/state/input-type:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/state/queue:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/state/weight:
+
+rpcs:
+  gnmi:
+    gNMI.Set:
+      Replace:

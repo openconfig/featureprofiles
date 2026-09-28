@@ -14,21 +14,28 @@ Validate gNOI RPC can reboot specific components.
 *   TODO: For each component verify that the component has rebooted and the
     uptime has been reset.
 
-## Config Parameter Coverage
+## OpenConfig Path and RPC Coverage
 
-N/A
+The below yaml defines the OC paths intended to be covered by this test. OC
+paths used for test setup are not listed here.
 
-## Telemetry Parameter Coverage
+TODO(OCPATH): Add component names to component paths.
 
-*   /components/component/state/description
-*   /components/component/state/removable
-*   /components/component/state/name
-*   /components/component/state/oper-status
-*   /interfaces/interface/state/name
-*   /interfaces/interface/state/oper-status
+```yaml
+paths:
+    ## Config paths: N/A
 
-## Protocol/RPC Parameter Coverage
+    ## State paths
+    ### FIXME: Add components
+    #/components/component/state/description:
+    #/components/component/state/removable:
+    #/components/component/state/name:
+    #/components/component/state/oper-status:
+    /interfaces/interface/state/name:
+    /interfaces/interface/state/oper-status:
 
-*   gNOI
-    *   System
-        *   Reboot
+rpcs:
+  gnoi:
+    system.System.Reboot:
+    system.System.RebootStatus:
+```

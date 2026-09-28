@@ -18,9 +18,8 @@ platform_exceptions: {
     vendor: JUNIPER
   }
   deviations: {
+    interface_ref_interface_id_format: true
     scheduler_input_weight_limit: true
-    explicit_interface_ref_definition: true
-    qos_dropped_octets: true
   }
 }
 platform_exceptions: {
@@ -28,7 +27,6 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
-    explicit_port_speed: true
     explicit_interface_in_default_vrf: true
     qos_octets: true
     interface_enabled: true
@@ -40,6 +38,5 @@ platform_exceptions: {
   }
   deviations: {
     interface_enabled: true
-    qos_octets: true
   }
 }

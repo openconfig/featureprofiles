@@ -66,7 +66,7 @@ func testNextHopRemaining(
 	top gosnappi.Config,
 ) {
 	// Generate and analyze traffic.
-	atePorts, inPkts, outPkts := generateTraffic(t, ate, top)
+	atePorts, inPkts, outPkts := runTraffic(t, ate, top)
 	t.Logf("atePorts = %v", atePorts)
 	t.Logf("inPkts = %v", inPkts)
 	t.Logf("outPkts = %v", outPkts)
@@ -151,10 +151,12 @@ func TestPortFlap(t *testing.T) {
 	// Turn down ports one by one.
 	dt := gnmi.OC()
 
+	createTraffic(t, ate, top)
 	for i := len(atePorts); i >= 2; i-- {
 		numUps := i - 1
 		numDowns := len(atePorts) - i
 		testName := fmt.Sprintf("%d Up, %d Down", numUps, numDowns)
+
 		if i < len(atePorts) {
 			dp := dut.Port(t, atePorts[i].ID())
 			if deviations.ATEPortLinkStateOperationsUnsupported(ate) {

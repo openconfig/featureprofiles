@@ -23,6 +23,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/featureprofiles/internal/qoscfg"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -94,19 +95,19 @@ func TestQoSCounters(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	ap1 := ate.Port(t, "port1")
 	ap2 := ate.Port(t, "port2")
-	top := ate.OTG().NewConfig(t)
+	top := gosnappi.NewConfig()
 
 	top.Ports().Add().SetName(ap1.ID())
 	top.Ports().Add().SetName(ap2.ID())
 
 	dev1 := top.Devices().Add().SetName(ateSrcName)
 	eth1 := dev1.Ethernets().Add().SetName(dev1.Name() + ".eth").SetMac(ateSrcMac)
-	eth1.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap1.ID())
+	eth1.Connection().SetPortName(ap1.ID())
 	eth1.Ipv4Addresses().Add().SetName(dev1.Name() + ".ipv4").SetAddress(ateSrcIp).SetGateway(ateSrcGateway).SetPrefix(uint32(prefixLen))
 
 	dev2 := top.Devices().Add().SetName(ateDstName)
 	eth2 := dev2.Ethernets().Add().SetName(dev2.Name() + ".eth").SetMac(ateDstMac)
-	eth2.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap2.ID())
+	eth2.Connection().SetPortName(ap2.ID())
 	eth2.Ipv4Addresses().Add().SetName(dev2.Name() + ".ipv4").SetAddress(ateDstIp).SetGateway(ateDstGateway).SetPrefix(uint32(prefixLen))
 
 	queues := netutil.CommonTrafficQueues(t, dut)
@@ -172,28 +173,17 @@ func TestQoSCounters(t *testing.T) {
 
 		flow.Size().SetFixed(uint32(data.frameSize))
 		flow.Rate().SetPercentage(float32(data.trafficRate))
-		flow.Duration().FixedPackets().SetPackets(10000)
 	}
 
 	var counterNames []string
 	counters := make(map[string]map[string]uint64)
 
-	if !deviations.QOSDroppedOctets(dut) {
-		counterNames = []string{
+	counterNames = []string{
 
-			"ateOutPkts", "ateInPkts", "dutQosPktsBeforeTraffic", "dutQosOctetsBeforeTraffic",
-			"dutQosPktsAfterTraffic", "dutQosOctetsAfterTraffic", "dutQosDroppedPktsBeforeTraffic",
-			"dutQosDroppedOctetsBeforeTraffic", "dutQosDroppedPktsAfterTraffic",
-			"dutQosDroppedOctetsAfterTraffic",
-		}
-	} else {
-		counterNames = []string{
-
-			"ateOutPkts", "ateInPkts", "dutQosPktsBeforeTraffic", "dutQosOctetsBeforeTraffic",
-			"dutQosPktsAfterTraffic", "dutQosOctetsAfterTraffic", "dutQosDroppedPktsBeforeTraffic",
-			"dutQosDroppedPktsAfterTraffic",
-		}
-
+		"ateOutPkts", "ateInPkts", "dutQosPktsBeforeTraffic", "dutQosOctetsBeforeTraffic",
+		"dutQosPktsAfterTraffic", "dutQosOctetsAfterTraffic", "dutQosDroppedPktsBeforeTraffic",
+		"dutQosDroppedOctetsBeforeTraffic", "dutQosDroppedPktsAfterTraffic",
+		"dutQosDroppedOctetsAfterTraffic",
 	}
 
 	for _, name := range counterNames {
@@ -226,13 +216,12 @@ func TestQoSCounters(t *testing.T) {
 		}
 		counters["dutQosDroppedPktsBeforeTraffic"][data.queue], _ = count.Val()
 
-		if !deviations.QOSDroppedOctets(dut) {
-			count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).DroppedOctets().State(), timeout, isPresent).Await(t)
-			if !ok {
-				t.Errorf("DroppedOctets count for queue %q on interface %q not available within %v", dp2.Name(), data.queue, timeout)
-			}
-			counters["dutQosDroppedOctetsBeforeTraffic"][data.queue], _ = count.Val()
+		count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).DroppedOctets().State(), timeout, isPresent).Await(t)
+		if !ok {
+			t.Errorf("DroppedOctets count for queue %q on interface %q not available within %v", dp2.Name(), data.queue, timeout)
 		}
+		counters["dutQosDroppedOctetsBeforeTraffic"][data.queue], _ = count.Val()
+
 	}
 
 	ate.OTG().PushConfig(t, top)
@@ -242,8 +231,12 @@ func TestQoSCounters(t *testing.T) {
 	t.Logf("Running traffic 1 on DUT interfaces: %s => %s ", dp1.Name(), dp2.Name())
 	t.Logf("Sending traffic flows: \n%v\n\n", trafficFlows)
 	ate.OTG().StartTraffic(t)
-	time.Sleep(120 * time.Second)
+	time.Sleep(30 * time.Second)
+	outputQosPerSecondCounterOK := validateOutputQosPerSecondCounter(t, dut, dp1, dp2, trafficFlows)
 	ate.OTG().StopTraffic(t)
+	if !outputQosPerSecondCounterOK {
+		t.Errorf("Output QoS per second counter is not updated correctly")
+	}
 	time.Sleep(30 * time.Second)
 
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
@@ -254,9 +247,8 @@ func TestQoSCounters(t *testing.T) {
 		counters["dutQosPktsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).TransmitPkts().State())
 		counters["dutQosOctetsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).TransmitOctets().State())
 		counters["dutQosDroppedPktsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).DroppedPkts().State())
-		if !deviations.QOSDroppedOctets(dut) {
-			counters["dutQosDroppedOctetsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).DroppedOctets().State())
-		}
+		counters["dutQosDroppedOctetsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).DroppedOctets().State())
+
 		t.Logf("ateInPkts: %v, txPkts %v, Queue: %v", counters["ateInPkts"][data.queue], counters["dutQosPktsAfterTraffic"][data.queue], data.queue)
 
 		ateTxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().OutPkts().State())
@@ -296,12 +288,10 @@ func TestQoSCounters(t *testing.T) {
 			}
 		}
 
-		if !deviations.QOSDroppedOctets(dut) {
-			dutDropOctetCounterDiff := counters["dutQosDroppedOctetsAfterTraffic"][data.queue] - counters["dutQosDroppedOctetsBeforeTraffic"][data.queue]
-			t.Logf("Queue %q: dutDropOctetCounterDiff: %v", data.queue, dutDropOctetCounterDiff)
-			if dutDropOctetCounterDiff != 0 {
-				t.Errorf("Get dutDropOctetCounterDiff for queue %q: got %v, want 0", data.queue, dutDropOctetCounterDiff)
-			}
+		dutDropOctetCounterDiff := counters["dutQosDroppedOctetsAfterTraffic"][data.queue] - counters["dutQosDroppedOctetsBeforeTraffic"][data.queue]
+		t.Logf("Queue %q: dutDropOctetCounterDiff: %v", data.queue, dutDropOctetCounterDiff)
+		if dutDropOctetCounterDiff != 0 {
+			t.Errorf("Get dutDropOctetCounterDiff for queue %q: got %v, want 0", data.queue, dutDropOctetCounterDiff)
 		}
 
 	}
@@ -354,6 +344,36 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.SetPortSpeed(t, dp1)
 		fptest.SetPortSpeed(t, dp2)
 	}
+}
+
+// validateOutputQosPerSecondCounter verifies the qos counters are updated between
+// 45-second samples over a 450-second observation window.
+func validateOutputQosPerSecondCounter(t *testing.T, dut *ondatra.DUTDevice, dp1, dp2 *ondatra.Port, trafficFlows map[string]*trafficData) bool {
+	i2 := gnmi.OC().Qos().Interface(dp2.Name())
+	trafficData, ok := trafficFlows["flow-af2"]
+	if !ok {
+		t.Fatalf("Traffic flow 'flow-af2' not found in provided map")
+		return false
+	}
+	qosOutputCountersSamples := gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(45*time.Second)), i2.Output().Queue(trafficData.queue).TransmitPkts().State(), 450*time.Second)
+	outQosCountersPkts := qosOutputCountersSamples.Await(t)
+
+	if len(outQosCountersPkts) < 2 {
+		t.Errorf("QoS output counter for queue %q returned %d samples over 450s, want at least 2", trafficData.queue, len(outQosCountersPkts))
+		return false
+	}
+
+	// Verify that the counter increments between every consecutive 45-second sample.
+	for i := 1; i < len(outQosCountersPkts); i++ {
+		outValOld, _ := outQosCountersPkts[i-1].Val()
+		outValLatest, _ := outQosCountersPkts[i].Val()
+		t.Logf("Sample %d: Outgoing Packets: %d (previous: %d)", i, outValLatest, outValOld)
+		if outValLatest <= outValOld {
+			t.Errorf("QoS output counter for queue %q did not increment between 45-second samples: previous=%d, current=%d", trafficData.queue, outValOld, outValLatest)
+			return false
+		}
+	}
+	return true
 }
 
 func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {

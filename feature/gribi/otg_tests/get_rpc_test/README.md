@@ -48,18 +48,30 @@ Validate gRIBI Get RPC.
 [fib_status]: https://github.com/openconfig/gribi/blob/08d53dffce45e942c6e7f07521c58b557984e4b7/v1/proto/service/gribi.proto#L485
 [rib_status]: https://github.com/openconfig/gribi/blob/08d53dffce45e942c6e7f07521c58b557984e4b7/v1/proto/service/gribi.proto#L483
 
-## Config Parameter coverage
+## OpenConfig Path and RPC Coverage
 
-No additional configuration parameters.
-
-## Telemetry Parameter coverage
-
-No additional telemetry parameters.
-
-## Protocol/RPC Parameter coverage
-
-*   gRIBI
-    *   Get
+```yaml
+paths:
+  /interfaces/interface/config/description:
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/config/name:
+  /interfaces/interface/config/type:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled:
+  /network-instances/network-instance/config/name:
+  /network-instances/network-instance/interfaces/interface/config/id:
+  /network-instances/network-instance/interfaces/interface/config/subinterface:
+  /network-instances/network-instance/protocols/protocol/config/identifier:
+  /network-instances/network-instance/protocols/protocol/config/name:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/index:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop:
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+```
 
 ## Minimum DUT platform requirement
 

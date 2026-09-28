@@ -7,14 +7,6 @@ description: "Power admin DOWN/UP Test"
 testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
-    vendor: JUNIPER
-  }
-  deviations: {
-    skip_controller_card_power_admin: true
-  }
-}
-platform_exceptions: {
-  platform: {
     vendor: ARISTA
   }
   deviations: {
@@ -35,7 +27,7 @@ platform_exceptions: {
     vendor: CISCO
   }
   deviations: {
-    skip_fabric_card_power_admin: true
-    skip_controller_card_power_admin: true
+    power_disable_enable_leaf_ref_validation: true
   }
 }
+

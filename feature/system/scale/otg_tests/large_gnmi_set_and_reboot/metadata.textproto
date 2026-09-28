@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "8fae08f5-3046-4e58-9a99-4c12ad1ff5bf"
+plan_id: "SYS-5.1"
+description: "Configuration Commit Validation after Large gNMI-Set and reboot in parallel"
+testbed: TESTBED_DUT

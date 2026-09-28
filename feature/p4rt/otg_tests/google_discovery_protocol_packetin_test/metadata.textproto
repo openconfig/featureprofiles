@@ -1,0 +1,43 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "d944e6e8-268c-4e37-87a2-df779d19dbde"
+plan_id: "P4RT-3.1"
+description: "Google Discovery Protocol: PacketIn"
+testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+    p4rt_gdp_requires_dot1q_subinterface: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    p4rt_gdp_requires_dot1q_subinterface: true
+    no_mix_of_tagged_and_untagged_subinterfaces: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    explicit_interface_in_default_vrf: true
+    interface_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+  }
+}

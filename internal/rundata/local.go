@@ -16,6 +16,7 @@ package rundata
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -24,9 +25,7 @@ import (
 	"strings"
 	"time"
 
-	"flag"
-
-	gitv5 "github.com/go-git/go-git/v5"
+	gitV5 "github.com/go-git/go-git/v5"
 	"github.com/golang/glog"
 )
 
@@ -49,7 +48,7 @@ func buildInfo(m map[string]string) {
 }
 
 // gitOrigin returns the fetch URL of the "origin" remote.
-func gitOrigin(repo *gitv5.Repository) (string, error) {
+func gitOrigin(repo *gitV5.Repository) (string, error) {
 	origin, err := repo.Remote("origin")
 	if err != nil {
 		return "", err
@@ -62,7 +61,7 @@ func gitOrigin(repo *gitv5.Repository) (string, error) {
 }
 
 // gitHead returns the commit hash and the commit timestamp at HEAD.
-func gitHead(repo *gitv5.Repository) (string, time.Time, error) {
+func gitHead(repo *gitV5.Repository) (string, time.Time, error) {
 	var zero time.Time
 	head, err := repo.Head()
 	if err != nil {
@@ -77,7 +76,7 @@ func gitHead(repo *gitv5.Repository) (string, time.Time, error) {
 
 // gitInfoWithRepo populates the git properties from a given git repo
 // and returns the path to the working directory.
-func gitInfoWithRepo(m map[string]string, repo *gitv5.Repository) string {
+func gitInfoWithRepo(m map[string]string, repo *gitV5.Repository) string {
 	wt, err := repo.Worktree()
 	if err != nil {
 		return ""
@@ -117,7 +116,7 @@ func gitInfo(m map[string]string) string {
 	if err != nil {
 		return ""
 	}
-	repo, err := gitv5.PlainOpenWithOptions(cwd, &gitv5.PlainOpenOptions{
+	repo, err := gitV5.PlainOpenWithOptions(cwd, &gitV5.PlainOpenOptions{
 		DetectDotGit: true,
 	})
 	if err != nil {
@@ -128,18 +127,18 @@ func gitInfo(m map[string]string) string {
 
 // fpPath returns the package path of a test file path under the
 // featureprofiles repo.
-func fpPath(testpath string) string {
+func fpPath(testPath string) string {
 	const part = "/featureprofiles/"
-	i := strings.LastIndex(testpath, part)
+	i := strings.LastIndex(testPath, part)
 	if i < 0 {
 		return ""
 	}
 	i += len(part)
-	j := strings.LastIndexByte(testpath, '/')
+	j := strings.LastIndexByte(testPath, '/')
 	if j < 0 || j < i {
 		return ""
 	}
-	return testpath[i:j]
+	return testPath[i:j]
 }
 
 // testPath detects the relative path of the test to the base of the

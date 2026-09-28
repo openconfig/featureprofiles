@@ -57,7 +57,13 @@ var (
 		"Amount of time to pause before sending traffic.")
 	trafficDuration = flag.Duration("traffic_duration", 30*time.Second,
 		"Duration for sending traffic.")
+	trafficPPS = flag.Uint64("traffic_pps", 10000,
+		"Packets per second for generated traffic.")
 )
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
@@ -187,6 +193,14 @@ func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
 	dc := gnmi.OC()
 	for _, dp := range dut.Ports() {
 		if i := dutInterface(dp, dut); i != nil {
+			if dp.PMD() == ondatra.PMD100GBASEFR {
+				e := i.GetOrCreateEthernet()
+				if deviations.FrBreakoutFix(dut) {
+					e.AutoNegotiate = ygot.Bool(false)
+					e.DuplexMode = oc.Ethernet_DuplexMode_FULL
+					e.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
+				}
+			}
 			gnmi.Replace(t, dut, dc.Interface(dp.Name()).Config(), i)
 		} else {
 			t.Fatalf("No address found for port %v", dp)
@@ -207,9 +221,12 @@ func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
 // configureATE configures the topology of the ATE.
 func configureATE(t testing.TB, ate *ondatra.ATEDevice) gosnappi.Config {
 	t.Helper()
-	otg := ate.OTG()
-	config := otg.NewConfig(t)
+	config := gosnappi.NewConfig()
+	pmd100GFRPorts := []string{}
 	for i, ap := range ate.Ports() {
+		if ap.PMD() == ondatra.PMD100GBASEFR {
+			pmd100GFRPorts = append(pmd100GFRPorts, ap.ID())
+		}
 		// DUT and ATE ports are connected by the same names.
 		dutid := fmt.Sprintf("dut:%s", ap.ID())
 		ateid := fmt.Sprintf("ate:%s", ap.ID())
@@ -218,12 +235,19 @@ func configureATE(t testing.TB, ate *ondatra.ATEDevice) gosnappi.Config {
 		dev := config.Devices().Add().SetName(ateid)
 		macAddress, _ := incrementMAC(ateSrcPortMac, i)
 		eth := dev.Ethernets().Add().SetName(ateid + ".Eth").SetMac(macAddress)
-		eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap.ID())
+		eth.Connection().SetPortName(ap.ID())
 		eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4").
 			SetAddress(portsIPv4[ateid]).SetGateway(portsIPv4[dutid]).
 			SetPrefix(plen)
 	}
-	otg.PushConfig(t, config)
+	// Disable FEC for 100G-FR ports because Novus does not support it.
+	if len(pmd100GFRPorts) > 0 {
+		l1Settings := config.Layer1().Add().SetName("L1").SetPortNames(pmd100GFRPorts)
+		l1Settings.SetAutoNegotiate(true).SetIeeeMediaDefaults(false).SetSpeed("speed_100_gbps")
+		autoNegotiate := l1Settings.AutoNegotiation()
+		autoNegotiate.SetRsFec(false)
+	}
+	ate.OTG().PushConfig(t, config)
 	return config
 }
 
@@ -293,11 +317,7 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 	return ports
 }
 
-// generateTraffic generates traffic from ateSrcNetCIDR to
-// ateDstNetCIDR, then returns the atePorts as well as the number of
-// packets received (inPkts) and sent (outPkts) across the atePorts.
-func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) (atePorts []*ondatra.Port, inPkts []uint64, outPkts []uint64) {
-
+func createTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) {
 	re, _ := regexp.Compile(".+:([a-zA-Z0-9]+)")
 	dutString := "dut:" + re.FindStringSubmatch(ateSrcPort)[1]
 	gwIp := portsIPv4[dutString]
@@ -312,31 +332,34 @@ func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Confi
 	eth.Dst().SetValue(dstMac)
 	ipv4 := flow.Packet().Add().Ipv4()
 	if *randomSrcIP {
-		ipv4.Src().SetValues(generateRandomIpList(ateSrcNetFirstIP+"/32", ateSrcNetCount))
+		ipv4.Src().SetValues(generateRandomIPList(t, ateSrcNetFirstIP+"/32", ateSrcNetCount))
 	} else {
-		ipv4.Src().SetChoice("increment").Increment().SetStart(ateSrcNetFirstIP).SetCount(uint32(ateSrcNetCount))
+		ipv4.Src().Increment().SetStart(ateSrcNetFirstIP).SetCount(uint32(ateSrcNetCount))
 	}
 	if *randomDstIP {
-		ipv4.Dst().SetValues(generateRandomIpList(ateDstNetFirstIP+"/32", ateDstNetCount))
+		ipv4.Dst().SetValues(generateRandomIPList(t, ateDstNetFirstIP+"/32", ateDstNetCount))
 	} else {
-		ipv4.Dst().SetChoice("increment").Increment().SetStart(ateDstNetFirstIP).SetCount(uint32(ateDstNetCount))
+		ipv4.Dst().Increment().SetStart(ateDstNetFirstIP).SetCount(uint32(ateDstNetCount))
 	}
 	tcp := flow.Packet().Add().Tcp()
 	if *randomSrcPort {
 		tcp.SrcPort().SetValues((generateRandomPortList(65534)))
 	} else {
-		tcp.SrcPort().SetChoice("increment").Increment().SetStart(1).SetCount(65534)
+		tcp.SrcPort().Increment().SetStart(1).SetCount(65534)
 	}
 	if *randomDstPort {
 		tcp.DstPort().SetValues(generateRandomPortList(65534))
 	} else {
-		tcp.DstPort().SetChoice("increment").Increment().SetStart(1).SetCount(65534)
+		tcp.DstPort().Increment().SetStart(1).SetCount(65534)
 	}
 
 	flow.Size().SetFixed(200)
+	flow.Rate().SetPps(*trafficPPS)
 	ate.OTG().PushConfig(t, config)
 	ate.OTG().StartProtocols(t)
+}
 
+func runTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) (atePorts []*ondatra.Port, inPkts []uint64, outPkts []uint64) {
 	if *trafficPause != 0 {
 		t.Logf("Pausing before traffic at %v for %v", time.Now(), *trafficPause)
 		time.Sleep(*trafficPause)
@@ -364,8 +387,15 @@ func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Confi
 			}
 		}
 	}
-
 	return atePorts, inPkts, outPkts
+}
+
+// generateTraffic generates traffic from ateSrcNetCIDR to
+// ateDstNetCIDR, then returns the atePorts as well as the number of
+// packets received (inPkts) and sent (outPkts) across the atePorts.
+func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) (atePorts []*ondatra.Port, inPkts []uint64, outPkts []uint64) {
+	createTraffic(t, ate, config)
+	return runTraffic(t, ate, config)
 }
 
 // normalize normalizes the input values so that the output values sum
@@ -386,7 +416,7 @@ func normalize(xs []uint64) (ys []float64, sum uint64) {
 func generateRandomPortList(count uint) []uint32 {
 	a := make([]uint32, count)
 	for index := range a {
-		a[index] = uint32(rand.Intn(65536-1) + 1)
+		a[index] = uint32(rand.Intn(65535) + 1)
 	}
 	return a
 }
@@ -436,14 +466,12 @@ func incrementMAC(mac string, i int) (string, error) {
 	return newMac.String(), nil
 }
 
-func generateRandomIpList(cidr string, count uint32) []string {
-	netsCh, _ := netutil.CIDRs(cidr, count)
+func generateRandomIPList(t testing.TB, cidr string, count int) []string {
+	t.Helper()
 	gotNets := make([]string, 0)
-	for net := range netsCh {
+	for net := range netutil.GenCIDRs(t, cidr, count) {
 		gotNets = append(gotNets, strings.ReplaceAll(net, "/32", ""))
 	}
-	// Seed the random number generator with the current time
-	rand.Seed(time.Now().UnixNano())
 
 	// Make a copy of the input slice to avoid modifying the original
 	randomized := make([]string, len(gotNets))

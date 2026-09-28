@@ -64,3 +64,22 @@ Ensure that ACKs are received in the presence of other routes.
 ## Telemery parameter coverage
 
 *   /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix/
+
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths intended to be covered by this test.
+
+```yaml
+paths:
+  /interfaces/interface/config/description:
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/config/type:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled:
+  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop:
+rpcs:
+  gnmi:
+    gNMI.Set:
+    gNMI.Subscribe:
+```

@@ -51,6 +51,19 @@ Validate hierarchical resolution using egress interface and MAC:
     198.51.100.1/32) and ensure that ATE port-2 receives packet with
     `00:1A:11:00:00:01` as the destination MAC address.
 
+3.  Repeat the above tests with one additional scenario with the following changes, and it should
+    not change the expected test result.
+
+    *   Add an empty decap VRF, `DECAP_TE_VRF`.
+    *   Add 4 empty encap VRFs, `ENCAP_TE_VRF_A`, `ENCAP_TE_VRF_B`, `ENCAP_TE_VRF_C`,
+        and `ENCAP_TE_VRF_D`.
+    *   Add 2 empty transit VRFs, `TE_VRF_111` and `TE_VRF_222`.
+    *   Program route 198.51.100.1/32 through gribi in `TE_VRF_111` instead of `VRF-1`.
+    *   Replace the existing VRF selection policy with `vrf_selection_policy_w` as in
+        <https://github.com/openconfig/featureprofiles/pull/2217>.
+    *   Send IP-In-IP traffic with source IP to ipv4_outer_src_111 (`198.51.100.111`) and DSCP to
+        dscp_encap_a_1(10).
+    
 ## Config Parameter coverage
 
 No configuration relevant.
@@ -110,3 +123,40 @@ No configuration relevant.
 ## Minimum DUT platform requirement
 
 vRX if the vendor implementation supports FIB-ACK simulation, otherwise FFF.
+
+## OpenConfig Path and RPC Coverage
+```yaml
+paths:
+  /interfaces/interface/config/description:
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/config/type:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/config/link-layer-address:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled:
+  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group:
+  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group-network-instance:
+  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/origin-protocol:
+  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix:
+  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/index:
+  /network-instances/network-instance/afts/next-hops/next-hop/state/ip-address:
+  /network-instances/network-instance/afts/next-hops/next-hop/state/mac-address:
+  /network-instances/network-instance/config/type:
+  /network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-vrf-selection-policy:
+  /network-instances/network-instance/policy-forwarding/interfaces/interface/interface-ref/config/interface:
+  /network-instances/network-instance/policy-forwarding/interfaces/interface/interface-ref/config/subinterface:
+  /network-instances/network-instance/protocols/protocol/config/identifier:
+  /network-instances/network-instance/protocols/protocol/config/name:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/index:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/interface-ref/config/interface:
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
+  gribi:
+    gRIBI.Flush:
+    gRIBI.Get:
+    gRIBI.Modify:
+```

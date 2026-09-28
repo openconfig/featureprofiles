@@ -38,3 +38,17 @@ source, destination, max_ttl, do_not_fragment and L4Protocols.
         *   ICMP
         *   TCP
         *   UDP
+
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths intended to be covered by this test. OC
+paths used for test setup are not listed here.
+
+```yaml
+paths:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/state/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/ip:
+rpcs:
+  gnoi:
+    system.System.Traceroute:
+```
