@@ -37,9 +37,50 @@ contain the following component types:
       the physical port on the CONTROLLER_CARD
       * For each of these interfaces, verify /interfaces/interface/state/management = TRUE
 
-## OpenConfig Path and RPC Coverage
+## Canonical OC
+```json
+{
+  "components": {
+    "component": [
+      {
+        "config": {
+          "name": "ControllerCard0"
+        },
+        "name": "ControllerCard0",
+        "state": {
+          "type": "CONTROLLER_CARD"
+        }
+      },
+      {
+        "config": {
+          "name": "Port0"
+        },
+        "name": "Port0",
+        "state": {
+          "parent": "ControllerCard0",
+          "type": "PORT"
+        }
+      }
+    ]
+  },
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "name": "mgmt0"
+        },
+        "name": "mgmt0",
+        "state": {
+          "hardware-port": "Port0",
+          "management": true
+        }
+      }
+    ]
+  }
+}
+```
 
-The below yaml defines the OC paths and RPC intended to be covered by this test.
+## OpenConfig Path and RPC Coverage
 
 ```yaml
 paths:
