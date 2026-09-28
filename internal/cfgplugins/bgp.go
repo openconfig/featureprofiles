@@ -193,8 +193,6 @@ type BGPConfig struct {
 	PeerGroups []string
 	// ApplyOnPeerGroup indicates whether to apply the policy on peer group or directly on neighbors.
 	ApplyOnPeerGroup bool
-	// PeerGroupNames for disable peer as filter config
-	PeerGroupNames []string
 	// NeighborIPs for disable peer as filter config (IPv4 and IPv6 addresses)
 	NeighborIPs []string
 }
@@ -1889,19 +1887,57 @@ func ConfigureBGPEnablePeerAsFilterPeer(t *testing.T, dut *ondatra.DUTDevice, ba
 	// The default behavior is to have peer AS filter enabled. we are achieving it using peer-tag .
 	if deviations.DefaultPeerAsFilterOcUnsupported(dut) {
 		if params.ApplyOnPeerGroup {
-			cliConfig := fmt.Sprintf(`router bgp %d
-		neighbor %s peer-tag in PEER_AS_FILTER
-		neighbor %s peer-tag out discard PEER_AS_FILTER`, params.DutAS, params.PeerGroupNames[0], params.PeerGroupNames[1])
-
-			helpers.GnmiCLIConfig(t, dut, cliConfig)
+			if len(params.PeerGroups) != 2 {
+				t.Fatalf("want exactly two peer groups for peer AS filter CLI config, got %d", len(params.PeerGroups))
+			}
+			var cliConfig strings.Builder
+			fmt.Fprintf(&cliConfig, "router bgp %d\n", params.DutAS)
+			for index, peerGroup := range params.PeerGroups {
+				command := "neighbor %s peer-tag in PEER_AS_FILTER\n"
+				if index%2 == 1 {
+					command = "neighbor %s peer-tag out discard PEER_AS_FILTER\n"
+				}
+				fmt.Fprintf(&cliConfig, command, peerGroup)
+			}
+			helpers.GnmiCLIConfig(t, dut, cliConfig.String())
+			t.Cleanup(func() {
+				var cleanupConfig strings.Builder
+				fmt.Fprintf(&cleanupConfig, "router bgp %d\n", params.DutAS)
+				for index, peerGroup := range params.PeerGroups {
+					command := "no neighbor %s peer-tag in PEER_AS_FILTER\n"
+					if index%2 == 1 {
+						command = "no neighbor %s peer-tag out discard PEER_AS_FILTER\n"
+					}
+					fmt.Fprintf(&cleanupConfig, command, peerGroup)
+				}
+				helpers.GnmiCLIConfig(t, dut, cleanupConfig.String())
+			})
 		} else {
-			cliConfig := fmt.Sprintf(`router bgp %d
-		neighbor %s  peer-tag in PEER_AS_FILTER
-		neighbor %s peer-tag out discard PEER_AS_FILTER
-		neighbor %s peer-tag in PEER_AS_FILTER
-		neighbor %s peer-tag out discard PEER_AS_FILTER`, params.DutAS, params.NeighborIPs[0], params.NeighborIPs[1], params.NeighborIPs[2], params.NeighborIPs[3])
-
-			helpers.GnmiCLIConfig(t, dut, cliConfig)
+			if len(params.NeighborIPs) != 4 {
+				t.Fatalf("want four neighbor IPs for peer AS filter CLI config, got %d", len(params.NeighborIPs))
+			}
+			var cliConfig strings.Builder
+			fmt.Fprintf(&cliConfig, "router bgp %d\n", params.DutAS)
+			for index, neighborIP := range params.NeighborIPs {
+				command := "neighbor %s peer-tag in PEER_AS_FILTER\n"
+				if index%2 == 1 {
+					command = "neighbor %s peer-tag out discard PEER_AS_FILTER\n"
+				}
+				fmt.Fprintf(&cliConfig, command, neighborIP)
+			}
+			helpers.GnmiCLIConfig(t, dut, cliConfig.String())
+			t.Cleanup(func() {
+				var cleanupConfig strings.Builder
+				fmt.Fprintf(&cleanupConfig, "router bgp %d\n", params.DutAS)
+				for index, neighborIP := range params.NeighborIPs {
+					command := "no neighbor %s peer-tag in PEER_AS_FILTER\n"
+					if index%2 == 1 {
+						command = "no neighbor %s peer-tag out discard PEER_AS_FILTER\n"
+					}
+					fmt.Fprintf(&cleanupConfig, command, neighborIP)
+				}
+				helpers.GnmiCLIConfig(t, dut, cleanupConfig.String())
+			})
 		}
 	} else {
 		// Explicitly set disable-peer-as-filter=false to keep the default peer AS filter enabled.
@@ -1911,23 +1947,13 @@ func ConfigureBGPEnablePeerAsFilterPeer(t *testing.T, dut *ondatra.DUTDevice, ba
 		bgp := niProto.GetOrCreateBgp()
 
 		if params.ApplyOnPeerGroup {
-			pg1 := bgp.GetOrCreatePeerGroup(params.PeerGroupNames[0])
-			pg1.GetOrCreateAsPathOptions().DisablePeerAsFilter = ygot.Bool(false)
-
-			pg2 := bgp.GetOrCreatePeerGroup(params.PeerGroupNames[1])
-			pg2.GetOrCreateAsPathOptions().DisablePeerAsFilter = ygot.Bool(false)
+			for _, peerGroup := range params.PeerGroups {
+				bgp.GetOrCreatePeerGroup(peerGroup).GetOrCreateAsPathOptions().DisablePeerAsFilter = ygot.Bool(false)
+			}
 		} else {
-			nbr1v4 := bgp.GetOrCreateNeighbor(params.NeighborIPs[0])
-			nbr1v4.GetOrCreateAsPathOptions().DisablePeerAsFilter = ygot.Bool(false)
-
-			nbr1v6 := bgp.GetOrCreateNeighbor(params.NeighborIPs[2])
-			nbr1v6.GetOrCreateAsPathOptions().DisablePeerAsFilter = ygot.Bool(false)
-
-			nbr2v4 := bgp.GetOrCreateNeighbor(params.NeighborIPs[1])
-			nbr2v4.GetOrCreateAsPathOptions().DisablePeerAsFilter = ygot.Bool(false)
-
-			nbr2v6 := bgp.GetOrCreateNeighbor(params.NeighborIPs[3])
-			nbr2v6.GetOrCreateAsPathOptions().DisablePeerAsFilter = ygot.Bool(false)
+			for _, neighborIP := range params.NeighborIPs {
+				bgp.GetOrCreateNeighbor(neighborIP).GetOrCreateAsPathOptions().DisablePeerAsFilter = ygot.Bool(false)
+			}
 		}
 
 		dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
@@ -1936,7 +1962,7 @@ func ConfigureBGPEnablePeerAsFilterPeer(t *testing.T, dut *ondatra.DUTDevice, ba
 	return batch
 }
 
-// ConfigureBGPDisablePeerAsFilter enables disable-peer-as-filter at peer group level
+// ConfigureBGPDisablePeerAsFilter enables disable-peer-as-filter at the peer-group or neighbor level.
 func ConfigureBGPDisablePeerAsFilter(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, params BGPConfig) *gnmi.SetBatch {
 	t.Helper()
 	if batch == nil {
@@ -1944,19 +1970,57 @@ func ConfigureBGPDisablePeerAsFilter(t *testing.T, dut *ondatra.DUTDevice, batch
 	}
 	if deviations.DefaultPeerAsFilterOcUnsupported(dut) {
 		if params.ApplyOnPeerGroup {
-			cliConfig := fmt.Sprintf(`router bgp %d
-		no neighbor %s peer-tag in PEER_AS_FILTER
-		no neighbor %s peer-tag out discard PEER_AS_FILTER`, params.DutAS, params.PeerGroupNames[0], params.PeerGroupNames[1])
-
-			helpers.GnmiCLIConfig(t, dut, cliConfig)
+			if len(params.PeerGroups) != 2 {
+				t.Fatalf("want exactly two peer groups for peer AS filter CLI config, got %d", len(params.PeerGroups))
+			}
+			var cliConfig strings.Builder
+			fmt.Fprintf(&cliConfig, "router bgp %d\n", params.DutAS)
+			for index, peerGroup := range params.PeerGroups {
+				command := "no neighbor %s peer-tag in PEER_AS_FILTER\n"
+				if index%2 == 1 {
+					command = "no neighbor %s peer-tag out discard PEER_AS_FILTER\n"
+				}
+				fmt.Fprintf(&cliConfig, command, peerGroup)
+			}
+			helpers.GnmiCLIConfig(t, dut, cliConfig.String())
+			t.Cleanup(func() {
+				var cleanupConfig strings.Builder
+				fmt.Fprintf(&cleanupConfig, "router bgp %d\n", params.DutAS)
+				for index, peerGroup := range params.PeerGroups {
+					command := "neighbor %s peer-tag in PEER_AS_FILTER\n"
+					if index%2 == 1 {
+						command = "neighbor %s peer-tag out discard PEER_AS_FILTER\n"
+					}
+					fmt.Fprintf(&cleanupConfig, command, peerGroup)
+				}
+				helpers.GnmiCLIConfig(t, dut, cleanupConfig.String())
+			})
 		} else {
-			cliConfig := fmt.Sprintf(`router bgp %d
-		no neighbor %s  peer-tag in PEER_AS_FILTER
-		no neighbor %s peer-tag out discard PEER_AS_FILTER
-		no neighbor %s peer-tag in PEER_AS_FILTER
-		no neighbor %s peer-tag out discard PEER_AS_FILTER`, params.DutAS, params.NeighborIPs[0], params.NeighborIPs[1], params.NeighborIPs[2], params.NeighborIPs[3])
-
-			helpers.GnmiCLIConfig(t, dut, cliConfig)
+			if len(params.NeighborIPs) != 4 {
+				t.Fatalf("want four neighbor IPs for peer AS filter CLI config, got %d", len(params.NeighborIPs))
+			}
+			var cliConfig strings.Builder
+			fmt.Fprintf(&cliConfig, "router bgp %d\n", params.DutAS)
+			for index, neighborIP := range params.NeighborIPs {
+				command := "no neighbor %s peer-tag in PEER_AS_FILTER\n"
+				if index%2 == 1 {
+					command = "no neighbor %s peer-tag out discard PEER_AS_FILTER\n"
+				}
+				fmt.Fprintf(&cliConfig, command, neighborIP)
+			}
+			helpers.GnmiCLIConfig(t, dut, cliConfig.String())
+			t.Cleanup(func() {
+				var cleanupConfig strings.Builder
+				fmt.Fprintf(&cleanupConfig, "router bgp %d\n", params.DutAS)
+				for index, neighborIP := range params.NeighborIPs {
+					command := "neighbor %s peer-tag in PEER_AS_FILTER\n"
+					if index%2 == 1 {
+						command = "neighbor %s peer-tag out discard PEER_AS_FILTER\n"
+					}
+					fmt.Fprintf(&cleanupConfig, command, neighborIP)
+				}
+				helpers.GnmiCLIConfig(t, dut, cleanupConfig.String())
+			})
 		}
 	} else {
 		// Create OC config to disable peer AS filter
@@ -1966,23 +2030,13 @@ func ConfigureBGPDisablePeerAsFilter(t *testing.T, dut *ondatra.DUTDevice, batch
 		bgp := niProto.GetOrCreateBgp()
 
 		if params.ApplyOnPeerGroup {
-			pg1 := bgp.GetOrCreatePeerGroup(params.PeerGroupNames[0])
-			pg1.GetOrCreateAsPathOptions().DisablePeerAsFilter = ygot.Bool(true)
-
-			pg2 := bgp.GetOrCreatePeerGroup(params.PeerGroupNames[1])
-			pg2.GetOrCreateAsPathOptions().DisablePeerAsFilter = ygot.Bool(true)
+			for _, peerGroup := range params.PeerGroups {
+				bgp.GetOrCreatePeerGroup(peerGroup).GetOrCreateAsPathOptions().DisablePeerAsFilter = ygot.Bool(true)
+			}
 		} else {
-			nbr1v4 := bgp.GetOrCreateNeighbor(params.NeighborIPs[0])
-			nbr1v4.GetOrCreateAsPathOptions().DisablePeerAsFilter = ygot.Bool(true)
-
-			nbr1v6 := bgp.GetOrCreateNeighbor(params.NeighborIPs[2])
-			nbr1v6.GetOrCreateAsPathOptions().DisablePeerAsFilter = ygot.Bool(true)
-
-			nbr2v4 := bgp.GetOrCreateNeighbor(params.NeighborIPs[1])
-			nbr2v4.GetOrCreateAsPathOptions().DisablePeerAsFilter = ygot.Bool(true)
-
-			nbr2v6 := bgp.GetOrCreateNeighbor(params.NeighborIPs[3])
-			nbr2v6.GetOrCreateAsPathOptions().DisablePeerAsFilter = ygot.Bool(true)
+			for _, neighborIP := range params.NeighborIPs {
+				bgp.GetOrCreateNeighbor(neighborIP).GetOrCreateAsPathOptions().DisablePeerAsFilter = ygot.Bool(true)
+			}
 		}
 
 		dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")

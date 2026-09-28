@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package bgpdisablepeerasfiltertest implements RT-1.71: BGP Disable Peer AS Filter
+// Package bgp_disable_peer_as_filter_test implements RT-1.71: BGP Disable Peer AS Filter
 // Verifies BGP disable-peer-as-filter functionality for both IPv4 and IPv6 Unicast sessions.
 package bgp_disable_peer_as_filter_test
 
@@ -27,6 +27,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -48,11 +49,13 @@ const (
 	ateAS4 = 64499
 
 	// Advertised routes
-	advertisedRoutesv4Net    = "203.0.113.1"
-	advertisedRoutesv4Prefix = 32
-	advertisedRoutesv6Net    = "2001:db8:64:64::1"
-	advertisedRoutesv6Prefix = 64
-	routeCount               = 1
+	advertisedRoutesv4Net       = "192.0.2.100"
+	advertisedRoutesv4Prefix    = 32
+	advertisedRoutesv4PrefixKey = "192.0.2.100/32"
+	advertisedRoutesv6Net       = "2001:db8:64:64::1"
+	advertisedRoutesv6Prefix    = 64
+	advertisedRoutesv6PrefixKey = "2001:db8:64:64::/64"
+	routeCount                  = 1
 
 	// BGP configuration constants
 	peerGrpName1 = "BGP-PEER-GROUP1"
@@ -60,6 +63,39 @@ const (
 	plenIPv4     = 30
 	plenIPv6     = 126
 )
+
+func dutConfigCleanup(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	interfaceConfigs := make(map[string]*oc.Interface)
+	interfacePresent := make(map[string]bool)
+	for _, portName := range []string{"port1", "port2"} {
+		interfaceName := dut.Port(t, portName).Name()
+		path := gnmi.OC().Interface(interfaceName).Config()
+		if config, present := gnmi.LookupConfig(t, dut, path).Val(); present {
+			interfaceConfigs[interfaceName] = config
+			interfacePresent[interfaceName] = true
+		}
+	}
+
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config()
+	bgpConfig, bgpPresent := gnmi.LookupConfig(t, dut, bgpPath).Val()
+	t.Cleanup(func() {
+		for _, portName := range []string{"port1", "port2"} {
+			interfaceName := dut.Port(t, portName).Name()
+			path := gnmi.OC().Interface(interfaceName).Config()
+			if interfacePresent[interfaceName] {
+				gnmi.Replace(t, dut, path, interfaceConfigs[interfaceName])
+			} else if gnmi.LookupConfig(t, dut, path).IsPresent() {
+				gnmi.Delete(t, dut, path)
+			}
+		}
+		if bgpPresent {
+			gnmi.Replace(t, dut, bgpPath, bgpConfig)
+		} else if gnmi.LookupConfig(t, dut, bgpPath).IsPresent() {
+			gnmi.Delete(t, dut, bgpPath)
+		}
+	})
+}
 
 // Port attributes for ATE and DUT
 var (
@@ -153,8 +189,6 @@ func configureBGP(t *testing.T, dut *ondatra.DUTDevice, atePort2AS uint32) {
 	nbr1v4.SetEnabled(true)
 	af1v4 := nbr1v4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 	af1v4.SetEnabled(true)
-	af1v6 := nbr1v4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-	af1v6.SetEnabled(true)
 
 	nbr1v6 := bgp.GetOrCreateNeighbor(atePort1.IPv6)
 	nbr1v6.SetPeerGroup(peerGrpName1)
@@ -170,8 +204,6 @@ func configureBGP(t *testing.T, dut *ondatra.DUTDevice, atePort2AS uint32) {
 	nbr2v4.SetEnabled(true)
 	af2v4 := nbr2v4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 	af2v4.SetEnabled(true)
-	af2v6 := nbr2v4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-	af2v6.SetEnabled(true)
 
 	nbr2v6 := bgp.GetOrCreateNeighbor(atePort2.IPv6)
 	nbr2v6.SetPeerGroup(peerGrpName2)
@@ -218,12 +250,12 @@ func verifyBGPCapabilities(t *testing.T, dut *ondatra.DUTDevice, nbrs []string) 
 			oc.BgpTypes_BGP_CAPABILITY_ASN32:         false,
 			oc.BgpTypes_BGP_CAPABILITY_MPBGP:         false,
 		}
-		for _, cap := range n.SupportedCapabilities {
-			capabilities[cap] = true
+		for _, capability := range n.SupportedCapabilities {
+			capabilities[capability] = true
 		}
-		for cap, present := range capabilities {
+		for capability, present := range capabilities {
 			if !present {
-				return fmt.Errorf("capability %v not reported for neighbor %s", cap, nbr)
+				return fmt.Errorf("capability %v not reported for neighbor %s", capability, nbr)
 			}
 		}
 	}
@@ -347,6 +379,8 @@ func configureOTG(t *testing.T, otg *otg.OTG, asSeg []uint32, atePort2AS uint32)
 	t.Log("Pushing config to OTG and starting protocols...")
 	otg.PushConfig(t, config)
 	otg.StartProtocols(t)
+	otgutils.WaitForARP(t, otg, config, "IPv4")
+	otgutils.WaitForARP(t, otg, config, "IPv6")
 
 	return config
 }
@@ -383,23 +417,35 @@ func verifyOTGBGPTelemetry(t *testing.T, otg *otg.OTG, c gosnappi.Config, state 
 	return nil
 }
 
+func countPresentIPv4Routes(t *testing.T, otg *otg.OTG, peerName string) int {
+	t.Helper()
+	count := 0
+	for _, value := range gnmi.LookupAll(t, otg, gnmi.OTG().BgpPeer(peerName).UnicastIpv4PrefixAny().State()) {
+		if _, present := value.Val(); present {
+			count++
+		}
+	}
+	return count
+}
+
+func countPresentIPv6Routes(t *testing.T, otg *otg.OTG, peerName string) int {
+	t.Helper()
+	count := 0
+	for _, value := range gnmi.LookupAll(t, otg, gnmi.OTG().BgpPeer(peerName).UnicastIpv6PrefixAny().State()) {
+		if _, present := value.Val(); present {
+			count++
+		}
+	}
+	return count
+}
+
 // verifyReceivedRoutes checks if routes were received on the ATE Port 2
 func verifyReceivedRoutes(t *testing.T, otg *otg.OTG, peerName string, disablePeerASFilter bool) error {
 	t.Helper()
 
 	// Check IPv4 routes
 	ipv4PeerName := peerName + ".BGP4.peer"
-	_, ok := gnmi.WatchAll(t, otg, gnmi.OTG().BgpPeer(ipv4PeerName).UnicastIpv4PrefixAny().State(),
-		time.Minute, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
-			_, present := v.Val()
-			return present
-		}).Await(t)
-
-	var gotPrefixCount int
-	if ok {
-		bgpPrefixes := gnmi.GetAll(t, otg, gnmi.OTG().BgpPeer(ipv4PeerName).UnicastIpv4PrefixAny().State())
-		gotPrefixCount = len(bgpPrefixes)
-	}
+	gotPrefixCount := countPresentIPv4Routes(t, otg, ipv4PeerName)
 
 	if disablePeerASFilter {
 		if gotPrefixCount == 0 {
@@ -415,17 +461,7 @@ func verifyReceivedRoutes(t *testing.T, otg *otg.OTG, peerName string, disablePe
 
 	// Check IPv6 routes
 	ipv6PeerName := peerName + ".BGP6.peer"
-	_, ok6 := gnmi.WatchAll(t, otg, gnmi.OTG().BgpPeer(ipv6PeerName).UnicastIpv6PrefixAny().State(),
-		time.Minute, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv6Prefix]) bool {
-			_, present := v.Val()
-			return present
-		}).Await(t)
-
-	var gotV6PrefixCount int
-	if ok6 {
-		bgpV6Prefixes := gnmi.GetAll(t, otg, gnmi.OTG().BgpPeer(ipv6PeerName).UnicastIpv6PrefixAny().State())
-		gotV6PrefixCount = len(bgpV6Prefixes)
-	}
+	gotV6PrefixCount := countPresentIPv6Routes(t, otg, ipv6PeerName)
 
 	if disablePeerASFilter {
 		if gotV6PrefixCount == 0 {
@@ -437,6 +473,54 @@ func verifyReceivedRoutes(t *testing.T, otg *otg.OTG, peerName string, disablePe
 			return fmt.Errorf("expected to NOT receive IPv6 routes on %s but got %d", ipv6PeerName, gotV6PrefixCount)
 		}
 		t.Logf("Correctly did not receive IPv6 routes on %s", ipv6PeerName)
+	}
+	return nil
+}
+
+func verifyDUTAdvertisedRoutes(t *testing.T, dut *ondatra.DUTDevice, wantAdvertised bool) error {
+	t.Helper()
+	if deviations.BgpAdjRibOcUnsupported(dut) {
+		if dut.Vendor() != ondatra.ARISTA {
+			return fmt.Errorf("raw BGP advertised-prefix validation is unsupported for vendor %s", dut.Vendor())
+		}
+		wantSent := uint64(0)
+		if wantAdvertised {
+			wantSent = routeCount
+		}
+		for _, peer := range []struct {
+			address string
+			afi     oc.E_BgpTypes_AFI_SAFI_TYPE
+			family  string
+		}{
+			{address: atePort2.IPv4, afi: oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, family: "IPv4"},
+			{address: atePort2.IPv6, afi: oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, family: "IPv6"},
+		} {
+			afiSafiPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(peer.address).AfiSafi(peer.afi)
+			gotSentValue, ok := gnmi.Watch(t, dut, afiSafiPath.Prefixes().Sent().State(), time.Minute, func(val *ygnmi.Value[uint32]) bool {
+				got, present := val.Val()
+				return present && got == uint32(wantSent)
+			}).Await(t)
+			if !ok {
+				gotSent, present := gotSentValue.Val()
+				if !present {
+					return fmt.Errorf("DUT %s sent-prefix count for neighbor %s is missing, want %d", peer.family, peer.address, wantSent)
+				}
+				return fmt.Errorf("DUT %s sent-prefix count for neighbor %s got %d, want %d", peer.family, peer.address, gotSent, wantSent)
+			}
+		}
+		return nil
+	}
+
+	bgpRIB := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Rib()
+	v4Route := bgpRIB.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast().Neighbor(atePort2.IPv4).AdjRibOutPost().Route(advertisedRoutesv4PrefixKey, 0).State()
+	_, v4Advertised := gnmi.Lookup(t, dut, v4Route).Val()
+	if v4Advertised != wantAdvertised {
+		return fmt.Errorf("DUT IPv4 Adj-RIB-Out route %s advertised=%v, want %v", advertisedRoutesv4PrefixKey, v4Advertised, wantAdvertised)
+	}
+	v6Route := bgpRIB.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Ipv6Unicast().Neighbor(atePort2.IPv6).AdjRibOutPost().Route(advertisedRoutesv6PrefixKey, 0).State()
+	_, v6Advertised := gnmi.Lookup(t, dut, v6Route).Val()
+	if v6Advertised != wantAdvertised {
+		return fmt.Errorf("DUT IPv6 Adj-RIB-Out route %s advertised=%v, want %v", advertisedRoutesv6PrefixKey, v6Advertised, wantAdvertised)
 	}
 	return nil
 }
@@ -456,7 +540,12 @@ func verifyReceivedRoutesWithAsPath(t *testing.T, otg *otg.OTG, peerName string,
 		return fmt.Errorf("expected to receive IPv4 routes on %s but got 0", ipv4PeerName)
 	}
 
-	bgpPrefixes := gnmi.GetAll(t, otg, gnmi.OTG().BgpPeer(ipv4PeerName).UnicastIpv4PrefixAny().State())
+	var bgpPrefixes []*otgtelemetry.BgpPeer_UnicastIpv4Prefix
+	for _, value := range gnmi.LookupAll(t, otg, gnmi.OTG().BgpPeer(ipv4PeerName).UnicastIpv4PrefixAny().State()) {
+		if prefix, present := value.Val(); present {
+			bgpPrefixes = append(bgpPrefixes, prefix)
+		}
+	}
 	gotPrefixCount := len(bgpPrefixes)
 
 	if gotPrefixCount == 0 {
@@ -484,7 +573,12 @@ func verifyReceivedRoutesWithAsPath(t *testing.T, otg *otg.OTG, peerName string,
 		return fmt.Errorf("expected to receive IPv6 routes on %s but got 0", ipv6PeerName)
 	}
 
-	bgpV6Prefixes := gnmi.GetAll(t, otg, gnmi.OTG().BgpPeer(ipv6PeerName).UnicastIpv6PrefixAny().State())
+	var bgpV6Prefixes []*otgtelemetry.BgpPeer_UnicastIpv6Prefix
+	for _, value := range gnmi.LookupAll(t, otg, gnmi.OTG().BgpPeer(ipv6PeerName).UnicastIpv6PrefixAny().State()) {
+		if prefix, present := value.Val(); present {
+			bgpV6Prefixes = append(bgpV6Prefixes, prefix)
+		}
+	}
 	gotV6PrefixCount := len(bgpV6Prefixes)
 
 	if gotV6PrefixCount == 0 {
@@ -507,56 +601,31 @@ func verifyReceivedRoutesWithAsPath(t *testing.T, otg *otg.OTG, peerName string,
 // This waits for the disable-peer-as-filter configuration to take effect dynamically.
 func pollForRouteState(t *testing.T, otg *otg.OTG, peerName string, expectRoutes bool) error {
 	t.Helper()
+	if !expectRoutes {
+		return nil
+	}
 
 	ipv4PeerName := peerName + ".BGP4.peer"
 	ipv6PeerName := peerName + ".BGP6.peer"
+	ipv4Prefixes := gnmi.OTG().BgpPeer(ipv4PeerName).UnicastIpv4PrefixAny().State()
+	ipv6Prefixes := gnmi.OTG().BgpPeer(ipv6PeerName).UnicastIpv6PrefixAny().State()
 
-	// Poll for IPv4 routes with 1-minute timeout
-	if expectRoutes {
-		// Wait for routes to appear
-		_, ok := gnmi.WatchAll(t, otg, gnmi.OTG().BgpPeer(ipv4PeerName).UnicastIpv4PrefixAny().State(),
-			time.Minute, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
-				_, present := v.Val()
-				return present
-			}).Await(t)
-		if !ok {
-			return fmt.Errorf("timeout waiting for IPv4 routes to appear on %s", ipv4PeerName)
-		}
-	} else {
-		// Wait for routes to disappear
-		_, ok := gnmi.WatchAll(t, otg, gnmi.OTG().BgpPeer(ipv4PeerName).UnicastIpv4PrefixAny().State(),
-			time.Minute, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
-				_, present := v.Val()
-				return !present // Return true when routes are gone
-			}).Await(t)
-		if !ok {
-			return fmt.Errorf("timeout waiting for IPv4 routes to disappear on %s", ipv4PeerName)
-		}
+	_, ok := gnmi.WatchAll(t, otg, ipv4Prefixes,
+		time.Minute, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
+			_, present := v.Val()
+			return present
+		}).Await(t)
+	if !ok {
+		return fmt.Errorf("timeout waiting for IPv4 routes to appear on %s", ipv4PeerName)
 	}
-
-	// Poll for IPv6 routes with 1-minute timeout
-	if expectRoutes {
-		// Wait for routes to appear
-		_, ok := gnmi.WatchAll(t, otg, gnmi.OTG().BgpPeer(ipv6PeerName).UnicastIpv6PrefixAny().State(),
-			time.Minute, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv6Prefix]) bool {
-				_, present := v.Val()
-				return present
-			}).Await(t)
-		if !ok {
-			return fmt.Errorf("timeout waiting for IPv6 routes to appear on %s", ipv6PeerName)
-		}
-	} else {
-		// Wait for routes to disappear
-		_, ok := gnmi.WatchAll(t, otg, gnmi.OTG().BgpPeer(ipv6PeerName).UnicastIpv6PrefixAny().State(),
-			time.Minute, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv6Prefix]) bool {
-				_, present := v.Val()
-				return !present // Return true when routes are gone
-			}).Await(t)
-		if !ok {
-			return fmt.Errorf("timeout waiting for IPv6 routes to disappear on %s", ipv6PeerName)
-		}
+	_, ok = gnmi.WatchAll(t, otg, ipv6Prefixes,
+		time.Minute, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv6Prefix]) bool {
+			_, present := v.Val()
+			return present
+		}).Await(t)
+	if !ok {
+		return fmt.Errorf("timeout waiting for IPv6 routes to appear on %s", ipv6PeerName)
 	}
-
 	return nil
 }
 
@@ -580,7 +649,24 @@ func runTestCase(t *testing.T, dut *ondatra.DUTDevice, otgClient *otg.OTG, tc te
 	// Reconfigure BGP with appropriate AS for Port 2
 	configureBGP(t, dut, tc.atePort2AS)
 
-	// Configure ATE and establish BGP sessions FIRST (before applying disable-peer-as-filter)
+	bgpConfig := cfgplugins.BGPConfig{
+		ApplyOnPeerGroup: tc.peerGroup,
+		DutAS:            dutAS,
+		PeerGroups:       []string{peerGrpName1, peerGrpName2},
+		NeighborIPs:      []string{atePort1.IPv4, atePort2.IPv4, atePort1.IPv6, atePort2.IPv6},
+	}
+	applyPeerASFilterConfig := func() {
+		batch := &gnmi.SetBatch{}
+		tc.setupFunc(t, dut, batch, bgpConfig)
+		if !deviations.DefaultPeerAsFilterOcUnsupported(dut) {
+			batch.Set(t, dut)
+		}
+	}
+	if !tc.disablePeerASFilter {
+		applyPeerASFilterConfig()
+	}
+
+	// Configure ATE and establish BGP sessions after baseline filtering is in place.
 	config := configureOTG(t, otgClient, tc.asSeg, tc.atePort2AS)
 
 	// Verify BGP sessions are established
@@ -591,20 +677,13 @@ func runTestCase(t *testing.T, dut *ondatra.DUTDevice, otgClient *otg.OTG, tc te
 		t.Fatal(err)
 	}
 
-	// NOW apply the disable-peer-as-filter configuration dynamically (after session is up)
-	b := &gnmi.SetBatch{}
-	bgpConfig := cfgplugins.BGPConfig{
-		ApplyOnPeerGroup: tc.peerGroup,
-		DutAS:            dutAS,
-		PeerGroupNames:   []string{peerGrpName1, peerGrpName2},
-		NeighborIPs:      []string{atePort1.IPv4, atePort2.IPv4, atePort1.IPv6, atePort2.IPv6},
+	// Apply disable-peer-as-filter dynamically once the sessions are established.
+	if tc.disablePeerASFilter {
+		applyPeerASFilterConfig()
 	}
-	tc.setupFunc(t, dut, b, bgpConfig)
-	b.Set(t, dut)
 
-	// Poll for routes to reach expected state
 	if err := pollForRouteState(t, otgClient, atePort2.Name, tc.disablePeerASFilter); err != nil {
-		t.Logf("Note: Route state polling (informational): %v", err)
+		t.Fatalf("Route state did not converge: %v", err)
 	}
 
 	// Verify BGP sessions are still established
@@ -613,7 +692,7 @@ func runTestCase(t *testing.T, dut *ondatra.DUTDevice, otgClient *otg.OTG, tc te
 	}
 
 	if tc.peerGroup {
-		if err := verifyDisablePeerASFilterStateOnPeerGroups(t, dut, bgpConfig.PeerGroupNames, tc.disablePeerASFilter); err != nil {
+		if err := verifyDisablePeerASFilterStateOnPeerGroups(t, dut, bgpConfig.PeerGroups, tc.disablePeerASFilter); err != nil {
 			t.Fatal(err)
 		}
 	} else {
@@ -627,7 +706,9 @@ func runTestCase(t *testing.T, dut *ondatra.DUTDevice, otgClient *otg.OTG, tc te
 			t.Fatal(err)
 		}
 	}
-
+	if err := verifyDUTAdvertisedRoutes(t, dut, tc.disablePeerASFilter); err != nil {
+		t.Error(err)
+	}
 	// Verify routes received according to test case expectations
 	if err := verifyReceivedRoutes(t, otgClient, atePort2.Name, tc.disablePeerASFilter); err != nil {
 		t.Error(err)
@@ -643,6 +724,7 @@ func runTestCase(t *testing.T, dut *ondatra.DUTDevice, otgClient *otg.OTG, tc te
 
 func TestDisablePeerAsFilterPerBGPNeighbor(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	dutConfigCleanup(t, dut)
 	ate := ondatra.ATE(t, "ate")
 	otgClient := ate.OTG()
 
@@ -707,6 +789,7 @@ func TestDisablePeerAsFilterPerBGPNeighbor(t *testing.T) {
 
 func TestDisablePeerAsFilterPerBGPPeerGroup(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	dutConfigCleanup(t, dut)
 	ate := ondatra.ATE(t, "ate")
 	otgClient := ate.OTG()
 
@@ -746,6 +829,7 @@ func TestDisablePeerAsFilterPerBGPPeerGroup(t *testing.T) {
 			disablePeerASFilter: true,
 			expectedASPath:      []uint32{dutAS, ateAS1, ateAS4, ateAS2}, // [64498, 64496, 64499, 64497]
 			verifyASPath:        true,
+			verifyCapabilities:  true,
 			peerGroup:           true,
 			atePort2AS:          ateAS2,
 		},
