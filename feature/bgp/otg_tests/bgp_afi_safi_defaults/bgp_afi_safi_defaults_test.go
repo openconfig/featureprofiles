@@ -166,8 +166,10 @@ func bgpCreateNbr(t *testing.T, localAs, peerAs uint32, dut *ondatra.DUTDevice, 
 		case globalLevel:
 			if nbr.isV4 == true {
 				global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+				nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 			} else {
 				global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
+				nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 			}
 			if !isV4Only {
 				if !deviations.BGPGlobalExtendedNextHopEncodingUnsupported(dut) {
@@ -244,6 +246,16 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbrsList []*bgpNei
 		t.Logf("BGP adjacency for %s: %v", nbr.neighborip, state)
 		if want := oc.Bgp_Neighbor_SessionState_ESTABLISHED; state != want {
 			t.Errorf("BGP peer %s status got %d, want %d", nbr.neighborip, state, want)
+		}
+
+		wantPeerType := oc.Bgp_PeerType_EXTERNAL
+		if nbr.as == dutAS {
+			wantPeerType = oc.Bgp_PeerType_INTERNAL
+		}
+		gotPeerType := gnmi.Get(t, dut, nbrPath.PeerType().State())
+		t.Logf("BGP peer %s peer-type: got %v, want %v", nbr.neighborip, gotPeerType, wantPeerType)
+		if gotPeerType != wantPeerType {
+			t.Errorf("BGP peer %s peer-type: got %v, want %v", nbr.neighborip, gotPeerType, wantPeerType)
 		}
 	}
 }
@@ -353,8 +365,14 @@ func verifyBgpCapabilities(t *testing.T, dut *ondatra.DUTDevice, afiSafiLevel st
 				if !nbr.isV4 && afiSafi == oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST {
 					continue
 				}
-				t.Logf("AFI-SAFI state: %v", gnmi.Get(t, dut, statePath.Neighbor(nbr.neighborip).AfiSafi(afiSafi).State()))
-				afiSafiList = append(afiSafiList, gnmi.Get(t, dut, statePath.Neighbor(nbr.neighborip).AfiSafi(afiSafi).State()))
+				t.Logf("AFI-SAFI state: %v", gnmi.Lookup(t, dut, statePath.Neighbor(nbr.neighborip).AfiSafi(afiSafi).State()))
+				res := gnmi.Lookup(t, dut, statePath.Neighbor(nbr.neighborip).AfiSafi(afiSafi).State())
+				if res != nil {
+					val, err := res.Val()
+					if !err {
+						afiSafiList = append(afiSafiList, val)
+					}
+				}
 				t.Logf("AFI-SAFI list: %v", afiSafiList)
 			}
 			for _, cap := range afiSafiList {

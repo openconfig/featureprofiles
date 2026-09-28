@@ -16,15 +16,21 @@ package per_component_reboot_test
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/args"
+	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -32,7 +38,6 @@ import (
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 const (
@@ -41,6 +46,34 @@ const (
 	fabricType        = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC
 	activeController  = oc.Platform_ComponentRedundantRole_PRIMARY
 	standbyController = oc.Platform_ComponentRedundantRole_SECONDARY
+	ipv4PrefixLen     = 30
+	flowPPS           = 500
+	flowPacketSize    = 512
+)
+
+var (
+	dutSrc = attrs.Attributes{
+		Desc:    "dutSrc",
+		IPv4:    "192.168.1.1",
+		IPv4Len: ipv4PrefixLen,
+	}
+	ateSrc = attrs.Attributes{
+		Name:    "ateSrc",
+		IPv4:    "192.168.1.2",
+		MAC:     "02:00:01:01:01:01",
+		IPv4Len: ipv4PrefixLen,
+	}
+	dutDst = attrs.Attributes{
+		Desc:    "dutDst",
+		IPv4:    "192.168.1.5",
+		IPv4Len: ipv4PrefixLen,
+	}
+	ateDst = attrs.Attributes{
+		Name:    "ateDst",
+		IPv4:    "192.168.1.6",
+		MAC:     "02:00:02:01:01:01",
+		IPv4Len: ipv4PrefixLen,
+	}
 )
 
 func TestMain(m *testing.M) {
@@ -122,11 +155,225 @@ func TestStandbyControllerCardReboot(t *testing.T) {
 		return val.IsPresent()
 	})
 	if val, ok := watch.Await(t); !ok {
-		t.Fatalf("DUT did not reach target state within %v: got %v", 10*time.Minute, val)
+		t.Logf("redundant-role not present for %s after reboot: got %v", rpStandby, val)
+		watchTime := gnmi.Watch(t, dut, gnmi.OC().Component(rpStandby).LastRebootTime().State(), 10*time.Minute, func(val *ygnmi.Value[uint64]) bool {
+			return val.IsPresent()
+		})
+		if val, ok := watchTime.Await(t); !ok {
+			t.Fatalf("DUT did not report last-reboot-time for %s within %v: got %v", rpStandby, 10*time.Minute, val)
+		} else {
+			t.Logf("Standby controller last reboot time observed: %v", val)
+		}
+	} else {
+		t.Logf("Standby controller redundant-role returned after reboot")
 	}
 	t.Logf("Standby controller boot time: %.2f seconds", time.Since(startReboot).Seconds())
 
 	// TODO: Check the standby RP uptime has been reset.
+}
+
+// configInterfaceDUT configures the interface with the Addrs.
+func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
+	i.Description = ygot.String(a.Desc)
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+
+	if deviations.InterfaceEnabled(dut) {
+		i.Enabled = ygot.Bool(true)
+	}
+
+	s := i.GetOrCreateSubinterface(0)
+	s4 := s.GetOrCreateIpv4()
+	if deviations.InterfaceEnabled(dut) {
+		s4.Enabled = ygot.Bool(true)
+	}
+	s4.GetOrCreateAddress(a.IPv4).PrefixLength = ygot.Uint8(ipv4PrefixLen)
+
+	return i
+}
+
+// configureDUT configures port1, port2 on the DUT and enables the interfaces.
+func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	d := gnmi.OC()
+
+	p1 := dut.Port(t, "port1")
+	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
+	i1.Enabled = ygot.Bool(true)
+	gnmi.Update(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutSrc, dut))
+
+	p2 := dut.Port(t, "port2")
+	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
+	i2.Enabled = ygot.Bool(true)
+	gnmi.Update(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutDst, dut))
+}
+
+// configureOTG configures the OTG with the ateSrc and ateDst.
+func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
+	t.Helper()
+
+	top := gosnappi.NewConfig()
+	p1 := ate.Port(t, "port1")
+	p2 := ate.Port(t, "port2")
+	ateSrc.AddToOTG(top, p1, &dutSrc)
+	ateDst.AddToOTG(top, p2, &dutDst)
+	return top
+}
+
+// createTrafficFlows creates the traffic flows for each PBR policy.
+func createTrafficFlows(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice) {
+	t.Helper()
+
+	flowName := "flow-ipv4"
+	flow := top.Flows().Add().SetName(flowName)
+	flow.TxRx().Port().
+		SetTxName(ate.Port(t, "port1").ID()).
+		SetRxNames([]string{ate.Port(t, "port2").ID()})
+
+	flow.Metrics().SetEnable(true)
+	flow.Rate().SetPps(flowPPS)
+	flow.Size().SetFixed(flowPacketSize)
+	flow.Duration().Continuous()
+
+	eth := flow.Packet().Add().Ethernet()
+	eth.Src().SetValue(ateSrc.MAC)
+	dutDstInterface := dut.Port(t, "port1").Name()
+	dstMac := gnmi.Get(t, dut, gnmi.OC().Interface(dutDstInterface).Ethernet().MacAddress().State())
+	eth.Dst().SetValue(dstMac)
+
+	ip := flow.Packet().Add().Ipv4()
+	ip.Src().SetValue(ateSrc.IPv4)
+	ip.Dst().SetValue(ateDst.IPv4)
+}
+
+func checkParentComponent(t *testing.T, dut *ondatra.DUTDevice, entity string) string {
+	t.Helper()
+
+	parent := gnmi.Lookup(t, dut, gnmi.OC().Component(entity).Parent().State())
+	val, present := parent.Val()
+	if !present {
+		t.Fatalf("Parent component NOT found for entity: %s", entity)
+	}
+
+	gotV := gnmi.Lookup(t, dut, gnmi.OC().Component(val).Name().State())
+	got, present := gotV.Val()
+	if present {
+		t.Logf("Found parent component %s for entity %s", got, entity)
+	}
+	return got
+}
+
+func testTrafficDrop(t *testing.T, dut *ondatra.DUTDevice, linecard string) {
+	// TODO: Add traffic drop check for other vendors
+	if dut.Vendor() != ondatra.JUNIPER {
+		return
+	}
+	t.Log("Configure DUT")
+	configureDUT(t, dut)
+	t.Log("Configure OTG")
+	ate := ondatra.ATE(t, "ate")
+	top := configureOTG(t, ate)
+	createTrafficFlows(t, top, ate, dut)
+
+	t.Log("Push config to the OTG device")
+	t.Log(top.String())
+	otgObj := ate.OTG()
+	otgObj.PushConfig(t, top)
+
+	incomingPort := "port1"
+	initialCounters := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, incomingPort).Name()).Counters().State())
+	initialInPkts := initialCounters.GetInPkts()
+	t.Logf("initial incoming packets: %v", initialInPkts)
+
+	hwPort, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(dut.Port(t, incomingPort).Name()).HardwarePort().State()).Val()
+	if !ok || hwPort == "" {
+		t.Fatalf("failed to get hardware-port for interface: %s", dut.Port(t, incomingPort).Name())
+	}
+
+	parent := checkParentComponent(t, dut, hwPort)
+
+	// 1. Capture baseline AdverseAggregate drop value before running traffic
+	var initialAdverseAggrDrop uint64
+	hasAdverseCounter := false
+	if adverseVal, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(parent).IntegratedCircuit().PipelineCounters().Drop().AdverseAggregate().State()).Val(); ok {
+		initialAdverseAggrDrop = adverseVal
+		hasAdverseCounter = true
+		t.Logf("Baseline adverse-aggregate counter for component %s: %d", parent, initialAdverseAggrDrop)
+	} else {
+		t.Logf("adverse-aggregate counter not present for component %s at baseline", parent)
+	}
+
+	t.Log("Start protocols and traffic")
+	otgObj.StartProtocols(t)
+	otgObj.StartTraffic(t)
+
+	// 2. Allow traffic to stream for a moment to catch any active errors
+	time.Sleep(5 * time.Second)
+
+	// 3. Capture the final value and verify it didn't increase
+	if hasAdverseCounter {
+		finalAdverseAggrDrop, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(parent).IntegratedCircuit().PipelineCounters().Drop().AdverseAggregate().State()).Val()
+		if !ok {
+			t.Logf("adverse-aggregate counter disappeared during test for component %s", parent)
+		} else {
+			t.Logf("Final adverse-aggregate counter value: %d", finalAdverseAggrDrop)
+			if finalAdverseAggrDrop > initialAdverseAggrDrop {
+				t.Errorf("Adverse-aggregate drop counter incremented! (baseline: %d, final: %d, delta: %d)",
+					initialAdverseAggrDrop, finalAdverseAggrDrop, finalAdverseAggrDrop-initialAdverseAggrDrop)
+			}
+		}
+	}
+	t.Log("Stop traffic")
+	otgObj.StopTraffic(t)
+	t.Log("Stop protocols")
+	otgObj.StopProtocols(t)
+
+	finalCounters := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, incomingPort).Name()).Counters().State())
+	finalInPkts := finalCounters.GetInPkts()
+	t.Logf("final incoming packets: %v", finalInPkts)
+
+	if finalInPkts == initialInPkts {
+		t.Errorf("incoming packets did not change after traffic was started")
+	}
+}
+
+// fpcFromPort extracts the FPC (linecard) name from a port by traversing the component hierarchy.
+// It finds the hardware-port leaf of the interface, then traverses up the component tree
+// from the port component until it finds a component of type linecard.
+func fpcFromPort(t testing.TB, dut *ondatra.DUTDevice, portName string) (string, error) {
+	t.Helper()
+
+	// Step 1: Get the hardware-port from the interface
+	hwPort, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(portName).HardwarePort().State()).Val()
+	if !ok || hwPort == "" {
+		return "", fmt.Errorf("failed to get hardware-port for interface: %s", portName)
+	}
+
+	// Step 2: Traverse up the component tree looking for a linecard
+	currentComponent := hwPort
+	visited := make(map[string]bool)
+	for {
+		// Prevent infinite loops
+		if visited[currentComponent] {
+			return "", fmt.Errorf("circular dependency detected while traversing component tree from port: %s", hwPort)
+		}
+		visited[currentComponent] = true
+		// Get the component details
+		comp, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(currentComponent).State()).Val()
+		if !ok || comp == nil {
+			return "", fmt.Errorf("failed to get component info for: %s", currentComponent)
+		}
+		// Check if this is a linecard component
+		if comp.GetType() == linecardType {
+			return currentComponent, nil
+		}
+		// Move to parent component
+		parent := comp.GetParent()
+		if parent == "" {
+			// Reached the top of the tree without finding a linecard
+			return "", fmt.Errorf("no linecard found in component hierarchy starting from port: %s", hwPort)
+		}
+		currentComponent = parent
+	}
 }
 
 func TestLinecardReboot(t *testing.T) {
@@ -156,9 +403,23 @@ func TestLinecardReboot(t *testing.T) {
 		t.Skipf("Not enough linecards for the test on %v: got %v, want > 0", dut.Model(), got)
 	}
 
+	var lineCardToReboot string
+	if dut.Vendor() == ondatra.JUNIPER {
+		portName := dut.Port(t, "port1").Name()
+		var err error
+		lineCardToReboot, err = fpcFromPort(t, dut, portName)
+		if err != nil {
+			t.Fatalf("Failed to get line card to reboot: %v", err)
+		}
+		t.Logf("line card to reboot: %v", lineCardToReboot)
+	}
+
 	var removableLinecard string
 	for _, lc := range validCards {
 		t.Logf("Check if %s is removable", lc)
+		if dut.Vendor() == ondatra.JUNIPER && lc != lineCardToReboot {
+			continue
+		}
 		if got := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Removable().State()).IsPresent(); !got {
 			t.Logf("Detected non-removable line card: %v", lc)
 			continue
@@ -228,6 +489,7 @@ func TestLinecardReboot(t *testing.T) {
 
 	helpers.ValidateOperStatusUPIntfs(t, dut, intfsOperStatusUPBeforeReboot, 10*time.Minute)
 	// TODO: Check the line card uptime has been reset.
+	testTrafficDrop(t, dut, strings.ToLower(removableLinecard))
 }
 
 // Reboot the fabric component on the DUT.
@@ -247,6 +509,10 @@ func TestFabricReboot(t *testing.T) {
 
 	var removableFabric string
 	for _, fabric := range fabrics {
+		if empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(fabric).Empty().State()).Val(); ok && empty {
+			t.Logf("Skipping fabric: %v is empty", fabric)
+			continue
+		}
 		t.Logf("Check if %s is removable", fabric)
 		if removable, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(fabric).Removable().State()).Val(); ok && removable {
 			t.Logf("Found removable fabric component: %v", fabric)

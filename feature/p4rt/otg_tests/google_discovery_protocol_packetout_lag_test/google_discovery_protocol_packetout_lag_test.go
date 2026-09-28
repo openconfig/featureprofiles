@@ -37,6 +37,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 	p4v1pb "github.com/p4lang/p4runtime/go/p4/v1"
 )
@@ -47,7 +48,7 @@ const (
 )
 
 var (
-	p4InfoFile                       = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
+	p4InfoFile                       = flag.String("p4info_file_location", "../../data/wbb.p4info.pb.txt", "Path to the p4info file.")
 	streamName                       = "p4rt"
 	gdpInLayers  layers.EthernetType = 0x6007
 	deviceID                         = uint64(1)
@@ -173,7 +174,16 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 			sendPackets(t, test.client, packets, packetCount)
 
 			// Wait for ate stats to be populated
-			time.Sleep(4 * time.Minute)
+			timeout := 4 * time.Minute
+			if test.expectPass {
+				expectedCount := uint64(float64(packetCount) * 0.95)
+				gnmi.Watch(t, args.ate.OTG(), gnmi.OTG().Port(port1).Counters().InFrames().State(), timeout, func(val *ygnmi.Value[uint64]) bool {
+					count, present := val.Val()
+					return present && count >= counter0 && (count-counter0 >= expectedCount)
+				}).Await(t)
+			} else {
+				time.Sleep(10 * time.Second)
+			}
 			otgutils.LogFlowMetrics(t, args.ate.OTG(), args.top)
 			otgutils.LogPortMetrics(t, args.ate.OTG(), args.top)
 			// Check packet counters after packet out
@@ -231,6 +241,14 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 			agg.Enabled = ygot.Bool(true)
 		}
 		s := agg.GetOrCreateSubinterface(0)
+		if a.hasVlan && deviations.P4RTGdpRequiresDot1QSubinterface(dut) {
+			s1 := agg.GetOrCreateSubinterface(1)
+			s1.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().SetVlanId(vlanID)
+			if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
+				s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().SetVlanId(10)
+				agg.GetOrCreateAggregation().GetOrCreateSwitchedVlan().SetNativeVlan(10)
+			}
+		}
 		s4 := s.GetOrCreateIpv4()
 		if deviations.InterfaceEnabled(dut) {
 			s4.Enabled = ygot.Bool(true)
@@ -253,14 +271,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 			e := i.GetOrCreateEthernet()
 			e.AggregateId = ygot.String(aggID)
 			i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-			if a.hasVlan && deviations.P4RTGdpRequiresDot1QSubinterface(dut) {
-				s1 := i.GetOrCreateSubinterface(1)
-				s1.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().SetVlanId(vlanID)
-				if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
-					s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().SetVlanId(10)
-					i.GetOrCreateAggregation().GetOrCreateSwitchedVlan().SetNativeVlan(10)
-				}
-			}
 			if deviations.InterfaceEnabled(dut) {
 				i.Enabled = ygot.Bool(true)
 			}

@@ -32,6 +32,7 @@ import (
 	baseScenario "github.com/openconfig/featureprofiles/internal/encapfrr"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/vrfpolicy"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
@@ -39,7 +40,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
@@ -88,6 +88,15 @@ const (
 	gribiIPv6EntryEncapVRF  = "2001:db8::138:0:11:0"
 	ipv6InnerDst            = "2001:db8::138:0:11:8"
 	ipv6InnerDstNoEncap     = "2001:db8::20:0:0:1"
+	niTEVRF111              = "TE_VRF_111"
+	niTEVRF222              = "TE_VRF_222"
+	gribiIPv4EntryDefVRF1   = "192.0.2.101"
+	gribiIPv4EntryDefVRF2   = "192.0.2.102"
+	gribiIPv4EntryDefVRF3   = "192.0.2.103"
+	gribiIPv4EntryDefVRF4   = "192.0.2.104"
+	gribiIPv4EntryDefVRF5   = "192.0.2.105"
+	gribiIPv4EntryVRF2221   = "203.0.113.100"
+	gribiIPv4EntryVRF2222   = "203.0.113.101"
 
 	dutAreaAddress     = "49.0001"
 	dutSysID           = "1920.0000.2001"
@@ -101,7 +110,7 @@ const (
 )
 
 var (
-	p4InfoFile          = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
+	p4InfoFile          = flag.String("p4info_file_location", "../../data/wbb.p4info.pb.txt", "Path to the p4info file.")
 	streamName          = "p4rt"
 	tracerouteSrcMAC    = "00:01:00:02:00:03"
 	deviceID            = uint64(1)
@@ -347,6 +356,7 @@ type flowArgs struct {
 	InnHdrSrcIPv6, InnHdrDstIPv6 string
 	udp, isInnHdrV4              bool
 	outHdrDscp                   []uint32
+	innHdrDscp                   uint32
 	proto                        uint32
 }
 
@@ -381,7 +391,7 @@ func dutInterface(p *ondatra.Port, dut *ondatra.DUTDevice, portIDx uint32) *oc.I
 		i.Enabled = ygot.Bool(true)
 	}
 
-	if p.PMD() == ondatra.PMD100GBASEFR {
+	if p.PMD() == ondatra.PMD100GBASEFR && deviations.ExplicitPortSpeed(dut) {
 		e := i.GetOrCreateEthernet()
 		e.AutoNegotiate = ygot.Bool(false)
 		e.DuplexMode = oc.Ethernet_DuplexMode_FULL
@@ -436,30 +446,160 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPortList []*ondatra.P
 		}
 	}
 
-	loopbackIntfName = netutil.LoopbackInterface(t, dut, 0)
-	lo0 := gnmi.OC().Interface(loopbackIntfName).Subinterface(0)
-	ipv4Addrs := gnmi.LookupAll(t, dut, lo0.Ipv4().AddressAny().State())
-	ipv6Addrs := gnmi.LookupAll(t, dut, lo0.Ipv6().AddressAny().State())
-	if len(ipv4Addrs) == 0 && len(ipv6Addrs) == 0 {
-		loop1 := dutlo0Attrs.NewOCInterface(loopbackIntfName, dut)
-		loop1.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
-		gnmi.Update(t, dut, dc.Interface(loopbackIntfName).Config(), loop1)
-	} else {
-		v4, ok := ipv4Addrs[0].Val()
-		if ok {
-			dutlo0Attrs.IPv4 = v4.GetIp()
-		}
-		v6, ok := ipv6Addrs[0].Val()
-		if ok {
-			dutlo0Attrs.IPv6 = v6.GetIp()
-		}
-		t.Logf("Got DUT IPv4 loopback address: %v", dutlo0Attrs.IPv4)
-		t.Logf("Got DUT IPv6 loopback address: %v", dutlo0Attrs.IPv6)
+	loopbackIntfName = helpers.GetOrCreateLoopback(t, dut, 0, 0, &dutlo0Attrs)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, loopbackIntfName, deviations.DefaultNetworkInstance(dut), 0)
 	}
 }
 
 // configureAdditionalGribiAft configures additional AFT entries for Gribi.
 func configureAdditionalGribiAft(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, args *testArgs) {
+	// Programming AFT entries for backup NHG
+	args.client.Modify().AddEntry(t,
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(2000).WithDecapsulateHeader(fluent.IPinIP).WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(2000).AddNextHop(2000, 1),
+	)
+	if err := awaitTimeout(ctx, t, args.client, time.Minute); err != nil {
+		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
+	}
+
+	// Programming AFT entries for prefixes in TE_VRF_222
+	args.client.Modify().AddEntry(t,
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(3).WithIPAddress(gribiIPv4EntryDefVRF3),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(2).AddNextHop(3, 1).WithBackupNHG(2000),
+		fluent.IPv4Entry().WithNetworkInstance(niTEVRF222).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithPrefix(gribiIPv4EntryVRF2221+"/"+maskLen32).WithNextHopGroup(2),
+
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(5).WithIPAddress(gribiIPv4EntryDefVRF5),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(4).AddNextHop(5, 1).WithBackupNHG(2000),
+		fluent.IPv4Entry().WithNetworkInstance(niTEVRF222).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithPrefix(gribiIPv4EntryVRF2222+"/"+maskLen32).WithNextHopGroup(4),
+	)
+	if err := awaitTimeout(ctx, t, args.client, time.Minute); err != nil {
+		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
+	}
+
+	teVRF222IPList := []string{gribiIPv4EntryVRF2221, gribiIPv4EntryVRF2222}
+	for ip := range teVRF222IPList {
+		chk.HasResult(t, args.client.Results(t),
+			fluent.OperationResult().
+				WithIPv4Operation(teVRF222IPList[ip]+"/32").
+				WithOperationType(constants.Add).
+				WithProgrammingResult(fluent.InstalledInFIB).
+				AsResult(),
+			chk.IgnoreOperationID(),
+		)
+	}
+
+	// Programming AFT entries for backup NHG
+	args.client.Modify().AddEntry(t,
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(1000).WithDecapsulateHeader(fluent.IPinIP).WithEncapsulateHeader(fluent.IPinIP).
+			WithIPinIP(ipv4OuterSrc222Addr, gribiIPv4EntryVRF2221).
+			WithNextHopNetworkInstance(niTEVRF222),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(1000).AddNextHop(1000, 1).WithBackupNHG(2000),
+
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(1001).WithDecapsulateHeader(fluent.IPinIP).WithEncapsulateHeader(fluent.IPinIP).
+			WithIPinIP(ipv4OuterSrc222Addr, gribiIPv4EntryVRF2222).
+			WithNextHopNetworkInstance(niTEVRF222),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(1001).AddNextHop(1001, 1).WithBackupNHG(2000),
+
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(3000).WithNextHopNetworkInstance(niRepairVrf),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(3000).AddNextHop(3000, 1),
+	)
+	if err := awaitTimeout(ctx, t, args.client, time.Minute); err != nil {
+		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
+	}
+
+	// Programming AFT entries for prefixes in TE_VRF_111
+	args.client.Modify().AddEntry(t,
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(1).WithIPAddress(gribiIPv4EntryDefVRF1),
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(2).WithIPAddress(gribiIPv4EntryDefVRF2),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(1).AddNextHop(1, 1).AddNextHop(2, 3).WithBackupNHG(3000),
+		fluent.IPv4Entry().WithNetworkInstance(niTEVRF111).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithPrefix(gribiIPv4EntryVRF1111+"/"+maskLen32).WithNextHopGroup(1),
+
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(4).WithIPAddress(gribiIPv4EntryDefVRF4),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(3).AddNextHop(4, 1).WithBackupNHG(3000),
+		fluent.IPv4Entry().WithNetworkInstance(niTEVRF111).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithPrefix(gribiIPv4EntryVRF1112+"/"+maskLen32).WithNextHopGroup(3),
+
+		fluent.IPv4Entry().WithNetworkInstance(niRepairVrf).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithPrefix(gribiIPv4EntryVRF1111+"/"+maskLen32).WithNextHopGroup(1000),
+		fluent.IPv4Entry().WithNetworkInstance(niRepairVrf).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithPrefix(gribiIPv4EntryVRF1112+"/"+maskLen32).WithNextHopGroup(1001),
+	)
+	if err := awaitTimeout(ctx, t, args.client, time.Minute); err != nil {
+		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
+	}
+
+	teVRF111IPList := []string{gribiIPv4EntryVRF1111, gribiIPv4EntryVRF1112}
+	for ip := range teVRF111IPList {
+		chk.HasResult(t, args.client.Results(t),
+			fluent.OperationResult().
+				WithIPv4Operation(teVRF111IPList[ip]+"/32").
+				WithOperationType(constants.Add).
+				WithProgrammingResult(fluent.InstalledInFIB).
+				AsResult(),
+			chk.IgnoreOperationID(),
+		)
+	}
+
+	// Programming AFT entries for backup NHG
+	args.client.Modify().AddEntry(t,
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(2001).WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(2001).AddNextHop(2001, 1),
+	)
+	if err := awaitTimeout(ctx, t, args.client, time.Minute); err != nil {
+		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
+	}
+
+	// Programming AFT entries for prefixes in ENCAP_TE_VRF_A
+	args.client.Modify().AddEntry(t,
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(101).WithEncapsulateHeader(fluent.IPinIP).
+			WithIPinIP(ipv4OuterSrc111Addr, gribiIPv4EntryVRF1111).
+			WithNextHopNetworkInstance(niTEVRF111),
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(102).WithEncapsulateHeader(fluent.IPinIP).
+			WithIPinIP(ipv4OuterSrc111Addr, gribiIPv4EntryVRF1112).
+			WithNextHopNetworkInstance(niTEVRF111),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(101).AddNextHop(101, 1).AddNextHop(102, 3).WithBackupNHG(2001),
+		fluent.IPv4Entry().WithNetworkInstance(niEncapTeVrfA).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithPrefix(gribiIPv4EntryEncapVRF+"/"+maskLen24).WithNextHopGroup(101),
+	)
+	if err := awaitTimeout(ctx, t, args.client, time.Minute); err != nil {
+		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
+	}
+
+	chk.HasResult(t, args.client.Results(t),
+		fluent.OperationResult().
+			WithIPv4Operation(gribiIPv4EntryEncapVRF+"/24").
+			WithOperationType(constants.Add).
+			WithProgrammingResult(fluent.InstalledInFIB).
+			AsResult(),
+		chk.IgnoreOperationID(),
+	)
+
 	args.client.Modify().AddEntry(t,
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithIndex(3000).WithNextHopNetworkInstance(niRepairVrf),
@@ -569,6 +709,7 @@ func configureGribiRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDevi
 func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddress, dutSysID string) {
 	t.Helper()
 	d := &oc.Root{}
+	dutConfIsisPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
 	netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	prot := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
 	prot.Enabled = ygot.Bool(true)
@@ -582,13 +723,24 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddres
 	globalISIS.Net = []string{fmt.Sprintf("%v.%v.00", dutAreaAddress, dutSysID)}
 	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	if deviations.ISISSingleTopologyRequired(dut) {
+		afv6 := globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST)
+		afv6.GetOrCreateMultiTopology().SetAfiName(oc.IsisTypes_AFI_TYPE_IPV4)
+		afv6.GetOrCreateMultiTopology().SetSafiName(oc.IsisTypes_SAFI_TYPE_UNICAST)
+	}
 
 	lspBit := globalISIS.GetOrCreateLspBit().GetOrCreateOverloadBit()
 	lspBit.SetBit = ygot.Bool(false)
 	isisLevel2 := isis.GetOrCreateLevel(2)
 	isisLevel2.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
-
-	isisIntf := isis.GetOrCreateInterface(intfName)
+	if deviations.ISISLevelEnabled(dut) {
+		isisLevel2.Enabled = ygot.Bool(true)
+	}
+	isisIntfID := intfName
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		isisIntfID = intfName + ".0"
+	}
+	isisIntf := isis.GetOrCreateInterface(isisIntfID)
 	isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(intfName)
 	isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 
@@ -619,7 +771,7 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddres
 		isisIntfLevelAfiv4.Enabled = nil
 		isisIntfLevelAfiv6.Enabled = nil
 	}
-	gnmi.Update(t, dut, gnmi.OC().Config(), d)
+	gnmi.Update(t, dut, dutConfIsisPath.Config(), prot)
 }
 
 // bgpCreateNbr creates BGP neighbor configuration
@@ -642,7 +794,11 @@ func bgpCreateNbr(localAs uint32, dut *ondatra.DUTDevice) *oc.NetworkInstance_Pr
 	bgpNbr.PeerAs = ygot.Uint32(localAs)
 	bgpNbr.Enabled = ygot.Bool(true)
 	bgpNbrT := bgpNbr.GetOrCreateTransport()
-	bgpNbrT.LocalAddress = ygot.String(dutlo0Attrs.IPv4)
+	localAddressLeaf := dutlo0Attrs.IPv4
+	if deviations.UseInterfaceNameForIBGPNeighborTransportIpv4LocalAddress(dut) {
+		localAddressLeaf = loopbackIntfName
+	}
+	bgpNbrT.LocalAddress = ygot.String(localAddressLeaf)
 	af4 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 	af4.Enabled = ygot.Bool(true)
 	af6 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
@@ -654,11 +810,11 @@ func bgpCreateNbr(localAs uint32, dut *ondatra.DUTDevice) *oc.NetworkInstance_Pr
 // verifyISISTelemetry verifies ISIS telemetry.
 func verifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntf string) {
 	t.Helper()
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		dutIntf += ".0"
+	}
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
 
-	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		dutIntf = dutIntf + ".0"
-	}
 	nbrPath := statePath.Interface(dutIntf)
 	query := nbrPath.LevelAny().AdjacencyAny().AdjacencyState().State()
 	_, ok := gnmi.WatchAll(t, dut, query, time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
@@ -799,13 +955,8 @@ func startCapture(t *testing.T, args *testArgs, capturePortList []string) gosnap
 	args.otgConfig.Captures().Add().SetName("packetCapture").
 		SetPortNames(capturePortList).
 		SetFormat(gosnappi.CaptureFormat.PCAP)
-	args.otg.PushConfig(t, args.otgConfig)
-	time.Sleep(30 * time.Second)
-	args.otg.StartProtocols(t)
-	time.Sleep(30 * time.Second)
 	cs := gosnappi.NewControlState()
 	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
-	args.otg.SetControlState(t, cs)
 	return cs
 }
 
@@ -934,7 +1085,6 @@ func testTunnelTrafficNoDecap(ctx context.Context, t *testing.T, dut *ondatra.DU
 			if err := gribi.FlushAll(args.client); err != nil {
 				t.Fatal(err)
 			}
-
 			// Configure GRIBi baseline AFTs.
 			baseScenario.ConfigureBaseGribiRoutes(ctx, t, dut, args.client)
 			configureAdditionalGribiAft(ctx, t, dut, args)
@@ -968,7 +1118,6 @@ func testTunnelTrafficDecapEncap(ctx context.Context, t *testing.T, dut *ondatra
 	if err := gribi.FlushAll(args.client); err != nil {
 		t.Fatal(err)
 	}
-
 	// Configure GRIBi baseline AFTs.
 	baseScenario.ConfigureBaseGribiRoutes(ctx, t, dut, args.client)
 	configureAdditionalGribiAft(ctx, t, dut, args)
@@ -979,10 +1128,10 @@ func testTunnelTrafficDecapEncap(ctx context.Context, t *testing.T, dut *ondatra
 	LoadBalancePercent := []float64{0.0156, 0.0468, 0.1875, 0, 0.75, 0, 0}
 	flow := []*flowArgs{{flowName: "flow4in4",
 		outHdrSrcIP: ipv4OuterSrc222Addr, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapA1},
-		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true},
+		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, innHdrDscp: dscpEncapA1, isInnHdrV4: true},
 		{flowName: "flow6in4",
 			outHdrSrcIP: ipv4OuterSrc111Addr, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapA1},
-			InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: ipv6InnerDst, isInnHdrV4: false}}
+			InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: ipv6InnerDst, innHdrDscp: dscpEncapA1, isInnHdrV4: false}}
 	captureState := startCapture(t, args, baseCapturePortList)
 	gotWeights := testPacket(t, args, captureState, flow, EgressPortMap)
 	validateTrafficDistribution(t, args.ate, LoadBalancePercent, gotWeights)
@@ -990,16 +1139,16 @@ func testTunnelTrafficDecapEncap(ctx context.Context, t *testing.T, dut *ondatra
 	LoadBalancePercent = []float64{0.0468, 0.1406, 0.5625, 0, 0.25, 0, 0}
 	flow = []*flowArgs{{flowName: "flow4in4",
 		outHdrSrcIP: ipv4OuterSrc111Addr, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapB1},
-		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true},
+		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, innHdrDscp: dscpEncapB1, isInnHdrV4: true},
 		{flowName: "flow6in4",
 			outHdrSrcIP: ipv4OuterSrc222Addr, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapB1},
-			InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: ipv6InnerDst, isInnHdrV4: false}}
+			InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: ipv6InnerDst, innHdrDscp: dscpEncapB1, isInnHdrV4: false}}
 	captureState = startCapture(t, args, baseCapturePortList)
 	gotWeights = testPacket(t, args, captureState, flow, EgressPortMap)
 	validateTrafficDistribution(t, args.ate, LoadBalancePercent, gotWeights)
 }
 
-// testTraceRoute  is to test Test FRR behaviors with encapsulation scenarios
+// testTraceRoute  is to test FRR behaviors with encapsulation scenarios
 func TestTraceRoute(t *testing.T) {
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
@@ -1037,6 +1186,9 @@ func TestTraceRoute(t *testing.T) {
 	if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
 		// staticARPWithMagicUniversalIP(t, dut)
 		baseScenario.StaticARPWithMagicUniversalIP(t, dut)
+	}
+	if deviations.GRIBIMACOverrideWithStaticARP(dut) {
+		baseScenario.StaticARPWithSpecificIP(t, dut)
 	}
 
 	t.Log("Install BGP route resolved by ISIS.")
@@ -1117,25 +1269,20 @@ func TestTraceRoute(t *testing.T) {
 		testGribiDecapMatchSrcProtoDSCP(ctx, t, dut, args)
 	})
 	// Below test case will implement later
-	/*
-		t.Run("Test-4: Tests that traceroute respects transit FRR", func(t *testing.T) {
-
-		})
-		t.Run("Test-5: Tests that traceroute respects transit FRR when the backup is also unviable.", func(t *testing.T) {
-
-		})*/
+	/*t.Run("Test-4: Tests that traceroute respects transit FRR", func(t *testing.T) {
+	})
+	t.Run("Test-5: Tests that traceroute respects transit FRR when the backup is also unviable.", func(t *testing.T) {
+	})*/
 	t.Run("Test-6: Tunneled traffic with no decap", func(t *testing.T) {
 		testTunnelTrafficNoDecap(ctx, t, dut, args)
 	})
 	// Below test case will implement later
-	/*
-		t.Run("Test-7: Encap failure cases (TBD on confirmation)", func(t *testing.T) {
-
-		})
-		t.Run("Test-8: Tests that traceroute for a packet with a route lookup miss has an unset target_egress_port.", func(t *testing.T) {
-
-		})*/
+	/*t.Run("Test-7: Encap failure cases (TBD on confirmation)", func(t *testing.T) {
+	})
+	t.Run("Test-8: Tests that traceroute for a packet with a route lookup miss has an unset target_egress_port.", func(t *testing.T) {
+	})*/
 	t.Run("Test-9: Decap then encap", func(t *testing.T) {
 		testTunnelTrafficDecapEncap(ctx, t, dut, args)
 	})
+
 }

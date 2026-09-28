@@ -30,7 +30,7 @@ BGP AFI SAFI OC DEFAULTS TEST
             "IPv6-unicast enabled" boolean is left to OC default for the IPv4 peer".
         *   Ensure that only IPv6-Unicast enabled boolean is made "true" for IPv6 neighbor. 
             "IPv4-unicast enabled" boolean is left to OC default for the IPv6 peer".
-        *   Ensure that there are no AFI-SAFI configurations at the global and peer-group levels. 
+        *   Ensure that there are no AFI-SAFI configurations at peer-group levels. 
         *   On the ATE side ensure that IPv4-unicast and IPv6-unicast AFI-SAFI are enabled==true for 
             IPv4 and IPv6 neighbors.
         *   Ensure that there is extended-next-hop encoding feature is configured via OC path and the
@@ -46,7 +46,7 @@ BGP AFI SAFI OC DEFAULTS TEST
     
     *   Configuration at the neighbor level is same as in [Test case-1] except for IPv4-unicast and 
         IPv6-unicast being enabled at the peer-group level
-    *   No configuration should be made at the global AFI-SAFI level
+    *   No configuration should be made at the neighbor AFI-SAFI level
     
     *   Verification:
         *   For IPv4 neighbor, ensure that the IPv4 neighborship is up and both IPv4-unicast and 
@@ -78,7 +78,6 @@ BGP AFI SAFI OC DEFAULTS TEST
         *   For IPv6 neighbor ensure that the IPv6 neighborship is not ESTABLISHED and
             IPv6-unicast capabilities are set to FALSE.
 
-
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
@@ -102,6 +101,8 @@ paths:
 
     ## Telemetry Parameter coverage
 
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/afi-safi-name:
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/enabled:
     /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
     /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities: 
     /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-type:
@@ -117,6 +118,75 @@ rpcs:
         gNMI.Get:
         gNMI.Subscribe:
 ```
+## Canonical OC
+```json
+{
+  "openconfig-network-instance:network-instances": {
+    "network-instance": [
+      {
+        "name": "DEFAULT",
+        "protocols": {
+          "protocol": [
+            {
+              "identifier": "openconfig-policy-types:BGP",
+              "name": "BGP",
+              "bgp": {
+                "global": {
+                  "config": {
+                    "as": 64500,
+                    "router-id": "192.0.2.1"
+                  },
+                  "afi-safis": {
+                    "afi-safi": [
+                      {
+                        "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                        "config": {
+                          "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                          "enabled": true
+                        }
+                      },
+                      {
+                        "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                        "config": {
+                          "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                          "enabled": true
+                        }
+                      }
+                    ]
+                  }
+                },
+                "neighbors": {
+                  "neighbor": [
+                    {
+                      "neighbor-address": "192.0.2.2",
+                      "config": {
+                        "neighbor-address": "192.0.2.2",
+                        "peer-as": 64501
+                      },
+                      "afi-safis": {
+                        "afi-safi": [
+                          {
+                            "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                            "config": {
+                              "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                              "enabled": true
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
+
 ## Minimum DUT Required
 
 vRX - Virtual Router Device

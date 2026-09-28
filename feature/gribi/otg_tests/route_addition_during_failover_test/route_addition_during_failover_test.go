@@ -459,18 +459,7 @@ func testTraffic(t *testing.T, args testArgs, flow gosnappi.Flow) {
 	args.ate.OTG().StopTraffic(t)
 
 	otgutils.LogFlowMetrics(t, args.ate.OTG(), args.top)
-	txPkts := float32(gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Flow("Flow").Counters().OutPkts().State()))
-	rxPkts := float32(gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Flow("Flow").Counters().InPkts().State()))
-	if txPkts == 0 {
-		t.Fatalf("Tx packets should be higher than 0")
-	}
-
-	if got := (txPkts - rxPkts) * 100 / txPkts; got > 0 {
-		t.Errorf("LossPct for flow %s got %g, want 0", flow.Name(), got)
-	} else {
-		t.Logf("Traffic flows fine from ATE-port1 to ATE-port2.")
-	}
-
+	otgutils.ExpectedTrafficLoss(t, args.ate.OTG(), flow.Name(), 0, 0)
 }
 
 // validateSwitchoverStatus is to validate switchover status.
@@ -550,6 +539,7 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 
 	sysConfigTime := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).LastChange().State())
 
@@ -662,11 +652,7 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 	// Check vars for WithInitialElectionID.
 
 	client.Stop(t)
-	t.Log("Reconnect gRIBi client after switchover on new master.")
-	client.Connection().WithStub(gribic).WithPersistence().WithInitialElectionID(eID.Low, eID.High).
-		WithFIBACK().WithRedundancyMode(fluent.ElectedPrimaryClient)
 
-	client.Start(ctx, t)
 	defer client.Stop(t)
 	defer func() {
 		// Flush all entries after test.
@@ -675,17 +661,25 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 		}
 	}()
 
-	// Reconnect gribi client.
-	client.StartSending(ctx, t)
+	t.Log("Reconnect gRIBi client after switchover on new master.")
 
-	if err := awaitTimeout(ctx, client, t, time.Minute); err != nil {
-		t.Log("Try to connect gRIBi client again, retrying...")
+	retryDuration := 320 * time.Second
+	retryInterval := 5 * time.Second
+	startTime := time.Now()
+
+	for {
 		client.Connection().WithStub(gribic).WithPersistence().WithInitialElectionID(eID.Low, eID.High).
 			WithFIBACK().WithRedundancyMode(fluent.ElectedPrimaryClient)
 		client.Start(ctx, t)
 		client.StartSending(ctx, t)
 		if err := awaitTimeout(ctx, client, t, time.Minute); err != nil {
-			t.Fatalf("Await got error during session negotiation for client: %v", err)
+			if time.Since(startTime) > retryDuration {
+				t.Fatalf("gRIBI Connection for clientA could not be re-established after multiple attempts")
+			}
+			t.Logf("Retrying gRIBI client connection in %v...", retryInterval)
+			time.Sleep(retryInterval)
+		} else {
+			break
 		}
 	}
 

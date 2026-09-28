@@ -262,7 +262,7 @@ func configureVrfSelectionPolicyW(t *testing.T, dut *ondatra.DUTDevice) {
 
 	p1 := dut.Port(t, "port1")
 	interfaceID := p1.Name()
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+	if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
 		interfaceID = interfaceID + ".0"
 	}
 
@@ -328,7 +328,7 @@ func applyForwardingPolicy(t *testing.T, ingressPort string) {
 	d := &oc.Root{}
 	dut := ondatra.DUT(t, "dut")
 	interfaceID := ingressPort
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+	if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
 		interfaceID = ingressPort + ".0"
 	}
 	pfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID)
@@ -384,7 +384,7 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, name 
 
 // validateTraffic will return loss percentage of traffic
 func ValidateTraffic(t *testing.T, ate *ondatra.ATEDevice, flow gosnappi.Flow, flowFilter string) float32 {
-	top := ate.OTG().FetchConfig(t)
+	top := ate.OTG().GetConfig(t)
 	top.Flows().Clear()
 	top.Flows().Append(flow)
 	ate.OTG().PushConfig(t, top)
@@ -613,10 +613,6 @@ func testRecursiveIPv4EntrywithMACNexthop(t *testing.T, args *testArgs) {
 // 198.51.100.1/32 (a) with vrf selection w
 func testRecursiveIPv4EntrywithVrfPolW(t *testing.T, args *testArgs) {
 
-	if deviations.SkipPbfWithDecapEncapVrf(args.dut) {
-
-		t.Skip("Skipping Test as it is not supported")
-	}
 	t.Log("Delete existing vrf selection policy and Apply vrf selectioin policy W")
 	configNonDefaultNetworkInstance(t, args.dut)
 	configureVrfSelectionPolicyW(t, args.dut)

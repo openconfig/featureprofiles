@@ -24,7 +24,8 @@ platform_exceptions:  {
     vendor:  JUNIPER
   }
   deviations:  {
-    bgp_rib_oc_path_unsupported:  true
+    isis_level_enabled: true
+    interface_ref_interface_id_format: true
   }
 }
 platform_exceptions:  {
@@ -32,7 +33,7 @@ platform_exceptions:  {
     vendor:  CISCO
   }
   deviations:  {
-    bgp_rib_oc_path_unsupported:  true
+    bgp_distance_oc_path_unsupported:  true
   }
 }
 platform_exceptions:  {

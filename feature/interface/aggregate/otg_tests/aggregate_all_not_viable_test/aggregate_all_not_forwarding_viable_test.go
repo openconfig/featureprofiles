@@ -34,6 +34,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -85,6 +86,7 @@ const (
 	gribiIPv4EntryVRF111 = "203.0.113.1"
 	ipv4OuterSrc222Addr  = "198.51.100.222"
 	gribiIPv4EntryVRF222 = "203.0.113.100"
+	magicMAC             = "02:00:00:00:00:01"
 )
 
 type aggPortData struct {
@@ -185,7 +187,7 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 	changeMetric(t, dut, aggIDs[2], 30)
 	top := configureATE(t, ate)
 
-	installGRIBIRoutes(t, dut, ate, top)
+	installGRIBIRoutes(t, dut, ate, top, aggIDs[1])
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 	for _, aggID := range aggIDs {
@@ -202,10 +204,18 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 
 	t.Logf("ISIS cost of LAG_2 lower then ISIS cost of LAG_3 Test-01")
 	t.Run("RT-5.7.1.1: Setting Forwarding-Viable to False on Lag2 all ports except port 2", func(t *testing.T) {
+		expectedbundleBW, _ := checkBundleViableLinksBW(t, dut, dutPortList[1:agg2.ateLagCount+1])
+		if got, _ := gnmi.Lookup(t, dut, ocpath.Root().Interface(aggIDs[1]).Aggregation().LagSpeed().State()).Val(); got != expectedbundleBW {
+			t.Errorf("Forwarding unviable links counted as part of LAG bandwidth, got %v, want %v", got, expectedbundleBW)
+		}
 		configForwardingViable(t, dut, dutPortList[2:agg2.ateLagCount+1], false)
 		startTraffic(t, dut, ate, top)
 		if err := checkBidirectionalTraffic(t, dut, dutPortList[1:2]); err != nil {
 			t.Fatal(err)
+		}
+		expectedbundleBW, _ = checkBundleViableLinksBW(t, dut, dutPortList[1:agg2.ateLagCount+1])
+		if got, _ := gnmi.Lookup(t, dut, ocpath.Root().Interface(aggIDs[1]).Aggregation().LagSpeed().State()).Val(); got != expectedbundleBW {
+			t.Errorf("Forwarding unviable links counted as part of LAG bandwidth, got %v, want %v", got, expectedbundleBW)
 		}
 		if err := confirmNonViableForwardingTraffic(t, dut, ate, atePortList[2:agg2.ateLagCount+1], dutPortList[2:agg2.ateLagCount+1]); err != nil {
 			t.Fatal(err)
@@ -227,7 +237,11 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 		// Ensure ISIS Adjacency is Down on LAG_2
 
 		if ok := awaitAdjacency(t, dut, aggIDs[1], []oc.E_Isis_IsisInterfaceAdjState{oc.Isis_IsisInterfaceAdjState_INIT, oc.Isis_IsisInterfaceAdjState_DOWN}); !ok {
-			if presence := gnmi.LookupAll(t, dut, ocpath.Root().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis().Interface(aggIDs[1]).LevelAny().AdjacencyAny().AdjacencyState().State()); len(presence) > 0 {
+			isisIntfID := aggIDs[1]
+			if deviations.InterfaceRefInterfaceIDFormat(dut) {
+				isisIntfID = aggIDs[1] + ".0"
+			}
+			if presence := gnmi.LookupAll(t, dut, ocpath.Root().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis().Interface(isisIntfID).LevelAny().AdjacencyAny().AdjacencyState().State()); len(presence) > 0 {
 				t.Fatalf("ISIS Adjacency is Established on LAG_2 ")
 			}
 		}
@@ -245,6 +259,29 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 		}
 		if ok := verifyTrafficFlow(t, ate, flows[0:1], true); !ok {
 			t.Fatal("Packet Dropped, LossPct for flow ", flows[0].Name())
+		}
+		// Ensure LAG_2 is UP when all members are in forwarding unviable state
+		if got := gnmi.Get(t, dut, gnmi.OC().Interface(aggIDs[1]).OperStatus().State()); got != oc.Interface_OperStatus_UP {
+			t.Errorf("OperStatus for LAG_2 is %v, want %v", got, oc.Interface_OperStatus_UP)
+		}
+		// Ensure aggregatable, collecting, distributing and sync state is true for all the ports of LAG_2
+		for _, port := range dutPortList[1 : agg2.ateLagCount+1] {
+			lacpPath := gnmi.OC().Lacp().Interface(aggIDs[1]).Member(port.Name())
+			if got := gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).ForwardingViable().State()); got != false {
+				t.Errorf("Forwarding-Viable state for port %s is %v, want %v", port.Name(), got, false)
+			}
+			if got := gnmi.Get(t, dut, lacpPath.Aggregatable().State()); got != true {
+				t.Errorf("Aggregatable state for port %s is %v, want %v", port.Name(), got, true)
+			}
+			if got := gnmi.Get(t, dut, lacpPath.Collecting().State()); got != true {
+				t.Errorf("Collecting state for port %s is %v, want %v", port.Name(), got, true)
+			}
+			if got := gnmi.Get(t, dut, lacpPath.Distributing().State()); got != true {
+				t.Errorf("Distributing state for port %s is %v, want %v", port.Name(), got, true)
+			}
+			if got := gnmi.Get(t, dut, lacpPath.Synchronization().State()); got != oc.Lacp_LacpSynchronizationType_IN_SYNC {
+				t.Errorf("Sync state for port %s is not %v", port.Name(), got)
+			}
 		}
 	})
 
@@ -353,7 +390,11 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 		configForwardingViable(t, dut, dutPortList[1:agg2.ateLagCount+1], false)
 		// Ensure ISIS Adjacency is Down on LAG_2
 		if ok := awaitAdjacency(t, dut, aggIDs[1], []oc.E_Isis_IsisInterfaceAdjState{oc.Isis_IsisInterfaceAdjState_INIT, oc.Isis_IsisInterfaceAdjState_DOWN}); !ok {
-			if presence := gnmi.LookupAll(t, dut, ocpath.Root().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis().Interface(aggIDs[1]).LevelAny().AdjacencyAny().AdjacencyState().State()); len(presence) > 0 {
+			isisIntfID := aggIDs[1]
+			if deviations.InterfaceRefInterfaceIDFormat(dut) {
+				isisIntfID = aggIDs[1] + ".0"
+			}
+			if presence := gnmi.LookupAll(t, dut, ocpath.Root().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis().Interface(isisIntfID).LevelAny().AdjacencyAny().AdjacencyState().State()); len(presence) > 0 {
 				t.Fatalf("ISIS Adjacency is Established on LAG_2")
 			}
 		}
@@ -468,9 +509,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 		agg2.ateLagCount = uint32(len(dut.Ports()) - 3)
 		agg3.ateLagCount = 2
 		trafficDistributionWeights = []uint64{50, 50}
-		if dut.Vendor() != ondatra.CISCO && dut.Vendor() != ondatra.JUNIPER {
-			trafficDistributionWeights = []uint64{33, 67}
-		}
 	}
 	var aggIDs []string
 	for _, a := range []*aggPortData{agg1, agg2, agg3} {
@@ -495,8 +533,13 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 		aggPath := d.Interface(aggID)
 		fptest.LogQuery(t, aggID, aggPath.Config(), aggInt)
 		gnmi.Replace(t, dut, aggPath.Config(), aggInt)
-		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-			fptest.AssignToNetworkInstance(t, dut, aggID, deviations.DefaultNetworkInstance(dut), 0)
+		// Skip network instance assignment for Cisco LAG (Bundle-Ether) interfaces.
+		// Cisco IOS-XR does not support explicit VRF assignment on aggregate interfaces.
+		// The error: "'RSI' detected the 'warning' condition 'The specified interface type does not support VRFs'"
+		if dut.Vendor() != ondatra.CISCO {
+			if deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut) {
+				fptest.AssignToNetworkInstance(t, dut, aggID, deviations.DefaultNetworkInstance(dut), 0)
+			}
 		}
 		for _, port := range portList {
 			i := &oc.Interface{Name: ygot.String(port.Name())}
@@ -521,6 +564,13 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 	}
 
 	configureRoutingPolicy(t, dut)
+
+	// Configure Loopback0 for Cisco where ISIS requires a loopback interface
+	if deviations.ISISLoopbackRequired(dut) {
+		configureLoopback(t, dut)
+		aggIDs = append(aggIDs, "Loopback0")
+	}
+
 	configureDUTISIS(t, dut, aggIDs)
 
 	if !deviations.MaxEcmpPaths(dut) {
@@ -542,6 +592,31 @@ func configMemberDUT(dut *ondatra.DUTDevice, i *oc.Interface, p *ondatra.Port, a
 	}
 	e := i.GetOrCreateEthernet()
 	e.AggregateId = ygot.String(aggID)
+}
+
+// configureLoopback configures Loopback0 interface on DUT for ISIS
+func configureLoopback(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	d := &oc.Root{}
+	loopbackIntf := d.GetOrCreateInterface("Loopback0")
+	loopbackIntf.Name = ygot.String("Loopback0")
+	loopbackIntf.Description = ygot.String("Loopback for ISIS")
+	loopbackIntf.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
+	if deviations.InterfaceEnabled(dut) {
+		loopbackIntf.Enabled = ygot.Bool(true)
+	}
+	s := loopbackIntf.GetOrCreateSubinterface(0)
+	s4 := s.GetOrCreateIpv4()
+	if deviations.InterfaceEnabled(dut) {
+		s4.Enabled = ygot.Bool(true)
+	}
+	s4.GetOrCreateAddress(dutLoopback.IPv4).PrefixLength = ygot.Uint8(dutLoopback.IPv4Len)
+	s6 := s.GetOrCreateIpv6()
+	if deviations.InterfaceEnabled(dut) {
+		s6.Enabled = ygot.Bool(true)
+	}
+	s6.GetOrCreateAddress(dutLoopback.IPv6).PrefixLength = ygot.Uint8(dutLoopback.IPv6Len)
+	gnmi.Update(t, dut, gnmi.OC().Interface("Loopback0").Config(), loopbackIntf)
 }
 
 // initializePort initializes ports for aggregate on DUT
@@ -731,7 +806,14 @@ func configureDUTISIS(t *testing.T, dut *ondatra.DUTDevice, aggIDs []string) {
 		isisLevel2.Enabled = ygot.Bool(true)
 	}
 	for _, aggID := range aggIDs {
-		isisIntf := isis.GetOrCreateInterface(aggID)
+		isLoopback := strings.HasPrefix(strings.ToLower(aggID), "loopback")
+		intfID := aggID
+		// Only add .0 suffix for non-loopback interfaces when InterfaceRefInterfaceIDFormat is true
+		// Loopback interfaces on Cisco do not use subinterface notation
+		if deviations.InterfaceRefInterfaceIDFormat(dut) && !isLoopback {
+			intfID = aggID + ".0"
+		}
+		isisIntf := isis.GetOrCreateInterface(intfID)
 		isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(aggID)
 		isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 
@@ -740,7 +822,12 @@ func configureDUTISIS(t *testing.T, dut *ondatra.DUTDevice, aggIDs []string) {
 		}
 
 		isisIntf.Enabled = ygot.Bool(true)
-		isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
+		// Loopback interfaces should be passive (they don't form ISIS adjacencies)
+		if isLoopback {
+			isisIntf.SetPassive(true)
+		} else {
+			isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
+		}
 		isisIntf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 		isisIntf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 		if deviations.ISISInterfaceAfiUnsupported(dut) {
@@ -774,6 +861,9 @@ func changeMetric(t *testing.T, dut *ondatra.DUTDevice, intf string, metric uint
 	netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	isis := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).GetOrCreateIsis()
 	isisIntfLevel := isis.GetOrCreateInterface(intf).GetOrCreateLevel(2)
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		isisIntfLevel = isis.GetOrCreateInterface(intf + ".0").GetOrCreateLevel(2)
+	}
 	isisIntfLevelAfiv4 := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
 	isisIntfLevelAfiv4.Metric = ygot.Uint32(metric)
 	isisIntfLevelAfiv6 := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST)
@@ -916,6 +1006,25 @@ func configForwardingViable(t *testing.T, dut *ondatra.DUTDevice, dutPorts []*on
 	}
 }
 
+// Translates an openconfig ETHERNET_SPEED into Mbps which can be used to verify a LAG's speed.
+func ethernetPortSpeedToMbps(speed oc.E_IfEthernet_ETHERNET_SPEED) uint32 {
+	// Returns bits/sec.
+	bps := fptest.EthernetSpeedToUint64(speed)
+	return uint32(bps / 1_000_000)
+}
+
+// Check number of forwading viable links in the bundle and return total cumulative BW of these links
+func checkBundleViableLinksBW(t *testing.T, dut *ondatra.DUTDevice, dutPorts []*ondatra.Port) (uint32, error) {
+	lagSpeed := uint32(0)
+	for _, port := range dutPorts {
+		if got := gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).ForwardingViable().State()); got != false {
+			portSpeed := ethernetPortSpeedToMbps(gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).Ethernet().PortSpeed().State()))
+			lagSpeed += portSpeed
+		}
+	}
+	return lagSpeed, nil
+}
+
 // incrementMAC uses a mac string and increments it by the given i
 func incrementMAC(mac string, i int) (string, error) {
 	macAddr, err := net.ParseMAC(mac)
@@ -972,7 +1081,7 @@ func configureFlows(t *testing.T, top gosnappi.Config, srcV4 *ipAddr, dstV4 *ipA
 }
 
 // installGRIBIRoutes configure route using gRIBI client
-func installGRIBIRoutes(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config) {
+func installGRIBIRoutes(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, intf string) {
 	t.Helper()
 	ctx := context.Background()
 	gribic := dut.RawAPIs().GRIBI(t)
@@ -1058,9 +1167,16 @@ func installGRIBIRoutes(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 	)
 
 	// Programming AFT entries for encapped prefixes "203.0.113.1/32"
+	var nh fluent.GRIBIEntry
+	if deviations.BackupNHGRequiresVrfWithDecap(dut) {
+		nh = fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
+			WithIndex(uint64(101)).WithMacAddress(magicMAC).WithInterfaceRef(intf)
+	} else {
+		nh = fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
+			WithIndex(uint64(101)).WithIPAddress(agg2.ateIPv4)
+	}
 	tcArgs.client.Modify().AddEntry(t,
-		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
-			WithIndex(uint64(101)).WithIPAddress(agg2.ateIPv4),
+		nh,
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
 			WithID(uint64(101)).AddNextHop(uint64(101), uint64(1)).WithBackupNHG(3000),
 
@@ -1095,7 +1211,7 @@ func awaitTimeout(ctx context.Context, t testing.TB, c *fluent.GRIBIClient, time
 func startTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config) {
 	t.Helper()
 	capturePktsBeforeTraffic(t, dut, dutPortList)
-	time.Sleep(10 * time.Second)
+	time.Sleep(40 * time.Second)
 	ate.OTG().StartTraffic(t)
 	time.Sleep(time.Minute)
 	ate.OTG().StopTraffic(t)
@@ -1118,24 +1234,56 @@ func capturePktsBeforeTraffic(t *testing.T, dut *ondatra.DUTDevice, dutPortList 
 // verifyTrafficFlow verify the each flow on ATE
 func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flows []gosnappi.Flow, status bool) bool {
 	if flows[0].Name() == "pfx1ToPfx4" {
-		rxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flows[0].Name()).Counters().InPkts().State())
-		txPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flows[0].Name()).Counters().OutPkts().State())
-		lostPkt := txPkts - rxPkts
+		var rxPkts, txPkts uint64
+		var lostPkt uint64
+		for i := 0; i < 6; i++ {
+			rxPkts = gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flows[0].Name()).Counters().InPkts().State())
+			txPkts = gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flows[0].Name()).Counters().OutPkts().State())
+			if txPkts > 0 {
+				break
+			}
+			t.Logf("verifyTrafficFlow: Flow %s Tx pkts is 0, retrying in 5s... (attempt %d/6)", flows[0].Name(), i+1)
+			time.Sleep(5 * time.Second)
+		}
+		lostPkt = txPkts - rxPkts
 
+		if txPkts == 0 {
+			t.Errorf("verifyTrafficFlow: Flow %s transmitted 0 packets", flows[0].Name())
+			return false
+		}
 		if status {
 			if got := (lostPkt * 100 / txPkts); got >= 51 {
+				t.Logf("%s loss packet count is: %v", flows[0].Name(), lostPkt)
+				t.Logf("%s loss packet percent is: %v%%", flows[0].Name(), got)
 				return false
 			}
 		} else if got := (lostPkt * 100 / txPkts); got > 0 {
+			t.Logf("%s loss packet count is: %v", flows[0].Name(), lostPkt)
+			t.Logf("%s loss packet percent is: %v%%", flows[0].Name(), got)
 			return false
 		}
 	} else {
 		for _, flow := range flows {
-			rxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State())
-			txPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
-			lostPkt := txPkts - rxPkts
+			var rxPkts, txPkts uint64
+			var lostPkt uint64
+			for i := 0; i < 6; i++ {
+				rxPkts = gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State())
+				txPkts = gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
+				if txPkts > 0 {
+					break
+				}
+				t.Logf("verifyTrafficFlow: Flow %s Tx pkts is 0, retrying in 5s... (attempt %d/6)", flow.Name(), i+1)
+				time.Sleep(5 * time.Second)
+			}
+			lostPkt = txPkts - rxPkts
 
+			if txPkts == 0 {
+				t.Errorf("verifyTrafficFlow: Flow %s transmitted 0 packets", flow.Name())
+				return false
+			}
 			if got := (lostPkt * 100 / txPkts); got > 0 {
+				t.Logf("%s loss packet count is: %v", flow.Name(), lostPkt)
+				t.Logf("%s stream loss packet percent is: %v%%", flow.Name(), got)
 				return false
 			}
 		}
@@ -1145,19 +1293,34 @@ func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flows []gosnappi.Fl
 
 // awaitAdjacency wait for adjacency to be up/down
 func awaitAdjacency(t *testing.T, dut *ondatra.DUTDevice, intfName string, state []oc.E_Isis_IsisInterfaceAdjState) bool {
+	isisIntfID := intfName
+	// When InterfaceRefInterfaceIDFormat is true, ISIS interface ID has .0 suffix
+	if deviations.InterfaceRefInterfaceIDFormat(dut) && !strings.HasPrefix(strings.ToLower(intfName), "loopback") {
+		isisIntfID = intfName + ".0"
+	}
 	isisPath := ocpath.Root().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
-	intf := isisPath.Interface(intfName)
+	intf := isisPath.Interface(isisIntfID)
 	query := intf.LevelAny().AdjacencyAny().AdjacencyState().State()
-	_, ok := gnmi.WatchAll(t, dut, query, 90*time.Second, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
-		v, ok := val.Val()
-		for _, s := range state {
-			if (v == s) && ok {
-				return true
+	for i := 1; i <= 5; i++ {
+		_, ok := gnmi.WatchAll(t, dut, query, 30*time.Second, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
+			v, present := val.Val()
+			if !present {
+				return false
 			}
+			t.Logf("Observed adjacency state: %v", v)
+			for _, s := range state {
+				if v == s {
+					return true
+				}
+			}
+			return false
+		}).Await(t)
+
+		if ok {
+			return true
 		}
-		return false
-	}).Await(t)
-	return ok
+	}
+	return false
 }
 
 // checkBidirectionalTraffic verify the bidirectional traffic on DUT ports.
@@ -1223,21 +1386,26 @@ func validateLag3Traffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATED
 func trafficRXWeights(t *testing.T, ate *ondatra.ATEDevice, aggNames []string, flow gosnappi.Flow, aggregateAggName string) []uint64 {
 	t.Helper()
 	var rxs []uint64
+	// Get the flow metrics
 	flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).State())
 	flowInFrames := flowMetrics.GetCounters().GetInPkts()
 	for _, aggName := range aggNames {
+		// Get the aggregate metrics
 		metrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Lag(aggName).State())
-		rxs = append(rxs, (metrics.GetCounters().GetInFrames()))
 		inFrames := metrics.GetCounters().GetInFrames()
+		// Subtract the flow's in frames if it's the aggregate aggregate
 		if aggName == aggregateAggName {
 			inFrames = inFrames - flowInFrames
 		}
+		// Append the in frames to the rxs slice
 		rxs = append(rxs, inFrames)
 	}
+	// Calculate the total received frames
 	var total uint64
 	for _, rx := range rxs {
 		total += rx
 	}
+	// Calculate the weighted distribution
 	for idx, rx := range rxs {
 		rxs[idx] = (rx * 100) / total
 	}

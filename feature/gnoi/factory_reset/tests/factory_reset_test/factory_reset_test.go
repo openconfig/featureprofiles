@@ -16,8 +16,8 @@ package factory_reset_test
 
 import (
 	"context"
-	"crypto/md5"
 	"crypto/rand"
+	"crypto/sha256"
 	"io"
 	"path/filepath"
 	"regexp"
@@ -27,7 +27,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	frpb "github.com/openconfig/gnoi/factory_reset"
 	fpb "github.com/openconfig/gnoi/file"
-	"github.com/openconfig/gnoi/types"
+	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/gnoigo"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -81,7 +81,7 @@ func gNOIPutFile(t *testing.T, dut *ondatra.DUTDevice, gnoiClient gnoigo.Clients
 		t.Fatalf("Failed to create stream channel: %v", err)
 	}
 	defer stream.CloseSend()
-	h := md5.New()
+	h := sha256.New()
 	fPutOpen := &fpb.PutRequest_Open{
 		Open: &fpb.PutRequest_Details{
 			RemoteFile:  fullPath,
@@ -113,8 +113,8 @@ func gNOIPutFile(t *testing.T, dut *ondatra.DUTDevice, gnoiClient gnoigo.Clients
 
 	hashReq := &fpb.PutRequest{
 		Request: &fpb.PutRequest_Hash{
-			Hash: &types.HashType{
-				Method: types.HashType_MD5,
+			Hash: &tpb.HashType{
+				Method: tpb.HashType_SHA256,
 				Hash:   h.Sum(nil),
 			},
 		},

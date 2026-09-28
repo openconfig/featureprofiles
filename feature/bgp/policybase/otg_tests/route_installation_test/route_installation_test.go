@@ -140,10 +140,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	i2 := dutDst.NewOCInterface(dut.Port(t, "port2").Name(), dut)
 	gnmi.Replace(t, dut, dc.Interface(i2.GetName()).Config(), i2)
 
-	if deviations.ExplicitPortSpeed(dut) {
-		fptest.SetPortSpeed(t, dut.Port(t, "port1"))
-		fptest.SetPortSpeed(t, dut.Port(t, "port2"))
-	}
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, i1.GetName(), deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, dut, i2.GetName(), deviations.DefaultNetworkInstance(dut), 0)
@@ -233,7 +229,9 @@ func bgpCreateNbr(localAs, peerAs uint32, policy string, dut *ondatra.DUTDevice)
 
 // configureBGPPolicy configures a BGP routing policy to accept or reject routes based on prefix match conditions
 // Additionally, it configures LocalPreference, ASPathprepend and MED as part of the BGP policy.
-func configureBGPPolicy(d *oc.Root) (*oc.RoutingPolicy, error) {
+func configureBGPPolicy(d *oc.Root, t *testing.T) (*oc.RoutingPolicy, error) {
+
+	dut := ondatra.DUT(t, "dut")
 	rp := d.GetOrCreateRoutingPolicy()
 	pset := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(prefixSet)
 	pset.GetOrCreatePrefix(ipPrefixSet, prefixSubnetRange)
@@ -291,6 +289,10 @@ func configureBGPPolicy(d *oc.Root) (*oc.RoutingPolicy, error) {
 	}
 	actions6 := stmt.GetOrCreateActions()
 	actions6.GetOrCreateBgpActions().SetMed = oc.UnionUint32(medValue)
+	if !deviations.BGPSetMedActionUnsupported(dut) {
+		actions6.GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
+	}
+
 	actions6.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
 	return rp, nil
@@ -512,6 +514,8 @@ func configureATE(t *testing.T, otg *otg.OTG) gosnappi.Config {
 	t.Logf("Pushing config to ATE and starting protocols...")
 	otg.PushConfig(t, config)
 	otg.StartProtocols(t)
+	otgutils.WaitForARP(t, otg, config, "IPv4")
+	otgutils.WaitForARP(t, otg, config, "IPv6")
 	return config
 }
 
@@ -519,31 +523,14 @@ func configureATE(t *testing.T, otg *otg.OTG) gosnappi.Config {
 // depending on wantLoss, +- 2%).
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, wantLoss bool) {
 	otg := ate.OTG()
-	otgutils.LogFlowMetrics(t, otg, c)
+	defer otgutils.LogFlowMetrics(t, otg, c)
 	for _, f := range c.Flows().Items() {
 		t.Logf("Verifying flow metrics for flow %s\n", f.Name())
-		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(f.Name()).State())
-		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
-		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
-		lostPackets := txPackets - rxPackets
-		lossPct := lostPackets * 100 / txPackets
 		if !wantLoss {
-			if lostPackets > tolerance {
-				t.Logf("Packets received not matching packets sent. Sent: %v, Received: %v", txPackets, rxPackets)
-			}
-			if lossPct > tolerancePct && txPackets > 0 {
-				t.Errorf("Traffic Loss Pct for Flow: %s\n got %v, want max %v pct failure", f.Name(), lossPct, tolerancePct)
-			} else {
-				t.Logf("Traffic Test Passed! for flow %s", f.Name())
-			}
+			otgutils.ExpectedTrafficLoss(t, otg, f.Name(), 0, float64(tolerancePct)+0.99)
 		} else {
-			if lossPct < 100-tolerancePct && txPackets > 0 {
-				t.Errorf("Traffic is expected to fail %s\n got %v, want max %v pct failure", f.Name(), lossPct, 100-tolerancePct)
-			} else {
-				t.Logf("Traffic Loss Test Passed! for flow %s", f.Name())
-			}
+			otgutils.ExpectedTrafficLoss(t, otg, f.Name(), float64(100-tolerancePct), 100)
 		}
-
 	}
 }
 
@@ -612,7 +599,7 @@ func TestEstablish(t *testing.T) {
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	gnmi.Delete(t, dut, dutConfPath.Config())
 	d := &oc.Root{}
-	rpl, err := configureBGPPolicy(d)
+	rpl, err := configureBGPPolicy(d, t)
 	if err != nil {
 		t.Fatalf("Failed to configure BGP Policy: %v", err)
 	}
@@ -724,7 +711,7 @@ func TestBGPPolicy(t *testing.T) {
 			fptest.LogQuery(t, "DUT BGP Config before", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 			d := &oc.Root{}
 			t.Log("Configure BGP Policy with BGP actions on the neighbor")
-			rpl, err := configureBGPPolicy(d)
+			rpl, err := configureBGPPolicy(d, t)
 			if err != nil {
 				t.Fatalf("Failed to configure BGP Policy: %v", err)
 			}

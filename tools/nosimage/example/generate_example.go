@@ -33,7 +33,7 @@ import (
 	ppb "github.com/openconfig/featureprofiles/proto/ocpaths_go_proto"
 	rpb "github.com/openconfig/featureprofiles/proto/ocrpcs_go_proto"
 	opb "github.com/openconfig/ondatra/proto"
-	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 //go:generate go run generate_example.go -folder-path .

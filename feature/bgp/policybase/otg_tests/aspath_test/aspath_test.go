@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -73,8 +74,12 @@ func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string,
 
 	aspathSet := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateAsPathSet(aspathSetName)
 	aspathSet.SetAsPathSetMember(aspathMatch)
-	stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetAsPathSet(aspathSetName)
-	stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetMatchSetOptions(matchSetOptions)
+
+	if !deviations.MatchAsPathSetUnsupported(dut) {
+		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetAsPathSet(aspathSetName)
+		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetMatchSetOptions(matchSetOptions)
+	}
+
 	pdAllow := rp.GetOrCreatePolicyDefinition(RPLPermitAll)
 	st, err := pdAllow.AppendNewStatement("id-1")
 	if err != nil {
@@ -95,7 +100,7 @@ func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string,
 	pathV4 := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(ipv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 	policyV4 := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(ipv4).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy()
 	if !deviations.DefaultRoutePolicyUnsupported(dut) {
-		policyV4.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
+		policyV4.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
 	}
 	policyV4.SetImportPolicy([]string{"routePolicy"})
 	gnmi.Replace(t, dut, pathV4.Config(), policyV4)
@@ -111,10 +116,6 @@ func configureOTG(t *testing.T, bs *cfgplugins.BGPSession, prefixesV4 [][]string
 	ipv6 := devices[0].Ethernets().Items()[0].Ipv6Addresses().Items()[0]
 	bgp6Peer := devices[0].Bgp().Ipv6Interfaces().Items()[0].Peers().Items()[0]
 
-	bgp6PeerRoute := bgp6Peer.V6Routes().Add()
-	bgp6PeerRoute.SetName(bs.ATEPorts[0].Name + ".BGP6.peer.dut")
-	bgp6PeerRoute.SetNextHopIpv6Address(ipv6.Address())
-
 	for index, prefixes := range prefixesV4 {
 		bgp4PeerRoute := bgp4Peer.V4Routes().Add()
 		bgp4PeerRoute.SetName("prefix-set-" + strconv.Itoa(index) + "-" + bs.ATEPorts[0].Name + ".BGP4.peer.dut")
@@ -125,12 +126,16 @@ func configureOTG(t *testing.T, bs *cfgplugins.BGPSession, prefixesV4 [][]string
 		route4Address2.SetPrefix(prefixV4Len)
 		asp4 := bgp4PeerRoute.AsPath().Segments().Add()
 		asp4.SetAsNumbers(aspathMembers[index])
+	}
 
-		route6Address1 := bgp6PeerRoute.Addresses().Add().SetAddress(prefixesV6[index][0])
+	for index, prefixes := range prefixesV6 {
+		bgp6PeerRoute := bgp6Peer.V6Routes().Add()
+		bgp6PeerRoute.SetName("prefix-set-" + strconv.Itoa(index) + "-" + bs.ATEPorts[0].Name + ".BGP6.peer.dut")
+		bgp6PeerRoute.SetNextHopIpv6Address(ipv6.Address())
+		route6Address1 := bgp6PeerRoute.Addresses().Add().SetAddress(prefixes[0])
 		route6Address1.SetPrefix(prefixV6Len)
-		route6Address2 := bgp6PeerRoute.Addresses().Add().SetAddress(prefixesV6[index][1])
+		route6Address2 := bgp6PeerRoute.Addresses().Add().SetAddress(prefixes[1])
 		route6Address2.SetPrefix(prefixV6Len)
-
 		asp6 := bgp6PeerRoute.AsPath().Segments().Add()
 		asp6.SetAsNumbers(aspathMembers[index])
 	}
@@ -195,16 +200,12 @@ func incrementIPSlice(ipSlice []string) []string {
 	return incrementedSlice
 }
 
-func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, ports int, testResults bool) {
-	// compare the flows transmitted and received instead of the ports counters
-	framesTx := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow("flow").State()).GetCounters().GetOutPkts()
-	framesRx := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow("flow").State()).GetCounters().GetInPkts()
-	if framesTx == 0 {
-		t.Error("No traffic was generated and frames transmitted were 0")
-	} else if (testResults && framesRx == framesTx) || (!testResults && framesRx == 0) {
-		t.Logf("Traffic validation successful for criteria [%t] FramesTx: %d FramesRx: %d", testResults, framesTx, framesRx)
+func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, ports int, testResults bool) {
+	defer otgutils.LogFlowMetrics(t, ate.OTG(), c)
+	if testResults {
+		otgutils.ExpectedTrafficLoss(t, ate.OTG(), "flow", 0, 5.99)
 	} else {
-		t.Errorf("Traffic validation failed for criteria [%t] FramesTx: %d FramesRx: %d", testResults, framesTx, framesRx)
+		otgutils.ExpectedTrafficLoss(t, ate.OTG(), "flow", 99, 100)
 	}
 }
 
@@ -263,14 +264,14 @@ func TestAsPathSet(t *testing.T) {
 		{
 			desc:            "Testing with match_my_regex_aspath-1",
 			aspathSetName:   "match_my_regex_aspath-1",
-			aspathMatch:     []string{"^100", "20[0-9]", "200$"},
+			aspathMatch:     []string{"100", "20[0-9]", "200$"},
 			matchSetOptions: oc.RoutingPolicy_MatchSetOptionsType_ANY,
 			testResults:     [6]bool{true, true, false, false, true, true},
 		},
 		{
 			desc:            "Testing with my_regex_aspath-2",
 			aspathSetName:   "my_regex_aspath-2",
-			aspathMatch:     []string{"(^100)(.*)+(300$)"},
+			aspathMatch:     []string{"(100)(.*)+(300$)"},
 			matchSetOptions: oc.RoutingPolicy_MatchSetOptionsType_ANY,
 			testResults:     [6]bool{true, true, false, false, false, false},
 		},
@@ -280,9 +281,9 @@ func TestAsPathSet(t *testing.T) {
 			if deviations.CommunityMemberRegexUnsupported(bs.DUT) {
 				for i, entry := range tc.aspathMatch {
 					switch entry {
-					case "^100":
+					case "100":
 						tc.aspathMatch[i] = "65511 100"
-					case "(^100)(.*)+(300$)":
+					case "(100)(.*)+(300$)":
 						tc.aspathMatch[i] = "^65511_100_.*_300$"
 					}
 				}
@@ -299,16 +300,14 @@ func TestAsPathSet(t *testing.T) {
 				bs.ATE.OTG().StartTraffic(t)
 				time.Sleep(sleepTime * time.Second)
 				bs.ATE.OTG().StopTraffic(t)
-				otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
-				verifyTraffic(t, bs.ATE, int(cfgplugins.PortCount2), tc.testResults[index])
+				verifyTraffic(t, bs.ATE, bs.ATETop, int(cfgplugins.PortCount2), tc.testResults[index])
 
 				t.Logf("Running traffic test for IPv6 prefixes: [%s, %s]. Expected Result: [%t]", prefixesV6[index][0], prefixesV6[index][1], tc.testResults[index])
 				configureFlow(bs, prefixesV6[index], "ipv6", dstMac, index)
 				bs.ATE.OTG().StartTraffic(t)
 				time.Sleep(sleepTime * time.Second)
 				bs.ATE.OTG().StopTraffic(t)
-				otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
-				verifyTraffic(t, bs.ATE, int(cfgplugins.PortCount2), tc.testResults[index])
+				verifyTraffic(t, bs.ATE, bs.ATETop, int(cfgplugins.PortCount2), tc.testResults[index])
 			}
 		})
 	}

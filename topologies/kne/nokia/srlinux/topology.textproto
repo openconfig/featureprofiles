@@ -98,6 +98,30 @@ nodes: {
             name: "ethernet-1/9"
         }
     }
+    interfaces: {
+        key: "e1-10"
+        value: {
+            name: "ethernet-1/10"
+        }
+    }
+    interfaces: {
+        key: "e1-11"
+        value: {
+            name: "ethernet-1/11"
+        }
+    }
+    interfaces: {
+        key: "e1-12"
+        value: {
+            name: "ethernet-1/12"
+        }
+    }
+    interfaces: {
+        key: "e1-13"
+        value: {
+            name: "ethernet-1/13"
+        }
+    }
 }
 nodes: {
     name: "dut2"
@@ -196,6 +220,30 @@ nodes: {
             name: "ethernet-1/9"
         }
     }
+    interfaces: {
+        key: "e1-10"
+        value: {
+            name: "ethernet-1/10"
+        }
+    }
+    interfaces: {
+        key: "e1-11"
+        value: {
+            name: "ethernet-1/11"
+        }
+    }
+    interfaces: {
+        key: "e1-12"
+        value: {
+            name: "ethernet-1/12"
+        }
+    }
+    interfaces: {
+        key: "e1-13"
+        value: {
+            name: "ethernet-1/13"
+        }
+    }
 }
 nodes: {
     name: "otg"
@@ -203,6 +251,9 @@ nodes: {
     version: "0.0.1-9999" # Please update this with the local version from ixiatg-configmap.yaml
     interfaces: {
         key: "eth1"
+        value: {
+            group: "lag"
+        }
     }
     interfaces: {
         key: "eth2"
@@ -248,6 +299,60 @@ nodes: {
     }
     interfaces: {
         key: "eth9"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth10"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth11"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth12"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth13"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth14"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth15"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth16"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth17"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth18"
         value: {
             group: "lag"
         }

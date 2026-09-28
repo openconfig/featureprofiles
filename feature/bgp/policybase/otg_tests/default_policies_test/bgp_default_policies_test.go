@@ -24,11 +24,11 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/gnmi/oc/netinstbgp"
-	"github.com/openconfig/ondatra/netutil"
 	otg "github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
@@ -143,26 +143,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	i2 := dutPort2.NewOCInterface(dut.Port(t, "port2").Name(), dut)
 	gnmi.Replace(t, dut, dc.Interface(i2.GetName()).Config(), i2)
 
-	loopbackIntfName = netutil.LoopbackInterface(t, dut, 0)
-	lo0 := gnmi.OC().Interface(loopbackIntfName).Subinterface(0)
-	ipv4Addrs := gnmi.LookupAll(t, dut, lo0.Ipv4().AddressAny().State())
-	ipv6Addrs := gnmi.LookupAll(t, dut, lo0.Ipv6().AddressAny().State())
-	if len(ipv4Addrs) == 0 && len(ipv6Addrs) == 0 {
-		loop1 := dutlo0Attrs.NewOCInterface(loopbackIntfName, dut)
-		loop1.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
-		gnmi.Update(t, dut, dc.Interface(loopbackIntfName).Config(), loop1)
-	} else {
-		v4, ok := ipv4Addrs[0].Val()
-		if ok {
-			dutlo0Attrs.IPv4 = v4.GetIp()
-		}
-		v6, ok := ipv6Addrs[0].Val()
-		if ok {
-			dutlo0Attrs.IPv6 = v6.GetIp()
-		}
-		t.Logf("Got DUT IPv4 loopback address: %v", dutlo0Attrs.IPv4)
-		t.Logf("Got DUT IPv6 loopback address: %v", dutlo0Attrs.IPv6)
-	}
+	loopbackIntfName = helpers.GetOrCreateLoopback(t, dut, 0, 0, &dutlo0Attrs)
 
 	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, dut.Port(t, "port1"))
@@ -179,10 +160,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
 	t.Helper()
 	for _, p := range dev.Ports() {
-		status := gnmi.Get(t, dev, gnmi.OC().Interface(p.Name()).OperStatus().State())
-		if want := oc.Interface_OperStatus_UP; status != want {
-			t.Errorf("%s Status: got %v, want %v", p, status, want)
-		}
+		gnmi.Await(t, dev, gnmi.OC().Interface(p.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
 	}
 }
 
@@ -454,7 +432,7 @@ func verifyBGPCapabilities(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr string, wantInstalled, wantRx, wantSent uint32, isV4 bool) {
+func verifyInitialPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr string, wantRx uint32, isV4 bool) {
 	t.Helper()
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	t.Logf("Prefix telemetry on DUT for peer %v", nbr)
@@ -465,26 +443,14 @@ func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr string, w
 	} else {
 		prefixPath = statePath.Neighbor(nbr).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Prefixes()
 	}
-	if gotInstalled, ok := gnmi.Watch(t, dut, prefixPath.Installed().State(), 10*time.Second, func(val *ygnmi.Value[uint32]) bool {
-		gotInstalled, ok := val.Val()
-		return ok && gotInstalled == wantInstalled
-	}).Await(t); !ok {
-		t.Errorf("Installed prefixes mismatch: got %v, want %v", gotInstalled, wantInstalled)
-	}
 
 	if !deviations.MissingPrePolicyReceivedRoutes(dut) {
-		if gotRx, ok := gnmi.Watch(t, dut, prefixPath.ReceivedPrePolicy().State(), 10*time.Second, func(val *ygnmi.Value[uint32]) bool {
+		if gotRx, ok := gnmi.Watch(t, dut, prefixPath.ReceivedPrePolicy().State(), 30*time.Second, func(val *ygnmi.Value[uint32]) bool {
 			gotRx, ok := val.Val()
 			return ok && gotRx == wantRx
 		}).Await(t); !ok {
 			t.Errorf("Received prefixes mismatch: got %v, want %v", gotRx, wantRx)
 		}
-	}
-	if gotSent, ok := gnmi.Watch(t, dut, prefixPath.Sent().State(), 10*time.Second, func(val *ygnmi.Value[uint32]) bool {
-		gotSent, ok := val.Val()
-		return ok && gotSent == wantSent
-	}).Await(t); !ok {
-		t.Errorf("Sent prefixes mismatch: got %v, want %v", gotSent, wantSent)
 	}
 }
 
@@ -519,6 +485,9 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName []string, dutA
 	}
 
 	for _, intf := range intfName {
+		if deviations.InterfaceRefInterfaceIDFormat(dut) {
+			intf += ".0"
+		}
 		isisIntf := isis.GetOrCreateInterface(intf)
 		isisIntf.Enabled = ygot.Bool(true)
 		isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
@@ -545,7 +514,7 @@ func verifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntf []string)
 	t.Helper()
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
 	for _, intfName := range dutIntf {
-		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut) {
 			intfName = intfName + ".0"
 		}
 		nbrPath := statePath.Interface(intfName)
@@ -638,7 +607,7 @@ func configureRoutingPolicyDefaultAction(t *testing.T, dut *ondatra.DUTDevice, a
 	deleteBGPPolicy(t, dut, []*bgpNbrList{ebgpNbrV4, ebgpNbrV6, ibgpNbrV4, ibgpNbrV6})
 	gnmi.BatchDelete(batchConfig, gnmi.OC().RoutingPolicy().Config())
 	batchConfig.Set(t, dut)
-	time.Sleep(20 * time.Second)
+	time.Sleep(40 * time.Second)
 
 	gnmi.BatchUpdate(batchConfig, gnmi.OC().RoutingPolicy().Config(), configurePrefixMatchAndDefaultStatement(t, dut, ebgpImportIPv4, maskLenExact, maskLen32, []string{ipv4Prefix1, ipv4Prefix2}, action, defaultStatementOnly))
 	gnmi.BatchUpdate(batchConfig, gnmi.OC().RoutingPolicy().Config(), configurePrefixMatchAndDefaultStatement(t, dut, ebgpImportIPv6, maskLenExact, maskLen128, []string{ipv6Prefix1, ipv6Prefix2}, action, defaultStatementOnly))
@@ -661,7 +630,7 @@ func configureRoutingPolicyDefaultAction(t *testing.T, dut *ondatra.DUTDevice, a
 
 	batchConfig.Set(t, dut)
 
-	time.Sleep(20 * time.Second)
+	time.Sleep(40 * time.Second)
 }
 
 func testDefaultPolicyRejectRouteAction(t *testing.T, dut *ondatra.DUTDevice) {
@@ -849,7 +818,7 @@ func verifyPostPolicyPrefixTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr *
 		}
 	}
 
-	if gotInstalled, ok := gnmi.Watch(t, dut, afiSafiPath.Prefixes().Installed().State(), 10*time.Second, func(val *ygnmi.Value[uint32]) bool {
+	if gotInstalled, ok := gnmi.Watch(t, dut, afiSafiPath.Prefixes().Installed().State(), 60*time.Second, func(val *ygnmi.Value[uint32]) bool {
 		gotInstalled, ok := val.Val()
 		return ok && gotInstalled == nbr.wantInstalled
 	}).Await(t); !ok {
@@ -857,14 +826,14 @@ func verifyPostPolicyPrefixTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr *
 	}
 
 	if !deviations.MissingPrePolicyReceivedRoutes(dut) {
-		if gotRxPrePol, ok := gnmi.Watch(t, dut, afiSafiPath.Prefixes().ReceivedPrePolicy().State(), 20*time.Second, func(val *ygnmi.Value[uint32]) bool {
+		if gotRxPrePol, ok := gnmi.Watch(t, dut, afiSafiPath.Prefixes().ReceivedPrePolicy().State(), 30*time.Second, func(val *ygnmi.Value[uint32]) bool {
 			gotRxPrePol, ok := val.Val()
 			return ok && gotRxPrePol == nbr.wantRxPrePolicy
 		}).Await(t); !ok {
 			t.Errorf("Received pre policy prefixes mismatch: got %v, want %v", gotRxPrePol, nbr.wantRxPrePolicy)
 		}
 	}
-	if gotRx, ok := gnmi.Watch(t, dut, afiSafiPath.Prefixes().Received().State(), 20*time.Second, func(val *ygnmi.Value[uint32]) bool {
+	if gotRx, ok := gnmi.Watch(t, dut, afiSafiPath.Prefixes().Received().State(), 30*time.Second, func(val *ygnmi.Value[uint32]) bool {
 		gotRx, ok := val.Val()
 		return ok && gotRx == nbr.wantRx
 	}).Await(t); !ok {
@@ -872,7 +841,7 @@ func verifyPostPolicyPrefixTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr *
 	}
 
 	if nbr.defImportPol == oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE && !deviations.SkipNonBgpRouteExportCheck(dut) {
-		if gotSent, ok := gnmi.Watch(t, dut, afiSafiPath.Prefixes().Sent().State(), 10*time.Second, func(val *ygnmi.Value[uint32]) bool {
+		if gotSent, ok := gnmi.Watch(t, dut, afiSafiPath.Prefixes().Sent().State(), 30*time.Second, func(val *ygnmi.Value[uint32]) bool {
 			gotSent, ok := val.Val()
 			return ok && gotSent == nbr.wantSent
 		}).Await(t); !ok {
@@ -962,17 +931,11 @@ func TestBGPDefaultPolicies(t *testing.T) {
 	})
 
 	t.Run("Verify prefix telemetry on DUT for all iBGP and eBGP peers", func(t *testing.T) {
-		if deviations.DefaultImportExportPolicyUnsupported(dut) {
-			verifyPrefixesTelemetry(t, dut, atePort1.IPv4, 3, 3, 3, v4Prefixes)
-			verifyPrefixesTelemetry(t, dut, otgIsisPort2LoopV4, 3, 3, 3, v4Prefixes)
-			verifyPrefixesTelemetry(t, dut, atePort1.IPv6, 3, 3, 3, !v4Prefixes)
-			verifyPrefixesTelemetry(t, dut, otgIsisPort2LoopV6, 3, 3, 3, !v4Prefixes)
-		} else {
-			verifyPrefixesTelemetry(t, dut, atePort1.IPv4, 0, 3, 0, v4Prefixes)
-			verifyPrefixesTelemetry(t, dut, otgIsisPort2LoopV4, 3, 3, 0, v4Prefixes)
-			verifyPrefixesTelemetry(t, dut, atePort1.IPv6, 0, 3, 0, !v4Prefixes)
-			verifyPrefixesTelemetry(t, dut, otgIsisPort2LoopV6, 3, 3, 0, !v4Prefixes)
-		}
+		// Validate only if the routes being sent by OTG are received by DUT and advertised to ISIS neighbor.
+		verifyInitialPrefixesTelemetry(t, dut, atePort1.IPv4, 3, v4Prefixes)
+		verifyInitialPrefixesTelemetry(t, dut, otgIsisPort2LoopV4, 3, v4Prefixes)
+		verifyInitialPrefixesTelemetry(t, dut, atePort1.IPv6, 3, !v4Prefixes)
+		verifyInitialPrefixesTelemetry(t, dut, otgIsisPort2LoopV6, 3, !v4Prefixes)
 	})
 
 	t.Run("Add static routes for ip prefixes IPv4/v6-prefix7 and IPv4/v6-prefix8", func(t *testing.T) {

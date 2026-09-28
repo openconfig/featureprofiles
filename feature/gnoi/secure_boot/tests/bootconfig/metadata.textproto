@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "0fffe17e-ff1e-403f-98f7-f66c94fb1699"
+plan_id:  "gNOI-7.1"
+description:  "BootConfig"
+testbed:  TESTBED_DUT_ATE_2LINKS

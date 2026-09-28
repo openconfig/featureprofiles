@@ -32,6 +32,7 @@ var (
 	p4rtPort    = flag.Int("p4rt_port", 9559, "default P4RT part")
 	ateGNMIPort = flag.Int("ate_gnmi_port", 50051, "default ATE gNMI port")
 	ateOTGPort  = flag.Int("ate_grpc_port", 40051, "default ATE OTG port")
+	gnpsiPort   = flag.Int("gnpsi_port", 6070, "default gNPSI port")
 
 	dutSvcParams = map[introspect.Service]*svcParams{
 		introspect.GNMI: {
@@ -53,6 +54,10 @@ var (
 		introspect.P4RT: {
 			port:   *p4rtPort,
 			optsFn: (*bindpb.Device).GetP4Rt,
+		},
+		introspect.GNPSI: {
+			port:   *gnpsiPort,
+			optsFn: (*bindpb.Device).GetGnpsi,
 		},
 	}
 

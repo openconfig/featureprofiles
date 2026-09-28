@@ -1,0 +1,34 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "d723e854-9a16-4413-9a20-dd9d94079dbb"
+plan_id:  "PF-1.21"
+description:  "Configurable IPv6 flow labels corresponding to IPV6 tunnels"
+testbed:  TESTBED_DUT_ATE_2LINKS
+platform_exceptions:  {
+  platform:  {
+    vendor:  NOKIA
+  }
+  deviations:  {
+    static_protocol_name:  "static"
+    interface_enabled:  true
+  }
+}
+platform_exceptions:  {
+  platform:  {
+    vendor:  ARISTA
+  }
+  deviations:  {
+    static_protocol_name:  "STATIC"
+    interface_enabled:  true
+    default_network_instance:  "default"
+  }
+}
+platform_exceptions:  {
+  platform:  {
+    vendor:  CISCO
+  }
+  deviations:  {
+    interface_enabled:  true
+  }
+}

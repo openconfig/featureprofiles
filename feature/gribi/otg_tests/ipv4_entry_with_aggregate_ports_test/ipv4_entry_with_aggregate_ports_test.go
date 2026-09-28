@@ -105,6 +105,8 @@ func TestIpv4EntryOnAggregatePort(t *testing.T) {
 		validateTrafficFlows(t, ate, []string{f1}, []string{})
 	})
 
+	defer aggregatePortState(t, dut, ate, []string{"port2", "port3"}, true)
+
 	t.Run("Aggregate Port2 disabled", func(t *testing.T) {
 		aggregatePortState(t, dut, ate, []string{"port2"}, false)
 		validateTrafficFlows(t, ate, []string{f1}, []string{})
@@ -146,11 +148,12 @@ func aggregatePortState(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 }
 
 func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad []string) {
-	ateTop := ate.OTG().FetchConfig(t)
+	ateTop := ate.OTG().GetConfig(t)
 	if len(good) == 0 && len(bad) == 0 {
 		return
 	}
 
+	time.Sleep(15 * time.Second)
 	ate.OTG().StartTraffic(t)
 	time.Sleep(15 * time.Second)
 	ate.OTG().StopTraffic(t)
@@ -159,32 +162,11 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad []stri
 	otgutils.LogPortMetrics(t, ate.OTG(), ateTop)
 
 	for _, flow := range good {
-		var txPackets, rxPackets uint64
-		recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow).State())
-		txPackets = recvMetric.GetCounters().GetOutPkts()
-		rxPackets = recvMetric.GetCounters().GetInPkts()
-		if txPackets == 0 {
-			t.Fatalf("TxPkts == 0, want > 0")
-		}
-		lostPackets := float32(txPackets - rxPackets)
-		lossPct := lostPackets * 100 / float32(txPackets)
-		if got := lossPct; got > 0 {
-			t.Fatalf("LossPct for flow %s: got %v, want 0", flow, got)
-		}
+		otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow, 0, 0)
 	}
 
 	for _, flow := range bad {
-		recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow).State())
-		txPackets := recvMetric.GetCounters().GetOutPkts()
-		rxPackets := recvMetric.GetCounters().GetInPkts()
-		if txPackets == 0 {
-			t.Fatalf("TxPkts == 0, want > 0")
-		}
-		lostPackets := float32(txPackets - rxPackets)
-		lossPct := lostPackets * 100 / float32(txPackets)
-		if got := lossPct; got < 100 {
-			t.Fatalf("LossPct for flow %s: got %v, want 100", flow, got)
-		}
+		otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow, 100, 100)
 	}
 }
 

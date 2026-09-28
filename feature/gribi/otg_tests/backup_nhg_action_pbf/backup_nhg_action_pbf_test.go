@@ -195,7 +195,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		if deviations.ExplicitPortSpeed(dut) {
 			fptest.SetPortSpeed(t, p1)
 		}
-		if deviations.ExplicitInterfaceInDefaultVRF(dut) && p != "port1" {
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 			fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		}
 	}
@@ -245,8 +245,12 @@ func TestBackupNHGAction(t *testing.T) {
 		configureDUT(t, dut)
 	}
 	if deviations.BackupNHGRequiresVrfWithDecap(dut) {
+		vrfSelectionNI := vrfA
+		if deviations.VrfSelectionPolicyNonDefaultNIUnsupported(dut) {
+			vrfSelectionNI = deviations.DefaultNetworkInstance(dut)
+		}
 		d := &oc.Root{}
-		ni := d.GetOrCreateNetworkInstance(vrfA)
+		ni := d.GetOrCreateNetworkInstance(vrfSelectionNI)
 		pf := ni.GetOrCreatePolicyForwarding()
 		fp1 := pf.GetOrCreatePolicy(policyID)
 		fp1.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
@@ -255,7 +259,7 @@ func TestBackupNHGAction(t *testing.T) {
 		p1 := dut.Port(t, "port1")
 		intf := pf.GetOrCreateInterface(p1.Name())
 		intf.ApplyVrfSelectionPolicy = ygot.String(policyID)
-		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfA).PolicyForwarding().Config(), pf)
+		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfSelectionNI).PolicyForwarding().Config(), pf)
 	}
 
 	addStaticRoute(t, dut)
@@ -321,9 +325,6 @@ func TestBackupNHGAction(t *testing.T) {
 
 // TE11.3 - case 1: next-hop viability triggers decap in backup NHG.
 func testBackupDecap(ctx context.Context, t *testing.T, args *testArgs) {
-	if deviations.SkipPbfWithDecapEncapVrf(args.dut) {
-		t.Skip("Skipping test as PBF with decap encap vrf is not supported")
-	}
 
 	t.Logf("Adding VIP %v/32 with NHG %d NH %d and  atePort2 via gRIBI", vip1, nhg1ID, nh1ID)
 	nh, nhOpResult := gribi.NHEntry(nh1ID, atePort2.IPv4, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
@@ -378,9 +379,6 @@ func testBackupDecap(ctx context.Context, t *testing.T, args *testArgs) {
 
 // TE11.3 - case 2: new tunnel viability triggers decap in the backup NHG.
 func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
-	if deviations.SkipPbfWithDecapEncapVrf(args.dut) {
-		t.Skip("Skipping test as PBF with decap encap vrf is not supported")
-	}
 
 	t.Logf("Adding VIP1 %v/32 with NHG %d NH %d and  atePort2 via gRIBI", vip1, nhg1ID, nh1ID)
 	nh, nhOpResult := gribi.NHEntry(nh1ID, atePort2.IPv4, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
@@ -496,9 +494,6 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 
 // TE11.3 - case 3: tunnel viability triggers decap.
 func testDecap(ctx context.Context, t *testing.T, args *testArgs) {
-	if deviations.SkipPbfWithDecapEncapVrf(args.dut) {
-		t.Skip("Skipping test as PBF with decap encap vrf is not supported")
-	}
 
 	t.Logf("Adding VIP1 %v/32 with NHG %d NH %d and  atePort2 via gRIBI", vip1, nhg1ID, nh1ID)
 	nh, nhOpResult := gribi.NHEntry(nh1ID, atePort2.IPv4, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
@@ -591,9 +586,6 @@ func testDecap(ctx context.Context, t *testing.T, args *testArgs) {
 
 // TE11.3 - case 4: resolution failure on new tunnels triggers decap in the backup NHG.
 func testDecapBackupNHG(ctx context.Context, t *testing.T, args *testArgs) {
-	if deviations.SkipPbfWithDecapEncapVrf(args.dut) {
-		t.Skip("Skipping test as PBF with decap encap vrf is not supported")
-	}
 
 	t.Logf("Adding VIP1 %v/32 with NHG %d NH %d and  atePort2 via gRIBI", vip1, nhg1ID, nh1ID)
 	nh, nhOpResult := gribi.NHEntry(nh1ID, atePort2.IPv4, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
@@ -708,7 +700,7 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, name 
 }
 
 func updateFlows(t *testing.T, ate *ondatra.ATEDevice, flows []gosnappi.Flow) {
-	top := ate.OTG().FetchConfig(t)
+	top := ate.OTG().GetConfig(t)
 	top.Flows().Clear()
 	for _, flow := range flows {
 		top.Flows().Append(flow)
@@ -722,7 +714,7 @@ func updateFlows(t *testing.T, ate *ondatra.ATEDevice, flows []gosnappi.Flow) {
 // TODO: Egress Tracking to verify the correctness of packet after decap or encap needs to be added
 // validateTrafficFlows verifies that the flow on ATE, traffic should pass for good flow and fail for bad flow.
 func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good []gosnappi.Flow, bad []gosnappi.Flow, srcFlowFilter string, dstFlowFilter string) {
-	top := ate.OTG().FetchConfig(t)
+	top := ate.OTG().GetConfig(t)
 	ate.OTG().StartTraffic(t)
 
 	time.Sleep(15 * time.Second)
@@ -731,14 +723,8 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good []gosnappi.
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
 
 	for _, flow := range good {
-		outPkts := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State()))
+		otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), 0, 0)
 		inPkts := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State()))
-		if outPkts == 0 {
-			t.Fatalf("OutPkts for flow %s is 0, want > 0", flow)
-		}
-		if got := ((outPkts - inPkts) * 100) / outPkts; got > 0 {
-			t.Fatalf("LossPct for flow %s: got %v, want 0", flow.Name(), got)
-		}
 		etPath := gnmi.OTG().Flow(flow.Name()).TaggedMetricAny()
 		ets := gnmi.GetAll(t, ate.OTG(), etPath.State())
 		if got := len(ets); got != 1 {
@@ -768,13 +754,6 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good []gosnappi.
 	}
 
 	for _, flow := range bad {
-		outPkts := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State()))
-		inPkts := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State()))
-		if outPkts == 0 {
-			t.Fatalf("OutPkts for flow %s is 0, want > 0", flow)
-		}
-		if got := ((outPkts - inPkts) * 100) / outPkts; got < 100 {
-			t.Fatalf("LossPct for flow %s: got %v, want 100", flow.Name(), got)
-		}
+		otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), 100, 100)
 	}
 }

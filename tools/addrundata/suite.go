@@ -1,18 +1,61 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
+
+const featurePrefix = "feature/"
+
+var packageRegexp = regexp.MustCompile(`^package (\w+)`)
 
 func errorf(format string, args ...any) {
 	var buf strings.Builder
 	fmt.Fprintf(&buf, format, args...)
 	buf.WriteRune('\n')
 	os.Stderr.WriteString(buf.String())
+}
+
+func getNonTestREADMEs(featureprofilesDir, nonTestREADMEsfilePath string) (map[string]bool, error) {
+	filePath := filepath.Join(featureprofilesDir, nonTestREADMEsfilePath)
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	nonTestREADMEs := map[string]bool{}
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line != "" {
+			nonTestREADMEs[filepath.Join(featureprofilesDir, line)] = true
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	return nonTestREADMEs, nil
+}
+
+func validPath(testDir string) bool {
+	index := strings.Index(testDir, featurePrefix)
+	if index == -1 {
+		return false
+	}
+	testDir = testDir[index+len(featurePrefix):]
+	dirs := strings.Split(testDir, "/")
+	if len(dirs) < 3 || len(dirs) > 4 {
+		return false
+	}
+	return true
 }
 
 // testsuite maps from the test package directory to the various rundata extracted from
@@ -24,15 +67,27 @@ type testsuite map[string]*testcase
 func (ts testsuite) read(featuredir string) (ok bool) {
 	ok = true
 	testdirs := map[string]bool{}
+	nonTestREADMEs, err := getNonTestREADMEs(filepath.Dir(featuredir), "tools/non_test_readmes.txt")
+	if err != nil {
+		return !ok
+	}
 
-	err := filepath.WalkDir(featuredir, func(path string, d fs.DirEntry, err error) error {
+	err = filepath.WalkDir(featuredir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if !strings.HasSuffix(path, "_test.go") {
-			return nil // Ignore anything that's not a test, including intermediate directories.
+		if !strings.HasSuffix(path, "README.md") {
+			return nil // Ignore anything that's not a README.md, including intermediate directories.
+		}
+		if nonTestREADMEs[path] {
+			return nil
 		}
 		testdir := filepath.Dir(path)
+		if !validPath(testdir) {
+			errorf("Test found in a bad path: %s", testdir)
+			ok = false
+			return nil
+		}
 		if !isTestKind(testKind(testdir)) {
 			relpath, err := filepath.Rel(filepath.Dir(featuredir), path)
 			if err != nil {
@@ -63,6 +118,9 @@ func (ts testsuite) read(featuredir string) (ok bool) {
 				reldir = testdir
 			}
 			errorf("Error reading testdir: %s: %v", reldir, err)
+			ok = false
+		} else if err := checkGoTestFilePackageName(testdir); err != nil {
+			errorf("error checking test.go package name for dir: %s: %v", testdir, err)
 			ok = false
 		}
 	}
@@ -268,6 +326,47 @@ func (ts testsuite) write(featuredir string) error {
 
 	if !updated {
 		return errNoop
+	}
+	return nil
+}
+
+// checkGoTestFilePackageName iterates through _test.go files in a directory.
+func checkGoTestFilePackageName(testdir string) error {
+	files, err := os.ReadDir(testdir)
+	if err != nil {
+		return err
+	}
+	for _, file := range files {
+		if file.IsDir() || !strings.HasSuffix(file.Name(), "_test.go") {
+			continue
+		}
+		filePath := filepath.Join(testdir, file.Name())
+		if err := checkPackageNameInFile(filePath); err != nil {
+			return fmt.Errorf("check failed for %s: %w", file.Name(), err)
+		}
+	}
+	return nil
+}
+
+// checkPackageNameInFile handles a single file, allowing defer to work as expected.
+func checkPackageNameInFile(filePath string) error {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	packageName := ""
+	for scanner.Scan() {
+		match := packageRegexp.FindSubmatch(scanner.Bytes())
+		if match != nil {
+			packageName = string(match[1])
+			break
+		}
+	}
+	if !strings.HasSuffix(packageName, "_test") {
+		return fmt.Errorf("test file %s has package name %s, it should end with _test", filePath, packageName)
 	}
 	return nil
 }

@@ -44,9 +44,57 @@ Test the normal session establishment and termination:
 
     And include the following session parameters for all cases:
 
-    *   Explicitly specified Router ID.
+    *   Explicitly specified Router ID with Martian IP and regular IP.
     *   Explicit holdtime interval and keepalive interval.
     *   Explicit connect retry interval.
+
+## Canonical OC
+
+```json
+{
+  "network-instances": {
+    "network-instance": [
+      {
+        "name": "DEFAULT",
+        "config": {
+          "name": "DEFAULT",
+          "router-id": "240.0.0.100"
+        },
+        "protocols": {
+          "protocol": [
+            {
+              "identifier": "BGP",
+              "name": "BGP",
+              "config": {
+                "identifier": "BGP",
+                "name": "BGP"
+              },
+              "bgp": {
+                "neighbors": {
+                  "neighbor": [
+                    {
+                      "neighbor-address": "192.0.2.1",
+                      "config": {
+                        "neighbor-address": "192.0.2.1"
+                      },
+                      "timers": {
+                        "config": {
+                          "hold-time": 30,
+                          "keepalive-interval": 10
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
@@ -56,6 +104,8 @@ paths:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/keepalive-interval:
 
   ## Telemetry Parameter Coverage
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/enabled:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/established-transitions:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/last-established:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/received/NOTIFICATION:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/state/negotiated-hold-time:

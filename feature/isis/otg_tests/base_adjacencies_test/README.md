@@ -48,7 +48,7 @@ Base IS-IS functionality and adjacency establishment.
 *   Confirm in each case that that adjacency forms and the correct values
     are reported back by the device.
 
-### RT-2.1.4 [TODO: https://github.com/openconfig/featureprofiles/issues/3421]
+### RT-2.1.4 P2P Circuit Type
 
 *   Configuration:
     *   Configure ISIS for ATE port-1 and DUT port-1.
@@ -70,7 +70,7 @@ Base IS-IS functionality and adjacency establishment.
 *   With a known LSP content, ensure that the telemetry received from the
     device for the LSP matches the expected content.
 
-### RT-2.1.6 [TODO: https://github.com/openconfig/featureprofiles/issues/3422]
+### RT-2.1.6 ISIS Hello Timer
 
 *   Baseline Configuration on the DUT:
     *   Set the hello-interval to a standard value (10 seconds).
@@ -86,6 +86,48 @@ Base IS-IS functionality and adjacency establishment.
     *   Verify that IS-IS adjacency is coming up in the DUT.
     *   Verify that the updated Hello-Multiplier is reflected in isis adjacency output in the ATE.
     *   Verify that the correct streaming telemetry values are reported correctly by the DUT.
+
+## Canonical OC
+
+```json
+{
+  "openconfig-network-instance:network-instances": {
+    "network-instance": [
+      {
+        "name": "DEFAULT",
+        "protocols": {
+          "protocol": [
+            {
+              "identifier": "openconfig-policy-types:ISIS",
+              "name": "DEFAULT",
+              "isis": {
+                "global": {
+                  "config": {
+                    "net": [
+                      "49.0001.1920.0000.0001.00"
+                    ]
+                  }
+                },
+                "interfaces": {
+                  "interface": [
+                    {
+                      "config": {
+                        "enabled": true,
+                        "interface-id": "eth1"
+                      },
+                      "interface-id": "eth1"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
 
 ## OpenConfig Path and RPC Coverage
 
@@ -123,6 +165,7 @@ paths:
 
   ## State paths
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/state/circuit-type:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/state/interface-id:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/system-id:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/afi-name:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/metric:

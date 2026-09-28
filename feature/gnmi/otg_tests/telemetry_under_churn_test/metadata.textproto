@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "cfe72a7d-a227-4d11-ab84-d113f041c9ae"
+plan_id: "gNMI-1.30"
+description: "gNMI Telemetry Performance under Dynamic Control Plane Churn"
+testbed: TESTBED_DUT_ATE_4LINKS

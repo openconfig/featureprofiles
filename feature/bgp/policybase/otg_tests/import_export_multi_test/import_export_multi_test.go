@@ -72,6 +72,7 @@ const (
 	matchInvert                      = oc.BgpPolicy_MatchSetOptionsType_INVERT
 	rejectResult                     = oc.RoutingPolicy_PolicyResultType_REJECT_ROUTE
 	nextstatementResult              = oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT
+	tolerancePct                     = 1
 )
 
 var prefixesV4 = [][]string{
@@ -195,6 +196,20 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
 
+	pdef := rp.GetOrCreatePolicyDefinition("PERMIT-ALL")
+	stmt, err := pdef.AppendNewStatement("20")
+	if err != nil {
+		t.Fatalf("AppendNewStatement(%s) failed: %v", "routePolicyStatement", err)
+	}
+	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+
+	pdefrp := rp.GetOrCreatePolicyDefinition("routePolicy")
+	stmtrp, err := pdefrp.AppendNewStatement("routePolicyStatement")
+	if err != nil {
+		t.Fatalf("AppendNewStatement(%s) failed: %v", "routePolicyStatement", err)
+	}
+	stmtrp.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+
 	// Configure the policy match_community_regex which will be called from multi_policy
 
 	pdef2 := rp.GetOrCreatePolicyDefinition(callPolicy)
@@ -242,6 +257,15 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 
 	if !deviations.SkipSettingStatementForPolicy(dut) {
 		pd2stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+
+		// Add catch-all reject statement to match_community_regex policy so that
+		// routes not matching the regex get an explicit REJECT_ROUTE result,
+		// ensuring the call-policy condition in the parent policy evaluates to false.
+		pd2stmt2, err := pdef2.AppendNewStatement("catch_all_reject")
+		if err != nil {
+			t.Fatalf("AppendNewStatement(%s) failed: %v", "catch_all_reject", err)
+		}
+		pd2stmt2.GetOrCreateActions().SetPolicyResult(rejectResult)
 	}
 
 	// Configure the parent policy multi_policy.
@@ -323,9 +347,9 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 	communitySetRefsAddCommunities := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(addCommunitiesSetRefs)
 
 	cs3 := []oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union{}
-	for _, commMatch4 := range addCommunitiesRefs {
-		if commMatch4 != "" {
-			cs3 = append(cs3, oc.UnionString(commMatch4))
+	for _, commMatch3 := range addCommunitiesRefs {
+		if commMatch3 != "" {
+			cs3 = append(cs3, oc.UnionString(commMatch3))
 		}
 	}
 	communitySetRefsAddCommunities.SetCommunityMember(cs3)
@@ -358,9 +382,9 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 	communitySetMatchCommPrefixAddCommu := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(myCommunitySet)
 
 	cs4 := []oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union{}
-	for _, commMatch5 := range myCommunitySets {
-		if commMatch5 != "" {
-			cs4 = append(cs4, oc.UnionString(commMatch5))
+	for _, commMatch4 := range myCommunitySets {
+		if commMatch4 != "" {
+			cs4 = append(cs4, oc.UnionString(commMatch4))
 		}
 	}
 	communitySetMatchCommPrefixAddCommu.SetCommunityMember(cs4)
@@ -464,10 +488,21 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 		t.Fatalf("AppendNewStatement(%s) failed: %v", matchAspathSetMedStatement, err)
 	}
 
-	// TODO create as-path-set on the DUT, match-as-path-set not support.
+	// Configure my_aspath: [ "65512" ] to match_aspath_set_med statement
+	if !deviations.BgpAspathsetUnsupported(dut) {
+		myAspath := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateAsPathSet(myAsPathName)
+		myAspath.SetAsPathSetMember([]string{strconv.Itoa(int(cfgplugins.AteAS2))})
+
+		if !deviations.MatchAsPathSetUnsupported(dut) {
+			stmt5.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetAsPathSet(myAsPathName)
+			stmt5.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetMatchSetOptions(oc.E_RoutingPolicy_MatchSetOptionsType(matchAny))
+		}
+	}
 	// Configure set-med 100
 	stmt5.GetOrCreateActions().GetOrCreateBgpActions().SetMed = oc.UnionUint32(medValue)
-
+	if !deviations.BGPSetMedActionUnsupported(dut) {
+		stmt5.GetOrCreateActions().GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
+	}
 	stmt5.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 
 	if deviations.CommunityMemberRegexUnsupported(dut) {
@@ -626,41 +661,98 @@ func verifyTrafficV4AndV6(t *testing.T, bs *cfgplugins.BGPSession, testResults [
 	bs.ATE.OTG().StartTraffic(t)
 	time.Sleep(time.Second * sleepTime)
 	bs.ATE.OTG().StopTraffic(t)
-
-	otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
-	otgutils.LogPortMetrics(t, bs.ATE.OTG(), bs.ATETop)
-
 	for index, prefixPairV4 := range prefixesV4 {
 		t.Logf("Running traffic test for IPv4 prefixes: [%s, %s]. Expected Result: [%t]", prefixPairV4[0], prefixPairV4[1], testResults[index])
 		t.Logf("Running traffic test for IPv6 prefixes: [%s, %s]. Expected Result: [%t]", prefixesV6[index][0], prefixesV6[index][1], testResults[index])
 
+		otg := bs.ATE.OTG()
+		flowV4 := "flow" + "ipv4" + strconv.Itoa(index)
+		flowV6 := "flow" + "ipv6" + strconv.Itoa(index)
+		expectSuccess := testResults[index]
+
+		// IPv4 Telemetry Watch & Verification
 		t.Log("Checking flow telemetry for v4...")
-		recvMetric := gnmi.Get(t, bs.ATE.OTG(), gnmi.OTG().Flow("flow"+"ipv4"+strconv.Itoa(index)).State())
-		txPackets := recvMetric.GetCounters().GetOutPkts()
-		rxPackets := recvMetric.GetCounters().GetInPkts()
-		lostPackets := txPackets - rxPackets
-		lossPct := lostPackets * 100 / txPackets
+		inPktsQueryV4 := gnmi.OTG().Flow(flowV4).Counters().InPkts().State()
+		outPktsQueryV4 := gnmi.OTG().Flow(flowV4).Counters().OutPkts().State()
 
-		t.Log("Checking flow telemetry for v6...")
-		recvMetric6 := gnmi.Get(t, bs.ATE.OTG(), gnmi.OTG().Flow("flow"+"ipv6"+strconv.Itoa(index)).State())
-		txPackets6 := recvMetric6.GetCounters().GetOutPkts()
-		rxPackets6 := recvMetric6.GetCounters().GetInPkts()
-		lostPackets6 := txPackets6 - rxPackets6
-		lossPct6 := lostPackets6 * 100 / txPackets6
+		gnmi.Watch(t, otg, inPktsQueryV4, 45*time.Second, func(v *ygnmi.Value[uint64]) bool {
+			rx, present := v.Val()
+			if !present {
+				return false
+			}
+			tx, txPresent := gnmi.Lookup(t, otg, outPktsQueryV4).Val()
+			if !txPresent || tx == 0 {
+				return false
+			}
+			if expectSuccess {
+				// Wait for rx to catch up to within 1 packet of tx
+				return tx >= rx && (tx-rx) <= tolerancePct
+			}
+			// Wait for 100% packet loss (allowing 1 stray packet)
+			return rx <= tolerancePct
+		}).Await(t)
 
-		if txPackets != rxPackets && testResults[index] {
-			t.Errorf("FAIL- got %v%% packet loss for %s flow and prefixes: [%s, %s]; want < 0%% traffic loss", lossPct, "flow"+"ipv4"+strconv.Itoa(index), prefixPairV4[0], prefixPairV4[1])
-		} else if rxPackets != 0 && !testResults[index] {
-			t.Errorf("FAIL- got %v%% packet loss for %s flow and prefixes: [%s, %s]; want >100%% traffic loss", lossPct, "flow"+"ipv4"+strconv.Itoa(index), prefixPairV4[0], prefixPairV4[1])
-		} else if txPackets6 != rxPackets6 && testResults[index] {
-			t.Errorf("FAIL- got %v%% packet loss for %s flow and prefixes: [%s, %s]; want < 0%% traffic loss", lossPct6, "flow"+"ipv6"+strconv.Itoa(index), prefixesV6[index][0], prefixesV6[index][1])
-		} else if rxPackets6 != 0 && !testResults[index] {
-			t.Errorf("FAIL- got %v%% packet loss for %s flow and prefixes: [%s, %s]; want >100%% traffic loss", lossPct6, "flow"+"ipv6"+strconv.Itoa(index), prefixesV6[index][0], prefixesV6[index][1])
-		} else {
-			t.Logf("Traffic validation successful for Prefixes: [%s, %s]. Result: [%t] PacketsTx: %d PacketsRx: %d", prefixesV6[index][0], prefixesV6[index][1], testResults[index], txPackets6, rxPackets6)
+		txPackets := gnmi.Get(t, otg, outPktsQueryV4)
+		rxPackets := gnmi.Get(t, otg, inPktsQueryV4)
+
+		if txPackets == 0 {
+			t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flowV4)
 		}
 
+		lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
+
+		if expectSuccess && (txPackets-rxPackets) > tolerancePct {
+			t.Errorf("FAIL- got %.2f%% packet loss (%d lost) for %s flow and prefixes: [%s, %s]; want <= %d packet(s) lost", lossPct, (txPackets - rxPackets), flowV4, prefixPairV4[0], prefixPairV4[1], tolerancePct)
+		} else if !expectSuccess && rxPackets > tolerancePct {
+			t.Errorf("FAIL- got %.2f%% packet loss (%d received) for %s flow and prefixes: [%s, %s]; want <= %d packet(s) received (100%% loss)", lossPct, rxPackets, flowV4, prefixPairV4[0], prefixPairV4[1], tolerancePct)
+		} else {
+			t.Logf("Traffic validation successful for Prefixes: [%s, %s]. Result: [%t] PacketsTx: %d PacketsRx: %d", prefixPairV4[0], prefixPairV4[1], expectSuccess, txPackets, rxPackets)
+		}
+
+		// IPv6 Telemetry Watch & Verification
+
+		t.Log("Checking flow telemetry for v6...")
+		inPktsQueryV6 := gnmi.OTG().Flow(flowV6).Counters().InPkts().State()
+		outPktsQueryV6 := gnmi.OTG().Flow(flowV6).Counters().OutPkts().State()
+
+		gnmi.Watch(t, otg, inPktsQueryV6, 45*time.Second, func(v *ygnmi.Value[uint64]) bool {
+			rx, present := v.Val()
+			if !present {
+				return false
+			}
+			tx, txPresent := gnmi.Lookup(t, otg, outPktsQueryV6).Val()
+			if !txPresent || tx == 0 {
+				return false
+			}
+			if expectSuccess {
+				// Wait for rx to catch up to within 1 packet of tx
+				return tx >= rx && (tx-rx) <= tolerancePct
+			}
+			// Wait for 100% packet loss (allowing 1 stray packet)
+			return rx <= tolerancePct
+		}).Await(t)
+
+		txPackets6, _ := gnmi.Lookup(t, otg, outPktsQueryV6).Val()
+		rxPackets6, _ := gnmi.Lookup(t, otg, inPktsQueryV6).Val()
+
+		if txPackets6 == 0 {
+			t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flowV6)
+		}
+
+		lossPct6 := float32(txPackets6-rxPackets6) * 100 / float32(txPackets6)
+
+		if expectSuccess && (txPackets6-rxPackets6) > tolerancePct {
+			t.Errorf("FAIL- got %.2f%% packet loss (%d lost) for %s flow and prefixes: [%s, %s]; want <= %d packet(s) lost", lossPct6, (txPackets6 - rxPackets6), flowV6, prefixesV6[index][0], prefixesV6[index][1], tolerancePct)
+		} else if !expectSuccess && rxPackets6 > tolerancePct {
+			t.Errorf("FAIL- got %.2f%% packet loss (%d received) for %s flow and prefixes: [%s, %s]; want <= %d packet(s) received (100%% loss)", lossPct6, rxPackets6, flowV6, prefixesV6[index][0], prefixesV6[index][1], tolerancePct)
+		} else {
+			t.Logf("Traffic validation successful for Prefixes: [%s, %s]. Result: [%t] PacketsTx: %d PacketsRx: %d", prefixesV6[index][0], prefixesV6[index][1], expectSuccess, txPackets6, rxPackets6)
+		}
 	}
+
+	// Log flow and port metrics
+	otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
+	otgutils.LogPortMetrics(t, bs.ATE.OTG(), bs.ATETop)
 }
 
 func validateLocalPreferenceV4(t *testing.T, dut *ondatra.DUTDevice, prefix string, metricValue uint32) {
@@ -780,7 +872,9 @@ func validateOTGBgpPrefixV6AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *on
 						t.Logf("For Prefix %v, got AS Path %d want AS Path %d", bgpPrefix.GetAddress(), bgpPrefix.AsPath[0].GetAsNumbers(), metric)
 					}
 				case otglocalPref:
-					validateLocalPreferenceV6(t, dut, ipAddr, metric[0])
+					if !deviations.BGPRibOcPathUnsupported(dut) {
+						validateLocalPreferenceV6(t, dut, ipAddr, metric[0])
+					}
 				case otgCommunity:
 					t.Logf("For Prefix %v, Community received on OTG: %v", bgpPrefix.GetAddress(), bgpPrefix.Community)
 					for _, gotCommunity := range bgpPrefix.Community {
@@ -817,7 +911,7 @@ func validateOTGBgpPrefixV4AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *on
 			if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == ipAddr &&
 				bgpPrefix.PrefixLength != nil && bgpPrefix.GetPrefixLength() == prefixLen {
 				foundPrefix = true
-				t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", bgpPrefix.Address, ipAddr)
+				t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", bgpPrefix.GetAddress(), ipAddr)
 				switch pathAttr {
 				case otgMED:
 					if bgpPrefix.GetMultiExitDiscriminator() != metric[0] {
@@ -841,7 +935,9 @@ func validateOTGBgpPrefixV4AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *on
 						t.Logf("For Prefix %v, got AS Path %d want AS Path %d are equal", bgpPrefix.GetAddress(), bgpPrefix.AsPath[0].GetAsNumbers(), metric)
 					}
 				case otglocalPref:
-					validateLocalPreferenceV4(t, dut, ipAddr, metric[0])
+					if !deviations.BGPRibOcPathUnsupported(dut) {
+						validateLocalPreferenceV4(t, dut, ipAddr, metric[0])
+					}
 				case otgCommunity:
 					t.Logf("For Prefix %v, Community received on OTG: %v", bgpPrefix.GetAddress(), bgpPrefix.Community)
 					for _, gotCommunity := range bgpPrefix.Community {
@@ -870,6 +966,10 @@ func TestImportExportMultifacetMatchActionsBGPPolicy(t *testing.T) {
 	bs := cfgplugins.NewBGPSession(t, cfgplugins.PortCount2, nil)
 	bs.WithEBGP(t, []oc.E_BgpTypes_AFI_SAFI_TYPE{oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST}, []string{
 		"port1", "port2"}, true, false)
+
+	if deviations.BgpRibStreamingConfigRequired(dut) {
+		cfgplugins.DeviationBgpRibStreamingConfigRequired(t, dut)
+	}
 
 	configureOTG(t, bs, prefixesV4, prefixesV6, communityMembers)
 	bs.PushAndStart(t)

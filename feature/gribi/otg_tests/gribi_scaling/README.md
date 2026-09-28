@@ -14,7 +14,7 @@ Validate gRIBI scaling requirements.
 *   On DUT, create a policy-based forwarding rule to redirect all traffic received from DUT port-1 into VRF-2 (based on src. IP match 222.222.222.222)
 *   Establish gRIBI client connection with DUT negotiating FIBACK as the
     requested ack_type and make it become leader.
-*   [**TODO**](https://github.com/openconfig/featureprofiles/issues/3676): Using gRIBI Modify RPC install the following IPv4Entry sets, and validate
+*   Using gRIBI Modify RPC install the following IPv4Entry sets, and validate
     the specified behaviours:
     *   Default VRF
         * A) Install 400 NextHops, egressing out different interfaces.
@@ -33,18 +33,34 @@ Validate gRIBI scaling requirements.
     *   VRF3
         *   Install 9000 IPv4Entries (Same IPAddress as VRF1).  Each points to a NextHopGroup from H).
 *   Validate that each entry above are installed as FIB_PROGRAMMED.
-*   **TODO**: Add flows destinating to IPBlocks and ensure ATEPort2 receives it with
+*   Add flows destinating to IPBlocks and ensure ATEPort2 receives it with
     no loss and proper weights
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  /interfaces/interface/config/description:
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/config/type:
+  /interfaces/interface/ethernet/config/port-speed:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled:
+  /interfaces/interface/subinterfaces/subinterface/vlan/config/vlan-id:
+  /interfaces/interface/subinterfaces/subinterface/vlan/match/single-tagged/config/vlan-id:
+  /network-instances/network-instance/config/type:
+  /network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-vrf-selection-policy:
+  /network-instances/network-instance/policy-forwarding/interfaces/interface/interface-ref/config/interface:
+  /network-instances/network-instance/policy-forwarding/interfaces/interface/interface-ref/config/subinterface:
+  /network-instances/network-instance/policy-forwarding/policies/policy/config/type:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/network-instance:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/source-address:
 rpcs:
   gnmi:
     gNMI.Get:
     gNMI.Set:
     gNMI.Subscribe:
   gribi:
+    gRIBI.Flush:
     gRIBI.Get:
     gRIBI.Modify:
-    gRIBI.Flush:
 ```
