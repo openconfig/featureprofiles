@@ -44,6 +44,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -112,54 +113,49 @@ var (
 		IPv4:    "192.0.2.2",
 		IPv4Len: plen30,
 	}
+	// Egress ATE addresses sit on the LAG subnets and are the gRIBI next-hops.
+	// The DUT resolves each of them with ARP. Port3 is the second LAG1 member:
+	// it is not a next-hop, but it still ARPs for the LAG address.
+	dutLAG1 = attrs.Attributes{
+		Desc:    "DUT LAG1",
+		IPv4:    "198.19.1.1",
+		IPv4Len: plen24,
+	}
+	dutLAG2 = attrs.Attributes{
+		Desc:    "DUT LAG2",
+		IPv4:    "198.19.2.1",
+		IPv4Len: plen24,
+	}
 	atePort2 = attrs.Attributes{
 		Name:    "port2",
 		MAC:     "02:00:23:01:01:02",
 		Desc:    "ATE Port 2",
-		IPv4:    "198.19.10.2",
+		IPv4:    "198.19.1.23", // NH 1501 on LAG1.
 		IPv4Len: plen24,
 	}
 	atePort3 = attrs.Attributes{
 		Name:    "port3",
 		MAC:     "02:00:23:01:01:03",
 		Desc:    "ATE Port 3",
-		IPv4:    "198.19.11.2",
+		IPv4:    "198.19.1.3",
 		IPv4Len: plen24,
 	}
 	atePort4 = attrs.Attributes{
 		Name:    "port4",
 		MAC:     "02:00:45:01:01:01",
 		Desc:    "ATE Port 4",
-		IPv4:    "198.19.12.2",
+		IPv4:    "198.19.2.2", // NH 1602 on LAG2.
 		IPv4Len: plen24,
 	}
 	atePort5 = attrs.Attributes{
 		Name:    "port5",
 		MAC:     "02:00:45:01:01:02",
 		Desc:    "ATE Port 5",
-		IPv4:    "198.19.13.2",
+		IPv4:    "198.19.2.3", // NH 1603 on LAG2.
 		IPv4Len: plen24,
 	}
-	dutPort2 = attrs.Attributes{
-		Desc:    "DUT Port 2",
-		IPv4:    "198.19.10.1",
-		IPv4Len: plen24,
-	}
-	dutPort3 = attrs.Attributes{
-		Desc:    "DUT Port 3",
-		IPv4:    "198.19.11.1",
-		IPv4Len: plen24,
-	}
-	dutPort4 = attrs.Attributes{
-		Desc:    "DUT Port 4",
-		IPv4:    "198.19.12.1",
-		IPv4Len: plen24,
-	}
-	dutPort5 = attrs.Attributes{
-		Desc:    "DUT Port 5",
-		IPv4:    "198.19.13.1",
-		IPv4Len: plen24,
-	}
+	// Second next-hop address on port5. LAG2 has three next-hops and two members.
+	nh1601IPv4 = "198.19.2.24"
 
 	numRE = regexp.MustCompile(`\d+`)
 
@@ -476,6 +472,7 @@ func TestPolarization(t *testing.T) {
 		gnmi.Delete(t, dut, gnmi.OC().Interface("Loopback0").Config())
 	})
 	createGRIBIEntries(t, dut)
+	waitForDUTNextHops(t, dut, agg1ID, agg2ID)
 
 	t.Log("=== Setup complete, starting polarization iterations ===")
 
@@ -676,13 +673,13 @@ func createGRIBIEntries(t *testing.T, dut *ondatra.DUTDevice) {
 
 	entries := []fluent.GRIBIEntry{
 		fluent.NextHopEntry().WithNetworkInstance(defaultNI).
-			WithIndex(1501).WithIPAddress("198.19.1.23"),
+			WithIndex(1501).WithIPAddress(atePort2.IPv4),
 		fluent.NextHopEntry().WithNetworkInstance(defaultNI).
-			WithIndex(1601).WithIPAddress("198.19.2.24"),
+			WithIndex(1601).WithIPAddress(nh1601IPv4),
 		fluent.NextHopEntry().WithNetworkInstance(defaultNI).
-			WithIndex(1602).WithIPAddress("198.19.2.2"),
+			WithIndex(1602).WithIPAddress(atePort4.IPv4),
 		fluent.NextHopEntry().WithNetworkInstance(defaultNI).
-			WithIndex(1603).WithIPAddress("198.19.2.3"),
+			WithIndex(1603).WithIPAddress(atePort5.IPv4),
 
 		fluent.NextHopGroupEntry().WithNetworkInstance(defaultNI).
 			WithID(2010).AddNextHop(1501, nhg2010WeightA).AddNextHop(1601, nhg2010WeightB),
@@ -780,7 +777,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, agg1ID, agg2ID string) {
 	configureLAGMember(t, dut, "port4", agg2ID)
 	configureLAGMember(t, dut, "port5", agg2ID)
 
-	t.Logf("Configuring LAG interfaces: %s (198.19.1.1/24), %s (198.19.2.1/24)", agg1ID, agg2ID)
+	t.Logf("Configuring LAG interfaces: %s (%s/%d), %s (%s/%d)", agg1ID, dutLAG1.IPv4, plen24, agg2ID, dutLAG2.IPv4, plen24)
 	lag1 := &oc.Interface{
 		Name:    ygot.String(agg1ID),
 		Enabled: ygot.Bool(true),
@@ -789,13 +786,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, agg1ID, agg2ID string) {
 	lag1.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_STATIC
 	s1 := lag1.GetOrCreateSubinterface(0)
 	s1.Index = ygot.Uint32(0)
-	a1v4 := s1.GetOrCreateIpv4().GetOrCreateAddress("198.19.1.1")
-	a1v4.Ip = ygot.String("198.19.1.1")
+	a1v4 := s1.GetOrCreateIpv4().GetOrCreateAddress(dutLAG1.IPv4)
+	a1v4.Ip = ygot.String(dutLAG1.IPv4)
 	a1v4.PrefixLength = ygot.Uint8(plen24)
-	// Static ARP for gRIBI next-hops. These NH IPs live on the LAG subnets and
-	// are not the ATE L3 addresses, so dynamic ARP/ND is not used here.
-	s1.GetOrCreateIpv4().GetOrCreateNeighbor("198.19.1.23").LinkLayerAddress = ygot.String("00:11:22:33:44:55")
-	s1.GetOrCreateIpv4().GetOrCreateNeighbor("198.19.1.24").LinkLayerAddress = ygot.String("12:11:22:33:44:55")
 
 	lag2 := &oc.Interface{
 		Name:    ygot.String(agg2ID),
@@ -805,12 +798,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, agg1ID, agg2ID string) {
 	lag2.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_STATIC
 	s2 := lag2.GetOrCreateSubinterface(0)
 	s2.Index = ygot.Uint32(0)
-	a2v4 := s2.GetOrCreateIpv4().GetOrCreateAddress("198.19.2.1")
-	a2v4.Ip = ygot.String("198.19.2.1")
+	a2v4 := s2.GetOrCreateIpv4().GetOrCreateAddress(dutLAG2.IPv4)
+	a2v4.Ip = ygot.String(dutLAG2.IPv4)
 	a2v4.PrefixLength = ygot.Uint8(plen24)
-	s2.GetOrCreateIpv4().GetOrCreateNeighbor("198.19.2.2").LinkLayerAddress = ygot.String("02:11:22:33:44:55")
-	s2.GetOrCreateIpv4().GetOrCreateNeighbor("198.19.2.3").LinkLayerAddress = ygot.String("03:11:22:33:44:55")
-	s2.GetOrCreateIpv4().GetOrCreateNeighbor("198.19.2.24").LinkLayerAddress = ygot.String("04:11:22:33:44:55")
 
 	gnmi.Update(t, dut, d.Interface(lag1.GetName()).Config(), lag1)
 	gnmi.Update(t, dut, d.Interface(lag2.GetName()).Config(), lag2)
@@ -892,10 +882,15 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	t.Logf("Configuring ATE ports: %s, %s, %s, %s, %s",
 		p1.Name(), p2.Name(), p3.Name(), p4.Name(), p5.Name())
 	atePort1.AddToOTG(top, p1, &dutPort1)
-	atePort2.AddToOTG(top, p2, &dutPort2)
-	atePort3.AddToOTG(top, p3, &dutPort3)
-	atePort4.AddToOTG(top, p4, &dutPort4)
-	atePort5.AddToOTG(top, p5, &dutPort5)
+	atePort2.AddToOTG(top, p2, &dutLAG1)
+	atePort3.AddToOTG(top, p3, &dutLAG1)
+	atePort4.AddToOTG(top, p4, &dutLAG2)
+	dev5 := atePort5.AddToOTG(top, p5, &dutLAG2)
+	dev5.Ethernets().Items()[0].Ipv4Addresses().Add().
+		SetName(atePort5.Name + ".NH1601").
+		SetAddress(nh1601IPv4).
+		SetGateway(dutLAG2.IPv4).
+		SetPrefix(uint32(plen24))
 
 	t.Log("Pushing ATE config and starting protocols")
 	ate.OTG().PushConfig(t, top)
@@ -905,26 +900,46 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	return top
 }
 
+// waitForDUTNextHops waits until the DUT has resolved every gRIBI next-hop
+// with ARP. Traffic sent before that resolution is dropped.
+func waitForDUTNextHops(t *testing.T, dut *ondatra.DUTDevice, agg1ID, agg2ID string) {
+	t.Helper()
+	for _, nh := range []struct{ intf, ip string }{
+		{agg1ID, atePort2.IPv4},
+		{agg2ID, atePort4.IPv4},
+		{agg2ID, atePort5.IPv4},
+		{agg2ID, nh1601IPv4},
+	} {
+		t.Logf("Waiting for DUT ARP for %s on %s", nh.ip, nh.intf)
+		_, ok := gnmi.Watch(t, dut, gnmi.OC().Interface(nh.intf).Subinterface(0).Ipv4().Neighbor(nh.ip).LinkLayerAddress().State(), 2*time.Minute, func(val *ygnmi.Value[string]) bool {
+			return val.IsPresent()
+		}).Await(t)
+		if !ok {
+			t.Fatalf("DUT did not resolve ARP for %s on %s", nh.ip, nh.intf)
+		}
+	}
+}
+
 func pushSingleFlow(t *testing.T, ate *ondatra.ATEDevice, topo gosnappi.Config, name string, batch []packetTuples) {
 	t.Helper()
 	topo.Flows().Clear()
-	createStaticFlow(t, name, ate, topo, batch,
-		&atePort2, &atePort3, &atePort4, &atePort5)
+	createStaticFlow(t, name, ate, topo, batch)
 	ate.OTG().PushConfig(t, topo)
 	ate.OTG().StartProtocols(t)
 	otgutils.WaitForARP(t, ate.OTG(), topo, "IPv4")
 }
 
-func createStaticFlow(t *testing.T, name string, ate *ondatra.ATEDevice, ateTop gosnappi.Config, flows []packetTuples, dsts ...*attrs.Attributes) string {
+func createStaticFlow(t *testing.T, name string, ate *ondatra.ATEDevice, ateTop gosnappi.Config, flows []packetTuples) string {
 	t.Helper()
-	var rxEndpoints []string
-	for _, dst := range dsts {
-		rxEndpoints = append(rxEndpoints, dst.Name+".IPv4")
-	}
-
+	// Port endpoints count frames on every LAG member. Device endpoints would
+	// drop frames whose destination MAC is the other member's next-hop.
 	flowipv4 := ateTop.Flows().Add().SetName(name)
 	flowipv4.Metrics().SetEnable(true)
-	flowipv4.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames(rxEndpoints)
+	flowipv4.TxRx().Port().
+		SetTxName(atePort1.Name).
+		SetRxNames([]string{atePort2.Name, atePort3.Name, atePort4.Name, atePort5.Name})
+
+	dstMAC := gnmi.Get(t, ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().State())
 
 	var srcIPs, dstIPs []string
 	var srcPorts, dstPorts []uint32
@@ -938,6 +953,7 @@ func createStaticFlow(t *testing.T, name string, ate *ondatra.ATEDevice, ateTop 
 
 	eth := flowipv4.Packet().Add().Ethernet()
 	eth.Src().SetValue(atePort1.MAC)
+	eth.Dst().SetValue(dstMAC)
 
 	v4 := flowipv4.Packet().Add().Ipv4()
 	v4.Src().SetValues(srcIPs)

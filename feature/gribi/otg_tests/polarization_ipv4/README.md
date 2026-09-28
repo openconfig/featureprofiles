@@ -103,7 +103,9 @@ NHG 101  (8:1)
     from these weights. With the default weights, port2 receives ~39.5%
     of traffic.
 
-4.  Configure ATE ports and protocols.
+4.  Configure ATE ports on the same subnets as the LAGs. Each gRIBI
+    next-hop is an ATE address, and both the ATE and the DUT resolve
+    those adjacencies with ARP. No static neighbors are configured.
 5.  Generate a large set of unique IPv4/UDP flow tuples (varying source IP and
     UDP ports, fixed destination IP within `198.51.100.0/24`). All addresses are
     confined to reserved ranges only — RFC 5737 documentation blocks
@@ -192,8 +194,8 @@ paths:
   /interfaces/interface/config/enabled:
   /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/ip:
   /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
-  /interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/config/ip:
-  /interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/config/link-layer-address:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/state/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/state/link-layer-address:
   /interfaces/interface/ethernet/config/aggregate-id:
   /interfaces/interface/aggregation/config/lag-type:
 
