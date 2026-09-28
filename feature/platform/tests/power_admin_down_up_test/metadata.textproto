@@ -19,6 +19,7 @@ platform_exceptions: {
   }
   deviations: {
     missing_value_for_defaults: true
+    skip_controller_card_power_admin: true
   }
 }
 platform_exceptions: {
@@ -29,3 +30,4 @@ platform_exceptions: {
     power_disable_enable_leaf_ref_validation: true
   }
 }
+
