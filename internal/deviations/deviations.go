@@ -1309,11 +1309,6 @@ func SrIgpConfigUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSrIgpConfigUnsupported()
 }
 
-// SetISISAuthWithInterfaceAuthenticationContainer returns true if Isis Authentication is blocked for one level specific config for P2P links, and the corresponding hello-authentication leafs can be set with ISIS Interface/Authentication container.
-func SetISISAuthWithInterfaceAuthenticationContainer(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSetIsisAuthWithInterfaceAuthenticationContainer()
-}
-
 // GreGueTunnelInterfaceOcUnsupported returns true if GRE/GUE tunnel interface oc is unsupported
 func GreGueTunnelInterfaceOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGreGueTunnelInterfaceOcUnsupported()
