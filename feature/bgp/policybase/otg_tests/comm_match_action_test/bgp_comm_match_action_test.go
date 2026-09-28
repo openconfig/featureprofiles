@@ -514,27 +514,9 @@ func sendTraffic(t *testing.T, otg *otg.OTG) {
 
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, conf gosnappi.Config) {
 	otg := ate.OTG()
-	otgutils.LogFlowMetrics(t, otg, conf)
+	defer otgutils.LogFlowMetrics(t, otg, conf)
 	for _, flow := range conf.Flows().Items() {
-		if _, ok := gnmi.Watch(t, otg, gnmi.OTG().Flow(flow.Name()).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
-			f, present := val.Val()
-			return present && f.GetCounters() != nil && f.GetCounters().GetOutPkts() >= totalPackets
-		}).Await(t); !ok {
-			t.Errorf("Timeout waiting for flow to transmit %d packets", totalPackets)
-		}
-		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).State())
-		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
-		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
-		if txPackets == 0 {
-			t.Fatalf("TxPkts = 0, want > 0")
-		}
-		lostPackets := txPackets - rxPackets
-		lossPct := lostPackets * 100 / txPackets
-		if lossPct > tolerancePct {
-			t.Errorf("Traffic Loss Pct for Flow %s: got %v, want max %v pct failure", flow.Name(), lossPct, tolerancePct)
-		} else {
-			t.Logf("Traffic Test Passed! for flow %s", flow.Name())
-		}
+		otgutils.ExpectedTrafficLoss(t, otg, flow.Name(), 0, float64(tolerancePct)+0.99)
 	}
 }
 

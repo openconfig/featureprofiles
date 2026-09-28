@@ -955,13 +955,8 @@ func startCapture(t *testing.T, args *testArgs, capturePortList []string) gosnap
 	args.otgConfig.Captures().Add().SetName("packetCapture").
 		SetPortNames(capturePortList).
 		SetFormat(gosnappi.CaptureFormat.PCAP)
-	args.otg.PushConfig(t, args.otgConfig)
-	time.Sleep(30 * time.Second)
-	args.otg.StartProtocols(t)
-	time.Sleep(30 * time.Second)
 	cs := gosnappi.NewControlState()
 	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
-	args.otg.SetControlState(t, cs)
 	return cs
 }
 

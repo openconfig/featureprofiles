@@ -91,60 +91,31 @@ Base IS-IS functionality and adjacency establishment.
 
 ```json
 {
-  "openconfig-interfaces:interfaces": {
-    "interface": [
-      {
-        "name": "port1",
-        "config": {
-          "name": "port1",
-          "enabled": true
-        }
-      }
-    ]
-  },
   "openconfig-network-instance:network-instances": {
     "network-instance": [
       {
         "name": "DEFAULT",
-        "interfaces": {
-          "interface": [
-            {
-              "id": "port1",
-              "config": {
-                "id": "port1",
-                "interface": "port1"
-              }
-            }
-          ]
-        },
         "protocols": {
           "protocol": [
             {
               "identifier": "openconfig-policy-types:ISIS",
-              "name": "ISIS",
-              "config": {
-                "identifier": "openconfig-policy-types:ISIS",
-                "name": "ISIS",
-                "enabled": true
-              },
+              "name": "DEFAULT",
               "isis": {
                 "global": {
                   "config": {
-                    "level-capability": "LEVEL_2",
                     "net": [
-                      "49.0001.1920.0000.2001.00"
+                      "49.0001.1920.0000.0001.00"
                     ]
                   }
                 },
                 "interfaces": {
                   "interface": [
                     {
-                      "interface-id": "port1",
                       "config": {
-                        "interface-id": "port1",
                         "enabled": true,
-                        "circuit-type": "POINT_TO_POINT"
-                      }
+                        "interface-id": "eth1"
+                      },
+                      "interface-id": "eth1"
                     }
                   ]
                 }
