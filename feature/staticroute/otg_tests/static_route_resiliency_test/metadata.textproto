@@ -5,3 +5,59 @@ uuid:  "05bb3b98-8ac3-4ade-acfa-5dab0bc70bc3"
 plan_id:  "RT-1.73"
 description:  "Static Route Resilience Test"
 testbed:  TESTBED_DUT_ATE_8LINKS
+
+
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    # Full routed VLAN interface name for the VLAN 10 SVI. Junos derives the
+    # IRB unit from the ".10" suffix; plain "irb" fails with an
+    # interface_unit_number syntax error.
+    routed_vlan_interface_name: "irb.10"
+  }
+}
+
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    ipv4_missing_enabled: true
+    default_network_instance: "default"
+    static_protocol_name: "STATIC"
+    vlan_subinterface_oc_unsupported: true
+    require_routed_subinterface_0: true
+    load_balance_policy_oc_unsupported: true
+  }
+}
+
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    explicit_interface_in_default_vrf: true
+    interface_enabled: true
+    static_protocol_name: "static"
+    switched_vlan_unsupported: true
+    vlan_subinterface_oc_unsupported: true
+  }
+}
+
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    # IOS XR does not support the OpenConfig VLAN model: replacing
+    # /network-instances/network-instance/vlans/vlan fails with "Node is marked
+    # as not-supported by a deviation". VLAN 10 is configured via CLI instead,
+    # as an L2VPN bridge-domain on DUT Ports 1 and 2 routed through BVI10.
+    switched_vlan_unsupported: true
+    vlan_subinterface_oc_unsupported: true
+  }
+}
+

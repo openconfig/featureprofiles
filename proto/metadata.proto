@@ -1480,6 +1480,14 @@ message Metadata {
     // Cisco: https://b.corp.google.com/issues/307454993
     bool power_supply_telemetry_unsupported = 459;
 
+
+    // Expected name of the Routed VLAN interface for SVIs (if not standard
+    // "Vlan<id>").
+    string routed_vlan_interface_name = 460;
+
+    // Device does not support switched-vlan configuration in ethernet.
+    bool switched_vlan_unsupported = 461;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }
