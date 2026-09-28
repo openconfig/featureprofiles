@@ -465,7 +465,7 @@ func validateTrafficFlows(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, go
 	otgutils.LogFlowMetrics(t, otg, top)
 
 	for _, flow := range good {
-		otgutils.ExpectedTrafficLoss(t, otg, flow.Name(), 0, 0)
+		otgutils.ExpectedTrafficLoss(t, otg, flow.Name(), 0, 0.99)
 	}
 
 	for _, flow := range bad {

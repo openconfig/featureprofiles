@@ -1,0 +1,7 @@
+# proto-file: proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "f6e729a8-348b-4a57-b08e-1736b4859a11"
+plan_id: "SFLOW-2"
+description: "sFlow Egress Sampling Configuration and Verification"
+testbed: TESTBED_DUT_ATE_2LINKS
