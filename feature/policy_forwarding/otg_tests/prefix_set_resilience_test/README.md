@@ -114,6 +114,235 @@ the DUT in one gnmi.Set using the `replace` option
     ```
 *   Validate that the prefix-list is created correctly with 22 prefixes.
 
+## Canonical OC
+
+```json
+{
+  "openconfig-routing-policy:routing-policy": {
+    "defined-sets": {
+      "prefix-sets": {
+        "prefix-set": [
+          {
+            "name": "prefix-set-a",
+            "config": {
+              "name": "prefix-set-a",
+              "mode": "IPV4"
+            },
+            "prefixes": {
+              "prefix": [
+                {
+                  "ip-prefix": "10.240.31.48/28",
+                  "masklength-range": "exact",
+                  "config": {
+                    "ip-prefix": "10.240.31.48/28",
+                    "masklength-range": "exact"
+                  }
+                },
+                {
+                  "ip-prefix": "173.36.128.0/20",
+                  "masklength-range": "exact",
+                  "config": {
+                    "ip-prefix": "173.36.128.0/20",
+                    "masklength-range": "exact"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "TAG_3_IPV4",
+            "config": {
+              "name": "TAG_3_IPV4",
+              "mode": "IPV4"
+            },
+            "prefixes": {
+              "prefix": [
+                {
+                  "ip-prefix": "173.49.128.0/20",
+                  "masklength-range": "exact",
+                  "config": {
+                    "ip-prefix": "173.49.128.0/20",
+                    "masklength-range": "exact"
+                  }
+                },
+                {
+                  "ip-prefix": "173.46.128.0/20",
+                  "masklength-range": "exact",
+                  "config": {
+                    "ip-prefix": "173.46.128.0/20",
+                    "masklength-range": "exact"
+                  }
+                },
+                {
+                  "ip-prefix": "10.240.31.48/28",
+                  "masklength-range": "exact",
+                  "config": {
+                    "ip-prefix": "10.240.31.48/28",
+                    "masklength-range": "exact"
+                  }
+                },
+                {
+                  "ip-prefix": "173.44.128.0/20",
+                  "masklength-range": "exact",
+                  "config": {
+                    "ip-prefix": "173.44.128.0/20",
+                    "masklength-range": "exact"
+                  }
+                },
+                {
+                  "ip-prefix": "173.43.128.0/20",
+                  "masklength-range": "exact",
+                  "config": {
+                    "ip-prefix": "173.43.128.0/20",
+                    "masklength-range": "exact"
+                  }
+                },
+                {
+                  "ip-prefix": "173.47.128.0/20",
+                  "masklength-range": "exact",
+                  "config": {
+                    "ip-prefix": "173.47.128.0/20",
+                    "masklength-range": "exact"
+                  }
+                },
+                {
+                  "ip-prefix": "173.40.128.0/20",
+                  "masklength-range": "exact",
+                  "config": {
+                    "ip-prefix": "173.40.128.0/20",
+                    "masklength-range": "exact"
+                  }
+                },
+                {
+                  "ip-prefix": "173.37.128.0/20",
+                  "masklength-range": "exact",
+                  "config": {
+                    "ip-prefix": "173.37.128.0/20",
+                    "masklength-range": "exact"
+                  }
+                },
+                {
+                  "ip-prefix": "173.39.128.0/20",
+                  "masklength-range": "exact",
+                  "config": {
+                    "ip-prefix": "173.39.128.0/20",
+                    "masklength-range": "exact"
+                  }
+                },
+                {
+                  "ip-prefix": "173.38.128.0/20",
+                  "masklength-range": "exact",
+                  "config": {
+                    "ip-prefix": "173.38.128.0/20",
+                    "masklength-range": "exact"
+                  }
+                },
+                {
+                  "ip-prefix": "173.42.128.0/20",
+                  "masklength-range": "exact",
+                  "config": {
+                    "ip-prefix": "173.42.128.0/20",
+                    "masklength-range": "exact"
+                  }
+                },
+                {
+                  "ip-prefix": "10.244.187.32/28",
+                  "masklength-range": "exact",
+                  "config": {
+                    "ip-prefix": "10.244.187.32/28",
+                    "masklength-range": "exact"
+                  }
+                },
+                {
+                  "ip-prefix": "173.41.128.0/20",
+                  "masklength-range": "exact",
+                  "config": {
+                    "ip-prefix": "173.41.128.0/20",
+                    "masklength-range": "exact"
+                  }
+                },
+                {
+                  "ip-prefix": "173.36.128.0/20",
+                  "masklength-range": "exact",
+                  "config": {
+                    "ip-prefix": "173.36.128.0/20",
+                    "masklength-range": "exact"
+                  }
+                },
+                {
+                  "ip-prefix": "173.50.128.0/20",
+                  "masklength-range": "exact",
+                  "config": {
+                    "ip-prefix": "173.50.128.0/20",
+                    "masklength-range": "exact"
+                  }
+                },
+                {
+                  "ip-prefix": "173.51.128.0/20",
+                  "masklength-range": "exact",
+                  "config": {
+                    "ip-prefix": "173.51.128.0/20",
+                    "masklength-range": "exact"
+                  }
+                },
+                {
+                  "ip-prefix": "173.52.128.0/20",
+                  "masklength-range": "exact",
+                  "config": {
+                    "ip-prefix": "173.52.128.0/20",
+                    "masklength-range": "exact"
+                  }
+                },
+                {
+                  "ip-prefix": "173.53.128.0/20",
+                  "masklength-range": "exact",
+                  "config": {
+                    "ip-prefix": "173.53.128.0/20",
+                    "masklength-range": "exact"
+                  }
+                },
+                {
+                  "ip-prefix": "173.54.128.0/20",
+                  "masklength-range": "exact",
+                  "config": {
+                    "ip-prefix": "173.54.128.0/20",
+                    "masklength-range": "exact"
+                  }
+                },
+                {
+                  "ip-prefix": "173.55.128.0/20",
+                  "masklength-range": "exact",
+                  "config": {
+                    "ip-prefix": "173.55.128.0/20",
+                    "masklength-range": "exact"
+                  }
+                },
+                {
+                  "ip-prefix": "173.48.128.0/20",
+                  "masklength-range": "exact",
+                  "config": {
+                    "ip-prefix": "173.48.128.0/20",
+                    "masklength-range": "exact"
+                  }
+                },
+                {
+                  "ip-prefix": "173.45.128.0/20",
+                  "masklength-range": "exact",
+                  "config": {
+                    "ip-prefix": "173.45.128.0/20",
+                    "masklength-range": "exact"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test. OC
