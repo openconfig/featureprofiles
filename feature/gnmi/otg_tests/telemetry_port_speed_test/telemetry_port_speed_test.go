@@ -352,6 +352,11 @@ func TestGNMIPortDown(t *testing.T) {
 	portStateAction := gosnappi.NewControlState()
 	portStateAction.Port().Link().SetPortNames([]string{atePort.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
 	ate.OTG().SetControlState(t, portStateAction)
+	defer func() {
+		portStateAction := gosnappi.NewControlState()
+		portStateAction.Port().Link().SetPortNames([]string{atePort.ID()}).SetState(gosnappi.StatePortLinkState.UP)
+		ate.OTG().SetControlState(t, portStateAction)
+	}()
 
 	want := oc.Interface_OperStatus_DOWN
 	gnmi.Await(t, dut, gnmi.OC().Interface(dutPort.Name()).OperStatus().State(), 2*time.Minute, want)
@@ -425,6 +430,11 @@ func TestGNMIReducedLACPSpeed(t *testing.T) {
 					portStateAction := gosnappi.NewControlState()
 					portStateAction.Port().Link().SetPortNames([]string{port.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
 					ate.OTG().SetControlState(t, portStateAction)
+					defer func(p *ondatra.Port) {
+						portStateAction := gosnappi.NewControlState()
+						portStateAction.Port().Link().SetPortNames([]string{p.ID()}).SetState(gosnappi.StatePortLinkState.UP)
+						ate.OTG().SetControlState(t, portStateAction)
+					}(port)
 				}
 				time.Sleep(10 * time.Second)
 				tc.verifyDUT(t, totalPort)

@@ -29,9 +29,13 @@ import (
 // ExpectedTrafficLoss checks if traffic loss for a given flow is within the expected range (minLossPct to maxLossPct).
 // It waits up to 45 seconds for the traffic loss percentage to be within the expected range,
 // then fails the test with a standard error message if the validation fails.
-func ExpectedTrafficLoss(t testing.TB, otg *otg.OTG, flowName string, minLossPct, maxLossPct float64) {
+func ExpectedTrafficLoss(t testing.TB, otg *otg.OTG, flowName string, minLossPct, maxLossPct float64, waitTime ...time.Duration) {
 	t.Helper()
-	_, ok := gnmi.Watch(t, otg, gnmi.OTG().Flow(flowName).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
+	var waitT time.Duration = 45
+	if len(waitTime) > 0 {
+		waitT = waitTime[0]
+	}
+	_, ok := gnmi.Watch(t, otg, gnmi.OTG().Flow(flowName).State(), waitT*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
 		recvMetric, present := val.Val()
 		if !present || recvMetric == nil || recvMetric.GetCounters() == nil {
 			return false
