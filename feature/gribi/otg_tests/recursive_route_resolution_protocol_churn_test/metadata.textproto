@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "4f4d9935-372b-4e0a-aa87-ce91f4dc7a08"
+plan_id: "TE-1.4"
+description: "gRIBI Recursive Route Resolution under Routing Protocol Churn"
+testbed: TESTBED_DUT_ATE_4LINKS
