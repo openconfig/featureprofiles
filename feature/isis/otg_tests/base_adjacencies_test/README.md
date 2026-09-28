@@ -166,6 +166,7 @@ paths:
   ## State paths
   /network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/state/enabled:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/state/circuit-type:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/state/interface-id:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/state/enabled:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/state/enabled:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/system-id:
