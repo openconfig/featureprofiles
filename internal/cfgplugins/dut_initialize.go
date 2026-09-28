@@ -39,6 +39,7 @@ type VRFConfig struct {
 const (
 	FeatureMplsTracking FeatureType = iota
 	FeatureVrfSelectionExtended
+	FeatureVrfSelectionDecap
 	FeaturePolicyForwarding
 	FeatureEnableAFTSummaries
 	FeatureNGPR
@@ -1499,6 +1500,12 @@ router general
 !
    `
 
+const aristaVrfSelectionDecap = `
+vrf selection policy
+   next-hop decapsulation vrf
+!
+`
+
 const ciscoHighScale = `no hw-module profile cef cbf forward-class-list 0 5
 no hw-module profile cef sropt enable
 no hw-module profile cef dark-bw enable
@@ -1515,6 +1522,7 @@ var (
 	aristaTcamProfileMap = map[FeatureType]string{
 		FeatureMplsTracking:           aristaTcamProfileMplsTracking,
 		FeatureVrfSelectionExtended:   aristaTcamProfileVrfSelectionExtended,
+		FeatureVrfSelectionDecap:      aristaVrfSelectionDecap,
 		FeaturePolicyForwarding:       aristaTcamProfilePolicyForwarding,
 		FeatureEnableAFTSummaries:     aristaEnableAFTSummaries,
 		FeatureNGPR:                   aristaNGPRTcamProfile,
