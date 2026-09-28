@@ -187,7 +187,8 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 	changeMetric(t, dut, aggIDs[2], 30)
 	top := configureATE(t, ate)
 
-	installGRIBIRoutes(t, dut, ate, top, aggIDs[1])
+	client := installGRIBIRoutes(t, dut, ate, top, aggIDs[1])
+	defer gribi.FlushAll(client)
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 	for _, aggID := range aggIDs {
@@ -860,10 +861,10 @@ func changeMetric(t *testing.T, dut *ondatra.DUTDevice, intf string, metric uint
 	d := &oc.Root{}
 	netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	isis := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).GetOrCreateIsis()
-	isisIntfLevel := isis.GetOrCreateInterface(intf).GetOrCreateLevel(2)
 	if deviations.InterfaceRefInterfaceIDFormat(dut) {
-		isisIntfLevel = isis.GetOrCreateInterface(intf + ".0").GetOrCreateLevel(2)
+		intf = intf + ".0"
 	}
+	isisIntfLevel := isis.GetOrCreateInterface(intf).GetOrCreateLevel(2)
 	isisIntfLevelAfiv4 := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
 	isisIntfLevelAfiv4.Metric = ygot.Uint32(metric)
 	isisIntfLevelAfiv6 := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST)
@@ -1081,7 +1082,7 @@ func configureFlows(t *testing.T, top gosnappi.Config, srcV4 *ipAddr, dstV4 *ipA
 }
 
 // installGRIBIRoutes configure route using gRIBI client
-func installGRIBIRoutes(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, intf string) {
+func installGRIBIRoutes(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, intf string) *fluent.GRIBIClient {
 	t.Helper()
 	ctx := context.Background()
 	gribic := dut.RawAPIs().GRIBI(t)
@@ -1165,7 +1166,6 @@ func installGRIBIRoutes(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 			AsResult(),
 		chk.IgnoreOperationID(),
 	)
-
 	// Programming AFT entries for encapped prefixes "203.0.113.1/32"
 	var nh fluent.GRIBIEntry
 	if deviations.BackupNHGRequiresVrfWithDecap(dut) {
@@ -1197,6 +1197,7 @@ func installGRIBIRoutes(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 			AsResult(),
 		chk.IgnoreOperationID(),
 	)
+	return client
 }
 
 // awaitTimeout calls a fluent client Await, adding a timeout to the context.
