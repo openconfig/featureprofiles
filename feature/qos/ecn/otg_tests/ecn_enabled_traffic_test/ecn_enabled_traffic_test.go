@@ -318,20 +318,54 @@ func TestECNEnabledTraffic(t *testing.T) {
 			t.Logf("Running traffic 1 on DUT interfaces: %s => %s ", p1.Name(), p3.Name())
 			t.Logf("Running traffic 2 on DUT interfaces: %s => %s ", p2.Name(), p3.Name())
 			t.Logf("Sending traffic flows: \n%v\n\n", tfs)
+			otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 			ate.OTG().StartTraffic(t)
-			time.Sleep(30 * time.Second)
+			time.Sleep(15 * time.Second)
 			ate.OTG().StopTraffic(t)
-			time.Sleep(30 * time.Second)
 
 			otgutils.LogFlowMetrics(t, ate.OTG(), top)
+
+			for _, data := range tfs {
+				name := fn + "-" + data.inputIntf.Name
+				expectedLoss := float64(100.0 - data.expectedThroughputPct)
+				minLoss := expectedLoss - float64(tolerance)
+				if minLoss < 0 {
+					minLoss = 0
+				}
+				maxLoss := expectedLoss + float64(tolerance)
+				otgutils.ExpectedTrafficLoss(t, ate.OTG(), name, minLoss, maxLoss)
+			}
+
 			for _, data := range tfs {
 				name := fn + "-" + data.inputIntf.Name
 				flowData := gnmi.Get[*otgtelemetry.Flow](t, ate.OTG(), gnmi.OTG().Flow(name).State())
 
 				ateOutPkts[data.queue] += flowData.GetCounters().GetOutPkts()
-				ateInPkts[data.queue] += flowData.GetCounters().GetOutPkts()
-				dutQosPktsAfterTraffic[data.queue] += gnmi.Get(t, dut, gnmi.OC().Qos().Interface(p3.Name()).Output().Queue(data.queue).TransmitPkts().State())
-				dutQosDroppedPktsAfterTraffic[data.queue] += gnmi.Get(t, dut, gnmi.OC().Qos().Interface(p3.Name()).Output().Queue(data.queue).DroppedPkts().State())
+				ateInPkts[data.queue] += flowData.GetCounters().GetInPkts()
+			}
+
+			for queue := range ateInPkts {
+				if ateOutPkts[queue] == 0 {
+					continue
+				}
+				// Watch for ATE rx packets to be available in QoS TransmitPkts
+				val, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(p3.Name()).Output().Queue(queue).TransmitPkts().State(), timeout, func(v *ygnmi.Value[uint64]) bool {
+					pkts, present := v.Val()
+					return present && pkts >= dutQosPktsBeforeTraffic[queue]+ateInPkts[queue]
+				}).Await(t)
+				if ok {
+					pkts, _ := val.Val()
+					dutQosPktsAfterTraffic[queue] = pkts
+				} else {
+					t.Logf("Warning: TransmitPkts count for queue %q on interface %q did not reach expected value within timeout", queue, p3.Name())
+					dutQosPktsAfterTraffic[queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(p3.Name()).Output().Queue(queue).TransmitPkts().State())
+				}
+				dutQosDroppedPktsAfterTraffic[queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(p3.Name()).Output().Queue(queue).DroppedPkts().State())
+			}
+
+			for _, data := range tfs {
+				name := fn + "-" + data.inputIntf.Name
+				flowData := gnmi.Get[*otgtelemetry.Flow](t, ate.OTG(), gnmi.OTG().Flow(name).State())
 				t.Logf("ateInPkts: %v, txPkts %v, Queue: %v", ateInPkts[data.queue], dutQosPktsAfterTraffic[data.queue], data.queue)
 
 				ateTxPkts := float32(flowData.GetCounters().GetOutPkts())

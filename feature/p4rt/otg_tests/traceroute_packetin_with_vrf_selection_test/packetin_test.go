@@ -27,6 +27,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/featureprofiles/internal/p4rtutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -102,32 +103,74 @@ func decodePacket6(t *testing.T, packetData []byte) uint8 {
 
 // testTraffic sends traffic flow for duration seconds and returns the
 // number of packets sent out.
-func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flows []gosnappi.Flow, srcEndPoint gosnappi.Port, duration int, cs gosnappi.ControlState) int {
+func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flows []gosnappi.Flow, srcEndPoint gosnappi.Port, targetPkts uint64, cs gosnappi.ControlState) int {
 	t.Helper()
 	initialOutPkts := make(map[string]uint64, len(flows))
 	top.Flows().Clear()
 	for _, flow := range flows {
 		flow.TxRx().Port().SetTxName(srcEndPoint.Name()).SetRxName(srcEndPoint.Name())
 		flow.Metrics().SetEnable(true)
+		flow.Duration().FixedPackets().SetPackets(uint32(targetPkts))
 		top.Flows().Append(flow)
 	}
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
-	time.Sleep(30 * time.Second)
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
+
+	// START THE PACKET CAPTURE AFTER CONFIG IS PUSHED
+	ate.OTG().SetControlState(t, cs)
+	defer func() {
+		cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
+		ate.OTG().SetControlState(t, cs)
+	}()
+
 	for _, flow := range flows {
 		initialOutPkts[flow.Name()] = gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
 	}
 	ate.OTG().StartTraffic(t)
-	time.Sleep(time.Duration(duration) * time.Second)
+
+	trafficStopped := false
+	defer func() {
+		if !trafficStopped {
+			ate.OTG().StopTraffic(t)
+		}
+	}()
+
+	// Wait for OutPkts to reach the target
+	for _, flow := range flows {
+		_, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State(), time.Minute, func(val *ygnmi.Value[uint64]) bool {
+			pkts, present := val.Val()
+			return present && (pkts >= initialOutPkts[flow.Name()]+targetPkts)
+		}).Await(t)
+
+		if !ok {
+			t.Fatalf("Traffic flow %s did not reach the target of %d packets within the timeout", flow.Name(), targetPkts)
+		}
+	}
+
 	ate.OTG().StopTraffic(t)
+	trafficStopped = true
 
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
-	ate.OTG().SetControlState(t, cs)
-
+	// Add stabilization: poll counters until they stop incrementing
 	total := 0
 	for _, flow := range flows {
-		current := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
-		total += int(current - initialOutPkts[flow.Name()])
+		var lastPkts uint64
+		var stableCount int
+		for {
+			current := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
+			if current == lastPkts {
+				stableCount++
+				if stableCount >= 4 { // 4 * 500ms = 2 seconds of stability
+					total += int(current - initialOutPkts[flow.Name()])
+					break
+				}
+			} else {
+				stableCount = 0
+			}
+			lastPkts = current
+			time.Sleep(500 * time.Millisecond)
+		}
 	}
 	return total
 }
@@ -135,6 +178,7 @@ func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flow
 // testPacketIn programs p4rt table entry and sends traffic related to Traceroute,
 // then validates packetin message metadata and payload.
 func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool, cs gosnappi.ControlState, flowValues []*flowArgs, EgressPortMap map[string]bool) []float64 {
+	const targetPkts = 1000
 	leader := args.leader
 	if err := programmTableEntry(leader, args.packetIO, false, true); err != nil {
 		t.Fatalf("There is error when programming IPv4 entry")
@@ -161,6 +205,9 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool
 			streamName, qSize, qSizeRead)
 	}
 
+	// Flush any leftover packets from previous tests
+	_, _, _ = args.leader.StreamChannelGetPackets(&streamName, 1000000, 3*time.Second)
+
 	// Send Traceroute traffic from ATE
 	srcEndPoint := ateInterface(t, args.top, "port1")
 	llAddress, found := gnmi.Watch(t, args.ate.OTG(), gnmi.OTG().Interface("atePort1"+".Eth").Ipv4Neighbor(portsIPv4["dut:port1"]).LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
@@ -174,7 +221,7 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool
 	for _, flowValue := range flowValues {
 		flow = append(flow, args.packetIO.GetTrafficFlow(args.ate, dstMac, isIPv4, 1, 300, 50, ipv4InnerDst, flowValue))
 	}
-	pktOut := testTraffic(t, args.top, args.ate, flow, srcEndPoint, 60, cs)
+	pktOut := testTraffic(t, args.top, args.ate, flow, srcEndPoint, targetPkts, cs)
 	var countPkts = map[string]int{"11": 0, "12": 0, "13": 0, "14": 0, "15": 0, "16": 0, "17": 0}
 
 	packetInTests := []struct {
