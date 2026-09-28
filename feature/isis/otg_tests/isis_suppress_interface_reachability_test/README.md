@@ -129,8 +129,7 @@ flowchart LR
                         "config": {
                           "afi-name": "openconfig-isis-types:IPV4",
                           "enabled": true,
-                          "safi-name": "openconfig-isis-types:UNICAST",
-                          "suppress-interface-reachability": "NON_PASSIVE"
+                          "safi-name": "openconfig-isis-types:UNICAST"
                         },
                         "safi-name": "openconfig-isis-types:UNICAST"
                       },
@@ -139,8 +138,7 @@ flowchart LR
                         "config": {
                           "afi-name": "openconfig-isis-types:IPV6",
                           "enabled": true,
-                          "safi-name": "openconfig-isis-types:UNICAST",
-                          "suppress-interface-reachability": "NON_PASSIVE"
+                          "safi-name": "openconfig-isis-types:UNICAST"
                         },
                         "safi-name": "openconfig-isis-types:UNICAST"
                       }
