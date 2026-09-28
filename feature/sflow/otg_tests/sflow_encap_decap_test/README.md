@@ -1,4 +1,4 @@
-# SFLOW-2: sFlow Sampling with Encapsulation and Decapsulation
+# SFLOW-3: sFlow Sampling with Encapsulation and Decapsulation
 
 ## Summary
 
@@ -21,7 +21,7 @@ gRIBI-programmed encapsulation.
     *   Set sampling rate to 1 sample per 10k packets.
     *   Enable sFlow on ingress and egress interfaces.
 
-### SFLOW-2.1: sFlow sampling with IPoverGRE Encap
+### SFLOW-3.1: sFlow sampling with IPoverGRE Encap
 
 *   Configure IPoverGRE encapsulation on DUT.
 *   Send IPv4 traffic from ATE Port 1 to DUT Port 1, matching the GRE encap rule.
@@ -33,7 +33,7 @@ gRIBI-programmed encapsulation.
     *   Sampled packet header matches the expected GRE encapsulated packet.
     *   Sampling rate matches configured rate.
 
-### SFLOW-2.2: sFlow sampling with IPoverGRE Decap
+### SFLOW-3.2: sFlow sampling with IPoverGRE Decap
 
 *   Configure IPoverGRE decapsulation on DUT.
 *   Send GRE encapsulated IPv4 traffic from ATE Port 1 to DUT Port 1.
@@ -44,7 +44,7 @@ gRIBI-programmed encapsulation.
     *   Egress interface matches DUT Port 3.
     *   Sampled packet header matches the expected decapsulated packet.
 
-### SFLOW-2.3: sFlow sampling with IPv6overGRE Encap
+### SFLOW-3.3: sFlow sampling with IPv6overGRE Encap
 
 *   Configure IPv6overGRE encapsulation on DUT.
 *   Send IPv6 traffic from ATE Port 1 to DUT Port 1, matching the GRE encap rule.
@@ -55,7 +55,7 @@ gRIBI-programmed encapsulation.
     *   Egress interface matches DUT Port 3.
     *   Sampled packet header matches the expected GRE encapsulated packet.
 
-### SFLOW-2.4: sFlow sampling with IPv6overGRE Decap
+### SFLOW-3.4: sFlow sampling with IPv6overGRE Decap
 
 *   Configure IPv6overGRE decapsulation on DUT.
 *   Send GRE encapsulated IPv6 traffic from ATE Port 1 to DUT Port 1.
@@ -66,7 +66,7 @@ gRIBI-programmed encapsulation.
     *   Egress interface matches DUT Port 3.
     *   Sampled packet header matches the expected decapsulated packet.
 
-### SFLOW-2.5: sFlow sampling with GUE Encap
+### SFLOW-3.5: sFlow sampling with GUE Encap
 
 *   Configure GUE encapsulation on DUT (static route based).
 *   Send traffic to trigger GUE encapsulation.
@@ -77,7 +77,7 @@ gRIBI-programmed encapsulation.
     *   Egress interface matches DUT Port 3.
     *   Sampled packet header matches the expected GUE encapsulated packet.
 
-### SFLOW-2.6: sFlow sampling with gRIBI Encap
+### SFLOW-3.6: sFlow sampling with gRIBI Encap
 
 *   Configure gRIBI on DUT.
 *   Install gRIBI entries to perform encapsulation.
