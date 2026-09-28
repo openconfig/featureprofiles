@@ -54,6 +54,11 @@ import (
 	"github.com/openconfig/ondatra"
 )
 
+// RoutedVlanInterfaceName returns the expected name of the Routed VLAN interface for SVIs.
+func RoutedVlanInterfaceName(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetRoutedVlanInterfaceName()
+}
+
 func lookupDeviations(dvc *ondatra.Device) (*mpb.Metadata_PlatformExceptions, error) {
 	var matchedPlatformException *mpb.Metadata_PlatformExceptions
 
@@ -2389,6 +2394,11 @@ func BgpAdjRibOcUnsupported(dut *ondatra.DUTDevice) bool {
 // AigpMetricIncrement returns true if AIGP metric increment is not supported.
 func AigpMetricIncrement(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAigpMetricIncrement()
+}
+
+// SwitchedVlanUnsupported returns true if the device does not support switched-vlan config.
+func SwitchedVlanUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSwitchedVlanUnsupported()
 }
 
 // PowerSupplyTelemetryUnsupported returns true if device does not support power supply telemetry.
