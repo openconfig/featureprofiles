@@ -83,10 +83,7 @@
             "openconfig-platform-controller-card:power-admin-state": "POWER_ENABLED"
           }
         },
-        "name": "controller-1",
-        "state": {
-          "type": "openconfig-platform-types:CONTROLLER_CARD"
-        }
+        "name": "controller-1"
       }
     ]
   }
