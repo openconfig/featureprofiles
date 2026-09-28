@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -29,6 +30,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/gnmi/oc/ocpath"
 	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -201,13 +203,39 @@ func (y Y) FindByType(ctx context.Context, want oc.Component_Type_Union) ([]stri
 func FindStandbyControllerCard(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) (string, string) {
 	var activeCC, standbyCC string
 	for _, supervisor := range supervisors {
-		watch := gnmi.Watch(t, dut, gnmi.OC().Component(supervisor).RedundantRole().State(), 10*time.Minute, func(val *ygnmi.Value[oc.E_Platform_ComponentRedundantRole]) bool {
-			return val.IsPresent()
-		})
-		if val, ok := watch.Await(t); !ok {
-			t.Fatalf("DUT did not reach target state within %v: got %v", 10*time.Minute, val)
+		// Use a robust polling loop with bound contexts to prevent zombie Subscribe hangs
+		// when the control plane is actively flapping.
+		start := time.Now()
+		var role oc.E_Platform_ComponentRedundantRole
+
+		c, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.Name()))
+		if err != nil {
+			t.Fatalf("Failed to create ygnmi client for FindStandbyControllerCard: %v", err)
 		}
-		role := gnmi.Get(t, dut, gnmi.OC().Component(supervisor).RedundantRole().State())
+
+		for time.Since(start) < 10*time.Minute {
+			var opts []ygnmi.Option
+			// Use discrete Get probes for everything except Juniper, which strictly requires Subscribe
+			if dut.Vendor() != ondatra.JUNIPER {
+				opts = append(opts, ygnmi.WithUseGet())
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			val, err := ygnmi.Lookup(ctx, c, gnmi.OC().Component(supervisor).RedundantRole().State(), opts...)
+			cancel()
+			if err == nil {
+				if r, present := val.Val(); present && r !=
+					oc.Platform_ComponentRedundantRole_UNSET {
+					role = r
+					break
+				}
+			}
+			time.Sleep(10 * time.Second)
+		}
+
+		if role == oc.Platform_ComponentRedundantRole_UNSET {
+			t.Fatalf("DUT did not reach target state within %v for %v", 10*time.Minute, supervisor)
+		}
+
 		t.Logf("Component(supervisor).RedundantRole().Get(t): %v, Role: %v", supervisor, role)
 		if role == standbyController {
 			standbyCC = supervisor
@@ -247,4 +275,86 @@ func OpticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *on
 		t.Fatalf("Associated Optical Channel for Transceiver (%v) not found!", transceiverName)
 	}
 	return opticalChannelName
+}
+
+// SetControllerCardPowerState (gNOI-3.3.2 Step 2 / Step 3) updates the controller card
+// power-admin-state (POWER_DISABLED / POWER_ENABLED) and verifies state and oper-status transition.
+func SetControllerCardPowerState(t *testing.T, dut *ondatra.DUTDevice, cardName string, powerType oc.E_Platform_ComponentPowerType, timeout time.Duration) {
+	t.Helper()
+	c := gnmi.OC().Component(cardName)
+	if deviations.PowerDisableEnableLeafRefValidation(dut) {
+		t.Logf("WARNING: [PowerAdminState] Deviation PowerDisableEnableLeafRefValidation is enabled for %s (%s): pre-creating /components/component[name=%s]/config leafref before updating power-admin-state.", dut.Name(), dut.Model(), cardName)
+		gnmi.Update(t, dut, c.Config(), &oc.Component{
+			Name: ygot.String(cardName),
+		})
+	}
+	start := time.Now()
+	t.Logf("INFO: [PowerAdminState] Setting %s power-admin-state to %v...", cardName, powerType)
+	gnmi.Replace(t, dut, c.ControllerCard().PowerAdminState().Config(), powerType)
+
+	var opts []ygnmi.Option
+	if deviations.SwitchoverSubscribeUnsupported(dut) {
+		t.Logf("WARNING: [PowerAdminState] Deviation SwitchoverSubscribeUnsupported on %s (%s): gNMI Subscribe streams drop or stall during supervisor power toggles. Bypassing gNMI Subscribe stream via unary gNMI.Get (ygnmi.WithUseGet()) polling to prevent test/DUT hang.", dut.Name(), dut.Model())
+		opts = append(opts, ygnmi.WithUseGet())
+	}
+	yc, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.Name()))
+	if err != nil {
+		t.Fatalf("Failed to create ygnmi client in SetControllerCardPowerState: %v", err)
+	}
+
+	powerMatched := false
+	for time.Since(start) < timeout {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		val, err := ygnmi.Lookup(ctx, yc, c.ControllerCard().PowerAdminState().State(), opts...)
+		cancel()
+		if err != nil && len(opts) > 0 && (strings.Contains(err.Error(), "Unimplemented") || strings.Contains(err.Error(), "Unsupported 'type'")) {
+			t.Logf("INFO: [PowerAdminState] Device %s (%s) does not support unary gNMI.Get for STATE paths; switching polling to one-shot gNMI.Subscribe (mode: ONCE) via ygnmi.Lookup.", dut.Name(), dut.Model())
+			opts = nil
+			ctxRetry, cancelRetry := context.WithTimeout(context.Background(), 10*time.Second)
+			val, err = ygnmi.Lookup(ctxRetry, yc, c.ControllerCard().PowerAdminState().State())
+			cancelRetry()
+		}
+		if err == nil {
+			if power, present := val.Val(); present && power == powerType {
+				powerMatched = true
+				t.Logf("Component %s, power-admin-state reached %v after %.2f minutes", cardName, power, time.Since(start).Minutes())
+				break
+			}
+		}
+		time.Sleep(10 * time.Second)
+	}
+	if !powerMatched {
+		t.Errorf("Component %s, power-admin-state did not reach %v within %v", cardName, powerType, timeout)
+	}
+
+	wantOper := oc.PlatformTypes_COMPONENT_OPER_STATUS_DISABLED
+	if powerType == oc.Platform_ComponentPowerType_POWER_ENABLED {
+		wantOper = oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE
+	}
+
+	startOper := time.Now()
+	operMatched := false
+	for time.Since(startOper) < timeout {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		val, err := ygnmi.Lookup(ctx, yc, c.OperStatus().State(), opts...)
+		cancel()
+		if err != nil && len(opts) > 0 && (strings.Contains(err.Error(), "Unimplemented") || strings.Contains(err.Error(), "Unsupported 'type'")) {
+			t.Logf("INFO: [PowerAdminState] Device %s (%s) does not support unary gNMI.Get for STATE paths; switching polling to one-shot gNMI.Subscribe (mode: ONCE) via ygnmi.Lookup.", dut.Name(), dut.Model())
+			opts = nil
+			ctxRetry, cancelRetry := context.WithTimeout(context.Background(), 10*time.Second)
+			val, err = ygnmi.Lookup(ctxRetry, yc, c.OperStatus().State())
+			cancelRetry()
+		}
+		if err == nil {
+			if oper, present := val.Val(); present && oper == wantOper {
+				operMatched = true
+				t.Logf("Component %s, oper-status reached %v after %.2f minutes", cardName, oper, time.Since(startOper).Minutes())
+				break
+			}
+		}
+		time.Sleep(10 * time.Second)
+	}
+	if !operMatched {
+		t.Errorf("Component %s oper-status did not reach %v within %v", cardName, wantOper, timeout)
+	}
 }
