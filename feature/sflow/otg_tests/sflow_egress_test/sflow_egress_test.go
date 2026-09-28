@@ -44,7 +44,7 @@ const (
 	plenIPv6        = 126
 	lossTolerance   = 1
 	mgmtVRF         = "mvrf1"
-	sampleTolerance = 0.8
+	sampleTolerance = 0.2
 )
 
 var (
@@ -611,8 +611,10 @@ func validateEgressPackets(t *testing.T, filename string, ip IPType, fc flowConf
 	}
 	defer handle.Close()
 	loopbackIP := net.ParseIP(dutlo0Attrs.IPv4)
+	agentIP := net.ParseIP(sflowCfgv4.SrcAddrV4)
 	if ip == IPv6 {
 		loopbackIP = net.ParseIP(dutlo0Attrs.IPv6)
+		agentIP = net.ParseIP(sflowCfgv6.SrcAddrV6)
 	}
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 	packetCount := 0
@@ -620,8 +622,9 @@ func validateEgressPackets(t *testing.T, filename string, ip IPType, fc flowConf
 	if fc.minSamplingRate == 0 {
 		t.Fatal("minSamplingRate cannot be zero")
 	}
-	expectedSampleCount := float64(fc.packetsToSend / fc.minSamplingRate)
-	minAllowedSamples := expectedSampleCount * sampleTolerance
+	expectedSampleCount := float64(fc.packetsToSend) / float64(fc.minSamplingRate)
+	minAllowedSamples := expectedSampleCount * (1 - sampleTolerance)
+	maxAllowedSamples := expectedSampleCount * (1 + sampleTolerance)
 	for packet := range packetSource.Packets() {
 		if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
 			ipv4, _ := ipLayer.(*layers.IPv4)
@@ -638,6 +641,9 @@ func validateEgressPackets(t *testing.T, filename string, ip IPType, fc flowConf
 			sflow := sflowLayer.(*layers.SFlowDatagram)
 			if sflow.DatagramVersion != 5 {
 				t.Errorf("SFlow DatagramVersion got %d, want 5", sflow.DatagramVersion)
+			}
+			if !sflow.AgentAddress.Equal(agentIP) {
+				t.Errorf("SFlow AgentAddress got %v, want %v", sflow.AgentAddress, agentIP)
 			}
 			if len(sflow.FlowSamples) == 0 {
 				sflowSamples += sflow.SampleCount
@@ -656,7 +662,8 @@ func validateEgressPackets(t *testing.T, filename string, ip IPType, fc flowConf
 		}
 	}
 	t.Logf("Egress SFlow Packet count: %v - SampleCount: %v", packetCount, sflowSamples)
-	if sflowSamples < uint32(minAllowedSamples) {
-		t.Errorf("Egress SFlow sample count %v, want >= %v", sflowSamples, minAllowedSamples)
+	if float64(sflowSamples) < minAllowedSamples || float64(sflowSamples) > maxAllowedSamples {
+		t.Errorf("Egress SFlow sample count %d, want between %.0f and %.0f (expected %.0f with %.0f%% tolerance)",
+			sflowSamples, minAllowedSamples, maxAllowedSamples, expectedSampleCount, sampleTolerance*100)
 	}
 }
