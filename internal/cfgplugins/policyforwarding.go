@@ -32,6 +32,9 @@ const (
 	// cliConfigSetTimeout bounds a native CLI configuration gNMI Set so that an
 	// unresponsive device cannot hang the test indefinitely.
 	cliConfigSetTimeout = 30 * time.Second
+	// agentRestartTimeout bounds an agent restart request so an unresponsive DUT
+	// cannot hang the test indefinitely.
+	agentRestartTimeout = 30 * time.Second
 )
 
 // DecapPolicyParams defines parameters for the Decap MPLS in GRE policy and related MPLS configs.
@@ -1666,7 +1669,9 @@ func restartSandL3Unicast(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	t.Logf("Restarting %s", processName)
-	_, err := dut.RawAPIs().GNOI(t).System().KillProcess(context.Background(), &spb.KillProcessRequest{
+	ctx, cancel := context.WithTimeout(context.Background(), agentRestartTimeout)
+	defer cancel()
+	_, err := dut.RawAPIs().GNOI(t).System().KillProcess(ctx, &spb.KillProcessRequest{
 		Signal:  spb.KillProcessRequest_SIGNAL_TERM,
 		Name:    processName,
 		Pid:     uint32(pid),
