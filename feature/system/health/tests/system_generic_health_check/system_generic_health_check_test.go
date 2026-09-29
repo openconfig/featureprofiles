@@ -231,6 +231,31 @@ func TestComponentStatus(t *testing.T) {
 			} else {
 				t.Logf("INFO: Component %s Healthz Get Status: %s", component, getResponse.GetComponent().GetStatus())
 			}
+
+			// Clean up artifacts from the DUT
+			if checkResponse != nil && checkResponse.GetStatus() != nil {
+				t.Logf("Acknowledging Healthz event to free device flash space...")
+				ackReq := &hpb.AcknowledgeRequest{
+					Path: getReq.GetPath(),
+					Id:   checkResponse.GetStatus().GetId(),
+				}
+				if _, ackErr := gnoiClient.Healthz().Acknowledge(context.Background(), ackReq); ackErr != nil {
+					t.Logf("Warning: Failed to acknowledge Healthz event %v: %v", ackReq.Id, ackErr)
+					// Fallback clause for devices that bug out on Acknowledge (e.g. Arista with blank Event IDs).
+					// We will manually sweep the artifacts directly through gNOI File system RPC.
+					if dut.Vendor() == ondatra.ARISTA {
+						artifacts := checkResponse.GetStatus().GetArtifacts()
+						for _, artifact := range artifacts {
+							remotePath := fmt.Sprintf("/mnt/flash/persist/healthz/%s", artifact.GetId())
+							if _, rmErr := gnoiClient.File().Remove(context.Background(), &fpb.RemoveRequest{RemoteFile: remotePath}); rmErr != nil {
+								t.Logf("Warning: Manual sweep fallback also failed to remove artifact %v: %v", artifact.GetId(), rmErr)
+							} else {
+								t.Logf("Manual Sweep: Successfully removed artifact %v from disk to prevent storage leak", artifact.GetId())
+							}
+						}
+					}
+				}
+			}
 		})
 	}
 }
