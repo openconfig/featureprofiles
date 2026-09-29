@@ -5,3 +5,13 @@ uuid: "d16916db-0208-4b03-a257-e6dfe5a1eabf"
 plan_id: "TE-1.7"
 description: "gNMI Interface Config Change Impacting gRIBI NextHop"
 testbed: TESTBED_DUT_ATE_4LINKS
+
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    default_network_instance: "default"
+    disable_hardware_nexthop_proxy: true
+  }
+}

@@ -48,26 +48,22 @@ const (
 	ipv6PrefixLen = 126
 
 	// gRIBI NextHop/NextHopGroup indices for the baseline ECMP group (port2/3/4).
-	// Deliberately large/unused values: this DUT wedged hardware state for low indices
-	// (10/11/12) across many prior failed runs, so fresh indices avoid reusing that state.
-	nh2ID  = 9010
-	nh3ID  = 9011
-	nh4ID  = 9012
-	nhg1ID = 9100
+	nh2ID  = 10
+	nh3ID  = 11
+	nh4ID  = 12
+	nhg1ID = 100
 
 	// gRIBI NextHop/NextHopGroup indices used only by TE-1.7.3 (NH programmed on a down port).
-	nhDownID  = 9020
-	nhgDownID = 9020
+	nhDownID  = 20
+	nhgDownID = 20
 
 	// NHG containing only NH2 (port2), used by TE-1.7.4 so that prefix routes solely via
 	// port2 instead of being spread across port2/3/4 by the shared ECMP NHG.
-	nhgPort2OnlyID = 9030
+	nhgPort2OnlyID = 30
 
 	// Number of gRIBI IPv4/IPv6 entries programmed into the ECMP NHG.
-	// The README calls for 1000 of each; kept smaller here for faster/more reliable
-	// test runs. TODO: bump to 1000 for a full-scale run.
-	numV4Routes = 100
-	numV6Routes = 100
+	numV4Routes = 1000
+	numV6Routes = 1000
 
 	ipv4BaseRoute = "203.0.113.1"   // first of numV4Routes consecutive /32s in the ECMP NHG.
 	ipv6BaseRoute = "2001:db8:a::1" // first of numV6Routes consecutive /128s in the ECMP NHG.
@@ -192,6 +188,17 @@ func TestGNMIIntfConfigImpactsGRIBINH(t *testing.T) {
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	d := gnmi.OC()
+	// Diagnostic: force a hardware TCAM/system profile (re)initialization, mirroring
+	// TE-18.3's setup, to test whether the DUT's default profile is what's blocking
+	// gRIBI FIB programming (not because this test needs VRF selection itself).
+	if dut.Vendor() == ondatra.ARISTA {
+		if hwCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureVrfSelectionExtended); hwCfg != "" {
+			cfgplugins.PushDUTHardwareInitConfig(t, dut, hwCfg)
+		}
+	}
+	// Diagnostic: explicitly register the default NI's type via OC, mirroring TE-18.3,
+	// in case the FIB agent needs this before it will install entries in that NI.
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	for _, pp := range portPairs {
 		p := dut.Port(t, pp.name)
 		gnmi.Replace(t, dut, d.Interface(p.Name()).Config(), pp.dut.NewOCInterface(p.Name(), dut))
@@ -270,9 +277,18 @@ func configureFlows(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, d
 // traffic solely destined via port2.
 func programECMPBaseline(t *testing.T, dut *ondatra.DUTDevice, client *gribi.Client, ni string) {
 	t.Helper()
-	client.AddNH(t, nh2ID, "MACwithInterface", ni, fluent.InstalledInFIB, &gribi.NHOptions{Interface: dut.Port(t, "port2").Name(), Mac: portPairs[1].ate.MAC})
-	client.AddNH(t, nh3ID, "MACwithInterface", ni, fluent.InstalledInFIB, &gribi.NHOptions{Interface: dut.Port(t, "port3").Name(), Mac: portPairs[2].ate.MAC})
-	client.AddNH(t, nh4ID, "MACwithInterface", ni, fluent.InstalledInFIB, &gribi.NHOptions{Interface: dut.Port(t, "port4").Name(), Mac: portPairs[3].ate.MAC})
+	// nhOpts builds the NH options for portPairs[idx], adding Dest (the ATE's already
+	// ARP-resolved IP) when the DUT can't install a MAC-only next-hop-entry.
+	nhOpts := func(idx int) *gribi.NHOptions {
+		opt := &gribi.NHOptions{Interface: dut.Port(t, portPairs[idx].name).Name(), Mac: portPairs[idx].ate.MAC}
+		if deviations.GRIBIMACOverrideWithStaticARP(dut) {
+			opt.Dest = portPairs[idx].ate.IPv4
+		}
+		return opt
+	}
+	client.AddNH(t, nh2ID, "MACwithInterface", ni, fluent.InstalledInFIB, nhOpts(1))
+	client.AddNH(t, nh3ID, "MACwithInterface", ni, fluent.InstalledInFIB, nhOpts(2))
+	client.AddNH(t, nh4ID, "MACwithInterface", ni, fluent.InstalledInFIB, nhOpts(3))
 	client.AddNHG(t, nhg1ID, map[uint64]uint64{nh2ID: 1, nh3ID: 1, nh4ID: 1}, ni, fluent.InstalledInFIB)
 	client.AddNHG(t, nhgPort2OnlyID, map[uint64]uint64{nh2ID: 1}, ni, fluent.InstalledInFIB)
 
