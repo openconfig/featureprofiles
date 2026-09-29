@@ -246,6 +246,10 @@ func TestComponentStatus(t *testing.T) {
 					if dut.Vendor() == ondatra.ARISTA {
 						artifacts := checkResponse.GetStatus().GetArtifacts()
 						for _, artifact := range artifacts {
+							if artifact.GetId() == "" {
+								t.Logf("Warning: Skipping artifact with empty ID to prevent directory deletion")
+								continue
+							}
 							remotePath := fmt.Sprintf("/mnt/flash/persist/healthz/%s", artifact.GetId())
 							if _, rmErr := gnoiClient.File().Remove(context.Background(), &fpb.RemoveRequest{RemoteFile: remotePath}); rmErr != nil {
 								t.Logf("Warning: Manual sweep fallback also failed to remove artifact %v: %v", artifact.GetId(), rmErr)
