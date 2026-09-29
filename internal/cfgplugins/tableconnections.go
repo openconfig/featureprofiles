@@ -18,8 +18,11 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
 // DeviationCiscoTableConnectionsStatictoBGPMetricPropagation is used as an alternative to
@@ -45,4 +48,39 @@ func DeviationCiscoTableConnectionsStatictoBGPMetricPropagation(t *testing.T, du
 		cliConfig = fmt.Sprintf("router bgp 64512\n address-family %v unicast\n redistribute static metric %d route-policy %s\n !\n!\n", aftype, metric, routePolicyName)
 	}
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
+}
+
+// TableConnectionCfg holds the configuration parameters for a table connection.
+type TableConnectionCfg struct {
+	SrcProto                 oc.E_PolicyTypes_INSTALL_PROTOCOL_TYPE
+	DstProto                 oc.E_PolicyTypes_INSTALL_PROTOCOL_TYPE
+	Afi                      oc.E_Types_ADDRESS_FAMILY
+	ImportPolicies           []string
+	DisableMetricPropagation bool
+	DefaultImportPolicy      oc.E_RoutingPolicy_DefaultPolicyType
+	Delete                   bool
+}
+
+// ConfigureTableConnection appends a table connection redistribution policy configuration to the batch.
+func ConfigureTableConnection(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, cfg *TableConnectionCfg) *gnmi.SetBatch {
+	dni := deviations.DefaultNetworkInstance(dut)
+
+	if cfg.Delete {
+		gnmi.BatchDelete(sb, gnmi.OC().NetworkInstance(dni).TableConnection(cfg.SrcProto, cfg.DstProto, cfg.Afi).Config())
+		return sb
+	}
+
+	root := &oc.Root{}
+	tableConn := root.GetOrCreateNetworkInstance(dni).GetOrCreateTableConnection(cfg.SrcProto, cfg.DstProto, cfg.Afi)
+
+	if !deviations.SkipSettingDisableMetricPropagation(dut) {
+		tableConn.SetDisableMetricPropagation(cfg.DisableMetricPropagation)
+	}
+	if !deviations.DefaultRoutePolicyUnsupported(dut) {
+		tableConn.SetDefaultImportPolicy(cfg.DefaultImportPolicy)
+	}
+	tableConn.SetImportPolicy(cfg.ImportPolicies)
+
+	gnmi.BatchUpdate(sb, gnmi.OC().NetworkInstance(dni).TableConnection(cfg.SrcProto, cfg.DstProto, cfg.Afi).Config(), tableConn)
+	return sb
 }
