@@ -355,8 +355,8 @@ github.com/openconfig/containerz v0.0.0-20260402080039-aa3f8fb7974b h1:vh3SdXNFS
 github.com/openconfig/containerz v0.0.0-20260402080039-aa3f8fb7974b/go.mod h1:t3nbvQDY8KtGCn/Osao2sq3Vwb04BCh7x6nLZ/sdMo8=
 github.com/openconfig/entity-naming v0.0.0-20251204192329-8cf2fdebf3c1 h1:FQwuGeqYG6dSIMawOe8aZqBT8TDFxA33vFpOHkHfW7I=
 github.com/openconfig/entity-naming v0.0.0-20251204192329-8cf2fdebf3c1/go.mod h1:2nGgvKy59yoNzIWlGmWcd0hA/0qZFO1FGaSBszoIgGc=
-github.com/openconfig/functional-translators v0.0.0-20260121084228-b2e67ece1e44 h1:3CgrhKIbkIi5hUVk6+yKk0t43lT7AwSBTTxhvzxzUOo=
-github.com/openconfig/functional-translators v0.0.0-20260121084228-b2e67ece1e44/go.mod h1:/q0lCXFg7gfuWQPnlX//77HO5a6UmJo4vFxwcHeAT4M=
+github.com/openconfig/functional-translators v0.0.0-20260927062658-3db7ee4a3321 h1:w3TXDK/6C1pYEkE6u389B1e9do7EyiZACRbbhzutf/0=
+github.com/openconfig/functional-translators v0.0.0-20260927062658-3db7ee4a3321/go.mod h1:8PPQopG22X9F6es7HmjyYbU1XqXCc1B9ATviddLvN+E=
 github.com/openconfig/gnmi v0.14.1 h1:qKMuFvhIRR2/xxCOsStPQ25aKpbMDdWr3kI+nP9bhMs=
 github.com/openconfig/gnmi v0.14.1/go.mod h1:whr6zVq9PCU8mV1D0K9v7Ajd3+swoN6Yam9n8OH3eT0=
 github.com/openconfig/gnoi v0.8.0 h1:fwZm4zlwoY5i7KALTpVhpAv53Y3YskleoTpg1IUCa+c=
