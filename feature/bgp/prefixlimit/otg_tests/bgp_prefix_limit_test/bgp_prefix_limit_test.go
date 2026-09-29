@@ -512,12 +512,17 @@ func (tc *testCase) verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 	} else {
 		for _, dstNbr := range []string{ateDst.IPv4, ateDst.IPv6} {
-			sentMsg := gnmi.Get(t, dut, statePath.Neighbor(dstNbr).Messages().Sent().State())
+			sentVal, ok := gnmi.Watch(t, dut, statePath.Neighbor(dstNbr).Messages().Sent().State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Protocol_Bgp_Neighbor_Messages_Sent]) bool {
+				sent, present := val.Val()
+				return present && sent.GetLastNotificationErrorCode() == oc.BgpTypes_BGP_ERROR_CODE_CEASE
+			}).Await(t)
+			if !ok {
+				t.Errorf("BGP neighbor %s state/messages/sent/last-notification-error-code: did not become %v", dstNbr, oc.BgpTypes_BGP_ERROR_CODE_CEASE)
+				continue
+			}
+			sentMsg, _ := sentVal.Val()
 			if got := sentMsg.GetNOTIFICATION(); got == 0 {
 				t.Errorf("BGP neighbor %s state/messages/sent/NOTIFICATION: got 0, want > 0", dstNbr)
-			}
-			if got := sentMsg.GetLastNotificationErrorCode(); got != oc.BgpTypes_BGP_ERROR_CODE_CEASE {
-				t.Errorf("BGP neighbor %s state/messages/sent/last-notification-error-code: got %v, want %v", dstNbr, got, oc.BgpTypes_BGP_ERROR_CODE_CEASE)
 			}
 			if got := sentMsg.GetLastNotificationErrorSubcode(); got != oc.BgpTypes_BGP_ERROR_SUBCODE_MAX_NUM_PREFIXES_REACHED {
 				t.Errorf("BGP neighbor %s state/messages/sent/last-notification-error-subcode: got %v, want %v", dstNbr, got, oc.BgpTypes_BGP_ERROR_SUBCODE_MAX_NUM_PREFIXES_REACHED)

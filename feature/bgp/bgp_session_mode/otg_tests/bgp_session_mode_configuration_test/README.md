@@ -20,6 +20,78 @@ DUT Port1 (AS 65501) ---eBGP --- ATE Port1 (AS 65502)
 *  Verify the telemetry path output to confirm that the neighbor's BGP transport mode is displayed as "passive for the DUT.
 *  Redo the same above steps but configure the passive mode under the peer group instead of the  bgp neighbor configuration.
 
+## Canonical OC
+
+```json
+{
+  "network-instances": {
+    "network-instance": [
+      {
+        "name": "DEFAULT",
+        "config": {
+          "name": "DEFAULT"
+        },
+        "protocols": {
+          "protocol": [
+            {
+              "identifier": "BGP",
+              "name": "BGP",
+              "config": {
+                "identifier": "BGP",
+                "name": "BGP"
+              },
+              "bgp": {
+                "global": {
+                  "config": {
+                    "as": 65540,
+                    "router-id": "192.0.2.1"
+                  }
+                },
+                "peer-groups": {
+                  "peer-group": [
+                    {
+                      "peer-group-name": "eBGP-PEER-GROUP",
+                      "config": {
+                        "peer-group-name": "eBGP-PEER-GROUP",
+                        "peer-as": 65550
+                      },
+                      "transport": {
+                        "config": {
+                          "local-address": "192.0.2.1",
+                          "passive-mode": true
+                        }
+                      }
+                    }
+                  ]
+                },
+                "neighbors": {
+                  "neighbor": [
+                    {
+                      "neighbor-address": "192.0.2.2",
+                      "config": {
+                        "neighbor-address": "192.0.2.2",
+                        "peer-as": 65550,
+                        "peer-group": "eBGP-PEER-GROUP"
+                      },
+                      "transport": {
+                        "config": {
+                          "local-address": "192.0.2.1",
+                          "passive-mode": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 This example yaml defines the OC paths intended to be covered by this test.  OC paths used for test environment setup are not required to be listed here.
