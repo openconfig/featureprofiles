@@ -71,6 +71,7 @@ const (
 	imageName    = "cntrsrv_image"
 	instanceName = "cntr-test-conn"
 	cntrPort     = 60061
+	maxClockSkew = 30 * time.Second
 
 	// dialTimeout is the overall timeout used when dialing the cntrsrv gRPC
 	// service and when waiting for it to become ready.
@@ -79,10 +80,63 @@ const (
 	pingRetryEvery = 2 * time.Second
 )
 
+func parseDUTTime(t *testing.T, value string) time.Time {
+	t.Helper()
+	for _, layout := range []string{time.RFC3339Nano, time.RFC3339} {
+		if parsed, err := time.Parse(layout, value); err == nil {
+			return parsed
+		}
+	}
+	t.Fatalf("Failed to parse DUT current-datetime %q", value)
+	return time.Time{}
+}
+
+func clockSkew(a, b time.Time) time.Duration {
+	skew := a.Sub(b)
+	if skew < 0 {
+		return -skew
+	}
+	return skew
+}
+
+// synchronizeDUTClock ensures certificates generated inside a container use a
+// time close enough to the test runner for TLS validation. OpenConfig and gNOI
+// expose the current system time as read-only, so platforms with excessive
+// skew require a vendor-specific clock-setting command.
+func synchronizeDUTClock(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	dutTime := parseDUTTime(t, gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State()))
+	now := time.Now()
+	if skew := clockSkew(now, dutTime); skew <= maxClockSkew {
+		t.Logf("DUT clock is synchronized within %v (skew %v).", maxClockSkew, skew)
+		return
+	}
+
+	switch dut.Vendor() {
+	case ondatra.CISCO:
+		// IOS XR interprets clock set in the configured local timezone. Preserve
+		// the offset reported by current-datetime when formatting the runner time.
+		_, offset := dutTime.Zone()
+		dutLocalNow := now.In(time.FixedZone("DUT", offset))
+		command := fmt.Sprintf("clock set %s", dutLocalNow.Format("15:04:05 2 January 2006"))
+		t.Logf("DUT clock skew is %v; synchronizing it with the test runner.", clockSkew(now, dutTime))
+		dut.CLI().Run(t, command)
+	default:
+		t.Fatalf("DUT clock skew is %v, but automatic clock synchronization is not implemented for vendor %s", clockSkew(now, dutTime), dut.Vendor())
+	}
+
+	updatedTime := parseDUTTime(t, gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State()))
+	if skew := clockSkew(time.Now(), updatedTime); skew > maxClockSkew {
+		t.Fatalf("DUT clock remains out of sync after synchronization: got %s, skew %v", updatedTime.Format(time.RFC3339), skew)
+	}
+	t.Logf("DUT clock synchronized successfully: %s", updatedTime.Format(time.RFC3339))
+}
+
 // setupContainer deploys and starts the cntrsrv container on the DUT and
 // registers a t.Cleanup to tear it down when the test (or subtest) ends.
 func setupContainer(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
+	synchronizeDUTClock(t, dut)
 	ctx := context.Background()
 	opts := containerztest.StartContainerOptions{
 		ImageName:    imageName,
