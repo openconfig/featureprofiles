@@ -512,15 +512,8 @@ func pushQosClassifierToDUT(t *testing.T, dut *ondatra.DUTDevice, qos *oc.Qos, i
 }
 
 func checkPolicyStatistics(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
-	if deviations.PolicyForwardingGreEncapsulationOcUnsupported(dut) {
-		t.Fatalf("Dut %s %s %s does not support checking policy statistics through OC", dut.Vendor(), dut.Model(), dut.Version())
-	} else {
-		checkPolicyStatisticsFromOC(t, dut, tc)
-	}
-}
-
-func checkPolicyStatisticsFromOC(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
-	totalMatched := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Policy(trafficPolicyName).Rule(uint32(ruleSequenceMap[tc.policyRule])).MatchedPkts().State())
+	policyStats := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Policy(trafficPolicyName).Rule(uint32(ruleSequenceMap[tc.policyRule])).State())
+	totalMatched := *policyStats.MatchedPkts
 	previouslyMatched := ruleMatchedPackets[tc.policyRule]
 	if totalMatched != previouslyMatched+noOfPackets {
 		t.Errorf("Expected %d packets matched by policy %s rule %s for flow %s, but got %d", noOfPackets, trafficPolicyName, tc.policyRule, tc.flowName, totalMatched-previouslyMatched)
