@@ -20,7 +20,7 @@ require (
 	github.com/openconfig/bootz v0.7.1
 	github.com/openconfig/containerz v0.0.0-20260402080039-aa3f8fb7974b
 	github.com/openconfig/entity-naming v0.0.0-20251204192329-8cf2fdebf3c1
-	github.com/openconfig/functional-translators v0.0.0-20260121084228-b2e67ece1e44
+	github.com/openconfig/functional-translators v0.0.0-20260927062658-3db7ee4a3321
 	github.com/openconfig/gnmi v0.14.1
 	github.com/openconfig/gnoi v0.8.0
 	github.com/openconfig/gnoigo v0.0.0-20250918224707-fee0fe3eee56
