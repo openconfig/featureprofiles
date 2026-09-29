@@ -26,15 +26,14 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
-	"github.com/openconfig/featureprofiles/internal/system"
+	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
-
-	spb "github.com/openconfig/gnoi/system"
 )
 
 const (
@@ -43,6 +42,13 @@ const (
 	bgpName           = "BGP"
 	ptBGP             = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
 )
+
+// ProcessInfo holds PID, Start Time, and Memory Usage of a system process.
+type ProcessInfo struct {
+	Pid         uint64
+	StartTime   uint64
+	MemoryUsage uint64
+}
 
 var (
 	possibleCriticalProcs = []string{
@@ -97,10 +103,10 @@ func findRunningCriticalProcesses(t *testing.T, dut *ondatra.DUTDevice) []string
 	return found
 }
 
-func getCriticalProcessInfos(t *testing.T, dut *ondatra.DUTDevice, pNames []string, preferred map[string]*system.ProcessInfo) (map[string]*system.ProcessInfo, error) {
+func getCriticalProcessInfos(t *testing.T, dut *ondatra.DUTDevice, pNames []string, preferred map[string]*ProcessInfo) (map[string]*ProcessInfo, error) {
 	t.Helper()
 	pList := gnmi.GetAll[*oc.System_Process](t, dut, gnmi.OC().System().ProcessAny().State())
-	results := make(map[string]*system.ProcessInfo)
+	results := make(map[string]*ProcessInfo)
 
 	nameMap := make(map[string]bool)
 	for _, name := range pNames {
@@ -112,7 +118,7 @@ func getCriticalProcessInfos(t *testing.T, dut *ondatra.DUTDevice, pNames []stri
 		for _, proc := range pList {
 			pName := proc.GetName()
 			if pref, ok := preferred[pName]; ok && proc.GetPid() == pref.Pid {
-				results[pName] = &system.ProcessInfo{
+				results[pName] = &ProcessInfo{
 					Pid:         proc.GetPid(),
 					StartTime:   proc.GetStartTime(),
 					MemoryUsage: proc.GetMemoryUsage(),
@@ -131,7 +137,7 @@ func getCriticalProcessInfos(t *testing.T, dut *ondatra.DUTDevice, pNames []stri
 			if _, lockedByPref := preferred[pName]; lockedByPref && ok {
 				continue
 			}
-			results[pName] = &system.ProcessInfo{
+			results[pName] = &ProcessInfo{
 				Pid:         proc.GetPid(),
 				StartTime:   proc.GetStartTime(),
 				MemoryUsage: proc.GetMemoryUsage(),
@@ -250,7 +256,7 @@ func performSwitchover(t *testing.T, dut *ondatra.DUTDevice, controllerCards []s
 	return rpActiveAfter, rpStandbyAfter
 }
 
-func runPostSSOVerification(t *testing.T, dut *ondatra.DUTDevice, criticalProcs []string, _ map[string]*system.ProcessInfo, qosBaselines map[string]uint64, qosPorts []string, qosQueues []string, controllerCards []string) {
+func runPostSSOVerification(t *testing.T, dut *ondatra.DUTDevice, criticalProcs []string, initialProcInfos map[string]*ProcessInfo, qosBaselines map[string]uint64, qosPorts []string, qosQueues []string, controllerCards []string) {
 	t.Log("Starting 10 minutes validation post-switchover...")
 
 	// Capture baseline process state on the newly active supervisor right after switchover.
@@ -259,20 +265,20 @@ func runPostSSOVerification(t *testing.T, dut *ondatra.DUTDevice, criticalProcs 
 		t.Errorf("Failed to query post-switchover baseline process info: %v", err)
 	} else {
 		for name, pInfo := range activeRPBaselines {
+			if initInfo, ok := initialProcInfos[name]; ok && initInfo.MemoryUsage > pInfo.MemoryUsage {
+				pInfo.MemoryUsage = initInfo.MemoryUsage
+			}
 			t.Logf("Post-switchover active RP process %s baseline: PID=%d, StartTime=%d, Memory=%d", name, pInfo.Pid, pInfo.StartTime, pInfo.MemoryUsage)
 		}
 	}
 
 	prevMemory := make(map[string]uint64)
-	memIncreases := make(map[string]int)
 	for name, b := range activeRPBaselines {
 		prevMemory[name] = b.MemoryUsage
 	}
 
-	numPolls := 0
 	for min := 2; min <= 10; min += 2 {
 		time.Sleep(2 * time.Minute)
-		numPolls++
 		t.Logf("Verifying process and device health at %d minutes mark...", min)
 
 		infos, err := getCriticalProcessInfos(t, dut, criticalProcs, activeRPBaselines)
@@ -305,9 +311,6 @@ func runPostSSOVerification(t *testing.T, dut *ondatra.DUTDevice, criticalProcs 
 
 			// Memory Leak Detection (Track whether memory keeps increasing over time compared to baseline)
 			t.Logf("Process %s Memory: Baseline = %d, Previous = %d, Current = %d", name, baseline.MemoryUsage, prevMemory[name], info.MemoryUsage)
-			if info.MemoryUsage > prevMemory[name] {
-				memIncreases[name]++
-			}
 			prevMemory[name] = info.MemoryUsage
 		}
 
@@ -321,7 +324,7 @@ func runPostSSOVerification(t *testing.T, dut *ondatra.DUTDevice, criticalProcs 
 			continue
 		}
 		finalMem := prevMemory[name]
-		if numPolls > 0 && memIncreases[name] == numPolls && finalMem > baseline.MemoryUsage {
+		if finalMem > baseline.MemoryUsage {
 			pctIncrease := float64(finalMem-baseline.MemoryUsage) / float64(baseline.MemoryUsage)
 			if pctIncrease > 0.10 {
 				t.Errorf("Process %s memory kept increasing over time compared to baseline: got %d, baseline %d (%.2f%% increase)", name, finalMem, baseline.MemoryUsage, pctIncrease*100)
@@ -482,11 +485,13 @@ func configureVRFsAndBgp(t *testing.T, dut *ondatra.DUTDevice, bs *cfgplugins.BG
 func configureQoS(t *testing.T, dut *ondatra.DUTDevice, bs *cfgplugins.BGPSession, p1, p2, p3, p4 *ondatra.Port) {
 	// 4. Configure QoS egress queue management profiles and map to all output ports
 	qos := bs.DUTConf.GetOrCreateQos()
+	queues := netutil.CommonTrafficQueues(t, dut)
 
-	allQueues := []string{"NC1", "AF4", "AF3", "AF2", "AF1", "BE0", "BE1"}
+	allQueues := []string{queues.NC1, queues.AF4, queues.AF3, queues.AF2, queues.AF1, queues.BE0, queues.BE1}
+	allTargetGroups := []string{"NC1", "AF4", "AF3", "AF2", "AF1", "BE0", "BE1"}
 	if deviations.QOSBufferAllocationConfigRequired(dut) {
 		for i, qName := range allQueues {
-			qos.GetOrCreateForwardingGroup("target-group-" + qName).SetOutputQueue(qName)
+			qos.GetOrCreateForwardingGroup("target-group-" + allTargetGroups[i]).SetOutputQueue(qName)
 			qGlobal := qos.GetOrCreateQueue(qName)
 			qGlobal.SetName(qName)
 			if deviations.QOSQueueRequiresID(dut) {
@@ -494,12 +499,12 @@ func configureQoS(t *testing.T, dut *ondatra.DUTDevice, bs *cfgplugins.BGPSessio
 			}
 		}
 	} else {
-		qos.GetOrCreateForwardingGroup("target-group-AF4").SetOutputQueue("AF4")
-		qos.GetOrCreateForwardingGroup("target-group-BE0").SetOutputQueue("BE0")
-		qAF4Global := qos.GetOrCreateQueue("AF4")
-		qAF4Global.SetName("AF4")
-		qBE0Global := qos.GetOrCreateQueue("BE0")
-		qBE0Global.SetName("BE0")
+		qos.GetOrCreateForwardingGroup("target-group-AF4").SetOutputQueue(queues.AF4)
+		qos.GetOrCreateForwardingGroup("target-group-BE0").SetOutputQueue(queues.BE0)
+		qAF4Global := qos.GetOrCreateQueue(queues.AF4)
+		qAF4Global.SetName(queues.AF4)
+		qBE0Global := qos.GetOrCreateQueue(queues.BE0)
+		qBE0Global.SetName(queues.BE0)
 		if deviations.QOSQueueRequiresID(dut) {
 			// Queue IDs map to traffic classes; strict-priority queues must
 			// occupy contiguous traffic classes starting at 7 (NC1=7, AF4=6).
@@ -511,28 +516,26 @@ func configureQoS(t *testing.T, dut *ondatra.DUTDevice, bs *cfgplugins.BGPSessio
 		}
 	}
 
-	if !deviations.QosRedUnsupported(dut) {
-		af4Profile := qos.GetOrCreateQueueManagementProfile("AF4_PROFILE")
-		af4Profile.SetName("AF4_PROFILE")
-		wredAF4 := af4Profile.GetOrCreateWred().GetOrCreateUniform()
-		wredAF4.SetMinThreshold(80000)
-		wredAF4.SetMaxThreshold(3000000)
-		wredAF4.SetMaxDropProbabilityPercent(100)
-		wredAF4.SetEnableEcn(true)
-		if !deviations.DropWeightLeavesUnsupported(dut) {
-			wredAF4.SetDrop(false)
-		}
+	af4Profile := qos.GetOrCreateQueueManagementProfile("AF4_PROFILE")
+	af4Profile.SetName("AF4_PROFILE")
+	wredAF4 := af4Profile.GetOrCreateWred().GetOrCreateUniform()
+	wredAF4.SetMinThreshold(80000)
+	wredAF4.SetMaxThreshold(3000000)
+	wredAF4.SetMaxDropProbabilityPercent(100)
+	wredAF4.SetEnableEcn(true)
+	if !deviations.DropWeightLeavesUnsupported(dut) {
+		wredAF4.SetDrop(false)
+	}
 
-		be0Profile := qos.GetOrCreateQueueManagementProfile("BE0_PROFILE")
-		be0Profile.SetName("BE0_PROFILE")
-		wredBE0 := be0Profile.GetOrCreateWred().GetOrCreateUniform()
-		wredBE0.SetMinThreshold(80000)
-		wredBE0.SetMaxThreshold(3000000)
-		wredBE0.SetMaxDropProbabilityPercent(100)
-		wredBE0.SetEnableEcn(true)
-		if !deviations.DropWeightLeavesUnsupported(dut) {
-			wredBE0.SetDrop(false)
-		}
+	be0Profile := qos.GetOrCreateQueueManagementProfile("BE0_PROFILE")
+	be0Profile.SetName("BE0_PROFILE")
+	wredBE0 := be0Profile.GetOrCreateWred().GetOrCreateUniform()
+	wredBE0.SetMinThreshold(80000)
+	wredBE0.SetMaxThreshold(3000000)
+	wredBE0.SetMaxDropProbabilityPercent(100)
+	wredBE0.SetEnableEcn(true)
+	if !deviations.DropWeightLeavesUnsupported(dut) {
+		wredBE0.SetDrop(false)
 	}
 
 	if deviations.QosSchedulerConfigRequired(dut) {
@@ -544,25 +547,25 @@ func configureQoS(t *testing.T, dut *ondatra.DUTDevice, bs *cfgplugins.BGPSessio
 		sAF4.SetPriority(oc.Scheduler_Priority_STRICT)
 		// Traffic class 7 (NC1) must be the highest strict priority, followed
 		// contiguously by AF4.
-		qos.GetOrCreateForwardingGroup("target-group-NC1").SetOutputQueue("NC1")
-		inNC1 := sAF4.GetOrCreateInput("NC1")
-		inNC1.SetId("NC1")
+		qos.GetOrCreateForwardingGroup("target-group-NC1").SetOutputQueue(queues.NC1)
+		inNC1 := sAF4.GetOrCreateInput(queues.NC1)
+		inNC1.SetId(queues.NC1)
 		inNC1.SetInputType(oc.Input_InputType_QUEUE)
-		inNC1.SetQueue("NC1")
+		inNC1.SetQueue(queues.NC1)
 		inNC1.SetWeight(7)
-		inAF4 := sAF4.GetOrCreateInput("AF4")
-		inAF4.SetId("AF4")
+		inAF4 := sAF4.GetOrCreateInput(queues.AF4)
+		inAF4.SetId(queues.AF4)
 		inAF4.SetInputType(oc.Input_InputType_QUEUE)
-		inAF4.SetQueue("AF4")
+		inAF4.SetQueue(queues.AF4)
 		inAF4.SetWeight(6)
 
 		sBE0 := schedulerPolicy.GetOrCreateScheduler(1)
 		sBE0.SetSequence(1)
 		sBE0.SetPriority(oc.Scheduler_Priority_UNSET)
-		inBE0 := sBE0.GetOrCreateInput("BE0")
-		inBE0.SetId("BE0")
+		inBE0 := sBE0.GetOrCreateInput(queues.BE0)
+		inBE0.SetId(queues.BE0)
 		inBE0.SetInputType(oc.Input_InputType_QUEUE)
-		inBE0.SetQueue("BE0")
+		inBE0.SetQueue(queues.BE0)
 		inBE0.SetWeight(4)
 	}
 
@@ -579,7 +582,7 @@ func configureQoS(t *testing.T, dut *ondatra.DUTDevice, bs *cfgplugins.BGPSessio
 			output.GetOrCreateSchedulerPolicy().SetName("scheduler")
 			// Every queue referenced by the scheduler must be enabled on the
 			// interface.
-			output.GetOrCreateQueue("NC1").SetName("NC1")
+			output.GetOrCreateQueue(queues.NC1).SetName(queues.NC1)
 		}
 		if deviations.QOSBufferAllocationConfigRequired(dut) {
 			bufferProfile := qos.GetOrCreateBufferAllocationProfile("bufferAllocationProfile")
@@ -587,26 +590,21 @@ func configureQoS(t *testing.T, dut *ondatra.DUTDevice, bs *cfgplugins.BGPSessio
 				bufferProfile.GetOrCreateQueue(qName).SetStaticSharedBufferLimit(uint32(268435456))
 				qOut := output.GetOrCreateQueue(qName)
 				qOut.SetName(qName)
-				if !deviations.QosRedUnsupported(dut) {
-					if qName == "AF4" {
-						qOut.SetQueueManagementProfile("AF4_PROFILE")
-					} else if qName == "BE0" {
-						qOut.SetQueueManagementProfile("BE0_PROFILE")
-					}
+				if qName == queues.AF4 {
+					qOut.SetQueueManagementProfile("AF4_PROFILE")
+				} else if qName == queues.BE0 {
+					qOut.SetQueueManagementProfile("BE0_PROFILE")
 				}
 			}
 			output.SetBufferAllocationProfile("bufferAllocationProfile")
 		} else {
-			qAF4 := output.GetOrCreateQueue("AF4")
-			qAF4.SetName("AF4")
+			qAF4 := output.GetOrCreateQueue(queues.AF4)
+			qAF4.SetName(queues.AF4)
+			qAF4.SetQueueManagementProfile("AF4_PROFILE")
 
-			qBE0 := output.GetOrCreateQueue("BE0")
-			qBE0.SetName("BE0")
-
-			if !deviations.QosRedUnsupported(dut) {
-				qAF4.SetQueueManagementProfile("AF4_PROFILE")
-				qBE0.SetQueueManagementProfile("BE0_PROFILE")
-			}
+			qBE0 := output.GetOrCreateQueue(queues.BE0)
+			qBE0.SetName(queues.BE0)
+			qBE0.SetQueueManagementProfile("BE0_PROFILE")
 		}
 	}
 }
@@ -673,9 +671,7 @@ func TestSSOSoftwareStability(t *testing.T) {
 	p4 := bs.OndatraDUTPorts[3]
 
 	configureVRFsAndBgp(t, dut, bs, p1, p2, p3, p4)
-	if !deviations.QosRedUnsupported(dut) {
-		configureQoS(t, dut, bs, p1, p2, p3, p4)
-	}
+	configureQoS(t, dut, bs, p1, p2, p3, p4)
 	configureOTGBgpAndTraffic(t, bs)
 
 	t.Cleanup(func() {
@@ -685,9 +681,7 @@ func TestSSOSoftwareStability(t *testing.T) {
 		if deviations.ExplicitEnableBGPOnDefaultVRF(dut) || deviations.BgpAfiSafiInDefaultNiBeforeOtherNi(dut) {
 			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(ptBGP, bgpName).Config())
 		}
-		if !deviations.QosRedUnsupported(dut) {
-			gnmi.Delete(t, dut, gnmi.OC().Qos().Config())
-		}
+		gnmi.Delete(t, dut, gnmi.OC().Qos().Config())
 	})
 	// Post configuration to DUT, verify port status, and start ATE protocols
 	if err := bs.PushDUT(t); err != nil {
@@ -739,6 +733,7 @@ func TestSSOSoftwareStability(t *testing.T) {
 	}
 
 	// Start continuous background traffic for the duration of the test (resets flow counters cleanly).
+	bs.ATE.OTG().StopTraffic(t)
 	bs.ATE.OTG().StartTraffic(t)
 
 	// 7. Find critical hardware and routing processes to monitor
@@ -752,8 +747,9 @@ func TestSSOSoftwareStability(t *testing.T) {
 		t.Logf("Initial active RP process %s state: PID=%d, StartTime=%d, Memory=%d", name, pInfo.Pid, pInfo.StartTime, pInfo.MemoryUsage)
 	}
 
+	queues := netutil.CommonTrafficQueues(t, dut)
 	qosPorts := []string{p1.Name(), p2.Name(), p3.Name(), p4.Name()}
-	qosQueues := []string{"AF4", "BE0"}
+	qosQueues := []string{queues.AF4, queues.BE0}
 	qosBaselines := verifyNoQoSDrops(t, dut, qosPorts, qosQueues, nil)
 
 	// 8. Find Supervisor controller cards
