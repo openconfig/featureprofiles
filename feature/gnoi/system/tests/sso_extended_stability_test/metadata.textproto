@@ -26,6 +26,7 @@ platform_exceptions: {
   deviations: {
     interface_ref_interface_id_format: true
     interface_enabled: true
+    drop_weight_leaves_unsupported: true
   }
 }
 platform_exceptions: {
