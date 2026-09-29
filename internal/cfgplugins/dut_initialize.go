@@ -53,7 +53,7 @@ const (
 	FeatureSecondaryDefaultLookup
 	FeatureAnpf
 	FeatureHighScale
-	FeatureEgressIPv6URPF
+	FeatureEgressURPF
 
 	aristaTcamProfileMplsTracking = `
 hardware counter feature traffic-policy in
@@ -1492,7 +1492,7 @@ hardware tcam
    !
    system profile anPF
    `
-	aristaTcamEgressIPv6URPF = `
+	aristaTcamEgressURPF = `
    hardware tcam
    profile urpf
          feature acl port ip
@@ -1683,7 +1683,7 @@ var (
 		FeatureCFM:                    aristaTcamProfileCFM,
 		FeatureAnpf:                   aristaAnpfTcamProfile,
 		FeatureHierarchicalFIB:        aristaHierarchicalFIB,
-		FeatureEgressIPv6URPF:         aristaTcamEgressIPv6URPF,
+		FeatureEgressURPF:             aristaTcamEgressURPF,
 	}
 
 	nokiaHardwareInitMap = map[FeatureType]string{
