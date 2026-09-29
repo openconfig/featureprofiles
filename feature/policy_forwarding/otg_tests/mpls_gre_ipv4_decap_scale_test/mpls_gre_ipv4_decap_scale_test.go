@@ -25,6 +25,11 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
+// TestMain calls main function.
+func TestMain(m *testing.M) {
+	fptest.RunTests(m)
+}
+
 const (
 	ieee8023adLag          = oc.IETFInterfaces_InterfaceType_ieee8023adLag
 	mplsLabelCount         = 2000
@@ -247,7 +252,7 @@ func configureOTG(t *testing.T) {
 }
 
 // PF-1.13.1: Generate DUT Configuration
-func configureDUT(t *testing.T, dut *ondatra.DUTDevice, netConfig *networkConfig, ocPFParams cfgplugins.OcPolicyForwardingParams) string {
+func configureDUT(t *testing.T, dut *ondatra.DUTDevice, netConfig *networkConfig, ocPFParams cfgplugins.OcPolicyForwardingParams) (string, string) {
 	t.Helper()
 	var interfaces []*attrs.Attributes
 	for i := range intCount {
@@ -270,7 +275,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, netConfig *networkConfig
 	configureStaticRoute(t, dut)
 	_, ni, pf := cfgplugins.SetupPolicyForwardingInfraOC(ocPFParams.NetworkInstanceName)
 	decapMPLSInGRE(t, dut, pf, ni, netConfig, ocPFParams)
-	return custAggID
+	return custAggID, coreAggID
 }
 
 // waitForLAGUp waits until all specified member ports and the aggregate interface (LAG) reach an operational UP state on the DUT.
@@ -332,14 +337,6 @@ func configureDUTAndOTG(t *testing.T) (*ondatra.DUTDevice, string, *networkConfi
 		})
 	}
 
-	// Get default parameters for OC Policy Forwarding
-	ocPFParams := fetchDefaultOcPolicyForwardingParams()
-
-	// Pass ocPFParams to ConfigureDUT
-	ocPFParams.DecapPolicy.DecapMPLSParams.MplsStaticLabels = mplsStaticLabels
-	ocPFParams.DecapPolicy.DecapMPLSParams.MplsStaticLabelsForIPv6 = mplsStaticLabelsForIpv6
-	custAggID := configureDUT(t, dut, netConfig, ocPFParams)
-
 	for _, intf := range agg1.Interfaces {
 		flowOuterIPv4Validation.Interface.Names = append(flowOuterIPv4Validation.Interface.Names, intf.Name)
 		flowOuterIPv4.RxNames = append(flowOuterIPv4.RxNames, intf.Name+".IPv4")
@@ -355,8 +352,19 @@ func configureDUTAndOTG(t *testing.T) (*ondatra.DUTDevice, string, *networkConfi
 		flowResolveArp.Interface.Names = append(flowResolveArp.Interface.Names, iface.Name)
 	}
 
+	// Start OTG protocols (including LACP) on ATE before configuring DUT LAGs.
 	configureOTG(t)
+
+	// Get default parameters for OC Policy Forwarding
+	ocPFParams := fetchDefaultOcPolicyForwardingParams()
+
+	// Pass ocPFParams to ConfigureDUT
+	ocPFParams.DecapPolicy.DecapMPLSParams.MplsStaticLabels = mplsStaticLabels
+	ocPFParams.DecapPolicy.DecapMPLSParams.MplsStaticLabelsForIPv6 = mplsStaticLabelsForIpv6
+	custAggID, coreAggID := configureDUT(t, dut, netConfig, ocPFParams)
+
 	waitForLAGUp(t, dut, custAggID, custPorts)
+	waitForLAGUp(t, dut, coreAggID, corePorts)
 	waitForSubinterfacesUp(t, dut, custAggID, netConfig, 180*time.Second)
 	return dut, custAggID, netConfig
 }
@@ -658,14 +666,6 @@ func configureInterfaces(t *testing.T, dut *ondatra.DUTDevice, dutPorts []string
 		}
 		intfPath := gnmi.OC().Interface(port.Name())
 		gnmi.Update(t, dut, intfPath.HoldTime().Config(), holdTimeConfig)
-	}
-
-	_, ok := gnmi.Watch(t, dut, gnmi.OC().Interface(aggID).OperStatus().State(), time.Minute, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
-		status, present := val.Val()
-		return present && status == oc.Interface_OperStatus_UP
-	}).Await(t)
-	if !ok {
-		t.Fatalf("LAG  %s is not ready. Expected %s got %s", aggID, oc.Interface_OperStatus_UP.String(), gnmi.Get(t, dut, gnmi.OC().Interface(aggID).OperStatus().State()).String())
 	}
 }
 
