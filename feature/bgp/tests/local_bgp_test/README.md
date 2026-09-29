@@ -121,7 +121,9 @@ paths:
    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/neighbor-address:
    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-as:
    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/neighbor-address:
+   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/enabled:
    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/received/last-notification-error-code:
+   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-group:
    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities:
    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/hold-time:
