@@ -551,25 +551,22 @@ func testMTUSmallerThanPacket(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 
 	verifyFlowLoss(t, ate, flowMTUName, monitorWindow, 100)
 
-	got := getOversizeFrameCounter(t, dut, p2.Name())
+	got, counterName := getErrorFrameCounter(t, dut, p2.Name())
 	if got == 0 {
-		t.Errorf("Interface %s in-oversize-frames counter got 0, want > 0 after sending oversized frames", p2.Name())
+		t.Errorf("Interface %s %s counter got 0, want > 0 after sending oversized frames", p2.Name(), counterName)
 	}
-	t.Logf("Interface %s in-oversize-frames counter: %d", p2.Name(), got)
+	t.Logf("Interface %s %s counter: %d", p2.Name(), counterName, got)
 
 	setMTU(t, dut, p2.Name(), mtuDefault)
 	awaitMTU(t, dut, p2.Name(), mtuDefault, awaitTimeout)
 	verifyFlowLoss(t, ate, flowMTUName, monitorWindow, 0)
 }
 
-// getOversizeFrameCounter fetches the README's literal
-// /interfaces/interface/ethernet/state/counters/in-oversize-frames leaf via a raw gNMI
-// Get. This leaf is NOT modeled in this repo's generated OC schema (only InErrors,
-// InFragmentFrames, InJabberFrames exist for related counters), so it cannot be read via
-// the typed gnmi.OC() path helpers. Rather than silently substituting a different
-// counter, this fails loudly if the DUT/schema doesn't support it, so the gap is
-// immediately visible and reportable.
-func getOversizeFrameCounter(t *testing.T, dut *ondatra.DUTDevice, intfName string) uint64 {
+// getErrorFrameCounter fetches an oversized-frame drop counter, per the README's
+// "in-oversize-frames (e.g., ... or in-errors)" allowance. in-oversize-frames isn't
+// modeled in this repo's generated OC schema, so it's read via a raw gNMI Get; if the
+// DUT doesn't expose that leaf, this falls back to the typed InErrors counter.
+func getErrorFrameCounter(t *testing.T, dut *ondatra.DUTDevice, intfName string) (uint64, string) {
 	t.Helper()
 	req := &gpb.GetRequest{
 		Path: []*gpb.Path{{
@@ -585,24 +582,21 @@ func getOversizeFrameCounter(t *testing.T, dut *ondatra.DUTDevice, intfName stri
 		Type:     gpb.GetRequest_STATE,
 		Encoding: gpb.Encoding_JSON_IETF,
 	}
-	resp, err := dut.RawAPIs().GNMI(t).Get(context.Background(), req)
-	if err != nil {
-		t.Fatalf("in-oversize-frames leaf unsupported by DUT/schema (raw gNMI Get failed) on %s: %v", intfName, err)
-	}
-	for _, notif := range resp.GetNotification() {
-		for _, upd := range notif.GetUpdate() {
-			if jsonVal := upd.GetVal().GetJsonIetfVal(); len(jsonVal) > 0 {
-				var n uint64
-				if err := json.Unmarshal(jsonVal, &n); err != nil {
-					t.Fatalf("Could not parse in-oversize-frames value on %s: %v", intfName, err)
+	if resp, err := dut.RawAPIs().GNMI(t).Get(context.Background(), req); err == nil {
+		for _, notif := range resp.GetNotification() {
+			for _, upd := range notif.GetUpdate() {
+				if jsonVal := upd.GetVal().GetJsonIetfVal(); len(jsonVal) > 0 {
+					var n uint64
+					if err := json.Unmarshal(jsonVal, &n); err == nil {
+						return n, "in-oversize-frames"
+					}
 				}
-				return n
-			}
-			if upd.GetVal().GetUintVal() != 0 {
-				return upd.GetVal().GetUintVal()
+				if v := upd.GetVal().GetUintVal(); v != 0 {
+					return v, "in-oversize-frames"
+				}
 			}
 		}
 	}
-	t.Fatalf("in-oversize-frames leaf unsupported by DUT/schema: empty gNMI response for %s", intfName)
-	return 0
+	t.Logf("in-oversize-frames leaf unsupported by DUT/schema on %s; falling back to in-errors per README", intfName)
+	return gnmi.Get(t, dut, gnmi.OC().Interface(intfName).Counters().InErrors().State()), "in-errors"
 }
