@@ -31,7 +31,7 @@
     *   The test `README.md` should be structured following the
         [test plan template]([url]\(https://github.com/openconfig/featureprofiles/blob/main/doc/test-requirements-template.md\)).
 
-    *   Each step in the test plan procedure should correspond to a comment or
+    *   Each step in the test plan README should correspond to a comment or
         `t.Log`in the code. Steps not covered by code should have a TODO comment
         in the test code.
 
@@ -44,7 +44,7 @@
         executable.
     *   Only scripts (Shell, Python, Perl) may be executable.
 
-*   **Test Structure:**
+*   **Test Code Structure:**
 
     *   Test code must follow the steps documented in the test `README.md`.
     *   Environment setup code should be placed in a function named
@@ -109,9 +109,37 @@
     *   **Mandatory State Reversion:** Tests must always leave the system in the exact original state it was in prior to the test execution, regardless of whether the test passes or fails. This requirement applies to both standard gNMI `Set` configurations and raw/native CLI commands (e.g., using `helpers.GnmiCLIConfig`). The PR MUST include corresponding cleanup operations to revert any changes made during the test.
     *   **SSH and AAA State:** Pay special attention to AAA and SSH configurations. If a test modifies SSH authentication (e.g., `management ssh authentication protocol password`), the cleanup routine MUST explicitly negate that specific command (e.g., `management ssh \n no authentication protocol`) rather than relying on generic default commands that might wipe baseline lab configurations.
     *   **Use `t.Cleanup()`:** All cleanup operations, whether for gNMI configurations or raw CLI commands, must be registered using `t.Cleanup()` to guarantee they are executed even if the test fails or panics early.
+    *   **README Cleanup Specification:** All test plan `README.md` files must explicitly include a cleanup/teardown step (or `### Cleanup` section) specifying that any state or configuration modified during the test (e.g., disabled interfaces, drained links, altered protocol states) is reverted and the DUT is restored to its baseline operational state upon test completion. Reviewers must flag `README.md` test plans that leave interfaces or protocols in a degraded/disabled state without an explicit cleanup step.
     
+*   **Bug references:**
 
-### **2. Deviation Guidelines**
+    * References to bugs may be made using deviations.  Accessible URL format should be used, such as https://issuetracker.google.com/xxxx format links in the internal/deviations/deviations.textproto file.
+    * TODO items in a README may be documented.  It is preferred to reference to GitHub repositories or other publicly accessible URLs.  Bug tracking URLs may be used as a last resort.
+    * Internal project tracking bugs should not be referenced in README or test code.
+
+### **2. README Guidelines**
+**Source:** `doc/test-requirements-template.md`
+
+    *   The test `README.md` should be structured following the
+        [test plan template]([url]\(https://github.com/openconfig/featureprofiles/blob/main/doc/test-requirements-template.md\)).
+
+    *   READMEs should include the following verification patterns:
+    1. Routing, control plane programming and resilience.  For example, tests should not only verify that control plane state can be established, but also that it survives changes such as links going down, adjacencies change, rapid addition and removal of entries.  
+    2. Operations & State Changes should be defined in the README.  For example, setting Port and Linecard admin states Up/Down under high traffic load.  Admin down of the individual aggregate interface members.  
+    3. High availability should be tested by performing active/standby failover between redundant controller cards if the author deems high availability is in scope.
+    4. Minimal scale should be part of all tests.  This involves using two or more of the entities being tested.  (control plane adjacencies, interfaces, traffic flows, configuration values).
+    5. Larger scale and performance tests should be dedicated, separate tests as they may take significant resources and time to execute.  Making them separate tests allows them to be scheduled appropriately in constrained test environments.  
+    6.  Checking TTL, DSCP, ECN preservation across encapsulation and decapsulation.
+    7.  Checking traffic load balancing performance for encapsulated traffic, especially IP-in-IP and MPLSoUDP.
+    8. Validation of traffic changes needed for network maintenance.  Control plane changes should be introduced which validate shifting traffic off of links, aggregates using control plane changes.
+    9. Telemetry must be validated to confirm counters are streamed at the expected intervals.  Doing a simple one time Get is not sufficient.  Tests using gRIBI should validate device returns complete and accurate routing entries during a gRIBI Get() response and through gNMI AFT reporting, matching the programmed state.
+    10. Some tests may include coverage for software stability.  These should trigger and validate that the DUT reconciles its internal state without data plane traffic loss, restores connections, and remains stable during concurrent rotations without core dumps. 
+    11. Tests with high scale should validate hardware resource management using the `/components/component/integrated-circuit/utilization/resources` model.
+  
+    *   Strictly scoped feature tests are permitted, but are not the only tests in scope for the featureprofiles repository.  Multidimensional tests may be created containing a group of features that interact.  For example, QoS, aggregate interfaces, ACLs and policy-forwarding.  Which features are chosen is at the discretion of the test author.  
+
+        
+### **3. Deviation Guidelines**
 
 **Source:** `internal/deviations/README.md`
 
@@ -132,7 +160,7 @@
 *   **Usage in Tests:** Access deviations via `deviations.DeviationName(dut)`.
 
 
-### **3. Configuration Plugins (`cfgplugins`) Guidelines**
+### **4. Configuration Plugins (`cfgplugins`) Guidelines**
 
 **Source:** `internal/cfgplugins/README.md`
 
@@ -150,7 +178,7 @@
 *   **Deviations:** Deviations that affect configuration generation should be
     implemented *inside* the `cfgplugins` function, not in the test file.
 
-### **4. Performance & Execution Optimizations**
+### **5. Performance & Execution Optimizations**
 
 To achieve high-velocity test execution and prevent pipeline bottlenecks, reviewers MUST flag the following performance anti-patterns and suggest the provided alternatives:
 
