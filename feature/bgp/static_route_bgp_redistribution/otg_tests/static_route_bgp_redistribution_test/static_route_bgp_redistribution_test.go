@@ -626,7 +626,11 @@ func clearTableConnectionImportPolicy(t *testing.T, dut *ondatra.DUTDevice, addr
 		gnmi.Delete(t, dut, tableConnPath.ImportPolicy().Config())
 		return
 	}
-	tableConn := gnmi.Get[*oc.NetworkInstance_TableConnection](t, dut, tableConnPath.Config())
+	tableConn, present := gnmi.Lookup(t, dut, tableConnPath.Config()).Val()
+	if !present || tableConn == nil {
+		t.Logf("Table connection for address family %v is not configured; no import policy to clear", addressFamily)
+		return
+	}
 	tableConn.ImportPolicy = nil
 	gnmi.Replace(t, dut, tableConnPath.Config(), tableConn)
 }
