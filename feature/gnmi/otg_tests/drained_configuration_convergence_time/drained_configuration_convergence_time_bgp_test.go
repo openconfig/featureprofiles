@@ -190,13 +190,19 @@ func replacePeerGroupExportPolicy(t *testing.T, dut *ondatra.DUTDevice, policy s
 		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
 		policyPath := bgpPath.PeerGroup(setup.PeerGrpName).ApplyPolicy()
-		applyPolicy := gnmi.Get(t, dut, policyPath.Config())
+		applyPolicy, present := gnmi.Lookup(t, dut, policyPath.Config()).Val()
+		if !present || applyPolicy == nil {
+			applyPolicy = &oc.NetworkInstance_Protocol_Bgp_PeerGroup_ApplyPolicy{}
+		}
 		applyPolicy.SetExportPolicy([]string{policy})
 		gnmi.Replace(t, dut, policyPath.Config(), applyPolicy)
 		return
 	}
 	policyPath := bgpPath.PeerGroup(setup.PeerGrpName).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
-	applyPolicy := gnmi.Get(t, dut, policyPath.Config())
+	applyPolicy, present := gnmi.Lookup(t, dut, policyPath.Config()).Val()
+	if !present || applyPolicy == nil {
+		applyPolicy = &oc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi_ApplyPolicy{}
+	}
 	applyPolicy.SetExportPolicy([]string{policy})
 	gnmi.Replace(t, dut, policyPath.Config(), applyPolicy)
 }
@@ -207,9 +213,6 @@ func deletePeerGroupApplyPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	peerGroupPath := bgpPath.PeerGroup(setup.PeerGrpName)
 	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
 		gnmi.Delete(t, dut, peerGroupPath.ApplyPolicy().Config())
-		if deviations.SameAfiSafiAndPeergroupPoliciesUnsupported(dut) {
-			gnmi.Delete(t, dut, peerGroupPath.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().Config())
-		}
 		return
 	}
 	gnmi.Delete(t, dut, peerGroupPath.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().Config())
@@ -284,7 +287,7 @@ func TestEstablish(t *testing.T) {
 	t.Log("Configure Network Instance type to DEFAULT on DUT.")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	t.Log("Build Benchmarking BGP and ISIS test configs.")
-	dutBenchmarkConfig := setup.BuildBenchmarkingConfig(t)
+	dutBenchmarkConfig := setup.BuildBenchmarkingConfigWithInterfaceAuthentication(t)
 	if !deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.LogQuery(t, "Benchmarking configs to configure on DUT", dutConfigPath.Config(), dutBenchmarkConfig)
 	}
