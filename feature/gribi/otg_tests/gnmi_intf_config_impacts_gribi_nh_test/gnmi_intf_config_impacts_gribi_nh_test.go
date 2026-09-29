@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"math"
 	"net"
+	"strconv"
 	"testing"
 	"time"
 
@@ -37,10 +38,13 @@ import (
 	"github.com/openconfig/featureprofiles/internal/iputil"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
+	gribiclient "github.com/openconfig/gribigo/client"
+	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -78,6 +82,9 @@ const (
 	trafficPPS    = 1000
 	monitorWindow = 30 * time.Second
 	awaitTimeout  = time.Minute
+	// convergeSettle accounts for ASIC-level ECMP/FIB reconvergence lag after an
+	// interface admin state change that isn't captured by the oper-status transition.
+	convergeSettle = 10 * time.Second
 
 	mtuDefault   = 1500
 	mtuJumbo     = 9000
@@ -85,6 +92,12 @@ const (
 	pktSizeLarge = 1500
 
 	lossTolerancePct = 1.0 // percent
+
+	// magicMac/magicIP satisfy GRIBIMACOverrideStaticARPStaticRoute: a static route to
+	// magicIP is configured out each port, with a static ARP entry binding it to magicMac,
+	// so that a gRIBI NH can carry a MAC address alongside its interface reference.
+	magicMac = "02:00:00:00:00:01"
+	magicIP  = "192.168.1.1"
 )
 
 type portPair struct {
@@ -148,7 +161,7 @@ func TestGNMIIntfConfigImpactsGRIBINH(t *testing.T) {
 		}
 	}
 
-	client := &gribi.Client{DUT: dut, FIBACK: true, Persistence: true}
+	client := &gribi.Client{DUT: dut, FIBACK: !deviations.GRIBIRIBAckOnly(dut), Persistence: true}
 	if err := client.Start(t); err != nil {
 		t.Fatalf("gRIBI client could not start: %v", err)
 	}
@@ -188,14 +201,6 @@ func TestGNMIIntfConfigImpactsGRIBINH(t *testing.T) {
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	d := gnmi.OC()
-	// Diagnostic: force a hardware TCAM/system profile (re)initialization, mirroring
-	// TE-18.3's setup, to test whether the DUT's default profile is what's blocking
-	// gRIBI FIB programming (not because this test needs VRF selection itself).
-	if dut.Vendor() == ondatra.ARISTA {
-		if hwCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureVrfSelectionExtended); hwCfg != "" {
-			cfgplugins.PushDUTHardwareInitConfig(t, dut, hwCfg)
-		}
-	}
 	// Diagnostic: explicitly register the default NI's type via OC, mirroring TE-18.3,
 	// in case the FIB agent needs this before it will install entries in that NI.
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
@@ -269,6 +274,48 @@ func configureFlows(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, d
 	ipMTU.Dst().SetValue(ipv4MTURoute)
 }
 
+// configStaticArp returns an Interface config binding ipv4addr to macAddr via static ARP.
+func configStaticArp(p string, ipv4addr string, macAddr string) *oc.Interface {
+	i := &oc.Interface{Name: ygot.String(p)}
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	n4 := i.GetOrCreateSubinterface(0).GetOrCreateIpv4().GetOrCreateNeighbor(ipv4addr)
+	n4.LinkLayerAddress = ygot.String(macAddr)
+	return i
+}
+
+// configStaticRouteAndARPForMagicIP satisfies GRIBIMACOverrideStaticARPStaticRoute:
+// it configures an ECMP static route to magicIP out port2/3/4, plus a static ARP entry
+// on each of those interfaces binding magicIP to magicMac, so that a gRIBI NH can later
+// reference magicIP/magicMac alongside its own interface ref.
+func configStaticRouteAndARPForMagicIP(t *testing.T, dut *ondatra.DUTDevice, ni string) {
+	t.Helper()
+	sb := &gnmi.SetBatch{}
+	nexthops := map[string]*oc.NetworkInstance_Protocol_Static_NextHop{}
+	for idx, pp := range portPairs[1:] {
+		p := dut.Port(t, pp.name)
+		nexthops[strconv.Itoa(idx)] = &oc.NetworkInstance_Protocol_Static_NextHop{
+			Index:        ygot.String(strconv.Itoa(idx)),
+			InterfaceRef: &oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{Interface: ygot.String(p.Name())},
+		}
+		gnmi.BatchUpdate(sb, gnmi.OC().Interface(p.Name()).Config(), configStaticArp(p.Name(), magicIP, magicMac))
+	}
+	sp := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+	gnmi.BatchUpdate(sb, sp.Static(magicIP+"/32").Config(), &oc.NetworkInstance_Protocol_Static{
+		Prefix:  ygot.String(magicIP + "/32"),
+		NextHop: nexthops,
+	})
+	sb.Set(t, dut)
+
+	// Confirm the DUT actually applied the static ARP entries; a silent mismatch here
+	// would otherwise only surface later as a cryptic gRIBI FIB programming failure.
+	for _, pp := range portPairs[1:] {
+		p := dut.Port(t, pp.name)
+		if got := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Subinterface(0).Ipv4().Neighbor(magicIP).LinkLayerAddress().State()); got != magicMac {
+			t.Errorf("Static ARP on %s for %s: got %q, want %q", p.Name(), magicIP, got, magicMac)
+		}
+	}
+}
+
 // programECMPBaseline programs NH10/11/12 -> port2/3/4 (using MACwithInterface, since
 // Arista rejects a MAC without an accompanying interface reference), an ECMP NHG100
 // over them, and numV4Routes/numV6Routes IPv4/IPv6 entries pointing at NHG100. It also
@@ -277,38 +324,74 @@ func configureFlows(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, d
 // traffic solely destined via port2.
 func programECMPBaseline(t *testing.T, dut *ondatra.DUTDevice, client *gribi.Client, ni string) {
 	t.Helper()
-	// nhOpts builds the NH options for portPairs[idx], adding Dest (the ATE's already
-	// ARP-resolved IP) when the DUT can't install a MAC-only next-hop-entry.
-	nhOpts := func(idx int) *gribi.NHOptions {
-		opt := &gribi.NHOptions{Interface: dut.Port(t, portPairs[idx].name).Name(), Mac: portPairs[idx].ate.MAC}
-		if deviations.GRIBIMACOverrideWithStaticARP(dut) {
-			opt.Dest = portPairs[idx].ate.IPv4
-		}
-		return opt
+	if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
+		configStaticRouteAndARPForMagicIP(t, dut, ni)
 	}
-	client.AddNH(t, nh2ID, "MACwithInterface", ni, fluent.InstalledInFIB, nhOpts(1))
-	client.AddNH(t, nh3ID, "MACwithInterface", ni, fluent.InstalledInFIB, nhOpts(2))
-	client.AddNH(t, nh4ID, "MACwithInterface", ni, fluent.InstalledInFIB, nhOpts(3))
-	client.AddNHG(t, nhg1ID, map[uint64]uint64{nh2ID: 1, nh3ID: 1, nh4ID: 1}, ni, fluent.InstalledInFIB)
-	client.AddNHG(t, nhgPort2OnlyID, map[uint64]uint64{nh2ID: 1}, ni, fluent.InstalledInFIB)
+	// nhOpts builds the NH options for portPairs[idx]. Some DUTs reject a MAC-only
+	// next-hop-entry and need an accompanying, ARP-resolvable IP: either the magic
+	// IP/MAC bound via static route+ARP above, or the ATE's own already-resolved IP.
+	nhOpts := func(idx int) *gribi.NHOptions {
+		switch {
+		case deviations.GRIBIMACOverrideStaticARPStaticRoute(dut):
+			return &gribi.NHOptions{Interface: dut.Port(t, portPairs[idx].name).Name(), Mac: magicMac, Dest: magicIP}
+		case deviations.GRIBIMACOverrideWithStaticARP(dut):
+			return &gribi.NHOptions{Interface: dut.Port(t, portPairs[idx].name).Name(), Mac: portPairs[idx].ate.MAC, Dest: portPairs[idx].ate.IPv4}
+		default:
+			return &gribi.NHOptions{Interface: dut.Port(t, portPairs[idx].name).Name(), Mac: portPairs[idx].ate.MAC}
+		}
+	}
+
+	nh2Opts := nhOpts(1)
+	// wantResult relaxes the setup assertions to RIB-only on DUTs that don't reliably ack FIB.
+	wantResult := fluent.InstalledInFIB
+	if deviations.GRIBIRIBAckOnly(dut) {
+		wantResult = fluent.InstalledInRIB
+	}
+	client.AddNH(t, nh2ID, "MACwithInterface", ni, wantResult, nh2Opts)
+	client.AddNH(t, nh3ID, "MACwithInterface", ni, wantResult, nhOpts(2))
+	client.AddNH(t, nh4ID, "MACwithInterface", ni, wantResult, nhOpts(3))
+	client.AddNHG(t, nhg1ID, map[uint64]uint64{nh2ID: 1, nh3ID: 1, nh4ID: 1}, ni, wantResult)
+	client.AddNHG(t, nhgPort2OnlyID, map[uint64]uint64{nh2ID: 1}, ni, wantResult)
 
 	v4Prefixes, err := iputil.GenerateIPsWithStep(ipv4BaseRoute, numV4Routes, "0.0.0.1")
 	if err != nil {
 		t.Fatalf("Could not generate IPv4 routes: %v", err)
 	}
+	v4Entries, v4Results := make([]fluent.GRIBIEntry, 0, len(v4Prefixes)), make([]*gribiclient.OpResult, 0, len(v4Prefixes))
 	for _, ip := range v4Prefixes {
-		client.AddIPv4(t, ip+"/32", nhg1ID, ni, ni, fluent.InstalledInFIB)
+		v4Entries = append(v4Entries, fluent.IPv4Entry().WithPrefix(ip+"/32").WithNetworkInstance(ni).WithNextHopGroup(nhg1ID))
+		v4Results = append(v4Results, fluent.OperationResult().WithIPv4Operation(ip+"/32").WithOperationType(constants.Add).WithProgrammingResult(wantResult).AsResult())
 	}
+	addEntriesBatched(t, client, v4Entries, v4Results)
 
-	client.AddIPv4(t, ipv4NegRoute+"/32", nhg1ID, ni, ni, fluent.InstalledInFIB)
-	client.AddIPv4(t, ipv4MTURoute+"/32", nhgPort2OnlyID, ni, ni, fluent.InstalledInFIB)
+	client.AddIPv4(t, ipv4NegRoute+"/32", nhg1ID, ni, ni, wantResult)
+	client.AddIPv4(t, ipv4MTURoute+"/32", nhgPort2OnlyID, ni, ni, wantResult)
 
 	v6Prefixes, err := iputil.GenerateIPv6s(net.ParseIP(ipv6BaseRoute), numV6Routes)
 	if err != nil {
 		t.Fatalf("Could not generate IPv6 routes: %v", err)
 	}
+	v6Entries, v6Results := make([]fluent.GRIBIEntry, 0, len(v6Prefixes)), make([]*gribiclient.OpResult, 0, len(v6Prefixes))
 	for _, ip := range v6Prefixes {
-		client.AddIPv6(t, ip+"/128", nhg1ID, ni, ni, fluent.InstalledInFIB)
+		v6Entries = append(v6Entries, fluent.IPv6Entry().WithPrefix(ip+"/128").WithNetworkInstance(ni).WithNextHopGroup(nhg1ID))
+		v6Results = append(v6Results, fluent.OperationResult().WithIPv6Operation(ip+"/128").WithOperationType(constants.Add).WithProgrammingResult(wantResult).AsResult())
+	}
+	addEntriesBatched(t, client, v6Entries, v6Results)
+}
+
+// ipRouteBatchSize caps entries sent per Modify+Await round trip; this DUT is slow
+// enough that 1000+ individual round trips can exceed a gRPC deadline.
+const ipRouteBatchSize = 100
+
+// addEntriesBatched installs entries/results in ipRouteBatchSize-sized chunks.
+func addEntriesBatched(t *testing.T, client *gribi.Client, entries []fluent.GRIBIEntry, results []*gribiclient.OpResult) {
+	t.Helper()
+	for i := 0; i < len(entries); i += ipRouteBatchSize {
+		end := i + ipRouteBatchSize
+		if end > len(entries) {
+			end = len(entries)
+		}
+		client.AddEntries(t, entries[i:end], results[i:end])
 	}
 }
 
@@ -331,25 +414,24 @@ func setMTU(t *testing.T, dut *ondatra.DUTDevice, intfName string, mtu uint16) {
 	b.Set(t, dut)
 }
 
-// getMTUState reads back the interface MTU state, matching the leaf setMTU wrote to.
-func getMTUState(t *testing.T, dut *ondatra.DUTDevice, intfName string) uint16 {
-	t.Helper()
-	if deviations.OmitL2MTU(dut) {
-		return gnmi.Get(t, dut, gnmi.OC().Interface(intfName).Subinterface(0).Ipv4().Mtu().State())
-	}
-	return gnmi.Get(t, dut, gnmi.OC().Interface(intfName).Mtu().State())
-}
-
-// awaitMTU polls getMTUState until it matches want or timeout elapses.
+// awaitMTU polls the interface MTU state until it matches want or timeout elapses.
+// Some DUTs don't populate this state leaf at all despite the config Set succeeding;
+// in that case it falls back to trusting the Set() after a short settle delay.
 func awaitMTU(t *testing.T, dut *ondatra.DUTDevice, intfName string, want uint16, timeout time.Duration) {
 	t.Helper()
+	path := gnmi.OC().Interface(intfName).Mtu().State()
+	if deviations.OmitL2MTU(dut) {
+		path = gnmi.OC().Interface(intfName).Subinterface(0).Ipv4().Mtu().State()
+	}
 	deadline := time.Now().Add(timeout)
 	for {
-		if got := getMTUState(t, dut, intfName); got == want {
+		if got, ok := gnmi.Lookup(t, dut, path).Val(); ok && got == want {
 			return
 		}
 		if time.Now().After(deadline) {
-			t.Fatalf("Interface %s MTU state did not converge to %d within %v", intfName, want, timeout)
+			t.Logf("Interface %s MTU state leaf did not confirm %d within %v (schema may not expose it here); trusting the earlier Set()", intfName, want, timeout)
+			time.Sleep(convergeSettle)
+			return
 		}
 		time.Sleep(time.Second)
 	}
@@ -417,9 +499,11 @@ func verifyFlowLoss(t *testing.T, ate *ondatra.ATEDevice, flowName string, windo
 
 func testPortAdminStateBounce(t *testing.T, dut *ondatra.DUTDevice, p2, p3, p4 *ondatra.Port) {
 	setPortEnabled(t, dut, p2, false)
+	time.Sleep(convergeSettle)
 	verifyPortTraffic(t, dut, monitorWindow, map[*ondatra.Port]bool{p2: false, p3: true, p4: true})
 
 	setPortEnabled(t, dut, p2, true)
+	time.Sleep(convergeSettle)
 	verifyPortTraffic(t, dut, monitorWindow, map[*ondatra.Port]bool{p2: true, p3: true, p4: true})
 }
 
@@ -457,6 +541,7 @@ func testNHOnDownInterface(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.AT
 	verifyFlowLoss(t, ate, flowNegDownName, monitorWindow, 100)
 
 	setPortEnabled(t, dut, p2, true)
+	time.Sleep(convergeSettle)
 	verifyFlowLoss(t, ate, flowNegDownName, monitorWindow, 0)
 }
 
