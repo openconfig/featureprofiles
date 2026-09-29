@@ -49,6 +49,7 @@ message Metadata {
     TESTBED_DUT_ATE_8LINKS_LAG = 17;
     TESTBED_DUT_8_LOOP_2_ATE = 18;
     TESTBED_ATE_DUT1_4LINKS_DUT2_ATE = 19;
+    TESTBED_DUT_DUT_ATE_8LINKS = 20;
   }
   // Testbed on which the test is intended to run.
   Testbed testbed = 4;
