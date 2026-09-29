@@ -377,8 +377,7 @@ func rotateServerProfile(ctx context.Context, client certz.CertzClient, profileI
 }
 
 // resolveGRPCServerName returns the name of the gRPC server instance already configured on the
-// DUT (e.g. "default" on Arista, per "transport grpc default" in its native config), so that mTLS
-// configuration targets the same instance the gNMI API uses.
+// DUT, so that mTLS configuration targets the same instance the gNMI API uses.
 func resolveGRPCServerName(t *testing.T, dut *ondatra.DUTDevice) string {
 	t.Helper()
 	sys := gnmi.Get(t, dut, gnmi.OC().System().State())
