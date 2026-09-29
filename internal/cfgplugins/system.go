@@ -66,6 +66,8 @@ func CreateGNMIServer(t testing.TB, d *ondatra.DUTDevice, batch *gnmi.SetBatch, 
 	}
 	if deviations.RequireTransportSecurity(d) {
 		gnmiServer.TransportSecurity = ygot.Bool(true)
+	} else {
+		gnmiServer.TransportSecurity = ygot.Bool(false)
 	}
 	if !deviations.GrpcServerServicesUnsupported(d) {
 		gnmiServer.Services = []oc.E_SystemGrpc_GRPC_SERVICE{oc.SystemGrpc_GRPC_SERVICE_GNMI}
