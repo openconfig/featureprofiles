@@ -51,7 +51,7 @@ message Metadata {
     TESTBED_ATE_DUT1_4LINKS_DUT2_ATE = 19;
     TESTBED_DUT_DUT_ATE_8LINKS = 20;
   }
-   // Testbed on which the test is intended to run.
+  // Testbed on which the test is intended to run.
   Testbed testbed = 4;
 
   message Platform {
@@ -716,10 +716,7 @@ message Metadata {
     // Cisco b/390502067
     bool sr_igp_config_unsupported = 260;
 
-    // Cisco: b/404301960
-    // Devices that block one IS-IS level specific authentication config attribute for P2P links.
-    // The same leafs can be set directly under ISIS Interface authentication /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication.
-    bool set_isis_auth_with_interface_authentication_container = 261;
+    reserved 261;
 
     // Devices that do not support GRE/GUE tunnel interface oc.
     // Juniper b/398171114
@@ -1444,7 +1441,7 @@ message Metadata {
 
     // No P4RT AAA role based Authorization support
     bool p4rt_aaa_role_based_authz_unsupported = 452;
-
+    
     // Extra minutes the device needs beyond the 5-minute base timeout for
     // switchover-related waits (post-switchover verification, switchover-ready
     // polling, and SwitchControlProcessor retry). Supervisors may restart
@@ -1483,16 +1480,11 @@ message Metadata {
     // Cisco: https://b.corp.google.com/issues/307454993
     bool power_supply_telemetry_unsupported = 459;
 
-    // qos_queue_index_required specifies if device requires queue-index.
-    bool qos_queue_index_required = 460;
-
-    // qos_max_burst_size_required specifies if device requires
-    // maximum-burst-size.
-    bool qos_max_burst_size_required = 461;
-
-    // qos_red_unsupported specifies if device does not support RED under
-    // queue-management-profiles.
-    bool qos_red_unsupported = 462;
+    // Devices that do not support configuring the sFlow egress sampling rate
+    // (/sampling/sflow/interfaces/interface/config/egress-sampling-rate)
+    // through OpenConfig.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/562517133
+    bool sflow_egress_sampling_rate_unsupported = 460;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
