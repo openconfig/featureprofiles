@@ -143,7 +143,8 @@ func TestISISChangeLSPLifetime(t *testing.T) {
 	// still becoming operational after the OTG configuration push.
 	gnmi.Await(t, ts.DUT, gnmi.OC().Interface(ts.DUTPort1.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
 	gnmi.Await(t, otg, gnmi.OTG().Port(ts.ATEPort1.ID()).Link().State(), 2*time.Minute, otgtelemetry.Port_Link_UP)
-	gnmi.Watch(t, otg, gnmi.OTG().Interface(ts.ATEPort1.Name()+".IPv4").Ipv4Neighbor(isissession.DUTISISAttrs.IPv4).LinkLayerAddress().State(), 2*time.Minute, func(val *ygnmi.Value[string]) bool {
+	ateEthName := ts.ATEIntf1.Ethernets().Items()[0].Name()
+	gnmi.Watch(t, otg, gnmi.OTG().Interface(ateEthName).Ipv4Neighbor(isissession.DUTISISAttrs.IPv4).LinkLayerAddress().State(), 2*time.Minute, func(val *ygnmi.Value[string]) bool {
 		valStr, ok := val.Val()
 		return ok && valStr != ""
 	}).Await(t)
