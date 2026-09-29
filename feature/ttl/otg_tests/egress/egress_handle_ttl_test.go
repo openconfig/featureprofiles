@@ -688,55 +688,51 @@ outer:
 // supports them.
 func validateDUTPkts(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.OTG, flow gosnappi.Flow, initialInUnicastPkts, initialOutUnicastPkts, finalInUnicastPkts, finalOutUnicastPkts uint64, initialPFMatchedPkts, initialPFMatchedOctets uint64, expectPFMatch bool, pfPolicyName string, pfRuleID uint32) {
 	t.Helper()
-	if deviations.GreDecapsulationOCUnsupported(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			ingressPkt := finalInUnicastPkts - initialInUnicastPkts
-			ingressAtePkts := gnmi.Get(t, otgConfig, gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
-
-			egressPkt := finalOutUnicastPkts - initialOutUnicastPkts
-			egressAtePkts := gnmi.Get(t, otgConfig, gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State())
-
-			if ingressPkt == 0 || egressPkt == 0 {
-				t.Errorf("Got the unexpected packet count ingressPkt: %d, egressPkt: %d", ingressPkt, egressPkt)
-			}
-
-			if ingressPkt >= ingressAtePkts && egressPkt >= egressAtePkts {
-				t.Logf("Interface counters reflect decapsulated packets: InUnicastPkts : %d OutUnicastPkts : %d", ingressPkt, egressPkt)
-			} else {
-				t.Errorf("Error: Interface counters didn't reflect decapsulated packets.")
-			}
-		default:
-			t.Errorf("Deviation GreDecapsulationUnsupported is not handled for the dut: %v", dut.Vendor())
-		}
-	} else {
-		if !expectPFMatch {
-			t.Log("Policy-forwarding matched-pkts validation is not expected for this flow.")
-			return
-		}
-		if pfPolicyName == "" {
-			t.Errorf("Policy-forwarding validation requested but policy name is empty")
-			return
-		}
-		pf := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding()
-		pfMatchedPkts := gnmi.Get(t, dut, pf.Policy(pfPolicyName).Rule(pfRuleID).MatchedPkts().State())
-		pfMatchedOctets := gnmi.Get(t, dut, pf.Policy(pfPolicyName).Rule(pfRuleID).MatchedOctets().State())
-
-		if pfMatchedPkts < initialPFMatchedPkts || pfMatchedOctets < initialPFMatchedOctets {
-			t.Errorf("Policy-forwarding counters decreased unexpectedly for policy %s rule %d. Initial(pkts=%d,octets=%d), Final(pkts=%d,octets=%d)",
-				pfPolicyName, pfRuleID, initialPFMatchedPkts, initialPFMatchedOctets, pfMatchedPkts, pfMatchedOctets)
-			return
-		}
-
-		pfMatchedPktsDelta := pfMatchedPkts - initialPFMatchedPkts
-		pfMatchedOctetsDelta := pfMatchedOctets - initialPFMatchedOctets
-		t.Logf("Policy-forwarding counter deltas for policy %s rule %d: matched-pkts=%d matched-octets=%d", pfPolicyName, pfRuleID, pfMatchedPktsDelta, pfMatchedOctetsDelta)
-		if pfMatchedPktsDelta != packetsPerFlow {
-			t.Errorf("Policy %s rule %d matched-pkts delta is %d, want %d", pfPolicyName, pfRuleID, pfMatchedPktsDelta, packetsPerFlow)
-		}
-		if pfMatchedOctetsDelta == 0 {
-			t.Errorf("Policy %s rule %d matched-octets delta is 0 while matched-pkts delta is %d", pfPolicyName, pfRuleID, pfMatchedPktsDelta)
-		}
+	if finalInUnicastPkts < initialInUnicastPkts || finalOutUnicastPkts < initialOutUnicastPkts {
+		t.Errorf("Interface counters decreased unexpectedly. Initial(in=%d,out=%d), Final(in=%d,out=%d)", initialInUnicastPkts, initialOutUnicastPkts, finalInUnicastPkts, finalOutUnicastPkts)
+		return
+	}
+	ingressPkt := finalInUnicastPkts - initialInUnicastPkts
+	egressPkt := finalOutUnicastPkts - initialOutUnicastPkts
+	t.Logf("Interface counter deltas: in-unicast-pkts=%d out-unicast-pkts=%d", ingressPkt, egressPkt)
+	if ingressPkt < packetsPerFlow {
+		t.Errorf("DUT:Port1 in-unicast-pkts delta is %d, want at least %d", ingressPkt, packetsPerFlow)
+	} else if ingressPkt > packetsPerFlow {
+		t.Logf("DUT:Port1 in-unicast-pkts delta is %d (> %d). Extra packets may be control/background traffic.", ingressPkt, packetsPerFlow)
+	}
+	if egressPkt < packetsPerFlow {
+		t.Errorf("DUT:Port2 out-unicast-pkts delta is %d, want at least %d", egressPkt, packetsPerFlow)
+	} else if egressPkt > packetsPerFlow {
+		t.Logf("DUT:Port2 out-unicast-pkts delta is %d (> %d). Extra packets may be control/background traffic.", egressPkt, packetsPerFlow)
+	}
+	if !expectPFMatch {
+		t.Log("Policy-forwarding matched-pkts validation is not expected for this flow.")
+		return
+	}
+	if deviations.PolicyForwardingOCUnsupported(dut) {
+		t.Log("Skipping policy-forwarding matched counters validation: deviation PolicyForwardingOCUnsupported is set.")
+		return
+	}
+	if pfPolicyName == "" {
+		t.Errorf("Policy-forwarding validation requested but policy name is empty")
+		return
+	}
+	pf := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding()
+	pfMatchedPkts := gnmi.Get(t, dut, pf.Policy(pfPolicyName).Rule(pfRuleID).MatchedPkts().State())
+	pfMatchedOctets := gnmi.Get(t, dut, pf.Policy(pfPolicyName).Rule(pfRuleID).MatchedOctets().State())
+	if pfMatchedPkts < initialPFMatchedPkts || pfMatchedOctets < initialPFMatchedOctets {
+		t.Errorf("Policy-forwarding counters decreased unexpectedly for policy %s rule %d. Initial(pkts=%d,octets=%d), Final(pkts=%d,octets=%d)",
+			pfPolicyName, pfRuleID, initialPFMatchedPkts, initialPFMatchedOctets, pfMatchedPkts, pfMatchedOctets)
+		return
+	}
+	pfMatchedPktsDelta := pfMatchedPkts - initialPFMatchedPkts
+	pfMatchedOctetsDelta := pfMatchedOctets - initialPFMatchedOctets
+	t.Logf("Policy-forwarding counter deltas for policy %s rule %d: matched-pkts=%d matched-octets=%d", pfPolicyName, pfRuleID, pfMatchedPktsDelta, pfMatchedOctetsDelta)
+	if pfMatchedPktsDelta != packetsPerFlow {
+		t.Errorf("Policy %s rule %d matched-pkts delta is %d, want %d", pfPolicyName, pfRuleID, pfMatchedPktsDelta, packetsPerFlow)
+	}
+	if pfMatchedOctetsDelta == 0 {
+		t.Errorf("Policy %s rule %d matched-octets delta is 0 while matched-pkts delta is %d", pfPolicyName, pfRuleID, pfMatchedPktsDelta)
 	}
 }
 
@@ -755,7 +751,7 @@ func otgOperation(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.OTG, conf
 	initialInUnicastPkts := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Counters().InUnicastPkts().State())
 	initialOutUnicastPkts := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port2").Name()).Counters().OutUnicastPkts().State())
 	var initialPFMatchedPkts, initialPFMatchedOctets uint64
-	if !deviations.GreDecapsulationOCUnsupported(dut) && expectPFMatch {
+	if expectPFMatch && !deviations.PolicyForwardingOCUnsupported(dut) {
 		pf := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding()
 		initialPFMatchedPkts = gnmi.Get(t, dut, pf.Policy(pfPolicyName).Rule(pfRuleID).MatchedPkts().State())
 		initialPFMatchedOctets = gnmi.Get(t, dut, pf.Policy(pfPolicyName).Rule(pfRuleID).MatchedOctets().State())
@@ -780,8 +776,9 @@ func otgOperation(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.OTG, conf
 
 // skipICMPValidation reports whether the ICMP/ICMPv6 Time Exceeded validation must be skipped
 // for the current test case because the DUT does not generate the message after decapsulation.
-// This applies to PF-1.9.7, PF-1.9.8, PF-1.9.15, PF-1.9.16, PF-1.9.27, PF-1.9.28, PF-1.9.31 and
-// PF-1.9.34 when the DecapIcmpTtlExceededUnsupported deviation is set.
+// This applies to decapsulation drop cases where the inner/MPLS TTL expires after decap
+// (e.g. PF-1.9.7, PF-1.9.8, PF-1.9.15, PF-1.9.16, PF-1.9.27, PF-1.9.28, PF-1.9.31 and
+// PF-1.9.34) when the DecapIcmpTtlExceededUnsupported deviation is set.
 func skipICMPValidation(t *testing.T, dut *ondatra.DUTDevice, decapCase bool) bool {
 	t.Helper()
 	if decapCase && deviations.DecapICMPTTLExceededUnsupported(dut) {
@@ -793,9 +790,11 @@ func skipICMPValidation(t *testing.T, dut *ondatra.DUTDevice, decapCase bool) bo
 
 // otgTrafficValidation verifies that traffic is not forwarded to ATE:Port2 and that
 // ATE:Port1 receives ICMP/ICMPv6 Time Exceeded messages for the packets sent.
+// It also validates DUT:Port1 in-unicast-pkts delta for all TTL=1 drop cases and,
+// when requested, verifies policy-forwarding rule matched-pkts telemetry.
 // decapCase indicates that the TTL expires on the inner or MPLS header of an encapsulated
 // packet, in which case the ICMP validation may be skipped through skipICMPValidation.
-func otgTrafficValidation(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.OTG, config gosnappi.Config, flow gosnappi.Flow, protocolType string, decapCase bool) {
+func otgTrafficValidation(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.OTG, config gosnappi.Config, flow gosnappi.Flow, protocolType string, decapCase, expectPFMatch bool, pfPolicyName string, pfRuleID uint32) {
 	t.Helper()
 	enableCapture(t, config, "port1", "port2")
 	otgConfig.PushConfig(t, config)
@@ -803,6 +802,12 @@ func otgTrafficValidation(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.O
 
 	otgutils.WaitForARP(t, otgConfig, config, "IPv4")
 	otgutils.WaitForARP(t, otgConfig, config, "IPv6")
+	initialInUnicastPkts := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Counters().InUnicastPkts().State())
+	var initialPFMatchedPkts uint64
+	if expectPFMatch && !deviations.PolicyForwardingOCUnsupported(dut) {
+		pf := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding()
+		initialPFMatchedPkts = gnmi.Get(t, dut, pf.Policy(pfPolicyName).Rule(pfRuleID).MatchedPkts().State())
+	}
 
 	cs := startCapture(t, otgConfig)
 	otgConfig.StartTraffic(t)
@@ -813,6 +818,34 @@ func otgTrafficValidation(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.O
 	rxPkts := gnmi.Get(t, otgConfig, gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State())
 	if rxPkts != 0 {
 		t.Fatalf("Packet not dropped, got %d packets on ATE:Port2, want 0", rxPkts)
+	}
+	finalInUnicastPkts := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Counters().InUnicastPkts().State())
+	if finalInUnicastPkts < initialInUnicastPkts {
+		t.Errorf("DUT:Port1 in-unicast-pkts decreased unexpectedly. Initial=%d Final=%d", initialInUnicastPkts, finalInUnicastPkts)
+	} else {
+		ingressPkt := finalInUnicastPkts - initialInUnicastPkts
+		if ingressPkt != packetsPerFlow {
+			t.Errorf("DUT:Port1 in-unicast-pkts delta is %d, want %d", ingressPkt, packetsPerFlow)
+		}
+	}
+
+	if expectPFMatch {
+		if deviations.PolicyForwardingOCUnsupported(dut) {
+			t.Log("Skipping policy-forwarding matched-pkts validation: deviation PolicyForwardingOCUnsupported is set.")
+		} else if pfPolicyName == "" {
+			t.Errorf("Policy-forwarding matched-pkts validation requested but policy name is empty")
+		} else {
+			pf := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding()
+			pfMatchedPkts := gnmi.Get(t, dut, pf.Policy(pfPolicyName).Rule(pfRuleID).MatchedPkts().State())
+			if pfMatchedPkts < initialPFMatchedPkts {
+				t.Errorf("Policy %s rule %d matched-pkts decreased unexpectedly. Initial=%d Final=%d", pfPolicyName, pfRuleID, initialPFMatchedPkts, pfMatchedPkts)
+			} else {
+				pfMatchedPktsDelta := pfMatchedPkts - initialPFMatchedPkts
+				if pfMatchedPktsDelta != packetsPerFlow {
+					t.Errorf("Policy %s rule %d matched-pkts delta is %d, want %d", pfPolicyName, pfRuleID, pfMatchedPktsDelta, packetsPerFlow)
+				}
+			}
+		}
 	}
 	t.Log("Packets dropped, Test Passed")
 	if skipICMPValidation(t, dut, decapCase) {
@@ -881,7 +914,7 @@ func createIPv4Flow(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.OTG, co
 		captureAndValidatePackets(t, otgConfig, &packetValidation{portName: atePort2.Name,
 			outerDstIP: atePort2.IPv4, outerTtl: innerTTL - 1, validateNonEncap: true}, "ipv4")
 	} else {
-		otgTrafficValidation(t, dut, otgConfig, config, flow, "ipv4", false)
+		otgTrafficValidation(t, dut, otgConfig, config, flow, "ipv4", false, false, "", 0)
 	}
 }
 
@@ -898,7 +931,7 @@ func createIPv6Flow(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.OTG, co
 		captureAndValidatePackets(t, otgConfig, &packetValidation{portName: atePort2.Name,
 			outerDstIP: atePort2.IPv6, outerTtl: innerTTL - 1, validateNonEncap: true}, "ipv6")
 	} else {
-		otgTrafficValidation(t, dut, otgConfig, config, flow, "ipv6", false)
+		otgTrafficValidation(t, dut, otgConfig, config, flow, "ipv6", false, false, "", 0)
 	}
 }
 
@@ -921,7 +954,7 @@ func createIPv4oGREFlow(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.OTG
 		captureAndValidatePackets(t, otgConfig, &packetValidation{portName: atePort2.Name,
 			innerDstIP: atePort2.IPv4, innerTtl: innerTTL - 1, validateDecap: true}, "ipv4")
 	} else {
-		otgTrafficValidation(t, dut, otgConfig, config, flow, "ipv4", true)
+		otgTrafficValidation(t, dut, otgConfig, config, flow, "ipv4", true, false, "", 0)
 	}
 }
 
@@ -943,7 +976,7 @@ func createIPv6oGREFlow(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.OTG
 		captureAndValidatePackets(t, otgConfig, &packetValidation{portName: atePort2.Name,
 			innerDstIP: atePort2.IPv6, innerTtl: innerTTL - 1, validateDecap: true}, "ipv6")
 	} else {
-		otgTrafficValidation(t, dut, otgConfig, config, flow, "ipv6", true)
+		otgTrafficValidation(t, dut, otgConfig, config, flow, "ipv6", true, false, "", 0)
 	}
 }
 
@@ -969,7 +1002,7 @@ func createIPv4oMPLSoGREFlow(t *testing.T, dut *ondatra.DUTDevice, otgConfig *ot
 		captureAndValidatePackets(t, otgConfig, &packetValidation{portName: atePort2.Name,
 			innerDstIP: atePort2.IPv4, innerTtl: innerTTL, validateDecap: true}, "ipv4")
 	} else {
-		otgTrafficValidation(t, dut, otgConfig, config, flow, "ipv4", true)
+		otgTrafficValidation(t, dut, otgConfig, config, flow, "ipv4", true, false, "", 0)
 	}
 }
 
@@ -995,7 +1028,7 @@ func createIPv6oMPLSoGREFlow(t *testing.T, dut *ondatra.DUTDevice, otgConfig *ot
 		captureAndValidatePackets(t, otgConfig, &packetValidation{portName: atePort2.Name,
 			innerDstIP: atePort2.IPv6, innerTtl: innerTTL, validateDecap: true}, "ipv6")
 	} else {
-		otgTrafficValidation(t, dut, otgConfig, config, flow, "ipv6", true)
+		otgTrafficValidation(t, dut, otgConfig, config, flow, "ipv6", true, false, "", 0)
 	}
 }
 
@@ -1028,7 +1061,7 @@ func createIPv4oUDPFlow(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.OTG
 		captureAndValidatePackets(t, otgConfig, &packetValidation{portName: atePort2.Name,
 			innerDstIP: atePort2.IPv4, innerTtl: innerTTL - 1, validateDecap: true}, "ipv4")
 	} else {
-		otgTrafficValidation(t, dut, otgConfig, config, flow, "ipv4", false)
+		otgTrafficValidation(t, dut, otgConfig, config, flow, "ipv4", false, false, "", 0)
 	}
 }
 
@@ -1060,7 +1093,7 @@ func createIPv6oUDPFlow(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.OTG
 		captureAndValidatePackets(t, otgConfig, &packetValidation{portName: atePort2.Name,
 			innerDstIP: atePort2.IPv6, innerTtl: innerTTL - 1, validateDecap: true}, "ipv6")
 	} else {
-		otgTrafficValidation(t, dut, otgConfig, config, flow, "ipv6", false)
+		otgTrafficValidation(t, dut, otgConfig, config, flow, "ipv6", false, false, "", 0)
 	}
 }
 
@@ -1098,7 +1131,7 @@ func createIPv4oMPLSoUDPFlow(t *testing.T, dut *ondatra.DUTDevice, otgConfig *ot
 			innerDstIP: atePort2.IPv4, innerTtl: innerTTL, validateDecap: true}, "ipv4")
 	} else {
 		configureMPLSStaticLSPForTTLOne(t, dut, lspName1, mplsLabelV4, atePort2.IPv4, "ipv4")
-		otgTrafficValidation(t, dut, otgConfig, config, flow, "ipv4", false)
+		otgTrafficValidation(t, dut, otgConfig, config, flow, "ipv4", true, false, "", 0)
 	}
 }
 
@@ -1136,7 +1169,7 @@ func createIPv6oMPLSoUDPFlow(t *testing.T, dut *ondatra.DUTDevice, otgConfig *ot
 			innerDstIP: atePort2.IPv6, innerTtl: innerTTL, validateDecap: true}, "ipv6")
 	} else {
 		configureMPLSStaticLSPForTTLOne(t, dut, lspName2, mplsLabelV6, atePort2.IPv6, "ipv6")
-		otgTrafficValidation(t, dut, otgConfig, config, flow, "ipv6", false)
+		otgTrafficValidation(t, dut, otgConfig, config, flow, "ipv6", true, false, "", 0)
 	}
 }
 
@@ -1174,7 +1207,7 @@ func createIPv4oMPLSoUDPoIPv6Flow(t *testing.T, dut *ondatra.DUTDevice, otgConfi
 			innerDstIP: atePort2.IPv4, innerTtl: innerTTL, validateDecap: true}, "ipv4")
 	} else {
 		configureMPLSStaticLSPForTTLOne(t, dut, lspName1, mplsLabelV4, atePort2.IPv4, "ipv4")
-		otgTrafficValidation(t, dut, otgConfig, config, flow, "ipv4", false)
+		otgTrafficValidation(t, dut, otgConfig, config, flow, "ipv4", true, true, policyName, uint32(policyID))
 	}
 }
 
@@ -1210,7 +1243,7 @@ func createIPv6oMPLSoUDPoIPv6Flow(t *testing.T, dut *ondatra.DUTDevice, otgConfi
 			innerDstIP: atePort2.IPv6, innerTtl: innerTTL, validateDecap: true}, "ipv6")
 	} else {
 		configureMPLSStaticLSPForTTLOne(t, dut, lspName2, mplsLabelV6, atePort2.IPv6, "ipv6")
-		otgTrafficValidation(t, dut, otgConfig, config, flow, "ipv6", false)
+		otgTrafficValidation(t, dut, otgConfig, config, flow, "ipv6", true, true, policyName, uint32(policyID))
 	}
 }
 

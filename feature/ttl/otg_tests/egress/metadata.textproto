@@ -16,5 +16,6 @@ platform_exceptions: {
     gre_decapsulation_oc_unsupported: true
     decapsulate_gue_oc_unsupported: true
     decap_icmp_ttl_exceeded_unsupported: true
+    policy_forwarding_unsupported: true
   }
 }

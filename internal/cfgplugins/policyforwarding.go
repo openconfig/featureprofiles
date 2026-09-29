@@ -2175,16 +2175,24 @@ func NewConfigureDutWithGueDecap(t *testing.T, dut *ondatra.DUTDevice, batch *gn
 	np.PolicyId = ygot.String(params.PolicyName)
 	np.Type = oc.Policy_Type_PBR_POLICY
 	npRule := np.GetOrCreateRule(uint32(params.PolicyID))
+	tunnelCIDR := params.TunnelIP
+	if !strings.Contains(tunnelCIDR, "/") {
+		if strings.Contains(tunnelCIDR, ":") {
+			tunnelCIDR = tunnelCIDR + "/128"
+		} else {
+			tunnelCIDR = tunnelCIDR + "/32"
+		}
+	}
 	if strings.Contains(params.TunnelIP, ":") {
 		payloadType = "ipv6"
 	}
 	if strings.EqualFold(payloadType, "ipv6") {
 		ip := npRule.GetOrCreateIpv6()
-		ip.DestinationAddress = ygot.String(params.TunnelIP)
+		ip.DestinationAddress = ygot.String(tunnelCIDR)
 		ip.Protocol = oc.PacketMatchTypes_IP_PROTOCOL_IP_UDP
 	} else {
 		ip := npRule.GetOrCreateIpv4()
-		ip.DestinationAddress = ygot.String(params.TunnelIP)
+		ip.DestinationAddress = ygot.String(tunnelCIDR)
 		ip.Protocol = oc.PacketMatchTypes_IP_PROTOCOL_IP_UDP
 	}
 	npRule.GetOrCreateTransport().SetDestinationPort(oc.UnionUint16(params.GUEPort))
