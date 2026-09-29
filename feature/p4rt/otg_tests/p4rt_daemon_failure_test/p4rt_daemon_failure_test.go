@@ -25,6 +25,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gnoi"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/featureprofiles/internal/p4rtutils"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
@@ -178,6 +179,8 @@ func startTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) gos
 
 	otg.PushConfig(t, top)
 	otg.StartProtocols(t)
+
+	otgutils.WaitForARP(t, otg, top, "IPv4")
 
 	otg.StartTraffic(t)
 

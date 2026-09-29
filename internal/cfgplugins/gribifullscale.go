@@ -913,10 +913,23 @@ func ConfigureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 		rebootRequired = ConfigureTcam(t, dut)
 	} else if dut.Vendor() == ondatra.NOKIA {
 		rebootRequired = EnableSecondaryDefaultLookup(t, dut)
+	} else if dut.Vendor() == ondatra.CISCO {
+		rebootRequired = ConfigureCiscoHardwareInit(t, dut)
 	}
 	if rebootRequired {
 		RebootChassis(t, dut)
 	}
+}
+
+// ConfigureCiscoHardwareInit pushes Cisco-specific hardware init configs required for full scale testing.
+func ConfigureCiscoHardwareInit(t *testing.T, dut *ondatra.DUTDevice) bool {
+	t.Helper()
+	cliConfig := NewDUTHardwareInit(t, dut, FeatureHighScale)
+	if cliConfig != "" {
+		PushDUTHardwareInitConfig(t, dut, cliConfig)
+		return true
+	}
+	return false
 }
 
 // ConfigureTcam pushes Arista-specific hardware init configs for TCAM to allocate enough space
@@ -1584,7 +1597,11 @@ func BuildDecapVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, de
 		pfx := fmt.Sprintf("203.%d.%d.0/%d", i/4, (i%4)*64, prefixLen)
 		nhIdx := NHBaseDecap + uint64(i)
 		nhgIdx := NHGBaseDecap + uint64(i)
-		decapNH, _ := gribi.NHEntry(nhIdx, "Decap", defaultVRF, fluent.InstalledInFIB)
+		var opts []*gribi.NHOptions
+		if !deviations.DecapNHWithNextHopNIUnsupported(dut) {
+			opts = append(opts, &gribi.NHOptions{VrfName: defaultVRF})
+		}
+		decapNH, _ := gribi.NHEntry(nhIdx, "Decap", defaultVRF, fluent.InstalledInFIB, opts...)
 		decapNHG, _ := gribi.NHGEntry(nhgIdx, map[uint64]uint64{nhIdx: 1}, defaultVRF, fluent.InstalledInFIB)
 		nhEntries = append(nhEntries, decapNH)
 		nhgEntries = append(nhgEntries, decapNHG)
