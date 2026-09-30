@@ -964,6 +964,11 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/aigp_test/aigp_test.go"
 }
 test: {
+  id: "RT-1.37"
+  description: "BGP AIGP Feature Support and Precedence"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_aigp_test/README.md"
+}
+test: {
   id: "RT-1.4"
   description: "BGP Graceful Restart"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/gracefulrestart/otg_tests/bgp_graceful_restart_test/README.md"
