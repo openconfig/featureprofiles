@@ -29,6 +29,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/ygnmi"
 )
 
@@ -193,4 +194,30 @@ func SwitchControlProcessor(t *testing.T, dut *ondatra.DUTDevice) (switched bool
 	}
 	t.Logf("Successfully triggered SwitchControlProcessor from %q to %q", active, standby)
 	return true, active, standby
+}
+
+// switchoverRetryBackoff is the delay before re-subscribing after the gNMI
+// stream is reset while control processors converge after a switchover.
+const switchoverRetryBackoff = 30 * time.Second
+
+// AwaitSwitchoverReady waits up to timeout for component's switchover-ready
+// state to be true. The gNMI stream may be reset while control processors
+// converge after a switchover, so a failed Await is retried after
+// switchoverRetryBackoff until timeout expires.
+func AwaitSwitchoverReady(t *testing.T, dut *ondatra.DUTDevice, component string, timeout time.Duration) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for {
+		errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			gnmi.Await(t, dut, gnmi.OC().Component(component).SwitchoverReady().State(), time.Until(deadline), true)
+		})
+		if errMsg == nil {
+			return
+		}
+		if time.Until(deadline) <= switchoverRetryBackoff {
+			t.Fatalf("Component %s not switchover-ready within %v: %s", component, timeout, *errMsg)
+		}
+		t.Logf("Waiting for %s switchover-ready interrupted, retrying: %s", component, *errMsg)
+		time.Sleep(switchoverRetryBackoff)
+	}
 }

@@ -124,7 +124,7 @@ func QosClassifierInterfaceID(dut *ondatra.DUTDevice, intfID string) string {
 // BuildOutputQueueManagementProfile edits qos so that output queue queueName
 // on interface intfID uses queue management profile profileName. If
 // profileName is empty, the queue is created without a profile. It only edits
-// qos; push it with ReplaceQueueManagementProfile.
+// qos; add it to a SetBatch with ReplaceQueueManagementProfile.
 //
 // It also adds the config some DUTs require before a profile can be attached:
 //   - deviations.QOSQueueRequiresID: adds queueName to the top-level queue list
@@ -197,20 +197,21 @@ func BuildOutputQueueManagementProfile(dut *ondatra.DUTDevice, qos *oc.Qos, intf
 	}
 }
 
-// ReplaceQueueManagementProfile pushes qos to the DUT in one gNMI SetRequest:
+// ReplaceQueueManagementProfile appends to batch the operations that push qos
+// to the DUT in one gNMI SetRequest. The caller sends it with batch.Set:
 //   - REPLACE queue management profile profileName.
 //   - REPLACE output queue queueName on interface intfID.
 //   - UPDATE (merge) the rest of qos.
 //
 // Only these two subtrees are replaced, so each test case gets a clean profile
 // and queue without deleting the classifier, forwarding group and queues
-// created during test setup. gNMI applies all replaces before updates, so the
-// supporting config (e.g. buffer allocation and scheduler policies) is merged
-// after the two subtrees are rewritten.
+// created during test setup. The UPDATE is built from a copy of qos without
+// the two replaced subtrees, so no path is sent twice in the SetRequest. qos
+// itself is not modified; call batch.Set before editing qos again.
 //
 // Call BuildOutputQueueManagementProfile with the same arguments first. The
 // test fails if qos does not contain the profile or the output queue.
-func ReplaceQueueManagementProfile(t *testing.T, dut *ondatra.DUTDevice, qos *oc.Qos, intfID, queueName, profileName string) {
+func ReplaceQueueManagementProfile(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, qos *oc.Qos, intfID, queueName, profileName string) {
 	t.Helper()
 	qosIntfID := QosInterfaceID(dut, intfID)
 
@@ -226,11 +227,29 @@ func ReplaceQueueManagementProfile(t *testing.T, dut *ondatra.DUTDevice, qos *oc
 	}
 	outQueue := intf.Output.Queue[queueName]
 
-	batch := &gnmi.SetBatch{}
+	// Remove the replaced subtrees from a copy rather than from qos: SetBatch
+	// marshals values only when Set is called, so a temporary edit of qos that
+	// is restored before then would have no effect.
+	c, err := ygot.DeepCopy(qos)
+	if err != nil {
+		t.Fatalf("ReplaceQueueManagementProfile: cannot copy qos: %v", err)
+	}
+	rest := c.(*oc.Qos)
+	delete(rest.QueueManagementProfile, profileName)
+	delete(rest.Interface[qosIntfID].Output.Queue, queueName)
+	// Drop lists and containers left empty by the removal: some devices reject
+	// empty JSON lists (e.g. "queue": []) in a SetRequest.
+	if len(rest.QueueManagementProfile) == 0 {
+		rest.QueueManagementProfile = nil
+	}
+	if len(rest.Interface[qosIntfID].Output.Queue) == 0 {
+		rest.Interface[qosIntfID].Output.Queue = nil
+	}
+	ygot.PruneEmptyBranches(rest)
+
 	gnmi.BatchReplace(batch, gnmi.OC().Qos().QueueManagementProfile(profileName).Config(), profile)
 	gnmi.BatchReplace(batch, gnmi.OC().Qos().Interface(qosIntfID).Output().Queue(queueName).Config(), outQueue)
-	gnmi.BatchUpdate(batch, gnmi.OC().Qos().Config(), qos)
-	batch.Set(t, dut)
+	gnmi.BatchUpdate(batch, gnmi.OC().Qos().Config(), rest)
 }
 
 // ConfigureInterfaceSetup merges (gNMI UPDATE) an ethernetCsmacd interface

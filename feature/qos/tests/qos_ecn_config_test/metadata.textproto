@@ -34,6 +34,7 @@ platform_exceptions: {
     state_path_unsupported: true
     interface_ref_config_unsupported: true
     ecn_min_greater_max_threshold_unsupported: true
+    gnoi_subcomponent_path: true
   }
 }
 platform_exceptions: {
