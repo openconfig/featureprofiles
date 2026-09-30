@@ -12,7 +12,7 @@ Enable an Accept-route all import-policy/export-policy for eBGP session under th
 
 This test is suitable for running in a KNE environment.
 
-## Canonical OpenConfig
+## Canonical OC
 ```json
 {
   "network-instances": {
@@ -104,6 +104,33 @@ This test is suitable for running in a KNE environment.
         }
       }
     ]
+  },
+  "routing-policy": {
+    "policy-definitions": {
+      "policy-definition": [
+        {
+          "config": {
+            "name": "ALLOW"
+          },
+          "name": "ALLOW",
+          "statements": {
+            "statement": [
+              {
+                "actions": {
+                  "config": {
+                    "policy-result": "ACCEPT_ROUTE"
+                  }
+                },
+                "config": {
+                  "name": "id-1"
+                },
+                "name": "id-1"
+              }
+            ]
+          }
+        }
+      ]
+    }
   }
 }
 ```
@@ -142,5 +169,3 @@ rpcs:
     gNMI.Subscribe:
     gNMI.Set:
 ```
-
-
