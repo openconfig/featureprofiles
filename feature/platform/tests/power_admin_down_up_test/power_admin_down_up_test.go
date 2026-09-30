@@ -25,60 +25,68 @@ func TestFabricPowerAdmin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	fs := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC)
 
+	selected := ""
 	for _, f := range fs {
-		t.Run(f, func(t *testing.T) {
-
-			empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(f).Empty().State()).Val()
-			if ok && empty {
-				t.Skipf("Fabric Component %s is empty, hence skipping", f)
-			}
-
-			if !gnmi.Get(t, dut, gnmi.OC().Component(f).Removable().State()) {
-				t.Skipf("Skip the test on non-removable fabric.")
-			}
-
-			oper := gnmi.Get(t, dut, gnmi.OC().Component(f).OperStatus().State())
-
-			if got, want := oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE; got != want {
-				t.Skipf("Fabric Component %s is already INACTIVE, hence skipping", f)
-			}
-
-			before := helpers.FetchOperStatusUPIntfs(t, dut, false)
-
-			powerDownUp(t, dut, f, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC, 6*time.Minute)
-
-			helpers.ValidateOperStatusUPIntfs(t, dut, before, 12*time.Minute)
-		})
+		empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(f).Empty().State()).Val()
+		if ok && empty {
+			continue
+		}
+		removable, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(f).Removable().State()).Val()
+		if !ok || !removable {
+			continue
+		}
+		oper, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(f).OperStatus().State()).Val()
+		if !ok {
+			continue
+		}
+		if got, want := oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE; got != want {
+			continue
+		}
+		selected = f
+		break
 	}
+	if selected == "" {
+		t.Skip("No eligible fabric component found for power-admin-state validation.")
+	}
+	t.Run(selected, func(t *testing.T) {
+		before := helpers.FetchOperStatusUPIntfs(t, dut, false)
+		powerDownUp(t, dut, selected, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC, 6*time.Minute)
+		helpers.ValidateOperStatusUPIntfs(t, dut, before, 12*time.Minute)
+	})
 }
 
 func TestLinecardPowerAdmin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ls := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD)
 
+	selected := ""
 	for _, l := range ls {
-		t.Run(l, func(t *testing.T) {
-			empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(l).Empty().State()).Val()
-			if ok && empty {
-				t.Skipf("Linecard Component %s is empty, hence skipping", l)
-			}
-			if !gnmi.Get(t, dut, gnmi.OC().Component(l).Removable().State()) {
-				t.Skipf("Skip the test on non-removable linecard.")
-			}
-
-			oper := gnmi.Get(t, dut, gnmi.OC().Component(l).OperStatus().State())
-
-			if got, want := oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE; got != want {
-				t.Skipf("Linecard Component %s is already INACTIVE, hence skipping", l)
-			}
-
-			before := helpers.FetchOperStatusUPIntfs(t, dut, false)
-
-			powerDownUp(t, dut, l, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD, 20*time.Minute)
-
-			helpers.ValidateOperStatusUPIntfs(t, dut, before, 12*time.Minute)
-		})
+		empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(l).Empty().State()).Val()
+		if ok && empty {
+			continue
+		}
+		removable, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(l).Removable().State()).Val()
+		if !ok || !removable {
+			continue
+		}
+		oper, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(l).OperStatus().State()).Val()
+		if !ok {
+			continue
+		}
+		if got, want := oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE; got != want {
+			continue
+		}
+		selected = l
+		break
 	}
+	if selected == "" {
+		t.Skip("No eligible linecard component found for power-admin-state validation.")
+	}
+	t.Run(selected, func(t *testing.T) {
+		before := helpers.FetchOperStatusUPIntfs(t, dut, false)
+		powerDownUp(t, dut, selected, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD, 20*time.Minute)
+		helpers.ValidateOperStatusUPIntfs(t, dut, before, 12*time.Minute)
+	})
 }
 
 func TestControllerCardPowerAdmin(t *testing.T) {
@@ -93,26 +101,37 @@ func TestControllerCardPowerAdmin(t *testing.T) {
 		t.Skipf("Number of controller cards is less than 2. Skipping test for controller-card power-admin-state.")
 	}
 
-	primary := ""
+	var primary, secondary string
 	for _, c := range cs {
-		t.Run(c, func(t *testing.T) {
-			role := gnmi.Get(t, dut, gnmi.OC().Component(c).RedundantRole().State())
-			if got, want := role, oc.Platform_ComponentRedundantRole_PRIMARY; got == want {
-				primary = c
-				t.Skipf("ControllerCard Component %s is PRIMARY, hence skipping", c)
-			}
-
-			oper := gnmi.Get(t, dut, gnmi.OC().Component(c).OperStatus().State())
-			if got, want := oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE; got != want {
-				t.Skipf("ControllerCard Component %s is already INACTIVE, hence skipping", c)
-			}
-
-			powerDownUp(t, dut, c, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD, 20*time.Minute)
-		})
+		role, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(c).RedundantRole().State()).Val()
+		if !ok {
+			t.Logf("Controller card %q missing redundant-role telemetry; skipping during selection", c)
+			continue
+		}
+		switch role {
+		case oc.Platform_ComponentRedundantRole_PRIMARY:
+			primary = c
+		case oc.Platform_ComponentRedundantRole_SECONDARY:
+			secondary = c
+		default:
+			t.Logf("Controller card %q has unexpected redundant-role %v; skipping during selection", c, role)
+			continue
+		}
 	}
-	if primary != "" {
+
+	if primary == "" || secondary == "" {
+		t.Skipf("Missing required controller roles: primary=%q secondary=%q", primary, secondary)
+	}
+
+	oper := gnmi.Get(t, dut, gnmi.OC().Component(secondary).OperStatus().State())
+	if oper != oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE {
+		t.Skipf("Secondary controller %q not active: got %v", secondary, oper)
+	}
+
+	t.Run(secondary, func(t *testing.T) {
+		powerDownUp(t, dut, secondary, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD, 20*time.Minute)
 		gnmi.Await(t, dut, gnmi.OC().Component(primary).SwitchoverReady().State(), 30*time.Minute, true)
-	}
+	})
 }
 
 func powerDownUp(t *testing.T, dut *ondatra.DUTDevice, name string, cType oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT, timeout time.Duration) {

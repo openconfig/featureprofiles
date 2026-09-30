@@ -104,6 +104,7 @@ paths:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/keepalive-interval:
 
   ## Telemetry Parameter Coverage
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/enabled:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/established-transitions:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/last-established:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/received/NOTIFICATION:
