@@ -364,11 +364,15 @@ type flowGroupData struct {
 
 var flowGroups = make(map[string]flowGroupData)
 
-// configureDUT configures interfaces, BGP, IS-IS, and static tunnel routes on the DUT.
-func configureDUT(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.Port, portAttr *attrs.Attributes) {
+// configureDUT configures a DUT interface and all of its subinterfaces.
+func configureDUT(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.Port, portAttrs []*attrs.Attributes) {
 	t.Helper()
-	d := gnmi.OC()
-	gnmi.Update(t, dut, d.Interface(port.Name()).Config(), configInterfaceDUT(t, port, new(oc.Root), portAttr, dut))
+	// Build the complete interface tree before Replace, since omitted subinterfaces would be deleted.
+	d := new(oc.Root)
+	for _, portAttr := range portAttrs {
+		configInterfaceDUT(t, port, d, portAttr, dut)
+	}
+	gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Config(), d.GetOrCreateInterface(port.Name()))
 
 	// Configure Network instance type on DUT
 	t.Log("Configure/update Network Instance")
@@ -1720,8 +1724,8 @@ func TestStaticGue(t *testing.T) {
 		portObj := otgConfig.Ports().Add().SetName(cfg.port)
 
 		// Configure ATE & DUT interfaces
+		configureDUT(t, dut, dutPort, cfg.dutPortData)
 		for index, ap := range cfg.otgPortData {
-			configureDUT(t, dut, dutPort, cfg.dutPortData[index])
 			deviceObj = configureInterfaces(otgConfig, portObj, ap, cfg.dutPortData[index])
 			cfg.otgDevice = append(cfg.otgDevice, deviceObj)
 		}
