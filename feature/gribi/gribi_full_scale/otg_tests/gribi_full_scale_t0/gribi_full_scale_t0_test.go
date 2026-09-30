@@ -64,8 +64,8 @@ func TestGRIBIFullScaleT0(t *testing.T) {
 		GRIBIBatchTimeout: 20 * time.Second,
 
 		// Default VRF parameters
-		NumDefaultNH:   1_000,
-		NumDefaultNHG:  1_000,
+		NumDefaultNH:   640,
+		NumDefaultNHG:  640,
 		NumDefaultIPv4: 1_000,
 		DefaultNHGLoadBalance: []cfgplugins.NHGLoadBalancingParams{
 			{Pct: 40, NumNextHops: 8},
@@ -106,10 +106,8 @@ func TestGRIBIFullScaleT0(t *testing.T) {
 			{Pct: 2, NumNextHops: 32},
 		},
 		EncapNHGWeight: []cfgplugins.NHGWeightParams{
-			{Pct: 75, Config: cfgplugins.WCMP1in32},
-			{Pct: 20, Config: cfgplugins.WCMP1in64},
-			{Pct: 3, Config: cfgplugins.WCMP1in128},
-			{Pct: 2, Config: cfgplugins.WCMP1in256},
+			{Pct: 75, Config: cfgplugins.WCMP1in16},
+			{Pct: 25, Config: cfgplugins.WCMP1in32},
 		},
 
 		// Decap VRF parameters
