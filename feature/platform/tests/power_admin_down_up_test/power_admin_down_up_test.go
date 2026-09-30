@@ -52,7 +52,7 @@ func setComponentPowerAdmin(t *testing.T, dut *ondatra.DUTDevice, name string, c
 	if !ok {
 		t.Fatalf("Unknown component type: %s", cType.String())
 	}
-	if deviations.PowerDisableEnableLeafRefValidation(dut) {
+	if deviations.PowerDisableEnableLeafRefValidation(dut) || deviations.ConfigLeafCreateRequired(dut) || dut.Vendor() == ondatra.JUNIPER {
 		testt.CaptureFatal(t, func(t testing.TB) {
 			gnmi.Update(t, dut, gnmi.OC().Component(name).Config(), &oc.Component{
 				Name: ygot.String(name),
@@ -93,26 +93,26 @@ func runPowerAdminTest(t *testing.T, dut *ondatra.DUTDevice, cType oc.E_Platform
 		if comp.GetOperStatus() == oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE {
 			activeRemovable = append(activeRemovable, name)
 		} else {
-			t.Logf("Component %s initially not ACTIVE (got %v); restoring POWER_ENABLED", name, comp.GetOperStatus())
+			t.Logf("Component %s initially not ACTIVE (got %v); cycling POWER_DISABLED -> POWER_ENABLED", name, comp.GetOperStatus())
+			setComponentPowerAdmin(t, dut, name, cType, oc.Platform_ComponentPowerType_POWER_DISABLED)
+			if _, state, ok := componentPowerConfigAndState(name, cType); ok {
+				testt.CaptureFatal(t, func(t testing.TB) {
+					gnmi.Await(t, dut, state, 15*time.Second, oc.Platform_ComponentPowerType_POWER_DISABLED)
+				})
+			}
 			setComponentPowerAdmin(t, dut, name, cType, oc.Platform_ComponentPowerType_POWER_ENABLED)
 			inactiveRemovable = append(inactiveRemovable, name)
 		}
 	}
 
-	// If no removable component was ACTIVE initially, wait for one of the healed components to become ACTIVE.
-	if len(activeRemovable) == 0 && len(inactiveRemovable) > 0 {
-		t.Logf("Waiting up to 10 minutes for restored %v component(s) %v to reach ACTIVE...", cType, inactiveRemovable)
-		deadline := time.Now().Add(10 * time.Minute)
-		for time.Now().Before(deadline) && len(activeRemovable) == 0 {
-			time.Sleep(10 * time.Second)
-			for _, name := range inactiveRemovable {
-				var oper oc.E_PlatformTypes_COMPONENT_OPER_STATUS
-				if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-					oper = gnmi.Get(t, dut, gnmi.OC().Component(name).OperStatus().State())
-				}); errMsg == nil && oper == oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE {
-					activeRemovable = append(activeRemovable, name)
-				}
-			}
+	// Wait for any healed removable components to become ACTIVE.
+	for _, target := range inactiveRemovable {
+		t.Logf("Waiting up to 10 minutes for restored %v component %s to reach ACTIVE...", cType, target)
+		if _, ok := gnmi.Watch(t, dut, gnmi.OC().Component(target).OperStatus().State(), 10*time.Minute, func(val *ygnmi.Value[oc.E_PlatformTypes_COMPONENT_OPER_STATUS]) bool {
+			oper, present := val.Val()
+			return present && oper == oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE
+		}).Await(t); ok {
+			activeRemovable = append(activeRemovable, target)
 		}
 	}
 
@@ -139,10 +139,6 @@ func runPowerAdminTest(t *testing.T, dut *ondatra.DUTDevice, cType oc.E_Platform
 
 func TestControllerCardPowerAdmin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-
-	if deviations.SkipControllerCardPowerAdmin(dut) {
-		t.Skipf("Power-admin-state config on controller card is not supported.")
-	}
 
 	rawCS := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
 	var cs []string
@@ -177,22 +173,11 @@ func TestControllerCardPowerAdmin(t *testing.T) {
 
 	// 1. Test Setup:
 	// Wait for both controller cards to be ACTIVE and redundant roles to be settled.
-	setupDeadline := time.Now().Add(15 * time.Minute)
-	for time.Now().Before(setupDeadline) {
-		allActive := true
-		for _, c := range cs {
-			var oper oc.E_PlatformTypes_COMPONENT_OPER_STATUS
-			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-				oper = gnmi.Get(t, dut, gnmi.OC().Component(c).OperStatus().State())
-			}); errMsg != nil || oper != oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE {
-				allActive = false
-				break
-			}
-		}
-		if allActive {
-			break
-		}
-		time.Sleep(10 * time.Second)
+	for _, c := range cs {
+		gnmi.Watch(t, dut, gnmi.OC().Component(c).OperStatus().State(), 15*time.Minute, func(val *ygnmi.Value[oc.E_PlatformTypes_COMPONENT_OPER_STATUS]) bool {
+			oper, present := val.Val()
+			return present && oper == oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE
+		}).Await(t)
 	}
 
 	// Find out the PRIMARY and SECONDARY Controller Cards using /components/component/state/redundant-role.
@@ -200,19 +185,14 @@ func TestControllerCardPowerAdmin(t *testing.T) {
 	t.Logf("Detected Active ControllerCard (PRIMARY): %s, Standby ControllerCard (SECONDARY): %s", activeCC, standbyCC)
 
 	// Wait up to 2 minutes for activeCC to report SwitchoverReady == true.
-	readyDeadline := time.Now().Add(2 * time.Minute)
-	for time.Now().Before(readyDeadline) {
-		var ready bool
-		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			if val, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(activeCC).SwitchoverReady().State()).Val(); ok {
-				ready = val
-			}
-		}); errMsg == nil && ready {
+	testt.CaptureFatal(t, func(t testing.TB) {
+		if _, ok := gnmi.Watch(t, dut, gnmi.OC().Component(activeCC).SwitchoverReady().State(), 2*time.Minute, func(val *ygnmi.Value[bool]) bool {
+			ready, present := val.Val()
+			return present && ready
+		}).Await(t); ok {
 			t.Logf("Active controller card %s SwitchoverReady: true", activeCC)
-			break
 		}
-		time.Sleep(5 * time.Second)
-	}
+	})
 
 	// Register a safety net configuration cleanup to restore primary & standby controllers to POWER_ENABLED.
 	// Use testt.CaptureFatal so cleanup does not fail on platforms that disallow setting power-admin-state on the active controller.
@@ -234,28 +214,35 @@ func TestControllerCardPowerAdmin(t *testing.T) {
 	// Wait up to 4 minutes to see if setting POWER_DISABLED on activeCC triggers a switchover or state change.
 	t.Logf("Checking if setting POWER_DISABLED on %s triggers a controller switchover...", activeCC)
 	switchoverTriggered := false
-	triggerDeadline := time.Now().Add(4 * time.Minute)
-	for time.Now().Before(triggerDeadline) {
-		time.Sleep(10 * time.Second)
-		var activeOper oc.E_PlatformTypes_COMPONENT_OPER_STATUS
-		var activeRole, standbyRole oc.E_Platform_ComponentRedundantRole
-		errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			activeOper = gnmi.Get(t, dut, gnmi.OC().Component(activeCC).OperStatus().State())
-			activeRole = gnmi.Get(t, dut, gnmi.OC().Component(activeCC).RedundantRole().State())
-			standbyRole = gnmi.Get(t, dut, gnmi.OC().Component(standbyCC).RedundantRole().State())
-		})
-		if errMsg != nil {
-			t.Logf("gNMI unreachable during controller card power-down (%s); switchover in progress", *errMsg)
+	triggerBatch := gnmi.OCBatch()
+	triggerBatch.AddPaths(
+		gnmi.OC().Component(activeCC).OperStatus(),
+		gnmi.OC().Component(activeCC).RedundantRole(),
+		gnmi.OC().Component(standbyCC).RedundantRole(),
+	)
+	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+		_, ok := gnmi.Watch(t, dut, triggerBatch.State(), 4*time.Minute, func(val *ygnmi.Value[*oc.Root]) bool {
+			root, present := val.Val()
+			if !present {
+				return false
+			}
+			aComp := root.GetComponent(activeCC)
+			sComp := root.GetComponent(standbyCC)
+			if aComp != nil && ((aComp.GetOperStatus() != oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET && aComp.GetOperStatus() != oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE) ||
+				(aComp.GetRedundantRole() != oc.Platform_ComponentRedundantRole_UNSET && aComp.GetRedundantRole() != oc.Platform_ComponentRedundantRole_PRIMARY)) {
+				return true
+			}
+			if sComp != nil && sComp.GetRedundantRole() == oc.Platform_ComponentRedundantRole_PRIMARY {
+				return true
+			}
+			return false
+		}).Await(t)
+		if ok {
 			switchoverTriggered = true
-			break
 		}
-		if activeOper != oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE ||
-			activeRole != oc.Platform_ComponentRedundantRole_PRIMARY ||
-			standbyRole == oc.Platform_ComponentRedundantRole_PRIMARY {
-			t.Logf("Switchover observed: %s oper=%v role=%v, %s role=%v", activeCC, activeOper, activeRole, standbyCC, standbyRole)
-			switchoverTriggered = true
-			break
-		}
+	}); errMsg != nil {
+		t.Logf("gNMI unreachable during controller card power-down (%s); switchover in progress", *errMsg)
+		switchoverTriggered = true
 	}
 
 	if !switchoverTriggered {
@@ -268,24 +255,26 @@ func TestControllerCardPowerAdmin(t *testing.T) {
 	t.Logf("Wait for switchover to complete (max 30 minutes)...")
 	components.WaitForSwitchover(t, dut, 30*time.Minute)
 
-	// Poll up to 15 minutes for standbyCC to report PRIMARY and activeCC to report DISABLED/INACTIVE.
-	roleDeadline := time.Now().Add(15 * time.Minute)
-	for time.Now().Before(roleDeadline) {
-		var standbyRole oc.E_Platform_ComponentRedundantRole
-		var activeOper oc.E_PlatformTypes_COMPONENT_OPER_STATUS
-		errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			standbyRole = gnmi.Get(t, dut, gnmi.OC().Component(standbyCC).RedundantRole().State())
-			if val, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(activeCC).OperStatus().State()).Val(); ok {
-				activeOper = val
-			}
-		})
-		if errMsg == nil && standbyRole == oc.Platform_ComponentRedundantRole_PRIMARY &&
-			(activeOper == oc.PlatformTypes_COMPONENT_OPER_STATUS_DISABLED || activeOper == oc.PlatformTypes_COMPONENT_OPER_STATUS_INACTIVE) {
-			t.Logf("Post-switchover state verified: %s role=%v, %s oper-status=%v", standbyCC, standbyRole, activeCC, activeOper)
-			break
+	// Wait up to 15 minutes for standbyCC to report PRIMARY and activeCC to report DISABLED/INACTIVE.
+	postSwitchoverBatch := gnmi.OCBatch()
+	postSwitchoverBatch.AddPaths(
+		gnmi.OC().Component(standbyCC).RedundantRole(),
+		gnmi.OC().Component(activeCC).OperStatus(),
+	)
+	gnmi.Watch(t, dut, postSwitchoverBatch.State(), 15*time.Minute, func(val *ygnmi.Value[*oc.Root]) bool {
+		root, present := val.Val()
+		if !present {
+			return false
 		}
-		time.Sleep(10 * time.Second)
-	}
+		sComp := root.GetComponent(standbyCC)
+		aComp := root.GetComponent(activeCC)
+		if sComp == nil || aComp == nil {
+			return false
+		}
+		activeOper := aComp.GetOperStatus()
+		return sComp.GetRedundantRole() == oc.Platform_ComponentRedundantRole_PRIMARY &&
+			(activeOper == oc.PlatformTypes_COMPONENT_OPER_STATUS_DISABLED || activeOper == oc.PlatformTypes_COMPONENT_OPER_STATUS_INACTIVE)
+	}).Await(t)
 
 	// Attempt to update power-admin-state to POWER_DISABLED for the newly elected PRIMARY controller card.
 	t.Logf("Attempting to update newly elected PRIMARY controller card %s config to POWER_DISABLED", standbyCC)
@@ -293,8 +282,13 @@ func TestControllerCardPowerAdmin(t *testing.T) {
 	if setErr != nil {
 		t.Logf("Set on newly elected PRIMARY controller card %s was rejected as expected: %s", standbyCC, *setErr)
 	} else {
-		t.Logf("Set on newly elected PRIMARY controller card %s was accepted; waiting 1 minute before restoring both controller cards to POWER_ENABLED", standbyCC)
-		time.Sleep(1 * time.Minute)
+		t.Logf("Set on newly elected PRIMARY controller card %s was accepted; waiting for switchover before restoring both controller cards to POWER_ENABLED", standbyCC)
+		testt.CaptureFatal(t, func(t testing.TB) {
+			gnmi.Watch(t, dut, gnmi.OC().Component(standbyCC).OperStatus().State(), 1*time.Minute, func(val *ygnmi.Value[oc.E_PlatformTypes_COMPONENT_OPER_STATUS]) bool {
+				oper, present := val.Val()
+				return present && oper != oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE
+			}).Await(t)
+		})
 		components.WaitForSwitchover(t, dut, 30*time.Minute)
 	}
 
@@ -304,33 +298,39 @@ func TestControllerCardPowerAdmin(t *testing.T) {
 	setComponentPowerAdmin(t, dut, standbyCC, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD, oc.Platform_ComponentPowerType_POWER_ENABLED)
 
 	// 3. Verification:
-	// Poll up to 20 minutes for both controller cards to recover to OperStatus == ACTIVE and valid PRIMARY/SECONDARY roles.
-	verifyDeadline := time.Now().Add(20 * time.Minute)
+	// Wait up to 20 minutes for both controller cards to recover to OperStatus == ACTIVE and valid PRIMARY/SECONDARY roles.
+	verifyBatch := gnmi.OCBatch()
+	for _, c := range cs {
+		verifyBatch.AddPaths(
+			gnmi.OC().Component(c).OperStatus(),
+			gnmi.OC().Component(c).RedundantRole(),
+		)
+	}
 	var recovered bool
-	for time.Now().Before(verifyDeadline) {
-		var oper0, oper1 oc.E_PlatformTypes_COMPONENT_OPER_STATUS
-		var role0, role1 oc.E_Platform_ComponentRedundantRole
-		errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			oper0 = gnmi.Get(t, dut, gnmi.OC().Component(cs[0]).OperStatus().State())
-			oper1 = gnmi.Get(t, dut, gnmi.OC().Component(cs[1]).OperStatus().State())
-			role0 = gnmi.Get(t, dut, gnmi.OC().Component(cs[0]).RedundantRole().State())
-			role1 = gnmi.Get(t, dut, gnmi.OC().Component(cs[1]).RedundantRole().State())
-		})
-		rolesValid := (role0 == oc.Platform_ComponentRedundantRole_PRIMARY && role1 == oc.Platform_ComponentRedundantRole_SECONDARY) ||
-			(role0 == oc.Platform_ComponentRedundantRole_SECONDARY && role1 == oc.Platform_ComponentRedundantRole_PRIMARY)
-		if errMsg == nil &&
-			oper0 == oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE &&
-			oper1 == oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE &&
-			rolesValid {
-			t.Logf("Operational status and redundant roles of controller cards have recovered successfully. %s: oper=%v role=%v, %s: oper=%v role=%v",
-				cs[0], oper0, role0, cs[1], oper1, role1)
-			recovered = true
-			break
+	for attempt := 0; attempt < 4 && !recovered; attempt++ {
+		if attempt > 0 {
+			setComponentPowerAdmin(t, dut, activeCC, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD, oc.Platform_ComponentPowerType_POWER_ENABLED)
+			setComponentPowerAdmin(t, dut, standbyCC, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD, oc.Platform_ComponentPowerType_POWER_ENABLED)
 		}
-		// Periodically re-apply POWER_ENABLED in case a controller card was still rebooting when the first Replace was sent.
-		setComponentPowerAdmin(t, dut, activeCC, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD, oc.Platform_ComponentPowerType_POWER_ENABLED)
-		setComponentPowerAdmin(t, dut, standbyCC, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD, oc.Platform_ComponentPowerType_POWER_ENABLED)
-		time.Sleep(15 * time.Second)
+		testt.CaptureFatal(t, func(t testing.TB) {
+			_, recovered = gnmi.Watch(t, dut, verifyBatch.State(), 5*time.Minute, func(val *ygnmi.Value[*oc.Root]) bool {
+				root, present := val.Val()
+				if !present {
+					return false
+				}
+				c0 := root.GetComponent(cs[0])
+				c1 := root.GetComponent(cs[1])
+				if c0 == nil || c1 == nil {
+					return false
+				}
+				role0, role1 := c0.GetRedundantRole(), c1.GetRedundantRole()
+				rolesValid := (role0 == oc.Platform_ComponentRedundantRole_PRIMARY && role1 == oc.Platform_ComponentRedundantRole_SECONDARY) ||
+					(role0 == oc.Platform_ComponentRedundantRole_SECONDARY && role1 == oc.Platform_ComponentRedundantRole_PRIMARY)
+				return c0.GetOperStatus() == oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE &&
+					c1.GetOperStatus() == oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE &&
+					rolesValid
+			}).Await(t)
+		})
 	}
 	if !recovered {
 		t.Errorf("Controller cards %v did not recover to ACTIVE with PRIMARY/SECONDARY roles within 20 minutes", cs)
@@ -349,7 +349,7 @@ func powerDownUp(t *testing.T, dut *ondatra.DUTDevice, name string, cType oc.E_P
 		setComponentPowerAdmin(t, dut, name, cType, oc.Platform_ComponentPowerType_POWER_ENABLED)
 	})
 
-	if deviations.PowerDisableEnableLeafRefValidation(dut) {
+	if deviations.PowerDisableEnableLeafRefValidation(dut) || deviations.ConfigLeafCreateRequired(dut) || dut.Vendor() == ondatra.JUNIPER {
 		gnmi.Update(t, dut, c.Config(), &oc.Component{
 			Name: ygot.String(name),
 		})
@@ -358,71 +358,68 @@ func powerDownUp(t *testing.T, dut *ondatra.DUTDevice, name string, cType oc.E_P
 	t.Logf("Starting %s POWER_DISABLE", name)
 	gnmi.Replace(t, dut, config, oc.Platform_ComponentPowerType_POWER_DISABLED)
 
-	// Allow hardware to initiate power-down before polling telemetry.
-	time.Sleep(30 * time.Second)
-
-	// Poll up to timeout for component oper-status to become DISABLED or INACTIVE.
-	downDeadline := time.Now().Add(timeout)
+	// Wait up to timeout for component oper-status to become DISABLED or INACTIVE.
+	downVal, isDown := gnmi.Watch(t, dut, c.OperStatus().State(), timeout, func(val *ygnmi.Value[oc.E_PlatformTypes_COMPONENT_OPER_STATUS]) bool {
+		oper, present := val.Val()
+		return present && (oper == oc.PlatformTypes_COMPONENT_OPER_STATUS_DISABLED || oper == oc.PlatformTypes_COMPONENT_OPER_STATUS_INACTIVE)
+	}).Await(t)
 	var downOper oc.E_PlatformTypes_COMPONENT_OPER_STATUS
-	var downPower oc.E_Platform_ComponentPowerType
-	var isDown bool
-	for time.Now().Before(downDeadline) {
-		testt.CaptureFatal(t, func(t testing.TB) {
-			if val, ok := gnmi.Lookup(t, dut, state).Val(); ok {
-				downPower = val
-			}
-			if val, ok := gnmi.Lookup(t, dut, c.OperStatus().State()).Val(); ok {
-				downOper = val
-			}
-		})
-		if downOper == oc.PlatformTypes_COMPONENT_OPER_STATUS_DISABLED ||
-			downOper == oc.PlatformTypes_COMPONENT_OPER_STATUS_INACTIVE {
-			isDown = true
-			break
-		}
-		time.Sleep(5 * time.Second)
+	if downVal != nil {
+		downOper, _ = downVal.Val()
 	}
+	var downPower oc.E_Platform_ComponentPowerType
+	testt.CaptureFatal(t, func(t testing.TB) {
+		if val, ok := gnmi.Lookup(t, dut, state).Val(); ok {
+			downPower = val
+		}
+	})
 	if !isDown {
 		t.Errorf("Component %s did not power down within %v; last oper-status=%v, power-admin-state=%v", name, timeout, downOper, downPower)
 	} else {
 		t.Logf("Component %s powered down after %.2f minutes: oper-status=%v, power-admin-state=%v", name, time.Since(start).Minutes(), downOper, downPower)
 	}
 
-	// Let hardware power-down settle completely before re-enabling so POWER_ENABLED does not race physical shutdown.
-	time.Sleep(15 * time.Second)
-
 	start = time.Now()
 	t.Logf("Starting %s POWER_ENABLE", name)
+	if deviations.PowerDisableEnableLeafRefValidation(dut) || deviations.ConfigLeafCreateRequired(dut) || dut.Vendor() == ondatra.JUNIPER {
+		gnmi.Update(t, dut, c.Config(), &oc.Component{
+			Name: ygot.String(name),
+		})
+	}
 	gnmi.Replace(t, dut, config, oc.Platform_ComponentPowerType_POWER_ENABLED)
 
-	// Poll up to timeout for component oper-status to return to ACTIVE.
-	upDeadline := time.Now().Add(timeout)
-	lastRetry := time.Now()
-	var upOper oc.E_PlatformTypes_COMPONENT_OPER_STATUS
-	var upPower oc.E_Platform_ComponentPowerType
+	// Wait up to timeout for component oper-status to return to ACTIVE.
 	var isUp bool
-	for time.Now().Before(upDeadline) {
-		testt.CaptureFatal(t, func(t testing.TB) {
-			if val, ok := gnmi.Lookup(t, dut, state).Val(); ok {
-				upPower = val
-			}
-			if val, ok := gnmi.Lookup(t, dut, c.OperStatus().State()).Val(); ok {
-				upOper = val
-			}
-		})
-		if upOper == oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE {
+	var upOper oc.E_PlatformTypes_COMPONENT_OPER_STATUS
+	retryInterval := 5 * time.Minute
+	for remaining := timeout; remaining > 0 && !isUp; remaining -= retryInterval {
+		waitDur := remaining
+		if waitDur > retryInterval {
+			waitDur = retryInterval
+		}
+		val, ok := gnmi.Watch(t, dut, c.OperStatus().State(), waitDur, func(val *ygnmi.Value[oc.E_PlatformTypes_COMPONENT_OPER_STATUS]) bool {
+			oper, present := val.Val()
+			return present && oper == oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE
+		}).Await(t)
+		if val != nil {
+			upOper, _ = val.Val()
+		}
+		if ok {
 			isUp = true
 			break
 		}
-		// If the component is still DISABLED after 5 minutes, re-apply POWER_ENABLED.
-		if upOper == oc.PlatformTypes_COMPONENT_OPER_STATUS_DISABLED && time.Since(lastRetry) >= 5*time.Minute {
+		if remaining > retryInterval {
 			t.Logf("Component %s still in oper-status=%v after %.2f minutes; re-applying POWER_ENABLED", name, upOper, time.Since(start).Minutes())
 			setComponentPowerAdmin(t, dut, name, cType, oc.Platform_ComponentPowerType_POWER_ENABLED)
-			lastRetry = time.Now()
 		}
-		time.Sleep(10 * time.Second)
 	}
 
+	var upPower oc.E_Platform_ComponentPowerType
+	testt.CaptureFatal(t, func(t testing.TB) {
+		if val, ok := gnmi.Lookup(t, dut, state).Val(); ok {
+			upPower = val
+		}
+	})
 	if !isUp {
 		t.Errorf("Component %s oper-status after POWER_ENABLED, got: %v, want: ACTIVE", name, upOper)
 	} else {
