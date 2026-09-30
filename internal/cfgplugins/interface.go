@@ -1581,11 +1581,11 @@ func NextAggregates(t *testing.T, dut *ondatra.DUTDevice, n int) ([]string, erro
 	numRE := regexp.MustCompile(`(\d+)$`)
 	loc := numRE.FindStringIndex(firstAgg)
 	if loc == nil {
-		return nil, fmt.Errorf("Cannot extract trailing integer from %q", firstAgg)
+		return nil, fmt.Errorf("cannot extract trailing integer from %q", firstAgg)
 	}
 	start, err := strconv.Atoi(firstAgg[loc[0]:loc[1]])
 	if err != nil {
-		return nil, fmt.Errorf("Cannot extract integer from %q: %v", firstAgg, err)
+		return nil, fmt.Errorf("cannot extract integer from %q: %v", firstAgg, err)
 	}
 	aggs := []string{firstAgg}
 	for i := start + 1; len(aggs) < n; i++ {
