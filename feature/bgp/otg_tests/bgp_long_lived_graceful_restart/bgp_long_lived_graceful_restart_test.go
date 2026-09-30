@@ -1027,6 +1027,9 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 			if deviations.RoutingRestartViaGnoiUnsupported(dut) {
 				t.Skip("Skipping routing restart via gNOI due to deviation")
 			}
+			if deviations.BgpRpdRestartDuringLlgrNotSupported(dut) {
+				t.Skip("Skipping BGP RPD restart during LLGR due to deviation")
+			}
 			gnoi.KillProcess(t, dut, gnoi.ROUTING, gnoi.SigTerm, true, true)
 		})
 

@@ -32,6 +32,7 @@ platform_exceptions: {
   }
   deviations: {
     bgp_llgr_oc_undefined: true
+    bgp_rpd_restart_during_llgr_not_supported: true
   }
 }
 platform_exceptions: {
