@@ -460,6 +460,13 @@ func TestPolarization(t *testing.T) {
 	agg1ID := aggIDs[0]
 	agg2ID := aggIDs[1]
 
+	t.Cleanup(func() {
+		flushGRIBIEntries(t, dut)
+		gnmi.Delete(t, dut, gnmi.OC().Interface(agg1ID).Config())
+		gnmi.Delete(t, dut, gnmi.OC().Interface(agg2ID).Config())
+		gnmi.Delete(t, dut, gnmi.OC().Interface("Loopback0").Config())
+	})
+
 	t.Log("=== Phase 1/4: Configuring DUT interfaces and LAGs ===")
 	t.Logf("LAG1=%s (port2,port3), LAG2=%s (port4,port5)", agg1ID, agg2ID)
 	configureDUT(t, dut, agg1ID, agg2ID)
@@ -468,12 +475,6 @@ func TestPolarization(t *testing.T) {
 	topo := configureATE(t, ate)
 
 	t.Log("=== Phase 3/4: Programming gRIBI entries ===")
-	t.Cleanup(func() {
-		flushGRIBIEntries(t, dut)
-		gnmi.Delete(t, dut, gnmi.OC().Interface(agg1ID).Config())
-		gnmi.Delete(t, dut, gnmi.OC().Interface(agg2ID).Config())
-		gnmi.Delete(t, dut, gnmi.OC().Interface("Loopback0").Config())
-	})
 	createGRIBIEntries(t, dut)
 	waitForDUTNextHops(t, dut, agg1ID, agg2ID)
 
