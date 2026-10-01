@@ -1,16 +1,17 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "f6e729a8-348b-4a57-b08e-1736b4859a11"
-plan_id: "SFLOW-2"
-description: "sFlow Egress Sampling Configuration and Verification"
-testbed: TESTBED_DUT_ATE_2LINKS
+uuid: "9c19b0d4-8d4e-4f1a-b673-f16cebc6da91"
+plan_id: "TE-11.4"
+description: "gRIBI BACKUP_ACTIVATE Hardware Convergence & FIB ACK Verification"
+testbed: TESTBED_DUT_ATE_4LINKS
 platform_exceptions: {
   platform: {
     vendor: CISCO
   }
   deviations: {
     ipv4_missing_enabled: true
+    interface_ref_interface_id_format: true
   }
 }
 platform_exceptions: {
@@ -18,9 +19,9 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
-    interface_enabled: true
+    explicit_interface_in_default_vrf: true
     static_protocol_name: "static"
-    sflow_egress_sampling_rate_unsupported: true
+    interface_enabled: true
   }
 }
 platform_exceptions: {
@@ -29,12 +30,12 @@ platform_exceptions: {
   }
   deviations: {
     omit_l2_mtu: true
+    static_protocol_name: "STATIC"
     interface_config_vrf_before_address: true
     interface_enabled: true
     default_network_instance: "default"
-    static_protocol_name: "STATIC"
-    sflow_source_address_update_unsupported: true
-    sflow_egress_sampling_rate_unsupported: true
-    fr_breakout_fix: true
+    backup_nhg_requires_vrf_with_decap: true
+    vrf_selection_policy_non_default_ni_unsupported: true
   }
 }
+tags: TAGS_TRANSIT
