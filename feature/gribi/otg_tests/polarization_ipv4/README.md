@@ -124,9 +124,15 @@ round:
 1.  **Perturb hash**: Apply a vendor-specific configuration change to
     alter how the DUT makes path selections.
 
-    | Vendor  | Mechanism                                      |
+    | Vendor  | Mechanism                                       |
     |---------|-------------------------------------------------|
-    | Cisco   | Loopback0 IP address change                    |
+    | Cisco   | Loopback0 IPv4 address change (OC, gNMI Replace) |
+
+    On Cisco the perturbation is pure OpenConfig: each round replaces
+    `/interfaces/interface[name=Loopback0]` with a new `/32` address
+    (`10.10.10.10`, `10.11.11.11`, ...). IOS-XR feeds the loopback address
+    into the ECMP hash, so every round uses a different hash input. See
+    the Canonical OC below for the Baseline round.
 
     Other vendors should add their implementation to `perturbHashConfig`
     in the test file.
@@ -173,9 +179,255 @@ port2 is captured and available for replay in the next round.
     receives significantly more or less than expected, indicating flows remained
     correlated (polarized) despite the hash perturbation.
 
+## Canonical OC
+
+DUT configuration pushed by the test, shown for the Baseline round.
+Interface names are placeholders. The test uses the testbed port names and
+the next free aggregate IDs. `Loopback0` carries the hash perturbation, and
+its `/32` address changes every round. The `neighbors` entries are `state`
+only: the test configures no static ARP and waits for the DUT to learn each
+gRIBI next-hop with ARP.
+
+```json
+{
+  "interfaces": {
+    "interface": [
+      {
+        "name": "port1",
+        "config": {
+          "name": "port1",
+          "description": "DUT Port 1",
+          "type": "ethernetCsmacd"
+        },
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "index": 0,
+              "config": {
+                "index": 0
+              },
+              "ipv4": {
+                "addresses": {
+                  "address": [
+                    {
+                      "ip": "192.0.2.1",
+                      "config": {
+                        "ip": "192.0.2.1",
+                        "prefix-length": 30
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "port2",
+        "config": {
+          "name": "port2",
+          "type": "ethernetCsmacd",
+          "enabled": true
+        },
+        "ethernet": {
+          "config": {
+            "aggregate-id": "lag1"
+          }
+        }
+      },
+      {
+        "name": "port3",
+        "config": {
+          "name": "port3",
+          "type": "ethernetCsmacd",
+          "enabled": true
+        },
+        "ethernet": {
+          "config": {
+            "aggregate-id": "lag1"
+          }
+        }
+      },
+      {
+        "name": "port4",
+        "config": {
+          "name": "port4",
+          "type": "ethernetCsmacd",
+          "enabled": true
+        },
+        "ethernet": {
+          "config": {
+            "aggregate-id": "lag2"
+          }
+        }
+      },
+      {
+        "name": "port5",
+        "config": {
+          "name": "port5",
+          "type": "ethernetCsmacd",
+          "enabled": true
+        },
+        "ethernet": {
+          "config": {
+            "aggregate-id": "lag2"
+          }
+        }
+      },
+      {
+        "name": "lag1",
+        "config": {
+          "name": "lag1",
+          "type": "ieee8023adLag",
+          "enabled": true
+        },
+        "aggregation": {
+          "config": {
+            "lag-type": "STATIC"
+          }
+        },
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "index": 0,
+              "config": {
+                "index": 0
+              },
+              "ipv4": {
+                "addresses": {
+                  "address": [
+                    {
+                      "ip": "198.19.1.1",
+                      "config": {
+                        "ip": "198.19.1.1",
+                        "prefix-length": 24
+                      }
+                    }
+                  ]
+                },
+                "neighbors": {
+                  "neighbor": [
+                    {
+                      "ip": "198.19.1.23",
+                      "state": {
+                        "ip": "198.19.1.23",
+                        "link-layer-address": "02:00:23:00:15:01"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "lag2",
+        "config": {
+          "name": "lag2",
+          "type": "ieee8023adLag",
+          "enabled": true
+        },
+        "aggregation": {
+          "config": {
+            "lag-type": "STATIC"
+          }
+        },
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "index": 0,
+              "config": {
+                "index": 0
+              },
+              "ipv4": {
+                "addresses": {
+                  "address": [
+                    {
+                      "ip": "198.19.2.1",
+                      "config": {
+                        "ip": "198.19.2.1",
+                        "prefix-length": 24
+                      }
+                    }
+                  ]
+                },
+                "neighbors": {
+                  "neighbor": [
+                    {
+                      "ip": "198.19.2.24",
+                      "state": {
+                        "ip": "198.19.2.24",
+                        "link-layer-address": "02:00:45:00:16:01"
+                      }
+                    },
+                    {
+                      "ip": "198.19.2.2",
+                      "state": {
+                        "ip": "198.19.2.2",
+                        "link-layer-address": "02:00:45:00:16:02"
+                      }
+                    },
+                    {
+                      "ip": "198.19.2.3",
+                      "state": {
+                        "ip": "198.19.2.3",
+                        "link-layer-address": "02:00:45:00:16:03"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "Loopback0",
+        "config": {
+          "name": "Loopback0",
+          "type": "softwareLoopback",
+          "enabled": true
+        },
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "index": 0,
+              "config": {
+                "index": 0,
+                "enabled": true
+              },
+              "ipv4": {
+                "addresses": {
+                  "address": [
+                    {
+                      "ip": "10.10.10.10",
+                      "config": {
+                        "ip": "10.10.10.10",
+                        "prefix-length": 32
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
+
 ## Config Parameter Coverage
 
-N/A (gRIBI-programmed forwarding; no OC config paths for hash seeding)
+*   Interfaces: name, description, type, enabled
+*   Subinterfaces: index, enabled, IPv4 address and prefix-length
+*   Static LAG: `aggregation/config/lag-type` and member
+    `ethernet/config/aggregate-id`
+*   Hash perturbation (Cisco): `Loopback0` subinterface IPv4 address,
+    replaced every round
 
 ## Telemetry Parameter Coverage
 
@@ -193,8 +445,11 @@ N/A
 ```yaml
 paths:
   /interfaces/interface/config/name:
+  /interfaces/interface/config/description:
   /interfaces/interface/config/type:
   /interfaces/interface/config/enabled:
+  /interfaces/interface/subinterfaces/subinterface/config/index:
+  /interfaces/interface/subinterfaces/subinterface/config/enabled:
   /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/ip:
   /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
   /interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/state/ip:
