@@ -852,6 +852,71 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
+func getDUTControlPlaneTimestamps(t *testing.T, args *testArgs) (prevBGPLastEstablished, prevISISUpTimestamp uint64) {
+	t.Helper()
+	dut := args.dut
+	bgpNbr := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
+		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(otgIsisPort8LoopV4)
+	prevBGPLastEstablished = gnmi.Get(t, dut, bgpNbr.LastEstablished().State())
+
+	dutISISIntf := dut.Port(t, "port8").Name()
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		dutISISIntf += ".0"
+	}
+	isisIntf := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
+		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis().Interface(dutISISIntf)
+	isisAdj := isisIntf.LevelAny().AdjacencyAny().State()
+	gnmi.WatchAll(t, dut, isisAdj, time.Minute,
+		func(val *ygnmi.Value[*oc.NetworkInstance_Protocol_Isis_Interface_Level_Adjacency]) bool {
+			adjState, present := val.Val()
+			if present {
+				prevISISUpTimestamp = adjState.GetUpTimestamp()
+				return true
+			}
+			return false
+		}).Await(t)
+	t.Logf("Before OTG push: BGP last-established=%d, ISIS up-timestamp=%d on %s",
+		prevBGPLastEstablished, prevISISUpTimestamp, dutISISIntf)
+	return prevBGPLastEstablished, prevISISUpTimestamp
+}
+
+// awaitDUTControlPlaneConvergence waits for DUT BGP and IS-IS sessions to reconverge after OTG protocols are restarted.
+func awaitDUTControlPlaneConvergence(t *testing.T, args *testArgs, prevBGPLastEstablished, prevISISUpTimestamp uint64) {
+	t.Helper()
+	dut := args.dut
+
+	t.Log("Verify BGP telemetry")
+	bgpNbr := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
+		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(otgIsisPort8LoopV4)
+	_, ok := gnmi.Watch(t, dut, bgpNbr.State(), time.Minute,
+		func(val *ygnmi.Value[*oc.NetworkInstance_Protocol_Bgp_Neighbor]) bool {
+			nbrState, present := val.Val()
+			return present && nbrState.GetSessionState() == oc.Bgp_Neighbor_SessionState_ESTABLISHED &&
+				nbrState.GetLastEstablished() > prevBGPLastEstablished
+		}).Await(t)
+	if !ok {
+		fptest.LogQuery(t, "BGP reported state", bgpNbr.State(), gnmi.Get(t, dut, bgpNbr.State()))
+	}
+
+	t.Log("Verify ISIS telemetry")
+	dutISISIntf := dut.Port(t, "port8").Name()
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		dutISISIntf += ".0"
+	}
+	isisIntf := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
+		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis().Interface(dutISISIntf)
+	isisAdj := isisIntf.LevelAny().AdjacencyAny().State()
+	_, ok = gnmi.WatchAll(t, dut, isisAdj, time.Minute,
+		func(val *ygnmi.Value[*oc.NetworkInstance_Protocol_Isis_Interface_Level_Adjacency]) bool {
+			adjState, present := val.Val()
+			return present && adjState.GetAdjacencyState() == oc.Isis_IsisInterfaceAdjState_UP &&
+				adjState.GetUpTimestamp() > prevISISUpTimestamp
+		}).Await(t)
+	if !ok {
+		t.Logf("IS-IS adjacency state on %s: %v", dutISISIntf, gnmi.GetAll(t, dut, isisAdj))
+	}
+}
+
 // configureOTG configures the topology of the ATE.
 func configureOTG(t testing.TB, otg *otg.OTG, atePorts []*ondatra.Port) gosnappi.Config {
 	t.Helper()
