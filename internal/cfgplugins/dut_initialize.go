@@ -52,6 +52,7 @@ const (
 	FeatureHierarchicalFIB
 	FeatureSecondaryDefaultLookup
 	FeatureAnpf
+	FeatureHighScale
 
 	aristaTcamProfileMplsTracking = `
 hardware counter feature traffic-policy in
@@ -195,7 +196,7 @@ hardware tcam
 
 	aristaTcamProfileVrfSelectionExtended = `
 hardware tcam
-   profile vrf-selection-with-ip6-sip
+   profile vrf-selection-with-extended-hashing
       feature acl port ip
          sequence 45
          key size limit 160
@@ -233,13 +234,13 @@ hardware tcam
          packet ipv4 forwarding bridged
          packet ipv4 forwarding routed
          packet ipv4 forwarding routed multicast
+         packet ipv4 ipv6 forwarding routed decap
          packet ipv4 mpls ipv4 forwarding mpls decap
          packet ipv4 mpls ipv6 forwarding mpls decap
          packet ipv4 non-vxlan forwarding routed decap
          packet ipv4 vxlan forwarding bridged decap
          packet ipv6 forwarding bridged
          packet ipv6 forwarding routed
-         packet ipv6 forwarding routed decap
          packet ipv6 forwarding routed multicast
          packet ipv6 ipv6 forwarding routed decap
          packet mpls forwarding bridged decap
@@ -284,6 +285,8 @@ hardware tcam
          sequence 85
       feature forwarding-destination mpls
          sequence 100
+      feature load-balance hash extended
+         packet all-active
       feature mirror ip
          sequence 80
          key size limit 160
@@ -341,6 +344,7 @@ hardware tcam
          sequence 70
          key field dst-ipv6 ipv6-next-header ipv6-traffic-class l4-dst-port l4-src-port src-ipv6-high src-ipv6-low
          action set-dscp set-policer set-tc
+         packet ipv4 ipv6 forwarding routed decap
          packet ipv6 forwarding routed
       feature tunnel vxlan
          sequence 50
@@ -349,13 +353,12 @@ hardware tcam
          packet ipv4 vxlan forwarding bridged decap
       feature vrf selection
          port qualifier size 8 bits
-      feature vrf selection extended
 	  !
-	system profile vrf-selection-with-ip6-sip
+	system profile vrf-selection-with-extended-hashing
 `
 
 	nokiaSecondaryDefaultLookup = `
-platform resource_management mdb-profile id 2
+platform resource-management mdb-profile id 2
 system datapath secondary-default-lookup admin-state enable
 `
 
@@ -1498,6 +1501,18 @@ router general
 !
    `
 
+const ciscoHighScale = `no hw-module profile cef cbf forward-class-list 0 5
+no hw-module profile cef sropt enable
+no hw-module profile cef dark-bw enable
+no hw-module profile cef te-tunnel highscale-no-ldp-over-te
+no hw-module profile route scale ipv6-unicast connected-prefix high
+hw-module profile cef hash ip-field-duplication
+hw-module profile pbr vrf-redirect
+hw-module profile qos qos-stats-push-collection
+hw-module profile cef iptunnel scale
+hw-module profile npu-compatibility Q200
+hw-module local-station-mac 0010.0010.0010`
+
 var (
 	aristaTcamProfileMap = map[FeatureType]string{
 		FeatureMplsTracking:           aristaTcamProfileMplsTracking,
@@ -1518,6 +1533,10 @@ var (
 
 	nokiaHardwareInitMap = map[FeatureType]string{
 		FeatureSecondaryDefaultLookup: nokiaSecondaryDefaultLookup,
+	}
+
+	ciscoHardwareInitMap = map[FeatureType]string{
+		FeatureHighScale: ciscoHighScale,
 	}
 )
 
@@ -1549,6 +1568,8 @@ func NewDUTHardwareInit(t *testing.T, dut *ondatra.DUTDevice, feature FeatureTyp
 		return aristaTcamProfileMap[feature]
 	case ondatra.NOKIA:
 		return nokiaHardwareInitMap[feature]
+	case ondatra.CISCO:
+		return ciscoHardwareInitMap[feature]
 	default:
 		return ""
 	}
