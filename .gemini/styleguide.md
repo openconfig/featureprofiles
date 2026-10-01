@@ -1,4 +1,5 @@
-### **1. General Coding & Contribution Guidelines**
+
+      ### **1. General Coding & Contribution Guidelines**
 
 **Source:** `CONTRIBUTING.md`
 
@@ -111,43 +112,42 @@
     *   **Do not use:** `1.1.1.1`, `8.8.8.8`, or common local private ranges
         like `192.168.0.0/16`.
 
-* **Configuration & Cleanup**
+*   **Configuration & Cleanup**
+    *   **Mandatory State Reversion:** Tests must always leave the system in the exact original state it was in prior to the test execution, regardless of whether the test passes or fails. This requirement applies to both standard gNMI `Set` configurations and raw/native CLI commands (e.g., using `helpers.GnmiCLIConfig`). The PR MUST include corresponding cleanup operations to revert any changes made during the test.
+    *   **OTG Interface State Reversion:**
+        - **Anti-pattern:** Modifying Open Traffic Generator (OTG) port link states (e.g., setting link state to DOWN) without a deferred cleanup. If the test fails or times out mid-run prior to sequential restoration, the OTG port is left disabled, potentially breaking subsequent tests.
+        - **Correction:** OTG interfaces MUST be explicitly guaranteed to be brought back UP via deferred cleanup functions immediately after modifying them. 
+        - **BAD (Do not do this):**
 
-	+ **Mandatory State Reversion:** Tests must always leave the system in the exact original state it was in prior to the test execution, regardless of whether the test passes or fails. This requirement applies to both standard gNMI `Set` configurations and raw/native CLI commands (e.g., using `helpers.GnmiCLIConfig`). The PR MUST include corresponding cleanup operations to revert any changes made during the test.
-	+ **OTG Interface State Reversion:**
-		- **Anti-pattern:** Modifying Open Traffic Generator (OTG) port link states (e.g., setting link state to DOWN) without a deferred cleanup. If the test fails or times out mid-run prior to sequential restoration, the OTG port is left disabled, potentially breaking subsequent tests.
-		- **Correction:** OTG interfaces MUST be explicitly guaranteed to be brought back UP via deferred cleanup functions immediately after modifying them. 
-		- **BAD (Do not do this):**
+        ```go
+        portAction := gosnappi.NewControlState()
+        portAction.Port().Link().SetPortNames([]string{atePort.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
+        ate.OTG().SetControlState(t, portAction)
+        
+        // ... mid-run test execution that might panic or fail ...
+        
+        // If a failure occurs above, this code is never reached and the port remains DOWN.
+        portAction.Port().Link().SetState(gosnappi.StatePortLinkState.UP)
+        ate.OTG().SetControlState(t, portAction)
+        ```
+        - **GOOD (Do this instead):**
 
-		```go
-		portAction := gosnappi.NewControlState()
-		portAction.Port().Link().SetPortNames([]string{atePort.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
-		ate.OTG().SetControlState(t, portAction)
-		
-		// ... mid-run test execution that might panic or fail ...
-		
-		// If a failure occurs above, this code is never reached and the port remains DOWN.
-		portAction.Port().Link().SetState(gosnappi.StatePortLinkState.UP)
-		ate.OTG().SetControlState(t, portAction)
-		```
-		- **GOOD (Do this instead):**
-
-		```go
-		portAction := gosnappi.NewControlState()
-		portAction.Port().Link().SetPortNames([]string{atePort.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
-		ate.OTG().SetControlState(t, portAction)
-		
-		// Immediately defer the restoration to UP
-		defer func() {
-		    restoreAction := gosnappi.NewControlState()
-		    restoreAction.Port().Link().SetPortNames([]string{atePort.ID()}).SetState(gosnappi.StatePortLinkState.UP)
-		    ate.OTG().SetControlState(t, restoreAction)
-		}()
-		```
-	+ **SSH and AAA State:** Pay special attention to AAA and SSH configurations. If a test modifies SSH authentication (e.g., `management ssh authentication protocol password`), the cleanup routine MUST explicitly negate that specific command (e.g., `management ssh \n no authentication protocol`) rather than relying on generic default commands that might wipe baseline lab configurations.
-	+ **Use `t.Cleanup()`:** All cleanup operations, whether for gNMI configurations or raw CLI commands, must be registered using `t.Cleanup()` to guarantee they are executed even if the test fails or panics early.
-	+ **README Cleanup Specification:** All test plan `README.md` files must explicitly include a cleanup/teardown step (or `### Cleanup` section) specifying that any state or configuration modified during the test (e.g., disabled interfaces, drained links, altered protocol states) is reverted and the DUT is restored to its baseline operational state upon test completion. Reviewers must flag `README.md` test plans that leave interfaces or protocols in a degraded/disabled state without an explicit cleanup step.
-
+        ```go
+        portAction := gosnappi.NewControlState()
+        portAction.Port().Link().SetPortNames([]string{atePort.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
+        ate.OTG().SetControlState(t, portAction)
+        
+        // Immediately defer the restoration to UP
+        defer func() {
+            restoreAction := gosnappi.NewControlState()
+            restoreAction.Port().Link().SetPortNames([]string{atePort.ID()}).SetState(gosnappi.StatePortLinkState.UP)
+            ate.OTG().SetControlState(t, restoreAction)
+        }()
+        ```
+    *   **SSH and AAA State:** Pay special attention to AAA and SSH configurations. If a test modifies SSH authentication (e.g., `management ssh authentication protocol password`), the cleanup routine MUST explicitly negate that specific command (e.g., `management ssh \n no authentication protocol`) rather than relying on generic default commands that might wipe baseline lab configurations.
+    *   **Use `t.Cleanup()`:** All cleanup operations, whether for gNMI configurations or raw CLI commands, must be registered using `t.Cleanup()` to guarantee they are executed even if the test fails or panics early.
+    *   **README Cleanup Specification:** All test plan `README.md` files must explicitly include a cleanup/teardown step (or `### Cleanup` section) specifying that any state or configuration modified during the test (e.g., disabled interfaces, drained links, altered protocol states) is reverted and the DUT is restored to its baseline operational state upon test completion. Reviewers must flag `README.md` test plans that leave interfaces or protocols in a degraded/disabled state without an explicit cleanup step.
+    
 *   **Bug references:**
 
     * References to bugs may be made using deviations.  Accessible URL format should be used, such as https://issuetracker.google.com/xxxx format links in the internal/deviations/deviations.textproto file.
