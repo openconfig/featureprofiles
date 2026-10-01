@@ -1,5 +1,4 @@
-
-      ### **1. General Coding & Contribution Guidelines**
+### **1. General Coding & Contribution Guidelines**
 
 **Source:** `CONTRIBUTING.md`
 
