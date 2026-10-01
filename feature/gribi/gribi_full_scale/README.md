@@ -212,9 +212,9 @@ network-instances {
 - Add `NumEncapVRFs` VRFs for encapsulations (e.g. from `ENCAP_TE_VRF_A` to `ENCAP_TE_VRF_<last_char>`).
 - Add 1 VRF for decapsulation: `DECAP_TE_VRF`.
 - Inject `NumEncapIPv4PerVRF` IPv4Entries and `NumEncapIPv6PerVRF` IPv6Entries to each of the Encap VRFs.
-- The entries in the Encap VRFs point to NextHopGroups in the default VRF. Inject `NumEncapDefaultNHG` NextHopGroups in the default VRF.
+- The entries in the Encap VRFs point to NextHopGroups in the default VRF. Inject `NumEncapNHGPerVRF` NextHopGroups per Encap VRF in the default VRF.
 - Each NextHopGroup should have a number of NextHops where each NextHop should do encapsulation, update src ip to `ipv4_outer_src_111` and point to a tunnel in the `TE_VRF_111`. In addition, weights specified in the NextHopGroup should be co-prime and have the granularity defined in each target README.
-- Overall the number of unique encapsulation NHs should be `NumUniqueEncapNH`.
+- The number of unique encapsulation NHs per Encap VRF should be `NumEncapNHPerVRF`.
 - Inject `NumDecapEntries` IPv4 entries in the `DECAP_TE_VRF` with a mix of prefix lengths (`/22`, `/24`, `/26`, and `/28`).
 - Each NHG points to 1 NH to decapsulate and output to a port.
 
