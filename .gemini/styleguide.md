@@ -25,6 +25,12 @@
     *   Tests must be nested under `tests/` or `otg_tests/` directories.
     *   Organization format:
         `feature/<featurename>/[<sub-feature>/]<tests|otg_tests|kne_tests>/<test_name>/<test_name>.go`.
+    *   Adding sub-feature folders is preferred over creating new feature
+        folders.  Before adding a new feature folder, scan the existing
+        folders for a suitable match
+    *   If a new top level feature is introduced, `.github/CODEOWNERS`
+        must also be updated to specify who the owners of the feature
+        will be.
 
 *   **Code Should Follow The Test README:**
 
