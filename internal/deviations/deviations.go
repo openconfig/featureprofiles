@@ -1309,11 +1309,6 @@ func SrIgpConfigUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSrIgpConfigUnsupported()
 }
 
-// SetISISAuthWithInterfaceAuthenticationContainer returns true if Isis Authentication is blocked for one level specific config for P2P links, and the corresponding hello-authentication leafs can be set with ISIS Interface/Authentication container.
-func SetISISAuthWithInterfaceAuthenticationContainer(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSetIsisAuthWithInterfaceAuthenticationContainer()
-}
-
 // GreGueTunnelInterfaceOcUnsupported returns true if GRE/GUE tunnel interface oc is unsupported
 func GreGueTunnelInterfaceOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGreGueTunnelInterfaceOcUnsupported()
@@ -1595,6 +1590,13 @@ func IsisSrNoPhpRequired(dut *ondatra.DUTDevice) bool {
 // SflowIngressMinSamplingRate returns the minimum sampling rate supported for sflow ingress on the device.
 func SflowIngressMinSamplingRate(dut *ondatra.DUTDevice) uint32 {
 	return lookupDUTDeviations(dut).GetSflowIngressMinSamplingRate()
+}
+
+// SflowEgressSamplingRateUnsupported returns true if the device does not support
+// configuring the sFlow egress sampling rate through OpenConfig.
+// Arista EOS: b/562517133.
+func SflowEgressSamplingRateUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSflowEgressSamplingRateUnsupported()
 }
 
 // QosRemarkOCUnsupported returns true if Qos remark parameters are unsupported
