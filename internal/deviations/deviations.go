@@ -1713,6 +1713,11 @@ func SyslogOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSyslogOcUnsupported()
 }
 
+// VtyLoggingUnsupported returns true if the device does not support /system/logging/vty.
+func VtyLoggingUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetVtyLoggingUnsupported()
+}
+
 // SIDPerInterfaceCounterUnsupported return true if device does not supprt mpls/signaling-protocols/segment-routing/interfaces/interface/sid-counters/sid-counter/
 func SIDPerInterfaceCounterUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSidPerInterfaceCounterUnsupported()
