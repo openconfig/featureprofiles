@@ -716,7 +716,10 @@ message Metadata {
     // Cisco b/390502067
     bool sr_igp_config_unsupported = 260;
 
-    reserved 261;
+    // Cisco: b/404301960
+    // Devices that block one IS-IS level specific authentication config attribute for P2P links.
+    // The same leafs can be set directly under ISIS Interface authentication /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication.
+    bool set_isis_auth_with_interface_authentication_container = 261;
 
     // Devices that do not support GRE/GUE tunnel interface oc.
     // Juniper b/398171114
@@ -1486,6 +1489,10 @@ message Metadata {
     // Arista: https://partnerissuetracker.corp.google.com/issues/562517133
     bool sflow_egress_sampling_rate_unsupported = 460;
 
+    // Device does not support generating ICMP TTL Exceeded messages for decapsulated packets
+    // when the inner/MPLS TTL expires after decapsulation (e.g. GRE and MPLS-in-UDP decap cases).
+    bool decap_icmp_ttl_exceeded_unsupported = 461;
+    
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }
