@@ -287,7 +287,7 @@ func TestEstablish(t *testing.T) {
 	t.Log("Configure Network Instance type to DEFAULT on DUT.")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	t.Log("Build Benchmarking BGP and ISIS test configs.")
-	dutBenchmarkConfig := setup.BuildBenchmarkingConfigWithInterfaceAuthentication(t)
+	dutBenchmarkConfig := setup.BuildBenchmarkingConfig(t)
 	if !deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.LogQuery(t, "Benchmarking configs to configure on DUT", dutConfigPath.Config(), dutBenchmarkConfig)
 	}

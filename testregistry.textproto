@@ -410,8 +410,9 @@ test: {
 }
 test: {
   id: "Hashing"
-  description: "Dataplane Hashing with Physical/Software Loopbacks"
+  description: "Dataplane Hashing with Physical Loopbacks"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/hashing_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/hashing_test/hashing_test.go"
 }
 test: {
   id: "Health-1.1"
@@ -811,15 +812,30 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_rt_membership/README.md"
 }
 test: {
+  id: "RT-1.107"
+  description: "BGP FIB Isolation and Peer Soft Drain"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_fib_isolation_and_drain_test/README.md"
+}
+test: {
   id: "RT-1.108"
   description: "Two-Tier BGP Route Propagation and Attribute Transparency"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_two_tier_route_propagation_test/README.md"
+}
+test: {
+  id: "RT-1.109"
+  description: "BGP Streaming Telemetry and Operational State Verification"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_streaming_telemetry_test/README.md"
 }
 test: {
   id: "RT-1.11"
   description: "BGP remove private AS"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_remove_private_as/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_remove_private_as/bgp_remove_private_as_test.go"
+}
+test: {
+  id: "RT-1.110"
+  description: "Single-Hop BFD over eBGP Subinterfaces"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_single_hop_bfd_test/README.md"
 }
 test: {
   id: "RT-1.12"
@@ -1118,6 +1134,11 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/otg_tests/isis_scale_multi_adjacency_test/isis_scale_multi_adjacency_test.go"
 }
 test: {
+  id: "RT-2.19"
+  description: "IS-IS Suppress Interface Reachability"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/otg_tests/isis_suppress_interface_reachability_test/README.md"
+}
+test: {
   id: "RT-2.2"
   description: "IS-IS LSP Updates"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/otg_tests/lsp_updates_test/README.md"
@@ -1413,6 +1434,7 @@ test: {
   id: "SFLOW-2"
   description: "sFlow Egress Sampling Configuration and Verification"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/sflow/otg_tests/sflow_egress_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/sflow/otg_tests/sflow_egress_test/sflow_egress_test.go"
 }
 test: {
   id: "SR-1.1"
@@ -1566,6 +1588,11 @@ test: {
   description: "Backup NHG: Actions with PBF"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/backup_nhg_action_pbf/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/backup_nhg_action_pbf/backup_nhg_action_pbf_test.go"
+}
+test: {
+  id: "TE-11.4"
+  description: "gRIBI BACKUP_ACTIVATE Hardware Convergence & FIB ACK Verification"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/backup_nhg_trigger_test/README.md"
 }
 test: {
   id: "TE-13.1"

@@ -110,16 +110,6 @@ func nextIP(ip net.IP, hostIndex int, subnetIndex int) net.IP {
 
 // BuildBenchmarkingConfig builds required configuration for DUT interfaces, ISIS and BGP.
 func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
-	return buildBenchmarkingConfig(t, false)
-}
-
-// BuildBenchmarkingConfigWithInterfaceAuthentication builds the benchmarking
-// configuration with IS-IS authentication at the interface level.
-func BuildBenchmarkingConfigWithInterfaceAuthentication(t *testing.T) *oc.Root {
-	return buildBenchmarkingConfig(t, true)
-}
-
-func buildBenchmarkingConfig(t *testing.T, useInterfaceAuthentication bool) *oc.Root {
 	dut := ondatra.DUT(t, "dut")
 	d := &oc.Root{}
 
@@ -250,19 +240,11 @@ func buildBenchmarkingConfig(t *testing.T, useInterfaceAuthentication bool) *oc.
 
 		isisIntfLevel := isisIntf.GetOrCreateLevel(2)
 		isisIntfLevel.Enabled = ygot.Bool(true)
-		if useInterfaceAuthentication {
-			isisIntfAuth := isisIntf.GetOrCreateAuthentication()
-			isisIntfAuth.Enabled = ygot.Bool(true)
-			isisIntfAuth.AuthPassword = ygot.String(authPassword)
-			isisIntfAuth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
-			isisIntfAuth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
-		} else {
-			isisIntfLevelAuth := isisIntfLevel.GetOrCreateHelloAuthentication()
-			isisIntfLevelAuth.Enabled = ygot.Bool(true)
-			isisIntfLevelAuth.AuthPassword = ygot.String(authPassword)
-			isisIntfLevelAuth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
-			isisIntfLevelAuth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
-		}
+		isisIntfAuth := isisIntf.GetOrCreateAuthentication()
+		isisIntfAuth.Enabled = ygot.Bool(true)
+		isisIntfAuth.AuthPassword = ygot.String(authPassword)
+		isisIntfAuth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
+		isisIntfAuth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
 
 		isisIntfLevelTimers := isisIntfLevel.GetOrCreateTimers()
 		isisIntfLevelTimers.HelloInterval = ygot.Uint32(1)
