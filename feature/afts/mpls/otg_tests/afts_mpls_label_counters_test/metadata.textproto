@@ -1,0 +1,7 @@
+# proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "7f8b4a1e-9c3d-4e5a-8b2f-6d1c0e9a3b4c"
+plan_id: "AFT-4.1"
+description: "AFT MPLS Label Entry Counters"
+testbed: TESTBED_DUT_ATE_2LINKS
