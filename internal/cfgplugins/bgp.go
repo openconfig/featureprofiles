@@ -671,7 +671,7 @@ func VerifyPortsUp(t *testing.T, dev *ondatra.Device) {
 
 // DeviationAristaBGPNeighborMaxPrefixes updates the max-prefixes of a specific BGP neighbor.
 // This is an Arista specific augmented model which sets the following path:
-// /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/prefix-limit/config/max-prefixes
+// /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/prefix-limit-received/config/max-prefixes
 // Set max-prefixes to 0 will mean no limit will be set.
 // Tracking the removal of this deviation in b/438620249
 func DeviationAristaBGPNeighborMaxPrefixes(t *testing.T, dut *ondatra.DUTDevice, neighborIP string, maxPrefixes uint32) {
@@ -686,7 +686,7 @@ func DeviationAristaBGPNeighborMaxPrefixes(t *testing.T, dut *ondatra.DUTDevice,
 					{Name: "bgp"},
 					{Name: "neighbors"},
 					{Name: "neighbor", Key: map[string]string{"neighbor-address": neighborIP}},
-					{Name: "prefix-limit"},
+					{Name: "prefix-limit-received"},
 					{Name: "config"},
 					{Name: "max-prefixes"},
 				},
