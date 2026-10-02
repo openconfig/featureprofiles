@@ -28,6 +28,7 @@ import (
 	"github.com/google/gopacket/pcap"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
@@ -681,6 +682,8 @@ func configNonDefaultNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 // configureDUT configures port1-8 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
+	cfgplugins.ConfigureDecapVrfSelection(t, dut)
+
 	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1")
