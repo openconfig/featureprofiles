@@ -2383,6 +2383,11 @@ func P4RTAaaRoleBasedAuthzUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetP4RtAaaRoleBasedAuthzUnsupported()
 }
 
+// RouteReflectorClientOCUnsupported returns true if the device does not support OC config for BGP route-reflector-client.
+// Juniper: https://partnerissuetracker.corp.google.com/issues/534122367
+func RouteReflectorClientUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetRouteReflectorClientUnsupported()
+  
 // AIGPRouteMetricNotSupported returns true if AIGP route metric is not supported.
 func AIGPRouteMetricNotSupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAigpRouteMetricNotSupported()
