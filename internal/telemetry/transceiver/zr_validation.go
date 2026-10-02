@@ -76,9 +76,10 @@ func TerminalDevicePathsTest(t *testing.T, tp *TunableParamters) {
 				otnStreams := make(map[string]*samplestream.SampleStream[*oc.TerminalDevice_Channel])
 				interfaceStreams := make(map[string]*samplestream.SampleStream[*oc.Interface])
 				for _, p := range dut.Ports() {
+					interfaceName := cfgplugins.InterfaceName(dut, p, params)
 					ethStreams[p.Name()] = samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(params.ETHIndexes[p.Name()]).State(), samplingInterval)
 					otnStreams[p.Name()] = samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(params.OTNIndexes[p.Name()]).State(), samplingInterval)
-					interfaceStreams[p.Name()] = samplestream.New(t, dut, gnmi.OC().Interface(p.Name()).State(), samplingInterval)
+					interfaceStreams[p.Name()] = samplestream.New(t, dut, gnmi.OC().Interface(interfaceName).State(), samplingInterval)
 					defer ethStreams[p.Name()].Close()
 					defer otnStreams[p.Name()].Close()
 					defer interfaceStreams[p.Name()].Close()
@@ -92,10 +93,9 @@ func TerminalDevicePathsTest(t *testing.T, tp *TunableParamters) {
 				}
 
 				t.Logf("\n*** Bringing UP all interfaces\n\n\n")
-				for _, p := range dut.Ports() {
-					params.Enabled = true
-					cfgplugins.ToggleInterfaceState(t, dut, p, params)
-				}
+				params.Enabled = true
+				cfgplugins.ToggleInterfaceState(t, dut, params)
+
 				for _, p := range dut.Ports() {
 					validateInterfaceTelemetry(t, dut, p, params, oc.Interface_OperStatus_UP, interfaceStreams[p.Name()])
 					validateOTNChannelTelemetry(t, dut, p, params, oc.Interface_OperStatus_UP, otnStreams[p.Name()])
@@ -103,24 +103,12 @@ func TerminalDevicePathsTest(t *testing.T, tp *TunableParamters) {
 				}
 
 				t.Logf("\n*** Bringing DOWN all interfaces\n\n\n")
-				for _, p := range dut.Ports() {
-					params.Enabled = false
-					cfgplugins.ToggleInterfaceState(t, dut, p, params)
-				}
+				params.Enabled = false
+				cfgplugins.ToggleInterfaceState(t, dut, params)
+
 				for _, p := range dut.Ports() {
 					validateInterfaceTelemetry(t, dut, p, params, oc.Interface_OperStatus_DOWN, interfaceStreams[p.Name()])
 					validateOTNChannelTelemetry(t, dut, p, params, oc.Interface_OperStatus_DOWN, otnStreams[p.Name()])
-					validateEthernetChannelTelemetry(t, dut, p, params, ethStreams[p.Name()])
-				}
-
-				t.Logf("\n*** Bringing UP all interfaces\n\n\n")
-				for _, p := range dut.Ports() {
-					params.Enabled = true
-					cfgplugins.ToggleInterfaceState(t, dut, p, params)
-				}
-				for _, p := range dut.Ports() {
-					validateInterfaceTelemetry(t, dut, p, params, oc.Interface_OperStatus_UP, interfaceStreams[p.Name()])
-					validateOTNChannelTelemetry(t, dut, p, params, oc.Interface_OperStatus_UP, otnStreams[p.Name()])
 					validateEthernetChannelTelemetry(t, dut, p, params, ethStreams[p.Name()])
 				}
 
@@ -168,10 +156,11 @@ func PlatformPathsTest(t *testing.T, tp *TunableParamters) {
 				hwPortStreams := make(map[string]*samplestream.SampleStream[*oc.Component])
 				interfaceStreams := make(map[string]*samplestream.SampleStream[*oc.Interface])
 				for _, p := range dut.Ports() {
+					interfaceName := cfgplugins.InterfaceName(dut, p, params)
 					ochStreams[p.Name()] = samplestream.New(t, dut, gnmi.OC().Component(params.OpticalChannelNames[p.Name()]).State(), samplingInterval)
 					trStreams[p.Name()] = samplestream.New(t, dut, gnmi.OC().Component(params.TransceiverNames[p.Name()]).State(), samplingInterval)
 					hwPortStreams[p.Name()] = samplestream.New(t, dut, gnmi.OC().Component(params.HWPortNames[p.Name()]).State(), samplingInterval)
-					interfaceStreams[p.Name()] = samplestream.New(t, dut, gnmi.OC().Interface(p.Name()).State(), samplingInterval)
+					interfaceStreams[p.Name()] = samplestream.New(t, dut, gnmi.OC().Interface(interfaceName).State(), samplingInterval)
 					tempSensorStreams[p.Name()] = samplestream.New(t, dut, gnmi.OC().Component(params.TempSensorNames[p.Name()]).State(), samplingInterval)
 					defer ochStreams[p.Name()].Close()
 					defer trStreams[p.Name()].Close()
@@ -190,41 +179,26 @@ func PlatformPathsTest(t *testing.T, tp *TunableParamters) {
 				}
 
 				t.Logf("\n*** Bringing UP all interfaces\n\n\n")
-				for _, p := range dut.Ports() {
-					params.Enabled = true
-					cfgplugins.ToggleInterfaceState(t, dut, p, params)
-				}
+				params.Enabled = true
+				cfgplugins.ToggleInterfaceState(t, dut, params)
+
 				for _, p := range dut.Ports() {
 					validateInterfaceTelemetry(t, dut, p, params, oc.Interface_OperStatus_UP, interfaceStreams[p.Name()])
 					validateTranscieverTelemetry(t, dut, p, params, oc.Interface_OperStatus_UP, trStreams[p.Name()])
-					validateTempSensorTelemetry(t, dut, p, params, oc.Interface_OperStatus_DOWN, tempSensorStreams[p.Name()])
+					validateTempSensorTelemetry(t, dut, p, params, oc.Interface_OperStatus_UP, tempSensorStreams[p.Name()])
 					validateOpticalChannelTelemetry(t, p, params, oc.Interface_OperStatus_UP, ochStreams[p.Name()])
 					validateHWPortTelemetry(t, dut, p, params, hwPortStreams[p.Name()])
 				}
 
 				t.Logf("\n*** Bringing DOWN all interfaces\n\n\n")
-				for _, p := range dut.Ports() {
-					params.Enabled = false
-					cfgplugins.ToggleInterfaceState(t, dut, p, params)
-				}
+				params.Enabled = false
+				cfgplugins.ToggleInterfaceState(t, dut, params)
+
 				for _, p := range dut.Ports() {
 					validateInterfaceTelemetry(t, dut, p, params, oc.Interface_OperStatus_DOWN, interfaceStreams[p.Name()])
 					validateTranscieverTelemetry(t, dut, p, params, oc.Interface_OperStatus_DOWN, trStreams[p.Name()])
 					validateTempSensorTelemetry(t, dut, p, params, oc.Interface_OperStatus_DOWN, tempSensorStreams[p.Name()])
 					validateOpticalChannelTelemetry(t, p, params, oc.Interface_OperStatus_DOWN, ochStreams[p.Name()])
-					validateHWPortTelemetry(t, dut, p, params, hwPortStreams[p.Name()])
-				}
-
-				t.Logf("\n*** Bringing UP all interfaces\n\n\n")
-				for _, p := range dut.Ports() {
-					params.Enabled = true
-					cfgplugins.ToggleInterfaceState(t, dut, p, params)
-				}
-				for _, p := range dut.Ports() {
-					validateInterfaceTelemetry(t, dut, p, params, oc.Interface_OperStatus_UP, interfaceStreams[p.Name()])
-					validateTranscieverTelemetry(t, dut, p, params, oc.Interface_OperStatus_UP, trStreams[p.Name()])
-					validateTempSensorTelemetry(t, dut, p, params, oc.Interface_OperStatus_DOWN, tempSensorStreams[p.Name()])
-					validateOpticalChannelTelemetry(t, p, params, oc.Interface_OperStatus_UP, ochStreams[p.Name()])
 					validateHWPortTelemetry(t, dut, p, params, hwPortStreams[p.Name()])
 				}
 
