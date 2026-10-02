@@ -118,6 +118,11 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/otg_tests/afts_atomic/afts_atomic_test.go"
 }
 test: {
+  id: "AFT-4.1"
+  description: "AFT MPLS Label Entry Counters"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/mpls/otg_tests/afts_mpls_label_counters_test/README.md"
+}
+test: {
   id: "AFT-5.1"
   description: "AFTs DUT Reboot"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/otg_tests/afts_reboot/README.md"
