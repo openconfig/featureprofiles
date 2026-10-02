@@ -1330,9 +1330,11 @@ func configStaticArp(p string, ipv4addr string, macAddr string) *oc.Interface {
 
 // URPFConfigParams holds all parameters required to configure Unicast Reverse Path Forwarding (uRPF) on a DUT interface. It includes the interface name and its IPv4/IPv6 subinterface objects.
 type URPFConfigParams struct {
-	InterfaceName string
-	IPv4Obj       *oc.Interface_Subinterface_Ipv4
-	IPv6Obj       *oc.Interface_Subinterface_Ipv6
+	InterfaceName         string
+	IPv4Obj               *oc.Interface_Subinterface_Ipv4
+	IPv6Obj               *oc.Interface_Subinterface_Ipv6
+	Mode                  oc.E_IfIp_UrpfMode
+	LookupNetworkInstance string
 }
 
 // ConfigureURPFonDutInt configures URPF on the interface.
@@ -1341,22 +1343,52 @@ func ConfigureURPFonDutInt(t *testing.T, dut *ondatra.DUTDevice, cfg URPFConfigP
 	if deviations.URPFConfigOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
+			if cfg.Mode != oc.IfIp_UrpfMode_LOOSE {
+				t.Fatalf("Unsupported uRPF mode %v for vendor %v, only LOOSE is supported", cfg.Mode, dut.Vendor())
+			}
+			lookupVRF := ""
+			if cfg.LookupNetworkInstance != "" {
+				lookupVRF = fmt.Sprintf(" non-default lookup-vrf %s", cfg.LookupNetworkInstance)
+			}
 			urpfCliConfig := fmt.Sprintf(`
 			interface %s
-			ip verify unicast source reachable-via any
-			ipv6 verify unicast source reachable-via any
-			`, cfg.InterfaceName)
+			ip verify unicast source reachable-via any%[2]s
+			ipv6 verify unicast source reachable-via any%[2]s
+			`, cfg.InterfaceName, lookupVRF)
 			helpers.GnmiCLIConfig(t, dut, urpfCliConfig)
+		case ondatra.CISCO:
+			urpfCLIConfig := fmt.Sprintf(`
+			vrf %s
+			urpf-lookup-ipv4
+			urpf-lookup-ipv6
+			!
+			interface %s
+			ipv4 verify unicast source reachable-via any
+			ipv6 verify unicast source reachable-via any
+			`, cfg.LookupNetworkInstance, cfg.InterfaceName)
+			helpers.GnmiCLIConfig(t, dut, urpfCLIConfig)
 		default:
 			t.Fatalf("Unsupported vendor: %v", dut.Vendor())
 		}
 	} else {
 		cfg.IPv4Obj.GetOrCreateUrpf()
 		cfg.IPv4Obj.Urpf.Enabled = ygot.Bool(true)
-		cfg.IPv4Obj.Urpf.Mode = oc.IfIp_UrpfMode_STRICT
+		cfg.IPv4Obj.Urpf.Mode = cfg.Mode
+		cfg.IPv4Obj.Urpf.AllowDefaultRoute = ygot.Bool(false)
+		cfg.IPv4Obj.Urpf.AllowDropNextHop = ygot.Bool(false)
+		cfg.IPv4Obj.Urpf.AllowFeasiblePath = ygot.Bool(false)
+		if cfg.LookupNetworkInstance != "" {
+			cfg.IPv4Obj.Urpf.LookupNetworkInstance = ygot.String(cfg.LookupNetworkInstance)
+		}
 		cfg.IPv6Obj.GetOrCreateUrpf()
 		cfg.IPv6Obj.Urpf.Enabled = ygot.Bool(true)
-		cfg.IPv6Obj.Urpf.Mode = oc.IfIp_UrpfMode_STRICT
+		cfg.IPv6Obj.Urpf.Mode = cfg.Mode
+		cfg.IPv6Obj.Urpf.AllowDefaultRoute = ygot.Bool(false)
+		cfg.IPv6Obj.Urpf.AllowDropNextHop = ygot.Bool(false)
+		cfg.IPv6Obj.Urpf.AllowFeasiblePath = ygot.Bool(false)
+		if cfg.LookupNetworkInstance != "" {
+			cfg.IPv6Obj.Urpf.LookupNetworkInstance = ygot.String(cfg.LookupNetworkInstance)
+		}
 	}
 }
 
