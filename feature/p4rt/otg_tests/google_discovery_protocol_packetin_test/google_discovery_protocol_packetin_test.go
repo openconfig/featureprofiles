@@ -211,7 +211,7 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 	defer programmTableEntry(ctx, t, leader, args.packetIO, true)
 
 	// Send GDP traffic from ATE
-	pktOut := testTraffic(t, args.top, args.ate, args.packetIO.GetTrafficFlows(args.ate, 300, 2), 20)
+	pktOut := testTraffic(t, args.top, args.ate, args.packetIO.GetTrafficFlows(args.ate, 300, 50), 20)
 	validateTrafficAtATE(t, args.ate, pktOut)
 
 	packetInTests := []struct {
