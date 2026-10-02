@@ -122,6 +122,7 @@ Block12 | 16x16 | 53 | 17 | 54.0.0.0/8
             *   Set Loopback to passive mode and the LAG interface circuit type to point to point.
             *   Push the configuration to the DUT.
 *   Confirm that DUT has 2 aggregate ports are up.
+*   Confirm that DUT IS-IS global SPF first interval state is 200.
 *   Confirm that DUT has 2 ISIS adjacencies up.
 
 #### Testing steps
@@ -259,6 +260,7 @@ Dynamic1 | 12x12 | 56 | 4 | 57.0.0.0/8
             *   Set Loopback to passive mode and the LAG interface circuit type to point to point.
             *   Push the configuration to the DUT.
 *   Confirm that DUT has 2 aggregate ports are up.
+*   Confirm that DUT IS-IS global SPF first interval state is 200.
 *   Confirm that DUT has 3 ISIS adjacencies up.
 
 #### Testing steps
@@ -677,6 +679,7 @@ paths:
   ## Telemetry Parameter Coverage
 
   /interfaces/interface/state/admin-status:
+  /network-instances/network-instance/protocols/protocol/isis/global/timers/spf/state/spf-first-interval:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/state/interface-id:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state:
   /network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/total-lsps:

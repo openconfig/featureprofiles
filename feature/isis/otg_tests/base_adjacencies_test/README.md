@@ -29,8 +29,8 @@ Base IS-IS functionality and adjacency establishment.
     adjacency has not yet been established.
 *   Push ATE configuration for the other end of the adjacency, and wait for
     the adjacency to form.
-*   Check that the various state fields of the adjacency are reported
-    correctly.
+*   Check that the various state fields of the adjacency (including
+    `up-timestamp`) are reported correctly.
 *   Check that error counters are still 0 and that packet counters have all
     increased.
 
@@ -216,6 +216,7 @@ paths:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/restart-status:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/restart-support:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/restart-suppress:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/up-timestamp:
   /network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/auth-fails:
   /network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/auth-type-fails:
   /network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/corrupted-lsps:
