@@ -317,6 +317,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func configureInputPolicy(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
+	if deviations.InterfacePolicyForwardingOCUnsupported(dut) {
+		return
+	}
 	defaultNIName := deviations.DefaultNetworkInstance(dut)
 	interfaceName := dut.Port(t, port1).Name()
 	var policyName string
@@ -333,6 +336,7 @@ func configureInputPolicy(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
 		AppliedPolicyName: policyName,
 	}
 	cfgplugins.InterfacePolicyForwardingConfig(t, dut, nil, "", pf, ocPFParams)
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(defaultNIName).PolicyForwarding().Interface(interfaceName).Config(), pf.GetInterface(interfaceName))
 }
 
 func configureDecapPolicyForwarding(t *testing.T, dut *ondatra.DUTDevice, interfaceName string) {
