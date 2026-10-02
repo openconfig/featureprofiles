@@ -15,6 +15,7 @@ package copying_debug_files_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -22,6 +23,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/system"
+	fpb "github.com/openconfig/gnoi/file"
 	hpb "github.com/openconfig/gnoi/healthz"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
@@ -127,7 +129,8 @@ func TestCopyingDebugFiles(t *testing.T) {
 		Path: healthPath,
 	}
 	t.Logf("Triggering Healthz Check for %v", componentName)
-	if _, checkErr := gnoiClient.Healthz().Check(context.Background(), checkReq); checkErr != nil {
+	chkRes, checkErr := gnoiClient.Healthz().Check(context.Background(), checkReq)
+	if checkErr != nil {
 		t.Logf("Warning: Healthz Check failed (may not be supported for this component): %v", checkErr)
 	}
 
@@ -158,6 +161,29 @@ func TestCopyingDebugFiles(t *testing.T) {
 	}
 	if err != nil {
 		t.Errorf("Unexpected error on healthz get response after restart of %v: %v", processName[dut.Vendor()], err)
+	}
+	if chkRes != nil && chkRes.GetStatus() != nil {
+		ackReq := &hpb.AcknowledgeRequest{
+			Path: healthPath,
+			Id:   chkRes.GetStatus().GetId(),
+		}
+		if _, ackErr := gnoiClient.Healthz().Acknowledge(context.Background(), ackReq); ackErr != nil {
+			t.Logf("Warning: Failed to acknowledge Healthz event %v: %v", ackReq.Id, ackErr)
+			if dut.Vendor() == ondatra.ARISTA {
+				for _, artifact := range chkRes.GetStatus().GetArtifacts() {
+					if artifact.GetId() == "" {
+						t.Logf("Warning: Skipping artifact with empty ID to prevent directory deletion")
+						continue
+					}
+					rmReq := &fpb.RemoveRequest{RemoteFile: fmt.Sprintf("/mnt/flash/persist/healthz/%s", artifact.GetId())}
+					if _, rmErr := gnoiClient.File().Remove(context.Background(), rmReq); rmErr != nil {
+						t.Logf("Warning: Manual sweep failed to remove artifact %v: %v", artifact.GetId(), rmErr)
+					} else {
+						t.Logf("Manual Sweep: Successfully removed artifact %v from disk to prevent storage leak", artifact.GetId())
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -209,6 +235,29 @@ func TestChassisComponentArtifacts(t *testing.T) {
 		t.Logf("Header of artifact %v: %v", artID, h1)
 		if err != nil {
 			t.Fatalf("Unexpected error when fetching the header of artifact %v: %v", artID, err)
+		}
+	}
+	if chkRes != nil && chkRes.GetStatus() != nil {
+		ackReq := &hpb.AcknowledgeRequest{
+			Path: chkReq.GetPath(),
+			Id:   chkRes.GetStatus().GetId(),
+		}
+		if _, ackErr := gnoiClient.Healthz().Acknowledge(context.Background(), ackReq); ackErr != nil {
+			t.Logf("Warning: Failed to acknowledge Healthz event %v: %v", ackReq.Id, ackErr)
+			if dut.Vendor() == ondatra.ARISTA {
+				for _, artifact := range chkRes.GetStatus().GetArtifacts() {
+					if artifact.GetId() == "" {
+						t.Logf("Warning: Skipping artifact with empty ID to prevent directory deletion")
+						continue
+					}
+					rmReq := &fpb.RemoveRequest{RemoteFile: fmt.Sprintf("/mnt/flash/persist/healthz/%s", artifact.GetId())}
+					if _, rmErr := gnoiClient.File().Remove(context.Background(), rmReq); rmErr != nil {
+						t.Logf("Warning: Manual sweep failed to remove artifact %v: %v", artifact.GetId(), rmErr)
+					} else {
+						t.Logf("Manual Sweep: Successfully removed artifact %v from disk to prevent storage leak", artifact.GetId())
+					}
+				}
+			}
 		}
 	}
 }
