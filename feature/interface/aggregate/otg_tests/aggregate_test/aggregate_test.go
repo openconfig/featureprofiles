@@ -89,6 +89,7 @@ var (
 
 	dutDst = attrs.Attributes{
 		Desc:    "dutdst",
+		MAC:     "02:12:00:00:00:01",
 		IPv4:    "192.0.2.5",
 		IPv6:    "2001:db8::5",
 		IPv4Len: plen4,
@@ -173,6 +174,7 @@ func (tc *testCase) setupAggregateAtomically(t *testing.T) {
 	if tc.lagType == lagTypeLACP {
 		lacpIntf := d.GetOrCreateLacp().GetOrCreateInterface(tc.aggID)
 		lacpIntf.SetInterval(oc.Lacp_LacpPeriodType_FAST)
+		lacpIntf.SetSystemIdMac(dutDst.MAC)
 	}
 
 	agg := d.GetOrCreateInterface(tc.aggID)
@@ -221,6 +223,7 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	if tc.lagType == lagTypeLACP {
 		lacp.LacpMode = oc.Lacp_LacpActivityType_ACTIVE
 		lacp.SetInterval(oc.Lacp_LacpPeriodType_FAST)
+		lacp.SetSystemIdMac(dutDst.MAC)
 	} else {
 		lacp.LacpMode = oc.Lacp_LacpActivityType_UNSET
 	}
@@ -358,6 +361,10 @@ func (tc *testCase) verifyLACPTelemetry(t *testing.T) {
 	if got := gotLAG.GetName(); got != tc.aggID {
 		t.Errorf("DUT LAG had incorrect name, got: %s, want: %s", got, tc.aggID)
 	}
+	sysIDMAC := gotLAG.GetSystemIdMac()
+	if !strings.EqualFold(sysIDMAC, dutDst.MAC) {
+		t.Errorf("DUT LAG %s state/system-id-mac = %q, want %q", tc.aggID, sysIDMAC, dutDst.MAC)
+	}
 
 	for i := 1; i < len(tc.dutPorts); i++ {
 		// The ports in dutPort correspond 1:1 with the ports in atePort.
@@ -403,6 +410,39 @@ func (tc *testCase) verifyLACPTelemetry(t *testing.T) {
 
 		if dutLACP.PartnerId == nil || ateLACP.SystemId == nil || !strings.EqualFold(*ateLACP.PartnerId, *dutLACP.SystemId) {
 			t.Errorf("DUT LAG %s: ATE system-id (%s) did not match DUT partner-id (%s)", tc.aggID, *ateLACP.SystemId, *dutLACP.PartnerId)
+		}
+
+		if dutLACP.SystemId != nil && !strings.EqualFold(sysIDMAC, *dutLACP.SystemId) {
+			t.Errorf("DUT LAG %s: state/system-id-mac (%s) did not match member %s system-id (%s)", tc.aggID, sysIDMAC, dutPort.Name(), *dutLACP.SystemId)
+		}
+
+		counters := dutLACP.GetCounters()
+		if counters == nil {
+			t.Errorf("DUT LAG %s member %s: LACP counters are nil", tc.aggID, dutPort.Name())
+			continue
+		}
+		if counters.LacpErrors == nil {
+			t.Errorf("DUT LAG %s member %s: lacp-errors is not populated", tc.aggID, dutPort.Name())
+		} else if got := counters.GetLacpErrors(); got != 0 {
+			t.Errorf("DUT LAG %s member %s: lacp-errors = %d, want 0", tc.aggID, dutPort.Name(), got)
+		}
+		if counters.LacpRxErrors == nil {
+			t.Errorf("DUT LAG %s member %s: lacp-rx-errors is not populated", tc.aggID, dutPort.Name())
+		} else if got := counters.GetLacpRxErrors(); got != 0 {
+			t.Errorf("DUT LAG %s member %s: lacp-rx-errors = %d, want 0", tc.aggID, dutPort.Name(), got)
+		}
+		if counters.LacpUnknownErrors == nil {
+			t.Errorf("DUT LAG %s member %s: lacp-unknown-errors is not populated", tc.aggID, dutPort.Name())
+		} else if got := counters.GetLacpUnknownErrors(); got != 0 {
+			t.Errorf("DUT LAG %s member %s: lacp-unknown-errors = %d, want 0", tc.aggID, dutPort.Name(), got)
+		}
+		// Cisco IOS-XR does not support lacp-tx-errors in OpenConfig.
+		if tc.dut.Vendor() != ondatra.CISCO {
+			if counters.LacpTxErrors == nil {
+				t.Errorf("DUT LAG %s member %s: lacp-tx-errors is not populated", tc.aggID, dutPort.Name())
+			} else if got := counters.GetLacpTxErrors(); got != 0 {
+				t.Errorf("DUT LAG %s member %s: lacp-tx-errors = %d, want 0", tc.aggID, dutPort.Name(), got)
+			}
 		}
 	}
 }
