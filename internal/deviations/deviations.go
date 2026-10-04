@@ -2403,3 +2403,13 @@ func AigpMetricIncrement(dut *ondatra.DUTDevice) bool {
 func PowerSupplyTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPowerSupplyTelemetryUnsupported()
 }
+
+// CfmStateFt returns the functional translator name for CFM state telemetry.
+func CfmStateFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetCfmStateFt()
+}
+
+// CfmPmFt returns the functional translator name for CFM performance measurement telemetry.
+func CfmPmFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetCfmPmFt()
+}
