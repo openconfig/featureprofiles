@@ -772,6 +772,15 @@ func ConfigOTNChannel(t *testing.T, dut *ondatra.DUTDevice, och string, otnIndex
 			},
 		}
 	}
+	if deviations.OTNToETHAssignment(dut) {
+		ch.Assignment[1] = &oc.TerminalDevice_Channel_Assignment{
+			Index:          ygot.Uint32(1),
+			LogicalChannel: ygot.Uint32(ethIndex),
+			Description:    ygot.String("OTN to ETH"),
+			Allocation:     ygot.Float64(400),
+			AssignmentType: oc.Assignment_AssignmentType_LOGICAL_CHANNEL,
+		}
+	}
 	if !deviations.TerminalDeviceChannelAdminStateUnsupported(dut) {
 		ch.AdminState = oc.TerminalDevice_AdminStateType_ENABLED
 	}

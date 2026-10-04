@@ -115,6 +115,11 @@ func validateEthernetChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, otnC
 			got:  ec.GetTribProtocol().String(),
 			want: oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE.String(),
 		},
+		{
+			desc: "Loopback Mode",
+			got:  ec.GetLoopbackMode().String(),
+			want: oc.TerminalDevice_LoopbackModeType_NONE.String(),
+		},
 	}
 	var assignmentIndexTestcases []testcase
 
@@ -207,6 +212,11 @@ func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, otnChIdx 
 			got:  cc.GetLogicalChannelType().String(),
 			want: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_OTN.String(),
 		},
+		{
+			desc: "Loopback Mode",
+			got:  cc.GetLoopbackMode().String(),
+			want: oc.TerminalDevice_LoopbackModeType_NONE.String(),
+		},
 	}
 	var opticalChannelAssignmentIndexTestcases []testcase
 
@@ -267,6 +277,37 @@ func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, otnChIdx 
 		}
 	}
 	tcs = append(tcs, opticalChannelAssignmentIndexTestcases...)
+
+	if deviations.OTNToETHAssignment(dut) {
+		logicalChannelAssignmentTestcases := []testcase{
+			{
+				desc: "Ethernet Assignment: Index",
+				got:  cc.GetAssignment(1).GetIndex(),
+				want: uint32(1),
+			},
+			{
+				desc: "Ethernet Assignment: Logical Channel",
+				got:  cc.GetAssignment(1).GetLogicalChannel(),
+				want: ethChIdx,
+			},
+			{
+				desc: "Ethernet Assignment: Description",
+				got:  cc.GetAssignment(1).GetDescription(),
+				want: "OTN to ETH",
+			},
+			{
+				desc: "Ethernet Assignment: Allocation",
+				got:  cc.GetAssignment(1).GetAllocation(),
+				want: float64(400),
+			},
+			{
+				desc: "Ethernet Assignment: Type",
+				got:  cc.GetAssignment(1).GetAssignmentType().String(),
+				want: oc.Assignment_AssignmentType_LOGICAL_CHANNEL.String(),
+			},
+		}
+		tcs = append(tcs, logicalChannelAssignmentTestcases...)
+	}
 
 	for _, tc := range tcs {
 		t.Run(tc.desc, func(t *testing.T) {
