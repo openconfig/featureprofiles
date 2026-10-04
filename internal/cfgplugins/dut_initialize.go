@@ -197,7 +197,7 @@ hardware tcam
 
 	aristaTcamProfileVrfSelectionExtended = `
 hardware tcam
-   profile vrf-selection-with-ip6-sip
+   profile vrf-selection-with-extended-hashing
       feature acl port ip
          sequence 45
          key size limit 160
@@ -235,13 +235,13 @@ hardware tcam
          packet ipv4 forwarding bridged
          packet ipv4 forwarding routed
          packet ipv4 forwarding routed multicast
+         packet ipv4 ipv6 forwarding routed decap
          packet ipv4 mpls ipv4 forwarding mpls decap
          packet ipv4 mpls ipv6 forwarding mpls decap
          packet ipv4 non-vxlan forwarding routed decap
          packet ipv4 vxlan forwarding bridged decap
          packet ipv6 forwarding bridged
          packet ipv6 forwarding routed
-         packet ipv6 forwarding routed decap
          packet ipv6 forwarding routed multicast
          packet ipv6 ipv6 forwarding routed decap
          packet mpls forwarding bridged decap
@@ -286,6 +286,8 @@ hardware tcam
          sequence 85
       feature forwarding-destination mpls
          sequence 100
+      feature load-balance hash extended
+         packet all-active
       feature mirror ip
          sequence 80
          key size limit 160
@@ -343,6 +345,7 @@ hardware tcam
          sequence 70
          key field dst-ipv6 ipv6-next-header ipv6-traffic-class l4-dst-port l4-src-port src-ipv6-high src-ipv6-low
          action set-dscp set-policer set-tc
+         packet ipv4 ipv6 forwarding routed decap
          packet ipv6 forwarding routed
       feature tunnel vxlan
          sequence 50
@@ -351,9 +354,8 @@ hardware tcam
          packet ipv4 vxlan forwarding bridged decap
       feature vrf selection
          port qualifier size 8 bits
-      feature vrf selection extended
 	  !
-	system profile vrf-selection-with-ip6-sip
+	system profile vrf-selection-with-extended-hashing
 `
 
 	nokiaSecondaryDefaultLookup = `
@@ -1752,6 +1754,7 @@ func ConfigureLoadbalance(t *testing.T, dut *ondatra.DUTDevice) {
 			loadBalanceCliConfig := `
 			load-balance policies
          load-balance sand profile default
+		 	fields ipv4 outer dst-ip protocol src-ip
             fields ipv6 outer dst-ip flow-label next-header src-ip
             fields l4 outer dst-port src-port
             no fields mpls
