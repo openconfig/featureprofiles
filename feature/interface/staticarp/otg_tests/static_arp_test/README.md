@@ -22,6 +22,10 @@ Ensure static ARP entries installed on the DUT are honoured.
         ensure that traffic can be forwarded between OTG port-1 and OTG port-2.
     *   Check that the egress filter picks up the last 15-bit of the MAC address
         set by static ARP.
+    *   Verify the IPv4 and IPv6 neighbor telemetry state (`ip` and `link-layer-address`):
+        *   `/interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/state/link-layer-address`
+        *   `/interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor/state/ip`
+        *   `/interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor/state/link-layer-address`
 
 Note that OTG ports are promiscuous, i.e. they will receive all packets
 regardless of the destination MAC. The custom egress filter is used to tell what
@@ -40,8 +44,9 @@ paths:
    /interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor/config/ip:
    /interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor/config/link-layer-address:
   ## telemetry Parameter Coverage
-   /interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/state/ip:
    /interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/state/link-layer-address:
+   /interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor/state/ip:
+   /interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor/state/link-layer-address:
 
 rpcs:
   gnmi:

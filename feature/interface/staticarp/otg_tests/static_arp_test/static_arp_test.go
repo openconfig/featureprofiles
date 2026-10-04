@@ -301,6 +301,7 @@ func verifyNeighborMAC(t *testing.T, dut *ondatra.DUTDevice, expectedMAC string)
 	cases := []struct {
 		desc      string
 		ip        string
+		ipPath    ygnmi.SingletonQuery[string]
 		telemetry ygnmi.SingletonQuery[string]
 	}{
 		{
@@ -311,12 +312,19 @@ func verifyNeighborMAC(t *testing.T, dut *ondatra.DUTDevice, expectedMAC string)
 		{
 			desc:      "IPv6",
 			ip:        ateSrc.IPv6,
+			ipPath:    gnmi.OC().Interface(port1.Name()).Subinterface(0).Ipv6().Neighbor(ateSrc.IPv6).Ip().State(),
 			telemetry: gnmi.OC().Interface(port1.Name()).Subinterface(0).Ipv6().Neighbor(ateSrc.IPv6).LinkLayerAddress().State(),
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
+			if tc.ipPath != nil {
+				actualIP := gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), tc.ipPath)
+				if !strings.EqualFold(actualIP, tc.ip) {
+					t.Errorf("Neighbor IP for %s got %q, want %q", tc.desc, actualIP, tc.ip)
+				}
+			}
 			actualMAC := gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), tc.telemetry)
 			if !strings.EqualFold(actualMAC, expectedMAC) {
 				t.Errorf("Actual MAC for %s got %q, want %q", tc.ip, actualMAC, expectedMAC)
