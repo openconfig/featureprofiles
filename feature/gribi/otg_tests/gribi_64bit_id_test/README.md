@@ -76,18 +76,19 @@ this is a separate test.
     flow-A | 192.0.2.2   | 198.51.100.0
     flow-B | 192.0.2.2   | 198.51.100.1
 
-*   The following ID values are used throughout the test:
+*   The following ID values are used throughout the test. `ID_N` is 2^N (only
+    bit N set, counting from bit 0) and `ID_N_MAX` is 2^N - 1:
 
     Name        | Value                | Purpose
     ----------- | -------------------- | ------------------------------------
     `ID_SMALL`  | `0xA` (10)           | ID for the object not under test
     `ID_1`      | `0x1`                | Control: smallest non-zero ID
-    `ID_32_MAX` | `0xFFFFFFFF`         | Control: largest 32-bit ID
-    `ID_32`     | `0x100000000`        | Smallest ID that needs more than 32 bits
-    `ID_32_1`   | `0x100000001`        | Truncates to `0x1` when narrowed to 32 bits
-    `ID_63_MAX` | `0x7FFFFFFFFFFFFFFF` | Largest signed 64-bit value
-    `ID_63`     | `0x8000000000000000` | Most significant bit set
-    `ID_64_MAX` | `0xFFFFFFFFFFFFFFFF` | Largest `uint64` value
+    `ID_32_MAX` | `0xFFFFFFFF`         | Control: largest 32-bit ID (2^32 - 1)
+    `ID_32`     | `0x100000000`        | 2^32: smallest ID that needs more than 32 bits
+    `ID_32_1`   | `0x100000001`        | 2^32 + 1: truncates to `0x1` when narrowed to 32 bits
+    `ID_63_MAX` | `0x7FFFFFFFFFFFFFFF` | 2^63 - 1: largest signed 64-bit value
+    `ID_63`     | `0x8000000000000000` | 2^63: only the most significant bit set; negative if read as signed
+    `ID_64_MAX` | `0xFFFFFFFFFFFFFFFF` | 2^64 - 1: largest `uint64` value
 
 *   Validation of an installed gRIBI chain (NH, NHG, IPv4 entry), referred to as
     "validate the chain" in the subtests below:
@@ -432,4 +433,4 @@ rpcs:
 
 ## Required DUT platform
 
-*   FFF
+*   vRX
