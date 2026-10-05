@@ -998,7 +998,7 @@ var (
 
 func sumQueueCounter(t *testing.T, dut *ondatra.DUTDevice, aggID string, ports []string, counterKind, queue string, fetch func(intf string) (uint64, bool)) uint64 {
 	t.Helper()
-	key := aggID + "|" + counterKind
+	key := aggID + "|" + counterKind + "|" + queue
 	queueCounterMu.Lock()
 	intfs, cached := queueCounterCache[key]
 	queueCounterMu.Unlock()
