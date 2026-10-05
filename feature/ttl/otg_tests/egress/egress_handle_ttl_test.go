@@ -1255,14 +1255,13 @@ func configureMPLSStaticLSPForTTLOne(t *testing.T, dut *ondatra.DUTDevice, lspNa
 	sfBatch := &gnmi.SetBatch{}
 	cfgplugins.RemoveMPLSStaticLSP(t, sfBatch, dut, lspName, label, nextHop, ipType, true)
 	cfgplugins.MPLSStaticLSPByPass(t, sfBatch, dut, lspName, label, nextHop, ipType, false)
-	sfBatch.Set(t, dut)
-
 	t.Cleanup(func() {
 		rb := &gnmi.SetBatch{}
 		cfgplugins.RemoveMPLSStaticLSP(t, rb, dut, lspName, label, nextHop, ipType, false)
 		cfgplugins.MPLSStaticLSPByPass(t, rb, dut, lspName, label, nextHop, ipType, true)
 		rb.Set(t, dut)
 	})
+	sfBatch.Set(t, dut)
 }
 
 // configureGUEDecap programs the GUE/MPLS-in-UDP decapsulation policy on the DUT and registers
