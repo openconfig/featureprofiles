@@ -526,8 +526,11 @@ func TestBGPDrainPolicy(t *testing.T) {
 				verifyPrefixes(t, dut, ateP2.IPv4, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, 0, true, false)
 				verifyPrefixes(t, dut, ateP2.IPv6, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, 0, true, false)
 
-				// Sleep to get the packet capture populated
-				time.Sleep(10 * time.Second)
+				verifyOTGPrefixes(t, bs, bs.ATEPorts[1].Name, wantOTGPrefixes{
+					bgpV4Peer2: uint64(routeCount),
+					bgpV6Peer2: uint64(routeCount),
+				}, false, true)
+
 				cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
 				bs.ATE.OTG().SetControlState(t, cs)
 
@@ -535,11 +538,6 @@ func TestBGPDrainPolicy(t *testing.T) {
 				if withdrawRoutesDUT < 2*routeCount {
 					t.Errorf("failed: expected %d BGP withdrawn routes on port2 (IPv4 + IPv6), got %d", 2*routeCount, withdrawRoutesDUT)
 				}
-
-				verifyOTGPrefixes(t, bs, bs.ATEPorts[1].Name, wantOTGPrefixes{
-					bgpV4Peer2: uint64(routeCount),
-					bgpV6Peer2: uint64(routeCount),
-				}, false, true)
 			},
 		},
 		{

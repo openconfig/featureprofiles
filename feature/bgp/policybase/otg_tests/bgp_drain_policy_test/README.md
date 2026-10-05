@@ -178,7 +178,7 @@ explicitly covers both IPv4 and IPv6 counterparts.
 * Step 3 - Validate that the DUT withdraws ONLY IPv4 prefixes from the peer:
   * Check `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/sent`
     equals 0 for IPv4 and 10,000 for IPv6 to ATE port 2.
-* Step 4 - Validate on OTG that the IPv4 withdraw prefixes are received, while the IPv6 traffic remains 0.
+* Step 4 - Validate on the OTG that the IPv4 withdrawn prefixes are received as expected, while the count of IPv6 withdrawn prefixes remains 0.
 * Step 5 - Remove the export policy using gNMI Delete to restore the environment for the next test.
 
 ### RT-7.12.5 - Application of Non-Existent Policy
