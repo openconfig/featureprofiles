@@ -77,8 +77,7 @@ func Test400ZRPlusTunableOutputPower(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	initializeTunableParamsTest(t)
-	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"))
-	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"))
+	// Interfaces are configured dynamically in TunableParamsTest
 	tests := []struct {
 		description            string
 		frequency              uint64
