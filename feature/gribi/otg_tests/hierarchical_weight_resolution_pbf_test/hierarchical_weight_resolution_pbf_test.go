@@ -368,7 +368,7 @@ func applyForwardingPolicy(t *testing.T, ingressPort string) {
 	d := &oc.Root{}
 	dut := ondatra.DUT(t, "dut")
 	interfaceID := ingressPort
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+	if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
 		interfaceID = ingressPort + ".0"
 	}
 	pfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID)
@@ -448,6 +448,7 @@ func incrementMAC(mac string, i int) (string, error) {
 // <VlanID::TrafficDistribution> that is wanted and compares it to the actual
 // traffic test result.
 func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) map[string]float64 {
+	defer otgutils.LogFlowMetrics(t, ate.OTG(), top)
 
 	dut := ondatra.DUT(t, "dut")
 	dstMac := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
@@ -474,23 +475,12 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) map[
 	ate.OTG().StartProtocols(t)
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 
-	// Run traffic for 2 minutes.
+	// Run traffic for 1 minute (adjusted from 2 to match other tests).
 	ate.OTG().StartTraffic(t)
 	time.Sleep(1 * time.Minute)
 	ate.OTG().StopTraffic(t)
 
-	otgutils.LogFlowMetrics(t, ate.OTG(), top)
-
-	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowipv4.Name()).State())
-	txPkts := float32(recvMetric.GetCounters().GetOutPkts())
-	rxPkts := float32(recvMetric.GetCounters().GetInPkts())
-	lossPct := (txPkts - rxPkts) * 100 / txPkts
-	if txPkts == 0 {
-		t.Fatalf("TxPkts == 0, want > 0.")
-	}
-	if lossPct > 0 && recvMetric.GetCounters().GetOutPkts() > 0 {
-		t.Fatalf("Loss Pct for %s got %v, want 0", flowipv4.Name(), lossPct)
-	}
+	otgutils.ExpectedTrafficLoss(t, ate.OTG(), flowipv4.Name(), 0, 0.99)
 
 	// Compare traffic distribution with the wanted results.
 	results := filterPacketReceived(t, "flow", ate)

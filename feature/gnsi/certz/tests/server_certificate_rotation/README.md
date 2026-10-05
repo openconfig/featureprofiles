@@ -70,7 +70,6 @@ Perform this test with both the RSA and ECDSA types.
       connections to the service impaired / restarted / delayed due to
       the rotation event.
 
-
 ### Certz-3.2
 
 Perform these negative tests:
@@ -119,6 +118,15 @@ paths:
 rpcs:
   gnsi:
     certz.v1.Certz.Rotate:
+```
+
+## Canonical OC
+No OC configuration is performed in this test as all interaction is via gNSI.Certz
+
+```json
+{
+
+}
 ```
 
 ## Minimum DUT Platform Requirement

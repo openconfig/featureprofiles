@@ -198,6 +198,7 @@ Preamble: You are a test engineer analyzing test coverage.
 Task: Analyze the provided readme markdown and automation code. Identify any gaps in the automation code based on the requirements provided in the readme markdown.
 Note that any "TODO" items or sections in the Readme Markdown are not considered requirements and should be ignored when identifying gaps.
 Ignore any gap in the automation if the same is covered using a deviation.
+Note that testbed deployment details, baseline topology setup, interface IP configurations, network instances, and default gRPC server setup (often described in "Baseline Setup" or "Canonical OC" sections) are assumed to be pre-configured by the testbed environment and should not be flagged as gaps in the Go test automation code. Only focus on actions, validations, and operations that are expected to be executed dynamically in the test scenario itself.
 Return the result in JSON format with two fields: 'gap_found' (boolean) and 'gap_description' (string).
 If gaps are found, 'gap_found' should be true and 'gap_description' should contain a description of what requirements are not covered by the test automation.
 If all requirements in the readme are covered, 'gap_found' should be false and 'gap_description' should be 'No gap in the implementation found.'.
@@ -245,26 +246,44 @@ Result in JSON format:
 
 	// Make HTTP request
 	url := fmt.Sprintf(geminiAPIURL, *model, *apiKey)
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(reqBytes))
-	if err != nil {
-		return false, "", fmt.Errorf("failed to create http request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
+	client := &http.Client{Timeout: 180 * time.Second}
 
-	client := &http.Client{Timeout: 60 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return false, "", fmt.Errorf("http request failed: %w", err)
-	}
-	defer resp.Body.Close()
+	var respBody []byte
+	var lastErr error
+	for attempt := 1; attempt <= 3; attempt++ {
+		req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(reqBytes))
+		if err != nil {
+			return false, "", fmt.Errorf("failed to create http request: %w", err)
+		}
+		req.Header.Set("Content-Type", "application/json")
 
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return false, "", fmt.Errorf("failed to read response body: %w", err)
+		resp, err := client.Do(req)
+		if err != nil {
+			lastErr = fmt.Errorf("http request failed: %w", err)
+			log.Printf("Attempt %d of 3 failed: %v. Retrying in 10s...", attempt, lastErr)
+			time.Sleep(10 * time.Second)
+			continue
+		}
+		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			lastErr = fmt.Errorf("failed to read response body: %w", err)
+			log.Printf("Attempt %d of 3 failed: %v. Retrying in 10s...", attempt, lastErr)
+			time.Sleep(10 * time.Second)
+			continue
+		}
+		if resp.StatusCode != http.StatusOK {
+			lastErr = fmt.Errorf("gemini api returned non-ok status %d: %s", resp.StatusCode, string(body))
+			log.Printf("Attempt %d of 3 failed: %v. Retrying in 10s...", attempt, lastErr)
+			time.Sleep(10 * time.Second)
+			continue
+		}
+		respBody = body
+		lastErr = nil
+		break
 	}
-
-	if resp.StatusCode != http.StatusOK {
-		return false, "", fmt.Errorf("gemini api returned non-ok status %d: %s", resp.StatusCode, string(respBody))
+	if lastErr != nil {
+		return false, "", lastErr
 	}
 
 	// Unmarshal response body

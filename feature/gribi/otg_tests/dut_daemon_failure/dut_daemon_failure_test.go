@@ -156,24 +156,11 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 // stopAndVerifyTraffic stops traffic on the ATE
 // and checks for packet loss for the given flow.
 func stopAndVerifyTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
-
-	ate.OTG().StopTraffic(t)
-	otgutils.LogFlowMetrics(t, ate.OTG(), top)
-
-	time.Sleep(time.Minute)
-
-	txPkts := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().OutPkts().State()))
-	rxPkts := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().InPkts().State()))
-
-	if txPkts == 0 {
-		t.Fatalf("TxPkts == 0, want > 0")
-	}
-
-	if got := (txPkts - rxPkts) * 100 / txPkts; got != 0 {
-		t.Errorf("FAIL: LossPct for flow named %s got %v, want 0", flowName, got)
-	} else {
-		t.Logf("LossPct for flow named %s got %v, want 0", flowName, got)
-	}
+	otg := ate.OTG()
+	otg.StopTraffic(t)
+	otgutils.ExpectedTrafficLoss(t, otg, flowName, 0, 0)
+	// Log metrics after counters have settled
+	otgutils.LogFlowMetrics(t, otg, top)
 }
 
 // testArgs holds the objects needed by the test case.
