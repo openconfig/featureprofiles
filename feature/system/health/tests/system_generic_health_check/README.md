@@ -42,6 +42,11 @@ Generic Health Check
 
 N/A
 
+## Canonical OC
+```json
+{}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
@@ -52,6 +57,7 @@ rpcs:
 paths:
   ## Config Parameter coverage
 
+    /system/alarms/alarm/state/severity:
     /components/component/cpu/utilization/state/avg:
        platform_type: ["CPU"]
     /components/component/integrated-circuit/pipeline-counters/drop/fabric-block/state/lost-packets:

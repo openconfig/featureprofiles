@@ -69,8 +69,25 @@
   * The "previous-reboot-time" must be smaller (earlier) than the recently collected `last-reboot-time`.
 
 ## Canonical OC
+
 ```json
-{}
+{
+  "openconfig-platform:components": {
+    "component": [
+      {
+        "config": {
+          "name": "controller-1"
+        },
+        "controller-card": {
+          "config": {
+            "openconfig-platform-controller-card:power-admin-state": "POWER_ENABLED"
+          }
+        },
+        "name": "controller-1"
+      }
+    ]
+  }
+}
 ```
 
 ## OpenConfig Path and RPC Coverage
