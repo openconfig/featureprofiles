@@ -88,6 +88,9 @@ path selection rules of RFC 5065 Section 5.3, and `NO_EXPORT` /
         with the neighboring Member-AS
     *   One IPv4 and one IPv6 session per port; each OTG peer enables only its
         own address-family capability
+    *   OTG does not configure or check the remote AS of a peer. The use of
+        `64500` in the DUT OPEN message toward ATE port-1 is verified only
+        through the AS_PATH received by ATE port-1 in RT-1.111.4
 *   Advertise the following route ranges from the ATE. "AS_PATH sent by ATE" is
     the AS_PATH the DUT must receive. `64503` (another Member-AS) and `64511`
     (an external AS behind Member-AS `64502`) appear only inside AS_PATHs
@@ -105,9 +108,10 @@ path selection rules of RFC 5065 Section 5.3, and `NO_EXPORT` /
     | `CONFED-MALFORMED` | port-3   | `203.0.113.224/27` | `2001:db8:303::/48`  | `AS_SEQ [64502]`                            | not sent   | not sent | RT-1.111.7 |
 
 *   OTG settings for the route ranges
-    *   The ATE is not a native confederation speaker. On OTG `ebgp` peers the
-        ATE always prepends its own AS (`do_not_include_local_as` is not
-        honored on eBGP peers), so the `as_set_mode` selects how it is
+    *   The ATE is not a native confederation speaker. The OTG model requires
+        `do_not_include_local_as` for iBGP sessions and any other
+        `as_set_mode` for eBGP sessions, so on the `ebgp` peers the ATE always
+        prepends its own AS and the `as_set_mode` selects how it is
         prepended: `include_as_confed_seq` prepends `64502` as an
         `AS_CONFED_SEQUENCE` (`CONFED`, `CONFED-TRANSIT`, `CONFED-LOOP`);
         `include_as_seq` prepends the local AS as an `AS_SEQ` (`EXT`,
@@ -122,20 +126,28 @@ path selection rules of RFC 5065 Section 5.3, and `NO_EXPORT` /
         `advanced.include_multi_exit_discriminator` explicitly on every route
         range (OTG sends both by default); `local_preference` and
         `multi_exit_discriminator` as in the table
-    *   Adjacent AS_PATH segments of the same type are compared as one segment
-        (an ATE may encode `AS_SEQ [64510, 64500]` as one or two segments)
+    *   The ATE may send `EXT-LOOP` as one `AS_SEQ [64510, 64500]` or as two
+        adjacent `AS_SEQ` segments, and `CONFED-LOOP` as one or two adjacent
+        `AS_CONFED_SEQUENCE` segments; both forms contain the looped AS and
+        are rejected the same way. AS_PATHs sent by the DUT are compared
+        segment by segment: `AS_CONFED_SEQUENCE [64501, 64503]` (RT-1.111.3)
+        and `AS_SEQ [64500, 64511]` (RT-1.111.4) must each be one segment,
+        because RFC 5065 Section 4.1 rules b.1 and c.2 prepend the AS into the
+        existing first segment
 *   Configure all nine route ranges in the single base ATE configuration and
     start protocols. Immediately afterwards withdraw `CONFED-LOOP`, `EXT-LOOP`,
     `EXT-MALFORMED` and `CONFED-MALFORMED` with OTG route control state
     (`gosnappi.StateProtocolRouteState.WITHDRAW`). Negative route ranges are
     only advertised and withdrawn with control state; a new ATE configuration
     is never pushed mid-test because `SetConfig` restarts the protocols
+*   Wait for ARP and IPv6 neighbor discovery to resolve on all three links
+    before RT-1.111.1
 *   Configure ATE-to-ATE flows (frame size `512` bytes, `1000` pps, `30` s).
     Source and destination addresses are inside the advertised prefixes; no
     traffic is sent to a DUT address
 
-    | Flows (IPv4 and IPv6)       | Source address                     | Destination address                | Verifies   |
-    | :-------------------------- | :--------------------------------- | :--------------------------------- | :--------- |
+    | Flows (IPv4 and IPv6)       | Source address                     | Destination address                | Reported with |
+    | :-------------------------- | :--------------------------------- | :--------------------------------- | :------------ |
     | ATE port-2 to ATE port-3    | `198.51.100.1`, `2001:db8:200::1`  | `198.51.100.65`, `2001:db8:300::1` | RT-1.111.2 |
     | ATE port-3 to ATE port-2    | `198.51.100.65`, `2001:db8:300::1` | `198.51.100.1`, `2001:db8:200::1`  | RT-1.111.3 |
     | ATE port-1 to ATE port-3    | `203.0.113.1`, `2001:db8:100::1`   | `198.51.100.65`, `2001:db8:300::1` | RT-1.111.4 |
@@ -151,13 +163,17 @@ path selection rules of RFC 5065 Section 5.3, and `NO_EXPORT` /
         / `gnmi.Await`); no static sleeps
     *   AS_PATH telemetry: `as-segment` `index` `0` is the leftmost segment;
         the `member` list is in AS_PATH order (most recently prepended AS
-        first)
+        first). An implementation that reports a different order or indexing
+        must document this as a deviation
     *   Absence check (negative routes): record the OTG `routes_advertised`
         counter of the sending peer, advertise the route range, and wait up
         to `60` s for the counter to increase (positive control; if it does
         not increase the result is inconclusive and the subtest fails). Then
         the prefix must stay absent from the checked location for a hold
-        window of `30` s
+        window of `30` s. The positive control proves that an UPDATE was
+        sent, not its AS_PATH encoding; the encoding of the base routes is
+        verified by the DUT `adj-rib-in-post` checks in RT-1.111.2,
+        RT-1.111.3 and RT-1.111.5
     *   Session stability: DUT
         `neighbors/neighbor/state/established-transitions` (all six
         neighbors) and OTG `session_flap_count` (all six peers) must be
@@ -167,8 +183,9 @@ path selection rules of RFC 5065 Section 5.3, and `NO_EXPORT` /
         `ESTABLISHED` again and records a new baseline. A DUT that does not
         report `established-transitions` needs a deviation; only the OTG
         counter is checked then
-    *   Route set check (each of the six ATE peers): no negative prefix and
-        no prefix of the other address family is received; every expected
+    *   Route set check (each of the six ATE peers): no negative prefix (even
+        one the same peer advertised itself) and no prefix of the other
+        address family is received; every expected
         prefix is received; prefixes the same peer advertised itself (echo)
         are ignored; any other prefix is a failure. Expected sets: port-1
         `CONFED`, `IBGP`, `IBGP-CONFED`, `CONFED-TRANSIT`; port-2 `EXT`,
@@ -210,6 +227,7 @@ Member-AS. LOCAL_PREF from a neighboring Member-AS is accepted and passed on
     `attr-set` and read the AS_PATH and `local-pref`; confirm the prefixes are
     in `loc-rib`
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/neighbors/neighbor/adj-rib-in-post/routes/route/state/attr-index
+    *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/neighbors/neighbor/adj-rib-in-post/routes/route/state/attr-index
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/as-path/as-segment/state/type
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/as-path/as-segment/state/member
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/local-pref
@@ -301,8 +319,8 @@ is treated as if it contained the local AS (loop, RFC 4271 Section 9.1.2). This
 is not a protocol error; the sessions must stay up.
 
 *   Confirm all sessions are `ESTABLISHED` and the stability baseline is
-    current; record OTG `notifications_received` and `routes_advertised` of
-    the ATE port-1 and port-3 peers
+    current; record OTG `notifications_received` of all six ATE peers and
+    `routes_advertised` of the ATE port-1 and port-3 peers
 *   Advertise `CONFED-LOOP` (ATE port-3) and `EXT-LOOP` (ATE port-1) with OTG
     route control state (`ADVERTISE`) and wait for the positive control
 *   During the `30` s hold window check the DUT `loc-rib` and the OTG
@@ -320,14 +338,15 @@ is not a protocol error; the sessions must stay up.
 Negative test. RFC 5065 Section 5: an `AS_CONFED_*` segment from a peer
 outside the confederation (`EXT-MALFORMED`), or an UPDATE from a neighboring
 Member-AS whose first segment is not an `AS_CONFED_SEQUENCE`
-(`CONFED-MALFORMED`), is a malformed AS_PATH. RFC 7606 Section 7.2: handle with
-treat-as-withdraw; the session must stay up. A session reset is a failure and
-is acceptable only as a deviation agreed in review and tracked by a vendor
-bug.
+(`CONFED-MALFORMED`), must be treated as having a malformed AS_PATH
+(RFC 4271 Section 6.3). RFC 7606 Section 7.2 replaces the Section 6.3 session
+reset for a malformed AS_PATH with treat-as-withdraw, so the route is discarded
+and the session stays up. A session reset is a failure and is acceptable only
+as a deviation agreed in review and tracked by a vendor bug.
 
 *   Confirm all sessions are `ESTABLISHED` and the stability baseline is
-    current; record OTG `notifications_received` and `routes_advertised` of
-    the ATE port-1 and port-3 peers
+    current; record OTG `notifications_received` of all six ATE peers and
+    `routes_advertised` of the ATE port-1 and port-3 peers
 *   Advertise `EXT-MALFORMED` (ATE port-1) and `CONFED-MALFORMED` (ATE port-3)
     with OTG route control state (`ADVERTISE`) and wait for the positive
     control
@@ -803,6 +822,7 @@ rpcs:
   gnmi:
     gNMI.Set:
       replace: true
+      delete: true
     gNMI.Subscribe:
       on_change: true
 ```
