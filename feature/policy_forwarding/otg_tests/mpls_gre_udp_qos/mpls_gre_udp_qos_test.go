@@ -632,6 +632,9 @@ func cleanupDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 func cleanupAggregate(t *testing.T, dut *ondatra.DUTDevice, aggID string, ports []string) {
 	t.Helper()
+	if aggID == "" {
+		return
+	}
 	for _, p := range ports {
 		port := dut.Port(t, p)
 		gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
@@ -651,6 +654,9 @@ func cleanupStaticRoutes(t *testing.T, dut *ondatra.DUTDevice) {
 
 func cleanupEncapMPLSInGREAndGUE(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
+	if custAggID == "" {
+		return
+	}
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
 		greIntfs := custIntfs[:3]
@@ -706,7 +712,7 @@ func cleanupQoS(t *testing.T, dut *ondatra.DUTDevice) {
 
 func cleanupIngressPolicerCLI(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	if dut.Vendor() != ondatra.ARISTA {
+	if custAggID == "" || dut.Vendor() != ondatra.ARISTA {
 		return
 	}
 	if deviations.QosSchedulerIngressPolicer(dut) {
