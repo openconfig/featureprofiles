@@ -497,6 +497,24 @@ func verifyFlowLoss(t *testing.T, ate *ondatra.ATEDevice, flowName string, windo
 	}
 }
 
+// verifyFlowHealthy is a hard precondition (vs. verifyFlowLoss's t.Errorf): it aborts the
+// subtest immediately if traffic isn't already flowing steadily, so a carried-over failure
+// from an earlier subtest is attributed there instead of masquerading as this subtest's own.
+func verifyFlowHealthy(t *testing.T, ate *ondatra.ATEDevice, flowName string, window time.Duration) {
+	t.Helper()
+	txBefore, rxBefore := flowCounters(t, ate, flowName)
+	time.Sleep(window)
+	txAfter, rxAfter := flowCounters(t, ate, flowName)
+	dtx := txAfter - txBefore
+	drx := rxAfter - rxBefore
+	if dtx == 0 {
+		t.Fatalf("Flow %s: no packets transmitted during precondition window, cannot verify traffic is flowing", flowName)
+	}
+	if gotLossPct := float64(dtx-drx) / float64(dtx) * 100; gotLossPct > lossTolerancePct {
+		t.Fatalf("Flow %s: got %.2f%% loss before this subtest's fault injection, want ~0%%; traffic was not flowing steadily (likely carried over from an earlier subtest failure)", flowName, gotLossPct)
+	}
+}
+
 func testPortAdminStateBounce(t *testing.T, dut *ondatra.DUTDevice, p2, p3, p4 *ondatra.Port) {
 	setPortEnabled(t, dut, p2, false)
 	time.Sleep(convergeSettle)
@@ -546,6 +564,10 @@ func testNHOnDownInterface(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.AT
 }
 
 func testMTUSmallerThanPacket(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, p2 *ondatra.Port) {
+	// README step 1: confirm traffic is already flowing steadily before injecting the
+	// MTU fault, so a failure here is attributed to a prior subtest instead of this one.
+	verifyFlowHealthy(t, ate, flowMTUName, monitorWindow)
+
 	setMTU(t, dut, p2.Name(), mtuTooSmall)
 	awaitMTU(t, dut, p2.Name(), mtuTooSmall, awaitTimeout)
 
