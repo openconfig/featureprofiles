@@ -31,6 +31,173 @@ Note that OTG ports are promiscuous, i.e. they will receive all packets
 regardless of the destination MAC. The custom egress filter is used to tell what
 are the destination MAC addresses of the packets seen by the OTG.
 
+## Canonical OC
+
+```json
+{
+  "openconfig-interfaces:interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "DUT to ATE source",
+          "enabled": true,
+          "name": "port1",
+          "type": "iana-if-type:ethernetCsmacd"
+        },
+        "name": "port1",
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "mac-address": "02:1a:c0:00:02:02"
+          }
+        },
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "config": {
+                "index": 0
+              },
+              "index": 0,
+              "openconfig-if-ip:ipv4": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "192.0.2.2",
+                        "prefix-length": 30
+                      },
+                      "ip": "192.0.2.2"
+                    }
+                  ]
+                },
+                "config": {
+                  "enabled": true
+                },
+                "neighbors": {
+                  "neighbor": [
+                    {
+                      "config": {
+                        "ip": "192.0.2.1",
+                        "link-layer-address": "12:34:56:78:7a:69"
+                      },
+                      "ip": "192.0.2.1"
+                    }
+                  ]
+                }
+              },
+              "openconfig-if-ip:ipv6": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "2001:db8::2",
+                        "prefix-length": 126
+                      },
+                      "ip": "2001:db8::2"
+                    }
+                  ]
+                },
+                "config": {
+                  "enabled": true
+                },
+                "neighbors": {
+                  "neighbor": [
+                    {
+                      "config": {
+                        "ip": "2001:db8::1",
+                        "link-layer-address": "12:34:56:78:7a:69"
+                      },
+                      "ip": "2001:db8::1"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "config": {
+          "description": "DUT to ATE destination",
+          "enabled": true,
+          "name": "port2",
+          "type": "iana-if-type:ethernetCsmacd"
+        },
+        "name": "port2",
+        "openconfig-if-ethernet:ethernet": {
+          "config": {
+            "mac-address": "02:1a:c0:00:02:05"
+          }
+        },
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "config": {
+                "index": 0
+              },
+              "index": 0,
+              "openconfig-if-ip:ipv4": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "192.0.2.5",
+                        "prefix-length": 30
+                      },
+                      "ip": "192.0.2.5"
+                    }
+                  ]
+                },
+                "config": {
+                  "enabled": true
+                },
+                "neighbors": {
+                  "neighbor": [
+                    {
+                      "config": {
+                        "ip": "192.0.2.6",
+                        "link-layer-address": "12:34:56:78:7a:69"
+                      },
+                      "ip": "192.0.2.6"
+                    }
+                  ]
+                }
+              },
+              "openconfig-if-ip:ipv6": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "2001:db8::5",
+                        "prefix-length": 126
+                      },
+                      "ip": "2001:db8::5"
+                    }
+                  ]
+                },
+                "config": {
+                  "enabled": true
+                },
+                "neighbors": {
+                  "neighbor": [
+                    {
+                      "config": {
+                        "ip": "2001:db8::6",
+                        "link-layer-address": "12:34:56:78:7a:69"
+                      },
+                      "ip": "2001:db8::6"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
+
 ## OpenConfig Path and RPC Coverage
 ```yaml
 paths:
