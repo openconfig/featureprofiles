@@ -938,6 +938,10 @@ func TestBGPGracefulRestart(t *testing.T) {
 					t.Run("Verify No Packet Loss for "+mode, func(t *testing.T) {
 						otgutils.ExpectedTrafficLoss(t, ate.OTG(), "Ipv4", 0.0, 0.0, 10, 10)
 					})
+				} else {
+					t.Run("Verify 100% Packet Loss for "+mode, func(t *testing.T) {
+						otgutils.ExpectedTrafficLoss(t, ate.OTG(), "Ipv4", 99.0, 100.0, 10, 10)
+					})
 				}
 				t.Logf("Time passed since acl applied is %s", time.Since(startTime))
 				waitDuration = grStaleRouteTime*time.Second - time.Since(startTime) + 20*time.Second
