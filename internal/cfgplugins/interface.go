@@ -1543,12 +1543,12 @@ func ConfigureStaticArp(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch,
 		s4 := s.GetOrCreateIpv4()
 		n4 := s4.GetOrCreateNeighbor(params.MagicIP)
 		n4.LinkLayerAddress = ygot.String(params.MagicMAC)
-		gnmi.BatchUpdate(sb, gnmi.OC().Interface(params.InterfaceName).Subinterface(0).Ipv4().Neighbor(params.MagicIP).Config(), n4)
+		gnmi.BatchUpdate(sb, gnmi.OC().Interface(intfName).Subinterface(0).Ipv4().Neighbor(params.MagicIP).Config(), n4)
 	} else {
 		s6 := s.GetOrCreateIpv6()
 		n6 := s6.GetOrCreateNeighbor(params.MagicIP)
 		n6.LinkLayerAddress = ygot.String(params.MagicMAC)
-		gnmi.BatchUpdate(sb, gnmi.OC().Interface(params.InterfaceName).Subinterface(0).Ipv6().Neighbor(params.MagicIP).Config(), n6)
+		gnmi.BatchUpdate(sb, gnmi.OC().Interface(intfName).Subinterface(0).Ipv6().Neighbor(params.MagicIP).Config(), n6)
 	}
 
 }

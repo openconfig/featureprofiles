@@ -1,7 +1,6 @@
 package doubleguedecap_test
 
 import (
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -183,7 +182,7 @@ func mustConfigureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		b.Set(t, dut)
 
 		// Configure traffic loopback on the interface
-		cfgplugins.ConfigureSoftwareLoopback(t, dut, dut.Port(t, "port"+strconv.Itoa(l.OndatraPortsIdx[0]+1)).Name())
+		cfgplugins.ConfigureSoftwareLoopback(t, dut, l.OndatraPorts[0].Name())
 	}
 
 	port1DstMac = gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
@@ -622,9 +621,10 @@ func TestDoubleGueDecap(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 
-	t.Cleanup(func() {
-		t.Log("Cleaning up double GUE decap test configuration")
+	defer func() {
 		ate.OTG().StopTraffic(t)
+	}()
+	t.Cleanup(func() {
 		removeStaticRoutes(t, dut)
 		removeDecapGroups(t, dut)
 	})
