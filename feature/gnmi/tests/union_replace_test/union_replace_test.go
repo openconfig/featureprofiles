@@ -106,6 +106,11 @@ var portSpeed = map[ondatra.Speed]oc.E_IfEthernet_ETHERNET_SPEED{
 	ondatra.Speed400Gb: oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB,
 }
 
+var descriptionRE = regexp.MustCompile(`(?m)^\s*description .*$\n?`)
+var showRunningConfigBannerRE = regexp.MustCompile(`(?m)^-+.*-+$\n?`)
+var showRunningConfigCommentRE = regexp.MustCompile(`(?m)^\s*!!.*$\n?`)
+var speedValueRE = regexp.MustCompile("SPEED_(\\d+)GB")
+
 func configOCInterface(t *testing.T, sb *gnmi.SetBatch, dut *ondatra.DUTDevice) {
 	t.Helper()
 	dp1 := dut.Port(t, "port1")
@@ -206,16 +211,13 @@ func setCLIunionReplace(t *testing.T, dut *ondatra.DUTDevice) {
 // Since some vendors give priority to CLI config over OC config during union_replace,
 // having descriptions like "description [AVAILABLE]" in the base CLI config
 // will override the descriptions set by the tests via OC, causing test failures.
+
 func stripDescription(config string) string {
-	re := regexp.MustCompile(`(?m)^\s*description .*$\n?`)
-	return re.ReplaceAllString(config, "")
+	return descriptionRE.ReplaceAllString(config, "")
 }
 
 // showRunningConfigBannerRE matches decorative header lines. These lines are not valid configuration input
 // and must be removed before the text is resubmitted via a CLI-origin union_replace.
-var showRunningConfigBannerRE = regexp.MustCompile(`(?m)^-+.*-+$\n?`)
-var showRunningConfigCommentRE = regexp.MustCompile(`(?m)^\s*!!.*$\n?`)
-
 func stripShowRunningConfigBanner(config string) string {
 	config = showRunningConfigBannerRE.ReplaceAllString(config, "")
 	config = showRunningConfigCommentRE.ReplaceAllString(config, "")
@@ -605,7 +607,7 @@ func cliBreakoutMode(t *testing.T, dut *ondatra.DUTDevice, intfName string, brea
 }
 
 func speedValueG(speed oc.E_IfEthernet_ETHERNET_SPEED) string {
-	match := regexp.MustCompile(`SPEED_(\d+)GB`).FindStringSubmatch(speed.String())
+	match := speedValueRE.FindStringSubmatch(speed.String())
 	if len(match) < 2 {
 		return ""
 	}
