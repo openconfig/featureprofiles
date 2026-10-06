@@ -1343,8 +1343,9 @@ func ConfigureURPFonDutInt(t *testing.T, dut *ondatra.DUTDevice, cfg URPFConfigP
 	if deviations.URPFConfigOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			if cfg.Mode != oc.IfIp_UrpfMode_LOOSE {
-				t.Fatalf("Unsupported uRPF mode %v for vendor %v, only LOOSE is supported", cfg.Mode, dut.Vendor())
+			modeStr := "any"
+			if cfg.Mode == oc.IfIp_UrpfMode_STRICT {
+				modeStr = "rx"
 			}
 			lookupVRF := ""
 			if cfg.LookupNetworkInstance != "" {
@@ -1352,20 +1353,25 @@ func ConfigureURPFonDutInt(t *testing.T, dut *ondatra.DUTDevice, cfg URPFConfigP
 			}
 			urpfCliConfig := fmt.Sprintf(`
 			interface %s
-			ip verify unicast source reachable-via any%[2]s
-			ipv6 verify unicast source reachable-via any%[2]s
-			`, cfg.InterfaceName, lookupVRF)
+			ip verify unicast source reachable-via %s%s
+			ipv6 verify unicast source reachable-via %s%s
+			`, cfg.InterfaceName, modeStr, lookupVRF, modeStr, lookupVRF)
 			helpers.GnmiCLIConfig(t, dut, urpfCliConfig)
 		case ondatra.CISCO:
+			vrfConfig := ""
+			if cfg.LookupNetworkInstance != "" {
+				vrfConfig = fmt.Sprintf(`
+				vrf %s
+				urpf-lookup-ipv4
+				urpf-lookup-ipv6
+				!`, cfg.LookupNetworkInstance)
+			}
 			urpfCLIConfig := fmt.Sprintf(`
-			vrf %s
-			urpf-lookup-ipv4
-			urpf-lookup-ipv6
-			!
+			%s
 			interface %s
 			ipv4 verify unicast source reachable-via any
 			ipv6 verify unicast source reachable-via any
-			`, cfg.LookupNetworkInstance, cfg.InterfaceName)
+			`, vrfConfig, cfg.InterfaceName)
 			helpers.GnmiCLIConfig(t, dut, urpfCLIConfig)
 		default:
 			t.Fatalf("Unsupported vendor: %v", dut.Vendor())

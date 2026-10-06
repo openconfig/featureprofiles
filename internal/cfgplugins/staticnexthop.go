@@ -421,11 +421,9 @@ func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, params
 					`, params.NexthopGrpName, groupType, params.TTL)
 				helpers.GnmiCLIConfig(t, dut, cli)
 			}
-
 			if params.DSCP != 0 {
 				configureTOSGUE(t, dut, "policy1", uint32(params.DSCP>>5), params.SrcIp, params.DeleteDSCP)
 			}
-
 			if params.DeleteTtl {
 				cli = fmt.Sprintf(
 					`nexthop-group %s type %s
@@ -433,15 +431,6 @@ func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, params
 					`, params.NexthopGrpName, groupType, params.TTL)
 				helpers.GnmiCLIConfig(t, dut, cli)
 			}
-
-			if params.DeleteTtl {
-				cli = fmt.Sprintf(
-					`nexthop-group %s type %s
-					no ttl %v
-					`, params.NexthopGrpName, groupType, params.TTL)
-				helpers.GnmiCLIConfig(t, dut, cli)
-			}
-
 			if params.DstUdpPort != 0 {
 				cli = fmt.Sprintf(`tunnel type %s udp destination port %v`, groupType, params.DstUdpPort)
 				helpers.GnmiCLIConfig(t, dut, cli)
@@ -452,7 +441,6 @@ func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, params
 	} else {
 		nhg := params.NetworkInstanceObj.GetOrCreateStatic().GetOrCreateNextHopGroup(params.NexthopGrpName)
 		nhg.GetOrCreateNextHop(params.Index).SetIndex(params.Index)
-
 		ueh1 := params.NetworkInstanceObj.GetOrCreateStatic().GetOrCreateNextHop(params.Index).GetOrCreateEncapHeader(1)
 		for _, addr := range params.DstIp {
 			ueh1.GetOrCreateUdpV4().SetDstIp(addr)

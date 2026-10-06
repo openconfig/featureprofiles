@@ -31,6 +31,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -110,10 +111,12 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch {
 	cfgplugins.ConfigureBGPNeighbor(t, dut, defaultNI, dutPort2.IPv4, atePort2.IPv6, dutAS, ateAS2, "IPv6", true)
 	cfgplugins.UpdateNetworkInstanceOnDut(t, dut, defaultNIName, defaultNI)
 	cfgplugins.UpdateNetworkInstanceOnDut(t, dut, nonDefaultVRF, nonDefaultNI)
-	t.Log("Configuring uRPF lookup routes in the non-default VRF")
-	configureURPFLookupRoutes(t, dut, intBatch)
 	intBatch.Set(t, dut)
-	return intBatch
+	t.Log("Configuring uRPF lookup routes in the non-default VRF")
+	routeBatch := new(gnmi.SetBatch)
+	configureURPFLookupRoutes(t, dut, routeBatch)
+	routeBatch.Set(t, dut)
+	return routeBatch
 }
 
 // configureURPFLookupRoutes installs the routes that the uRPF lookup is performed against in the
@@ -532,31 +535,27 @@ func TestURPFNonDefaultNI(t *testing.T) {
 // verifyURPFCounters checks if the uRPF drop counter has incremented as expected.
 func verifyURPFCounters(t *testing.T, dut *ondatra.DUTDevice, portName string, isV4 bool, initialDropCount, expectedIncrement uint64, exactURPFCounter bool) {
 	t.Helper()
-	deadline := time.Now().Add(30 * time.Second)
-	for {
-		newDropCount, _ := urpfDropPkts(t, dut, portName, isV4)
+	var query ygnmi.SingletonQuery[uint64]
+	if exactURPFCounter {
+		if isV4 {
+			query = gnmi.OC().Interface(portName).Subinterface(0).Ipv4().Counters().UrpfDropPkts().State()
+		} else {
+			query = gnmi.OC().Interface(portName).Subinterface(0).Ipv6().Counters().UrpfDropPkts().State()
+		}
+	} else {
+		query = gnmi.OC().Interface(portName).Counters().InUnicastPkts().State()
+	}
+	gnmi.Watch(t, dut, query, 30*time.Second, func(val *ygnmi.Value[uint64]) bool {
+		newDropCount, present := val.Val()
+		if !present {
+			return false
+		}
 		dropCount := newDropCount - initialDropCount
 		if exactURPFCounter {
-			if dropCount == expectedIncrement {
-				t.Logf("uRPF drop counter incremented by %d packets as expected.", dropCount)
-				return
-			}
-		} else {
-			if dropCount >= expectedIncrement {
-				t.Logf("uRPF fallback counter incremented by %d packets (>= expected %d).", dropCount, expectedIncrement)
-				return
-			}
+			return dropCount == expectedIncrement
 		}
-		if time.Now().After(deadline) {
-			if exactURPFCounter {
-				t.Errorf("uRPF drop counter increment mismatch. Got increment: %d, want: %d", dropCount, expectedIncrement)
-			} else {
-				t.Errorf("uRPF fallback counter increment too low. Got increment: %d, want at least: %d", dropCount, expectedIncrement)
-			}
-			return
-		}
-		time.Sleep(1 * time.Second)
-	}
+		return dropCount >= expectedIncrement
+	}).Await(t)
 }
 
 // urpfDropPkts reads the IPv4 or IPv6 uRPF drop packet counter from subinterface 0.
