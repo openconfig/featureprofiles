@@ -555,7 +555,6 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) (gosnappi.Config, []stri
 	t.Log("Pushing config to ATE and starting protocols...")
 	otg.PushConfig(t, topo)
 	otg.StartProtocols(t)
-	otgutils.WaitForARP(t, otg, topo, "IPv4")
 	return topo, []string{flow1}, newPeerNames
 }
 
