@@ -30,6 +30,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -71,6 +72,9 @@ func configureISIS(t *testing.T, ts *isissession.TestSession) {
 	globalIsis.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	globalIsis.LevelCapability = oc.Isis_LevelType_LEVEL_2
 	globalIsis.AuthenticationCheck = ygot.Bool(true)
+	if deviations.ISISGlobalAuthenticationNotRequired(ts.DUT) {
+		globalIsis.AuthenticationCheck = nil
+	}
 	globalIsis.HelloPadding = oc.Isis_HelloPaddingType_ADAPTIVE
 
 	// Level configs.
@@ -83,7 +87,11 @@ func configureISIS(t *testing.T, ts *isissession.TestSession) {
 	auth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
 	auth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
 	auth.AuthPassword = ygot.String(password)
-
+	if deviations.ISISExplicitLevelAuthenticationConfig(ts.DUT) {
+		auth.DisableCsnp = ygot.Bool(false)
+		auth.DisableLsp = ygot.Bool(false)
+		auth.DisablePsnp = ygot.Bool(false)
+	}
 	// Interface configs.
 	intfName := ts.DUTPort1.Name()
 	if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) || deviations.InterfaceRefInterfaceIDFormat(ts.DUT) {
@@ -216,9 +224,20 @@ func TestISISLevelPassive(t *testing.T) {
 				}
 			}
 			t.Logf("Adjacency state after passive update is %s", statePath.Interface(intfName).Level(2).AdjacencyAny().AdjacencyState().State())
-			// Adjacency should be down.
-			for _, val := range gnmi.LookupAll(t, ts.DUT, statePath.Interface(intfName).LevelAny().AdjacencyAny().AdjacencyState().State()) {
-				if v, _ := val.Val(); v == oc.Isis_IsisInterfaceAdjState_UP {
+			adjStatePath := statePath.Interface(intfName).LevelAny().AdjacencyAny().AdjacencyState().State()
+			adjUp := func() bool {
+				for _, val := range gnmi.LookupAll(t, ts.DUT, adjStatePath) {
+					if v, _ := val.Val(); v == oc.Isis_IsisInterfaceAdjState_UP {
+						return true
+					}
+				}
+				return false
+			}
+			if adjUp() {
+				if _, ok := gnmi.WatchAll(t, ts.DUT, adjStatePath, 90*time.Second, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
+					v, present := val.Val()
+					return !present || v != oc.Isis_IsisInterfaceAdjState_UP
+				}).Await(t); !ok {
 					t.Fatalf("Adjacency should not be up as level 2 is passive")
 				}
 			}
@@ -291,8 +310,10 @@ func TestISISLevelPassive(t *testing.T) {
 			if got := gnmi.Get(t, ts.DUT, adjPath.LocalExtendedCircuitId().State()); got == 0 {
 				t.Errorf("FAIL- Expected local extended circuit id not found,expected non-zero value, got %d", got)
 			}
-			if got := gnmi.Get(t, ts.DUT, adjPath.MultiTopology().State()); got != false {
-				t.Errorf("FAIL- Expected value for multi topology not found, got %t, want %t", got, false)
+			if !deviations.ISISMultiTopologyUnsupported(ts.DUT) {
+				if got := gnmi.Get(t, ts.DUT, adjPath.MultiTopology().State()); got != false {
+					t.Errorf("FAIL- Expected value for multi topology not found, got %t, want %t", got, false)
+				}
 			}
 			if got := gnmi.Get(t, ts.DUT, adjPath.NeighborCircuitType().State()); got != oc.Isis_LevelType_LEVEL_2 {
 				t.Errorf("FAIL- Expected value for circuit type not found, got %s, want %s", got, oc.Isis_LevelType_LEVEL_2)
@@ -330,45 +351,45 @@ func TestISISLevelPassive(t *testing.T) {
 			}
 		})
 		t.Run("System level counter checks", func(t *testing.T) {
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().AuthFails().State()); got != 0 {
+			if got, ok := gnmi.Lookup(t, ts.DUT, statePath.Level(2).SystemLevelCounters().AuthFails().State()).Val(); ok && got != 0 {
 				t.Errorf("FAIL- Not expecting any authentication key failure, got %d, want %d", got, 0)
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().AuthTypeFails().State()); got != 0 {
+			if got, ok := gnmi.Lookup(t, ts.DUT, statePath.Level(2).SystemLevelCounters().AuthTypeFails().State()).Val(); ok && got != 0 {
 				t.Errorf("FAIL- Not expecting any authentication type mismatches, got %d, want %d", got, 0)
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().CorruptedLsps().State()); got != 0 {
+			if got, ok := gnmi.Lookup(t, ts.DUT, statePath.Level(2).SystemLevelCounters().CorruptedLsps().State()).Val(); ok && got != 0 {
 				t.Errorf("FAIL- Not expecting any corrupted lsps, got %d, want %d", got, 0)
 			}
 			if !deviations.IsisDatabaseOverloadsUnsupported(ts.DUT) {
-				if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().DatabaseOverloads().State()); got != 0 {
+				if got, ok := gnmi.Lookup(t, ts.DUT, statePath.Level(2).SystemLevelCounters().DatabaseOverloads().State()).Val(); ok && got != 0 {
 					t.Errorf("FAIL- Not expecting non zero database_overloads, got %d, want %d", got, 0)
 				}
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().ExceedMaxSeqNums().State()); got != 0 {
+			if got, ok := gnmi.Lookup(t, ts.DUT, statePath.Level(2).SystemLevelCounters().ExceedMaxSeqNums().State()).Val(); ok && got != 0 {
 				t.Errorf("FAIL- Not expecting non zero max_seqnum counter, got %d, want %d", got, 0)
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().IdLenMismatch().State()); got != 0 {
+			if got, ok := gnmi.Lookup(t, ts.DUT, statePath.Level(2).SystemLevelCounters().IdLenMismatch().State()).Val(); ok && got != 0 {
 				t.Errorf("FAIL- Not expecting non zero IdLen_Mismatch counter, got %d, want %d", got, 0)
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().LspErrors().State()); got != 0 {
+			if got, ok := gnmi.Lookup(t, ts.DUT, statePath.Level(2).SystemLevelCounters().LspErrors().State()).Val(); ok && got != 0 {
 				t.Errorf("FAIL- Not expecting any lsp errors, got %d, want %d", got, 0)
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().MaxAreaAddressMismatches().State()); got != 0 {
+			if got, ok := gnmi.Lookup(t, ts.DUT, statePath.Level(2).SystemLevelCounters().MaxAreaAddressMismatches().State()).Val(); ok && got != 0 {
 				t.Errorf("FAIL- Not expecting non zero MaxAreaAddressMismatches counter, got %d, want %d", got, 0)
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().OwnLspPurges().State()); got != 0 {
+			if got, ok := gnmi.Lookup(t, ts.DUT, statePath.Level(2).SystemLevelCounters().OwnLspPurges().State()).Val(); ok && got != 0 {
 				t.Errorf("FAIL- Not expecting non zero OwnLspPurges counter, got %d, want %d", got, 0)
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().SeqNumSkips().State()); got != 0 {
+			if got, ok := gnmi.Lookup(t, ts.DUT, statePath.Level(2).SystemLevelCounters().SeqNumSkips().State()).Val(); ok && got != 0 {
 				t.Errorf("FAIL- Not expecting non zero SeqNumber skips, got %d, want %d", got, 0)
 			}
 			if !deviations.ISISCounterManualAddressDropFromAreasUnsupported(ts.DUT) {
-				if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().ManualAddressDropFromAreas().State()); got != 0 {
+				if got, ok := gnmi.Lookup(t, ts.DUT, statePath.Level(2).SystemLevelCounters().ManualAddressDropFromAreas().State()).Val(); ok && got != 0 {
 					t.Errorf("FAIL- Not expecting non zero ManualAddressDropFromAreas counter, got %d, want %d", got, 0)
 				}
 			}
 			if !deviations.ISISCounterPartChangesUnsupported(ts.DUT) {
-				if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().PartChanges().State()); got != 0 {
+				if got, ok := gnmi.Lookup(t, ts.DUT, statePath.Level(2).SystemLevelCounters().PartChanges().State()).Val(); ok && got != 0 {
 					t.Errorf("FAIL- Not expecting partition changes, got %d, want %d", got, 0)
 				}
 			}
