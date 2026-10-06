@@ -2403,3 +2403,10 @@ func AigpMetricIncrement(dut *ondatra.DUTDevice) bool {
 func PowerSupplyTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPowerSupplyTelemetryUnsupported()
 }
+
+// LacpTxErrorsUnsupported returns true if the device does not support
+// /lacp/interfaces/interface/members/member/state/counters/lacp-tx-errors.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/570398368
+func LacpTxErrorsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLacpTxErrorsUnsupported()
+}

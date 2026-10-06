@@ -233,14 +233,20 @@ func (tc *testCase) configureDUT(t *testing.T) {
 		gnmi.Replace(t, tc.dut, lacpPath.Config(), lacp)
 	}
 
-	// TODO - to remove this sleep later
-	time.Sleep(5 * time.Second)
-
 	agg := &oc.Interface{Name: ygot.String(tc.aggID)}
 	tc.configDstAggregateDUT(agg, &dutDst)
 	aggPath := d.Interface(tc.aggID)
 	fptest.LogQuery(t, tc.aggID, aggPath.Config(), agg)
 	gnmi.Replace(t, tc.dut, aggPath.Config(), agg)
+	if tc.lagType == lagTypeLACP {
+		// Re-apply LACP config after replacing the aggregate interface so platforms
+		// that store LACP settings under the bundle interface stanza (e.g. Cisco IOS-XR)
+		// retain system-id-mac.
+		gnmi.Update(t, tc.dut, lacpPath.Config(), lacp)
+	}
+
+	// TODO - to remove this sleep later
+	time.Sleep(5 * time.Second)
 
 	srcp := tc.dutPorts[0]
 	srci := &oc.Interface{Name: ygot.String(srcp.Name())}
@@ -412,8 +418,8 @@ func (tc *testCase) verifyLACPTelemetry(t *testing.T) {
 			t.Errorf("DUT LAG %s: ATE system-id (%s) did not match DUT partner-id (%s)", tc.aggID, *ateLACP.SystemId, *dutLACP.PartnerId)
 		}
 
-		if dutLACP.SystemId != nil && !strings.EqualFold(sysIDMAC, *dutLACP.SystemId) {
-			t.Errorf("DUT LAG %s: state/system-id-mac (%s) did not match member %s system-id (%s)", tc.aggID, sysIDMAC, dutPort.Name(), *dutLACP.SystemId)
+		if dutLACP.SystemId == nil || !strings.EqualFold(sysIDMAC, dutLACP.GetSystemId()) {
+			t.Errorf("DUT LAG %s: state/system-id-mac (%s) did not match member %s system-id (%s)", tc.aggID, sysIDMAC, dutPort.Name(), dutLACP.GetSystemId())
 		}
 
 		counters := dutLACP.GetCounters()
@@ -436,8 +442,7 @@ func (tc *testCase) verifyLACPTelemetry(t *testing.T) {
 		} else if got := counters.GetLacpUnknownErrors(); got != 0 {
 			t.Errorf("DUT LAG %s member %s: lacp-unknown-errors = %d, want 0", tc.aggID, dutPort.Name(), got)
 		}
-		// Cisco IOS-XR does not support lacp-tx-errors in OpenConfig.
-		if tc.dut.Vendor() != ondatra.CISCO {
+		if !deviations.LacpTxErrorsUnsupported(tc.dut) {
 			if counters.LacpTxErrors == nil {
 				t.Errorf("DUT LAG %s member %s: lacp-tx-errors is not populated", tc.aggID, dutPort.Name())
 			} else if got := counters.GetLacpTxErrors(); got != 0 {
