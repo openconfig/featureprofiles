@@ -11,6 +11,10 @@ platform_exceptions: {
   }
   deviations: {
     ipv4_missing_enabled: true
+    num_physical_channels_unsupported: true
+    port_speed_unsupported: true
+    union_replace_oc_and_cli_required: true
+    invalid_interface_number_allowed: true
   }
 }
 platform_exceptions: {

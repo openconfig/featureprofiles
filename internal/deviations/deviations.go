@@ -2403,3 +2403,13 @@ func AigpMetricIncrement(dut *ondatra.DUTDevice) bool {
 func PowerSupplyTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPowerSupplyTelemetryUnsupported()
 }
+
+// InvalidInterfaceNumberAllowed returns true for devices that don't pre-check invalid interface numberswhen configured
+func InvalidInterfaceNumberAllowed(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInvalidInterfaceNumberAllowed()
+}
+
+// UnionReplaceOcAndCliRequired returns true for devices that require a combination of OC and CLI origin requests in gnmi union_replace call
+func UnionReplaceOcAndCliRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUnionReplaceOcAndCliRequired()
+}
