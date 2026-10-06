@@ -31,6 +31,7 @@ import (
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"os"
@@ -45,6 +46,7 @@ import (
 	attestzpb "github.com/openconfig/attestz/proto/tpm_attestz"
 	enrollzpb "github.com/openconfig/attestz/proto/tpm_enrollz"
 	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/security/svid"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -74,6 +76,11 @@ type Session struct {
 	EnrollzClient enrollzpb.TpmEnrollzServiceClient
 	AttestzClient attestzpb.TpmAttestzServiceClient
 }
+
+const (
+	attestRetryInterval = 5 * time.Second
+	attestRetryTimeout  = time.Minute
+)
 
 var (
 	chassisName string
@@ -186,30 +193,53 @@ func (cc *ControlCard) AttestzWorkflow(t *testing.T, dut *ondatra.DUTDevice, tc 
 	defer as.Conn.Close()
 
 	for _, hashAlgo := range GetPcrBankHashAlgosForPlatform(t, dut) {
-		nonce := GenNonce(t)
-		attestResponse := as.RequestAttestation(t, cc.Role, nonce, hashAlgo, PcrIndices)
-
-		// Verify active card's cert is used for tls connection.
-		t.Logf("Verifying correct cert was used for tls connection during attestz")
-		var activeCert string
-		if activeCard.MtlsCert != "" {
-			activeCert = activeCard.MtlsCert
-		} else {
-			activeCert = activeCard.ODevIDCert
+		deadline := time.Now().Add(attestRetryTimeout)
+		var lastErr error
+		for {
+			lastErr = cc.attestOnce(t, dut, as, hashAlgo)
+			if lastErr == nil {
+				break
+			}
+			if time.Now().Add(attestRetryInterval).After(deadline) {
+				break
+			}
+			t.Logf("Attestation error for card %v, hash algo %v: %v; retrying in %v", cc.Name, hashAlgo, lastErr, attestRetryInterval)
+			time.Sleep(attestRetryInterval)
 		}
-		wantPeerCert, err := LoadCertificate(activeCert)
-		if err != nil {
-			t.Fatalf("Error parsing cert. error: %s", err)
+		if lastErr != nil {
+			t.Fatalf("Attestation failed for card %v, hash algo %v after %v: %v", cc.Name, hashAlgo, attestRetryTimeout, lastErr)
 		}
-		tlsInfo := as.Peer.AuthInfo.(credentials.TLSInfo)
-		gotPeerCert := tlsInfo.State.PeerCertificates[0]
-		if diff := cmp.Diff(wantPeerCert, gotPeerCert); diff != "" {
-			t.Errorf("Incorrect certificate used for attestz tls session. -want,+got:\n%s", diff)
-		}
-		t.Logf("Verifying attestation for card %v, hash algo: %v", cc.Name, hashAlgo.String())
-
-		cc.verifyAttestation(t, dut, attestResponse, nonce, hashAlgo, PcrIndices)
 	}
+}
+
+// attestOnce requests attestation and verifies the response, including the TLS peer cert.
+func (cc *ControlCard) attestOnce(t *testing.T, dut *ondatra.DUTDevice, as *Session, hashAlgo cdpb.Tpm20HashAlgo) error {
+	nonce := GenNonce(t)
+	attestResponse, err := as.RequestAttestation(t, cc.Role, nonce, hashAlgo, PcrIndices)
+	if err != nil {
+		return err
+	}
+
+	// Verify active card's cert is used for tls connection.
+	t.Logf("Verifying correct cert was used for tls connection during attestz")
+	var activeCert string
+	if activeCard.MtlsCert != "" {
+		activeCert = activeCard.MtlsCert
+	} else {
+		activeCert = activeCard.ODevIDCert
+	}
+	wantPeerCert, err := LoadCertificate(activeCert)
+	if err != nil {
+		return fmt.Errorf("error parsing cert: %w", err)
+	}
+	tlsInfo := as.Peer.AuthInfo.(credentials.TLSInfo)
+	gotPeerCert := tlsInfo.State.PeerCertificates[0]
+	if diff := cmp.Diff(wantPeerCert, gotPeerCert); diff != "" {
+		return fmt.Errorf("incorrect certificate used for attestz tls session. -want,+got:\n%s", diff)
+	}
+
+	t.Logf("Verifying attestation for card %v, hash algo: %v", cc.Name, hashAlgo.String())
+	return cc.verifyAttestation(t, dut, attestResponse, nonce, hashAlgo, PcrIndices)
 }
 
 // ParseRoleSelection returns crafted get request with card role.
@@ -262,7 +292,7 @@ func (as *Session) RotateOwnerCerts(t *testing.T, cardRole cdpb.ControlCardRole,
 }
 
 // RequestAttestation requests attestation from the dut for a given card, hash algo & pcr indices.
-func (as *Session) RequestAttestation(t *testing.T, cardRole cdpb.ControlCardRole, nonce []byte, hashAlgo cdpb.Tpm20HashAlgo, pcrIndices []int32) *attestzpb.AttestResponse {
+func (as *Session) RequestAttestation(t *testing.T, cardRole cdpb.ControlCardRole, nonce []byte, hashAlgo cdpb.Tpm20HashAlgo, pcrIndices []int32) (*attestzpb.AttestResponse, error) {
 	attestzRequest := &attestzpb.AttestRequest{
 		ControlCardSelection: ParseRoleSelection(cardRole),
 		Nonce:                nonce,
@@ -272,10 +302,10 @@ func (as *Session) RequestAttestation(t *testing.T, cardRole cdpb.ControlCardRol
 	t.Logf("Sending Attestz.Attest request on device: \n %s", PrettyPrint(attestzRequest))
 	response, err := as.AttestzClient.Attest(context.Background(), attestzRequest, grpc.Peer(as.Peer))
 	if err != nil {
-		t.Fatalf("Error with AttestRequest. error: %v", err)
+		return nil, fmt.Errorf("error with AttestRequest: %w", err)
 	}
 	t.Logf("Attest response: \n %s", PrettyPrint(response))
-	return response
+	return response, nil
 }
 
 func (cc *ControlCard) verifyVendorCert(t *testing.T, dut *ondatra.DUTDevice, vendorCaCert []byte, certType string) {
@@ -389,7 +419,7 @@ func nokiaPCRVerify(t *testing.T, dut *ondatra.DUTDevice, cardName string, hashA
 
 	// Expected pcr values for Nokia present in /mnt/nokiaos/<build binary.bin>/known_good_pcr_values.json.
 	remotePath := path.Join("/mnt/nokiaos", ver, "known_good_pcr_values.json")
-	jsonBytes := gNOIReadFile(t, dut, remotePath)
+	jsonBytes := []byte(helpers.RunCliCommand(t, dut, fmt.Sprintf("bash sudo cat '%s'", remotePath)))
 
 	// Parse json file into struct.
 	type Values struct {
@@ -413,7 +443,7 @@ func nokiaPCRVerify(t *testing.T, dut *ondatra.DUTDevice, cardName string, hashA
 	var nokiaPcrData PcrData
 	err := json.Unmarshal(jsonBytes, &nokiaPcrData)
 	if err != nil {
-		t.Fatalf("Could not parse json. error: %v", err)
+		return fmt.Errorf("could not parse json: %w", err)
 	}
 
 	hashAlgoMap := map[cdpb.Tpm20HashAlgo]string{
@@ -440,6 +470,7 @@ func nokiaPCRVerify(t *testing.T, dut *ondatra.DUTDevice, cardName string, hashA
 	}
 
 	wantPcrValues := pcrBankData[idx].PcrValues
+	var errs []error
 	for _, pcrIndex := range pcrIndices {
 		idx = slices.IndexFunc(wantPcrValues, func(p PcrValuesData) bool {
 			return p.Pcr == pcrIndex
@@ -454,32 +485,32 @@ func nokiaPCRVerify(t *testing.T, dut *ondatra.DUTDevice, cardName string, hashA
 			return got == v.Value
 		})
 		if idx == -1 {
-			t.Errorf("%v pcr %v value does not match expectations, got: %v want acceptable values: %v", hashAlgoMap[hashAlgo], pcrIndex, got, want)
+			errs = append(errs, fmt.Errorf("%v pcr %v value does not match expectations, got: %v want acceptable values: %v", hashAlgoMap[hashAlgo], pcrIndex, got, want))
 		}
 	}
-	return nil
+	return errors.Join(errs...)
 }
 
-func (cc *ControlCard) verifyAttestation(t *testing.T, dut *ondatra.DUTDevice, attestResponse *attestzpb.AttestResponse, wantNonce []byte, pcrHashAlgo cdpb.Tpm20HashAlgo, pcrIndices []int32) {
+func (cc *ControlCard) verifyAttestation(t *testing.T, dut *ondatra.DUTDevice, attestResponse *attestzpb.AttestResponse, wantNonce []byte, pcrHashAlgo cdpb.Tpm20HashAlgo, pcrIndices []int32) error {
 	// Verify oIAK cert is the same as the one installed earlier.
 	if !cmp.Equal(attestResponse.OiakCert, cc.OIAKCert) {
-		t.Errorf("Got incorrect oIAK cert, got: %v, want: %v", attestResponse.OiakCert, cc.OIAKCert)
+		return fmt.Errorf("got incorrect oIAK cert, got: %v, want: %v", attestResponse.OiakCert, cc.OIAKCert)
 	}
 
 	// Verify all pcr_values match expectations.
 	switch dut.Vendor() {
 	case ondatra.NOKIA:
 		if err := nokiaPCRVerify(t, dut, cc.Name, pcrHashAlgo, attestResponse.PcrValues); err != nil {
-			t.Error(err)
+			return err
 		}
 	default:
-		t.Error("Vendor reference pcr values not verified.")
+		return fmt.Errorf("vendor reference pcr values not verified")
 	}
 
 	// Retrieve quote signature in TPM Object
 	quoteTpmtSignature, err := tpm2.Unmarshal[tpm2.TPMTSignature](attestResponse.QuoteSignature)
 	if err != nil {
-		t.Fatalf("Error unmarshalling signature. error: %v", err)
+		return fmt.Errorf("error unmarshalling signature: %w", err)
 	}
 
 	// Default Hash Algo is SHA256 as per TPM2_Quote().
@@ -488,19 +519,19 @@ func (cc *ControlCard) verifyAttestation(t *testing.T, dut *ondatra.DUTDevice, a
 
 	oIakCert, err := LoadCertificate(cc.OIAKCert)
 	if err != nil {
-		t.Fatalf("Error loading vendor oIAK cert. error: %v", err)
+		return fmt.Errorf("error loading vendor oIAK cert: %w", err)
 	}
 
 	switch quoteTpmtSignature.SigAlg {
 	case tpm2.TPMAlgRSASSA:
 		quoteTpmsSignature, err := quoteTpmtSignature.Signature.RSASSA()
 		if err != nil {
-			t.Fatalf("Error retrieving TPMS signature. error: %v", err)
+			return fmt.Errorf("error retrieving TPMS signature: %w", err)
 		}
 		// Retrieve signature's hash algorithm.
 		hashAlgo, err = quoteTpmsSignature.Hash.Hash()
 		if err != nil {
-			t.Fatalf("Error retrieving signature hash algorithm. error: %v", err)
+			return fmt.Errorf("error retrieving signature hash algorithm: %w", err)
 		}
 		// Generate hash from original quote
 		quoteHash := generateHash(attestResponse.Quoted, hashAlgo)
@@ -508,17 +539,17 @@ func (cc *ControlCard) verifyAttestation(t *testing.T, dut *ondatra.DUTDevice, a
 		oIAKPubKey := oIakCert.PublicKey.(*rsa.PublicKey)
 		// Verify quote signature with oIAK cert.
 		if err = rsa.VerifyPKCS1v15(oIAKPubKey, hashAlgo, quoteHash, quoteTpmsSignature.Sig.Buffer); err != nil {
-			t.Errorf("Failed verifying RSA quote signature. error: %v", err)
+			return fmt.Errorf("failed verifying RSA quote signature: %w", err)
 		}
 	case tpm2.TPMAlgECDSA:
 		quoteTpmsSignature, err := quoteTpmtSignature.Signature.ECDSA()
 		if err != nil {
-			t.Fatalf("Error retrieving TPMS signature. error: %v", err)
+			return fmt.Errorf("error retrieving TPMS signature: %w", err)
 		}
 		// Retrieve signature's hash algorithm.
 		hashAlgo, err = quoteTpmsSignature.Hash.Hash()
 		if err != nil {
-			t.Fatalf("Error retrieving signature hash algorithm. error: %v", err)
+			return fmt.Errorf("error retrieving signature hash algorithm: %w", err)
 		}
 		// Generate hash from original quote
 		quoteHash := generateHash(attestResponse.Quoted, hashAlgo)
@@ -528,10 +559,10 @@ func (cc *ControlCard) verifyAttestation(t *testing.T, dut *ondatra.DUTDevice, a
 		r := new(big.Int).SetBytes(quoteTpmsSignature.SignatureR.Buffer)
 		s := new(big.Int).SetBytes(quoteTpmsSignature.SignatureS.Buffer)
 		if isValid := ecdsa.Verify(oIAKPubKey, quoteHash, r, s); !isValid {
-			t.Errorf("Failed verifying ECDSA quote signature")
+			return fmt.Errorf("failed verifying ECDSA quote signature")
 		}
 	default:
-		t.Errorf("Cannot verify signature for %v. quote signature: %s", quoteTpmtSignature.SigAlg, PrettyPrint(quoteTpmtSignature))
+		return fmt.Errorf("cannot verify signature for %v. quote signature: %s", quoteTpmtSignature.SigAlg, PrettyPrint(quoteTpmtSignature))
 	}
 
 	// Concatenate pcr values & generate pcr digest.
@@ -544,22 +575,23 @@ func (cc *ControlCard) verifyAttestation(t *testing.T, dut *ondatra.DUTDevice, a
 	// Retrieve pcr digest from quote.
 	quoted, err := tpm2.Unmarshal[tpm2.TPMSAttest](attestResponse.Quoted)
 	if err != nil {
-		t.Fatalf("Error unmarshalling quote. error: %v", err)
+		return fmt.Errorf("error unmarshalling quote: %w", err)
 	}
 	tpmsQuoteInfo, err := quoted.Attested.Quote()
 	if err != nil {
-		t.Fatalf("Error getting TPMS quote info. error: %v", err)
+		return fmt.Errorf("error getting TPMS quote info: %w", err)
 	}
 	gotPcrDigest := tpmsQuoteInfo.PCRDigest.Buffer
 
 	// Verify recomputed PCR digest matches with pcr digest in quote.
 	if !cmp.Equal(gotPcrDigest, wantPcrDigest) {
-		t.Errorf("Did not receive expected pcr digest from attest rpc, got: %v, want: %v", gotPcrDigest, wantPcrDigest)
+		return fmt.Errorf("did not receive expected pcr digest from attest rpc, got: %v, want: %v", gotPcrDigest, wantPcrDigest)
 	}
 
 	// Verify nonce.
 	gotNonce := quoted.ExtraData.Buffer
 	if !cmp.Equal(gotNonce, wantNonce) {
-		t.Errorf("Did not receive expected nonce, got: %v, want: %v", gotNonce, wantNonce)
+		return fmt.Errorf("did not receive expected nonce, got: %v, want: %v", gotNonce, wantNonce)
 	}
+	return nil
 }

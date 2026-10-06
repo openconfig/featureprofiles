@@ -36,6 +36,7 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	certzpb "github.com/openconfig/gnsi/certz"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -363,7 +364,7 @@ func FetchNokiaCACertFile(t *testing.T, dut *ondatra.DUTDevice) string {
 		t.Fatalf("unsupported Nokia chassis model %s for automatic vendor CA; pass -switch_vendor_ca_cert", model)
 	}
 
-	pemData := gNOIReadFile(t, dut, remotePath)
+	pemData := []byte(helpers.RunCliCommand(t, dut, fmt.Sprintf("bash sudo cat '%s'", remotePath)))
 	out := filepath.Join(t.TempDir(), "vendor-ca.pem")
 	if err := os.WriteFile(out, pemData, 0o644); err != nil {
 		t.Fatalf("write temp vendor CA: %v", err)
