@@ -86,7 +86,7 @@ The origial RFC4724 had no coverage for Graceful restart process post send/recei
 **RT-1.4.8: (Receive Soft Notification) Test support for RFC8538 compliance by receiving a BGP Notification message from the peer**
 *   Advertise prefixes between the ATE ports, through the DUT. 
 *   Trigger BGP soft Notification from ATE port1. Please use the `gNOI.ClearBGPNeighborRequest_Soft` message as per [gNOI_proto](https://github.com/openconfig/gnoi/blob/main/bgp/bgp.proto#L41). Once the Notification is sent and the TCP connection is reset, configure ATE Port1 to not start/accept any more TCP connections from the DUT:Port1 until the stale-routes-timer on the DUT expires. 
-     *   Start traffic from ATE Port2 towards ATE Port1 and stop the same right before the stale-routes-timer expires. Confirm there is 100% packet loss. As per [gNOI_proto](https://github.com/openconfig/gnoi/blob/main/bgp/bgp.proto#L41) DUT will reset TCP connection and flush routes once HARD RESET is received. Hence there will be 100% traffic loss.
+     *   Start traffic from ATE Port2 towards ATE Port1 and stop the same right before the stale-routes-timer expires. Confirm there is zero packet loss.
      *   Once the stale-routes-timer expires, restart traffic. Expectations are that there is 100% packet loss. Stop traffic.
 *   Revert ATE configuration blocking TCP connection to/from DUT over TCP-Port:179 so the EBGP peering between ATE:Port1 <> DUT:port1 is reestablished. Restart traffic and confirm that there is zero packet loss. 
 *   Restart the above procedure for the IBGP peering between DUT port-2 and ATE port-2
