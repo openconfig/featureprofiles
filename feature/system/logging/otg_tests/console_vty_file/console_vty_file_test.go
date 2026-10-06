@@ -147,10 +147,10 @@ func configureFileLogging(t *testing.T, dut *ondatra.DUTDevice) {
 	root := &oc.Root{}
 	logging := root.GetOrCreateSystem().GetOrCreateLogging()
 	fileLogger1 := logging.GetOrCreateFile(filePath, "logfile_1")
-	if dut.Vendor() != ondatra.JUNIPER {
-		fileLogger1.SetMaxSize(1000000)
+	fileLogger1.SetMaxSize(1000000)
+	fileLogger1.SetRotate(3)
+	if !deviations.LoggingFileMaxOpenTimeUnsupported(dut) {
 		fileLogger1.SetMaxOpenTime(1440)
-		fileLogger1.SetRotate(3)
 	}
 	fileLogger1.GetOrCreateSelector(
 		oc.SystemLogging_SYSLOG_FACILITY_LOCAL7,
@@ -162,10 +162,10 @@ func configureFileLogging(t *testing.T, dut *ondatra.DUTDevice) {
 	)
 
 	fileLogger2 := logging.GetOrCreateFile(filePath, "logfile_2")
-	if dut.Vendor() != ondatra.JUNIPER {
-		fileLogger2.SetMaxSize(10000000)
+	fileLogger2.SetMaxSize(10000000)
+	fileLogger2.SetRotate(10)
+	if !deviations.LoggingFileMaxOpenTimeUnsupported(dut) {
 		fileLogger2.SetMaxOpenTime(1)
-		fileLogger2.SetRotate(10)
 	}
 	fileLogger2.GetOrCreateSelector(
 		oc.SystemLogging_SYSLOG_FACILITY_LOCAL5,

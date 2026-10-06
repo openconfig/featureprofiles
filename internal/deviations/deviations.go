@@ -1718,6 +1718,12 @@ func VtyLoggingUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetVtyLoggingUnsupported()
 }
 
+// LoggingFileMaxOpenTimeUnsupported returns true if the device does not support
+// /system/logging/files/file/config/max-open-time.
+func LoggingFileMaxOpenTimeUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLoggingFileMaxOpenTimeUnsupported()
+}
+
 // SIDPerInterfaceCounterUnsupported return true if device does not supprt mpls/signaling-protocols/segment-routing/interfaces/interface/sid-counters/sid-counter/
 func SIDPerInterfaceCounterUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSidPerInterfaceCounterUnsupported()
