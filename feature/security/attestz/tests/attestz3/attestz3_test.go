@@ -101,8 +101,16 @@ func TestAttestz3(t *testing.T) {
 		attestRespMap := make(map[cdpb.Tpm20HashAlgo]*attestResponse)
 		for _, hashAlgo := range attestz.GetPcrBankHashAlgosForPlatform(t, dut) {
 			attestRespMap[hashAlgo] = new(attestResponse)
-			attestRespMap[hashAlgo].activeCard = as.RequestAttestation(t, activeCard.Role, attestz.GenNonce(t), hashAlgo, attestz.PcrIndices)
-			attestRespMap[hashAlgo].standbyCard = as.RequestAttestation(t, standbyCard.Role, attestz.GenNonce(t), hashAlgo, attestz.PcrIndices)
+			activeResp, err := as.RequestAttestation(t, activeCard.Role, attestz.GenNonce(t), hashAlgo, attestz.PcrIndices)
+			if err != nil {
+				t.Fatalf("Attest request failed for active card %s hash algo: %v before reboot: %v", activeCard.Name, hashAlgo, err)
+			}
+			attestRespMap[hashAlgo].activeCard = activeResp
+			standbyResp, err := as.RequestAttestation(t, standbyCard.Role, attestz.GenNonce(t), hashAlgo, attestz.PcrIndices)
+			if err != nil {
+				t.Fatalf("Attest request failed for standby card %s hash algo: %v before reboot: %v", standbyCard.Name, hashAlgo, err)
+			}
+			attestRespMap[hashAlgo].standbyCard = standbyResp
 		}
 
 		// Trigger reboot.
@@ -125,13 +133,19 @@ func TestAttestz3(t *testing.T) {
 
 		// Verify quote after reboot is different.
 		for _, hashAlgo := range attestz.GetPcrBankHashAlgosForPlatform(t, dut) {
-			resp := as.RequestAttestation(t, activeCard.Role, attestz.GenNonce(t), hashAlgo, attestz.PcrIndices)
+			resp, err := as.RequestAttestation(t, activeCard.Role, attestz.GenNonce(t), hashAlgo, attestz.PcrIndices)
+			if err != nil {
+				t.Fatalf("Attest request failed for active card %s hash algo: %v after reboot: %v", activeCard.Name, hashAlgo, err)
+			}
 			if cmp.Equal(attestRespMap[hashAlgo].activeCard.Quoted, resp.Quoted) {
 				t.Logf("Attest response for active card %s before reboot: \n%s", activeCard.Name, attestz.PrettyPrint(attestRespMap[hashAlgo].activeCard))
 				t.Logf("Attest response for active card %s after reboot: \n%s", activeCard.Name, attestz.PrettyPrint(resp.Quoted))
 				t.Errorf("Received similar quotes for active card %s hash algo: %v before and after reboot but expected different.", activeCard.Name, hashAlgo)
 			}
-			resp = as.RequestAttestation(t, standbyCard.Role, attestz.GenNonce(t), hashAlgo, attestz.PcrIndices)
+			resp, err = as.RequestAttestation(t, standbyCard.Role, attestz.GenNonce(t), hashAlgo, attestz.PcrIndices)
+			if err != nil {
+				t.Fatalf("Attest request failed for standby card %s hash algo: %v after reboot: %v", standbyCard.Name, hashAlgo, err)
+			}
 			if cmp.Equal(attestRespMap[hashAlgo].standbyCard.Quoted, resp.Quoted) {
 				t.Logf("Attest response for standby card %s before reboot: \n%s", standbyCard.Name, attestz.PrettyPrint(attestRespMap[hashAlgo].standbyCard))
 				t.Logf("Attest response for standby card %s after reboot: \n%s", standbyCard.Name, attestz.PrettyPrint(resp.Quoted))
