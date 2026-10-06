@@ -1494,6 +1494,10 @@ message Metadata {
     // Juniper: b/565434131
     bool logging_file_max_open_time_unsupported = 462;
 
+    // Default path used for system logging files.
+    // Juniper: b/565434131
+    string logging_file_default_path = 463;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }

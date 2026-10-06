@@ -1724,6 +1724,14 @@ func LoggingFileMaxOpenTimeUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLoggingFileMaxOpenTimeUnsupported()
 }
 
+// LoggingFileDefaultPath returns the default path used for system logging files.
+func LoggingFileDefaultPath(dut *ondatra.DUTDevice) string {
+	if path := lookupDUTDeviations(dut).GetLoggingFileDefaultPath(); path != "" {
+		return path
+	}
+	return "/var/log/syslog"
+}
+
 // SIDPerInterfaceCounterUnsupported return true if device does not supprt mpls/signaling-protocols/segment-routing/interfaces/interface/sid-counters/sid-counter/
 func SIDPerInterfaceCounterUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSidPerInterfaceCounterUnsupported()

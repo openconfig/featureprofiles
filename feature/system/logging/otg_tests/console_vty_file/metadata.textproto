@@ -12,5 +12,6 @@ platform_exceptions: {
 	deviations: {
 		vty_logging_unsupported: true
 		logging_file_max_open_time_unsupported: true
+		logging_file_default_path: "/var/log"
 	}
 }

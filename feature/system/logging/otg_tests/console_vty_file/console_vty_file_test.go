@@ -205,18 +205,13 @@ func validateFileLogging(t *testing.T, dut *ondatra.DUTDevice) {
 	if s4 == nil {
 		t.Errorf("fileLogger2.GetSelector(%v, %v) = nil, want non-nil", oc.SystemLogging_SYSLOG_FACILITY_LOCAL6, oc.SystemLogging_SyslogSeverity_WARNING)
 	}
-	if dut.Vendor() != ondatra.JUNIPER {
-		time.Sleep(4 * time.Minute)
-		fileLogger2 = gnmi.Get[*oc.System_Logging_File](t, dut, gnmi.OC().System().Logging().File(filePath, "logfile_2").State())
-		if fileLogger2.GetRotate() != 10 {
-			t.Errorf("fileLogger2.GetRotate() = %v, want 10", fileLogger2.GetRotate())
-		}
+	time.Sleep(4 * time.Minute)
+	fileLogger2 = gnmi.Get[*oc.System_Logging_File](t, dut, gnmi.OC().System().Logging().File(filePath, "logfile_2").State())
+	if fileLogger2.GetRotate() != 10 {
+		t.Errorf("fileLogger2.GetRotate() = %v, want 10", fileLogger2.GetRotate())
 	}
 }
 
 func fileLoggingPath(dut *ondatra.DUTDevice) string {
-	if dut.Vendor() == ondatra.JUNIPER {
-		return "/var/log"
-	}
-	return "/var/log/syslog"
+	return deviations.LoggingFileDefaultPath(dut)
 }
