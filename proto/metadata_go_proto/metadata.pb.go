@@ -1205,8 +1205,8 @@ type Metadata_Deviations struct {
 	// Device does not support sid_per_interface_counter_unsupported
 	// Cisco b/447350490
 	SidPerInterfaceCounterUnsupported bool `protobuf:"varint,340,opt,name=sid_per_interface_counter_unsupported,json=sidPerInterfaceCounterUnsupported,proto3" json:"sid_per_interface_counter_unsupported,omitempty"`
-	// Juniper does not support localhost yet
-	// b/448173472
+	//  Juniper does not support localhost yet
+	//  b/448173472
 	LocalhostForContainerz bool `protobuf:"varint,341,opt,name=localhost_for_containerz,json=localhostForContainerz,proto3" json:"localhost_for_containerz,omitempty"`
 	// Juniper: b/434633267
 	// Devices that do not support oc path for aggregate bandwidth policy
@@ -1574,8 +1574,8 @@ type Metadata_Deviations struct {
 	// through OpenConfig.
 	// Arista: https://partnerissuetracker.corp.google.com/issues/562517133
 	SflowEgressSamplingRateUnsupported bool `protobuf:"varint,460,opt,name=sflow_egress_sampling_rate_unsupported,json=sflowEgressSamplingRateUnsupported,proto3" json:"sflow_egress_sampling_rate_unsupported,omitempty"`
-	unknownFields                      protoimpl.UnknownFields
-	sizeCache                          protoimpl.SizeCache
+	unknownFields                            protoimpl.UnknownFields
+	sizeCache                                protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -4578,8 +4578,8 @@ func (x *Metadata_Deviations) GetSflowEgressSamplingRateUnsupported() bool {
 
 type Metadata_PlatformExceptions struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Platform      *Metadata_Platform     `protobuf:"bytes,1,opt,name=platform,proto3" json:"platform,omitempty"`
-	Deviations    *Metadata_Deviations   `protobuf:"bytes,2,opt,name=deviations,proto3" json:"deviations,omitempty"`
+	Platform      *Metadata_Platform               `protobuf:"bytes,1,opt,name=platform,proto3" json:"platform,omitempty"`
+	Deviations    *Metadata_Deviations             `protobuf:"bytes,2,opt,name=deviations,proto3" json:"deviations,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5132,7 +5132,7 @@ var file_metadata_proto_goTypes = []any{
 	(*Metadata_Platform)(nil),           // 3: openconfig.testing.Metadata.Platform
 	(*Metadata_Deviations)(nil),         // 4: openconfig.testing.Metadata.Deviations
 	(*Metadata_PlatformExceptions)(nil), // 5: openconfig.testing.Metadata.PlatformExceptions
-	(proto.Device_Vendor)(0),            // 6: ondatra.Device.Vendor
+	(proto.Device_Vendor)(0), // 6: ondatra.Device.Vendor
 }
 var file_metadata_proto_depIdxs = []int32{
 	0, // 0: openconfig.testing.Metadata.testbed:type_name -> openconfig.testing.Metadata.Testbed
