@@ -545,7 +545,7 @@ func verifyBGPActive(t *testing.T, mode string, dst attrs.Attributes) {
 	}).Await(t)
 	if !ok {
 		fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
-		t.Logf("BGP session did not go ACTIVE/CONNECT as expected")
+		t.Fatalf("BGP session did not go ACTIVE/CONNECT as expected")
 	}
 }
 
