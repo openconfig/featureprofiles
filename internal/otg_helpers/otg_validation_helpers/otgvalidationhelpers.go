@@ -191,7 +191,8 @@ func (v *OTGValidation) ValidateLoadBalanceOnLAG(t *testing.T, ate *ondatra.ATED
 
 	portPackets := make([]uint64, 0, len(v.Interface.Ports))
 	for _, port := range v.Interface.Ports {
-		portPackets = append(portPackets, gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(port).Counters().InFrames().State()))
+		portID := ate.Port(t, port).ID()
+		portPackets = append(portPackets, gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(portID).Counters().InFrames().State()))
 	}
 
 	expectedPkts := totalPkts / uint64(len(v.Interface.Ports))

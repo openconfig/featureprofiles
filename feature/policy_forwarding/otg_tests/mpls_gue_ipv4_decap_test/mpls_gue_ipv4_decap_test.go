@@ -14,6 +14,7 @@ import (
 	otgconfighelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers"
 	otgvalidationhelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_validation_helpers"
 	packetvalidationhelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/packetvalidationhelpers"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -41,6 +42,7 @@ const (
 	ieee8023adLag          = oc.IETFInterfaces_InterfaceType_ieee8023adLag
 	udpPort                = 6635
 	policyName             = "customer1"
+	staticRoutePrefix      = "10.99.1.0/24"
 	gueV6DecapPolicyName   = "gue-v6-decap-policy"
 	gueV6DecapRuleSeqID    = 10
 	multicastMPLSLabel     = 99995
@@ -319,10 +321,6 @@ var (
 		{Size: 256, Weight: 20},
 		{Size: 512, Weight: 20},
 		{Size: 1024, Weight: 20},
-	}
-
-	flowResolveArp = &otgvalidationhelpers.OTGValidation{
-		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{agg2.Name, agg3.Name}},
 	}
 
 	// flowOuterIPv4 Decap IPv4 Interface IPv4 Payload traffic params Outer Header.
@@ -913,24 +911,20 @@ func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, captureTraffic bool, midS
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 	waitForLAG(t, ondatra.DUT(t, "dut"), ate)
-	if err := flowResolveArp.IsIPv4Interfaceresolved(t, ate); err != nil {
-		t.Fatalf("IsIPv4Interfaceresolved(): got err: %q, want nil", err)
-	}
-	if err := flowResolveArp.IsIPv6Interfaceresolved(t, ate); err != nil {
-		t.Fatalf("IsIPv6Interfaceresolved(): got err: %q, want nil", err)
-	}
+	otgutils.WaitForARP(t, ate.OTG(), top, cfgplugins.IPv4)
+	otgutils.WaitForARP(t, ate.OTG(), top, cfgplugins.IPv6)
 	if captureTraffic {
 		cs := packetvalidationhelpers.StartCapture(t, ate)
 		defer packetvalidationhelpers.StopCapture(t, ate, cs)
 	}
 	ate.OTG().StartTraffic(t)
+	defer ate.OTG().StopTraffic(t)
 	for _, action := range midStreamActions {
 		action()
 	}
 	for _, flow := range top.Flows().Items() {
 		waitForTraffic(t, ate.OTG(), flow.Name(), trafficTimeout)
 	}
-	ate.OTG().StopTraffic(t)
 }
 
 func waitForTraffic(t *testing.T, otg *otg.OTG, flowName string, timeout time.Duration) {
@@ -1114,7 +1108,7 @@ func configureStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
 	b := &gnmi.SetBatch{}
 	sV4 := &cfgplugins.StaticRouteCfg{
 		NetworkInstance: deviations.DefaultNetworkInstance(dut),
-		Prefix:          "10.99.1.0/24",
+		Prefix:          staticRoutePrefix,
 		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
 			"0": oc.UnionString("194.0.2.2"),
 			"1": oc.UnionString("194.0.3.2"),
@@ -1124,4 +1118,41 @@ func configureStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Fatalf("Failed to configure IPv4 static route: %v", err)
 	}
 	b.Set(t, dut)
+}
+
+// TestCleanup reverts the DUT configuration pushed by TestSetup; it must remain the last test.
+func TestCleanup(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	ni := deviations.DefaultNetworkInstance(dut)
+
+	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Static(staticRoutePrefix).Config())
+
+	batch := &gnmi.SetBatch{}
+	for _, port := range custPorts {
+		physPortName := dut.Port(t, port).Name()
+		gnmi.BatchReplace(batch, gnmi.OC().Lldp().Interface(physPortName).Config(), &oc.Lldp_Interface{
+			Name:    ygot.String(physPortName),
+			Enabled: ygot.Bool(true),
+		})
+	}
+	batch.Set(t, dut)
+
+	if !deviations.PolicyForwardingOCUnsupported(dut) {
+		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(ni).PolicyForwarding().Config())
+	}
+	cfgplugins.RemoveDecapGroupGue(t, dut, defaultOcPolicyForwardingParams())
+	cfgplugins.RemoveDecapGroupGue(t, dut, ipv6OuterDecapParams(dut))
+
+	for _, agg := range []struct {
+		id    string
+		ports []string
+	}{{custAggID, custPorts}, {aggID, corePorts}, {aggID2, corePorts2}} {
+		var members []*ondatra.Port
+		for _, p := range agg.ports {
+			members = append(members, dut.Port(t, p))
+		}
+		cfgplugins.DeleteAggregate(t, dut, agg.id, members)
+		gnmi.Delete(t, dut, gnmi.OC().Interface(agg.id).Config())
+		gnmi.Delete(t, dut, gnmi.OC().Lacp().Interface(agg.id).Config())
+	}
 }

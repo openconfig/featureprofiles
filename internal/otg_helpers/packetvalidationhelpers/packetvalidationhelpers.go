@@ -374,8 +374,9 @@ func validateIPv4Header(t *testing.T, packetSource *gopacket.PacketSource, packe
 				return fmt.Errorf("IP TTL value mismatch: got %d, want %d", ip.TTL, packetVal.IPv4Layer.TTL)
 			}
 			if packetVal.Flags != nil && packetVal.Flags.ValidateTosRange {
-				if ip.TOS < packetVal.IPv4Layer.TosMin || ip.TOS > packetVal.IPv4Layer.TosMax {
-					return fmt.Errorf("DSCP(TOS) value %d is out of expected range [%d, %d]", ip.TOS, packetVal.IPv4Layer.TosMin, packetVal.IPv4Layer.TosMax)
+				tos := ip.TOS & 0xFC // Mask out ECN bits.
+				if tos < packetVal.IPv4Layer.TosMin || tos > packetVal.IPv4Layer.TosMax {
+					return fmt.Errorf("DSCP(TOS) value %d is out of expected range [%d, %d]", tos, packetVal.IPv4Layer.TosMin, packetVal.IPv4Layer.TosMax)
 				}
 			}
 			if len(packetVal.IPv4Layer.AllowedTOSValues) > 0 {
@@ -439,8 +440,9 @@ func validateIPv6Header(t *testing.T, packetSource *gopacket.PacketSource, packe
 				return fmt.Errorf("IPv6 HopLimit mismatch: got %d, want %d", ipv6.HopLimit, packetVal.IPv6Layer.HopLimit)
 			}
 			if packetVal.Flags != nil && packetVal.Flags.ValidateTrafficClassRange {
-				if ipv6.TrafficClass < packetVal.IPv6Layer.TrafficClassMin || ipv6.TrafficClass > packetVal.IPv6Layer.TrafficClassMax {
-					return fmt.Errorf("traffic class value %d is out of expected range [%d, %d]", ipv6.TrafficClass, packetVal.IPv6Layer.TrafficClassMin, packetVal.IPv6Layer.TrafficClassMax)
+				tc := ipv6.TrafficClass & 0xFC // Mask out ECN bits.
+				if tc < packetVal.IPv6Layer.TrafficClassMin || tc > packetVal.IPv6Layer.TrafficClassMax {
+					return fmt.Errorf("traffic class value %d is out of expected range [%d, %d]", tc, packetVal.IPv6Layer.TrafficClassMin, packetVal.IPv6Layer.TrafficClassMax)
 				}
 			} else if packetVal.IPv6Layer.TrafficClass != 0 {
 				if ipv6.TrafficClass != packetVal.IPv6Layer.TrafficClass {
