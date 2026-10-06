@@ -1,0 +1,42 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "b2184e4f-2114-48f1-9c8e-5b62e49c7161"
+plan_id: "TE-2.3"
+description: "gRIBI IPv6 Entry with Prefix Length > 64"
+testbed: TESTBED_DUT_ATE_4LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    gribi_mac_override_static_arp_static_route: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    ipv6_enable_for_gribi_nh_dmac: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    explicit_interface_in_default_vrf: true
+    static_protocol_name: "static"
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    static_protocol_name: "STATIC"
+    gribi_mac_override_static_arp_static_route: true
+    default_network_instance: "default"
+  }
+}

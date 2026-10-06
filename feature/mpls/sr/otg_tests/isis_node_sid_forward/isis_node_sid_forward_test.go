@@ -16,9 +16,12 @@
 package isis_node_sid_forward_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/isissession"
@@ -26,6 +29,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -56,6 +60,7 @@ const (
 	v6FlowName               = "v6Flow"
 	SRReservedLabelblockName = "default-srgb" // supported name for Cisco SRGB
 	fixedPackets             = 1000
+	routeInstallTimeout      = time.Minute
 )
 
 var (
@@ -132,7 +137,7 @@ func configureOTG(t *testing.T, ts *isissession.TestSession) {
 
 	v4 := v4Flow.Packet().Add().Ipv4()
 	v4.Src().SetValue(isissession.ATEISISAttrs.IPv4)
-	v4.Dst().SetValue(ateV4Route) //
+	v4.Dst().SetValue(ateV4Route)
 
 	t.Log("Configuring v6 traffic flow ")
 
@@ -152,6 +157,32 @@ func configureOTG(t *testing.T, ts *isissession.TestSession) {
 	v6 := v6Flow.Packet().Add().Ipv6()
 	v6.Src().SetValue(isissession.ATEISISAttrs.IPv6)
 	v6.Dst().SetValue(ateV6Route)
+}
+
+// waitForDUTRoutes waits until the ATE-advertised IPv4 and IPv6 routes are
+// installed in the DUT AFT before measured traffic starts.
+func waitForDUTRoutes(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+
+	dni := deviations.DefaultNetworkInstance(dut)
+	v4Prefix := fmt.Sprintf("%s/%d", ateV4Route, plenIPv4)
+	v6Prefix := fmt.Sprintf("%s/%d", ateV6Route, plenIPv6)
+
+	t.Logf("Waiting for IPv4 route %s to be installed in the DUT AFT", v4Prefix)
+	v4Path := gnmi.OC().NetworkInstance(dni).Afts().Ipv4Entry(v4Prefix)
+	if _, ok := gnmi.Watch(t, dut, v4Path.State(), routeInstallTimeout, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		return val.IsPresent()
+	}).Await(t); !ok {
+		t.Fatalf("IPv4 route %s was not installed in the DUT AFT within %v", v4Prefix, routeInstallTimeout)
+	}
+
+	t.Logf("Waiting for IPv6 route %s to be installed in the DUT AFT", v6Prefix)
+	v6Path := gnmi.OC().NetworkInstance(dni).Afts().Ipv6Entry(v6Prefix)
+	if _, ok := gnmi.Watch(t, dut, v6Path.State(), routeInstallTimeout, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
+		return val.IsPresent()
+	}).Await(t); !ok {
+		t.Fatalf("IPv6 route %s was not installed in the DUT AFT within %v", v6Prefix, routeInstallTimeout)
+	}
 }
 
 func verifyMPLSSR(t *testing.T, ts *isissession.TestSession) {
@@ -196,10 +227,14 @@ func verifyMPLSSR(t *testing.T, ts *isissession.TestSession) {
 func verifySRCounters(t *testing.T, ts *isissession.TestSession, ate *ondatra.ATEDevice) {
 	d := ts.DUTConf
 	networkInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT))
+
+	otgutils.ExpectedTrafficLoss(t, ate.OTG(), v4FlowName, 0, 0.99)
+
 	recvMetricV4 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v4FlowName).State())
-	// recvMetricV6 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v6FlowName).State())
-	v4InPkts := recvMetricV4.GetCounters().GetInPkts()
-	v4OutPkts := recvMetricV4.GetCounters().GetOutPkts()
+	txPkts := recvMetricV4.GetCounters().GetOutPkts()
+	rxPkts := recvMetricV4.GetCounters().GetInPkts()
+	v4InPkts := rxPkts
+	v4OutPkts := txPkts
 	// Get SR Counters
 	srSgProto := networkInstance.GetOrCreateMpls().GetOrCreateSignalingProtocols().GetSegmentRouting()
 	srIntf := srSgProto.GetOrCreateInterface(ts.DUTPort1.Name())
@@ -212,54 +247,14 @@ func verifySRCounters(t *testing.T, ts *isissession.TestSession, ate *ondatra.AT
 	if got := srIntf.OutPkts; got != ygot.Uint64(0) {
 		t.Errorf("FAIL- SR OutPkts is not zero, got %d, want %d", got, v4OutPkts)
 	}
+	t.Logf("SR InPkts: %d, SR OutPkts: %d", srIntf.InPkts, srIntf.OutPkts)
 }
 
-// awaitTrafficCounters polls the flow state until the transmitted packet count reaches the wanted value.
-func awaitTrafficCounters(t *testing.T, ate *ondatra.ATEDevice, flowName string, wantedPkts uint64, timeout time.Duration) {
-	deadline := time.Now().Add(timeout)
-
-	for time.Now().Before(deadline) {
-		metric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).State())
-		if metric != nil && metric.GetCounters() != nil {
-			if metric.GetCounters().GetOutPkts() >= wantedPkts {
-				t.Logf("[%s] successfully reached %d Tx packets.", flowName, wantedPkts)
-				return
-			}
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
-	t.Fatalf("Timeout waiting for [%s] Tx packets to reach %d", flowName, wantedPkts)
-}
-
-func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice) {
-
-	// Await until counter values are stabilized
-	awaitTrafficCounters(t, ate, v4FlowName, fixedPackets, time.Second*15)
-	awaitTrafficCounters(t, ate, v6FlowName, fixedPackets, time.Second*15)
-
-	recvMetricV4 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v4FlowName).State())
-	recvMetricV6 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v6FlowName).State())
-
-	framesTxV4 := recvMetricV4.GetCounters().GetOutPkts()
-	framesRxV4 := recvMetricV4.GetCounters().GetInPkts()
-	framesTxV6 := recvMetricV6.GetCounters().GetOutPkts()
-	framesRxV6 := recvMetricV6.GetCounters().GetInPkts()
-
-	t.Logf("Starting V4 traffic validation")
-	if framesTxV4 == 0 {
-		t.Error("No traffic was generated and frames transmitted were 0")
-	} else if framesRxV4 == framesTxV4 {
-		t.Logf("Traffic validation successful for [%s] FramesTx: %d FramesRx: %d", v4FlowName, framesTxV4, framesRxV4)
-	} else {
-		t.Errorf("Traffic validation failed for [%s] FramesTx: %d FramesRx: %d", v4FlowName, framesTxV4, framesRxV4)
-	}
-	t.Logf("Starting V6 traffic validation")
-	if framesTxV6 == 0 {
-		t.Error("No traffic was generated and frames transmitted were 0")
-	} else if framesRxV6 == framesTxV6 {
-		t.Logf("Traffic validation successful for [%s] FramesTx: %d FramesRx: %d", v6FlowName, framesTxV6, framesRxV6)
-	} else {
-		t.Errorf("Traffic validation failed for [%s] FramesTx: %d FramesRx: %d", v6FlowName, framesTxV6, framesRxV6)
+func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
+	defer otgutils.LogFlowMetrics(t, ate.OTG(), top)
+	defer otgutils.LogPortMetrics(t, ate.OTG(), top)
+	for _, flowName := range []string{v4FlowName, v6FlowName} {
+		otgutils.ExpectedTrafficLoss(t, ate.OTG(), flowName, 0, 0.99)
 	}
 }
 
@@ -290,22 +285,25 @@ func TestMPLSLabelBlockWithISIS(t *testing.T) {
 	ts.MustAdjacency(t)
 
 	verifyMPLSSR(t, ts)
+	waitForDUTRoutes(t, dut)
 
 	// Traffic checks
 	otg := ts.ATE.OTG()
 	t.Run("Traffic checks", func(t *testing.T) {
 		otgutils.WaitForARP(t, otg, ts.ATETop, "IPv4")
 		otgutils.WaitForARP(t, otg, ts.ATETop, "IPv6")
+		cfgplugins.VerifyRoutes(t, ts.DUT, map[string]cfgplugins.RouteInfo{
+			fmt.Sprintf("%s/%d", ateV4Route, plenIPv4): {IPType: cfgplugins.IPv4},
+			fmt.Sprintf("%s/%d", ateV6Route, plenIPv6): {IPType: cfgplugins.IPv6},
+		})
+
 		t.Logf("Starting traffic")
 		t.Log(otg.GetConfig(t))
 		otg.StartTraffic(t)
 		time.Sleep(time.Second * 15)
 		t.Logf("Stop traffic")
 		otg.StopTraffic(t)
-
-		otgutils.LogFlowMetrics(t, otg, ts.ATETop)
-		otgutils.LogPortMetrics(t, otg, ts.ATETop)
-		verifyTraffic(t, ts.ATE)
+		verifyTraffic(t, ts.ATE, ts.ATETop)
 	})
 
 	// SR counters checks

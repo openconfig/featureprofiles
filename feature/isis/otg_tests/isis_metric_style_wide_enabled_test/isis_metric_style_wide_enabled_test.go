@@ -115,10 +115,11 @@ func configureISIS(t *testing.T, ts *isissession.TestSession) {
 	isisIntfLevel.LevelNumber = ygot.Uint8(2)
 	isisIntfLevel.SetEnabled(true)
 	isisIntfLevel.Enabled = ygot.Bool(true)
-	isisIntfLevel.GetOrCreateHelloAuthentication().Enabled = ygot.Bool(true)
-	isisIntfLevel.GetHelloAuthentication().AuthPassword = ygot.String(password)
-	isisIntfLevel.GetHelloAuthentication().AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
-	isisIntfLevel.GetHelloAuthentication().AuthMode = oc.IsisTypes_AUTH_MODE_MD5
+	intfAuth := intf.GetOrCreateAuthentication()
+	intfAuth.Enabled = ygot.Bool(true)
+	intfAuth.AuthPassword = ygot.String(password)
+	intfAuth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+	intfAuth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
 
 	isisIntfLevelTimers := isisIntfLevel.GetOrCreateTimers()
 	isisIntfLevelTimers.HelloInterval = ygot.Uint32(5)
@@ -200,8 +201,10 @@ func TestISISWideMetricEnabled(t *testing.T) {
 	pcl := ts.DUTConf.GetNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isissession.ISISName)
 	fptest.LogQuery(t, "Protocol ISIS", isissession.ProtocolPath(ts.DUT).Config(), pcl)
 
-	ts.PushAndStart(t)
-	time.Sleep(time.Minute * 2)
+	if err := ts.PushAndStart(t); err != nil {
+		t.Fatalf("PushAndStart failed: %v", err)
+	}
+	otgutils.WaitForARP(t, otg, ts.ATETop, "IPv4")
 
 	statePath := isissession.ISISPath(ts.DUT)
 	intfName := ts.DUTPort1.Name()
@@ -419,16 +422,7 @@ func TestISISWideMetricEnabled(t *testing.T) {
 			otgutils.LogPortMetrics(t, otg, ts.ATETop)
 
 			for _, flow := range []string{v4FlowName, v6FlowName} {
-				t.Log("Checking flow telemetry...")
-				recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(flow).State())
-				txPackets := recvMetric.GetCounters().GetOutPkts()
-				rxPackets := recvMetric.GetCounters().GetInPkts()
-				lostPackets := txPackets - rxPackets
-				lossPct := lostPackets * 100 / txPackets
-
-				if lossPct > 1 {
-					t.Errorf("FAIL- Got %v%% packet loss for %s ; expected < 1%%", lossPct, flow)
-				}
+				otgutils.ExpectedTrafficLoss(t, otg, flow, 0, 1)
 			}
 		})
 	})

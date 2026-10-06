@@ -48,35 +48,50 @@ Test the normal session establishment and termination:
     *   Explicit holdtime interval and keepalive interval.
     *   Explicit connect retry interval.
 
-## Canonical OpenConfig for keepalive-interval and hold-time at neighbour and peer-group level for BGP
+## Canonical OC
 
 ```json
+{
   "network-instances": {
-    "network-instance": {
-      "DEFAULT": {
-        "state": {
+    "network-instance": [
+      {
+        "name": "DEFAULT",
+        "config": {
+          "name": "DEFAULT",
           "router-id": "240.0.0.100"
-        }
+        },
         "protocols": {
-          "protocol": {
-            "BGP": {
-              "BGP": {
-                "bgp": {
-                  "neighbors": {
-                    "neighbor": {
-                      "192.0.2.1": {
-                        "state": {
-                          "last-established": 1747804639000000000
-                        }
+          "protocol": [
+            {
+              "identifier": "BGP",
+              "name": "BGP",
+              "config": {
+                "identifier": "BGP",
+                "name": "BGP"
+              },
+              "bgp": {
+                "neighbors": {
+                  "neighbor": [
+                    {
+                      "neighbor-address": "192.0.2.1",
+                      "config": {
+                        "neighbor-address": "192.0.2.1"
                       },
+                      "timers": {
+                        "config": {
+                          "hold-time": 30,
+                          "keepalive-interval": 10
+                        }
+                      }
                     }
-                  }
+                  ]
                 }
               }
             }
-          }
+          ]
         }
-      },
+      }
+    ]
   }
 }
 ```
@@ -87,12 +102,27 @@ paths:
   ## Config Parameter Coverage
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/hold-time:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/keepalive-interval:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/config/local-address:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/transport/config/local-address:
 
   ## Telemetry Parameter Coverage
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/enabled:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/established-transitions:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/last-established:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/received/NOTIFICATION:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/received/last-notification-error-code:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/received/last-notification-error-subcode:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/received/last-notification-time:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-group:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-type:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/queues/input:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/queues/output:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/state/negotiated-hold-time:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/state/local-address:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/state/local-port:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/state/remote-port:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/transport/state/local-address:
 
 rpcs:
   gnmi:
