@@ -32,6 +32,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -412,8 +413,16 @@ func trafficClassFieldsToDecimal(dscpValue, ecnValue int) uint32 {
 	return uint32(tosDec)
 }
 
-func createFlow(otgConfig gosnappi.Config, protocol string, targetTotalFlowRate uint64, dscpValue int, sourceAtePort *attrs.Attributes) gosnappi.Flow {
-	flow := otgConfig.Flows().Add().SetName(fmt.Sprintf("dscp-%d-%s", dscpValue, sourceAtePort.Name))
+func trafficClassFieldsToDecimalValues(dscpValues []int, ecnValue int) []uint32 {
+	var ret []uint32
+	for _, value := range dscpValues {
+		ret = append(ret, trafficClassFieldsToDecimal(value, ecnValue))
+	}
+	return ret
+}
+
+func createFlow(otgConfig gosnappi.Config, protocol string, targetTotalFlowRate uint64, dscpValues []int, trcName string, sourceAtePort *attrs.Attributes) gosnappi.Flow {
+	flow := otgConfig.Flows().Add().SetName(fmt.Sprintf("dscp-%s-%s", trcName, sourceAtePort.Name))
 	flow.Metrics().SetEnable(true)
 
 	// Flows go from ate port 2 -> dut -> ate port 1 and
@@ -432,20 +441,20 @@ func createFlow(otgConfig gosnappi.Config, protocol string, targetTotalFlowRate 
 		v4 := flow.Packet().Add().Ipv4()
 		v4.Src().SetValue(sourceAtePort.IPv4)
 		v4.Dst().SetValue(atePort1.IPv4)
-		v4.Priority().Raw().SetValue(trafficClassFieldsToDecimal(dscpValue, 2))
+		v4.Priority().Raw().SetValues(trafficClassFieldsToDecimalValues(dscpValues, 2))
 
 		tracking := flow.EgressPacket().Add().Ipv4()
-		tracking.Priority().Raw().MetricTags().Add().SetName(fmt.Sprintf("dst-dscp-%d-%s", dscpValue, sourceAtePort.Name)).SetOffset(0).SetLength(6)
-		tracking.Priority().Raw().MetricTags().Add().SetName(fmt.Sprintf("dst-ecn-%d-%s", dscpValue, sourceAtePort.Name)).SetOffset(6).SetLength(2)
+		tracking.Priority().Raw().MetricTags().Add().SetName(fmt.Sprintf("dst-dscp-%s-%s", trcName, sourceAtePort.Name)).SetOffset(0).SetLength(6)
+		tracking.Priority().Raw().MetricTags().Add().SetName(fmt.Sprintf("dst-ecn-%s-%s", trcName, sourceAtePort.Name)).SetOffset(6).SetLength(2)
 	case ipv6:
 		v6 := flow.Packet().Add().Ipv6()
 		v6.Src().SetValue(sourceAtePort.IPv6)
 		v6.Dst().SetValue(atePort1.IPv6)
-		v6.TrafficClass().SetValue(trafficClassFieldsToDecimal(dscpValue, 2))
+		v6.TrafficClass().SetValues(trafficClassFieldsToDecimalValues(dscpValues, 2))
 
 		tracking := flow.EgressPacket().Add().Ipv6()
-		tracking.TrafficClass().MetricTags().Add().SetName(fmt.Sprintf("dst-dscp-%d-%s", dscpValue, sourceAtePort.Name)).SetOffset(0).SetLength(6)
-		tracking.TrafficClass().MetricTags().Add().SetName(fmt.Sprintf("dst-ecn-%d-%s", dscpValue, sourceAtePort.Name)).SetOffset(6).SetLength(2)
+		tracking.TrafficClass().MetricTags().Add().SetName(fmt.Sprintf("dst-dscp-%s-%s", trcName, sourceAtePort.Name)).SetOffset(0).SetLength(6)
+		tracking.TrafficClass().MetricTags().Add().SetName(fmt.Sprintf("dst-ecn-%s-%s", trcName, sourceAtePort.Name)).SetOffset(6).SetLength(2)
 	}
 
 	flow.Size().SetFixed(flowFrameSize)
@@ -457,15 +466,30 @@ func getQueueCounters(t *testing.T, dut *ondatra.DUTDevice) map[entname.QoSClass
 	t.Helper()
 	ep := dut.Port(t, dutEgressPort)
 	qc := map[entname.QoSClass]*queueCounters{}
-
+	batch := gnmi.OCBatch()
 	for _, egressQueueName := range allQueueNames {
+		qPath := gnmi.OC().Qos().Interface(ep.Name()).Output().Queue(string(egressQueueName))
+		batch.AddPaths(
+			qPath.DroppedPkts(),
+			qPath.TransmitPkts(),
+			qPath.TransmitOctets(),
+		)
+	}
+	root := gnmi.Get(t, dut, batch.State())
+	for _, egressQueueName := range allQueueNames {
+		q := root.GetQos().GetInterface(ep.Name()).GetOutput().GetQueue(string(egressQueueName))
+		var dropped, txPkts, txOctets uint64
+		if q != nil {
+			dropped = q.GetDroppedPkts()
+			txPkts = q.GetTransmitPkts()
+			txOctets = q.GetTransmitOctets()
+		}
 		qc[egressQueueName] = &queueCounters{
-			droppedPackets:  gnmi.Get(t, dut, gnmi.OC().Qos().Interface(ep.Name()).Output().Queue(string(egressQueueName)).DroppedPkts().State()),
-			transmitPackets: gnmi.Get(t, dut, gnmi.OC().Qos().Interface(ep.Name()).Output().Queue(string(egressQueueName)).TransmitPkts().State()),
-			transmitOctets:  gnmi.Get(t, dut, gnmi.OC().Qos().Interface(ep.Name()).Output().Queue(string(egressQueueName)).TransmitOctets().State()),
+			droppedPackets:  dropped,
+			transmitPackets: txPkts,
+			transmitOctets:  txOctets,
 		}
 	}
-
 	return qc
 }
 
@@ -508,19 +532,30 @@ func testNoCongestionCreateFlows(otgConfig gosnappi.Config, protocol string, dut
 	portSpeedSixtyPercent := float32(portSpeedInKbps) * float32(0.6)
 	targetTotalFlowRate := uint64(portSpeedSixtyPercent / 64)
 
-	for dscpValue := 0; dscpValue < 64; dscpValue++ {
-		finalTargetFlowRate := targetTotalFlowRate
-		if dscpValue <= 7 {
-			// There are fewer flows in the BE0/BE1 queues so increase those flows to have
-			// a similar amount of traffic so wred handles things consistently.
-			finalTargetFlowRate = targetTotalFlowRate * 2
+	// Map queues to their specific DSCP value ranges
+	queueDscpMap := map[string][]int{
+		"BE1": {0, 1, 2, 3},
+		"BE0": {4, 5, 6, 7},
+		"AF1": {8, 9, 10, 11, 12, 13, 14, 15},
+		"AF2": {16, 17, 18, 19, 20, 21, 22, 23},
+		"AF3": {24, 25, 26, 27, 28, 29, 30, 31},
+		"AF4": {32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47},
+		"NC1": {48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63},
+	}
+
+	for queueName, dscpValues := range queueDscpMap {
+		baseRate := targetTotalFlowRate
+		if queueName == "BE0" || queueName == "BE1" {
+			baseRate = targetTotalFlowRate * 2
 		}
+		finalTargetFlowRate := baseRate * uint64(len(dscpValues))
 
 		createFlow(
 			otgConfig,
 			protocol,
 			finalTargetFlowRate,
-			dscpValue,
+			dscpValues,
+			queueName,
 			atePort2,
 		)
 	}
@@ -554,41 +589,25 @@ func testNoCongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *on
 	}
 
 	// Wait for ALL tagged metrics to populate first
-	deadline := time.Now().Add(45 * time.Second)
-	metricsPopulated := false
-	for time.Now().Before(deadline) {
-		allFound := true
-		for dscpValue := 0; dscpValue < 64; dscpValue++ {
-			etPath := gnmi.OTG().Flow(fmt.Sprintf("dscp-%d-%s", dscpValue, atePort2.Name)).TaggedMetricAny()
-			vals := gnmi.LookupAll(t, ate.OTG(), etPath.State())
-			if len(vals) == 0 || !vals[0].IsPresent() {
-				allFound = false
-				break
-			}
-		}
-		if allFound {
-			metricsPopulated = true
-			break
-		}
-		time.Sleep(2 * time.Second)
+	var expectedMetricIDs []string
+	for dscpValue := 0; dscpValue < 64; dscpValue++ {
+		expectedMetricIDs = append(expectedMetricIDs, fmt.Sprintf("dscp-%d-%s", dscpValue, atePort2.Name))
 	}
-	if !metricsPopulated {
-		t.Fatalf("Timed out waiting for tagged metrics to populate on the ATE")
-	}
+	metricsByTag := waitForAndGetTaggedMetrics(t, ate, expectedMetricIDs)
+	outPktsCache := make(map[string]uint64)
 
 	for dscpValue := 0; dscpValue < 64; dscpValue++ {
-		etPath := gnmi.OTG().Flow(fmt.Sprintf("dscp-%d-%s", dscpValue, atePort2.Name)).TaggedMetricAny()
-		ets := gnmi.GetAll(t, ate.OTG(), etPath.State())
-
 		dscpAsHex := fmt.Sprintf("0x%02x", dscpValue)
+		ets := metricsByTag[fmt.Sprintf("dscp-%d-%s", dscpValue, atePort2.Name)]
 
 		if len(ets) != 1 {
-			t.Logf("got %d flows, but expected one, this probably indicates that the flow has"+
+			t.Logf("Got %d tag sets, but expected one, this probably indicates that the traffic for this dscp has"+
 				" some packets tagged 01 and some tagged 11 (congestion experienced) -- "+
 				"this should not happen in this test case, will continue validation...", len(ets))
 		}
 
 		for _, et := range ets {
+			verifyTaggedPkts(t, ate, et, dscpValue, atePort2.Name, outPktsCache)
 			if len(et.Tags) != 2 {
 				t.Errorf("expected two metric tags (dscp/ecn) but got %d", len(et.Tags))
 			}
@@ -619,22 +638,26 @@ func testCongestionCreateFlows(otgConfig gosnappi.Config, protocol string, dutPo
 	portSpeedSixtyPercent := float32(portSpeedInKbps) * float32(0.6)
 	targetTotalFlowRate := uint64(portSpeedSixtyPercent / 64)
 
-	for _, sourceAtePort := range []*attrs.Attributes{atePort2, atePort3} {
-		for dscpValue := 0; dscpValue < 64; dscpValue++ {
-			finalTargetFlowRate := targetTotalFlowRate
-			if dscpValue <= 7 {
-				// There are fewer flows in the be0/be1 queues so increase those flows to have
-				// a similar amount of traffic so wred handles things consistently.
-				finalTargetFlowRate = targetTotalFlowRate * 2
-			}
+	// Map queues to their specific DSCP value ranges
+	queueDscpMap := map[string][]int{
+		"BE1": {0, 1, 2, 3},
+		"BE0": {4, 5, 6, 7},
+		"AF1": {8, 9, 10, 11, 12, 13, 14, 15},
+		"AF2": {16, 17, 18, 19, 20, 21, 22, 23},
+		"AF3": {24, 25, 26, 27, 28, 29, 30, 31},
+		"AF4": {32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47},
+		"NC1": {48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63},
+	}
 
-			createFlow(
-				otgConfig,
-				protocol,
-				finalTargetFlowRate,
-				dscpValue,
-				sourceAtePort,
-			)
+	for _, sourceAtePort := range []*attrs.Attributes{atePort2, atePort3} {
+		for queueName, dscpValues := range queueDscpMap {
+			baseRate := targetTotalFlowRate
+			if queueName == "BE0" || queueName == "BE1" {
+				baseRate = targetTotalFlowRate * 2
+			}
+			finalTargetFlowRate := baseRate * uint64(len(dscpValues))
+
+			createFlow(otgConfig, protocol, finalTargetFlowRate, dscpValues, queueName, sourceAtePort)
 		}
 	}
 }
@@ -678,40 +701,18 @@ func testCongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *onda
 
 	var congestedFlowCount int
 
-	// Wait for ALL tagged metrics across both ports to populate first
-	deadline := time.Now().Add(45 * time.Second)
-	metricsPopulated := false
-	for time.Now().Before(deadline) {
-		allFound := true
-		for _, sourceAtePort := range []*attrs.Attributes{atePort2, atePort3} {
-			for dscpValue := 0; dscpValue < 64; dscpValue++ {
-				etPath := gnmi.OTG().Flow(fmt.Sprintf("dscp-%d-%s", dscpValue, sourceAtePort.Name)).TaggedMetricAny()
-				vals := gnmi.LookupAll(t, ate.OTG(), etPath.State())
-				if len(vals) == 0 || !vals[0].IsPresent() {
-					allFound = false
-					break
-				}
-			}
-			if !allFound {
-				break
-			}
+	var expectedMetricIDs []string
+	for _, sourceAtePort := range []*attrs.Attributes{atePort2, atePort3} {
+		for dscpValue := 0; dscpValue < 64; dscpValue++ {
+			expectedMetricIDs = append(expectedMetricIDs, fmt.Sprintf("dscp-%d-%s", dscpValue, sourceAtePort.Name))
 		}
-		if allFound {
-			metricsPopulated = true
-			break
-		}
-		time.Sleep(2 * time.Second)
 	}
+	metricsByTag := waitForAndGetTaggedMetrics(t, ate, expectedMetricIDs)
 
-	if !metricsPopulated {
-		t.Fatalf("Timed out waiting for tagged metrics to populate on the ATE")
-	}
-
-	// These should have the majority of flows have ecn set.
+	// These should have the majority of traffic have ecn set.
 	for _, sourceAtePort := range []*attrs.Attributes{atePort2, atePort3} {
 		for dscpValue := 0; dscpValue < 48; dscpValue++ {
-			etPath := gnmi.OTG().Flow(fmt.Sprintf("dscp-%d-%s", dscpValue, sourceAtePort.Name)).TaggedMetricAny()
-			ets := gnmi.GetAll(t, ate.OTG(), etPath.State())
+			ets := metricsByTag[fmt.Sprintf("dscp-%d-%s", dscpValue, sourceAtePort.Name)]
 
 			dscpAsHex := fmt.Sprintf("0x%02x", dscpValue)
 
@@ -724,37 +725,35 @@ func testCongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *onda
 				continue
 			}
 
-			// We only care about checking the second set of tags as these are the ones that should
-			// have been marked w/ congestion experienced.
-			if len(ets[1].Tags) != 2 {
-				t.Errorf("expected two metric tags (dscp/ecn) but got %d", len(ets[1].Tags))
-			}
-
-			for _, tag := range ets[1].Tags {
-				tagName := tag.GetTagName()
-				valueAsHex := tag.GetTagValue().GetValueAsHex()
-				t.Logf("flow with dscp value %d, tag name %q, got value %s", dscpValue, tagName, valueAsHex)
-				if strings.Contains(tagName, "dscp") {
-					if valueAsHex != dscpAsHex {
-						t.Errorf("expected dscp bit to be %x, but got %s", dscpAsHex, valueAsHex)
+			var foundCongestion bool
+			for _, et := range ets {
+				for _, tag := range et.Tags {
+					tagName := tag.GetTagName()
+					valueAsHex := tag.GetTagValue().GetValueAsHex()
+					if strings.Contains(tagName, "dscp") {
+						if valueAsHex != dscpAsHex {
+							t.Errorf("Got value %s but expected dscp bit to be %x", valueAsHex, dscpAsHex)
+						}
+					} else if valueAsHex != "0x2" {
+						// Not dscp tag, and not 0x2, meaning ecn tag and congestion experienced.
+						foundCongestion = true
 					}
-				} else if valueAsHex != "0x2" {
-					// Not dscp tag, and not 0x2, meaning ecn tag and congestion experienced.
-					congestedFlowCount++
 				}
+			}
+			if foundCongestion {
+				congestedFlowCount++
 			}
 		}
 	}
 
-	if float32(congestedFlowCount/96) < 0.9 {
+	if float32(congestedFlowCount)/float32(96) < 0.9 {
 		t.Errorf("less than 90 percent of flows (not in nc1 queue) had congestion experienced")
 	}
 
-	// These flows should all have no ecn set.
+	// This traffic should all have no ecn set.
 	for _, sourceAtePort := range []*attrs.Attributes{atePort2, atePort3} {
 		for dscpValue := 48; dscpValue < 64; dscpValue++ {
-			etPath := gnmi.OTG().Flow(fmt.Sprintf("dscp-%d-%s", dscpValue, sourceAtePort.Name)).TaggedMetricAny()
-			ets := gnmi.GetAll(t, ate.OTG(), etPath.State())
+			ets := metricsByTag[fmt.Sprintf("dscp-%d-%s", dscpValue, sourceAtePort.Name)]
 
 			dscpAsHex := fmt.Sprintf("0x%02x", dscpValue)
 
@@ -766,7 +765,6 @@ func testCongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *onda
 				for _, tag := range et.Tags {
 					tagName := tag.GetTagName()
 					valueAsHex := tag.GetTagValue().GetValueAsHex()
-					t.Logf("flow with dscp value %d, tag name %q, got value %s", dscpValue, tagName, valueAsHex)
 					if strings.Contains(tagName, "dscp") {
 						if valueAsHex != dscpAsHex {
 							t.Errorf("expected dscp bit to be %x, but got %s", dscpAsHex, valueAsHex)
@@ -789,15 +787,16 @@ func testNC1CongestionCreateFlows(otgConfig gosnappi.Config, protocol string, du
 	portSpeedSixtyPercent := float32(portSpeedInKbps) * float32(0.6)
 	targetTotalFlowRate := uint64(portSpeedSixtyPercent / 16)
 
+	// Map queues to their specific DSCP value ranges (NC1 only)
+	queueDscpMap := map[string][]int{
+		"NC1": {48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63},
+	}
+
 	for _, sourceAtePort := range []*attrs.Attributes{atePort2, atePort3} {
-		for dscpValue := 48; dscpValue < 64; dscpValue++ {
-			createFlow(
-				otgConfig,
-				protocol,
-				targetTotalFlowRate,
-				dscpValue,
-				sourceAtePort,
-			)
+		for queueName, dscpValues := range queueDscpMap {
+			finalTargetFlowRate := targetTotalFlowRate * uint64(len(dscpValues))
+
+			createFlow(otgConfig, protocol, finalTargetFlowRate, dscpValues, queueName, sourceAtePort)
 		}
 	}
 }
@@ -839,72 +838,48 @@ func testNC1CongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *o
 		}
 	}
 
-	var congestedFlowCount int
-
 	// Wait for ALL 48-63 tagged metrics to populate first
-	deadline := time.Now().Add(45 * time.Second)
-	metricsPopulated := false
-	for time.Now().Before(deadline) {
-		allFound := true
-		for _, sourceAtePort := range []*attrs.Attributes{atePort2, atePort3} {
-			for dscpValue := 48; dscpValue < 64; dscpValue++ {
-				etPath := gnmi.OTG().Flow(fmt.Sprintf("dscp-%d-%s", dscpValue, sourceAtePort.Name)).TaggedMetricAny()
-				vals := gnmi.LookupAll(t, ate.OTG(), etPath.State())
-				if len(vals) == 0 || !vals[0].IsPresent() {
-					allFound = false
-					break
-				}
-			}
-			if !allFound {
-				break
-			}
+	var expectedMetricIDs []string
+	for _, sourceAtePort := range []*attrs.Attributes{atePort2, atePort3} {
+		for dscpValue := 48; dscpValue < 64; dscpValue++ {
+			expectedMetricIDs = append(expectedMetricIDs, fmt.Sprintf("dscp-%d-%s", dscpValue, sourceAtePort.Name))
 		}
-		if allFound {
-			metricsPopulated = true
-			break
-		}
-		time.Sleep(2 * time.Second)
 	}
+	metricsByTag := waitForAndGetTaggedMetrics(t, ate, expectedMetricIDs)
 
-	if !metricsPopulated {
-		t.Fatalf("Timed out waiting for tagged metrics to populate on the ATE")
-	}
+	var congestedFlowCount int
 
 	for _, sourceAtePort := range []*attrs.Attributes{atePort2, atePort3} {
 		for dscpValue := 48; dscpValue < 64; dscpValue++ {
-			etPath := gnmi.OTG().Flow(fmt.Sprintf("dscp-%d-%s", dscpValue, sourceAtePort.Name)).TaggedMetricAny()
-			ets := gnmi.GetAll(t, ate.OTG(), etPath.State())
-
+			ets := metricsByTag[fmt.Sprintf("dscp-%d-%s", dscpValue, sourceAtePort.Name)]
 			dscpAsHex := fmt.Sprintf("0x%02x", dscpValue)
 
 			if len(ets) != 2 {
-				// Similar to the congestion (non NC1) test, we expect two sets of metrics -- one for
-				// the start of the flow where ecn is not yet set, and the second for when it is.
 				t.Logf("expected two sets of tags for flow but got %d\n\t%s", len(ets), prettyPrint(ets))
 				continue
 			}
 
-			if len(ets[1].Tags) != 2 {
-				t.Errorf("expected two metric tags (dscp/ecn) but got %d", len(ets[1].Tags))
-			}
-
-			for _, tag := range ets[1].Tags {
-				tagName := tag.GetTagName()
-				valueAsHex := tag.GetTagValue().GetValueAsHex()
-				t.Logf("flow with dscp value %d, tag name %q, got value %s", dscpValue, tagName, valueAsHex)
-				if strings.Contains(tagName, "dscp") {
-					if valueAsHex != dscpAsHex {
-						t.Errorf("expected dscp bit to be %x, but got %s", dscpAsHex, valueAsHex)
+			var foundCongestion bool
+			for _, et := range ets {
+				for _, tag := range et.Tags {
+					tagName := tag.GetTagName()
+					valueAsHex := tag.GetTagValue().GetValueAsHex()
+					if strings.Contains(tagName, "dscp") {
+						if valueAsHex != dscpAsHex {
+							t.Errorf("Got value %s but expected dscp bit to be %x", valueAsHex, dscpAsHex)
+						}
+					} else if valueAsHex != "0x2" {
+						foundCongestion = true
 					}
-				} else if valueAsHex != "0x2" {
-					// Not dscp tag, and not 0x2, meaning ecn tag and congestion experienced.
-					congestedFlowCount++
 				}
+			}
+			if foundCongestion {
+				congestedFlowCount++
 			}
 		}
 	}
 
-	if float32(congestedFlowCount/32) < 0.9 {
+	if float32(congestedFlowCount)/float32(32) < 0.9 {
 		t.Errorf("less than 90 percent of flows (in nc1 queue) had congestion experienced")
 	}
 }
@@ -946,5 +921,132 @@ func TestDSCPTransparency(t *testing.T) {
 				otg.StopProtocols(t)
 			})
 		}
+	}
+}
+
+// waitForAndGetTaggedMetrics polls the ATE device via gNMI for tagged flow metrics
+// until the expected unique metrics are populated or a 5-minute timeout occurs.
+//
+// Inputs:
+//   - t: The testing instance used for logging and error reporting.
+//   - ate: The ATE device to collect the flow metrics from.
+//   - expectedMetricIDs: The list of distinct metric IDs expected (combinations of DSCP and port).
+//
+// Outputs:
+//   - A map where keys are strings formatted as "dscp-<dscp_value>-<port_name>" and
+//     values are slices of matching Flow_TaggedMetric objects.
+//
+// If the timeout is reached before expected distinct metrics are collected,
+// the test will fail fatally and report the exact missing metric IDs.
+func waitForAndGetTaggedMetrics(t *testing.T, ate *ondatra.ATEDevice, expectedMetricIDs []string) map[string][]*otgtelemetry.Flow_TaggedMetric {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Minute)
+	taggedMetricsQuery := gnmi.OTG().FlowAny().TaggedMetricAny().State()
+
+	expectedSet := make(map[string]bool)
+	for _, id := range expectedMetricIDs {
+		expectedSet[id] = true
+	}
+
+	var metricsByTag map[string][]*otgtelemetry.Flow_TaggedMetric
+	var lastCount int
+	var lastLogTime time.Time
+
+	for time.Now().Before(deadline) {
+		metricsByTag = make(map[string][]*otgtelemetry.Flow_TaggedMetric)
+		for _, val := range gnmi.LookupAll(t, ate.OTG(), taggedMetricsQuery) {
+			if et, ok := val.Val(); ok {
+				var dscp string
+				var port string
+				for _, tag := range et.Tags {
+					tagName := tag.GetTagName()
+					if strings.Contains(tagName, "dst-dscp-") {
+						dscp = tag.GetTagValue().GetValueAsHex()
+						parts := strings.Split(tagName, "-")
+						port = parts[len(parts)-1]
+					}
+				}
+				if dscp != "" && port != "" {
+					dscpInt, err := strconv.ParseInt(strings.TrimPrefix(dscp, "0x"), 16, 64)
+					if err == nil {
+						metricID := fmt.Sprintf("dscp-%d-%s", dscpInt, port)
+						if expectedSet[metricID] {
+							metricsByTag[metricID] = append(metricsByTag[metricID], et)
+						}
+					}
+				}
+			}
+		}
+
+		if len(metricsByTag) >= len(expectedMetricIDs) {
+			return metricsByTag
+		}
+
+		if len(metricsByTag) != lastCount || time.Since(lastLogTime) > 10*time.Second {
+			t.Logf("Waiting for tagged metrics... collected %d/%d distinct metric IDs", len(metricsByTag), len(expectedMetricIDs))
+			lastCount = len(metricsByTag)
+			lastLogTime = time.Now()
+		}
+
+		time.Sleep(2 * time.Second)
+	}
+
+	var missing []string
+	for _, id := range expectedMetricIDs {
+		if _, ok := metricsByTag[id]; !ok {
+			missing = append(missing, id)
+		}
+	}
+	t.Fatalf("Timed out waiting for tagged metrics to populate on the ATE. Got %d, expected %d. Missing: %v", len(metricsByTag), len(expectedMetricIDs), missing)
+	return nil
+}
+
+// verifyTaggedPkts verifies that the received packets for a DSCP tagged metric
+// mathematically align with the exact generated traffic using round-robin flow calculations.
+func verifyTaggedPkts(t *testing.T, ate *ondatra.ATEDevice, et *otgtelemetry.Flow_TaggedMetric, dscpValue int, atePortName string, outPktsCache map[string]uint64) {
+	t.Helper()
+	var queueName string
+	var numDscps int
+	var rangeStart int
+	switch {
+	case dscpValue <= 3:
+		queueName, numDscps, rangeStart = "BE1", 4, 0
+	case dscpValue <= 7:
+		queueName, numDscps, rangeStart = "BE0", 4, 4
+	case dscpValue <= 15:
+		queueName, numDscps, rangeStart = "AF1", 8, 8
+	case dscpValue <= 23:
+		queueName, numDscps, rangeStart = "AF2", 8, 16
+	case dscpValue <= 31:
+		queueName, numDscps, rangeStart = "AF3", 8, 24
+	case dscpValue <= 47:
+		queueName, numDscps, rangeStart = "AF4", 16, 32
+	default:
+		queueName, numDscps, rangeStart = "NC1", 16, 48
+	}
+
+	flowName := fmt.Sprintf("dscp-%s-%s", queueName, atePortName)
+
+	outPkts, ok := outPktsCache[flowName]
+	if !ok {
+		outPkts = gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().OutPkts().State())
+		outPktsCache[flowName] = outPkts
+	}
+
+	inPkts := et.GetCounters().GetInPkts()
+
+	base := outPkts / uint64(numDscps)
+	remainder := outPkts % uint64(numDscps)
+	offset := uint64(dscpValue - rangeStart)
+
+	expectedRx := base
+	if offset < remainder {
+		expectedRx++
+	}
+
+	t.Logf("DSCP %d (%s) on %s - Tag Rx: %d, Mathematically Expected: %d", dscpValue, queueName, atePortName, inPkts, expectedRx)
+
+	if inPkts != expectedRx {
+		t.Errorf("DSCP %d received %d packets, but mathematically expected %d based on round-robin generator calculations (flow total: %d, numDscps: %d)", dscpValue, inPkts, expectedRx, outPkts, numDscps)
 	}
 }
