@@ -66,8 +66,17 @@ AS_PATHs without session resets. IPv4 and IPv6 unicast.
     *   ATE port-3 (AS `64502`, OTG `ebgp`) and DUT port-3: confederation-eBGP
         with the neighboring Member-AS (an OTG `ibgp` peer cannot be used, it
         rejects an OPEN from a different AS)
-*   Advertise the following route ranges from the ATE (`64503` and `64511`
-    appear only inside AS_PATHs; LOCAL_PREF and MED are sent only where given)
+*   All sessions are single-hop between the link addresses above; no loopback,
+    IGP or next-hop-self is configured, so the DUT may relay routes to port-2
+    and port-3 with the NEXT_HOP unchanged (RFC 4271 Section 5.1.3, RFC 5065
+    Section 5.1). The ATE reports every received route regardless of NEXT_HOP
+    reachability, and all flows are forwarded by the DUT, whose next hops are
+    the directly connected ATE addresses
+*   Advertise the following route ranges from the ATE. AS_PATHs are written as
+    their segments with the OpenConfig `as-path-segment-type` names `AS_SEQ`
+    (RFC 4271 AS_SEQUENCE) and `AS_CONFED_SEQUENCE` (RFC 5065). `64503` and
+    `64511` appear only inside AS_PATHs; LOCAL_PREF and MED are sent only
+    where given
 
     | Name               | ATE port | IPv4 prefix         | IPv6 prefix         | AS_PATH sent by ATE                            | LOCAL_PREF | MED  | Used in    |
     | :----------------- | :------- | :------------------ | :------------------ | :--------------------------------------------- | :--------- | :--- | :--------- |
