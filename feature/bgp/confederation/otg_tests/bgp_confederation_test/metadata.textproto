@@ -33,3 +33,13 @@ platform_exceptions: {
     bgp_rib_streaming_config_required: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+    bgp_adj_rib_oc_unsupported: true
+    bgp_rib_oc_path_unsupported: true
+  }
+}
