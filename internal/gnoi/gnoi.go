@@ -28,6 +28,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/ygnmi"
 )
 
@@ -127,19 +128,29 @@ func KillProcess(t *testing.T, dut *ondatra.DUTDevice, daemon Daemon, signal spb
 	}
 
 	if waitForRestart {
-		_, ok := gnmi.WatchAll(
-			t,
-			dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE)),
-			gnmi.OC().System().ProcessAny().State(),
-			time.Minute,
-			func(p *ygnmi.Value[*oc.System_Process]) bool {
-				val, ok := p.Val()
-				if !ok {
-					return false
-				}
-				return val.GetName() == daemonName && val.GetPid() != pid
-			},
-		).Await(t)
+		const restartTimeout = 1 * time.Minute
+		deadline := time.Now().Add(restartTimeout)
+		var ok bool
+		for time.Now().Before(deadline) {
+			remaining := time.Until(deadline)
+			errMsg := testt.CaptureFatal(t, func(tb testing.TB) {
+				_, ok = gnmi.WatchAll(
+					tb,
+					dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE)),
+					gnmi.OC().System().ProcessAny().State(),
+					remaining,
+					func(p *ygnmi.Value[*oc.System_Process]) bool {
+						val, present := p.Val()
+						return present && val.GetName() == daemonName && val.GetPid() != pid
+					},
+				).Await(tb)
+			})
+			if errMsg == nil {
+				break
+			}
+			t.Logf("waiting for %s restart: %s", daemonName, *errMsg)
+			time.Sleep(5 * time.Second)
+		}
 		if !ok {
 			t.Fatalf("Timed out waiting for process %s to restart with a new PID", daemonName)
 		}
