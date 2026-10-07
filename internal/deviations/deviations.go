@@ -2283,3 +2283,8 @@ func LacpInterfaceFallbackOCUnsupported(dut *ondatra.DUTDevice) bool {
 func VlanSubinterfaceOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetVlanSubinterfaceOcUnsupported()
 }
+
+// PLQGeneratorCapabilitiesMaxPPS returns supported max_gbps for devices that supports packet link qualification(PLQ) Generator max_gbps capability < 100000000000.
+func PLQGeneratorCapabilitiesMaxGBPS(dut *ondatra.DUTDevice) uint64 {
+	return lookupDUTDeviations(dut).GetPlqGeneratorCapabilitiesMaxGbps()
+}

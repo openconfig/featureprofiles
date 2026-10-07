@@ -172,6 +172,9 @@ func TestCapabilitiesResponse(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
+			if tc.desc == "Generator MaxBps" && deviations.PLQGeneratorCapabilitiesMaxGBPS(dut1) != 0 {
+				tc.min = uint64(deviations.PLQGeneratorCapabilitiesMaxGBPS(dut1))
+			}
 			if got, want := tc.got, tc.min; got < want {
 				t.Errorf("%s: got %v, want >= %v", tc.desc, got, want)
 			}
