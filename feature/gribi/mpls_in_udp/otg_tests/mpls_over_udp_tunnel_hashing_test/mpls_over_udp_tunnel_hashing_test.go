@@ -299,7 +299,9 @@ func mustNewGRIBIClient(t *testing.T, dut *ondatra.DUTDevice) *gribi.Client {
 }
 
 func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
-	cfgplugins.ConfigureDecapVrfSelection(t, dut)
+	if deviations.VendorPreConfigRequired(dut) {
+		cfgplugins.ConfigureDecapVrfSelection(t, dut)
+	}
 
 	d := gnmi.OC()
 	p1 := dut.Port(t, "port1")

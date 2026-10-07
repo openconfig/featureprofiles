@@ -660,7 +660,9 @@ func validateMPLSPacketCapture(t *testing.T, ate *ondatra.ATEDevice, otgPortName
 }
 
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	cfgplugins.ConfigureDecapVrfSelection(t, dut)
+	if deviations.VendorPreConfigRequired(dut) {
+		cfgplugins.ConfigureDecapVrfSelection(t, dut)
+	}
 
 	d := gnmi.OC()
 	p1 := dut.Port(t, "port1")

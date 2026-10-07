@@ -301,7 +301,9 @@ func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice) {
 }
 
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	cfgplugins.ConfigureDecapVrfSelection(t, dut)
+	if deviations.VendorPreConfigRequired(dut) {
+		cfgplugins.ConfigureDecapVrfSelection(t, dut)
+	}
 
 	// configure NI.
 	configureNetworkInstance(t, dut)

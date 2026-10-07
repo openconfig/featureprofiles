@@ -384,7 +384,9 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 
 // configureDUT configures DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	cfgplugins.ConfigureDecapVrfSelection(t, dut)
+	if deviations.VendorPreConfigRequired(dut) {
+		cfgplugins.ConfigureDecapVrfSelection(t, dut)
+	}
 
 	d := gnmi.OC()
 

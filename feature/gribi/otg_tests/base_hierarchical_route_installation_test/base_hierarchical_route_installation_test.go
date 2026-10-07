@@ -281,7 +281,9 @@ func configureVrfSelectionPolicyW(t *testing.T, dut *ondatra.DUTDevice) {
 
 // configureDUT configures port1 and port2 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	cfgplugins.ConfigureDecapVrfSelection(t, dut)
+	if deviations.VendorPreConfigRequired(dut) {
+		cfgplugins.ConfigureDecapVrfSelection(t, dut)
+	}
 
 	d := gnmi.OC()
 	for p, dp := range dutPorts {

@@ -175,7 +175,9 @@ func configInterfaceDUT(i *oc.Interface, dutPort *attrs.Attributes, dut *ondatra
 
 // configureDUT configures port1, port2, port3 and port4 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	cfgplugins.ConfigureDecapVrfSelection(t, dut)
+	if deviations.VendorPreConfigRequired(dut) {
+		cfgplugins.ConfigureDecapVrfSelection(t, dut)
+	}
 
 	d := gnmi.OC()
 

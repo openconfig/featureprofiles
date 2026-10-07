@@ -322,7 +322,9 @@ func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareVrfCfg)
 	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwarePfCfg)
-	cfgplugins.ConfigureDecapVrfSelection(t, dut)
+	if deviations.VendorPreConfigRequired(dut) {
+		cfgplugins.ConfigureDecapVrfSelection(t, dut)
+	}
 }
 
 // createATEDevice creates a single ATE device with Ethernet, optional VLAN, IPv4, and IPv6 configuration, and attaches it to the specified ATE port.

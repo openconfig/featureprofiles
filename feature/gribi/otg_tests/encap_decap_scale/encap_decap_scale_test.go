@@ -717,7 +717,9 @@ func installEncapEntries(t *testing.T, vrf string, routeParams *routesParam, arg
 
 // configureDUT configures DUT interfaces and policy forwarding. Subinterfaces on DUT port2 are configured separately
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	cfgplugins.ConfigureDecapVrfSelection(t, dut)
+	if deviations.VendorPreConfigRequired(dut) {
+		cfgplugins.ConfigureDecapVrfSelection(t, dut)
+	}
 
 	dp1 := dut.Port(t, "port1")
 	dp2 := dut.Port(t, "port2")

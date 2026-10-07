@@ -2396,3 +2396,9 @@ func AigpMetricIncrement(dut *ondatra.DUTDevice) bool {
 func PowerSupplyTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPowerSupplyTelemetryUnsupported()
 }
+
+// VendorPreConfigRequired reports whether the device requires vendor-specific
+// configuration before the test configuration.
+func VendorPreConfigRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetVendorPreConfigRequired()
+}
