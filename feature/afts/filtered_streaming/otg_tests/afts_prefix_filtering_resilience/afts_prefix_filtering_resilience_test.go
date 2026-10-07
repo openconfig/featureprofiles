@@ -459,7 +459,7 @@ func testAfterReboot(t *testing.T, dut *ondatra.DUTDevice) {
 	aftSession1 := aftcache.NewAFTStreamSession(ctx, t, aftClient1, dut)
 	aftSession2 := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
 	t.Log("Collecting initial filtered AFT entries")
-	stoppingCondition := aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true})
+	stoppingCondition := aftcache.InitialSyncStoppingConditionWithAbsentPrefixes(t, dut, wantPrefixes, prefixSet(rebootUnmatchedPrefixes), map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true})
 	aftBefore, err := fetchAFT(ctx, t, dut, aftSession1, aftSession2, stoppingCondition, wantPrefixes, aftConvergenceTime)
 	if err != nil {
 		t.Fatalf("Failed to fetch initial AFT: %v", err)
@@ -493,7 +493,7 @@ func testAfterReboot(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Re-establishing AFT subscriptions")
 	aftSession3 := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
 	aftSession4 := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
-	stoppingCondition2 := aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true})
+	stoppingCondition2 := aftcache.InitialSyncStoppingConditionWithAbsentPrefixes(t, dut, wantPrefixes, prefixSet(rebootUnmatchedPrefixes), map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true})
 	aftAfter, err := fetchAFT(ctx, t, dut, aftSession3, aftSession4, stoppingCondition2, wantPrefixes, aftConvergenceTime)
 	if err != nil {
 		t.Fatalf("Failed to fetch AFT after reboot: %v", err)
@@ -1058,10 +1058,10 @@ func testScaleFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 			aftSession2 := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
 			if tc.ipv4 {
 				aftpf.ConfigureGlobalFilterPolicies(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{V4Policy: tc.policyName, V6Policy: "", VRFName: deviations.DefaultNetworkInstance(dut)})
-				stoppingCondition = aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, map[string]bool{atePort1.IPv4: true}, nil)
+				stoppingCondition = aftcache.InitialSyncStoppingConditionWithAbsentPrefixes(t, dut, wantPrefixes, prefixSet(unmatchedPrefixes), map[string]bool{atePort1.IPv4: true}, nil)
 			} else {
 				aftpf.ConfigureGlobalFilterPolicies(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{V4Policy: "", V6Policy: tc.policyName, VRFName: deviations.DefaultNetworkInstance(dut)})
-				stoppingCondition = aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, nil, map[string]bool{atePort1.IPv6: true})
+				stoppingCondition = aftcache.InitialSyncStoppingConditionWithAbsentPrefixes(t, dut, wantPrefixes, prefixSet(unmatchedPrefixes), nil, map[string]bool{atePort1.IPv6: true})
 			}
 			// Measure synchronization time
 			start := time.Now()
@@ -1106,6 +1106,14 @@ func verifyFilteredPrefixes(t *testing.T, aftPrefixes *aftcache.AFTData, wantPre
 		}
 	}
 	t.Logf("Verified %q filtered prefixes", addressFamily)
+}
+
+func prefixSet(prefixes []string) map[string]bool {
+	set := make(map[string]bool, len(prefixes))
+	for _, prefix := range prefixes {
+		set[prefix] = true
+	}
+	return set
 }
 
 // selectPercentagePrefixes selects percentage-based subset.
@@ -1175,8 +1183,10 @@ func testPerNIFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 	collector2 := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
 	// Initial sync validation
 	t.Log("Validating initial filtered AFT state")
-	defaultStop := aftcache.InitialSyncStoppingCondition(t, dut, defaultWant, map[string]bool{atePort1.IPv4: true}, nil)
-	vrfStop := aftcache.InitialSyncStoppingCondition(t, dut, vrfWant, map[string]bool{atePort2.IPv4: true}, nil)
+	defaultStop := aftcache.InitialSyncStoppingConditionWithAbsentPrefixes(t, dut, defaultWant,
+		map[string]bool{matchPrefixAbsent: true}, map[string]bool{atePort1.IPv4: true}, nil)
+	vrfStop := aftcache.InitialSyncStoppingConditionWithAbsentPrefixes(t, dut, vrfWant,
+		map[string]bool{matchPrefixAft1: true, matchPrefixAft2: true, matchVrfPfx3: true}, map[string]bool{atePort2.IPv4: true}, nil)
 	aftpf.RunCollector(t, aftpf.RunCollectorParams{Ctx: ctx, Collector: collector1, Stop: defaultStop, Timeout: subscriptionWait})
 	aftpf.RunCollector(t, aftpf.RunCollectorParams{Ctx: ctx, Collector: collector2, Stop: vrfStop, Timeout: subscriptionWait})
 	defaultAFT, err := collector1.ToAFT(t, dut)

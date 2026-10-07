@@ -700,6 +700,14 @@ func DeletionStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantDeleteP
 
 // InitialSyncStoppingCondition returns a PeriodicHook which can be used to check if all wanted prefixes have been received with given next hop IP addresses.
 func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPrefixes, wantIPV4NHs, wantIPV6NHs map[string]bool) PeriodicHook {
+	return InitialSyncStoppingConditionWithAbsentPrefixes(t, dut, wantPrefixes, nil, wantIPV4NHs, wantIPV6NHs)
+}
+
+// InitialSyncStoppingConditionWithAbsentPrefixes returns a PeriodicHook which
+// waits for all wanted prefixes and their next hops and stops only when none of
+// absentPrefixes are present in the current streamed AFT view. Absence is a
+// point-in-time check; this condition does not wait for an initial-sync marker.
+func InitialSyncStoppingConditionWithAbsentPrefixes(t *testing.T, dut *ondatra.DUTDevice, wantPrefixes, absentPrefixes, wantIPV4NHs, wantIPV6NHs map[string]bool) PeriodicHook {
 	nhFailCount := 0
 	const nhFailLimit = 20
 	const maxSamplePrefixes = 10
@@ -746,6 +754,13 @@ func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPref
 				return false, nil
 			}
 			ss.missingPrefixes = make(map[string]bool) // All prefixes are present, so clear the list.
+
+			for p := range absentPrefixes {
+				if _, ok := gotPrefixes[p]; ok {
+					t.Logf("%s Unexpected prefix still present: %s", prefix, p)
+					return false, nil
+				}
+			}
 
 			// Check next hops.
 			checkNHStart := time.Now()
