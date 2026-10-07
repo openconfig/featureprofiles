@@ -31,6 +31,8 @@ import (
 
 type FeatureType int
 
+const aristaICMPForwardingProfileName = "icmp-forwarding"
+
 // VRFConfig holds input parameters for creating VRFs in a batched way.
 type VRFConfig struct {
 	VRFCount int
@@ -1496,7 +1498,7 @@ hardware tcam
    `
 	aristaICMPForwarding = `
 hardware tcam
-   profile test-customtcam
+   profile icmp-forwarding
       system-rule overriding-action redirect
       feature acl vlan ipv6 egress
          key field forwarding-type
@@ -1591,7 +1593,7 @@ hardware tcam
          packet mpls ipv6 forwarding mpls
          packet mpls ipv6 forwarding routed decap
    !
-   system profile test-customtcam
+   system profile icmp-forwarding
    `
 )
 
@@ -1686,6 +1688,35 @@ func PushDUTHardwareInitConfig(t *testing.T, dut *ondatra.DUTDevice, hardwareIni
 	gpbSetRequest := buildCliSetRequest(hardwareInitConf)
 	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
 		t.Fatalf("Failed to set hardware init config: %v", err)
+	}
+}
+
+// CleanupDUTHardwareInitConfig removes hardware-init TCAM artifacts that are specific to a feature.
+func CleanupDUTHardwareInitConfig(t *testing.T, dut *ondatra.DUTDevice, feature FeatureType) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		switch feature {
+		case FeatureICMPForwarding:
+			// Deactivate the TCAM profile first. EOS requires confirmation because
+			// changing the active TCAM profile restarts the forwarding agent.
+			deactivateProfileCLI := fmt.Sprintf(`
+            hardware tcam
+               no system profile %s
+         `, aristaICMPForwardingProfileName)
+			// This command must be executed through a CLI mechanism that can answer
+			// the EOS confirmation prompt with "y".
+			helpers.GnmiCLIConfig(t, dut, deactivateProfileCLI)
+			deleteProfileCLI := fmt.Sprintf(`
+            hardware tcam
+               no profile %s
+         `, aristaICMPForwardingProfileName)
+			helpers.GnmiCLIConfig(t, dut, deleteProfileCLI)
+		default:
+			// No cleanup required for other features.
+		}
+	default:
+		// No cleanup required for non-Arista vendors.
 	}
 }
 

@@ -476,6 +476,9 @@ func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 		hardwareInitCfg := cfgplugins.NewDUTHardwareInit(t, dut, feature)
 		if hardwareInitCfg != "" {
 			cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareInitCfg)
+			t.Cleanup(func() {
+				cfgplugins.CleanupDUTHardwareInitConfig(t, dut, feature)
+			})
 		}
 	}
 }
