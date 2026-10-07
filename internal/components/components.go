@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"slices"
 	"testing"
 	"time"
 
@@ -29,6 +30,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/gnmi/oc/ocpath"
 	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -247,4 +249,46 @@ func OpticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *on
 		t.Fatalf("Associated Optical Channel for Transceiver (%v) not found!", transceiverName)
 	}
 	return opticalChannelName
+}
+
+// SetLinecardPowerAdminState sets /components/component/linecard/config/power-admin-state
+// of the linecard component name to state and waits up to timeout for the
+// corresponding state leaf to report the same value. The
+// PowerDisableEnableLeafRefValidation deviation is honoured by creating the
+// component config node first. When state is POWER_ENABLED and the
+// MissingValueForDefaults deviation is set, the state leaf is not verified since
+// the device does not report default values. The test is failed fatally if the
+// state leaf does not converge.
+func SetLinecardPowerAdminState(t *testing.T, dut *ondatra.DUTDevice, name string, state oc.E_Platform_ComponentPowerType, timeout time.Duration) {
+	t.Helper()
+	c := gnmi.OC().Component(name)
+	if deviations.PowerDisableEnableLeafRefValidation(dut) {
+		gnmi.Update(t, dut, c.Config(), &oc.Component{Name: ygot.String(name)})
+	}
+	t.Logf("Setting linecard %s power-admin-state to %v", name, state)
+	gnmi.Replace(t, dut, c.Linecard().PowerAdminState().Config(), state)
+
+	if state == oc.Platform_ComponentPowerType_POWER_ENABLED && deviations.MissingValueForDefaults(dut) {
+		return
+	}
+	got, ok := gnmi.Await(t, dut, c.Linecard().PowerAdminState().State(), timeout, state).Val()
+	if !ok {
+		t.Fatalf("Linecard %s power-admin-state: got %v, want %v", name, got, state)
+	}
+}
+
+// AwaitOperStatus waits up to timeout, using gnmi.Watch, until the oper-status of
+// component name equals any of want. It returns the last observed oper-status and
+// whether one of the wanted values was observed.
+func AwaitOperStatus(t *testing.T, dut *ondatra.DUTDevice, name string, timeout time.Duration, want ...oc.E_PlatformTypes_COMPONENT_OPER_STATUS) (oc.E_PlatformTypes_COMPONENT_OPER_STATUS, bool) {
+	t.Helper()
+	val, ok := gnmi.Watch(t, dut, gnmi.OC().Component(name).OperStatus().State(), timeout, func(v *ygnmi.Value[oc.E_PlatformTypes_COMPONENT_OPER_STATUS]) bool {
+		s, present := v.Val()
+		return present && slices.Contains(want, s)
+	}).Await(t)
+	if val == nil {
+		return oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET, false
+	}
+	s, _ := val.Val()
+	return s, ok
 }
