@@ -238,10 +238,7 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	aggPath := d.Interface(tc.aggID)
 	fptest.LogQuery(t, tc.aggID, aggPath.Config(), agg)
 	gnmi.Replace(t, tc.dut, aggPath.Config(), agg)
-	if tc.lagType == lagTypeLACP {
-		// Re-apply LACP config after replacing the aggregate interface so platforms
-		// that store LACP settings under the bundle interface stanza (e.g. Cisco IOS-XR)
-		// retain system-id-mac.
+	if tc.lagType == lagTypeLACP && deviations.LacpConfigAfterAggregateReplace(tc.dut) {
 		gnmi.Update(t, tc.dut, lacpPath.Config(), lacp)
 	}
 

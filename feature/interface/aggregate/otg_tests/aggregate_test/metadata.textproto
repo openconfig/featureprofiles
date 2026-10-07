@@ -12,6 +12,7 @@ platform_exceptions: {
   deviations: {
     ipv4_missing_enabled: true
     lacp_tx_errors_unsupported: true
+    lacp_config_after_aggregate_replace: true
   }
 }
 platform_exceptions: {
