@@ -15,7 +15,8 @@ package copying_debug_files_test
 
 import (
 	"context"
-	"fmt"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -132,6 +133,10 @@ func TestCopyingDebugFiles(t *testing.T) {
 	chkRes, checkErr := gnoiClient.Healthz().Check(context.Background(), checkReq)
 	if checkErr != nil {
 		t.Logf("Warning: Healthz Check failed (may not be supported for this component): %v", checkErr)
+	} else {
+		t.Cleanup(func() {
+			cleanupHealthzArtifacts(t, dut, healthPath, chkRes)
+		})
 	}
 
 	// Poll for the results using Get()
@@ -162,29 +167,6 @@ func TestCopyingDebugFiles(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpected error on healthz get response after restart of %v: %v", processName[dut.Vendor()], err)
 	}
-	if chkRes != nil && chkRes.GetStatus() != nil {
-		ackReq := &hpb.AcknowledgeRequest{
-			Path: healthPath,
-			Id:   chkRes.GetStatus().GetId(),
-		}
-		if _, ackErr := gnoiClient.Healthz().Acknowledge(context.Background(), ackReq); ackErr != nil {
-			t.Logf("Warning: Failed to acknowledge Healthz event %v: %v", ackReq.Id, ackErr)
-			if dut.Vendor() == ondatra.ARISTA {
-				for _, artifact := range chkRes.GetStatus().GetArtifacts() {
-					if artifact.GetId() == "" {
-						t.Logf("Warning: Skipping artifact with empty ID to prevent directory deletion")
-						continue
-					}
-					rmReq := &fpb.RemoveRequest{RemoteFile: fmt.Sprintf("/mnt/flash/persist/healthz/%s", artifact.GetId())}
-					if _, rmErr := gnoiClient.File().Remove(context.Background(), rmReq); rmErr != nil {
-						t.Logf("Warning: Manual sweep failed to remove artifact %v: %v", artifact.GetId(), rmErr)
-					} else {
-						t.Logf("Manual Sweep: Successfully removed artifact %v from disk to prevent storage leak", artifact.GetId())
-					}
-				}
-			}
-		}
-	}
 }
 
 func TestChassisComponentArtifacts(t *testing.T) {
@@ -213,6 +195,9 @@ func TestChassisComponentArtifacts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error on executing Healthz Check RPC: %v", err)
 	}
+	t.Cleanup(func() {
+		cleanupHealthzArtifacts(t, dut, chkReq.GetPath(), chkRes)
+	})
 	// Fetch artifact related metadata that was returned in the Check Response.
 	artifacts := chkRes.GetStatus().GetArtifacts()
 	if len(artifacts) == 0 {
@@ -237,26 +222,45 @@ func TestChassisComponentArtifacts(t *testing.T) {
 			t.Fatalf("Unexpected error when fetching the header of artifact %v: %v", artID, err)
 		}
 	}
-	if chkRes != nil && chkRes.GetStatus() != nil {
+}
+
+func cleanupHealthzArtifacts(t *testing.T, dut *ondatra.DUTDevice, healthPath *tpb.Path, chkRes *hpb.CheckResponse) {
+	if chkRes == nil || chkRes.GetStatus() == nil {
+		return
+	}
+	gnoiClient := dut.RawAPIs().GNOI(t)
+	if eventID := strings.TrimSpace(chkRes.GetStatus().GetId()); eventID != "" {
 		ackReq := &hpb.AcknowledgeRequest{
-			Path: chkReq.GetPath(),
-			Id:   chkRes.GetStatus().GetId(),
+			Path: healthPath,
+			Id:   eventID,
 		}
 		if _, ackErr := gnoiClient.Healthz().Acknowledge(context.Background(), ackReq); ackErr != nil {
 			t.Logf("Warning: Failed to acknowledge Healthz event %v: %v", ackReq.Id, ackErr)
-			if dut.Vendor() == ondatra.ARISTA {
-				for _, artifact := range chkRes.GetStatus().GetArtifacts() {
-					if artifact.GetId() == "" {
-						t.Logf("Warning: Skipping artifact with empty ID to prevent directory deletion")
-						continue
-					}
-					rmReq := &fpb.RemoveRequest{RemoteFile: fmt.Sprintf("/mnt/flash/persist/healthz/%s", artifact.GetId())}
-					if _, rmErr := gnoiClient.File().Remove(context.Background(), rmReq); rmErr != nil {
-						t.Logf("Warning: Manual sweep failed to remove artifact %v: %v", artifact.GetId(), rmErr)
-					} else {
-						t.Logf("Manual Sweep: Successfully removed artifact %v from disk to prevent storage leak", artifact.GetId())
-					}
-				}
+		}
+	} else {
+		t.Logf("Healthz Check response has empty event ID; skipping Acknowledge RPC")
+	}
+	if dut.Vendor() == ondatra.ARISTA {
+		for _, artifact := range chkRes.GetStatus().GetArtifacts() {
+			artID := strings.TrimSpace(artifact.GetId())
+			if artID == "" || artID == "." || artID == ".." {
+				t.Logf("Warning: Skipping invalid artifact ID %q", artifact.GetId())
+				continue
+			}
+			remotePath := artID
+			if !filepath.IsAbs(remotePath) {
+				remotePath = filepath.Join("/mnt/flash/persist/healthz", remotePath)
+			}
+			remotePath = filepath.Clean(remotePath)
+			if remotePath == "/mnt/flash/persist/healthz" || remotePath == "/mnt/flash/persist" || remotePath == "/" {
+				t.Logf("Warning: Skipping unsafe artifact path %s", remotePath)
+				continue
+			}
+			rmReq := &fpb.RemoveRequest{RemoteFile: remotePath}
+			if _, rmErr := gnoiClient.File().Remove(context.Background(), rmReq); rmErr != nil {
+				t.Logf("Warning: Manual sweep failed to remove artifact %v: %v", artID, rmErr)
+			} else {
+				t.Logf("Manual Sweep: Successfully removed artifact %v from disk to prevent storage leak", artID)
 			}
 		}
 	}
