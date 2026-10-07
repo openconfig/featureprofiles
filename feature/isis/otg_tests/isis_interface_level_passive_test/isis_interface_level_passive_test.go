@@ -131,7 +131,7 @@ func configureISIS(t *testing.T, ts *isissession.TestSession) {
 
 // counterValue returns the counter value. Devices with MissingValueForDefaults
 // omit counters that are zero, so an absent value is returned as 0 for them.
-func counterValue(t *testing.T, dut *ondatra.DUTDevice, q ygnmi.SingletonQuery[uint32]) uint32 {
+func counterValue(t *testing.T, dut *ondatra.DUTDevice, q ygnmi.SingletonQuery[uint64]) uint64 {
 	t.Helper()
 	if deviations.MissingValueForDefaults(dut) {
 		v, _ := gnmi.Lookup(t, dut, q).Val()
