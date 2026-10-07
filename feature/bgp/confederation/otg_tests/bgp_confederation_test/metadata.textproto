@@ -5,3 +5,31 @@ uuid: "7a71f6a0-e650-4c95-9cd8-a8dd601a1af5"
 plan_id: "RT-1.111"
 description: "BGP Autonomous System Confederations (RFC 5065)"
 testbed: TESTBED_DUT_ATE_4LINKS
+
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+    hardware_model_regex: "DCS-.*"
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    omit_l2_mtu: true
+    bgp_adj_rib_oc_unsupported: true
+    bgp_rib_streaming_config_required: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+    hardware_model_regex: "ceos"
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    omit_l2_mtu: true
+    bgp_adj_rib_oc_unsupported: true
+    bgp_rib_oc_path_unsupported: true
+    bgp_rib_streaming_config_required: true
+  }
+}

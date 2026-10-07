@@ -841,6 +841,7 @@ test: {
   id: "RT-1.111"
   description: "BGP Autonomous System Confederations (RFC 5065)"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/confederation/otg_tests/bgp_confederation_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/confederation/otg_tests/bgp_confederation_test/bgp_confederation_test.go"
 }
 test: {
   id: "RT-1.12"
