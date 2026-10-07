@@ -109,7 +109,7 @@ var portSpeed = map[ondatra.Speed]oc.E_IfEthernet_ETHERNET_SPEED{
 var descriptionRE = regexp.MustCompile(`(?m)^\s*description .*$\n?`)
 var showRunningConfigBannerRE = regexp.MustCompile(`(?m)^-+.*-+$\n?`)
 var showRunningConfigCommentRE = regexp.MustCompile(`(?m)^\s*!!.*$\n?`)
-var speedValueRE = regexp.MustCompile("SPEED_(\\d+)GB")
+var speedValueRE = regexp.MustCompile(`SPEED_(\d+)GB`)
 
 func configOCInterface(t *testing.T, sb *gnmi.SetBatch, dut *ondatra.DUTDevice) {
 	t.Helper()
