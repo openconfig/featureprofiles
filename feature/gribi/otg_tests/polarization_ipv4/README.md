@@ -127,6 +127,8 @@ round:
     | Vendor  | Mechanism                                       |
     |---------|-------------------------------------------------|
     | Cisco   | Loopback0 IPv4 address change (OC, gNMI Replace) |
+    | Arista  | `ecmp hash seed`/`polynomial` and `port-channel hash seed`/`polynomial` under `load-balance sand profile default` |
+    | Nokia   | `system load-balancing hash-options hash-seed <seed>` |
 
     On Cisco the perturbation is pure OpenConfig: each round replaces
     `/interfaces/interface[name=Loopback0]` with a new `/32` address

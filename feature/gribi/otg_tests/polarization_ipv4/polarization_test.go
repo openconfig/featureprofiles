@@ -35,6 +35,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/client"
@@ -462,9 +463,25 @@ func TestPolarization(t *testing.T) {
 
 	t.Cleanup(func() {
 		flushGRIBIEntries(t, dut)
+		for _, portID := range []string{"port2", "port3", "port4", "port5"} {
+			port := dut.Port(t, portID)
+			gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
+		}
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+			defaultNI := deviations.DefaultNetworkInstance(dut)
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(defaultNI).Interface(agg1ID+".0").Config())
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(defaultNI).Interface(agg2ID+".0").Config())
+		}
 		gnmi.Delete(t, dut, gnmi.OC().Interface(agg1ID).Config())
 		gnmi.Delete(t, dut, gnmi.OC().Interface(agg2ID).Config())
-		gnmi.Delete(t, dut, gnmi.OC().Interface("Loopback0").Config())
+		switch dut.Vendor() {
+		case ondatra.CISCO:
+			gnmi.Delete(t, dut, gnmi.OC().Interface("Loopback0").Config())
+		case ondatra.ARISTA:
+			helpers.GnmiCLIConfig(t, dut, "load-balance policies\n   load-balance sand profile default\n      default ecmp hash seed\n      default ecmp hash polynomial\n      default port-channel hash seed\n      default port-channel hash polynomial\n")
+		case ondatra.NOKIA:
+			helpers.GnmiCLIConfig(t, dut, "system load-balancing hash-options hash-seed generate-from-mac")
+		}
 	})
 
 	t.Log("=== Phase 1/4: Configuring DUT interfaces and LAGs ===")
@@ -612,6 +629,10 @@ func perturbHashConfig(t *testing.T, dut *ondatra.DUTDevice, iteration int) {
 	switch dut.Vendor() {
 	case ondatra.CISCO:
 		perturbHashCiscoXR(t, dut, iteration)
+	case ondatra.ARISTA:
+		perturbHashArista(t, dut, iteration)
+	case ondatra.NOKIA:
+		perturbHashNokia(t, dut, iteration)
 	default:
 		t.Fatalf("Hash perturbation not implemented for vendor %s; please add support in perturbHashConfig", dut.Vendor())
 	}
@@ -637,6 +658,37 @@ func perturbHashCiscoXR(t *testing.T, dut *ondatra.DUTDevice, iteration int) {
 	a.PrefixLength = ygot.Uint8(32)
 
 	gnmi.Replace(t, dut, d.Interface(lo0.GetName()).Config(), lo0)
+}
+
+// perturbHashArista changes both the ECMP and port-channel hash seeds and
+// polynomials under the default Sand load-balance profile.
+func perturbHashArista(t *testing.T, dut *ondatra.DUTDevice, iteration int) {
+	t.Helper()
+	ecmpSeeds := []int{0x1357, 0x9BDF, 0x2468, 0xACE1, 0x5A3C}
+	pcSeeds := []int{0x2468, 0xACE1, 0x5A3C, 0x1357, 0x9BDF}
+	ecmpSeed := ecmpSeeds[iteration%len(ecmpSeeds)]
+	pcSeed := pcSeeds[iteration%len(pcSeeds)]
+	ecmpPoly := (iteration % 7) + 1
+	pcPoly := ((iteration + 1) % 7) + 1
+	t.Logf("Arista EOS: setting ecmp hash (seed=%d, polynomial=%d), port-channel hash (seed=%d, polynomial=%d)", ecmpSeed, ecmpPoly, pcSeed, pcPoly)
+	cliConfig := fmt.Sprintf(`
+load-balance policies
+   load-balance sand profile default
+      ecmp hash seed %d
+      ecmp hash polynomial %d
+      port-channel hash seed %d
+      port-channel hash polynomial %d
+`, ecmpSeed, ecmpPoly, pcSeed, pcPoly)
+	helpers.GnmiCLIConfig(t, dut, cliConfig)
+}
+
+// perturbHashNokia changes the system load-balancing hash-seed on Nokia SR Linux.
+func perturbHashNokia(t *testing.T, dut *ondatra.DUTDevice, iteration int) {
+	t.Helper()
+	seeds := []int{0x1357, 0x9BDF, 0x2468, 0xACE1, 0x5A3C}
+	seed := seeds[iteration%len(seeds)]
+	t.Logf("Nokia SR Linux: setting system load-balancing hash-options hash-seed %d", seed)
+	helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("system load-balancing hash-options hash-seed %d", seed))
 }
 
 func flushGRIBIEntries(t *testing.T, dut *ondatra.DUTDevice) {
@@ -765,6 +817,7 @@ func createGRIBIEntries(t *testing.T, dut *ondatra.DUTDevice) {
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice, agg1ID, agg2ID string) {
 	t.Helper()
 	d := gnmi.OC()
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	p1 := dut.Port(t, "port1")
 	t.Logf("Configuring DUT port1 (%s) with IP %s/%d", p1.Name(), dutPort1.IPv4, dutPort1.IPv4Len)
@@ -790,7 +843,11 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, agg1ID, agg2ID string) {
 	lag1.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_STATIC
 	s1 := lag1.GetOrCreateSubinterface(0)
 	s1.Index = ygot.Uint32(0)
-	a1v4 := s1.GetOrCreateIpv4().GetOrCreateAddress(dutLAG1.IPv4)
+	s1v4 := s1.GetOrCreateIpv4()
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+		s1v4.Enabled = ygot.Bool(true)
+	}
+	a1v4 := s1v4.GetOrCreateAddress(dutLAG1.IPv4)
 	a1v4.Ip = ygot.String(dutLAG1.IPv4)
 	a1v4.PrefixLength = ygot.Uint8(plen24)
 
@@ -802,7 +859,11 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, agg1ID, agg2ID string) {
 	lag2.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_STATIC
 	s2 := lag2.GetOrCreateSubinterface(0)
 	s2.Index = ygot.Uint32(0)
-	a2v4 := s2.GetOrCreateIpv4().GetOrCreateAddress(dutLAG2.IPv4)
+	s2v4 := s2.GetOrCreateIpv4()
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+		s2v4.Enabled = ygot.Bool(true)
+	}
+	a2v4 := s2v4.GetOrCreateAddress(dutLAG2.IPv4)
 	a2v4.Ip = ygot.String(dutLAG2.IPv4)
 	a2v4.PrefixLength = ygot.Uint8(plen24)
 
