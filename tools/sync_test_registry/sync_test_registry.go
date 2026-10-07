@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/golang/glog"
+	"github.com/protocolbuffers/txtpbfmt/parser"
 	"google.golang.org/protobuf/encoding/prototext"
 
 	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
@@ -153,5 +154,10 @@ func writeRegistry(path string, r *tpb.TestRegistry) error {
 	b.WriteString("# Auto-generated file. Use `make sync-test-registry` to re-generate.\n\n")
 	b.Write(s)
 
-	return os.WriteFile(path, b.Bytes(), 0644)
+	formatted, err := parser.Format(b.Bytes())
+	if err != nil {
+		return fmt.Errorf("cannot format txtpb: %v", err)
+	}
+
+	return os.WriteFile(path, formatted, 0644)
 }

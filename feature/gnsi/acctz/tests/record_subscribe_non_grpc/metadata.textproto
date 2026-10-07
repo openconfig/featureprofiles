@@ -37,14 +37,3 @@ platform_exceptions: {
   }
 }
 
-platform_exceptions: {
-  platform: {
-    vendor: NOKIA
-  }
-  deviations: {
-    acctz_shell_cmd_accounting_unsupported: true
-    acctz_record_fail_command_unsupported: true
-    acctz_record_fail_grpc_unsupported: true
-  }
-}
-
