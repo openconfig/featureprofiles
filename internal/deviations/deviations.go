@@ -1309,11 +1309,6 @@ func SrIgpConfigUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSrIgpConfigUnsupported()
 }
 
-// SetISISAuthWithInterfaceAuthenticationContainer returns true if Isis Authentication is blocked for one level specific config for P2P links, and the corresponding hello-authentication leafs can be set with ISIS Interface/Authentication container.
-func SetISISAuthWithInterfaceAuthenticationContainer(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSetIsisAuthWithInterfaceAuthenticationContainer()
-}
-
 // GreGueTunnelInterfaceOcUnsupported returns true if GRE/GUE tunnel interface oc is unsupported
 func GreGueTunnelInterfaceOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGreGueTunnelInterfaceOcUnsupported()
@@ -1595,6 +1590,13 @@ func IsisSrNoPhpRequired(dut *ondatra.DUTDevice) bool {
 // SflowIngressMinSamplingRate returns the minimum sampling rate supported for sflow ingress on the device.
 func SflowIngressMinSamplingRate(dut *ondatra.DUTDevice) uint32 {
 	return lookupDUTDeviations(dut).GetSflowIngressMinSamplingRate()
+}
+
+// SflowEgressSamplingRateUnsupported returns true if the device does not support
+// configuring the sFlow egress sampling rate through OpenConfig.
+// Arista EOS: b/562517133.
+func SflowEgressSamplingRateUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSflowEgressSamplingRateUnsupported()
 }
 
 // QosRemarkOCUnsupported returns true if Qos remark parameters are unsupported
@@ -1889,6 +1891,30 @@ func ContainerzTLSInsecureSkipVerify(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetContainerzTlsInsecureSkipVerify()
 }
 
+// SwitchoverStabilizeDelayM returns extra minutes the device needs beyond the
+// 5-minute base timeout for switchover-related waits (post-switchover
+// verification, switchover-ready polling, and SwitchControlProcessor retry).
+// Default 0 means no extra delay beyond 5 minutes.
+func SwitchoverStabilizeDelayM(dut *ondatra.DUTDevice) uint32 {
+	return lookupDUTDeviations(dut).GetSwitchoverStabilizeDelayM()
+}
+
+// GnoiRequiresFreshDialAfterSwitchover returns true if the device requires a
+// fresh DialGNOI call after a supervisor switchover because the Ondatra gNOI
+// cache still points at the old active.
+// Tracking: https://github.com/openconfig/ondatra/issues/145
+func GnoiRequiresFreshDialAfterSwitchover(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGnoiRequiresFreshDialAfterSwitchover()
+}
+
+// ContainerzRequireExplicitConfigSave returns true if the device requires an
+// explicit "write memory" before reboot to persist containerz config, and must
+// skip config re-push after reboot to avoid restarting the management stack
+// during warmup. Default value is false.
+func ContainerzRequireExplicitConfigSave(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetContainerzRequireExplicitConfigSave()
+}
+
 // TemperatureSensorCheck returns true if the transceiver subcomponent should look for the temperature sensor
 func TemperatureSensorCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTemperatureSensorCheck()
@@ -2078,14 +2104,12 @@ func FpgaFt(dut *ondatra.DUTDevice) string {
 
 // AcctzRecordFailCommandUnsupported  returns true if the device does not support Acctz record for fail user
 // Juniper: https://partnerissuetracker.corp.google.com/issues/500649430
-
 func AcctzRecordFailCommandUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAcctzRecordFailCommandUnsupported()
 }
 
-// AcctzRecordFailCommandUnsupported  returns true if the device does not support Acctz record for fail user
+// AcctzRecordFailGrpcUnsupported returns true if the device does not support Acctz record for fail user
 // Juniper: https://partnerissuetracker.corp.google.com/issues/500627000
-
 func AcctzRecordFailGrpcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAcctzRecordFailGrpcUnsupported()
 }
@@ -2357,4 +2381,25 @@ func GribiAaaRoleBasedAuthzUnsupported(dut *ondatra.DUTDevice) bool {
 // Arista: https://partnerissuetracker.corp.google.com/issues/542639968#comment8
 func P4RTAaaRoleBasedAuthzUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetP4RtAaaRoleBasedAuthzUnsupported()
+}
+
+// AIGPRouteMetricNotSupported returns true if AIGP route metric is not supported.
+func AIGPRouteMetricNotSupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAigpRouteMetricNotSupported()
+}
+
+// BgpAdjRibOcUnsupported returns true if BGP adjacency rib OC is not supported.
+func BgpAdjRibOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpAdjRibOcUnsupported()
+}
+
+// AigpMetricIncrement returns true if AIGP metric increment is not supported.
+func AigpMetricIncrement(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAigpMetricIncrement()
+}
+
+// PowerSupplyTelemetryUnsupported returns true if device does not support power supply telemetry.
+// Cisco: https://b.corp.google.com/issues/307454993
+func PowerSupplyTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPowerSupplyTelemetryUnsupported()
 }
