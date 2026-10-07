@@ -576,7 +576,7 @@ func configureDynamicUpdatePolicies(t *testing.T, rp *oc.RoutingPolicy) {
 			PrefixList:     policyIPv4Prefixes,
 			PrefixMode:     maskRange,
 			MatchPrefixSet: true,
-			MatchSetOption: oc.E_RoutingPolicy_MatchSetOptionsRestrictedType(oc.RoutingPolicy_MatchSetOptionsType_ANY),
+			MatchSetOption: oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY,
 			PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
 		})
 	// IPv6 dynamic prefix filtering policy.
@@ -588,7 +588,7 @@ func configureDynamicUpdatePolicies(t *testing.T, rp *oc.RoutingPolicy) {
 			PrefixList:     policyIPv6Prefixes,
 			PrefixMode:     maskRange,
 			MatchPrefixSet: true,
-			MatchSetOption: oc.E_RoutingPolicy_MatchSetOptionsRestrictedType(oc.RoutingPolicy_MatchSetOptionsType_ANY),
+			MatchSetOption: oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY,
 			PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
 		})
 }
