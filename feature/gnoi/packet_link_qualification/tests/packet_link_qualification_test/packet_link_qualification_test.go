@@ -305,7 +305,7 @@ func calculatePLQDurations(t *testing.T, generatorPlqResp *plqpb.CapabilitiesRes
 		generatorsetupDuration:    time.Duration(math.Max(30, genPblqMinSetup)) * time.Second,
 		reflectorsetupDuration:    time.Duration(math.Max(40, refPblqMinSetup)) * time.Second,
 		testDuration:              180 * time.Second,
-		generatorPostSyncDuration: 0 * time.Second,
+		generatorPostSyncDuration: 10 * time.Second,
 		reflectorPostSyncDuration: 30 * time.Second,
 		generatorTeardownDuration: time.Duration(math.Max(30, genPblqMinTearDown)) * time.Second,
 		reflectorTeardownDuration: time.Duration(math.Max(10, refPblqMinTearDown)) * time.Second,
