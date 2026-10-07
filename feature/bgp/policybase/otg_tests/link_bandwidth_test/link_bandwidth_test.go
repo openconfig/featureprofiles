@@ -434,20 +434,44 @@ func validateRouteCommunityV4(t *testing.T, td testData, ec extCommunity) {
 	}
 }
 
+func getLinkBandwidthV4(ec *otgtelemetry.BgpPeer_UnicastIpv4Prefix_ExtendedCommunity) (float32, uint16, bool) {
+	if ec == nil || ec.Structured == nil {
+		return 0, 0, false
+	}
+	if ec.Structured.Transitive_2OctetAsType != nil && ec.Structured.Transitive_2OctetAsType.LinkBandwidthSubtype != nil {
+		lb := ec.Structured.Transitive_2OctetAsType.LinkBandwidthSubtype
+		return ygot.BinaryToFloat32(lb.GetBandwidth()), lb.GetGlobal_2ByteAs(), true
+	}
+	if ec.Structured.NonTransitive_2OctetAsType != nil && ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype != nil {
+		lb := ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype
+		return ygot.BinaryToFloat32(lb.GetBandwidth()), lb.GetGlobal_2ByteAs(), true
+	}
+	return 0, 0, false
+}
+
 func isLinkBandwidthV4(ec *otgtelemetry.BgpPeer_UnicastIpv4Prefix_ExtendedCommunity) bool {
-	return ec.Structured != nil &&
-		((ec.Structured.Transitive_2OctetAsType != nil &&
-			ec.Structured.Transitive_2OctetAsType.LinkBandwidthSubtype != nil) ||
-			(ec.Structured.NonTransitive_2OctetAsType != nil &&
-				ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype != nil))
+	_, _, ok := getLinkBandwidthV4(ec)
+	return ok
+}
+
+func getLinkBandwidthV6(ec *otgtelemetry.BgpPeer_UnicastIpv6Prefix_ExtendedCommunity) (float32, uint16, bool) {
+	if ec == nil || ec.Structured == nil {
+		return 0, 0, false
+	}
+	if ec.Structured.Transitive_2OctetAsType != nil && ec.Structured.Transitive_2OctetAsType.LinkBandwidthSubtype != nil {
+		lb := ec.Structured.Transitive_2OctetAsType.LinkBandwidthSubtype
+		return ygot.BinaryToFloat32(lb.GetBandwidth()), lb.GetGlobal_2ByteAs(), true
+	}
+	if ec.Structured.NonTransitive_2OctetAsType != nil && ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype != nil {
+		lb := ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype
+		return ygot.BinaryToFloat32(lb.GetBandwidth()), lb.GetGlobal_2ByteAs(), true
+	}
+	return 0, 0, false
 }
 
 func isLinkBandwidthV6(ec *otgtelemetry.BgpPeer_UnicastIpv6Prefix_ExtendedCommunity) bool {
-	return ec.Structured != nil &&
-		((ec.Structured.Transitive_2OctetAsType != nil &&
-			ec.Structured.Transitive_2OctetAsType.LinkBandwidthSubtype != nil) ||
-			(ec.Structured.NonTransitive_2OctetAsType != nil &&
-				ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype != nil))
+	_, _, ok := getLinkBandwidthV6(ec)
+	return ok
 }
 
 func matchesExpectedBandwidth(community string, gotBW float32) bool {
@@ -545,16 +569,9 @@ func validateRouteCommunityV4Prefix(t *testing.T, td testData, community, v4Pref
 				return false
 			default:
 				for _, ec := range prefix.ExtendedCommunity {
-					if isLinkBandwidthV4(ec) {
-						if ec.Structured.Transitive_2OctetAsType != nil && ec.Structured.Transitive_2OctetAsType.LinkBandwidthSubtype != nil {
-							if matchesExpectedBandwidth(community, ygot.BinaryToFloat32(ec.Structured.Transitive_2OctetAsType.LinkBandwidthSubtype.GetBandwidth())) {
-								return true
-							}
-						}
-						if ec.Structured.NonTransitive_2OctetAsType != nil && ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype != nil {
-							if matchesExpectedBandwidth(community, ygot.BinaryToFloat32(ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype.GetBandwidth())) {
-								return true
-							}
+					if bw, _, ok := getLinkBandwidthV4(ec); ok {
+						if matchesExpectedBandwidth(community, bw) {
+							return true
 						}
 					}
 				}
@@ -593,19 +610,9 @@ func validateRouteCommunityV4Prefix(t *testing.T, td testData, community, v4Pref
 					return
 				}
 				for _, ec := range bgpPrefix.ExtendedCommunity {
-					if !isLinkBandwidthV4(ec) {
+					gotBW, globalAS, ok := getLinkBandwidthV4(ec)
+					if !ok {
 						continue
-					}
-					var gotBW float32
-					var globalAS uint16
-					if ec.Structured.Transitive_2OctetAsType != nil && ec.Structured.Transitive_2OctetAsType.LinkBandwidthSubtype != nil {
-						lbSubType := ec.Structured.Transitive_2OctetAsType.LinkBandwidthSubtype
-						gotBW = ygot.BinaryToFloat32(lbSubType.GetBandwidth())
-						globalAS = lbSubType.GetGlobal_2ByteAs()
-					} else {
-						lbSubType := ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype
-						gotBW = ygot.BinaryToFloat32(lbSubType.GetBandwidth())
-						globalAS = lbSubType.GetGlobal_2ByteAs()
 					}
 					t.Logf("V4 Bandwidth from OTG: %v (AS=%d)", gotBW, globalAS)
 					if globalAS != 23456 && globalAS != 32002 && globalAS != 32001 {
@@ -665,16 +672,9 @@ func validateRouteCommunityV6Prefix(t *testing.T, td testData, community, v6Pref
 				return false
 			default:
 				for _, ec := range prefix.ExtendedCommunity {
-					if isLinkBandwidthV6(ec) {
-						if ec.Structured.Transitive_2OctetAsType != nil && ec.Structured.Transitive_2OctetAsType.LinkBandwidthSubtype != nil {
-							if matchesExpectedBandwidth(community, ygot.BinaryToFloat32(ec.Structured.Transitive_2OctetAsType.LinkBandwidthSubtype.GetBandwidth())) {
-								return true
-							}
-						}
-						if ec.Structured.NonTransitive_2OctetAsType != nil && ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype != nil {
-							if matchesExpectedBandwidth(community, ygot.BinaryToFloat32(ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype.GetBandwidth())) {
-								return true
-							}
+					if bw, _, ok := getLinkBandwidthV6(ec); ok {
+						if matchesExpectedBandwidth(community, bw) {
+							return true
 						}
 					}
 				}
@@ -713,19 +713,9 @@ func validateRouteCommunityV6Prefix(t *testing.T, td testData, community, v6Pref
 					return
 				}
 				for _, ec := range bgpPrefix.ExtendedCommunity {
-					if !isLinkBandwidthV6(ec) {
+					gotBW, globalAS, ok := getLinkBandwidthV6(ec)
+					if !ok {
 						continue
-					}
-					var gotBW float32
-					var globalAS uint16
-					if ec.Structured.Transitive_2OctetAsType != nil && ec.Structured.Transitive_2OctetAsType.LinkBandwidthSubtype != nil {
-						lbSubType := ec.Structured.Transitive_2OctetAsType.LinkBandwidthSubtype
-						gotBW = ygot.BinaryToFloat32(lbSubType.GetBandwidth())
-						globalAS = lbSubType.GetGlobal_2ByteAs()
-					} else {
-						lbSubType := ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype
-						gotBW = ygot.BinaryToFloat32(lbSubType.GetBandwidth())
-						globalAS = lbSubType.GetGlobal_2ByteAs()
 					}
 					t.Logf("V6 Bandwidth from OTG: %v (AS=%d)", gotBW, globalAS)
 					if globalAS != 23456 && globalAS != 32002 && globalAS != 32001 {
