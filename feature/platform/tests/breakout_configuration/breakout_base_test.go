@@ -18,7 +18,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/testt"
 )
 
 var componentNameList []string
@@ -152,13 +151,9 @@ func verifyBreakout(dut *ondatra.DUTDevice, index uint8, numBreakoutsWant uint8,
 }
 
 func verifyDelete(t *testing.T, dut *ondatra.DUTDevice, compname string, schemaValue uint8) {
-
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		gnmi.Get(t, dut, gnmi.OC().Component(compname).Port().BreakoutMode().Group(schemaValue).Index().Config()) // catch the error  as it is expected and absorb the panic.
-	}); errMsg != nil {
-		t.Log("Expected failure as this verifies the breakout config is removed")
-	} else {
-		t.Errorf("This get on empty config should have failed : %s", *errMsg)
+	config := gnmi.Lookup(t, dut, gnmi.OC().Component(compname).Port().BreakoutMode().Group(schemaValue).Config())
+	if config.IsPresent() {
+		t.Errorf("Breakout group %d config is still present on %s after Delete", schemaValue, compname)
 	}
 }
 
@@ -323,7 +318,7 @@ func getCompName(dut *ondatra.DUTDevice, iface string, portPrefix string, t *tes
 		var lcSlot string
 		parts := strings.Split(dutPortName, "/")
 		if len(parts) >= 4 {
-			lcSlot = parts[2]
+			lcSlot = parts[1]
 			portNumber = parts[3]
 			t.Logf("Extracted Linecard Slot: %s, Port Number: %s", lcSlot, portNumber)
 			compName := fmt.Sprintf("Port0/%s/0/%s", lcSlot, portNumber)
