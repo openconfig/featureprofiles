@@ -32,6 +32,7 @@ import (
 	"github.com/google/gopacket/pcap"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
@@ -1170,6 +1171,8 @@ func programEntries(t *testing.T, dut *ondatra.DUTDevice, c *gribi.Client) {
 }
 
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
+	cfgplugins.ConfigureDecapVrfSelection(t, dut)
+
 	d := gnmi.OC()
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")

@@ -22,6 +22,7 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
@@ -187,6 +188,8 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 
 // configureDUT configures port1, port2, port3, port4 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
+	cfgplugins.ConfigureDecapVrfSelection(t, dut)
+
 	d := gnmi.OC()
 	for p, dp := range dutPorts {
 		p1 := dut.Port(t, p)
