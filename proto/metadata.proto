@@ -1486,6 +1486,12 @@ message Metadata {
     // Arista: https://partnerissuetracker.corp.google.com/issues/562517133
     bool sflow_egress_sampling_rate_unsupported = 460;
 
+    // Device reports routes in a non-default network instance but reports the
+    // next-hop and next-hop-group objects referenced by those routes in the
+    // default network instance.
+    // Arista-specific AFT streaming behavior.
+    bool afts_next_hops_stream_only_in_default_network_instance = 461;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }

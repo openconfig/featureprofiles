@@ -105,18 +105,21 @@ var unusedPaths = []string{
 	"/network-instances/network-instance/afts/next-hops/next-hop/state/origin-protocol",
 }
 
-func subscriptionPaths(dut *ondatra.DUTDevice) map[string][]string {
-	defaultNetworkInstance := deviations.DefaultNetworkInstance(dut)
+// subscriptionPathsForNetworkInstances returns AFT entry paths for
+// routeNetworkInstance and the supporting next-hop-group/next-hop paths for
+// nextHopNetworkInstance. Some platforms publish those supporting objects in
+// a different network instance from the route entries.
+func subscriptionPathsForNetworkInstances(routeNetworkInstance, nextHopNetworkInstance string) map[string][]string {
 	return map[string][]string{
 		"prefix": {
-			fmt.Sprintf("network-instances/network-instance[name=%s]/afts/ipv4-unicast/ipv4-entry", defaultNetworkInstance),
-			fmt.Sprintf("network-instances/network-instance[name=%s]/afts/ipv6-unicast/ipv6-entry", defaultNetworkInstance),
+			fmt.Sprintf("network-instances/network-instance[name=%s]/afts/ipv4-unicast/ipv4-entry", routeNetworkInstance),
+			fmt.Sprintf("network-instances/network-instance[name=%s]/afts/ipv6-unicast/ipv6-entry", routeNetworkInstance),
 		},
 		"nhg": {
-			fmt.Sprintf("network-instances/network-instance[name=%s]/afts/next-hop-groups/next-hop-group", defaultNetworkInstance),
+			fmt.Sprintf("network-instances/network-instance[name=%s]/afts/next-hop-groups/next-hop-group", nextHopNetworkInstance),
 		},
 		"nh": {
-			fmt.Sprintf("network-instances/network-instance[name=%s]/afts/next-hops/next-hop", defaultNetworkInstance),
+			fmt.Sprintf("network-instances/network-instance[name=%s]/afts/next-hops/next-hop", nextHopNetworkInstance),
 		},
 	}
 }
@@ -287,7 +290,7 @@ func (ss *AFTStreamSession) ToAFT(t *testing.T, dut *ondatra.DUTDevice) (*AFTDat
 		}
 		return nil
 	}
-	cacheTraversalPaths, err := generateCacheTraversalPaths(subscriptionPaths(dut))
+	cacheTraversalPaths, err := generateCacheTraversalPaths(subscriptionPathsForNetworkInstances(ss.routeNetworkInstance, ss.nextHopNetworkInstance))
 	if err != nil {
 		return nil, err
 	}
@@ -474,12 +477,12 @@ type aftSubscriptionResponse struct {
 // This is somewhat bad practice. I was surprised that this function spawned a goroutine.
 // Functions should not return if they spawn goroutines. (Assume the caller will cancel the context
 // on return.)
-func aftSubscribe(ctx context.Context, t *testing.T, c gnmipb.GNMIClient, dut *ondatra.DUTDevice) <-chan *aftSubscriptionResponse {
+func aftSubscribe(ctx context.Context, t *testing.T, c gnmipb.GNMIClient, dut *ondatra.DUTDevice, routeNetworkInstance, nextHopNetworkInstance string) <-chan *aftSubscriptionResponse {
 	sub, err := c.Subscribe(ctx)
 	if err != nil {
 		t.Fatalf("error in Subscribe(): %v", err)
 	}
-	req, err := checkForRoutesRequest(dut)
+	req, err := checkForRoutesRequest(dut, routeNetworkInstance, nextHopNetworkInstance)
 	if err != nil {
 		t.Fatalf("error preparing subscribe request: %v", err)
 	}
@@ -510,13 +513,15 @@ func aftSubscribe(ctx context.Context, t *testing.T, c gnmipb.GNMIClient, dut *o
 // AFTStreamSession represents a single gNMI AFT streaming session and cached AFT state. It contains
 // a subscription that can be used across multiple calls to ListenUntil().
 type AFTStreamSession struct {
-	buffer            <-chan *aftSubscriptionResponse
-	Cache             *aftCache
-	start             time.Time
-	notifications     []*gnmipb.SubscribeResponse
-	missingPrefixes   map[string]bool
-	failingNHPrefixes map[string]bool
-	debugMode         bool
+	buffer                 <-chan *aftSubscriptionResponse
+	Cache                  *aftCache
+	routeNetworkInstance   string
+	nextHopNetworkInstance string
+	start                  time.Time
+	notifications          []*gnmipb.SubscribeResponse
+	missingPrefixes        map[string]bool
+	failingNHPrefixes      map[string]bool
+	debugMode              bool
 }
 
 func (ss *AFTStreamSession) sessionPrefix() string {
@@ -525,13 +530,29 @@ func (ss *AFTStreamSession) sessionPrefix() string {
 
 // NewAFTStreamSession constructs an AFTStreamSession. It subscribes to a given gNMI client.
 func NewAFTStreamSession(ctx context.Context, t *testing.T, c gnmipb.GNMIClient, dut *ondatra.DUTDevice) *AFTStreamSession {
+	defaultNetworkInstance := deviations.DefaultNetworkInstance(dut)
+	return NewAFTStreamSessionForNetworkInstances(ctx, t, c, dut, defaultNetworkInstance, defaultNetworkInstance)
+}
+
+// NewAFTStreamSessionForNetworkInstance constructs an AFT stream session for
+// the supplied network instance.
+func NewAFTStreamSessionForNetworkInstance(ctx context.Context, t *testing.T, c gnmipb.GNMIClient, dut *ondatra.DUTDevice, networkInstance string) *AFTStreamSession {
+	return NewAFTStreamSessionForNetworkInstances(ctx, t, c, dut, networkInstance, networkInstance)
+}
+
+// NewAFTStreamSessionForNetworkInstances constructs an AFT stream session for
+// route entries in routeNetworkInstance and next-hop-group/next-hop objects in
+// nextHopNetworkInstance.
+func NewAFTStreamSessionForNetworkInstances(ctx context.Context, t *testing.T, c gnmipb.GNMIClient, dut *ondatra.DUTDevice, routeNetworkInstance, nextHopNetworkInstance string) *AFTStreamSession {
 	return &AFTStreamSession{
-		buffer:            aftSubscribe(ctx, t, c, dut),
-		Cache:             newAFTCache(dut.Name()),
-		notifications:     []*gnmipb.SubscribeResponse{},
-		missingPrefixes:   make(map[string]bool),
-		failingNHPrefixes: make(map[string]bool),
-		debugMode:         false,
+		buffer:                 aftSubscribe(ctx, t, c, dut, routeNetworkInstance, nextHopNetworkInstance),
+		Cache:                  newAFTCache(dut.Name()),
+		routeNetworkInstance:   routeNetworkInstance,
+		nextHopNetworkInstance: nextHopNetworkInstance,
+		notifications:          []*gnmipb.SubscribeResponse{},
+		missingPrefixes:        make(map[string]bool),
+		failingNHPrefixes:      make(map[string]bool),
+		debugMode:              false,
 	}
 }
 
@@ -1059,7 +1080,7 @@ func parsePrefix(t *testing.T, n *gnmipb.Notification, sessionPrefix string) (st
 	return prefix, nhgID, nil
 }
 
-func checkForRoutesRequest(dut *ondatra.DUTDevice) (*gnmipb.SubscribeRequest, error) {
+func checkForRoutesRequest(dut *ondatra.DUTDevice, routeNetworkInstance, nextHopNetworkInstance string) (*gnmipb.SubscribeRequest, error) {
 	subReq := &gnmipb.SubscribeRequest_Subscribe{
 		Subscribe: &gnmipb.SubscriptionList{
 			Mode:     gnmipb.SubscriptionList_STREAM,
@@ -1067,7 +1088,7 @@ func checkForRoutesRequest(dut *ondatra.DUTDevice) (*gnmipb.SubscribeRequest, er
 			Encoding: gnmipb.Encoding_PROTO,
 		},
 	}
-	for _, paths := range subscriptionPaths(dut) {
+	for _, paths := range subscriptionPathsForNetworkInstances(routeNetworkInstance, nextHopNetworkInstance) {
 		for _, p := range paths {
 			pp, err := ygot.StringToPath(p, ygot.StructuredPath)
 			if err != nil {
