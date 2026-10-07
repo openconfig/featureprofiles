@@ -449,6 +449,12 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/ipsec/otg_tests/ipsec_packetorder/README.md"
 }
 test: {
+  id: "LB-1.1"
+  description: "wECMP Hashing Polarization Detection"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/polarization_ipv4/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/polarization_ipv4/polarization_test.go"
+}
+test: {
   id: "MGT-1"
   description: "Management HA solution test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/management/otg_tests/management_ha_test/README.md"
@@ -773,7 +779,7 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/breakout_subscription_test/breakout_subscription_test.go"
 }
 test: {
-  id: "Pathz"
+  id: "Pathz-1"
   description: "Path-level Authorization (1-4) tests"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/pathz/tests/pathz/README.md"
 }
@@ -1134,6 +1140,11 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/otg_tests/isis_scale_multi_adjacency_test/isis_scale_multi_adjacency_test.go"
 }
 test: {
+  id: "RT-2.19"
+  description: "IS-IS Suppress Interface Reachability"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/otg_tests/isis_suppress_interface_reachability_test/README.md"
+}
+test: {
   id: "RT-2.2"
   description: "IS-IS LSP Updates"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/otg_tests/lsp_updates_test/README.md"
@@ -1429,6 +1440,7 @@ test: {
   id: "SFLOW-2"
   description: "sFlow Egress Sampling Configuration and Verification"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/sflow/otg_tests/sflow_egress_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/sflow/otg_tests/sflow_egress_test/sflow_egress_test.go"
 }
 test: {
   id: "SR-1.1"
@@ -1582,6 +1594,11 @@ test: {
   description: "Backup NHG: Actions with PBF"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/backup_nhg_action_pbf/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/backup_nhg_action_pbf/backup_nhg_action_pbf_test.go"
+}
+test: {
+  id: "TE-11.4"
+  description: "gRIBI BACKUP_ACTIVATE Hardware Convergence & FIB ACK Verification"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/backup_nhg_trigger_test/README.md"
 }
 test: {
   id: "TE-13.1"
