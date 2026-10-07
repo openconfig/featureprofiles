@@ -557,22 +557,22 @@ func setupEnvironment(t *testing.T) *testEnv {
 	}
 
 	t.Log("Test environment setup: configure the DUT")
-	configureDUT(t, env)
-	// Registered right after the DUT configuration so that the DUT is
-	// restored even if a later setup step fails. Cleanups run in LIFO order,
-	// so the ATE cleanup registered below runs first (README Cleanup).
+	// Registered before the DUT configuration so that the DUT is restored
+	// even if the configuration push fails part-way. Cleanups run in LIFO
+	// order, so the ATE cleanup registered below runs first (README Cleanup).
 	t.Cleanup(func() { cleanupDUT(t, env) })
+	configureDUT(t, env)
 
 	t.Log("Test environment setup: build the ATE configuration")
 	env.otgCfg = configureOTG(t, ate)
 
 	t.Log("Test environment setup: push the ATE configuration and start protocols")
-	env.otg.PushConfig(t, env.otgCfg)
 	t.Cleanup(func() {
 		t.Log("Cleanup: stop traffic and protocols on the ATE")
 		env.otg.StopTraffic(t)
 		env.otg.StopProtocols(t)
 	})
+	env.otg.PushConfig(t, env.otgCfg)
 	env.otg.StartProtocols(t)
 
 	t.Log("Test environment setup: withdraw the negative route ranges")
@@ -933,11 +933,12 @@ func advertiseWithPositiveControl(t *testing.T, env *testEnv, ranges []*routeRan
 		before[p] = v
 	}
 
-	setRouteState(t, env.otg, ranges, gosnappi.StateProtocolRouteState.ADVERTISE)
-	// The withdraw is always performed, also when the subtest fails.
+	// The withdraw is always performed, also when the subtest fails or the
+	// advertise call itself fails; registered before the advertise.
 	t.Cleanup(func() {
 		setRouteState(t, env.otg, ranges, gosnappi.StateProtocolRouteState.WITHDRAW)
 	})
+	setRouteState(t, env.otg, ranges, gosnappi.StateProtocolRouteState.ADVERTISE)
 
 	watchers := map[string]*gnmi.Watcher[uint64]{}
 	for _, p := range peers {
