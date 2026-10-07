@@ -64,7 +64,8 @@ AS_PATHs without session resets. IPv4 and IPv6 unicast.
     *   ATE port-2 (AS `64501`, OTG `ibgp`) and DUT port-2: iBGP in the same
         Member-AS
     *   ATE port-3 (AS `64502`, OTG `ebgp`) and DUT port-3: confederation-eBGP
-        with the neighboring Member-AS
+        with the neighboring Member-AS (an OTG `ibgp` peer cannot be used, it
+        rejects an OPEN from a different AS)
 *   Advertise the following route ranges from the ATE (`64503` and `64511`
     appear only inside AS_PATHs; LOCAL_PREF and MED are sent only where given)
 
@@ -91,7 +92,10 @@ AS_PATHs without session resets. IPv4 and IPv6 unicast.
     `advanced.include_local_preference` and
     `advanced.include_multi_exit_discriminator` explicitly on every range. The
     looped routes may be sent as one or two adjacent segments; AS_PATHs sent
-    by the DUT are compared segment by segment
+    by the DUT are compared segment by segment. OTG guarantees
+    `include_local_preference` only on `ibgp` peers and an `ebgp` peer does not
+    report a received LOCAL_PREF (RFC 4271 Section 5.1.5), so LOCAL_PREF on the
+    port-3 session is verified on the DUT (RT-1.111.2 and RT-1.111.3)
 *   Configure all nine route ranges in a single ATE configuration, start
     protocols, then withdraw `CONFED-LOOP`, `EXT-LOOP`, `EXT-MALFORMED` and
     `CONFED-MALFORMED` with OTG route control state. Negative ranges are only
@@ -149,17 +153,22 @@ AS_PATHs without session resets. IPv4 and IPv6 unicast.
 
 *   On the DUT, read `CONFED` and `CONFED-TRANSIT` in `adj-rib-in-post` of
     neighbor `192.0.2.10` / `2001:db8::a` (`attr-index` to `attr-set`) and
-    confirm them in `loc-rib`: `CONFED` = exactly `AS_CONFED_SEQUENCE [64502]`
-    with `local-pref` `150`; `CONFED-TRANSIT` = exactly
-    `AS_CONFED_SEQUENCE [64502]`, `AS_SEQ [64511]`
+    confirm them in `loc-rib`: `CONFED` = exactly `AS_CONFED_SEQUENCE [64502]`;
+    `CONFED-TRANSIT` = exactly `AS_CONFED_SEQUENCE [64502]`, `AS_SEQ [64511]`
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/neighbors/neighbor/adj-rib-in-post/routes/route/state/attr-index
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/neighbors/neighbor/adj-rib-in-post/routes/route/state/attr-index
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/as-path/as-segment/state/type
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/as-path/as-segment/state/member
+*   LOCAL_PREF `150` of `CONFED` (RFC 4271 Section 5.1.5 confederation
+    exception): the attribute reached the DUT if `adj-rib-in-pre` (`loc-rib`
+    with `bgp_adj_rib_oc_unsupported`) shows `local-pref` `150`; then
+    `adj-rib-in-post` and ATE port-2 must show `150`. Otherwise log that the
+    ATE did not send LOCAL_PREF on the `ebgp` peer and skip
+    *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/neighbors/neighbor/adj-rib-in-pre/routes/route/state/attr-index
+    *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/neighbors/neighbor/adj-rib-in-pre/routes/route/state/attr-index
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/local-pref
 *   ATE port-2 receives the same four prefixes with the same AS_PATHs (no
-    `64501` or `64500` prepended) and LOCAL_PREF `150` for `CONFED` (RFC 4271
-    Section 5.1.5 confederation exception)
+    `64501` or `64500` prepended)
 *   Flows port-2 to port-3: 0% loss
 
 ### RT-1.111.3: iBGP peer to confederation peer (AS_CONFED_SEQUENCE prepend, rule b)
@@ -173,10 +182,17 @@ AS_PATHs without session resets. IPv4 and IPv6 unicast.
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/next-hop
 *   ATE port-3 receives `IBGP` = exactly `AS_CONFED_SEQUENCE [64501]` (rule
     b.3) and `IBGP-CONFED` = exactly one segment
-    `AS_CONFED_SEQUENCE [64501, 64503]` (rule b.1); LOCAL_PREF `200` and MED
-    `50` unchanged (RFC 5065 Section 5.2); NEXT_HOP either unchanged
-    (`192.0.2.6` / `2001:db8::6`, the Section 5.1 default) or the DUT port-3
-    address (`192.0.2.9` / `2001:db8::9`), log which
+    `AS_CONFED_SEQUENCE [64501, 64503]` (rule b.1); MED `50` unchanged
+    (RFC 5065 Section 5.2); NEXT_HOP either unchanged (`192.0.2.6` /
+    `2001:db8::6`, the Section 5.1 default) or the DUT port-3 address
+    (`192.0.2.9` / `2001:db8::9`), log which
+*   LOCAL_PREF `200` of `IBGP` unchanged toward the confederation peer
+    (Section 5.2): the `attr-set` of `IBGP` in `adj-rib-out-post` of neighbor
+    `192.0.2.10` / `2001:db8::a` has `local-pref` `200`; log the value ATE
+    port-3 reports, if any. With `bgp_adj_rib_oc_unsupported` log that the
+    check is skipped
+    *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/neighbors/neighbor/adj-rib-out-post/routes/route/state/attr-index
+    *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/neighbors/neighbor/adj-rib-out-post/routes/route/state/attr-index
 *   Flows port-3 to port-2: 0% loss
 
 ### RT-1.111.4: Confederation routes to the external peer (segments removed, rule c)
@@ -325,6 +341,8 @@ paths:
   /network-instances/network-instance/protocols/protocol/bgp/global/confederation/state/member-as:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/established-transitions:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/sent/last-notification-error-code:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/received/last-notification-error-code:
   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/state/prefix:
   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/state/attr-index:
   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/loc-rib/routes/route/state/prefix:
@@ -333,6 +351,10 @@ paths:
   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/neighbors/neighbor/adj-rib-in-post/routes/route/state/attr-index:
   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/neighbors/neighbor/adj-rib-in-post/routes/route/state/prefix:
   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/neighbors/neighbor/adj-rib-in-post/routes/route/state/attr-index:
+  /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/neighbors/neighbor/adj-rib-in-pre/routes/route/state/attr-index:
+  /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/neighbors/neighbor/adj-rib-in-pre/routes/route/state/attr-index:
+  /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/neighbors/neighbor/adj-rib-out-post/routes/route/state/attr-index:
+  /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/neighbors/neighbor/adj-rib-out-post/routes/route/state/attr-index:
   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/local-pref:
   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/med:
   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/next-hop:
