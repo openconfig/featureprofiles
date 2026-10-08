@@ -835,7 +835,6 @@ func buildProfileRoutes(t *testing.T, dut *ondatra.DUTDevice, totalNHs, routesPe
 // buildProfile8IPv6Routes builds IPv6 route entries for Profile 8 by distributing NextHopGroups across the specified VRFs. It returns the generated gRIBI IPv6 entries and a map of VRFs to their IPv6 prefixes.
 func buildProfile8IPv6Routes(t *testing.T, dut *ondatra.DUTDevice, totalNHGs, nhsPerNHG int, baseIPv6 string, vrfs []string, nextHopGroupID uint64) ([]fluent.GRIBIEntry, map[string][]string) {
 	t.Helper()
-	nhsPerNHG = maxNHCountSupport
 	if len(vrfs) == 0 {
 		t.Fatal("no VRFs supplied")
 	}
@@ -1042,7 +1041,6 @@ func programProfileMultiVRFECMP(t *testing.T, dut *ondatra.DUTDevice, nextHopID,
 // programProfile8MultiVRFIPv6MoUDP builds Profile 8 gRIBI NextHop and NextHopGroup entries for IPv6 MoUDP encapsulation across multiple VRFs. It programs 64 reusable source IPv6 addresses, 16 destination IPv6 addresses per NHG, and 16 unique MPLS labels per NHG, and returns the generated gRIBI entries and reusable source IPv6 addresses.
 func programProfile8MultiVRFIPv6MoUDP(t *testing.T, dut *ondatra.DUTDevice, nextHopID, nextHopGroupID, labelValue uint64, totalNHGs, nhsPerNHG int, vrfs []string, outerIPv6Src, outerIPv6Dst string, outerDstUDPPort uint16, outerTTL, outerDSCP uint8) ([]fluent.GRIBIEntry, []string, []uint64) {
 	t.Helper()
-	nhsPerNHG = maxNHCountSupport
 	var labelList []uint64
 	if len(vrfs) == 0 {
 		t.Fatal("no VRFs provided")
@@ -1056,8 +1054,6 @@ func programProfile8MultiVRFIPv6MoUDP(t *testing.T, dut *ondatra.DUTDevice, next
 	if totalNHGs < vrfCount {
 		vrfCount = totalNHGs
 	}
-	baseNHGsPerVRF := totalNHGs / vrfCount
-	extraNHGs := totalNHGs % vrfCount
 	//--------------------------------------------------------
 	// 64 reusable source IPs
 	//--------------------------------------------------------
@@ -1078,10 +1074,6 @@ func programProfile8MultiVRFIPv6MoUDP(t *testing.T, dut *ondatra.DUTDevice, next
 	globalLabel := labelValue
 	nhgGlobal := 0
 	for vrfIdx := 0; vrfIdx < vrfCount; vrfIdx++ {
-		nhgsVRF := baseNHGsPerVRF
-		if vrfIdx < extraNHGs {
-			nhgsVRF++
-		}
 		baseNH := nhID
 		dstBase := nhgGlobal * dstIPsPerNHG
 		for labelIdx := 0; labelIdx < labelsPerNHG; labelIdx++ {
