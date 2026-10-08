@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -55,6 +56,9 @@ func TestSystemLogging(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			if deviations.VtyLoggingUnsupported(dut) && tc.name == "vty" {
+				t.Skip("VTY logging unsupported")
+			}
 			tc.configure(t, dut)
 			tc.validate(t, dut)
 		})
@@ -138,12 +142,16 @@ func validateVTYLogging(t *testing.T, dut *ondatra.DUTDevice) {
 func configureFileLogging(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 
+	filePath := fileLoggingPath(dut)
+
 	root := &oc.Root{}
 	logging := root.GetOrCreateSystem().GetOrCreateLogging()
-	fileLogger1 := logging.GetOrCreateFile("/var/log/syslog", "logfile_1")
+	fileLogger1 := logging.GetOrCreateFile(filePath, "logfile_1")
 	fileLogger1.SetMaxSize(1000000)
-	fileLogger1.SetMaxOpenTime(1440)
 	fileLogger1.SetRotate(3)
+	if !deviations.LoggingFileMaxOpenTimeUnsupported(dut) {
+		fileLogger1.SetMaxOpenTime(1440)
+	}
 	fileLogger1.GetOrCreateSelector(
 		oc.SystemLogging_SYSLOG_FACILITY_LOCAL7,
 		oc.SystemLogging_SyslogSeverity_INFORMATIONAL,
@@ -153,10 +161,12 @@ func configureFileLogging(t *testing.T, dut *ondatra.DUTDevice) {
 		oc.SystemLogging_SyslogSeverity_ALERT,
 	)
 
-	fileLogger2 := logging.GetOrCreateFile("/var/log/syslog", "logfile_2")
+	fileLogger2 := logging.GetOrCreateFile(filePath, "logfile_2")
 	fileLogger2.SetMaxSize(10000000)
-	fileLogger2.SetMaxOpenTime(1)
 	fileLogger2.SetRotate(10)
+	if !deviations.LoggingFileMaxOpenTimeUnsupported(dut) {
+		fileLogger2.SetMaxOpenTime(1)
+	}
 	fileLogger2.GetOrCreateSelector(
 		oc.SystemLogging_SYSLOG_FACILITY_LOCAL5,
 		oc.SystemLogging_SyslogSeverity_INFORMATIONAL,
@@ -172,7 +182,9 @@ func configureFileLogging(t *testing.T, dut *ondatra.DUTDevice) {
 func validateFileLogging(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 
-	fileLogger1 := gnmi.Get[*oc.System_Logging_File](t, dut, gnmi.OC().System().Logging().File("/var/log/syslog", "logfile_1").State())
+	filePath := fileLoggingPath(dut)
+
+	fileLogger1 := gnmi.Get[*oc.System_Logging_File](t, dut, gnmi.OC().System().Logging().File(filePath, "logfile_1").State())
 	t.Logf("fileLogger1: %v", fileLogger1)
 	s1 := fileLogger1.GetSelector(oc.SystemLogging_SYSLOG_FACILITY_LOCAL7, oc.SystemLogging_SyslogSeverity_INFORMATIONAL)
 	if s1 == nil {
@@ -183,7 +195,7 @@ func validateFileLogging(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Errorf("fileLogger1.GetSelector(%v, %v) = nil, want non-nil", oc.SystemLogging_SYSLOG_FACILITY_LOCAL6, oc.SystemLogging_SyslogSeverity_ALERT)
 	}
 
-	fileLogger2 := gnmi.Get[*oc.System_Logging_File](t, dut, gnmi.OC().System().Logging().File("/var/log/syslog", "logfile_2").State())
+	fileLogger2 := gnmi.Get[*oc.System_Logging_File](t, dut, gnmi.OC().System().Logging().File(filePath, "logfile_2").State())
 	t.Logf("fileLogger2: %v", fileLogger2)
 	s3 := fileLogger2.GetSelector(oc.SystemLogging_SYSLOG_FACILITY_LOCAL5, oc.SystemLogging_SyslogSeverity_INFORMATIONAL)
 	if s3 == nil {
@@ -194,8 +206,12 @@ func validateFileLogging(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Errorf("fileLogger2.GetSelector(%v, %v) = nil, want non-nil", oc.SystemLogging_SYSLOG_FACILITY_LOCAL6, oc.SystemLogging_SyslogSeverity_WARNING)
 	}
 	time.Sleep(4 * time.Minute)
-	fileLogger2 = gnmi.Get[*oc.System_Logging_File](t, dut, gnmi.OC().System().Logging().File("/var/log/syslog", "logfile_2").State())
+	fileLogger2 = gnmi.Get[*oc.System_Logging_File](t, dut, gnmi.OC().System().Logging().File(filePath, "logfile_2").State())
 	if fileLogger2.GetRotate() != 10 {
 		t.Errorf("fileLogger2.GetRotate() = %v, want 10", fileLogger2.GetRotate())
 	}
+}
+
+func fileLoggingPath(dut *ondatra.DUTDevice) string {
+	return deviations.LoggingFileDefaultPath(dut)
 }
