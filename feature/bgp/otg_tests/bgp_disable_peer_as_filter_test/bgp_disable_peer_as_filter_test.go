@@ -513,14 +513,20 @@ func verifyDUTAdvertisedRoutes(t *testing.T, dut *ondatra.DUTDevice, wantAdverti
 
 	bgpRIB := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Rib()
 	v4Route := bgpRIB.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast().Neighbor(atePort2.IPv4).AdjRibOutPost().Route(advertisedRoutesv4PrefixKey, 0).State()
-	_, v4Advertised := gnmi.Lookup(t, dut, v4Route).Val()
-	if v4Advertised != wantAdvertised {
-		return fmt.Errorf("DUT IPv4 Adj-RIB-Out route %s advertised=%v, want %v", advertisedRoutesv4PrefixKey, v4Advertised, wantAdvertised)
+	_, v4Matched := gnmi.Watch(t, dut, v4Route, time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Protocol_Bgp_Rib_AfiSafi_Ipv4Unicast_Neighbor_AdjRibOutPost_Route]) bool {
+		_, present := val.Val()
+		return present == wantAdvertised
+	}).Await(t)
+	if !v4Matched {
+		return fmt.Errorf("DUT IPv4 Adj-RIB-Out route %s presence did not converge to %v", advertisedRoutesv4PrefixKey, wantAdvertised)
 	}
 	v6Route := bgpRIB.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Ipv6Unicast().Neighbor(atePort2.IPv6).AdjRibOutPost().Route(advertisedRoutesv6PrefixKey, 0).State()
-	_, v6Advertised := gnmi.Lookup(t, dut, v6Route).Val()
-	if v6Advertised != wantAdvertised {
-		return fmt.Errorf("DUT IPv6 Adj-RIB-Out route %s advertised=%v, want %v", advertisedRoutesv6PrefixKey, v6Advertised, wantAdvertised)
+	_, v6Matched := gnmi.Watch(t, dut, v6Route, time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Protocol_Bgp_Rib_AfiSafi_Ipv6Unicast_Neighbor_AdjRibOutPost_Route]) bool {
+		_, present := val.Val()
+		return present == wantAdvertised
+	}).Await(t)
+	if !v6Matched {
+		return fmt.Errorf("DUT IPv6 Adj-RIB-Out route %s presence did not converge to %v", advertisedRoutesv6PrefixKey, wantAdvertised)
 	}
 	return nil
 }

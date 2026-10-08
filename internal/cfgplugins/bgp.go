@@ -1899,7 +1899,6 @@ func ConfigureBGPEnablePeerAsFilterPeer(t *testing.T, dut *ondatra.DUTDevice, ba
 				}
 				fmt.Fprintf(&cliConfig, command, peerGroup)
 			}
-			helpers.GnmiCLIConfig(t, dut, cliConfig.String())
 			t.Cleanup(func() {
 				var cleanupConfig strings.Builder
 				fmt.Fprintf(&cleanupConfig, "router bgp %d\n", params.DutAS)
@@ -1912,6 +1911,7 @@ func ConfigureBGPEnablePeerAsFilterPeer(t *testing.T, dut *ondatra.DUTDevice, ba
 				}
 				helpers.GnmiCLIConfig(t, dut, cleanupConfig.String())
 			})
+			helpers.GnmiCLIConfig(t, dut, cliConfig.String())
 		} else {
 			if len(params.NeighborIPs) != 4 {
 				t.Fatalf("want four neighbor IPs for peer AS filter CLI config, got %d", len(params.NeighborIPs))
@@ -1925,7 +1925,6 @@ func ConfigureBGPEnablePeerAsFilterPeer(t *testing.T, dut *ondatra.DUTDevice, ba
 				}
 				fmt.Fprintf(&cliConfig, command, neighborIP)
 			}
-			helpers.GnmiCLIConfig(t, dut, cliConfig.String())
 			t.Cleanup(func() {
 				var cleanupConfig strings.Builder
 				fmt.Fprintf(&cleanupConfig, "router bgp %d\n", params.DutAS)
@@ -1938,6 +1937,7 @@ func ConfigureBGPEnablePeerAsFilterPeer(t *testing.T, dut *ondatra.DUTDevice, ba
 				}
 				helpers.GnmiCLIConfig(t, dut, cleanupConfig.String())
 			})
+			helpers.GnmiCLIConfig(t, dut, cliConfig.String())
 		}
 	} else {
 		// Explicitly set disable-peer-as-filter=false to keep the default peer AS filter enabled.
@@ -1982,7 +1982,6 @@ func ConfigureBGPDisablePeerAsFilter(t *testing.T, dut *ondatra.DUTDevice, batch
 				}
 				fmt.Fprintf(&cliConfig, command, peerGroup)
 			}
-			helpers.GnmiCLIConfig(t, dut, cliConfig.String())
 			t.Cleanup(func() {
 				var cleanupConfig strings.Builder
 				fmt.Fprintf(&cleanupConfig, "router bgp %d\n", params.DutAS)
@@ -1995,6 +1994,7 @@ func ConfigureBGPDisablePeerAsFilter(t *testing.T, dut *ondatra.DUTDevice, batch
 				}
 				helpers.GnmiCLIConfig(t, dut, cleanupConfig.String())
 			})
+			helpers.GnmiCLIConfig(t, dut, cliConfig.String())
 		} else {
 			if len(params.NeighborIPs) != 4 {
 				t.Fatalf("want four neighbor IPs for peer AS filter CLI config, got %d", len(params.NeighborIPs))
@@ -2008,7 +2008,6 @@ func ConfigureBGPDisablePeerAsFilter(t *testing.T, dut *ondatra.DUTDevice, batch
 				}
 				fmt.Fprintf(&cliConfig, command, neighborIP)
 			}
-			helpers.GnmiCLIConfig(t, dut, cliConfig.String())
 			t.Cleanup(func() {
 				var cleanupConfig strings.Builder
 				fmt.Fprintf(&cleanupConfig, "router bgp %d\n", params.DutAS)
@@ -2021,6 +2020,7 @@ func ConfigureBGPDisablePeerAsFilter(t *testing.T, dut *ondatra.DUTDevice, batch
 				}
 				helpers.GnmiCLIConfig(t, dut, cleanupConfig.String())
 			})
+			helpers.GnmiCLIConfig(t, dut, cliConfig.String())
 		}
 	} else {
 		// Create OC config to disable peer AS filter
