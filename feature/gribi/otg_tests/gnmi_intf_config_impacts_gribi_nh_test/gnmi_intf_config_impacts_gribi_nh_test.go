@@ -442,26 +442,23 @@ func setMTU(t *testing.T, dut *ondatra.DUTDevice, intfName string, mtu uint16) {
 	b.Set(t, dut)
 }
 
-// awaitMTU polls the interface MTU state until it matches want or timeout elapses.
-// Some DUTs don't populate this state leaf at all despite the config Set succeeding;
-// in that case it falls back to trusting the Set() after a short settle delay.
+// awaitMTU subscribes via gNMI to the interface MTU state until it matches want or
+// timeout elapses. Some DUTs don't populate this state leaf at all despite the config
+// Set succeeding; in that case it falls back to trusting the Set() after a short settle delay.
 func awaitMTU(t *testing.T, dut *ondatra.DUTDevice, intfName string, want uint16, timeout time.Duration) {
 	t.Helper()
 	path := gnmi.OC().Interface(intfName).Mtu().State()
 	if deviations.OmitL2MTU(dut) {
 		path = gnmi.OC().Interface(intfName).Subinterface(0).Ipv4().Mtu().State()
 	}
-	deadline := time.Now().Add(timeout)
-	for {
-		if got, ok := gnmi.Lookup(t, dut, path).Val(); ok && got == want {
-			return
-		}
-		if time.Now().After(deadline) {
-			t.Logf("Interface %s MTU state leaf did not confirm %d within %v (schema may not expose it here); trusting the earlier Set()", intfName, want, timeout)
-			time.Sleep(convergeSettle)
-			return
-		}
-		time.Sleep(time.Second)
+	val, ok := gnmi.Watch(t, dut, path, timeout, func(v *ygnmi.Value[uint16]) bool {
+		got, present := v.Val()
+		return present && got == want
+	}).Await(t)
+	if !ok {
+		got, _ := val.Val()
+		t.Logf("Interface %s MTU state leaf did not confirm %d within %v (got %d; schema may not expose it here); trusting the earlier Set()", intfName, want, timeout, got)
+		time.Sleep(convergeSettle)
 	}
 }
 
