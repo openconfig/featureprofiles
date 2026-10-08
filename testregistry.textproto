@@ -449,6 +449,12 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/ipsec/otg_tests/ipsec_packetorder/README.md"
 }
 test: {
+  id: "LB-1.1"
+  description: "wECMP Hashing Polarization Detection"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/polarization_ipv4/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/polarization_ipv4/polarization_test.go"
+}
+test: {
   id: "MGT-1"
   description: "Management HA solution test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/management/otg_tests/management_ha_test/README.md"
