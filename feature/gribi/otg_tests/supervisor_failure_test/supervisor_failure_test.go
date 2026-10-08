@@ -453,6 +453,12 @@ func TestSupFailure(t *testing.T) {
 
 	t.Logf("TE-8.2.1: Send traffic from ATE port-1 to the 100 prefixes (50 IPv4 and 50 IPv6) at configured speed: %d packets/sec (PPS)...", trafficPps)
 	ate.OTG().StartTraffic(t)
+	trafficStopped := false
+	defer func() {
+		if !trafficStopped {
+			ate.OTG().StopTraffic(t)
+		}
+	}()
 
 	// Wait for traffic to flow and stabilize at 0% loss before initiating switchover
 	otgutils.ExpectedTrafficLoss(t, args.ate.OTG(), "Flow TE-8.2.1 IPv4", 0, 0)
