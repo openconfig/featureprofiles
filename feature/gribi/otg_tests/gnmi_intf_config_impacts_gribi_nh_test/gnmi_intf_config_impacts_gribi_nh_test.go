@@ -588,7 +588,7 @@ func verifyPortAndATETraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	}
 }
 
-// verifyNHViaAFT only logs: OC AFT has no vendor-neutral viability leaf (README: "if supported").
+// verifyNHViaAFT asserts state/index only; OC AFT has no vendor-neutral viability leaf, and absence is a valid rejection.
 func verifyNHViaAFT(t *testing.T, dut *ondatra.DUTDevice, ni string, nhIndex uint64) {
 	t.Helper()
 	val, ok := gnmi.Watch(t, dut, gnmi.OC().NetworkInstance(ni).Afts().NextHop(nhIndex).State(), convergeSettle, func(v *ygnmi.Value[*oc.NetworkInstance_Afts_NextHop]) bool {
@@ -597,8 +597,11 @@ func verifyNHViaAFT(t *testing.T, dut *ondatra.DUTDevice, ni string, nhIndex uin
 	}).Await(t)
 	nh, present := val.Val()
 	if !present {
-		t.Logf("AFT next-hop %d: ON_CHANGE subscription returned no value within %v (vendor-variable per README)", nhIndex, convergeSettle)
+		t.Logf("AFT next-hop %d: not present within %v via ON_CHANGE (not installed or rejected)", nhIndex, convergeSettle)
 		return
+	}
+	if got := nh.GetIndex(); got != nhIndex {
+		t.Errorf("AFT next-hop %d state/index: got %d, want %d", nhIndex, got, nhIndex)
 	}
 	t.Logf("AFT next-hop %d telemetry via ON_CHANGE subscription (stabilized=%v): %+v", nhIndex, ok, nh)
 }
@@ -632,6 +635,7 @@ func testNHOnDownInterface(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.AT
 
 	verifyNHViaAFT(t, dut, ni, nhDownID)
 
+	// Unviability is proven by the 100% loss below, since OC AFT has no vendor-neutral viability leaf.
 	setFlowTransmit(t, ate, gosnappi.StateTrafficFlowTransmitState.START, flowNegDownName)
 	defer setFlowTransmit(t, ate, gosnappi.StateTrafficFlowTransmitState.STOP, flowNegDownName)
 	verifyFlowLoss(t, ate, flowNegDownName, monitorWindow, 100)
