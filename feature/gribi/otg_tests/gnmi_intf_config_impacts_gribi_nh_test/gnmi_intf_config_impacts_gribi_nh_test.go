@@ -647,7 +647,7 @@ func testNHOnDownInterface(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.AT
 }
 
 func testMTUSmallerThanPacket(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, p2 *ondatra.Port) {
-	// Started before the MTU fault (not README Step 3) so Step 1's precondition can check it.
+	// Started before the MTU change: Step 1 checks all prefixes flow, and Step 4's "drops to 0" needs a live baseline.
 	setFlowTransmit(t, ate, gosnappi.StateTrafficFlowTransmitState.START, flowMTUName)
 	defer setFlowTransmit(t, ate, gosnappi.StateTrafficFlowTransmitState.STOP, flowMTUName)
 
