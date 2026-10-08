@@ -326,12 +326,19 @@ func (tc *testCase) configureLAGInterface(t *testing.T, attrs *attrs.Attributes)
 	gnmi.Replace(t, tc.dut, aggPath.Config(), agg)
 
 	for _, port := range dutAggPorts {
-		holdTimeConfig := &oc.Interface_HoldTime{
-			Up:   ygot.Uint32(3000),
-			Down: ygot.Uint32(150),
+		memberIntf := &oc.Interface{
+			Name: ygot.String(port.Name()),
+			Type: oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
 		}
+		if deviations.InterfaceEnabled(tc.dut) {
+			memberIntf.Enabled = ygot.Bool(true)
+		}
+		memberIntf.GetOrCreateEthernet().AggregateId = ygot.String(tc.aggID)
+		holdTime := memberIntf.GetOrCreateHoldTime()
+		holdTime.Up = ygot.Uint32(3000)
+		holdTime.Down = ygot.Uint32(150)
 		intfPath := gnmi.OC().Interface(port.Name())
-		gnmi.Update(t, tc.dut, intfPath.HoldTime().Config(), holdTimeConfig)
+		gnmi.Update(t, tc.dut, intfPath.Config(), memberIntf)
 	}
 
 	b := new(gnmi.SetBatch)
@@ -341,6 +348,7 @@ func (tc *testCase) configureLAGInterface(t *testing.T, attrs *attrs.Attributes)
 		IPv6HelperAddress: ateP3.IPv6,
 	}
 	cfgplugins.DhcpRelayConfig(t, tc.dut, b, dhcpRelayConfigParams)
+	b.Set(t, tc.dut)
 }
 
 // configureEthernetInterface sets up a standard ethernet interface with VLAN subinterface and applies DHCP relay CLI config.
@@ -398,6 +406,7 @@ func (tc *testCase) configureEthernetInterface(t *testing.T, attrs *attrs.Attrib
 		IPv6HelperAddress: ateP3.IPv6,
 	}
 	cfgplugins.DhcpRelayConfig(t, tc.dut, b, dhcpRelayConfigParams)
+	b.Set(t, tc.dut)
 }
 
 // configureDHCPRelay dispatches to the appropriate interface setup based on isLag.
