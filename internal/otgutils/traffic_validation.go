@@ -29,9 +29,13 @@ import (
 // ExpectedTrafficLoss checks if traffic loss for a given flow is within the expected range (minLossPct to maxLossPct).
 // It waits up to 45 seconds for the traffic loss percentage to be within the expected range,
 // then fails the test with a standard error message if the validation fails.
-func ExpectedTrafficLoss(t testing.TB, otg *otg.OTG, flowName string, minLossPct, maxLossPct float64) {
+func ExpectedTrafficLoss(t testing.TB, otg *otg.OTG, flowName string, minLossPct, maxLossPct float64, waitTime ...time.Duration) {
 	t.Helper()
-	_, ok := gnmi.Watch(t, otg, gnmi.OTG().Flow(flowName).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
+	var waitT time.Duration = 45
+	if len(waitTime) > 0 {
+		waitT = waitTime[0]
+	}
+	_, ok := gnmi.Watch(t, otg, gnmi.OTG().Flow(flowName).State(), waitT*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
 		recvMetric, present := val.Val()
 		if !present || recvMetric == nil || recvMetric.GetCounters() == nil {
 			return false
@@ -66,4 +70,31 @@ func ExpectedTrafficLoss(t testing.TB, otg *otg.OTG, flowName string, minLossPct
 	lossPct := (txPackets - rxPackets) * 100.0 / txPackets
 
 	t.Fatalf("[%s] Generic Test Assertion Failure: Flow %s: got %v, want between %v and %v", fperrorspb.ErrorCategory_ERROR_CATEGORY_TEST_ASSERTION_FAILURE.String(), flowName, lossPct, minLossPct, maxLossPct)
+}
+
+// VerifyNoPacketLoss verifies that each of the given flows has a loss
+// percentage below 5% and reports an error otherwise.
+func VerifyNoPacketLoss(t testing.TB, otg *otg.OTG, allFlows []string) {
+	t.Helper()
+	LogFlowMetrics(t, otg, otg.FetchConfig(t))
+	for _, flow := range allFlows {
+		_, ok := gnmi.Watch(t, otg, gnmi.OTG().Flow(flow).State(), 15*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
+			flowState, present := val.Val()
+			if !present || flowState == nil || flowState.GetCounters() == nil {
+				return false
+			}
+			txPackets := float64(flowState.GetCounters().GetOutPkts())
+			if txPackets == 0 {
+				return false
+			}
+			rxPackets := float64(flowState.GetCounters().GetInPkts())
+			lossPct := (txPackets - rxPackets) * 100 / txPackets
+			return lossPct < 5.0
+		}).Await(t)
+		if !ok {
+			t.Errorf("Traffic Loss Pct for Flow %s: expected loss < 5%%", flow)
+		} else {
+			t.Logf("Traffic Test Passed for flow %s!", flow)
+		}
+	}
 }

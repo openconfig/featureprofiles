@@ -154,6 +154,12 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, niName string, minLinks 
 	for _, lagName := range []string{lag1Name, lag2Name} {
 		lag := config.GetOrCreateInterface(lagName)
 		lag.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+		if deviations.InterfaceEnabled(dut) {
+			lag.Enabled = ygot.Bool(true)
+		}
+		if !deviations.OmitL2MTU(dut) {
+			lag.Mtu = ygot.Uint16(mtu)
+		}
 		agg := lag.GetOrCreateAggregation()
 		agg.LagType = oc.IfAggregate_AggregationType_LACP
 		agg.MinLinks = ygot.Uint16(minLinks)
@@ -180,7 +186,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, niName string, minLinks 
 				subif.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(sub.vlanID)
 			}
 			ipv4 := subif.GetOrCreateIpv4()
-			ipv4.Enabled = ygot.Bool(true)
+			if !deviations.IPv4MissingEnabled(dut) {
+				ipv4.Enabled = ygot.Bool(true)
+			}
 			s4 := ipv4.GetOrCreateAddress(sub.dutIPv4)
 			s4.PrefixLength = ygot.Uint8(ipv4PrefixLen)
 			ipv6 := subif.GetOrCreateIpv6()
@@ -221,8 +229,11 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, niName string, minLinks 
 	t.Logf("Setting MTU for Lag: %s", lag1Name)
 	mtuBatch := &gnmi.SetBatch{}
 	for _, lagName := range []string{lag1Name, lag2Name} {
-		gnmi.BatchReplace(mtuBatch, gnmi.OC().Interface(lagName).Subinterface(0).Ipv4().Mtu().Config(), mtu)
-		gnmi.BatchReplace(mtuBatch, gnmi.OC().Interface(lagName).Subinterface(0).Ipv6().Mtu().Config(), mtu)
+		for _, sub := range subs[lagName] {
+			subifIndex := uint32(sub.vlanID)
+			gnmi.BatchReplace(mtuBatch, gnmi.OC().Interface(lagName).Subinterface(subifIndex).Ipv4().Mtu().Config(), mtu)
+			gnmi.BatchReplace(mtuBatch, gnmi.OC().Interface(lagName).Subinterface(subifIndex).Ipv6().Mtu().Config(), mtu)
+		}
 	}
 	mtuBatch.Set(t, dut)
 }
@@ -420,20 +431,38 @@ func checkFlowLoss(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config)
 	}
 }
 
-func verifyMTU(t *testing.T, dut *ondatra.DUTDevice, lag1Name, lag2Name string) {
+func verifyMTU(t *testing.T, dut *ondatra.DUTDevice, lag1Name, lag2Name string, subs map[string][]subifConfig) {
 	t.Helper()
+	wantPrimary := uint16(mtu)
+	wantAdjusted := uint16(mtu)
+	wantIPv6Primary := uint32(mtu)
+	wantIPv6Adjusted := uint32(mtu)
+	// Some platforms expose IP MTU as L2 MTU minus ethernet header bytes.
+	wantAdjusted = uint16(mtu - 14)
+	wantIPv6Adjusted = uint32(mtu - 14)
 	for _, lagName := range []string{lag1Name, lag2Name} {
-		ipv4MTU := gnmi.Get(t, dut, gnmi.OC().Interface(lagName).Subinterface(0).Ipv4().Mtu().State())
-		if ipv4MTU != mtu {
-			t.Errorf("%s IPv4 MTU: got %d, want %d", lagName, ipv4MTU, mtu)
-		} else {
-			t.Logf("%s IPv4 MTU: %d (OK)", lagName, ipv4MTU)
+		if !deviations.OmitL2MTU(dut) {
+			lagMTU := gnmi.Get(t, dut, gnmi.OC().Interface(lagName).Mtu().State())
+			if lagMTU != wantPrimary {
+				t.Errorf("%s aggregate MTU: got %d, want %d", lagName, lagMTU, wantPrimary)
+			} else {
+				t.Logf("%s aggregate MTU: %d (OK)", lagName, lagMTU)
+			}
 		}
-		ipv6MTU := gnmi.Get(t, dut, gnmi.OC().Interface(lagName).Subinterface(0).Ipv6().Mtu().State())
-		if ipv6MTU != mtu {
-			t.Errorf("%s IPv6 MTU: got %d, want %d", lagName, ipv6MTU, mtu)
-		} else {
-			t.Logf("%s IPv6 MTU: %d (OK)", lagName, ipv6MTU)
+		for _, sub := range subs[lagName] {
+			subifIndex := uint32(sub.vlanID)
+			ipv4MTU := gnmi.Get(t, dut, gnmi.OC().Interface(lagName).Subinterface(subifIndex).Ipv4().Mtu().State())
+			if ipv4MTU != wantPrimary && ipv4MTU != wantAdjusted {
+				t.Errorf("%s subinterface %d IPv4 MTU: got %d, want %d or %d", lagName, sub.vlanID, ipv4MTU, wantPrimary, wantAdjusted)
+			} else {
+				t.Logf("%s subinterface %d IPv4 MTU: %d (OK)", lagName, sub.vlanID, ipv4MTU)
+			}
+			ipv6MTU := gnmi.Get(t, dut, gnmi.OC().Interface(lagName).Subinterface(subifIndex).Ipv6().Mtu().State())
+			if ipv6MTU != wantIPv6Primary && ipv6MTU != wantIPv6Adjusted {
+				t.Errorf("%s subinterface %d IPv6 MTU: got %d, want %d or %d", lagName, sub.vlanID, ipv6MTU, wantIPv6Primary, wantIPv6Adjusted)
+			} else {
+				t.Logf("%s subinterface %d IPv6 MTU: %d (OK)", lagName, sub.vlanID, ipv6MTU)
+			}
 		}
 	}
 }
@@ -450,6 +479,42 @@ func awaitLAGMembersCollectingDistributing(t *testing.T, dut *ondatra.DUTDevice,
 		state := gnmi.Get(t, dut, memberPath.State())
 		t.Logf("%s/%s collecting=%v distributing=%v sync=%v", lagName, dutPort.Name(), state.GetCollecting(), state.GetDistributing(), state.GetSynchronization())
 	}
+}
+
+func ensureLagMembersEnabled(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	setLagMemberAdminState(t, dut, "port1", true)
+	setLagMemberAdminState(t, dut, "port3", true)
+}
+
+func setLagMemberAdminState(t *testing.T, dut *ondatra.DUTDevice, portID string, enabled bool) {
+	t.Helper()
+	portName := dut.Port(t, portID).Name()
+	ocIntf := &oc.Interface{
+		Name:    ygot.String(portName),
+		Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+		Enabled: ygot.Bool(true),
+	}
+	gnmi.Update(t, dut, gnmi.OC().Interface(portName).Config(), ocIntf)
+}
+
+func awaitLagOperStatusAny(t *testing.T, dut *ondatra.DUTDevice, lagName string, statuses ...oc.E_Interface_OperStatus) {
+	t.Helper()
+	accepted := make(map[oc.E_Interface_OperStatus]struct{}, len(statuses))
+	for _, status := range statuses {
+		accepted[status] = struct{}{}
+	}
+	if _, ok := gnmi.Watch(t, dut, gnmi.OC().Interface(lagName).OperStatus().State(), lacpConvergenceTimeout, func(v *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
+		st, present := v.Val()
+		if !present {
+			return false
+		}
+		_, match := accepted[st]
+		return match
+	}).Await(t); ok {
+		return
+	}
+	t.Fatalf("%s oper-status did not reach any of %v within %v", lagName, statuses, lacpConvergenceTimeout)
 }
 
 func TestAggregateSubinterface(t *testing.T) {
@@ -490,26 +555,30 @@ func TestAggregateSubinterface(t *testing.T) {
 	}
 
 	t.Run("RT-5.14.1: Aggregate interface flap using min-link", func(t *testing.T) {
+		t.Cleanup(func() { ensureLagMembersEnabled(t, dut) })
+		ensureLagMembersEnabled(t, dut)
 		t.Logf("Using Network Instance: %s", deviations.DefaultNetworkInstance(dut))
 		configureDUT(t, dut, deviations.DefaultNetworkInstance(dut), 2, lag1Name, lag2Name, subs)
-		verifyMTU(t, dut, lag1Name, lag2Name)
+		verifyMTU(t, dut, lag1Name, lag2Name, subs)
 		ateConfig := configureATE(t, ate, lag1Name, lag2Name, subs)
 		otg.PushConfig(t, ateConfig)
 		otg.StartProtocols(t)
 		awaitLAGMembersCollectingDistributing(t, dut, lag1Name, lag1Members)
 		awaitLAGMembersCollectingDistributing(t, dut, lag2Name, lag2Members)
+		gnmi.Await(t, dut, gnmi.OC().Interface(lag1Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_UP)
+		gnmi.Await(t, dut, gnmi.OC().Interface(lag2Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_UP)
 		otgutils.WaitForARP(t, otg, ateConfig, "IPv4")
 		otgutils.WaitForARP(t, otg, ateConfig, "IPv6")
 		for i := range 10 {
 			t.Logf("Flap iteration #%d", i+1)
+			setLagMemberAdminState(t, dut, "port1", false)
+			setLagMemberAdminState(t, dut, "port3", false)
+			awaitLagOperStatusAny(t, dut, lag1Name, oc.Interface_OperStatus_LOWER_LAYER_DOWN, oc.Interface_OperStatus_DOWN)
+			awaitLagOperStatusAny(t, dut, lag2Name, oc.Interface_OperStatus_LOWER_LAYER_DOWN, oc.Interface_OperStatus_DOWN)
+			setLagMemberAdminState(t, dut, "port1", true)
+			setLagMemberAdminState(t, dut, "port3", true)
 			gnmi.Await(t, dut, gnmi.OC().Interface(lag1Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_UP)
 			gnmi.Await(t, dut, gnmi.OC().Interface(lag2Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_UP)
-			gnmi.Update(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Enabled().Config(), false)
-			gnmi.Update(t, dut, gnmi.OC().Interface(dut.Port(t, "port3").Name()).Enabled().Config(), false)
-			gnmi.Await(t, dut, gnmi.OC().Interface(lag1Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_LOWER_LAYER_DOWN)
-			gnmi.Await(t, dut, gnmi.OC().Interface(lag2Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_LOWER_LAYER_DOWN)
-			gnmi.Update(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Enabled().Config(), true)
-			gnmi.Update(t, dut, gnmi.OC().Interface(dut.Port(t, "port3").Name()).Enabled().Config(), true)
 		}
 
 		gnmi.Await(t, dut, gnmi.OC().Interface(lag1Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_UP)
@@ -530,27 +599,28 @@ func TestAggregateSubinterface(t *testing.T) {
 	})
 
 	t.Run("RT-5.14.2: Aggregate sub-interface in default Network Instance (NI)", func(t *testing.T) {
+		t.Cleanup(func() { ensureLagMembersEnabled(t, dut) })
+		ensureLagMembersEnabled(t, dut)
 		t.Logf("Using Network Instance: %s", deviations.DefaultNetworkInstance(dut))
 		configureDUT(t, dut, deviations.DefaultNetworkInstance(dut), 1, lag1Name, lag2Name, subs)
-		verifyMTU(t, dut, lag1Name, lag2Name)
+		verifyMTU(t, dut, lag1Name, lag2Name, subs)
 		ateConfig := configureATE(t, ate, lag1Name, lag2Name, subs)
 		otg.PushConfig(t, ateConfig)
 		otg.StartProtocols(t)
 		awaitLAGMembersCollectingDistributing(t, dut, lag1Name, lag1Members)
 		awaitLAGMembersCollectingDistributing(t, dut, lag2Name, lag2Members)
-		otgutils.WaitForARP(t, otg, ateConfig, "IPv4")
-		otgutils.WaitForARP(t, otg, ateConfig, "IPv6")
-
 		gnmi.Await(t, dut, gnmi.OC().Interface(lag1Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_UP)
 		gnmi.Await(t, dut, gnmi.OC().Interface(lag2Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_UP)
+		otgutils.WaitForARP(t, otg, ateConfig, "IPv4")
+		otgutils.WaitForARP(t, otg, ateConfig, "IPv6")
 
 		baselineIn := retrieveLAGCounters(t, dut, lag1Name)
 		baselineOut := retrieveLAGCounters(t, dut, lag2Name)
 		otg.StartTraffic(t)
 		time.Sleep(trafficDuration)
 
-		gnmi.Update(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Enabled().Config(), false)
-		gnmi.Update(t, dut, gnmi.OC().Interface(dut.Port(t, "port3").Name()).Enabled().Config(), false)
+		setLagMemberAdminState(t, dut, "port1", false)
+		setLagMemberAdminState(t, dut, "port3", false)
 		time.Sleep(trafficDuration)
 
 		otg.StopTraffic(t)
@@ -558,8 +628,8 @@ func TestAggregateSubinterface(t *testing.T) {
 		gnmi.Await(t, dut, gnmi.OC().Interface(lag1Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_UP)
 		gnmi.Await(t, dut, gnmi.OC().Interface(lag2Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_UP)
 
-		gnmi.Update(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Enabled().Config(), true)
-		gnmi.Update(t, dut, gnmi.OC().Interface(dut.Port(t, "port3").Name()).Enabled().Config(), true)
+		setLagMemberAdminState(t, dut, "port1", true)
+		setLagMemberAdminState(t, dut, "port3", true)
 
 		otgutils.LogFlowMetrics(t, otg, ateConfig)
 		otgutils.LogPortMetrics(t, otg, ateConfig)
@@ -576,6 +646,8 @@ func TestAggregateSubinterface(t *testing.T) {
 	})
 
 	t.Run("RT-5.14.3: Aggregate sub-interface in non-default Network Instance (NI)", func(t *testing.T) {
+		t.Cleanup(func() { ensureLagMembersEnabled(t, dut) })
+		ensureLagMembersEnabled(t, dut)
 		deletebatch := &gnmi.SetBatch{}
 		for _, lagName := range []string{lag1Name, lag2Name} {
 			for _, sub := range subs[lagName] {
@@ -586,25 +658,24 @@ func TestAggregateSubinterface(t *testing.T) {
 		time.Sleep(setupDelay)
 		t.Logf("Using Network Instance: %s", testNI)
 		configureDUT(t, dut, testNI, 1, lag1Name, lag2Name, subs)
-		verifyMTU(t, dut, lag1Name, lag2Name)
+		verifyMTU(t, dut, lag1Name, lag2Name, subs)
 		ateConfig := configureATE(t, ate, lag1Name, lag2Name, subs)
 		otg.PushConfig(t, ateConfig)
 		otg.StartProtocols(t)
 		awaitLAGMembersCollectingDistributing(t, dut, lag1Name, lag1Members)
 		awaitLAGMembersCollectingDistributing(t, dut, lag2Name, lag2Members)
-		otgutils.WaitForARP(t, otg, ateConfig, "IPv4")
-		otgutils.WaitForARP(t, otg, ateConfig, "IPv6")
-
 		gnmi.Await(t, dut, gnmi.OC().Interface(lag1Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_UP)
 		gnmi.Await(t, dut, gnmi.OC().Interface(lag2Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_UP)
+		otgutils.WaitForARP(t, otg, ateConfig, "IPv4")
+		otgutils.WaitForARP(t, otg, ateConfig, "IPv6")
 
 		baselineIn := retrieveLAGCounters(t, dut, lag1Name)
 		baselineOut := retrieveLAGCounters(t, dut, lag2Name)
 		otg.StartTraffic(t)
 		time.Sleep(trafficDuration)
 
-		gnmi.Update(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Enabled().Config(), false)
-		gnmi.Update(t, dut, gnmi.OC().Interface(dut.Port(t, "port3").Name()).Enabled().Config(), false)
+		setLagMemberAdminState(t, dut, "port1", false)
+		setLagMemberAdminState(t, dut, "port3", false)
 		time.Sleep(trafficDuration)
 
 		otg.StopTraffic(t)
@@ -612,8 +683,8 @@ func TestAggregateSubinterface(t *testing.T) {
 		gnmi.Await(t, dut, gnmi.OC().Interface(lag1Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_UP)
 		gnmi.Await(t, dut, gnmi.OC().Interface(lag2Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_UP)
 
-		gnmi.Update(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Enabled().Config(), true)
-		gnmi.Update(t, dut, gnmi.OC().Interface(dut.Port(t, "port3").Name()).Enabled().Config(), true)
+		setLagMemberAdminState(t, dut, "port1", true)
+		setLagMemberAdminState(t, dut, "port3", true)
 
 		otgutils.LogFlowMetrics(t, otg, ateConfig)
 		otgutils.LogPortMetrics(t, otg, ateConfig)

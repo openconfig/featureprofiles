@@ -327,7 +327,7 @@ func CertzRotate(ctx context.Context, t *testing.T, newcaCert *x509.CertPool, ce
 // TestdataMakeCleanup function to create/cleanup test data for use in TLS tests.
 // This function executes the certificate generate/cleanup script "mk_cas.sh" and "cleanup.sh"
 // located in the specified dir at the start and end of the tests repectively.
-func TestdataMakeCleanup(t *testing.T, dirPath string, timeout time.Duration, args ...string) error {
+func TestdataMakeCleanup(t *testing.T, dirPath string, timeout time.Duration, name string, args ...string) error {
 
 	ctx := context.Background()
 	if timeout > 0 {
@@ -335,10 +335,7 @@ func TestdataMakeCleanup(t *testing.T, dirPath string, timeout time.Duration, ar
 		ctx, cancel = context.WithTimeout(ctx, timeout)
 		defer cancel()
 	}
-	if len(args) == 0 {
-		return fmt.Errorf("no script specified")
-	}
-	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
+	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Dir = dirPath
 	out, err := cmd.CombinedOutput()
 	if err != nil {
