@@ -1629,9 +1629,12 @@ type Metadata_Deviations struct {
 	CfmStateFt string `protobuf:"bytes,471,opt,name=cfm_state_ft,json=cfmStateFt,proto3" json:"cfm_state_ft,omitempty"`
 	// Functional translator for CFM performance measurement telemetry.
 	// Arista: https://partnerissuetracker.corp.google.com/issues/574326691
-	CfmPmFt       string `protobuf:"bytes,472,opt,name=cfm_pm_ft,json=cfmPmFt,proto3" json:"cfm_pm_ft,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	CfmPmFt string `protobuf:"bytes,472,opt,name=cfm_pm_ft,json=cfmPmFt,proto3" json:"cfm_pm_ft,omitempty"`
+	// Device does not support IS-IS interface level packet-counters/lsp/state/retransmit leaf.
+	// Nokia: https://partnerissuetracker.corp.google.com/issues/570885559
+	IsisLspRetransmitCounterUnsupported bool `protobuf:"varint,473,opt,name=isis_lsp_retransmit_counter_unsupported,json=isisLspRetransmitCounterUnsupported,proto3" json:"isis_lsp_retransmit_counter_unsupported,omitempty"`
+	unknownFields                       protoimpl.UnknownFields
+	sizeCache                           protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -4716,6 +4719,13 @@ func (x *Metadata_Deviations) GetCfmPmFt() string {
 	return ""
 }
 
+func (x *Metadata_Deviations) GetIsisLspRetransmitCounterUnsupported() bool {
+	if x != nil {
+		return x.IsisLspRetransmitCounterUnsupported
+	}
+	return false
+}
+
 type Metadata_PlatformExceptions struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Platform      *Metadata_Platform     `protobuf:"bytes,1,opt,name=platform,proto3" json:"platform,omitempty"`
@@ -4772,7 +4782,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xf4\x8a\x02\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"ˋ\x02\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -4784,7 +4794,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xdc\xff\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xb3\x80\x02\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -5227,7 +5237,8 @@ const file_metadata_proto_rawDesc = "" +
 	"\x19switched_vlan_unsupported\x18\xd6\x03 \x01(\bR\x17switchedVlanUnsupported\x12!\n" +
 	"\fcfm_state_ft\x18\xd7\x03 \x01(\tR\n" +
 	"cfmStateFt\x12\x1b\n" +
-	"\tcfm_pm_ft\x18\xd8\x03 \x01(\tR\acfmPmFtJ\x06\b\x85\x02\x10\x86\x02J\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"\tcfm_pm_ft\x18\xd8\x03 \x01(\tR\acfmPmFt\x12U\n" +
+	"'isis_lsp_retransmit_counter_unsupported\x18\xd9\x03 \x01(\bR#isisLspRetransmitCounterUnsupportedJ\x06\b\x85\x02\x10\x86\x02J\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02J\x06\b\xf1\x01\x10\xf2\x01J\x04\b1\x102\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
