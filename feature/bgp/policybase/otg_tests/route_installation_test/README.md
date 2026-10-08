@@ -4,6 +4,46 @@
 
 Base BGP policy configuration and route installation.
 
+## Canonical OC
+
+```json
+{
+  "routing-policy": {
+    "policy-definitions": {
+      "policy-definition": [
+        {
+          "config": {
+            "name": "SET-MED-PREF"
+          },
+          "name": "SET-MED-PREF",
+          "statements": {
+            "statement": [
+              {
+                "actions": {
+                  "bgp-actions": {
+                    "config": {
+                      "set-med": 100,
+                      "set-med-action": "SET"
+                    }
+                  },
+                  "config": {
+                    "policy-result": "ACCEPT_ROUTE"
+                  }
+                },
+                "config": {
+                  "name": "20"
+                },
+                "name": "20"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
 ## Procedure
 
 *   Establish eBGP sessions between:
@@ -15,7 +55,7 @@ Base BGP policy configuration and route installation.
         *   Default accept for policies.
         *   Default deny for policies.
         *   Explicitly specifying local preference.
-        *   Explicitly specifying MED value.
+        *   Explicitly specifying a MED value with `set-med-action` set to `SET`.
         *   Explicitly prepending AS for advertisement with a specified AS
             number.
     *   Validate that traffic can be forwarded to **all** installed routes
@@ -31,6 +71,7 @@ paths:
   /routing-policy/policy-definitions/policy-definition/config/name:
   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref:
   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med-action:
   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/repeat-n:
   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/asn:
 

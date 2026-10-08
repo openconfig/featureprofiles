@@ -262,6 +262,7 @@ func TestLAGLastChangeState(t *testing.T) {
 	})
 
 	t.Run("OTGLAGFlap", func(t *testing.T) {
+		defer OTGInterfaceFlap(t, ate, ate.Port(t, "port1"), gosnappi.StatePortLinkState.UP)
 		flapFunc := func(t *testing.T, enable bool) {
 			action := "Enabling"
 			state := gosnappi.StatePortLinkState.UP
@@ -418,6 +419,7 @@ func TestEthernetInterfaceLastChangeState(t *testing.T) {
 	t.Run("OTGInterfaceFlap", func(t *testing.T) {
 		// Configure OTG for this test case.
 		ate := ondatra.ATE(t, "ate")
+		defer OTGInterfaceFlap(t, ate, ate.Port(t, "port1"), gosnappi.StatePortLinkState.UP)
 		configureOTG(t, ate, ate.Port(t, "port1"), ateSrc, dutSrc)
 		flapFunc := func(t *testing.T, enabled bool) {
 			if enabled {
