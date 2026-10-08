@@ -23,10 +23,12 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 type CFMMeasurementProfile struct {
@@ -333,39 +335,75 @@ func ValidateDeadTimer(t *testing.T, dut *ondatra.DUTDevice, cfg MaintenanceDoma
 }
 
 func ValidateAlarmDetection(t *testing.T, dut *ondatra.DUTDevice, cfg MaintenanceDomainConfig) {
-	if deviations.CfmOCUnsupported(dut) {
-		cli := ""
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			cli = fmt.Sprintf(`
-				show cfm continuity-check end-point domain %v association %v end-point %v
-				`, cfg.DomainName, cfg.MdID, cfg.Assocs[0].LocalMEPID)
-			output := helpers.ExecuteShowCLI(t, dut, cli).String()
-
-			re := regexp.MustCompile(`TX RDI state:\s*(true|false)`)
-			rdiFlag := re.FindStringSubmatch(output)
-			if len(rdiFlag) > 1 {
-				rdiStatus := strings.TrimSpace(rdiFlag[1])
-				if rdiStatus != "true" {
-					t.Errorf("defect or fault condition has been detected, expected RDI state: true, got: %s", rdiStatus)
-				} else {
-					t.Log("no defect or fault condition has been detected, as expected RDI state: true")
-				}
+	if deviations.CfmStateFt(dut) != "" || !deviations.CfmOCUnsupported(dut) {
+		opts := fptest.GetOptsForFunctionalTranslator(t, deviations.CfmStateFt(dut))
+		mepPath := gnmi.OC().Oam().Cfm().MaintenanceDomain(cfg.DomainName).MaintenanceAssociation(cfg.MdID).MepEndpoint(uint16(cfg.Assocs[0].LocalMEPID))
+		_, ok := gnmi.Watch(t, dut.GNMIOpts().WithYGNMIOpts(opts...), mepPath.PresentRdi().State(), 30*time.Second, func(v *ygnmi.Value[bool]) bool {
+			val, present := v.Val()
+			return present && val
+		}).Await(t)
+		if !ok {
+			t.Errorf("defect or fault condition has been detected on %s, expected present-rdi: true, got: false", dut.Name())
+		} else {
+			t.Logf("Verified present-rdi is true on %s", dut.Name())
+		}
+		if !deviations.CfmOCUnsupported(dut) {
+			localmepState := gnmi.Get(t, dut, mepPath.State())
+			if localmepState.GetRdi().GetTransmitOnDefect() {
+				t.Log("no defect or fault condition has been detected, as expected RDI state: true")
 			} else {
-				t.Errorf("rdi state not found")
+				t.Errorf("defect or fault condition has been detected, expected RDI state: true, got: false")
 			}
 		}
-	} else {
-		localmepState := gnmi.Get(t, dut, gnmi.OC().Oam().Cfm().MaintenanceDomain(cfg.DomainName).MaintenanceAssociation(cfg.MdID).MepEndpoint(uint16(cfg.Assocs[0].LocalMEPID)).State())
-		if localmepState.GetRdi().GetTransmitOnDefect() {
-			t.Log("no defect or fault condition has been detected, as expected RDI state: true")
+		return
+	}
+
+	cli := ""
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		cli = fmt.Sprintf(`
+			show cfm continuity-check end-point domain %v association %v end-point %v
+			`, cfg.DomainName, cfg.MdID, cfg.Assocs[0].LocalMEPID)
+		output := helpers.ExecuteShowCLI(t, dut, cli).String()
+
+		re := regexp.MustCompile(`TX RDI state:\s*(true|false)`)
+		rdiFlag := re.FindStringSubmatch(output)
+		if len(rdiFlag) > 1 {
+			rdiStatus := strings.TrimSpace(rdiFlag[1])
+			if rdiStatus != "true" {
+				t.Errorf("defect or fault condition has been detected, expected RDI state: true, got: %s", rdiStatus)
+			} else {
+				t.Log("no defect or fault condition has been detected, as expected RDI state: true")
+			}
 		} else {
-			t.Errorf("defect or fault condition has been detected, expected RDI state: true, got: false")
+			t.Errorf("rdi state not found")
 		}
 	}
 }
 
 func ValidateDelayMeasurement(t *testing.T, dut *ondatra.DUTDevice, cfg MaintenanceDomainConfig) {
+	if deviations.CfmPmFt(dut) != "" {
+		opts := fptest.GetOptsForFunctionalTranslator(t, deviations.CfmPmFt(dut))
+		avgDelayPath := gnmi.OC().Oam().Cfm().
+			MaintenanceDomain(cfg.DomainName).
+			MaintenanceAssociation(cfg.MdID).
+			MepEndpoint(uint16(cfg.Assocs[0].LocalMEPID)).
+			PmProfile(cfg.ProfileName).
+			DelayMeasurementState().
+			FrameDelayTwoWayAverage().State()
+		val, ok := gnmi.Watch(t, dut.GNMIOpts().WithYGNMIOpts(opts...), avgDelayPath, 30*time.Second, func(v *ygnmi.Value[uint32]) bool {
+			avg, present := v.Val()
+			return present && avg > 0
+		}).Await(t)
+		if !ok {
+			t.Errorf("Could not retrieve non-zero frame-delay-two-way-average on %s", dut.Name())
+			return
+		}
+		avg, _ := val.Val()
+		t.Logf("Two-way Frame Delay Average (µs) on %s: %d", dut.Name(), avg)
+		return
+	}
+
 	if deviations.CfmOCUnsupported(dut) {
 		cli := ""
 		switch dut.Vendor() {
@@ -389,10 +427,11 @@ func ValidateDelayMeasurement(t *testing.T, dut *ondatra.DUTDevice, cfg Maintena
 			}
 		}
 	} else {
-		max := gnmi.Get(t, dut, gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg.ProfileName).DelayMeasurementState().FrameDelayTwoWayMax().State())
-		min := gnmi.Get(t, dut, gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg.ProfileName).DelayMeasurementState().FrameDelayTwoWayMin().State())
-		avg := gnmi.Get(t, dut, gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg.ProfileName).DelayMeasurementState().FrameDelayTwoWayAverage().State())
-		dmmCounters := gnmi.Get(t, dut, gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg.ProfileName).DelayMeasurementState().Counters().DmmReceived().State())
+		pmPath := gnmi.OC().Oam().Cfm().MaintenanceDomain(cfg.DomainName).MaintenanceAssociation(cfg.MdID).MepEndpoint(uint16(cfg.Assocs[0].LocalMEPID)).PmProfile(cfg.ProfileName).DelayMeasurementState()
+		max := gnmi.Get(t, dut, pmPath.FrameDelayTwoWayMax().State())
+		min := gnmi.Get(t, dut, pmPath.FrameDelayTwoWayMin().State())
+		avg := gnmi.Get(t, dut, pmPath.FrameDelayTwoWayAverage().State())
+		dmmCounters := gnmi.Get(t, dut, pmPath.Counters().DmmReceived().State())
 
 		if max == 0 || min == 0 || avg == 0 || dmmCounters == 0 {
 			t.Fatal("Could not retrieve one or more delay measurement values")
@@ -403,6 +442,41 @@ func ValidateDelayMeasurement(t *testing.T, dut *ondatra.DUTDevice, cfg Maintena
 }
 
 func ValidateLossMeasurement(t *testing.T, dutData []*ondatra.DUTDevice, cfg []MaintenanceDomainConfig) {
+	if deviations.CfmPmFt(dutData[0]) != "" {
+		for i, dut := range dutData {
+			opts := fptest.GetOptsForFunctionalTranslator(t, deviations.CfmPmFt(dut))
+			lossStatePath := gnmi.OC().Oam().Cfm().
+				MaintenanceDomain(cfg[i].DomainName).
+				MaintenanceAssociation(cfg[i].MdID).
+				MepEndpoint(uint16(cfg[i].Assocs[0].LocalMEPID)).
+				PmProfile(cfg[i].ProfileName).
+				LossMeasurementState()
+
+			farVal, ok := gnmi.Watch(t, dut.GNMIOpts().WithYGNMIOpts(opts...), lossStatePath.FarEndAverageFrameLossRatio().State(), 30*time.Second, func(v *ygnmi.Value[uint32]) bool {
+				_, present := v.Val()
+				return present
+			}).Await(t)
+			if !ok {
+				t.Errorf("Could not retrieve far-end-average-frame-loss-ratio on %s", dut.Name())
+			} else {
+				farAvg, _ := farVal.Val()
+				t.Logf("Far-end average frame loss ratio on %s: %d", dut.Name(), farAvg)
+			}
+
+			nearVal, ok := gnmi.Watch(t, dut.GNMIOpts().WithYGNMIOpts(opts...), lossStatePath.NearEndAverageFrameLossRatio().State(), 30*time.Second, func(v *ygnmi.Value[uint32]) bool {
+				_, present := v.Val()
+				return present
+			}).Await(t)
+			if !ok {
+				t.Errorf("Could not retrieve near-end-average-frame-loss-ratio on %s", dut.Name())
+			} else {
+				nearAvg, _ := nearVal.Val()
+				t.Logf("Near-end average frame loss ratio on %s: %d", dut.Name(), nearAvg)
+			}
+		}
+		return
+	}
+
 	var lastMeasurement1, lastMeasurement2 int
 	end := time.Now().Add(10 * time.Second)
 	if deviations.CfmOCUnsupported(dutData[0]) {
@@ -476,8 +550,10 @@ func ValidateLossMeasurement(t *testing.T, dutData []*ondatra.DUTDevice, cfg []M
 		}
 	} else {
 		for time.Now().Before(end) {
-			slmReceived1 := gnmi.Get(t, dutData[0], gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg[0].ProfileName).LossMeasurementState().Counters().SlmReceived().State())
-			slmReceived2 := gnmi.Get(t, dutData[1], gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg[1].ProfileName).LossMeasurementState().Counters().SlmReceived().State())
+			lossState0 := gnmi.OC().Oam().Cfm().MaintenanceDomain(cfg[0].DomainName).MaintenanceAssociation(cfg[0].MdID).MepEndpoint(uint16(cfg[0].Assocs[0].LocalMEPID)).PmProfile(cfg[0].ProfileName).LossMeasurementState()
+			lossState1 := gnmi.OC().Oam().Cfm().MaintenanceDomain(cfg[1].DomainName).MaintenanceAssociation(cfg[1].MdID).MepEndpoint(uint16(cfg[1].Assocs[0].LocalMEPID)).PmProfile(cfg[1].ProfileName).LossMeasurementState()
+			slmReceived1 := gnmi.Get(t, dutData[0], lossState0.Counters().SlmReceived().State())
+			slmReceived2 := gnmi.Get(t, dutData[1], lossState1.Counters().SlmReceived().State())
 			if slmReceived1 > 0 && slmReceived2 > 0 {
 				if slmReceived1 > uint64(lastMeasurement1) {
 					lastMeasurement1 = int(slmReceived1)
@@ -493,9 +569,10 @@ func ValidateLossMeasurement(t *testing.T, dutData []*ondatra.DUTDevice, cfg []M
 				t.Errorf("slm measurement not found, got: %d, %d, expected > 1", slmReceived1, slmReceived2)
 			}
 			for i := range dutData {
-				max := gnmi.Get(t, dutData[i], gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg[i].ProfileName).LossMeasurementState().FarEndMaxFrameLossRatio().State())
-				min := gnmi.Get(t, dutData[i], gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg[i].ProfileName).LossMeasurementState().FarEndMinFrameLossRatio().State())
-				avg := gnmi.Get(t, dutData[i], gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg[i].ProfileName).LossMeasurementState().FarEndAverageFrameLossRatio().State())
+				lossState := gnmi.OC().Oam().Cfm().MaintenanceDomain(cfg[i].DomainName).MaintenanceAssociation(cfg[i].MdID).MepEndpoint(uint16(cfg[i].Assocs[0].LocalMEPID)).PmProfile(cfg[i].ProfileName).LossMeasurementState()
+				max := gnmi.Get(t, dutData[i], lossState.FarEndMaxFrameLossRatio().State())
+				min := gnmi.Get(t, dutData[i], lossState.FarEndMinFrameLossRatio().State())
+				avg := gnmi.Get(t, dutData[i], lossState.FarEndAverageFrameLossRatio().State())
 
 				if max == 0 || min == 0 || avg == 0 {
 					t.Fatal("Could not retrieve one or more farend loss measurement values")
@@ -503,9 +580,9 @@ func ValidateLossMeasurement(t *testing.T, dutData []*ondatra.DUTDevice, cfg []M
 
 				t.Logf("Farend loss ratio - Min: %d, Max: %d, Avg: %d\n", min, max, avg)
 
-				max = gnmi.Get(t, dutData[i], gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg[i].ProfileName).LossMeasurementState().NearEndMaxFrameLossRatio().State())
-				min = gnmi.Get(t, dutData[i], gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg[i].ProfileName).LossMeasurementState().NearEndMinFrameLossRatio().State())
-				avg = gnmi.Get(t, dutData[i], gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg[i].ProfileName).LossMeasurementState().NearEndAverageFrameLossRatio().State())
+				max = gnmi.Get(t, dutData[i], lossState.NearEndMaxFrameLossRatio().State())
+				min = gnmi.Get(t, dutData[i], lossState.NearEndMinFrameLossRatio().State())
+				avg = gnmi.Get(t, dutData[i], lossState.NearEndAverageFrameLossRatio().State())
 
 				if max == 0 || min == 0 || avg == 0 {
 					t.Fatal("Could not retrieve one or more near-end loss measurement values")
