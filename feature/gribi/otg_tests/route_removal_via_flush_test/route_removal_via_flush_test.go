@@ -165,24 +165,14 @@ func testFlushWithDefaultNetworkInstance(ctx context.Context, t *testing.T, args
 	injectEntry(ctx, t, args.clientA, deviations.DefaultNetworkInstance(args.dut))
 	otgutils.WaitForARP(t, args.ate.OTG(), args.ateTop, "IPv4")
 	// Test traffic between ATE port-1 and ATE port-2.
-	lossPct := testTraffic(t, args.ate, args.ateTop)
-	if got := lossPct; got > 0 {
-		t.Errorf("LossPct for flow got %v, want 0", got)
-	} else {
-		t.Log("Traffic is forwarded between ATE port-1 and ATE port-2")
-	}
+	testTraffic(t, args.ate, args.ateTop, 0, 0)
 
 	// Flush should delete the entries
 	if _, err := gribi.Flush(args.clientA, args.electionID, deviations.DefaultNetworkInstance(args.dut)); err != nil {
 		t.Errorf("Unexpected error from flush, got: %v", err)
 	}
 	// After flush, left entry should be 0, and packets can no longer be forwarded.
-	lossPct = testTraffic(t, args.ate, args.ateTop)
-	if got := lossPct; got == 0 {
-		t.Error("Traffic can still be forwarded between ATE port-1 and ATE port-2")
-	} else {
-		t.Log("Traffic is not forwarded between ATE port-1 and ATE port-2")
-	}
+	testTraffic(t, args.ate, args.ateTop, 100, 100)
 	if got, want := checkNIHasNEntries(ctx, args.clientA, deviations.DefaultNetworkInstance(args.dut), t), 0; got != want {
 		t.Errorf("Network instance has %d entry/entries, wanted: %d", got, want)
 	}
@@ -304,7 +294,7 @@ func injectEntry(ctx context.Context, t *testing.T, client *fluent.GRIBIClient, 
 // testTraffic generates traffic flow from source network to
 // destination network via srcEndPoint to dstEndPoint and checks for
 // packet loss.
-func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) float32 {
+func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, minLossPct, maxLossPct float64) {
 	// Ensure that traffic can be forwarded between ATE port-1 and ATE port-2.
 	t.Helper()
 	otg := ate.OTG()
@@ -329,10 +319,8 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) floa
 	t.Logf("Stop traffic")
 	otg.StopTraffic(t)
 
-	txPkts, rxPkts := otgutils.GetFlowStats(t, otg, "Flow", 5*time.Second)
 	otgutils.LogFlowMetrics(t, otg, top)
-	lossPct := float32(txPkts-rxPkts) * 100 / float32(txPkts)
-	return lossPct
+	otgutils.ExpectedTrafficLoss(t, otg, "Flow", minLossPct, maxLossPct)
 }
 
 // checkNIHasNEntries uses the Get RPC to validate that the network instance named ni

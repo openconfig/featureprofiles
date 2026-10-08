@@ -640,7 +640,9 @@ func (ss *AFTStreamSession) listenUntil(ctx context.Context, t *testing.T, timeo
 			err := ss.Cache.addAFTNotification(resp.notification)
 			switch {
 			case errors.Is(err, cache.ErrStale):
-				t.Logf("Received stale notification with timestamp %v (current time: %v)", time.Unix(0, resp.notification.GetUpdate().GetTimestamp()), time.Now())
+				// TODO: The log line below is currently commented out to avoid stale log messages. Uncomment it later if the additional logging is required.
+				// t.Logf("Received stale notification with timestamp %v (current time: %v)", time.Unix(0, resp.notification.GetUpdate().GetTimestamp()), time.Now())
+				continue
 			case err != nil:
 				t.Fatalf("error updating AFT cache with response %v: %v", resp.notification, err)
 			}

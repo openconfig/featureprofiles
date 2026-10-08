@@ -213,10 +213,11 @@ func configureISISMPLSSR(t *testing.T, ts *isissession.TestSession) {
 	isisIntfLevel.LevelNumber = ygot.Uint8(2)
 	isisIntfLevel.SetEnabled(true)
 	isisIntfLevel.Enabled = ygot.Bool(true)
-	isisIntfLevel.GetOrCreateHelloAuthentication().Enabled = ygot.Bool(true)
-	isisIntfLevel.GetHelloAuthentication().AuthPassword = ygot.String(password)
-	isisIntfLevel.GetHelloAuthentication().AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
-	isisIntfLevel.GetHelloAuthentication().AuthMode = oc.IsisTypes_AUTH_MODE_MD5
+	intfAuth := intf.GetOrCreateAuthentication()
+	intfAuth.Enabled = ygot.Bool(true)
+	intfAuth.AuthPassword = ygot.String(password)
+	intfAuth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+	intfAuth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
 
 	isisIntfLevelTimers := isisIntfLevel.GetOrCreateTimers()
 	isisIntfLevelTimers.HelloInterval = ygot.Uint32(5)
@@ -442,8 +443,10 @@ func TestMPLSLabelBlockWithISIS(t *testing.T) {
 
 	}
 
-	ts.PushAndStart(t)
-	time.Sleep(time.Minute * 2)
+	if err := ts.PushAndStart(t); err != nil {
+		t.Fatalf("PushAndStart failed: %v", err)
+	}
+	otgutils.WaitForARP(t, otg, ts.ATETop, "IPv4")
 
 	// Checking ISIS
 	verifyISIS(t, ts)
@@ -480,6 +483,9 @@ func TestMPLSLabelBlockWithISIS(t *testing.T) {
 			txPackets := recvMetric.GetCounters().GetOutPkts()
 			rxPackets := recvMetric.GetCounters().GetInPkts()
 			lostPackets := txPackets - rxPackets
+			if txPackets == 0 {
+				t.Fatalf("txPackets == 0, want > 0")
+			}
 			lossPct := lostPackets * 100 / txPackets
 
 			if lossPct > 1 {
