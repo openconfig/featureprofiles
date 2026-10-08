@@ -154,6 +154,7 @@ func TestBasic(t *testing.T) {
 				EqualToDefault(pCounts.Lsp().Dropped().State(), uint32(0), missingValueForDefaults),
 				EqualToDefault(pCounts.Lsp().Processed().State(), uint32(0), missingValueForDefaults),
 				EqualToDefault(pCounts.Lsp().Received().State(), uint32(0), missingValueForDefaults),
+				EqualToDefault(pCounts.Lsp().Retransmit().State(), uint32(0), missingValueForDefaults),
 				EqualToDefault(pCounts.Lsp().Sent().State(), uint32(0), missingValueForDefaults),
 				EqualToDefault(pCounts.Iih().Dropped().State(), uint32(0), missingValueForDefaults),
 				EqualToDefault(pCounts.Iih().Processed().State(), uint32(0), missingValueForDefaults),
@@ -162,6 +163,9 @@ func TestBasic(t *testing.T) {
 				// end is offline.
 			} {
 				t.Run(vd.RelPath(pCounts), func(t *testing.T) {
+					if strings.Contains(vd.Path(), "retransmit") && deviations.ISISLspRetransmitCounterUnsupported(ts.DUT) {
+						t.Skip("LSP Retransmit Counter Unsupported")
+					}
 					if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
 						t.Error(err)
 					}
@@ -247,6 +251,7 @@ func TestBasic(t *testing.T) {
 			check.Present[bool](adj.RestartStatus().State()),
 			check.Present[bool](adj.RestartSupport().State()),
 			check.Present[bool](adj.RestartSuppress().State()),
+			check.NotEqual(adj.UpTimestamp().State(), uint64(0)),
 		} {
 			t.Run(vd.RelPath(adj), func(t *testing.T) {
 				if strings.Contains(vd.Path(), "multi-topology") {
@@ -311,9 +316,13 @@ func TestBasic(t *testing.T) {
 				check.Equal(pCounts.Csnp().Dropped().State(), uint32(0)),
 				check.Equal(pCounts.Psnp().Dropped().State(), uint32(0)),
 				check.Equal(pCounts.Lsp().Dropped().State(), uint32(0)),
+				CheckPresence(pCounts.Lsp().Retransmit().State(), missingValueForDefaults),
 				check.Equal(pCounts.Iih().Dropped().State(), uint32(0)),
 			} {
 				t.Run(vd.RelPath(pCounts), func(t *testing.T) {
+					if strings.Contains(vd.Path(), "retransmit") && deviations.ISISLspRetransmitCounterUnsupported(ts.DUT) {
+						t.Skip("LSP Retransmit Counter Unsupported")
+					}
 					if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
 						t.Error(err)
 					}
@@ -477,7 +486,21 @@ func TestAuthentication(t *testing.T) {
 				}
 			}
 			if err := ts.PushAndStart(t); err != nil {
-				t.Fatalf("Unable to push initial DUT config: %v", err)
+				ts.ConfigISIS(func(isis *oc.NetworkInstance_Protocol_Isis) {
+					for _, intf := range isis.Interface {
+						intf.Authentication = nil
+						intfAuth := intf.GetOrCreateLevel(2).GetOrCreateHelloAuthentication()
+						intfAuth.Enabled = ygot.Bool(tc.enabled)
+						if tc.enabled {
+							intfAuth.AuthPassword = ygot.String(password)
+							intfAuth.AuthMode = tc.mode
+							intfAuth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+						}
+					}
+				})
+				if err := ts.PushAndStart(t); err != nil {
+					t.Fatalf("Unable to push initial DUT config: %v", err)
+				}
 			}
 			ts.MustAdjacency(t)
 		})
