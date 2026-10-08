@@ -1232,6 +1232,16 @@ func WithPeerAfiSafiEnabled(isV4 bool, importPolicy, exportPolicy string, addDel
 	}
 }
 
+// WithPeerTransport sets the local transport address for the neighbor.
+func WithPeerTransport(localAddress string) PeerOption {
+	return func(n *oc.NetworkInstance_Protocol_Bgp_Neighbor, _ *ondatra.DUTDevice) {
+		if localAddress == "" {
+			return
+		}
+		n.GetOrCreateTransport().LocalAddress = ygot.String(localAddress)
+	}
+}
+
 // ApplyPeerPerAfiSafiRoutingPolicy applies routing policies to the peer per AFI/SAFI.
 func ApplyPeerPerAfiSafiRoutingPolicy(isV4 bool, importPolicy, exportPolicy string, addDeleteLinkBW bool) PeerOption {
 	return func(peer *oc.NetworkInstance_Protocol_Bgp_Neighbor, dut *ondatra.DUTDevice) {

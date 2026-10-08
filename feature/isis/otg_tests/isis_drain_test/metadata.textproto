@@ -21,7 +21,6 @@ platform_exceptions: {
     vendor: CISCO
   }
   deviations: {
-    ipv4_missing_enabled: true
     interface_ref_config_unsupported: true
   }
 }
@@ -39,6 +38,7 @@ platform_exceptions: {
     isis_require_same_l1_metric_with_l2_metric: true
     isis_mpls_unsupported: true
     global_max_ecmp_paths_unsupported: true
+    missing_value_for_defaults: true
   }
 }
 platform_exceptions: {
