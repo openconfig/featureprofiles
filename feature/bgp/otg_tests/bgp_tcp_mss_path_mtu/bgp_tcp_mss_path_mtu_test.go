@@ -16,6 +16,7 @@ package bgp_tcp_mss_path_mtu_test
 
 import (
 	"fmt"
+	"net"
 	"testing"
 	"time"
 
@@ -26,6 +27,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
@@ -62,6 +64,8 @@ const (
 	dut2AreaAddress = "49.0001"
 	dut2SysID       = "1920.0000.3001"
 	ateSysID        = "640000000001"
+	otgISISName     = "ISIS"
+	protocolTimeout = 2 * time.Minute
 )
 
 var (
@@ -162,17 +166,22 @@ func bgpCreateNbr(t *testing.T, dut *ondatra.DUTDevice, authPwd, routerID string
 
 // verifyBGPTelemetry checks that the dut has an established BGP session with reasonable settings.
 func verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbrIP []string) {
+	t.Helper()
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	for _, nbr := range nbrIP {
 		nbrPath := statePath.Neighbor(nbr)
-		t.Logf("Waiting for BGP neighbor to establish...")
-		status, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+		t.Logf("Waiting for BGP neighbor %s to establish", nbr)
+		status, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), protocolTimeout, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 			state, ok := val.Val()
 			return ok && state == oc.Bgp_Neighbor_SessionState_ESTABLISHED
 		}).Await(t)
 		if !ok {
-			fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
-			t.Fatal("No BGP neighbor formed")
+			if state, present := gnmi.Lookup(t, dut, nbrPath.SessionState().State()).Val(); present {
+				t.Logf("BGP neighbor %s final session state: %s", nbr, state)
+			} else {
+				t.Logf("BGP neighbor %s session state is absent", nbr)
+			}
+			t.Fatalf("BGP neighbor %s did not reach ESTABLISHED within %s", nbr, protocolTimeout)
 		}
 		state, _ := status.Val()
 		if want := oc.Bgp_Neighbor_SessionState_ESTABLISHED; state != want {
@@ -180,6 +189,100 @@ func verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbrIP []string) {
 		}
 		t.Logf("BGP adjacency for %s: %s", nbr, state)
 	}
+}
+
+// waitForOTGISISPrefix waits until the ATE has learned the route needed to
+// reach the multihop BGP peer. Starting IS-IS and BGP together can otherwise
+// leave BGP waiting for its connect-retry timer after its first attempt races
+// route installation.
+func waitForOTGISISPrefix(t *testing.T, otg *otg.OTG, address string, prefixLen uint8) {
+	t.Helper()
+	_, network, err := net.ParseCIDR(fmt.Sprintf("%s/%d", address, prefixLen))
+	if err != nil {
+		t.Fatalf("Invalid IPv4 prefix %s/%d: %v", address, prefixLen, err)
+	}
+	wantPrefix := network.IP.String()
+	prefixPath := gnmi.OTG().IsisRouter(otgISISName).LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().Prefix(wantPrefix)
+	_, ok := gnmi.WatchAll(t, otg, prefixPath.State(), protocolTimeout, func(v *ygnmi.Value[*otgtelemetry.IsisRouter_LinkStateDatabase_Lsps_Tlvs_ExtendedIpv4Reachability_Prefix]) bool {
+		prefix, present := v.Val()
+		return present && prefix.GetPrefix() == wantPrefix
+	}).Await(t)
+	if !ok {
+		t.Fatalf("ATE did not learn IS-IS prefix %s/%d within %s", wantPrefix, prefixLen, protocolTimeout)
+	}
+	t.Logf("ATE learned IS-IS prefix %s/%d", wantPrefix, prefixLen)
+}
+
+// waitForOTGIPv4Neighbor verifies that the ATE has resolved the directly
+// connected gateway used for the multihop session.
+func waitForOTGIPv4Neighbor(t *testing.T, otg *otg.OTG, interfaceName, neighbor string) {
+	t.Helper()
+	neighborPath := gnmi.OTG().Interface(interfaceName).Ipv4Neighbor(neighbor).LinkLayerAddress().State()
+	_, ok := gnmi.Watch(t, otg, neighborPath, protocolTimeout, func(v *ygnmi.Value[string]) bool {
+		address, present := v.Val()
+		return present && address != ""
+	}).Await(t)
+	if !ok {
+		t.Fatalf("ATE did not resolve IPv4 gateway %s on %s within %s", neighbor, interfaceName, protocolTimeout)
+	}
+	t.Logf("ATE resolved IPv4 gateway %s on %s", neighbor, interfaceName)
+}
+
+func startOTGBGPPeer(t *testing.T, otg *otg.OTG, peerName string) {
+	t.Helper()
+	startBGP := gosnappi.NewControlState()
+	startBGP.Protocol().Bgp().Peers().SetPeerNames([]string{peerName}).SetState(gosnappi.StateProtocolBgpPeersState.UP)
+	otg.SetControlState(t, startBGP)
+}
+
+// verifyOTGBGPEstablished verifies the session from the OTG side before the DUT
+// check. A failed setup therefore reports which endpoint remained down.
+func verifyOTGBGPEstablished(t *testing.T, otg *otg.OTG, dut *ondatra.DUTDevice, peerName, neighbor string) {
+	t.Helper()
+	peerPath := gnmi.OTG().BgpPeer(peerName).SessionState().State()
+	_, ok := gnmi.Watch(t, otg, peerPath, protocolTimeout, func(v *ygnmi.Value[otgtelemetry.E_BgpPeer_SessionState]) bool {
+		state, present := v.Val()
+		return present && state == otgtelemetry.BgpPeer_SessionState_ESTABLISHED
+	}).Await(t)
+	if !ok {
+		if state, present := gnmi.Lookup(t, otg, peerPath).Val(); present {
+			t.Logf("OTG BGP peer %s final session state: %s", peerName, state)
+		} else {
+			t.Logf("OTG BGP peer %s session state is absent", peerName)
+		}
+		dutPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(neighbor).SessionState().State()
+		if state, present := gnmi.Lookup(t, dut, dutPath).Val(); present {
+			t.Logf("DUT BGP neighbor %s final session state: %s", neighbor, state)
+		} else {
+			t.Logf("DUT BGP neighbor %s session state is absent", neighbor)
+		}
+		t.Fatalf("OTG BGP peer %s did not reach ESTABLISHED within %s", peerName, protocolTimeout)
+	}
+	verifyBGPTelemetry(t, dut, []string{neighbor})
+}
+
+// restartOTGBGPPeer restarts only the peer under test. Keeping IS-IS running
+// preserves the route required by the multihop BGP session.
+func restartOTGBGPPeer(t *testing.T, otg *otg.OTG, peerName string) {
+	t.Helper()
+	t.Logf("Restarting OTG BGP peer %s", peerName)
+	stopBGP := gosnappi.NewControlState()
+	stopBGP.Protocol().Bgp().Peers().SetPeerNames([]string{peerName}).SetState(gosnappi.StateProtocolBgpPeersState.DOWN)
+	otg.SetControlState(t, stopBGP)
+
+	peerPath := gnmi.OTG().BgpPeer(peerName).SessionState().State()
+	_, ok := gnmi.Watch(t, otg, peerPath, protocolTimeout, func(val *ygnmi.Value[otgtelemetry.E_BgpPeer_SessionState]) bool {
+		state, present := val.Val()
+		return !present || state == otgtelemetry.BgpPeer_SessionState_IDLE
+	}).Await(t)
+	if !ok {
+		if state, present := gnmi.Lookup(t, otg, peerPath).Val(); present {
+			t.Logf("OTG BGP peer %s final session state after DOWN: %s", peerName, state)
+		}
+		t.Fatalf("OTG BGP peer %s did not reach IDLE within %s", peerName, protocolTimeout)
+	}
+
+	startOTGBGPPeer(t, otg, peerName)
 }
 
 func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName []string, dutAreaAddress, dutSysID string) {
@@ -245,7 +348,7 @@ func configureOTG(t *testing.T, otg *otg.OTG, mtu uint32) gosnappi.Config {
 	iDut1Ipv6 := iDut1Eth.Ipv6Addresses().Add().SetName(atePort1.Name + ".IPv6")
 	iDut1Ipv6.SetAddress(atePort1.IPv6).SetGateway(dut1Port1.IPv6).SetPrefix(uint32(atePort1.IPv6Len))
 
-	isisDut1 := iDut1Dev.Isis().SetName("ISIS").SetSystemId(ateSysID)
+	isisDut1 := iDut1Dev.Isis().SetName(otgISISName).SetSystemId(ateSysID)
 
 	isisDut1.Basic().SetIpv4TeRouterId(atePort1.IPv4).SetHostname(isisDut1.Name()).SetLearnedLspFilter(true)
 	isisDut1.Interfaces().Add().SetEthName(iDut1Dev.Ethernets().Items()[0].Name()).
@@ -269,6 +372,7 @@ func configureOTG(t *testing.T, otg *otg.OTG, mtu uint32) gosnappi.Config {
 
 func configOTG(t *testing.T, otg *otg.OTG, mtu uint32) gosnappi.Config {
 	config := gosnappi.NewConfig()
+	config.Options().ProtocolOptions().SetAutoStartAll(false)
 	port1 := config.Ports().Add().SetName("port1")
 
 	iDut1Dev := config.Devices().Add().SetName(atePort1.Name)
@@ -279,7 +383,7 @@ func configOTG(t *testing.T, otg *otg.OTG, mtu uint32) gosnappi.Config {
 	iDut1Ipv6 := iDut1Eth.Ipv6Addresses().Add().SetName(atePort1.Name + ".IPv6")
 	iDut1Ipv6.SetAddress(atePort1.IPv6).SetGateway(dut1Port1.IPv6).SetPrefix(uint32(atePort1.IPv6Len))
 
-	isisDut1 := iDut1Dev.Isis().SetName("ISIS").SetSystemId(ateSysID)
+	isisDut1 := iDut1Dev.Isis().SetName(otgISISName).SetSystemId(ateSysID)
 
 	isisDut1.Basic().SetIpv4TeRouterId(atePort1.IPv4).SetHostname(isisDut1.Name()).SetLearnedLspFilter(true)
 	isisDut1.Interfaces().Add().SetEthName(iDut1Dev.Ethernets().Items()[0].Name()).
@@ -292,10 +396,9 @@ func configOTG(t *testing.T, otg *otg.OTG, mtu uint32) gosnappi.Config {
 	iDut1Bgp4Peer.SetPeerAddress(dut2Port1.IPv4).SetAsNumber(ateAS1).SetAsType(gosnappi.BgpV4PeerAsType.IBGP).
 		Advanced().SetMd5Key(authPWd)
 
-	t.Logf("Pushing config to OTG and starting protocols...")
+	t.Log("Pushing staged multihop config to OTG")
 
 	otg.PushConfig(t, config)
-	otg.StartProtocols(t)
 
 	return config
 }
@@ -380,15 +483,18 @@ func TestTcpMssPathMtu(t *testing.T) {
 
 	otg := ate.OTG()
 	var otgConfig gosnappi.Config
+	otgBGPv4PeerName := atePort1.Name + ".BGP4.peer"
 
 	t.Run("Configure OTG", func(t *testing.T) {
 		otgConfig = configureOTG(t, otg, uint32(mtu5040B))
 	})
 
 	var dut1NbrIP = []string{atePort1.IPv4, atePort1.IPv6}
-	t.Run("Verify BGP telemetry", func(t *testing.T) {
+	if !t.Run("Verify BGP telemetry", func(t *testing.T) {
 		verifyBGPTelemetry(t, dut1, dut1NbrIP)
-	})
+	}) {
+		return
+	}
 
 	if !deviations.SkipTCPNegotiatedMSSCheck(dut1) {
 		t.Run("Verify that the default TCP MSS value is set below the default interface MTU value.", func(t *testing.T) {
@@ -418,9 +524,11 @@ func TestTcpMssPathMtu(t *testing.T) {
 		otg.StartProtocols(t)
 	})
 
-	t.Run("Verify BGP telemetry after reset.", func(t *testing.T) {
+	if !t.Run("Verify BGP telemetry after reset.", func(t *testing.T) {
 		verifyBGPTelemetry(t, dut1, dut1NbrIP)
-	})
+	}) {
+		return
+	}
 
 	t.Run("Verify BGP TCP MSS value", func(t *testing.T) {
 		t.Logf("Verify DUT1 BGP TCP-MSS value is to %v for both BGP v4 and v6 sessions.", mtu4096B)
@@ -442,10 +550,18 @@ func TestTcpMssPathMtu(t *testing.T) {
 		configureISIS(t, dut1, dut1PortNames, dut1AreaAddress, dut1SysID)
 	})
 
-	t.Run("Configure static route on DUT2 to ATE to establish multihop iBGP session", func(t *testing.T) {
-		ateIPAddr := fmt.Sprintf("%s/%d", atePort1.IPv4, uint32(32))
-		configStaticRoute(t, dut2, ateIPAddr, dut1Port2.IPv4)
+	ateIPAddr := fmt.Sprintf("%s/%d", atePort1.IPv4, uint32(32))
+	t.Cleanup(func() {
+		gnmi.Delete(t, dut2, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut2)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut2)).Static(ateIPAddr).Config())
 	})
+	if !t.Run("Configure static route on DUT2 to ATE to establish multihop iBGP session", func(t *testing.T) {
+		configStaticRoute(t, dut2, ateIPAddr, dut1Port2.IPv4)
+		// Some platforms do not expose static or connected routes through OC AFT
+		// telemetry. The multihop BGP session below is the end-to-end proof that
+		// this route is usable.
+	}) {
+		return
+	}
 
 	t.Run("Establish iBGP session with MD5 enabled from ATE port-1 to DUT-2 - multihop iBGP", func(t *testing.T) {
 		t.Logf("Start DUT2 - ATE Port1 iBGP Config.")
@@ -454,18 +570,28 @@ func TestTcpMssPathMtu(t *testing.T) {
 		dut2Nbrs := []*bgpNeighbor{dut2Nbr1v4}
 		dut2Conf := bgpCreateNbr(t, dut2, authPWd, dut2Port1.IPv4, dut2AS, dut2Nbrs)
 		gnmi.Replace(t, dut2, dut2ConfPath.Config(), dut2Conf)
-		fptest.LogQuery(t, "DUT2 BGP Config", dut2ConfPath.Config(), gnmi.Get(t, dut2, dut2ConfPath.Config()))
+		t.Logf("Configured DUT2 BGP neighbor %s with TCP authentication", atePort1.IPv4)
 	})
 
-	t.Run("Configure iBGP session ATE Port1 - DUT2", func(t *testing.T) {
+	if !t.Run("Configure iBGP session ATE Port1 - DUT2", func(t *testing.T) {
 		otg.StopProtocols(t)
-		otgConfig = configOTG(t, otg, uint32(mtu5040B))
-	})
+		configOTG(t, otg, uint32(mtu5040B))
+		// Starting only the ISIS router does not bring up the base IPv4
+		// neighbor stack when auto-start is disabled. Start the full stack,
+		// then restart BGP below after its recursive route is usable.
+		otg.StartProtocols(t)
+		waitForOTGIPv4Neighbor(t, otg, atePort1.Name+".Eth", dut1Port1.IPv4)
+		waitForOTGISISPrefix(t, otg, dut1Port2.IPv4, dut1Port2.IPv4Len)
+		restartOTGBGPPeer(t, otg, otgBGPv4PeerName)
+	}) {
+		return
+	}
 
-	t.Run("Verify iBGP session between DUT2 - ATE Port1.", func(t *testing.T) {
-		var dut2NbrIP = []string{atePort1.IPv4}
-		verifyBGPTelemetry(t, dut2, dut2NbrIP)
-	})
+	if !t.Run("Verify iBGP session between DUT2 - ATE Port1.", func(t *testing.T) {
+		verifyOTGBGPEstablished(t, otg, dut2, otgBGPv4PeerName, atePort1.IPv4)
+	}) {
+		return
+	}
 
 	t.Run("Configure MTU on ATE1:port1, DUT2:port1 and Enable PMTU discovery on DUT2", func(t *testing.T) {
 		// MTU on the DUT1:port1 towards ATE1:port1 is left at default.
@@ -478,17 +604,18 @@ func TestTcpMssPathMtu(t *testing.T) {
 		gnmi.Replace(t, dut2, dut2ConfPath.Bgp().Neighbor(atePort1.IPv4).Transport().MtuDiscovery().Config(), true)
 	})
 
-	t.Run("Re-establish the BGP sessions by tcp reset", func(t *testing.T) {
-		otg.StopProtocols(t)
-		time.Sleep(20 * time.Second)
-		otg.PushConfig(t, otgConfig)
-		otg.StartProtocols(t)
-	})
+	if !t.Run("Re-establish the BGP session by tcp reset", func(t *testing.T) {
+		waitForOTGISISPrefix(t, otg, dut1Port2.IPv4, dut1Port2.IPv4Len)
+		restartOTGBGPPeer(t, otg, otgBGPv4PeerName)
+	}) {
+		return
+	}
 
-	t.Run("Verify iBGP session between DUT2 - ATE Port1.", func(t *testing.T) {
-		var dut2NbrIP = []string{atePort1.IPv4}
-		verifyBGPTelemetry(t, dut2, dut2NbrIP)
-	})
+	if !t.Run("Verify iBGP session between DUT2 - ATE Port1 after reset.", func(t *testing.T) {
+		verifyOTGBGPEstablished(t, otg, dut2, otgBGPv4PeerName, atePort1.IPv4)
+	}) {
+		return
+	}
 
 	if !deviations.SkipTCPNegotiatedMSSCheck(dut2) {
 		t.Run("Validate that the min MSS value has been adjusted to be below 1500 bytes on the tcp session.", func(t *testing.T) {
