@@ -845,6 +845,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, agg1ID, agg2ID string) {
 	lag1.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_STATIC
 	s1 := lag1.GetOrCreateSubinterface(0)
 	s1.Index = ygot.Uint32(0)
+	if deviations.InterfaceEnabled(dut) {
+		s1.Enabled = ygot.Bool(true)
+	}
 	s1v4 := s1.GetOrCreateIpv4()
 	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 		s1v4.Enabled = ygot.Bool(true)
@@ -852,7 +855,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, agg1ID, agg2ID string) {
 	a1v4 := s1v4.GetOrCreateAddress(dutLAG1.IPv4)
 	a1v4.Ip = ygot.String(dutLAG1.IPv4)
 	a1v4.PrefixLength = ygot.Uint8(plen24)
-
 	lag2 := &oc.Interface{
 		Name:    ygot.String(agg2ID),
 		Enabled: ygot.Bool(true),
@@ -861,6 +863,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, agg1ID, agg2ID string) {
 	lag2.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_STATIC
 	s2 := lag2.GetOrCreateSubinterface(0)
 	s2.Index = ygot.Uint32(0)
+	if deviations.InterfaceEnabled(dut) {
+		s2.Enabled = ygot.Bool(true)
+	}
 	s2v4 := s2.GetOrCreateIpv4()
 	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 		s2v4.Enabled = ygot.Bool(true)
