@@ -178,6 +178,7 @@ func TestGNMIIntfConfigImpactsGRIBINH(t *testing.T) {
 	client.FlushAll(t)
 
 	programECMPBaseline(t, dut, client, ni)
+	verifyAFTCoverage(t, dut, ni)
 
 	ate.OTG().StartTraffic(t)
 	defer ate.OTG().StopTraffic(t)
@@ -389,6 +390,27 @@ func programECMPBaseline(t *testing.T, dut *ondatra.DUTDevice, client *gribi.Cli
 // ipRouteBatchSize caps entries sent per Modify+Await round trip; this DUT is slow
 // enough that 1000+ individual round trips can exceed a gRPC deadline.
 const ipRouteBatchSize = 100
+
+// verifyAFTCoverage spot-checks the AFT paths the README lists as covered but that
+// programECMPBaseline's gRIBI calls don't themselves read back: one IPv4 and one IPv6
+// entry's next-hop-group, and the shared ECMP NHG's next-hop membership.
+func verifyAFTCoverage(t *testing.T, dut *ondatra.DUTDevice, ni string) {
+	t.Helper()
+	v4Prefix := ipv4BaseRoute + "/32"
+	if got := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(ni).Afts().Ipv4Entry(v4Prefix).State()).GetNextHopGroup(); got != nhg1ID {
+		t.Errorf("AFT ipv4-entry %s next-hop-group: got %d, want %d", v4Prefix, got, nhg1ID)
+	}
+	v6Prefix := ipv6BaseRoute + "/128"
+	if got := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(ni).Afts().Ipv6Entry(v6Prefix).State()).GetNextHopGroup(); got != nhg1ID {
+		t.Errorf("AFT ipv6-entry %s next-hop-group: got %d, want %d", v6Prefix, got, nhg1ID)
+	}
+	nhg := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(ni).Afts().NextHopGroup(nhg1ID).State())
+	for _, want := range []uint64{nh2ID, nh3ID, nh4ID} {
+		if _, ok := nhg.NextHop[want]; !ok {
+			t.Errorf("AFT next-hop-group %d: missing next-hop index %d, want present", nhg1ID, want)
+		}
+	}
+}
 
 // addEntriesBatched installs entries/results in ipRouteBatchSize-sized chunks.
 func addEntriesBatched(t *testing.T, client *gribi.Client, entries []fluent.GRIBIEntry, results []*gribiclient.OpResult) {
