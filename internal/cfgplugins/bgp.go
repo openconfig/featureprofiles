@@ -413,6 +413,10 @@ type VerifyBGPPeerOptions struct {
 
 // VerifyDUTBGPEstablished verifies on DUT BGP peer establishment
 func VerifyDUTBGPEstablished(t *testing.T, dut *ondatra.DUTDevice, opts ...VerifyBGPPeerOptions) {
+	bgpProtocolName := bgpName
+	if dbgpName := deviations.DefaultBgpInstanceName(dut); dbgpName != bgpName {
+		bgpProtocolName = dbgpName
+	}
 	timeout := 2 * time.Minute
 	dni := deviations.DefaultNetworkInstance(dut)
 	if len(opts) > 0 {
@@ -423,7 +427,7 @@ func VerifyDUTBGPEstablished(t *testing.T, dut *ondatra.DUTDevice, opts ...Verif
 			dni = opts[0].NetworkInstance
 		}
 	}
-	nSessionState := gnmi.OC().NetworkInstance(dni).Protocol(PTBGP, bgpName).Bgp().NeighborAny().SessionState().State()
+	nSessionState := gnmi.OC().NetworkInstance(dni).Protocol(PTBGP, bgpProtocolName).Bgp().NeighborAny().SessionState().State()
 	watch := gnmi.WatchAll(t, dut, nSessionState, timeout, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 		state, ok := val.Val()
 		if !ok || state != oc.Bgp_Neighbor_SessionState_ESTABLISHED {
