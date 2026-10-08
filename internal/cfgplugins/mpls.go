@@ -257,15 +257,22 @@ func RemoveStaticMplsLspPushLabel(t *testing.T, dut *ondatra.DUTDevice, lspName 
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
 }
 
+// MPLSStaticLSPByPass configures a static MPLS LSP POP label binding with an
+// optional access-list bypass. It uses CLI configuration when OpenConfig static
+// MPLS LSP configuration is unsupported on the DUT.
 func MPLSStaticLSPByPass(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, lspName string, incomingLabel uint32, nextHopIP string, protocolType string, byPass bool) {
 	if deviations.StaticMplsLspOCUnsupported(dut) {
 		cliConfig := ""
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
+			bypassStr := ""
+			if byPass {
+				bypassStr = "access-list bypass"
+			}
 			cliConfig = fmt.Sprintf(`
 					mpls ip
-					mpls static top-label %v %s pop payload-type %s access-list bypass
-					`, incomingLabel, nextHopIP, protocolType)
+					mpls static top-label %v %s pop payload-type %s %s
+					`, incomingLabel, nextHopIP, protocolType, bypassStr)
 			helpers.GnmiCLIConfig(t, dut, cliConfig)
 		default:
 			t.Errorf("Deviation StaticMplsLspOCUnsupported is not handled for the dut: %v", dut.Vendor())

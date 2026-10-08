@@ -2403,3 +2403,10 @@ func AigpMetricIncrement(dut *ondatra.DUTDevice) bool {
 func PowerSupplyTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPowerSupplyTelemetryUnsupported()
 }
+
+// DecapICMPTTLExceededUnsupported returns true if the device does not support
+// generating ICMP TTL Exceeded messages for decapsulated packets.
+// Arista: https://partnerissuetracker.corp.google.com/issues/556092813
+func DecapICMPTTLExceededUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDecapIcmpTtlExceededUnsupported()
+}

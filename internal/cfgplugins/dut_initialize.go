@@ -31,6 +31,8 @@ import (
 
 type FeatureType int
 
+const aristaICMPForwardingProfileName = "icmp-forwarding"
+
 // VRFConfig holds input parameters for creating VRFs in a batched way.
 type VRFConfig struct {
 	VRFCount int
@@ -53,6 +55,7 @@ const (
 	FeatureSecondaryDefaultLookup
 	FeatureAnpf
 	FeatureHighScale
+	FeatureICMPForwarding
 
 	aristaTcamProfileMplsTracking = `
 hardware counter feature traffic-policy in
@@ -1493,6 +1496,105 @@ hardware tcam
    !
    system profile anPF
    `
+	aristaICMPForwarding = `
+hardware tcam
+   profile icmp-forwarding
+      system-rule overriding-action redirect
+      feature acl vlan ipv6 egress
+         key field forwarding-type
+         action count
+         packet ipv6 forwarding bridged
+         packet ipv6 forwarding routed
+      feature cfm
+         packet ipv4 forwarding bridged
+         packet ipv6 forwarding bridged
+         packet non-ip forwarding bridged
+      feature interface-policing
+         action count police-interface
+         packet ipv4 forwarding bridged
+         packet ipv4 forwarding routed
+         packet ipv6 forwarding bridged
+         packet ipv6 forwarding routed
+         packet non-ip forwarding bridged
+      feature l2-protocol forwarding
+         key size limit 160
+         key field dst-mac vlan-tag-format
+         action redirect-to-cpu
+         packet non-ip forwarding bridged
+      feature mirror ip
+         key size limit 160
+         key field dscp dst-ip ip-frag ip-protocol l4-dst-port l4-ops l4-src-port src-ip tcp-control
+         action count mirror
+         packet ipv4 forwarding bridged
+         packet ipv4 forwarding routed
+         packet ipv4 forwarding routed multicast
+         packet ipv4 non-vxlan forwarding routed decap
+      feature mpls
+         key size limit 160
+         action drop redirect set-ecn
+         packet ipv4 mpls ipv4 forwarding mpls decap
+         packet ipv4 mpls ipv6 forwarding mpls decap
+         packet ipv4 gue mpls forwarding mpls decap
+         packet ipv6 gue mpls forwarding mpls decap
+         packet mpls ipv4 forwarding mpls
+         packet mpls ipv6 forwarding mpls
+         packet mpls non-ip forwarding mpls
+      feature mpls pop ingress
+      feature mpls pop ingress multicast
+         packet mpls ipv4 forwarding mpls php
+         packet mpls ipv6 forwarding mpls php
+      feature qos ip
+         sequence 90
+         port qualifier size 2 bits
+         key field dscp dst-ip forwarding-type ip-frag ip-protocol l4-dst-port l4-ops-7b l4-src-port outer-vlan-id src-ip tcp-control vlan-tag-format
+         action count set-drop-precedence set-dscp set-policer set-tc
+         packet ipv4 forwarding bridged
+         packet ipv4 forwarding routed
+         packet ipv4 forwarding routed multicast
+         packet ipv4 mpls ipv4 forwarding mpls decap
+         packet ipv4 mpls ipv6 forwarding mpls decap
+         packet ipv4 non-vxlan forwarding routed decap
+      feature qos ipv6
+         port qualifier size 2 bits
+         key field dst-ipv6 ipv6-next-header ipv6-traffic-class l4-dst-port l4-src-port src-ipv6-high src-ipv6-low
+         action count set-drop-precedence set-dscp set-policer set-tc
+         packet ipv6 forwarding routed
+      feature qos mac
+         key size limit 160
+         port qualifier size 2 bits
+         key field forwarding-type ipv6-traffic-class mpls-traffic-class vlan
+         action count set-dscp set-policer set-tc
+         packet ipv6 forwarding bridged
+         packet mpls forwarding bridged decap
+         packet mpls ipv4 forwarding mpls
+         packet mpls ipv6 forwarding mpls
+         packet mpls non-ip forwarding mpls
+         packet non-ip forwarding bridged
+      feature traffic-policy port ipv4
+         port qualifier size 12 bits
+         key field dscp dst-ip-label dst-mac dst-port ip-frag ip-fragment-offset ip-length ip-protocol ipv4-mc l4-dst-port l4-src-port src-ip-label src-mac tcp-control ttl
+         action copy-ttl count drop redirect set-dscp set-fwd-layer-index set-policer set-tc set-ttl
+         packet ipv4 forwarding bridged
+         packet ipv4 forwarding routed
+         packet ipv4 mpls ipv4 forwarding mpls decap
+         packet ipv4 non-vxlan forwarding routed decap
+         packet mpls ipv4 forwarding bridged
+         packet mpls ipv4 forwarding mpls
+         packet mpls ipv4 forwarding routed decap
+      feature traffic-policy port ipv6
+         port qualifier size 12 bits
+         key field dst-ipv6-label dst-mac hop-limit ipv6-length ipv6-mc ipv6-next-header ipv6-traffic-class l4-dst-port l4-src-port src-ipv6-label src-mac tcp-control
+         action copy-ttl count drop redirect set-dscp set-fwd-layer-index set-tc set-ttl
+         packet ipv4 mpls ipv6 forwarding mpls decap
+         packet ipv6 forwarding bridged
+         packet ipv6 forwarding routed
+         packet ipv6 forwarding routed decap
+         packet mpls ipv6 forwarding bridged
+         packet mpls ipv6 forwarding mpls
+         packet mpls ipv6 forwarding routed decap
+   !
+   system profile icmp-forwarding
+   `
 )
 
 const aristaHierarchicalFIB = `
@@ -1529,6 +1631,7 @@ var (
 		FeatureCFM:                    aristaTcamProfileCFM,
 		FeatureAnpf:                   aristaAnpfTcamProfile,
 		FeatureHierarchicalFIB:        aristaHierarchicalFIB,
+		FeatureICMPForwarding:         aristaICMPForwarding,
 	}
 
 	nokiaHardwareInitMap = map[FeatureType]string{
@@ -1585,6 +1688,35 @@ func PushDUTHardwareInitConfig(t *testing.T, dut *ondatra.DUTDevice, hardwareIni
 	gpbSetRequest := buildCliSetRequest(hardwareInitConf)
 	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
 		t.Fatalf("Failed to set hardware init config: %v", err)
+	}
+}
+
+// CleanupDUTHardwareInitConfig removes hardware-init TCAM artifacts that are specific to a feature.
+func CleanupDUTHardwareInitConfig(t *testing.T, dut *ondatra.DUTDevice, feature FeatureType) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		switch feature {
+		case FeatureICMPForwarding:
+			// Deactivate the TCAM profile first. EOS requires confirmation because
+			// changing the active TCAM profile restarts the forwarding agent.
+			deactivateProfileCLI := fmt.Sprintf(`
+            hardware tcam
+               no system profile %s
+         `, aristaICMPForwardingProfileName)
+			// This command must be executed through a CLI mechanism that can answer
+			// the EOS confirmation prompt with "y".
+			helpers.GnmiCLIConfig(t, dut, deactivateProfileCLI)
+			deleteProfileCLI := fmt.Sprintf(`
+            hardware tcam
+               no profile %s
+         `, aristaICMPForwardingProfileName)
+			helpers.GnmiCLIConfig(t, dut, deleteProfileCLI)
+		default:
+			// No cleanup required for other features.
+		}
+	default:
+		// No cleanup required for non-Arista vendors.
 	}
 }
 
