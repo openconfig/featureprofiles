@@ -189,7 +189,7 @@ func TestGNMIIntfConfigImpactsGRIBINH(t *testing.T) {
 	p4 := dut.Port(t, "port4")
 
 	t.Run("TE-1.7.1: Port Admin State Bounce Impact on gRIBI NextHop", func(t *testing.T) {
-		testPortAdminStateBounce(t, dut, ni, p2, p3, p4)
+		testPortAdminStateBounce(t, dut, ate, ni, p2, p3, p4)
 	})
 
 	t.Run("TE-1.7.2: MTU Change Impact on gRIBI NextHop", func(t *testing.T) {
@@ -571,21 +571,76 @@ func verifyFlowHealthy(t *testing.T, ate *ondatra.ATEDevice, flowName string, wi
 	}
 }
 
-func testPortAdminStateBounce(t *testing.T, dut *ondatra.DUTDevice, ni string, p2, p3, p4 *ondatra.Port) {
+func testPortAdminStateBounce(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, ni string, p2, p3, p4 *ondatra.Port) {
+	ateP2 := ate.Port(t, "port2").ID()
+	ateP3 := ate.Port(t, "port3").ID()
+	ateP4 := ate.Port(t, "port4").ID()
+
 	// README Step 4: confirm baseline traffic is already hashing across all three ports
 	// before injecting any fault.
-	verifyPortTraffic(t, dut, monitorWindow, map[*ondatra.Port]bool{p2: true, p3: true, p4: true})
+	verifyPortAndATETraffic(t, dut, ate, monitorWindow,
+		map[*ondatra.Port]bool{p2: true, p3: true, p4: true},
+		map[string]bool{ateP2: true, ateP3: true, ateP4: true})
 
 	setPortEnabled(t, dut, p2, false)
 	// README Step 7: observe the NH10 AFT entry's reaction to port2 going down.
 	verifyNHViaAFT(t, dut, ni, nh2ID)
 	time.Sleep(convergeSettle)
-	verifyPortTraffic(t, dut, monitorWindow, map[*ondatra.Port]bool{p2: false, p3: true, p4: true})
+	// README Step 8: verify traffic to ATE port-2 drops to 0 and redistributes to port-3/4.
+	verifyPortAndATETraffic(t, dut, ate, monitorWindow,
+		map[*ondatra.Port]bool{p2: false, p3: true, p4: true},
+		map[string]bool{ateP2: false, ateP3: true, ateP4: true})
 
 	setPortEnabled(t, dut, p2, true)
 	verifyNHViaAFT(t, dut, ni, nh2ID)
 	time.Sleep(convergeSettle)
-	verifyPortTraffic(t, dut, monitorWindow, map[*ondatra.Port]bool{p2: true, p3: true, p4: true})
+	// README Step 11: verify traffic resumes hashing evenly across all three ATE ports.
+	verifyPortAndATETraffic(t, dut, ate, monitorWindow,
+		map[*ondatra.Port]bool{p2: true, p3: true, p4: true},
+		map[string]bool{ateP2: true, ateP3: true, ateP4: true})
+}
+
+// ateInFrames returns the ATE OTG's cumulative ingress frame count for the given port ID.
+func ateInFrames(t *testing.T, ate *ondatra.ATEDevice, portID string) uint64 {
+	t.Helper()
+	return gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(portID).Counters().InFrames().State())
+}
+
+// verifyPortAndATETraffic checks, over a single shared window, both DUT egress counters
+// (as verifyPortTraffic does) and ATE ingress frame counters; the README's TE-1.7.1
+// Steps 4/8/11 call for verifying receipt at the ATE, not just DUT egress.
+func verifyPortAndATETraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, window time.Duration, dutWant map[*ondatra.Port]bool, ateWant map[string]bool) {
+	t.Helper()
+	dutBefore := make(map[*ondatra.Port]uint64, len(dutWant))
+	for p := range dutWant {
+		dutBefore[p] = portOutPkts(t, dut, p)
+	}
+	ateBefore := make(map[string]uint64, len(ateWant))
+	for portID := range ateWant {
+		ateBefore[portID] = ateInFrames(t, ate, portID)
+	}
+	time.Sleep(window)
+	dutDeltas := make(map[*ondatra.Port]uint64, len(dutWant))
+	for p, wantTraffic := range dutWant {
+		delta := portOutPkts(t, dut, p) - dutBefore[p]
+		dutDeltas[p] = delta
+		if wantTraffic && delta == 0 {
+			t.Errorf("DUT port %s: got 0 new egress packets over %v, want > 0 (traffic flowing)", p.Name(), window)
+		}
+		if !wantTraffic && delta != 0 {
+			t.Errorf("DUT port %s: got %d new egress packets over %v, want 0 (port should not carry traffic)", p.Name(), delta, window)
+		}
+	}
+	verifyECMPDistribution(t, dutDeltas, dutWant)
+	for portID, wantTraffic := range ateWant {
+		delta := ateInFrames(t, ate, portID) - ateBefore[portID]
+		if wantTraffic && delta == 0 {
+			t.Errorf("ATE port %s: got 0 new ingress frames over %v, want > 0 (traffic received)", portID, window)
+		}
+		if !wantTraffic && delta != 0 {
+			t.Errorf("ATE port %s: got %d new ingress frames over %v, want 0 (port should not receive traffic)", portID, delta, window)
+		}
+	}
 }
 
 // verifyNHViaAFT performs the README's "subscribe via gNMI ON_CHANGE to
@@ -646,7 +701,13 @@ func testNHOnDownInterface(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.AT
 
 	setPortEnabled(t, dut, p2, true)
 	time.Sleep(convergeSettle)
+	ateP2 := ate.Port(t, "port2").ID()
+	ateP2Before := ateInFrames(t, ate, ateP2)
 	verifyFlowLoss(t, ate, flowNegDownName, monitorWindow, 0)
+	// README Step 8: confirm recovered traffic specifically arrives on ATE port-2.
+	if got := ateInFrames(t, ate, ateP2) - ateP2Before; got == 0 {
+		t.Errorf("ATE port %s: got 0 new ingress frames over %v after re-enabling port2, want > 0 (recovered traffic arriving on port-2)", ateP2, monitorWindow)
+	}
 }
 
 func testMTUSmallerThanPacket(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, p2 *ondatra.Port) {
