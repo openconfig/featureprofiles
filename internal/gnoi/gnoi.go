@@ -133,6 +133,9 @@ func KillProcess(t *testing.T, dut *ondatra.DUTDevice, daemon Daemon, signal spb
 		var ok bool
 		for time.Now().Before(deadline) {
 			remaining := time.Until(deadline)
+			if remaining <= 0 {
+				break
+			}
 			errMsg := testt.CaptureFatal(t, func(tb testing.TB) {
 				_, ok = gnmi.WatchAll(
 					tb,
@@ -149,7 +152,9 @@ func KillProcess(t *testing.T, dut *ondatra.DUTDevice, daemon Daemon, signal spb
 				break
 			}
 			t.Logf("waiting for %s restart: %s", daemonName, *errMsg)
-			time.Sleep(5 * time.Second)
+			if time.Now().Before(deadline) {
+				time.Sleep(5 * time.Second)
+			}
 		}
 		if !ok {
 			t.Fatalf("Timed out waiting for process %s to restart with a new PID", daemonName)
