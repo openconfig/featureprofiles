@@ -52,28 +52,24 @@ const (
 	ipv4PrefixLen = 30
 	ipv6PrefixLen = 126
 
-	// gRIBI NextHop/NextHopGroup indices for the baseline ECMP group (port2/3/4).
 	nh2ID  = 10
 	nh3ID  = 11
 	nh4ID  = 12
 	nhg1ID = 100
 
-	// gRIBI NextHop/NextHopGroup indices used only by TE-1.7.3 (NH programmed on a down port).
 	nhDownID  = 20
 	nhgDownID = 20
 
-	// NHG containing only NH2 (port2), used by TE-1.7.4 so that prefix routes solely via
-	// port2 instead of being spread across port2/3/4 by the shared ECMP NHG.
+	// Port2-only NHG for TE-1.7.4, kept separate so it doesn't depend on TE-1.7.3's outcome.
 	nhgPort2OnlyID = 30
 
-	// Number of gRIBI IPv4/IPv6 entries programmed into the ECMP NHG.
 	numV4Routes = 1000
 	numV6Routes = 1000
 
-	ipv4BaseRoute = "203.0.113.1"   // first of numV4Routes consecutive /32s in the ECMP NHG.
-	ipv6BaseRoute = "2001:db8:a::1" // first of numV6Routes consecutive /128s in the ECMP NHG.
-	ipv4NegRoute  = "203.0.113.255" // dedicated prefix for TE-1.7.3.
-	ipv4MTURoute  = "203.0.113.254" // dedicated prefix for TE-1.7.4.
+	ipv4BaseRoute = "203.0.113.1"
+	ipv6BaseRoute = "2001:db8:a::1"
+	ipv4NegRoute  = "203.0.113.255"
+	ipv4MTURoute  = "203.0.113.254"
 
 	flowECMPv4Name  = "flowECMPv4"
 	flowECMPv6Name  = "flowECMPv6"
@@ -83,8 +79,7 @@ const (
 	trafficPPS    = 1000
 	monitorWindow = 30 * time.Second
 	awaitTimeout  = time.Minute
-	// convergeSettle accounts for ASIC-level ECMP/FIB reconvergence lag after an
-	// interface admin state change that isn't captured by the oper-status transition.
+	// ASIC-level FIB reconvergence lag not reflected by oper-status.
 	convergeSettle = 10 * time.Second
 
 	mtuDefault   = 1500
@@ -92,17 +87,12 @@ const (
 	mtuTooSmall  = 500
 	pktSizeLarge = 1500
 
-	lossTolerancePct = 1.0 // percent
+	lossTolerancePct = 1.0
 
-	// ecmpHashTolerancePct bounds how far an active port's share of egress packets may
-	// deviate from a perfectly even split across all active ports, per the README's
-	// "hashes evenly" requirement (TE-1.7.1 Steps 4/11). Real 5-tuple hashing is never
-	// perfectly even, so this only catches gross imbalance (e.g. all traffic on one port).
+	// Loose bound: only catches gross ECMP imbalance, since real hashing is never even.
 	ecmpHashTolerancePct = 40.0
 
-	// magicMac/magicIP satisfy GRIBIMACOverrideStaticARPStaticRoute: a static route to
-	// magicIP is configured out each port, with a static ARP entry binding it to magicMac,
-	// so that a gRIBI NH can carry a MAC address alongside its interface reference.
+	// Used only with the GRIBIMACOverrideStaticARPStaticRoute deviation.
 	magicMac = "02:00:00:00:00:01"
 	magicIP  = "192.168.1.1"
 )
@@ -151,7 +141,6 @@ func TestGNMIIntfConfigImpactsGRIBINH(t *testing.T) {
 	ate.OTG().StartProtocols(t)
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 
-	// The dst MAC for the src-facing flows is the DUT port1 MAC as resolved by ARP.
 	dstMac := gnmi.Get(t, ate.OTG(), gnmi.OTG().Interface(portPairs[0].ate.Name+".Eth").Ipv4Neighbor(portPairs[0].dut.IPv4).LinkLayerAddress().State())
 	configureFlows(t, ate, top, dstMac)
 	ate.OTG().PushConfig(t, top)
@@ -180,7 +169,7 @@ func TestGNMIIntfConfigImpactsGRIBINH(t *testing.T) {
 	programECMPBaseline(t, dut, client, ni)
 	verifyAFTCoverage(t, dut, ni)
 
-	// flowNegDown/flowMTU start only in their own subtests so they don't skew ECMP checks.
+	// flowNegDown/flowMTU start in their own subtests; flowMTU would otherwise skew ECMP checks.
 	setFlowTransmit(t, ate, gosnappi.StateTrafficFlowTransmitState.START, flowECMPv4Name, flowECMPv6Name)
 	defer ate.OTG().StopTraffic(t)
 	defer restorePort2State(t, dut)
@@ -206,17 +195,14 @@ func TestGNMIIntfConfigImpactsGRIBINH(t *testing.T) {
 	})
 }
 
-// configureDUT configures IPv4/IPv6 addressing on all 4 DUT ports.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	d := gnmi.OC()
-	// Diagnostic: explicitly register the default NI's type via OC, mirroring TE-18.3,
-	// in case the FIB agent needs this before it will install entries in that NI.
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	for _, pp := range portPairs {
 		p := dut.Port(t, pp.name)
 		gnmi.Replace(t, dut, d.Interface(p.Name()).Config(), pp.dut.NewOCInterface(p.Name(), dut))
-		// gnmi.Replace resets unmodeled attributes to platform default, re-enabling switchport; clear it after.
+		// gnmi.Replace re-enables switchport on Arista.
 		if dut.Vendor() == ondatra.ARISTA {
 			helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("interface %s\n no switchport\n", p.Name()))
 		}
@@ -229,7 +215,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-// configureATE adds the 4 ATE ports/devices with IPv4/IPv6 addressing (no flows yet).
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	t.Helper()
 	top := gosnappi.NewConfig()
@@ -241,7 +226,6 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	return top
 }
 
-// setFlowTransmit starts or stops only the named OTG flows.
 func setFlowTransmit(t *testing.T, ate *ondatra.ATEDevice, state gosnappi.StateTrafficFlowTransmitStateEnum, flowNames ...string) {
 	t.Helper()
 	cs := gosnappi.NewControlState()
@@ -249,9 +233,6 @@ func setFlowTransmit(t *testing.T, ate *ondatra.ATEDevice, state gosnappi.StateT
 	ate.OTG().SetControlState(t, cs)
 }
 
-// configureFlows adds the 4 continuous traffic flows (baseline ECMP v4/v6, plus the 2
-// dedicated single-destination flows used by the TE-1.7.3/TE-1.7.4 negative subtests),
-// all sourced from ATE port1.
 func configureFlows(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, dstMac string) {
 	t.Helper()
 	srcPort := ate.Port(t, "port1")
@@ -291,7 +272,6 @@ func configureFlows(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, d
 	ipMTU.Dst().SetValue(ipv4MTURoute)
 }
 
-// configStaticArp returns an Interface config binding ipv4addr to macAddr via static ARP.
 func configStaticArp(p string, ipv4addr string, macAddr string) *oc.Interface {
 	i := &oc.Interface{Name: ygot.String(p)}
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
@@ -300,10 +280,6 @@ func configStaticArp(p string, ipv4addr string, macAddr string) *oc.Interface {
 	return i
 }
 
-// configStaticRouteAndARPForMagicIP satisfies GRIBIMACOverrideStaticARPStaticRoute:
-// it configures an ECMP static route to magicIP out port2/3/4, plus a static ARP entry
-// on each of those interfaces binding magicIP to magicMac, so that a gRIBI NH can later
-// reference magicIP/magicMac alongside its own interface ref.
 func configStaticRouteAndARPForMagicIP(t *testing.T, dut *ondatra.DUTDevice, ni string) {
 	t.Helper()
 	sb := &gnmi.SetBatch{}
@@ -323,8 +299,6 @@ func configStaticRouteAndARPForMagicIP(t *testing.T, dut *ondatra.DUTDevice, ni 
 	})
 	sb.Set(t, dut)
 
-	// Confirm the DUT actually applied the static ARP entries; a silent mismatch here
-	// would otherwise only surface later as a cryptic gRIBI FIB programming failure.
 	for _, pp := range portPairs[1:] {
 		p := dut.Port(t, pp.name)
 		if got := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Subinterface(0).Ipv4().Neighbor(magicIP).LinkLayerAddress().State()); got != magicMac {
@@ -333,12 +307,6 @@ func configStaticRouteAndARPForMagicIP(t *testing.T, dut *ondatra.DUTDevice, ni 
 	}
 }
 
-// programECMPBaseline programs NH10/11/12 -> port2/3/4 (using MACwithInterface, since
-// Arista rejects a MAC without an accompanying interface reference), an ECMP NHG100
-// over them, and numV4Routes/numV6Routes IPv4/IPv6 entries pointing at NHG100. It also
-// programs the TE-1.7.4 dedicated prefix onto a port2-only NHG, since that subtest
-// requires traffic solely destined via port2; the TE-1.7.3 prefix is intentionally left
-// unprogrammed here, since that subtest's README step introduces it as new.
 func programECMPBaseline(t *testing.T, dut *ondatra.DUTDevice, client *gribi.Client, ni string) {
 	t.Helper()
 	if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
@@ -346,7 +314,6 @@ func programECMPBaseline(t *testing.T, dut *ondatra.DUTDevice, client *gribi.Cli
 	}
 
 	nh2Opts := nhOpts(t, dut, 1)
-	// wantResult relaxes the setup assertions to RIB-only on DUTs that don't reliably ack FIB.
 	wantResult := fluent.InstalledInFIB
 	if deviations.GRIBIRIBAckOnly(dut) {
 		wantResult = fluent.InstalledInRIB
@@ -368,6 +335,7 @@ func programECMPBaseline(t *testing.T, dut *ondatra.DUTDevice, client *gribi.Cli
 	}
 	addEntriesBatched(t, client, v4Entries, v4Results)
 
+	// ipv4NegRoute is left unprogrammed: TE-1.7.3 introduces it as new.
 	client.AddIPv4(t, ipv4MTURoute+"/32", nhgPort2OnlyID, ni, ni, wantResult)
 
 	v6Prefixes, err := iputil.GenerateIPv6s(net.ParseIP(ipv6BaseRoute), numV6Routes)
@@ -382,9 +350,7 @@ func programECMPBaseline(t *testing.T, dut *ondatra.DUTDevice, client *gribi.Cli
 	addEntriesBatched(t, client, v6Entries, v6Results)
 }
 
-// nhOpts builds the interface-bound NH options for portPairs[idx]. Some DUTs reject a
-// MAC-only next-hop-entry and need an accompanying, ARP-resolvable IP: either the magic
-// IP/MAC bound via static route+ARP, or the ATE's own already-resolved IP.
+// nhOpts uses real/ARP-bound MACs, not README placeholders, so forwarded frames reach the ATE.
 func nhOpts(t *testing.T, dut *ondatra.DUTDevice, idx int) *gribi.NHOptions {
 	t.Helper()
 	intf := dut.Port(t, portPairs[idx].name).Name()
@@ -398,13 +364,9 @@ func nhOpts(t *testing.T, dut *ondatra.DUTDevice, idx int) *gribi.NHOptions {
 	}
 }
 
-// ipRouteBatchSize caps entries sent per Modify+Await round trip; this DUT is slow
-// enough that 1000+ individual round trips can exceed a gRPC deadline.
+// Smaller batches avoid gRPC deadlines on slow DUTs.
 const ipRouteBatchSize = 100
 
-// verifyAFTCoverage spot-checks the AFT paths the README lists as covered but that
-// programECMPBaseline's gRIBI calls don't themselves read back: one IPv4 and one IPv6
-// entry's next-hop-group, and the shared ECMP NHG's next-hop membership.
 func verifyAFTCoverage(t *testing.T, dut *ondatra.DUTDevice, ni string) {
 	t.Helper()
 	v4Prefix := ipv4BaseRoute + "/32"
@@ -423,7 +385,6 @@ func verifyAFTCoverage(t *testing.T, dut *ondatra.DUTDevice, ni string) {
 	}
 }
 
-// addEntriesBatched installs entries/results in ipRouteBatchSize-sized chunks.
 func addEntriesBatched(t *testing.T, client *gribi.Client, entries []fluent.GRIBIEntry, results []*gribiclient.OpResult) {
 	t.Helper()
 	for i := 0; i < len(entries); i += ipRouteBatchSize {
@@ -435,7 +396,6 @@ func addEntriesBatched(t *testing.T, client *gribi.Client, entries []fluent.GRIB
 	}
 }
 
-// setPortEnabled sets the interface admin state and awaits the corresponding oper-status.
 func setPortEnabled(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port, enabled bool) {
 	t.Helper()
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p.Name()).Enabled().Config(), enabled)
@@ -446,7 +406,6 @@ func setPortEnabled(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port, enabl
 	gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), awaitTimeout, want)
 }
 
-// setMTU replaces the interface MTU config, picking the L2 or L3 MTU leaf per deviation.
 func setMTU(t *testing.T, dut *ondatra.DUTDevice, intfName string, mtu uint16) {
 	t.Helper()
 	b := &gnmi.SetBatch{}
@@ -454,9 +413,6 @@ func setMTU(t *testing.T, dut *ondatra.DUTDevice, intfName string, mtu uint16) {
 	b.Set(t, dut)
 }
 
-// awaitMTU subscribes via gNMI to the interface MTU state until it matches want or
-// timeout elapses. Some DUTs don't populate this state leaf at all despite the config
-// Set succeeding; in that case it falls back to trusting the Set() after a short settle delay.
 func awaitMTU(t *testing.T, dut *ondatra.DUTDevice, intfName string, want uint16, timeout time.Duration) {
 	t.Helper()
 	path := gnmi.OC().Interface(intfName).Mtu().State()
@@ -467,6 +423,7 @@ func awaitMTU(t *testing.T, dut *ondatra.DUTDevice, intfName string, want uint16
 		got, present := v.Val()
 		return present && got == want
 	}).Await(t)
+	// Some DUTs never populate this leaf; fall back to trusting the Set().
 	if !ok {
 		got, _ := val.Val()
 		t.Logf("Interface %s MTU state leaf did not confirm %d within %v (got %d; schema may not expose it here); trusting the earlier Set()", intfName, want, timeout, got)
@@ -474,8 +431,6 @@ func awaitMTU(t *testing.T, dut *ondatra.DUTDevice, intfName string, want uint16
 	}
 }
 
-// restorePort2State makes a best-effort attempt to leave port2 enabled with the
-// default MTU, regardless of which subtests ran or failed.
 func restorePort2State(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	p2 := dut.Port(t, "port2")
@@ -483,15 +438,11 @@ func restorePort2State(t *testing.T, dut *ondatra.DUTDevice) {
 	setMTU(t, dut, p2.Name(), mtuDefault)
 }
 
-// portOutPkts returns the DUT's cumulative egress packet count for the given port.
 func portOutPkts(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) uint64 {
 	t.Helper()
 	return gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Counters().OutPkts().State())
 }
 
-// verifyPortTraffic checks, over window, whether each port in want received new egress
-// packets (true) or none (false), and that ports expected to carry traffic share it
-// roughly evenly (README's "hashes evenly" requirement, TE-1.7.1 Steps 4/11).
 func verifyPortTraffic(t *testing.T, dut *ondatra.DUTDevice, window time.Duration, want map[*ondatra.Port]bool) {
 	t.Helper()
 	before := make(map[*ondatra.Port]uint64, len(want))
@@ -513,8 +464,6 @@ func verifyPortTraffic(t *testing.T, dut *ondatra.DUTDevice, window time.Duratio
 	verifyECMPDistribution(t, deltas, want)
 }
 
-// verifyECMPDistribution asserts that egress packets are roughly evenly spread across
-// the ports expected to carry traffic; a no-op unless more than one port is active.
 func verifyECMPDistribution(t *testing.T, deltas map[*ondatra.Port]uint64, want map[*ondatra.Port]bool) {
 	t.Helper()
 	var active []*ondatra.Port
@@ -537,15 +486,12 @@ func verifyECMPDistribution(t *testing.T, deltas map[*ondatra.Port]uint64, want 
 	}
 }
 
-// flowCounters returns the cumulative Tx/Rx packet counts for an OTG flow.
 func flowCounters(t *testing.T, ate *ondatra.ATEDevice, flowName string) (tx, rx uint64) {
 	t.Helper()
 	fc := gnmi.OTG().Flow(flowName).Counters()
 	return gnmi.Get(t, ate.OTG(), fc.OutPkts().State()), gnmi.Get(t, ate.OTG(), fc.InPkts().State())
 }
 
-// verifyFlowLoss checks a flow's packet loss percentage over window (using deltas so
-// state from before the window, e.g. an earlier down period, isn't counted).
 func verifyFlowLoss(t *testing.T, ate *ondatra.ATEDevice, flowName string, window time.Duration, wantLossPct float64) {
 	t.Helper()
 	txBefore, rxBefore := flowCounters(t, ate, flowName)
@@ -562,9 +508,7 @@ func verifyFlowLoss(t *testing.T, ate *ondatra.ATEDevice, flowName string, windo
 	}
 }
 
-// verifyFlowHealthy is a hard precondition (vs. verifyFlowLoss's t.Errorf): it aborts the
-// subtest immediately if traffic isn't already flowing steadily, so a carried-over failure
-// from an earlier subtest is attributed there instead of masquerading as this subtest's own.
+// verifyFlowHealthy fails fast so carried-over failures are attributed to the earlier subtest.
 func verifyFlowHealthy(t *testing.T, ate *ondatra.ATEDevice, flowName string, window time.Duration) {
 	t.Helper()
 	txBefore, rxBefore := flowCounters(t, ate, flowName)
@@ -585,17 +529,13 @@ func testPortAdminStateBounce(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 	ateP3 := ate.Port(t, "port3").ID()
 	ateP4 := ate.Port(t, "port4").ID()
 
-	// README Step 4: confirm baseline traffic is already hashing across all three ports
-	// before injecting any fault.
 	verifyPortAndATETraffic(t, dut, ate, monitorWindow,
 		map[*ondatra.Port]bool{p2: true, p3: true, p4: true},
 		map[string]bool{ateP2: true, ateP3: true, ateP4: true})
 
 	setPortEnabled(t, dut, p2, false)
-	// README Step 7: observe the NH10 AFT entry's reaction to port2 going down.
 	verifyNHViaAFT(t, dut, ni, nh2ID)
 	time.Sleep(convergeSettle)
-	// README Step 8: verify traffic to ATE port-2 drops to 0 and redistributes to port-3/4.
 	verifyPortAndATETraffic(t, dut, ate, monitorWindow,
 		map[*ondatra.Port]bool{p2: false, p3: true, p4: true},
 		map[string]bool{ateP2: false, ateP3: true, ateP4: true})
@@ -603,21 +543,16 @@ func testPortAdminStateBounce(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 	setPortEnabled(t, dut, p2, true)
 	verifyNHViaAFT(t, dut, ni, nh2ID)
 	time.Sleep(convergeSettle)
-	// README Step 11: verify traffic resumes hashing evenly across all three ATE ports.
 	verifyPortAndATETraffic(t, dut, ate, monitorWindow,
 		map[*ondatra.Port]bool{p2: true, p3: true, p4: true},
 		map[string]bool{ateP2: true, ateP3: true, ateP4: true})
 }
 
-// ateInFrames returns the ATE OTG's cumulative ingress frame count for the given port ID.
 func ateInFrames(t *testing.T, ate *ondatra.ATEDevice, portID string) uint64 {
 	t.Helper()
 	return gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(portID).Counters().InFrames().State())
 }
 
-// verifyPortAndATETraffic checks, over a single shared window, both DUT egress counters
-// (as verifyPortTraffic does) and ATE ingress frame counters; the README's TE-1.7.1
-// Steps 4/8/11 call for verifying receipt at the ATE, not just DUT egress.
 func verifyPortAndATETraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, window time.Duration, dutWant map[*ondatra.Port]bool, ateWant map[string]bool) {
 	t.Helper()
 	dutBefore := make(map[*ondatra.Port]uint64, len(dutWant))
@@ -652,12 +587,7 @@ func verifyPortAndATETraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	}
 }
 
-// verifyNHViaAFT performs the README's "subscribe via gNMI ON_CHANGE to
-// .../afts/next-hops/next-hop[index]/state" step. The OC AFT schema has no
-// vendor-neutral "viable" leaf for a NH whose interface went down, so this only
-// logs what the subscription delivers rather than asserting a specific value;
-// per the README ("if supported"/"vendor-variable") it never fails the subtest
-// on its own.
+// verifyNHViaAFT only logs: OC AFT has no vendor-neutral viability leaf (README: "if supported").
 func verifyNHViaAFT(t *testing.T, dut *ondatra.DUTDevice, ni string, nhIndex uint64) {
 	t.Helper()
 	val, ok := gnmi.Watch(t, dut, gnmi.OC().NetworkInstance(ni).Afts().NextHop(nhIndex).State(), convergeSettle, func(v *ygnmi.Value[*oc.NetworkInstance_Afts_NextHop]) bool {
@@ -682,10 +612,6 @@ func testMTUChange(t *testing.T, dut *ondatra.DUTDevice, p2, p3, p4 *ondatra.Por
 	verifyPortTraffic(t, dut, monitorWindow, map[*ondatra.Port]bool{p2: true, p3: true, p4: true})
 }
 
-// testNHOnDownInterface programs a new NH/NHG/route pointing solely at the already-down
-// port2 and checks the hard, vendor-independent pass/fail signal from the README (100%
-// traffic loss), rather than asserting a specific gRIBI programming/telemetry outcome
-// which the README itself says is vendor-variable ("rejected or ... unviable").
 func testNHOnDownInterface(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, client *gribi.Client, ni string, p2 *ondatra.Port) {
 	setPortEnabled(t, dut, p2, false)
 
@@ -703,10 +629,8 @@ func testNHOnDownInterface(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.AT
 		t.Logf("gRIBI result for down-port2 NH/NHG/IPv4 programming: %+v", res)
 	}
 
-	// README Step 4: observe whether NH20's telemetry reflects rejection/unviability.
 	verifyNHViaAFT(t, dut, ni, nhDownID)
 
-	// README Step 5.
 	setFlowTransmit(t, ate, gosnappi.StateTrafficFlowTransmitState.START, flowNegDownName)
 	defer setFlowTransmit(t, ate, gosnappi.StateTrafficFlowTransmitState.STOP, flowNegDownName)
 	verifyFlowLoss(t, ate, flowNegDownName, monitorWindow, 100)
@@ -716,19 +640,16 @@ func testNHOnDownInterface(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.AT
 	ateP2 := ate.Port(t, "port2").ID()
 	ateP2Before := ateInFrames(t, ate, ateP2)
 	verifyFlowLoss(t, ate, flowNegDownName, monitorWindow, 0)
-	// README Step 8: confirm recovered traffic specifically arrives on ATE port-2.
 	if got := ateInFrames(t, ate, ateP2) - ateP2Before; got == 0 {
 		t.Errorf("ATE port %s: got 0 new ingress frames over %v after re-enabling port2, want > 0 (recovered traffic arriving on port-2)", ateP2, monitorWindow)
 	}
 }
 
 func testMTUSmallerThanPacket(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, p2 *ondatra.Port) {
-	// Started before the MTU fault (not at README Step 3) so Step 1's precondition can check it.
+	// Started before the MTU fault (not README Step 3) so Step 1's precondition can check it.
 	setFlowTransmit(t, ate, gosnappi.StateTrafficFlowTransmitState.START, flowMTUName)
 	defer setFlowTransmit(t, ate, gosnappi.StateTrafficFlowTransmitState.STOP, flowMTUName)
 
-	// README step 1: confirm traffic is already flowing steadily before injecting the
-	// MTU fault, so a failure here is attributed to a prior subtest instead of this one.
 	verifyFlowHealthy(t, ate, flowMTUName, monitorWindow)
 
 	setMTU(t, dut, p2.Name(), mtuTooSmall)
@@ -747,10 +668,7 @@ func testMTUSmallerThanPacket(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 	verifyFlowLoss(t, ate, flowMTUName, monitorWindow, 0)
 }
 
-// getErrorFrameCounter fetches an oversized-frame drop counter, per the README's
-// "in-oversize-frames (e.g., ... or in-errors)" allowance. in-oversize-frames isn't
-// modeled in this repo's generated OC schema, so it's read via a raw gNMI Get; if the
-// DUT doesn't expose that leaf, this falls back to the typed InErrors counter.
+// in-oversize-frames isn't in the generated OC schema, so read it raw; fall back to in-errors.
 func errorFrameCounter(t *testing.T, dut *ondatra.DUTDevice, intfName string) (uint64, string) {
 	t.Helper()
 	req := &gpb.GetRequest{
