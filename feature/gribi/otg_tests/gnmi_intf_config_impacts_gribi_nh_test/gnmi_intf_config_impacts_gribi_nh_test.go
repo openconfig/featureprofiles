@@ -492,7 +492,7 @@ func flowCounters(t *testing.T, ate *ondatra.ATEDevice, flowName string) (tx, rx
 	return gnmi.Get(t, ate.OTG(), fc.OutPkts().State()), gnmi.Get(t, ate.OTG(), fc.InPkts().State())
 }
 
-func verifyFlowLoss(t *testing.T, ate *ondatra.ATEDevice, flowName string, window time.Duration, wantLossPct float64) {
+func verifyFlowLoss(t *testing.T, ate *ondatra.ATEDevice, flowName string, window time.Duration, wantLossPct float64) uint64 {
 	t.Helper()
 	txBefore, rxBefore := flowCounters(t, ate, flowName)
 	time.Sleep(window)
@@ -506,6 +506,7 @@ func verifyFlowLoss(t *testing.T, ate *ondatra.ATEDevice, flowName string, windo
 	if diff := math.Abs(gotLossPct - wantLossPct); diff > lossTolerancePct {
 		t.Errorf("Flow %s: got %.2f%% loss over %v, want %.2f%% (+/- %.2f%%)", flowName, gotLossPct, window, wantLossPct, lossTolerancePct)
 	}
+	return dtx - drx
 }
 
 // verifyFlowHealthy fails fast so carried-over failures are attributed to the earlier subtest.
@@ -652,16 +653,23 @@ func testMTUSmallerThanPacket(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 
 	verifyFlowHealthy(t, ate, flowMTUName, monitorWindow)
 
+	errBefore, counterName := errorFrameCounter(t, dut, p2.Name())
+
 	setMTU(t, dut, p2.Name(), mtuTooSmall)
 	awaitMTU(t, dut, p2.Name(), mtuTooSmall, awaitTimeout)
 
-	verifyFlowLoss(t, ate, flowMTUName, monitorWindow, 100)
+	dropped := verifyFlowLoss(t, ate, flowMTUName, monitorWindow, 100)
 
-	got, counterName := errorFrameCounter(t, dut, p2.Name())
-	if got == 0 {
-		t.Errorf("Interface %s %s counter got 0, want > 0 after sending oversized frames", p2.Name(), counterName)
+	errAfter, counterNameAfter := errorFrameCounter(t, dut, p2.Name())
+	if counterNameAfter != counterName {
+		t.Fatalf("Interface %s error counter source changed between reads (%s -> %s), cannot compute increment", p2.Name(), counterName, counterNameAfter)
 	}
-	t.Logf("Interface %s %s counter: %d", p2.Name(), counterName, got)
+	errDelta := errAfter - errBefore
+	if errDelta == 0 {
+		t.Errorf("Interface %s %s: got 0 increment, want ~%d (dropped oversized packets)", p2.Name(), counterName, dropped)
+	}
+	// Not asserted equal: drops occur at port2 egress, while README's counters are ingress-side and vendor-variable.
+	t.Logf("Interface %s %s increment: %d, ATE-measured dropped packets: %d", p2.Name(), counterName, errDelta, dropped)
 
 	setMTU(t, dut, p2.Name(), mtuDefault)
 	awaitMTU(t, dut, p2.Name(), mtuDefault, awaitTimeout)
