@@ -2403,3 +2403,10 @@ func AigpMetricIncrement(dut *ondatra.DUTDevice) bool {
 func PowerSupplyTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPowerSupplyTelemetryUnsupported()
 }
+
+// BgpGrHelperHoldTimerExpiryRequiresStalePolicy returns true if the device requires
+// explicit GR helper stale-route policy configuration for hold-timer-expiry to trigger
+// GR helper mode (RFC 8538 Section 4).
+func BgpGrHelperHoldTimerExpiryRequiresStalePolicy(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpGrHelperHoldTimerExpiryRequiresStalePolicy()
+}
