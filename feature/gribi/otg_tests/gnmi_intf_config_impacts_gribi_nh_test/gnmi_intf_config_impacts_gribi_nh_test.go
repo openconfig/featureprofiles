@@ -44,6 +44,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -92,6 +93,12 @@ const (
 	pktSizeLarge = 1500
 
 	lossTolerancePct = 1.0 // percent
+
+	// ecmpHashTolerancePct bounds how far an active port's share of egress packets may
+	// deviate from a perfectly even split across all active ports, per the README's
+	// "hashes evenly" requirement (TE-1.7.1 Steps 4/11). Real 5-tuple hashing is never
+	// perfectly even, so this only catches gross imbalance (e.g. all traffic on one port).
+	ecmpHashTolerancePct = 40.0
 
 	// magicMac/magicIP satisfy GRIBIMACOverrideStaticARPStaticRoute: a static route to
 	// magicIP is configured out each port, with a static ARP entry binding it to magicMac,
@@ -181,7 +188,7 @@ func TestGNMIIntfConfigImpactsGRIBINH(t *testing.T) {
 	p4 := dut.Port(t, "port4")
 
 	t.Run("TE-1.7.1: Port Admin State Bounce Impact on gRIBI NextHop", func(t *testing.T) {
-		testPortAdminStateBounce(t, dut, p2, p3, p4)
+		testPortAdminStateBounce(t, dut, ni, p2, p3, p4)
 	})
 
 	t.Run("TE-1.7.2: MTU Change Impact on gRIBI NextHop", func(t *testing.T) {
@@ -453,7 +460,8 @@ func portOutPkts(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) uint64 {
 }
 
 // verifyPortTraffic checks, over window, whether each port in want received new egress
-// packets (true) or none (false). ECMP hashing itself is not asserted, only presence.
+// packets (true) or none (false), and that ports expected to carry traffic share it
+// roughly evenly (README's "hashes evenly" requirement, TE-1.7.1 Steps 4/11).
 func verifyPortTraffic(t *testing.T, dut *ondatra.DUTDevice, window time.Duration, want map[*ondatra.Port]bool) {
 	t.Helper()
 	before := make(map[*ondatra.Port]uint64, len(want))
@@ -461,13 +469,40 @@ func verifyPortTraffic(t *testing.T, dut *ondatra.DUTDevice, window time.Duratio
 		before[p] = portOutPkts(t, dut, p)
 	}
 	time.Sleep(window)
+	deltas := make(map[*ondatra.Port]uint64, len(want))
 	for p, wantTraffic := range want {
 		delta := portOutPkts(t, dut, p) - before[p]
+		deltas[p] = delta
 		if wantTraffic && delta == 0 {
 			t.Errorf("Port %s: got 0 new egress packets over %v, want > 0 (traffic flowing)", p.Name(), window)
 		}
 		if !wantTraffic && delta != 0 {
 			t.Errorf("Port %s: got %d new egress packets over %v, want 0 (port should not carry traffic)", p.Name(), delta, window)
+		}
+	}
+	verifyECMPDistribution(t, deltas, want)
+}
+
+// verifyECMPDistribution asserts that egress packets are roughly evenly spread across
+// the ports expected to carry traffic; a no-op unless more than one port is active.
+func verifyECMPDistribution(t *testing.T, deltas map[*ondatra.Port]uint64, want map[*ondatra.Port]bool) {
+	t.Helper()
+	var active []*ondatra.Port
+	var total uint64
+	for p, wantTraffic := range want {
+		if !wantTraffic {
+			continue
+		}
+		active = append(active, p)
+		total += deltas[p]
+	}
+	if len(active) < 2 {
+		return
+	}
+	mean := float64(total) / float64(len(active))
+	for _, p := range active {
+		if diffPct := math.Abs(float64(deltas[p])-mean) / mean * 100; diffPct > ecmpHashTolerancePct {
+			t.Errorf("Port %s: got %d egress packets (mean %.0f across %d active ports), deviates %.1f%% from even ECMP hash, want within %.0f%%", p.Name(), deltas[p], mean, len(active), diffPct, ecmpHashTolerancePct)
 		}
 	}
 }
@@ -515,14 +550,41 @@ func verifyFlowHealthy(t *testing.T, ate *ondatra.ATEDevice, flowName string, wi
 	}
 }
 
-func testPortAdminStateBounce(t *testing.T, dut *ondatra.DUTDevice, p2, p3, p4 *ondatra.Port) {
+func testPortAdminStateBounce(t *testing.T, dut *ondatra.DUTDevice, ni string, p2, p3, p4 *ondatra.Port) {
+	// README Step 4: confirm baseline traffic is already hashing across all three ports
+	// before injecting any fault.
+	verifyPortTraffic(t, dut, monitorWindow, map[*ondatra.Port]bool{p2: true, p3: true, p4: true})
+
 	setPortEnabled(t, dut, p2, false)
+	// README Step 7: observe the NH10 AFT entry's reaction to port2 going down.
+	verifyNHViaAFT(t, dut, ni, nh2ID)
 	time.Sleep(convergeSettle)
 	verifyPortTraffic(t, dut, monitorWindow, map[*ondatra.Port]bool{p2: false, p3: true, p4: true})
 
 	setPortEnabled(t, dut, p2, true)
+	verifyNHViaAFT(t, dut, ni, nh2ID)
 	time.Sleep(convergeSettle)
 	verifyPortTraffic(t, dut, monitorWindow, map[*ondatra.Port]bool{p2: true, p3: true, p4: true})
+}
+
+// verifyNHViaAFT performs the README's "subscribe via gNMI ON_CHANGE to
+// .../afts/next-hops/next-hop[index]/state" step. The OC AFT schema has no
+// vendor-neutral "viable" leaf for a NH whose interface went down, so this only
+// logs what the subscription delivers rather than asserting a specific value;
+// per the README ("if supported"/"vendor-variable") it never fails the subtest
+// on its own.
+func verifyNHViaAFT(t *testing.T, dut *ondatra.DUTDevice, ni string, nhIndex uint64) {
+	t.Helper()
+	val, ok := gnmi.Watch(t, dut, gnmi.OC().NetworkInstance(ni).Afts().NextHop(nhIndex).State(), convergeSettle, func(v *ygnmi.Value[*oc.NetworkInstance_Afts_NextHop]) bool {
+		_, present := v.Val()
+		return present
+	}).Await(t)
+	nh, present := val.Val()
+	if !present {
+		t.Logf("AFT next-hop %d: ON_CHANGE subscription returned no value within %v (vendor-variable per README)", nhIndex, convergeSettle)
+		return
+	}
+	t.Logf("AFT next-hop %d telemetry via ON_CHANGE subscription (stabilized=%v): %+v", nhIndex, ok, nh)
 }
 
 func testMTUChange(t *testing.T, dut *ondatra.DUTDevice, p2, p3, p4 *ondatra.Port) {
@@ -556,6 +618,9 @@ func testNHOnDownInterface(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.AT
 		t.Logf("gRIBI result for down-port2 NH/NHG/IPv4 programming: %+v", res)
 	}
 
+	// README Step 4: observe whether NH20's telemetry reflects rejection/unviability.
+	verifyNHViaAFT(t, dut, ni, nhDownID)
+
 	verifyFlowLoss(t, ate, flowNegDownName, monitorWindow, 100)
 
 	setPortEnabled(t, dut, p2, true)
@@ -573,7 +638,7 @@ func testMTUSmallerThanPacket(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 
 	verifyFlowLoss(t, ate, flowMTUName, monitorWindow, 100)
 
-	got, counterName := getErrorFrameCounter(t, dut, p2.Name())
+	got, counterName := errorFrameCounter(t, dut, p2.Name())
 	if got == 0 {
 		t.Errorf("Interface %s %s counter got 0, want > 0 after sending oversized frames", p2.Name(), counterName)
 	}
@@ -588,7 +653,7 @@ func testMTUSmallerThanPacket(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 // "in-oversize-frames (e.g., ... or in-errors)" allowance. in-oversize-frames isn't
 // modeled in this repo's generated OC schema, so it's read via a raw gNMI Get; if the
 // DUT doesn't expose that leaf, this falls back to the typed InErrors counter.
-func getErrorFrameCounter(t *testing.T, dut *ondatra.DUTDevice, intfName string) (uint64, string) {
+func errorFrameCounter(t *testing.T, dut *ondatra.DUTDevice, intfName string) (uint64, string) {
 	t.Helper()
 	req := &gpb.GetRequest{
 		Path: []*gpb.Path{{
