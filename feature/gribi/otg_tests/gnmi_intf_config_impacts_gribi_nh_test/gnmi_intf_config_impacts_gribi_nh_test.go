@@ -180,7 +180,8 @@ func TestGNMIIntfConfigImpactsGRIBINH(t *testing.T) {
 	programECMPBaseline(t, dut, client, ni)
 	verifyAFTCoverage(t, dut, ni)
 
-	ate.OTG().StartTraffic(t)
+	// flowNegDown/flowMTU start only in their own subtests so they don't skew ECMP checks.
+	setFlowTransmit(t, ate, gosnappi.StateTrafficFlowTransmitState.START, flowECMPv4Name, flowECMPv6Name)
 	defer ate.OTG().StopTraffic(t)
 	defer restorePort2State(t, dut)
 
@@ -240,9 +241,17 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	return top
 }
 
-// configureFlows adds the 4 traffic flows (baseline ECMP v4/v6, plus the 2 dedicated
-// single-destination flows used by the TE-1.7.3/TE-1.7.4 negative subtests), all
-// sourced from ATE port1 and left running continuously.
+// setFlowTransmit starts or stops only the named OTG flows.
+func setFlowTransmit(t *testing.T, ate *ondatra.ATEDevice, state gosnappi.StateTrafficFlowTransmitStateEnum, flowNames ...string) {
+	t.Helper()
+	cs := gosnappi.NewControlState()
+	cs.Traffic().FlowTransmit().SetState(state).SetFlowNames(flowNames)
+	ate.OTG().SetControlState(t, cs)
+}
+
+// configureFlows adds the 4 continuous traffic flows (baseline ECMP v4/v6, plus the 2
+// dedicated single-destination flows used by the TE-1.7.3/TE-1.7.4 negative subtests),
+// all sourced from ATE port1.
 func configureFlows(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, dstMac string) {
 	t.Helper()
 	srcPort := ate.Port(t, "port1")
@@ -335,29 +344,16 @@ func programECMPBaseline(t *testing.T, dut *ondatra.DUTDevice, client *gribi.Cli
 	if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
 		configStaticRouteAndARPForMagicIP(t, dut, ni)
 	}
-	// nhOpts builds the NH options for portPairs[idx]. Some DUTs reject a MAC-only
-	// next-hop-entry and need an accompanying, ARP-resolvable IP: either the magic
-	// IP/MAC bound via static route+ARP above, or the ATE's own already-resolved IP.
-	nhOpts := func(idx int) *gribi.NHOptions {
-		switch {
-		case deviations.GRIBIMACOverrideStaticARPStaticRoute(dut):
-			return &gribi.NHOptions{Interface: dut.Port(t, portPairs[idx].name).Name(), Mac: magicMac, Dest: magicIP}
-		case deviations.GRIBIMACOverrideWithStaticARP(dut):
-			return &gribi.NHOptions{Interface: dut.Port(t, portPairs[idx].name).Name(), Mac: portPairs[idx].ate.MAC, Dest: portPairs[idx].ate.IPv4}
-		default:
-			return &gribi.NHOptions{Interface: dut.Port(t, portPairs[idx].name).Name(), Mac: portPairs[idx].ate.MAC}
-		}
-	}
 
-	nh2Opts := nhOpts(1)
+	nh2Opts := nhOpts(t, dut, 1)
 	// wantResult relaxes the setup assertions to RIB-only on DUTs that don't reliably ack FIB.
 	wantResult := fluent.InstalledInFIB
 	if deviations.GRIBIRIBAckOnly(dut) {
 		wantResult = fluent.InstalledInRIB
 	}
 	client.AddNH(t, nh2ID, "MACwithInterface", ni, wantResult, nh2Opts)
-	client.AddNH(t, nh3ID, "MACwithInterface", ni, wantResult, nhOpts(2))
-	client.AddNH(t, nh4ID, "MACwithInterface", ni, wantResult, nhOpts(3))
+	client.AddNH(t, nh3ID, "MACwithInterface", ni, wantResult, nhOpts(t, dut, 2))
+	client.AddNH(t, nh4ID, "MACwithInterface", ni, wantResult, nhOpts(t, dut, 3))
 	client.AddNHG(t, nhg1ID, map[uint64]uint64{nh2ID: 1, nh3ID: 1, nh4ID: 1}, ni, wantResult)
 	client.AddNHG(t, nhgPort2OnlyID, map[uint64]uint64{nh2ID: 1}, ni, wantResult)
 
@@ -384,6 +380,22 @@ func programECMPBaseline(t *testing.T, dut *ondatra.DUTDevice, client *gribi.Cli
 		v6Results = append(v6Results, fluent.OperationResult().WithIPv6Operation(ip+"/128").WithOperationType(constants.Add).WithProgrammingResult(wantResult).AsResult())
 	}
 	addEntriesBatched(t, client, v6Entries, v6Results)
+}
+
+// nhOpts builds the interface-bound NH options for portPairs[idx]. Some DUTs reject a
+// MAC-only next-hop-entry and need an accompanying, ARP-resolvable IP: either the magic
+// IP/MAC bound via static route+ARP, or the ATE's own already-resolved IP.
+func nhOpts(t *testing.T, dut *ondatra.DUTDevice, idx int) *gribi.NHOptions {
+	t.Helper()
+	intf := dut.Port(t, portPairs[idx].name).Name()
+	switch {
+	case deviations.GRIBIMACOverrideStaticARPStaticRoute(dut):
+		return &gribi.NHOptions{Interface: intf, Mac: magicMac, Dest: magicIP}
+	case deviations.GRIBIMACOverrideWithStaticARP(dut):
+		return &gribi.NHOptions{Interface: intf, Mac: portPairs[idx].ate.MAC, Dest: portPairs[idx].ate.IPv4}
+	default:
+		return &gribi.NHOptions{Interface: intf, Mac: portPairs[idx].ate.MAC}
+	}
 }
 
 // ipRouteBatchSize caps entries sent per Modify+Await round trip; this DUT is slow
@@ -677,7 +689,7 @@ func testMTUChange(t *testing.T, dut *ondatra.DUTDevice, p2, p3, p4 *ondatra.Por
 func testNHOnDownInterface(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, client *gribi.Client, ni string, p2 *ondatra.Port) {
 	setPortEnabled(t, dut, p2, false)
 
-	nh, _ := gribi.NHEntry(nhDownID, portPairs[1].ate.IPv4, ni, fluent.InstalledInFIB)
+	nh, _ := gribi.NHEntry(nhDownID, "MACwithInterface", ni, fluent.InstalledInFIB, nhOpts(t, dut, 1))
 	nhg, _ := gribi.NHGEntry(nhgDownID, map[uint64]uint64{nhDownID: 1}, ni, fluent.InstalledInFIB)
 	ipEntry := fluent.IPv4Entry().WithPrefix(ipv4NegRoute + "/32").WithNetworkInstance(ni).WithNextHopGroup(nhgDownID)
 
@@ -694,6 +706,9 @@ func testNHOnDownInterface(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.AT
 	// README Step 4: observe whether NH20's telemetry reflects rejection/unviability.
 	verifyNHViaAFT(t, dut, ni, nhDownID)
 
+	// README Step 5.
+	setFlowTransmit(t, ate, gosnappi.StateTrafficFlowTransmitState.START, flowNegDownName)
+	defer setFlowTransmit(t, ate, gosnappi.StateTrafficFlowTransmitState.STOP, flowNegDownName)
 	verifyFlowLoss(t, ate, flowNegDownName, monitorWindow, 100)
 
 	setPortEnabled(t, dut, p2, true)
@@ -708,6 +723,10 @@ func testNHOnDownInterface(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.AT
 }
 
 func testMTUSmallerThanPacket(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, p2 *ondatra.Port) {
+	// Started before the MTU fault (not at README Step 3) so Step 1's precondition can check it.
+	setFlowTransmit(t, ate, gosnappi.StateTrafficFlowTransmitState.START, flowMTUName)
+	defer setFlowTransmit(t, ate, gosnappi.StateTrafficFlowTransmitState.STOP, flowMTUName)
+
 	// README step 1: confirm traffic is already flowing steadily before injecting the
 	// MTU fault, so a failure here is attributed to a prior subtest instead of this one.
 	verifyFlowHealthy(t, ate, flowMTUName, monitorWindow)
