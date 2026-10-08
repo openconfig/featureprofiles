@@ -468,9 +468,11 @@ func TestPolarization(t *testing.T) {
 			gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
 		}
 		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+			p1 := dut.Port(t, "port1")
 			defaultNI := deviations.DefaultNetworkInstance(dut)
 			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(defaultNI).Interface(agg1ID+".0").Config())
 			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(defaultNI).Interface(agg2ID+".0").Config())
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(defaultNI).Interface(p1.Name()+".0").Config())
 		}
 		gnmi.Delete(t, dut, gnmi.OC().Interface(agg1ID).Config())
 		gnmi.Delete(t, dut, gnmi.OC().Interface(agg2ID).Config())
