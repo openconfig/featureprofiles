@@ -372,6 +372,14 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.Port, port
 	for _, portAttr := range portAttrs {
 		configInterfaceDUT(t, port, d, portAttr, dut)
 	}
+	for _, portAttr := range portAttrs {
+		if portAttr.Subinterface != 0 {
+			subintf := portAttr.Subinterface
+			t.Cleanup(func() {
+				gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Subinterface(subintf).Config())
+			})
+		}
+	}
 	gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Config(), d.GetOrCreateInterface(port.Name()))
 
 	// Configure Network instance type on DUT
