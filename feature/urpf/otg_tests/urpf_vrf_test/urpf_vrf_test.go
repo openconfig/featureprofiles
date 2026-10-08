@@ -16,10 +16,13 @@ package urpf_nondefault_ni_test
 
 import (
 	"fmt"
-	"strings"
+	"os"
 	"testing"
 	"time"
 
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
+	"github.com/google/gopacket/pcap"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
@@ -31,30 +34,30 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
 const (
-	plenIPv4           = 30
-	plenIPv6           = 126
-	dutAS              = 100
-	ateAS1             = 200 // eBGP peer
-	ateAS2             = 100 // iBGP peer
-	routeCount         = 1
-	tolerance          = 2
-	nonDefaultVRF      = "VRF-1"
-	loopbackIntfName   = "loopback0"
-	udpDestPort        = 6080
-	trafficDuration    = 45 * time.Second
-	ratePPS            = 100
-	flowSize           = 512
-	packetsToSend      = 3000
-	nexthopGroupNameV4 = "GUE-NHG"
-	nexthopGroupNameV6 = "GUE-NHGv6"
-	GUEPolicyV4Name    = "GUE-Policy-V4"
-	GUEPolicyV6Name    = "GUE-Policy-V6"
-	isDefaultVRF       = true
+	plenIPv4                     = 30
+	plenIPv6                     = 126
+	dutAS                        = 100
+	ateAS1                       = 200 // eBGP peer
+	ateAS2                       = 100 // iBGP peer
+	routeCount                   = 1
+	nonDefaultVRF                = "VRF-1"
+	loopbackIntfName             = "loopback0"
+	udpDestPort                  = 6080
+	udpSrcPort                   = 50000
+	trafficDuration              = 45 * time.Second
+	ratePPS                      = 100
+	flowSize                     = 512
+	packetsToSend                = 3000
+	nexthopGroupNameV4           = "GUE-NHG"
+	GUEPolicyV4Name              = "GUE-Policy-V4"
+	isDefaultVRF                 = true
+	portCounterControlPlaneSlack = 10
 )
 
 // IP addresses and prefixes
@@ -78,7 +81,13 @@ var (
 	// Destination prefixes advertised from ATE Port 2
 	ateAdvIPv4Prefix3 = "198.18.3.0"
 	ateAdvIPv6Prefix3 = "4001:db8:10::"
-	defaultNIName     = strings.ToLower("DEFAULT")
+	// Host addresses used in traffic flows (must belong to advertised prefixes).
+	ateFlowIPv4ValidSrc   = "198.18.1.1"
+	ateFlowIPv6ValidSrc   = "2001:db8:10::1"
+	ateFlowIPv4InvalidSrc = "198.18.2.1"
+	ateFlowIPv6InvalidSrc = "3001:db8:10::1"
+	ateFlowIPv4Dst        = "198.18.3.1"
+	ateFlowIPv6Dst        = "4001:db8:10::1"
 	// Connected subnets of DUT port1, used for the uRPF lookup in the non-default VRF.
 	dutPort1ConnectedV4 = "192.0.2.0/30"
 	dutPort1ConnectedV6 = "2001:db8:1::/126"
@@ -93,6 +102,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch {
 	t.Helper()
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
+	defaultNIName := deviations.DefaultNetworkInstance(dut)
 	intBatch := new(gnmi.SetBatch)
 	t.Logf("Configuring Interfaces")
 	configureDUTInterface(t, dut, intBatch, &dutPort1, p1, true)
@@ -102,6 +112,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch {
 	configureHardwareInit(t, dut)
 	cfgplugins.EnableDefaultNetworkInstanceBgp(t, dut, dutAS)
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		cfgplugins.AssignToNetworkInstance(t, dut, p1.Name(), defaultNIName, 0)
+		cfgplugins.AssignToNetworkInstance(t, dut, p2.Name(), defaultNIName, 0)
+	}
 	t.Log("Configuring Network Instances")
 	defaultNI := cfgplugins.ConfigureNetworkInstance(t, dut, defaultNIName, isDefaultVRF)
 	nonDefaultNI := cfgplugins.ConfigureNetworkInstance(t, dut, nonDefaultVRF, !isDefaultVRF)
@@ -250,39 +264,54 @@ func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-// configureGUEEncap configures a GUE tunnel with optional ToS and TTL.
-func configureGUEEncap(t *testing.T, dut *ondatra.DUTDevice, trafficType, nextHopGrpName, srcIP, GUEPolicyName string, dstIP []string, UDPDstPort uint16) {
+// configureGUEEncap configures GUE using the RT-3.53 model:
+// destination prefixes are resolved through a static route to a UDPv4 next-hop-group.
+func configureGUEEncap(t *testing.T, dut *ondatra.DUTDevice, srcIP string, dstIP []string, UDPDstPort uint16) {
 	t.Helper()
 	d := &oc.Root{}
 	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	v4NexthopUDPParams := cfgplugins.NexthopGroupUDPParams{
-		IPFamily:           trafficType,
-		NexthopGrpName:     nextHopGrpName,
+		IPFamily:           "V4Udp",
+		NexthopGrpName:     nexthopGroupNameV4,
+		Index:              "0",
 		SrcIp:              srcIP,
 		DstIp:              dstIP,
+		SrcUdpPort:         udpSrcPort,
 		DstUdpPort:         UDPDstPort,
 		NetworkInstanceObj: ni,
 	}
-	// Create nexthop group for v4
+	// Create UDPv4 next-hop-group
 	cfgplugins.NextHopGroupConfigForIpOverUdp(t, dut, v4NexthopUDPParams)
-	gueV4EncapPolicyParams := cfgplugins.GueEncapPolicyParams{
-		IPFamily:         trafficType,
-		PolicyName:       GUEPolicyName,
-		NexthopGroupName: nextHopGrpName,
-		SrcIntfName:      srcIP,
-		DstAddr:          dstIP,
-		Rule:             1,
+
+	if !deviations.NextHopGroupOCUnsupported(dut) {
+		cfgplugins.UpdateNetworkInstanceOnDut(t, dut, deviations.DefaultNetworkInstance(dut), ni)
 	}
-	cfgplugins.NewPolicyForwardingGueEncap(t, dut, gueV4EncapPolicyParams)
-	// Apply traffic policy on interface
-	interfacePolicyParams := cfgplugins.OcPolicyForwardingParams{
-		InterfaceID:        dut.Port(t, "port1").Name(),
-		AppliedPolicyName:  GUEPolicyName,
-		InterfaceName:      dut.Port(t, "port1").Name(),
-		PolicyName:         GUEPolicyName,
-		NetworkInstanceObj: ni,
+
+	b := &gnmi.SetBatch{}
+	for _, pfx := range []struct {
+		prefix      string
+		prefixLen   int
+		policyRule  string
+		trafficType oc.E_Aft_EncapsulationHeaderType
+	}{
+		{prefix: ateAdvIPv4Prefix3, prefixLen: prefixIPv4Len, policyRule: "rule1", trafficType: oc.Aft_EncapsulationHeaderType_UDPV4},
+		{prefix: ateAdvIPv6Prefix3, prefixLen: prefixIPv6Len, policyRule: "rule1", trafficType: oc.Aft_EncapsulationHeaderType_UDPV4},
+	} {
+		sr := &cfgplugins.StaticRouteCfg{
+			NetworkInstance:  deviations.DefaultNetworkInstance(dut),
+			Prefix:           fmt.Sprintf("%s/%d", pfx.prefix, pfx.prefixLen),
+			NexthopGroup:     true,
+			NexthopGroupName: nexthopGroupNameV4,
+			T:                t,
+			TrafficType:      pfx.trafficType,
+			PolicyName:       GUEPolicyV4Name,
+			Rule:             pfx.policyRule,
+		}
+		if _, err := cfgplugins.NewStaticRouteCfg(b, sr, dut); err != nil {
+			t.Fatalf("Failed to configure GUE static route %s/%d: %v", pfx.prefix, pfx.prefixLen, err)
+		}
 	}
-	cfgplugins.InterfacePolicyForwardingApply(t, dut, interfacePolicyParams)
+	b.Set(t, dut)
 }
 
 // configureATE configures the ATE topology with two BGP peers.
@@ -305,11 +334,17 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) (gosnappi.Config, []stri
 	validNetV4 := bgp1Peer.V4Routes().Add().SetName("ValidSrc_V4")
 	validNetV4.SetNextHopIpv4Address(atePort1.IPv4)
 	validNetV4.Addresses().Add().SetAddress(ateAdvIPv4Prefix1).SetPrefix(uint32(prefixIPv4Len)).SetCount(routeCount)
+	invalidNetV4 := bgp1Peer.V4Routes().Add().SetName("InvalidSrc_V4")
+	invalidNetV4.SetNextHopIpv4Address(atePort1.IPv4)
+	invalidNetV4.Addresses().Add().SetAddress(ateAdvIPv4Prefix2).SetPrefix(uint32(prefixIPv4Len)).SetCount(routeCount)
 	bgp1PeerV6 := bgp1.Ipv6Interfaces().Add().SetIpv6Name(ip1V6.Name()).Peers().Add().SetName(fmt.Sprintf("%s.v6.EBGP.peer", dev1.Name()))
 	bgp1PeerV6.SetPeerAddress(dutPort1.IPv6).SetAsNumber(uint32(ateAS1)).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
 	validNetV6 := bgp1PeerV6.V6Routes().Add().SetName("ValidSrc_V6")
 	validNetV6.SetNextHopIpv6Address(atePort1.IPv6)
 	validNetV6.Addresses().Add().SetAddress(ateAdvIPv6Prefix1).SetPrefix(uint32(prefixIPv6Len)).SetCount(routeCount)
+	invalidNetV6 := bgp1PeerV6.V6Routes().Add().SetName("InvalidSrc_V6")
+	invalidNetV6.SetNextHopIpv6Address(atePort1.IPv6)
+	invalidNetV6.Addresses().Add().SetAddress(ateAdvIPv6Prefix2).SetPrefix(uint32(prefixIPv6Len)).SetCount(routeCount)
 	// ATE Port 2 (iBGP)
 	bgp2 := dev2.Bgp().SetRouterId(atePort2.IPv4)
 	bgp2Peer := bgp2.Ipv4Interfaces().Add().SetIpv4Name(ip2V4.Name()).Peers().Add().SetName(fmt.Sprintf("%s.v4.IBGP.peer", dev2.Name()))
@@ -356,9 +391,10 @@ func createFlow(t *testing.T, dut *ondatra.DUTDevice, top gosnappi.Config, name,
 	return flow
 }
 
-// verifyTraffic checks traffic flow metrics for expected loss.
-func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, flowName string, expectLoss bool) uint64 {
+// verifyTraffic checks traffic flow metrics and validates Port2 ingress counters.
+func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, flowName string, expectLoss bool, rxPortName string) uint64 {
 	t.Helper()
+	port2InFramesBefore := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(rxPortName).Counters().InFrames().State())
 	t.Logf("Starting traffic for flow %s", flowName)
 	ate.OTG().StartTraffic(t)
 	deadline := time.Now().Add(trafficDuration)
@@ -381,6 +417,8 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, fl
 	flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).State())
 	txPackets := flowMetrics.GetCounters().GetOutPkts()
 	rxPackets := flowMetrics.GetCounters().GetInPkts()
+	port2InFramesAfter := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(rxPortName).Counters().InFrames().State())
+	port2Delta := port2InFramesAfter - port2InFramesBefore
 	if txPackets == 0 {
 		t.Fatalf("Flow %s did not transmit any packets.", flowName)
 	}
@@ -391,11 +429,28 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, fl
 		} else {
 			t.Logf("Successfully verified 100%% packet loss for flow %s", flowName)
 		}
+		if rxPackets != 0 {
+			t.Errorf("expected zero received packets on flow %s, got %d", flowName, rxPackets)
+		}
+		if port2Delta > portCounterControlPlaneSlack {
+			t.Errorf("expected near-zero ingress packets on Port2 for loss case %s, got delta=%d (> slack %d)", flowName, port2Delta, portCounterControlPlaneSlack)
+		}
 	} else {
-		if got := (lostPackets * 100 / txPackets); got >= tolerance {
-			t.Errorf("expected no packet loss for flow %s, but lost %d packets", flowName, lostPackets)
+		if lostPackets != 0 || txPackets != rxPackets {
+			t.Errorf("expected zero packet loss for flow %s, got tx=%d rx=%d lost=%d", flowName, txPackets, rxPackets, lostPackets)
 		} else {
 			t.Logf("Successfully verified no packet loss for flow %s", flowName)
+		}
+		// README requires Port2 observed packets to match received flow packets.
+		// Use bounded tolerance to avoid false negatives from sampling/timing skew.
+		var deltaDiff uint64
+		if port2Delta >= rxPackets {
+			deltaDiff = port2Delta - rxPackets
+		} else {
+			deltaDiff = rxPackets - port2Delta
+		}
+		if deltaDiff > portCounterControlPlaneSlack {
+			t.Errorf("Port2 ingress counter mismatch for flow %s: delta=%d, flow-rx=%d, diff=%d (> slack %d)", flowName, port2Delta, rxPackets, deltaDiff, portCounterControlPlaneSlack)
 		}
 	}
 	return txPackets
@@ -410,12 +465,18 @@ func TestURPFNonDefaultNI(t *testing.T) {
 	configureDUT(t, dut)
 	t.Log("Configure ATE with eBGP and iBGP peers")
 	otgConfig, interfaceNamesList := configureATE(t, ate)
+	rxOTGPortName := otgConfig.Ports().Items()[1].Name()
 	ate.OTG().PushConfig(t, otgConfig)
 	ate.OTG().StartProtocols(t)
 	cfgplugins.IsIPv4InterfaceARPresolved(t, ate, cfgplugins.AddressFamilyParams{InterfaceNames: interfaceNamesList})
 	cfgplugins.IsIPv6InterfaceARPresolved(t, ate, cfgplugins.AddressFamilyParams{InterfaceNames: interfaceNamesList})
-	cfgplugins.VerifyDUTVrfBGPState(t, dut, cfgplugins.VrfBGPState{NetworkInstanceName: defaultNIName, NeighborIPs: []string{atePort2.IPv4, atePort2.IPv6}})
+	if !deviations.URPFConfigOCUnsupported(dut) {
+		verifyURPFTelemetryState(t, dut, dut.Port(t, "port1").Name())
+	}
+	defaultNIName := deviations.DefaultNetworkInstance(dut)
+	cfgplugins.VerifyDUTVrfBGPState(t, dut, cfgplugins.VrfBGPState{NetworkInstanceName: defaultNIName, NeighborIPs: []string{atePort1.IPv4, atePort1.IPv6, atePort2.IPv4, atePort2.IPv6}})
 	bgpRouteVerification(t, dut)
+	verifyInvalidPrefixPlacement(t, dut)
 	testCases := []struct {
 		desc           string
 		gueEnabled     bool
@@ -431,8 +492,8 @@ func TestURPFNonDefaultNI(t *testing.T) {
 			gueEnabled: false,
 			expectLoss: false,
 			isV4:       true,
-			srcIP:      ateAdvIPv4Prefix1,
-			dstIP:      ateAdvIPv4Prefix3,
+			srcIP:      ateFlowIPv4ValidSrc,
+			dstIP:      ateFlowIPv4Dst,
 			flowName:   "v4_valid_src",
 		},
 		{
@@ -440,8 +501,8 @@ func TestURPFNonDefaultNI(t *testing.T) {
 			gueEnabled: false,
 			expectLoss: false,
 			isV4:       false,
-			srcIP:      ateAdvIPv6Prefix1,
-			dstIP:      ateAdvIPv6Prefix3,
+			srcIP:      ateFlowIPv6ValidSrc,
+			dstIP:      ateFlowIPv6Dst,
 			flowName:   "v6_valid_src",
 		},
 		{
@@ -449,8 +510,8 @@ func TestURPFNonDefaultNI(t *testing.T) {
 			gueEnabled:     false,
 			expectLoss:     true,
 			isV4:           true,
-			srcIP:          ateAdvIPv4Prefix2,
-			dstIP:          ateAdvIPv4Prefix3,
+			srcIP:          ateFlowIPv4InvalidSrc,
+			dstIP:          ateFlowIPv4Dst,
 			flowName:       "v4_invalid_src",
 			verifyCounters: true,
 		},
@@ -459,8 +520,8 @@ func TestURPFNonDefaultNI(t *testing.T) {
 			gueEnabled:     false,
 			expectLoss:     true,
 			isV4:           false,
-			srcIP:          ateAdvIPv6Prefix2,
-			dstIP:          ateAdvIPv6Prefix3,
+			srcIP:          ateFlowIPv6InvalidSrc,
+			dstIP:          ateFlowIPv6Dst,
 			flowName:       "v6_invalid_src",
 			verifyCounters: true,
 		},
@@ -469,8 +530,8 @@ func TestURPFNonDefaultNI(t *testing.T) {
 			gueEnabled: true,
 			expectLoss: false,
 			isV4:       true,
-			srcIP:      ateAdvIPv4Prefix1,
-			dstIP:      ateAdvIPv4Prefix3,
+			srcIP:      ateFlowIPv4ValidSrc,
+			dstIP:      ateFlowIPv4Dst,
 			flowName:   "v4_valid_src_gue",
 		},
 		{
@@ -478,8 +539,8 @@ func TestURPFNonDefaultNI(t *testing.T) {
 			gueEnabled: true,
 			expectLoss: false,
 			isV4:       false,
-			srcIP:      ateAdvIPv6Prefix1,
-			dstIP:      ateAdvIPv6Prefix3,
+			srcIP:      ateFlowIPv6ValidSrc,
+			dstIP:      ateFlowIPv6Dst,
 			flowName:   "v6_valid_src_gue",
 		},
 		{
@@ -487,8 +548,8 @@ func TestURPFNonDefaultNI(t *testing.T) {
 			gueEnabled:     true,
 			expectLoss:     true,
 			isV4:           true,
-			srcIP:          ateAdvIPv4Prefix2,
-			dstIP:          ateAdvIPv4Prefix3,
+			srcIP:          ateFlowIPv4InvalidSrc,
+			dstIP:          ateFlowIPv4Dst,
 			flowName:       "v4_invalid_src_gue",
 			verifyCounters: true,
 		},
@@ -497,53 +558,183 @@ func TestURPFNonDefaultNI(t *testing.T) {
 			gueEnabled:     true,
 			expectLoss:     true,
 			isV4:           false,
-			srcIP:          ateAdvIPv6Prefix2,
-			dstIP:          ateAdvIPv6Prefix3,
+			srcIP:          ateFlowIPv6InvalidSrc,
+			dstIP:          ateFlowIPv6Dst,
 			flowName:       "v6_invalid_src_gue",
 			verifyCounters: true,
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
+			if tc.expectLoss && isKnownURPFLookupVrfUnsupportedOnDUT(dut) {
+				t.Skipf("Skipping %s: DUT supports CLI uRPF reachable-via any but not non-default lookup-vrf semantics; invalid-source traffic may be validated in default VRF and forward", tc.desc)
+			}
+			verifyGUEEncap := tc.gueEnabled && !tc.expectLoss
+			if verifyGUEEncap {
+				enableCapture(t, otgConfig, []string{rxOTGPortName})
+			}
 			if tc.gueEnabled {
 				t.Log("Configuring GUE on DUT")
 				dstAddr := []string{atePort2.IPv4}
-				if tc.isV4 {
-					configureGUEEncap(t, dut, "V4Udp", nexthopGroupNameV4, dutLoopback.IPv4, GUEPolicyV4Name, dstAddr, udpDestPort)
-				} else {
-					configureGUEEncap(t, dut, "V6Udp", nexthopGroupNameV6, dutLoopback.IPv4, GUEPolicyV6Name, dstAddr, udpDestPort)
-				}
+				configureGUEEncap(t, dut, dutLoopback.IPv4, dstAddr, udpDestPort)
 			}
 			var initialDropCount uint64
-			var exactURPFCounter bool
 			p1 := dut.Port(t, "port1")
 			if tc.verifyCounters {
-				initialDropCount, exactURPFCounter = urpfDropPkts(t, dut, p1.Name(), tc.isV4)
+				if !deviations.URPFConfigOCUnsupported(dut) {
+					initialDropCount = urpfDropPkts(t, dut, p1.Name(), tc.isV4)
+				}
 				t.Logf("Initial uRPF drop count: %d", initialDropCount)
 			}
 			flow := createFlow(t, dut, otgConfig, tc.flowName, tc.srcIP, tc.dstIP, tc.isV4)
 			ate.OTG().PushConfig(t, otgConfig)
 			ate.OTG().StartProtocols(t)
-			txPackets := verifyTraffic(t, ate, otgConfig, flow.Name(), tc.expectLoss)
+			var cs gosnappi.ControlState
+			if verifyGUEEncap {
+				cs = startCapture(t, ate.OTG())
+			}
+			txPackets := verifyTraffic(t, ate, otgConfig, flow.Name(), tc.expectLoss, rxOTGPortName)
+			if verifyGUEEncap {
+				stopCapture(t, ate.OTG(), cs)
+				verifyGUECaptureOnPort(t, ate.OTG(), rxOTGPortName, dutLoopback.IPv4, atePort2.IPv4, udpDestPort)
+			}
 			if tc.verifyCounters {
-				verifyURPFCounters(t, dut, p1.Name(), tc.isV4, initialDropCount, txPackets, exactURPFCounter)
+				if !deviations.URPFConfigOCUnsupported(dut) {
+					verifyURPFCounters(t, dut, p1.Name(), tc.isV4, initialDropCount, txPackets)
+				}
 			}
 		})
 	}
 }
 
+// isKnownURPFLookupVrfUnsupportedOnDUT returns true for platforms where this test's
+// non-default lookup-vrf behavior is not enforceable via available uRPF CLI.
+func isKnownURPFLookupVrfUnsupportedOnDUT(dut *ondatra.DUTDevice) bool {
+	return deviations.URPFConfigOCUnsupported(dut) && dut.Vendor() == ondatra.ARISTA
+}
+
+// verifyURPFTelemetryState validates the uRPF telemetry leaves covered by the README.
+func verifyURPFTelemetryState(t *testing.T, dut *ondatra.DUTDevice, portName string) {
+	t.Helper()
+	v4URPF := gnmi.OC().Interface(portName).Subinterface(0).Ipv4().Urpf()
+	v6URPF := gnmi.OC().Interface(portName).Subinterface(0).Ipv6().Urpf()
+
+	if got := gnmi.Get(t, dut, v4URPF.Enabled().State()); !got {
+		t.Errorf("IPv4 uRPF enabled state mismatch on %s: got %v, want true", portName, got)
+	}
+	if got := gnmi.Get(t, dut, v4URPF.Mode().State()); got != oc.IfIp_UrpfMode_LOOSE {
+		t.Errorf("IPv4 uRPF mode state mismatch on %s: got %v, want %v", portName, got, oc.IfIp_UrpfMode_LOOSE)
+	}
+
+	if got := gnmi.Get(t, dut, v6URPF.Enabled().State()); !got {
+		t.Errorf("IPv6 uRPF enabled state mismatch on %s: got %v, want true", portName, got)
+	}
+	if got := gnmi.Get(t, dut, v6URPF.Mode().State()); got != oc.IfIp_UrpfMode_LOOSE {
+		t.Errorf("IPv6 uRPF mode state mismatch on %s: got %v, want %v", portName, got, oc.IfIp_UrpfMode_LOOSE)
+	}
+
+	if deviations.URPFConfigOCUnsupported(dut) {
+		t.Logf("Skipping strict lookup-network-instance telemetry verification on %s due to urpf_config_oc_unsupported deviation", dut.Vendor())
+		return
+	}
+
+	if got, ok := gnmi.Lookup(t, dut, v4URPF.LookupNetworkInstance().State()).Val(); !ok {
+		t.Errorf("IPv4 uRPF lookup-network-instance state missing on %s", portName)
+	} else if got != nonDefaultVRF {
+		t.Errorf("IPv4 uRPF lookup-network-instance mismatch on %s: got %q, want %q", portName, got, nonDefaultVRF)
+	}
+
+	if got, ok := gnmi.Lookup(t, dut, v6URPF.LookupNetworkInstance().State()).Val(); !ok {
+		t.Errorf("IPv6 uRPF lookup-network-instance state missing on %s", portName)
+	} else if got != nonDefaultVRF {
+		t.Errorf("IPv6 uRPF lookup-network-instance mismatch on %s: got %q, want %q", portName, got, nonDefaultVRF)
+	}
+}
+
+// enableCapture configures OTG captures on the provided OTG port names.
+// Capture entries use the same port name for both capture name and binding.
+func enableCapture(t *testing.T, config gosnappi.Config, portNames []string) {
+	config.Captures().Clear()
+	for _, portName := range portNames {
+		cap := config.Captures().Add()
+		cap.SetName(portName)
+		cap.SetPortNames([]string{portName})
+		cap.SetFormat(gosnappi.CaptureFormat.PCAP)
+		t.Logf("Enabled capture on port %s", portName)
+	}
+}
+
+// startCapture starts packet capture on all capture-enabled OTG ports.
+func startCapture(t *testing.T, ateOTG *otg.OTG) gosnappi.ControlState {
+	t.Helper()
+	cs := gosnappi.NewControlState()
+	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
+	ateOTG.SetControlState(t, cs)
+	return cs
+}
+
+// stopCapture stops packet capture using the control state used to start capture.
+func stopCapture(t *testing.T, ateOTG *otg.OTG, cs gosnappi.ControlState) {
+	t.Helper()
+	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
+	ateOTG.SetControlState(t, cs)
+}
+
+// verifyGUECaptureOnPort validates that at least one captured packet on the given
+// OTG port matches the expected GUE outer IPv4 source/destination and UDP destination port.
+func verifyGUECaptureOnPort(t *testing.T, ateOTG *otg.OTG, portName, wantSrcIP, wantDstIP string, wantUDPDstPort uint16) {
+	t.Helper()
+	bytes := ateOTG.GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(portName))
+	pcapFile, err := os.CreateTemp("", "urpf-gue-*.pcap")
+	if err != nil {
+		t.Fatalf("failed to create pcap temp file: %v", err)
+	}
+	defer os.Remove(pcapFile.Name())
+	defer pcapFile.Close()
+	if _, err := pcapFile.Write(bytes); err != nil {
+		t.Fatalf("failed writing capture bytes: %v", err)
+	}
+
+	handle, err := pcap.OpenOffline(pcapFile.Name())
+	if err != nil {
+		t.Fatalf("failed opening capture file: %v", err)
+	}
+	defer handle.Close()
+
+	found := false
+	for pkt := range gopacket.NewPacketSource(handle, handle.LinkType()).Packets() {
+		ipv4Layer := pkt.Layer(layers.LayerTypeIPv4)
+		udpLayer := pkt.Layer(layers.LayerTypeUDP)
+		if ipv4Layer == nil || udpLayer == nil {
+			continue
+		}
+		ip4, ok := ipv4Layer.(*layers.IPv4)
+		if !ok {
+			continue
+		}
+		udp, ok := udpLayer.(*layers.UDP)
+		if !ok {
+			continue
+		}
+		if ip4.SrcIP.String() == wantSrcIP && ip4.DstIP.String() == wantDstIP && uint16(udp.DstPort) == wantUDPDstPort {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("did not find GUE encapsulated packet on %s with outer src=%s dst=%s udp dst=%d", portName, wantSrcIP, wantDstIP, wantUDPDstPort)
+	}
+	t.Logf("Verified GUE encapsulation on %s: outer src=%s dst=%s udp dst=%d", portName, wantSrcIP, wantDstIP, wantUDPDstPort)
+}
+
 // verifyURPFCounters checks if the uRPF drop counter has incremented as expected.
-func verifyURPFCounters(t *testing.T, dut *ondatra.DUTDevice, portName string, isV4 bool, initialDropCount, expectedIncrement uint64, exactURPFCounter bool) {
+func verifyURPFCounters(t *testing.T, dut *ondatra.DUTDevice, portName string, isV4 bool, initialDropCount, expectedIncrement uint64) {
 	t.Helper()
 	var query ygnmi.SingletonQuery[uint64]
-	if exactURPFCounter {
-		if isV4 {
-			query = gnmi.OC().Interface(portName).Subinterface(0).Ipv4().Counters().UrpfDropPkts().State()
-		} else {
-			query = gnmi.OC().Interface(portName).Subinterface(0).Ipv6().Counters().UrpfDropPkts().State()
-		}
+	if isV4 {
+		query = gnmi.OC().Interface(portName).Subinterface(0).Ipv4().Counters().UrpfDropPkts().State()
 	} else {
-		query = gnmi.OC().Interface(portName).Counters().InUnicastPkts().State()
+		query = gnmi.OC().Interface(portName).Subinterface(0).Ipv6().Counters().UrpfDropPkts().State()
 	}
 	gnmi.Watch(t, dut, query, 30*time.Second, func(val *ygnmi.Value[uint64]) bool {
 		newDropCount, present := val.Val()
@@ -551,40 +742,73 @@ func verifyURPFCounters(t *testing.T, dut *ondatra.DUTDevice, portName string, i
 			return false
 		}
 		dropCount := newDropCount - initialDropCount
-		if exactURPFCounter {
-			return dropCount == expectedIncrement
-		}
-		return dropCount >= expectedIncrement
+		return dropCount == expectedIncrement
 	}).Await(t)
 }
 
 // urpfDropPkts reads the IPv4 or IPv6 uRPF drop packet counter from subinterface 0.
-// The second return value indicates whether this is the dedicated uRPF drop counter (true)
-// or a fallback proxy counter (false).
-func urpfDropPkts(t *testing.T, dut *ondatra.DUTDevice, portName string, isV4 bool) (uint64, bool) {
+func urpfDropPkts(t *testing.T, dut *ondatra.DUTDevice, portName string, isV4 bool) uint64 {
 	t.Helper()
-	// TODO: No support for UrpfDropPkts yet; validating drops using InUnicastPkts for now. Will uncomment the below lines once support is added.
-	// if isV4 {
-	// 	if v, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(portName).Subinterface(0).Ipv4().Counters().UrpfDropPkts().State()).Val(); ok {
-	// 		return v, true
-	// 	}
-	// } else {
-	// 	if v, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(portName).Subinterface(0).Ipv6().Counters().UrpfDropPkts().State()).Val(); ok {
-	// 		return v, true
-	// 	}
-	// }
-	return gnmi.Get(t, dut, gnmi.OC().Interface(portName).Counters().InUnicastPkts().State()), false
+	if isV4 {
+		if v, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(portName).Subinterface(0).Ipv4().Counters().UrpfDropPkts().State()).Val(); ok {
+			return v
+		}
+		t.Fatalf("IPv4 urpf-drop-pkts is not available on interface %s subinterface 0", portName)
+	}
+	if v, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(portName).Subinterface(0).Ipv6().Counters().UrpfDropPkts().State()).Val(); ok {
+		return v
+	}
+	t.Fatalf("IPv6 urpf-drop-pkts is not available on interface %s subinterface 0", portName)
+	return 0
 }
 
 // bgpRouteVerification build routes parameters and verify routes if advertised routes are installed in DUT AFT.
 func bgpRouteVerification(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
+	defaultNIName := deviations.DefaultNetworkInstance(dut)
 	// Build routes to advertise
 	routesToAdvertise := map[string]cfgplugins.RouteInfo{
 		fmt.Sprintf("%s/%d", ateAdvIPv4Prefix1, prefixIPv4Len): {VRF: nonDefaultVRF, IPType: cfgplugins.IPv4, DefaultName: defaultNIName},
+		fmt.Sprintf("%s/%d", ateAdvIPv4Prefix2, prefixIPv4Len): {VRF: defaultNIName, IPType: cfgplugins.IPv4, DefaultName: defaultNIName},
 		fmt.Sprintf("%s/%d", ateAdvIPv4Prefix3, prefixIPv4Len): {VRF: defaultNIName, IPType: cfgplugins.IPv4, DefaultName: defaultNIName},
 		fmt.Sprintf("%s/%d", ateAdvIPv6Prefix1, prefixIPv6Len): {VRF: nonDefaultVRF, IPType: cfgplugins.IPv6, DefaultName: defaultNIName},
+		fmt.Sprintf("%s/%d", ateAdvIPv6Prefix2, prefixIPv6Len): {VRF: defaultNIName, IPType: cfgplugins.IPv6, DefaultName: defaultNIName},
 		fmt.Sprintf("%s/%d", ateAdvIPv6Prefix3, prefixIPv6Len): {VRF: defaultNIName, IPType: cfgplugins.IPv6, DefaultName: defaultNIName},
 	}
 	cfgplugins.VerifyRoutes(t, dut, routesToAdvertise)
+}
+
+// verifyInvalidPrefixPlacement validates the invalid prefixes are learned in default VRF but not present
+// in the non-default VRF used for uRPF lookup.
+func verifyInvalidPrefixPlacement(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	defaultNIName := deviations.DefaultNetworkInstance(dut)
+	tests := []struct {
+		prefix string
+		isV4   bool
+	}{
+		{prefix: fmt.Sprintf("%s/%d", ateAdvIPv4Prefix2, prefixIPv4Len), isV4: true},
+		{prefix: fmt.Sprintf("%s/%d", ateAdvIPv6Prefix2, prefixIPv6Len), isV4: false},
+	}
+
+	for _, tc := range tests {
+		if !prefixInNIAFT(t, dut, defaultNIName, tc.prefix, tc.isV4) {
+			t.Errorf("prefix %s not found in %s AFT, want present", tc.prefix, defaultNIName)
+		}
+		if prefixInNIAFT(t, dut, nonDefaultVRF, tc.prefix, tc.isV4) {
+			t.Errorf("prefix %s found in %s AFT, want absent", tc.prefix, nonDefaultVRF)
+		}
+	}
+}
+
+// prefixInNIAFT reports whether the given prefix exists in the specified network-instance AFT.
+func prefixInNIAFT(t *testing.T, dut *ondatra.DUTDevice, niName, prefix string, isV4 bool) bool {
+	t.Helper()
+	aft := gnmi.OC().NetworkInstance(niName).Afts()
+	if isV4 {
+		_, ok := gnmi.Lookup(t, dut, aft.Ipv4Entry(prefix).State()).Val()
+		return ok
+	}
+	_, ok := gnmi.Lookup(t, dut, aft.Ipv6Entry(prefix).State()).Val()
+	return ok
 }
