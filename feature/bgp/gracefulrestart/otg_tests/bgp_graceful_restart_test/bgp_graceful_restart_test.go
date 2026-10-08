@@ -15,6 +15,7 @@
 package bgp_graceful_restart_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -22,6 +23,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	gnps "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/gnoigo/system"
@@ -762,6 +764,14 @@ func TestBGPGracefulRestart(t *testing.T) {
 		dutConf := bgpWithNbr(dutAS, keepaliveTimer, nbrList, dut)
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
+
+		if deviations.BgpGrHelperHoldTimerExpiryRequiresStalePolicy(dut) {
+			t.Log("Configuring GR helper stale-route policy for hold-timer-expiry GR")
+			helpers.GnmiCLIConfig(t, dut, fmt.Sprintf(`
+			router bgp %d
+			graceful-restart-helper restart-time %d stale-route route-map ALLOW session-failure graceful-restart-negotiation optional
+			`, dutAS, grRestartTime))
+		}
 
 		// Start protocols
 		ate.OTG().StartProtocols(t)
