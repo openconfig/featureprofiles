@@ -46,6 +46,9 @@ func RunTests(m *testing.M) {
 	if err := initMetadata(); err != nil {
 		log.Errorf("Unable to initialize test metadata: %v", err)
 	}
+	if skipIfNotIntended() {
+		return
+	}
 	ygnmi.WithDatapointValidator(datapointValidator)
 	ondatra.RunTests(m, binding.New)
 }
@@ -88,6 +91,7 @@ func testbedPathFromMetadata() (string, error) {
 		mpb.Metadata_TESTBED_DUT_2LINKS:               "dut_2links.testbed",
 		mpb.Metadata_TESTBED_DUT_8_LOOP_2_ATE:         "dut_8_loop_2_ate.testbed",
 		mpb.Metadata_TESTBED_ATE_DUT1_4LINKS_DUT2_ATE: "ate_dut1_4links_dut2_ate.testbed",
+		mpb.Metadata_TESTBED_DUT_DUT_ATE_8LINKS:       "dutdutate_8.testbed",
 	}
 	testbedFile, ok := testbedToFile[testbed]
 	if !ok {
