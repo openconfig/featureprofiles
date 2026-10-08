@@ -327,9 +327,9 @@ func configStaticRouteAndARPForMagicIP(t *testing.T, dut *ondatra.DUTDevice, ni 
 // programECMPBaseline programs NH10/11/12 -> port2/3/4 (using MACwithInterface, since
 // Arista rejects a MAC without an accompanying interface reference), an ECMP NHG100
 // over them, and numV4Routes/numV6Routes IPv4/IPv6 entries pointing at NHG100. It also
-// programs the TE-1.7.3 dedicated prefix onto NHG100 (until that subtest reprograms it)
-// and the TE-1.7.4 dedicated prefix onto a port2-only NHG, since that subtest requires
-// traffic solely destined via port2.
+// programs the TE-1.7.4 dedicated prefix onto a port2-only NHG, since that subtest
+// requires traffic solely destined via port2; the TE-1.7.3 prefix is intentionally left
+// unprogrammed here, since that subtest's README step introduces it as new.
 func programECMPBaseline(t *testing.T, dut *ondatra.DUTDevice, client *gribi.Client, ni string) {
 	t.Helper()
 	if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
@@ -372,7 +372,6 @@ func programECMPBaseline(t *testing.T, dut *ondatra.DUTDevice, client *gribi.Cli
 	}
 	addEntriesBatched(t, client, v4Entries, v4Results)
 
-	client.AddIPv4(t, ipv4NegRoute+"/32", nhg1ID, ni, ni, wantResult)
 	client.AddIPv4(t, ipv4MTURoute+"/32", nhgPort2OnlyID, ni, ni, wantResult)
 
 	v6Prefixes, err := iputil.GenerateIPv6s(net.ParseIP(ipv6BaseRoute), numV6Routes)
