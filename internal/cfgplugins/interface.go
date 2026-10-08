@@ -887,9 +887,7 @@ func AddPortToAggregate(t *testing.T, dut *ondatra.DUTDevice, aggID string, dutA
 	e.AggregateId = ygot.String(aggID)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 
-	if deviations.InterfaceEnabled(dut) {
-		i.Enabled = ygot.Bool(true)
-	}
+	i.Enabled = ygot.Bool(true)
 	if op.PMD() == ondatra.PMD100GBASEFR && deviations.ExplicitPortSpeed(dut) {
 		e.AutoNegotiate = ygot.Bool(false)
 		e.DuplexMode = oc.Ethernet_DuplexMode_FULL
@@ -948,14 +946,19 @@ func NewAggregateInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatc
 	aggID := l.LagName
 	agg := l.NewOCInterface(aggID, dut)
 	agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-	if deviations.IPv4MissingEnabled(dut) {
-		agg.GetSubinterface(0).GetOrCreateIpv4().SetEnabled(true)
-		agg.GetSubinterface(0).GetOrCreateIpv6().SetEnabled(true)
+	agg.Enabled = ygot.Bool(true)
+	if l.Attributes.IPv4 != "" || l.Attributes.IPv6 != "" {
+		agg.GetOrCreateSubinterface(0).Enabled = ygot.Bool(true)
 	}
-
-	if deviations.RequireRoutedSubinterface0(dut) {
-		agg.GetSubinterface(0).GetOrCreateIpv4().SetEnabled(true)
-		agg.GetSubinterface(0).GetOrCreateIpv6().SetEnabled(true)
+	if sub0 := agg.GetSubinterface(0); sub0 != nil {
+		if deviations.IPv4MissingEnabled(dut) {
+			sub0.GetOrCreateIpv4().SetEnabled(true)
+			sub0.GetOrCreateIpv6().SetEnabled(true)
+		}
+		if deviations.RequireRoutedSubinterface0(dut) {
+			sub0.GetOrCreateIpv4().SetEnabled(true)
+			sub0.GetOrCreateIpv6().SetEnabled(true)
+		}
 	}
 
 	agg.GetOrCreateAggregation().LagType = l.AggType

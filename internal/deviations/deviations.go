@@ -152,6 +152,11 @@ func ISISRestartSuppressUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisRestartSuppressUnsupported()
 }
 
+// ISISLspRetransmitCounterUnsupported returns whether the device skips isis lsp retransmit packet counter check.
+func ISISLspRetransmitCounterUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisLspRetransmitCounterUnsupported()
+}
+
 // BgpGrHelperDisableUnsupported returns whether the device does not support to disable BGP GR Helper.
 func BgpGrHelperDisableUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpGrHelperDisableUnsupported()
