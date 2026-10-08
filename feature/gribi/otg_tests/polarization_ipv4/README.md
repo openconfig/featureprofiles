@@ -109,12 +109,21 @@ NHG 101  (8:1)
     LAG 2. The ATE and the DUT resolve every adjacency with ARP; no static
     neighbors are configured. Because both sides are LAGs, ARP works
     whichever member carries the request or reply.
-5.  Generate a large set of unique IPv4/UDP flow tuples (varying source IP and
-    UDP ports, fixed destination IP within `198.51.100.0/24`). All addresses are
-    confined to reserved ranges only — RFC 5737 documentation blocks
-    (`192.0.2.0/24`, `198.51.100.0/24`, `203.0.113.0/24`) and the RFC 2544
-    benchmarking block (`198.18.0.0/15`) — so no test traffic can leak onto or
-    spoof a real public network.
+5.  Generate a large set of unique flow tuples across two traffic profiles:
+    *   **Plain IPv4 (`IPv4`)**: Ethernet + IPv4 + UDP (varying outer source IP
+        across `198.18.0.0/16` and UDP source/destination ports, fixed outer
+        destination IP `198.51.100.66` within `198.51.100.0/24`).
+    *   **IP-in-IP Transit (`IPIP`)**: Ethernet + Outer IPv4 (`Protocol=4`,
+        fixed outer source IP `198.51.100.1` and fixed outer destination IP
+        `198.51.100.66`) + Inner IPv4 + Inner UDP (varying inner source IP
+        across `198.18.0.0/16`, fixed inner destination IP `203.0.113.66`, and
+        varying inner UDP source/destination ports). Because the outer tunnel
+        header is static, this verifies that the DUT parses and hashes the
+        inner IPv4/L4 headers without polarization.
+    All addresses are confined to reserved ranges only — RFC 5737 documentation
+    blocks (`192.0.2.0/24`, `198.51.100.0/24`, `203.0.113.0/24`) and the
+    RFC 2544 benchmarking block (`198.18.0.0/15`) — so no test traffic can leak
+    onto or spoof a real public network.
 
 ### Test: Iterative Replay
 
@@ -472,7 +481,6 @@ rpcs:
 
 *   Add IP-in-IP encap flow variant
 *   Add IP-in-IP decap flow variant
-*   Add IP-in-IP transit flow variant
 *   Optional: extra TGEN ports or a two-DUT topology so polarization can
     be measured on every LAG member instead of port2 only
 
