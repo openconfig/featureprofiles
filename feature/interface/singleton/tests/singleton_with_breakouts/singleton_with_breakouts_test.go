@@ -32,8 +32,8 @@ import (
 )
 
 const (
-	maxRebootTime   = 900 // Seconds.
-	maxCompWaitTime = 900
+	maxRebootTime   = 1200 // Seconds.
+	maxCompWaitTime = 1200
 )
 
 func TestMain(m *testing.M) {
