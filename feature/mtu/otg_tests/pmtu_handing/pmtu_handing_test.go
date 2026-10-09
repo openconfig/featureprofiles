@@ -53,6 +53,7 @@ const (
 	mtuDst                  = 1514
 	trafficRunDuration      = 15 * time.Second
 	trafficStopWaitDuration = 10 * time.Second
+	captureRunDuration      = 2 * time.Second
 	tgWaitDuration          = 30 * time.Second
 	acceptableLossPercent   = 100.0
 	subInterfaceIndex       = 0
@@ -152,7 +153,7 @@ var (
 	icPattern = map[ondatra.Vendor]string{
 		ondatra.ARISTA:  "^SwitchChip",
 		ondatra.CISCO:   "^[0-9]/[0-9]/CPU[0-9]-NPU[0-9]",
-		ondatra.JUNIPER: "NPU[0-9]$",
+		ondatra.JUNIPER: "NPU[0-9]+$",
 		ondatra.NOKIA:   "^SwitchChip",
 	}
 
@@ -377,14 +378,44 @@ func createFlowAndVerifyTraffic(t *testing.T, td testData, tt testDefinition, wa
 	td.otg.StartProtocols(t)
 	waitF(t)
 	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
-	td.otg.SetControlState(t, cs)
-	td.otg.StartTraffic(t)
-	time.Sleep(trafficRunDuration)
+cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
+td.otg.SetControlState(t, cs)
+td.otg.StartTraffic(t)
+defer func() {
 	td.otg.StopTraffic(t)
-	time.Sleep(trafficStopWaitDuration)
+	stopCapture := gosnappi.NewControlState()
+	stopCapture.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
+	td.otg.SetControlState(t, stopCapture)
+}()
+	trafficStopped, captureStopped := false, false
+	// Ensure traffic and capture are stopped even if the test fails early.
+	defer func() {
+		if !captureStopped {
+			stopCapture := gosnappi.NewControlState()
+			stopCapture.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
+			td.otg.SetControlState(t, stopCapture)
+		}
+		if !trafficStopped {
+			td.otg.StopTraffic(t)
+		}
+	}()
+
+	// Keep the capture window short to avoid per-port capture buffer exhaustion on OTG.
+	effectiveCaptureDuration := captureRunDuration
+	if effectiveCaptureDuration > trafficRunDuration {
+		effectiveCaptureDuration = trafficRunDuration
+	}
+	time.Sleep(effectiveCaptureDuration)
 	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
 	td.otg.SetControlState(t, cs)
+	captureStopped = true
+
+	if remainingTrafficDuration := trafficRunDuration - effectiveCaptureDuration; remainingTrafficDuration > 0 {
+		time.Sleep(remainingTrafficDuration)
+	}
+	td.otg.StopTraffic(t)
+	trafficStopped = true
+	time.Sleep(trafficStopWaitDuration)
 	otgutils.LogFlowMetrics(t, td.otg, td.otgConfig)
 	otgutils.LogPortMetrics(t, td.otg, td.otgConfig)
 	flow := gnmi.OTG().Flow(tt.name)
