@@ -12,7 +12,6 @@ platform_exceptions: {
   }
   deviations: {
     containerz_oc_unsupported: true
-    containerz_tls_insecure_skip_verify: true
     default_network_instance: "default"
   }
 }

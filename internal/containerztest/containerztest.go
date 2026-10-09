@@ -196,7 +196,6 @@ type StartContainerOptions struct {
 	TarPath             string
 	InstanceName        string
 	Command             string
-	Ports               []string
 	Volumes             []string
 	RemoveExistingImage bool
 	PollForRunningState bool
@@ -224,8 +223,8 @@ func (o StartContainerOptions) withDefaults() StartContainerOptions {
 	if res.Command == "" {
 		res.Command = "./cntrsrv"
 	}
-	if len(res.Ports) == 0 {
-		res.Ports = []string{"60061:60061"} // Default port
+	if res.Network == "" {
+		res.Network = "host"
 	}
 	if res.PollTimeout == 0 {
 		res.PollTimeout = 30 * time.Second
@@ -307,11 +306,8 @@ func DeployAndStart(ctx context.Context, t *testing.T, cli *client.Client, opts 
 	t.Logf("Image %s:%s verified successfully after push.", opts.ImageName, opts.ImageTag)
 
 	// 5. Start the container.
-	t.Logf("Starting container %s with image %s:%s, command '%s', ports %v, volumes %v, network %s, restart policy %s", opts.InstanceName, opts.ImageName, opts.ImageTag, opts.Command, opts.Ports, opts.Volumes, opts.Network, opts.RestartPolicyName)
+	t.Logf("Starting container %s with image %s:%s, command '%s', volumes %v, network %s, restart policy %s", opts.InstanceName, opts.ImageName, opts.ImageTag, opts.Command, opts.Volumes, opts.Network, opts.RestartPolicyName)
 	var startOpts []client.StartOption
-	if len(opts.Ports) > 0 {
-		startOpts = append(startOpts, client.WithPorts(opts.Ports))
-	}
 	if len(opts.Volumes) > 0 {
 		startOpts = append(startOpts, client.WithVolumes(opts.Volumes))
 	}
