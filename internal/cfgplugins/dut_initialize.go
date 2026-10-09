@@ -53,6 +53,7 @@ const (
 	FeatureSecondaryDefaultLookup
 	FeatureAnpf
 	FeatureHighScale
+	FeatureLoadBalanceHashReset
 
 	aristaTcamProfileMplsTracking = `
 hardware counter feature traffic-policy in
@@ -1513,6 +1514,16 @@ hw-module profile cef iptunnel scale
 hw-module profile npu-compatibility Q200
 hw-module local-station-mac 0010.0010.0010`
 
+const aristaLoadBalanceHashReset = `load-balance policies
+   load-balance sand profile default
+      default ecmp hash seed
+      default ecmp hash polynomial
+      default port-channel hash seed
+      default port-channel hash polynomial
+`
+
+const nokiaLoadBalanceHashReset = "system load-balancing hash-options hash-seed generate-from-mac"
+
 var (
 	aristaTcamProfileMap = map[FeatureType]string{
 		FeatureMplsTracking:           aristaTcamProfileMplsTracking,
@@ -1529,10 +1540,12 @@ var (
 		FeatureCFM:                    aristaTcamProfileCFM,
 		FeatureAnpf:                   aristaAnpfTcamProfile,
 		FeatureHierarchicalFIB:        aristaHierarchicalFIB,
+		FeatureLoadBalanceHashReset:   aristaLoadBalanceHashReset,
 	}
 
 	nokiaHardwareInitMap = map[FeatureType]string{
 		FeatureSecondaryDefaultLookup: nokiaSecondaryDefaultLookup,
+		FeatureLoadBalanceHashReset:   nokiaLoadBalanceHashReset,
 	}
 
 	ciscoHardwareInitMap = map[FeatureType]string{

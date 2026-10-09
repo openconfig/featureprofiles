@@ -32,9 +32,11 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/client"
@@ -74,8 +76,10 @@ const (
 	// RFC 5737 documentation blocks (192.0.2.0/24, 198.51.100.0/24,
 	// 203.0.113.0/24) and the RFC 2544 benchmarking block (198.18.0.0/15) — so a
 	// misconfigured DUT cannot leak or spoof real-network traffic.
-	dstPfx = "198.51.100.0/24" // RFC 5737 TEST-NET-2.
-	dstIP  = "198.51.100.66"   // Fixed traffic destination within dstPfx.
+	dstPfx           = "198.51.100.0/24" // RFC 5737 TEST-NET-2.
+	dstIP            = "198.51.100.66"   // Fixed traffic destination within dstPfx.
+	outerTunnelSrcIP = "198.51.100.1"    // Fixed outer source IP for IP-in-IP packets (RFC 5737 TEST-NET-2).
+	innerDstIP       = "203.0.113.66"    // Fixed inner destination IP for IP-in-IP packets (RFC 5737 TEST-NET-3).
 
 	// NHG weights — adjust these to control traffic distribution.
 	// NHG 101 (top-level): splits between NHG 2010 and NHG 3000.
@@ -108,6 +112,11 @@ type packetTuples struct {
 	outerL4Proto   int
 	outerSrcL4Port int
 	outerDstL4Port int
+	innerSrcIP     string
+	innerDstIP     string
+	innerL4Proto   int
+	innerSrcL4Port int
+	innerDstL4Port int
 }
 
 var (
@@ -169,7 +178,7 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func populatePackets(count int) []packetTuples {
+func populatePackets(count int, encapIPIP bool) []packetTuples {
 	// Source addresses are drawn exclusively from the RFC 2544 benchmarking block
 	// 198.18.0.0/16 (within 198.18.0.0/15). Using a reserved, non-routable range
 	// guarantees generated test traffic can never be mistaken for, leak onto, or
@@ -187,13 +196,27 @@ func populatePackets(count int) []packetTuples {
 			octet3 = 1
 		}
 
-		packets = append(packets, packetTuples{
-			outerSrcIP:     fmt.Sprintf("198.18.%d.%d", octet3, octet4),
-			outerDstIP:     dstIP,
-			outerL4Proto:   17,
-			outerSrcL4Port: srcPort,
-			outerDstL4Port: dstPort,
-		})
+		srcIP := fmt.Sprintf("198.18.%d.%d", octet3, octet4)
+		if encapIPIP {
+			packets = append(packets, packetTuples{
+				outerSrcIP:     outerTunnelSrcIP,
+				outerDstIP:     dstIP,
+				outerL4Proto:   int(layers.IPProtocolIPv4),
+				innerSrcIP:     srcIP,
+				innerDstIP:     innerDstIP,
+				innerL4Proto:   int(layers.IPProtocolUDP),
+				innerSrcL4Port: srcPort,
+				innerDstL4Port: dstPort,
+			})
+		} else {
+			packets = append(packets, packetTuples{
+				outerSrcIP:     srcIP,
+				outerDstIP:     dstIP,
+				outerL4Proto:   int(layers.IPProtocolUDP),
+				outerSrcL4Port: srcPort,
+				outerDstL4Port: dstPort,
+			})
+		}
 
 		if srcPort > 50000 {
 			srcPort = 105
@@ -257,14 +280,12 @@ func stopAndReadCapture(t *testing.T, ate *ondatra.ATEDevice) []packetTuples {
 }
 
 func tupleKey(pkt packetTuples) string {
-	return fmt.Sprintf("%s|%s|%d|%d|%d",
-		pkt.outerSrcIP, pkt.outerDstIP, pkt.outerL4Proto, pkt.outerSrcL4Port, pkt.outerDstL4Port)
+	return fmt.Sprintf("%s|%s|%d|%d|%d|%s|%s|%d|%d|%d",
+		pkt.outerSrcIP, pkt.outerDstIP, pkt.outerL4Proto, pkt.outerSrcL4Port, pkt.outerDstL4Port,
+		pkt.innerSrcIP, pkt.innerDstIP, pkt.innerL4Proto, pkt.innerSrcL4Port, pkt.innerDstL4Port)
 }
 
-func isReplayCandidate(pkt packetTuples) bool {
-	if pkt.outerL4Proto != int(layers.IPProtocolUDP) {
-		return false
-	}
+func isReplayCandidate(pkt packetTuples, encapIPIP bool) bool {
 	srcIP, err := netip.ParseAddr(pkt.outerSrcIP)
 	if err != nil || !srcIP.Is4() {
 		return false
@@ -276,6 +297,32 @@ func isReplayCandidate(pkt packetTuples) bool {
 	if !replayDstPrefix.Contains(dstIP) {
 		return false
 	}
+	if encapIPIP {
+		if pkt.outerL4Proto != int(layers.IPProtocolIPv4) {
+			return false
+		}
+		inSrcIP, err := netip.ParseAddr(pkt.innerSrcIP)
+		if err != nil || !inSrcIP.Is4() {
+			return false
+		}
+		inDstIP, err := netip.ParseAddr(pkt.innerDstIP)
+		if err != nil || !inDstIP.Is4() {
+			return false
+		}
+		if pkt.innerL4Proto != int(layers.IPProtocolUDP) {
+			return false
+		}
+		if pkt.innerSrcL4Port < 1 || pkt.innerSrcL4Port > 65535 {
+			return false
+		}
+		if pkt.innerDstL4Port < 1 || pkt.innerDstL4Port > 65535 {
+			return false
+		}
+		return true
+	}
+	if pkt.outerL4Proto != int(layers.IPProtocolUDP) {
+		return false
+	}
 	if pkt.outerSrcL4Port < 1 || pkt.outerSrcL4Port > 65535 {
 		return false
 	}
@@ -285,11 +332,11 @@ func isReplayCandidate(pkt packetTuples) bool {
 	return true
 }
 
-func sanitizeReplayTuples(input []packetTuples) (clean []packetTuples, dropped, deduped int) {
+func sanitizeReplayTuples(input []packetTuples, encapIPIP bool) (clean []packetTuples, dropped, deduped int) {
 	seen := make(map[string]struct{}, len(input))
 	clean = make([]packetTuples, 0, len(input))
 	for _, pkt := range input {
-		if !isReplayCandidate(pkt) {
+		if !isReplayCandidate(pkt, encapIPIP) {
 			dropped++
 			continue
 		}
@@ -398,16 +445,24 @@ func extractTuplesFromPacket(packet gopacket.Packet) (*packetTuples, error) {
 		return nil, fmt.Errorf("no Ethernet layer")
 	}
 
-	ipLayer := packet.Layer(layers.LayerTypeIPv4)
-	if ipLayer == nil {
+	var outerIP, innerIP *layers.IPv4
+	for _, l := range packet.Layers() {
+		if ip, ok := l.(*layers.IPv4); ok {
+			if outerIP == nil {
+				outerIP = ip
+			} else if innerIP == nil {
+				innerIP = ip
+			}
+		}
+	}
+	if outerIP == nil {
 		return nil, fmt.Errorf("no IPv4 layer")
 	}
-	ip, _ := ipLayer.(*layers.IPv4)
-	tuples.outerSrcIP = ip.SrcIP.String()
-	tuples.outerDstIP = ip.DstIP.String()
-	tuples.outerL4Proto = int(ip.Protocol)
+	tuples.outerSrcIP = outerIP.SrcIP.String()
+	tuples.outerDstIP = outerIP.DstIP.String()
+	tuples.outerL4Proto = int(outerIP.Protocol)
 
-	switch ip.Protocol {
+	switch outerIP.Protocol {
 	case layers.IPProtocolTCP:
 		tcpLayer := packet.Layer(layers.LayerTypeTCP)
 		if tcpLayer == nil {
@@ -424,6 +479,41 @@ func extractTuplesFromPacket(packet gopacket.Packet) (*packetTuples, error) {
 		udp, _ := udpLayer.(*layers.UDP)
 		tuples.outerSrcL4Port = int(udp.SrcPort)
 		tuples.outerDstL4Port = int(udp.DstPort)
+	case layers.IPProtocolIPv4:
+		innerPkt := packet
+		if innerIP == nil {
+			if len(outerIP.Payload) < 20 {
+				return nil, fmt.Errorf("IPv4-in-IPv4 protocol indicated but payload too short (%d bytes)", len(outerIP.Payload))
+			}
+			innerPkt = gopacket.NewPacket(outerIP.Payload, layers.LayerTypeIPv4, gopacket.Default)
+			if l := innerPkt.Layer(layers.LayerTypeIPv4); l != nil {
+				innerIP, _ = l.(*layers.IPv4)
+			}
+		}
+		if innerIP == nil {
+			return nil, fmt.Errorf("IPv4-in-IPv4 protocol indicated but no inner IPv4 layer")
+		}
+		tuples.innerSrcIP = innerIP.SrcIP.String()
+		tuples.innerDstIP = innerIP.DstIP.String()
+		tuples.innerL4Proto = int(innerIP.Protocol)
+		switch innerIP.Protocol {
+		case layers.IPProtocolTCP:
+			tcpLayer := innerPkt.Layer(layers.LayerTypeTCP)
+			if tcpLayer == nil {
+				return nil, fmt.Errorf("inner TCP protocol indicated but no TCP layer")
+			}
+			tcp, _ := tcpLayer.(*layers.TCP)
+			tuples.innerSrcL4Port = int(tcp.SrcPort)
+			tuples.innerDstL4Port = int(tcp.DstPort)
+		case layers.IPProtocolUDP:
+			udpLayer := innerPkt.Layer(layers.LayerTypeUDP)
+			if udpLayer == nil {
+				return nil, fmt.Errorf("inner UDP protocol indicated but no UDP layer")
+			}
+			udp, _ := udpLayer.(*layers.UDP)
+			tuples.innerSrcL4Port = int(udp.SrcPort)
+			tuples.innerDstL4Port = int(udp.DstPort)
+		}
 	}
 
 	return tuples, nil
@@ -462,9 +552,23 @@ func TestPolarization(t *testing.T) {
 
 	t.Cleanup(func() {
 		flushGRIBIEntries(t, dut)
+		for _, portID := range []string{"port2", "port3", "port4", "port5"} {
+			port := dut.Port(t, portID)
+			gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
+		}
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+			defaultNI := deviations.DefaultNetworkInstance(dut)
+			p1 := dut.Port(t, "port1")
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(defaultNI).Interface(p1.Name()+".0").Config())
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(defaultNI).Interface(agg1ID+".0").Config())
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(defaultNI).Interface(agg2ID+".0").Config())
+		}
 		gnmi.Delete(t, dut, gnmi.OC().Interface(agg1ID).Config())
 		gnmi.Delete(t, dut, gnmi.OC().Interface(agg2ID).Config())
-		gnmi.Delete(t, dut, gnmi.OC().Interface("Loopback0").Config())
+		if dut.Vendor() == ondatra.CISCO {
+			gnmi.Delete(t, dut, gnmi.OC().Interface("Loopback0").Config())
+		}
+		cfgplugins.PushDUTHardwareInitConfig(t, dut, cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureLoadBalanceHashReset))
 	})
 
 	t.Log("=== Phase 1/4: Configuring DUT interfaces and LAGs ===")
@@ -480,6 +584,14 @@ func TestPolarization(t *testing.T) {
 
 	t.Log("=== Setup complete, starting polarization iterations ===")
 
+	profiles := []struct {
+		name      string
+		encapIPIP bool
+	}{
+		{name: "IPv4", encapIPIP: false},
+		{name: "IPIP", encapIPIP: true},
+	}
+
 	iterations := []struct {
 		desc string
 	}{
@@ -490,113 +602,117 @@ func TestPolarization(t *testing.T) {
 		{desc: "Replay round 4"},
 	}
 
-	packets := populatePackets(totalPackets)
-	t.Logf("Generated %d unique packet tuples (batch size %d)", totalPackets, batchSize)
+	for _, profile := range profiles {
+		t.Run(profile.name, func(t *testing.T) {
+			packets := populatePackets(totalPackets, profile.encapIPIP)
+			t.Logf("Profile %s: generated %d unique packet tuples (batch size %d)", profile.name, totalPackets, batchSize)
 
-	for id, tc := range iterations {
-		t.Run(fmt.Sprintf("%d_%s", id, tc.desc), func(t *testing.T) {
-			totalPkts := len(packets)
-			if totalPkts == 0 {
-				t.Fatal("No packets available for replay")
+			for id, tc := range iterations {
+				t.Run(fmt.Sprintf("%d_%s", id, tc.desc), func(t *testing.T) {
+					totalPkts := len(packets)
+					if totalPkts == 0 {
+						t.Fatal("No packets available for replay")
+					}
+					iterationBatchSize := batchSize
+					if id > 0 {
+						iterationBatchSize = replayBatchSize
+					}
+					numBatches := (totalPkts + iterationBatchSize - 1) / iterationBatchSize
+					t.Logf("--- [%s] Iteration %d/%d: %s (%d packets, %d batches of %d) ---",
+						profile.name, id+1, len(iterations), tc.desc, totalPkts, numBatches, iterationBatchSize)
+
+					t.Log("Perturbing DUT hash configuration")
+					perturbHashConfig(t, dut, id)
+
+					var port2Total, port3Total, port4Total, port5Total uint64
+					var allCaptured []packetTuples
+					topo.Captures().Clear()
+					topo.Captures().Add().SetName("port2").SetPortNames([]string{"port2"}).SetFormat(gosnappi.CaptureFormat.PCAP)
+
+					for i := 0; i < totalPkts; i += iterationBatchSize {
+						end := i + iterationBatchSize
+						if end > totalPkts {
+							end = totalPkts
+						}
+						batch := packets[i:end]
+						batchNum := i/iterationBatchSize + 1
+						flowName := fmt.Sprintf("lbFlow_%s_%d", profile.name, batchNum-1)
+
+						t.Logf("Batch %d/%d: pushing %d packets as flow %s",
+							batchNum, numBatches, len(batch), flowName)
+						pushSingleFlow(t, ate, dut, topo, flowName, batch, agg1ID, agg2ID, profile.encapIPIP)
+						startCapture(t, ate)
+						runSingleFlow(t, ate, flowName, len(batch))
+
+						batchCaptured := stopAndReadCapture(t, ate)
+						batchCaptured, batchDropped, batchDeduped := sanitizeReplayTuples(batchCaptured, profile.encapIPIP)
+						allCaptured = append(allCaptured, batchCaptured...)
+
+						p2 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port("port2").Counters().InFrames().State())
+						p3 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port("port3").Counters().InFrames().State())
+						p4 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port("port4").Counters().InFrames().State())
+						p5 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port("port5").Counters().InFrames().State())
+						port2Total += p2
+						port3Total += p3
+						port4Total += p4
+						port5Total += p5
+						t.Logf("Batch %d: rx p2=%d p3=%d p4=%d p5=%d, captured=%d (dropped=%d deduped=%d) (total: p2=%d p3=%d p4=%d p5=%d, captured=%d)",
+							batchNum, p2, p3, p4, p5, len(batchCaptured), batchDropped, batchDeduped,
+							port2Total, port3Total, port4Total, port5Total, len(allCaptured))
+					}
+
+					totalPkts = len(packets)
+
+					otgutils.LogPortMetrics(t, ate.OTG(), topo)
+
+					port2Packets := port2Total
+					nextPackets, iterDropped, iterDeduped := sanitizeReplayTuples(allCaptured, profile.encapIPIP)
+
+					logGRIBITree(t, totalPkts, port2Total, port3Total, port4Total, port5Total)
+
+					// Guard against masked forwarding loss before the polarization check.
+					// That check inspects port2 alone, so a DUT delivering port2's expected
+					// share while dropping traffic on ports3-5 must still fail here. Require
+					// the frames received across all four LAG-member ports to account for
+					// nearly all of the packets sent this iteration.
+					totalReceived := port2Total + port3Total + port4Total + port5Total
+					minReceived := uint64(float64(totalPkts) * (100 - lossTolerancePct) / 100)
+					if totalReceived < minReceived {
+						t.Fatalf("Traffic loss detected: ports2-5 received %d frames (p2=%d p3=%d p4=%d p5=%d) of %d sent (want >= %d, tolerance %.1f%%); DUT dropped forwarded traffic",
+							totalReceived, port2Total, port3Total, port4Total, port5Total, totalPkts, minReceived, lossTolerancePct)
+					}
+
+					lag1Fraction := float64(nhg101WeightA) / float64(nhg101WeightA+nhg101WeightB) *
+						float64(nhg2010WeightA) / float64(nhg2010WeightA+nhg2010WeightB)
+					port2Fraction := lag1Fraction / 2.0
+					expected := uint64(float64(totalPkts) * port2Fraction)
+					acceptableDiff := uint64(totalPkts * tolerancePct / 100)
+					difference := uint64(math.Abs(float64(port2Packets) - float64(expected)))
+
+					t.Logf("=== [%s] Iteration %d results ===", profile.name, id+1)
+					t.Logf("  Sent:     %d packets total", totalPkts)
+					t.Logf("  Expected: %d on port2 (%.1f%%)", expected, port2Fraction*100)
+					t.Logf("  Actual:   %d on port2 (accumulated across batches)", port2Packets)
+					if expected > 0 {
+						pct := float64(port2Packets) * 100.0 / float64(expected)
+						t.Logf("  Ratio:    %.1f%% of expected", pct)
+					}
+					t.Logf("  Delta:    %d (threshold: %d, tolerance: %d%%)",
+						difference, acceptableDiff, tolerancePct)
+					t.Logf("  Captured: %d packets for next iteration (dropped=%d deduped=%d)",
+						len(nextPackets), iterDropped, iterDeduped)
+
+					if difference > acceptableDiff {
+						t.Fatalf("Polarization detected: port2 difference %d exceeds %d%% tolerance (%d packets)",
+							difference, tolerancePct, acceptableDiff)
+					}
+
+					if len(nextPackets) == 0 {
+						t.Fatal("Captured 0 packets from port2; cannot replay in the next iteration")
+					}
+					packets = nextPackets
+				})
 			}
-			iterationBatchSize := batchSize
-			if id > 0 {
-				iterationBatchSize = replayBatchSize
-			}
-			numBatches := (totalPkts + iterationBatchSize - 1) / iterationBatchSize
-			t.Logf("--- Iteration %d/%d: %s (%d packets, %d batches of %d) ---",
-				id+1, len(iterations), tc.desc, totalPkts, numBatches, iterationBatchSize)
-
-			t.Log("Perturbing DUT hash configuration")
-			perturbHashConfig(t, dut, id)
-
-			var port2Total, port3Total, port4Total, port5Total uint64
-			var allCaptured []packetTuples
-			topo.Captures().Clear()
-			topo.Captures().Add().SetName("port2").SetPortNames([]string{"port2"}).SetFormat(gosnappi.CaptureFormat.PCAP)
-
-			for i := 0; i < totalPkts; i += iterationBatchSize {
-				end := i + iterationBatchSize
-				if end > totalPkts {
-					end = totalPkts
-				}
-				batch := packets[i:end]
-				batchNum := i/iterationBatchSize + 1
-				flowName := fmt.Sprintf("lbFlow_%d", batchNum-1)
-
-				t.Logf("Batch %d/%d: pushing %d packets as flow %s",
-					batchNum, numBatches, len(batch), flowName)
-				pushSingleFlow(t, ate, dut, topo, flowName, batch, agg1ID, agg2ID)
-				startCapture(t, ate)
-				runSingleFlow(t, ate, flowName, len(batch))
-
-				batchCaptured := stopAndReadCapture(t, ate)
-				batchCaptured, batchDropped, batchDeduped := sanitizeReplayTuples(batchCaptured)
-				allCaptured = append(allCaptured, batchCaptured...)
-
-				p2 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port("port2").Counters().InFrames().State())
-				p3 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port("port3").Counters().InFrames().State())
-				p4 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port("port4").Counters().InFrames().State())
-				p5 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port("port5").Counters().InFrames().State())
-				port2Total += p2
-				port3Total += p3
-				port4Total += p4
-				port5Total += p5
-				t.Logf("Batch %d: rx p2=%d p3=%d p4=%d p5=%d, captured=%d (dropped=%d deduped=%d) (total: p2=%d p3=%d p4=%d p5=%d, captured=%d)",
-					batchNum, p2, p3, p4, p5, len(batchCaptured), batchDropped, batchDeduped,
-					port2Total, port3Total, port4Total, port5Total, len(allCaptured))
-			}
-
-			totalPkts = len(packets)
-
-			otgutils.LogPortMetrics(t, ate.OTG(), topo)
-
-			port2Packets := port2Total
-			nextPackets, iterDropped, iterDeduped := sanitizeReplayTuples(allCaptured)
-
-			logGRIBITree(t, totalPkts, port2Total, port3Total, port4Total, port5Total)
-
-			// Guard against masked forwarding loss before the polarization check.
-			// That check inspects port2 alone, so a DUT delivering port2's expected
-			// share while dropping traffic on ports3-5 must still fail here. Require
-			// the frames received across all four LAG-member ports to account for
-			// nearly all of the packets sent this iteration.
-			totalReceived := port2Total + port3Total + port4Total + port5Total
-			minReceived := uint64(float64(totalPkts) * (100 - lossTolerancePct) / 100)
-			if totalReceived < minReceived {
-				t.Fatalf("Traffic loss detected: ports2-5 received %d frames (p2=%d p3=%d p4=%d p5=%d) of %d sent (want >= %d, tolerance %.1f%%); DUT dropped forwarded traffic",
-					totalReceived, port2Total, port3Total, port4Total, port5Total, totalPkts, minReceived, lossTolerancePct)
-			}
-
-			lag1Fraction := float64(nhg101WeightA) / float64(nhg101WeightA+nhg101WeightB) *
-				float64(nhg2010WeightA) / float64(nhg2010WeightA+nhg2010WeightB)
-			port2Fraction := lag1Fraction / 2.0
-			expected := uint64(float64(totalPkts) * port2Fraction)
-			acceptableDiff := uint64(totalPkts * tolerancePct / 100)
-			difference := uint64(math.Abs(float64(port2Packets) - float64(expected)))
-
-			t.Logf("=== Iteration %d results ===", id+1)
-			t.Logf("  Sent:     %d packets total", totalPkts)
-			t.Logf("  Expected: %d on port2 (%.1f%%)", expected, port2Fraction*100)
-			t.Logf("  Actual:   %d on port2 (accumulated across batches)", port2Packets)
-			if expected > 0 {
-				pct := float64(port2Packets) * 100.0 / float64(expected)
-				t.Logf("  Ratio:    %.1f%% of expected", pct)
-			}
-			t.Logf("  Delta:    %d (threshold: %d, tolerance: %d%%)",
-				difference, acceptableDiff, tolerancePct)
-			t.Logf("  Captured: %d packets for next iteration (dropped=%d deduped=%d)",
-				len(nextPackets), iterDropped, iterDeduped)
-
-			if difference > acceptableDiff {
-				t.Fatalf("Polarization detected: port2 difference %d exceeds %d%% tolerance (%d packets)",
-					difference, tolerancePct, acceptableDiff)
-			}
-
-			if len(nextPackets) == 0 {
-				t.Fatal("Captured 0 packets from port2; cannot replay in the next iteration")
-			}
-			packets = nextPackets
 		})
 	}
 
@@ -612,6 +728,10 @@ func perturbHashConfig(t *testing.T, dut *ondatra.DUTDevice, iteration int) {
 	switch dut.Vendor() {
 	case ondatra.CISCO:
 		perturbHashCiscoXR(t, dut, iteration)
+	case ondatra.ARISTA:
+		perturbHashArista(t, dut, iteration)
+	case ondatra.NOKIA:
+		perturbHashNokia(t, dut, iteration)
 	default:
 		t.Fatalf("Hash perturbation not implemented for vendor %s; please add support in perturbHashConfig", dut.Vendor())
 	}
@@ -637,6 +757,37 @@ func perturbHashCiscoXR(t *testing.T, dut *ondatra.DUTDevice, iteration int) {
 	a.PrefixLength = ygot.Uint8(32)
 
 	gnmi.Replace(t, dut, d.Interface(lo0.GetName()).Config(), lo0)
+}
+
+// perturbHashArista changes both the ECMP and port-channel hash seeds and
+// polynomials under the default Sand load-balance profile.
+func perturbHashArista(t *testing.T, dut *ondatra.DUTDevice, iteration int) {
+	t.Helper()
+	ecmpSeeds := []int{0x1357, 0x9BDF, 0x2468, 0xACE1, 0x5A3C}
+	pcSeeds := []int{0x2468, 0xACE1, 0x5A3C, 0x1357, 0x9BDF}
+	ecmpSeed := ecmpSeeds[iteration%len(ecmpSeeds)]
+	pcSeed := pcSeeds[iteration%len(pcSeeds)]
+	ecmpPoly := (iteration % 7) + 1
+	pcPoly := ((iteration + 1) % 7) + 1
+	t.Logf("Arista EOS: setting ecmp hash (seed=%d, polynomial=%d), port-channel hash (seed=%d, polynomial=%d)", ecmpSeed, ecmpPoly, pcSeed, pcPoly)
+	cliConfig := fmt.Sprintf(`
+load-balance policies
+   load-balance sand profile default
+      ecmp hash seed %d
+      ecmp hash polynomial %d
+      port-channel hash seed %d
+      port-channel hash polynomial %d
+`, ecmpSeed, ecmpPoly, pcSeed, pcPoly)
+	helpers.GnmiCLIConfig(t, dut, cliConfig)
+}
+
+// perturbHashNokia changes the system load-balancing hash-seed on Nokia SR Linux.
+func perturbHashNokia(t *testing.T, dut *ondatra.DUTDevice, iteration int) {
+	t.Helper()
+	seeds := []int{0x1357, 0x9BDF, 0x2468, 0xACE1, 0x5A3C}
+	seed := seeds[iteration%len(seeds)]
+	t.Logf("Nokia SR Linux: setting system load-balancing hash-options hash-seed %d", seed)
+	helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("system load-balancing hash-options hash-seed %d", seed))
 }
 
 func flushGRIBIEntries(t *testing.T, dut *ondatra.DUTDevice) {
@@ -765,6 +916,7 @@ func createGRIBIEntries(t *testing.T, dut *ondatra.DUTDevice) {
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice, agg1ID, agg2ID string) {
 	t.Helper()
 	d := gnmi.OC()
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	p1 := dut.Port(t, "port1")
 	t.Logf("Configuring DUT port1 (%s) with IP %s/%d", p1.Name(), dutPort1.IPv4, dutPort1.IPv4Len)
@@ -790,7 +942,14 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, agg1ID, agg2ID string) {
 	lag1.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_STATIC
 	s1 := lag1.GetOrCreateSubinterface(0)
 	s1.Index = ygot.Uint32(0)
-	a1v4 := s1.GetOrCreateIpv4().GetOrCreateAddress(dutLAG1.IPv4)
+	if deviations.InterfaceEnabled(dut) {
+		s1.Enabled = ygot.Bool(true)
+	}
+	s1v4 := s1.GetOrCreateIpv4()
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+		s1v4.Enabled = ygot.Bool(true)
+	}
+	a1v4 := s1v4.GetOrCreateAddress(dutLAG1.IPv4)
 	a1v4.Ip = ygot.String(dutLAG1.IPv4)
 	a1v4.PrefixLength = ygot.Uint8(plen24)
 
@@ -802,7 +961,14 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, agg1ID, agg2ID string) {
 	lag2.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_STATIC
 	s2 := lag2.GetOrCreateSubinterface(0)
 	s2.Index = ygot.Uint32(0)
-	a2v4 := s2.GetOrCreateIpv4().GetOrCreateAddress(dutLAG2.IPv4)
+	if deviations.InterfaceEnabled(dut) {
+		s2.Enabled = ygot.Bool(true)
+	}
+	s2v4 := s2.GetOrCreateIpv4()
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+		s2v4.Enabled = ygot.Bool(true)
+	}
+	a2v4 := s2v4.GetOrCreateAddress(dutLAG2.IPv4)
 	a2v4.Ip = ygot.String(dutLAG2.IPv4)
 	a2v4.PrefixLength = ygot.Uint8(plen24)
 
@@ -940,17 +1106,17 @@ func waitForDUTNextHops(t *testing.T, dut *ondatra.DUTDevice, agg1ID, agg2ID str
 // pushSingleFlow replaces the ATE flow and pushes the config. A push can
 // flap the ATE links and clear the DUT's ARP entries, so both sides are
 // re-checked before traffic starts.
-func pushSingleFlow(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, topo gosnappi.Config, name string, batch []packetTuples, agg1ID, agg2ID string) {
+func pushSingleFlow(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, topo gosnappi.Config, name string, batch []packetTuples, agg1ID, agg2ID string, encapIPIP bool) {
 	t.Helper()
 	topo.Flows().Clear()
-	createStaticFlow(t, name, ate, topo, batch)
+	createStaticFlow(t, name, ate, topo, batch, encapIPIP)
 	ate.OTG().PushConfig(t, topo)
 	ate.OTG().StartProtocols(t)
 	otgutils.WaitForARP(t, ate.OTG(), topo, "IPv4")
 	waitForDUTNextHops(t, dut, agg1ID, agg2ID)
 }
 
-func createStaticFlow(t *testing.T, name string, ate *ondatra.ATEDevice, ateTop gosnappi.Config, flows []packetTuples) string {
+func createStaticFlow(t *testing.T, name string, ate *ondatra.ATEDevice, ateTop gosnappi.Config, flows []packetTuples, encapIPIP bool) string {
 	t.Helper()
 	// Port endpoints count frames on every LAG member. Device endpoints would
 	// drop frames whose destination MAC is the other member's next-hop.
@@ -962,26 +1128,51 @@ func createStaticFlow(t *testing.T, name string, ate *ondatra.ATEDevice, ateTop 
 
 	dstMAC := gnmi.Get(t, ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().State())
 
-	var srcIPs, dstIPs []string
+	var outerSrcIPs, outerDstIPs, innerSrcIPs, innerDstIPs []string
 	var srcPorts, dstPorts []uint32
 
 	for _, tuples := range flows {
-		srcIPs = append(srcIPs, tuples.outerSrcIP)
-		dstIPs = append(dstIPs, tuples.outerDstIP)
-		srcPorts = append(srcPorts, uint32(tuples.outerSrcL4Port))
-		dstPorts = append(dstPorts, uint32(tuples.outerDstL4Port))
+		outerSrcIPs = append(outerSrcIPs, tuples.outerSrcIP)
+		outerDstIPs = append(outerDstIPs, tuples.outerDstIP)
+		if encapIPIP {
+			innerSrcIPs = append(innerSrcIPs, tuples.innerSrcIP)
+			innerDstIPs = append(innerDstIPs, tuples.innerDstIP)
+			srcPorts = append(srcPorts, uint32(tuples.innerSrcL4Port))
+			dstPorts = append(dstPorts, uint32(tuples.innerDstL4Port))
+		} else {
+			srcPorts = append(srcPorts, uint32(tuples.outerSrcL4Port))
+			dstPorts = append(dstPorts, uint32(tuples.outerDstL4Port))
+		}
 	}
 
 	eth := flowipv4.Packet().Add().Ethernet()
 	eth.Src().SetValue(atePort1.MAC)
 	eth.Dst().SetValue(dstMAC)
 
-	v4 := flowipv4.Packet().Add().Ipv4()
-	v4.Src().SetValues(srcIPs)
-	if allSameString(dstIPs) {
-		v4.Dst().SetValue(dstIPs[0])
+	outerV4 := flowipv4.Packet().Add().Ipv4()
+	if allSameString(outerSrcIPs) {
+		outerV4.Src().SetValue(outerSrcIPs[0])
 	} else {
-		v4.Dst().SetValues(dstIPs)
+		outerV4.Src().SetValues(outerSrcIPs)
+	}
+	if allSameString(outerDstIPs) {
+		outerV4.Dst().SetValue(outerDstIPs[0])
+	} else {
+		outerV4.Dst().SetValues(outerDstIPs)
+	}
+
+	if encapIPIP {
+		innerV4 := flowipv4.Packet().Add().Ipv4()
+		if allSameString(innerSrcIPs) {
+			innerV4.Src().SetValue(innerSrcIPs[0])
+		} else {
+			innerV4.Src().SetValues(innerSrcIPs)
+		}
+		if allSameString(innerDstIPs) {
+			innerV4.Dst().SetValue(innerDstIPs[0])
+		} else {
+			innerV4.Dst().SetValues(innerDstIPs)
+		}
 	}
 
 	udp := flowipv4.Packet().Add().Udp()
@@ -990,9 +1181,9 @@ func createStaticFlow(t *testing.T, name string, ate *ondatra.ATEDevice, ateTop 
 
 	flowipv4.Size().SetFixed(128)
 	flowipv4.Rate().SetPps(trafficPps)
-	flowipv4.Duration().FixedPackets().SetPackets(uint32(len(srcIPs)))
+	flowipv4.Duration().FixedPackets().SetPackets(uint32(len(outerSrcIPs)))
 
-	t.Logf("Configured %d packets for flow %s", len(srcIPs), name)
+	t.Logf("Configured %d packets for flow %s (encapIPIP=%v)", len(outerSrcIPs), name, encapIPIP)
 	return name
 }
 
