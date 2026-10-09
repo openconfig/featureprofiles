@@ -324,7 +324,8 @@ func TestStaticRouteToDefaultRoute(t *testing.T) {
 		t.Log(top.String())
 		otgObj.PushConfig(t, top)
 		otgObj.StartProtocols(t)
-
+		otgutils.WaitForARP(t, otgObj, top, "IPv4")
+		otgutils.WaitForARP(t, otgObj, top, "IPv6")
 	})
 	t.Run("Start traffic and verify traffic", func(t *testing.T) {
 		verifyTrafficStreams(t, ate, top, otgObj, v4flow, v6flow)

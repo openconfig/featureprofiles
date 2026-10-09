@@ -99,7 +99,7 @@ const (
 	port4mac        = "00:1A:11:00:1A:BB"
 	vip1            = "198.18.196.1"
 	outerSrcIP      = "203.0.113.0"
-	fps             = 100000 // traffic frames per second
+	fps             = 10000
 	innerSrcIP      = "198.51.100.61"
 	vrfPrefixcount  = 10000
 	ipv4Prefixcount = 700

@@ -17,6 +17,7 @@ package community_test
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -25,10 +26,12 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/helpers"
+	"github.com/openconfig/featureprofiles/internal/kneutil"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 const (
@@ -213,6 +216,36 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, prefixType string, test
 	}
 }
 
+// waitKNEPermitAFT blocks until permit prefixes are in DUT AFT, KNE only.
+// WaitForARP can return on a stale ND entry after OTG re-push; HW path is unchanged.
+func waitKNEPermitAFT(t *testing.T, dut *ondatra.DUTDevice, want [4]bool) {
+	t.Helper()
+	if !kneutil.IsKNEBinding(dut) {
+		return
+	}
+	t.Log("KNE: wait for permit prefixes in AFT before traffic")
+	dni := deviations.DefaultNetworkInstance(dut)
+	const timeout = 30 * time.Second
+	for i, permit := range want {
+		if !permit {
+			continue
+		}
+		v4 := fmt.Sprintf("%s/%d", prefixesV4[i][0], prefixV4Len)
+		if _, ok := gnmi.Watch(t, dut, gnmi.OC().NetworkInstance(dni).Afts().Ipv4Entry(v4).State(), timeout, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+			return val.IsPresent()
+		}).Await(t); !ok {
+			t.Fatalf("KNE: IPv4 AFT missing %s before traffic", v4)
+		}
+		v6 := strings.Replace(fmt.Sprintf("%s/%d", prefixesV6[i][0], prefixV6Len), "::0/", "::/", 1)
+		if _, ok := gnmi.Watch(t, dut, gnmi.OC().NetworkInstance(dni).Afts().Ipv6Entry(v6).State(), timeout, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
+			return val.IsPresent()
+		}).Await(t); !ok {
+			t.Fatalf("KNE: IPv6 AFT missing %s before traffic", v6)
+		}
+		t.Logf("KNE: AFT present %s and %s", v4, v6)
+	}
+}
+
 type testCase struct {
 	desc             string
 	communitySetName string
@@ -280,6 +313,8 @@ func TestCommunitySet(t *testing.T) {
 
 			// Verify BGP session after its reset with OTG push config & start
 			cfgplugins.VerifyDUTBGPEstablished(t, bs.DUT)
+			cfgplugins.VerifyOTGBGPEstablished(t, bs.ATE)
+			waitKNEPermitAFT(t, bs.DUT, tc.testResults)
 
 			t.Logf("Starting traffic for IPv4 and v6")
 			defer otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
@@ -355,9 +390,14 @@ func validateCommunitySetUpdateTraffic(t *testing.T, bs *cfgplugins.BGPSession) 
 		configureFlow(t, bs, prefixesV6[index], "ipv6", index)
 	}
 	bs.PushAndStartATE(t)
+	otgutils.WaitForARP(t, bs.ATE.OTG(), bs.ATETop, "IPv4")
+	otgutils.WaitForARP(t, bs.ATE.OTG(), bs.ATETop, "IPv6")
 
 	// Verify BGP session after its reset with OTG push config & start
 	cfgplugins.VerifyDUTBGPEstablished(t, bs.DUT)
+	cfgplugins.VerifyOTGBGPEstablished(t, bs.ATE)
+	testResults := [4]bool{false, false, true, true}
+	waitKNEPermitAFT(t, bs.DUT, testResults)
 
 	t.Logf("Starting traffic for IPv4 and v6")
 	defer otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
@@ -366,7 +406,6 @@ func validateCommunitySetUpdateTraffic(t *testing.T, bs *cfgplugins.BGPSession) 
 	time.Sleep(sleepTime * time.Second)
 	bs.ATE.OTG().StopTraffic(t)
 
-	testResults := [4]bool{false, false, true, true}
 	for index, prefixPairV4 := range prefixesV4 {
 		t.Logf("Validating traffic test for IPv4 prefixes: [%s, %s]. Expected Result: [%t]", prefixPairV4[0], prefixPairV4[1], testResults[index])
 		verifyTraffic(t, bs.ATE, "ipv4", testResults[index], index)

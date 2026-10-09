@@ -23,6 +23,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/kneutil"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -289,6 +290,7 @@ type trafficFlows struct {
 }
 
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) *trafficFlows {
+	dut := ondatra.DUT(t, "dut")
 	t.Helper()
 	t.Logf("*** Configuring OTG interfaces ...")
 	topo := gosnappi.NewConfig()
@@ -326,15 +328,15 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *trafficFlows {
 	// Create traffic flows
 	t.Logf("*** Configuring OTG flows ...")
 	topo.Flows().Clear().Items()
-	ipInIPFlow1 := createIPv4Flow("ipInIPFlow1", topo, ateDst, nonMatchingIpv4Address, ateDestIPv4VLAN10, "IPv4")
-	ipInIPFlow2 := createIPv4Flow("ipInIPFlow2", topo, ateDst2, nonMatchingIpv4Address, ateDestIPv4VLAN20, "IPv4")
-	ipInIPFlow3 := createIPv4Flow("ipInIPFlow3", topo, ateDst, srcIpv4Address, ateDestIPv4VLAN10, "IPv4")
-	ipInIPFlow4 := createIPv4Flow("ipInIPFlow4", topo, ateDst2, srcIpv4Address, ateDestIPv4VLAN20, "IPv4")
-	ipv6InIPFlow5 := createIPv4Flow("ipv6InIPFlow5", topo, ateDst, nonMatchingIpv4Address, ateDestIPv4VLAN10, "IPv6")
-	ipv6InIPFlow6 := createIPv4Flow("ipv6InIPFlow6", topo, ateDst2, nonMatchingIpv4Address, ateDestIPv4VLAN20, "IPv6")
-	ipv6InIPFlow7 := createIPv4Flow("ipv6InIPFlow7", topo, ateDst, srcIpv4Address, ateDestIPv4VLAN10, "IPv6")
-	ipv6InIPFlow8 := createIPv4Flow("ipv6InIPFlow8", topo, ateDst2, srcIpv4Address, ateDestIPv4VLAN20, "IPv6")
-	nativeIPv4 := createIPv4Flow("nativeIPv4", topo, ateDst2, ateSrc.IPv4, ateDestIPv4VLAN20, "")
+	ipInIPFlow1 := createIPv4Flow(dut, "ipInIPFlow1", topo, ateDst, nonMatchingIpv4Address, ateDestIPv4VLAN10, "IPv4")
+	ipInIPFlow2 := createIPv4Flow(dut, "ipInIPFlow2", topo, ateDst2, nonMatchingIpv4Address, ateDestIPv4VLAN20, "IPv4")
+	ipInIPFlow3 := createIPv4Flow(dut, "ipInIPFlow3", topo, ateDst, srcIpv4Address, ateDestIPv4VLAN10, "IPv4")
+	ipInIPFlow4 := createIPv4Flow(dut, "ipInIPFlow4", topo, ateDst2, srcIpv4Address, ateDestIPv4VLAN20, "IPv4")
+	ipv6InIPFlow5 := createIPv4Flow(dut, "ipv6InIPFlow5", topo, ateDst, nonMatchingIpv4Address, ateDestIPv4VLAN10, "IPv6")
+	ipv6InIPFlow6 := createIPv4Flow(dut, "ipv6InIPFlow6", topo, ateDst2, nonMatchingIpv4Address, ateDestIPv4VLAN20, "IPv6")
+	ipv6InIPFlow7 := createIPv4Flow(dut, "ipv6InIPFlow7", topo, ateDst, srcIpv4Address, ateDestIPv4VLAN10, "IPv6")
+	ipv6InIPFlow8 := createIPv4Flow(dut, "ipv6InIPFlow8", topo, ateDst2, srcIpv4Address, ateDestIPv4VLAN20, "IPv6")
+	nativeIPv4 := createIPv4Flow(dut, "nativeIPv4", topo, ateDst2, ateSrc.IPv4, ateDestIPv4VLAN20, "")
 	nativeIPv6 := topo.Flows().Add().SetName("nativeIPv6")
 	nativeIPv6.Metrics().SetEnable(true)
 	nativeIPv6.TxRx().Device().SetTxNames([]string{ateSrc.Name + ".IPv6"}).SetRxNames([]string{ateDst.Name + ".IPv6"})
@@ -343,7 +345,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *trafficFlows {
 	v6.Src().SetValue(ateSrc.IPv6)
 	v6.Dst().SetValue("2001:DB8:2::")
 	nativeIPv6.Size().SetFixed(512)
-	nativeIPv6.Rate().SetPercentage(5)
+	applyFlowRate(nativeIPv6, dut)
 
 	t.Logf("Pushing config to ATE and starting protocols...")
 	ate.OTG().PushConfig(t, topo)
@@ -351,7 +353,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *trafficFlows {
 	return &trafficFlows{ipInIPFlow1, ipInIPFlow2, ipInIPFlow3, ipInIPFlow4, ipv6InIPFlow5, ipv6InIPFlow6, ipv6InIPFlow7, ipv6InIPFlow8, nativeIPv4, nativeIPv6}
 }
 
-func createIPv4Flow(name string, top gosnappi.Config, dst attrs.Attributes, srcIP, dstIP, innerIpType string) gosnappi.Flow {
+func createIPv4Flow(dut *ondatra.DUTDevice, name string, top gosnappi.Config, dst attrs.Attributes, srcIP, dstIP, innerIpType string) gosnappi.Flow {
 	flow := top.Flows().Add().SetName(name)
 	flow.Metrics().SetEnable(true)
 	flow.TxRx().Device().SetTxNames([]string{ateSrc.Name + ".IPv4"}).SetRxNames([]string{dst.Name + ".IPv4"})
@@ -367,11 +369,26 @@ func createIPv4Flow(name string, top gosnappi.Config, dst attrs.Attributes, srcI
 		flow.Packet().Add().Ipv6()
 	}
 	flow.Size().SetFixed(512)
-	flow.Rate().SetPercentage(5)
+	applyFlowRate(flow, dut)
 	return flow
 }
 
-func sendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
+func applyFlowRate(flow gosnappi.Flow, dut *ondatra.DUTDevice) {
+	if kneutil.IsKNEBinding(dut) {
+		flow.Rate().SetPps(500)
+		return
+	}
+	flow.Rate().SetPercentage(5)
+}
+
+func trafficDurationFor(dut *ondatra.DUTDevice) time.Duration {
+	if kneutil.IsKNEBinding(dut) {
+		return 15 * time.Second
+	}
+	return trafficDuration
+}
+
+func sendTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 	t.Logf("*** Starting traffic ...")
 
 	otgutils.WaitForARP(t, ate.OTG(), ate.OTG().GetConfig(t), "IPv4")
@@ -389,7 +406,7 @@ func sendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
 	otgutils.WaitForARP(t, ate.OTG(), ate.OTG().GetConfig(t), "IPv6")
 
 	ate.OTG().StartTraffic(t)
-	time.Sleep(trafficDuration)
+	time.Sleep(trafficDurationFor(dut))
 	t.Logf("*** Stop traffic ...")
 	ate.OTG().StopTraffic(t)
 	// Wait for counters to be updated.
@@ -514,7 +531,7 @@ func TestVrfPolicy(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.desc, func(t *testing.T) {
 			applyForwardingPolicy(t, ate, p1.Name(), tc.policy)
-			sendTraffic(t, ate)
+			sendTraffic(t, dut, ate)
 			verifyTraffic(t, ate, tc.flows, tc.passFlows)
 		})
 	}
