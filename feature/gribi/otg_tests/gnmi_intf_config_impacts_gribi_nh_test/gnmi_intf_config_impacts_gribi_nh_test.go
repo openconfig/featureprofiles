@@ -475,7 +475,7 @@ func verifyECMPDistribution(t *testing.T, deltas map[*ondatra.Port]uint64, want 
 		active = append(active, p)
 		total += deltas[p]
 	}
-	if len(active) < 2 {
+	if len(active) < 2 || total == 0 {
 		return
 	}
 	mean := float64(total) / float64(len(active))
