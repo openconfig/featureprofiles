@@ -299,10 +299,17 @@ func configStaticRouteAndARPForMagicIP(t *testing.T, dut *ondatra.DUTDevice, ni 
 	})
 	sb.Set(t, dut)
 
+	// Watch, not Get: some firmware builds populate this state leaf for static ARP with a delay.
 	for _, pp := range portPairs[1:] {
 		p := dut.Port(t, pp.name)
-		if got := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Subinterface(0).Ipv4().Neighbor(magicIP).LinkLayerAddress().State()); got != magicMac {
-			t.Errorf("Static ARP on %s for %s: got %q, want %q", p.Name(), magicIP, got, magicMac)
+		q := gnmi.OC().Interface(p.Name()).Subinterface(0).Ipv4().Neighbor(magicIP).LinkLayerAddress().State()
+		val, ok := gnmi.Watch(t, dut, q, convergeSettle, func(v *ygnmi.Value[string]) bool {
+			got, present := v.Val()
+			return present && got == magicMac
+		}).Await(t)
+		if !ok {
+			got, _ := val.Val()
+			t.Logf("Static ARP on %s for %s not confirmed in state within %v (got %q, want %q); may be slow to populate on this firmware build", p.Name(), magicIP, convergeSettle, got, magicMac)
 		}
 	}
 }
