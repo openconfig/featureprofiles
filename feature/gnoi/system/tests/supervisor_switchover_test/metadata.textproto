@@ -10,8 +10,11 @@ platform_exceptions: {
     vendor: ARISTA
   }
   deviations: {
+    aggregate_atomic_update: true
+    default_network_instance: "default"
     gnoi_subcomponent_path: true
     gnoi_switchover_reason_missing_user_initiated: true
+    interface_enabled: true
     switchover_subscribe_unsupported: true
   }
 }
@@ -42,6 +45,7 @@ platform_exceptions: {
     vendor: CISCO
   }
   deviations: {
+    ipv4_missing_enabled: true
     power_disable_enable_leaf_ref_validation: true
     switchover_subscribe_unsupported: true
   }
