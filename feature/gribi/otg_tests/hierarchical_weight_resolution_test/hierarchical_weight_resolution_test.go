@@ -479,7 +479,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) map[
 
 	// Run traffic for 2 minutes.
 	ate.OTG().StartTraffic(t)
-	time.Sleep(1 * time.Minute)
+	time.Sleep(2 * time.Minute)
 	ate.OTG().StopTraffic(t)
 
 	otgutils.ExpectedTrafficLoss(t, ate.OTG(), flowipv4.Name(), 0, 0.99)
@@ -568,6 +568,7 @@ func testBasicHierarchicalWeight(ctx context.Context, t *testing.T, dut *ondatra
 	}
 	t.Run("testTraffic", func(t *testing.T) {
 		got := testTraffic(t, ate, top)
+		tolerance := deviations.HierarchicalWeightResolutionTolerance(dut)
 		if diff := cmp.Diff(wantWeights, got, cmpopts.EquateApprox(0, tolerance)); diff != "" {
 			t.Errorf("Packet distribution ratios -want,+got:\n%s", diff)
 		}
@@ -661,9 +662,7 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 	t.Run("testTraffic", func(t *testing.T) {
 		got := testTraffic(t, ate, top)
 
-		if deviations.HierarchicalWeightResolutionTolerance(dut) != tolerance {
-			tolerance = deviations.HierarchicalWeightResolutionTolerance(dut)
-		}
+		tolerance := deviations.HierarchicalWeightResolutionTolerance(dut)
 		if diff := cmp.Diff(wantWeights, got, cmpopts.EquateApprox(0, tolerance)); diff != "" {
 			t.Errorf("Packet distribution ratios -want,+got:\n%s", diff)
 		}
