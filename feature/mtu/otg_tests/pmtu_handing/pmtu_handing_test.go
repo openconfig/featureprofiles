@@ -378,9 +378,15 @@ func createFlowAndVerifyTraffic(t *testing.T, td testData, tt testDefinition, wa
 	td.otg.StartProtocols(t)
 	waitF(t)
 	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
-	td.otg.SetControlState(t, cs)
-	td.otg.StartTraffic(t)
+cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
+td.otg.SetControlState(t, cs)
+td.otg.StartTraffic(t)
+defer func() {
+	td.otg.StopTraffic(t)
+	stopCapture := gosnappi.NewControlState()
+	stopCapture.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
+	td.otg.SetControlState(t, stopCapture)
+}()
 	trafficStopped, captureStopped := false, false
 	// Ensure traffic and capture are stopped even if the test fails early.
 	defer func() {
