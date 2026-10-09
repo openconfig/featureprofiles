@@ -79,6 +79,8 @@ const (
 	trafficPPS    = 1000
 	monitorWindow = 30 * time.Second
 	awaitTimeout  = time.Minute
+	// ECMP/FIB reconvergence after an admin-state flap can take longer than awaitTimeout on some platforms.
+	reconvergeTimeout = 3 * time.Minute
 	// ASIC-level FIB reconvergence lag not reflected by oper-status.
 	convergeSettle = 10 * time.Second
 
@@ -557,7 +559,7 @@ func testPortAdminStateBounce(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 	p2FramesDown := ateInFrames(t, ate, ateP2)
 	setPortEnabled(t, dut, p2, true)
 	verifyNHViaAFT(t, dut, ni, nh2ID)
-	awaitCounterAbove(t, ate, gnmi.OTG().Port(ateP2).Counters().InFrames().State(), p2FramesDown+trafficPPS, "ATE port "+ateP2)
+	awaitCounterAbove(t, ate, gnmi.OTG().Port(ateP2).Counters().InFrames().State(), p2FramesDown+trafficPPS, reconvergeTimeout, "ATE port "+ateP2)
 	verifyPortAndATETraffic(t, dut, ate, monitorWindow,
 		map[*ondatra.Port]bool{p2: true, p3: true, p4: true},
 		map[string]bool{ateP2: true, ateP3: true, ateP4: true})
@@ -568,13 +570,25 @@ func ateInFrames(t *testing.T, ate *ondatra.ATEDevice, portID string) uint64 {
 	return gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(portID).Counters().InFrames().State())
 }
 
-func awaitCounterAbove(t *testing.T, ate *ondatra.ATEDevice, q ygnmi.SingletonQuery[uint64], threshold uint64, what string) {
+func awaitCounterAbove(t *testing.T, ate *ondatra.ATEDevice, q ygnmi.SingletonQuery[uint64], threshold uint64, timeout time.Duration, what string) {
 	t.Helper()
-	if _, ok := gnmi.Watch(t, ate.OTG(), q, awaitTimeout, func(v *ygnmi.Value[uint64]) bool {
+	if _, ok := gnmi.Watch(t, ate.OTG(), q, timeout, func(v *ygnmi.Value[uint64]) bool {
 		got, present := v.Val()
 		return present && got > threshold
 	}).Await(t); !ok {
-		t.Errorf("%s: counter did not exceed %d within %v after re-enabling port2", what, threshold, awaitTimeout)
+		t.Errorf("%s: counter did not exceed %d within %v after re-enabling port2", what, threshold, timeout)
+	}
+}
+
+// awaitFlowTransmitting waits for a just-started flow to begin sending, so the measurement
+// window doesn't start before OTG has actually begun transmitting it.
+func awaitFlowTransmitting(t *testing.T, ate *ondatra.ATEDevice, flowName string, txBefore uint64) {
+	t.Helper()
+	if _, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().OutPkts().State(), awaitTimeout, func(v *ygnmi.Value[uint64]) bool {
+		got, present := v.Val()
+		return present && got > txBefore
+	}).Await(t); !ok {
+		t.Fatalf("Flow %s: did not start transmitting within %v", flowName, awaitTimeout)
 	}
 }
 
@@ -665,13 +679,15 @@ func testNHOnDownInterface(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.AT
 	verifyNHViaAFT(t, dut, ni, nhDownID)
 
 	// Unviability is proven by the 100% loss below, since OC AFT has no vendor-neutral viability leaf.
+	txBefore, _ := flowCounters(t, ate, flowNegDownName)
 	setFlowTransmit(t, ate, gosnappi.StateTrafficFlowTransmitState.START, flowNegDownName)
 	defer setFlowTransmit(t, ate, gosnappi.StateTrafficFlowTransmitState.STOP, flowNegDownName)
+	awaitFlowTransmitting(t, ate, flowNegDownName, txBefore)
 	verifyFlowLoss(t, ate, flowNegDownName, monitorWindow, 100)
 
 	_, rxDown := flowCounters(t, ate, flowNegDownName)
 	setPortEnabled(t, dut, p2, true)
-	awaitCounterAbove(t, ate, gnmi.OTG().Flow(flowNegDownName).Counters().InPkts().State(), rxDown, "Flow "+flowNegDownName)
+	awaitCounterAbove(t, ate, gnmi.OTG().Flow(flowNegDownName).Counters().InPkts().State(), rxDown, reconvergeTimeout, "Flow "+flowNegDownName)
 	ateP2 := ate.Port(t, "port2").ID()
 	ateP2Before := ateInFrames(t, ate, ateP2)
 	verifyFlowLoss(t, ate, flowNegDownName, monitorWindow, 0)
@@ -682,8 +698,10 @@ func testNHOnDownInterface(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.AT
 
 func testMTUSmallerThanPacket(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, p2 *ondatra.Port) {
 	// Started before the MTU change: Step 1 checks all prefixes flow, and Step 4's "drops to 0" needs a live baseline.
+	txBefore, _ := flowCounters(t, ate, flowMTUName)
 	setFlowTransmit(t, ate, gosnappi.StateTrafficFlowTransmitState.START, flowMTUName)
 	defer setFlowTransmit(t, ate, gosnappi.StateTrafficFlowTransmitState.STOP, flowMTUName)
+	awaitFlowTransmitting(t, ate, flowMTUName, txBefore)
 
 	verifyFlowHealthy(t, ate, flowMTUName, monitorWindow)
 
