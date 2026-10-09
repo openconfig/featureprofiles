@@ -285,6 +285,20 @@ func configureBGPDefaultImportExportPolicy(t *testing.T, dut *ondatra.DUTDevice,
 	batchConfig.Set(t, dut)
 }
 
+func batchReplaceBGPImportExportPolicy(t *testing.T, dut *ondatra.DUTDevice, batchConfig *gnmi.SetBatch, policyPath *netinstbgp.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicyPath, importPolicy, exportPolicy []string) {
+	applyPolicy, present := gnmi.Lookup(t, dut, policyPath.Config()).Val()
+	if !present {
+		applyPolicy = &oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicy{}
+	}
+	applyPolicy.ImportPolicy = importPolicy
+	applyPolicy.ExportPolicy = exportPolicy
+	if len(importPolicy) == 0 && len(exportPolicy) == 0 && applyPolicy.DefaultImportPolicy == 0 && applyPolicy.DefaultExportPolicy == 0 {
+		gnmi.BatchDelete(batchConfig, policyPath.Config())
+		return
+	}
+	gnmi.BatchReplace(batchConfig, policyPath.Config(), applyPolicy)
+}
+
 // configureBGPImportExportPolicy configures import/export policies
 func configureBGPImportExportPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4, ipv6, policyDef string) {
 	t.Helper()
@@ -292,10 +306,8 @@ func configureBGPImportExportPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4, 
 	batchConfig := &gnmi.SetBatch{}
 	nbrPolPathv4 := bgpPath.Neighbor(ipv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 	nbrPolPathv6 := bgpPath.Neighbor(ipv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
-	gnmi.BatchReplace(batchConfig, nbrPolPathv4.ImportPolicy().Config(), []string{policyDef})
-	gnmi.BatchReplace(batchConfig, nbrPolPathv4.ExportPolicy().Config(), []string{policyDef})
-	gnmi.BatchReplace(batchConfig, nbrPolPathv6.ImportPolicy().Config(), []string{policyDef})
-	gnmi.BatchReplace(batchConfig, nbrPolPathv6.ExportPolicy().Config(), []string{policyDef})
+	batchReplaceBGPImportExportPolicy(t, dut, batchConfig, nbrPolPathv4, []string{policyDef}, []string{policyDef})
+	batchReplaceBGPImportExportPolicy(t, dut, batchConfig, nbrPolPathv6, []string{policyDef}, []string{policyDef})
 	batchConfig.Set(t, dut)
 
 	// Sleep for 10 second to ensure that OTG has recived the update packet
@@ -311,15 +323,10 @@ func deleteBGPImportExportPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4, ipv
 	nbrPolPathv6 := bgpPath.Neighbor(ipv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
 	nbrPolPathv4_2 := bgpPath.Neighbor(ipv4_2).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 	nbrPolPathv6_2 := bgpPath.Neighbor(ipv6_2).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
-	gnmi.BatchDelete(batchConfig, nbrPolPathv4_2.ImportPolicy().Config())
-	gnmi.BatchDelete(batchConfig, nbrPolPathv4_2.ExportPolicy().Config())
-	gnmi.BatchDelete(batchConfig, nbrPolPathv6_2.ImportPolicy().Config())
-	gnmi.BatchDelete(batchConfig, nbrPolPathv6_2.ExportPolicy().Config())
-
-	gnmi.BatchDelete(batchConfig, nbrPolPathv4.ImportPolicy().Config())
-	gnmi.BatchDelete(batchConfig, nbrPolPathv4.ExportPolicy().Config())
-	gnmi.BatchDelete(batchConfig, nbrPolPathv6.ImportPolicy().Config())
-	gnmi.BatchDelete(batchConfig, nbrPolPathv6.ExportPolicy().Config())
+	batchReplaceBGPImportExportPolicy(t, dut, batchConfig, nbrPolPathv4_2, nil, nil)
+	batchReplaceBGPImportExportPolicy(t, dut, batchConfig, nbrPolPathv6_2, nil, nil)
+	batchReplaceBGPImportExportPolicy(t, dut, batchConfig, nbrPolPathv4, nil, nil)
+	batchReplaceBGPImportExportPolicy(t, dut, batchConfig, nbrPolPathv6, nil, nil)
 	batchConfig.Set(t, dut)
 }
 
