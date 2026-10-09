@@ -2398,6 +2398,11 @@ func AigpMetricIncrement(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAigpMetricIncrement()
 }
 
+// EcnMinGreaterMaxThresholdUnsupported returns true if device does not support bounds validation for ECN thresholds.
+func EcnMinGreaterMaxThresholdUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEcnMinGreaterMaxThresholdUnsupported()
+}
+
 // PowerSupplyTelemetryUnsupported returns true if device does not support power supply telemetry.
 // Cisco: https://b.corp.google.com/issues/307454993
 func PowerSupplyTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
