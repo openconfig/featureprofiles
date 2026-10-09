@@ -187,7 +187,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		dp := dut.Port(t, p.port)
 		ifName := dp.Name()
 		orig := gnmi.Lookup(t, dut, gnmi.OC().Interface(ifName).Config())
-		gnmi.Replace(t, dut, gnmi.OC().Interface(ifName).Config(), p.a.NewOCInterface(ifName, dut))
 		t.Cleanup(func() {
 			if cfg, ok := orig.Val(); ok {
 				gnmi.Replace(t, dut, gnmi.OC().Interface(ifName).Config(), cfg)
@@ -195,6 +194,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 				gnmi.Delete(t, dut, gnmi.OC().Interface(ifName).Config())
 			}
 		})
+		gnmi.Replace(t, dut, gnmi.OC().Interface(ifName).Config(), p.a.NewOCInterface(ifName, dut))
 		if deviations.ExplicitPortSpeed(dut) {
 			fptest.SetPortSpeed(t, dp)
 		}
@@ -212,8 +212,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Fatalf("AppendNewStatement: %v", err)
 	}
 	st.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 	t.Cleanup(func() { gnmi.Delete(t, dut, gnmi.OC().RoutingPolicy().PolicyDefinition("PERMIT-ALL").Config()) })
+	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 
 	proto := root.GetOrCreateNetworkInstance(ni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.DefaultBgpInstanceName(dut))
 	bgp := proto.GetOrCreateBgp()
@@ -238,8 +238,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		ap.SetExportPolicy([]string{"PERMIT-ALL"})
 	}
 	bgpCfg := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.DefaultBgpInstanceName(dut)).Config()
-	gnmi.Replace(t, dut, bgpCfg, proto)
 	t.Cleanup(func() { gnmi.Delete(t, dut, bgpCfg) })
+	gnmi.Replace(t, dut, bgpCfg, proto)
 }
 
 // operStatus returns the DUT interface oper-status, or "<absent>" for diagnostics.
@@ -351,15 +351,15 @@ func configureAristaIPv6NextHop(t *testing.T, dut *ondatra.DUTDevice) {
 		Static:     map[string]*oc.NetworkInstance_Protocol_Static{prefix: static},
 	}
 	staticPath := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, staticName)
+	t.Cleanup(func() {
+		gnmi.Delete(t, dut, staticPath.Static(prefix).Config())
+		gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Subinterface(0).Ipv6().Neighbor(aristaIPv6NHAddress).Config())
+	})
 	gnmi.Update(t, dut, staticPath.Config(), proto)
 
 	intf := &oc.Interface{Name: ygot.String(port.Name()), Type: oc.IETFInterfaces_InterfaceType_ethernetCsmacd}
 	intf.GetOrCreateSubinterface(0).GetOrCreateIpv6().GetOrCreateNeighbor(aristaIPv6NHAddress).LinkLayerAddress = ygot.String(aristaIPv6NHMAC)
 	gnmi.Update(t, dut, gnmi.OC().Interface(port.Name()).Config(), intf)
-	t.Cleanup(func() {
-		gnmi.Delete(t, dut, staticPath.Static(prefix).Config())
-		gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Subinterface(0).Ipv6().Neighbor(aristaIPv6NHAddress).Config())
-	})
 }
 
 // addBGP adds eBGP peers to an ATE device, advertising the underlay routes when
@@ -492,6 +492,9 @@ func runFlow(t *testing.T, ate *ondatra.ATEDevice, fs flowSpec) (tx, rx uint64) 
 func requireNoLoss(t *testing.T, ate *ondatra.ATEDevice, fs flowSpec) {
 	t.Helper()
 	tx, rx := runFlow(t, ate, fs)
+	if tx == 0 {
+		t.Fatalf("flow %s: total transmitted packets is 0", fs.name)
+	}
 	loss := float64(int64(tx)-int64(rx)) / float64(tx) * 100
 	t.Logf("flow %s (rx on %v): tx=%d rx=%d loss=%.3f%%", fs.name, fs.rx, tx, rx, loss)
 	if loss > lossTolerancePct {
