@@ -377,17 +377,21 @@ const ipRouteBatchSize = 100
 func verifyAFTCoverage(t *testing.T, dut *ondatra.DUTDevice, ni string) {
 	t.Helper()
 	v4Prefix := ipv4BaseRoute + "/32"
-	if got := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(ni).Afts().Ipv4Entry(v4Prefix).State()).GetNextHopGroup(); got != nhg1ID {
-		t.Errorf("AFT ipv4-entry %s next-hop-group: got %d, want %d", v4Prefix, got, nhg1ID)
-	}
+	v4NHGID := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(ni).Afts().Ipv4Entry(v4Prefix).State()).GetNextHopGroup()
+	verifyNHGMembers(t, dut, ni, v4NHGID, "ipv4-entry "+v4Prefix)
+
 	v6Prefix := ipv6BaseRoute + "/128"
-	if got := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(ni).Afts().Ipv6Entry(v6Prefix).State()).GetNextHopGroup(); got != nhg1ID {
-		t.Errorf("AFT ipv6-entry %s next-hop-group: got %d, want %d", v6Prefix, got, nhg1ID)
-	}
-	nhg := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(ni).Afts().NextHopGroup(nhg1ID).State())
+	v6NHGID := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(ni).Afts().Ipv6Entry(v6Prefix).State()).GetNextHopGroup()
+	verifyNHGMembers(t, dut, ni, v6NHGID, "ipv6-entry "+v6Prefix)
+}
+
+// Some vendors report AFT next-hop-groups under an internal ID, not the gRIBI-assigned one.
+func verifyNHGMembers(t *testing.T, dut *ondatra.DUTDevice, ni string, nhgID uint64, label string) {
+	t.Helper()
+	nhg := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(ni).Afts().NextHopGroup(nhgID).State())
 	for _, want := range []uint64{nh2ID, nh3ID, nh4ID} {
 		if _, ok := nhg.NextHop[want]; !ok {
-			t.Errorf("AFT next-hop-group %d: missing next-hop index %d, want present", nhg1ID, want)
+			t.Errorf("AFT next-hop-group (reported id %d) for %s: missing next-hop index %d, want present", nhgID, label, want)
 		}
 	}
 }
