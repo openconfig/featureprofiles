@@ -407,7 +407,9 @@ func createCommunitySet(t *testing.T, dut *ondatra.DUTDevice, cs communitySet, r
 			}
 		}
 		communitySet.SetCommunityMember(cm)
-		communitySet.SetMatchSetOptions(cs.matchSetOptions)
+		if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
+			communitySet.SetMatchSetOptions(cs.matchSetOptions)
+		}
 	}
 	var communitySetCLIConfig string
 	if deviations.CommunityMemberRegexUnsupported(dut) && cs.name == communitySetNameRegex {
@@ -1018,11 +1020,18 @@ func createTrafficFlow(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice
 	for _, prefix := range prefixesV4 {
 		dstIps = append(dstIps, prefix.Addr().String())
 	}
+	// b/485393718 Limit the destination IP value list size to avoid OTG card
+	// resource limitations. Can be removed with a higher-resource Ixia card.
+	const maxDstIPs = 100
+	if len(dstIps) > maxDstIPs {
+		dstIps = dstIps[:maxDstIPs]
+	}
 
 	top.Flows().Clear()
 	numFlows := atePort2.numSubIntf
 	if numFlows > 50 {
-		// b/485393718 Limit the number of flows to 10 to avoid OTG port limitations. This section of code can be removed if we have more advanced card from Ixia
+		// b/485393718 Limit the number of flows to 10 to avoid OTG port limitations.
+		// This section of code can be removed if we have more advanced card from Ixia
 		numFlows = 10
 	}
 	for i := uint32(1); i <= numFlows; i++ {
