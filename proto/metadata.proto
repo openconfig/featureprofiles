@@ -1275,6 +1275,7 @@ message Metadata {
     string fragment_punt_ft = 408;
 
     // Arista: https://partnerissuetracker.corp.google.com/issues/502838491
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/570573973
     // Device is missing subinterface state packet counters.
     bool default_subinterface_packet_counters_missing = 409;
 
@@ -1485,25 +1486,36 @@ message Metadata {
     // through OpenConfig.
     // Arista: https://partnerissuetracker.corp.google.com/issues/562517133
     bool sflow_egress_sampling_rate_unsupported = 460;
+  
+    // Device does not populate /interfaces/interface/state/counters/last-clear
+    // after the interface counters are cleared.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/570578230
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/570575610
+    bool interface_last_clear_unsupported = 461;
+
+    // Device does not update subinterface 0 IPv4/IPv6 packet counters during
+    // transit traffic.
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/570573973
+    bool default_subinterface_ip_counters_unsupported = 462;
 
     // Device does not support the per-path gNMI pathz policy counters
     // (access-accepts/access-rejects).
     // Arista: https://partnerissuetracker.corp.google.com/issues/565204169
-    bool pathz_counters_unsupported = 461;
+    bool pathz_counters_unsupported = 463;
 
     // Device does not reject a pathz Rotate that changes policy content under an
     // already-committed version without force_overwrite (freshness not enforced).
     // Arista: https://partnerissuetracker.corp.google.com/issues/565204169
-    bool pathz_force_overwrite_unsupported = 462;
+    bool pathz_force_overwrite_unsupported = 464;
 
     // Device does not support cli to remove pathz policy
     // Arista: https://partnerissuetracker.corp.google.com/issues/565204169
-    bool pathz_policy_removal_via_cli_unsupported = 463;
+    bool pathz_policy_removal_via_cli_unsupported = 465;
 
     // Device does not support unauthorized access error
     // Arista: https://partnerissuetracker.corp.google.com/issues/565204169   
-    bool pathz_unauthorized_access_error_unsupported = 464;
-
+    bool pathz_unauthorized_access_error_unsupported = 466;
+    
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }
