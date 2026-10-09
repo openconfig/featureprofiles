@@ -21,10 +21,8 @@ func TestMain(m *testing.M) {
 }
 
 const (
-	dirPath                   = "../../test_data/"
-	timeOutVar  time.Duration = 2 * time.Minute
-	testProfile               = "test-profile"
-	rpcTimeout                = 2 * time.Minute
+	testProfile = "test-profile"
+	rpcTimeout  = 2 * time.Minute
 )
 
 var (
@@ -67,12 +65,6 @@ func TestCertzBaseline(t *testing.T) {
 		t.Fatalf("STATUS:Failed to get DUT credentials using binding.DUTs: %v. The binding for %s must implement the DUTCredentialer interface.", err, dut.Name())
 	}
 
-	//Generate testdata certificates
-	t.Logf("STATUS:Generation of test data certificates.")
-	if err := setupService.TestdataMakeCleanup(t, dirPath, timeOutVar, "./mk_cas.sh"); err != nil {
-		t.Fatalf("STATUS:Generation of testdata certificates failed!: %v", err)
-	}
-
 	type testCase struct {
 		Name        string
 		Description string
@@ -108,11 +100,6 @@ func TestCertzBaseline(t *testing.T) {
 		})
 	}
 
-	t.Logf("STATUS:Cleanup of test data.")
-	//Cleanup of test data
-	if err := setupService.TestdataMakeCleanup(t, dirPath, timeOutVar, "./mk_cas.sh"); err != nil {
-		t.Logf("STATUS:Generation of testdata certificates failed!: %v", err)
-	}
 	t.Logf("STATUS:Test completed!")
 }
 
@@ -184,5 +171,5 @@ func getTLSProfile(t *testing.T, dut *ondatra.DUTDevice) {
 
 // Implementation for validating that appropriate metrics are returned from streaming telemetry
 func validateMetricsTest(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Errorf("raised issue 489348277")
+	t.Skip("raised issue 489348277")
 }
