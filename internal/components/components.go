@@ -324,7 +324,7 @@ func SetControllerCardPowerState(t *testing.T, dut *ondatra.DUTDevice, cardName 
 		time.Sleep(10 * time.Second)
 	}
 	if !powerMatched {
-		t.Errorf("Component %s, power-admin-state did not reach %v within %v", cardName, powerType, timeout)
+		t.Fatalf("Component %s, power-admin-state did not reach %v within %v", cardName, powerType, timeout)
 	}
 
 	wantOper := oc.PlatformTypes_COMPONENT_OPER_STATUS_DISABLED
@@ -355,6 +355,6 @@ func SetControllerCardPowerState(t *testing.T, dut *ondatra.DUTDevice, cardName 
 		time.Sleep(10 * time.Second)
 	}
 	if !operMatched {
-		t.Errorf("Component %s oper-status did not reach %v within %v", cardName, wantOper, timeout)
+		t.Fatalf("Component %s oper-status did not reach %v within %v", cardName, wantOper, timeout)
 	}
 }
