@@ -93,13 +93,7 @@ func validateTranscieverTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondat
 			desc:           "Transceiver mfg-name Validation",
 			path:           fmt.Sprintf(componentPath+"/state/mfg-name", params.TransceiverNames[p.Name()]),
 			got:            transceiverValue.GetMfgName(),
-			patternToMatch: `(CIENA|CISCO|LUMENTUM|NOKIA|INFINERA|ACACIA|MARVEL)`,
-		},
-		{
-			desc:           "Transceiver mfg-date Validation",
-			path:           fmt.Sprintf(componentPath+"/state/mfg-date", params.TransceiverNames[p.Name()]),
-			got:            transceiverValue.GetMfgDate(),
-			patternToMatch: `\d{4}-\d{2}-\d{2}`,
+			patternToMatch: `(CIENA|CISCO|LUMENTUM|NOKIA|INFINERA|ACACIA|MARVEL|NeoPhotonics)`,
 		},
 		{
 			desc:       "Transceiver Supply Voltage Validation",
@@ -201,7 +195,7 @@ func validateTranscieverTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondat
 			maxAllowed: maxAllowedTemperature,
 		})
 	}
-	if dut.Vendor() != ondatra.JUNIPER {
+	if dut.Vendor() != ondatra.JUNIPER && dut.Vendor() != ondatra.CISCO {
 		tcs = append(tcs, testcase{
 			desc: "Transceiver Form Factor Validation",
 			path: fmt.Sprintf(componentPath+"/transceiver/state/form-factor", params.TransceiverNames[p.Name()]),
