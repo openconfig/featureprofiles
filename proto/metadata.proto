@@ -1498,6 +1498,9 @@ message Metadata {
     // Juniper: https://partnerissuetracker.corp.google.com/issues/570573973
     bool default_subinterface_ip_counters_unsupported = 462;
 
+    // Partner issue: https://partnerissuetracker.corp.google.com/issues/504424786
+    bool default_peer_as_filter_oc_unsupported = 463;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }
