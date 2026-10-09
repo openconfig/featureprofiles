@@ -5,11 +5,11 @@
 Validate PORT components attached to a CONTROLLER_CARD are modeled with the
 expected OC paths.  The operational use case is:
 
-1. As an automated network repair tool, I want to ensure at least one
-   interface between redundant CONTROLLER_CARD components is fully
-   operational.  Before performing a power off or reboot of a CONTROLLER_CARD
-   or a network device wired to a CONTROLLER_CARD PORT, I want to use the OC
-   component tree to trace the subject PORT to it's associated redundant PORT.
+As an automated network repair tool, I want to ensure at least one
+interface between redundant CONTROLLER_CARD components is fully
+operational.  Before performing a power off or reboot of a CONTROLLER_CARD
+or a network device wired to a CONTROLLER_CARD PORT, I want to use the OC
+component tree to trace the subject PORT to it's associated redundant PORT.
 
 ## Testbed type
 
@@ -20,22 +20,67 @@ expected OC paths.  The operational use case is:
 There are no DUT configuration pre-requisites for this test.  The DUT must
 contain the following component types:
 
-* At least one `CONTROLLER_CARD` component
-* Each CONTROLLER_CARD must contain at least one `PORT`
+* Two `CONTROLLER_CARD` components
+* Each `CONTROLLER_CARD` must contain at least one `PORT`
 
 ## Procedure
 
-* gNMI-1.22.1: Validate component PORT attributes attached to a CONTROLLER_CARD
+### gNMI-1.22.1: Validate component PORT attributes attached to a CONTROLLER_CARD
+
   * gNMI Subscribe to the /components and /interfaces tree using ONCE option.
+  * Verify two `CONTROLLER_CARD` components are present.
   * Verify each PORT present on a CONTROLLER_CARD has the following paths set:
-    * Search the components to to find components of type PORT with parent = CONTROLLER_CARD
+    * Find components of type `PORT` with parent = CONTROLLER_CARD.  For example:
       * /components/component/state/parent = the appropriate component of type CONTROLLER_CARD
-    * Search the /interfaces/interface/state/hardware-port values to find the expected /components/component/name for the physical port on the CONTROLLER_CARD
+      * Save the /components/component/name for each of the identified `PORT`s.
+    * Search the /interfaces/interface/state/hardware-port values to find the port names for
+      the physical port on the CONTROLLER_CARD
       * For each of these interfaces, verify /interfaces/interface/state/management = TRUE
 
-## OpenConfig Path and RPC Coverage
+## Canonical OC
+```json
+{
+  "components": {
+    "component": [
+      {
+        "config": {
+          "name": "ControllerCard0"
+        },
+        "name": "ControllerCard0",
+        "state": {
+          "type": "CONTROLLER_CARD"
+        }
+      },
+      {
+        "config": {
+          "name": "Port0"
+        },
+        "name": "Port0",
+        "state": {
+          "parent": "ControllerCard0",
+          "type": "PORT"
+        }
+      }
+    ]
+  },
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "name": "mgmt0"
+        },
+        "name": "mgmt0",
+        "state": {
+          "hardware-port": "Port0",
+          "management": true
+        }
+      }
+    ]
+  }
+}
+```
 
-The below yaml defines the OC paths and RPC intended to be covered by this test.
+## OpenConfig Path and RPC Coverage
 
 ```yaml
 paths:

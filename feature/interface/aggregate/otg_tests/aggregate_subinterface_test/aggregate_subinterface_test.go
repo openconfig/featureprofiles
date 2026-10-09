@@ -493,7 +493,7 @@ func setLagMemberAdminState(t *testing.T, dut *ondatra.DUTDevice, portID string,
 	ocIntf := &oc.Interface{
 		Name:    ygot.String(portName),
 		Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
-		Enabled: ygot.Bool(true),
+		Enabled: ygot.Bool(enabled),
 	}
 	gnmi.Update(t, dut, gnmi.OC().Interface(portName).Config(), ocIntf)
 }

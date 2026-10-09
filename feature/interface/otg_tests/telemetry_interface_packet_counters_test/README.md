@@ -20,8 +20,9 @@ following features:
     *   /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled
     *   /interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled
 
-    Validate that IPv4 and IPv6 addresses are enabled:
+    Validate that subinterface and IPv4 and IPv6 addresses are enabled:
 
+    *   /interfaces/interface/subinterfaces/subinterface/state/enabled
     *   /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/state/enabled
     *   /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/enabled
 
@@ -36,6 +37,7 @@ following features:
 
     *   /interfaces/interface[name='port']/state/counters/in-pkts
     *   /interfaces/interface[name='port']/state/counters/out-pkts
+    *   /interfaces/interface[name='port']/state/counters/last-clear
     *   /interfaces/interface[name='port']/subinterfaces/subinterface[index='index-id']/ipv4/state/counters/in-pkts
     *   /interfaces/interface[name='port']/subinterfaces/subinterface[index='index-id']/ipv6/state/counters/in-pkts
    
@@ -44,6 +46,7 @@ following features:
 
     Check the presence of packet counter paths
 
+    *   /interfaces/interface/subinterfaces/subinterface/state/counters/in-octets
     *   TODO:
         /interfaces/interface[name=port]/subinterfaces/subinterface[index='index']/ipv4/state/counters/in-pkts
     *   TODO:
@@ -63,6 +66,7 @@ following features:
     *   /interfaces/interface/ethernet/state/counters/in-crc-errors
     *   /interfaces/interface/ethernet/state/counters/in-fragment-frames
     *   /interfaces/interface/ethernet/state/counters/in-jabber-frames
+    *   /interfaces/interface/ethernet/state/counters/in-oversize-frames
 
 *   Interface CPU and management
 
@@ -80,6 +84,74 @@ The test uses a 2 port ATE setup where 2 ports are used as a singleton interface
 Ports are configured with ipv4, ipv6 interfaces on DUT and ATE. Traffic is sent
 and from ATE to DUT and the counters are verified.
 
+## Canonical OC
+
+```json
+{
+  "openconfig-interfaces:interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "Input interface port1",
+          "enabled": true,
+          "name": "port1",
+          "type": "iana-if-type:ethernetCsmacd"
+        },
+        "name": "port1",
+        "openconfig-if-rates:rates": {
+          "config": {
+            "load-interval": 30
+          }
+        },
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "config": {
+                "enabled": true,
+                "index": 0
+              },
+              "index": 0,
+              "openconfig-if-ip:ipv4": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "198.51.100.0",
+                        "prefix-length": 31
+                      },
+                      "ip": "198.51.100.0"
+                    }
+                  ]
+                },
+                "config": {
+                  "enabled": true
+                }
+              },
+              "openconfig-if-ip:ipv6": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "2001:DB8::1",
+                        "prefix-length": 126
+                      },
+                      "ip": "2001:DB8::1"
+                    }
+                  ]
+                },
+                "config": {
+                  "enabled": true
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test.
@@ -95,6 +167,7 @@ paths:
   /interfaces/interface/rates/config/load-interval:
 
   ## State Paths ##
+  /interfaces/interface/state/oper-status:
   /interfaces/interface/state/counters/carrier-transitions:
   /interfaces/interface/state/counters/in-broadcast-pkts:
   /interfaces/interface/state/counters/in-discards:
@@ -111,7 +184,10 @@ paths:
   /interfaces/interface/state/counters/out-octets:
   /interfaces/interface/state/counters/out-pkts:
   /interfaces/interface/state/counters/out-unicast-pkts:
+  /interfaces/interface/state/counters/last-clear:
   /interfaces/interface/rates/state/load-interval:
+  /interfaces/interface/subinterfaces/subinterface/state/enabled:
+  /interfaces/interface/subinterfaces/subinterface/state/counters/in-octets:
   /interfaces/interface/subinterfaces/subinterface/state/counters/out-broadcast-pkts:
   /interfaces/interface/subinterfaces/subinterface/state/counters/carrier-transitions:
   /interfaces/interface/subinterfaces/subinterface/state/counters/out-errors:
@@ -119,8 +195,10 @@ paths:
   /interfaces/interface/subinterfaces/subinterface/state/counters/in-errors:
   /interfaces/interface/subinterfaces/subinterface/state/counters/in-unknown-protos:
   /interfaces/interface/subinterfaces/subinterface/state/counters/in-broadcast-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/state/enabled:
   /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-pkts:
   /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/enabled:
   /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-pkts:
   /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-pkts:
   /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-discarded-pkts:
@@ -131,6 +209,7 @@ paths:
   /interfaces/interface/ethernet/state/counters/in-crc-errors:
   /interfaces/interface/ethernet/state/counters/in-fragment-frames:
   /interfaces/interface/ethernet/state/counters/in-jabber-frames:
+  /interfaces/interface/ethernet/state/counters/in-oversize-frames:
   /interfaces/interface/state/cpu:
   /interfaces/interface/state/management:
 
