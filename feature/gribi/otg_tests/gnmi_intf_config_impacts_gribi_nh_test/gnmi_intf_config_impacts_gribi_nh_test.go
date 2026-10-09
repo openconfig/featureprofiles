@@ -16,7 +16,7 @@
 // test plan: verifying that gNMI interface configuration changes (admin
 // state, MTU) to an interface used by an active gRIBI NextHop are handled
 // gracefully.
-package gnmiintfconfigimpactsgribinhtest
+package gnmi_intf_config_impacts_gribi_nh_test
 
 import (
 	"context"
