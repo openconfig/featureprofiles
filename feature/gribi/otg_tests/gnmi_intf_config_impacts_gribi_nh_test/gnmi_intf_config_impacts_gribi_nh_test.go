@@ -609,6 +609,10 @@ func verifyNHViaAFT(t *testing.T, dut *ondatra.DUTDevice, ni string, nhIndex uin
 
 func testMTUChange(t *testing.T, dut *ondatra.DUTDevice, p2, p3, p4 *ondatra.Port) {
 	setMTU(t, dut, p2.Name(), mtuJumbo)
+	t.Cleanup(func() {
+		setMTU(t, dut, p2.Name(), mtuDefault)
+		awaitMTU(t, dut, p2.Name(), mtuDefault, awaitTimeout)
+	})
 	awaitMTU(t, dut, p2.Name(), mtuJumbo, awaitTimeout)
 	verifyPortTraffic(t, dut, monitorWindow, map[*ondatra.Port]bool{p2: true, p3: true, p4: true})
 
@@ -662,6 +666,10 @@ func testMTUSmallerThanPacket(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 	errBefore, counterName := errorFrameCounter(t, dut, p2.Name())
 
 	setMTU(t, dut, p2.Name(), mtuTooSmall)
+	t.Cleanup(func() {
+		setMTU(t, dut, p2.Name(), mtuDefault)
+		awaitMTU(t, dut, p2.Name(), mtuDefault, awaitTimeout)
+	})
 	awaitMTU(t, dut, p2.Name(), mtuTooSmall, awaitTimeout)
 
 	dropped := verifyFlowLoss(t, ate, flowMTUName, monitorWindow, 100)
