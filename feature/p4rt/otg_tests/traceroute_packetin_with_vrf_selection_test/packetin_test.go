@@ -185,7 +185,7 @@ func testTraffic(t *testing.T, args *testArgs, flows []gosnappi.Flow, srcEndPoin
 // testPacketIn programs p4rt table entry and sends traffic related to Traceroute,
 // then validates packetin message metadata and payload.
 func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool, cs gosnappi.ControlState, flowValues []*flowArgs, EgressPortMap map[string]bool) []float64 {
-	const targetPkts = 1000
+	const targetPkts = 3000
 	leader := args.leader
 	if err := programmTableEntry(leader, args.packetIO, false, true); err != nil {
 		t.Fatalf("There is error when programming IPv4 entry")
@@ -226,7 +226,7 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool
 	dstMac, _ := llAddress.Val()
 	var flow []gosnappi.Flow
 	for _, flowValue := range flowValues {
-		flow = append(flow, args.packetIO.GetTrafficFlow(args.ate, dstMac, isIPv4, 1, 300, 50, ipv4InnerDst, flowValue))
+		flow = append(flow, args.packetIO.GetTrafficFlow(args.ate, dstMac, isIPv4, 1, 300, 100, ipv4InnerDst, flowValue))
 	}
 	pktOut := testTraffic(t, args, flow, srcEndPoint, targetPkts, cs)
 	var countPkts = map[string]int{"11": 0, "12": 0, "13": 0, "14": 0, "15": 0, "16": 0, "17": 0}
