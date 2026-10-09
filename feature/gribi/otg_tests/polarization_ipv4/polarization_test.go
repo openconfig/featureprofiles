@@ -32,6 +32,7 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
@@ -564,14 +565,10 @@ func TestPolarization(t *testing.T) {
 		}
 		gnmi.Delete(t, dut, gnmi.OC().Interface(agg1ID).Config())
 		gnmi.Delete(t, dut, gnmi.OC().Interface(agg2ID).Config())
-		switch dut.Vendor() {
-		case ondatra.CISCO:
+		if dut.Vendor() == ondatra.CISCO {
 			gnmi.Delete(t, dut, gnmi.OC().Interface("Loopback0").Config())
-		case ondatra.ARISTA:
-			helpers.GnmiCLIConfig(t, dut, "load-balance policies\n   load-balance sand profile default\n      default ecmp hash seed\n      default ecmp hash polynomial\n      default port-channel hash seed\n      default port-channel hash polynomial\n")
-		case ondatra.NOKIA:
-			helpers.GnmiCLIConfig(t, dut, "system load-balancing hash-options hash-seed generate-from-mac")
 		}
+		cfgplugins.PushDUTHardwareInitConfig(t, dut, cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureLoadBalanceHashReset))
 	})
 
 	t.Log("=== Phase 1/4: Configuring DUT interfaces and LAGs ===")
