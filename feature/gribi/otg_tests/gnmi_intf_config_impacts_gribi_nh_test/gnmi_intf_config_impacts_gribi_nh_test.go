@@ -542,9 +542,11 @@ func testPortAdminStateBounce(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 		map[*ondatra.Port]bool{p2: false, p3: true, p4: true},
 		map[string]bool{ateP2: false, ateP3: true, ateP4: true})
 
+	// Threshold exceeds link-up control frames so only recovered data-plane traffic satisfies it.
+	p2FramesDown := ateInFrames(t, ate, ateP2)
 	setPortEnabled(t, dut, p2, true)
 	verifyNHViaAFT(t, dut, ni, nh2ID)
-	time.Sleep(convergeSettle)
+	awaitCounterAbove(t, ate, gnmi.OTG().Port(ateP2).Counters().InFrames().State(), p2FramesDown+trafficPPS, "ATE port "+ateP2)
 	verifyPortAndATETraffic(t, dut, ate, monitorWindow,
 		map[*ondatra.Port]bool{p2: true, p3: true, p4: true},
 		map[string]bool{ateP2: true, ateP3: true, ateP4: true})
@@ -553,6 +555,16 @@ func testPortAdminStateBounce(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 func ateInFrames(t *testing.T, ate *ondatra.ATEDevice, portID string) uint64 {
 	t.Helper()
 	return gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(portID).Counters().InFrames().State())
+}
+
+func awaitCounterAbove(t *testing.T, ate *ondatra.ATEDevice, q ygnmi.SingletonQuery[uint64], threshold uint64, what string) {
+	t.Helper()
+	if _, ok := gnmi.Watch(t, ate.OTG(), q, awaitTimeout, func(v *ygnmi.Value[uint64]) bool {
+		got, present := v.Val()
+		return present && got > threshold
+	}).Await(t); !ok {
+		t.Errorf("%s: counter did not exceed %d within %v after re-enabling port2", what, threshold, awaitTimeout)
+	}
 }
 
 func verifyPortAndATETraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, window time.Duration, dutWant map[*ondatra.Port]bool, ateWant map[string]bool) {
@@ -646,8 +658,9 @@ func testNHOnDownInterface(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.AT
 	defer setFlowTransmit(t, ate, gosnappi.StateTrafficFlowTransmitState.STOP, flowNegDownName)
 	verifyFlowLoss(t, ate, flowNegDownName, monitorWindow, 100)
 
+	_, rxDown := flowCounters(t, ate, flowNegDownName)
 	setPortEnabled(t, dut, p2, true)
-	time.Sleep(convergeSettle)
+	awaitCounterAbove(t, ate, gnmi.OTG().Flow(flowNegDownName).Counters().InPkts().State(), rxDown, "Flow "+flowNegDownName)
 	ateP2 := ate.Port(t, "port2").ID()
 	ateP2Before := ateInFrames(t, ate, ateP2)
 	verifyFlowLoss(t, ate, flowNegDownName, monitorWindow, 0)
