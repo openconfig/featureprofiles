@@ -1498,6 +1498,17 @@ message Metadata {
     // Juniper: https://partnerissuetracker.corp.google.com/issues/570573973
     bool default_subinterface_ip_counters_unsupported = 462;
 
+    // Device does not support
+    // /lacp/interfaces/interface/members/member/state/counters/lacp-tx-errors.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/570398368
+    bool lacp_tx_errors_unsupported = 463;
+
+    // Device wipes out LACP interface configuration (such as system-id-mac) when
+    // /interfaces/interface[name=<aggID>]/config is replaced, requiring LACP
+    // configuration to be re-applied after the aggregate interface is replaced.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/570892225
+    bool lacp_config_after_aggregate_replace = 464;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }

@@ -2416,3 +2416,19 @@ func InterfaceLastClearUnsupported(dut *ondatra.DUTDevice) bool {
 func DefaultSubinterfaceIPCountersUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDefaultSubinterfaceIpCountersUnsupported()
 }
+
+// LacpTxErrorsUnsupported returns true if the device does not support
+// /lacp/interfaces/interface/members/member/state/counters/lacp-tx-errors.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/570398368
+func LacpTxErrorsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLacpTxErrorsUnsupported()
+}
+
+// LacpConfigAfterAggregateReplace returns true if the device wipes out LACP
+// interface configuration (such as system-id-mac) when
+// /interfaces/interface/config is replaced, requiring LACP configuration to be
+// re-applied after the aggregate interface is replaced.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/570892225
+func LacpConfigAfterAggregateReplace(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLacpConfigAfterAggregateReplace()
+}
