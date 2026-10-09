@@ -64,8 +64,8 @@ func TestAccountzRecordSubscribePartial(t *testing.T) {
 	wantRecords = append(wantRecords, nr...)
 	nr = acctz.SendGnsiRPCs(t, dut)
 	wantRecords = append(wantRecords, nr...)
-	nr = acctz.SendGribiRPCs(t, dut)
 	if !deviations.GribiRecordsUnsupported(dut) {
+		nr = acctz.SendGribiRPCs(t, dut)
 		wantRecords = append(wantRecords, nr...)
 	}
 	if !deviations.P4RTCapabilitiesUnsupported(dut) {

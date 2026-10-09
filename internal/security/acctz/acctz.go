@@ -775,7 +775,7 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		failpass = failAuthorizePassword
 	} else {
 		failuser = FailAuthenticateUsername
-		failpass = failPassword
+		failpass = failAuthenticatePassword
 	}
 	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, failuser, passKey, failpass))
 	var gnmiClient gnmipb.GNMIClient
@@ -801,11 +801,7 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	}
 	// Send an unsuccessful gNMI capabilities request (bad creds in context).
 	_, err1 := gnmiClient.Capabilities(ctx, &gnmipb.CapabilityRequest{})
-	if err1 != nil && status.Code(err1) == codes.PermissionDenied {
-		t.Logf("Got expected error fetching capabilities with no permissions, error: %s", err1)
-	} else {
-		t.Errorf("Did not get expected error fetching capabilities with no permissions. %v", err1)
-	}
+	logExpectedFailGRPCError(t, dut, err1, "fetching capabilities")
 
 	if !deviations.AcctzRecordFailGrpcUnsupported(dut) {
 		records = append(records, &acctzpb.RecordResponse{
@@ -908,7 +904,7 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		failpass = failAuthorizePassword
 	} else {
 		failuser = FailAuthenticateUsername
-		failpass = failPassword
+		failpass = failAuthenticatePassword
 	}
 	var gnoiSystemClient systempb.SystemClient
 	ctx := context.Background()
@@ -936,11 +932,7 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	if dut.Vendor() == ondatra.NOKIA {
 		rpcName = gnoiTimePath
 		_, err = gnoiSystemClient.Time(ctx, &systempb.TimeRequest{})
-		if err != nil && status.Code(err) == codes.PermissionDenied {
-			t.Logf("Got expected error getting gnoi system time with no permissions, error: %s", err)
-		} else {
-			t.Errorf("Did not get expected error getting gnoi system time with no permissions. error: %s", err)
-		}
+		logExpectedFailGRPCError(t, dut, err, "getting gnoi system time")
 	} else {
 		rpcName = gnoiPingPath
 		gnoiSystemPingClient, err1 := gnoiSystemClient.Ping(ctx, &systempb.PingRequest{
@@ -951,11 +943,7 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 			t.Errorf("Got unexpected error getting gnoi system ping client, error: %s", err1)
 		}
 		_, err = gnoiSystemPingClient.Recv()
-		if err != nil && status.Code(err) == codes.PermissionDenied {
-			t.Logf("Got expected error getting gnoi system ping with no permissions, error: %s", err)
-		} else {
-			t.Errorf("Did not get expected error getting gnoi system ping with no permissions. error: %s", err)
-		}
+		logExpectedFailGRPCError(t, dut, err, "getting gnoi system ping")
 	}
 
 	if !deviations.AcctzRecordFailGrpcUnsupported(dut) {
@@ -1071,7 +1059,7 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		failpass = failAuthorizePassword
 	} else {
 		failuser = FailAuthenticateUsername
-		failpass = failPassword
+		failpass = failAuthenticatePassword
 	}
 	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, failuser, passKey, failpass))
 	var authzClient authzpb.AuthzClient
@@ -1094,11 +1082,7 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	// Send an unsuccessful gNSI authz get request (bad creds in context), we don't
 	// care about receiving on it, just want to make the request.
 	_, err := authzClient.Get(ctx, &authzpb.GetRequest{})
-	if err != nil && status.Code(err) == codes.PermissionDenied {
-		t.Logf("Got expected error fetching authz policy with no permissions, error: %s", err)
-	} else {
-		t.Errorf("Did not get expected error fetching authz policy with no permissions. error: %s", err)
-	}
+	logExpectedFailGRPCError(t, dut, err, "fetching authz policy")
 	if !deviations.AcctzRecordFailGrpcUnsupported(dut) {
 		records = append(records, &acctzpb.RecordResponse{
 			ServiceRequest: &acctzpb.RecordResponse_GrpcService{
@@ -1193,7 +1177,7 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespon
 		failpass = failAuthorizePassword
 	} else {
 		failuser = FailAuthenticateUsername
-		failpass = failPassword
+		failpass = failAuthenticatePassword
 	}
 	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, failuser, passKey, failpass))
 
@@ -1363,7 +1347,7 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		failpass = failAuthorizePassword
 	} else {
 		failuser = FailAuthenticateUsername
-		failpass = failPassword
+		failpass = failAuthenticatePassword
 	}
 	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, failuser, passKey, failpass))
 
@@ -1720,6 +1704,23 @@ func SendShellCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) 
 	})
 
 	return records
+}
+
+func logExpectedFailGRPCError(t *testing.T, dut *ondatra.DUTDevice, err error, rpcDesc string) {
+	t.Helper()
+	if dut.Vendor() == ondatra.ARISTA {
+		if err != nil && status.Code(err) == codes.PermissionDenied {
+			t.Logf("Got expected error %s with no permissions, error: %s", rpcDesc, err)
+			return
+		}
+		t.Errorf("Did not get expected error %s with no permissions. %v", rpcDesc, err)
+		return
+	}
+	if err != nil {
+		t.Logf("Got expected error %s with bad creds, error: %s", rpcDesc, err)
+		return
+	}
+	t.Errorf("Did not get expected error %s with bad creds. %v", rpcDesc, err)
 }
 
 func enableAccountingStartStop(t *testing.T, dut *ondatra.DUTDevice) {
