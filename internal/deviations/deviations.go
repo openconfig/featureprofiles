@@ -2404,6 +2404,19 @@ func PowerSupplyTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPowerSupplyTelemetryUnsupported()
 }
 
+// InterfaceLastClearUnsupported returns true if the device does not populate
+// /interfaces/interface/state/counters/last-clear after the interface counters
+// are cleared.
+func InterfaceLastClearUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceLastClearUnsupported()
+}
+
+// DefaultSubinterfaceIPCountersUnsupported returns true if the device does not
+// update subinterface 0 IPv4/IPv6 packet counters during transit traffic.
+func DefaultSubinterfaceIPCountersUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDefaultSubinterfaceIpCountersUnsupported()
+}
+
 // LacpTxErrorsUnsupported returns true if the device does not support
 // /lacp/interfaces/interface/members/member/state/counters/lacp-tx-errors.
 // Cisco: https://partnerissuetracker.corp.google.com/issues/570398368
