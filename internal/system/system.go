@@ -17,10 +17,12 @@ package system
 
 import (
 	"testing"
+	"time"
 
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/testt"
 )
 
 // FindProcessIDByName uses telemetry to find out the PID of a process.
@@ -36,4 +38,41 @@ func FindProcessIDByName(t *testing.T, dut *ondatra.DUTDevice, pName string) uin
 		}
 	}
 	return pid
+}
+
+// ProcessInfo holds PID, Start Time, and Memory Usage of a system process.
+type ProcessInfo struct {
+	Pid         uint64
+	StartTime   uint64
+	MemoryUsage uint64
+}
+
+// AwaitDeviceReachable waits for the device to become reachable via gNMI after an event like a reboot or switchover.
+// It continuously polls a basic state leaf (like current-datetime) until it succeeds or times out.
+func AwaitDeviceReachable(t *testing.T, dut *ondatra.DUTDevice, timeout time.Duration) {
+	t.Helper()
+	start := time.Now()
+	t.Logf("Waiting for device %v to become reachable via gNMI (timeout: %v)...", dut.Name(), timeout)
+
+	// Fast initial polling, backing off to larger intervals.
+	pollInterval := 5 * time.Second
+	for {
+		if time.Since(start) > timeout {
+			t.Fatalf("Device %v failed to become reachable within %v timeout", dut.Name(), timeout)
+		}
+
+		var currentTime string
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+		}); errMsg != nil {
+			time.Sleep(pollInterval)
+			if pollInterval < 30*time.Second {
+				pollInterval += 5 * time.Second
+			}
+			continue
+		}
+
+		t.Logf("Device %v is reachable. Current system datetime: %v", dut.Name(), currentTime)
+		return
+	}
 }
