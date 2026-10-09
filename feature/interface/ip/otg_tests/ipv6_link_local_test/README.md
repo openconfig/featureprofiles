@@ -156,6 +156,16 @@ IPv6 address exists by checking the state path.
     remains healthy, entries do not get stuck in `STALE`, and the switch
     remains consistently reachable throughout the duration of the test.
 
+### Cleanup
+
+* Stop all ATE traffic flows, including the raw Neighbor Advertisement flows,
+  and stop ATE protocols.
+* Register and execute `t.Cleanup()` routines that ensure DUT port 1 and DUT
+  port 2 are administratively enabled (`/interfaces/interface/config/enabled`
+  is `true`) and remove all IPv6 link-local and global unicast addresses
+  configured on them during the test, so the DUT is returned to its exact
+  pre-test baseline state even if the test fails.
+
 ## Canonical OC
 
 ```json
