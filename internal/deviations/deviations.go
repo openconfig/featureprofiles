@@ -2404,6 +2404,19 @@ func PowerSupplyTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPowerSupplyTelemetryUnsupported()
 }
 
+// InterfaceLastClearUnsupported returns true if the device does not populate
+// /interfaces/interface/state/counters/last-clear after the interface counters
+// are cleared.
+func InterfaceLastClearUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceLastClearUnsupported()
+}
+
+// DefaultSubinterfaceIPCountersUnsupported returns true if the device does not
+// update subinterface 0 IPv4/IPv6 packet counters during transit traffic.
+func DefaultSubinterfaceIPCountersUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDefaultSubinterfaceIpCountersUnsupported()
+}
+
 // DecapNHWithoutNextHopNIUnsupported returns true if Decap NH without NextHopNetworkInstance is not supported
 // Nokia: https://partnerissuetracker.corp.google.com/issues/529388485
 func DecapNHWithoutNextHopNIUnsupported(dut *ondatra.DUTDevice) bool {
