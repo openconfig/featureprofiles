@@ -716,10 +716,7 @@ message Metadata {
     // Cisco b/390502067
     bool sr_igp_config_unsupported = 260;
 
-    // Cisco: b/404301960
-    // Devices that block one IS-IS level specific authentication config attribute for P2P links.
-    // The same leafs can be set directly under ISIS Interface authentication /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication.
-    bool set_isis_auth_with_interface_authentication_container = 261;
+    reserved 261;
 
     // Devices that do not support GRE/GUE tunnel interface oc.
     // Juniper b/398171114
@@ -1278,6 +1275,7 @@ message Metadata {
     string fragment_punt_ft = 408;
 
     // Arista: https://partnerissuetracker.corp.google.com/issues/502838491
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/570573973
     // Device is missing subinterface state packet counters.
     bool default_subinterface_packet_counters_missing = 409;
 
@@ -1458,11 +1456,11 @@ message Metadata {
     bool gnoi_requires_fresh_dial_after_switchover = 454;
 
     // Device requires delay before issuing a back-to-back switchover request.
-    uint32 gnoi_back_to_back_switchover_delay_s = 460;
+    uint32 gnoi_back_to_back_switchover_delay_s = 463;
 
     // Device does not support gNMI Subscribe during switchover recovery and
     // requires gNMI Get polling instead.
-    bool switchover_subscribe_unsupported = 461;
+    bool switchover_subscribe_unsupported = 464;
 
     // Device requires explicit "write memory" before reboot to persist
     // containerz config, and must skip config re-push after reboot to avoid
@@ -1489,6 +1487,23 @@ message Metadata {
     // Device does not support power supply telemetry.
     // Cisco: https://b.corp.google.com/issues/307454993
     bool power_supply_telemetry_unsupported = 459;
+
+    // Devices that do not support configuring the sFlow egress sampling rate
+    // (/sampling/sflow/interfaces/interface/config/egress-sampling-rate)
+    // through OpenConfig.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/562517133
+    bool sflow_egress_sampling_rate_unsupported = 460;
+
+    // Device does not populate /interfaces/interface/state/counters/last-clear
+    // after the interface counters are cleared.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/570578230
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/570575610
+    bool interface_last_clear_unsupported = 461;
+
+    // Device does not update subinterface 0 IPv4/IPv6 packet counters during
+    // transit traffic.
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/570573973
+    bool default_subinterface_ip_counters_unsupported = 462;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131,

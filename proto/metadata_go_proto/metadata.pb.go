@@ -1001,10 +1001,6 @@ type Metadata_Deviations struct {
 	// Devices that do not support SR IGP configuration
 	// Cisco b/390502067
 	SrIgpConfigUnsupported bool `protobuf:"varint,260,opt,name=sr_igp_config_unsupported,json=srIgpConfigUnsupported,proto3" json:"sr_igp_config_unsupported,omitempty"`
-	// Cisco: b/404301960
-	// Devices that block one IS-IS level specific authentication config attribute for P2P links.
-	// The same leafs can be set directly under ISIS Interface authentication /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication.
-	SetIsisAuthWithInterfaceAuthenticationContainer bool `protobuf:"varint,261,opt,name=set_isis_auth_with_interface_authentication_container,json=setIsisAuthWithInterfaceAuthenticationContainer,proto3" json:"set_isis_auth_with_interface_authentication_container,omitempty"`
 	// Devices that do not support GRE/GUE tunnel interface oc.
 	// Juniper b/398171114
 	GreGueTunnelInterfaceOcUnsupported bool `protobuf:"varint,262,opt,name=gre_gue_tunnel_interface_oc_unsupported,json=greGueTunnelInterfaceOcUnsupported,proto3" json:"gre_gue_tunnel_interface_oc_unsupported,omitempty"`
@@ -1418,6 +1414,7 @@ type Metadata_Deviations struct {
 	// Functional translator to be used for Fragment Punt OC paths
 	FragmentPuntFt string `protobuf:"bytes,408,opt,name=fragment_punt_ft,json=fragmentPuntFt,proto3" json:"fragment_punt_ft,omitempty"`
 	// Arista: https://partnerissuetracker.corp.google.com/issues/502838491
+	// Juniper: https://partnerissuetracker.corp.google.com/issues/570573973
 	// Device is missing subinterface state packet counters.
 	DefaultSubinterfacePacketCountersMissing bool `protobuf:"varint,409,opt,name=default_subinterface_packet_counters_missing,json=defaultSubinterfacePacketCountersMissing,proto3" json:"default_subinterface_packet_counters_missing,omitempty"`
 	// Device Does not support session channel id
@@ -1553,10 +1550,10 @@ type Metadata_Deviations struct {
 	// Tracking: https://github.com/openconfig/ondatra/issues/145
 	GnoiRequiresFreshDialAfterSwitchover bool `protobuf:"varint,454,opt,name=gnoi_requires_fresh_dial_after_switchover,json=gnoiRequiresFreshDialAfterSwitchover,proto3" json:"gnoi_requires_fresh_dial_after_switchover,omitempty"`
 	// Device requires delay before issuing a back-to-back switchover request.
-	GnoiBackToBackSwitchoverDelayS uint32 `protobuf:"varint,460,opt,name=gnoi_back_to_back_switchover_delay_s,json=gnoiBackToBackSwitchoverDelayS,proto3" json:"gnoi_back_to_back_switchover_delay_s,omitempty"`
+	GnoiBackToBackSwitchoverDelayS uint32 `protobuf:"varint,463,opt,name=gnoi_back_to_back_switchover_delay_s,json=gnoiBackToBackSwitchoverDelayS,proto3" json:"gnoi_back_to_back_switchover_delay_s,omitempty"`
 	// Device does not support gNMI Subscribe during switchover recovery and
 	// requires gNMI Get polling instead.
-	SwitchoverSubscribeUnsupported bool `protobuf:"varint,461,opt,name=switchover_subscribe_unsupported,json=switchoverSubscribeUnsupported,proto3" json:"switchover_subscribe_unsupported,omitempty"`
+	SwitchoverSubscribeUnsupported bool `protobuf:"varint,464,opt,name=switchover_subscribe_unsupported,json=switchoverSubscribeUnsupported,proto3" json:"switchover_subscribe_unsupported,omitempty"`
 	// Device requires explicit "write memory" before reboot to persist
 	// containerz config, and must skip config re-push after reboot to avoid
 	// restarting the management stack during warmup.
@@ -1578,8 +1575,22 @@ type Metadata_Deviations struct {
 	// Device does not support power supply telemetry.
 	// Cisco: https://b.corp.google.com/issues/307454993
 	PowerSupplyTelemetryUnsupported bool `protobuf:"varint,459,opt,name=power_supply_telemetry_unsupported,json=powerSupplyTelemetryUnsupported,proto3" json:"power_supply_telemetry_unsupported,omitempty"`
-	unknownFields                   protoimpl.UnknownFields
-	sizeCache                       protoimpl.SizeCache
+	// Devices that do not support configuring the sFlow egress sampling rate
+	// (/sampling/sflow/interfaces/interface/config/egress-sampling-rate)
+	// through OpenConfig.
+	// Arista: https://partnerissuetracker.corp.google.com/issues/562517133
+	SflowEgressSamplingRateUnsupported bool `protobuf:"varint,460,opt,name=sflow_egress_sampling_rate_unsupported,json=sflowEgressSamplingRateUnsupported,proto3" json:"sflow_egress_sampling_rate_unsupported,omitempty"`
+	// Device does not populate /interfaces/interface/state/counters/last-clear
+	// after the interface counters are cleared.
+	// Arista: https://partnerissuetracker.corp.google.com/issues/570578230
+	// Juniper: https://partnerissuetracker.corp.google.com/issues/570575610
+	InterfaceLastClearUnsupported bool `protobuf:"varint,461,opt,name=interface_last_clear_unsupported,json=interfaceLastClearUnsupported,proto3" json:"interface_last_clear_unsupported,omitempty"`
+	// Device does not update subinterface 0 IPv4/IPv6 packet counters during
+	// transit traffic.
+	// Juniper: https://partnerissuetracker.corp.google.com/issues/570573973
+	DefaultSubinterfaceIpCountersUnsupported bool `protobuf:"varint,462,opt,name=default_subinterface_ip_counters_unsupported,json=defaultSubinterfaceIpCountersUnsupported,proto3" json:"default_subinterface_ip_counters_unsupported,omitempty"`
+	unknownFields                            protoimpl.UnknownFields
+	sizeCache                                protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -3194,13 +3205,6 @@ func (x *Metadata_Deviations) GetSrIgpConfigUnsupported() bool {
 	return false
 }
 
-func (x *Metadata_Deviations) GetSetIsisAuthWithInterfaceAuthenticationContainer() bool {
-	if x != nil {
-		return x.SetIsisAuthWithInterfaceAuthenticationContainer
-	}
-	return false
-}
-
 func (x *Metadata_Deviations) GetGreGueTunnelInterfaceOcUnsupported() bool {
 	if x != nil {
 		return x.GreGueTunnelInterfaceOcUnsupported
@@ -4594,6 +4598,27 @@ func (x *Metadata_Deviations) GetPowerSupplyTelemetryUnsupported() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetSflowEgressSamplingRateUnsupported() bool {
+	if x != nil {
+		return x.SflowEgressSamplingRateUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetInterfaceLastClearUnsupported() bool {
+	if x != nil {
+		return x.InterfaceLastClearUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetDefaultSubinterfaceIpCountersUnsupported() bool {
+	if x != nil {
+		return x.DefaultSubinterfaceIpCountersUnsupported
+	}
+	return false
+}
+
 type Metadata_PlatformExceptions struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Platform      *Metadata_Platform     `protobuf:"bytes,1,opt,name=platform,proto3" json:"platform,omitempty"`
@@ -4650,7 +4675,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xe2\x85\x02\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xf9\x86\x02\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -4662,7 +4687,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xca\xfa\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xe1\xfb\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -4892,8 +4917,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\x13explicit_dco_config\x18\x81\x02 \x01(\bR\x11explicitDcoConfig\x12Y\n" +
 	")verify_expected_breakout_supported_config\x18\x82\x02 \x01(\bR%verifyExpectedBreakoutSupportedConfig\x12;\n" +
 	"\x19bgp_aspathset_unsupported\x18\x83\x02 \x01(\bR\x17bgpAspathsetUnsupported\x12:\n" +
-	"\x19sr_igp_config_unsupported\x18\x84\x02 \x01(\bR\x16srIgpConfigUnsupported\x12o\n" +
-	"5set_isis_auth_with_interface_authentication_container\x18\x85\x02 \x01(\bR/setIsisAuthWithInterfaceAuthenticationContainer\x12T\n" +
+	"\x19sr_igp_config_unsupported\x18\x84\x02 \x01(\bR\x16srIgpConfigUnsupported\x12T\n" +
 	"'gre_gue_tunnel_interface_oc_unsupported\x18\x86\x02 \x01(\bR\"greGueTunnelInterfaceOcUnsupported\x12>\n" +
 	"\x1bload_interval_not_supported\x18\x87\x02 \x01(\bR\x18loadIntervalNotSupported\x12Z\n" +
 	"*skip_optical_channel_output_power_interval\x18\x88\x02 \x01(\bR%skipOpticalChannelOutputPowerInterval\x12A\n" +
@@ -5088,13 +5112,16 @@ const file_metadata_proto_rawDesc = "" +
 	"%p4rt_aaa_role_based_authz_unsupported\x18\xc4\x03 \x01(\bR p4rtAaaRoleBasedAuthzUnsupported\x12@\n" +
 	"\x1cswitchover_stabilize_delay_m\x18\xc5\x03 \x01(\rR\x19switchoverStabilizeDelayM\x12X\n" +
 	")gnoi_requires_fresh_dial_after_switchover\x18\xc6\x03 \x01(\bR$gnoiRequiresFreshDialAfterSwitchover\x12M\n" +
-	"$gnoi_back_to_back_switchover_delay_s\x18\xcc\x03 \x01(\rR\x1egnoiBackToBackSwitchoverDelayS\x12I\n" +
-	" switchover_subscribe_unsupported\x18\xcd\x03 \x01(\bR\x1eswitchoverSubscribeUnsupported\x12U\n" +
+	"$gnoi_back_to_back_switchover_delay_s\x18\xcf\x03 \x01(\rR\x1egnoiBackToBackSwitchoverDelayS\x12I\n" +
+	" switchover_subscribe_unsupported\x18\xd0\x03 \x01(\bR\x1eswitchoverSubscribeUnsupported\x12U\n" +
 	"'containerz_require_explicit_config_save\x18\xc7\x03 \x01(\bR#containerzRequireExplicitConfigSave\x12E\n" +
 	"\x1faigp_route_metric_not_supported\x18\xc8\x03 \x01(\bR\x1baigpRouteMetricNotSupported\x12;\n" +
 	"\x1abgp_adj_rib_oc_unsupported\x18\xc9\x03 \x01(\bR\x16bgpAdjRibOcUnsupported\x123\n" +
 	"\x15aigp_metric_increment\x18\xca\x03 \x01(\bR\x13aigpMetricIncrement\x12L\n" +
-	"\"power_supply_telemetry_unsupported\x18\xcb\x03 \x01(\bR\x1fpowerSupplyTelemetryUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"\"power_supply_telemetry_unsupported\x18\xcb\x03 \x01(\bR\x1fpowerSupplyTelemetryUnsupported\x12S\n" +
+	"&sflow_egress_sampling_rate_unsupported\x18\xcc\x03 \x01(\bR\"sflowEgressSamplingRateUnsupported\x12H\n" +
+	" interface_last_clear_unsupported\x18\xcd\x03 \x01(\bR\x1dinterfaceLastClearUnsupported\x12_\n" +
+	",default_subinterface_ip_counters_unsupported\x18\xce\x03 \x01(\bR(defaultSubinterfaceIpCountersUnsupportedJ\x06\b\x85\x02\x10\x86\x02J\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02J\x06\b\xf1\x01\x10\xf2\x01J\x04\b1\x102\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +

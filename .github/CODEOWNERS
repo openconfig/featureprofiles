@@ -10,6 +10,11 @@
 # review when someone opens a pull request.
 *       @openconfig/featureprofiles-approvers
 
+# Exclude testregistry.textproto from having any code owners. 
+# This allows anyone with write access (any featureprofiles-owner) 
+# to approve changes to this file.
+testregistry.textproto
+
 # /feature folders each have owners who are auto requested for review and may merge PR's
 /feature/acl/          @openconfig/featureprofiles-owner-acl
 /feature/afts/         @openconfig/featureprofiles-owner-aft
