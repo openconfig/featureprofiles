@@ -535,6 +535,7 @@ func testPortAdminStateBounce(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 		map[string]bool{ateP2: true, ateP3: true, ateP4: true})
 
 	setPortEnabled(t, dut, p2, false)
+	t.Cleanup(func() { setPortEnabled(t, dut, p2, true) })
 	verifyNHViaAFT(t, dut, ni, nh2ID)
 	time.Sleep(convergeSettle)
 	verifyPortAndATETraffic(t, dut, ate, monitorWindow,
@@ -618,6 +619,7 @@ func testMTUChange(t *testing.T, dut *ondatra.DUTDevice, p2, p3, p4 *ondatra.Por
 
 func testNHOnDownInterface(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, client *gribi.Client, ni string, p2 *ondatra.Port) {
 	setPortEnabled(t, dut, p2, false)
+	t.Cleanup(func() { setPortEnabled(t, dut, p2, true) })
 
 	nh, _ := gribi.NHEntry(nhDownID, "MACwithInterface", ni, fluent.InstalledInFIB, nhOpts(t, dut, 1))
 	nhg, _ := gribi.NHGEntry(nhgDownID, map[uint64]uint64{nhDownID: 1}, ni, fluent.InstalledInFIB)
