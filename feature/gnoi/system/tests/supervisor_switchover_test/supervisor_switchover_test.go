@@ -61,6 +61,11 @@ var (
 		MAC:     "02:00:01:01:01:01",
 		IPv4Len: ipv4PrefixLen,
 	}
+	dutDst = attrs.Attributes{
+		Desc:    "dutDst",
+		IPv4:    "198.51.100.1",
+		IPv4Len: ipv4PrefixLen,
+	}
 	ateDst = attrs.Attributes{
 		Name:    "ateDst",
 		IPv4:    "198.51.100.2",
@@ -73,23 +78,26 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-// configureDUT configures two physical ports and an LACP bundle on the DUT
-// per README "gNOI-3.3: Test environment setup".
+// configureDUT configures port1 in an LACP bundle (ingress) and port2 as a routed L3 egress port
+// on the DUT per README "gNOI-3.3: Test environment setup".
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) ([]*ondatra.Port, string) {
 	t.Helper()
 	lagName := netutil.NextAggregateInterface(t, dut)
 	t.Logf("INFO: [gNOI-3.3 Setup] Dynamically allocated aggregate interface %q on %s (%s)", lagName, dut.Name(), dut.Model())
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
-	ports := []*ondatra.Port{p1, p2}
+	allPorts := []*ondatra.Port{p1, p2}
+	lagPorts := []*ondatra.Port{p1}
 
 	t.Cleanup(func() {
 		batch := &gnmi.SetBatch{}
-		for _, port := range ports {
-			gnmi.BatchDelete(batch, gnmi.OC().Interface(port.Name()).Config())
-		}
 		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-			gnmi.BatchDelete(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Interface(lagName+".0").Config())
+			ni := deviations.DefaultNetworkInstance(dut)
+			gnmi.BatchDelete(batch, gnmi.OC().NetworkInstance(ni).Interface(lagName+".0").Config())
+			gnmi.BatchDelete(batch, gnmi.OC().NetworkInstance(ni).Interface(p2.Name()+".0").Config())
+		}
+		for _, port := range allPorts {
+			gnmi.BatchDelete(batch, gnmi.OC().Interface(port.Name()).Config())
 		}
 		gnmi.BatchDelete(batch, gnmi.OC().Interface(lagName).Config())
 		if !deviations.LacpInterfaceFallbackOCUnsupported(dut) {
@@ -97,6 +105,32 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) ([]*ondatra.Port, string
 		}
 		batch.Set(t, dut)
 	})
+
+	if deviations.AggregateAtomicUpdate(dut) {
+		t.Logf("WARNING: [gNOI-3.3 Setup] Deviation AggregateAtomicUpdate is enabled on %s (%s): performing atomic root update for aggregate %q.", dut.Name(), dut.Model(), lagName)
+		gnmi.Delete(t, dut, gnmi.OC().Interface(lagName).Aggregation().MinLinks().Config())
+		for _, port := range lagPorts {
+			gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
+		}
+		d := &oc.Root{}
+		if !deviations.LacpInterfaceFallbackOCUnsupported(dut) {
+			lacpIntf := d.GetOrCreateLacp().GetOrCreateInterface(lagName)
+			lacpIntf.SetInterval(oc.Lacp_LacpPeriodType_FAST)
+			lacpIntf.LacpMode = oc.Lacp_LacpActivityType_ACTIVE
+		}
+		agg := d.GetOrCreateInterface(lagName)
+		agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_LACP
+		agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+		for _, port := range lagPorts {
+			i := d.GetOrCreateInterface(port.Name())
+			i.GetOrCreateEthernet().AggregateId = ygot.String(lagName)
+			i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+			if deviations.InterfaceEnabled(dut) {
+				i.Enabled = ygot.Bool(true)
+			}
+		}
+		gnmi.Update(t, dut, gnmi.OC().Config(), d)
+	}
 
 	batch := &gnmi.SetBatch{}
 
@@ -108,8 +142,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) ([]*ondatra.Port, string
 	lagIntf.Description = ygot.String("LACP Port-Channel bundle for Supervisor Switchover test")
 	sub := lagIntf.GetOrCreateSubinterface(0)
 	s4 := sub.GetOrCreateIpv4()
-	if deviations.InterfaceEnabled(dut) {
-		t.Logf("WARNING: [gNOI-3.3 Setup] Deviation InterfaceEnabled is enabled on %s (%s): setting subinterface 0 IPv4 enabled=true on %q.", dut.Name(), dut.Model(), lagName)
+	if !deviations.IPv4MissingEnabled(dut) {
+		if deviations.InterfaceEnabled(dut) {
+			t.Logf("WARNING: [gNOI-3.3 Setup] Deviation InterfaceEnabled is enabled on %s (%s): setting subinterface 0 IPv4 enabled=true on %q.", dut.Name(), dut.Model(), lagName)
+		}
 		s4.Enabled = ygot.Bool(true)
 	}
 	s4.GetOrCreateAddress(dutSrc.IPv4).PrefixLength = ygot.Uint8(dutSrc.IPv4Len)
@@ -126,7 +162,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) ([]*ondatra.Port, string
 		t.Logf("WARNING: [gNOI-3.3 Setup] Deviation LacpInterfaceFallbackOCUnsupported is enabled on %s (%s): skipping /lacp/interfaces/interface config on %q.", dut.Name(), dut.Model(), lagName)
 	}
 
-	for _, port := range ports {
+	for _, port := range lagPorts {
 		t.Logf("INFO: [gNOI-3.3 Setup] Binding member interface %q to aggregate %q...", port.Name(), lagName)
 		intf := &oc.Interface{Name: ygot.String(port.Name())}
 		intf.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
@@ -136,19 +172,34 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) ([]*ondatra.Port, string
 		gnmi.BatchReplace(batch, gnmi.OC().Interface(port.Name()).Config(), intf)
 	}
 
-	t.Logf("INFO: [gNOI-3.3 Setup] Applying batch configuration for aggregate, LACP, and members...")
+	t.Logf("INFO: [gNOI-3.3 Setup] Configuring egress L3 interface %q with IPv4 %s/%d...", p2.Name(), dutDst.IPv4, dutDst.IPv4Len)
+	dstIntf := &oc.Interface{Name: ygot.String(p2.Name())}
+	dstIntf.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	dstIntf.Enabled = ygot.Bool(true)
+	dstIntf.Description = ygot.String(dutDst.Desc)
+	dstSub := dstIntf.GetOrCreateSubinterface(0)
+	dstS4 := dstSub.GetOrCreateIpv4()
+	if !deviations.IPv4MissingEnabled(dut) {
+		dstS4.Enabled = ygot.Bool(true)
+	}
+	dstS4.GetOrCreateAddress(dutDst.IPv4).PrefixLength = ygot.Uint8(dutDst.IPv4Len)
+	gnmi.BatchReplace(batch, gnmi.OC().Interface(p2.Name()).Config(), dstIntf)
+
+	t.Logf("INFO: [gNOI-3.3 Setup] Applying batch configuration for aggregate, LACP, member %q, and egress %q...", p1.Name(), p2.Name())
 	batch.Set(t, dut)
 
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		t.Logf("WARNING: [gNOI-3.3 Setup] Deviation ExplicitInterfaceInDefaultVRF is enabled on %s (%s): assigning %q subinterface 0 to default VRF %q.", dut.Name(), dut.Model(), lagName, deviations.DefaultNetworkInstance(dut))
-		fptest.AssignToNetworkInstance(t, dut, lagName, deviations.DefaultNetworkInstance(dut), 0)
+		ni := deviations.DefaultNetworkInstance(dut)
+		t.Logf("WARNING: [gNOI-3.3 Setup] Deviation ExplicitInterfaceInDefaultVRF is enabled on %s (%s): assigning %q and %q subinterface 0 to default VRF %q.", dut.Name(), dut.Model(), lagName, p2.Name(), ni)
+		fptest.AssignToNetworkInstance(t, dut, lagName, ni, 0)
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), ni, 0)
 	}
 
-	return ports, lagName
+	return lagPorts, lagName
 }
 
-// configureOTG configures the IXIA/ATE LACP bundle and continuous traffic flow
-// per README "gNOI-3.3: Test environment setup".
+// configureOTG configures the IXIA/ATE LACP bundle on port1, egress L3 endpoint on port2,
+// and continuous transit traffic flow per README "gNOI-3.3: Test environment setup".
 func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	t.Helper()
 	top := gosnappi.NewConfig()
@@ -158,28 +209,26 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	top.Ports().Add().SetName(p2.ID())
 
 	lag := top.Lags().Add().SetName(ateLagName)
-	lag.Protocol().Lacp().SetActorKey(1).SetActorSystemPriority(1).SetActorSystemId("00:11:01:00:00:01")
+	lag.Protocol().Lacp().SetActorKey(1).SetActorSystemPriority(1).SetActorSystemId(ateSrc.MAC)
 	lp1 := lag.Ports().Add().SetPortName(p1.ID())
-	lp1.Ethernet().SetMac(ateSrc.MAC).SetName(p1.ID() + ".mac")
+	lp1.Ethernet().SetMac("02:00:01:01:01:02").SetName(p1.ID() + ".mac")
 	lp1.Lacp().SetActorActivity("active").SetActorPortNumber(1).SetActorPortPriority(1).SetLacpduTimeout(0)
-
-	lp2 := lag.Ports().Add().SetPortName(p2.ID())
-	lp2.Ethernet().SetMac(ateSrc.MAC).SetName(p2.ID() + ".mac")
-	lp2.Lacp().SetActorActivity("active").SetActorPortNumber(2).SetActorPortPriority(1).SetLacpduTimeout(0)
 
 	ateSrcDev := top.Devices().Add().SetName(ateSrc.Name)
 	ethSrc := ateSrcDev.Ethernets().Add().SetName(ateSrc.Name + ".eth").SetMac(ateSrc.MAC)
 	ethSrc.Connection().SetLagName(lag.Name())
+	ethSrc.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4").SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(uint32(ateSrc.IPv4Len))
 
 	ateDstDev := top.Devices().Add().SetName(ateDst.Name)
 	ethDst := ateDstDev.Ethernets().Add().SetName(ateDst.Name + ".eth").SetMac(ateDst.MAC)
-	ethDst.Connection().SetLagName(lag.Name())
+	ethDst.Connection().SetPortName(p2.ID())
+	ethDst.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4").SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(uint32(ateDst.IPv4Len))
 
 	flow := top.Flows().Add().SetName(flowName)
 	flow.Metrics().SetEnable(true)
-	flow.TxRx().Port().
-		SetTxName(p1.ID()).
-		SetRxName(p2.ID())
+	flow.TxRx().Device().
+		SetTxNames([]string{ateSrc.Name + ".IPv4"}).
+		SetRxNames([]string{ateDst.Name + ".IPv4"})
 	flow.Size().SetFixed(flowPacketSize)
 	flow.Rate().SetPps(flowPPS)
 	flow.Duration().Continuous()
@@ -188,13 +237,13 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	ethPkt.Src().SetValue(ateSrc.MAC)
 	ipPkt := flow.Packet().Add().Ipv4()
 	ipPkt.Src().SetValue(ateSrc.IPv4)
-	ipPkt.Dst().SetValue(dutSrc.IPv4)
+	ipPkt.Dst().SetValue(ateDst.IPv4)
 
 	return top
 }
 
-// verifyLACPState validates that the LAG and member ports are OperStatus=UP and LACP IN_SYNC
-// per README "gNOI-3.3.1 Step 3".
+// verifyLACPState validates that the LAG, LACP member port(s), and egress port are OperStatus=UP
+// and LACP member(s) are IN_SYNC, Collecting, and Distributing per README "gNOI-3.3.1 Step 3".
 func verifyLACPState(t *testing.T, dut *ondatra.DUTDevice, ports []*ondatra.Port, lagName string) {
 	t.Helper()
 	t.Logf("INFO: [gNOI-3.3.1 Step 3] Waiting for aggregate interface %q OperStatus=UP...", lagName)
@@ -211,40 +260,48 @@ func verifyLACPState(t *testing.T, dut *ondatra.DUTDevice, ports []*ondatra.Port
 		t.Logf("INFO: [gNOI-3.3.1 Step 3] Waiting for member interface %q OperStatus=UP...", port.Name())
 		gnmi.Await(t, dut, gnmi.OC().Interface(port.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
 		if !deviations.LACPInterfaceMemberStateInterfaceUnsupported(dut) {
-			t.Logf("INFO: [gNOI-3.3.1 Step 3] Waiting for member interface %q LACP synchronization=IN_SYNC...", port.Name())
-			syncState := gnmi.OC().Lacp().Interface(lagName).Member(port.Name()).Synchronization()
-			gnmi.Await(t, dut, syncState.State(), 2*time.Minute, oc.Lacp_LacpSynchronizationType_IN_SYNC)
+			t.Logf("INFO: [gNOI-3.3.1 Step 3] Waiting for member interface %q LACP synchronization=IN_SYNC, collecting=true, distributing=true...", port.Name())
+			memberPath := gnmi.OC().Lacp().Interface(lagName).Member(port.Name())
+			gnmi.Await(t, dut, memberPath.Synchronization().State(), 2*time.Minute, oc.Lacp_LacpSynchronizationType_IN_SYNC)
+			gnmi.Await(t, dut, memberPath.Collecting().State(), 2*time.Minute, true)
+			gnmi.Await(t, dut, memberPath.Distributing().State(), 2*time.Minute, true)
 		} else {
 			t.Logf("WARNING: [gNOI-3.3.1 Step 3] Deviation LACPInterfaceMemberStateInterfaceUnsupported is enabled on %s (%s): skipping LACP member synchronization state check on %q.", dut.Name(), dut.Model(), port.Name())
 		}
 	}
+
+	p2 := dut.Port(t, "port2")
+	t.Logf("INFO: [gNOI-3.3.1 Step 3] Waiting for egress interface %q OperStatus=UP...", p2.Name())
+	gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
 }
 
-// verifyZeroTrafficLoss verifies continuous OTG traffic transmission over the LACP bundle
+// verifyZeroTrafficLoss verifies continuous OTG transit traffic forwarding and zero/minimal packet loss
 // per README "gNOI-3.3.1 Step 3", "gNOI-3.3.2 Step 3", and "gNOI-3.3.3 Step 4".
 func verifyZeroTrafficLoss(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
 	t.Helper()
 	otg := ate.OTG()
 	otgutils.LogFlowMetrics(t, otg, top)
 	for _, f := range top.Flows().Items() {
-		var txPkts uint64
+		var txPkts, rxPkts uint64
+		var lossPct float64
 		_, ok := gnmi.Watch(t, otg, gnmi.OTG().Flow(f.Name()).State(), 1*time.Minute, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
 			flowMetrics, present := val.Val()
 			if !present || flowMetrics == nil || flowMetrics.GetCounters() == nil {
 				return false
 			}
 			txPkts = flowMetrics.GetCounters().GetOutPkts()
-			return txPkts > 0
+			rxPkts = flowMetrics.GetCounters().GetInPkts()
+			if txPkts == 0 || rxPkts == 0 || rxPkts > txPkts {
+				return false
+			}
+			lossPct = float64(txPkts-rxPkts) * 100.0 / float64(txPkts)
+			return lossPct <= 0.1
 		}).Await(t)
 		if !ok {
-			t.Errorf("Flow %s did not transmit any packets", f.Name())
+			t.Errorf("Flow %s failed zero traffic loss check (Tx=%d, Rx=%d, Loss=%.2f%%, want <= 0.1%%)", f.Name(), txPkts, rxPkts, lossPct)
 			continue
 		}
-		if txPkts == 0 {
-			t.Errorf("Flow %s failed to transmit packets. Tx = 0", f.Name())
-		} else {
-			t.Logf("INFO: [gNOI-3.3 Traffic] Flow %s verified continuous transmission (Tx=%d)", f.Name(), txPkts)
-		}
+		t.Logf("INFO: [gNOI-3.3 Traffic] Flow %s verified continuous transit forwarding (Tx=%d, Rx=%d, Loss=%.2f%%)", f.Name(), txPkts, rxPkts, lossPct)
 	}
 }
 
@@ -648,32 +705,7 @@ func testPowerDisabledStandby(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 
 	// gNOI-3.3.3 Step 4: Verify the current active supervisor safely maintains control and there is zero traffic loss.
 	t.Logf("INFO: [gNOI-3.3.3 Step 4] Verifying the original active supervisor %q maintained its PRIMARY role...", rpActiveBeforeSwitch)
-	var opts []ygnmi.Option
-	if deviations.SwitchoverSubscribeUnsupported(dut) {
-		t.Logf("WARNING: [gNOI-3.3.3 Step 4] Deviation SwitchoverSubscribeUnsupported is enabled on %s (%s): using unary gNMI.Get (ygnmi.WithUseGet()) polling to verify PRIMARY role on %q.", dut.Name(), dut.Model(), rpActiveBeforeSwitch)
-		opts = append(opts, ygnmi.WithUseGet())
-	}
-
-	start := time.Now()
-	var role oc.E_Platform_ComponentRedundantRole
-	for time.Since(start) < maxSwitchoverTime {
-		c, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.Name()))
-		if err == nil {
-			val, err := lookupWithGetFallback(t, dut, c, gnmi.OC().Component(rpActiveBeforeSwitch).RedundantRole().State(), &opts, "gNOI-3.3.3 Step 4")
-			if err == nil {
-				if r, present := val.Val(); present && r == oc.Platform_ComponentRedundantRole_PRIMARY {
-					role = r
-					t.Logf("INFO: [gNOI-3.3.3 Step 4] Confirmed active supervisor %q maintained PRIMARY role.", rpActiveBeforeSwitch)
-					break
-				}
-			}
-		}
-		time.Sleep(5 * time.Second)
-	}
-	if role != oc.Platform_ComponentRedundantRole_PRIMARY {
-		t.Logf("WARNING: [gNOI-3.3.3 Step 4] Supervisor %q failed to maintain PRIMARY role after rejected switchover request (got role: %v).", rpActiveBeforeSwitch, role)
-		t.Errorf("Supervisor %q failed to maintain PRIMARY role after rejected switchover request", rpActiveBeforeSwitch)
-	}
+	gnmi.Await(t, dut, gnmi.OC().Component(rpActiveBeforeSwitch).RedundantRole().State(), maxSwitchoverTime, oc.Platform_ComponentRedundantRole_PRIMARY)
 
 	verifyZeroTrafficLoss(t, ate, top)
 }
