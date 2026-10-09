@@ -381,6 +381,18 @@ func createFlowAndVerifyTraffic(t *testing.T, td testData, tt testDefinition, wa
 	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
 	td.otg.SetControlState(t, cs)
 	td.otg.StartTraffic(t)
+	trafficStopped, captureStopped := false, false
+	// Ensure traffic and capture are stopped even if the test fails early.
+	defer func() {
+		if !captureStopped {
+			stopCapture := gosnappi.NewControlState()
+			stopCapture.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
+			td.otg.SetControlState(t, stopCapture)
+		}
+		if !trafficStopped {
+			td.otg.StopTraffic(t)
+		}
+	}()
 
 	// Keep the capture window short to avoid per-port capture buffer exhaustion on OTG.
 	effectiveCaptureDuration := captureRunDuration
@@ -390,11 +402,13 @@ func createFlowAndVerifyTraffic(t *testing.T, td testData, tt testDefinition, wa
 	time.Sleep(effectiveCaptureDuration)
 	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
 	td.otg.SetControlState(t, cs)
+	captureStopped = true
 
 	if remainingTrafficDuration := trafficRunDuration - effectiveCaptureDuration; remainingTrafficDuration > 0 {
 		time.Sleep(remainingTrafficDuration)
 	}
 	td.otg.StopTraffic(t)
+	trafficStopped = true
 	time.Sleep(trafficStopWaitDuration)
 	otgutils.LogFlowMetrics(t, td.otg, td.otgConfig)
 	otgutils.LogPortMetrics(t, td.otg, td.otgConfig)
