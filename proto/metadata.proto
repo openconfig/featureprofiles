@@ -1275,6 +1275,7 @@ message Metadata {
     string fragment_punt_ft = 408;
 
     // Arista: https://partnerissuetracker.corp.google.com/issues/502838491
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/570573973
     // Device is missing subinterface state packet counters.
     bool default_subinterface_packet_counters_missing = 409;
 
@@ -1486,8 +1487,19 @@ message Metadata {
     // Arista: https://partnerissuetracker.corp.google.com/issues/562517133
     bool sflow_egress_sampling_rate_unsupported = 460;
 
+    // Device does not populate /interfaces/interface/state/counters/last-clear
+    // after the interface counters are cleared.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/570578230
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/570575610
+    bool interface_last_clear_unsupported = 461;
+
+    // Device does not update subinterface 0 IPv4/IPv6 packet counters during
+    // transit traffic.
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/570573973
+    bool default_subinterface_ip_counters_unsupported = 462;
+
     // Partner issue: https://partnerissuetracker.corp.google.com/issues/504424786
-    bool default_peer_as_filter_oc_unsupported = 461;
+    bool default_peer_as_filter_oc_unsupported = 463;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
