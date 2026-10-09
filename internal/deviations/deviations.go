@@ -2403,3 +2403,16 @@ func AigpMetricIncrement(dut *ondatra.DUTDevice) bool {
 func PowerSupplyTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPowerSupplyTelemetryUnsupported()
 }
+
+// InterfaceLastClearUnsupported returns true if the device does not populate
+// /interfaces/interface/state/counters/last-clear after the interface counters
+// are cleared.
+func InterfaceLastClearUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceLastClearUnsupported()
+}
+
+// DefaultSubinterfaceIPCountersUnsupported returns true if the device does not
+// update subinterface 0 IPv4/IPv6 packet counters during transit traffic.
+func DefaultSubinterfaceIPCountersUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDefaultSubinterfaceIpCountersUnsupported()
+}
