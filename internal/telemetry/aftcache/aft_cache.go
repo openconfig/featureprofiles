@@ -1190,29 +1190,58 @@ func WaitForNotification(t *testing.T, cfg NotificationExpectation) PeriodicHook
 	}
 }
 
-// hasUpdateNotification returns true if the specified prefix appears in any UPDATE path within the notification.
-func hasUpdateNotification(update *gnmipb.Notification, prefix string) bool {
-	for _, upd := range update.GetUpdate() {
-		for _, elem := range upd.GetPath().GetElem() {
-			for _, keyVal := range elem.GetKey() {
-				if keyVal == prefix {
-					return true
-				}
+// pathHasPrefixKey returns true if path contains the supplied route-prefix key.
+func pathHasPrefixKey(path *gnmipb.Path, prefix string) bool {
+	if path == nil {
+		return false
+	}
+	for _, elem := range path.GetElem() {
+		for _, keyVal := range elem.GetKey() {
+			if keyVal == prefix {
+				return true
 			}
 		}
 	}
 	return false
 }
 
-// hasDeleteNotification returns true if the specified prefix appears in any DELETE path within the notification.
+// hasUpdateNotification returns true if the specified prefix appears in the
+// notification prefix or in any UPDATE path. For atomic containers in
+// Subscribe and Get responses, gNMI section 3.5.2.5 permits a server to place
+// the list key in Notification.Prefix and make the UPDATE path relative to
+// that prefix. Checking both locations handles this encoding as well as
+// notifications with the key directly in an UPDATE path.
+func hasUpdateNotification(update *gnmipb.Notification, prefix string) bool {
+	if len(update.GetUpdate()) == 0 {
+		return false
+	}
+	if pathHasPrefixKey(update.GetPrefix(), prefix) {
+		return true
+	}
+	for _, upd := range update.GetUpdate() {
+		if pathHasPrefixKey(upd.GetPath(), prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// hasDeleteNotification returns true if the specified prefix appears in the
+// notification prefix or in any DELETE path. For atomic containers in
+// Subscribe and Get responses, gNMI section 3.5.2.5 permits a server to place
+// the list key in Notification.Prefix and make the DELETE path relative to
+// that prefix. Checking both locations handles this encoding as well as
+// notifications with the key directly in a DELETE path.
 func hasDeleteNotification(update *gnmipb.Notification, prefix string) bool {
+	if len(update.GetDelete()) == 0 {
+		return false
+	}
+	if pathHasPrefixKey(update.GetPrefix(), prefix) {
+		return true
+	}
 	for _, del := range update.GetDelete() {
-		for _, elem := range del.GetElem() {
-			for _, keyVal := range elem.GetKey() {
-				if keyVal == prefix {
-					return true
-				}
-			}
+		if pathHasPrefixKey(del, prefix) {
+			return true
 		}
 	}
 	return false
