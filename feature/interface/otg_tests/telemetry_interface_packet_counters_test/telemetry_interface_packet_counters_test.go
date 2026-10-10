@@ -252,6 +252,16 @@ func TestInterfaceCounters(t *testing.T) {
 		counter: subinterfaceCounters.InBroadcastPkts().State(),
 		skip:    skipSubinterfaceStateCounters,
 	}, {
+		desc:    "SubinterfaceInUnicastPkts",
+		path:    subinterfaceCounterPath + "in-unicast-pkts",
+		counter: subinterfaceCounters.InUnicastPkts().State(),
+		skip:    skipSubinterfaceStateCounters,
+	}, {
+		desc:    "SubinterfaceOutMulticastPkts",
+		path:    subinterfaceCounterPath + "out-multicast-pkts",
+		counter: subinterfaceCounters.OutMulticastPkts().State(),
+		skip:    skipSubinterfaceStateCounters,
+	}, {
 		desc:    "IPv4InPkts",
 		path:    ipv4CounterPath + "in-pkts",
 		counter: ipv4Counters.InPkts().State(),

@@ -334,8 +334,23 @@ func (tc *testCase) verifyDUT(t *testing.T, numPort int) {
 func TestGNMIPortSpeed(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dutPort := dut.Port(t, "port1")
-	if got, want := gnmi.Get(t, dut, gnmi.OC().Interface(dutPort.Name()).Ethernet().PortSpeed().State()), portSpeed[dutPort.Speed()]; got != want {
+	eth := gnmi.OC().Interface(dutPort.Name()).Ethernet()
+	if got, want := gnmi.Get(t, dut, eth.PortSpeed().State()), portSpeed[dutPort.Speed()]; got != want {
 		t.Errorf("Get(DUT port1 status): got %v, want %v", got, want)
+	}
+	if !deviations.NegotiatedPortSpeedUnsupported(dut) {
+		autoNegVal := gnmi.Lookup(t, dut, eth.AutoNegotiate().State())
+		if autoNeg, ok := autoNegVal.Val(); ok && autoNeg {
+			if got, want := gnmi.Get(t, dut, eth.NegotiatedPortSpeed().State()), portSpeed[dutPort.Speed()]; got != want {
+				t.Errorf("Get(DUT port1 negotiated-port-speed): got %v, want %v", got, want)
+			}
+		} else if got, present := gnmi.Lookup(t, dut, eth.NegotiatedPortSpeed().State()).Val(); present {
+			if want := portSpeed[dutPort.Speed()]; got != want && got != oc.IfEthernet_ETHERNET_SPEED_SPEED_UNKNOWN {
+				t.Errorf("Lookup(DUT port1 negotiated-port-speed): got %v, want %v or %v", got, want, oc.IfEthernet_ETHERNET_SPEED_SPEED_UNKNOWN)
+			}
+		} else {
+			t.Logf("DUT port1 auto-negotiate is not enabled; negotiated-port-speed leaf is not populated as expected")
+		}
 	}
 }
 

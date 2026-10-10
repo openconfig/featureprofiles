@@ -47,6 +47,8 @@ following features:
     Check the presence of packet counter paths
 
     *   /interfaces/interface/subinterfaces/subinterface/state/counters/in-octets
+    *   /interfaces/interface/subinterfaces/subinterface/state/counters/in-unicast-pkts
+    *   /interfaces/interface/subinterfaces/subinterface/state/counters/out-multicast-pkts
     *   TODO:
         /interfaces/interface[name=port]/subinterfaces/subinterface[index='index']/ipv4/state/counters/in-pkts
     *   TODO:
@@ -195,6 +197,8 @@ paths:
   /interfaces/interface/subinterfaces/subinterface/state/counters/in-errors:
   /interfaces/interface/subinterfaces/subinterface/state/counters/in-unknown-protos:
   /interfaces/interface/subinterfaces/subinterface/state/counters/in-broadcast-pkts:
+  /interfaces/interface/subinterfaces/subinterface/state/counters/in-unicast-pkts:
+  /interfaces/interface/subinterfaces/subinterface/state/counters/out-multicast-pkts:
   /interfaces/interface/subinterfaces/subinterface/ipv4/state/enabled:
   /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-pkts:
   /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-pkts:
