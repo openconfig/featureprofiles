@@ -231,30 +231,31 @@ func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, otnChIdx 
 	tcs = append(tcs, opticalChannelAssignmentIndexTestcases...)
 
 	if deviations.OTNToETHAssignment(dut) {
+		ethAssignmentIndex := uint32(index + 1)
 		logicalChannelAssignmentTestcases := []testcase{
 			{
 				desc: "Ethernet Assignment: Index",
-				got:  cc.GetAssignment(1).GetIndex(),
-				want: uint32(1),
+				got:  cc.GetAssignment(ethAssignmentIndex).GetIndex(),
+				want: ethAssignmentIndex,
 			},
 			{
 				desc: "Ethernet Assignment: Logical Channel",
-				got:  cc.GetAssignment(1).GetLogicalChannel(),
+				got:  cc.GetAssignment(ethAssignmentIndex).GetLogicalChannel(),
 				want: ethChIdx,
 			},
 			{
 				desc: "Ethernet Assignment: Description",
-				got:  cc.GetAssignment(1).GetDescription(),
+				got:  cc.GetAssignment(ethAssignmentIndex).GetDescription(),
 				want: "OTN to ETH",
 			},
 			{
 				desc: "Ethernet Assignment: Allocation",
-				got:  cc.GetAssignment(1).GetAllocation(),
+				got:  cc.GetAssignment(ethAssignmentIndex).GetAllocation(),
 				want: float64(400),
 			},
 			{
 				desc: "Ethernet Assignment: Type",
-				got:  cc.GetAssignment(1).GetAssignmentType().String(),
+				got:  cc.GetAssignment(ethAssignmentIndex).GetAssignmentType().String(),
 				want: oc.Assignment_AssignmentType_LOGICAL_CHANNEL.String(),
 			},
 		}
