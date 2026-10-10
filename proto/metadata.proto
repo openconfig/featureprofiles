@@ -610,6 +610,7 @@ message Metadata {
     // trib protocol field under otn channel config unsupported
     bool otn_channel_trib_unsupported = 221;
     // ingress parameters under eth channel config unsupported
+    // Juniper: https://issuetracker.google.com/issues/571564632
     bool eth_channel_ingress_parameters_unsupported = 222;
     // Cisco numbering for eth channel assignment starts from 1 instead of 0
     bool eth_channel_assignment_cisco_numbering = 223;
