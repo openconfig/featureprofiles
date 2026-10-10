@@ -642,7 +642,7 @@ deviations: {
     }
   }
   platforms: {
-    issue_url: "b/571564632"
+    issue_url: "https://issuetracker.google.com/571564632"
     platform: {
       vendor: JUNIPER
       software_version_regex: "*.*"
