@@ -350,9 +350,6 @@ func cleanupConfiguration(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func configureInputPolicy(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
-	if deviations.InterfacePolicyForwardingOCUnsupported(dut) {
-		return
-	}
 	defaultNIName := deviations.DefaultNetworkInstance(dut)
 	interfaceName := dut.Port(t, port1).Name()
 	var policyName string
