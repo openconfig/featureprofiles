@@ -699,13 +699,14 @@ func validateTransceiverInventory(t *testing.T, dut *ondatra.DUTDevice, dp *onda
 	// Verify Channels and Physical Channels Mapping
 	channelsMap := make(map[uint16]bool)
 	if comp.GetTransceiver() != nil {
-		for chIdx, ch := range comp.GetTransceiver().Channel {
+		for chIdx := range comp.GetTransceiver().Channel {
 			channelsMap[chIdx] = true
-			chIndexPath := getPathStr(gnmi.OC().Component(transceiverName).Transceiver().Channel(chIdx).Index().State().PathStruct())
-			if ch != nil && ch.Index != nil {
-				tracePath(t, chIndexPath, statusPass, "Channel index: %d", ch.GetIndex())
+			chIndexQuery := gnmi.OC().Component(transceiverName).Transceiver().Channel(chIdx).Index().State()
+			chIndexPath := getPathStr(chIndexQuery.PathStruct())
+			if idx, ok := gnmi.Lookup(t, dut, chIndexQuery).Val(); ok {
+				tracePath(t, chIndexPath, statusPass, "Channel index: %d", idx)
 			} else {
-				tracePath(t, chIndexPath, statusPass, "Channel index: %d", chIdx)
+				tracePath(t, chIndexPath, statusFail, "Channel index state is not present for channel %d", chIdx)
 			}
 		}
 	}

@@ -35,6 +35,8 @@ var componentType = map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{
 	"Linecard":    oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD,
 	"Fan":         oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FAN,
 	"Fan Tray":    oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FAN_TRAY,
+	"Fru":         oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FRU,
+	"Port":        oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_PORT,
 	"PowerSupply": oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_POWER_SUPPLY,
 	"Supervisor":  oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD,
 	"SwitchChip":  oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT,
@@ -84,6 +86,7 @@ type properties struct {
 	installPositionAndComponentValidation bool
 	nameValidation                        bool
 	partNoValidation                      bool
+	removableValidation                   bool
 	serialNoValidation                    bool
 	mfgNameValidation                     bool
 	mfgDateValidation                     bool
@@ -189,6 +192,7 @@ func TestHardwareCards(t *testing.T) {
 				installPositionAndComponentValidation: true,
 				nameValidation:                        true,
 				partNoValidation:                      true,
+				removableValidation:                   true,
 				serialNoValidation:                    true,
 				mfgNameValidation:                     true,
 				mfgDateValidation:                     false,
@@ -206,6 +210,7 @@ func TestHardwareCards(t *testing.T) {
 				idValidation:          false,
 				nameValidation:        true,
 				partNoValidation:      true,
+				removableValidation:   true,
 				serialNoValidation:    true,
 				mfgNameValidation:     false,
 				mfgDateValidation:     false,
@@ -223,6 +228,7 @@ func TestHardwareCards(t *testing.T) {
 				idValidation:          false,
 				nameValidation:        true,
 				partNoValidation:      true,
+				removableValidation:   true,
 				serialNoValidation:    true,
 				mfgNameValidation:     false,
 				mfgDateValidation:     false,
@@ -241,6 +247,7 @@ func TestHardwareCards(t *testing.T) {
 				installPositionAndComponentValidation: true,
 				nameValidation:                        true,
 				partNoValidation:                      true,
+				removableValidation:                   true,
 				serialNoValidation:                    true,
 				mfgNameValidation:                     true,
 				mfgDateValidation:                     false,
@@ -259,6 +266,7 @@ func TestHardwareCards(t *testing.T) {
 				installPositionAndComponentValidation: true,
 				nameValidation:                        true,
 				partNoValidation:                      true,
+				removableValidation:                   true,
 				serialNoValidation:                    true,
 				mfgNameValidation:                     true,
 				mfgDateValidation:                     false,
@@ -277,6 +285,7 @@ func TestHardwareCards(t *testing.T) {
 				installPositionAndComponentValidation: true,
 				nameValidation:                        true,
 				partNoValidation:                      true,
+				removableValidation:                   true,
 				serialNoValidation:                    true,
 				mfgNameValidation:                     true,
 				mfgDateValidation:                     false,
@@ -296,6 +305,7 @@ func TestHardwareCards(t *testing.T) {
 				installPositionAndComponentValidation: true,
 				nameValidation:                        true,
 				partNoValidation:                      true,
+				removableValidation:                   true,
 				serialNoValidation:                    true,
 				mfgNameValidation:                     true,
 				mfgDateValidation:                     false,
@@ -332,6 +342,7 @@ func TestHardwareCards(t *testing.T) {
 				idValidation:          false,
 				nameValidation:        true,
 				partNoValidation:      true,
+				removableValidation:   true,
 				serialNoValidation:    true,
 				mfgNameValidation:     false,
 				mfgDateValidation:     false,
@@ -342,6 +353,22 @@ func TestHardwareCards(t *testing.T) {
 				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET,
 				parentValidation:      false,
 				pType:                 componentType["Storage"],
+			},
+		}, {
+			desc: "Fru",
+			cardFields: properties{
+				nameValidation:      true,
+				removableValidation: true,
+				operStatus:          oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET,
+				pType:               componentType["Fru"],
+			},
+		}, {
+			desc: "Port",
+			cardFields: properties{
+				nameValidation:      true,
+				removableValidation: true,
+				operStatus:          oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET,
+				pType:               componentType["Port"],
 			},
 		}}
 
@@ -364,6 +391,9 @@ func TestHardwareCards(t *testing.T) {
 			cards := components[tc.desc]
 			t.Logf("%s components count: %d", tc.desc, len(cards))
 			if len(cards) == 0 {
+				if tc.desc == "Fru" || tc.desc == "Port" {
+					t.Skipf("No %s components present on %v", tc.desc, dut.Model())
+				}
 				t.Fatalf("Components list for %s on %v: got 0, want > 0", tc.desc, dut.Model())
 			}
 			ValidateComponentState(t, dut, cards, tc.cardFields)
@@ -723,6 +753,15 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 					if id == "" {
 						t.Errorf("Component %s Id: got empty string, want non-empty string", cName)
 					}
+				}
+			}
+
+			if p.removableValidation {
+				removable, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(cName).Removable().State()).Val()
+				if !ok {
+					t.Errorf("Component %s Removable: got none, want bool", cName)
+				} else {
+					t.Logf("Component %s Removable: %v", cName, removable)
 				}
 			}
 

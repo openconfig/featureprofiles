@@ -23,6 +23,7 @@ import (
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
+	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/helpers"
@@ -506,10 +507,62 @@ func trafficStartStop(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 	otgutils.WaitForARP(t, ate.OTG(), config, "IPv4")
 	otgutils.WaitForARP(t, ate.OTG(), config, "IPv6")
 	verifyBGPTelemetry(t, dut)
+	beforeDrops, beforeDropBytes := getControlPlaneDropCounters(t, dut)
 	ate.OTG().StartTraffic(t)
 	time.Sleep(trafficSleepTime * time.Second)
 	ate.OTG().StopTraffic(t)
+	verifyControlPlaneDropCounters(t, dut, beforeDrops, beforeDropBytes)
 	otgutils.LogFlowMetrics(t, ate.OTG(), config)
+}
+
+func getControlPlaneDropCounters(t *testing.T, dut *ondatra.DUTDevice) (uint64, uint64) {
+	t.Helper()
+	ics := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
+	var totalDrops, totalDropBytes uint64
+	for _, ic := range ics {
+		cpt := gnmi.OC().Component(ic).IntegratedCircuit().PipelineCounters().ControlPlaneTraffic()
+		if drops, ok := gnmi.Lookup(t, dut, cpt.DroppedAggregate().State()).Val(); ok {
+			t.Logf("IC %s control-plane dropped-aggregate: %d", ic, drops)
+			totalDrops += drops
+		}
+		if dropBytes, ok := gnmi.Lookup(t, dut, cpt.DroppedBytesAggregate().State()).Val(); ok {
+			t.Logf("IC %s control-plane dropped-bytes-aggregate: %d", ic, dropBytes)
+			totalDropBytes += dropBytes
+		}
+	}
+	return totalDrops, totalDropBytes
+}
+
+func verifyControlPlaneDropCounters(t *testing.T, dut *ondatra.DUTDevice, beforeDrops, beforeDropBytes uint64) {
+	t.Helper()
+	ics := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
+	if len(ics) == 0 {
+		t.Errorf("No INTEGRATED_CIRCUIT components found on DUT %v", dut.Name())
+		return
+	}
+	var afterDrops, afterDropBytes uint64
+	var foundDrops, foundDropBytes bool
+	for _, ic := range ics {
+		cpt := gnmi.OC().Component(ic).IntegratedCircuit().PipelineCounters().ControlPlaneTraffic()
+		if drops, ok := gnmi.Lookup(t, dut, cpt.DroppedAggregate().State()).Val(); ok {
+			foundDrops = true
+			afterDrops += drops
+		}
+		if dropBytes, ok := gnmi.Lookup(t, dut, cpt.DroppedBytesAggregate().State()).Val(); ok {
+			foundDropBytes = true
+			afterDropBytes += dropBytes
+		}
+	}
+	if !foundDrops {
+		t.Errorf("Telemetry path /components/component/integrated-circuit/pipeline-counters/control-plane-traffic/state/dropped-aggregate not present on any INTEGRATED_CIRCUIT")
+	} else {
+		t.Logf("Total control-plane dropped-aggregate before: %d, after: %d, delta: %d", beforeDrops, afterDrops, afterDrops-beforeDrops)
+	}
+	if !foundDropBytes {
+		t.Errorf("Telemetry path /components/component/integrated-circuit/pipeline-counters/control-plane-traffic/state/dropped-bytes-aggregate not present on any INTEGRATED_CIRCUIT")
+	} else {
+		t.Logf("Total control-plane dropped-bytes-aggregate before: %d, after: %d, delta: %d", beforeDropBytes, afterDropBytes, afterDropBytes-beforeDropBytes)
+	}
 }
 
 // validateTrafficLoss - validate traffic loss on each flows

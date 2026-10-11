@@ -253,14 +253,14 @@ func TestControllerCardsNoHighCPUSpike(t *testing.T) {
 			t.Run(cpu, func(t *testing.T) {
 				ts := time.Now().Round(time.Second)
 				ccState := gnmi.Get(t, dut, gnmi.OC().Component(cpu).State())
-				util := ccState.GetCpu().GetUtilization()
 				ccType := ccState.GetType()
-				if util == nil || util.Avg == nil {
+				avg, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(cpu).Cpu().Utilization().Avg().State()).Val()
+				if !ok {
 					t.Errorf("ERROR: %s %s %s Type %-20s - CPU utilization data not available",
 						ts, deviceName, cpu, ccType)
 				} else {
 					t.Logf("INFO: %s %s Type %-20s %-10s - Utilization: %3d%%",
-						ts, deviceName, cpu, ccType, util.GetAvg())
+						ts, deviceName, cpu, ccType, avg)
 				}
 			})
 		}
@@ -281,12 +281,12 @@ func TestControllerCardsNoHighCPUSpike(t *testing.T) {
 				if slices.Contains(controllerCards, cpuParent) {
 					// Remove parent from the list of check cards.
 					controllerCards = removeElement(controllerCards, cpuParent)
-					cpuUtilization := component.GetCpu().GetUtilization()
-					if cpuUtilization == nil || cpuUtilization.Avg == nil {
+					avg, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(cpu).Cpu().Utilization().Avg().State()).Val()
+					if !ok {
 						t.Errorf("ERROR: %s %s %s Type %-20s - CPU utilization data not available",
 							timestamp, deviceName, cpu, cpuParent)
 					} else {
-						t.Logf("INFO: %s %s Type %-20s %-10s - Utilization: %3d%%", timestamp, deviceName, cpu, cpuParent, cpuUtilization.GetAvg())
+						t.Logf("INFO: %s %s Type %-20s %-10s - Utilization: %3d%%", timestamp, deviceName, cpu, cpuParent, avg)
 					}
 				}
 			})
@@ -354,14 +354,14 @@ func TestLineCardsNoHighCPUSpike(t *testing.T) {
 			t.Run(removableLC, func(t *testing.T) {
 				timestamp := time.Now().Round(time.Second)
 				removableLCState := gnmi.Get(t, dut, gnmi.OC().Component(removableLC).State())
-				util := removableLCState.GetCpu().GetUtilization()
-				if util == nil || util.Avg == nil {
+				avg, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(removableLC).Cpu().Utilization().Avg().State()).Val()
+				if !ok {
 					t.Errorf("ERROR: %s %s %s Type %-20s - CPU utilization data not available",
 						timestamp, deviceName, removableLCState.GetType(), removableLC)
 					return
 				}
 				t.Logf("INFO: %s %s Type %-20s %-10s - Utilization: %3d%%",
-					timestamp, deviceName, removableLCState.GetType(), removableLC, util.GetAvg())
+					timestamp, deviceName, removableLCState.GetType(), removableLC, avg)
 			})
 		}
 		// prevent missing-CPU association check at the end of test since it's already handled above
@@ -398,13 +398,13 @@ func TestLineCardsNoHighCPUSpike(t *testing.T) {
 				if slices.Contains(lineCards, cpuParent) {
 					// Remove parent from the list of check cards.
 					lineCards = removeElement(lineCards, cpuParent)
-					// Fetch CPU utilization data.
-					cpuUtilization := component.GetCpu().GetUtilization()
-					if cpuUtilization == nil || cpuUtilization.Avg == nil {
+					// Fetch CPU utilization data directly via leaf path.
+					avg, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(cpu).Cpu().Utilization().Avg().State()).Val()
+					if !ok {
 						t.Errorf("ERROR: %s %s %s Type %-20s - CPU utilization data not available",
 							timestamp, deviceName, cpu, cpuParent)
 					} else {
-						t.Logf("INFO: %s %s Type %-20s %-10s - Utilization: %3d%%", timestamp, deviceName, cpu, cpuParent, cpuUtilization.GetAvg())
+						t.Logf("INFO: %s %s Type %-20s %-10s - Utilization: %3d%%", timestamp, deviceName, cpu, cpuParent, avg)
 					}
 				}
 			})

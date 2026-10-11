@@ -175,6 +175,8 @@ paths:
     platform_type: ["OPTICAL_CHANNEL"]
   /components/component/optical-channel/state/operational-mode:
     platform_type: ["OPTICAL_CHANNEL"]
+  /components/component/optical-channel/state/target-output-power:
+    platform_type: ["OPTICAL_CHANNEL"]
 
 rpcs:
   gnmi:

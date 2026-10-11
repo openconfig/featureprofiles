@@ -11,6 +11,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
 )
@@ -33,6 +34,7 @@ func validateTranscieverTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondat
 	if !ok {
 		t.Fatalf("Transceiver value is empty for port %v.", p.Name())
 	}
+	chIndex := gnmi.Get(t, dut, gnmi.OC().Component(params.TransceiverNames[p.Name()]).Transceiver().Channel(0).Index().State())
 	tcs := []testcase{
 		{
 			desc: "Transceiver Name Validation",
@@ -112,7 +114,7 @@ func validateTranscieverTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondat
 		{
 			desc: "Transceiver Physical Channel Index Validation",
 			path: fmt.Sprintf(componentPath+"/transceiver/state/physical-channels/channel[index=0]/index", params.TransceiverNames[p.Name()]),
-			got:  transceiverValue.GetTransceiver().GetChannel(0).GetIndex(),
+			got:  chIndex,
 			want: uint16(0),
 		},
 		{
