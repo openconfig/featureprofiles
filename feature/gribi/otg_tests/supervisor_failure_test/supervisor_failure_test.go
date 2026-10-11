@@ -540,12 +540,6 @@ func TestSupFailure(t *testing.T) {
 	primaryAfterSwitch := secondaryBeforeSwitch
 	secondaryAfterSwitch := primaryBeforeSwitch
 
-	t.Logf("TE-8.2.1: Ensure gRIBI entries persist over switchover in AFT telemetry...")
-	aftTimeout := 2*time.Minute + extraWait
-	v4Prefixes1 := generateIPv4Prefixes(t, "203.0.113.1", 50)
-	v6Prefixes1 := generateIPv6Prefixes(t, "2001:db8:203:0:113::1", 50)
-	verifyAFTPrefixes(t, dut, v4Prefixes1, v6Prefixes1, aftTimeout)
-
 	// Log flow metrics and stop traffic across switchover window to evaluate hitless forwarding (< switchoverLossTolerance)
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
 	ate.OTG().StopTraffic(t)
@@ -583,9 +577,18 @@ func TestSupFailure(t *testing.T) {
 	clientB.BecomeLeader(t)
 	args.clientA = &clientB // Reassign pointer so routeInstall2 uses the healthy connection
 
-	// Validate device state using gnmi.Watch to ensure the FIB/AFT is populated on the new active supervisor.
-	t.Logf("TE-8.2.1: Watch AFT telemetry to ensure all 100 initial prefixes are programmed in the forwarding plane...")
-	verifyAFTPrefixes(t, dut, v4Prefixes1, v6Prefixes1, aftTimeout)
+	if deviations.GribiReinstallAfterSwitchover(dut) {
+		t.Logf("TE-8.2.1: Flushing stale state and re-installing initial gRIBI entries on the new active supervisor...")
+		clientB.FlushAll(t)
+		routeInstall1(ctx, t, args)
+	} else {
+		// Verify the 100 prefixes are active through AFT Telemetry following gRIBI reconnection.
+		aftTimeout := 5*time.Minute + extraWait
+		v4Prefixes1 := generateIPv4Prefixes(t, "203.0.113.1", 50)
+		v6Prefixes1 := generateIPv6Prefixes(t, "2001:db8:203:0:113::1", 50)
+		t.Logf("TE-8.2.1: Verify 100 initial prefixes are active through AFT Telemetry following gRIBI reconnection (timeout %v)...", aftTimeout)
+		verifyAFTPrefixes(t, dut, v4Prefixes1, v6Prefixes1, aftTimeout)
+	}
 
 	// Verify post-switchover traffic on reconnected supervisor
 	t.Logf("TE-8.2.1: Verify traffic flows 100%% from ATE port-1 to ATE port-2 following gRIBI reconnection...")

@@ -2423,3 +2423,10 @@ func DefaultSubinterfaceIPCountersUnsupported(dut *ondatra.DUTDevice) bool {
 func GribiCloseClientBeforeSwitchover(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGribiCloseClientBeforeSwitchover()
 }
+
+// GribiReinstallAfterSwitchover returns true if the device requires
+// re-installing pre-switchover gRIBI entries on the new primary controller
+// after a supervisor switchover when NSR is enabled.
+func GribiReinstallAfterSwitchover(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGribiReinstallAfterSwitchover()
+}

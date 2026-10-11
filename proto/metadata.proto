@@ -1502,6 +1502,10 @@ message Metadata {
     // triggering a supervisor switchover to prevent proxy EOF errors.
     bool gribi_close_client_before_switchover = 463;
 
+    // Device requires re-installing pre-switchover gRIBI entries on the new
+    // primary controller after a supervisor switchover when NSR is enabled.
+    bool gribi_reinstall_after_switchover = 464;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }

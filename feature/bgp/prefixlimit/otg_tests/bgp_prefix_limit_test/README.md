@@ -41,6 +41,12 @@ paths:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv6-unicast/prefix-limit/state/max-prefixes:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv6-unicast/prefix-limit/state/prefix-limit-exceeded:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv6-unicast/prefix-limit/state/warning-threshold-pct:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/received/UPDATE:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/sent/NOTIFICATION:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/sent/UPDATE:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/sent/last-notification-error-code:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/sent/last-notification-error-subcode:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/sent/last-notification-time:
 
 rpcs:
   gnmi:

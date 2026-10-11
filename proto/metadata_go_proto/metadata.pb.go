@@ -1587,8 +1587,11 @@ type Metadata_Deviations struct {
 	// Device requires gracefully closing the pre-switchover gRIBI client before
 	// triggering a supervisor switchover to prevent proxy EOF errors.
 	GribiCloseClientBeforeSwitchover bool `protobuf:"varint,463,opt,name=gribi_close_client_before_switchover,json=gribiCloseClientBeforeSwitchover,proto3" json:"gribi_close_client_before_switchover,omitempty"`
-	unknownFields                    protoimpl.UnknownFields
-	sizeCache                        protoimpl.SizeCache
+	// Device requires re-installing pre-switchover gRIBI entries on the new
+	// primary controller after a supervisor switchover when NSR is enabled.
+	GribiReinstallAfterSwitchover bool `protobuf:"varint,464,opt,name=gribi_reinstall_after_switchover,json=gribiReinstallAfterSwitchover,proto3" json:"gribi_reinstall_after_switchover,omitempty"`
+	unknownFields                 protoimpl.UnknownFields
+	sizeCache                     protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -4610,6 +4613,13 @@ func (x *Metadata_Deviations) GetGribiCloseClientBeforeSwitchover() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetGribiReinstallAfterSwitchover() bool {
+	if x != nil {
+		return x.GribiReinstallAfterSwitchover
+	}
+	return false
+}
+
 type Metadata_PlatformExceptions struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Platform      *Metadata_Platform     `protobuf:"bytes,1,opt,name=platform,proto3" json:"platform,omitempty"`
@@ -4666,7 +4676,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xb0\x86\x02\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xfa\x86\x02\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -4678,7 +4688,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\x98\xfb\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xe2\xfb\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -5111,7 +5121,8 @@ const file_metadata_proto_rawDesc = "" +
 	"&sflow_egress_sampling_rate_unsupported\x18\xcc\x03 \x01(\bR\"sflowEgressSamplingRateUnsupported\x12H\n" +
 	" interface_last_clear_unsupported\x18\xcd\x03 \x01(\bR\x1dinterfaceLastClearUnsupported\x12_\n" +
 	",default_subinterface_ip_counters_unsupported\x18\xce\x03 \x01(\bR(defaultSubinterfaceIpCountersUnsupported\x12O\n" +
-	"$gribi_close_client_before_switchover\x18\xcf\x03 \x01(\bR gribiCloseClientBeforeSwitchoverJ\x06\b\x85\x02\x10\x86\x02J\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"$gribi_close_client_before_switchover\x18\xcf\x03 \x01(\bR gribiCloseClientBeforeSwitchover\x12H\n" +
+	" gribi_reinstall_after_switchover\x18\xd0\x03 \x01(\bR\x1dgribiReinstallAfterSwitchoverJ\x06\b\x85\x02\x10\x86\x02J\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02J\x06\b\xf1\x01\x10\xf2\x01J\x04\b1\x102\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
