@@ -253,6 +253,14 @@ Traffic-policies
 !
 `
 
+	qosconfigAristaRemove = `
+ no qos map dscp 0 1 2 3 4 5 6 7 to traffic-class 0
+ no qos map dscp 8 9 10 11 12 13 14 15 to traffic-class 1
+ no qos map dscp 40 41 42 43 44 45 46 47 to traffic-class 4
+ no qos map dscp 48 49 50 51 52 53 54 55 to traffic-class 7
+ no policy-map type quality-of-service af3
+`
+
 	mplsLabelRangeArista = `
 mpls label range bgp-sr 16 0
 mpls label range dynamic 16 0
@@ -505,6 +513,54 @@ func LabelRangeConfig(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 	} else {
 		LabelRangeOCConfig(t, dut)
+	}
+}
+
+// RemoveMplsConfig reverts MplsConfig.
+func RemoveMplsConfig(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	// MplsConfig applies nothing through OC, so there is nothing to revert when OC is supported.
+	if !deviations.MplsOCUnsupported(dut) {
+		return
+	}
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		helpers.GnmiCLIConfig(t, dut, "no mpls ip")
+	default:
+		t.Logf("Unsupported vendor %s for native command support for deviation 'mpls ip'", dut.Vendor())
+	}
+}
+
+// RemoveQosClassificationConfig reverts QosClassificationConfig.
+func RemoveQosClassificationConfig(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	// QosClassificationOCConfig only builds a config object and never pushes it.
+	if !deviations.QosClassificationOCUnsupported(dut) {
+		return
+	}
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		helpers.GnmiCLIConfig(t, dut, qosconfigAristaRemove)
+	default:
+		t.Logf("Unsupported vendor %s for native command support for deviation 'qos classification'", dut.Vendor())
+	}
+}
+
+// RemoveLabelRangeConfig reverts LabelRangeConfig.
+func RemoveLabelRangeConfig(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	if deviations.MplsLabelClassificationOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			helpers.GnmiCLIConfig(t, dut, negateCLILines(mplsLabelRangeArista, true))
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'mpls label range'", dut.Vendor())
+		}
+		return
+	}
+	global := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Global()
+	for _, id := range []string{"bgp-sr", "dynamic", "isis-sr", "l2evpn", "l2evpn ethernet-segment", "ospf-sr", "srlb", "static"} {
+		gnmi.Delete(t, dut, global.ReservedLabelBlock(id).Config())
 	}
 }
 
@@ -934,7 +990,16 @@ func RemoveDecapGroupGue(t *testing.T, dut *ondatra.DUTDevice, ocPFParams OcPoli
 	if deviations.GueGreDecapUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("no ip decap-group %s\n", ocPFParams.AppliedPolicyName))
+			removeCli := fmt.Sprintf("no ip decap-group %s\n", ocPFParams.AppliedPolicyName)
+			decapProto := ocPFParams.DecapProtocol
+			if decapProto == "" {
+				decapProto = ocPFParams.IPType
+			}
+			if decapProto != "" {
+				removeCli += fmt.Sprintf("no ip decap-group type udp destination port 6635 payload %s\n", decapProto)
+			}
+
+			helpers.GnmiCLIConfig(t, dut, removeCli)
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'decap-group removal'", dut.Vendor())
 		}

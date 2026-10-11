@@ -17,6 +17,7 @@ package cfgplugins
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -1744,4 +1745,21 @@ func ClearNeighbors(t *testing.T, dut *ondatra.DUTDevice) {
 	default:
 		t.Logf("ClearNeighbors: no CLI mapping known for vendor %v, skipping", dut.Vendor())
 	}
+}
+
+// negateCLILines prefixes every non-empty line of a flat CLI snippet with "no ".
+func negateCLILines(cfg string, reverse bool) string {
+	var out []string
+	lines := strings.Split(cfg, "\n")
+	if reverse {
+		slices.Reverse(lines)
+	}
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || line == "!" {
+			continue
+		}
+		out = append(out, "no "+line)
+	}
+	return strings.Join(out, "\n") + "\n"
 }

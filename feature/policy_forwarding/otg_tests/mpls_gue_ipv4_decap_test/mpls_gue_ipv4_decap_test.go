@@ -622,21 +622,34 @@ func waitForOTGLAGUp(t *testing.T, ate *ondatra.ATEDevice, agg *otgconfighelpers
 	t.Logf("OTG LAG %s is UP and members are collecting/distributing", agg.Name)
 }
 
-func TestSetup(t *testing.T) {
-	t.Log("PF-1.19.1: Generate DUT Configuration")
+func TestMPLSOGUEDecap(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
-
-	// Get default parameters for OC Policy Forwarding
-	ocPFParams := defaultOcPolicyForwardingParams()
-
-	// Pass ocPFParams to configureDUT
-	configureDUT(t, dut, ocPFParams)
+	t.Log("PF-1.19.1: Generate DUT Configuration")
+	configureDUT(t, dut, defaultOcPolicyForwardingParams())
+	t.Cleanup(func() { cleanupConfiguration(t) })
 	configureOTG(t, ate)
 	ate.OTG().StartProtocols(t)
 	waitForLAG(t, dut, ate)
+
+	testCases := []struct {
+		name string
+		fn   func(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice)
+	}{
+		{name: "PF-1.19.2 - MPLSoGUE decap for IPv4 and IPv6 payload", fn: decapIPv4AndIPv6},
+		{name: "PF-1.19.3 - MPLSoGUE decap with IPv4 and IPv6 config refresh", fn: decapIPv4IPv6ConfigRefresh},
+		{name: "PF-1.19.4 - MPLSoGUE decap for IPv4 multicast payload", fn: decapIPv4Multicast},
+		{name: "PF-1.19.5 - MPLSoGUE DSCP/TTL preserve", fn: decapInnerPayloadPreserve},
+		{name: "PF-1.19.6 - MPLSoGUE decap nexthop resolution", fn: decapNextHopResolution},
+		{name: "PF-1.19.v6 - MPLSoGUE decap with IPv6 outer header", fn: decapIPv6OuterHeader},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.fn(t, dut, ate)
+		})
+	}
 }
 
 func waitForLAG(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
@@ -706,8 +719,7 @@ func decapMPLSInGUE(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance
 }
 
 // PF-1.19.2: Verify PF MPLSoGUE Decap action for IPv4 and IPv6 traffic.
-func TestMPLSOGUEDecapIPv4AndIPv6(t *testing.T) {
-	ate := ondatra.ATE(t, "ate")
+func decapIPv4AndIPv6(t *testing.T, _ *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 	t.Log("PF-1.19.2: Verify MPLSoGUE decapsulate action for IPv4 and IPv6 payload")
 	testFlows := []testFlow{
 		{flowOuterConfig: flowOuterIPv4, flowInnerConfig: flowInnerIPv4, flowValidation: flowOuterIPv4Validation},
@@ -730,11 +742,9 @@ func TestMPLSOGUEDecapIPv4AndIPv6(t *testing.T) {
 
 // PF-1.19.3: Verify MPLSoGUE decapsulate action for IPv4 and IPv6 payload with
 // changes in IPv4 and IPv6 configs.
-func TestMPLSOGUEDecapIPv4IPv6ConfigRefresh(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
-	decapPolicy := defaultOcPolicyForwardingParams().DecapPolicy
+func decapIPv4IPv6ConfigRefresh(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 	t.Log("PF-1.19.3: Verify MPLSoGUE decapsulate action for IPv4 and IPv6 payload with changes in IPv4 and IPv6 configs")
+	decapPolicy := defaultOcPolicyForwardingParams().DecapPolicy
 	testFlows := []testFlow{
 		{flowOuterConfig: flowOuterIPv4, flowInnerConfig: flowInnerIPv4, flowValidation: flowOuterIPv4Validation},
 		{flowOuterConfig: flowOuterIPv6, flowInnerConfig: flowInnerIPv6, flowValidation: flowOuterIPv6Validation},
@@ -772,8 +782,7 @@ func TestMPLSOGUEDecapIPv4IPv6ConfigRefresh(t *testing.T) {
 }
 
 // PF-1.19.4: Verify MPLSoGUE decapsulate action for IPv4 multicast payload.
-func TestMPLSOGUEDecapIPv4Multicast(t *testing.T) {
-	ate := ondatra.ATE(t, "ate")
+func decapIPv4Multicast(t *testing.T, _ *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 	t.Log("PF-1.19.4: Verify MPLSoGUE decapsulate action for IPv4 multicast payload")
 	testFlows := []testFlow{
 		{flowOuterConfig: flowOuterIPv4Multicast, flowInnerConfig: flowInnerIPv4Multicast, flowValidation: flowOuterIPv4MulticastValidation},
@@ -797,8 +806,7 @@ func TestMPLSOGUEDecapIPv4Multicast(t *testing.T) {
 }
 
 // PF-1.19.5: Verify MPLSoGUE DSCP/TTL preserve operation.
-func TestMPLSOGUEDecapInnerPayloadPreserve(t *testing.T) {
-	ate := ondatra.ATE(t, "ate")
+func decapInnerPayloadPreserve(t *testing.T, _ *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 	t.Log("PF-1.19.5: Verify MPLSoGUE DSCP/TTL preserve operation")
 	testFlows := []testFlow{
 		{flowOuterConfig: flowOuterIPv4, flowInnerConfig: flowInnerIPv4, flowValidation: flowOuterIPv4Validation, packetValidation: decapValidationIPv4},
@@ -820,27 +828,30 @@ func TestMPLSOGUEDecapInnerPayloadPreserve(t *testing.T) {
 }
 
 // PF-1.19.6: Verify IPV4/IPV6 nexthop resolution of decap traffic
-func TestMPLSOGUEDecapNextHopResolution(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
+func decapNextHopResolution(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 	t.Log("PF-1.19.6: Verify IPV4/IPV6 nexthop resolution of decap traffic")
-	testFlows := []testFlow{
+	unicastTestFlows := []testFlow{
 		{flowOuterConfig: flowOuterIPv4, flowInnerConfig: flowInnerIPv4, flowValidation: flowOuterIPv4Validation},
 		{flowOuterConfig: flowOuterIPv6, flowInnerConfig: flowInnerIPv6, flowValidation: flowOuterIPv6Validation},
 		{flowOuterConfig: flowOuterIPv4Agg3, flowInnerConfig: flowInnerIPv4, flowValidation: flowOuterIPv4Agg3Validation},
 		{flowOuterConfig: flowOuterIPv6Agg3, flowInnerConfig: flowInnerIPv6, flowValidation: flowOuterIPv6Agg3Validation},
+	}
+	multicastTestFlows := []testFlow{
 		{flowOuterConfig: flowOuterIPv4Multicast, flowInnerConfig: flowInnerIPv4Multicast, flowValidation: flowOuterIPv4MulticastValidation},
 		{flowOuterConfig: flowOuterIPv4MulticastAgg3, flowInnerConfig: flowInnerIPv4Multicast, flowValidation: flowOuterIPv4MulticastAgg3Validation},
 	}
-	for i, flow := range testFlows {
-		createFlow(t, top, flow.flowOuterConfig, dscpSweepInner(flow.flowInnerConfig), i == 0)
-	}
 
-	cfgplugins.ClearNeighbors(t, dut)
-	sendTraffic(t, ate, false)
-	for _, flow := range testFlows {
-		if err := flow.flowValidation.ValidateLossOnFlows(t, ate); err != nil {
-			t.Errorf("ValidateLossOnFlows(%s): got err: %q, want nil", flow.flowValidation.Flow.Name, err)
+	for _, testFlows := range [][]testFlow{unicastTestFlows, multicastTestFlows} {
+		for i, flow := range testFlows {
+			createFlow(t, top, flow.flowOuterConfig, dscpSweepInner(flow.flowInnerConfig), i == 0)
+		}
+
+		cfgplugins.ClearNeighbors(t, dut)
+		sendTraffic(t, ate, false)
+		for _, flow := range testFlows {
+			if err := flow.flowValidation.ValidateLossOnFlows(t, ate); err != nil {
+				t.Errorf("ValidateLossOnFlows(%s): got err: %q, want nil", flow.flowValidation.Flow.Name, err)
+			}
 		}
 	}
 }
@@ -859,11 +870,8 @@ func refreshInterfaceVLAN(t *testing.T, dut *ondatra.DUTDevice, a *attrs.Attribu
 }
 
 // PF-1.19.v6: Validate decapsulation of MPLS over GUE with an IPv6 outer header.
-func TestMPLSOGUEDecapIPv6OuterHeader(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
+func decapIPv6OuterHeader(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 	t.Log("PF-1.19.v6: Verify MPLSoGUE decapsulate action for an IPv6 outer header")
-
 	testFlows := []testFlow{
 		{flowOuterConfig: flowOuterIPv6InnerIPv6, flowInnerConfig: flowInnerIPv6, flowValidation: flowOuterIPv6OuterValidation, packetValidation: decapValidationIPv6OuterInnerIPv6},
 		{flowOuterConfig: flowOuterIPv6InnerIPv4, flowInnerConfig: flowInnerIPv4, flowValidation: flowOuterIPv6InnerIPv4Validation, packetValidation: decapValidationIPv6OuterInnerIPv4},
@@ -925,6 +933,8 @@ func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, captureTraffic bool, midS
 	for _, flow := range top.Flows().Items() {
 		waitForTraffic(t, ate.OTG(), flow.Name(), trafficTimeout)
 	}
+	otgutils.LogFlowMetrics(t, ate.OTG(), top)
+	otgutils.LogPortMetrics(t, ate.OTG(), top)
 }
 
 func waitForTraffic(t *testing.T, otg *otg.OTG, flowName string, timeout time.Duration) {
@@ -1120,8 +1130,9 @@ func configureStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
 	b.Set(t, dut)
 }
 
-// TestCleanup reverts the DUT configuration pushed by TestSetup; it must remain the last test.
-func TestCleanup(t *testing.T) {
+func cleanupConfiguration(t *testing.T) {
+	t.Helper()
+	t.Log("Cleanup configuration")
 	dut := ondatra.DUT(t, "dut")
 	ni := deviations.DefaultNetworkInstance(dut)
 
@@ -1140,13 +1151,22 @@ func TestCleanup(t *testing.T) {
 	if !deviations.PolicyForwardingOCUnsupported(dut) {
 		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(ni).PolicyForwarding().Config())
 	}
+	// Revert decapMPLSInGUE.
+	cfgplugins.RemoveMPLSStaticLSPConfig(t, dut, defaultOcPolicyForwardingParams())
 	cfgplugins.RemoveDecapGroupGue(t, dut, defaultOcPolicyForwardingParams())
 	cfgplugins.RemoveDecapGroupGue(t, dut, ipv6OuterDecapParams(dut))
+	cfgplugins.RemoveLabelRangeConfig(t, dut)
+	cfgplugins.RemoveQosClassificationConfig(t, dut)
+	cfgplugins.RemoveMplsConfig(t, dut)
 
 	for _, agg := range []struct {
 		id    string
 		ports []string
 	}{{custAggID, custPorts}, {aggID, corePorts}, {aggID2, corePorts2}} {
+		// Empty when configureDUT failed before allocating this aggregate.
+		if agg.id == "" {
+			continue
+		}
 		var members []*ondatra.Port
 		for _, p := range agg.ports {
 			members = append(members, dut.Port(t, p))

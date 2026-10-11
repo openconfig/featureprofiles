@@ -385,6 +385,31 @@ func MPLSStaticLSPConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkIns
 	}
 }
 
+// RemoveMPLSStaticLSPConfig reverts MPLSStaticLSPConfig for the non-scale static LSPs.
+func RemoveMPLSStaticLSPConfig(t *testing.T, dut *ondatra.DUTDevice, ocPFParams OcPolicyForwardingParams) {
+	t.Helper()
+	policy := ocPFParams.DecapPolicy
+	if deviations.StaticMplsUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			helpers.GnmiCLIConfig(t, dut, negateCLILines(staticLSPArista, false))
+			if policy.StaticLSPNameMulticast != "" {
+				helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("no mpls static top-label %d %s pop payload-type ipv4 access-list bypass\n",
+					policy.StaticLSPLabelMulticast, policy.StaticLSPNextHopMulticast))
+			}
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'mpls static lsp'", dut.Vendor())
+		}
+		return
+	}
+	lsps := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Lsps()
+	for _, name := range []string{policy.StaticLSPNameIPv4, policy.StaticLSPNameIPv6, policy.StaticLSPNameMulticast} {
+		if name != "" {
+			gnmi.Delete(t, dut, lsps.StaticLsp(name).Config())
+		}
+	}
+}
+
 // RefreshStaticLSP removes and re-adds the static MPLS LSP mapping for a given LSP
 // name, label, next hop and payload type. Used to validate that unrelated
 // address-family decap traffic is unaffected by a config refresh of a single
