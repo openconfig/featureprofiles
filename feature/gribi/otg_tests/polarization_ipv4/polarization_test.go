@@ -36,7 +36,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
-	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/client"
@@ -770,15 +769,9 @@ func perturbHashArista(t *testing.T, dut *ondatra.DUTDevice, iteration int) {
 	ecmpPoly := (iteration % 7) + 1
 	pcPoly := ((iteration + 1) % 7) + 1
 	t.Logf("Arista EOS: setting ecmp hash (seed=%d, polynomial=%d), port-channel hash (seed=%d, polynomial=%d)", ecmpSeed, ecmpPoly, pcSeed, pcPoly)
-	cliConfig := fmt.Sprintf(`
-load-balance policies
-   load-balance sand profile default
-      ecmp hash seed %d
-      ecmp hash polynomial %d
-      port-channel hash seed %d
-      port-channel hash polynomial %d
-`, ecmpSeed, ecmpPoly, pcSeed, pcPoly)
-	helpers.GnmiCLIConfig(t, dut, cliConfig)
+	if tmpl := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureLoadBalanceHashPerturb); tmpl != "" {
+		cfgplugins.PushDUTHardwareInitConfig(t, dut, fmt.Sprintf(tmpl, ecmpSeed, ecmpPoly, pcSeed, pcPoly))
+	}
 }
 
 // perturbHashNokia changes the system load-balancing hash-seed on Nokia SR Linux.
@@ -787,7 +780,9 @@ func perturbHashNokia(t *testing.T, dut *ondatra.DUTDevice, iteration int) {
 	seeds := []int{0x1357, 0x9BDF, 0x2468, 0xACE1, 0x5A3C}
 	seed := seeds[iteration%len(seeds)]
 	t.Logf("Nokia SR Linux: setting system load-balancing hash-options hash-seed %d", seed)
-	helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("system load-balancing hash-options hash-seed %d", seed))
+	if tmpl := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureLoadBalanceHashPerturb); tmpl != "" {
+		cfgplugins.PushDUTHardwareInitConfig(t, dut, fmt.Sprintf(tmpl, seed))
+	}
 }
 
 func flushGRIBIEntries(t *testing.T, dut *ondatra.DUTDevice) {
