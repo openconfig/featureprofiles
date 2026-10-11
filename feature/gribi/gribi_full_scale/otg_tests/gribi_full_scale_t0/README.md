@@ -16,17 +16,17 @@ The test is configured with the following parameters defined in `gribi_full_scal
 * `GRIBIBatchSize`: `256`
 
 ### Default VRF
-* `NumDefaultNH`: `1,000`
-* `NumDefaultNHG`: `1,000`
+* `NumDefaultNH`: `640`
+* `NumDefaultNHG`: `640`
 * `NumDefaultIPv4`: `1,000`
 * `DefaultNHGLoadBalance`:
-  * 40% (400) NHGs load-balance across 8 NHs
-  * 40% (400) NHGs load-balance across 16 NHs
-  * 15% (150) NHGs load-balance across 32 NHs
-  * 5% (50) NHGs load-balance across 64 NHs
+  * 40% (256) NHGs load-balance across 8 NHs
+  * 40% (256) NHGs load-balance across 16 NHs
+  * 15% (95) NHGs load-balance across 32 NHs
+  * 5% (32) NHGs load-balance across 64 NHs
 * `DefaultNHGWeight`:
-  * 80% (800) NHGs have WCMP granularity `1/512`
-  * 20% (200) NHGs have WCMP granularity `1/1024`
+  * 80% (512) NHGs have WCMP granularity `1/512`
+  * 20% (128) NHGs have WCMP granularity `1/1024`
 
 ### Transit VRF
 * `NumTransitNH`: `4,000`
@@ -51,10 +51,8 @@ The test is configured with the following parameters defined in `gribi_full_scal
   * 3% NHGs load-balance across 16 NHs
   * 2% NHGs load-balance across 32 NHs
 * `EncapNHGWeight`:
-  * 75% NHGs have WCMP granularity `1/32`
-  * 20% NHGs have WCMP granularity `1/64`
-  * 3% NHGs have WCMP granularity `1/128`
-  * 2% NHGs have WCMP granularity `1/256`
+  * 75% NHGs have WCMP granularity `1/16`
+  * 25% NHGs have WCMP granularity `1/32`
 
 ### Decap VRF
 * `NumDecapEntries`: `8`

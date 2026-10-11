@@ -29,6 +29,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -59,6 +60,7 @@ const (
 	v6FlowName               = "v6Flow"
 	SRReservedLabelblockName = "default-srgb" // supported name for Cisco SRGB
 	fixedPackets             = 1000
+	routeInstallTimeout      = time.Minute
 )
 
 var (
@@ -155,6 +157,32 @@ func configureOTG(t *testing.T, ts *isissession.TestSession) {
 	v6 := v6Flow.Packet().Add().Ipv6()
 	v6.Src().SetValue(isissession.ATEISISAttrs.IPv6)
 	v6.Dst().SetValue(ateV6Route)
+}
+
+// waitForDUTRoutes waits until the ATE-advertised IPv4 and IPv6 routes are
+// installed in the DUT AFT before measured traffic starts.
+func waitForDUTRoutes(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+
+	dni := deviations.DefaultNetworkInstance(dut)
+	v4Prefix := fmt.Sprintf("%s/%d", ateV4Route, plenIPv4)
+	v6Prefix := fmt.Sprintf("%s/%d", ateV6Route, plenIPv6)
+
+	t.Logf("Waiting for IPv4 route %s to be installed in the DUT AFT", v4Prefix)
+	v4Path := gnmi.OC().NetworkInstance(dni).Afts().Ipv4Entry(v4Prefix)
+	if _, ok := gnmi.Watch(t, dut, v4Path.State(), routeInstallTimeout, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		return val.IsPresent()
+	}).Await(t); !ok {
+		t.Fatalf("IPv4 route %s was not installed in the DUT AFT within %v", v4Prefix, routeInstallTimeout)
+	}
+
+	t.Logf("Waiting for IPv6 route %s to be installed in the DUT AFT", v6Prefix)
+	v6Path := gnmi.OC().NetworkInstance(dni).Afts().Ipv6Entry(v6Prefix)
+	if _, ok := gnmi.Watch(t, dut, v6Path.State(), routeInstallTimeout, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
+		return val.IsPresent()
+	}).Await(t); !ok {
+		t.Fatalf("IPv6 route %s was not installed in the DUT AFT within %v", v6Prefix, routeInstallTimeout)
+	}
 }
 
 func verifyMPLSSR(t *testing.T, ts *isissession.TestSession) {
@@ -257,6 +285,7 @@ func TestMPLSLabelBlockWithISIS(t *testing.T) {
 	ts.MustAdjacency(t)
 
 	verifyMPLSSR(t, ts)
+	waitForDUTRoutes(t, dut)
 
 	// Traffic checks
 	otg := ts.ATE.OTG()
