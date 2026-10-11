@@ -125,6 +125,7 @@ func TestMPLSGREUDPDecap(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	top := gosnappi.NewConfig()
 	configureDUT(t, dut)
+	t.Cleanup(func() { cleanupConfiguration(t, dut) })
 
 	ap1 := ate.Port(t, port1)
 	ap2 := ate.Port(t, port2)
@@ -316,6 +317,38 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	configureDecapPolicyForwarding(t, dut, dp1.Name())
 }
 
+func cleanupConfiguration(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	dp1 := dut.Port(t, port1)
+	dp2 := dut.Port(t, port2)
+
+	t.Log("Removing decap policy forwarding")
+	for _, name := range []string{grePolicyName, guePolicyName} {
+		cfgplugins.RemoveDecapGroupGue(t, dut, cfgplugins.OcPolicyForwardingParams{AppliedPolicyName: name})
+	}
+
+	t.Log("Removing routes")
+	b := &gnmi.SetBatch{}
+	prefixes := []string{
+		innerIPv4DstA + "/32", innerIPv4DstB + "/32",
+		innerIPv6DstA + "/128", innerIPv6DstB + "/128",
+	}
+	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+	for _, prefix := range prefixes {
+		t.Logf("Removing static route for prefix %s", prefix)
+		gnmi.BatchDelete(b, sp.Static(prefix).Config())
+	}
+
+	t.Log("Removing interfaces")
+	for _, dp := range []*ondatra.Port{dp1, dp2} {
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+			gnmi.BatchDelete(b, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Interface(dp.Name()+".0").Config())
+		}
+		gnmi.BatchDelete(b, gnmi.OC().Interface(dp.Name()).Config())
+	}
+	b.Set(t, dut)
+}
+
 func configureInputPolicy(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
 	if deviations.InterfacePolicyForwardingOCUnsupported(dut) {
 		return
@@ -341,7 +374,7 @@ func configureInputPolicy(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
 
 func configureDecapPolicyForwarding(t *testing.T, dut *ondatra.DUTDevice, interfaceName string) {
 	defaultNIName := deviations.DefaultNetworkInstance(dut)
-	_, ni, pf := cfgplugins.SetupPolicyForwardingInfraOC(defaultNIName)
+	_, _, pf := cfgplugins.SetupPolicyForwardingInfraOC(defaultNIName)
 
 	grePFParams := cfgplugins.OcPolicyForwardingParams{
 		NetworkInstanceName: defaultNIName,
@@ -366,7 +399,7 @@ func configureDecapPolicyForwarding(t *testing.T, dut *ondatra.DUTDevice, interf
 	cfgplugins.DecapGroupConfigGue(t, dut, pf, guePFParams)
 
 	if !deviations.PolicyForwardingOCUnsupported(dut) {
-		cfgplugins.PushPolicyForwardingConfig(t, dut, ni)
+		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(defaultNIName).PolicyForwarding().Config(), pf)
 	}
 }
 
