@@ -138,6 +138,7 @@ var (
 		"176-6490-9G1":     true, // Ciena OSFP 800G ZRP L-Band
 		"176-6480-9M0":     true, // Ciena OSFP 800G ZRP L-Band
 	}
+	aggNumberRE = regexp.MustCompile(`(\d+)$`)
 )
 
 // OperationalModeList is a type for a list of operational modes in uint16 format.
@@ -1578,8 +1579,7 @@ func ConfigureLoopback(t *testing.T, dut *ondatra.DUTDevice, cfg LoopbackConfig)
 // NextAggregates is like netutil.NextAggregateInterface but obtains multiple aggregate interfaces.
 func NextAggregates(t *testing.T, dut *ondatra.DUTDevice, n int) ([]string, error) {
 	firstAgg := netutil.NextAggregateInterface(t, dut)
-	numRE := regexp.MustCompile(`(\d+)$`)
-	loc := numRE.FindStringIndex(firstAgg)
+	loc := aggNumberRE.FindStringIndex(firstAgg)
 	if loc == nil {
 		return nil, fmt.Errorf("cannot extract trailing integer from %q", firstAgg)
 	}

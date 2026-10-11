@@ -675,15 +675,17 @@ func verifyOverloadBit(t *testing.T, dut *ondatra.DUTDevice, want bool) error {
 // verifyOverloadBitAdvertised confirms the ATE learns the overload flag in a DUT LSP.
 func verifyOverloadBitAdvertised(t *testing.T, otg *otg.OTG) error {
 	t.Helper()
-	query := gnmi.OTG().IsisRouter("port1-isis").LinkStateDatabase().LspsAny().Flags().State()
-	_, ok := gnmi.WatchAll(t, otg, query, stateWatchTimeout, func(val *ygnmi.Value[[]otgtelemetry.E_Lsps_Flags]) bool {
-		flags, present := val.Val()
+	query := gnmi.OTG().IsisRouter("port1-isis").LinkStateDatabase().State()
+	_, ok := gnmi.Watch(t, otg, query, stateWatchTimeout, func(val *ygnmi.Value[*otgtelemetry.IsisRouter_LinkStateDatabase]) bool {
+		db, present := val.Val()
 		if !present {
 			return false
 		}
-		for _, flag := range flags {
-			if flag == otgtelemetry.Lsps_Flags_OVERLOAD {
-				return true
+		for _, lsp := range db.Lsps {
+			for _, flag := range lsp.Flags {
+				if flag == otgtelemetry.Lsps_Flags_OVERLOAD {
+					return true
+				}
 			}
 		}
 		return false
