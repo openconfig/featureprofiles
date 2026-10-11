@@ -2,9 +2,9 @@
 package kneutil
 
 import (
+	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding"
-	tpb "github.com/openconfig/kne/proto/topo"
 )
 
 // IsKNEBinding reports whether dut is a Nokia device bound via knebind (KNE topology),
