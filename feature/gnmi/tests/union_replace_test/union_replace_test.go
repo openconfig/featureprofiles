@@ -749,13 +749,10 @@ func configureUnionReplaceSupport(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-// requireOCWithCLI adds a no-op OC path to sb when the DUT rejects union_replace SetRequests
-// that contain a CLI path with no accompanying OC path.
+// requireOCWithCLI adds a no-op OC Origin request to sb when the union_replace SetRequest
+// contains only CLI Origin requests.
 func requireOCWithCLI(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch) {
 	t.Helper()
-	if !deviations.UnionReplaceOcAndCliRequired(dut) {
-		return
-	}
 	if hostname, ok := gnmi.Lookup(t, dut, gnmi.OC().System().Hostname().State()).Val(); ok {
 		gnmi.BatchUnionReplace(sb, gnmi.OC().System().Hostname().Config(), hostname)
 	}

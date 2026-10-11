@@ -13,7 +13,6 @@ platform_exceptions: {
     ipv4_missing_enabled: true
     num_physical_channels_unsupported: true
     port_speed_unsupported: true
-    union_replace_oc_and_cli_required: true
     invalid_interface_number_allowed: true
     eth_channel_ingress_parameters_unsupported: true
     missing_port_to_optical_channel_component_mapping: true

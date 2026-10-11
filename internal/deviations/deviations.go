@@ -2421,8 +2421,3 @@ func DefaultSubinterfaceIPCountersUnsupported(dut *ondatra.DUTDevice) bool {
 func InvalidInterfaceNumberAllowed(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInvalidInterfaceNumberAllowed()
 }
-
-// UnionReplaceOcAndCliRequired returns true for devices that require a combination of OC and CLI origin requests in gnmi union_replace call
-func UnionReplaceOcAndCliRequired(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetUnionReplaceOcAndCliRequired()
-}
