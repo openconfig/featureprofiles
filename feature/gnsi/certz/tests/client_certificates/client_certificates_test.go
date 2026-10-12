@@ -299,7 +299,7 @@ func TestClientCert(t *testing.T) {
 				}
 				//Before rotation, validation of all services with existing certificates.
 				t.Run("Pre-rotate verification", func(t *testing.T) {
-					if result := setupService.VerifyGnoi(t, prevCaCert, serverSAN, serverAddr, username, password, prevClientCert, false); !result {
+					if result := setupService.VerifyGNOI(t, prevCaCert, serverSAN, serverAddr, username, password, prevClientCert, false); !result {
 						t.Fatalf("Pre-rotate gNOI validation failed")
 					}
 					if result := setupService.VerifyGribi(t, prevCaCert, serverSAN, serverAddr, username, password, prevClientCert, false); !result {
@@ -338,7 +338,7 @@ func TestClientCert(t *testing.T) {
 			//Post rotate validation of all services.
 			t.Run("Verification of new connection after rotate", func(t *testing.T) {
 				t.Run("gNOI", func(t *testing.T) {
-					if result := setupService.VerifyGnoi(t, newCaCert, serverSAN, serverAddr, username, password, newClientCert, tc.mismatch); !result {
+					if result := setupService.VerifyGNOI(t, newCaCert, serverSAN, serverAddr, username, password, newClientCert, tc.mismatch); !result {
 						t.Fatalf("gNOI validation failed")
 					}
 				})

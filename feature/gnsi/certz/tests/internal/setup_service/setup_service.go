@@ -486,8 +486,8 @@ func ValidateGnsiAuthzGetRequest(ctx context.Context, t *testing.T, authzClient 
 
 }
 
-// VerifyGnoi function to validate the gNOI service RPC after successful rotation.
-// VerifyGnoi attempts to establish a gRPC connection to a gNOI server using the provided TLS certificate,
+// VerifyGNOI function to validate the gNOI service RPC after successful rotation.
+// VerifyGNOI attempts to establish a gRPC connection to a gNOI server using the provided TLS certificate,
 // CA certificate pool, server address, SAN, and user credentials. It sends a Ping request to verify connectivity.
 // If 'mismatch' is true, it expects the connection to fail due to certificate mismatch and logs the error;
 // otherwise, it fails the test on connection errors. Returns true if the connection and Ping succeed or if
@@ -507,7 +507,7 @@ func ValidateGnsiAuthzGetRequest(ctx context.Context, t *testing.T, authzClient 
 // Returns:
 //
 //	bool - True if verification succeeds or expected mismatch occurs, false otherwise.
-func VerifyGnoi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate, mismatch bool) bool {
+func VerifyGNOI(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate, mismatch bool) bool {
 
 	credOpts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(
 		&tls.Config{
@@ -523,7 +523,7 @@ func VerifyGnoi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 	defer cancel()
 	conn, err := grpc.NewClient(target, credOpts...)
 	if err != nil {
-		t.Errorf("VerifyGnoi:gRPC NewClient failed to %q with err %v", target, err)
+		t.Errorf("VerifyGNOI:gRPC NewClient failed to %q with err %v", target, err)
 		return false
 	}
 	defer conn.Close()
@@ -531,6 +531,11 @@ func VerifyGnoi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 	result := ValidateGnoiPingRequest(ctx, t, sysClient, false)
 	conn.Close()
 	return result
+}
+
+// VerifyGnoi is a wrapper around VerifyGNOI for backwards compatibility.
+func VerifyGnoi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate, mismatch bool) bool {
+	return VerifyGNOI(t, caCert, san, serverAddr, username, password, cert, mismatch)
 }
 
 // ValidateGnoiPingRequest function verifies ping request with the gnoiclient.
@@ -782,7 +787,7 @@ func GetSslProfilelist(ctx context.Context, t *testing.T, certzClient certzpb.Ce
 func ServicesValidationCheck(t *testing.T, caCert *x509.CertPool, expectedResult bool, san, serverAddr, username, password string, cert tls.Certificate, mismatch bool) bool {
 
 	t.Logf("%s:Verifying New gNOI connection.", time.Now().String())
-	if result := VerifyGnoi(t, caCert, san, serverAddr, username, password, cert, mismatch); !result {
+	if result := VerifyGNOI(t, caCert, san, serverAddr, username, password, cert, mismatch); !result {
 		t.Fatalf("Failed with new gNOI Connection: got %v, want %v", result, expectedResult)
 	}
 	t.Logf("%s:Verifying New gRIBI connection.", time.Now().String())
