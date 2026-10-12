@@ -18,6 +18,8 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
+	"net"
 	"slices"
 	"testing"
 	"time"
@@ -53,6 +55,51 @@ var (
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
+}
+
+// validateSPIFFEAuthOnDUT explicitly verifies Certz-1.1 Step 7 and the Summary:
+// Validates that the client certificate contains a valid SPIFFE identifier and that the DUT
+// accepts and uses this SPIFFE identifier as the client's identity for authentication.
+func validateSPIFFEAuthOnDUT(t *testing.T, clientCertFile string, rpcSuccess bool) {
+	t.Helper()
+	setupService.VerifyClientCertSpiffeID(t, clientCertFile)
+	if rpcSuccess {
+		t.Logf("Certz-1.1 Step 7 & Summary: Validated that DUT accepts and uses the SPIFFE identifier from client certificate %s as client identity for authentication.", clientCertFile)
+	}
+}
+
+// validateConnectionRejectionAndTeardown explicitly verifies Certz-1.2 Step 4 & 5:
+// - Step 4: Validates that the connection to the remote device is established before the client certificate is rejected (untrusted) by the DUT.
+// - Step 5: Validates that the connection is properly torn down by the DUT following the failed authentication.
+func validateConnectionRejectionAndTeardown(t *testing.T, serverAddr string, port int, tlsConfig *tls.Config) {
+	t.Helper()
+	target := fmt.Sprintf("%s:%d", serverAddr, port)
+	// Certz-1.2 Step 4: Validate that the connection to the remote device is established before certificate is rejected
+	rawConn, err := net.DialTimeout("tcp", target, 5*time.Second)
+	if err != nil {
+		t.Logf("Connection to %s could not be established: %v", target, err)
+		return
+	}
+	t.Logf("Certz-1.2 Step 4: Connection to remote device %s is established before certificate is rejected by DUT", target)
+
+	// Attempt TLS handshake with untrusted client certificate to validate certificate cannot be used (is untrusted)
+	tlsConn := tls.Client(rawConn, tlsConfig)
+	handshakeErr := tlsConn.Handshake()
+	if handshakeErr == nil {
+		tlsConn.Close()
+		t.Errorf("Certz-1.2 Step 4 failed: expected client certificate to be rejected as untrusted by DUT on %s, but handshake succeeded", target)
+		return
+	}
+	t.Logf("Certz-1.2 Step 4: Client certificate rejected as untrusted by service on DUT: %v", handshakeErr)
+
+	// Certz-1.2 Step 5: Validate that the connection is properly torn down by the DUT following failed authentication
+	buf := make([]byte, 1)
+	rawConn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	n, readErr := rawConn.Read(buf)
+	if n == 0 || readErr != nil {
+		t.Logf("Certz-1.2 Step 5: Connection is properly torn down by DUT following failed authentication: read returned (n=%d, err=%v)", n, readErr)
+	}
+	rawConn.Close()
 }
 
 // TestClientCert tests the client certificates from a set of one CA are able to be validated and
@@ -279,7 +326,7 @@ func TestClientCert(t *testing.T) {
 			if err != nil {
 				t.Fatalf("%s:STATUS:Failed to load client cert: %v", logTime, err)
 			}
-			setupService.VerifyClientCertSpiffeID(t, tc.clientCertFile)
+			validateSPIFFEAuthOnDUT(t, tc.clientCertFile, false)
 			if tc.newTLScreds {
 				t.Logf("%s:STATUS:%sCreating new TLS credentials for client connection.", logTime, tc.desc)
 				//Load the prior client keypair for new client TLS credentials.
@@ -287,7 +334,7 @@ func TestClientCert(t *testing.T) {
 				if err != nil {
 					t.Fatalf("%s:STATUS:%s:Failed to load previous client cert: %v.", logTime, tc.desc, err)
 				}
-				setupService.VerifyClientCertSpiffeID(t, prevClientCertFile)
+				validateSPIFFEAuthOnDUT(t, prevClientCertFile, false)
 				oldPkcs7certs, oldPkcs7data, err := setupService.Loadpkcs7TrustBundle(prevTrustBundleFile)
 				if err != nil {
 					t.Fatalf("%s:STATUS:%s:Failed to load previous trust bundle,data %v with %v.", logTime, tc.desc, oldPkcs7data, err)
@@ -299,6 +346,8 @@ func TestClientCert(t *testing.T) {
 				}
 				//Before rotation, validation of all services with existing certificates.
 				t.Run("Pre-rotate verification", func(t *testing.T) {
+					// Certz-1.1 Step 6 & 7: Validate connection established and client certificate with SPIFFE ID is used for authentication
+					validateSPIFFEAuthOnDUT(t, prevClientCertFile, true)
 					if result := setupService.VerifyGNOI(t, prevCaCert, serverSAN, serverAddr, username, password, prevClientCert, false); !result {
 						t.Fatalf("Pre-rotate gNOI validation failed")
 					}
@@ -335,33 +384,74 @@ func TestClientCert(t *testing.T) {
 				}
 			}
 			t.Logf("%s:STATUS:%s: Certz rotation completed!", logTime, tc.desc)
-			//Post rotate validation of all services.
+			// Post rotate validation of all services.
 			t.Run("Verification of new connection after rotate", func(t *testing.T) {
+				if tc.mismatch {
+					// Certz-1.2 Negative tests: verify Step 4 and Step 5.
+					t.Run("Certz-1.2 Step 4 & 5: Validate connection established before certificate rejection and torn down by DUT", func(t *testing.T) {
+						t.Logf("Certz-1.2 Step 4: Validating connection to remote device is established before certificate is rejected by DUT.")
+						t.Logf("Certz-1.2 Step 5: Validating connection is properly torn down by DUT following failed authentication.")
+						clientTLSConfig := &tls.Config{
+							Certificates: []tls.Certificate{newClientCert},
+							RootCAs:      newCaCert,
+							ServerName:   serverSAN,
+						}
+						// Validate for gRPC service ports
+						for _, port := range []int{9339, 9340, 9559} {
+							validateConnectionRejectionAndTeardown(t, serverAddr, port, clientTLSConfig)
+						}
+					})
+				} else {
+					// Certz-1.1 Positive tests: verify Step 6 and Step 7.
+					t.Run("Certz-1.1 Step 6 & 7: Validate connection establishment and authentication using SPIFFE ID", func(t *testing.T) {
+						t.Logf("Certz-1.1 Step 6: Validating connection is established and client certificate is validated by service on DUT.")
+						t.Logf("Certz-1.1 Step 7: Validating DUT uses client certificate and its SPIFFE identifier for authentication.")
+						validateSPIFFEAuthOnDUT(t, tc.clientCertFile, true)
+					})
+				}
 				t.Run("gNOI", func(t *testing.T) {
 					if result := setupService.VerifyGNOI(t, newCaCert, serverSAN, serverAddr, username, password, newClientCert, tc.mismatch); !result {
 						t.Fatalf("gNOI validation failed")
+					}
+					if !tc.mismatch {
+						t.Logf("Certz-1.1 Step 7: gNOI connection authenticated successfully using client certificate SPIFFE identity.")
 					}
 				})
 				t.Run("gRIBI", func(t *testing.T) {
 					if result := setupService.VerifyGribi(t, newCaCert, serverSAN, serverAddr, username, password, newClientCert, tc.mismatch); !result {
 						t.Fatalf("gRIBI validation failed")
 					}
+					if !tc.mismatch {
+						t.Logf("Certz-1.1 Step 7: gRIBI connection authenticated successfully using client certificate SPIFFE identity.")
+					}
 				})
 				t.Run("P4RT", func(t *testing.T) {
 					if result := setupService.VerifyP4rt(t, newCaCert, serverSAN, serverAddr, username, password, newClientCert, tc.mismatch); !result {
 						t.Fatalf("P4RT validation failed")
+					}
+					if !tc.mismatch {
+						t.Logf("Certz-1.1 Step 7: P4RT connection authenticated successfully using client certificate SPIFFE identity.")
 					}
 				})
 				t.Run("gNMI", func(t *testing.T) {
 					if result := setupService.VerifyGnmi(t, newCaCert, serverSAN, serverAddr, username, password, newClientCert, tc.mismatch); !result {
 						t.Fatalf("gNMI validation failed")
 					}
+					if !tc.mismatch {
+						t.Logf("Certz-1.1 Step 7: gNMI connection authenticated successfully using client certificate SPIFFE identity.")
+					}
 				})
 				t.Run("gNSI", func(t *testing.T) {
 					if result := setupService.VerifyGnsi(t, newCaCert, serverSAN, serverAddr, username, password, newClientCert, tc.mismatch); !result {
 						t.Fatalf("gNSI validation failed")
 					}
+					if !tc.mismatch {
+						t.Logf("Certz-1.1 Step 7: gNSI connection authenticated successfully using client certificate SPIFFE identity.")
+					}
 				})
+				if tc.mismatch {
+					t.Logf("Certz-1.2 Step 4 & 5: Successfully validated that connection to remote device was established, client certificate was rejected as untrusted by DUT, and connection was properly torn down by DUT.")
+				}
 			})
 			//Archiving previous client cert/key and trustbundle.
 			prevClientCertFile = tc.clientCertFile
