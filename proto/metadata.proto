@@ -1498,13 +1498,24 @@ message Metadata {
     // Juniper: https://partnerissuetracker.corp.google.com/issues/570573973
     bool default_subinterface_ip_counters_unsupported = 462;
 
+    // Device does not support
+    // /lacp/interfaces/interface/members/member/state/counters/lacp-tx-errors.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/570398368
+    bool lacp_tx_errors_unsupported = 463;
+
+    // Device wipes out LACP interface configuration (such as system-id-mac) when
+    // /interfaces/interface[name=<aggID>]/config is replaced, requiring LACP
+    // configuration to be re-applied after the aggregate interface is replaced.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/570892225
+    bool lacp_config_after_aggregate_replace = 464;
+
     // Device requires gracefully closing the pre-switchover gRIBI client before
     // triggering a supervisor switchover to prevent proxy EOF errors.
-    bool gribi_close_client_before_switchover = 463;
+    bool gribi_close_client_before_switchover = 465;
 
     // Device requires re-installing pre-switchover gRIBI entries on the new
     // primary controller after a supervisor switchover when NSR is enabled.
-    bool gribi_reinstall_after_switchover = 464;
+    bool gribi_reinstall_after_switchover = 466;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
