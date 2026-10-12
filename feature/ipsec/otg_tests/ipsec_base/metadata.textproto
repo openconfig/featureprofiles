@@ -4,4 +4,21 @@
 uuid:  "3ea4c380-e445-45b4-8b23-4c8e0076bf10"
 plan_id:  "IPSEC-1.1"
 description:  "IPSec with MACSec over aggregated links."
-testbed:  TESTBED_DUT_ATE_2LINKS
+testbed:  TESTBED_ATE_DUT1_4LINKS_DUT2_ATE
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    omit_l2_mtu: true
+    missing_value_for_defaults: true
+    interface_enabled: true
+	  default_network_instance: "default"
+    aggregate_atomic_update:  true
+    ipsec_oc_unsupported: true
+    macsec_oc_unsupported: true
+    static_route_in_vrf_oc_unsupported: true
+    ip_routing_in_vrf_oc_unsupported: true
+  }
+}
+

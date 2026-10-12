@@ -13,15 +13,15 @@ platform_exceptions: {
     omit_l2_mtu: true
     skip_tcp_negotiated_mss_check: true
     interface_enabled: true
+    ipv4_missing_enabled: true
     default_network_instance: "default"
     isis_instance_enabled_required: true
     bgp_default_policy_unsupported: true
-    require_routed_subinterface_0: true
-    explicit_interface_in_default_vrf: false
     route_policy_under_afi_unsupported: true
     default_bgp_instance_name: "BGP"
     isis_mpls_unsupported: true
     explicit_port_speed: true
+    isis_lsp_tlvs_oc_unsupported: true
   }
 }
 platform_exceptions: {
@@ -30,6 +30,7 @@ platform_exceptions: {
   }
   deviations: {
     isis_level_enabled: true
+    interface_ref_interface_id_format: true
     bgp_max_multipath_paths_unsupported: true
     multipath_unsupported_neighbor_or_afisafi: true
     route_policy_under_afi_unsupported: true
@@ -51,8 +52,6 @@ platform_exceptions: {
     community_member_regex_unsupported: true
     default_route_policy_unsupported: true
     bgp_conditions_match_community_set_unsupported: true
-    skip_isis_set_level: true
-    skip_isis_set_metric_style_type: true
     bgp_graceful_restart_under_afi_safi_unsupported: true
     bgp_gr_helper_disable_unsupported: true
     skip_bgp_send_community_type: true
@@ -68,8 +67,8 @@ platform_exceptions: {
   }
   deviations: {
     explicit_interface_in_default_vrf: true
-    interface_enabled: true
-    isis_interface_afi_unsupported: true
+    ipv4_missing_enabled: true
+    aggregate_atomic_update: true
     missing_isis_interface_afi_safi_enable: true
     missing_value_for_defaults: true
     require_routed_subinterface_0: true
