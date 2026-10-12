@@ -250,27 +250,40 @@ func OpticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *on
 	return opticalChannelName
 }
 
-// WaitForSwitchover verifies the stability of the SUP cards after switchover by polling the system datetime.
+// WatchWithRetry watches a query until the predicate returns true, catching temporary connection errors
+// and retrying every retryInterval until timeout expires.
+func WatchWithRetry[T any](t *testing.T, dut *ondatra.DUTDevice, query ygnmi.SingletonQuery[T], timeout, retryInterval time.Duration, predicate func(*ygnmi.Value[T]) bool) (*ygnmi.Value[T], bool) {
+	t.Helper()
+	for remaining := timeout; remaining > 0; remaining -= retryInterval {
+		waitDur := remaining
+		if waitDur > retryInterval {
+			waitDur = retryInterval
+		}
+		var val *ygnmi.Value[T]
+		var ok bool
+		testt.CaptureFatal(t, func(t testing.TB) {
+			val, ok = gnmi.Watch(t, dut, query, waitDur, predicate).Await(t)
+		})
+		if ok {
+			return val, true
+		}
+	}
+	return nil, false
+}
+
+// WaitForSwitchover verifies the stability of the SUP cards after switchover by watching the system datetime.
 func WaitForSwitchover(t *testing.T, dut *ondatra.DUTDevice, maxSwitchoverTime time.Duration) {
 	t.Helper()
 	startSwitchover := time.Now()
-	t.Logf("Wait for new active RP to boot up by polling the system datetime telemetry.")
+	t.Logf("Wait for new active RP to boot up by watching the system datetime telemetry.")
 
-	for {
-		var currentTime string
-		t.Logf("Time elapsed %.2f seconds since switchover started.", time.Since(startSwitchover).Seconds())
-		time.Sleep(30 * time.Second)
-		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
-		}); errMsg != nil {
-			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
-		} else if currentTime != "" {
-			t.Logf("RP switchover has completed successfully with received time: %v", currentTime)
-			break
-		}
-		if time.Since(startSwitchover) > maxSwitchoverTime {
-			t.Fatalf("RP switchover timed out after %v: system datetime not reachable", maxSwitchoverTime)
-		}
+	val, ok := WatchWithRetry(t, dut, gnmi.OC().System().CurrentDatetime().State(), maxSwitchoverTime, 30*time.Second, func(val *ygnmi.Value[string]) bool {
+		currentTime, present := val.Val()
+		return present && currentTime != ""
+	})
+	if !ok {
+		t.Fatalf("RP switchover timed out after %v: system datetime not reachable", maxSwitchoverTime)
 	}
-	t.Logf("RP switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
+	currentTime, _ := val.Val()
+	t.Logf("RP switchover has completed successfully in %.2f seconds with received time: %v", time.Since(startSwitchover).Seconds(), currentTime)
 }

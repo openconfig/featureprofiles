@@ -3,6 +3,7 @@
 package power_admin_down_up_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -52,7 +53,7 @@ func setComponentPowerAdmin(t *testing.T, dut *ondatra.DUTDevice, name string, c
 	if !ok {
 		t.Fatalf("Unknown component type: %s", cType.String())
 	}
-	if deviations.PowerDisableEnableLeafRefValidation(dut) || deviations.ConfigLeafCreateRequired(dut) || dut.Vendor() == ondatra.JUNIPER {
+	if deviations.PowerDisableEnableLeafRefValidation(dut) || deviations.ConfigLeafCreateRequired(dut) {
 		testt.CaptureFatal(t, func(t testing.TB) {
 			gnmi.Update(t, dut, gnmi.OC().Component(name).Config(), &oc.Component{
 				Name: ygot.String(name),
@@ -68,7 +69,7 @@ func runPowerAdminTest(t *testing.T, dut *ondatra.DUTDevice, cType oc.E_Platform
 	t.Helper()
 	cs := components.FindComponentsByType(t, dut, cType)
 	if len(cs) == 0 {
-		t.Skipf("No components found for type %v", cType)
+		t.Fatalf("Required component type %s is not found on DUT.", cType.String())
 	}
 
 	// Test Setup: Verify state/oper-status is ACTIVE for installed cards of cType,
@@ -107,17 +108,14 @@ func runPowerAdminTest(t *testing.T, dut *ondatra.DUTDevice, cType oc.E_Platform
 
 	// Wait for any healed removable components to become ACTIVE.
 	for _, target := range inactiveRemovable {
-		t.Logf("Waiting up to 10 minutes for restored %v component %s to reach ACTIVE...", cType, target)
-		if _, ok := gnmi.Watch(t, dut, gnmi.OC().Component(target).OperStatus().State(), 10*time.Minute, func(val *ygnmi.Value[oc.E_PlatformTypes_COMPONENT_OPER_STATUS]) bool {
-			oper, present := val.Val()
-			return present && oper == oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE
-		}).Await(t); ok {
+		t.Logf("Waiting up to 10 minutes for power cycled %v component %s to reach COMPONENT_OPER_STATUS_ACTIVE...", cType, target)
+		if _, ok := awaitComponentActiveWithRetry(t, dut, target, cType, 10*time.Minute, 5*time.Minute); ok {
 			activeRemovable = append(activeRemovable, target)
 		}
 	}
 
 	if len(activeRemovable) == 0 {
-		t.Skipf("No active removable components found for type %v", cType)
+		t.Fatalf("No active removable components found for type %s", cType.String())
 	}
 
 	// Per FP-1.1.1 README ("Select one Linecard and one Fabric Card"), pick one healthy active removable component.
@@ -125,7 +123,17 @@ func runPowerAdminTest(t *testing.T, dut *ondatra.DUTDevice, cType oc.E_Platform
 	targetName := activeRemovable[len(activeRemovable)-1]
 	t.Logf("Selected %v component %s (from %d active removable components: %v)", cType, targetName, len(activeRemovable), activeRemovable)
 
-	t.Run(targetName, func(t *testing.T) {
+	var cDesc string
+	switch cType {
+	case oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC:
+		cDesc = "Fabric Card"
+	case oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD:
+		cDesc = "Linecard"
+	default:
+		cDesc = cType.String()
+	}
+
+	t.Run(fmt.Sprintf("FP-1.1.1: Powering down %s %s", cDesc, targetName), func(t *testing.T) {
 		before := helpers.FetchOperStatusUPIntfs(t, dut, true)
 		powerDownUp(t, dut, targetName, cType, timeout)
 
@@ -154,7 +162,7 @@ func TestControllerCardPowerAdmin(t *testing.T) {
 		}
 	}
 	if len(cs) < 2 {
-		t.Skipf("Number of installed controller cards (%v) is less than 2. Skipping test for controller-card power-admin-state.", cs)
+		t.Fatalf("Number of installed controller cards (%v) is less than 2.", cs)
 	}
 
 	// Ensure both controller cards are powered on and ACTIVE before starting setup.
@@ -349,7 +357,7 @@ func powerDownUp(t *testing.T, dut *ondatra.DUTDevice, name string, cType oc.E_P
 		setComponentPowerAdmin(t, dut, name, cType, oc.Platform_ComponentPowerType_POWER_ENABLED)
 	})
 
-	if deviations.PowerDisableEnableLeafRefValidation(dut) || deviations.ConfigLeafCreateRequired(dut) || dut.Vendor() == ondatra.JUNIPER {
+	if deviations.PowerDisableEnableLeafRefValidation(dut) || deviations.ConfigLeafCreateRequired(dut) {
 		gnmi.Update(t, dut, c.Config(), &oc.Component{
 			Name: ygot.String(name),
 		})
@@ -381,7 +389,7 @@ func powerDownUp(t *testing.T, dut *ondatra.DUTDevice, name string, cType oc.E_P
 
 	start = time.Now()
 	t.Logf("Starting %s POWER_ENABLE", name)
-	if deviations.PowerDisableEnableLeafRefValidation(dut) || deviations.ConfigLeafCreateRequired(dut) || dut.Vendor() == ondatra.JUNIPER {
+	if deviations.PowerDisableEnableLeafRefValidation(dut) || deviations.ConfigLeafCreateRequired(dut) {
 		gnmi.Update(t, dut, c.Config(), &oc.Component{
 			Name: ygot.String(name),
 		})
@@ -389,30 +397,7 @@ func powerDownUp(t *testing.T, dut *ondatra.DUTDevice, name string, cType oc.E_P
 	gnmi.Replace(t, dut, config, oc.Platform_ComponentPowerType_POWER_ENABLED)
 
 	// Wait up to timeout for component oper-status to return to ACTIVE.
-	var isUp bool
-	var upOper oc.E_PlatformTypes_COMPONENT_OPER_STATUS
-	retryInterval := 5 * time.Minute
-	for remaining := timeout; remaining > 0 && !isUp; remaining -= retryInterval {
-		waitDur := remaining
-		if waitDur > retryInterval {
-			waitDur = retryInterval
-		}
-		val, ok := gnmi.Watch(t, dut, c.OperStatus().State(), waitDur, func(val *ygnmi.Value[oc.E_PlatformTypes_COMPONENT_OPER_STATUS]) bool {
-			oper, present := val.Val()
-			return present && oper == oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE
-		}).Await(t)
-		if val != nil {
-			upOper, _ = val.Val()
-		}
-		if ok {
-			isUp = true
-			break
-		}
-		if remaining > retryInterval {
-			t.Logf("Component %s still in oper-status=%v after %.2f minutes; re-applying POWER_ENABLED", name, upOper, time.Since(start).Minutes())
-			setComponentPowerAdmin(t, dut, name, cType, oc.Platform_ComponentPowerType_POWER_ENABLED)
-		}
-	}
+	upOper, isUp := awaitComponentActiveWithRetry(t, dut, name, cType, timeout, 5*time.Minute)
 
 	var upPower oc.E_Platform_ComponentPowerType
 	testt.CaptureFatal(t, func(t testing.TB) {
@@ -425,4 +410,35 @@ func powerDownUp(t *testing.T, dut *ondatra.DUTDevice, name string, cType oc.E_P
 	} else {
 		t.Logf("Component %s recovered after %.2f minutes: oper-status=%v, power-admin-state=%v", name, time.Since(start).Minutes(), upOper, upPower)
 	}
+}
+
+// awaitComponentActiveWithRetry waits for a component to reach ACTIVE, periodically re-applying
+// POWER_ENABLED if the component remains unpowered across retry intervals.
+func awaitComponentActiveWithRetry(t *testing.T, dut *ondatra.DUTDevice, name string, cType oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT, timeout, retryInterval time.Duration) (oc.E_PlatformTypes_COMPONENT_OPER_STATUS, bool) {
+	t.Helper()
+	c := gnmi.OC().Component(name)
+	start := time.Now()
+	var lastOper oc.E_PlatformTypes_COMPONENT_OPER_STATUS
+
+	for remaining := timeout; remaining > 0; remaining -= retryInterval {
+		waitDur := remaining
+		if waitDur > retryInterval {
+			waitDur = retryInterval
+		}
+		val, ok := components.WatchWithRetry(t, dut, c.OperStatus().State(), waitDur, waitDur, func(val *ygnmi.Value[oc.E_PlatformTypes_COMPONENT_OPER_STATUS]) bool {
+			oper, present := val.Val()
+			return present && oper == oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE
+		})
+		if val != nil {
+			lastOper, _ = val.Val()
+		}
+		if ok {
+			return lastOper, true
+		}
+		if remaining > retryInterval {
+			t.Logf("Component %s still in oper-status=%v after %.2f minutes; re-applying POWER_ENABLED", name, lastOper, time.Since(start).Minutes())
+			setComponentPowerAdmin(t, dut, name, cType, oc.Platform_ComponentPowerType_POWER_ENABLED)
+		}
+	}
+	return lastOper, false
 }

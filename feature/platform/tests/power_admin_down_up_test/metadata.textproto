@@ -29,4 +29,12 @@ platform_exceptions: {
     power_disable_enable_leaf_ref_validation: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    power_disable_enable_leaf_ref_validation: true
+  }
+}
 
