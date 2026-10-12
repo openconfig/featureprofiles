@@ -58,9 +58,15 @@ Establish eBGP sessions between:
 *   ATE port-1 (AS 65536) and DUT port-1 (DUT AS 65537)
 *   ATE port-2 (AS 65538) and DUT port-2
 
-*   DUT port-1 neighbors (`192.0.2.2` / `2001:db8::2`) are members of
-    peer-group `BGP-PEER-GROUP1`; DUT port-2 neighbors (`192.0.2.6` /
-    `2001:db8::6`) are members of peer-group `BGP-PEER-GROUP2`.
+*   Sessions are dual-stack as two separate sessions per port: the IPv4
+    session carries IPV4_UNICAST only and the IPv6 session carries
+    IPV6_UNICAST only. DUT port-1 neighbors `192.0.2.2` (IPV4_UNICAST) and
+    `2001:db8::2` (IPV6_UNICAST) are members of peer-group
+    `BGP-PEER-GROUP1`; DUT port-2 neighbors `192.0.2.6` (IPV4_UNICAST) and
+    `2001:db8::6` (IPV6_UNICAST) are members of peer-group
+    `BGP-PEER-GROUP2`. "For both AFI/SAFIs" below means applying the
+    setting to the IPv4 neighbor for IPV4_UNICAST and to the IPv6 neighbor
+    for IPV6_UNICAST.
 *   Apply an accept-all import and export policy on both peer-groups.
 *   ATE port-1 advertises 4 IPv4 prefixes (`198.51.100.0/32` to
     `198.51.100.3/32`) and 4 IPv6 prefixes (`2001:db8:1::1/128` to
@@ -152,7 +158,15 @@ Intended state: ATE port-1 neighbors `receive = true` · ATE port-2 neighbors
                             "afi-safi-name": "IPV4_UNICAST",
                             "config": { "afi-safi-name": "IPV4_UNICAST", "enabled": true },
                             "add-paths": { "config": { "receive": true } }
-                          },
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "neighbor-address": "2001:db8::2",
+                      "config": { "neighbor-address": "2001:db8::2", "peer-as": 65536 },
+                      "afi-safis": {
+                        "afi-safi": [
                           {
                             "afi-safi-name": "IPV6_UNICAST",
                             "config": { "afi-safi-name": "IPV6_UNICAST", "enabled": true },
@@ -170,7 +184,15 @@ Intended state: ATE port-1 neighbors `receive = true` · ATE port-2 neighbors
                             "afi-safi-name": "IPV4_UNICAST",
                             "config": { "afi-safi-name": "IPV4_UNICAST", "enabled": true },
                             "add-paths": { "config": { "send": true } }
-                          },
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "neighbor-address": "2001:db8::6",
+                      "config": { "neighbor-address": "2001:db8::6", "peer-as": 65538 },
+                      "afi-safis": {
+                        "afi-safi": [
                           {
                             "afi-safi-name": "IPV6_UNICAST",
                             "config": { "afi-safi-name": "IPV6_UNICAST", "enabled": true },
@@ -237,7 +259,15 @@ Intended state: ATE port-1 neighbors `receive = true` · ATE port-2 neighbors
                             "afi-safi-name": "IPV4_UNICAST",
                             "config": { "afi-safi-name": "IPV4_UNICAST", "enabled": true },
                             "add-paths": { "config": { "send": false } }
-                          },
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "neighbor-address": "2001:db8::6",
+                      "config": { "neighbor-address": "2001:db8::6", "peer-as": 65538 },
+                      "afi-safis": {
+                        "afi-safi": [
                           {
                             "afi-safi-name": "IPV6_UNICAST",
                             "config": { "afi-safi-name": "IPV6_UNICAST", "enabled": true },
@@ -310,7 +340,15 @@ Intended state: ATE port-1 neighbors `receive = false` · ATE port-2 neighbors
                             "afi-safi-name": "IPV4_UNICAST",
                             "config": { "afi-safi-name": "IPV4_UNICAST", "enabled": true },
                             "add-paths": { "config": { "receive": false } }
-                          },
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "neighbor-address": "2001:db8::2",
+                      "config": { "neighbor-address": "2001:db8::2", "peer-as": 65536 },
+                      "afi-safis": {
+                        "afi-safi": [
                           {
                             "afi-safi-name": "IPV6_UNICAST",
                             "config": { "afi-safi-name": "IPV6_UNICAST", "enabled": true },
