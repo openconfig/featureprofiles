@@ -62,12 +62,12 @@ func TestMain(m *testing.M) {
 // networks be configured on the ATE.  It is not possible to send
 // packets to the ether.
 //
-// The testbed consists of ate:port1 -> dut:port1 and dut:port{2-9} ->
-// ate:port{2-9}.  The first pair is called the "source" pair, and the
+// The testbed consists of ate:port1 -> dut:port1 and dut:port{2-8} ->
+// ate:port{2-8}.  The first pair is called the "source" pair, and the
 // second aggregate link the "destination" pair.
 //
 //   * Source: ate:port1 -> dut:port1 subnet 192.0.2.0/30 2001:db8::0/126
-//   * Destination: dut:port{2-9} -> ate:port{2-9}
+//   * Destination: dut:port{2-8} -> ate:port{2-8}
 //     subnet 192.0.2.4/30 2001:db8::4/126
 //
 // Note that the first (.0, .4) and last (.3, .7) IPv4 addresses are
@@ -76,7 +76,7 @@ func TestMain(m *testing.M) {
 // for point to point links, but we use /126 so the numbering is
 // consistent with IPv4.
 //
-// A traffic flow is configured from ate:port1 as source and ate:port{2-9}
+// A traffic flow is configured from ate:port1 as source and ate:port{2-8}
 // as destination.
 
 const (
@@ -460,17 +460,7 @@ func (tc *testArgs) portWantsNotViable(t *testing.T) []float64 {
 
 // debugATEFlows logs detailed tracking information on traffic flows and find if there is any loss pct in the flow.
 func debugATEFlows(t *testing.T, ate *ondatra.ATEDevice, flow gosnappi.Flow, lp linkPairs) {
-
-	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).State())
-	txPackets := float32(recvMetric.GetCounters().GetOutPkts())
-	rxPackets := float32(recvMetric.GetCounters().GetInPkts())
-	if txPackets == 0 {
-		t.Fatalf("Tx packets should be higher than 0")
-	}
-	lostPackets := txPackets - rxPackets
-	if got := lostPackets * 100 / txPackets; got > 0 {
-		t.Fatalf("LossPct for flow %s: got %f, want 0", flow.Name(), got)
-	}
+	otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), 0, 0)
 }
 
 // verifyCounterDiff finds the difference between counter values before and after sending traffic. It also calculates if there is any packet loss.

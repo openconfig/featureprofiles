@@ -132,6 +132,7 @@ var portSpeed = map[ondatra.Speed]oc.E_IfEthernet_ETHERNET_SPEED{
 	ondatra.Speed10Gb:  oc.IfEthernet_ETHERNET_SPEED_SPEED_10GB,
 	ondatra.Speed100Gb: oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
 	ondatra.Speed400Gb: oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB,
+	ondatra.Speed800Gb: oc.IfEthernet_ETHERNET_SPEED_SPEED_800GB,
 }
 
 func (tc *testCase) configMemberDUT(i *oc.Interface, p *ondatra.Port) {
@@ -351,6 +352,11 @@ func TestGNMIPortDown(t *testing.T) {
 	portStateAction := gosnappi.NewControlState()
 	portStateAction.Port().Link().SetPortNames([]string{atePort.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
 	ate.OTG().SetControlState(t, portStateAction)
+	defer func() {
+		portStateAction := gosnappi.NewControlState()
+		portStateAction.Port().Link().SetPortNames([]string{atePort.ID()}).SetState(gosnappi.StatePortLinkState.UP)
+		ate.OTG().SetControlState(t, portStateAction)
+	}()
 
 	want := oc.Interface_OperStatus_DOWN
 	gnmi.Await(t, dut, gnmi.OC().Interface(dutPort.Name()).OperStatus().State(), 2*time.Minute, want)
@@ -424,6 +430,11 @@ func TestGNMIReducedLACPSpeed(t *testing.T) {
 					portStateAction := gosnappi.NewControlState()
 					portStateAction.Port().Link().SetPortNames([]string{port.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
 					ate.OTG().SetControlState(t, portStateAction)
+					defer func(p *ondatra.Port) {
+						portStateAction := gosnappi.NewControlState()
+						portStateAction.Port().Link().SetPortNames([]string{p.ID()}).SetState(gosnappi.StatePortLinkState.UP)
+						ate.OTG().SetControlState(t, portStateAction)
+					}(port)
 				}
 				time.Sleep(10 * time.Second)
 				tc.verifyDUT(t, totalPort)

@@ -19,6 +19,7 @@ import (
 	"log"
 	"os"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -27,6 +28,7 @@ import (
 	"github.com/google/gopacket/pcap"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
@@ -164,6 +166,10 @@ var (
 	previousPacketProcessingAggregateDrops = uint64(0)
 
 	previousFragmentTotalDropsCount = uint64(0)
+
+	previousFragmentPuntCount = uint64(0)
+
+	previousFragmentPuntPktsCount = uint64(0)
 )
 
 func (d *testData) waitInterface(t *testing.T) {
@@ -275,6 +281,14 @@ func isCompNameExpected(t *testing.T, name string, vendor ondatra.Vendor, icPatt
 		t.Fatalf("Cannot compile regular expression: %v", err)
 	}
 	return r.MatchString(name)
+}
+
+func getFTCompatibleComponentName(t *testing.T, vendor ondatra.Vendor, componentName string, useFT bool) string {
+	t.Helper()
+	if useFT && vendor == ondatra.CISCO {
+		return strings.Replace(componentName, "-NPU", ":", 1)
+	}
+	return componentName
 }
 
 func captureAndValidateICMPPacketsReceived(t *testing.T, td testData, packetVal *packetValidation) {
@@ -454,6 +468,38 @@ func initializeBaselineDropCounters(t *testing.T, dut *ondatra.DUTDevice) {
 		previousFragmentTotalDropsCount = fragmentTotalDropsCount
 		t.Logf("Baseline fragment-total-drops initialized to: %d", previousFragmentTotalDropsCount)
 	}
+
+	// Initialize fragment-punt baseline
+	if !deviations.FragmentPuntUnsupported(dut) {
+		query := gnmi.OC().ComponentAny().IntegratedCircuit().PipelineCounters().Drop().HostInterfaceBlock().FragmentPunt().State()
+		fragmentPunts := gnmi.LookupAll(t, dut, query)
+		fragmentPuntCount := uint64(0)
+		for _, fragmentPunt := range fragmentPunts {
+			component1 := fragmentPunt.Path.GetElem()[1].GetKey()["name"]
+			if isCompNameExpected(t, component1, dut.Vendor(), icPattern) {
+				drop, _ := fragmentPunt.Val()
+				fragmentPuntCount = fragmentPuntCount + drop
+			}
+		}
+		previousFragmentPuntCount = fragmentPuntCount
+		t.Logf("Baseline fragment-punt initialized to: %d", previousFragmentPuntCount)
+	}
+
+	// Initialize fragment-punt-pkts baseline
+	if !deviations.FragmentPuntPktsUnsupported(dut) {
+		query := gnmi.OC().ComponentAny().IntegratedCircuit().PipelineCounters().Packet().HostInterfaceBlock().FragmentPuntPkts().State()
+		fragmentPuntPkts := gnmi.LookupAll(t, dut, query)
+		fragmentPuntPktsCount := uint64(0)
+		for _, fragmentPuntPkt := range fragmentPuntPkts {
+			component1 := fragmentPuntPkt.Path.GetElem()[1].GetKey()["name"]
+			if isCompNameExpected(t, component1, dut.Vendor(), icPattern) {
+				drop, _ := fragmentPuntPkt.Val()
+				fragmentPuntPktsCount = fragmentPuntPktsCount + drop
+			}
+		}
+		previousFragmentPuntPktsCount = fragmentPuntPktsCount
+		t.Logf("Baseline fragment-punt-pkts initialized to: %d", previousFragmentPuntPktsCount)
+	}
 }
 
 func verifyPacketProcessingAggregateDrops(t *testing.T, td testData, outPkts uint64) {
@@ -536,6 +582,72 @@ func verifyFragmentTotalDrops(t *testing.T, td testData, outPkts uint64) {
 	}
 }
 
+func verifyFragmentPunt(t *testing.T, td testData, outPkts uint64) {
+	if !deviations.FragmentPuntUnsupported(td.dut) {
+		ics := components.FindComponentsByType(t, td.dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
+		opts := fptest.GetOptsForFunctionalTranslator(t, deviations.FragmentPuntFt(td.dut))
+		fragmentPuntCount := uint64(0)
+		t.Logf("Querying fragment-punt drops for all components:")
+		for _, ic := range ics {
+			if isCompNameExpected(t, ic, td.dut.Vendor(), icPattern) {
+				ftIC := getFTCompatibleComponentName(t, td.dut.Vendor(), ic, len(opts) > 0)
+				query := gnmi.OC().Component(ftIC).IntegratedCircuit().PipelineCounters().Drop().HostInterfaceBlock().FragmentPunt().State()
+				fragmentPunt := gnmi.Lookup(t, td.dut.GNMIOpts().WithYGNMIOpts(opts...), query)
+				if val, ok := fragmentPunt.Val(); ok {
+					t.Logf("  Component: %s, fragment-punt: %d", ic, val)
+					fragmentPuntCount += val
+				}
+			}
+		}
+		t.Logf("[debug] Total fragment-punt across all components: %d", fragmentPuntCount)
+		newFragmentPuntCount := fragmentPuntCount - previousFragmentPuntCount
+		t.Logf("[debug] Delta fragment-punt for current flow: %d (previous: %d, current total: %d)", newFragmentPuntCount, previousFragmentPuntCount, fragmentPuntCount)
+		if newFragmentPuntCount > 0 {
+			t.Logf("PASS: fragmentPuntCount increased by %v (outPkts on OTG: %v)", newFragmentPuntCount, outPkts)
+		} else {
+			t.Errorf("FAIL: fragmentPuntCount did not increase (delta: %v, outPkts on OTG: %v).", newFragmentPuntCount, outPkts)
+		}
+		previousFragmentPuntCount = fragmentPuntCount
+	} else {
+		t.Logf("Telemetry path for fragment-punt is not supported due to deviation FragmentPuntUnsupported.")
+	}
+}
+
+func verifyFragmentPuntPkts(t *testing.T, td testData, outPkts uint64) {
+	if !deviations.FragmentPuntPktsUnsupported(td.dut) {
+		ics := components.FindComponentsByType(t, td.dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
+
+		opts := fptest.GetOptsForFunctionalTranslator(t, deviations.FragmentPuntFt(td.dut))
+
+		fragmentPuntPktsCount := uint64(0)
+		t.Logf("Querying fragment-punt-pkts for all components:")
+
+		for _, ic := range ics {
+			if isCompNameExpected(t, ic, td.dut.Vendor(), icPattern) {
+				ftIC := getFTCompatibleComponentName(t, td.dut.Vendor(), ic, len(opts) > 0)
+				query := gnmi.OC().Component(ftIC).IntegratedCircuit().PipelineCounters().Packet().HostInterfaceBlock().FragmentPuntPkts().State()
+				fragmentPuntPkt := gnmi.Lookup(t, td.dut.GNMIOpts().WithYGNMIOpts(opts...), query)
+
+				if val, ok := fragmentPuntPkt.Val(); ok {
+					t.Logf("  Component: %s, fragment-punt-pkts: %d", ic, val)
+					fragmentPuntPktsCount += val
+				}
+			}
+		}
+
+		newFragmentPuntPktsCount := fragmentPuntPktsCount - previousFragmentPuntPktsCount
+
+		if newFragmentPuntPktsCount > 0 {
+			t.Logf("PASS: fragmentPuntPktsCount increased by %v (outPkts on OTG: %v)", newFragmentPuntPktsCount, outPkts)
+		} else {
+			t.Errorf("FAIL: fragmentPuntPktsCount did not increase (delta: %v, outPkts on OTG: %v).", newFragmentPuntPktsCount, outPkts)
+		}
+		previousFragmentPuntPktsCount = fragmentPuntPktsCount
+	} else {
+		t.Logf("Telemetry path for fragment-punt-pkts is not supported due to deviation FragmentPuntPktsUnsupported.")
+	}
+}
+
 func TestPMTUHanding(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
@@ -597,6 +709,8 @@ func TestPMTUHanding(t *testing.T) {
 				captureAndValidateICMPPacketsReceived(t, td, &packetValidation{portName: ateSrc.Name})
 				verifyPacketProcessingAggregateDrops(t, td, outPkts)
 				verifyFragmentTotalDrops(t, td, outPkts)
+				verifyFragmentPuntPkts(t, td, outPkts)
+				verifyFragmentPunt(t, td, outPkts)
 				verifyControllerCardCPUUtilization(t, td)
 			})
 		}

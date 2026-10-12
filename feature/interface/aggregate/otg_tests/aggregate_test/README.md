@@ -1,16 +1,22 @@
 # RT-5.2: Aggregate Interfaces
 
+## Canonical OC
+
+```json
+{}
+```
+
 ## Summary
 
 Validate link operational status of Static LAG and LACP.
 
 ## Procedure
 
-*   Connect ATE port-1 to DUT port-1, and ATE ports 2 through 9 to DUT ports
-    2-9. Configure ATE and DUT ports 2-9 to be part of a LAG.
+*   Connect ATE port-1 to DUT port-1, and ATE ports 2 through 8 to DUT ports
+    2-8. Configure ATE and DUT ports 2-8 to be part of a LAG.
 *   For both static LAG and LACP:
     *   Ensure that LAG is successfully negotiated, verifying port status for
-        each of DUT ports 2-9 reflects expected LAG state via ATE and DUT
+        each of DUT ports 2-8 reflects expected LAG state via ATE and DUT
         telemetry.
     *   Ensure that configuring a minimum links setting for the LAG the entire
         interface is marked:
@@ -31,17 +37,20 @@ Validate link operational status of Static LAG and LACP.
 *   /lacp/interfaces/interface/config/name
 *   /lacp/interfaces/interface/config/interval
 *   /lacp/interfaces/interface/config/lacp-mode
-*   TODO: /lacp/interfaces/interface/config/system-id-mac
+*   /lacp/interfaces/interface/config/system-id-mac
 *   TODO: /lacp/interfaces/interface/config/system-priority
 
 ## Telemetry Parameter Coverage
 
 *   TODO: /lacp/interfaces/interface/members/member/state/counters/lacp-in-pkts
 *   TODO: /lacp/interfaces/interface/members/member/state/counters/lacp-out-pkts
-*   TODO:
-    /lacp/interfaces/interface/members/member/state/counters/lacp-rx-errors
+*   /lacp/interfaces/interface/members/member/state/counters/lacp-errors
+*   /lacp/interfaces/interface/members/member/state/counters/lacp-rx-errors
+*   /lacp/interfaces/interface/members/member/state/counters/lacp-tx-errors
+*   /lacp/interfaces/interface/members/member/state/counters/lacp-unknown-errors
 *   /lacp/interfaces/interface/name
 *   /lacp/interfaces/interface/state/name
+*   /lacp/interfaces/interface/state/system-id-mac
 *   /lacp/interfaces/interface/members/member/interface
 *   /lacp/interfaces/interface/members/member/state/interface
 *   /lacp/interfaces/interface/members/member/state/oper-key
@@ -74,7 +83,12 @@ paths:
   /interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled:
   /lacp/interfaces/interface/config/interval:
   /lacp/interfaces/interface/config/lacp-mode:
+  /lacp/interfaces/interface/config/system-id-mac:
   /lacp/interfaces/interface/members/member/state/collecting:
+  /lacp/interfaces/interface/members/member/state/counters/lacp-errors:
+  /lacp/interfaces/interface/members/member/state/counters/lacp-rx-errors:
+  /lacp/interfaces/interface/members/member/state/counters/lacp-tx-errors:
+  /lacp/interfaces/interface/members/member/state/counters/lacp-unknown-errors:
   /lacp/interfaces/interface/members/member/state/distributing:
   /lacp/interfaces/interface/members/member/state/interface:
   /lacp/interfaces/interface/members/member/state/oper-key:
@@ -84,6 +98,7 @@ paths:
   /lacp/interfaces/interface/members/member/state/port-num:
   /lacp/interfaces/interface/members/member/state/system-id:
   /lacp/interfaces/interface/state/name:
+  /lacp/interfaces/interface/state/system-id-mac:
 rpcs:
   gnmi:
     gNMI.Set:

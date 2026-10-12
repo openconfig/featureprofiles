@@ -5,3 +5,12 @@ uuid: "5131d5f6-892a-4965-989f-c76d7311e13f"
 plan_id: "SYS-4.1"
 description: "System Mount Points State Verification"
 testbed: TESTBED_DUT
+
+platform_exceptions:  {
+  platform:  {
+    vendor:  CISCO
+  }
+  deviations:  {
+    system_mount_point_state_ft: "ciscoxr-mount-ft"
+  }
+}
