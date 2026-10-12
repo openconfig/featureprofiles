@@ -173,6 +173,17 @@ func TestGRIBIFailover(t *testing.T) {
 	top := configureOTG(t, ate)
 	t.Log("Configure VRF_Policy")
 	configureVrfSelectionPolicyC(t, dut)
+
+	verifyBgpTelemetry(t, dut)
+
+	llAddress, found := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Interface("port1.Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+		return val.IsPresent()
+	}).Await(t)
+	if !found {
+		t.Fatalf("Could not get the LinkLayerAddress %s", llAddress)
+	}
+	dstMac, _ := llAddress.Val()
+
 	t.Log("Configure GRIBI")
 
 	ctx := context.Background()
@@ -195,16 +206,6 @@ func TestGRIBIFailover(t *testing.T) {
 
 	configureGribiRoute(t, dut, tcArgs)
 
-	llAddress, found := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Interface("port1.Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		return val.IsPresent()
-	}).Await(t)
-	if !found {
-		t.Fatalf("Could not get the LinkLayerAddress %s", llAddress)
-	}
-	dstMac, _ := llAddress.Val()
-
-	verifyBgpTelemetry(t, dut)
-
 	args := &testArgs{
 		dut:       dut,
 		ate:       ate,
@@ -215,9 +216,7 @@ func TestGRIBIFailover(t *testing.T) {
 		flow := createFlow(&flowArgs{flowName: "flow4in4",
 			InnHdrSrcIP: ipv4OuterSrc111, InnHdrDstIP: ipv4InnerDst}, dstMac)
 		sendTraffic(t, args, top, ate, flow, 30, []string{"port2"})
-		if ok := verifyTrafficFlow(t, ate, flow); !ok {
-			t.Fatal("Packet Dropped, LossPct for flow ")
-		}
+		otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), 0, float64(tolerancePct))
 		captureAndValidatePackets(t, args, &packetValidation{portName: atePort2.Name,
 			outDstIP: []string{ipv4OuterDst111}, inHdrIP: ipv4InnerDst, validateEncap: true})
 	})
@@ -226,9 +225,7 @@ func TestGRIBIFailover(t *testing.T) {
 		flow := createFlow(&flowArgs{flowName: "flow4in4",
 			InnHdrSrcIP: ipv4OuterSrc111, InnHdrDstIP: ipv4OuterDst222}, dstMac)
 		sendTraffic(t, args, top, ate, flow, 30, []string{"port3"})
-		if ok := verifyTrafficFlow(t, ate, flow); !ok {
-			t.Fatal("Packet Dropped, LossPct for flow ")
-		}
+		otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), 0, float64(tolerancePct))
 	})
 
 	t.Run("RT-14.2.3: Traffic Match to Transit_Vrf, Match Tunnel Prefix Egress to Port2", func(t *testing.T) {
@@ -236,9 +233,7 @@ func TestGRIBIFailover(t *testing.T) {
 			outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: ipv4OuterDst111,
 			InnHdrSrcIP: ipv4OuterSrc111, InnHdrDstIP: ipv4InnerDst, isIPInIP: true}, dstMac)
 		sendTraffic(t, args, top, ate, flow, 30, []string{"port2"})
-		if ok := verifyTrafficFlow(t, ate, flow); !ok {
-			t.Fatal("Packet Dropped, LossPct for flow ")
-		}
+		otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), 0, float64(tolerancePct))
 		captureAndValidatePackets(t, args, &packetValidation{portName: atePort2.Name,
 			outDstIP: []string{ipv4OuterDst111}, inHdrIP: ipv4InnerDst, validateNoDecap: true})
 	})
@@ -251,9 +246,7 @@ func TestGRIBIFailover(t *testing.T) {
 			outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: ipv4OuterDst222,
 			InnHdrSrcIP: ipv4OuterSrc111, InnHdrDstIP: ipv4InnerDst, isIPInIP: true}, dstMac)
 		sendTraffic(t, args, top, ate, flow, 30, []string{"port3"})
-		if ok := verifyTrafficFlow(t, ate, flow); !ok {
-			t.Fatal("Packet Dropped, LossPct for flow ")
-		}
+		otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), 0, float64(tolerancePct))
 		captureAndValidatePackets(t, args, &packetValidation{portName: atePort3.Name,
 			outDstIP: []string{ipv4OuterDst222}, inHdrIP: ipv4InnerDst, validateDecap: true})
 	})
@@ -329,6 +322,7 @@ func configureOTGBGP(t *testing.T, dev gosnappi.Device, top gosnappi.Config, nbr
 		SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
 		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
 	bgpNeti1Bgp4PeerRoutes.Addresses().Add().SetAddress(ipv4InnerDst).SetPrefix(32).SetCount(1)
+	bgpNeti1Bgp4PeerRoutes.Addresses().Add().SetAddress(ipv4OuterDst222).SetPrefix(32).SetCount(1)
 }
 
 func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
@@ -379,7 +373,6 @@ func configNonDefaultNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 func configureVrfSelectionPolicyC(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	d := &oc.Root{}
-	time.Sleep(100 * time.Second)
 	dutPolFwdPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding()
 
 	pfRule1 := &policyFwRule{SeqID: 1, family: "ipv4", protocol: 4, sourceAddr: ipv4OuterSrc111WithMask,
@@ -512,10 +505,9 @@ func configureGribiRoute(t *testing.T, dut *ondatra.DUTDevice, tcArgs *testArgs)
 
 	tcArgs.client.Modify().AddEntry(t,
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
-			WithIndex(uint64(5)).WithIPAddress(atePort3.IPv4),
+			WithIndex(uint64(5)).WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
 			WithID(uint64(5)).AddNextHop(uint64(5), uint64(1)),
-
 		fluent.IPv4Entry().WithNetworkInstance(niEncapTeVrfA).
 			WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithPrefix("0.0.0.0/0").WithNextHopGroup(uint64(5)))
@@ -605,17 +597,6 @@ func sendTraffic(t *testing.T, args *testArgs, top gosnappi.Config, ate *ondatra
 	otgutils.LogPortMetrics(t, ate.OTG(), top)
 }
 
-// verifyTrafficFlow verify the each flow on ATE
-func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flow gosnappi.Flow) bool {
-	rxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State())
-	txPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
-	lostPkt := txPkts - rxPkts
-	if got := (lostPkt * 100 / txPkts); got >= tolerancePct {
-		return false
-	}
-	return true
-}
-
 // verifyBgpTelemetry verifies BGP telemetry.
 func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
@@ -668,7 +649,6 @@ func captureAndValidatePackets(t *testing.T, args *testArgs, packetVal *packetVa
 	}
 	args.otgConfig.Captures().Clear()
 	args.otg.PushConfig(t, args.otgConfig)
-	time.Sleep(30 * time.Second)
 }
 
 func validateTrafficDecap(t *testing.T, packetSource *gopacket.PacketSource) {

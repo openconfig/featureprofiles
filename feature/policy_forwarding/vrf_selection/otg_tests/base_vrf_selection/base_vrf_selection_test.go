@@ -263,7 +263,7 @@ func applyForwardingPolicy(t *testing.T, ate *ondatra.ATEDevice, ingressPort, ma
 	d := &oc.Root{}
 	dut := ondatra.DUT(t, "dut")
 	interfaceID := ingressPort
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+	if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
 		interfaceID = ingressPort + ".0"
 	}
 	pfpath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID)
@@ -373,7 +373,9 @@ func createIPv4Flow(name string, top gosnappi.Config, dst attrs.Attributes, srcI
 
 func sendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
 	t.Logf("*** Starting traffic ...")
-	time.Sleep(20 * time.Second)
+
+	otgutils.WaitForARP(t, ate.OTG(), ate.OTG().GetConfig(t), "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), ate.OTG().GetConfig(t), "IPv6")
 
 	// Send traffic for 2 seconds to force ND/ARP resolution
 	t.Logf("Warming up hardware FIBs by sending traffic for 2 seconds")
@@ -382,7 +384,9 @@ func sendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
 	ate.OTG().StopTraffic(t)
 	time.Sleep(2 * time.Second)
 
+	// Sanity check that ARP is still resolved before starting the main traffic validation.
 	otgutils.WaitForARP(t, ate.OTG(), ate.OTG().GetConfig(t), "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), ate.OTG().GetConfig(t), "IPv6")
 
 	ate.OTG().StartTraffic(t)
 	time.Sleep(trafficDuration)
