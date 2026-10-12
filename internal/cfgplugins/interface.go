@@ -206,15 +206,15 @@ func (om *OperationalModeList) Default(t *testing.T, dut *ondatra.DUTDevice) Ope
 		}
 		return OperationalModeList{1, 3} // 800G : 1 (8x112G), 400G : 3 (4x112G)
 	case ondatra.PMD800GBASEZRP:
+		// Ciena 800ZRP pluggable optics only support 800G mode (not backward compatible with 400G).
+		isCienaOptics := strings.Contains(lookupOpticsMfgName(t, dut, p), "CIENA")
 		if dut.Vendor() == ondatra.CISCO {
-			// Ciena 800ZRP is not backward compatible with 400G.
-			if strings.Contains(lookupOpticsMfgName(t, dut, p), "CIENA") {
+			if isCienaOptics {
 				return OperationalModeList{6008} // 800G : 6008 (8x112G)
 			}
 			return OperationalModeList{6008, 6004} // 800G : 6008 (8x112G), 400G : 6004 (4x112G)
 		}
-		// Ciena 800ZRP is not backward compatible with 400G.
-		if strings.Contains(lookupOpticsMfgName(t, dut, p), "CIENA") {
+		if isCienaOptics {
 			return OperationalModeList{8} // 800G : 8 (8x112G)
 		}
 		return OperationalModeList{8, 4} // 800G : 8 (8x112G), 400G : 4 (4x112G)
