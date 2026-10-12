@@ -83,7 +83,7 @@ Perform this test with both the RSA and ECDSA types.
    0) Build the test data, configure the DUT to use the ca-0001 form
       key/certificate/trust_bundle, use the server-${TYPE}-a key/certificate.
 
-   1) With the server running, connect and note that the ceritficate loaded
+   1) With the server running, connect and note that the certificate loaded
       is the appropriate one.
 
    2) Use the gNSI Rotate RPC to load a ca-02/server-${TYPE}-b key and
@@ -95,7 +95,7 @@ Perform this test with both the RSA and ECDSA types.
    4) Tear down the Rotate RPC, forcing the device to return to the
       previously used certificate/key material.
 
-   5) Verify that the server is now serving the previous certifcate properly.
+   5) Verify that the server is now serving the previous certificate properly.
 
 ## OpenConfig Path and RPC Coverage
 
