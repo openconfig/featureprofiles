@@ -250,13 +250,8 @@ func (f *FrequencyList) Default(t *testing.T, dut *ondatra.DUTDevice) FrequencyL
 	case ondatra.PMD400GBASEZR, ondatra.PMD800GBASEZR:
 		return FrequencyList{196100000}
 	case ondatra.PMD400GBASEZRP, ondatra.PMD800GBASEZRP:
-		tr, present := gnmi.Lookup(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State()).Val()
-		if !present {
-			t.Fatalf("Transceiver not found for port %v", p.Name())
-		}
-		pn, present := gnmi.Lookup(t, dut, gnmi.OC().Component(tr).PartNo().State()).Val()
 		switch {
-		case present && lBandPNs[pn]:
+		case lBandPNs[lookupOpticsPartNo(t, dut, p)]:
 			return FrequencyList{190000000}
 		default:
 			return FrequencyList{196100000}
@@ -379,6 +374,7 @@ type ConfigParameters struct {
 	TransceiverNames    map[string]string
 	TempSensorNames     map[string]string
 	OpticalChannelNames map[string]string
+	LinePortNames       map[string]string
 	OTNIndexes          map[string]uint32
 	ETHIndexes          map[string]uint32
 }
@@ -390,13 +386,8 @@ func NewInterfaceConfigAll(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.Set
 	params.TransceiverNames = make(map[string]string)
 	params.TempSensorNames = make(map[string]string)
 	params.OpticalChannelNames = make(map[string]string)
+	params.LinePortNames = make(map[string]string)
 	for _, p := range dut.Ports() {
-		params.HWPortNames[p.Name()] = lookupHWPortName(t, dut, p)
-		params.TransceiverNames[p.Name()] = lookupTransceiverName(t, dut, p)
-		params.OpticalChannelNames[p.Name()] = lookupOpticalChannelName(t, dut, p)
-		params.TempSensorNames[p.Name()] = "TempSensor-" + lookupTransceiverName(t, dut, p)
-		params.OTNIndexes = AssignOTNIndexes(t, dut)
-		params.ETHIndexes = AssignETHIndexes(t, dut)
 		switch p.PMD() {
 		case ondatra.PMD400GBASEZR, ondatra.PMD400GBASEZRP:
 			params.FormFactor = oc.TransportTypes_TRANSCEIVER_FORM_FACTOR_TYPE_QSFP56_DD
@@ -426,10 +417,17 @@ func NewInterfaceConfigAll(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.Set
 		default:
 			t.Fatalf("Unsupported PMD type for %v", p.PMD())
 		}
+		params.HWPortNames[p.Name()] = lookupHWPortName(t, dut, p)
+		params.TransceiverNames[p.Name()] = lookupTransceiverName(t, dut, p)
+		params.OpticalChannelNames[p.Name()] = lookupOpticalChannelName(t, dut, p)
+		params.LinePortNames[p.Name()] = lookupLinePortName(t, dut, p)
+		params.TempSensorNames[p.Name()] = "TempSensor-" + lookupTransceiverName(t, dut, p)
+		params.OTNIndexes = AssignOTNIndexes(t, dut)
+		params.ETHIndexes = AssignETHIndexes(t, dut)
 		updateInterfaceConfig(batch, dut, p, params)
 		updateHWPortConfig(batch, dut, p, params)
 		updateTransceiverConfig(batch, dut, p, params)
-		updateOpticalChannelConfig(batch, p, params)
+		updateOpticalChannelConfig(batch, dut, p, params)
 		updateOTNChannelConfig(batch, dut, p, params)
 		updateETHChannelConfig(batch, dut, p, params)
 	}
@@ -498,21 +496,38 @@ func updateHWPortConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ondatra
 	if dut.Vendor() == ondatra.CISCO || dut.Vendor() == ondatra.JUNIPER {
 		breakoutIndex = 0
 	}
-	gnmi.BatchReplace(batch, gnmi.OC().Component(params.HWPortNames[p.Name()]).Config(), &oc.Component{
-		Name: ygot.String(params.HWPortNames[p.Name()]),
-		Port: &oc.Component_Port{
-			BreakoutMode: &oc.Component_Port_BreakoutMode{
-				Group: map[uint8]*oc.Component_Port_BreakoutMode_Group{
-					breakoutIndex: {
-						Index:               ygot.Uint8(breakoutIndex),
-						BreakoutSpeed:       params.PortSpeed,
-						NumBreakouts:        ygot.Uint8(1),
-						NumPhysicalChannels: ygot.Uint8(params.NumPhysicalChannels),
+	if dut.Vendor() == ondatra.JUNIPER {
+		gnmi.BatchReplace(batch, gnmi.OC().Component(params.HWPortNames[p.Name()]).Config(), &oc.Component{
+			Name: ygot.String(params.HWPortNames[p.Name()]),
+			Port: &oc.Component_Port{
+				BreakoutMode: &oc.Component_Port_BreakoutMode{
+					Group: map[uint8]*oc.Component_Port_BreakoutMode_Group{
+						breakoutIndex: {
+							Index:         ygot.Uint8(breakoutIndex),
+							BreakoutSpeed: params.PortSpeed,
+							NumBreakouts:  ygot.Uint8(1),
+						},
 					},
 				},
 			},
-		},
-	})
+		})
+	} else {
+		gnmi.BatchReplace(batch, gnmi.OC().Component(params.HWPortNames[p.Name()]).Config(), &oc.Component{
+			Name: ygot.String(params.HWPortNames[p.Name()]),
+			Port: &oc.Component_Port{
+				BreakoutMode: &oc.Component_Port_BreakoutMode{
+					Group: map[uint8]*oc.Component_Port_BreakoutMode_Group{
+						breakoutIndex: {
+							Index:               ygot.Uint8(breakoutIndex),
+							BreakoutSpeed:       params.PortSpeed,
+							NumBreakouts:        ygot.Uint8(1),
+							NumPhysicalChannels: ygot.Uint8(params.NumPhysicalChannels),
+						},
+					},
+				},
+			},
+		})
+	}
 }
 
 // updateTransceiverConfig updates the transceiver config.
@@ -529,15 +544,19 @@ func updateTransceiverConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *on
 }
 
 // updateOpticalChannelConfig updates the optical channel config.
-func updateOpticalChannelConfig(batch *gnmi.SetBatch, p *ondatra.Port, params *ConfigParameters) {
-
+func updateOpticalChannelConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ondatra.Port, params *ConfigParameters) {
+	och := &oc.Component_OpticalChannel{
+		OperationalMode:   ygot.Uint16(params.OperationalMode),
+		Frequency:         ygot.Uint64(params.Frequency),
+		TargetOutputPower: ygot.Float64(params.TargetOpticalPower),
+		LinePort:          ygot.String(params.LinePortNames[p.Name()]),
+	}
+	if dut.Vendor() == ondatra.NOKIA {
+		och.LinePort = nil
+	}
 	gnmi.BatchReplace(batch, gnmi.OC().Component(params.OpticalChannelNames[p.Name()]).Config(), &oc.Component{
-		Name: ygot.String(params.OpticalChannelNames[p.Name()]),
-		OpticalChannel: &oc.Component_OpticalChannel{
-			OperationalMode:   ygot.Uint16(params.OperationalMode),
-			Frequency:         ygot.Uint64(params.Frequency),
-			TargetOutputPower: ygot.Float64(params.TargetOpticalPower),
-		},
+		Name:           ygot.String(params.OpticalChannelNames[p.Name()]),
+		OpticalChannel: och,
 	})
 }
 
@@ -672,7 +691,7 @@ func lookupHWPortName(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) str
 	switch dut.Vendor() {
 	case ondatra.JUNIPER:
 		if hwPortName, ok = gnmi.Lookup(t, dut, gnmi.OC().Interface(strings.Replace(p.Name(), ":0", "", -1)).HardwarePort().State()).Val(); !ok {
-			t.Fatalf("Hardware port not found for %v", p.Name())
+			t.Fatalf("Hardware port not found for %v", strings.Replace(p.Name(), ":0", "", -1))
 		}
 		return hwPortName
 	default:
@@ -690,7 +709,7 @@ func lookupTransceiverName(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port
 	switch dut.Vendor() {
 	case ondatra.JUNIPER:
 		if transceiverName, ok = gnmi.Lookup(t, dut, gnmi.OC().Interface(strings.Replace(p.Name(), ":0", "", -1)).Transceiver().State()).Val(); !ok {
-			t.Fatalf("Transceiver not found for %v", p.Name())
+			t.Fatalf("Transceiver not found for %v", strings.Replace(p.Name(), ":0", "", -1))
 		}
 		return transceiverName
 	default:
@@ -716,6 +735,20 @@ func lookupOpticalChannelName(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.P
 	}
 }
 
+// lookupLinePortName returns the line port name for the given port.
+func lookupLinePortName(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
+	switch dut.Vendor() {
+	case ondatra.ARISTA, ondatra.JUNIPER:
+		return lookupHWPortName(t, dut, p)
+	case ondatra.CISCO:
+		return lookupTransceiverName(t, dut, p)
+	case ondatra.NOKIA:
+		return ""
+	default:
+		return ""
+	}
+}
+
 // lookupOpticsMfgName returns the optics mfg name for the given port.
 func lookupOpticsMfgName(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
 	transceiverName := lookupTransceiverName(t, dut, p)
@@ -724,6 +757,16 @@ func lookupOpticsMfgName(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) 
 		t.Fatalf("mfg-name not found for %v", transceiverName)
 	}
 	return mfgName
+}
+
+// lookupOpticsPartNo returns the optics part number for the given port.
+func lookupOpticsPartNo(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
+	transceiverName := lookupTransceiverName(t, dut, p)
+	partNo, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(transceiverName).PartNo().State()).Val()
+	if !ok {
+		t.Fatalf("part-no not found for %v", transceiverName)
+	}
+	return partNo
 }
 
 // IsBreakoutPort returns true if the port is a breakout port, otherwise returns false.

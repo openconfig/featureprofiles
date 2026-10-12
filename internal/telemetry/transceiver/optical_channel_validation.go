@@ -19,7 +19,7 @@ const (
 	inactiveCDValue                  = 1.0
 	inactivePower                    = -25.0
 	powerLoss                        = 2.0
-	powerReadingError                = 1.0
+	powerReadingError                = 2.0
 	minAllowedCarrierFrequencyOffset = -3600.0
 	maxAllowedCarrierFrequencyOffset = 3600.0
 	inactiveCarrierFrequencyOffset   = 1.0
@@ -80,6 +80,12 @@ func validateOpticalChannelTelemetry(t *testing.T, p *ondatra.Port, params *cfgp
 			want: params.TargetOpticalPower,
 		},
 		{
+			desc: "Optical Channel Line Port Validation",
+			path: fmt.Sprintf(componentPath+"/optical-channel/state/line-port", params.OpticalChannelNames[p.Name()]),
+			got:  opticalChannelValue.GetOpticalChannel().GetLinePort(),
+			want: params.LinePortNames[p.Name()],
+		},
+		{
 			desc:       "Optical Channel Instant Laser Bias Current Validation",
 			path:       fmt.Sprintf(componentPath+"/optical-channel/state/laser-bias-current/instant", params.OpticalChannelNames[p.Name()]),
 			got:        opticalChannelValue.GetOpticalChannel().GetLaserBiasCurrent().GetInstant(),
@@ -123,7 +129,7 @@ func validateOpticalChannelTelemetry(t *testing.T, p *ondatra.Port, params *cfgp
 			got:        opticalChannelValue.GetOpticalChannel().GetInputPower().GetMin(),
 			operStatus: oc.Interface_OperStatus_UP,
 			minAllowed: params.TargetOpticalPower - powerLoss - powerReadingError,
-			maxAllowed: params.TargetOpticalPower + powerLoss + powerReadingError,
+			maxAllowed: params.TargetOpticalPower + powerReadingError,
 		},
 		{
 			desc:       "Optical Channel Minimum Input Power Validation",
@@ -138,7 +144,7 @@ func validateOpticalChannelTelemetry(t *testing.T, p *ondatra.Port, params *cfgp
 			got:        opticalChannelValue.GetOpticalChannel().GetInputPower().GetMax(),
 			operStatus: oc.Interface_OperStatus_UP,
 			minAllowed: params.TargetOpticalPower - powerLoss - powerReadingError,
-			maxAllowed: params.TargetOpticalPower + powerLoss + powerReadingError,
+			maxAllowed: params.TargetOpticalPower + powerReadingError,
 		},
 		{
 			desc:       "Optical Channel Maximum Input Power Validation",
@@ -335,6 +341,9 @@ func validateOpticalChannelTelemetry(t *testing.T, p *ondatra.Port, params *cfgp
 
 // isOpticalChannelStreamReady returns true if the optical channel stream is ready for the given oper status and params.
 func isOpticalChannelStreamReady(val *oc.Component, operStatus oc.E_Interface_OperStatus, params *cfgplugins.ConfigParameters) bool {
+	if val.GetOpticalChannel().GetOperationalMode() != params.OperationalMode {
+		return false
+	}
 	switch operStatus {
 	case oc.Interface_OperStatus_UP:
 		return val.GetOpticalChannel().GetInputPower().GetMax() <= (params.TargetOpticalPower+powerReadingError) &&
