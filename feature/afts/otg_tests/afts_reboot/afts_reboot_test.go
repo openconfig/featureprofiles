@@ -435,6 +435,9 @@ func TestReboot(t *testing.T) {
 			t.Fatalf("Failed to dial GNMI after reboot: %v", err)
 		}
 		aftSession = aftcache.NewAFTStreamSession(t.Context(), t, gnmiClient, tc.dut)
+		dutPort := tc.dut.Port(t, port1Name).Name()
+		t.Log("Waiting for interface to come up before checking BGP neighborship after reboot...")
+		gnmi.Await(t, tc.dut, gnmi.OC().Interface(dutPort).OperStatus().State(), 12*time.Minute, oc.Interface_OperStatus_UP)
 		t.Log("Waiting for BGP neighbor to establish after reboot...")
 		if err := tc.waitForBGPSession(t); err != nil {
 			t.Fatalf("Unable to establish BGP session: %v", err)

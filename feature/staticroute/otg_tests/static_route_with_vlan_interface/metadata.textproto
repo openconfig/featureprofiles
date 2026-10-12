@@ -12,5 +12,7 @@ platform_exceptions:  {
   deviations:  {
     interface_enabled:  true
     default_network_instance:  "default"
+    static_protocol_name: "STATIC"
+    static_route_nexthop_interface_state_oc_unsupported: true
   }
 }

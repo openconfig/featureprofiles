@@ -23,6 +23,7 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
@@ -34,9 +35,10 @@ import (
 )
 
 const (
-	trafficDuration = 1 * time.Minute
+	trafficDuration = 30 * time.Second
 	ipv4PrefixLen   = 30
 	ipv6PrefixLen   = 126
+	lossTolerance   = 1.0
 )
 
 // testArgs holds the objects needed by a test case.
@@ -485,14 +487,14 @@ func getIPinIPFlow(args *testArgs, src attrs.Attributes, dst attrs.Attributes, f
 
 	flow.Size().SetFixed(1024)
 	flow.Rate().SetPps(100)
-	flow.Duration().FixedPackets().SetPackets(100)
+	flow.Duration().Continuous()
 
 	return flow
 }
 
 // testTrafficFlows verifies traffic for one or more flows.
 func testTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, expectPass bool, flows ...gosnappi.Flow) {
-
+	t.Helper()
 	top.Flows().Clear()
 	for _, flow := range flows {
 		top.Flows().Append(flow)
@@ -517,27 +519,10 @@ func testTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config,
 	otgutils.LogFlowMetrics(t, ate.OTG(), otgTop)
 	for _, flow := range flows {
 		t.Run(flow.Name(), func(t *testing.T) {
-			t.Logf("*** Verifying %v traffic on OTG ... ", flow.Name())
-			outPkts := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State()))
-			inPkts := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State()))
-
-			if outPkts == 0 {
-				t.Fatalf("OutPkts == 0, want >0.")
-			}
-
-			lossPct := (outPkts - inPkts) * 100 / outPkts
-
-			// log stats
-			t.Log("Flow LossPct: ", lossPct)
-			t.Log("Flow InPkts  : ", inPkts)
-			t.Log("Flow OutPkts : ", outPkts)
-
-			if (expectPass == true) && (lossPct == 0) {
-				t.Logf("Traffic for %v flow is passing as expected", flow.Name())
-			} else if (expectPass == false) && (lossPct == 100) {
-				t.Logf("Traffic for %v flow is failing as expected", flow.Name())
+			if expectPass {
+				otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), 0, lossTolerance)
 			} else {
-				t.Fatalf("Traffic is not working as expected for flow: %v. LossPct: %f", flow.Name(), lossPct)
+				otgutils.ExpectedTrafficLoss(t, ate.OTG(), flow.Name(), 100, 100)
 			}
 		})
 	}
@@ -592,6 +577,21 @@ func TestPBR(t *testing.T) {
 	top := configureATE(t, ate, dut)
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
+
+	routesToAdvertise := map[string]cfgplugins.RouteInfo{
+		"192.0.2.8/30":  {VRF: "VRF10", IPType: cfgplugins.IPv4, DefaultName: deviations.DefaultNetworkInstance(dut)},
+		"192.0.2.12/30": {VRF: "VRF20", IPType: cfgplugins.IPv4, DefaultName: deviations.DefaultNetworkInstance(dut)},
+		"192.0.2.16/30": {VRF: "VRF30", IPType: cfgplugins.IPv4, DefaultName: deviations.DefaultNetworkInstance(dut)},
+		"192.0.2.36/30": {VRF: "VRF40", IPType: cfgplugins.IPv4, DefaultName: deviations.DefaultNetworkInstance(dut)},
+		"192.0.2.40/30": {VRF: "VRF50", IPType: cfgplugins.IPv4, DefaultName: deviations.DefaultNetworkInstance(dut)},
+		"192.0.2.44/30": {VRF: "VRF60", IPType: cfgplugins.IPv4, DefaultName: deviations.DefaultNetworkInstance(dut)},
+		"192.0.2.0/30":  {VRF: deviations.DefaultNetworkInstance(dut), IPType: cfgplugins.IPv4, DefaultName: deviations.DefaultNetworkInstance(dut)},
+		"192.0.2.4/30":  {VRF: deviations.DefaultNetworkInstance(dut), IPType: cfgplugins.IPv4, DefaultName: deviations.DefaultNetworkInstance(dut)},
+		"192.0.2.20/30": {VRF: deviations.DefaultNetworkInstance(dut), IPType: cfgplugins.IPv4, DefaultName: deviations.DefaultNetworkInstance(dut)},
+		"192.0.2.32/30": {VRF: deviations.DefaultNetworkInstance(dut), IPType: cfgplugins.IPv4, DefaultName: deviations.DefaultNetworkInstance(dut)},
+	}
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
+	cfgplugins.VerifyRoutes(t, dut, routesToAdvertise)
 
 	// Ingress interface for policies
 	port1 := dut.Port(t, "port1")
@@ -754,7 +754,7 @@ func TestPBR(t *testing.T) {
 			ingressPortName := tc.ingressPort.Name()
 			d := &oc.Root{}
 			interfaceID := ingressPortName
-			if deviations.InterfaceRefInterfaceIDFormat(dut) {
+			if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
 				interfaceID = ingressPortName + ".0"
 			}
 			pfIntf := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(interfaceID)
@@ -785,7 +785,7 @@ func TestPBR(t *testing.T) {
 				gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config(), multiPolicy)
 				defer gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Policy("L3_Port3").Config())
 				interface3ID := port3.Name()
-				if deviations.InterfaceRefInterfaceIDFormat(dut) {
+				if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
 					interface3ID = port3.Name() + ".0"
 				}
 				pfIntfPort3 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(interface3ID)

@@ -44,10 +44,12 @@ import (
 )
 
 const (
-	dirPath                  = "../../test_data/"
-	timeOutVar time.Duration = 2 * time.Minute
+	dirPath                       = "../../test_data/"
+	timeOutVar      time.Duration = 2 * time.Minute
+	maxAllowedDelay               = 5 * time.Second
 )
 
+// DUTCredentialer is an interface for getting credentials from a DUT binding.
 type DUTCredentialer interface {
 	RPCUsername() string
 	RPCPassword() string
@@ -89,7 +91,6 @@ func dialAndGetCert(t *testing.T, addr string) *x509.Certificate {
 	conf := &tls.Config{
 		InsecureSkipVerify: true,
 	}
-	// Try to connect to gNSI port (9339)
 	conn, err := tls.Dial("tcp", fmt.Sprintf("%s:%d", addr, 9339), conf)
 	if err != nil {
 		t.Fatalf("Failed to dial %s: %v", addr, err)
@@ -143,6 +144,37 @@ func awaitCert(t *testing.T, addr string, expectedCert *x509.Certificate, timeou
 		time.Sleep(500 * time.Millisecond)
 	}
 	t.Fatalf("Timed out waiting for certificate SAN: %s, SN: %s", expectedCert.DNSNames[0], expectedCert.SerialNumber.String())
+}
+
+// configureAndVerifyMTLS configures and verifies that the specified services (gNMI, gNOI, gNSI, gRIBI, P4RT)
+// on the DUT are up and require mTLS authentication as specified in the Baseline Setup.
+func configureAndVerifyMTLS(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, gnmiClient gnmipb.GNMIClient, profileID string, caCertPool *x509.CertPool, clientCert tls.Certificate, san, username, password string) {
+	t.Helper()
+	t.Log("Baseline Setup: configuring and verifying DUT services (gNMI, gNOI, gNSI, gRIBI, P4RT) require mTLS authentication...")
+
+	// Verify or configure gRPC server transport security and certificate-id.
+	servers := ognmi.GetAll(t, dut.GNMIOpts().WithClient(gnmiClient), ognmi.OC().System().GrpcServerAny().Name().State())
+	if len(servers) > 0 {
+		batch := ognmi.SetBatch{}
+		for _, server := range servers {
+			ognmi.BatchReplace(&batch, ognmi.OC().System().GrpcServer(server).CertificateId().Config(), profileID)
+			ognmi.BatchReplace(&batch, ognmi.OC().System().GrpcServer(server).TransportSecurity().Config(), true)
+		}
+		batch.Set(t, dut.GNMIOpts().WithClient(gnmiClient))
+
+		for _, server := range servers {
+			ognmi.Watch(t, dut.GNMIOpts().WithClient(gnmiClient), ognmi.OC().System().GrpcServer(server).CertificateId().State(), 30*time.Second, func(val *ygnmi.Value[string]) bool {
+				v, present := val.Val()
+				return present && v == profileID
+			}).Await(t)
+		}
+	}
+
+	// Verify that all services (gNMI, gNOI, gNSI, gRIBI, P4RT) validate with mTLS credentials.
+	if ok := setupService.ServicesValidationCheck(t, caCertPool, true, san, serverAddr, username, password, clientCert, false); !ok {
+		t.Fatalf("Baseline Setup: services mTLS validation check failed")
+	}
+	t.Log("Baseline Setup: all services verified up and enforcing mTLS authentication.")
 }
 
 func TestServerCertificateRotation(t *testing.T) {
@@ -240,15 +272,13 @@ func runTestCase(t *testing.T, dut *ondatra.DUTDevice, username, password string
 	ctx := context.Background()
 	t.Logf("Running test case: %s", tc.desc)
 
-	// 1. Pre-check and initial setup
-	// We want to ensure we are starting from the "initial" state (cert 'a').
-	// We will use Ondatra's default client to rotate to 'a' first.
+	// 1. Pre-check and initial setup (Step 0)
 	_, gnsiC := setupService.PreInitCheck(ctx, t, dut)
 	certzClient := gnsiC.Certz()
 
 	profileID := "profile_" + tc.keyType
 
-	// Add profile if it doesn't exist (ignore error if it already exists, or check list)
+	// Add profile if it doesn't exist
 	t.Logf("Adding sslprofileID %s", profileID)
 	if _, err := certzClient.AddProfile(ctx, &certzpb.AddProfileRequest{SslProfileId: profileID}); err != nil {
 		if status.Code(err) != codes.AlreadyExists {
@@ -276,23 +306,26 @@ func runTestCase(t *testing.T, dut *ondatra.DUTDevice, username, password string
 	}
 	initialTrustBundleEntity := setupService.CreateCertzEntity(t, setupService.EntityTypeTrustBundle, string(pkcs7data), tc.bversion+"_init")
 
-	// We need a gnmi client to apply the config.
 	gnmiClient, err := dut.RawAPIs().BindingDUT().DialGNMI(ctx)
 	if err != nil {
 		t.Fatalf("Failed to dial gNMI: %v", err)
 	}
 
 	// Perform initial rotation to 'a' and finalize it.
-	// We use a simplified version of CertzRotate here or just call it.
-	// Since we want this to succeed, we can use a local helper or setupService.CertzRotate if it works.
-	// Actually, setupService.CertzRotate might fail if it expects some specific state, but it should work for initial load.
-	// Let's implement a local helper `rotateAndFinalize` for this to be safe and keep control.
 	err = rotateAndFinalize(ctx, t, dut, certzClient, gnmiClient, profileID, &initialServerCertEntity, &initialTrustBundleEntity)
 	if err != nil {
 		t.Fatalf("Failed to setup initial certificate 'a': %v", err)
 	}
 
-	// Verify initial cert is loaded and has correct SN and SAN
+	// Baseline Setup: Configure and verify DUT services require mTLS authentication
+	initialSAN := setupService.ReadDecodeServerCertificate(t, tc.initialCert)
+	initialClientCert, err := tls.LoadX509KeyPair(tc.clientCert, tc.clientKey)
+	if err != nil {
+		t.Fatalf("Failed to load initial client cert: %v", err)
+	}
+	configureAndVerifyMTLS(ctx, t, dut, gnmiClient, profileID, initialCaCertPool, initialClientCert, initialSAN, username, password)
+
+	// Step 2: Connect and note certificate loaded is 'a', validate SN and SAN
 	expectedInitialCert := loadPemCert(t, tc.initialCert)
 	initialCert := dialAndGetCert(t, serverAddr)
 	t.Logf("Initial certificate subject: %s, SN: %s", initialCert.Subject, initialCert.SerialNumber.String())
@@ -305,9 +338,6 @@ func runTestCase(t *testing.T, dut *ondatra.DUTDevice, username, password string
 		t.Fatalf("Initial certificate SN mismatch: got %s, want %s", initialCert.SerialNumber.String(), expectedInitialCert.SerialNumber.String())
 	}
 
-	// NOW WE ARE IN THE INITIAL STATE (Cert 'a' is active).
-	// Proceed with the actual test.
-
 	// 2. ACTUAL TEST ROTATION
 	t.Logf("Starting actual rotation to target certificate: %s", tc.targetCert)
 	targetServerCert := setupService.CreateCertzChain(t, setupService.CertificateChainRequest{
@@ -317,16 +347,18 @@ func runTestCase(t *testing.T, dut *ondatra.DUTDevice, username, password string
 	})
 	targetServerCertEntity := setupService.CreateCertzEntity(t, setupService.EntityTypeCertificateChain, &targetServerCert, tc.cversion)
 
-	// Target trust bundle (might be same as initial for positive, or same initial for negative)
 	_, targetPkcs7data, err := setupService.Loadpkcs7TrustBundle(tc.targetBundle)
 	if err != nil {
 		t.Fatalf("Failed to load target trust bundle: %v", err)
 	}
 	targetTrustBundleEntity := setupService.CreateCertzEntity(t, setupService.EntityTypeTrustBundle, string(targetPkcs7data), tc.bversion)
 
-	// Maintain connection goroutines (for positive test)
+	// Maintain connection goroutines (Step 1 and Step 7 for positive test)
 	var connImpaired atomic.Bool
+	var connDelayed atomic.Bool
 	stopMaintain := make(chan struct{})
+	var wg sync.WaitGroup
+
 	if !tc.isNegative {
 		maintainers := []serviceMaintainer{
 			{
@@ -381,7 +413,6 @@ func runTestCase(t *testing.T, dut *ondatra.DUTDevice, username, password string
 			},
 		}
 
-		var wg sync.WaitGroup
 		for _, m := range maintainers {
 			wg.Add(1)
 			go func(m serviceMaintainer) {
@@ -393,17 +424,24 @@ func runTestCase(t *testing.T, dut *ondatra.DUTDevice, username, password string
 					connImpaired.Store(true)
 					return
 				}
-				ticker := time.NewTicker(2 * time.Second)
+				ticker := time.NewTicker(1 * time.Second)
 				defer ticker.Stop()
 				for {
 					select {
 					case <-stopMaintain:
 						return
 					case <-ticker.C:
+						start := time.Now()
 						if err := m.ping(ctx, client); err != nil {
-							t.Logf("Maintain %s: ping failed: %v", m.name, err)
+							t.Logf("Maintain %s: ping failed (impaired/restarted): %v", m.name, err)
 							connImpaired.Store(true)
 							return
+						}
+						elapsed := time.Since(start)
+						// Check if connection was delayed due to the rotation event (Step 3.1.7)
+						if elapsed > maxAllowedDelay {
+							t.Logf("Maintain %s: ping response delayed: took %v (max allowed %v)", m.name, elapsed, maxAllowedDelay)
+							connDelayed.Store(true)
 						}
 					}
 				}
@@ -413,7 +451,7 @@ func runTestCase(t *testing.T, dut *ondatra.DUTDevice, username, password string
 		defer wg.Wait()
 	}
 
-	// Open Rotate stream
+	// Step 3: Open Rotate stream and send Rotate RPC
 	stream, err := certzClient.Rotate(ctx)
 	if err != nil {
 		t.Fatalf("Failed to open Rotate stream: %v", err)
@@ -430,7 +468,6 @@ func runTestCase(t *testing.T, dut *ondatra.DUTDevice, username, password string
 		},
 	}
 
-	// Send Rotate request
 	err = stream.Send(req)
 	if err != nil {
 		if tc.isNegative {
@@ -440,7 +477,6 @@ func runTestCase(t *testing.T, dut *ondatra.DUTDevice, username, password string
 		t.Fatalf("Failed to send Rotate request: %v", err)
 	}
 
-	// Recv response
 	resp, err := stream.Recv()
 	if err != nil {
 		if tc.isNegative {
@@ -452,40 +488,42 @@ func runTestCase(t *testing.T, dut *ondatra.DUTDevice, username, password string
 	t.Logf("Received Rotate response: %v", resp)
 
 	if tc.isNegative {
-		// If it didn't fail yet, maybe it will fail during probe or we force rollback.
-		t.Log("Negative test: probing certificate...")
+		// Step 3.2.3: Test that the certificate load fails, because the certificate is not trusted by a known CA.
+		t.Log("Negative test (Step 3.2.3): testing that untrusted certificate load fails...")
 		currentCert := dialAndGetCert(t, serverAddr)
-		t.Logf("Negative test: current certificate subject: %s", currentCert.Subject)
+		t.Logf("Negative test: current certificate subject: %s, SN: %s", currentCert.Subject, currentCert.SerialNumber.String())
 
-		// If the device rejected it, it should still serve 'a'.
-		initialSAN := setupService.ReadDecodeServerCertificate(t, tc.initialCert)
+		// If the device rejected the untrusted certificate, it should still serve initial cert 'a'.
 		if len(currentCert.DNSNames) > 0 && currentCert.DNSNames[0] == initialSAN {
-			t.Log("Negative test: Device is still serving initial cert 'a' as expected (rejected 'b').")
+			t.Log("Negative test (Step 3.2.3): Device is still serving initial cert 'a' as expected (untrusted cert 'b' rejected).")
 		} else {
-			t.Log("Negative test: Device is serving new cert 'b', which means it did not reject it immediately. Tearing down stream to rollback.")
+			// Untrusted certificate rotation unexpectedly succeeded! Assert test failure as required by Step 3.2.3.
+			t.Errorf("Step 3.2.3 failed: untrusted certificate load unexpectedly succeeded; device is serving untrusted certificate: %v", currentCert.DNSNames)
 		}
 
-		// Tear down stream (rollback) by closing it without finalize
+		// Step 3.2.4: Tear down the Rotate RPC, forcing the device to return to the previously used certificate/key material.
+		t.Log("Negative test (Step 3.2.4): tearing down Rotate RPC to force rollback...")
 		stream.CloseSend()
+
+		// Step 3.2.5: Verify that the server is now serving the previous certificate properly.
+		t.Log("Negative test (Step 3.2.5): verifying server is now serving previous certificate 'a' properly...")
 		expectedInitialCert := loadPemCert(t, tc.initialCert)
 		awaitCert(t, serverAddr, expectedInitialCert, 30*time.Second)
-		t.Log("Negative test passed: successfully rolled back to initial cert.")
+		t.Log("Negative test passed: successfully rolled back to initial cert 'a'.")
 		return
 	}
 
-	// POSITIVE TEST CONTINUATION
-	// 3. Probe
-	t.Log("Positive test: probing new certificate...")
+	// POSITIVE TEST CONTINUATION (Certz-3.1)
+	// Step 4: Probe RPC and verify new certificate
+	t.Log("Positive test (Step 4): probing new certificate using Probe RPC...")
 	expectedTargetCert := loadPemCert(t, tc.targetCert)
 	targetSAN := expectedTargetCert.DNSNames[0]
 
-	// Load client cert for probing
 	clientCert, err := tls.LoadX509KeyPair(tc.clientCert, tc.clientKey)
 	if err != nil {
 		t.Fatalf("Failed to load client cert for probing: %v", err)
 	}
 
-	// Load target trust bundle for probing
 	targetCerts, _, err := setupService.Loadpkcs7TrustBundle(tc.targetBundle)
 	if err != nil {
 		t.Fatalf("Failed to load target trust bundle for probing: %v", err)
@@ -495,12 +533,10 @@ func runTestCase(t *testing.T, dut *ondatra.DUTDevice, username, password string
 		targetCaCertPool.AddCert(c)
 	}
 
-	// Dial new connection using target certs
+	// Dial connection using target certs to probe
 	conn := setupService.CreateNewDialOption(t, clientCert, targetCaCertPool, targetSAN, username, password, serverAddr)
 	defer conn.Close()
 
-	// Call Probe RPC
-	t.Log("Probing new certificate using Probe RPC...")
 	activeAuthzClient := authzpb.NewAuthzClient(conn)
 	_, err = activeAuthzClient.Probe(ctx, &authzpb.ProbeRequest{
 		User: username,
@@ -511,21 +547,19 @@ func runTestCase(t *testing.T, dut *ondatra.DUTDevice, username, password string
 	}
 	t.Log("Probe RPC successful.")
 
-	// Also do the TLS dial to validate SN and SAN (as required by steps 2 and 4)
+	// Validate SN and SAN on probe connection
 	probeCert := dialAndGetCert(t, serverAddr)
 	t.Logf("Probe certificate subject: %s, SN: %s", probeCert.Subject, probeCert.SerialNumber.String())
-	// Validate SAN
 	if len(probeCert.DNSNames) == 0 || probeCert.DNSNames[0] != expectedTargetCert.DNSNames[0] {
 		t.Fatalf("Probe certificate SAN mismatch: got %v, want %v", probeCert.DNSNames, expectedTargetCert.DNSNames)
 	}
-	// Validate SN
 	if probeCert.SerialNumber.Cmp(expectedTargetCert.SerialNumber) != 0 {
 		t.Fatalf("Probe certificate SN mismatch: got %s, want %s", probeCert.SerialNumber.String(), expectedTargetCert.SerialNumber.String())
 	}
-	t.Log("Probe successful: new certificate is being served and validated.")
+	t.Log("Probe successful: new certificate 'b' is being served and validated.")
 
-	// 4. Finalize
-	t.Log("Finalizing rotation...")
+	// Step 5: Send Finalize RPC to the server
+	t.Log("Positive test (Step 5): sending Finalize RPC...")
 	finalizeReq := &certzpb.RotateCertificateRequest{
 		ForceOverwrite: false,
 		SslProfileId:   profileID,
@@ -540,18 +574,38 @@ func runTestCase(t *testing.T, dut *ondatra.DUTDevice, username, password string
 		t.Fatalf("Failed to CloseSend: %v", err)
 	}
 
-	// 5. Verify post-finalize
+	// Step 6: Verify post-finalize that server is serving certificate 'b' properly,
+	// and verify that active gRPC server certificate has changed via OpenConfig paths.
+	t.Log("Positive test (Step 6): verifying certificate 'b' and OpenConfig telemetry paths...")
 	awaitCert(t, serverAddr, expectedTargetCert, 30*time.Second)
-	t.Log("Post-finalize verification successful: new certificate is permanently served.")
 
-	// 6. Verify maintained connection
+	servers := ognmi.GetAll(t, dut.GNMIOpts().WithClient(gnmiClient), ognmi.OC().System().GrpcServerAny().Name().State())
+	for _, server := range servers {
+		createdVal, createdPresent := ognmi.Lookup(t, dut.GNMIOpts().WithClient(gnmiClient), ognmi.OC().System().GrpcServer(server).CertificateCreatedOn().State()).Val()
+		expiresVal, expiresPresent := ognmi.Lookup(t, dut.GNMIOpts().WithClient(gnmiClient), ognmi.OC().System().GrpcServer(server).CertificateExpiresOn().State()).Val()
+		versionVal, versionPresent := ognmi.Lookup(t, dut.GNMIOpts().WithClient(gnmiClient), ognmi.OC().System().GrpcServer(server).CertificateVersion().State()).Val()
+
+		t.Logf("OpenConfig check for server %s: created-on=%d (present=%v), expires-on=%d (present=%v), version=%s (present=%v)",
+			server, createdVal, createdPresent, expiresVal, expiresPresent, versionVal, versionPresent)
+		if versionPresent && versionVal != tc.cversion {
+			t.Errorf("CertificateVersion mismatch for server %s: got %s, want %s", server, versionVal, tc.cversion)
+		}
+	}
+	t.Log("Step 6 passed: post-finalize verification and OpenConfig state checks completed.")
+
+	// Step 7: Verify that at no time during rotation were existing connections
+	// impaired, restarted, or delayed due to the rotation event.
+	t.Log("Positive test (Step 7): verifying maintained connections were not impaired, restarted, or delayed...")
 	if stopMaintain != nil {
 		close(stopMaintain)
 	}
 	if connImpaired.Load() {
-		t.Fatalf("Maintained connection was impaired during rotation")
+		t.Fatalf("Step 3.1.7 failed: Maintained connection was impaired or restarted during rotation")
 	}
-	t.Log("Maintained connection was NOT impaired during rotation.")
+	if connDelayed.Load() {
+		t.Fatalf("Step 3.1.7 failed: Maintained connection was delayed during rotation")
+	}
+	t.Log("Step 3.1.7 passed: Maintained connections were not impaired, restarted, or delayed during rotation.")
 }
 
 func rotateAndFinalize(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, certzClient certzpb.CertzClient, gnmiClient gnmipb.GNMIClient, profileID string, entities ...*certzpb.Entity) error {

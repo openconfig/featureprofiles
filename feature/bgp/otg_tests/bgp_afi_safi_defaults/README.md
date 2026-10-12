@@ -101,6 +101,8 @@ paths:
 
     ## Telemetry Parameter coverage
 
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/afi-safi-name:
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/enabled:
     /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
     /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities: 
     /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-type:
@@ -116,6 +118,75 @@ rpcs:
         gNMI.Get:
         gNMI.Subscribe:
 ```
+## Canonical OC
+```json
+{
+  "openconfig-network-instance:network-instances": {
+    "network-instance": [
+      {
+        "name": "DEFAULT",
+        "protocols": {
+          "protocol": [
+            {
+              "identifier": "openconfig-policy-types:BGP",
+              "name": "BGP",
+              "bgp": {
+                "global": {
+                  "config": {
+                    "as": 64500,
+                    "router-id": "192.0.2.1"
+                  },
+                  "afi-safis": {
+                    "afi-safi": [
+                      {
+                        "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                        "config": {
+                          "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                          "enabled": true
+                        }
+                      },
+                      {
+                        "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                        "config": {
+                          "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                          "enabled": true
+                        }
+                      }
+                    ]
+                  }
+                },
+                "neighbors": {
+                  "neighbor": [
+                    {
+                      "neighbor-address": "192.0.2.2",
+                      "config": {
+                        "neighbor-address": "192.0.2.2",
+                        "peer-as": 64501
+                      },
+                      "afi-safis": {
+                        "afi-safi": [
+                          {
+                            "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                            "config": {
+                              "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                              "enabled": true
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
+
 ## Minimum DUT Required
 
 vRX - Virtual Router Device
