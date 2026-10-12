@@ -30,6 +30,7 @@ const (
 	// cliConfigSetTimeout bounds a native CLI configuration gNMI Set so that an
 	// unresponsive device cannot hang the test indefinitely.
 	cliConfigSetTimeout = 30 * time.Second
+	defaultPolicyName   = "customer10"
 )
 
 // DecapPolicyParams defines parameters for the Decap MPLS in GRE policy and related MPLS configs.
@@ -457,7 +458,6 @@ func InterfacePolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, a *at
 		}
 	} else {
 		ApplyPolicyToInterfaceOC(t, pf, params.InterfaceID, params.AppliedPolicyName)
-
 	}
 }
 
@@ -814,7 +814,11 @@ func RulesAndActions(params OcPolicyForwardingParams, pf *oc.NetworkInstance_Pol
 func DecapPolicyRulesandActionsGre(t *testing.T, pf *oc.NetworkInstance_PolicyForwarding, params OcPolicyForwardingParams) {
 	t.Helper()
 
-	pols := pf.GetOrCreatePolicy("customer10")
+	policyName := params.PolicyName
+	if policyName == "" {
+		policyName = defaultPolicyName
+	}
+	pols := pf.GetOrCreatePolicy(policyName)
 	var ruleSeq uint32 = 10
 	var protocol uint8 = 4
 
@@ -829,7 +833,11 @@ func DecapPolicyRulesandActionsGre(t *testing.T, pf *oc.NetworkInstance_PolicyFo
 func DecapPolicyRulesandActionsGue(t *testing.T, pf *oc.NetworkInstance_PolicyForwarding, params OcPolicyForwardingParams) {
 	t.Helper()
 
-	pols := pf.GetOrCreatePolicy("customer10")
+	policyName := params.PolicyName
+	if policyName == "" {
+		policyName = defaultPolicyName
+	}
+	pols := pf.GetOrCreatePolicy(policyName)
 	var ruleSeq uint32 = 10
 	var protocol uint8 = 4
 
@@ -899,7 +907,16 @@ func RemoveDecapGroupGue(t *testing.T, dut *ondatra.DUTDevice, ocPFParams OcPoli
 	if deviations.GueGreDecapUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("no ip decap-group %s\n", ocPFParams.AppliedPolicyName))
+			removeCli := fmt.Sprintf("no ip decap-group %s\n", ocPFParams.AppliedPolicyName)
+			decapProto := ocPFParams.DecapProtocol
+			if decapProto == "" {
+				decapProto = ocPFParams.IPType
+			}
+			if decapProto != "" {
+				removeCli += fmt.Sprintf("no ip decap-group type udp destination port 6635 payload %s\n", decapProto)
+			}
+
+			helpers.GnmiCLIConfig(t, dut, removeCli)
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'decap-group removal'", dut.Vendor())
 		}
