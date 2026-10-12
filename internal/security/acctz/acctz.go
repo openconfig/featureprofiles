@@ -361,7 +361,7 @@ func aristaCleanupAuthzCliRole(t *testing.T, dut *ondatra.DUTDevice) {
 	helpers.GnmiCLIConfig(t, dut, strings.Join(commands, "\n"))
 }
 
-func nokiaGrpcMetadataAuth(t *testing.T) []*gnmipb.Update {
+func nokiaGrpcMetadataAuth() []*gnmipb.Update {
 	var updates []*gnmipb.Update
 	for _, name := range []string{"mgmtVrf-gribi", "mgmtVrf-p4rt"} {
 		updates = append(updates, &gnmipb.Update{
@@ -435,7 +435,7 @@ func SetupUsers(t *testing.T, dut *ondatra.DUTDevice, configureFailCliRole bool)
 			}
 			metadataReq := &gnmipb.SetRequest{
 				Prefix: &gnmipb.Path{Origin: "srl_nokia"},
-				Update: nokiaGrpcMetadataAuth(t),
+				Update: nokiaGrpcMetadataAuth(),
 			}
 			if _, err := gnmiClient.Set(context.Background(), metadataReq); err != nil {
 				t.Fatalf("Unexpected error configuring nokia metadata auth: %v", err)
@@ -560,43 +560,43 @@ func GetSSHTarget(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) stri
 		}
 		t.Fatalf("DUT %s not found in binding file", dut.ID())
 		return ""
-	} else {
-		var serviceDUT interface {
-			Service(string) (*tpb.Service, error)
-		}
-
-		var target string
-		err := binding.DUTAs(dut.RawAPIs().BindingDUT(), &serviceDUT)
-		if err != nil {
-			t.Log("DUT does not support `Service` function, will attempt to resolve dut name field.")
-
-			// Suppose ssh could be not 22 in some cases but don't think this is exposed by introspect.
-			dialTarget := fmt.Sprintf("%s:%d", dut.Name(), defaultSSHPort)
-			resolvedTarget, err := net.ResolveTCPAddr("tcp", dialTarget)
-			if err != nil {
-				t.Logf("Failed resolving ssh target %s, will try with fqdn", dialTarget)
-				domain := "net.google.com"
-				if args.Fqdn != nil {
-					domain = *args.Fqdn
-				}
-				dialTarget = fmt.Sprintf("%s.%s:%d", dut.Name(), domain, defaultSSHPort)
-				resolvedTarget, err = net.ResolveTCPAddr("tcp", dialTarget)
-				if err != nil {
-					t.Fatalf("Failed resolving ssh target %s", dialTarget)
-				}
-			}
-			target = resolvedTarget.String()
-		} else {
-			dutSSHService, err := serviceDUT.Service("ssh")
-			if err != nil {
-				t.Fatal(err)
-			}
-			target = fmt.Sprintf("%s:%d", dutSSHService.GetOutsideIp(), dutSSHService.GetOutside())
-		}
-
-		t.Logf("Target for ssh service: %s", target)
-		return target
 	}
+
+	var serviceDUT interface {
+		Service(string) (*tpb.Service, error)
+	}
+
+	var target string
+	err := binding.DUTAs(dut.RawAPIs().BindingDUT(), &serviceDUT)
+	if err != nil {
+		t.Log("DUT does not support `Service` function, will attempt to resolve dut name field.")
+
+		// Suppose ssh could be not 22 in some cases but don't think this is exposed by introspect.
+		dialTarget := fmt.Sprintf("%s:%d", dut.Name(), defaultSSHPort)
+		resolvedTarget, err := net.ResolveTCPAddr("tcp", dialTarget)
+		if err != nil {
+			t.Logf("Failed resolving ssh target %s, will try with fqdn", dialTarget)
+			domain := "net.google.com"
+			if args.Fqdn != nil {
+				domain = *args.Fqdn
+			}
+			dialTarget = fmt.Sprintf("%s.%s:%d", dut.Name(), domain, defaultSSHPort)
+			resolvedTarget, err = net.ResolveTCPAddr("tcp", dialTarget)
+			if err != nil {
+				t.Fatalf("Failed resolving ssh target %s", dialTarget)
+			}
+		}
+		target = resolvedTarget.String()
+	} else {
+		dutSSHService, err := serviceDUT.Service("ssh")
+		if err != nil {
+			t.Fatal(err)
+		}
+		target = fmt.Sprintf("%s:%d", dutSSHService.GetOutsideIp(), dutSSHService.GetOutside())
+	}
+
+	t.Logf("Target for ssh service: %s", target)
+	return target
 }
 
 // func dialGrpc(t *testing.T, target string) *grpc.ClientConn {
@@ -755,7 +755,7 @@ func getHostPortInfo(t *testing.T, addr string) (string, uint32) {
 	return host, uint32(port)
 }
 
-func getMetadataKeys(dut *ondatra.DUTDevice) (string, string) {
+func getMetadataKeys() (string, string) {
 	return "username", "password"
 }
 
@@ -769,7 +769,7 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 
 	var records []*acctzpb.RecordResponse
 	// grpcConn := dialGrpc(t, target)
-	userKey, passKey := getMetadataKeys(dut)
+	userKey, passKey := getMetadataKeys()
 	if dut.Vendor() == ondatra.ARISTA {
 		failuser = failAuthorizeUsername
 		failpass = failAuthorizePassword
@@ -898,7 +898,7 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	// grpcConn := dialGrpc(t, target)
 	// gnoiSystemClient := dut.RawAPIs().GNOI(t).System()
 	// systempb.NewSystemClient(grpcConn)
-	userKey, passKey := getMetadataKeys(dut)
+	userKey, passKey := getMetadataKeys()
 	if dut.Vendor() == ondatra.ARISTA {
 		failuser = failAuthorizeUsername
 		failpass = failAuthorizePassword
@@ -1053,7 +1053,7 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	var records []*acctzpb.RecordResponse
 	// grpcConn := dialGrpc(t, target)
 	// authzClient := dut.RawAPIs().GNSI(t).Authz()
-	userKey, passKey := getMetadataKeys(dut)
+	userKey, passKey := getMetadataKeys()
 	if dut.Vendor() == ondatra.ARISTA {
 		failuser = failAuthorizeUsername
 		failpass = failAuthorizePassword
@@ -1171,7 +1171,7 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespon
 	// grpcConn := dialGrpc(t, target)
 	// gribiClient := gribi.NewGRIBIClient(grpcConn)
 	// gribiClient,err := dut.RawAPIs().BindingDUT().DialGRIBI
-	userKey, passKey := getMetadataKeys(dut)
+	userKey, passKey := getMetadataKeys()
 	if dut.Vendor() == ondatra.ARISTA {
 		failuser = failAuthorizeUsername
 		failpass = failAuthorizePassword
@@ -1341,7 +1341,7 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	}
 	var records []*acctzpb.RecordResponse
 	// grpcConn := dialGrpc(t, target)
-	userKey, passKey := getMetadataKeys(dut)
+	userKey, passKey := getMetadataKeys()
 	if dut.Vendor() == ondatra.ARISTA {
 		failuser = failAuthorizeUsername
 		failpass = failAuthorizePassword
