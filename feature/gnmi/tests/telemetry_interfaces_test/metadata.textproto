@@ -26,6 +26,15 @@ platform_exceptions: {
   }
   deviations: {
     state_path_unsupported: true
+    subinterface_ifindex_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    subinterface_name_unsupported: true
   }
 }
 

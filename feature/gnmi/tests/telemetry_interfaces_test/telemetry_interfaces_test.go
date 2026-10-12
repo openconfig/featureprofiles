@@ -360,6 +360,22 @@ func testTelemetryInterfacesStateSubinterface(t *testing.T, dut *ondatra.DUTDevi
 			t.Errorf("\n\n [FAILED]: leaf: Subinterface oper-status is not present on port %s subinterface: '%v'\n\n", port, subIntfIndex)
 		}
 
+		if !deviations.SubinterfaceIfindexUnsupported(dut) {
+			if ifindexVal, present := gnmi.Lookup(t, dut, subIntf.Ifindex().State()).Val(); present {
+				t.Logf("\n\n [PASSED]: port: '%s' subinterface: '%v' ifindex value: '%v' is present \n\n", port, subIntfIndex, ifindexVal)
+			} else {
+				t.Errorf("\n\n [FAILED]: leaf: Subinterface ifindex is not present on port %s subinterface: '%v'\n\n", port, subIntfIndex)
+			}
+		}
+
+		if !deviations.SubinterfaceNameUnsupported(dut) {
+			if nameVal, present := gnmi.Lookup(t, dut, subIntf.Name().State()).Val(); present && nameVal != "" {
+				t.Logf("\n\n [PASSED]: port: '%s' subinterface: '%v' name value: '%s' is present \n\n", port, subIntfIndex, nameVal)
+			} else {
+				t.Errorf("\n\n [FAILED]: leaf: Subinterface name is not present or empty on port %s subinterface: '%v'\n\n", port, subIntfIndex)
+			}
+		}
+
 		subinterface := p.Interface(port).Subinterface(subIntfIndex)
 
 		// Include Index in the payload for vendors (e.g. Junos) that require the
