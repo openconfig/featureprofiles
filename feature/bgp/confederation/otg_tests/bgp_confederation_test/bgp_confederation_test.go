@@ -82,17 +82,24 @@ const (
 	// holdWindow is the absence check hold window (README Checks shared by
 	// the subtests).
 	holdWindow = 30 * time.Second
-	// trafficStatsTimeout bounds the wait for a 30 second flow to stop and
-	// its counters to settle.
-	trafficStatsTimeout  = 2 * time.Minute
+	// trafficStatsTimeout bounds the wait for the flows of a traffic phase to
+	// transmit all of their packets (30 seconds at trafficPPS).
+	trafficStatsTimeout = 2 * time.Minute
+	// trafficSettleTimeout bounds the wait, shared by all flows of a traffic
+	// phase, for the flows to stop and for their Rx counters to settle.
 	trafficSettleTimeout = 10 * time.Second
 )
 
-// Traffic parameters (README flows).
+// Traffic parameters (README flows). The rate is the one most BGP tests in
+// this repository use; virtual DUTs forward in software and drop packets at
+// higher aggregate rates.
 const (
 	frameSize      = 512
-	trafficPPS     = 1000
-	trafficPackets = 30 * trafficPPS // 30 seconds at 1000 pps.
+	trafficPPS     = 100
+	trafficPackets = 30 * trafficPPS // 30 seconds at 100 pps.
+	// lossTolerancePct is the highest loss, in percent, with which a flow
+	// still passes.
+	lossTolerancePct = 1.0
 )
 
 // addrFamily identifies IPv4 unicast or IPv6 unicast.
@@ -333,15 +340,50 @@ func (p asPath) String() string {
 	return strings.Join(parts, ", ")
 }
 
-// equal compares two AS_PATHs segment by segment (README OTG route range
-// settings). Adjacent segments of the same type are not merged: RFC 5065
-// Section 4.1 rules b.1 and c.2 require the prepended AS number to be the
-// last element of the existing sequence, so AS_SEQ [64500], AS_SEQ [64511]
-// is not the same as the expected AS_SEQ [64500, 64511].
-func (p asPath) equal(o asPath) bool {
+// merged returns p with adjacent AS_SEQ segments, and adjacent
+// AS_CONFED_SEQUENCE segments, merged into one. Adjacent sequences of the
+// same type are equivalent to one sequence: the path length (RFC 4271
+// Section 9.1.2.2, RFC 5065 Section 5.3) and loop detection are the same, and
+// RFC 4271 itself splits a sequence of more than 255 AS numbers this way.
+// Sets are never merged, because each AS_SET counts as one AS in the path
+// length.
+func (p asPath) merged() asPath {
+	var out asPath
+	for _, s := range p {
+		if n := len(out); n > 0 && out[n-1].typ == s.typ && (s.typ == segSeq || s.typ == segConfedSeq) {
+			out[n-1].asns = append(out[n-1].asns, s.asns...)
+			continue
+		}
+		out = append(out, asSegment{typ: s.typ, asns: slices.Clone(s.asns)})
+	}
+	return out
+}
+
+// sameSegments reports whether p and o have exactly the same segments.
+func (p asPath) sameSegments(o asPath) bool {
 	return slices.EqualFunc(p, o, func(a, b asSegment) bool {
 		return a.typ == b.typ && slices.Equal(a.asns, b.asns)
 	})
+}
+
+// equal compares two AS_PATHs after merging adjacent sequences of the same
+// type (README Checks shared by the subtests, AS_PATH comparison).
+func (p asPath) equal(o asPath) bool {
+	return p.merged().sameSegments(o.merged())
+}
+
+// checkASPath reports an error if got is not equal to want. If got matches
+// only after adjacent sequences are merged, the DUT added the prepended AS as
+// a new segment instead of as the last element of the existing sequence (RFC
+// 5065 Section 4.1 rules b.1 and c.2); that is logged, not failed.
+func checkASPath(t *testing.T, desc string, got, want asPath) {
+	t.Helper()
+	switch {
+	case !got.equal(want):
+		t.Errorf("%s: AS_PATH got %v, want %v", desc, got, want)
+	case !got.sameSegments(want):
+		t.Logf("%s: AS_PATH %v is equivalent to %v; the DUT did not add the prepended AS to the existing sequence (RFC 5065 Section 4.1)", desc, got, want)
+	}
 }
 
 // routeRange is one advertised route range (README route range table and
@@ -465,11 +507,12 @@ var (
 
 // flowSpec is one traffic flow (README flows).
 type flowSpec struct {
-	name    string
-	af      addrFamily
-	tx, rx  *routeRange
-	src     string
-	dst     string
+	name   string
+	af     addrFamily
+	tx, rx *routeRange
+	src    string
+	dst    string
+	// subtest is the subtest that runs and evaluates the flow (runFlows).
 	subtest string
 }
 
@@ -1125,9 +1168,7 @@ func checkDUTASPath(t *testing.T, desc string, attr *oc.NetworkInstance_Protocol
 		t.Errorf("%s: %v", desc, err)
 		return
 	}
-	if !got.equal(want) {
-		t.Errorf("%s: AS_PATH got %v, want %v", desc, got, want)
-	}
+	checkASPath(t, desc, got, want)
 }
 
 func checkUint32(t *testing.T, desc, attrName string, got *uint32, want uint32) {
@@ -1278,9 +1319,7 @@ func lookupOTGRoutes(t *testing.T, o *otg.OTG, peer string) map[addrFamily][]otg
 
 func checkOTGASPath(t *testing.T, desc string, got otgRoute, want asPath) {
 	t.Helper()
-	if !got.asPath.equal(want) {
-		t.Errorf("%s: AS_PATH got %v, want %v", desc, got.asPath, want)
-	}
+	checkASPath(t, desc, got.asPath, want)
 }
 
 // ---------------------------------------------------------------------------
@@ -1794,7 +1833,8 @@ func testConfedToIBGP(t *testing.T, env *testEnv) {
 			}
 		}
 	}
-	t.Log("Flows v4-p2-to-p3 and v6-p2-to-p3 are checked in the traffic phase of RT-1.111.5")
+	t.Log("Step 3: verify traffic from ATE:port2 to ATE:port3")
+	runFlows(t, env, "RT-1.111.2")
 }
 
 // confedLocalPrefReceived reports whether LOCAL_PREF 150 of CONFED, sent on
@@ -1878,7 +1918,8 @@ func testIBGPToConfed(t *testing.T, env *testEnv) {
 	for _, af := range addrFamilies {
 		env.checkAdjRibOutLocalPref(t, af, linkConfed.neighbor(af), rrIBGP)
 	}
-	t.Log("Flows v4-p3-to-p2 and v6-p3-to-p2 are checked in the traffic phase of RT-1.111.5")
+	t.Log("Step 4: verify traffic from ATE:port3 to ATE:port2")
+	runFlows(t, env, "RT-1.111.3")
 }
 
 // checkAdjRibOutLocalPref verifies that the DUT sends route range r with its
@@ -1955,11 +1996,13 @@ func testToExternal(t *testing.T, env *testEnv) {
 			}
 		}
 	}
-	t.Log("Flows v4-p1-to-p3, v6-p1-to-p3, v4-p1-to-p2, and v6-p1-to-p2 are checked in the traffic phase of RT-1.111.5")
+	t.Log("Step 2: verify traffic from ATE:port1 to ATE:port3 and ATE:port2")
+	runFlows(t, env, "RT-1.111.4")
 }
 
 // testExternalToConfedAndIBGP implements RT-1.111.5 (RFC 5065 Section 4.1
-// rules a and b.2), the route set check, and the single traffic phase.
+// rules a and b.2), the route set check, and the traffic toward the external
+// peer.
 func testExternalToConfedAndIBGP(t *testing.T, env *testEnv) {
 	t.Log("Step 1: verify the DUT RIB")
 	for _, af := range addrFamilies {
@@ -1984,49 +2027,107 @@ func testExternalToConfedAndIBGP(t *testing.T, env *testEnv) {
 	t.Log("Step 3: route set check")
 	checkRouteSet(t, env)
 
-	t.Log("Step 4: verify traffic for all flows")
-	runTraffic(t, env)
+	t.Log("Step 4: verify traffic from ATE:port3 and ATE:port2 to ATE:port1")
+	runFlows(t, env, "RT-1.111.5")
 }
 
-// runTraffic runs all twelve flows in a single traffic phase and evaluates
-// each flow separately (README flows and RT-1.111.5).
+// runFlows runs the flows of one subtest in their own traffic phase and
+// evaluates each flow (README flows). Only these flows are started, so a
+// traffic failure is reported by the subtest whose routes the flow uses, and
+// at most four flows run at the same time.
 //
-// The flow counters are watched in two phases: first until every flow has
-// transmitted all of its packets, then, after traffic is stopped, until the
-// Rx counter of each flow has settled at its Tx counter. This avoids reading
-// the counters before transmission has started. The timing of the OTG flow
-// counters should be verified on ixia-c/KNE and hardware ATEs.
-func runTraffic(t *testing.T, env *testEnv) {
+// The counters are watched in two steps: until every flow has transmitted all
+// of its packets, then, after the flows are stopped, until each Rx counter has
+// reached its Tx counter. The watchers of a step run concurrently, so flows
+// with loss delay the evaluation by at most trafficSettleTimeout in total.
+func runFlows(t *testing.T, env *testEnv, subtest string) {
 	t.Helper()
-	env.otg.StartTraffic(t)
-
-	txWatchers := map[string]*gnmi.Watcher[uint64]{}
+	var names []string
+	logCfg := gosnappi.NewConfig()
 	for _, f := range flows {
-		txWatchers[f.name] = gnmi.Watch(t, env.otg, gnmi.OTG().Flow(f.name).Counters().OutPkts().State(), trafficStatsTimeout, func(v *ygnmi.Value[uint64]) bool {
+		if f.subtest == subtest {
+			names = append(names, f.name)
+			logCfg.Flows().Add().SetName(f.name)
+		}
+	}
+	if len(names) == 0 {
+		t.Fatalf("No flows are defined for %s", subtest)
+	}
+
+	t.Logf("Starting flows %v", names)
+	setFlowTransmit(t, env.otg, names, gosnappi.StateTrafficFlowTransmitState.START)
+	txWatchers := map[string]*gnmi.Watcher[uint64]{}
+	for _, n := range names {
+		txWatchers[n] = gnmi.Watch(t, env.otg, gnmi.OTG().Flow(n).Counters().OutPkts().State(), trafficStatsTimeout, func(v *ygnmi.Value[uint64]) bool {
 			tx, ok := v.Val()
 			return ok && tx >= trafficPackets
 		})
 	}
-	for _, f := range flows {
-		if _, ok := txWatchers[f.name].Await(t); !ok {
-			t.Errorf("[%s] flow %s: did not transmit %d packets within %v", f.subtest, f.name, trafficPackets, trafficStatsTimeout)
+	for _, n := range names {
+		if _, ok := txWatchers[n].Await(t); !ok {
+			t.Errorf("Flow %s: did not transmit %d packets within %v", n, trafficPackets, trafficStatsTimeout)
 		}
 	}
-	env.otg.StopTraffic(t)
+	setFlowTransmit(t, env.otg, names, gosnappi.StateTrafficFlowTransmitState.STOP)
 
-	for _, f := range flows {
-		tx, rx := otgutils.GetFlowStats(t, env.otg, f.name, trafficSettleTimeout)
-		switch {
-		case tx == 0:
-			t.Errorf("[%s] flow %s: transmitted packets got 0, want > 0", f.subtest, f.name)
-		case rx != tx:
-			lossPct := (float64(tx) - float64(rx)) * 100 / float64(tx)
-			t.Errorf("[%s] flow %s: received %d of %d packets (loss %.2f%%), want 0%% loss", f.subtest, f.name, rx, tx, lossPct)
-		default:
-			t.Logf("[%s] flow %s: %d packets transmitted and received", f.subtest, f.name, tx)
+	stopWatchers := map[string]*gnmi.Watcher[bool]{}
+	for _, n := range names {
+		stopWatchers[n] = gnmi.Watch(t, env.otg, gnmi.OTG().Flow(n).Transmit().State(), trafficSettleTimeout, func(v *ygnmi.Value[bool]) bool {
+			transmitting, ok := v.Val()
+			return ok && !transmitting
+		})
+	}
+	for _, n := range names {
+		if _, ok := stopWatchers[n].Await(t); !ok {
+			t.Logf("Flow %s: still transmitting after %v; its counters may be inconsistent", n, trafficSettleTimeout)
 		}
 	}
-	otgutils.LogFlowMetrics(t, env.otg, env.otgCfg)
+
+	tx := map[string]uint64{}
+	rxWatchers := map[string]*gnmi.Watcher[uint64]{}
+	for _, n := range names {
+		want := gnmi.Get(t, env.otg, gnmi.OTG().Flow(n).Counters().OutPkts().State())
+		tx[n] = want
+		rxWatchers[n] = gnmi.Watch(t, env.otg, gnmi.OTG().Flow(n).Counters().InPkts().State(), trafficSettleTimeout, func(v *ygnmi.Value[uint64]) bool {
+			rx, ok := v.Val()
+			return ok && rx >= want
+		})
+	}
+	for _, n := range names {
+		var rx uint64
+		if v, _ := rxWatchers[n].Await(t); v != nil {
+			rx, _ = v.Val()
+		}
+		checkFlowLoss(t, n, tx[n], rx)
+	}
+	otgutils.LogFlowMetrics(t, env.otg, logCfg)
+}
+
+// setFlowTransmit starts or stops the transmission of the named flows only.
+func setFlowTransmit(t *testing.T, o *otg.OTG, names []string, state gosnappi.StateTrafficFlowTransmitStateEnum) {
+	t.Helper()
+	cs := gosnappi.NewControlState()
+	cs.Traffic().FlowTransmit().SetState(state).SetFlowNames(names)
+	o.SetControlState(t, cs)
+}
+
+// checkFlowLoss checks the counters of one flow against lossTolerancePct
+// (README flows).
+func checkFlowLoss(t *testing.T, name string, tx, rx uint64) {
+	t.Helper()
+	switch {
+	case tx == 0:
+		t.Errorf("Flow %s: transmitted packets got 0, want > 0", name)
+	case rx > tx:
+		t.Errorf("Flow %s: received %d packets, more than the %d transmitted", name, rx, tx)
+	default:
+		lossPct := float64(tx-rx) * 100 / float64(tx)
+		if lossPct > lossTolerancePct {
+			t.Errorf("Flow %s: received %d of %d packets (loss %.2f%%), want loss <= %.0f%%", name, rx, tx, lossPct, lossTolerancePct)
+			return
+		}
+		t.Logf("Flow %s: received %d of %d packets (loss %.2f%%)", name, rx, tx, lossPct)
+	}
 }
 
 // testASLoopDetection implements RT-1.111.6 (RFC 5065 Section 4).

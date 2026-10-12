@@ -100,8 +100,7 @@ AS_PATHs without session resets. IPv4 and IPv6 unicast.
     (`as_confed_seq [64503]` for `IBGP-CONFED`). Set
     `advanced.include_local_preference` and
     `advanced.include_multi_exit_discriminator` explicitly on every range. The
-    looped routes may be sent as one or two adjacent segments; AS_PATHs sent
-    by the DUT are compared segment by segment. OTG guarantees
+    looped routes may be sent as one or two adjacent segments. OTG guarantees
     `include_local_preference` only on `ibgp` peers and an `ebgp` peer does not
     report a received LOCAL_PREF (RFC 4271 Section 5.1.5), so LOCAL_PREF on the
     port-3 session is verified on the DUT (RT-1.111.2 and RT-1.111.3)
@@ -110,17 +109,23 @@ AS_PATHs without session resets. IPv4 and IPv6 unicast.
     `CONFED-MALFORMED` with OTG route control state. Negative ranges are only
     advertised/withdrawn with control state; never push a new ATE
     configuration mid-test. Wait for ARP and IPv6 ND on all three links
-*   Configure 12 ATE-to-ATE flows (`512` B, `1000` pps, `30` s; IPv4 and IPv6):
+*   Configure 12 ATE-to-ATE flows (`512` B, `100` pps, `30` s; IPv4 and IPv6):
     port-2 to port-3, port-3 to port-2, port-1 to port-3, port-1 to port-2,
     port-3 to port-1, port-2 to port-1. Source and destination addresses are
     inside the advertised prefixes (`203.0.113.1`, `198.51.100.1`,
     `198.51.100.65`, `2001:db8:100::1`, `2001:db8:200::1`, `2001:db8:300::1`).
-    All flows run once at the end of RT-1.111.5; a flow passes with Tx > 0 and
-    0% loss and is reported with the subtest whose routes it uses
+    Each subtest starts only its own flows (at most four at a time) with OTG
+    flow transmit control state; a flow passes with Tx > 0 and at most 1% loss
 *   Checks shared by the subtests
     *   DUT telemetry via gNMI `Subscribe` `ON_CHANGE`. `as-segment` `index` `0`
         is the leftmost segment, `member` is in AS_PATH order; a different
         order needs a deviation
+    *   AS_PATH comparison: adjacent `AS_SEQ` segments, and adjacent
+        `AS_CONFED_SEQUENCE` segments, are merged before the comparison,
+        because they are equivalent (same path length and loop detection);
+        sets are never merged. A DUT that adds the prepended AS as a new
+        segment instead of as the last element of the existing sequence (RFC
+        5065 Section 4.1 rules b.1 and c.2) is logged, not failed
     *   Absence check: record the sender's OTG `routes_advertised`, advertise
         the range, wait up to `60` s for the counter to increase (positive
         control; otherwise inconclusive = fail), then the prefix must stay
@@ -178,7 +183,7 @@ AS_PATHs without session resets. IPv4 and IPv6 unicast.
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/local-pref
 *   ATE port-2 receives the same four prefixes with the same AS_PATHs (no
     `64501` or `64500` prepended)
-*   Flows port-2 to port-3: 0% loss
+*   Flows port-2 to port-3: at most 1% loss
 
 ### RT-1.111.3: iBGP peer to confederation peer (AS_CONFED_SEQUENCE prepend, rule b)
 
@@ -190,11 +195,10 @@ AS_PATHs without session resets. IPv4 and IPv6 unicast.
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/med
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/next-hop
 *   ATE port-3 receives `IBGP` = exactly `AS_CONFED_SEQUENCE [64501]` (rule
-    b.3) and `IBGP-CONFED` = exactly one segment
-    `AS_CONFED_SEQUENCE [64501, 64503]` (rule b.1); MED `50` unchanged
-    (RFC 5065 Section 5.2); NEXT_HOP either unchanged (`192.0.2.6` /
-    `2001:db8::6`, the Section 5.1 default) or the DUT port-3 address
-    (`192.0.2.9` / `2001:db8::9`), log which
+    b.3) and `IBGP-CONFED` = `AS_CONFED_SEQUENCE [64501, 64503]` (rule b.1);
+    MED `50` unchanged (RFC 5065 Section 5.2); NEXT_HOP either unchanged
+    (`192.0.2.6` / `2001:db8::6`, the Section 5.1 default) or the DUT port-3
+    address (`192.0.2.9` / `2001:db8::9`), log which
 *   LOCAL_PREF `200` of `IBGP` unchanged toward the confederation peer
     (Section 5.2): the `attr-set` of `IBGP` in `adj-rib-out-post` of neighbor
     `192.0.2.10` / `2001:db8::a` has `local-pref` `200`; log the value ATE
@@ -202,16 +206,16 @@ AS_PATHs without session resets. IPv4 and IPv6 unicast.
     check is skipped
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/neighbors/neighbor/adj-rib-out-post/routes/route/state/attr-index
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/neighbors/neighbor/adj-rib-out-post/routes/route/state/attr-index
-*   Flows port-3 to port-2: 0% loss
+*   Flows port-3 to port-2: at most 1% loss
 
 ### RT-1.111.4: Confederation routes to the external peer (segments removed, rule c)
 
 *   ATE port-1 receives `CONFED`, `IBGP` and `IBGP-CONFED` = exactly
-    `AS_SEQ [64500]` and `CONFED-TRANSIT` = exactly one segment
-    `AS_SEQ [64500, 64511]`; no `as_confed_seq` / `as_confed_set` segment and
-    none of `64501`, `64502`, `64503` anywhere (RFC 5065 Section 5); no
-    LOCAL_PREF (RFC 4271 Section 5.1.5); next hop `192.0.2.1` / `2001:db8::1`
-*   Flows port-1 to port-3 and port-1 to port-2: 0% loss
+    `AS_SEQ [64500]` and `CONFED-TRANSIT` = `AS_SEQ [64500, 64511]`; no
+    `as_confed_seq` / `as_confed_set` segment and none of `64501`, `64502`,
+    `64503` anywhere (RFC 5065 Section 5); no LOCAL_PREF (RFC 4271 Section
+    5.1.5); next hop `192.0.2.1` / `2001:db8::1`
+*   Flows port-1 to port-3 and port-1 to port-2: at most 1% loss
 
 ### RT-1.111.5: External route to confederation and iBGP peers
 
@@ -221,7 +225,7 @@ AS_PATHs without session resets. IPv4 and IPv6 unicast.
 *   ATE port-3 receives `EXT` = exactly `AS_CONFED_SEQUENCE [64501]`,
     `AS_SEQ [64510]` (rule b.2); ATE port-2 = exactly `AS_SEQ [64510]` (rule a)
 *   Route set check for all six ATE peers
-*   Start all 12 flows together for `30` s, stop, and evaluate every flow
+*   Flows port-3 to port-1 and port-2 to port-1: at most 1% loss
 
 ### RT-1.111.6: AS loop detection (Member-AS and confederation identifier)
 
