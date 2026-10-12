@@ -18,9 +18,9 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"fmt"
 	"net"
 	"slices"
+	"strconv"
 	"testing"
 	"time"
 
@@ -73,7 +73,7 @@ func validateSPIFFEAuthOnDUT(t *testing.T, clientCertFile string, rpcSuccess boo
 // - Step 5: Validates that the connection is properly torn down by the DUT following the failed authentication.
 func validateConnectionRejectionAndTeardown(t *testing.T, serverAddr string, port int, tlsConfig *tls.Config) {
 	t.Helper()
-	target := fmt.Sprintf("%s:%d", serverAddr, port)
+	target := net.JoinHostPort(serverAddr, strconv.Itoa(port))
 	// Certz-1.2 Step 4: Validate that the connection to the remote device is established before certificate is rejected
 	rawConn, err := net.DialTimeout("tcp", target, 5*time.Second)
 	if err != nil {
