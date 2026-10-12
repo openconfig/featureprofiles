@@ -699,11 +699,24 @@ func validateTransceiverInventory(t *testing.T, dut *ondatra.DUTDevice, dp *onda
 	// Verify Channels and Physical Channels Mapping
 	channelsMap := make(map[uint16]bool)
 	if comp.GetTransceiver() != nil {
+		batch := gnmi.OCBatch()
+		for chIdx := range comp.GetTransceiver().Channel {
+			batch.AddPaths(gnmi.OC().Component(transceiverName).Transceiver().Channel(chIdx).Index().State().PathStruct())
+		}
+		root, batchOk := gnmi.Lookup(t, dut, batch.State()).Val()
 		for chIdx := range comp.GetTransceiver().Channel {
 			channelsMap[chIdx] = true
 			chIndexQuery := gnmi.OC().Component(transceiverName).Transceiver().Channel(chIdx).Index().State()
 			chIndexPath := getPathStr(chIndexQuery.PathStruct())
-			if idx, ok := gnmi.Lookup(t, dut, chIndexQuery).Val(); ok {
+			var idx uint16
+			var ok bool
+			if batchOk && root.GetComponent(transceiverName) != nil && root.GetComponent(transceiverName).GetTransceiver() != nil {
+				if ch := root.GetComponent(transceiverName).GetTransceiver().GetChannel(chIdx); ch != nil && ch.Index != nil {
+					idx = ch.GetIndex()
+					ok = true
+				}
+			}
+			if ok {
 				tracePath(t, chIndexPath, statusPass, "Channel index: %d", idx)
 			} else {
 				tracePath(t, chIndexPath, statusFail, "Channel index state is not present for channel %d", chIdx)

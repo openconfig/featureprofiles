@@ -518,16 +518,30 @@ func trafficStartStop(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 func getControlPlaneDropCounters(t *testing.T, dut *ondatra.DUTDevice) (uint64, uint64) {
 	t.Helper()
 	ics := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
-	var totalDrops, totalDropBytes uint64
+	if len(ics) == 0 {
+		return 0, 0
+	}
+	batch := gnmi.OCBatch()
 	for _, ic := range ics {
 		cpt := gnmi.OC().Component(ic).IntegratedCircuit().PipelineCounters().ControlPlaneTraffic()
-		if drops, ok := gnmi.Lookup(t, dut, cpt.DroppedAggregate().State()).Val(); ok {
-			t.Logf("IC %s control-plane dropped-aggregate: %d", ic, drops)
-			totalDrops += drops
-		}
-		if dropBytes, ok := gnmi.Lookup(t, dut, cpt.DroppedBytesAggregate().State()).Val(); ok {
-			t.Logf("IC %s control-plane dropped-bytes-aggregate: %d", ic, dropBytes)
-			totalDropBytes += dropBytes
+		batch.AddPaths(cpt.DroppedAggregate(), cpt.DroppedBytesAggregate())
+	}
+	var totalDrops, totalDropBytes uint64
+	if root, ok := gnmi.Lookup(t, dut, batch.State()).Val(); ok {
+		for _, ic := range ics {
+			cpt := root.GetComponent(ic).GetIntegratedCircuit().GetPipelineCounters().GetControlPlaneTraffic()
+			if cpt != nil {
+				if cpt.DroppedAggregate != nil {
+					drops := cpt.GetDroppedAggregate()
+					t.Logf("IC %s control-plane dropped-aggregate: %d", ic, drops)
+					totalDrops += drops
+				}
+				if cpt.DroppedBytesAggregate != nil {
+					dropBytes := cpt.GetDroppedBytesAggregate()
+					t.Logf("IC %s control-plane dropped-bytes-aggregate: %d", ic, dropBytes)
+					totalDropBytes += dropBytes
+				}
+			}
 		}
 	}
 	return totalDrops, totalDropBytes
@@ -540,17 +554,26 @@ func verifyControlPlaneDropCounters(t *testing.T, dut *ondatra.DUTDevice, before
 		t.Errorf("No INTEGRATED_CIRCUIT components found on DUT %v", dut.Name())
 		return
 	}
-	var afterDrops, afterDropBytes uint64
-	var foundDrops, foundDropBytes bool
+	batch := gnmi.OCBatch()
 	for _, ic := range ics {
 		cpt := gnmi.OC().Component(ic).IntegratedCircuit().PipelineCounters().ControlPlaneTraffic()
-		if drops, ok := gnmi.Lookup(t, dut, cpt.DroppedAggregate().State()).Val(); ok {
-			foundDrops = true
-			afterDrops += drops
-		}
-		if dropBytes, ok := gnmi.Lookup(t, dut, cpt.DroppedBytesAggregate().State()).Val(); ok {
-			foundDropBytes = true
-			afterDropBytes += dropBytes
+		batch.AddPaths(cpt.DroppedAggregate(), cpt.DroppedBytesAggregate())
+	}
+	var afterDrops, afterDropBytes uint64
+	var foundDrops, foundDropBytes bool
+	if root, ok := gnmi.Lookup(t, dut, batch.State()).Val(); ok {
+		for _, ic := range ics {
+			cpt := root.GetComponent(ic).GetIntegratedCircuit().GetPipelineCounters().GetControlPlaneTraffic()
+			if cpt != nil {
+				if cpt.DroppedAggregate != nil {
+					foundDrops = true
+					afterDrops += cpt.GetDroppedAggregate()
+				}
+				if cpt.DroppedBytesAggregate != nil {
+					foundDropBytes = true
+					afterDropBytes += cpt.GetDroppedBytesAggregate()
+				}
+			}
 		}
 	}
 	if !foundDrops {

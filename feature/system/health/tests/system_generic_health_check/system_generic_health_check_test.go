@@ -252,8 +252,7 @@ func TestControllerCardsNoHighCPUSpike(t *testing.T) {
 		for _, cpu := range controllerCards {
 			t.Run(cpu, func(t *testing.T) {
 				ts := time.Now().Round(time.Second)
-				ccState := gnmi.Get(t, dut, gnmi.OC().Component(cpu).State())
-				ccType := ccState.GetType()
+				ccType := gnmi.Get(t, dut, gnmi.OC().Component(cpu).Type().State())
 				avg, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(cpu).Cpu().Utilization().Avg().State()).Val()
 				if !ok {
 					t.Errorf("ERROR: %s %s %s Type %-20s - CPU utilization data not available",
@@ -353,15 +352,15 @@ func TestLineCardsNoHighCPUSpike(t *testing.T) {
 		for _, removableLC := range removable {
 			t.Run(removableLC, func(t *testing.T) {
 				timestamp := time.Now().Round(time.Second)
-				removableLCState := gnmi.Get(t, dut, gnmi.OC().Component(removableLC).State())
+				removableLCType := gnmi.Get(t, dut, gnmi.OC().Component(removableLC).Type().State())
 				avg, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(removableLC).Cpu().Utilization().Avg().State()).Val()
 				if !ok {
 					t.Errorf("ERROR: %s %s %s Type %-20s - CPU utilization data not available",
-						timestamp, deviceName, removableLCState.GetType(), removableLC)
+						timestamp, deviceName, removableLCType, removableLC)
 					return
 				}
 				t.Logf("INFO: %s %s Type %-20s %-10s - Utilization: %3d%%",
-					timestamp, deviceName, removableLCState.GetType(), removableLC, avg)
+					timestamp, deviceName, removableLCType, removableLC, avg)
 			})
 		}
 		// prevent missing-CPU association check at the end of test since it's already handled above
