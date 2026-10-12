@@ -2403,3 +2403,32 @@ func AigpMetricIncrement(dut *ondatra.DUTDevice) bool {
 func PowerSupplyTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPowerSupplyTelemetryUnsupported()
 }
+
+// InterfaceLastClearUnsupported returns true if the device does not populate
+// /interfaces/interface/state/counters/last-clear after the interface counters
+// are cleared.
+func InterfaceLastClearUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceLastClearUnsupported()
+}
+
+// DefaultSubinterfaceIPCountersUnsupported returns true if the device does not
+// update subinterface 0 IPv4/IPv6 packet counters during transit traffic.
+func DefaultSubinterfaceIPCountersUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDefaultSubinterfaceIpCountersUnsupported()
+}
+
+// LacpTxErrorsUnsupported returns true if the device does not support
+// /lacp/interfaces/interface/members/member/state/counters/lacp-tx-errors.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/570398368
+func LacpTxErrorsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLacpTxErrorsUnsupported()
+}
+
+// LacpConfigAfterAggregateReplace returns true if the device wipes out LACP
+// interface configuration (such as system-id-mac) when
+// /interfaces/interface/config is replaced, requiring LACP configuration to be
+// re-applied after the aggregate interface is replaced.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/570892225
+func LacpConfigAfterAggregateReplace(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLacpConfigAfterAggregateReplace()
+}
