@@ -260,9 +260,6 @@ paths:
   # paths for ACL action
   /acl/acl-sets/acl-set/acl-entries/acl-entry/actions/config/forwarding-action:
 
-  # paths for ACL action
-  /acl/acl-sets/acl-set/acl-entries/acl-entry/actions/config/forwarding-action:
-
   # telemetry paths for ACL counters
   /acl/acl-sets/acl-set/acl-entries/acl-entry/state/matched-octets:
   /acl/acl-sets/acl-set/acl-entries/acl-entry/state/matched-packets:
