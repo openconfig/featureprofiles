@@ -498,6 +498,40 @@ func (tc *testCase) verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	nv6 := gnmi.Get(t, dut, statePath.Neighbor(ateDst.IPv6).State())
 	verifyPrefixLimitTelemetry(t, dut, nv6, tc.wantEstablished)
+
+	if tc.wantEstablished {
+		for _, dstNbr := range []string{ateDst.IPv4, ateDst.IPv6} {
+			if got := gnmi.Get(t, dut, statePath.Neighbor(dstNbr).Messages().Received().UPDATE().State()); got == 0 {
+				t.Errorf("BGP neighbor %s state/messages/received/UPDATE: got 0, want > 0", dstNbr)
+			}
+		}
+		for _, srcNbr := range []string{ateSrc.IPv4, ateSrc.IPv6} {
+			if got := gnmi.Get(t, dut, statePath.Neighbor(srcNbr).Messages().Sent().UPDATE().State()); got == 0 {
+				t.Errorf("BGP neighbor %s state/messages/sent/UPDATE: got 0, want > 0", srcNbr)
+			}
+		}
+	} else {
+		for _, dstNbr := range []string{ateDst.IPv4, ateDst.IPv6} {
+			sentVal, ok := gnmi.Watch(t, dut, statePath.Neighbor(dstNbr).Messages().Sent().State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Protocol_Bgp_Neighbor_Messages_Sent]) bool {
+				sent, present := val.Val()
+				return present && sent.GetLastNotificationErrorCode() == oc.BgpTypes_BGP_ERROR_CODE_CEASE
+			}).Await(t)
+			if !ok {
+				t.Errorf("BGP neighbor %s state/messages/sent/last-notification-error-code: did not become %v", dstNbr, oc.BgpTypes_BGP_ERROR_CODE_CEASE)
+				continue
+			}
+			sentMsg, _ := sentVal.Val()
+			if got := sentMsg.GetNOTIFICATION(); got == 0 {
+				t.Errorf("BGP neighbor %s state/messages/sent/NOTIFICATION: got 0, want > 0", dstNbr)
+			}
+			if got := sentMsg.GetLastNotificationErrorSubcode(); got != oc.BgpTypes_BGP_ERROR_SUBCODE_MAX_NUM_PREFIXES_REACHED {
+				t.Errorf("BGP neighbor %s state/messages/sent/last-notification-error-subcode: got %v, want %v", dstNbr, got, oc.BgpTypes_BGP_ERROR_SUBCODE_MAX_NUM_PREFIXES_REACHED)
+			}
+			if got := sentMsg.GetLastNotificationTime(); got == 0 {
+				t.Errorf("BGP neighbor %s state/messages/sent/last-notification-time: got 0, want non-zero timestamp", dstNbr)
+			}
+		}
+	}
 }
 
 func (tc *testCase) verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, conf gosnappi.Config, tolerance float32, flowNames []string) {
