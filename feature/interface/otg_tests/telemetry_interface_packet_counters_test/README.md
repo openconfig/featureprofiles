@@ -33,7 +33,7 @@ following features:
 *   Validate if counters are being updated consistently
 
     Check the presence of packet counter paths and monitor counters every
-    30 seconds. Generate traffic to get atleast 10 or more samples.
+    30 seconds. Generate traffic to get at least 10 or more samples.
 
     *   /interfaces/interface[name='port']/state/counters/in-pkts
     *   /interfaces/interface[name='port']/state/counters/out-pkts
@@ -89,7 +89,7 @@ counters (`out-pkts`) and forwarded octet counters (`out-forwarded-octets`),
 along with their ingress counterparts (`in-pkts` and `in-forwarded-octets`),
 are actively streamed and monotonically incremented without stale values across
 periodic `gNMI.Subscribe` (`SAMPLE` mode) notifications when forwarding
-dual-stack traffic (including IPv4 / B4 IPv4-encapsulated egress packets and
+dual-stack traffic (including native IPv4 egress packets and
 their IPv6 counterparts) across the DUT.
 
 #### Topology
@@ -186,8 +186,8 @@ their IPv6 counterparts) across the DUT.
 *   Start two continuous, constant-rate unicast traffic flows from `ATE port 1`
     to `ATE port 2` routed across the DUT:
     *   **IPv4 Flow (`IPv4_test_flow`)**: Source IPv4 `198.51.100.1`,
-        destination IPv4 `198.51.100.3` (representing IPv4 / B4
-        IPv4-encapsulated egress packets), fixed frame size `100` bytes,
+        destination IPv4 `198.51.100.3` (representing native IPv4
+        egress packets), fixed frame size `100` bytes,
         constant rate `15` pps.
     *   **IPv6 Flow (`IPv6_test_flow`)**: Source IPv6 `2001:db8::2`,
         destination IPv6 `2001:db8::6`, fixed frame size `100` bytes, constant
