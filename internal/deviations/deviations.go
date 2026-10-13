@@ -1592,6 +1592,13 @@ func SflowIngressMinSamplingRate(dut *ondatra.DUTDevice) uint32 {
 	return lookupDUTDeviations(dut).GetSflowIngressMinSamplingRate()
 }
 
+// SflowEgressSamplingRateUnsupported returns true if the device does not support
+// configuring the sFlow egress sampling rate through OpenConfig.
+// Arista EOS: b/562517133.
+func SflowEgressSamplingRateUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSflowEgressSamplingRateUnsupported()
+}
+
 // QosRemarkOCUnsupported returns true if Qos remark parameters are unsupported
 func QosRemarkOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosRemarkOcUnsupported()
@@ -2395,6 +2402,35 @@ func AigpMetricIncrement(dut *ondatra.DUTDevice) bool {
 // Cisco: https://b.corp.google.com/issues/307454993
 func PowerSupplyTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPowerSupplyTelemetryUnsupported()
+}
+
+// InterfaceLastClearUnsupported returns true if the device does not populate
+// /interfaces/interface/state/counters/last-clear after the interface counters
+// are cleared.
+func InterfaceLastClearUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceLastClearUnsupported()
+}
+
+// DefaultSubinterfaceIPCountersUnsupported returns true if the device does not
+// update subinterface 0 IPv4/IPv6 packet counters during transit traffic.
+func DefaultSubinterfaceIPCountersUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDefaultSubinterfaceIpCountersUnsupported()
+}
+
+// LacpTxErrorsUnsupported returns true if the device does not support
+// /lacp/interfaces/interface/members/member/state/counters/lacp-tx-errors.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/570398368
+func LacpTxErrorsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLacpTxErrorsUnsupported()
+}
+
+// LacpConfigAfterAggregateReplace returns true if the device wipes out LACP
+// interface configuration (such as system-id-mac) when
+// /interfaces/interface/config is replaced, requiring LACP configuration to be
+// re-applied after the aggregate interface is replaced.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/570892225
+func LacpConfigAfterAggregateReplace(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLacpConfigAfterAggregateReplace()
 }
 
 // VendorPreConfigRequired reports whether the device requires vendor-specific
