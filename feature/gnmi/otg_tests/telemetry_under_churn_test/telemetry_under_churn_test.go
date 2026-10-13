@@ -77,10 +77,9 @@ const (
 	cadenceTolerance  = 2500 * time.Millisecond
 	deliveryTolerance = 3 * time.Second
 	churnDuration     = 2 * time.Minute
-	// Idle counters keep their last-change timestamp, so wait for traffic to
-	// move them before the cadence window starts.
-	trafficWarmup     = 2 * sampleInterval
-	counterSettleTime = 2*sampleInterval + 5*time.Second
+	// Upper bounds only; the waits return as soon as the streamed samples show the condition.
+	warmupTimeout = 4 * sampleInterval
+	settleTimeout = 4 * sampleInterval
 
 	trafficPPS          = 5000
 	frameSize           = 512
@@ -273,9 +272,9 @@ func testBaselineTelemetryUnderChurn(t *testing.T, dut *ondatra.DUTDevice, ate *
 	leaves := []counterLeaf{ingress[0], egress[0]}
 	base := snapshotCounters(t, counterMon, leaves)
 	aftNotifsBefore := aftMon.notifications()
+	trafficStart := time.Now()
 	ate.OTG().StartTraffic(t)
-	t.Logf("Waiting %v for traffic to settle before churn.", trafficWarmup)
-	time.Sleep(trafficWarmup)
+	awaitTrafficInCounters(t, counterMon, leaves, trafficStart)
 
 	t.Logf("Step 8 - Continuous gRIBI churn for %v.", churnDuration)
 	churnStart := time.Now()
@@ -285,8 +284,7 @@ func testBaselineTelemetryUnderChurn(t *testing.T, dut *ondatra.DUTDevice, ate *
 
 	ate.OTG().StopTraffic(t)
 	trafficStop := time.Now()
-	t.Logf("Waiting %v for final counter samples.", counterSettleTime)
-	time.Sleep(counterSettleTime)
+	awaitCountersSettled(t, counterMon, leaves, trafficStop)
 
 	t.Log("Step 9 - Validate telemetry and traffic.")
 	validateSubscriptionStability(t, counterMon, aftMon, aftNotifsBefore)
@@ -368,9 +366,9 @@ func testScaledTelemetryUnderChurn(t *testing.T, dut *ondatra.DUTDevice, ate *on
 	leaves := []counterLeaf{ingress[0], egress[0], egress[1], egress[2]}
 	base := snapshotCounters(t, counterMon, leaves)
 	aftNotifsBefore := aftMon.notifications()
+	trafficStart := time.Now()
 	ate.OTG().StartTraffic(t)
-	t.Logf("Waiting %v for traffic to settle before churn.", trafficWarmup)
-	time.Sleep(trafficWarmup)
+	awaitTrafficInCounters(t, counterMon, leaves, trafficStart)
 
 	t.Logf("Step 8 - High-rate gRIBI ECMP churn for %v.", churnDuration)
 	churnStart := time.Now()
@@ -380,8 +378,7 @@ func testScaledTelemetryUnderChurn(t *testing.T, dut *ondatra.DUTDevice, ate *on
 
 	ate.OTG().StopTraffic(t)
 	trafficStop := time.Now()
-	t.Logf("Waiting %v for final counter samples.", counterSettleTime)
-	time.Sleep(counterSettleTime)
+	awaitCountersSettled(t, counterMon, leaves, trafficStop)
 
 	t.Log("Step 9 - Validate telemetry and traffic.")
 	validateSubscriptionStability(t, counterMon, aftMon, aftNotifsBefore)
@@ -404,7 +401,8 @@ func testGRIBIDisconnect(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATED
 
 	ingress := []counterLeaf{{p1.Name(), inUnicastLeaf}}
 	egress := []counterLeaf{{p2.Name(), outUnicastLeaf}, {p3.Name(), outUnicastLeaf}, {p4.Name(), outUnicastLeaf}}
-	base := snapshotCounters(t, counterMon, []counterLeaf{ingress[0], egress[0], egress[1], egress[2]})
+	pkts := []counterLeaf{ingress[0], egress[0], egress[1], egress[2]}
+	base := snapshotCounters(t, counterMon, pkts)
 	streamed := []counterLeaf{
 		{p1.Name(), inUnicastLeaf}, {p1.Name(), inOctetsLeaf},
 		{p2.Name(), outUnicastLeaf}, {p2.Name(), outOctetsLeaf},
@@ -413,9 +411,9 @@ func testGRIBIDisconnect(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATED
 	}
 
 	t.Logf("Step 1 - Run scaled traffic and gRIBI churn for %v, then drop the gRIBI session.", preDropChurn)
+	trafficStart := time.Now()
 	ate.OTG().StartTraffic(t)
-	t.Logf("Waiting %v for traffic to settle before churn.", trafficWarmup)
-	time.Sleep(trafficWarmup)
+	awaitTrafficInCounters(t, counterMon, streamed, trafficStart)
 	gc.churn(t, preDropChurn)
 	gc.verifyNoFailures(t)
 	gc.dropMidBatch(t)
@@ -427,8 +425,7 @@ func testGRIBIDisconnect(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATED
 	time.Sleep(observeDuration)
 	ate.OTG().StopTraffic(t)
 	trafficStop := time.Now()
-	t.Logf("Waiting %v for final counter samples.", counterSettleTime)
-	time.Sleep(counterSettleTime)
+	awaitCountersSettled(t, counterMon, pkts, trafficStop)
 
 	t.Log("Step 3 - Validate telemetry stability across the gRIBI session drop.")
 	validateTelemetryIsolation(t, counterMon, aftMon)
@@ -1307,6 +1304,61 @@ func (m *subscriptionMonitor) awaitSync(timeout time.Duration) bool {
 		}
 	}
 	return false
+}
+
+// waitForSamples blocks until pred holds for the samples of every leaf, or timeout.
+func (m *subscriptionMonitor) waitForSamples(leaves []counterLeaf, timeout time.Duration, pred func([]leafSample) bool) bool {
+	for deadline := time.Now().Add(timeout); time.Now().Before(deadline); time.Sleep(time.Second) {
+		ok := true
+		for _, l := range leaves {
+			if !pred(m.samplesFor(l.intf, l.leaf)) {
+				ok = false
+				break
+			}
+		}
+		if ok {
+			return true
+		}
+	}
+	return false
+}
+
+// movingSince reports whether the latest sample, received after t0, shows the counter increasing.
+func movingSince(t0 time.Time) func([]leafSample) bool {
+	return func(s []leafSample) bool {
+		n := len(s)
+		return n >= 2 && s[n-1].received.After(t0) && s[n-1].value > s[n-2].value
+	}
+}
+
+// stoppedSince reports whether the latest sample, received after t0, shows the counter no longer changing.
+func stoppedSince(t0 time.Time) func([]leafSample) bool {
+	return func(s []leafSample) bool {
+		n := len(s)
+		return n >= 2 && s[n-1].received.After(t0) && s[n-1].value == s[n-2].value
+	}
+}
+
+// awaitTrafficInCounters waits until every leaf streams a sample with fresh,
+// traffic-driven values; idle counters carry their last-change timestamp.
+func awaitTrafficInCounters(t *testing.T, mon *subscriptionMonitor, leaves []counterLeaf, since time.Time) {
+	t.Helper()
+	t.Log("Waiting for traffic to show in the streamed counters.")
+	if !mon.waitForSamples(leaves, warmupTimeout, movingSince(since)) {
+		t.Fatalf("Traffic not reflected in streamed counters within %v", warmupTimeout)
+	}
+	t.Logf("Traffic visible in streamed counters after %v.", time.Since(since).Round(time.Second))
+}
+
+// awaitCountersSettled waits until every leaf streams its final value after traffic stopped.
+func awaitCountersSettled(t *testing.T, mon *subscriptionMonitor, leaves []counterLeaf, since time.Time) {
+	t.Helper()
+	t.Log("Waiting for streamed counters to settle after traffic stopped.")
+	if !mon.waitForSamples(leaves, settleTimeout, stoppedSince(since)) {
+		t.Errorf("Streamed counters did not settle within %v after traffic stopped", settleTimeout)
+		return
+	}
+	t.Logf("Streamed counters settled %v after traffic stopped.", time.Since(since).Round(time.Second))
 }
 
 func (m *subscriptionMonitor) syncs() int {
