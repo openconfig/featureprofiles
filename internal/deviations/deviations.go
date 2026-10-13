@@ -2399,6 +2399,7 @@ func PowerSupplyTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
 
 // VendorPreConfigRequired reports whether the device requires vendor-specific
 // configuration before the test configuration.
+// Arista: https://issuetracker.google.com/558948674
 func VendorPreConfigRequired(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetVendorPreConfigRequired()
 }
