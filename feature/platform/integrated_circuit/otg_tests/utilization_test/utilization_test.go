@@ -22,6 +22,7 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -51,6 +52,12 @@ var (
 		ondatra.ARISTA: "Routing/Resource6",
 		ondatra.NOKIA:  "ip-lpm-routes",
 		ondatra.CISCO:  "central_em_0",
+	}
+	chassisFIBResources = []string{
+		"Routing/Resource1", "Routing/Resource2", "Routing/Resource3",
+		"Routing/Resource4", "Routing/Resource5", "Routing/Resource6",
+		"Routing2/Resource1", "Routing2/Resource2", "Routing2/Resource3",
+		"Routing2/Resource4", "Routing2/Resource5", "Routing2/Resource6",
 	}
 	dutPort1 = attrs.Attributes{
 		Desc:    "dutPort1",
@@ -149,7 +156,12 @@ func TestResourceUtilization(t *testing.T) {
 		UsedThresholdUpper:      ygot.Uint8(usedThresholdUpper),
 		UsedThresholdUpperClear: ygot.Uint8(usedThresholdUpperClear),
 	})
-	comps := components.FindActiveComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
+	var comps []string
+	if deviations.UseChassisAggregateUtilization(dut) {
+		comps = []string{"Chassis"}
+	} else {
+		comps = components.FindActiveComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
+	}
 	beforeUtzs := componentUtilizations(t, dut, comps)
 	if len(beforeUtzs) != len(comps) {
 		t.Fatalf("Couldn't retrieve Utilization information for all Active Components")
@@ -221,6 +233,10 @@ func TestResourceUtilization(t *testing.T) {
 // awaitUtilization polls the utilization resource until the predicate function returns true
 // or the timeout expires. Returns the final utilization snapshot, or nil if timed out.
 func awaitUtilization(t *testing.T, dut *ondatra.DUTDevice, c string, predicate func(uint8) bool) *utilization {
+	if deviations.UseChassisAggregateUtilization(dut) {
+		return awaitChassisUtilization(t, dut, predicate)
+	}
+
 	resName := fibResource[dut.Vendor()]
 	if deviations.MismatchedHardwareResourceNameInComponent(dut) {
 		resName += "/-"
@@ -272,13 +288,63 @@ func awaitUtilization(t *testing.T, dut *ondatra.DUTDevice, c string, predicate 
 	}
 }
 
+func chassisAggregateUtilization(t *testing.T, dut *ondatra.DUTDevice) *utilization {
+	t.Helper()
+	var totalUsed, totalFree uint64
+	var found bool
+	for _, resName := range chassisFIBResources {
+		val, present := gnmi.Lookup(t, dut, gnmi.OC().Component("Chassis").Chassis().Utilization().Resource(resName).State()).Val()
+		if !present {
+			continue
+		}
+		found = true
+		t.Logf("Chassis resource %s: used=%d, free=%d", resName, val.GetUsed(), val.GetFree())
+		totalUsed += val.GetUsed()
+		totalFree += val.GetFree()
+	}
+	if !found {
+		t.Fatalf("No chassis FIB resources found on the device")
+	}
+	return &utilization{used: totalUsed, free: totalFree}
+}
+
+func awaitChassisUtilization(t *testing.T, dut *ondatra.DUTDevice, predicate func(uint8) bool) *utilization {
+	t.Helper()
+	deadline := time.After(2 * time.Minute)
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
+	var last *utilization
+	for {
+		u := chassisAggregateUtilization(t, dut)
+		last = u
+		if predicate(u.percent()) {
+			return u
+		}
+		select {
+		case <-deadline:
+			t.Logf("Timed out waiting for chassis utilization change, last used: %d", last.used)
+			return nil
+		case <-ticker.C:
+		}
+	}
+}
+
 func componentUtilizations(t *testing.T, dut *ondatra.DUTDevice, comps []string) map[string]*utilization {
 	t.Helper()
+	utzs := map[string]*utilization{}
+
+	if deviations.UseChassisAggregateUtilization(dut) {
+		for _, c := range comps {
+			utzs[c] = chassisAggregateUtilization(t, dut)
+		}
+		return utzs
+	}
+
 	resName := fibResource[dut.Vendor()]
 	if deviations.MismatchedHardwareResourceNameInComponent(dut) {
 		resName += "/-"
 	}
-	utzs := map[string]*utilization{}
 	for _, c := range comps {
 		comp := gnmi.Get(t, dut, gnmi.OC().Component(c).State())
 		res := comp.GetIntegratedCircuit().GetUtilization().GetResource(resName)
@@ -380,6 +446,9 @@ func configureBGPDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	af6 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 	af6.Enabled = ygot.Bool(true)
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), niProto)
+	if deviations.BGPMissingOCMaxPrefixesConfiguration(dut) {
+		cfgplugins.DeviationAristaBGPNeighborMaxPrefixes(t, dut, atePort1.IPv6, 0)
+	}
 }
 
 func configureOTG(t *testing.T, otg *otg.OTG) (gosnappi.BgpV6Peer, gosnappi.DeviceIpv6, gosnappi.Config) {

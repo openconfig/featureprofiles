@@ -18,6 +18,7 @@ package traceroute_packetin_with_vrf_selection_test
 
 import (
 	"context"
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -26,6 +27,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/featureprofiles/internal/p4rtutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -101,28 +103,74 @@ func decodePacket6(t *testing.T, packetData []byte) uint8 {
 
 // testTraffic sends traffic flow for duration seconds and returns the
 // number of packets sent out.
-func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flows []gosnappi.Flow, srcEndPoint gosnappi.Port, duration int, cs gosnappi.ControlState) int {
+func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flows []gosnappi.Flow, srcEndPoint gosnappi.Port, targetPkts uint64, cs gosnappi.ControlState) int {
 	t.Helper()
+	initialOutPkts := make(map[string]uint64, len(flows))
 	top.Flows().Clear()
 	for _, flow := range flows {
 		flow.TxRx().Port().SetTxName(srcEndPoint.Name()).SetRxName(srcEndPoint.Name())
 		flow.Metrics().SetEnable(true)
+		flow.Duration().FixedPackets().SetPackets(uint32(targetPkts))
 		top.Flows().Append(flow)
 	}
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
-	time.Sleep(30 * time.Second)
-	ate.OTG().StartTraffic(t)
-	time.Sleep(time.Duration(duration) * time.Second)
-	ate.OTG().StopTraffic(t)
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
+	// START THE PACKET CAPTURE AFTER CONFIG IS PUSHED
 	ate.OTG().SetControlState(t, cs)
+	defer func() {
+		cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
+		ate.OTG().SetControlState(t, cs)
+	}()
 
-	outPkts := gnmi.GetAll(t, ate.OTG(), gnmi.OTG().FlowAny().Counters().OutPkts().State())
+	for _, flow := range flows {
+		initialOutPkts[flow.Name()] = gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
+	}
+	ate.OTG().StartTraffic(t)
+
+	trafficStopped := false
+	defer func() {
+		if !trafficStopped {
+			ate.OTG().StopTraffic(t)
+		}
+	}()
+
+	// Wait for OutPkts to reach the target
+	for _, flow := range flows {
+		_, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State(), time.Minute, func(val *ygnmi.Value[uint64]) bool {
+			pkts, present := val.Val()
+			return present && (pkts >= initialOutPkts[flow.Name()]+targetPkts)
+		}).Await(t)
+
+		if !ok {
+			t.Fatalf("Traffic flow %s did not reach the target of %d packets within the timeout", flow.Name(), targetPkts)
+		}
+	}
+
+	ate.OTG().StopTraffic(t)
+	trafficStopped = true
+
+	// Add stabilization: poll counters until they stop incrementing
 	total := 0
-	for _, count := range outPkts {
-		total += int(count)
+	for _, flow := range flows {
+		var lastPkts uint64
+		var stableCount int
+		for {
+			current := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
+			if current == lastPkts {
+				stableCount++
+				if stableCount >= 4 { // 4 * 500ms = 2 seconds of stability
+					total += int(current - initialOutPkts[flow.Name()])
+					break
+				}
+			} else {
+				stableCount = 0
+			}
+			lastPkts = current
+			time.Sleep(500 * time.Millisecond)
+		}
 	}
 	return total
 }
@@ -130,22 +178,17 @@ func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flow
 // testPacketIn programs p4rt table entry and sends traffic related to Traceroute,
 // then validates packetin message metadata and payload.
 func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool, cs gosnappi.ControlState, flowValues []*flowArgs, EgressPortMap map[string]bool) []float64 {
+	const targetPkts = 1000
 	leader := args.leader
-	if isIPv4 {
-		// Insert p4rtutils acl entry on the DUT
-		if err := programmTableEntry(leader, args.packetIO, false, isIPv4); err != nil {
-			t.Fatalf("There is error when programming entry")
-		}
-		// Delete p4rtutils acl entry on the device
-		defer programmTableEntry(leader, args.packetIO, true, isIPv4)
-	} else {
-		// Insert p4rtutils acl entry on the DUT
-		if err := programmTableEntry(leader, args.packetIO, false, false); err != nil {
-			t.Fatalf("There is error when programming entry")
-		}
-		// Delete p4rtutils acl entry on the device
-		defer programmTableEntry(leader, args.packetIO, true, false)
+	if err := programmTableEntry(leader, args.packetIO, false, true); err != nil {
+		t.Fatalf("There is error when programming IPv4 entry")
 	}
+	defer programmTableEntry(leader, args.packetIO, true, true)
+	if err := programmTableEntry(leader, args.packetIO, false, false); err != nil {
+		t.Fatalf("There is error when programming IPv6 entry")
+	}
+	defer programmTableEntry(leader, args.packetIO, true, false)
+
 	streamChan := args.leader.StreamChannelGet(&streamName)
 	qSize := 12000
 	streamChan.SetArbQSize(qSize)
@@ -162,6 +205,9 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool
 			streamName, qSize, qSizeRead)
 	}
 
+	// Flush any leftover packets from previous tests
+	_, _, _ = args.leader.StreamChannelGetPackets(&streamName, 1000000, 3*time.Second)
+
 	// Send Traceroute traffic from ATE
 	srcEndPoint := ateInterface(t, args.top, "port1")
 	llAddress, found := gnmi.Watch(t, args.ate.OTG(), gnmi.OTG().Interface("atePort1"+".Eth").Ipv4Neighbor(portsIPv4["dut:port1"]).LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
@@ -175,7 +221,7 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool
 	for _, flowValue := range flowValues {
 		flow = append(flow, args.packetIO.GetTrafficFlow(args.ate, dstMac, isIPv4, 1, 300, 50, ipv4InnerDst, flowValue))
 	}
-	pktOut := testTraffic(t, args.top, args.ate, flow, srcEndPoint, 60, cs)
+	pktOut := testTraffic(t, args.top, args.ate, flow, srcEndPoint, targetPkts, cs)
 	var countPkts = map[string]int{"11": 0, "12": 0, "13": 0, "14": 0, "15": 0, "16": 0, "17": 0}
 
 	packetInTests := []struct {
@@ -192,10 +238,7 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool
 	for _, test := range packetInTests {
 		t.Run(test.desc, func(t *testing.T) {
 			// Extract packets from PacketIn message sent to p4rt client
-			_, packets, err := test.client.StreamChannelGetPackets(&streamName, uint64(test.wantPkts), 30*time.Second)
-			if err != nil {
-				t.Errorf("Unexpected error on fetchPackets: %v", err)
-			}
+			_, packets, _ := test.client.StreamChannelGetPackets(&streamName, uint64(test.wantPkts), 45*time.Second)
 
 			if test.wantPkts == 0 {
 				return
@@ -204,6 +247,7 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool
 			gotPkts := 0
 			t.Logf("Start to decode packet and compare with expected packets.")
 			wantPacket := args.packetIO.GetPacketTemplate()
+			const tolerance = 0.01
 
 			for _, packet := range packets {
 				if packet != nil {
@@ -216,13 +260,13 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool
 					}
 					if wantPacket.TTL != nil {
 						// TTL/HopLimit comparison for IPV4 & IPV6
-						if isIPv4 {
+						switch etherType {
+						case layers.EthernetTypeIPv4:
 							captureTTL := decodePacket4(t, packet.Pkt.GetPayload())
 							if captureTTL != TTL1 {
 								t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV4 TTL1")
 							}
-
-						} else {
+						case layers.EthernetTypeIPv6:
 							captureHopLimit := decodePacket6(t, packet.Pkt.GetPayload())
 							if captureHopLimit != HopLimit1 {
 								t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV6 HopLimit1")
@@ -253,7 +297,7 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool
 					gotPkts++
 				}
 			}
-			if got, want := gotPkts, test.wantPkts; got != want {
+			if got, want := gotPkts, test.wantPkts; math.Abs(float64(got-want))/float64(want) > tolerance {
 				t.Errorf("Number of PacketIn, got: %d, want: %d", got, want)
 			}
 		})

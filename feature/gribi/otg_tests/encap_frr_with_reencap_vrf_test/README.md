@@ -465,8 +465,9 @@ traffic is re-encaped into the specified backup tunnels. This test ensures that
 the device does not withdraw this IPv4Entry and sends this traffic to routing.
 
 1.  Shutdown DUT port-2, port-3, port-4 and port-6.
-2.  Validate that traffic is encapsulated to 203.0.113.100 and 203.0.113.101 per
-    the weights.
+2.  Validate that traffic is encapsulated to 203.0.113.100, 203.0.113.101, and
+    203.0.113.102 per the weights, with 203.0.113.101 and 203.0.113.102 both
+    valid for the TE_VRF_222 backup path.
 
 #### Test-5, primary and backup encap unviable for all tunnels
 

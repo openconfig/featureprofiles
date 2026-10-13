@@ -175,6 +175,40 @@ func (d *staticDUT) reset(ctx context.Context) error {
 	return resetGRIBI(ctx, d)
 }
 
+func (d *staticDUT) PushConfig(ctx context.Context, config string, reset bool) error {
+	if reset {
+		if err := resetGNMI(ctx, d); err != nil {
+			return err
+		}
+	}
+	if config == "" {
+		return nil
+	}
+
+	setRequest := &gpb.SetRequest{Update: []*gpb.Update{
+		{
+			Path: &gpb.Path{
+				Origin: "cli",
+			},
+			Val: &gpb.TypedValue{
+				Value: &gpb.TypedValue_AsciiVal{
+					AsciiVal: config,
+				},
+			},
+		},
+	}}
+
+	gnmiClient, err := d.DialGNMI(ctx)
+	if err != nil {
+		return err
+	}
+	if _, err := gnmiClient.Set(ctx, setRequest); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (d *staticDUT) DialGNMI(ctx context.Context, opts ...grpc.DialOption) (gpb.GNMIClient, error) {
 	conn, err := dialConn(ctx, d, introspect.GNMI, opts)
 	if err != nil {
@@ -230,7 +264,29 @@ func (d *staticDUT) DialGRPCWithPort(ctx context.Context, port int, opts ...grpc
 			return nil // No service-specific options for a generic call.
 		},
 	}
-	bopts := d.r.grpc(d.dev, params)
+	raw := d.r.grpc(d.dev, params)
+	// Strip per-RPC credentials: DialGRPCWithPort is for arbitrary services
+	// such as containers, which do not use DUT-level authentication. Keeping
+	// username/password from the device config causes gRPC's
+	// errCredentialsConflict when the caller requests insecure transport
+	// (RequireTransportSecurity=true vs insecure transport credentials).
+	//
+	// Default to insecure transport when the device config specifies no
+	// transport credentials (Insecure/SkipVerify/MutualTls all false). gRPC
+	// requires an explicit transport choice; the caller can override with
+	// their own grpc.WithTransportCredentials opt if the container uses TLS.
+	noTransportCreds := !raw.Insecure && !raw.SkipVerify && !raw.MutualTls
+	bopts := &bindpb.Options{
+		Insecure:        raw.Insecure || noTransportCreds,
+		SkipVerify:      raw.SkipVerify,
+		MutualTls:       raw.MutualTls,
+		CertFile:        raw.CertFile,
+		KeyFile:         raw.KeyFile,
+		TrustBundleFile: raw.TrustBundleFile,
+		MaxRecvMsgSize:  raw.MaxRecvMsgSize,
+		Timeout:         raw.Timeout,
+		Target:          raw.Target,
+	}
 	dialer, err := makeDialer(params, bopts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create gRPC dialer: %w", err)

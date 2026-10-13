@@ -326,6 +326,8 @@ paths:
 
     # telemetry
     /interfaces/interface/state/counters/out-unicast-pkts:
+    /network-instances/network-instance/afts/next-hops/next-hop/state/counters/packets-forwarded:
+    /network-instances/network-instance/afts/next-hops/next-hop/state/counters/octets-forwarded:
 
 
 rpcs:
