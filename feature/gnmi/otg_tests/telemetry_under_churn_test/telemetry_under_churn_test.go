@@ -91,6 +91,8 @@ const (
 
 	inUnicastLeaf  = "in-unicast-pkts"
 	outUnicastLeaf = "out-unicast-pkts"
+	inOctetsLeaf   = "in-octets"
+	outOctetsLeaf  = "out-octets"
 
 	operStatusTimeout = 2 * time.Minute
 	bgpTimeout        = 3 * time.Minute
@@ -120,6 +122,12 @@ const (
 	churnBatchSize     = 1000
 	targetChurnRate    = 1000
 	scaledGRIBITimeout = 5 * time.Minute
+)
+
+// gNMI-1.30.3 gRIBI session drop parameters.
+const (
+	preDropChurn    = time.Minute
+	observeDuration = time.Minute
 )
 
 var (
@@ -214,6 +222,9 @@ func TestTelemetryUnderChurn(t *testing.T) {
 	t.Run("gNMI-1.30.2 Scaled gNMI Telemetry under High gRIBI Churn (4 Links)", func(t *testing.T) {
 		testScaledTelemetryUnderChurn(t, dut, ate)
 	})
+	t.Run("gNMI-1.30.3 Telemetry Stability during gRIBI Session Disconnect", func(t *testing.T) {
+		testGRIBIDisconnect(t, dut, ate)
+	})
 }
 
 func testBaselineTelemetryUnderChurn(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
@@ -284,8 +295,17 @@ func testBaselineTelemetryUnderChurn(t *testing.T, dut *ondatra.DUTDevice, ate *
 	validateDataAccuracy(t, counterMon, base, ingress, egress, totalTx, totalRx, trafficStop)
 }
 
-// testScaledTelemetryUnderChurn implements gNMI-1.30.2.
-func testScaledTelemetryUnderChurn(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
+// scaledEnv is the gNMI-1.30.2 topology after Steps 1-6, shared with gNMI-1.30.3.
+type scaledEnv struct {
+	top        gosnappi.Config
+	counterMon *subscriptionMonitor
+	aftMon     *subscriptionMonitor
+	gc         *ecmpChurner
+}
+
+// setupScaled runs gNMI-1.30.2 Steps 1-6; teardown is registered on t.
+func setupScaled(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) *scaledEnv {
+	t.Helper()
 	ctx := context.Background()
 	ni := deviations.DefaultNetworkInstance(dut)
 	p1 := dut.Port(t, "port1")
@@ -300,7 +320,7 @@ func testScaledTelemetryUnderChurn(t *testing.T, dut *ondatra.DUTDevice, ate *on
 	top := configureATEScaled(t, ate)
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
-	defer ate.OTG().StopProtocols(t)
+	t.Cleanup(func() { ate.OTG().StopProtocols(t) })
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 
@@ -312,9 +332,9 @@ func testScaledTelemetryUnderChurn(t *testing.T, dut *ondatra.DUTDevice, ate *on
 
 	t.Logf("Step 4 - Establish SAMPLE subscriptions (%v) for interface counters and AFTs.", sampleInterval)
 	counterMon := startMonitor(t, dut, "interface-counters", counterSubscriptions(p1.Name(), p2.Name(), p3.Name(), p4.Name()))
-	defer counterMon.stop()
+	t.Cleanup(counterMon.stop)
 	aftMon := startMonitor(t, dut, "afts", aftSubscriptions(ni))
-	defer aftMon.stop()
+	t.Cleanup(aftMon.stop)
 	for _, m := range []*subscriptionMonitor{counterMon, aftMon} {
 		if !m.awaitSync(syncTimeout) {
 			t.Fatalf("%s subscription did not receive sync_response within %v: %v", m.name, syncTimeout, m.err())
@@ -323,11 +343,24 @@ func testScaledTelemetryUnderChurn(t *testing.T, dut *ondatra.DUTDevice, ate *on
 
 	t.Logf("Step 5 - Program %d IPv4 and %d IPv6 routes via gRIBI with ECMP across port2, port3 and port4.", scaledRouteCount, scaledRouteCount)
 	gc := newECMPChurner(ctx, t, dut)
-	defer gc.close(t)
+	t.Cleanup(func() { gc.close(t) })
 	gc.programBaseline(t)
 
 	t.Log("Step 6 - Wait for the scaled prefixes to be present in the AFT.")
 	awaitAFTPrefixes(t, dut, ni, gc.v4Prefixes, gc.v6Prefixes)
+
+	return &scaledEnv{top: top, counterMon: counterMon, aftMon: aftMon, gc: gc}
+}
+
+// testScaledTelemetryUnderChurn implements gNMI-1.30.2.
+func testScaledTelemetryUnderChurn(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
+	p1 := dut.Port(t, "port1")
+	p2 := dut.Port(t, "port2")
+	p3 := dut.Port(t, "port3")
+	p4 := dut.Port(t, "port4")
+
+	env := setupScaled(t, dut, ate)
+	top, counterMon, aftMon, gc := env.top, env.counterMon, env.aftMon, env.gc
 
 	t.Log("Step 7 - Start ATE traffic from port1 load-balanced to port2, port3 and port4.")
 	ingress := []counterLeaf{{p1.Name(), inUnicastLeaf}}
@@ -355,6 +388,72 @@ func testScaledTelemetryUnderChurn(t *testing.T, dut *ondatra.DUTDevice, ate *on
 	validateOnTimeDelivery(t, counterMon, leaves, churnStart, churnStop)
 	totalTx, totalRx := validateLossless(t, ate, top)
 	validateDataAccuracy(t, counterMon, base, ingress, egress, totalTx, totalRx, trafficStop)
+}
+
+// testGRIBIDisconnect implements gNMI-1.30.3.
+func testGRIBIDisconnect(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
+	ni := deviations.DefaultNetworkInstance(dut)
+	p1 := dut.Port(t, "port1")
+	p2 := dut.Port(t, "port2")
+	p3 := dut.Port(t, "port3")
+	p4 := dut.Port(t, "port4")
+
+	t.Log("Setting up the gNMI-1.30.2 scaled topology.")
+	env := setupScaled(t, dut, ate)
+	top, counterMon, aftMon, gc := env.top, env.counterMon, env.aftMon, env.gc
+
+	ingress := []counterLeaf{{p1.Name(), inUnicastLeaf}}
+	egress := []counterLeaf{{p2.Name(), outUnicastLeaf}, {p3.Name(), outUnicastLeaf}, {p4.Name(), outUnicastLeaf}}
+	base := snapshotCounters(t, counterMon, []counterLeaf{ingress[0], egress[0], egress[1], egress[2]})
+	streamed := []counterLeaf{
+		{p1.Name(), inUnicastLeaf}, {p1.Name(), inOctetsLeaf},
+		{p2.Name(), outUnicastLeaf}, {p2.Name(), outOctetsLeaf},
+		{p3.Name(), outUnicastLeaf}, {p3.Name(), outOctetsLeaf},
+		{p4.Name(), outUnicastLeaf}, {p4.Name(), outOctetsLeaf},
+	}
+
+	t.Logf("Step 1 - Run scaled traffic and gRIBI churn for %v, then drop the gRIBI session.", preDropChurn)
+	ate.OTG().StartTraffic(t)
+	t.Logf("Waiting %v for traffic to settle before churn.", trafficWarmup)
+	time.Sleep(trafficWarmup)
+	gc.churn(t, preDropChurn)
+	gc.verifyNoFailures(t)
+	gc.dropMidBatch(t)
+	dropTime := time.Now()
+	// Runs before gc.close: re-take leadership on a live session so routes can be flushed.
+	t.Cleanup(func() { gc.gribiSession = newGRIBISession(context.Background(), t, dut, scaledGRIBITimeout) })
+
+	t.Logf("Step 2 - Observe the gNMI subscriptions for %v after the gRIBI session drop.", observeDuration)
+	time.Sleep(observeDuration)
+	ate.OTG().StopTraffic(t)
+	trafficStop := time.Now()
+	t.Logf("Waiting %v for final counter samples.", counterSettleTime)
+	time.Sleep(counterSettleTime)
+
+	t.Log("Step 3 - Validate telemetry stability across the gRIBI session drop.")
+	validateTelemetryIsolation(t, counterMon, aftMon)
+	t.Log("Validating Continuous Accuracy.")
+	for _, l := range streamed {
+		validateCadence(t, l.intf+" "+l.leaf, counterMon.samplesFor(l.intf, l.leaf), dropTime, trafficStop)
+	}
+	totalTx, totalRx := validateLossless(t, ate, top)
+	validateDataAccuracy(t, counterMon, base, ingress, egress, totalTx, totalRx, trafficStop)
+	t.Log("Validating Route Persistence.")
+	awaitAFTPrefixes(t, dut, ni, gc.v4Prefixes, gc.v6Prefixes)
+}
+
+// validateTelemetryIsolation checks the gNMI-1.30.3 Telemetry Isolation and No Sync Loss criteria.
+func validateTelemetryIsolation(t *testing.T, mons ...*subscriptionMonitor) {
+	t.Helper()
+	t.Log("Validating Telemetry Isolation and No Sync Loss.")
+	for _, m := range mons {
+		if err := m.err(); err != nil {
+			t.Errorf("Telemetry Isolation: %s subscription was disrupted by the gRIBI session drop: %v", m.name, err)
+		}
+		if got := m.syncs(); got != 1 {
+			t.Errorf("No Sync Loss: %s subscription received %d sync_responses, want exactly 1", m.name, got)
+		}
+	}
 }
 
 // configureDUT replaces the interface configuration of the given ports.
@@ -949,6 +1048,16 @@ func (gc *ecmpChurner) churn(t *testing.T, d time.Duration) {
 		ops, entries, elapsed.Round(time.Second), float64(entries)/elapsed.Seconds(), targetChurnRate)
 }
 
+// dropMidBatch sends one more NHG shift and closes the connection without
+// awaiting it or flushing, simulating a gRIBI controller crash.
+func (gc *ecmpChurner) dropMidBatch(t *testing.T) {
+	t.Helper()
+	gc.blockAlt[0] = !gc.blockAlt[0]
+	gc.c.Modify().AddEntry(t, gc.blockEntries(0)...)
+	gc.c.Stop(t)
+	t.Log("gRIBI session dropped during churn without flush.")
+}
+
 // gribiChurner churns the gNMI-1.30.1 baseline routes over a single next-hop on port2.
 type gribiChurner struct {
 	*gribiSession
@@ -1161,7 +1270,9 @@ func (m *subscriptionMonitor) record(n *gpb.Notification, recv time.Time) {
 			continue
 		}
 		leaf := elems[len(elems)-1].GetName()
-		if leaf != inUnicastLeaf && leaf != outUnicastLeaf {
+		switch leaf {
+		case inUnicastLeaf, outUnicastLeaf, inOctetsLeaf, outOctetsLeaf:
+		default:
 			continue
 		}
 		intf := interfaceKey(elems)
