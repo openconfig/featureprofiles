@@ -329,18 +329,40 @@ func DeployAndStart(ctx context.Context, t *testing.T, cli *client.Client, opts 
 
 	startResp, err := cli.StartContainer(ctx, opts.ImageName, opts.ImageTag, opts.Command, opts.InstanceName, startOpts...)
 	if err != nil {
-		return fmt.Errorf("unable to start container %s: %w", opts.InstanceName, err)
+		startErr := fmt.Errorf("unable to start container %s: %w", opts.InstanceName, err)
+		if cleanupErr := cleanupFailedStart(t, cli, opts.InstanceName); cleanupErr != nil {
+			return fmt.Errorf("%w; cleanup after failed start also failed: %v", startErr, cleanupErr)
+		}
+		return startErr
 	}
 	t.Logf("StartContainer called for %s, response: %s", opts.InstanceName, startResp)
 
 	// 6. Wait for container to be running or fixed sleep.
 	if opts.PollForRunningState {
-		return WaitForRunning(ctx, t, cli, opts.InstanceName, opts.PollTimeout)
+		if err := WaitForRunning(ctx, t, cli, opts.InstanceName, opts.PollTimeout); err != nil {
+			if cleanupErr := cleanupFailedStart(t, cli, opts.InstanceName); cleanupErr != nil {
+				return fmt.Errorf("%w; cleanup after incomplete start also failed: %v", err, cleanupErr)
+			}
+			return fmt.Errorf("%w; partial instance was removed", err)
+		}
+		return nil
 	}
 	// Original behavior: fixed sleep. Use PollInterval as the sleep duration for simplicity.
 	t.Logf("Waiting for %v for container %s to stabilize (fixed sleep, no polling).", opts.PollInterval, opts.InstanceName)
 	time.Sleep(opts.PollInterval)
 	return nil
+}
+
+// cleanupFailedStart removes an instance after StartContainer returned an
+// error or the instance failed to reach RUNNING. StartContainer may have been
+// accepted by the target even when the client observed an error, so cleanup
+// must not be left to a callback that is only returned after successful setup.
+func cleanupFailedStart(t *testing.T, cli *client.Client, instanceName string) error {
+	t.Helper()
+	t.Logf("Container %s did not start completely; cleaning up before returning.", instanceName)
+	cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), containerCleanupTimeout)
+	defer cleanupCancel()
+	return removeContainerAndWait(cleanupCtx, t, cli, instanceName)
 }
 
 // Setup is a helper function that deploys and starts a container, and returns a client
@@ -373,20 +395,9 @@ func removeContainerAndWait(ctx context.Context, t *testing.T, cli *client.Clien
 	var lastObserved string
 
 	for attempt := 1; ; attempt++ {
-		present, observed, err := containerPresent(ctx, cli, instanceName)
-		switch {
-		case err != nil:
-			lastErr = fmt.Errorf("verify absence: %w", err)
-			t.Logf("Container cleanup attempt %d for %s could not verify absence: %v", attempt, instanceName, err)
-		case !present:
-			t.Logf("Confirmed container %s is absent.", instanceName)
-			return nil
-		default:
-			lastErr = nil
-			lastObserved = observed
-			t.Logf("Container cleanup attempt %d found stale instance %s: %s", attempt, instanceName, observed)
-		}
-
+		// Always issue stop/remove before accepting an absent ListContainer
+		// result. A successful StartContainer can leave an instance reserved or
+		// still being created before it becomes visible to ListContainer.
 		stopCtx, stopCancel := context.WithTimeout(ctx, containerCleanupRPCTimeout)
 		stopErr := cli.StopContainer(stopCtx, instanceName, true)
 		stopCancel()
@@ -405,6 +416,19 @@ func removeContainerAndWait(ctx context.Context, t *testing.T, cli *client.Clien
 			t.Logf("Container cleanup attempt %d: RemoveContainer(%s) failed: %v", attempt, instanceName, removeErr)
 		} else if removeErr == nil {
 			t.Logf("Container cleanup attempt %d: RemoveContainer(%s) succeeded; verifying absence.", attempt, instanceName)
+		}
+
+		present, observed, err := containerPresent(ctx, cli, instanceName)
+		switch {
+		case err != nil:
+			lastErr = fmt.Errorf("verify absence: %w", err)
+			t.Logf("Container cleanup attempt %d for %s could not verify absence: %v", attempt, instanceName, err)
+		case !present:
+			t.Logf("Confirmed container %s is absent after stop/remove.", instanceName)
+			return nil
+		default:
+			lastObserved = observed
+			t.Logf("Container cleanup attempt %d found instance %s still present: %s", attempt, instanceName, observed)
 		}
 
 		select {
