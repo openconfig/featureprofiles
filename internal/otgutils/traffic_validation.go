@@ -105,14 +105,21 @@ func VerifyNoPacketLoss(t testing.TB, otg *otg.OTG, allFlows []string) {
 func RunTrafficAndWaitForTx(t testing.TB, otg *otg.OTG, flowName string, minTxPkts uint64, timeout time.Duration) {
 	t.Helper()
 	otg.StartTraffic(t)
+	// Ensure traffic is always stopped even if the watch times out, fails, or panics.
+	trafficStopped := false
+	defer func() {
+		if !trafficStopped {
+			otg.StopTraffic(t)
+		}
+	}()
 	if _, ok := gnmi.Watch(t, otg, gnmi.OTG().Flow(flowName).Counters().OutPkts().State(), timeout, func(v *ygnmi.Value[uint64]) bool {
 		gotPkts, present := v.Val()
 		return present && gotPkts >= minTxPkts
 	}).Await(t); !ok {
-		otg.StopTraffic(t)
 		t.Fatalf("Did not transmit expected number of packets for flow %s within %v: want >= %d", flowName, timeout, minTxPkts)
 	}
 	otg.StopTraffic(t)
+	trafficStopped = true
 	if _, ok := gnmi.Watch(t, otg, gnmi.OTG().Flow(flowName).Transmit().State(), timeout, func(v *ygnmi.Value[bool]) bool {
 		transmit, present := v.Val()
 		return present && !transmit
