@@ -2432,3 +2432,24 @@ func LacpTxErrorsUnsupported(dut *ondatra.DUTDevice) bool {
 func LacpConfigAfterAggregateReplace(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLacpConfigAfterAggregateReplace()
 }
+
+// NegotiatedPortSpeedUnsupported returns true if the device does not support the
+// /interfaces/interface/ethernet/state/negotiated-port-speed telemetry path.
+// Nokia: https://b.corp.google.com/issues/572214470
+func NegotiatedPortSpeedUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNegotiatedPortSpeedUnsupported()
+}
+
+// SubinterfaceIfindexUnsupported returns true if the device does not support the
+// /interfaces/interface/subinterfaces/subinterface/state/ifindex telemetry path.
+// Juniper: https://b.corp.google.com/issues/572208368
+func SubinterfaceIfindexUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSubinterfaceIfindexUnsupported()
+}
+
+// SubinterfaceNameUnsupported returns true if the device does not support the
+// /interfaces/interface/subinterfaces/subinterface/state/name telemetry path.
+// Cisco: https://b.corp.google.com/issues/572214473
+func SubinterfaceNameUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSubinterfaceNameUnsupported()
+}
