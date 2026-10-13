@@ -223,7 +223,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) string {
 
 	// Test Environment Setup - Step 4: Configure Routed VLAN Interface (SVI / IRB) for VLAN 10.
 	// Use deviation RoutedVlanInterfaceName if specified by the platform metadata, and if
-	// VlanSubinterfaceOCUnsupported is set, configure the VLAN SVI / IRB addressing via CLI helper.
+	// SwitchedVlanUnsupported or VlanSubinterfaceOCUnsupported is set, configure the VLAN SVI / IRB
+	// addressing via CLI helper.
 	// A platform-specific name (e.g. Junos "irb.10", where the ".10" suffix is the IRB unit) does
 	// not imply the VLAN the way "Vlan10" does, so the SVI is also bound to VLAN 10 explicitly via
 	// /interfaces/interface/routed-vlan/config/vlan (Junos: "set vlans vlan10 l3-interface irb.10").
@@ -235,7 +236,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) string {
 	if !deviations.SwitchedVlanUnsupported(dut) {
 		cfgplugins.ConfigureSVI(t, dut, sviCfg)
 	}
-	if deviations.VlanSubinterfaceOCUnsupported(dut) {
+	if deviations.SwitchedVlanUnsupported(dut) || deviations.VlanSubinterfaceOCUnsupported(dut) {
 		cfgplugins.ConfigureVlanInterfaceFromCLI(t, dut, vlanSubData)
 	}
 	if deviations.LoadBalancePolicyOCUnsupported(dut) {

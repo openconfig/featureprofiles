@@ -1615,8 +1615,11 @@ type Metadata_Deviations struct {
 	AftNextHopGroupBackupNhgUnsupported bool `protobuf:"varint,468,opt,name=aft_next_hop_group_backup_nhg_unsupported,json=aftNextHopGroupBackupNhgUnsupported,proto3" json:"aft_next_hop_group_backup_nhg_unsupported,omitempty"`
 	// Expected name of the Routed VLAN interface for SVIs (if not standard
 	// "Vlan<id>").
+	// Juniper: https://partnerissuetracker.corp.google.com/issues/573046775
 	RoutedVlanInterfaceName string `protobuf:"bytes,469,opt,name=routed_vlan_interface_name,json=routedVlanInterfaceName,proto3" json:"routed_vlan_interface_name,omitempty"`
 	// Device does not support switched-vlan configuration in ethernet.
+	// NOKIA: https://partnerissuetracker.corp.google.com/issues/572757293
+	// CISCO: https://partnerissuetracker.corp.google.com/issues/571920136
 	SwitchedVlanUnsupported bool `protobuf:"varint,470,opt,name=switched_vlan_unsupported,json=switchedVlanUnsupported,proto3" json:"switched_vlan_unsupported,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
