@@ -2,10 +2,11 @@
 
 ## Summary
 
-Validates that the BGP ADD-Path (RFC 7911) `send` and `receive` capabilities
-can be enabled and disabled per neighbor and per peer-group through
-OpenConfig, with the configured value reflected in state, in capability
-negotiation, and in the number of paths the DUT accepts and advertises.
+Validates that the BGP ADD-Path (RFC 7911) `send`, `send-max`, and `receive`
+capabilities can be enabled and disabled per neighbor, per peer-group, and at
+the global AFI/SAFI level through OpenConfig, with the configured value
+reflected in state, in capability negotiation, and in the number of paths the
+DUT accepts and advertises.
 
 ADD-Path allows a BGP speaker to advertise multiple paths for the same prefix
 over a single session by tagging each path with a path identifier. Without the
@@ -22,8 +23,8 @@ the DUT plays the receiver, and ATE port-2 observes what the DUT
 re-advertises.
 
 Out of scope for this test: installation of the received paths as ECMP
-forwarding entries (covered by the BGP multipath tests), sender-side
-`send-max` enforcement and multi-peer scale (covered by RT-1.15).
+forwarding entries (covered by the BGP multipath tests) and multi-peer scale
+(covered by RT-1.15).
 
 ## Testbed type
 
@@ -91,11 +92,10 @@ forwarding entries (covered by the BGP multipath tests), sender-side
     is renegotiated. No device CLI is used to clear sessions.
 *   No data-plane traffic is generated; verification is control-plane only
     (BGP state, capability negotiation and per-prefix path counts).
-*   Path counts are verified primarily on ATE port-2 as the number of distinct
-    path identifiers received per prefix. The DUT advertises to ATE port-2
-    over eBGP, so next-hop is rewritten and MED is not propagated; only the
-    path identifier distinguishes the paths there. Where the DUT exposes
-    `adj-rib-in-pre`, the count is additionally verified on the DUT.
+*   Path counts are verified on ATE port-2 as the number of distinct path
+    identifiers received per prefix. The DUT advertises to ATE port-2 over
+    eBGP, so next-hop is rewritten and MED is not propagated; only the path
+    identifier distinguishes the paths there.
 
 #### Canonical OC
 
@@ -300,18 +300,23 @@ below show only the `add-paths` delta applied on top of this baseline.
 }
 ```
 
-### RT-1.112.1: Add-Path receive enabled on neighbor, send enabled towards observer
+### RT-1.112.1: Add-Path receive enabled on neighbor, send and send-max enabled towards observer
 
 Intended state: ATE port-1 neighbors `receive = true`; ATE port-2 neighbors
-`send = true`; `BGP-PEER-GROUP1` add-paths unset.
+`send = true`, `send-max = 3`; global AFI/SAFI `send-max = 3`;
+`BGP-PEER-GROUP1` add-paths unset.
 
 *   Step 1: On the DUT, using gNMI Set (Update), for the ATE port-1 neighbors
     set
     `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/add-paths/config/receive`
-    to `true` for IPV4_UNICAST and IPV6_UNICAST. For the ATE port-2 neighbors,
+    to `true` for IPV4_UNICAST and IPV6_UNICAST. Set
+    `/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/add-paths/config/send-max`
+    to `3` for IPV4_UNICAST and IPV6_UNICAST. For the ATE port-2 neighbors,
     set
     `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/add-paths/config/send`
-    to `true` for both AFI/SAFIs.
+    to `true` and
+    `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/add-paths/config/send-max`
+    to `3` for both AFI/SAFIs.
 *   Step 2: Restart the BGP protocols on ATE port-1 and ATE port-2.
 *   Step 3: ATE port-1 advertises every prefix with path identifiers 1 to 4.
 *   Step 4: Validation
@@ -319,16 +324,17 @@ Intended state: ATE port-1 neighbors `receive = true`; ATE port-2 neighbors
         for the ATE port-1 neighbors is `true`.
     *   `.../neighbors/neighbor/afi-safis/afi-safi/add-paths/state/send` for
         the ATE port-2 neighbors is `true`.
+    *   `.../global/afi-safis/afi-safi/add-paths/state/send-max` and
+        `.../neighbors/neighbor/afi-safis/afi-safi/add-paths/state/send-max`
+        for the ATE port-2 neighbors are `3`.
     *   `.../neighbors/neighbor/state/supported-capabilities` for the ATE
         port-1 neighbors contains `ADD_PATHS`.
-    *   Optional, where supported:
-        `.../bgp/rib/afi-safis/afi-safi/ipv4-unicast/neighbors/neighbor/adj-rib-in-pre/routes/route`
-        for the ATE port-1 neighbor holds four entries per prefix, one per
-        path identifier (likewise for ipv6-unicast).
-    *   ATE port-2 receives every IPv4 and IPv6 prefix **four times**, with
-        four distinct path identifiers.
-*   Pass: all of the above. Fail: state or capability not reflected, or fewer
-    than four distinct path identifiers per prefix observed on ATE port-2.
+    *   ATE port-2 receives every IPv4 and IPv6 prefix **three times** (capped
+        by `send-max = 3` out of the four paths advertised by ATE port-1),
+        with three distinct path identifiers.
+*   Pass: all of the above. Fail: state or capability not reflected, or a
+    number of distinct path identifiers per prefix other than three observed
+    on ATE port-2.
 
 #### Canonical OC
 
@@ -351,6 +357,36 @@ Intended state: ATE port-1 neighbors `receive = true`; ATE port-2 neighbors
                 "name": "BGP"
               },
               "bgp": {
+                "global": {
+                  "afi-safis": {
+                    "afi-safi": [
+                      {
+                        "afi-safi-name": "IPV4_UNICAST",
+                        "config": {
+                          "afi-safi-name": "IPV4_UNICAST",
+                          "enabled": true
+                        },
+                        "add-paths": {
+                          "config": {
+                            "send-max": 3
+                          }
+                        }
+                      },
+                      {
+                        "afi-safi-name": "IPV6_UNICAST",
+                        "config": {
+                          "afi-safi-name": "IPV6_UNICAST",
+                          "enabled": true
+                        },
+                        "add-paths": {
+                          "config": {
+                            "send-max": 3
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
                 "neighbors": {
                   "neighbor": [
                     {
@@ -415,7 +451,8 @@ Intended state: ATE port-1 neighbors `receive = true`; ATE port-2 neighbors
                             },
                             "add-paths": {
                               "config": {
-                                "send": true
+                                "send": true,
+                                "send-max": 3
                               }
                             }
                           }
@@ -438,7 +475,8 @@ Intended state: ATE port-1 neighbors `receive = true`; ATE port-2 neighbors
                             },
                             "add-paths": {
                               "config": {
-                                "send": true
+                                "send": true,
+                                "send-max": 3
                               }
                             }
                           }
@@ -470,8 +508,6 @@ Intended state: ATE port-1 neighbors `receive = true`; ATE port-2 neighbors
 *   Step 4: Validation
     *   `.../neighbors/neighbor/afi-safis/afi-safi/add-paths/state/send` for
         the ATE port-2 neighbors is `false`.
-    *   Optional, where supported: DUT Adj-RIB-In for the ATE port-1 neighbors
-        still holds four entries per prefix.
     *   ATE port-2 receives every prefix **once** (best path only).
 *   Pass: send state `false` and one path per prefix on ATE port-2. Fail:
     more than one path observed on ATE port-2.
@@ -560,19 +596,17 @@ Intended state: ATE port-1 neighbors `receive = true`; ATE port-2 neighbors
 ### RT-1.112.3: Add-Path receive disabled on neighbor
 
 Intended state: ATE port-1 neighbors `receive = false`; ATE port-2 neighbors
-`send = true`; `BGP-PEER-GROUP1` add-paths unset.
+`send = true`, `send-max = 3`; `BGP-PEER-GROUP1` add-paths unset.
 
 *   Step 1: On the DUT, using gNMI Set (Update), for the ATE port-1 neighbors
     set `add-paths/config/receive` to `false` for both AFI/SAFIs. Set
-    `add-paths/config/send` to `true` on the ATE port-2 neighbors.
+    `add-paths/config/send` to `true` and `add-paths/config/send-max` to `3`
+    on the ATE port-2 neighbors.
 *   Step 2: Restart the BGP protocols on ATE port-1 and ATE port-2.
 *   Step 3: ATE port-1 re-advertises every prefix with path identifiers 1 to 4.
 *   Step 4: Validation
     *   `.../neighbors/neighbor/afi-safis/afi-safi/add-paths/state/receive`
         for the ATE port-1 neighbors is `false`.
-    *   Optional, where supported: DUT Adj-RIB-In for the ATE port-1 neighbors
-        holds **one** entry per prefix (each later advertisement replaces the
-        previous one).
     *   ATE port-2 receives every prefix **once**, even though send is enabled
         on that neighbor, because the DUT holds a single path.
     *   Informational only:
@@ -666,10 +700,12 @@ Intended state: ATE port-1 neighbors `receive = false`; ATE port-2 neighbors
 
 ### RT-1.112.4: Add-Path receive configured on peer-group, neighbor override
 
-Intended state (inheritance): ATE port-1 neighbors add-paths **unset** ·
-`BGP-PEER-GROUP1` `receive = true`; ATE port-2 neighbors `send = true`.
-Intended state (override): ATE port-1 neighbors `receive = false` ·
-`BGP-PEER-GROUP1` `receive = true`; ATE port-2 neighbors `send = true`.
+Intended state (inheritance): ATE port-1 neighbors add-paths **unset**;
+`BGP-PEER-GROUP1` `receive = true`; ATE port-2 neighbors `send = true`,
+`send-max = 3`.
+Intended state (override): ATE port-1 neighbors `receive = false`;
+`BGP-PEER-GROUP1` `receive = true`; ATE port-2 neighbors `send = true`,
+`send-max = 3`.
 
 *   Step 1: On the DUT, remove the `add-paths` container from the ATE port-1
     neighbors using a gNMI Delete on
@@ -685,8 +721,8 @@ Intended state (override): ATE port-1 neighbors `receive = false` ·
         for `BGP-PEER-GROUP1` is `true`.
     *   `.../neighbors/neighbor/afi-safis/afi-safi/add-paths/state/receive`
         for the ATE port-1 neighbors is `true` (inherited).
-    *   ATE port-2 receives every prefix four times, with four distinct path
-        identifiers.
+    *   ATE port-2 receives every prefix **three times** (capped by
+        `send-max = 3`), with three distinct path identifiers.
 *   Step 5: On the DUT set `add-paths/config/receive` to `false` on the ATE
     port-1 **neighbors** while leaving the peer-group value `true`. Restart
     the BGP protocols on ATE port-1 and re-advertise.
@@ -775,8 +811,8 @@ Intended state (override): ATE port-1 neighbors `receive = false` ·
 All cleanup operations are registered with `t.Cleanup()` so they run even if
 a subtest fails.
 
-*   Remove the `add-paths` container from all DUT neighbors and from
-    `BGP-PEER-GROUP1` using gNMI Delete.
+*   Remove the `add-paths` container from the global AFI/SAFIs, from all DUT
+    neighbors, and from `BGP-PEER-GROUP1` using gNMI Delete.
 *   Withdraw the ATE port-1 advertisements and stop ATE protocols.
 *   Remove the BGP and interface configuration applied during test
     environment setup so the DUT returns to its pre-test state.
@@ -788,18 +824,20 @@ The below yaml defines the OC paths intended to be covered by this test.
 ```yaml
 paths:
   ## Config paths
+  /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/add-paths/config/send-max:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/add-paths/config/receive:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/add-paths/config/send:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/add-paths/config/send-max:
   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/add-paths/config/receive:
 
   ## State paths
+  /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/add-paths/state/send-max:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/add-paths/state/receive:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/add-paths/state/send:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/add-paths/state/send-max:
   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/add-paths/state/receive:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities:
-  /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/neighbors/neighbor/adj-rib-in-pre/routes/route/state/path-id:
-  /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/neighbors/neighbor/adj-rib-in-pre/routes/route/state/path-id:
 
 rpcs:
   gnmi:
