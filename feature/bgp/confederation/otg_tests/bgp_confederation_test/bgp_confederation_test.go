@@ -79,8 +79,7 @@ const (
 	// positiveControlTimeout bounds the wait for the OTG routes_advertised
 	// counter to increase (README absence check, positive control).
 	positiveControlTimeout = time.Minute
-	// holdWindow is the absence check hold window (README Checks shared by
-	// the subtests).
+	// holdWindow is the absence check hold window (README absence check).
 	holdWindow = 30 * time.Second
 	// trafficStatsTimeout bounds the wait for the flows of a traffic phase to
 	// transmit all of their packets (30 seconds at trafficPPS).
@@ -90,9 +89,9 @@ const (
 	trafficSettleTimeout = 10 * time.Second
 )
 
-// Traffic parameters (README flows). The rate is the one most BGP tests in
-// this repository use; virtual DUTs forward in software and drop packets at
-// higher aggregate rates.
+// Traffic parameters (README traffic flows). The rate is the one most BGP
+// tests in this repository use; virtual DUTs forward in software and drop
+// packets at higher aggregate rates.
 const (
 	frameSize      = 512
 	trafficPPS     = 100
@@ -316,8 +315,7 @@ func segmentTypeFromOTG(s otgtelemetry.E_State_SegmentType) segmentType {
 }
 
 // asSegment is one AS_PATH segment. Members are in AS_PATH order: the
-// leftmost (most recently prepended) AS number is first (README Checks
-// shared by the subtests, DUT telemetry).
+// leftmost (most recently prepended) AS number is first.
 type asSegment struct {
 	typ  segmentType
 	asns []uint32
@@ -367,7 +365,7 @@ func (p asPath) sameSegments(o asPath) bool {
 }
 
 // equal compares two AS_PATHs after merging adjacent sequences of the same
-// type (README Checks shared by the subtests, AS_PATH comparison).
+// type (README AS_PATH verification).
 func (p asPath) equal(o asPath) bool {
 	return p.merged().sameSegments(o.merged())
 }
@@ -386,8 +384,7 @@ func checkASPath(t *testing.T, desc string, got, want asPath) {
 	}
 }
 
-// routeRange is one advertised route range (README route range table and
-// OTG route range settings).
+// routeRange is one advertised route range (README route table).
 type routeRange struct {
 	name string
 	link *bgpLink
@@ -460,8 +457,8 @@ var (
 	// documentation. On ebgp peers the ATE always prepends its own AS (the
 	// as_set_mode), and the remaining segments are added with otgSegments.
 	// The looped paths may therefore be sent as one or as two adjacent
-	// segments of the same type (README OTG route range settings); both are a
-	// loop under RFC 5065 Section 4 and RFC 4271 Section 9.1.2.
+	// segments of the same type; both are a loop under RFC 5065 Section 4 and
+	// RFC 4271 Section 9.1.2.
 	rrConfedLoop = &routeRange{
 		name: "CONFED-LOOP", link: linkConfed, v4: "198.51.100.128/26", v6: "2001:db8:301::/48",
 		wire:                 asPath{confedSeq(ateConfedAS, dutMemberAS)},
@@ -496,7 +493,7 @@ var (
 	allRoutes      = append(slices.Clone(baseRoutes), negativeRoutes...)
 
 	// routeSetExpected is the expected set of base routes per ATE peer
-	// (README route set check). Base routes advertised by the same
+	// (README RT-1.111.5 route set check). Base routes advertised by the same
 	// ATE port are the echo set and are ignored if received.
 	routeSetExpected = map[*bgpLink][]*routeRange{
 		linkExt:    {rrConfed, rrIBGP, rrIBGPConfed, rrConfedTransit},
@@ -505,7 +502,7 @@ var (
 	}
 )
 
-// flowSpec is one traffic flow (README flows).
+// flowSpec is one traffic flow (README traffic flows).
 type flowSpec struct {
 	name   string
 	af     addrFamily
@@ -531,8 +528,8 @@ var flows = []flowSpec{
 	{"v6-p2-to-p1", ipv6, rrIBGP, rrExt, "2001:db8:200::1", "2001:db8:100::1", "RT-1.111.5"},
 }
 
-// stabilityCounters holds the session stability counters (README session
-// stability check). A missing key means the counter was not reported.
+// stabilityCounters holds the session stability counters (README RT-1.111.1
+// baseline). A missing key means the counter was not reported.
 type stabilityCounters struct {
 	dutTransitions map[string]uint64 // Keyed by DUT neighbor address.
 	otgFlaps       map[string]uint64 // Keyed by OTG BGP peer name.
@@ -578,9 +575,8 @@ func TestBGPConfederation(t *testing.T) {
 			}()
 			tc.fn(t, env)
 		})
-		// README Checks shared by the subtests: a session that does not reach ESTABLISHED
-		// in RT-1.111.1 stops the test, because no later result would be
-		// meaningful.
+		// A session that does not reach ESTABLISHED in RT-1.111.1 stops the
+		// test, because no later result would be meaningful.
 		if i == 0 && !env.sessionsUp {
 			t.Fatalf("BGP sessions did not come up in RT-1.111.1; skipping the remaining subtests")
 		}
@@ -632,8 +628,8 @@ func (env *testEnv) bgpPath() *netinstbgp.NetworkInstance_Protocol_BgpPath {
 }
 
 // dutStream returns the DUT with the gNMI subscription mode ON_CHANGE. It is
-// used for every STREAM subscription to the DUT (README Checks shared by the
-// subtests, DUT telemetry); ONCE lookups use env.dut directly.
+// used for every STREAM subscription to the DUT; ONCE lookups use env.dut
+// directly.
 func (env *testEnv) dutStream() gnmi.DeviceOrOpts {
 	return env.dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE))
 }
@@ -1457,7 +1453,7 @@ func compareNotifications(t *testing.T, env *testEnv, base map[string]uint64) {
 	}
 }
 
-// prepareNegativeSubtest implements the first bullet of RT-1.111.6 and RT-1.111.7:
+// prepareNegativeSubtest prepares RT-1.111.6 and RT-1.111.7:
 // wait for every session, re-baseline if a previous subtest reported a
 // change, and record the notifications_received counters.
 func prepareNegativeSubtest(t *testing.T, env *testEnv) map[string]uint64 {
@@ -1631,8 +1627,8 @@ func checkBaseRoutesInLocRib(t *testing.T, env *testEnv) {
 	}
 }
 
-// checkRouteSet runs the README route set check for all six ATE BGP
-// peers.
+// checkRouteSet runs the route set check of README RT-1.111.5 for all six
+// ATE BGP peers.
 func checkRouteSet(t *testing.T, env *testEnv) {
 	t.Helper()
 	var negatives []string
@@ -1683,7 +1679,7 @@ func checkRouteSet(t *testing.T, env *testEnv) {
 }
 
 // dumpDiagnostics logs the state that helps to tell a DUT problem from an ATE
-// or test problem (README Checks shared by the subtests, on failure).
+// or test problem.
 func dumpDiagnostics(t *testing.T, env *testEnv) {
 	t.Helper()
 	t.Log("Collecting diagnostics after failure")
@@ -1839,8 +1835,8 @@ func testConfedToIBGP(t *testing.T, env *testEnv) {
 
 // confedLocalPrefReceived reports whether LOCAL_PREF 150 of CONFED, sent on
 // the OTG ebgp peer of ATE:port3, reached the DUT. OTG guarantees
-// include_local_preference only on ibgp peers (README OTG route range
-// settings), so the LOCAL_PREF checks of RT-1.111.2 run only when it did. The
+// include_local_preference only on ibgp peers, so the LOCAL_PREF checks of
+// RT-1.111.2 run only when it did. The
 // adj-rib-in-pre attr-set shows the attribute as received; on a DUT without
 // adj-rib OC telemetry the attr-set already read from the loc-rib (attr) is
 // used instead, which cannot tell an attribute that was not sent from one
@@ -2032,9 +2028,9 @@ func testExternalToConfedAndIBGP(t *testing.T, env *testEnv) {
 }
 
 // runFlows runs the flows of one subtest in their own traffic phase and
-// evaluates each flow (README flows). Only these flows are started, so a
-// traffic failure is reported by the subtest whose routes the flow uses, and
-// at most four flows run at the same time.
+// evaluates each flow (README traffic flows). Only these flows are started,
+// so a traffic failure is reported by the subtest whose routes the flow uses,
+// and at most four flows run at the same time.
 //
 // The counters are watched in two steps: until every flow has transmitted all
 // of its packets, then, after the flows are stopped, until each Rx counter has
@@ -2112,7 +2108,7 @@ func setFlowTransmit(t *testing.T, o *otg.OTG, names []string, state gosnappi.St
 }
 
 // checkFlowLoss checks the counters of one flow against lossTolerancePct
-// (README flows).
+// (README traffic flows).
 func checkFlowLoss(t *testing.T, name string, tx, rx uint64) {
 	t.Helper()
 	switch {
