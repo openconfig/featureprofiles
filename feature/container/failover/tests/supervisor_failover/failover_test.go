@@ -163,6 +163,7 @@ func TestContainerAndVolumePersistence(t *testing.T) {
 			InstanceName: containerName,
 			Command:      "./cntrsrv",
 			TarPath:      containerTarPath(t),
+			Ports:        []string{"60061:60061"},
 			Volumes:      []string{fmt.Sprintf("%s:%s", volName, "/data")},
 		}
 		if err := containerztest.DeployAndStart(ctx, t, cli, opts); err != nil {
@@ -447,6 +448,7 @@ func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 			InstanceName: containerName,
 			Command:      "./cntrsrv",
 			TarPath:      containerTarPath(t),
+			Ports:        []string{"60061:60061"},
 			Volumes:      []string{fmt.Sprintf("%s:%s", volName, "/data")},
 		}
 		if err := containerztest.DeployAndStart(ctx, t, cli, opts); err != nil {
