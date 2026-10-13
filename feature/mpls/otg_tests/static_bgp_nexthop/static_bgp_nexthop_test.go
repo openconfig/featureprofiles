@@ -129,13 +129,13 @@ func TestMain(m *testing.M) {
 func TestMplsStaticLspBGPNextHop(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	configureDUT(t, dut)
+	configuredInterfaces := configureDUT(t, dut)
 	ateConfig := configureATE(t)
 	sfBatch := &gnmi.SetBatch{}
 	cfgplugins.MPLSStaticLSP(t, sfBatch, dut, lspV4Name, mplsLabelV4, bgpNHv4, "", "ipv4")
 	cfgplugins.MPLSStaticLSP(t, sfBatch, dut, lspV6Name, mplsLabelV6, bgpNHv6, "", "ipv6")
 	sfBatch.Set(t, dut)
-	verifyPortsUp(t, dut.Device)
+	verifyPortsUp(t, dut.Device, configuredInterfaces)
 
 	// TODO: 409240869 - Discard test added based on README guidance; will update if needed once the bug is fixed.
 	buildIPv4MPLSFlow(t, ateConfig, ipv4Flow, iPV4Dst)
@@ -195,28 +195,27 @@ func verifyMPLSForwarding(t *testing.T, ate *ondatra.ATEDevice, ateConfig gosnap
 	}
 }
 
-// configureDUT sets up the DUT interfaces, static LSPs, and BGP neighbors.
-func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
+// configureDUT sets up the DUT interfaces, static LSPs, and BGP neighbors
+// and returns the configured interfaces.
+func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []*oc.Interface {
 	t.Helper()
 	d := gnmi.OC()
 	// Configure interfaces
-	p1 := dut.Port(t, "port1").Name()
-	i1 := dutPort1.NewOCInterface(p1, dut)
-	gnmi.Replace(t, dut, d.Interface(p1).Config(), i1)
-
-	p2 := dut.Port(t, "port2").Name()
-	i2 := dutPort2.NewOCInterface(p2, dut)
-	gnmi.Replace(t, dut, d.Interface(p2).Config(), i2)
-
-	p3 := dut.Port(t, "port3").Name()
-	i3 := dutPort3.NewOCInterface(p3, dut)
-	gnmi.Replace(t, dut, d.Interface(p3).Config(), i3)
+	interfaces := []*oc.Interface{
+		dutPort1.NewOCInterface(dut.Port(t, "port1").Name(), dut),
+		dutPort2.NewOCInterface(dut.Port(t, "port2").Name(), dut),
+		dutPort3.NewOCInterface(dut.Port(t, "port3").Name(), dut),
+	}
+	for _, intf := range interfaces {
+		gnmi.Replace(t, dut, d.Interface(intf.GetName()).Config(), intf)
+	}
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	configureRoutePolicy(t, dut, rplName, rplType)
 	dutConfPath := d.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	dutConf := createBGPNeighborPort2(dutAS, ateAS, dut, true, true)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
+	return interfaces
 }
 
 // configureATE sets up the ATE interfaces and BGP configurations.
@@ -494,13 +493,14 @@ func withdrawBGPRoutes(t *testing.T, routeNames []string) {
 }
 
 // Verify ports status
-func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
+func verifyPortsUp(t *testing.T, dev *ondatra.Device, interfaces []*oc.Interface) {
 	t.Helper()
 	t.Log("Verifying port status")
-	for _, p := range dev.Ports() {
-		status := gnmi.Get(t, dev, gnmi.OC().Interface(p.Name()).OperStatus().State())
+	for _, intf := range interfaces {
+		name := intf.GetName()
+		status := gnmi.Get(t, dev, gnmi.OC().Interface(name).OperStatus().State())
 		if want := oc.Interface_OperStatus_UP; status != want {
-			t.Errorf("%s Status: got %v, want %v", p, status, want)
+			t.Errorf("%s Status: got %v, want %v", name, status, want)
 		}
 	}
 }
