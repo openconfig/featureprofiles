@@ -1,0 +1,7 @@
+# proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "822eff98-2681-4b3a-9ccb-10df3e66d6af"
+plan_id: "RT-1.112"
+description: "BGP ADD-Path send and receive capability"
+testbed: TESTBED_DUT_ATE_2LINKS
