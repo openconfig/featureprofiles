@@ -33,20 +33,27 @@ following features:
 *   Validate if counters are being updated consistently
 
     Check the presence of packet counter paths and monitor counters every
-    30 seconds. Generate traffic to get atleast 10 or more samples. 
+    30 seconds. Generate traffic to get atleast 10 or more samples.
 
     *   /interfaces/interface[name='port']/state/counters/in-pkts
     *   /interfaces/interface[name='port']/state/counters/out-pkts
     *   /interfaces/interface[name='port']/state/counters/last-clear
     *   /interfaces/interface[name='port']/subinterfaces/subinterface[index='index-id']/ipv4/state/counters/in-pkts
+    *   /interfaces/interface[name='port']/subinterfaces/subinterface[index='index-id']/ipv4/state/counters/out-pkts
+    *   /interfaces/interface[name='port']/subinterfaces/subinterface[index='index-id']/ipv4/state/counters/out-forwarded-octets
     *   /interfaces/interface[name='port']/subinterfaces/subinterface[index='index-id']/ipv6/state/counters/in-pkts
-   
+    *   /interfaces/interface[name='port']/subinterfaces/subinterface[index='index-id']/ipv6/state/counters/out-pkts
+    *   /interfaces/interface[name='port']/subinterfaces/subinterface[index='index-id']/ipv6/state/counters/out-forwarded-octets
 
 *   Subinterfaces counters:
 
     Check the presence of packet counter paths
 
     *   /interfaces/interface/subinterfaces/subinterface/state/counters/in-octets
+    *   /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-pkts
+    *   /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-forwarded-octets
+    *   /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-pkts
+    *   /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-forwarded-octets
     *   TODO:
         /interfaces/interface[name=port]/subinterfaces/subinterface[index='index']/ipv4/state/counters/in-pkts
     *   TODO:
@@ -74,6 +81,178 @@ following features:
 
     *   TODO: /interfaces/interface/state/cpu
     *   TODO: /interfaces/interface/state/management
+
+### gNMI-1.11.1: Subinterface IPv4 and IPv6 Egress Streaming Telemetry Counters Validation
+
+This subtest validates that subinterface-level IPv4 and IPv6 egress packet
+counters (`out-pkts`) and forwarded octet counters (`out-forwarded-octets`),
+along with their ingress counterparts (`in-pkts` and `in-forwarded-octets`),
+are actively streamed and monotonically incremented without stale values across
+periodic `gNMI.Subscribe` (`SAMPLE` mode) notifications when forwarding
+dual-stack traffic (including IPv4 / B4 IPv4-encapsulated egress packets and
+their IPv6 counterparts) across the DUT.
+
+#### Topology
+
+```text
+[ ATE Port 1 (port1) ] ---- (port1) [ DUT ] (port2) ---- [ ATE Port 2 (port2) ]
+  198.51.100.1/31        198.51.100.0/31   198.51.100.2/31        198.51.100.3/31
+  2001:db8::2/126        2001:db8::1/126   2001:db8::5/126        2001:db8::6/126
+```
+
+*   Connect `DUT port 1` (`port1`) to `ATE port 1` (`port1`) as the ingress L3
+    singleton interface.
+*   Connect `DUT port 2` (`port2`) to `ATE port 2` (`port2`) as the egress L3
+    singleton interface.
+
+#### Step 1: Configure Dual-Stack Subinterfaces on DUT and ATE
+
+*   Using `gNMI.Set` (`REPLACE`), configure `DUT port 1` (`port1`) and `DUT
+    port 2` (`port2`) with subinterface `0` enabled for both IPv4 and IPv6:
+    *   Set `/interfaces/interface/config/enabled` to `true`,
+        `/interfaces/interface/config/type` to `iana-if-type:ethernetCsmacd`,
+        and `/interfaces/interface/rates/config/load-interval` to `30`.
+    *   Set `/interfaces/interface/subinterfaces/subinterface/config/index` to
+        `0` and
+        `/interfaces/interface/subinterfaces/subinterface/config/enabled` to
+        `true`.
+    *   On `DUT port 1` subinterface `0`:
+        *   Set
+            `/interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled`
+            to `true`,
+            `/interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/ip`
+            to `198.51.100.0`, and
+            `/interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length`
+            to `31`.
+        *   Set
+            `/interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled`
+            to `true`,
+            `/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/ip`
+            to `2001:db8::1`, and
+            `/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length`
+            to `126`.
+    *   On `DUT port 2` subinterface `0`:
+        *   Set
+            `/interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled`
+            to `true`,
+            `/interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/ip`
+            to `198.51.100.2`, and
+            `/interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length`
+            to `31`.
+        *   Set
+            `/interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled`
+            to `true`,
+            `/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/ip`
+            to `2001:db8::5`, and
+            `/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length`
+            to `126`.
+*   Configure the ATE OTG interfaces:
+    *   Configure `ATE port 1` (`port1`) with MAC address `02:00:01:01:01:01`,
+        IPv4 address `198.51.100.1/31` (gateway `198.51.100.0`), and IPv6
+        address `2001:db8::2/126` (gateway `2001:db8::1`).
+    *   Configure `ATE port 2` (`port2`) with MAC address `02:00:01:02:01:01`,
+        IPv4 address `198.51.100.3/31` (gateway `198.51.100.2`), and IPv6
+        address `2001:db8::6/126` (gateway `2001:db8::5`).
+
+#### Step 2: Verify Operational State, Neighbor Resolution, and Baseline Counters
+
+*   Verify via `gNMI.Get` / `gNMI.Subscribe` (`gnmi.Watch`) that both `DUT
+    port 1` and `DUT port 2` are operationally up and enabled:
+    *   `/interfaces/interface/state/oper-status` is `UP`.
+    *   `/interfaces/interface/subinterfaces/subinterface/state/enabled` is
+        `true`.
+    *   `/interfaces/interface/subinterfaces/subinterface/ipv4/state/enabled` is
+        `true`.
+    *   `/interfaces/interface/subinterfaces/subinterface/ipv6/state/enabled` is
+        `true`.
+*   Start OTG protocols on the ATE and wait for both IPv4 ARP and IPv6 Neighbor
+    Discovery (ND) resolution to complete (`otgutils.WaitForARP` for both `IPv4`
+    and `IPv6`) prior to starting traffic so that initial packets are not
+    dropped.
+*   Query and record baseline subinterface counter values on `DUT port 1`
+    subinterface `0` (ingress) and `DUT port 2` subinterface `0` (egress) via
+    `gNMI.Get`:
+    *   `/interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-pkts`
+    *   `/interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-forwarded-octets`
+    *   `/interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-pkts`
+    *   `/interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-forwarded-octets`
+    *   `/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-pkts`
+    *   `/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-forwarded-octets`
+    *   `/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-pkts`
+    *   `/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-forwarded-octets`
+
+#### Step 3: Stream Subinterface Egress and Ingress Counters Under Dual-Stack Traffic
+
+*   Start two continuous, constant-rate unicast traffic flows from `ATE port 1`
+    to `ATE port 2` routed across the DUT:
+    *   **IPv4 Flow (`IPv4_test_flow`)**: Source IPv4 `198.51.100.1`,
+        destination IPv4 `198.51.100.3` (representing IPv4 / B4
+        IPv4-encapsulated egress packets), fixed frame size `100` bytes,
+        constant rate `15` pps.
+    *   **IPv6 Flow (`IPv6_test_flow`)**: Source IPv6 `2001:db8::2`,
+        destination IPv6 `2001:db8::6`, fixed frame size `100` bytes, constant
+        rate `15` pps.
+*   While both flows are actively transmitting, establish a `gNMI.Subscribe`
+    streaming telemetry subscription in `SAMPLE` mode with a `30` second
+    sampling interval over a `300` second collection window (collecting at least
+    10 consecutive streaming samples) for `DUT port 1` subinterface `0` and
+    `DUT port 2` subinterface `0` on the following paths:
+    *   `/interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-pkts`
+    *   `/interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-forwarded-octets`
+    *   `/interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-pkts`
+    *   `/interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-forwarded-octets`
+    *   `/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-pkts`
+    *   `/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-forwarded-octets`
+    *   `/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-pkts`
+    *   `/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-forwarded-octets`
+
+#### Step 4: Validate Streaming Telemetry Updates and Post-Traffic Counter Accuracy
+
+*   **Pass/Fail Criteria for Streaming Updates (`SAMPLE` Mode)**:
+    *   **Pass**: Every consecutive `30` second streaming sample (`sample[i]` vs
+        `sample[i-1]`) for `DUT port 2` subinterface `0` shows a strictly
+        positive increment (`sample[i] > sample[i-1]`) for:
+        *   `/interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-pkts`
+        *   `/interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-forwarded-octets`
+        *   `/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-pkts`
+        *   `/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-forwarded-octets`
+        and the egress per-interval delta on `DUT port 2` subinterface `0`
+        matches the corresponding ingress per-interval delta on `DUT port 1`
+        subinterface `0` (`in-pkts` and `in-forwarded-octets`) within the
+        configured rate tolerance.
+    *   **Fail**: Any of the subinterface IPv4 or IPv6 egress counter paths fail
+        to emit streaming updates, return zero throughout the traffic window, or
+        report stale/unchanged values (`sample[i] == sample[i-1]`) across
+        consecutive sampling intervals while traffic is flowing.
+*   **Pass/Fail Criteria for Post-Traffic Reconciliation**:
+    *   Stop ATE traffic flows (`otg.StopTraffic(t)`).
+    *   **Pass**:
+        *   ATE flow metrics confirm `< 1%` packet loss (`0%` expected) on both
+            `IPv4_test_flow` and `IPv6_test_flow`.
+        *   On `DUT port 2` subinterface `0`, the total delta
+            (`post_traffic - baseline`) for
+            `/interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-pkts`
+            and
+            `/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-pkts`
+            is greater than or equal to the ATE transmitted packet count for the
+            respective address family.
+        *   On `DUT port 2` subinterface `0`, the total delta
+            (`post_traffic - baseline`) for
+            `/interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-forwarded-octets`
+            and
+            `/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-forwarded-octets`
+            is greater than or equal to the total forwarded IP payload octets
+            for the respective address family.
+    *   **Fail**: Packet loss is `>= 1%`, or the post-traffic subinterface
+        `out-pkts` or `out-forwarded-octets` counter deltas are less than the
+        expected transmitted packet or octet counts.
+
+### Cleanup
+
+*   Stop all active ATE traffic flows and OTG protocols.
+*   Revert all interface and subinterface configurations applied during the test
+    using `t.Cleanup()` so that `DUT port 1` and `DUT port 2` are restored to
+    their baseline operational state upon test completion.
 
 ## Testbed type
 
@@ -146,6 +325,63 @@ and from ATE to DUT and the counters are verified.
             }
           ]
         }
+      },
+      {
+        "config": {
+          "description": "Output interface port2",
+          "enabled": true,
+          "name": "port2",
+          "type": "iana-if-type:ethernetCsmacd"
+        },
+        "name": "port2",
+        "openconfig-if-rates:rates": {
+          "config": {
+            "load-interval": 30
+          }
+        },
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "config": {
+                "enabled": true,
+                "index": 0
+              },
+              "index": 0,
+              "openconfig-if-ip:ipv4": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "198.51.100.2",
+                        "prefix-length": 31
+                      },
+                      "ip": "198.51.100.2"
+                    }
+                  ]
+                },
+                "config": {
+                  "enabled": true
+                }
+              },
+              "openconfig-if-ip:ipv6": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "2001:DB8::5",
+                        "prefix-length": 126
+                      },
+                      "ip": "2001:DB8::5"
+                    }
+                  ]
+                },
+                "config": {
+                  "enabled": true
+                }
+              }
+            }
+          ]
+        }
       }
     ]
   }
@@ -196,10 +432,14 @@ paths:
   /interfaces/interface/subinterfaces/subinterface/state/counters/in-unknown-protos:
   /interfaces/interface/subinterfaces/subinterface/state/counters/in-broadcast-pkts:
   /interfaces/interface/subinterfaces/subinterface/ipv4/state/enabled:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-forwarded-octets:
   /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-forwarded-octets:
   /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-pkts:
   /interfaces/interface/subinterfaces/subinterface/ipv6/state/enabled:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-forwarded-octets:
   /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-forwarded-octets:
   /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-pkts:
   /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-discarded-pkts:
   /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-discarded-pkts:
@@ -215,6 +455,7 @@ paths:
 
 rpcs:
   gnmi:
+    gNMI.Get:
     gNMI.Subscribe:
     gNMI.Set:
 ```
@@ -227,5 +468,5 @@ rpcs:
       gNMI.Set:
 
 ## Minimum DUT platform requirement
-* FFF - fixed form factor
 
+* FFF - fixed form factor
