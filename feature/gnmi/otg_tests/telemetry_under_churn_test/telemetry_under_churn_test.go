@@ -77,6 +77,9 @@ const (
 	cadenceTolerance  = 2500 * time.Millisecond
 	deliveryTolerance = 3 * time.Second
 	churnDuration     = 2 * time.Minute
+	// Idle counters keep their last-change timestamp, so wait for traffic to
+	// move them before the cadence window starts.
+	trafficWarmup     = 2 * sampleInterval
 	counterSettleTime = 2*sampleInterval + 5*time.Second
 
 	trafficPPS          = 5000
@@ -259,11 +262,14 @@ func testBaselineTelemetryUnderChurn(t *testing.T, dut *ondatra.DUTDevice, ate *
 	leaves := []counterLeaf{ingress[0], egress[0]}
 	base := snapshotCounters(t, counterMon, leaves)
 	aftNotifsBefore := aftMon.notifications()
-	trafficStart := time.Now()
 	ate.OTG().StartTraffic(t)
+	t.Logf("Waiting %v for traffic to settle before churn.", trafficWarmup)
+	time.Sleep(trafficWarmup)
 
 	t.Logf("Step 8 - Continuous gRIBI churn for %v.", churnDuration)
+	churnStart := time.Now()
 	gc.churn(t, churnDuration)
+	churnStop := time.Now()
 	gc.verifyNoFailures(t)
 
 	ate.OTG().StopTraffic(t)
@@ -273,7 +279,7 @@ func testBaselineTelemetryUnderChurn(t *testing.T, dut *ondatra.DUTDevice, ate *
 
 	t.Log("Step 9 - Validate telemetry and traffic.")
 	validateSubscriptionStability(t, counterMon, aftMon, aftNotifsBefore)
-	validateOnTimeDelivery(t, counterMon, leaves, trafficStart, trafficStop)
+	validateOnTimeDelivery(t, counterMon, leaves, churnStart, churnStop)
 	totalTx, totalRx := validateLossless(t, ate, top)
 	validateDataAccuracy(t, counterMon, base, ingress, egress, totalTx, totalRx, trafficStop)
 }
@@ -329,11 +335,14 @@ func testScaledTelemetryUnderChurn(t *testing.T, dut *ondatra.DUTDevice, ate *on
 	leaves := []counterLeaf{ingress[0], egress[0], egress[1], egress[2]}
 	base := snapshotCounters(t, counterMon, leaves)
 	aftNotifsBefore := aftMon.notifications()
-	trafficStart := time.Now()
 	ate.OTG().StartTraffic(t)
+	t.Logf("Waiting %v for traffic to settle before churn.", trafficWarmup)
+	time.Sleep(trafficWarmup)
 
 	t.Logf("Step 8 - High-rate gRIBI ECMP churn for %v.", churnDuration)
+	churnStart := time.Now()
 	gc.churn(t, churnDuration)
+	churnStop := time.Now()
 	gc.verifyNoFailures(t)
 
 	ate.OTG().StopTraffic(t)
@@ -343,7 +352,7 @@ func testScaledTelemetryUnderChurn(t *testing.T, dut *ondatra.DUTDevice, ate *on
 
 	t.Log("Step 9 - Validate telemetry and traffic.")
 	validateSubscriptionStability(t, counterMon, aftMon, aftNotifsBefore)
-	validateOnTimeDelivery(t, counterMon, leaves, trafficStart, trafficStop)
+	validateOnTimeDelivery(t, counterMon, leaves, churnStart, churnStop)
 	totalTx, totalRx := validateLossless(t, ate, top)
 	validateDataAccuracy(t, counterMon, base, ingress, egress, totalTx, totalRx, trafficStop)
 }
