@@ -80,6 +80,8 @@ const (
 	// Upper bounds only; the waits return as soon as the streamed samples show the condition.
 	warmupTimeout = 4 * sampleInterval
 	settleTimeout = 4 * sampleInterval
+	// BGP/ND packets the DUT keeps counting after test traffic stops.
+	settleNoisePkts = 100
 
 	trafficPPS          = 5000
 	frameSize           = 512
@@ -1331,11 +1333,11 @@ func movingSince(t0 time.Time) func([]leafSample) bool {
 	}
 }
 
-// stoppedSince reports whether the latest sample, received after t0, shows the counter no longer changing.
+// stoppedSince reports whether the latest sample, received after t0, shows the counter no longer driven by traffic.
 func stoppedSince(t0 time.Time) func([]leafSample) bool {
 	return func(s []leafSample) bool {
 		n := len(s)
-		return n >= 2 && s[n-1].received.After(t0) && s[n-1].value == s[n-2].value
+		return n >= 2 && s[n-1].received.After(t0) && s[n-1].value <= s[n-2].value+settleNoisePkts
 	}
 }
 
