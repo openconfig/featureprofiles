@@ -725,6 +725,17 @@ func validateTransceiverInventory(t *testing.T, dut *ondatra.DUTDevice, dp *onda
 	}
 }
 
+func setInterfaceEnabled(t *testing.T, dut *ondatra.DUTDevice, name string, enabled bool) {
+	t.Helper()
+	intf := &oc.Interface{
+		Name:    ygot.String(name),
+		Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+		Enabled: ygot.Bool(enabled),
+	}
+	// Merge the mandatory type with enabled without replacing native port settings.
+	gnmi.Update(t, dut, gnmi.OC().Interface(name).Config(), intf)
+}
+
 // TestClientOpticsTelemetryAndInventory validates that all interfaces and transceivers
 // are enabled, links are UP, and all static inventory and dynamic telemetry parameters
 // (power, bias current, temperature, supply voltage, and alarm thresholds) are valid.
@@ -735,7 +746,7 @@ func TestClientOpticsTelemetryAndInventory(t *testing.T) {
 	for _, dp := range ports {
 		t.Run(fmt.Sprintf("Port:%s", dp.Name()), func(t *testing.T) {
 			// Ensure interface is enabled and wait for link to be UP
-			gnmi.Update(t, dut, gnmi.OC().Interface(dp.Name()).Enabled().Config(), true)
+			setInterfaceEnabled(t, dut, dp.Name(), true)
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 
 			intfLookup := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp.Name()).State())
