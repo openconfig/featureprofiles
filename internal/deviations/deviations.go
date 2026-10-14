@@ -2432,17 +2432,3 @@ func LacpTxErrorsUnsupported(dut *ondatra.DUTDevice) bool {
 func LacpConfigAfterAggregateReplace(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLacpConfigAfterAggregateReplace()
 }
-
-// GribiCloseClientBeforeSwitchover returns true if the device requires
-// gracefully closing the pre-switchover gRIBI client before triggering a
-// supervisor switchover to prevent proxy EOF errors.
-func GribiCloseClientBeforeSwitchover(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetGribiCloseClientBeforeSwitchover()
-}
-
-// GribiReinstallAfterSwitchover returns true if the device requires
-// re-installing pre-switchover gRIBI entries on the new primary controller
-// after a supervisor switchover when NSR is enabled.
-func GribiReinstallAfterSwitchover(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetGribiReinstallAfterSwitchover()
-}

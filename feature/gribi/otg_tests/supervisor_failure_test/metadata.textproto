@@ -20,7 +20,6 @@ platform_exceptions: {
   deviations: {
     explicit_interface_in_default_vrf: true
     interface_enabled: true
-    gribi_close_client_before_switchover: true
   }
 }
 platform_exceptions: {
@@ -32,13 +31,5 @@ platform_exceptions: {
     gnoi_switchover_reason_missing_user_initiated: true
     interface_enabled: true
     default_network_instance: "default"
-  }
-}
-platform_exceptions: {
-  platform: {
-    vendor: JUNIPER
-  }
-  deviations: {
-    gribi_reinstall_after_switchover: true
   }
 }
