@@ -845,11 +845,6 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_single_hop_bfd_test/README.md"
 }
 test: {
-  id: "RT-1.112"
-  description: "BGP ADD-Path send and receive capability"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/addpath/otg_tests/bgp_addpath_test/README.md"
-}
-test: {
   id: "RT-1.12"
   description: "BGP always compare MED"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_always_compare_med/README.md"
