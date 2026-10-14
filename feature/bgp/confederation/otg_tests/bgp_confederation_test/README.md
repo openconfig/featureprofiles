@@ -46,32 +46,14 @@ All advertised BGP routes on OTG have the below specs:
 
 #### Initial Setup:
 
-*   Connect DUT port-1, port-2, and port-3 to OTG port-1, port-2, and port-3
-    respectively
-*   Configure OTG:
-    1.  Create emulated routers R1 (port-1), R2 (port-2), and R3 (port-3) with
-        Ethernet interfaces
-    2.  Configure IPv4 and IPv6 addresses on R1, R2, and R3
-    3.  Configure BGP on R1 (AS 64510, eBGP), R2 (AS 64501, iBGP), and R3
-        (AS 64502, confederation-eBGP) for IPv4 and IPv6
-    4.  Configure the BGP route ranges on R1, R2, and R3 as listed in the table
-        above
-    5.  Create IPv4 and IPv6 traffic flows between the advertised prefixes on
-        port-1, port-2, and port-3
-    6.  Push configuration to OTG
-*   Start protocols on OTG
-*   Configure DUT:
-    1.  Configure the default network instance and interface IPv4/IPv6 addresses
-        on port-1, port-2, and port-3
-    2.  Configure BGP for DUT:
-        *   Create BGP instance under the default routing instance
-        *   Set global AS to 64501 and router ID to 192.0.2.254
-        *   Set confederation identifier to 64500 and member-as to 64502
-        *   Enable IPv4-unicast and IPv6-unicast address families and configure
-            the IPv4 and IPv6 BGP neighbors for R1 (AS 64510), R2 (AS 64501),
-            and R3 (AS 64502)
-        *   Push the configuration to the DUT
-*   Confirm that DUT has 6 BGP sessions in the `ESTABLISHED` state
+*   Connect DUT port-1, port-2, and port-3 to OTG port-1, port-2, and port-3.
+*   Configure OTG interfaces, BGP peers (R1 eBGP AS `64510`, R2 iBGP AS `64501`,
+    R3 confederation-eBGP AS `64502`), route ranges, and IPv4/IPv6 traffic flows
+    per the tables above, and start OTG protocols.
+*   Configure DUT interfaces and BGP in the `DEFAULT` network instance with
+    global AS `64501`, router ID `192.0.2.254`, confederation identifier
+    `64500`, member-as `[64502]`, and IPv4/IPv6 unicast neighbors for R1, R2,
+    and R3.
 
 ### RT-1.111.1: Confederation configuration, state and session establishment
 
@@ -115,10 +97,8 @@ All advertised BGP routes on OTG have the below specs:
 *   Verify BGP confederation state and session establishment on the DUT
 *   Advertise the BGP route ranges from OTG and collect the RIB and learned
     route attributes on the DUT and OTG
-*   Start traffic flows
-*   Wait for 30 seconds
-*   Stop traffic flows
-*   Collect the number of RX and TX traffic flow packets
+*   Start traffic flows, wait 30 seconds, stop traffic flows, and collect RX/TX
+    packet counts
 
 #### Test pass fail criteria
 
