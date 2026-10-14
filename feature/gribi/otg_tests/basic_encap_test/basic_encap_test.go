@@ -1700,12 +1700,10 @@ func readLatestSampleFunc[T any](t *testing.T, s *samplestream.SampleStream[T], 
 	return 0
 }
 
-// buildTest6Flows constructs the 4 concurrent traffic flows on OTG port1 as specified in Test-6 Step 2:
+// buildTest6EncapFlows constructs the 2 concurrent encapsulated traffic flows on OTG port1 as specified in Test-6 Step 2:
 //   - Flow 1 (ip4_encap_stream): IPv4 -> 138.0.11.8, DSCP 10, 512B frame, 1000 pps, 35,000 packets
 //   - Flow 2 (ip6_encap_stream): IPv6 -> 2015:aa8::1, DSCP 10, 512B frame, 1000 pps, 35,000 packets
-//   - Flow 3 (ip4_native_no_match): IPv4 -> 138.0.11.8, DSCP 30, 512B frame, 1000 pps, 35,000 packets
-//   - Flow 4 (ip6_native_fallback): IPv6 -> 1999:aa8::1, DSCP 10, 512B frame, 1000 pps, 35,000 packets
-func buildTest6Flows() []gosnappi.Flow {
+func buildTest6EncapFlows() []gosnappi.Flow {
 	cfg := gosnappi.NewConfig()
 
 	addUDP := func(flow gosnappi.Flow) {
@@ -1748,24 +1746,13 @@ func buildTest6Flows() []gosnappi.Flow {
 	v6Encap.TrafficClass().SetValue(dscpEncapA1 << 2)
 	addUDP(f2)
 
-	// Flow 3: IPv4 Native Egress Traffic (ip4_native_no_match) matching default PBR rule (DSCP 30 -> DEFAULT VRF -> port2).
-	f3 := cfg.Flows().Add().SetName("ip4_native_no_match")
-	f3.Metrics().SetEnable(true)
-	f3.TxRx().Port().SetTxName(otgSrcPort).SetRxNames([]string{"port2"})
-	f3.Size().SetFixed(test6FrameSize)
-	f3.Rate().SetPps(test6PPS)
-	f3.Duration().FixedPackets().SetPackets(test6PktCount)
-	e3 := f3.Packet().Add().Ethernet()
-	e3.Src().SetValue(otgPort1.MAC)
-	e3.Dst().SetValue(dutPort1.MAC)
-	v4Native := f3.Packet().Add().Ipv4()
-	v4Native.Src().SetValue(otgPort1.IPv4)
-	v4Native.Dst().SetValue(ipv4FlowIP)
-	v4Native.TimeToLive().SetValue(ttl)
-	v4Native.Priority().Dscp().Phb().SetValue(dscpEncapNoMatch)
-	addUDP(f3)
+	return []gosnappi.Flow{f1, f2}
+}
 
-	// Flow 4: IPv6 Native Egress Fallback Traffic (ip6_native_fallback) matching ENCAP_TE_VRF_A ::/0 fallback route -> port2.
+// buildTest6NativeIPv6FallbackFlow constructs the native IPv6 fallback traffic flow on OTG port1
+// matching ENCAP_TE_VRF_A ::/0 fallback route -> NHG#3000 -> NHG#3002 -> port2 as specified in Test-6 Step 4.
+func buildTest6NativeIPv6FallbackFlow() gosnappi.Flow {
+	cfg := gosnappi.NewConfig()
 	f4 := cfg.Flows().Add().SetName("ip6_native_fallback")
 	f4.Metrics().SetEnable(true)
 	f4.TxRx().Port().SetTxName(otgSrcPort).SetRxNames([]string{"port2"})
@@ -1780,9 +1767,10 @@ func buildTest6Flows() []gosnappi.Flow {
 	v6Native.Dst().SetValue(nativeFallbackIPv6FlowIP)
 	v6Native.HopLimit().SetValue(ttl)
 	v6Native.TrafficClass().SetValue(dscpEncapA1 << 2)
-	addUDP(f4)
-
-	return []gosnappi.Flow{f1, f2, f3, f4}
+	udp := f4.Packet().Add().Udp()
+	udp.SrcPort().SetValues(randRange(50001, 1000))
+	udp.DstPort().SetValues(randRange(50001, 1000))
+	return f4
 }
 
 // verifyWithinTolerance checks that got is within +/- tolPct of want.
@@ -1805,12 +1793,6 @@ func testSimultaneousEncapAndSubintfStreamingCounters(t *testing.T, args *testAr
 	otgDev := ate.OTG()
 	defaultNI := deviations.DefaultNetworkInstance(dut)
 	subintfCountersSupported := !deviations.SubinterfacePacketCountersMissing(dut)
-
-	// Configure the DEFAULT VRF static routes for 138.0.11.0/24 -> otgPort2.IPv4 and 2015:aa8::/64 -> otgPort2.IPv6
-	// so that Flow 3 (ip4_native_no_match, DSCP 30) resolves to egress port2 in DEFAULT VRF.
-	configDefaultRoute(t, dut, cidr(ipv4EntryPrefix, ipv4EntryPrefixLen), otgPort2.IPv4, cidr(ipv6EntryPrefix, ipv6EntryPrefixLen), otgPort2.IPv6)
-	defer gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(defaultNI).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Static(cidr(ipv4EntryPrefix, ipv4EntryPrefixLen)).Config())
-	defer gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(defaultNI).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Static(cidr(ipv6EntryPrefix, ipv6EntryPrefixLen)).Config())
 
 	// =========================================================================
 	// Test-6 Step 1: Establish Concurrent gNMI SAMPLE Subscriptions & Record Baseline Counters
@@ -1915,46 +1897,87 @@ func testSimultaneousEncapAndSubintfStreamingCounters(t *testing.T, args *testAr
 	v6PfxPktsFn := func(e *oc.NetworkInstance_Afts_Ipv6Entry) uint64 { return e.GetCounters().GetPacketsForwarded() }
 	v6PfxOctetsFn := func(e *oc.NetworkInstance_Afts_Ipv6Entry) uint64 { return e.GetCounters().GetOctetsForwarded() }
 
-	// Snapshot initial baseline counters across all active SAMPLE streams before starting traffic.
-	baseAFT := aftCounterValues{
-		nh201Pkts:      readLatestSampleFunc(t, aftStreams.nh201, nhPktsFn, "AFT NH#201 PacketsForwarded"),
-		nh201Octets:    readLatestSampleFunc(t, aftStreams.nh201, nhOctetsFn, "AFT NH#201 OctetsForwarded"),
-		nh202Pkts:      readLatestSampleFunc(t, aftStreams.nh202, nhPktsFn, "AFT NH#202 PacketsForwarded"),
-		nh202Octets:    readLatestSampleFunc(t, aftStreams.nh202, nhOctetsFn, "AFT NH#202 OctetsForwarded"),
-		v4PrefixPkts:   readLatestSampleFunc(t, aftStreams.v4Prefix, v4PfxPktsFn, "AFT IPv4 138.0.11.0/24 PacketsForwarded"),
-		v4PrefixOctets: readLatestSampleFunc(t, aftStreams.v4Prefix, v4PfxOctetsFn, "AFT IPv4 138.0.11.0/24 OctetsForwarded"),
-		v6PrefixPkts:   readLatestSampleFunc(t, aftStreams.v6Prefix, v6PfxPktsFn, "AFT IPv6 2015:aa8::/64 PacketsForwarded"),
-		v6PrefixOctets: readLatestSampleFunc(t, aftStreams.v6Prefix, v6PfxOctetsFn, "AFT IPv6 2015:aa8::/64 OctetsForwarded"),
-	}
-	basePorts := make(map[string]portCounterValues, len(portIDs))
-	for _, pid := range portIDs {
-		ps := portStreams[pid]
-		pv := portCounterValues{
-			physInPkts:    readLatestSample(t, ps.physInPkts, pid+" physInPkts"),
-			physInOctets:  readLatestSample(t, ps.physInOctets, pid+" physInOctets"),
-			physOutPkts:   readLatestSample(t, ps.physOutPkts, pid+" physOutPkts"),
-			physOutOctets: readLatestSample(t, ps.physOutOctets, pid+" physOutOctets"),
+	snapshotAllCounters := func() (aftCounterValues, map[string]portCounterValues) {
+		aftSnap := aftCounterValues{
+			nh201Pkts:      readLatestSampleFunc(t, aftStreams.nh201, nhPktsFn, "AFT NH#201 PacketsForwarded"),
+			nh201Octets:    readLatestSampleFunc(t, aftStreams.nh201, nhOctetsFn, "AFT NH#201 OctetsForwarded"),
+			nh202Pkts:      readLatestSampleFunc(t, aftStreams.nh202, nhPktsFn, "AFT NH#202 PacketsForwarded"),
+			nh202Octets:    readLatestSampleFunc(t, aftStreams.nh202, nhOctetsFn, "AFT NH#202 OctetsForwarded"),
+			v4PrefixPkts:   readLatestSampleFunc(t, aftStreams.v4Prefix, v4PfxPktsFn, "AFT IPv4 138.0.11.0/24 PacketsForwarded"),
+			v4PrefixOctets: readLatestSampleFunc(t, aftStreams.v4Prefix, v4PfxOctetsFn, "AFT IPv4 138.0.11.0/24 OctetsForwarded"),
+			v6PrefixPkts:   readLatestSampleFunc(t, aftStreams.v6Prefix, v6PfxPktsFn, "AFT IPv6 2015:aa8::/64 PacketsForwarded"),
+			v6PrefixOctets: readLatestSampleFunc(t, aftStreams.v6Prefix, v6PfxOctetsFn, "AFT IPv6 2015:aa8::/64 OctetsForwarded"),
 		}
-		if subintfCountersSupported {
-			pv.v4InPkts = readLatestSample(t, ps.v4InPkts, pid+" subintf0 v4InPkts")
-			pv.v4InFwdOctets = readLatestSample(t, ps.v4InFwdOctets, pid+" subintf0 v4InFwdOctets")
-			pv.v4OutPkts = readLatestSample(t, ps.v4OutPkts, pid+" subintf0 v4OutPkts")
-			pv.v4OutFwdOctets = readLatestSample(t, ps.v4OutFwdOctets, pid+" subintf0 v4OutFwdOctets")
-			pv.v6InPkts = readLatestSample(t, ps.v6InPkts, pid+" subintf0 v6InPkts")
-			pv.v6InFwdOctets = readLatestSample(t, ps.v6InFwdOctets, pid+" subintf0 v6InFwdOctets")
-			pv.v6OutPkts = readLatestSample(t, ps.v6OutPkts, pid+" subintf0 v6OutPkts")
-			pv.v6OutFwdOctets = readLatestSample(t, ps.v6OutFwdOctets, pid+" subintf0 v6OutFwdOctets")
+		portSnap := make(map[string]portCounterValues, len(portIDs))
+		for _, pid := range portIDs {
+			ps := portStreams[pid]
+			pv := portCounterValues{
+				physInPkts:    readLatestSample(t, ps.physInPkts, pid+" physInPkts"),
+				physInOctets:  readLatestSample(t, ps.physInOctets, pid+" physInOctets"),
+				physOutPkts:   readLatestSample(t, ps.physOutPkts, pid+" physOutPkts"),
+				physOutOctets: readLatestSample(t, ps.physOutOctets, pid+" physOutOctets"),
+			}
+			if subintfCountersSupported {
+				pv.v4InPkts = readLatestSample(t, ps.v4InPkts, pid+" subintf0 v4InPkts")
+				pv.v4InFwdOctets = readLatestSample(t, ps.v4InFwdOctets, pid+" subintf0 v4InFwdOctets")
+				pv.v4OutPkts = readLatestSample(t, ps.v4OutPkts, pid+" subintf0 v4OutPkts")
+				pv.v4OutFwdOctets = readLatestSample(t, ps.v4OutFwdOctets, pid+" subintf0 v4OutFwdOctets")
+				pv.v6InPkts = readLatestSample(t, ps.v6InPkts, pid+" subintf0 v6InPkts")
+				pv.v6InFwdOctets = readLatestSample(t, ps.v6InFwdOctets, pid+" subintf0 v6InFwdOctets")
+				pv.v6OutPkts = readLatestSample(t, ps.v6OutPkts, pid+" subintf0 v6OutPkts")
+				pv.v6OutFwdOctets = readLatestSample(t, ps.v6OutFwdOctets, pid+" subintf0 v6OutFwdOctets")
+			}
+			portSnap[pid] = pv
 		}
-		basePorts[pid] = pv
+		return aftSnap, portSnap
 	}
 
+	advanceAllStreams := func() {
+		var settleWG sync.WaitGroup
+		advanceStream := func(s *samplestream.SampleStream[uint64]) {
+			if s == nil {
+				return
+			}
+			settleWG.Add(1)
+			go func() {
+				defer settleWG.Done()
+				s.Next()
+			}()
+		}
+		settleWG.Add(4)
+		go func() { defer settleWG.Done(); aftStreams.nh201.Next() }()
+		go func() { defer settleWG.Done(); aftStreams.nh202.Next() }()
+		go func() { defer settleWG.Done(); aftStreams.v4Prefix.Next() }()
+		go func() { defer settleWG.Done(); aftStreams.v6Prefix.Next() }()
+		for _, ps := range portStreams {
+			advanceStream(ps.physInPkts)
+			advanceStream(ps.physInOctets)
+			advanceStream(ps.physOutPkts)
+			advanceStream(ps.physOutOctets)
+			if subintfCountersSupported {
+				advanceStream(ps.v4InPkts)
+				advanceStream(ps.v4InFwdOctets)
+				advanceStream(ps.v4OutPkts)
+				advanceStream(ps.v4OutFwdOctets)
+				advanceStream(ps.v6InPkts)
+				advanceStream(ps.v6InFwdOctets)
+				advanceStream(ps.v6OutPkts)
+				advanceStream(ps.v6OutFwdOctets)
+			}
+		}
+		settleWG.Wait()
+	}
+
+	// Snapshot initial baseline counters (C_before) across all active SAMPLE streams before starting traffic.
+	baseAFT, basePorts := snapshotAllCounters()
+
 	// =========================================================================
-	// Test-6 Step 2: Generate Concurrent Encapsulated and Native IPv4/IPv6 Traffic
+	// Test-6 Step 2: Sustained Encapsulated Traffic Transmission (4in4 and 6in4)
 	// =========================================================================
-	t.Log("Test-6 Step 2: Starting 4 concurrent flows on OTG port1 (ip4_encap_stream, ip6_encap_stream, ip4_native_no_match, ip6_native_fallback)")
-	flows := buildTest6Flows()
+	t.Log("Test-6 Step 2: Starting sustained dual-stack encapsulated flows on OTG port1 (ip4_encap_stream and ip6_encap_stream)")
+	encapFlows := buildTest6EncapFlows()
 	args.topo.Flows().Clear().Items()
-	args.topo.Flows().Append(flows...)
+	args.topo.Flows().Append(encapFlows...)
 	otgDev.PushConfig(t, args.topo)
 	otgDev.StartProtocols(t)
 	otgutils.WaitForARP(t, otgDev, args.topo, "IPv4")
@@ -1963,9 +1986,9 @@ func testSimultaneousEncapAndSubintfStreamingCounters(t *testing.T, args *testAr
 	otgDev.StartTraffic(t)
 
 	// =========================================================================
-	// Test-6 Step 3: Validate Real-Time Monotonic Counter Progression During Active Traffic
+	// Test-6 Step 3: Periodic Streaming Telemetry & Simultaneous Feature Coexistence Verification
 	// =========================================================================
-	t.Log("Test-6 Step 3: Validating real-time monotonic counter progression across >= 3 consecutive 10s gNMI SAMPLE updates while traffic is active")
+	t.Log("Test-6 Step 3: Validating real-time monotonic counter progression (S_1 < S_2 < ... < S_k) across >= 3 consecutive 10s gNMI SAMPLE updates while encapsulated traffic is active")
 
 	type monotonicCheck struct {
 		name string
@@ -2076,18 +2099,6 @@ func testSimultaneousEncapAndSubintfStreamingCounters(t *testing.T, args *testAr
 					return samplestream.VerifyMonotonicIncrease(t, portStreams["port1"].v6InFwdOctets, test6MonotonicSamples, 2*test6SampleInterval)
 				},
 			},
-			monotonicCheck{
-				name: "port2 Subinterface(0) IPv6 OutPkts",
-				run: func() ([]uint64, error) {
-					return samplestream.VerifyMonotonicIncrease(t, portStreams["port2"].v6OutPkts, test6MonotonicSamples, 2*test6SampleInterval)
-				},
-			},
-			monotonicCheck{
-				name: "port2 Subinterface(0) IPv6 OutForwardedOctets",
-				run: func() ([]uint64, error) {
-					return samplestream.VerifyMonotonicIncrease(t, portStreams["port2"].v6OutFwdOctets, test6MonotonicSamples, 2*test6SampleInterval)
-				},
-			},
 		)
 		for _, pid := range otgDstPorts {
 			pid := pid
@@ -2131,8 +2142,8 @@ func testSimultaneousEncapAndSubintfStreamingCounters(t *testing.T, args *testAr
 		t.Errorf("Test-6 Step 3 monotonic check failed: %s", errMsg)
 	}
 
-	// Wait via gnmi.Watch for all 4 flows to finish transmitting all 35,000 fixed packets.
-	for _, f := range flows {
+	// Wait via gnmi.Watch for both encapsulated flows to finish transmitting all 35,000 fixed packets.
+	for _, f := range encapFlows {
 		gnmi.Watch(t, otgDev, gnmi.OTG().Flow(f.Name()).Counters().OutPkts().State(), 60*time.Second, func(val *ygnmi.Value[uint64]) bool {
 			outPkts, present := val.Val()
 			return present && outPkts >= uint64(test6PktCount)
@@ -2143,216 +2154,228 @@ func testSimultaneousEncapAndSubintfStreamingCounters(t *testing.T, args *testAr
 	otgutils.LogPortMetrics(t, otgDev, args.topo)
 	otgutils.LogFlowMetrics(t, otgDev, args.topo)
 
-	// Verify 0% packet loss across all 4 flows.
-	for _, f := range flows {
+	// Verify 0% packet loss across both encapsulated flows.
+	for _, f := range encapFlows {
 		otgutils.ExpectedTrafficLoss(t, otgDev, f.Name(), 0, 1)
 	}
 
 	// =========================================================================
-	// Test-6 Step 4: Stop Traffic and Validate Final Streaming Counter Accuracy & Coexistence
+	// Test-6 Step 4: Post-Traffic Counter Delta & Hierarchical Distribution Accuracy
 	// =========================================================================
-	t.Log("Test-6 Step 4: Waiting for post-traffic gNMI SAMPLE interval and validating final counter deltas")
+	t.Log("Test-6 Step 4: Waiting for post-traffic gNMI SAMPLE interval (C_after) and validating final counter deltas")
 
 	// Wait deterministically for one post-traffic sample on port1 Physical InPkts so that all 10s sample streams have settled.
-	wantTotalIngressPkts := basePorts["port1"].physInPkts + 4*uint64(test6PktCount)
+	wantEncapIngressPkts := basePorts["port1"].physInPkts + 2*uint64(test6PktCount)
 	for i := 0; i < 3; i++ {
 		if next := portStreams["port1"].physInPkts.Next(); next != nil {
-			if v, ok := next.Val(); ok && v >= uint64(float64(wantTotalIngressPkts)*(1.0-test6CounterTolPct)) {
+			if v, ok := next.Val(); ok && v >= uint64(float64(wantEncapIngressPkts)*(1.0-test6CounterTolPct)) {
 				break
 			}
 		}
 	}
-	// Also advance one final sample across all other streams so readLatestSample reflects post-traffic state.
-	var settleWG sync.WaitGroup
-	advanceStream := func(s *samplestream.SampleStream[uint64]) {
-		if s == nil {
-			return
-		}
-		settleWG.Add(1)
-		go func() {
-			defer settleWG.Done()
-			s.Next()
-		}()
-	}
-	settleWG.Add(4)
-	go func() { defer settleWG.Done(); aftStreams.nh201.Next() }()
-	go func() { defer settleWG.Done(); aftStreams.nh202.Next() }()
-	go func() { defer settleWG.Done(); aftStreams.v4Prefix.Next() }()
-	go func() { defer settleWG.Done(); aftStreams.v6Prefix.Next() }()
-	for _, ps := range portStreams {
-		advanceStream(ps.physInPkts)
-		advanceStream(ps.physInOctets)
-		advanceStream(ps.physOutPkts)
-		advanceStream(ps.physOutOctets)
-		if subintfCountersSupported {
-			advanceStream(ps.v4InPkts)
-			advanceStream(ps.v4InFwdOctets)
-			advanceStream(ps.v4OutPkts)
-			advanceStream(ps.v4OutFwdOctets)
-			advanceStream(ps.v6InPkts)
-			advanceStream(ps.v6InFwdOctets)
-			advanceStream(ps.v6OutPkts)
-			advanceStream(ps.v6OutFwdOctets)
-		}
-	}
-	settleWG.Wait()
+	// Advance one settled post-traffic sample across all streams.
+	advanceAllStreams()
+	finalAFT, finalPorts := snapshotAllCounters()
 
-	finalAFT := aftCounterValues{
-		nh201Pkts:      readLatestSampleFunc(t, aftStreams.nh201, nhPktsFn, "AFT NH#201 PacketsForwarded"),
-		nh201Octets:    readLatestSampleFunc(t, aftStreams.nh201, nhOctetsFn, "AFT NH#201 OctetsForwarded"),
-		nh202Pkts:      readLatestSampleFunc(t, aftStreams.nh202, nhPktsFn, "AFT NH#202 PacketsForwarded"),
-		nh202Octets:    readLatestSampleFunc(t, aftStreams.nh202, nhOctetsFn, "AFT NH#202 OctetsForwarded"),
-		v4PrefixPkts:   readLatestSampleFunc(t, aftStreams.v4Prefix, v4PfxPktsFn, "AFT IPv4 138.0.11.0/24 PacketsForwarded"),
-		v4PrefixOctets: readLatestSampleFunc(t, aftStreams.v4Prefix, v4PfxOctetsFn, "AFT IPv4 138.0.11.0/24 OctetsForwarded"),
-		v6PrefixPkts:   readLatestSampleFunc(t, aftStreams.v6Prefix, v6PfxPktsFn, "AFT IPv6 2015:aa8::/64 PacketsForwarded"),
-		v6PrefixOctets: readLatestSampleFunc(t, aftStreams.v6Prefix, v6PfxOctetsFn, "AFT IPv6 2015:aa8::/64 OctetsForwarded"),
-	}
-	finalPorts := make(map[string]portCounterValues, len(portIDs))
-	for _, pid := range portIDs {
-		ps := portStreams[pid]
-		pv := portCounterValues{
-			physInPkts:    readLatestSample(t, ps.physInPkts, pid+" physInPkts"),
-			physInOctets:  readLatestSample(t, ps.physInOctets, pid+" physInOctets"),
-			physOutPkts:   readLatestSample(t, ps.physOutPkts, pid+" physOutPkts"),
-			physOutOctets: readLatestSample(t, ps.physOutOctets, pid+" physOutOctets"),
-		}
-		if subintfCountersSupported {
-			pv.v4InPkts = readLatestSample(t, ps.v4InPkts, pid+" subintf0 v4InPkts")
-			pv.v4InFwdOctets = readLatestSample(t, ps.v4InFwdOctets, pid+" subintf0 v4InFwdOctets")
-			pv.v4OutPkts = readLatestSample(t, ps.v4OutPkts, pid+" subintf0 v4OutPkts")
-			pv.v4OutFwdOctets = readLatestSample(t, ps.v4OutFwdOctets, pid+" subintf0 v4OutFwdOctets")
-			pv.v6InPkts = readLatestSample(t, ps.v6InPkts, pid+" subintf0 v6InPkts")
-			pv.v6InFwdOctets = readLatestSample(t, ps.v6InFwdOctets, pid+" subintf0 v6InFwdOctets")
-			pv.v6OutPkts = readLatestSample(t, ps.v6OutPkts, pid+" subintf0 v6OutPkts")
-			pv.v6OutFwdOctets = readLatestSample(t, ps.v6OutFwdOctets, pid+" subintf0 v6OutFwdOctets")
-		}
-		finalPorts[pid] = pv
-	}
+	// Retrieve OTG flow TxPkts and RxPkts (N_tx_v4, N_tx_v6, and N_rx_total = N_tx_v4 + N_tx_v6).
+	txFlowV4 := gnmi.Get(t, otgDev, gnmi.OTG().Flow("ip4_encap_stream").Counters().OutPkts().State())
+	txFlowV6 := gnmi.Get(t, otgDev, gnmi.OTG().Flow("ip6_encap_stream").Counters().OutPkts().State())
+	rxFlowV4 := gnmi.Get(t, otgDev, gnmi.OTG().Flow("ip4_encap_stream").Counters().InPkts().State())
+	rxFlowV6 := gnmi.Get(t, otgDev, gnmi.OTG().Flow("ip6_encap_stream").Counters().InPkts().State())
+	totalEncapTx := txFlowV4 + txFlowV6
+	totalEncapRx := rxFlowV4 + rxFlowV6
 
-	// Retrieve OTG flow TxPkts and RxPkts.
-	txFlow1 := gnmi.Get(t, otgDev, gnmi.OTG().Flow("ip4_encap_stream").Counters().OutPkts().State())
-	txFlow2 := gnmi.Get(t, otgDev, gnmi.OTG().Flow("ip6_encap_stream").Counters().OutPkts().State())
-	txFlow3 := gnmi.Get(t, otgDev, gnmi.OTG().Flow("ip4_native_no_match").Counters().OutPkts().State())
-	txFlow4 := gnmi.Get(t, otgDev, gnmi.OTG().Flow("ip6_native_fallback").Counters().OutPkts().State())
-	rxFlow1 := gnmi.Get(t, otgDev, gnmi.OTG().Flow("ip4_encap_stream").Counters().InPkts().State())
-	rxFlow2 := gnmi.Get(t, otgDev, gnmi.OTG().Flow("ip6_encap_stream").Counters().InPkts().State())
-	totalEncapTx := txFlow1 + txFlow2
-	totalEncapRx := rxFlow1 + rxFlow2
-
-	// 1. Validate IP-in-IP Encapsulation Tunnel Counter Accuracy & WCMP Split (NH#201 = 25%, NH#202 = 75%).
+	// 1. IP-in-IP Encap Tunnel Next-Hop & AFT Prefix Counters:
+	//    - Combined packet delta across NH#201 and NH#202 equals N_tx_v4 + N_tx_v6 (+/- 1%).
+	//    - Individual tunnel next-hop packet and octet deltas reflect 1:3 WCMP weights (25% / 75% +/- 5%).
 	deltaNH201Pkts := finalAFT.nh201Pkts - baseAFT.nh201Pkts
 	deltaNH202Pkts := finalAFT.nh202Pkts - baseAFT.nh202Pkts
 	deltaNH201Octets := finalAFT.nh201Octets - baseAFT.nh201Octets
 	deltaNH202Octets := finalAFT.nh202Octets - baseAFT.nh202Octets
 	totalNHPkts := deltaNH201Pkts + deltaNH202Pkts
-	verifyWithinTolerance(t, "Test-6 Step 4: Total AFT Encap NextHop PacketsForwarded (NH#201 + NH#202)", totalNHPkts, totalEncapTx, test6CounterTolPct)
+	totalNHOctets := deltaNH201Octets + deltaNH202Octets
+	verifyWithinTolerance(t, "Test-6 Step 4: Combined AFT Encap NextHop PacketsForwarded (delta_NH201_pkts + delta_NH202_pkts)", totalNHPkts, totalEncapTx, test6CounterTolPct)
 
 	if totalNHPkts > 0 {
-		gotNH201Ratio := float64(deltaNH201Pkts) / float64(totalNHPkts)
-		gotNH202Ratio := float64(deltaNH202Pkts) / float64(totalNHPkts)
-		if math.Abs(gotNH201Ratio-ratioTunEncap1) > ratioTunEncapTol {
-			t.Errorf("Test-6 Step 4: AFT NH#201 WCMP share got %.4f, want %.4f +/- %.4f", gotNH201Ratio, ratioTunEncap1, ratioTunEncapTol)
+		gotNH201PktRatio := float64(deltaNH201Pkts) / float64(totalNHPkts)
+		gotNH202PktRatio := float64(deltaNH202Pkts) / float64(totalNHPkts)
+		if math.Abs(gotNH201PktRatio-ratioTunEncap1) > ratioTunEncapTol {
+			t.Errorf("Test-6 Step 4: AFT NH#201 packet WCMP share got %.4f, want %.4f +/- %.4f", gotNH201PktRatio, ratioTunEncap1, ratioTunEncapTol)
 		}
-		if math.Abs(gotNH202Ratio-ratioTunEncap2) > ratioTunEncapTol {
-			t.Errorf("Test-6 Step 4: AFT NH#202 WCMP share got %.4f, want %.4f +/- %.4f", gotNH202Ratio, ratioTunEncap2, ratioTunEncapTol)
+		if math.Abs(gotNH202PktRatio-ratioTunEncap2) > ratioTunEncapTol {
+			t.Errorf("Test-6 Step 4: AFT NH#202 packet WCMP share got %.4f, want %.4f +/- %.4f", gotNH202PktRatio, ratioTunEncap2, ratioTunEncapTol)
 		}
 	}
-	// Check NH octets against either inner L3 (494B) or outer L3 (514B) per platform accounting convention.
+	if totalNHOctets > 0 {
+		gotNH201OctetRatio := float64(deltaNH201Octets) / float64(totalNHOctets)
+		gotNH202OctetRatio := float64(deltaNH202Octets) / float64(totalNHOctets)
+		if math.Abs(gotNH201OctetRatio-ratioTunEncap1) > ratioTunEncapTol {
+			t.Errorf("Test-6 Step 4: AFT NH#201 octet WCMP share got %.4f, want %.4f +/- %.4f", gotNH201OctetRatio, ratioTunEncap1, ratioTunEncapTol)
+		}
+		if math.Abs(gotNH202OctetRatio-ratioTunEncap2) > ratioTunEncapTol {
+			t.Errorf("Test-6 Step 4: AFT NH#202 octet WCMP share got %.4f, want %.4f +/- %.4f", gotNH202OctetRatio, ratioTunEncap2, ratioTunEncapTol)
+		}
+	}
 	wantNHTotalInnerOctets := totalNHPkts * test6InnerL3Bytes
 	wantNHTotalOuterOctets := totalNHPkts * test6OuterL3Bytes
-	totalNHOctets := deltaNH201Octets + deltaNH202Octets
 	if math.Abs(float64(totalNHOctets)-float64(wantNHTotalInnerOctets)) > float64(wantNHTotalInnerOctets)*test6CounterTolPct &&
 		math.Abs(float64(totalNHOctets)-float64(wantNHTotalOuterOctets)) > float64(wantNHTotalOuterOctets)*test6CounterTolPct {
 		t.Errorf("Test-6 Step 4: Total AFT Encap NextHop OctetsForwarded got %d, want %d (inner L3) or %d (outer L3) +/- 1%%",
 			totalNHOctets, wantNHTotalInnerOctets, wantNHTotalOuterOctets)
 	}
 
-	// 2. Validate AFT Prefix Counters in ENCAP_TE_VRF_A.
 	deltaV4PfxPkts := finalAFT.v4PrefixPkts - baseAFT.v4PrefixPkts
 	deltaV6PfxPkts := finalAFT.v6PrefixPkts - baseAFT.v6PrefixPkts
-	verifyWithinTolerance(t, "Test-6 Step 4: AFT ENCAP_TE_VRF_A IPv4 138.0.11.0/24 PacketsForwarded", deltaV4PfxPkts, txFlow1, test6CounterTolPct)
-	verifyWithinTolerance(t, "Test-6 Step 4: AFT ENCAP_TE_VRF_A IPv6 2015:aa8::/64 PacketsForwarded", deltaV6PfxPkts, txFlow2, test6CounterTolPct)
+	verifyWithinTolerance(t, "Test-6 Step 4: AFT ENCAP_TE_VRF_A IPv4 138.0.11.0/24 PacketsForwarded", deltaV4PfxPkts, txFlowV4, test6CounterTolPct)
+	verifyWithinTolerance(t, "Test-6 Step 4: AFT ENCAP_TE_VRF_A IPv6 2015:aa8::/64 PacketsForwarded", deltaV6PfxPkts, txFlowV6, test6CounterTolPct)
 
-	// 3. Validate Ingress Subinterface Counter Accuracy (port1 Subinterface(0)).
+	// 2. Subinterface and Physical Interface Egress Counters:
+	//    - Because both 4in4 and 6in4 encapsulated packets egress the DUT with an outer IPv4 tunnel header,
+	//      the sum of egress subinterface IPv4 packet deltas (ipv4/state/counters/out-pkts) across DUT
+	//      port-2 through port-5, as well as the sum of physical interface egress packet deltas
+	//      (state/counters/out-pkts) across those same ports, each independently equals the total
+	//      encapsulated packets received on ATE port-2 through port-5 (N_rx_total = N_tx_v4 + N_tx_v6).
+	var sumPhysOutPkts uint64
+	for _, pid := range otgDstPorts {
+		dPhysOut := finalPorts[pid].physOutPkts - basePorts[pid].physOutPkts
+		sumPhysOutPkts += dPhysOut
+	}
+	verifyWithinTolerance(t, "Test-6 Step 4: Independent sum of Physical Interface Egress OutPkts across port2..port5 vs N_rx_total (N_tx_v4 + N_tx_v6)", sumPhysOutPkts, totalEncapRx, test6CounterTolPct)
+
 	if subintfCountersSupported {
-		p1DeltaV4InPkts := finalPorts["port1"].v4InPkts - basePorts["port1"].v4InPkts
-		p1DeltaV4InOctets := finalPorts["port1"].v4InFwdOctets - basePorts["port1"].v4InFwdOctets
-		p1DeltaV6InPkts := finalPorts["port1"].v6InPkts - basePorts["port1"].v6InPkts
-		p1DeltaV6InOctets := finalPorts["port1"].v6InFwdOctets - basePorts["port1"].v6InFwdOctets
-
-		verifyWithinTolerance(t, "Test-6 Step 4: port1 Subinterface(0) IPv4 InPkts (Flow 1 + Flow 3)", p1DeltaV4InPkts, txFlow1+txFlow3, test6CounterTolPct)
-		verifyWithinTolerance(t, "Test-6 Step 4: port1 Subinterface(0) IPv4 InForwardedOctets", p1DeltaV4InOctets, (txFlow1+txFlow3)*test6InnerL3Bytes, test6CounterTolPct)
-		verifyWithinTolerance(t, "Test-6 Step 4: port1 Subinterface(0) IPv6 InPkts (Flow 2 + Flow 4)", p1DeltaV6InPkts, txFlow2+txFlow4, test6CounterTolPct)
-		verifyWithinTolerance(t, "Test-6 Step 4: port1 Subinterface(0) IPv6 InForwardedOctets", p1DeltaV6InOctets, (txFlow2+txFlow4)*test6InnerL3Bytes, test6CounterTolPct)
-
-		// 4. Validate Subinterface Egress Counters across port2..port5.
-		// Because both 4in4 and 6in4 encapsulated packets egress the DUT with an outer IPv4 tunnel header,
-		// the sum of egress subinterface IPv4 packet deltas (ipv4/state/counters/out-pkts) across DUT
-		// port-2 through port-5, as well as the sum of physical interface egress packet deltas
-		// (state/counters/out-pkts) across those same ports, each independently equals the total
-		// encapsulated packets received on ATE port-2 through port-5 (N_rx_total = N_tx_v4 + N_tx_v6)
-		// after accounting for the non-encapsulated native flows on port-2.
 		var sumEgressSubintfV4OutPkts uint64
 		var sumEgressSubintfV4OutOctets uint64
+		var encapPktsPerPort []uint64
 		for _, pid := range otgDstPorts {
 			dV4OutPkts := finalPorts[pid].v4OutPkts - basePorts[pid].v4OutPkts
 			dV4OutOctets := finalPorts[pid].v4OutFwdOctets - basePorts[pid].v4OutFwdOctets
 			sumEgressSubintfV4OutPkts += dV4OutPkts
 			sumEgressSubintfV4OutOctets += dV4OutOctets
-		}
-		// Verify the sum of encapsulated egress subinterface IPv4 packet deltas across port2..port5
-		// independently equals N_rx_total (N_tx_v4 + N_tx_v6).
-		var encapSubintfV4OutPkts uint64
-		if sumEgressSubintfV4OutPkts >= txFlow3 {
-			encapSubintfV4OutPkts = sumEgressSubintfV4OutPkts - txFlow3
-		}
-		verifyWithinTolerance(t, "Test-6 Step 4: Independent sum of Encapsulated Egress Subinterface(0) IPv4 OutPkts across port2..port5 vs N_rx_total (N_tx_v4 + N_tx_v6)", encapSubintfV4OutPkts, totalEncapRx, test6CounterTolPct)
+			encapPktsPerPort = append(encapPktsPerPort, dV4OutPkts)
 
-		// Also verify total egress subinterface IPv4 OutPkts including native IPv4 Flow 3 on port2.
-		wantTotalEgressV4Pkts := totalEncapTx + txFlow3
-		verifyWithinTolerance(t, "Test-6 Step 4: Aggregate Egress Subinterface(0) IPv4 OutPkts across port2..port5 (Flow 1 + Flow 2 + Flow 3)", sumEgressSubintfV4OutPkts, wantTotalEgressV4Pkts, test6CounterTolPct)
-
-		wantTotalEgressV4Octets := totalEncapTx*test6OuterL3Bytes + txFlow3*test6InnerL3Bytes
-		verifyWithinTolerance(t, "Test-6 Step 4: Aggregate Egress Subinterface(0) IPv4 OutForwardedOctets across port2..port5", sumEgressSubintfV4OutOctets, wantTotalEgressV4Octets, test6CounterTolPct)
-
-		// Validate WCMP distribution of encapsulated packets across port2..port5 (6.25%, 18.75%, 30%, 45%).
-		encapPktsPerPort := []uint64{
-			(finalPorts["port2"].v4OutPkts - basePorts["port2"].v4OutPkts) - txFlow3,
-			finalPorts["port3"].v4OutPkts - basePorts["port3"].v4OutPkts,
-			finalPorts["port4"].v4OutPkts - basePorts["port4"].v4OutPkts,
-			finalPorts["port5"].v4OutPkts - basePorts["port5"].v4OutPkts,
+			dPhysOut := finalPorts[pid].physOutPkts - basePorts[pid].physOutPkts
+			verifyWithinTolerance(t, fmt.Sprintf("Test-6 Step 4: %s Physical OutPkts vs Subinterface(0) IPv4 OutPkts", pid), dPhysOut, dV4OutPkts, test6CounterTolPct)
 		}
+		verifyWithinTolerance(t, "Test-6 Step 4: Independent sum of Egress Subinterface(0) IPv4 OutPkts across port2..port5 vs N_rx_total (N_tx_v4 + N_tx_v6)", sumEgressSubintfV4OutPkts, totalEncapRx, test6CounterTolPct)
+
+		wantTotalEgressV4Octets := totalEncapRx * test6OuterL3Bytes
+		verifyWithinTolerance(t, "Test-6 Step 4: Sum of Egress Subinterface(0) IPv4 OutForwardedOctets across port2..port5", sumEgressSubintfV4OutOctets, wantTotalEgressV4Octets, test6CounterTolPct)
+
+		// Per-port egress subinterface IPv4 counter deltas on port-2, port-3, port-4, and port-5
+		// match the expected hierarchical WCMP distribution (6.25%, 18.75%, 30%, and 45% with +/- 2% tolerance).
 		gotSubintfWeights, _ := normalize(encapPktsPerPort)
 		if diff := cmp.Diff(wantWeights, gotSubintfWeights, cmpopts.EquateApprox(0, trfDistTolerance)); diff != "" {
 			t.Errorf("Test-6 Step 4: Egress Subinterface(0) IPv4 WCMP distribution ratios -want,+got:\n%s", diff)
 		}
 
-		// Validate Egress Subinterface IPv6 OutPkts and OutForwardedOctets on port2 (Flow 4: ip6_native_fallback).
-		p2DeltaV6OutPkts := finalPorts["port2"].v6OutPkts - basePorts["port2"].v6OutPkts
-		p2DeltaV6OutOctets := finalPorts["port2"].v6OutFwdOctets - basePorts["port2"].v6OutFwdOctets
-		verifyWithinTolerance(t, "Test-6 Step 4: port2 Subinterface(0) IPv6 OutPkts (Flow 4 native fallback)", p2DeltaV6OutPkts, txFlow4, test6CounterTolPct)
-		verifyWithinTolerance(t, "Test-6 Step 4: port2 Subinterface(0) IPv6 OutForwardedOctets (Flow 4 native fallback)", p2DeltaV6OutOctets, txFlow4*test6InnerL3Bytes, test6CounterTolPct)
+		// 3. Ingress Subinterface Counters on DUT port-1:
+		//    - ipv4/state/counters/in-pkts and in-forwarded-octets equal N_tx_v4 packets and octets.
+		//    - ipv6/state/counters/in-pkts and in-forwarded-octets equal N_tx_v6 packets and octets.
+		p1DeltaV4InPkts := finalPorts["port1"].v4InPkts - basePorts["port1"].v4InPkts
+		p1DeltaV4InOctets := finalPorts["port1"].v4InFwdOctets - basePorts["port1"].v4InFwdOctets
+		p1DeltaV6InPkts := finalPorts["port1"].v6InPkts - basePorts["port1"].v6InPkts
+		p1DeltaV6InOctets := finalPorts["port1"].v6InFwdOctets - basePorts["port1"].v6InFwdOctets
+
+		verifyWithinTolerance(t, "Test-6 Step 4: port1 Subinterface(0) IPv4 InPkts (N_tx_v4)", p1DeltaV4InPkts, txFlowV4, test6CounterTolPct)
+		verifyWithinTolerance(t, "Test-6 Step 4: port1 Subinterface(0) IPv4 InForwardedOctets (N_tx_v4 * 494B)", p1DeltaV4InOctets, txFlowV4*test6InnerL3Bytes, test6CounterTolPct)
+		verifyWithinTolerance(t, "Test-6 Step 4: port1 Subinterface(0) IPv6 InPkts (N_tx_v6)", p1DeltaV6InPkts, txFlowV6, test6CounterTolPct)
+		verifyWithinTolerance(t, "Test-6 Step 4: port1 Subinterface(0) IPv6 InForwardedOctets (N_tx_v6 * 494B)", p1DeltaV6InOctets, txFlowV6*test6InnerL3Bytes, test6CounterTolPct)
 	}
 
-	// 5. Independently Validate Physical Interface Egress Counters across port2..port5 and Cross-Validate vs. Subinterface Counters.
 	p1DeltaPhysInPkts := finalPorts["port1"].physInPkts - basePorts["port1"].physInPkts
-	verifyWithinTolerance(t, "Test-6 Step 4: port1 Physical InPkts (Flows 1..4)", p1DeltaPhysInPkts, txFlow1+txFlow2+txFlow3+txFlow4, test6CounterTolPct)
+	verifyWithinTolerance(t, "Test-6 Step 4: port1 Physical InPkts (N_tx_v4 + N_tx_v6)", p1DeltaPhysInPkts, totalEncapTx, test6CounterTolPct)
 
-	var sumPhysOutPkts uint64
-	for _, pid := range otgDstPorts {
-		dPhysOut := finalPorts[pid].physOutPkts - basePorts[pid].physOutPkts
-		sumPhysOutPkts += dPhysOut
-		if subintfCountersSupported {
-			dSubOut := (finalPorts[pid].v4OutPkts - basePorts[pid].v4OutPkts) + (finalPorts[pid].v6OutPkts - basePorts[pid].v6OutPkts)
-			verifyWithinTolerance(t, fmt.Sprintf("Test-6 Step 4: %s Physical OutPkts vs Subinterface(0) (IPv4+IPv6) OutPkts", pid), dPhysOut, dSubOut, test6CounterTolPct)
+	// 4. Post-Traffic Stability Verification:
+	//    - Subsequent streaming sample updates after traffic stops remain stable with no stale backlog or unexpected counter drift.
+	t.Log("Test-6 Step 4: Collecting subsequent post-traffic gNMI SAMPLE update to verify counter stability (no stale backlog or drift)")
+	advanceAllStreams()
+	stableAFT, stablePorts := snapshotAllCounters()
+	verifyWithinTolerance(t, "Test-6 Step 4 Stability: AFT NH#201 + NH#202 PacketsForwarded post-traffic stability",
+		(stableAFT.nh201Pkts-baseAFT.nh201Pkts)+(stableAFT.nh202Pkts-baseAFT.nh202Pkts), totalNHPkts, test6CounterTolPct)
+	if subintfCountersSupported {
+		var stableSumSubintfV4OutPkts uint64
+		for _, pid := range otgDstPorts {
+			stableSumSubintfV4OutPkts += stablePorts[pid].v4OutPkts - basePorts[pid].v4OutPkts
 		}
+		verifyWithinTolerance(t, "Test-6 Step 4 Stability: Egress Subinterface(0) IPv4 OutPkts post-traffic stability",
+			stableSumSubintfV4OutPkts, totalEncapRx, test6CounterTolPct)
 	}
-	// Verify the sum of encapsulated physical interface egress packet deltas (state/counters/out-pkts)
-	// across port2..port5 independently equals N_rx_total (N_tx_v4 + N_tx_v6).
-	var encapPhysOutPkts uint64
-	if sumPhysOutPkts >= (txFlow3 + txFlow4) {
-		encapPhysOutPkts = sumPhysOutPkts - (txFlow3 + txFlow4)
+
+	// 5. Native IPv6 Egress Validation (via ::/0 fallback route in ENCAP_TE_VRF_A -> NHG#3000 -> NHG#3002 -> port-2):
+	//    - Verify /interfaces/interface[name=port-2]/subinterfaces/subinterface[index=0]/ipv6/state/counters/out-pkts
+	//      and out-forwarded-octets increment monotonically via SAMPLE streaming updates and match the native IPv6
+	//      packets and octets received on ATE port-2.
+	if subintfCountersSupported {
+		t.Log("Test-6 Step 4: Validating native IPv6 egress counters on port2 via ::/0 fallback route in ENCAP_TE_VRF_A")
+		baseP2V6OutPkts := stablePorts["port2"].v6OutPkts
+		baseP2V6OutOctets := stablePorts["port2"].v6OutFwdOctets
+
+		nativeV6Flow := buildTest6NativeIPv6FallbackFlow()
+		args.topo.Flows().Clear().Items()
+		args.topo.Flows().Append(nativeV6Flow)
+		otgDev.PushConfig(t, args.topo)
+		otgDev.StartProtocols(t)
+		otgutils.WaitForARP(t, otgDev, args.topo, "IPv6")
+
+		otgDev.StartTraffic(t)
+
+		var v6WG sync.WaitGroup
+		var v6Mu sync.Mutex
+		var v6StepErrors []string
+		for _, v6Chk := range []monotonicCheck{
+			{
+				name: "port2 Subinterface(0) IPv6 OutPkts (native fallback)",
+				run: func() ([]uint64, error) {
+					return samplestream.VerifyMonotonicIncrease(t, portStreams["port2"].v6OutPkts, test6MonotonicSamples, 2*test6SampleInterval)
+				},
+			},
+			{
+				name: "port2 Subinterface(0) IPv6 OutForwardedOctets (native fallback)",
+				run: func() ([]uint64, error) {
+					return samplestream.VerifyMonotonicIncrease(t, portStreams["port2"].v6OutFwdOctets, test6MonotonicSamples, 2*test6SampleInterval)
+				},
+			},
+		} {
+			v6Chk := v6Chk
+			v6WG.Add(1)
+			go func() {
+				defer v6WG.Done()
+				vals, err := v6Chk.run()
+				v6Mu.Lock()
+				defer v6Mu.Unlock()
+				if err != nil {
+					v6StepErrors = append(v6StepErrors, fmt.Sprintf("%s: %v", v6Chk.name, err))
+				} else {
+					t.Logf("Test-6 Step 4 PASS [%s]: monotonic samples = %v", v6Chk.name, vals)
+				}
+			}()
+		}
+		v6WG.Wait()
+		for _, errMsg := range v6StepErrors {
+			t.Errorf("Test-6 Step 4 native IPv6 monotonic check failed: %s", errMsg)
+		}
+
+		gnmi.Watch(t, otgDev, gnmi.OTG().Flow(nativeV6Flow.Name()).Counters().OutPkts().State(), 60*time.Second, func(val *ygnmi.Value[uint64]) bool {
+			outPkts, present := val.Val()
+			return present && outPkts >= uint64(test6PktCount)
+		}).Await(t)
+		otgDev.StopTraffic(t)
+		otgutils.ExpectedTrafficLoss(t, otgDev, nativeV6Flow.Name(), 0, 1)
+
+		rxNativeV6 := gnmi.Get(t, otgDev, gnmi.OTG().Flow(nativeV6Flow.Name()).Counters().InPkts().State())
+		wantP2V6OutPkts := baseP2V6OutPkts + rxNativeV6
+		for i := 0; i < 3; i++ {
+			if next := portStreams["port2"].v6OutPkts.Next(); next != nil {
+				if v, ok := next.Val(); ok && v >= uint64(float64(wantP2V6OutPkts)*(1.0-test6CounterTolPct)) {
+					break
+				}
+			}
+		}
+		portStreams["port2"].v6OutFwdOctets.Next()
+
+		finalP2V6OutPkts := readLatestSample(t, portStreams["port2"].v6OutPkts, "port2 subintf0 v6OutPkts")
+		finalP2V6OutOctets := readLatestSample(t, portStreams["port2"].v6OutFwdOctets, "port2 subintf0 v6OutFwdOctets")
+		verifyWithinTolerance(t, "Test-6 Step 4: port2 Subinterface(0) IPv6 OutPkts (native IPv6 fallback)", finalP2V6OutPkts-baseP2V6OutPkts, rxNativeV6, test6CounterTolPct)
+		verifyWithinTolerance(t, "Test-6 Step 4: port2 Subinterface(0) IPv6 OutForwardedOctets (native IPv6 fallback)", finalP2V6OutOctets-baseP2V6OutOctets, rxNativeV6*test6InnerL3Bytes, test6CounterTolPct)
 	}
-	verifyWithinTolerance(t, "Test-6 Step 4: Independent sum of Encapsulated Physical OutPkts across port2..port5 vs N_rx_total (N_tx_v4 + N_tx_v6)", encapPhysOutPkts, totalEncapRx, test6CounterTolPct)
-	verifyWithinTolerance(t, "Test-6 Step 4: Aggregate Physical OutPkts across port2..port5 (Flows 1..4)", sumPhysOutPkts, txFlow1+txFlow2+txFlow3+txFlow4, test6CounterTolPct)
 }
