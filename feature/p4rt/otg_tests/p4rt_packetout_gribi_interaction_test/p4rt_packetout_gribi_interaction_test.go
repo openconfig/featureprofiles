@@ -441,6 +441,14 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 			fptest.AssignToNetworkInstance(t, dut, port.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		}
 	}
+	t.Cleanup(func() {
+		cleanBatch := new(gnmi.SetBatch)
+		for _, p := range ports {
+			port := dut.Port(t, p.name)
+			gnmi.BatchDelete(cleanBatch, gnmi.OC().Interface(port.Name()).Subinterface(0).Config())
+		}
+		cleanBatch.Set(t, dut)
+	})
 	vrfBatch.Set(t, dut)
 }
 
@@ -482,14 +490,14 @@ func setupGRIBIClient(t *testing.T, dut *ondatra.DUTDevice) *gribi.Client {
 	if err := client.Start(t); err != nil {
 		t.Fatalf("failed to start gRIBI client: %v", err)
 	}
-	client.BecomeLeader(t)
-	if err := gribi.FlushAll(client.Fluent(t)); err != nil {
-		t.Fatalf("failed to flush pre-existing gRIBI entries: %v", err)
-	}
 	t.Cleanup(func() {
 		client.FlushAll(t)
 		client.Close(t)
 	})
+	client.BecomeLeader(t)
+	if err := gribi.FlushAll(client.Fluent(t)); err != nil {
+		t.Fatalf("failed to flush pre-existing gRIBI entries: %v", err)
+	}
 	return client
 }
 
@@ -1301,6 +1309,16 @@ func programDynamicRoutes(ctx context.Context, t *testing.T, args *testArgs, ipv
 // configureStaticARP installs static ARP/ND neighbors used by deviation paths.
 func configureStaticARP(t *testing.T, dut *ondatra.DUTDevice, portName, ipv4, ipv6, mac string) {
 	t.Helper()
+	t.Cleanup(func() {
+		delBatch := new(gnmi.SetBatch)
+		if ipv4 != "" {
+			gnmi.BatchDelete(delBatch, gnmi.OC().Interface(portName).Subinterface(0).Ipv4().Neighbor(ipv4).Config())
+		}
+		if ipv6 != "" {
+			gnmi.BatchDelete(delBatch, gnmi.OC().Interface(portName).Subinterface(0).Ipv6().Neighbor(ipv6).Config())
+		}
+		delBatch.Set(t, dut)
+	})
 	setBatch := new(gnmi.SetBatch)
 	if ipv4 != "" {
 		gnmi.BatchUpdate(setBatch, gnmi.OC().Interface(portName).Config(), configStaticArp(portName, ipv4, mac, "ipv4"))
@@ -1713,15 +1731,15 @@ func testPacketOutWithPortDown(t *testing.T, args *testArgs) {
 	}
 	port := args.dut.Port(t, "port2")
 	t.Logf("Disabling Packet-Out egress port %s and validating Packet-Out drop with concurrent gRIBI programming.", port.Name())
-	// Administratively disable the Packet-Out egress port.
-	disableBatch := new(gnmi.SetBatch)
-	gnmi.BatchUpdate(disableBatch, gnmi.OC().Interface(port.Name()).Enabled().Config(), false)
-	disableBatch.Set(t, args.dut)
 	t.Cleanup(func() {
 		enableBatch := new(gnmi.SetBatch)
 		gnmi.BatchUpdate(enableBatch, gnmi.OC().Interface(port.Name()).Enabled().Config(), true)
 		enableBatch.Set(t, args.dut)
 	})
+	// Administratively disable the Packet-Out egress port.
+	disableBatch := new(gnmi.SetBatch)
+	gnmi.BatchUpdate(disableBatch, gnmi.OC().Interface(port.Name()).Enabled().Config(), false)
+	disableBatch.Set(t, args.dut)
 	// Confirm that the interface is administratively disabled before
 	// starting the concurrent Packet-Out/gRIBI operations.
 	enabled := gnmi.Get(t, args.dut, gnmi.OC().Interface(port.Name()).Enabled().State())
