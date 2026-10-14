@@ -28,6 +28,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/gnmi/oc/ocpath"
+	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/ygnmi"
 )
 
@@ -247,4 +248,42 @@ func OpticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *on
 		t.Fatalf("Associated Optical Channel for Transceiver (%v) not found!", transceiverName)
 	}
 	return opticalChannelName
+}
+
+// WatchWithRetry watches a query until the predicate returns true, catching temporary connection errors
+// and retrying every retryInterval until timeout expires.
+func WatchWithRetry[T any](t *testing.T, dut *ondatra.DUTDevice, query ygnmi.SingletonQuery[T], timeout, retryInterval time.Duration, predicate func(*ygnmi.Value[T]) bool) (*ygnmi.Value[T], bool) {
+	t.Helper()
+	for remaining := timeout; remaining > 0; remaining -= retryInterval {
+		waitDur := remaining
+		if waitDur > retryInterval {
+			waitDur = retryInterval
+		}
+		var val *ygnmi.Value[T]
+		var ok bool
+		testt.CaptureFatal(t, func(t testing.TB) {
+			val, ok = gnmi.Watch(t, dut, query, waitDur, predicate).Await(t)
+		})
+		if ok {
+			return val, true
+		}
+	}
+	return nil, false
+}
+
+// WaitForSwitchover verifies the stability of the SUP cards after switchover by watching the system datetime.
+func WaitForSwitchover(t *testing.T, dut *ondatra.DUTDevice, maxSwitchoverTime time.Duration) {
+	t.Helper()
+	startSwitchover := time.Now()
+	t.Logf("Wait for new active RP to boot up by watching the system datetime telemetry.")
+
+	val, ok := WatchWithRetry(t, dut, gnmi.OC().System().CurrentDatetime().State(), maxSwitchoverTime, 30*time.Second, func(val *ygnmi.Value[string]) bool {
+		currentTime, present := val.Val()
+		return present && currentTime != ""
+	})
+	if !ok {
+		t.Fatalf("RP switchover timed out after %v: system datetime not reachable", maxSwitchoverTime)
+	}
+	currentTime, _ := val.Val()
+	t.Logf("RP switchover has completed successfully in %.2f seconds with received time: %v", time.Since(startSwitchover).Seconds(), currentTime)
 }
