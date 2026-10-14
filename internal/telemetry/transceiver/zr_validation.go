@@ -84,6 +84,13 @@ func TerminalDevicePathsTest(t *testing.T, tp *TunableParamters) {
 					defer interfaceStreams[p.Name()].Close()
 				}
 
+				// for JUNIPER devices, set the operational mode to 0 for low power mode
+				for _, p := range dut.Ports() {
+					if dut.Vendor() == ondatra.JUNIPER && (p.PMD() == ondatra.PMD800GBASEZR || p.PMD() == ondatra.PMD800GBASEZRP) {
+						params.OperationalMode = 0
+					}
+				}
+
 				// Ensure all interfaces are DOWN after the config push.
 				for _, p := range dut.Ports() {
 					validateInterfaceTelemetry(t, dut, p, params, oc.Interface_OperStatus_DOWN, interfaceStreams[p.Name()])
@@ -95,6 +102,12 @@ func TerminalDevicePathsTest(t *testing.T, tp *TunableParamters) {
 				for _, p := range dut.Ports() {
 					params.Enabled = true
 					cfgplugins.ToggleInterfaceState(t, dut, p, params)
+				}
+				// for JUNIPER devices, set the operational mode to default when interface is brought back up
+				for _, p := range dut.Ports() {
+					if dut.Vendor() == ondatra.JUNIPER && (p.PMD() == ondatra.PMD800GBASEZR || p.PMD() == ondatra.PMD800GBASEZRP) {
+						params.OperationalMode = operationalMode
+					}
 				}
 				for _, p := range dut.Ports() {
 					validateInterfaceTelemetry(t, dut, p, params, oc.Interface_OperStatus_UP, interfaceStreams[p.Name()])
