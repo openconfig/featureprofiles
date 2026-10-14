@@ -1398,6 +1398,8 @@ message Metadata {
 
     // Device does not support configuring VLAN subinterfaces
     // Arista: https://partnerissuetracker.corp.google.com/issues/494280147
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/573155183
+    // Nokia: https://partnerissuetracker.corp.google.com/issues/573159486
     bool vlan_subinterface_oc_unsupported = 440;
 
     // Device has max route count based on specific platform

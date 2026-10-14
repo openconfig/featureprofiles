@@ -1506,6 +1506,9 @@ func ConfigureVlanInterfaceFromCLI(t *testing.T, dut *ondatra.DUTDevice, vlan DU
 	t.Helper()
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
+		t.Cleanup(func() {
+			helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("no interface vlan %d\n", vlan.VlanID))
+		})
 		cli := fmt.Sprintf(vlanInterfaceCLITemplate, vlan.VlanID, vlan.IPv4Address, vlan.IPv4PrefixLen, vlan.IPv6Address, vlan.IPv6PrefixLen)
 		helpers.GnmiCLIConfig(t, dut, cli)
 	case ondatra.NOKIA:
@@ -1513,6 +1516,18 @@ func ConfigureVlanInterfaceFromCLI(t *testing.T, dut *ondatra.DUTDevice, vlan DU
 		p2 := dut.Port(t, "port2").Name()
 		irbIntf := fmt.Sprintf("irb0.%d", vlan.VlanID)
 		macVrf := fmt.Sprintf("vlan%d", vlan.VlanID)
+		cleanupCLI := fmt.Sprintf(`
+delete / network-instance %[10]s interface %[9]s
+delete / network-instance %[8]s
+delete / interface irb0 subinterface %[3]d
+delete / interface %[1]s subinterface 0
+delete / interface %[1]s vlan-tagging
+delete / interface %[2]s subinterface 0
+delete / interface %[2]s vlan-tagging
+`, p1, p2, vlan.VlanID, vlan.IPv4Address, vlan.IPv4PrefixLen, vlan.IPv6Address, vlan.IPv6PrefixLen, macVrf, irbIntf, deviations.DefaultNetworkInstance(dut))
+		t.Cleanup(func() {
+			helpers.GnmiCLIConfig(t, dut, cleanupCLI)
+		})
 		cli := fmt.Sprintf(`
 set / interface %[1]s vlan-tagging false
 set / interface %[1]s subinterface 0 type bridged
@@ -1539,6 +1554,23 @@ set / network-instance %[10]s interface %[9]s
 		// bridge-domain routed through BVI<vlan-id>, which carries the VLAN interface addresses.
 		p1 := dut.Port(t, "port1").Name()
 		p2 := dut.Port(t, "port2").Name()
+		cleanupCLI := fmt.Sprintf(`
+l2vpn
+ bridge group BG_1
+  no bridge-domain BD_%[3]d
+ !
+!
+no interface BVI%[3]d
+interface %[1]s
+ no l2transport
+!
+interface %[2]s
+ no l2transport
+!
+`, p1, p2, vlan.VlanID)
+		t.Cleanup(func() {
+			helpers.GnmiCLIConfig(t, dut, cleanupCLI)
+		})
 		cli := fmt.Sprintf(`
 interface %[1]s
  l2transport

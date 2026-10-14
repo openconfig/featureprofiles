@@ -28,8 +28,7 @@ platform_exceptions: {
     default_network_instance: "default"
     static_protocol_name: "STATIC"
     require_routed_subinterface_0: true
-    # vlan_subinterface_oc_unsupported: true
-    # load_balance_policy_oc_unsupported: true
+    load_balance_policy_oc_unsupported: true
   }
 }
 

@@ -150,6 +150,30 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) string {
 	lag1Name, lag2Name := lagNames[0], lagNames[1]
 	t.Logf("Using LAG names: %s, %s", lag1Name, lag2Name)
 
+	sviCfg := sviParams
+	if routedVlanName := deviations.RoutedVlanInterfaceName(dut); routedVlanName != "" {
+		sviCfg.IntfName = routedVlanName
+		sviCfg.Vlan = oc.UnionUint16(vlanID)
+	}
+	vlanCleanedUp := false
+	cleanupVlanAndSVI := func() {
+		if vlanCleanedUp {
+			return
+		}
+		vlanCleanedUp = true
+		b := &gnmi.SetBatch{}
+		for i := 0; i < 2; i++ {
+			portName := dut.Port(t, dutPorts[i].Name).Name()
+			gnmi.BatchDelete(b, gnmi.OC().Interface(portName).Ethernet().SwitchedVlan().Config())
+		}
+		gnmi.BatchDelete(b, gnmi.OC().Interface(sviCfg.IntfName).Config())
+		gnmi.BatchDelete(b, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Vlan(vlanID).Config())
+		b.Set(t, dut)
+		if !deviations.DeprecatedVlanID(dut) && dut.Vendor() == ondatra.ARISTA {
+			helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("spanning-tree vlan-id %d\n", vlanID))
+		}
+	}
+
 	// Test Environment Setup - Step 1: Initialize DUT Ports 1 and 2 via BatchReplace with an
 	// unaddressed Subinterface(0) (IPv4/IPv6 disabled) when OpenConfig SwitchedVlan is supported.
 	// On platforms where the baseline config sets "switchport default mode routed" and "no switchport"
@@ -157,6 +181,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) string {
 	// ipv4.enabled=false clears "no switchport" and transitions the port from L3 routed mode into
 	// L2 bridged (switchport) mode so that subsequent SwitchedVlan access-vlan configuration takes effect.
 	if !deviations.SwitchedVlanUnsupported(dut) {
+		t.Cleanup(cleanupVlanAndSVI)
 		initBatch := &gnmi.SetBatch{}
 		for i := 0; i < 2; i++ {
 			portName := dut.Port(t, dutPorts[i].Name).Name()
@@ -179,6 +204,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) string {
 		IPv6PrefixLen: int(sviParams.IPv6Len),
 	}
 	if !deviations.SwitchedVlanUnsupported(dut) {
+		t.Cleanup(cleanupVlanAndSVI)
 		vlanBatch := &gnmi.SetBatch{}
 		cfgplugins.CreateVlanFromOC(t, dut, vlanBatch, deviations.DefaultNetworkInstance(dut), vlanSubData)
 		vlanBatch.Set(t, dut)
@@ -219,6 +245,21 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) string {
 		// Member port assignment for LAG 1 (Ports 3, 4) and LAG 2 (Ports 5, 6) is handled by NewAggregateInterface.
 		gnmi.BatchUpdate(portBatch, gnmi.OC().Interface(dut.Port(t, a.Name).Name()).Config(), iObj)
 	}
+	t.Cleanup(func() {
+		b := &gnmi.SetBatch{}
+		ni := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
+		for _, idx := range []int{6, 7} {
+			a := dutPorts[idx]
+			portName := dut.Port(t, a.Name).Name()
+			if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+				gnmi.BatchDelete(b, ni.Interface(portName+".0").Config())
+			}
+			sub := gnmi.OC().Interface(portName).Subinterface(0)
+			gnmi.BatchDelete(b, sub.Ipv4().Address(a.IPv4).Config())
+			gnmi.BatchDelete(b, sub.Ipv6().Address(a.IPv6).Config())
+		}
+		b.Set(t, dut)
+	})
 	portBatch.Set(t, dut)
 
 	// Test Environment Setup - Step 4: Configure Routed VLAN Interface (SVI / IRB) for VLAN 10.
@@ -228,12 +269,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) string {
 	// A platform-specific name (e.g. Junos "irb.10", where the ".10" suffix is the IRB unit) does
 	// not imply the VLAN the way "Vlan10" does, so the SVI is also bound to VLAN 10 explicitly via
 	// /interfaces/interface/routed-vlan/config/vlan (Junos: "set vlans vlan10 l3-interface irb.10").
-	sviCfg := sviParams
-	if routedVlanName := deviations.RoutedVlanInterfaceName(dut); routedVlanName != "" {
-		sviCfg.IntfName = routedVlanName
-		sviCfg.Vlan = oc.UnionUint16(vlanID)
-	}
 	if !deviations.SwitchedVlanUnsupported(dut) {
+		t.Cleanup(cleanupVlanAndSVI)
 		cfgplugins.ConfigureSVI(t, dut, sviCfg)
 	}
 	if deviations.SwitchedVlanUnsupported(dut) || deviations.VlanSubinterfaceOCUnsupported(dut) {
@@ -245,10 +282,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) string {
 		// egress interfaces are weighted 10:1 by interface link bandwidth rather than equal cost (ECMP).
 		// Disable link-bandwidth UCMP for the duration of this ECMP resilience test so next-hops are
 		// load-balanced equally as specified by RT-1.73.4, and restore baseline on cleanup.
-		helpers.GnmiCLIConfig(t, dut, "router general\n   no rib ucmp eligibility mode link-bandwidth all\n")
 		t.Cleanup(func() {
 			helpers.GnmiCLIConfig(t, dut, "router general\n   rib ucmp eligibility mode link-bandwidth all\n")
 		})
+		helpers.GnmiCLIConfig(t, dut, "router general\n   no rib ucmp eligibility mode link-bandwidth all\n")
 	}
 
 	lagBatch := &gnmi.SetBatch{}
@@ -306,6 +343,23 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) string {
 		gnmi.BatchDelete(lagBatch, gnmi.OC().Interface(lag2Name).Subinterface(0).Config())
 	}
 
+	t.Cleanup(func() {
+		b := &gnmi.SetBatch{}
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+			ni := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
+			gnmi.BatchDelete(b, ni.Interface(lag1Name+".0").Config())
+			for i := 1; i <= 10; i++ {
+				gnmi.BatchDelete(b, ni.Interface(fmt.Sprintf("%s.%d", lag2Name, 100+i)).Config())
+			}
+		}
+		for _, idx := range []int{2, 3, 4, 5} {
+			portName := dut.Port(t, dutPorts[idx].Name).Name()
+			gnmi.BatchDelete(b, gnmi.OC().Interface(portName).Ethernet().AggregateId().Config())
+		}
+		gnmi.BatchDelete(b, gnmi.OC().Interface(lag1Name).Config())
+		gnmi.BatchDelete(b, gnmi.OC().Interface(lag2Name).Config())
+		b.Set(t, dut)
+	})
 	lagBatch.Set(t, dut)
 
 	// Explicitly bind routed L3 interfaces and VLAN subinterfaces to the default network-instance
@@ -627,6 +681,9 @@ func verifyTrafficSince(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Confi
 		if loss < minLoss-0.01 || loss > maxLoss+0.01 {
 			t.Fatalf("Flow %s: window loss %.3f%% (tx=%d rx=%d), want %v-%v%%", name, loss, tx, rx, minLoss, maxLoss)
 		}
+	}
+	if sent == 0 {
+		t.Fatalf("Total sent packets is zero, cannot calculate traffic percentages")
 	}
 	var portsRx uint64
 	for _, p := range lbPorts {
@@ -981,6 +1038,53 @@ func replaceStaticRoutes(t *testing.T, dut *ondatra.DUTDevice, routes map[string
 	awaitStaticNextHops(t, dut, routes)
 }
 
+// startProtocolsAndWaitForARP starts OTG protocols and waits for IPv4 ARP and IPv6 ND neighbor
+// entries to resolve on all configured OTG interfaces. When 15 OTG interfaces (including 10 VLAN
+// subinterfaces on static LAG 2) start protocols simultaneously, an initial 3-packet ARP/ND burst
+// on a subinterface can occasionally be dropped or rate-limited before OTG stops retrying; if any
+// interface has not resolved within 20s, StartProtocols is re-issued (up to 3 attempts) before
+// delegating to otgutils.WaitForARP.
+func startProtocolsAndWaitForARP(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
+	t.Helper()
+	const maxAttempts = 3
+	const attemptTimeout = 20 * time.Second
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		ate.OTG().StartProtocols(t)
+		if attempt == maxAttempts {
+			break
+		}
+		allResolved := true
+		for _, d := range top.Devices().Items() {
+			eth := d.Ethernets().Items()[0]
+			if len(eth.Ipv4Addresses().Items()) > 0 {
+				_, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(eth.Name()).Ipv4NeighborAny().LinkLayerAddress().State(), attemptTimeout, func(val *ygnmi.Value[string]) bool {
+					return val.IsPresent()
+				}).Await(t)
+				if !ok {
+					t.Logf("OTG IPv4 ARP not yet resolved on %s (attempt %d/%d); re-running StartProtocols", eth.Name(), attempt, maxAttempts)
+					allResolved = false
+					break
+				}
+			}
+			if len(eth.Ipv6Addresses().Items()) > 0 {
+				_, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(eth.Name()).Ipv6NeighborAny().LinkLayerAddress().State(), attemptTimeout, func(val *ygnmi.Value[string]) bool {
+					return val.IsPresent()
+				}).Await(t)
+				if !ok {
+					t.Logf("OTG IPv6 ND not yet resolved on %s (attempt %d/%d); re-running StartProtocols", eth.Name(), attempt, maxAttempts)
+					allResolved = false
+					break
+				}
+			}
+		}
+		if allResolved {
+			break
+		}
+	}
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
+}
+
 // TestStaticRouteResiliency is the main test entry point that orchestrates the execution of
 // RT-1.73: Static Route Resilience Test (subtests RT-1.73.1 through RT-1.73.5).
 func TestStaticRouteResiliency(t *testing.T) {
@@ -993,17 +1097,18 @@ func TestStaticRouteResiliency(t *testing.T) {
 	configureOTG(t, ate, top)
 
 	ate.OTG().PushConfig(t, top)
-	ate.OTG().StartProtocols(t)
-	for _, p := range []string{"port7", "port8"} {
-		dutPortName := dut.Port(t, p).Name()
-		oper := gnmi.Get(t, dut, gnmi.OC().Interface(dutPortName).OperStatus().State())
-		t.Logf("DUT %s (%s) oper status: %v", p, dutPortName, oper)
-	}
-	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
-	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
+	t.Cleanup(func() {
+		ate.OTG().StopProtocols(t)
+	})
+	startProtocolsAndWaitForARP(t, ate, top)
 
 	// RT-1.73.1 - Validate Static Route with VLAN Interface (SVI)
 	t.Run("RT-1.73.1: Validate Static Route with VLAN Interface (SVI)", func(t *testing.T) {
+		top.Flows().Clear()
+		createTraffic(top, "traffic_svi", "203.0.113.1", "2001:db8:213::1", []string{"port1.IPv4"}, []string{"port1.IPv6"})
+		ate.OTG().PushConfig(t, top)
+		startProtocolsAndWaitForARP(t, ate, top)
+
 		// RT-1.73.1 Step 1 & Step 2: Configure static routes for 203.0.113.0/24 and 2001:db8:213::/64
 		// pointing to next-hops 198.51.100.2 and 2001:db8:100::2 (ATE Port 1 via VLAN 10 SVI) and push via gNMI Set Replace.
 		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
@@ -1012,20 +1117,15 @@ func TestStaticRouteResiliency(t *testing.T) {
 			gnmi.Delete(t, dut, sp.Static("2001:db8:213::/64").Config())
 		})
 		configureRoute(t, dut, "203.0.113.0/24", "2001:db8:213::/64", []string{"198.51.100.2"}, []string{"2001:db8:100::2"})
+
 		// RT-1.73.1 Step 3: Start IPv4 and IPv6 traffic from ATE Port 8 destined to 203.0.113.1 and 2001:db8:213::1.
-		top.Flows().Clear()
-		createTraffic(top, "traffic_svi", "203.0.113.1", "2001:db8:213::1", []string{"port1.IPv4"}, []string{"port1.IPv6"})
-		ate.OTG().PushConfig(t, top)
-		ate.OTG().StartProtocols(t)
-		otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
-		otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
-		ate.OTG().StartTraffic(t)
 		trafficRunning := true
-		defer func() {
+		t.Cleanup(func() {
 			if trafficRunning {
 				ate.OTG().StopTraffic(t)
 			}
-		}()
+		})
+		ate.OTG().StartTraffic(t)
 
 		// RT-1.73.1 Step 4: Verify the DUT routes the traffic out of DUT Port 1 towards ATE Port 1 (the next-hops
 		// 198.51.100.2 and 2001:db8:100::2 are ATE Port 1, and flow rx is only counted at the ATE Port 1 endpoints).
@@ -1041,19 +1141,56 @@ func TestStaticRouteResiliency(t *testing.T) {
 		trafficRunning = false
 	})
 
+	// RT-1.73.2 and RT-1.73.3 share static routes (203.0.114.0/24, 2001:db8:214::/64) and traffic
+	// across the subtest boundary. Register parent-level and subtest-level t.Cleanup() before
+	// pushing the routes and before starting traffic in RT-1.73.2 so cleanup is guaranteed even if
+	// RT-1.73.2 fails early or RT-1.73.3 is not executed.
+	lag1RoutesConfigured := false
+	lag1TrafficRunning := false
+	cleanupLag1Routes := func(t *testing.T) {
+		if lag1RoutesConfigured {
+			lag1RoutesConfigured = false
+			sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+			gnmi.Delete(t, dut, sp.Static("203.0.114.0/24").Config())
+			gnmi.Delete(t, dut, sp.Static("2001:db8:214::/64").Config())
+		}
+	}
+	cleanupLag1Traffic := func(t *testing.T) {
+		if lag1TrafficRunning {
+			lag1TrafficRunning = false
+			ate.OTG().StopTraffic(t)
+		}
+	}
+	t.Cleanup(func() {
+		cleanupLag1Traffic(t)
+		cleanupLag1Routes(t)
+	})
+
 	// RT-1.73.2 - Validate Static Route over LAG Interface
 	t.Run("RT-1.73.2: Validate Static Route over LAG Interface", func(t *testing.T) {
-		// RT-1.73.2 Step 1 & Step 2: Configure static routes for 203.0.114.0/24 and 2001:db8:214::/64
-		// with next-hops 198.51.101.2 and 2001:db8:101::2 (ATE LAG 1) and push configuration to DUT.
-		configureRoute(t, dut, "203.0.114.0/24", "2001:db8:214::/64", []string{"198.51.101.2"}, []string{"2001:db8:101::2"})
-
-		// RT-1.73.2 Step 3: Start IPv4 and IPv6 traffic from ATE Port 8 destined to 203.0.114.1/24 and 2001:db8:214::1/64.
+		rt1732Completed := false
 		top.Flows().Clear()
 		createTraffic(top, "traffic_lag1", "203.0.114.1/24", "2001:db8:214::1/64", []string{"LAG1_IPv4"}, []string{"LAG1_IPv6"})
 		ate.OTG().PushConfig(t, top)
-		ate.OTG().StartProtocols(t)
-		otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
-		otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
+		startProtocolsAndWaitForARP(t, ate, top)
+
+		// RT-1.73.2 Step 1 & Step 2: Configure static routes for 203.0.114.0/24 and 2001:db8:214::/64
+		// with next-hops 198.51.101.2 and 2001:db8:101::2 (ATE LAG 1) and push configuration to DUT.
+		lag1RoutesConfigured = true
+		t.Cleanup(func() {
+			if !rt1732Completed {
+				cleanupLag1Routes(t)
+			}
+		})
+		configureRoute(t, dut, "203.0.114.0/24", "2001:db8:214::/64", []string{"198.51.101.2"}, []string{"2001:db8:101::2"})
+
+		// RT-1.73.2 Step 3: Start IPv4 and IPv6 traffic from ATE Port 8 destined to 203.0.114.1/24 and 2001:db8:214::1/64.
+		lag1TrafficRunning = true
+		t.Cleanup(func() {
+			if !rt1732Completed {
+				cleanupLag1Traffic(t)
+			}
+		})
 		ate.OTG().StartTraffic(t)
 
 		// RT-1.73.2 Step 4: Verify the DUT routes traffic out of DUT Ports 3 and 4, load-balancing across LAG 1 member links.
@@ -1062,36 +1199,33 @@ func TestStaticRouteResiliency(t *testing.T) {
 		}
 		verifyTrafficWindow(t, ate, top, 0, 1, []string{"port3", "port4"}, nil)
 		// Do not stop traffic: RT-1.73.3 builds directly on this subtest with traffic still flowing.
+		rt1732Completed = true
 	})
 
 	// RT-1.73.3 - Control Plane Resilience on LAG Failure
 	t.Run("RT-1.73.3: Control Plane Resilience on LAG Failure", func(t *testing.T) {
-		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
 		t.Cleanup(func() {
-			gnmi.Delete(t, dut, sp.Static("203.0.114.0/24").Config())
-			gnmi.Delete(t, dut, sp.Static("2001:db8:214::/64").Config())
+			cleanupLag1Routes(t)
 		})
 		// Builds directly on RT-1.73.2 with its traffic still flowing; traffic is stopped in Step 5.
-		trafficRunning := true
-		defer func() {
-			if trafficRunning {
-				ate.OTG().StopTraffic(t)
-			}
-		}()
+		t.Cleanup(func() {
+			cleanupLag1Traffic(t)
+		})
 		p3 := ate.Port(t, atePorts[2].Name)
 		p4 := ate.Port(t, atePorts[3].Name)
 
 		// RT-1.73.3 Step 1: Simulate a LAG failure by disabling ATE Port 3 and ATE Port 4.
-		portStateAction := gosnappi.NewControlState()
-		portStateAction.Port().Link().SetPortNames([]string{p3.ID(), p4.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
-		ate.OTG().SetControlState(t, portStateAction)
 		portsRestored := false
 		t.Cleanup(func() {
 			if !portsRestored {
-				portStateAction.Port().Link().SetPortNames([]string{p3.ID(), p4.ID()}).SetState(gosnappi.StatePortLinkState.UP)
-				ate.OTG().SetControlState(t, portStateAction)
+				restoreAction := gosnappi.NewControlState()
+				restoreAction.Port().Link().SetPortNames([]string{p3.ID(), p4.ID()}).SetState(gosnappi.StatePortLinkState.UP)
+				ate.OTG().SetControlState(t, restoreAction)
 			}
 		})
+		portStateAction := gosnappi.NewControlState()
+		portStateAction.Port().Link().SetPortNames([]string{p3.ID(), p4.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
+		ate.OTG().SetControlState(t, portStateAction)
 
 		// RT-1.73.3 Step 2: Verify via gNMI state (/interfaces/interface/state/oper-status) that DUT LAG 1 transitions
 		// to DOWN / LOWER_LAYER_DOWN, and that the still-running traffic is dropped. awaitFlowsDropped watches the
@@ -1129,11 +1263,16 @@ func TestStaticRouteResiliency(t *testing.T) {
 
 		// RT-1.73.3 Step 5: Stop traffic.
 		ate.OTG().StopTraffic(t)
-		trafficRunning = false
+		lag1TrafficRunning = false
 	})
 
 	// RT-1.73.4 - Validate ECMP and FIB Reprogramming Across Multiple LAGs
 	t.Run("RT-1.73.4: Validate ECMP and FIB Reprogramming Across Multiple LAGs", func(t *testing.T) {
+		top.Flows().Clear()
+		createTraffic(top, "traffic_ecmp", "203.0.115.1/24", "2001:db8:215::1/64", []string{"LAG1_IPv4", "LAG2_IPv4_101"}, []string{"LAG1_IPv6", "LAG2_IPv6_101"})
+		ate.OTG().PushConfig(t, top)
+		startProtocolsAndWaitForARP(t, ate, top)
+
 		// RT-1.73.4 Step 1 & Step 2: Configure static routes for 203.0.115.0/24 and 2001:db8:215::/64
 		// with two next-hops: ATE LAG 1 (198.51.101.2 / 2001:db8:101::2) and ATE LAG 2 first subinterface (198.51.111.2 / 2001:db8:111::2).
 		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
@@ -1144,19 +1283,13 @@ func TestStaticRouteResiliency(t *testing.T) {
 		configureRoute(t, dut, "203.0.115.0/24", "2001:db8:215::/64", []string{"198.51.101.2", "198.51.111.2"}, []string{"2001:db8:101::2", "2001:db8:111::2"})
 
 		// RT-1.73.4 Step 2 & Step 3: Start IPv4/IPv6 traffic from ATE Port 8 and verify load-balancing across all 4 LAG member ports (Ports 3, 4, 5, and 6).
-		top.Flows().Clear()
-		createTraffic(top, "traffic_ecmp", "203.0.115.1/24", "2001:db8:215::1/64", []string{"LAG1_IPv4", "LAG2_IPv4_101"}, []string{"LAG1_IPv6", "LAG2_IPv6_101"})
-		ate.OTG().PushConfig(t, top)
-		ate.OTG().StartProtocols(t)
-		otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
-		otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
-		ate.OTG().StartTraffic(t)
 		trafficRunning := true
-		defer func() {
+		t.Cleanup(func() {
 			if trafficRunning {
 				ate.OTG().StopTraffic(t)
 			}
-		}()
+		})
+		ate.OTG().StartTraffic(t)
 		awaitTrafficFlowing(t, ate, top, trafficWaitTime)
 		verifyTrafficWindow(t, ate, top, 0, 1, []string{"port3", "port4", "port5", "port6"}, nil)
 
@@ -1198,16 +1331,24 @@ func TestStaticRouteResiliency(t *testing.T) {
 			return []string{atePorts[6].IPv4}, []string{atePorts[6].IPv6}
 		}
 
+		top.Flows().Clear()
+		createScaleTraffic(top)
+		ate.OTG().PushConfig(t, top)
+		startProtocolsAndWaitForARP(t, ate, top)
+
 		// RT-1.73.5 Step 1 (Scale Routes): Configure 100 IPv4 static routes (100.64.0.0/24..100.64.99.0/24)
 		// and 100 IPv6 static routes (2001:db8:1000::/64..2001:db8:1099::/64) distributed evenly across the 10 ATE LAG 2 subinterface IPs.
+		routesCleanedUp := false
 		t.Cleanup(func() {
-			b := &gnmi.SetBatch{}
-			for i := 0; i < numScaleRoutes; i++ {
-				v4Prefix, v6Prefix := scalePrefixes(i)
-				gnmi.BatchDelete(b, sp.Static(v4Prefix).Config())
-				gnmi.BatchDelete(b, sp.Static(v6Prefix).Config())
+			if !routesCleanedUp {
+				b := &gnmi.SetBatch{}
+				for i := 0; i < numScaleRoutes; i++ {
+					v4Prefix, v6Prefix := scalePrefixes(i)
+					gnmi.BatchDelete(b, sp.Static(v4Prefix).Config())
+					gnmi.BatchDelete(b, sp.Static(v6Prefix).Config())
+				}
+				b.Set(t, dut)
 			}
-			b.Set(t, dut)
 		})
 		replaceStaticRoutes(t, dut, scaleRoutes(lag2NHs))
 
@@ -1215,19 +1356,13 @@ func TestStaticRouteResiliency(t *testing.T) {
 		// (grouped into 20 Flow Groups to stay within ATE Port 8's 64 Flow Group hardware limit)
 		// and verify traffic load-balances out of DUT Ports 5 and 6 (LAG 2) and not DUT Port 7.
 		// Traffic keeps running until Step 9.
-		top.Flows().Clear()
-		createScaleTraffic(top)
-		ate.OTG().PushConfig(t, top)
-		ate.OTG().StartProtocols(t)
-		otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
-		otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
-		ate.OTG().StartTraffic(t)
 		trafficRunning := true
-		defer func() {
+		t.Cleanup(func() {
 			if trafficRunning {
 				ate.OTG().StopTraffic(t)
 			}
-		}()
+		})
+		ate.OTG().StartTraffic(t)
 		awaitTrafficFlowing(t, ate, top, trafficWaitTime)
 		verifyTrafficWindow(t, ate, top, 0, 1, []string{"port5", "port6"}, []string{"port7"})
 
@@ -1261,13 +1396,13 @@ func TestStaticRouteResiliency(t *testing.T) {
 		// admin-disabling DUT Port 7 instead.
 		t.Log("RT-1.73.5 Step 7: admin-disabling DUT Port 7 (README fallback for linecard OIR)")
 		dutP7 := dut.Port(t, "port7").Name()
-		gnmi.Update(t, dut, gnmi.OC().Interface(dutP7).Enabled().Config(), false)
 		p7Restored := false
 		t.Cleanup(func() {
 			if !p7Restored {
 				gnmi.Update(t, dut, gnmi.OC().Interface(dutP7).Enabled().Config(), true)
 			}
 		})
+		gnmi.Update(t, dut, gnmi.OC().Interface(dutP7).Enabled().Config(), false)
 		awaitInterfaceDown(t, dut, dutP7, trafficWaitTime)
 		// Keep packets received before the disable, which OTG counters may report late, out of the drop window.
 		awaitFlowsDropped(t, ate, top, trafficWaitTime)
@@ -1297,6 +1432,7 @@ func TestStaticRouteResiliency(t *testing.T) {
 			prefixes = append(prefixes, v4Prefix, v6Prefix)
 		}
 		b.Set(t, dut)
+		routesCleanedUp = true
 		awaitStaticRoutesRemoved(t, dut, prefixes)
 
 		// RT-1.73.5 Step 10 (Verify Flush): Start traffic briefly, stop it, and verify on the final counters
@@ -1304,8 +1440,8 @@ func TestStaticRouteResiliency(t *testing.T) {
 		// verifyWindow worth of packets. OTG resets the flow counters on StartTraffic, which the flow state
 		// may only show after the baseline is read; awaitFlowsTransmitted then measures from the reset, so
 		// counters left over from the traffic stopped in Step 9 cannot end the window early.
+		trafficRunning = true // Let the registered t.Cleanup StopTraffic clean up if the flush window fails.
 		ate.OTG().StartTraffic(t)
-		trafficRunning = true // Let the deferred StopTraffic clean up if the flush window fails.
 		awaitFlowsTransmitted(t, ate, top, readCounters(t, ate, top), verifyWindow)
 		ate.OTG().StopTraffic(t)
 		trafficRunning = false

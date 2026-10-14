@@ -4027,3 +4027,53 @@ deviations: {
     }
   }
 }
+
+deviations: {
+  name: "vlan_subinterface_oc_unsupported"
+  type: DEVIATION_TYPE_UNSPECIFIED
+  platforms: {
+    issue_url: "https://partnerissuetracker.corp.google.com/issues/494280147"
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    deviation_values: {
+      oc_standard_value: {
+        bool_val: false
+      }
+      vendor_specific_value: {
+        bool_val: true
+      }
+    }
+  }
+  platforms: {
+    issue_url: "https://partnerissuetracker.corp.google.com/issues/573155183"
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+    deviation_values: {
+      oc_standard_value: {
+        bool_val: false
+      }
+      vendor_specific_value: {
+        bool_val: true
+      }
+    }
+  }
+  platforms: {
+    issue_url: "https://partnerissuetracker.corp.google.com/issues/573159486"
+    platform: {
+      vendor: NOKIA
+      software_version_regex: "*.*"
+    }
+    deviation_values: {
+      oc_standard_value: {
+        bool_val: false
+      }
+      vendor_specific_value: {
+        bool_val: true
+      }
+    }
+  }
+}
