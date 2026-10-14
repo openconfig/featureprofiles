@@ -1547,6 +1547,9 @@ func normalize(xs []uint64) (ys []float64, sum uint64) {
 		sum += x
 	}
 	ys = make([]float64, len(xs))
+	if sum == 0 {
+		return ys, 0
+	}
 	for i, x := range xs {
 		ys[i] = float64(x) / float64(sum)
 	}
@@ -1557,7 +1560,10 @@ func normalize(xs []uint64) (ys []float64, sum uint64) {
 func validateTrafficDistribution(t *testing.T, ate *ondatra.ATEDevice, wantWeights []float64) {
 	inFramesAllPorts := gnmi.GetAll(t, ate.OTG(), gnmi.OTG().PortAny().Counters().InFrames().State())
 	// skip first entry that belongs to source port on ate
-	gotWeights, _ := normalize(inFramesAllPorts[1:])
+	gotWeights, sum := normalize(inFramesAllPorts[1:])
+	if sum == 0 {
+		t.Fatalf("Total packets received across egress ports is 0, cannot calculate traffic distribution")
+	}
 
 	t.Log("got ratio:", gotWeights)
 	t.Log("want ratio:", wantWeights)
@@ -1839,12 +1845,12 @@ func testSimultaneousEncapAndSubintfStreamingCounters(t *testing.T, args *testAr
 		v4Prefix: samplestream.New(t, dut, gnmi.OC().NetworkInstance(vrfEncapA).Afts().Ipv4Entry(v4Pfx).State(), test6SampleInterval),
 		v6Prefix: samplestream.New(t, dut, gnmi.OC().NetworkInstance(vrfEncapA).Afts().Ipv6Entry(v6Pfx).State(), test6SampleInterval),
 	}
-	defer func() {
+	t.Cleanup(func() {
 		aftStreams.nh201.Close()
 		aftStreams.nh202.Close()
 		aftStreams.v4Prefix.Close()
 		aftStreams.v6Prefix.Close()
-	}()
+	})
 
 	portIDs := []string{"port1", "port2", "port3", "port4", "port5"}
 	portStreams := make(map[string]*portCounterStreams, len(portIDs))
@@ -1871,7 +1877,7 @@ func testSimultaneousEncapAndSubintfStreamingCounters(t *testing.T, args *testAr
 		}
 		portStreams[pid] = ps
 	}
-	defer func() {
+	t.Cleanup(func() {
 		for _, ps := range portStreams {
 			ps.physInPkts.Close()
 			ps.physInOctets.Close()
@@ -1888,7 +1894,7 @@ func testSimultaneousEncapAndSubintfStreamingCounters(t *testing.T, args *testAr
 				ps.v6OutFwdOctets.Close()
 			}
 		}
-	}()
+	})
 
 	nhPktsFn := func(nh *oc.NetworkInstance_Afts_NextHop) uint64 { return nh.GetCounters().GetPacketsForwarded() }
 	nhOctetsFn := func(nh *oc.NetworkInstance_Afts_NextHop) uint64 { return nh.GetCounters().GetOctetsForwarded() }
@@ -2263,6 +2269,9 @@ func testSimultaneousEncapAndSubintfStreamingCounters(t *testing.T, args *testAr
 
 		// Per-port egress subinterface IPv4 counter deltas on port-2, port-3, port-4, and port-5
 		// match the expected hierarchical WCMP distribution (6.25%, 18.75%, 30%, and 45% with +/- 2% tolerance).
+		if sumEgressSubintfV4OutPkts == 0 {
+			t.Fatalf("Test-6 Step 4: sum of egress subinterface IPv4 OutPkts is 0, cannot calculate WCMP distribution")
+		}
 		gotSubintfWeights, _ := normalize(encapPktsPerPort)
 		if diff := cmp.Diff(wantWeights, gotSubintfWeights, cmpopts.EquateApprox(0, trfDistTolerance)); diff != "" {
 			t.Errorf("Test-6 Step 4: Egress Subinterface(0) IPv4 WCMP distribution ratios -want,+got:\n%s", diff)
