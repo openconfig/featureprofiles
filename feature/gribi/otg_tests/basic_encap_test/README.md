@@ -556,11 +556,12 @@ or stale (`0`) counter updates during 4in4 and 6in4 encapsulation:
         *   **Subinterface and Physical Interface Egress Counters**:
             *   Because both 4in4 and 6in4 encapsulated packets egress the DUT
                 with an outer IPv4 tunnel header, the sum of egress subinterface
-                IPv4 packet deltas (`ipv4/state/counters/out-pkts`) and physical
+                IPv4 packet deltas (`ipv4/state/counters/out-pkts`) across DUT
+                `port-2` through `port-5`, as well as the sum of physical
                 interface egress packet deltas (`state/counters/out-pkts`)
-                across DUT `port-2`, `port-3`, `port-4`, and `port-5` equals the
-                total encapsulated packets received on ATE `port-2` through
-                `port-5` (`N_rx_total = N_tx_v4 + N_tx_v6`).
+                across those same ports, each independently equals the total
+                encapsulated packets received on ATE `port-2` through `port-5`
+                (`N_rx_total = N_tx_v4 + N_tx_v6`).
             *   The sum of egress subinterface IPv4 forwarded octet deltas
                 (`ipv4/state/counters/out-forwarded-octets`) across `port-2`
                 through `port-5` matches the total L3 outer IPv4 encapsulated
