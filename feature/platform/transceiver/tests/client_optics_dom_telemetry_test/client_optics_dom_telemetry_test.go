@@ -746,7 +746,15 @@ func TestClientOpticsTelemetryAndInventory(t *testing.T) {
 	for _, dp := range ports {
 		t.Run(fmt.Sprintf("Port:%s", dp.Name()), func(t *testing.T) {
 			// Ensure interface is enabled and wait for link to be UP
-			setInterfaceEnabled(t, dut, dp.Name(), true)
+originalEnabled, present := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp.Name()).Enabled().Config()).Val()
+t.Cleanup(func() {
+	if present {
+		gnmi.Update(t, dut, gnmi.OC().Interface(dp.Name()).Enabled().Config(), originalEnabled)
+	} else {
+		gnmi.Delete(t, dut, gnmi.OC().Interface(dp.Name()).Enabled().Config())
+	}
+})
+setInterfaceEnabled(t, dut, dp.Name(), true)
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 
 			intfLookup := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp.Name()).State())
