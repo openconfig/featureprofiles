@@ -1571,3 +1571,12 @@ func ConfigureLoopback(t *testing.T, dut *ondatra.DUTDevice, cfg LoopbackConfig)
 		gnmi.Replace(t, dut, gnmi.OC().Interface(cfg.Name).Config(), i)
 	}
 }
+
+// VerifyInterfacesStatus verifies all DUT interfaces are operationally up.
+func VerifyInterfacesStatus(t *testing.T, dut *ondatra.DUTDevice, portsList []string) {
+	t.Helper()
+	for _, name := range portsList {
+		port := dut.Port(t, name)
+		gnmi.Await(t, dut, gnmi.OC().Interface(port.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
+	}
+}
