@@ -210,7 +210,6 @@ type flowSpec struct {
 	frameCount uint32
 	continuous bool
 	isIPv6     bool
-	dstMAC     string
 	dstIP      string
 	srcMAC     string
 	srcIP      string
@@ -547,7 +546,7 @@ func setupGRIBI(t *testing.T, dut *ondatra.DUTDevice) *gribi.Client {
 
 func programBaselineRoute(t *testing.T, dut *ondatra.DUTDevice, nhIndex, nhgIndex uint64, nextHopIP, prefix, ipVersion string) []fluent.GRIBIEntry {
 	t.Helper()
-	entries := []fluent.GRIBIEntry{}
+	var entries []fluent.GRIBIEntry
 	switch ipVersion {
 	case "v6":
 		entries = []fluent.GRIBIEntry{
