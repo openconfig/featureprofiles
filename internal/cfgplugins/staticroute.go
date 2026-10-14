@@ -84,6 +84,7 @@ func NewStaticRouteCfg(batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUT
 	c := &oc.NetworkInstance_Protocol{
 		Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
 		Name:       ygot.String(deviations.StaticProtocolName(d)),
+		Enabled:    ygot.Bool(true),
 	}
 	s := c.GetOrCreateStatic(cfg.Prefix)
 
@@ -225,6 +226,7 @@ func NewStaticVRFRoute(t *testing.T, batch *gnmi.SetBatch, cfg *StaticVRFRouteCf
 	c := &oc.NetworkInstance_Protocol{
 		Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
 		Name:       ygot.String(deviations.StaticProtocolName(d)),
+		Enabled:    ygot.Bool(true),
 	}
 	s := c.GetOrCreateStatic(cfg.Prefix)
 	s.GetOrCreateNextHopGroup().SetName(cfg.NextHopGroup)

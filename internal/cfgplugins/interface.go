@@ -1385,6 +1385,16 @@ type VlanParams struct {
 // ConfigureVlan configures the Vlan and remove the spanning-tree with ID.
 func ConfigureVlan(t *testing.T, dut *ondatra.DUTDevice, cfg VlanParams) {
 	t.Helper()
+	t.Log("Configuring VLAN using OpenConfig global VLAN model")
+
+	vi := &oc.NetworkInstance_Vlan{
+		VlanId: ygot.Uint16(uint16(cfg.VlanID)),
+		Name:   ygot.String(fmt.Sprintf("VLAN_%d", cfg.VlanID)),
+		Status: oc.Vlan_Status_ACTIVE,
+	}
+
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Vlan(uint16(cfg.VlanID)).Config(), vi)
+
 	if !deviations.DeprecatedVlanID(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
@@ -1394,15 +1404,6 @@ func ConfigureVlan(t *testing.T, dut *ondatra.DUTDevice, cfg VlanParams) {
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'Vlan ID'", dut.Vendor())
 		}
-	} else {
-		t.Log("Configuring VLAN using OpenConfig global VLAN model")
-
-		vi := &oc.NetworkInstance_Vlan{
-			VlanId: ygot.Uint16(uint16(cfg.VlanID)),
-			Name:   ygot.String(fmt.Sprintf("VLAN_%d", cfg.VlanID)),
-		}
-
-		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Vlan(uint16(cfg.VlanID)).Config(), vi)
 	}
 }
 
@@ -1436,6 +1437,9 @@ func ConfigureSVI(t *testing.T, dut *ondatra.DUTDevice, params SVIParams) {
 
 	// IPv4 Configuration
 	v4 := rv.GetOrCreateIpv4()
+	if deviations.IPv4MissingEnabled(dut) {
+		v4.Enabled = ygot.Bool(true)
+	}
 	v4Addr := v4.GetOrCreateAddress(params.IPv4)
 	v4Addr.PrefixLength = ygot.Uint8(params.IPv4Len)
 

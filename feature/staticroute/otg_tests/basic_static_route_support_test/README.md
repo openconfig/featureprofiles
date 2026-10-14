@@ -26,7 +26,7 @@ DUT. It consolidates verification for:
 
 ### RT-1.26.1 - Validate Static Route ECMP
 
-* Step 1 - Configure IPv4 and IPv6 static routes for ECMP by setting the values at `/network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix` and `/network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop`:
+* Step 1 - Enable the static routing protocol via `/network-instances/network-instance/protocols/protocol/config/enabled` and configure IPv4 and IPv6 static routes for ECMP by setting the values at `/network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix` and `/network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop`:
   * Configure an IPv4 static route `ipv4-route-a` on the DUT for destination
     `203.0.113.0/24` with the next-hop set to the IPv4 address of ATE port-1.
   * Configure an IPv4 static route `ipv4-route-b` on the DUT for destination
@@ -36,7 +36,7 @@ DUT. It consolidates verification for:
   * Configure an IPv6 static route `ipv6-route-b` on the DUT for destination
     `2001:db8:128:128::/64` with the next-hop set to the IPv6 address of ATE port-2.
 * Step 2 - Push configuration to DUT using gnmi.Set with REPLACE option.
-* Step 3 - Validate both routes are configured and reported correctly by checking that
+* Step 3 - Validate that the static routing protocol is enabled by checking that `/network-instances/network-instance/protocols/protocol/state/enabled` is `true`, and validate both routes are configured and reported correctly by checking that
   the value of `/network-instances/network-instance/protocols/protocol/static-routes/static/state/prefix`
   matches the configured prefixes.
 * Step 4 - Send IPv4 and IPv6 Traffic from ATE port-3 towards destination
@@ -168,6 +168,7 @@ DUT. It consolidates verification for:
               "identifier": "openconfig-policy-types:STATIC",
               "name": "DEFAULT",
               "config": {
+                "enabled": true,
                 "identifier": "openconfig-policy-types:STATIC",
                 "name": "DEFAULT"
               },
@@ -213,6 +214,7 @@ paths:
   /interfaces/interface/config/enabled:
   /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled:
   /interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled:
+  /network-instances/network-instance/protocols/protocol/config/enabled:
   /network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix:
   /network-instances/network-instance/protocols/protocol/static-routes/static/config/set-tag:
   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop:
@@ -221,6 +223,7 @@ paths:
   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/recurse:
 
   ## State Paths ##
+  /network-instances/network-instance/protocols/protocol/state/enabled:
   /network-instances/network-instance/protocols/protocol/static-routes/static/state/prefix:
   /network-instances/network-instance/protocols/protocol/static-routes/static/state/set-tag:
   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/state/next-hop:

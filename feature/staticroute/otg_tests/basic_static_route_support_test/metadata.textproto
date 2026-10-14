@@ -35,6 +35,7 @@ platform_exceptions:  {
     ipv6_static_route_with_ipv4_nh_unsupported:  true
     static_route_with_drop_nh:  true
     static_route_with_explicit_metric:  true
+    missing_value_for_defaults:  true
   }
 }
 platform_exceptions:  {
