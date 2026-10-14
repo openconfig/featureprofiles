@@ -15,7 +15,6 @@
 package p4rtpacketingribiinteraction_test
 
 import (
-	"encoding/binary"
 	"errors"
 	"flag"
 	"fmt"
@@ -77,7 +76,7 @@ const (
 	trafficTimeout       = time.Duration(frameCount/framePps)*time.Second + 40*time.Second
 	packetInQueueSize    = 200000
 	traceRouteTTL        = uint8(1)
-	v4Route              = "198.51.0.0"
+	v4Route              = "198.18.0.0"
 	v4RouteLen           = "/32"
 	v6Route              = "2001:db8::"
 	v6RouteLen           = "/128"
@@ -416,26 +415,6 @@ func getPuntTableEntry(rule puntRule, actionType p4v1pb.Update_Type) (*p4rtutils
 		entry.TTL = rule.TTL
 		entry.TTLMask = 0xFF
 	}
-	if rule.IPv4Dst != "" {
-		ip, ipNet, err := net.ParseCIDR(rule.IPv4Dst)
-		if err != nil {
-			return nil, fmt.Errorf("punt rule %q: invalid IPv4Dst %q: %w", rule.Name, rule.IPv4Dst, err)
-		}
-		ip4 := ip.To4()
-		if ip4 == nil {
-			return nil, fmt.Errorf("punt rule %q: IPv4Dst %q is not an IPv4 address", rule.Name, rule.IPv4Dst)
-		}
-		entry.Ipv4Dst = binary.BigEndian.Uint32(ip4)
-		entry.Ipv4DstMask = binary.BigEndian.Uint32(ipNet.Mask)
-	}
-	if rule.IPProto != 0 {
-		entry.IPProto = rule.IPProto
-		entry.IPProtoMask = 0xFF
-	}
-	if rule.L4DstPort != 0 {
-		entry.L4DstPort = rule.L4DstPort
-		entry.L4DstPortMask = 0xFFFF
-	}
 	return entry, nil
 }
 
@@ -739,21 +718,24 @@ func validateTrafficFlow(t *testing.T, testArgs *testArgs, flowName []string, fr
 
 func validateDUTInterfaceCounters(t *testing.T, dut *ondatra.DUTDevice, port string, wantedCounter uint64, inPkts bool) {
 	t.Helper()
-	var pktCount uint64
+	var path ygnmi.SingletonQuery[uint64]
 	if inPkts {
-		pktCount = gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, port).Name()).Counters().InPkts().State())
+		path = gnmi.OC().Interface(dut.Port(t, port).Name()).Counters().InPkts().State()
 	} else {
-		pktCount = gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, port).Name()).Counters().OutPkts().State())
+		path = gnmi.OC().Interface(dut.Port(t, port).Name()).Counters().OutPkts().State()
 	}
 
-	t.Log(pktCount)
-	if pktCount == 0 {
-		t.Errorf("error: DUT interface %q packets is zero", port)
-	}
-	if pktCount < wantedCounter {
-		t.Errorf("error: DUT interface %q packets got %d, want at least %d", port, pktCount, wantedCounter)
+	val, ok := gnmi.Watch(t, dut, path, 2*time.Minute, func(v *ygnmi.Value[uint64]) bool {
+		got, present := v.Val()
+		return present && got >= wantedCounter
+	}).Await(t)
+
+	if !ok {
+		got, _ := val.Val()
+		t.Errorf("error: DUT interface %q packets got %d, want at least %d", port, got, wantedCounter)
 	} else {
-		t.Logf("DUT interface %q packets got %d, as expected: %d", port, pktCount, wantedCounter)
+		got, _ := val.Val()
+		t.Logf("DUT interface %q packets got %d, as expected: %d", port, got, wantedCounter)
 	}
 }
 
@@ -777,7 +759,7 @@ func validatePacketIn(t *testing.T, testArgs *testArgs, pktOut uint64, packetIO 
 	}
 
 	if len(traceroutePacketIn) > 0 {
-		err = errors.Join(err, checkTraceroutePacketIn(t, packets, packetIO))
+		err = errors.Join(err, checkTraceroutePacketIn(t, packets, traceroutePacketIn[0]))
 	}
 	err = errors.Join(err, checkLLDPPacketIn(t, packets, packetIO))
 
@@ -1411,6 +1393,7 @@ func TestP4RTPacketInGRIBIInteraction(t *testing.T) {
 	args.gribiC = setupGRIBI(t, args.dut)
 	t.Cleanup(func() {
 		if args.gribiC != nil {
+			args.gribiC.FlushAll(t)
 			args.gribiC.Close(t)
 		}
 	})
@@ -1535,16 +1518,17 @@ func testBaselinePacketIn(t *testing.T, testArgs *testArgs, flows []flowSpec, dp
 		verifyAFTPrefix(t, testArgs.dut, testArgs.ni, prefix)
 	}
 
-	// Insert wbb acl entry on the DUT
-	if err := programPuntTableEntries(t, testArgs.leader, testArgs.packetIO[0], false); err != nil {
-		t.Fatalf("error when programming entry: %v", err)
-	}
-	// Delete wbb acl entry on the device
+	// Register cleanup to delete wbb acl entry on the device
 	t.Cleanup(func() {
 		if err := programPuntTableEntries(t, testArgs.leader, testArgs.packetIO[0], true); err != nil {
 			t.Errorf("error when deleting entry: %v", err)
 		}
 	})
+
+	// Insert wbb acl entry on the DUT
+	if err := programPuntTableEntries(t, testArgs.leader, testArgs.packetIO[0], false); err != nil {
+		t.Fatalf("error when programming entry: %v", err)
+	}
 
 	t.Log("send baseline traffic and validate p4rt packet-in")
 	configureTrafficFlow(t, testArgs, []flowSpec{flows[0]}, testArgs.packetIO[0])
@@ -1626,15 +1610,11 @@ func testNegativeConcurrentScenario(t *testing.T, testArgs *testArgs, flows []fl
 
 	t.Log("validating that ingress port down suppresses PacketIn while gRIBI continues")
 	port1Name := testArgs.dut.Port(t, "port1").Name()
-	toggleInterface(t, testArgs.dut, port1Name, false)
-	port1Disabled := true
 	t.Cleanup(func() {
-		if !port1Disabled {
-			return
-		}
 		toggleInterface(t, testArgs.dut, port1Name, true)
 		waitPortOperStatus(t, testArgs.dut, port1Name, oc.Interface_OperStatus_UP)
 	})
+	toggleInterface(t, testArgs.dut, port1Name, false)
 	waitPortOperStatus(t, testArgs.dut, port1Name, oc.Interface_OperStatus_DOWN)
 
 	time.Sleep(10 * time.Second)
@@ -1651,7 +1631,6 @@ func testNegativeConcurrentScenario(t *testing.T, testArgs *testArgs, flows []fl
 
 	toggleInterface(t, testArgs.dut, port1Name, true)
 	waitPortOperStatus(t, testArgs.dut, port1Name, oc.Interface_OperStatus_UP)
-	port1Disabled = false
 
 	testArgs.ate.OTG().StartTraffic(t)
 
