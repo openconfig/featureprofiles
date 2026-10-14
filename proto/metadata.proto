@@ -51,7 +51,7 @@ message Metadata {
     TESTBED_ATE_DUT1_4LINKS_DUT2_ATE = 19;
     TESTBED_DUT_DUT_ATE_8LINKS = 20;
   }
-   // Testbed on which the test is intended to run.
+  // Testbed on which the test is intended to run.
   Testbed testbed = 4;
 
   message Platform {
@@ -1514,7 +1514,6 @@ message Metadata {
 
     // Device requires vendor-specific configuration before the test configuration.
     bool vendor_pre_config_required = 465;
-
     // Devices that do not report
     // /network-instances/network-instance/afts/next-hops/next-hop/state/origin-protocol
     // in AFT telemetry.
@@ -1564,7 +1563,6 @@ message Metadata {
     // qos_red_unsupported specifies if device does not support RED under
     // queue-management-profiles.
     bool qos_red_unsupported = 475;
-
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }

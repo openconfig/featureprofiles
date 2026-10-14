@@ -1599,6 +1599,13 @@ func SflowIngressMinSamplingRate(dut *ondatra.DUTDevice) uint32 {
 	return lookupDUTDeviations(dut).GetSflowIngressMinSamplingRate()
 }
 
+// SflowEgressSamplingRateUnsupported returns true if the device does not support
+// configuring the sFlow egress sampling rate through OpenConfig.
+// Arista EOS: b/562517133.
+func SflowEgressSamplingRateUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSflowEgressSamplingRateUnsupported()
+}
+
 // QosRemarkOCUnsupported returns true if Qos remark parameters are unsupported
 func QosRemarkOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosRemarkOcUnsupported()
@@ -2494,9 +2501,4 @@ func CfmPmFt(dut *ondatra.DUTDevice) string {
 // QosRedUnsupported returns true if device does not support RED under queue-management-profiles.
 func QosRedUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDropWeightLeavesUnsupported()
-}
-
-// SflowEgressSamplingRateUnsupported returns true if device does not support sflow egress sampling rate.
-func SflowEgressSamplingRateUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSflowEgressSamplingRateUnsupported()
 }

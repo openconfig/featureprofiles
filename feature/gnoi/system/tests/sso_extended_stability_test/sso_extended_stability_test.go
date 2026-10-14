@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//      http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -59,7 +59,7 @@ var (
 		// Juniper
 		"rpd", "aftd-chassis", "fpc",
 		// Nokia
-		"sr_engine", "sr_mgmtd",
+		"sr_engine", "sr_mgmtd", "sr_qos_mgr", "sr_bgp_mgr", "sr_net_inst_mgr", "sr_mgmt_server",
 	}
 )
 
@@ -256,7 +256,7 @@ func performSwitchover(t *testing.T, dut *ondatra.DUTDevice, controllerCards []s
 	return rpActiveAfter, rpStandbyAfter
 }
 
-func runPostSSOVerification(t *testing.T, dut *ondatra.DUTDevice, criticalProcs []string, initialProcInfos map[string]*ProcessInfo, qosBaselines map[string]uint64, qosPorts []string, qosQueues []string, controllerCards []string) {
+func runPostSSOVerification(t *testing.T, dut *ondatra.DUTDevice, criticalProcs []string, qosBaselines map[string]uint64, qosPorts []string, qosQueues []string, controllerCards []string) {
 	t.Log("Starting 10 minutes validation post-switchover...")
 
 	// Capture baseline process state on the newly active supervisor right after switchover.
@@ -265,14 +265,12 @@ func runPostSSOVerification(t *testing.T, dut *ondatra.DUTDevice, criticalProcs 
 		t.Errorf("Failed to query post-switchover baseline process info: %v", err)
 	} else {
 		for name, pInfo := range activeRPBaselines {
-			if initInfo, ok := initialProcInfos[name]; ok && initInfo.MemoryUsage > pInfo.MemoryUsage {
-				pInfo.MemoryUsage = initInfo.MemoryUsage
-			}
 			t.Logf("Post-switchover active RP process %s baseline: PID=%d, StartTime=%d, Memory=%d", name, pInfo.Pid, pInfo.StartTime, pInfo.MemoryUsage)
 		}
 	}
 
 	prevMemory := make(map[string]uint64)
+	memBaselineSet := make(map[string]bool)
 	for name, b := range activeRPBaselines {
 		prevMemory[name] = b.MemoryUsage
 	}
@@ -298,6 +296,7 @@ func runPostSSOVerification(t *testing.T, dut *ondatra.DUTDevice, criticalProcs 
 			if !hasBaseline {
 				activeRPBaselines[name] = info
 				prevMemory[name] = info.MemoryUsage
+				memBaselineSet[name] = true
 				continue
 			}
 
@@ -305,8 +304,24 @@ func runPostSSOVerification(t *testing.T, dut *ondatra.DUTDevice, criticalProcs 
 			if info.Pid != baseline.Pid {
 				t.Errorf("Process %s PID changed from %d to %d (crash detected)", name, baseline.Pid, info.Pid)
 			}
-			if info.StartTime != baseline.StartTime {
+			const startTimeJitterToleranceNs = 2_000_000_000 // 2 seconds tolerance for wall-clock/uptime rounding jitter
+			var startTimeDiff uint64
+			if info.StartTime > baseline.StartTime {
+				startTimeDiff = info.StartTime - baseline.StartTime
+			} else {
+				startTimeDiff = baseline.StartTime - info.StartTime
+			}
+			if startTimeDiff > startTimeJitterToleranceNs {
 				t.Errorf("Process %s StartTime changed from %d to %d (crash/restart detected)", name, baseline.StartTime, info.StartTime)
+			}
+
+			// Anchor the memory baseline on the first post-switchover poll (2-minute mark)
+			// once the newly active RP has completed its standby-to-active memory transition.
+			if !memBaselineSet[name] {
+				baseline.MemoryUsage = info.MemoryUsage
+				activeRPBaselines[name] = baseline
+				memBaselineSet[name] = true
+				t.Logf("Process %s stabilized post-switchover active RP memory baseline: %d", name, baseline.MemoryUsage)
 			}
 
 			// Memory Leak Detection (Track whether memory keeps increasing over time compared to baseline)
@@ -362,6 +377,10 @@ func configureVRFsAndBgp(t *testing.T, dut *ondatra.DUTDevice, bs *cfgplugins.BG
 		defaultGlobal := bs.DUTConf.GetOrCreateNetworkInstance(defaultNiName).GetOrCreateProtocol(ptBGP, bgpName).GetOrCreateBgp().GetOrCreateGlobal()
 		defaultGlobal.SetAs(65000)
 		defaultGlobal.SetRouterId(bs.DUTPorts[0].IPv4)
+		defaultGR := defaultGlobal.GetOrCreateGracefulRestart()
+		defaultGR.Enabled = ygot.Bool(true)
+		defaultGR.RestartTime = ygot.Uint16(120)
+		defaultGR.StaleRoutesTime = ygot.Uint16(300)
 		defaultGlobal.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 		defaultGlobal.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_L3VPN_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	}
@@ -410,6 +429,9 @@ func configureVRFsAndBgp(t *testing.T, dut *ondatra.DUTDevice, bs *cfgplugins.BG
 
 	transitPg := transitBgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1)
 	transitPg.PeerAs = ygot.Uint32(65001)
+	if !deviations.BgpGracefulRestartPeerGroupUnsupported(dut) {
+		transitPg.GetOrCreateGracefulRestart().Enabled = ygot.Bool(true)
+	}
 	transitPg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 
 	decapBgpProto := decapNi.GetOrCreateProtocol(ptBGP, bgpName)
@@ -425,6 +447,9 @@ func configureVRFsAndBgp(t *testing.T, dut *ondatra.DUTDevice, bs *cfgplugins.BG
 
 	decapPg := decapBgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1)
 	decapPg.PeerAs = ygot.Uint32(65002)
+	if !deviations.BgpGracefulRestartPeerGroupUnsupported(dut) {
+		decapPg.GetOrCreateGracefulRestart().Enabled = ygot.Bool(true)
+	}
 	decapPg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 
 	// Create PERMIT-ALL routing policy
@@ -452,6 +477,10 @@ func configureVRFsAndBgp(t *testing.T, dut *ondatra.DUTDevice, bs *cfgplugins.BG
 			nbr.PeerGroup = ygot.String(cfgplugins.BGPPeerGroup1)
 		}
 		nbr.Enabled = ygot.Bool(true)
+		nbr.GetOrCreateGracefulRestart().Enabled = ygot.Bool(true)
+		nbrTimers := nbr.GetOrCreateTimers()
+		nbrTimers.HoldTime = ygot.Uint16(30)
+		nbrTimers.KeepaliveInterval = ygot.Uint16(10)
 
 		nAfiSafi := nbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 		nAfiSafi.Enabled = ygot.Bool(true)
@@ -621,10 +650,16 @@ func configureOTGBgpAndTraffic(t *testing.T, bs *cfgplugins.BGPSession) {
 	peer3 := dev3.Bgp().Ipv4Interfaces().Items()[0].Peers().Items()[0]
 	peer4 := dev4.Bgp().Ipv4Interfaces().Items()[0].Peers().Items()[0]
 
-	peer1.SetAsNumber(65001).GracefulRestart().SetEnableGr(true).SetRestartTime(120)
-	peer2.SetAsNumber(65001).GracefulRestart().SetEnableGr(true).SetRestartTime(120)
-	peer3.SetAsNumber(65002).GracefulRestart().SetEnableGr(true).SetRestartTime(120)
-	peer4.SetAsNumber(65002).GracefulRestart().SetEnableGr(true).SetRestartTime(120)
+	for _, peer := range []gosnappi.BgpV4Peer{peer1, peer2} {
+		peer.SetAsNumber(65001)
+		peer.Advanced().SetKeepAliveInterval(10).SetHoldTimeInterval(30)
+		peer.GracefulRestart().SetEnableGr(true).SetRestartTime(120).SetStaleTime(300)
+	}
+	for _, peer := range []gosnappi.BgpV4Peer{peer3, peer4} {
+		peer.SetAsNumber(65002)
+		peer.Advanced().SetKeepAliveInterval(10).SetHoldTimeInterval(30)
+		peer.GracefulRestart().SetEnableGr(true).SetRestartTime(120).SetStaleTime(300)
+	}
 
 	configureBGPv4Routes(peer1, bs.ATEPorts[0].IPv4, "port1_routes", "198.51.100.0", 24)
 	configureBGPv4Routes(peer2, bs.ATEPorts[1].IPv4, "port2_routes", "198.51.101.0", 24)
@@ -738,6 +773,9 @@ func TestSSOSoftwareStability(t *testing.T) {
 
 	// 7. Find critical hardware and routing processes to monitor
 	criticalProcs := findRunningCriticalProcesses(t, dut)
+	if len(criticalProcs) == 0 {
+		t.Fatalf("No critical processes found running on DUT")
+	}
 	t.Logf("Monitoring critical processes: %v", criticalProcs)
 	initialProcInfos, err := getCriticalProcessInfos(t, dut, criticalProcs, nil)
 	if err != nil {
@@ -762,12 +800,12 @@ func TestSSOSoftwareStability(t *testing.T) {
 	// Step 2 - Trigger Supervisor Switchover
 	t.Log("Step 2 - Trigger Supervisor Switchover")
 	performSwitchover(t, dut, controllerCards)
-	runPostSSOVerification(t, dut, criticalProcs, initialProcInfos, qosBaselines, qosPorts, qosQueues, controllerCards)
+	runPostSSOVerification(t, dut, criticalProcs, qosBaselines, qosPorts, qosQueues, controllerCards)
 
 	// Step 3 - Soak Phase
 	t.Log("Step 3 - Soak Phase")
 	performSwitchover(t, dut, controllerCards)
-	runPostSSOVerification(t, dut, criticalProcs, initialProcInfos, qosBaselines, qosPorts, qosQueues, controllerCards)
+	runPostSSOVerification(t, dut, criticalProcs, qosBaselines, qosPorts, qosQueues, controllerCards)
 
 	// Step 4 - Validation with pass/fail criteria
 	t.Log("Step 4 - Validation with pass/fail criteria")
