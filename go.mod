@@ -32,7 +32,7 @@ require (
 	github.com/openconfig/gribigo v0.1.1
 	github.com/openconfig/kne v0.1.18
 	github.com/openconfig/models-ci v1.0.2-0.20231113233730-f0986391428e
-	github.com/openconfig/ondatra v0.14.8
+	github.com/openconfig/ondatra v0.14.9
 	github.com/openconfig/qualification-reporter v0.1.0
 	github.com/openconfig/replayer v0.0.0-20240110192655-4e9cf83d8d30
 	github.com/openconfig/testt v0.0.0-20251119232631-fbbd49c39452
