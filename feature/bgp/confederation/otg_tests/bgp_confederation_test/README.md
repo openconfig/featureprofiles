@@ -18,11 +18,12 @@ Confederations (RFC 5065) for IPv4 and IPv6 unicast:
 
 ```mermaid
 graph LR
-    R1["ATE router R1 (AS 64510)"] <-->|"External eBGP"| DUT["DUT (Member-AS 64501)"]
+    R1["ATE router R1 (AS 64510)"]
     subgraph Confed["Confederation 64500"]
-        DUT <-->|"iBGP"| R2["ATE router R2 (AS 64501)"]
+        DUT["DUT (Member-AS 64501)"] <-->|"iBGP"| R2["ATE router R2 (AS 64501)"]
         DUT <-->|"confederation-eBGP"| R3["ATE router R3 (AS 64502)"]
     end
+    R1 <-->|"External eBGP"| DUT
 ```
 
 ### DUT and OTG properties
