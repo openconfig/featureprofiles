@@ -438,6 +438,7 @@ func createGracefulRestartAction(t *testing.T, peerNames []string, restartDelay 
 	if notification == "soft" {
 		grAction.Protocol().Bgp().InitiateGracefulRestart().
 			SetPeerNames(peerNames).SetRestartDelay(restartDelay).Notification().Cease().SetSubcode(gosnappi.DeviceBgpCeaseErrorSubcode.ADMIN_RESET_CODE6_SUBCODE4)
+
 	}
 	if notification == "hard" {
 		grAction.Protocol().Bgp().InitiateGracefulRestart().
@@ -535,15 +536,16 @@ func verifyBGPActive(t *testing.T, mode string, dst attrs.Attributes) {
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(dst.IPv4)
 
-	bgpState := oc.Bgp_Neighbor_SessionState_ACTIVE
+	bgpState1 := oc.Bgp_Neighbor_SessionState_ACTIVE
+	bgpState2 := oc.Bgp_Neighbor_SessionState_CONNECT
 	_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), 2*time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 		currState, ok := val.Val()
 		t.Logf("current state of neighbour is %s", currState.String())
-		return ok && currState == bgpState
+		return ok && (currState == bgpState1 || currState == bgpState2)
 	}).Await(t)
 	if !ok {
 		fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
-		t.Errorf("BGP session did not go ACTIVE as expected")
+		t.Fatalf("BGP session did not go ACTIVE/CONNECT as expected")
 	}
 }
 
@@ -683,8 +685,7 @@ func TestBGPGracefulRestart(t *testing.T) {
 					t.Logf("Kill %s the BGP process on the dut", tc.mode)
 					gNOIKillProcess(t, dut, pName, uint32(pId), tc.mode)
 					startTime = time.Now()
-					time.Sleep(2 * time.Second)
-
+					time.Sleep(10 * time.Second)
 				}
 
 				if tc.restarter == "receiver" {
@@ -725,7 +726,7 @@ func TestBGPGracefulRestart(t *testing.T) {
 
 				t.Logf("Time passed since graceful restart was initiated is %s", time.Since(startTime))
 				if time.Since(startTime) < time.Duration(grStaleRouteTime)*time.Second {
-					waitDuration = time.Duration(grStaleRouteTime)*time.Second - time.Since(startTime) + 5*time.Second
+					waitDuration = time.Duration(grStaleRouteTime)*time.Second - time.Since(startTime) + 15*time.Second
 					t.Logf("Waiting another %s seconds to ensure the stale route timer of %v expired", waitDuration, grStaleRouteTime)
 					time.Sleep(waitDuration)
 				} else {
@@ -931,9 +932,17 @@ func TestBGPGracefulRestart(t *testing.T) {
 				t.Logf("Waiting for %s just short of stale route time of %v expiration", waitDuration, grStaleRouteTime)
 				time.Sleep(waitDuration)
 				ate.OTG().StopTraffic(t)
-				t.Run("Verify No Packet Loss for "+mode, func(t *testing.T) {
-					otgutils.ExpectedTrafficLoss(t, ate.OTG(), "Ipv4", 0.0, 0.0, 10, 10)
-				})
+				// DUT will reset TCP connection if hard reset is received hence it will flush all routes.
+				// Hence we only check for no packet loss if the notification is not "hard"
+				if tc.notification != "hard" {
+					t.Run("Verify No Packet Loss for "+mode, func(t *testing.T) {
+						otgutils.ExpectedTrafficLoss(t, ate.OTG(), "Ipv4", 0.0, 0.0, 10, 10)
+					})
+				} else {
+					t.Run("Verify 100% Packet Loss for "+mode, func(t *testing.T) {
+						otgutils.ExpectedTrafficLoss(t, ate.OTG(), "Ipv4", 99.0, 100.0, 10, 10)
+					})
+				}
 				t.Logf("Time passed since acl applied is %s", time.Since(startTime))
 				waitDuration = grStaleRouteTime*time.Second - time.Since(startTime) + 20*time.Second
 				t.Logf("Waiting another %s seconds to ensure the stale route timer of %v expired", waitDuration, grStaleRouteTime)
