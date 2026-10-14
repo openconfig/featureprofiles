@@ -63,31 +63,34 @@ All advertised BGP routes on OTG have the below specs:
 
 ### RT-1.111.2: Confederation peer to iBGP peer route propagation
 
-*   Advertise `CONFED` from ATE R3 (port-3).
-*   Verify in the DUT `loc-rib` and on ATE R2 (port-2) that `CONFED` is received
-    with `AS_CONFED_SEQUENCE [64502]`.
+*   Advertise the `CONFED` route prefixes (`198.51.100.64/26`,
+    `2001:db8:300::/48`) from ATE R3 (port-3).
+*   Verify in the DUT `loc-rib` and on ATE R2 (port-2) that the `CONFED` routes
+    are received with `AS_CONFED_SEQUENCE [64502]`.
 *   Verify IPv4 and IPv6 traffic from port-2 to port-3 passes without loss.
 
 ### RT-1.111.3: iBGP peer to confederation peer route propagation
 
-*   Advertise `IBGP` from ATE R2 (port-2).
-*   Verify on ATE R3 (port-3) that `IBGP` is received with
+*   Advertise the `IBGP` route prefixes (`198.51.100.0/26`,
+    `2001:db8:200::/48`) from ATE R2 (port-2).
+*   Verify on ATE R3 (port-3) that the `IBGP` routes are received with
     `AS_CONFED_SEQUENCE [64501]`.
 *   Verify IPv4 and IPv6 traffic from port-3 to port-2 passes without loss.
 
 ### RT-1.111.4: Confederation routes to external eBGP peer
 
-*   Verify ATE R1 (port-1) receives `CONFED` and `IBGP` with `AS_SEQ [64500]`
-    (`AS_CONFED_SEQUENCE` removed).
+*   Verify ATE R1 (port-1) receives the `CONFED` and `IBGP` routes with
+    `AS_SEQ [64500]` (`AS_CONFED_SEQUENCE` removed).
 *   Verify IPv4 and IPv6 traffic from port-1 to port-2 and port-3 passes
     without loss.
 
 ### RT-1.111.5: External route to confederation and iBGP peers
 
-*   Advertise `EXT` from ATE R1 (port-1).
-*   Verify ATE R3 (port-3) receives `EXT` with
+*   Advertise the `EXT` route prefixes (`203.0.113.0/26`, `2001:db8:100::/48`)
+    from ATE R1 (port-1).
+*   Verify ATE R3 (port-3) receives the `EXT` routes with
     `AS_CONFED_SEQUENCE [64501], AS_SEQ [64510]` and ATE R2 (port-2) receives
-    `EXT` with `AS_SEQ [64510]`.
+    the `EXT` routes with `AS_SEQ [64510]`.
 *   Verify IPv4 and IPv6 traffic from port-2 and port-3 to port-1 passes
     without loss.
 
