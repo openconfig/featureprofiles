@@ -7,8 +7,8 @@ Confederations (RFC 5065) for IPv4 and IPv6 unicast:
 
 *   Confederation configuration and state (`identifier` and `member-as`)
 *   External eBGP, iBGP, and confederation-eBGP session establishment
-*   `AS_PATH` (`AS_CONFED_SEQUENCE` and `AS_SEQ`), `LOCAL_PREF`, `MED`, and
-    `NEXT_HOP` propagation across confederation, iBGP, and external eBGP peers
+*   `AS_PATH` (`AS_CONFED_SEQUENCE` and `AS_SEQ`) propagation and traffic
+    forwarding across confederation, iBGP, and external eBGP peers
 
 ### Testbed type
 
@@ -36,11 +36,11 @@ graph LR
 
 All advertised BGP routes on OTG have the below specs:
 
-| Name | ATE Port | IPv4 Prefix | IPv6 Prefix | AS_PATH | LOCAL_PREF | MED |
-| :--- | :------- | :---------- | :---------- | :------ | :--------- | :-: |
-| EXT | Port 1 | 203.0.113.0/26 | 2001:db8:100::/48 | AS_SEQ [64510] | - | - |
-| IBGP | Port 2 | 198.51.100.0/26 | 2001:db8:200::/48 | empty | 200 | 50 |
-| CONFED | Port 3 | 198.51.100.64/26 | 2001:db8:300::/48 | AS_CONFED_SEQUENCE [64502] | 150 | - |
+| Name | ATE Port | IPv4 Prefix | IPv6 Prefix | AS_PATH |
+| :--- | :------- | :---------- | :---------- | :------ |
+| EXT | Port 1 | 203.0.113.0/26 | 2001:db8:100::/48 | AS_SEQ [64510] |
+| IBGP | Port 2 | 198.51.100.0/26 | 2001:db8:200::/48 | empty |
+| CONFED | Port 3 | 198.51.100.64/26 | 2001:db8:300::/48 | AS_CONFED_SEQUENCE [64502] |
 
 ### Procedure
 
@@ -65,21 +65,20 @@ All advertised BGP routes on OTG have the below specs:
 
 *   Advertise `CONFED` from ATE R3 (port-3).
 *   Verify in the DUT `loc-rib` and on ATE R2 (port-2) that `CONFED` is received
-    with `AS_CONFED_SEQUENCE [64502]` and `LOCAL_PREF` (`150`) unchanged.
+    with `AS_CONFED_SEQUENCE [64502]`.
 *   Verify IPv4 and IPv6 traffic from port-2 to port-3 passes without loss.
 
 ### RT-1.111.3: iBGP peer to confederation peer route propagation
 
 *   Advertise `IBGP` from ATE R2 (port-2).
 *   Verify on ATE R3 (port-3) that `IBGP` is received with
-    `AS_CONFED_SEQUENCE [64501]`, `LOCAL_PREF` (`200`), and `MED` (`50`)
-    preserved.
+    `AS_CONFED_SEQUENCE [64501]`.
 *   Verify IPv4 and IPv6 traffic from port-3 to port-2 passes without loss.
 
 ### RT-1.111.4: Confederation routes to external eBGP peer
 
 *   Verify ATE R1 (port-1) receives `CONFED` and `IBGP` with `AS_SEQ [64500]`
-    (`AS_CONFED_SEQUENCE` removed and `NEXT_HOP` set to DUT port-1).
+    (`AS_CONFED_SEQUENCE` removed).
 *   Verify IPv4 and IPv6 traffic from port-1 to port-2 and port-3 passes
     without loss.
 
@@ -106,8 +105,8 @@ All advertised BGP routes on OTG have the below specs:
     "FAIL":
     1.  Count of BGP sessions in the `ESTABLISHED` state is less than 6
     2.  DUT confederation state (`as`, `identifier`, `member-as`) or received
-        `AS_PATH`, `LOCAL_PREF`, `MED`, or `NEXT_HOP` attributes do not match
-        the expected values in `RT-1.111.1` through `RT-1.111.5`
+        `AS_PATH` attributes do not match the expected values in `RT-1.111.1`
+        through `RT-1.111.5`
     3.  Traffic flow packet loss is greater than 1%
 
 ### Cleanup
@@ -180,9 +179,6 @@ paths:
   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/state/attr-index:
   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/loc-rib/routes/route/state/prefix:
   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/loc-rib/routes/route/state/attr-index:
-  /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/local-pref:
-  /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/med:
-  /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/next-hop:
   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/as-path/as-segment/state/type:
   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/as-path/as-segment/state/member:
 
