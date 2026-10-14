@@ -197,8 +197,15 @@ func (tc *testCase) setupAggregateAtomically(t *testing.T) {
 }
 
 func (tc *testCase) clearAggregate(t *testing.T) {
+	t.Helper()
+
+	// Clear the aggregate LACP configuration.
+	gnmi.Delete(t, tc.dut, gnmi.OC().Lacp().Interface(tc.aggID).Config())
+
 	// Clear the aggregate minlink.
 	gnmi.Delete(t, tc.dut, gnmi.OC().Interface(tc.aggID).Aggregation().MinLinks().Config())
+	// Clear the aggregate lag type.
+	gnmi.Delete(t, tc.dut, gnmi.OC().Interface(tc.aggID).Aggregation().LagType().Config())
 
 	// Clear the members of the aggregate.
 	for _, port := range tc.dutPorts[1:] {
@@ -649,6 +656,7 @@ func TestNegotiation(t *testing.T) {
 			aggID:    aggID,
 		}
 		t.Run(fmt.Sprintf("LagType=%s", lagType), func(t *testing.T) {
+			tc.clearAggregate(t)
 			tc.configureDUT(t)
 			t.Run("VerifyDUT", tc.verifyDUT)
 
