@@ -474,7 +474,7 @@ or stale (`0`) counter updates during 4in4 and 6in4 encapsulation:
     *   Ensure the baseline VRF selection policy (`vrf_selection_policy_c`) on
         DUT `port-1` and the gRIBI IP-in-IP encapsulation AFT hierarchy
         (`NH#201` with `dst_ip = 203.0.113.1`, weight `1` and `NH#202` with
-        `dst_ip = 203.10.113.2`, weight `3` in `NHG#10`, resolving recursively
+        `dst_ip = 203.0.113.2`, weight `3` in `NHG#10`, resolving recursively
         out `port-2`, `port-3`, `port-4`, and `port-5`) are programmed and
         `FIB_PROGRAMMED`.
     *   Establish concurrent gNMI `Subscribe` sessions in `STREAM` mode with
