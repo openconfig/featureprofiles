@@ -35,10 +35,21 @@ var (
 
 // validateOTNChannelTelemetry validates the OTN channel telemetry.
 func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port, params *cfgplugins.ConfigParameters, wantOperStatus oc.E_Interface_OperStatus, otnChannelStream *samplestream.SampleStream[*oc.TerminalDevice_Channel]) {
-	nextOTNChannelSample, ok := otnChannelStream.AwaitNext(timeout, func(v *ygnmi.Value[*oc.TerminalDevice_Channel]) bool {
-		val, present := v.Val()
-		return present && isOTNChannelReady(val, wantOperStatus)
-	})
+	// For DOWN state, don't wait for strict readiness since metrics transition asynchronously.
+	// Just wait for any sample to be present.
+	var nextOTNChannelSample *ygnmi.Value[*oc.TerminalDevice_Channel]
+	var ok bool
+	if wantOperStatus == oc.Interface_OperStatus_DOWN {
+		nextOTNChannelSample, ok = otnChannelStream.AwaitNext(timeout, func(v *ygnmi.Value[*oc.TerminalDevice_Channel]) bool {
+			_, present := v.Val()
+			return present
+		})
+	} else {
+		nextOTNChannelSample, ok = otnChannelStream.AwaitNext(timeout, func(v *ygnmi.Value[*oc.TerminalDevice_Channel]) bool {
+			val, present := v.Val()
+			return present && isOTNChannelReady(val, wantOperStatus)
+		})
+	}
 	if !ok {
 		t.Fatalf("OTN Channel %v is not ready after %v minutes.", params.OTNIndexes[p.Name()], timeout.Minutes())
 	}
@@ -413,14 +424,11 @@ func isOTNChannelReady(val *oc.TerminalDevice_Channel, operStatus oc.E_Interface
 			val.GetOtn().GetEsnr().GetInstant() <= val.GetOtn().GetEsnr().GetMax()*(1+errorTolerance) &&
 			val.GetOtn().GetEsnr().GetInstant() >= val.GetOtn().GetEsnr().GetMin()*(1-errorTolerance)
 	default:
-		isPreFECBERReady := false
-		for _, ipfb := range inactivePreFECBER {
-			isPreFECBERReady = isPreFECBERReady ||
-				(val.GetOtn().GetPreFecBer().GetMin() == ipfb &&
-					val.GetOtn().GetPreFecBer().GetAvg() == ipfb &&
-					val.GetOtn().GetPreFecBer().GetMax() == ipfb &&
-					val.GetOtn().GetPreFecBer().GetInstant() == ipfb)
-		}
+		isPreFECBERReady :=
+			slices.Contains(inactivePreFECBER, val.GetOtn().GetPreFecBer().GetMin()) &&
+				slices.Contains(inactivePreFECBER, val.GetOtn().GetPreFecBer().GetAvg()) &&
+				slices.Contains(inactivePreFECBER, val.GetOtn().GetPreFecBer().GetMax()) &&
+				slices.Contains(inactivePreFECBER, val.GetOtn().GetPreFecBer().GetInstant())
 		return isPreFECBERReady &&
 			val.GetOtn().GetQValue().GetMin() == inactiveQValue &&
 			val.GetOtn().GetQValue().GetAvg() == inactiveQValue &&
