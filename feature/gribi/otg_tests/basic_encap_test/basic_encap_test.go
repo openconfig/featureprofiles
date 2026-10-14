@@ -12,16 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package basic_encap_test implements TE-16.1 of the dcgate vendor testplan
+// Package basic_encap_test implements TE-16.1: gRIBI Base Hierarchical Traffic Encapsulation
+// and Simultaneous IP-in-IP Tunnel and Subinterface Egress Streaming Telemetry Counters Validation.
 package basic_encap_test
 
 import (
 	"flag"
 	"fmt"
+	"math"
 	"math/rand"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -37,12 +40,15 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/featureprofiles/internal/samplestream"
+	"github.com/openconfig/featureprofiles/internal/vrfpolicy"
 	"github.com/openconfig/gribigo/client"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/otg"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -50,17 +56,14 @@ const (
 	ipipProtocol       = 4
 	ipv6ipProtocol     = 41
 	udpProtocol        = 17
-	ethertypeIPv4      = oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4
-	ethertypeIPv6      = oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV6
-	clusterPolicy      = "vrf_selection_policy_c"
 	vrfDecap           = "DECAP_TE_VRF"
 	vrfTransit         = "TE_VRF_111"
-	vrfRepaired        = "TE_VRF_222"
 	vrfEncapA          = "ENCAP_TE_VRF_A"
 	vrfEncapB          = "ENCAP_TE_VRF_B"
 	ipv4PrefixLen      = 30
 	ipv6PrefixLen      = 126
 	trafficDuration    = 15 * time.Second
+	defaultTrafficPPS  = uint64(1000)
 	nhg10ID            = 10
 	nh201ID            = 201
 	nh202ID            = 202
@@ -74,16 +77,12 @@ const (
 	nh100ID            = 100
 	nh101ID            = 101
 	dscpEncapA1        = 10
-	dscpEncapA2        = 18
-	dscpEncapB1        = 20
-	dscpEncapB2        = 28
 	dscpEncapNoMatch   = 30
 	magicIP            = "192.168.1.1"
 	magicMac           = "02:00:00:00:00:01"
 	tunnelDstIP1       = "203.0.113.1"
 	tunnelDstIP2       = "203.0.113.2"
 	ipv4OuterSrc111    = "198.51.100.111"
-	ipv4OuterSrc222    = "198.51.100.222"
 	ipv4OuterSrcIPInIP = "198.100.200.123"
 	vipIP1             = "192.0.2.111"
 	vipIP2             = "192.0.2.222"
@@ -119,7 +118,17 @@ const (
 	// observing on IXIA OTG: Cannot start capture on more than one port belonging to the
 	// same resource group or on more than one port behind the same front panel port in the chassis
 	otgMutliPortCaptureSupported = false
-	seqIDBase                    = uint32(10)
+
+	// Test-6 (Simultaneous IP-in-IP Encapsulation Tunnel and Subinterface Egress Streaming Telemetry Counters Validation) constants.
+	nativeFallbackIPv6FlowIP = "1999:aa8::1"
+	test6SampleInterval      = 10 * time.Second
+	test6FrameSize           = uint32(512)
+	test6InnerL3Bytes        = uint64(494) // 512B frame - 14B Ethernet header - 4B FCS
+	test6OuterL3Bytes        = uint64(514) // 494B inner IP packet + 20B outer IPv4 IP-in-IP header
+	test6PPS                 = uint64(1000)
+	test6PktCount            = uint32(35000) // 35s sustained transmission at 1,000 pps (> 3x 10s sample_interval)
+	test6MonotonicSamples    = 3
+	test6CounterTolPct       = 0.01 // +/- 1% packet/octet counter accuracy tolerance
 )
 
 var (
@@ -271,17 +280,6 @@ var (
 		IPv4Len: ipv4PrefixLen,
 	}
 )
-
-type pbrRule struct {
-	sequence    uint32
-	protocol    uint8
-	srcAddr     string
-	dscpSet     []uint8
-	dscpSetV6   []uint8
-	decapVrfSet []string
-	encapVrf    string
-	etherType   oc.NetworkInstance_PolicyForwarding_Policy_Rule_L2_Ethertype_Union
-}
 
 type EcnCode uint32
 
@@ -445,6 +443,7 @@ func TestBasicEncap(t *testing.T) {
 		capturePorts       []string
 		validateEncapRatio bool
 	}{
+		// Test-1: IPv4 Traffic Encapsulation and WCMP Hierarchy Validation.
 		{
 			name:               fmt.Sprintf("Test1 IPv4 Traffic WCMP Encap dscp %d", dscpEncapA1),
 			pattr:              packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol, ttl: 99},
@@ -453,6 +452,7 @@ func TestBasicEncap(t *testing.T) {
 			capturePorts:       otgDstPorts,
 			validateEncapRatio: true,
 		},
+		// Test-2: IPv6 Traffic Encapsulation and WCMP Hierarchy Validation.
 		{
 			name:               fmt.Sprintf("Test2 IPv6 Traffic WCMP Encap dscp %d", dscpEncapA1),
 			pattr:              packetAttr{dscp: dscpEncapA1, protocol: ipv6ipProtocol, ttl: 99},
@@ -461,6 +461,7 @@ func TestBasicEncap(t *testing.T) {
 			capturePorts:       otgDstPorts,
 			validateEncapRatio: true,
 		},
+		// Test-3: IP-in-IP (IPv4-in-IPv4 and IPv6-in-IPv4) Traffic Encapsulation and WCMP Hierarchy Validation.
 		{
 			name:  fmt.Sprintf("Test3 IPinIP Traffic WCMP Encap dscp %d", dscpEncapA1),
 			pattr: packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol, ttl: 99},
@@ -471,6 +472,7 @@ func TestBasicEncap(t *testing.T) {
 			capturePorts:       otgDstPorts,
 			validateEncapRatio: true,
 		},
+		// Test-4: Explicit Congestion Notification (ECN) Bits Preservation During IP-in-IP Encapsulation (IPv4 and IPv6).
 		{
 			name:               fmt.Sprintf("Test4 IPv4 Traffic Encap ECN %s dscp %d", ecnNames[EcnNotECT], dscpEncapA1),
 			pattr:              packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol, ttl: 99, ecn: EcnNotECT, validateECN: true},
@@ -527,7 +529,7 @@ func TestBasicEncap(t *testing.T) {
 			capturePorts:       otgDstPorts,
 			validateEncapRatio: false,
 		},
-		// Test 5: ECN Decap Congestion Propagation (IPv4-in-IPv4)
+		// Test-5: ECN Decap Congestion Propagation (IPv4-in-IPv4).
 		{
 			name: fmt.Sprintf("Test5 IPv4in4 Traffic Decap ECN Outer %s Inner %s", ecnNames[EcnCE], ecnNames[EcnECT0]),
 			pattr: packetAttr{
@@ -608,7 +610,7 @@ func TestBasicEncap(t *testing.T) {
 			capturePorts:       []string{"port2"},
 			validateEncapRatio: false,
 		},
-		// Test 5: ECN Decap Congestion Propagation (IPv6-in-IPv4)
+		// Test-5: ECN Decap Congestion Propagation (IPv6-in-IPv4).
 		{
 			name: fmt.Sprintf("Test5 IPv6in4 Traffic Decap ECN Outer %s Inner %s", ecnNames[EcnCE], ecnNames[EcnECT0]),
 			pattr: packetAttr{
@@ -689,6 +691,7 @@ func TestBasicEncap(t *testing.T) {
 			capturePorts:       []string{"port2"},
 			validateEncapRatio: false,
 		},
+		// Default class rule validation: traffic with DSCP 30 (no match on encap rules) forwards via DEFAULT VRF without IP-in-IP encapsulation.
 		{
 			name:               fmt.Sprintf("No Match Dscp %d Traffic", dscpEncapNoMatch),
 			pattr:              packetAttr{protocol: udpProtocol, dscp: dscpEncapNoMatch, ttl: 99},
@@ -763,248 +766,51 @@ func TestBasicEncap(t *testing.T) {
 			}
 		})
 	}
+
+	// Test-6: Simultaneous IP-in-IP Encapsulation Tunnel and Subinterface Egress Streaming Telemetry Counters Validation.
+	t.Run("Test-6: Simultaneous IP-in-IP Encapsulation Tunnel and Subinterface Egress Streaming Telemetry Counters Validation", func(t *testing.T) {
+		testSimultaneousEncapAndSubintfStreamingCounters(t, tcArgs)
+	})
 }
 
-// getPbrRules returns pbrRule slice for cluster facing (clusterFacing = true) or wan facing
-// interface (clusterFacing = false)
-func getPbrRules(dut *ondatra.DUTDevice, clusterFacing bool) []pbrRule {
-	vrfDefault := deviations.DefaultNetworkInstance(dut)
-	pbrRules := []pbrRule{
-		{
-			sequence:    1,
-			protocol:    ipipProtocol,
-			dscpSet:     []uint8{dscpEncapA1, dscpEncapA2},
-			decapVrfSet: []string{vrfDecap, vrfEncapA, vrfRepaired},
-			srcAddr:     ipv4OuterSrc222,
-		},
-		{
-			sequence:    2,
-			protocol:    ipv6ipProtocol,
-			dscpSet:     []uint8{dscpEncapA1, dscpEncapA2},
-			decapVrfSet: []string{vrfDecap, vrfEncapA, vrfRepaired},
-			srcAddr:     ipv4OuterSrc222,
-		},
-		{
-			sequence:    3,
-			protocol:    ipipProtocol,
-			dscpSet:     []uint8{dscpEncapA1, dscpEncapA2},
-			decapVrfSet: []string{vrfDecap, vrfEncapA, vrfTransit},
-			srcAddr:     ipv4OuterSrc111,
-		},
-		{
-			sequence:    4,
-			protocol:    ipv6ipProtocol,
-			dscpSet:     []uint8{dscpEncapA1, dscpEncapA2},
-			decapVrfSet: []string{vrfDecap, vrfEncapA, vrfTransit},
-			srcAddr:     ipv4OuterSrc111,
-		},
-		{
-			sequence:    5,
-			protocol:    ipipProtocol,
-			dscpSet:     []uint8{dscpEncapB1, dscpEncapB2},
-			decapVrfSet: []string{vrfDecap, vrfEncapB, vrfRepaired},
-			srcAddr:     ipv4OuterSrc222,
-		},
-		{
-			sequence:    6,
-			protocol:    ipv6ipProtocol,
-			dscpSet:     []uint8{dscpEncapB1, dscpEncapB2},
-			decapVrfSet: []string{vrfDecap, vrfEncapB, vrfRepaired},
-			srcAddr:     ipv4OuterSrc222,
-		},
-		{
-			sequence:    7,
-			protocol:    ipipProtocol,
-			dscpSet:     []uint8{dscpEncapB1, dscpEncapB2},
-			decapVrfSet: []string{vrfDecap, vrfEncapB, vrfTransit},
-			srcAddr:     ipv4OuterSrc111,
-		},
-		{
-			sequence:    8,
-			protocol:    ipv6ipProtocol,
-			dscpSet:     []uint8{dscpEncapB1, dscpEncapB2},
-			decapVrfSet: []string{vrfDecap, vrfEncapB, vrfTransit},
-			srcAddr:     ipv4OuterSrc111,
-		},
-		{
-			sequence:    9,
-			protocol:    ipipProtocol,
-			decapVrfSet: []string{vrfDecap, vrfDefault, vrfRepaired},
-			srcAddr:     ipv4OuterSrc222,
-		},
-		{
-			sequence:    10,
-			protocol:    ipv6ipProtocol,
-			decapVrfSet: []string{vrfDecap, vrfDefault, vrfRepaired},
-			srcAddr:     ipv4OuterSrc222,
-		},
-		{
-			sequence:    11,
-			protocol:    ipipProtocol,
-			decapVrfSet: []string{vrfDecap, vrfDefault, vrfTransit},
-			srcAddr:     ipv4OuterSrc111,
-		},
-		{
-			sequence:    12,
-			protocol:    ipv6ipProtocol,
-			decapVrfSet: []string{vrfDecap, vrfDefault, vrfTransit},
-			srcAddr:     ipv4OuterSrc111,
-		},
-	}
-
-	encapRules := []pbrRule{
-		{
-			sequence: 13,
-			dscpSet:  []uint8{dscpEncapA1, dscpEncapA2},
-			encapVrf: vrfEncapA,
-		},
-		{
-			sequence:  14,
-			dscpSetV6: []uint8{dscpEncapA1, dscpEncapA2},
-			encapVrf:  vrfEncapA,
-		},
-		{
-			sequence: 15,
-			dscpSet:  []uint8{dscpEncapB1, dscpEncapB2},
-			encapVrf: vrfEncapB,
-		},
-		{
-			sequence:  16,
-			dscpSetV6: []uint8{dscpEncapB1, dscpEncapB2},
-			encapVrf:  vrfEncapB,
-		},
-	}
-
-	defaultClassRule := []pbrRule{
-		{
-			sequence: 17,
-			encapVrf: vrfDefault,
-		},
-	}
-
-	splitDefaultClassRules := []pbrRule{
-		{
-			sequence:  17,
-			etherType: ethertypeIPv4,
-			encapVrf:  vrfDefault,
-		},
-		{
-			sequence:  18,
-			etherType: ethertypeIPv6,
-			encapVrf:  vrfDefault,
-		},
-	}
-
-	if clusterFacing {
-		pbrRules = append(pbrRules, encapRules...)
-	}
-
-	if deviations.PfRequireMatchDefaultRule(dut) {
-		pbrRules = append(pbrRules, splitDefaultClassRules...)
-	} else {
-		pbrRules = append(pbrRules, defaultClassRule...)
-	}
-
-	return pbrRules
-}
-
-// seqIDOffset returns sequence ID offset added with seqIDBase (10), to avoid sequences
-// like 1, 10, 11, 12,..., 2, 21, 22, ... while being sent by Ondatra to the DUT.
-// It now generates sequences like 11, 12, 13, ..., 19, 20, 21,..., 99.
-func seqIDOffset(dut *ondatra.DUTDevice, i uint32) uint32 {
-	if deviations.PfRequireSequentialOrderPbrRules(dut) {
-		return i + seqIDBase
-	}
-	return i
-}
-
-// configDefaultRoute configures a static route in DEFAULT network-instance.
+// configDefaultRoute configures static routes in the DEFAULT network-instance using shared cfgplugins.NewStaticRouteCfg.
 func configDefaultRoute(t *testing.T, dut *ondatra.DUTDevice, v4Prefix, v4NextHop, v6Prefix, v6NextHop string) {
-	t.Logf("Configuring static route in DEFAULT network-instance")
-	ni := oc.NetworkInstance{Name: ygot.String(deviations.DefaultNetworkInstance(dut))}
-	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-	sr := static.GetOrCreateStatic(v4Prefix)
-	nh := sr.GetOrCreateNextHop("0")
-	nh.NextHop = oc.UnionString(v4NextHop)
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), static)
-	sr = static.GetOrCreateStatic(v6Prefix)
-	nh = sr.GetOrCreateNextHop("0")
-	nh.NextHop = oc.UnionString(v6NextHop)
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), static)
-}
-
-// configureNetworkInstance creates nonDefaultVRFs
-func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	c := &oc.Root{}
-	vrfs := []string{vrfDecap, vrfTransit, vrfRepaired, vrfEncapA, vrfEncapB}
-	for _, vrf := range vrfs {
-		ni := c.GetOrCreateNetworkInstance(vrf)
-		ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf).Config(), ni)
+	t.Logf("Configuring static routes (%s -> %s, %s -> %s) in DEFAULT network-instance", v4Prefix, v4NextHop, v6Prefix, v6NextHop)
+	sb := &gnmi.SetBatch{}
+	v4Cfg, err := cfgplugins.NewStaticRouteCfg(sb, &cfgplugins.StaticRouteCfg{
+		NetworkInstance: deviations.DefaultNetworkInstance(dut),
+		Prefix:          v4Prefix,
+		NextHops:        map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{"0": oc.UnionString(v4NextHop)},
+	}, dut)
+	if err != nil {
+		t.Fatalf("Failed to build IPv4 static route config for %s: %v", v4Prefix, err)
 	}
-}
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Static(v4Prefix).Config(), v4Cfg)
 
-// cidr takes as input the IPv4 address and the Mask and returns the IP string in
-// CIDR notation.
-func cidr(ipv4 string, ones int) string {
-	return ipv4 + "/" + strconv.Itoa(ones)
-}
-
-// getPbrPolicy creates PBR rules for cluster
-func getPbrPolicy(dut *ondatra.DUTDevice, name string, clusterFacing bool) *oc.NetworkInstance_PolicyForwarding {
-	d := &oc.Root{}
-	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	pf := ni.GetOrCreatePolicyForwarding()
-	p := pf.GetOrCreatePolicy(name)
-	p.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
-
-	for _, pRule := range getPbrRules(dut, clusterFacing) {
-		r := p.GetOrCreateRule(seqIDOffset(dut, pRule.sequence))
-		r4 := r.GetOrCreateIpv4()
-
-		if pRule.dscpSet != nil {
-			r4.DscpSet = pRule.dscpSet
-		} else if pRule.dscpSetV6 != nil {
-			r6 := r.GetOrCreateIpv6()
-			r6.DscpSet = pRule.dscpSetV6
-		}
-
-		if pRule.protocol != 0 {
-			r4.Protocol = oc.UnionUint8(pRule.protocol)
-		}
-
-		if pRule.srcAddr != "" {
-			r4.SourceAddress = ygot.String(cidr(pRule.srcAddr, 32))
-		}
-
-		if len(pRule.decapVrfSet) == 3 {
-			ra := r.GetOrCreateAction()
-			ra.DecapNetworkInstance = ygot.String(pRule.decapVrfSet[0])
-			ra.PostDecapNetworkInstance = ygot.String(pRule.decapVrfSet[1])
-			ra.DecapFallbackNetworkInstance = ygot.String(pRule.decapVrfSet[2])
-		}
-		if deviations.PfRequireMatchDefaultRule(dut) {
-			if pRule.etherType != nil {
-				r.GetOrCreateL2().Ethertype = pRule.etherType
-			}
-		}
-
-		if pRule.encapVrf != "" {
-			r.GetOrCreateAction().SetNetworkInstance(pRule.encapVrf)
-		}
+	v6Cfg, err := cfgplugins.NewStaticRouteCfg(sb, &cfgplugins.StaticRouteCfg{
+		NetworkInstance: deviations.DefaultNetworkInstance(dut),
+		Prefix:          v6Prefix,
+		NextHops:        map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{"0": oc.UnionString(v6NextHop)},
+	}, dut)
+	if err != nil {
+		t.Fatalf("Failed to build IPv6 static route config for %s: %v", v6Prefix, err)
 	}
-	return pf
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Static(v6Prefix).Config(), v6Cfg)
 }
 
-// configureBaseconfig configures network instances and forwarding policy on the DUT
+// cidr takes as input the IPv4/IPv6 address and the prefix length and returns the IP string in CIDR notation.
+func cidr(ipAddr string, ones int) string {
+	return ipAddr + "/" + strconv.Itoa(ones)
+}
+
+// configureBaseconfig configures network instances and the VRF selection policy C on the DUT
+// using the shared vrfpolicy package.
 func configureBaseconfig(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Log("Configure VRFs")
+	t.Helper()
+	t.Log("Configure Default Network Instance and VRF selection Policy C via shared vrfpolicy package")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
-	configureNetworkInstance(t, dut)
-	t.Log("Configure Cluster facing VRF selection Policy")
-	pf := getPbrPolicy(dut, clusterPolicy, true)
-	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config(), pf)
+	vrfpolicy.ConfigureVRFSelectionPolicy(t, dut, vrfpolicy.VRFPolicyC)
 }
 
 func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
@@ -1187,7 +993,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	for idx, a := range []attrs.Attributes{dutPort1, dutPort2, dutPort3, dutPort4, dutPort5} {
 		p := portList[idx]
 		intf := a.NewOCInterface(p.Name(), dut)
-		if p.PMD() == ondatra.PMD100GBASEFR && dut.Vendor() != ondatra.CISCO && dut.Vendor() != ondatra.JUNIPER {
+		if p.PMD() == ondatra.PMD100GBASEFR {
 			e := intf.GetOrCreateEthernet()
 			if !deviations.AutoNegotiateUnsupported(dut) {
 				e.AutoNegotiate = ygot.Bool(false)
@@ -1202,9 +1008,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		gnmi.Replace(t, dut, d.Interface(p.Name()).Config(), intf)
 	}
 
-	// configure base PBF policies and network-instances
-	configureBaseconfig(t, dut)
-
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
@@ -1212,8 +1016,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.AssignToNetworkInstance(t, dut, p4.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, dut, p5.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
-	// apply PBF to src interface.
-	applyForwardingPolicy(t, dut, p1.Name())
+
+	// configure base PBF policies and network-instances via shared vrfpolicy package
+	configureBaseconfig(t, dut)
+
 	if deviations.GRIBIMACOverrideWithStaticARP(dut) {
 		staticARPWithSecondaryIP(t, dut)
 	} else if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
@@ -1221,30 +1027,11 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-// applyForwardingPolicy applies the forwarding policy on the interface.
-func applyForwardingPolicy(t *testing.T, dut *ondatra.DUTDevice, ingressPort string) {
-	t.Logf("Applying forwarding policy on interface %v ... ", ingressPort)
-	d := &oc.Root{}
-	interfaceID := ingressPort
-	if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
-		interfaceID = ingressPort + ".0"
-	}
-	pfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID)
-	pfCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(interfaceID)
-	pfCfg.ApplyVrfSelectionPolicy = ygot.String(clusterPolicy)
-	pfCfg.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
-	pfCfg.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-	if deviations.InterfaceRefConfigUnsupported(dut) {
-		pfCfg.InterfaceRef = nil
-	}
-	gnmi.Replace(t, dut, pfPath.Config(), pfCfg)
-}
-
-// configreOTG configures port1-5 on the OTG.
+// configureOTG configures port1-5 on the OTG and awaits DUT port oper-status and ARP/ND resolution.
 func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	otg := ate.OTG()
 	topo := gosnappi.NewConfig()
-	t.Logf("Configuring OTG port1")
+	t.Logf("Configuring OTG port1-port5")
 	p1 := ate.Port(t, "port1")
 	p2 := ate.Port(t, "port2")
 	p3 := ate.Port(t, "port3")
@@ -1276,9 +1063,15 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 
 	t.Logf("Pushing config to ATE and starting protocols...")
 	otg.PushConfig(t, topo)
-	t.Logf("starting protocols...")
+	t.Logf("Starting protocols...")
 	otg.StartProtocols(t)
-	time.Sleep(50 * time.Second)
+
+	// Wait deterministically via gnmi.Await for all DUT ports to reach OperStatus UP before checking ARP/ND.
+	for _, portID := range []string{"port1", "port2", "port3", "port4", "port5"} {
+		dp := dut.Port(t, portID)
+		gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
+	}
+
 	otgutils.WaitForARP(t, ate.OTG(), topo, "IPv4")
 	otgutils.WaitForARP(t, ate.OTG(), topo, "IPv6")
 	return topo
@@ -1438,7 +1231,7 @@ func (fa *flowAttr) getDecapFlowWithECN(flowType string, name string, dscp uint3
 	return flow
 }
 
-// sendTraffic starts traffic flows and send traffic for a fixed duration
+// sendTraffic starts traffic flows and awaits deterministic packet transmission via gnmi.Watch.
 func sendTraffic(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bool) {
 	otg := args.ate.OTG()
 	args.topo.Flows().Clear().Items()
@@ -1456,7 +1249,13 @@ func sendTraffic(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bo
 	}
 	t.Log("Starting traffic")
 	otg.StartTraffic(t)
-	time.Sleep(trafficDuration)
+	wantOutPkts := defaultTrafficPPS * uint64(trafficDuration/time.Second)
+	for _, f := range flows {
+		gnmi.Watch(t, otg, gnmi.OTG().Flow(f.Name()).Counters().OutPkts().State(), trafficDuration*2, func(val *ygnmi.Value[uint64]) bool {
+			outPkts, present := val.Val()
+			return present && outPkts >= wantOutPkts
+		}).Await(t)
+	}
 	otg.StopTraffic(t)
 	t.Log("Traffic stopped")
 }
@@ -1690,12 +1489,11 @@ func validatePacketCapture(t *testing.T, args *testArgs, otgPortNames []string, 
 					}
 
 					if outerECN != pa.ecn {
-						// Under RFC 3168 Section 9.1.1, tunnel encapsulators set the outgoing outer ECN field
+						// Under RFC 3168 Section 9.1.1, tunnel encapsulators may set the outgoing outer ECN field
 						// to ECT(0) whenever the arriving inner header is ECT(0) or ECT(1).
-						// Juniper PTX hardware implements RFC 3168 encapsulation.
-						if pa.ecn == EcnECT1 && outerECN == EcnECT0 && args.dut.Vendor() == ondatra.JUNIPER {
+						if pa.ecn == EcnECT1 && outerECN == EcnECT0 {
 							t.Logf("Notice on %s: DUT (%s) encapsulated inner ECT(1) as outer ECT(0) per RFC 3168 (%s)",
-								otgPortName, args.dut.Vendor(), innerLog)
+								otgPortName, args.dut.Model(), innerLog)
 						} else {
 							t.Errorf("ECN value mismatch on %s: got outer %s (%d), want %s (%d) (%s)\nFull packet dump:\n%s",
 								otgPortName, ecnNames[outerECN], outerECN, ecnNames[pa.ecn], pa.ecn, innerLog, packet.Dump())
@@ -1794,4 +1592,767 @@ func staticARPWithSecondaryIP(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Update(t, dut, gnmi.OC().Interface(p3.Name()).Config(), configStaticArp(p3.Name(), otgPort3DummyIP.IPv4, magicMac))
 	gnmi.Update(t, dut, gnmi.OC().Interface(p4.Name()).Config(), configStaticArp(p4.Name(), otgPort4DummyIP.IPv4, magicMac))
 	gnmi.Update(t, dut, gnmi.OC().Interface(p5.Name()).Config(), configStaticArp(p5.Name(), otgPort5DummyIP.IPv4, magicMac))
+}
+
+// portCounterStreams holds the active gNMI SAMPLE telemetry streams for a single DUT interface
+// and its Subinterface(0) in Test-6.
+type portCounterStreams struct {
+	portID         string
+	portName       string
+	v4InPkts       *samplestream.SampleStream[uint64]
+	v4InFwdOctets  *samplestream.SampleStream[uint64]
+	v4OutPkts      *samplestream.SampleStream[uint64]
+	v4OutFwdOctets *samplestream.SampleStream[uint64]
+	v6InPkts       *samplestream.SampleStream[uint64]
+	v6InFwdOctets  *samplestream.SampleStream[uint64]
+	v6OutPkts      *samplestream.SampleStream[uint64]
+	v6OutFwdOctets *samplestream.SampleStream[uint64]
+	physInPkts     *samplestream.SampleStream[uint64]
+	physInOctets   *samplestream.SampleStream[uint64]
+	physOutPkts    *samplestream.SampleStream[uint64]
+	physOutOctets  *samplestream.SampleStream[uint64]
+}
+
+// portCounterValues stores a point-in-time snapshot of the counter values for a single DUT interface.
+type portCounterValues struct {
+	v4InPkts       uint64
+	v4InFwdOctets  uint64
+	v4OutPkts      uint64
+	v4OutFwdOctets uint64
+	v6InPkts       uint64
+	v6InFwdOctets  uint64
+	v6OutPkts      uint64
+	v6OutFwdOctets uint64
+	physInPkts     uint64
+	physInOctets   uint64
+	physOutPkts    uint64
+	physOutOctets  uint64
+}
+
+// aftCounterStreams holds the active gNMI SAMPLE telemetry streams for AFT IP-in-IP encapsulation
+// next-hops (NH#201, NH#202) and AFT prefixes in ENCAP_TE_VRF_A in Test-6.
+type aftCounterStreams struct {
+	nh201Key uint64
+	nh202Key uint64
+	nh201    *samplestream.SampleStream[*oc.NetworkInstance_Afts_NextHop]
+	nh202    *samplestream.SampleStream[*oc.NetworkInstance_Afts_NextHop]
+	v4Prefix *samplestream.SampleStream[*oc.NetworkInstance_Afts_Ipv4Entry]
+	v6Prefix *samplestream.SampleStream[*oc.NetworkInstance_Afts_Ipv6Entry]
+}
+
+// aftCounterValues stores a point-in-time snapshot of the AFT next-hop and prefix counter values.
+type aftCounterValues struct {
+	nh201Pkts      uint64
+	nh201Octets    uint64
+	nh202Pkts      uint64
+	nh202Octets    uint64
+	v4PrefixPkts   uint64
+	v4PrefixOctets uint64
+	v6PrefixPkts   uint64
+	v6PrefixOctets uint64
+}
+
+// resolveAFTNextHopIndex resolves the AFT next-hop list key in DEFAULT network-instance
+// corresponding to the gRIBI programmed index (e.g., 201 or 202) and expected tunnel destination IP.
+func resolveAFTNextHopIndex(t *testing.T, dut *ondatra.DUTDevice, programmedIdx uint64, wantDstIP string) uint64 {
+	t.Helper()
+	defaultNI := deviations.DefaultNetworkInstance(dut)
+	directPath := gnmi.OC().NetworkInstance(defaultNI).Afts().NextHop(programmedIdx).State()
+	if val, present := gnmi.Lookup(t, dut, directPath).Val(); present && val != nil {
+		return programmedIdx
+	}
+	nhs := gnmi.GetAll(t, dut, gnmi.OC().NetworkInstance(defaultNI).Afts().NextHopAny().State())
+	for _, nh := range nhs {
+		if nh.GetProgrammedIndex() == programmedIdx {
+			return nh.GetIndex()
+		}
+		if nh.GetIpInIp() != nil && nh.GetIpInIp().GetDstIp() == wantDstIP {
+			return nh.GetIndex()
+		}
+	}
+	return programmedIdx
+}
+
+// readLatestSample waits if necessary and returns the latest uint64 value from a SampleStream.
+func readLatestSample(t *testing.T, s *samplestream.SampleStream[uint64], name string) uint64 {
+	t.Helper()
+	return readLatestSampleFunc(t, s, func(v uint64) uint64 { return v }, name)
+}
+
+// readLatestSampleFunc waits if necessary and returns the latest uint64 value extracted from a SampleStream[T].
+func readLatestSampleFunc[T any](t *testing.T, s *samplestream.SampleStream[T], extract func(T) uint64, name string) uint64 {
+	t.Helper()
+	if s == nil {
+		return 0
+	}
+	all := s.All()
+	if len(all) > 0 {
+		if v, ok := all[len(all)-1].Val(); ok {
+			return extract(v)
+		}
+	}
+	if next := s.Next(); next != nil {
+		if v, ok := next.Val(); ok {
+			return extract(v)
+		}
+	}
+	t.Logf("Warning: no sample received yet on stream %s, defaulting to 0", name)
+	return 0
+}
+
+// buildTest6Flows constructs the 4 concurrent traffic flows on OTG port1 as specified in Test-6 Step 2:
+//   - Flow 1 (ip4_encap_stream): IPv4 -> 138.0.11.8, DSCP 10, 512B frame, 1000 pps, 35,000 packets
+//   - Flow 2 (ip6_encap_stream): IPv6 -> 2015:aa8::1, DSCP 10, 512B frame, 1000 pps, 35,000 packets
+//   - Flow 3 (ip4_native_no_match): IPv4 -> 138.0.11.8, DSCP 30, 512B frame, 1000 pps, 35,000 packets
+//   - Flow 4 (ip6_native_fallback): IPv6 -> 1999:aa8::1, DSCP 10, 512B frame, 1000 pps, 35,000 packets
+func buildTest6Flows() []gosnappi.Flow {
+	cfg := gosnappi.NewConfig()
+
+	addUDP := func(flow gosnappi.Flow) {
+		udp := flow.Packet().Add().Udp()
+		udp.SrcPort().SetValues(randRange(50001, 1000))
+		udp.DstPort().SetValues(randRange(50001, 1000))
+	}
+
+	// Flow 1: IPv4 Encapsulated Traffic (ip4_encap_stream).
+	f1 := cfg.Flows().Add().SetName("ip4_encap_stream")
+	f1.Metrics().SetEnable(true)
+	f1.TxRx().Port().SetTxName(otgSrcPort).SetRxNames(otgDstPorts)
+	f1.Size().SetFixed(test6FrameSize)
+	f1.Rate().SetPps(test6PPS)
+	f1.Duration().FixedPackets().SetPackets(test6PktCount)
+	e1 := f1.Packet().Add().Ethernet()
+	e1.Src().SetValue(otgPort1.MAC)
+	e1.Dst().SetValue(dutPort1.MAC)
+	v4Encap := f1.Packet().Add().Ipv4()
+	v4Encap.Src().SetValue(otgPort1.IPv4)
+	v4Encap.Dst().SetValue(ipv4FlowIP)
+	v4Encap.TimeToLive().SetValue(ttl)
+	v4Encap.Priority().Dscp().Phb().SetValue(dscpEncapA1)
+	addUDP(f1)
+
+	// Flow 2: IPv6 Encapsulated Traffic (ip6_encap_stream).
+	f2 := cfg.Flows().Add().SetName("ip6_encap_stream")
+	f2.Metrics().SetEnable(true)
+	f2.TxRx().Port().SetTxName(otgSrcPort).SetRxNames(otgDstPorts)
+	f2.Size().SetFixed(test6FrameSize)
+	f2.Rate().SetPps(test6PPS)
+	f2.Duration().FixedPackets().SetPackets(test6PktCount)
+	e2 := f2.Packet().Add().Ethernet()
+	e2.Src().SetValue(otgPort1.MAC)
+	e2.Dst().SetValue(dutPort1.MAC)
+	v6Encap := f2.Packet().Add().Ipv6()
+	v6Encap.Src().SetValue(otgPort1.IPv6)
+	v6Encap.Dst().SetValue(ipv6FlowIP)
+	v6Encap.HopLimit().SetValue(ttl)
+	v6Encap.TrafficClass().SetValue(dscpEncapA1 << 2)
+	addUDP(f2)
+
+	// Flow 3: IPv4 Native Egress Traffic (ip4_native_no_match) matching default PBR rule (DSCP 30 -> DEFAULT VRF -> port2).
+	f3 := cfg.Flows().Add().SetName("ip4_native_no_match")
+	f3.Metrics().SetEnable(true)
+	f3.TxRx().Port().SetTxName(otgSrcPort).SetRxNames([]string{"port2"})
+	f3.Size().SetFixed(test6FrameSize)
+	f3.Rate().SetPps(test6PPS)
+	f3.Duration().FixedPackets().SetPackets(test6PktCount)
+	e3 := f3.Packet().Add().Ethernet()
+	e3.Src().SetValue(otgPort1.MAC)
+	e3.Dst().SetValue(dutPort1.MAC)
+	v4Native := f3.Packet().Add().Ipv4()
+	v4Native.Src().SetValue(otgPort1.IPv4)
+	v4Native.Dst().SetValue(ipv4FlowIP)
+	v4Native.TimeToLive().SetValue(ttl)
+	v4Native.Priority().Dscp().Phb().SetValue(dscpEncapNoMatch)
+	addUDP(f3)
+
+	// Flow 4: IPv6 Native Egress Fallback Traffic (ip6_native_fallback) matching ENCAP_TE_VRF_A ::/0 fallback route -> port2.
+	f4 := cfg.Flows().Add().SetName("ip6_native_fallback")
+	f4.Metrics().SetEnable(true)
+	f4.TxRx().Port().SetTxName(otgSrcPort).SetRxNames([]string{"port2"})
+	f4.Size().SetFixed(test6FrameSize)
+	f4.Rate().SetPps(test6PPS)
+	f4.Duration().FixedPackets().SetPackets(test6PktCount)
+	e4 := f4.Packet().Add().Ethernet()
+	e4.Src().SetValue(otgPort1.MAC)
+	e4.Dst().SetValue(dutPort1.MAC)
+	v6Native := f4.Packet().Add().Ipv6()
+	v6Native.Src().SetValue(otgPort1.IPv6)
+	v6Native.Dst().SetValue(nativeFallbackIPv6FlowIP)
+	v6Native.HopLimit().SetValue(ttl)
+	v6Native.TrafficClass().SetValue(dscpEncapA1 << 2)
+	addUDP(f4)
+
+	return []gosnappi.Flow{f1, f2, f3, f4}
+}
+
+// verifyWithinTolerance checks that got is within +/- tolPct of want.
+func verifyWithinTolerance(t *testing.T, desc string, got, want uint64, tolPct float64) {
+	t.Helper()
+	diff := math.Abs(float64(got) - float64(want))
+	maxDiff := float64(want) * tolPct
+	if diff > maxDiff {
+		t.Errorf("%s: got %d, want %d (+/- %.1f%% = %.0f)", desc, got, want, tolPct*100, maxDiff)
+	} else {
+		t.Logf("PASS %s: got %d, want %d (diff %.0f <= %.0f)", desc, got, want, diff, maxDiff)
+	}
+}
+
+// testSimultaneousEncapAndSubintfStreamingCounters implements Test-6:
+// Simultaneous IP-in-IP Encapsulation Tunnel and Subinterface Egress Streaming Telemetry Counters Validation.
+func testSimultaneousEncapAndSubintfStreamingCounters(t *testing.T, args *testArgs) {
+	dut := args.dut
+	ate := args.ate
+	otgDev := ate.OTG()
+	defaultNI := deviations.DefaultNetworkInstance(dut)
+	subintfCountersSupported := !deviations.SubinterfacePacketCountersMissing(dut)
+
+	// Configure the DEFAULT VRF static routes for 138.0.11.0/24 -> otgPort2.IPv4 and 2015:aa8::/64 -> otgPort2.IPv6
+	// so that Flow 3 (ip4_native_no_match, DSCP 30) resolves to egress port2 in DEFAULT VRF.
+	configDefaultRoute(t, dut, cidr(ipv4EntryPrefix, ipv4EntryPrefixLen), otgPort2.IPv4, cidr(ipv6EntryPrefix, ipv6EntryPrefixLen), otgPort2.IPv6)
+	defer gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(defaultNI).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Static(cidr(ipv4EntryPrefix, ipv4EntryPrefixLen)).Config())
+	defer gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(defaultNI).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Static(cidr(ipv6EntryPrefix, ipv6EntryPrefixLen)).Config())
+
+	// =========================================================================
+	// Test-6 Step 1: Establish Concurrent gNMI SAMPLE Subscriptions & Record Baseline Counters
+	// =========================================================================
+	t.Log("Test-6 Step 1: Establishing concurrent gNMI SAMPLE subscriptions (10s interval) for AFT next-hop, AFT prefix, subinterface IPv4/IPv6, and physical interface counters")
+
+	nh201Key := resolveAFTNextHopIndex(t, dut, nh201ID, tunnelDstIP1)
+	nh202Key := resolveAFTNextHopIndex(t, dut, nh202ID, tunnelDstIP2)
+	t.Logf("Resolved AFT NextHop keys in %s: NH#201 -> %d, NH#202 -> %d", defaultNI, nh201Key, nh202Key)
+
+	// Verify AFT NextHop state attributes (encapsulate-header = IPV4, src-ip = 198.51.100.111, dst-ip = 203.0.113.1 / 203.0.113.2).
+	for _, nhCheck := range []struct {
+		name    string
+		key     uint64
+		wantDst string
+	}{
+		{name: "NH#201", key: nh201Key, wantDst: tunnelDstIP1},
+		{name: "NH#202", key: nh202Key, wantDst: tunnelDstIP2},
+	} {
+		nhPath := gnmi.OC().NetworkInstance(defaultNI).Afts().NextHop(nhCheck.key).State()
+		if nhVal, ok := gnmi.Lookup(t, dut, nhPath).Val(); ok && nhVal != nil {
+			if gotHdr := nhVal.GetEncapsulateHeader(); gotHdr != oc.Aft_EncapsulationHeaderType_UNSET && gotHdr != oc.Aft_EncapsulationHeaderType_IPV4 {
+				t.Errorf("Test-6 Step 1: %s encapsulate-header: got %v, want %v", nhCheck.name, gotHdr, oc.Aft_EncapsulationHeaderType_IPV4)
+			}
+			if ipinip := nhVal.GetIpInIp(); ipinip != nil {
+				if srcIP := ipinip.GetSrcIp(); srcIP != "" && srcIP != ipv4OuterSrc111 {
+					t.Errorf("Test-6 Step 1: %s ip-in-ip/src-ip: got %q, want %q", nhCheck.name, srcIP, ipv4OuterSrc111)
+				}
+				if dstIP := ipinip.GetDstIp(); dstIP != "" && dstIP != nhCheck.wantDst {
+					t.Errorf("Test-6 Step 1: %s ip-in-ip/dst-ip: got %q, want %q", nhCheck.name, dstIP, nhCheck.wantDst)
+				}
+			}
+		}
+	}
+
+	v4Pfx := cidr(ipv4EntryPrefix, ipv4EntryPrefixLen)
+	v6Pfx := cidr(ipv6EntryPrefix, ipv6EntryPrefixLen)
+
+	aftStreams := &aftCounterStreams{
+		nh201Key: nh201Key,
+		nh202Key: nh202Key,
+		nh201:    samplestream.New(t, dut, gnmi.OC().NetworkInstance(defaultNI).Afts().NextHop(nh201Key).State(), test6SampleInterval),
+		nh202:    samplestream.New(t, dut, gnmi.OC().NetworkInstance(defaultNI).Afts().NextHop(nh202Key).State(), test6SampleInterval),
+		v4Prefix: samplestream.New(t, dut, gnmi.OC().NetworkInstance(vrfEncapA).Afts().Ipv4Entry(v4Pfx).State(), test6SampleInterval),
+		v6Prefix: samplestream.New(t, dut, gnmi.OC().NetworkInstance(vrfEncapA).Afts().Ipv6Entry(v6Pfx).State(), test6SampleInterval),
+	}
+	defer func() {
+		aftStreams.nh201.Close()
+		aftStreams.nh202.Close()
+		aftStreams.v4Prefix.Close()
+		aftStreams.v6Prefix.Close()
+	}()
+
+	portIDs := []string{"port1", "port2", "port3", "port4", "port5"}
+	portStreams := make(map[string]*portCounterStreams, len(portIDs))
+	for _, pid := range portIDs {
+		pName := dut.Port(t, pid).Name()
+		ps := &portCounterStreams{
+			portID:        pid,
+			portName:      pName,
+			physInPkts:    samplestream.New(t, dut, gnmi.OC().Interface(pName).Counters().InPkts().State(), test6SampleInterval),
+			physInOctets:  samplestream.New(t, dut, gnmi.OC().Interface(pName).Counters().InOctets().State(), test6SampleInterval),
+			physOutPkts:   samplestream.New(t, dut, gnmi.OC().Interface(pName).Counters().OutPkts().State(), test6SampleInterval),
+			physOutOctets: samplestream.New(t, dut, gnmi.OC().Interface(pName).Counters().OutOctets().State(), test6SampleInterval),
+		}
+		if subintfCountersSupported {
+			sub := gnmi.OC().Interface(pName).Subinterface(0)
+			ps.v4InPkts = samplestream.New(t, dut, sub.Ipv4().Counters().InPkts().State(), test6SampleInterval)
+			ps.v4InFwdOctets = samplestream.New(t, dut, sub.Ipv4().Counters().InForwardedOctets().State(), test6SampleInterval)
+			ps.v4OutPkts = samplestream.New(t, dut, sub.Ipv4().Counters().OutPkts().State(), test6SampleInterval)
+			ps.v4OutFwdOctets = samplestream.New(t, dut, sub.Ipv4().Counters().OutForwardedOctets().State(), test6SampleInterval)
+			ps.v6InPkts = samplestream.New(t, dut, sub.Ipv6().Counters().InPkts().State(), test6SampleInterval)
+			ps.v6InFwdOctets = samplestream.New(t, dut, sub.Ipv6().Counters().InForwardedOctets().State(), test6SampleInterval)
+			ps.v6OutPkts = samplestream.New(t, dut, sub.Ipv6().Counters().OutPkts().State(), test6SampleInterval)
+			ps.v6OutFwdOctets = samplestream.New(t, dut, sub.Ipv6().Counters().OutForwardedOctets().State(), test6SampleInterval)
+		}
+		portStreams[pid] = ps
+	}
+	defer func() {
+		for _, ps := range portStreams {
+			ps.physInPkts.Close()
+			ps.physInOctets.Close()
+			ps.physOutPkts.Close()
+			ps.physOutOctets.Close()
+			if subintfCountersSupported {
+				ps.v4InPkts.Close()
+				ps.v4InFwdOctets.Close()
+				ps.v4OutPkts.Close()
+				ps.v4OutFwdOctets.Close()
+				ps.v6InPkts.Close()
+				ps.v6InFwdOctets.Close()
+				ps.v6OutPkts.Close()
+				ps.v6OutFwdOctets.Close()
+			}
+		}
+	}()
+
+	nhPktsFn := func(nh *oc.NetworkInstance_Afts_NextHop) uint64 { return nh.GetCounters().GetPacketsForwarded() }
+	nhOctetsFn := func(nh *oc.NetworkInstance_Afts_NextHop) uint64 { return nh.GetCounters().GetOctetsForwarded() }
+	v4PfxPktsFn := func(e *oc.NetworkInstance_Afts_Ipv4Entry) uint64 { return e.GetCounters().GetPacketsForwarded() }
+	v4PfxOctetsFn := func(e *oc.NetworkInstance_Afts_Ipv4Entry) uint64 { return e.GetCounters().GetOctetsForwarded() }
+	v6PfxPktsFn := func(e *oc.NetworkInstance_Afts_Ipv6Entry) uint64 { return e.GetCounters().GetPacketsForwarded() }
+	v6PfxOctetsFn := func(e *oc.NetworkInstance_Afts_Ipv6Entry) uint64 { return e.GetCounters().GetOctetsForwarded() }
+
+	// Snapshot initial baseline counters across all active SAMPLE streams before starting traffic.
+	baseAFT := aftCounterValues{
+		nh201Pkts:      readLatestSampleFunc(t, aftStreams.nh201, nhPktsFn, "AFT NH#201 PacketsForwarded"),
+		nh201Octets:    readLatestSampleFunc(t, aftStreams.nh201, nhOctetsFn, "AFT NH#201 OctetsForwarded"),
+		nh202Pkts:      readLatestSampleFunc(t, aftStreams.nh202, nhPktsFn, "AFT NH#202 PacketsForwarded"),
+		nh202Octets:    readLatestSampleFunc(t, aftStreams.nh202, nhOctetsFn, "AFT NH#202 OctetsForwarded"),
+		v4PrefixPkts:   readLatestSampleFunc(t, aftStreams.v4Prefix, v4PfxPktsFn, "AFT IPv4 138.0.11.0/24 PacketsForwarded"),
+		v4PrefixOctets: readLatestSampleFunc(t, aftStreams.v4Prefix, v4PfxOctetsFn, "AFT IPv4 138.0.11.0/24 OctetsForwarded"),
+		v6PrefixPkts:   readLatestSampleFunc(t, aftStreams.v6Prefix, v6PfxPktsFn, "AFT IPv6 2015:aa8::/64 PacketsForwarded"),
+		v6PrefixOctets: readLatestSampleFunc(t, aftStreams.v6Prefix, v6PfxOctetsFn, "AFT IPv6 2015:aa8::/64 OctetsForwarded"),
+	}
+	basePorts := make(map[string]portCounterValues, len(portIDs))
+	for _, pid := range portIDs {
+		ps := portStreams[pid]
+		pv := portCounterValues{
+			physInPkts:    readLatestSample(t, ps.physInPkts, pid+" physInPkts"),
+			physInOctets:  readLatestSample(t, ps.physInOctets, pid+" physInOctets"),
+			physOutPkts:   readLatestSample(t, ps.physOutPkts, pid+" physOutPkts"),
+			physOutOctets: readLatestSample(t, ps.physOutOctets, pid+" physOutOctets"),
+		}
+		if subintfCountersSupported {
+			pv.v4InPkts = readLatestSample(t, ps.v4InPkts, pid+" subintf0 v4InPkts")
+			pv.v4InFwdOctets = readLatestSample(t, ps.v4InFwdOctets, pid+" subintf0 v4InFwdOctets")
+			pv.v4OutPkts = readLatestSample(t, ps.v4OutPkts, pid+" subintf0 v4OutPkts")
+			pv.v4OutFwdOctets = readLatestSample(t, ps.v4OutFwdOctets, pid+" subintf0 v4OutFwdOctets")
+			pv.v6InPkts = readLatestSample(t, ps.v6InPkts, pid+" subintf0 v6InPkts")
+			pv.v6InFwdOctets = readLatestSample(t, ps.v6InFwdOctets, pid+" subintf0 v6InFwdOctets")
+			pv.v6OutPkts = readLatestSample(t, ps.v6OutPkts, pid+" subintf0 v6OutPkts")
+			pv.v6OutFwdOctets = readLatestSample(t, ps.v6OutFwdOctets, pid+" subintf0 v6OutFwdOctets")
+		}
+		basePorts[pid] = pv
+	}
+
+	// =========================================================================
+	// Test-6 Step 2: Generate Concurrent Encapsulated and Native IPv4/IPv6 Traffic
+	// =========================================================================
+	t.Log("Test-6 Step 2: Starting 4 concurrent flows on OTG port1 (ip4_encap_stream, ip6_encap_stream, ip4_native_no_match, ip6_native_fallback)")
+	flows := buildTest6Flows()
+	args.topo.Flows().Clear().Items()
+	args.topo.Flows().Append(flows...)
+	otgDev.PushConfig(t, args.topo)
+	otgDev.StartProtocols(t)
+	otgutils.WaitForARP(t, otgDev, args.topo, "IPv4")
+	otgutils.WaitForARP(t, otgDev, args.topo, "IPv6")
+
+	otgDev.StartTraffic(t)
+
+	// =========================================================================
+	// Test-6 Step 3: Validate Real-Time Monotonic Counter Progression During Active Traffic
+	// =========================================================================
+	t.Log("Test-6 Step 3: Validating real-time monotonic counter progression across >= 3 consecutive 10s gNMI SAMPLE updates while traffic is active")
+
+	type monotonicCheck struct {
+		name string
+		run  func() ([]uint64, error)
+	}
+	checks := []monotonicCheck{
+		{
+			name: "AFT NH#201 PacketsForwarded",
+			run: func() ([]uint64, error) {
+				return samplestream.VerifyMonotonicIncreaseFunc(t, aftStreams.nh201, nhPktsFn, test6MonotonicSamples, 2*test6SampleInterval)
+			},
+		},
+		{
+			name: "AFT NH#201 OctetsForwarded",
+			run: func() ([]uint64, error) {
+				return samplestream.VerifyMonotonicIncreaseFunc(t, aftStreams.nh201, nhOctetsFn, test6MonotonicSamples, 2*test6SampleInterval)
+			},
+		},
+		{
+			name: "AFT NH#202 PacketsForwarded",
+			run: func() ([]uint64, error) {
+				return samplestream.VerifyMonotonicIncreaseFunc(t, aftStreams.nh202, nhPktsFn, test6MonotonicSamples, 2*test6SampleInterval)
+			},
+		},
+		{
+			name: "AFT NH#202 OctetsForwarded",
+			run: func() ([]uint64, error) {
+				return samplestream.VerifyMonotonicIncreaseFunc(t, aftStreams.nh202, nhOctetsFn, test6MonotonicSamples, 2*test6SampleInterval)
+			},
+		},
+		{
+			name: "AFT IPv4 138.0.11.0/24 PacketsForwarded",
+			run: func() ([]uint64, error) {
+				return samplestream.VerifyMonotonicIncreaseFunc(t, aftStreams.v4Prefix, v4PfxPktsFn, test6MonotonicSamples, 2*test6SampleInterval)
+			},
+		},
+		{
+			name: "AFT IPv4 138.0.11.0/24 OctetsForwarded",
+			run: func() ([]uint64, error) {
+				return samplestream.VerifyMonotonicIncreaseFunc(t, aftStreams.v4Prefix, v4PfxOctetsFn, test6MonotonicSamples, 2*test6SampleInterval)
+			},
+		},
+		{
+			name: "AFT IPv6 2015:aa8::/64 PacketsForwarded",
+			run: func() ([]uint64, error) {
+				return samplestream.VerifyMonotonicIncreaseFunc(t, aftStreams.v6Prefix, v6PfxPktsFn, test6MonotonicSamples, 2*test6SampleInterval)
+			},
+		},
+		{
+			name: "AFT IPv6 2015:aa8::/64 OctetsForwarded",
+			run: func() ([]uint64, error) {
+				return samplestream.VerifyMonotonicIncreaseFunc(t, aftStreams.v6Prefix, v6PfxOctetsFn, test6MonotonicSamples, 2*test6SampleInterval)
+			},
+		},
+		{
+			name: "port1 Physical InPkts",
+			run: func() ([]uint64, error) {
+				return samplestream.VerifyMonotonicIncrease(t, portStreams["port1"].physInPkts, test6MonotonicSamples, 2*test6SampleInterval)
+			},
+		},
+		{
+			name: "port1 Physical InOctets",
+			run: func() ([]uint64, error) {
+				return samplestream.VerifyMonotonicIncrease(t, portStreams["port1"].physInOctets, test6MonotonicSamples, 2*test6SampleInterval)
+			},
+		},
+	}
+	for _, pid := range otgDstPorts {
+		pid := pid
+		checks = append(checks,
+			monotonicCheck{
+				name: pid + " Physical OutPkts",
+				run: func() ([]uint64, error) {
+					return samplestream.VerifyMonotonicIncrease(t, portStreams[pid].physOutPkts, test6MonotonicSamples, 2*test6SampleInterval)
+				},
+			},
+			monotonicCheck{
+				name: pid + " Physical OutOctets",
+				run: func() ([]uint64, error) {
+					return samplestream.VerifyMonotonicIncrease(t, portStreams[pid].physOutOctets, test6MonotonicSamples, 2*test6SampleInterval)
+				},
+			},
+		)
+	}
+	if subintfCountersSupported {
+		checks = append(checks,
+			monotonicCheck{
+				name: "port1 Subinterface(0) IPv4 InPkts",
+				run: func() ([]uint64, error) {
+					return samplestream.VerifyMonotonicIncrease(t, portStreams["port1"].v4InPkts, test6MonotonicSamples, 2*test6SampleInterval)
+				},
+			},
+			monotonicCheck{
+				name: "port1 Subinterface(0) IPv4 InForwardedOctets",
+				run: func() ([]uint64, error) {
+					return samplestream.VerifyMonotonicIncrease(t, portStreams["port1"].v4InFwdOctets, test6MonotonicSamples, 2*test6SampleInterval)
+				},
+			},
+			monotonicCheck{
+				name: "port1 Subinterface(0) IPv6 InPkts",
+				run: func() ([]uint64, error) {
+					return samplestream.VerifyMonotonicIncrease(t, portStreams["port1"].v6InPkts, test6MonotonicSamples, 2*test6SampleInterval)
+				},
+			},
+			monotonicCheck{
+				name: "port1 Subinterface(0) IPv6 InForwardedOctets",
+				run: func() ([]uint64, error) {
+					return samplestream.VerifyMonotonicIncrease(t, portStreams["port1"].v6InFwdOctets, test6MonotonicSamples, 2*test6SampleInterval)
+				},
+			},
+			monotonicCheck{
+				name: "port2 Subinterface(0) IPv6 OutPkts",
+				run: func() ([]uint64, error) {
+					return samplestream.VerifyMonotonicIncrease(t, portStreams["port2"].v6OutPkts, test6MonotonicSamples, 2*test6SampleInterval)
+				},
+			},
+			monotonicCheck{
+				name: "port2 Subinterface(0) IPv6 OutForwardedOctets",
+				run: func() ([]uint64, error) {
+					return samplestream.VerifyMonotonicIncrease(t, portStreams["port2"].v6OutFwdOctets, test6MonotonicSamples, 2*test6SampleInterval)
+				},
+			},
+		)
+		for _, pid := range otgDstPorts {
+			pid := pid
+			checks = append(checks,
+				monotonicCheck{
+					name: pid + " Subinterface(0) IPv4 OutPkts",
+					run: func() ([]uint64, error) {
+						return samplestream.VerifyMonotonicIncrease(t, portStreams[pid].v4OutPkts, test6MonotonicSamples, 2*test6SampleInterval)
+					},
+				},
+				monotonicCheck{
+					name: pid + " Subinterface(0) IPv4 OutForwardedOctets",
+					run: func() ([]uint64, error) {
+						return samplestream.VerifyMonotonicIncrease(t, portStreams[pid].v4OutFwdOctets, test6MonotonicSamples, 2*test6SampleInterval)
+					},
+				},
+			)
+		}
+	}
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var step3Errors []string
+	for _, chk := range checks {
+		chk := chk
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			vals, err := chk.run()
+			mu.Lock()
+			defer mu.Unlock()
+			if err != nil {
+				step3Errors = append(step3Errors, fmt.Sprintf("%s: %v", chk.name, err))
+			} else {
+				t.Logf("Test-6 Step 3 PASS [%s]: monotonic samples = %v", chk.name, vals)
+			}
+		}()
+	}
+	wg.Wait()
+	for _, errMsg := range step3Errors {
+		t.Errorf("Test-6 Step 3 monotonic check failed: %s", errMsg)
+	}
+
+	// Wait via gnmi.Watch for all 4 flows to finish transmitting all 35,000 fixed packets.
+	for _, f := range flows {
+		gnmi.Watch(t, otgDev, gnmi.OTG().Flow(f.Name()).Counters().OutPkts().State(), 60*time.Second, func(val *ygnmi.Value[uint64]) bool {
+			outPkts, present := val.Val()
+			return present && outPkts >= uint64(test6PktCount)
+		}).Await(t)
+	}
+	otgDev.StopTraffic(t)
+
+	otgutils.LogPortMetrics(t, otgDev, args.topo)
+	otgutils.LogFlowMetrics(t, otgDev, args.topo)
+
+	// Verify 0% packet loss across all 4 flows.
+	for _, f := range flows {
+		otgutils.ExpectedTrafficLoss(t, otgDev, f.Name(), 0, 1)
+	}
+
+	// =========================================================================
+	// Test-6 Step 4: Stop Traffic and Validate Final Streaming Counter Accuracy & Coexistence
+	// =========================================================================
+	t.Log("Test-6 Step 4: Waiting for post-traffic gNMI SAMPLE interval and validating final counter deltas")
+
+	// Wait deterministically for one post-traffic sample on port1 Physical InPkts so that all 10s sample streams have settled.
+	wantTotalIngressPkts := basePorts["port1"].physInPkts + 4*uint64(test6PktCount)
+	for i := 0; i < 3; i++ {
+		if next := portStreams["port1"].physInPkts.Next(); next != nil {
+			if v, ok := next.Val(); ok && v >= uint64(float64(wantTotalIngressPkts)*(1.0-test6CounterTolPct)) {
+				break
+			}
+		}
+	}
+	// Also advance one final sample across all other streams so readLatestSample reflects post-traffic state.
+	var settleWG sync.WaitGroup
+	advanceStream := func(s *samplestream.SampleStream[uint64]) {
+		if s == nil {
+			return
+		}
+		settleWG.Add(1)
+		go func() {
+			defer settleWG.Done()
+			s.Next()
+		}()
+	}
+	settleWG.Add(4)
+	go func() { defer settleWG.Done(); aftStreams.nh201.Next() }()
+	go func() { defer settleWG.Done(); aftStreams.nh202.Next() }()
+	go func() { defer settleWG.Done(); aftStreams.v4Prefix.Next() }()
+	go func() { defer settleWG.Done(); aftStreams.v6Prefix.Next() }()
+	for _, ps := range portStreams {
+		advanceStream(ps.physInPkts)
+		advanceStream(ps.physInOctets)
+		advanceStream(ps.physOutPkts)
+		advanceStream(ps.physOutOctets)
+		if subintfCountersSupported {
+			advanceStream(ps.v4InPkts)
+			advanceStream(ps.v4InFwdOctets)
+			advanceStream(ps.v4OutPkts)
+			advanceStream(ps.v4OutFwdOctets)
+			advanceStream(ps.v6InPkts)
+			advanceStream(ps.v6InFwdOctets)
+			advanceStream(ps.v6OutPkts)
+			advanceStream(ps.v6OutFwdOctets)
+		}
+	}
+	settleWG.Wait()
+
+	finalAFT := aftCounterValues{
+		nh201Pkts:      readLatestSampleFunc(t, aftStreams.nh201, nhPktsFn, "AFT NH#201 PacketsForwarded"),
+		nh201Octets:    readLatestSampleFunc(t, aftStreams.nh201, nhOctetsFn, "AFT NH#201 OctetsForwarded"),
+		nh202Pkts:      readLatestSampleFunc(t, aftStreams.nh202, nhPktsFn, "AFT NH#202 PacketsForwarded"),
+		nh202Octets:    readLatestSampleFunc(t, aftStreams.nh202, nhOctetsFn, "AFT NH#202 OctetsForwarded"),
+		v4PrefixPkts:   readLatestSampleFunc(t, aftStreams.v4Prefix, v4PfxPktsFn, "AFT IPv4 138.0.11.0/24 PacketsForwarded"),
+		v4PrefixOctets: readLatestSampleFunc(t, aftStreams.v4Prefix, v4PfxOctetsFn, "AFT IPv4 138.0.11.0/24 OctetsForwarded"),
+		v6PrefixPkts:   readLatestSampleFunc(t, aftStreams.v6Prefix, v6PfxPktsFn, "AFT IPv6 2015:aa8::/64 PacketsForwarded"),
+		v6PrefixOctets: readLatestSampleFunc(t, aftStreams.v6Prefix, v6PfxOctetsFn, "AFT IPv6 2015:aa8::/64 OctetsForwarded"),
+	}
+	finalPorts := make(map[string]portCounterValues, len(portIDs))
+	for _, pid := range portIDs {
+		ps := portStreams[pid]
+		pv := portCounterValues{
+			physInPkts:    readLatestSample(t, ps.physInPkts, pid+" physInPkts"),
+			physInOctets:  readLatestSample(t, ps.physInOctets, pid+" physInOctets"),
+			physOutPkts:   readLatestSample(t, ps.physOutPkts, pid+" physOutPkts"),
+			physOutOctets: readLatestSample(t, ps.physOutOctets, pid+" physOutOctets"),
+		}
+		if subintfCountersSupported {
+			pv.v4InPkts = readLatestSample(t, ps.v4InPkts, pid+" subintf0 v4InPkts")
+			pv.v4InFwdOctets = readLatestSample(t, ps.v4InFwdOctets, pid+" subintf0 v4InFwdOctets")
+			pv.v4OutPkts = readLatestSample(t, ps.v4OutPkts, pid+" subintf0 v4OutPkts")
+			pv.v4OutFwdOctets = readLatestSample(t, ps.v4OutFwdOctets, pid+" subintf0 v4OutFwdOctets")
+			pv.v6InPkts = readLatestSample(t, ps.v6InPkts, pid+" subintf0 v6InPkts")
+			pv.v6InFwdOctets = readLatestSample(t, ps.v6InFwdOctets, pid+" subintf0 v6InFwdOctets")
+			pv.v6OutPkts = readLatestSample(t, ps.v6OutPkts, pid+" subintf0 v6OutPkts")
+			pv.v6OutFwdOctets = readLatestSample(t, ps.v6OutFwdOctets, pid+" subintf0 v6OutFwdOctets")
+		}
+		finalPorts[pid] = pv
+	}
+
+	// Retrieve OTG flow TxPkts and RxPkts.
+	txFlow1 := gnmi.Get(t, otgDev, gnmi.OTG().Flow("ip4_encap_stream").Counters().OutPkts().State())
+	txFlow2 := gnmi.Get(t, otgDev, gnmi.OTG().Flow("ip6_encap_stream").Counters().OutPkts().State())
+	txFlow3 := gnmi.Get(t, otgDev, gnmi.OTG().Flow("ip4_native_no_match").Counters().OutPkts().State())
+	txFlow4 := gnmi.Get(t, otgDev, gnmi.OTG().Flow("ip6_native_fallback").Counters().OutPkts().State())
+	rxFlow1 := gnmi.Get(t, otgDev, gnmi.OTG().Flow("ip4_encap_stream").Counters().InPkts().State())
+	rxFlow2 := gnmi.Get(t, otgDev, gnmi.OTG().Flow("ip6_encap_stream").Counters().InPkts().State())
+	totalEncapTx := txFlow1 + txFlow2
+	totalEncapRx := rxFlow1 + rxFlow2
+
+	// 1. Validate IP-in-IP Encapsulation Tunnel Counter Accuracy & WCMP Split (NH#201 = 25%, NH#202 = 75%).
+	deltaNH201Pkts := finalAFT.nh201Pkts - baseAFT.nh201Pkts
+	deltaNH202Pkts := finalAFT.nh202Pkts - baseAFT.nh202Pkts
+	deltaNH201Octets := finalAFT.nh201Octets - baseAFT.nh201Octets
+	deltaNH202Octets := finalAFT.nh202Octets - baseAFT.nh202Octets
+	totalNHPkts := deltaNH201Pkts + deltaNH202Pkts
+	verifyWithinTolerance(t, "Test-6 Step 4: Total AFT Encap NextHop PacketsForwarded (NH#201 + NH#202)", totalNHPkts, totalEncapTx, test6CounterTolPct)
+
+	if totalNHPkts > 0 {
+		gotNH201Ratio := float64(deltaNH201Pkts) / float64(totalNHPkts)
+		gotNH202Ratio := float64(deltaNH202Pkts) / float64(totalNHPkts)
+		if math.Abs(gotNH201Ratio-ratioTunEncap1) > ratioTunEncapTol {
+			t.Errorf("Test-6 Step 4: AFT NH#201 WCMP share got %.4f, want %.4f +/- %.4f", gotNH201Ratio, ratioTunEncap1, ratioTunEncapTol)
+		}
+		if math.Abs(gotNH202Ratio-ratioTunEncap2) > ratioTunEncapTol {
+			t.Errorf("Test-6 Step 4: AFT NH#202 WCMP share got %.4f, want %.4f +/- %.4f", gotNH202Ratio, ratioTunEncap2, ratioTunEncapTol)
+		}
+	}
+	// Check NH octets against either inner L3 (494B) or outer L3 (514B) per platform accounting convention.
+	wantNHTotalInnerOctets := totalNHPkts * test6InnerL3Bytes
+	wantNHTotalOuterOctets := totalNHPkts * test6OuterL3Bytes
+	totalNHOctets := deltaNH201Octets + deltaNH202Octets
+	if math.Abs(float64(totalNHOctets)-float64(wantNHTotalInnerOctets)) > float64(wantNHTotalInnerOctets)*test6CounterTolPct &&
+		math.Abs(float64(totalNHOctets)-float64(wantNHTotalOuterOctets)) > float64(wantNHTotalOuterOctets)*test6CounterTolPct {
+		t.Errorf("Test-6 Step 4: Total AFT Encap NextHop OctetsForwarded got %d, want %d (inner L3) or %d (outer L3) +/- 1%%",
+			totalNHOctets, wantNHTotalInnerOctets, wantNHTotalOuterOctets)
+	}
+
+	// 2. Validate AFT Prefix Counters in ENCAP_TE_VRF_A.
+	deltaV4PfxPkts := finalAFT.v4PrefixPkts - baseAFT.v4PrefixPkts
+	deltaV6PfxPkts := finalAFT.v6PrefixPkts - baseAFT.v6PrefixPkts
+	verifyWithinTolerance(t, "Test-6 Step 4: AFT ENCAP_TE_VRF_A IPv4 138.0.11.0/24 PacketsForwarded", deltaV4PfxPkts, txFlow1, test6CounterTolPct)
+	verifyWithinTolerance(t, "Test-6 Step 4: AFT ENCAP_TE_VRF_A IPv6 2015:aa8::/64 PacketsForwarded", deltaV6PfxPkts, txFlow2, test6CounterTolPct)
+
+	// 3. Validate Ingress Subinterface Counter Accuracy (port1 Subinterface(0)).
+	if subintfCountersSupported {
+		p1DeltaV4InPkts := finalPorts["port1"].v4InPkts - basePorts["port1"].v4InPkts
+		p1DeltaV4InOctets := finalPorts["port1"].v4InFwdOctets - basePorts["port1"].v4InFwdOctets
+		p1DeltaV6InPkts := finalPorts["port1"].v6InPkts - basePorts["port1"].v6InPkts
+		p1DeltaV6InOctets := finalPorts["port1"].v6InFwdOctets - basePorts["port1"].v6InFwdOctets
+
+		verifyWithinTolerance(t, "Test-6 Step 4: port1 Subinterface(0) IPv4 InPkts (Flow 1 + Flow 3)", p1DeltaV4InPkts, txFlow1+txFlow3, test6CounterTolPct)
+		verifyWithinTolerance(t, "Test-6 Step 4: port1 Subinterface(0) IPv4 InForwardedOctets", p1DeltaV4InOctets, (txFlow1+txFlow3)*test6InnerL3Bytes, test6CounterTolPct)
+		verifyWithinTolerance(t, "Test-6 Step 4: port1 Subinterface(0) IPv6 InPkts (Flow 2 + Flow 4)", p1DeltaV6InPkts, txFlow2+txFlow4, test6CounterTolPct)
+		verifyWithinTolerance(t, "Test-6 Step 4: port1 Subinterface(0) IPv6 InForwardedOctets", p1DeltaV6InOctets, (txFlow2+txFlow4)*test6InnerL3Bytes, test6CounterTolPct)
+
+		// 4. Validate Subinterface Egress Counters across port2..port5.
+		// Because both 4in4 and 6in4 encapsulated packets egress the DUT with an outer IPv4 tunnel header,
+		// the sum of egress subinterface IPv4 packet deltas (ipv4/state/counters/out-pkts) across DUT
+		// port-2 through port-5, as well as the sum of physical interface egress packet deltas
+		// (state/counters/out-pkts) across those same ports, each independently equals the total
+		// encapsulated packets received on ATE port-2 through port-5 (N_rx_total = N_tx_v4 + N_tx_v6)
+		// after accounting for the non-encapsulated native flows on port-2.
+		var sumEgressSubintfV4OutPkts uint64
+		var sumEgressSubintfV4OutOctets uint64
+		for _, pid := range otgDstPorts {
+			dV4OutPkts := finalPorts[pid].v4OutPkts - basePorts[pid].v4OutPkts
+			dV4OutOctets := finalPorts[pid].v4OutFwdOctets - basePorts[pid].v4OutFwdOctets
+			sumEgressSubintfV4OutPkts += dV4OutPkts
+			sumEgressSubintfV4OutOctets += dV4OutOctets
+		}
+		// Verify the sum of encapsulated egress subinterface IPv4 packet deltas across port2..port5
+		// independently equals N_rx_total (N_tx_v4 + N_tx_v6).
+		var encapSubintfV4OutPkts uint64
+		if sumEgressSubintfV4OutPkts >= txFlow3 {
+			encapSubintfV4OutPkts = sumEgressSubintfV4OutPkts - txFlow3
+		}
+		verifyWithinTolerance(t, "Test-6 Step 4: Independent sum of Encapsulated Egress Subinterface(0) IPv4 OutPkts across port2..port5 vs N_rx_total (N_tx_v4 + N_tx_v6)", encapSubintfV4OutPkts, totalEncapRx, test6CounterTolPct)
+
+		// Also verify total egress subinterface IPv4 OutPkts including native IPv4 Flow 3 on port2.
+		wantTotalEgressV4Pkts := totalEncapTx + txFlow3
+		verifyWithinTolerance(t, "Test-6 Step 4: Aggregate Egress Subinterface(0) IPv4 OutPkts across port2..port5 (Flow 1 + Flow 2 + Flow 3)", sumEgressSubintfV4OutPkts, wantTotalEgressV4Pkts, test6CounterTolPct)
+
+		wantTotalEgressV4Octets := totalEncapTx*test6OuterL3Bytes + txFlow3*test6InnerL3Bytes
+		verifyWithinTolerance(t, "Test-6 Step 4: Aggregate Egress Subinterface(0) IPv4 OutForwardedOctets across port2..port5", sumEgressSubintfV4OutOctets, wantTotalEgressV4Octets, test6CounterTolPct)
+
+		// Validate WCMP distribution of encapsulated packets across port2..port5 (6.25%, 18.75%, 30%, 45%).
+		encapPktsPerPort := []uint64{
+			(finalPorts["port2"].v4OutPkts - basePorts["port2"].v4OutPkts) - txFlow3,
+			finalPorts["port3"].v4OutPkts - basePorts["port3"].v4OutPkts,
+			finalPorts["port4"].v4OutPkts - basePorts["port4"].v4OutPkts,
+			finalPorts["port5"].v4OutPkts - basePorts["port5"].v4OutPkts,
+		}
+		gotSubintfWeights, _ := normalize(encapPktsPerPort)
+		if diff := cmp.Diff(wantWeights, gotSubintfWeights, cmpopts.EquateApprox(0, trfDistTolerance)); diff != "" {
+			t.Errorf("Test-6 Step 4: Egress Subinterface(0) IPv4 WCMP distribution ratios -want,+got:\n%s", diff)
+		}
+
+		// Validate Egress Subinterface IPv6 OutPkts and OutForwardedOctets on port2 (Flow 4: ip6_native_fallback).
+		p2DeltaV6OutPkts := finalPorts["port2"].v6OutPkts - basePorts["port2"].v6OutPkts
+		p2DeltaV6OutOctets := finalPorts["port2"].v6OutFwdOctets - basePorts["port2"].v6OutFwdOctets
+		verifyWithinTolerance(t, "Test-6 Step 4: port2 Subinterface(0) IPv6 OutPkts (Flow 4 native fallback)", p2DeltaV6OutPkts, txFlow4, test6CounterTolPct)
+		verifyWithinTolerance(t, "Test-6 Step 4: port2 Subinterface(0) IPv6 OutForwardedOctets (Flow 4 native fallback)", p2DeltaV6OutOctets, txFlow4*test6InnerL3Bytes, test6CounterTolPct)
+	}
+
+	// 5. Independently Validate Physical Interface Egress Counters across port2..port5 and Cross-Validate vs. Subinterface Counters.
+	p1DeltaPhysInPkts := finalPorts["port1"].physInPkts - basePorts["port1"].physInPkts
+	verifyWithinTolerance(t, "Test-6 Step 4: port1 Physical InPkts (Flows 1..4)", p1DeltaPhysInPkts, txFlow1+txFlow2+txFlow3+txFlow4, test6CounterTolPct)
+
+	var sumPhysOutPkts uint64
+	for _, pid := range otgDstPorts {
+		dPhysOut := finalPorts[pid].physOutPkts - basePorts[pid].physOutPkts
+		sumPhysOutPkts += dPhysOut
+		if subintfCountersSupported {
+			dSubOut := (finalPorts[pid].v4OutPkts - basePorts[pid].v4OutPkts) + (finalPorts[pid].v6OutPkts - basePorts[pid].v6OutPkts)
+			verifyWithinTolerance(t, fmt.Sprintf("Test-6 Step 4: %s Physical OutPkts vs Subinterface(0) (IPv4+IPv6) OutPkts", pid), dPhysOut, dSubOut, test6CounterTolPct)
+		}
+	}
+	// Verify the sum of encapsulated physical interface egress packet deltas (state/counters/out-pkts)
+	// across port2..port5 independently equals N_rx_total (N_tx_v4 + N_tx_v6).
+	var encapPhysOutPkts uint64
+	if sumPhysOutPkts >= (txFlow3 + txFlow4) {
+		encapPhysOutPkts = sumPhysOutPkts - (txFlow3 + txFlow4)
+	}
+	verifyWithinTolerance(t, "Test-6 Step 4: Independent sum of Encapsulated Physical OutPkts across port2..port5 vs N_rx_total (N_tx_v4 + N_tx_v6)", encapPhysOutPkts, totalEncapRx, test6CounterTolPct)
+	verifyWithinTolerance(t, "Test-6 Step 4: Aggregate Physical OutPkts across port2..port5 (Flows 1..4)", sumPhysOutPkts, txFlow1+txFlow2+txFlow3+txFlow4, test6CounterTolPct)
 }
