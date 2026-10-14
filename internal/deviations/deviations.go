@@ -2433,3 +2433,10 @@ func LacpTxErrorsUnsupported(dut *ondatra.DUTDevice) bool {
 func LacpConfigAfterAggregateReplace(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLacpConfigAfterAggregateReplace()
 }
+
+// VendorPreConfigRequired reports whether the device requires vendor-specific
+// configuration before the test configuration.
+// Arista: https://issuetracker.google.com/558948674
+func VendorPreConfigRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetVendorPreConfigRequired()
+}
