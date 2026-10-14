@@ -556,6 +556,7 @@ func ISISCounterPartChangesUnsupported(dut *ondatra.DUTDevice) bool {
 
 // SkipTCPNegotiatedMSSCheck returns true for devices that do not
 // support telemetry to check negotiated tcp mss value.
+// Arista: https://partnerissuetracker.corp.google.com/issues/312256594
 func SkipTCPNegotiatedMSSCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipTcpNegotiatedMssCheck()
 }
@@ -2415,4 +2416,27 @@ func InterfaceLastClearUnsupported(dut *ondatra.DUTDevice) bool {
 // update subinterface 0 IPv4/IPv6 packet counters during transit traffic.
 func DefaultSubinterfaceIPCountersUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDefaultSubinterfaceIpCountersUnsupported()
+}
+
+// LacpTxErrorsUnsupported returns true if the device does not support
+// /lacp/interfaces/interface/members/member/state/counters/lacp-tx-errors.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/570398368
+func LacpTxErrorsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLacpTxErrorsUnsupported()
+}
+
+// LacpConfigAfterAggregateReplace returns true if the device wipes out LACP
+// interface configuration (such as system-id-mac) when
+// /interfaces/interface/config is replaced, requiring LACP configuration to be
+// re-applied after the aggregate interface is replaced.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/570892225
+func LacpConfigAfterAggregateReplace(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLacpConfigAfterAggregateReplace()
+}
+
+// VendorPreConfigRequired reports whether the device requires vendor-specific
+// configuration before the test configuration.
+// Arista: https://issuetracker.google.com/558948674
+func VendorPreConfigRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetVendorPreConfigRequired()
 }
