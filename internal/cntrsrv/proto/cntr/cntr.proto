@@ -43,6 +43,15 @@ message DialRequest {
   }
   string username = 4;
   string password = 5;
+  TLSCredentials tls_credentials = 6;
+}
+
+message TLSCredentials {
+  bytes trust_bundle = 1;
+  bytes certificate = 2;
+  bytes private_key = 3;
+  string server_name = 4;
+  bool skip_verify = 5;
 }
 
 message DialResponse {

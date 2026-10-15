@@ -1022,7 +1022,7 @@ func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 		t.Log("Cleanup finished.")
 	})
 
-	t.Run("Setup", func(t *testing.T) {
+	setupOK := t.Run("Setup", func(t *testing.T) {
 		t.Logf("Creating volume %s...", volName)
 		volOpts := map[string]string{
 			"type":       "none",
@@ -1038,8 +1038,8 @@ func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 			ImageName:           imageName,
 			ImageTag:            tag,
 			TarPath:             containerTarPath(t),
-			Command:             "./cntrsrv -port=60064",
-			Ports:               []string{"60064:60064"},
+			Command:             "./cntrsrv",
+			Ports:               []string{"60061:60061"},
 			Volumes:             []string{fmt.Sprintf("%s:%s", volName, "/data")},
 			RemoveExistingImage: true,
 			PollForRunningState: true,
@@ -1055,6 +1055,9 @@ func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 			containerztest.SaveConfig(t, dut)
 		}
 	})
+	if !setupOK {
+		t.Fatalf("Persistence setup failed; refusing to reboot or verify persistence")
+	}
 
 	t.Run("ColdReboot", func(t *testing.T) {
 		t.Log("Rebooting chassis (cold reboot)...")
@@ -1084,7 +1087,7 @@ func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 
 		timeout := 5 * time.Minute
 		if err := containerztest.WaitForRunning(ctx, t, cli, instanceName, timeout); err != nil {
-			t.Errorf("Container persistence failed: %v", err)
+			t.Fatalf("Container persistence failed: %v", err)
 		}
 
 		volFound := false
@@ -1103,7 +1106,7 @@ func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 			}
 		}
 		if !volFound {
-			t.Errorf("Volume persistence failed: volume %s not found", volName)
+			t.Fatalf("Volume persistence failed: volume %s not found", volName)
 		}
 	})
 }
