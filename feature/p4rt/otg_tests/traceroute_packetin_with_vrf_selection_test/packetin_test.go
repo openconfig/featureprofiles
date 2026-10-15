@@ -114,7 +114,10 @@ func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flow
 		top.Flows().Append(flow)
 	}
 	ate.OTG().PushConfig(t, top)
+	time.Sleep(30 * time.Second)
 	ate.OTG().StartProtocols(t)
+	// Wait for the StartProtocols BGP flap to reconverge before sending traffic.
+	time.Sleep(60 * time.Second)
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 
