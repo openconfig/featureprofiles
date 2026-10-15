@@ -220,8 +220,7 @@ func FindStandbyControllerCard(t *testing.T, dut *ondatra.DUTDevice, supervisors
 
 		for time.Since(start) < 10*time.Minute {
 			var opts []ygnmi.Option
-			// Use discrete Get probes for everything except Juniper, which strictly requires Subscribe
-			if dut.Vendor() != ondatra.JUNIPER {
+			if deviations.SwitchoverSubscribeUnsupported(dut) {
 				opts = append(opts, ygnmi.WithUseGet())
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

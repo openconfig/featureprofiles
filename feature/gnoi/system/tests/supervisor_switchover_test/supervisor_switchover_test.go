@@ -100,9 +100,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) ([]*ondatra.Port, string
 			gnmi.BatchDelete(batch, gnmi.OC().Interface(port.Name()).Config())
 		}
 		gnmi.BatchDelete(batch, gnmi.OC().Interface(lagName).Config())
-		if !deviations.LacpInterfaceFallbackOCUnsupported(dut) {
-			gnmi.BatchDelete(batch, gnmi.OC().Lacp().Interface(lagName).Config())
-		}
+		gnmi.BatchDelete(batch, gnmi.OC().Lacp().Interface(lagName).Config())
 		batch.Set(t, dut)
 	})
 
@@ -113,11 +111,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) ([]*ondatra.Port, string
 			gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
 		}
 		d := &oc.Root{}
-		if !deviations.LacpInterfaceFallbackOCUnsupported(dut) {
-			lacpIntf := d.GetOrCreateLacp().GetOrCreateInterface(lagName)
-			lacpIntf.SetInterval(oc.Lacp_LacpPeriodType_FAST)
-			lacpIntf.LacpMode = oc.Lacp_LacpActivityType_ACTIVE
-		}
+		lacpIntf := d.GetOrCreateLacp().GetOrCreateInterface(lagName)
+		lacpIntf.SetInterval(oc.Lacp_LacpPeriodType_FAST)
+		lacpIntf.LacpMode = oc.Lacp_LacpActivityType_ACTIVE
 		agg := d.GetOrCreateInterface(lagName)
 		agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_LACP
 		agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
@@ -152,15 +148,11 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) ([]*ondatra.Port, string
 
 	gnmi.BatchReplace(batch, gnmi.OC().Interface(lagName).Config(), lagIntf)
 
-	if !deviations.LacpInterfaceFallbackOCUnsupported(dut) {
-		t.Logf("INFO: [gNOI-3.3 Setup] Configuring LACP parameters (ACTIVE, FAST) on aggregate interface %q...", lagName)
-		lacp := &oc.Lacp_Interface{Name: ygot.String(lagName)}
-		lacp.LacpMode = oc.Lacp_LacpActivityType_ACTIVE
-		lacp.Interval = oc.Lacp_LacpPeriodType_FAST
-		gnmi.BatchReplace(batch, gnmi.OC().Lacp().Interface(lagName).Config(), lacp)
-	} else {
-		t.Logf("WARNING: [gNOI-3.3 Setup] Deviation LacpInterfaceFallbackOCUnsupported is enabled on %s (%s): skipping /lacp/interfaces/interface config on %q.", dut.Name(), dut.Model(), lagName)
-	}
+	t.Logf("INFO: [gNOI-3.3 Setup] Configuring LACP parameters (ACTIVE, FAST) on aggregate interface %q...", lagName)
+	lacp := &oc.Lacp_Interface{Name: ygot.String(lagName)}
+	lacp.LacpMode = oc.Lacp_LacpActivityType_ACTIVE
+	lacp.Interval = oc.Lacp_LacpPeriodType_FAST
+	gnmi.BatchReplace(batch, gnmi.OC().Lacp().Interface(lagName).Config(), lacp)
 
 	for _, port := range lagPorts {
 		t.Logf("INFO: [gNOI-3.3 Setup] Binding member interface %q to aggregate %q...", port.Name(), lagName)
@@ -259,15 +251,11 @@ func verifyLACPState(t *testing.T, dut *ondatra.DUTDevice, ports []*ondatra.Port
 	for _, port := range ports {
 		t.Logf("INFO: [gNOI-3.3.1 Step 3] Waiting for member interface %q OperStatus=UP...", port.Name())
 		gnmi.Await(t, dut, gnmi.OC().Interface(port.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
-		if !deviations.LACPInterfaceMemberStateInterfaceUnsupported(dut) {
-			t.Logf("INFO: [gNOI-3.3.1 Step 3] Waiting for member interface %q LACP synchronization=IN_SYNC, collecting=true, distributing=true...", port.Name())
-			memberPath := gnmi.OC().Lacp().Interface(lagName).Member(port.Name())
-			gnmi.Await(t, dut, memberPath.Synchronization().State(), 2*time.Minute, oc.Lacp_LacpSynchronizationType_IN_SYNC)
-			gnmi.Await(t, dut, memberPath.Collecting().State(), 2*time.Minute, true)
-			gnmi.Await(t, dut, memberPath.Distributing().State(), 2*time.Minute, true)
-		} else {
-			t.Logf("WARNING: [gNOI-3.3.1 Step 3] Deviation LACPInterfaceMemberStateInterfaceUnsupported is enabled on %s (%s): skipping LACP member synchronization state check on %q.", dut.Name(), dut.Model(), port.Name())
-		}
+		t.Logf("INFO: [gNOI-3.3.1 Step 3] Waiting for member interface %q LACP synchronization=IN_SYNC, collecting=true, distributing=true...", port.Name())
+		memberPath := gnmi.OC().Lacp().Interface(lagName).Member(port.Name())
+		gnmi.Await(t, dut, memberPath.Synchronization().State(), 2*time.Minute, oc.Lacp_LacpSynchronizationType_IN_SYNC)
+		gnmi.Await(t, dut, memberPath.Collecting().State(), 2*time.Minute, true)
+		gnmi.Await(t, dut, memberPath.Distributing().State(), 2*time.Minute, true)
 	}
 
 	p2 := dut.Port(t, "port2")
@@ -275,15 +263,16 @@ func verifyLACPState(t *testing.T, dut *ondatra.DUTDevice, ports []*ondatra.Port
 	gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
 }
 
-// verifyZeroTrafficLoss verifies continuous OTG transit traffic forwarding and zero/minimal packet loss
-// per README "gNOI-3.3.1 Step 3", "gNOI-3.3.2 Step 3", and "gNOI-3.3.3 Step 4".
-func verifyZeroTrafficLoss(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
+// verifyZeroTrafficLoss stops OTG traffic, verifies zero packet loss (txPkts > 0 && txPkts == rxPkts),
+// and optionally restarts traffic for subsequent subtests per README "gNOI-3.3.1 Step 3",
+// "gNOI-3.3.2 Step 3", and "gNOI-3.3.3 Step 4".
+func verifyZeroTrafficLoss(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, restartTraffic bool) {
 	t.Helper()
 	otg := ate.OTG()
+	otg.StopTraffic(t)
 	otgutils.LogFlowMetrics(t, otg, top)
 	for _, f := range top.Flows().Items() {
 		var txPkts, rxPkts uint64
-		var lossPct float64
 		_, ok := gnmi.Watch(t, otg, gnmi.OTG().Flow(f.Name()).State(), 1*time.Minute, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
 			flowMetrics, present := val.Val()
 			if !present || flowMetrics == nil || flowMetrics.GetCounters() == nil {
@@ -291,17 +280,16 @@ func verifyZeroTrafficLoss(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Co
 			}
 			txPkts = flowMetrics.GetCounters().GetOutPkts()
 			rxPkts = flowMetrics.GetCounters().GetInPkts()
-			if txPkts == 0 || rxPkts == 0 || rxPkts > txPkts {
-				return false
-			}
-			lossPct = float64(txPkts-rxPkts) * 100.0 / float64(txPkts)
-			return lossPct <= 0.1
+			return txPkts > 0 && txPkts == rxPkts
 		}).Await(t)
 		if !ok {
-			t.Errorf("Flow %s failed zero traffic loss check (Tx=%d, Rx=%d, Loss=%.2f%%, want <= 0.1%%)", f.Name(), txPkts, rxPkts, lossPct)
+			t.Errorf("Flow %s failed zero traffic loss check (Tx=%d, Rx=%d, want Tx > 0 && Tx == Rx)", f.Name(), txPkts, rxPkts)
 			continue
 		}
-		t.Logf("INFO: [gNOI-3.3 Traffic] Flow %s verified continuous transit forwarding (Tx=%d, Rx=%d, Loss=%.2f%%)", f.Name(), txPkts, rxPkts, lossPct)
+		t.Logf("INFO: [gNOI-3.3 Traffic] Flow %s verified zero packet loss (Tx=%d, Rx=%d)", f.Name(), txPkts, rxPkts)
+	}
+	if restartTraffic {
+		otg.StartTraffic(t)
 	}
 }
 
@@ -333,7 +321,7 @@ func TestSupervisorSwitchover(t *testing.T) {
 	t.Cleanup(func() {
 		otg.StopTraffic(t)
 	})
-	verifyZeroTrafficLoss(t, ate, otgTop)
+	verifyZeroTrafficLoss(t, ate, otgTop, true)
 
 	intfsOperStatusUPBeforeSwitch := helpers.FetchOperStatusUPIntfs(t, dut, *args.CheckInterfacesInBinding)
 
@@ -378,31 +366,43 @@ func lookupWithGetFallback[T any](t *testing.T, dut *ondatra.DUTDevice, c *ygnmi
 	return val, err
 }
 
-// awaitSwitchoverReady polls `/components/component[name=targetSupervisor]/state/switchover-ready`
-// (using unary gNMI.Get when `deviations.SwitchoverSubscribeUnsupported(dut)` is set) and records
-// any timeout or leaf mismatch via `t.Errorf` rather than hanging/aborting with `gnmi.Await`.
-func awaitSwitchoverReady(t *testing.T, dut *ondatra.DUTDevice, targetSupervisor, fallbackActiveSupervisor string, timeout time.Duration, stepContext string) bool {
+// awaitSwitchoverReady waits for `/components/component[name=targetSupervisor]/state/switchover-ready`
+// to report true (using gnmi.Watch by default, or unary gNMI.Get polling when
+// `deviations.SwitchoverSubscribeUnsupported(dut)` is set) and records any timeout or leaf
+// mismatch via `t.Errorf` rather than aborting with `gnmi.Await`.
+func awaitSwitchoverReady(t *testing.T, dut *ondatra.DUTDevice, targetSupervisor string, timeout time.Duration, stepContext string) bool {
 	t.Helper()
 	t.Logf("INFO: [%s] Waiting up to %v for /components/component[name=%s]/state/switchover-ready to report true...", stepContext, timeout, targetSupervisor)
 
-	var opts []ygnmi.Option
-	if deviations.SwitchoverSubscribeUnsupported(dut) {
-		t.Logf("WARNING: [%s] Deviation SwitchoverSubscribeUnsupported is enabled on %s (%s): bypassing gNMI Subscribe stream via unary gNMI.Get (ygnmi.WithUseGet()) polling to prevent stream stall/hang.", stepContext, dut.Name(), dut.Model())
-		opts = append(opts, ygnmi.WithUseGet())
-	} else {
-		t.Logf("INFO: [%s] Polling /components/component[name=%s]/state/switchover-ready via ygnmi.Lookup.", stepContext, targetSupervisor)
+	start := time.Now()
+	var lastTargetReady bool
+	var lastTargetPresent bool
+
+	if !deviations.SwitchoverSubscribeUnsupported(dut) {
+		_, ok := gnmi.Watch(t, dut, gnmi.OC().Component(targetSupervisor).SwitchoverReady().State(), timeout, func(val *ygnmi.Value[bool]) bool {
+			ready, present := val.Val()
+			if present {
+				lastTargetReady = ready
+				lastTargetPresent = true
+			}
+			return present && ready
+		}).Await(t)
+		if ok {
+			t.Logf("INFO: [%s] Supervisor %q reported /components/component[name=%s]/state/switchover-ready=true after %.2fm.", stepContext, targetSupervisor, targetSupervisor, time.Since(start).Minutes())
+			return true
+		}
+		t.Errorf("[%s] Await(t) on dut(%s) at /components/component[name=%s]/state/switchover-ready timed out after %v: got %v (present=%v), want true", stepContext, dut.Name(), targetSupervisor, timeout, lastTargetReady, lastTargetPresent)
+		return false
 	}
+
+	t.Logf("WARNING: [%s] Deviation SwitchoverSubscribeUnsupported is enabled on %s (%s): bypassing gNMI Subscribe stream via unary gNMI.Get (ygnmi.WithUseGet()) polling to prevent stream stall/hang.", stepContext, dut.Name(), dut.Model())
+	opts := []ygnmi.Option{ygnmi.WithUseGet()}
 
 	c, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.Name()))
 	if err != nil {
 		t.Errorf("ERROR: [%s] Failed to create ygnmi client for switchover-ready check: %v", stepContext, err)
 		return false
 	}
-
-	start := time.Now()
-	var lastTargetReady bool
-	var lastTargetPresent bool
-	var fallbackReadyLogged bool
 
 	for time.Since(start) < timeout {
 		val, err := lookupWithGetFallback(t, dut, c, gnmi.OC().Component(targetSupervisor).SwitchoverReady().State(), &opts, stepContext)
@@ -413,22 +413,6 @@ func awaitSwitchoverReady(t *testing.T, dut *ondatra.DUTDevice, targetSupervisor
 				if ready {
 					t.Logf("INFO: [%s] Supervisor %q reported /components/component[name=%s]/state/switchover-ready=true after %.2fm.", stepContext, targetSupervisor, targetSupervisor, time.Since(start).Minutes())
 					return true
-				}
-			}
-		}
-
-		if fallbackActiveSupervisor != "" && fallbackActiveSupervisor != targetSupervisor {
-			activeVal, activeErr := lookupWithGetFallback(t, dut, c, gnmi.OC().Component(fallbackActiveSupervisor).SwitchoverReady().State(), &opts, stepContext)
-			if activeErr == nil {
-				if activeReady, activePresent := activeVal.Val(); activePresent && activeReady {
-					if !fallbackReadyLogged {
-						t.Logf("INFO: [%s] Alternate supervisor %q already reports /components/component[name=%s]/state/switchover-ready=true after %.2fm, while supervisor %q reports %v.", stepContext, fallbackActiveSupervisor, fallbackActiveSupervisor, time.Since(start).Minutes(), targetSupervisor, lastTargetReady)
-						fallbackReadyLogged = true
-					}
-					if time.Since(start) >= 2*time.Minute {
-						t.Logf("WARNING: [%s] OpenConfig Leaf Placement Difference on %s (%s): Supervisor %q /components/component[name=%s]/state/switchover-ready remained %v (present=%v) after %.2fm while supervisor %q reports switchover-ready=true. Proceeding using %q switchover-ready=true.", stepContext, dut.Name(), dut.Model(), targetSupervisor, targetSupervisor, lastTargetReady, lastTargetPresent, time.Since(start).Minutes(), fallbackActiveSupervisor, fallbackActiveSupervisor)
-						return true
-					}
 				}
 			}
 		}
@@ -446,7 +430,7 @@ func testRecoveryValidation(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.A
 	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyControllerCard(t, dut, controllerCards)
 	t.Logf("INFO: [gNOI-3.3.1] Detected rpStandby: %v, rpActive: %v", rpStandbyBeforeSwitch, rpActiveBeforeSwitch)
 
-	awaitSwitchoverReady(t, dut, rpActiveBeforeSwitch, "", maxSwitchoverTime, "gNOI-3.3.1 Pre-Switchover Readiness")
+	awaitSwitchoverReady(t, dut, rpActiveBeforeSwitch, maxSwitchoverTime, "gNOI-3.3.1 Pre-Switchover Readiness")
 
 	gnoiClient := dut.RawAPIs().GNOI(t)
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
@@ -489,7 +473,7 @@ func testRecoveryValidation(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.A
 	t.Log("INFO: [gNOI-3.3.1 Step 3] Validating LACP state, member port oper-status, and zero traffic loss post-switchover...")
 	verifyLACPState(t, dut, dutPorts, lagName)
 	helpers.ValidateOperStatusUPIntfs(t, dut, intfsOperStatusUPBeforeSwitch, 5*time.Minute)
-	verifyZeroTrafficLoss(t, ate, top)
+	verifyZeroTrafficLoss(t, ate, top, true)
 
 	// gNOI-3.3.1 Step 4: Validate management plane recovery (gNMI.Set/Get and OpenConfig state telemetry).
 	t.Log("INFO: [gNOI-3.3.1 Step 4] Validating management plane recovery via gNMI.Set and gNMI.Get on interface description.")
@@ -560,20 +544,17 @@ func testRecoveryValidation(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.A
 		t.Logf("INFO: [gNOI-3.3.1 Step 4] Found activeRP.LastSwitchoverTime(): %v", swTime)
 	}
 
-	switchedOver := rpActiveAfterSwitch == rpStandbyBeforeSwitch && rpStandbyAfterSwitch == rpActiveBeforeSwitch && swTimePresent
 	if !reasonPresent {
 		t.Logf("WARNING: [gNOI-3.3.1 Step 4] /components/component[name=%s]/state/last-switchover-reason was not populated within 3m.", rpActiveAfterSwitch)
 		t.Errorf("activeRP.LastSwitchoverReason().Lookup(t).IsPresent(): got %v, want %v", false, true)
 	} else {
 		t.Logf("INFO: [gNOI-3.3.1 Step 4] Found lastSwitchoverReason trigger on %q: %v", rpActiveAfterSwitch, lastSwitchoverReason.String())
-		if got, want := lastSwitchoverReason, oc.PlatformTypes_ComponentRedundantRoleSwitchoverReasonTrigger_USER_INITIATED; got != want {
-			if switchedOver && deviations.GNOISwitchoverReasonMissingUserInitiated(dut) {
-				t.Logf("INFO: [gNOI-3.3.1 Step 4] Verified supervisor switchover succeeded (%s -> %s, last-switchover-time=%d).", rpActiveBeforeSwitch, rpActiveAfterSwitch, swTime)
-				t.Logf("WARNING: [gNOI-3.3.1 Step 4] Deviation GNOISwitchoverReasonMissingUserInitiated is enabled on %s (%s): /components/component[name=%s]/state/last-switchover-reason/trigger reported %v instead of %v after gNOI SwitchControlProcessor. Supervisor switchover is verified; logging warning and proceeding without failing.", dut.Name(), dut.Model(), rpActiveAfterSwitch, got, want)
-			} else {
-				t.Logf("WARNING: [gNOI-3.3.1 Step 4] [Vendor Bug] /components/component[name=%s]/state/last-switchover-reason/trigger reported %v instead of expected %v after gNOI SwitchControlProcessor (switchedOver=%v). Recording error via t.Errorf and continuing test execution.", rpActiveAfterSwitch, got, want, switchedOver)
-				t.Errorf("lastSwitchoverReason.GetTrigger(): got %v, want %v", got, want)
-			}
+		wantReason := oc.PlatformTypes_ComponentRedundantRoleSwitchoverReasonTrigger_USER_INITIATED
+		if deviations.GNOISwitchoverReasonMissingUserInitiated(dut) {
+			wantReason = oc.PlatformTypes_ComponentRedundantRoleSwitchoverReasonTrigger_SYSTEM_INITIATED
+		}
+		if got, want := lastSwitchoverReason, wantReason; got != want {
+			t.Errorf("lastSwitchoverReason.GetTrigger(): got %v, want %v", got, want)
 		} else {
 			t.Logf("INFO: [gNOI-3.3.1 Step 4] Verified lastSwitchoverReason.GetTrigger() == %v.", want)
 		}
@@ -585,7 +566,7 @@ func testBackToBackSwitchover(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyControllerCard(t, dut, controllerCards)
 	t.Logf("INFO: [gNOI-3.3.2] Detected rpStandby for BackToBack: %v, rpActive: %v", rpStandbyBeforeSwitch, rpActiveBeforeSwitch)
 
-	ready := awaitSwitchoverReady(t, dut, rpActiveBeforeSwitch, "", maxSwitchoverTime, "gNOI-3.3.2 Pre-Switchover Readiness")
+	ready := awaitSwitchoverReady(t, dut, rpActiveBeforeSwitch, maxSwitchoverTime, "gNOI-3.3.2 Pre-Switchover Readiness")
 	if !ready {
 		t.Logf("WARNING: [gNOI-3.3.2] Active supervisor %q did not report switchover-ready=true within %v after previous switchover. Proceeding to attempt gNOI-3.3.2 Step 1 SwitchControlProcessor with graceful error handling so the test does not hang.", rpActiveBeforeSwitch, maxSwitchoverTime)
 	}
@@ -604,7 +585,7 @@ func testBackToBackSwitchover(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 	if _, err := gnoiClient.System().SwitchControlProcessor(context.Background(), firstRequest); err != nil {
 		t.Logf("WARNING: [gNOI-3.3.2 Step 1] First SwitchControlProcessor request to %q failed (err: %v). Recording error via t.Errorf and verifying traffic/DUT stability instead of crashing via t.Fatalf.", rpStandbyBeforeSwitch, err)
 		t.Errorf("Failed to initiate first supervisor switchover in BackToBackSwitchover: %v", err)
-		verifyZeroTrafficLoss(t, ate, top)
+		verifyZeroTrafficLoss(t, ate, top, true)
 		return
 	}
 
@@ -614,21 +595,23 @@ func testBackToBackSwitchover(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 		t.Logf("WARNING: [gNOI-3.3.2 Step 2] Deviation SwitchoverSubscribeUnsupported is enabled on %s (%s): using unary gNMI.Get (ygnmi.WithUseGet()) for immediate post-switchover readiness check.", dut.Name(), dut.Model())
 		safeOpts = append(safeOpts, ygnmi.WithUseGet())
 	}
-	val, err := lookupWithGetFallback(t, dut, safeClient, gnmi.OC().Component(rpActiveBeforeSwitch).SwitchoverReady().State(), &safeOpts, "gNOI-3.3.2 Step 2")
 
-	if err == nil {
-		if ready, present := val.Val(); present && ready == true {
-			t.Logf("WARNING: [gNOI-3.3.2 Step 2] Supervisor %q is still reporting switchover-ready=true immediately after switchover request.", rpActiveBeforeSwitch)
-		} else {
-			t.Logf("INFO: [gNOI-3.3.2 Step 2] Supervisor %q is correctly UNREADY (switchover-ready=false) immediately after switchover request.", rpActiveBeforeSwitch)
+	unreadyConfirmed := false
+	for start := time.Now(); time.Since(start) < 1*time.Minute; time.Sleep(500 * time.Millisecond) {
+		val, lookupErr := lookupWithGetFallback(t, dut, safeClient, gnmi.OC().Component(rpActiveBeforeSwitch).SwitchoverReady().State(), &safeOpts, "gNOI-3.3.2 Step 2")
+		if lookupErr != nil {
+			t.Logf("INFO: [gNOI-3.3.2 Step 2] Telemetry transient as expected (%v) after %v; supervisor %q is transitioning/unready.", lookupErr, time.Since(start), rpActiveBeforeSwitch)
+			unreadyConfirmed = true
+			break
 		}
-	} else {
-		t.Logf("INFO: [gNOI-3.3.2 Step 2] Telemetry transient as expected (%v); supervisor %q is transitioning/unready.", err, rpActiveBeforeSwitch)
+		if ready, present := val.Val(); !present || !ready {
+			t.Logf("INFO: [gNOI-3.3.2 Step 2] Supervisor %q is correctly UNREADY (switchover-ready=%v, present=%v) after %v.", rpActiveBeforeSwitch, ready, present, time.Since(start))
+			unreadyConfirmed = true
+			break
+		}
 	}
-
-	if delayS := deviations.GnoiBackToBackSwitchoverDelayS(dut); delayS > 0 {
-		t.Logf("WARNING: [gNOI-3.3.2 Step 2] Deviation GnoiBackToBackSwitchoverDelayS=%d enabled on %s (%s): waiting %v seconds before attempting back-to-back switchover.", delayS, dut.Name(), dut.Model(), delayS)
-		time.Sleep(time.Duration(delayS) * time.Second)
+	if !unreadyConfirmed {
+		t.Logf("WARNING: [gNOI-3.3.2 Step 2] Supervisor %q continued reporting switchover-ready=true for 1m after switchover request.", rpActiveBeforeSwitch)
 	}
 
 	// gNOI-3.3.2 Step 2: Immediately issue a second gnoi.SwitchControlProcessor request while the new standby is unready.
@@ -636,7 +619,7 @@ func testBackToBackSwitchover(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 		ControlProcessor: components.GetSubcomponentPath(rpActiveBeforeSwitch, useNameOnly),
 	}
 	t.Logf("INFO: [gNOI-3.3.2 Step 2] Immediately sending second SwitchControlProcessor request targeting unready supervisor: %v", secondRequest)
-	_, err = gnoiClient.System().SwitchControlProcessor(context.Background(), secondRequest)
+	_, err := gnoiClient.System().SwitchControlProcessor(context.Background(), secondRequest)
 
 	// gNOI-3.3.2 Step 3: Validate the system gracefully rejects the second request, active supervisor maintains control, and zero traffic loss occurs.
 	if err == nil {
@@ -648,8 +631,8 @@ func testBackToBackSwitchover(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 			t.Logf("WARNING: [gNOI-3.3.2 Step 3] Supervisors failed to recover to original roles after double-switchover: %v", err)
 		}
 
-		awaitSwitchoverReady(t, dut, rpActiveBeforeSwitch, rpStandbyBeforeSwitch, maxSwitchoverTime, "gNOI-3.3.2 Double-Switchover Recovery")
-		verifyZeroTrafficLoss(t, ate, top)
+		awaitSwitchoverReady(t, dut, rpActiveBeforeSwitch, maxSwitchoverTime, "gNOI-3.3.2 Double-Switchover Recovery")
+		verifyZeroTrafficLoss(t, ate, top, true)
 		return
 	} else {
 		t.Logf("INFO: [gNOI-3.3.2 Step 3] Back-to-back switchover request safely and correctly rejected with err: %v", err)
@@ -661,8 +644,8 @@ func testBackToBackSwitchover(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 		t.Errorf("Failed to verify supervisor roles after rejected back-to-back request: %v", err)
 	}
 
-	awaitSwitchoverReady(t, dut, rpStandbyBeforeSwitch, "", maxSwitchoverTime, "gNOI-3.3.2 Post-Switchover Stabilization")
-	verifyZeroTrafficLoss(t, ate, top)
+	awaitSwitchoverReady(t, dut, rpStandbyBeforeSwitch, maxSwitchoverTime, "gNOI-3.3.2 Post-Switchover Stabilization")
+	verifyZeroTrafficLoss(t, ate, top, true)
 }
 
 // testPowerDisabledStandby implements README "gNOI-3.3.3: Switchover with Power-Disabled Standby (Negative Case)".
@@ -704,8 +687,8 @@ func testPowerDisabledStandby(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 	}
 
 	// gNOI-3.3.3 Step 4: Verify the current active supervisor safely maintains control and there is zero traffic loss.
-	t.Logf("INFO: [gNOI-3.3.3 Step 4] Verifying the original active supervisor %q maintained its PRIMARY role...", rpActiveBeforeSwitch)
+	t.Logf("INFO: [gNOI-3.3.3 Step 4] Verifying the current active supervisor %q maintained its PRIMARY role...", rpActiveBeforeSwitch)
 	gnmi.Await(t, dut, gnmi.OC().Component(rpActiveBeforeSwitch).RedundantRole().State(), maxSwitchoverTime, oc.Platform_ComponentRedundantRole_PRIMARY)
 
-	verifyZeroTrafficLoss(t, ate, top)
+	verifyZeroTrafficLoss(t, ate, top, false)
 }
