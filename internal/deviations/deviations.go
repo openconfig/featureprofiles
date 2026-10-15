@@ -2467,3 +2467,9 @@ func AFTNextHopEncapsulateHeaderUnsupported(dut *ondatra.DUTDevice) bool {
 func AFTNextHopGroupBackupNHGUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAftNextHopGroupBackupNhgUnsupported()
 }
+
+// EcnMinGreaterMaxThresholdUnsupported returns true if the device does not
+// validate that max-threshold is strictly greater than min-threshold.
+func EcnMinGreaterMaxThresholdUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEcnMinGreaterMaxThresholdUnsupported()
+}
