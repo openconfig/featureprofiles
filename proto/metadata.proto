@@ -1512,6 +1512,27 @@ message Metadata {
     // Device requires vendor-specific configuration before the test configuration.
     bool vendor_pre_config_required = 465;
 
+    // Devices that do not report
+    // /network-instances/network-instance/afts/next-hops/next-hop/state/origin-protocol
+    // in AFT telemetry.
+    // Nokia: https://partnerissuetracker.corp.google.com/issues/573621518
+    // Arista: https://partnerissuetracker.corp.google.com/issues/573618644
+    bool aft_next_hop_origin_protocol_unsupported = 466;
+
+    // Devices that do not report
+    // /network-instances/network-instance/afts/next-hops/next-hop/state/encapsulate-header
+    // in AFT telemetry.
+    // Nokia: https://partnerissuetracker.corp.google.com/issues/573623715
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/573625327
+    // Arista: https://partnerissuetracker.corp.google.com/issues/573618570
+    bool aft_next_hop_encapsulate_header_unsupported = 467;
+
+    // Devices that do not report
+    // /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/backup-next-hop-group
+    // in AFT telemetry.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/573620862
+    bool aft_next_hop_group_backup_nhg_unsupported = 468;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }
