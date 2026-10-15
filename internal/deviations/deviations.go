@@ -556,6 +556,7 @@ func ISISCounterPartChangesUnsupported(dut *ondatra.DUTDevice) bool {
 
 // SkipTCPNegotiatedMSSCheck returns true for devices that do not
 // support telemetry to check negotiated tcp mss value.
+// Arista: https://partnerissuetracker.corp.google.com/issues/312256594
 func SkipTCPNegotiatedMSSCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipTcpNegotiatedMssCheck()
 }
@@ -2417,7 +2418,58 @@ func DefaultSubinterfaceIPCountersUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDefaultSubinterfaceIpCountersUnsupported()
 }
 
-// InvalidInterfaceNumberAllowed returns true for devices that don't pre-check invalid interface numberswhen configured
+// LacpTxErrorsUnsupported returns true if the device does not support
+// /lacp/interfaces/interface/members/member/state/counters/lacp-tx-errors.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/570398368
+func LacpTxErrorsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLacpTxErrorsUnsupported()
+}
+
+// LacpConfigAfterAggregateReplace returns true if the device wipes out LACP
+// interface configuration (such as system-id-mac) when
+// /interfaces/interface/config is replaced, requiring LACP configuration to be
+// re-applied after the aggregate interface is replaced.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/570892225
+func LacpConfigAfterAggregateReplace(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLacpConfigAfterAggregateReplace()
+}
+
+// VendorPreConfigRequired reports whether the device requires vendor-specific
+// configuration before the test configuration.
+// Arista: https://issuetracker.google.com/558948674
+func VendorPreConfigRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetVendorPreConfigRequired()
+}
+
+// AFTNextHopOriginProtocolUnsupported returns true if the device does not report
+// /network-instances/network-instance/afts/next-hops/next-hop/state/origin-protocol
+// in AFT telemetry.
+// Nokia: https://partnerissuetracker.corp.google.com/issues/573621518
+// Arista: https://partnerissuetracker.corp.google.com/issues/573618644
+func AFTNextHopOriginProtocolUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAftNextHopOriginProtocolUnsupported()
+}
+
+// AFTNextHopEncapsulateHeaderUnsupported returns true if the device does not
+// report /network-instances/network-instance/afts/next-hops/next-hop/state/encapsulate-header
+// in AFT telemetry.
+// Nokia: https://partnerissuetracker.corp.google.com/issues/573623715
+// Juniper: https://partnerissuetracker.corp.google.com/issues/573625327
+// Arista: https://partnerissuetracker.corp.google.com/issues/573618570
+func AFTNextHopEncapsulateHeaderUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAftNextHopEncapsulateHeaderUnsupported()
+}
+
+// AFTNextHopGroupBackupNHGUnsupported returns true if the device does not
+// report /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/backup-next-hop-group
+// in AFT telemetry.
+// Arista: https://partnerissuetracker.corp.google.com/issues/573620862
+func AFTNextHopGroupBackupNHGUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAftNextHopGroupBackupNhgUnsupported()
+}
+
+// InvalidInterfaceNumberAllowed returns true for devices that don't pre-check invalid interface numbers when configured
+// Cisco: https://partnerissuetracker.corp.google.com/issues/570523357
 func InvalidInterfaceNumberAllowed(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInvalidInterfaceNumberAllowed()
 }
