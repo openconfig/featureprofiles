@@ -252,11 +252,6 @@ func Ipv6DiscardedPktsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIpv6DiscardedPktsUnsupported()
 }
 
-// SwitchoverSubscribeUnsupported returns true if the device does not support gNMI Subscribe during switchover recovery and requires gNMI Get polling instead.
-func SwitchoverSubscribeUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSwitchoverSubscribeUnsupported()
-}
-
 // LinkQualWaitAfterDeleteRequired returns whether the device requires additional time to complete post delete link qualification cleanup.
 func LinkQualWaitAfterDeleteRequired(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLinkQualWaitAfterDeleteRequired()
@@ -1919,10 +1914,11 @@ func GnoiRequiresFreshDialAfterSwitchover(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGnoiRequiresFreshDialAfterSwitchover()
 }
 
-// GnoiBackToBackSwitchoverDelayS returns the delay in seconds before issuing
-// a back-to-back switchover request.
-func GnoiBackToBackSwitchoverDelayS(dut *ondatra.DUTDevice) uint32 {
-	return lookupDUTDeviations(dut).GetGnoiBackToBackSwitchoverDelayS()
+// SwitchoverSubscribeUnsupported returns true if the device does not support
+// gNMI Subscribe during switchover recovery and requires gNMI Get polling
+// instead.
+func SwitchoverSubscribeUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSwitchoverSubscribeUnsupported()
 }
 
 // ContainerzRequireExplicitConfigSave returns true if the device requires an
