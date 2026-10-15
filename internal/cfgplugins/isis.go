@@ -123,21 +123,11 @@ func NewISIS(t *testing.T, dut *ondatra.DUTDevice, ISISData *ISISGlobalParams, b
 			isisInterface.SetPassive(true)
 		} else if ISISData.ISISAuthKey != "" {
 			// Configure interface-level MD5 authentication for IS-IS Hello packets on active links.
-			// Cisco IOS-XR uses the top-level interface authentication container (SetISISAuthWithInterfaceAuthenticationContainer),
-			// whereas standard OpenConfig models configure hello-authentication under Level(2).
-			if deviations.SetISISAuthWithInterfaceAuthenticationContainer(dut) {
-				intfAuth := isisInterface.GetOrCreateAuthentication()
-				intfAuth.Enabled = ygot.Bool(true)
-				intfAuth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
-				intfAuth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
-				intfAuth.AuthPassword = ygot.String(ISISData.ISISAuthKey)
-			} else {
-				lvl2IntfAuth := isisInterface.GetOrCreateLevel(2).GetOrCreateHelloAuthentication()
-				lvl2IntfAuth.Enabled = ygot.Bool(true)
-				lvl2IntfAuth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
-				lvl2IntfAuth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
-				lvl2IntfAuth.AuthPassword = ygot.String(ISISData.ISISAuthKey)
-			}
+			intfAuth := isisInterface.GetOrCreateAuthentication()
+			intfAuth.Enabled = ygot.Bool(true)
+			intfAuth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+			intfAuth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
+			intfAuth.AuthPassword = ygot.String(ISISData.ISISAuthKey)
 		}
 	}
 

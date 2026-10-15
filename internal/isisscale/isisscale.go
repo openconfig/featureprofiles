@@ -104,6 +104,8 @@ func CreateATEData(lagToErouterMap map[int][]*otgconfighelpers.AteEmulatedRouter
 
 func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 	hardwareInitCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureEnableAFTSummaries)
+	// Hierarchical FEC resolution is Arista specific; other vendors get "".
+	hardwareInitCfg += cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureHierarchicalFIB)
 	if hardwareInitCfg == "" {
 		return
 	}
@@ -384,28 +386,14 @@ func VerifyISISAuthTelemetry(t *testing.T, dut *ondatra.DUTDevice, isisInterface
 
 	// 2. Query and verify Interface Hello Authentication State across all interfaces
 	helloAuthCount := 0
-	if deviations.SetISISAuthWithInterfaceAuthenticationContainer(dut) {
-		intfAuthVals := gnmi.LookupAll(t, dut, isisProto.InterfaceAny().Authentication().State())
-		if len(intfAuthVals) == 0 {
-			return false, fmt.Errorf("interface auth telemetry state is not present in telemetry stream")
-		}
-		for _, intfAuth := range intfAuthVals {
-			if val, ok := intfAuth.Val(); ok {
-				if val.GetEnabled() {
-					helloAuthCount++
-				}
-			}
-		}
-	} else {
-		helloAuthVals := gnmi.LookupAll(t, dut, isisProto.InterfaceAny().LevelAny().HelloAuthentication().State())
-		if len(helloAuthVals) == 0 {
-			return false, fmt.Errorf("interface hello auth telemetry state is not present in telemetry stream")
-		}
-		for _, helloAuth := range helloAuthVals {
-			if val, ok := helloAuth.Val(); ok {
-				if val.GetEnabled() {
-					helloAuthCount++
-				}
+	intfAuthVals := gnmi.LookupAll(t, dut, isisProto.InterfaceAny().Authentication().State())
+	if len(intfAuthVals) == 0 {
+		return false, fmt.Errorf("interface auth telemetry state is not present in telemetry stream")
+	}
+	for _, intfAuth := range intfAuthVals {
+		if val, ok := intfAuth.Val(); ok {
+			if val.GetEnabled() {
+				helloAuthCount++
 			}
 		}
 	}

@@ -13,6 +13,8 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/helpers"
+	"github.com/openconfig/featureprofiles/internal/system"
+	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -30,6 +32,9 @@ const (
 	// cliConfigSetTimeout bounds a native CLI configuration gNMI Set so that an
 	// unresponsive device cannot hang the test indefinitely.
 	cliConfigSetTimeout = 30 * time.Second
+	// agentRestartTimeout bounds an agent restart request so an unresponsive DUT
+	// cannot hang the test indefinitely.
+	agentRestartTimeout = 30 * time.Second
 )
 
 // DecapPolicyParams defines parameters for the Decap MPLS in GRE policy and related MPLS configs.
@@ -1546,7 +1551,7 @@ func ConfigureVRFSelectionPolicyOC(t *testing.T, dut *ondatra.DUTDevice, encapVR
 				fallback = TransitVRF111Str
 			}
 			for _, proto := range []oc.UnionUint8{4, 41} {
-				r := pol.GetOrCreateRule(seq)
+				r := pol.GetOrCreateRule(seqIDOffset(dut, seq))
 				ip4 := r.GetOrCreateIpv4()
 				ip4.Protocol = proto
 				ip4.SourceAddress = ygot.String(fmt.Sprintf("%s/%d", src, IPv4HostMask))
@@ -1570,7 +1575,7 @@ func ConfigureVRFSelectionPolicyOC(t *testing.T, dut *ondatra.DUTDevice, encapVR
 		{4, IPv4OuterSrc111, TransitVRF111Str},
 		{41, IPv4OuterSrc111, TransitVRF111Str},
 	} {
-		r := pol.GetOrCreateRule(seq)
+		r := pol.GetOrCreateRule(seqIDOffset(dut, seq))
 		ip4 := r.GetOrCreateIpv4()
 		ip4.Protocol = entry.proto
 		ip4.SourceAddress = ygot.String(fmt.Sprintf("%s/%d", entry.src, IPv4HostMask))
@@ -1584,26 +1589,26 @@ func ConfigureVRFSelectionPolicyOC(t *testing.T, dut *ondatra.DUTDevice, encapVR
 	for i, vrf := range encapVRFs {
 		d1, d2 := EncapVRFDSCP(i)
 		dscpSet := []uint8{d1, d2}
-		r4 := pol.GetOrCreateRule(seq)
+		r4 := pol.GetOrCreateRule(seqIDOffset(dut, seq))
 		r4.GetOrCreateIpv4().DscpSet = dscpSet
 		r4.GetOrCreateAction().NetworkInstance = ygot.String(vrf)
 		seq++
-		r6 := pol.GetOrCreateRule(seq)
+		r6 := pol.GetOrCreateRule(seqIDOffset(dut, seq))
 		r6.GetOrCreateIpv6().DscpSet = dscpSet
 		r6.GetOrCreateAction().NetworkInstance = ygot.String(vrf)
 		seq++
 	}
 
 	if deviations.PfRequireMatchDefaultRule(dut) {
-		r4 := pol.GetOrCreateRule(seq)
+		r4 := pol.GetOrCreateRule(seqIDOffset(dut, seq))
 		r4.GetOrCreateL2().SetEthertype(oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4)
 		r4.GetOrCreateAction().NetworkInstance = ygot.String(defaultVRF)
 		seq++
-		r6 := pol.GetOrCreateRule(seq)
+		r6 := pol.GetOrCreateRule(seqIDOffset(dut, seq))
 		r6.GetOrCreateL2().SetEthertype(oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV6)
 		r6.GetOrCreateAction().NetworkInstance = ygot.String(defaultVRF)
 	} else {
-		pol.GetOrCreateRule(seq).GetOrCreateAction().NetworkInstance = ygot.String(defaultVRF)
+		pol.GetOrCreateRule(seqIDOffset(dut, seq)).GetOrCreateAction().NetworkInstance = ygot.String(defaultVRF)
 	}
 
 	interfaceID := p1.Name()
@@ -1633,6 +1638,48 @@ func ConfigureCLIDecapVRFMode(t *testing.T, dut *ondatra.DUTDevice) {
 		`
 	t.Log("Enabling next-hop decapsulation VRF mode")
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
+}
+
+// ConfigureDecapVrfSelection enables next-hop decapsulation VRF mode, restarts
+// SandL3Unicast when it is running, and waits for the configuration to take effect.
+func ConfigureDecapVrfSelection(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	hardwareInitCfg := NewDUTHardwareInit(t, dut, FeatureVrfSelectionDecap)
+	if hardwareInitCfg == "" {
+		return
+	}
+
+	PushDUTHardwareInitConfig(t, dut, hardwareInitCfg)
+	restartSandL3Unicast(t, dut)
+	t.Log("Waiting for next-hop decapsulation configuration to take effect")
+	time.Sleep(60 * time.Second)
+}
+
+func restartSandL3Unicast(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	if dut.Vendor() != ondatra.ARISTA {
+		return
+	}
+
+	const processName = "SandL3Unicast"
+	pid := system.FindProcessIDByName(t, dut, processName)
+	if pid == 0 {
+		t.Logf("%s is not running; skipping restart", processName)
+		return
+	}
+
+	t.Logf("Restarting %s", processName)
+	ctx, cancel := context.WithTimeout(context.Background(), agentRestartTimeout)
+	defer cancel()
+	_, err := dut.RawAPIs().GNOI(t).System().KillProcess(ctx, &spb.KillProcessRequest{
+		Signal:  spb.KillProcessRequest_SIGNAL_TERM,
+		Name:    processName,
+		Pid:     uint32(pid),
+		Restart: true,
+	})
+	if err != nil {
+		t.Fatalf("Failed to restart %s: %v", processName, err)
+	}
 }
 
 // GueDecapIPv6ScaleParams holds the parameters used to program a scaled MPLSoGUE
