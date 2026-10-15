@@ -1534,6 +1534,10 @@ message Metadata {
     // Arista: https://partnerissuetracker.corp.google.com/issues/573620862
     bool aft_next_hop_group_backup_nhg_unsupported = 468;
 
+    // Devices that don't pre-check invalid interface numbers when configured
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/570523357
+    bool invalid_interface_number_allowed = 469;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }

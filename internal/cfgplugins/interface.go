@@ -511,6 +511,11 @@ func updateOpticalChannelConfig(batch *gnmi.SetBatch, p *ondatra.Port, params *C
 
 // updateOTNChannelConfig updates the OTN channel config.
 func updateOTNChannelConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ondatra.Port, params *ConfigParameters) {
+	gnmi.BatchReplace(batch, gnmi.OC().TerminalDevice().Channel(params.OTNIndexes[p.Name()]).Config(), OTNChannelConfig(dut, p, params))
+}
+
+// OTNChannelConfig returns the OTN logical channel config for the port.
+func OTNChannelConfig(dut *ondatra.DUTDevice, p *ondatra.Port, params *ConfigParameters) *oc.TerminalDevice_Channel {
 	var firstAssignmentIndex uint32
 	if deviations.OTNChannelAssignmentCiscoNumbering(dut) {
 		firstAssignmentIndex = 1
@@ -560,11 +565,16 @@ func updateOTNChannelConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ond
 	if !deviations.TerminalDeviceChannelAdminStateUnsupported(dut) && !deviations.OTNToETHAssignment(dut) {
 		ch.AdminState = oc.TerminalDevice_AdminStateType_ENABLED
 	}
-	gnmi.BatchReplace(batch, gnmi.OC().TerminalDevice().Channel(params.OTNIndexes[p.Name()]).Config(), ch)
+	return ch
 }
 
 // updateETHChannelConfig updates the ETH channel config.
 func updateETHChannelConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ondatra.Port, params *ConfigParameters) {
+	gnmi.BatchReplace(batch, gnmi.OC().TerminalDevice().Channel(params.ETHIndexes[p.Name()]).Config(), ETHChannelConfig(dut, p, params))
+}
+
+// ETHChannelConfig returns the ETH logical channel config for the port.
+func ETHChannelConfig(dut *ondatra.DUTDevice, p *ondatra.Port, params *ConfigParameters) *oc.TerminalDevice_Channel {
 	var assignmentIndex uint32
 	if deviations.EthChannelAssignmentCiscoNumbering(dut) {
 		assignmentIndex = 1
@@ -587,9 +597,6 @@ func updateETHChannelConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ond
 			AssignmentType: oc.Assignment_AssignmentType_LOGICAL_CHANNEL,
 		},
 	}
-	if deviations.EthChannelAssignmentCiscoNumbering(dut) {
-		assignment[0].Index = ygot.Uint32(1)
-	}
 	channel := &oc.TerminalDevice_Channel{
 		Description:        ygot.String("ETH Logical Channel"),
 		Index:              ygot.Uint32(params.ETHIndexes[p.Name()]),
@@ -606,7 +613,7 @@ func updateETHChannelConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ond
 	if !deviations.TerminalDeviceChannelAdminStateUnsupported(dut) {
 		channel.AdminState = oc.TerminalDevice_AdminStateType_ENABLED
 	}
-	gnmi.BatchReplace(batch, gnmi.OC().TerminalDevice().Channel(params.ETHIndexes[p.Name()]).Config(), channel)
+	return channel
 }
 
 // ToggleInterfaceState toggles the interface with operational mode.

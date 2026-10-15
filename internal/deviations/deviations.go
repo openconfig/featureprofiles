@@ -2467,3 +2467,9 @@ func AFTNextHopEncapsulateHeaderUnsupported(dut *ondatra.DUTDevice) bool {
 func AFTNextHopGroupBackupNHGUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAftNextHopGroupBackupNhgUnsupported()
 }
+
+// InvalidInterfaceNumberAllowed returns true for devices that don't pre-check invalid interface numbers when configured
+// Cisco: https://partnerissuetracker.corp.google.com/issues/570523357
+func InvalidInterfaceNumberAllowed(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInvalidInterfaceNumberAllowed()
+}
