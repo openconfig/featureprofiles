@@ -2,191 +2,121 @@
 
 ## Summary
 
-BGP Autonomous System Confederations
-([RFC 5065](https://datatracker.ietf.org/doc/html/rfc5065)): confederation
-configuration and state, AS_PATH handling toward external, iBGP and
-confederation peers, LOCAL_PREF / MED / NEXT_HOP handling inside the
-confederation, and AS loop and malformed AS_PATH detection. IPv4 and IPv6
-unicast.
+This test suite ensures that the router supports BGP Autonomous System
+Confederations (RFC 5065) for IPv4 and IPv6 unicast:
 
-## Testbed type
+*   Confederation configuration and state (`identifier` and `member-as`)
+*   External eBGP, iBGP, and confederation-eBGP session establishment
+*   `AS_PATH` (`AS_CONFED_SEQUENCE` and `AS_SEQ`) propagation and traffic
+    forwarding across confederation, iBGP, and external eBGP peers
 
-*   [`featureprofiles/topologies/atedut_4.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_4.testbed)
-    (`port4` is not used)
+### Testbed type
 
-## Procedure
+*   [TESTBED_DUT_ATE_4LINKS](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_4.testbed)
 
-### Test environment setup
+### Topology
 
-The DUT is Member-AS `64501` of confederation `64500`:
-
-```text
-                          Confederation 64500
-              +-----------------------------------------+
-+----------+  |  +-------------+          +----------+  |
-| ATE      |  |  |     DUT     |  port2   | ATE      |  |
-| port1    |=====| Member-AS   |==========| port2    |  |
-| AS 64510 |  |  |   64501     |  iBGP    | AS 64501 |  |
-+----------+  |  +-------------+          +----------+  |
- External     |        || port3                         |
- eBGP (DUT    |        || confederation-eBGP            |
- uses 64500)  |  +-------------+                        |
-              |  | ATE port3   |                        |
-              |  | AS 64502    |                        |
-              |  +-------------+                        |
-              +-----------------------------------------+
+```mermaid
+graph LR
+    R1["ATE router R1 (AS 64510)"]
+    subgraph Confed["Confederation 64500"]
+        DUT["DUT (Member-AS 64501)"] <-->|"iBGP"| R2["ATE router R2 (AS 64501)"]
+        DUT <-->|"confederation-eBGP"| R3["ATE router R3 (AS 64502)"]
+    end
+    R1 <-->|"External eBGP"| DUT
 ```
 
-*   Configure IPv4/IPv6 addresses on the interfaces:
+### DUT and OTG properties
 
-    | Link   | DUT port                          | ATE port                           |
-    | :----- | :-------------------------------- | :--------------------------------- |
-    | Link 1 | `192.0.2.1/30`, `2001:db8::1/126` | `192.0.2.2/30`, `2001:db8::2/126`  |
-    | Link 2 | `192.0.2.5/30`, `2001:db8::5/126` | `192.0.2.6/30`, `2001:db8::6/126`  |
-    | Link 3 | `192.0.2.9/30`, `2001:db8::9/126` | `192.0.2.10/30`, `2001:db8::a/126` |
+| Device | Port | IPv4 | IPv6 | AS | Confederation ID | Member-AS | Router ID |
+| :----- | :--- | :--- | :--- | :- | :--------------- | :-------- | :-------: |
+| DUT | Port 1, 2, 3 | 192.0.2.1/30, 192.0.2.5/30, 192.0.2.9/30 | 2001:db8::1/126, 2001:db8::5/126, 2001:db8::9/126 | 64501 | 64500 | 64502 | 192.0.2.254 |
+| ATE R1 | Port 1 | 192.0.2.2/30 | 2001:db8::2/126 | 64510 | N/A | N/A | 192.0.2.2 |
+| ATE R2 | Port 2 | 192.0.2.6/30 | 2001:db8::6/126 | 64501 | 64500 | N/A | 192.0.2.6 |
+| ATE R3 | Port 3 | 192.0.2.10/30 | 2001:db8::a/126 | 64502 | 64500 | 64501 | 192.0.2.10 |
 
-*   DUT: Configure BGP in the `DEFAULT` network instance (see
-    [Canonical OC](#canonical-oc)): AS `64501`, `router-id` `192.0.2.254`,
-    confederation `identifier` `64500` and `member-as` `[64502]`; peer-groups
-    `EBGP-EXT` (`peer-as` `64510`), `IBGP-MEMBER` (`peer-as` `64501`) and
-    `CONFED-EBGP` (`peer-as` `64502`) with IPv4 and IPv6 unicast enabled and an
-    accept-all import/export policy `ALLOW`.
-*   Establish BGP sessions (one IPv4 and one IPv6 per link) between:
-    *   ATE port-1 (AS `64510`) and DUT port-1: external eBGP; the DUT uses the
-        confederation identifier `64500` toward this peer.
-    *   ATE port-2 (AS `64501`) and DUT port-2: iBGP within the Member-AS.
-    *   ATE port-3 (AS `64502`) and DUT port-3: confederation-eBGP with the
-        neighboring Member-AS.
-*   ATE: Advertise the following routes. `Base` routes are advertised from the
-    start; the negative routes are advertised only in the subtest that uses
-    them and withdrawn afterwards. `64503` and `64511` appear only inside
-    AS_PATHs.
+All advertised BGP routes on OTG have the below specs:
 
-    | Name               | ATE port | IPv4 prefix         | IPv6 prefix         | AS_PATH sent by ATE                            | LOCAL_PREF | MED  | Used in    |
-    | :----------------- | :------- | :------------------ | :------------------ | :--------------------------------------------- | :--------- | :--- | :--------- |
-    | `EXT`              | port-1   | `203.0.113.0/26`    | `2001:db8:100::/48` | `AS_SEQ [64510]`                               |            |      | Base       |
-    | `IBGP`             | port-2   | `198.51.100.0/26`   | `2001:db8:200::/48` | empty                                          | `200`      | `50` | Base       |
-    | `IBGP-CONFED`      | port-2   | `198.51.100.192/26` | `2001:db8:201::/48` | `AS_CONFED_SEQUENCE [64503]`                   | `100`      |      | Base       |
-    | `CONFED`           | port-3   | `198.51.100.64/26`  | `2001:db8:300::/48` | `AS_CONFED_SEQUENCE [64502]`                   | `150`      |      | Base       |
-    | `CONFED-TRANSIT`   | port-3   | `203.0.113.128/26`  | `2001:db8:302::/48` | `AS_CONFED_SEQUENCE [64502]`, `AS_SEQ [64511]` |            |      | Base       |
-    | `CONFED-LOOP`      | port-3   | `198.51.100.128/26` | `2001:db8:301::/48` | `AS_CONFED_SEQUENCE [64502, 64501]`            |            |      | RT-1.111.6 |
-    | `EXT-LOOP`         | port-1   | `203.0.113.64/26`   | `2001:db8:101::/48` | `AS_SEQ [64510, 64500]`                        |            |      | RT-1.111.6 |
-    | `EXT-MALFORMED`    | port-1   | `203.0.113.192/27`  | `2001:db8:102::/48` | `AS_SEQ [64510]`, `AS_CONFED_SEQUENCE [64510]` |            |      | RT-1.111.7 |
-    | `CONFED-MALFORMED` | port-3   | `203.0.113.224/27`  | `2001:db8:303::/48` | `AS_SEQ [64502]`                               |            |      | RT-1.111.7 |
+| Name | ATE Port | IPv4 Prefix | IPv6 Prefix | AS_PATH |
+| :--- | :------- | :---------- | :---------- | :------ |
+| EXT | Port 1 | 203.0.113.0/26 | 2001:db8:100::/48 | AS_SEQ [64510] |
+| IBGP | Port 2 | 198.51.100.0/26 | 2001:db8:200::/48 | empty |
+| CONFED | Port 3 | 198.51.100.64/26 | 2001:db8:300::/48 | AS_CONFED_SEQUENCE [64502] |
 
-*   Traffic: ATE-to-ATE IPv4 and IPv6 flows between the advertised prefixes
-    (`512` B, `100` pps, `30` s); a flow passes with at most 1% loss.
-*   AS_PATH verification compares segment types and members after merging
-    adjacent segments of the same type (`AS_SEQ` or `AS_CONFED_SEQUENCE`);
-    sets are never merged.
-*   Absence check (negative routes): after the ATE advertises a route, confirm
-    that it was actually sent (positive control: the ATE `routes_advertised`
-    counter increases), then the prefix must stay absent for a `30` s hold
-    window.
+### Procedure
+
+#### Initial Setup:
+
+*   Connect DUT port-1, port-2, and port-3 to OTG port-1, port-2, and port-3.
+*   Configure OTG interfaces, BGP peers (R1 eBGP AS `64510`, R2 iBGP AS `64501`,
+    R3 confederation-eBGP AS `64502`), route ranges, and IPv4/IPv6 traffic flows
+    per the tables above, and start OTG protocols.
+*   Configure DUT interfaces and BGP in the `DEFAULT` network instance with
+    global AS `64501`, router ID `192.0.2.254`, confederation identifier
+    `64500`, member-as `[64502]`, and IPv4/IPv6 unicast neighbors for R1, R2,
+    and R3.
 
 ### RT-1.111.1: Confederation configuration, state and session establishment
 
-*   DUT: Push the configuration above with gNMI `Set` `REPLACE`.
-*   Verification (Telemetry): `global/state/as` = `64501`,
-    `confederation/state/identifier` = `64500`,
-    `confederation/state/member-as` = `[64502]` (`[64501, 64502]` only with a
-    deviation).
-*   Verification (Telemetry): all six DUT neighbors are `ESTABLISHED` and all
-    six ATE peers are up. Record `established-transitions` and the ATE session
-    flap counters as the baseline for the following subtests.
-*   Verification (Telemetry): none of the negative prefixes is present in the
-    DUT `loc-rib`.
+*   Verify DUT BGP global AS (`64501`), confederation identifier (`64500`), and
+    member-as (`[64502]`).
+*   Verify all 6 IPv4 and IPv6 BGP sessions are `ESTABLISHED`.
 
-### RT-1.111.2: Confederation peer to iBGP peer (AS_PATH unchanged, RFC 5065 Section 4.1 rule a)
+### RT-1.111.2: Confederation peer to iBGP peer route propagation
 
-*   ATE Port 3: Advertise `CONFED` and `CONFED-TRANSIT`.
-*   Verification (Telemetry): DUT `adj-rib-in-post` of the port-3 neighbor and
-    `loc-rib` show `CONFED` = `AS_CONFED_SEQUENCE [64502]` and
-    `CONFED-TRANSIT` = `AS_CONFED_SEQUENCE [64502]`, `AS_SEQ [64511]`;
-    `CONFED` keeps LOCAL_PREF `150` (RFC 4271 Section 5.1.5 confederation
-    exception).
-*   ATE Port 2: Receives both routes with the same AS_PATHs; no `64501` or
-    `64500` prepended.
-*   Traffic: flows port-2 to port-3 pass.
+*   Advertise the `CONFED` route prefixes (`198.51.100.64/26`,
+    `2001:db8:300::/48`) from ATE R3 (port-3).
+*   Verify in the DUT `loc-rib` and on ATE R2 (port-2) that the `CONFED` routes
+    are received with `AS_CONFED_SEQUENCE [64502]`.
+*   Verify IPv4 and IPv6 traffic from port-2 to port-3 passes without loss.
 
-### RT-1.111.3: iBGP peer to confederation peer (AS_CONFED_SEQUENCE prepend, rule b)
+### RT-1.111.3: iBGP peer to confederation peer route propagation
 
-*   ATE Port 2: Advertise `IBGP` (LOCAL_PREF `200`, MED `50`) and
-    `IBGP-CONFED` (`AS_CONFED_SEQUENCE [64503]`).
-*   Verification (Telemetry): the DUT `attr-set` of `IBGP` has no AS_PATH
-    segment, `local-pref` `200`, `med` `50` and `next-hop` `192.0.2.6` /
-    `2001:db8::6`; `IBGP-CONFED` = `AS_CONFED_SEQUENCE [64503]`;
-    `adj-rib-out-post` toward port-3 keeps `local-pref` `200` (RFC 5065
-    Section 5.2).
-*   ATE Port 3: Receives `IBGP` = `AS_CONFED_SEQUENCE [64501]` (rule b.3) and
-    `IBGP-CONFED` = `AS_CONFED_SEQUENCE [64501, 64503]` (rule b.1); MED `50`
-    unchanged; NEXT_HOP either unchanged (`192.0.2.6` / `2001:db8::6`) or the
-    DUT port-3 address (RFC 5065 Section 5.1).
-*   Traffic: flows port-3 to port-2 pass.
+*   Advertise the `IBGP` route prefixes (`198.51.100.0/26`,
+    `2001:db8:200::/48`) from ATE R2 (port-2).
+*   Verify on ATE R3 (port-3) that the `IBGP` routes are received with
+    `AS_CONFED_SEQUENCE [64501]`.
+*   Verify IPv4 and IPv6 traffic from port-3 to port-2 passes without loss.
 
-### RT-1.111.4: Confederation routes to the external peer (segments removed, rule c)
+### RT-1.111.4: Confederation routes to external eBGP peer
 
-*   ATE Port 1: Receives `CONFED`, `IBGP` and `IBGP-CONFED` = `AS_SEQ [64500]`
-    and `CONFED-TRANSIT` = `AS_SEQ [64500, 64511]`.
-*   Verification: no `AS_CONFED_SEQUENCE` / `AS_CONFED_SET` segment and none of
-    `64501`, `64502`, `64503` in any received AS_PATH (RFC 5065 Section 5); no
-    LOCAL_PREF (RFC 4271 Section 5.1.5); next hop `192.0.2.1` / `2001:db8::1`.
-*   Traffic: flows port-1 to port-3 and port-1 to port-2 pass.
+*   Verify ATE R1 (port-1) receives the `CONFED` and `IBGP` routes with
+    `AS_SEQ [64500]` (`AS_CONFED_SEQUENCE` removed).
+*   Verify IPv4 and IPv6 traffic from port-1 to port-2 and port-3 passes
+    without loss.
 
 ### RT-1.111.5: External route to confederation and iBGP peers
 
-*   ATE Port 1: Advertise `EXT`.
-*   Verification (Telemetry): `EXT` is in the DUT `loc-rib` with
-    `AS_SEQ [64510]`.
-*   ATE Port 3: Receives `EXT` = `AS_CONFED_SEQUENCE [64501]`, `AS_SEQ [64510]`
-    (rule b.2).
-*   ATE Port 2: Receives `EXT` = `AS_SEQ [64510]` (rule a).
-*   Verification: every ATE peer holds exactly its expected routes (port-1:
-    `CONFED`, `IBGP`, `IBGP-CONFED`, `CONFED-TRANSIT`; port-2: `EXT`, `CONFED`,
-    `CONFED-TRANSIT`; port-3: `EXT`, `IBGP`, `IBGP-CONFED`), no negative route
-    and no route of the other address family.
-*   Traffic: flows port-3 to port-1 and port-2 to port-1 pass.
+*   Advertise the `EXT` route prefixes (`203.0.113.0/26`, `2001:db8:100::/48`)
+    from ATE R1 (port-1).
+*   Verify ATE R3 (port-3) receives the `EXT` routes with
+    `AS_CONFED_SEQUENCE [64501], AS_SEQ [64510]` and ATE R2 (port-2) receives
+    the `EXT` routes with `AS_SEQ [64510]`.
+*   Verify IPv4 and IPv6 traffic from port-2 and port-3 to port-1 passes
+    without loss.
 
-### RT-1.111.6: AS loop detection (Member-AS and confederation identifier)
+#### Testing steps
 
-Negative test (RFC 5065 Section 4, RFC 4271 Section 9.1.2): an AS_PATH that
-contains the local Member-AS in an `AS_CONFED_*` segment, or the local
-confederation identifier, is a loop and must be dropped without a session
-reset.
+*   Verify BGP confederation state and session establishment on the DUT
+*   Advertise the BGP route ranges from OTG and collect the RIB and learned
+    route attributes on the DUT and OTG
+*   Start traffic flows, wait 30 seconds, stop traffic flows, and collect RX/TX
+    packet counts
 
-*   ATE Port 3: Advertise `CONFED-LOOP` (`AS_CONFED_SEQUENCE [64502, 64501]`).
-*   ATE Port 1: Advertise `EXT-LOOP` (`AS_SEQ [64510, 64500]`).
-*   Verification (Telemetry): for `30` s the looped prefixes are absent from
-    the DUT `loc-rib` and from all ATE ports; the `Base` routes stay in
-    `loc-rib`; all sessions stay `ESTABLISHED` with `established-transitions`,
-    ATE session flaps and ATE notifications received unchanged.
-*   ATE: Withdraw `CONFED-LOOP` and `EXT-LOOP`.
+#### Test pass fail criteria
 
-### RT-1.111.7: Malformed AS_PATH from external and confederation peers
-
-Negative test (RFC 5065 Section 5, RFC 4271 Section 6.3, RFC 7606 Section
-7.2): an `AS_CONFED_*` segment from a peer outside the confederation, or a
-confederation-peer UPDATE whose first segment is not an `AS_CONFED_SEQUENCE`,
-is a malformed AS_PATH and must be treated as withdraw without a session reset.
-
-*   ATE Port 1: Advertise `EXT-MALFORMED` (`AS_SEQ [64510]`,
-    `AS_CONFED_SEQUENCE [64510]`).
-*   ATE Port 3: Advertise `CONFED-MALFORMED` (`AS_SEQ [64502]`).
-*   Verification (Telemetry): for `30` s the malformed prefixes are absent from
-    the sender's `adj-rib-in-post`, the DUT `loc-rib` and all ATE ports; the
-    `Base` routes stay in `loc-rib`; all sessions stay `ESTABLISHED` with the
-    stability counters and ATE notifications received unchanged. A session
-    reset is a failure.
-*   ATE: Withdraw `EXT-MALFORMED` and `CONFED-MALFORMED`.
+*   If any of the below conditions are not met, test should be declared as a
+    "FAIL":
+    1.  Count of BGP sessions in the `ESTABLISHED` state is less than 6
+    2.  DUT confederation state (`as`, `identifier`, `member-as`) or received
+        `AS_PATH` attributes do not match the expected values in `RT-1.111.1`
+        through `RT-1.111.5`
+    3.  Traffic flow packet loss is greater than 1%
 
 ### Cleanup
 
-Runs at the end of the test, also after failures:
-
-*   ATE: Stop all flows and protocols.
-*   DUT: Remove the BGP neighbors, peer-groups, confederation and global BGP
-    configuration, the routing policy `ALLOW` and the interface addresses, so
-    the DUT is back in its baseline state.
+*   Remove BGP and interface configurations from the DUT and stop OTG protocols
+    to restore the baseline state.
 
 ## Canonical OC
 
@@ -236,54 +166,23 @@ Runs at the end of the test, also after failures:
 
 ## OpenConfig Path and RPC Coverage
 
-The below yaml defines the OC paths intended to be covered by this test.
-
 ```yaml
 paths:
-  ## Config paths
+  ## Config Parameter Coverage
   /network-instances/network-instance/protocols/protocol/bgp/global/config/as:
   /network-instances/network-instance/protocols/protocol/bgp/global/config/router-id:
-  /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/enabled:
   /network-instances/network-instance/protocols/protocol/bgp/global/confederation/config/identifier:
   /network-instances/network-instance/protocols/protocol/bgp/global/confederation/config/member-as:
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/enabled:
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/neighbor-address:
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-as:
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-group:
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/config/enabled:
-  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/peer-as:
-  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/peer-group-name:
-  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/config/enabled:
-  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/import-policy:
-  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/export-policy:
-  /routing-policy/policy-definitions/policy-definition/config/name:
-  /routing-policy/policy-definitions/policy-definition/statements/statement/config/name:
-  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
 
-  ## State paths
+  ## Telemetry Parameter Coverage
   /network-instances/network-instance/protocols/protocol/bgp/global/state/as:
   /network-instances/network-instance/protocols/protocol/bgp/global/confederation/state/identifier:
   /network-instances/network-instance/protocols/protocol/bgp/global/confederation/state/member-as:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/established-transitions:
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/sent/last-notification-error-code:
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/received/last-notification-error-code:
   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/state/prefix:
   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/state/attr-index:
   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/loc-rib/routes/route/state/prefix:
   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/loc-rib/routes/route/state/attr-index:
-  /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/neighbors/neighbor/adj-rib-in-post/routes/route/state/prefix:
-  /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/neighbors/neighbor/adj-rib-in-post/routes/route/state/attr-index:
-  /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/neighbors/neighbor/adj-rib-in-post/routes/route/state/prefix:
-  /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/neighbors/neighbor/adj-rib-in-post/routes/route/state/attr-index:
-  /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/neighbors/neighbor/adj-rib-in-pre/routes/route/state/attr-index:
-  /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/neighbors/neighbor/adj-rib-in-pre/routes/route/state/attr-index:
-  /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/neighbors/neighbor/adj-rib-out-post/routes/route/state/attr-index:
-  /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/neighbors/neighbor/adj-rib-out-post/routes/route/state/attr-index:
-  /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/local-pref:
-  /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/med:
-  /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/next-hop:
-  /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/as-path/as-segment/state/index:
   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/as-path/as-segment/state/type:
   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/as-path/as-segment/state/member:
 
@@ -296,6 +195,6 @@ rpcs:
       on_change: true
 ```
 
-## Required DUT platform
+## Minimum DUT platform requirement
 
-*   vRX - virtual router device
+*   FFF
