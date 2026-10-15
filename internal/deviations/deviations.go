@@ -2469,7 +2469,7 @@ func AFTNextHopGroupBackupNHGUnsupported(dut *ondatra.DUTDevice) bool {
 }
 
 // SkipGnoiPingRpcAuthzVerification returnds true if Gnoi Ping rpc to be skipped based on a deviation
-// Arista: https://partnerissuetracker.corp.google.com/issues/542639968
+// Arista: https://partnerissuetracker.corp.google.com/issues/219953165
 func SkipGnoiPingRpcAuthzVerification(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipGnoiPingRpcAuthzVerification()
 }
