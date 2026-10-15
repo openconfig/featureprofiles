@@ -9,6 +9,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
 )
@@ -34,7 +35,7 @@ const (
 )
 
 // validateOpticalChannelTelemetry validates the optical channel telemetry.
-func validateOpticalChannelTelemetry(t *testing.T, p *ondatra.Port, params *cfgplugins.ConfigParameters, wantOperStatus oc.E_Interface_OperStatus, opticalChannelStream *samplestream.SampleStream[*oc.Component]) {
+func validateOpticalChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port, params *cfgplugins.ConfigParameters, wantOperStatus oc.E_Interface_OperStatus, opticalChannelStream *samplestream.SampleStream[*oc.Component]) {
 	nextOpticalChannelSample, ok := opticalChannelStream.AwaitNext(timeout, func(v *ygnmi.Value[*oc.Component]) bool {
 		val, present := v.Val()
 		return present && isOpticalChannelStreamReady(val, wantOperStatus, params)
@@ -46,6 +47,7 @@ func validateOpticalChannelTelemetry(t *testing.T, p *ondatra.Port, params *cfgp
 	if !ok {
 		t.Fatalf("Optical Channel value is empty for port %v.", p.Name())
 	}
+	targetOutputPower := gnmi.Get(t, dut, gnmi.OC().Component(params.OpticalChannelNames[p.Name()]).OpticalChannel().TargetOutputPower().State())
 	tcs := []testcase{
 		{
 			desc: "Optical Channel Name Validation",
@@ -76,7 +78,7 @@ func validateOpticalChannelTelemetry(t *testing.T, p *ondatra.Port, params *cfgp
 		{
 			desc: "Optical Channel Target Output Power Validation",
 			path: fmt.Sprintf(componentPath+"/optical-channel/state/target-output-power", params.OpticalChannelNames[p.Name()]),
-			got:  opticalChannelValue.GetOpticalChannel().GetTargetOutputPower(),
+			got:  targetOutputPower,
 			want: params.TargetOpticalPower,
 		},
 		{
