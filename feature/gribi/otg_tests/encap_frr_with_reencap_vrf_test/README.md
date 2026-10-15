@@ -412,6 +412,18 @@ At the start of each of the following scenarios, ensure:
 Unless otherwise specified, all the tests below should use traffic with
 `dscp_encap_a_1`.
 
+#### Baseline AFT telemetry validation
+
+Before running the scenarios below, install the baseline gRIBI AFTs and
+validate via gNMI that:
+
+1.  The IPv4Entry `138.0.11.0/24` in `ENCAP_TE_VRF_A` is present and points
+    to a next-hop-group.
+2.  Every next-hop in that next-hop-group (NH#101 and NH#102) reports
+    `next-hop/state/encapsulate-header` as `IPV4`.
+3.  Every next-hop in that next-hop-group reports
+    `next-hop/state/origin-protocol` as `GRIBI`.
+
 #### Test-1, primary encap unviable but backup encap viable for single tunnel
 
 Tests that if the primary NHG for an encap tunnel is unviable, then the traffic
@@ -639,6 +651,8 @@ NH#102 -> {
 ```yaml
 paths:
   /interfaces/interface/state/oper-status:
+  /network-instances/network-instance/afts/next-hops/next-hop/state/encapsulate-header:
+  /network-instances/network-instance/afts/next-hops/next-hop/state/origin-protocol:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/state/decap-fallback-network-instance:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/state/dscp-set:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/state/source-address:
