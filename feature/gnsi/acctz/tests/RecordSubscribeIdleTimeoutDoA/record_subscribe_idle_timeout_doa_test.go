@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/helpers"
 	acctzpb "github.com/openconfig/gnsi/acctz"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -53,7 +52,6 @@ func prettyPrint(i any) string {
 
 func TestRecordSubscribeIdleTimeoutDoA(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	configureGnsiServiceCLI(t, dut)
 
 	systemTime := gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
 	startTime, err := time.Parse(time.RFC3339, systemTime)
@@ -88,20 +86,4 @@ func TestRecordSubscribeIdleTimeoutDoA(t *testing.T) {
 		return
 	}
 	t.Logf("Stream closed as expected after idle timeout: %v", recvErr)
-}
-
-func configureGnsiServiceCLI(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-	t.Log("Configuring gnsi service through CLI")
-	gnsiServerConfig := fmt.Sprintf(`
-	management api gnmi
-    transport grpc default
-      ssl profile %s
-	!
-	management api gnsi
-    transport gnmi default
-    service acctz
-    !
-`, gnsiProfileName)
-	helpers.GnmiCLIConfig(t, dut, gnsiServerConfig)
 }

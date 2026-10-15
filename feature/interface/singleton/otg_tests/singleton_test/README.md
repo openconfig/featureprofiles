@@ -157,6 +157,7 @@ Verify that interface packet counters are properly incremented in every streamin
 * /interfaces/interface/ethernet/state/counters/in-mac-pause-frames
 * /interfaces/interface/ethernet/state/counters/out-mac-pause-frames
 * /interfaces/interface/ethernet/state/mac-address
+* /interfaces/interface/ethernet/state/hw-mac-address
 * /interfaces/interface/state/counters/in-broadcast-pkts
 * /interfaces/interface/state/counters/in-discards
 * /interfaces/interface/state/counters/in-errors
@@ -171,8 +172,15 @@ Verify that interface packet counters are properly incremented in every streamin
 * /interfaces/interface/state/counters/out-octets
 * /interfaces/interface/state/counters/out-pkts
 * /interfaces/interface/state/counters/out-unicast-pkts
+* /interfaces/interface/subinterfaces/subinterface/state/counters/in-octets
+* /interfaces/interface/subinterfaces/subinterface/state/enabled
 * /interfaces/interface/subinterfaces/subinterface/ipv4/state/mtu
 * /interfaces/interface/subinterfaces/subinterface/ipv6/state/mtu
+* /interfaces/interface/state/mtu
+* /interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/state/origin
+* /interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor/state/origin
+* /interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor/state/ip
+* /interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor/state/link-layer-address
 * /interfaces/interface/state/oper-status
 * /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/ip
 * /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-pkts
@@ -204,6 +212,65 @@ Verify that interface packet counters are properly incremented in every streamin
 
 vRX
 
+## Canonical OC
+
+```json
+{
+  "openconfig-interfaces:interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "DUT to ATE source",
+          "enabled": true,
+          "mtu": 1514,
+          "name": "port1"
+        },
+        "name": "port1",
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "index": 0,
+              "openconfig-if-ip:ipv4": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "192.0.2.1",
+                        "prefix-length": 30
+                      },
+                      "ip": "192.0.2.1"
+                    }
+                  ]
+                },
+                "config": {
+                  "mtu": 1500
+                }
+              },
+              "openconfig-if-ip:ipv6": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "2001:db8::1",
+                        "prefix-length": 126
+                      },
+                      "ip": "2001:db8::1"
+                    }
+                  ]
+                },
+                "config": {
+                  "mtu": 1500
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths and RPC intended to be covered by this test.
@@ -213,6 +280,7 @@ paths:
   /interfaces/interface/ethernet/state/counters/in-mac-pause-frames:
   /interfaces/interface/ethernet/state/counters/out-mac-pause-frames:
   /interfaces/interface/ethernet/state/mac-address:
+  /interfaces/interface/ethernet/state/hw-mac-address:
   /interfaces/interface/state/counters/in-broadcast-pkts:
   /interfaces/interface/state/counters/in-discards: 
   /interfaces/interface/state/counters/in-errors:
@@ -227,8 +295,15 @@ paths:
   /interfaces/interface/state/counters/out-octets:
   /interfaces/interface/state/counters/out-pkts:
   /interfaces/interface/state/counters/out-unicast-pkts:
+  /interfaces/interface/subinterfaces/subinterface/state/counters/in-octets:
+  /interfaces/interface/subinterfaces/subinterface/state/enabled:
   /interfaces/interface/subinterfaces/subinterface/ipv4/state/mtu:
   /interfaces/interface/subinterfaces/subinterface/ipv6/state/mtu:
+  /interfaces/interface/state/mtu:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/state/origin:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor/state/origin:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor/state/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor/state/link-layer-address:
   /interfaces/interface/state/oper-status:
   /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/ip:
   /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-pkts:

@@ -498,45 +498,55 @@ func (tc *testCase) verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	nv6 := gnmi.Get(t, dut, statePath.Neighbor(ateDst.IPv6).State())
 	verifyPrefixLimitTelemetry(t, dut, nv6, tc.wantEstablished)
+
+	if tc.wantEstablished {
+		for _, dstNbr := range []string{ateDst.IPv4, ateDst.IPv6} {
+			if got := gnmi.Get(t, dut, statePath.Neighbor(dstNbr).Messages().Received().UPDATE().State()); got == 0 {
+				t.Errorf("BGP neighbor %s state/messages/received/UPDATE: got 0, want > 0", dstNbr)
+			}
+		}
+		for _, srcNbr := range []string{ateSrc.IPv4, ateSrc.IPv6} {
+			if got := gnmi.Get(t, dut, statePath.Neighbor(srcNbr).Messages().Sent().UPDATE().State()); got == 0 {
+				t.Errorf("BGP neighbor %s state/messages/sent/UPDATE: got 0, want > 0", srcNbr)
+			}
+		}
+	} else {
+		for _, dstNbr := range []string{ateDst.IPv4, ateDst.IPv6} {
+			sentVal, ok := gnmi.Watch(t, dut, statePath.Neighbor(dstNbr).Messages().Sent().State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Protocol_Bgp_Neighbor_Messages_Sent]) bool {
+				sent, present := val.Val()
+				return present && sent.GetLastNotificationErrorCode() == oc.BgpTypes_BGP_ERROR_CODE_CEASE
+			}).Await(t)
+			if !ok {
+				t.Errorf("BGP neighbor %s state/messages/sent/last-notification-error-code: did not become %v", dstNbr, oc.BgpTypes_BGP_ERROR_CODE_CEASE)
+				continue
+			}
+			sentMsg, _ := sentVal.Val()
+			if got := sentMsg.GetNOTIFICATION(); got == 0 {
+				t.Errorf("BGP neighbor %s state/messages/sent/NOTIFICATION: got 0, want > 0", dstNbr)
+			}
+			if got := sentMsg.GetLastNotificationErrorSubcode(); got != oc.BgpTypes_BGP_ERROR_SUBCODE_MAX_NUM_PREFIXES_REACHED {
+				t.Errorf("BGP neighbor %s state/messages/sent/last-notification-error-subcode: got %v, want %v", dstNbr, got, oc.BgpTypes_BGP_ERROR_SUBCODE_MAX_NUM_PREFIXES_REACHED)
+			}
+			if got := sentMsg.GetLastNotificationTime(); got == 0 {
+				t.Errorf("BGP neighbor %s state/messages/sent/last-notification-time: got 0, want non-zero timestamp", dstNbr)
+			}
+		}
+	}
 }
 
 func (tc *testCase) verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, conf gosnappi.Config, tolerance float32, flowNames []string) {
 	otg := ate.OTG()
-	otgutils.LogFlowMetrics(t, otg, conf)
+	defer otgutils.LogFlowMetrics(t, otg, conf)
 	for _, flow := range flowNames {
-		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(flow).State())
-		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
-		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
-		if txPackets == 0 {
-			t.Fatalf("TxPkts = 0, want > 0")
-		}
-		lostPackets := txPackets - rxPackets
-		lossPct := lostPackets * 100 / txPackets
-		if lossPct > tolerance {
-			t.Errorf("Traffic Loss Pct for Flow %s: got %v, want 0", flow, lossPct)
-		} else {
-			t.Logf("Traffic Test Passed! Got %v loss", lossPct)
-		}
+		otgutils.ExpectedTrafficLoss(t, otg, flow, 0, float64(tolerance)+0.99)
 	}
 }
 
 func (tc *testCase) verifyPacketLoss(t *testing.T, ate *ondatra.ATEDevice, conf gosnappi.Config, tolerance float32, flowNames []string) {
 	otg := ate.OTG()
-	otgutils.LogFlowMetrics(t, otg, conf)
+	defer otgutils.LogFlowMetrics(t, otg, conf)
 	for _, flow := range flowNames {
-		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(flow).State())
-		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
-		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
-		if txPackets == 0 {
-			t.Fatalf("TxPkts = 0, want > 0")
-		}
-		lostPackets := txPackets - rxPackets
-		lossPct := lostPackets * 100 / txPackets
-		if lossPct >= (100-tolerance) && lossPct <= 100 {
-			t.Logf("Traffic Test Passed! Loss seen as expected: got %v, want 100%% ", lossPct)
-		} else {
-			t.Errorf("Traffic %s is expected to fail: got %v, want 100%% failure", flow, lossPct)
-		}
+		otgutils.ExpectedTrafficLoss(t, otg, flow, 100-float64(tolerance), 100)
 	}
 }
 

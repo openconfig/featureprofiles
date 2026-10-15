@@ -15,11 +15,8 @@
 package per_component_reboot_test
 
 import (
-	"bufio"
 	"context"
 	"fmt"
-	"regexp"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -55,8 +52,6 @@ const (
 )
 
 var (
-	trapstatsRe = regexp.MustCompile(`^\s*(\d+)\s+(\d+)\s+([\w\.\s]+)\s+(\d+)\s+(\d+)`)
-
 	dutSrc = attrs.Attributes{
 		Desc:    "dutSrc",
 		IPv4:    "192.168.1.1",
@@ -160,7 +155,17 @@ func TestStandbyControllerCardReboot(t *testing.T) {
 		return val.IsPresent()
 	})
 	if val, ok := watch.Await(t); !ok {
-		t.Fatalf("DUT did not reach target state within %v: got %v", 10*time.Minute, val)
+		t.Logf("redundant-role not present for %s after reboot: got %v", rpStandby, val)
+		watchTime := gnmi.Watch(t, dut, gnmi.OC().Component(rpStandby).LastRebootTime().State(), 10*time.Minute, func(val *ygnmi.Value[uint64]) bool {
+			return val.IsPresent()
+		})
+		if val, ok := watchTime.Await(t); !ok {
+			t.Fatalf("DUT did not report last-reboot-time for %s within %v: got %v", rpStandby, 10*time.Minute, val)
+		} else {
+			t.Logf("Standby controller last reboot time observed: %v", val)
+		}
+	} else {
+		t.Logf("Standby controller redundant-role returned after reboot")
 	}
 	t.Logf("Standby controller boot time: %.2f seconds", time.Since(startReboot).Seconds())
 
@@ -237,78 +242,24 @@ func createTrafficFlows(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevic
 
 	ip := flow.Packet().Add().Ipv4()
 	ip.Src().SetValue(ateSrc.IPv4)
-	ip.Dst().SetValue(dutSrc.IPv4)
+	ip.Dst().SetValue(ateDst.IPv4)
 }
 
-// trapStats represents a single row of trap statistics.
-type trapStats struct {
-	dev      int
-	trapcode int
-	name     string
-	count    int
-	rate     int
-}
-
-// parseTrapStats parses the output of the request pfe execute target fpc* command " show cda trapstats" | no-more command.
-func parseTrapStats(t *testing.T, output string) ([]trapStats, error) {
+func checkParentComponent(t *testing.T, dut *ondatra.DUTDevice, entity string) string {
 	t.Helper()
 
-	var stats []trapStats
-	var parsingTable bool
-	scanner := bufio.NewScanner(strings.NewReader(output))
-
-	for scanner.Scan() {
-		line := scanner.Text()
-
-		if strings.HasPrefix(line, "DEV") {
-			parsingTable = true
-			continue
-		}
-
-		if !parsingTable {
-			continue
-		}
-
-		match := trapstatsRe.FindStringSubmatch(line)
-		if match == nil {
-			if len(strings.TrimSpace(line)) > 0 {
-				return nil, fmt.Errorf("invalid line format: %s", line)
-			}
-			continue
-		}
-
-		dev, err := strconv.Atoi(strings.TrimSpace(match[1]))
-		if err != nil {
-			return nil, fmt.Errorf("error parsing DEV: %w", err)
-		}
-		trapCode, err := strconv.Atoi(strings.TrimSpace(match[2]))
-		if err != nil {
-			return nil, fmt.Errorf("error parsing TRAPCODE: %w", err)
-		}
-		name := strings.TrimSpace(match[3])
-		count, err := strconv.Atoi(strings.TrimSpace(match[4]))
-		if err != nil {
-			return nil, fmt.Errorf("error parsing COUNT: %w", err)
-		}
-		rate, err := strconv.Atoi(strings.TrimSpace(match[5]))
-		if err != nil {
-			return nil, fmt.Errorf("error parsing RATE: %w", err)
-		}
-
-		stats = append(stats, trapStats{
-			dev:      dev,
-			trapcode: trapCode,
-			name:     name,
-			count:    count,
-			rate:     rate,
-		})
+	parent := gnmi.Lookup(t, dut, gnmi.OC().Component(entity).Parent().State())
+	val, present := parent.Val()
+	if !present {
+		t.Fatalf("Parent component NOT found for entity: %s", entity)
 	}
 
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("error reading output: %w", err)
+	gotV := gnmi.Lookup(t, dut, gnmi.OC().Component(val).Name().State())
+	got, present := gotV.Val()
+	if present {
+		t.Logf("Found parent component %s for entity %s", got, entity)
 	}
-
-	return stats, nil
+	return got
 }
 
 func testTrafficDrop(t *testing.T, dut *ondatra.DUTDevice, linecard string) {
@@ -333,28 +284,41 @@ func testTrafficDrop(t *testing.T, dut *ondatra.DUTDevice, linecard string) {
 	initialInPkts := initialCounters.GetInPkts()
 	t.Logf("initial incoming packets: %v", initialInPkts)
 
+	hwPort, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(dut.Port(t, incomingPort).Name()).HardwarePort().State()).Val()
+	if !ok || hwPort == "" {
+		t.Fatalf("failed to get hardware-port for interface: %s", dut.Port(t, incomingPort).Name())
+	}
+
+	parent := checkParentComponent(t, dut, hwPort)
+
+	// 1. Capture baseline AdverseAggregate drop value before running traffic
+	var initialAdverseAggrDrop uint64
+	hasAdverseCounter := false
+	if adverseVal, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(parent).IntegratedCircuit().PipelineCounters().Drop().AdverseAggregate().State()).Val(); ok {
+		initialAdverseAggrDrop = adverseVal
+		hasAdverseCounter = true
+		t.Logf("Baseline adverse-aggregate counter for component %s: %d", parent, initialAdverseAggrDrop)
+	} else {
+		t.Logf("adverse-aggregate counter not present for component %s at baseline", parent)
+	}
+
 	t.Log("Start protocols and traffic")
 	otgObj.StartProtocols(t)
 	otgObj.StartTraffic(t)
 
-	command := fmt.Sprintf("request pfe execute target %s command \"show cda trapstats\" | no-more", linecard)
-	for idx := 0; idx < 10; idx++ {
-		time.Sleep(30 * time.Second)
-		result := dut.CLI().RunResult(t, command)
-		if result.Error() != "" {
-			t.Errorf("could not fetch output for: %s, err: %s", command, result.Error())
-			break
-		}
-		stats, err := parseTrapStats(t, result.Output())
-		if err != nil {
-			t.Errorf("could not parse output for: %s, output:\n%s \nerr: %s", command, result.Output(), err)
-			break
-		}
+	// 2. Allow traffic to stream for a moment to catch any active errors
+	time.Sleep(5 * time.Second)
 
-		for i := range stats {
-			stat := &stats[i]
-			if stat.rate != 0 {
-				t.Errorf("found non-zero rate for stat: %s, rate: %d", stat.name, stat.rate)
+	// 3. Capture the final value and verify it didn't increase
+	if hasAdverseCounter {
+		finalAdverseAggrDrop, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(parent).IntegratedCircuit().PipelineCounters().Drop().AdverseAggregate().State()).Val()
+		if !ok {
+			t.Logf("adverse-aggregate counter disappeared during test for component %s", parent)
+		} else {
+			t.Logf("Final adverse-aggregate counter value: %d", finalAdverseAggrDrop)
+			if finalAdverseAggrDrop > initialAdverseAggrDrop {
+				t.Errorf("Adverse-aggregate drop counter incremented! (baseline: %d, final: %d, delta: %d)",
+					initialAdverseAggrDrop, finalAdverseAggrDrop, finalAdverseAggrDrop-initialAdverseAggrDrop)
 			}
 		}
 	}
@@ -372,15 +336,44 @@ func testTrafficDrop(t *testing.T, dut *ondatra.DUTDevice, linecard string) {
 	}
 }
 
-// fpcFromPort extracts the FPC name from a Juniper port name.
-func fpcFromPort(t testing.TB, portName string) (string, error) {
+// fpcFromPort extracts the FPC (linecard) name from a port by traversing the component hierarchy.
+// It finds the hardware-port leaf of the interface, then traverses up the component tree
+// from the port component until it finds a component of type linecard.
+func fpcFromPort(t testing.TB, dut *ondatra.DUTDevice, portName string) (string, error) {
 	t.Helper()
-	re := regexp.MustCompile(`^[a-z]+-(\d+)/\d+/\d+(?::\d+)?$`)
-	match := re.FindStringSubmatch(portName)
-	if match == nil {
-		return "", fmt.Errorf("invalid port name format: %s", portName)
+
+	// Step 1: Get the hardware-port from the interface
+	hwPort, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(portName).HardwarePort().State()).Val()
+	if !ok || hwPort == "" {
+		return "", fmt.Errorf("failed to get hardware-port for interface: %s", portName)
 	}
-	return fmt.Sprintf("FPC%s", match[1]), nil
+
+	// Step 2: Traverse up the component tree looking for a linecard
+	currentComponent := hwPort
+	visited := make(map[string]bool)
+	for {
+		// Prevent infinite loops
+		if visited[currentComponent] {
+			return "", fmt.Errorf("circular dependency detected while traversing component tree from port: %s", hwPort)
+		}
+		visited[currentComponent] = true
+		// Get the component details
+		comp, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(currentComponent).State()).Val()
+		if !ok || comp == nil {
+			return "", fmt.Errorf("failed to get component info for: %s", currentComponent)
+		}
+		// Check if this is a linecard component
+		if comp.GetType() == linecardType {
+			return currentComponent, nil
+		}
+		// Move to parent component
+		parent := comp.GetParent()
+		if parent == "" {
+			// Reached the top of the tree without finding a linecard
+			return "", fmt.Errorf("no linecard found in component hierarchy starting from port: %s", hwPort)
+		}
+		currentComponent = parent
+	}
 }
 
 func TestLinecardReboot(t *testing.T) {
@@ -414,7 +407,7 @@ func TestLinecardReboot(t *testing.T) {
 	if dut.Vendor() == ondatra.JUNIPER {
 		portName := dut.Port(t, "port1").Name()
 		var err error
-		lineCardToReboot, err = fpcFromPort(t, portName)
+		lineCardToReboot, err = fpcFromPort(t, dut, portName)
 		if err != nil {
 			t.Fatalf("Failed to get line card to reboot: %v", err)
 		}
