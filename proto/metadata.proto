@@ -1455,6 +1455,10 @@ message Metadata {
     // Tracking: https://github.com/openconfig/ondatra/issues/145
     bool gnoi_requires_fresh_dial_after_switchover = 454;
 
+    // Device does not support gNMI Subscribe during switchover recovery and
+    // requires gNMI Get polling instead.
+    bool switchover_subscribe_unsupported = 469;
+
     // Device requires explicit "write memory" before reboot to persist
     // containerz config, and must skip config re-push after reboot to avoid
     // restarting the management stack during warmup.
@@ -1534,7 +1538,8 @@ message Metadata {
     bool aft_next_hop_group_backup_nhg_unsupported = 468;
 
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
+    reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131,
+        141, 173, 234, 254, 231, 300, 241, 49;
   }
 
   message PlatformExceptions {

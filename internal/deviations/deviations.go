@@ -1908,6 +1908,13 @@ func GnoiRequiresFreshDialAfterSwitchover(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGnoiRequiresFreshDialAfterSwitchover()
 }
 
+// SwitchoverSubscribeUnsupported returns true if the device does not support
+// gNMI Subscribe during switchover recovery and requires gNMI Get polling
+// instead.
+func SwitchoverSubscribeUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSwitchoverSubscribeUnsupported()
+}
+
 // ContainerzRequireExplicitConfigSave returns true if the device requires an
 // explicit "write memory" before reboot to persist containerz config, and must
 // skip config re-push after reboot to avoid restarting the management stack
