@@ -79,10 +79,9 @@ func (i Uint128) Decrement() Uint128 {
 //	  t.Fatalf("Could not initialize gRIBI: %v", err)
 //	}
 type Client struct {
-	DUT            *ondatra.DUTDevice
-	FIBACK         bool
-	Persistence    bool
-	RedundancyMode fluent.RedundancyMode
+	DUT         *ondatra.DUTDevice
+	FIBACK      bool
+	Persistence bool
 
 	// Unexport fields below.
 	fluentC    *fluent.GRIBIClient
@@ -120,12 +119,7 @@ func (c *Client) Start(t testing.TB) error {
 	c.fluentC = fluent.NewClient()
 	c.electionID = Uint128{Low: 1, High: 0}
 
-	conn := c.fluentC.Connection().WithStub(gribiC)
-	if c.RedundancyMode != 0 {
-		conn = conn.WithRedundancyMode(c.RedundancyMode)
-	} else {
-		conn = conn.WithRedundancyMode(fluent.ElectedPrimaryClient)
-	}
+	conn := c.fluentC.Connection().WithStub(gribiC).WithRedundancyMode(fluent.ElectedPrimaryClient)
 	conn.WithInitialElectionID(c.electionID.Low, c.electionID.High)
 	if c.Persistence {
 		conn.WithPersistence()

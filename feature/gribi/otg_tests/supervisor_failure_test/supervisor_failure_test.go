@@ -480,10 +480,9 @@ func TestSupFailure(t *testing.T) {
 	// TE-8.2.1 - FIB Programming and Switchover Validation
 	t.Logf("TE-8.2.1: Connect gRIBI client to DUT specifying persistence mode PRESERVE, SINGLE_PRIMARY client redundancy...")
 	clientA := gribi.Client{
-		DUT:            dut,
-		FIBACK:         false,
-		Persistence:    true,
-		RedundancyMode: fluent.ElectedPrimaryClient,
+		DUT:         dut,
+		FIBACK:      false,
+		Persistence: true,
 	}
 
 	if err := clientA.Start(t); err != nil {
@@ -551,10 +550,9 @@ func TestSupFailure(t *testing.T) {
 
 	t.Log("TE-8.2.1: Following reconnection of a gRIBI client to the new master supervisor...")
 	clientB := gribi.Client{
-		DUT:            dut,
-		FIBACK:         false,
-		Persistence:    true,
-		RedundancyMode: fluent.ElectedPrimaryClient,
+		DUT:         dut,
+		FIBACK:      false,
+		Persistence: true,
 	}
 
 	gribiTimeout := 5*time.Minute + extraWait
