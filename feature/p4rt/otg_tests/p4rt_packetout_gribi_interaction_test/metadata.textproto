@@ -5,3 +5,13 @@ uuid: "bcd7b760-8213-444f-9096-2b0704ff55ba"
 plan_id: "P4RT-3.3"
 description: "P4RT Packet-Out Interaction with gRIBI"
 testbed: TESTBED_DUT_ATE_4LINKS
+platform_exceptions:  {
+  platform:  {
+    vendor:  ARISTA
+  }
+  deviations:  {
+    interface_enabled:  true
+    default_network_instance:  "default"
+    gribi_mac_override_static_arp_static_route:  true
+  }
+}
