@@ -907,6 +907,7 @@ type Metadata_Deviations struct {
 	// trib protocol field under otn channel config unsupported
 	OtnChannelTribUnsupported bool `protobuf:"varint,221,opt,name=otn_channel_trib_unsupported,json=otnChannelTribUnsupported,proto3" json:"otn_channel_trib_unsupported,omitempty"`
 	// ingress parameters under eth channel config unsupported
+	// Juniper: https://issuetracker.google.com/issues/571564632
 	EthChannelIngressParametersUnsupported bool `protobuf:"varint,222,opt,name=eth_channel_ingress_parameters_unsupported,json=ethChannelIngressParametersUnsupported,proto3" json:"eth_channel_ingress_parameters_unsupported,omitempty"`
 	// Cisco numbering for eth channel assignment starts from 1 instead of 0
 	EthChannelAssignmentCiscoNumbering bool `protobuf:"varint,223,opt,name=eth_channel_assignment_cisco_numbering,json=ethChannelAssignmentCiscoNumbering,proto3" json:"eth_channel_assignment_cisco_numbering,omitempty"`
@@ -1506,6 +1507,8 @@ type Metadata_Deviations struct {
 	LacpInterfaceFallbackOcUnsupported bool `protobuf:"varint,439,opt,name=lacp_interface_fallback_oc_unsupported,json=lacpInterfaceFallbackOcUnsupported,proto3" json:"lacp_interface_fallback_oc_unsupported,omitempty"`
 	// Device does not support configuring VLAN subinterfaces
 	// Arista: https://partnerissuetracker.corp.google.com/issues/494280147
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/573155183
+	// Nokia: https://partnerissuetracker.corp.google.com/issues/573159486
 	VlanSubinterfaceOcUnsupported bool `protobuf:"varint,440,opt,name=vlan_subinterface_oc_unsupported,json=vlanSubinterfaceOcUnsupported,proto3" json:"vlan_subinterface_oc_unsupported,omitempty"`
 	// Device has max route count based on specific platform
 	// Juniper : For devices which has different max route count based on platform, this deviation can be used to set the max route count for the device. This will be used in scale test cases to set the max route count for the device.
@@ -1613,9 +1616,23 @@ type Metadata_Deviations struct {
 	// in AFT telemetry.
 	// Arista: https://partnerissuetracker.corp.google.com/issues/573620862
 	AftNextHopGroupBackupNhgUnsupported bool `protobuf:"varint,468,opt,name=aft_next_hop_group_backup_nhg_unsupported,json=aftNextHopGroupBackupNhgUnsupported,proto3" json:"aft_next_hop_group_backup_nhg_unsupported,omitempty"`
+	// Expected name of the Routed VLAN interface for SVIs (if not standard
+	// "Vlan<id>").
+	// Juniper: https://partnerissuetracker.corp.google.com/issues/573046775
+	RoutedVlanInterfaceName string `protobuf:"bytes,469,opt,name=routed_vlan_interface_name,json=routedVlanInterfaceName,proto3" json:"routed_vlan_interface_name,omitempty"`
+	// Device does not support switched-vlan configuration in ethernet.
+	// NOKIA: https://partnerissuetracker.corp.google.com/issues/572757293
+	// CISCO: https://partnerissuetracker.corp.google.com/issues/571920136
+	SwitchedVlanUnsupported bool `protobuf:"varint,470,opt,name=switched_vlan_unsupported,json=switchedVlanUnsupported,proto3" json:"switched_vlan_unsupported,omitempty"`
+	// Functional translator for CFM state telemetry (e.g. present-rdi).
+	// Arista: https://partnerissuetracker.corp.google.com/issues/574322407
+	CfmStateFt string `protobuf:"bytes,471,opt,name=cfm_state_ft,json=cfmStateFt,proto3" json:"cfm_state_ft,omitempty"`
+	// Functional translator for CFM performance measurement telemetry.
+	// Arista: https://partnerissuetracker.corp.google.com/issues/574326691
+	CfmPmFt string `protobuf:"bytes,472,opt,name=cfm_pm_ft,json=cfmPmFt,proto3" json:"cfm_pm_ft,omitempty"`
 	// deviation to skip authz verification of gnoi ping rpc
 	// Arista: https://partnerissuetracker.corp.google.com/issues/219953165
-	SkipGnoiPingRpcAuthzVerification bool `protobuf:"varint,469,opt,name=skip_gnoi_ping_rpc_authz_verification,json=skipGnoiPingRpcAuthzVerification,proto3" json:"skip_gnoi_ping_rpc_authz_verification,omitempty"`
+	SkipGnoiPingRpcAuthzVerification bool `protobuf:"varint,473,opt,name=skip_gnoi_ping_rpc_authz_verification,json=skipGnoiPingRpcAuthzVerification,proto3" json:"skip_gnoi_ping_rpc_authz_verification,omitempty"`
 	unknownFields                    protoimpl.UnknownFields
 	sizeCache                        protoimpl.SizeCache
 }
@@ -4674,6 +4691,34 @@ func (x *Metadata_Deviations) GetAftNextHopGroupBackupNhgUnsupported() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetRoutedVlanInterfaceName() string {
+	if x != nil {
+		return x.RoutedVlanInterfaceName
+	}
+	return ""
+}
+
+func (x *Metadata_Deviations) GetSwitchedVlanUnsupported() bool {
+	if x != nil {
+		return x.SwitchedVlanUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetCfmStateFt() string {
+	if x != nil {
+		return x.CfmStateFt
+	}
+	return ""
+}
+
+func (x *Metadata_Deviations) GetCfmPmFt() string {
+	if x != nil {
+		return x.CfmPmFt
+	}
+	return ""
+}
+
 func (x *Metadata_Deviations) GetSkipGnoiPingRpcAuthzVerification() bool {
 	if x != nil {
 		return x.SkipGnoiPingRpcAuthzVerification
@@ -4737,7 +4782,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\x8b\x8a\x02\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"Ƌ\x02\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -4749,7 +4794,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xf3\xfe\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xae\x80\x02\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -5187,8 +5232,13 @@ const file_metadata_proto_rawDesc = "" +
 	"\x1avendor_pre_config_required\x18\xd1\x03 \x01(\bR\x17vendorPreConfigRequired\x12V\n" +
 	"(aft_next_hop_origin_protocol_unsupported\x18\xd2\x03 \x01(\bR#aftNextHopOriginProtocolUnsupported\x12\\\n" +
 	"+aft_next_hop_encapsulate_header_unsupported\x18\xd3\x03 \x01(\bR&aftNextHopEncapsulateHeaderUnsupported\x12W\n" +
-	")aft_next_hop_group_backup_nhg_unsupported\x18\xd4\x03 \x01(\bR#aftNextHopGroupBackupNhgUnsupported\x12P\n" +
-	"%skip_gnoi_ping_rpc_authz_verification\x18\xd5\x03 \x01(\bR skipGnoiPingRpcAuthzVerificationJ\x06\b\x85\x02\x10\x86\x02J\x04\bT\x10UJ\x04\b\t\x10\n" +
+	")aft_next_hop_group_backup_nhg_unsupported\x18\xd4\x03 \x01(\bR#aftNextHopGroupBackupNhgUnsupported\x12<\n" +
+	"\x1arouted_vlan_interface_name\x18\xd5\x03 \x01(\tR\x17routedVlanInterfaceName\x12;\n" +
+	"\x19switched_vlan_unsupported\x18\xd6\x03 \x01(\bR\x17switchedVlanUnsupported\x12!\n" +
+	"\fcfm_state_ft\x18\xd7\x03 \x01(\tR\n" +
+	"cfmStateFt\x12\x1b\n" +
+	"\tcfm_pm_ft\x18\xd8\x03 \x01(\tR\acfmPmFt\x12P\n" +
+	"%skip_gnoi_ping_rpc_authz_verification\x18\xd9\x03 \x01(\bR skipGnoiPingRpcAuthzVerificationJ\x06\b\x85\x02\x10\x86\x02J\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02J\x06\b\xf1\x01\x10\xf2\x01J\x04\b1\x102\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
