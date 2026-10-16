@@ -256,7 +256,7 @@ network-instances {
     behavior.
 
 ```
-IPv6Entry {2015:aa8::/32 (ENCAP_TE_VRF_A)} -> NHG#10 (DEFAULT VRF)
+IPv6Entry {2015:aa8::/64 (ENCAP_TE_VRF_A)} -> NHG#10 (DEFAULT VRF)
 IPv4Entry {138.0.11.0/24 (ENCAP_TE_VRF_A)} -> NHG#10 (DEFAULT VRF) -> {
   {NH#201, DEFAULT VRF, weight:1},
   {NH#202, DEFAULT VRF, weight:3},
@@ -513,8 +513,10 @@ or stale (`0`) counter updates during 4in4 and 6in4 encapsulation:
 2.  **Sustained Encapsulated Traffic Transmission (4in4 and 6in4)**:
     *   From ATE `port-1`, transmit continuous dual-stack traffic matching
         `vrf_selection_policy_c` (`dscp = dscp_encap_a_1 = 10` ->
-        `ENCAP_TE_VRF_A`) for at least `30` seconds (sufficient to collect at
-        least `3` to `10` periodic `SAMPLE` updates):
+        `ENCAP_TE_VRF_A`) for at least `30` seconds (or `70` seconds /
+        `70,000` packets per flow on platforms with a `30s` NPU counter sync
+        cycle such as Cisco IOS-XR, sufficient to collect at least `3` to `10`
+        non-zero periodic `SAMPLE` updates):
         *   **IPv4 Flow (4in4 Encap)**: Source IPv4 `192.0.2.2`, destination
             IPv4 `138.0.11.8`, DSCP `10`, frame size `512` bytes, rate
             `1,000 pps`.
@@ -523,22 +525,25 @@ or stale (`0`) counter updates during 4in4 and 6in4 encapsulation:
             rate `1,000 pps`.
 3.  **Periodic Streaming Telemetry & Simultaneous Feature Coexistence Verification**:
     *   While traffic is actively flowing, verify that the DUT emits periodic
-        `SAMPLE` telemetry updates at the configured interval for **both** the
-        gRIBI IP-in-IP encapsulation tunnel next-hops (`NH#201` and `NH#202`)
-        **and** the egress subinterfaces (`port-2` through `port-5`
-        `subinterface 0` `ipv4/state/counters/out-pkts` and
-        `out-forwarded-octets`) and ingress subinterface (`port-1`
-        `subinterface 0` `ipv4/state/counters/in-pkts`, `in-forwarded-octets`
-        and `ipv6/state/counters/in-pkts`, `in-forwarded-octets`).
+        `SAMPLE` telemetry updates at the configured interval for the
+        gRIBI IP-in-IP encapsulation tunnel next-hops (`NH#201` and `NH#202`,
+        when AFT next-hop counters are supported by the platform), physical
+        interfaces (`port-1` through `port-5`), and subinterfaces (`port-2`
+        through `port-5` `subinterface 0` `ipv4/state/counters/out-pkts` and
+        `out-forwarded-octets`, and ingress `port-1` `subinterface 0`
+        `ipv4/state/counters/in-pkts`, `in-forwarded-octets` and
+        `ipv6/state/counters/in-pkts`, `in-forwarded-octets`, when
+        `subinterface_packet_counters_missing` is not set).
     *   Verify that enabling IP-in-IP encapsulation tunnel counters does **not**
-        cause subinterface IPv4/IPv6 egress counters (`out-pkts`,
-        `out-forwarded-octets`) to freeze or report stale (`0` rate/delta)
-        values, and conversely that enabling subinterface counters does not
-        suppress IP-in-IP tunnel counter updates.
+        cause subinterface IPv4/IPv6 or physical interface egress counters
+        (`out-pkts`, `out-forwarded-octets`, `out-octets`) to freeze or report
+        stale (`0` rate/delta) values, and conversely that enabling
+        subinterface/interface counters does not suppress IP-in-IP tunnel
+        counter updates.
     *   Verify that consecutive streaming sample updates (`S_1, S_2, ..., S_k`)
-        for active tunnel next-hops (`NH#201`, `NH#202`) and active egress
-        subinterfaces (`port-2` through `port-5`) are strictly monotonically
-        increasing (`S_1 < S_2 < ... < S_k`) during traffic transmission.
+        for active counters are monotonically non-decreasing (`S_1 <= S_2 <= ... <= S_k`)
+        with at least `2` distinct positive step increases during traffic
+        transmission.
 4.  **Post-Traffic Counter Delta & Hierarchical Distribution Accuracy**:
     *   Stop traffic on ATE `port-1`, wait for at least one full
         `sample_interval` after traffic cessation to receive final settled
@@ -563,10 +568,16 @@ or stale (`0`) counter updates during 4in4 and 6in4 encapsulation:
                 encapsulated packets received on ATE `port-2` through `port-5`
                 (`N_rx_total = N_tx_v4 + N_tx_v6`).
             *   The sum of egress subinterface IPv4 forwarded octet deltas
-                (`ipv4/state/counters/out-forwarded-octets`) across `port-2`
-                through `port-5` matches the total L3 outer IPv4 encapsulated
-                payload octets forwarded across `port-2` through `port-5`.
-            *   Per-port egress subinterface IPv4 counter deltas on `port-2`,
+                (`ipv4/state/counters/out-forwarded-octets`, when
+                `subinterface_packet_counters_missing` is not set) and the sum of
+                physical interface egress octet deltas
+                (`state/counters/out-octets`) across `port-2` through `port-5`
+                match the total outer IPv4 encapsulated octets (L3 or L2 frame
+                octets) forwarded across `port-2` through `port-5`.
+            *   Per-port physical interface egress counter deltas
+                (`state/counters/out-pkts`) and per-port egress subinterface
+                IPv4 counter deltas (`ipv4/state/counters/out-pkts`, when
+                `subinterface_packet_counters_missing` is not set) on `port-2`,
                 `port-3`, `port-4`, and `port-5` match the expected
                 hierarchical WCMP distribution (`6.25%`, `18.75%`, `30%`, and
                 `45%` with `+/- 2%` tolerance).
@@ -574,15 +585,20 @@ or stale (`0`) counter updates during 4in4 and 6in4 encapsulation:
                 forwarded out `port-2` via the `::/0` fallback route in
                 `ENCAP_TE_VRF_A` -> `NHG#3000` -> `NHG#3002`),
                 `/interfaces/interface[name=port-2]/subinterfaces/subinterface[index=0]/ipv6/state/counters/out-pkts`
-                and `out-forwarded-octets` increment monotonically via `SAMPLE`
-                streaming updates and match the native IPv6 packets and octets
-                received on ATE `port-2`.
-        *   **Ingress Subinterface Counters & Post-Traffic Stability**:
+                and `out-forwarded-octets` (or physical interface
+                `/interfaces/interface[name=port-2]/state/counters/out-pkts` and
+                `out-octets` when `subinterface_packet_counters_missing` is set)
+                increment monotonically via `SAMPLE` streaming updates and match
+                the native IPv6 packets and octets received on ATE `port-2`.
+        *   **Ingress Subinterface and Physical Interface Counters & Post-Traffic Stability**:
             *   Ingress subinterface counters on DUT `port-1`
                 (`ipv4/state/counters/in-pkts`, `in-forwarded-octets` and
-                `ipv6/state/counters/in-pkts`, `in-forwarded-octets`) equal the
+                `ipv6/state/counters/in-pkts`, `in-forwarded-octets`, when
+                `subinterface_packet_counters_missing` is not set) equal the
                 respective native IPv4 (`N_tx_v4`) and IPv6 (`N_tx_v6`) packets
-                and octets sent by ATE `port-1`.
+                and octets sent by ATE `port-1`, and physical interface ingress
+                counters on `port-1` (`state/counters/in-pkts`) equal the total
+                packets sent (`N_tx_v4 + N_tx_v6`).
             *   Subsequent streaming sample updates after traffic stops remain
                 stable with no stale backlog or unexpected counter drift.
 
