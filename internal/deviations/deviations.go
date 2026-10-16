@@ -54,6 +54,12 @@ import (
 	"github.com/openconfig/ondatra"
 )
 
+// RoutedVlanInterfaceName returns the expected name of the Routed VLAN interface for SVIs.
+// Juniper: https://partnerissuetracker.corp.google.com/issues/573046775
+func RoutedVlanInterfaceName(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetRoutedVlanInterfaceName()
+}
+
 func lookupDeviations(dvc *ondatra.Device) (*mpb.Metadata_PlatformExceptions, error) {
 	var matchedPlatformException *mpb.Metadata_PlatformExceptions
 
@@ -2320,6 +2326,8 @@ func BgpDynamicNeighborPrefixUnsupported(dut *ondatra.DUTDevice) bool {
 
 // VlanSubinterfaceOCUnsupported returns true if the device does not support OC config for VLAN subinterfaces.
 // Arista: https://partnerissuetracker.corp.google.com/issues/494280147
+// Cisco: https://partnerissuetracker.corp.google.com/issues/573155183
+// Nokia: https://partnerissuetracker.corp.google.com/issues/573159486
 func VlanSubinterfaceOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetVlanSubinterfaceOcUnsupported()
 }
@@ -2397,6 +2405,14 @@ func BgpAdjRibOcUnsupported(dut *ondatra.DUTDevice) bool {
 // AigpMetricIncrement returns true if AIGP metric increment is not supported.
 func AigpMetricIncrement(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAigpMetricIncrement()
+}
+
+// SwitchedVlanUnsupported returns true if the device does not support switched-vlan config.
+// Device does not support switched-vlan configuration in ethernet.
+// NOKIA: https://partnerissuetracker.corp.google.com/issues/572757293
+// CISCO: https://partnerissuetracker.corp.google.com/issues/571920136
+func SwitchedVlanUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSwitchedVlanUnsupported()
 }
 
 // PowerSupplyTelemetryUnsupported returns true if device does not support power supply telemetry.
