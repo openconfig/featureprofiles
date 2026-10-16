@@ -216,6 +216,7 @@ test: {
   id: "Certz-1"
   description: "gNSI Client Certificate Tests"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/client_certificates/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/client_certificates/client_certificates_test.go"
 }
 test: {
   id: "Certz-2"
@@ -1049,6 +1050,7 @@ test: {
   id: "RT-1.73"
   description: "Static Route Resilience Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/staticroute/otg_tests/static_route_resiliency_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/staticroute/otg_tests/static_route_resiliency_test/static_route_resiliency_test.go"
 }
 test: {
   id: "RT-1.8"
