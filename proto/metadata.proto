@@ -1546,6 +1546,14 @@ message Metadata {
     // CISCO: https://partnerissuetracker.corp.google.com/issues/571920136
     bool switched_vlan_unsupported = 470;
 
+    // Functional translator for CFM state telemetry (e.g. present-rdi).
+    // Arista: https://partnerissuetracker.corp.google.com/issues/574322407
+    string cfm_state_ft = 471;
+
+    // Functional translator for CFM performance measurement telemetry.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/574326691
+    string cfm_pm_ft = 472;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }
