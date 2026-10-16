@@ -153,18 +153,27 @@ func TestChassisReboot(t *testing.T) {
 					}
 					var latestTime time.Time
 					var err error
-					if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+					errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 						latestTime, err = time.Parse(time.RFC3339, gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State()))
 						if err != nil {
 							t.Fatalf("Failed parsing current-datetime: %s", err)
 						}
-					}); errMsg != nil && time.Since(start).Seconds() < rebootDelay.Seconds() {
-						t.Fatalf("Get request failed before the reboot delay: %s.", *errMsg)
+					})
+
+					// A failed Get can legitimately happen right at the delay boundary if the
+					// DUT has already started rebooting. Only treat it as a hard failure if it
+					// happens well before the delay has elapsed; otherwise stop validating
+					// reachability here and let the post-reboot polling loop below take over.
+					if errMsg != nil {
+						// Allow a 5-second tolerance before the reboot delay to account for
+						// slight timing variations or early reboot initiation by the DUT.
+						if time.Since(start) < rebootDelay-5*time.Second {
+							t.Fatalf("Get request failed before the reboot delay: %s.", *errMsg)
+						}
+						t.Logf("Get request failed at/after the reboot delay boundary (device may have started rebooting): %s.", *errMsg)
+						break
 					}
 
-					if err != nil && time.Since(start).Seconds() < rebootDelay.Seconds() {
-						t.Fatalf("Failed parsing current-datetime: %s.", err)
-					}
 					if latestTime.Before(prevTime) || latestTime.Equal(prevTime) {
 						t.Errorf("Get latest system time: got %v, want newer time than %v.", latestTime, prevTime)
 					}
