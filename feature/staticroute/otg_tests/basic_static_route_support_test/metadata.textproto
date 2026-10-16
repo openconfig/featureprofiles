@@ -22,6 +22,7 @@ platform_exceptions:  {
     ipv6_static_route_with_ipv4_next_hop_requires_static_arp:  true
     fr_breakout_fix:  true
     telemetry_not_supported_for_low_priority_nh:  true
+    missing_value_for_defaults:  true
   }
 }
 platform_exceptions:  {

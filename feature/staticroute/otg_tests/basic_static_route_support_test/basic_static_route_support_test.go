@@ -331,7 +331,7 @@ func validateStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, sV
 	if _, ok := gnmi.Watch(t, dut, sp.Enabled().State(), time.Minute, func(val *ygnmi.Value[bool]) bool {
 		enabled, present := val.Val()
 		if !present {
-			return dut.Vendor() == ondatra.ARISTA || deviations.MissingValueForDefaults(dut)
+			return deviations.MissingValueForDefaults(dut)
 		}
 		return enabled
 	}).Await(t); !ok {
@@ -616,7 +616,7 @@ func (td *testData) testStaticRouteECMP(t *testing.T) {
 		if _, ok := gnmi.Watch(t, td.dut, sp.Enabled().State(), time.Minute, func(val *ygnmi.Value[bool]) bool {
 			enabled, present := val.Val()
 			if !present {
-				return td.dut.Vendor() == ondatra.ARISTA || deviations.MissingValueForDefaults(td.dut)
+				return deviations.MissingValueForDefaults(td.dut)
 			}
 			return enabled
 		}).Await(t); !ok {

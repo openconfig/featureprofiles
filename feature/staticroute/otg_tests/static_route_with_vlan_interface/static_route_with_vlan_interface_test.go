@@ -268,6 +268,9 @@ func validateVlanState(t *testing.T, dut *ondatra.DUTDevice) {
 	vlanPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Vlan(vlanID)
 	gnmi.Await(t, dut, vlanPath.Name().State(), time.Minute, vlanName)
 
+	t.Cleanup(func() {
+		gnmi.Update(t, dut, vlanPath.Status().Config(), oc.Vlan_Status_ACTIVE)
+	})
 	gnmi.Update(t, dut, vlanPath.Status().Config(), oc.Vlan_Status_SUSPENDED)
 	gnmi.Await(t, dut, vlanPath.Status().State(), time.Minute, oc.Vlan_Status_SUSPENDED)
 
@@ -275,7 +278,7 @@ func validateVlanState(t *testing.T, dut *ondatra.DUTDevice) {
 	if _, ok := gnmi.Watch(t, dut, vlanPath.Status().State(), time.Minute, func(val *ygnmi.Value[oc.E_Vlan_Status]) bool {
 		status, present := val.Val()
 		if !present {
-			return dut.Vendor() == ondatra.ARISTA
+			return deviations.MissingValueForDefaults(dut)
 		}
 		return status == oc.Vlan_Status_ACTIVE
 	}).Await(t); !ok {
@@ -509,7 +512,7 @@ func validateAllStaticRoutes(t *testing.T, dut *ondatra.DUTDevice) error {
 	if _, ok := gnmi.Watch(t, dut, sp.Enabled().State(), time.Minute, func(val *ygnmi.Value[bool]) bool {
 		enabled, present := val.Val()
 		if !present {
-			return dut.Vendor() == ondatra.ARISTA
+			return deviations.MissingValueForDefaults(dut)
 		}
 		return enabled
 	}).Await(t); !ok {
