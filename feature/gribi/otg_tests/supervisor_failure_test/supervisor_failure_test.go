@@ -563,6 +563,7 @@ func TestSupFailure(t *testing.T) {
 				t.Fatalf("gRIBI Connection for clientB could not be re-established within %v: %v", gribiTimeout, err)
 			}
 			t.Logf("Retrying gRIBI client connection: %v", err)
+			time.Sleep(5 * time.Second)
 		} else {
 			t.Cleanup(func() {
 				// Flush all entries at the actual end of the test using the healthy post-switchover client.
