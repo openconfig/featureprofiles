@@ -40,6 +40,7 @@ platform_exceptions: {
     isis_level_enabled: true
     routing_policy_tag_set_embedded: true
     interface_ref_interface_id_format: true
+    skip_isis_set_metric_style_type: true
     }
  }   
 platform_exceptions: {
