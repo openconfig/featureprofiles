@@ -54,6 +54,12 @@ import (
 	"github.com/openconfig/ondatra"
 )
 
+// RoutedVlanInterfaceName returns the expected name of the Routed VLAN interface for SVIs.
+// Juniper: https://partnerissuetracker.corp.google.com/issues/573046775
+func RoutedVlanInterfaceName(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetRoutedVlanInterfaceName()
+}
+
 func lookupDeviations(dvc *ondatra.Device) (*mpb.Metadata_PlatformExceptions, error) {
 	var matchedPlatformException *mpb.Metadata_PlatformExceptions
 
@@ -2320,6 +2326,8 @@ func BgpDynamicNeighborPrefixUnsupported(dut *ondatra.DUTDevice) bool {
 
 // VlanSubinterfaceOCUnsupported returns true if the device does not support OC config for VLAN subinterfaces.
 // Arista: https://partnerissuetracker.corp.google.com/issues/494280147
+// Cisco: https://partnerissuetracker.corp.google.com/issues/573155183
+// Nokia: https://partnerissuetracker.corp.google.com/issues/573159486
 func VlanSubinterfaceOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetVlanSubinterfaceOcUnsupported()
 }
@@ -2399,6 +2407,14 @@ func AigpMetricIncrement(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAigpMetricIncrement()
 }
 
+// SwitchedVlanUnsupported returns true if the device does not support switched-vlan config.
+// Device does not support switched-vlan configuration in ethernet.
+// NOKIA: https://partnerissuetracker.corp.google.com/issues/572757293
+// CISCO: https://partnerissuetracker.corp.google.com/issues/571920136
+func SwitchedVlanUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSwitchedVlanUnsupported()
+}
+
 // PowerSupplyTelemetryUnsupported returns true if device does not support power supply telemetry.
 // Cisco: https://b.corp.google.com/issues/307454993
 func PowerSupplyTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
@@ -2439,4 +2455,45 @@ func LacpConfigAfterAggregateReplace(dut *ondatra.DUTDevice) bool {
 // Arista: https://issuetracker.google.com/558948674
 func VendorPreConfigRequired(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetVendorPreConfigRequired()
+}
+
+// AFTNextHopOriginProtocolUnsupported returns true if the device does not report
+// /network-instances/network-instance/afts/next-hops/next-hop/state/origin-protocol
+// in AFT telemetry.
+// Nokia: https://partnerissuetracker.corp.google.com/issues/573621518
+// Arista: https://partnerissuetracker.corp.google.com/issues/573618644
+func AFTNextHopOriginProtocolUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAftNextHopOriginProtocolUnsupported()
+}
+
+// AFTNextHopEncapsulateHeaderUnsupported returns true if the device does not
+// report /network-instances/network-instance/afts/next-hops/next-hop/state/encapsulate-header
+// in AFT telemetry.
+// Nokia: https://partnerissuetracker.corp.google.com/issues/573623715
+// Juniper: https://partnerissuetracker.corp.google.com/issues/573625327
+// Arista: https://partnerissuetracker.corp.google.com/issues/573618570
+func AFTNextHopEncapsulateHeaderUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAftNextHopEncapsulateHeaderUnsupported()
+}
+
+// AFTNextHopGroupBackupNHGUnsupported returns true if the device does not
+// report /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/backup-next-hop-group
+// in AFT telemetry.
+// Arista: https://partnerissuetracker.corp.google.com/issues/573620862
+func AFTNextHopGroupBackupNHGUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAftNextHopGroupBackupNhgUnsupported()
+}
+
+// CfmStateFt returns the functional translator to be used for translating CFM
+// state leaves (e.g. present-rdi).
+// Arista: https://partnerissuetracker.corp.google.com/issues/574322407
+func CfmStateFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetCfmStateFt()
+}
+
+// CfmPmFt returns the functional translator to be used for translating CFM
+// performance measurement leaves.
+// Arista: https://partnerissuetracker.corp.google.com/issues/574326691
+func CfmPmFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetCfmPmFt()
 }

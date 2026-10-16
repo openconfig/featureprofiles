@@ -1014,6 +1014,59 @@ func validateTrafficDistribution(t *testing.T, ate *ondatra.ATEDevice, wantWeigh
 	}
 }
 
+// validateEncapNHTelemetry verifies AFT telemetry for the encap next-hops used by
+// the 138.0.11.0/24 entry in ENCAP_TE_VRF_A. Each next-hop (NH#101 and NH#102)
+// is programmed via gRIBI with encapsulate_header IPV4, so telemetry is expected
+// to report next-hop/state/encapsulate-header as IPV4 and
+// next-hop/state/origin-protocol as GRIBI.
+func validateEncapNHTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	pfx := gribiIPv4EntryEncapVRF + "/" + maskLen24
+	ipv4Path := gnmi.OC().NetworkInstance(niEncapTeVrfA).Afts().Ipv4Entry(pfx)
+	ipv4Val, ok := gnmi.Watch(t, dut, ipv4Path.State(), 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		v, present := val.Val()
+		return present && v.GetNextHopGroup() != 0
+	}).Await(t)
+	if !ok {
+		t.Fatalf("Could not find prefix %s in %s telemetry AFT", pfx, niEncapTeVrfA)
+	}
+	ipv4Entry, _ := ipv4Val.Val()
+	nhgNI := ipv4Entry.GetNextHopGroupNetworkInstance()
+	if nhgNI == "" {
+		nhgNI = deviations.DefaultNetworkInstance(dut)
+	}
+	nhgID := ipv4Entry.GetNextHopGroup()
+
+	nhgVal, ok := gnmi.Watch(t, dut, gnmi.OC().NetworkInstance(nhgNI).Afts().NextHopGroup(nhgID).State(), 2*time.Minute,
+		func(val *ygnmi.Value[*oc.NetworkInstance_Afts_NextHopGroup]) bool {
+			v, present := val.Val()
+			return present && len(v.NextHop) > 0
+		}).Await(t)
+	if !ok {
+		t.Fatalf("Next-hop-group %d for prefix %s is not present in telemetry AFT", nhgID, pfx)
+	}
+	nhg, _ := nhgVal.Val()
+
+	for nhIndex := range nhg.NextHop {
+		nh, present := gnmi.Lookup(t, dut, gnmi.OC().NetworkInstance(nhgNI).Afts().NextHop(nhIndex).State()).Val()
+		if !present {
+			t.Errorf("Next-hop %d of next-hop-group %d is not present in telemetry AFT", nhIndex, nhgID)
+			continue
+		}
+		t.Logf("Prefix %s next-hop %d: encapsulate-header = %v, origin-protocol = %v", pfx, nhIndex, nh.GetEncapsulateHeader(), nh.GetOriginProtocol())
+		if !deviations.AFTNextHopEncapsulateHeaderUnsupported(dut) {
+			if got, want := nh.GetEncapsulateHeader(), oc.Aft_EncapsulationHeaderType_IPV4; got != want {
+				t.Errorf("Prefix %s next-hop %d: next-hop/state/encapsulate-header = %v, want %v", pfx, nhIndex, got, want)
+			}
+		}
+		if !deviations.AFTNextHopOriginProtocolUnsupported(dut) {
+			if got, want := nh.GetOriginProtocol(), oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_GRIBI; got != want {
+				t.Errorf("Prefix %s next-hop %d: next-hop/state/origin-protocol = %v, want %v", pfx, nhIndex, got, want)
+			}
+		}
+	}
+}
+
 // TestEncapFrr is to test Test FRR behaviors with encapsulation scenarios
 func TestEncapFrr(t *testing.T) {
 	ctx := context.Background()
@@ -1121,6 +1174,13 @@ func TestEncapFrr(t *testing.T) {
 			TestID:                 "teVrf111NoMatch",
 		},
 	)
+	t.Run("Validate encap next-hop AFT telemetry", func(t *testing.T) {
+		if err := gribi.FlushAll(client); err != nil {
+			t.Fatal(err)
+		}
+		configureGribiRoute(ctx, t, dut, args.client)
+		validateEncapNHTelemetry(t, dut)
+	})
 	for _, tc := range testCases {
 		t.Run(tc.Desc, func(t *testing.T) {
 			t.Log("Verify whether the ports are in up state")
