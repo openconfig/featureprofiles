@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "d482a91c-7e53-4c8b-9f12-3a6b8e91042d"
+plan_id: "TRANSCEIVER-109"
+description: "800ZR Operational Mode Transition and Inventory Persistence"
+testbed: TESTBED_DUT_800ZR
