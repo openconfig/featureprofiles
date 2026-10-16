@@ -956,6 +956,19 @@ func ConfigOTNChannel(t *testing.T, dut *ondatra.DUTDevice, och string, otnIndex
 			},
 		}
 	}
+	if deviations.OTNToETHAssignment(dut) {
+		var firstAssignmentIndex uint32
+		if deviations.OTNChannelAssignmentCiscoNumbering(dut) {
+			firstAssignmentIndex = 1
+		}
+		ch.Assignment[firstAssignmentIndex+1] = &oc.TerminalDevice_Channel_Assignment{
+			Index:          ygot.Uint32(firstAssignmentIndex + 1),
+			LogicalChannel: ygot.Uint32(ethIndex),
+			Description:    ygot.String("OTN to ETH"),
+			Allocation:     ygot.Float64(400),
+			AssignmentType: oc.Assignment_AssignmentType_LOGICAL_CHANNEL,
+		}
+	}
 	if !deviations.TerminalDeviceChannelAdminStateUnsupported(dut) {
 		ch.AdminState = oc.TerminalDevice_AdminStateType_ENABLED
 	}
@@ -1597,6 +1610,11 @@ type SVIParams struct {
 	IPv4Len  uint8
 	IPv6     string
 	IPv6Len  uint8
+	// Vlan, if non-nil, is set as routed-vlan/config/vlan to bind the SVI to its VLAN, either by
+	// VLAN ID (oc.UnionUint16) or by VLAN name (oc.UnionString). It is needed on platforms where
+	// the routed VLAN interface name does not imply the VLAN, e.g. Junos "irb.<unit>", which Junos
+	// maps to "set vlans <vlan-name> l3-interface irb.<unit>".
+	Vlan oc.Interface_RoutedVlan_Vlan_Union
 }
 
 // ConfigureSVI configures an L3 VLAN interface with IPv4 and IPv6 addresses.
@@ -1618,8 +1636,16 @@ func ConfigureSVI(t *testing.T, dut *ondatra.DUTDevice, params SVIParams) {
 	// Navigate to the RoutedVlan container (subinterface-like layer for SVIs)
 	rv := svi.GetOrCreateRoutedVlan()
 
+	// Bind the SVI to its VLAN (routed-vlan/config/vlan) when requested.
+	if params.Vlan != nil {
+		rv.Vlan = params.Vlan
+	}
+
 	// IPv4 Configuration
 	v4 := rv.GetOrCreateIpv4()
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+		v4.Enabled = ygot.Bool(true)
+	}
 	v4Addr := v4.GetOrCreateAddress(params.IPv4)
 	v4Addr.PrefixLength = ygot.Uint8(params.IPv4Len)
 
@@ -1677,7 +1703,95 @@ func ConfigureVlanInterfaceFromCLI(t *testing.T, dut *ondatra.DUTDevice, vlan DU
 	t.Helper()
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
+		t.Cleanup(func() {
+			helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("no interface vlan %d\n", vlan.VlanID))
+		})
 		cli := fmt.Sprintf(vlanInterfaceCLITemplate, vlan.VlanID, vlan.IPv4Address, vlan.IPv4PrefixLen, vlan.IPv6Address, vlan.IPv6PrefixLen)
+		helpers.GnmiCLIConfig(t, dut, cli)
+	case ondatra.NOKIA:
+		p1 := dut.Port(t, "port1").Name()
+		p2 := dut.Port(t, "port2").Name()
+		irbIntf := fmt.Sprintf("irb0.%d", vlan.VlanID)
+		macVrf := fmt.Sprintf("vlan%d", vlan.VlanID)
+		cleanupCLI := fmt.Sprintf(`
+delete / network-instance %[10]s interface %[9]s
+delete / network-instance %[8]s
+delete / interface irb0 subinterface %[3]d
+delete / interface %[1]s subinterface 0
+delete / interface %[1]s vlan-tagging
+delete / interface %[2]s subinterface 0
+delete / interface %[2]s vlan-tagging
+`, p1, p2, vlan.VlanID, vlan.IPv4Address, vlan.IPv4PrefixLen, vlan.IPv6Address, vlan.IPv6PrefixLen, macVrf, irbIntf, deviations.DefaultNetworkInstance(dut))
+		t.Cleanup(func() {
+			helpers.GnmiCLIConfig(t, dut, cleanupCLI)
+		})
+		cli := fmt.Sprintf(`
+set / interface %[1]s vlan-tagging false
+set / interface %[1]s subinterface 0 type bridged
+set / interface %[1]s subinterface 0 admin-state enable
+set / interface %[2]s vlan-tagging false
+set / interface %[2]s subinterface 0 type bridged
+set / interface %[2]s subinterface 0 admin-state enable
+set / interface irb0 admin-state enable
+set / interface irb0 subinterface %[3]d admin-state enable
+set / interface irb0 subinterface %[3]d ipv4 admin-state enable
+set / interface irb0 subinterface %[3]d ipv4 address %[4]s/%[5]d
+set / interface irb0 subinterface %[3]d ipv6 admin-state enable
+set / interface irb0 subinterface %[3]d ipv6 address %[6]s/%[7]d
+set / network-instance %[8]s type mac-vrf
+set / network-instance %[8]s admin-state enable
+set / network-instance %[8]s interface %[1]s.0
+set / network-instance %[8]s interface %[2]s.0
+set / network-instance %[8]s interface %[9]s
+set / network-instance %[10]s interface %[9]s
+`, p1, p2, vlan.VlanID, vlan.IPv4Address, vlan.IPv4PrefixLen, vlan.IPv6Address, vlan.IPv6PrefixLen, macVrf, irbIntf, deviations.DefaultNetworkInstance(dut))
+		helpers.GnmiCLIConfig(t, dut, cli)
+	case ondatra.CISCO:
+		// IOS XR has no switchports or VLAN interfaces: bridge DUT Ports 1 and 2 in an L2VPN
+		// bridge-domain routed through BVI<vlan-id>, which carries the VLAN interface addresses.
+		p1 := dut.Port(t, "port1").Name()
+		p2 := dut.Port(t, "port2").Name()
+		cleanupCLI := fmt.Sprintf(`
+l2vpn
+ bridge group BG_1
+  no bridge-domain BD_%[3]d
+ !
+!
+no interface BVI%[3]d
+interface %[1]s
+ no l2transport
+!
+interface %[2]s
+ no l2transport
+!
+`, p1, p2, vlan.VlanID)
+		t.Cleanup(func() {
+			helpers.GnmiCLIConfig(t, dut, cleanupCLI)
+		})
+		cli := fmt.Sprintf(`
+interface %[1]s
+ l2transport
+!
+interface %[2]s
+ l2transport
+!
+interface BVI%[3]d
+ ipv4 address %[4]s/%[5]d
+ ipv6 address %[6]s/%[7]d
+!
+l2vpn
+ bridge group BG_1
+  bridge-domain BD_%[3]d
+   interface %[1]s
+   !
+   interface %[2]s
+   !
+   routed interface BVI%[3]d
+   !
+  !
+ !
+!
+`, p1, p2, vlan.VlanID, vlan.IPv4Address, vlan.IPv4PrefixLen, vlan.IPv6Address, vlan.IPv6PrefixLen)
 		helpers.GnmiCLIConfig(t, dut, cli)
 	default:
 		t.Fatalf("VLAN interface CLI deviation not implemented for vendor: %s", dut.Vendor())
