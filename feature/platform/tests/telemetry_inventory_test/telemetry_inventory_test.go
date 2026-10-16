@@ -19,6 +19,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/components"
@@ -590,7 +591,23 @@ func TestPowerSupplyTelemetry(t *testing.T) {
 
 		pName := psu.GetName()
 		t.Run(pName, func(t *testing.T) {
-			psVal := psu.GetPowerSupply()
+			// Query live telemetry with retry to allow PMBus sensor polling daemons to populate all registers.
+			var psVal *oc.Component_PowerSupply
+			for start := time.Now(); ; time.Sleep(2 * time.Second) {
+				if psLookup := gnmi.Lookup(t, dut, gnmi.OC().Component(pName).PowerSupply().State()); psLookup.IsPresent() {
+					v, _ := psLookup.Val()
+					psVal = v
+					if v.InputCurrent != nil && v.InputVoltage != nil && v.OutputCurrent != nil && v.OutputVoltage != nil {
+						break
+					}
+				}
+				if time.Since(start) >= 30*time.Second {
+					break
+				}
+			}
+			if psVal == nil {
+				psVal = psu.GetPowerSupply()
+			}
 			if psVal == nil {
 				t.Fatalf("PowerSupply %s state is not present in telemetry", pName)
 			}
