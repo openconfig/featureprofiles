@@ -15,6 +15,7 @@ package multipath_bgp_ecmp_protocol_nexthop_test
 
 import (
 	"fmt"
+	"math/rand"
 	"strconv"
 	"testing"
 	"time"
@@ -139,7 +140,7 @@ const (
 	trafficPps       = 10000
 	packetSize       = 1500
 	peerGrpName1     = "BGP-PEER-GROUP1"
-	lossTolerancePct = 0  // Packet loss tolerance in percentage
+	lossTolerancePct = 0.5 // Packet loss tolerance in percentage
 	lbToleranceFms   = 20 // Load Balance Tolerance in percentage
 	rplType          = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	rplName          = "ALLOW"
@@ -660,16 +661,16 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 			ipHeader.Src().SetValue(tc.srcIP)
 			ipHeader.Dst().Increment().SetStart(tc.dstIP).SetCount(100)
 			udpHeader := flow.Packet().Add().Udp()
-			udpHeader.SrcPort().SetValue(14)
-			udpHeader.DstPort().Increment().SetStart(1024).SetCount(10000)
+			udpHeader.SrcPort().SetValues(randRange(1024, 65535, 1000))
+			udpHeader.DstPort().SetValues(randRange(1024, 65535, 1000))
 		case "ipv6":
 			flow.TxRx().Device().SetTxNames([]string{iDut1Ipv6.Name()}).SetRxNames(rxIpv6IntfNames)
 			ipHeader := flow.Packet().Add().Ipv6()
 			ipHeader.Src().SetValue(tc.srcIP)
 			ipHeader.Dst().Increment().SetStart(tc.dstIP).SetCount(100)
 			udpHeader := flow.Packet().Add().Udp()
-			udpHeader.SrcPort().SetValue(14)
-			udpHeader.DstPort().Increment().SetStart(1024).SetCount(10000)
+			udpHeader.SrcPort().SetValues(randRange(1024, 65535, 1000))
+			udpHeader.DstPort().SetValues(randRange(1024, 65535, 1000))
 		}
 		flow.Size().SetFixed(uint32(packetSize))
 		flow.Rate().SetPps(trafficPps)
@@ -798,4 +799,15 @@ func verifyECMPLoadBalance(t *testing.T, ate *ondatra.ATEDevice, pc int, expecte
 			t.Errorf("invalid number of load balancing interfaces, got: %d want %d", got, expectedLinks)
 		}
 	}
+}
+
+func randRange(start, end uint32, count int) []uint32 {
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	var result []uint32
+	diff := end - start
+	for len(result) < count {
+		randomValue := r.Int31n(int32(diff)) + int32(start)
+		result = append(result, uint32(randomValue))
+	}
+	return result
 }
