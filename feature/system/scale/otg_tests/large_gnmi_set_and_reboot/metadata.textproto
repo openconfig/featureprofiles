@@ -12,7 +12,9 @@ platform_exceptions: {
   deviations: {
     aggregate_atomic_update: true
     default_network_instance: "default"
+    deprecated_vlan_id: true
     interface_enabled: true
+    require_routed_subinterface_0: true
     retain_gnmi_cfg_after_reboot: true
   }
 }
@@ -30,8 +32,7 @@ platform_exceptions: {
     vendor: JUNIPER
   }
   deviations: {
-    explicit_interface_in_default_vrf: true
-    interface_ref_interface_id_format: true
+    port_speed_unsupported: true
   }
 }
 platform_exceptions: {
