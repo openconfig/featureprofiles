@@ -31,9 +31,9 @@ import (
 	"github.com/openconfig/ondatra/binding"
 )
 
-//const (
-//	dirPath = "../../test_data/"
-//)
+const (
+	scriptPath = "../../test_data/"
+)
 
 // DUTCredentialer is an interface for getting credentials from a DUT binding.
 type DUTCredentialer interface {
@@ -97,19 +97,19 @@ func TestTrustBundleCert(t *testing.T) {
 	password := creds.RPCPassword()
 	t.Logf("STATUS:Validation of all services that are using gRPC before certz rotation.")
 	gnmiClient, gnsiC := setup_service.PreInitCheck(context.Background(), t, dut)
-	dirPath := t.TempDir()
+	dirPath := t.TempDir() + "/"
 	//Generate testdata certificates.
-	t.Logf("Creation of test data.")
+	t.Logf("Creation of test data in %s.", dirPath)
 	//Registering the cleanup before the certificate generation call, so it runs even if certificate generation fails.
 	t.Cleanup(func() {
 		t.Logf("STATUS:Cleanup of test data.")
-		if err := setup_service.TestdataMakeCleanup(t, dirPath, *certsTimeout, "./cleanup.sh"); err != nil {
+		if err := setup_service.TestdataMakeCleanup(t, scriptPath, *certsTimeout, "./cleanup.sh", dirPath); err != nil {
 			t.Logf("STATUS:Cleanup of testdata certificates failed!: %v", err)
 		}
 	})
 	// Execute mk_cas.sh to generate certificates
 	t.Logf("STATUS:Generation of testdata certificates begins.")
-	if err := setup_service.TestdataMakeCleanup(t, dirPath, *certsTimeout, "./mk_cas.sh", *certsList); err != nil {
+	if err := setup_service.TestdataMakeCleanup(t, scriptPath, *certsTimeout, "./mk_cas.sh", dirPath, *certsList); err != nil {
 		t.Fatalf("STATUS:Generation of testdata certificates failed!: %v", err)
 	}
 	//Create a certz client.
@@ -118,20 +118,21 @@ func TestTrustBundleCert(t *testing.T) {
 	t.Logf("STATUS:Precheck:checking baseline sslprofile list.")
 	//Get sslprofile list.
 	if getResp := setup_service.GetSslProfilelist(ctx, t, certzClient, &certzpb.GetProfileListRequest{}); slices.Contains(getResp.SslProfileIds, testProfile) {
-		t.Fatalf("STATUS:profileID %s already exists.", testProfile)
-	}
-	//Add new sslprofileID.
-	t.Logf("Adding new empty sslprofile ID %s.", testProfile)
-	if addProfileResponse, err := certzClient.AddProfile(ctx, &certzpb.AddProfileRequest{SslProfileId: testProfile}); err != nil {
-		t.Fatalf("STATUS:Add profile request failed with %v! ", err)
+		t.Logf("STATUS:profileID %s already exists, skipping AddProfile.", testProfile)
 	} else {
-		t.Logf("STATUS:Received the AddProfileResponse %v.", addProfileResponse)
-	}
-	//Get sslprofile list after new sslprofile addition.
-	if getResp := setup_service.GetSslProfilelist(ctx, t, certzClient, &certzpb.GetProfileListRequest{}); !slices.Contains(getResp.SslProfileIds, testProfile) {
-		t.Fatalf("STATUS:newly added profileID is not seen.")
-	} else {
-		t.Logf("STATUS:new profileID %s is seen in sslprofile list", testProfile)
+		//Add new sslprofileID.
+		t.Logf("Adding new empty sslprofile ID %s.", testProfile)
+		if addProfileResponse, err := certzClient.AddProfile(ctx, &certzpb.AddProfileRequest{SslProfileId: testProfile}); err != nil {
+			t.Fatalf("STATUS:Add profile request failed with %v! ", err)
+		} else {
+			t.Logf("STATUS:Received the AddProfileResponse %v.", addProfileResponse)
+		}
+		//Get sslprofile list after new sslprofile addition.
+		if getResp := setup_service.GetSslProfilelist(ctx, t, certzClient, &certzpb.GetProfileListRequest{}); !slices.Contains(getResp.SslProfileIds, testProfile) {
+			t.Fatal("STATUS:newly added profileID is not seen.")
+		} else {
+			t.Logf("STATUS:new profileID %s is seen in sslprofile list", testProfile)
+		}
 	}
 	cases := []struct {
 		desc            string
