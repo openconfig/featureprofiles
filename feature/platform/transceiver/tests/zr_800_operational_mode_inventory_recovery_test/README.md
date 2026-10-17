@@ -268,6 +268,9 @@ uncorrectable FEC errors.
             (for `192.0.2.2` and `192.0.2.6`) and
             `/interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor/state/link-layer-address`
             (for `2001:db8::2` and `2001:db8::6`).
+        *   OTG neighbor resolution is verified using the standard
+            `otgutils.WaitForARP` helper for both IPv4 and IPv6 before starting
+            traffic.
         *   All 32 IPv4 static prefixes (`198.51.100.0/24`–`198.51.115.0/24` and
             `203.0.113.0/24`–`203.0.128.0/24`) are installed in AFT at
             `/network-instances/network-instance[name=DEFAULT]/afts/ipv4-unicast/ipv4-entry/state/prefix`,
@@ -786,7 +789,7 @@ transceiver state bounce.
 
 *   Revert all modified optical-channel `operational-mode`, `frequency`,
     logical-channel, subinterface IPv4/IPv6, and static route configurations to
-    the baseline state using `gNMI.Set` (registered via deferred cleanup in test
+    the baseline state using `gNMI.Set` (registered via `t.Cleanup()` in test
     automation), and verify via `gNMI.Get` that all tested transceivers and
     interfaces return to their pre-test operational state.
 
