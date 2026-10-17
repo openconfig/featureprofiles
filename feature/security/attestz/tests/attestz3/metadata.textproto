@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "49498afc-409b-4391-bb7f-4912e1de3182"
+plan_id: "attestz-3"
+description: "Validate post-install re-attestation"
+testbed: TESTBED_DUT
