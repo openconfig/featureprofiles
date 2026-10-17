@@ -34,6 +34,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -369,8 +370,11 @@ func testModifyNHGIPv4(t *testing.T, args *testArgs) {
 				}
 			}
 			ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateDstNetCIDR)
-			if got, want := gnmi.Get(t, args.dut, ipv4Path.State()).GetPrefix(), ateDstNetCIDR; got != want {
-				t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
+			if got, ok := gnmi.Watch(t, args.dut, ipv4Path.State(), awaitDuration, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+				ipv4Entry, present := val.Val()
+				return present && ipv4Entry.GetPrefix() == ateDstNetCIDR
+			}).Await(t); !ok {
+				t.Errorf("ipv4-entry/state/prefix got %v, want %s", got, ateDstNetCIDR)
 			}
 		}
 	})
@@ -449,8 +453,11 @@ func testModifyIPv4AddDelAdd(t *testing.T, args *testArgs) {
 
 	t.Run("Telemetry", func(t *testing.T) {
 		ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateDstNetCIDR)
-		if got, want := gnmi.Get(t, args.dut, ipv4Path.State()).GetPrefix(), ateDstNetCIDR; got != want {
-			t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
+		if got, ok := gnmi.Watch(t, args.dut, ipv4Path.State(), awaitDuration, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+			ipv4Entry, present := val.Val()
+			return present && ipv4Entry.GetPrefix() == ateDstNetCIDR
+		}).Await(t); !ok {
+			t.Errorf("ipv4-entry/state/prefix got %v, want %s", got, ateDstNetCIDR)
 		}
 	})
 
