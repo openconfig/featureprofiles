@@ -1554,6 +1554,10 @@ message Metadata {
     // Arista: https://partnerissuetracker.corp.google.com/issues/574326691
     string cfm_pm_ft = 472;
 
+    // deviation to skip authz verification of gnoi ping rpc
+    // Arista: https://partnerissuetracker.corp.google.com/issues/219953165
+    bool skip_gnoi_ping_rpc_authz_verification = 473;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }
