@@ -434,12 +434,44 @@ func validateRouteCommunityV4(t *testing.T, td testData, ec extCommunity) {
 	}
 }
 
+func getLinkBandwidthV4(ec *otgtelemetry.BgpPeer_UnicastIpv4Prefix_ExtendedCommunity) (float32, uint16, bool) {
+	if ec == nil || ec.Structured == nil {
+		return 0, 0, false
+	}
+	if ec.Structured.Transitive_2OctetAsType != nil && ec.Structured.Transitive_2OctetAsType.LinkBandwidthSubtype != nil {
+		lb := ec.Structured.Transitive_2OctetAsType.LinkBandwidthSubtype
+		return ygot.BinaryToFloat32(lb.GetBandwidth()), lb.GetGlobal_2ByteAs(), true
+	}
+	if ec.Structured.NonTransitive_2OctetAsType != nil && ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype != nil {
+		lb := ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype
+		return ygot.BinaryToFloat32(lb.GetBandwidth()), lb.GetGlobal_2ByteAs(), true
+	}
+	return 0, 0, false
+}
+
 func isLinkBandwidthV4(ec *otgtelemetry.BgpPeer_UnicastIpv4Prefix_ExtendedCommunity) bool {
-	return ec.Structured != nil && ec.Structured.NonTransitive_2OctetAsType != nil && ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype != nil
+	_, _, ok := getLinkBandwidthV4(ec)
+	return ok
+}
+
+func getLinkBandwidthV6(ec *otgtelemetry.BgpPeer_UnicastIpv6Prefix_ExtendedCommunity) (float32, uint16, bool) {
+	if ec == nil || ec.Structured == nil {
+		return 0, 0, false
+	}
+	if ec.Structured.Transitive_2OctetAsType != nil && ec.Structured.Transitive_2OctetAsType.LinkBandwidthSubtype != nil {
+		lb := ec.Structured.Transitive_2OctetAsType.LinkBandwidthSubtype
+		return ygot.BinaryToFloat32(lb.GetBandwidth()), lb.GetGlobal_2ByteAs(), true
+	}
+	if ec.Structured.NonTransitive_2OctetAsType != nil && ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype != nil {
+		lb := ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype
+		return ygot.BinaryToFloat32(lb.GetBandwidth()), lb.GetGlobal_2ByteAs(), true
+	}
+	return 0, 0, false
 }
 
 func isLinkBandwidthV6(ec *otgtelemetry.BgpPeer_UnicastIpv6Prefix_ExtendedCommunity) bool {
-	return ec.Structured != nil && ec.Structured.NonTransitive_2OctetAsType != nil && ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype != nil
+	_, _, ok := getLinkBandwidthV6(ec)
+	return ok
 }
 
 func matchesExpectedBandwidth(community string, gotBW float32) bool {
@@ -537,8 +569,8 @@ func validateRouteCommunityV4Prefix(t *testing.T, td testData, community, v4Pref
 				return false
 			default:
 				for _, ec := range prefix.ExtendedCommunity {
-					if isLinkBandwidthV4(ec) {
-						if matchesExpectedBandwidth(community, ygot.BinaryToFloat32(ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype.GetBandwidth())) {
+					if bw, _, ok := getLinkBandwidthV4(ec); ok {
+						if matchesExpectedBandwidth(community, bw) {
 							return true
 						}
 					}
@@ -578,14 +610,13 @@ func validateRouteCommunityV4Prefix(t *testing.T, td testData, community, v4Pref
 					return
 				}
 				for _, ec := range bgpPrefix.ExtendedCommunity {
-					if !isLinkBandwidthV4(ec) {
+					gotBW, globalAS, ok := getLinkBandwidthV4(ec)
+					if !ok {
 						continue
 					}
-					lbSubType := ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype
-					gotBW := ygot.BinaryToFloat32(lbSubType.GetBandwidth())
-					t.Logf("V4 Bandwidth from OTG: %v (AS=%d)", gotBW, lbSubType.GetGlobal_2ByteAs())
-					if lbSubType.GetGlobal_2ByteAs() != 23456 && lbSubType.GetGlobal_2ByteAs() != 32002 && lbSubType.GetGlobal_2ByteAs() != 32001 {
-						t.Errorf("AS number should be 23456 or %d got %d", ateAS, lbSubType.GetGlobal_2ByteAs())
+					t.Logf("V4 Bandwidth from OTG: %v (AS=%d)", gotBW, globalAS)
+					if globalAS != 23456 && globalAS != 32002 && globalAS != 32001 {
+						t.Errorf("AS number should be 23456 or %d got %d", ateAS, globalAS)
 						return
 					}
 					if !matchesExpectedBandwidth(community, gotBW) {
@@ -641,8 +672,8 @@ func validateRouteCommunityV6Prefix(t *testing.T, td testData, community, v6Pref
 				return false
 			default:
 				for _, ec := range prefix.ExtendedCommunity {
-					if isLinkBandwidthV6(ec) {
-						if matchesExpectedBandwidth(community, ygot.BinaryToFloat32(ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype.GetBandwidth())) {
+					if bw, _, ok := getLinkBandwidthV6(ec); ok {
+						if matchesExpectedBandwidth(community, bw) {
 							return true
 						}
 					}
@@ -682,14 +713,13 @@ func validateRouteCommunityV6Prefix(t *testing.T, td testData, community, v6Pref
 					return
 				}
 				for _, ec := range bgpPrefix.ExtendedCommunity {
-					if !isLinkBandwidthV6(ec) {
+					gotBW, globalAS, ok := getLinkBandwidthV6(ec)
+					if !ok {
 						continue
 					}
-					lbSubType := ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype
-					gotBW := ygot.BinaryToFloat32(lbSubType.GetBandwidth())
-					t.Logf("V6 Bandwidth from OTG: %v (AS=%d)", gotBW, lbSubType.GetGlobal_2ByteAs())
-					if lbSubType.GetGlobal_2ByteAs() != 23456 && lbSubType.GetGlobal_2ByteAs() != 32002 && lbSubType.GetGlobal_2ByteAs() != 32001 {
-						t.Errorf("AS number should be 23456 or %d got %d", ateAS, lbSubType.GetGlobal_2ByteAs())
+					t.Logf("V6 Bandwidth from OTG: %v (AS=%d)", gotBW, globalAS)
+					if globalAS != 23456 && globalAS != 32002 && globalAS != 32001 {
+						t.Errorf("AS number should be 23456 or %d got %d", ateAS, globalAS)
 						return
 					}
 					if !matchesExpectedBandwidth(community, gotBW) {
@@ -1218,12 +1248,12 @@ func (td *testData) advertiseRoutesWithEBGP(t *testing.T) {
 	// Configure routes with Link bandwidth community.
 	netv43 := bgp4Peer1.V4Routes().Add().SetName("v4-bgpNet-dev3")
 	netv43.Addresses().Add().SetAddress(advertisedIPv43.address).SetPrefix(advertisedIPv43.prefix)
-	extcommv4 := netv43.ExtendedCommunities().Add().NonTransitive2OctetAsType().LinkBandwidthSubtype()
+	extcommv4 := netv43.ExtendedCommunities().Add().Transitive2OctetAsType().LinkBandwidthSubtype()
 	extcommv4.SetGlobal2ByteAs(23456)
 	extcommv4.SetBandwidth(1000)
 	netv63 := bgp6Peer1.V6Routes().Add().SetName("v6-bgpNet-dev3")
 	netv63.Addresses().Add().SetAddress(advertisedIPv63.address).SetPrefix(advertisedIPv63.prefix)
-	extcommv6 := netv63.ExtendedCommunities().Add().NonTransitive2OctetAsType().LinkBandwidthSubtype()
+	extcommv6 := netv63.ExtendedCommunities().Add().Transitive2OctetAsType().LinkBandwidthSubtype()
 	extcommv6.SetGlobal2ByteAs(23456)
 	extcommv6.SetBandwidth(1000)
 
