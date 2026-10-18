@@ -819,11 +819,7 @@ func RulesAndActions(params OcPolicyForwardingParams, pf *oc.NetworkInstance_Pol
 func DecapPolicyRulesandActionsGre(t *testing.T, pf *oc.NetworkInstance_PolicyForwarding, params OcPolicyForwardingParams) {
 	t.Helper()
 
-	policyName := params.PolicyName
-	if policyName == "" {
-		policyName = defaultPolicyName
-	}
-	pols := pf.GetOrCreatePolicy(policyName)
+	pols := pf.GetOrCreatePolicy(policyName(params))
 	var ruleSeq uint32 = 10
 	var protocol uint8 = 4
 
@@ -838,11 +834,7 @@ func DecapPolicyRulesandActionsGre(t *testing.T, pf *oc.NetworkInstance_PolicyFo
 func DecapPolicyRulesandActionsGue(t *testing.T, pf *oc.NetworkInstance_PolicyForwarding, params OcPolicyForwardingParams) {
 	t.Helper()
 
-	policyName := params.PolicyName
-	if policyName == "" {
-		policyName = defaultPolicyName
-	}
-	pols := pf.GetOrCreatePolicy(policyName)
+	pols := pf.GetOrCreatePolicy(policyName(params))
 	var ruleSeq uint32 = 10
 	var protocol uint8 = 4
 
@@ -2183,4 +2175,14 @@ func RemoveDecapGroupConfigGueIPv6Scale(t *testing.T, dut *ondatra.DUTDevice, pa
 		gnmi.Delete(t, dut, pfPath.Interface(intfID).ApplyForwardingPolicy().Config())
 	}
 	gnmi.Delete(t, dut, pfPath.Policy(params.PolicyID).Config())
+}
+
+func policyName(params OcPolicyForwardingParams) string {
+	if params.PolicyName != "" {
+		return params.PolicyName
+	}
+	if params.AppliedPolicyName != "" {
+		return params.AppliedPolicyName
+	}
+	return defaultPolicyName
 }

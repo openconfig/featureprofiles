@@ -23,7 +23,6 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
-	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -322,11 +321,6 @@ func cleanupConfiguration(t *testing.T, dut *ondatra.DUTDevice) {
 	dp1 := dut.Port(t, port1)
 	dp2 := dut.Port(t, port2)
 
-	t.Log("Removing decap policy forwarding")
-	for _, name := range []string{grePolicyName, guePolicyName} {
-		cfgplugins.RemoveDecapGroupGue(t, dut, cfgplugins.OcPolicyForwardingParams{AppliedPolicyName: name})
-	}
-
 	t.Log("Removing routes")
 	b := &gnmi.SetBatch{}
 	prefixes := []string{
@@ -338,8 +332,8 @@ func cleanupConfiguration(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Logf("Removing static route for prefix %s", prefix)
 		gnmi.BatchDelete(b, sp.Static(prefix).Config())
 	}
-
 	t.Log("Removing interfaces")
+	gnmi.BatchDelete(b, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(dp1.Name()).Config())
 	for _, dp := range []*ondatra.Port{dp1, dp2} {
 		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 			gnmi.BatchDelete(b, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Interface(dp.Name()+".0").Config())
@@ -347,6 +341,14 @@ func cleanupConfiguration(t *testing.T, dut *ondatra.DUTDevice) {
 		gnmi.BatchDelete(b, gnmi.OC().Interface(dp.Name()).Config())
 	}
 	b.Set(t, dut)
+
+	t.Log("Removing decap policy forwarding")
+	for _, params := range []cfgplugins.OcPolicyForwardingParams{
+		{AppliedPolicyName: grePolicyName},
+		{AppliedPolicyName: guePolicyName, IPType: ipv6},
+	} {
+		cfgplugins.RemoveDecapGroupGue(t, dut, params)
+	}
 }
 
 func configureInputPolicy(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
@@ -404,32 +406,11 @@ func configureDUTPort(t *testing.T, dut *ondatra.DUTDevice, attrs *attrs.Attribu
 	t.Helper()
 	d := gnmi.OC()
 	i := attrs.NewOCInterface(p.Name(), dut)
-	i.Description = ygot.String(attrs.Desc)
-	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	if deviations.InterfaceEnabled(dut) {
-		i.Enabled = ygot.Bool(true)
-	}
-
-	i.GetOrCreateEthernet()
-	i4 := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
-	i4.Enabled = ygot.Bool(true)
-	a := i4.GetOrCreateAddress(attrs.IPv4)
-	a.PrefixLength = ygot.Uint8(attrs.IPv4Len)
-
-	i6 := i.GetOrCreateSubinterface(0).GetOrCreateIpv6()
-	i6.Enabled = ygot.Bool(true)
-	a6 := i6.GetOrCreateAddress(attrs.IPv6)
-	a6.PrefixLength = ygot.Uint8(attrs.IPv6Len)
-
 	gnmi.Replace(t, dut, d.Interface(p.Name()).Config(), i)
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, p.Name(), deviations.DefaultNetworkInstance(dut), 0)
-		t.Logf("DUT %s %s %s requires explicit interface in default VRF deviation ", dut.Vendor(), dut.Model(), dut.Version())
 	}
 
-	if deviations.ExplicitPortSpeed(dut) {
-		fptest.SetPortSpeed(t, p)
-	}
 }
 
 func configureFlow(t *testing.T, config gosnappi.Config, tc testCase, fc flowConfig, flowName string) {
