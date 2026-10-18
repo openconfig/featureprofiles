@@ -28,6 +28,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 var componentType = map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{
@@ -591,21 +592,13 @@ func TestPowerSupplyTelemetry(t *testing.T) {
 
 		pName := psu.GetName()
 		t.Run(pName, func(t *testing.T) {
-			// Query live telemetry with retry to allow PMBus sensor polling daemons to populate all registers.
 			var psVal *oc.Component_PowerSupply
-			for start := time.Now(); ; time.Sleep(2 * time.Second) {
-				if psLookup := gnmi.Lookup(t, dut, gnmi.OC().Component(pName).PowerSupply().State()); psLookup.IsPresent() {
-					v, _ := psLookup.Val()
-					psVal = v
-					if v.InputCurrent != nil && v.InputVoltage != nil && v.OutputCurrent != nil && v.OutputVoltage != nil {
-						break
-					}
-				}
-				if time.Since(start) >= 30*time.Second {
-					break
-				}
-			}
-			if psVal == nil {
+			if watchVal, ok := gnmi.Watch(t, dut, gnmi.OC().Component(pName).PowerSupply().State(), 30*time.Second, func(val *ygnmi.Value[*oc.Component_PowerSupply]) bool {
+				v, present := val.Val()
+				return present && v != nil && v.InputCurrent != nil && v.InputVoltage != nil && v.OutputCurrent != nil && v.OutputVoltage != nil
+			}).Await(t); ok {
+				psVal, _ = watchVal.Val()
+			} else {
 				psVal = psu.GetPowerSupply()
 			}
 			if psVal == nil {
