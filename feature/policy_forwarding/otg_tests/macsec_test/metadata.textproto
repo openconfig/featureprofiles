@@ -1,0 +1,37 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "f755ee67-ed69-4c7f-ae15-a7168627bd2f"
+plan_id: "PF-1.27"
+description: "MPLSoGRE/MPLSoGUE MACsec and Line Rate Performance"
+testbed: TESTBED_DUT_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    aggregate_atomic_update: true
+    interface_enabled: true
+    default_network_instance: "default"
+    next_hop_group_config_unsupported: true
+    mpls_unsupported: true
+    macsec_unsupported: true
+    mpls_label_classification_unsupported: true
+    local_proxy_unsupported: true
+    qos_classification_unsupported: true
+    policy_forwarding_unsupported: true
+    interface_policy_forwarding_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    interface_ref_config_unsupported: true
+    rib_wecmp: true
+    wecmp_auto_unsupported: true
+    isis_loopback_required: true
+    weighted_ecmp_fixed_packet_verification: true
+  }
+}
