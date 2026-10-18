@@ -603,7 +603,7 @@ func TestParameters(t *testing.T) {
 			if got := gnmi.Get(t, dut, nbrPath.PeerType().State()); got != tc.wantPeerType {
 				t.Errorf("BGP neighbor %s state/peer-type: got %v, want %v", ateIP, got, tc.wantPeerType)
 			}
-			if wantPeerAS := tc.dutConf.Bgp.GetNeighbor(ateIP).GetPeerAs(); wantPeerAS != 0 {
+			if wantPeerAS := tc.dutConf.GetBgp().GetNeighbor(ateIP).GetPeerAs(); wantPeerAS != 0 {
 				gnmi.Await(t, dut, nbrPath.PeerAs().State(), 30*time.Second, wantPeerAS)
 			}
 			stateDut := gnmi.Get(t, dut, statePath.State())
