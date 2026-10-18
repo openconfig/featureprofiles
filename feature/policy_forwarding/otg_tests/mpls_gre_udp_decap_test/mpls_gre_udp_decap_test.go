@@ -193,7 +193,6 @@ func TestMPLSGREUDPDecap(t *testing.T) {
 }
 
 func runTest(t *testing.T, dut *ondatra.DUTDevice, config gosnappi.Config, tc testCase, ate *ondatra.ATEDevice) error {
-	t.Log("Configuring input policy")
 	configureInputPolicy(t, dut, tc)
 	var flowErrors []error
 	for _, flowConfig := range tc.flowConfigs {
@@ -352,6 +351,7 @@ func cleanupConfiguration(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func configureInputPolicy(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
+	t.Log("Configuring input policy")
 	defaultNIName := deviations.DefaultNetworkInstance(dut)
 	interfaceName := dut.Port(t, port1).Name()
 	var policyName string
@@ -368,7 +368,9 @@ func configureInputPolicy(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
 		AppliedPolicyName: policyName,
 	}
 	cfgplugins.InterfacePolicyForwardingConfig(t, dut, nil, "", pf, ocPFParams)
-	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(defaultNIName).PolicyForwarding().Interface(interfaceName).Config(), pf.GetInterface(interfaceName))
+	if !deviations.PolicyForwardingOCUnsupported(dut) {
+		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(defaultNIName).PolicyForwarding().Interface(interfaceName).Config(), pf.GetInterface(interfaceName))
+	}
 }
 
 func configureDecapPolicyForwarding(t *testing.T, dut *ondatra.DUTDevice, interfaceName string) {
