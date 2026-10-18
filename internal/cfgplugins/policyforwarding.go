@@ -13,6 +13,8 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/helpers"
+	"github.com/openconfig/featureprofiles/internal/system"
+	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -31,6 +33,9 @@ const (
 	// unresponsive device cannot hang the test indefinitely.
 	cliConfigSetTimeout = 30 * time.Second
 	defaultPolicyName   = "customer10"
+	// agentRestartTimeout bounds an agent restart request so an unresponsive DUT
+	// cannot hang the test indefinitely.
+	agentRestartTimeout = 30 * time.Second
 )
 
 // DecapPolicyParams defines parameters for the Decap MPLS in GRE policy and related MPLS configs.
@@ -1650,6 +1655,48 @@ func ConfigureCLIDecapVRFMode(t *testing.T, dut *ondatra.DUTDevice) {
 		`
 	t.Log("Enabling next-hop decapsulation VRF mode")
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
+}
+
+// ConfigureDecapVrfSelection enables next-hop decapsulation VRF mode, restarts
+// SandL3Unicast when it is running, and waits for the configuration to take effect.
+func ConfigureDecapVrfSelection(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	hardwareInitCfg := NewDUTHardwareInit(t, dut, FeatureVrfSelectionDecap)
+	if hardwareInitCfg == "" {
+		return
+	}
+
+	PushDUTHardwareInitConfig(t, dut, hardwareInitCfg)
+	restartSandL3Unicast(t, dut)
+	t.Log("Waiting for next-hop decapsulation configuration to take effect")
+	time.Sleep(60 * time.Second)
+}
+
+func restartSandL3Unicast(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	if dut.Vendor() != ondatra.ARISTA {
+		return
+	}
+
+	const processName = "SandL3Unicast"
+	pid := system.FindProcessIDByName(t, dut, processName)
+	if pid == 0 {
+		t.Logf("%s is not running; skipping restart", processName)
+		return
+	}
+
+	t.Logf("Restarting %s", processName)
+	ctx, cancel := context.WithTimeout(context.Background(), agentRestartTimeout)
+	defer cancel()
+	_, err := dut.RawAPIs().GNOI(t).System().KillProcess(ctx, &spb.KillProcessRequest{
+		Signal:  spb.KillProcessRequest_SIGNAL_TERM,
+		Name:    processName,
+		Pid:     uint32(pid),
+		Restart: true,
+	})
+	if err != nil {
+		t.Fatalf("Failed to restart %s: %v", processName, err)
+	}
 }
 
 // GueDecapIPv6ScaleParams holds the parameters used to program a scaled MPLSoGUE
