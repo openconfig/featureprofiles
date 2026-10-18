@@ -1399,6 +1399,8 @@ message Metadata {
 
     // Device does not support configuring VLAN subinterfaces
     // Arista: https://partnerissuetracker.corp.google.com/issues/494280147
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/573155183
+    // Nokia: https://partnerissuetracker.corp.google.com/issues/573159486
     bool vlan_subinterface_oc_unsupported = 440;
 
     // Device has max route count based on specific platform
@@ -1534,9 +1536,27 @@ message Metadata {
     // Arista: https://partnerissuetracker.corp.google.com/issues/573620862
     bool aft_next_hop_group_backup_nhg_unsupported = 468;
 
+    // Expected name of the Routed VLAN interface for SVIs (if not standard
+    // "Vlan<id>").
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/573046775
+    string routed_vlan_interface_name = 469;
+
+    // Device does not support switched-vlan configuration in ethernet.
+    // NOKIA: https://partnerissuetracker.corp.google.com/issues/572757293
+    // CISCO: https://partnerissuetracker.corp.google.com/issues/571920136
+    bool switched_vlan_unsupported = 470;
+
+    // Functional translator for CFM state telemetry (e.g. present-rdi).
+    // Arista: https://partnerissuetracker.corp.google.com/issues/574322407
+    string cfm_state_ft = 471;
+
+    // Functional translator for CFM performance measurement telemetry.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/574326691
+    string cfm_pm_ft = 472;
+
     // Devices that don't pre-check invalid interface numbers when configured
     // Cisco: https://partnerissuetracker.corp.google.com/issues/570523357
-    bool invalid_interface_number_allowed = 469;
+    bool invalid_interface_number_allowed = 473;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
