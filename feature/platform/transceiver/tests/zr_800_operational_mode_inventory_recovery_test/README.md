@@ -1,9 +1,11 @@
-# TRANSCEIVER-109: 800ZR Operational Mode Transition and Inventory Persistence
+# TRANSCEIVER-109: 400ZR / 800ZR Operational Mode Transition and Inventory Persistence
 
 ## Summary
 
-This test validates that 800G ZR and ZR+ (`SPEED_800GB`, e.g., `OSFP-800G-ZR`,
-`OSFP-800G-ZR-M`, `OSFP-800G-ZR-M-HP`) coherent optical transceivers across
+This test validates that coherent 400G ZR and ZR+ (`SPEED_400GB`,
+`PMD_400GBASE_ZR`, `PMD_400GBASE_ZR_PLUS`) and 800G ZR and ZR+ (`SPEED_800GB`,
+`PMD_800GBASE_ZR`, `PMD_800GBASE_ZR_PLUS`, e.g., `OSFP-800G-ZR`,
+`OSFP-800G-ZR-M`, `OSFP-800G-ZR-M-HP`) optical transceivers across
 multiple line cards properly initialize, transition from a default optical
 application selection (`Appsel`) mode to a custom `operational-mode` with a
 transceiver state bounce, and retain complete hardware inventory telemetry
@@ -23,44 +25,60 @@ forwarding across scaled static route prefixes.
 ### Test environment setup
 
 ```text
-  +------------+              800G ZR Link 1 (FPC A)      +------------+
-  |            | (Port 1: 192.0.2.2/30, 2001:db8::2/126)  |            |
-  |            | <======================================> |            |
-  |            | (Port 1: 192.0.2.1/30, 2001:db8::1/126)  |            |
-  |    ATE     |                                          |    DUT     |
-  |            |              800G ZR Link 2 (FPC B)      |            |
-  |            | (Port 2: 192.0.2.6/30, 2001:db8::6/126)  |            |
-  |            | <======================================> |            |
-  |            | (Port 2: 192.0.2.5/30, 2001:db8::5/126)  |            |
-  +------------+                                          +------------+
+  +------------+          400ZR / 800ZR Link 1 (FPC A)      +------------+
+  |            | (Port 1: 192.0.2.2/30, 2001:db8::2/126)    |            |
+  |            | <========================================> |            |
+  |            | (Port 1: 192.0.2.1/30, 2001:db8::1/126)    |            |
+  |    ATE     |                                            |    DUT     |
+  |            |          400ZR / 800ZR Link 2 (FPC B)      |            |
+  |            | (Port 2: 192.0.2.6/30, 2001:db8::6/126)    |            |
+  |            | <========================================> |            |
+  |            | (Port 2: 192.0.2.5/30, 2001:db8::5/126)    |            |
+  +------------+                                            +------------+
 ```
 
-*   **Topology & Multi-Line-Card Placement**: Connect two 800G ZR/ZR+ interfaces
-    between the DUT and ATE (or connect two 800G ZR/ZR+ interfaces on the DUT
-    via a duplex LC fiber jumper with less than 2-3 dB insertion loss while
-    anchoring ingress/egress L3 traffic on ATE ports). On modular chassis
-    systems, **DUT port 1** and **DUT port 2** should reside on **distinct line
-    cards (FPCs)** so multi-FPC transceiver initialization and inventory
-    database synchronization are exercised simultaneously:
+*   **Topology & Multi-Line-Card Placement**: Connect two coherent 400ZR/400ZR+
+    (`SPEED_400GB`) or 800ZR/800ZR+ (`SPEED_800GB`) interfaces between the DUT
+    and ATE (or connect two coherent ZR/ZR+ interfaces on the DUT via a duplex
+    LC fiber jumper with less than 2-3 dB insertion loss while anchoring
+    ingress/egress L3 traffic on ATE ports). On modular chassis systems, **DUT
+    port 1** and **DUT port 2** should reside on **distinct line cards (FPCs)**
+    so multi-FPC transceiver initialization and inventory database
+    synchronization are exercised simultaneously:
     *   **Link 1 (DUT Port 1 <-> ATE Port 1)**:
         *   DUT Interface Name: `Ethernet4/1/1` (Subinterface index `0`)
         *   DUT Hardware Port Component: `Ethernet4/1-Port`
         *   DUT Transceiver Component: `Ethernet4/1`
         *   DUT Optical-Channel Component: `Ethernet4/1-Optical0`
-        *   DUT Coherent OTN Logical Channel Index: `8000` (`PROT_OTN`)
-        *   DUT Ethernet Logical Channel Index: `80000` (`PROT_ETHERNET`)
+        *   DUT Coherent OTN Logical Channel Index: `8000` (`PROT_OTN`, or
+            `4000` on 400ZR/400ZR+ platforms)
+        *   DUT Ethernet Logical Channel Index: `80000` (`PROT_ETHERNET`, or
+            `40000` on 400ZR/400ZR+ platforms)
+        *   Port Speed / Tributary Rate / Tributary Protocol:
+            *   For 400ZR/400ZR+ (`PMD_400GBASE_ZR` / `PMD_400GBASE_ZR_PLUS`):
+                `SPEED_400GB`, `TRIB_RATE_400G`, `PROT_400GE`,
+                `num-physical-channels`: `4`, `allocation`: `"400"`
+            *   For 800ZR/800ZR+ (`PMD_800GBASE_ZR` / `PMD_800GBASE_ZR_PLUS`):
+                `SPEED_800GB`, `TRIB_RATE_800G`, `PROT_800GE`,
+                `num-physical-channels`: `8`, `allocation`: `"800"`
         *   Optical Center Frequency: `196100000` MHz (`196.1` THz)
         *   Optical Target Output Power: `-7` dBm (`"-7"`)
         *   Default Operational Mode (`Appsel`): `1`
         *   Custom Operational Mode (`Appsel`): `2` (or the platform-specific
-            custom 800ZR operational mode supplied via test flag/deviation)
+            custom 400ZR/800ZR operational mode supplied via test
+            flag/deviation)
     *   **Link 2 (DUT Port 2 <-> ATE Port 2)**:
         *   DUT Interface Name: `Ethernet5/1/1` (Subinterface index `0`)
         *   DUT Hardware Port Component: `Ethernet5/1-Port`
         *   DUT Transceiver Component: `Ethernet5/1`
         *   DUT Optical-Channel Component: `Ethernet5/1-Optical0`
-        *   DUT Coherent OTN Logical Channel Index: `8001` (`PROT_OTN`)
-        *   DUT Ethernet Logical Channel Index: `80001` (`PROT_ETHERNET`)
+        *   DUT Coherent OTN Logical Channel Index: `8001` (`PROT_OTN`, or
+            `4001` on 400ZR/400ZR+ platforms)
+        *   DUT Ethernet Logical Channel Index: `80001` (`PROT_ETHERNET`, or
+            `40001` on 400ZR/400ZR+ platforms)
+        *   Port Speed / Tributary Rate / Tributary Protocol: Matching Link 1
+            (`SPEED_400GB` / `TRIB_RATE_400G` / `PROT_400GE` for 400ZR/400ZR+,
+            or `SPEED_800GB` / `TRIB_RATE_800G` / `PROT_800GE` for 800ZR/800ZR+)
         *   Optical Center Frequency: `196100000` MHz (`196.1` THz)
         *   Optical Target Output Power: `-7` dBm (`"-7"`)
         *   Default Operational Mode (`Appsel`): `1`
@@ -96,16 +114,17 @@ forwarding across scaled static route prefixes.
                 `2001:db8:1:1::/64` through `2001:db8:1:f::/64`, each configured
                 with next-hop index `"0"` and next-hop IP `2001:db8::2`.
 
-### TRANSCEIVER-109.1: Validate 800ZR operational-mode transition with transceiver bounce and bidirectional dual-stack traffic
+### TRANSCEIVER-109.1: Validate 400ZR / 800ZR operational-mode transition with transceiver bounce and bidirectional dual-stack traffic
 
-Some 800G ZR/ZR+ optical pluggables can experience transient module faults
-during initial boot when the default application selection (`Appsel`) mode is
-applied, and subsequently fail to lock when reconfigured to a custom
-`operational-mode` unless the transceiver state is bounced. This subtest
-verifies that transitioning from the default `operational-mode` (`1`) to a
-custom `operational-mode` (`2`) accompanied by a deterministic transceiver state
-bounce cleanly initializes the optical channel on both line cards/ports,
-preserves all hardware inventory telemetry, brings the 800G interfaces `UP`, and
+Some coherent 400G ZR/ZR+ (`SPEED_400GB`) and 800G ZR/ZR+ (`SPEED_800GB`)
+optical pluggables can experience transient module faults during initial boot
+when the default application selection (`Appsel`) mode is applied, and
+subsequently fail to lock when reconfigured to a custom `operational-mode`
+unless the transceiver state is bounced. This subtest verifies that
+transitioning from the default `operational-mode` (`1`) to a custom
+`operational-mode` (`2`) accompanied by a deterministic transceiver state bounce
+cleanly initializes the optical channel on both line cards/ports, preserves all
+hardware inventory telemetry, brings the 400ZR or 800ZR interfaces `UP`, and
 forwards bidirectional IPv4 and IPv6 traffic with zero packet loss and zero
 uncorrectable FEC errors.
 
@@ -116,20 +135,21 @@ uncorrectable FEC errors.
             `true`
         *   `/components/component[name=Ethernet5/1]/transceiver/config/enabled`:
             `true`
-    *   Configure 800G breakout parameters on hardware ports `Ethernet4/1-Port`
-        and `Ethernet5/1-Port`:
+    *   Configure 400G or 800G breakout parameters matching the port PMD on
+        hardware ports `Ethernet4/1-Port` and `Ethernet5/1-Port`:
         *   `/components/component/port/breakout-mode/groups/group/config/index`:
             `1`
         *   `/components/component/port/breakout-mode/groups/group/config/breakout-speed`:
-            `SPEED_800GB`
+            `SPEED_800GB` (for 800ZR/800ZR+) or `SPEED_400GB` (for 400ZR/400ZR+)
         *   `/components/component/port/breakout-mode/groups/group/config/num-breakouts`:
             `1`
         *   `/components/component/port/breakout-mode/groups/group/config/num-physical-channels`:
-            `8`
+            `8` (for 800ZR/800ZR+) or `4` (for 400ZR/400ZR+)
     *   Configure interfaces `Ethernet4/1/1` and `Ethernet5/1/1` via `gNMI.Set`:
         *   `/interfaces/interface/config/enabled`: `true`
         *   `/interfaces/interface/config/type`: `ethernetCsmacd`
         *   `/interfaces/interface/ethernet/config/port-speed`: `SPEED_800GB`
+            (for 800ZR/800ZR+) or `SPEED_400GB` (for 400ZR/400ZR+)
         *   `/interfaces/interface/ethernet/config/duplex-mode`: `FULL`
     *   Configure optical channels `Ethernet4/1-Optical0` and
         `Ethernet5/1-Optical0` with initial default operational mode `1`, center
@@ -143,27 +163,33 @@ uncorrectable FEC errors.
     *   Configure the logical-channel hierarchy under
         `/terminal-device/logical-channels/channel` for both ports:
         *   **Port 1 (`Ethernet4/1/1`)**: Coherent OTN logical channel index
-            `8000` (`logical-channel-type`: `PROT_OTN`, `admin-state`:
-            `ENABLED`, assignment index `1` with `assignment-type`:
-            `OPTICAL_CHANNEL`, `optical-channel`: `"Ethernet4/1-Optical0"`,
-            `allocation`: `"800"`) and Ethernet logical channel index `80000`
-            (`logical-channel-type`: `PROT_ETHERNET`, `rate-class`:
-            `TRIB_RATE_800G`, `trib-protocol`: `PROT_800GE`, `admin-state`:
+            `8000` (or `4000` on 400ZR/400ZR+ platforms; `logical-channel-type`:
+            `PROT_OTN`, `admin-state`: `ENABLED`, assignment index `1` with
+            `assignment-type`: `OPTICAL_CHANNEL`, `optical-channel`:
+            `"Ethernet4/1-Optical0"`, `allocation`: `"800"` for 800ZR/800ZR+ or
+            `"400"` for 400ZR/400ZR+) and Ethernet logical channel index `80000`
+            (or `40000` on 400ZR/400ZR+ platforms; `logical-channel-type`:
+            `PROT_ETHERNET`, `rate-class`: `TRIB_RATE_800G` for 800ZR/800ZR+ or
+            `TRIB_RATE_400G` for 400ZR/400ZR+, `trib-protocol`: `PROT_800GE` for
+            800ZR/800ZR+ or `PROT_400GE` for 400ZR/400ZR+, `admin-state`:
             `ENABLED`, ingress `interface`: `"Ethernet4/1/1"`, ingress
             `transceiver`: `"Ethernet4/1"`, assignment index `1` with
-            `assignment-type`: `LOGICAL_CHANNEL`, `logical-channel`: `8000`,
-            `allocation`: `"800"`).
+            `assignment-type`: `LOGICAL_CHANNEL`, `logical-channel`: `8000` or
+            `4000`, `allocation`: `"800"` or `"400"`).
         *   **Port 2 (`Ethernet5/1/1`)**: Coherent OTN logical channel index
-            `8001` (`logical-channel-type`: `PROT_OTN`, `admin-state`:
-            `ENABLED`, assignment index `1` with `assignment-type`:
-            `OPTICAL_CHANNEL`, `optical-channel`: `"Ethernet5/1-Optical0"`,
-            `allocation`: `"800"`) and Ethernet logical channel index `80001`
-            (`logical-channel-type`: `PROT_ETHERNET`, `rate-class`:
-            `TRIB_RATE_800G`, `trib-protocol`: `PROT_800GE`, `admin-state`:
+            `8001` (or `4001` on 400ZR/400ZR+ platforms; `logical-channel-type`:
+            `PROT_OTN`, `admin-state`: `ENABLED`, assignment index `1` with
+            `assignment-type`: `OPTICAL_CHANNEL`, `optical-channel`:
+            `"Ethernet5/1-Optical0"`, `allocation`: `"800"` for 800ZR/800ZR+ or
+            `"400"` for 400ZR/400ZR+) and Ethernet logical channel index `80001`
+            (or `40001` on 400ZR/400ZR+ platforms; `logical-channel-type`:
+            `PROT_ETHERNET`, `rate-class`: `TRIB_RATE_800G` for 800ZR/800ZR+ or
+            `TRIB_RATE_400G` for 400ZR/400ZR+, `trib-protocol`: `PROT_800GE` for
+            800ZR/800ZR+ or `PROT_400GE` for 400ZR/400ZR+, `admin-state`:
             `ENABLED`, ingress `interface`: `"Ethernet5/1/1"`, ingress
             `transceiver`: `"Ethernet5/1"`, assignment index `1` with
-            `assignment-type`: `LOGICAL_CHANNEL`, `logical-channel`: `8001`,
-            `allocation`: `"800"`).
+            `assignment-type`: `LOGICAL_CHANNEL`, `logical-channel`: `8001` or
+            `4001`, `allocation`: `"800"` or `"400"`).
 *   **Step 2 - Baseline Transceiver Inventory Verification (`gNMI.Subscribe` &
     `gNMI.Get`)**:
     *   Establish an `ON_CHANGE` `gNMI.Subscribe` session and perform `gNMI.Get`
@@ -177,7 +203,8 @@ uncorrectable FEC errors.
             component string)
         *   `/components/component/state/oper-status` (`ACTIVE`)
         *   `/components/component/transceiver/state/enabled` (`true`)
-        *   `/components/component/transceiver/state/form-factor` (e.g., `OSFP`)
+        *   `/components/component/transceiver/state/form-factor` (e.g., `OSFP`
+            or `QSFP_DD`)
         *   `/components/component/state/serial-no` (non-empty string)
         *   `/components/component/state/part-no` (non-empty string)
         *   `/components/component/state/mfg-name` (non-empty string)
@@ -202,8 +229,8 @@ uncorrectable FEC errors.
         `/components/component[name=Ethernet4/1-Optical0]/optical-channel/config/operational-mode`
         and
         `/components/component[name=Ethernet5/1-Optical0]/optical-channel/config/operational-mode`
-        from `1` to `2` (or the platform-specific custom 800ZR operational mode)
-        on both DUT ports and their peer ATE ports.
+        from `1` to `2` (or the platform-specific custom 400ZR/800ZR operational
+        mode) on both DUT ports and their peer ATE ports.
     *   Bounce both transceivers using event-driven `gNMI.Subscribe`
         (`ON_CHANGE`) state gates (do **not** use fixed sleep timers):
         1.  Set
@@ -606,17 +633,18 @@ uncorrectable FEC errors.
 }
 ```
 
-### TRANSCEIVER-109.2: Validate scaled multi-port 800ZR transceiver inventory persistence and link recovery across repeated interface delete and re-create cycles
+### TRANSCEIVER-109.2: Validate scaled multi-port 400ZR / 800ZR transceiver inventory persistence and link recovery across repeated interface delete and re-create cycles
 
-When interfaces associated with 800G ZR/ZR+ optics across multiple line cards
-are deleted and re-created, the device software database must retain the
-physical transceiver component inventory rather than purging the optic record
-(`no-info` / missing from `/components/component`). Building directly on the
-established state of `TRANSCEIVER-109.1`, this subtest executes 5 consecutive
-cycles of simultaneous batched `gNMI.Set` interface deletion and re-creation
-across both 800G ZR interfaces (`Ethernet4/1/1` and `Ethernet5/1/1`), verifying
-continuous hardware inventory presence via `ON_CHANGE` `gNMI.Subscribe` and
-full bidirectional dual-stack L3 traffic recovery.
+When interfaces associated with coherent 400G ZR/ZR+ (`SPEED_400GB`) or 800G
+ZR/ZR+ (`SPEED_800GB`) optics across multiple line cards are deleted and
+re-created, the device software database must retain the physical transceiver
+component inventory rather than purging the optic record (`no-info` / missing
+from `/components/component`). Building directly on the established state of
+`TRANSCEIVER-109.1`, this subtest executes 5 consecutive cycles of simultaneous
+batched `gNMI.Set` interface deletion and re-creation across both 400ZR or
+800ZR interfaces (`Ethernet4/1/1` and `Ethernet5/1/1`), verifying continuous
+hardware inventory presence via `ON_CHANGE` `gNMI.Subscribe` and full
+bidirectional dual-stack L3 traffic recovery.
 
 *   **Step 1 - Maintain Continuous `ON_CHANGE` Inventory Subscription**:
     *   Starting from the active state of `TRANSCEIVER-109.1`, keep an active
@@ -634,10 +662,11 @@ full bidirectional dual-stack L3 traffic recovery.
             *   Issue a single batched `gNMI.Set` (`Delete`) request removing
                 `/interfaces/interface[name=Ethernet4/1/1]`,
                 `/interfaces/interface[name=Ethernet5/1/1]`,
-                `/terminal-device/logical-channels/channel[index=80000]/ingress/config/interface`,
-                and
-                `/terminal-device/logical-channels/channel[index=80001]/ingress/config/interface`,
-                while keeping both physical transceivers enabled
+                `/terminal-device/logical-channels/channel[index=80000]/ingress/config/interface`
+                (or `40000` on 400ZR/400ZR+ platforms), and
+                `/terminal-device/logical-channels/channel[index=80001]/ingress/config/interface`
+                (or `40001` on 400ZR/400ZR+ platforms), while keeping both
+                physical transceivers enabled
                 (`/components/component[name=Ethernet4/1]/transceiver/config/enabled`
                 = `true` and
                 `/components/component[name=Ethernet5/1]/transceiver/config/enabled`
@@ -666,14 +695,16 @@ full bidirectional dual-stack L3 traffic recovery.
         3.  **Batched Interface Re-Creation and Custom Operational Mode
             Verification**:
             *   Using a batched `gNMI.Set`, re-create
-                `/interfaces/interface[name=Ethernet4/1/1]` (`SPEED_800GB`,
-                `192.0.2.1/30`, `2001:db8::1/126`) and
-                `/interfaces/interface[name=Ethernet5/1/1]` (`SPEED_800GB`,
-                `192.0.2.5/30`, `2001:db8::5/126`), re-bind
+                `/interfaces/interface[name=Ethernet4/1/1]` (`SPEED_800GB` for
+                800ZR/800ZR+ or `SPEED_400GB` for 400ZR/400ZR+, `192.0.2.1/30`,
+                `2001:db8::1/126`) and
+                `/interfaces/interface[name=Ethernet5/1/1]` (`SPEED_800GB` for
+                800ZR/800ZR+ or `SPEED_400GB` for 400ZR/400ZR+, `192.0.2.5/30`,
+                `2001:db8::5/126`), re-bind
                 `/terminal-device/logical-channels/channel[index=80000]/ingress/config/interface`
-                to `"Ethernet4/1/1"` and
+                (or `40000`) to `"Ethernet4/1/1"` and
                 `/terminal-device/logical-channels/channel[index=80001]/ingress/config/interface`
-                to `"Ethernet5/1/1"`, and ensure
+                (or `40001`) to `"Ethernet5/1/1"`, and ensure
                 `/components/component[name=Ethernet4/1-Optical0]/optical-channel/config/operational-mode`
                 and
                 `/components/component[name=Ethernet5/1-Optical0]/optical-channel/config/operational-mode`
@@ -709,9 +740,9 @@ full bidirectional dual-stack L3 traffic recovery.
 
 Building on the active state from `TRANSCEIVER-109.2`, this subtest validates
 that negative optical configurations and fault conditions do not purge
-transceiver hardware inventory from `/components/component` and that the 800G ZR
-transceivers cleanly recover via custom `operational-mode` provisioning and
-transceiver state bounce.
+transceiver hardware inventory from `/components/component` and that the 400ZR
+or 800ZR coherent transceivers cleanly recover via custom `operational-mode`
+provisioning and transceiver state bounce.
 
 *   **Step 1 - Negative Case 1: Unsupported / Out-of-Range `operational-mode`
     (`Appsel`) Handling**:

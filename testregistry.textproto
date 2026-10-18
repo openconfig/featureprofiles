@@ -1933,7 +1933,7 @@ test: {
 }
 test: {
   id: "TRANSCEIVER-109"
-  description: "800ZR Operational Mode Transition and Inventory Persistence"
+  description: "400ZR / 800ZR Operational Mode Transition and Inventory Persistence"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zr_800_operational_mode_inventory_recovery_test/README.md"
 }
 test: {
