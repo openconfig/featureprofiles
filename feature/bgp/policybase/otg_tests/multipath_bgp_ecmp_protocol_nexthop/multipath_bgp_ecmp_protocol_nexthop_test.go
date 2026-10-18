@@ -141,7 +141,7 @@ const (
 	packetSize       = 1500
 	peerGrpName1     = "BGP-PEER-GROUP1"
 	lossTolerancePct = 0.5 // Packet loss tolerance in percentage
-	lbToleranceFms   = 20 // Load Balance Tolerance in percentage
+	lbToleranceFms   = 20  // Load Balance Tolerance in percentage
 	rplType          = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	rplName          = "ALLOW"
 )
@@ -802,11 +802,10 @@ func verifyECMPLoadBalance(t *testing.T, ate *ondatra.ATEDevice, pc int, expecte
 }
 
 func randRange(start, end uint32, count int) []uint32 {
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	var result []uint32
-	diff := end - start
+	diff := int32(end - start)
 	for len(result) < count {
-		randomValue := r.Int31n(int32(diff)) + int32(start)
+		randomValue := rand.Int31n(diff) + int32(start)
 		result = append(result, uint32(randomValue))
 	}
 	return result
