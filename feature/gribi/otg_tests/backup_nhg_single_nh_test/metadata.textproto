@@ -20,6 +20,7 @@ platform_exceptions: {
   deviations: {
     explicit_interface_in_default_vrf: true
     interface_enabled: true
+    aft_next_hop_origin_protocol_unsupported: true
   }
 }
 platform_exceptions: {
@@ -31,6 +32,8 @@ platform_exceptions: {
     interface_enabled: true
     default_network_instance: "default"
     interface_config_vrf_before_address: true
+    aft_next_hop_origin_protocol_unsupported: true
+    aft_next_hop_group_backup_nhg_unsupported: true
   }
 }
 tags: TAGS_TRANSIT
