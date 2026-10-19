@@ -15,5 +15,15 @@ platform_exceptions: {
     default_network_instance: "default"
     qos_two_rate_three_color_policer_oc_unsupported: true
     qos_scheduler_ingress_policer_unsupported: true
+    qos_get_state_path_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    qos_queue_requires_id: true
+    qos_ft: "ciscoxr-qos-ft"
   }
 }

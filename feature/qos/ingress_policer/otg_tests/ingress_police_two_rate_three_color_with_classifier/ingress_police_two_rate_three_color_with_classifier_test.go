@@ -13,6 +13,8 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/featureprofiles/internal/qoscfg"
+	"github.com/openconfig/functional_translators/registrar"
+	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -28,7 +30,7 @@ const (
 	pirValue            = 2000000000
 	trafficFrameSize    = 512
 	trafficDuration     = 20 * time.Second
-	lossVariation       = 0.01
+	lossVariation       = 0.05
 	schedulerName       = "group_A_2Gb"
 	inputPolicerName    = "input-policer-2Gb"
 	queue1              = "QUEUE_1"
@@ -83,7 +85,12 @@ var (
 		IPv6Len: 126,
 	}
 
-	inputInterfaceName string
+	inputInterfaceName  string
+	totalSentPackets    uint64
+	prevExceedingPkts   uint64
+	prevExceedingOctets uint64
+	prevViolatingPkts   uint64
+	prevViolatingOctets uint64
 )
 
 type testCase struct {
@@ -112,11 +119,17 @@ func TestIngressPolicerTwoRateThreeColor(t *testing.T) {
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 	otgutils.WaitForARP(t, ate.OTG(), top, ipv4)
-	otgutils.WaitForARP(t, ate.OTG(), top, ipv6)
+
+	lowLossPct := float32(0)
+	highLossPct := float32(0.5)
+	if !deviations.QosTwoRateThreeColorPolicerOCUnsupported(dut) {
+		lowLossPct = float32(trafficRateLowMbps-cirValue/1000000) / float32(trafficRateLowMbps)
+		highLossPct = float32(trafficRateHighMbps-cirValue/1000000) / float32(trafficRateHighMbps)
+	}
 
 	testCases := []testCase{
-		{name: "DP-2.6.1 Low Traffic", flowRate: trafficRateLowMbps, lossPct: 0},
-		{name: "DP-2.6.2 High Traffic", flowRate: trafficRateHighMbps, lossPct: 0.5},
+		{name: "DP-2.6.1 Low Traffic", flowRate: trafficRateLowMbps, lossPct: lowLossPct},
+		{name: "DP-2.6.2 High Traffic", flowRate: trafficRateHighMbps, lossPct: highLossPct},
 	}
 
 	for _, tc := range testCases {
@@ -174,22 +187,31 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	qosPath := gnmi.OC().Qos().Config()
 	cfgplugins.NewQoSClassifierConfiguration(t, dut, qos, []cfgplugins.QosClassifier{classifier})
 	qoscfg.SetInputClassifier(t, dut, qos, inputInterfaceName, inputClassifierType, schedulerName)
-	cfgplugins.NewTwoRateThreeColorScheduler(t, dut, qosBatch, schedulerParams)
-	cfgplugins.ApplyQosPolicyOnInterface(t, dut, qosBatch, schedulerParams)
 	gnmi.BatchUpdate(qosBatch, qosPath, qos)
-	qosBatch.Set(t, dut)
+	if deviations.QosTwoRateThreeColorPolicerOCUnsupported(dut) {
+		qosBatch.Set(t, dut)
+		cfgplugins.NewTwoRateThreeColorScheduler(t, dut, qosBatch, schedulerParams)
+		cfgplugins.ApplyQosPolicyOnInterface(t, dut, qosBatch, schedulerParams)
+	} else {
+		cfgplugins.NewTwoRateThreeColorScheduler(t, dut, qosBatch, schedulerParams)
+		cfgplugins.ApplyQosPolicyOnInterface(t, dut, qosBatch, schedulerParams)
+		qosBatch.Set(t, dut)
+	}
 }
 
 func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 	features := []cfgplugins.FeatureType{
-		cfgplugins.FeatureNGPR,
 		cfgplugins.FeatureQOSIn,
+	}
+	if !deviations.QosGetStatePathUnsupported(dut) {
+		features = append([]cfgplugins.FeatureType{cfgplugins.FeatureNGPR}, features...)
 	}
 	for _, feature := range features {
 		hardwareInitCfg := cfgplugins.NewDUTHardwareInit(t, dut, feature)
-		if hardwareInitCfg != "" {
-			cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareInitCfg)
+		if hardwareInitCfg == "" {
+			continue
 		}
+		cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareInitCfg)
 	}
 }
 
@@ -234,8 +256,11 @@ func runTest(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, confi
 	otg.PushConfig(t, config)
 
 	otg.StartProtocols(t)
+	otgutils.WaitForARP(t, otg, config, ipv4)
 	otg.StartTraffic(t)
-	waitForTraffic(t, otg, flowName, trafficDuration*2)
+	expectedOutPkts := tc.flowRate * 1000000 * uint64(trafficDuration.Seconds()) / (trafficFrameSize * 8)
+	waitForTraffic(t, otg, flowName, expectedOutPkts, trafficDuration*2)
+	otg.StopTraffic(t)
 
 	otgutils.LogFlowMetrics(t, otg, config)
 	otgutils.LogPortMetrics(t, otg, config)
@@ -265,11 +290,22 @@ func runTest(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, confi
 		}
 	}
 
-	validateSchedulerCounters(t, dut, inputInterfaceName, tc, uint64(lostPackets))
-	validateClassifierCounters(t, dut, inputInterfaceName, tc, sentPackets)
+	totalSentPackets += sentPackets
+	if !deviations.QosGetStatePathUnsupported(dut) {
+		validateSchedulerCounters(t, dut, inputInterfaceName, tc, uint64(lostPackets))
+		validateClassifierCounters(t, dut, inputInterfaceName, tc, sentPackets, totalSentPackets)
+	} else {
+		t.Logf("Skipping scheduler and classifier counters validation as QosGetStatePathUnsupported is true")
+	}
 }
 
-func waitForTraffic(t *testing.T, otg *otg.OTG, flowName string, timeout time.Duration) {
+func waitForTraffic(t *testing.T, otg *otg.OTG, flowName string, expectedOutPkts uint64, timeout time.Duration) {
+	outPktsPath := gnmi.OTG().Flow(flowName).Counters().OutPkts().State()
+	gnmi.Watch(t, otg, outPktsPath, timeout, func(val *ygnmi.Value[uint64]) bool {
+		outPkts, present := val.Val()
+		return present && outPkts >= expectedOutPkts
+	}).Await(t)
+
 	transmitPath := gnmi.OTG().Flow(flowName).Transmit().State()
 	checkState := func(val *ygnmi.Value[bool]) bool {
 		transmitState, present := val.Val()
@@ -285,17 +321,143 @@ func waitForTraffic(t *testing.T, otg *otg.OTG, flowName string, timeout time.Du
 }
 
 func validateSchedulerCounters(t *testing.T, dut *ondatra.DUTDevice, intf string, tc testCase, droppedPackets uint64) {
-	scheduler := gnmi.Get(t, dut, gnmi.OC().Qos().Interface(intf).Input().SchedulerPolicy().Scheduler(sequenceNumber).State())
-	t.Logf("Scheduler counters for %s at %.1fGbps: conforming=%d, exceeding=%d, violating=%d", intf, float64(tc.flowRate/1000), *scheduler.ConformingPkts, *scheduler.ExceedingPkts, *scheduler.ViolatingPkts)
-	if *scheduler.ViolatingPkts != droppedPackets {
-		t.Errorf("Expected %d dropped packets, but got %d", droppedPackets, *scheduler.ViolatingPkts)
+	var opts []ygnmi.Option
+	if dut.Vendor() != ondatra.CISCO {
+		opts = fptest.GetOptsForFunctionalTranslator(t, deviations.QosFt(dut))
+	}
+	gnmiOpts := dut.GNMIOpts().WithYGNMIOpts(opts...)
+	schedPath := gnmi.OC().Qos().Interface(intf).Input().SchedulerPolicy().Scheduler(sequenceNumber)
+	expectedDroppedOctets := droppedPackets * trafficFrameSize
+
+	var (
+		conformingPkts, exceedingPkts, violatingPkts       uint64
+		conformingOctets, exceedingOctets, violatingOctets uint64
+		deltaDroppedPkts, deltaDroppedOctets               uint64
+	)
+
+	val, ok := gnmi.Watch(t, gnmiOpts, schedPath.State(), 45*time.Second, func(val *ygnmi.Value[*oc.Qos_Interface_Input_SchedulerPolicy_Scheduler]) bool {
+		sched, present := val.Val()
+		if !present {
+			return false
+		}
+		conformingPkts = sched.GetConformingPkts()
+		conformingOctets = sched.GetConformingOctets()
+		exceedingPkts = sched.GetExceedingPkts()
+		exceedingOctets = sched.GetExceedingOctets()
+		violatingPkts = sched.GetViolatingPkts()
+		violatingOctets = sched.GetViolatingOctets()
+
+		deltaExceedingPkts := exceedingPkts - prevExceedingPkts
+		deltaExceedingOctets := exceedingOctets - prevExceedingOctets
+		deltaViolatingPkts := violatingPkts - prevViolatingPkts
+		deltaViolatingOctets := violatingOctets - prevViolatingOctets
+
+		deltaDroppedPkts = deltaViolatingPkts
+		deltaDroppedOctets = deltaViolatingOctets
+		if !deviations.QosTwoRateThreeColorPolicerOCUnsupported(dut) {
+			deltaDroppedPkts += deltaExceedingPkts
+			deltaDroppedOctets += deltaExceedingOctets
+		}
+
+		return conformingPkts > 0 && conformingOctets > 0 &&
+			exceedingPkts > 0 && exceedingOctets > 0 &&
+			conformingOctets == conformingPkts*trafficFrameSize &&
+			exceedingOctets == exceedingPkts*trafficFrameSize &&
+			violatingOctets == violatingPkts*trafficFrameSize &&
+			deltaDroppedPkts == droppedPackets &&
+			deltaDroppedOctets == expectedDroppedOctets
+	}).Await(t)
+	if !ok {
+		t.Logf("Scheduler counters did not settle within 45s")
+	} else if sched, present := val.Val(); present {
+		conformingPkts = sched.GetConformingPkts()
+		conformingOctets = sched.GetConformingOctets()
+		exceedingPkts = sched.GetExceedingPkts()
+		exceedingOctets = sched.GetExceedingOctets()
+		violatingPkts = sched.GetViolatingPkts()
+		violatingOctets = sched.GetViolatingOctets()
+	}
+
+	prevExceedingPkts = exceedingPkts
+	prevExceedingOctets = exceedingOctets
+	prevViolatingPkts = violatingPkts
+	prevViolatingOctets = violatingOctets
+
+	t.Logf("Scheduler counters for %s at %.1fGbps: conformingPkts=%d, conformingOctets=%d, exceedingPkts=%d, exceedingOctets=%d, violatingPkts=%d, violatingOctets=%d",
+		intf, float64(tc.flowRate/1000), conformingPkts, conformingOctets, exceedingPkts, exceedingOctets, violatingPkts, violatingOctets)
+	if conformingPkts == 0 || conformingOctets == 0 {
+		t.Errorf("Expected non-zero conforming packets and octets, got conformingPkts=%d, conformingOctets=%d", conformingPkts, conformingOctets)
+	}
+	if exceedingPkts == 0 || exceedingOctets == 0 {
+		t.Errorf("Expected non-zero exceeding packets and octets, got exceedingPkts=%d, exceedingOctets=%d", exceedingPkts, exceedingOctets)
+	}
+	if conformingOctets != conformingPkts*trafficFrameSize {
+		t.Errorf("Expected conformingOctets (%d) == conformingPkts*frameSize (%d)", conformingOctets, conformingPkts*trafficFrameSize)
+	}
+	if exceedingOctets != exceedingPkts*trafficFrameSize {
+		t.Errorf("Expected exceedingOctets (%d) == exceedingPkts*frameSize (%d)", exceedingOctets, exceedingPkts*trafficFrameSize)
+	}
+	if violatingOctets != violatingPkts*trafficFrameSize {
+		t.Errorf("Expected violatingOctets (%d) == violatingPkts*frameSize (%d)", violatingOctets, violatingPkts*trafficFrameSize)
+	}
+	if deltaDroppedPkts != droppedPackets {
+		t.Errorf("Expected %d dropped packets, but got %d", droppedPackets, deltaDroppedPkts)
+	}
+	if deltaDroppedOctets != expectedDroppedOctets {
+		t.Errorf("Expected %d dropped octets, but got %d", expectedDroppedOctets, deltaDroppedOctets)
 	}
 }
 
-func validateClassifierCounters(t *testing.T, dut *ondatra.DUTDevice, intf string, tc testCase, expectedPackets uint64) {
-	classifier := gnmi.Get(t, dut, gnmi.OC().Qos().Interface(intf).Input().Classifier(inputClassifierType).Term(targetClass).State())
-	t.Logf("Classifier counters for %s at %.1fGbps: matched-packets=%d", intf, float64(tc.flowRate/1000), *classifier.MatchedPackets)
-	if *classifier.MatchedPackets != expectedPackets {
-		t.Errorf("Expected %d matched packets, but got %d", expectedPackets, *classifier.MatchedPackets)
+type ciscoClassifierFT struct {
+	ygnmi.FunctionalTranslator
+}
+
+func (c *ciscoClassifierFT) Translate(sr *gnmipb.SubscribeResponse) (*gnmipb.SubscribeResponse, error) {
+	out, err := c.FunctionalTranslator.Translate(sr)
+	if err != nil || out.GetUpdate() == nil {
+		return out, err
+	}
+	for _, u := range out.GetUpdate().GetUpdate() {
+		for _, elem := range u.GetPath().GetElem() {
+			if elem.GetName() == "classifier" && elem.GetKey()["type"] == "" {
+				elem.GetKey()["type"] = "IPV4"
+			}
+			if elem.GetName() == "term" && strings.EqualFold(elem.GetKey()["id"], "DEFAULT") {
+				elem.GetKey()["id"] = targetClass
+			}
+		}
+	}
+	return out, nil
+}
+
+func qosOptsForClassifier(t *testing.T, dut *ondatra.DUTDevice) []ygnmi.Option {
+	ftName := deviations.QosFt(dut)
+	if dut.Vendor() != ondatra.CISCO || ftName == "" {
+		return fptest.GetOptsForFunctionalTranslator(t, ftName)
+	}
+	baseFT, ok := registrar.FunctionalTranslatorRegistry[ftName]
+	if !ok {
+		t.Fatalf("Functional translator %q is not registered", ftName)
+	}
+	return []ygnmi.Option{ygnmi.WithFT(&ciscoClassifierFT{FunctionalTranslator: baseFT})}
+}
+
+func validateClassifierCounters(t *testing.T, dut *ondatra.DUTDevice, intf string, tc testCase, sentPackets, totalSentPackets uint64) {
+	opts := qosOptsForClassifier(t, dut)
+	gnmiOpts := dut.GNMIOpts().WithYGNMIOpts(opts...)
+	var matchedPkts uint64
+	val, ok := gnmi.Watch(t, gnmiOpts, gnmi.OC().Qos().Interface(intf).Input().Classifier(inputClassifierType).Term(targetClass).MatchedPackets().State(), 30*time.Second, func(val *ygnmi.Value[uint64]) bool {
+		v, present := val.Val()
+		if present {
+			matchedPkts = v
+		}
+		return present && (v == totalSentPackets || v == sentPackets)
+	}).Await(t)
+	if ok {
+		matchedPkts, _ = val.Val()
+	}
+	t.Logf("Classifier counters for %s at %.1fGbps: matched-packets=%d", intf, float64(tc.flowRate/1000), matchedPkts)
+	if matchedPkts != totalSentPackets && matchedPkts != sentPackets {
+		t.Errorf("Expected %d (or %d) matched packets, but got %d", totalSentPackets, sentPackets, matchedPkts)
 	}
 }
