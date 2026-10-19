@@ -193,6 +193,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	} else {
 		cfgplugins.NewTwoRateThreeColorScheduler(t, dut, qosBatch, schedulerParams)
 		cfgplugins.ApplyQosPolicyOnInterface(t, dut, qosBatch, schedulerParams)
+		t.Cleanup(func() {
+			gnmi.Delete(t, dut, gnmi.OC().Qos().Config())
+		})
 		qosBatch.Set(t, dut)
 	}
 }
@@ -384,8 +387,9 @@ func validateSchedulerCounters(t *testing.T, dut *ondatra.DUTDevice, intf string
 			deltaDroppedOctets >= deltaDroppedPkts*(trafficFrameSize-4) && deltaDroppedOctets <= expectedDroppedOctets
 	}).Await(t)
 	if !ok {
-		t.Logf("Scheduler counters did not settle within 45s")
-	} else if sched, present := val.Val(); present {
+		t.Fatalf("Scheduler counters did not settle within 45s")
+	}
+	if sched, present := val.Val(); present {
 		conformingPkts = sched.GetConformingPkts()
 		conformingOctets = sched.GetConformingOctets()
 		exceedingPkts = sched.GetExceedingPkts()
@@ -478,9 +482,10 @@ func validateClassifierCounters(t *testing.T, dut *ondatra.DUTDevice, intf strin
 		}
 		return present && v >= initMatchedPkts+sentPackets
 	}).Await(t)
-	if ok {
-		matchedPkts, _ = val.Val()
+	if !ok {
+		t.Fatalf("Classifier counters did not settle within 30s")
 	}
+	matchedPkts, _ = val.Val()
 	t.Logf("Classifier counters for %s at %.1fGbps: matched-packets=%d", intf, float64(tc.flowRate/1000), matchedPkts)
 	if matchedPkts < initMatchedPkts+sentPackets {
 		t.Errorf("Expected at least %d matched packets, but got %d", initMatchedPkts+sentPackets, matchedPkts)
