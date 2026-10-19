@@ -2286,30 +2286,6 @@ deviations: {
   }
 }
 deviations: {
-  name: "sflow_ingress_min_sampling_rate"
-  type: DEVIATION_TYPE_VALUE
-  impacted_paths: {
-    ocpaths: {
-      name: "/sampling/sflow/config/ingress-sampling-rate"
-    }
-  }
-  platforms: {
-    issue_url: "b/402672689"
-    platform: {
-      vendor: CISCO
-      software_version_regex: "*.*"
-    }
-    deviation_values: {
-      oc_standard_value: {
-        string_val: "1000000"
-      }
-      vendor_specific_value: {
-        string_val: "262144"
-      }
-    }
-  }
-}
-deviations: {
   name: "plq_generator_capabilities_max_pps"
   type: DEVIATION_TYPE_VALUE
   platforms: {
