@@ -288,7 +288,7 @@ func CreateQueues(t *testing.T, dut *ondatra.DUTDevice, qos *oc.Qos, queues []st
 	}
 }
 
-func configureTwoRateThreeColorSchedulerFromOC(batch *gnmi.SetBatch, params *SchedulerParams) {
+func configureTwoRateThreeColorSchedulerFromOC(dut *ondatra.DUTDevice, batch *gnmi.SetBatch, params *SchedulerParams) {
 	qos := &oc.Qos{}
 	sp := qos.GetOrCreateSchedulerPolicy(params.SchedulerName)
 	sp.Name = ygot.String(params.SchedulerName)
@@ -301,9 +301,13 @@ func configureTwoRateThreeColorSchedulerFromOC(batch *gnmi.SetBatch, params *Sch
 	trtc := sched.GetOrCreateTwoRateThreeColor()
 	trtc.Cir = ygot.Uint64(params.CirValue)
 	trtc.Pir = ygot.Uint64(params.PirValue)
-	if params.BurstSize > 0 {
-		trtc.Bc = ygot.Uint32(params.BurstSize)
-		trtc.Be = ygot.Uint32(params.BurstSize)
+	// Cisco IOS-XR rejects bc, be, and exceed-action/config/drop as unsupported YANG paths
+	// on two-rate-three-color schedulers, and defaults to dropping exceeding packets.
+	if dut.Vendor() != ondatra.CISCO {
+		if params.BurstSize > 0 {
+			trtc.Bc = ygot.Uint32(params.BurstSize)
+			trtc.Be = ygot.Uint32(params.BurstSize)
+		}
 		trtc.GetOrCreateExceedAction().Drop = ygot.Bool(true)
 	}
 	trtc.GetOrCreateViolateAction().Drop = ygot.Bool(true)
@@ -333,7 +337,7 @@ func NewTwoRateThreeColorScheduler(t *testing.T, dut *ondatra.DUTDevice, batch *
 	if deviations.QosTwoRateThreeColorPolicerOCUnsupported(dut) {
 		configureTwoRateThreeColorSchedulerFromCLI(t, dut, params)
 	} else {
-		configureTwoRateThreeColorSchedulerFromOC(batch, params)
+		configureTwoRateThreeColorSchedulerFromOC(dut, batch, params)
 	}
 }
 
