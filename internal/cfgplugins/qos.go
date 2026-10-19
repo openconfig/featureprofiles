@@ -301,9 +301,10 @@ func configureTwoRateThreeColorSchedulerFromOC(dut *ondatra.DUTDevice, batch *gn
 	trtc := sched.GetOrCreateTwoRateThreeColor()
 	trtc.Cir = ygot.Uint64(params.CirValue)
 	trtc.Pir = ygot.Uint64(params.PirValue)
-	// Cisco IOS-XR rejects bc, be, and exceed-action/config/drop as unsupported YANG paths
-	// on two-rate-three-color schedulers, and defaults to dropping exceeding packets.
-	if dut.Vendor() != ondatra.CISCO {
+	// Platforms with QosSchedulerConfigRequired (such as Cisco IOS-XR) reject bc, be, and
+	// exceed-action/config/drop as unsupported YANG paths on two-rate-three-color schedulers,
+	// and default to dropping exceeding packets.
+	if !deviations.QosSchedulerConfigRequired(dut) {
 		if params.BurstSize > 0 {
 			trtc.Bc = ygot.Uint32(params.BurstSize)
 			trtc.Be = ygot.Uint32(params.BurstSize)

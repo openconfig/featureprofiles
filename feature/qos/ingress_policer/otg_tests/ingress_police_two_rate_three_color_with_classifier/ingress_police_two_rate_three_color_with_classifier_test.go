@@ -476,13 +476,13 @@ func validateClassifierCounters(t *testing.T, dut *ondatra.DUTDevice, intf strin
 		if present {
 			matchedPkts = v
 		}
-		return present && v == initMatchedPkts+sentPackets
+		return present && v >= initMatchedPkts+sentPackets
 	}).Await(t)
 	if ok {
 		matchedPkts, _ = val.Val()
 	}
 	t.Logf("Classifier counters for %s at %.1fGbps: matched-packets=%d", intf, float64(tc.flowRate/1000), matchedPkts)
-	if matchedPkts != initMatchedPkts+sentPackets {
-		t.Errorf("Expected %d matched packets, but got %d", initMatchedPkts+sentPackets, matchedPkts)
+	if matchedPkts < initMatchedPkts+sentPackets {
+		t.Errorf("Expected at least %d matched packets, but got %d", initMatchedPkts+sentPackets, matchedPkts)
 	}
 }

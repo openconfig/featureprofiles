@@ -24,6 +24,7 @@ platform_exceptions: {
   }
   deviations: {
     qos_queue_requires_id: true
+    qos_scheduler_config_required: true
     qos_ft: "ciscoxr-qos-ft"
   }
 }
