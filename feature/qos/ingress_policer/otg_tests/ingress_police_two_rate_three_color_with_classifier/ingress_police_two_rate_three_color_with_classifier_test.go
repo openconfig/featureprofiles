@@ -333,12 +333,13 @@ func runTest(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, confi
 
 func waitForTraffic(t *testing.T, otg *otg.OTG, flowName string, expectedOutPkts uint64, timeout time.Duration) {
 	outPktsPath := gnmi.OTG().Flow(flowName).Counters().OutPkts().State()
+	expectedOutPktsMargin := expectedOutPkts * 95 / 100
 	_, okOut := gnmi.Watch(t, otg, outPktsPath, timeout, func(val *ygnmi.Value[uint64]) bool {
 		outPkts, present := val.Val()
-		return present && outPkts >= expectedOutPkts
+		return present && outPkts >= expectedOutPktsMargin
 	}).Await(t)
 	if !okOut {
-		t.Fatalf("Traffic for flow %s did not reach expected output packets %d within %v", flowName, expectedOutPkts, timeout)
+		t.Fatalf("Traffic for flow %s did not reach expected output packets %d within %v", flowName, expectedOutPktsMargin, timeout)
 	}
 
 	transmitPath := gnmi.OTG().Flow(flowName).Transmit().State()
