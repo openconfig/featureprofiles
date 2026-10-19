@@ -15,3 +15,12 @@ platform_exceptions:  {
     gribi_mac_override_static_arp_static_route:  true
   }
 }
+platform_exceptions:  {
+  platform:  {
+    vendor:  CISCO
+  }
+  deviations:  {
+    ipv4_missing_enabled:  true
+    gribi_mac_override_static_arp_static_route:  true
+  }
+}
