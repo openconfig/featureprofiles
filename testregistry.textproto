@@ -1194,6 +1194,11 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/vrf_selection/otg_tests/vrf_selection_resiliency_test/README.md"
 }
 test: {
+  id: "RT-3.5"
+  description: "Dual-Stack eBGP Session Establishment and IPv6 NDP Resolution over LAG with Active VRF Selection Policy"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/vrf_selection/otg_tests/vrf_selection_ndp_ebgp_test/README.md"
+}
+test: {
   id: "RT-3.52"
   description: "Multidimensional test for Static GUE Encap/Decap based on BGP path selection and selective DSCP marking"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/encapsulation/otg_tests/staticgueencap_and_bgp_path_selection/README.md"
