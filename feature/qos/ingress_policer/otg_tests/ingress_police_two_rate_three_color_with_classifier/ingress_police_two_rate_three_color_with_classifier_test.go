@@ -85,12 +85,7 @@ var (
 		IPv6Len: 126,
 	}
 
-	inputInterfaceName  string
-	totalSentPackets    uint64
-	prevExceedingPkts   uint64
-	prevExceedingOctets uint64
-	prevViolatingPkts   uint64
-	prevViolatingOctets uint64
+	inputInterfaceName string
 )
 
 type testCase struct {
@@ -262,6 +257,34 @@ func runTest(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, confi
 
 	otg.StartProtocols(t)
 	otgutils.WaitForARP(t, otg, config, ipv4)
+
+	var (
+		initExceedingPkts, initExceedingOctets uint64
+		initViolatingPkts, initViolatingOctets uint64
+		initMatchedPkts                        uint64
+	)
+	if !deviations.QosGetStatePathUnsupported(dut) {
+		var opts []ygnmi.Option
+		if !deviations.QOSQueueRequiresID(dut) {
+			opts = fptest.GetOptsForFunctionalTranslator(t, deviations.QosFt(dut))
+		}
+		gnmiOpts := dut.GNMIOpts().WithYGNMIOpts(opts...)
+		schedPath := gnmi.OC().Qos().Interface(inputInterfaceName).Input().SchedulerPolicy().Scheduler(sequenceNumber)
+		if sched, present := gnmi.Lookup(t, gnmiOpts, schedPath.State()).Val(); present {
+			initExceedingPkts = sched.GetExceedingPkts()
+			initExceedingOctets = sched.GetExceedingOctets()
+			initViolatingPkts = sched.GetViolatingPkts()
+			initViolatingOctets = sched.GetViolatingOctets()
+		}
+
+		classOpts := qosOptsForClassifier(t, dut)
+		classGNMIOpts := dut.GNMIOpts().WithYGNMIOpts(classOpts...)
+		classPath := gnmi.OC().Qos().Interface(inputInterfaceName).Input().Classifier(inputClassifierType).Term(targetClass).MatchedPackets()
+		if v, present := gnmi.Lookup(t, classGNMIOpts, classPath.State()).Val(); present {
+			initMatchedPkts = v
+		}
+	}
+
 	otg.StartTraffic(t)
 	defer otg.StopTraffic(t)
 	expectedOutPkts := tc.flowRate * 1000000 * uint64(trafficDuration.Seconds()) / (trafficFrameSize * 8)
@@ -296,10 +319,9 @@ func runTest(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, confi
 		}
 	}
 
-	totalSentPackets += sentPackets
 	if !deviations.QosGetStatePathUnsupported(dut) {
-		validateSchedulerCounters(t, dut, inputInterfaceName, tc, uint64(lostPackets))
-		validateClassifierCounters(t, dut, inputInterfaceName, tc, sentPackets, totalSentPackets)
+		validateSchedulerCounters(t, dut, inputInterfaceName, tc, uint64(lostPackets), initExceedingPkts, initExceedingOctets, initViolatingPkts, initViolatingOctets)
+		validateClassifierCounters(t, dut, inputInterfaceName, tc, sentPackets, initMatchedPkts)
 	} else {
 		t.Logf("Skipping scheduler and classifier counters validation as QosGetStatePathUnsupported is true")
 	}
@@ -326,7 +348,7 @@ func waitForTraffic(t *testing.T, otg *otg.OTG, flowName string, expectedOutPkts
 	}
 }
 
-func validateSchedulerCounters(t *testing.T, dut *ondatra.DUTDevice, intf string, tc testCase, droppedPackets uint64) {
+func validateSchedulerCounters(t *testing.T, dut *ondatra.DUTDevice, intf string, tc testCase, droppedPackets, prevExceedingPkts, prevExceedingOctets, prevViolatingPkts, prevViolatingOctets uint64) {
 	var opts []ygnmi.Option
 	if !deviations.QOSQueueRequiresID(dut) {
 		opts = fptest.GetOptsForFunctionalTranslator(t, deviations.QosFt(dut))
@@ -383,11 +405,6 @@ func validateSchedulerCounters(t *testing.T, dut *ondatra.DUTDevice, intf string
 		violatingPkts = sched.GetViolatingPkts()
 		violatingOctets = sched.GetViolatingOctets()
 	}
-
-	prevExceedingPkts = exceedingPkts
-	prevExceedingOctets = exceedingOctets
-	prevViolatingPkts = violatingPkts
-	prevViolatingOctets = violatingOctets
 
 	t.Logf("Scheduler counters for %s at %.1fGbps: conformingPkts=%d, conformingOctets=%d, exceedingPkts=%d, exceedingOctets=%d, violatingPkts=%d, violatingOctets=%d",
 		intf, float64(tc.flowRate/1000), conformingPkts, conformingOctets, exceedingPkts, exceedingOctets, violatingPkts, violatingOctets)
@@ -458,7 +475,7 @@ func qosOptsForClassifier(t *testing.T, dut *ondatra.DUTDevice) []ygnmi.Option {
 	return []ygnmi.Option{ygnmi.WithFT(&ciscoClassifierFT{FunctionalTranslator: baseFT})}
 }
 
-func validateClassifierCounters(t *testing.T, dut *ondatra.DUTDevice, intf string, tc testCase, sentPackets, totalSentPackets uint64) {
+func validateClassifierCounters(t *testing.T, dut *ondatra.DUTDevice, intf string, tc testCase, sentPackets, initMatchedPkts uint64) {
 	opts := qosOptsForClassifier(t, dut)
 	gnmiOpts := dut.GNMIOpts().WithYGNMIOpts(opts...)
 	var matchedPkts uint64
@@ -467,13 +484,13 @@ func validateClassifierCounters(t *testing.T, dut *ondatra.DUTDevice, intf strin
 		if present {
 			matchedPkts = v
 		}
-		return present && (v == totalSentPackets || v == sentPackets)
+		return present && v == initMatchedPkts+sentPackets
 	}).Await(t)
 	if ok {
 		matchedPkts, _ = val.Val()
 	}
 	t.Logf("Classifier counters for %s at %.1fGbps: matched-packets=%d", intf, float64(tc.flowRate/1000), matchedPkts)
-	if matchedPkts != totalSentPackets && matchedPkts != sentPackets {
-		t.Errorf("Expected %d (or %d) matched packets, but got %d", totalSentPackets, sentPackets, matchedPkts)
+	if matchedPkts != initMatchedPkts+sentPackets {
+		t.Errorf("Expected %d matched packets, but got %d", initMatchedPkts+sentPackets, matchedPkts)
 	}
 }
