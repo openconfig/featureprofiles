@@ -569,14 +569,14 @@ func runTrafficFlows(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, flows [
 	otg.StopTraffic(t)
 	otgutils.LogFlowMetrics(t, otg, top)
 	otgutils.LogPortMetrics(t, otg, top)
-	if err := validateTrunkTraffic(t, otg, packetsBefore, nhCount); err != nil {
-		errs = append(errs, err)
-	}
 
 	for _, flow := range flows {
 		if err := validateTrafficLoss(t, otg, flow.Name(), 0, trafficTolerance); err != nil {
 			errs = append(errs, err)
 		}
+	}
+	if err := validateTrunkTraffic(t, otg, packetsBefore, nhCount); err != nil {
+		errs = append(errs, err)
 	}
 
 	return errors.Join(errs...)
@@ -682,7 +682,7 @@ func verifyOverloadBitAdvertised(t *testing.T, otg *otg.OTG) error {
 			return false
 		}
 		for _, lsp := range db.Lsps {
-			for _, flag := range lsp.Flags {
+			for _, flag := range lsp.GetFlags() {
 				if flag == otgtelemetry.Lsps_Flags_OVERLOAD {
 					return true
 				}

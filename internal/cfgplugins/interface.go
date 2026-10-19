@@ -1885,6 +1885,11 @@ func NextAggregates(t *testing.T, dut *ondatra.DUTDevice, n int) ([]string, erro
 	if err != nil {
 		return nil, fmt.Errorf("cannot extract integer from %q: %v", firstAgg, err)
 	}
+	existingInterfaces := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().Name().State())
+	existingMap := make(map[string]bool)
+	for _, intf := range existingInterfaces {
+		existingMap[intf] = true
+	}
 	aggs := []string{firstAgg}
 	for i := start + 1; len(aggs) < n; i++ {
 		if i-start > n+aggregateSearchLimit {
@@ -1892,9 +1897,7 @@ func NextAggregates(t *testing.T, dut *ondatra.DUTDevice, n int) ([]string, erro
 		}
 
 		agg := firstAgg[:loc[0]] + strconv.Itoa(i) + firstAgg[loc[1]:]
-		// some aggregate interface after firstAgg may already be present in the system.
-		_, present := gnmi.Lookup(t, dut, gnmi.OC().Interface(agg).Name().State()).Val()
-		if !present {
+		if !existingMap[agg] {
 			aggs = append(aggs, agg)
 		}
 	}
