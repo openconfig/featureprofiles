@@ -1024,6 +1024,7 @@ func PolicyForwardingGreDecapsulation(t *testing.T, batch *gnmi.SetBatch, dut *o
 	}
 }
 
+// ConfigureVrfSelectionPolicy configures an OpenConfig VRF selection policy on the provided PolicyForwarding container.
 func ConfigureVrfSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, policyName string, vrfRules []VrfRule) {
 	t.Helper()
 	if len(vrfRules) == 0 {
@@ -1157,6 +1158,7 @@ func NewVrfSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice, cfg VrfSelectio
 	return pf
 }
 
+// ApplyVrfSelectionPolicyToInterfaceOC binds an OpenConfig VRF selection policy to the specified interface.
 func ApplyVrfSelectionPolicyToInterfaceOC(t *testing.T, pf *oc.NetworkInstance_PolicyForwarding, interfaceID string, appliedPolicyName string) {
 	t.Helper()
 	iface := pf.GetOrCreateInterface(interfaceID)
