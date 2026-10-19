@@ -178,10 +178,12 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		ClassName:      targetClass,
 		CirValue:       cirValue,
 		PirValue:       pirValue,
-		BurstSize:      burstSize,
 		QueueName:      targetQueue,
 		QueueID:        targetQueueID,
 		SequenceNumber: sequenceNumber,
+	}
+	if !deviations.QOSQueueRequiresID(dut) {
+		schedulerParams.BurstSize = burstSize
 	}
 
 	qosPath := gnmi.OC().Qos().Config()
@@ -192,6 +194,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		qosBatch.Set(t, dut)
 		cfgplugins.NewTwoRateThreeColorScheduler(t, dut, qosBatch, schedulerParams)
 		cfgplugins.ApplyQosPolicyOnInterface(t, dut, qosBatch, schedulerParams)
+		if !deviations.QosSchedulerIngressPolicer(dut) {
+			qosBatch.Set(t, dut)
+		}
 	} else {
 		cfgplugins.NewTwoRateThreeColorScheduler(t, dut, qosBatch, schedulerParams)
 		cfgplugins.ApplyQosPolicyOnInterface(t, dut, qosBatch, schedulerParams)
@@ -258,6 +263,7 @@ func runTest(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, confi
 	otg.StartProtocols(t)
 	otgutils.WaitForARP(t, otg, config, ipv4)
 	otg.StartTraffic(t)
+	defer otg.StopTraffic(t)
 	expectedOutPkts := tc.flowRate * 1000000 * uint64(trafficDuration.Seconds()) / (trafficFrameSize * 8)
 	waitForTraffic(t, otg, flowName, expectedOutPkts, trafficDuration*2)
 	otg.StopTraffic(t)
@@ -322,7 +328,7 @@ func waitForTraffic(t *testing.T, otg *otg.OTG, flowName string, expectedOutPkts
 
 func validateSchedulerCounters(t *testing.T, dut *ondatra.DUTDevice, intf string, tc testCase, droppedPackets uint64) {
 	var opts []ygnmi.Option
-	if dut.Vendor() != ondatra.CISCO {
+	if !deviations.QOSQueueRequiresID(dut) {
 		opts = fptest.GetOptsForFunctionalTranslator(t, deviations.QosFt(dut))
 	}
 	gnmiOpts := dut.GNMIOpts().WithYGNMIOpts(opts...)
@@ -419,11 +425,21 @@ func (c *ciscoClassifierFT) Translate(sr *gnmipb.SubscribeResponse) (*gnmipb.Sub
 	}
 	for _, u := range out.GetUpdate().GetUpdate() {
 		for _, elem := range u.GetPath().GetElem() {
-			if elem.GetName() == "classifier" && elem.GetKey()["type"] == "" {
-				elem.GetKey()["type"] = "IPV4"
+			if elem.GetName() == "classifier" {
+				if elem.Key == nil {
+					elem.Key = make(map[string]string)
+				}
+				if elem.Key["type"] == "" {
+					elem.Key["type"] = "IPV4"
+				}
 			}
-			if elem.GetName() == "term" && strings.EqualFold(elem.GetKey()["id"], "DEFAULT") {
-				elem.GetKey()["id"] = targetClass
+			if elem.GetName() == "term" {
+				if elem.Key == nil {
+					elem.Key = make(map[string]string)
+				}
+				if strings.EqualFold(elem.Key["id"], "DEFAULT") {
+					elem.Key["id"] = targetClass
+				}
 			}
 		}
 	}
@@ -432,7 +448,7 @@ func (c *ciscoClassifierFT) Translate(sr *gnmipb.SubscribeResponse) (*gnmipb.Sub
 
 func qosOptsForClassifier(t *testing.T, dut *ondatra.DUTDevice) []ygnmi.Option {
 	ftName := deviations.QosFt(dut)
-	if dut.Vendor() != ondatra.CISCO || ftName == "" {
+	if !deviations.QOSQueueRequiresID(dut) || ftName == "" {
 		return fptest.GetOptsForFunctionalTranslator(t, ftName)
 	}
 	baseFT, ok := registrar.FunctionalTranslatorRegistry[ftName]
