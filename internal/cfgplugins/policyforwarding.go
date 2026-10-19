@@ -1655,6 +1655,22 @@ func ConfigureDecapVrfSelection(t *testing.T, dut *ondatra.DUTDevice) {
 	time.Sleep(60 * time.Second)
 }
 
+// ConfigureFallbackDecapVrfSelection enables next-hop fallback decapsulation VRF
+// mode, restarts SandL3Unicast when it is running, and waits for the configuration
+// to take effect.
+func ConfigureFallbackDecapVrfSelection(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	hardwareInitCfg := NewDUTHardwareInit(t, dut, FeatureVrfSelectionFallbackDecap)
+	if hardwareInitCfg == "" {
+		return
+	}
+
+	PushDUTHardwareInitConfig(t, dut, hardwareInitCfg)
+	restartSandL3Unicast(t, dut)
+	t.Log("Waiting for next-hop fallback decapsulation configuration to take effect")
+	time.Sleep(60 * time.Second)
+}
+
 func restartSandL3Unicast(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	if dut.Vendor() != ondatra.ARISTA {
