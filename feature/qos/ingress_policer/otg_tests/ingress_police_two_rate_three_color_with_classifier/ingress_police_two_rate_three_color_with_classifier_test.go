@@ -13,7 +13,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/featureprofiles/internal/qoscfg"
-	"github.com/openconfig/functional_translators/registrar"
+	"github.com/openconfig/functional-translators/registrar"
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
