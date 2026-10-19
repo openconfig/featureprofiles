@@ -170,3 +170,60 @@ func AssignInterfaceToNetworkInstance(t testing.TB, batch *gnmi.SetBatch, d *ond
 		gnmi.BatchUpdate(batch, gnmi.OC().NetworkInstance(ni).Config(), netInst)
 	}
 }
+
+// L3VRFSubinterfaceBinding specifies an interface and subinterface index to bind to an L3VRF.
+type L3VRFSubinterfaceBinding struct {
+	InterfaceName string
+	SubintfIndex  uint32
+	VlanID        uint16
+}
+
+// ConfigureL3VRFWithSubinterfaces configures an L3VRF network instance and binds the specified
+// subinterfaces to it using `<interface>.<subinterface>` ID format without using dut.Vendor().
+func ConfigureL3VRFWithSubinterfaces(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, vrfName string, bindings []L3VRFSubinterfaceBinding) *gnmi.SetBatch {
+	t.Helper()
+	if sb == nil {
+		sb = &gnmi.SetBatch{}
+	}
+
+	// Ensure subinterfaces exist prior to VRF binding when required by platform deviations.
+	for _, b := range bindings {
+		sub := &oc.Interface_Subinterface{
+			Index: ygot.Uint32(b.SubintfIndex),
+		}
+		if deviations.InterfaceEnabled(dut) {
+			sub.Enabled = ygot.Bool(true)
+		}
+		if b.VlanID > 0 {
+			if deviations.DeprecatedVlanID(dut) {
+				sub.GetOrCreateVlan().VlanId = oc.UnionUint16(b.VlanID)
+			} else {
+				sub.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().SetVlanId(b.VlanID)
+			}
+		}
+		if !deviations.IPv4MissingEnabled(dut) {
+			sub.GetOrCreateIpv4().Enabled = ygot.Bool(true)
+		}
+		if deviations.InterfaceEnabled(dut) {
+			sub.GetOrCreateIpv6().Enabled = ygot.Bool(true)
+		}
+		gnmi.BatchUpdate(sb, gnmi.OC().Interface(b.InterfaceName).Subinterface(b.SubintfIndex).Config(), sub)
+	}
+
+	ni := &oc.NetworkInstance{
+		Name: ygot.String(vrfName),
+		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
+	}
+	for _, b := range bindings {
+		intfID := fmt.Sprintf("%s.%d", b.InterfaceName, b.SubintfIndex)
+		if !deviations.InterfaceRefInterfaceIDFormat(dut) && b.SubintfIndex == 0 {
+			intfID = b.InterfaceName
+		}
+		niIntf := ni.GetOrCreateInterface(intfID)
+		niIntf.Id = ygot.String(intfID)
+		niIntf.Interface = ygot.String(b.InterfaceName)
+		niIntf.Subinterface = ygot.Uint32(b.SubintfIndex)
+	}
+	gnmi.BatchUpdate(sb, gnmi.OC().NetworkInstance(vrfName).Config(), ni)
+	return sb
+}
