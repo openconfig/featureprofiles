@@ -57,6 +57,7 @@ const (
 	FeatureHighScale
 	FeatureLoadBalanceHashReset
 	FeatureLoadBalanceHashPerturb
+	FeatureVrfSelectionFallbackDecap
 
 	aristaTcamProfileMplsTracking = `
 hardware counter feature traffic-policy in
@@ -1511,6 +1512,12 @@ vrf selection policy
 !
 `
 
+const aristaVrfSelectionFallbackDecap = `
+vrf selection policy
+   next-hop fallback decapsulation vrf
+!
+`
+
 const ciscoHighScale = `no hw-module profile cef cbf forward-class-list 0 5
 no hw-module profile cef sropt enable
 no hw-module profile cef dark-bw enable
@@ -1545,23 +1552,24 @@ const nokiaLoadBalanceHashPerturb = "system load-balancing hash-options hash-see
 
 var (
 	aristaTcamProfileMap = map[FeatureType]string{
-		FeatureMplsTracking:           aristaTcamProfileMplsTracking,
-		FeatureVrfSelectionExtended:   aristaTcamProfileVrfSelectionExtended,
-		FeatureVrfSelectionDecap:      aristaVrfSelectionDecap,
-		FeaturePolicyForwarding:       aristaTcamProfilePolicyForwarding,
-		FeatureEnableAFTSummaries:     aristaEnableAFTSummaries,
-		FeatureNGPR:                   aristaNGPRTcamProfile,
-		FeatureTTLPolicyForwarding:    aristaTcamProfilePreserveTTL,
-		FeatureQOSIn:                  aristaQOSTcamIn,
-		FeatureACLCounters:            aristaTCAMACLCounters,
-		FeatureAnPF:                   aristaAnPF,
-		FeatureIngressARP:             aristaIngressARP,
-		FeatureOptimizeFIBAndCounters: aristaOptimizeFIBAndCounters,
-		FeatureCFM:                    aristaTcamProfileCFM,
-		FeatureAnpf:                   aristaAnpfTcamProfile,
-		FeatureHierarchicalFIB:        aristaHierarchicalFIB,
-		FeatureLoadBalanceHashReset:   aristaLoadBalanceHashReset,
-		FeatureLoadBalanceHashPerturb: aristaLoadBalanceHashPerturb,
+		FeatureMplsTracking:              aristaTcamProfileMplsTracking,
+		FeatureVrfSelectionExtended:      aristaTcamProfileVrfSelectionExtended,
+		FeatureVrfSelectionDecap:         aristaVrfSelectionDecap,
+		FeatureVrfSelectionFallbackDecap: aristaVrfSelectionFallbackDecap,
+		FeaturePolicyForwarding:          aristaTcamProfilePolicyForwarding,
+		FeatureEnableAFTSummaries:        aristaEnableAFTSummaries,
+		FeatureNGPR:                      aristaNGPRTcamProfile,
+		FeatureTTLPolicyForwarding:       aristaTcamProfilePreserveTTL,
+		FeatureQOSIn:                     aristaQOSTcamIn,
+		FeatureACLCounters:               aristaTCAMACLCounters,
+		FeatureAnPF:                      aristaAnPF,
+		FeatureIngressARP:                aristaIngressARP,
+		FeatureOptimizeFIBAndCounters:    aristaOptimizeFIBAndCounters,
+		FeatureCFM:                       aristaTcamProfileCFM,
+		FeatureAnpf:                      aristaAnpfTcamProfile,
+		FeatureHierarchicalFIB:           aristaHierarchicalFIB,
+		FeatureLoadBalanceHashReset:      aristaLoadBalanceHashReset,
+		FeatureLoadBalanceHashPerturb:    aristaLoadBalanceHashPerturb,
 	}
 
 	nokiaHardwareInitMap = map[FeatureType]string{
