@@ -11,6 +11,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/featureprofiles/internal/qoscfg"
 	"github.com/openconfig/functional-translators/registrar"
@@ -184,6 +185,13 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	qoscfg.SetInputClassifier(t, dut, qos, inputInterfaceName, inputClassifierType, schedulerName)
 	gnmi.BatchUpdate(qosBatch, qosPath, qos)
 	if deviations.QosTwoRateThreeColorPolicerOCUnsupported(dut) {
+		t.Cleanup(func() {
+			if deviations.QosSchedulerIngressPolicer(dut) {
+				cliConfig := fmt.Sprintf("interface %s\nno service-policy type qos input %s\n!\nno policy-map type quality-of-service %s\n!\n", inputInterfaceName, schedulerName, schedulerName)
+				helpers.GnmiCLIConfig(t, dut, cliConfig)
+			}
+			gnmi.Delete(t, dut, gnmi.OC().Qos().Config())
+		})
 		qosBatch.Set(t, dut)
 		cfgplugins.NewTwoRateThreeColorScheduler(t, dut, qosBatch, schedulerParams)
 		cfgplugins.ApplyQosPolicyOnInterface(t, dut, qosBatch, schedulerParams)
@@ -325,10 +333,13 @@ func runTest(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, confi
 
 func waitForTraffic(t *testing.T, otg *otg.OTG, flowName string, expectedOutPkts uint64, timeout time.Duration) {
 	outPktsPath := gnmi.OTG().Flow(flowName).Counters().OutPkts().State()
-	gnmi.Watch(t, otg, outPktsPath, timeout, func(val *ygnmi.Value[uint64]) bool {
+	_, okOut := gnmi.Watch(t, otg, outPktsPath, timeout, func(val *ygnmi.Value[uint64]) bool {
 		outPkts, present := val.Val()
 		return present && outPkts >= expectedOutPkts
 	}).Await(t)
+	if !okOut {
+		t.Fatalf("Traffic for flow %s did not reach expected output packets %d within %v", flowName, expectedOutPkts, timeout)
+	}
 
 	transmitPath := gnmi.OTG().Flow(flowName).Transmit().State()
 	checkState := func(val *ygnmi.Value[bool]) bool {
