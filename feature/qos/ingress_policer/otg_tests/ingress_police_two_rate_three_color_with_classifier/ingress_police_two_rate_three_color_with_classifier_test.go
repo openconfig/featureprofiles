@@ -410,7 +410,7 @@ func validateSchedulerCounters(t *testing.T, dut *ondatra.DUTDevice, intf string
 	}
 
 	t.Logf("Scheduler counters for %s at %.1fGbps: conformingPkts=%d, conformingOctets=%d, exceedingPkts=%d, exceedingOctets=%d, violatingPkts=%d, violatingOctets=%d",
-		intf, float64(tc.flowRate/1000), conformingPkts, conformingOctets, exceedingPkts, exceedingOctets, violatingPkts, violatingOctets)
+		intf, float64(tc.flowRate)/1000.0, conformingPkts, conformingOctets, exceedingPkts, exceedingOctets, violatingPkts, violatingOctets)
 	if conformingPkts == 0 || conformingOctets == 0 {
 		t.Errorf("Expected non-zero conforming packets and octets, got conformingPkts=%d, conformingOctets=%d", conformingPkts, conformingOctets)
 	}
@@ -497,7 +497,7 @@ func validateClassifierCounters(t *testing.T, dut *ondatra.DUTDevice, intf strin
 		t.Fatalf("Classifier counters did not settle within 30s")
 	}
 	matchedPkts, _ = val.Val()
-	t.Logf("Classifier counters for %s at %.1fGbps: matched-packets=%d", intf, float64(tc.flowRate/1000), matchedPkts)
+	t.Logf("Classifier counters for %s at %.1fGbps: matched-packets=%d", intf, float64(tc.flowRate)/1000.0, matchedPkts)
 	if matchedPkts < initMatchedPkts+sentPackets {
 		t.Errorf("Expected at least %d matched packets, but got %d", initMatchedPkts+sentPackets, matchedPkts)
 	}
