@@ -1033,9 +1033,29 @@ func ConfigureVrfSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice, pf *oc.Ne
 		rule := policy.GetOrCreateRule(vrfRule.Index)
 		switch vrfRule.IpType {
 		case IPv4:
-			rule.GetOrCreateIpv4().SourceAddress = ygot.String(fmt.Sprintf("%s/%d", vrfRule.SourcePrefix, vrfRule.PrefixLength))
+			ipv4 := rule.GetOrCreateIpv4()
+			if vrfRule.SourcePrefix != "" {
+				if vrfRule.PrefixLength > 0 && !strings.Contains(vrfRule.SourcePrefix, "/") {
+					ipv4.SourceAddress = ygot.String(fmt.Sprintf("%s/%d", vrfRule.SourcePrefix, vrfRule.PrefixLength))
+				} else {
+					ipv4.SourceAddress = ygot.String(vrfRule.SourcePrefix)
+				}
+			}
+			if len(vrfRule.DscpSet) > 0 {
+				ipv4.DscpSet = vrfRule.DscpSet
+			}
 		case IPv6:
-			rule.GetOrCreateIpv6().SourceAddress = ygot.String(fmt.Sprintf("%s/%d", vrfRule.SourcePrefix, vrfRule.PrefixLength))
+			ipv6 := rule.GetOrCreateIpv6()
+			if vrfRule.SourcePrefix != "" {
+				if vrfRule.PrefixLength > 0 && !strings.Contains(vrfRule.SourcePrefix, "/") {
+					ipv6.SourceAddress = ygot.String(fmt.Sprintf("%s/%d", vrfRule.SourcePrefix, vrfRule.PrefixLength))
+				} else {
+					ipv6.SourceAddress = ygot.String(vrfRule.SourcePrefix)
+				}
+			}
+			if len(vrfRule.DscpSet) > 0 {
+				ipv6.DscpSet = vrfRule.DscpSet
+			}
 		default:
 			t.Fatalf("Unsupported IP type %s in vrf rule", vrfRule.IpType)
 		}
@@ -1043,6 +1063,93 @@ func ConfigureVrfSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice, pf *oc.Ne
 		ruleAction := rule.GetOrCreateAction()
 		ruleAction.SetNetworkInstance(vrfRule.NetInstName)
 	}
+}
+
+// VrfSelectionPolicyConfig holds parameters for configuring an OpenConfig VRF selection policy and binding it to an ingress interface.
+type VrfSelectionPolicyConfig struct {
+	NetworkInstanceName string
+	PolicyName          string
+	Rules               []VrfRule
+	InterfaceName       string
+	SubinterfaceIndex   uint32
+}
+
+// NewVrfSelectionPolicy configures an OpenConfig VRF_SELECTION_POLICY with dual-stack source prefix and DSCP match rules,
+// applies any required platform deviations, binds the policy to the specified ingress interface, and appends the configuration to the SetBatch.
+func NewVrfSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, cfg VrfSelectionPolicyConfig) *oc.NetworkInstance_PolicyForwarding {
+	t.Helper()
+	niName := cfg.NetworkInstanceName
+	if niName == "" {
+		niName = "DEFAULT"
+	}
+	niName = normalizeNIName(niName, dut)
+
+	pf := &oc.NetworkInstance_PolicyForwarding{}
+	policy := pf.GetOrCreatePolicy(cfg.PolicyName)
+	policy.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
+
+	var maxRuleIdx uint32
+	for _, vrfRule := range cfg.Rules {
+		ruleIdx := seqIDOffset(dut, vrfRule.Index)
+		if ruleIdx > maxRuleIdx {
+			maxRuleIdx = ruleIdx
+		}
+		rule := policy.GetOrCreateRule(ruleIdx)
+		srcPrefix := vrfRule.SourcePrefix
+		if vrfRule.PrefixLength > 0 && !strings.Contains(srcPrefix, "/") {
+			srcPrefix = fmt.Sprintf("%s/%d", vrfRule.SourcePrefix, vrfRule.PrefixLength)
+		}
+		switch vrfRule.IpType {
+		case IPv4:
+			ipv4 := rule.GetOrCreateIpv4()
+			if srcPrefix != "" {
+				ipv4.SetSourceAddress(srcPrefix)
+			}
+			if len(vrfRule.DscpSet) > 0 {
+				ipv4.SetDscpSet(vrfRule.DscpSet)
+			}
+		case IPv6:
+			ipv6 := rule.GetOrCreateIpv6()
+			if srcPrefix != "" {
+				ipv6.SetSourceAddress(srcPrefix)
+			}
+			if len(vrfRule.DscpSet) > 0 {
+				ipv6.SetDscpSet(vrfRule.DscpSet)
+			}
+		default:
+			t.Fatalf("Unsupported IP type %s in VRF rule %d", vrfRule.IpType, vrfRule.Index)
+		}
+		rule.GetOrCreateAction().SetNetworkInstance(normalizeNIName(vrfRule.NetInstName, dut))
+	}
+
+	if deviations.PfRequireMatchDefaultRule(dut) {
+		defV4Rule := policy.GetOrCreateRule(seqIDOffset(dut, maxRuleIdx+10))
+		defV4Rule.GetOrCreateL2().SetEthertype(ethertypeIPv4)
+		defV4Rule.GetOrCreateAction().SetNetworkInstance(deviations.DefaultNetworkInstance(dut))
+
+		defV6Rule := policy.GetOrCreateRule(seqIDOffset(dut, maxRuleIdx+20))
+		defV6Rule.GetOrCreateL2().SetEthertype(ethertypeIPv6)
+		defV6Rule.GetOrCreateAction().SetNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	}
+
+	if cfg.InterfaceName != "" {
+		interfaceID := cfg.InterfaceName
+		if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) || cfg.SubinterfaceIndex > 0 {
+			interfaceID = fmt.Sprintf("%s.%d", cfg.InterfaceName, cfg.SubinterfaceIndex)
+		}
+		iface := pf.GetOrCreateInterface(interfaceID)
+		iface.SetApplyVrfSelectionPolicy(cfg.PolicyName)
+		iface.GetOrCreateInterfaceRef().SetInterface(cfg.InterfaceName)
+		iface.GetOrCreateInterfaceRef().SetSubinterface(cfg.SubinterfaceIndex)
+		if deviations.InterfaceRefConfigUnsupported(dut) {
+			iface.InterfaceRef = nil
+		}
+	}
+
+	if sb != nil {
+		gnmi.BatchUpdate(sb, gnmi.OC().NetworkInstance(niName).PolicyForwarding().Config(), pf)
+	}
+	return pf
 }
 
 func ApplyVrfSelectionPolicyToInterfaceOC(t *testing.T, pf *oc.NetworkInstance_PolicyForwarding, interfaceID string, appliedPolicyName string) {
