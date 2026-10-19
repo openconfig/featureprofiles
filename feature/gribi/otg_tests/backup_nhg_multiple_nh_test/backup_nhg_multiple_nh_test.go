@@ -201,7 +201,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	if deviations.BackupNHGRequiresVrfWithDecap(dut) {
 		d := &oc.Root{}
-		ni := d.GetOrCreateNetworkInstance(vrf1)
+		ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 		pf := ni.GetOrCreatePolicyForwarding()
 		fp1 := pf.GetOrCreatePolicy("match-ipip")
 		fp1.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
@@ -210,7 +210,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		p1 := dut.Port(t, "port1")
 		intf := pf.GetOrCreateInterface(p1.Name())
 		intf.ApplyVrfSelectionPolicy = ygot.String("match-ipip")
-		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf1).PolicyForwarding().Config(), pf)
+		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config(), pf)
 	}
 
 	gnmi.Update(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
@@ -358,6 +358,14 @@ func (a *testArgs) testIPv4BackUpSwitch(t *testing.T) {
 	})
 
 	// shutdown port2
+	if deviations.ATEPortLinkStateOperationsUnsupported(a.ate) {
+		defer a.flapinterface(t, "port2", true)
+		defer a.flapinterface(t, "port3", true)
+	} else {
+		portStateAction := gosnappi.NewControlState()
+		portStateAction.Port().Link().SetPortNames([]string{"port2", "port3"}).SetState(gosnappi.StatePortLinkState.UP)
+		defer a.ate.OTG().SetControlState(t, portStateAction)
+	}
 	t.Run("Baseline (port3 only)", func(t *testing.T) {
 		t.Logf("Shutdown port 2 and validate traffic switching over port3 primary path")
 		a.validateTrafficFlows(t, baseFlow, []*ondatra.Port{a.ate.Port(t, "port3")}, "port2")
@@ -370,14 +378,6 @@ func (a *testArgs) testIPv4BackUpSwitch(t *testing.T) {
 		t.Logf("Shutdown port 3 and validate traffic switching over port4 backup path")
 		a.validateTrafficFlows(t, baseFlow, []*ondatra.Port{a.ate.Port(t, "port4")}, "port3")
 	})
-	if deviations.ATEPortLinkStateOperationsUnsupported(a.ate) {
-		defer a.flapinterface(t, "port2", true)
-		defer a.flapinterface(t, "port3", true)
-	} else {
-		portStateAction := gosnappi.NewControlState()
-		portStateAction.Port().Link().SetPortNames([]string{"port2", "port3"}).SetState(gosnappi.StatePortLinkState.UP)
-		defer a.ate.OTG().SetControlState(t, portStateAction)
-	}
 	// TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
 }
 

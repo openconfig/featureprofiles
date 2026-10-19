@@ -1,6 +1,7 @@
 package cfgplugins
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -13,6 +14,8 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
+
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
 // OCEncapsulationParams holds parameters for generating the OC Encapsulations config.
@@ -35,22 +38,22 @@ var (
    tos 96 
    ttl 64 
    fec hierarchical
-   entry 0 push label-stack 116383 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.208
-   entry 1 push label-stack 116383 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.209
-   entry 2 push label-stack 116383 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.210
-   entry 3 push label-stack 116383 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.211
-   entry 4 push label-stack 116383 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.212
-   entry 5 push label-stack 116383 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.213
-   entry 6 push label-stack 116383 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.215
-   entry 7 push label-stack 116383 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.216
-   entry 8 push label-stack 116383 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.217
-   entry 9 push label-stack 116383 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.218
-   entry 10 push label-stack 116383 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.219
-   entry 11 push label-stack 116383 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.220
-   entry 12 push label-stack 116383 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.221
-   entry 13 push label-stack 116383 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.222
-   entry 14 push label-stack 116383 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.223
-   entry 15 push label-stack 116383 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.224
+   entry 0 push label-stack 99998 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.208
+   entry 1 push label-stack 99998 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.209
+   entry 2 push label-stack 99998 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.210
+   entry 3 push label-stack 99998 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.211
+   entry 4 push label-stack 99998 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.212
+   entry 5 push label-stack 99998 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.213
+   entry 6 push label-stack 99998 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.215
+   entry 7 push label-stack 99998 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.216
+   entry 8 push label-stack 99998 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.217
+   entry 9 push label-stack 99998 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.218
+   entry 10 push label-stack 99998 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.219
+   entry 11 push label-stack 99998 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.220
+   entry 12 push label-stack 99998 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.221
+   entry 13 push label-stack 99998 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.222
+   entry 14 push label-stack 99998 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.223
+   entry 15 push label-stack 99998 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.224
 !
 `
 	nextHopGroupConfigIPV6Arista = `
@@ -148,6 +151,17 @@ entry 15 push label-stack 362143 tunnel-destination 10.99.1.3 tunnel-source 10.2
 !
 	`
 )
+
+// GreNextHopGroupParams holds parameters for generating the OC GRE Next Hop Group config.
+type GreNextHopGroupParams struct {
+	NetworkInstance  *oc.NetworkInstance
+	NexthopGroupName string
+	GroupType        string
+	SrcAddr          []string
+	DstAddr          []string
+	TTL              uint8
+	Dscp             uint8
+}
 
 // NextHopGroupConfig configures the interface next-hop-group config.
 func NextHopGroupConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string, ni *oc.NetworkInstance, params StaticNextHopGroupParams) {
@@ -308,6 +322,7 @@ type NexthopGroupUDPParams struct {
 	Index              string
 	DstIp              []string
 	SrcIp              string
+	SrcInterface       string
 	DstUdpPort         uint16
 	SrcUdpPort         uint16
 	TTL                uint8
@@ -386,11 +401,17 @@ func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, params
 					tunnelDst += fmt.Sprintf("entry %d tunnel-destination %s \n", i, addr)
 				}
 				cli = fmt.Sprintf(`
+					qos rewrite ipv4-over-udp inner dscp disabled
+					qos rewrite ipv6-over-udp inner dscp disabled
 					nexthop-group %s type %s
-					tunnel-source intf %s
 					fec hierarchical
    					%s
-					`, params.NexthopGrpName, groupType, params.SrcIp, tunnelDst)
+					`, params.NexthopGrpName, groupType, tunnelDst)
+				if params.SrcInterface != "" {
+					cli += fmt.Sprintf("tunnel-source intf %s", params.SrcInterface)
+				} else {
+					cli += fmt.Sprintf("tunnel-source %s", params.SrcIp)
+				}
 				helpers.GnmiCLIConfig(t, dut, cli)
 			}
 			if params.TTL != 0 {
@@ -438,6 +459,32 @@ func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, params
 	}
 }
 
+// RemoveNextHopGroupConfigForIpOverUdp deletes a nexthop-group previously created
+// by NextHopGroupConfigForIpOverUdp, allowing tests to revert the DUT to its
+// original state.
+func RemoveNextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, params NexthopGroupUDPParams) {
+	t.Helper()
+	if deviations.NextHopGroupOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			var groupType string
+			switch params.IPFamily {
+			case "V4Udp":
+				groupType = "ipv4-over-udp"
+			case "V6Udp":
+				groupType = "ipv6-over-udp"
+			default:
+				t.Fatalf("Unsupported address family type %q", params.IPFamily)
+			}
+			helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("no nexthop-group %s type %s\n", params.NexthopGrpName, groupType))
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group removal'", dut.Vendor())
+		}
+	} else if params.NetworkInstanceObj != nil {
+		params.NetworkInstanceObj.GetOrCreateStatic().DeleteNextHopGroup(params.NexthopGrpName)
+	}
+}
+
 // configureTOSGUE configures the tos
 func configureTOSGUE(t *testing.T, dut *ondatra.DUTDevice, policyName string, dscpValue uint32, port string, deleteTOS bool) {
 	if deviations.QosClassificationOCUnsupported(dut) {
@@ -467,4 +514,122 @@ func configureTOSGUE(t *testing.T, dut *ondatra.DUTDevice, policyName string, ds
 		}
 	}
 
+}
+
+func NextHopGroupConfigForMultipleIP(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, params GreNextHopGroupParams) {
+	if deviations.NextHopGroupOCUnsupported(dut) {
+		cli := ""
+		tunnelConfig := ""
+		ttlConfig := ""
+		tosConfig := ""
+
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			if len(params.SrcAddr) != 0 && len(params.DstAddr) != 0 {
+				srcLen := len(params.SrcAddr)
+				dstLen := len(params.DstAddr)
+
+				switch {
+				case srcLen == dstLen:
+					for entryNum := 0; entryNum < srcLen; entryNum++ {
+						tunnelConfig += fmt.Sprintf("entry %d tunnel-destination %s tunnel-source %s \n",
+							entryNum, params.DstAddr[entryNum], params.SrcAddr[entryNum])
+					}
+
+				case srcLen > dstLen:
+					for entryNum, addr := range params.SrcAddr {
+						tunnelConfig += fmt.Sprintf("entry %d tunnel-destination %s tunnel-source %s \n",
+							entryNum, params.DstAddr[entryNum%dstLen], addr)
+					}
+
+				case dstLen > srcLen:
+					for entryNum, addr := range params.DstAddr {
+						tunnelConfig += fmt.Sprintf("entry %d tunnel-destination %s tunnel-source %s \n",
+							entryNum, addr, params.SrcAddr[entryNum%srcLen])
+					}
+				}
+			}
+			if params.TTL != 0 {
+				ttlConfig = fmt.Sprintf(`ttl %v`, params.TTL)
+			}
+
+			if params.Dscp != 0 {
+				tosConfig = fmt.Sprintf(`tos %v`, params.Dscp)
+			}
+
+			cli = fmt.Sprintf(`
+				nexthop-group %s type %s
+				%s
+				%s
+				%s
+				`, params.NexthopGroupName, params.GroupType, tunnelConfig, ttlConfig, tosConfig)
+			helpers.GnmiCLIConfig(t, dut, cli)
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group config'", dut.Vendor())
+		}
+	} else {
+		t.Helper()
+		nhg := params.NetworkInstance.GetOrCreateStatic().GetOrCreateNextHopGroup(params.NexthopGroupName)
+		nhg.GetOrCreateNextHop(params.NexthopGroupName).SetIndex(params.NexthopGroupName)
+
+		// Set the encap header for each next-hop
+		ueh1 := params.NetworkInstance.GetOrCreateStatic().GetOrCreateNextHop(params.NexthopGroupName).GetOrCreateEncapHeader(1)
+		for _, addr := range params.DstAddr {
+			ueh1.GetOrCreateUdpV4().SetDstIp(addr)
+		}
+
+		for _, addr := range params.SrcAddr {
+			ueh1.GetOrCreateUdpV4().SetSrcIp(addr)
+		}
+
+		if params.TTL != 0 {
+			ueh1.GetOrCreateUdpV4().SetIpTtl(params.TTL)
+		}
+
+		if params.Dscp != 0 {
+			ueh1.GetOrCreateUdpV4().SetDscp(params.Dscp)
+		}
+	}
+}
+
+func GetNextHopGroupCounters(t *testing.T, dut *ondatra.DUTDevice) *gpb.GetResponse {
+	if deviations.NexthopGroupPseudowireCountersOcUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			// Nexthop counter ID which helps fetch the counter values from the native path
+			counterId := "4294967295"
+			req := &gpb.GetRequest{
+				Prefix: &gpb.Path{
+					Origin: "eos_native",
+				},
+				Path: []*gpb.Path{{
+					Elem: []*gpb.PathElem{
+						{Name: "Smash"},
+						{Name: "flexCounters"},
+						{Name: "counterTable"},
+						{Name: "Nexthop"},
+						{Name: counterId},
+						{Name: "counter"},
+					},
+				},
+				},
+				Type:     gpb.GetRequest_CONFIG,
+				Encoding: gpb.Encoding_JSON_IETF,
+			}
+
+			gnmiClient := dut.RawAPIs().GNMI(t)
+			if getResponse, err := gnmiClient.Get(context.Background(), req); err != nil {
+				t.Fatalf("Unexpected error getting counters: %v", err)
+			} else {
+				return getResponse
+			}
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group counters'", dut.Vendor())
+			return nil
+		}
+	} else {
+		// TODO: Add counters after https://github.com/openconfig/public/pull/1418 is merged
+		t.Log("OC path is not available for next-hop-group counters")
+	}
+	return nil
 }

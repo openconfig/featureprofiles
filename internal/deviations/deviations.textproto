@@ -642,6 +642,13 @@ deviations: {
     }
   }
   platforms: {
+    issue_url: "https://issuetracker.google.com/571564632"
+    platform: {
+      vendor: JUNIPER
+      software_version_regex: "*.*"
+    }
+  }
+  platforms: {
     issue_url: ""
     platform: {
       vendor: NOKIA
@@ -3938,3 +3945,142 @@ deviations: {
   }
 }
 
+deviations: {
+  name: "per_flow_load_balancing_unsupported"
+  type: DEVIATION_TYPE_UNSPECIFIED
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: JUNIPER
+      software_version_regex: "*.*"
+    }
+  }
+}
+
+deviations: {
+  name: "bgp_multipath_paths_under_peer_group_unsupported"
+  type: DEVIATION_TYPE_UNSPECIFIED
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+  }
+}
+
+deviations: {
+  name: "require_transport_security"
+  type: DEVIATION_TYPE_UNSPECIFIED
+  platforms: {
+    issue_url: "https://partnerissuetracker.corp.google.com/issues/515276334"
+    platform: {
+      vendor: JUNIPER
+      software_version_regex: "*.*"
+    }
+  }
+}
+
+deviations: {
+  name: "routed_vlan_interface_name"
+  type: DEVIATION_TYPE_VALUE
+  platforms: {
+    issue_url: "https://partnerissuetracker.corp.google.com/issues/573046775"
+    platform: {
+      vendor: JUNIPER
+      software_version_regex: "*.*"
+    }
+    deviation_values: {
+      oc_standard_value: {
+        string_val: "Vlan10"
+      }
+      vendor_specific_value: {
+        string_val: "irb.10"
+      }
+    }
+  }
+}
+deviations: {
+  name: "switched_vlan_unsupported"
+  type: DEVIATION_TYPE_UNSPECIFIED
+  platforms: {
+    issue_url: "https://partnerissuetracker.corp.google.com/issues/571920136"
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+    deviation_values: {
+      oc_standard_value: {
+        bool_val: false
+      }
+      vendor_specific_value: {
+        bool_val: true
+      }
+    }
+  }
+  platforms: {
+    issue_url: "https://partnerissuetracker.corp.google.com/issues/572757293"
+    platform: {
+      vendor: NOKIA
+      software_version_regex: "*.*"
+    }
+    deviation_values: {
+      oc_standard_value: {
+        bool_val: false
+      }
+      vendor_specific_value: {
+        bool_val: true
+      }
+    }
+  }
+}
+
+deviations: {
+  name: "vlan_subinterface_oc_unsupported"
+  type: DEVIATION_TYPE_UNSPECIFIED
+  platforms: {
+    issue_url: "https://partnerissuetracker.corp.google.com/issues/494280147"
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    deviation_values: {
+      oc_standard_value: {
+        bool_val: false
+      }
+      vendor_specific_value: {
+        bool_val: true
+      }
+    }
+  }
+  platforms: {
+    issue_url: "https://partnerissuetracker.corp.google.com/issues/573155183"
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+    deviation_values: {
+      oc_standard_value: {
+        bool_val: false
+      }
+      vendor_specific_value: {
+        bool_val: true
+      }
+    }
+  }
+  platforms: {
+    issue_url: "https://partnerissuetracker.corp.google.com/issues/573159486"
+    platform: {
+      vendor: NOKIA
+      software_version_regex: "*.*"
+    }
+    deviation_values: {
+      oc_standard_value: {
+        bool_val: false
+      }
+      vendor_specific_value: {
+        bool_val: true
+      }
+    }
+  }
+}

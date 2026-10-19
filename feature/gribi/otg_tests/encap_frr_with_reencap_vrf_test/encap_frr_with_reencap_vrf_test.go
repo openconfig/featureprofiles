@@ -33,10 +33,12 @@ import (
 	"github.com/google/gopacket/pcap"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	baseScenario "github.com/openconfig/featureprofiles/internal/encapfrr"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/featureprofiles/internal/vrfpolicy"
 	"github.com/openconfig/gribigo/chk"
@@ -45,7 +47,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
@@ -282,6 +283,10 @@ func dutInterface(p *ondatra.Port, dut *ondatra.DUTDevice) *oc.Interface {
 
 // configureDUT configures all the interfaces on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPortList []*ondatra.Port) {
+	if deviations.VendorPreConfigRequired(dut) {
+		cfgplugins.ConfigureDecapVrfSelection(t, dut)
+	}
+
 	dc := gnmi.OC()
 	for _, dp := range dutPortList {
 
@@ -302,26 +307,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPortList []*ondatra.P
 		}
 	}
 
-	loopbackIntfName = netutil.LoopbackInterface(t, dut, 0)
-	lo0 := gnmi.OC().Interface(loopbackIntfName).Subinterface(0)
-	ipv4Addrs := gnmi.LookupAll(t, dut, lo0.Ipv4().AddressAny().State())
-	ipv6Addrs := gnmi.LookupAll(t, dut, lo0.Ipv6().AddressAny().State())
-	if len(ipv4Addrs) == 0 && len(ipv6Addrs) == 0 {
-		loop1 := dutlo0Attrs.NewOCInterface(loopbackIntfName, dut)
-		loop1.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
-		gnmi.Update(t, dut, dc.Interface(loopbackIntfName).Config(), loop1)
-	} else {
-		v4, ok := ipv4Addrs[0].Val()
-		if ok {
-			dutlo0Attrs.IPv4 = v4.GetIp()
-		}
-		v6, ok := ipv6Addrs[0].Val()
-		if ok {
-			dutlo0Attrs.IPv6 = v6.GetIp()
-		}
-		t.Logf("Got DUT IPv4 loopback address: %v", dutlo0Attrs.IPv4)
-		t.Logf("Got DUT IPv6 loopback address: %v", dutlo0Attrs.IPv6)
-	}
+	loopbackIntfName = helpers.GetOrCreateLoopback(t, dut, 0, 0, &dutlo0Attrs)
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, loopbackIntfName, deviations.DefaultNetworkInstance(dut), 0)
 	}
@@ -395,11 +381,11 @@ func configureGribiRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDevi
 			WithIPinIP(ipv4OuterSrc222Addr, gribiIPv4EntryVRF2222).
 			WithNextHopNetworkInstance(niTEVRF222),
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithIndex(1003).WithDecapsulateHeader(fluent.IPinIP).WithEncapsulateHeader(fluent.IPinIP).
+			WithIndex(1004).WithDecapsulateHeader(fluent.IPinIP).WithEncapsulateHeader(fluent.IPinIP).
 			WithIPinIP(ipv4OuterSrc222Addr, gribiIPv4EntryVRF2225).
 			WithNextHopNetworkInstance(niTEVRF222),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithID(1001).AddNextHop(1001, 1).AddNextHop(1003, 1).WithBackupNHG(2000),
+			WithID(1001).AddNextHop(1001, 1).AddNextHop(1004, 1).WithBackupNHG(2000),
 
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithIndex(3000).WithNextHopNetworkInstance(niRepairVrf),
@@ -601,7 +587,11 @@ func bgpCreateNbr(localAs uint32, dut *ondatra.DUTDevice) *oc.NetworkInstance_Pr
 	bgpNbr.PeerAs = ygot.Uint32(localAs)
 	bgpNbr.Enabled = ygot.Bool(true)
 	bgpNbrT := bgpNbr.GetOrCreateTransport()
-	bgpNbrT.LocalAddress = ygot.String(dutlo0Attrs.IPv4)
+	localAddressLeaf := dutlo0Attrs.IPv4
+	if deviations.UseInterfaceNameForIBGPNeighborTransportIpv4LocalAddress(dut) {
+		localAddressLeaf = loopbackIntfName
+	}
+	bgpNbrT.LocalAddress = ygot.String(localAddressLeaf)
 	af4 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 	af4.Enabled = ygot.Bool(true)
 	af6 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
@@ -721,7 +711,7 @@ func configureOTG(t testing.TB, otg *otg.OTG, atePorts []*ondatra.Port) gosnappi
 			atePortNamelist[5], atePortNamelist[6], atePortNamelist[7]}).
 		SetFormat(gosnappi.CaptureFormat.PCAP)
 
-		// Disable FEC for 100G-FR ports because Novus does not support it.
+	// Disable FEC for 100G-FR ports because Novus does not support it.
 	if len(pmd100GFRPorts) > 0 {
 		l1Settings := config.Layer1().Add().SetName("L1").SetPortNames(pmd100GFRPorts)
 		l1Settings.SetAutoNegotiate(true).SetIeeeMediaDefaults(false).SetSpeed("speed_100_gbps")
@@ -806,29 +796,11 @@ func sendTraffic(t *testing.T, args *testArgs, capturePortList []string, cs gosn
 
 func verifyTraffic(t *testing.T, args *testArgs, capturePortList []string, loadBalancePercent []float64, wantLoss, checkEncap bool, headerDstIP map[string][]string) {
 	t.Helper()
-	t.Logf("Verifying flow metrics for the flow: encapFlow\n")
-	recvMetric := gnmi.Get(t, args.otg, gnmi.OTG().Flow(encapFlow).State())
-	txPackets := recvMetric.GetCounters().GetOutPkts()
-	rxPackets := recvMetric.GetCounters().GetInPkts()
-	lostPackets := txPackets - rxPackets
-	var lossPct uint64
-	if txPackets != 0 {
-		lossPct = lostPackets * 100 / txPackets
-	} else {
-		t.Errorf("Traffic stats are not correct %v", recvMetric)
-	}
+	waitForFlowMetricsReady(t, args.otg, encapFlow, 1*time.Minute)
 	if wantLoss {
-		if lossPct < 100-tolerancePct {
-			t.Errorf("Traffic is expected to fail %s\n got %v, want 100%% failure", encapFlow, lossPct)
-		} else {
-			t.Logf("Traffic Loss Test Passed!")
-		}
+		otgutils.ExpectedTrafficLoss(t, args.otg, encapFlow, float64(100-tolerancePct), 100)
 	} else {
-		if lossPct > tolerancePct {
-			t.Errorf("Traffic Loss Pct for Flow: %s\n got %v, want 0", encapFlow, lossPct)
-		} else {
-			t.Logf("Traffic Test Passed!")
-		}
+		otgutils.ExpectedTrafficLoss(t, args.otg, encapFlow, 0, float64(tolerancePct)+0.99)
 	}
 	t.Log("Verify packet load balancing as per the programmed weight")
 	validateTrafficDistribution(t, args.ate, loadBalancePercent)
@@ -849,6 +821,50 @@ func verifyTraffic(t *testing.T, args *testArgs, capturePortList []string, loadB
 	args.otgConfig.Captures().Clear()
 	args.otg.PushConfig(t, args.otgConfig)
 	time.Sleep(30 * time.Second)
+}
+
+// waitForFlowMetricsReady waits until a flow's TX/RX counters stop changing, or fails after timeout.
+func waitForFlowMetricsReady(t *testing.T, otgDev *otg.OTG, flowName string, timeout time.Duration) {
+	const pollInterval = time.Second
+	const stableReads = 2 // Require N consecutive identical reads to reduce jitter.
+
+	type counters struct {
+		tx uint64
+		rx uint64
+	}
+
+	deadline := time.Now().Add(timeout)
+	var (
+		prev      counters
+		havePrev  bool
+		stableCnt int
+		last      counters
+	)
+
+	for time.Now().Before(deadline) {
+		flowMetric := gnmi.Get(t, otgDev, gnmi.OTG().Flow(flowName).State())
+		cur := counters{
+			tx: flowMetric.GetCounters().GetOutPkts(),
+			rx: flowMetric.GetCounters().GetInPkts(),
+		}
+		last = cur
+
+		if havePrev && cur == prev {
+			stableCnt++
+			if stableCnt >= stableReads {
+				t.Logf("Flow %q metrics stabilized: tx=%d rx=%d", flowName, cur.tx, cur.rx)
+				return
+			}
+		} else {
+			stableCnt = 0
+		}
+
+		prev = cur
+		havePrev = true
+		time.Sleep(pollInterval)
+	}
+
+	t.Fatalf("Flow %q metrics did not stabilize within %s (last tx=%d rx=%d)", flowName, timeout, last.tx, last.rx)
 }
 
 func validatePackets(t *testing.T, filename []string, checkEncap bool, headerDstIP map[string][]string) {
@@ -889,8 +905,10 @@ func validateTrafficEncap(t *testing.T, packetSource *gopacket.PacketSource, hea
 			if ipInnerLayer != nil {
 				destIP := ipPacket.DstIP.String()
 				t.Logf("Outer dest ip in received packet %s", destIP)
-				if ipPacket.DstIP.String() != headerDstIP["outerIP"][index] {
-					t.Errorf("Packets are not encapsulated")
+				expectedDstIP := headerDstIP["outerIP"][index]
+				outerDstIPAllowed := destIP == expectedDstIP || (expectedDstIP == gribiIPv4EntryVRF2222 && destIP == gribiIPv4EntryVRF2225)
+				if !outerDstIPAllowed {
+					t.Errorf("Packets have incorrect outer destination IP, got %s, want %s", destIP, expectedDstIP)
 				}
 				ipInnerPacket, _ := ipInnerLayer.(*layers.IPv4)
 				if ipInnerPacket.DstIP.String() != headerDstIP["innerIP"][index] {
@@ -993,6 +1011,59 @@ func validateTrafficDistribution(t *testing.T, ate *ondatra.ATEDevice, wantWeigh
 	t.Log("want ratio:", wantWeights)
 	if diff := cmp.Diff(wantWeights, gotWeights, cmpopts.EquateApprox(0, tolerance)); diff != "" {
 		t.Errorf("Packet distribution ratios -want,+got:\n%s", diff)
+	}
+}
+
+// validateEncapNHTelemetry verifies AFT telemetry for the encap next-hops used by
+// the 138.0.11.0/24 entry in ENCAP_TE_VRF_A. Each next-hop (NH#101 and NH#102)
+// is programmed via gRIBI with encapsulate_header IPV4, so telemetry is expected
+// to report next-hop/state/encapsulate-header as IPV4 and
+// next-hop/state/origin-protocol as GRIBI.
+func validateEncapNHTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	pfx := gribiIPv4EntryEncapVRF + "/" + maskLen24
+	ipv4Path := gnmi.OC().NetworkInstance(niEncapTeVrfA).Afts().Ipv4Entry(pfx)
+	ipv4Val, ok := gnmi.Watch(t, dut, ipv4Path.State(), 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		v, present := val.Val()
+		return present && v.GetNextHopGroup() != 0
+	}).Await(t)
+	if !ok {
+		t.Fatalf("Could not find prefix %s in %s telemetry AFT", pfx, niEncapTeVrfA)
+	}
+	ipv4Entry, _ := ipv4Val.Val()
+	nhgNI := ipv4Entry.GetNextHopGroupNetworkInstance()
+	if nhgNI == "" {
+		nhgNI = deviations.DefaultNetworkInstance(dut)
+	}
+	nhgID := ipv4Entry.GetNextHopGroup()
+
+	nhgVal, ok := gnmi.Watch(t, dut, gnmi.OC().NetworkInstance(nhgNI).Afts().NextHopGroup(nhgID).State(), 2*time.Minute,
+		func(val *ygnmi.Value[*oc.NetworkInstance_Afts_NextHopGroup]) bool {
+			v, present := val.Val()
+			return present && len(v.NextHop) > 0
+		}).Await(t)
+	if !ok {
+		t.Fatalf("Next-hop-group %d for prefix %s is not present in telemetry AFT", nhgID, pfx)
+	}
+	nhg, _ := nhgVal.Val()
+
+	for nhIndex := range nhg.NextHop {
+		nh, present := gnmi.Lookup(t, dut, gnmi.OC().NetworkInstance(nhgNI).Afts().NextHop(nhIndex).State()).Val()
+		if !present {
+			t.Errorf("Next-hop %d of next-hop-group %d is not present in telemetry AFT", nhIndex, nhgID)
+			continue
+		}
+		t.Logf("Prefix %s next-hop %d: encapsulate-header = %v, origin-protocol = %v", pfx, nhIndex, nh.GetEncapsulateHeader(), nh.GetOriginProtocol())
+		if !deviations.AFTNextHopEncapsulateHeaderUnsupported(dut) {
+			if got, want := nh.GetEncapsulateHeader(), oc.Aft_EncapsulationHeaderType_IPV4; got != want {
+				t.Errorf("Prefix %s next-hop %d: next-hop/state/encapsulate-header = %v, want %v", pfx, nhIndex, got, want)
+			}
+		}
+		if !deviations.AFTNextHopOriginProtocolUnsupported(dut) {
+			if got, want := nh.GetOriginProtocol(), oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_GRIBI; got != want {
+				t.Errorf("Prefix %s next-hop %d: next-hop/state/origin-protocol = %v, want %v", pfx, nhIndex, got, want)
+			}
+		}
 	}
 }
 
@@ -1103,6 +1174,13 @@ func TestEncapFrr(t *testing.T) {
 			TestID:                 "teVrf111NoMatch",
 		},
 	)
+	t.Run("Validate encap next-hop AFT telemetry", func(t *testing.T) {
+		if err := gribi.FlushAll(client); err != nil {
+			t.Fatal(err)
+		}
+		configureGribiRoute(ctx, t, dut, args.client)
+		validateEncapNHTelemetry(t, dut)
+	})
 	for _, tc := range testCases {
 		t.Run(tc.Desc, func(t *testing.T) {
 			t.Log("Verify whether the ports are in up state")

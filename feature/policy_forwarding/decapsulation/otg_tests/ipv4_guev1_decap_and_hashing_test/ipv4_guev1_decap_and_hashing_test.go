@@ -113,8 +113,10 @@ var (
 	ate1LoopbackIP         = "172.16.1.0"
 	timeout                = 1 * time.Minute
 	lagTrafficDistribution = []uint64{50, 50}
-	aggID1                 = "Port-Channel1"
-	aggID2                 = "Port-Channel2"
+	aggID1                 = "Port-Channel"
+	aggID2                 = "Port-Channel"
+	aggIndx1               = "10"
+	aggIndx2               = "11"
 	constH1v4              = "198.51.100.1"
 	constH1v6              = "2001:db8:100::1"
 	constH2v4              = "198.51.110.1"
@@ -316,6 +318,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 	p7 := dut.Port(t, "port7")
+	aggID1 := aggID1 + aggIndx1
+	aggID2 := aggID2 + aggIndx2
 	var aggIDsList []string
 
 	// Interface configurations
@@ -375,6 +379,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 	cfgplugins.NewISISBasic(t, aggrBatch, dut, cfgISIS)
 	cfgBGP := cfgplugins.BGPConfig{DutAS: dutAS, RouterID: dutP1.IPv4, ECMPMaxPath: ecmpMaxPath}
 	dutBgpConf := cfgplugins.ConfigureDUTBGP(t, dut, aggrBatch, cfgBGP)
+	_, err := cfgplugins.ConfigureBGPRoutePolicy(t, aggrBatch, cfgplugins.BGPPolicyConfig{PolicyName: "ALLOW", StatementID: "10"})
+	if err != nil {
+		t.Fatalf("Failed to configure BGP Policy: %v", err)
+	}
 	configureDUTBGPNeighbors(t, dut, aggrBatch, dutBgpConf.Bgp)
 	aggrBatch.Set(t, dut)
 

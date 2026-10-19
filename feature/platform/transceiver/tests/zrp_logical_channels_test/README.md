@@ -123,6 +123,7 @@ Once the ZR_PLUS link is estabished proceed to configure the following entities:
 *   /terminal-device/logical-channels/channel/state/description
 *   /terminal-device/logical-channels/channel/state/index
 *   /terminal-device/logical-channels/channel/state/logical-channel-type
+*   /terminal-device/logical-channels/channel/state/loopback-mode
 *   /terminal-device/logical-channels/channel/state/rate-class
 *   /terminal-device/logical-channels/channel/state/trib-protocol
 *   /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/allocation
@@ -140,10 +141,46 @@ Once the ZR_PLUS link is estabished proceed to configure the following entities:
 ## OpenConfig Path and RPC Coverage
 ```yaml
 paths:
+  /components/component/optical-channel/config/frequency:
+    platform_type: [OPTICAL_CHANNEL, TRANSCEIVER]
+  /components/component/optical-channel/config/line-port:
+    platform_type: [OPTICAL_CHANNEL, TRANSCEIVER]
+  /components/component/optical-channel/config/operational-mode:
+    platform_type: [OPTICAL_CHANNEL, TRANSCEIVER]
+  /components/component/optical-channel/config/target-output-power:
+    platform_type: [OPTICAL_CHANNEL, TRANSCEIVER]
+  /components/component/transceiver/config/enabled:
+    platform_type: [OPTICAL_CHANNEL, TRANSCEIVER]
   /components/component/transceiver/state/enabled:
     platform_type: [TRANSCEIVER]
+  /interfaces/interface/config/enabled:
   /interfaces/interface/state/enabled:
   /interfaces/interface/state/oper-status:
+  /terminal-device/logical-channels/channel/config/admin-state:
+  /terminal-device/logical-channels/channel/config/description:
+  /terminal-device/logical-channels/channel/config/index:
+  /terminal-device/logical-channels/channel/config/logical-channel-type:
+  /terminal-device/logical-channels/channel/config/rate-class:
+  /terminal-device/logical-channels/channel/config/trib-protocol:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/allocation:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/assignment-type:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/description:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/index:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/logical-channel:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/optical-channel:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/allocation:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/assignment-type:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/description:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/index:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/logical-channel:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/optical-channel:
+  /terminal-device/logical-channels/channel/state/admin-state:
+  /terminal-device/logical-channels/channel/state/description:
+  /terminal-device/logical-channels/channel/state/index:
+  /terminal-device/logical-channels/channel/state/logical-channel-type:
+  /terminal-device/logical-channels/channel/state/loopback-mode:
+  /terminal-device/logical-channels/channel/state/rate-class:
+  /terminal-device/logical-channels/channel/state/trib-protocol:
 rpcs:
   gnmi:
     gNMI.Get:

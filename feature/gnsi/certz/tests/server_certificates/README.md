@@ -104,8 +104,18 @@ TODO(OCRPC): Record may not be correct or complete
 rpcs:
   gnsi:
     certz.v1.Certz.GetProfileList:
+    certz.v1.Certz.AddProfile:
+    certz.v1.Certz.Rotate:
+```
+## Canonical OC
+
+```json
+{
+
+}
 ```
 
 ## Minimum DUT Platform Requirement
 
 vRX
+
