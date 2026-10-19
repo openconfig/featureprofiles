@@ -156,16 +156,12 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-// setupEnvironment initializes the testbed devices, resolves the next available aggregate
-// interface name on the DUT, and applies any required hardware initialization profiles.
+// setupEnvironment initializes the testbed devices and resolves the next available aggregate
+// interface name on the DUT.
 func setupEnvironment(t *testing.T) *testEnv {
 	t.Helper()
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-
-	if hardwareInitCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureVrfSelectionExtended); hardwareInitCfg != "" {
-		helpers.GnmiCLIConfig(t, dut, hardwareInitCfg)
-	}
 
 	aggID := netutil.NextAggregateInterface(t, dut)
 	aggPorts := []*ondatra.Port{
@@ -187,10 +183,24 @@ func setupEnvironment(t *testing.T) *testEnv {
 func TestVRFSelectionNDPEBGP(t *testing.T) {
 	env := setupEnvironment(t)
 
-	// Register cleanup to remove VRF selection policy, BGP, VRF-10, and LAG configuration.
+	// Register cleanup before executing any configuration pushes or destructive operations.
 	t.Cleanup(func() {
-		cleanupConfiguration(t, env)
+		t.Log("Cleanup: Stopping OTG protocols and removing VRF selection policy, BGP, VRF-10, and LAG configurations")
+		env.ate.OTG().StopProtocols(t)
+
+		defNI := deviations.DefaultNetworkInstance(env.dut)
+		gnmi.Delete(t, env.dut, gnmi.OC().NetworkInstance(defNI).PolicyForwarding().Config())
+		cfgplugins.BGPClearConfig(t, env.dut)
+		gnmi.Delete(t, env.dut, gnmi.OC().RoutingPolicy().PolicyDefinition(routePolicyAcceptAll).Config())
+		gnmi.Delete(t, env.dut, gnmi.OC().Interface(env.dut.Port(t, "port3").Name()).Config())
+		gnmi.Delete(t, env.dut, gnmi.OC().Interface(env.dut.Port(t, "port4").Name()).Config())
+		gnmi.Delete(t, env.dut, gnmi.OC().NetworkInstance(vrf10Name).Config())
+		cfgplugins.DeleteAggregate(t, env.dut, env.aggID, env.aggPorts)
 	})
+
+	if hardwareInitCfg := cfgplugins.NewDUTHardwareInit(t, env.dut, cfgplugins.FeatureVrfSelectionExtended); hardwareInitCfg != "" {
+		helpers.GnmiCLIConfig(t, env.dut, hardwareInitCfg)
+	}
 
 	// RT-3.5.1: Baseline LAG, Dual-Stack eBGP, and VRF Selection Policy Configuration and Control-Plane Verification.
 	t.Run("RT-3.5.1: Baseline LAG, Dual-Stack eBGP, and VRF Selection Policy Configuration and Control-Plane Verification", func(t *testing.T) {
@@ -527,8 +537,7 @@ func configureATE(t *testing.T, env *testEnv) {
 //   - Binds VRF-SELECT-POLICY to the ingress LAG interface (aggID) subinterface 0.
 func configureDUTVRFSelectionPolicy(t *testing.T, env *testEnv) {
 	t.Helper()
-	pfBatch := &gnmi.SetBatch{}
-	cfgplugins.NewVrfSelectionPolicy(t, env.dut, pfBatch, cfgplugins.VrfSelectionPolicyConfig{
+	cfgplugins.NewVrfSelectionPolicy(t, env.dut, cfgplugins.VrfSelectionPolicyConfig{
 		NetworkInstanceName: deviations.DefaultNetworkInstance(env.dut),
 		PolicyName:          vrfSelectionPolicyName,
 		InterfaceName:       env.aggID,
@@ -552,7 +561,6 @@ func configureDUTVRFSelectionPolicy(t *testing.T, env *testEnv) {
 			},
 		},
 	})
-	pfBatch.Set(t, env.dut)
 }
 
 // verifyControlPlaneState implements RT-3.5.1 Step 4:
@@ -826,6 +834,9 @@ func configureOTGTrafficFlows(t *testing.T, env *testEnv) []string {
 //   - Re-verifies that dual-stack eBGP sessions remain ESTABLISHED and IPv6 NDP remains resolved.
 func runAndVerifyTraffic(t *testing.T, env *testEnv, flowNames []string) {
 	t.Helper()
+	if len(flowNames) == 0 {
+		t.Fatalf("flowNames must not be empty")
+	}
 	dut := env.dut
 	ate := env.ate
 	otg := ate.OTG()
@@ -939,23 +950,4 @@ func runAndVerifyTraffic(t *testing.T, env *testEnv, flowNames []string) {
 	// Verify eBGP sessions remain ESTABLISHED and IPv6 NDP neighbor cache remains resolved after traffic.
 	verifyBGPSessionsEstablished(t, env)
 	verifyDUTIPv6NDPNeighborState(t, env)
-}
-
-// cleanupConfiguration implements the Cleanup section of RT-3.5:
-//   - Stops OTG protocols.
-//   - Removes VRF-SELECT-POLICY interface binding and policy definition from DEFAULT network instance.
-//   - Clears BGP and routing policy configuration.
-//   - Deletes VRF-10 network instance and cleans up LAG interface and member ports.
-func cleanupConfiguration(t *testing.T, env *testEnv) {
-	t.Helper()
-	t.Log("Cleanup: Stopping OTG protocols and removing VRF selection policy, BGP, VRF-10, and LAG configurations")
-	env.ate.OTG().StopProtocols(t)
-
-	defNI := deviations.DefaultNetworkInstance(env.dut)
-	gnmi.Delete(t, env.dut, gnmi.OC().NetworkInstance(defNI).PolicyForwarding().Config())
-	cfgplugins.BGPClearConfig(t, env.dut)
-	gnmi.Delete(t, env.dut, gnmi.OC().RoutingPolicy().PolicyDefinition(routePolicyAcceptAll).Config())
-	gnmi.Delete(t, env.dut, gnmi.OC().Interface(env.dut.Port(t, "port4").Name()).Config())
-	gnmi.Delete(t, env.dut, gnmi.OC().NetworkInstance(vrf10Name).Config())
-	cfgplugins.DeleteAggregate(t, env.dut, env.aggID, env.aggPorts)
 }

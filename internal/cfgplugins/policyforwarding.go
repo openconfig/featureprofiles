@@ -1025,6 +1025,10 @@ func PolicyForwardingGreDecapsulation(t *testing.T, batch *gnmi.SetBatch, dut *o
 }
 
 func ConfigureVrfSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, policyName string, vrfRules []VrfRule) {
+	t.Helper()
+	if len(vrfRules) == 0 {
+		t.Fatalf("vrfRules must not be empty")
+	}
 	t.Logf("Configuring VRF Selection Policy")
 	policy := pf.GetOrCreatePolicy(policyName)
 	policy.Type = oc.Policy_Type_VRF_SELECTION_POLICY
@@ -1075,9 +1079,12 @@ type VrfSelectionPolicyConfig struct {
 }
 
 // NewVrfSelectionPolicy configures an OpenConfig VRF_SELECTION_POLICY with dual-stack source prefix and DSCP match rules,
-// applies any required platform deviations, binds the policy to the specified ingress interface, and appends the configuration to the SetBatch.
-func NewVrfSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, cfg VrfSelectionPolicyConfig) *oc.NetworkInstance_PolicyForwarding {
+// applies any required platform deviations, binds the policy to the specified ingress interface, and applies the configuration on the DUT.
+func NewVrfSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice, cfg VrfSelectionPolicyConfig) *oc.NetworkInstance_PolicyForwarding {
 	t.Helper()
+	if len(cfg.Rules) == 0 {
+		t.Fatalf("cfg.Rules must not be empty")
+	}
 	niName := cfg.NetworkInstanceName
 	if niName == "" {
 		niName = "DEFAULT"
@@ -1146,9 +1153,7 @@ func NewVrfSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBat
 		}
 	}
 
-	if sb != nil {
-		gnmi.BatchUpdate(sb, gnmi.OC().NetworkInstance(niName).PolicyForwarding().Config(), pf)
-	}
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(niName).PolicyForwarding().Config(), pf)
 	return pf
 }
 
