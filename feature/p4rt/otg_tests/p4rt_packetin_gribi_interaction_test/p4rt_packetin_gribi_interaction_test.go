@@ -73,7 +73,7 @@ const (
 	framePps             = uint64(1000)
 	concurrentRouteCount = 100000
 	concurrentBatchSize  = 1000
-	trafficTimeout       = time.Duration(frameCount/framePps)*time.Second + 40*time.Second
+	trafficTimeout       = time.Duration(frameCount/framePps)*time.Second + 60*time.Second
 	packetInQueueSize    = 200000
 	traceRouteTTL        = uint8(1)
 	v4Route              = "198.18.0.0"
@@ -236,30 +236,17 @@ type lldpBaselinePacketIO struct {
 }
 
 type packetIO interface {
-	GetPuntTableEntry(isDelete bool) ([]*p4rtutils.ACLWbbIngressTableEntryInfo, error)
 	GetPacketTemplate() *packetIOPacket
 	GetTrafficFlow(ate *ondatra.ATEDevice, flowname string, frameSize uint32, frameRate uint64, frameCount uint32, traceRoute bool) []gosnappi.Flow
 	GetEgressPort() []string
 	GetIngressPort() uint32
 }
 
-type puntRule struct {
-	Name      string
-	EtherType uint16
-	IsIPv4    bool
-	TTL       uint8
-	IPv4Dst   string
-	IPProto   uint8
-	L4DstPort uint16
-}
-
-var puntRules = []puntRule{
-	{Name: "LLDP", EtherType: 0x88CC},
-	{Name: "IPv4Traceroute", IsIPv4: true, TTL: 1},
-	// TODO: https://partnerissuetracker.corp.google.com/u/0/issues/567774034
-	// {Name: "BGP", IPv4Dst: "192.0.2.1/32", IPProto: 6, L4DstPort: 179},
-	// {Name: "OSPF", IsIPv4: true, IPProto: 89},
-}
+// TODO: https://partnerissuetracker.corp.google.com/u/0/issues/567774034
+// var puntRules = []puntRule{
+// 	// {Name: "BGP", IPv4Dst: "192.0.2.1/32", IPProto: 6, L4DstPort: 179},
+// 	// {Name: "OSPF", IsIPv4: true, IPProto: 89},
+// }
 
 // getLLDPBaselinePacketIO builds the packetIO used by the baseline sub-test.
 func getLLDPBaselinePacketIO() *lldpBaselinePacketIO {
@@ -298,14 +285,6 @@ func getTracerouteParameter(t *testing.T, testArgs *testArgs) *tracerouteP4RTPac
 	}
 }
 
-func (p *lldpBaselinePacketIO) GetPuntTableEntry(isDelete bool) ([]*p4rtutils.ACLWbbIngressTableEntryInfo, error) {
-	return buildPuntTableEntries(isDelete)
-}
-
-func (p *tracerouteP4RTPacketIO) GetPuntTableEntry(isDelete bool) ([]*p4rtutils.ACLWbbIngressTableEntryInfo, error) {
-	return buildPuntTableEntries(isDelete)
-}
-
 func (p *lldpBaselinePacketIO) GetPacketTemplate() *packetIOPacket {
 	return &p.packetIOPacket
 }
@@ -339,20 +318,30 @@ func (p *tracerouteP4RTPacketIO) GetIngressPort() uint32 {
 }
 
 // buildPuntTableEntries is the generic punt-table generator used by all packetIO types.
-func buildPuntTableEntries(isDelete bool) ([]*p4rtutils.ACLWbbIngressTableEntryInfo, error) {
+func buildPuntTableEntries(isDelete bool, lldp bool, traceRoute bool) []*p4rtutils.ACLWbbIngressTableEntryInfo {
+	var entries []*p4rtutils.ACLWbbIngressTableEntryInfo
 	actionType := p4v1pb.Update_INSERT
 	if isDelete {
 		actionType = p4v1pb.Update_DELETE
 	}
-	var entries []*p4rtutils.ACLWbbIngressTableEntryInfo
-	for _, rule := range puntRules {
-		entry, err := getPuntTableEntry(rule, actionType)
-		if err != nil {
-			return nil, fmt.Errorf("punt rule %q: %v", rule.Name, err)
-		}
-		entries = append(entries, entry)
+	if traceRoute {
+		entries = append(entries, &p4rtutils.ACLWbbIngressTableEntryInfo{
+			Type:     actionType,
+			IsIpv4:   0x1,
+			TTL:      0x1,
+			TTLMask:  0xFF,
+			Priority: 1,
+		})
 	}
-	return entries, nil
+	if lldp {
+		entries = append(entries, &p4rtutils.ACLWbbIngressTableEntryInfo{
+			Type:          actionType,
+			EtherType:     0x88CC,
+			EtherTypeMask: 0xFFFF,
+			Priority:      1,
+		})
+	}
+	return entries
 }
 
 func buildEgressPorts(egressPort uint32) []string {
@@ -396,25 +385,6 @@ func buildTrafficFlows(flowname string, packetParams *packetIOPacket, frameSize 
 		flow.Duration().FixedPackets().SetPackets(frameCount)
 	}
 	return []gosnappi.Flow{flow}
-}
-
-func getPuntTableEntry(rule puntRule, actionType p4v1pb.Update_Type) (*p4rtutils.ACLWbbIngressTableEntryInfo, error) {
-	entry := &p4rtutils.ACLWbbIngressTableEntryInfo{
-		Type:     actionType,
-		Priority: 1,
-	}
-	if rule.EtherType != 0 {
-		entry.EtherType = rule.EtherType
-		entry.EtherTypeMask = 0xFFFF
-	}
-	if rule.IsIPv4 {
-		entry.IsIpv4 = 0x1
-	}
-	if rule.TTL != 0 {
-		entry.TTL = rule.TTL
-		entry.TTLMask = 0xFF
-	}
-	return entry, nil
 }
 
 func mustConfigureDUT(t *testing.T, dut *ondatra.DUTDevice) {
@@ -602,19 +572,16 @@ func verifyAFTPrefix(t *testing.T, dut *ondatra.DUTDevice, ni, prefix string) {
 	}
 }
 
-func programPuntTableEntries(t *testing.T, client *p4rt_client.P4RTClient, packetIO packetIO, isDelete bool) error {
+func programPuntTableEntries(t *testing.T, client *p4rt_client.P4RTClient, isDelete bool, lldp bool, traceRoute bool) error {
 	t.Helper()
-
-	entries, err := packetIO.GetPuntTableEntry(isDelete)
-	if err != nil {
-		return fmt.Errorf("failed to get punt table entries: %w", err)
-	}
 
 	writeErr := client.Write(&p4v1pb.WriteRequest{
 		DeviceId:   deviceID,
 		ElectionId: &p4v1pb.Uint128{High: 0, Low: leaderElectionID},
-		Updates:    p4rtutils.ACLWbbIngressTableEntryGet(entries),
-		Atomicity:  p4v1pb.WriteRequest_CONTINUE_ON_ERROR,
+		Updates: p4rtutils.ACLWbbIngressTableEntryGet(
+			buildPuntTableEntries(isDelete, lldp, traceRoute),
+		),
+		Atomicity: p4v1pb.WriteRequest_CONTINUE_ON_ERROR,
 	})
 	if writeErr != nil {
 		return writeErr
@@ -1342,7 +1309,6 @@ func TestP4RTPacketInGRIBIInteraction(t *testing.T) {
 	args.dut = ondatra.DUT(t, "dut")
 	args.ate = ondatra.ATE(t, "ate")
 	args.ni = deviations.DefaultNetworkInstance(args.dut)
-	args.packetIO = []packetIO{getLLDPBaselinePacketIO()}
 
 	var err error
 	args.v4Prefixes, args.v6Prefixes, err = generateConcurrentPrefixes(concurrentRouteCount)
@@ -1366,6 +1332,8 @@ func TestP4RTPacketInGRIBIInteraction(t *testing.T) {
 	t.Log("validate interface operational state")
 	upIntfs := helpers.FetchOperStatusUPIntfs(t, args.dut, true)
 	helpers.ValidateOperStatusUPIntfs(t, args.dut, upIntfs, 2*time.Minute)
+
+	args.packetIO = []packetIO{getLLDPBaselinePacketIO(), getTracerouteParameter(t, args)}
 
 	t.Log("configure p4rt node-id")
 	configureP4RTNode(t, args.dut)
@@ -1402,6 +1370,8 @@ func TestP4RTPacketInGRIBIInteraction(t *testing.T) {
 		Description         string
 		flowSpecs           []flowSpec
 		dataplaneValidation []dataplaneValidation
+		lldpPacketIn        bool
+		traceRoutePacketIn  bool
 		testFunc            func(t *testing.T, testArgs *testArgs, flows []flowSpec, dpVal []dataplaneValidation)
 	}
 
@@ -1449,7 +1419,8 @@ func TestP4RTPacketInGRIBIInteraction(t *testing.T) {
 					capturePort: "port2",
 				},
 			},
-			testFunc: testBaselinePacketIn,
+			lldpPacketIn: true,
+			testFunc:     testBaselinePacketIn,
 		},
 		{
 			Name: "3.4.2_ConcurrentGRIBIAndPacketIn",
@@ -1491,7 +1462,9 @@ func TestP4RTPacketInGRIBIInteraction(t *testing.T) {
 					capturePort: "port4",
 				},
 			},
-			testFunc: testConcurrentPacketIn,
+			lldpPacketIn:       true,
+			traceRoutePacketIn: true,
+			testFunc:           testConcurrentPacketIn,
 		},
 		{
 			Name:     "3.4.3_NegativeScenariosUnderConcurrentLoad",
@@ -1501,6 +1474,16 @@ func TestP4RTPacketInGRIBIInteraction(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
+			if tc.lldpPacketIn || tc.traceRoutePacketIn {
+				t.Cleanup(func() {
+					if err := programPuntTableEntries(t, args.leader, true, tc.lldpPacketIn, tc.traceRoutePacketIn); err != nil {
+						t.Errorf("error when deleting entry: %v", err)
+					}
+				})
+				if err := programPuntTableEntries(t, args.leader, false, tc.lldpPacketIn, tc.traceRoutePacketIn); err != nil {
+					t.Fatalf("error when programming entry: %v", err)
+				}
+			}
 			tc.testFunc(t, args, tc.flowSpecs, tc.dataplaneValidation)
 		})
 	}
@@ -1515,18 +1498,6 @@ func testBaselinePacketIn(t *testing.T, testArgs *testArgs, flows []flowSpec, dp
 
 	for _, prefix := range []string{destinationPrefixv4, destinationPrefixv6} {
 		verifyAFTPrefix(t, testArgs.dut, testArgs.ni, prefix)
-	}
-
-	// Register cleanup to delete wbb acl entry on the device
-	t.Cleanup(func() {
-		if err := programPuntTableEntries(t, testArgs.leader, testArgs.packetIO[0], true); err != nil {
-			t.Errorf("error when deleting entry: %v", err)
-		}
-	})
-
-	// Insert wbb acl entry on the DUT
-	if err := programPuntTableEntries(t, testArgs.leader, testArgs.packetIO[0], false); err != nil {
-		t.Fatalf("error when programming entry: %v", err)
 	}
 
 	t.Log("send baseline traffic and validate p4rt packet-in")
@@ -1553,7 +1524,6 @@ func testBaselinePacketIn(t *testing.T, testArgs *testArgs, flows []flowSpec, dp
 
 func testConcurrentPacketIn(t *testing.T, testArgs *testArgs, flows []flowSpec, dpVal []dataplaneValidation) {
 	// LLDP and IPv4 traceroute continous traffic and validate packet-in messages
-	testArgs.packetIO = append(testArgs.packetIO, getTracerouteParameter(t, testArgs))
 	for i, flow := range flows {
 		configureTrafficFlow(t, testArgs, []flowSpec{flow}, testArgs.packetIO[i])
 	}
@@ -1574,7 +1544,6 @@ func testConcurrentPacketIn(t *testing.T, testArgs *testArgs, flows []flowSpec, 
 	waitForConcurrentAFTRouteCount(t, testArgs.dut, testArgs.ni, concurrentRouteCount, testArgs.v4Prefixes, true)
 	waitForConcurrentAFTRouteCount(t, testArgs.dut, testArgs.ni, concurrentRouteCount, testArgs.v6Prefixes, false)
 
-	testArgs.ate.OTG().StopTraffic(t)
 	validatePacketIn(t, testArgs, pktOut, testArgs.packetIO[0], testArgs.packetIO[1])
 	// configure concurrent data plane flows for IPv4 and IPv6 prefixes
 	configureConcurrentDataPlaneFlows(t, testArgs, testArgs.v4Prefixes, "concurrent-dp-v4-scale", true)
