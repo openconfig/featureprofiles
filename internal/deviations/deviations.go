@@ -1594,11 +1594,6 @@ func IsisSrNoPhpRequired(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisSrNoPhpRequired()
 }
 
-// SflowIngressMinSamplingRate returns the minimum sampling rate supported for sflow ingress on the device.
-func SflowIngressMinSamplingRate(dut *ondatra.DUTDevice) uint32 {
-	return lookupDUTDeviations(dut).GetSflowIngressMinSamplingRate()
-}
-
 // SflowEgressSamplingRateUnsupported returns true if the device does not support
 // configuring the sFlow egress sampling rate through OpenConfig.
 // Arista EOS: b/562517133.
