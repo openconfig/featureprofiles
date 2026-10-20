@@ -21,6 +21,7 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
@@ -176,18 +177,15 @@ func configureACLs(t *testing.T, dut *ondatra.DUTDevice) {
 
 	// --- Define IPv4 ACL ---
 	aclSet4 := acl.GetOrCreateAclSet(aclNameIPv4, aclTypeIPv4)
-	aclSet4.Description = ygot.String("Control Plane Ingress IPv4 ACL")
 
 	// Term 10: Allow gRPC from Any
 	term10Ipv4 := aclSet4.GetOrCreateAclEntry(grpcTermSeqID)
-	term10Ipv4.Description = ygot.String(grpcTermName)
 	term10Ipv4.GetOrCreateTransport().DestinationPort = oc.UnionUint16(grpcPort)
 	term10Ipv4.GetOrCreateIpv4().Protocol = oc.UnionUint8(ipProtoTCP)
 	term10Ipv4.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_ACCEPT
 
 	// Term 20: Allow SSH from MGMT_SRC
 	term20Ipv4 := aclSet4.GetOrCreateAclEntry(sshTermSeqID)
-	term20Ipv4.Description = ygot.String(sshTermName)
 	term20Ipv4.GetOrCreateTransport().DestinationPort = oc.UnionUint16(sshPort)
 	term20Ipv4Ipv4 := term20Ipv4.GetOrCreateIpv4()
 	term20Ipv4Ipv4.SourceAddress = ygot.String(mgmtSrcIPv4 + "/32")
@@ -196,7 +194,6 @@ func configureACLs(t *testing.T, dut *ondatra.DUTDevice) {
 
 	// Term 30: Allow ICMP from MGMT_SRC
 	term30Ipv4 := aclSet4.GetOrCreateAclEntry(icmpTermSeqID)
-	term30Ipv4.Description = ygot.String(icmpTermName)
 	term30Ipv4Ipv4 := term30Ipv4.GetOrCreateIpv4()
 	term30Ipv4Ipv4.SourceAddress = ygot.String(mgmtSrcIPv4 + "/32")
 	term30Ipv4Ipv4.Protocol = oc.UnionUint8(ipProtoICMP)
@@ -204,24 +201,20 @@ func configureACLs(t *testing.T, dut *ondatra.DUTDevice) {
 
 	// Term 40: Explicit Deny All
 	term40Ipv4 := aclSet4.GetOrCreateAclEntry(denyTermSeqID)
-	term40Ipv4.Description = ygot.String(denyTermName)
 	term40Ipv4.GetOrCreateIpv4()
 	term40Ipv4.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_REJECT
 
 	// --- Define IPv6 ACL ---
 	aclSet6 := acl.GetOrCreateAclSet(aclNameIPv6, aclTypeIPv6)
-	aclSet6.Description = ygot.String("Control Plane Ingress IPv6 ACL")
 
 	// Term 10: Allow gRPC from Any
 	term10Ipv6 := aclSet6.GetOrCreateAclEntry(grpcTermSeqID)
-	term10Ipv6.Description = ygot.String(grpcTermName)
 	term10Ipv6.GetOrCreateTransport().DestinationPort = oc.UnionUint16(grpcPort)
 	term10Ipv6.GetOrCreateIpv6().Protocol = oc.UnionUint8(ipProtoTCP)
 	term10Ipv6.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_ACCEPT
 
 	// Term 20: Allow SSH from MGMT_SRC
 	term20Ipv6 := aclSet6.GetOrCreateAclEntry(sshTermSeqID)
-	term20Ipv6.Description = ygot.String(sshTermName)
 	term20Ipv6.GetOrCreateTransport().DestinationPort = oc.UnionUint16(sshPort)
 	term20Ipv6Ipv6 := term20Ipv6.GetOrCreateIpv6()
 	term20Ipv6Ipv6.SourceAddress = ygot.String(mgmtSrcIPv6 + "/128")
@@ -230,7 +223,6 @@ func configureACLs(t *testing.T, dut *ondatra.DUTDevice) {
 
 	// Term 30: Allow ICMPv6 from MGMT_SRC
 	term30Ipv6 := aclSet6.GetOrCreateAclEntry(icmpTermSeqID)
-	term30Ipv6.Description = ygot.String(icmpTermName)
 	term30Ipv6Ipv6 := term30Ipv6.GetOrCreateIpv6()
 	term30Ipv6Ipv6.SourceAddress = ygot.String(mgmtSrcIPv6 + "/128")
 	term30Ipv6Ipv6.Protocol = oc.UnionUint8(ipProtoICMPv6)
@@ -238,9 +230,21 @@ func configureACLs(t *testing.T, dut *ondatra.DUTDevice) {
 
 	// Term 40: Explicit Deny All
 	term40Ipv6 := aclSet6.GetOrCreateAclEntry(denyTermSeqID)
-	term40Ipv6.Description = ygot.String(denyTermName)
 	term40Ipv6.GetOrCreateIpv6()
 	term40Ipv6.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_REJECT
+
+	if !deviations.ACLDescriptionUnsupported(dut) {
+		aclSet4.Description = ygot.String("Control Plane Ingress IPv4 ACL")
+		term10Ipv4.Description = ygot.String(grpcTermName)
+		term20Ipv4.Description = ygot.String(sshTermName)
+		term30Ipv4.Description = ygot.String(icmpTermName)
+		term40Ipv4.Description = ygot.String(denyTermName)
+		aclSet6.Description = ygot.String("Control Plane Ingress IPv6 ACL")
+		term10Ipv6.Description = ygot.String(grpcTermName)
+		term20Ipv6.Description = ygot.String(sshTermName)
+		term30Ipv6.Description = ygot.String(icmpTermName)
+		term40Ipv6.Description = ygot.String(denyTermName)
+	}
 
 	// Push ACL configuration
 	t.Log("Pushing ACL configuration...")

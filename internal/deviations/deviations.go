@@ -2497,3 +2497,9 @@ func CfmStateFt(dut *ondatra.DUTDevice) string {
 func CfmPmFt(dut *ondatra.DUTDevice) string {
 	return lookupDUTDeviations(dut).GetCfmPmFt()
 }
+
+// ACLDescriptionUnsupported returns true if ACL description is unsupported.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/492342925
+func ACLDescriptionUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAclDescriptionUnsupported()
+}
