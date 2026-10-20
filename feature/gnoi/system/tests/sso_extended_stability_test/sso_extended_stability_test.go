@@ -342,7 +342,7 @@ func runPostSSOVerification(t *testing.T, dut *ondatra.DUTDevice, criticalProcs 
 		if finalMem > baseline.MemoryUsage {
 			pctIncrease := float64(finalMem-baseline.MemoryUsage) / float64(baseline.MemoryUsage)
 			if pctIncrease > 0.10 {
-				t.Errorf("Process %s memory kept increasing over time compared to baseline: got %d, baseline %d (%.2f%% increase)", name, finalMem, baseline.MemoryUsage, pctIncrease*100)
+				t.Errorf("Process %s memory kept increasing over time compared to baseline: got %d, want < %d (%.2f%% increase)", name, finalMem, uint64(float64(baseline.MemoryUsage)*1.1), pctIncrease*100)
 			}
 		}
 	}
