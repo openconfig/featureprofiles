@@ -323,10 +323,8 @@ func verifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntf []string,
 }
 
 // verifyTraffic checks traffic flow metrics against expected loss.
-func verifyTraffic(t *testing.T, otg *otg.OTG, otgConfig gosnappi.Config, expectLoss bool) bool {
+func verifyTraffic(t *testing.T, otg *otg.OTG, otgConfig gosnappi.Config, expectLoss bool) error {
 	t.Helper()
-
-	fail := false
 
 	otgutils.LogFlowMetrics(t, otg, otgConfig)
 	otgutils.LogPortMetrics(t, otg, otgConfig)
@@ -344,22 +342,20 @@ func verifyTraffic(t *testing.T, otg *otg.OTG, otgConfig gosnappi.Config, expect
 
 		switch {
 		case expectLoss && lossPct < (100-lossTolerancePct):
-			t.Errorf("traffic loss for flow %s was less than expected: got %v, want > %v", flowName, lossPct, 100-lossTolerancePct)
-			fail = true
+			return fmt.Errorf("traffic loss for flow %s was less than expected: got %v, want > %v", flowName, lossPct, 100-lossTolerancePct)
 
 		case expectLoss:
 			t.Logf("Traffic loss for flow %s was as expected: %v", flowName, lossPct)
 
 		case lossPct > lossTolerancePct:
-			t.Errorf("traffic loss for flow %s was higher than expected: got %v, want < %v", flowName, lossPct, lossTolerancePct)
-			fail = true
+			return fmt.Errorf("traffic loss for flow %s was higher than expected: got %v, want < %v", flowName, lossPct, lossTolerancePct)
 
 		default:
 			t.Logf("No loss seen for flow %s as expected", flowName)
 		}
 	}
 
-	return fail
+	return nil
 }
 
 func startStopISISRouter(t *testing.T, otg *otg.OTG, routeNames []string, state string) {
@@ -443,8 +439,8 @@ func testGrHelper(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, 
 	otg.StartTraffic(t)
 	time.Sleep(sleepTime)
 	otg.StopTraffic(t)
-	if verifyTraffic(t, otg, otgConfig, false) {
-		t.Error("traffic loss for flow is more than expected")
+	if err := verifyTraffic(t, otg, otgConfig, false); err != nil {
+		t.Error(err)
 	}
 
 	// Validating subtest 2: Restarting IS-IS on ATE port-2 and verifying traffic is not lost due to GR
@@ -461,8 +457,8 @@ func testGrHelper(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, 
 	otg.StartTraffic(t)
 	time.Sleep(5 * time.Second)
 	otg.StopTraffic(t)
-	if verifyTraffic(t, otg, otgConfig, false) {
-		t.Error("traffic loss for flow is more than expected")
+	if err := verifyTraffic(t, otg, otgConfig, false); err != nil {
+		t.Error(err)
 	}
 
 	verifyAdjRestartState(t, ate, isisPort2Device, "RUNNING")
@@ -479,8 +475,8 @@ func testGrHelper(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, 
 	otg.StartTraffic(t)
 	time.Sleep(5 * time.Second)
 	otg.StopTraffic(t)
-	if verifyTraffic(t, otg, otgConfig, true) {
-		t.Error("traffic loss is not seen for flow as expected")
+	if err := verifyTraffic(t, otg, otgConfig, true); err != nil {
+		t.Error(err)
 	}
 
 	// Validating subtest 3: Disable IS-IS on ATE port-2 and verifying traffic is lost due to GR.
@@ -491,8 +487,8 @@ func testGrHelper(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, 
 	otg.StartTraffic(t)
 	time.Sleep(sleepTime)
 	otg.StopTraffic(t)
-	if verifyTraffic(t, otg, otgConfig, true) {
-		t.Error("traffic loss is not seen for flow as expected")
+	if err := verifyTraffic(t, otg, otgConfig, true); err != nil {
+		t.Error(err)
 	}
 }
 
@@ -501,6 +497,10 @@ func testISISWithControllerCardSwitchOver(t *testing.T, dut *ondatra.DUTDevice, 
 	otg := ate.OTG()
 
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
+	t.Cleanup(func() {
+		gnmi.Update(t, dut, dutConfPath.Global().GracefulRestart().HelperOnly().Config(), true)
+		gnmi.Update(t, dut, dutConfPath.Global().GracefulRestart().Enabled().Config(), false)
+	})
 	gnmi.Update(t, dut, dutConfPath.Global().GracefulRestart().HelperOnly().Config(), false)
 	gnmi.Update(t, dut, dutConfPath.Global().GracefulRestart().Enabled().Config(), true)
 	port2isis.GracefulRestart().SetHelperMode(true)
@@ -511,8 +511,8 @@ func testISISWithControllerCardSwitchOver(t *testing.T, dut *ondatra.DUTDevice, 
 	otg.StartTraffic(t)
 	time.Sleep(sleepTime)
 	otg.StopTraffic(t)
-	if verifyTraffic(t, otg, otgConfig, false) {
-		t.Error("traffic loss for flow is more than expected")
+	if err := verifyTraffic(t, otg, otgConfig, false); err != nil {
+		t.Error(err)
 	}
 
 	// TODO: Not able to verify because of HW limitation. Adding the below deviation instead creating new one
@@ -564,7 +564,8 @@ func testISISWithControllerCardSwitchOver(t *testing.T, dut *ondatra.DUTDevice, 
 			otg.StartTraffic(t)
 			time.Sleep(sleepTime)
 			otg.StopTraffic(t)
-			if !verifyTraffic(t, otg, otgConfig, false) {
+			if err := verifyTraffic(t, otg, otgConfig, false); err != nil {
+				t.Logf("Traffic verification failed: %v", err)
 				break
 			}
 			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
@@ -602,6 +603,10 @@ func testISISWithDUTRestart(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.A
 	}
 
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
+	t.Cleanup(func() {
+		gnmi.Update(t, dut, dutConfPath.Global().GracefulRestart().HelperOnly().Config(), true)
+		gnmi.Update(t, dut, dutConfPath.Global().GracefulRestart().Enabled().Config(), false)
+	})
 	gnmi.Update(t, dut, dutConfPath.Global().GracefulRestart().HelperOnly().Config(), false)
 	gnmi.Update(t, dut, dutConfPath.Global().GracefulRestart().Enabled().Config(), true)
 	port2isis.GracefulRestart().SetHelperMode(true)
@@ -613,8 +618,8 @@ func testISISWithDUTRestart(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.A
 	otg.StartTraffic(t)
 	time.Sleep(sleepTime)
 	otg.StopTraffic(t)
-	if verifyTraffic(t, otg, otgConfig, false) {
-		t.Error("traffic loss for flow is more than expected")
+	if err := verifyTraffic(t, otg, otgConfig, false); err != nil {
+		t.Error(err)
 	}
 
 	t.Logf("Initiating Kill Process on DUT")
@@ -624,8 +629,11 @@ func testISISWithDUTRestart(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.A
 		otg.StartTraffic(t)
 		time.Sleep(5 * time.Second)
 		otg.StopTraffic(t)
-		if !verifyTraffic(t, otg, otgConfig, false) {
+		if err := verifyTraffic(t, otg, otgConfig, false); err == nil {
+			t.Log("Traffic verification passed")
 			break
+		} else {
+			t.Logf("Traffic verification failed: %v", err)
 		}
 
 		if uint64(time.Since(startTime).Seconds()) > gracefulRestartTime {
