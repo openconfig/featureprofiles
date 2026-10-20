@@ -2497,3 +2497,27 @@ func CfmStateFt(dut *ondatra.DUTDevice) string {
 func CfmPmFt(dut *ondatra.DUTDevice) string {
 	return lookupDUTDeviations(dut).GetCfmPmFt()
 }
+
+// SyslogUniformSelectorRequired returns true if the device requires all remote
+// syslog servers to use the same facility and severity selector when configured
+// via OpenConfig.
+// Arista: https://partnerissuetracker.corp.google.com/issues/574820175
+func SyslogUniformSelectorRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSyslogUniformSelectorRequired()
+}
+
+// SyslogDefaultNIStateUnsupported returns true if the device omits
+// /system/logging/remote-servers/remote-server/state/network-instance when the
+// remote syslog server is configured in the default network instance.
+// Arista: https://partnerissuetracker.corp.google.com/issues/574820175
+// Juniper: https://partnerissuetracker.corp.google.com/issues/574811352
+func SyslogDefaultNIStateUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSyslogDefaultNiStateUnsupported()
+}
+
+// SyslogDebugSeverityUnsupported returns true if the device does not support
+// configuring DEBUG severity for remote syslog selectors via OpenConfig.
+// Juniper: https://partnerissuetracker.corp.google.com/issues/574811352
+func SyslogDebugSeverityUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSyslogDebugSeverityUnsupported()
+}
