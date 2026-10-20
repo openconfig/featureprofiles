@@ -30,6 +30,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
@@ -300,6 +301,10 @@ func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice) {
 }
 
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
+	if deviations.VendorPreConfigRequired(dut) {
+		cfgplugins.ConfigureDecapVrfSelection(t, dut)
+	}
+
 	// configure NI.
 	configureNetworkInstance(t, dut)
 
@@ -368,7 +373,7 @@ func applyForwardingPolicy(t *testing.T, ingressPort string) {
 	d := &oc.Root{}
 	dut := ondatra.DUT(t, "dut")
 	interfaceID := ingressPort
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+	if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
 		interfaceID = ingressPort + ".0"
 	}
 	pfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID)

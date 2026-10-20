@@ -14,6 +14,7 @@ import (
 	"github.com/google/gopacket/pcap"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
@@ -168,6 +169,9 @@ func TestMain(m *testing.M) {
 
 func TestGRIBIFailover(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	if deviations.VendorPreConfigRequired(dut) {
+		cfgplugins.ConfigureFallbackDecapVrfSelection(t, dut)
+	}
 	configureDUT(t, dut)
 	ate := ondatra.ATE(t, "ate")
 	top := configureOTG(t, ate)
