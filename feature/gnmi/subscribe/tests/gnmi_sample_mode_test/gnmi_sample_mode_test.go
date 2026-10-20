@@ -146,6 +146,6 @@ func TestISISProtocol(t *testing.T) {
 	}
 
 	if !updated {
-		t.Errorf("ISIS session %q telemetry not received in three samples after configuration", isissession.ISISName)
+		t.Errorf("ISIS session %q telemetry not received in ten samples after configuration", isissession.ISISName)
 	}
 }
