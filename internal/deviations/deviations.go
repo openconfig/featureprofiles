@@ -2497,3 +2497,8 @@ func CfmStateFt(dut *ondatra.DUTDevice) string {
 func CfmPmFt(dut *ondatra.DUTDevice) string {
 	return lookupDUTDeviations(dut).GetCfmPmFt()
 }
+
+// SoftLoopBackOcUnsupported returns true if the device does not support OC configuration for soft loopback interfaces.
+func SoftLoopBackOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSoftLoopbackOcUnsupported()
+}
