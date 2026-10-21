@@ -51,10 +51,8 @@ The test is configured with the following parameters defined in `gribi_full_scal
   * 3% NHGs load-balance across 16 NHs
   * 2% NHGs load-balance across 32 NHs
 * `EncapNHGWeight`:
-  * 75% NHGs have WCMP granularity `1/32`
-  * 20% NHGs have WCMP granularity `1/64`
-  * 3% NHGs have WCMP granularity `1/128`
-  * 2% NHGs have WCMP granularity `1/256`
+  * 75% NHGs have WCMP granularity `1/16`
+  * 25% NHGs have WCMP granularity `1/32`
 
 ### Decap VRF
 * `NumDecapEntries`: `8`
