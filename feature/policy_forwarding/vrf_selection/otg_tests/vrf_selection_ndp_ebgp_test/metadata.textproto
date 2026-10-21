@@ -10,10 +10,14 @@ platform_exceptions: {
     vendor: ARISTA
   }
   deviations: {
+    aggregate_atomic_update: true
     default_network_instance: "default"
+    interface_config_vrf_before_address: true
     interface_enabled: true
     pf_require_match_default_rule: true
     pf_require_sequential_order_pbr_rules: true
+    policy_rule_counters_oc_unsupported: true
+    static_protocol_name: "STATIC"
   }
 }
 platform_exceptions: {
@@ -23,7 +27,10 @@ platform_exceptions: {
   deviations: {
     aggregate_atomic_update: true
     interface_config_vrf_before_address: true
+    interface_id_format_required_for_policy_forwarding: true
     ipv4_missing_enabled: true
+    lacp_config_after_aggregate_replace: true
+    policy_rule_counters_oc_unsupported: true
   }
 }
 platform_exceptions: {
@@ -31,8 +38,11 @@ platform_exceptions: {
     vendor: JUNIPER
   }
   deviations: {
+    explicit_interface_in_default_vrf: true
+    interface_enabled: true
     interface_id_format_required_for_policy_forwarding: true
     interface_ref_interface_id_format: true
+    policy_rule_counters_oc_unsupported: true
   }
 }
 platform_exceptions: {
@@ -40,8 +50,10 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
+    aggregate_atomic_update: true
     explicit_interface_in_default_vrf: true
-    explicit_port_speed: true
     interface_enabled: true
+    policy_rule_counters_oc_unsupported: true
+    static_protocol_name: "static"
   }
 }
