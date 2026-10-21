@@ -35,7 +35,7 @@ platform_exceptions: {
     hardware_model_regex: "PTX10002-36QDD|PTX12008"
   }
   deviations: {
-    frr_weight_resolution_tolerance: 0.4
+    hierarchical_weight_resolution_tolerance: 0.4
     isis_level_enabled:  true
     interface_ref_interface_id_format: true
   }
