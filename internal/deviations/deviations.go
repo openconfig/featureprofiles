@@ -2497,3 +2497,8 @@ func CfmStateFt(dut *ondatra.DUTDevice) string {
 func CfmPmFt(dut *ondatra.DUTDevice) string {
 	return lookupDUTDeviations(dut).GetCfmPmFt()
 }
+
+// QosRedUnsupported returns true if device does not support RED under queue-management-profiles.
+func QosRedUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDropWeightLeavesUnsupported()
+}
