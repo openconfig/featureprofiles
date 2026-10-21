@@ -76,7 +76,7 @@ type Options struct {
 type breakout struct {
 	breakoutSpeed       oc.E_IfEthernet_ETHERNET_SPEED
 	numPhysicalChannels uint8
-	childInterfaceName  string
+	parentInterfaceName  string
 }
 
 // showRunningConfig gets the running config from the router
