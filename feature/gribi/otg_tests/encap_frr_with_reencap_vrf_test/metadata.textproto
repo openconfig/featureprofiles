@@ -27,6 +27,7 @@ platform_exceptions:  {
   deviations:  {
     isis_level_enabled:  true
     interface_ref_interface_id_format: true
+    aft_next_hop_encapsulate_header_unsupported: true
   }
 }
 platform_exceptions: {
@@ -49,6 +50,8 @@ platform_exceptions:  {
     missing_isis_interface_afi_safi_enable: true
     explicit_interface_in_default_vrf:  true
     interface_enabled:  true
+    aft_next_hop_origin_protocol_unsupported: true
+    aft_next_hop_encapsulate_header_unsupported: true
   }
 }
 platform_exceptions:  {
@@ -56,6 +59,7 @@ platform_exceptions:  {
     vendor:  ARISTA
   }
   deviations:  {
+    vendor_pre_config_required: true
     interface_enabled:  true
     default_network_instance:  "default"
     isis_instance_enabled_required:  true
@@ -66,6 +70,8 @@ platform_exceptions:  {
     missing_isis_interface_afi_safi_enable: true
     isis_interface_afi_unsupported: true
     encap_tunnel_shut_backup_nhg_zero_traffic: true
+    aft_next_hop_origin_protocol_unsupported: true
+    aft_next_hop_encapsulate_header_unsupported: true
   }
 }
 

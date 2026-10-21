@@ -10,12 +10,17 @@
 # review when someone opens a pull request.
 *       @openconfig/featureprofiles-approvers
 
+# Exclude testregistry.textproto from having any code owners. 
+# This allows anyone with write access (any featureprofiles-owner) 
+# to approve changes to this file.
+testregistry.textproto
+
 # /feature folders each have owners who are auto requested for review and may merge PR's
 /feature/acl/          @openconfig/featureprofiles-owner-acl
 /feature/afts/         @openconfig/featureprofiles-owner-aft
 /feature/bgp/          @openconfig/featureprofiles-owner-bgp
 /feature/dhcp/         @alokmtri-g
-/feature/ethernet/     @ram-mac
+/feature/ethernet/     @alokmtri-g
 /feature/gribi/        @openconfig/featureprofiles-owner-gribi
 /feature/gribi/mpls_in_udp/       @openconfig/featureprofiles-owner-gribi-mpls-in-udp
 /feature/interface/    @openconfig/featureprofiles-owner-interface
@@ -27,7 +32,7 @@
 /feature/platform/           @openconfig/featureprofiles-owner-platform
 /feature/platform/transceiver  @openconfig/featureprofiles-owner-platform-transceiver
 /feature/qos/                @openconfig/featureprofiles-owner-qos
-/feature/routing_policy/     @swetha-haridasula
+/feature/routing_policy/     @openconfig/featureprofiles-owner-bgp
 /feature/sampling/           @masood-shah
 /feature/security            @openconfig/featureprofiles-owner-security
 /feature/gnsi/		     @openconfig/featureprofiles-owner-security

@@ -18,6 +18,7 @@ import (
 	"github.com/openconfig/ondatra/binding"
 	"google.golang.org/grpc"
 
+	enrollzpb "github.com/openconfig/attestz/proto/tpm_enrollz"
 	accpb "github.com/openconfig/gnsi/acctz"
 	authzpb "github.com/openconfig/gnsi/authz"
 	certzpb "github.com/openconfig/gnsi/certz"
@@ -45,6 +46,9 @@ func (g gnsiConn) Acctz() accpb.AcctzClient {
 }
 func (g gnsiConn) AcctzStream() accpb.AcctzStreamClient {
 	return accpb.NewAcctzStreamClient(g.conn)
+}
+func (g gnsiConn) Enrollz() enrollzpb.TpmEnrollzServiceClient {
+	return enrollzpb.NewTpmEnrollzServiceClient(g.conn)
 }
 
 var _ = binding.GNSIClients(gnsiConn{})

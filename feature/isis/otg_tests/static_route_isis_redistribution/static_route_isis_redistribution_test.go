@@ -737,12 +737,7 @@ func TestStaticToISISRedistribution(t *testing.T) {
 					ts.ATE.OTG().StopTraffic(t)
 
 					for _, flow := range tc.trafficFlows {
-						loss := otgutils.GetFlowLossPct(t, ts.ATE.OTG(), flow, 45*time.Second)
-						if loss > lossTolerance {
-							t.Errorf("Traffic loss too high for flow %s", flow)
-						} else {
-							t.Logf("Traffic loss for flow %s is %v", flow, loss)
-						}
+						otgutils.ExpectedTrafficLoss(t, ts.ATE.OTG(), flow, 0, lossTolerance)
 					}
 				})
 			}
