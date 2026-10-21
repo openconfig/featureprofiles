@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "7b1e8a2b-9c3d-4e5f-a6b7-c8d9e0f1a2b3"
+plan_id:  "CERTZ"
+description:  "gNSI Client Certificate Baseline Test"
+testbed:  TESTBED_DUT_ATE_2LINKS

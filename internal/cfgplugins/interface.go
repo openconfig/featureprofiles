@@ -42,16 +42,26 @@ const (
 	targetOutputPowerTolerancedBm = 1
 	targetFrequencyMHz            = 193100000
 	targetFrequencyToleranceMHz   = 100000
+
+	vlanInterfaceCLITemplate = `interface vlan %d
+   ip address %s/%d
+   ipv6 address %s/%d
+`
+	interfaceFallbackCLITemplate = `interface %s
+   port-channel lacp fallback individual
+   port-channel lacp fallback timeout %d
+`
 )
 
 // DUTSubInterfaceData is the data structure for a subinterface in the DUT.
 type DUTSubInterfaceData struct {
-	VlanID        int
-	VlanEnable    *bool
-	IPv4Address   net.IP
-	IPv6Address   net.IP
-	IPv4PrefixLen int
-	IPv6PrefixLen int
+	VlanID                int
+	VlanEnable            *bool
+	IPv4Address           net.IP
+	IPv6Address           net.IP
+	IPv4PrefixLen         int
+	IPv6PrefixLen         int
+	NetworkInstanceParams NetworkInstanceParams
 }
 
 // LACPParams is the data structure for the LACP parameters used in the DUTLagData.
@@ -66,6 +76,8 @@ type DUTAggData struct {
 	SubInterfaces   []*DUTSubInterfaceData
 	OndatraPortsIdx []int
 	OndatraPorts    []*ondatra.Port
+	DutPortsIdx     []int
+	DutPorts        []*ondatra.Port
 	LagName         string
 	LacpParams      *LACPParams
 	AggType         oc.E_IfAggregate_AggregationType
@@ -102,18 +114,30 @@ func (d *DUTAggData) PopulateOndatraPorts(t *testing.T, dut *ondatra.DUTDevice) 
 	}
 }
 
+// PopulateDUTPorts populates the DUTPorts field of the DutLagData from the DUTPortsIdx
+// field.
+func (d *DUTAggData) PopulateDUTPorts(t *testing.T, dut *ondatra.DUTDevice) {
+	for _, v := range d.DutPortsIdx {
+		d.DutPorts = append(d.DutPorts, dut.Port(t, "port"+strconv.Itoa(v+1)))
+	}
+}
+
 var (
 	opmode   uint16
 	once     sync.Once
 	lBandPNs = map[string]bool{
-		"DP04QSDD-LLH-240": true, // Cisco QSFPDD Acacia 400G ZRP L-Band
-		"DP04QSDD-LLH-24B": true, // Cisco QSFPDD Acacia 400G ZRP L-Band
-		"DP04QSDD-LLH-00A": true, // Cisco QSFPDD Acacia 400G ZRP L-Band
-		"DP08SFP8-LRB-240": true, // Cisco OSFP Acacia 800G ZRP L-Band
-		"DP08SFP8-LRB-24B": true, // Cisco OSFP Acacia 800G ZRP L-Band
-		"C-OS08LEXNC-GG":   true, // Nokia OSFP 800G ZRP L-Band
-		"176-6490-9G1":     true, // Ciena OSFP 800G ZRP L-Band
-		"176-6480-9M0":     true, // Ciena OSFP 800G ZRP L-Band
+		"DP04QSDD-LLH-240":   true, // Cisco QSFPDD Acacia 400G ZRP L-Band
+		"DP04QSDD-LLH-24B":   true, // Cisco QSFPDD Acacia 400G ZRP L-Band
+		"DP04QSDD-LLH-00A":   true, // Cisco QSFPDD Acacia 400G ZRP L-Band
+		"BASIC-DP04QSDD-ULH": true, // Cisco QSFPDD Acacia 400G ZRP L-Band
+		"C-QD04LEYNC-GG":     true, // Nokia QSFPDD 400G ZRP L-Band
+		"176-3471-9G1":       true, // Ciena QSFPDD 400G ZRP L-Band
+		"DP08SFP8-LRB-240":   true, // Cisco OSFP Acacia 800G ZRP L-Band
+		"DP08SFP8-LRB-24B":   true, // Cisco OSFP Acacia 800G ZRP L-Band
+		"C-OS08LEXNC-GG":     true, // Nokia OSFP 800G ZRP L-Band
+		"176-6490-9G1":       true, // Ciena OSFP 800G ZRP L-Band
+		"176-6491-9G0":       true, // Ciena OSFP 800G ZRP L-Band
+		"176-6480-9M0":       true, // Ciena OSFP 800G ZRP L-Band
 	}
 )
 
@@ -172,13 +196,27 @@ func (om *OperationalModeList) Default(t *testing.T, dut *ondatra.DUTDevice) Ope
 		case ondatra.CISCO:
 			return OperationalModeList{6004}
 		case ondatra.JUNIPER, ondatra.ARISTA, ondatra.NOKIA:
-			return OperationalModeList{5}
+			return OperationalModeList{4}
 		default:
 			t.Fatalf("Unsupported vendor: %v", dut.Vendor())
 		}
 	case ondatra.PMD800GBASEZR:
+		if dut.Vendor() == ondatra.CISCO {
+			return OperationalModeList{6001, 6003} // 800G : 6001 (8x112G), 400G : 6003 (4x112G)
+		}
 		return OperationalModeList{1, 3} // 800G : 1 (8x112G), 400G : 3 (4x112G)
 	case ondatra.PMD800GBASEZRP:
+		// Ciena 800ZRP pluggable optics only support 800G mode (not backward compatible with 400G).
+		isCienaOptics := strings.Contains(lookupOpticsMfgName(t, dut, p), "CIENA")
+		if dut.Vendor() == ondatra.CISCO {
+			if isCienaOptics {
+				return OperationalModeList{6008} // 800G : 6008 (8x112G)
+			}
+			return OperationalModeList{6008, 6004} // 800G : 6008 (8x112G), 400G : 6004 (4x112G)
+		}
+		if isCienaOptics {
+			return OperationalModeList{8} // 800G : 8 (8x112G)
+		}
 		return OperationalModeList{8, 4} // 800G : 8 (8x112G), 400G : 4 (4x112G)
 	default:
 		t.Fatalf("Unsupported PMD type: %v", p.PMD())
@@ -223,13 +261,8 @@ func (f *FrequencyList) Default(t *testing.T, dut *ondatra.DUTDevice) FrequencyL
 	case ondatra.PMD400GBASEZR, ondatra.PMD800GBASEZR:
 		return FrequencyList{196100000}
 	case ondatra.PMD400GBASEZRP, ondatra.PMD800GBASEZRP:
-		tr, present := gnmi.Lookup(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State()).Val()
-		if !present {
-			t.Fatalf("Transceiver not found for port %v", p.Name())
-		}
-		pn, present := gnmi.Lookup(t, dut, gnmi.OC().Component(tr).PartNo().State()).Val()
 		switch {
-		case present && lBandPNs[pn]:
+		case lBandPNs[lookupOpticsPartNo(t, dut, p)]:
 			return FrequencyList{190000000}
 		default:
 			return FrequencyList{196100000}
@@ -271,21 +304,29 @@ func (top *TargetOpticalPowerList) Get() any {
 
 // Default returns the default target optical power list.
 func (top *TargetOpticalPowerList) Default(t *testing.T, dut *ondatra.DUTDevice) TargetOpticalPowerList {
+	return TargetOpticalPowerList{maxTargetOpticalPower(t, dut, dut.Ports()[0])}
+}
+
+// maxTargetOpticalPower returns the max target optical power for the given port.
+func maxTargetOpticalPower(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) float64 {
 	t.Helper()
-	p := dut.Ports()[0]
 	switch p.PMD() {
 	case ondatra.PMD400GBASEZR:
-		return TargetOpticalPowerList{-10}
+		return -10
 	case ondatra.PMD400GBASEZRP:
-		return TargetOpticalPowerList{-7}
+		return -7
 	case ondatra.PMD800GBASEZR:
-		return TargetOpticalPowerList{-7}
+		return -7
 	case ondatra.PMD800GBASEZRP:
-		return TargetOpticalPowerList{-4}
+		// Ciena transceivers have a max target optical power of -5 dBm.
+		if strings.Contains(lookupOpticsMfgName(t, dut, p), "CIENA") {
+			return -5
+		}
+		return -4
 	default:
 		t.Fatalf("Unsupported PMD type: %v", p.PMD())
 	}
-	return nil
+	return 0
 }
 
 // AssignOTNIndexes assigns the OTN indexes for the given ports.
@@ -344,6 +385,7 @@ type ConfigParameters struct {
 	TransceiverNames    map[string]string
 	TempSensorNames     map[string]string
 	OpticalChannelNames map[string]string
+	LinePortNames       map[string]string
 	OTNIndexes          map[string]uint32
 	ETHIndexes          map[string]uint32
 }
@@ -355,21 +397,8 @@ func NewInterfaceConfigAll(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.Set
 	params.TransceiverNames = make(map[string]string)
 	params.TempSensorNames = make(map[string]string)
 	params.OpticalChannelNames = make(map[string]string)
+	params.LinePortNames = make(map[string]string)
 	for _, p := range dut.Ports() {
-		if hwPortName, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(p.Name()).HardwarePort().State()).Val(); !ok {
-			t.Fatalf("Hardware port not found for %v", p.Name())
-		} else {
-			params.HWPortNames[p.Name()] = hwPortName
-		}
-		if transceiverName, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State()).Val(); !ok {
-			t.Fatalf("Transceiver not found for %v", p.Name())
-		} else {
-			params.TransceiverNames[p.Name()] = transceiverName
-		}
-		params.TempSensorNames[p.Name()] = "TempSensor-" + params.TransceiverNames[p.Name()]
-		params.OpticalChannelNames[p.Name()] = components.OpticalChannelComponentFromPort(t, dut, p)
-		params.OTNIndexes = AssignOTNIndexes(t, dut)
-		params.ETHIndexes = AssignETHIndexes(t, dut)
 		switch p.PMD() {
 		case ondatra.PMD400GBASEZR, ondatra.PMD400GBASEZRP:
 			params.FormFactor = oc.TransportTypes_TRANSCEIVER_FORM_FACTOR_TYPE_QSFP56_DD
@@ -381,13 +410,13 @@ func NewInterfaceConfigAll(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.Set
 		case ondatra.PMD800GBASEZR, ondatra.PMD800GBASEZRP:
 			params.FormFactor = oc.TransportTypes_TRANSCEIVER_FORM_FACTOR_TYPE_OSFP
 			switch params.OperationalMode {
-			case 1, 2, 8:
+			case 1, 2, 8, 6001, 6002, 6008:
 				params.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_800GB
 				params.NumPhysicalChannels = 8
 				params.RateClass = oc.TransportTypes_TRIBUTARY_RATE_CLASS_TYPE_TRIB_RATE_800G
 				params.TribProtocol = oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_800GE
 				params.Allocation = 800
-			case 3, 4:
+			case 3, 4, 6003, 6004:
 				params.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB
 				params.NumPhysicalChannels = 4
 				params.RateClass = oc.TransportTypes_TRIBUTARY_RATE_CLASS_TYPE_TRIB_RATE_400G
@@ -399,10 +428,17 @@ func NewInterfaceConfigAll(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.Set
 		default:
 			t.Fatalf("Unsupported PMD type for %v", p.PMD())
 		}
+		params.HWPortNames[p.Name()] = lookupHWPortName(t, dut, p)
+		params.TransceiverNames[p.Name()] = lookupTransceiverName(t, dut, p)
+		params.OpticalChannelNames[p.Name()] = lookupOpticalChannelName(t, dut, p)
+		params.LinePortNames[p.Name()] = lookupLinePortName(t, dut, p)
+		params.TempSensorNames[p.Name()] = "TempSensor-" + lookupTransceiverName(t, dut, p)
+		params.OTNIndexes = AssignOTNIndexes(t, dut)
+		params.ETHIndexes = AssignETHIndexes(t, dut)
 		updateInterfaceConfig(batch, dut, p, params)
 		updateHWPortConfig(batch, dut, p, params)
 		updateTransceiverConfig(batch, dut, p, params)
-		updateOpticalChannelConfig(batch, p, params)
+		updateOpticalChannelConfig(batch, dut, p, params)
 		updateOTNChannelConfig(batch, dut, p, params)
 		updateETHChannelConfig(batch, dut, p, params)
 	}
@@ -410,41 +446,90 @@ func NewInterfaceConfigAll(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.Set
 
 // updateInterfaceConfig updates the interface config.
 func updateInterfaceConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ondatra.Port, params *ConfigParameters) {
-	i := &oc.Interface{
-		Name:    ygot.String(p.Name()),
-		Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
-		Enabled: ygot.Bool(params.Enabled),
-	}
-	switch {
-	case deviations.PortSpeedDuplexModeUnsupportedForInterfaceConfig(dut):
-		// No port speed and duplex mode config for devices that do not support it.
-	case p.PMD() == ondatra.PMD400GBASEZR || p.PMD() == ondatra.PMD400GBASEZRP:
-		// No port speed and duplex mode config for 400GZR/400GZR Plus as it is not supported.
-	default:
-		i.Ethernet = &oc.Interface_Ethernet{
-			PortSpeed:  params.PortSpeed,
-			DuplexMode: oc.Ethernet_DuplexMode_FULL,
+	switch dut.Vendor() {
+	case ondatra.ARISTA: // Arista always sets duplex mode and port speed.
+		gnmi.BatchReplace(batch, gnmi.OC().Interface(p.Name()).Config(), &oc.Interface{
+			Name:    ygot.String(p.Name()),
+			Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+			Enabled: ygot.Bool(params.Enabled),
+			Ethernet: &oc.Interface_Ethernet{
+				PortSpeed:  params.PortSpeed,
+				DuplexMode: oc.Ethernet_DuplexMode_FULL,
+			},
+		})
+	case ondatra.NOKIA:
+		gnmi.BatchReplace(batch, gnmi.OC().Interface(p.Name()).Config(), &oc.Interface{
+			Name:    ygot.String(p.Name()),
+			Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+			Enabled: ygot.Bool(params.Enabled),
+		})
+		// Nokia sets two interfaces for breakout ports.
+		if IsBreakoutPort(dut, p, params) {
+			breakoutInterfaceName := InterfaceName(dut, p, params)
+			gnmi.BatchReplace(batch, gnmi.OC().Interface(breakoutInterfaceName).Config(), &oc.Interface{
+				Name:    ygot.String(breakoutInterfaceName),
+				Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+				Enabled: ygot.Bool(params.Enabled),
+			})
 		}
+	case ondatra.CISCO:
+		if IsBreakoutPort(dut, p, params) {
+			// Cisco name is change for port stranding 800G to 400G and adds /0 to the end.
+			gnmi.BatchDelete(batch, gnmi.OC().Interface(p.Name()).Config())
+			breakoutInterfaceName := InterfaceName(dut, p, params)
+			gnmi.BatchReplace(batch, gnmi.OC().Interface(breakoutInterfaceName).Config(), &oc.Interface{
+				Name:    ygot.String(breakoutInterfaceName),
+				Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+				Enabled: ygot.Bool(params.Enabled),
+			})
+		} else {
+			gnmi.BatchReplace(batch, gnmi.OC().Interface(p.Name()).Config(), &oc.Interface{
+				Name:    ygot.String(p.Name()),
+				Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+				Enabled: ygot.Bool(params.Enabled),
+			})
+		}
+	case ondatra.JUNIPER:
+		gnmi.BatchReplace(batch, gnmi.OC().Interface(p.Name()).Config(), &oc.Interface{
+			Name:    ygot.String(p.Name()),
+			Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+			Enabled: ygot.Bool(params.Enabled),
+		})
 	}
-	gnmi.BatchReplace(batch, gnmi.OC().Interface(p.Name()).Config(), i)
 }
 
 // updateHWPortConfig updates the hardware port config.
 func updateHWPortConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ondatra.Port, params *ConfigParameters) {
-	switch {
-	case deviations.BreakoutModeUnsupportedForEightHundredGb(dut) && params.PortSpeed == oc.IfEthernet_ETHERNET_SPEED_SPEED_800GB:
-		return
-	case p.PMD() == ondatra.PMD400GBASEZR || p.PMD() == ondatra.PMD400GBASEZRP:
-		// No breakout mode config for 400GZR/400GZR Plus as it is not supported.
-		return
-	default:
+	if !IsBreakoutPort(dut, p, params) {
+		return // No hardware port config for non-breakout ports.
+	}
+	breakoutIndex := uint8(1)
+	if dut.Vendor() == ondatra.CISCO || dut.Vendor() == ondatra.JUNIPER {
+		breakoutIndex = 0
+	}
+	if dut.Vendor() == ondatra.JUNIPER {
 		gnmi.BatchReplace(batch, gnmi.OC().Component(params.HWPortNames[p.Name()]).Config(), &oc.Component{
 			Name: ygot.String(params.HWPortNames[p.Name()]),
 			Port: &oc.Component_Port{
 				BreakoutMode: &oc.Component_Port_BreakoutMode{
 					Group: map[uint8]*oc.Component_Port_BreakoutMode_Group{
-						1: {
-							Index:               ygot.Uint8(1),
+						breakoutIndex: {
+							Index:         ygot.Uint8(breakoutIndex),
+							BreakoutSpeed: params.PortSpeed,
+							NumBreakouts:  ygot.Uint8(1),
+						},
+					},
+				},
+			},
+		})
+	} else {
+		gnmi.BatchReplace(batch, gnmi.OC().Component(params.HWPortNames[p.Name()]).Config(), &oc.Component{
+			Name: ygot.String(params.HWPortNames[p.Name()]),
+			Port: &oc.Component_Port{
+				BreakoutMode: &oc.Component_Port_BreakoutMode{
+					Group: map[uint8]*oc.Component_Port_BreakoutMode_Group{
+						breakoutIndex: {
+							Index:               ygot.Uint8(breakoutIndex),
 							BreakoutSpeed:       params.PortSpeed,
 							NumBreakouts:        ygot.Uint8(1),
 							NumPhysicalChannels: ygot.Uint8(params.NumPhysicalChannels),
@@ -452,13 +537,6 @@ func updateHWPortConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ondatra
 					},
 				},
 			},
-		})
-	}
-	if deviations.ExplicitBreakoutInterfaceConfig(dut) {
-		gnmi.BatchReplace(batch, gnmi.OC().Interface(p.Name()+"/1").Config(), &oc.Interface{
-			Name:    ygot.String(p.Name() + "/1"),
-			Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
-			Enabled: ygot.Bool(params.Enabled),
 		})
 	}
 }
@@ -477,15 +555,19 @@ func updateTransceiverConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *on
 }
 
 // updateOpticalChannelConfig updates the optical channel config.
-func updateOpticalChannelConfig(batch *gnmi.SetBatch, p *ondatra.Port, params *ConfigParameters) {
-
+func updateOpticalChannelConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ondatra.Port, params *ConfigParameters) {
+	och := &oc.Component_OpticalChannel{
+		OperationalMode:   ygot.Uint16(params.OperationalMode),
+		Frequency:         ygot.Uint64(params.Frequency),
+		TargetOutputPower: ygot.Float64(params.TargetOpticalPower),
+		LinePort:          ygot.String(params.LinePortNames[p.Name()]),
+	}
+	if dut.Vendor() == ondatra.NOKIA {
+		och.LinePort = nil
+	}
 	gnmi.BatchReplace(batch, gnmi.OC().Component(params.OpticalChannelNames[p.Name()]).Config(), &oc.Component{
-		Name: ygot.String(params.OpticalChannelNames[p.Name()]),
-		OpticalChannel: &oc.Component_OpticalChannel{
-			OperationalMode:   ygot.Uint16(params.OperationalMode),
-			Frequency:         ygot.Uint64(params.Frequency),
-			TargetOutputPower: ygot.Float64(params.TargetOpticalPower),
-		},
+		Name:           ygot.String(params.OpticalChannelNames[p.Name()]),
+		OpticalChannel: och,
 	})
 }
 
@@ -498,7 +580,8 @@ func updateOTNChannelConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ond
 		firstAssignmentIndex = 0
 	}
 	var ch *oc.TerminalDevice_Channel
-	if deviations.OTNToETHAssignment(dut) {
+	switch {
+	case deviations.OTNToETHAssignment(dut):
 		ch = &oc.TerminalDevice_Channel{
 			Description:        ygot.String("OTN Logical Channel"),
 			Index:              ygot.Uint32(params.OTNIndexes[p.Name()]),
@@ -520,7 +603,22 @@ func updateOTNChannelConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ond
 				},
 			},
 		}
-	} else {
+	case deviations.OTNChannelTribUnsupported(dut):
+		ch = &oc.TerminalDevice_Channel{
+			Description:        ygot.String("OTN Logical Channel"),
+			Index:              ygot.Uint32(params.OTNIndexes[p.Name()]),
+			LogicalChannelType: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_OTN,
+			Assignment: map[uint32]*oc.TerminalDevice_Channel_Assignment{
+				firstAssignmentIndex: {
+					Index:          ygot.Uint32(firstAssignmentIndex),
+					OpticalChannel: ygot.String(params.OpticalChannelNames[p.Name()]),
+					Description:    ygot.String("OTN to Optical Channel"),
+					Allocation:     ygot.Float64(params.Allocation),
+					AssignmentType: oc.Assignment_AssignmentType_OPTICAL_CHANNEL,
+				},
+			},
+		}
+	default:
 		ch = &oc.TerminalDevice_Channel{
 			Description:        ygot.String("OTN Logical Channel"),
 			Index:              ygot.Uint32(params.OTNIndexes[p.Name()]),
@@ -567,9 +665,6 @@ func updateETHChannelConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ond
 			AssignmentType: oc.Assignment_AssignmentType_LOGICAL_CHANNEL,
 		},
 	}
-	if deviations.EthChannelAssignmentCiscoNumbering(dut) {
-		assignment[0].Index = ygot.Uint32(1)
-	}
 	channel := &oc.TerminalDevice_Channel{
 		Description:        ygot.String("ETH Logical Channel"),
 		Index:              ygot.Uint32(params.ETHIndexes[p.Name()]),
@@ -590,24 +685,133 @@ func updateETHChannelConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ond
 }
 
 // ToggleInterfaceState toggles the interface with operational mode.
-func ToggleInterfaceState(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port, params *ConfigParameters) {
-	i := &oc.Interface{
-		Name:    ygot.String(p.Name()),
-		Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
-		Enabled: ygot.Bool(params.Enabled),
+func ToggleInterfaceState(t *testing.T, dut *ondatra.DUTDevice, params *ConfigParameters) {
+	batch := &gnmi.SetBatch{}
+	for _, p := range dut.Ports() {
+		updateInterfaceConfig(batch, dut, p, params)
 	}
-	switch {
-	case deviations.PortSpeedDuplexModeUnsupportedForInterfaceConfig(dut):
-		// No port speed and duplex mode config for devices that do not support it.
-	case p.PMD() == ondatra.PMD400GBASEZR || p.PMD() == ondatra.PMD400GBASEZRP:
-		// No port speed and duplex mode config for 400GZR/400GZR Plus as it is not supported.
-	default:
-		i.Ethernet = &oc.Interface_Ethernet{
-			PortSpeed:  params.PortSpeed,
-			DuplexMode: oc.Ethernet_DuplexMode_FULL,
+	batch.Set(t, dut)
+}
+
+// lookupHWPortName returns the hardware port name for the given port.
+func lookupHWPortName(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
+	hwPortName, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(p.Name()).HardwarePort().State()).Val()
+	if ok {
+		return hwPortName
+	}
+	switch dut.Vendor() {
+	case ondatra.JUNIPER:
+		if hwPortName, ok = gnmi.Lookup(t, dut, gnmi.OC().Interface(strings.Replace(p.Name(), ":0", "", -1)).HardwarePort().State()).Val(); !ok {
+			t.Fatalf("Hardware port not found for %v", strings.Replace(p.Name(), ":0", "", -1))
 		}
+		return hwPortName
+	default:
+		t.Fatalf("Hardware port not found for %v", p.Name())
 	}
-	gnmi.Replace(t, p.Device(), gnmi.OC().Interface(p.Name()).Config(), i)
+	return ""
+}
+
+// lookupTransceiverName returns the transceiver name for the given port.
+func lookupTransceiverName(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
+	transceiverName, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State()).Val()
+	if ok {
+		return transceiverName
+	}
+	switch dut.Vendor() {
+	case ondatra.JUNIPER:
+		if transceiverName, ok = gnmi.Lookup(t, dut, gnmi.OC().Interface(strings.Replace(p.Name(), ":0", "", -1)).Transceiver().State()).Val(); !ok {
+			t.Fatalf("Transceiver not found for %v", strings.Replace(p.Name(), ":0", "", -1))
+		}
+		return transceiverName
+	default:
+		t.Fatalf("Transceiver not found for %v", p.Name())
+	}
+	return ""
+}
+
+// lookupOpticalChannelName returns the optical channel name for the given port.
+func lookupOpticalChannelName(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
+	transceiverName := lookupTransceiverName(t, dut, p)
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		return transceiverName + "-Optical0"
+	case ondatra.JUNIPER:
+		return transceiverName + ":OCH0"
+	default:
+		opticalChannelName, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(transceiverName).Transceiver().Channel(0).AssociatedOpticalChannel().State()).Val()
+		if !ok {
+			t.Fatalf("Optical channel not found for %v", p.Name())
+		}
+		return opticalChannelName
+	}
+}
+
+// lookupLinePortName returns the line port name for the given port.
+func lookupLinePortName(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
+	switch dut.Vendor() {
+	case ondatra.ARISTA, ondatra.JUNIPER:
+		return lookupHWPortName(t, dut, p)
+	case ondatra.CISCO:
+		return lookupTransceiverName(t, dut, p)
+	case ondatra.NOKIA:
+		return ""
+	default:
+		return ""
+	}
+}
+
+// lookupOpticsMfgName returns the optics mfg name for the given port.
+func lookupOpticsMfgName(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
+	transceiverName := lookupTransceiverName(t, dut, p)
+	mfgName, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(transceiverName).MfgName().State()).Val()
+	if !ok {
+		t.Fatalf("mfg-name not found for %v", transceiverName)
+	}
+	return mfgName
+}
+
+// lookupOpticsPartNo returns the optics part number for the given port.
+func lookupOpticsPartNo(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
+	transceiverName := lookupTransceiverName(t, dut, p)
+	partNo, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(transceiverName).PartNo().State()).Val()
+	if !ok {
+		t.Fatalf("part-no not found for %v", transceiverName)
+	}
+	return partNo
+}
+
+// IsBreakoutPort returns true if the port is a breakout port, otherwise returns false.
+func IsBreakoutPort(dut *ondatra.DUTDevice, p *ondatra.Port, params *ConfigParameters) bool {
+	switch p.PMD() {
+	case ondatra.PMD400GBASEZR, ondatra.PMD400GBASEZRP:
+		return false
+	case ondatra.PMD800GBASEZR, ondatra.PMD800GBASEZRP:
+		switch dut.Vendor() {
+		case ondatra.ARISTA, ondatra.JUNIPER:
+			return true
+		default:
+			return params.PortSpeed == oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB
+		}
+	default:
+		return false
+	}
+}
+
+// InterfaceName returns the interface name for the given port.
+func InterfaceName(dut *ondatra.DUTDevice, p *ondatra.Port, params *ConfigParameters) string {
+	if !IsBreakoutPort(dut, p, params) {
+		return p.Name()
+	}
+	switch dut.Vendor() {
+	case ondatra.ARISTA, ondatra.JUNIPER:
+		return p.Name()
+	case ondatra.NOKIA:
+		return p.Name() + "/1"
+	case ondatra.CISCO:
+		return strings.Replace(p.Name(), "EightHundredGigE", "FourHundredGigE", -1) + "/0"
+	default:
+		return p.Name()
+	}
 }
 
 // InterfaceInitialize assigns OpMode with value received through operationalMode flag.
@@ -750,6 +954,19 @@ func ConfigOTNChannel(t *testing.T, dut *ondatra.DUTDevice, och string, otnIndex
 					AssignmentType: oc.Assignment_AssignmentType_OPTICAL_CHANNEL,
 				},
 			},
+		}
+	}
+	if deviations.OTNToETHAssignment(dut) {
+		var firstAssignmentIndex uint32
+		if deviations.OTNChannelAssignmentCiscoNumbering(dut) {
+			firstAssignmentIndex = 1
+		}
+		ch.Assignment[firstAssignmentIndex+1] = &oc.TerminalDevice_Channel_Assignment{
+			Index:          ygot.Uint32(firstAssignmentIndex + 1),
+			LogicalChannel: ygot.Uint32(ethIndex),
+			Description:    ygot.String("OTN to ETH"),
+			Allocation:     ygot.Float64(400),
+			AssignmentType: oc.Assignment_AssignmentType_LOGICAL_CHANNEL,
 		}
 	}
 	if !deviations.TerminalDeviceChannelAdminStateUnsupported(dut) {
@@ -904,6 +1121,10 @@ func AddSubInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, i *
 		if deviations.IPv4MissingEnabled(dut) {
 			sub.GetOrCreateIpv4().SetEnabled(true)
 		}
+
+		if deviations.RequireRoutedSubinterface0(dut) {
+			sub.GetOrCreateIpv4().SetEnabled(true)
+		}
 	}
 	if s.IPv6Address != nil {
 		sub.GetOrCreateIpv6().GetOrCreateAddress(s.IPv6Address.String()).PrefixLength = ygot.Uint8(uint8(s.IPv6PrefixLen))
@@ -951,8 +1172,15 @@ func NewAggregateInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatc
 	gnmi.BatchDelete(b, gnmi.OC().Interface(aggID).Aggregation().MinLinks().Config())
 
 	l.PopulateOndatraPorts(t, dut)
-	for _, op := range l.OndatraPorts {
-		AddPortToAggregate(t, dut, aggID, l.OndatraPorts, b, op)
+	if len(l.OndatraPorts) != 0 {
+		for _, op := range l.OndatraPorts {
+			AddPortToAggregate(t, dut, aggID, l.OndatraPorts, b, op)
+		}
+	} else {
+		l.PopulateDUTPorts(t, dut)
+		for _, op := range l.DutPorts {
+			AddPortToAggregate(t, dut, aggID, l.DutPorts, b, op)
+		}
 	}
 
 	if l.Attributes.IPv4 == "" && l.Attributes.IPv6 == "" {
@@ -966,6 +1194,9 @@ func NewAggregateInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatc
 				t.Fatalf("No VLAN ID found for a subinterface under lag %s", aggID)
 			}
 			AddSubInterface(t, dut, b, agg, i)
+			if (i.NetworkInstanceParams != NetworkInstanceParams{}) {
+				AssignInterfaceToNetworkInstance(t, b, dut, aggID, &i.NetworkInstanceParams, uint32(i.VlanID), true)
+			}
 		}
 	}
 	return agg
@@ -1379,6 +1610,11 @@ type SVIParams struct {
 	IPv4Len  uint8
 	IPv6     string
 	IPv6Len  uint8
+	// Vlan, if non-nil, is set as routed-vlan/config/vlan to bind the SVI to its VLAN, either by
+	// VLAN ID (oc.UnionUint16) or by VLAN name (oc.UnionString). It is needed on platforms where
+	// the routed VLAN interface name does not imply the VLAN, e.g. Junos "irb.<unit>", which Junos
+	// maps to "set vlans <vlan-name> l3-interface irb.<unit>".
+	Vlan oc.Interface_RoutedVlan_Vlan_Union
 }
 
 // ConfigureSVI configures an L3 VLAN interface with IPv4 and IPv6 addresses.
@@ -1400,8 +1636,16 @@ func ConfigureSVI(t *testing.T, dut *ondatra.DUTDevice, params SVIParams) {
 	// Navigate to the RoutedVlan container (subinterface-like layer for SVIs)
 	rv := svi.GetOrCreateRoutedVlan()
 
+	// Bind the SVI to its VLAN (routed-vlan/config/vlan) when requested.
+	if params.Vlan != nil {
+		rv.Vlan = params.Vlan
+	}
+
 	// IPv4 Configuration
 	v4 := rv.GetOrCreateIpv4()
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+		v4.Enabled = ygot.Bool(true)
+	}
 	v4Addr := v4.GetOrCreateAddress(params.IPv4)
 	v4Addr.PrefixLength = ygot.Uint8(params.IPv4Len)
 
@@ -1444,4 +1688,184 @@ func IsIPv6InterfaceARPresolved(t *testing.T, ate *ondatra.ATEDevice, cfg Addres
 		}
 	}
 	return nil
+}
+
+func CreateVlanFromOC(t *testing.T, dut *ondatra.DUTDevice, vlanBatch *gnmi.SetBatch, networkInstance string, vlan DUTSubInterfaceData) {
+	vlanName := fmt.Sprintf("vlan%d", vlan.VlanID)
+	root := &oc.Root{}
+	vlanObj := root.GetOrCreateNetworkInstance(networkInstance).GetOrCreateVlan(uint16(vlan.VlanID))
+	vlanObj.Name = ygot.String(vlanName)
+	vlanObj.VlanId = ygot.Uint16(uint16(vlan.VlanID))
+	gnmi.BatchReplace(vlanBatch, gnmi.OC().NetworkInstance(networkInstance).Vlan(uint16(vlan.VlanID)).Config(), vlanObj)
+}
+
+func ConfigureVlanInterfaceFromCLI(t *testing.T, dut *ondatra.DUTDevice, vlan DUTSubInterfaceData) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		t.Cleanup(func() {
+			helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("no interface vlan %d\n", vlan.VlanID))
+		})
+		cli := fmt.Sprintf(vlanInterfaceCLITemplate, vlan.VlanID, vlan.IPv4Address, vlan.IPv4PrefixLen, vlan.IPv6Address, vlan.IPv6PrefixLen)
+		helpers.GnmiCLIConfig(t, dut, cli)
+	case ondatra.NOKIA:
+		p1 := dut.Port(t, "port1").Name()
+		p2 := dut.Port(t, "port2").Name()
+		irbIntf := fmt.Sprintf("irb0.%d", vlan.VlanID)
+		macVrf := fmt.Sprintf("vlan%d", vlan.VlanID)
+		cleanupCLI := fmt.Sprintf(`
+delete / network-instance %[10]s interface %[9]s
+delete / network-instance %[8]s
+delete / interface irb0 subinterface %[3]d
+delete / interface %[1]s subinterface 0
+delete / interface %[1]s vlan-tagging
+delete / interface %[2]s subinterface 0
+delete / interface %[2]s vlan-tagging
+`, p1, p2, vlan.VlanID, vlan.IPv4Address, vlan.IPv4PrefixLen, vlan.IPv6Address, vlan.IPv6PrefixLen, macVrf, irbIntf, deviations.DefaultNetworkInstance(dut))
+		t.Cleanup(func() {
+			helpers.GnmiCLIConfig(t, dut, cleanupCLI)
+		})
+		cli := fmt.Sprintf(`
+set / interface %[1]s vlan-tagging false
+set / interface %[1]s subinterface 0 type bridged
+set / interface %[1]s subinterface 0 admin-state enable
+set / interface %[2]s vlan-tagging false
+set / interface %[2]s subinterface 0 type bridged
+set / interface %[2]s subinterface 0 admin-state enable
+set / interface irb0 admin-state enable
+set / interface irb0 subinterface %[3]d admin-state enable
+set / interface irb0 subinterface %[3]d ipv4 admin-state enable
+set / interface irb0 subinterface %[3]d ipv4 address %[4]s/%[5]d
+set / interface irb0 subinterface %[3]d ipv6 admin-state enable
+set / interface irb0 subinterface %[3]d ipv6 address %[6]s/%[7]d
+set / network-instance %[8]s type mac-vrf
+set / network-instance %[8]s admin-state enable
+set / network-instance %[8]s interface %[1]s.0
+set / network-instance %[8]s interface %[2]s.0
+set / network-instance %[8]s interface %[9]s
+set / network-instance %[10]s interface %[9]s
+`, p1, p2, vlan.VlanID, vlan.IPv4Address, vlan.IPv4PrefixLen, vlan.IPv6Address, vlan.IPv6PrefixLen, macVrf, irbIntf, deviations.DefaultNetworkInstance(dut))
+		helpers.GnmiCLIConfig(t, dut, cli)
+	case ondatra.CISCO:
+		// IOS XR has no switchports or VLAN interfaces: bridge DUT Ports 1 and 2 in an L2VPN
+		// bridge-domain routed through BVI<vlan-id>, which carries the VLAN interface addresses.
+		p1 := dut.Port(t, "port1").Name()
+		p2 := dut.Port(t, "port2").Name()
+		cleanupCLI := fmt.Sprintf(`
+l2vpn
+ bridge group BG_1
+  no bridge-domain BD_%[3]d
+ !
+!
+no interface BVI%[3]d
+interface %[1]s
+ no l2transport
+!
+interface %[2]s
+ no l2transport
+!
+`, p1, p2, vlan.VlanID)
+		t.Cleanup(func() {
+			helpers.GnmiCLIConfig(t, dut, cleanupCLI)
+		})
+		cli := fmt.Sprintf(`
+interface %[1]s
+ l2transport
+!
+interface %[2]s
+ l2transport
+!
+interface BVI%[3]d
+ ipv4 address %[4]s/%[5]d
+ ipv6 address %[6]s/%[7]d
+!
+l2vpn
+ bridge group BG_1
+  bridge-domain BD_%[3]d
+   interface %[1]s
+   !
+   interface %[2]s
+   !
+   routed interface BVI%[3]d
+   !
+  !
+ !
+!
+`, p1, p2, vlan.VlanID, vlan.IPv4Address, vlan.IPv4PrefixLen, vlan.IPv6Address, vlan.IPv6PrefixLen)
+		helpers.GnmiCLIConfig(t, dut, cli)
+	default:
+		t.Fatalf("VLAN interface CLI deviation not implemented for vendor: %s", dut.Vendor())
+	}
+}
+
+func ConfigureVlanInterfaceFromOC(t *testing.T, dut *ondatra.DUTDevice, vlanBatch *gnmi.SetBatch, vlan DUTSubInterfaceData) {
+	root := &oc.Root{}
+	vlanName := fmt.Sprintf("vlan%d", vlan.VlanID)
+	vlanIntf := root.GetOrCreateInterface(vlanName)
+	vlanIntf.Type = oc.IETFInterfaces_InterfaceType_l3ipvlan
+	vlanIntf.Enabled = ygot.Bool(true)
+	vlanIPv4 := vlanIntf.GetOrCreateSubinterface(0).GetOrCreateIpv4()
+	vlanIPv4.Enabled = ygot.Bool(true)
+	vlanIPv4.GetOrCreateAddress(vlan.IPv4Address.String()).PrefixLength = ygot.Uint8(uint8(vlan.IPv4PrefixLen))
+	vlanIPv6 := vlanIntf.GetOrCreateSubinterface(0).GetOrCreateIpv6()
+	vlanIPv6.Enabled = ygot.Bool(true)
+	vlanIPv6.GetOrCreateAddress(vlan.IPv6Address.String()).PrefixLength = ygot.Uint8(uint8(vlan.IPv6PrefixLen))
+	gnmi.BatchReplace(vlanBatch, gnmi.OC().Interface(vlanName).Config(), vlanIntf)
+}
+
+func ConfigureLACPFallbackCLI(t *testing.T, dut *ondatra.DUTDevice, lagIntfName string, timeoutSecs uint16) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		cli := fmt.Sprintf(interfaceFallbackCLITemplate, lagIntfName, timeoutSecs)
+		helpers.GnmiCLIConfig(t, dut, cli)
+	default:
+		t.Fatalf("configureLACPFallbackCLI: unsupported vendor %s", dut.Vendor())
+	}
+}
+
+// LoopbackConfig contains parameters for configuring a loopback interface.
+type LoopbackConfig struct {
+	Name      string
+	IP        string
+	PrefixLen uint8
+	IsIPv6    bool
+	Batch     *gnmi.SetBatch
+}
+
+// ConfigureLoopback configures a loopback interface with IPv4 or IPv6 addressing.
+func ConfigureLoopback(t *testing.T, dut *ondatra.DUTDevice, cfg LoopbackConfig) {
+	t.Helper()
+
+	i := &oc.Interface{}
+	i.Name = ygot.String(cfg.Name)
+	i.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
+
+	if deviations.InterfaceEnabled(dut) {
+		i.Enabled = ygot.Bool(true)
+	}
+
+	s0 := i.GetOrCreateSubinterface(0)
+
+	if cfg.IsIPv6 {
+		ipv6 := s0.GetOrCreateIpv6()
+		if deviations.InterfaceEnabled(dut) {
+			ipv6.Enabled = ygot.Bool(true)
+		}
+		addr := ipv6.GetOrCreateAddress(cfg.IP)
+		addr.PrefixLength = ygot.Uint8(cfg.PrefixLen)
+	} else {
+		ipv4 := s0.GetOrCreateIpv4()
+		if deviations.InterfaceEnabled(dut) {
+			ipv4.Enabled = ygot.Bool(true)
+		}
+		addr := ipv4.GetOrCreateAddress(cfg.IP)
+		addr.PrefixLength = ygot.Uint8(cfg.PrefixLen)
+	}
+
+	if cfg.Batch != nil {
+		gnmi.BatchUpdate(cfg.Batch, gnmi.OC().Interface(cfg.Name).Config(), i)
+	} else {
+		gnmi.Replace(t, dut, gnmi.OC().Interface(cfg.Name).Config(), i)
+	}
 }
