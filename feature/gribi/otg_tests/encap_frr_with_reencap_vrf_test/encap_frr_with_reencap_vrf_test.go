@@ -1009,8 +1009,8 @@ func validateTrafficDistribution(t *testing.T, dut *ondatra.DUTDevice, ate *onda
 
 	t.Log("got ratio:", gotWeights)
 	t.Log("want ratio:", wantWeights)
-	if deviations.FrrWeightResolutionTolerance(dut) != tolerance {
-		tolerance = deviations.FrrWeightResolutionTolerance(dut)
+	if deviations.HierarchicalWeightResolutionTolerance(dut) != tolerance {
+		tolerance = deviations.HierarchicalWeightResolutionTolerance(dut)
 	}
 	if diff := cmp.Diff(wantWeights, gotWeights, cmpopts.EquateApprox(0, tolerance)); diff != "" {
 		t.Errorf("Packet distribution ratios -want,+got:\n%s", diff)
