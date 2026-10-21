@@ -39,6 +39,7 @@ type VRFConfig struct {
 const (
 	FeatureMplsTracking FeatureType = iota
 	FeatureVrfSelectionExtended
+	FeatureVrfSelectionDecap
 	FeaturePolicyForwarding
 	FeatureEnableAFTSummaries
 	FeatureNGPR
@@ -53,6 +54,9 @@ const (
 	FeatureSecondaryDefaultLookup
 	FeatureAnpf
 	FeatureHighScale
+	FeatureLoadBalanceHashReset
+	FeatureLoadBalanceHashPerturb
+	FeatureVrfSelectionFallbackDecap
 
 	aristaTcamProfileMplsTracking = `
 hardware counter feature traffic-policy in
@@ -1501,6 +1505,18 @@ router general
 !
    `
 
+const aristaVrfSelectionDecap = `
+vrf selection policy
+   next-hop decapsulation vrf
+!
+`
+
+const aristaVrfSelectionFallbackDecap = `
+vrf selection policy
+   next-hop fallback decapsulation vrf
+!
+`
+
 const ciscoHighScale = `no hw-module profile cef cbf forward-class-list 0 5
 no hw-module profile cef sropt enable
 no hw-module profile cef dark-bw enable
@@ -1513,26 +1529,52 @@ hw-module profile cef iptunnel scale
 hw-module profile npu-compatibility Q200
 hw-module local-station-mac 0010.0010.0010`
 
+const aristaLoadBalanceHashReset = `load-balance policies
+   load-balance sand profile default
+      default ecmp hash seed
+      default ecmp hash polynomial
+      default port-channel hash seed
+      default port-channel hash polynomial
+`
+
+const aristaLoadBalanceHashPerturb = `load-balance policies
+   load-balance sand profile default
+      ecmp hash seed %d
+      ecmp hash polynomial %d
+      port-channel hash seed %d
+      port-channel hash polynomial %d
+`
+
+const nokiaLoadBalanceHashReset = "system load-balancing hash-options hash-seed generate-from-mac"
+
+const nokiaLoadBalanceHashPerturb = "system load-balancing hash-options hash-seed %d"
+
 var (
 	aristaTcamProfileMap = map[FeatureType]string{
-		FeatureMplsTracking:           aristaTcamProfileMplsTracking,
-		FeatureVrfSelectionExtended:   aristaTcamProfileVrfSelectionExtended,
-		FeaturePolicyForwarding:       aristaTcamProfilePolicyForwarding,
-		FeatureEnableAFTSummaries:     aristaEnableAFTSummaries,
-		FeatureNGPR:                   aristaNGPRTcamProfile,
-		FeatureTTLPolicyForwarding:    aristaTcamProfilePreserveTTL,
-		FeatureQOSIn:                  aristaQOSTcamIn,
-		FeatureACLCounters:            aristaTCAMACLCounters,
-		FeatureAnPF:                   aristaAnPF,
-		FeatureIngressARP:             aristaIngressARP,
-		FeatureOptimizeFIBAndCounters: aristaOptimizeFIBAndCounters,
-		FeatureCFM:                    aristaTcamProfileCFM,
-		FeatureAnpf:                   aristaAnpfTcamProfile,
-		FeatureHierarchicalFIB:        aristaHierarchicalFIB,
+		FeatureMplsTracking:              aristaTcamProfileMplsTracking,
+		FeatureVrfSelectionExtended:      aristaTcamProfileVrfSelectionExtended,
+		FeatureVrfSelectionDecap:         aristaVrfSelectionDecap,
+		FeatureVrfSelectionFallbackDecap: aristaVrfSelectionFallbackDecap,
+		FeaturePolicyForwarding:          aristaTcamProfilePolicyForwarding,
+		FeatureEnableAFTSummaries:        aristaEnableAFTSummaries,
+		FeatureNGPR:                      aristaNGPRTcamProfile,
+		FeatureTTLPolicyForwarding:       aristaTcamProfilePreserveTTL,
+		FeatureQOSIn:                     aristaQOSTcamIn,
+		FeatureACLCounters:               aristaTCAMACLCounters,
+		FeatureAnPF:                      aristaAnPF,
+		FeatureIngressARP:                aristaIngressARP,
+		FeatureOptimizeFIBAndCounters:    aristaOptimizeFIBAndCounters,
+		FeatureCFM:                       aristaTcamProfileCFM,
+		FeatureAnpf:                      aristaAnpfTcamProfile,
+		FeatureHierarchicalFIB:           aristaHierarchicalFIB,
+		FeatureLoadBalanceHashReset:      aristaLoadBalanceHashReset,
+		FeatureLoadBalanceHashPerturb:    aristaLoadBalanceHashPerturb,
 	}
 
 	nokiaHardwareInitMap = map[FeatureType]string{
 		FeatureSecondaryDefaultLookup: nokiaSecondaryDefaultLookup,
+		FeatureLoadBalanceHashReset:   nokiaLoadBalanceHashReset,
+		FeatureLoadBalanceHashPerturb: nokiaLoadBalanceHashPerturb,
 	}
 
 	ciscoHardwareInitMap = map[FeatureType]string{
@@ -1597,6 +1639,7 @@ func ConfigureLoadbalance(t *testing.T, dut *ondatra.DUTDevice) {
 			loadBalanceCliConfig := `
 			load-balance policies
          load-balance sand profile default
+		 	fields ipv4 outer dst-ip protocol src-ip
             fields ipv6 outer dst-ip flow-label next-header src-ip
             fields l4 outer dst-port src-port
             no fields mpls
