@@ -219,10 +219,6 @@ func PruneUnpushableNetworkInstances(config *oc.Root) {
 	}
 }
 
-func pruneUnpushableNetworkInstances(config *oc.Root) {
-	PruneUnpushableNetworkInstances(config)
-}
-
 // setEthernetFromBase merges the ethernet config from the interfaces in base config into
 // the destination config.
 func setEthernetFromBase(t testing.TB, base *oc.Root, config *oc.Root) {
