@@ -167,7 +167,7 @@ var (
 	dutPort4 = &attrs.Attributes{
 		Desc:    "DUT to ATE Port4",
 		IPv4:    "192.168.1.13",
-		IPv6:    "2001:db8::c",
+		IPv6:    "2001:db8::d",
 		IPv4Len: 30,
 		IPv6Len: 126,
 	}
@@ -177,7 +177,7 @@ var (
 		Desc:    "ATE to DUT port4",
 		MAC:     "02:00:04:01:01:01",
 		IPv4:    "192.168.1.14",
-		IPv6:    "2001:db8::d",
+		IPv6:    "2001:db8::e",
 		IPv4Len: 30,
 		IPv6Len: 126,
 	}
