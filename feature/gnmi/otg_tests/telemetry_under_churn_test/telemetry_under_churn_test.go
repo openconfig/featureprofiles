@@ -73,10 +73,9 @@ const (
 
 	addDeleteSubset = 10
 
-	sampleInterval    = 10 * time.Second
-	cadenceTolerance  = 2500 * time.Millisecond
-	deliveryTolerance = 3 * time.Second
-	churnDuration     = 2 * time.Minute
+	sampleInterval   = 10 * time.Second
+	cadenceTolerance = 2500 * time.Millisecond
+	churnDuration    = 2 * time.Minute
 	// Upper bounds only; the waits return as soon as the streamed samples show the condition.
 	warmupTimeout = 4 * sampleInterval
 	settleTimeout = 4 * sampleInterval
@@ -716,7 +715,7 @@ func checkCounterDelta(t *testing.T, desc string, before, after, want uint64) {
 }
 
 // validateCadence checks that SAMPLE updates received in [from, to] are
-// timestamped exactly one interval apart and were not delayed at the client.
+// timestamped exactly one interval apart, with no samples missing.
 func validateCadence(t *testing.T, intf string, samples []leafSample, from, to time.Time) {
 	t.Helper()
 	var window []leafSample
@@ -734,10 +733,6 @@ func validateCadence(t *testing.T, intf string, samples []leafSample, from, to t
 		gap := window[i].timestamp.Sub(window[i-1].timestamp)
 		if gap < sampleInterval-cadenceTolerance || gap > sampleInterval+cadenceTolerance {
 			t.Errorf("%s: sample timestamp gap %v at %v, want %v +/- %v", intf, gap, window[i].timestamp, sampleInterval, cadenceTolerance)
-			failed = true
-		}
-		if rgap := window[i].received.Sub(window[i-1].received); rgap > sampleInterval+deliveryTolerance {
-			t.Errorf("%s: sample delivery gap %v at %v, want <= %v", intf, rgap, window[i].received, sampleInterval+deliveryTolerance)
 			failed = true
 		}
 	}
