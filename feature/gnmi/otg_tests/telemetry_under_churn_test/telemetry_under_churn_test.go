@@ -738,7 +738,8 @@ func validateCadence(t *testing.T, intf string, samples []leafSample, from, to t
 	}
 	t.Logf("%s: validated cadence of %d samples", intf, len(window))
 	if failed {
-		logSampleSequence(t, intf, window)
+		t.Logf("%s: validation window is %s - %s (received at)", intf, from.UTC().Format("15:04:05.000"), to.UTC().Format("15:04:05.000"))
+		logSampleSequence(t, intf, samples)
 	}
 }
 
