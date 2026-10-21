@@ -76,7 +76,7 @@ type Options struct {
 type breakout struct {
 	breakoutSpeed       oc.E_IfEthernet_ETHERNET_SPEED
 	numPhysicalChannels uint8
-	parentInterfaceName  string
+	parentInterfaceName string
 }
 
 // showRunningConfig gets the running config from the router
@@ -1155,7 +1155,6 @@ func addMissingConfigForContainerReplace(t testing.TB, dev gnmi.DeviceOrOpts) ma
 	intfsState := gnmi.GetAll(t, dev, gnmi.OC().InterfaceAny().State())
 	breakoutPortsMap := make(map[string]breakout) // which holds map of optic: {BreakoutSpeed:10, NumBreakouts:4}
 	port := make(map[string]uint8)
-	var trackspeed oc.E_IfEthernet_ETHERNET_SPEED
 
 	for _, intf := range intfsState {
 		t.Logf("interface: %v", intf)
@@ -1184,21 +1183,23 @@ func addMissingConfigForContainerReplace(t testing.TB, dev gnmi.DeviceOrOpts) ma
 
 		prefix := hwp + "/"
 		if strings.HasPrefix(name, prefix) {
-			var speed oc.E_IfEthernet_ETHERNET_SPEED
-
-			_, keyExists := breakoutPortsMap[intf.GetHardwarePort()]
-			if !keyExists && speed == oc.IfEthernet_ETHERNET_SPEED_UNSET {
-				if intf.GetEthernet().PortSpeed.String() == "SPEED_800GB" {
-					trackspeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_800GB
-				} else if intf.GetEthernet().PortSpeed.String() == "SPEED_400GB" {
-					trackspeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB
-				} else if intf.GetEthernet().PortSpeed.String() == "SPEED_100GB" {
-					trackspeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
-				} else if intf.GetEthernet().PortSpeed.String() == "SPEED_10GB" {
-					trackspeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_10GB
+			hwPort := intf.GetHardwarePort()
+			data, keyExists := breakoutPortsMap[hwPort]
+			trackspeed := data.breakoutSpeed
+			if !keyExists {
+				if ethernet := intf.GetEthernet(); ethernet != nil {
+					switch ethernet.PortSpeed.String() {
+					case "SPEED_800GB":
+						trackspeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_800GB
+					case "SPEED_400GB":
+						trackspeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB
+					case "SPEED_100GB":
+						trackspeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
+					case "SPEED_10GB":
+						trackspeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_10GB
+					}
 				}
 			}
-			hwPort := intf.GetHardwarePort()
 			numChannels := port[hwPort] + 1
 			port[hwPort] = numChannels
 			// Extract parent interface name by removing the breakout index suffix (e.g., "FourHundredGigE0/0/0/22" from "FourHundredGigE0/0/0/22/0")
@@ -1206,7 +1207,7 @@ func addMissingConfigForContainerReplace(t testing.TB, dev gnmi.DeviceOrOpts) ma
 			if idx := strings.LastIndex(childIntfName, "/"); idx >= 0 {
 				childIntfName = childIntfName[:idx]
 			}
-			breakoutPortsMap[hwPort] = breakout{numPhysicalChannels: numChannels, breakoutSpeed: trackspeed, childInterfaceName: childIntfName}
+			breakoutPortsMap[hwPort] = breakout{numPhysicalChannels: numChannels, breakoutSpeed: trackspeed, parentInterfaceName: childIntfName}
 		}
 	}
 	return breakoutPortsMap
@@ -1266,7 +1267,7 @@ func checkBreakoutPortsOnline(t testing.TB, dev gnmi.DeviceOrOpts, supContainerC
 	const timeout = 3 * time.Minute
 	for _, data := range supContainerConfig {
 		for i := 0; i < int(data.numPhysicalChannels); i++ {
-			childPortName := fmt.Sprintf("%s/%d", data.childInterfaceName, i)
+			childPortName := fmt.Sprintf("%s/%d", data.parentInterfaceName, i)
 			t.Logf("DBG: Checking breakout interface %s", childPortName)
 			if got, ok := gnmi.Await(t, dev, gnmi.OC().Interface(childPortName).OperStatus().State(), timeout, oc.Interface_OperStatus_UP).Val(); !ok {
 				t.Errorf("Breakout interface %s did not come online in %v, got oper-status=%v", childPortName, timeout, got)
