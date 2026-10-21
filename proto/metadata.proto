@@ -189,6 +189,7 @@ message Metadata {
     // Arista: partnerissuetracker.corp.google.com/243445300
     bool omit_l2_mtu = 50;
     // Skip power admin for controller card
+    // Nokia: partnerissuetracker.corp.google.com/287195501
     bool skip_controller_card_power_admin = 51;
     // Device requires the banner to have a delimiter character.
     string banner_delimiter = 60;
@@ -1458,10 +1459,6 @@ message Metadata {
     // Tracking: https://github.com/openconfig/ondatra/issues/145
     bool gnoi_requires_fresh_dial_after_switchover = 454;
 
-    // Device does not support gNMI Subscribe during switchover recovery and
-    // requires gNMI Get polling instead.
-    bool switchover_subscribe_unsupported = 482;
-
     // Device requires explicit "write memory" before reboot to persist
     // containerz config, and must skip config re-push after reboot to avoid
     // restarting the management stack during warmup.
@@ -1588,6 +1585,12 @@ message Metadata {
     // deviation to skip authz verification of gnoi ping rpc
     // Arista: https://partnerissuetracker.corp.google.com/issues/219953165
     bool skip_gnoi_ping_rpc_authz_verification = 479;
+
+    // Device does not support gNMI Subscribe during switchover recovery and
+    // requires gNMI Get polling instead.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/573824242
+    // Nokia:  https://partnerissuetracker.corp.google.com/issues/573830451
+    bool switchover_subscribe_unsupported = 482;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131,

@@ -486,6 +486,7 @@ type Metadata_Deviations struct {
 	// Arista: partnerissuetracker.corp.google.com/243445300
 	OmitL2Mtu bool `protobuf:"varint,50,opt,name=omit_l2_mtu,json=omitL2Mtu,proto3" json:"omit_l2_mtu,omitempty"`
 	// Skip power admin for controller card
+	// Nokia: partnerissuetracker.corp.google.com/287195501
 	SkipControllerCardPowerAdmin bool `protobuf:"varint,51,opt,name=skip_controller_card_power_admin,json=skipControllerCardPowerAdmin,proto3" json:"skip_controller_card_power_admin,omitempty"`
 	// Device requires the banner to have a delimiter character.
 	BannerDelimiter string `protobuf:"bytes,60,opt,name=banner_delimiter,json=bannerDelimiter,proto3" json:"banner_delimiter,omitempty"`
@@ -1552,9 +1553,6 @@ type Metadata_Deviations struct {
 	// because the Ondatra gNOI cache still points at the old active.
 	// Tracking: https://github.com/openconfig/ondatra/issues/145
 	GnoiRequiresFreshDialAfterSwitchover bool `protobuf:"varint,454,opt,name=gnoi_requires_fresh_dial_after_switchover,json=gnoiRequiresFreshDialAfterSwitchover,proto3" json:"gnoi_requires_fresh_dial_after_switchover,omitempty"`
-	// Device does not support gNMI Subscribe during switchover recovery and
-	// requires gNMI Get polling instead.
-	SwitchoverSubscribeUnsupported bool `protobuf:"varint,482,opt,name=switchover_subscribe_unsupported,json=switchoverSubscribeUnsupported,proto3" json:"switchover_subscribe_unsupported,omitempty"`
 	// Device requires explicit "write memory" before reboot to persist
 	// containerz config, and must skip config re-push after reboot to avoid
 	// restarting the management stack during warmup.
@@ -1657,8 +1655,13 @@ type Metadata_Deviations struct {
 	// deviation to skip authz verification of gnoi ping rpc
 	// Arista: https://partnerissuetracker.corp.google.com/issues/219953165
 	SkipGnoiPingRpcAuthzVerification bool `protobuf:"varint,479,opt,name=skip_gnoi_ping_rpc_authz_verification,json=skipGnoiPingRpcAuthzVerification,proto3" json:"skip_gnoi_ping_rpc_authz_verification,omitempty"`
-	unknownFields                    protoimpl.UnknownFields
-	sizeCache                        protoimpl.SizeCache
+	// Device does not support gNMI Subscribe during switchover recovery and
+	// requires gNMI Get polling instead.
+	// Arista: https://partnerissuetracker.corp.google.com/issues/573824242
+	// Nokia:  https://partnerissuetracker.corp.google.com/issues/573830451
+	SwitchoverSubscribeUnsupported bool `protobuf:"varint,482,opt,name=switchover_subscribe_unsupported,json=switchoverSubscribeUnsupported,proto3" json:"switchover_subscribe_unsupported,omitempty"`
+	unknownFields                  protoimpl.UnknownFields
+	sizeCache                      protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -4617,13 +4620,6 @@ func (x *Metadata_Deviations) GetGnoiRequiresFreshDialAfterSwitchover() bool {
 	return false
 }
 
-func (x *Metadata_Deviations) GetSwitchoverSubscribeUnsupported() bool {
-	if x != nil {
-		return x.SwitchoverSubscribeUnsupported
-	}
-	return false
-}
-
 func (x *Metadata_Deviations) GetContainerzRequireExplicitConfigSave() bool {
 	if x != nil {
 		return x.ContainerzRequireExplicitConfigSave
@@ -4795,6 +4791,13 @@ func (x *Metadata_Deviations) GetIsisInterfaceAuthenticationContainerUnsupported
 func (x *Metadata_Deviations) GetSkipGnoiPingRpcAuthzVerification() bool {
 	if x != nil {
 		return x.SkipGnoiPingRpcAuthzVerification
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetSwitchoverSubscribeUnsupported() bool {
+	if x != nil {
+		return x.SwitchoverSubscribeUnsupported
 	}
 	return false
 }
@@ -5291,8 +5294,7 @@ const file_metadata_proto_rawDesc = "" +
 	"&gribi_aaa_role_based_authz_unsupported\x18\xc3\x03 \x01(\bR!gribiAaaRoleBasedAuthzUnsupported\x12P\n" +
 	"%p4rt_aaa_role_based_authz_unsupported\x18\xc4\x03 \x01(\bR p4rtAaaRoleBasedAuthzUnsupported\x12@\n" +
 	"\x1cswitchover_stabilize_delay_m\x18\xc5\x03 \x01(\rR\x19switchoverStabilizeDelayM\x12X\n" +
-	")gnoi_requires_fresh_dial_after_switchover\x18\xc6\x03 \x01(\bR$gnoiRequiresFreshDialAfterSwitchover\x12I\n" +
-	" switchover_subscribe_unsupported\x18\xe2\x03 \x01(\bR\x1eswitchoverSubscribeUnsupported\x12U\n" +
+	")gnoi_requires_fresh_dial_after_switchover\x18\xc6\x03 \x01(\bR$gnoiRequiresFreshDialAfterSwitchover\x12U\n" +
 	"'containerz_require_explicit_config_save\x18\xc7\x03 \x01(\bR#containerzRequireExplicitConfigSave\x12E\n" +
 	"\x1faigp_route_metric_not_supported\x18\xc8\x03 \x01(\bR\x1baigpRouteMetricNotSupported\x12;\n" +
 	"\x1abgp_adj_rib_oc_unsupported\x18\xc9\x03 \x01(\bR\x16bgpAdjRibOcUnsupported\x123\n" +
@@ -5318,7 +5320,8 @@ const file_metadata_proto_rawDesc = "" +
 	" invalid_interface_number_allowed\x18\xdc\x03 \x01(\bR\x1dinvalidInterfaceNumberAllowed\x12]\n" +
 	",bgp_afi_safi_send_community_type_unsupported\x18\xdd\x03 \x01(\bR&bgpAfiSafiSendCommunityTypeUnsupported\x12m\n" +
 	"3isis_interface_authentication_container_unsupported\x18\xde\x03 \x01(\bR/isisInterfaceAuthenticationContainerUnsupported\x12P\n" +
-	"%skip_gnoi_ping_rpc_authz_verification\x18\xdf\x03 \x01(\bR skipGnoiPingRpcAuthzVerificationJ\x06\b\x85\x02\x10\x86\x02J\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"%skip_gnoi_ping_rpc_authz_verification\x18\xdf\x03 \x01(\bR skipGnoiPingRpcAuthzVerification\x12I\n" +
+	" switchover_subscribe_unsupported\x18\xe2\x03 \x01(\bR\x1eswitchoverSubscribeUnsupportedJ\x06\b\x85\x02\x10\x86\x02J\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02J\x06\b\xf1\x01\x10\xf2\x01J\x04\b1\x102\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
