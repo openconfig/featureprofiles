@@ -31,6 +31,7 @@ import (
 	"github.com/openconfig/ygot/ygot"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
@@ -133,6 +134,9 @@ func TestDirectBackupNexthopGroup(t *testing.T) {
 	ctx := context.Background()
 
 	dut := ondatra.DUT(t, "dut")
+	if deviations.VendorPreConfigRequired(dut) {
+		cfgplugins.ConfigureFallbackDecapVrfSelection(t, dut)
+	}
 	configureDUT(t, dut)
 	configureNetworkInstance(t, dut)
 	// For interface configuration, prefer config Vrf first then the IP address
