@@ -13,6 +13,9 @@ platform_exceptions: {
     ipv4_missing_enabled: true
     isis_interface_afi_unsupported: true
     interface_ref_config_unsupported: true
+    explicit_enable_bgp_on_default_vrf: true
+    peer_group_def_ebgp_vrf_unsupported: true
+    bgp_afi_safi_in_default_ni_before_other_ni: true
   }
 }
 platform_exceptions: {
