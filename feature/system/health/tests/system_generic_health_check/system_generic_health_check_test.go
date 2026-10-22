@@ -194,18 +194,21 @@ func TestComponentStatus(t *testing.T) {
 			}
 
 			componentName := map[string]string{"name": component}
-
-			checkReq := &hpb.CheckRequest{
-				Path: &tpb.Path{
-					Origin: "openconfig",
-					Elem: []*tpb.PathElem{
-						{Name: "components"},
-						{
-							Name: "component",
-							Key:  componentName,
-						},
+			healthPath := &tpb.Path{
+				Elem: []*tpb.PathElem{
+					{Name: "components"},
+					{
+						Name: "component",
+						Key:  componentName,
 					},
 				},
+			}
+			if !deviations.SkipOrigin(dut) {
+				healthPath.Origin = "openconfig"
+			}
+
+			checkReq := &hpb.CheckRequest{
+				Path: healthPath,
 			}
 			checkResponse, err := gnoiClient.Healthz().Check(context.Background(), checkReq)
 			if err != nil {
@@ -215,16 +218,7 @@ func TestComponentStatus(t *testing.T) {
 			}
 
 			getReq := &hpb.GetRequest{
-				Path: &tpb.Path{
-					Origin: "openconfig",
-					Elem: []*tpb.PathElem{
-						{Name: "components"},
-						{
-							Name: "component",
-							Key:  componentName,
-						},
-					},
-				},
+				Path: healthPath,
 			}
 			getResponse, err := gnoiClient.Healthz().Get(context.Background(), getReq)
 			if err != nil {
@@ -724,6 +718,27 @@ func TestNoAsicDrop(t *testing.T) {
 				} else {
 					t.Logf("INFO: RateLimit counter: %d", drop.LookupBlock.GetRateLimit())
 				}
+				if !deviations.FabricDropCounterUnsupported(dut) {
+					if drop.LookupBlock.Oversubscription == nil {
+						t.Errorf("ERROR: LookupBlock Oversubscription counter is not present")
+					} else {
+						t.Logf("INFO: LookupBlock Oversubscription counter: %d", drop.LookupBlock.GetOversubscription())
+					}
+				}
+			}
+			if !deviations.FabricDropCounterUnsupported(dut) {
+				if drop.CongestionAggregate == nil {
+					t.Errorf("ERROR: CongestionAggregate counter is not present")
+				} else {
+					t.Logf("INFO: CongestionAggregate counter: %d", drop.GetCongestionAggregate())
+				}
+				if drop.HostInterfaceBlock == nil {
+					t.Errorf("ERROR: HostInterfaceBlock is not present")
+				} else if drop.HostInterfaceBlock.HostAggregate == nil {
+					t.Errorf("ERROR: HostAggregate counter is not present")
+				} else {
+					t.Logf("INFO: HostAggregate counter: %d", drop.GetHostInterfaceBlock().GetHostAggregate())
+				}
 			}
 		})
 	}
@@ -1018,11 +1033,35 @@ func TestFabricDrop(t *testing.T) {
 		t.Fatalf("ERROR: %s is not present", query)
 	}
 	for _, fabricBlock := range fabricBlocks {
-		drop := fabricBlock.GetLostPackets()
 		if fabricBlock.LostPackets == nil {
-			t.Errorf("ERROR: Fabric drops is not present")
+			t.Errorf("ERROR: Fabric LostPackets counter is not present")
 		} else {
-			t.Logf("INFO: Fabric drops: %d", drop)
+			t.Logf("INFO: Fabric LostPackets: %d", fabricBlock.GetLostPackets())
+		}
+		if fabricBlock.FabricAggregate == nil {
+			t.Errorf("ERROR: FabricAggregate counter is not present")
+		} else {
+			t.Logf("INFO: FabricAggregate: %d", fabricBlock.GetFabricAggregate())
+		}
+		if fabricBlock.InHighPriority == nil {
+			t.Errorf("ERROR: Fabric InHighPriority counter is not present")
+		} else {
+			t.Logf("INFO: Fabric InHighPriority: %d", fabricBlock.GetInHighPriority())
+		}
+		if fabricBlock.InLowPriority == nil {
+			t.Errorf("ERROR: Fabric InLowPriority counter is not present")
+		} else {
+			t.Logf("INFO: Fabric InLowPriority: %d", fabricBlock.GetInLowPriority())
+		}
+		if fabricBlock.OutHighPriority == nil {
+			t.Errorf("ERROR: Fabric OutHighPriority counter is not present")
+		} else {
+			t.Logf("INFO: Fabric OutHighPriority: %d", fabricBlock.GetOutHighPriority())
+		}
+		if fabricBlock.OutLowPriority == nil {
+			t.Errorf("ERROR: Fabric OutLowPriority counter is not present")
+		} else {
+			t.Logf("INFO: Fabric OutLowPriority: %d", fabricBlock.GetOutLowPriority())
 		}
 	}
 }
