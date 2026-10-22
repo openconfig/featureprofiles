@@ -2502,3 +2502,9 @@ func CfmPmFt(dut *ondatra.DUTDevice) string {
 func QosRedUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDropWeightLeavesUnsupported()
 }
+
+// SkipGnoiPingRpcAuthzVerification returnds true if Gnoi Ping rpc to be skipped based on a deviation
+// Arista: https://partnerissuetracker.corp.google.com/issues/219953165
+func SkipGnoiPingRpcAuthzVerification(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipGnoiPingRpcAuthzVerification()
+}
