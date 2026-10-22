@@ -460,8 +460,84 @@ func validateSwitchover(t *testing.T, dut *ondatra.DUTDevice, controller string,
 	t.Fatalf("Controller %s did not become PRIMARY within %v", controller, timeout)
 }
 
+// startGRIBIClientWithRetry starts the gRIBI client, retrying until the gRIBI
+// server on the (possibly newly active) supervisor accepts the connection.
+func startGRIBIClientWithRetry(t *testing.T, c *gribi.Client, timeout time.Duration) {
+	t.Helper()
+	start := time.Now()
+	for {
+		err := c.Start(t)
+		if err == nil {
+			return
+		}
+		if time.Since(start) > timeout {
+			t.Fatalf("gRIBI connection could not be established within %v: %v", timeout, err)
+		}
+		t.Logf("Retrying gRIBI client connection: %v", err)
+		time.Sleep(5 * time.Second)
+	}
+}
+
+// flushActiveSupervisor connects a temporary gRIBI client to the active
+// supervisor, flushes all gRIBI entries and closes the client.
+func flushActiveSupervisor(t *testing.T, dut *ondatra.DUTDevice, timeout time.Duration) {
+	t.Helper()
+	c := gribi.Client{
+		DUT:         dut,
+		FIBACK:      false,
+		Persistence: true,
+	}
+	startGRIBIClientWithRetry(t, &c, timeout)
+	defer c.Close(t)
+	c.BecomeLeader(t)
+	c.FlushAll(t)
+}
+
+// cleanBothSupervisors removes leftover gRIBI state from both supervisors, so
+// that entries found on the new active supervisor after the test switchover can
+// only come from state synchronized during that switchover and not from a
+// previous test run. Only the active supervisor can be flushed through gRIBI,
+// so it flushes the active supervisor, switches over, flushes the other
+// supervisor and waits until the standby supervisor is switchover-ready again.
+func cleanBothSupervisors(t *testing.T, dut *ondatra.DUTDevice, controllers []string, extraWait time.Duration) {
+	t.Helper()
+	secondary, primary := findSecondaryController(t, dut, controllers)
+	gribiTimeout := 5*time.Minute + extraWait
+
+	t.Logf("Pre-test cleanup: flushing gRIBI entries on active supervisor %s...", primary)
+	flushActiveSupervisor(t, dut, gribiTimeout)
+
+	awaitSwitchoverReady(t, dut, primary, 5*time.Minute+extraWait)
+	t.Logf("Pre-test cleanup: switching over to %s to flush its gRIBI entries...", secondary)
+	resp := gnoi.Execute(t, dut, system.NewSwitchControlProcessorOperation().Path(cmp.GetSubcomponentPath(secondary, deviations.GNOISubcomponentPath(dut))))
+	t.Logf("Pre-test cleanup: SwitchControlProcessor() response: %v", resp)
+	validateSwitchover(t, dut, secondary, 5*time.Minute+extraWait)
+
+	t.Logf("Pre-test cleanup: flushing gRIBI entries on active supervisor %s...", secondary)
+	flushActiveSupervisor(t, dut, gribiTimeout)
+
+	// The previously active supervisor restarts after the switchover; wait for it
+	// to rejoin as standby before starting the test. Some platforms need well over
+	// 15 minutes for the standby to become switchover-ready, so allow 30 minutes
+	// as other switchover tests do.
+	awaitSwitchoverReady(t, dut, secondary, 30*time.Minute+extraWait)
+}
+
 func TestSupFailure(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+
+	controllers := cmp.FindComponentsByType(t, dut, controlcardType)
+	t.Logf("Found controller list: %v", controllers)
+	// Only perform the switchover for the chassis with dual controllers.
+	if len(controllers) != 2 {
+		t.Skipf("Dual controllers required on %v: got %v, want 2", dut.Model(), len(controllers))
+	}
+
+	extraWait := time.Duration(deviations.SwitchoverStabilizeDelayM(dut)) * time.Minute
+
+	// Remove gRIBI entries left on either supervisor by previous runs, so that the
+	// post-switchover AFT check cannot pass on stale state of the standby supervisor.
+	cleanBothSupervisors(t, dut, controllers, extraWait)
 
 	// Configure the DUT
 	configureDUT(t, dut)
@@ -512,16 +588,7 @@ func TestSupFailure(t *testing.T) {
 
 	t.Logf("TE-8.2.1: Leaving traffic running during switchover to ensure hitless forwarding...")
 
-	controllers := cmp.FindComponentsByType(t, dut, controlcardType)
-	t.Logf("Found controller list: %v", controllers)
-	// Only perform the switchover for the chassis with dual controllers.
-	if len(controllers) != 2 {
-		t.Skipf("Dual controllers required on %v: got %v, want 2", dut.Model(), len(controllers))
-	}
-
 	secondaryBeforeSwitch, primaryBeforeSwitch := findSecondaryController(t, dut, controllers)
-
-	extraWait := time.Duration(deviations.SwitchoverStabilizeDelayM(dut)) * time.Minute
 
 	awaitSwitchoverReady(t, dut, primaryBeforeSwitch, 5*time.Minute+extraWait)
 
@@ -556,23 +623,12 @@ func TestSupFailure(t *testing.T) {
 	}
 
 	gribiTimeout := 5*time.Minute + extraWait
-	startTime := time.Now()
-	for {
-		if err := clientB.Start(t); err != nil {
-			if time.Since(startTime) > gribiTimeout {
-				t.Fatalf("gRIBI Connection for clientB could not be re-established within %v: %v", gribiTimeout, err)
-			}
-			t.Logf("Retrying gRIBI client connection: %v", err)
-			time.Sleep(5 * time.Second)
-		} else {
-			t.Cleanup(func() {
-				// Flush all entries at the actual end of the test using the healthy post-switchover client.
-				clientB.FlushAll(t)
-				clientB.Close(t)
-			})
-			break
-		}
-	}
+	startGRIBIClientWithRetry(t, &clientB, gribiTimeout)
+	t.Cleanup(func() {
+		// Flush all entries at the actual end of the test using the healthy post-switchover client.
+		clientB.FlushAll(t)
+		clientB.Close(t)
+	})
 
 	t.Logf("TE-8.2.1: Assert leadership on the new active supervisor...")
 	clientB.BecomeLeader(t)
