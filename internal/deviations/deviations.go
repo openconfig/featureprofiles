@@ -2498,6 +2498,11 @@ func CfmPmFt(dut *ondatra.DUTDevice) string {
 	return lookupDUTDeviations(dut).GetCfmPmFt()
 }
 
+// QosRedUnsupported returns true if device does not support RED under queue-management-profiles.
+func QosRedUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDropWeightLeavesUnsupported()
+}
+
 // InvalidInterfaceNumberAllowed returns true for devices that don't pre-check invalid interface numbers when configured
 // Cisco: https://partnerissuetracker.corp.google.com/issues/570523357
 func InvalidInterfaceNumberAllowed(dut *ondatra.DUTDevice) bool {
