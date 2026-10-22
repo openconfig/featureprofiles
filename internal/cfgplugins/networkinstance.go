@@ -57,6 +57,12 @@ func EnableDefaultNetworkInstanceBgp(t *testing.T, dut *ondatra.DUTDevice, dutAS
 	bgp.Bgp.Global = &oc.NetworkInstance_Protocol_Bgp_Global{
 		As: ygot.Uint32(dutAS),
 	}
+	if deviations.BgpAfiSafiInDefaultNiBeforeOtherNi(dut) {
+		bgp.Bgp.Global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+		bgp.Bgp.Global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
+		bgp.Bgp.Global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_L3VPN_IPV4_UNICAST).Enabled = ygot.Bool(true)
+		bgp.Bgp.Global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_L3VPN_IPV6_UNICAST).Enabled = ygot.Bool(true)
+	}
 
 	gnmi.Replace(t, dut, d.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), bgp)
 }
@@ -182,6 +188,9 @@ type L3VRFSubinterfaceBinding struct {
 // subinterfaces to it using `<interface>.<subinterface>` ID format without using dut.Vendor().
 func ConfigureL3VRFWithSubinterfaces(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, vrfName string, bindings []L3VRFSubinterfaceBinding) *gnmi.SetBatch {
 	t.Helper()
+	if len(bindings) == 0 {
+		t.Fatalf("ConfigureL3VRFWithSubinterfaces: bindings slice cannot be empty")
+	}
 	if sb == nil {
 		sb = &gnmi.SetBatch{}
 	}
@@ -213,6 +222,9 @@ func ConfigureL3VRFWithSubinterfaces(t *testing.T, dut *ondatra.DUTDevice, sb *g
 	ni := &oc.NetworkInstance{
 		Name: ygot.String(vrfName),
 		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
+	}
+	if deviations.BgpAfiSafiInDefaultNiBeforeOtherNi(dut) {
+		ni.SetRouteDistinguisher("64500:100")
 	}
 	for _, b := range bindings {
 		intfID := fmt.Sprintf("%s.%d", b.InterfaceName, b.SubintfIndex)

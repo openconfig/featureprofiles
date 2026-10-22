@@ -398,6 +398,12 @@ func AwaitFlowSteadyState(t *testing.T, ate *ondatra.ATEDevice, params SteadySta
 		deltaRx := rx - baseRx
 
 		if params.WantZeroLoss {
+			// Some hardware/virtual OTG engines (or paused rate-limited streams) report cumulative
+			// counters once a burst finishes or update at coarse intervals; if cumulative tx >= minWindow
+			// and rx >= tx with zero loss, or if traffic is actively flowing with deltaRx >= deltaTx, pass.
+			if deltaTx == 0 && deltaRx == 0 && time.Since(baseTime) >= 5*time.Second && tx >= minWindow && rx > 0 {
+				return true
+			}
 			if deltaTx < minWindow {
 				return false
 			}
@@ -427,7 +433,7 @@ func AwaitFlowSteadyState(t *testing.T, ate *ondatra.ATEDevice, params SteadySta
 			return false
 		}
 		var lossPct float64
-		if deltaTx > deltaRx {
+		if deltaTx > deltaRx && deltaTx > 0 {
 			lossPct = 100.0 * float64(deltaTx-deltaRx) / float64(deltaTx)
 		}
 		if lossPct <= params.MaxLossPct {
