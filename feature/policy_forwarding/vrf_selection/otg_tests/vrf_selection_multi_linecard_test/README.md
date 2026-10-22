@@ -26,15 +26,15 @@ Every traffic check is validated per ingress linecard and per address family, di
 ### Test environment setup
 
 ```mermaid
-graph LR;
-A1[ATE port-1] <-- "LC-A" --> D1[DUT port-1];
-A5[ATE port-5] <-- "LC-A, Agg-A member" --> D5[DUT port-5];
-A2[ATE port-2] <-- "LC-B" --> D2[DUT port-2];
-A6[ATE port-6] <-- "LC-B, Agg-B member" --> D6[DUT port-6];
-A3[ATE port-3] <-- "LC-C" --> D3[DUT port-3];
-A7[ATE port-7] <-- "LC-C, Agg-C member" --> D7[DUT port-7];
-D4[DUT port-4] <-- "LC-EGRESS, VLAN 10-13 (VRF-1..VRF-4)" --> A4[ATE port-4];
-D8[DUT port-8] <-- "LC-EGRESS (DEFAULT)" --> A8[ATE port-8];
+graph LR
+A1[ATE port-1] <-->|LC-A| D1[DUT port-1]
+A5[ATE port-5] <-->|LC-A, Agg-A member| D5[DUT port-5]
+A2[ATE port-2] <-->|LC-B| D2[DUT port-2]
+A6[ATE port-6] <-->|LC-B, Agg-B member| D6[DUT port-6]
+A3[ATE port-3] <-->|LC-C| D3[DUT port-3]
+A7[ATE port-7] <-->|LC-C, Agg-C member| D7[DUT port-7]
+D4[DUT port-4] <-->|LC-EGRESS, VLAN 10-13 (VRF-1..VRF-4)| A4[ATE port-4]
+D8[DUT port-8] <-->|LC-EGRESS (DEFAULT)| A8[ATE port-8]
 ```
 
 #### Port roles and linecard placement precondition
