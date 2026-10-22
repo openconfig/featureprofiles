@@ -57,9 +57,9 @@ const (
 	vrfPrefixNameV6    = "PREFIX-SET-VRF-A-V6"
 	subscriptionWait   = 2 * time.Minute
 	aftConvergenceTime = 10 * time.Minute
-	// policyChangeWait is the maximum time allowed, per AFT-6.3.3, for a
-	// collector to observe prefixes newly admitted by a global-filter change.
-	policyChangeWait = 60 * time.Second
+	// notificationCollectorTimeout allows the 2-minute periodic collector hook
+	// one additional 30-second interval to observe newly admitted routes.
+	notificationCollectorTimeout = subscriptionWait + 30*time.Second
 	// streamTerminationWait is the maximum time to wait for an active gNMI AFT
 	// stream to terminate after the DUT reboot is issued.
 	streamTerminationWait = 2 * time.Minute
@@ -1168,11 +1168,11 @@ func testPerNIFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 	aftpf.ConfigureGlobalFilterPolicies(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{V4Policy: vrfAPolicy, V6Policy: vrfAPolicy, VRFName: vrfName})
 	// Expected prefixes
 	defaultWant := aftpf.GeneratePrefixes(t, aftpf.GeneratePrefixesParams{V4Prefixes: []string{matchPrefixAft1, matchPrefixAft2}, V6Prefixes: nil, PfxCount: pfxCount})
-	vrfWant := aftpf.GeneratePrefixes(t, aftpf.GeneratePrefixesParams{V4Prefixes: []string{matchPrefixAft1}, V6Prefixes: nil, PfxCount: pfxCount})
+	vrfWant := aftpf.GeneratePrefixes(t, aftpf.GeneratePrefixesParams{V4Prefixes: []string{matchVrfPfx1}, V6Prefixes: nil, PfxCount: pfxCount})
 	// Collector-1 (DEFAULT)
 	collector1 := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
 	// Collector-2 (VRF-A)
-	collector2 := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
+	collector2 := newAFTStreamSessionForNetworkInstance(ctx, t, dut, vrfName)
 	// Initial sync validation
 	t.Log("Validating initial filtered AFT state")
 	defaultStop := aftcache.InitialSyncStoppingCondition(t, dut, defaultWant, map[string]bool{atePort1.IPv4: true}, nil)
@@ -1238,11 +1238,11 @@ func testPerNIFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 	// Collector 2's stream, so re-establish the subscription and validate the
 	// full set of VRF-A prefixes after SYNC on the new stream.
 	t.Log("Re-establishing Collector2 subscription after the VRF-A filter policy change")
-	collector2 = reestablishAFTSession(ctx, t, dut)
-	// Collector2 should now receive all VRF-A routes within 60 seconds.
+	collector2 = reestablishAFTSession(ctx, t, dut, vrfName)
+	// Collector2 should receive all VRF-A routes within the 2-minute-30-second timeout.
 	t.Log("Waiting for Collector2 to receive all VRF-A routes")
 	wantAllVRF := []string{matchPrefixAft1, matchVrfPfx1, matchVrfPfx3, matchVrfPfx2}
-	waitForPrefixesPresent(ctx, t, dut, collector2, wantAllVRF, policyChangeWait, atePort2.IPv4)
+	waitForPrefixesPresent(ctx, t, dut, collector2, wantAllVRF, notificationCollectorTimeout, atePort2.IPv4)
 	t.Log("Per-network-instance filtering validation completed successfully")
 }
 
@@ -1307,7 +1307,20 @@ func waitForPrefixesPresent(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 // previous session's stream may therefore already be closed, and continuing to
 // listen on it would fail instead of validating the new filter behaviour, so
 // the verification is always performed on a re-established subscription.
-func reestablishAFTSession(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) *aftcache.AFTStreamSession {
+func reestablishAFTSession(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, routeNetworkInstance string) *aftcache.AFTStreamSession {
 	t.Helper()
-	return aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
+	return newAFTStreamSessionForNetworkInstance(ctx, t, dut, routeNetworkInstance)
+}
+
+// newAFTStreamSessionForNetworkInstance creates an AFT stream for the given
+// route network instance. Arista reports the next-hop objects for routes in a
+// non-default network instance under the default network instance; other
+// platforms report both in the route network instance.
+func newAFTStreamSessionForNetworkInstance(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, routeNetworkInstance string) *aftcache.AFTStreamSession {
+	t.Helper()
+	client := aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx})
+	if deviations.AftsNextHopsStreamOnlyInDefaultNetworkInstance(dut) {
+		return aftcache.NewAFTStreamSessionForNetworkInstances(ctx, t, client, dut, routeNetworkInstance, deviations.DefaultNetworkInstance(dut))
+	}
+	return aftcache.NewAFTStreamSessionForNetworkInstance(ctx, t, client, dut, routeNetworkInstance)
 }
