@@ -483,6 +483,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, ports map[*ondatra.Port]
 // IPv4 and IPv6 sessions towards the given ATE peers.
 func configureDUTBGP(t *testing.T, dut *ondatra.DUTDevice, peers ...*attrs.Attributes) {
 	t.Helper()
+	if len(peers) == 0 {
+		t.Fatalf("configureDUTBGP: peers list cannot be empty")
+	}
 	root := &oc.Root{}
 
 	pd := root.GetOrCreateRoutingPolicy().GetOrCreatePolicyDefinition(allowPolicy)
