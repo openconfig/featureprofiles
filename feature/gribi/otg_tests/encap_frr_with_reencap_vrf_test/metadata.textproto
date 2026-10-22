@@ -39,6 +39,7 @@ platform_exceptions: {
     hierarchical_weight_resolution_tolerance: 0.4
     isis_level_enabled:  true
     interface_ref_interface_id_format: true
+    aft_next_hop_encapsulate_header_unsupported: true
   }
 }
 platform_exceptions:  {
