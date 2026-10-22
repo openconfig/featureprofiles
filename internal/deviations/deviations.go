@@ -2498,6 +2498,11 @@ func CfmPmFt(dut *ondatra.DUTDevice) string {
 	return lookupDUTDeviations(dut).GetCfmPmFt()
 }
 
+// QosRedUnsupported returns true if device does not support RED under queue-management-profiles.
+func QosRedUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDropWeightLeavesUnsupported()
+}
+
 // SkipGnoiPingRpcAuthzVerification returnds true if Gnoi Ping rpc to be skipped based on a deviation
 // Arista: https://partnerissuetracker.corp.google.com/issues/219953165
 func SkipGnoiPingRpcAuthzVerification(dut *ondatra.DUTDevice) bool {

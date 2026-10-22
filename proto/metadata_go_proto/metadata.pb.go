@@ -1630,9 +1630,17 @@ type Metadata_Deviations struct {
 	// Functional translator for CFM performance measurement telemetry.
 	// Arista: https://partnerissuetracker.corp.google.com/issues/574326691
 	CfmPmFt string `protobuf:"bytes,472,opt,name=cfm_pm_ft,json=cfmPmFt,proto3" json:"cfm_pm_ft,omitempty"`
+	// qos_queue_index_required specifies if device requires queue-index.
+	QosQueueIndexRequired bool `protobuf:"varint,473,opt,name=qos_queue_index_required,json=qosQueueIndexRequired,proto3" json:"qos_queue_index_required,omitempty"`
+	// qos_max_burst_size_required specifies if device requires
+	// maximum-burst-size.
+	QosMaxBurstSizeRequired bool `protobuf:"varint,474,opt,name=qos_max_burst_size_required,json=qosMaxBurstSizeRequired,proto3" json:"qos_max_burst_size_required,omitempty"`
+	// qos_red_unsupported specifies if device does not support RED under
+	// queue-management-profiles.
+	QosRedUnsupported bool `protobuf:"varint,475,opt,name=qos_red_unsupported,json=qosRedUnsupported,proto3" json:"qos_red_unsupported,omitempty"`
 	// deviation to skip authz verification of gnoi ping rpc
 	// Arista: https://partnerissuetracker.corp.google.com/issues/219953165
-	SkipGnoiPingRpcAuthzVerification bool `protobuf:"varint,473,opt,name=skip_gnoi_ping_rpc_authz_verification,json=skipGnoiPingRpcAuthzVerification,proto3" json:"skip_gnoi_ping_rpc_authz_verification,omitempty"`
+	SkipGnoiPingRpcAuthzVerification bool `protobuf:"varint,476,opt,name=skip_gnoi_ping_rpc_authz_verification,json=skipGnoiPingRpcAuthzVerification,proto3" json:"skip_gnoi_ping_rpc_authz_verification,omitempty"`
 	unknownFields                    protoimpl.UnknownFields
 	sizeCache                        protoimpl.SizeCache
 }
@@ -4719,6 +4727,27 @@ func (x *Metadata_Deviations) GetCfmPmFt() string {
 	return ""
 }
 
+func (x *Metadata_Deviations) GetQosQueueIndexRequired() bool {
+	if x != nil {
+		return x.QosQueueIndexRequired
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetQosMaxBurstSizeRequired() bool {
+	if x != nil {
+		return x.QosMaxBurstSizeRequired
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetQosRedUnsupported() bool {
+	if x != nil {
+		return x.QosRedUnsupported
+	}
+	return false
+}
+
 func (x *Metadata_Deviations) GetSkipGnoiPingRpcAuthzVerification() bool {
 	if x != nil {
 		return x.SkipGnoiPingRpcAuthzVerification
@@ -4782,7 +4811,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"Ƌ\x02\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xf0\x8c\x02\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -4794,7 +4823,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xae\x80\x02\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\u0601\x02\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -5237,8 +5266,11 @@ const file_metadata_proto_rawDesc = "" +
 	"\x19switched_vlan_unsupported\x18\xd6\x03 \x01(\bR\x17switchedVlanUnsupported\x12!\n" +
 	"\fcfm_state_ft\x18\xd7\x03 \x01(\tR\n" +
 	"cfmStateFt\x12\x1b\n" +
-	"\tcfm_pm_ft\x18\xd8\x03 \x01(\tR\acfmPmFt\x12P\n" +
-	"%skip_gnoi_ping_rpc_authz_verification\x18\xd9\x03 \x01(\bR skipGnoiPingRpcAuthzVerificationJ\x06\b\x85\x02\x10\x86\x02J\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"\tcfm_pm_ft\x18\xd8\x03 \x01(\tR\acfmPmFt\x128\n" +
+	"\x18qos_queue_index_required\x18\xd9\x03 \x01(\bR\x15qosQueueIndexRequired\x12=\n" +
+	"\x1bqos_max_burst_size_required\x18\xda\x03 \x01(\bR\x17qosMaxBurstSizeRequired\x12/\n" +
+	"\x13qos_red_unsupported\x18\xdb\x03 \x01(\bR\x11qosRedUnsupported\x12P\n" +
+	"%skip_gnoi_ping_rpc_authz_verification\x18\xdc\x03 \x01(\bR skipGnoiPingRpcAuthzVerificationJ\x06\b\x85\x02\x10\x86\x02J\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02J\x06\b\xf1\x01\x10\xf2\x01J\x04\b1\x102\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
