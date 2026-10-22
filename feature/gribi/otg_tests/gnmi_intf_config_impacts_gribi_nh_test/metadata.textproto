@@ -19,3 +19,17 @@ platform_exceptions: {
     omit_l2_mtu: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    default_network_instance: "default"
+    gribi_riback_only: true
+    gribi_mac_override_static_arp_static_route: true
+    gribi_aft_unsupported: true
+    gribi_static_arp_unique_next_hop_ip_required: true
+    interface_mtu_1500_maps_to_1514: true
+    interface_out_pkts_counter_includes_unsent: true
+  }
+}

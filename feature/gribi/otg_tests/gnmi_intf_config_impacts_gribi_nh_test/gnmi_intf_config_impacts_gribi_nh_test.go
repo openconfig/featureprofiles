@@ -25,6 +25,7 @@ import (
 	"math"
 	"net"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -84,10 +85,11 @@ const (
 	// ASIC-level FIB reconvergence lag not reflected by oper-status.
 	convergeSettle = 10 * time.Second
 
-	mtuDefault   = 1500
-	mtuJumbo     = 9000
-	mtuTooSmall  = 500
-	pktSizeLarge = 1500
+	mtuDefault             = 1500
+	mtuJumbo               = 9000
+	mtuTooSmall            = 500
+	pktSizeLarge           = 1500
+	mtuCiscoDefault uint16 = 1514
 
 	lossTolerancePct = 1.0
 
@@ -95,8 +97,9 @@ const (
 	ecmpHashTolerancePct = 40.0
 
 	// Used only with the GRIBIMACOverrideStaticARPStaticRoute deviation.
-	magicMac = "02:00:00:00:00:01"
-	magicIP  = "192.168.1.1"
+	magicMac   = "02:00:00:00:00:01"
+	magicIP    = "192.168.1.1"
+	magicMacXR = "0200.0000.0001"
 )
 
 type portPair struct {
@@ -126,6 +129,12 @@ var portPairs = []portPair{
 		dut:  attrs.Attributes{Desc: "DUT Port 4", IPv4: "198.51.100.9", IPv4Len: ipv4PrefixLen, IPv6: "2001:db8:4::1", IPv6Len: ipv6PrefixLen},
 		ate:  attrs.Attributes{Name: "port4", MAC: "02:00:04:01:01:01", IPv4: "198.51.100.10", IPv4Len: ipv4PrefixLen, IPv6: "2001:db8:4::2", IPv6Len: ipv6PrefixLen},
 	},
+}
+
+var ciscoMagicIPByPort = map[string]string{
+	"port2": "192.168.1.2",
+	"port3": "192.168.1.3",
+	"port4": "192.168.1.4",
 }
 
 func TestMain(m *testing.M) {
@@ -185,7 +194,7 @@ func TestGNMIIntfConfigImpactsGRIBINH(t *testing.T) {
 	})
 
 	t.Run("TE-1.7.2: MTU Change Impact on gRIBI NextHop", func(t *testing.T) {
-		testMTUChange(t, dut, p2, p3, p4)
+		testMTUChange(t, dut, ate, p2, p3, p4)
 	})
 
 	t.Run("TE-1.7.3: Negative Test: Program gRIBI Route on Admin DOWN Interface", func(t *testing.T) {
@@ -284,34 +293,122 @@ func configStaticArp(p string, ipv4addr string, macAddr string) *oc.Interface {
 
 func configStaticRouteAndARPForMagicIP(t *testing.T, dut *ondatra.DUTDevice, ni string) {
 	t.Helper()
-	sb := &gnmi.SetBatch{}
-	nexthops := map[string]*oc.NetworkInstance_Protocol_Static_NextHop{}
-	for idx, pp := range portPairs[1:] {
-		p := dut.Port(t, pp.name)
-		nexthops[strconv.Itoa(idx)] = &oc.NetworkInstance_Protocol_Static_NextHop{
-			Index:        ygot.String(strconv.Itoa(idx)),
-			InterfaceRef: &oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{Interface: ygot.String(p.Name())},
-		}
-		gnmi.BatchUpdate(sb, gnmi.OC().Interface(p.Name()).Config(), configStaticArp(p.Name(), magicIP, magicMac))
-	}
-	sp := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-	gnmi.BatchUpdate(sb, sp.Static(magicIP+"/32").Config(), &oc.NetworkInstance_Protocol_Static{
-		Prefix:  ygot.String(magicIP + "/32"),
-		NextHop: nexthops,
-	})
-	sb.Set(t, dut)
 
-	// Watch, not Get: some firmware builds populate this state leaf for static ARP with a delay.
+	if deviations.GRIBIStaticARPUniqueNextHopIPRequired(dut) {
+		var cfg strings.Builder
+
+		// IOS XR global static ARP entries, using a unique IP per next hop.
+		for _, pp := range portPairs[1:] {
+			ip := magicIPForPort(t, dut, pp.name)
+			fmt.Fprintf(&cfg, "arp %s %s ARPA\n", ip, magicMacXR)
+		}
+
+		// Install a /32 route for each next-hop destination on its own interface.
+		cfg.WriteString("router static\n")
+		cfg.WriteString(" address-family ipv4 unicast\n")
+		for _, pp := range portPairs[1:] {
+			p := dut.Port(t, pp.name)
+			ip := magicIPForPort(t, dut, pp.name)
+			fmt.Fprintf(&cfg, "  %s/32 %s\n", ip, p.Name())
+		}
+		cfg.WriteString(" !\n")
+		cfg.WriteString("!\n")
+
+		helpers.GnmiCLIConfig(t, dut, cfg.String())
+		t.Log("Configured Cisco static ARP entries and per-next-hop /32 routes")
+
+		// IOS XR static ARP is configured globally. Do not wait for the
+		// unsupported per-interface OpenConfig neighbor state in this branch.
+		time.Sleep(convergeSettle)
+		return
+	}
+
+	// Step 1: Configure static ARP neighbors in a separate gNMI transaction.
+	arpBatch := &gnmi.SetBatch{}
 	for _, pp := range portPairs[1:] {
 		p := dut.Port(t, pp.name)
-		q := gnmi.OC().Interface(p.Name()).Subinterface(0).Ipv4().Neighbor(magicIP).LinkLayerAddress().State()
-		val, ok := gnmi.Watch(t, dut, q, convergeSettle, func(v *ygnmi.Value[string]) bool {
-			got, present := v.Val()
-			return present && got == magicMac
-		}).Await(t)
+		gnmi.BatchUpdate(
+			arpBatch,
+			gnmi.OC().Interface(p.Name()).Config(),
+			configStaticArp(p.Name(), magicIP, magicMac),
+		)
+	}
+	arpBatch.Set(t, dut)
+
+	// Step 2: Configure the static route.
+	if dut.Vendor() == ondatra.CISCO {
+		// IOS XR rejects the OpenConfig static-route update.
+		// Configure the ECMP next hops using the native CLI.
+		var cfg strings.Builder
+		cfg.WriteString("router static\n")
+		cfg.WriteString(" address-family ipv4 unicast\n")
+
+		for _, pp := range portPairs[1:] {
+			intf := dut.Port(t, pp.name).Name()
+			fmt.Fprintf(&cfg, "  %s/32 %s\n", magicIP, intf)
+		}
+
+		cfg.WriteString(" !\n")
+		cfg.WriteString("!\n")
+		helpers.GnmiCLIConfig(t, dut, cfg.String())
+	} else {
+		// Preserve the existing Arista OpenConfig implementation.
+		nexthops := map[string]*oc.NetworkInstance_Protocol_Static_NextHop{}
+		for idx, pp := range portPairs[1:] {
+			intf := dut.Port(t, pp.name).Name()
+			nexthops[strconv.Itoa(idx)] = &oc.NetworkInstance_Protocol_Static_NextHop{
+				Index: ygot.String(strconv.Itoa(idx)),
+				InterfaceRef: &oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{
+					Interface: ygot.String(intf),
+				},
+			}
+		}
+
+		sp := gnmi.OC().NetworkInstance(ni).Protocol(
+			oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+			deviations.StaticProtocolName(dut),
+		)
+		gnmi.Update(
+			t,
+			dut,
+			sp.Static(magicIP+"/32").Config(),
+			&oc.NetworkInstance_Protocol_Static{
+				Prefix:  ygot.String(magicIP + "/32"),
+				NextHop: nexthops,
+			},
+		)
+	}
+
+	// Step 3: Verify ARP state after route configuration.
+	// Missing state telemetry is logged but does not abort the test here.
+	for _, pp := range portPairs[1:] {
+		p := dut.Port(t, pp.name)
+		q := gnmi.OC().
+			Interface(p.Name()).
+			Subinterface(0).
+			Ipv4().
+			Neighbor(magicIP).
+			LinkLayerAddress().
+			State()
+
+		_, ok := gnmi.Watch(
+			t,
+			dut,
+			q,
+			convergeSettle,
+			func(v *ygnmi.Value[string]) bool {
+				got, present := v.Val()
+				return present && got == magicMac
+			},
+		).Await(t)
+
 		if !ok {
-			got, _ := val.Val()
-			t.Logf("Static ARP on %s for %s not confirmed in state within %v (got %q, want %q); may be slow to populate on this firmware build", p.Name(), magicIP, convergeSettle, got, magicMac)
+			t.Logf(
+				"Static ARP state not observed on %s for %s within %v; continuing to subsequent checks",
+				p.Name(),
+				magicIP,
+				convergeSettle,
+			)
 		}
 	}
 }
@@ -365,7 +462,13 @@ func nhOpts(t *testing.T, dut *ondatra.DUTDevice, idx int) *gribi.NHOptions {
 	intf := dut.Port(t, portPairs[idx].name).Name()
 	switch {
 	case deviations.GRIBIMACOverrideStaticARPStaticRoute(dut):
-		return &gribi.NHOptions{Interface: intf, Mac: magicMac, Dest: magicIP}
+		dest := magicIPForPort(t, dut, portPairs[idx].name)
+		return &gribi.NHOptions{
+			Interface: intf,
+			Mac:       magicMac,
+			Dest:      dest,
+		}
+
 	case deviations.GRIBIMACOverrideWithStaticARP(dut):
 		return &gribi.NHOptions{Interface: intf, Mac: portPairs[idx].ate.MAC, Dest: portPairs[idx].ate.IPv4}
 	default:
@@ -378,6 +481,13 @@ const ipRouteBatchSize = 100
 
 func verifyAFTCoverage(t *testing.T, dut *ondatra.DUTDevice, ni string) {
 	t.Helper()
+	// Cisco IOS XR does not expose the required OpenConfig AFT entries.
+	// Continue with the gRIBI and traffic checks instead.
+	if deviations.GRIBIAFTUnsupported(dut) {
+		t.Log("Skipping OpenConfig AFT coverage verification: unsupported on this DUT")
+		return
+	}
+
 	v4Prefix := ipv4BaseRoute + "/32"
 	v4NHGID := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(ni).Afts().Ipv4Entry(v4Prefix).State()).GetNextHopGroup()
 	verifyNHGMembers(t, dut, ni, v4NHGID, "ipv4-entry "+v4Prefix)
@@ -421,13 +531,18 @@ func setPortEnabled(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port, enabl
 
 func setMTU(t *testing.T, dut *ondatra.DUTDevice, intfName string, mtu uint16) {
 	t.Helper()
+	configMTU := mtuValueForDUT(dut, mtu)
+	if configMTU != mtu {
+		t.Logf("Translating requested default MTU %d to physical Ethernet MTU %d on %s", mtu, configMTU, intfName)
+	}
 	b := &gnmi.SetBatch{}
-	cfgplugins.AddInterfaceMTUOps(b, dut, intfName, mtu, false)
+	cfgplugins.AddInterfaceMTUOps(b, dut, intfName, configMTU, false)
 	b.Set(t, dut)
 }
 
 func awaitMTU(t *testing.T, dut *ondatra.DUTDevice, intfName string, want uint16, timeout time.Duration) {
 	t.Helper()
+	want = mtuValueForDUT(dut, want)
 	path := gnmi.OC().Interface(intfName).Mtu().State()
 	if deviations.OmitL2MTU(dut) {
 		path = gnmi.OC().Interface(intfName).Subinterface(0).Ipv4().Mtu().State()
@@ -436,10 +551,9 @@ func awaitMTU(t *testing.T, dut *ondatra.DUTDevice, intfName string, want uint16
 		got, present := v.Val()
 		return present && got == want
 	}).Await(t)
-	// Some DUTs never populate this leaf; fall back to trusting the Set().
 	if !ok {
 		got, _ := val.Val()
-		t.Logf("Interface %s MTU state leaf did not confirm %d within %v (got %d; schema may not expose it here); trusting the earlier Set()", intfName, want, timeout, got)
+		t.Logf("Interface %s MTU state leaf did not confirm %d within %v (got %d); trusting the earlier Set()", intfName, want, timeout, got)
 		time.Sleep(convergeSettle)
 	}
 }
@@ -456,8 +570,23 @@ func portOutPkts(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) uint64 {
 	return gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Counters().OutPkts().State())
 }
 
-func verifyPortTraffic(t *testing.T, dut *ondatra.DUTDevice, window time.Duration, want map[*ondatra.Port]bool) {
+func verifyPortTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, window time.Duration, want map[*ondatra.Port]bool) {
 	t.Helper()
+	if deviations.InterfaceOutPktsCounterIncludesUnsent(dut) {
+		ateWant := make(map[string]bool, len(want))
+		for _, pp := range portPairs {
+			p := dut.Port(t, pp.name)
+			wantTraffic, ok := want[p]
+			if !ok {
+				continue
+			}
+			ateWant[ate.Port(t, pp.name).ID()] = wantTraffic
+		}
+		verifyPortAndATETraffic(t, dut, ate, window, want, ateWant)
+		return
+	}
+	// Keep the existing verifyPortTraffic implementation unchanged below
+	// this branch. This is the original Arista path.
 	before := make(map[*ondatra.Port]uint64, len(want))
 	for p := range want {
 		before[p] = portOutPkts(t, dut, p)
@@ -594,68 +723,148 @@ func awaitFlowTransmitting(t *testing.T, ate *ondatra.ATEDevice, flowName string
 
 func verifyPortAndATETraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, window time.Duration, dutWant map[*ondatra.Port]bool, ateWant map[string]bool) {
 	t.Helper()
+	// Cisco-specific deviation: the DUT out-pkts counter may include
+	// packets that were not actually transmitted. Use ATE ingress counters
+	// for Cisco forwarding and ECMP distribution verification.
+	useATEForForwarding :=
+		deviations.InterfaceOutPktsCounterIncludesUnsent(dut)
+	// Snapshot DUT egress counters.
 	dutBefore := make(map[*ondatra.Port]uint64, len(dutWant))
 	for p := range dutWant {
 		dutBefore[p] = portOutPkts(t, dut, p)
 	}
+	// Snapshot ATE ingress counters.
 	ateBefore := make(map[string]uint64, len(ateWant))
 	for portID := range ateWant {
 		ateBefore[portID] = ateInFrames(t, ate, portID)
 	}
+	// Measure forwarding during the requested observation window.
 	time.Sleep(window)
+	// Calculate DUT egress deltas.
 	dutDeltas := make(map[*ondatra.Port]uint64, len(dutWant))
 	for p, wantTraffic := range dutWant {
-		delta := portOutPkts(t, dut, p) - dutBefore[p]
+		before := dutBefore[p]
+		after := portOutPkts(t, dut, p)
+		// Avoid uint64 underflow if a counter resets during the window.
+		delta := uint64(0)
+		if after >= before {
+			delta = after - before
+		} else {
+			delta = after
+		}
 		dutDeltas[p] = delta
+		// Preserve existing DUT-counter assertions for Arista and any
+		// platform that has not declared this counter deviation.
+		if useATEForForwarding {
+			continue
+		}
 		if wantTraffic && delta == 0 {
-			t.Errorf("DUT port %s: got 0 new egress packets over %v, want > 0 (traffic flowing)", p.Name(), window)
+			t.Errorf(
+				"DUT port %s: got 0 new egress packets over %v, want > 0 (traffic flowing)",
+				p.Name(), window,
+			)
 		}
 		if !wantTraffic && delta != 0 {
-			t.Errorf("DUT port %s: got %d new egress packets over %v, want 0 (port should not carry traffic)", p.Name(), delta, window)
+			t.Errorf(
+				"DUT port %s: got %d new egress packets over %v, want 0 (port should not carry traffic)",
+				p.Name(), delta, window,
+			)
 		}
 	}
-	verifyECMPDistribution(t, dutDeltas, dutWant)
+	// Calculate actual frames received by the ATE.
+	ateDeltas := make(map[string]uint64, len(ateWant))
 	for portID, wantTraffic := range ateWant {
-		delta := ateInFrames(t, ate, portID) - ateBefore[portID]
+		before := ateBefore[portID]
+		after := ateInFrames(t, ate, portID)
+		// Avoid uint64 underflow if a counter resets during the window.
+		delta := uint64(0)
+		if after >= before {
+			delta = after - before
+		} else {
+			delta = after
+		}
+		ateDeltas[portID] = delta
 		if wantTraffic && delta == 0 {
-			t.Errorf("ATE port %s: got 0 new ingress frames over %v, want > 0 (traffic received)", portID, window)
+			t.Errorf(
+				"ATE port %s: got 0 new ingress frames over %v, want > 0 (traffic received)",
+				portID, window,
+			)
 		}
 		if !wantTraffic && delta != 0 {
-			t.Errorf("ATE port %s: got %d new ingress frames over %v, want 0 (port should not receive traffic)", portID, delta, window)
+			t.Errorf(
+				"ATE port %s: got %d new ingress frames over %v, want 0 (port should not receive traffic)",
+				portID, delta, window,
+			)
 		}
+	}
+	// Convert the ATE ingress deltas to DUT-port keys for the existing
+	// ECMP-distribution helper.
+	ateDeltasByDUTPort := make(map[*ondatra.Port]uint64, len(dutWant))
+	for _, pp := range portPairs {
+		dutPort := dut.Port(t, pp.name)
+
+		if _, wanted := dutWant[dutPort]; !wanted {
+			continue
+		}
+		atePortID := ate.Port(t, pp.name).ID()
+		if delta, found := ateDeltas[atePortID]; found {
+			ateDeltasByDUTPort[dutPort] = delta
+		}
+	}
+	// Preserve the same ECMP check, using the appropriate counter source.
+	if useATEForForwarding {
+		verifyECMPDistribution(t, ateDeltasByDUTPort, dutWant)
+	} else {
+		verifyECMPDistribution(t, dutDeltas, dutWant)
 	}
 }
 
 // verifyNHViaAFT asserts state/index only; OC AFT has no vendor-neutral viability leaf, and absence is a valid rejection.
 func verifyNHViaAFT(t *testing.T, dut *ondatra.DUTDevice, ni string, nhIndex uint64) {
 	t.Helper()
-	val, ok := gnmi.Watch(t, dut, gnmi.OC().NetworkInstance(ni).Afts().NextHop(nhIndex).State(), convergeSettle, func(v *ygnmi.Value[*oc.NetworkInstance_Afts_NextHop]) bool {
-		_, present := v.Val()
-		return present
-	}).Await(t)
+	if deviations.GRIBIAFTUnsupported(dut) {
+		t.Log("Skipping OpenConfig AFT next-hop verification: unsupported on this DUT")
+		return
+	}
+	val, ok := gnmi.Watch(
+		t,
+		dut,
+		gnmi.OC().NetworkInstance(ni).Afts().NextHop(nhIndex).State(),
+		convergeSettle,
+		func(v *ygnmi.Value[*oc.NetworkInstance_Afts_NextHop]) bool {
+			_, present := v.Val()
+			return present
+		},
+	).Await(t)
 	nh, present := val.Val()
 	if !present {
-		t.Logf("AFT next-hop %d: not present within %v via ON_CHANGE (not installed or rejected)", nhIndex, convergeSettle)
+		t.Logf(
+			"AFT next-hop %d: not present within %v via ON_CHANGE (not installed or rejected)",
+			nhIndex, convergeSettle,
+		)
 		return
 	}
 	if got := nh.GetIndex(); got != nhIndex {
 		t.Errorf("AFT next-hop %d state/index: got %d, want %d", nhIndex, got, nhIndex)
 	}
-	t.Logf("AFT next-hop %d telemetry via ON_CHANGE subscription (stabilized=%v): %+v", nhIndex, ok, nh)
+	t.Logf("AFT next-hop %d telemetry via ON_CHANGE (stabilized=%v): %+v", nhIndex, ok, nh)
 }
 
-func testMTUChange(t *testing.T, dut *ondatra.DUTDevice, p2, p3, p4 *ondatra.Port) {
+// func testMTUChange(t *testing.T, dut *ondatra.DUTDevice, p2, p3, p4 *ondatra.Port) {
+func testMTUChange(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, p2, p3, p4 *ondatra.Port) {
 	setMTU(t, dut, p2.Name(), mtuJumbo)
 	t.Cleanup(func() {
 		setMTU(t, dut, p2.Name(), mtuDefault)
 		awaitMTU(t, dut, p2.Name(), mtuDefault, awaitTimeout)
 	})
 	awaitMTU(t, dut, p2.Name(), mtuJumbo, awaitTimeout)
-	verifyPortTraffic(t, dut, monitorWindow, map[*ondatra.Port]bool{p2: true, p3: true, p4: true})
+	// verifyPortTraffic(t, dut, monitorWindow, map[*ondatra.Port]bool{p2: true, p3: true, p4: true})
+	verifyPortTraffic(t, dut, ate, monitorWindow, map[*ondatra.Port]bool{p2: true, p3: true, p4: true})
 
 	setMTU(t, dut, p2.Name(), mtuDefault)
 	awaitMTU(t, dut, p2.Name(), mtuDefault, awaitTimeout)
-	verifyPortTraffic(t, dut, monitorWindow, map[*ondatra.Port]bool{p2: true, p3: true, p4: true})
+	// verifyPortTraffic(t, dut, monitorWindow, map[*ondatra.Port]bool{p2: true, p3: true, p4: true})
+	verifyPortTraffic(t, dut, ate, monitorWindow, map[*ondatra.Port]bool{p2: true, p3: true, p4: true})
 }
 
 func testNHOnDownInterface(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, client *gribi.Client, ni string, p2 *ondatra.Port) {
@@ -766,4 +975,26 @@ func errorFrameCounter(t *testing.T, dut *ondatra.DUTDevice, intfName string) (u
 	}
 	t.Logf("in-oversize-frames leaf unsupported by DUT/schema on %s; falling back to in-errors per README", intfName)
 	return gnmi.Get(t, dut, gnmi.OC().Interface(intfName).Counters().InErrors().State()), "in-errors"
+}
+
+func magicIPForPort(t testing.TB, dut *ondatra.DUTDevice, portName string) string {
+	t.Helper()
+
+	if !deviations.GRIBIStaticARPUniqueNextHopIPRequired(dut) {
+		return magicIP
+	}
+	ip, ok := ciscoMagicIPByPort[portName]
+	if !ok {
+		t.Fatalf("No static-ARP destination IP configured for port %q", portName)
+	}
+	return ip
+}
+
+// mtuValueForDUT translates the test's default MTU to the physical
+// Ethernet MTU required by IOS XR. Other MTU values remain unchanged.
+func mtuValueForDUT(dut *ondatra.DUTDevice, mtu uint16) uint16 {
+	if deviations.InterfaceMTU1500MapsTo1514(dut) && mtu == mtuDefault {
+		return mtuCiscoDefault
+	}
+	return mtu
 }
