@@ -153,6 +153,34 @@ func DefaultNetworkInstance(dut *ondatra.DUTDevice) string {
 	return "DEFAULT"
 }
 
+// GRIBIAFTUnsupported reports whether the DUT does not support the
+// OpenConfig AFT telemetry required by the test.
+func GRIBIAFTUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGribiAftUnsupported()
+}
+
+// GRIBIStaticARPUniqueNextHopIPRequired reports whether each
+// gRIBI next hop requires a unique static-ARP destination IP.
+func GRIBIStaticARPUniqueNextHopIPRequired(
+	dut *ondatra.DUTDevice,
+) bool {
+	return lookupDUTDeviations(dut).
+		GetGribiStaticArpUniqueNextHopIpRequired()
+}
+
+// InterfaceMTU1500MapsTo1514 reports whether the DUT requires
+// physical Ethernet MTU 1514 to represent the default 1500-byte IP MTU.
+func InterfaceMTU1500MapsTo1514(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceMtu_1500MapsTo_1514()
+}
+
+// InterfaceOutPktsCounterIncludesUnsent reports whether the DUT's
+// out-pkts counter can include packets that were not actually transmitted.
+func InterfaceOutPktsCounterIncludesUnsent(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).
+		GetInterfaceOutPktsCounterIncludesUnsent()
+}
+
 // ISISRestartSuppressUnsupported returns whether the device should skip isis restart-suppress check.
 func ISISRestartSuppressUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisRestartSuppressUnsupported()

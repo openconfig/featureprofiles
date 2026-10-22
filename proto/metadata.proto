@@ -1563,6 +1563,19 @@ message Metadata {
     // qos_red_unsupported specifies if device does not support RED under
     // queue-management-profiles.
     bool qos_red_unsupported = 475;
+
+    // Device does not support the OpenConfig AFT telemetry required by the test.
+    bool gribi_aft_unsupported = 476;
+
+    //static ip arp
+    bool gribi_static_arp_unique_next_hop_ip_required = 477;
+
+    //convert default MTU from 1500 to 1514
+    bool interface_mtu_1500_maps_to_1514 = 478;
+
+    //out-pkts counter
+    bool interface_out_pkts_counter_includes_unsent = 479;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }
