@@ -2502,3 +2502,9 @@ func CfmPmFt(dut *ondatra.DUTDevice) string {
 func QosRedUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDropWeightLeavesUnsupported()
 }
+
+// EcnMinGreaterMaxThresholdUnsupported returns true if the device does not
+// validate that max-threshold is strictly greater than min-threshold.
+func EcnMinGreaterMaxThresholdUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEcnMinGreaterMaxThresholdUnsupported()
+}
