@@ -50,6 +50,8 @@ const (
 	niTeVrf111              = "TE_VRF_111"
 	niTeVrf222              = "TE_VRF_222"
 	decapFlowSrc            = "198.51.100.111"
+	ipInIPProtocol          = 4
+	ipv6InIPProtocol        = 41
 )
 
 type ipInfo struct {
@@ -92,64 +94,64 @@ func BuildVRFSelectionPolicyW(t *testing.T, dut *ondatra.DUTDevice, niName strin
 
 	pfRule1 := &policyFwRule{
 		seqID:  1,
-		ipv4:   &ipInfo{protocol: 4, dscpSet: []uint8{dscpEncapA1, dscpEncapA2}, sourceAddr: ipv4OuterSrc222WithMask},
+		ipv4:   &ipInfo{protocol: ipInIPProtocol, dscpSet: []uint8{dscpEncapA1, dscpEncapA2}, sourceAddr: ipv4OuterSrc222WithMask},
 		action: &action{decapNI: niDecapTeVrf, postDecapNI: niEncapTeVrfA, decapFallbackNI: niTeVrf222},
 	}
 	pfRule2 := &policyFwRule{
 		seqID:  2,
-		ipv4:   &ipInfo{protocol: 41, dscpSet: []uint8{dscpEncapA1, dscpEncapA2}, sourceAddr: ipv4OuterSrc222WithMask},
+		ipv4:   &ipInfo{protocol: ipv6InIPProtocol, dscpSet: []uint8{dscpEncapA1, dscpEncapA2}, sourceAddr: ipv4OuterSrc222WithMask},
 		action: &action{decapNI: niDecapTeVrf, postDecapNI: niEncapTeVrfA, decapFallbackNI: niTeVrf222},
 	}
 	pfRule3 := &policyFwRule{
 		seqID:  3,
-		ipv4:   &ipInfo{protocol: 4, dscpSet: []uint8{dscpEncapA1, dscpEncapA2}, sourceAddr: ipv4OuterSrc111WithMask},
+		ipv4:   &ipInfo{protocol: ipInIPProtocol, dscpSet: []uint8{dscpEncapA1, dscpEncapA2}, sourceAddr: ipv4OuterSrc111WithMask},
 		action: &action{decapNI: niDecapTeVrf, postDecapNI: niEncapTeVrfA, decapFallbackNI: niTeVrf111},
 	}
 	pfRule4 := &policyFwRule{
 		seqID:  4,
-		ipv4:   &ipInfo{protocol: 41, dscpSet: []uint8{dscpEncapA1, dscpEncapA2}, sourceAddr: ipv4OuterSrc111WithMask},
+		ipv4:   &ipInfo{protocol: ipv6InIPProtocol, dscpSet: []uint8{dscpEncapA1, dscpEncapA2}, sourceAddr: ipv4OuterSrc111WithMask},
 		action: &action{decapNI: niDecapTeVrf, postDecapNI: niEncapTeVrfA, decapFallbackNI: niTeVrf111},
 	}
 
 	pfRule5 := &policyFwRule{
 		seqID:  5,
-		ipv4:   &ipInfo{protocol: 4, dscpSet: []uint8{dscpEncapB1, dscpEncapB2}, sourceAddr: ipv4OuterSrc222WithMask},
+		ipv4:   &ipInfo{protocol: ipInIPProtocol, dscpSet: []uint8{dscpEncapB1, dscpEncapB2}, sourceAddr: ipv4OuterSrc222WithMask},
 		action: &action{decapNI: niDecapTeVrf, postDecapNI: niEncapTeVrfB, decapFallbackNI: niTeVrf222},
 	}
 	pfRule6 := &policyFwRule{
 		seqID:  6,
-		ipv4:   &ipInfo{protocol: 41, dscpSet: []uint8{dscpEncapB1, dscpEncapB2}, sourceAddr: ipv4OuterSrc222WithMask},
+		ipv4:   &ipInfo{protocol: ipv6InIPProtocol, dscpSet: []uint8{dscpEncapB1, dscpEncapB2}, sourceAddr: ipv4OuterSrc222WithMask},
 		action: &action{decapNI: niDecapTeVrf, postDecapNI: niEncapTeVrfB, decapFallbackNI: niTeVrf222},
 	}
 	pfRule7 := &policyFwRule{
 		seqID:  7,
-		ipv4:   &ipInfo{protocol: 4, dscpSet: []uint8{dscpEncapB1, dscpEncapB2}, sourceAddr: ipv4OuterSrc111WithMask},
+		ipv4:   &ipInfo{protocol: ipInIPProtocol, dscpSet: []uint8{dscpEncapB1, dscpEncapB2}, sourceAddr: ipv4OuterSrc111WithMask},
 		action: &action{decapNI: niDecapTeVrf, postDecapNI: niEncapTeVrfB, decapFallbackNI: niTeVrf111},
 	}
 	pfRule8 := &policyFwRule{
 		seqID:  8,
-		ipv4:   &ipInfo{protocol: 41, dscpSet: []uint8{dscpEncapB1, dscpEncapB2}, sourceAddr: ipv4OuterSrc111WithMask},
+		ipv4:   &ipInfo{protocol: ipv6InIPProtocol, dscpSet: []uint8{dscpEncapB1, dscpEncapB2}, sourceAddr: ipv4OuterSrc111WithMask},
 		action: &action{decapNI: niDecapTeVrf, postDecapNI: niEncapTeVrfB, decapFallbackNI: niTeVrf111},
 	}
 
 	pfRule9 := &policyFwRule{
 		seqID:  9,
-		ipv4:   &ipInfo{protocol: 4, sourceAddr: ipv4OuterSrc222WithMask},
+		ipv4:   &ipInfo{protocol: ipInIPProtocol, sourceAddr: ipv4OuterSrc222WithMask},
 		action: &action{decapNI: niDecapTeVrf, postDecapNI: niDefault, decapFallbackNI: niTeVrf222},
 	}
 	pfRule10 := &policyFwRule{
 		seqID:  10,
-		ipv4:   &ipInfo{protocol: 41, sourceAddr: ipv4OuterSrc222WithMask},
+		ipv4:   &ipInfo{protocol: ipv6InIPProtocol, sourceAddr: ipv4OuterSrc222WithMask},
 		action: &action{decapNI: niDecapTeVrf, postDecapNI: niDefault, decapFallbackNI: niTeVrf222},
 	}
 	pfRule11 := &policyFwRule{
 		seqID:  11,
-		ipv4:   &ipInfo{protocol: 4, sourceAddr: ipv4OuterSrc111WithMask},
+		ipv4:   &ipInfo{protocol: ipInIPProtocol, sourceAddr: ipv4OuterSrc111WithMask},
 		action: &action{decapNI: niDecapTeVrf, postDecapNI: niDefault, decapFallbackNI: niTeVrf111},
 	}
 	pfRule12 := &policyFwRule{
 		seqID:  12,
-		ipv4:   &ipInfo{protocol: 41, sourceAddr: ipv4OuterSrc111WithMask},
+		ipv4:   &ipInfo{protocol: ipv6InIPProtocol, sourceAddr: ipv4OuterSrc111WithMask},
 		action: &action{decapNI: niDecapTeVrf, postDecapNI: niDefault, decapFallbackNI: niTeVrf111},
 	}
 
@@ -192,64 +194,64 @@ func BuildVRFSelectionPolicyC(t *testing.T, dut *ondatra.DUTDevice, niName strin
 
 	pfRule1 := &policyFwRule{
 		seqID:  1,
-		ipv4:   &ipInfo{protocol: 4, dscpSet: []uint8{dscpEncapA1, dscpEncapA2}, sourceAddr: ipv4OuterSrc222WithMask},
+		ipv4:   &ipInfo{protocol: ipInIPProtocol, dscpSet: []uint8{dscpEncapA1, dscpEncapA2}, sourceAddr: ipv4OuterSrc222WithMask},
 		action: &action{decapNI: niDecapTeVrf, postDecapNI: niEncapTeVrfA, decapFallbackNI: niTeVrf222},
 	}
 	pfRule2 := &policyFwRule{
 		seqID:  2,
-		ipv4:   &ipInfo{protocol: 41, dscpSet: []uint8{dscpEncapA1, dscpEncapA2}, sourceAddr: ipv4OuterSrc222WithMask},
+		ipv4:   &ipInfo{protocol: ipv6InIPProtocol, dscpSet: []uint8{dscpEncapA1, dscpEncapA2}, sourceAddr: ipv4OuterSrc222WithMask},
 		action: &action{decapNI: niDecapTeVrf, postDecapNI: niEncapTeVrfA, decapFallbackNI: niTeVrf222},
 	}
 	pfRule3 := &policyFwRule{
 		seqID:  3,
-		ipv4:   &ipInfo{protocol: 4, dscpSet: []uint8{dscpEncapA1, dscpEncapA2}, sourceAddr: ipv4OuterSrc111WithMask},
+		ipv4:   &ipInfo{protocol: ipInIPProtocol, dscpSet: []uint8{dscpEncapA1, dscpEncapA2}, sourceAddr: ipv4OuterSrc111WithMask},
 		action: &action{decapNI: niDecapTeVrf, postDecapNI: niEncapTeVrfA, decapFallbackNI: niTeVrf111},
 	}
 	pfRule4 := &policyFwRule{
 		seqID:  4,
-		ipv4:   &ipInfo{protocol: 41, dscpSet: []uint8{dscpEncapA1, dscpEncapA2}, sourceAddr: ipv4OuterSrc111WithMask},
+		ipv4:   &ipInfo{protocol: ipv6InIPProtocol, dscpSet: []uint8{dscpEncapA1, dscpEncapA2}, sourceAddr: ipv4OuterSrc111WithMask},
 		action: &action{decapNI: niDecapTeVrf, postDecapNI: niEncapTeVrfA, decapFallbackNI: niTeVrf111},
 	}
 
 	pfRule5 := &policyFwRule{
 		seqID:  5,
-		ipv4:   &ipInfo{protocol: 4, dscpSet: []uint8{dscpEncapB1, dscpEncapB2}, sourceAddr: ipv4OuterSrc222WithMask},
+		ipv4:   &ipInfo{protocol: ipInIPProtocol, dscpSet: []uint8{dscpEncapB1, dscpEncapB2}, sourceAddr: ipv4OuterSrc222WithMask},
 		action: &action{decapNI: niDecapTeVrf, postDecapNI: niEncapTeVrfB, decapFallbackNI: niTeVrf222},
 	}
 	pfRule6 := &policyFwRule{
 		seqID:  6,
-		ipv4:   &ipInfo{protocol: 41, dscpSet: []uint8{dscpEncapB1, dscpEncapB2}, sourceAddr: ipv4OuterSrc222WithMask},
+		ipv4:   &ipInfo{protocol: ipv6InIPProtocol, dscpSet: []uint8{dscpEncapB1, dscpEncapB2}, sourceAddr: ipv4OuterSrc222WithMask},
 		action: &action{decapNI: niDecapTeVrf, postDecapNI: niEncapTeVrfB, decapFallbackNI: niTeVrf222},
 	}
 	pfRule7 := &policyFwRule{
 		seqID:  7,
-		ipv4:   &ipInfo{protocol: 4, dscpSet: []uint8{dscpEncapB1, dscpEncapB2}, sourceAddr: ipv4OuterSrc111WithMask},
+		ipv4:   &ipInfo{protocol: ipInIPProtocol, dscpSet: []uint8{dscpEncapB1, dscpEncapB2}, sourceAddr: ipv4OuterSrc111WithMask},
 		action: &action{decapNI: niDecapTeVrf, postDecapNI: niEncapTeVrfB, decapFallbackNI: niTeVrf111},
 	}
 	pfRule8 := &policyFwRule{
 		seqID:  8,
-		ipv4:   &ipInfo{protocol: 41, dscpSet: []uint8{dscpEncapB1, dscpEncapB2}, sourceAddr: ipv4OuterSrc111WithMask},
+		ipv4:   &ipInfo{protocol: ipv6InIPProtocol, dscpSet: []uint8{dscpEncapB1, dscpEncapB2}, sourceAddr: ipv4OuterSrc111WithMask},
 		action: &action{decapNI: niDecapTeVrf, postDecapNI: niEncapTeVrfB, decapFallbackNI: niTeVrf111},
 	}
 
 	pfRule9 := &policyFwRule{
 		seqID:  9,
-		ipv4:   &ipInfo{protocol: 4, sourceAddr: ipv4OuterSrc222WithMask},
+		ipv4:   &ipInfo{protocol: ipInIPProtocol, sourceAddr: ipv4OuterSrc222WithMask},
 		action: &action{decapNI: niDecapTeVrf, postDecapNI: niDefault, decapFallbackNI: niTeVrf222},
 	}
 	pfRule10 := &policyFwRule{
 		seqID:  10,
-		ipv4:   &ipInfo{protocol: 41, sourceAddr: ipv4OuterSrc222WithMask},
+		ipv4:   &ipInfo{protocol: ipv6InIPProtocol, sourceAddr: ipv4OuterSrc222WithMask},
 		action: &action{decapNI: niDecapTeVrf, postDecapNI: niDefault, decapFallbackNI: niTeVrf222},
 	}
 	pfRule11 := &policyFwRule{
 		seqID:  11,
-		ipv4:   &ipInfo{protocol: 4, sourceAddr: ipv4OuterSrc111WithMask},
+		ipv4:   &ipInfo{protocol: ipInIPProtocol, sourceAddr: ipv4OuterSrc111WithMask},
 		action: &action{decapNI: niDecapTeVrf, postDecapNI: niDefault, decapFallbackNI: niTeVrf111},
 	}
 	pfRule12 := &policyFwRule{
 		seqID:  12,
-		ipv4:   &ipInfo{protocol: 41, sourceAddr: ipv4OuterSrc111WithMask},
+		ipv4:   &ipInfo{protocol: ipv6InIPProtocol, sourceAddr: ipv4OuterSrc111WithMask},
 		action: &action{decapNI: niDecapTeVrf, postDecapNI: niDefault, decapFallbackNI: niTeVrf111},
 	}
 
@@ -341,56 +343,59 @@ func ConfigureVRFSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice, policyNam
 	gnmi.Replace(t, dut, dutForwardingPath.Config(), niForwarding)
 }
 
-// BuildHAVRFSelectionPolicy builds the massive HA_VRF_SELECTION policy for the resiliency test.
+// BuildHAVRFSelectionPolicy builds the HA_VRF_SELECTION policy of RT-3.4 (VRF Selection Policy
+// resiliency) in network-instance niName:
+//   - Rules 1-15 steer IPinIP traffic from 198.51.100.<i>/32 to VRF-V4-<i>.
+//   - Rules 16-30 steer IPv6-in-IPv6 traffic from 2001:db8:100::<i>/128 to VRF-V6-<i>.
+//   - Rule 31 steers IPinIP traffic from 198.51.100.31/32 to VRF-GHOST.
+//   - Rule 100 is a catch-all that steers any other IPinIP traffic to VRF-V4-15.
+//
+// The IP protocols are numeric, as in the README Canonical OC; protocol 41 has no IP_PROTOCOL
+// identity in OpenConfig.
 func BuildHAVRFSelectionPolicy(dut *ondatra.DUTDevice, niName string, policyName string) *oc.NetworkInstance_PolicyForwarding {
 	var pfRuleList []*policyFwRule
 
-	// Rules 1-15: IPv4 in IPv4 rules
+	// Rules 1-15: IPv4 in IPv4.
 	for i := 1; i <= 15; i++ {
-		niDst := "VRF-V4-" + strconv.Itoa(i)
-		srcIP := fmt.Sprintf("198.51.100.%d/32", i)
-		v4Info := &ipInfo{protocol: 4, sourceAddr: srcIP}
 		pfRuleList = append(pfRuleList, &policyFwRule{
 			seqID:  uint32(i),
-			ipv4:   v4Info,
-			action: &action{networkInstance: niDst},
+			ipv4:   &ipInfo{protocol: ipInIPProtocol, sourceAddr: fmt.Sprintf("198.51.100.%d/32", i)},
+			action: &action{networkInstance: "VRF-V4-" + strconv.Itoa(i)},
 		})
 	}
 
-	// Rules 16-30: IPv6 with Next Header 41 (IPv6 encapsulation)
-	if dut.Vendor() != ondatra.CISCO && dut.Vendor() != ondatra.NOKIA && dut.Vendor() != ondatra.ARISTA {
-		for i := 1; i <= 15; i++ {
-			niDst := "VRF-V6-" + strconv.Itoa(i)
-			srcIP := fmt.Sprintf("2001:db8:100::%d/128", i)
-			v6Info := &ipInfo{sourceAddr: srcIP, protocol: 41}
-			pfRuleList = append(pfRuleList, &policyFwRule{
-				seqID:  uint32(15 + i),
-				ipv6:   v6Info,
-				action: &action{networkInstance: niDst},
-			})
-		}
+	// Rules 16-30: IPv6 in IPv6 (next header 41).
+	for i := 1; i <= 15; i++ {
+		pfRuleList = append(pfRuleList, &policyFwRule{
+			seqID:  uint32(15 + i),
+			ipv6:   &ipInfo{protocol: ipv6InIPProtocol, sourceAddr: fmt.Sprintf("2001:db8:100::%d/128", i)},
+			action: &action{networkInstance: "VRF-V6-" + strconv.Itoa(i)},
+		})
 	}
 
-	// Rule 31: Ghost VRF rule
-	r31Info := &ipInfo{protocol: 4, sourceAddr: "198.51.100.31/32"}
+	// Rule 31: Ghost VRF. The test deletes VRF-GHOST after the policy is applied.
 	pfRuleList = append(pfRuleList, &policyFwRule{
 		seqID:  31,
-		ipv4:   r31Info,
+		ipv4:   &ipInfo{protocol: ipInIPProtocol, sourceAddr: "198.51.100.31/32"},
 		action: &action{networkInstance: "VRF-GHOST"},
 	})
 
-	// Rule 100: Catch-all rule
-	r100Info := &ipInfo{protocol: 4}
-	if dut.Vendor() == ondatra.CISCO {
-		r100Info.sourceAddr = "198.51.100.100/32" // Match shadow flow explicitly to maintain symmetrical TCAM lengths
-	}
+	// Rule 100: catch-all for any IPinIP traffic, without a source address match.
 	pfRuleList = append(pfRuleList, &policyFwRule{
 		seqID:  100,
-		ipv4:   r100Info,
+		ipv4:   &ipInfo{protocol: ipInIPProtocol},
 		action: &action{networkInstance: "VRF-V4-15"},
 	})
 
-	return buildVRFSelectionPolicy(niName, policyName, pfRuleList)
+	niP := buildVRFSelectionPolicy(niName, policyName, pfRuleList)
+	if deviations.PfRequireMatchDefaultRule(dut) {
+		pfR := niP.GetPolicy(policyName).GetOrCreateRule(101)
+		pfR.GetOrCreateAction().NetworkInstance = ygot.String(niName)
+		pfR6 := niP.GetPolicy(policyName).GetOrCreateRule(102)
+		pfR6.GetOrCreateIpv6().SourceAddress = ygot.String("::/0")
+		pfR6.GetOrCreateAction().NetworkInstance = ygot.String(niName)
+	}
+	return niP
 }
 
 // ConfigureHAVRFSelectionPolicy configures the HA_VRF_SELECTION policy on the default NI and applies it.
@@ -403,9 +408,9 @@ func ConfigureHAVRFSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice, policyN
 		interfaceID = interfaceID + ".0"
 	}
 
-	niForwarding := BuildHAVRFSelectionPolicy(dut, deviations.DefaultNetworkInstance(dut), policyName)
-	dutForwardingPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding()
-
+	defNI := deviations.DefaultNetworkInstance(dut)
+	niForwarding := BuildHAVRFSelectionPolicy(dut, defNI, policyName)
+	dutForwardingPath := gnmi.OC().NetworkInstance(defNI).PolicyForwarding()
 	interface1 := niForwarding.GetOrCreateInterface(interfaceID)
 	interface1.ApplyVrfSelectionPolicy = ygot.String(policyName)
 	interface1.GetOrCreateInterfaceRef().Interface = ygot.String(port1.Name())
