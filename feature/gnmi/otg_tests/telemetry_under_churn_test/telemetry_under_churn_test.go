@@ -543,9 +543,28 @@ func configureDUTBGP(t *testing.T, dut *ondatra.DUTDevice, peers ...*attrs.Attri
 		nbr.GetOrCreateAfiSafi(n.afi).Enabled = ygot.Bool(true)
 	}
 
+	bgpPath := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName)
+	policyPath := gnmi.OC().RoutingPolicy().PolicyDefinition(allowPolicy)
+	origBGP := gnmi.Lookup(t, dut, bgpPath.Config())
+	origPolicy := gnmi.Lookup(t, dut, policyPath.Config())
+	t.Cleanup(func() {
+		cb := &gnmi.SetBatch{}
+		if v, ok := origBGP.Val(); ok {
+			gnmi.BatchReplace(cb, bgpPath.Config(), v)
+		} else {
+			gnmi.BatchDelete(cb, bgpPath.Config())
+		}
+		if v, ok := origPolicy.Val(); ok {
+			gnmi.BatchReplace(cb, policyPath.Config(), v)
+		} else {
+			gnmi.BatchDelete(cb, policyPath.Config())
+		}
+		cb.Set(t, dut)
+	})
+
 	b := &gnmi.SetBatch{}
-	gnmi.BatchReplace(b, gnmi.OC().RoutingPolicy().PolicyDefinition(allowPolicy).Config(), pd)
-	gnmi.BatchReplace(b, gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Config(), proto)
+	gnmi.BatchReplace(b, policyPath.Config(), pd)
+	gnmi.BatchReplace(b, bgpPath.Config(), proto)
 	b.Set(t, dut)
 }
 
