@@ -240,7 +240,7 @@ func testBaselineTelemetryUnderChurn(t *testing.T, dut *ondatra.DUTDevice, ate *
 	top := configureATE(t, ate)
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
-	defer ate.OTG().StopProtocols(t)
+	t.Cleanup(func() { ate.OTG().StopProtocols(t) })
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 
@@ -250,9 +250,9 @@ func testBaselineTelemetryUnderChurn(t *testing.T, dut *ondatra.DUTDevice, ate *
 
 	t.Logf("Step 4 - Establish SAMPLE subscriptions (%v) for interface counters and AFTs.", sampleInterval)
 	counterMon := startMonitor(t, dut, "interface-counters", counterSubscriptions(p1.Name(), p2.Name()))
-	defer counterMon.stop()
+	t.Cleanup(counterMon.stop)
 	aftMon := startMonitor(t, dut, "afts", aftSubscriptions(ni))
-	defer aftMon.stop()
+	t.Cleanup(aftMon.stop)
 	for _, m := range []*subscriptionMonitor{counterMon, aftMon} {
 		if !m.awaitSync(syncTimeout) {
 			t.Fatalf("%s subscription did not receive sync_response within %v: %v", m.name, syncTimeout, m.err())
@@ -261,7 +261,7 @@ func testBaselineTelemetryUnderChurn(t *testing.T, dut *ondatra.DUTDevice, ate *
 
 	t.Logf("Step 5 - Inject %d IPv4 and %d IPv6 routes via gRIBI towards port2.", baselineRouteCount, baselineRouteCount)
 	gc := newGRIBIChurner(ctx, t, dut)
-	defer gc.close(t)
+	t.Cleanup(func() { gc.close(t) })
 	gc.programBaseline(t)
 
 	t.Log("Step 6 - Wait for programmed prefixes to be present in the AFT.")
