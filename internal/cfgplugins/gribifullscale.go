@@ -2919,13 +2919,18 @@ func FetchHWUtilizationSnapshot(t *testing.T, dut *ondatra.DUTDevice, stage stri
 				}
 			}
 		}
+		if resName == "" {
+			t.Logf("[%s] WARNING: HW resource has no name in state or response path: %v", stage, val.Path)
+			continue
+		}
 		key := HWResourceKey{
 			Component: compName,
 			Name:      resName,
 		}
 		maxLimit := res.GetMaxLimit()
-		// If max limit is not set, calculate it based on used and free resources.
-		if maxLimit == 0 {
+		// If max limit is not set, derive capacity only when both counters are
+		// present. Missing counters must not be treated as zero.
+		if maxLimit == 0 && res.Used != nil && res.Free != nil {
 			maxLimit = res.GetUsed() + res.GetFree()
 		}
 
