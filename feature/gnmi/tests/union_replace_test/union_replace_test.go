@@ -81,7 +81,7 @@ const (
 	nokiaBGPRouterID = "192.0.2.1"
 	// nokiaNativeDefaultNI is the SR Linux native name of the default
 	// network-instance, used in CLI (the OC name is deviations.DefaultNetworkInstance).
-	nokiaNativeDefaultNI = "default"
+	nokiaNativeDefaultNI = "DEFAULT"
 )
 
 var (
