@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
+	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/helpers"
@@ -69,6 +71,10 @@ const (
 	addMTUCLI    = uint16(2100)
 	changeMTUOC1 = uint16(2200)
 	changeMTUOC2 = uint16(2300)
+
+	otnChannelIndex = uint32(13030)
+	ethChannelIndex = uint32(13034)
+	channelAlloc    = float64(400)
 
 	// Nokia SR Linux CLI values.
 	// nokiaCLIPrefix is prepended to every Nokia SR Linux flat CLI statement.
@@ -862,6 +868,68 @@ func verifyBreakoutModeConfig(t *testing.T, dut *ondatra.DUTDevice, intfName str
 	}
 	if got, ok := gnmi.Lookup(t, dut, grp.NumPhysicalChannels().Config()).Val(); !ok || got != bp.numChannels {
 		errs = append(errs, fmt.Errorf("component %s breakout group num-physical-channels: got %v (present=%v), want %d", hwPort, got, ok, bp.numChannels))
+	}
+	return errors.Join(errs...)
+}
+
+func otnLogicalChannelsConfig(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) *oc.Root {
+	t.Helper()
+	params := &cfgplugins.ConfigParameters{
+		TribProtocol:        oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE,
+		RateClass:           oc.TransportTypes_TRIBUTARY_RATE_CLASS_TYPE_TRIB_RATE_400G,
+		Allocation:          channelAlloc,
+		TransceiverNames:    map[string]string{},
+		OpticalChannelNames: map[string]string{p.Name(): components.OpticalChannelComponentFromPort(t, dut, p)},
+		OTNIndexes:          map[string]uint32{p.Name(): otnChannelIndex},
+		ETHIndexes:          map[string]uint32{p.Name(): ethChannelIndex},
+	}
+	if !deviations.EthChannelIngressParametersUnsupported(dut) {
+		params.TransceiverNames[p.Name()] = gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
+	}
+	root := &oc.Root{}
+	root.GetOrCreateTerminalDevice().Channel = map[uint32]*oc.TerminalDevice_Channel{
+		otnChannelIndex: cfgplugins.OTNChannelConfig(dut, p, params),
+		ethChannelIndex: cfgplugins.ETHChannelConfig(dut, p, params),
+	}
+	return root
+}
+
+func verifyLogicalChannels(t *testing.T, dut *ondatra.DUTDevice, want *oc.Root) error {
+	t.Helper()
+	var errs []error
+	for idx, wantCh := range want.GetTerminalDevice().Channel {
+		got, ok := gnmi.Lookup(t, dut, gnmi.OC().TerminalDevice().Channel(idx).Config()).Val()
+		if !ok {
+			errs = append(errs, fmt.Errorf("logical channel %d config not present", idx))
+			continue
+		}
+		if lcJSON, err := ygot.EmitJSON(got, &ygot.EmitJSONConfig{
+			Format: ygot.RFC7951,
+			Indent: "  ",
+			RFC7951Config: &ygot.RFC7951JSONConfig{
+				AppendModuleName: true,
+			},
+		}); err == nil {
+			t.Logf("Received LogicalChannel %d config: %v", idx, lcJSON)
+		}
+		if got.GetLogicalChannelType() != wantCh.GetLogicalChannelType() {
+			errs = append(errs, fmt.Errorf("logical channel %d type: got %v, want %v", idx, got.GetLogicalChannelType(), wantCh.GetLogicalChannelType()))
+		}
+		if !deviations.EthChannelIngressParametersUnsupported(dut) {
+			if got.GetIngress().GetInterface() != wantCh.Ingress.GetInterface() || got.GetIngress().GetTransceiver() != wantCh.Ingress.GetTransceiver() {
+				errs = append(errs, fmt.Errorf("logical channel %d ingress: got %v, want %v", idx, got.GetIngress(), wantCh.Ingress))
+			}
+		}
+		for aIdx, wantA := range wantCh.Assignment {
+			gotA := got.GetAssignment(aIdx)
+			if gotA == nil {
+				errs = append(errs, fmt.Errorf("logical channel %d assignment %d not present", idx, aIdx))
+				continue
+			}
+			if gotA.GetAssignmentType() != wantA.GetAssignmentType() || gotA.GetOpticalChannel() != wantA.GetOpticalChannel() || gotA.GetLogicalChannel() != wantA.GetLogicalChannel() {
+				errs = append(errs, fmt.Errorf("logical channel %d assignment %d: got %v, want %v", idx, aIdx, gotA, wantA))
+			}
+		}
 	}
 	return errors.Join(errs...)
 }
@@ -1842,6 +1910,20 @@ func TestUnionReplace(t *testing.T) {
 				errs = append(errs, verifyPortSpeed(t, dut, checkIntf, bp.ocSpeed))
 				errs = append(errs, verifyInterfaceOperStatus(t, dut, checkIntf, noTransceiverOperStatus))
 				return errors.Join(errs...)
+			},
+		},
+		{
+			name: "gNMI-3.11-OTNLogicalChannelsOC",
+			desc: "Configure OTN and ETH logical channels using OC via union_replace; config must be applied and readable.",
+			fn: func(t *testing.T) error {
+				dut := ondatra.DUT(t, "dut")
+				ocConfig := otnLogicalChannelsConfig(t, dut, dut.Port(t, port1))
+
+				sb := &gnmi.SetBatch{}
+				gnmi.BatchUnionReplaceCLI(sb, cliOrigin, sharedBaseline)
+				gnmi.BatchUnionReplace(sb, gnmi.OC().Config(), ocConfig)
+				sb.Set(t, dut)
+				return verifyLogicalChannels(t, dut, ocConfig)
 			},
 		},
 	}
