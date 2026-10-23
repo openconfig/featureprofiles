@@ -449,6 +449,9 @@ func configureTraffic(top gosnappi.Config) {
 // without touching the sessions or re-pushing the configuration.
 func setRouteState(t *testing.T, ate *ondatra.ATEDevice, state gosnappi.StateProtocolRouteStateEnum, names ...string) {
 	t.Helper()
+	if len(names) == 0 {
+		t.Fatal("setRouteState requires at least one route range name")
+	}
 	cs := gosnappi.NewControlState()
 	cs.Protocol().Route().SetNames(names).SetState(state)
 	ate.OTG().SetControlState(t, cs)
@@ -479,7 +482,7 @@ func cleanupTestContext(t testing.TB) (testing.TB, context.CancelFunc) {
 	return cleanupContextTB{TB: t, ctx: ctx}, cancel
 }
 
-// cleanupDUTConfig removes the protocol and interface configuration installed by the test.
+// cleanupDUTConfig removes test protocols, the loopback, and subinterfaces without deleting physical interfaces.
 func cleanupDUTConfig(t testing.TB, dut *ondatra.DUTDevice) {
 	ni := deviations.DefaultNetworkInstance(dut)
 	bgpConfig := gnmi.OC().NetworkInstance(ni).
@@ -494,7 +497,7 @@ func cleanupDUTConfig(t testing.TB, dut *ondatra.DUTDevice) {
 		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(ni).Interface(port.Name()).Config())
 		}
-		gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Config())
+		gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Subinterface(0).Config())
 	}
 }
 
@@ -588,15 +591,17 @@ func verifyISISLSDB(t *testing.T, dut *ondatra.DUTDevice) {
 func verifyISISLSDBPrefix(t *testing.T, dut *ondatra.DUTDevice, addr string) {
 	t.Helper()
 	prefix := addr + "/32"
-	query := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisName).
-		Isis().Level(2).LspAny().TlvAny().ExtendedIpv4Reachability().PrefixAny().Prefix().State()
-	_, ok := gnmi.WatchAll(t, dut, query, time.Minute, func(v *ygnmi.Value[string]) bool {
-		got, present := v.Val()
-		return present && (got == prefix || got == addr)
-	}).Await(t)
-	if !ok {
-		t.Fatalf("IS-IS LSDB has no extended-ipv4-reachability entry for %s", prefix)
+	for _, key := range []string{prefix, addr} {
+		query := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisName).
+			Isis().Level(2).LspAny().TlvAny().ExtendedIpv4Reachability().Prefix(key).Prefix().State()
+		if _, ok := gnmi.WatchAll(t, dut, query, time.Minute, func(v *ygnmi.Value[string]) bool {
+			got, present := v.Val()
+			return present && got == key
+		}).Await(t); ok {
+			return
+		}
 	}
+	t.Fatalf("IS-IS LSDB has no extended-ipv4-reachability entry for %s", prefix)
 }
 
 // verifyAFTRoute waits for the specified IPv4 prefix to appear in the DUT AFT.
@@ -733,16 +738,23 @@ func verifyBGPRoute(t *testing.T, dut *ondatra.DUTDevice, neighbor, prefix strin
 		NetworkInstance(deviations.DefaultNetworkInstance(dut)).
 		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.DefaultBgpInstanceName(dut)).
 		Bgp().Rib().AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).
-		Ipv4Unicast().LocRib().RouteAny().State()
-	_, ok := gnmi.WatchAll(
+		Ipv4Unicast().LocRib().State()
+	_, ok := gnmi.Watch(
 		t, dut, query, time.Minute,
-		func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Bgp_Rib_AfiSafi_Ipv4Unicast_LocRib_Route]) bool {
-			route, present := v.Val()
-			if !present || route == nil || route.GetPrefix() != prefix {
+		func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Bgp_Rib_AfiSafi_Ipv4Unicast_LocRib]) bool {
+			rib, present := v.Val()
+			if !present || rib == nil {
 				return false
 			}
-			origin, ok := bgpOriginAddress(route.GetOrigin())
-			return ok && origin == neighbor
+			for _, route := range rib.Route {
+				if route.GetPrefix() == prefix {
+					origin, ok := bgpOriginAddress(route.GetOrigin())
+					if ok && origin == neighbor {
+						return true
+					}
+				}
+			}
+			return false
 		},
 	).Await(t)
 	if !ok {
