@@ -384,9 +384,16 @@ func ConfigureISISProtocol(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBat
 		}
 	}
 
+	if deviations.ISISSingleTopologyRequired(dut) {
+		v6MultiTopology := isis.GetOrCreateGlobal().
+			GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).
+			GetOrCreateMultiTopology()
+		v6MultiTopology.SetAfiName(oc.IsisTypes_AFI_TYPE_IPV4)
+		v6MultiTopology.SetSafiName(oc.IsisTypes_SAFI_TYPE_UNICAST)
+	}
+
 	protoPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, params.InstanceName)
 	gnmi.BatchUpdate(sb, protoPath.Config(), proto)
-	handleSingleTopologyDeviation(t, dut, sb)
 	return sb
 }
 

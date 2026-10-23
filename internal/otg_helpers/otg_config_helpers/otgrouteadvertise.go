@@ -223,7 +223,7 @@ func ConfigureATEWithISISAndBGPRoutes(t *testing.T, ateRoutes *ATEAdvertiseRoute
 func ConfigureDeviceISIS(dev gosnappi.Device, ethName, ipv4Addr, sysID, hostname string, metric uint32, v4Routes, v6Routes *AdvertisedRoutes) {
 	isis := dev.Isis().SetName(dev.Name() + isisSuffix).SetSystemId(sysID)
 	isis.Basic().SetIpv4TeRouterId(ipv4Addr).SetHostname(hostname)
-	isis.Advanced().SetAreaAddresses([]string{ISISArea}).SetEnableHelloPadding(false)
+	isis.Advanced().SetAreaAddresses([]string{"490001"}).SetEnableHelloPadding(false)
 	isisInt := isis.Interfaces().Add().SetName(isis.Name() + intfSuffix).
 		SetEthName(ethName).
 		SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT).

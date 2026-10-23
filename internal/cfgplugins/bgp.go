@@ -1952,10 +1952,8 @@ func ConfigureEBGPInstance(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBat
 	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).SetEnabled(true)
 
 	skipPeerGroup := !isDefaultNI && deviations.PeerGroupDefEbgpVrfUnsupported(dut)
-	seenPG := make(map[string]bool)
 	for _, p := range params.Peers {
-		if p.PeerGroupName != "" && !skipPeerGroup && !seenPG[p.PeerGroupName] {
-			seenPG[p.PeerGroupName] = true
+		if p.PeerGroupName != "" && !skipPeerGroup {
 			pg := bgp.GetOrCreatePeerGroup(p.PeerGroupName)
 			pg.SetPeerGroupName(p.PeerGroupName)
 			pg.SetPeerAs(p.PeerAS)
@@ -1963,18 +1961,18 @@ func ConfigureEBGPInstance(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBat
 				rpl := pg.GetOrCreateApplyPolicy()
 				rpl.SetImportPolicy([]string{policyName})
 				rpl.SetExportPolicy([]string{policyName})
+			} else if p.IsIPv6 {
+				v6 := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+				v6.SetEnabled(true)
+				v6Pol := v6.GetOrCreateApplyPolicy()
+				v6Pol.SetImportPolicy([]string{policyName})
+				v6Pol.SetExportPolicy([]string{policyName})
 			} else {
 				v4 := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 				v4.SetEnabled(true)
 				v4Pol := v4.GetOrCreateApplyPolicy()
 				v4Pol.SetImportPolicy([]string{policyName})
 				v4Pol.SetExportPolicy([]string{policyName})
-
-				v6 := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-				v6.SetEnabled(true)
-				v6Pol := v6.GetOrCreateApplyPolicy()
-				v6Pol.SetImportPolicy([]string{policyName})
-				v6Pol.SetExportPolicy([]string{policyName})
 			}
 		}
 

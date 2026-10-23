@@ -40,6 +40,7 @@ type Flow struct {
 	Flowrate          float32
 	PpsRate           uint64
 	PacketsToSend     uint32
+	Continuous        bool
 	IsTxRxPort        bool
 	SizeWeightProfile *[]SizeWeightPair
 	VLANFlow          *VLANFlowParams
@@ -79,6 +80,8 @@ type IPv4FlowParams struct {
 	IPv4Dst          string
 	IPv4SrcCount     uint32
 	IPv4DstCount     uint32
+	IPv4SrcStep      string
+	IPv4DstStep      string
 	TTL              uint32
 	TOS              uint32
 	DSCP             uint32
@@ -94,6 +97,8 @@ type IPv6FlowParams struct {
 	IPv6Dst           string
 	IPv6SrcCount      uint32
 	IPv6DstCount      uint32
+	IPv6SrcStep       string
+	IPv6DstStep       string
 	HopLimit          uint32
 	TrafficClass      uint32
 	TrafficClassCount uint32
@@ -160,6 +165,8 @@ func (f *Flow) CreateFlow(top gosnappi.Config) {
 	}
 	if f.PacketsToSend != 0 {
 		f.flow.Duration().FixedPackets().SetPackets(f.PacketsToSend)
+	} else if f.Continuous {
+		f.flow.Duration().Continuous()
 	}
 	if f.SizeWeightProfile != nil {
 		for _, sizeWeight := range *f.SizeWeightProfile {
@@ -171,10 +178,15 @@ func (f *Flow) CreateFlow(top gosnappi.Config) {
 // AddEthHeader adds an Ethernet header to the flow.
 func (f *Flow) AddEthHeader() {
 	eth := f.flow.Packet().Add().Ethernet()
-	if f.EthFlow.SrcMACCount != 0 {
-		eth.Src().Increment().SetStart(f.EthFlow.SrcMAC).SetCount(f.EthFlow.SrcMACCount)
-	} else {
-		eth.Src().SetValue(f.EthFlow.SrcMAC)
+	if f.EthFlow == nil {
+		return
+	}
+	if f.EthFlow.SrcMAC != "" {
+		if f.EthFlow.SrcMACCount != 0 {
+			eth.Src().Increment().SetStart(f.EthFlow.SrcMAC).SetCount(f.EthFlow.SrcMACCount)
+		} else {
+			eth.Src().SetValue(f.EthFlow.SrcMAC)
+		}
 	}
 	if f.EthFlow.DstMAC != "" {
 		if f.EthFlow.DstMACCount != 0 {
@@ -241,12 +253,18 @@ func (f *Flow) AddMPLSHeader() {
 func (f *Flow) AddIPv4Header() {
 	ipv4Hdr := f.flow.Packet().Add().Ipv4()
 	if f.IPv4Flow.IPv4SrcCount != 0 {
-		ipv4Hdr.Src().Increment().SetStart(f.IPv4Flow.IPv4Src).SetCount(f.IPv4Flow.IPv4SrcCount)
+		inc := ipv4Hdr.Src().Increment().SetStart(f.IPv4Flow.IPv4Src).SetCount(f.IPv4Flow.IPv4SrcCount)
+		if f.IPv4Flow.IPv4SrcStep != "" {
+			inc.SetStep(f.IPv4Flow.IPv4SrcStep)
+		}
 	} else {
 		ipv4Hdr.Src().SetValue(f.IPv4Flow.IPv4Src)
 	}
 	if f.IPv4Flow.IPv4DstCount != 0 {
-		ipv4Hdr.Dst().Increment().SetStart(f.IPv4Flow.IPv4Dst).SetCount(f.IPv4Flow.IPv4DstCount)
+		inc := ipv4Hdr.Dst().Increment().SetStart(f.IPv4Flow.IPv4Dst).SetCount(f.IPv4Flow.IPv4DstCount)
+		if f.IPv4Flow.IPv4DstStep != "" {
+			inc.SetStep(f.IPv4Flow.IPv4DstStep)
+		}
 	} else {
 		ipv4Hdr.Dst().SetValue(f.IPv4Flow.IPv4Dst)
 	}
@@ -280,12 +298,18 @@ func (f *Flow) AddIPv4Header() {
 func (f *Flow) AddIPv6Header() {
 	ipv6Hdr := f.flow.Packet().Add().Ipv6()
 	if f.IPv6Flow.IPv6SrcCount != 0 {
-		ipv6Hdr.Src().Increment().SetStart(f.IPv6Flow.IPv6Src).SetCount(f.IPv6Flow.IPv6SrcCount)
+		inc := ipv6Hdr.Src().Increment().SetStart(f.IPv6Flow.IPv6Src).SetCount(f.IPv6Flow.IPv6SrcCount)
+		if f.IPv6Flow.IPv6SrcStep != "" {
+			inc.SetStep(f.IPv6Flow.IPv6SrcStep)
+		}
 	} else {
 		ipv6Hdr.Src().SetValue(f.IPv6Flow.IPv6Src)
 	}
 	if f.IPv6Flow.IPv6DstCount != 0 {
-		ipv6Hdr.Dst().Increment().SetStart(f.IPv6Flow.IPv6Dst).SetCount(f.IPv6Flow.IPv6DstCount)
+		inc := ipv6Hdr.Dst().Increment().SetStart(f.IPv6Flow.IPv6Dst).SetCount(f.IPv6Flow.IPv6DstCount)
+		if f.IPv6Flow.IPv6DstStep != "" {
+			inc.SetStep(f.IPv6Flow.IPv6DstStep)
+		}
 	} else {
 		ipv6Hdr.Dst().SetValue(f.IPv6Flow.IPv6Dst)
 	}
@@ -343,4 +367,88 @@ func (f *Flow) AddCustomHeader() {
 // GetFlow will return the flow object
 func (f *Flow) GetFlow() gosnappi.Flow {
 	return f.flow
+}
+
+// ContinuousUDPFlowParams holds parameters for creating a continuous IPv4 or IPv6 UDP flow
+// (optionally single-tagged with an 802.1Q VLAN ID) with varied 5-tuple UDP ports for LAG hash distribution.
+type ContinuousUDPFlowParams struct {
+	FlowName     string
+	TxEndpoint   string
+	RxEndpoint   string
+	SrcMAC       string
+	DstMAC       string
+	VlanID       uint32
+	IsIPv6       bool
+	SrcIP        string
+	DstIP        string
+	IPStep       string
+	IPCount      uint32
+	IncrementSrc bool
+	IncrementDst bool
+	FrameSize    uint32
+	PpsRate      uint64
+}
+
+// AddContinuousUDPFlow adds a continuous IPv4 or IPv6 UDP flow (with optional 802.1Q VLAN header) to config.
+func AddContinuousUDPFlow(config gosnappi.Config, params ContinuousUDPFlowParams) {
+	f := &Flow{
+		FlowName:   params.FlowName,
+		TxNames:    []string{params.TxEndpoint},
+		RxNames:    []string{params.RxEndpoint},
+		FrameSize:  params.FrameSize,
+		PpsRate:    params.PpsRate,
+		Continuous: true,
+		EthFlow: &EthFlowParams{
+			SrcMAC: params.SrcMAC,
+			DstMAC: params.DstMAC,
+		},
+		UDPFlow: &UDPFlowParams{
+			UDPSrcPort:  10000,
+			UDPSrcCount: 64,
+			UDPDstPort:  20000,
+			UDPDstCount: 64,
+		},
+	}
+	f.CreateFlow(config)
+	f.AddEthHeader()
+	if params.VlanID > 0 {
+		f.VLANFlow = &VLANFlowParams{VLANId: params.VlanID}
+		f.AddVLANHeader()
+	}
+	count := params.IPCount
+	if count == 0 {
+		count = 1
+	}
+	if params.IsIPv6 {
+		v6Params := &IPv6FlowParams{
+			IPv6Src: params.SrcIP,
+			IPv6Dst: params.DstIP,
+		}
+		if params.IncrementSrc {
+			v6Params.IPv6SrcCount = count
+			v6Params.IPv6SrcStep = params.IPStep
+		}
+		if params.IncrementDst {
+			v6Params.IPv6DstCount = count
+			v6Params.IPv6DstStep = params.IPStep
+		}
+		f.IPv6Flow = v6Params
+		f.AddIPv6Header()
+	} else {
+		v4Params := &IPv4FlowParams{
+			IPv4Src: params.SrcIP,
+			IPv4Dst: params.DstIP,
+		}
+		if params.IncrementSrc {
+			v4Params.IPv4SrcCount = count
+			v4Params.IPv4SrcStep = params.IPStep
+		}
+		if params.IncrementDst {
+			v4Params.IPv4DstCount = count
+			v4Params.IPv4DstStep = params.IPStep
+		}
+		f.IPv4Flow = v4Params
+		f.AddIPv4Header()
+	}
+	f.AddUDPHeader()
 }
