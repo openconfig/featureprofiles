@@ -258,6 +258,14 @@ Traffic-policies
 !
 `
 
+	qosconfigAristaRemove = `
+ no qos map dscp 0 1 2 3 4 5 6 7 to traffic-class 0
+ no qos map dscp 8 9 10 11 12 13 14 15 to traffic-class 1
+ no qos map dscp 40 41 42 43 44 45 46 47 to traffic-class 4
+ no qos map dscp 48 49 50 51 52 53 54 55 to traffic-class 7
+ no policy-map type quality-of-service af3
+`
+
 	mplsLabelRangeArista = `
 mpls label range bgp-sr 16 0
 mpls label range dynamic 16 0
@@ -280,7 +288,7 @@ ip decap-group gre-decap
 !
 ip decap-group type udp destination port 6635 payload mpls
 !
-ip decap-group gre-decap
+ip decap-group gue-decap
   tunnel type udp
   tunnel decap-ip 11.0.0.0/8
   tunnel overlay mpls qos map mpls-traffic-class to traffic-class
@@ -510,6 +518,54 @@ func LabelRangeConfig(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 	} else {
 		LabelRangeOCConfig(t, dut)
+	}
+}
+
+// RemoveMplsConfig reverts MplsConfig.
+func RemoveMplsConfig(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	// MplsConfig applies nothing through OC, so there is nothing to revert when OC is supported.
+	if !deviations.MplsOCUnsupported(dut) {
+		return
+	}
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		helpers.GnmiCLIConfig(t, dut, "no mpls ip")
+	default:
+		t.Logf("Unsupported vendor %s for native command support for deviation 'mpls ip'", dut.Vendor())
+	}
+}
+
+// RemoveQosClassificationConfig reverts QosClassificationConfig.
+func RemoveQosClassificationConfig(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	// QosClassificationOCConfig only builds a config object and never pushes it.
+	if !deviations.QosClassificationOCUnsupported(dut) {
+		return
+	}
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		helpers.GnmiCLIConfig(t, dut, qosconfigAristaRemove)
+	default:
+		t.Logf("Unsupported vendor %s for native command support for deviation 'qos classification'", dut.Vendor())
+	}
+}
+
+// RemoveLabelRangeConfig reverts LabelRangeConfig.
+func RemoveLabelRangeConfig(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	if deviations.MplsLabelClassificationOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			helpers.GnmiCLIConfig(t, dut, negateCLILines(mplsLabelRangeArista, true))
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'mpls label range'", dut.Vendor())
+		}
+		return
+	}
+	global := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Global()
+	for _, id := range []string{"bgp-sr", "dynamic", "isis-sr", "l2evpn", "l2evpn ethernet-segment", "ospf-sr", "srlb", "static"} {
+		gnmi.Delete(t, dut, global.ReservedLabelBlock(id).Config())
 	}
 }
 
@@ -845,6 +901,25 @@ func DecapPolicyRulesandActionsGue(t *testing.T, pf *oc.NetworkInstance_PolicyFo
 	rule10.GetOrCreateAction().DecapsulateGue = ygot.Bool(true)
 }
 
+func DecapPolicyRulesAndActionsGueIPv6Outer(t *testing.T, pf *oc.NetworkInstance_PolicyForwarding, params OcPolicyForwardingParams) {
+	t.Helper()
+
+	policy := pf.GetOrCreatePolicy("gue-v6-decap-policy")
+	const (
+		ruleSeq     = 10
+		protocolUDP = 17
+	)
+
+	rule10 := policy.GetOrCreateRule(ruleSeq)
+	rule10.GetOrCreateIpv6().DestinationAddress = ygot.String(params.TunnelIP)
+	rule10.GetOrCreateIpv6().Protocol = oc.UnionUint8(protocolUDP)
+	rule10.GetOrCreateTransport().DestinationPort = oc.UnionUint16(uint16(params.GUEPort))
+
+	action := rule10.GetOrCreateAction()
+	action.DecapsulateGue = ygot.Bool(true)
+	action.DecapNetworkInstance = ygot.String(params.NetworkInstanceName)
+}
+
 // ApplyPolicyToInterfaceOC configures the policy-forwarding interfaces section to apply the specified
 // policy to the given interface ID.
 func ApplyPolicyToInterfaceOC(t *testing.T, pf *oc.NetworkInstance_PolicyForwarding, interfaceID string, appliedPolicyName string) {
@@ -897,6 +972,22 @@ func DecapGroupConfigGue(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 	}
 }
 
+// DecapGroupConfigGueIPv6Outer configures the interface decap-group for MPLSoGUE traffic
+// carrying an IPv6 outer header (PF-1.19.v6).
+func DecapGroupConfigGueIPv6Outer(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, ocPFParams OcPolicyForwardingParams) {
+	t.Helper()
+	if deviations.GueGreDecapUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			aristaGueDecapCLIConfig(t, dut, ocPFParams)
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'decap-group config'", dut.Vendor())
+		}
+	} else {
+		DecapPolicyRulesAndActionsGueIPv6Outer(t, pf, ocPFParams)
+	}
+}
+
 // RemoveDecapGroupGue deletes a GUE decap-group previously created by
 // DecapGroupConfigGue, allowing tests to revert the DUT to its original state.
 func RemoveDecapGroupGue(t *testing.T, dut *ondatra.DUTDevice, ocPFParams OcPolicyForwardingParams) {
@@ -904,7 +995,16 @@ func RemoveDecapGroupGue(t *testing.T, dut *ondatra.DUTDevice, ocPFParams OcPoli
 	if deviations.GueGreDecapUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("no ip decap-group %s\n", ocPFParams.AppliedPolicyName))
+			removeCli := fmt.Sprintf("no ip decap-group %s\n", ocPFParams.AppliedPolicyName)
+			decapProto := ocPFParams.DecapProtocol
+			if decapProto == "" {
+				decapProto = ocPFParams.IPType
+			}
+			if decapProto != "" {
+				removeCli += fmt.Sprintf("no ip decap-group type udp destination port 6635 payload %s\n", decapProto)
+			}
+
+			helpers.GnmiCLIConfig(t, dut, removeCli)
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'decap-group removal'", dut.Vendor())
 		}
@@ -928,7 +1028,7 @@ func aristaGueDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPoli
 							tunnel decap-ip %s
 							`, params.GUEPort, decapProto, params.AppliedPolicyName, params.TunnelIP)
 	if params.InterfaceID != "" {
-		cliConfig += fmt.Sprintf("tunnel decap-interface %s", params.InterfaceID)
+		cliConfig += fmt.Sprintf("tunnel decap-interface %s\n", params.InterfaceID)
 	}
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
 }
