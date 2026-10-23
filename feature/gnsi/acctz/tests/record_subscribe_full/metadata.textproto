@@ -22,7 +22,6 @@ platform_exceptions: {
   deviations: {
     gribi_records_unsupported: true
     acctz_record_fail_command_unsupported: true
-    acctz_record_fail_grpc_unsupported: true
   }
 }
 
