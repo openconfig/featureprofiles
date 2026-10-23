@@ -941,11 +941,31 @@ func TestDSCPTransparency(t *testing.T) {
 func waitForAndGetTaggedMetrics(t *testing.T, ate *ondatra.ATEDevice, expectedMetricIDs []string) map[string][]*otgtelemetry.Flow_TaggedMetric {
 	t.Helper()
 	deadline := time.Now().Add(5 * time.Minute)
-	taggedMetricsQuery := gnmi.OTG().FlowAny().TaggedMetricAny().State()
 
 	expectedSet := make(map[string]bool)
+	flowNames := make(map[string]bool)
 	for _, id := range expectedMetricIDs {
 		expectedSet[id] = true
+		parts := strings.Split(id, "-")
+		dscpValue, _ := strconv.Atoi(parts[1])
+		var queueName string
+		switch {
+		case dscpValue <= 3:
+			queueName = "BE1"
+		case dscpValue <= 7:
+			queueName = "BE0"
+		case dscpValue <= 15:
+			queueName = "AF1"
+		case dscpValue <= 23:
+			queueName = "AF2"
+		case dscpValue <= 31:
+			queueName = "AF3"
+		case dscpValue <= 47:
+			queueName = "AF4"
+		default:
+			queueName = "NC1"
+		}
+		flowNames[fmt.Sprintf("dscp-%s-%s", queueName, parts[2])] = true
 	}
 
 	var metricsByTag map[string][]*otgtelemetry.Flow_TaggedMetric
@@ -954,24 +974,27 @@ func waitForAndGetTaggedMetrics(t *testing.T, ate *ondatra.ATEDevice, expectedMe
 
 	for time.Now().Before(deadline) {
 		metricsByTag = make(map[string][]*otgtelemetry.Flow_TaggedMetric)
-		for _, val := range gnmi.LookupAll(t, ate.OTG(), taggedMetricsQuery) {
-			if et, ok := val.Val(); ok {
-				var dscp string
-				var port string
-				for _, tag := range et.Tags {
-					tagName := tag.GetTagName()
-					if strings.Contains(tagName, "dst-dscp-") {
-						dscp = tag.GetTagValue().GetValueAsHex()
-						parts := strings.Split(tagName, "-")
-						port = parts[len(parts)-1]
+		for flowName := range flowNames {
+			etPath := gnmi.OTG().Flow(flowName).TaggedMetricAny().State()
+			for _, val := range gnmi.LookupAll(t, ate.OTG(), etPath) {
+				if et, ok := val.Val(); ok {
+					var dscp string
+					var port string
+					for _, tag := range et.Tags {
+						tagName := tag.GetTagName()
+						if strings.Contains(tagName, "dst-dscp-") {
+							dscp = tag.GetTagValue().GetValueAsHex()
+							parts := strings.Split(tagName, "-")
+							port = parts[len(parts)-1]
+						}
 					}
-				}
-				if dscp != "" && port != "" {
-					dscpInt, err := strconv.ParseInt(strings.TrimPrefix(dscp, "0x"), 16, 64)
-					if err == nil {
-						metricID := fmt.Sprintf("dscp-%d-%s", dscpInt, port)
-						if expectedSet[metricID] {
-							metricsByTag[metricID] = append(metricsByTag[metricID], et)
+					if dscp != "" && port != "" {
+						dscpInt, err := strconv.ParseInt(strings.TrimPrefix(dscp, "0x"), 16, 64)
+						if err == nil {
+							metricID := fmt.Sprintf("dscp-%d-%s", dscpInt, port)
+							if expectedSet[metricID] {
+								metricsByTag[metricID] = append(metricsByTag[metricID], et)
+							}
 						}
 					}
 				}
