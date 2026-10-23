@@ -23,11 +23,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
 	"github.com/openconfig/featureprofiles/feature/gnsi/certz/tests/internal/setup_service"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/gnmi/proto/gnmi"
 	authzpb "github.com/openconfig/gnsi/authz"
 	certzpb "github.com/openconfig/gnsi/certz"
 	"github.com/openconfig/ondatra"
@@ -48,11 +50,14 @@ type DUTCredentialer interface {
 }
 
 var (
-	serverAddr     string
-	creds          DUTCredentialer
-	testProfile    string = "rotationprofile"
-	logTime        string = time.Now().String()
-	expectedResult bool   = true
+	serverAddr          string
+	creds               DUTCredentialer
+	testProfile         string = "rotationprofile"
+	logTime             string = time.Now().String()
+	expectedResult      bool   = true
+	prevClientCertFile  string = ""
+	prevClientKeyFile   string = ""
+	prevTrustBundleFile string = ""
 )
 
 func TestMain(m *testing.M) {
@@ -135,13 +140,13 @@ func verifyServedCertificate(t *testing.T, peerCert *x509.Certificate, expectedC
 	}
 }
 
-func CertzRotateNegative(ctx context.Context, t *testing.T, certzClient certzpb.CertzClient, profileID string, entities ...*certzpb.Entity) {
+func CertzRotateNegative(ctx context.Context, t *testing.T, certzClient certzpb.CertzClient, profileID string, targetCaCert *x509.CertPool, serverSAN, username, password string, clientCert tls.Certificate, entities ...*certzpb.Entity) {
 	t.Helper()
 	if len(entities) == 0 {
 		t.Fatalf("At least one entity required for Rotate request.")
 	}
 	rotateCertRequest := &certzpb.RotateCertificateRequest{
-		ForceOverwrite: false,
+		ForceOverwrite: true,
 		SslProfileId:   profileID,
 		RotateRequest: &certzpb.RotateCertificateRequest_Certificates{
 			Certificates: &certzpb.UploadRequest{
@@ -161,12 +166,18 @@ func CertzRotateNegative(ctx context.Context, t *testing.T, certzClient certzpb.
 	}
 	t.Logf("Sent Rotate certificate request (Negative test).")
 
-	_, err = rotateRequestClient.Recv()
+	resp, err := rotateRequestClient.Recv()
 	if err != nil {
 		t.Logf("Recv failed as expected: %v", err)
 		return
 	}
-	t.Fatalf("Rotate succeeded but was expected to fail.")
+	t.Logf("Received Rotate certificate response: %v", resp)
+
+	// Certz-5.2: the ca-02 trust bundle must not work with the ca-01 server certificate.
+	if result := setup_service.VerifyGnsi(t, targetCaCert, serverSAN, serverAddr, username, password, clientCert, true); !result {
+		t.Fatalf("Expected gNSI verification to fail with mismatched trust bundle, but connection succeeded.")
+	}
+	t.Logf("Negative rotation validated: mismatched trust bundle cannot be used.")
 }
 
 func TestTrustBundleRotation(t *testing.T) {
@@ -180,8 +191,8 @@ func TestTrustBundleRotation(t *testing.T) {
 
 	dirPath := t.TempDir()
 	// Generate testdata certificates.
-	t.Logf("%s:Creation of test data.", logTime)
-	if err := setup_service.TestdataMakeCleanup(t, scriptPath, timeOutVar, "./mk_cas.sh", dirPath); err != nil {
+	t.Logf("%s:Creation of test data in %s.", logTime, dirPath)
+	if err := setup_service.TestdataMakeCleanup(t, scriptPath, timeOutVar, "./mk_cas.sh", dirPath, "01,02"); err != nil {
 		t.Fatalf("Generation of testdata certificates failed!: %v", err)
 	}
 	defer func() {
@@ -191,15 +202,14 @@ func TestTrustBundleRotation(t *testing.T) {
 		}
 	}()
 
+	ctx := context.Background()
+	gnmiClient, gnsiC := setup_service.PreInitCheck(ctx, t, dut)
+	certzClient := gnsiC.Certz()
+
 	types := []string{"rsa", "ecdsa"}
 
 	for _, typeStr := range types {
 		t.Run(fmt.Sprintf("Type_%s", typeStr), func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(context.Background(), timeOutVar)
-			defer cancel()
-			gnmiClient, gnsiC := setup_service.PreInitCheck(ctx, t, dut)
-			certzClient := gnsiC.Certz()
-
 			// Define baseline files (ca-01)
 			serverCertFile := filepath.Join(dirPath, "ca-01", fmt.Sprintf("server-%s-a-cert.pem", typeStr))
 			serverKeyFile := filepath.Join(dirPath, "ca-01", fmt.Sprintf("server-%s-a-key.pem", typeStr))
@@ -253,10 +263,37 @@ func TestTrustBundleRotation(t *testing.T) {
 				t.Run(tc.desc, func(t *testing.T) {
 					profileID := fmt.Sprintf("%s_%s_%s", testProfile, typeStr, tc.desc)
 
-					// Add new sslprofileID.
-					t.Logf("Adding new empty sslprofile ID %s.", profileID)
-					if _, err := certzClient.AddProfile(ctx, &certzpb.AddProfileRequest{SslProfileId: profileID}); err != nil {
-						t.Fatalf("Add profile request failed: %v", err)
+					if prevClientCertFile != "" {
+						t.Logf("Creating new TLS credentials for client connection.")
+						// Load the prior client keypair for new client TLS credentials.
+						prevClientCert, err := tls.LoadX509KeyPair(prevClientCertFile, prevClientKeyFile)
+						if err != nil {
+							t.Fatalf("Failed to load previous client cert: %v", err)
+						}
+						prevPemData, err := os.ReadFile(prevTrustBundleFile)
+						if err != nil {
+							t.Fatalf("Failed to read previous trust bundle: %v", err)
+						}
+						// Create a old set of Cert Pool and append the certs from previous trust bundle.
+						prevCaCert := x509.NewCertPool()
+						if !prevCaCert.AppendCertsFromPEM(prevPemData) {
+							t.Fatalf("Failed to append certs from previous trust bundle PEM: %s", prevTrustBundleFile)
+						}
+						// Retrieve the connection with previous TLS credentials for certz rotation.
+						conn := setup_service.CreateNewDialOption(t, prevClientCert, prevCaCert, serverSAN, username, password, serverAddr)
+						defer conn.Close()
+						certzClient = certzpb.NewCertzClient(conn)
+						gnmiClient = gnmi.NewGNMIClient(conn)
+					}
+
+					if getResp := setup_service.GetSslProfilelist(ctx, t, certzClient, &certzpb.GetProfileListRequest{}); slices.Contains(getResp.SslProfileIds, profileID) {
+						t.Logf("profileID %s already exists, skipping AddProfile.", profileID)
+					} else {
+						// Add new sslprofileID.
+						t.Logf("Adding new empty sslprofile ID %s.", profileID)
+						if _, err := certzClient.AddProfile(ctx, &certzpb.AddProfileRequest{SslProfileId: profileID}); err != nil {
+							t.Fatalf("Add profile request failed: %v", err)
+						}
 					}
 
 					// 1. Setup Baseline (ca-01)
@@ -314,7 +351,7 @@ func TestTrustBundleRotation(t *testing.T) {
 						defer stream.CloseSend()
 
 						req := &certzpb.RotateCertificateRequest{
-							ForceOverwrite: false,
+							ForceOverwrite: true,
 							SslProfileId:   profileID,
 							RotateRequest: &certzpb.RotateCertificateRequest_Certificates{
 								Certificates: &certzpb.UploadRequest{
@@ -382,7 +419,9 @@ func TestTrustBundleRotation(t *testing.T) {
 					} else {
 						// Negative Rotation
 						t.Logf("Attempting negative trust bundle rotation to target: %s", targetBundlePath)
-						CertzRotateNegative(ctx, t, activeCertzClient, profileID, &targetTrustBundleEntity)
+						CertzRotateNegative(ctx, t, activeCertzClient, profileID, targetCaCertPool, serverSAN, username, password, clientCert, &targetTrustBundleEntity)
+
+						time.Sleep(5 * time.Second) // Wait for rollback
 
 						// Verify rollback (should still work with baseline ca-01)
 						t.Logf("Verifying server still works with baseline ca-01 after failed rotation")
@@ -390,6 +429,11 @@ func TestTrustBundleRotation(t *testing.T) {
 							t.Fatalf("Service validation failed after negative rotation attempt.")
 						}
 					}
+
+					// Archiving previous client cert/key and trustbundle.
+					prevClientCertFile = clientCertFile
+					prevClientKeyFile = clientKeyFile
+					prevTrustBundleFile = trustBundleFile
 				})
 			}
 		})
