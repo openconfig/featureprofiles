@@ -1640,11 +1640,18 @@ type Metadata_Deviations struct {
 	// Devices that don't pre-check invalid interface numbers when configured
 	// Cisco: https://partnerissuetracker.corp.google.com/issues/570523357
 	InvalidInterfaceNumberAllowed bool `protobuf:"varint,476,opt,name=invalid_interface_number_allowed,json=invalidInterfaceNumberAllowed,proto3" json:"invalid_interface_number_allowed,omitempty"`
-	// The device reports recursive gRIBI IPv4 next-hop groups with opaque IDs and no next-hop members
-	// Cisco: https://partnerissuetracker.corp.google.com/issues/577036552
-	GribiOpaqueRecursiveNhg bool `protobuf:"varint,477,opt,name=gribi_opaque_recursive_nhg,json=gribiOpaqueRecursiveNhg,proto3" json:"gribi_opaque_recursive_nhg,omitempty"`
-	unknownFields           protoimpl.UnknownFields
-	sizeCache               protoimpl.SizeCache
+	// Device does not support configuring BGP send-community-type under
+	// /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/config/send-community-type
+	// and requires configuring it under peer-group/config/send-community-type instead.
+	// Arista: https://partnerissuetracker.corp.google.com/issues/567652475
+	BgpAfiSafiSendCommunityTypeUnsupported bool `protobuf:"varint,477,opt,name=bgp_afi_safi_send_community_type_unsupported,json=bgpAfiSafiSendCommunityTypeUnsupported,proto3" json:"bgp_afi_safi_send_community_type_unsupported,omitempty"`
+	// Device does not support configuring IS-IS interface authentication under
+	// /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication
+	// and requires /isis/interfaces/interface/levels/level/hello-authentication instead.
+	// Arista: https://partnerissuetracker.corp.google.com/issues/567813121
+	IsisInterfaceAuthenticationContainerUnsupported bool `protobuf:"varint,478,opt,name=isis_interface_authentication_container_unsupported,json=isisInterfaceAuthenticationContainerUnsupported,proto3" json:"isis_interface_authentication_container_unsupported,omitempty"`
+	unknownFields                                   protoimpl.UnknownFields
+	sizeCache                                       protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -4757,9 +4764,16 @@ func (x *Metadata_Deviations) GetInvalidInterfaceNumberAllowed() bool {
 	return false
 }
 
-func (x *Metadata_Deviations) GetGribiOpaqueRecursiveNhg() bool {
+func (x *Metadata_Deviations) GetBgpAfiSafiSendCommunityTypeUnsupported() bool {
 	if x != nil {
-		return x.GribiOpaqueRecursiveNhg
+		return x.BgpAfiSafiSendCommunityTypeUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetIsisInterfaceAuthenticationContainerUnsupported() bool {
+	if x != nil {
+		return x.IsisInterfaceAuthenticationContainerUnsupported
 	}
 	return false
 }
@@ -4820,7 +4834,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xa6\x8d\x02\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xb6\x8e\x02\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -4832,7 +4846,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\x8e\x82\x02\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\x9e\x83\x02\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -5279,8 +5293,9 @@ const file_metadata_proto_rawDesc = "" +
 	"\x18qos_queue_index_required\x18\xd9\x03 \x01(\bR\x15qosQueueIndexRequired\x12=\n" +
 	"\x1bqos_max_burst_size_required\x18\xda\x03 \x01(\bR\x17qosMaxBurstSizeRequired\x12/\n" +
 	"\x13qos_red_unsupported\x18\xdb\x03 \x01(\bR\x11qosRedUnsupported\x12H\n" +
-	" invalid_interface_number_allowed\x18\xdc\x03 \x01(\bR\x1dinvalidInterfaceNumberAllowed\x12<\n" +
-	"\x1agribi_opaque_recursive_nhg\x18\xdd\x03 \x01(\bR\x17gribiOpaqueRecursiveNhgJ\x06\b\x85\x02\x10\x86\x02J\x04\bT\x10UJ\x04\b\t\x10\n" +
+	" invalid_interface_number_allowed\x18\xdc\x03 \x01(\bR\x1dinvalidInterfaceNumberAllowed\x12]\n" +
+	",bgp_afi_safi_send_community_type_unsupported\x18\xdd\x03 \x01(\bR&bgpAfiSafiSendCommunityTypeUnsupported\x12m\n" +
+	"3isis_interface_authentication_container_unsupported\x18\xde\x03 \x01(\bR/isisInterfaceAuthenticationContainerUnsupportedJ\x06\b\x85\x02\x10\x86\x02J\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02J\x06\b\xf1\x01\x10\xf2\x01J\x04\b1\x102\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +

@@ -1568,11 +1568,23 @@ message Metadata {
     // Devices that don't pre-check invalid interface numbers when configured
     // Cisco: https://partnerissuetracker.corp.google.com/issues/570523357
     bool invalid_interface_number_allowed = 476;
+   
+    // Device does not support configuring BGP send-community-type under
+    // /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/config/send-community-type
+    // and requires configuring it under peer-group/config/send-community-type instead.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/567652475
+    bool bgp_afi_safi_send_community_type_unsupported = 477;
+
+    // Device does not support configuring IS-IS interface authentication under
+    // /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication
+    // and requires /isis/interfaces/interface/levels/level/hello-authentication instead.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/567813121
+    bool isis_interface_authentication_container_unsupported = 478;
 
     // The device reports recursive gRIBI IPv4 next-hop groups with opaque IDs and no next-hop members
     // Cisco: https://partnerissuetracker.corp.google.com/issues/577036552
-    bool gribi_opaque_recursive_nhg = 477;
-
+    bool gribi_opaque_recursive_nhg = 479;
+    
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }
