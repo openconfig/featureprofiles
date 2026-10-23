@@ -15,7 +15,6 @@
 package cfgplugins
 
 import (
-	"context"
 	"fmt"
 	"math"
 	"net"
@@ -2105,7 +2104,11 @@ func ConfigureL3AggregateInterface(t *testing.T, dut *ondatra.DUTDevice, sb *gnm
 	if params.MinLinks > 0 {
 		aggCfg.MinLinks = ygot.Uint16(params.MinLinks)
 	}
-	gnmi.BatchReplace(sb, gnmi.OC().Interface(params.AggID).Config(), agg)
+	if params.Attributes != nil {
+		gnmi.BatchReplace(sb, gnmi.OC().Interface(params.AggID).Config(), agg)
+	} else {
+		gnmi.BatchUpdate(sb, gnmi.OC().Interface(params.AggID).Config(), agg)
+	}
 
 	for _, port := range params.MemberPorts {
 		i := &oc.Interface{
@@ -2118,7 +2121,11 @@ func ConfigureL3AggregateInterface(t *testing.T, dut *ondatra.DUTDevice, sb *gnm
 			i.ForwardingViable = ygot.Bool(*params.ForwardingViable)
 		}
 		i.GetOrCreateEthernet().AggregateId = ygot.String(params.AggID)
-		gnmi.BatchReplace(sb, gnmi.OC().Interface(port.Name()).Config(), i)
+		if params.Attributes != nil {
+			gnmi.BatchReplace(sb, gnmi.OC().Interface(port.Name()).Config(), i)
+		} else {
+			gnmi.BatchUpdate(sb, gnmi.OC().Interface(port.Name()).Config(), i)
+		}
 	}
 
 	return sb
@@ -2203,119 +2210,68 @@ func SetMemberForwardingViable(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.Se
 	return nil
 }
 
-// watchAwaitWithRetry executes a ygnmi.Watch query on dut and retries transient gRPC errors
-// (such as Unauthenticated or Unavailable from gNMI proxy/session rate-limiting) until timeout.
+// CompareInterfaceNames compares two interface names in natural numeric order (e.g. Ethernet2 < Ethernet10).
+func CompareInterfaceNames(a, b string) bool {
+	i, j := 0, 0
+	for i < len(a) && j < len(b) {
+		isDigitA := a[i] >= '0' && a[i] <= '9'
+		isDigitB := b[j] >= '0' && b[j] <= '9'
+		if isDigitA && isDigitB {
+			numA := 0
+			for i < len(a) && a[i] >= '0' && a[i] <= '9' {
+				numA = numA*10 + int(a[i]-'0')
+				i++
+			}
+			numB := 0
+			for j < len(b) && b[j] >= '0' && b[j] <= '9' {
+				numB = numB*10 + int(b[j]-'0')
+				j++
+			}
+			if numA != numB {
+				return numA < numB
+			}
+			continue
+		}
+		if a[i] != b[j] {
+			return a[i] < b[j]
+		}
+		i++
+		j++
+	}
+	return len(a) < len(b)
+}
+
+// SortPortIDsByDUTName sorts a slice of port IDs in natural numeric order of their corresponding DUT interface names
+// and returns both the sorted port IDs and the resolved *ondatra.Port slice.
+func SortPortIDsByDUTName(t *testing.T, dut *ondatra.DUTDevice, portIDs []string) ([]string, []*ondatra.Port) {
+	t.Helper()
+	sortedIDs := append([]string(nil), portIDs...)
+	sort.Slice(sortedIDs, func(i, j int) bool {
+		return CompareInterfaceNames(dut.Port(t, sortedIDs[i]).Name(), dut.Port(t, sortedIDs[j]).Name())
+	})
+	ports := make([]*ondatra.Port, 0, len(sortedIDs))
+	for _, id := range sortedIDs {
+		ports = append(ports, dut.Port(t, id))
+	}
+	return sortedIDs, ports
+}
+
+// watchAwaitWithRetry executes a gnmi.Watch query on dut and awaits the predicate until timeout.
 func watchAwaitWithRetry[T any](t *testing.T, dut *ondatra.DUTDevice, q ygnmi.SingletonQuery[T], timeout time.Duration, pred func(*ygnmi.Value[T]) bool) (*ygnmi.Value[T], bool) {
 	t.Helper()
-	c, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.Name()))
-	if err != nil {
-		t.Fatalf("watchAwaitWithRetry NewClient on %s: %v", dut, err)
-	}
-	deadline := time.Now().Add(timeout)
-	var lastVal *ygnmi.Value[T]
-	for {
-		rem := time.Until(deadline)
-		if rem <= 0 {
-			return lastVal, false
-		}
-		stepTimeout := 5 * time.Second
-		if rem < stepTimeout {
-			stepTimeout = rem
-		}
-		ctx, cancel := context.WithTimeout(context.Background(), stepTimeout)
-		w := ygnmi.Watch(ctx, c, q, func(v *ygnmi.Value[T]) error {
-			lastVal = v
-			if pred(v) {
-				return nil
-			}
-			return ygnmi.Continue
-		})
-		v, err := w.Await()
-		windowExpired := ctx.Err() == context.DeadlineExceeded
-		cancel()
-		if err == nil {
-			return v, true
-		}
-		if time.Until(deadline) <= 0 {
-			return lastVal, false
-		}
-		if windowExpired {
-			time.Sleep(500 * time.Millisecond)
-			continue
-		}
-		t.Logf("Transient gNMI Watch error on %s at %v (retrying within %v): %v", dut, q, time.Until(deadline).Round(time.Second), err)
-		time.Sleep(2 * time.Second)
-	}
+	return gnmi.Watch(t, dut, q, timeout, pred).Await(t)
 }
 
-// watchAllAwaitWithRetry executes a ygnmi.WatchAll query on dut and retries transient gRPC errors
-// until timeout.
+// watchAllAwaitWithRetry executes a gnmi.WatchAll query on dut and awaits the predicate until timeout.
 func watchAllAwaitWithRetry[T any](t *testing.T, dut *ondatra.DUTDevice, q ygnmi.WildcardQuery[T], timeout time.Duration, pred func(*ygnmi.Value[T]) bool) (*ygnmi.Value[T], bool) {
 	t.Helper()
-	c, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.Name()))
-	if err != nil {
-		t.Fatalf("watchAllAwaitWithRetry NewClient on %s: %v", dut, err)
-	}
-	deadline := time.Now().Add(timeout)
-	var lastVal *ygnmi.Value[T]
-	for {
-		rem := time.Until(deadline)
-		if rem <= 0 {
-			return lastVal, false
-		}
-		stepTimeout := 5 * time.Second
-		if rem < stepTimeout {
-			stepTimeout = rem
-		}
-		ctx, cancel := context.WithTimeout(context.Background(), stepTimeout)
-		w := ygnmi.WatchAll(ctx, c, q, func(v *ygnmi.Value[T]) error {
-			lastVal = v
-			if pred(v) {
-				return nil
-			}
-			return ygnmi.Continue
-		})
-		v, err := w.Await()
-		windowExpired := ctx.Err() == context.DeadlineExceeded
-		cancel()
-		if err == nil {
-			return v, true
-		}
-		if time.Until(deadline) <= 0 {
-			return lastVal, false
-		}
-		if windowExpired {
-			time.Sleep(500 * time.Millisecond)
-			continue
-		}
-		t.Logf("Transient gNMI WatchAll error on %s at %v (retrying within %v): %v", dut, q, time.Until(deadline).Round(time.Second), err)
-		time.Sleep(2 * time.Second)
-	}
+	return gnmi.WatchAll(t, dut, q, timeout, pred).Await(t)
 }
 
-// lookupWithRetry executes a ygnmi.Lookup query on dut and retries transient gRPC errors up to 15s.
+// lookupWithRetry executes a gnmi.Lookup query on dut.
 func lookupWithRetry[T any](t *testing.T, dut *ondatra.DUTDevice, q ygnmi.SingletonQuery[T]) *ygnmi.Value[T] {
 	t.Helper()
-	c, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.Name()))
-	if err != nil {
-		t.Fatalf("lookupWithRetry NewClient on %s: %v", dut, err)
-	}
-	deadline := time.Now().Add(15 * time.Second)
-	var lastErr error
-	for {
-		v, err := ygnmi.Lookup(context.Background(), c, q)
-		if err == nil {
-			return v
-		}
-		lastErr = err
-		if time.Until(deadline) <= 0 {
-			break
-		}
-		t.Logf("Transient gNMI Lookup error on %s at %v (retrying): %v", dut, q, err)
-		time.Sleep(2 * time.Second)
-	}
-	t.Fatalf("Lookup(t) on %s at %v: %v", dut, q, lastErr)
-	return nil
+	return gnmi.Lookup(t, dut, q)
 }
 
 // AwaitInterfaceAdminAndOperStatus verifies via gNMI Watch/Await that the specified interface
@@ -2470,78 +2426,153 @@ func AwaitInterfaceCountersIncrement(t *testing.T, dut *ondatra.DUTDevice, intfN
 	var baseIn, baseOut, baseInOct, baseOutOct uint64
 	var inPktOK, outPktOK, inOctOK, outOctOK bool
 
-	if _, ok := watchAwaitWithRetry(t, dut, batch.State(), timeout, func(val *ygnmi.Value[*oc.Root]) bool {
-		root, present := val.Val()
-		if !present || root == nil {
-			return false
+	// Some platforms (such as Junos EVO) only emit counter values on initial gNMI subscription sync
+	// (~8-12s per Watch) rather than streaming frequent updates over a single long-lived TARGET_DEFINED subscription.
+	// Phase 1 captures the baseline counters on initial sync and immediately terminates the first Watch;
+	// Phase 2 then watches for counter increments above that baseline in bounded 30s Watch windows.
+	deadline := time.Now().Add(timeout)
+	const watchStep = 30 * time.Second
+	for time.Now().Before(deadline) && !(baseInSet && baseOutSet && baseInOctSet && baseOutOctSet) {
+		rem := time.Until(deadline)
+		if rem <= 0 {
+			break
 		}
-		intf := root.GetInterface(intfName)
-		if intf == nil || intf.Counters == nil {
-			return false
+		stepTimeout := watchStep
+		if rem < stepTimeout {
+			stepTimeout = rem
 		}
-		c := intf.Counters
-		if c.InUnicastPkts != nil {
-			v := *c.InUnicastPkts
-			if !baseInSet {
-				baseIn = v
+		watchAwaitWithRetry(t, dut, batch.State(), stepTimeout, func(val *ygnmi.Value[*oc.Root]) bool {
+			root, present := val.Val()
+			if !present || root == nil {
+				return false
+			}
+			intf := root.GetInterface(intfName)
+			if intf == nil || intf.Counters == nil {
+				return false
+			}
+			c := intf.Counters
+			if c.InUnicastPkts != nil && !baseInSet {
+				baseIn = *c.InUnicastPkts
 				baseInSet = true
 				if inRequiredDelta == 0 {
 					inPktOK = true
 				}
-			} else if v >= baseIn+inRequiredDelta {
-				inPktOK = true
 			}
-		}
-		if c.OutUnicastPkts != nil {
-			v := *c.OutUnicastPkts
-			if !baseOutSet {
-				baseOut = v
+			if c.OutUnicastPkts != nil && !baseOutSet {
+				baseOut = *c.OutUnicastPkts
 				baseOutSet = true
 				if minPktDelta == 0 {
 					outPktOK = true
 				}
-			} else if v >= baseOut+minPktDelta {
-				outPktOK = true
 			}
-		}
-		if c.InOctets != nil {
-			v := *c.InOctets
-			if !baseInOctSet {
-				baseInOct = v
+			if c.InOctets != nil && !baseInOctSet {
+				baseInOct = *c.InOctets
 				baseInOctSet = true
 				if inRequiredDelta == 0 {
 					inOctOK = true
 				}
-			} else if v > baseInOct {
-				inOctOK = true
 			}
-		}
-		if c.OutOctets != nil {
-			v := *c.OutOctets
-			if !baseOutOctSet {
-				baseOutOct = v
+			if c.OutOctets != nil && !baseOutOctSet {
+				baseOutOct = *c.OutOctets
 				baseOutOctSet = true
 				if minPktDelta == 0 {
 					outOctOK = true
 				}
-			} else if v > baseOutOct {
-				outOctOK = true
 			}
+			return baseInSet && baseOutSet && baseInOctSet && baseOutOctSet
+		})
+	}
+
+	if inPktOK && outPktOK && inOctOK && outOctOK {
+		return
+	}
+
+	time.Sleep(2 * time.Second)
+
+	for time.Now().Before(deadline) {
+		rem := time.Until(deadline)
+		if rem <= 0 {
+			break
 		}
-		return inPktOK && outPktOK && inOctOK && outOctOK
-	}); !ok {
-		if !inPktOK {
-			t.Errorf("Interface %s in-unicast-pkts did not increment by %d within %v (baseline=%d)", intfName, inRequiredDelta, timeout, baseIn)
+		stepTimeout := watchStep
+		if rem < stepTimeout {
+			stepTimeout = rem
 		}
-		if !outPktOK {
-			t.Errorf("Interface %s out-unicast-pkts did not increment by %d within %v (baseline=%d)", intfName, minPktDelta, timeout, baseOut)
+		if _, ok := watchAwaitWithRetry(t, dut, batch.State(), stepTimeout, func(val *ygnmi.Value[*oc.Root]) bool {
+			root, present := val.Val()
+			if !present || root == nil {
+				return false
+			}
+			intf := root.GetInterface(intfName)
+			if intf == nil || intf.Counters == nil {
+				return false
+			}
+			c := intf.Counters
+			if c.InUnicastPkts != nil {
+				v := *c.InUnicastPkts
+				if !baseInSet {
+					baseIn = v
+					baseInSet = true
+					if inRequiredDelta == 0 {
+						inPktOK = true
+					}
+				} else if v >= baseIn+inRequiredDelta {
+					inPktOK = true
+				}
+			}
+			if c.OutUnicastPkts != nil {
+				v := *c.OutUnicastPkts
+				if !baseOutSet {
+					baseOut = v
+					baseOutSet = true
+					if minPktDelta == 0 {
+						outPktOK = true
+					}
+				} else if v >= baseOut+minPktDelta {
+					outPktOK = true
+				}
+			}
+			if c.InOctets != nil {
+				v := *c.InOctets
+				if !baseInOctSet {
+					baseInOct = v
+					baseInOctSet = true
+					if inRequiredDelta == 0 {
+						inOctOK = true
+					}
+				} else if v > baseInOct {
+					inOctOK = true
+				}
+			}
+			if c.OutOctets != nil {
+				v := *c.OutOctets
+				if !baseOutOctSet {
+					baseOutOct = v
+					baseOutOctSet = true
+					if minPktDelta == 0 {
+						outOctOK = true
+					}
+				} else if v > baseOutOct {
+					outOctOK = true
+				}
+			}
+			return inPktOK && outPktOK && inOctOK && outOctOK
+		}); ok {
+			return
 		}
-		if !inOctOK {
-			t.Errorf("Interface %s in-octets did not increment within %v (baseline=%d)", intfName, timeout, baseInOct)
-		}
-		if !outOctOK {
-			t.Errorf("Interface %s out-octets did not increment within %v (baseline=%d)", intfName, timeout, baseOutOct)
-		}
+	}
+
+	if !inPktOK {
+		t.Errorf("Interface %s in-unicast-pkts did not increment by %d within %v (baseline=%d)", intfName, inRequiredDelta, timeout, baseIn)
+	}
+	if !outPktOK {
+		t.Errorf("Interface %s out-unicast-pkts did not increment by %d within %v (baseline=%d)", intfName, minPktDelta, timeout, baseOut)
+	}
+	if !inOctOK {
+		t.Errorf("Interface %s in-octets did not increment within %v (baseline=%d)", intfName, timeout, baseInOct)
+	}
+	if !outOctOK {
+		t.Errorf("Interface %s out-octets did not increment within %v (baseline=%d)", intfName, timeout, baseOutOct)
 	}
 }
 
@@ -2562,56 +2593,97 @@ func AwaitDifferentialMemberEgressTraffic(t *testing.T, dut *ondatra.DUTDevice, 
 	var baseDrained uint64
 	baseActive := make(map[string]uint64)
 
-	_, ok := watchAwaitWithRetry(t, dut, batch.State(), timeout, func(val *ygnmi.Value[*oc.Root]) bool {
-		root, present := val.Val()
-		if !present || root == nil {
-			return false
+	deadline := time.Now().Add(timeout)
+	const watchStep = 30 * time.Second
+	var verified bool
+	for time.Now().Before(deadline) && !verified {
+		rem := time.Until(deadline)
+		if rem <= 0 {
+			break
 		}
-		drainedIntf := root.GetInterface(drainedPort)
-		if drainedIntf == nil || drainedIntf.Counters == nil || drainedIntf.Counters.OutUnicastPkts == nil {
-			return false
+		stepTimeout := watchStep
+		if rem < stepTimeout {
+			stepTimeout = rem
 		}
-		curDrained := drainedIntf.GetCounters().GetOutUnicastPkts()
+		if !baseSet {
+			watchAwaitWithRetry(t, dut, batch.State(), stepTimeout, func(val *ygnmi.Value[*oc.Root]) bool {
+				root, present := val.Val()
+				if !present || root == nil {
+					return false
+				}
+				drainedIntf := root.GetInterface(drainedPort)
+				if drainedIntf == nil || drainedIntf.Counters == nil || drainedIntf.Counters.OutUnicastPkts == nil {
+					return false
+				}
+				curActive := make(map[string]uint64)
+				for _, ap := range activePorts {
+					ai := root.GetInterface(ap.Name())
+					if ai == nil || ai.Counters == nil || ai.Counters.OutUnicastPkts == nil {
+						return false
+					}
+					curActive[ap.Name()] = ai.GetCounters().GetOutUnicastPkts()
+				}
+				baseDrained = drainedIntf.GetCounters().GetOutUnicastPkts()
+				for k, v := range curActive {
+					baseActive[k] = v
+				}
+				baseSet = true
+				return true
+			})
+			if !baseSet {
+				continue
+			}
+			time.Sleep(2 * time.Second)
+			continue
+		}
 
-		curActive := make(map[string]uint64)
-		for _, ap := range activePorts {
-			ai := root.GetInterface(ap.Name())
-			if ai == nil || ai.Counters == nil || ai.Counters.OutUnicastPkts == nil {
+		watchAwaitWithRetry(t, dut, batch.State(), stepTimeout, func(val *ygnmi.Value[*oc.Root]) bool {
+			root, present := val.Val()
+			if !present || root == nil {
 				return false
 			}
-			curActive[ap.Name()] = ai.GetCounters().GetOutUnicastPkts()
-		}
+			drainedIntf := root.GetInterface(drainedPort)
+			if drainedIntf == nil || drainedIntf.Counters == nil || drainedIntf.Counters.OutUnicastPkts == nil {
+				return false
+			}
+			curDrained := drainedIntf.GetCounters().GetOutUnicastPkts()
 
-		if !baseSet {
+			curActive := make(map[string]uint64)
+			for _, ap := range activePorts {
+				ai := root.GetInterface(ap.Name())
+				if ai == nil || ai.Counters == nil || ai.Counters.OutUnicastPkts == nil {
+					return false
+				}
+				curActive[ap.Name()] = ai.GetCounters().GetOutUnicastPkts()
+			}
+
+			// Wait until every active member port has transmitted at least minActiveDelta packets.
+			for _, ap := range activePorts {
+				if curActive[ap.Name()] < baseActive[ap.Name()]+minActiveDelta {
+					return false
+				}
+			}
+
+			// Check if the drained member port transmitted 0 unicast packets over this active window.
+			if curDrained == baseDrained {
+				verified = true
+				return true
+			}
+
+			// If the drained port still had in-flight packets draining at the start of the window,
+			// reset baseline and return true so a fresh Watch window starts after a brief pause.
 			baseDrained = curDrained
 			for k, v := range curActive {
 				baseActive[k] = v
 			}
-			baseSet = true
-			return false
-		}
-
-		// Wait until every active member port has transmitted at least minActiveDelta packets.
-		for _, ap := range activePorts {
-			if curActive[ap.Name()] < baseActive[ap.Name()]+minActiveDelta {
-				return false
-			}
-		}
-
-		// Check if the drained member port transmitted 0 unicast packets over this active window.
-		if curDrained == baseDrained {
 			return true
+		})
+		if !verified {
+			time.Sleep(2 * time.Second)
 		}
+	}
 
-		// If the drained port still had in-flight packets draining at the start of the window, reset baseline.
-		baseDrained = curDrained
-		for k, v := range curActive {
-			baseActive[k] = v
-		}
-		return false
-	})
-
-	if !ok {
+	if !verified {
 		t.Errorf("Drained member port %s continued transmitting out-unicast-pkts or active ports %v did not increment within %v", drainedPort, activePorts, timeout)
 	}
 }

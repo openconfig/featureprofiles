@@ -182,6 +182,7 @@ func (v *OTGValidation) ValidateECMPonLAG(t *testing.T, ate *ondatra.ATEDevice) 
 type LagParams struct {
 	LagName       string
 	WantMembersUp uint64
+	MemberPortIDs []string
 	Timeout       time.Duration
 }
 
@@ -225,6 +226,16 @@ func WaitForOTGLAGUP(t *testing.T, ate *ondatra.ATEDevice, params LagParams) {
 
 		t.Fatalf("OTG LAG %s did not become ready within %v: final oper-status=%v member-ports-up=%d (want oper-status=UP, member-ports-up=%d)",
 			params.LagName, params.Timeout, finalOper, finalMembers, params.WantMembersUp)
+	}
+
+	for _, portID := range params.MemberPortIDs {
+		gnmi.Watch(t, otgState, gnmi.OTG().Lacp().LagMember(portID).State(), params.Timeout, func(val *ygnmi.Value[*otg.Lacp_LagMember]) bool {
+			m, ok := val.Val()
+			if !ok || m == nil {
+				return false
+			}
+			return m.GetSynchronization().String() == "IN_SYNC" && m.GetCollecting() && m.GetDistributing()
+		}).Await(t)
 	}
 }
 
@@ -384,7 +395,7 @@ func AwaitFlowSteadyState(t *testing.T, ate *ondatra.ATEDevice, params SteadySta
 		}
 		tx := cnt.GetOutPkts()
 		rx := cnt.GetInPkts()
-		if tx == 0 {
+		if tx == 0 && (params.WantZeroLoss || params.WantComplete || params.MaxLossPct < 100) {
 			return false
 		}
 		if !baseSet {
@@ -449,5 +460,85 @@ func AwaitFlowSteadyState(t *testing.T, ate *ondatra.ATEDevice, params SteadySta
 		cnt := gnmi.Get(t, ate.OTG(), flowPath)
 		t.Errorf("Flow %s did not reach expected steady state (WantZeroLoss=%v, MaxLossPct=%.2f) within %v: OutPkts=%d, InPkts=%d",
 			params.FlowName, params.WantZeroLoss, params.MaxLossPct, timeout, cnt.GetOutPkts(), cnt.GetInPkts())
+	}
+}
+
+// ResolveDUTInterfaceMAC returns the MAC address of a DUT interface using OTG's resolved neighbor table
+// with a fallback to the DUT's OpenConfig interface ethernet state.
+func ResolveDUTInterfaceMAC(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgEthName, dutIPv4, dutIPv6, dutIntfName string) string {
+	t.Helper()
+	if otgEthName != "" && dutIPv4 != "" {
+		if val, ok := gnmi.Lookup(t, ate.OTG(), gnmi.OTG().Interface(otgEthName).Ipv4Neighbor(dutIPv4).LinkLayerAddress().State()).Val(); ok && val != "" {
+			return val
+		}
+	}
+	if otgEthName != "" && dutIPv6 != "" {
+		if val, ok := gnmi.Lookup(t, ate.OTG(), gnmi.OTG().Interface(otgEthName).Ipv6Neighbor(dutIPv6).LinkLayerAddress().State()).Val(); ok && val != "" {
+			return val
+		}
+	}
+	if val, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(dutIntfName).Ethernet().MacAddress().State()).Val(); ok && val != "" {
+		return val
+	}
+	return ""
+}
+
+// AreFlowsTransmitting checks whether all specified OTG flows actively increment their OutPkts counter
+// by at least minDelta within timeout.
+func AreFlowsTransmitting(t *testing.T, ate *ondatra.ATEDevice, flowNames []string, minDelta uint64, timeout time.Duration) bool {
+	t.Helper()
+	if minDelta == 0 {
+		minDelta = 20
+	}
+	for _, flowName := range flowNames {
+		flowPath := gnmi.OTG().Flow(flowName).Counters().OutPkts().State()
+		var baseSet bool
+		var baseTx uint64
+		if _, ok := gnmi.Watch(t, ate.OTG(), flowPath, timeout, func(val *ygnmi.Value[uint64]) bool {
+			tx, present := val.Val()
+			if !present {
+				return false
+			}
+			if !baseSet {
+				baseTx = tx
+				baseSet = true
+				return false
+			}
+			return tx >= baseTx+minDelta
+		}).Await(t); !ok {
+			return false
+		}
+	}
+	return true
+}
+
+// SubinterfaceGatewayNeighbor specifies an OTG Ethernet interface name and its expected IPv4 and IPv6 gateway addresses.
+type SubinterfaceGatewayNeighbor struct {
+	OTGEthName string
+	IPv4GW     string
+	IPv6GW     string
+}
+
+// WaitForSubinterfaceARPAndND watches OTG IPv4 ARP and IPv6 ND neighbor state for each specified subinterface
+// gateway before starting tagged traffic flows.
+func WaitForSubinterfaceARPAndND(t *testing.T, ate *ondatra.ATEDevice, gateways []SubinterfaceGatewayNeighbor) {
+	t.Helper()
+	for _, gw := range gateways {
+		if gw.IPv4GW != "" {
+			if _, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Interface(gw.OTGEthName).Ipv4Neighbor(gw.IPv4GW).LinkLayerAddress().State(), 15*time.Second, func(val *ygnmi.Value[string]) bool {
+				got, present := val.Val()
+				return present && got != ""
+			}).Await(t); !ok {
+				t.Logf("OTG IPv4 gateway neighbor %s on %s not reported in get_status within 15s (using explicit flow Dst MAC)", gw.IPv4GW, gw.OTGEthName)
+			}
+		}
+		if gw.IPv6GW != "" {
+			if _, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Interface(gw.OTGEthName).Ipv6Neighbor(gw.IPv6GW).LinkLayerAddress().State(), 2*time.Second, func(val *ygnmi.Value[string]) bool {
+				got, present := val.Val()
+				return present && got != ""
+			}).Await(t); !ok {
+				t.Logf("OTG IPv6 gateway neighbor %s on %s not reported in get_status within 2s (using explicit flow Dst MAC)", gw.IPv6GW, gw.OTGEthName)
+			}
+		}
 	}
 }
