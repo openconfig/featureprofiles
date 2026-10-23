@@ -367,7 +367,7 @@ func lookupWithGetFallback[T any](t *testing.T, dut *ondatra.DUTDevice, c *ygnmi
 }
 
 // awaitSwitchoverReady waits for `/components/component[name=targetSupervisor]/state/switchover-ready`
-// to report true (using gnmi.Watch by default, or unary gNMI.Get polling when
+// to report true (polling via one-shot gNMI.Subscribe mode: ONCE by default, or unary gNMI.Get when
 // `deviations.SwitchoverSubscribeUnsupported(dut)` is set) and records any timeout or leaf
 // mismatch via `t.Errorf` rather than aborting with `gnmi.Await`.
 func awaitSwitchoverReady(t *testing.T, dut *ondatra.DUTDevice, targetSupervisor string, timeout time.Duration, stepContext string) bool {
@@ -378,25 +378,11 @@ func awaitSwitchoverReady(t *testing.T, dut *ondatra.DUTDevice, targetSupervisor
 	var lastTargetReady bool
 	var lastTargetPresent bool
 
-	if !deviations.SwitchoverSubscribeUnsupported(dut) {
-		_, ok := gnmi.Watch(t, dut, gnmi.OC().Component(targetSupervisor).SwitchoverReady().State(), timeout, func(val *ygnmi.Value[bool]) bool {
-			ready, present := val.Val()
-			if present {
-				lastTargetReady = ready
-				lastTargetPresent = true
-			}
-			return present && ready
-		}).Await(t)
-		if ok {
-			t.Logf("INFO: [%s] Supervisor %q reported /components/component[name=%s]/state/switchover-ready=true after %.2fm.", stepContext, targetSupervisor, targetSupervisor, time.Since(start).Minutes())
-			return true
-		}
-		t.Errorf("[%s] Await(t) on dut(%s) at /components/component[name=%s]/state/switchover-ready timed out after %v: got %v (present=%v), want true", stepContext, dut.Name(), targetSupervisor, timeout, lastTargetReady, lastTargetPresent)
-		return false
+	var opts []ygnmi.Option
+	if deviations.SwitchoverSubscribeUnsupported(dut) {
+		t.Logf("WARNING: [%s] Deviation SwitchoverSubscribeUnsupported is enabled on %s (%s): bypassing gNMI Subscribe stream via unary gNMI.Get (ygnmi.WithUseGet()) polling to prevent stream stall/hang.", stepContext, dut.Name(), dut.Model())
+		opts = append(opts, ygnmi.WithUseGet())
 	}
-
-	t.Logf("WARNING: [%s] Deviation SwitchoverSubscribeUnsupported is enabled on %s (%s): bypassing gNMI Subscribe stream via unary gNMI.Get (ygnmi.WithUseGet()) polling to prevent stream stall/hang.", stepContext, dut.Name(), dut.Model())
-	opts := []ygnmi.Option{ygnmi.WithUseGet()}
 
 	c, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.Name()))
 	if err != nil {
