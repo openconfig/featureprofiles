@@ -177,10 +177,10 @@ func (f *Flow) CreateFlow(top gosnappi.Config) {
 
 // AddEthHeader adds an Ethernet header to the flow.
 func (f *Flow) AddEthHeader() {
-	eth := f.flow.Packet().Add().Ethernet()
 	if f.EthFlow == nil {
 		return
 	}
+	eth := f.flow.Packet().Add().Ethernet()
 	if f.EthFlow.SrcMAC != "" {
 		if f.EthFlow.SrcMACCount != 0 {
 			eth.Src().Increment().SetStart(f.EthFlow.SrcMAC).SetCount(f.EthFlow.SrcMACCount)

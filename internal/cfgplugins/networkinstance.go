@@ -245,6 +245,9 @@ func ConfigureL3VRFWithSubinterfaces(t *testing.T, dut *ondatra.DUTDevice, sb *g
 // preserving an unnumbered routed Subinterface(0) and default VRF BGP instance when required by deviations.
 func ClearDefaultVRFSubinterfacesAndProtocols(t *testing.T, dut *ondatra.DUTDevice, isisInstance string, localAS uint32, intfNames []string) {
 	t.Helper()
+	if len(intfNames) == 0 {
+		t.Fatalf("ClearDefaultVRFSubinterfacesAndProtocols: intfNames slice cannot be empty")
+	}
 	dni := deviations.DefaultNetworkInstance(dut)
 	sb := &gnmi.SetBatch{}
 	if isisInstance != "" {

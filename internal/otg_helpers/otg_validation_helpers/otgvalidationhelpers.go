@@ -483,28 +483,31 @@ func ResolveDUTInterfaceMAC(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.A
 	return ""
 }
 
-// AreFlowsTransmitting checks whether all specified OTG flows actively increment their OutPkts counter
-// by at least minDelta within timeout.
+// AreFlowsTransmitting checks whether all specified OTG flows actively increment both their OutPkts
+// and InPkts counters by at least minDelta within timeout.
 func AreFlowsTransmitting(t *testing.T, ate *ondatra.ATEDevice, flowNames []string, minDelta uint64, timeout time.Duration) bool {
 	t.Helper()
 	if minDelta == 0 {
 		minDelta = 20
 	}
 	for _, flowName := range flowNames {
-		flowPath := gnmi.OTG().Flow(flowName).Counters().OutPkts().State()
+		flowPath := gnmi.OTG().Flow(flowName).Counters().State()
 		var baseSet bool
-		var baseTx uint64
-		if _, ok := gnmi.Watch(t, ate.OTG(), flowPath, timeout, func(val *ygnmi.Value[uint64]) bool {
-			tx, present := val.Val()
-			if !present {
+		var baseTx, baseRx uint64
+		if _, ok := gnmi.Watch(t, ate.OTG(), flowPath, timeout, func(val *ygnmi.Value[*otg.Flow_Counters]) bool {
+			cnt, present := val.Val()
+			if !present || cnt == nil {
 				return false
 			}
+			tx := cnt.GetOutPkts()
+			rx := cnt.GetInPkts()
 			if !baseSet {
 				baseTx = tx
+				baseRx = rx
 				baseSet = true
 				return false
 			}
-			return tx >= baseTx+minDelta
+			return tx >= baseTx+minDelta && rx >= baseRx+minDelta
 		}).Await(t); !ok {
 			return false
 		}
