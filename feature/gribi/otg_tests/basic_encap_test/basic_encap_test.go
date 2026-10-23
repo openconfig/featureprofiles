@@ -121,19 +121,19 @@ const (
 	otgMutliPortCaptureSupported = false
 
 	// Test-6 (Simultaneous IP-in-IP Encapsulation Tunnel and Subinterface Egress Streaming Telemetry Counters Validation) constants.
-	nativeFallbackIPv6FlowIP = "1999:aa8::1"
-	test6SampleInterval      = 10 * time.Second
-	test6FrameSize           = uint32(512)
-	test6InnerL3Bytes        = uint64(494) // 512B frame - 14B Ethernet header - 4B FCS
-	test6InnerL2Bytes        = uint64(512) // 512B full L2 frame
-	test6OuterL3Bytes        = uint64(514) // 494B inner IP packet + 20B outer IPv4 IP-in-IP header
-	test6OuterL2Bytes        = uint64(532) // 512B inner frame + 20B outer IPv4 IP-in-IP header
-	test6PPS                 = uint64(1000)
-	test6PktCount            = uint32(35000) // 35s sustained transmission at 1,000 pps (> 3x 10s sample_interval)
-	test6CiscoPktCount       = uint32(70000) // 70s sustained transmission at 1,000 pps (> 2x 30s Cisco statsd sync interval)
-	test6MonotonicSamples    = 3
-	test6SampleTimeout       = 45 * time.Second
-	test6CounterTolPct       = 0.01 // +/- 1% packet/octet counter accuracy tolerance
+	nativeFallbackIPv6FlowIP     = "1999:aa8::1"
+	test6SampleInterval          = 10 * time.Second
+	test6FrameSize               = uint32(512)
+	test6InnerL3Bytes            = uint64(494) // 512B frame - 14B Ethernet header - 4B FCS
+	test6InnerL2Bytes            = uint64(512) // 512B full L2 frame
+	test6OuterL3Bytes            = uint64(514) // 494B inner IP packet + 20B outer IPv4 IP-in-IP header
+	test6OuterL2Bytes            = uint64(532) // 512B inner frame + 20B outer IPv4 IP-in-IP header
+	test6PPS                     = uint64(1000)
+	test6PktCount                = uint32(35000) // >30s sustained transmission (>=30,000 packets per flow at 1,000 pps) for >=3 periodic 10s SAMPLE updates
+	test6DelayedCountersPktCount = uint32(70000) // Extended packet count when deviations.InterfaceCountersUpdateDelayed(dut) is set
+	test6MonotonicSamples        = 3
+	test6SampleTimeout           = 45 * time.Second
+	test6CounterTolPct           = 0.01 // +/- 1% packet/octet counter accuracy tolerance
 )
 
 var (
@@ -1869,11 +1869,11 @@ func readLatestSampleFunc[T any](t *testing.T, s *samplestream.SampleStream[T], 
 }
 
 // test6PacketCount returns the per-flow fixed packet count for Test-6.
-// On Cisco IOS-XR, generic interface counters are synced from the NPU every 30s, so 70,000 packets (70s at 1,000 pps)
-// ensures >= 3 strictly increasing NPU counter sync cycles during traffic transmission regardless of timer phase.
+// When deviations.InterfaceCountersUpdateDelayed(dut) is enabled, an extended packet count is used
+// so that >= 3 strictly increasing periodic SAMPLE counter updates are collected during traffic transmission.
 func test6PacketCount(dut *ondatra.DUTDevice) uint32 {
-	if dut.Vendor() == ondatra.CISCO {
-		return test6CiscoPktCount
+	if deviations.InterfaceCountersUpdateDelayed(dut) {
+		return test6DelayedCountersPktCount
 	}
 	return test6PktCount
 }
@@ -2049,9 +2049,9 @@ func testSimultaneousEncapAndSubintfStreamingCounters(t *testing.T, args *testAr
 	defaultNI := deviations.DefaultNetworkInstance(dut)
 
 	// =========================================================================
-	// Test-6 Step 1: Establish Concurrent gNMI SAMPLE Subscriptions & Record Baseline Counters
+	// Test-6 Step 1: Establish gNMI SAMPLE Subscriptions & Record Baseline Counters
 	// =========================================================================
-	t.Log("Test-6 Step 1: Establishing concurrent gNMI SAMPLE subscriptions (10s interval) for AFT next-hop, AFT prefix, subinterface IPv4/IPv6, and physical interface counters")
+	t.Log("Test-6 Step 1: Establishing gNMI STREAM subscriptions with SubscriptionMode: SAMPLE (sample_interval = 10s) for IP-in-IP encapsulation tunnel counters and interface/subinterface counters")
 
 	nh201Key := resolveAFTNextHopIndex(t, dut, nh201ID, tunnelDstIP1)
 	nh202Key := resolveAFTNextHopIndex(t, dut, nh202ID, tunnelDstIP2)
@@ -2061,38 +2061,35 @@ func testSimultaneousEncapAndSubintfStreamingCounters(t *testing.T, args *testAr
 	v6Pfx := cidr(ipv6EntryPrefix, ipv6EntryPrefixLen)
 
 	// Probe AFT NextHop and AFT Prefix state containers and check whether counter leaves are exported.
-	var aftNHCountersSupported, aftPfxCountersSupported bool
-	if dut.Vendor() != ondatra.NOKIA {
-		nh201Val, nh201OK := safeLookup(t, dut, gnmi.OC().NetworkInstance(defaultNI).Afts().NextHop(nh201Key).State())
-		nh202Val, nh202OK := safeLookup(t, dut, gnmi.OC().NetworkInstance(defaultNI).Afts().NextHop(nh202Key).State())
-		for _, nhCheck := range []struct {
-			name    string
-			val     *oc.NetworkInstance_Afts_NextHop
-			ok      bool
-			wantDst string
-		}{
-			{name: "NH#201", val: nh201Val, ok: nh201OK, wantDst: tunnelDstIP1},
-			{name: "NH#202", val: nh202Val, ok: nh202OK, wantDst: tunnelDstIP2},
-		} {
-			if nhCheck.ok && nhCheck.val != nil {
-				if gotHdr := nhCheck.val.GetEncapsulateHeader(); gotHdr != oc.Aft_EncapsulationHeaderType_UNSET && gotHdr != oc.Aft_EncapsulationHeaderType_IPV4 {
-					t.Errorf("Test-6 Step 1: %s encapsulate-header: got %v, want %v", nhCheck.name, gotHdr, oc.Aft_EncapsulationHeaderType_IPV4)
+	nh201Val, nh201OK := safeLookup(t, dut, gnmi.OC().NetworkInstance(defaultNI).Afts().NextHop(nh201Key).State())
+	nh202Val, nh202OK := safeLookup(t, dut, gnmi.OC().NetworkInstance(defaultNI).Afts().NextHop(nh202Key).State())
+	for _, nhCheck := range []struct {
+		name    string
+		val     *oc.NetworkInstance_Afts_NextHop
+		ok      bool
+		wantDst string
+	}{
+		{name: "NH#201", val: nh201Val, ok: nh201OK, wantDst: tunnelDstIP1},
+		{name: "NH#202", val: nh202Val, ok: nh202OK, wantDst: tunnelDstIP2},
+	} {
+		if nhCheck.ok && nhCheck.val != nil {
+			if gotHdr := nhCheck.val.GetEncapsulateHeader(); gotHdr != oc.Aft_EncapsulationHeaderType_UNSET && gotHdr != oc.Aft_EncapsulationHeaderType_IPV4 {
+				t.Errorf("Test-6 Step 1: %s encapsulate-header: got %v, want %v", nhCheck.name, gotHdr, oc.Aft_EncapsulationHeaderType_IPV4)
+			}
+			if ipip := nhCheck.val.GetIpInIp(); ipip != nil {
+				if ipip.GetSrcIp() != "" && ipip.GetSrcIp() != ipv4OuterSrc111 {
+					t.Errorf("Test-6 Step 1: %s ip-in-ip/src-ip: got %q, want %q", nhCheck.name, ipip.GetSrcIp(), ipv4OuterSrc111)
 				}
-				if ipip := nhCheck.val.GetIpInIp(); ipip != nil {
-					if ipip.GetSrcIp() != "" && ipip.GetSrcIp() != ipv4OuterSrc111 {
-						t.Errorf("Test-6 Step 1: %s ip-in-ip/src-ip: got %q, want %q", nhCheck.name, ipip.GetSrcIp(), ipv4OuterSrc111)
-					}
-					if ipip.GetDstIp() != "" && ipip.GetDstIp() != nhCheck.wantDst {
-						t.Errorf("Test-6 Step 1: %s ip-in-ip/dst-ip: got %q, want %q", nhCheck.name, ipip.GetDstIp(), nhCheck.wantDst)
-					}
+				if ipip.GetDstIp() != "" && ipip.GetDstIp() != nhCheck.wantDst {
+					t.Errorf("Test-6 Step 1: %s ip-in-ip/dst-ip: got %q, want %q", nhCheck.name, ipip.GetDstIp(), nhCheck.wantDst)
 				}
 			}
 		}
-		aftNHCountersSupported = nh201OK && nh202OK && nh201Val != nil && nh202Val != nil && nh201Val.GetCounters() != nil && nh201Val.GetCounters().PacketsForwarded != nil && nh202Val.GetCounters() != nil && nh202Val.GetCounters().PacketsForwarded != nil
 	}
+	aftNHCountersSupported := nh201OK && nh202OK && nh201Val != nil && nh202Val != nil && nh201Val.GetCounters() != nil && nh201Val.GetCounters().PacketsForwarded != nil && nh202Val.GetCounters() != nil && nh202Val.GetCounters().PacketsForwarded != nil
 	v4PfxVal, v4PfxOK := safeLookup(t, dut, gnmi.OC().NetworkInstance(vrfEncapA).Afts().Ipv4Entry(v4Pfx).State())
 	v6PfxVal, v6PfxOK := safeLookup(t, dut, gnmi.OC().NetworkInstance(vrfEncapA).Afts().Ipv6Entry(v6Pfx).State())
-	aftPfxCountersSupported = v4PfxOK && v6PfxOK && v4PfxVal != nil && v6PfxVal != nil && v4PfxVal.GetCounters() != nil && v4PfxVal.GetCounters().PacketsForwarded != nil && v6PfxVal.GetCounters() != nil && v6PfxVal.GetCounters().PacketsForwarded != nil
+	aftPfxCountersSupported := v4PfxOK && v6PfxOK && v4PfxVal != nil && v6PfxVal != nil && v4PfxVal.GetCounters() != nil && v4PfxVal.GetCounters().PacketsForwarded != nil && v6PfxVal.GetCounters() != nil && v6PfxVal.GetCounters().PacketsForwarded != nil
 	t.Logf("AFT Counter telemetry availability on %s (%s): NextHop counters=%v, Prefix counters=%v", dut.Name(), dut.Model(), aftNHCountersSupported, aftPfxCountersSupported)
 
 	subintfCountersSupported := !deviations.SubinterfacePacketCountersMissing(dut) && !deviations.DefaultSubinterfacePacketCountersMissing(dut)

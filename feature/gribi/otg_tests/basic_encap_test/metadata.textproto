@@ -19,6 +19,7 @@ platform_exceptions:  {
     duplex_mode_unsupported: true
     port_speed_unsupported: true
     subinterface_packet_counters_missing: true
+    interface_counters_update_delayed: true
   }
 }
 platform_exceptions:  {
