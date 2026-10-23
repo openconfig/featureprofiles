@@ -40,10 +40,10 @@ Below is the complete list of supported commands:
 
 ### Vendor-Specific Physical Triggers
 These commands run tests strictly on the physical hardware for the specified vendor:
-* **`/fptest arista-physical`**
-* **`/fptest cisco-physical`**
-* **`/fptest juniper-physical`**
-* **`/fptest nokia-physical`**
+* **`/fptest arista-physical`**: Targets Arista physical hardware.
+* **`/fptest cisco-physical`**: Targets Cisco physical hardware.
+* **`/fptest juniper-physical`**: Targets Juniper physical hardware.
+* **`/fptest nokia-physical`**: Targets Nokia physical hardware.
 
 ### Vendor-Specific Virtual Triggers
 These commands target specific virtual network operating systems:
