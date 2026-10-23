@@ -1917,6 +1917,9 @@ func GnoiRequiresFreshDialAfterSwitchover(dut *ondatra.DUTDevice) bool {
 // SwitchoverSubscribeUnsupported returns true if the device does not support
 // gNMI Subscribe during switchover recovery and requires gNMI Get polling
 // instead.
+// Arista: https://partnerissuetracker.corp.google.com/issues/573824242
+// Nokia:  https://partnerissuetracker.corp.google.com/issues/573830451
+// Cisco:  https://partnerissuetracker.corp.google.com/issues/574372534
 func SwitchoverSubscribeUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSwitchoverSubscribeUnsupported()
 }
