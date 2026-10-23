@@ -143,6 +143,7 @@ func setupContainer(t *testing.T, dut *ondatra.DUTDevice) {
 		InstanceName:        instanceName,
 		Command:             fmt.Sprintf("./cntrsrv --port=%d", cntrPort),
 		TarPath:             containerTarPath(t),
+		Network:             "host",
 		PollForRunningState: true,
 	}
 	_, cleanup := containerztest.Setup(ctx, t, dut, opts)
