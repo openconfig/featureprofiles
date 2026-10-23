@@ -1561,6 +1561,7 @@ test: {
   id: "TE-1.4"
   description: "gRIBI Recursive Route Resolution under Routing Protocol Churn"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/recursive_route_resolution_protocol_churn_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/recursive_route_resolution_protocol_churn_test/recursive_route_resolution_protocol_churn_test.go"
 }
 test: {
   id: "TE-1.7"
