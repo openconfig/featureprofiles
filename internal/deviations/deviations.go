@@ -2508,3 +2508,10 @@ func QosRedUnsupported(dut *ondatra.DUTDevice) bool {
 func InvalidInterfaceNumberAllowed(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInvalidInterfaceNumberAllowed()
 }
+
+// DecapICMPTTLExceededUnsupported returns true if the device does not support
+// generating ICMP TTL Exceeded messages for decapsulated packets.
+// Arista: https://partnerissuetracker.corp.google.com/issues/556092813
+func DecapICMPTTLExceededUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDecapIcmpTtlExceededUnsupported()
+}
