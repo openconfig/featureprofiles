@@ -57,8 +57,10 @@ func AdvertiseBGPRoutes(dev gosnappi.Device, ipv4 gosnappi.DeviceIpv4, ipv6 gosn
 	bgp := dev.Bgp().SetRouterId(ipv4.Address())
 	bgp4Peer := bgp.Ipv4Interfaces().Add().SetIpv4Name(ipv4.Name()).Peers().Add().SetName(dev.Name() + bgpV4Suffix)
 	bgp4Peer.SetPeerAddress(ipv4.Gateway()).SetAsNumber(v4Advertised.ATEAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
+	bgp4Peer.Advanced().SetHoldTimeInterval(1800).SetKeepAliveInterval(600)
 	bgp6Peer := bgp.Ipv6Interfaces().Add().SetIpv6Name(ipv6.Name()).Peers().Add().SetName(dev.Name() + bgpV6Suffix)
 	bgp6Peer.SetPeerAddress(ipv6.Gateway()).SetAsNumber(v6Advertised.ATEAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
+	bgp6Peer.Advanced().SetHoldTimeInterval(1800).SetKeepAliveInterval(600)
 
 	routes := bgp4Peer.V4Routes().Add().SetName(bgp4Peer.Name() + ipv4Suffix)
 	routes.SetNextHopIpv4Address(ipv4.Address()).
@@ -215,4 +217,35 @@ func ConfigureATEWithISISAndBGPRoutes(t *testing.T, ateRoutes *ATEAdvertiseRoute
 	}
 
 	return config
+}
+
+// ConfigureDeviceISIS configures a Level-2 Point-to-Point IS-IS router on an existing OTG device and Ethernet interface.
+func ConfigureDeviceISIS(dev gosnappi.Device, ethName, ipv4Addr, sysID, hostname string, metric uint32, v4Routes, v6Routes *AdvertisedRoutes) {
+	isis := dev.Isis().SetName(dev.Name() + isisSuffix).SetSystemId(sysID)
+	isis.Basic().SetIpv4TeRouterId(ipv4Addr).SetHostname(hostname)
+	isis.Advanced().SetAreaAddresses([]string{"490001"}).SetEnableHelloPadding(false)
+	isisInt := isis.Interfaces().Add().SetName(isis.Name() + intfSuffix).
+		SetEthName(ethName).
+		SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT).
+		SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2).
+		SetMetric(metric)
+	isisInt.TrafficEngineering().Add().PriorityBandwidths()
+	isisInt.Advanced().
+		SetAutoAdjustMtu(true).
+		SetAutoAdjustArea(true).
+		SetAutoAdjustSupportedProtocols(true)
+	if v4Routes != nil {
+		v4R := isis.V4Routes().Add().SetName(isis.Name() + ipv4Suffix)
+		v4R.Addresses().Add().
+			SetAddress(v4Routes.StartingAddress).
+			SetPrefix(v4Routes.PrefixLength).
+			SetCount(v4Routes.Count)
+	}
+	if v6Routes != nil {
+		v6R := isis.V6Routes().Add().SetName(isis.Name() + ipv6Suffix)
+		v6R.Addresses().Add().
+			SetAddress(v6Routes.StartingAddress).
+			SetPrefix(v6Routes.PrefixLength).
+			SetCount(v6Routes.Count)
+	}
 }

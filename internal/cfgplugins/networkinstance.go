@@ -57,6 +57,12 @@ func EnableDefaultNetworkInstanceBgp(t *testing.T, dut *ondatra.DUTDevice, dutAS
 	bgp.Bgp.Global = &oc.NetworkInstance_Protocol_Bgp_Global{
 		As: ygot.Uint32(dutAS),
 	}
+	if deviations.BgpAfiSafiInDefaultNiBeforeOtherNi(dut) {
+		bgp.Bgp.Global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+		bgp.Bgp.Global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
+		bgp.Bgp.Global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_L3VPN_IPV4_UNICAST).Enabled = ygot.Bool(true)
+		bgp.Bgp.Global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_L3VPN_IPV6_UNICAST).Enabled = ygot.Bool(true)
+	}
 
 	gnmi.Replace(t, dut, d.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), bgp)
 }
@@ -168,5 +174,164 @@ func AssignInterfaceToNetworkInstance(t testing.TB, batch *gnmi.SetBatch, d *ond
 	}
 	if intf.GetOrCreateSubinterface(si) != nil {
 		gnmi.BatchUpdate(batch, gnmi.OC().NetworkInstance(ni).Config(), netInst)
+	}
+}
+
+// L3VRFSubinterfaceBinding specifies an interface and subinterface index to bind to an L3VRF.
+type L3VRFSubinterfaceBinding struct {
+	InterfaceName string
+	SubintfIndex  uint32
+	VlanID        uint16
+}
+
+// ConfigureL3VRFWithSubinterfaces configures an L3VRF network instance and binds the specified
+// subinterfaces to it using `<interface>.<subinterface>` ID format without using dut.Vendor().
+func ConfigureL3VRFWithSubinterfaces(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, vrfName string, bindings []L3VRFSubinterfaceBinding) *gnmi.SetBatch {
+	t.Helper()
+	if len(bindings) == 0 {
+		t.Fatalf("ConfigureL3VRFWithSubinterfaces: bindings slice cannot be empty")
+	}
+	if sb == nil {
+		sb = &gnmi.SetBatch{}
+	}
+
+	// Ensure subinterfaces exist prior to VRF binding when required by platform deviations.
+	for _, b := range bindings {
+		sub := &oc.Interface_Subinterface{
+			Index: ygot.Uint32(b.SubintfIndex),
+		}
+		if deviations.InterfaceEnabled(dut) {
+			sub.Enabled = ygot.Bool(true)
+		}
+		if b.VlanID > 0 {
+			if deviations.DeprecatedVlanID(dut) {
+				sub.GetOrCreateVlan().VlanId = oc.UnionUint16(b.VlanID)
+			} else {
+				sub.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().SetVlanId(b.VlanID)
+			}
+		}
+		if !deviations.IPv4MissingEnabled(dut) {
+			sub.GetOrCreateIpv4().Enabled = ygot.Bool(true)
+		}
+		if deviations.InterfaceEnabled(dut) {
+			sub.GetOrCreateIpv6().Enabled = ygot.Bool(true)
+		}
+		gnmi.BatchUpdate(sb, gnmi.OC().Interface(b.InterfaceName).Subinterface(b.SubintfIndex).Config(), sub)
+	}
+
+	ni := &oc.NetworkInstance{
+		Name: ygot.String(vrfName),
+		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
+	}
+	if deviations.BgpAfiSafiInDefaultNiBeforeOtherNi(dut) {
+		ni.SetRouteDistinguisher("64500:100")
+	}
+	for _, b := range bindings {
+		intfID := fmt.Sprintf("%s.%d", b.InterfaceName, b.SubintfIndex)
+		if !deviations.InterfaceRefInterfaceIDFormat(dut) && b.SubintfIndex == 0 {
+			intfID = b.InterfaceName
+		}
+		niIntf := ni.GetOrCreateInterface(intfID)
+		niIntf.Id = ygot.String(intfID)
+		niIntf.Interface = ygot.String(b.InterfaceName)
+		niIntf.Subinterface = ygot.Uint32(b.SubintfIndex)
+	}
+	gnmi.BatchUpdate(sb, gnmi.OC().NetworkInstance(vrfName).Config(), ni)
+	return sb
+}
+
+// ClearDefaultVRFSubinterfacesAndProtocols removes the IS-IS and BGP protocol instances and untagged
+// Subinterface(0) configurations on the specified interfaces from the default network instance,
+// preserving an unnumbered routed Subinterface(0) and default VRF BGP instance when required by deviations.
+func ClearDefaultVRFSubinterfacesAndProtocols(t *testing.T, dut *ondatra.DUTDevice, isisInstance string, localAS uint32, intfNames []string) {
+	t.Helper()
+	if len(intfNames) == 0 {
+		t.Fatalf("ClearDefaultVRFSubinterfacesAndProtocols: intfNames slice cannot be empty")
+	}
+	dni := deviations.DefaultNetworkInstance(dut)
+	sb := &gnmi.SetBatch{}
+	if isisInstance != "" {
+		gnmi.BatchDelete(sb, gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Config())
+	}
+	gnmi.BatchDelete(sb, gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config())
+	for _, intfName := range intfNames {
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+			gnmi.BatchDelete(sb, gnmi.OC().NetworkInstance(dni).Interface(intfName+".0").Config())
+		}
+		gnmi.BatchDelete(sb, gnmi.OC().Interface(intfName).Subinterface(0).Config())
+		if deviations.RequireRoutedSubinterface0(dut) {
+			s0 := &oc.Interface_Subinterface{}
+			s0.SetIndex(0)
+			s0v4 := s0.GetOrCreateIpv4()
+			s0v6 := s0.GetOrCreateIpv6()
+			if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+				s0v4.SetEnabled(true)
+			}
+			if deviations.InterfaceEnabled(dut) {
+				s0v6.SetEnabled(true)
+			}
+			gnmi.BatchReplace(sb, gnmi.OC().Interface(intfName).Subinterface(0).Config(), s0)
+		}
+	}
+	sb.Set(t, dut)
+	if deviations.ExplicitEnableBGPOnDefaultVRF(dut) {
+		EnableDefaultNetworkInstanceBgp(t, dut, localAS)
+	}
+}
+
+// AggregateDrainCleanupParams holds parameters for restoring the DUT to its pre-test baseline state.
+type AggregateDrainCleanupParams struct {
+	AggID          string
+	MemberPorts    []*ondatra.Port
+	TransitPort    *ondatra.Port
+	ISISInstance   string
+	LocalAS        uint32
+	NonDefaultVRF  string
+	TaggedSubIndex uint32
+}
+
+// CleanupAggregateDrainTest restores the DUT interfaces, LACP bundle, subinterfaces, and network instances
+// to their pre-test baseline state.
+func CleanupAggregateDrainTest(t *testing.T, dut *ondatra.DUTDevice, params AggregateDrainCleanupParams) {
+	t.Helper()
+	cleanupBatch := &gnmi.SetBatch{}
+	dni := deviations.DefaultNetworkInstance(dut)
+	if params.ISISInstance != "" {
+		gnmi.BatchDelete(cleanupBatch, gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, params.ISISInstance).Config())
+	}
+	gnmi.BatchDelete(cleanupBatch, gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config())
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		gnmi.BatchDelete(cleanupBatch, gnmi.OC().NetworkInstance(dni).Interface(params.AggID+".0").Config())
+		if params.TransitPort != nil {
+			gnmi.BatchDelete(cleanupBatch, gnmi.OC().NetworkInstance(dni).Interface(params.TransitPort.Name()+".0").Config())
+		}
+	}
+	if params.NonDefaultVRF != "" {
+		gnmi.BatchDelete(cleanupBatch, gnmi.OC().NetworkInstance(params.NonDefaultVRF).Config())
+	}
+	if params.TaggedSubIndex > 0 {
+		gnmi.BatchDelete(cleanupBatch, gnmi.OC().Interface(params.AggID).Subinterface(params.TaggedSubIndex).Config())
+		if params.TransitPort != nil {
+			gnmi.BatchDelete(cleanupBatch, gnmi.OC().Interface(params.TransitPort.Name()).Subinterface(params.TaggedSubIndex).Config())
+		}
+	}
+	if params.TransitPort != nil {
+		gnmi.BatchDelete(cleanupBatch, gnmi.OC().Interface(params.TransitPort.Name()).Subinterface(0).Config())
+	}
+
+	ClearAggregateMembers(t, dut, cleanupBatch, params.MemberPorts)
+	gnmi.BatchDelete(cleanupBatch, gnmi.OC().Lacp().Interface(params.AggID).Config())
+	gnmi.BatchDelete(cleanupBatch, gnmi.OC().Interface(params.AggID).Config())
+
+	for _, p := range params.MemberPorts {
+		SetInterfaceAdminEnabled(t, dut, cleanupBatch, p.Name(), true)
+	}
+	if params.TransitPort != nil {
+		SetInterfaceAdminEnabled(t, dut, cleanupBatch, params.TransitPort.Name(), true)
+	}
+
+	cleanupBatch.Set(t, dut)
+	if deviations.ExplicitEnableBGPOnDefaultVRF(dut) {
+		EnableDefaultNetworkInstanceBgp(t, dut, params.LocalAS)
 	}
 }

@@ -1996,3 +1996,683 @@ func VerifyInterfaceIPv6Address(t *testing.T, dut *ondatra.DUTDevice, portName s
 		t.Errorf("IPv6 subinterface status state mismatch for port: %s, got: %v, want: %v", portName, got, want)
 	}
 }
+
+// L3AggregateParams holds parameters for configuring an L3 aggregate (LAG) interface and its member ports.
+type L3AggregateParams struct {
+	AggID            string
+	LagType          oc.E_IfAggregate_AggregationType
+	MinLinks         uint16
+	LacpMode         oc.E_Lacp_LacpActivityType
+	LacpInterval     oc.E_Lacp_LacpPeriodType
+	MemberPorts      []*ondatra.Port
+	ForwardingViable *bool
+	Attributes       *attrs.Attributes
+}
+
+// SingleTaggedSubinterfaceParams holds parameters for configuring a single-tagged 802.1Q VLAN L3 subinterface.
+type SingleTaggedSubinterfaceParams struct {
+	InterfaceName string
+	SubintfIndex  uint32
+	VlanID        uint16
+	IPv4Addr      string
+	IPv4PrefixLen uint8
+	IPv6Addr      string
+	IPv6PrefixLen uint8
+}
+
+// ClearAggregateMembers removes the aggregate-id and forwarding-viable configuration from the specified member ports.
+func ClearAggregateMembers(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, memberPorts []*ondatra.Port) *gnmi.SetBatch {
+	t.Helper()
+	if len(memberPorts) == 0 {
+		t.Fatalf("ClearAggregateMembers: memberPorts slice cannot be empty")
+	}
+	if sb != nil {
+		for _, port := range memberPorts {
+			gnmi.BatchDelete(sb, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
+			gnmi.BatchDelete(sb, gnmi.OC().Interface(port.Name()).ForwardingViable().Config())
+		}
+		return sb
+	}
+	localBatch := &gnmi.SetBatch{}
+	for _, port := range memberPorts {
+		gnmi.BatchDelete(localBatch, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
+		gnmi.BatchDelete(localBatch, gnmi.OC().Interface(port.Name()).ForwardingViable().Config())
+	}
+	localBatch.Set(t, dut)
+	return nil
+}
+
+// ConfigureL3AggregateInterface configures an L3 aggregate (LAG) interface, LACP parameters,
+// and member ports using a gNMI SetBatch.
+func ConfigureL3AggregateInterface(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, params L3AggregateParams) *gnmi.SetBatch {
+	t.Helper()
+	if len(params.MemberPorts) == 0 {
+		t.Fatalf("ConfigureL3AggregateInterface: MemberPorts slice cannot be empty")
+	}
+	if sb == nil {
+		sb = &gnmi.SetBatch{}
+	}
+
+	if deviations.AggregateAtomicUpdate(dut) {
+		ClearAggregateMembers(t, dut, nil, params.MemberPorts)
+		d := &oc.Root{}
+		if params.LagType == oc.IfAggregate_AggregationType_LACP {
+			lacpIntf := d.GetOrCreateLacp().GetOrCreateInterface(params.AggID)
+			lacpIntf.LacpMode = params.LacpMode
+			if params.LacpInterval != oc.Lacp_LacpPeriodType_UNSET {
+				lacpIntf.Interval = params.LacpInterval
+			}
+		}
+		agg := d.GetOrCreateInterface(params.AggID)
+		agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+		agg.Enabled = ygot.Bool(true)
+		agg.GetOrCreateAggregation().LagType = params.LagType
+		if params.MinLinks > 0 {
+			agg.GetOrCreateAggregation().MinLinks = ygot.Uint16(params.MinLinks)
+		}
+		for _, port := range params.MemberPorts {
+			i := d.GetOrCreateInterface(port.Name())
+			i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+			i.Enabled = ygot.Bool(true)
+			if params.ForwardingViable != nil {
+				i.ForwardingViable = ygot.Bool(*params.ForwardingViable)
+			}
+			i.GetOrCreateEthernet().AggregateId = ygot.String(params.AggID)
+		}
+		gnmi.Update(t, dut, gnmi.OC().Config(), d)
+	}
+
+	if params.LagType == oc.IfAggregate_AggregationType_LACP {
+		lacp := &oc.Lacp_Interface{
+			Name:     ygot.String(params.AggID),
+			LacpMode: params.LacpMode,
+		}
+		if params.LacpInterval != oc.Lacp_LacpPeriodType_UNSET {
+			lacp.Interval = params.LacpInterval
+		}
+		gnmi.BatchReplace(sb, gnmi.OC().Lacp().Interface(params.AggID).Config(), lacp)
+	}
+
+	agg := &oc.Interface{Name: ygot.String(params.AggID)}
+	if params.Attributes != nil {
+		params.Attributes.ConfigOCInterface(agg, dut)
+	}
+	agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	agg.Enabled = ygot.Bool(true)
+	aggCfg := agg.GetOrCreateAggregation()
+	aggCfg.LagType = params.LagType
+	if params.MinLinks > 0 {
+		aggCfg.MinLinks = ygot.Uint16(params.MinLinks)
+	}
+	if params.Attributes != nil {
+		gnmi.BatchReplace(sb, gnmi.OC().Interface(params.AggID).Config(), agg)
+	} else {
+		gnmi.BatchUpdate(sb, gnmi.OC().Interface(params.AggID).Config(), agg)
+	}
+
+	for _, port := range params.MemberPorts {
+		i := &oc.Interface{
+			Name:        ygot.String(port.Name()),
+			Description: ygot.String(port.String()),
+			Type:        oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+			Enabled:     ygot.Bool(true),
+		}
+		if params.ForwardingViable != nil {
+			i.ForwardingViable = ygot.Bool(*params.ForwardingViable)
+		}
+		i.GetOrCreateEthernet().AggregateId = ygot.String(params.AggID)
+		if params.Attributes != nil {
+			gnmi.BatchReplace(sb, gnmi.OC().Interface(port.Name()).Config(), i)
+		} else {
+			gnmi.BatchUpdate(sb, gnmi.OC().Interface(port.Name()).Config(), i)
+		}
+	}
+
+	return sb
+}
+
+// ConfigureSingleTaggedSubinterface configures a single-tagged 802.1Q VLAN subinterface with dual-stack
+// IPv4 and IPv6 addresses and adds it to the provided gNMI SetBatch.
+func ConfigureSingleTaggedSubinterface(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, params SingleTaggedSubinterfaceParams) *gnmi.SetBatch {
+	t.Helper()
+	if sb == nil {
+		sb = &gnmi.SetBatch{}
+	}
+
+	sub := &oc.Interface_Subinterface{
+		Index: ygot.Uint32(params.SubintfIndex),
+	}
+	if deviations.InterfaceEnabled(dut) {
+		sub.Enabled = ygot.Bool(true)
+	}
+	if params.VlanID > 0 {
+		if deviations.DeprecatedVlanID(dut) {
+			sub.GetOrCreateVlan().VlanId = oc.UnionUint16(params.VlanID)
+		} else {
+			sub.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().SetVlanId(params.VlanID)
+		}
+	}
+
+	if params.IPv4Addr != "" {
+		v4 := sub.GetOrCreateIpv4()
+		if !deviations.IPv4MissingEnabled(dut) {
+			v4.Enabled = ygot.Bool(true)
+		}
+		a4 := v4.GetOrCreateAddress(params.IPv4Addr)
+		a4.Ip = ygot.String(params.IPv4Addr)
+		a4.PrefixLength = ygot.Uint8(params.IPv4PrefixLen)
+	}
+
+	if params.IPv6Addr != "" {
+		v6 := sub.GetOrCreateIpv6()
+		v6.Enabled = ygot.Bool(true)
+		a6 := v6.GetOrCreateAddress(params.IPv6Addr)
+		a6.Ip = ygot.String(params.IPv6Addr)
+		a6.PrefixLength = ygot.Uint8(params.IPv6PrefixLen)
+	}
+
+	subPath := gnmi.OC().Interface(params.InterfaceName).Subinterface(params.SubintfIndex)
+	gnmi.BatchUpdate(sb, subPath.Config(), sub)
+	return sb
+}
+
+// SetInterfaceAdminEnabled sets /interfaces/interface[name=<intfName>]/config/enabled via gNMI Replace.
+func SetInterfaceAdminEnabled(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, intfName string, enabled bool) *gnmi.SetBatch {
+	t.Helper()
+	path := gnmi.OC().Interface(intfName).Enabled().Config()
+	if sb != nil {
+		gnmi.BatchReplace(sb, path, enabled)
+		return sb
+	}
+	gnmi.Replace(t, dut, path, enabled)
+	return nil
+}
+
+// SetMemberForwardingViable sets /interfaces/interface[name=<portName>]/config/forwarding-viable
+// while preserving /interfaces/interface[name=<portName>]/ethernet/config/aggregate-id.
+func SetMemberForwardingViable(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, portName, aggID string, viable bool) *gnmi.SetBatch {
+	t.Helper()
+	fvPath := gnmi.OC().Interface(portName).ForwardingViable().Config()
+	aggIDPath := gnmi.OC().Interface(portName).Ethernet().AggregateId().Config()
+	if sb != nil {
+		gnmi.BatchReplace(sb, fvPath, viable)
+		if aggID != "" {
+			gnmi.BatchReplace(sb, aggIDPath, aggID)
+		}
+		return sb
+	}
+	localBatch := &gnmi.SetBatch{}
+	gnmi.BatchReplace(localBatch, fvPath, viable)
+	if aggID != "" {
+		gnmi.BatchReplace(localBatch, aggIDPath, aggID)
+	}
+	localBatch.Set(t, dut)
+	return nil
+}
+
+// CompareInterfaceNames compares two interface names in natural numeric order (e.g. Ethernet2 < Ethernet10).
+func CompareInterfaceNames(a, b string) bool {
+	i, j := 0, 0
+	for i < len(a) && j < len(b) {
+		isDigitA := a[i] >= '0' && a[i] <= '9'
+		isDigitB := b[j] >= '0' && b[j] <= '9'
+		if isDigitA && isDigitB {
+			numA := 0
+			for i < len(a) && a[i] >= '0' && a[i] <= '9' {
+				numA = numA*10 + int(a[i]-'0')
+				i++
+			}
+			numB := 0
+			for j < len(b) && b[j] >= '0' && b[j] <= '9' {
+				numB = numB*10 + int(b[j]-'0')
+				j++
+			}
+			if numA != numB {
+				return numA < numB
+			}
+			continue
+		}
+		if a[i] != b[j] {
+			return a[i] < b[j]
+		}
+		i++
+		j++
+	}
+	return len(a) < len(b)
+}
+
+// SortPortIDsByDUTName sorts a slice of port IDs in natural numeric order of their corresponding DUT interface names
+// and returns both the sorted port IDs and the resolved *ondatra.Port slice.
+func SortPortIDsByDUTName(t *testing.T, dut *ondatra.DUTDevice, portIDs []string) ([]string, []*ondatra.Port) {
+	t.Helper()
+	sortedIDs := append([]string(nil), portIDs...)
+	sort.Slice(sortedIDs, func(i, j int) bool {
+		return CompareInterfaceNames(dut.Port(t, sortedIDs[i]).Name(), dut.Port(t, sortedIDs[j]).Name())
+	})
+	ports := make([]*ondatra.Port, 0, len(sortedIDs))
+	for _, id := range sortedIDs {
+		ports = append(ports, dut.Port(t, id))
+	}
+	return sortedIDs, ports
+}
+
+// watchAwaitWithRetry executes a gnmi.Watch query on dut and awaits the predicate until timeout.
+func watchAwaitWithRetry[T any](t *testing.T, dut *ondatra.DUTDevice, q ygnmi.SingletonQuery[T], timeout time.Duration, pred func(*ygnmi.Value[T]) bool) (*ygnmi.Value[T], bool) {
+	t.Helper()
+	return gnmi.Watch(t, dut, q, timeout, pred).Await(t)
+}
+
+// watchAllAwaitWithRetry executes a gnmi.WatchAll query on dut and awaits the predicate until timeout.
+func watchAllAwaitWithRetry[T any](t *testing.T, dut *ondatra.DUTDevice, q ygnmi.WildcardQuery[T], timeout time.Duration, pred func(*ygnmi.Value[T]) bool) (*ygnmi.Value[T], bool) {
+	t.Helper()
+	return gnmi.WatchAll(t, dut, q, timeout, pred).Await(t)
+}
+
+// lookupWithRetry executes a gnmi.Lookup query on dut.
+func lookupWithRetry[T any](t *testing.T, dut *ondatra.DUTDevice, q ygnmi.SingletonQuery[T]) *ygnmi.Value[T] {
+	t.Helper()
+	return gnmi.Lookup(t, dut, q)
+}
+
+// AwaitInterfaceAdminAndOperStatus verifies via gNMI Watch/Await that the specified interface
+// reaches the expected enabled, admin-status, and oper-status telemetry states.
+func AwaitInterfaceAdminAndOperStatus(t *testing.T, dut *ondatra.DUTDevice, intfName string, wantEnabled bool, wantAdmin oc.E_Interface_AdminStatus, wantOper oc.E_Interface_OperStatus, timeout time.Duration) {
+	t.Helper()
+	intfPath := gnmi.OC().Interface(intfName)
+	if _, ok := watchAwaitWithRetry(t, dut, intfPath.Enabled().State(), timeout, func(val *ygnmi.Value[bool]) bool {
+		got, present := val.Val()
+		return present && got == wantEnabled
+	}); !ok {
+		t.Errorf("Interface %s enabled state did not reach %v within %v (got %v)", intfName, wantEnabled, timeout, lookupWithRetry(t, dut, intfPath.Enabled().State()))
+	}
+	if _, ok := watchAwaitWithRetry(t, dut, intfPath.AdminStatus().State(), timeout, func(val *ygnmi.Value[oc.E_Interface_AdminStatus]) bool {
+		got, present := val.Val()
+		return present && got == wantAdmin
+	}); !ok {
+		t.Errorf("Interface %s admin-status did not reach %v within %v (got %v)", intfName, wantAdmin, timeout, lookupWithRetry(t, dut, intfPath.AdminStatus().State()))
+	}
+	if _, ok := watchAwaitWithRetry(t, dut, intfPath.OperStatus().State(), timeout, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
+		got, present := val.Val()
+		return present && got == wantOper
+	}); !ok {
+		t.Errorf("Interface %s oper-status did not reach %v within %v (got %v)", intfName, wantOper, timeout, lookupWithRetry(t, dut, intfPath.OperStatus().State()))
+	}
+}
+
+// AwaitAggregateLowerLayerDown verifies via gNMI Watch/Await that when all member links are down
+// while the aggregate interface remains enabled, its admin-status remains UP and its oper-status
+// reaches LOWER_LAYER_DOWN or DOWN.
+func AwaitAggregateLowerLayerDown(t *testing.T, dut *ondatra.DUTDevice, aggID string, timeout time.Duration) {
+	t.Helper()
+	aggIntfPath := gnmi.OC().Interface(aggID)
+	if _, ok := watchAwaitWithRetry(t, dut, aggIntfPath.AdminStatus().State(), timeout, func(val *ygnmi.Value[oc.E_Interface_AdminStatus]) bool {
+		got, present := val.Val()
+		return present && got == oc.Interface_AdminStatus_UP
+	}); !ok {
+		t.Errorf("Aggregate interface %s admin-status did not remain UP within %v (got %v)", aggID, timeout, lookupWithRetry(t, dut, aggIntfPath.AdminStatus().State()))
+	}
+	if _, ok := watchAwaitWithRetry(t, dut, aggIntfPath.OperStatus().State(), timeout, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
+		got, present := val.Val()
+		return present && (got == oc.Interface_OperStatus_LOWER_LAYER_DOWN || got == oc.Interface_OperStatus_DOWN)
+	}); !ok {
+		t.Errorf("Aggregate interface %s oper-status did not reach LOWER_LAYER_DOWN or DOWN within %v (got %v)", aggID, timeout, lookupWithRetry(t, dut, aggIntfPath.OperStatus().State()))
+	}
+}
+
+// AwaitAggregateState verifies via gNMI Watch/Await that the aggregate interface reports the expected lag-type.
+func AwaitAggregateState(t *testing.T, dut *ondatra.DUTDevice, aggID string, wantLagType oc.E_IfAggregate_AggregationType, timeout time.Duration) {
+	t.Helper()
+	aggPath := gnmi.OC().Interface(aggID).Aggregation()
+	if _, ok := watchAwaitWithRetry(t, dut, aggPath.LagType().State(), timeout, func(val *ygnmi.Value[oc.E_IfAggregate_AggregationType]) bool {
+		got, present := val.Val()
+		return present && got == wantLagType
+	}); !ok {
+		t.Errorf("Interface %s aggregation lag-type did not reach %v within %v (got %v)", aggID, wantLagType, timeout, lookupWithRetry(t, dut, aggPath.LagType().State()))
+	}
+}
+
+// AwaitMemberForwardingViableAndAggregateID verifies via gNMI Watch/Await that a LAG member port
+// reports the expected forwarding-viable state and ethernet aggregate-id.
+func AwaitMemberForwardingViableAndAggregateID(t *testing.T, dut *ondatra.DUTDevice, portName, wantAggID string, wantViable bool, timeout time.Duration) {
+	t.Helper()
+	intfPath := gnmi.OC().Interface(portName)
+	if _, ok := watchAwaitWithRetry(t, dut, intfPath.ForwardingViable().State(), timeout, func(val *ygnmi.Value[bool]) bool {
+		got, present := val.Val()
+		if !present {
+			return deviations.MissingValueForDefaults(dut) && wantViable
+		}
+		return got == wantViable
+	}); !ok {
+		t.Errorf("Interface %s forwarding-viable did not reach %v within %v (got %v)", portName, wantViable, timeout, lookupWithRetry(t, dut, intfPath.ForwardingViable().State()))
+	}
+	if _, ok := watchAwaitWithRetry(t, dut, intfPath.Ethernet().AggregateId().State(), timeout, func(val *ygnmi.Value[string]) bool {
+		got, present := val.Val()
+		return present && got == wantAggID
+	}); !ok {
+		t.Errorf("Interface %s ethernet aggregate-id did not reach %q within %v (got %v)", portName, wantAggID, timeout, lookupWithRetry(t, dut, intfPath.Ethernet().AggregateId().State()))
+	}
+}
+
+// AwaitLACPMemberState verifies via gNMI Watch/Await that all specified LAG member ports report
+// ACTIVE activity, aggregatable=true, collecting=true, distributing=true, and synchronization=IN_SYNC.
+func AwaitLACPMemberState(t *testing.T, dut *ondatra.DUTDevice, aggID string, memberPorts []*ondatra.Port, timeout time.Duration) {
+	t.Helper()
+	if len(memberPorts) == 0 {
+		t.Fatalf("AwaitLACPMemberState: memberPorts slice cannot be empty")
+	}
+	lacpIntfPath := gnmi.OC().Lacp().Interface(aggID)
+	batch := gnmi.OCBatch()
+	for _, p := range memberPorts {
+		mPath := lacpIntfPath.Member(p.Name())
+		batch.AddPaths(
+			mPath.Activity(),
+			mPath.Aggregatable(),
+			mPath.Collecting(),
+			mPath.Distributing(),
+			mPath.Synchronization(),
+		)
+	}
+	if _, ok := watchAwaitWithRetry(t, dut, batch.State(), timeout, func(val *ygnmi.Value[*oc.Root]) bool {
+		root, present := val.Val()
+		if !present || root == nil {
+			return false
+		}
+		lacpIntf := root.GetLacp().GetInterface(aggID)
+		if lacpIntf == nil {
+			return false
+		}
+		for _, p := range memberPorts {
+			m := lacpIntf.GetMember(p.Name())
+			if m == nil {
+				return false
+			}
+			if m.GetActivity() != oc.Lacp_LacpActivityType_ACTIVE ||
+				!m.GetAggregatable() ||
+				!m.GetCollecting() ||
+				!m.GetDistributing() ||
+				m.GetSynchronization() != oc.Lacp_LacpSynchronizationType_IN_SYNC {
+				return false
+			}
+		}
+		return true
+	}); !ok {
+		t.Errorf("LACP members %v on %s did not all reach (ACTIVE, aggregatable, collecting, distributing, IN_SYNC) within %v", memberPorts, aggID, timeout)
+	}
+}
+
+// AwaitInterfaceCountersIncrement watches /interfaces/interface/state/counters/in-unicast-pkts,
+// out-unicast-pkts, in-octets, and out-octets on the specified interface until packet and octet
+// counters increment by at least minPktDelta.
+func AwaitInterfaceCountersIncrement(t *testing.T, dut *ondatra.DUTDevice, intfName string, minPktDelta uint64, timeout time.Duration) {
+	t.Helper()
+	cntPath := gnmi.OC().Interface(intfName).Counters()
+	batch := gnmi.OCBatch()
+	batch.AddPaths(
+		cntPath.InUnicastPkts(),
+		cntPath.OutUnicastPkts(),
+		cntPath.InOctets(),
+		cntPath.OutOctets(),
+	)
+
+	isMemberPort := lookupWithRetry(t, dut, gnmi.OC().Interface(intfName).Ethernet().AggregateId().State()).IsPresent()
+	inRequiredDelta := minPktDelta
+	if isMemberPort {
+		// Hardware ATE LAGs may hash reverse device-bound traffic from a single source MAC onto one member link,
+		// while DUT egress load-balancing distributes OutUnicastPkts across all active member links.
+		inRequiredDelta = 0
+	}
+
+	var baseIn, baseOut, baseInOct, baseOutOct uint64
+	var baseInSet, baseOutSet, baseInOctSet, baseOutOctSet bool
+	var inPktOK, outPktOK, inOctOK, outOctOK bool
+
+	// Some platforms (such as Junos EVO) only emit counter values on initial gNMI subscription sync
+	// (~8-12s per Watch) rather than streaming frequent updates over a single long-lived TARGET_DEFINED subscription.
+	// Phase 1 captures the baseline counters on initial sync and immediately terminates the first Watch;
+	// Phase 2 then watches for counter increments above that baseline in bounded 30s Watch windows.
+	deadline := time.Now().Add(timeout)
+	const watchStep = 30 * time.Second
+	for time.Now().Before(deadline) && !(baseInSet && baseOutSet && baseInOctSet && baseOutOctSet) {
+		rem := time.Until(deadline)
+		if rem <= 0 {
+			break
+		}
+		stepTimeout := watchStep
+		if rem < stepTimeout {
+			stepTimeout = rem
+		}
+		watchAwaitWithRetry(t, dut, batch.State(), stepTimeout, func(val *ygnmi.Value[*oc.Root]) bool {
+			root, present := val.Val()
+			if !present || root == nil {
+				return false
+			}
+			intf := root.GetInterface(intfName)
+			if intf == nil || intf.Counters == nil {
+				return false
+			}
+			c := intf.Counters
+			if c.InUnicastPkts != nil && !baseInSet {
+				baseIn = *c.InUnicastPkts
+				baseInSet = true
+				if inRequiredDelta == 0 {
+					inPktOK = true
+				}
+			}
+			if c.OutUnicastPkts != nil && !baseOutSet {
+				baseOut = *c.OutUnicastPkts
+				baseOutSet = true
+				if minPktDelta == 0 {
+					outPktOK = true
+				}
+			}
+			if c.InOctets != nil && !baseInOctSet {
+				baseInOct = *c.InOctets
+				baseInOctSet = true
+				if inRequiredDelta == 0 {
+					inOctOK = true
+				}
+			}
+			if c.OutOctets != nil && !baseOutOctSet {
+				baseOutOct = *c.OutOctets
+				baseOutOctSet = true
+				if minPktDelta == 0 {
+					outOctOK = true
+				}
+			}
+			return baseInSet && baseOutSet && baseInOctSet && baseOutOctSet
+		})
+	}
+
+	if inPktOK && outPktOK && inOctOK && outOctOK {
+		return
+	}
+
+	time.Sleep(2 * time.Second)
+
+	for time.Now().Before(deadline) {
+		rem := time.Until(deadline)
+		if rem <= 0 {
+			break
+		}
+		stepTimeout := watchStep
+		if rem < stepTimeout {
+			stepTimeout = rem
+		}
+		if _, ok := watchAwaitWithRetry(t, dut, batch.State(), stepTimeout, func(val *ygnmi.Value[*oc.Root]) bool {
+			root, present := val.Val()
+			if !present || root == nil {
+				return false
+			}
+			intf := root.GetInterface(intfName)
+			if intf == nil || intf.Counters == nil {
+				return false
+			}
+			c := intf.Counters
+			if c.InUnicastPkts != nil {
+				v := *c.InUnicastPkts
+				if !baseInSet {
+					baseIn = v
+					baseInSet = true
+					if inRequiredDelta == 0 {
+						inPktOK = true
+					}
+				} else if v >= baseIn+inRequiredDelta {
+					inPktOK = true
+				}
+			}
+			if c.OutUnicastPkts != nil {
+				v := *c.OutUnicastPkts
+				if !baseOutSet {
+					baseOut = v
+					baseOutSet = true
+					if minPktDelta == 0 {
+						outPktOK = true
+					}
+				} else if v >= baseOut+minPktDelta {
+					outPktOK = true
+				}
+			}
+			if c.InOctets != nil {
+				v := *c.InOctets
+				if !baseInOctSet {
+					baseInOct = v
+					baseInOctSet = true
+					if inRequiredDelta == 0 {
+						inOctOK = true
+					}
+				} else if v > baseInOct {
+					inOctOK = true
+				}
+			}
+			if c.OutOctets != nil {
+				v := *c.OutOctets
+				if !baseOutOctSet {
+					baseOutOct = v
+					baseOutOctSet = true
+					if minPktDelta == 0 {
+						outOctOK = true
+					}
+				} else if v > baseOutOct {
+					outOctOK = true
+				}
+			}
+			return inPktOK && outPktOK && inOctOK && outOctOK
+		}); ok {
+			return
+		}
+	}
+
+	t.Errorf("Interface %s counters did not increment within %v (inPktOK=%v outPktOK=%v inOctOK=%v outOctOK=%v)", intfName, timeout, inPktOK, outPktOK, inOctOK, outOctOK)
+}
+
+// AwaitDifferentialMemberEgressTraffic verifies via gNMI Watch that when drainedPort has forwarding-viable=false,
+// its out-unicast-pkts rate drops to 0 while activePorts carry 100% of egress routed traffic.
+func AwaitDifferentialMemberEgressTraffic(t *testing.T, dut *ondatra.DUTDevice, drainedPort string, activePorts []*ondatra.Port, minActiveDelta uint64, timeout time.Duration) {
+	t.Helper()
+	if len(activePorts) == 0 {
+		t.Fatalf("AwaitDifferentialMemberEgressTraffic: activePorts slice cannot be empty")
+	}
+	batch := gnmi.OCBatch()
+	batch.AddPaths(gnmi.OC().Interface(drainedPort).Counters().OutUnicastPkts())
+	for _, ap := range activePorts {
+		batch.AddPaths(gnmi.OC().Interface(ap.Name()).Counters().OutUnicastPkts())
+	}
+
+	var baseSet bool
+	var baseDrained uint64
+	baseActive := make(map[string]uint64)
+
+	deadline := time.Now().Add(timeout)
+	const watchStep = 30 * time.Second
+	var verified bool
+	for time.Now().Before(deadline) && !verified {
+		rem := time.Until(deadline)
+		if rem <= 0 {
+			break
+		}
+		stepTimeout := watchStep
+		if rem < stepTimeout {
+			stepTimeout = rem
+		}
+		if !baseSet {
+			watchAwaitWithRetry(t, dut, batch.State(), stepTimeout, func(val *ygnmi.Value[*oc.Root]) bool {
+				root, present := val.Val()
+				if !present || root == nil {
+					return false
+				}
+				drainedIntf := root.GetInterface(drainedPort)
+				if drainedIntf == nil || drainedIntf.Counters == nil || drainedIntf.Counters.OutUnicastPkts == nil {
+					return false
+				}
+				curActive := make(map[string]uint64)
+				for _, ap := range activePorts {
+					ai := root.GetInterface(ap.Name())
+					if ai == nil || ai.Counters == nil || ai.Counters.OutUnicastPkts == nil {
+						return false
+					}
+					curActive[ap.Name()] = ai.GetCounters().GetOutUnicastPkts()
+				}
+				baseDrained = drainedIntf.GetCounters().GetOutUnicastPkts()
+				for k, v := range curActive {
+					baseActive[k] = v
+				}
+				baseSet = true
+				return true
+			})
+			if !baseSet {
+				continue
+			}
+			time.Sleep(2 * time.Second)
+			continue
+		}
+
+		watchAwaitWithRetry(t, dut, batch.State(), stepTimeout, func(val *ygnmi.Value[*oc.Root]) bool {
+			root, present := val.Val()
+			if !present || root == nil {
+				return false
+			}
+			drainedIntf := root.GetInterface(drainedPort)
+			if drainedIntf == nil || drainedIntf.Counters == nil || drainedIntf.Counters.OutUnicastPkts == nil {
+				return false
+			}
+			curDrained := drainedIntf.GetCounters().GetOutUnicastPkts()
+
+			curActive := make(map[string]uint64)
+			for _, ap := range activePorts {
+				ai := root.GetInterface(ap.Name())
+				if ai == nil || ai.Counters == nil || ai.Counters.OutUnicastPkts == nil {
+					return false
+				}
+				curActive[ap.Name()] = ai.GetCounters().GetOutUnicastPkts()
+			}
+
+			// Wait until every active member port has transmitted at least minActiveDelta packets.
+			for _, ap := range activePorts {
+				if curActive[ap.Name()] < baseActive[ap.Name()]+minActiveDelta {
+					return false
+				}
+			}
+
+			// Check if the drained member port transmitted 0 unicast packets over this active window.
+			if curDrained == baseDrained {
+				verified = true
+				return true
+			}
+
+			// If the drained port still had in-flight packets draining at the start of the window,
+			// reset baseline and return true so a fresh Watch window starts after a brief pause.
+			baseDrained = curDrained
+			for k, v := range curActive {
+				baseActive[k] = v
+			}
+			return true
+		})
+		if !verified {
+			time.Sleep(2 * time.Second)
+		}
+	}
+
+	if !verified {
+		t.Errorf("Drained member port %s continued transmitting out-unicast-pkts or active ports %v did not increment within %v", drainedPort, activePorts, timeout)
+	}
+}
