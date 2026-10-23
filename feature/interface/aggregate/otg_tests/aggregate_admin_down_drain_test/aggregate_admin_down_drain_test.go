@@ -788,18 +788,14 @@ func restartTrafficAfterLAGChange(t *testing.T, env *testEnv, activeMembers []*o
 		MemberPortIDs: activeATEPortIDs,
 		Timeout:       stateTimeout,
 	})
-	reverseLagFlows := []string{flow3BGPIPv4Rev, flow4IPv6BidirRev}
-	for attempt := 1; attempt <= 1; attempt++ {
-		env.ate.OTG().StopTraffic(t)
-		otgutils.WaitForARP(t, env.ate.OTG(), env.otgConfig, "IPv4")
-		otgutils.WaitForARP(t, env.ate.OTG(), env.otgConfig, "IPv6")
-		env.ate.OTG().StartTraffic(t)
-		if otgvalidationhelpers.AreFlowsTransmitting(t, env.ate, reverseLagFlows, 20, 8*time.Second) {
-			return
-		}
-		t.Logf("restartTrafficAfterLAGChange: reverse LAG flows not yet incrementing OutPkts on attempt %d; retrying", attempt)
+	env.ate.OTG().StopTraffic(t)
+	otgutils.WaitForARP(t, env.ate.OTG(), env.otgConfig, "IPv4")
+	otgutils.WaitForARP(t, env.ate.OTG(), env.otgConfig, "IPv6")
+	env.ate.OTG().StartTraffic(t)
+	if otgvalidationhelpers.AreFlowsTransmitting(t, env.ate, env.allFlows, 20, 8*time.Second) {
+		return
 	}
-	t.Log("restartTrafficAfterLAGChange: re-pushing OTG config to re-bind LAG traffic items after member state transition")
+	t.Log("restartTrafficAfterLAGChange: flows not yet incrementing OutPkts/InPkts after StartTraffic; re-pushing OTG config to re-bind LAG traffic items")
 	updateDefaultFlowMACs(env)
 	env.ate.OTG().StopTraffic(t)
 	env.ate.OTG().StopProtocols(t)
@@ -942,7 +938,7 @@ func testNegativeAdminDownMemberLinks(t *testing.T, env *testEnv) {
 		MemberPortIDs: []string{env.ate.Port(t, p3.ID()).ID()},
 		Timeout:       stateTimeout,
 	})
-	if !otgvalidationhelpers.AreFlowsTransmitting(t, env.ate, []string{flow3BGPIPv4Rev, flow4IPv6BidirRev}, 20, 6*time.Second) {
+	if !otgvalidationhelpers.AreFlowsTransmitting(t, env.ate, env.allFlows, 20, 8*time.Second) {
 		restartTrafficAfterLAGChange(t, env, []*ondatra.Port{p3})
 	}
 	cfgplugins.AwaitInterfaceCountersIncrement(t, env.dut, p3.Name(), 10, trafficTimeout)
