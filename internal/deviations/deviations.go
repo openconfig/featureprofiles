@@ -2508,3 +2508,9 @@ func QosRedUnsupported(dut *ondatra.DUTDevice) bool {
 func InvalidInterfaceNumberAllowed(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInvalidInterfaceNumberAllowed()
 }
+
+// Devices that do not support RPD restart while LLGR is in progress.
+// Juniper :  b/567579406
+func BgpRpdRestartDuringLlgrNotSupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpRpdRestartDuringLlgrNotSupported()
+}

@@ -555,7 +555,6 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) (gosnappi.Config, []stri
 	t.Log("Pushing config to ATE and starting protocols...")
 	otg.PushConfig(t, topo)
 	otg.StartProtocols(t)
-	otgutils.WaitForARP(t, otg, topo, "IPv4")
 	return topo, []string{flow1}, newPeerNames
 }
 
@@ -1026,6 +1025,9 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 		t.Run("Restart routing", func(t *testing.T) {
 			if deviations.RoutingRestartViaGnoiUnsupported(dut) {
 				t.Skip("Skipping routing restart via gNOI due to deviation")
+			}
+			if deviations.BgpRpdRestartDuringLlgrNotSupported(dut) {
+				t.Skip("Skipping BGP RPD restart during LLGR due to deviation")
 			}
 			gnoi.KillProcess(t, dut, gnoi.ROUTING, gnoi.SigTerm, true, true)
 		})
