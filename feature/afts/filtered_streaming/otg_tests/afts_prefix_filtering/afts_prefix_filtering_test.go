@@ -72,17 +72,21 @@ var (
 		"2001:db8:2::/64",
 		"2001:db8:3::/64",
 	}
+	// Default routes are appended to these lists at runtime only when they are
+	// preconfigured on the DUT (see TestAFTPrefixFiltering).
 	pfxSetAMembers = []string{
 		"198.51.100.0/24",
 		"203.0.113.0/28",
 		"198.51.100.1/32",
-		defaultV4Route,
 	}
 	pfxSetBMembers = []string{
 		"2001:db8:2::/64",
 		"2001:db8:2::1/128",
-		defaultV6Route,
 	}
+
+	// Set at runtime from the DUT's static routing table.
+	v4DefaultRoutePresent bool
+	v6DefaultRoutePresent bool
 )
 
 // configurePolicies configures the routing policies and prefix-sets required by the AFT-6.1 test procedures
@@ -662,13 +666,21 @@ type prefixSetIterationCase struct {
 // testPrefixSetPolicySubscription implements AFT-6.1.1, iterated across
 // address families and prefix-set/subnet policies.
 func testPrefixSetPolicySubscription(t *testing.T, dut *ondatra.DUTDevice) {
+	v4Match := []string{"198.51.100.0/24", "203.0.113.0/28"}
+	if v4DefaultRoutePresent {
+		v4Match = append(v4Match, defaultV4Route)
+	}
+	v6Match := []string{"2001:db8:2::/64"}
+	if v6DefaultRoutePresent {
+		v6Match = append(v6Match, defaultV6Route)
+	}
 	cases := []prefixSetIterationCase{
 		{
 			name:                  "IPv4-POLICY-PREFIX-SET-A",
 			policyName:            policyPfxSetA,
 			ipv4:                  true,
 			nextHop:               atePort1.IPv4,
-			matchPrefixes:         []string{"198.51.100.0/24", "203.0.113.0/28", defaultV4Route},
+			matchPrefixes:         v4Match,
 			nonMatchPrefix:        "100.64.0.0/24",
 			dynamicAddPrefix:      "198.51.100.1/32",
 			dynamicNonMatchPrefix: "100.64.1.0/24",
@@ -678,7 +690,7 @@ func testPrefixSetPolicySubscription(t *testing.T, dut *ondatra.DUTDevice) {
 			policyName:            policyPfxSetB,
 			ipv4:                  false,
 			nextHop:               atePort1.IPv6,
-			matchPrefixes:         []string{"2001:db8:2::/64", defaultV6Route},
+			matchPrefixes:         v6Match,
 			nonMatchPrefix:        "2001:db8:1::/64",
 			dynamicAddPrefix:      "2001:db8:2::1/128",
 			dynamicNonMatchPrefix: "2001:db8:4::/64",
@@ -1066,6 +1078,21 @@ func TestAFTPrefixFiltering(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 
+	// Only include the default routes in the global filter when they are
+	// preconfigured on the DUT; otherwise they can never stream through AFT.
+	v4DefaultRoutePresent, v6DefaultRoutePresent = aftpf.CheckForDefaultRoutes(t, &aftpf.CheckForDefaultRoutesParams{
+		DUT:             dut,
+		NetworkInstance: ni,
+		IPv4Route:       defaultV4Route,
+		IPv6Route:       defaultV6Route,
+	})
+	if v4DefaultRoutePresent {
+		pfxSetAMembers = append(pfxSetAMembers, defaultV4Route)
+	}
+	if v6DefaultRoutePresent {
+		pfxSetBMembers = append(pfxSetBMembers, defaultV6Route)
+	}
+
 	batch := aftpf.ConfigureDUT(t, dut)
 	configurePolicies(t, dut, batch)
 	prefixes := aftpf.ConfigureBaseRoutesParams{V4Prefixes: baseIPv4Prefixes, V6Prefixes: baseIPv6Prefixes}
@@ -1085,12 +1112,6 @@ func TestAFTPrefixFiltering(t *testing.T) {
 
 	aftpf.AwaitBGPConvergence(t, dut, ni)
 
-	aftpf.CheckForDefaultRoutes(t, &aftpf.CheckForDefaultRoutesParams{
-		DUT:             dut,
-		NetworkInstance: ni,
-		IPv4Route:       defaultV4Route,
-		IPv6Route:       defaultV6Route,
-	})
 	tests := []struct {
 		name string
 		test func(t *testing.T, dut *ondatra.DUTDevice)
