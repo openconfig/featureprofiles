@@ -8,7 +8,6 @@ minimum threshold.
 ## Testbed type
 
 *   [`featureprofiles/topologies/atedut_4.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_4.testbed)
-*   [`featureprofiles/topologies/dut_800zr.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/dut_800zr.testbed)
 
 ## QoS traffic test setup:
 
@@ -125,8 +124,8 @@ minimum threshold.
     `2001:db8::a/126`; `DUT port-4` `192.0.2.13/30`, `2001:db8::d/126` <-> `ATE
     port-4` `192.0.2.14/30`, `2001:db8::e/126`).
 *   Configure dual-stack eBGP between DUT (`AS 65001`) and `ATE port-3` (`AS
-    65002`) advertising `1,000` IPv4 prefixes (`198.51.100.0/24` through
-    `198.54.231.0/24`) and `1,000` IPv6 prefixes (`2001:db8:100::/64` through
+    65002`) advertising `1,000` IPv4 prefixes (`100.64.0.0/24` through
+    `100.67.231.0/24`) and `1,000` IPv6 prefixes (`2001:db8:100::/64` through
     `2001:db8:4e7::/64`).
 *   Configure the 7 QoS queues (`NC1`, `AF4`, `AF3`, `AF2`, `AF1`, `BE0`,
     `BE1`), forwarding groups (`target-group-NC1`..`target-group-BE1`), and
@@ -540,4 +539,3 @@ rpcs:
 ## Required DUT platform
 
 *   FFF
-*   MFF
