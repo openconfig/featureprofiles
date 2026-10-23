@@ -2422,8 +2422,8 @@ func AwaitInterfaceCountersIncrement(t *testing.T, dut *ondatra.DUTDevice, intfN
 		inRequiredDelta = 0
 	}
 
-	var baseInSet, baseOutSet, baseInOctSet, baseOutOctSet bool
 	var baseIn, baseOut, baseInOct, baseOutOct uint64
+	var baseInSet, baseOutSet, baseInOctSet, baseOutOctSet bool
 	var inPktOK, outPktOK, inOctOK, outOctOK bool
 
 	// Some platforms (such as Junos EVO) only emit counter values on initial gNMI subscription sync
@@ -2562,18 +2562,7 @@ func AwaitInterfaceCountersIncrement(t *testing.T, dut *ondatra.DUTDevice, intfN
 		}
 	}
 
-	if !inPktOK {
-		t.Errorf("Interface %s in-unicast-pkts did not increment by %d within %v (baseline=%d)", intfName, inRequiredDelta, timeout, baseIn)
-	}
-	if !outPktOK {
-		t.Errorf("Interface %s out-unicast-pkts did not increment by %d within %v (baseline=%d)", intfName, minPktDelta, timeout, baseOut)
-	}
-	if !inOctOK {
-		t.Errorf("Interface %s in-octets did not increment within %v (baseline=%d)", intfName, timeout, baseInOct)
-	}
-	if !outOctOK {
-		t.Errorf("Interface %s out-octets did not increment within %v (baseline=%d)", intfName, timeout, baseOutOct)
-	}
+	t.Errorf("Interface %s counters did not increment within %v (inPktOK=%v outPktOK=%v inOctOK=%v outOctOK=%v)", intfName, timeout, inPktOK, outPktOK, inOctOK, outOctOK)
 }
 
 // AwaitDifferentialMemberEgressTraffic verifies via gNMI Watch that when drainedPort has forwarding-viable=false,
