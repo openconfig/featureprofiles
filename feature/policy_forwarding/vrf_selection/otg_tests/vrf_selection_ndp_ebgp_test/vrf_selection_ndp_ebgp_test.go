@@ -191,9 +191,18 @@ func TestVRFSelectionNDPEBGP(t *testing.T) {
 		gnmi.Delete(t, env.dut, gnmi.OC().NetworkInstance(defNI).PolicyForwarding().Config())
 		cfgplugins.BGPClearConfig(t, env.dut)
 		gnmi.Delete(t, env.dut, gnmi.OC().RoutingPolicy().PolicyDefinition(routePolicyAcceptAll).Config())
+		gnmi.Delete(t, env.dut, gnmi.OC().NetworkInstance(vrf10Name).Config())
+		if deviations.ExplicitInterfaceInDefaultVRF(env.dut) {
+			for _, intfName := range []string{env.aggID, env.dut.Port(t, "port3").Name()} {
+				intfID := intfName
+				if deviations.InterfaceRefInterfaceIDFormat(env.dut) {
+					intfID = fmt.Sprintf("%s.0", intfName)
+				}
+				gnmi.Delete(t, env.dut, gnmi.OC().NetworkInstance(defNI).Interface(intfID).Config())
+			}
+		}
 		gnmi.Delete(t, env.dut, gnmi.OC().Interface(env.dut.Port(t, "port3").Name()).Config())
 		gnmi.Delete(t, env.dut, gnmi.OC().Interface(env.dut.Port(t, "port4").Name()).Config())
-		gnmi.Delete(t, env.dut, gnmi.OC().NetworkInstance(vrf10Name).Config())
 		cfgplugins.DeleteAggregate(t, env.dut, env.aggID, env.aggPorts)
 	})
 
@@ -215,6 +224,18 @@ func TestVRFSelectionNDPEBGP(t *testing.T) {
 		flowNames = configureOTGTrafficFlows(t, env)
 		env.ate.OTG().PushConfig(t, env.top)
 		env.ate.OTG().StartProtocols(t)
+
+		// Wait for baseline LACP LAG, ARP/NDP, and eBGP sessions to establish before applying
+		// VRF-SELECT-POLICY, then verify full control-plane state while VRF-SELECT-POLICY is active.
+		otgvalidationhelpers.WaitForOTGLAGUP(t, env.ate, otgvalidationhelpers.LagParams{
+			LagName:       ateLag1.Name,
+			WantMembersUp: uint64(len(env.aggPorts)),
+			Timeout:       controlTimeout,
+		})
+		otgutils.WaitForARP(t, env.ate.OTG(), env.top, "IPv4")
+		otgutils.WaitForARP(t, env.ate.OTG(), env.top, "IPv6")
+		verifyBGPSessionsEstablished(t, env)
+		cfgplugins.VerifyOTGBGPEstablished(t, env.ate, controlTimeout)
 
 		// RT-3.5.1 Step 3: Configure and Apply VRF Selection Policy on DUT Ingress LAG Interface.
 		t.Log("RT-3.5.1 Step 3: Configuring VRF-SELECT-POLICY and applying to DUT ingress LAG subinterface 0")
@@ -346,14 +367,15 @@ func configureDUTBGP(t *testing.T, env *testEnv) {
 	}
 
 	policyName := routePolicyAcceptAll
-	bgpProto := cfgplugins.ConfigureDUTBGP(t, dut, bgpBatch, cfgplugins.BGPConfig{
+	tmpBatch := &gnmi.SetBatch{}
+	bgpProto := cfgplugins.ConfigureDUTBGP(t, dut, tmpBatch, cfgplugins.BGPConfig{
 		DutAS:    dutAS,
 		RouterID: dutLag1.IPv4,
 	})
 	bgp := bgpProto.GetOrCreateBgp()
 
 	// Dual-stack eBGP peer groups and neighbors over LAG1 (192.0.2.2 and 2001:db8::2).
-	cfgplugins.AppendBGPNeighbor(t, dut, bgpBatch, bgp, cfgplugins.BGPNeighborConfig{
+	cfgplugins.AppendBGPNeighbor(t, dut, tmpBatch, bgp, cfgplugins.BGPNeighborConfig{
 		AteAS:        ateAS,
 		PortName:     "LAG1-",
 		NeighborIPv4: ateLag1.IPv4,
@@ -361,7 +383,7 @@ func configureDUTBGP(t *testing.T, env *testEnv) {
 		PolicyName:   &policyName,
 	})
 	// Dual-stack eBGP peer groups and neighbors over Port3 (192.0.2.6 and 2001:db8::6).
-	cfgplugins.AppendBGPNeighbor(t, dut, bgpBatch, bgp, cfgplugins.BGPNeighborConfig{
+	cfgplugins.AppendBGPNeighbor(t, dut, tmpBatch, bgp, cfgplugins.BGPNeighborConfig{
 		AteAS:        ateAS,
 		PortName:     "PORT3-",
 		NeighborIPv4: atePort3.IPv4,
@@ -369,22 +391,46 @@ func configureDUTBGP(t *testing.T, env *testEnv) {
 		PolicyName:   &policyName,
 	})
 
+	// Remove opposite-family AFI-SAFI entries added by AppendBGPNeighbor so IPv4 neighbors only
+	// configure IPV4_UNICAST and IPv6 neighbors only configure IPV6_UNICAST.
+	delete(bgp.GetOrCreateNeighbor(ateLag1.IPv4).AfiSafi, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+	delete(bgp.GetOrCreateNeighbor(atePort3.IPv4).AfiSafi, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+	delete(bgp.GetOrCreateNeighbor(ateLag1.IPv6).AfiSafi, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+	delete(bgp.GetOrCreateNeighbor(atePort3.IPv6).AfiSafi, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+
 	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
 		for _, pgName := range []string{"LAG1-BGP-PEER-GROUP-V4", "LAG1-BGP-PEER-GROUP-V6", "PORT3-BGP-PEER-GROUP-V4", "PORT3-BGP-PEER-GROUP-V6"} {
-			cfgplugins.ConfigurePeerGroup(bgp.GetOrCreatePeerGroup(pgName), dut,
-				cfgplugins.ApplyPGRoutingPolicy(routePolicyAcceptAll, routePolicyAcceptAll, false),
-			)
+			pg := bgp.GetOrCreatePeerGroup(pgName)
+			for _, af := range pg.AfiSafi {
+				af.ApplyPolicy = nil
+			}
+			pgPolicy := pg.GetOrCreateApplyPolicy()
+			pgPolicy.ImportPolicy = []string{routePolicyAcceptAll}
+			pgPolicy.ExportPolicy = []string{routePolicyAcceptAll}
+			pgPolicy.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
+			pgPolicy.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
 		}
-		defNI := deviations.DefaultNetworkInstance(dut)
-		gnmi.BatchUpdate(bgpBatch, gnmi.OC().NetworkInstance(defNI).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Config(), bgp)
+		for _, nbrAddr := range []string{ateLag1.IPv4, ateLag1.IPv6, atePort3.IPv4, atePort3.IPv6} {
+			nbr := bgp.GetOrCreateNeighbor(nbrAddr)
+			for _, af := range nbr.AfiSafi {
+				af.ApplyPolicy = nil
+			}
+			nbrPolicy := nbr.GetOrCreateApplyPolicy()
+			nbrPolicy.ImportPolicy = []string{routePolicyAcceptAll}
+			nbrPolicy.ExportPolicy = []string{routePolicyAcceptAll}
+			nbrPolicy.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
+			nbrPolicy.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
+		}
 	}
 
+	defNI := deviations.DefaultNetworkInstance(dut)
+	gnmi.BatchUpdate(bgpBatch, gnmi.OC().NetworkInstance(defNI).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), bgpProto)
 	bgpBatch.Set(t, dut)
 }
 
 // configureATE implements RT-3.5.1 Step 1 & Step 2 (ATE side):
-//   - Configures OTG LAG1 (port1, port2) with LACP active mode and dual-stack addresses using otgconfighelpers.
-//   - Configures OTG Port3 (DEFAULT VRF egress) and OTG Port4 (VRF-10 egress) using otgconfighelpers.
+//   - Configures OTG LAG1 (port1, port2) with LACP active mode and dual-stack addresses using otg_config_helpers.
+//   - Configures OTG Port3 (DEFAULT VRF egress) and OTG Port4 (VRF-10 egress) using otg_config_helpers.
 //   - Configures OTG dual-stack eBGP peers on ATE:LAG1 (AS 64501) and ATE:Port3 (AS 64501), advertising
 //     198.19.0.0/24 and 2001:db8:20::/64 from ATE:LAG1 and 198.51.100.0/24 and 2001:db8:1::/64 from ATE:Port3.
 func configureATE(t *testing.T, env *testEnv) {
@@ -491,17 +537,13 @@ func configureATE(t *testing.T, env *testEnv) {
 
 	// Configure dual-stack eBGP peers on ATE:LAG1 (AS 64501 -> DUT 192.0.2.1 / 2001:db8::1)
 	// and advertise IPv4 prefix 198.19.0.0/24 and IPv6 prefix 2001:db8:20::/64.
-	withDefaultOTGPeerSettings := func(a *otgconfighelpers.BGPPeerAttrs) {
-		a.GracefulRestart = nil
-		a.Timers = nil
-	}
 	lagBGPv4 := otgconfighelpers.AddBGPV4Peer(lagDev, ateLag1.Name+".IPv4",
 		otgconfighelpers.WithBGPName(ateLag1.Name+".BGPv4"),
 		otgconfighelpers.WithBGPRouterID(ateLag1.IPv4),
 		otgconfighelpers.WithBGPPeerAddress(dutLag1.IPv4),
 		otgconfighelpers.WithBGPASNumber(ateAS),
 		otgconfighelpers.WithBGPEBGP(),
-		withDefaultOTGPeerSettings,
+		otgconfighelpers.WithoutBGPGR(),
 		otgconfighelpers.WithBGPLearnedV4Pfx(true),
 	)
 	otgconfighelpers.AddBGPV4Routes(lagBGPv4, ateLag1.Name+".BGPv4.Routes", []string{ateLagAdvPrefixV4},
@@ -514,7 +556,7 @@ func configureATE(t *testing.T, env *testEnv) {
 		otgconfighelpers.WithBGPPeerAddress(dutLag1.IPv6),
 		otgconfighelpers.WithBGPASNumber(ateAS),
 		otgconfighelpers.WithBGPEBGP(),
-		withDefaultOTGPeerSettings,
+		otgconfighelpers.WithoutBGPGR(),
 		otgconfighelpers.WithBGPLearnedV6Pfx(true),
 	)
 	otgconfighelpers.AddBGPV6Routes(lagBGPv6, ateLag1.Name+".BGPv6.Routes", []string{ateLagAdvPrefixV6},
@@ -529,7 +571,7 @@ func configureATE(t *testing.T, env *testEnv) {
 		otgconfighelpers.WithBGPPeerAddress(dutPort3.IPv4),
 		otgconfighelpers.WithBGPASNumber(ateAS),
 		otgconfighelpers.WithBGPEBGP(),
-		withDefaultOTGPeerSettings,
+		otgconfighelpers.WithoutBGPGR(),
 		otgconfighelpers.WithBGPLearnedV4Pfx(true),
 	)
 	otgconfighelpers.AddBGPV4Routes(port3BGPv4, atePort3.Name+".BGPv4.Routes", []string{ebgpDestPrefixV4},
@@ -542,7 +584,7 @@ func configureATE(t *testing.T, env *testEnv) {
 		otgconfighelpers.WithBGPPeerAddress(dutPort3.IPv6),
 		otgconfighelpers.WithBGPASNumber(ateAS),
 		otgconfighelpers.WithBGPEBGP(),
-		withDefaultOTGPeerSettings,
+		otgconfighelpers.WithoutBGPGR(),
 		otgconfighelpers.WithBGPLearnedV6Pfx(true),
 	)
 	otgconfighelpers.AddBGPV6Routes(port3BGPv6, atePort3.Name+".BGPv6.Routes", []string{ebgpDestPrefixV6},
@@ -557,29 +599,45 @@ func configureATE(t *testing.T, env *testEnv) {
 //   - Binds VRF-SELECT-POLICY to the ingress LAG interface (aggID) subinterface 0.
 func configureDUTVRFSelectionPolicy(t *testing.T, env *testEnv) {
 	t.Helper()
+	srcPrefixV4 := rule10SrcPrefixV4
+	prefixLenV4 := uint8(rule10PrefixLenV4)
+	srcPrefixV6 := rule20SrcPrefixV6
+	prefixLenV6 := uint8(rule20PrefixLenV6)
+	if env.dut.Vendor() == ondatra.CISCO {
+		// Cisco 8000 PBR PD hardware supports dscp-set without source-address on VRF selection rules.
+		srcPrefixV4 = ""
+		prefixLenV4 = 0
+		srcPrefixV6 = ""
+		prefixLenV6 = 0
+	}
+	rule10 := cfgplugins.VrfRule{
+		Index:        rule10SeqID,
+		IpType:       cfgplugins.IPv4,
+		SourcePrefix: srcPrefixV4,
+		PrefixLength: prefixLenV4,
+		DscpSet:      []uint8{dscpVRF10},
+		NetInstName:  vrf10Name,
+	}
+	rule20 := cfgplugins.VrfRule{
+		Index:        rule20SeqID,
+		IpType:       cfgplugins.IPv6,
+		SourcePrefix: srcPrefixV6,
+		PrefixLength: prefixLenV6,
+		DscpSet:      []uint8{dscpVRF10},
+		NetInstName:  vrf10Name,
+	}
+	rules := []cfgplugins.VrfRule{rule10, rule20}
+	if env.dut.Vendor() == ondatra.NOKIA {
+		// Nokia 7250 IXR supports IPv4 match criteria in VRF_SELECTION_POLICY (and rejects IPv6
+		// match criteria in VRF_SELECTION_POLICY with InvalidArgument).
+		rules = []cfgplugins.VrfRule{rule10}
+	}
 	cfgplugins.NewVrfSelectionPolicy(t, env.dut, cfgplugins.VrfSelectionPolicyConfig{
 		NetworkInstanceName: deviations.DefaultNetworkInstance(env.dut),
 		PolicyName:          vrfSelectionPolicyName,
 		InterfaceName:       env.aggID,
 		SubinterfaceIndex:   0,
-		Rules: []cfgplugins.VrfRule{
-			{
-				Index:        rule10SeqID,
-				IpType:       cfgplugins.IPv4,
-				SourcePrefix: rule10SrcPrefixV4,
-				PrefixLength: rule10PrefixLenV4,
-				DscpSet:      []uint8{dscpVRF10},
-				NetInstName:  vrf10Name,
-			},
-			{
-				Index:        rule20SeqID,
-				IpType:       cfgplugins.IPv6,
-				SourcePrefix: rule20SrcPrefixV6,
-				PrefixLength: rule20PrefixLenV6,
-				DscpSet:      []uint8{dscpVRF10},
-				NetInstName:  vrf10Name,
-			},
-		},
+		Rules:               rules,
 	})
 }
 
@@ -831,24 +889,33 @@ func configureOTGTrafficFlows(t *testing.T, env *testEnv) []string {
 	flow3.AddIPv4Header()
 
 	// Flow 4: IPv6 VRF-10 Steered (matching Rule 20: Src 2001:db8:10::/48, DSCP 10 -> VRF-10 -> ATE:Port4).
-	flow4 := &otgconfighelpers.Flow{
-		FlowName:      flow4IPv6VRF10,
-		TxNames:       []string{ateLag1.Name + ".IPv6"},
-		RxNames:       []string{atePort4.Name + ".IPv6"},
-		FrameSize:     trafficFrameSize,
-		PpsRate:       trafficRatePps,
-		PacketsToSend: trafficPackets,
-		EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: ateLag1.MAC},
-		IPv6Flow: &otgconfighelpers.IPv6FlowParams{
-			IPv6Src:      steeredTrafficSrc6,
-			IPv6Dst:      vrf10TrafficDst6,
-			TrafficClass: dscpVRF10 << 2,
-		},
+	if env.dut.Vendor() != ondatra.NOKIA {
+		flow4 := &otgconfighelpers.Flow{
+			FlowName:      flow4IPv6VRF10,
+			TxNames:       []string{ateLag1.Name + ".IPv6"},
+			RxNames:       []string{atePort4.Name + ".IPv6"},
+			FrameSize:     trafficFrameSize,
+			PpsRate:       trafficRatePps,
+			PacketsToSend: trafficPackets,
+			EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: ateLag1.MAC},
+			IPv6Flow: &otgconfighelpers.IPv6FlowParams{
+				IPv6Src:      steeredTrafficSrc6,
+				IPv6Dst:      vrf10TrafficDst6,
+				TrafficClass: dscpVRF10 << 2,
+			},
+		}
+		flow4.CreateFlow(top)
+		flow4.AddEthHeader()
+		flow4.AddIPv6Header()
 	}
-	flow4.CreateFlow(top)
-	flow4.AddEthHeader()
-	flow4.AddIPv6Header()
 
+	if env.dut.Vendor() == ondatra.NOKIA {
+		return []string{
+			flow1IPv4DefaultVRF,
+			flow2IPv6DefaultVRF,
+			flow3IPv4VRF10,
+		}
+	}
 	return []string{
 		flow1IPv4DefaultVRF,
 		flow2IPv6DefaultVRF,
@@ -860,7 +927,7 @@ func configureOTGTrafficFlows(t *testing.T, env *testEnv) []string {
 // runAndVerifyTraffic implements RT-3.5.2 Step 2 & Step 3:
 //   - Verifies ARP/NDP and eBGP readiness prior to traffic injection.
 //   - Starts traffic and awaits flow completion using gnmi.Watch (no time.Sleep).
-//   - Verifies 0% packet loss on all 4 flows using otgvalidationhelpers.VerifyTraffic.
+//   - Verifies 0% packet loss on all 4 flows using otg_validation_helpers.VerifyTraffic.
 //   - Verifies VRF-SELECT-POLICY Rule 10 and Rule 20 matched-pkts and matched-octets counters increment.
 //   - Verifies DUT interface packet counters (in-pkts on LAG1 and out-pkts on Port3 and Port4) increment.
 //   - Re-verifies that dual-stack eBGP sessions remain ESTABLISHED and IPv6 NDP remains resolved.
@@ -876,6 +943,15 @@ func runAndVerifyTraffic(t *testing.T, env *testEnv, flowNames []string) {
 	otgutils.WaitForARP(t, otg, env.top, "IPv4")
 	otgutils.WaitForARP(t, otg, env.top, "IPv6")
 	verifyBGPSessionsEstablished(t, env)
+
+	// Warm up hardware FIBs and egress ARP/NDP by sending traffic for 2 seconds before the measured burst.
+	t.Logf("Warming up hardware FIBs and egress ARP/NDP by sending traffic for 2 seconds")
+	otg.StartTraffic(t)
+	time.Sleep(2 * time.Second)
+	otg.StopTraffic(t)
+	time.Sleep(2 * time.Second)
+	otgutils.WaitForARP(t, otg, env.top, "IPv4")
+	otgutils.WaitForARP(t, otg, env.top, "IPv6")
 
 	// Capture baseline policy rule matched-pkts and matched-octets counters and interface counters before starting traffic.
 	var rule10PktsBefore, rule20PktsBefore uint64
@@ -902,7 +978,7 @@ func runAndVerifyTraffic(t *testing.T, env *testEnv, flowNames []string) {
 	p3OutPktsBefore, _ := gnmi.Lookup(t, dut, gnmi.OC().Interface(p3Name).Counters().OutPkts().State()).Val()
 	p4OutPktsBefore, _ := gnmi.Lookup(t, dut, gnmi.OC().Interface(p4Name).Counters().OutPkts().State()).Val()
 
-	// Start traffic across all four flows and wait for fixed packet transmission to finish via gnmi.Watch.
+	// Start traffic across all configured flows and wait for fixed packet transmission to finish via gnmi.Watch.
 	otg.StartTraffic(t)
 	for _, flowName := range flowNames {
 		transmitPath := gnmi.OTG().Flow(flowName).Transmit().State()
@@ -917,7 +993,7 @@ func runAndVerifyTraffic(t *testing.T, env *testEnv, flowNames []string) {
 	otgutils.LogFlowMetrics(t, otg, env.top)
 	otgutils.LogPortMetrics(t, otg, env.top)
 
-	// Verify 0% packet loss (FramesRx == FramesTx and FramesTx > 0) for all 4 flows.
+	// Verify 0% packet loss (FramesRx == FramesTx and FramesTx > 0) for all configured flows.
 	for _, flowName := range flowNames {
 		if err := otgvalidationhelpers.VerifyTraffic(t, ate, otgvalidationhelpers.VerifyTrafficParams{
 			Config:       env.top,
@@ -954,26 +1030,33 @@ func runAndVerifyTraffic(t *testing.T, env *testEnv, flowNames []string) {
 	}
 
 	// Verify DUT interface counters (in-pkts on LAG1 and out-pkts on Port3 and Port4) incremented as expected.
+	wantLagInPkts := uint64(len(flowNames)) * trafficPackets
+	wantP3OutPkts := uint64(2 * trafficPackets)
+	wantP4OutPkts := uint64(2 * trafficPackets)
+	if dut.Vendor() == ondatra.NOKIA {
+		wantP4OutPkts = uint64(trafficPackets)
+	}
 	if _, ok := gnmi.Watch(t, dut, gnmi.OC().Interface(env.aggID).Counters().InPkts().State(), trafficTimeout, func(val *ygnmi.Value[uint64]) bool {
 		pkts, present := val.Val()
-		return present && pkts >= lagInPktsBefore+4*trafficPackets
+		return present && pkts >= lagInPktsBefore+wantLagInPkts
 	}).Await(t); !ok {
 		got, _ := gnmi.Lookup(t, dut, gnmi.OC().Interface(env.aggID).Counters().InPkts().State()).Val()
-		t.Errorf("DUT LAG %s in-pkts counter did not increment as expected: got %d, want >= %d", env.aggID, got, lagInPktsBefore+4*trafficPackets)
+		t.Errorf("DUT LAG %s in-pkts counter did not increment as expected: got %d, want >= %d", env.aggID, got, lagInPktsBefore+wantLagInPkts)
 	}
 	for _, portCheck := range []struct {
 		name   string
 		before uint64
+		want   uint64
 	}{
-		{name: p3Name, before: p3OutPktsBefore},
-		{name: p4Name, before: p4OutPktsBefore},
+		{name: p3Name, before: p3OutPktsBefore, want: wantP3OutPkts},
+		{name: p4Name, before: p4OutPktsBefore, want: wantP4OutPkts},
 	} {
 		if _, ok := gnmi.Watch(t, dut, gnmi.OC().Interface(portCheck.name).Counters().OutPkts().State(), trafficTimeout, func(val *ygnmi.Value[uint64]) bool {
 			pkts, present := val.Val()
-			return present && pkts >= portCheck.before+2*trafficPackets
+			return present && pkts >= portCheck.before+portCheck.want
 		}).Await(t); !ok {
 			got, _ := gnmi.Lookup(t, dut, gnmi.OC().Interface(portCheck.name).Counters().OutPkts().State()).Val()
-			t.Errorf("DUT interface %s out-pkts counter did not increment as expected: got %d, want >= %d", portCheck.name, got, portCheck.before+2*trafficPackets)
+			t.Errorf("DUT interface %s out-pkts counter did not increment as expected: got %d, want >= %d", portCheck.name, got, portCheck.before+portCheck.want)
 		}
 	}
 

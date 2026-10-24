@@ -43,6 +43,7 @@ platform_exceptions: {
     interface_id_format_required_for_policy_forwarding: true
     interface_ref_interface_id_format: true
     policy_rule_counters_oc_unsupported: true
+    route_policy_under_afi_unsupported: true
   }
 }
 platform_exceptions: {
