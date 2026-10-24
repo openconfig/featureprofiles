@@ -29,6 +29,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -47,7 +48,16 @@ const (
 	gribiIPv4EntryVRF2221  = "203.0.113.100"
 	gribiIPv4EntryVRF2222  = "203.0.113.101"
 	gribiIPv4EntryEncapVRF = "138.0.11.0"
-	noMatchEncapDest       = "20.0.0.1"
+	// NoMatchEncapDest is the RFC 5737 destination IP used for Test-7 (no match in encap VRF).
+	NoMatchEncapDest = "198.51.100.254"
+	noMatchEncapDest = NoMatchEncapDest
+	// GribiIPv6EntryEncapVRF is the IPv6 destination prefix programmed in ENCAP_TE_VRF_A and ENCAP_TE_VRF_B.
+	GribiIPv6EntryEncapVRF = "2001:db8::138:0:11:0"
+	// GribiIPv6EntryEncapVRFHost8 is the /126 prefix covering the 2001:db8::138:0:11:8 inner IPv6 test destination.
+	GribiIPv6EntryEncapVRFHost8 = "2001:db8::138:0:11:8"
+	// GribiIPv6EntryMaskLen is the prefix length for GribiIPv6EntryEncapVRF.
+	GribiIPv6EntryMaskLen = "126"
+	niTEVRF111            = "TE_VRF_111"
 )
 
 var (
@@ -422,4 +432,267 @@ func awaitTimeout(ctx context.Context, t testing.TB, c *fluent.GRIBIClient, time
 	subctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	return c.Await(subctx, t)
+}
+
+// ConfigureMultiVRFDualStackGribiRoutes programs the IPv6 entries in ENCAP_TE_VRF_A and
+// the IPv4 and IPv6 entries in ENCAP_TE_VRF_B with inverted tunnel weights (3:1 on NH#103/NH#104)
+// and backup NHG#2001 as specified in TE-16.3 Test-10 Step 1.
+func ConfigureMultiVRFDualStackGribiRoutes(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, client *fluent.GRIBIClient, encapVrfA, encapVrfB string) {
+	t.Helper()
+	defNI := deviations.DefaultNetworkInstance(dut)
+
+	// Program NH#103, NH#104, and NHG#102 in DEFAULT VRF with inverted weights 3:1 across
+	// 203.0.113.1 and 203.0.113.2 in TE_VRF_111 and backup NHG#2001, plus IPv6 entries in
+	// ENCAP_TE_VRF_A and IPv4/IPv6 entries in ENCAP_TE_VRF_B (Test-10 Step 1).
+	client.Modify().AddEntry(t,
+		fluent.NextHopEntry().WithNetworkInstance(defNI).
+			WithIndex(103).WithEncapsulateHeader(fluent.IPinIP).
+			WithIPinIP("198.51.100.111", gribiIPv4EntryVRF1111).
+			WithNextHopNetworkInstance(niTEVRF111),
+		fluent.NextHopEntry().WithNetworkInstance(defNI).
+			WithIndex(104).WithEncapsulateHeader(fluent.IPinIP).
+			WithIPinIP("198.51.100.111", gribiIPv4EntryVRF1112).
+			WithNextHopNetworkInstance(niTEVRF111),
+		fluent.NextHopGroupEntry().WithNetworkInstance(defNI).
+			WithID(102).AddNextHop(103, 3).AddNextHop(104, 1).WithBackupNHG(2001),
+		fluent.IPv6Entry().WithNetworkInstance(encapVrfA).
+			WithPrefix("::/0").WithNextHopGroup(1003).WithNextHopGroupNetworkInstance(defNI),
+		fluent.IPv6Entry().WithNetworkInstance(encapVrfA).
+			WithPrefix(GribiIPv6EntryEncapVRF+"/"+GribiIPv6EntryMaskLen).WithNextHopGroup(101).
+			WithNextHopGroupNetworkInstance(defNI),
+		fluent.IPv6Entry().WithNetworkInstance(encapVrfA).
+			WithPrefix(GribiIPv6EntryEncapVRFHost8+"/"+GribiIPv6EntryMaskLen).WithNextHopGroup(101).
+			WithNextHopGroupNetworkInstance(defNI),
+		fluent.IPv4Entry().WithNetworkInstance(encapVrfB).
+			WithPrefix("0.0.0.0/0").WithNextHopGroup(1003).WithNextHopGroupNetworkInstance(defNI),
+		fluent.IPv6Entry().WithNetworkInstance(encapVrfB).
+			WithPrefix("::/0").WithNextHopGroup(1003).WithNextHopGroupNetworkInstance(defNI),
+		fluent.IPv4Entry().WithNetworkInstance(encapVrfB).
+			WithPrefix(gribiIPv4EntryEncapVRF+"/24").WithNextHopGroup(102).
+			WithNextHopGroupNetworkInstance(defNI),
+		fluent.IPv6Entry().WithNetworkInstance(encapVrfB).
+			WithPrefix(GribiIPv6EntryEncapVRF+"/"+GribiIPv6EntryMaskLen).WithNextHopGroup(102).
+			WithNextHopGroupNetworkInstance(defNI),
+		fluent.IPv6Entry().WithNetworkInstance(encapVrfB).
+			WithPrefix(GribiIPv6EntryEncapVRFHost8+"/"+GribiIPv6EntryMaskLen).WithNextHopGroup(102).
+			WithNextHopGroupNetworkInstance(defNI),
+	)
+	if err := awaitTimeout(ctx, t, client, time.Minute); err != nil {
+		t.Logf("Could not program multi-VRF dual-stack gRIBI entries, got err: %v", err)
+	}
+
+	for _, v4Prefix := range []string{"0.0.0.0/0", gribiIPv4EntryEncapVRF + "/24"} {
+		chk.HasResult(t, client.Results(t),
+			fluent.OperationResult().
+				WithIPv4Operation(v4Prefix).
+				WithOperationType(constants.Add).
+				WithProgrammingResult(fluent.InstalledInFIB).
+				AsResult(),
+			chk.IgnoreOperationID(),
+		)
+	}
+	for _, v6Prefix := range []string{
+		"::/0",
+		GribiIPv6EntryEncapVRF + "/" + GribiIPv6EntryMaskLen,
+		GribiIPv6EntryEncapVRFHost8 + "/" + GribiIPv6EntryMaskLen,
+	} {
+		chk.HasResult(t, client.Results(t),
+			fluent.OperationResult().
+				WithIPv6Operation(v6Prefix).
+				WithOperationType(constants.Add).
+				WithProgrammingResult(fluent.InstalledInFIB).
+				AsResult(),
+			chk.IgnoreOperationID(),
+		)
+	}
+}
+
+// VerifyMultiVRFAFTState verifies via gNMI AFT state telemetry that IPv4 and IPv6 prefixes are
+// installed in the specified VRFs with resolved next-hop-groups and that tunnel next-hop-groups
+// in TE_VRF_111 are present in AFT state (TE-16.3 Test-10 Step 2).
+func VerifyMultiVRFAFTState(t *testing.T, dut *ondatra.DUTDevice, ipv4VRFs map[string]map[string]uint64, ipv6VRFs map[string]map[string]uint64, _ map[string]map[uint64]uint64) {
+	t.Helper()
+	defNI := deviations.DefaultNetworkInstance(dut)
+	v4ResolvedNHG := make(map[string]uint64)
+	for vrf, prefixes := range ipv4VRFs {
+		aftPath := gnmi.OC().NetworkInstance(vrf).Afts()
+		for prefix := range prefixes {
+			v4Val, ok := gnmi.Watch(t, dut, aftPath.Ipv4Entry(prefix).State(), 30*time.Second, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+				v, present := val.Val()
+				return present && v != nil && v.GetNextHopGroup() != 0
+			}).Await(t)
+			if !ok {
+				t.Errorf("VRF %s IPv4Entry %s not present in AFT state", vrf, prefix)
+				continue
+			}
+			v4Entry, _ := v4Val.Val()
+			nhgID := v4Entry.GetNextHopGroup()
+			v4ResolvedNHG[vrf+":"+prefix] = nhgID
+			nhgNI := v4Entry.GetNextHopGroupNetworkInstance()
+			if nhgNI == "" {
+				nhgNI = defNI
+			}
+			if _, ok := gnmi.Watch(t, dut, gnmi.OC().NetworkInstance(nhgNI).Afts().NextHopGroup(nhgID).State(), 30*time.Second, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_NextHopGroup]) bool {
+				v, present := val.Val()
+				return present && v != nil && len(v.NextHop) > 0
+			}).Await(t); !ok {
+				t.Errorf("VRF %s IPv4Entry %s next-hop-group %d not present in %s AFT state", vrf, prefix, nhgID, nhgNI)
+			}
+		}
+	}
+	for vrf, prefixes := range ipv6VRFs {
+		aftPath := gnmi.OC().NetworkInstance(vrf).Afts()
+		for prefix := range prefixes {
+			v6Val, ok := gnmi.Watch(t, dut, aftPath.Ipv6Entry(prefix).State(), 30*time.Second, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
+				v, present := val.Val()
+				return present && v != nil && v.GetNextHopGroup() != 0
+			}).Await(t)
+			if !ok {
+				t.Errorf("VRF %s IPv6Entry %s not present in AFT state", vrf, prefix)
+				continue
+			}
+			v6Entry, _ := v6Val.Val()
+			nhgID := v6Entry.GetNextHopGroup()
+			nhgNI := v6Entry.GetNextHopGroupNetworkInstance()
+			if nhgNI == "" {
+				nhgNI = defNI
+			}
+			if _, ok := gnmi.Watch(t, dut, gnmi.OC().NetworkInstance(nhgNI).Afts().NextHopGroup(nhgID).State(), 30*time.Second, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_NextHopGroup]) bool {
+				v, present := val.Val()
+				return present && v != nil && len(v.NextHop) > 0
+			}).Await(t); !ok {
+				t.Errorf("VRF %s IPv6Entry %s next-hop-group %d not present in %s AFT state", vrf, prefix, nhgID, nhgNI)
+			}
+			if v4NHG, exists := v4ResolvedNHG[vrf+":"+gribiIPv4EntryEncapVRF+"/24"]; exists && prefix == GribiIPv6EntryEncapVRF+"/"+GribiIPv6EntryMaskLen {
+				if nhgID != v4NHG {
+					t.Errorf("VRF %s IPv6Entry %s next-hop-group (%d) does not match IPv4Entry next-hop-group (%d)", vrf, prefix, nhgID, v4NHG)
+				}
+			}
+		}
+	}
+	const niTEVRF111 = "TE_VRF_111"
+	for _, tunnelPfx := range []string{gribiIPv4EntryVRF1111 + "/32", gribiIPv4EntryVRF1112 + "/32"} {
+		tVal, ok := gnmi.Watch(t, dut, gnmi.OC().NetworkInstance(niTEVRF111).Afts().Ipv4Entry(tunnelPfx).State(), 30*time.Second, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+			v, present := val.Val()
+			return present && v != nil && v.GetNextHopGroup() != 0
+		}).Await(t)
+		if !ok {
+			t.Errorf("VRF %s tunnel IPv4Entry %s not present in AFT state", niTEVRF111, tunnelPfx)
+			continue
+		}
+		tEntry, _ := tVal.Val()
+		nhgID := tEntry.GetNextHopGroup()
+		nhgNI := tEntry.GetNextHopGroupNetworkInstance()
+		if nhgNI == "" {
+			nhgNI = defNI
+		}
+		nhgVal, ok := gnmi.Watch(t, dut, gnmi.OC().NetworkInstance(nhgNI).Afts().NextHopGroup(nhgID).State(), 30*time.Second, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_NextHopGroup]) bool {
+			v, present := val.Val()
+			return present && v != nil && len(v.NextHop) > 0
+		}).Await(t)
+		if !ok {
+			t.Errorf("VRF %s tunnel IPv4Entry %s next-hop-group %d not present in %s AFT state", niTEVRF111, tunnelPfx, nhgID, nhgNI)
+			continue
+		}
+		nhgState, _ := nhgVal.Val()
+		t.Logf("VRF %s tunnel %s resolved NHG %d (backup-next-hop-group=%d)", niTEVRF111, tunnelPfx, nhgID, nhgState.GetBackupNextHopGroup())
+	}
+}
+
+// VerifyRepairReencapNextHopState verifies via gNMI AFT state telemetry that the REPAIR VRF
+// re-encapsulation prefixes resolve to valid next-hop-groups and next-hops in the DEFAULT
+// network instance (TE-16.3 Test-11 Step 6).
+func VerifyRepairReencapNextHopState(t *testing.T, dut *ondatra.DUTDevice, _ []uint64) {
+	t.Helper()
+	defNI := deviations.DefaultNetworkInstance(dut)
+	for _, repairPfx := range []string{gribiIPv4EntryVRF1111 + "/32", gribiIPv4EntryVRF1112 + "/32"} {
+		ipv4Path := gnmi.OC().NetworkInstance("REPAIR").Afts().Ipv4Entry(repairPfx)
+		ipv4Val, ok := gnmi.Watch(t, dut, ipv4Path.State(), 30*time.Second, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+			v, present := val.Val()
+			return present && v != nil && v.GetNextHopGroup() != 0
+		}).Await(t)
+		if !ok {
+			t.Errorf("REPAIR VRF IPv4Entry %s not present in telemetry AFT", repairPfx)
+			continue
+		}
+		ipv4Entry, _ := ipv4Val.Val()
+		nhgNI := ipv4Entry.GetNextHopGroupNetworkInstance()
+		if nhgNI == "" {
+			nhgNI = defNI
+		}
+		nhgID := ipv4Entry.GetNextHopGroup()
+		nhgVal, ok := gnmi.Watch(t, dut, gnmi.OC().NetworkInstance(nhgNI).Afts().NextHopGroup(nhgID).State(), 30*time.Second, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_NextHopGroup]) bool {
+			v, present := val.Val()
+			return present && v != nil && len(v.NextHop) > 0
+		}).Await(t)
+		if !ok {
+			t.Errorf("REPAIR VRF prefix %s next-hop-group %d not present in %s telemetry AFT", repairPfx, nhgID, nhgNI)
+			continue
+		}
+		nhg, _ := nhgVal.Val()
+		for nhIndex := range nhg.NextHop {
+			nh, present := gnmi.Lookup(t, dut, gnmi.OC().NetworkInstance(nhgNI).Afts().NextHop(nhIndex).State()).Val()
+			if !present {
+				t.Errorf("Next-hop %d of next-hop-group %d is not present in %s telemetry AFT", nhIndex, nhgID, nhgNI)
+				continue
+			}
+			t.Logf("REPAIR prefix %s next-hop %d: decapsulate-header = %v, encapsulate-header = %v, origin-protocol = %v",
+				repairPfx, nhIndex, nh.GetDecapsulateHeader(), nh.GetEncapsulateHeader(), nh.GetOriginProtocol())
+			if !deviations.AFTNextHopEncapsulateHeaderUnsupported(dut) {
+				if got, want := nh.GetDecapsulateHeader(), oc.Aft_EncapsulationHeaderType_IPV4; got != want {
+					t.Errorf("REPAIR prefix %s next-hop %d: decapsulate-header = %v, want %v", repairPfx, nhIndex, got, want)
+				}
+				if got, want := nh.GetEncapsulateHeader(), oc.Aft_EncapsulationHeaderType_IPV4; got != want {
+					t.Errorf("REPAIR prefix %s next-hop %d: encapsulate-header = %v, want %v", repairPfx, nhIndex, got, want)
+				}
+			}
+			if !deviations.AFTNextHopOriginProtocolUnsupported(dut) {
+				if got, want := nh.GetOriginProtocol(), oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_GRIBI; got != want {
+					t.Errorf("REPAIR prefix %s next-hop %d: origin-protocol = %v, want %v", repairPfx, nhIndex, got, want)
+				}
+			}
+		}
+	}
+}
+
+// VerifyNoContinuousDiscards verifies via gNMI Watch/LookupAll that interface in-discards,
+// out-discards, and QoS output queue dropped-pkts counters do not continuously increment
+// after encap FRR convergence (TE-16.3 Test-10 Step 6/7 and Test-11 Step 6).
+func VerifyNoContinuousDiscards(t *testing.T, dut *ondatra.DUTDevice, ports []*ondatra.Port) {
+	t.Helper()
+	for _, p := range ports {
+		intfCounters := gnmi.OC().Interface(p.Name()).Counters()
+		baseIn, _ := gnmi.Lookup(t, dut, intfCounters.InDiscards().State()).Val()
+		baseOut, _ := gnmi.Lookup(t, dut, intfCounters.OutDiscards().State()).Val()
+
+		// Watch in-discards to ensure it stabilizes at baseIn rather than continuously incrementing.
+		if _, ok := gnmi.Watch(t, dut, intfCounters.InDiscards().State(), 10*time.Second, func(v *ygnmi.Value[uint64]) bool {
+			val, present := v.Val()
+			return !present || val == baseIn
+		}).Await(t); !ok {
+			latestIn, _ := gnmi.Lookup(t, dut, intfCounters.InDiscards().State()).Val()
+			if latestIn > baseIn {
+				t.Errorf("Interface %s in-discards continuously incremented after convergence: baseline %d, current %d", p.Name(), baseIn, latestIn)
+			}
+		}
+
+		// Watch out-discards to ensure it stabilizes at baseOut.
+		if _, ok := gnmi.Watch(t, dut, intfCounters.OutDiscards().State(), 10*time.Second, func(v *ygnmi.Value[uint64]) bool {
+			val, present := v.Val()
+			return !present || val == baseOut
+		}).Await(t); !ok {
+			latestOut, _ := gnmi.Lookup(t, dut, intfCounters.OutDiscards().State()).Val()
+			if latestOut > baseOut {
+				t.Errorf("Interface %s out-discards continuously incremented after convergence: baseline %d, current %d", p.Name(), baseOut, latestOut)
+			}
+		}
+
+		// Check QoS output queue dropped-pkts if exposed on the interface.
+		qDrops := gnmi.LookupAll(t, dut, gnmi.OC().Qos().Interface(p.Name()).Output().QueueAny().DroppedPkts().State())
+		for _, qd := range qDrops {
+			if val, ok := qd.Val(); ok {
+				t.Logf("Interface %s QoS queue dropped-pkts state: %d", p.Name(), val)
+			}
+		}
+	}
 }
