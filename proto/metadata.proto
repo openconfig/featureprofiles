@@ -969,6 +969,7 @@ message Metadata {
 
     // Devices that do not support match-as-path-set
     // Arista b/434583178
+    // Juniper b/532969574
     bool match_as_path_set_unsupported = 333;
 
     // Same apply-policy under peer-group and peer-group/afi-safi unsupported
