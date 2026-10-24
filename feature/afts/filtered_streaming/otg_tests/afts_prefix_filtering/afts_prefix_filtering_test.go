@@ -546,7 +546,7 @@ func runPrefixSetIteration(t *testing.T, dut *ondatra.DUTDevice, tc prefixSetIte
 	collector := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
 	collector.ListenUntilPreUpdateHook(context.Background(), t, subscriptionWait,
 		[]aftcache.NotificationHook{aftcache.VerifyAtomicFlagHook(t)},
-		aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes,
+		aftcache.InitialSyncStoppingConditionWithAbsentPrefixes(t, dut, wantPrefixes, map[string]bool{tc.nonMatchPrefix: true},
 			map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}))
 	initialAFT, err := collector.ToAFT(t, dut)
 	if err != nil {
@@ -755,7 +755,8 @@ func testNonExistentPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	aftpf.CollectAndVerify(t, dut, aftpf.RunCollectorParams{
 		Ctx:       context.Background(),
 		Collector: collector,
-		Stop: aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes,
+		Stop: aftcache.InitialSyncStoppingConditionWithAbsentPrefixes(t, dut, wantPrefixes,
+			map[string]bool{"198.51.100.0/24": true, "100.64.0.0/24": true},
 			map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}),
 		Timeout: subscriptionWait,
 	}, []string{matchPrefix}, []string{"198.51.100.0/24", "100.64.0.0/24"})
@@ -791,7 +792,8 @@ func testPolicyDeletion(t *testing.T, dut *ondatra.DUTDevice) {
 	aftpf.CollectAndVerify(t, dut, aftpf.RunCollectorParams{
 		Ctx:       context.Background(),
 		Collector: collector,
-		Stop: aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes,
+		Stop: aftcache.InitialSyncStoppingConditionWithAbsentPrefixes(t, dut, wantPrefixes,
+			map[string]bool{"100.64.0.0/24": true},
 			map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}),
 		Timeout: subscriptionWait,
 	}, nil, nil)
@@ -839,7 +841,8 @@ func testPolicyDeletion(t *testing.T, dut *ondatra.DUTDevice) {
 	aftpf.CollectAndVerify(t, dut, aftpf.RunCollectorParams{
 		Ctx:       context.Background(),
 		Collector: collector,
-		Stop: aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes,
+		Stop: aftcache.InitialSyncStoppingConditionWithAbsentPrefixes(t, dut, wantPrefixes,
+			map[string]bool{"100.64.0.0/24": true},
 			map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}),
 		Timeout: subscriptionWait,
 	}, []string{"198.51.100.0/24", "203.0.113.0/28"}, []string{"100.64.0.0/24"})
@@ -882,7 +885,8 @@ func testChangeReferencedPrefixSet(t *testing.T, dut *ondatra.DUTDevice) {
 	aftpf.CollectAndVerify(t, dut, aftpf.RunCollectorParams{
 		Ctx:       context.Background(),
 		Collector: collector,
-		Stop: aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes,
+		Stop: aftcache.InitialSyncStoppingConditionWithAbsentPrefixes(t, dut, wantPrefixes,
+			map[string]bool{"100.64.0.0/24": true},
 			map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}),
 		Timeout: subscriptionWait,
 	}, []string{"198.51.100.0/24", "203.0.113.0/28"}, nil)
@@ -944,7 +948,8 @@ func testMultiStatementPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	aftpf.CollectAndVerify(t, dut, aftpf.RunCollectorParams{
 		Ctx:       context.Background(),
 		Collector: collector,
-		Stop: aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes,
+		Stop: aftcache.InitialSyncStoppingConditionWithAbsentPrefixes(t, dut, wantPrefixes,
+			map[string]bool{"100.64.0.0/24": true},
 			map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}),
 		Timeout: subscriptionWait,
 	}, []string{"198.51.100.0/24", "203.0.113.0/28", extraPrefix}, []string{"100.64.0.0/24"})
@@ -968,14 +973,23 @@ func testDenyActionPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	})
 
 	wantPrefixes := map[string]bool{"100.64.0.0/24": true}
+	denyPrefixes := []string{"198.51.100.0/24", "203.0.113.0/28"}
+	denyPrefixSet := map[string]bool{"198.51.100.0/24": true, "203.0.113.0/28": true}
 	collector := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
-	aftpf.CollectAndVerify(t, dut, aftpf.RunCollectorParams{
+	aftpf.RunCollector(t, aftpf.RunCollectorParams{
 		Ctx:       context.Background(),
 		Collector: collector,
-		Stop: aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes,
+		Stop: aftcache.InitialSyncStoppingConditionWithAbsentPrefixes(t, dut, wantPrefixes, denyPrefixSet,
 			map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}),
 		Timeout: subscriptionWait,
-	}, []string{"100.64.0.0/24"}, []string{"198.51.100.0/24", "203.0.113.0/28"})
+	})
+	aft, err := collector.ToAFT(t, dut)
+	if err != nil {
+		t.Errorf("ToAFT failed: %v", err)
+	} else {
+		aftpf.VerifyPrefixesPresent(t, aftpf.PrefixesParams{InfoAFT: aft, Prefixes: []string{"100.64.0.0/24"}})
+		aftpf.VerifyPrefixesAbsent(t, aftpf.PrefixesParams{InfoAFT: aft, Prefixes: denyPrefixes})
+	}
 
 	if err := deleteGlobalFilter(t, dut, ni); err != nil {
 		t.Errorf("Cleanup: failed to delete global-filter: %v", err)
@@ -998,7 +1012,8 @@ func testNonPrefixSetMatchCriteria(t *testing.T, dut *ondatra.DUTDevice) {
 	aftpf.CollectAndVerify(t, dut, aftpf.RunCollectorParams{
 		Ctx:       context.Background(),
 		Collector: collector,
-		Stop: aftcache.InitialSyncStoppingCondition(t, dut, map[string]bool{},
+		Stop: aftcache.InitialSyncStoppingConditionWithAbsentPrefixes(t, dut, map[string]bool{},
+			map[string]bool{"198.51.100.0/24": true, "203.0.113.0/28": true, "100.64.0.0/24": true},
 			map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}),
 		Timeout: subscriptionWait,
 	}, nil, []string{"198.51.100.0/24", "203.0.113.0/28", "100.64.0.0/24"})
