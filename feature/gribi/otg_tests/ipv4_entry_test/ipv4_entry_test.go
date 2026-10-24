@@ -541,6 +541,7 @@ func createTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad []string
 	if len(good) == 0 && len(bad) == 0 {
 		otg.PushConfig(t, ateTop)
 		otg.StartProtocols(t)
+		otgutils.WaitForARP(t, otg, ateTop, "IPv4")
 		return newGoodFlows, newBadFlows
 	}
 	ateTop.Flows().Clear().Items()
@@ -574,6 +575,7 @@ func createTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad []string
 	}
 	otg.PushConfig(t, ateTop)
 	otg.StartProtocols(t)
+	otgutils.WaitForARP(t, otg, ateTop, "IPv4")
 	return newGoodFlows, newBadFlows
 }
 
