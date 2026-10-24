@@ -36,6 +36,19 @@ func WaitForARP(t *testing.T, otg *otg.OTG, c gosnappi.Config, ipType string) {
 			if !ok {
 				t.Fatalf("Did not receive OTG Neighbor entry for interface %s, last got: %v", eth.Name(), got)
 			}
+			// Verify that each configured IPv6 gateway resolves its LinkLayerAddress.
+			for _, ip := range eth.Ipv6Addresses().Items() {
+				gw := ip.Gateway()
+				if gw == "" {
+					continue
+				}
+				if got, ok := gnmi.Watch(t, otg, gnmi.OTG().Interface(eth.Name()).Ipv6Neighbor(gw).LinkLayerAddress().State(), 2*time.Minute, func(val *ygnmi.Value[string]) bool {
+					v, present := val.Val()
+					return present && v != ""
+				}).Await(t); !ok {
+					t.Fatalf("Did not receive OTG Neighbor entry for gateway %s on interface %s, last got: %v", gw, eth.Name(), got)
+				}
+			}
 		}
 	}
 }

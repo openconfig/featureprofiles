@@ -46,6 +46,9 @@ func RunTests(m *testing.M) {
 	if err := initMetadata(); err != nil {
 		log.Errorf("Unable to initialize test metadata: %v", err)
 	}
+	if skipIfExcluded() {
+		return
+	}
 	ygnmi.WithDatapointValidator(datapointValidator)
 	ondatra.RunTests(m, binding.New)
 }

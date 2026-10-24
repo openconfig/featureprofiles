@@ -175,6 +175,10 @@ func configInterfaceDUT(i *oc.Interface, dutPort *attrs.Attributes, dut *ondatra
 
 // configureDUT configures port1, port2, port3 and port4 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
+	if deviations.VendorPreConfigRequired(dut) {
+		cfgplugins.ConfigureDecapVrfSelection(t, dut)
+	}
+
 	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1")
@@ -354,6 +358,14 @@ func (a *testArgs) testIPv4BackUpSwitch(t *testing.T) {
 	})
 
 	// shutdown port2
+	if deviations.ATEPortLinkStateOperationsUnsupported(a.ate) {
+		defer a.flapinterface(t, "port2", true)
+		defer a.flapinterface(t, "port3", true)
+	} else {
+		portStateAction := gosnappi.NewControlState()
+		portStateAction.Port().Link().SetPortNames([]string{"port2", "port3"}).SetState(gosnappi.StatePortLinkState.UP)
+		defer a.ate.OTG().SetControlState(t, portStateAction)
+	}
 	t.Run("Baseline (port3 only)", func(t *testing.T) {
 		t.Logf("Shutdown port 2 and validate traffic switching over port3 primary path")
 		a.validateTrafficFlows(t, baseFlow, []*ondatra.Port{a.ate.Port(t, "port3")}, "port2")
@@ -366,14 +378,6 @@ func (a *testArgs) testIPv4BackUpSwitch(t *testing.T) {
 		t.Logf("Shutdown port 3 and validate traffic switching over port4 backup path")
 		a.validateTrafficFlows(t, baseFlow, []*ondatra.Port{a.ate.Port(t, "port4")}, "port3")
 	})
-	if deviations.ATEPortLinkStateOperationsUnsupported(a.ate) {
-		defer a.flapinterface(t, "port2", true)
-		defer a.flapinterface(t, "port3", true)
-	} else {
-		portStateAction := gosnappi.NewControlState()
-		portStateAction.Port().Link().SetPortNames([]string{"port2", "port3"}).SetState(gosnappi.StatePortLinkState.UP)
-		defer a.ate.OTG().SetControlState(t, portStateAction)
-	}
 	// TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
 }
 
