@@ -89,10 +89,7 @@ func configureDUTInterface(t *testing.T, dut *ondatra.DUTDevice, a *attrs.Attrib
 
 func verifyFlowControl(t *testing.T, dut *ondatra.DUTDevice, flowControlMode bool) {
 	p1 := dut.Port(t, "port1")
-	flowControlRx := gnmi.Get(t, dut, gnmi.OC().Interface(p1.Name()).Ethernet().EnableFlowControl().State())
-	if flowControlRx != flowControlMode {
-		t.Errorf("Flow control mode got %v, want %v", flowControlRx, flowControlMode)
-	}
+	gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).Ethernet().EnableFlowControl().State(), time.Minute, flowControlMode)
 }
 
 func TestFlowControl(t *testing.T) {
