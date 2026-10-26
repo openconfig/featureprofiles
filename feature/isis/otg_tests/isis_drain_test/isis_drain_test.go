@@ -558,7 +558,7 @@ func runTrafficFlows(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, flows [
 	}
 	port1FramesBefore := portOutFrames(t, otg, port1ID)
 	var wantPort1Frames uint64
-	for _, flow := range flows {
+	for _, flow := range top.Flows().Items() {
 		wantPort1Frames += flow.Rate().Pps() * uint64(runTrafficTime.Seconds())
 	}
 
