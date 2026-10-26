@@ -42,6 +42,8 @@ import (
 const (
 	maxSwitchoverTime = 15 * time.Minute
 	controlcardType   = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
+	activeController  = oc.Platform_ComponentRedundantRole_PRIMARY
+	standbyController = oc.Platform_ComponentRedundantRole_SECONDARY
 	ateLagName        = "Port-Channel1"
 	flowName          = "Flow-LACP-Continuous"
 	ipv4PrefixLen     = 30
@@ -366,6 +368,192 @@ func lookupWithGetFallback[T any](t *testing.T, dut *ondatra.DUTDevice, c *ygnmi
 	return val, err
 }
 
+// findStandbyControllerCard gets a list of two components and finds out the active and standby controller_cards.
+func findStandbyControllerCard(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) (string, string) {
+	t.Helper()
+	var activeCC, standbyCC string
+	for _, supervisor := range supervisors {
+		// Use a robust polling loop with bound contexts to prevent zombie Subscribe hangs
+		// when the control plane is actively flapping.
+		start := time.Now()
+		var role oc.E_Platform_ComponentRedundantRole
+
+		c, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.Name()))
+		if err != nil {
+			t.Fatalf("Failed to create ygnmi client for findStandbyControllerCard: %v", err)
+		}
+
+		var opts []ygnmi.Option
+		if deviations.SwitchoverSubscribeUnsupported(dut) {
+			opts = append(opts, ygnmi.WithUseGet())
+		}
+
+		for time.Since(start) < 10*time.Minute {
+			val, err := lookupWithGetFallback(t, dut, c, gnmi.OC().Component(supervisor).RedundantRole().State(), &opts, "findStandbyControllerCard")
+			if err == nil {
+				if r, present := val.Val(); present && r != oc.Platform_ComponentRedundantRole_UNSET {
+					role = r
+					break
+				}
+			}
+			time.Sleep(10 * time.Second)
+		}
+
+		if role == oc.Platform_ComponentRedundantRole_UNSET {
+			t.Fatalf("DUT did not reach target state within %v for %v", 10*time.Minute, supervisor)
+		}
+
+		t.Logf("Component(supervisor).RedundantRole().Get(t): %v, Role: %v", supervisor, role)
+		if role == standbyController {
+			standbyCC = supervisor
+		} else if role == activeController {
+			activeCC = supervisor
+		} else {
+			t.Fatalf("Expected controller %s to be active or standby, got %v", supervisor, role)
+		}
+	}
+	if standbyCC == "" || activeCC == "" {
+		t.Fatalf("Expected non-empty activeCC and standbyCC, got activeCC: %v, standbyCC: %v", activeCC, standbyCC)
+	}
+	t.Logf("Detected activeCC: %v, standbyCC: %v", activeCC, standbyCC)
+
+	return standbyCC, activeCC
+}
+
+// awaitSupervisorRoles (gNOI-3.3.1 Step 2 / gNOI-3.3.2 Step 3) awaits the expected
+// PRIMARY and SECONDARY redundant-role states across supervisor switchovers.
+func awaitSupervisorRoles(t *testing.T, dut *ondatra.DUTDevice, expectedPrimary, expectedSecondary string, timeout time.Duration) error {
+	t.Helper()
+
+	c, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.Name()))
+	if err != nil {
+		return fmt.Errorf("failed to create ygnmi client: %w", err)
+	}
+
+	qPrimary := gnmi.OC().Component(expectedPrimary).RedundantRole().State()
+	qSecondary := gnmi.OC().Component(expectedSecondary).RedundantRole().State()
+
+	primaryReady := false
+	secondaryReady := false
+
+	var opts []ygnmi.Option
+	if deviations.SwitchoverSubscribeUnsupported(dut) {
+		t.Logf("WARNING: [awaitSupervisorRoles] Deviation SwitchoverSubscribeUnsupported on %s (%s): polling redundant-role via unary gNMI.Get for up to %v (awaiting %s=PRIMARY, %s=SECONDARY).", dut.Name(), dut.Model(), timeout, expectedPrimary, expectedSecondary)
+		opts = append(opts, ygnmi.WithUseGet())
+	} else {
+		t.Logf("INFO: [awaitSupervisorRoles] Polling redundant-role via one-shot gNMI.Subscribe (mode: ONCE) on %s (%s) for up to %v (awaiting %s=PRIMARY, %s=SECONDARY)...", dut.Name(), dut.Model(), timeout, expectedPrimary, expectedSecondary)
+	}
+
+	start := time.Now()
+	for time.Since(start) < timeout {
+		if !primaryReady {
+			val, err := lookupWithGetFallback(t, dut, c, qPrimary, &opts, "awaitSupervisorRoles")
+			if err != nil {
+				t.Logf("DEBUG: [%.1fs] Error fetching primary role: %v", time.Since(start).Seconds(), err)
+			} else if role, present := val.Val(); present {
+				t.Logf("DEBUG: [%.1fs] %s RedundantRole = %v", time.Since(start).Seconds(), expectedPrimary, role)
+				if role == oc.Platform_ComponentRedundantRole_PRIMARY {
+					primaryReady = true
+					t.Logf("INFO: Supervisor %q reached PRIMARY role.", expectedPrimary)
+				}
+			}
+		}
+
+		if !secondaryReady {
+			val, err := lookupWithGetFallback(t, dut, c, qSecondary, &opts, "awaitSupervisorRoles")
+			if err != nil {
+				t.Logf("DEBUG: [%.1fs] Error fetching secondary role: %v", time.Since(start).Seconds(), err)
+			} else if role, present := val.Val(); present {
+				t.Logf("DEBUG: [%.1fs] %s RedundantRole = %v", time.Since(start).Seconds(), expectedSecondary, role)
+				if role == oc.Platform_ComponentRedundantRole_SECONDARY {
+					secondaryReady = true
+					t.Logf("INFO: Supervisor %q reached SECONDARY role.", expectedSecondary)
+				}
+			}
+		}
+
+		if primaryReady && secondaryReady {
+			t.Logf("SUCCESS: Supervisors reached expected redundant roles.")
+			return nil
+		}
+
+		time.Sleep(10 * time.Second)
+	}
+
+	var errMsgs []string
+	if !primaryReady {
+		errMsgs = append(errMsgs, fmt.Sprintf("supervisor %q failed to reach PRIMARY role within %v", expectedPrimary, timeout))
+	}
+	if !secondaryReady {
+		errMsgs = append(errMsgs, fmt.Sprintf("supervisor %q failed to reach SECONDARY role within %v", expectedSecondary, timeout))
+	}
+	return fmt.Errorf("supervisor switchover validation failed due to timeout: %s", strings.Join(errMsgs, "; "))
+}
+
+// setControllerCardPowerState (gNOI-3.3.2 Step 2 / Step 3) updates the controller card
+// power-admin-state (POWER_DISABLED / POWER_ENABLED) and verifies state and oper-status transition.
+func setControllerCardPowerState(t *testing.T, dut *ondatra.DUTDevice, cardName string, powerType oc.E_Platform_ComponentPowerType, timeout time.Duration) {
+	t.Helper()
+	c := gnmi.OC().Component(cardName)
+	if deviations.PowerDisableEnableLeafRefValidation(dut) {
+		t.Logf("WARNING: [PowerAdminState] Deviation PowerDisableEnableLeafRefValidation is enabled for %s (%s): pre-creating /components/component[name=%s]/config leafref before updating power-admin-state.", dut.Name(), dut.Model(), cardName)
+		gnmi.Update(t, dut, c.Config(), &oc.Component{
+			Name: ygot.String(cardName),
+		})
+	}
+	start := time.Now()
+	t.Logf("INFO: [PowerAdminState] Setting %s power-admin-state to %v...", cardName, powerType)
+	gnmi.Replace(t, dut, c.ControllerCard().PowerAdminState().Config(), powerType)
+
+	var opts []ygnmi.Option
+	if deviations.SwitchoverSubscribeUnsupported(dut) {
+		t.Logf("WARNING: [PowerAdminState] Deviation SwitchoverSubscribeUnsupported on %s (%s): gNMI Subscribe streams drop or stall during supervisor power toggles. Bypassing gNMI Subscribe stream via unary gNMI.Get (ygnmi.WithUseGet()) polling to prevent test/DUT hang.", dut.Name(), dut.Model())
+		opts = append(opts, ygnmi.WithUseGet())
+	}
+	yc, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.Name()))
+	if err != nil {
+		t.Fatalf("Failed to create ygnmi client in setControllerCardPowerState: %v", err)
+	}
+
+	powerMatched := false
+	for time.Since(start) < timeout {
+		val, err := lookupWithGetFallback(t, dut, yc, c.ControllerCard().PowerAdminState().State(), &opts, "PowerAdminState")
+		if err == nil {
+			if power, present := val.Val(); present && power == powerType {
+				powerMatched = true
+				t.Logf("Component %s, power-admin-state reached %v after %.2f minutes", cardName, power, time.Since(start).Minutes())
+				break
+			}
+		}
+		time.Sleep(10 * time.Second)
+	}
+	if !powerMatched {
+		t.Fatalf("Component %s, power-admin-state did not reach %v within %v", cardName, powerType, timeout)
+	}
+
+	wantOper := oc.PlatformTypes_COMPONENT_OPER_STATUS_DISABLED
+	if powerType == oc.Platform_ComponentPowerType_POWER_ENABLED {
+		wantOper = oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE
+	}
+
+	startOper := time.Now()
+	operMatched := false
+	for time.Since(startOper) < timeout {
+		val, err := lookupWithGetFallback(t, dut, yc, c.OperStatus().State(), &opts, "PowerAdminState")
+		if err == nil {
+			if oper, present := val.Val(); present && oper == wantOper {
+				operMatched = true
+				t.Logf("Component %s, oper-status reached %v after %.2f minutes", cardName, oper, time.Since(startOper).Minutes())
+				break
+			}
+		}
+		time.Sleep(10 * time.Second)
+	}
+	if !operMatched {
+		t.Fatalf("Component %s oper-status did not reach %v within %v", cardName, wantOper, timeout)
+	}
+}
+
 // awaitSwitchoverReady waits for `/components/component[name=targetSupervisor]/state/switchover-ready`
 // to report true (polling via one-shot gNMI.Subscribe mode: ONCE by default, or unary gNMI.Get when
 // `deviations.SwitchoverSubscribeUnsupported(dut)` is set) and records any timeout or leaf
@@ -413,7 +601,7 @@ func awaitSwitchoverReady(t *testing.T, dut *ondatra.DUTDevice, targetSupervisor
 
 // testRecoveryValidation implements README "gNOI-3.3.1: Supervisor Switchover and Recovery Validation".
 func testRecoveryValidation(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, controllerCards []string, dutPorts []*ondatra.Port, lagName string, intfsOperStatusUPBeforeSwitch []string) {
-	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyControllerCard(t, dut, controllerCards)
+	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := findStandbyControllerCard(t, dut, controllerCards)
 	t.Logf("INFO: [gNOI-3.3.1] Detected rpStandby: %v, rpActive: %v", rpStandbyBeforeSwitch, rpActiveBeforeSwitch)
 
 	awaitSwitchoverReady(t, dut, rpActiveBeforeSwitch, maxSwitchoverTime, "gNOI-3.3.1 Pre-Switchover Readiness")
@@ -437,7 +625,7 @@ func testRecoveryValidation(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.A
 
 	// gNOI-3.3.1 Step 2: Validate standby RE/SUP transitions to PRIMARY and old active transitions to SECONDARY/STANDBY.
 	t.Logf("INFO: [gNOI-3.3.1 Step 2] Validating supervisor role transition: expecting %s=PRIMARY, %s=SECONDARY...", rpStandbyBeforeSwitch, rpActiveBeforeSwitch)
-	if err := helpers.AwaitSupervisorRoles(t, dut, rpStandbyBeforeSwitch, rpActiveBeforeSwitch, maxSwitchoverTime); err != nil {
+	if err := awaitSupervisorRoles(t, dut, rpStandbyBeforeSwitch, rpActiveBeforeSwitch, maxSwitchoverTime); err != nil {
 		t.Fatalf("Failed to verify supervisor roles after switchover: %v", err)
 	}
 
@@ -445,7 +633,7 @@ func testRecoveryValidation(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.A
 	gnmi.Await(t, dut, gnmi.OC().Component(rpStandbyBeforeSwitch).OperStatus().State(), maxSwitchoverTime, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE)
 	gnmi.Await(t, dut, gnmi.OC().Component(rpActiveBeforeSwitch).OperStatus().State(), maxSwitchoverTime, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE)
 
-	rpStandbyAfterSwitch, rpActiveAfterSwitch := components.FindStandbyControllerCard(t, dut, controllerCards)
+	rpStandbyAfterSwitch, rpActiveAfterSwitch := findStandbyControllerCard(t, dut, controllerCards)
 	t.Logf("INFO: [gNOI-3.3.1 Step 2] Found standbyRP after switchover: %v, activeRP: %v", rpStandbyAfterSwitch, rpActiveAfterSwitch)
 
 	if got, want := rpActiveAfterSwitch, rpStandbyBeforeSwitch; got != want {
@@ -549,7 +737,7 @@ func testRecoveryValidation(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.A
 
 // testBackToBackSwitchover implements README "gNOI-3.3.2: Back-to-Back Switchover (Negative Case)".
 func testBackToBackSwitchover(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, controllerCards []string) {
-	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyControllerCard(t, dut, controllerCards)
+	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := findStandbyControllerCard(t, dut, controllerCards)
 	t.Logf("INFO: [gNOI-3.3.2] Detected rpStandby for BackToBack: %v, rpActive: %v", rpStandbyBeforeSwitch, rpActiveBeforeSwitch)
 
 	ready := awaitSwitchoverReady(t, dut, rpActiveBeforeSwitch, maxSwitchoverTime, "gNOI-3.3.2 Pre-Switchover Readiness")
@@ -613,7 +801,7 @@ func testBackToBackSwitchover(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 		t.Errorf("Back-to-back switchover request unexpectedly succeeded while new standby was unready; expected rejection. This is a vendor bug and must be fixed.")
 
 		t.Logf("WARNING: [gNOI-3.3.2 Step 3] Recovering DUT from double-switchover: waiting up to %v for original roles (%s=PRIMARY, %s=SECONDARY) to recover...", maxSwitchoverTime, rpActiveBeforeSwitch, rpStandbyBeforeSwitch)
-		if err := helpers.AwaitSupervisorRoles(t, dut, rpActiveBeforeSwitch, rpStandbyBeforeSwitch, maxSwitchoverTime); err != nil {
+		if err := awaitSupervisorRoles(t, dut, rpActiveBeforeSwitch, rpStandbyBeforeSwitch, maxSwitchoverTime); err != nil {
 			t.Logf("WARNING: [gNOI-3.3.2 Step 3] Supervisors failed to recover to original roles after double-switchover: %v", err)
 		}
 
@@ -625,7 +813,7 @@ func testBackToBackSwitchover(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 	}
 
 	t.Logf("INFO: [gNOI-3.3.2 Step 3] Verifying new active supervisor %q maintains PRIMARY role and %q reaches SECONDARY role...", rpStandbyBeforeSwitch, rpActiveBeforeSwitch)
-	if err := helpers.AwaitSupervisorRoles(t, dut, rpStandbyBeforeSwitch, rpActiveBeforeSwitch, maxSwitchoverTime); err != nil {
+	if err := awaitSupervisorRoles(t, dut, rpStandbyBeforeSwitch, rpActiveBeforeSwitch, maxSwitchoverTime); err != nil {
 		t.Logf("WARNING: [gNOI-3.3.2 Step 3] Failed to verify supervisor roles after rejected back-to-back request (err: %v). Recording error via t.Errorf and continuing.", err)
 		t.Errorf("Failed to verify supervisor roles after rejected back-to-back request: %v", err)
 	}
@@ -636,20 +824,20 @@ func testBackToBackSwitchover(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 
 // testPowerDisabledStandby implements README "gNOI-3.3.3: Switchover with Power-Disabled Standby (Negative Case)".
 func testPowerDisabledStandby(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, controllerCards []string) {
-	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyControllerCard(t, dut, controllerCards)
+	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := findStandbyControllerCard(t, dut, controllerCards)
 	t.Logf("INFO: [gNOI-3.3.3] Detected rpStandby for PowerDisabledStandby: %v, rpActive: %v", rpStandbyBeforeSwitch, rpActiveBeforeSwitch)
 
 	t.Cleanup(func() {
 		t.Logf("INFO: [gNOI-3.3.3 Cleanup] Re-enabling power on standby supervisor %s to restore chassis redundancy...", rpStandbyBeforeSwitch)
-		components.SetControllerCardPowerState(t, dut, rpStandbyBeforeSwitch, oc.Platform_ComponentPowerType_POWER_ENABLED, 10*time.Minute)
-		if err := helpers.AwaitSupervisorRoles(t, dut, rpActiveBeforeSwitch, rpStandbyBeforeSwitch, maxSwitchoverTime); err != nil {
+		setControllerCardPowerState(t, dut, rpStandbyBeforeSwitch, oc.Platform_ComponentPowerType_POWER_ENABLED, 10*time.Minute)
+		if err := awaitSupervisorRoles(t, dut, rpActiveBeforeSwitch, rpStandbyBeforeSwitch, maxSwitchoverTime); err != nil {
 			t.Errorf("[gNOI-3.3.3 Cleanup] Failed to verify supervisor roles (%s=PRIMARY, %s=SECONDARY) after re-enabling power: %v", rpActiveBeforeSwitch, rpStandbyBeforeSwitch, err)
 		}
 	})
 
 	// gNOI-3.3.3 Step 1: Disable the standby supervisor.
 	t.Logf("INFO: [gNOI-3.3.3 Step 1] Disabling power on standby supervisor %q (POWER_DISABLED)...", rpStandbyBeforeSwitch)
-	components.SetControllerCardPowerState(t, dut, rpStandbyBeforeSwitch, oc.Platform_ComponentPowerType_POWER_DISABLED, 5*time.Minute)
+	setControllerCardPowerState(t, dut, rpStandbyBeforeSwitch, oc.Platform_ComponentPowerType_POWER_DISABLED, 5*time.Minute)
 
 	gnoiClient := dut.RawAPIs().GNOI(t)
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
