@@ -741,6 +741,13 @@ IPv6Entry {2001:db8::138:0:11:0/126 (ENCAP_TE_VRF_B)} -> NHG#102 (DEFAULT VRF) -
     `/interfaces/interface/state/oper-status` is `UP`, and confirm all 4 flows
     restore to the primary `TE_VRF_111` tunnels on DUT `port-2`, `port-3`,
     `port-4`, and `port-6` with 0% steady-state packet loss.
+12. **Cleanup**: Stop all OTG traffic flows, ensure all DUT interfaces
+    (`port-1` through `port-8`) are enabled
+    (`/interfaces/interface/config/enabled` set to `true`) and operationally
+    `UP`, revert the gRIBI entries added during `Test-10` via `gRIBI.Flush`, and
+    restore the baseline gRIBI AFT entries and policy-forwarding configuration
+    (`vrf_selection_policy_c` on DUT `port-1`) so the DUT is returned to its
+    baseline operational state.
 
 ##### Canonical OC
 ```json
@@ -1146,6 +1153,13 @@ are shut down, without experiencing sustained traffic loss or ACL/VOQ drops.
     `/interfaces/interface/state/oper-status` is `UP` on all ports, and confirm
     all transit flows revert to the primary `TE_VRF_111` tunnels on DUT
     `port-2`, `port-3`, `port-4`, and `port-6` with 0% steady-state loss.
+10. **Cleanup**: Stop all OTG transit traffic flows, ensure all DUT interfaces
+    (`port-1` through `port-8`) are enabled
+    (`/interfaces/interface/config/enabled` set to `true`) and operationally
+    `UP`, revert the gRIBI entries modified during `Test-11` via `gRIBI.Flush`,
+    and restore the baseline gRIBI AFT entries and policy-forwarding
+    configuration (`vrf_selection_policy_c` on DUT `port-1`) so the DUT is
+    returned to its baseline operational state.
 
   #### Canonical OC
 ```json

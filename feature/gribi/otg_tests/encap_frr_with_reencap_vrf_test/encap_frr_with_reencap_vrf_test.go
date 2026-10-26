@@ -805,9 +805,6 @@ func startCapture(t *testing.T, args *testArgs, capturePortList []string) gosnap
 	args.otg.StartProtocols(t)
 	otgutils.WaitForARP(t, args.otg, args.otgConfig, "IPv4")
 	otgutils.WaitForARP(t, args.otg, args.otgConfig, "IPv6")
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
-	args.otg.SetControlState(t, cs)
 	t.Cleanup(func() {
 		if len(args.otgConfig.Captures().Items()) > 0 {
 			stopCS := gosnappi.NewControlState()
@@ -815,6 +812,9 @@ func startCapture(t *testing.T, args *testArgs, capturePortList []string) gosnap
 			args.otg.SetControlState(t, stopCS)
 		}
 	})
+	cs := gosnappi.NewControlState()
+	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
+	args.otg.SetControlState(t, cs)
 	return cs
 }
 
@@ -1336,10 +1336,10 @@ func TestEncapFrr(t *testing.T) {
 						NextNetworkInstance: deviations.DefaultNetworkInstance(dut),
 					},
 				}
-				cfgplugins.ConfigureStaticRoutesInVRF(t, dut, staticDefaultRoute)
 				t.Cleanup(func() {
 					cfgplugins.RemoveStaticRoutesInVRF(t, dut, staticDefaultRoute)
 				})
+				cfgplugins.ConfigureStaticRoutesInVRF(t, dut, staticDefaultRoute)
 				createFlow(t, otgConfig, otg, noMatchEncapDest)
 			}
 			if tc.TestID == "teVrf111NoMatch" {
@@ -1394,11 +1394,11 @@ func TestEncapFrr(t *testing.T) {
 
 			captureState = startCapture(t, args, tc.CapturePortList)
 			if len(tc.DownPortList) > 0 {
-				t.Logf("Bring down ports %s", tc.DownPortList)
-				portState(t, args, tc.DownPortList, false)
 				t.Cleanup(func() {
 					portState(t, args, tc.DownPortList, true)
 				})
+				t.Logf("Bring down ports %s", tc.DownPortList)
+				portState(t, args, tc.DownPortList, false)
 				t.Log("Verify the port status after bringing down the ports")
 				verifyPortStatus(t, args, tc.DownPortList, false)
 			}
@@ -1532,11 +1532,11 @@ func sendAndVerifyMultiFlows(t *testing.T, args *testArgs, flowNames []string, d
 	t.Helper()
 	cs := startCapture(t, args, capturePorts)
 	if len(downPorts) > 0 {
-		t.Logf("Bringing down ports %v", downPorts)
-		portState(t, args, downPorts, false)
 		t.Cleanup(func() {
 			portState(t, args, downPorts, true)
 		})
+		t.Logf("Bringing down ports %v", downPorts)
+		portState(t, args, downPorts, false)
 		verifyPortStatus(t, args, downPorts, false)
 	}
 	if afterPortDown != nil {
@@ -1548,6 +1548,14 @@ func sendAndVerifyMultiFlows(t *testing.T, args *testArgs, flowNames []string, d
 	}
 
 	args.otg.StartTraffic(t)
+	trafficStarted := true
+	defer func() {
+		if trafficStarted {
+			args.otg.StopTraffic(t)
+			cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
+			args.otg.SetControlState(t, cs)
+		}
+	}()
 	for _, fn := range flowNames {
 		gnmi.Watch(t, args.otg, gnmi.OTG().Flow(fn).Counters().OutPkts().State(), 30*time.Second, func(val *ygnmi.Value[uint64]) bool {
 			outPkts, present := val.Val()
@@ -1557,9 +1565,9 @@ func sendAndVerifyMultiFlows(t *testing.T, args *testArgs, flowNames []string, d
 	args.otg.StopTraffic(t)
 	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
 	args.otg.SetControlState(t, cs)
+	trafficStarted = false
 
 	for _, fn := range flowNames {
-		waitForFlowMetricsReady(t, args.otg, fn, time.Minute)
 		otgutils.ExpectedTrafficLoss(t, args.otg, fn, 0, float64(tolerancePct)+0.99)
 	}
 	validateTrafficDistribution(t, args.ate, wantWeights)
@@ -1574,9 +1582,9 @@ func sendAndVerifyMultiFlows(t *testing.T, args *testArgs, flowNames []string, d
 			t.Fatalf("Could not write bytes to pcap file: %v", err)
 		}
 		tmpFile.Close()
-		defer os.Remove(tmpFile.Name())
 
 		validateDualStackCaptureFile(t, tmpFile.Name(), capturePort, expectEncap, wantOuterSrc, wantOuterDsts)
+		os.Remove(tmpFile.Name())
 	}
 	if afterTraffic != nil {
 		afterTraffic()
@@ -1827,6 +1835,14 @@ func runTest10MultiVRFDualStackRepairConvergence(ctx context.Context, t *testing
 		[]string{gribiIPv4EntryVRF1111, gribiIPv4EntryVRF1112},
 		nil, nil,
 	)
+
+	// Test-10 Cleanup: Flush gRIBI entries modified during Test-10 and restore baseline gRIBI AFT
+	// entries and policy-forwarding configuration so the DUT returns to its baseline operational state.
+	if err := gribi.FlushAll(args.client); err != nil {
+		t.Fatal(err)
+	}
+	configureGribiRoute(ctx, t, args.dut, args.client)
+	vrfpolicy.ConfigureVRFSelectionPolicy(t, args.dut, vrfpolicy.VRFPolicyC)
 }
 
 // runTest11TransitIPinIPReencapRepairConvergence implements README Test-11:
@@ -1970,4 +1986,12 @@ func runTest11TransitIPinIPReencapRepairConvergence(ctx context.Context, t *test
 		[]string{gribiIPv4EntryVRF1111, gribiIPv4EntryVRF1112},
 		nil, nil,
 	)
+
+	// Test-11 Cleanup: Flush gRIBI entries modified during Test-11 and restore baseline gRIBI AFT
+	// entries and policy-forwarding configuration so the DUT returns to its baseline operational state.
+	if err := gribi.FlushAll(args.client); err != nil {
+		t.Fatal(err)
+	}
+	configureGribiRoute(ctx, t, args.dut, args.client)
+	vrfpolicy.ConfigureVRFSelectionPolicy(t, args.dut, vrfpolicy.VRFPolicyC)
 }
