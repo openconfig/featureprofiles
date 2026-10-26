@@ -323,7 +323,7 @@ func configureDUTNetworkInstancesAndInterfaces(t *testing.T, env *testEnv) {
 
 	if deviations.InterfaceConfigVRFBeforeAddress(dut) {
 		cfgplugins.AssignToNetworkInstance(t, dut, p4.Name(), vrf10Name, 0)
-		gnmi.Replace(t, dut, gnmi.OC().Interface(p4.Name()).Config(), dutPort4.NewOCInterface(p4.Name(), dut))
+		gnmi.Update(t, dut, gnmi.OC().Interface(p4.Name()).Config(), dutPort4.NewOCInterface(p4.Name(), dut))
 	} else {
 		gnmi.Replace(t, dut, gnmi.OC().Interface(p4.Name()).Config(), dutPort4.NewOCInterface(p4.Name(), dut))
 		cfgplugins.AssignToNetworkInstance(t, dut, p4.Name(), vrf10Name, 0)
