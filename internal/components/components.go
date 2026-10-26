@@ -19,8 +19,11 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"slices"
+	"strings"
 	"testing"
 	"time"
+	"unicode"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	tpb "github.com/openconfig/gnoi/types"
@@ -28,7 +31,9 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/gnmi/oc/ocpath"
+	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -111,6 +116,16 @@ func FindMatchingStrings(components []string, r *regexp.Regexp) []string {
 		}
 	}
 	return s
+}
+
+// AwaitSwitchoverReady waits for the active controller to report switchover-ready.
+// The active supervisor's switchover-ready leaf accurately reflects whether the
+// standby is ready to take over; the standby's own leaf is not reliably maintained.
+func AwaitSwitchoverReady(t *testing.T, dut *ondatra.DUTDevice, active string, timeout time.Duration) {
+	t.Helper()
+	switchoverReady := gnmi.OC().Component(active).SwitchoverReady()
+	gnmi.Await(t, dut, switchoverReady.State(), timeout, true)
+	t.Logf("SwitchoverReady: %v", gnmi.Get(t, dut, switchoverReady.State()))
 }
 
 // GetSubcomponentPath creates a gNMI path based on the component name.
@@ -224,6 +239,8 @@ func OpticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *on
 		case ondatra.ARISTA:
 			transceiverName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
 			return fmt.Sprintf("%s-Optical0", transceiverName)
+		case ondatra.CISCO:
+			return "OpticalChannel" + strings.TrimLeftFunc(p.Name(), unicode.IsLetter)
 		default:
 			t.Fatal("Manual Optical channel name required when deviation missing_port_to_optical_channel_component_mapping applied.")
 		}
@@ -237,4 +254,128 @@ func OpticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *on
 		t.Fatalf("Associated Optical Channel for Transceiver (%v) not found!", transceiverName)
 	}
 	return opticalChannelName
+}
+
+// WatchWithRetry watches a query until the predicate returns true, catching temporary connection errors
+// and retrying every retryInterval until timeout expires.
+func WatchWithRetry[T any](t *testing.T, dut *ondatra.DUTDevice, query ygnmi.SingletonQuery[T], timeout, retryInterval time.Duration, predicate func(*ygnmi.Value[T]) bool) (*ygnmi.Value[T], bool) {
+	t.Helper()
+	for remaining := timeout; remaining > 0; remaining -= retryInterval {
+		waitDur := remaining
+		if waitDur > retryInterval {
+			waitDur = retryInterval
+		}
+		var val *ygnmi.Value[T]
+		var ok bool
+		testt.CaptureFatal(t, func(t testing.TB) {
+			val, ok = gnmi.Watch(t, dut, query, waitDur, predicate).Await(t)
+		})
+		if ok {
+			return val, true
+		}
+	}
+	return nil, false
+}
+
+// WaitForSwitchover verifies the stability of the SUP cards after switchover by watching the system datetime.
+func WaitForSwitchover(t *testing.T, dut *ondatra.DUTDevice, maxSwitchoverTime time.Duration) {
+	t.Helper()
+	startSwitchover := time.Now()
+	t.Logf("Wait for new active RP to boot up by watching the system datetime telemetry.")
+
+	val, ok := WatchWithRetry(t, dut, gnmi.OC().System().CurrentDatetime().State(), maxSwitchoverTime, 30*time.Second, func(val *ygnmi.Value[string]) bool {
+		currentTime, present := val.Val()
+		return present && currentTime != ""
+	})
+	if !ok {
+		t.Fatalf("RP switchover timed out after %v: system datetime not reachable", maxSwitchoverTime)
+	}
+	currentTime, _ := val.Val()
+	t.Logf("RP switchover has completed successfully in %.2f seconds with received time: %v", time.Since(startSwitchover).Seconds(), currentTime)
+}
+
+// SetLinecardPowerAdminState sets /components/component/linecard/config/power-admin-state
+// of the linecard component name to state and waits up to timeout for the
+// corresponding state leaf to report the same value. The
+// PowerDisableEnableLeafRefValidation deviation is honoured by creating the
+// component config node first. When state is POWER_ENABLED and the
+// MissingValueForDefaults deviation is set, the state leaf is not verified since
+// the device does not report default values. The test is failed fatally if the
+// state leaf does not converge.
+func SetLinecardPowerAdminState(t *testing.T, dut *ondatra.DUTDevice, name string, state oc.E_Platform_ComponentPowerType, timeout time.Duration) {
+	t.Helper()
+	c := gnmi.OC().Component(name)
+	if deviations.PowerDisableEnableLeafRefValidation(dut) {
+		gnmi.Update(t, dut, c.Config(), &oc.Component{Name: ygot.String(name)})
+	}
+	t.Logf("Setting linecard %s power-admin-state to %v", name, state)
+	gnmi.Replace(t, dut, c.Linecard().PowerAdminState().Config(), state)
+
+	if state == oc.Platform_ComponentPowerType_POWER_ENABLED && deviations.MissingValueForDefaults(dut) {
+		return
+	}
+	got, ok := gnmi.Await(t, dut, c.Linecard().PowerAdminState().State(), timeout, state).Val()
+	if !ok {
+		t.Fatalf("Linecard %s power-admin-state: got %v, want %v", name, got, state)
+	}
+}
+
+// AwaitOperStatus waits up to timeout, using gnmi.Watch, until the oper-status of
+// component name equals any of want. It returns the last observed oper-status and
+// whether one of the wanted values was observed.
+func AwaitOperStatus(t *testing.T, dut *ondatra.DUTDevice, name string, timeout time.Duration, want ...oc.E_PlatformTypes_COMPONENT_OPER_STATUS) (oc.E_PlatformTypes_COMPONENT_OPER_STATUS, bool) {
+	t.Helper()
+	val, ok := gnmi.Watch(t, dut, gnmi.OC().Component(name).OperStatus().State(), timeout, func(v *ygnmi.Value[oc.E_PlatformTypes_COMPONENT_OPER_STATUS]) bool {
+		s, present := v.Val()
+		return present && slices.Contains(want, s)
+	}).Await(t)
+	if val == nil {
+		return oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET, false
+	}
+	s, _ := val.Val()
+	return s, ok
+}
+
+// AwaitOperStatusOrAbsent waits up to timeout until the oper-status of component
+// name equals any of want or the component no longer reports an oper-status, e.g.
+// a subcomponent that is removed from the component tree while its parent
+// linecard is powered off. It returns the last observed oper-status, which is
+// UNSET when the oper-status is no longer reported, and whether the wait
+// succeeded.
+//
+// A STREAM subscription to a leaf that is already absent or whose parent
+// component is removed without a leaf-level delete notification may not deliver
+// any notification, so gnmi.Lookup is checked before each bounded gnmi.Watch
+// slice until timeout expires.
+func AwaitOperStatusOrAbsent(t *testing.T, dut *ondatra.DUTDevice, name string, timeout time.Duration, want ...oc.E_PlatformTypes_COMPONENT_OPER_STATUS) (oc.E_PlatformTypes_COMPONENT_OPER_STATUS, bool) {
+	t.Helper()
+	const watchSlice = 10 * time.Second
+	query := gnmi.OC().Component(name).OperStatus().State()
+	deadline := time.Now().Add(timeout)
+	var last oc.E_PlatformTypes_COMPONENT_OPER_STATUS
+	for {
+		s, present := gnmi.Lookup(t, dut, query).Val()
+		if !present || slices.Contains(want, s) {
+			return s, true
+		}
+		last = s
+		rem := time.Until(deadline)
+		if rem <= 0 {
+			return last, false
+		}
+		if rem > watchSlice {
+			rem = watchSlice
+		}
+		val, ok := gnmi.Watch(t, dut, query, rem, func(v *ygnmi.Value[oc.E_PlatformTypes_COMPONENT_OPER_STATUS]) bool {
+			s, present := v.Val()
+			return !present || slices.Contains(want, s)
+		}).Await(t)
+		if ok {
+			if val == nil {
+				return oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET, true
+			}
+			s, _ := val.Val()
+			return s, true
+		}
+	}
 }

@@ -14,6 +14,23 @@ Validate gNOI RPC can reboot specific components.
 *   TODO: For each component verify that the component has rebooted and the
     uptime has been reset.
 
+## Canonical OC
+
+```json
+{
+  "openconfig-platform:components": {
+    "component": [
+      {
+        "config": {
+          "name": "card1"
+        },
+        "name": "card1"
+      }
+    ]
+  }
+}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test. OC
@@ -26,11 +43,14 @@ paths:
     ## Config paths: N/A
 
     ## State paths
-    ### FIXME: Add components
+    ### FIXME: Add component description
     #/components/component/state/description:
-    #/components/component/state/removable:
-    #/components/component/state/name:
-    #/components/component/state/oper-status:
+    /components/component/state/name:
+      platform_type: ["CONTROLLER_CARD", "FABRIC", "LINECARD"]
+    /components/component/state/oper-status:
+      platform_type: ["FABRIC"]
+    /components/component/state/removable:
+      platform_type: ["FABRIC", "LINECARD"]
     /interfaces/interface/state/name:
     /interfaces/interface/state/oper-status:
 

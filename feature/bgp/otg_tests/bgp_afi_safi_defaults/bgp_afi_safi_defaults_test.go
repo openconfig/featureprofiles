@@ -247,6 +247,15 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbrsList []*bgpNei
 			}
 		}
 
+		wantPeerType := oc.Bgp_PeerType_EXTERNAL
+		if nbr.as == dutAS {
+			wantPeerType = oc.Bgp_PeerType_INTERNAL
+		}
+		gotPeerType := gnmi.Get(t, dut, nbrPath.PeerType().State())
+		t.Logf("BGP peer %s peer-type: got %v, want %v", nbr.neighborip, gotPeerType, wantPeerType)
+		if gotPeerType != wantPeerType {
+			t.Errorf("BGP peer %s peer-type: got %v, want %v", nbr.neighborip, gotPeerType, wantPeerType)
+		}
 	}
 }
 

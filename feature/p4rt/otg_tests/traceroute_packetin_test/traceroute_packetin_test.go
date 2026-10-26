@@ -18,10 +18,9 @@ package traceroute_packetin_test
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"testing"
-
-	"flag"
 
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
