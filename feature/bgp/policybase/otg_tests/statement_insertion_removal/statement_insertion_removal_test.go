@@ -229,7 +229,11 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 		if deviations.BgpCommunityTypeSliceInputUnsupported(dut) {
 			pg.SetSendCommunity(oc.Bgp_CommunityType_STANDARD)
 		} else if !deviations.SkipBgpSendCommunityType(dut) {
-			as4.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
+			if deviations.BgpAfiSafiSendCommunityTypeUnsupported(dut) {
+				pg.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
+			} else {
+				as4.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
+			}
 		}
 
 		bgpNbr := bgp.GetOrCreateNeighbor(nbr.nbrAddr)
