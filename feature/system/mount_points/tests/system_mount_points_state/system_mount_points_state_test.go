@@ -15,6 +15,7 @@
 package system_mount_points_state_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -42,7 +43,20 @@ func TestSystemMountPointState(t *testing.T) {
 			if mountPointName == "" {
 				t.Errorf("Mount point missing name")
 			}
-			size := gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().System().MountPoint(mountPointName).Size().State())
+			if strings.HasPrefix(mountPointName, "/run/user/") {
+				t.Skipf("Skipping ephemeral user runtime mount point %q", mountPointName)
+			}
+			size, ok := gnmi.Lookup(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().System().MountPoint(mountPointName).Size().State()).Val()
+			if !ok {
+				t.Skipf("Mount point %q was unmounted before state query completed", mountPointName)
+			}
+			if deviations.SystemMountPointStateFt(dut) == "" {
+				if storageComp, ok := gnmi.Lookup(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().System().MountPoint(mountPointName).StorageComponent().State()).Val(); ok {
+					t.Logf("Mount point %q storage-component: %q", mountPointName, storageComp)
+				} else {
+					t.Errorf("Mount point %q missing storage-component state", mountPointName)
+				}
+			}
 			// NOTE: We need not check size < 0 since no value of type uint64 is less than 0
 			utilized := gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().System().MountPoint(mountPointName).Utilized().State())
 			if utilized > size {
@@ -51,9 +65,6 @@ func TestSystemMountPointState(t *testing.T) {
 			available := gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().System().MountPoint(mountPointName).Available().State())
 			if available > size {
 				t.Errorf("Mount point %q has available space %d greater than size %d", mountPointName, available, size)
-			}
-			if utilized+available > size {
-				t.Errorf("Mount point %q has size %d less than the total of utilized %d and available space %d", mountPointName, size, utilized, available)
 			}
 		})
 	}

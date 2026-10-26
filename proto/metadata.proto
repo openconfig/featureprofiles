@@ -1581,6 +1581,22 @@ message Metadata {
     // Arista: https://partnerissuetracker.corp.google.com/issues/567813121
     bool isis_interface_authentication_container_unsupported = 478;
 
+    // Device requires all remote syslog servers to use the same facility and
+    // severity selector when configured via OpenConfig.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/574820175
+    bool syslog_uniform_selector_required = 479;
+
+    // Device omits /system/logging/remote-servers/remote-server/state/network-instance
+    // when the remote syslog server is configured in the default network instance.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/574820175
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/574811352
+    bool syslog_default_ni_state_unsupported = 480;
+
+    // Device does not support configuring DEBUG severity for remote syslog
+    // selectors via OpenConfig.
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/574811352
+    bool syslog_debug_severity_unsupported = 481;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }
