@@ -289,6 +289,9 @@ func componentNameFromPath(p *gpb.Path) string {
 // to a linecard.
 func LinecardsFromPorts(t testing.TB, dut *ondatra.DUTDevice, ports []*ondatra.Port) (map[string]string, error) {
 	t.Helper()
+	if len(ports) == 0 {
+		return nil, errors.New("LinecardsFromPorts: no ports given")
+	}
 	types := make(map[string]oc.Component_Type_Union)
 	hasLinecard := false
 	for _, v := range gnmi.LookupAll(t, dut, gnmi.OC().ComponentAny().Type().State()) {

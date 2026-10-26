@@ -190,6 +190,9 @@ type DefaultNetworkInstanceInterfacesConfig struct {
 // ExplicitInterfaceInDefaultVRF deviation is set.
 func AssignInterfacesToDefaultNetworkInstance(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, cfg DefaultNetworkInstanceInterfacesConfig) *gnmi.SetBatch {
 	t.Helper()
+	if len(cfg.Interfaces) == 0 {
+		t.Fatalf("AssignInterfacesToDefaultNetworkInstance: cfg.Interfaces must not be empty")
+	}
 	if !deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		return sb
 	}

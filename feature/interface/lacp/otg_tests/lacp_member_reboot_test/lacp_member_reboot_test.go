@@ -188,6 +188,10 @@ type testEnv struct {
 	// wait for the linecard to recover if the test aborts.
 	rebootIssued   bool
 	trafficRunning bool
+	// port3InDefaultNI records whether DUT port3 subinterface 0 was already
+	// attached to the default network instance before the test, so cleanup
+	// leaves a pre-existing assignment in place.
+	port3InDefaultNI bool
 }
 
 func TestMain(m *testing.M) {
@@ -272,6 +276,7 @@ func setupEnvironment(t *testing.T) *testEnv {
 
 	t.Log("Setup: snapshot the DUT port configuration so it can be restored on cleanup")
 	snapshot := cfgplugins.SnapshotInterfacesConfig(t, dut, allDUTPortNames(env))
+	env.port3InDefaultNI = port3InDefaultNetworkInstance(t, env)
 	t.Cleanup(func() { revertDUTConfig(t, env, snapshot) })
 
 	t.Log("Setup: configure the LACP bundle and IP addresses on the DUT")
@@ -385,8 +390,14 @@ func revertDUTConfig(t *testing.T, env *testEnv, snapshot cfgplugins.InterfaceCo
 		for _, m := range env.dutMembers {
 			gnmi.BatchDelete(b, gnmi.OC().Interface(m.Name()).Ethernet().AggregateId().Config())
 		}
+		// port3.0 is detached only if the test attached it; a pre-existing
+		// assignment is part of the DUT baseline.
+		niIntfs := []string{env.aggID}
+		if !env.port3InDefaultNI {
+			niIntfs = append(niIntfs, env.dutPort3.Name())
+		}
 		cfgplugins.AssignInterfacesToDefaultNetworkInstance(t, env.dut, b, cfgplugins.DefaultNetworkInstanceInterfacesConfig{
-			Interfaces: []string{env.aggID, env.dutPort3.Name()},
+			Interfaces: niIntfs,
 			Delete:     true,
 		})
 		setForCleanup(t, env.dut, b, "release LAG members")
@@ -402,6 +413,20 @@ func revertDUTConfig(t *testing.T, env *testEnv, snapshot cfgplugins.InterfaceCo
 	b := &gnmi.SetBatch{}
 	cfgplugins.RestoreInterfacesConfig(t, env.dut, b, snapshot)
 	setForCleanup(t, env.dut, b, "restore port configuration")
+}
+
+// port3InDefaultNetworkInstance reports whether subinterface 0 of DUT port3 is
+// already attached to the default network instance. The assignment is only
+// made by this test on devices with the ExplicitInterfaceInDefaultVRF
+// deviation, so it is only queried there.
+func port3InDefaultNetworkInstance(t *testing.T, env *testEnv) bool {
+	t.Helper()
+	if !deviations.ExplicitInterfaceInDefaultVRF(env.dut) {
+		return false
+	}
+	ni := deviations.DefaultNetworkInstance(env.dut)
+	id := fmt.Sprintf("%s.0", env.dutPort3.Name())
+	return gnmi.Lookup(t, env.dut, gnmi.OC().NetworkInstance(ni).Interface(id).Config()).IsPresent()
 }
 
 // setForCleanup applies b and reports a failure with t.Errorf instead of
@@ -812,6 +837,9 @@ func getCounters(t *testing.T, dut *ondatra.DUTDevice, intfs []string) map[strin
 //     is no longer reported at all (e.g. while its linecard is offline).
 func awaitLACPMembers(t *testing.T, env *testEnv, members []*ondatra.Port, wantUp bool, timeout time.Duration) error {
 	t.Helper()
+	if len(members) == 0 {
+		t.Fatalf("awaitLACPMembers: no LAG members given")
+	}
 	watchers := make(map[string]*gnmi.Watcher[*oc.Lacp_Interface_Member])
 	for _, m := range members {
 		q := gnmi.OC().Lacp().Interface(env.aggID).Member(m.Name()).State()
@@ -854,6 +882,9 @@ func awaitLACPMembers(t *testing.T, env *testEnv, members []*ondatra.Port, wantU
 // hosting linecard went offline.
 func awaitPortsNotUp(t *testing.T, dut *ondatra.DUTDevice, intfs []string, timeout time.Duration) error {
 	t.Helper()
+	if len(intfs) == 0 {
+		t.Fatalf("awaitPortsNotUp: no interfaces given")
+	}
 	watchers := make(map[string]*gnmi.Watcher[oc.E_Interface_OperStatus])
 	for _, i := range intfs {
 		watchers[i] = gnmi.Watch(t, onChange(dut), gnmi.OC().Interface(i).OperStatus().State(), timeout, func(v *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
@@ -978,6 +1009,9 @@ func awaitCountersNotBelow(t *testing.T, dut *ondatra.DUTDevice, intf string, pr
 // packets than when called.
 func awaitFlowsRxIncrease(t *testing.T, env *testEnv, flowNames []string) error {
 	t.Helper()
+	if len(flowNames) == 0 {
+		t.Fatalf("awaitFlowsRxIncrease: no flows given")
+	}
 	otg := env.ate.OTG()
 	base := make(map[string]uint64)
 	for _, f := range gnmi.GetAll(t, otg, gnmi.OTG().FlowAny().State()) {
@@ -1010,6 +1044,9 @@ func awaitFlowsRxIncrease(t *testing.T, env *testEnv, flowNames []string) error 
 // started before any is awaited.
 func awaitFlowsStopped(t *testing.T, env *testEnv, flowNames []string) error {
 	t.Helper()
+	if len(flowNames) == 0 {
+		t.Fatalf("awaitFlowsStopped: no flows given")
+	}
 	otg := env.ate.OTG()
 	watchers := make(map[string]*gnmi.Watcher[bool])
 	for _, name := range flowNames {
