@@ -216,6 +216,7 @@ test: {
   id: "Certz-1"
   description: "gNSI Client Certificate Tests"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/client_certificates/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/client_certificates/client_certificates_test.go"
 }
 test: {
   id: "Certz-2"
@@ -845,6 +846,11 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_single_hop_bfd_test/README.md"
 }
 test: {
+  id: "RT-1.111"
+  description: "BGP Autonomous System Confederations (RFC 5065)"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/confederation/otg_tests/bgp_confederation_test/README.md"
+}
+test: {
   id: "RT-1.12"
   description: "BGP always compare MED"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_always_compare_med/README.md"
@@ -1050,6 +1056,7 @@ test: {
   id: "RT-1.73"
   description: "Static Route Resilience Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/staticroute/otg_tests/static_route_resiliency_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/staticroute/otg_tests/static_route_resiliency_test/static_route_resiliency_test.go"
 }
 test: {
   id: "RT-1.8"
@@ -1487,6 +1494,7 @@ test: {
   id: "SYS-6.1"
   description: "SSO Extended Forwarding and Stability Validation"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/sso_extended_stability_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/sso_extended_stability_test/sso_extended_stability_test.go"
 }
 test: {
   id: "Storage-1.1"
