@@ -53,7 +53,9 @@ const (
 	haPolicyName = "HA_VRF_SELECTION"
 	ghostVRF     = "VRF-GHOST"
 	// vrfsPerFamily is the number of IPv4 VRFs (VRF-V4-1..15) and of IPv6 VRFs (VRF-V6-1..15).
-	vrfsPerFamily = 15
+	vrfsPerFamily    = 15
+	ipInIPProtocol   = 4
+	ipv6InIPProtocol = 41
 
 	// defaultSubIfIndex is the index, and VLAN ID, of the DUT Port-2 sub-interface in the DEFAULT
 	// network-instance.
@@ -63,9 +65,6 @@ const (
 	// replace the testbed's own default static routes, if any, until restoreDUT restores them.
 	defaultRouteV4 = "0.0.0.0/0"
 	defaultRouteV6 = "::/0"
-	// coveringRouteV4 and coveringRouteV6 cover every OTG destination network. See defaultNIRoutes.
-	coveringRouteV4 = "198.18.0.0/16"
-	coveringRouteV6 = "2001:db8:a::/48"
 
 	ghostFlow  = "GhostFlow"
 	shadowFlow = "ShadowFlow"
@@ -133,21 +132,6 @@ type egressSubIf struct {
 
 func v4VRF(i int) string { return fmt.Sprintf("VRF-V4-%d", i) }
 func v6VRF(i int) string { return fmt.Sprintf("VRF-V6-%d", i) }
-
-// defaultNIRoutes returns the IPv4 and IPv6 routes of the DEFAULT network-instance towards the
-// Port-2 DEFAULT sub-interface: the default routes of the README, unless the DEFAULT
-// network-instance already has pre-existing default static routes.
-//
-// TODO: replace this check with a deviation once testbeds isolate management/TACACS+ routes from
-// the DEFAULT network-instance. Replacing pre-existing 0.0.0.0/0 and ::/0 routes in DEFAULT breaks
-// TACACS+ reachability and makes later gNMI requests fail with authentication/authorization errors.
-// The covering routes forward the same test traffic to the same sub-interface.
-func defaultNIRoutes(s *dutSnapshot) (string, string) {
-	if s.staticProtocol != nil && (s.staticProtocol.GetStatic(defaultRouteV4) != nil || s.staticProtocol.GetStatic(defaultRouteV6) != nil) {
-		return coveringRouteV4, coveringRouteV6
-	}
-	return defaultRouteV4, defaultRouteV6
-}
 
 // v4VRFSubIf returns the sub-interface index of VRF-V4-<i>: Port-2 indices 1-10 (index 11 is the
 // DEFAULT sub-interface) and Port-3 indices 12-16.
@@ -259,9 +243,7 @@ func configureEgressSubIf(dut *ondatra.DUTDevice, sub *oc.Interface_Subinterface
 	cfgplugins.ConfigureVLAN(sub, dut, uint16(s.index))
 	if deviations.InterfaceEnabled(dut) {
 		sub.Enabled = ygot.Bool(true)
-		// IPv6-only sub-interfaces also enable IPv4 on DUTs that need the VRF configured before
-		// the addresses.
-		if (s.ipv4 || deviations.InterfaceConfigVRFBeforeAddress(dut)) && !deviations.IPv4MissingEnabled(dut) {
+		if s.ipv4 && !deviations.IPv4MissingEnabled(dut) {
 			sub.GetOrCreateIpv4().Enabled = ygot.Bool(true)
 		}
 		if s.ipv6 {
@@ -296,7 +278,7 @@ func addStaticRoute(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, ni, 
 // network-instance, the 31 egress sub-interfaces, the 30 VRFs and VRF-GHOST, one static route in
 // every VRF and the DEFAULT network-instance default routes towards the Port-2 DEFAULT
 // sub-interface.
-func configureDUT(t *testing.T, dut *ondatra.DUTDevice, snapshot *dutSnapshot) {
+func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	if deviations.VendorPreConfigRequired(dut) {
 		cfgplugins.ConfigureDecapVrfSelection(t, dut)
@@ -388,12 +370,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, snapshot *dutSnapshot) {
 		addStaticRoute(t, dut, b, v6VRF(i), fmt.Sprintf("2001:db8:a:%x::/64", i), ateV6.IPv6)
 	}
 	_, ateDefault := egressAttrs(defaultSubIfIndex)
-	routeV4, routeV6 := defaultNIRoutes(snapshot)
-	if routeV4 != defaultRouteV4 {
-		t.Logf("WARNING: %v uses the routes %s and %s instead of the default routes %s and %s of the README, see the TODO of defaultNIRoutes", dut.Vendor(), routeV4, routeV6, defaultRouteV4, defaultRouteV6)
-	}
-	addStaticRoute(t, dut, b, defNI, routeV4, ateDefault.IPv4)
-	addStaticRoute(t, dut, b, defNI, routeV6, ateDefault.IPv6)
+	addStaticRoute(t, dut, b, defNI, defaultRouteV4, ateDefault.IPv4)
+	addStaticRoute(t, dut, b, defNI, defaultRouteV6, ateDefault.IPv6)
 	b.Set(t, dut)
 }
 
@@ -639,8 +617,7 @@ func restoreDUT(t *testing.T, dut *ondatra.DUTDevice, s *dutSnapshot) {
 		} else {
 			// Only the two default routes of the test are restored: the static protocol can also
 			// hold other testbed routes.
-			routeV4, routeV6 := defaultNIRoutes(s)
-			for _, prefix := range []string{routeV4, routeV6} {
+			for _, prefix := range []string{defaultRouteV4, defaultRouteV6} {
 				if orig := s.staticProtocol.GetStatic(prefix); orig != nil {
 					gnmi.BatchReplace(b, staticPath.Static(prefix).Config(), orig)
 				} else {
@@ -704,13 +681,10 @@ func restoreDUT(t *testing.T, dut *ondatra.DUTDevice, s *dutSnapshot) {
 }
 
 // waitForNeighbors waits until ARP and IPv6 neighbor discovery complete on every ATE interface.
-// IPv6 is checked in a subtest so that a failure is reported without aborting the IPv4 validation.
 func waitForNeighbors(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
 	t.Helper()
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
-	t.Run("IPv6 neighbor discovery", func(t *testing.T) {
-		otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
-	})
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 }
 
 // setupEnvironment configures the README test environment on the DUT and ATE, with every flow
@@ -721,7 +695,7 @@ func setupEnvironment(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 	snapshot := snapshotDUT(t, dut)
 	t.Cleanup(func() { restoreDUT(t, dut, snapshot) })
 
-	configureDUT(t, dut, snapshot)
+	configureDUT(t, dut)
 	top := configureATE(t, ate, want)
 	ate.OTG().PushConfig(t, top)
 	// ATE ports may flap when the configuration is pushed.
@@ -759,10 +733,17 @@ func startTraffic(t *testing.T, ate *ondatra.ATEDevice, want map[string]flowExpe
 	return stop
 }
 
-// progressFlow returns the flow whose counters show the progress of the traffic. All the flows
-// start together at the same rate, so one flow stands for all of them: streaming the state of all
-// the flows, with their egress-tracking metrics, is too heavy for the traffic generator.
+// progressFlow returns the flow whose counters show the progress of the traffic: a flow that must
+// be forwarded, so that its received packets also catch up with the transmitted ones after traffic
+// stops. All the flows start together at the same rate, so one flow stands for all of them:
+// streaming the state of all the flows, with their egress-tracking metrics, is too heavy for the
+// traffic generator.
 func progressFlow(want map[string]flowExpectation) string {
+	for _, name := range sortedKeys(want) {
+		if !want[name].drop {
+			return name
+		}
+	}
 	return sortedKeys(want)[0]
 }
 
@@ -786,13 +767,6 @@ func awaitTrafficProgress(t *testing.T, ate *ondatra.ATEDevice, want map[string]
 	}).Await(t)
 	if ok {
 		return
-	}
-	// Distinguish a traffic generator that does not transmit from one that does not report.
-	port1 := gnmi.OTG().Port(ate.Port(t, "port1").ID())
-	if frames, present := gnmi.Lookup(t, ate.OTG(), port1.Counters().OutFrames().State()).Val(); present {
-		t.Logf("ATE Port-1 has transmitted %d frames", frames)
-	} else {
-		t.Log("ATE Port-1 does not report its transmitted frames")
 	}
 	if seen {
 		t.Fatalf("Flow %s transmitted %d packets, want %d more than %d, within %v", name, last, minTrafficPkts, start, trafficTimeout)
@@ -856,18 +830,6 @@ func unconvergedFlows(flows map[string]*gnmiotg.Flow, want map[string]flowExpect
 	return pending
 }
 
-// settleFlow returns the flow whose counters show that the traffic generator has finished
-// counting: a flow that must be forwarded, so that its received packets catch up with the
-// transmitted ones.
-func settleFlow(want map[string]flowExpectation) string {
-	for _, name := range sortedKeys(want) {
-		if !want[name].drop {
-			return name
-		}
-	}
-	return progressFlow(want)
-}
-
 // awaitFlowsStopped waits until the traffic has stopped and, if allReceived is set, a flow that
 // must be forwarded has received as many packets as it transmitted, all counted by egress
 // tracking. Only that flow is watched: streaming the state of all the flows is too heavy for the
@@ -875,7 +837,7 @@ func settleFlow(want map[string]flowExpectation) string {
 // verification reports the actual counters.
 func awaitFlowsStopped(t *testing.T, ate *ondatra.ATEDevice, want map[string]flowExpectation, allReceived bool) map[string]*gnmiotg.Flow {
 	t.Helper()
-	name := settleFlow(want)
+	name := progressFlow(want)
 	_, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(name).State(), counterSettleTimeout, func(v *ygnmi.Value[*gnmiotg.Flow]) bool {
 		f, present := v.Val()
 		if !present {
@@ -919,30 +881,6 @@ func canaryFlows(want map[string]flowExpectation) map[string]flowExpectation {
 		}
 	}
 	return canaries
-}
-
-// flowsLossless reports whether every flow in flowsAlreadyRead met the full 0%-loss (or 100%-drop)
-// and egress-VLAN expectations of want.
-func flowsLossless(flows map[string]*gnmiotg.Flow, want map[string]flowExpectation) bool {
-	for _, name := range sortedKeys(want) {
-		exp, f := want[name], flows[name]
-		c := f.GetCounters()
-		if c == nil || c.GetOutPkts() == 0 {
-			return false
-		}
-		out, in := c.GetOutPkts(), c.GetInPkts()
-		lossPct := (float64(out) - float64(in)) * 100 / float64(out)
-		if exp.drop {
-			if lossPct < minDropPct {
-				return false
-			}
-			continue
-		}
-		if lossPct > maxLossPct || in > out || pktsOnVLAN(f, exp.vlan) != in {
-			return false
-		}
-	}
-	return true
 }
 
 // logFlows logs the transmitted and received packets of every flow.
@@ -1015,9 +953,8 @@ func verifyFlows(t *testing.T, ate *ondatra.ATEDevice, want map[string]flowExpec
 
 // verifyNoLeakage waits for the flows to stop, then verifies that dropped flows were entirely
 // dropped and that no forwarded flow was received on another VLAN than its expected one. Loss is
-// not verified, so that a measurement which spans an expected outage can be verified. It reports
-// whether all flows also achieved 0% loss on their expected VLANs during that window.
-func verifyNoLeakage(t *testing.T, ate *ondatra.ATEDevice, want map[string]flowExpectation) bool {
+// not verified, so that a measurement which spans an expected outage can be verified.
+func verifyNoLeakage(t *testing.T, ate *ondatra.ATEDevice, want map[string]flowExpectation) {
 	t.Helper()
 	flows := awaitFlowsStopped(t, ate, want, false)
 	logFlows(t, flows, want)
@@ -1031,7 +968,6 @@ func verifyNoLeakage(t *testing.T, ate *ondatra.ATEDevice, want map[string]flowE
 		}
 		verifyEgressVLAN(t, name, f, exp.vlan, false)
 	}
-	return flowsLossless(flows, want)
 }
 
 // awaitConvergence runs short traffic windows until one shows the representative canary flows
@@ -1065,6 +1001,81 @@ func measureTraffic(t *testing.T, ate *ondatra.ATEDevice, want map[string]flowEx
 	stop := startTraffic(t, ate, want)
 	stop()
 	verifyFlows(t, ate, want)
+}
+
+// BuildHAVRFSelectionPolicy builds the HA_VRF_SELECTION policy of RT-3.4 (VRF Selection Policy
+// resiliency) in network-instance niName:
+//   - Rules 1-15 steer IPinIP traffic from 198.51.100.<i>/32 to VRF-V4-<i>.
+//   - Rules 16-30 steer IPv6-in-IPv6 traffic from 2001:db8:100::<i>/128 to VRF-V6-<i>.
+//   - Rule 31 steers IPinIP traffic from 198.51.100.31/32 to VRF-GHOST.
+//   - Rule 100 is a catch-all that steers any other IPinIP traffic to VRF-V4-15.
+//
+// The IP protocols are numeric, as in the README Canonical OC; protocol 41 has no IP_PROTOCOL
+// identity in OpenConfig.
+func BuildHAVRFSelectionPolicy(dut *ondatra.DUTDevice, niName string, policyName string) *oc.NetworkInstance_PolicyForwarding {
+	r := &oc.Root{}
+	niP := r.GetOrCreateNetworkInstance(niName).GetOrCreatePolicyForwarding()
+	niPf := niP.GetOrCreatePolicy(policyName)
+	niPf.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
+
+	// Rules 1-15: IPv4 in IPv4.
+	for i := 1; i <= vrfsPerFamily; i++ {
+		pfR := niPf.GetOrCreateRule(uint32(i))
+		ipv4 := pfR.GetOrCreateIpv4()
+		ipv4.Protocol = oc.UnionUint8(ipInIPProtocol)
+		ipv4.SourceAddress = ygot.String(fmt.Sprintf("198.51.100.%d/32", i))
+		pfR.GetOrCreateAction().NetworkInstance = ygot.String(v4VRF(i))
+	}
+
+	// Rules 16-30: IPv6 in IPv6 (next header 41).
+	for i := 1; i <= vrfsPerFamily; i++ {
+		pfR := niPf.GetOrCreateRule(uint32(vrfsPerFamily + i))
+		ipv6 := pfR.GetOrCreateIpv6()
+		ipv6.Protocol = oc.UnionUint8(ipv6InIPProtocol)
+		ipv6.SourceAddress = ygot.String(fmt.Sprintf("2001:db8:100::%d/128", i))
+		pfR.GetOrCreateAction().NetworkInstance = ygot.String(v6VRF(i))
+	}
+
+	// Rule 31: Ghost VRF. The test deletes VRF-GHOST after the policy is applied.
+	pfR31 := niPf.GetOrCreateRule(31)
+	ipv4R31 := pfR31.GetOrCreateIpv4()
+	ipv4R31.Protocol = oc.UnionUint8(ipInIPProtocol)
+	ipv4R31.SourceAddress = ygot.String("198.51.100.31/32")
+	pfR31.GetOrCreateAction().NetworkInstance = ygot.String(ghostVRF)
+
+	// Rule 100: catch-all for any IPinIP traffic, without a source address match.
+	pfR100 := niPf.GetOrCreateRule(100)
+	pfR100.GetOrCreateIpv4().Protocol = oc.UnionUint8(ipInIPProtocol)
+	pfR100.GetOrCreateAction().NetworkInstance = ygot.String(v4VRF(vrfsPerFamily))
+
+	if deviations.PfRequireMatchDefaultRule(dut) {
+		pfR := niPf.GetOrCreateRule(101)
+		pfR.GetOrCreateAction().NetworkInstance = ygot.String(niName)
+		pfR6 := niPf.GetOrCreateRule(102)
+		pfR6.GetOrCreateIpv6().SourceAddress = ygot.String("::/0")
+		pfR6.GetOrCreateAction().NetworkInstance = ygot.String(niName)
+	}
+	return niP
+}
+
+// ConfigureHAVRFSelectionPolicy configures the HA_VRF_SELECTION policy on the default NI and applies it.
+func ConfigureHAVRFSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice, policyName string) {
+	t.Helper()
+
+	port1 := dut.Port(t, "port1")
+	interfaceID := port1.Name()
+	if deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
+		interfaceID = interfaceID + ".0"
+	}
+
+	defNI := deviations.DefaultNetworkInstance(dut)
+	niForwarding := BuildHAVRFSelectionPolicy(dut, defNI, policyName)
+	dutForwardingPath := gnmi.OC().NetworkInstance(defNI).PolicyForwarding()
+	interface1 := niForwarding.GetOrCreateInterface(interfaceID)
+	interface1.ApplyVrfSelectionPolicy = ygot.String(policyName)
+	interface1.GetOrCreateInterfaceRef().Interface = ygot.String(port1.Name())
+	interface1.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+	gnmi.Replace(t, dut, dutForwardingPath.Config(), niForwarding)
 }
 
 // deleteGhostVRF deletes VRF-GHOST while Rule 31 still references it, as required by the README.
@@ -1229,12 +1240,9 @@ func TestVrfSelectionResiliency(t *testing.T) {
 
 	t.Run("RT-3.4.1 - Scaled VRF Selection Policy Hardware Programming", func(t *testing.T) {
 		t.Log("Step 1 & 2 - Generate the VRF Selection Policy and push it with gNMI REPLACE")
-		vrfpolicy.ConfigureHAVRFSelectionPolicy(t, dut, haPolicyName)
+		ConfigureHAVRFSelectionPolicy(t, dut, haPolicyName)
 		policyApplied = true
-
-		t.Run("Delete VRF-GHOST", func(t *testing.T) {
-			deleteGhostVRF(t, dut)
-		})
+		deleteGhostVRF(t, dut)
 
 		t.Log("Step 3 - Send Traffic until the DUT forwards every stream on its expected VLAN")
 		awaitConvergence(t, ate, withPolicy)
@@ -1273,9 +1281,7 @@ func TestVrfSelectionResiliency(t *testing.T) {
 		t.Log("Step 2 - Validation: 0% loss across the switchover and the Ghost Stream is dropped")
 		awaitTrafficProgress(t, ate, withPolicy)
 		stopTraffic()
-		if !verifyNoLeakage(t, ate, withPolicy) {
-			measureTraffic(t, ate, withPolicy)
-		}
+		verifyFlows(t, ate, withPolicy)
 	})
 
 	t.Run("RT-3.4.3 - VRF Selection Policy Resilience Post Linecard OIR", func(t *testing.T) {
