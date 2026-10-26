@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "0bfc332b-fe26-4861-907b-abf62326fcf2"
+plan_id:  "RT-1.109"
+description:  "BGP Streaming Telemetry and Operational State Verification"
+testbed:  TESTBED_DUT_ATE_2LINKS
