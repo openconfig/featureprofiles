@@ -17,12 +17,14 @@ package components
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"testing"
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -248,6 +250,90 @@ func OpticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *on
 		t.Fatalf("Associated Optical Channel for Transceiver (%v) not found!", transceiverName)
 	}
 	return opticalChannelName
+}
+
+// ErrNoLinecardComponents is returned by LinecardsFromPorts when the device
+// does not report any component of type LINECARD (e.g. fixed form factor
+// devices).
+var ErrNoLinecardComponents = errors.New("device reports no LINECARD components")
+
+// componentNameFromPath returns the component name key of a
+// /components/component[name=...]/... path, or "" if absent.
+func componentNameFromPath(p *gpb.Path) string {
+	for _, e := range p.GetElem() {
+		if e.GetName() == "component" {
+			return e.GetKey()["name"]
+		}
+	}
+	return ""
+}
+
+// LinecardsFromPorts returns, keyed by DUT interface name, the name of the
+// LINECARD component that hosts each of the given ports.
+//
+// For each port it reads /interfaces/interface[name]/state/hardware-port and
+// then follows /components/component/state/parent up the component tree until
+// it reaches a component whose type is LINECARD. The data is fetched with three
+// gNMI requests in total (one batched Get for the hardware-ports and one
+// wildcard Get each for the component types and parents) and the tree is
+// walked in memory, regardless of the number of ports or the tree depth.
+//
+// ErrNoLinecardComponents is returned (wrapped) when the device reports no
+// LINECARD component at all; any other error means a port could not be mapped
+// to a linecard.
+func LinecardsFromPorts(t testing.TB, dut *ondatra.DUTDevice, ports []*ondatra.Port) (map[string]string, error) {
+	t.Helper()
+	types := make(map[string]oc.Component_Type_Union)
+	hasLinecard := false
+	for _, v := range gnmi.LookupAll(t, dut, gnmi.OC().ComponentAny().Type().State()) {
+		if typ, ok := v.Val(); ok {
+			name := componentNameFromPath(v.Path)
+			types[name] = typ
+			if typ == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD {
+				hasLinecard = true
+			}
+		}
+	}
+	if !hasLinecard {
+		return nil, fmt.Errorf("%w (%d components checked)", ErrNoLinecardComponents, len(types))
+	}
+	parents := make(map[string]string)
+	for _, v := range gnmi.LookupAll(t, dut, gnmi.OC().ComponentAny().Parent().State()) {
+		if parent, ok := v.Val(); ok {
+			parents[componentNameFromPath(v.Path)] = parent
+		}
+	}
+
+	batch := gnmi.OCBatch()
+	for _, p := range ports {
+		batch.AddPaths(gnmi.OC().Interface(p.Name()).HardwarePort())
+	}
+	root, _ := gnmi.Lookup(t, dut, batch.State()).Val()
+
+	lcs := make(map[string]string)
+	for _, p := range ports {
+		hwPort := root.GetInterface(p.Name()).GetHardwarePort()
+		if hwPort == "" {
+			return nil, fmt.Errorf("hardware-port not reported for interface %s", p.Name())
+		}
+		visited := make(map[string]bool)
+		var lc string
+		for current := hwPort; current != ""; current = parents[current] {
+			if visited[current] {
+				return nil, fmt.Errorf("loop detected in component tree at %q while walking up from hardware-port %q", current, hwPort)
+			}
+			visited[current] = true
+			if types[current] == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD {
+				lc = current
+				break
+			}
+		}
+		if lc == "" {
+			return nil, fmt.Errorf("no LINECARD component found in the component tree above hardware-port %q of interface %s", hwPort, p.Name())
+		}
+		lcs[p.Name()] = lc
+	}
+	return lcs, nil
 }
 
 // WatchWithRetry watches a query until the predicate returns true, catching temporary connection errors
