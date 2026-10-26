@@ -386,6 +386,10 @@ func (tc *testCase) verifyATE(t *testing.T) {
 	t.Logf("Checking if LAG is up on OTG")
 	gnmi.Await(t, tc.ate.OTG(), gnmi.OTG().Lag(ateDst.Name).OperStatus().State(), time.Minute, otgtelemetry.Lag_OperStatus_UP)
 
+	// Ensure ARP and NDP resolve so that initial packet counters (in/out pkts) are non-zero and exported by the NOS.
+	otgutils.WaitForARP(t, tc.ate.OTG(), tc.top, "IPv4")
+	otgutils.WaitForARP(t, tc.ate.OTG(), tc.top, "IPv6")
+
 	otgutils.LogLAGMetrics(t, tc.ate.OTG(), tc.top)
 	if tc.lagType == oc.IfAggregate_AggregationType_LACP {
 		otgutils.LogLACPMetrics(t, tc.ate.OTG(), tc.top)

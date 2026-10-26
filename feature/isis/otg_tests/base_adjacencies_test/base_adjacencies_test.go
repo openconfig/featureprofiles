@@ -455,23 +455,23 @@ func TestAuthentication(t *testing.T) {
 				}
 
 				for _, intf := range isis.Interface {
-					if deviations.SetISISAuthWithInterfaceAuthenticationContainer(ts.DUT) {
-						intf.GetOrCreateAuthentication().Enabled = ygot.Bool(tc.enabled)
+					if deviations.ISISInterfaceAuthenticationContainerUnsupported(ts.DUT) {
+						helloAuth := intf.GetOrCreateLevel(2).GetOrCreateHelloAuthentication()
+						helloAuth.Enabled = ygot.Bool(tc.enabled)
 						if tc.enabled {
-							intf.GetAuthentication().AuthPassword = ygot.String("google")
-							intf.GetAuthentication().AuthMode = tc.mode
-							intf.GetAuthentication().AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+							helloAuth.AuthPassword = ygot.String("google")
+							helloAuth.AuthMode = tc.mode
+							helloAuth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
 						}
-
 					} else {
-						intf.GetOrCreateLevel(2).GetOrCreateHelloAuthentication().Enabled = ygot.Bool(tc.enabled)
+						intfAuth := intf.GetOrCreateAuthentication()
+						intfAuth.Enabled = ygot.Bool(tc.enabled)
 						if tc.enabled {
-							intf.GetLevel(2).GetHelloAuthentication().AuthPassword = ygot.String("google")
-							intf.GetLevel(2).GetHelloAuthentication().AuthMode = tc.mode
-							intf.GetLevel(2).GetHelloAuthentication().AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+							intfAuth.AuthPassword = ygot.String("google")
+							intfAuth.AuthMode = tc.mode
+							intfAuth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
 						}
 					}
-
 				}
 			})
 			if tc.enabled {

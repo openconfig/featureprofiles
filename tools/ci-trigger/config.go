@@ -59,6 +59,7 @@ const (
 // authorizedTeams is the list of GitHub organization teams authorized to launch Cloud Build jobs.
 var authorizedTeams = []string{
 	"featureprofiles-writers",
+	"featureprofiles-fptest-partners",
 }
 
 // triggerKeywords is the list of authorized keywords to launch a test.  The
@@ -74,10 +75,10 @@ var triggerKeywords = map[string][]deviceType{
 		{Vendor: opb.Device_OPENCONFIG, HardwareModel: "Lemming"},
 	},
 	"/fptest physical": {
-		{Vendor: opb.Device_ARISTA, HardwareModel: "7808"},
-		{Vendor: opb.Device_CISCO, HardwareModel: "8808"},
-		{Vendor: opb.Device_JUNIPER, HardwareModel: "PTX10008"},
-		{Vendor: opb.Device_NOKIA, HardwareModel: "7250 IXR-10e"},
+		{Vendor: opb.Device_ARISTA},
+		{Vendor: opb.Device_CISCO},
+		{Vendor: opb.Device_JUNIPER},
+		{Vendor: opb.Device_NOKIA},
 	},
 	"/fptest virtual": {
 		{Vendor: opb.Device_ARISTA, HardwareModel: "cEOS"},
@@ -87,14 +88,16 @@ var triggerKeywords = map[string][]deviceType{
 		{Vendor: opb.Device_NOKIA, HardwareModel: "SR Linux"},
 		{Vendor: opb.Device_OPENCONFIG, HardwareModel: "Lemming"},
 	},
-	"/fptest arista-7808":        {{Vendor: opb.Device_ARISTA, HardwareModel: "7808"}},
+	// Physical device triggers (vendor-level)
+	"/fptest arista-physical":  {{Vendor: opb.Device_ARISTA}},
+	"/fptest cisco-physical":   {{Vendor: opb.Device_CISCO}},
+	"/fptest juniper-physical": {{Vendor: opb.Device_JUNIPER}},
+	"/fptest nokia-physical":   {{Vendor: opb.Device_NOKIA}},
+
 	"/fptest arista-ceos":        {{Vendor: opb.Device_ARISTA, HardwareModel: "cEOS"}},
 	"/fptest cisco-8000e":        {{Vendor: opb.Device_CISCO, HardwareModel: "8000E"}},
-	"/fptest cisco-8808":         {{Vendor: opb.Device_CISCO, HardwareModel: "8808"}},
 	"/fptest cisco-xrd":          {{Vendor: opb.Device_CISCO, HardwareModel: "XRd"}},
 	"/fptest juniper-ncptx":      {{Vendor: opb.Device_JUNIPER, HardwareModel: "ncPTX"}},
-	"/fptest juniper-ptx10008":   {{Vendor: opb.Device_JUNIPER, HardwareModel: "PTX10008"}},
-	"/fptest nokia-7250":         {{Vendor: opb.Device_NOKIA, HardwareModel: "7250 IXR-10e"}},
 	"/fptest nokia-srl":          {{Vendor: opb.Device_NOKIA, HardwareModel: "SR Linux"}},
 	"/fptest openconfig-lemming": {{Vendor: opb.Device_OPENCONFIG, HardwareModel: "Lemming"}},
 
@@ -128,10 +131,10 @@ var virtualDeviceMachineType = map[deviceType]string{
 
 // physicalDeviceTypes is a list of device types that can execute tests on real hardware.
 var physicalDeviceTypes = []deviceType{
-	{Vendor: opb.Device_ARISTA, HardwareModel: "7808"},
-	{Vendor: opb.Device_CISCO, HardwareModel: "8808"},
-	{Vendor: opb.Device_JUNIPER, HardwareModel: "PTX10008"},
-	{Vendor: opb.Device_NOKIA, HardwareModel: "7250 IXR-10e"},
+	{Vendor: opb.Device_ARISTA},
+	{Vendor: opb.Device_CISCO},
+	{Vendor: opb.Device_JUNIPER},
+	{Vendor: opb.Device_NOKIA},
 }
 
 func titleCase(input string) string {
@@ -143,15 +146,15 @@ var commentTpl = template.Must(template.New("commentTpl").Funcs(template.FuncMap
 {{ if .Virtual }}
 ### Virtual Devices
 
-| Device | Test | Test Documentation | Job | Raw Log |
-| --- | --- | --- | --- | --- |
-{{ range .Virtual }}| {{ .Type.Vendor.String | titleCase }} {{ .Type.HardwareModel }} | {{ range .Tests }}[![status]({{ .BadgeURL }})]({{ .TestURL }})<br />{{ end }} | {{ range .Tests }}[{{ .Name }}: {{ .Description }}]({{ .DocURL }})<br />{{ end }} | {{ if and .CloudBuildLogURL .CloudBuildID }}[{{ printf "%.8s" .CloudBuildID }}]({{ .CloudBuildLogURL }}){{ end }} | {{ if .CloudBuildRawLogURL }}[Log]({{ .CloudBuildRawLogURL }}){{ end }} |
+| Device | Test | Status | Test Documentation | Job | Raw Log |
+| --- | --- | --- | --- | --- | --- |
+{{ range .Virtual }}| {{ .Type.Vendor.String | titleCase }} {{ .Type.HardwareModel }} | {{ range .Tests }}[![status]({{ .BadgeURL }})]({{ .TestURL }})<br />{{ end }} | {{ range .Tests }}{{ .Name }}: {{ .Status }}<br />{{ end }} | {{ range .Tests }}[{{ .Name }}: {{ .Description }}]({{ .DocURL }})<br />{{ end }} | {{ if and .CloudBuildLogURL .CloudBuildID }}[{{ printf "%.8s" .CloudBuildID }}]({{ .CloudBuildLogURL }}){{ end }} | {{ if .CloudBuildRawLogURL }}[Log]({{ .CloudBuildRawLogURL }}){{ end }} |
 {{ end }}{{ end }}{{ if .Physical }}
 ### Hardware Devices
 
-| Device | Test | Test Documentation | Raw Log |
-| --- | --- | --- | --- |
-{{ range .Physical }}| {{ .Type.Vendor.String | titleCase }} {{ .Type.HardwareModel }} | {{ range .Tests }}[![status]({{ .BadgeURL }})]({{ .TestURL }})<br />{{ end }} | {{ range .Tests }}[{{ .Name }}: {{ .Description }}]({{ .DocURL }})<br />{{ end }} | {{ if .CloudBuildRawLogURL }}[Log]({{ .CloudBuildRawLogURL }}){{ end }} |
+| Device | Test | Status | Test Documentation | Raw Log |
+| --- | --- | --- | --- | --- |
+{{ range .Physical }}| {{ .Type.Vendor.String | titleCase }} {{ .Type.HardwareModel }} | {{ range .Tests }}[![status]({{ .BadgeURL }})]({{ .TestURL }})<br />{{ end }} | {{ range .Tests }}{{ .Name }}: {{ .Status }}<br />{{ end }} | {{ range .Tests }}[{{ .Name }}: {{ .Description }}]({{ .DocURL }})<br />{{ end }} | {{ if .CloudBuildRawLogURL }}[Log]({{ .CloudBuildRawLogURL }}){{ end }} |
 {{ end }}{{ end }}{{ if and (not .Virtual) (not .Physical) }}
 No tests identified for validation.
 {{ end }}
