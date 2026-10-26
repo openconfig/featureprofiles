@@ -26,6 +26,28 @@ platform_exceptions: {
   }
   deviations: {
     state_path_unsupported: true
+    subinterface_ifindex_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    missing_value_for_defaults: true
+    state_path_unsupported: true
+    subinterface_name_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    missing_value_for_defaults: true
+    state_path_unsupported: true
+    interface_enabled: true
+    require_routed_subinterface_0: true
   }
 }
 
