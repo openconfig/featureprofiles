@@ -2528,6 +2528,7 @@ func ISISInterfaceAuthenticationContainerUnsupported(dut *ondatra.DUTDevice) boo
 // BgpNonDefaultVrfInstalledPrefixesUnsupported returns true if the device does
 // not report the BGP installed prefix count of neighbors in a non-default
 // network instance.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/577948222
 func BgpNonDefaultVrfInstalledPrefixesUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpNonDefaultVrfInstalledPrefixesUnsupported()
 }

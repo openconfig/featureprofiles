@@ -1583,6 +1583,7 @@ message Metadata {
 
     // bgp_non_default_vrf_installed_prefixes_unsupported specifies if device
     // does not report installed prefixes in a non-default network instance
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/577948222
     bool bgp_non_default_vrf_installed_prefixes_unsupported = 479;
 
     // Reserved field numbers and identifiers.
