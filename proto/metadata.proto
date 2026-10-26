@@ -1581,6 +1581,21 @@ message Metadata {
     // Arista: https://partnerissuetracker.corp.google.com/issues/567813121
     bool isis_interface_authentication_container_unsupported = 478;
 
+    // Devices that do not support the
+    // /interfaces/interface/ethernet/state/negotiated-port-speed telemetry path.
+    // Nokia: https://b.corp.google.com/issues/572214470
+    bool negotiated_port_speed_unsupported = 479;
+
+    // Devices that do not support the
+    // /interfaces/interface/subinterfaces/subinterface/state/ifindex telemetry path.
+    // Juniper: https://b.corp.google.com/issues/572208368
+    bool subinterface_ifindex_unsupported = 480;
+
+    // Devices that do not support the
+    // /interfaces/interface/subinterfaces/subinterface/state/name telemetry path.
+    // Cisco: https://b.corp.google.com/issues/572214473
+    bool subinterface_name_unsupported = 481;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }
