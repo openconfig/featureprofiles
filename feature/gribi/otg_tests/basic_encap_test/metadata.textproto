@@ -15,6 +15,11 @@ platform_exceptions:  {
     interface_id_format_required_for_policy_forwarding:  true
     pf_require_match_default_rule:  true
     pf_require_sequential_order_pbr_rules: true
+    auto_negotiate_unsupported: true
+    duplex_mode_unsupported: true
+    port_speed_unsupported: true
+    subinterface_packet_counters_missing: true
+    interface_counters_update_delayed: true
   }
 }
 platform_exceptions:  {
@@ -22,6 +27,10 @@ platform_exceptions:  {
     vendor: JUNIPER
   }
   deviations:  {
+    auto_negotiate_unsupported: true
+    duplex_mode_unsupported: true
+    port_speed_unsupported: true
+    subinterface_packet_counters_missing: true
   }
 }
 platform_exceptions:  {
@@ -36,6 +45,7 @@ platform_exceptions:  {
     default_network_instance: "default"
     omit_l2_mtu: true
     decap_nh_with_nexthop_ni_unsupported: true
+    subinterface_packet_counters_missing: true
   }
 }
 platform_exceptions:  {
