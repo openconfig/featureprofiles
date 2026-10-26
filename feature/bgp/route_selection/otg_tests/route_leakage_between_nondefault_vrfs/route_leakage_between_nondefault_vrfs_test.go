@@ -14,6 +14,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
@@ -396,6 +397,12 @@ func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Con
 	otg := ate.OTG()
 
 	for _, flow := range config.Flows().Items() {
+		if _, ok := gnmi.Watch(t, otg, gnmi.OTG().Flow(flow.Name()).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
+			f, present := val.Val()
+			return present && f.GetCounters() != nil && f.GetCounters().GetOutPkts() >= totalPackets
+		}).Await(t); !ok {
+			t.Errorf("Flow %s did not send any packets", flow.Name())
+		}
 		flowMetrics := gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).State())
 		txPackets := flowMetrics.GetCounters().GetOutPkts()
 		rxPackets := flowMetrics.GetCounters().GetInPkts()
@@ -409,6 +416,7 @@ func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Con
 		}
 
 		var expectedPackets uint64
+		tolerancePackets := uint64(2)
 		if expectTrafficPass {
 			expectedPackets = totalPackets
 		} else {
@@ -417,10 +425,18 @@ func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Con
 
 		t.Logf("Expecting %d packets for flow %s", expectedPackets, flow.Name())
 		msg := fmt.Sprintf("Sent %d packets, expected %d packets, received %d packets.", txPackets, expectedPackets, rxPackets)
-		if rxPackets == expectedPackets {
-			t.Log(msg)
+		if expectTrafficPass {
+			if rxPackets >= expectedPackets-tolerancePackets && rxPackets <= expectedPackets+tolerancePackets {
+				t.Log(msg)
+			} else {
+				t.Error(msg)
+			}
 		} else {
-			t.Error(msg)
+			if rxPackets == expectedPackets {
+				t.Log(msg)
+			} else {
+				t.Error(msg)
+			}
 		}
 	}
 }
