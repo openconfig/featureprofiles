@@ -3,6 +3,7 @@ package samplestream
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -99,4 +100,50 @@ func (s *SampleStream[T]) All() []*ygnmi.Value[T] {
 // Close closes the gnmi subscription.
 func (s *SampleStream[T]) Close() {
 	s.cancel()
+}
+
+// VerifyMonotonicIncrease awaits numSamples consecutive strictly increasing uint64 samples
+// (S_1 < S_2 < ... < S_numSamples) from the given SampleStream, waiting up to sampleTimeout
+// for each sample update. It returns the slice of collected sample values and any error encountered.
+func VerifyMonotonicIncrease(t testing.TB, s *SampleStream[uint64], numSamples int, sampleTimeout time.Duration) ([]uint64, error) {
+	t.Helper()
+	return VerifyMonotonicIncreaseFunc(t, s, func(v uint64) uint64 { return v }, numSamples, sampleTimeout)
+}
+
+// VerifyMonotonicIncreaseFunc awaits numSamples consecutive strictly increasing uint64 counter
+// values extracted via extract(T) from the given SampleStream[T], waiting up to sampleTimeout
+// for each sample update. This supports both leaf counter streams and telemetry-atomic container
+// streams (such as OpenConfig AFT NextHop, Ipv4Entry, and Ipv6Entry streams).
+func VerifyMonotonicIncreaseFunc[T any](t testing.TB, s *SampleStream[T], extract func(T) uint64, numSamples int, sampleTimeout time.Duration) ([]uint64, error) {
+	t.Helper()
+	if numSamples <= 0 {
+		return nil, fmt.Errorf("numSamples must be positive, got %d", numSamples)
+	}
+	samples := make([]uint64, 0, numSamples)
+	var prev uint64
+	for i := 0; i < numSamples; i++ {
+		idx := i
+		val, ok := s.AwaitNext(sampleTimeout, func(v *ygnmi.Value[T]) bool {
+			raw, present := v.Val()
+			if !present {
+				return false
+			}
+			cur := extract(raw)
+			if idx == 0 {
+				return cur > 0
+			}
+			return cur > prev
+		})
+		if !ok || val == nil {
+			return samples, fmt.Errorf("sample %d/%d did not monotonically increase above %d within %v", i+1, numSamples, prev, sampleTimeout)
+		}
+		raw, present := val.Val()
+		if !present {
+			return samples, fmt.Errorf("sample %d/%d is not present", i+1, numSamples)
+		}
+		cur := extract(raw)
+		samples = append(samples, cur)
+		prev = cur
+	}
+	return samples, nil
 }
