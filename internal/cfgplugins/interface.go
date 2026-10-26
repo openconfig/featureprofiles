@@ -573,6 +573,11 @@ func updateOpticalChannelConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p 
 
 // updateOTNChannelConfig updates the OTN channel config.
 func updateOTNChannelConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ondatra.Port, params *ConfigParameters) {
+	gnmi.BatchReplace(batch, gnmi.OC().TerminalDevice().Channel(params.OTNIndexes[p.Name()]).Config(), OTNChannelConfig(dut, p, params))
+}
+
+// OTNChannelConfig returns the OTN logical channel config for the port.
+func OTNChannelConfig(dut *ondatra.DUTDevice, p *ondatra.Port, params *ConfigParameters) *oc.TerminalDevice_Channel {
 	var firstAssignmentIndex uint32
 	if deviations.OTNChannelAssignmentCiscoNumbering(dut) {
 		firstAssignmentIndex = 1
@@ -638,11 +643,16 @@ func updateOTNChannelConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ond
 	if !deviations.TerminalDeviceChannelAdminStateUnsupported(dut) && !deviations.OTNToETHAssignment(dut) {
 		ch.AdminState = oc.TerminalDevice_AdminStateType_ENABLED
 	}
-	gnmi.BatchReplace(batch, gnmi.OC().TerminalDevice().Channel(params.OTNIndexes[p.Name()]).Config(), ch)
+	return ch
 }
 
 // updateETHChannelConfig updates the ETH channel config.
 func updateETHChannelConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ondatra.Port, params *ConfigParameters) {
+	gnmi.BatchReplace(batch, gnmi.OC().TerminalDevice().Channel(params.ETHIndexes[p.Name()]).Config(), ETHChannelConfig(dut, p, params))
+}
+
+// ETHChannelConfig returns the ETH logical channel config for the port.
+func ETHChannelConfig(dut *ondatra.DUTDevice, p *ondatra.Port, params *ConfigParameters) *oc.TerminalDevice_Channel {
 	var assignmentIndex uint32
 	if deviations.EthChannelAssignmentCiscoNumbering(dut) {
 		assignmentIndex = 1
@@ -681,7 +691,7 @@ func updateETHChannelConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ond
 	if !deviations.TerminalDeviceChannelAdminStateUnsupported(dut) {
 		channel.AdminState = oc.TerminalDevice_AdminStateType_ENABLED
 	}
-	gnmi.BatchReplace(batch, gnmi.OC().TerminalDevice().Channel(params.ETHIndexes[p.Name()]).Config(), channel)
+	return channel
 }
 
 // ToggleInterfaceState toggles the interface with operational mode.
@@ -1929,5 +1939,122 @@ func ConfigureLoopback(t *testing.T, dut *ondatra.DUTDevice, cfg LoopbackConfig)
 		gnmi.BatchUpdate(cfg.Batch, gnmi.OC().Interface(cfg.Name).Config(), i)
 	} else {
 		gnmi.Replace(t, dut, gnmi.OC().Interface(cfg.Name).Config(), i)
+	}
+}
+
+// IPv6AddressParams holds parameters for configuring and validating an IPv6 address on a DUT interface.
+type IPv6AddressParams struct {
+	PortName         string
+	SubinterfaceIdx  uint32
+	Description      string
+	IPv6             string
+	PrefixLen        uint8
+	AddrType         oc.E_IfIp_Ipv6AddressType
+	ReplaceInterface bool
+}
+
+// IPv6LinkLocalPrefixLen returns the effective IPv6 link-local prefix length for the DUT,
+// accounting for the LinkLocalMaskLen deviation.
+func IPv6LinkLocalPrefixLen(dut *ondatra.DUTDevice, defaultLen uint8) uint8 {
+	if deviations.LinkLocalMaskLen(dut) {
+		return 128
+	}
+	return defaultLen
+}
+
+// ConfigureInterfaceIPv6Address appends gNMI configuration operations to sb for configuring
+// an IPv6 address (link-local or global unicast) on a DUT interface/subinterface.
+func ConfigureInterfaceIPv6Address(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, cfg IPv6AddressParams) *gnmi.SetBatch {
+	t.Helper()
+	p := dut.Port(t, cfg.PortName)
+	prefixLen := cfg.PrefixLen
+	if cfg.AddrType == oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST {
+		prefixLen = IPv6LinkLocalPrefixLen(dut, cfg.PrefixLen)
+	}
+
+	if cfg.ReplaceInterface {
+		attr := attrs.Attributes{
+			Desc:         cfg.Description,
+			Subinterface: cfg.SubinterfaceIdx,
+			IPv6:         cfg.IPv6,
+			IPv6Len:      prefixLen,
+		}
+		intf := attr.NewOCInterface(p.Name(), dut)
+		subInt := intf.GetOrCreateSubinterface(cfg.SubinterfaceIdx)
+		if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+			subInt.GetOrCreateIpv4().Enabled = ygot.Bool(true)
+		}
+		v6 := subInt.GetOrCreateIpv6()
+		v6.Enabled = ygot.Bool(true)
+		addr := v6.GetOrCreateAddress(cfg.IPv6)
+		addr.SetPrefixLength(prefixLen)
+		if cfg.AddrType == oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST {
+			addr.SetType(cfg.AddrType)
+		}
+		if deviations.ExplicitPortSpeed(dut) {
+			eth := intf.GetOrCreateEthernet()
+			eth.PortSpeed = fptest.GetIfSpeed(t, p)
+		}
+		gnmi.BatchReplace(sb, gnmi.OC().Interface(p.Name()).Config(), intf)
+		return sb
+	}
+
+	addr := &oc.Interface_Subinterface_Ipv6_Address{
+		Ip:           ygot.String(cfg.IPv6),
+		PrefixLength: ygot.Uint8(prefixLen),
+	}
+	if cfg.AddrType == oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST {
+		addr.Type = cfg.AddrType
+	}
+	gnmi.BatchUpdate(sb, gnmi.OC().Interface(p.Name()).Subinterface(cfg.SubinterfaceIdx).Ipv6().Address(cfg.IPv6).Config(), addr)
+	return sb
+}
+
+// VerifyInterfaceIPv6Address validates the config and state paths for an IPv6 address and subinterface enabled status using gnmi.Watch and gnmi.Get.
+func VerifyInterfaceIPv6Address(t *testing.T, dut *ondatra.DUTDevice, portName string, subIntfIdx uint32, ip string, wantPrefixLen uint8, wantType oc.E_IfIp_Ipv6AddressType, timeout time.Duration) {
+	t.Helper()
+	if wantType == oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST {
+		wantPrefixLen = IPv6LinkLocalPrefixLen(dut, wantPrefixLen)
+	}
+	v6Path := gnmi.OC().Interface(portName).Subinterface(subIntfIdx).Ipv6()
+	addrPath := v6Path.Address(ip)
+
+	if _, ok := gnmi.Watch(t, dut, addrPath.State(), timeout, func(val *ygnmi.Value[*oc.Interface_Subinterface_Ipv6_Address]) bool {
+		state, present := val.Val()
+		typeMatch := wantType == oc.IfIp_Ipv6AddressType_UNSET || state.GetType() == wantType
+		return present && state != nil && state.GetIp() == ip && state.GetPrefixLength() == wantPrefixLen && typeMatch
+	}).Await(t); !ok {
+		state := gnmi.Get(t, dut, addrPath.State())
+		if got, want := state.GetIp(), ip; got != want {
+			t.Errorf("IP address state mismatch for port: %s, got: %s, want: %s", portName, got, want)
+		}
+		if wantType != oc.IfIp_Ipv6AddressType_UNSET {
+			if got, want := state.GetType(), wantType; got != want {
+				t.Errorf("IP address type state mismatch for port: %s, got: %v, want: %v", portName, got, want)
+			}
+		}
+		if got, want := state.GetPrefixLength(), wantPrefixLen; got != want {
+			t.Errorf("IP address prefix length state mismatch for port: %s, got: %d, want: %d", portName, got, want)
+		}
+	}
+
+	conf := gnmi.Get(t, dut, addrPath.Config())
+	if got, want := conf.GetIp(), ip; got != want {
+		t.Errorf("IP address config-path mismatch for port: %s, got: %s, want: %s", portName, got, want)
+	}
+	if wantType == oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST {
+		if got, want := conf.GetType(), wantType; got != want {
+			t.Errorf("IP address type config-path mismatch for port: %s, got: %v, want: %v", portName, got, want)
+		}
+	}
+	if got, want := conf.GetPrefixLength(), wantPrefixLen; got != want {
+		t.Errorf("IP address prefix length config-path mismatch for port: %s, got: %d, want: %d", portName, got, want)
+	}
+
+	if got, want := gnmi.Get(t, dut, v6Path.Enabled().Config()), true; got != want {
+		t.Errorf("IPv6 subinterface status config-path mismatch for port: %s, got: %v, want: %v", portName, got, want)
+	}
+	if got, want := gnmi.Get(t, dut, v6Path.Enabled().State()), true; got != want {
+		t.Errorf("IPv6 subinterface status state mismatch for port: %s, got: %v, want: %v", portName, got, want)
 	}
 }
