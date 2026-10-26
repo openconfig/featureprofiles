@@ -465,8 +465,8 @@ func testMemberLinksAdminDown(t *testing.T, env *testEnv) error {
 	lagAdjacencies := isisAdjacencyUpTimestamps(t, env.dut, env.lagName)
 
 	t.Logf("Step 3 - Administratively disable member links %v", portNames(disabled))
-	setPortsEnabled(t, env.dut, disabled, false)
 	t.Cleanup(func() { setPortsEnabled(t, env.dut, env.dutMembers, true) })
+	setPortsEnabled(t, env.dut, disabled, false)
 
 	t.Logf("Step 4 - Verify %v are DOWN while %s stays UP via %s", portNames(disabled), env.lagName, remaining.Name())
 	for _, p := range disabled {
@@ -519,8 +519,8 @@ func testRedundantAdminDown(t *testing.T, env *testEnv) error {
 	var errs []error
 
 	t.Logf("Step 1 - Administratively disable %s", env.lagName)
-	setInterfaceEnabled(t, env.dut, env.lagName, false)
 	t.Cleanup(func() { setInterfaceEnabled(t, env.dut, env.lagName, true) })
+	setInterfaceEnabled(t, env.dut, env.lagName, false)
 
 	t.Log("Step 2 - Verify LAG admin/oper DOWN and 100% traffic loss")
 	errs = append(errs,
@@ -594,8 +594,8 @@ func testDifferentialMemberDrain(t *testing.T, env *testEnv) error {
 
 	t.Logf("Step 1 - Drain %s with forwarding-viable=false and retain %v", drained.Name(), portNames(retained))
 	viable := map[string]bool{drained.Name(): false}
-	setForwardingViable(t, env, viable)
 	t.Cleanup(func() { setForwardingViable(t, env, map[string]bool{drained.Name(): true}) })
+	setForwardingViable(t, env, viable)
 
 	t.Log("Step 2 - Verify differential member state")
 	errs = append(errs, awaitValue(t, env.dut, gnmi.OC().Interface(drained.Name()).ForwardingViable().State(), intfTimeout, false, drained.Name()+" forwarding-viable", false))
@@ -1339,7 +1339,10 @@ func verifyBGPPrefixes(t *testing.T, dut *ondatra.DUTDevice, ni, v4Peer, v6Peer 
 				return present && n == want
 			}).Await(t)
 			if !ok {
-				installed, _ := got.Val()
+				var installed uint32
+				if got != nil {
+					installed, _ = got.Val()
+				}
 				received, _ := gnmi.Lookup(t, dut, prefixes.Received().State()).Val()
 				errs = append(errs, fmt.Errorf("BGP neighbor %s in %s %v prefixes after %v: installed %d, received %d, want %d", peer, ni, afiSafi, prefixTimeout, installed, received, want))
 				continue
@@ -1354,7 +1357,7 @@ func verifyBGPPrefixes(t *testing.T, dut *ondatra.DUTDevice, ni, v4Peer, v6Peer 
 		switch {
 		case ok:
 			t.Logf("BGP neighbor %s in %s %v received prefixes: %d", peer, ni, afiSafi, want)
-		case !got.IsPresent():
+		case got == nil || !got.IsPresent():
 			t.Logf("BGP neighbor %s in %s %v received prefixes not reported, skipping check", peer, ni, afiSafi)
 		default:
 			n, _ := got.Val()
