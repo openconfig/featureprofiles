@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
-	"github.com/openconfig/featureprofiles/internal/deviations"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -492,94 +491,4 @@ func (m *InterfaceCountersMonitor) Stop(t *testing.T) (int, error) {
 		return m.samples, fmt.Errorf("interface counters monitor detected issues: %s", strings.Join(errs, "; "))
 	}
 	return m.samples, nil
-}
-
-// AwaitSupervisorRoles (gNOI-3.3.1 Step 2 / gNOI-3.3.2 Step 3) awaits the expected
-// PRIMARY and SECONDARY redundant-role states across supervisor switchovers.
-func AwaitSupervisorRoles(t *testing.T, dut *ondatra.DUTDevice, expectedPrimary, expectedSecondary string, timeout time.Duration) error {
-	t.Helper()
-
-	c, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.Name()))
-	if err != nil {
-		return fmt.Errorf("failed to create ygnmi client: %w", err)
-	}
-
-	qPrimary := gnmi.OC().Component(expectedPrimary).RedundantRole().State()
-	qSecondary := gnmi.OC().Component(expectedSecondary).RedundantRole().State()
-
-	primaryReady := false
-	secondaryReady := false
-
-	var opts []ygnmi.Option
-	if deviations.SwitchoverSubscribeUnsupported(dut) {
-		t.Logf("WARNING: [AwaitSupervisorRoles] Deviation SwitchoverSubscribeUnsupported on %s (%s): polling redundant-role via unary gNMI.Get for up to %v (awaiting %s=PRIMARY, %s=SECONDARY).", dut.Name(), dut.Model(), timeout, expectedPrimary, expectedSecondary)
-		opts = append(opts, ygnmi.WithUseGet())
-	} else {
-		t.Logf("INFO: [AwaitSupervisorRoles] Polling redundant-role via one-shot gNMI.Subscribe (mode: ONCE) on %s (%s) for up to %v (awaiting %s=PRIMARY, %s=SECONDARY)...", dut.Name(), dut.Model(), timeout, expectedPrimary, expectedSecondary)
-	}
-
-	start := time.Now()
-	for time.Since(start) < timeout {
-		if !primaryReady {
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			val, err := ygnmi.Lookup(ctx, c, qPrimary, opts...)
-			cancel()
-			if err != nil && len(opts) > 0 && (strings.Contains(err.Error(), "Unimplemented") || strings.Contains(err.Error(), "Unsupported 'type'")) {
-				t.Logf("INFO: [AwaitSupervisorRoles] Device %s (%s) does not support unary gNMI.Get for STATE paths; switching polling to one-shot gNMI.Subscribe (mode: ONCE) via ygnmi.Lookup.", dut.Name(), dut.Model())
-				opts = nil
-				ctxRetry, cancelRetry := context.WithTimeout(context.Background(), 10*time.Second)
-				val, err = ygnmi.Lookup(ctxRetry, c, qPrimary)
-				cancelRetry()
-			}
-
-			if err != nil {
-				t.Logf("DEBUG: [%.1fs] Error fetching primary role: %v", time.Since(start).Seconds(), err)
-			} else if role, present := val.Val(); present {
-				t.Logf("DEBUG: [%.1fs] %s RedundantRole = %v", time.Since(start).Seconds(), expectedPrimary, role)
-				if role == oc.Platform_ComponentRedundantRole_PRIMARY {
-					primaryReady = true
-					t.Logf("INFO: Supervisor %q reached PRIMARY role.", expectedPrimary)
-				}
-			}
-		}
-
-		if !secondaryReady {
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			val, err := ygnmi.Lookup(ctx, c, qSecondary, opts...)
-			cancel()
-			if err != nil && len(opts) > 0 && (strings.Contains(err.Error(), "Unimplemented") || strings.Contains(err.Error(), "Unsupported 'type'")) {
-				t.Logf("INFO: [AwaitSupervisorRoles] Device %s (%s) does not support unary gNMI.Get for STATE paths; switching polling to one-shot gNMI.Subscribe (mode: ONCE) via ygnmi.Lookup.", dut.Name(), dut.Model())
-				opts = nil
-				ctxRetry, cancelRetry := context.WithTimeout(context.Background(), 10*time.Second)
-				val, err = ygnmi.Lookup(ctxRetry, c, qSecondary)
-				cancelRetry()
-			}
-
-			if err != nil {
-				t.Logf("DEBUG: [%.1fs] Error fetching secondary role: %v", time.Since(start).Seconds(), err)
-			} else if role, present := val.Val(); present {
-				t.Logf("DEBUG: [%.1fs] %s RedundantRole = %v", time.Since(start).Seconds(), expectedSecondary, role)
-				if role == oc.Platform_ComponentRedundantRole_SECONDARY {
-					secondaryReady = true
-					t.Logf("INFO: Supervisor %q reached SECONDARY role.", expectedSecondary)
-				}
-			}
-		}
-
-		if primaryReady && secondaryReady {
-			t.Logf("SUCCESS: Supervisors reached expected redundant roles.")
-			return nil
-		}
-
-		time.Sleep(10 * time.Second)
-	}
-
-	var errMsgs []string
-	if !primaryReady {
-		errMsgs = append(errMsgs, fmt.Sprintf("supervisor %q failed to reach PRIMARY role within %v", expectedPrimary, timeout))
-	}
-	if !secondaryReady {
-		errMsgs = append(errMsgs, fmt.Sprintf("supervisor %q failed to reach SECONDARY role within %v", expectedSecondary, timeout))
-	}
-	return fmt.Errorf("supervisor switchover validation failed due to timeout: %s", strings.Join(errMsgs, "; "))
 }
