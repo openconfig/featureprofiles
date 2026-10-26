@@ -316,6 +316,16 @@ func createBGPNeighbor(peerGrpNameV4, peerGrpNameV6 string, nbrs []*BGPNeighbor,
 }
 
 func updateNeighborMaxPrefix(t *testing.T, dut *ondatra.DUTDevice, neighbors []*BGPNeighbor) {
+	if dut.Vendor() == ondatra.ARISTA {
+		bgpMaxRouteCfg := new(strings.Builder)
+		fmt.Fprintf(bgpMaxRouteCfg, "router bgp %d\n", dutAS)
+		for _, nbr := range neighbors {
+			fmt.Fprintf(bgpMaxRouteCfg, " neighbor %s maximum-routes 0\n", nbr.neighborip)
+		}
+		t.Logf("Configuring Arista BGP maximum-routes 0 via gNMI CLI origin:\n%s", bgpMaxRouteCfg.String())
+		helpers.GnmiCLIConfig(t, dut, bgpMaxRouteCfg.String())
+		return
+	}
 	for _, nbr := range neighbors {
 		cfgplugins.DeviationAristaBGPNeighborMaxPrefixes(t, dut, nbr.neighborip, 0)
 	}
@@ -659,6 +669,24 @@ type testCase struct {
 func TestBGP(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
+
+	if dut.Vendor() == ondatra.ARISTA {
+		t.Log("Enabling Arista AFT streaming provider in management api models")
+		aristaAFTConfig := `
+management api models
+   leaf default-value visible
+   provider aft
+      ipv4-unicast
+      ipv6-unicast
+      route-summary
+`
+		helpers.GnmiCLIConfig(t, dut, aristaAFTConfig)
+		t.Log("Restarting Arista Octa / OpenConfig agent to apply provider aft")
+		dut.CLI().RunResult(t, "agent Octa terminate")
+		dut.CLI().RunResult(t, "agent OpenConfig terminate")
+		time.Sleep(15 * time.Second)
+	}
+
 	gnmiClient1, err := dut.RawAPIs().BindingDUT().DialGNMI(t.Context())
 	if err != nil {
 		t.Fatalf("Failed to dial GNMI: %v", err)
@@ -760,6 +788,12 @@ func TestBGP(t *testing.T) {
 		t.Fatalf("Unable to establish BGP session: %v", err)
 	}
 
+	wantIPv6NHs := map[string]bool{ateP1.IPv6: true, ateP2.IPv6: true}
+	wantIPv6NHsISIS := map[string]bool{ateP1.IPv6: true}
+	if deviations.LinkLocalInsteadOfNh(dut) || dut.Vendor() == ondatra.ARISTA {
+		wantIPv6NHsISIS = map[string]bool{linkLocalAddress: true}
+	}
+
 	// Step 1: Initial state verification (BGP: 2 NHs, ISIS: 1 NH)
 	verifyAFTState("Initial AFT verification", 2, wantIPv4NHs, wantIPv6NHs)
 
@@ -772,7 +806,7 @@ func TestBGP(t *testing.T) {
 	for pfix := range netutil.GenCIDRs(t, startingISISRouteIPv6, isisRouteCount) {
 		wantISISPrefixes[pfix] = true
 	}
-	isisStoppingCondition := aftcache.InitialSyncStoppingCondition(t, dut, wantISISPrefixes, map[string]bool{ateP1.IPv4: true}, map[string]bool{ateP1.IPv6: true})
+	isisStoppingCondition := aftcache.InitialSyncStoppingCondition(t, dut, wantISISPrefixes, map[string]bool{ateP1.IPv4: true}, wantIPv6NHsISIS)
 	if _, err := tc.fetchAFT(t, aftSession1, aftSession2, isisStoppingCondition, wantISISPrefixes); err != nil {
 		t.Fatalf("Failed to verify ISIS prefixes in AFT: %v", err)
 	}
