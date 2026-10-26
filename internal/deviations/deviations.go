@@ -2524,3 +2524,10 @@ func BgpAfiSafiSendCommunityTypeUnsupported(dut *ondatra.DUTDevice) bool {
 func ISISInterfaceAuthenticationContainerUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisInterfaceAuthenticationContainerUnsupported()
 }
+
+// BgpNonDefaultVrfInstalledPrefixesUnsupported returns true if the device does
+// not report the BGP installed prefix count of neighbors in a non-default
+// network instance.
+func BgpNonDefaultVrfInstalledPrefixesUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpNonDefaultVrfInstalledPrefixesUnsupported()
+}
