@@ -20,8 +20,10 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
+	"strings"
 	"testing"
 	"time"
+	"unicode"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	tpb "github.com/openconfig/gnoi/types"
@@ -237,6 +239,8 @@ func OpticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *on
 		case ondatra.ARISTA:
 			transceiverName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
 			return fmt.Sprintf("%s-Optical0", transceiverName)
+		case ondatra.CISCO:
+			return "OpticalChannel" + strings.TrimLeftFunc(p.Name(), unicode.IsLetter)
 		default:
 			t.Fatal("Manual Optical channel name required when deviation missing_port_to_optical_channel_component_mapping applied.")
 		}
