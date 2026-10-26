@@ -113,6 +113,75 @@
 
 *   **Configuration & Cleanup**
     *   **Mandatory State Reversion:** Tests must always leave the system in the exact original state it was in prior to the test execution, regardless of whether the test passes or fails. This requirement applies to both standard gNMI `Set` configurations and raw/native CLI commands (e.g., using `helpers.GnmiCLIConfig`). The PR MUST include corresponding cleanup operations to revert any changes made during the test.
+    *   **OTG Interface State Reversion:**
+        - **Anti-pattern:** Modifying Open Traffic Generator (OTG) port link states (e.g., setting link state to DOWN) without a deferred cleanup. If the test fails or times out mid-run prior to sequential restoration, the OTG port is left disabled, potentially breaking subsequent tests.
+        - **Correction:** OTG interfaces MUST be explicitly guaranteed to be brought back UP via deferred cleanup functions immediately after modifying them. 
+        - **BAD (Do not do this):**
+
+        ```go
+        portAction := gosnappi.NewControlState()
+        portAction.Port().Link().SetPortNames([]string{atePort.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
+        ate.OTG().SetControlState(t, portAction)
+        
+        // ... mid-run test execution that might panic or fail ...
+        
+        // If a failure occurs above, this code is never reached and the port remains DOWN.
+        portAction.Port().Link().SetState(gosnappi.StatePortLinkState.UP)
+        ate.OTG().SetControlState(t, portAction)
+        ```
+        - **GOOD (Do this instead):**
+
+        ```go
+        portAction := gosnappi.NewControlState()
+        portAction.Port().Link().SetPortNames([]string{atePort.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
+        ate.OTG().SetControlState(t, portAction)
+        
+        // Immediately defer the restoration to UP
+        defer func() {
+            restoreAction := gosnappi.NewControlState()
+            restoreAction.Port().Link().SetPortNames([]string{atePort.ID()}).SetState(gosnappi.StatePortLinkState.UP)
+            ate.OTG().SetControlState(t, restoreAction)
+        }()
+        ```
+    *   **OTG Port Capture Cleanup:**
+        - **Anti-pattern:** Starting an Open Traffic Generator (OTG) port packet capture (`gosnappi.StatePortCaptureState.START`) without stopping it, or stopping it sequentially without a `defer`. If the test omits stopping capture or fails/aborts mid-run (e.g., via `t.Fatalf`) prior to sequential cleanup, the capture session remains active on the ATE/Ixia port, exhausting hardware capture slot limits across subtests or subsequent tests.
+        - **Correction:** Whenever an OTG port capture is started (`gosnappi.StatePortCaptureState.START`), a deferred cleanup (`defer`) that stops the port capture (`gosnappi.StatePortCaptureState.STOP`) MUST be registered immediately after starting capture (in addition to stopping capture before reading `.pcap` bytes with `GetCapture` if done within the same function).
+        - **BAD (Do not do this):**
+
+        ```go
+        cs := gosnappi.NewControlState()
+        cs.Port().Capture().SetPortNames([]string{atePort.ID()}).SetState(gosnappi.StatePortCaptureState.START)
+        ate.OTG().SetControlState(t, cs)
+
+        ate.OTG().StartTraffic(t)
+        // ... wait for traffic/protocol packets ...
+        ate.OTG().StopTraffic(t)
+
+        // Missing capture STOP entirely, or calling STOP sequentially without defer
+        // where an earlier t.Fatalf would leave the capture session open.
+        bytes := ate.OTG().GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(atePort.ID()))
+        ```
+        - **GOOD (Do this instead):**
+
+        ```go
+        cs := gosnappi.NewControlState()
+        cs.Port().Capture().SetPortNames([]string{atePort.ID()}).SetState(gosnappi.StatePortCaptureState.START)
+        ate.OTG().SetControlState(t, cs)
+        defer func() {
+            cs.Port().Capture().SetPortNames([]string{atePort.ID()}).SetState(gosnappi.StatePortCaptureState.STOP)
+            ate.OTG().SetControlState(t, cs)
+        }()
+
+        ate.OTG().StartTraffic(t)
+        // ... wait for traffic/protocol packets ...
+        ate.OTG().StopTraffic(t)
+
+        // Explicitly stop capture before downloading pcap bytes if read in the same function,
+        // while the defer above guarantees cleanup if any step fails early.
+        cs.Port().Capture().SetPortNames([]string{atePort.ID()}).SetState(gosnappi.StatePortCaptureState.STOP)
+        ate.OTG().SetControlState(t, cs)
+        bytes := ate.OTG().GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(atePort.ID()))
+        ```
     *   **SSH and AAA State:** Pay special attention to AAA and SSH configurations. If a test modifies SSH authentication (e.g., `management ssh authentication protocol password`), the cleanup routine MUST explicitly negate that specific command (e.g., `management ssh \n no authentication protocol`) rather than relying on generic default commands that might wipe baseline lab configurations.
     *   **Use `t.Cleanup()`:** All cleanup operations, whether for gNMI configurations or raw CLI commands, must be registered using `t.Cleanup()` to guarantee they are executed even if the test fails or panics early.
     *   **README Cleanup Specification:** All test plan `README.md` files must explicitly include a cleanup/teardown step (or `### Cleanup` section) specifying that any state or configuration modified during the test (e.g., disabled interfaces, drained links, altered protocol states) is reverted and the DUT is restored to its baseline operational state upon test completion. Reviewers must flag `README.md` test plans that leave interfaces or protocols in a degraded/disabled state without an explicit cleanup step.
