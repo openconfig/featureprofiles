@@ -20,7 +20,7 @@ testregistry.textproto
 /feature/afts/         @openconfig/featureprofiles-owner-aft
 /feature/bgp/          @openconfig/featureprofiles-owner-bgp
 /feature/cfm/          @openconfig/featureprofiles-owner-cfm
-/feature/container/    @openconfig/featureprofiles-owner-gnmi
+/feature/container/    @openconfig/featureprofiles-owner-container
 /feature/dhcp/         @alokmtri-g
 /feature/ethernet/     @alokmtri-g
 /feature/gnmi/         @openconfig/featureprofiles-owner-gnmi
