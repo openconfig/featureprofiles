@@ -182,6 +182,9 @@ func TestStaticRouteWithVlanInterface(t *testing.T) {
 func mustTestStaticRoute(t *testing.T, tc testCase, dut *ondatra.DUTDevice, top gosnappi.Config, ate *ondatra.ATEDevice) {
 	t.Helper()
 
+	t.Logf("Validating routed-vlan %s IPv4 and IPv6 address state on DUT", vlanIntfName)
+	validateRoutedVlanAddressState(t, dut)
+
 	// Validate static routes if this is the IP forwarding over static route test
 	if tc.flowType == flowTypeStatic {
 		t.Log("Validating all static routes on DUT")
@@ -227,6 +230,11 @@ func mustTestStaticRoute(t *testing.T, tc testCase, dut *ondatra.DUTDevice, top 
 	t.Log("Stopping traffic")
 	ate.OTG().StopTraffic(t)
 
+	if tc.flowType == flowTypeStatic {
+		t.Logf("Validating routed-vlan %s IPv4 and IPv6 neighbor state on DUT", vlanIntfName)
+		validateRoutedVlanNeighbors(t, dut)
+	}
+
 	// Capture DUT counters AFTER traffic
 	t.Log("Reading DUT counters after traffic")
 	afterCounters := fetchDUTCounters(t, dut)
@@ -243,6 +251,51 @@ func mustTestStaticRoute(t *testing.T, tc testCase, dut *ondatra.DUTDevice, top 
 	for _, flow := range top.Flows().Items() {
 		if err := verifyTrafficFlow(t, ate, flow.Name()); err != nil {
 			t.Fatalf("Traffic flow validation failed: %v", err)
+		}
+	}
+}
+
+// validateRoutedVlanAddressState verifies the IPv4 and IPv6 address and prefix-length state on the routed-vlan interface.
+func validateRoutedVlanAddressState(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+
+	rvPath := gnmi.OC().Interface(vlanIntfName).RoutedVlan()
+
+	gnmi.Await(t, dut, rvPath.Ipv4().Address(sviParams.IPv4).Ip().State(), time.Minute, sviParams.IPv4)
+	gnmi.Await(t, dut, rvPath.Ipv4().Address(sviParams.IPv4).PrefixLength().State(), time.Minute, sviParams.IPv4Len)
+	gnmi.Await(t, dut, rvPath.Ipv6().Address(sviParams.IPv6).Ip().State(), time.Minute, sviParams.IPv6)
+	gnmi.Await(t, dut, rvPath.Ipv6().Address(sviParams.IPv6).PrefixLength().State(), time.Minute, sviParams.IPv6Len)
+}
+
+// validateRoutedVlanNeighbors verifies that the routed-vlan interface resolves the expected IPv4 and IPv6 neighbor IPs and link-layer addresses.
+func validateRoutedVlanNeighbors(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+
+	rvPath := gnmi.OC().Interface(vlanIntfName).RoutedVlan()
+
+	for _, atePort := range atePorts[:numOfVlanAccessPorts] {
+		gnmi.Await(t, dut, rvPath.Ipv4().Neighbor(atePort.IPv4).Ip().State(), time.Minute, atePort.IPv4)
+		if lastVal, ok := gnmi.Watch(t, dut, rvPath.Ipv4().Neighbor(atePort.IPv4).LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+			gotMAC, present := val.Val()
+			return present && strings.EqualFold(gotMAC, atePort.MAC)
+		}).Await(t); !ok {
+			var gotMAC string
+			if lastVal != nil {
+				gotMAC, _ = lastVal.Val()
+			}
+			t.Errorf("RoutedVlan %s IPv4 neighbor %s link-layer-address mismatch: got %q, want %q", vlanIntfName, atePort.IPv4, gotMAC, atePort.MAC)
+		}
+
+		gnmi.Await(t, dut, rvPath.Ipv6().Neighbor(atePort.IPv6).Ip().State(), time.Minute, atePort.IPv6)
+		if lastVal, ok := gnmi.Watch(t, dut, rvPath.Ipv6().Neighbor(atePort.IPv6).LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+			gotMAC, present := val.Val()
+			return present && strings.EqualFold(gotMAC, atePort.MAC)
+		}).Await(t); !ok {
+			var gotMAC string
+			if lastVal != nil {
+				gotMAC, _ = lastVal.Val()
+			}
+			t.Errorf("RoutedVlan %s IPv6 neighbor %s link-layer-address mismatch: got %q, want %q", vlanIntfName, atePort.IPv6, gotMAC, atePort.MAC)
 		}
 	}
 }

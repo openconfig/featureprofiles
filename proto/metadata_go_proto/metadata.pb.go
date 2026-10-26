@@ -21,12 +21,13 @@
 package metadata_go_proto
 
 import (
-	proto "github.com/openconfig/ondatra/proto"
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
+
+	proto "github.com/openconfig/ondatra/proto"
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -60,6 +61,7 @@ const (
 	Metadata_TESTBED_DUT_ATE_8LINKS_LAG       Metadata_Testbed = 17
 	Metadata_TESTBED_DUT_8_LOOP_2_ATE         Metadata_Testbed = 18
 	Metadata_TESTBED_ATE_DUT1_4LINKS_DUT2_ATE Metadata_Testbed = 19
+	Metadata_TESTBED_DUT_DUT_ATE_8LINKS       Metadata_Testbed = 20
 )
 
 // Enum value maps for Metadata_Testbed.
@@ -85,6 +87,7 @@ var (
 		17: "TESTBED_DUT_ATE_8LINKS_LAG",
 		18: "TESTBED_DUT_8_LOOP_2_ATE",
 		19: "TESTBED_ATE_DUT1_4LINKS_DUT2_ATE",
+		20: "TESTBED_DUT_DUT_ATE_8LINKS",
 	}
 	Metadata_Testbed_value = map[string]int32{
 		"TESTBED_UNSPECIFIED":              0,
@@ -107,6 +110,7 @@ var (
 		"TESTBED_DUT_ATE_8LINKS_LAG":       17,
 		"TESTBED_DUT_8_LOOP_2_ATE":         18,
 		"TESTBED_ATE_DUT1_4LINKS_DUT2_ATE": 19,
+		"TESTBED_DUT_DUT_ATE_8LINKS":       20,
 	}
 )
 
@@ -903,6 +907,7 @@ type Metadata_Deviations struct {
 	// trib protocol field under otn channel config unsupported
 	OtnChannelTribUnsupported bool `protobuf:"varint,221,opt,name=otn_channel_trib_unsupported,json=otnChannelTribUnsupported,proto3" json:"otn_channel_trib_unsupported,omitempty"`
 	// ingress parameters under eth channel config unsupported
+	// Juniper: https://issuetracker.google.com/issues/571564632
 	EthChannelIngressParametersUnsupported bool `protobuf:"varint,222,opt,name=eth_channel_ingress_parameters_unsupported,json=ethChannelIngressParametersUnsupported,proto3" json:"eth_channel_ingress_parameters_unsupported,omitempty"`
 	// Cisco numbering for eth channel assignment starts from 1 instead of 0
 	EthChannelAssignmentCiscoNumbering bool `protobuf:"varint,223,opt,name=eth_channel_assignment_cisco_numbering,json=ethChannelAssignmentCiscoNumbering,proto3" json:"eth_channel_assignment_cisco_numbering,omitempty"`
@@ -997,10 +1002,6 @@ type Metadata_Deviations struct {
 	// Devices that do not support SR IGP configuration
 	// Cisco b/390502067
 	SrIgpConfigUnsupported bool `protobuf:"varint,260,opt,name=sr_igp_config_unsupported,json=srIgpConfigUnsupported,proto3" json:"sr_igp_config_unsupported,omitempty"`
-	// Cisco: b/404301960
-	// Devices that block one IS-IS level specific authentication config attribute for P2P links.
-	// The same leafs can be set directly under ISIS Interface authentication /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication.
-	SetIsisAuthWithInterfaceAuthenticationContainer bool `protobuf:"varint,261,opt,name=set_isis_auth_with_interface_authentication_container,json=setIsisAuthWithInterfaceAuthenticationContainer,proto3" json:"set_isis_auth_with_interface_authentication_container,omitempty"`
 	// Devices that do not support GRE/GUE tunnel interface oc.
 	// Juniper b/398171114
 	GreGueTunnelInterfaceOcUnsupported bool `protobuf:"varint,262,opt,name=gre_gue_tunnel_interface_oc_unsupported,json=greGueTunnelInterfaceOcUnsupported,proto3" json:"gre_gue_tunnel_interface_oc_unsupported,omitempty"`
@@ -1414,6 +1415,7 @@ type Metadata_Deviations struct {
 	// Functional translator to be used for Fragment Punt OC paths
 	FragmentPuntFt string `protobuf:"bytes,408,opt,name=fragment_punt_ft,json=fragmentPuntFt,proto3" json:"fragment_punt_ft,omitempty"`
 	// Arista: https://partnerissuetracker.corp.google.com/issues/502838491
+	// Juniper: https://partnerissuetracker.corp.google.com/issues/570573973
 	// Device is missing subinterface state packet counters.
 	DefaultSubinterfacePacketCountersMissing bool `protobuf:"varint,409,opt,name=default_subinterface_packet_counters_missing,json=defaultSubinterfacePacketCountersMissing,proto3" json:"default_subinterface_packet_counters_missing,omitempty"`
 	// Device Does not support session channel id
@@ -1505,6 +1507,8 @@ type Metadata_Deviations struct {
 	LacpInterfaceFallbackOcUnsupported bool `protobuf:"varint,439,opt,name=lacp_interface_fallback_oc_unsupported,json=lacpInterfaceFallbackOcUnsupported,proto3" json:"lacp_interface_fallback_oc_unsupported,omitempty"`
 	// Device does not support configuring VLAN subinterfaces
 	// Arista: https://partnerissuetracker.corp.google.com/issues/494280147
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/573155183
+	// Nokia: https://partnerissuetracker.corp.google.com/issues/573159486
 	VlanSubinterfaceOcUnsupported bool `protobuf:"varint,440,opt,name=vlan_subinterface_oc_unsupported,json=vlanSubinterfaceOcUnsupported,proto3" json:"vlan_subinterface_oc_unsupported,omitempty"`
 	// Device has max route count based on specific platform
 	// Juniper : For devices which has different max route count based on platform, this deviation can be used to set the max route count for the device. This will be used in scale test cases to set the max route count for the device.
@@ -1566,8 +1570,89 @@ type Metadata_Deviations struct {
 	BgpAdjRibOcUnsupported bool `protobuf:"varint,457,opt,name=bgp_adj_rib_oc_unsupported,json=bgpAdjRibOcUnsupported,proto3" json:"bgp_adj_rib_oc_unsupported,omitempty"`
 	// Devices that donot support AIGP metric increment when IGP metric to original destination is zero
 	AigpMetricIncrement bool `protobuf:"varint,458,opt,name=aigp_metric_increment,json=aigpMetricIncrement,proto3" json:"aigp_metric_increment,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// Device does not support power supply telemetry.
+	// Cisco: https://b.corp.google.com/issues/307454993
+	PowerSupplyTelemetryUnsupported bool `protobuf:"varint,459,opt,name=power_supply_telemetry_unsupported,json=powerSupplyTelemetryUnsupported,proto3" json:"power_supply_telemetry_unsupported,omitempty"`
+	// Devices that do not support configuring the sFlow egress sampling rate
+	// (/sampling/sflow/interfaces/interface/config/egress-sampling-rate)
+	// through OpenConfig.
+	// Arista: https://partnerissuetracker.corp.google.com/issues/562517133
+	SflowEgressSamplingRateUnsupported bool `protobuf:"varint,460,opt,name=sflow_egress_sampling_rate_unsupported,json=sflowEgressSamplingRateUnsupported,proto3" json:"sflow_egress_sampling_rate_unsupported,omitempty"`
+	// Device does not populate /interfaces/interface/state/counters/last-clear
+	// after the interface counters are cleared.
+	// Arista: https://partnerissuetracker.corp.google.com/issues/570578230
+	// Juniper: https://partnerissuetracker.corp.google.com/issues/570575610
+	InterfaceLastClearUnsupported bool `protobuf:"varint,461,opt,name=interface_last_clear_unsupported,json=interfaceLastClearUnsupported,proto3" json:"interface_last_clear_unsupported,omitempty"`
+	// Device does not update subinterface 0 IPv4/IPv6 packet counters during
+	// transit traffic.
+	// Juniper: https://partnerissuetracker.corp.google.com/issues/570573973
+	DefaultSubinterfaceIpCountersUnsupported bool `protobuf:"varint,462,opt,name=default_subinterface_ip_counters_unsupported,json=defaultSubinterfaceIpCountersUnsupported,proto3" json:"default_subinterface_ip_counters_unsupported,omitempty"`
+	// Device does not support
+	// /lacp/interfaces/interface/members/member/state/counters/lacp-tx-errors.
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/570398368
+	LacpTxErrorsUnsupported bool `protobuf:"varint,463,opt,name=lacp_tx_errors_unsupported,json=lacpTxErrorsUnsupported,proto3" json:"lacp_tx_errors_unsupported,omitempty"`
+	// Device wipes out LACP interface configuration (such as system-id-mac) when
+	// /interfaces/interface[name=<aggID>]/config is replaced, requiring LACP
+	// configuration to be re-applied after the aggregate interface is replaced.
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/570892225
+	LacpConfigAfterAggregateReplace bool `protobuf:"varint,464,opt,name=lacp_config_after_aggregate_replace,json=lacpConfigAfterAggregateReplace,proto3" json:"lacp_config_after_aggregate_replace,omitempty"`
+	// Device requires vendor-specific configuration before the test configuration.
+	VendorPreConfigRequired bool `protobuf:"varint,465,opt,name=vendor_pre_config_required,json=vendorPreConfigRequired,proto3" json:"vendor_pre_config_required,omitempty"`
+	// Devices that do not report
+	// /network-instances/network-instance/afts/next-hops/next-hop/state/origin-protocol
+	// in AFT telemetry.
+	// Nokia: https://partnerissuetracker.corp.google.com/issues/573621518
+	// Arista: https://partnerissuetracker.corp.google.com/issues/573618644
+	AftNextHopOriginProtocolUnsupported bool `protobuf:"varint,466,opt,name=aft_next_hop_origin_protocol_unsupported,json=aftNextHopOriginProtocolUnsupported,proto3" json:"aft_next_hop_origin_protocol_unsupported,omitempty"`
+	// Devices that do not report
+	// /network-instances/network-instance/afts/next-hops/next-hop/state/encapsulate-header
+	// in AFT telemetry.
+	// Nokia: https://partnerissuetracker.corp.google.com/issues/573623715
+	// Juniper: https://partnerissuetracker.corp.google.com/issues/573625327
+	// Arista: https://partnerissuetracker.corp.google.com/issues/573618570
+	AftNextHopEncapsulateHeaderUnsupported bool `protobuf:"varint,467,opt,name=aft_next_hop_encapsulate_header_unsupported,json=aftNextHopEncapsulateHeaderUnsupported,proto3" json:"aft_next_hop_encapsulate_header_unsupported,omitempty"`
+	// Devices that do not report
+	// /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/backup-next-hop-group
+	// in AFT telemetry.
+	// Arista: https://partnerissuetracker.corp.google.com/issues/573620862
+	AftNextHopGroupBackupNhgUnsupported bool `protobuf:"varint,468,opt,name=aft_next_hop_group_backup_nhg_unsupported,json=aftNextHopGroupBackupNhgUnsupported,proto3" json:"aft_next_hop_group_backup_nhg_unsupported,omitempty"`
+	// Expected name of the Routed VLAN interface for SVIs (if not standard
+	// "Vlan<id>").
+	// Juniper: https://partnerissuetracker.corp.google.com/issues/573046775
+	RoutedVlanInterfaceName string `protobuf:"bytes,469,opt,name=routed_vlan_interface_name,json=routedVlanInterfaceName,proto3" json:"routed_vlan_interface_name,omitempty"`
+	// Device does not support switched-vlan configuration in ethernet.
+	// NOKIA: https://partnerissuetracker.corp.google.com/issues/572757293
+	// CISCO: https://partnerissuetracker.corp.google.com/issues/571920136
+	SwitchedVlanUnsupported bool `protobuf:"varint,470,opt,name=switched_vlan_unsupported,json=switchedVlanUnsupported,proto3" json:"switched_vlan_unsupported,omitempty"`
+	// Functional translator for CFM state telemetry (e.g. present-rdi).
+	// Arista: https://partnerissuetracker.corp.google.com/issues/574322407
+	CfmStateFt string `protobuf:"bytes,471,opt,name=cfm_state_ft,json=cfmStateFt,proto3" json:"cfm_state_ft,omitempty"`
+	// Functional translator for CFM performance measurement telemetry.
+	// Arista: https://partnerissuetracker.corp.google.com/issues/574326691
+	CfmPmFt string `protobuf:"bytes,472,opt,name=cfm_pm_ft,json=cfmPmFt,proto3" json:"cfm_pm_ft,omitempty"`
+	// qos_queue_index_required specifies if device requires queue-index.
+	QosQueueIndexRequired bool `protobuf:"varint,473,opt,name=qos_queue_index_required,json=qosQueueIndexRequired,proto3" json:"qos_queue_index_required,omitempty"`
+	// qos_max_burst_size_required specifies if device requires
+	// maximum-burst-size.
+	QosMaxBurstSizeRequired bool `protobuf:"varint,474,opt,name=qos_max_burst_size_required,json=qosMaxBurstSizeRequired,proto3" json:"qos_max_burst_size_required,omitempty"`
+	// qos_red_unsupported specifies if device does not support RED under
+	// queue-management-profiles.
+	QosRedUnsupported bool `protobuf:"varint,475,opt,name=qos_red_unsupported,json=qosRedUnsupported,proto3" json:"qos_red_unsupported,omitempty"`
+	// Devices that don't pre-check invalid interface numbers when configured
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/570523357
+	InvalidInterfaceNumberAllowed bool `protobuf:"varint,476,opt,name=invalid_interface_number_allowed,json=invalidInterfaceNumberAllowed,proto3" json:"invalid_interface_number_allowed,omitempty"`
+	// Device does not support configuring BGP send-community-type under
+	// /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/config/send-community-type
+	// and requires configuring it under peer-group/config/send-community-type instead.
+	// Arista: https://partnerissuetracker.corp.google.com/issues/567652475
+	BgpAfiSafiSendCommunityTypeUnsupported bool `protobuf:"varint,477,opt,name=bgp_afi_safi_send_community_type_unsupported,json=bgpAfiSafiSendCommunityTypeUnsupported,proto3" json:"bgp_afi_safi_send_community_type_unsupported,omitempty"`
+	// Device does not support configuring IS-IS interface authentication under
+	// /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication
+	// and requires /isis/interfaces/interface/levels/level/hello-authentication instead.
+	// Arista: https://partnerissuetracker.corp.google.com/issues/567813121
+	IsisInterfaceAuthenticationContainerUnsupported bool `protobuf:"varint,478,opt,name=isis_interface_authentication_container_unsupported,json=isisInterfaceAuthenticationContainerUnsupported,proto3" json:"isis_interface_authentication_container_unsupported,omitempty"`
+	unknownFields                                   protoimpl.UnknownFields
+	sizeCache                                       protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -3182,13 +3267,6 @@ func (x *Metadata_Deviations) GetSrIgpConfigUnsupported() bool {
 	return false
 }
 
-func (x *Metadata_Deviations) GetSetIsisAuthWithInterfaceAuthenticationContainer() bool {
-	if x != nil {
-		return x.SetIsisAuthWithInterfaceAuthenticationContainer
-	}
-	return false
-}
-
 func (x *Metadata_Deviations) GetGreGueTunnelInterfaceOcUnsupported() bool {
 	if x != nil {
 		return x.GreGueTunnelInterfaceOcUnsupported
@@ -4561,6 +4639,146 @@ func (x *Metadata_Deviations) GetAigpMetricIncrement() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetPowerSupplyTelemetryUnsupported() bool {
+	if x != nil {
+		return x.PowerSupplyTelemetryUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetSflowEgressSamplingRateUnsupported() bool {
+	if x != nil {
+		return x.SflowEgressSamplingRateUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetInterfaceLastClearUnsupported() bool {
+	if x != nil {
+		return x.InterfaceLastClearUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetDefaultSubinterfaceIpCountersUnsupported() bool {
+	if x != nil {
+		return x.DefaultSubinterfaceIpCountersUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetLacpTxErrorsUnsupported() bool {
+	if x != nil {
+		return x.LacpTxErrorsUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetLacpConfigAfterAggregateReplace() bool {
+	if x != nil {
+		return x.LacpConfigAfterAggregateReplace
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetVendorPreConfigRequired() bool {
+	if x != nil {
+		return x.VendorPreConfigRequired
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetAftNextHopOriginProtocolUnsupported() bool {
+	if x != nil {
+		return x.AftNextHopOriginProtocolUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetAftNextHopEncapsulateHeaderUnsupported() bool {
+	if x != nil {
+		return x.AftNextHopEncapsulateHeaderUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetAftNextHopGroupBackupNhgUnsupported() bool {
+	if x != nil {
+		return x.AftNextHopGroupBackupNhgUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetRoutedVlanInterfaceName() string {
+	if x != nil {
+		return x.RoutedVlanInterfaceName
+	}
+	return ""
+}
+
+func (x *Metadata_Deviations) GetSwitchedVlanUnsupported() bool {
+	if x != nil {
+		return x.SwitchedVlanUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetCfmStateFt() string {
+	if x != nil {
+		return x.CfmStateFt
+	}
+	return ""
+}
+
+func (x *Metadata_Deviations) GetCfmPmFt() string {
+	if x != nil {
+		return x.CfmPmFt
+	}
+	return ""
+}
+
+func (x *Metadata_Deviations) GetQosQueueIndexRequired() bool {
+	if x != nil {
+		return x.QosQueueIndexRequired
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetQosMaxBurstSizeRequired() bool {
+	if x != nil {
+		return x.QosMaxBurstSizeRequired
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetQosRedUnsupported() bool {
+	if x != nil {
+		return x.QosRedUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetInvalidInterfaceNumberAllowed() bool {
+	if x != nil {
+		return x.InvalidInterfaceNumberAllowed
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetBgpAfiSafiSendCommunityTypeUnsupported() bool {
+	if x != nil {
+		return x.BgpAfiSafiSendCommunityTypeUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetIsisInterfaceAuthenticationContainerUnsupported() bool {
+	if x != nil {
+		return x.IsisInterfaceAuthenticationContainerUnsupported
+	}
+	return false
+}
+
 type Metadata_PlatformExceptions struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Platform      *Metadata_Platform     `protobuf:"bytes,1,opt,name=platform,proto3" json:"platform,omitempty"`
@@ -4617,7 +4835,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"ڃ\x02\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xb6\x8e\x02\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -4629,7 +4847,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xe2\xf8\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\x9e\x83\x02\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -4859,8 +5077,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\x13explicit_dco_config\x18\x81\x02 \x01(\bR\x11explicitDcoConfig\x12Y\n" +
 	")verify_expected_breakout_supported_config\x18\x82\x02 \x01(\bR%verifyExpectedBreakoutSupportedConfig\x12;\n" +
 	"\x19bgp_aspathset_unsupported\x18\x83\x02 \x01(\bR\x17bgpAspathsetUnsupported\x12:\n" +
-	"\x19sr_igp_config_unsupported\x18\x84\x02 \x01(\bR\x16srIgpConfigUnsupported\x12o\n" +
-	"5set_isis_auth_with_interface_authentication_container\x18\x85\x02 \x01(\bR/setIsisAuthWithInterfaceAuthenticationContainer\x12T\n" +
+	"\x19sr_igp_config_unsupported\x18\x84\x02 \x01(\bR\x16srIgpConfigUnsupported\x12T\n" +
 	"'gre_gue_tunnel_interface_oc_unsupported\x18\x86\x02 \x01(\bR\"greGueTunnelInterfaceOcUnsupported\x12>\n" +
 	"\x1bload_interval_not_supported\x18\x87\x02 \x01(\bR\x18loadIntervalNotSupported\x12Z\n" +
 	"*skip_optical_channel_output_power_interval\x18\x88\x02 \x01(\bR%skipOpticalChannelOutputPowerInterval\x12A\n" +
@@ -5058,13 +5275,34 @@ const file_metadata_proto_rawDesc = "" +
 	"'containerz_require_explicit_config_save\x18\xc7\x03 \x01(\bR#containerzRequireExplicitConfigSave\x12E\n" +
 	"\x1faigp_route_metric_not_supported\x18\xc8\x03 \x01(\bR\x1baigpRouteMetricNotSupported\x12;\n" +
 	"\x1abgp_adj_rib_oc_unsupported\x18\xc9\x03 \x01(\bR\x16bgpAdjRibOcUnsupported\x123\n" +
-	"\x15aigp_metric_increment\x18\xca\x03 \x01(\bR\x13aigpMetricIncrementJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"\x15aigp_metric_increment\x18\xca\x03 \x01(\bR\x13aigpMetricIncrement\x12L\n" +
+	"\"power_supply_telemetry_unsupported\x18\xcb\x03 \x01(\bR\x1fpowerSupplyTelemetryUnsupported\x12S\n" +
+	"&sflow_egress_sampling_rate_unsupported\x18\xcc\x03 \x01(\bR\"sflowEgressSamplingRateUnsupported\x12H\n" +
+	" interface_last_clear_unsupported\x18\xcd\x03 \x01(\bR\x1dinterfaceLastClearUnsupported\x12_\n" +
+	",default_subinterface_ip_counters_unsupported\x18\xce\x03 \x01(\bR(defaultSubinterfaceIpCountersUnsupported\x12<\n" +
+	"\x1alacp_tx_errors_unsupported\x18\xcf\x03 \x01(\bR\x17lacpTxErrorsUnsupported\x12M\n" +
+	"#lacp_config_after_aggregate_replace\x18\xd0\x03 \x01(\bR\x1flacpConfigAfterAggregateReplace\x12<\n" +
+	"\x1avendor_pre_config_required\x18\xd1\x03 \x01(\bR\x17vendorPreConfigRequired\x12V\n" +
+	"(aft_next_hop_origin_protocol_unsupported\x18\xd2\x03 \x01(\bR#aftNextHopOriginProtocolUnsupported\x12\\\n" +
+	"+aft_next_hop_encapsulate_header_unsupported\x18\xd3\x03 \x01(\bR&aftNextHopEncapsulateHeaderUnsupported\x12W\n" +
+	")aft_next_hop_group_backup_nhg_unsupported\x18\xd4\x03 \x01(\bR#aftNextHopGroupBackupNhgUnsupported\x12<\n" +
+	"\x1arouted_vlan_interface_name\x18\xd5\x03 \x01(\tR\x17routedVlanInterfaceName\x12;\n" +
+	"\x19switched_vlan_unsupported\x18\xd6\x03 \x01(\bR\x17switchedVlanUnsupported\x12!\n" +
+	"\fcfm_state_ft\x18\xd7\x03 \x01(\tR\n" +
+	"cfmStateFt\x12\x1b\n" +
+	"\tcfm_pm_ft\x18\xd8\x03 \x01(\tR\acfmPmFt\x128\n" +
+	"\x18qos_queue_index_required\x18\xd9\x03 \x01(\bR\x15qosQueueIndexRequired\x12=\n" +
+	"\x1bqos_max_burst_size_required\x18\xda\x03 \x01(\bR\x17qosMaxBurstSizeRequired\x12/\n" +
+	"\x13qos_red_unsupported\x18\xdb\x03 \x01(\bR\x11qosRedUnsupported\x12H\n" +
+	" invalid_interface_number_allowed\x18\xdc\x03 \x01(\bR\x1dinvalidInterfaceNumberAllowed\x12]\n" +
+	",bgp_afi_safi_send_community_type_unsupported\x18\xdd\x03 \x01(\bR&bgpAfiSafiSendCommunityTypeUnsupported\x12m\n" +
+	"3isis_interface_authentication_container_unsupported\x18\xde\x03 \x01(\bR/isisInterfaceAuthenticationContainerUnsupportedJ\x06\b\x85\x02\x10\x86\x02J\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02J\x06\b\xf1\x01\x10\xf2\x01J\x04\b1\x102\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
 	"\n" +
 	"deviations\x18\x02 \x01(\v2'.openconfig.testing.Metadata.DeviationsR\n" +
-	"deviations\"\xc4\x04\n" +
+	"deviations\"\xe4\x04\n" +
 	"\aTestbed\x12\x17\n" +
 	"\x13TESTBED_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vTESTBED_DUT\x10\x01\x12\x1a\n" +
@@ -5086,7 +5324,8 @@ const file_metadata_proto_rawDesc = "" +
 	"\x17TESTBED_DUT_ATE_34LINKS\x10\x10\x12\x1e\n" +
 	"\x1aTESTBED_DUT_ATE_8LINKS_LAG\x10\x11\x12\x1c\n" +
 	"\x18TESTBED_DUT_8_LOOP_2_ATE\x10\x12\x12$\n" +
-	" TESTBED_ATE_DUT1_4LINKS_DUT2_ATE\x10\x13\"m\n" +
+	" TESTBED_ATE_DUT1_4LINKS_DUT2_ATE\x10\x13\x12\x1e\n" +
+	"\x1aTESTBED_DUT_DUT_ATE_8LINKS\x10\x14\"m\n" +
 	"\x04Tags\x12\x14\n" +
 	"\x10TAGS_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10TAGS_AGGREGATION\x10\x01\x12\x18\n" +
