@@ -27,6 +27,33 @@ A pull request is expected to traverse through these status codes:
 | running | Ondatra test is running. |
 | success or failure | Test has completed. |
 
+## Pull Request Triggers
+
+Authorized users can manually trigger tests for specific environments by commenting on the pull request. The CI Trigger bot listens for specific keywords starting with `/fptest`.
+
+Below is the complete list of supported commands:
+
+### Grouped Execution Triggers
+* **`/fptest all`**: Runs virtual tests across all supported virtual hardware (cEOS, 8000E, XRd, ncPTX, SR Linux, and Lemming).
+* **`/fptest physical`**: Runs all physical hardware tests (Arista, Cisco, Juniper, and Nokia).
+* **`/fptest virtual`**: Runs all virtual tests (cEOS, 8000E, XRd, ncPTX, SR Linux, and Lemming).
+
+### Vendor-Specific Physical Triggers
+These commands run tests strictly on the physical hardware for the specified vendor:
+* **`/fptest arista-physical`**: Targets Arista physical hardware.
+* **`/fptest cisco-physical`**: Targets Cisco physical hardware.
+* **`/fptest juniper-physical`**: Targets Juniper physical hardware.
+* **`/fptest nokia-physical`**: Targets Nokia physical hardware.
+
+### Vendor-Specific Virtual Triggers
+These commands target specific virtual network operating systems:
+* **`/fptest arista-ceos`**: Targets Arista cEOS.
+* **`/fptest cisco-8000e`**: Targets Cisco 8000E.
+* **`/fptest cisco-xrd`**: Targets Cisco XRd.
+* **`/fptest juniper-ncptx`**: Targets Juniper ncPTX.
+* **`/fptest nokia-srl`**: Targets Nokia SR Linux.
+* **`/fptest openconfig-lemming`**: Targets OpenConfig Lemming.
+
 ## Setup
 
 The installation is a one-time process and these steps are documented for reference.
