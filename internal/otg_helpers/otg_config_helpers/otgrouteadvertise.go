@@ -57,10 +57,10 @@ func AdvertiseBGPRoutes(dev gosnappi.Device, ipv4 gosnappi.DeviceIpv4, ipv6 gosn
 	bgp := dev.Bgp().SetRouterId(ipv4.Address())
 	bgp4Peer := bgp.Ipv4Interfaces().Add().SetIpv4Name(ipv4.Name()).Peers().Add().SetName(dev.Name() + bgpV4Suffix)
 	bgp4Peer.SetPeerAddress(ipv4.Gateway()).SetAsNumber(v4Advertised.ATEAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
-	bgp4Peer.Advanced().SetHoldTimeInterval(1800).SetKeepAliveInterval(600)
+	bgp4Peer.Advanced().SetHoldTimeInterval(600).SetKeepAliveInterval(200)
 	bgp6Peer := bgp.Ipv6Interfaces().Add().SetIpv6Name(ipv6.Name()).Peers().Add().SetName(dev.Name() + bgpV6Suffix)
 	bgp6Peer.SetPeerAddress(ipv6.Gateway()).SetAsNumber(v6Advertised.ATEAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
-	bgp6Peer.Advanced().SetHoldTimeInterval(1800).SetKeepAliveInterval(600)
+	bgp6Peer.Advanced().SetHoldTimeInterval(600).SetKeepAliveInterval(200)
 
 	routes := bgp4Peer.V4Routes().Add().SetName(bgp4Peer.Name() + ipv4Suffix)
 	routes.SetNextHopIpv4Address(ipv4.Address()).

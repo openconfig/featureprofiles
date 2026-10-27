@@ -16,6 +16,7 @@ platform_exceptions: {
     explicit_enable_bgp_on_default_vrf: true
     peer_group_def_ebgp_vrf_unsupported: true
     bgp_afi_safi_in_default_ni_before_other_ni: true
+    bgp_rib_oc_path_unsupported: true
   }
 }
 platform_exceptions: {
