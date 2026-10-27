@@ -236,6 +236,9 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool
 		flow = append(flow, args.packetIO.GetTrafficFlow(args.ate, dstMac, isIPv4, 1, 300, 50, ipv4InnerDst, flowValue))
 	}
 	pktOut := testTraffic(t, args.dut, args.top, args.ate, flow, srcEndPoint, traceroutePacketsPerFlow)
+	if pktOut <= 0 {
+		t.Fatalf("OTG transmitted %d packets; want a positive count before PacketIn and traffic distribution validation", pktOut)
+	}
 	var countPkts = map[string]int{"11": 0, "12": 0, "13": 0, "14": 0, "15": 0, "16": 0, "17": 0}
 
 	packetInTests := []struct {
