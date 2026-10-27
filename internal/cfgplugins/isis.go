@@ -14,6 +14,10 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
+const (
+	defaultMultiplier uint8 = 6
+)
+
 // ISISConfigBasic holds all parameters needed for configuring ISIS on the DUT.
 type ISISConfigBasic struct {
 	InstanceName string
@@ -32,6 +36,8 @@ type ISISGlobalParams struct {
 	ISISInterfaceNames  []string
 	NetworkInstanceType *oc.E_NetworkInstanceTypes_NETWORK_INSTANCE_TYPE
 	ISISAuthKey         string
+	HelloMultiplier     uint8
+	HelloInterval       uint32
 }
 
 // NewISIS configures the DUT with ISIS protocol.
@@ -113,7 +119,14 @@ func NewISIS(t *testing.T, dut *ondatra.DUTDevice, ISISData *ISISGlobalParams, b
 		isisInterface.GetOrCreateLevel(1).SetEnabled(false)
 		isisInterface.GetOrCreateLevel(2).GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).SetMetric(10)
 		isisInterface.GetOrCreateLevel(2).GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).SetMetric(10)
-		isisInterface.GetOrCreateLevel(2).GetOrCreateTimers().SetHelloMultiplier(6)
+		helloMultiplier := defaultMultiplier
+		if ISISData.HelloMultiplier > 0 {
+			helloMultiplier = ISISData.HelloMultiplier
+		}
+		isisInterface.GetOrCreateLevel(2).GetOrCreateTimers().SetHelloMultiplier(helloMultiplier)
+		if ISISData.HelloInterval > 0 {
+			isisInterface.GetOrCreateLevel(2).GetOrCreateTimers().SetHelloInterval(ISISData.HelloInterval)
+		}
 		isisInterface.GetOrCreateTimers().SetLspPacingInterval(50)
 		if !deviations.IsisMplsUnsupported(dut) {
 			isisInterface.GetOrCreateMpls().GetOrCreateIgpLdpSync().SetEnabled(false)

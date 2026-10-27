@@ -1996,3 +1996,12 @@ func VerifyInterfaceIPv6Address(t *testing.T, dut *ondatra.DUTDevice, portName s
 		t.Errorf("IPv6 subinterface status state mismatch for port: %s, got: %v, want: %v", portName, got, want)
 	}
 }
+
+// InterfaceRefID returns interface ref format for intfName, appending the
+// ".0" subinterface suffix when the DUT requires it.
+func InterfaceRefID(dut *ondatra.DUTDevice, intfName string) string {
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		return intfName + ".0"
+	}
+	return intfName
+}
