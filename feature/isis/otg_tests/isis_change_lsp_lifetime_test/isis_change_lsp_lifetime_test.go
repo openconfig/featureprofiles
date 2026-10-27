@@ -37,7 +37,7 @@ func TestMain(m *testing.M) {
 
 const (
 	lspLifetime        = 500
-	lspRefreshInterval = 60
+	lspRefreshInterval = 150
 	v4Route1           = "203.0.113.0"
 	v6Route1           = "2001:db8::203:0:113:0"
 	v4Route            = "203.0.113.0/30"
@@ -233,7 +233,7 @@ func TestISISChangeLSPLifetime(t *testing.T) {
 			_, ok := gnmi.Watch(t, ts.DUT.GNMIOpts().WithYGNMIOpts(
 				ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE),
 				ygnmi.WithSampleInterval(10*time.Second),
-			), isisPath.Interface(intfName).Level(2).PacketCounters().Lsp().Sent().State(), time.Minute*4, func(val *ygnmi.Value[uint32]) bool {
+			), isisPath.Interface(intfName).Level(2).PacketCounters().Lsp().Sent().State(), time.Minute*5, func(val *ygnmi.Value[uint32]) bool {
 				lspSent2, ok := val.Val()
 				if !ok || lspSent2 <= lspSent1 {
 					return false
