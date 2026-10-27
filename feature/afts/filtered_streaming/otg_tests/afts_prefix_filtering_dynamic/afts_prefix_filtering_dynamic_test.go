@@ -409,6 +409,10 @@ func testDynamicUpdates(t *testing.T, dut *ondatra.DUTDevice, pArgs dynamicUpdat
 				PfxCount:   pfxCount,
 			})
 	}
+	absentPrefixes := map[string]bool{pArgs.dynamicPrefix: true}
+	if !pArgs.isIPv6 {
+		absentPrefixes["100.64.0.0/24"] = true
+	}
 	gnmiClient, err := dut.RawAPIs().BindingDUT().DialGNMI(ctx)
 	if err != nil {
 		t.Fatalf("Failed to dial GNMI: %v", err)
@@ -429,7 +433,7 @@ func testDynamicUpdates(t *testing.T, dut *ondatra.DUTDevice, pArgs dynamicUpdat
 		aftpf.RunCollectorParams{
 			Ctx:       ctx,
 			Collector: collector,
-			Stop: aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes,
+			Stop: aftcache.InitialSyncStoppingConditionWithAbsentPrefixes(t, dut, wantPrefixes, absentPrefixes,
 				map[string]bool{atePort1.IPv4: true},
 				map[string]bool{atePort1.IPv6: true},
 			),
