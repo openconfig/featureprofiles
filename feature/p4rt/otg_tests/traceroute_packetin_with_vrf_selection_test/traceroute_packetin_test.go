@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // package to test P4RT with traceroute traffic of IPV4 and IPV6 with TTL/HopLimit as 0&1.
-// go test -v . -testbed /root/ondatra/featureprofiles/topologies/atedut_2.testbed -binding /root/ondatra/featureprofiles/topologies/atedut_2.binding -outputs_dir logs
 
 package traceroute_packetin_with_vrf_selection_test
 
@@ -123,12 +122,11 @@ func getTracerouteParameter(t *testing.T) PacketIO {
 
 // testPacket setup p4RT client, table entry and send traffic and returns the
 // percentage of packets sent out of each egress port
-func testPacket(t *testing.T, args *testArgs, cs gosnappi.ControlState, flowValues []*flowArgs, EgressPortMap map[string]bool) []float64 {
+func testPacket(t *testing.T, args *testArgs, flowValues []*flowArgs, EgressPortMap map[string]bool) []float64 {
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
 	ate := ondatra.ATE(t, "ate")
 	top := args.otgConfig
-	top.Flows().Clear()
 
 	configureDeviceID(ctx, t, dut)
 
@@ -145,7 +143,7 @@ func testPacket(t *testing.T, args *testArgs, cs gosnappi.ControlState, flowValu
 		t.Fatalf("Could not setup p4rt client: %v", err)
 	}
 	args.packetIO = getTracerouteParameter(t)
-	return testPacketIn(ctx, t, args, true, cs, flowValues, EgressPortMap)
+	return testPacketIn(ctx, t, args, true, flowValues, EgressPortMap)
 }
 
 type TraceroutePacketIO struct {
@@ -206,8 +204,7 @@ func (traceroute *TraceroutePacketIO) GetTrafficFlow(ate *ondatra.ATEDevice, dst
 	}
 	if flowValues.udp {
 		UDPHeader := flow.Packet().Add().Udp()
-		UDPHeader.DstPort().Increment().SetStart(1).SetCount(50000).SetStep(1)
-		UDPHeader.SrcPort().Increment().SetStart(1).SetCount(50000).SetStep(1)
+		configureUDPFlowEntropy(UDPHeader, 1, 2)
 	}
 
 	if flowValues.proto != 0 {
@@ -223,16 +220,14 @@ func (traceroute *TraceroutePacketIO) GetTrafficFlow(ate *ondatra.ATEDevice, dst
 			innerIPHdr.Dst().SetValue(flowValues.InnHdrDstIP)
 			innerIPHdr.Priority().Dscp().Phb().SetValue(flowValues.innHdrDscp)
 			UDPHeader := flow.Packet().Add().Udp()
-			UDPHeader.DstPort().Increment().SetStart(1).SetCount(50000).SetStep(1)
-			UDPHeader.SrcPort().Increment().SetStart(1).SetCount(50000).SetStep(1)
+			configureUDPFlowEntropy(UDPHeader, 3, 4)
 		} else {
 			innerIpv6Hdr := flow.Packet().Add().Ipv6()
 			innerIpv6Hdr.Src().SetValue(flowValues.InnHdrSrcIPv6)
 			innerIpv6Hdr.Dst().SetValue(flowValues.InnHdrDstIPv6)
 			innerIpv6Hdr.TrafficClass().SetValue(flowValues.innHdrDscp << 2)
 			UDPHeader := flow.Packet().Add().Udp()
-			UDPHeader.DstPort().Increment().SetStart(1).SetCount(50000).SetStep(1)
-			UDPHeader.SrcPort().Increment().SetStart(1).SetCount(50000).SetStep(1)
+			configureUDPFlowEntropy(UDPHeader, 3, 4)
 		}
 	}
 
