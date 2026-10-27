@@ -255,8 +255,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 	createDUTSubinterface(t, vrfBatch, new(oc.Root), dut, dp4, 0, 0, dutPort4.IPv4, dutPort4.IPv6)
 	for indx := 0; indx < numVRFs+1; indx++ {
 		if indx != 0 {
-			cfgplugins.AssignInterfaceToNetworkInstance(t, vrfBatch, dut, dp1.Name(), &cfgplugins.NetworkInstanceParams{Name: fmt.Sprintf("VRF_%04d", indx), Default: false}, uint32(indx))
-			cfgplugins.AssignInterfaceToNetworkInstance(t, vrfBatch, dut, dp2.Name(), &cfgplugins.NetworkInstanceParams{Name: fmt.Sprintf("VRF_%04d", indx), Default: false}, uint32(indx))
+			cfgplugins.AssignInterfaceToNetworkInstance(t, vrfBatch, dut, dp1.Name(), &cfgplugins.NetworkInstanceParams{Name: fmt.Sprintf("VRF_%04d", indx), Default: false}, uint32(indx), true)
+			cfgplugins.AssignInterfaceToNetworkInstance(t, vrfBatch, dut, dp2.Name(), &cfgplugins.NetworkInstanceParams{Name: fmt.Sprintf("VRF_%04d", indx), Default: false}, uint32(indx), true)
 		}
 	}
 	vrfBatch.Set(t, dut)
@@ -785,6 +785,9 @@ func buildProfileRoutes(t *testing.T, dut *ondatra.DUTDevice, totalNHs, routesPe
 	if len(vrfs) == 0 {
 		t.Fatal("no VRFs supplied")
 	}
+	if routesPerNHG <= 0 {
+		t.Fatal("routesPerNHG must be greater than zero")
+	}
 	if totalNHs%routesPerNHG != 0 {
 		t.Fatalf("invalid configuration: totalNHs=%d must be divisible by routesPerNHG=%d", totalNHs, routesPerNHG)
 	}
@@ -796,16 +799,21 @@ func buildProfileRoutes(t *testing.T, dut *ondatra.DUTDevice, totalNHs, routesPe
 	}
 	baseNHGsPerVRF := totalNHGs / vrfCount
 	extraNHGs := totalNHGs % vrfCount
+	maxNHGsPerVRF := baseNHGsPerVRF
+	if extraNHGs > 0 {
+		maxNHGsPerVRF++
+	}
+	numPrefixes := maxNHGsPerVRF * routesPerNHG
 	var (
 		reusablePrefixes []string
 		routePfxLen      string
 		err              error
 	)
 	if flowType == "ipv6" {
-		reusablePrefixes, err = iputil.GenerateIPv6sWithStep(baseIP, routesPerNHG, intStepV6)
+		reusablePrefixes, err = iputil.GenerateIPv6sWithStep(baseIP, numPrefixes, intStepV6)
 		routePfxLen = routeV6PrfLen
 	} else {
-		reusablePrefixes, err = iputil.GenerateIPsWithStep(baseIP, routesPerNHG, intStepV4)
+		reusablePrefixes, err = iputil.GenerateIPsWithStep(baseIP, numPrefixes, intStepV4)
 		routePfxLen = routeV4PrfLen
 	}
 	if err != nil {
@@ -820,7 +828,9 @@ func buildProfileRoutes(t *testing.T, dut *ondatra.DUTDevice, totalNHs, routesPe
 			currentNHGs++
 		}
 		for nhgIdx := 0; nhgIdx < currentNHGs; nhgIdx++ {
-			for _, prefix := range reusablePrefixes {
+			startIdx := nhgIdx * routesPerNHG
+			endIdx := startIdx + routesPerNHG
+			for _, prefix := range reusablePrefixes[startIdx:endIdx] {
 				vrfPrefixMap[vrfs[vrfIdx]] = append(vrfPrefixMap[vrfs[vrfIdx]], prefix)
 				fullPrefix := prefix + routePfxLen
 				if flowType == "ipv6" {
@@ -958,6 +968,9 @@ func programProfileMultiVRFECMP(t *testing.T, dut *ondatra.DUTDevice, nextHopID,
 	)
 	if len(vrfs) == 0 {
 		t.Fatal("no VRFs provided")
+	}
+	if totalNHGs <= 0 || nhsPerNHG <= 0 {
+		t.Fatal("totalNHGs and nhsPerNHG must be greater than zero")
 	}
 	vrfCount := len(vrfs)
 	if totalNHGs < vrfCount {
@@ -1399,6 +1412,10 @@ func configureVRFProfiles(ctx context.Context, t *testing.T, ateConfig gosnappi.
 	}
 	totalNHGs := cfg.totalNHGs
 	nhsPerNHG := cfg.nhsPerNHG
+	if profile == profileMultiNHGIPv6 && nhsPerNHG > maxNHCountSupport {
+		t.Logf("Profile 8 requested %d NH/NHG; using supported limit %d NH/NHG", nhsPerNHG, maxNHCountSupport)
+		nhsPerNHG = maxNHCountSupport
+	}
 	totalNHs := totalNHGs * nhsPerNHG
 	tV4DstLists, tV6DstLists := programBasicEntries(t, dut, c, vrfs)
 	var (
@@ -1532,7 +1549,8 @@ func configureVRFProfiles(ctx context.Context, t *testing.T, ateConfig gosnappi.
 	case profileMultiNHGIPv6:
 		// Profile 8:
 		// Verify each NHG contains 1024 next-hop members.
-		validateProfileNHGMembers(t, dut, deviations.DefaultNetworkInstance(dut), nextHopGroupID, 20, 1024)
+		// validateProfileNHGMembers(t, dut, deviations.DefaultNetworkInstance(dut), nextHopGroupID, 20, 1024)
+		validateProfileNHGMembers(t, dut, deviations.DefaultNetworkInstance(dut), nextHopGroupID, totalNHGs, nhsPerNHG)
 	}
 	clearCapture(t, ate.OTG(), ateConfig)
 	enableCapture(t, ate.OTG(), ateConfig, testCaseArgs.capturePorts)
@@ -1924,9 +1942,18 @@ func validateTrafficFlows(t *testing.T, args *testArgs, flows []gosnappi.Flow, e
 // invalid configurations where multiple NHG entries overwrite each other.
 func validateProfileNHGMembers(t *testing.T, dut *ondatra.DUTDevice, networkInstance string, nextHopGroupBase uint64, totalNHGs, expectedMembersPerNHG int) {
 	t.Helper()
-	// TODO: OpenConfig currently does not support retrieving the encrypted NHG ID with the NextHopGroupName. Enable validation of traffic distribution across the next-hops within a group once support is available.
 	nhgState := gnmi.GetAll(t, dut, gnmi.OC().NetworkInstance(networkInstance).Afts().NextHopGroupAny().State())
-	t.Logf("NHG count mismatch: got %d want %d", len(nhgState), totalNHGs)
+	if len(nhgState) < totalNHGs {
+		t.Errorf("NHG count mismatch: got %d, want at least %d", len(nhgState), totalNHGs)
+	}
+	for _, nhg := range nhgState {
+		id := nhg.GetId()
+		if id >= nextHopGroupBase && id < nextHopGroupBase+uint64(totalNHGs) {
+			if len(nhg.NextHop) != expectedMembersPerNHG {
+				t.Errorf("NHG %d member count mismatch: got %d, want %d", id, len(nhg.NextHop), expectedMembersPerNHG)
+			}
+		}
+	}
 }
 
 // sendTraffic configures and transmits the provided traffic flows on the ATE.
@@ -1965,13 +1992,9 @@ func (fa *flowAttr) createFlow(t *testing.T, cfg gosnappi.Config, flowType, name
 	if !hasDefault {
 		vlanID++
 	}
-	var (
-		flows    []gosnappi.Flow
-		pfxCount int
-	)
+	var flows []gosnappi.Flow
 	for _, vrf := range orderedVRFs {
 		tDstLists = append(tDstLists, vrf.Prefixes...)
-		pfxCount = len(vrf.Prefixes)
 	}
 
 	// Helper to apply common flow attributes
@@ -2011,27 +2034,31 @@ func (fa *flowAttr) createFlow(t *testing.T, cfg gosnappi.Config, flowType, name
 		)
 
 		if flowType == "ipv6" {
+			nonDefaultVRFIdx := 0
 			if skewPattern {
 				for _, vrf := range orderedVRFs {
 					skewPfxCounts = append(skewPfxCounts, len(vrf.Prefixes))
 				}
-				for pfxID, pfx := range pfx1V6Lists {
-					for i := 0; i < skewPfxCounts[pfxID]; i++ {
-						nonDefaultPfx1V6Lists = append(nonDefaultPfx1V6Lists, pfx)
-						nonDefVlanIDs = append(nonDefVlanIDs, vlanID)
-					}
-					vlanID++
-				}
-			} else {
-				for _, pfx := range pfx1V6Lists {
-					for i := 0; i < pfxCount; i++ {
-						nonDefaultPfx1V6Lists = append(nonDefaultPfx1V6Lists, pfx)
-						nonDefVlanIDs = append(nonDefVlanIDs, vlanID)
-					}
-					vlanID++
-				}
 			}
-
+			for vrfIdx, entry := range orderedVRFs {
+				if strings.ToUpper(entry.VRF) == "DEFAULT" {
+					continue
+				}
+				if nonDefaultVRFIdx >= len(pfx1V6Lists) {
+					t.Fatalf("insufficient IPv6 source list for non-default VRFs: have %d, need at least %d", len(pfx1V6Lists), nonDefaultVRFIdx+1)
+				}
+				repeatCount := len(entry.Prefixes)
+				if skewPattern {
+					repeatCount = skewPfxCounts[vrfIdx]
+				}
+				srcV6 := pfx1V6Lists[nonDefaultVRFIdx]
+				for i := 0; i < repeatCount; i++ {
+					nonDefaultPfx1V6Lists = append(nonDefaultPfx1V6Lists, srcV6)
+					nonDefVlanIDs = append(nonDefVlanIDs, vlanID)
+				}
+				vlanID++
+				nonDefaultVRFIdx++
+			}
 		} else {
 			if skewPattern {
 				for _, vrf := range orderedVRFs {
