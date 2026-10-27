@@ -131,7 +131,10 @@ func KillProcess(t *testing.T, dut *ondatra.DUTDevice, daemon Daemon, signal spb
 	if waitForRestart {
 		_, ok := gnmi.WatchAll(
 			t,
-			dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE)),
+			dut.GNMIOpts().WithYGNMIOpts(
+				ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE),
+				ygnmi.WithSampleInterval(10*time.Second),
+			),
 			gnmi.OC().System().ProcessAny().State(),
 			time.Minute,
 			func(p *ygnmi.Value[*oc.System_Process]) bool {
