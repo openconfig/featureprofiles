@@ -1118,7 +1118,9 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			ate.OTG().StopTraffic(t)
 
 			otgutils.LogFlowMetrics(t, ate.OTG(), top)
+			uniqueQueues := make(map[string]bool)
 			for trafficID, data := range trafficFlows {
+				uniqueQueues[data.queue] = true
 				expectedLossPct := 100.0 - data.expectedThroughputPct
 				minLossPct := expectedLossPct - tolerance
 				if minLossPct < 0 {
@@ -1129,9 +1131,19 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 
 				ateOutPkts[data.queue] += gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().OutPkts().State())
 				ateInPkts[data.queue] += gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().InPkts().State())
-				dutQosPktsAfterTraffic[data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State())
-				dutQosDroppedPktsAfterTraffic[data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State())
-				t.Logf("ateInPkts: %v, txPkts %v, Queue: %v", ateInPkts[data.queue], dutQosPktsAfterTraffic[data.queue], data.queue)
+			}
+
+			for queue := range uniqueQueues {
+				_, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).TransmitPkts().State(), timeout, func(val *ygnmi.Value[uint64]) bool {
+					count, present := val.Val()
+					return present && count >= dutQosPktsBeforeTraffic[queue]+ateInPkts[queue]
+				}).Await(t)
+				if !ok {
+					t.Errorf("TransmitPkts count for queue %q on interface %q failed to reach expected value", queue, dp3.Name())
+				}
+				dutQosPktsAfterTraffic[queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).TransmitPkts().State())
+				dutQosDroppedPktsAfterTraffic[queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).DroppedPkts().State())
+				t.Logf("ateInPkts: %v, txPkts: %v, Queue: %v", ateInPkts[queue], dutQosPktsAfterTraffic[queue], queue)
 			}
 
 			// Check QoS egress packet counters are updated correctly.
