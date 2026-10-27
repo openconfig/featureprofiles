@@ -13,21 +13,40 @@ to the correct egress interface.
 ### Test environment setup
 
 ```
-DUT has 2 ingress aggregate interfaces and 1 egress aggregate interface.
+DUT has 2 standalone ingress interfaces and 1 two-member egress aggregate interface.
        Egress                                      Ingress
          |                                            |
                          |         | --eBGP-- | ATE Port 2  |
-    [ ATE Ports 1 ]------|   DUT   |          |             |
+    [ ATE Ports 1,4 ]----|   DUT   |          |             |
                          |         | --eBGP-- | ATE Port 3  |
 ```
 
-Test uses standalone interfaces from DUT to ATEs.
+The test uses two standalone ingress interfaces and a two-member egress LAG.
 
 * Ingress ATE Ports: port2 and port3
     * Port 2 and port 3 are used as the source ports for encapsulated traffic.
 
-* Egress ATE Ports: port1
-    * Traffic is forwarded (egress) on port1 .
+* Egress ATE Ports: port1 and port4
+    * Both ports are members of the egress LAG. The untagged destination and all
+      ten customer VLANs use this LAG.
+
+On IOS XR, `interface_policy_forwarding_unsupported` selects native
+MPLS-over-UDP termination through `nve1`, sourced from `Loopback125` at
+`11.1.1.1/32`. Both interfaces must be unused before the test and are removed
+during cleanup. This replaces the unsupported OpenConfig
+`apply-forwarding-policy` setup while retaining the MPLS-over-UDP traffic and
+static-label checks. The native endpoint configuration follows the
+[Cisco 8000 MPLS-over-UDP guide](https://www.cisco.com/c/en/us/td/docs/iosxr/cisco8000/mpls/26xx/configuration/guide/b-mpls-cg-cisco8000-26xx/implementing-mpls-traffic-engineering.html).
+
+The ingress interfaces, egress aggregate, aggregate members, and OTG Ethernet
+devices are configured for jumbo frames. Setting only the IP MTU leaves the
+physical interfaces at their default MTU and drops the 9000-byte traffic.
+
+The TTL preservation case disables MPLS TTL propagation and restores its prior
+setting after the subtest. Neighbor clearing uses operational CLI commands.
+For IPv6 label imposition on IOS XR, the test also installs an IPv6 route for
+`2001:db8:cafe::/64` and a per-prefix static LSP with local label `100101` and
+outgoing label `100100`; both are removed during cleanup.
 
 ## PF-1.25.1: Generate config for MPLS in GRE decap and push to DUT
 
@@ -273,7 +292,12 @@ Generate traffic (100K packets at 1000 pps) on ATE Ports 3,4,5,6 having:
                       "ipv4": {
                         "config": {
                           "destination-address": "169.254.125.155/28",
-                          "protocol": 4
+                          "protocol": 17
+                        }
+                      },
+                      "transport": {
+                        "config": {
+                          "destination-port": 6635
                         }
                       },
                       "sequence-id": 10

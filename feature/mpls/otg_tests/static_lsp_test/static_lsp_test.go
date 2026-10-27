@@ -1,6 +1,7 @@
 package static_lsp_test
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -186,6 +187,9 @@ func TestMain(m *testing.M) {
 func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
 	i.Description = ygot.String(a.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	if !deviations.OmitL2MTU(dut) {
+		i.Mtu = ygot.Uint16(a.MTU + 14)
+	}
 
 	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
@@ -196,7 +200,7 @@ func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDe
 	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 		s4.Enabled = ygot.Bool(true)
 	}
-	s4.Mtu = ygot.Uint16(9216)
+	s4.Mtu = ygot.Uint16(a.MTU)
 	s4a := s4.GetOrCreateAddress(a.IPv4)
 	s4a.PrefixLength = ygot.Uint8(ipv4PrefixLen)
 
@@ -204,7 +208,7 @@ func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDe
 	if deviations.InterfaceEnabled(dut) {
 		s6.Enabled = ygot.Bool(true)
 	}
-	s6.Mtu = ygot.Uint32(9216)
+	s6.Mtu = ygot.Uint32(uint32(a.MTU))
 	s6a := s6.GetOrCreateAddress(a.IPv6)
 	s6a.PrefixLength = ygot.Uint8(ipv6PrefixLen)
 
@@ -304,6 +308,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) string {
 			i := &oc.Interface{Name: ygot.String(port.Name())}
 			i.Description = ygot.String("Egress LAG member " + port.Name())
 			i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+			// Members inherit the aggregate MTU. IOS XR rejects an explicit
+			// member MTU in the same configuration as bundle membership.
 			if deviations.InterfaceEnabled(dut) {
 				i.Enabled = ygot.Bool(true)
 			}
@@ -336,7 +342,13 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) string {
 // configureGueDecap configures MPLSoGUE decapsulation on the DUT.
 func configureGueDecap(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	_, ni, pf := cfgplugins.SetupPolicyForwardingInfraOC(deviations.DefaultNetworkInstance(dut))
+	if dut.Vendor() == ondatra.CISCO && deviations.InterfacePolicyForwardingOCUnsupported(dut) {
+		// IOS XR terminates MPLS-over-UDP on an NVE local tunnel endpoint;
+		// apply-forwarding-policy is not supported on this platform.
+		configureCiscoMPLSUDPDecap(t, dut)
+		return
+	}
+	_, _, pf := cfgplugins.SetupPolicyForwardingInfraOC(deviations.DefaultNetworkInstance(dut))
 	ocPFParams := cfgplugins.OcPolicyForwardingParams{
 		NetworkInstanceName: deviations.DefaultNetworkInstance(dut),
 		AppliedPolicyName:   guePolicyName,
@@ -345,30 +357,96 @@ func configureGueDecap(t *testing.T, dut *ondatra.DUTDevice) {
 			IPv4DestAddress: outerDstIP + "/32",
 		},
 	}
-	cfgplugins.DecapGroupConfigGue(t, dut, pf, ocPFParams)
+	if deviations.GueGreDecapUnsupported(dut) {
+		cfgplugins.DecapGroupConfigGue(t, dut, pf, ocPFParams)
+		t.Cleanup(func() { cfgplugins.RemoveDecapGroupGue(t, dut, ocPFParams) })
+		return
+	}
+	// The packet is IPv4/UDP/MPLS, so match UDP and request MPLS-in-UDP
+	// decapsulation rather than the IP-in-IP match used by the generic helper.
+	rule := pf.GetOrCreatePolicy(guePolicyName).GetOrCreateRule(10)
+	rule.GetOrCreateIpv4().DestinationAddress = ygot.String(outerDstIP + "/32")
+	rule.GetOrCreateIpv4().Protocol = oc.UnionUint8(17)
+	rule.GetOrCreateTransport().DestinationPort = oc.UnionUint16(gueUDPPort)
+	rule.GetOrCreateAction().DecapsulateMplsInUdp = ygot.Bool(true)
 	for _, pName := range ingressPorts {
 		p := dut.Port(t, pName)
 		cfgplugins.ApplyPolicyToInterfaceOC(t, pf, p.Name(), guePolicyName)
 	}
-	if !deviations.GueGreDecapUnsupported(dut) {
-		cfgplugins.PushPolicyForwardingConfig(t, dut, ni)
-	}
+	pfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding()
+	gnmi.Update(t, dut, pfPath.Config(), pf)
 	t.Cleanup(func() {
-		cfgplugins.RemoveDecapGroupGue(t, dut, cfgplugins.OcPolicyForwardingParams{AppliedPolicyName: guePolicyName})
+		for _, pName := range ingressPorts {
+			gnmi.Delete(t, dut, pfPath.Interface(dut.Port(t, pName).Name()).Config())
+		}
+		gnmi.Delete(t, dut, pfPath.Policy(guePolicyName).Config())
 	})
+}
+
+// configureCiscoMPLSUDPDecap creates an NVE endpoint for the outer destination.
+func configureCiscoMPLSUDPDecap(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	const nveName = "nve1"
+	loopback := netutil.LoopbackInterface(t, dut, 125)
+	for _, name := range []string{loopback, nveName} {
+		if gnmi.Lookup(t, dut, gnmi.OC().Interface(name).Config()).IsPresent() {
+			t.Fatalf("MPLS-over-UDP test requires unused interface %s", name)
+		}
+	}
+	i := &oc.Interface{
+		Name:    ygot.String(loopback),
+		Type:    oc.IETFInterfaces_InterfaceType_softwareLoopback,
+		Enabled: ygot.Bool(true),
+	}
+	i.GetOrCreateSubinterface(0).GetOrCreateIpv4().GetOrCreateAddress(outerDstIP).PrefixLength = ygot.Uint8(32)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(loopback).Config(), i)
+	t.Cleanup(func() { gnmi.Delete(t, dut, gnmi.OC().Interface(loopback).Config()) })
+	// Cleanup runs in reverse order so the NVE is removed before its source.
+	t.Cleanup(func() { helpers.GnmiCLIConfig(t, dut, "no interface "+nveName+"\n") })
+	helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("interface %s\n overlay-encapsulation mpls-udp\n source-interface %s\n!\n", nveName, loopback))
 }
 
 // clearNeighbors flushes ARP entries and IPv6 neighbors on the DUT.
 func clearNeighbors(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
+	var commands []string
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
-		helpers.GnmiCLIConfig(t, dut, "clear arp-cache\nclear ipv6 neighbors\n")
+		commands = []string{"clear arp-cache", "clear ipv6 neighbors"}
 	case ondatra.CISCO:
-		helpers.GnmiCLIConfig(t, dut, "clear arp-cache\nclear ipv6 neighbors\n")
+		commands = []string{"clear arp-cache", "clear ipv6 neighbors"}
 	case ondatra.JUNIPER:
-		helpers.GnmiCLIConfig(t, dut, "clear arp\nclear ipv6 neighbors\n")
+		commands = []string{"clear arp", "clear ipv6 neighbors"}
+	default:
+		t.Fatalf("Neighbor clearing is not implemented for %s", dut.Vendor())
 	}
+	cli := dut.RawAPIs().CLI(t)
+	for _, command := range commands {
+		result, err := cli.RunCommand(context.Background(), command)
+		if err != nil {
+			t.Fatalf("%s: %v", command, err)
+		}
+		if result.Error() != "" || strings.Contains(result.Output(), "% Invalid") {
+			t.Fatalf("%s failed: %s %s", command, result.Error(), result.Output())
+		}
+	}
+}
+
+// configureIPv6PushLSP binds the IPv6 FEC to the label-imposing next-hop.
+func configureIPv6PushLSP(t *testing.T, dut *ondatra.DUTDevice, ingressName string) {
+	t.Helper()
+	if dut.Vendor() != ondatra.CISCO {
+		cfgplugins.NewStaticMplsLspPushLabel(t, dut, v6LSPName, ingressName, ateDst.IPv6, pushFECDstCIDR, mplsPushLabelV6, lspNextHopIndex, "ipv6")
+		t.Cleanup(func() { cfgplugins.RemoveStaticMplsLspPushLabel(t, dut, v6LSPName, ingressName) })
+		return
+	}
+	// The OC ingress next-hop alone does not associate an IP FEC with an
+	// LSP on IOS XR. Bind the prefix to a native static LSP and its route.
+	const localLabel = 100101
+	helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("router static\n address-family ipv6 unicast\n  %s %s\n !\n!\nmpls static\n lsp %s\n  in-label %d allocate per-prefix %s\n  forward\n   path 1 resolve-nexthop %s out-label %d\n  !\n !\n!\n", pushFECDstCIDR, ateDst.IPv6, v6LSPName, localLabel, pushFECDstCIDR, ateDst.IPv6, mplsPushLabelV6))
+	t.Cleanup(func() {
+		helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("mpls static\n no lsp %s\n!\nrouter static\n address-family ipv6 unicast\n  no %s %s\n !\n!\n", v6LSPName, pushFECDstCIDR, ateDst.IPv6))
+	})
 }
 
 // verifyIPv6NeighborTelemetry validates that the DUT has resolved the IPv6 neighbor LinkLayerAddress.
@@ -446,7 +524,7 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	pIngress1 := ate.Port(t, ingressPorts[0])
 	top.Ports().Add().SetName(pIngress1.ID())
 	src1Dev := top.Devices().Add().SetName(ateIngress1.Name)
-	src1Eth := src1Dev.Ethernets().Add().SetName(ateIngress1.Name + ".Eth").SetMac(ateIngress1.MAC)
+	src1Eth := src1Dev.Ethernets().Add().SetName(ateIngress1.Name + ".Eth").SetMac(ateIngress1.MAC).SetMtu(uint32(ateIngress1.MTU))
 	src1Eth.Connection().SetPortName(pIngress1.ID())
 	src1Eth.Ipv4Addresses().Add().SetName(ateIngress1.Name + ".IPv4").SetAddress(ateIngress1.IPv4).SetGateway(dutIngress1.IPv4).SetPrefix(uint32(ateIngress1.IPv4Len))
 	src1Eth.Ipv6Addresses().Add().SetName(ateIngress1.Name + ".IPv6").SetAddress(ateIngress1.IPv6).SetGateway(dutIngress1.IPv6).SetPrefix(uint32(ateIngress1.IPv6Len))
@@ -455,7 +533,7 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	pIngress2 := ate.Port(t, ingressPorts[1])
 	top.Ports().Add().SetName(pIngress2.ID())
 	src2Dev := top.Devices().Add().SetName(ateIngress2.Name)
-	src2Eth := src2Dev.Ethernets().Add().SetName(ateIngress2.Name + ".Eth").SetMac(ateIngress2.MAC)
+	src2Eth := src2Dev.Ethernets().Add().SetName(ateIngress2.Name + ".Eth").SetMac(ateIngress2.MAC).SetMtu(uint32(ateIngress2.MTU))
 	src2Eth.Connection().SetPortName(pIngress2.ID())
 	src2Eth.Ipv4Addresses().Add().SetName(ateIngress2.Name + ".IPv4").SetAddress(ateIngress2.IPv4).SetGateway(dutIngress2.IPv4).SetPrefix(uint32(ateIngress2.IPv4Len))
 	src2Eth.Ipv6Addresses().Add().SetName(ateIngress2.Name + ".IPv6").SetAddress(ateIngress2.IPv6).SetGateway(dutIngress2.IPv6).SetPrefix(uint32(ateIngress2.IPv6Len))
@@ -467,13 +545,13 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 		p := ate.Port(t, portName)
 		top.Ports().Add().SetName(p.ID())
 		lagPort := lag.Ports().Add().SetPortName(p.ID())
-		lagPort.Ethernet().SetMac(ateDst.MAC).SetName("ateDstLag-" + p.ID())
+		lagPort.Ethernet().SetMac(ateDst.MAC).SetName("ateDstLag-" + p.ID()).SetMtu(uint32(ateDst.MTU))
 		lagPort.Lacp().SetActorActivity("active").SetActorPortNumber(uint32(i + 1)).SetActorPortPriority(1).SetLacpduTimeout(0)
 	}
 
 	// Base untagged egress destination (subinterface 0)
 	dstDev := top.Devices().Add().SetName(ateDst.Name)
-	dstEth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".Eth").SetMac(ateDst.MAC)
+	dstEth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".Eth").SetMac(ateDst.MAC).SetMtu(uint32(ateDst.MTU))
 	dstEth.Connection().SetLagName(lag.Name())
 	dstEth.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4").SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(uint32(ateDst.IPv4Len))
 	dstEth.Ipv6Addresses().Add().SetName(ateDst.Name + ".IPv6").SetAddress(ateDst.IPv6).SetGateway(dutDst.IPv6).SetPrefix(uint32(ateDst.IPv6Len))
@@ -482,6 +560,11 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	for _, cs := range custSubinterfaces {
 		cDev := top.Devices().Add().SetName(fmt.Sprintf("custDev-vlan%d", cs.vlanID))
 		cEth := cDev.Ethernets().Add().SetName(fmt.Sprintf("custEth-vlan%d", cs.vlanID)).SetMac(ateDst.MAC)
+		mtu := uint32(ateDst.MTU)
+		if cs.mtu != 0 {
+			mtu = cs.mtu
+		}
+		cEth.SetMtu(mtu)
 		cEth.Connection().SetLagName(lag.Name())
 		cEth.Vlans().Add().SetName(fmt.Sprintf("custVlan-%d", cs.vlanID)).SetId(cs.vlanID)
 
@@ -818,6 +901,20 @@ func TestStaticLSP(t *testing.T) {
 	})
 
 	t.Run("PF-1.25.4: Verify MPLSoGUE DSCP/TTL preserve operation", func(t *testing.T) {
+		// Preserve the inner TTL across MPLS disposition rather than copying
+		// the decremented outer label TTL into the IP header.
+		if !deviations.MplsOCUnsupported(dut) {
+			ttlPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Global().TtlPropagation()
+			previous := gnmi.Lookup(t, dut, ttlPath.Config())
+			gnmi.Update(t, dut, ttlPath.Config(), false)
+			t.Cleanup(func() {
+				if value, present := previous.Val(); present {
+					gnmi.Update(t, dut, ttlPath.Config(), value)
+				} else {
+					gnmi.Delete(t, dut, ttlPath.Config())
+				}
+			})
+		}
 		packetvalidationhelpers.ClearCapture(t, top, ate)
 		top.Flows().Clear()
 		createMPLSoGUEFlow(top, "mplsogue-ipv4", ateIngress1.Name+".IPv4", ateIngress1.MAC, mplsLabelIPv4, innerIPv4PreserveSweepFlow(), ateDst.Name+".IPv4")
@@ -906,8 +1003,7 @@ func TestStaticLSP(t *testing.T) {
 		// Validate IPv6 Neighbor Discovery (ND) resolution on DUT telemetry leaf.
 		verifyIPv6NeighborTelemetry(t, dut, aggID, ateDst.MAC)
 
-		cfgplugins.NewStaticMplsLspPushLabel(t, dut, v6LSPName, pIngressPush.Name(), ateDst.IPv6, pushFECDstCIDR, mplsPushLabelV6, lspNextHopIndex, "ipv6")
-		t.Cleanup(func() { cfgplugins.RemoveStaticMplsLspPushLabel(t, dut, v6LSPName, pIngressPush.Name()) })
+		configureIPv6PushLSP(t, dut, pIngressPush.Name())
 
 		cs := packetvalidationhelpers.StartCapture(t, ate)
 		defer packetvalidationhelpers.StopCapture(t, ate, cs)
