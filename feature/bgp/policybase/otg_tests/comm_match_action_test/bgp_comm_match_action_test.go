@@ -221,11 +221,8 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 		as6 := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 		as6.Enabled = ygot.Bool(true)
 
-		if deviations.SkipBgpSendCommunityType(dut) {
-			pg.SetSendCommunity(oc.E_Bgp_CommunityType(oc.Bgp_CommunityType_STANDARD))
-		} else if deviations.SkipBgpPeerGroupSendCommunityType(dut) {
-			as4.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
-			as6.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
+		if deviations.BgpAfiSafiSendCommunityTypeUnsupported(dut) {
+			pg.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
 		} else {
 			as4.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
 			as6.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
