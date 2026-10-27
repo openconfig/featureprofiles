@@ -330,7 +330,7 @@ func configureGueDecap(t *testing.T, dut *ondatra.DUTDevice) {
 	// decapsulation rather than the IP-in-IP match used by the generic helper.
 	rule := pf.GetOrCreatePolicy(guePolicyName).GetOrCreateRule(10)
 	rule.GetOrCreateIpv4().DestinationAddress = ygot.String(outerDstIP + "/32")
-	rule.GetOrCreateIpv4().Protocol = oc.UnionUint8(17)
+	rule.GetOrCreateIpv4().Protocol = oc.PacketMatchTypes_IP_PROTOCOL_IP_UDP
 	rule.GetOrCreateTransport().DestinationPort = oc.UnionUint16(gueUDPPort)
 	rule.GetOrCreateAction().DecapsulateMplsInUdp = ygot.Bool(true)
 	for _, pName := range ingressPorts {

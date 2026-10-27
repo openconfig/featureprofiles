@@ -47,6 +47,7 @@ func (c *mplsGNMIClient) Set(_ context.Context, req *gpb.SetRequest, _ ...grpc.C
 // TestMPLSStaticLSPByPass checks that adding and restoring label bindings never
 // replaces the MPLS parent, and exercises both supported next-hop schemas.
 func TestMPLSStaticLSPByPass(t *testing.T) {
+	const incomingLabel = 99991
 	for _, oldPath := range []bool{false, true} {
 		name := "next-hop-list"
 		if oldPath {
@@ -77,7 +78,7 @@ func TestMPLSStaticLSPByPass(t *testing.T) {
 			dut := ondatra.DUT(t, "dut")
 			for _, lspName := range []string{"v4", "v6", "v4"} {
 				batch := &gnmi.SetBatch{}
-				MPLSStaticLSPByPass(t, batch, dut, lspName, 99991, "192.0.2.26", "ipv4", true)
+				MPLSStaticLSPByPass(t, batch, dut, lspName, incomingLabel, "192.0.2.26", "ipv4", true)
 				batch.Set(t, dut)
 				req := client.requests[len(client.requests)-1]
 				if len(req.GetReplace()) != 0 || len(req.GetDelete()) != 0 || len(req.GetUpdate()) != 1 {
@@ -97,7 +98,7 @@ func TestMPLSStaticLSPByPass(t *testing.T) {
 				}
 				want := &oc.NetworkInstance_Mpls_Lsps_StaticLsp{Name: ygot.String(lspName)}
 				egress := want.GetOrCreateEgress()
-				egress.IncomingLabel = oc.UnionUint32(99991)
+				egress.IncomingLabel = oc.UnionUint32(incomingLabel)
 				if oldPath {
 					egress.NextHop = ygot.String("192.0.2.26")
 					egress.PushLabel = oc.Egress_PushLabel_IMPLICIT_NULL
