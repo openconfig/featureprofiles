@@ -29,10 +29,10 @@ testregistry.textproto
 /feature/gribi/        @openconfig/featureprofiles-owner-gribi
 /feature/gribi/mpls_in_udp/       @openconfig/featureprofiles-owner-gribi-mpls-in-udp
 /feature/interface/    @openconfig/featureprofiles-owner-interface
-/feature/ipsec/        @openconfig/featureprofiles-owner-security
+/feature/ipsec/        @openconfig/featureprofiles-owner-encryption
 /feature/isis/         @openconfig/featureprofiles-owner-isis
 /feature/lldp/         @openconfig/featureprofiles-owner-lldp
-/feature/macsec/       @openconfig/featureprofiles-owner-security
+/feature/macsec/       @openconfig/featureprofiles-owner-encryption
 /feature/mpls/         @openconfig/featureprofiles-owner-mpls
 /feature/mtu/          @openconfig/featureprofiles-owner-mtu
 /feature/networkinstance/    @openconfig/featureprofiles-owner-networkinstance
