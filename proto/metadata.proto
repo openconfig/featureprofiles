@@ -1546,6 +1546,41 @@ message Metadata {
     // CISCO: https://partnerissuetracker.corp.google.com/issues/571920136
     bool switched_vlan_unsupported = 470;
 
+    // Functional translator for CFM state telemetry (e.g. present-rdi).
+    // Arista: https://partnerissuetracker.corp.google.com/issues/574322407
+    string cfm_state_ft = 471;
+
+    // Functional translator for CFM performance measurement telemetry.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/574326691
+    string cfm_pm_ft = 472;
+
+    // qos_queue_index_required specifies if device requires queue-index.
+    bool qos_queue_index_required = 473;
+
+    // qos_max_burst_size_required specifies if device requires
+    // maximum-burst-size.
+    bool qos_max_burst_size_required = 474;
+
+    // qos_red_unsupported specifies if device does not support RED under
+    // queue-management-profiles.
+    bool qos_red_unsupported = 475;
+
+    // Devices that don't pre-check invalid interface numbers when configured
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/570523357
+    bool invalid_interface_number_allowed = 476;
+
+    // Device does not support configuring BGP send-community-type under
+    // /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/config/send-community-type
+    // and requires configuring it under peer-group/config/send-community-type instead.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/567652475
+    bool bgp_afi_safi_send_community_type_unsupported = 477;
+
+    // Device does not support configuring IS-IS interface authentication under
+    // /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication
+    // and requires /isis/interfaces/interface/levels/level/hello-authentication instead.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/567813121
+    bool isis_interface_authentication_container_unsupported = 478;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }
