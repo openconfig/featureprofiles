@@ -610,6 +610,7 @@ message Metadata {
     // trib protocol field under otn channel config unsupported
     bool otn_channel_trib_unsupported = 221;
     // ingress parameters under eth channel config unsupported
+    // Juniper: https://issuetracker.google.com/issues/571564632
     bool eth_channel_ingress_parameters_unsupported = 222;
     // Cisco numbering for eth channel assignment starts from 1 instead of 0
     bool eth_channel_assignment_cisco_numbering = 223;
@@ -1398,6 +1399,8 @@ message Metadata {
 
     // Device does not support configuring VLAN subinterfaces
     // Arista: https://partnerissuetracker.corp.google.com/issues/494280147
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/573155183
+    // Nokia: https://partnerissuetracker.corp.google.com/issues/573159486
     bool vlan_subinterface_oc_unsupported = 440;
 
     // Device has max route count based on specific platform
@@ -1511,6 +1514,72 @@ message Metadata {
 
     // Device requires vendor-specific configuration before the test configuration.
     bool vendor_pre_config_required = 465;
+
+    // Devices that do not report
+    // /network-instances/network-instance/afts/next-hops/next-hop/state/origin-protocol
+    // in AFT telemetry.
+    // Nokia: https://partnerissuetracker.corp.google.com/issues/573621518
+    // Arista: https://partnerissuetracker.corp.google.com/issues/573618644
+    bool aft_next_hop_origin_protocol_unsupported = 466;
+
+    // Devices that do not report
+    // /network-instances/network-instance/afts/next-hops/next-hop/state/encapsulate-header
+    // in AFT telemetry.
+    // Nokia: https://partnerissuetracker.corp.google.com/issues/573623715
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/573625327
+    // Arista: https://partnerissuetracker.corp.google.com/issues/573618570
+    bool aft_next_hop_encapsulate_header_unsupported = 467;
+
+    // Devices that do not report
+    // /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/backup-next-hop-group
+    // in AFT telemetry.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/573620862
+    bool aft_next_hop_group_backup_nhg_unsupported = 468;
+
+    // Expected name of the Routed VLAN interface for SVIs (if not standard
+    // "Vlan<id>").
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/573046775
+    string routed_vlan_interface_name = 469;
+
+    // Device does not support switched-vlan configuration in ethernet.
+    // NOKIA: https://partnerissuetracker.corp.google.com/issues/572757293
+    // CISCO: https://partnerissuetracker.corp.google.com/issues/571920136
+    bool switched_vlan_unsupported = 470;
+
+    // Functional translator for CFM state telemetry (e.g. present-rdi).
+    // Arista: https://partnerissuetracker.corp.google.com/issues/574322407
+    string cfm_state_ft = 471;
+
+    // Functional translator for CFM performance measurement telemetry.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/574326691
+    string cfm_pm_ft = 472;
+
+    // qos_queue_index_required specifies if device requires queue-index.
+    bool qos_queue_index_required = 473;
+
+    // qos_max_burst_size_required specifies if device requires
+    // maximum-burst-size.
+    bool qos_max_burst_size_required = 474;
+
+    // qos_red_unsupported specifies if device does not support RED under
+    // queue-management-profiles.
+    bool qos_red_unsupported = 475;
+
+    // Devices that don't pre-check invalid interface numbers when configured
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/570523357
+    bool invalid_interface_number_allowed = 476;
+
+    // Device does not support configuring BGP send-community-type under
+    // /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/config/send-community-type
+    // and requires configuring it under peer-group/config/send-community-type instead.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/567652475
+    bool bgp_afi_safi_send_community_type_unsupported = 477;
+
+    // Device does not support configuring IS-IS interface authentication under
+    // /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication
+    // and requires /isis/interfaces/interface/levels/level/hello-authentication instead.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/567813121
+    bool isis_interface_authentication_container_unsupported = 478;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
