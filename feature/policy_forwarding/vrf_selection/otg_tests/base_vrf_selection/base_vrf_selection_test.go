@@ -21,6 +21,7 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
@@ -104,6 +105,10 @@ var (
 )
 
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice, p1 *ondatra.Port, p2 *ondatra.Port) {
+	if deviations.VendorPreConfigRequired(dut) {
+		cfgplugins.ConfigureDecapVrfSelection(t, dut)
+	}
+
 	d := gnmi.OC()
 
 	// Configure ingress interface
@@ -373,7 +378,9 @@ func createIPv4Flow(name string, top gosnappi.Config, dst attrs.Attributes, srcI
 
 func sendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
 	t.Logf("*** Starting traffic ...")
-	time.Sleep(20 * time.Second)
+
+	otgutils.WaitForARP(t, ate.OTG(), ate.OTG().GetConfig(t), "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), ate.OTG().GetConfig(t), "IPv6")
 
 	// Send traffic for 2 seconds to force ND/ARP resolution
 	t.Logf("Warming up hardware FIBs by sending traffic for 2 seconds")
@@ -382,7 +389,9 @@ func sendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
 	ate.OTG().StopTraffic(t)
 	time.Sleep(2 * time.Second)
 
+	// Sanity check that ARP is still resolved before starting the main traffic validation.
 	otgutils.WaitForARP(t, ate.OTG(), ate.OTG().GetConfig(t), "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), ate.OTG().GetConfig(t), "IPv6")
 
 	ate.OTG().StartTraffic(t)
 	time.Sleep(trafficDuration)
