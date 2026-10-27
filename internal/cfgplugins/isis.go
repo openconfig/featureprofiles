@@ -409,10 +409,10 @@ func AwaitISISAdjacencyStatus(t *testing.T, dut *ondatra.DUTDevice, instanceName
 		AdjacencyAny().AdjacencyState().State()
 
 	if wantUp {
-		_, ok := watchAllAwaitWithRetry(t, dut, adjStatePath, timeout, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
+		_, ok := gnmi.WatchAll(t, dut, adjStatePath, timeout, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
 			state, present := val.Val()
 			return present && state == oc.Isis_IsisInterfaceAdjState_UP
-		})
+		}).Await(t)
 		if !ok {
 			t.Errorf("IS-IS adjacency on interface %s (id=%s) did not reach UP within %v", intfName, isisIntfID, timeout)
 		}
@@ -423,7 +423,7 @@ func AwaitISISAdjacencyStatus(t *testing.T, dut *ondatra.DUTDevice, instanceName
 	isisIntfPath := gnmi.OC().NetworkInstance(dni).
 		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, instanceName).
 		Isis().Interface(isisIntfID).Level(2).State()
-	_, ok := watchAwaitWithRetry(t, dut, isisIntfPath, timeout, func(val *ygnmi.Value[*oc.NetworkInstance_Protocol_Isis_Interface_Level]) bool {
+	_, ok := gnmi.Watch(t, dut, isisIntfPath, timeout, func(val *ygnmi.Value[*oc.NetworkInstance_Protocol_Isis_Interface_Level]) bool {
 		lvl, present := val.Val()
 		if !present || lvl == nil {
 			return true
@@ -434,7 +434,7 @@ func AwaitISISAdjacencyStatus(t *testing.T, dut *ondatra.DUTDevice, instanceName
 			}
 		}
 		return true
-	})
+	}).Await(t)
 	if !ok {
 		t.Errorf("IS-IS adjacency on interface %s (id=%s) remained UP after %v, want DOWN/absent", intfName, isisIntfID, timeout)
 	}

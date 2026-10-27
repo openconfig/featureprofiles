@@ -198,10 +198,8 @@ func ConfigureL3VRFWithSubinterfaces(t *testing.T, dut *ondatra.DUTDevice, sb *g
 	// Ensure subinterfaces exist prior to VRF binding when required by platform deviations.
 	for _, b := range bindings {
 		sub := &oc.Interface_Subinterface{
-			Index: ygot.Uint32(b.SubintfIndex),
-		}
-		if deviations.InterfaceEnabled(dut) {
-			sub.Enabled = ygot.Bool(true)
+			Index:   ygot.Uint32(b.SubintfIndex),
+			Enabled: ygot.Bool(true),
 		}
 		if b.VlanID > 0 {
 			if deviations.DeprecatedVlanID(dut) {
@@ -213,9 +211,7 @@ func ConfigureL3VRFWithSubinterfaces(t *testing.T, dut *ondatra.DUTDevice, sb *g
 		if !deviations.IPv4MissingEnabled(dut) {
 			sub.GetOrCreateIpv4().Enabled = ygot.Bool(true)
 		}
-		if deviations.InterfaceEnabled(dut) {
-			sub.GetOrCreateIpv6().Enabled = ygot.Bool(true)
-		}
+		sub.GetOrCreateIpv6().Enabled = ygot.Bool(true)
 		gnmi.BatchUpdate(sb, gnmi.OC().Interface(b.InterfaceName).Subinterface(b.SubintfIndex).Config(), sub)
 	}
 

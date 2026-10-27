@@ -1947,6 +1947,8 @@ func ConfigureEBGPInstance(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBat
 			pg := bgp.GetOrCreatePeerGroup(p.PeerGroupName)
 			pg.SetPeerGroupName(p.PeerGroupName)
 			pg.SetPeerAs(p.PeerAS)
+			pg.GetOrCreateTimers().SetHoldTime(600)
+			pg.GetOrCreateTimers().SetKeepaliveInterval(200)
 			if deviations.RoutePolicyUnderAFIUnsupported(dut) {
 				rpl := pg.GetOrCreateApplyPolicy()
 				rpl.SetImportPolicy([]string{policyName})
@@ -1970,10 +1972,8 @@ func ConfigureEBGPInstance(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBat
 		nbr.SetNeighborAddress(p.NeighborAddress)
 		nbr.SetEnabled(true)
 		nbr.SetPeerAs(p.PeerAS)
-		if !isDefaultNI {
-			nbr.GetOrCreateTimers().SetKeepaliveInterval(600)
-			nbr.GetOrCreateTimers().SetHoldTime(1800)
-		}
+		nbr.GetOrCreateTimers().SetHoldTime(600)
+		nbr.GetOrCreateTimers().SetKeepaliveInterval(200)
 		if p.PeerGroupName != "" && !skipPeerGroup {
 			nbr.SetPeerGroup(p.PeerGroupName)
 		} else if deviations.RoutePolicyUnderAFIUnsupported(dut) {
@@ -2036,15 +2036,15 @@ func AwaitBGPSessionStatus(t *testing.T, dut *ondatra.DUTDevice, networkInstance
 		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").
 		Bgp().Neighbor(nbrAddr).SessionState().State()
 
-	_, ok := watchAwaitWithRetry(t, dut, statePath, timeout, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+	_, ok := gnmi.Watch(t, dut, statePath, timeout, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 		state, present := val.Val()
 		if wantEstablished {
 			return present && state == oc.Bgp_Neighbor_SessionState_ESTABLISHED
 		}
 		return !present || state != oc.Bgp_Neighbor_SessionState_ESTABLISHED
-	})
+	}).Await(t)
 	if !ok {
-		t.Errorf("BGP neighbor %s in VRF %s session-state did not reach wantEstablished=%v within %v (got %v)", nbrAddr, niName, wantEstablished, timeout, lookupWithRetry(t, dut, statePath))
+		t.Errorf("BGP neighbor %s in VRF %s session-state did not reach wantEstablished=%v within %v (got %v)", nbrAddr, niName, wantEstablished, timeout, gnmi.Lookup(t, dut, statePath))
 	}
 }
 
@@ -2060,50 +2060,29 @@ func AwaitBGPPrefixes(t *testing.T, dut *ondatra.DUTDevice, networkInstanceName,
 		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").
 		Bgp().Neighbor(nbrAddr).AfiSafi(afiSafi).Prefixes()
 
-	if _, ok := watchAwaitWithRetry(t, dut, pfxPath.Received().State(), timeout, func(val *ygnmi.Value[uint32]) bool {
+	if _, ok := gnmi.Watch(t, dut, pfxPath.Received().State(), timeout, func(val *ygnmi.Value[uint32]) bool {
 		got, present := val.Val()
 		if wantReceived == 0 && !present {
 			return true
 		}
 		return present && got == wantReceived
-	}); !ok {
+	}).Await(t); !ok {
 		t.Errorf("BGP neighbor %s (%v) in VRF %s prefixes/received did not reach %d within %v (got %v)",
-			nbrAddr, afiSafi, niName, wantReceived, timeout, lookupWithRetry(t, dut, pfxPath.Received().State()))
+			nbrAddr, afiSafi, niName, wantReceived, timeout, gnmi.Lookup(t, dut, pfxPath.Received().State()))
 	}
 
-	if deviations.BGPRibOcPathUnsupported(dut) {
-		if _, ok := watchAwaitWithRetry(t, dut, pfxPath.ReceivedPrePolicy().State(), timeout, func(val *ygnmi.Value[uint32]) bool {
-			got, present := val.Val()
-			if wantInstalled == 0 && !present {
-				return true
-			}
-			return present && got == wantInstalled
-		}); !ok {
-			t.Errorf("BGP neighbor %s (%v) in VRF %s prefixes/received-pre-policy did not reach %d within %v (got %v)",
-				nbrAddr, afiSafi, niName, wantInstalled, timeout, lookupWithRetry(t, dut, pfxPath.ReceivedPrePolicy().State()))
-		}
+	if (deviations.BGPRibOcPathUnsupported(dut) || deviations.BgpAfiSafiInDefaultNiBeforeOtherNi(dut)) && niName != deviations.DefaultNetworkInstance(dut) {
 		return
 	}
 
-	installedTimeout := timeout
-	isNonDefaultVRFWithAfiDev := niName != deviations.DefaultNetworkInstance(dut) && deviations.BgpAfiSafiInDefaultNiBeforeOtherNi(dut)
-	if isNonDefaultVRFWithAfiDev && installedTimeout > 3*time.Second {
-		installedTimeout = 3 * time.Second
-	}
-
-	if _, ok := watchAwaitWithRetry(t, dut, pfxPath.Installed().State(), installedTimeout, func(val *ygnmi.Value[uint32]) bool {
+	if _, ok := gnmi.Watch(t, dut, pfxPath.Installed().State(), timeout, func(val *ygnmi.Value[uint32]) bool {
 		got, present := val.Val()
 		if wantInstalled == 0 && !present {
 			return true
 		}
 		return present && got == wantInstalled
-	}); !ok {
-		if isNonDefaultVRFWithAfiDev && wantReceived == wantInstalled {
-			t.Logf("BGP neighbor %s (%v) in non-default VRF %s reports prefixes/received == %d while prefixes/installed telemetry is 0; proceeding with data-plane verification",
-				nbrAddr, afiSafi, niName, wantReceived)
-			return
-		}
+	}).Await(t); !ok {
 		t.Errorf("BGP neighbor %s (%v) in VRF %s prefixes/installed did not reach %d within %v (got %v)",
-			nbrAddr, afiSafi, niName, wantInstalled, timeout, lookupWithRetry(t, dut, pfxPath.Installed().State()))
+			nbrAddr, afiSafi, niName, wantInstalled, timeout, gnmi.Lookup(t, dut, pfxPath.Installed().State()))
 	}
 }
