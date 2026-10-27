@@ -20,6 +20,7 @@ package cntr_test
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"flag"
 	"fmt"
@@ -42,6 +43,7 @@ import (
 	"github.com/openconfig/ygot/ygot"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/prototext"
 
@@ -101,7 +103,14 @@ func dialContainer(t *testing.T, ctx context.Context, dut *ondatra.DUTDevice, po
 		t.Skipf("BindingDUT %T does not implement DialGRPCWithPort, which is required for this test: %v", bindingDUT, err)
 	}
 
-	conn, err := dialer.DialGRPCWithPort(ctx, port)
+	var dialOpts []grpc.DialOption
+	if deviations.ContainerzTLSInsecureSkipVerify(dut) {
+		// The containerz service presents a self-signed TLS certificate. Use
+		// TLS with skip-verify so the handshake succeeds without a trusted CA.
+		dialOpts = append(dialOpts, grpc.WithTransportCredentials(
+			credentials.NewTLS(&tls.Config{InsecureSkipVerify: true}))) // NOLINT
+	}
+	conn, err := dialer.DialGRPCWithPort(ctx, port, dialOpts...)
 	if err != nil {
 		t.Fatalf("DialGRPCWithPort failed: %v", err)
 	}
@@ -206,7 +215,7 @@ func TestDialLocal(t *testing.T) {
 	defer gribiClient.Close(t)
 	defer gribiClient.FlushAll(t)
 
-	//Program a sample gRIBI Entry on DUT for gRIBI Get query response.
+	// Program a sample gRIBI entry on DUT for gRIBI Get query response.
 	gribiClient.AddNH(t, 2001, "Decap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInRIB)
 	gribiClient.AddNHG(t, 201, map[uint64]uint64{2001: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInRIB)
 

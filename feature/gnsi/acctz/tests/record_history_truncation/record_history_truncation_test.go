@@ -34,6 +34,9 @@ func TestMain(m *testing.M) {
 func TestAccountzRecordHistoryTruncation(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
+	// Run a CLI command to populate the accounting history buffer per test procedure.
+	dut.CLI().Run(t, "show version")
+
 	bootTime := gnmi.Get(t, dut, gnmi.OC().System().BootTime().State())
 
 	// Try to get records from 1 day prior to device's boot time.
