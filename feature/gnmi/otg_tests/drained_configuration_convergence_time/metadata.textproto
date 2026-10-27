@@ -38,6 +38,7 @@ platform_exceptions: {
     isis_require_same_l1_metric_with_l2_metric: true
     same_afi_safi_and_peergroup_policies_unsupported: true
     isis_instance_enabled_required: true      
+    isis_interface_authentication_container_unsupported: true
   }
 }
 platform_exceptions: {

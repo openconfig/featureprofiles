@@ -385,10 +385,10 @@ github.com/openconfig/lemming/operator v0.2.0 h1:dovZnR6lQkOHXcODli1NDOr/GVYrBY0
 github.com/openconfig/lemming/operator v0.2.0/go.mod h1:LKgEXSR5VK2CAeh2uKijKAXFj42uQuwakrCHVPF0iII=
 github.com/openconfig/models-ci v1.0.2-0.20231113233730-f0986391428e h1:6N4jXpZa/SXYcNpJFjjZvenxO/xnTwuUCgCEinhNLfU=
 github.com/openconfig/models-ci v1.0.2-0.20231113233730-f0986391428e/go.mod h1:w38G/kObu95PbtwMYVp6SKhkHCegJFwL8B58Ns84g4s=
-github.com/openconfig/ondatra v0.14.8 h1:R1HzjC8Izcy9wTacrEXaQZM2SRBpqegtSCSriWJd2y8=
-github.com/openconfig/ondatra v0.14.8/go.mod h1:h2WrL4G0W8vid2k2A2EkMf3cBO+0mcEvoQ72XT5bPZo=
-github.com/openconfig/qualification-reporter v0.1.0 h1:sRuiCrfPJGJ1qyD1YaRjFV+nkJIxyrGL1Kp9xd6mB9g=
-github.com/openconfig/qualification-reporter v0.1.0/go.mod h1:VwnVjwys3yf6KzhRujRp8a0QzLiZkdIx4TWrrWh5i84=
+github.com/openconfig/ondatra v0.14.9 h1:blkeveRIMz7IoK5rblRMwEMDolUnBfaQbAbB2ON5mAI=
+github.com/openconfig/ondatra v0.14.9/go.mod h1:h2WrL4G0W8vid2k2A2EkMf3cBO+0mcEvoQ72XT5bPZo=
+github.com/openconfig/qualification-reporter v0.1.2 h1:kYvc5Wd/6asxkPUyfBwTa5u+kXAYBMupk+nLdnJY0DA=
+github.com/openconfig/qualification-reporter v0.1.2/go.mod h1:w13yVs1XNZdV3CrOlMFZVuLCtN5pkzjDXBKiSlM/UDs=
 github.com/openconfig/replayer v0.0.0-20240110192655-4e9cf83d8d30 h1:KcHS08m7nFHq/D03ZfZKKNCSaS1jsuvdF3lCyDjPWJc=
 github.com/openconfig/replayer v0.0.0-20240110192655-4e9cf83d8d30/go.mod h1:VQ8FdPVaHwxKtamhcrwkPsvTeeoEgFYNK1xE8nHD0S8=
 github.com/openconfig/testt v0.0.0-20251119232631-fbbd49c39452 h1:KI67JEIYGMXx9aZjGOwfO2aUsCGih9199v+zhJNHB9Y=
