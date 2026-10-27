@@ -26,5 +26,5 @@ jobs:
           
           # --- Debugging & Performance ---
           operations-per-run: 50
-          debug-only: true
+          # debug-only: true  # Uncomment to run the bot in debug mode without modifying or commenting on PRs.
           enable-statistics: true
