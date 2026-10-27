@@ -92,6 +92,9 @@ func TestMPLSStaticLSPByPass(t *testing.T) {
 				if err := oc.Unmarshal(u.GetVal().GetJsonIetfVal(), got, &ytypes.PreferShadowPath{}); err != nil {
 					t.Fatal(err)
 				}
+				if err := got.Validate(); err != nil {
+					t.Fatalf("LSP configuration violates the OpenConfig schema: %v", err)
+				}
 				want := &oc.NetworkInstance_Mpls_Lsps_StaticLsp{Name: ygot.String(lspName)}
 				egress := want.GetOrCreateEgress()
 				egress.IncomingLabel = oc.UnionUint32(99991)
@@ -101,7 +104,7 @@ func TestMPLSStaticLSPByPass(t *testing.T) {
 				} else {
 					nh := egress.GetOrCreateLspNextHop(0)
 					nh.IpAddress = ygot.String("192.0.2.26")
-					nh.PushLabel = oc.UnionUint32(3)
+					nh.PushLabel = oc.LspNextHop_PushLabel_IMPLICIT_NULL
 				}
 				if diff := cmp.Diff(want, got); diff != "" {
 					t.Errorf("LSP configuration mismatch (-want +got):\n%s", diff)

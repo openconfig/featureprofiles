@@ -280,7 +280,7 @@ func MPLSStaticLSPByPass(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDev
 		} else {
 			nh := staticMplsCfg.GetOrCreateEgress().GetOrCreateLspNextHop(0)
 			nh.SetIpAddress(nextHopIP)
-			nh.SetPushLabel(oc.UnionUint32(3)) // Implicit null.
+			nh.SetPushLabel(oc.LspNextHop_PushLabel_IMPLICIT_NULL)
 		}
 
 		// Keep the other label bindings when adding or restoring one LSP.
