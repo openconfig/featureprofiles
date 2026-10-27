@@ -365,7 +365,6 @@ func TestStaticLSP(t *testing.T) {
 		if !deviations.MplsOCUnsupported(dut) {
 			ttlPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Global().TtlPropagation()
 			previous := gnmi.Lookup(t, dut, ttlPath.Config())
-			gnmi.Update(t, dut, ttlPath.Config(), false)
 			t.Cleanup(func() {
 				if value, present := previous.Val(); present {
 					gnmi.Update(t, dut, ttlPath.Config(), value)
@@ -373,6 +372,7 @@ func TestStaticLSP(t *testing.T) {
 					gnmi.Delete(t, dut, ttlPath.Config())
 				}
 			})
+			gnmi.Update(t, dut, ttlPath.Config(), false)
 		}
 		packetvalidationhelpers.ClearCapture(t, top, ate)
 		top.Flows().Clear()

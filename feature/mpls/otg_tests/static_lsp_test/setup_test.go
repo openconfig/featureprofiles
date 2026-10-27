@@ -275,16 +275,24 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) string {
 	}
 
 	t.Cleanup(func() {
-		for _, portName := range ingressPorts {
-			gnmi.Delete(t, dut, d.Interface(dut.Port(t, portName).Name()).Subinterface(0).Config())
-		}
-		for _, cs := range custSubinterfaces {
-			gnmi.Delete(t, dut, d.Interface(aggID).Subinterface(cs.vlanID).Config())
-		}
 		cfgplugins.DeleteAggregate(t, dut, aggID, aggPorts)
+	})
+	t.Cleanup(func() {
 		gnmi.Delete(t, dut, d.Interface(aggID).Config())
+	})
+	t.Cleanup(func() {
 		gnmi.Delete(t, dut, d.Lacp().Interface(aggID).Config())
 	})
+	for _, cs := range custSubinterfaces {
+		t.Cleanup(func() {
+			gnmi.Delete(t, dut, d.Interface(aggID).Subinterface(cs.vlanID).Config())
+		})
+	}
+	for _, portName := range ingressPorts {
+		t.Cleanup(func() {
+			gnmi.Delete(t, dut, d.Interface(dut.Port(t, portName).Name()).Subinterface(0).Config())
+		})
+	}
 
 	// Enable MPLS forwarding, MPLSoGUE decapsulation, and the static LSP label bindings.
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
@@ -330,13 +338,15 @@ func configureGueDecap(t *testing.T, dut *ondatra.DUTDevice) {
 		cfgplugins.ApplyPolicyToInterfaceOC(t, pf, p.Name(), guePolicyName)
 	}
 	pfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding()
-	gnmi.Update(t, dut, pfPath.Config(), pf)
 	t.Cleanup(func() {
-		for _, pName := range ingressPorts {
-			gnmi.Delete(t, dut, pfPath.Interface(dut.Port(t, pName).Name()).Config())
-		}
 		gnmi.Delete(t, dut, pfPath.Policy(guePolicyName).Config())
 	})
+	for _, pName := range ingressPorts {
+		t.Cleanup(func() {
+			gnmi.Delete(t, dut, pfPath.Interface(dut.Port(t, pName).Name()).Config())
+		})
+	}
+	gnmi.Update(t, dut, pfPath.Config(), pf)
 }
 
 // configureCiscoMPLSUDPDecap creates an NVE endpoint for the outer destination.
@@ -355,8 +365,8 @@ func configureCiscoMPLSUDPDecap(t *testing.T, dut *ondatra.DUTDevice) {
 		Enabled: ygot.Bool(true),
 	}
 	i.GetOrCreateSubinterface(0).GetOrCreateIpv4().GetOrCreateAddress(outerDstIP).PrefixLength = ygot.Uint8(32)
-	gnmi.Replace(t, dut, gnmi.OC().Interface(loopback).Config(), i)
 	t.Cleanup(func() { gnmi.Delete(t, dut, gnmi.OC().Interface(loopback).Config()) })
+	gnmi.Replace(t, dut, gnmi.OC().Interface(loopback).Config(), i)
 	// Cleanup runs in reverse order so the NVE is removed before its source.
 	t.Cleanup(func() { helpers.GnmiCLIConfig(t, dut, "no interface "+nveName+"\n") })
 	helpers.GnmiCLIConfig(t, dut, fmt.Sprintf(`interface %s
@@ -401,6 +411,17 @@ func configureIPv6PushLSP(t *testing.T, dut *ondatra.DUTDevice, ingressName stri
 	// The OC ingress next-hop alone does not associate an IP FEC with an
 	// LSP on IOS XR. Bind the prefix to a native static LSP and its route.
 	const localLabel = 100101
+	t.Cleanup(func() {
+		helpers.GnmiCLIConfig(t, dut, fmt.Sprintf(`mpls static
+ no lsp %s
+!
+router static
+ address-family ipv6 unicast
+  no %s %s
+ !
+!
+`, v6LSPName, pushFECDstCIDR, ateDst.IPv6))
+	})
 	helpers.GnmiCLIConfig(t, dut, fmt.Sprintf(`router static
  address-family ipv6 unicast
   %s %s
@@ -415,17 +436,6 @@ mpls static
  !
 !
 `, pushFECDstCIDR, ateDst.IPv6, v6LSPName, localLabel, pushFECDstCIDR, ateDst.IPv6, mplsPushLabelV6))
-	t.Cleanup(func() {
-		helpers.GnmiCLIConfig(t, dut, fmt.Sprintf(`mpls static
- no lsp %s
-!
-router static
- address-family ipv6 unicast
-  no %s %s
- !
-!
-`, v6LSPName, pushFECDstCIDR, ateDst.IPv6))
-	})
 }
 
 // removeSubinterfaceAddress deletes the IPv4 or IPv6 address of the given family from a DUT subinterface.
@@ -580,7 +590,7 @@ func configureStaticLSPs(t *testing.T, dut *ondatra.DUTDevice) {
 				helpers.GnmiCLIConfig(t, dut, del.String())
 			})
 		default:
-			t.Errorf("Deviation StaticMplsLspOCUnsupported is not handled for the dut: %v", dut.Vendor())
+			t.Fatalf("Deviation StaticMplsLspOCUnsupported is not handled for the dut: %v", dut.Vendor())
 		}
 		return
 	}
