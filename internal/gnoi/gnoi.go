@@ -17,21 +17,18 @@ package gnoi
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io"
 	"testing"
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/system"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -92,9 +89,7 @@ const (
 	SigUnspecified = spb.KillProcessRequest_SIGNAL_UNSPECIFIED
 )
 
-// KillProcess terminates the daemon on the DUT. If waitForRestart is true, it
-// waits up to a minute for gNMI to report the daemon with a new, nonzero PID,
-// retrying temporary transport failures while the management server recovers.
+// KillProcess terminates the daemon on the DUT.
 func KillProcess(t *testing.T, dut *ondatra.DUTDevice, daemon Daemon, signal spb.KillProcessRequest_Signal, restart bool, waitForRestart bool) {
 	t.Helper()
 
@@ -108,95 +103,49 @@ func KillProcess(t *testing.T, dut *ondatra.DUTDevice, daemon Daemon, signal spb
 	}
 
 	gnoiClient := dut.RawAPIs().GNOI(t)
-	var processClient *ygnmi.Client
-	if waitForRestart {
-		processClient, err = ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.Name()))
-		if err != nil {
-			t.Fatalf("Could not create process telemetry client: %v", err)
-		}
-	}
 	killProcessRequest := &spb.KillProcessRequest{
 		Signal:  signal,
 		Name:    daemonName,
 		Pid:     uint32(pid),
 		Restart: restart,
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	defer cancel()
-	start := time.Now()
-	newPID, err := killProcess(ctx, gnoiClient.System(), killProcessRequest, waitForRestart, processClient)
+	_, err = gnoiClient.System().KillProcess(context.Background(), killProcessRequest)
 	if err != nil {
-		t.Fatalf("Failed to kill or restart process %s: %v", daemonName, err)
-	}
-	if waitForRestart {
-		t.Logf("Process %s restarted from PID %d to %d in %v", daemonName, pid, newPID, time.Since(start))
-	}
-}
-
-// killProcess only retries a rejected TERM with KILL. A transport error can mean
-// that the server terminated itself before replying; verify recovery instead of
-// sending another kill that could terminate the newly restarted process.
-func killProcess(ctx context.Context, client spb.SystemClient, request *spb.KillProcessRequest, waitForRestart bool, processClient *ygnmi.Client) (uint64, error) {
-	_, killErr := client.KillProcess(ctx, request)
-	if request.GetSignal() == SigTerm && (status.Code(killErr) == codes.Unimplemented || status.Code(killErr) == codes.InvalidArgument) {
-		fallback := proto.Clone(request).(*spb.KillProcessRequest)
-		fallback.Signal = SigKill
-		_, killErr = client.KillProcess(ctx, fallback)
-	}
-	if killErr != nil && !(request.GetRestart() && waitForRestart && transientProcessError(killErr)) {
-		return 0, fmt.Errorf("KillProcess: %w", killErr)
-	}
-	if !waitForRestart {
-		return 0, nil
-	}
-	pid, err := waitForProcessRestart(ctx, processClient, request.GetName(), uint64(request.GetPid()))
-	if err != nil && killErr != nil {
-		return 0, fmt.Errorf("KillProcess returned %v; %w", killErr, err)
-	}
-	return pid, err
-}
-
-// waitForProcessRestart uses fresh ONCE subscriptions so a connection reset does
-// not abort the caller's test. Each request and the retry interval are bounded by
-// ctx; an unresponsive server cannot consume the entire recovery window in one RPC.
-func waitForProcessRestart(ctx context.Context, client *ygnmi.Client, name string, oldPID uint64) (uint64, error) {
-	last := "no process telemetry received"
-	for {
-		if err := ctx.Err(); err != nil {
-			return 0, fmt.Errorf("waiting for process %s to restart from PID %d: %w (last observation: %s)", name, oldPID, err, last)
+		t.Logf("Error: %v in executing the kill process %v", err.Error(), daemonName)
+		if signal == SigTerm {
+			t.Logf("Retrying with SIGNAL_KILL (cold restart)...")
+			currentPid := system.FindProcessIDByName(t, dut, daemonName)
+			if currentPid != 0 {
+				killProcessRequest.Pid = uint32(currentPid)
+			}
+			killProcessRequest.Signal = SigKill
+			_, err = gnoiClient.System().KillProcess(context.Background(), killProcessRequest)
 		}
-		queryCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-		processes, err := ygnmi.LookupAll(queryCtx, client, gnmi.OC().System().ProcessAny().State())
-		cancel()
 		if err != nil {
-			if !transientProcessError(err) {
-				return 0, fmt.Errorf("reading process %s telemetry: %w", name, err)
-			}
-			last = err.Error()
-		} else {
-			last = fmt.Sprintf("process %s not present", name)
-			for _, p := range processes {
-				val, present := p.Val()
-				if !present || val.GetName() != name {
-					continue
-				}
-				if pid := val.GetPid(); pid != 0 && pid != oldPID {
-					return pid, nil
-				}
-				last = fmt.Sprintf("process %s still has PID %d", name, val.GetPid())
-			}
-		}
-		timer := time.NewTimer(time.Second)
-		select {
-		case <-ctx.Done():
-			timer.Stop()
-		case <-timer.C:
+			t.Fatalf("Failed to kill process %v: %v", daemonName, err)
 		}
 	}
-}
 
-func transientProcessError(err error) bool {
-	return errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, context.DeadlineExceeded) || status.Code(err) == codes.Unavailable || status.Code(err) == codes.DeadlineExceeded
+	time.Sleep(120 * time.Second)
+
+	if waitForRestart {
+		_, ok := gnmi.WatchAll(
+			t,
+			dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE)),
+			gnmi.OC().System().ProcessAny().State(),
+			time.Minute,
+			func(p *ygnmi.Value[*oc.System_Process]) bool {
+				val, ok := p.Val()
+				if !ok {
+					return false
+				}
+				return val.GetName() == daemonName && val.GetPid() != pid
+			},
+		).Await(t)
+		if !ok {
+			t.Fatalf("Timed out waiting for process %s to restart with a new PID", daemonName)
+		}
+	}
 }
 
 // FetchProcessName returns the name of the daemon on the DUT based on the vendor.
