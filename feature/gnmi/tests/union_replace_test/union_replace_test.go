@@ -63,6 +63,13 @@ const (
 	policyName      = "OVERLAP_POLICY_1"
 	badIntfMTU      = uint16(5000)
 
+	breakoutNumChannel = 2
+	groupIndex         = 0
+
+	otnChannelIndex = uint32(13030)
+	ethChannelIndex = uint32(13034)
+	channelAlloc    = float64(400)
+
 	awaitStateTimeOut = 60 * time.Second
 	awaitTimeOut      = 10 * time.Second
 
@@ -71,94 +78,19 @@ const (
 	changeMTUOC1 = uint16(2200)
 	changeMTUOC2 = uint16(2300)
 
-	otnChannelIndex = uint32(13030)
-	ethChannelIndex = uint32(13034)
-	channelAlloc    = float64(400)
-
 	// Nokia SR Linux CLI values.
 	// nokiaCLIPrefix is prepended to every Nokia SR Linux flat CLI statement.
-	nokiaCLIPrefix   = "set / "
-	nokiaBGPRouterID = "192.0.2.1"
-	// nokiaNativeDefaultNI is the SR Linux native name of the default
-	// network-instance, used in CLI (the OC name is deviations.DefaultNetworkInstance).
-	nokiaNativeDefaultNI = "DEFAULT"
+	nokiaCLIPrefix      = "set / "
+	nokiaCLIBGPRouterID = "192.0.2.1"
+	// nokiaCLIDefaultNI is the SR Linux native name of the default
+	// network-instance
+	nokiaCLIDefaultNI = "DEFAULT"
 )
 
 var (
 	sharedBaseline string
 	defaultNI      string
 )
-
-var showRunningConfigBannerRE = regexp.MustCompile(`(?m)^-+.*-+$\n?`)
-var showRunningConfigCommentRE = regexp.MustCompile(`(?m)^\s*!!.*$\n?`)
-
-// breakoutProfile describes the breakout and child port-speed used by gNMI-3.10.
-type breakoutProfile struct {
-	index            uint8                          // breakout-mode group index
-	numPorts         uint8                          // number of breakout child ports
-	numChannels      uint8                          // physical channels per child port
-	ocSpeed          oc.E_IfEthernet_ETHERNET_SPEED // breakout and child port-speed (OC)
-	cliSpeed         string                         // child port-speed (CLI), e.g. "50g"
-	cliBreakout      string                         // breakout speed token (CLI), e.g. "50g-2"
-	cliCiscoBreakout string                         // Cisco IOS-XR "controller Optics ... breakout" token, e.g. "2x50"
-}
-
-var (
-	// breakout2x50G is the gNMI-3.10 breakout for 100G ports.
-	breakout2x50G = breakoutProfile{numPorts: 2, numChannels: 2, ocSpeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_50GB, cliSpeed: "50g", cliBreakout: "50g-2", cliCiscoBreakout: "2x50"}
-	// breakout4x100G is the gNMI-3.10 breakout for 400G ports.
-	breakout4x100G = breakoutProfile{numPorts: 4, numChannels: 2, ocSpeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB, cliSpeed: "100g", cliBreakout: "100g-4", cliCiscoBreakout: "4x100"}
-	// breakout4x25G is used when the DUT does not support 50G breakout/port-speed.
-	breakout4x25G = breakoutProfile{numPorts: 4, numChannels: 1, ocSpeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_25GB, cliSpeed: "25g", cliBreakout: "25g-4", cliCiscoBreakout: "4x25"}
-)
-
-// breakoutGroupIndex returns the breakout-mode group index used by the DUT.
-func breakoutGroupIndex(dut *ondatra.DUTDevice) uint8 {
-	switch dut.Vendor() {
-	case ondatra.NOKIA:
-		return 1
-	default:
-		return 0
-	}
-}
-
-// breakoutProfileFor returns the gNMI-3.10 (gNMI-3.10.1 and gNMI-3.10.2)
-// breakout profile for intfName on dut, selected from the port's reported
-// port-speed. It must be looked up before the port is broken out since the
-// parent interface may disappear from state once broken out.
-func breakoutProfileFor(t *testing.T, dut *ondatra.DUTDevice, intfName string) breakoutProfile {
-	t.Helper()
-	var bp breakoutProfile
-	switch dut.Vendor() {
-	case ondatra.NOKIA:
-		bp = breakout4x25G
-	default:
-		speed, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(intfName).Ethernet().PortSpeed().State()).Val()
-		if !ok {
-			t.Fatalf("interface %s port-speed state is not present; cannot select breakout mode", intfName)
-		}
-		t.Logf("Selecting breakout mode for %s with reported port speed %v", intfName, speed)
-		switch speed {
-		case oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB:
-			bp = breakout4x100G
-		default:
-			bp = breakout2x50G
-		}
-	}
-	bp.index = breakoutGroupIndex(dut)
-	return bp
-}
-
-// missingHWSetup holds the per-run state for gNMI-3.10, captured once before
-// any breakout is configured.
-type missingHWSetup struct {
-	intf       string                    // interface without a transceiver
-	operStatus oc.E_Interface_OperStatus // oper-status the DUT reports for intf
-	hwPort     string                    // hardware-port component of intf ("" if not reported)
-	bp         breakoutProfile
-	children   []string // breakout child interfaces of intf
-	checkIntf  string   // interface whose port-speed and oper-status are verified
-}
 
 type cliInterfaceConfigOpts struct {
 	Name          string
@@ -197,6 +129,12 @@ var portSpeed = map[ondatra.Speed]oc.E_IfEthernet_ETHERNET_SPEED{
 	ondatra.Speed100Gb: oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
 	ondatra.Speed400Gb: oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB,
 }
+
+var descriptionRE = regexp.MustCompile(`(?m)^\s*description .*$\n?`)
+var nokiaDescriptionRE = regexp.MustCompile(`(?m)^\s*(set\s+)?/\s*interface\s+\S+\s+description\s+.*$\n?`)
+var showRunningConfigBannerRE = regexp.MustCompile(`(?m)^-+.*-+$\n?`)
+var showRunningConfigCommentRE = regexp.MustCompile(`(?m)^\s*!!.*$\n?`)
+var speedValueRE = regexp.MustCompile(`SPEED_(\d+)GB`)
 
 func configOCInterface(t *testing.T, sb *gnmi.SetBatch, dut *ondatra.DUTDevice) {
 	t.Helper()
@@ -260,17 +198,12 @@ func prettyPrintYgnmiResult(setResult *ygnmi.Result) string {
 
 func setCLINoMTU(t *testing.T, dut *ondatra.DUTDevice, portName string) {
 	t.Helper()
-	mtuConfig := gnmi.OC().Interface(portName).Mtu().Config()
-	before, hadMTU := gnmi.Lookup(t, dut, mtuConfig).Val()
+	before, hadMTU := gnmi.Lookup(t, dut, gnmi.OC().Interface(portName).Mtu().Config()).Val()
 
 	var cli string
 	switch dut.Vendor() {
-	case ondatra.ARISTA:
-		cli = fmt.Sprintf("configure terminal\ninterface %s\nno mtu\n", portName)
-	case ondatra.CISCO:
+	case ondatra.ARISTA, ondatra.CISCO:
 		cli = fmt.Sprintf("interface %s\nno mtu\n", portName)
-	case ondatra.JUNIPER:
-		cli = fmt.Sprintf("delete interfaces %s mtu\n", portName)
 	case ondatra.NOKIA:
 		// SR Linux accepts "delete" statements in cli-origin updates alongside "set".
 		cli = fmt.Sprintf("delete / interface %s mtu\n", portName)
@@ -280,16 +213,20 @@ func setCLINoMTU(t *testing.T, dut *ondatra.DUTDevice, portName string) {
 	helpers.GnmiCLIConfig(t, dut, cli)
 
 	switch dut.Vendor() {
-	case ondatra.ARISTA:
+	case ondatra.ARISTA, ondatra.CISCO:
+		// Wait for the MTU to be removed (i.e., not equal to 1500/1514).
 		gnmi.Watch(t, dut, gnmi.OC().Interface(portName).Mtu().State(), awaitTimeOut, func(val *ygnmi.Value[uint16]) bool {
 			m, present := val.Val()
 			if !present {
-				t.Logf("Got MTU not present, want 1500.")
+				t.Logf("Got MTU not present, want 1500 or 1514.")
 				return false
 			}
-			return m == 1500
+			if m == 1500 || m == 1514 {
+				return true
+			}
+			return false
 		}).Await(t)
-	case ondatra.CISCO, ondatra.JUNIPER, ondatra.NOKIA:
+	case ondatra.NOKIA:
 		if !hadMTU {
 			return
 		}
@@ -309,11 +246,12 @@ func setCLINoMTU(t *testing.T, dut *ondatra.DUTDevice, portName string) {
 // for union replace.
 func setCLIunionReplace(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	switch dut.Vendor() {
-	case ondatra.ARISTA:
-		// Add "operation set namespace" command from the CLI config as this is required for Arista
+	clicfg1 := ""
+
+	if dut.Vendor() == ondatra.ARISTA {
+		// Add  "operation set namespace" command from the CLI config as this is required for Arista
 		// when using union replace.
-		clicfg1 := "configure terminal\nmanagement api gnmi\n  provider eos-native\n  operation set persistence\n  operation set namespace\n"
+		clicfg1 = "configure terminal\nmanagement api gnmi\n  provider eos-native\n  operation set persistence\n  operation set namespace\n"
 		helpers.GnmiCLIConfig(t, dut, clicfg1)
 		// Poll for config to be applied.
 		start := time.Now()
@@ -328,6 +266,7 @@ func setCLIunionReplace(t *testing.T, dut *ondatra.DUTDevice) {
 			time.Sleep(1 * time.Second)
 		}
 	}
+
 }
 
 // Remove description lines from the base CLI config.
@@ -337,20 +276,12 @@ func setCLIunionReplace(t *testing.T, dut *ondatra.DUTDevice) {
 func stripDescription(t *testing.T, dut *ondatra.DUTDevice, config string) string {
 	t.Helper()
 	switch dut.Vendor() {
-	case ondatra.ARISTA, ondatra.CISCO:
-		re := regexp.MustCompile(`(?m)^\s*description .*$\n?`)
-		return re.ReplaceAllString(config, "")
-	case ondatra.JUNIPER:
-		re := regexp.MustCompile(`(?m)^\s*set\s+interfaces\s+\S+\s+description\s+.*$\n?`)
-		return re.ReplaceAllString(config, "")
 	case ondatra.NOKIA:
 		// Nokia SR Linux "info flat" format, e.g.
 		//   set / interface ethernet-1/1/6 description "[AVAILABLE]"
-		nokiaRE := regexp.MustCompile(`(?m)^\s*(set\s+)?/\s*interface\s+\S+\s+description\s+.*$\n?`)
-		return nokiaRE.ReplaceAllString(config, "")
+		return nokiaDescriptionRE.ReplaceAllString(config, "")
 	default:
-		t.Fatalf("unsupported vendor %v for stripDescription", dut.Vendor())
-		return config
+		return descriptionRE.ReplaceAllString(config, "")
 	}
 }
 
@@ -360,16 +291,10 @@ func stripDescription(t *testing.T, dut *ondatra.DUTDevice, config string) strin
 func withoutPortSpeed(t *testing.T, dut *ondatra.DUTDevice, config, intfName string) string {
 	t.Helper()
 	switch dut.Vendor() {
-	case ondatra.ARISTA, ondatra.CISCO:
-		return config
-	case ondatra.JUNIPER:
-		re := regexp.MustCompile(`(?m)^\s*set\s+interfaces\s+` + regexp.QuoteMeta(intfName) + `\s+speed\s+\S+[ \t]*$\n?`)
-		return re.ReplaceAllString(config, "")
 	case ondatra.NOKIA:
 		re := regexp.MustCompile(`(?m)^\s*(set\s+)?/\s*interface\s+` + regexp.QuoteMeta(intfName) + `\s+ethernet\s+port-speed\s+\S+[ \t]*$\n?`)
 		return re.ReplaceAllString(config, "")
 	default:
-		t.Fatalf("unsupported vendor %v for withoutPortSpeed", dut.Vendor())
 		return config
 	}
 }
@@ -393,11 +318,7 @@ func cliConfig(t *testing.T, dut *ondatra.DUTDevice) string {
 			t.Fatal("Unable to get baseline CLI config from GNMI or SSH")
 		}
 	}
-	config = stripDescription(t, dut, config)
-	if dut.Vendor() == ondatra.CISCO {
-		config = stripShowRunningConfigBanner(config)
-	}
-	return config
+	return stripShowRunningConfigBanner(stripDescription(t, dut, config))
 }
 
 func cliConfigGNMI(t *testing.T, dut *ondatra.DUTDevice) string {
@@ -451,30 +372,27 @@ func stripSSHCommandEcho(raw string, commandEchoPrefix string) string {
 	return strings.Join(lines, "\n")
 }
 
-// firstInterfaceWithoutTransceiver returns a front-panel Ethernet port with no
-// transceiver installed, along with the oper-status the DUT reports for it.
-func firstInterfaceWithoutTransceiver(t *testing.T, dut *ondatra.DUTDevice) (string, oc.E_Interface_OperStatus) {
+func firstInterfaceWithoutTransceiver(t *testing.T, dut *ondatra.DUTDevice) string {
 	t.Helper()
 	reserved := map[string]bool{
 		dut.Port(t, port1).Name(): true,
 		dut.Port(t, port2).Name(): true,
 	}
-	wantStatus := operStatusNoTransceiver(t, dut)
-	var candidates []*oc.Interface
-	for _, intf := range gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().State()) {
-		if !reserved[intf.GetName()] && isFrontPanelEthernet(dut, intf) {
-			candidates = append(candidates, intf)
+	allInterfaces := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().State())
+	for _, intf := range allInterfaces {
+		name := intf.GetName()
+		if dut.Vendor() == ondatra.NOKIA {
+			if reserved[name] || !strings.HasPrefix(name, "ethernet-") || strings.Count(name, "/") != 1 {
+				continue
+			}
+		}
+		if intf.GetOperStatus() == operStatusNoTransceiver(t, dut) && transceiverMissing(t, dut, intf) {
+			return name
 		}
 	}
 
-	for _, intf := range candidates {
-		if intf.GetOperStatus() == wantStatus && transceiverMissing(t, dut, intf) {
-			return intf.GetName(), wantStatus
-		}
-	}
-
-	t.Fatalf("unable to find an Ethernet interface with no transceiver connected (checked %d candidate ports, excluding %v)", len(candidates), reserved)
-	return "", oc.Interface_OperStatus_UNSET
+	t.Fatalf("unable to find an Ethernet interface with no transceiver connected")
+	return ""
 }
 
 func operStatusNoTransceiver(t *testing.T, dut *ondatra.DUTDevice) oc.E_Interface_OperStatus {
@@ -484,30 +402,6 @@ func operStatusNoTransceiver(t *testing.T, dut *ondatra.DUTDevice) oc.E_Interfac
 		return oc.Interface_OperStatus_NOT_PRESENT
 	default:
 		return oc.Interface_OperStatus_DOWN
-	}
-}
-
-// isFrontPanelEthernet reports whether intf is a physical, non-broken-out
-// Ethernet port, excluding management ports.
-func isFrontPanelEthernet(dut *ondatra.DUTDevice, intf *oc.Interface) bool {
-	switch intf.GetType() {
-	case oc.IETFInterfaces_InterfaceType_ethernetCsmacd, oc.IETFInterfaces_InterfaceType_UNSET:
-		name := intf.GetName()
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			return strings.HasPrefix(name, "Ethernet")
-		case ondatra.CISCO:
-			return strings.HasPrefix(name, "HundredGigE") || strings.HasPrefix(name, "FourHundredGigE")
-		case ondatra.JUNIPER:
-			return strings.HasPrefix(name, "et-")
-		case ondatra.NOKIA:
-			// ethernet-<slot>/<port>; breakout children are ethernet-<slot>/<port>/<lane>.
-			return strings.HasPrefix(name, "ethernet-") && strings.Count(name, "/") == 1
-		default:
-			return strings.HasPrefix(strings.ToLower(name), "ethernet")
-		}
-	default:
-		return false
 	}
 }
 
@@ -612,78 +506,22 @@ func batchUnionReplaceOCInterface(sb *gnmi.SetBatch, dut *ondatra.DUTDevice, int
 	gnmi.BatchUnionReplace(sb, gnmi.OC().Interface(intfName).Config(), intf)
 }
 
-// nonExistentInterface returns an interface name that does not exist on the
-// DUT, derived from port1 so that it follows the DUT vendor's naming convention.
-func nonExistentInterface(t *testing.T, dut *ondatra.DUTDevice) string {
-	t.Helper()
-	p1 := dut.Port(t, port1).Name()
-	switch dut.Vendor() {
-	case ondatra.ARISTA:
-		// Keep the platform's shape and only replace the last number, e.g. Ethernet3/1 -> Ethernet3/999.
-		return regexp.MustCompile(`\d+$`).ReplaceAllString(p1, "999")
-	case ondatra.CISCO, ondatra.JUNIPER, ondatra.NOKIA:
-		return regexp.MustCompile(`\d+`).ReplaceAllString(p1, "99")
-	default:
-		t.Fatalf("unsupported vendor %v for nonExistentInterface", dut.Vendor())
-		return ""
-	}
-}
-
-// interfaceLocation returns the location part of an interface name, e.g.
-// "HundredGigE0/0/0/5" -> "0/0/0/5".
-func interfaceLocation(intfName string) string {
-	return strings.TrimLeftFunc(intfName, func(r rune) bool {
-		return (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')
-	})
-}
-
-// requireOCWithCLI adds a no-op OC Origin request to sb when the union_replace SetRequest
-// would otherwise contain only CLI Origin requests, which some DUTs (e.g. Cisco) reject.
-func requireOCWithCLI(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch) {
-	t.Helper()
-	if hostname, ok := gnmi.Lookup(t, dut, gnmi.OC().System().Hostname().State()).Val(); ok {
-		gnmi.BatchUnionReplace(sb, gnmi.OC().System().Hostname().Config(), hostname)
-	}
-}
-
-// verifyInterfaceNotInState checks that an interface accepted in config has no operational state.
-func verifyInterfaceNotInState(t *testing.T, dut *ondatra.DUTDevice, intfName string) error {
-	t.Helper()
-	if v := gnmi.Lookup(t, dut, gnmi.OC().Interface(intfName).OperStatus().State()); v.IsPresent() {
-		got, _ := v.Val()
-		return fmt.Errorf("non-existent interface %s should not be present in state, got oper-status %v", intfName, got)
-	}
-	return nil
-}
-
-// cliInterface returns the CLI lines for intfName.
-func cliInterface(t *testing.T, dut *ondatra.DUTDevice, cli, intfName string) string {
-	t.Helper()
+func cliInterface(cli, intfName string) string {
 	var sb strings.Builder
-	switch dut.Vendor() {
-	case ondatra.ARISTA, ondatra.CISCO:
-		insideInterface := false
-		for _, line := range strings.Split(cli, "\n") {
-			if line == "interface "+intfName {
-				insideInterface = true
-			}
-			if insideInterface {
-				sb.WriteString(line)
-				sb.WriteByte('\n')
-				if strings.TrimSpace(line) == "!" {
-					break
-				}
+	insideInterface := false
+	for _, line := range strings.Split(cli, "\n") {
+		if line == "interface "+intfName {
+			insideInterface = true
+		}
+		if insideInterface {
+			sb.WriteString(line)
+			sb.WriteByte('\n')
+			if strings.TrimSpace(line) == "!" {
+				break
 			}
 		}
-	case ondatra.JUNIPER:
-		setRE := regexp.MustCompile(`^\s*set\s+interfaces\s+` + regexp.QuoteMeta(intfName) + `(\s|$)`)
-		for _, line := range strings.Split(cli, "\n") {
-			if setRE.MatchString(line) {
-				sb.WriteString(line)
-				sb.WriteByte('\n')
-			}
-		}
-	case ondatra.NOKIA:
+	}
+	if sb.Len() == 0 {
 		flatRE := regexp.MustCompile(`^\s*(set\s+)?/\s*interface\s+` + regexp.QuoteMeta(intfName) + `(\s|$)`)
 		for _, line := range strings.Split(cli, "\n") {
 			if flatRE.MatchString(line) {
@@ -691,8 +529,6 @@ func cliInterface(t *testing.T, dut *ondatra.DUTDevice, cli, intfName string) st
 				sb.WriteByte('\n')
 			}
 		}
-	default:
-		t.Fatalf("unsupported vendor %v for cliInterface", dut.Vendor())
 	}
 	return sb.String()
 }
@@ -740,19 +576,8 @@ func verifyInterfaceMTU(t *testing.T, dut *ondatra.DUTDevice, intfName string, w
 
 func verifyCLIMTU(t *testing.T, dut *ondatra.DUTDevice, intfName string, wantMTU uint16) bool {
 	t.Helper()
-	interfaceConfig := cliInterface(t, dut, cliConfig(t, dut), intfName)
-	var re *regexp.Regexp
-	switch dut.Vendor() {
-	case ondatra.ARISTA, ondatra.CISCO:
-		re = regexp.MustCompile(fmt.Sprintf(`(?m)^\s*mtu\s+%d\s*$`, wantMTU))
-	case ondatra.JUNIPER, ondatra.NOKIA:
-		// Match "mtu <N>" as a whole word so that e.g. "ip-mtu <N>" is not matched.
-		re = regexp.MustCompile(fmt.Sprintf(`(?m)(^|\s)mtu\s+%d(\s|$)`, wantMTU))
-	default:
-		t.Fatalf("unsupported vendor %v for verifyCLIMTU", dut.Vendor())
-		return false
-	}
-	if re.MatchString(interfaceConfig) {
+	interfaceConfig := cliInterface(cliConfig(t, dut), intfName)
+	if strings.Contains(interfaceConfig, fmt.Sprintf("mtu %d", wantMTU)) {
 		t.Logf("Interface %s MTU verified in CLI running-config", intfName)
 		return true
 	}
@@ -768,6 +593,16 @@ func verifyInterfaceConfigRemoved(t *testing.T, dut *ondatra.DUTDevice, intfName
 	}).Await(t)
 	if !ok {
 		return fmt.Errorf("interface %s configuration should not be present after deletion", intfName)
+	}
+	return nil
+}
+
+// verifyInterfaceNotInState checks that an interface accepted in config has no operational state.
+func verifyInterfaceNotInState(t *testing.T, dut *ondatra.DUTDevice, intfName string) error {
+	t.Helper()
+	if v := gnmi.Lookup(t, dut, gnmi.OC().Interface(intfName).OperStatus().State()); v.IsPresent() {
+		got, _ := v.Val()
+		return fmt.Errorf("non-existent interface %s should not be present in state, got oper-status %v", intfName, got)
 	}
 	return nil
 }
@@ -812,9 +647,9 @@ func verifyInterfaceOperStatus(t *testing.T, dut *ondatra.DUTDevice, intfName st
 
 func cliInterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, opts cliInterfaceConfigOpts) string {
 	t.Helper()
+	var sb strings.Builder
 	switch dut.Vendor() {
-	case ondatra.ARISTA:
-		var sb strings.Builder
+	case ondatra.ARISTA, ondatra.CISCO:
 		fmt.Fprintf(&sb, "interface %s\n", opts.Name)
 		if opts.Description != "" {
 			fmt.Fprintf(&sb, "  description %s\n", opts.Description)
@@ -823,48 +658,14 @@ func cliInterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, opts cliInterfaceC
 			fmt.Fprintf(&sb, "  mtu %d\n", opts.MTU)
 		}
 		if opts.IPv4 != "" && opts.IPv4PrefixLen > 0 {
-			fmt.Fprintf(&sb, "  no switchport\n  ip address %s/%d\n", opts.IPv4, opts.IPv4PrefixLen)
+			fmt.Fprintf(&sb, "  ip address %s/%d\n", opts.IPv4, opts.IPv4PrefixLen)
 		}
 		if opts.Speed != "" {
 			fmt.Fprintf(&sb, "  speed %s\n", opts.Speed)
 		}
 		return sb.String()
-	case ondatra.CISCO:
-		var sb strings.Builder
-		fmt.Fprintf(&sb, "interface %s\n", opts.Name)
-		if opts.Description != "" {
-			fmt.Fprintf(&sb, " description %s\n", opts.Description)
-		}
-		if opts.MTU > 0 {
-			fmt.Fprintf(&sb, " mtu %d\n", opts.MTU)
-		}
-		if opts.IPv4 != "" && opts.IPv4PrefixLen > 0 {
-			fmt.Fprintf(&sb, " ipv4 address %s/%d\n", opts.IPv4, opts.IPv4PrefixLen)
-		}
-		if opts.Speed != "" {
-			fmt.Fprintf(&sb, " speed %s\n", opts.Speed)
-		}
-		fmt.Fprintf(&sb, "!\n")
-		return sb.String()
-	case ondatra.JUNIPER:
-		var sb strings.Builder
-		p := "set interfaces " + opts.Name
-		if opts.Description != "" {
-			fmt.Fprintf(&sb, "%s description %q\n", p, opts.Description)
-		}
-		if opts.MTU > 0 {
-			fmt.Fprintf(&sb, "%s mtu %d\n", p, opts.MTU)
-		}
-		if opts.IPv4 != "" && opts.IPv4PrefixLen > 0 {
-			fmt.Fprintf(&sb, "%s unit %d family inet address %s/%d\n", p, defaultSubif, opts.IPv4, opts.IPv4PrefixLen)
-		}
-		if opts.Speed != "" {
-			fmt.Fprintf(&sb, "%s speed %s\n", p, opts.Speed)
-		}
-		return sb.String()
 	case ondatra.NOKIA:
 		// SR Linux flat CLI, one statement per line.
-		var sb strings.Builder
 		p := nokiaCLIPrefix + "interface " + opts.Name
 		if opts.BreakoutPorts == 0 {
 			fmt.Fprintf(&sb, "%s admin-state enable\n", p)
@@ -879,7 +680,7 @@ func cliInterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, opts cliInterfaceC
 			fmt.Fprintf(&sb, "%s subinterface %d admin-state enable\n", p, defaultSubif)
 			fmt.Fprintf(&sb, "%s subinterface %d ipv4 admin-state enable\n", p, defaultSubif)
 			fmt.Fprintf(&sb, "%s subinterface %d ipv4 address %s/%d\n", p, defaultSubif, opts.IPv4, opts.IPv4PrefixLen)
-			fmt.Fprintf(&sb, "%snetwork-instance %s interface %s.%d\n", nokiaCLIPrefix, nokiaNativeDefaultNI, opts.Name, defaultSubif)
+			fmt.Fprintf(&sb, "%snetwork-instance %s interface %s.%d\n", nokiaCLIPrefix, nokiaCLIDefaultNI, opts.Name, defaultSubif)
 		}
 		if opts.BreakoutPorts > 0 {
 			// e.g. "50g-2" -> "50G"
@@ -895,124 +696,158 @@ func cliInterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, opts cliInterfaceC
 	}
 }
 
+// interfaceBase returns an interface name without its last "/<n>" component.
+func interfaceBase(t *testing.T, intfName string) string {
+	t.Helper()
+	lastIndex := strings.LastIndex(intfName, "/")
+	if lastIndex == -1 {
+		t.Fatalf("invalid interface name format: %s", intfName)
+	}
+	return intfName[:lastIndex]
+}
+
 func breakoutInterfaces(t *testing.T, dut *ondatra.DUTDevice, baseIntfName string, noOfIntfs uint8) []string {
 	t.Helper()
 	var intfs []string
-	switch dut.Vendor() {
-	case ondatra.ARISTA:
-		lastIndex := strings.LastIndex(baseIntfName, "/")
-		if lastIndex == -1 {
-			t.Fatalf("invalid interface name format: %s", baseIntfName)
-		}
-		baseName := baseIntfName[:lastIndex]
-		for index := range noOfIntfs {
-			intfs = append(intfs, fmt.Sprintf("%s/%d", baseName, index+1))
-		}
-	case ondatra.CISCO, ondatra.NOKIA:
-		for index := range noOfIntfs {
-			intfs = append(intfs, fmt.Sprintf("%s/%d", baseIntfName, index+1))
-		}
-	case ondatra.JUNIPER:
-		for index := range noOfIntfs {
-			intfs = append(intfs, fmt.Sprintf("%s:%d", baseIntfName, index))
-		}
-	default:
-		t.Fatalf("unsupported vendor %v for breakout interfaces", dut.Vendor())
+	baseName := baseIntfName
+	if dut.Vendor() != ondatra.NOKIA {
+		baseName = interfaceBase(t, baseIntfName)
+	}
+	for index := uint8(0); index < noOfIntfs; index++ {
+		intfs = append(intfs, fmt.Sprintf("%s/%d", baseName, index+1))
 	}
 	return intfs
 }
 
-// newMissingHWSetup captures the gNMI-3.10 inputs for the interface without a
-// transceiver. It must be called before any breakout is configured since the
-// parent interface may disappear from state once broken out.
-func newMissingHWSetup(t *testing.T, dut *ondatra.DUTDevice) missingHWSetup {
+// nonExistentInterface derives an unused interface name from an existing one by setting its last number to 999.
+func nonExistentInterface(t *testing.T, dut *ondatra.DUTDevice, existing string) string {
 	t.Helper()
-	intf, operStatus := firstInterfaceWithoutTransceiver(t, dut)
-	t.Logf("First interface without transceiver: %s (oper-status %v)", intf, operStatus)
-	hwPort, _ := gnmi.Lookup(t, dut, gnmi.OC().Interface(intf).HardwarePort().State()).Val()
-	bp := breakoutProfileFor(t, dut, intf)
-	children := breakoutInterfaces(t, dut, intf, bp.numPorts)
-	// Normally the base interface is itself a breakout lane. When breakout
-	// creates new child interfaces (ExplicitBreakoutInterfaceConfig), the first
-	// child interface is checked instead.
-	checkIntf := intf
-	if deviations.ExplicitBreakoutInterfaceConfig(dut) && len(children) > 0 {
-		checkIntf = children[0]
+	if dut.Vendor() == ondatra.NOKIA {
+		return regexp.MustCompile(`\d+`).ReplaceAllString(existing, "99")
 	}
-	return missingHWSetup{intf: intf, operStatus: operStatus, hwPort: hwPort, bp: bp, children: children, checkIntf: checkIntf}
+	return interfaceBase(t, existing) + "/999"
 }
 
-func ocBreakoutMode(t *testing.T, dut *ondatra.DUTDevice, root *oc.Root, hw missingHWSetup) {
+// interfaceLocation returns the location part of an interface name
+func interfaceLocation(intfName string) string {
+	return strings.TrimLeftFunc(intfName, func(r rune) bool {
+		return (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')
+	})
+}
+
+// breakoutConfig is the breakout group index, number of breakouts and breakout speed for the DUT.
+type breakoutConfig struct {
+	index        uint8
+	numBreakouts uint8
+	speed        oc.E_IfEthernet_ETHERNET_SPEED
+	numChannels  uint8
+}
+
+func breakoutParams(t *testing.T, dut *ondatra.DUTDevice, intfName string) breakoutConfig {
 	t.Helper()
-	if hw.hwPort == "" {
-		t.Logf("Skipping breakout-mode OC config: no hardware-port for %s", hw.intf)
+	if dut.Vendor() == ondatra.NOKIA {
+		return breakoutConfig{index: 1, numBreakouts: 4, speed: oc.IfEthernet_ETHERNET_SPEED_SPEED_25GB, numChannels: 1}
+	}
+	portSpeed, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(intfName).Ethernet().PortSpeed().State()).Val()
+	if !ok {
+		t.Fatalf("interface %s port-speed state is not present; cannot select breakout mode", intfName)
+	}
+	t.Logf("Selecting breakout mode for %s with reported port speed %v", intfName, portSpeed)
+	switch portSpeed {
+	case oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB:
+		return breakoutConfig{index: groupIndex, numBreakouts: 4, speed: oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB, numChannels: breakoutNumChannel}
+	case oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB:
+		return breakoutConfig{index: groupIndex, numBreakouts: 2, speed: oc.IfEthernet_ETHERNET_SPEED_SPEED_50GB, numChannels: breakoutNumChannel}
+	default:
+		return breakoutConfig{index: groupIndex, numBreakouts: 1, speed: portSpeed, numChannels: breakoutNumChannel}
+	}
+}
+
+func ocBreakoutMode(t *testing.T, dut *ondatra.DUTDevice, root *oc.Root, hwPort string, breakout breakoutConfig) {
+	t.Helper()
+	if hwPort == "" {
+		t.Logf("Skipping breakout-mode OC config: no hardware-port")
 		return
 	}
-	comp := root.GetOrCreateComponent(hw.hwPort)
-	grp := comp.GetOrCreatePort().GetOrCreateBreakoutMode().GetOrCreateGroup(hw.bp.index)
-	grp.NumBreakouts = ygot.Uint8(hw.bp.numPorts)
-	grp.BreakoutSpeed = hw.bp.ocSpeed
+	comp := root.GetOrCreateComponent(hwPort)
+	grp := comp.GetOrCreatePort().GetOrCreateBreakoutMode().GetOrCreateGroup(breakout.index)
+	grp.NumBreakouts = ygot.Uint8(breakout.numBreakouts)
+	grp.BreakoutSpeed = breakout.speed
 	if !deviations.NumPhysyicalChannelsUnsupported(dut) {
-		grp.NumPhysicalChannels = ygot.Uint8(hw.bp.numChannels)
+		grp.NumPhysicalChannels = ygot.Uint8(breakout.numChannels)
 	}
 }
 
-func cliBreakoutMode(t *testing.T, dut *ondatra.DUTDevice, hw missingHWSetup) string {
-	t.Helper()
+func cliBreakoutMode(t *testing.T, dut *ondatra.DUTDevice, intfName string, breakout breakoutConfig) string {
 	switch dut.Vendor() {
 	case ondatra.CISCO:
-		return fmt.Sprintf("controller Optics%s\n breakout %s\n!\n", interfaceLocation(hw.intf), hw.bp.cliCiscoBreakout)
+		return fmt.Sprintf("controller Optics %s breakout %dx%s", interfaceLocation(intfName), breakout.numBreakouts, speedValueG(breakout.speed))
+	case ondatra.NOKIA:
+		return cliInterfaceConfig(t, dut, cliInterfaceConfigOpts{Name: intfName, Speed: breakoutSpeedCLI(breakout), BreakoutPorts: breakout.numBreakouts})
 	default:
-		return cliInterfaceConfig(t, dut, cliInterfaceConfigOpts{Name: hw.intf, Speed: hw.bp.cliBreakout, BreakoutPorts: hw.bp.numPorts})
+		return cliInterfaceConfig(t, dut, cliInterfaceConfigOpts{Name: intfName, Speed: breakoutSpeedCLI(breakout)})
 	}
+}
+
+func speedValueG(speed oc.E_IfEthernet_ETHERNET_SPEED) string {
+	match := speedValueRE.FindStringSubmatch(speed.String())
+	if len(match) < 2 {
+		return ""
+	}
+	return match[1]
+}
+
+func breakoutSpeedCLI(breakout breakoutConfig) string {
+	return fmt.Sprintf("%sg-%d", speedValueG(breakout.speed), breakout.numChannels)
 }
 
 // verifyCLIBreakout checks the breakout in the CLI running-config on DUTs that do not reflect
 // CLI-configured breakout in the OC config tree.
-func verifyCLIBreakout(t *testing.T, dut *ondatra.DUTDevice, hw missingHWSetup) bool {
+func verifyCLIBreakout(t *testing.T, dut *ondatra.DUTDevice, intfName string, breakout breakoutConfig) bool {
 	t.Helper()
-	var want *regexp.Regexp
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
-		if strings.Contains(cliInterface(t, dut, cliConfig(t, dut), hw.intf), "speed "+hw.bp.cliBreakout) {
-			t.Logf("Breakout for %s verified in CLI running-config", hw.intf)
+		want := fmt.Sprintf("speed %s", breakoutSpeedCLI(breakout))
+		if strings.Contains(cliInterface(cliConfig(t, dut), intfName), want) {
+			t.Logf("Breakout for %s verified in CLI running-config", intfName)
 			return true
 		}
 		return false
 	case ondatra.CISCO:
-		want = regexp.MustCompile(`(?m)^controller Optics\s*` + regexp.QuoteMeta(interfaceLocation(hw.intf)) + `\s*\r?\n\s*breakout ` + regexp.QuoteMeta(hw.bp.cliCiscoBreakout) + `\s*$`)
 	default:
 		return false
 	}
+
+	want := regexp.MustCompile(`(?m)^controller Optics\s*` + regexp.QuoteMeta(interfaceLocation(intfName)) + `\s*\r?\n\s*breakout ` + fmt.Sprintf("%dx%s", breakout.numBreakouts, speedValueG(breakout.speed)) + `\s*$`)
 	if want.MatchString(cliConfig(t, dut)) {
-		t.Logf("Breakout for %s verified in CLI running-config", hw.intf)
+		t.Logf("Breakout for %s verified in CLI running-config", intfName)
 		return true
 	}
 	return false
 }
 
-func verifyBreakoutModeConfig(t *testing.T, dut *ondatra.DUTDevice, hw missingHWSetup) error {
+func verifyBreakoutModeConfig(t *testing.T, dut *ondatra.DUTDevice, hwPort, intfName string, breakout breakoutConfig) error {
 	t.Helper()
-	if hw.hwPort == "" {
-		t.Logf("Skipping breakout-mode config verification: no hardware-port for %s", hw.intf)
+	if hwPort == "" {
+		t.Logf("Skipping breakout-mode config verification: no hardware-port")
 		return nil
 	}
 	var errs []error
-	grp := gnmi.OC().Component(hw.hwPort).Port().BreakoutMode().Group(hw.bp.index)
-	if got, ok := gnmi.Lookup(t, dut, grp.NumBreakouts().Config()).Val(); ok && got == hw.bp.numPorts {
-		t.Logf("component %s breakout group num-breakouts: %d", hw.hwPort, got)
+	grp := gnmi.OC().Component(hwPort).Port().BreakoutMode().Group(breakout.index)
+	if got, ok := gnmi.Lookup(t, dut, grp.NumBreakouts().Config()).Val(); ok && got == breakout.numBreakouts {
+		t.Logf("component %s breakout group num-breakouts: %d", hwPort, got)
 	} else {
-		errs = append(errs, fmt.Errorf("component %s breakout group num-breakouts: got %d (present=%v), want %d", hw.hwPort, got, ok, hw.bp.numPorts))
+		errs = append(errs, fmt.Errorf("component %s breakout group num-breakouts: got %d (present=%v), want %d", hwPort, got, ok, breakout.numBreakouts))
 	}
-	if got, ok := gnmi.Lookup(t, dut, grp.BreakoutSpeed().Config()).Val(); !ok || got != hw.bp.ocSpeed {
-		errs = append(errs, fmt.Errorf("component %s breakout group breakout-speed: got %v (present=%v), want %v", hw.hwPort, got, ok, hw.bp.ocSpeed))
+	if got, ok := gnmi.Lookup(t, dut, grp.BreakoutSpeed().Config()).Val(); !ok || got != breakout.speed {
+		errs = append(errs, fmt.Errorf("component %s breakout group breakout-speed: got %v (present=%v), want %v", hwPort, got, ok, breakout.speed))
 	}
 	if !deviations.NumPhysyicalChannelsUnsupported(dut) {
-		if got, ok := gnmi.Lookup(t, dut, grp.NumPhysicalChannels().Config()).Val(); !ok || got != hw.bp.numChannels {
-			errs = append(errs, fmt.Errorf("component %s breakout group num-physical-channels: got %v (present=%v), want %d", hw.hwPort, got, ok, hw.bp.numChannels))
+		if got, ok := gnmi.Lookup(t, dut, grp.NumPhysicalChannels().Config()).Val(); !ok || got != breakout.numChannels {
+			errs = append(errs, fmt.Errorf("component %s breakout group num-physical-channels: got %v (present=%v), want %d", hwPort, got, ok, breakout.numChannels))
 		}
 	}
-	if len(errs) > 0 && verifyCLIBreakout(t, dut, hw) {
+	if len(errs) > 0 && verifyCLIBreakout(t, dut, intfName, breakout) {
 		return nil
 	}
 	return errors.Join(errs...)
@@ -1035,6 +870,20 @@ func otnLogicalChannelsConfig(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.P
 		params.TransceiverNames[p.Name()] = gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
 	}
 	root := &oc.Root{}
+	if deviations.ExplicitDcoConfig(dut) {
+		intf := root.GetOrCreateInterface(p.Name())
+		intf.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+		if deviations.InterfaceEnabled(dut) {
+			intf.Enabled = ygot.Bool(true)
+		}
+		och := root.GetOrCreateComponent(params.OpticalChannelNames[p.Name()]).GetOrCreateOpticalChannel()
+		och.Frequency = ygot.Uint64(193100000)
+		och.OperationalMode = ygot.Uint16(1)
+		if trName := params.TransceiverNames[p.Name()]; trName != "" {
+			tr := root.GetOrCreateComponent(trName).GetOrCreateTransceiver()
+			tr.ModuleFunctionalType = oc.TransportTypes_TRANSCEIVER_MODULE_FUNCTIONAL_TYPE_TYPE_DIGITAL_COHERENT_OPTIC
+		}
+	}
 	root.GetOrCreateTerminalDevice().Channel = map[uint32]*oc.TerminalDevice_Channel{
 		otnChannelIndex: cfgplugins.OTNChannelConfig(dut, p, params),
 		ethChannelIndex: cfgplugins.ETHChannelConfig(dut, p, params),
@@ -1088,6 +937,23 @@ func configureUnionReplaceSupport(t *testing.T, dut *ondatra.DUTDevice) {
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
 		helpers.GnmiCLIConfig(t, dut, "management api gnmi\n   operation set namespace\n")
+	case ondatra.NOKIA:
+		if deviations.VendorPreConfigRequired(dut) {
+			// Remove Caelum's bootz TCP rule at sequence-id 380 in the cpm ipv6 ACL filter and
+			// unbind mgmt0.0 from mgmtVrf. On SR Linux, CLI-origin union_replace merges onto
+			// factory-default configuration, which defines entry 380 with next-header icmp6 and
+			// binds mgmt0.0 to the factory-default "mgmt" network-instance.
+			helpers.GnmiCLIConfig(t, dut, "delete / acl acl-filter cpm type ipv6 entry 380\ndelete / network-instance mgmtVrf interface mgmt0.0\n")
+		}
+	}
+}
+
+// requireOCWithCLI adds a no-op OC Origin request to sb when the union_replace SetRequest
+// contains only CLI Origin requests.
+func requireOCWithCLI(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch) {
+	t.Helper()
+	if hostname, ok := gnmi.Lookup(t, dut, gnmi.OC().System().Hostname().State()).Val(); ok {
+		gnmi.BatchUnionReplace(sb, gnmi.OC().System().Hostname().Config(), hostname)
 	}
 }
 
@@ -1097,9 +963,18 @@ func TestUnionReplace(t *testing.T) {
 	configureUnionReplaceSupport(t, dut)
 	intf1Name := dut.Port(t, port1).Name()
 	intf2Name := dut.Port(t, port2).Name()
+	nonExistentIntf := nonExistentInterface(t, dut, intf1Name)
 
 	sharedBaseline = cliConfig(t, dut)
-	hw := newMissingHWSetup(t, dut)
+	interfaceWithoutTransceiver := firstInterfaceWithoutTransceiver(t, dut)
+	noTransceiverOperStatus := operStatusNoTransceiver(t, dut)
+	t.Logf("First interface without transceiver: %s", interfaceWithoutTransceiver)
+	// Looked up before breakout since the parent interface may disappear once broken out.
+	noTransceiverHWPort, _ := gnmi.Lookup(t, dut, gnmi.OC().Interface(interfaceWithoutTransceiver).HardwarePort().State()).Val()
+	breakout := breakoutParams(t, dut, interfaceWithoutTransceiver)
+	breakoutIntfs := breakoutInterfaces(t, dut, interfaceWithoutTransceiver, breakout.numBreakouts)
+	breakoutOperIntf := breakoutIntfs[0]
+
 	// resetConfig takes the subtest's t so that a failed reset fails only that
 	// subtest instead of calling FailNow on the parent test from a subtest.
 	resetConfig := func(t *testing.T) {
@@ -1207,8 +1082,6 @@ func TestUnionReplace(t *testing.T) {
 				switch dut.Vendor() {
 				case ondatra.ARISTA, ondatra.CISCO:
 					cliConfig2 += fmt.Sprintf("interface %s\nmtu %d\n", dp2.Name(), cliMTU)
-				case ondatra.JUNIPER:
-					cliConfig2 += fmt.Sprintf("set interfaces %s mtu %d\n", dp2.Name(), cliMTU)
 				case ondatra.NOKIA:
 					cliConfig2 += fmt.Sprintf("%sinterface %s mtu %d\n", nokiaCLIPrefix, dp2.Name(), cliMTU)
 				default:
@@ -1223,12 +1096,12 @@ func TestUnionReplace(t *testing.T) {
 				// to the new, CLI configured value. If union_replace option for CLI and OC config error is the
 				// DUT behavior, verify the MTU is not updated to the new, CLI configured value.
 				switch dut.Vendor() {
-				case ondatra.ARISTA, ondatra.CISCO:
+				case ondatra.ARISTA, ondatra.CISCO, ondatra.NOKIA:
 					// CLI overrides OC
 					if err := verifyInterfaceMTU(t, dut, dp2.Name(), cliMTU); err != nil {
 						return err
 					}
-				case ondatra.JUNIPER, ondatra.NOKIA:
+				case ondatra.JUNIPER:
 					// OC and CLI conflict generates an error, MTU stays at the OC value
 					if err := verifyInterfaceMTU(t, dut, dp2.Name(), ocMTU); err != nil {
 						return err
@@ -1316,8 +1189,6 @@ func TestUnionReplace(t *testing.T) {
 				switch dut.Vendor() {
 				case ondatra.ARISTA, ondatra.CISCO:
 					cliConfig2 += fmt.Sprintf("interface %s\ndescription %s\n", port1Name, port1DescriptionCLI)
-				case ondatra.JUNIPER:
-					cliConfig2 += fmt.Sprintf("set interfaces %s description %q\n", port1Name, port1DescriptionCLI)
 				case ondatra.NOKIA:
 					cliConfig2 += fmt.Sprintf("%sinterface %s description %q\n", nokiaCLIPrefix, port1Name, port1DescriptionCLI)
 				default:
@@ -1663,8 +1534,6 @@ func TestUnionReplace(t *testing.T) {
 			desc: "Verify a DUT rejects and rolls back a union_replace with invalid configuration (non-existent interface).",
 			fn: func(t *testing.T) error {
 				dut := ondatra.DUT(t, "dut")
-				nonExistentIntf := nonExistentInterface(t, dut)
-				t.Logf("Using non-existent interface %s", nonExistentIntf)
 
 				t.Run("gNMI-3.7.1-InvalidInterfaceOC", func(t *testing.T) {
 					var errs []error
@@ -1706,10 +1575,10 @@ func TestUnionReplace(t *testing.T) {
 					t.Log("Build CLI config with MTU configured on a non-existent interface")
 					var badCLI string
 					switch dut.Vendor() {
-					case ondatra.ARISTA, ondatra.CISCO:
+					case ondatra.ARISTA:
 						badCLI = fmt.Sprintf("interface %s\n  mtu %d\n", nonExistentIntf, badIntfMTU)
-					case ondatra.JUNIPER:
-						badCLI = fmt.Sprintf("set interfaces %s mtu %d\n", nonExistentIntf, badIntfMTU)
+					case ondatra.CISCO:
+						badCLI = fmt.Sprintf("interface %s\n mtu %d\n", nonExistentIntf, badIntfMTU)
 					case ondatra.NOKIA:
 						badCLI = fmt.Sprintf("%sinterface %s mtu %d\n", nokiaCLIPrefix, nonExistentIntf, badIntfMTU)
 					default:
@@ -1869,14 +1738,12 @@ func TestUnionReplace(t *testing.T) {
 					switch dut.Vendor() {
 					case ondatra.ARISTA, ondatra.CISCO:
 						bgpCLI = fmt.Sprintf("router bgp %d\n", bgpASCLI)
-					case ondatra.JUNIPER:
-						bgpCLI = fmt.Sprintf("set routing-options autonomous-system %d\n", bgpASCLI)
 					case ondatra.NOKIA:
-						global.RouterId = ygot.String(nokiaBGPRouterID)
+						global.RouterId = ygot.String(nokiaCLIBGPRouterID)
 						global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
-						bgpPath := fmt.Sprintf("%snetwork-instance %s protocols bgp", nokiaCLIPrefix, nokiaNativeDefaultNI)
+						bgpPath := fmt.Sprintf("%snetwork-instance %s protocols bgp", nokiaCLIPrefix, nokiaCLIDefaultNI)
 						bgpCLI = fmt.Sprintf("%[1]s admin-state enable\n%[1]s autonomous-system %[2]d\n%[1]s router-id %[3]s\n%[1]s afi-safi ipv4-unicast admin-state enable\n",
-							bgpPath, bgpASCLI, nokiaBGPRouterID)
+							bgpPath, bgpASCLI, nokiaCLIBGPRouterID)
 					default:
 						t.Fatalf("BGP overlap test not implemented for vendor %v", dut.Vendor())
 					}
@@ -1940,9 +1807,7 @@ func TestUnionReplace(t *testing.T) {
 					case ondatra.ARISTA:
 						rpCLI = fmt.Sprintf("route-map %s permit 10\n", policyName)
 					case ondatra.CISCO:
-						rpCLI = fmt.Sprintf("route-policy %s\n  pass\nend-policy\n", policyName)
-					case ondatra.JUNIPER:
-						rpCLI = fmt.Sprintf("set policy-options policy-statement %s term 10 then accept\n", policyName)
+						rpCLI = fmt.Sprintf("route-policy %s\n pass\nend-policy\n", policyName)
 					case ondatra.NOKIA:
 						rpCLI = fmt.Sprintf("%srouting-policy policy %s statement 10 action policy-result accept\n", nokiaCLIPrefix, policyName)
 					default:
@@ -2013,33 +1878,40 @@ func TestUnionReplace(t *testing.T) {
 
 				t.Log("Generate OC delta with port-speed and breakout-mode for missing-hardware interface")
 				ocDelta := &oc.Root{}
-				ocBreakoutMode(t, dut, ocDelta, hw)
+				ocBreakoutMode(t, dut, ocDelta, noTransceiverHWPort, breakout)
 
 				if !deviations.PortSpeedUnsupported(dut) {
-					for _, breakoutIntfName := range hw.children {
+					for _, breakoutIntfName := range breakoutIntfs {
 						t.Logf("Adding breakout configuration for interface %s", breakoutIntfName)
-						brEth := ocInterface(ocDelta, dut, breakoutIntfName).GetOrCreateEthernet()
-						brEth.PortSpeed = hw.bp.ocSpeed
-						if !deviations.DuplexModeUnsupported(dut) {
-							brEth.DuplexMode = oc.Ethernet_DuplexMode_FULL
-						}
-						if !deviations.AutoNegotiateUnsupported(dut) {
-							brEth.AutoNegotiate = ygot.Bool(false)
+						intf := ocInterface(ocDelta, dut, breakoutIntfName)
+						if !deviations.PortSpeedDuplexModeUnsupportedForInterfaceConfig(dut) {
+							brEth := intf.GetOrCreateEthernet()
+							brEth.PortSpeed = breakout.speed
+							if !deviations.DuplexModeUnsupported(dut) {
+								brEth.DuplexMode = oc.Ethernet_DuplexMode_FULL
+							}
+							if !deviations.AutoNegotiateUnsupported(dut) {
+								brEth.AutoNegotiate = ygot.Bool(false)
+							}
 						}
 					}
 				}
 				t.Log("Push via union_replace and verify accepted")
 				sb := &gnmi.SetBatch{}
-				gnmi.BatchUnionReplaceCLI(sb, cliOrigin, withoutPortSpeed(t, dut, sharedBaseline, hw.intf))
+				gnmi.BatchUnionReplaceCLI(sb, cliOrigin, withoutPortSpeed(t, dut, sharedBaseline, interfaceWithoutTransceiver))
 				gnmi.BatchUnionReplace(sb, gnmi.OC().Config(), ocDelta)
 				sb.Set(t, dut)
 
 				t.Log("Verify configuration applied and interface oper-status")
-				errs = append(errs, verifyBreakoutModeConfig(t, dut, hw))
-				if !deviations.PortSpeedUnsupported(dut) {
-					errs = append(errs, verifyPortSpeed(t, dut, hw.checkIntf, hw.bp.ocSpeed))
+				errs = append(errs, verifyBreakoutModeConfig(t, dut, noTransceiverHWPort, interfaceWithoutTransceiver, breakout))
+				if !deviations.PortSpeedUnsupported(dut) && !deviations.PortSpeedDuplexModeUnsupportedForInterfaceConfig(dut) {
+					checkIntf := interfaceWithoutTransceiver
+					if deviations.ExplicitBreakoutInterfaceConfig(dut) {
+						checkIntf = breakoutOperIntf
+					}
+					errs = append(errs, verifyPortSpeed(t, dut, checkIntf, breakout.speed))
 				}
-				errs = append(errs, verifyInterfaceOperStatus(t, dut, hw.checkIntf, hw.operStatus))
+				errs = append(errs, verifyInterfaceOperStatus(t, dut, breakoutOperIntf, noTransceiverOperStatus))
 				return errors.Join(errs...)
 			},
 		},
@@ -2049,37 +1921,33 @@ func TestUnionReplace(t *testing.T) {
 			fn: func(t *testing.T) error {
 				dut := ondatra.DUT(t, "dut")
 				var errs []error
-
 				t.Log("Generate CLI configuration with port-speed and breakout-mode")
-				var cli string
-				switch dut.Vendor() {
-				case ondatra.ARISTA, ondatra.JUNIPER:
-					cli = cliInterfaceConfig(t, dut, cliInterfaceConfigOpts{Name: hw.intf, Speed: hw.bp.cliSpeed}) + "\n" + cliBreakoutMode(t, dut, hw)
-				case ondatra.CISCO:
-					// IOS-XR configures breakout under "controller Optics"; the child
-					// port-speed is implied by the breakout and not configurable per interface.
-					cli = cliBreakoutMode(t, dut, hw)
-				case ondatra.NOKIA:
-					// Breakout creates new child interfaces, so configure the breakout
-					// first and then set the port-speed on the child interface.
-					cli = cliBreakoutMode(t, dut, hw) + "\n" +
-						cliInterfaceConfig(t, dut, cliInterfaceConfigOpts{Name: hw.checkIntf, Speed: hw.bp.cliSpeed})
-				default:
-					return fmt.Errorf("unsupported vendor %v for MissingHardwareCLI", dut.Vendor())
+				cli := cliBreakoutMode(t, dut, interfaceWithoutTransceiver, breakout)
+				if dut.Vendor() == ondatra.NOKIA {
+					opts := cliInterfaceConfigOpts{Name: breakoutOperIntf}
+					if !deviations.PortSpeedDuplexModeUnsupportedForInterfaceConfig(dut) {
+						opts.Speed = speedValueG(breakout.speed) + "g"
+					}
+					cli += "\n" + cliInterfaceConfig(t, dut, opts)
 				}
 
 				t.Log("Push via union_replace with CLI and verify accepted")
 				sb := &gnmi.SetBatch{}
-				gnmi.BatchUnionReplaceCLI(sb, cliOrigin, withoutPortSpeed(t, dut, sharedBaseline, hw.intf)+"\n"+cli)
+				gnmi.BatchUnionReplaceCLI(sb, cliOrigin, withoutPortSpeed(t, dut, sharedBaseline, interfaceWithoutTransceiver)+"\n"+cli)
 				requireOCWithCLI(t, dut, sb)
 				sb.Set(t, dut)
 
 				t.Log("Verify configuration applied")
-				errs = append(errs, verifyBreakoutModeConfig(t, dut, hw))
-				if !deviations.PortSpeedUnsupported(dut) {
-					errs = append(errs, verifyPortSpeed(t, dut, hw.checkIntf, hw.bp.ocSpeed))
+				errs = append(errs, verifyBreakoutModeConfig(t, dut, noTransceiverHWPort, interfaceWithoutTransceiver, breakout))
+				if !deviations.PortSpeedUnsupported(dut) && !deviations.PortSpeedDuplexModeUnsupportedForInterfaceConfig(dut) {
+					checkIntf := interfaceWithoutTransceiver
+					if deviations.ExplicitBreakoutInterfaceConfig(dut) {
+						checkIntf = breakoutOperIntf
+					}
+					errs = append(errs, verifyPortSpeed(t, dut, checkIntf, breakout.speed))
 				}
-				errs = append(errs, verifyInterfaceOperStatus(t, dut, hw.checkIntf, hw.operStatus))
+
+				errs = append(errs, verifyInterfaceOperStatus(t, dut, breakoutOperIntf, noTransceiverOperStatus))
 				return errors.Join(errs...)
 			},
 		},
