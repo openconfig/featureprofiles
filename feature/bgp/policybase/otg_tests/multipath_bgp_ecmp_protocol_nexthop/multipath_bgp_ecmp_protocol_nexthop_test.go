@@ -466,9 +466,9 @@ func enableMultipath(t *testing.T, dut *ondatra.DUTDevice, maxpaths uint32, ipv4
 	} else {
 		cliConfig = fmt.Sprintf("router bgp %v\nmaximum-paths %v\n", dutAS, maxpaths)
 		t.Logf("CLI config: \n%v", cliConfig)
-		t.Logf("Now applying CLI config on DUT, sleep for 30 seconds")
+		t.Logf("Now applying CLI config on DUT, sleep for 60 seconds")
 		helpers.GnmiCLIConfig(t, dut, cliConfig)
-		time.Sleep(30 * time.Second)
+		time.Sleep(60 * time.Second)
 	}
 }
 
