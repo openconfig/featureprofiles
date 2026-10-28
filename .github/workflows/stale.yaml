@@ -1,0 +1,30 @@
+name: 'Close stale PRs'
+on:
+  schedule:
+    - cron: '42 2 * * *' # Runs daily at 02:42 UTC
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/stale@4391f3da665fdf50b6810c1a66712fb9ba21aa93  # tag v11 as of 2026-09-13
+        with:
+          # --- Disable Issue Processing ---
+          days-before-issue-stale: -1
+          days-before-issue-close: -1
+
+          # --- PR Configuration ---
+          days-before-pr-stale: 90
+          days-before-pr-close: 14
+          stale-pr-message: 'This pull request is stale because it has been open 90 days with no activity. If you wish to keep this PR active, please remove the stale label or add a comment, otherwise it will be closed in 14 days.'
+          close-pr-message: 'This pull request has been automatically closed due to 14 days of inactivity after being marked as stale. Please feel free to reopen it if you have further updates.'
+          stale-pr-label: 'Stale'
+          exempt-pr-labels: 'work-in-progress,do-not-merge'
+          
+          # --- Debugging & Performance ---
+          operations-per-run: 50
+          # debug-only: true  # Uncomment to run the bot in debug mode without modifying or commenting on PRs.
+          enable-statistics: true
