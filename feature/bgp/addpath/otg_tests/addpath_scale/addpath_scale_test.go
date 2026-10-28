@@ -731,7 +731,9 @@ func (a *attributes) configureBGPOnATE(t *testing.T, top gosnappi.Config, pi int
 			bgp4Peer.SetAsNumber(asn)
 			bgp4Peer.SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
 			bgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
-			bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true)
+			if a.Name == "port4" {
+				bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true)
+			}
 		}
 		if a.ip6 != nil {
 			bgp := device.Bgp().SetRouterId(a.IPv4)
@@ -741,22 +743,25 @@ func (a *attributes) configureBGPOnATE(t *testing.T, top gosnappi.Config, pi int
 			bgp6Peer.SetAsNumber(asn)
 			bgp6Peer.SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
 			bgp6Peer.Capability().SetIpv6UnicastAddPath(true)
-			bgp6Peer.LearnedInformationFilter().SetUnicastIpv6Prefix(true)
+			if a.Name == "port4" {
+				bgp6Peer.LearnedInformationFilter().SetUnicastIpv6Prefix(true)
+			}
 		}
 	}
 }
 
 func advertiseRoutesWithEBGP(t *testing.T, top gosnappi.Config) {
 	devices := top.Devices().Items()
-	prefixesV4 := createPrefixesV4(t)
 	for _, device := range devices {
 		if strings.Contains(device.Name(), "port2") {
 			bgp4Peer := device.Bgp().Ipv4Interfaces().Items()[0].Peers().Items()[0]
 			netv4 := bgp4Peer.V4Routes().Add().SetName(fmt.Sprintf("v4-bgpNet-%s", device.Name()))
-			for _, prefix := range prefixesV4 {
-				netv4.Addresses().Add().SetAddress(prefix.Addr().String()).SetPrefix(uint32(prefix.Bits()))
-				netv4.AddPath().SetPathId(uint32(1))
+			netv4.Addresses().Add().SetAddress("172.20.0.0").SetPrefix(22).SetCount(768)
+			for i := 32; i < 41; i++ {
+				netv4.Addresses().Add().SetAddress(fmt.Sprintf("172.%d.0.0", i)).SetPrefix(24).SetCount(250)
 			}
+			netv4.Addresses().Add().SetAddress("172.41.0.0").SetPrefix(30).SetCount(11776)
+			netv4.AddPath().SetPathId(uint32(1))
 		}
 	}
 
@@ -778,38 +783,33 @@ func advertiseRoutesWithEBGPWithCommunities(t *testing.T, top gosnappi.Config) {
 
 	devices := top.Devices().Items()
 
-	prefixesV4 := createPrefixesV4(t)
-	pfxLenMapV4 := make(map[int][]netip.Prefix)
-	for _, prefix := range prefixesV4 {
-		pfxLenMapV4[int(prefix.Bits())] = append(pfxLenMapV4[int(prefix.Bits())], prefix)
+	addCommunity := func(route gosnappi.BgpV4RouteRange, asNumber, asCustom uint32) {
+		community := route.Communities().Add().SetType(gosnappi.BgpCommunityType.MANUAL_AS_NUMBER)
+		community.SetAsNumber(asNumber).SetAsCustom(asCustom)
 	}
 	for _, device := range devices {
 		if strings.Contains(device.Name(), "port2") {
 			bgp4Peer := device.Bgp().Ipv4Interfaces().Items()[0].Peers().Items()[0]
-			for pfxLen, pfxs := range pfxLenMapV4 {
-				netv4 := bgp4Peer.V4Routes().Add().SetName(fmt.Sprintf("v4-bgpNet-%s-%d", device.Name(), pfxLen))
-				for _, prefix := range pfxs {
-					netv4.Addresses().Add().SetAddress(prefix.Addr().String()).SetPrefix(uint32(prefix.Bits()))
-					netv4.AddPath().SetPathId(uint32(1))
-				}
-				switch pfxLen {
-				case 22:
-					commv41 := netv4.Communities().Add().SetType(gosnappi.BgpCommunityType.MANUAL_AS_NUMBER)
-					commv41.SetAsNumber(uint32(100)).SetAsCustom(uint32(1))
-					commv42 := netv4.Communities().Add().SetType(gosnappi.BgpCommunityType.MANUAL_AS_NUMBER)
-					commv42.SetAsNumber(uint32(200)).SetAsCustom(uint32(1))
-				case 24:
-					commv41 := netv4.Communities().Add().SetType(gosnappi.BgpCommunityType.MANUAL_AS_NUMBER)
-					commv41.SetAsNumber(uint32(101)).SetAsCustom(uint32(1))
-					commv42 := netv4.Communities().Add().SetType(gosnappi.BgpCommunityType.MANUAL_AS_NUMBER)
-					commv42.SetAsNumber(uint32(201)).SetAsCustom(uint32(1))
-				case 30:
-					commv41 := netv4.Communities().Add().SetType(gosnappi.BgpCommunityType.MANUAL_AS_NUMBER)
-					commv41.SetAsNumber(uint32(104)).SetAsCustom(uint32(1))
-					commv42 := netv4.Communities().Add().SetType(gosnappi.BgpCommunityType.MANUAL_AS_NUMBER)
-					commv42.SetAsNumber(uint32(109)).SetAsCustom(uint32(3))
-				}
+
+			netv4pfx22 := bgp4Peer.V4Routes().Add().SetName(fmt.Sprintf("v4-bgpNet-%s-22", device.Name()))
+			netv4pfx22.Addresses().Add().SetAddress("172.20.0.0").SetPrefix(22).SetCount(768)
+			netv4pfx22.AddPath().SetPathId(1)
+			addCommunity(netv4pfx22, 100, 1)
+			addCommunity(netv4pfx22, 200, 1)
+
+			netv4pfx24 := bgp4Peer.V4Routes().Add().SetName(fmt.Sprintf("v4-bgpNet-%s-24", device.Name()))
+			for i := 32; i < 41; i++ {
+				netv4pfx24.Addresses().Add().SetAddress(fmt.Sprintf("172.%d.0.0", i)).SetPrefix(24).SetCount(250)
 			}
+			netv4pfx24.AddPath().SetPathId(1)
+			addCommunity(netv4pfx24, 101, 1)
+			addCommunity(netv4pfx24, 201, 1)
+
+			netv4pfx30 := bgp4Peer.V4Routes().Add().SetName(fmt.Sprintf("v4-bgpNet-%s-30", device.Name()))
+			netv4pfx30.Addresses().Add().SetAddress("172.41.0.0").SetPrefix(30).SetCount(11776)
+			netv4pfx30.AddPath().SetPathId(1)
+			addCommunity(netv4pfx30, 104, 1)
+			addCommunity(netv4pfx30, 109, 3)
 		}
 	}
 
