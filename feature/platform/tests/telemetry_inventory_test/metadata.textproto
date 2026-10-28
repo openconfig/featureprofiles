@@ -21,6 +21,7 @@ platform_exceptions: {
   deviations: {
     install_position_and_install_component_unsupported: true
     model_name_unsupported: true
+    power_supply_telemetry_unsupported: true
   }
 }
 platform_exceptions: {
