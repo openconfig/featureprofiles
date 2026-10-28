@@ -126,6 +126,8 @@ func KillProcess(t *testing.T, dut *ondatra.DUTDevice, daemon Daemon, signal spb
 		}
 	}
 
+	time.Sleep(120 * time.Second)
+
 	if waitForRestart {
 		_, ok := gnmi.WatchAll(
 			t,
@@ -134,7 +136,7 @@ func KillProcess(t *testing.T, dut *ondatra.DUTDevice, daemon Daemon, signal spb
 				ygnmi.WithSampleInterval(10*time.Second),
 			),
 			gnmi.OC().System().ProcessAny().State(),
-			3*time.Minute,
+			time.Minute,
 			func(p *ygnmi.Value[*oc.System_Process]) bool {
 				val, ok := p.Val()
 				if !ok {
