@@ -1889,6 +1889,8 @@ type EBGPInstanceParams struct {
 	RouterID            string
 	LocalAS             uint32
 	PolicyName          string
+	HoldTime            uint16
+	KeepaliveInterval   uint16
 	Peers               []EBGPPeerParam
 }
 
@@ -1947,8 +1949,10 @@ func ConfigureEBGPInstance(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBat
 			pg := bgp.GetOrCreatePeerGroup(p.PeerGroupName)
 			pg.SetPeerGroupName(p.PeerGroupName)
 			pg.SetPeerAs(p.PeerAS)
-			pg.GetOrCreateTimers().SetHoldTime(600)
-			pg.GetOrCreateTimers().SetKeepaliveInterval(200)
+			if params.HoldTime > 0 && params.KeepaliveInterval > 0 {
+				pg.GetOrCreateTimers().SetHoldTime(params.HoldTime)
+				pg.GetOrCreateTimers().SetKeepaliveInterval(params.KeepaliveInterval)
+			}
 			if deviations.RoutePolicyUnderAFIUnsupported(dut) {
 				rpl := pg.GetOrCreateApplyPolicy()
 				rpl.SetImportPolicy([]string{policyName})
@@ -1972,8 +1976,10 @@ func ConfigureEBGPInstance(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBat
 		nbr.SetNeighborAddress(p.NeighborAddress)
 		nbr.SetEnabled(true)
 		nbr.SetPeerAs(p.PeerAS)
-		nbr.GetOrCreateTimers().SetHoldTime(600)
-		nbr.GetOrCreateTimers().SetKeepaliveInterval(200)
+		if params.HoldTime > 0 && params.KeepaliveInterval > 0 {
+			nbr.GetOrCreateTimers().SetHoldTime(params.HoldTime)
+			nbr.GetOrCreateTimers().SetKeepaliveInterval(params.KeepaliveInterval)
+		}
 		if p.PeerGroupName != "" && !skipPeerGroup {
 			nbr.SetPeerGroup(p.PeerGroupName)
 		} else if deviations.RoutePolicyUnderAFIUnsupported(dut) {
@@ -2071,7 +2077,7 @@ func AwaitBGPPrefixes(t *testing.T, dut *ondatra.DUTDevice, networkInstanceName,
 			nbrAddr, afiSafi, niName, wantReceived, timeout, gnmi.Lookup(t, dut, pfxPath.Received().State()))
 	}
 
-	if (deviations.BGPRibOcPathUnsupported(dut) || deviations.BgpAfiSafiInDefaultNiBeforeOtherNi(dut)) && niName != deviations.DefaultNetworkInstance(dut) {
+	if deviations.BGPRibOcPathUnsupported(dut) && niName != deviations.DefaultNetworkInstance(dut) {
 		return
 	}
 

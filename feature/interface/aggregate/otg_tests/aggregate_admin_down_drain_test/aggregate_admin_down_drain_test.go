@@ -350,6 +350,8 @@ func setupEnvironment(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 		RouterID:            dutRouterID,
 		LocalAS:             dutAS,
 		PolicyName:          "ACCEPT-ALL",
+		HoldTime:            600,
+		KeepaliveInterval:   200,
 		Peers: []cfgplugins.EBGPPeerParam{
 			{
 				NeighborAddress: ateLagAttrs.IPv4,
@@ -507,6 +509,7 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice, memberPortIDs []string, 
 			ATEAS:           ateLagAS,
 		},
 	)
+	setOTGBGPTimers(lagDev)
 
 	// Device on ATE Port-4 in DEFAULT VRF (IPv4 192.0.2.6/30, IPv6 2001:db8::6/126).
 	p4Dev := config.Devices().Add().SetName(atePort4Attrs.Name + ".dev")
@@ -550,6 +553,7 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice, memberPortIDs []string, 
 			ATEAS:           atePort4AS,
 		},
 	)
+	setOTGBGPTimers(p4Dev)
 
 	// Configure continuous bidirectional IPv4 and IPv6 traffic flows as defined in RT-5.18.1 Step 2:
 	// - Forward IPv4 Flows (Port-4 -> Port-Channel1): Source IP 198.51.100.1 to IS-IS destination IP 198.18.0.1
@@ -802,13 +806,16 @@ func restartTrafficAfterLAGChange(t *testing.T, env *testEnv, activeMembers []*o
 		MemberPortIDs: activeATEPortIDs,
 		Timeout:       stateTimeout,
 	})
-	env.ate.OTG().StopTraffic(t)
-	if len(activeMembers) == len(env.memberPorts) {
-		otgutils.WaitForARP(t, env.ate.OTG(), env.otgConfig, "IPv4")
-	}
-	env.ate.OTG().StartTraffic(t)
-	if otgvalidationhelpers.AreFlowsTransmitting(t, env.ate, env.allFlows, 200, 8*time.Second) {
-		return
+	for attempt := 1; attempt <= 3; attempt++ {
+		env.ate.OTG().StopTraffic(t)
+		if len(activeMembers) == len(env.memberPorts) {
+			otgutils.WaitForARP(t, env.ate.OTG(), env.otgConfig, "IPv4")
+		}
+		env.ate.OTG().StartTraffic(t)
+		if otgvalidationhelpers.AreFlowsTransmitting(t, env.ate, env.allFlows, 200, 8*time.Second) {
+			return
+		}
+		t.Logf("restartTrafficAfterLAGChange: flows not yet incrementing OutPkts/InPkts on attempt %d; retrying", attempt)
 	}
 	t.Log("restartTrafficAfterLAGChange: re-pushing OTG config to re-bind LAG traffic items after member state transition")
 	updateDefaultFlowMACs(env)
@@ -1259,6 +1266,8 @@ func configureB2CoreBGP(t *testing.T, env *testEnv, batch *gnmi.SetBatch) {
 		RouterID:            dutLagVlan100IPv4,
 		LocalAS:             dutAS,
 		PolicyName:          "ACCEPT-ALL",
+		HoldTime:            600,
+		KeepaliveInterval:   200,
 		Peers: []cfgplugins.EBGPPeerParam{
 			{
 				NeighborAddress: ateLagVlan100IPv4,
@@ -1346,6 +1355,7 @@ func configureB2CoreOTG(t *testing.T, env *testEnv, dutLagMAC, dutPort4MAC strin
 			ATEAS:           ateLagAS,
 		},
 	)
+	setOTGBGPTimers(lagVlanDev)
 
 	// ATE Port-4 VLAN 100 device (192.0.2.14/30, 2001:db8::e/126, AS 64502).
 	p4VlanDev := env.otgConfig.Devices().Add().SetName("atePort4Vlan100.dev")
@@ -1378,6 +1388,7 @@ func configureB2CoreOTG(t *testing.T, env *testEnv, dutLagMAC, dutPort4MAC strin
 			ATEAS:           atePort4AS,
 		},
 	)
+	setOTGBGPTimers(p4VlanDev)
 
 	// Replace OTG flows with the 4 B2_CORE VLAN 100 bidirectional flows for RT-5.18.5 Step 7 and RT-5.18.6:
 	// - Forward IPv4 (Port-4.100 -> Port-Channel1.100): Src 198.51.100.1 -> Dst 203.0.113.1 (VLAN 100)
@@ -1537,5 +1548,18 @@ func testDifferentialMemberDrainForwardingViable(t *testing.T, env *testEnv) {
 	}
 	for _, p := range env.memberPorts {
 		cfgplugins.AwaitInterfaceCountersIncrement(t, env.dut, p.Name(), 10, trafficTimeout)
+	}
+}
+
+func setOTGBGPTimers(dev gosnappi.Device) {
+	for _, ipv4Intf := range dev.Bgp().Ipv4Interfaces().Items() {
+		for _, peer := range ipv4Intf.Peers().Items() {
+			peer.Advanced().SetHoldTimeInterval(600).SetKeepAliveInterval(200)
+		}
+	}
+	for _, ipv6Intf := range dev.Bgp().Ipv6Interfaces().Items() {
+		for _, peer := range ipv6Intf.Peers().Items() {
+			peer.Advanced().SetHoldTimeInterval(600).SetKeepAliveInterval(200)
+		}
 	}
 }
