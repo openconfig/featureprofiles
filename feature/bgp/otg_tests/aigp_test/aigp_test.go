@@ -1,7 +1,6 @@
 package aigp_test
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"strings"
@@ -16,12 +15,12 @@ import (
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	otgconfighelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ondatra/otg"
+	"github.com/openconfig/ygnmi/schemaless"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -783,6 +782,10 @@ func configureBGP(t *testing.T, dut *ondatra.DUTDevice, bgpCfg map[string]*niBGP
 		bgpPath := gnmi.OC().NetworkInstance(resolvedNI).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 		gnmi.Update(t, dut, bgpPath.Config(), proto)
 	}
+
+	if deviations.BgpRibStreamingConfigRequired(dut) {
+		cfgplugins.DeviationBgpRibStreamingConfigRequired(t, dut)
+	}
 }
 
 func configureBGPNeighbor(t *testing.T, dut *ondatra.DUTDevice, ni string, defaultAsn uint32, bgp *oc.NetworkInstance_Protocol_Bgp, nbr *bgpNbr) {
@@ -1085,41 +1088,25 @@ func verifyBestPath(t *testing.T, dut *ondatra.DUTDevice, ni, nbrAddr, prefix st
 			} else {
 				ipUnicast = "IPV6_UNICAST"
 			}
-			gpbGetRequest := &gpb.GetRequest{
-				Path: []*gpb.Path{
-					{
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": deviations.DefaultNetworkInstance(dut)}},
-							{Name: "protocols"},
-							{Name: "protocol", Key: map[string]string{"identifier": "BGP", "name": "BGP"}},
-							{Name: "bgp"},
-							{Name: "neighbors"},
-							{Name: "neighbor", Key: map[string]string{"neighbor-address": nbrAddr}},
-							{Name: "afi-safis"},
-							{Name: "afi-safi", Key: map[string]string{"afi-safi-name": ipUnicast}},
-							{Name: "state"},
-							{Name: "prefixes"},
-							{Name: "best-paths"},
-						},
-					},
-				},
-				Type:     gpb.GetRequest_STATE,
-				Encoding: gpb.Encoding_JSON_IETF,
+			// Use a schemaless query to access the EOS fallback for this deviation
+			path := fmt.Sprintf("/network-instances/network-instance[name=%s]/protocols/protocol[identifier=BGP][name=BGP]/bgp/neighbors/neighbor[neighbor-address=%s]/afi-safis/afi-safi[afi-safi-name=%s]/state/prefixes/best-paths", ni, nbrAddr, ipUnicast)
+			query, err := schemaless.NewConfig[uint64](path, "openconfig")
+			if err != nil {
+				t.Fatalf("Cannot construct best-paths query: %v", err)
 			}
-
-			gnmiClient := dut.RawAPIs().GNMI(t)
-			if getResponse, err := gnmiClient.Get(context.Background(), gpbGetRequest); err != nil {
-				t.Fatalf("Unexpected error getting counters: %v", err)
-			} else {
-				update := getResponse.GetNotification()[0].GetUpdate()[0]
-				val := update.GetVal()
-				bestPaths := val.Value.(*gpb.TypedValue_UintVal).UintVal
-				if bestPaths != wantBest {
-					t.Errorf("best-paths for prefix %s from %s in NI %s: want %v, got %d", prefix, nbrAddr, ni, wantBest, bestPaths)
-				} else {
-					t.Logf("best-paths got: %d expected: %d", bestPaths, wantBest)
+			var lastBestPaths uint64
+			_, ok := gnmi.Watch(t, dut, query, time.Minute, func(val *ygnmi.Value[uint64]) bool {
+				bestPaths, present := val.Val()
+				if !present {
+					return false
 				}
+				lastBestPaths = bestPaths
+				return bestPaths == wantBest
+			}).Await(t)
+			if !ok {
+				t.Errorf("Timed out waiting for best-paths for prefix %s from %s in NI %s: want %d, last got %d", prefix, nbrAddr, ni, wantBest, lastBestPaths)
+			} else {
+				t.Logf("best-paths got: %d expected: %d", lastBestPaths, wantBest)
 			}
 		default:
 			t.Errorf("deviation is not supported for vendor %s", dut.Vendor())
@@ -1161,11 +1148,19 @@ func validateTrafficFlows(t *testing.T, otg *otg.OTG, otgConfig gosnappi.Config,
 
 func verifyBGPUpdatesSentNonZero(t *testing.T, dut *ondatra.DUTDevice, ni, nbrAddr string) {
 	t.Helper()
-	sent := gnmi.Get(t, dut,
-		gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(nbrAddr).Messages().Sent().State(),
-	)
-	if sent.GetUPDATE() == 0 {
-		t.Errorf("bgp neighbor %s in NI %s has sent zero UPDATE messages", nbrAddr, ni)
+	var lastUpdates uint64
+	_, ok := gnmi.Watch(t, dut,
+		gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(nbrAddr).Messages().Sent().UPDATE().State(),
+		time.Minute, func(val *ygnmi.Value[uint64]) bool {
+			updates, present := val.Val()
+			if !present {
+				return false
+			}
+			lastUpdates = updates
+			return updates > 0
+		}).Await(t)
+	if !ok {
+		t.Errorf("Timed out waiting for bgp neighbor %s in NI %s to send UPDATE messages: last got %d", nbrAddr, ni, lastUpdates)
 	}
 }
 
