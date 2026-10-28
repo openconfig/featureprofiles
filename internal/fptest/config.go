@@ -57,6 +57,11 @@ func GetDeviceConfig(t testing.TB, dev gnmi.DeviceOrOpts) *oc.Root {
 				for _, sub := range intf.Subinterface {
 					if sub.Ipv4 != nil {
 						sub.Ipv4.Neighbor = nil
+						if sub.Ipv4.GetDhcpClient() {
+							// DHCP owns the learned address. Do not replay it as
+							// an explicitly configured address during replacement.
+							sub.Ipv4.Address = nil
+						}
 					}
 					if sub.Ipv6 != nil {
 						sub.Ipv6.Neighbor = nil
