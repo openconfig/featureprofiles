@@ -13,57 +13,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ygnmi/ygnmi"
-)
-
-const (
-	ipv4PrefixLen   = 30
-	ipv6PrefixLen   = 126
-	lspNextHopIndex = 0
-	tolerance       = 0.01 // 1% Traffic Tolerance
-
-	// MPLSoGUE tunnel (outer) parameters.
-	gueUDPPort    = 6635         // Well-known UDP port for MPLSoGUE.
-	guePolicyName = "customer10" // Policy forwarding name for MPLSoGUE decap.
-	outerSrcIP    = "100.64.0.1" // Outer IPv4 source of the encapsulated traffic (from 100.64.0.0/22).
-	outerDstIP    = "11.1.1.1"   // Outer IPv4 destination, within the DUT decap prefix (11.0.0.0/8).
-	outerUDPSrc   = 49152
-
-	// Base Static LSP labels bound to default untagged egress next-hop.
-	mplsLabelIPv4 = 99991
-	mplsLabelIPv6 = 99992
-
-	// PF-1.25.v6 push (ingress) LSP parameters: match an IPv6 FEC subnet and push a
-	// single label towards the ATE IPv6 next-hop on the egress port.
-	v6LSPName       = "v6-static-lsp"
-	mplsPushLabelV6 = 100100
-	pushFECDstIP    = "2001:db8:cafe::1"
-	pushFECDstCIDR  = "2001:db8:cafe::/64"
-
-	// Inner payload addressing.
-	innerIPv4Src = "198.51.100.1"
-	innerIPv4Dst = "203.0.113.1"
-	innerIPv6Src = "2001:db8:2::1"
-	innerIPv6Dst = "2001:db8:2::2"
-
-	// Inner payload DSCP/TTL used to validate preservation across decap.
-	innerTTL = 64
-
-	trafficPPS     = 1000
-	trafficPackets = 10000
-)
-
-var (
-	// IMIX frame size profile (64, 128, 256, 512, 1024, 1500, 9000 MTU bytes).
-	sizeWeightProfile = []otgconfighelpers.SizeWeightPair{
-		{Size: 64, Weight: 20},
-		{Size: 128, Weight: 20},
-		{Size: 256, Weight: 20},
-		{Size: 512, Weight: 10},
-		{Size: 1024, Weight: 10},
-		{Size: 1500, Weight: 18},
-		{Size: 9000, Weight: 2},
-	}
 )
 
 func TestMain(m *testing.M) {
@@ -110,114 +59,6 @@ func verifyLagLoadBalancing(t *testing.T, ate *ondatra.ATEDevice) {
 	}
 }
 
-// innerIPv4Flow returns inner IPv4 payload with random/varying source/dest IPs, DSCP range 0-56,
-// and TCP/UDP source and destination port variation.
-func innerIPv4Flow() *otgconfighelpers.Flow {
-	return &otgconfighelpers.Flow{
-		IPv4Flow: &otgconfighelpers.IPv4FlowParams{
-			IPv4Src:      innerIPv4Src,
-			IPv4SrcCount: 1000,
-			IPv4Dst:      innerIPv4Dst,
-			IPv4DstCount: 1000,
-			TTL:          innerTTL,
-			DSCP:         0,
-			DSCPCount:    57,
-		},
-		TCPFlow: &otgconfighelpers.TCPFlowParams{
-			TCPSrcPort:  49152,
-			TCPSrcCount: 1000,
-			TCPDstPort:  80,
-			TCPDstCount: 1000,
-		},
-	}
-}
-
-// innerIPv6Flow returns inner IPv6 payload with random/varying source/dest IPs, DSCP/TC range,
-// and TCP/UDP source and destination port variation.
-func innerIPv6Flow() *otgconfighelpers.Flow {
-	return &otgconfighelpers.Flow{
-		IPv6Flow: &otgconfighelpers.IPv6FlowParams{
-			IPv6Src:           innerIPv6Src,
-			IPv6SrcCount:      1000,
-			IPv6Dst:           innerIPv6Dst,
-			IPv6DstCount:      1000,
-			HopLimit:          innerTTL,
-			TrafficClass:      0,
-			TrafficClassCount: 255,
-		},
-		TCPFlow: &otgconfighelpers.TCPFlowParams{
-			TCPSrcPort:  49152,
-			TCPSrcCount: 1000,
-			TCPDstPort:  80,
-			TCPDstCount: 1000,
-		},
-	}
-}
-
-// allIPv4TOSValuesForDSCPRange returns the IPv4 ToS byte values that correspond to
-// the DSCP range [start, end]
-func allIPv4TOSValuesForDSCPRange(start, end uint32) []uint8 {
-	vals := make([]uint8, 0, end-start+1)
-	for dscp := start; dscp <= end; dscp++ {
-		vals = append(vals, uint8(dscp<<2))
-	}
-	return vals
-}
-
-// innerIPv4PreserveSweepFlow sends one flow that cycles through DSCP values 0..56.
-// This validates the full range without 57 independent OTG runs/captures.
-func innerIPv4PreserveSweepFlow() *otgconfighelpers.Flow {
-	return &otgconfighelpers.Flow{
-		IPv4Flow: &otgconfighelpers.IPv4FlowParams{
-			IPv4Src:   innerIPv4Src,
-			IPv4Dst:   innerIPv4Dst,
-			TTL:       innerTTL,
-			DSCP:      0,
-			DSCPCount: 57,
-		},
-		TCPFlow: &otgconfighelpers.TCPFlowParams{
-			TCPSrcPort:  49152,
-			TCPSrcCount: 1000,
-			TCPDstPort:  80,
-			TCPDstCount: 1000,
-		},
-	}
-}
-
-// createMPLSoGUEFlow builds an MPLSoGUE-encapsulated flow from an Ingress ATE port towards the DUT.
-func createMPLSoGUEFlow(top gosnappi.Config, name string, txName string, txMAC string, label uint32, inner *otgconfighelpers.Flow, rxName string) {
-	f := &otgconfighelpers.Flow{
-		FlowName:          name,
-		TxNames:           []string{txName},
-		RxNames:           []string{rxName},
-		SizeWeightProfile: &sizeWeightProfile,
-		PpsRate:           trafficPPS,
-		PacketsToSend:     trafficPackets,
-		EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: txMAC},
-		IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: outerSrcIP, IPv4SrcCount: 1000, IPv4Dst: outerDstIP},
-		UDPFlow:           &otgconfighelpers.UDPFlowParams{UDPSrcPort: outerUDPSrc, UDPSrcCount: 1000, UDPDstPort: gueUDPPort},
-		MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: label, MPLSExp: 7},
-	}
-	f.CreateFlow(top)
-	f.AddEthHeader()
-	f.AddIPv4Header()
-	f.AddUDPHeader()
-	f.AddMPLSHeader()
-	if inner.IPv4Flow != nil {
-		f.IPv4Flow = inner.IPv4Flow
-		f.AddIPv4Header()
-	}
-	if inner.IPv6Flow != nil {
-		f.IPv6Flow = inner.IPv6Flow
-		f.AddIPv6Header()
-	}
-	// The outer GUE encapsulation uses UDP, while the inner payload TCP
-	if inner.TCPFlow != nil {
-		f.TCPFlow = inner.TCPFlow
-		f.AddTCPHeader()
-	}
-}
-
 // pushAndResolve pushes the OTG config, starts protocols, and waits for neighbor resolution.
 func pushAndResolve(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
 	t.Helper()
@@ -226,20 +67,6 @@ func pushAndResolve(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
 	otgObj.StartProtocols(t)
 	otgutils.WaitForARP(t, otgObj, top, "IPv4")
 	otgutils.WaitForARP(t, otgObj, top, "IPv6")
-}
-
-// runFlows starts traffic, waits for all packets to be transmitted, and stops traffic.
-func runFlows(t *testing.T, ate *ondatra.ATEDevice, flowNames []string) {
-	t.Helper()
-	otgObj := ate.OTG()
-	otgObj.StartTraffic(t)
-	defer otgObj.StopTraffic(t)
-	for _, name := range flowNames {
-		gnmi.Watch(t, otgObj, gnmi.OTG().Flow(name).Counters().OutPkts().State(), time.Minute, func(v *ygnmi.Value[uint64]) bool {
-			pkts, ok := v.Val()
-			return ok && pkts >= uint64(trafficPackets)
-		}).Await(t)
-	}
 }
 
 // TestStaticLSP verifies MPLSoGUE decapsulation and static MPLS label to egress next-hop forwarding.
@@ -292,31 +119,55 @@ func TestStaticLSP(t *testing.T) {
 
 	t.Run("PF-1.25.3: Verify decap traffic is unaffected by IPv4/IPv6 VLAN config changes", func(t *testing.T) {
 		t.Run("VLAN config churn", func(t *testing.T) {
-			// Test VLAN config churn on Dual-stack VLAN 26:
-			// Churn IPv4 address on VLAN 26 while IPv6 decap traffic flows on VLAN 26.
-			top.Flows().Clear()
-			createMPLSoGUEFlow(top, "mplsogue-cust-v6-vlan26", ateIngress2.Name+".IPv4", ateIngress2.MAC, 99936, innerIPv6Flow(), "cust-vlan26.IPv6")
-			createMPLSoGUEFlow(top, "mplsogue-cust-v4-vlan26", ateIngress1.Name+".IPv4", ateIngress1.MAC, 99926, innerIPv4Flow(), "cust-vlan26.IPv4")
-			pushAndResolve(t, ate, top)
-
 			cs26 := custSubinterfaces[6] // VLAN 26
-			removeSubinterfaceAddress(t, dut, aggID, cs26.vlanID, cs26.dutIPv4, "IPv4")
-			addSubinterfaceAddress(t, dut, aggID, cs26.vlanID, cs26.dutIPv4, cs26.ipv4Len, "IPv4")
-			runFlows(t, ate, []string{"mplsogue-cust-v6-vlan26"})
-			otgutils.LogFlowMetrics(t, ate.OTG(), top)
-			v6Val26 := &otgvalidationhelpers.OTGValidation{Flow: &otgvalidationhelpers.FlowParams{Name: "mplsogue-cust-v6-vlan26", TolerancePct: tolerance * 100}}
-			if err := v6Val26.ValidateLossOnFlows(t, ate); err != nil {
-				t.Errorf("IPv6 decap flow during IPv4 VLAN config churn: %v", err)
-			}
-
-			// Churn IPv6 address on VLAN 26 while IPv4 decap traffic flows on VLAN 26.
-			removeSubinterfaceAddress(t, dut, aggID, cs26.vlanID, cs26.dutIPv6, "IPv6")
-			addSubinterfaceAddress(t, dut, aggID, cs26.vlanID, cs26.dutIPv6, cs26.ipv6Len, "IPv6")
-			runFlows(t, ate, []string{"mplsogue-cust-v4-vlan26"})
-			otgutils.LogFlowMetrics(t, ate.OTG(), top)
-			v4Val26 := &otgvalidationhelpers.OTGValidation{Flow: &otgvalidationhelpers.FlowParams{Name: "mplsogue-cust-v4-vlan26", TolerancePct: tolerance * 100}}
-			if err := v4Val26.ValidateLossOnFlows(t, ate); err != nil {
-				t.Errorf("IPv4 decap flow during IPv6 VLAN config churn: %v", err)
+			for _, tc := range []struct {
+				name, family, address, flow, txName, txMAC, rxName string
+				prefixLen                                          uint8
+				label                                              uint32
+				inner                                              *otgconfighelpers.Flow
+			}{
+				{
+					name: "IPv4 address with IPv6 traffic", family: "IPv4",
+					address: cs26.dutIPv4, prefixLen: cs26.ipv4Len,
+					flow: "mplsogue-cust-v6-vlan26", label: cs26.mplsV6Label,
+					txName: ateIngress2.Name + ".IPv4", txMAC: ateIngress2.MAC,
+					rxName: "cust-vlan26.IPv6", inner: innerIPv6Flow(),
+				},
+				{
+					name: "IPv6 address with IPv4 traffic", family: "IPv6",
+					address: cs26.dutIPv6, prefixLen: cs26.ipv6Len,
+					flow: "mplsogue-cust-v4-vlan26", label: cs26.mplsV4Label,
+					txName: ateIngress1.Name + ".IPv4", txMAC: ateIngress1.MAC,
+					rxName: "cust-vlan26.IPv4", inner: innerIPv4Flow(),
+				},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					top.Flows().Clear()
+					createMPLSoGUEFlow(top, tc.flow, tc.txName, tc.txMAC, tc.label, tc.inner, tc.rxName)
+					top.Flows().Items()[0].Duration().Continuous()
+					pushAndResolve(t, ate, top)
+					runFlowsDuringChange(t, ate, []string{tc.flow}, func() {
+						logCustomerForwardingState(t, dut, aggID, cs26, "before address deletion")
+						// Register restoration before deleting so a failed change does
+						// not leak the missing address into the following scenario.
+						restored := false
+						defer func() {
+							if !restored {
+								addSubinterfaceAddress(t, dut, aggID, cs26.vlanID, tc.address, tc.prefixLen, tc.family)
+							}
+						}()
+						removeSubinterfaceAddress(t, dut, aggID, cs26.vlanID, tc.address, tc.family)
+						logCustomerForwardingState(t, dut, aggID, cs26, "address deleted")
+						addSubinterfaceAddress(t, dut, aggID, cs26.vlanID, tc.address, tc.prefixLen, tc.family)
+						restored = true
+						logCustomerForwardingState(t, dut, aggID, cs26, "address restored")
+					})
+					otgutils.LogFlowMetrics(t, ate.OTG(), top)
+					val := &otgvalidationhelpers.OTGValidation{Flow: &otgvalidationhelpers.FlowParams{Name: tc.flow, TolerancePct: tolerance * 100}}
+					if err := val.ValidateLossOnFlows(t, ate); err != nil {
+						t.Errorf("Flow %s during %s address churn: %v", tc.flow, tc.family, err)
+					}
+				})
 			}
 		})
 
@@ -334,10 +185,22 @@ func TestStaticLSP(t *testing.T) {
 			// Remove and re-add IPv4 static LSP decap config; verify IPv6 traffic unaffected.
 			top.Flows().Clear()
 			createMPLSoGUEFlow(top, "mplsogue-cust-v6-vlan26", ateIngress2.Name+".IPv4", ateIngress2.MAC, 99936, innerIPv6Flow(), "cust-vlan26.IPv6")
+			top.Flows().Items()[0].Duration().Continuous()
 			pushAndResolve(t, ate, top)
-			deleteStaticLSP(t, dut, v4LSP)
-			setStaticLSP(t, dut, v4LSP)
-			runFlows(t, ate, []string{"mplsogue-cust-v6-vlan26"})
+			runFlowsDuringChange(t, ate, []string{"mplsogue-cust-v6-vlan26"}, func() {
+				logCustomerForwardingState(t, dut, aggID, custSubinterfaces[6], "before LSP deletion")
+				restored := false
+				defer func() {
+					if !restored {
+						setStaticLSP(t, dut, v4LSP)
+					}
+				}()
+				deleteStaticLSP(t, dut, v4LSP)
+				logCustomerForwardingState(t, dut, aggID, custSubinterfaces[6], "LSP deleted")
+				setStaticLSP(t, dut, v4LSP)
+				restored = true
+				logCustomerForwardingState(t, dut, aggID, custSubinterfaces[6], "LSP restored")
+			})
 			otgutils.LogFlowMetrics(t, ate.OTG(), top)
 			v6Val26 := &otgvalidationhelpers.OTGValidation{Flow: &otgvalidationhelpers.FlowParams{Name: "mplsogue-cust-v6-vlan26", TolerancePct: tolerance * 100}}
 			if err := v6Val26.ValidateLossOnFlows(t, ate); err != nil {
@@ -347,10 +210,22 @@ func TestStaticLSP(t *testing.T) {
 			// Remove and re-add IPv6 static LSP decap config; verify IPv4 traffic unaffected.
 			top.Flows().Clear()
 			createMPLSoGUEFlow(top, "mplsogue-cust-v4-vlan26", ateIngress1.Name+".IPv4", ateIngress1.MAC, 99926, innerIPv4Flow(), "cust-vlan26.IPv4")
+			top.Flows().Items()[0].Duration().Continuous()
 			pushAndResolve(t, ate, top)
-			deleteStaticLSP(t, dut, v6LSP)
-			setStaticLSP(t, dut, v6LSP)
-			runFlows(t, ate, []string{"mplsogue-cust-v4-vlan26"})
+			runFlowsDuringChange(t, ate, []string{"mplsogue-cust-v4-vlan26"}, func() {
+				logCustomerForwardingState(t, dut, aggID, custSubinterfaces[6], "before LSP deletion")
+				restored := false
+				defer func() {
+					if !restored {
+						setStaticLSP(t, dut, v6LSP)
+					}
+				}()
+				deleteStaticLSP(t, dut, v6LSP)
+				logCustomerForwardingState(t, dut, aggID, custSubinterfaces[6], "LSP deleted")
+				setStaticLSP(t, dut, v6LSP)
+				restored = true
+				logCustomerForwardingState(t, dut, aggID, custSubinterfaces[6], "LSP restored")
+			})
 			otgutils.LogFlowMetrics(t, ate.OTG(), top)
 			v4Val26 := &otgvalidationhelpers.OTGValidation{Flow: &otgvalidationhelpers.FlowParams{Name: "mplsogue-cust-v4-vlan26", TolerancePct: tolerance * 100}}
 			if err := v4Val26.ValidateLossOnFlows(t, ate); err != nil {

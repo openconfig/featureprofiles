@@ -599,3 +599,21 @@ func configureStaticLSPs(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Cleanup(func() { deleteStaticLSP(t, dut, l) })
 	}
 }
+
+// logCustomerForwardingState records both address-family adjacencies and the
+// static label bindings during live churn. It does not wait for recovery after
+// deleting configuration, so any forwarding interruption remains in the loss.
+func logCustomerForwardingState(t *testing.T, dut *ondatra.DUTDevice, aggID string, cs customerSubinterface, phase string) {
+	t.Helper()
+	sub := gnmi.OC().Interface(aggID).Subinterface(cs.vlanID)
+	v4, v4Present := gnmi.Lookup(t, dut, sub.Ipv4().Neighbor(cs.ateIPv4).State()).Val()
+	v6, v6Present := gnmi.Lookup(t, dut, sub.Ipv6().Neighbor(cs.ateIPv6).State()).Val()
+	t.Logf("%s: %s.%d IPv4 next-hop %s present=%t MAC=%q; IPv6 next-hop %s present=%t MAC=%q",
+		phase, aggID, cs.vlanID, cs.ateIPv4, v4Present, v4.GetLinkLayerAddress(), cs.ateIPv6, v6Present, v6.GetLinkLayerAddress())
+	if !deviations.StaticMplsLspOCUnsupported(dut) {
+		lsps := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Lsps()
+		t.Logf("%s: static LSP %s present=%t; %s present=%t", phase,
+			cs.mplsV4Name, gnmi.Lookup(t, dut, lsps.StaticLsp(cs.mplsV4Name).Config()).IsPresent(),
+			cs.mplsV6Name, gnmi.Lookup(t, dut, lsps.StaticLsp(cs.mplsV6Name).Config()).IsPresent())
+	}
+}

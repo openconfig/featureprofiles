@@ -48,6 +48,20 @@ For IPv6 label imposition on IOS XR, the test also installs an IPv6 route for
 `2001:db8:cafe::/64` and a per-prefix static LSP with local label `100101` and
 outgoing label `100100`; both are removed during cleanup.
 
+Traffic generation explicitly pads the 64- and 128-byte IMIX bins to a
+160-byte frame, retaining their combined 40% weight. This accommodates the
+encapsulated headers and OTG tracking without relying on controller-specific
+size adjustment. The 256- through 9000-byte bins and their weights are retained.
+
+Every traffic run requires fresh zero counters before starting only its selected
+flows. Fixed-packet cases transmit the full 10,000 packets. Address and static-LSP
+churn use continuous traffic: establish a forwarding baseline, perform the change
+while traffic is active, then transmit at least 1,000 more packets and at least
+10,000 packets overall. The existing 1% loss threshold applies to the whole run.
+Each address-family churn case pushes a fresh single-flow configuration. DUT
+neighbor and static-label state are logged before deletion, while deleted, and
+after restoration, without inserting a recovery wait into the churn window.
+
 ## PF-1.25.1: Generate config for MPLS in GRE decap and push to DUT
 
 #### Configuration
