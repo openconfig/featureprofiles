@@ -61,15 +61,13 @@ const (
 	plenIPv6 = 126
 )
 
-// Traffic profile from the README "Testing steps" and "Test pass fail
-// criteria": every flow runs for 30 seconds and may lose at most 1% of its
-// packets.
+// Traffic profile: every flow sends trafficPackets packets in trafficSeconds.
+// The README subtests require the traffic to pass without loss.
 const (
 	trafficSeconds = 30
 	trafficPPS     = 1000
 	trafficPackets = trafficSeconds * trafficPPS
 	frameSize      = 256
-	maxLossPct     = 1.0
 )
 
 // Upper bounds for the gNMI watches.
@@ -78,6 +76,14 @@ const (
 	sessionTimeout = 3 * time.Minute
 	routeTimeout   = 2 * time.Minute
 	trafficTimeout = trafficSeconds*time.Second + time.Minute
+)
+
+// The AS_PATH that an ATE router learns can be updated after the prefix
+// itself is learned, so it is read up to asPathReads times, asPathInterval
+// apart, until it has the wanted value.
+const (
+	asPathReads    = 5
+	asPathInterval = 2 * time.Second
 )
 
 // family is an address family exercised by the test.
@@ -127,10 +133,15 @@ func (r *ateRouter) peerName(f family) string {
 	return r.ateAttr.Name + ".BGP." + string(f)
 }
 
-// peerGroup returns the DUT peer-group of the address family. Each peer group
-// carries a single AFI-SAFI so that every session negotiates one family.
+// peerGroup returns the DUT peer-group of the address family, for example
+// BGP-PEER-GROUP-V4-R1. Each peer group carries a single AFI-SAFI so that
+// every session negotiates one family.
 func (r *ateRouter) peerGroup(f family) string {
-	return r.name + "-" + string(f)
+	v := "V4"
+	if f == ipv6 {
+		v = "V6"
+	}
+	return "BGP-PEER-GROUP-" + v + "-" + r.name
 }
 
 func (r *ateRouter) String() string {
@@ -247,199 +258,153 @@ func (a *advertisedRoute) routeOptions(f family) []otgconfighelpers.BGPRouteOpti
 	return append(opts, otgconfighelpers.WithBGPRouteASPath(asPath))
 }
 
+// The README route table names each route after the peer type of the port
+// that advertises it. The variables are named after the advertising ATE
+// router instead, because each DUT peer receives a route with a different
+// AS_PATH: for example, R1 receives the IBGP and CONFED routes as coming from
+// confederation 64500.
 var (
-	extRoute = &advertisedRoute{
+	r1Routes = &advertisedRoute{
 		name:      "EXT",
 		router:    r1,
 		v4Prefix:  "203.0.113.0/26",
 		v6Prefix:  "2001:db8:100::/48",
 		asSetMode: gosnappi.BgpAsPathAsSetMode.INCLUDE_AS_SEQ, // AS_SEQ [64510]
 	}
-	ibgpRoute = &advertisedRoute{
+	r2Routes = &advertisedRoute{
 		name:      "IBGP",
 		router:    r2,
 		v4Prefix:  "198.51.100.0/26",
 		v6Prefix:  "2001:db8:200::/48",
 		asSetMode: gosnappi.BgpAsPathAsSetMode.DO_NOT_INCLUDE_LOCAL_AS, // Empty AS_PATH.
 	}
-	confedRoute = &advertisedRoute{
+	r3Routes = &advertisedRoute{
 		name:      "CONFED",
 		router:    r3,
 		v4Prefix:  "198.51.100.64/26",
 		v6Prefix:  "2001:db8:300::/48",
 		asSetMode: gosnappi.BgpAsPathAsSetMode.INCLUDE_AS_CONFED_SEQ, // AS_CONFED_SEQUENCE [64502]
 	}
-	advertisedRoutes = []*advertisedRoute{extRoute, ibgpRoute, confedRoute}
+	advertisedRoutes = []*advertisedRoute{r1Routes, r2Routes, r3Routes}
 )
 
-// asPathCheck is one README verification of a received AS_PATH. A nil at
-// checks the DUT loc-rib; otherwise it checks the routes learned by that ATE
-// router.
-type asPathCheck struct {
-	route *advertisedRoute
-	at    *ateRouter
-	want  string // Expected AS_PATH in the README notation.
-}
-
-// flowPath is one README traffic direction, from an ATE router towards a route
-// advertised by another ATE router. It is run for IPv4 and IPv6.
-type flowPath struct {
+// trafficPaths are the README traffic directions, from an ATE router towards
+// the routes advertised by another ATE router. Each runs as an IPv4 and an
+// IPv6 flow in the subtest that verifies it.
+var trafficPaths = []struct {
 	src *ateRouter
 	dst *advertisedRoute
+}{
+	{src: r2, dst: r3Routes}, // RT-1.111.2
+	{src: r3, dst: r2Routes}, // RT-1.111.3
+	{src: r1, dst: r2Routes}, // RT-1.111.4
+	{src: r1, dst: r3Routes}, // RT-1.111.4
+	{src: r2, dst: r1Routes}, // RT-1.111.5
+	{src: r3, dst: r1Routes}, // RT-1.111.5
 }
 
-// trafficFlow is a flowPath in one address family.
-type trafficFlow struct {
-	flowPath
-	fam family
+// flowName returns the OTG flow name, for example IPv4_R1_to_R3.
+func flowName(f family, src *ateRouter, dst *advertisedRoute) string {
+	return fmt.Sprintf("%s_%s_to_%s", f, src.name, dst.router.name)
 }
 
-// name returns the OTG flow name.
-func (f trafficFlow) name() string {
-	return fmt.Sprintf("%s_%s_to_%s", f.fam, f.src.name, f.dst.name)
-}
-
-// propagationCase is one of the README subtests RT-1.111.2 to RT-1.111.5.
-type propagationCase struct {
-	name      string
-	advertise []*advertisedRoute
-	checks    []asPathCheck
-	traffic   []flowPath
-}
-
-// propagationCases lists RT-1.111.2 to RT-1.111.5 in README order. The
-// subtests share one environment and run sequentially: RT-1.111.4 has no
-// advertisement step and uses the routes advertised by RT-1.111.2 and
-// RT-1.111.3.
-var propagationCases = []propagationCase{
-	{
-		name:      "RT-1.111.2: Confederation peer to iBGP peer route propagation",
-		advertise: []*advertisedRoute{confedRoute},
-		checks: []asPathCheck{
-			{route: confedRoute, want: "AS_CONFED_SEQUENCE [64502]"},
-			{route: confedRoute, at: r2, want: "AS_CONFED_SEQUENCE [64502]"},
-		},
-		traffic: []flowPath{{src: r2, dst: confedRoute}},
-	},
-	{
-		name:      "RT-1.111.3: iBGP peer to confederation peer route propagation",
-		advertise: []*advertisedRoute{ibgpRoute},
-		checks: []asPathCheck{
-			{route: ibgpRoute, at: r3, want: "AS_CONFED_SEQUENCE [64501]"},
-		},
-		traffic: []flowPath{{src: r3, dst: ibgpRoute}},
-	},
-	{
-		name: "RT-1.111.4: Confederation routes to external eBGP peer",
-		checks: []asPathCheck{
-			{route: confedRoute, at: r1, want: "AS_SEQ [64500]"},
-			{route: ibgpRoute, at: r1, want: "AS_SEQ [64500]"},
-		},
-		traffic: []flowPath{{src: r1, dst: ibgpRoute}, {src: r1, dst: confedRoute}},
-	},
-	{
-		name:      "RT-1.111.5: External route to confederation and iBGP peers",
-		advertise: []*advertisedRoute{extRoute},
-		checks: []asPathCheck{
-			{route: extRoute, at: r3, want: "AS_CONFED_SEQUENCE [64501], AS_SEQ [64510]"},
-			{route: extRoute, at: r2, want: "AS_SEQ [64510]"},
-		},
-		traffic: []flowPath{{src: r2, dst: extRoute}, {src: r3, dst: extRoute}},
-	},
-}
-
-// flows returns the IPv4 and IPv6 traffic flows of the subtest.
-func (tc propagationCase) flows() []trafficFlow {
-	var flows []trafficFlow
-	for _, p := range tc.traffic {
-		for _, f := range families {
-			flows = append(flows, trafficFlow{flowPath: p, fam: f})
-		}
+// flowNames returns the IPv4 and IPv6 flow names from src to the routes dst.
+func flowNames(src *ateRouter, dst *advertisedRoute) []string {
+	var names []string
+	for _, f := range families {
+		names = append(names, flowName(f, src, dst))
 	}
-	return flows
-}
-
-// trafficDescription returns the README wording of the traffic direction, for
-// example "from port2 to port3".
-func (tc propagationCase) trafficDescription() string {
-	var srcs, dsts []string
-	for _, p := range tc.traffic {
-		if !slices.Contains(srcs, p.src.port) {
-			srcs = append(srcs, p.src.port)
-		}
-		if d := p.dst.router.port; !slices.Contains(dsts, d) {
-			dsts = append(dsts, d)
-		}
-	}
-	return fmt.Sprintf("from %s to %s", strings.Join(srcs, " and "), strings.Join(dsts, " and "))
-}
-
-// testEnv is the environment shared by all subtests.
-type testEnv struct {
-	dut *ondatra.DUTDevice
-	ate *ondatra.ATEDevice
-	top gosnappi.Config
+	return names
 }
 
 func TestBGPConfederation(t *testing.T) {
-	env := setupEnvironment(t)
+	dut := ondatra.DUT(t, "dut")
+	ate := ondatra.ATE(t, "ate")
+	otg := ate.OTG()
+	configureEnvironment(t, dut, ate)
 
 	allEstablished := false
 	t.Run("RT-1.111.1: Confederation configuration, state and session establishment", func(t *testing.T) {
-		allEstablished = verifyStateAndSessions(t, env.dut)
+		verifyConfederationState(t, dut)
+		allEstablished = verifySessions(t, dut)
 	})
 	if !allEstablished {
 		t.Fatal("Not all BGP sessions are ESTABLISHED; RT-1.111.2 to RT-1.111.5 cannot run")
 	}
 
-	for _, tc := range propagationCases {
-		t.Run(tc.name, func(t *testing.T) {
-			tc.run(t, env)
-		})
-	}
+	// The subtests run in README order and share one environment.
+	t.Run("RT-1.111.2: Confederation peer to iBGP peer route propagation", func(t *testing.T) {
+		advertiseRoutes(t, otg, r3Routes)
+		if deviations.BGPRibOcPathUnsupported(dut) {
+			// Without the OpenConfig BGP RIB telemetry, the ATE AS_PATH check
+			// and the traffic still verify that the DUT propagates the routes.
+			t.Log("Skip the DUT loc-rib check: the device does not support the OpenConfig BGP RIB telemetry paths")
+		} else {
+			verifyLocRibASPath(t, dut, r3Routes, "AS_CONFED_SEQUENCE [64502]")
+		}
+		verifyATEASPath(t, otg, r2, r3Routes, "AS_CONFED_SEQUENCE [64502]")
+		runTraffic(t, otg, flowNames(r2, r3Routes))
+	})
+
+	t.Run("RT-1.111.3: iBGP peer to confederation peer route propagation", func(t *testing.T) {
+		advertiseRoutes(t, otg, r2Routes)
+		verifyATEASPath(t, otg, r3, r2Routes, "AS_CONFED_SEQUENCE [64501]")
+		runTraffic(t, otg, flowNames(r3, r2Routes))
+	})
+
+	// RT-1.111.4 has no advertisement step: it uses the routes advertised in
+	// RT-1.111.2 and RT-1.111.3. R1 is outside the confederation, so it
+	// receives them as coming from confederation 64500, without the
+	// AS_CONFED_SEQUENCE.
+	t.Run("RT-1.111.4: Confederation routes to external eBGP peer", func(t *testing.T) {
+		verifyATEASPath(t, otg, r1, r3Routes, "AS_SEQ [64500]")
+		verifyATEASPath(t, otg, r1, r2Routes, "AS_SEQ [64500]")
+		runTraffic(t, otg, slices.Concat(flowNames(r1, r2Routes), flowNames(r1, r3Routes)))
+	})
+
+	t.Run("RT-1.111.5: External route to confederation and iBGP peers", func(t *testing.T) {
+		advertiseRoutes(t, otg, r1Routes)
+		verifyATEASPath(t, otg, r3, r1Routes, "AS_CONFED_SEQUENCE [64501], AS_SEQ [64510]")
+		verifyATEASPath(t, otg, r2, r1Routes, "AS_SEQ [64510]")
+		runTraffic(t, otg, slices.Concat(flowNames(r2, r1Routes), flowNames(r3, r1Routes)))
+	})
 }
 
-// setupEnvironment applies the README Initial Setup. Each README Cleanup step
-// is registered with t.Cleanup before the configuration that it reverts is
-// pushed, so that it also runs when a push fails part-way.
-func setupEnvironment(t *testing.T) *testEnv {
+// configureEnvironment applies the README Initial Setup. Each README Cleanup
+// step is registered with t.Cleanup before the configuration that it reverts
+// is pushed, so that it also runs when a push fails part-way.
+func configureEnvironment(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 	t.Helper()
-	env := &testEnv{
-		dut: ondatra.DUT(t, "dut"),
-		ate: ondatra.ATE(t, "ate"),
-	}
-
 	t.Log("Initial Setup: connect DUT port-1, port-2, and port-3 to OTG port-1, port-2, and port-3")
 	for _, r := range routers {
-		t.Logf("%v: DUT port %s, ATE port %s", r, env.dut.Port(t, r.port).Name(), env.ate.Port(t, r.port).ID())
+		t.Logf("%v: DUT port %s, ATE port %s", r, dut.Port(t, r.port).Name(), ate.Port(t, r.port).ID())
 	}
 
 	t.Log("Initial Setup: configure OTG interfaces, BGP peers, route ranges, and IPv4/IPv6 traffic flows, and start OTG protocols")
-	env.top = configureATE(t, env.ate)
-	otg := env.ate.OTG()
+	top := configureOTG(t, ate)
+	otg := ate.OTG()
 	t.Cleanup(func() {
 		t.Log("Cleanup: stop OTG traffic and protocols")
 		otg.StopTraffic(t)
 		otg.StopProtocols(t)
 	})
-	otg.PushConfig(t, env.top)
+	otg.PushConfig(t, top)
 	otg.StartProtocols(t)
 	// Each subtest advertises its own route prefixes, so none is advertised
 	// before RT-1.111.2. Stopping the OTG protocols in Cleanup withdraws them.
 	controlRoutes(t, otg, gosnappi.StateProtocolRouteState.WITHDRAW, advertisedRoutes...)
 
 	t.Log("Initial Setup: configure DUT interfaces and BGP in the DEFAULT network instance")
-	configureDUTInterfaces(t, env.dut)
-	configureDUTBGP(t, env.dut)
+	configureDUTInterfaces(t, dut)
+	configureDUTBGP(t, dut)
 
-	otgutils.WaitForARP(t, otg, env.top, "IPv4")
-	otgutils.WaitForARP(t, otg, env.top, "IPv6")
-	return env
+	otgutils.WaitForARP(t, otg, top, "IPv4")
+	otgutils.WaitForARP(t, otg, top, "IPv6")
 }
 
-// configureATE builds the OTG configuration: one device per ATE router with an
+// configureOTG builds the OTG configuration: one device per ATE router with an
 // IPv4 and an IPv6 BGP peer, the README route ranges, and all traffic flows.
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
+func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	t.Helper()
 	top := gosnappi.NewConfig()
 	for _, r := range routers {
@@ -474,42 +439,43 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 			otgconfighelpers.AddBGPV6Routes(peer6, a.otgName(ipv6), []string{a.v6Prefix}, a.routeOptions(ipv6)...)
 		}
 	}
-	for _, tc := range propagationCases {
-		for _, f := range tc.flows() {
-			addFlow(t, top, f)
+	for _, p := range trafficPaths {
+		for _, f := range families {
+			addFlow(t, top, f, p.src, p.dst)
 		}
 	}
 	return top
 }
 
 // addFlow adds a flow that sends trafficPackets packets at trafficPPS, which
-// takes trafficSeconds, to the first host address of the destination route.
-func addFlow(t *testing.T, top gosnappi.Config, f trafficFlow) {
+// takes trafficSeconds, from src to the first host address of the routes dst.
+func addFlow(t *testing.T, top gosnappi.Config, f family, src *ateRouter, dst *advertisedRoute) {
 	t.Helper()
 	flow := &otgconfighelpers.Flow{
-		TxNames:       []string{f.src.otgIntf(f.fam)},
-		RxNames:       []string{f.dst.router.otgIntf(f.fam)},
+		TxNames:       []string{src.otgIntf(f)},
+		RxNames:       []string{dst.router.otgIntf(f)},
 		FrameSize:     frameSize,
-		FlowName:      f.name(),
+		FlowName:      flowName(f, src, dst),
 		PpsRate:       trafficPPS,
 		PacketsToSend: trafficPackets,
-		EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: f.src.ateAttr.MAC},
+		EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: src.ateAttr.MAC},
 	}
 	flow.CreateFlow(top)
 	flow.AddEthHeader()
-	dst := firstHost(t, f.dst.prefix(f.fam))
-	if f.fam == ipv6 {
-		flow.IPv6Flow = &otgconfighelpers.IPv6FlowParams{IPv6Src: f.src.ateAttr.IPv6, IPv6Dst: dst}
+	dstAddr := firstHost(t, dst.prefix(f))
+	if f == ipv6 {
+		flow.IPv6Flow = &otgconfighelpers.IPv6FlowParams{IPv6Src: src.ateAttr.IPv6, IPv6Dst: dstAddr}
 		flow.AddIPv6Header()
 		return
 	}
-	flow.IPv4Flow = &otgconfighelpers.IPv4FlowParams{IPv4Src: f.src.ateAttr.IPv4, IPv4Dst: dst}
+	flow.IPv4Flow = &otgconfighelpers.IPv4FlowParams{IPv4Src: src.ateAttr.IPv4, IPv4Dst: dstAddr}
 	flow.AddIPv4Header()
 }
 
 // configureDUTInterfaces configures the DUT ports from the README table and
-// waits until their state matches the configuration. The pre-test interface
-// configuration is captured first and restored in Cleanup.
+// waits until their state matches the configuration. The README Cleanup
+// restores the baseline state, so the pre-test interface configuration is
+// captured first and restored in Cleanup.
 func configureDUTInterfaces(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	ni := deviations.DefaultNetworkInstance(dut)
@@ -577,11 +543,7 @@ func configureDUTBGP(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	proto := cfgplugins.ConfigureDUTBGP(t, dut, batch, cfgplugins.BGPConfig{DutAS: dutAS, RouterID: dutRouterID})
 	bgp := proto.GetOrCreateBgp()
-	// cfgplugins has no confederation helper, so the confederation container
-	// is set directly.
-	confed := bgp.GetOrCreateGlobal().GetOrCreateConfederation()
-	confed.SetIdentifier(confedID)
-	confed.SetMemberAs([]uint32{confedPeerAS})
+	cfgplugins.ConfigureBGPConfederation(bgp, confedID, []uint32{confedPeerAS})
 	for _, r := range routers {
 		for _, f := range families {
 			pg := r.peerGroup(f)
@@ -590,8 +552,10 @@ func configureDUTBGP(t *testing.T, dut *ondatra.DUTDevice) {
 				cfgplugins.WithPGAfiSafiEnabled(f.afiSafi(), true, false),
 				cfgplugins.ApplyPGRoutingPolicy(allowPolicy, allowPolicy, false),
 			)
+			// WithPeerGroup only sets the peer group and the peer AS; the
+			// policies are applied by the AFI-SAFI options.
 			cfgplugins.ConfigurePeer(bgp.GetOrCreateNeighbor(r.addr(f)), dut,
-				cfgplugins.WithPeerGroup(pg, r.asn, allowPolicy, allowPolicy, false),
+				cfgplugins.WithPeerGroup(pg, r.asn, "", "", false),
 				cfgplugins.WithPeerAfiSafiEnabled(f == ipv4, allowPolicy, allowPolicy, false),
 				cfgplugins.ApplyPeerPerAfiSafiRoutingPolicy(f == ipv4, allowPolicy, allowPolicy, false),
 			)
@@ -618,7 +582,8 @@ func configureDUTBGP(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // onChange returns DUT gNMI options for ON_CHANGE subscriptions, which the
-// README lists in its RPC coverage.
+// README lists in its RPC coverage. They are used for the confederation and
+// session state, which change only on events.
 func onChange(dut *ondatra.DUTDevice) *gnmi.Opts {
 	return dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE))
 }
@@ -629,9 +594,9 @@ func bgpPath(dut *ondatra.DUTDevice) *netinstbgp.NetworkInstance_Protocol_BgpPat
 	return gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInstance).Bgp()
 }
 
-// verifyStateAndSessions implements RT-1.111.1. It reports whether all IPv4 and
-// IPv6 BGP sessions reached ESTABLISHED.
-func verifyStateAndSessions(t *testing.T, dut *ondatra.DUTDevice) bool {
+// verifyConfederationState verifies the DUT BGP global AS, confederation
+// identifier, and member-as state of RT-1.111.1.
+func verifyConfederationState(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	wantMembers := []uint32{confedPeerAS}
 	t.Logf("Verify DUT BGP global AS (%d), confederation identifier (%d), and member-as (%v)", dutAS, confedID, wantMembers)
@@ -662,7 +627,15 @@ func verifyStateAndSessions(t *testing.T, dut *ondatra.DUTDevice) bool {
 		t.Errorf("BGP confederation state got identifier %d, member-as %v; want identifier %d, member-as %v",
 			got.GetIdentifier(), got.GetMemberAs(), confedID, wantMembers)
 	}
+}
 
+// verifySessions reports whether all IPv4 and IPv6 BGP sessions of RT-1.111.1
+// reached ESTABLISHED. Each neighbor is watched on its own instead of with
+// cfgplugins.VerifyDUTBGPEstablished, whose watch of all neighbors succeeds as
+// soon as any one of them is ESTABLISHED: the README requires all 6 sessions,
+// and the errors name each session that is not ESTABLISHED.
+func verifySessions(t *testing.T, dut *ondatra.DUTDevice) bool {
+	t.Helper()
 	wantSessions := len(routers) * len(families)
 	t.Logf("Verify all %d IPv4 and IPv6 BGP sessions are ESTABLISHED", wantSessions)
 	type sessionWatch struct {
@@ -701,44 +674,12 @@ func verifyStateAndSessions(t *testing.T, dut *ondatra.DUTDevice) bool {
 	return established == wantSessions
 }
 
-// run implements one of the subtests RT-1.111.2 to RT-1.111.5.
-func (tc propagationCase) run(t *testing.T, env *testEnv) {
-	otg := env.ate.OTG()
-	if len(tc.advertise) > 0 {
-		for _, a := range tc.advertise {
-			t.Logf("Advertise the %s route prefixes (%s, %s) from %v", a.name, a.v4Prefix, a.v6Prefix, a.router)
-		}
-		controlRoutes(t, otg, gosnappi.StateProtocolRouteState.ADVERTISE, tc.advertise...)
-	}
-
-	for _, c := range tc.checks {
-		if c.at == nil && deviations.BGPRibOcPathUnsupported(env.dut) {
-			// Without the OpenConfig BGP RIB telemetry, the ATE AS_PATH checks
-			// and the traffic of the subtest still verify that the DUT
-			// propagates the routes.
-			t.Logf("Skip the DUT loc-rib check of the %s routes: the device does not support the OpenConfig BGP RIB telemetry paths", c.route.name)
-			continue
-		}
-		if c.at == nil {
-			t.Logf("Verify in the DUT loc-rib that the %s routes are received with %s", c.route.name, c.want)
-		} else {
-			t.Logf("Verify %v receives the %s routes with %s", c.at, c.route.name, c.want)
-		}
-		for _, f := range families {
-			if c.at == nil {
-				verifyLocRibASPath(t, env.dut, f, c.route.prefix(f), c.want)
-			} else {
-				verifyATEASPath(t, otg, c.at, f, c.route.prefix(f), c.want)
-			}
-		}
-	}
-
-	t.Logf("Verify IPv4 and IPv6 traffic %s passes without loss", tc.trafficDescription())
-	var names []string
-	for _, f := range tc.flows() {
-		names = append(names, f.name())
-	}
-	runTraffic(t, otg, names)
+// advertiseRoutes advertises the IPv4 and IPv6 prefixes of a README route from
+// its ATE router.
+func advertiseRoutes(t *testing.T, otg *otg.OTG, a *advertisedRoute) {
+	t.Helper()
+	t.Logf("Advertise the %s route prefixes (%s, %s) from %v", a.name, a.v4Prefix, a.v6Prefix, a.router)
+	controlRoutes(t, otg, gosnappi.StateProtocolRouteState.ADVERTISE, a)
 }
 
 // controlRoutes advertises or withdraws the IPv4 and IPv6 route ranges of the
@@ -756,119 +697,145 @@ func controlRoutes(t *testing.T, otg *otg.OTG, state gosnappi.StateProtocolRoute
 	otg.SetControlState(t, cs)
 }
 
-// verifyLocRibASPath waits until prefix is in the DUT loc-rib with the AS_PATH
-// want, in README notation, and reports an error otherwise.
-func verifyLocRibASPath(t *testing.T, dut *ondatra.DUTDevice, f family, prefix, want string) {
+// verifyLocRibASPath waits until the DUT loc-rib has the IPv4 and IPv6
+// prefixes of the route a with the AS_PATH want, in README notation, and
+// reports an error otherwise. The loc-rib changes with every route update, so
+// it is watched with the default subscription mode, not ON_CHANGE.
+func verifyLocRibASPath(t *testing.T, dut *ondatra.DUTDevice, a *advertisedRoute, want string) {
 	t.Helper()
+	t.Logf("Verify in the DUT loc-rib that the %s routes are received with %s", a.name, want)
 	rib := bgpPath(dut).Rib()
-	got := "prefix not in loc-rib"
-	// matches reports whether the attr-set of a loc-rib route has the wanted
-	// AS_PATH.
-	matches := func(attrIndex uint64) bool {
-		if deviations.SkipCheckingAttributeIndex(dut) {
-			// The device does not return the attr-set by the route attr-index, so
-			// every attr-set is searched for the wanted AS_PATH.
-			for _, v := range gnmi.LookupAll(t, dut, rib.AttrSetAny().State()) {
-				if as, ok := v.Val(); ok && asPathFromRIB(as) == want {
-					got = want
-					return true
-				}
+	for _, f := range families {
+		prefix := a.prefix(f)
+		got := "prefix not in loc-rib"
+		// matches reports whether the attr-set of a loc-rib route has the
+		// wanted AS_PATH.
+		matches := func(attrIndex uint64) bool {
+			as, ok := gnmi.Lookup(t, dut, rib.AttrSet(attrIndex).State()).Val()
+			if !ok {
+				got = fmt.Sprintf("attr-set %d not found", attrIndex)
+				return false
 			}
-			got = "no attr-set with the wanted AS_PATH"
-			return false
+			got = asPathFromRIB(as)
+			return got == want
 		}
-		as, ok := gnmi.Lookup(t, dut, rib.AttrSet(attrIndex).State()).Val()
+		var ok bool
+		if f == ipv6 {
+			_, ok = gnmi.Watch(t, dut, rib.AfiSafi(f.afiSafi()).Ipv6Unicast().LocRib().State(), routeTimeout,
+				func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Bgp_Rib_AfiSafi_Ipv6Unicast_LocRib]) bool {
+					locRib, present := v.Val()
+					if !present {
+						return false
+					}
+					for _, r := range locRib.Route {
+						if samePrefix(r.GetPrefix(), prefix) {
+							return matches(r.GetAttrIndex())
+						}
+					}
+					return false
+				}).Await(t)
+		} else {
+			_, ok = gnmi.Watch(t, dut, rib.AfiSafi(f.afiSafi()).Ipv4Unicast().LocRib().State(), routeTimeout,
+				func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Bgp_Rib_AfiSafi_Ipv4Unicast_LocRib]) bool {
+					locRib, present := v.Val()
+					if !present {
+						return false
+					}
+					for _, r := range locRib.Route {
+						if samePrefix(r.GetPrefix(), prefix) {
+							return matches(r.GetAttrIndex())
+						}
+					}
+					return false
+				}).Await(t)
+		}
 		if !ok {
-			got = fmt.Sprintf("attr-set %d not found", attrIndex)
-			return false
+			t.Errorf("DUT loc-rib %s: AS_PATH got %q, want %q", prefix, got, want)
 		}
-		got = asPathFromRIB(as)
-		return got == want
-	}
-
-	var ok bool
-	if f == ipv6 {
-		_, ok = gnmi.Watch(t, onChange(dut), rib.AfiSafi(f.afiSafi()).Ipv6Unicast().LocRib().State(), routeTimeout,
-			func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Bgp_Rib_AfiSafi_Ipv6Unicast_LocRib]) bool {
-				locRib, present := v.Val()
-				if !present {
-					return false
-				}
-				for _, r := range locRib.Route {
-					if samePrefix(r.GetPrefix(), prefix) {
-						return matches(r.GetAttrIndex())
-					}
-				}
-				return false
-			}).Await(t)
-	} else {
-		_, ok = gnmi.Watch(t, onChange(dut), rib.AfiSafi(f.afiSafi()).Ipv4Unicast().LocRib().State(), routeTimeout,
-			func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Bgp_Rib_AfiSafi_Ipv4Unicast_LocRib]) bool {
-				locRib, present := v.Val()
-				if !present {
-					return false
-				}
-				for _, r := range locRib.Route {
-					if samePrefix(r.GetPrefix(), prefix) {
-						return matches(r.GetAttrIndex())
-					}
-				}
-				return false
-			}).Await(t)
-	}
-	if !ok {
-		t.Errorf("DUT loc-rib %s: AS_PATH got %q, want %q", prefix, got, want)
 	}
 }
 
-// verifyATEASPath waits until the ATE router learns prefix and reports an
-// error unless it has the AS_PATH want, in README notation.
-func verifyATEASPath(t *testing.T, otg *otg.OTG, r *ateRouter, f family, prefix, want string) {
+// verifyATEASPath waits until the ATE router at learns the IPv4 and IPv6
+// prefixes of the route a, and reports an error unless they have the AS_PATH
+// want, in README notation.
+func verifyATEASPath(t *testing.T, otg *otg.OTG, at *ateRouter, a *advertisedRoute, want string) {
 	t.Helper()
-	peer := gnmi.OTG().BgpPeer(r.peerName(f))
-	isPrefix := func(addr string, length uint32) bool {
-		return samePrefix(fmt.Sprintf("%s/%d", addr, length), prefix)
-	}
-	// The OTG reports the AS_PATH as an unkeyed list, to which a streaming
-	// subscription appends the segments of every update that it receives.
-	// The watch therefore only waits for the prefix, and the AS_PATH is
-	// read afterwards with a new request.
-	got := "prefix not received"
-	var ok bool
-	if f == ipv6 {
-		q := peer.UnicastIpv6PrefixAny().State()
-		_, ok = gnmi.WatchAll(t, otg, q, routeTimeout, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv6Prefix]) bool {
-			p, present := v.Val()
-			return present && isPrefix(p.GetAddress(), p.GetPrefixLength())
-		}).Await(t)
-		for _, v := range gnmi.LookupAll(t, otg, q) {
-			if p, present := v.Val(); present && isPrefix(p.GetAddress(), p.GetPrefixLength()) {
-				got = asPathFromOTG(p.AsPath)
+	t.Logf("Verify %v receives the %s routes with %s", at, a.name, want)
+	for _, f := range families {
+		prefix := a.prefix(f)
+		peer := gnmi.OTG().BgpPeer(at.peerName(f))
+		isPrefix := func(addr string, length uint32) bool {
+			return samePrefix(fmt.Sprintf("%s/%d", addr, length), prefix)
+		}
+		// The OTG reports the AS_PATH as an unkeyed list, to which a streaming
+		// subscription appends the segments of every update that it receives.
+		// The watch therefore only waits for the prefix, and readASPath reads
+		// the AS_PATH with a new request.
+		var learned bool
+		var readASPath func() string
+		if f == ipv6 {
+			q := peer.UnicastIpv6PrefixAny().State()
+			_, learned = gnmi.WatchAll(t, otg, q, routeTimeout, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv6Prefix]) bool {
+				p, present := v.Val()
+				return present && isPrefix(p.GetAddress(), p.GetPrefixLength())
+			}).Await(t)
+			readASPath = func() string {
+				for _, v := range gnmi.LookupAll(t, otg, q) {
+					if p, present := v.Val(); present && isPrefix(p.GetAddress(), p.GetPrefixLength()) {
+						var segs []string
+						for _, s := range p.AsPath {
+							if len(s.GetAsNumbers()) > 0 {
+								segs = append(segs, otgSegment(s.GetSegmentType(), s.GetAsNumbers()))
+							}
+						}
+						return strings.Join(segs, ", ")
+					}
+				}
+				return "prefix not received"
+			}
+		} else {
+			q := peer.UnicastIpv4PrefixAny().State()
+			_, learned = gnmi.WatchAll(t, otg, q, routeTimeout, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
+				p, present := v.Val()
+				return present && isPrefix(p.GetAddress(), p.GetPrefixLength())
+			}).Await(t)
+			readASPath = func() string {
+				for _, v := range gnmi.LookupAll(t, otg, q) {
+					if p, present := v.Val(); present && isPrefix(p.GetAddress(), p.GetPrefixLength()) {
+						var segs []string
+						for _, s := range p.AsPath {
+							if len(s.GetAsNumbers()) > 0 {
+								segs = append(segs, otgSegment(s.GetSegmentType(), s.GetAsNumbers()))
+							}
+						}
+						return strings.Join(segs, ", ")
+					}
+				}
+				return "prefix not received"
 			}
 		}
-	} else {
-		q := peer.UnicastIpv4PrefixAny().State()
-		_, ok = gnmi.WatchAll(t, otg, q, routeTimeout, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
-			p, present := v.Val()
-			return present && isPrefix(p.GetAddress(), p.GetPrefixLength())
-		}).Await(t)
-		for _, v := range gnmi.LookupAll(t, otg, q) {
-			if p, present := v.Val(); present && isPrefix(p.GetAddress(), p.GetPrefixLength()) {
-				got = asPathFromOTG(p.AsPath)
+		got := "prefix not received"
+		for i := 1; learned; i++ {
+			if got = readASPath(); got == want || i == asPathReads {
+				break
 			}
+			t.Logf("%v %s: AS_PATH %q, want %q; reading it again in %v", at, prefix, got, want, asPathInterval)
+			time.Sleep(asPathInterval)
 		}
-	}
-	if !ok || got != want {
-		t.Errorf("%v %s: AS_PATH got %q, want %q", r, prefix, got, want)
+		if got != want {
+			t.Errorf("%v %s: AS_PATH got %q, want %q", at, prefix, got, want)
+		}
 	}
 }
 
 // runTraffic implements the README traffic steps for the given flows: start
-// them, wait until each has sent its packets (trafficSeconds), stop them, and
-// check that each flow lost at most maxLossPct of its packets.
+// them, wait until each has sent its packets, stop them, and check that none
+// lost a packet. Only these flows are started: all flows share one OTG
+// configuration, and the flows of the later subtests send traffic to routes
+// that are not advertised yet.
 func runTraffic(t *testing.T, otg *otg.OTG, flows []string) {
 	t.Helper()
-	t.Logf("Start traffic flows %v", flows)
+	t.Logf("Verify that traffic flows %v pass without loss", flows)
 	setFlowState(t, otg, gosnappi.StateTrafficFlowTransmitState.START, flows)
 
 	t.Logf("Wait %d seconds for the traffic flows to send %d packets each", trafficSeconds, trafficPackets)
@@ -893,7 +860,7 @@ func runTraffic(t *testing.T, otg *otg.OTG, flows []string) {
 	otgutils.LogFlowMetrics(t, otg, logCfg)
 	for _, name := range flows {
 		t.Run(name, func(t *testing.T) {
-			otgutils.ExpectedTrafficLoss(t, otg, name, 0, maxLossPct)
+			otgutils.ExpectedTrafficLoss(t, otg, name, 0, 0)
 		})
 	}
 }
@@ -923,12 +890,22 @@ var otgSegmentNames = map[otgtelemetry.E_State_SegmentType]string{
 	otgtelemetry.State_SegmentType_AS_CONFED_SET:      "AS_CONFED_SET",
 }
 
-// segmentText renders one AS_PATH segment in the README notation, for example
-// "AS_CONFED_SEQUENCE [64501]".
-func segmentText[K comparable](names map[K]string, typ K, asns []uint32) string {
-	name, ok := names[typ]
+// ribSegment renders a DUT RIB AS_PATH segment in the README notation, for
+// example "AS_CONFED_SEQUENCE [64502]".
+func ribSegment(typ oc.E_RibBgp_AsPathSegmentType, asns []uint32) string {
+	name, ok := ribSegmentNames[typ]
 	if !ok {
-		name = fmt.Sprintf("UNKNOWN(%v)", typ)
+		name = typ.String()
+	}
+	return fmt.Sprintf("%s %v", name, asns)
+}
+
+// otgSegment renders an AS_PATH segment learned by the ATE in the README
+// notation, for example "AS_CONFED_SEQUENCE [64501]".
+func otgSegment(typ otgtelemetry.E_State_SegmentType, asns []uint32) string {
+	name, ok := otgSegmentNames[typ]
+	if !ok {
+		name = typ.String()
 	}
 	return fmt.Sprintf("%s %v", name, asns)
 }
@@ -948,26 +925,7 @@ func asPathFromRIB(as *oc.NetworkInstance_Protocol_Bgp_Rib_AttrSet) string {
 		if len(s.GetMember()) == 0 {
 			continue
 		}
-		segs = append(segs, segmentText(ribSegmentNames, s.GetType(), s.GetMember()))
-	}
-	return strings.Join(segs, ", ")
-}
-
-// otgSegment is an AS_PATH segment learned by an OTG IPv4 or IPv6 BGP peer.
-type otgSegment interface {
-	GetSegmentType() otgtelemetry.E_State_SegmentType
-	GetAsNumbers() []uint32
-}
-
-// asPathFromOTG renders an AS_PATH learned by the ATE in the README notation,
-// skipping empty segments.
-func asPathFromOTG[S otgSegment](path []S) string {
-	var segs []string
-	for _, s := range path {
-		if len(s.GetAsNumbers()) == 0 {
-			continue
-		}
-		segs = append(segs, segmentText(otgSegmentNames, s.GetSegmentType(), s.GetAsNumbers()))
+		segs = append(segs, ribSegment(s.GetType(), s.GetMember()))
 	}
 	return strings.Join(segs, ", ")
 }
