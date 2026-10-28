@@ -5,5 +5,43 @@ uuid: "e4a9b621-7f44-4d3b-9c8a-2b5e1d8c7f10"
 plan_id: "MGT-2"
 description: "QoS of MVC Control and Management Traffic"
 testbed: TESTBED_DUT_ATE_4LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    interface_config_vrf_before_address: true
+    qos_queue_requires_id: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+    default_network_instance: "DEFAULT"
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    default_network_instance: "DEFAULT"
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
+    explicit_interface_in_default_vrf: true
+    default_network_instance: "default"
+  }
+}
 tags: TAGS_TRANSIT
 tags: TAGS_DATACENTER_EDGE

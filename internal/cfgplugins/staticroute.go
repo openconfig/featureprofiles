@@ -40,6 +40,7 @@ type StaticRouteCfg struct {
 	NexthopGroup        bool
 	NexthopGroupName    string
 	Metric              uint32
+	Preference          uint32
 	Recurse             bool
 	T                   *testing.T
 	TrafficType         oc.E_Aft_EncapsulationHeaderType
@@ -116,6 +117,13 @@ func NewStaticRouteCfg(batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUT
 			nh.NextHop = v
 			if cfg.Metric != 0 {
 				nh.SetMetric(cfg.Metric)
+			}
+			if cfg.Preference != 0 {
+				if deviations.SetMetricAsPreference(d) {
+					nh.SetMetric(cfg.Preference)
+				} else {
+					nh.SetPreference(cfg.Preference)
+				}
 			}
 			if cfg.Recurse {
 				nh.SetRecurse(cfg.Recurse)

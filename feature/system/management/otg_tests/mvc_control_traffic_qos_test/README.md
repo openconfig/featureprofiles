@@ -327,12 +327,12 @@ paths):
               {
                 "sequence": 1,
                 "config": {"priority": "STRICT", "sequence": 1, "type": "openconfig-qos-types:TWO_RATE_THREE_COLOR"},
-                "inputs": {"input": [{"id": "AF4", "config": {"id": "AF4", "input-type": "QUEUE", "queue": "AF4", "weight": "100"}}]}
+                "inputs": {"input": [{"id": "AF4", "config": {"id": "AF4", "input-type": "QUEUE", "queue": "AF4", "weight": 100}}]}
               },
               {
                 "sequence": 2,
                 "config": {"sequence": 2, "type": "openconfig-qos-types:TWO_RATE_THREE_COLOR"},
-                "inputs": {"input": [{"id": "BE1", "config": {"id": "BE1", "input-type": "QUEUE", "queue": "BE1", "weight": "1"}}]}
+                "inputs": {"input": [{"id": "BE1", "config": {"id": "BE1", "input-type": "QUEUE", "queue": "BE1", "weight": 1}}]}
               }
             ]
           }
@@ -599,8 +599,6 @@ rpcs:
   gribi:
     gRIBI.Get:
     gRIBI.Modify:
-  p4rt:
-    p4.v1.P4Runtime.StreamChannel:
 ```
 
 ## Required DUT platform

@@ -157,3 +157,56 @@ func NewSFlowCollector(t *testing.T, batch *gnmi.SetBatch, newcfg *oc.Sampling_S
 	}
 	return coll
 }
+
+// SFlowCollectorCfg defines parameters for an OpenConfig sFlow collector entry.
+type SFlowCollectorCfg struct {
+	Address         string
+	Port            uint16
+	NetworkInstance string
+	SourceAddress   string
+}
+
+// SFlowCfg defines parameters for an OpenConfig sFlow configuration.
+type SFlowCfg struct {
+	Enabled             bool
+	Dscp                uint8
+	IngressSamplingRate uint32
+	SampleSize          uint16
+	Interfaces          []string
+	Collectors          []SFlowCollectorCfg
+}
+
+// ConfigureSFlow configures global sFlow parameters, interfaces, and collectors in the provided SetBatch.
+func ConfigureSFlow(t testing.TB, d *ondatra.DUTDevice, batch *gnmi.SetBatch, cfg *SFlowCfg) *oc.Sampling_Sflow {
+	t.Helper()
+	sf := &oc.Sampling_Sflow{
+		Enabled:    ygot.Bool(cfg.Enabled),
+		Dscp:       ygot.Uint8(cfg.Dscp),
+		SampleSize: ygot.Uint16(cfg.SampleSize),
+	}
+	rate := cfg.IngressSamplingRate
+	if deviations.SflowIngressMinSamplingRate(d) != 0 && rate < deviations.SflowIngressMinSamplingRate(d) {
+		rate = deviations.SflowIngressMinSamplingRate(d)
+	}
+	if rate != 0 {
+		sf.SetIngressSamplingRate(rate)
+	}
+	for _, intfName := range cfg.Interfaces {
+		intf := sf.GetOrCreateInterface(intfName)
+		intf.SetName(intfName)
+		intf.SetEnabled(true)
+	}
+	for _, col := range cfg.Collectors {
+		c := sf.GetOrCreateCollector(col.Address, col.Port)
+		c.SetAddress(col.Address)
+		c.SetPort(col.Port)
+		if col.NetworkInstance != "" {
+			c.SetNetworkInstance(col.NetworkInstance)
+		}
+		if col.SourceAddress != "" && !deviations.SflowSourceAddressUpdateUnsupported(d) {
+			c.SetSourceAddress(col.SourceAddress)
+		}
+	}
+	gnmi.BatchReplace(batch, gnmi.OC().Sampling().Sflow().Config(), sf)
+	return sf
+}

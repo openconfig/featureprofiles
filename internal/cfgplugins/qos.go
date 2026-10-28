@@ -43,15 +43,17 @@ type QosClassifier struct {
 
 // SchedulerPolicy is a struct to hold the scheduler policy configuration.
 type SchedulerPolicy struct {
-	Desc        string
-	Sequence    uint32
-	SetPriority bool
-	Priority    oc.E_Scheduler_Priority
-	InputID     string
-	InputType   oc.E_Input_InputType
-	SetWeight   bool
-	QueueName   string
-	TargetGroup string
+	Desc          string
+	Sequence      uint32
+	SetPriority   bool
+	Priority      oc.E_Scheduler_Priority
+	SchedulerType oc.E_QosTypes_QOS_SCHEDULER_TYPE
+	InputID       string
+	InputType     oc.E_Input_InputType
+	SetWeight     bool
+	Weight        uint64
+	QueueName     string
+	TargetGroup   string
 }
 
 // ForwardingGroup is a struct to hold the forwarding group configuration.
@@ -151,23 +153,32 @@ func NewQoSClassifierConfiguration(t *testing.T, dut *ondatra.DUTDevice, q *oc.Q
 	return q
 }
 
-// NewQoSSchedulerPolicy creates a QoS scheduler policy configuration.
+// NewQoSSchedulerPolicy creates a QoS scheduler policy configuration with the default policy name "scheduler".
 func NewQoSSchedulerPolicy(t *testing.T, dut *ondatra.DUTDevice, q *oc.Qos, policies []SchedulerPolicy) *oc.Qos {
+	return NewQoSSchedulerPolicyWithName(t, dut, q, "scheduler", policies)
+}
 
-	t.Logf("QoS scheduler policy config: %v", policies)
-	schedulerPolicy := q.GetOrCreateSchedulerPolicy("scheduler")
-	schedulerPolicy.SetName("scheduler")
-	t.Logf("QoS scheduler policies config: %v", policies)
+// NewQoSSchedulerPolicyWithName creates a QoS scheduler policy configuration with the specified policy name.
+func NewQoSSchedulerPolicyWithName(t *testing.T, dut *ondatra.DUTDevice, q *oc.Qos, policyName string, policies []SchedulerPolicy) *oc.Qos {
+	t.Logf("QoS scheduler policy (%s) config: %v", policyName, policies)
+	schedulerPolicy := q.GetOrCreateSchedulerPolicy(policyName)
+	schedulerPolicy.SetName(policyName)
 	for _, policy := range policies {
 		s := schedulerPolicy.GetOrCreateScheduler(policy.Sequence)
 		s.SetSequence(policy.Sequence)
 		if policy.SetPriority {
 			s.SetPriority(policy.Priority)
 		}
+		if policy.SchedulerType != oc.QosTypes_QOS_SCHEDULER_TYPE_UNSET {
+			s.SetType(policy.SchedulerType)
+		}
 		input := s.GetOrCreateInput(policy.InputID)
 		input.SetId(policy.InputID)
 		input.SetInputType(policy.InputType)
 		input.SetQueue(policy.QueueName)
+		if policy.SetWeight && !deviations.SchedulerInputWeightLimit(dut) {
+			input.SetWeight(policy.Weight)
+		}
 	}
 	return q
 }
