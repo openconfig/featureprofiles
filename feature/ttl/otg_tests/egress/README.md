@@ -26,6 +26,7 @@ This test verifies TTL handling for egress flows.
 *   Traffic is generated from ATE:Port1.
 *   ATE:Port2 is used as the destination port for flows.
 *   IPv4-DST-DECAP is 10.2.2.2
+*   IPv6-DST-DECAP is 2001:DB8::10:2:2:2
 *   Frame size for packets generated from ATE:Port1 is 128 bytes
 
 #### Configuration
@@ -48,11 +49,13 @@ This test verifies TTL handling for egress flows.
 
 5.  DUT is configured to decapsulate packets destined to IPv4-DST-DECAP/32
 
-6.  DUT is configured with static LSP with label 100010 pointing to
+6.  DUT is configured to decapsulate packets destined to IPv6-DST-DECAP/128
+
+7.  DUT is configured with static LSP with label 100010 pointing to
     ATE:Port2:IPv4 address. This should be used for encapsulated packets with
     inner IPv4.
 
-7.  DUT is configured with static LSP with label 100020 pointing to
+8.  DUT is configured with static LSP with label 100020 pointing to
     ATE:Port2:IPv6 address. This should be used for encapsulated packets with
     inner IPv6.
 
@@ -278,6 +281,178 @@ Verify:
 
 *   Repeat `PF-1.9.16` using IPv6oMPLSoUDP (GUE Variant 1)
 
+### PF-1.9.29: IPv4 over MPLS over UDP with IPv6 Outer Header (Inner TTL 10, MPLS TTL 20, Outer TTL 30).
+
+ATE action:
+
+*   Generate 5 **IPv4oMPLSoUDPoIPv6 packets** from ATE:Port1 with the following header settings:
+    *   Set the outer IPv6 header source to ATE:Port1:IPv6 and destination to IPv6-DST-DECAP/128.
+    *   Set the outer IPv6 header Hop Limit (TTL) to *30*.
+    *   Set the UDP source port to an arbitrary valid port and destination port to *6635*.
+    *   Set the MPLS label to *100010* and MPLS TTL to *20*.
+    *   Set the inner IPv4 header source to an arbitrary valid IP and destination to ATE:Port2:IPv4.
+    *   Set the inner IPv4 header TTL to *10*.
+
+DUT Configuration:
+
+*   Configure an IPv6 policy-forwarding rule for UDP (Protocol 17) with destination port 6635 and destination address `IPv6-DST-DECAP` under OpenConfig path `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule` to perform `decapsulate-mpls-in-udp`.
+
+Telemetry Subscriptions:
+
+*   Subscribe to `/interfaces/interface/state/counters/in-unicast-pkts` on DUT:Port1.
+*   Subscribe to `/interfaces/interface/state/counters/out-unicast-pkts` on DUT:Port2.
+*   Subscribe to `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts` for the matching IPv6 decapsulation rule.
+
+Verify (Pass/Fail Criteria):
+
+*   DUT interface DUT:Port1 `in-unicast-pkts` counter increments by the number of packets generated from ATE:Port1 (5).
+*   DUT interface DUT:Port2 `out-unicast-pkts` counter increments by the number of packets generated from ATE:Port1 (5).
+*   The `matched-pkts` state path for the decapsulation rule increments by the number of packets generated from ATE:Port1 (5).
+*   The packet count of traffic received on ATE:Port2 equals the packets generated from ATE:Port1 (5).
+*   TTL for all packets received on ATE:Port2 should be *10*.
+
+### PF-1.9.30: IPv4 over MPLS over UDP with IPv6 Outer Header (Inner TTL 1, MPLS TTL 20, Outer TTL 30).
+
+ATE action:
+
+*   Generate 5 **IPv4oMPLSoUDPoIPv6 packets** from ATE:Port1 with the following header settings:
+    *   Set the outer IPv6 header source to ATE:Port1:IPv6 and destination to IPv6-DST-DECAP/128.
+    *   Set the outer IPv6 header Hop Limit (TTL) to *30*.
+    *   Set the UDP source port to an arbitrary valid port and destination port to *6635*.
+    *   Set the MPLS label to *100010* and MPLS TTL to *20*.
+    *   Set the inner IPv4 header source to an arbitrary valid IP and destination to ATE:Port2:IPv4.
+    *   Set the inner IPv4 header TTL to *1*.
+
+DUT Configuration:
+
+*   Configure an IPv6 policy-forwarding rule for UDP (Protocol 17) with destination port 6635 and destination address `IPv6-DST-DECAP` under OpenConfig path `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule` to perform `decapsulate-mpls-in-udp`.
+
+Telemetry Subscriptions:
+
+*   Subscribe to `/interfaces/interface/state/counters/in-unicast-pkts` on DUT:Port1.
+*   Subscribe to `/interfaces/interface/state/counters/out-unicast-pkts` on DUT:Port2.
+*   Subscribe to `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts` for the matching IPv6 decapsulation rule.
+
+Verify (Pass/Fail Criteria):
+
+*   DUT interface DUT:Port1 `in-unicast-pkts` counter increments by the number of packets generated from ATE:Port1 (5).
+*   DUT interface DUT:Port2 `out-unicast-pkts` counter increments by the number of packets generated from ATE:Port1 (5).
+*   The `matched-pkts` state path for the decapsulation rule increments by the number of packets generated from ATE:Port1 (5).
+*   The packet count of traffic received on ATE:Port2 equals the packets generated from ATE:Port1 (5).
+*   TTL for all packets received on ATE:Port2 should be *1*.
+
+### PF-1.9.31: IPv4 over MPLS over UDP with IPv6 Outer Header (Inner TTL 10, MPLS TTL 1, Outer TTL 30).
+
+ATE action:
+
+*   Generate 5 **IPv4oMPLSoUDPoIPv6 packets** from ATE:Port1 with the following header settings:
+    *   Set the outer IPv6 header source to ATE:Port1:IPv6 and destination to IPv6-DST-DECAP/128.
+    *   Set the outer IPv6 header Hop Limit (TTL) to *30*.
+    *   Set the UDP source port to an arbitrary valid port and destination port to *6635*.
+    *   Set the MPLS label to *100010* and MPLS TTL to *1*.
+    *   Set the inner IPv4 header source to an arbitrary valid IP and destination to ATE:Port2:IPv4.
+    *   Set the inner IPv4 header TTL to *10*.
+
+DUT Configuration:
+
+*   Configure an IPv6 policy-forwarding rule for UDP (Protocol 17) with destination port 6635 and destination address `IPv6-DST-DECAP` under OpenConfig path `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule` to perform `decapsulate-mpls-in-udp`.
+
+Telemetry Subscriptions:
+
+*   Subscribe to `/interfaces/interface/state/counters/in-unicast-pkts` on DUT:Port1.
+*   Subscribe to `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts` for the matching IPv6 decapsulation rule.
+
+Verify (Pass/Fail Criteria):
+
+*   DUT interface DUT:Port1 `in-unicast-pkts` counter increments by the number of packets generated from ATE:Port1 (5).
+*   ATE:Port1 receives ICMP Time Exceeded (TTL Exceeded) packets for all 5 packets sent.
+
+### PF-1.9.32: IPv6 over MPLS over UDP with IPv6 Outer Header (Inner TTL 10, MPLS TTL 20, Outer TTL 30).
+
+ATE action:
+
+*   Generate 5 **IPv6oMPLSoUDPoIPv6 packets** from ATE:Port1 with the following header settings:
+    *   Set the outer IPv6 header source to ATE:Port1:IPv6 and destination to IPv6-DST-DECAP/128.
+    *   Set the outer IPv6 header Hop Limit (TTL) to *30*.
+    *   Set the UDP source port to an arbitrary valid port and destination port to *6635*.
+    *   Set the MPLS label to *100020* and MPLS TTL to *20*.
+    *   Set the inner IPv6 header source to an arbitrary valid IP and destination to ATE:Port2:IPv6.
+    *   Set the inner IPv6 header Hop Limit (TTL) to *10*.
+
+DUT Configuration:
+
+*   Configure an IPv6 policy-forwarding rule for UDP (Protocol 17) with destination port 6635 and destination address `IPv6-DST-DECAP` under OpenConfig path `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule` to perform `decapsulate-mpls-in-udp`.
+
+Telemetry Subscriptions:
+
+*   Subscribe to `/interfaces/interface/state/counters/in-unicast-pkts` on DUT:Port1.
+*   Subscribe to `/interfaces/interface/state/counters/out-unicast-pkts` on DUT:Port2.
+*   Subscribe to `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts` for the matching IPv6 decapsulation rule.
+
+Verify (Pass/Fail Criteria):
+
+*   DUT interface DUT:Port1 `in-unicast-pkts` counter increments by the number of packets generated from ATE:Port1 (5).
+*   DUT interface DUT:Port2 `out-unicast-pkts` counter increments by the number of packets generated from ATE:Port1 (5).
+*   The `matched-pkts` state path for the decapsulation rule increments by the number of packets generated from ATE:Port1 (5).
+*   The packet count of traffic received on ATE:Port2 equals the packets generated from ATE:Port1 (5).
+*   Hop Limit (TTL) for all packets received on ATE:Port2 should be *10*.
+
+### PF-1.9.33: IPv6 over MPLS over UDP with IPv6 Outer Header (Inner TTL 1, MPLS TTL 20, Outer TTL 30).
+
+ATE action:
+
+*   Generate 5 **IPv6oMPLSoUDPoIPv6 packets** from ATE:Port1 with the following header settings:
+    *   Set the outer IPv6 header source to ATE:Port1:IPv6 and destination to IPv6-DST-DECAP/128.
+    *   Set the outer IPv6 header Hop Limit (TTL) to *30*.
+    *   Set the UDP source port to an arbitrary valid port and destination port to *6635*.
+    *   Set the MPLS label to *100020* and MPLS TTL to *20*.
+    *   Set the inner IPv6 header source to an arbitrary valid IP and destination to ATE:Port2:IPv6.
+    *   Set the inner IPv6 header Hop Limit (TTL) to *1*.
+
+DUT Configuration:
+
+*   Configure an IPv6 policy-forwarding rule for UDP (Protocol 17) with destination port 6635 and destination address `IPv6-DST-DECAP` under OpenConfig path `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule` to perform `decapsulate-mpls-in-udp`.
+
+Telemetry Subscriptions:
+
+*   Subscribe to `/interfaces/interface/state/counters/in-unicast-pkts` on DUT:Port1.
+*   Subscribe to `/interfaces/interface/state/counters/out-unicast-pkts` on DUT:Port2.
+*   Subscribe to `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts` for the matching IPv6 decapsulation rule.
+
+Verify (Pass/Fail Criteria):
+
+*   DUT interface DUT:Port1 `in-unicast-pkts` counter increments by the number of packets generated from ATE:Port1 (5).
+*   DUT interface DUT:Port2 `out-unicast-pkts` counter increments by the number of packets generated from ATE:Port1 (5).
+*   The `matched-pkts` state path for the decapsulation rule increments by the number of packets generated from ATE:Port1 (5).
+*   The packet count of traffic received on ATE:Port2 equals the packets generated from ATE:Port1 (5).
+*   Hop Limit (TTL) for all packets received on ATE:Port2 should be *1*.
+
+### PF-1.9.34: IPv6 over MPLS over UDP with IPv6 Outer Header (Inner TTL 10, MPLS TTL 1, Outer TTL 30).
+
+ATE action:
+
+*   Generate 5 **IPv6oMPLSoUDPoIPv6 packets** from ATE:Port1 with the following header settings:
+    *   Set the outer IPv6 header source to ATE:Port1:IPv6 and destination to IPv6-DST-DECAP/128.
+    *   Set the outer IPv6 header Hop Limit (TTL) to *30*.
+    *   Set the UDP source port to an arbitrary valid port and destination port to *6635*.
+    *   Set the MPLS label to *100020* and MPLS TTL to *1*.
+    *   Set the inner IPv6 header source to an arbitrary valid IP and destination to ATE:Port2:IPv6.
+    *   Set the inner IPv6 header Hop Limit (TTL) to *10*.
+
+DUT Configuration:
+
+*   Configure an IPv6 policy-forwarding rule for UDP (Protocol 17) with destination port 6635 and destination address `IPv6-DST-DECAP` under OpenConfig path `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule` to perform `decapsulate-mpls-in-udp`.
+
+Telemetry Subscriptions:
+
+*   Subscribe to `/interfaces/interface/state/counters/in-unicast-pkts` on DUT:Port1.
+*   Subscribe to `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts` for the matching IPv6 decapsulation rule.
+
+Verify (Pass/Fail Criteria):
+
+*   DUT interface DUT:Port1 `in-unicast-pkts` counter increments by the number of packets generated from ATE:Port1 (5).
+*   ATE:Port1 receives ICMP Time Exceeded (TTL Exceeded) packets for all 5 packets sent.
+
 ## Canonical OC
 ```json
 {
@@ -295,10 +470,10 @@ Verify:
                             {
                                "config": {
                                   "name": "ipv4-static-lsp"
-                               }
+                               },
                                "egress": {
                                   "config": {
-                                     "incoming-label": 100010
+                                     "incoming-label": 100010,
                                      "next-hop": "192.168.20.1"
                                   }
                                }
@@ -306,10 +481,10 @@ Verify:
                             {
                                "config": {
                                   "name": "ipv6-static-lsp"
-                               }
+                               },
                                "egress": {
                                   "config": {
-                                     "incoming-label": 100020
+                                     "incoming-label": 100020,
                                      "next-hop": "2001:DB8::192:168:20:1"
                                   }
                                }
@@ -317,7 +492,7 @@ Verify:
                          ]
                       }
                    }
-                }
+                },
                 "policy-forwarding": {
                     "policies": {
                         "policy": [
@@ -328,14 +503,14 @@ Verify:
                                 "rules": {
                                     "rule": [
                                         {
-                                            "sequence-id": 0
+                                            "sequence-id": 0,
                                             "config": {
                                                 "sequence-id": 0
-                                            }
+                                            },
                                             "ipv4": {
                                                 "config": {
-                                                    "destination-address": "10.2.2.2"
-                                                    "protocol": IP_GRE
+                                                    "destination-address": "10.2.2.2/32",
+                                                    "protocol": "openconfig-packet-match-types:IP_GRE"
                                                 }
                                             },
                                             "action": {
@@ -345,19 +520,19 @@ Verify:
                                             }
                                         },
                                         {
-                                            "sequence-id": 1
+                                            "sequence-id": 1,
                                             "config": {
                                                 "sequence-id": 1
-                                            }
+                                            },
                                             "ipv4": {
                                                 "config": {
-                                                    "destination-address": "10.2.2.2"
-                                                    "protocol": IP_UDP
+                                                    "destination-address": "10.2.2.2/32",
+                                                    "protocol": "openconfig-packet-match-types:IP_UDP"
                                                 }
                                             },
                                             "transport": {
                                                 "config": {
-                                                    "destination-port": "6080"
+                                                    "destination-port": 6080
                                                 }
                                             },
                                             "action": {
@@ -367,19 +542,41 @@ Verify:
                                             }
                                         },
                                         {
-                                            "sequence-id": 2
+                                            "sequence-id": 2,
                                             "config": {
                                                 "sequence-id": 2
-                                            }
+                                            },
                                             "ipv4": {
                                                 "config": {
-                                                    "destination-address": "10.2.2.2"
-                                                    "protocol": IP_UDP
+                                                    "destination-address": "10.2.2.2/32",
+                                                    "protocol": "openconfig-packet-match-types:IP_UDP"
                                                 }
                                             },
                                             "transport": {
                                                 "config": {
-                                                    "destination-port": "6635"
+                                                    "destination-port": 6635
+                                                }
+                                            },
+                                            "action": {
+                                                "config": {
+                                                    "decapsulate-mpls-in-udp": true
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "sequence-id": 3,
+                                            "config": {
+                                                "sequence-id": 3
+                                            },
+                                            "ipv6": {
+                                                "config": {
+                                                    "destination-address": "2001:DB8::10:2:2:2/128",
+                                                    "protocol": "openconfig-packet-match-types:IP_UDP"
+                                                }
+                                            },
+                                            "transport": {
+                                                "config": {
+                                                    "destination-port": 6635
                                                 }
                                             },
                                             "action": {
@@ -390,10 +587,10 @@ Verify:
                                         }
                                     ]
                                 }
-                            },
+                            }
                         ]
                     }
-                },
+                }
             }
         ]
     }
@@ -414,11 +611,15 @@ paths:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-gre:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-gue:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-mpls-in-udp:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/destination-address:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/protocol:
 
   /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/incoming-label:
   /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/next-hop:
 
   # Telemetry
+  /interfaces/interface/state/counters/in-unicast-pkts:
+  /interfaces/interface/state/counters/out-unicast-pkts:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-octets:
 
@@ -430,4 +631,3 @@ rpcs:
     gNMI.Subscribe:
       on_change: true
 ```
-
