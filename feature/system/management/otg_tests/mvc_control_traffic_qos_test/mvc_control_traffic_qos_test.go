@@ -915,6 +915,30 @@ func triggerAllProtocols(t *testing.T, env *testEnv, activeATEPorts []string, cl
 	configureAndRunProtocolFlows(t, env, activeATEPorts, clientDSCPValues, true)
 }
 
+// activeOTGDevicesConfig returns a gosnappi.Config containing only the OTG devices on active (UP) ports so WaitForARP does not wait on administratively disabled failover ports.
+func activeOTGDevicesConfig(top gosnappi.Config, activeATEPorts []string) gosnappi.Config {
+	activeDevNames := map[string]bool{
+		atePort4.Name: true,
+	}
+	for _, pid := range activeATEPorts {
+		switch pid {
+		case "port1":
+			activeDevNames[atePort1.Name] = true
+		case "port2":
+			activeDevNames[atePort2.Name] = true
+		case "port3":
+			activeDevNames[atePort3.Name] = true
+		}
+	}
+	cfg := gosnappi.NewConfig()
+	for _, d := range top.Devices().Items() {
+		if activeDevNames[d.Name()] {
+			cfg.Devices().Append(d)
+		}
+	}
+	return cfg
+}
+
 // configureAndRunProtocolFlows sends transit packets on port4 (triggering sFlow) and inbound client probes on active ATE management ports.
 func configureAndRunProtocolFlows(t *testing.T, env *testEnv, activeATEPorts []string, clientDSCPValues []uint32, clearExistingFlows bool) {
 	t.Helper()
@@ -928,33 +952,35 @@ func configureAndRunProtocolFlows(t *testing.T, env *testEnv, activeATEPorts []s
 
 	// Transit flow on ATE_PORT4 -> DUT_PORT4 to trigger sFlow packet sampling.
 	p4Name := env.dut.Port(t, "port4").Name()
-	if dstMAC4, ok := gnmi.Lookup(t, env.dut, gnmi.OC().Interface(p4Name).Ethernet().MacAddress().State()).Val(); ok {
-		sfFlowV4 := env.top.Flows().Add().SetName("sflow_transit_v4")
-		sfFlowV4.Metrics().SetEnable(true)
-		sfFlowV4.TxRx().Port().SetTxName("port4").SetRxNames([]string{"port4"})
-		sfFlowV4.Size().SetFixed(256)
-		sfFlowV4.Rate().SetPps(100)
-		sfFlowV4.Duration().FixedPackets().SetPackets(50)
-		eth4 := sfFlowV4.Packet().Add().Ethernet()
-		eth4.Src().SetValue(atePort4.MAC)
-		eth4.Dst().SetValue(dstMAC4)
-		ip4 := sfFlowV4.Packet().Add().Ipv4()
-		ip4.Src().SetValue(atePort4.IPv4)
-		ip4.Dst().SetValue(dutPort4.IPv4)
-
-		sfFlowV6 := env.top.Flows().Add().SetName("sflow_transit_v6")
-		sfFlowV6.Metrics().SetEnable(true)
-		sfFlowV6.TxRx().Port().SetTxName("port4").SetRxNames([]string{"port4"})
-		sfFlowV6.Size().SetFixed(256)
-		sfFlowV6.Rate().SetPps(100)
-		sfFlowV6.Duration().FixedPackets().SetPackets(50)
-		eth6 := sfFlowV6.Packet().Add().Ethernet()
-		eth6.Src().SetValue(atePort4.MAC)
-		eth6.Dst().SetValue(dstMAC4)
-		ip6 := sfFlowV6.Packet().Add().Ipv6()
-		ip6.Src().SetValue(atePort4.IPv6)
-		ip6.Dst().SetValue(dutPort4.IPv6)
+	dstMAC4, ok := gnmi.Lookup(t, env.dut, gnmi.OC().Interface(p4Name).Ethernet().MacAddress().State()).Val()
+	if !ok {
+		t.Fatalf("Failed to lookup MAC address for %s (port4)", p4Name)
 	}
+	sfFlowV4 := env.top.Flows().Add().SetName("sflow_transit_v4")
+	sfFlowV4.Metrics().SetEnable(true)
+	sfFlowV4.TxRx().Port().SetTxName("port4").SetRxNames([]string{"port4"})
+	sfFlowV4.Size().SetFixed(256)
+	sfFlowV4.Rate().SetPps(100)
+	sfFlowV4.Duration().FixedPackets().SetPackets(50)
+	eth4 := sfFlowV4.Packet().Add().Ethernet()
+	eth4.Src().SetValue(atePort4.MAC)
+	eth4.Dst().SetValue(dstMAC4)
+	ip4 := sfFlowV4.Packet().Add().Ipv4()
+	ip4.Src().SetValue(atePort4.IPv4)
+	ip4.Dst().SetValue(dutPort4.IPv4)
+
+	sfFlowV6 := env.top.Flows().Add().SetName("sflow_transit_v6")
+	sfFlowV6.Metrics().SetEnable(true)
+	sfFlowV6.TxRx().Port().SetTxName("port4").SetRxNames([]string{"port4"})
+	sfFlowV6.Size().SetFixed(256)
+	sfFlowV6.Rate().SetPps(100)
+	sfFlowV6.Duration().FixedPackets().SetPackets(50)
+	eth6 := sfFlowV6.Packet().Add().Ethernet()
+	eth6.Src().SetValue(atePort4.MAC)
+	eth6.Dst().SetValue(dstMAC4)
+	ip6 := sfFlowV6.Packet().Add().Ipv6()
+	ip6.Src().SetValue(atePort4.IPv6)
+	ip6.Dst().SetValue(dutPort4.IPv6)
 
 	// Inbound client TCP SYN probes from collectorIPv4/collectorIPv6 to lo1 for SSH (22), gNMI/gNOI (9339), gRIBI (9340), and P4RT (9559).
 	clientPorts := []uint32{portSSH, portGNMI, portGRIBI, portP4RT}
@@ -962,7 +988,7 @@ func configureAndRunProtocolFlows(t *testing.T, env *testEnv, activeATEPorts []s
 		dutPortName := env.dut.Port(t, atePortID).Name()
 		dstMAC, ok := gnmi.Lookup(t, env.dut, gnmi.OC().Interface(dutPortName).Ethernet().MacAddress().State()).Val()
 		if !ok {
-			continue
+			t.Fatalf("Failed to lookup MAC address for %s (%s)", dutPortName, atePortID)
 		}
 		srcMAC := atePort1.MAC
 		switch atePortID {
@@ -1017,6 +1043,9 @@ func configureAndRunProtocolFlows(t *testing.T, env *testEnv, activeATEPorts []s
 
 	env.ate.OTG().PushConfig(t, env.top)
 	env.ate.OTG().StartProtocols(t)
+	config := activeOTGDevicesConfig(env.top, activeATEPorts)
+	otgutils.WaitForARP(t, env.ate.OTG(), config, "IPv4")
+	otgutils.WaitForARP(t, env.ate.OTG(), config, "IPv6")
 	env.ate.OTG().StartTraffic(t)
 	// Use gnmi.Watch on OTG flow counters instead of time.Sleep.
 	for _, f := range env.top.Flows().Items() {
@@ -1183,6 +1212,7 @@ func TestMVCControlTrafficQoS(t *testing.T) {
 
 		// MGT-2.1 Step 2: Start packet capture on <ATE_PORT1> and <ATE_PORT2>, run the 10-Protocol Trigger Suite, then stop packet capture.
 		stopCap := startPortCaptures(t, env, []string{"port1", "port2"})
+		defer stopCap()
 		triggerAllProtocols(t, env, []string{"port1", "port2"}, []uint32{dscpBE1})
 		stopCap()
 
@@ -1194,7 +1224,9 @@ func TestMVCControlTrafficQoS(t *testing.T) {
 	// MGT-2.2: QoS Marking on Failover to OOB Interface
 	// =========================================================================
 	t.Run("MGT-2.2_QoS_Marking_on_Failover_to_OOB_Interface", func(t *testing.T) {
-		defer setDUTPortsEnabled(t, dut, []string{"port1", "port2"}, true)
+		t.Cleanup(func() {
+			setDUTPortsEnabled(t, dut, []string{"port1", "port2"}, true)
+		})
 
 		// MGT-2.2 Step 1: Record baseline AF4 queue counters on <DUT_PORT3>, disable <DUT_PORT1> and <DUT_PORT2>,
 		// and verify VRF mgmt eBGP leaves ESTABLISHED and switches to the static default routes (preference = 220) over <DUT_PORT3>.
@@ -1207,6 +1239,7 @@ func TestMVCControlTrafficQoS(t *testing.T) {
 		// MGT-2.2 Step 2: Start packet capture on <ATE_PORT3>, run the 10-Protocol Trigger Suite, stop packet capture,
 		// and perform the Standard Egress AF4 Verification on <DUT_PORT3>/<ATE_PORT3>.
 		stopCapOOB := startPortCaptures(t, env, []string{"port3"})
+		defer stopCapOOB()
 		triggerAllProtocols(t, env, []string{"port3"}, []uint32{dscpBE1})
 		stopCapOOB()
 		verifyStandardEgressAF4(t, env, []string{"port3"}, baselineOOB)
@@ -1221,6 +1254,7 @@ func TestMVCControlTrafficQoS(t *testing.T) {
 			"port2": snapshotQueueCounters(t, dut, dut.Port(t, "port2").Name(), resolveQueueName(dut, dut.Port(t, "port2").Name(), env.af4Queue, 4)),
 		}
 		stopCapLC := startPortCaptures(t, env, []string{"port1", "port2"})
+		defer stopCapLC()
 		triggerAllProtocols(t, env, []string{"port1", "port2"}, []uint32{dscpBE1})
 		stopCapLC()
 		verifyStandardEgressAF4(t, env, []string{"port1", "port2"}, baselineLC)
@@ -1247,6 +1281,7 @@ func TestMVCControlTrafficQoS(t *testing.T) {
 		// (from <ATE_PORT3>/<ATE_PORT2> toward <ATE_PORT1> and <ATE_PORT3>/<ATE_PORT1> toward <ATE_PORT2>)
 		// to induce continuous BE1 tail-drops on <DUT_PORT1> and <DUT_PORT2>.
 		stopCap := startPortCaptures(t, env, []string{"port1", "port2"})
+		defer stopCap()
 		injectBE1CongestionAndRunTriggers(t, env)
 		stopCap()
 
@@ -1268,7 +1303,9 @@ func TestMVCControlTrafficQoS(t *testing.T) {
 	// MGT-2.4: Client-Initiated BE1 (DSCP 0) Request vs. DUT Egress AF4 (DSCP 32) Response
 	// =========================================================================
 	t.Run("MGT-2.4_Client_Initiated_BE1_and_CS1_Request_vs_DUT_Egress_AF4_Response", func(t *testing.T) {
-		defer setDUTPortsEnabled(t, dut, []string{"port1", "port2"}, true)
+		t.Cleanup(func() {
+			setDUTPortsEnabled(t, dut, []string{"port1", "port2"}, true)
+		})
 
 		// MGT-2.4 Step 1: Record baseline AF4/BE1 counters on <DUT_PORT1>-<DUT_PORT3>. Capture on <ATE_PORT1> and <ATE_PORT2>
 		// while sending inbound client requests (gNMI, gRIBI, P4RT, gNOI, SSH) from 198.51.100.1 and 2001:db8:100::1
@@ -1278,6 +1315,7 @@ func TestMVCControlTrafficQoS(t *testing.T) {
 			"port2": snapshotQueueCounters(t, dut, dut.Port(t, "port2").Name(), resolveQueueName(dut, dut.Port(t, "port2").Name(), env.af4Queue, 4)),
 		}
 		stopCapLC := startPortCaptures(t, env, []string{"port1", "port2"})
+		defer stopCapLC()
 		triggerAllProtocols(t, env, []string{"port1", "port2"}, []uint32{dscpBE1, dscpCS1})
 		stopCapLC()
 		verifyStandardEgressAF4(t, env, []string{"port1", "port2"}, baselineLC)
@@ -1290,6 +1328,7 @@ func TestMVCControlTrafficQoS(t *testing.T) {
 		awaitBGPSessionState(t, dut, []string{atePort1.IPv4, atePort1.IPv6, atePort2.IPv4, atePort2.IPv6}, oc.Bgp_Neighbor_SessionState_IDLE, time.Minute)
 
 		stopCapOOB := startPortCaptures(t, env, []string{"port3"})
+		defer stopCapOOB()
 		triggerAllProtocols(t, env, []string{"port3"}, []uint32{dscpBE1, dscpCS1})
 		stopCapOOB()
 
@@ -1305,7 +1344,33 @@ func TestMVCControlTrafficQoS(t *testing.T) {
 	// MGT-2.5: Partial Linecard Failure (ECMP Rehash) and Rapid Flap Stability
 	// =========================================================================
 	t.Run("MGT-2.5_Partial_Linecard_Failure_ECMP_Rehash_and_Rapid_Flap_Stability", func(t *testing.T) {
-		defer setDUTPortsEnabled(t, dut, []string{"port1", "port2"}, true)
+		t.Cleanup(func() {
+			setDUTPortsEnabled(t, dut, []string{"port1", "port2"}, true)
+			restoreBatch := &gnmi.SetBatch{}
+			cfgplugins.ConfigureNTPServers(t, dut, restoreBatch, true, []cfgplugins.NTPServerCfg{
+				{Address: collectorIPv4, NetworkInstance: mgmtVRFName, SourceAddress: lo1IPv4},
+				{Address: collectorIPv6, NetworkInstance: mgmtVRFName, SourceAddress: lo1IPv6},
+			})
+			cfgplugins.ConfigureRemoteSyslogServers(t, restoreBatch, []cfgplugins.SyslogServerCfg{
+				{
+					Host:            collectorIPv4,
+					NetworkInstance: mgmtVRFName,
+					RemotePort:      portSyslog,
+					SourceAddress:   lo1IPv4,
+					Facility:        oc.SystemLogging_SYSLOG_FACILITY_ALL,
+					Severity:        oc.SystemLogging_SyslogSeverity_INFORMATIONAL,
+				},
+				{
+					Host:            collectorIPv6,
+					NetworkInstance: mgmtVRFName,
+					RemotePort:      portSyslog,
+					SourceAddress:   lo1IPv6,
+					Facility:        oc.SystemLogging_SYSLOG_FACILITY_ALL,
+					Severity:        oc.SystemLogging_SyslogSeverity_INFORMATIONAL,
+				},
+			})
+			restoreBatch.Set(t, dut)
+		})
 
 		// MGT-2.5 Step 1: Establish active flows for the 10-Protocol Trigger Suite, then disable only <DUT_PORT1>
 		// while keeping <DUT_PORT2> ESTABLISHED.
@@ -1317,6 +1382,7 @@ func TestMVCControlTrafficQoS(t *testing.T) {
 			"port2": snapshotQueueCounters(t, dut, dut.Port(t, "port2").Name(), resolveQueueName(dut, dut.Port(t, "port2").Name(), env.af4Queue, 4)),
 		}
 		stopCapRehash := startPortCaptures(t, env, []string{"port2", "port3"})
+		defer stopCapRehash()
 		triggerAllProtocols(t, env, []string{"port2"}, []uint32{dscpBE1})
 		stopCapRehash()
 
@@ -1371,6 +1437,7 @@ func TestMVCControlTrafficQoS(t *testing.T) {
 			"port2": snapshotQueueCounters(t, dut, dut.Port(t, "port2").Name(), resolveQueueName(dut, dut.Port(t, "port2").Name(), env.af4Queue, 4)),
 		}
 		stopCapPostFlap := startPortCaptures(t, env, []string{"port1", "port2", "port3"})
+		defer stopCapPostFlap()
 		triggerAllProtocols(t, env, []string{"port1", "port2"}, []uint32{dscpBE1})
 		stopCapPostFlap()
 		verifyStandardEgressAF4(t, env, []string{"port1", "port2"}, baselinePostFlap)
@@ -1380,9 +1447,9 @@ func TestMVCControlTrafficQoS(t *testing.T) {
 	// MGT-2.6: Negative Verification of Protocol-Level DSCP Override and Queue Isolation
 	// =========================================================================
 	t.Run("MGT-2.6_Negative_Verification_of_Protocol_Level_DSCP_Override_and_Queue_Isolation", func(t *testing.T) {
-		defer func() {
+		t.Cleanup(func() {
 			gnmi.Replace(t, dut, gnmi.OC().Sampling().Sflow().Dscp().Config(), uint8(dscpAF4))
-		}()
+		})
 
 		// MGT-2.6 Step 1: Set /sampling/sflow/config/dscp = 0 (BE1) via gNMI.Set, capture on <ATE_PORT1> and <ATE_PORT2>,
 		// run the 10-Protocol Trigger Suite, and stop capture.
@@ -1401,6 +1468,7 @@ func TestMVCControlTrafficQoS(t *testing.T) {
 		}
 
 		stopCap := startPortCaptures(t, env, []string{"port1", "port2"})
+		defer stopCap()
 		triggerAllProtocols(t, env, []string{"port1", "port2"}, []uint32{dscpBE1})
 		stopCap()
 
@@ -1436,6 +1504,22 @@ func TestMVCControlTrafficQoS(t *testing.T) {
 	t.Run("MGT-2.7_Negative_Verification_of_Total_Management_Path_Failure_VRF_Isolation", func(t *testing.T) {
 		defaultNI := deviations.DefaultNetworkInstance(dut)
 
+		t.Cleanup(func() {
+			setDUTPortsEnabled(t, dut, []string{"port1", "port2", "port3"}, true)
+			delBatch := &gnmi.SetBatch{}
+			_, _ = cfgplugins.NewStaticRouteCfg(delBatch, &cfgplugins.StaticRouteCfg{
+				NetworkInstance:   defaultNI,
+				Prefix:            defaultIPv4Route,
+				RemoveStaticRoute: true,
+			}, dut)
+			_, _ = cfgplugins.NewStaticRouteCfg(delBatch, &cfgplugins.StaticRouteCfg{
+				NetworkInstance:   defaultNI,
+				Prefix:            defaultIPv6Route,
+				RemoveStaticRoute: true,
+			}, dut)
+			delBatch.Set(t, dut)
+		})
+
 		// MGT-2.7 Step 1: Configure temporary default routes (0.0.0.0/0 via 192.0.2.14, ::/0 via 2001:db8::e)
 		// in the DEFAULT VRF over <DUT_PORT4>.
 		tempRoutesBatch := &gnmi.SetBatch{}
@@ -1459,26 +1543,11 @@ func TestMVCControlTrafficQoS(t *testing.T) {
 		}
 		tempRoutesBatch.Set(t, dut)
 
-		defer func() {
-			setDUTPortsEnabled(t, dut, []string{"port1", "port2", "port3"}, true)
-			delBatch := &gnmi.SetBatch{}
-			_, _ = cfgplugins.NewStaticRouteCfg(delBatch, &cfgplugins.StaticRouteCfg{
-				NetworkInstance:   defaultNI,
-				Prefix:            defaultIPv4Route,
-				RemoveStaticRoute: true,
-			}, dut)
-			_, _ = cfgplugins.NewStaticRouteCfg(delBatch, &cfgplugins.StaticRouteCfg{
-				NetworkInstance:   defaultNI,
-				Prefix:            defaultIPv6Route,
-				RemoveStaticRoute: true,
-			}, dut)
-			delBatch.Set(t, dut)
-		}()
-
 		// MGT-2.7 Step 2: Disable <DUT_PORT1>, <DUT_PORT2>, and <DUT_PORT3>, capture on <ATE_PORT1>-<ATE_PORT4>,
 		// and trigger the 10-Protocol Trigger Suite.
 		setDUTPortsEnabled(t, dut, []string{"port1", "port2", "port3"}, false)
 		stopCapLeak := startPortCaptures(t, env, []string{"port4"})
+		defer stopCapLeak()
 		triggerAllProtocols(t, env, nil, []uint32{dscpBE1})
 		stopCapLeak()
 
@@ -1497,6 +1566,7 @@ func TestMVCControlTrafficQoS(t *testing.T) {
 		}
 		setDUTPortsEnabled(t, dut, []string{"port3"}, true)
 		stopCapOOB := startPortCaptures(t, env, []string{"port3"})
+		defer stopCapOOB()
 		triggerAllProtocols(t, env, []string{"port3"}, []uint32{dscpBE1})
 		stopCapOOB()
 		verifyStandardEgressAF4(t, env, []string{"port3"}, baselineOOB)
@@ -1508,6 +1578,7 @@ func TestMVCControlTrafficQoS(t *testing.T) {
 			"port2": snapshotQueueCounters(t, dut, dut.Port(t, "port2").Name(), resolveQueueName(dut, dut.Port(t, "port2").Name(), env.af4Queue, 4)),
 		}
 		stopCapLC := startPortCaptures(t, env, []string{"port1", "port2"})
+		defer stopCapLC()
 		triggerAllProtocols(t, env, []string{"port1", "port2"}, []uint32{dscpBE1})
 		stopCapLC()
 		verifyStandardEgressAF4(t, env, []string{"port1", "port2"}, baselineLC)
@@ -1520,61 +1591,68 @@ func injectBE1CongestionAndRunTriggers(t *testing.T, env *testEnv) {
 	env.top.Flows().Clear()
 
 	p1MAC, ok1 := gnmi.Lookup(t, env.dut, gnmi.OC().Interface(env.dut.Port(t, "port1").Name()).Ethernet().MacAddress().State()).Val()
+	if !ok1 {
+		t.Fatalf("Failed to lookup MAC address for port1")
+	}
 	p2MAC, ok2 := gnmi.Lookup(t, env.dut, gnmi.OC().Interface(env.dut.Port(t, "port2").Name()).Ethernet().MacAddress().State()).Val()
+	if !ok2 {
+		t.Fatalf("Failed to lookup MAC address for port2")
+	}
 	p3MAC, ok3 := gnmi.Lookup(t, env.dut, gnmi.OC().Interface(env.dut.Port(t, "port3").Name()).Ethernet().MacAddress().State()).Val()
+	if !ok3 {
+		t.Fatalf("Failed to lookup MAC address for port3")
+	}
 
-	if ok1 && ok2 && ok3 {
-		// Oversubscribe egress port1 from port2 (60% line rate) + port3 (60% line rate) = 120% BE1 (DSCP 0).
-		for _, src := range []struct {
-			txPort string
-			srcMAC string
-			dstMAC string
-			srcV4  string
-			srcV6  string
-		}{
-			{txPort: "port2", srcMAC: atePort2.MAC, dstMAC: p2MAC, srcV4: atePort2.IPv4, srcV6: atePort2.IPv6},
-			{txPort: "port3", srcMAC: atePort3.MAC, dstMAC: p3MAC, srcV4: atePort3.IPv4, srcV6: atePort3.IPv6},
-		} {
-			f := env.top.Flows().Add().SetName("congest_to_p1_from_" + src.txPort)
-			f.Metrics().SetEnable(true)
-			f.TxRx().Port().SetTxName(src.txPort).SetRxNames([]string{"port1"})
-			f.Size().SetFixed(1024)
-			f.Rate().SetPercentage(60)
-			f.Duration().FixedPackets().SetPackets(50000)
-			eth := f.Packet().Add().Ethernet()
-			eth.Src().SetValue(src.srcMAC)
-			eth.Dst().SetValue(src.dstMAC)
-			ip4 := f.Packet().Add().Ipv4()
-			ip4.Src().SetValue(src.srcV4)
-			ip4.Dst().SetValue(atePort1.IPv4)
-			ip4.Priority().Dscp().Phb().SetValue(dscpBE1)
-		}
+	// Oversubscribe egress port1 from port2 (60% line rate) + port3 (60% line rate) = 120% BE1 (DSCP 0).
+	for _, src := range []struct {
+		txPort string
+		srcMAC string
+		dstMAC string
+		srcV4  string
+		srcV6  string
+	}{
+		{txPort: "port2", srcMAC: atePort2.MAC, dstMAC: p2MAC, srcV4: atePort2.IPv4, srcV6: atePort2.IPv6},
+		{txPort: "port3", srcMAC: atePort3.MAC, dstMAC: p3MAC, srcV4: atePort3.IPv4, srcV6: atePort3.IPv6},
+	} {
+		f := env.top.Flows().Add().SetName("congest_to_p1_from_" + src.txPort)
+		f.Metrics().SetEnable(true)
+		f.TxRx().Port().SetTxName(src.txPort).SetRxNames([]string{"port1"})
+		f.Size().SetFixed(1024)
+		f.Rate().SetPercentage(60)
+		f.Duration().FixedPackets().SetPackets(50000)
+		eth := f.Packet().Add().Ethernet()
+		eth.Src().SetValue(src.srcMAC)
+		eth.Dst().SetValue(src.dstMAC)
+		ip4 := f.Packet().Add().Ipv4()
+		ip4.Src().SetValue(src.srcV4)
+		ip4.Dst().SetValue(atePort1.IPv4)
+		ip4.Priority().Dscp().Phb().SetValue(dscpBE1)
+	}
 
-		// Oversubscribe egress port2 from port1 (60% line rate) + port3 (60% line rate) = 120% BE1 (DSCP 0).
-		for _, src := range []struct {
-			txPort string
-			srcMAC string
-			dstMAC string
-			srcV4  string
-			srcV6  string
-		}{
-			{txPort: "port1", srcMAC: atePort1.MAC, dstMAC: p1MAC, srcV4: atePort1.IPv4, srcV6: atePort1.IPv6},
-			{txPort: "port3", srcMAC: atePort3.MAC, dstMAC: p3MAC, srcV4: atePort3.IPv4, srcV6: atePort3.IPv6},
-		} {
-			f := env.top.Flows().Add().SetName("congest_to_p2_from_" + src.txPort)
-			f.Metrics().SetEnable(true)
-			f.TxRx().Port().SetTxName(src.txPort).SetRxNames([]string{"port2"})
-			f.Size().SetFixed(1024)
-			f.Rate().SetPercentage(60)
-			f.Duration().FixedPackets().SetPackets(50000)
-			eth := f.Packet().Add().Ethernet()
-			eth.Src().SetValue(src.srcMAC)
-			eth.Dst().SetValue(src.dstMAC)
-			ip6 := f.Packet().Add().Ipv6()
-			ip6.Src().SetValue(src.srcV6)
-			ip6.Dst().SetValue(atePort2.IPv6)
-			ip6.TrafficClass().SetValue(dscpBE1)
-		}
+	// Oversubscribe egress port2 from port1 (60% line rate) + port3 (60% line rate) = 120% BE1 (DSCP 0).
+	for _, src := range []struct {
+		txPort string
+		srcMAC string
+		dstMAC string
+		srcV4  string
+		srcV6  string
+	}{
+		{txPort: "port1", srcMAC: atePort1.MAC, dstMAC: p1MAC, srcV4: atePort1.IPv4, srcV6: atePort1.IPv6},
+		{txPort: "port3", srcMAC: atePort3.MAC, dstMAC: p3MAC, srcV4: atePort3.IPv4, srcV6: atePort3.IPv6},
+	} {
+		f := env.top.Flows().Add().SetName("congest_to_p2_from_" + src.txPort)
+		f.Metrics().SetEnable(true)
+		f.TxRx().Port().SetTxName(src.txPort).SetRxNames([]string{"port2"})
+		f.Size().SetFixed(1024)
+		f.Rate().SetPercentage(60)
+		f.Duration().FixedPackets().SetPackets(50000)
+		eth := f.Packet().Add().Ethernet()
+		eth.Src().SetValue(src.srcMAC)
+		eth.Dst().SetValue(src.dstMAC)
+		ip6 := f.Packet().Add().Ipv6()
+		ip6.Src().SetValue(src.srcV6)
+		ip6.Dst().SetValue(atePort2.IPv6)
+		ip6.TrafficClass().SetValue(dscpBE1)
 	}
 
 	// MGT-2.3 Step 3: Run the 10-Protocol Trigger Suite while BE1 congestion is active, then stop traffic.
