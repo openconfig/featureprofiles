@@ -16,6 +16,7 @@ package system_generic_health_check_test
 
 import (
 	"context"
+	"fmt"
 	"regexp"
 	"strings"
 	"testing"
@@ -192,18 +193,21 @@ func TestComponentStatus(t *testing.T) {
 			}
 
 			componentName := map[string]string{"name": component}
-
-			checkReq := &hpb.CheckRequest{
-				Path: &tpb.Path{
-					Origin: "openconfig",
-					Elem: []*tpb.PathElem{
-						{Name: "components"},
-						{
-							Name: "component",
-							Key:  componentName,
-						},
+			healthPath := &tpb.Path{
+				Elem: []*tpb.PathElem{
+					{Name: "components"},
+					{
+						Name: "component",
+						Key:  componentName,
 					},
 				},
+			}
+			if !deviations.SkipOrigin(dut) {
+				healthPath.Origin = "openconfig"
+			}
+
+			checkReq := &hpb.CheckRequest{
+				Path: healthPath,
 			}
 			checkResponse, err := gnoiClient.Healthz().Check(context.Background(), checkReq)
 			if err != nil {
@@ -213,16 +217,7 @@ func TestComponentStatus(t *testing.T) {
 			}
 
 			getReq := &hpb.GetRequest{
-				Path: &tpb.Path{
-					Origin: "openconfig",
-					Elem: []*tpb.PathElem{
-						{Name: "components"},
-						{
-							Name: "component",
-							Key:  componentName,
-						},
-					},
-				},
+				Path: healthPath,
 			}
 			getResponse, err := gnoiClient.Healthz().Get(context.Background(), getReq)
 			if err != nil {
@@ -422,6 +417,14 @@ func TestComponentsNoHighMemoryUtilization(t *testing.T) {
 
 	controllerCards := components.FindComponentsByType(t, dut, controllerCardType)
 	lineCards := components.FindComponentsByType(t, dut, lineCardType)
+	chassisCards := components.FindComponentsByType(t, dut, chassisCardType)
+	var memoryChassisCards []string
+	for _, cc := range chassisCards {
+		if val, present := gnmi.Lookup(t, dut, gnmi.OC().Component(cc).Memory().State()).Val(); present && val != nil {
+			memoryChassisCards = append(memoryChassisCards, cc)
+		}
+	}
+	chassisCards = memoryChassisCards
 	chassisLineCards := make([]string, 0)
 	for _, lc := range lineCards {
 		compEmptyVal, _ := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Empty().State()).Val()
@@ -430,7 +433,8 @@ func TestComponentsNoHighMemoryUtilization(t *testing.T) {
 		}
 	}
 	lineCards = chassisLineCards
-	cardList := append(controllerCards, lineCards...)
+	cardList := append(controllerCards, chassisCards...)
+	cardList = append(cardList, lineCards...)
 	if len(cardList) == 0 {
 		t.Errorf("ERROR: No card has been found.")
 	}
@@ -513,61 +517,104 @@ func TestSystemProcessNoHighMemorySpike(t *testing.T) {
 	}
 }
 
+func TestSystemProcessState(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	deviceName := dut.Name()
+	const description = "System Process State"
+
+	query := gnmi.OC().System().ProcessAny().State()
+	timestamp := time.Now().Round(time.Second)
+	processes := gnmi.GetAll(t, dut, query)
+	if len(processes) == 0 {
+		t.Fatalf("ERROR: No processes found on device %s", deviceName)
+	}
+
+	for i, process := range processes {
+		processName := process.GetName()
+		subtestName := processName
+		if subtestName == "" {
+			subtestName = "unnamed"
+		}
+		if process.Pid != nil {
+			subtestName = fmt.Sprintf("%s-PID-%d", subtestName, process.GetPid())
+		} else {
+			subtestName = fmt.Sprintf("%s-Index-%d", subtestName, i)
+		}
+
+		t.Run(subtestName, func(t *testing.T) {
+			if processName == "" {
+				t.Skipf("%s %s INFO: Skipping subtest, %s process name is empty", timestamp, deviceName, description)
+			}
+			t.Logf("%s %s INFO: %s - Process Name: %s", timestamp, deviceName, description, processName)
+
+			if process.Pid == nil {
+				t.Errorf("%s %s ERROR: %s - Process %s PID is not available", timestamp, deviceName, description, processName)
+			} else {
+				t.Logf("%s %s INFO: %s - Process %s - PID: %d", timestamp, deviceName, description, processName, process.GetPid())
+			}
+
+			if process.StartTime == nil {
+				t.Errorf("%s %s ERROR: %s - Process %s StartTime is not available", timestamp, deviceName, description, processName)
+			} else {
+				t.Logf("%s %s INFO: %s - Process %s - StartTime: %d", timestamp, deviceName, description, processName, process.GetStartTime())
+			}
+		})
+	}
+}
+
 func TestNoQueueDrop(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	if deviations.NoQueueDropUnsupported(dut) {
 		t.Skipf("Skip test when no-queue drop counters are unsupported")
 	}
+
 	type testCase struct {
-		desc     string
-		path     string
-		counters []*ygnmi.Value[uint64]
+		desc  string
+		path  string
+		query ygnmi.WildcardQuery[uint64]
 	}
+
 	interfaces := sortedInterfaces(dut.Ports())
 	t.Logf("Interfaces: %s", interfaces)
+
 	for _, intf := range interfaces {
 		t.Run(intf, func(t *testing.T) {
 			qosInterface := gnmi.OC().Qos().Interface(intf)
-			if deviations.QOSInQueueDropCounterUnsupported(dut) {
-				t.Skipf("INFO: Skipping test due to %s does not support Queue Input Dropped packets", dut.Vendor())
-				counters := gnmi.LookupAll(t, dut, qosInterface.Input().QueueAny().DroppedPkts().State())
-				t.Logf("counters: %s", counters)
-				if len(counters) == 0 {
-					t.Errorf("%s Interface Queue Input Dropped packets Telemetry Value is not present", intf)
-				}
-				for queueID, dropPkt := range counters {
-					dropCount, present := dropPkt.Val()
-					if !present {
-						t.Errorf("%s Interface %s Telemetry Value is not present", intf, dropPkt.Path)
-					} else {
-						t.Logf("%s Interface %s, Queue %d has %d drop(s)", dropPkt.Path.GetOrigin(), intf, queueID, dropCount)
-					}
-				}
-			}
+
 			cases := []testCase{
 				{
-					desc:     "Queue Output Dropped packets",
-					path:     "/qos/interfaces/interface/output/queues/queue/state/dropped-pkts",
-					counters: gnmi.LookupAll(t, dut, qosInterface.Output().QueueAny().DroppedPkts().State()),
+					desc:  "Queue Input Dropped packets",
+					path:  "/qos/interfaces/interface/input/queues/queue/state/dropped-pkts",
+					query: qosInterface.Input().QueueAny().DroppedPkts().State(),
 				},
 				{
-					desc:     "Queue input voq-output-interface dropped packets",
-					path:     "/qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/dropped-pkts",
-					counters: gnmi.LookupAll(t, dut, qosInterface.Input().VoqInterfaceAny().QueueAny().DroppedPkts().State()),
+					desc:  "Queue Output Dropped packets",
+					path:  "/qos/interfaces/interface/output/queues/queue/state/dropped-pkts",
+					query: qosInterface.Output().QueueAny().DroppedPkts().State(),
+				},
+				{
+					desc:  "Queue input voq-output-interface dropped packets",
+					path:  "/qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/dropped-pkts",
+					query: qosInterface.Input().VoqInterfaceAny().QueueAny().DroppedPkts().State(),
 				},
 			}
+
 			for _, c := range cases {
 				t.Run(c.desc, func(t *testing.T) {
-					if dut.Vendor() == ondatra.JUNIPER && c.desc == "Queue Input Dropped packets" {
-						t.Skipf("INFO: Skipping test due to %s does not support %s", dut.Vendor(), c.path)
+					// Check skips at the individual sub-test level
+					if deviations.QOSInQueueDropCounterUnsupported(dut) && c.desc == "Queue Input Dropped packets" {
+						t.Skipf("INFO: Skipping test due to %s does not support Queue Input Dropped packets", dut.Vendor())
 					}
 					if deviations.QOSVoqDropCounterUnsupported(dut) && c.desc == "Queue input voq-output-interface dropped packets" {
 						t.Skipf("INFO: Skipping test due to deviation qos_voq_drop_counter_unsupported")
 					}
-					if len(c.counters) == 0 {
+
+					counters := gnmi.LookupAll(t, dut, c.query)
+
+					if len(counters) == 0 {
 						t.Errorf("%s Interface %s Telemetry Value is not present", c.desc, intf)
 					}
-					for queueID, dropPkt := range c.counters {
+					for queueID, dropPkt := range counters {
 						dropCount, present := dropPkt.Val()
 						if !present {
 							t.Errorf("%s Interface %s %s Telemetry Value is not present", c.desc, intf, dropPkt.Path)
@@ -661,6 +708,27 @@ func TestNoAsicDrop(t *testing.T) {
 					t.Errorf("ERROR: RateLimit counter is not present")
 				} else {
 					t.Logf("INFO: RateLimit counter: %d", drop.LookupBlock.GetRateLimit())
+				}
+				if !deviations.FabricDropCounterUnsupported(dut) {
+					if drop.LookupBlock.Oversubscription == nil {
+						t.Errorf("ERROR: LookupBlock Oversubscription counter is not present")
+					} else {
+						t.Logf("INFO: LookupBlock Oversubscription counter: %d", drop.LookupBlock.GetOversubscription())
+					}
+				}
+			}
+			if !deviations.FabricDropCounterUnsupported(dut) {
+				if drop.CongestionAggregate == nil {
+					t.Errorf("ERROR: CongestionAggregate counter is not present")
+				} else {
+					t.Logf("INFO: CongestionAggregate counter: %d", drop.GetCongestionAggregate())
+				}
+				if drop.HostInterfaceBlock == nil {
+					t.Errorf("ERROR: HostInterfaceBlock is not present")
+				} else if drop.HostInterfaceBlock.HostAggregate == nil {
+					t.Errorf("ERROR: HostAggregate counter is not present")
+				} else {
+					t.Logf("INFO: HostAggregate counter: %d", drop.GetHostInterfaceBlock().GetHostAggregate())
 				}
 			}
 		})
@@ -956,11 +1024,35 @@ func TestFabricDrop(t *testing.T) {
 		t.Fatalf("ERROR: %s is not present", query)
 	}
 	for _, fabricBlock := range fabricBlocks {
-		drop := fabricBlock.GetLostPackets()
 		if fabricBlock.LostPackets == nil {
-			t.Errorf("ERROR: Fabric drops is not present")
+			t.Errorf("ERROR: Fabric LostPackets counter is not present")
 		} else {
-			t.Logf("INFO: Fabric drops: %d", drop)
+			t.Logf("INFO: Fabric LostPackets: %d", fabricBlock.GetLostPackets())
+		}
+		if fabricBlock.FabricAggregate == nil {
+			t.Errorf("ERROR: FabricAggregate counter is not present")
+		} else {
+			t.Logf("INFO: FabricAggregate: %d", fabricBlock.GetFabricAggregate())
+		}
+		if fabricBlock.InHighPriority == nil {
+			t.Errorf("ERROR: Fabric InHighPriority counter is not present")
+		} else {
+			t.Logf("INFO: Fabric InHighPriority: %d", fabricBlock.GetInHighPriority())
+		}
+		if fabricBlock.InLowPriority == nil {
+			t.Errorf("ERROR: Fabric InLowPriority counter is not present")
+		} else {
+			t.Logf("INFO: Fabric InLowPriority: %d", fabricBlock.GetInLowPriority())
+		}
+		if fabricBlock.OutHighPriority == nil {
+			t.Errorf("ERROR: Fabric OutHighPriority counter is not present")
+		} else {
+			t.Logf("INFO: Fabric OutHighPriority: %d", fabricBlock.GetOutHighPriority())
+		}
+		if fabricBlock.OutLowPriority == nil {
+			t.Errorf("ERROR: Fabric OutLowPriority counter is not present")
+		} else {
+			t.Logf("INFO: Fabric OutLowPriority: %d", fabricBlock.GetOutLowPriority())
 		}
 	}
 }

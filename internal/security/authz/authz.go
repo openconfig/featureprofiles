@@ -144,6 +144,10 @@ func (p *AuthorizationPolicy) Rotate(t *testing.T, dut *ondatra.DUTDevice, creat
 	if err != nil {
 		t.Fatalf("Error while finalizing rotate request  %v", err)
 	}
+	_, err = rotateStream.Recv()
+	if err != nil {
+		t.Fatalf("Error while receiving finalize response %v", err)
+	}
 	_, finalPolicy := Get(t, dut)
 	if !cmp.Equal(p, finalPolicy) {
 		t.Fatalf("Policy after upload (temporary) is not the same as the one upload, diff is: %v", cmp.Diff(p, finalPolicy))
