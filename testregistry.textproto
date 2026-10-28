@@ -1278,6 +1278,7 @@ test: {
   id: "RT-5.18"
   description: "Aggregate Interface (LAG) Drain via Admin Down"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/aggregate/otg_tests/aggregate_admin_down_drain_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/aggregate/otg_tests/aggregate_admin_down_drain_test/aggregate_admin_down_drain_test.go"
 }
 test: {
   id: "RT-5.19"

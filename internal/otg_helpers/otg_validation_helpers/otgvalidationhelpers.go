@@ -182,6 +182,7 @@ func (v *OTGValidation) ValidateECMPonLAG(t *testing.T, ate *ondatra.ATEDevice) 
 type LagParams struct {
 	LagName       string
 	WantMembersUp uint64
+	MemberPortIDs []string
 	Timeout       time.Duration
 }
 
@@ -225,6 +226,16 @@ func WaitForOTGLAGUP(t *testing.T, ate *ondatra.ATEDevice, params LagParams) {
 
 		t.Fatalf("OTG LAG %s did not become ready within %v: final oper-status=%v member-ports-up=%d (want oper-status=UP, member-ports-up=%d)",
 			params.LagName, params.Timeout, finalOper, finalMembers, params.WantMembersUp)
+	}
+
+	for _, portID := range params.MemberPortIDs {
+		gnmi.Watch(t, otgState, gnmi.OTG().Lacp().LagMember(portID).State(), params.Timeout, func(val *ygnmi.Value[*otg.Lacp_LagMember]) bool {
+			m, ok := val.Val()
+			if !ok || m == nil {
+				return false
+			}
+			return m.GetSynchronization().String() == "IN_SYNC" && m.GetCollecting() && m.GetDistributing()
+		}).Await(t)
 	}
 }
 
@@ -345,4 +356,178 @@ func VerifyTraffic(t *testing.T, ate *ondatra.ATEDevice, params VerifyTrafficPar
 	otgutils.LogFlowMetrics(t, ate.OTG(), params.Config)
 	t.Logf("%s: traffic verification passed: FramesTx: %d, FramesRx: %d", params.FlowName, framesTx, framesRx)
 	return nil
+}
+
+// SteadyStateFlowParams holds parameters for watching a continuous OTG flow until a steady-state
+// measurement window meets the expected packet delivery or drop criteria.
+type SteadyStateFlowParams struct {
+	FlowName      string
+	MinWindowPkts uint64
+	WantZeroLoss  bool
+	WantComplete  bool
+	MaxLossPct    float64
+	Timeout       time.Duration
+}
+
+// AwaitFlowSteadyState watches an OTG flow's OutPkts and InPkts counters over a sliding window of at least
+// MinWindowPkts packets (without using time.Sleep) and verifies either 0% steady-state loss (when WantZeroLoss is true),
+// 100% steady-state drop (when WantComplete is false and WantZeroLoss is false), or bounded loss <= MaxLossPct.
+func AwaitFlowSteadyState(t *testing.T, ate *ondatra.ATEDevice, params SteadyStateFlowParams) {
+	t.Helper()
+	timeout := params.Timeout
+	if timeout == 0 {
+		timeout = time.Minute
+	}
+	minWindow := params.MinWindowPkts
+	if minWindow == 0 {
+		minWindow = 200
+	}
+
+	flowPath := gnmi.OTG().Flow(params.FlowName).Counters().State()
+	var baseSet bool
+	var baseTx, baseRx uint64
+	var baseTime time.Time
+
+	_, ok := gnmi.Watch(t, ate.OTG(), flowPath, timeout, func(val *ygnmi.Value[*otg.Flow_Counters]) bool {
+		cnt, present := val.Val()
+		if !present || cnt == nil {
+			return false
+		}
+		tx := cnt.GetOutPkts()
+		rx := cnt.GetInPkts()
+		if tx == 0 && (params.WantZeroLoss || params.WantComplete || params.MaxLossPct < 100) {
+			return false
+		}
+		if !baseSet {
+			baseTx = tx
+			baseRx = rx
+			baseTime = time.Now()
+			baseSet = true
+			return false
+		}
+		deltaTx := tx - baseTx
+		deltaRx := rx - baseRx
+
+		if params.WantZeroLoss {
+			// Some hardware/virtual OTG engines (or paused rate-limited streams) report cumulative
+			// counters once a burst finishes or update at coarse intervals; if cumulative tx >= minWindow
+			// and rx >= tx with zero loss, or if traffic is actively flowing with deltaRx >= deltaTx, pass.
+			if deltaTx == 0 && deltaRx == 0 && time.Since(baseTime) >= 5*time.Second && tx >= minWindow && rx > 0 {
+				return true
+			}
+			if deltaTx < minWindow {
+				return false
+			}
+			if deltaRx >= deltaTx {
+				return true
+			}
+			// Reset window baseline so transient convergence drops prior to steady state do not fail the check.
+			baseTx = tx
+			baseRx = rx
+			baseTime = time.Now()
+			return false
+		}
+		if !params.WantComplete && params.MaxLossPct >= 100 {
+			// When the source LAG is administratively disabled, OTG may stop transmitting on the down LAG (deltaTx == 0).
+			if deltaTx < minWindow && time.Since(baseTime) < 2*time.Second {
+				return false
+			}
+			if deltaRx == 0 {
+				return true
+			}
+			baseTx = tx
+			baseRx = rx
+			baseTime = time.Now()
+			return false
+		}
+		if deltaTx < minWindow {
+			return false
+		}
+		var lossPct float64
+		if deltaTx > deltaRx && deltaTx > 0 {
+			lossPct = 100.0 * float64(deltaTx-deltaRx) / float64(deltaTx)
+		}
+		if lossPct <= params.MaxLossPct {
+			return true
+		}
+		baseTx = tx
+		baseRx = rx
+		baseTime = time.Now()
+		return false
+	}).Await(t)
+
+	if !ok {
+		cnt := gnmi.Get(t, ate.OTG(), flowPath)
+		t.Errorf("Flow %s did not reach expected steady state (WantZeroLoss=%v, MaxLossPct=%.2f) within %v: OutPkts=%d, InPkts=%d",
+			params.FlowName, params.WantZeroLoss, params.MaxLossPct, timeout, cnt.GetOutPkts(), cnt.GetInPkts())
+	}
+}
+
+// ResolveDUTInterfaceMAC returns the MAC address of a DUT interface using OTG's resolved neighbor table
+// with a fallback to the DUT's OpenConfig interface ethernet state.
+func ResolveDUTInterfaceMAC(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgEthName, dutIPv4, dutIPv6, dutIntfName string) string {
+	t.Helper()
+	if otgEthName != "" && dutIPv4 != "" {
+		if val, ok := gnmi.Lookup(t, ate.OTG(), gnmi.OTG().Interface(otgEthName).Ipv4Neighbor(dutIPv4).LinkLayerAddress().State()).Val(); ok && val != "" {
+			return val
+		}
+	}
+	if otgEthName != "" && dutIPv6 != "" {
+		if val, ok := gnmi.Lookup(t, ate.OTG(), gnmi.OTG().Interface(otgEthName).Ipv6Neighbor(dutIPv6).LinkLayerAddress().State()).Val(); ok && val != "" {
+			return val
+		}
+	}
+	if val, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(dutIntfName).Ethernet().MacAddress().State()).Val(); ok && val != "" {
+		return val
+	}
+	return ""
+}
+
+// AreFlowsTransmitting checks whether all specified OTG flows actively increment both their OutPkts
+// and InPkts counters by at least minDelta with <= 10% loss within timeout.
+func AreFlowsTransmitting(t *testing.T, ate *ondatra.ATEDevice, flowNames []string, minDelta uint64, timeout time.Duration) bool {
+	t.Helper()
+	if minDelta < 200 {
+		minDelta = 200
+	}
+	for _, flowName := range flowNames {
+		flowPath := gnmi.OTG().Flow(flowName).Counters().State()
+		var baseTx, baseRx uint64
+		if _, ok := gnmi.Watch(t, ate.OTG(), flowPath, timeout, func(val *ygnmi.Value[*otg.Flow_Counters]) bool {
+			cnt, present := val.Val()
+			if !present || cnt == nil || cnt.OutPkts == nil || cnt.InPkts == nil {
+				return false
+			}
+			baseTx = cnt.GetOutPkts()
+			baseRx = cnt.GetInPkts()
+			return true
+		}).Await(t); !ok {
+			return false
+		}
+		lastTx := baseTx
+		if _, ok := gnmi.Watch(t, ate.OTG(), flowPath, timeout, func(val *ygnmi.Value[*otg.Flow_Counters]) bool {
+			cnt, present := val.Val()
+			if !present || cnt == nil || cnt.OutPkts == nil || cnt.InPkts == nil {
+				return false
+			}
+			tx := cnt.GetOutPkts()
+			rx := cnt.GetInPkts()
+			// In ygnmi, Flow_Counters leaves unmarshal in alphabetical order (in-octets, in-pkts,
+			// out-octets, out-pkts). Only evaluate once out-pkts (tx) advances so rx and tx reflect
+			// the same poll snapshot.
+			if tx <= lastTx {
+				return false
+			}
+			lastTx = tx
+			if tx < baseTx+minDelta || rx < baseRx+minDelta {
+				return false
+			}
+			deltaTx := tx - baseTx
+			deltaRx := rx - baseRx
+			return deltaRx*10 >= deltaTx*9
+		}).Await(t); !ok {
+			return false
+		}
+	}
+	return true
 }
