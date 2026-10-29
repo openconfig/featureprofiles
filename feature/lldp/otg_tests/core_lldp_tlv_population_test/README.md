@@ -109,7 +109,7 @@ timestamps, and global/per-interface enablement operate correctly over gNMI.
   "openconfig-lldp:lldp": {
     "config": {
       "enabled": true,
-      "hello-timer": "20",
+      "hello-timer": 20,
       "system-description": "DUT",
       "ttl": 80
     },
