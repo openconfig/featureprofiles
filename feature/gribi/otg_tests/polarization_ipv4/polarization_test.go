@@ -632,7 +632,6 @@ func TestPolarization(t *testing.T) {
 							batchNum, numBatches, len(batch), flowName)
 						pushSingleFlow(t, ate, dut, topo, flowName, batch, agg1ID, agg2ID, profile.encapIPIP)
 						cs := otgutils.StartCapture(t, ate.OTG())
-						defer otgutils.StopCapture(t, ate.OTG(), cs)
 						runSingleFlow(t, ate, flowName, len(batch))
 
 						batchCaptured := stopAndReadCapture(t, ate, cs)
