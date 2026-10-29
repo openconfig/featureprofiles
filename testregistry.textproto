@@ -465,7 +465,6 @@ test: {
   id: "MGT-2"
   description: "QoS of MVC Control and Management Traffic"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/management/otg_tests/mvc_control_traffic_qos_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/management/otg_tests/mvc_control_traffic_qos_test/mvc_control_traffic_qos_test.go"
 }
 test: {
   id: "MPLS-1.1"

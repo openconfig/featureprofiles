@@ -52,7 +52,6 @@ func DeviationCiscoTableConnectionsStatictoBGPMetricPropagation(t *testing.T, du
 
 // TableConnectionCfg holds the configuration parameters for a table connection.
 type TableConnectionCfg struct {
-	NetworkInstance          string
 	SrcProto                 oc.E_PolicyTypes_INSTALL_PROTOCOL_TYPE
 	DstProto                 oc.E_PolicyTypes_INSTALL_PROTOCOL_TYPE
 	Afi                      oc.E_Types_ADDRESS_FAMILY
@@ -64,18 +63,15 @@ type TableConnectionCfg struct {
 
 // ConfigureTableConnection appends a table connection redistribution policy configuration to the batch.
 func ConfigureTableConnection(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, cfg *TableConnectionCfg) *gnmi.SetBatch {
-	ni := cfg.NetworkInstance
-	if ni == "" {
-		ni = deviations.DefaultNetworkInstance(dut)
-	}
+	dni := deviations.DefaultNetworkInstance(dut)
 
 	if cfg.Delete {
-		gnmi.BatchDelete(sb, gnmi.OC().NetworkInstance(ni).TableConnection(cfg.SrcProto, cfg.DstProto, cfg.Afi).Config())
+		gnmi.BatchDelete(sb, gnmi.OC().NetworkInstance(dni).TableConnection(cfg.SrcProto, cfg.DstProto, cfg.Afi).Config())
 		return sb
 	}
 
 	root := &oc.Root{}
-	tableConn := root.GetOrCreateNetworkInstance(ni).GetOrCreateTableConnection(cfg.SrcProto, cfg.DstProto, cfg.Afi)
+	tableConn := root.GetOrCreateNetworkInstance(dni).GetOrCreateTableConnection(cfg.SrcProto, cfg.DstProto, cfg.Afi)
 
 	if !deviations.SkipSettingDisableMetricPropagation(dut) {
 		tableConn.SetDisableMetricPropagation(cfg.DisableMetricPropagation)
@@ -85,51 +81,6 @@ func ConfigureTableConnection(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.Set
 	}
 	tableConn.SetImportPolicy(cfg.ImportPolicies)
 
-	gnmi.BatchUpdate(sb, gnmi.OC().NetworkInstance(ni).TableConnection(cfg.SrcProto, cfg.DstProto, cfg.Afi).Config(), tableConn)
-	return sb
-}
-
-// PrefixRedistributionCfg holds the configuration parameters for a prefix-set and redistribution routing policy.
-type PrefixRedistributionCfg struct {
-	PrefixSetName   string
-	Mode            oc.E_PrefixSet_Mode
-	Prefix          string
-	MaskLengthRange string
-	PolicyName      string
-	StatementName   string
-}
-
-// ConfigurePrefixRedistributionPolicy appends a prefix-set and route-policy definition to the batch.
-func ConfigurePrefixRedistributionPolicy(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, cfg *PrefixRedistributionCfg) *gnmi.SetBatch {
-	t.Helper()
-	root := &oc.Root{}
-	rp := root.GetOrCreateRoutingPolicy()
-
-	ps := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(cfg.PrefixSetName)
-	ps.SetName(cfg.PrefixSetName)
-	if !deviations.SkipPrefixSetMode(dut) {
-		ps.SetMode(cfg.Mode)
-	}
-	maskRange := cfg.MaskLengthRange
-	if maskRange == "" {
-		maskRange = "exact"
-	}
-	p := ps.GetOrCreatePrefix(cfg.Prefix, maskRange)
-	p.SetIpPrefix(cfg.Prefix)
-	p.SetMasklengthRange(maskRange)
-
-	pd := rp.GetOrCreatePolicyDefinition(cfg.PolicyName)
-	pd.SetName(cfg.PolicyName)
-	stmt, err := pd.AppendNewStatement(cfg.StatementName)
-	if err != nil {
-		t.Fatalf("Failed to append statement %s to policy %s: %v", cfg.StatementName, cfg.PolicyName, err)
-	}
-	stmt.SetName(cfg.StatementName)
-	mps := stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet()
-	mps.SetPrefixSet(cfg.PrefixSetName)
-	mps.SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
-	stmt.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
-
-	gnmi.BatchUpdate(sb, gnmi.OC().RoutingPolicy().Config(), rp)
+	gnmi.BatchUpdate(sb, gnmi.OC().NetworkInstance(dni).TableConnection(cfg.SrcProto, cfg.DstProto, cfg.Afi).Config(), tableConn)
 	return sb
 }
