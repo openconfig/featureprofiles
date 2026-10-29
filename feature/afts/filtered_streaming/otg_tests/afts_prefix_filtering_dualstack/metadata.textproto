@@ -5,3 +5,16 @@ uuid: "8a04d024-82b3-4bff-9c7c-27f4cccdf452"
 plan_id: "AFT-6.2"
 description: "AFT Prefix Filtering Dual-Stack"
 testbed: TESTBED_DUT_ATE_2LINKS
+
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    static_protocol_name: "STATIC"
+    default_network_instance: "default"
+    afts_global_filter_policy_oc_unsupported: true
+    bgp_missing_oc_max_prefixes_configuration: true
+    link_local_instead_of_nh: true
+  }
+}

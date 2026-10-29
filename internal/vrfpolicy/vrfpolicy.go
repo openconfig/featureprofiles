@@ -87,6 +87,7 @@ func configNonDefaultNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 // Reference: https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/vrf_policy_driven_te/README.md?plain=1#L252
 func BuildVRFSelectionPolicyW(t *testing.T, dut *ondatra.DUTDevice, niName string) *oc.NetworkInstance_PolicyForwarding {
 	configNonDefaultNetworkInstance(t, dut)
+	defaultNI := deviations.DefaultNetworkInstance(dut)
 
 	pfRule1 := &policyFwRule{
 		seqID:  1,
@@ -187,6 +188,7 @@ func BuildVRFSelectionPolicyW(t *testing.T, dut *ondatra.DUTDevice, niName strin
 // Reference: https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/vrf_policy_driven_te/README.md?plain=1#L40
 func BuildVRFSelectionPolicyC(t *testing.T, dut *ondatra.DUTDevice, niName string) *oc.NetworkInstance_PolicyForwarding {
 	configNonDefaultNetworkInstance(t, dut)
+	defaultNI := deviations.DefaultNetworkInstance(dut)
 
 	pfRule1 := &policyFwRule{
 		seqID:  1,
