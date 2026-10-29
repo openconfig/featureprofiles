@@ -773,6 +773,10 @@ func TestBGP(t *testing.T) {
 		wantISISPrefixes[pfix] = true
 	}
 	isisStoppingCondition := aftcache.InitialSyncStoppingCondition(t, dut, wantISISPrefixes, map[string]bool{ateP1.IPv4: true}, map[string]bool{ateP1.IPv6: true})
+
+	if tc.dut.Vendor() == ondatra.JUNIPER {
+		isisStoppingCondition = aftcache.InitialSyncStoppingCondition(t, dut, wantISISPrefixes, map[string]bool{ateP1.IPv4: true}, map[string]bool{linkLocalAddress: true})
+	}
 	if _, err := tc.fetchAFT(t, aftSession1, aftSession2, isisStoppingCondition, wantISISPrefixes); err != nil {
 		t.Fatalf("Failed to verify ISIS prefixes in AFT: %v", err)
 	}
