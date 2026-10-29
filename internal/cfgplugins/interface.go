@@ -1398,6 +1398,68 @@ func (a *Attributes) assignSubifsToDefaultNetworkInstance(t *testing.T, d *ondat
 	}
 }
 
+// InterfaceConfigSnapshot holds the configuration of a set of interfaces,
+// keyed by interface name, as read before a test modifies them. A nil value
+// means the interface had no configuration.
+type InterfaceConfigSnapshot map[string]*oc.Interface
+
+// SnapshotInterfacesConfig reads the current configuration of the named
+// interfaces with a single batched gNMI Get, so that it can later be restored
+// with RestoreInterfacesConfig. Read-back data that targets report but reject
+// when written back is removed (see sanitizeInterfaceConfigForReplace).
+func SnapshotInterfacesConfig(t *testing.T, dut *ondatra.DUTDevice, names []string) InterfaceConfigSnapshot {
+	t.Helper()
+	batch := gnmi.OCBatch()
+	for _, n := range names {
+		batch.AddPaths(gnmi.OC().Interface(n))
+	}
+	// batch.Config() reads the CONFIG data type of the batched paths.
+	root, _ := gnmi.Lookup(t, dut, batch.Config()).Val()
+	snap := make(InterfaceConfigSnapshot)
+	for _, n := range names {
+		intf := root.GetInterface(n)
+		sanitizeInterfaceConfigForReplace(intf)
+		snap[n] = intf
+	}
+	return snap
+}
+
+// sanitizeInterfaceConfigForReplace removes from intf the configuration that
+// some targets include when the config is read back but reject when it is
+// written with a replace: containers whose YANG "when" condition does not hold
+// for the interface type (aggregation on non-LAG interfaces, routed-vlan on
+// non-l3ipvlan interfaces) and an unknown port speed.
+func sanitizeInterfaceConfigForReplace(intf *oc.Interface) {
+	if intf == nil {
+		return
+	}
+	if intf.GetType() != oc.IETFInterfaces_InterfaceType_ieee8023adLag {
+		intf.Aggregation = nil
+	}
+	if intf.GetType() != oc.IETFInterfaces_InterfaceType_l3ipvlan {
+		intf.RoutedVlan = nil
+	}
+	if e := intf.GetEthernet(); e != nil && e.GetPortSpeed() == oc.IfEthernet_ETHERNET_SPEED_SPEED_UNKNOWN {
+		e.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_UNSET
+	}
+}
+
+// RestoreInterfacesConfig appends to sb the operations that return every
+// interface in snap to its snapshotted configuration: interfaces that had
+// configuration are replaced with it, interfaces that had none have their
+// configuration deleted.
+func RestoreInterfacesConfig(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, snap InterfaceConfigSnapshot) *gnmi.SetBatch {
+	t.Helper()
+	for name, intf := range snap {
+		if intf == nil {
+			gnmi.BatchDelete(sb, gnmi.OC().Interface(name).Config())
+			continue
+		}
+		gnmi.BatchReplace(sb, gnmi.OC().Interface(name).Config(), intf)
+	}
+	return sb
+}
+
 // AddInterfaceMTUOps adds gNMI operations for interface MTU to the batch.
 func AddInterfaceMTUOps(b *gnmi.SetBatch, dut *ondatra.DUTDevice, intfName string, mtu uint16, isDelete bool) {
 	intf := gnmi.OC().Interface(intfName)
