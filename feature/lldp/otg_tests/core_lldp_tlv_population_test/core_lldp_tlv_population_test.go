@@ -119,16 +119,20 @@ func TestLLDPEnabled(t *testing.T) {
 		chassisIdType: otgtelemetry.E_LldpNeighbor_ChassisIdType(dutConf.GetChassisIdType()),
 	}
 
-	checkOTGLLDPNeighbor(t, otg, otgConfig, expOtgLLDPNeighbor)
-
 	// disable LLDP before releasing the devices.
-	gnmi.Replace(t, dut, gnmi.OC().Lldp().Enabled().Config(), false)
+	t.Cleanup(func() {
+		gnmi.Replace(t, dut, gnmi.OC().Lldp().Enabled().Config(), false)
+	})
+	checkOTGLLDPNeighbor(t, otg, otgConfig, expOtgLLDPNeighbor)
 }
 
 // TestLLDPDisabled tests LLDP advertisement turned off.
 func TestLLDPDisabled(t *testing.T) {
 	// DUT configuration.
 	t.Log("Configure DUT.")
+	t.Cleanup(func() {
+		gnmi.Replace(t, ondatra.DUT(t, "dut"), gnmi.OC().Lldp().Enabled().Config(), true)
+	})
 	dut, dutConf := configureDUT(t, "dut", lldpDisabled)
 	disableP4RTLLDP(t, dut)
 	dutPort := dut.Port(t, portName)
@@ -356,6 +360,14 @@ func disableP4RTLLDP(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
+		t.Cleanup(func() {
+			enableCLI := `p4-runtime
+					no shutdown`
+			if _, err := dut.RawAPIs().GNMI(t).
+				Set(context.Background(), cliSetRequest(enableCLI)); err != nil {
+				t.Errorf("Failed to re-enable P4RTLLDP: %v", err)
+			}
+		})
 		cli := `p4-runtime
 					shutdown`
 		if _, err := dut.RawAPIs().GNMI(t).

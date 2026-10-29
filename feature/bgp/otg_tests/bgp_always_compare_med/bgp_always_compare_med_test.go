@@ -632,6 +632,14 @@ func TestAlwaysCompareMED(t *testing.T) {
 		bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 
 		// First, disable all neighbors
+		neighborsRestored := false
+		t.Cleanup(func() {
+			if !neighborsRestored {
+				for _, nbrIP := range nbrIPs {
+					gnmi.Replace(t, dut, bgpPath.Neighbor(nbrIP).Enabled().Config(), true)
+				}
+			}
+		})
 		for _, nbrIP := range nbrIPs {
 			nbrPath := bgpPath.Neighbor(nbrIP)
 			t.Logf("Disabling BGP neighbor %s", nbrIP)
@@ -660,6 +668,7 @@ func TestAlwaysCompareMED(t *testing.T) {
 			t.Logf("Re-enabling BGP neighbor %s", nbrIP)
 			gnmi.Replace(t, dut, nbrPath.Enabled().Config(), true)
 		}
+		neighborsRestored = true
 
 		// Wait for BGP sessions to re-establish
 		t.Log("Waiting for BGP sessions to re-establish...")

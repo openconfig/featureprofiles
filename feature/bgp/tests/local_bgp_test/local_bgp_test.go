@@ -267,6 +267,9 @@ func TestDisconnect(t *testing.T) {
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 	gnmi.Replace(t, ate, ateConfPath.Config(), ateConf)
 	gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*120, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+	t.Cleanup(func() {
+		gnmi.Replace(t, ate, ateConfPath.Bgp().Neighbor(dutIP).Enabled().Config(), true)
+	})
 	gnmi.Replace(t, ate, ateConfPath.Bgp().Neighbor(dutIP).Enabled().Config(), false)
 	gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*120, oc.Bgp_Neighbor_SessionState_ACTIVE)
 	code := gnmi.Lookup(t, dut, nbrPath.Messages().Received().LastNotificationErrorCode().State())

@@ -311,14 +311,23 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 		if ok := awaitAdjacency(t, dut, aggIDs[1], []oc.E_Isis_IsisInterfaceAdjState{oc.Isis_IsisInterfaceAdjState_UP}); !ok {
 			t.Fatal("ISIS Adjacency is Down on LAG_2")
 		}
+		t.Cleanup(func() {
+			configForwardingViable(t, dut, dutPortList[1:agg2.ateLagCount+1], true)
+		})
 		configForwardingViable(t, dut, dutPortList[1:agg2.ateLagCount+1], false)
 		// Ensure ISIS Adjacency is Down on LAG_2
 
 		if len(dut.Ports()) > 4 {
 			t.Logf("Bring Down Port2 and Port3")
+			t.Cleanup(func() {
+				setDUTInterfaceWithState(t, dut, []*ondatra.Port{dut.Port(t, "port2"), dut.Port(t, "port3")}, true)
+			})
 			setDUTInterfaceWithState(t, dut, []*ondatra.Port{dut.Port(t, "port2"), dut.Port(t, "port3")}, false)
 		} else {
 			t.Logf("Bring Down Port2")
+			t.Cleanup(func() {
+				setDUTInterfaceWithState(t, dut, []*ondatra.Port{dut.Port(t, "port2")}, true)
+			})
 			setDUTInterfaceWithState(t, dut, []*ondatra.Port{dut.Port(t, "port2")}, false)
 		}
 
@@ -346,11 +355,6 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 			t.Fatal("Packet Dropped, LossPct for flow ", flows[0].Name())
 		}
 	})
-	t.Logf("Bring Up the Port2 and Port3")
-	setDUTInterfaceWithState(t, dut, []*ondatra.Port{dut.Port(t, "port2"), dut.Port(t, "port3")}, true)
-
-	// Reset Forwarding-Viable to True for all the ports of LAG_2
-	configForwardingViable(t, dut, dutPortList[1:agg2.ateLagCount+1], true)
 	// Change ISIS metric Equal for Both LAG_2 and LAG_3
 	changeMetric(t, dut, aggIDs[2], 20)
 
@@ -437,14 +441,23 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 		if ok := awaitAdjacency(t, dut, aggIDs[1], []oc.E_Isis_IsisInterfaceAdjState{oc.Isis_IsisInterfaceAdjState_UP}); !ok {
 			t.Fatal("ISIS Adjacency is Down on LAG_2")
 		}
+		t.Cleanup(func() {
+			configForwardingViable(t, dut, dutPortList[1:agg2.ateLagCount+1], true)
+		})
 		configForwardingViable(t, dut, dutPortList[1:agg2.ateLagCount+1], false)
 		// Ensure ISIS Adjacency is Down on LAG_2
 
 		if len(dut.Ports()) > 4 {
 			t.Logf("Bring Down Port2 and Port3")
+			t.Cleanup(func() {
+				setDUTInterfaceWithState(t, dut, []*ondatra.Port{dut.Port(t, "port2"), dut.Port(t, "port3")}, true)
+			})
 			setDUTInterfaceWithState(t, dut, []*ondatra.Port{dut.Port(t, "port2"), dut.Port(t, "port3")}, false)
 		} else {
 			t.Logf("Bring Down Port2")
+			t.Cleanup(func() {
+				setDUTInterfaceWithState(t, dut, []*ondatra.Port{dut.Port(t, "port2")}, true)
+			})
 			setDUTInterfaceWithState(t, dut, []*ondatra.Port{dut.Port(t, "port2")}, false)
 		}
 		// Ensure LAG2 is UP when all member are Forwarding unviable

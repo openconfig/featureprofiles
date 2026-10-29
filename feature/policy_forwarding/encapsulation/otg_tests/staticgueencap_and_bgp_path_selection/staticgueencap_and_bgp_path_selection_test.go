@@ -1671,6 +1671,11 @@ func testEstablishIBGPoverEBGP(t *testing.T, dut *ondatra.DUTDevice, ate *ondatr
 	d := &oc.Root{}
 	i := d.GetOrCreateInterface(dut.Port(t, "port2").Name())
 	i.SetEnabled(false)
+	t.Cleanup(func() {
+		for index := range otgBGPConfig[1].otgPortData {
+			configureDUT(t, dut, dut.Port(t, "port2"), otgBGPConfig[1].dutPortData[index])
+		}
+	})
 	gnmi.Replace(t, dut, gnmi.OC().Interface(dut.Port(t, "port2").Name()).Config(), i)
 
 	ate.OTG().StartProtocols(t)

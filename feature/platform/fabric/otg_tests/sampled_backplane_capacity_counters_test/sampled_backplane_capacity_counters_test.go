@@ -151,6 +151,19 @@ func TestOnChangeBackplaneCapacityCounters(t *testing.T) {
 		fc = len(fabrics) - 1
 		t.Logf("Capping fabric cards to disable at %d to keep at least 1 active", fc)
 	}
+	fabricsRestored := false
+	t.Cleanup(func() {
+		if !fabricsRestored {
+			for _, f := range fabrics[:fc] {
+				empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(f).Empty().State()).Val()
+				if ok && empty {
+					continue
+				}
+				gnmi.Update(t, dut, gnmi.OC().Component(f).Config(), &oc.Component{Name: ygot.String(f)})
+				gnmi.Replace(t, dut, gnmi.OC().Component(f).Fabric().PowerAdminState().Config(), oc.Platform_ComponentPowerType_POWER_ENABLED)
+			}
+		}
+	})
 	for _, f := range fabrics[:fc] {
 		empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(f).Empty().State()).Val()
 		if ok && empty {
@@ -184,6 +197,7 @@ func TestOnChangeBackplaneCapacityCounters(t *testing.T) {
 			t.Errorf("Component %s oper-status after POWER_ENABLED, got: %v, want: %v", f, oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE)
 		}
 	}
+	fabricsRestored = true
 	t.Logf("Waiting for 90s after power enable...")
 	time.Sleep(90 * time.Second)
 	ts3, tocs3, apct3 := getBackplaneCapacityCounters(t, dut, ics)
