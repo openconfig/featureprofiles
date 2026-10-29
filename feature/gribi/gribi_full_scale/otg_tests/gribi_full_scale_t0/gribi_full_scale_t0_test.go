@@ -113,7 +113,7 @@ func TestGRIBIFullScaleT0(t *testing.T) {
 		},
 
 		// Decap VRF parameters
-		NumDecapEntries:     8,
+		NumDecapEntries:     map[bool]int{true: 8, false: 50}[ondatra.DUT(t, "dut").Vendor() == ondatra.JUNIPER],
 		DecapDestsSubsetPct: 100,
 
 		// OTG / Port parameters
