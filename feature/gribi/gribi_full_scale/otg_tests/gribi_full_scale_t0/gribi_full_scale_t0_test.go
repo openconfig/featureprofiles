@@ -114,7 +114,7 @@ func TestGRIBIFullScaleT0(t *testing.T) {
 		},
 
 		// Decap VRF parameters
-        NumDecapEntries: func() int {
+		NumDecapEntries: func() int {
 			if ondatra.DUT(t, "dut").Vendor() == ondatra.JUNIPER {
 				return 8
 			}
