@@ -657,12 +657,13 @@ func otgOperation(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.OTG, conf
 	initialInUnicastPkts := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Counters().InUnicastPkts().State())
 	initialOutUnicastPkts := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port2").Name()).Counters().OutUnicastPkts().State())
 
-	cs := startCapture(t, otgConfig)
+	cs := otgutils.StartCapture(t, otgConfig)
+	defer otgutils.StopCapture(t, otgConfig, cs)
 	otgConfig.StartTraffic(t)
 	time.Sleep(sleepTime * time.Second)
 	otgConfig.StopTraffic(t)
 
-	stopCapture(t, otgConfig, cs)
+	otgutils.StopCapture(t, otgConfig, cs)
 	finalInUnicastPkts := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Counters().InUnicastPkts().State())
 	finalOutUnicastPkts := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port2").Name()).Counters().OutUnicastPkts().State())
 	validateDUTPkts(t, dut, otgConfig, flow, initialInUnicastPkts, initialOutUnicastPkts, finalInUnicastPkts, finalOutUnicastPkts)
@@ -929,21 +930,6 @@ func enableCapture(t *testing.T, config gosnappi.Config, port string) {
 	config.Captures().Clear()
 	t.Log("Enabling capture on ", port)
 	config.Captures().Add().SetName(port).SetPortNames([]string{port}).SetFormat(gosnappi.CaptureFormat.PCAP)
-}
-
-func startCapture(t *testing.T, otg *otg.OTG) gosnappi.ControlState {
-	t.Helper()
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
-	otg.SetControlState(t, cs)
-
-	return cs
-}
-
-func stopCapture(t *testing.T, otg *otg.OTG, cs gosnappi.ControlState) {
-	t.Helper()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
-	otg.SetControlState(t, cs)
 }
 
 func processCapture(t *testing.T, otg *otg.OTG, port string) string {

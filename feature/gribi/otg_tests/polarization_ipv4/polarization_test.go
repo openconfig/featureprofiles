@@ -230,21 +230,12 @@ func populatePackets(count int, encapIPIP bool) []packetTuples {
 	return packets
 }
 
-func startCapture(t *testing.T, ate *ondatra.ATEDevice) {
-	t.Helper()
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
-	ate.OTG().SetControlState(t, cs)
-}
-
-func stopAndReadCapture(t *testing.T, ate *ondatra.ATEDevice) []packetTuples {
+func stopAndReadCapture(t *testing.T, ate *ondatra.ATEDevice, cs gosnappi.ControlState) []packetTuples {
 	t.Helper()
 	otg := ate.OTG()
 
 	t.Log("Stopping capture on port2")
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
-	otg.SetControlState(t, cs)
+	otgutils.StopCapture(t, otg, cs)
 
 	t.Log("Downloading pcap from port2 (single gRPC call)")
 	pcapdata := otg.GetCapture(t, gosnappi.NewCaptureRequest().SetPortName("port2"))
@@ -640,10 +631,11 @@ func TestPolarization(t *testing.T) {
 						t.Logf("Batch %d/%d: pushing %d packets as flow %s",
 							batchNum, numBatches, len(batch), flowName)
 						pushSingleFlow(t, ate, dut, topo, flowName, batch, agg1ID, agg2ID, profile.encapIPIP)
-						startCapture(t, ate)
+						cs := otgutils.StartCapture(t, ate.OTG())
+						defer otgutils.StopCapture(t, ate.OTG(), cs)
 						runSingleFlow(t, ate, flowName, len(batch))
 
-						batchCaptured := stopAndReadCapture(t, ate)
+						batchCaptured := stopAndReadCapture(t, ate, cs)
 						batchCaptured, batchDropped, batchDeduped := sanitizeReplayTuples(batchCaptured, profile.encapIPIP)
 						allCaptured = append(allCaptured, batchCaptured...)
 

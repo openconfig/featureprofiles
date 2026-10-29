@@ -316,7 +316,8 @@ func runTest(t *testing.T, tc testCase, dut *ondatra.DUTDevice, ate *ondatra.ATE
 	otg.StartProtocols(t)
 
 	if tc.capturePort != "" {
-		captureState = startCapture(t, ate)
+		captureState = otgutils.StartCapture(t, otg)
+		defer otgutils.StopCapture(t, otg, captureState)
 	}
 
 	otg.StartTraffic(t)
@@ -324,7 +325,8 @@ func runTest(t *testing.T, tc testCase, dut *ondatra.DUTDevice, ate *ondatra.ATE
 	otg.StopProtocols(t)
 
 	if captureState != nil {
-		stopCapture(t, ate, captureState)
+		otgutils.StopCapture(t, otg, captureState)
+		time.Sleep(5 * time.Second)
 		tc.captureFilename = getCapture(t, ate, tc)
 	}
 
@@ -546,14 +548,6 @@ func clearCapture(t *testing.T, ate *ondatra.ATEDevice, topo gosnappi.Config) {
 	ate.OTG().PushConfig(t, topo)
 }
 
-func startCapture(t *testing.T, ate *ondatra.ATEDevice) gosnappi.ControlState {
-	t.Helper()
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
-	ate.OTG().SetControlState(t, cs)
-	return cs
-}
-
 func getCapture(t *testing.T, ate *ondatra.ATEDevice, tc testCase) string {
 	otg := ate.OTG()
 	bytes := otg.GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(tc.capturePort))
@@ -573,13 +567,6 @@ func getCapture(t *testing.T, ate *ondatra.ATEDevice, tc testCase) string {
 	}
 
 	return f.Name()
-}
-
-func stopCapture(t *testing.T, ate *ondatra.ATEDevice, cs gosnappi.ControlState) {
-	t.Helper()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
-	ate.OTG().SetControlState(t, cs)
-	time.Sleep(5 * time.Second)
 }
 
 func checkGreCapture(t *testing.T, tc testCase) {

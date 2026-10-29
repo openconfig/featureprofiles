@@ -597,9 +597,10 @@ func rewriteIpv6PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 		initialPackets[id], initialOctets[id] = p, o
 	}
 
-	startCapture(t, ate)
+	cs := otgutils.StartCapture(t, ate.OTG())
+	defer otgutils.StopCapture(t, ate.OTG(), cs)
 	trafficStartStop(t, ate, topo, "ipv6-traffic-tos0")
-	stopCapture(t, ate)
+	otgutils.StopCapture(t, ate.OTG(), cs)
 
 	if greTest {
 		// configure GRE encapsulation with Traffic policy
@@ -731,9 +732,10 @@ func rewriteIpv4PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	intialpacket5, intialoctet5 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "4")
 	intialpacket6, intialoctet6 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "6")
 
-	startCapture(t, ate)
+	cs := otgutils.StartCapture(t, ate.OTG())
+	defer otgutils.StopCapture(t, ate.OTG(), cs)
 	trafficStartStop(t, ate, topo, "intf1-nc1-ipv4")
-	stopCapture(t, ate)
+	otgutils.StopCapture(t, ate.OTG(), cs)
 
 	if greTest {
 		// configure GRE encapsulation with Traffic policy
@@ -814,9 +816,10 @@ func rewriteMplsSwapAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.AT
 
 		ate.OTG().PushConfig(t, topo)
 
-		startCapture(t, ate)
+		cs := otgutils.StartCapture(t, ate.OTG())
+		defer otgutils.StopCapture(t, ate.OTG(), cs)
 		trafficStartStop(t, ate, topo, tc.name)
-		stopCapture(t, ate)
+		otgutils.StopCapture(t, ate.OTG(), cs)
 
 		t.Logf("Verify Traffic flow %s", tc.name)
 		verifyTrafficFlow(t, ate, tc.name)
@@ -852,9 +855,10 @@ func rewriteIpv4MplsPopAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 
 	cfgplugins.NewStaticMplsLspPopLabel(t, dut, "lsp-pop", mplsPopLabelv4, "", atePort2.IPv4, "ipv4")
 
-	startCapture(t, ate)
+	cs := otgutils.StartCapture(t, ate.OTG())
+	defer otgutils.StopCapture(t, ate.OTG(), cs)
 	trafficStartStop(t, ate, topo, "MplsPopV4")
-	stopCapture(t, ate)
+	otgutils.StopCapture(t, ate.OTG(), cs)
 	t.Logf("Verify Traffic flow MplsPopV4")
 	verifyTrafficFlow(t, ate, "MplsPopV4")
 
@@ -892,9 +896,10 @@ func rewriteIpv6MplsPopAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 
 	cfgplugins.NewStaticMplsLspPopLabel(t, dut, "lsp-pop-v6", mplsPopLabelv6, "", atePort2.IPv6, "ipv6")
 
-	startCapture(t, ate)
+	cs := otgutils.StartCapture(t, ate.OTG())
+	defer otgutils.StopCapture(t, ate.OTG(), cs)
 	trafficStartStop(t, ate, topo, "MplsPopV6")
-	stopCapture(t, ate)
+	otgutils.StopCapture(t, ate.OTG(), cs)
 	t.Logf("Verify Traffic flow MplsPopV6")
 	verifyTrafficFlow(t, ate, "MplsPopV6")
 	verifyMplsPopCapture(t, ate, "port2")
@@ -928,9 +933,10 @@ func rewriteIpv4MplsPushAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatr
 	cfgplugins.NewStaticMplsLspPushLabel(t, dut, "mpls-lsp-push", dp1.Name(), atePort2.IPv4, ipv4DestAddrWithCidr,
 		mplsPushLabelV4, lspNextHopIndex, "ipv4")
 
-	startCapture(t, ate)
+	cs := otgutils.StartCapture(t, ate.OTG())
+	defer otgutils.StopCapture(t, ate.OTG(), cs)
 	trafficStartStop(t, ate, topo, "MplsPushV4")
-	stopCapture(t, ate)
+	otgutils.StopCapture(t, ate.OTG(), cs)
 
 	t.Logf("Verify Traffic flow MplsPushV4")
 	verifyTrafficFlow(t, ate, "MplsPushV4")
@@ -966,9 +972,10 @@ func rewriteIpv6MplsPushAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatr
 	cfgplugins.NewStaticMplsLspPushLabel(t, dut, "mpls-lsp-push-ipv6", dp1.Name(), atePort2.IPv6, ipv6DestAddrWithCidr,
 		mplsPushLabelV6, lspNextHopIndex, "ipv6")
 
-	startCapture(t, ate)
+	cs := otgutils.StartCapture(t, ate.OTG())
+	defer otgutils.StopCapture(t, ate.OTG(), cs)
 	trafficStartStop(t, ate, topo, "MplsPushV6")
-	stopCapture(t, ate)
+	otgutils.StopCapture(t, ate.OTG(), cs)
 
 	t.Logf("Verify Traffic flow MplsPushV6")
 	verifyTrafficFlow(t, ate, "MplsPushV6")
@@ -1002,22 +1009,6 @@ func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flowName string) {
 	} else {
 		t.Errorf("Traffic validation failed for [%s] FramesTx: %d FramesRx: %d", flowName, framesTxV4, framesRxV4)
 	}
-}
-
-// startCapture starts the capture on the otg ports
-func startCapture(t *testing.T, ate *ondatra.ATEDevice) {
-	otg := ate.OTG()
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
-	otg.SetControlState(t, cs)
-}
-
-// stopCapture starts the capture on the otg ports
-func stopCapture(t *testing.T, ate *ondatra.ATEDevice) {
-	otg := ate.OTG()
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
-	otg.SetControlState(t, cs)
 }
 
 func enableCapture(t *testing.T, config gosnappi.Config, port string) {

@@ -1307,9 +1307,10 @@ func verifyDSCPPreservation(t *testing.T, ate *ondatra.ATEDevice, dscp uint32) e
 	otg.StartProtocols(t)
 	otgutils.WaitForARP(t, otg, top, "IPv4")
 
-	cs := packetvalidationhelpers.StartCapture(t, ate)
+	cs := otgutils.StartCapture(t, otg)
+	defer otgutils.StopCapture(t, otg, cs)
 	runTrafficWindow(t, otg, flowTrafficDuration)
-	packetvalidationhelpers.StopCapture(t, ate, cs)
+	otgutils.StopCapture(t, otg, cs)
 
 	if err := verifyTraffic(t, ate, top, flow.Name(), true); err != nil {
 		packetvalidationhelpers.ClearCapture(t, top, ate)
@@ -1355,9 +1356,10 @@ func verifyFlowLabelPreservation(t *testing.T, ate *ondatra.ATEDevice, flowLabel
 	otg.StartProtocols(t)
 	otgutils.WaitForARP(t, otg, top, "IPv6")
 
-	cs := packetvalidationhelpers.StartCapture(t, ate)
+	cs := otgutils.StartCapture(t, otg)
+	defer otgutils.StopCapture(t, otg, cs)
 	runTrafficWindow(t, otg, flowTrafficDuration)
-	packetvalidationhelpers.StopCapture(t, ate, cs)
+	otgutils.StopCapture(t, otg, cs)
 
 	if err := verifyTraffic(t, ate, top, flow.Name(), true); err != nil {
 		packetvalidationhelpers.ClearCapture(t, top, ate)
@@ -1482,7 +1484,8 @@ func TestIPSecWithMACSecOverAggregatedLinks(t *testing.T) {
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 
 	// Start capture before running traffic.
-	cs := packetvalidationhelpers.StartCapture(t, ate)
+	cs := otgutils.StartCapture(t, otg)
+	defer otgutils.StopCapture(t, otg, cs)
 
 	// The subtests below map 1:1 to the IPSEC-1.1.x sections in the README.
 	tests := []struct {
@@ -1503,7 +1506,7 @@ func TestIPSecWithMACSecOverAggregatedLinks(t *testing.T) {
 				otg.StopTraffic(t)
 
 				// Stop capture after traffic.
-				packetvalidationhelpers.StopCapture(t, ate, cs)
+				otgutils.StopCapture(t, otg, cs)
 
 				if err := verifyTraffic(t, ate, top, flowIPv4Fwd, true); err != nil {
 					t.Errorf("traffic verification failed: %v", err)
