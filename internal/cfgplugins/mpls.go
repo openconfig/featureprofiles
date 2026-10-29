@@ -251,10 +251,7 @@ func RemoveStaticMplsLspPushLabel(t *testing.T, dut *ondatra.DUTDevice, lspName 
 		}
 		return
 	}
-	d := &oc.Root{}
-	mplsCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateMpls()
-	mplsCfg.GetOrCreateLsps().DeleteStaticLsp(lspName)
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
+	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Lsps().StaticLsp(lspName).Config())
 }
 
 func MPLSStaticLSPByPass(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, lspName string, incomingLabel uint32, nextHopIP string, protocolType string, byPass bool) {
@@ -277,10 +274,17 @@ func MPLSStaticLSPByPass(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDev
 		mplsCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateMpls()
 		staticMplsCfg := mplsCfg.GetOrCreateLsps().GetOrCreateStaticLsp(lspName)
 		staticMplsCfg.GetOrCreateEgress().SetIncomingLabel(oc.UnionUint32(incomingLabel))
-		staticMplsCfg.GetOrCreateEgress().SetNextHop(nextHopIP)
-		staticMplsCfg.GetOrCreateEgress().SetPushLabel(oc.Egress_PushLabel_IMPLICIT_NULL)
+		if deviations.UseOldOCPathStaticLspNh(dut) {
+			staticMplsCfg.GetOrCreateEgress().SetNextHop(nextHopIP)
+			staticMplsCfg.GetOrCreateEgress().SetPushLabel(oc.Egress_PushLabel_IMPLICIT_NULL)
+		} else {
+			nh := staticMplsCfg.GetOrCreateEgress().GetOrCreateLspNextHop(0)
+			nh.SetIpAddress(nextHopIP)
+			nh.SetPushLabel(oc.LspNextHop_PushLabel_IMPLICIT_NULL)
+		}
 
-		gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
+		// Keep the other label bindings when adding or restoring one LSP.
+		gnmi.BatchUpdate(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Lsps().StaticLsp(lspName).Config(), staticMplsCfg)
 	}
 }
 

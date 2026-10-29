@@ -706,7 +706,7 @@ test: {
   id: "PF-1.25"
   description: "Egress Static MPLS LSP Verification"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/mpls/otg_tests/static_lsp_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/mpls/otg_tests/static_lsp_test/static_lsp_test.go"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/mpls/otg_tests/static_lsp_test/setup_test.go"
 }
 test: {
   id: "PF-1.26"
