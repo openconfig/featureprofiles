@@ -563,7 +563,7 @@ func updateOpticalChannelConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p 
 		TargetOutputPower: ygot.Float64(params.TargetOpticalPower),
 		LinePort:          ygot.String(params.LinePortNames[p.Name()]),
 	}
-	if dut.Vendor() == ondatra.NOKIA {
+	if dut.Vendor() == ondatra.NOKIA || params.LinePortNames[p.Name()] == "" {
 		och.LinePort = nil
 	}
 	gnmi.BatchReplace(batch, gnmi.OC().Component(params.OpticalChannelNames[p.Name()]).Config(), &oc.Component{
@@ -2204,7 +2204,7 @@ func NewZRInterfaceConfigAll(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.S
 		updateInterfaceConfig(batch, dut, p, params)
 		updateHWPortConfig(batch, dut, p, params)
 		updateTransceiverConfig(batch, dut, p, params)
-		updateOpticalChannelConfig(batch, p, params)
+		updateOpticalChannelConfig(batch, dut, p, params)
 		updateOTNChannelConfig(batch, dut, p, params)
 		updateETHChannelConfig(batch, dut, p, params)
 	}
@@ -2242,7 +2242,7 @@ func BatchConfigureTransceiverEnabled(t *testing.T, dut *ondatra.DUTDevice, batc
 func BatchConfigureOpticalChannel(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, ports []*ondatra.Port, params *ConfigParameters) *gnmi.SetBatch {
 	t.Helper()
 	for _, p := range ports {
-		updateOpticalChannelConfig(batch, p, params)
+		updateOpticalChannelConfig(batch, dut, p, params)
 	}
 	return batch
 }
@@ -2361,7 +2361,7 @@ func BatchRecreateZRInterfaces(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi
 			sub := a.NewOCInterface(p.Name(), dut).GetOrCreateSubinterface(0)
 			gnmi.BatchReplace(batch, gnmi.OC().Interface(p.Name()).Subinterface(0).Config(), sub)
 		}
-		updateOpticalChannelConfig(batch, p, params)
+		updateOpticalChannelConfig(batch, dut, p, params)
 		updateETHChannelConfig(batch, dut, p, params)
 	}
 	return batch

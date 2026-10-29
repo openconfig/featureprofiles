@@ -412,8 +412,15 @@ func runAndVerifyBidirectionalTraffic(t *testing.T, dut *ondatra.DUTDevice, ate 
 	beforeP1 := snapshotPortCounters(t, dut, p1, params)
 	beforeP2 := snapshotPortCounters(t, dut, p2, params)
 
+	var trafficStarted bool
 	if ate != nil && top != nil {
 		ate.OTG().StartTraffic(t)
+		trafficStarted = true
+		defer func() {
+			if trafficStarted {
+				ate.OTG().StopTraffic(t)
+			}
+		}()
 		flowNames := []string{flow1AName, flow1BName, flow2AName, flow2BName}
 		for _, fn := range flowNames {
 			_, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(fn).State(), convergenceTimeout, func(val *ygnmi.Value[*otg.Flow]) bool {
@@ -425,6 +432,7 @@ func runAndVerifyBidirectionalTraffic(t *testing.T, dut *ondatra.DUTDevice, ate 
 			}
 		}
 		ate.OTG().StopTraffic(t)
+		trafficStarted = false
 		otgutils.LogFlowMetrics(t, ate.OTG(), top)
 		otgutils.LogPortMetrics(t, ate.OTG(), top)
 
@@ -505,7 +513,6 @@ func Test800ZROperationalModeInventoryRecovery(t *testing.T) {
 	t.Log("Starting TRANSCEIVER-109: 400ZR / 800ZR Operational Mode Transition and Inventory Persistence")
 	dut := ondatra.DUT(t, "dut")
 	ate, hasATE := ondatra.ATEs(t)["ate"]
-	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
@@ -589,6 +596,8 @@ func Test800ZROperationalModeInventoryRecovery(t *testing.T) {
 			}
 		}
 	})
+
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	baselineInventory := make(map[string]*transceiver.InventorySnapshot)
 	var otgConfig gosnappi.Config
@@ -825,8 +834,15 @@ func Test800ZROperationalModeInventoryRecovery(t *testing.T) {
 		transceiver.VerifyInventoryMatchesBaseline(t, dut, p1, params, baselineInventory[p1.Name()], true, false, true)
 
 		// Verify 100% traffic loss (rx_pkts == 0) on Flow 1A and Flow 2A while Link 1 is down due to frequency mismatch.
+		var mismatchTrafficStarted bool
 		if hasATE {
 			ate.OTG().StartTraffic(t)
+			mismatchTrafficStarted = true
+			defer func() {
+				if mismatchTrafficStarted {
+					ate.OTG().StopTraffic(t)
+				}
+			}()
 			for _, fn := range []string{flow1AName, flow2AName} {
 				_, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(fn).State(), negativeCheckTimeout, func(val *ygnmi.Value[*otg.Flow]) bool {
 					f, present := val.Val()
@@ -837,6 +853,7 @@ func Test800ZROperationalModeInventoryRecovery(t *testing.T) {
 				}
 			}
 			ate.OTG().StopTraffic(t)
+			mismatchTrafficStarted = false
 			for _, fn := range []string{flow1AName, flow2AName} {
 				rxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(fn).Counters().InPkts().State())
 				if rxPkts != 0 {
