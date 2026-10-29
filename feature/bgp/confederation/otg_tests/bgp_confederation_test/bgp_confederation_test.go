@@ -84,6 +84,9 @@ const (
 const (
 	asPathReads    = 5
 	asPathInterval = 2 * time.Second
+
+	// locRibInterval is the interval between reads of the DUT loc-rib.
+	locRibInterval = 5 * time.Second
 )
 
 // family is an address family exercised by the test.
@@ -399,7 +402,7 @@ func configureEnvironment(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATE
 	configureDUTBGP(t, dut)
 
 	otgutils.WaitForARP(t, otg, top, "IPv4")
-	otgutils.WaitForARP(t, otg, top, "IPv6")
+	waitForIPv6Neighbors(t, otg, top)
 }
 
 // configureOTG builds the OTG configuration: one device per ATE router with an
@@ -699,8 +702,10 @@ func controlRoutes(t *testing.T, otg *otg.OTG, state gosnappi.StateProtocolRoute
 
 // verifyLocRibASPath waits until the DUT loc-rib has the IPv4 and IPv6
 // prefixes of the route a with the AS_PATH want, in README notation, and
-// reports an error otherwise. The loc-rib changes with every route update, so
-// it is watched with the default subscription mode, not ON_CHANGE.
+// reports an error otherwise. The loc-rib is read with a new request every
+// locRibInterval instead of a subscription: a route added after a
+// subscription starts is not streamed by every device in the default
+// subscription mode.
 func verifyLocRibASPath(t *testing.T, dut *ondatra.DUTDevice, a *advertisedRoute, want string) {
 	t.Helper()
 	t.Logf("Verify in the DUT loc-rib that the %s routes are received with %s", a.name, want)
@@ -708,48 +713,45 @@ func verifyLocRibASPath(t *testing.T, dut *ondatra.DUTDevice, a *advertisedRoute
 	for _, f := range families {
 		prefix := a.prefix(f)
 		got := "prefix not in loc-rib"
-		// matches reports whether the attr-set of a loc-rib route has the
-		// wanted AS_PATH.
-		matches := func(attrIndex uint64) bool {
-			as, ok := gnmi.Lookup(t, dut, rib.AttrSet(attrIndex).State()).Val()
-			if !ok {
-				got = fmt.Sprintf("attr-set %d not found", attrIndex)
-				return false
+		// attrIndex returns the attr-set index of the loc-rib route of prefix.
+		attrIndex := func() (uint64, bool) {
+			if f == ipv6 {
+				locRib, ok := gnmi.Lookup(t, dut, rib.AfiSafi(f.afiSafi()).Ipv6Unicast().LocRib().State()).Val()
+				if !ok {
+					return 0, false
+				}
+				for _, r := range locRib.Route {
+					if samePrefix(r.GetPrefix(), prefix) {
+						return r.GetAttrIndex(), true
+					}
+				}
+				return 0, false
 			}
-			got = asPathFromRIB(as)
-			return got == want
+			locRib, ok := gnmi.Lookup(t, dut, rib.AfiSafi(f.afiSafi()).Ipv4Unicast().LocRib().State()).Val()
+			if !ok {
+				return 0, false
+			}
+			for _, r := range locRib.Route {
+				if samePrefix(r.GetPrefix(), prefix) {
+					return r.GetAttrIndex(), true
+				}
+			}
+			return 0, false
 		}
-		var ok bool
-		if f == ipv6 {
-			_, ok = gnmi.Watch(t, dut, rib.AfiSafi(f.afiSafi()).Ipv6Unicast().LocRib().State(), routeTimeout,
-				func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Bgp_Rib_AfiSafi_Ipv6Unicast_LocRib]) bool {
-					locRib, present := v.Val()
-					if !present {
-						return false
-					}
-					for _, r := range locRib.Route {
-						if samePrefix(r.GetPrefix(), prefix) {
-							return matches(r.GetAttrIndex())
-						}
-					}
-					return false
-				}).Await(t)
-		} else {
-			_, ok = gnmi.Watch(t, dut, rib.AfiSafi(f.afiSafi()).Ipv4Unicast().LocRib().State(), routeTimeout,
-				func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Bgp_Rib_AfiSafi_Ipv4Unicast_LocRib]) bool {
-					locRib, present := v.Val()
-					if !present {
-						return false
-					}
-					for _, r := range locRib.Route {
-						if samePrefix(r.GetPrefix(), prefix) {
-							return matches(r.GetAttrIndex())
-						}
-					}
-					return false
-				}).Await(t)
+		for deadline := time.Now().Add(routeTimeout); ; {
+			if idx, ok := attrIndex(); ok {
+				if as, ok := gnmi.Lookup(t, dut, rib.AttrSet(idx).State()).Val(); ok {
+					got = asPathFromRIB(as)
+				} else {
+					got = fmt.Sprintf("attr-set %d not found", idx)
+				}
+			}
+			if got == want || time.Now().After(deadline) {
+				break
+			}
+			time.Sleep(locRibInterval)
 		}
-		if !ok {
+		if got != want {
 			t.Errorf("DUT loc-rib %s: AS_PATH got %q, want %q", prefix, got, want)
 		}
 	}
@@ -937,6 +939,31 @@ func sameASNs(got, want []uint32) bool {
 	slices.Sort(g)
 	slices.Sort(w)
 	return slices.Equal(g, w)
+}
+
+// waitForIPv6Neighbors waits until every OTG interface with an IPv6 address
+// has learned an IPv6 neighbor, such as the link-local address of its DUT
+// port. otgutils.WaitForARP(..., "IPv6") also requires each configured IPv6
+// gateway to be resolved, which the OTG does only once it sends traffic to
+// the gateway, so on virtual devices it times out before any traffic flows.
+// The IPv6 BGP sessions of RT-1.111.1 and the IPv6 traffic of every subtest
+// still verify reachability of the DUT global IPv6 addresses.
+// TODO: Use otgutils.WaitForARP again once it no longer requires the IPv6
+// gateways to be resolved before traffic.
+func waitForIPv6Neighbors(t *testing.T, otg *otg.OTG, top gosnappi.Config) {
+	t.Helper()
+	for _, d := range top.Devices().Items() {
+		eth := d.Ethernets().Items()[0]
+		if len(eth.Ipv6Addresses().Items()) == 0 {
+			continue
+		}
+		got, ok := gnmi.WatchAll(t, otg, gnmi.OTG().Interface(eth.Name()).Ipv6NeighborAny().LinkLayerAddress().State(), stateTimeout*2, func(v *ygnmi.Value[string]) bool {
+			return v.IsPresent()
+		}).Await(t)
+		if !ok {
+			t.Fatalf("OTG interface %s: no IPv6 neighbor learned, last got: %v", eth.Name(), got)
+		}
+	}
 }
 
 // samePrefix reports whether two CIDR strings denote the same prefix,
