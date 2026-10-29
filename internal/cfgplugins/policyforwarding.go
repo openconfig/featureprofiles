@@ -10,15 +10,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/internal/attrs"
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/helpers"
-	"github.com/openconfig/featureprofiles/internal/system"
-	spb "github.com/openconfig/gnoi/system"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygot/ygot"
+	"google3/third_party/golang/ygot/ygot/ygot"
+	"google3/third_party/openconfig/featureprofiles/internal/attrs/attrs"
+	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
+	"google3/third_party/openconfig/featureprofiles/internal/helpers/helpers"
+	"google3/third_party/openconfig/featureprofiles/internal/system/system"
+	spb "google3/third_party/openconfig/gnoi/system/system_go_proto"
+	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
+	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
+	"google3/third_party/openconfig/ondatra/ondatra"
 )
 
 const (
@@ -1024,12 +1024,7 @@ func PolicyForwardingGreDecapsulation(t *testing.T, batch *gnmi.SetBatch, dut *o
 	}
 }
 
-// ConfigureVrfSelectionPolicy configures an OpenConfig VRF selection policy on the provided PolicyForwarding container.
 func ConfigureVrfSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, policyName string, vrfRules []VrfRule) {
-	t.Helper()
-	if len(vrfRules) == 0 {
-		t.Fatalf("vrfRules must not be empty")
-	}
 	t.Logf("Configuring VRF Selection Policy")
 	policy := pf.GetOrCreatePolicy(policyName)
 	policy.Type = oc.Policy_Type_VRF_SELECTION_POLICY
@@ -1038,29 +1033,9 @@ func ConfigureVrfSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice, pf *oc.Ne
 		rule := policy.GetOrCreateRule(vrfRule.Index)
 		switch vrfRule.IpType {
 		case IPv4:
-			ipv4 := rule.GetOrCreateIpv4()
-			if vrfRule.SourcePrefix != "" {
-				if vrfRule.PrefixLength > 0 && !strings.Contains(vrfRule.SourcePrefix, "/") {
-					ipv4.SourceAddress = ygot.String(fmt.Sprintf("%s/%d", vrfRule.SourcePrefix, vrfRule.PrefixLength))
-				} else {
-					ipv4.SourceAddress = ygot.String(vrfRule.SourcePrefix)
-				}
-			}
-			if len(vrfRule.DscpSet) > 0 {
-				ipv4.DscpSet = vrfRule.DscpSet
-			}
+			rule.GetOrCreateIpv4().SourceAddress = ygot.String(fmt.Sprintf("%s/%d", vrfRule.SourcePrefix, vrfRule.PrefixLength))
 		case IPv6:
-			ipv6 := rule.GetOrCreateIpv6()
-			if vrfRule.SourcePrefix != "" {
-				if vrfRule.PrefixLength > 0 && !strings.Contains(vrfRule.SourcePrefix, "/") {
-					ipv6.SourceAddress = ygot.String(fmt.Sprintf("%s/%d", vrfRule.SourcePrefix, vrfRule.PrefixLength))
-				} else {
-					ipv6.SourceAddress = ygot.String(vrfRule.SourcePrefix)
-				}
-			}
-			if len(vrfRule.DscpSet) > 0 {
-				ipv6.DscpSet = vrfRule.DscpSet
-			}
+			rule.GetOrCreateIpv6().SourceAddress = ygot.String(fmt.Sprintf("%s/%d", vrfRule.SourcePrefix, vrfRule.PrefixLength))
 		default:
 			t.Fatalf("Unsupported IP type %s in vrf rule", vrfRule.IpType)
 		}
@@ -1158,7 +1133,6 @@ func NewVrfSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice, cfg VrfSelectio
 	return pf
 }
 
-// ApplyVrfSelectionPolicyToInterfaceOC binds an OpenConfig VRF selection policy to the specified interface.
 func ApplyVrfSelectionPolicyToInterfaceOC(t *testing.T, pf *oc.NetworkInstance_PolicyForwarding, interfaceID string, appliedPolicyName string) {
 	t.Helper()
 	iface := pf.GetOrCreateInterface(interfaceID)
@@ -1766,22 +1740,6 @@ func ConfigureDecapVrfSelection(t *testing.T, dut *ondatra.DUTDevice) {
 	PushDUTHardwareInitConfig(t, dut, hardwareInitCfg)
 	restartSandL3Unicast(t, dut)
 	t.Log("Waiting for next-hop decapsulation configuration to take effect")
-	time.Sleep(60 * time.Second)
-}
-
-// ConfigureFallbackDecapVrfSelection enables next-hop fallback decapsulation VRF
-// mode, restarts SandL3Unicast when it is running, and waits for the configuration
-// to take effect.
-func ConfigureFallbackDecapVrfSelection(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-	hardwareInitCfg := NewDUTHardwareInit(t, dut, FeatureVrfSelectionFallbackDecap)
-	if hardwareInitCfg == "" {
-		return
-	}
-
-	PushDUTHardwareInitConfig(t, dut, hardwareInitCfg)
-	restartSandL3Unicast(t, dut)
-	t.Log("Waiting for next-hop fallback decapsulation configuration to take effect")
 	time.Sleep(60 * time.Second)
 }
 
