@@ -360,7 +360,12 @@ func OpticalChannelComponentFromPortWithRetry(t *testing.T, dut *ondatra.DUTDevi
 					break
 				}
 			}
+			if transceiverName == "" {
+				t.Fatalf("Associated Transceiver for Interface (%v) not found!", p.Name())
+			}
 			return fmt.Sprintf("%s-Optical0", transceiverName)
+		case ondatra.CISCO:
+			return "OpticalChannel" + strings.TrimLeftFunc(p.Name(), unicode.IsLetter)
 		default:
 			t.Fatal("Manual Optical channel name required when deviation missing_port_to_optical_channel_component_mapping applied.")
 		}

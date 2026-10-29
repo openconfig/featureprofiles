@@ -330,6 +330,9 @@ func StartOnChangeInventoryWatcher(t *testing.T, dut *ondatra.DUTDevice, trName 
 		gnmi.OC().Component(trName).HardwareVersion(),
 		gnmi.OC().Component(trName).FirmwareVersion(),
 	)
+	// ygnmi.Watch starts an asynchronous STREAM subscription in its own internal goroutine and returns
+	// *ygnmi.Watcher[T] immediately (only calling .Await() blocks). The context.Context (ctx) passed into
+	// ygnmi.Watch(ctx, ...) controls the lifetime of the background ON_CHANGE stream until w.Close() cancels it.
 	ygnmi.Watch(ctx, c, invBatch.State(), func(v *ygnmi.Value[*oc.Root]) error {
 		w.mu.Lock()
 		defer w.mu.Unlock()
@@ -355,7 +358,7 @@ func StartOnChangeInventoryWatcher(t *testing.T, dut *ondatra.DUTDevice, trName 
 			if got := comp.GetName(); got == "" || got != baseline.Name {
 				w.violations = append(w.violations, fmt.Sprintf("component %s name changed in ON_CHANGE stream: got %q, want %q", trName, got, baseline.Name))
 			}
-			if got := comp.GetType(); got != oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER {
+			if got := comp.GetType(); got != nil && got != oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER {
 				w.violations = append(w.violations, fmt.Sprintf("component %s type changed in ON_CHANGE stream: got %v, want %v", trName, got, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER))
 			}
 			if got := comp.GetParent(); got == "" || got != baseline.Parent {
@@ -773,8 +776,11 @@ func VerifyOpticalAndChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, port
 
 		// Subscribe with SAMPLE mode (10s interval) to optical-channel, transceiver, and OTN logical channel telemetry.
 		ochStream := samplestream.New(t, dut, gnmi.OC().Component(ochName).State(), samplingInterval)
+		defer ochStream.Close()
 		trStream := samplestream.New(t, dut, gnmi.OC().Component(trName).State(), samplingInterval)
+		defer trStream.Close()
 		otnStream := samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(otnIdx).State(), samplingInterval)
+		defer otnStream.Close()
 
 		_, ok = ochStream.AwaitNext(sampleTimeout, func(v *ygnmi.Value[*oc.Component]) bool {
 			c, present := v.Val()
