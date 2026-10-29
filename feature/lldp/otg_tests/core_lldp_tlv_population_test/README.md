@@ -47,8 +47,8 @@ timestamps, and global/per-interface enablement operate correctly over gNMI.
     Description `"DUT port-1"`, System Name, System Description `"DUT"`, and TTL
     `80`).
 *   Establish a streaming `gNMI.Subscribe` (`ON_CHANGE` mode) subscription on
-    DUT for `/lldp/interfaces/interface/neighbors/neighbor/state/` on `port-1`
-    and verify that DUT reports correct neighbor TLV values from ATE:
+    DUT for `/lldp/interfaces/interface/neighbors/neighbor/` on `port-1` and
+    verify that DUT reports correct neighbor TLV values from ATE:
     *   `/lldp/interfaces/interface/neighbors/neighbor/state/chassis-id`
     *   `/lldp/interfaces/interface/neighbors/neighbor/state/chassis-id-type`
     *   `/lldp/interfaces/interface/neighbors/neighbor/state/port-id`
@@ -56,7 +56,7 @@ timestamps, and global/per-interface enablement operate correctly over gNMI.
     *   `/lldp/interfaces/interface/neighbors/neighbor/state/port-description`
     *   `/lldp/interfaces/interface/neighbors/neighbor/state/system-name`
     *   `/lldp/interfaces/interface/neighbors/neighbor/state/system-description`
-    *   `/lldp/interfaces/interface/neighbors/neighbor/state/management-address`
+    *   `/lldp/interfaces/interface/neighbors/neighbor/mgmt-addresses/mgmt-address/state/address`
         (`192.0.2.2`)
 
 ### RT-6.1.2: Per-Interface LLDP Counters and Packet Timestamps
@@ -158,9 +158,9 @@ paths:
   /lldp/interfaces/interface/config/port-description:
 
   ## State Paths ##
+  /lldp/interfaces/interface/neighbors/neighbor/mgmt-addresses/mgmt-address/state/address:
   /lldp/interfaces/interface/neighbors/neighbor/state/chassis-id:
   /lldp/interfaces/interface/neighbors/neighbor/state/chassis-id-type:
-  /lldp/interfaces/interface/neighbors/neighbor/state/management-address:
   /lldp/interfaces/interface/neighbors/neighbor/state/port-description:
   /lldp/interfaces/interface/neighbors/neighbor/state/port-id:
   /lldp/interfaces/interface/neighbors/neighbor/state/port-id-type:
