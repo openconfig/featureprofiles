@@ -44,7 +44,10 @@ Telemetry: Interface oc path validation
 ### gNMI-1.28.3: Validate Interfaces_State_Rates
 
 * Validate interface state rate leaves are streamed and holds expected value
- - in-rate, out-rate
+ - `/interfaces/interface[name=<port>]/state/in-rate`
+ - `/interfaces/interface[name=<port>]/state/out-rate`
+
+The test constructs these paths with `gnmi.OC().Interface(port).InRate().State()` and `OutRate().State()` in `testTelemetryInterfacesStateRate`. The OpenConfig `openconfig-interfaces` schema defines both as read-only interface state leaves ([schema](https://www.openconfig.net/projects/models/schemadocs/yangdoc/openconfig-interfaces.html)). This records the generic test expectation; it does not imply that every vendor's OCIF implementation exposes the leaves. For IOS XR `26.4.1.26I` and `26.4.1.28I` on 8808, the platform exception marks the rate paths unsupported.
 
 ### gNMI-1.28.4: Validate Interfaces_State_Subinterface
 
@@ -65,6 +68,14 @@ Telemetry: Interface oc path validation
 * Validate interface aggregation leaves are streamed with expected value
   - /interfaces/interface/aggregation/config/lag-type
   - /interfaces/interface/aggregation/state/member
+
+These leaves belong to the logical aggregate interface. TEST6 creates an `ieee8023adLag` interface, sets its `aggregation/config/lag-type`, assigns the physical test ports to it using `ethernet/config/aggregate-id`, and reads `aggregation/state/member` on the aggregate interface.
+
+Platforms with `aggregate_atomic_update`, including Nokia, receive the aggregate and all physical members in one root-level gNMI Update. This prevents separate transactions from dropping `lag-type` or rejecting member attachment.
+
+The member leaf-list is compared without relying on its returned order. XR can report the two configured members in reverse order; both names must be present, but that order is not a test requirement.
+
+TEST5 restores the original MAC address configuration, including whether an override was configured. When no override existed, cleanup deletes the temporary `ethernet/config/mac-address` leaf. Writing the original operational MAC back as configuration would leave an explicit override and cause XR to reject later bundle membership with `Conflicting: /ord_m/macaddr`.
 
 #### Canonical OC
 
