@@ -13,6 +13,7 @@ and 100g links within 1 DUTs.
 
 ### Topology
 
+```text
 +------------------------+                         +------------------------+
 |   NEAR_END Generator   |                         |   FAR_END Reflector    |
 |                        |        400G Link        |                        |
@@ -656,6 +657,24 @@ cleanup.
   }
 }
 ```
+
+### Cleanup
+
+*   Issue `gnoi.packet_link_qualification.LinkQualification.Delete` to remove
+    any remaining active or historical link qualification sessions, and confirm
+    via `gnoi.packet_link_qualification.LinkQualification.List` that `0`
+    qualification records remain on the DUT.
+*   Revert all test-specific singleton and LAG configurations via `gNMI.Set`,
+    including removing the aggregate interfaces (`lag1` through `lag4`),
+    clearing `/interfaces/interface/ethernet/config/aggregate-id` and
+    `/interfaces/interface/config/id` bindings on the physical member ports
+    (`port1` through `port4`), and removing test IPv4/IPv6 subinterface
+    addresses.
+*   Verify via `gNMI.Subscribe` that
+    `/interfaces/interface/state/admin-status` and
+    `/interfaces/interface/state/oper-status` on all physical interfaces
+    (`port1` through `port4`) are `UP` and the DUT is restored to its baseline
+    operational state.
 
 ## OpenConfig Path and RPC Coverage
 
