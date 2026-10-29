@@ -33,6 +33,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/ondatra"
 )
 
 var (
@@ -113,7 +114,12 @@ func TestGRIBIFullScaleT1(t *testing.T) {
 		},
 
 		// Decap VRF parameters
-NumDecapEntries:     func() int { if ondatra.DUT(t, "dut").Vendor() == ondatra.JUNIPER { return 20 }; return 50 }(),
+		NumDecapEntries: func() int {
+			if ondatra.DUT(t, "dut").Vendor() == ondatra.JUNIPER {
+				return 20
+			}
+			return 50
+		}(),
 		DecapDestsSubsetPct: 100,
 
 		// OTG / Port parameters
