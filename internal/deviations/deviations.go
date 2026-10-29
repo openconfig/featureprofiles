@@ -54,6 +54,12 @@ import (
 	"github.com/openconfig/ondatra"
 )
 
+// RoutedVlanInterfaceName returns the expected name of the Routed VLAN interface for SVIs.
+// Juniper: https://partnerissuetracker.corp.google.com/issues/573046775
+func RoutedVlanInterfaceName(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetRoutedVlanInterfaceName()
+}
+
 func lookupDeviations(dvc *ondatra.Device) (*mpb.Metadata_PlatformExceptions, error) {
 	var matchedPlatformException *mpb.Metadata_PlatformExceptions
 
@@ -2320,6 +2326,8 @@ func BgpDynamicNeighborPrefixUnsupported(dut *ondatra.DUTDevice) bool {
 
 // VlanSubinterfaceOCUnsupported returns true if the device does not support OC config for VLAN subinterfaces.
 // Arista: https://partnerissuetracker.corp.google.com/issues/494280147
+// Cisco: https://partnerissuetracker.corp.google.com/issues/573155183
+// Nokia: https://partnerissuetracker.corp.google.com/issues/573159486
 func VlanSubinterfaceOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetVlanSubinterfaceOcUnsupported()
 }
@@ -2399,6 +2407,14 @@ func AigpMetricIncrement(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAigpMetricIncrement()
 }
 
+// SwitchedVlanUnsupported returns true if the device does not support switched-vlan config.
+// Device does not support switched-vlan configuration in ethernet.
+// NOKIA: https://partnerissuetracker.corp.google.com/issues/572757293
+// CISCO: https://partnerissuetracker.corp.google.com/issues/571920136
+func SwitchedVlanUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSwitchedVlanUnsupported()
+}
+
 // PowerSupplyTelemetryUnsupported returns true if device does not support power supply telemetry.
 // Cisco: https://b.corp.google.com/issues/307454993
 func PowerSupplyTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
@@ -2466,4 +2482,51 @@ func AFTNextHopEncapsulateHeaderUnsupported(dut *ondatra.DUTDevice) bool {
 // Arista: https://partnerissuetracker.corp.google.com/issues/573620862
 func AFTNextHopGroupBackupNHGUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAftNextHopGroupBackupNhgUnsupported()
+}
+
+// CfmStateFt returns the functional translator to be used for translating CFM
+// state leaves (e.g. present-rdi).
+// Arista: https://partnerissuetracker.corp.google.com/issues/574322407
+func CfmStateFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetCfmStateFt()
+}
+
+// CfmPmFt returns the functional translator to be used for translating CFM
+// performance measurement leaves.
+// Arista: https://partnerissuetracker.corp.google.com/issues/574326691
+func CfmPmFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetCfmPmFt()
+}
+
+// QosRedUnsupported returns true if device does not support RED under queue-management-profiles.
+func QosRedUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDropWeightLeavesUnsupported()
+}
+
+// InvalidInterfaceNumberAllowed returns true for devices that don't pre-check invalid interface numbers when configured
+// Cisco: https://partnerissuetracker.corp.google.com/issues/570523357
+func InvalidInterfaceNumberAllowed(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInvalidInterfaceNumberAllowed()
+}
+
+// BgpAfiSafiSendCommunityTypeUnsupported returns true if the device does not support configuring
+// BGP send-community-type under peer-group/afi-safis/afi-safi/config/send-community-type and
+// requires configuring it under peer-group/config/send-community-type instead.
+// Arista: https://partnerissuetracker.corp.google.com/issues/567652475
+func BgpAfiSafiSendCommunityTypeUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpAfiSafiSendCommunityTypeUnsupported()
+}
+
+// ISISInterfaceAuthenticationContainerUnsupported returns true if the device does not support
+// configuring IS-IS interface authentication under /isis/interfaces/interface/authentication
+// and requires /isis/interfaces/interface/levels/level/hello-authentication instead.
+// Arista: https://partnerissuetracker.corp.google.com/issues/567813121
+func ISISInterfaceAuthenticationContainerUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisInterfaceAuthenticationContainerUnsupported()
+}
+
+// SkipGnoiPingRpcAuthzVerification returnds true if Gnoi Ping rpc to be skipped based on a deviation
+// Arista: https://partnerissuetracker.corp.google.com/issues/219953165
+func SkipGnoiPingRpcAuthzVerification(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipGnoiPingRpcAuthzVerification()
 }

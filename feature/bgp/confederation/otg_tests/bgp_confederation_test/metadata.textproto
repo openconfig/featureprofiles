@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "7a71f6a0-e650-4c95-9cd8-a8dd601a1af5"
+plan_id: "RT-1.111"
+description: "BGP Autonomous System Confederations (RFC 5065)"
+testbed: TESTBED_DUT_ATE_4LINKS
