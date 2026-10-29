@@ -1274,6 +1274,7 @@ test: {
   id: "RT-5.16"
   description: "LACP Member Linecard Reboot"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/lacp/otg_tests/lacp_member_reboot_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/lacp/otg_tests/lacp_member_reboot_test/lacp_member_reboot_test.go"
 }
 test: {
   id: "RT-5.17"
