@@ -817,7 +817,6 @@ func rewriteMplsSwapAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.AT
 		ate.OTG().PushConfig(t, topo)
 
 		cs := otgutils.StartCapture(t, ate.OTG())
-		defer otgutils.StopCapture(t, ate.OTG(), cs)
 		trafficStartStop(t, ate, topo, tc.name)
 		otgutils.StopCapture(t, ate.OTG(), cs)
 
