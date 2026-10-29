@@ -25,6 +25,8 @@ jobs:
           exempt-pr-labels: 'work-in-progress,do-not-merge'
           
           # --- Debugging & Performance ---
-          operations-per-run: 50
+          sort-by: updated
+          ascending: true
+          operations-per-run: 250
           # debug-only: true  # Uncomment to run the bot in debug mode without modifying or commenting on PRs.
           enable-statistics: true
