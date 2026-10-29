@@ -1898,6 +1898,13 @@ func ContainerzTLSInsecureSkipVerify(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetContainerzTlsInsecureSkipVerify()
 }
 
+// ContainerzDUTClockSyncRequired returns true if the device clock must be
+// synchronized with the test runner before starting a container that generates
+// a short-lived TLS certificate. Default value is false.
+func ContainerzDUTClockSyncRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetContainerzDutClockSyncRequired()
+}
+
 // SwitchoverStabilizeDelayM returns extra minutes the device needs beyond the
 // 5-minute base timeout for switchover-related waits (post-switchover
 // verification, switchover-ready polling, and SwitchControlProcessor retry).

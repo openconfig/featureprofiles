@@ -136,7 +136,9 @@ func synchronizeDUTClock(t *testing.T, dut *ondatra.DUTDevice) {
 // registers a t.Cleanup to tear it down when the test (or subtest) ends.
 func setupContainer(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	synchronizeDUTClock(t, dut)
+	if deviations.ContainerzDUTClockSyncRequired(dut) {
+		synchronizeDUTClock(t, dut)
+	}
 	ctx := context.Background()
 	opts := containerztest.StartContainerOptions{
 		ImageName:           imageName,
@@ -161,13 +163,14 @@ func dialContainer(t *testing.T, ctx context.Context, dut *ondatra.DUTDevice, po
 		t.Skipf("BindingDUT %T does not implement DialGRPCWithPort, which is required for this test: %v", bindingDUT, err)
 	}
 
-	// cntrsrv generates a short-lived self-signed certificate whose identity
-	// does not match the DUT management address. CNTR-2 validates connectivity,
-	// not the identity of this test-only endpoint, so skip certificate validation
-	// for this connection. Container-to-DUT connections still use the binding's
-	// TLS verification settings.
-	conn, err := dialer.DialGRPCWithPort(ctx, port, grpc.WithTransportCredentials(
-		credentials.NewTLS(&tls.Config{InsecureSkipVerify: true}))) // NOLINT
+	var dialOpts []grpc.DialOption
+	if deviations.ContainerzTLSInsecureSkipVerify(dut) {
+		// The containerz service presents a self-signed TLS certificate. Use
+		// TLS with skip-verify so the handshake succeeds without a trusted CA.
+		dialOpts = append(dialOpts, grpc.WithTransportCredentials(
+			credentials.NewTLS(&tls.Config{InsecureSkipVerify: true}))) // NOLINT
+	}
+	conn, err := dialer.DialGRPCWithPort(ctx, port, dialOpts...)
 	if err != nil {
 		t.Fatalf("DialGRPCWithPort failed: %v", err)
 	}

@@ -1581,6 +1581,9 @@ message Metadata {
     // Arista: https://partnerissuetracker.corp.google.com/issues/567813121
     bool isis_interface_authentication_container_unsupported = 478;
 
+    // Device requires its clock to be synchronized with the test runner before
+    // starting a container that generates a short-lived TLS certificate.
+    bool containerz_dut_clock_sync_required = 479;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }
