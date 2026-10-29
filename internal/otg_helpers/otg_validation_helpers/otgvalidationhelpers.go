@@ -346,3 +346,102 @@ func VerifyTraffic(t *testing.T, ate *ondatra.ATEDevice, params VerifyTrafficPar
 	t.Logf("%s: traffic verification passed: FramesTx: %d, FramesRx: %d", params.FlowName, framesTx, framesRx)
 	return nil
 }
+
+// SteadyStateFlowParams holds parameters for watching a continuous OTG flow until a steady-state
+// measurement window meets the expected packet delivery or drop criteria.
+type SteadyStateFlowParams struct {
+	FlowName      string
+	MinWindowPkts uint64
+	WantZeroLoss  bool
+	WantComplete  bool
+	MaxLossPct    float64
+	Timeout       time.Duration
+}
+
+// AwaitFlowSteadyState watches an OTG flow's OutPkts and InPkts counters over a sliding window of at least
+// MinWindowPkts packets (without using time.Sleep) and verifies either 0% steady-state loss (when WantZeroLoss is true),
+// 100% steady-state drop (when WantComplete is false and WantZeroLoss is false), or bounded loss <= MaxLossPct.
+func AwaitFlowSteadyState(t *testing.T, ate *ondatra.ATEDevice, params SteadyStateFlowParams) {
+	t.Helper()
+	timeout := params.Timeout
+	if timeout == 0 {
+		timeout = time.Minute
+	}
+	minWindow := params.MinWindowPkts
+	if minWindow == 0 {
+		minWindow = 200
+	}
+
+	flowPath := gnmi.OTG().Flow(params.FlowName).Counters().State()
+	var baseSet bool
+	var baseTx, baseRx uint64
+	var baseTime time.Time
+
+	_, ok := gnmi.Watch(t, ate.OTG(), flowPath, timeout, func(val *ygnmi.Value[*otg.Flow_Counters]) bool {
+		cnt, present := val.Val()
+		if !present || cnt == nil {
+			return false
+		}
+		tx := cnt.GetOutPkts()
+		rx := cnt.GetInPkts()
+		if tx == 0 {
+			return false
+		}
+		if !baseSet {
+			baseTx = tx
+			baseRx = rx
+			baseTime = time.Now()
+			baseSet = true
+			return false
+		}
+		deltaTx := tx - baseTx
+		deltaRx := rx - baseRx
+
+		if params.WantZeroLoss {
+			if deltaTx < minWindow {
+				return false
+			}
+			if deltaRx >= deltaTx {
+				return true
+			}
+			// Reset window baseline so transient convergence drops prior to steady state do not fail the check.
+			baseTx = tx
+			baseRx = rx
+			baseTime = time.Now()
+			return false
+		}
+		if !params.WantComplete && params.MaxLossPct >= 100 {
+			// When the source LAG is administratively disabled, OTG may stop transmitting on the down LAG (deltaTx == 0).
+			if deltaTx < minWindow && time.Since(baseTime) < 2*time.Second {
+				return false
+			}
+			if deltaRx == 0 {
+				return true
+			}
+			baseTx = tx
+			baseRx = rx
+			baseTime = time.Now()
+			return false
+		}
+		if deltaTx < minWindow {
+			return false
+		}
+		var lossPct float64
+		if deltaTx > deltaRx {
+			lossPct = 100.0 * float64(deltaTx-deltaRx) / float64(deltaTx)
+		}
+		if lossPct <= params.MaxLossPct {
+			return true
+		}
+		baseTx = tx
+		baseRx = rx
+		baseTime = time.Now()
+		return false
+	}).Await(t)
+
+	if !ok {
+		cnt := gnmi.Get(t, ate.OTG(), flowPath)
+		t.Errorf("Flow %s did not reach expected steady state (WantZeroLoss=%v, MaxLossPct=%.2f) within %v: OutPkts=%d, InPkts=%d",
+			params.FlowName, params.WantZeroLoss, params.MaxLossPct, timeout, cnt.GetOutPkts(), cnt.GetInPkts())
+	}
+}
