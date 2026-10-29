@@ -17,6 +17,7 @@ package cfgplugins
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -1773,4 +1774,34 @@ func ConfigureAnpfHardwareTcam(t *testing.T, dut *ondatra.DUTDevice) {
 	default:
 		t.Fatalf("Unsupported vendor: %v", dut.Vendor())
 	}
+}
+
+// ClearNeighbors clears the dynamic ARP and IPv6 neighbor cache entries on the DUT.
+// This is an operational action rather than config, so it is only implemented via
+// vendor CLI (no OpenConfig/gNOI equivalent is defined for clearing neighbor caches).
+func ClearNeighbors(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		helpers.GnmiCLIConfig(t, dut, "clear arp-cache\nclear ipv6 neighbors\n")
+	default:
+		t.Logf("ClearNeighbors: no CLI mapping known for vendor %v, skipping", dut.Vendor())
+	}
+}
+
+// negateCLILines prefixes every non-empty line of a flat CLI snippet with "no ".
+func negateCLILines(cfg string, reverse bool) string {
+	var out []string
+	lines := strings.Split(cfg, "\n")
+	if reverse {
+		slices.Reverse(lines)
+	}
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || line == "!" {
+			continue
+		}
+		out = append(out, "no "+line)
+	}
+	return strings.Join(out, "\n") + "\n"
 }
