@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // package to test P4RT with traceroute traffic of IPV4 and IPV6 with TTL/HopLimit as 0&1.
-// go test -v . -testbed /root/ondatra/featureprofiles/topologies/atedut_2.testbed -binding /root/ondatra/featureprofiles/topologies/atedut_2.binding -outputs_dir logs
 
 package traceroute_packetin_with_vrf_selection_test
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"strings"
 	"testing"
@@ -27,8 +27,8 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/featureprofiles/internal/p4rtutils"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ygnmi/ygnmi"
@@ -101,84 +101,98 @@ func decodePacket6(t *testing.T, packetData []byte) uint8 {
 	return 7
 }
 
-// testTraffic sends traffic flow for duration seconds and returns the
-// number of packets sent out.
-func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flows []gosnappi.Flow, srcEndPoint gosnappi.Port, targetPkts uint64, cs gosnappi.ControlState) int {
+// testTraffic appends and sends the specified flows without reconfiguring the
+// ATE topology. Re-pushing the complete topology resets the BGP session that
+// supplies the recursive routes needed by this test.
+func testTraffic(t *testing.T, dut *ondatra.DUTDevice, top gosnappi.Config, ate *ondatra.ATEDevice, flows []gosnappi.Flow, srcEndPoint gosnappi.Port, targetPkts uint64) int {
 	t.Helper()
 	initialOutPkts := make(map[string]uint64, len(flows))
-	top.Flows().Clear()
-	for _, flow := range flows {
+	flowNames := make([]string, 0, len(flows))
+	flowAppend := gosnappi.NewConfigAppend()
+	flowResources := flowAppend.ConfigAppendList().Add().Flows()
+	flowIndex := len(top.Flows().Items())
+	for index, flow := range flows {
+		// Appended flows must have names that do not already exist in the ATE
+		// configuration. Each invocation otherwise reuses flow4in4/flow6in4.
+		flow.SetName(fmt.Sprintf("%s-%d", flow.Name(), flowIndex+index+1))
 		flow.TxRx().Port().SetTxName(srcEndPoint.Name()).SetRxName(srcEndPoint.Name())
 		flow.Metrics().SetEnable(true)
 		flow.Duration().FixedPackets().SetPackets(uint32(targetPkts))
 		top.Flows().Append(flow)
+		flowResources.Append(flow)
+		flowNames = append(flowNames, flow.Name())
 	}
-	ate.OTG().PushConfig(t, top)
-	ate.OTG().StartProtocols(t)
-	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
-	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
+	ate.OTG().AppendConfig(t, flowAppend)
 
-	// START THE PACKET CAPTURE AFTER CONFIG IS PUSHED
-	ate.OTG().SetControlState(t, cs)
-	defer func() {
-		cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
-		ate.OTG().SetControlState(t, cs)
-	}()
+	// Keep the readiness check close to traffic. The BGP routes are recursive,
+	// so traffic must not start while the peer is recovering.
+	verifyBgpTelemetry(t, dut)
 
 	for _, flow := range flows {
 		initialOutPkts[flow.Name()] = gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
 	}
-	ate.OTG().StartTraffic(t)
+	trafficState := gosnappi.NewControlState()
+	trafficState.Traffic().FlowTransmit().SetFlowNames(flowNames).
+		SetState(gosnappi.StateTrafficFlowTransmitState.START)
+	ate.OTG().SetControlState(t, trafficState)
 
 	trafficStopped := false
 	defer func() {
 		if !trafficStopped {
-			ate.OTG().StopTraffic(t)
+			trafficState.Traffic().FlowTransmit().SetState(gosnappi.StateTrafficFlowTransmitState.STOP)
+			ate.OTG().SetControlState(t, trafficState)
 		}
 	}()
 
-	// Wait for OutPkts to reach the target
+	// OTG statistics snapshots can take more than a minute to become available
+	// even when the fixed packet burst has already reached the DUT.
 	for _, flow := range flows {
-		_, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State(), time.Minute, func(val *ygnmi.Value[uint64]) bool {
+		var counter flowCounterTracker
+		_, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State(), flowMetricsTimeout, func(val *ygnmi.Value[uint64]) bool {
 			pkts, present := val.Val()
-			return present && (pkts >= initialOutPkts[flow.Name()]+targetPkts)
+			counter.observe(pkts, present, time.Now())
+			return present && counter.targetReached(initialOutPkts[flow.Name()], targetPkts)
 		}).Await(t)
 
 		if !ok {
-			t.Fatalf("Traffic flow %s did not reach the target of %d packets within the timeout", flow.Name(), targetPkts)
+			t.Fatal(counter.timeoutError(flow.Name(), "transmit-count wait", initialOutPkts[flow.Name()], targetPkts))
 		}
 	}
 
-	ate.OTG().StopTraffic(t)
+	trafficState.Traffic().FlowTransmit().SetState(gosnappi.StateTrafficFlowTransmitState.STOP)
+	ate.OTG().SetControlState(t, trafficState)
 	trafficStopped = true
 
-	// Add stabilization: poll counters until they stop incrementing
+	// SAMPLE mode supplies unchanged values too, so stabilization does not
+	// depend on receiving another counter change after the fixed burst stops.
+	metricsOpts := ate.OTG().GNMIOpts().WithYGNMIOpts(
+		ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE),
+		ygnmi.WithSampleInterval(flowCounterSampleInterval),
+	)
 	total := 0
 	for _, flow := range flows {
-		var lastPkts uint64
-		var stableCount int
-		for {
-			current := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
-			if current == lastPkts {
-				stableCount++
-				if stableCount >= 4 { // 4 * 500ms = 2 seconds of stability
-					total += int(current - initialOutPkts[flow.Name()])
-					break
-				}
-			} else {
-				stableCount = 0
-			}
-			lastPkts = current
-			time.Sleep(500 * time.Millisecond)
+		var counter flowCounterTracker
+		_, ok := gnmi.Watch(t, metricsOpts, gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State(), flowMetricsTimeout, func(val *ygnmi.Value[uint64]) bool {
+			pkts, present := val.Val()
+			return counter.observe(pkts, present, time.Now())
+		}).Await(t)
+		if !ok {
+			t.Fatal(counter.timeoutError(flow.Name(), "counter stabilization", initialOutPkts[flow.Name()], targetPkts))
 		}
+		// A stable counter is not enough: reject a reset or a short final count
+		// rather than returning zero and skipping PacketIn validation.
+		sent, err := counter.sentPackets(initialOutPkts[flow.Name()], targetPkts)
+		if err != nil {
+			t.Fatalf("OTG flow %q final transmit counter: %v", flow.Name(), err)
+		}
+		total += int(sent)
 	}
 	return total
 }
 
 // testPacketIn programs p4rt table entry and sends traffic related to Traceroute,
 // then validates packetin message metadata and payload.
-func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool, cs gosnappi.ControlState, flowValues []*flowArgs, EgressPortMap map[string]bool) []float64 {
-	const targetPkts = 1000
+func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool, flowValues []*flowArgs, EgressPortMap map[string]bool) []float64 {
 	leader := args.leader
 	if err := programmTableEntry(leader, args.packetIO, false, true); err != nil {
 		t.Fatalf("There is error when programming IPv4 entry")
@@ -221,7 +235,10 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool
 	for _, flowValue := range flowValues {
 		flow = append(flow, args.packetIO.GetTrafficFlow(args.ate, dstMac, isIPv4, 1, 300, 50, ipv4InnerDst, flowValue))
 	}
-	pktOut := testTraffic(t, args.top, args.ate, flow, srcEndPoint, targetPkts, cs)
+	pktOut := testTraffic(t, args.dut, args.top, args.ate, flow, srcEndPoint, traceroutePacketsPerFlow)
+	if pktOut <= 0 {
+		t.Fatalf("OTG transmitted %d packets; want a positive count before PacketIn and traffic distribution validation", pktOut)
+	}
 	var countPkts = map[string]int{"11": 0, "12": 0, "13": 0, "14": 0, "15": 0, "16": 0, "17": 0}
 
 	packetInTests := []struct {

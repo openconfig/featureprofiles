@@ -25,7 +25,6 @@ import (
 
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -33,6 +32,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/helpers"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/featureprofiles/internal/vrfpolicy"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
@@ -45,7 +45,7 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-// Settings for configuring the baseline testbed with the test
+// Settings for configuring the baseline topology with the test
 // topology.
 //
 // ATE port-1 <------> port-1 DUT
@@ -80,7 +80,6 @@ const (
 	niTeVrf222              = "TE_VRF_222"
 	niRepairVrf             = "REPAIR_VRF"
 	niTransitVRF            = "TRANSIT_VRF"
-	tolerance               = 0.02
 	encapFlow               = "encapFlow"
 	gribiIPv4EntryVRF1111   = "203.0.113.1"
 	gribiIPv4EntryVRF1112   = "203.0.113.2"
@@ -241,11 +240,6 @@ var (
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
-
-	// loopbackIntfName string
-	// TODO : https://github.com/open-traffic-generator/fp-testbed-juniper/issues/42
-	// Below code will be uncommented once ixia issue is fixed.
-	// tolerance        = 0.2
 
 	portsMap = map[string]attrs.Attributes{
 		"dutPort1": dutPort1,
@@ -853,7 +847,7 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // configureOTG configures the topology of the ATE.
-func configureOTG(t testing.TB, otg *otg.OTG, atePorts []*ondatra.Port) gosnappi.Config {
+func configureOTG(t *testing.T, otg *otg.OTG, atePorts []*ondatra.Port) gosnappi.Config {
 	t.Helper()
 	t.Logf("configureOTG")
 	config := gosnappi.NewConfig()
@@ -927,11 +921,6 @@ func configureOTG(t testing.TB, otg *otg.OTG, atePorts []*ondatra.Port) gosnappi
 		}
 
 	}
-	config.Captures().Add().SetName("packetCapture").
-		SetPortNames([]string{atePortNamelist[1], atePortNamelist[2], atePortNamelist[3], atePortNamelist[4],
-			atePortNamelist[5], atePortNamelist[6], atePortNamelist[7]}).
-		SetFormat(gosnappi.CaptureFormat.PCAP)
-
 	// Disable FEC for 100G-FR ports because Novus does not support it.
 	if len(pmd100GFRPorts) > 0 {
 		l1Settings := config.Layer1().Add().SetName("L1").SetPortNames(pmd100GFRPorts)
@@ -943,21 +932,10 @@ func configureOTG(t testing.TB, otg *otg.OTG, atePorts []*ondatra.Port) gosnappi
 	otg.PushConfig(t, config)
 	time.Sleep(30 * time.Second)
 	otg.StartProtocols(t)
+	otgutils.WaitForARP(t, otg, config, "IPv4")
+	otgutils.WaitForARP(t, otg, config, "IPv6")
 	time.Sleep(30 * time.Second)
-	pb, _ := config.Marshal().ToProto()
-	t.Log(pb.GetCaptures())
 	return config
-}
-
-func startCapture(t *testing.T, args *testArgs, capturePortList []string) gosnappi.ControlState {
-	t.Helper()
-	args.otgConfig.Captures().Clear()
-	args.otgConfig.Captures().Add().SetName("packetCapture").
-		SetPortNames(capturePortList).
-		SetFormat(gosnappi.CaptureFormat.PCAP)
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
-	return cs
 }
 
 func verifyPortStatus(t *testing.T, args *testArgs, portList []string, portStatus bool) {
@@ -980,7 +958,7 @@ func validateTrafficDistribution(t *testing.T, ate *ondatra.ATEDevice, wantWeigh
 	t.Log("Verify packet load balancing as per the programmed weight")
 	t.Log("got ratio:", gotWeights)
 	t.Log("want ratio:", wantWeights)
-	if diff := cmp.Diff(wantWeights, gotWeights, cmpopts.EquateApprox(0, tolerance)); diff != "" {
+	if diff := cmp.Diff(wantWeights, gotWeights, cmp.Comparer(distributionRatiosWithinTolerance)); diff != "" {
 		t.Errorf("Packet distribution ratios -want,+got:\n%s", diff)
 	}
 }
@@ -998,14 +976,12 @@ func testGribiMatchNoSourceNoProtocolMacthDSCP(ctx context.Context, t *testing.T
 	baseScenario.ConfigureBaseGribiRoutes(ctx, t, dut, args.client)
 	configureAdditionalGribiAft(ctx, t, dut, args)
 
-	baseCapturePortList := []string{atePortNamelist[1], atePortNamelist[5]}
 	EgressPortMap := map[string]bool{"11": true, "12": true, "13": true, "14": false, "15": true, "16": false, "17": false}
 	LoadBalancePercent := []float64{0.0156, 0.0468, 0.1875, 0, 0.75, 0, 0}
 	flow := []*flowArgs{{flowName: "flow4in4",
 		outHdrSrcIP: ipv4OuterSrcAddr, outHdrDstIP: ipv4InnerDst, outHdrDscp: []uint32{dscpEncapA1},
 		InnHdrSrcIP: ipv4OuterSrcAddr, InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true, udp: true}}
-	captureState := startCapture(t, args, baseCapturePortList)
-	gotWeights := testPacket(t, args, captureState, flow, EgressPortMap)
+	gotWeights := testPacket(t, args, flow, EgressPortMap)
 	validateTrafficDistribution(t, args.ate, LoadBalancePercent, gotWeights)
 }
 
@@ -1021,14 +997,12 @@ func testTunnelTrafficMatchDefaultTerm(ctx context.Context, t *testing.T, dut *o
 	baseScenario.ConfigureBaseGribiRoutes(ctx, t, dut, args.client)
 	configureAdditionalGribiAft(ctx, t, dut, args)
 
-	baseCapturePortList := []string{atePortNamelist[1], atePortNamelist[5]}
 	EgressPortMap := map[string]bool{"11": false, "12": false, "13": false, "14": false, "15": false, "16": false, "17": true}
 	LoadBalancePercent := []float64{0, 0, 0, 0, 0, 0, 1}
 	flow := []*flowArgs{{flowName: "flow4in4",
 		outHdrSrcIP: ipv4OuterSrcAddr, outHdrDstIP: noMatchEncapDest,
 		InnHdrSrcIP: ipv4OuterSrcAddr, InnHdrDstIP: noMatchEncapDest, isInnHdrV4: true, udp: true}}
-	captureState := startCapture(t, args, baseCapturePortList)
-	gotWeights := testPacket(t, args, captureState, flow, EgressPortMap)
+	gotWeights := testPacket(t, args, flow, EgressPortMap)
 	validateTrafficDistribution(t, args.ate, LoadBalancePercent, gotWeights)
 }
 
@@ -1043,14 +1017,12 @@ func testGribiDecapMatchSrcProtoDSCP(ctx context.Context, t *testing.T, dut *ond
 	// Configure GRIBi baseline AFTs.
 	baseScenario.ConfigureBaseGribiRoutes(ctx, t, dut, args.client)
 	configureAdditionalGribiAft(ctx, t, dut, args)
-	baseCapturePortList := []string{atePortNamelist[1], atePortNamelist[5]}
 	EgressPortMap := map[string]bool{"11": true, "12": true, "13": true, "14": false, "15": false, "16": false, "17": false}
 	LoadBalancePercent := []float64{0.0625, 0.1875, 0.75, 0, 0, 0, 0}
 	flow := []*flowArgs{{flowName: "flow4in4",
 		outHdrSrcIP: ipv4OuterSrc111Addr, outHdrDstIP: gribiIPv4EntryVRF1111, outHdrDscp: []uint32{dscpEncapA1},
 		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true}}
-	captureState := startCapture(t, args, baseCapturePortList)
-	gotWeights := testPacket(t, args, captureState, flow, EgressPortMap)
+	gotWeights := testPacket(t, args, flow, EgressPortMap)
 	validateTrafficDistribution(t, args.ate, LoadBalancePercent, gotWeights)
 }
 
@@ -1058,7 +1030,6 @@ func testGribiDecapMatchSrcProtoDSCP(ctx context.Context, t *testing.T, dut *ond
 // Test-6
 func testTunnelTrafficNoDecap(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, args *testArgs) {
 	t.Helper()
-	baseCapturePortList := []string{atePortNamelist[1], atePortNamelist[5]}
 	EgressPortMap := map[string]bool{"11": false, "12": false, "13": false, "14": false, "15": false, "16": false, "17": true}
 	LoadBalancePercent := []float64{0, 0, 0, 0, 0, 0, 1}
 
@@ -1103,8 +1074,7 @@ func testTunnelTrafficNoDecap(ctx context.Context, t *testing.T, dut *ondatra.DU
 						{flowName: "flow6in4",
 							outHdrSrcIP: ipv4OuterSrc111Addr, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapNoMatch},
 							InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: ipv6InnerDst, isInnHdrV4: false}}
-					captureState := startCapture(t, args, baseCapturePortList)
-					gotWeights := testPacket(t, args, captureState, flow, EgressPortMap)
+					gotWeights := testPacket(t, args, flow, EgressPortMap)
 					validateTrafficDistribution(t, args.ate, LoadBalancePercent, gotWeights)
 				})
 		})
@@ -1123,7 +1093,6 @@ func testTunnelTrafficDecapEncap(ctx context.Context, t *testing.T, dut *ondatra
 	configureAdditionalGribiAft(ctx, t, dut, args)
 	configureGribiRoute(ctx, t, dut, args, ipv4OuterDst111WithMask)
 
-	baseCapturePortList := []string{atePortNamelist[1], atePortNamelist[5]}
 	EgressPortMap := map[string]bool{"11": true, "12": true, "13": true, "14": false, "15": true, "16": false, "17": false}
 	LoadBalancePercent := []float64{0.0156, 0.0468, 0.1875, 0, 0.75, 0, 0}
 	flow := []*flowArgs{{flowName: "flow4in4",
@@ -1132,8 +1101,7 @@ func testTunnelTrafficDecapEncap(ctx context.Context, t *testing.T, dut *ondatra
 		{flowName: "flow6in4",
 			outHdrSrcIP: ipv4OuterSrc111Addr, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapA1},
 			InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: ipv6InnerDst, innHdrDscp: dscpEncapA1, isInnHdrV4: false}}
-	captureState := startCapture(t, args, baseCapturePortList)
-	gotWeights := testPacket(t, args, captureState, flow, EgressPortMap)
+	gotWeights := testPacket(t, args, flow, EgressPortMap)
 	validateTrafficDistribution(t, args.ate, LoadBalancePercent, gotWeights)
 
 	LoadBalancePercent = []float64{0.0468, 0.1406, 0.5625, 0, 0.25, 0, 0}
@@ -1143,8 +1111,7 @@ func testTunnelTrafficDecapEncap(ctx context.Context, t *testing.T, dut *ondatra
 		{flowName: "flow6in4",
 			outHdrSrcIP: ipv4OuterSrc222Addr, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapB1},
 			InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: ipv6InnerDst, innHdrDscp: dscpEncapB1, isInnHdrV4: false}}
-	captureState = startCapture(t, args, baseCapturePortList)
-	gotWeights = testPacket(t, args, captureState, flow, EgressPortMap)
+	gotWeights = testPacket(t, args, flow, EgressPortMap)
 	validateTrafficDistribution(t, args.ate, LoadBalancePercent, gotWeights)
 }
 
