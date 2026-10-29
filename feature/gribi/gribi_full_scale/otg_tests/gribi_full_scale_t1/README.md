@@ -64,7 +64,7 @@ The test is configured with the following parameters defined in `gribi_full_scal
 * `NumPort2VLANs`: `640`
 
 ### Traffic Parameters
-* `TrafficRateMpps`: `30,000,000` (30 Mpps)
+* `TrafficRateMpps`: `20,000,000` (20 Mpps)
 * `TrafficDuration`: `5 minutes`
 * `TrafficLossTol`: `5` (per-flow packet drop allowance)
 
