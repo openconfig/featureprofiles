@@ -2531,3 +2531,9 @@ func BgpAfiSafiSendCommunityTypeUnsupported(dut *ondatra.DUTDevice) bool {
 func ISISInterfaceAuthenticationContainerUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisInterfaceAuthenticationContainerUnsupported()
 }
+
+// SkipGnoiPingRpcAuthzVerification returnds true if Gnoi Ping rpc to be skipped based on a deviation
+// Arista: https://partnerissuetracker.corp.google.com/issues/219953165
+func SkipGnoiPingRpcAuthzVerification(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipGnoiPingRpcAuthzVerification()
+}
