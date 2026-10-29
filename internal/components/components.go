@@ -345,6 +345,51 @@ func LinecardsFromPorts(t testing.TB, dut *ondatra.DUTDevice, ports []*ondatra.P
 	return lcs, nil
 }
 
+// OpticalChannelComponentFromPortWithRetry finds the optical channel component for a port with retry on transient gRPC proxy errors.
+func OpticalChannelComponentFromPortWithRetry(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
+	t.Helper()
+
+	if deviations.MissingPortToOpticalChannelMapping(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			var transceiverName string
+			for attempt := 0; attempt < 3; attempt++ {
+				if msg := testt.CaptureFatal(t, func(tb testing.TB) {
+					transceiverName = gnmi.Get(tb, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
+				}); msg == nil {
+					break
+				}
+			}
+			return fmt.Sprintf("%s-Optical0", transceiverName)
+		default:
+			t.Fatal("Manual Optical channel name required when deviation missing_port_to_optical_channel_component_mapping applied.")
+		}
+	}
+	var transceiverName string
+	for attempt := 0; attempt < 3; attempt++ {
+		if msg := testt.CaptureFatal(t, func(tb testing.TB) {
+			transceiverName = gnmi.Get(tb, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
+		}); msg == nil {
+			break
+		}
+	}
+	if transceiverName == "" {
+		t.Fatalf("Associated Transceiver for Interface (%v) not found!", p.Name())
+	}
+	var opticalChannelName string
+	for attempt := 0; attempt < 3; attempt++ {
+		if msg := testt.CaptureFatal(t, func(tb testing.TB) {
+			opticalChannelName = gnmi.Get(tb, dut, gnmi.OC().Component(transceiverName).Transceiver().Channel(0).AssociatedOpticalChannel().State())
+		}); msg == nil {
+			break
+		}
+	}
+	if opticalChannelName == "" {
+		t.Fatalf("Associated Optical Channel for Transceiver (%v) not found!", transceiverName)
+	}
+	return opticalChannelName
+}
+
 // WatchWithRetry watches a query until the predicate returns true, catching temporary connection errors
 // and retrying every retryInterval until timeout expires.
 func WatchWithRetry[T any](t *testing.T, dut *ondatra.DUTDevice, query ygnmi.SingletonQuery[T], timeout, retryInterval time.Duration, predicate func(*ygnmi.Value[T]) bool) (*ygnmi.Value[T], bool) {
