@@ -1585,6 +1585,14 @@ message Metadata {
     // Arista: https://partnerissuetracker.corp.google.com/issues/219953165
     bool skip_gnoi_ping_rpc_authz_verification = 479;
 
+    // Devices that do not validate that max-threshold is strictly greater than
+    // min-threshold, so a min > max configuration is accepted instead of
+    // rejected.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/573059610
+    // Nokia: https://partnerissuetracker.corp.google.com/issues/573067365
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/573074330
+    bool ecn_min_greater_max_threshold_unsupported = 480;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }
