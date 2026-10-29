@@ -76,7 +76,7 @@ func TestGRIBIFullScaleT1(t *testing.T) {
 		DefaultNHGWeight: []cfgplugins.NHGWeightParams{
 			{Pct: 40, Config: cfgplugins.WCMP1in32},
 			{Pct: 40, Config: cfgplugins.WCMP1in64},
-            {Pct: 20, Config: cfgplugins.WCMP1in256},
+			{Pct: 20, Config: cfgplugins.WCMP1in256},
 		},
 
 		// Transit VRF parameters
