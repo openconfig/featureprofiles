@@ -381,16 +381,37 @@ func verifyControlPlaneConvergenceGate(t *testing.T, dut *ondatra.DUTDevice, ate
 
 // snapshotPortCounters captures a point-in-time snapshot of DUT interface packet/error counters and OTN FEC blocks.
 // README.md Section: TRANSCEIVER-109.1 (Step 4), TRANSCEIVER-109.2 (Step 3), and TRANSCEIVER-109.3 (Steps 2 & 3).
-// Technical Summary: Reads unicast/total packets, interface errors, FCS errors, and fec-uncorrectable-blocks via gnmi.Lookup.
+// Technical Summary: Reads unicast/total packets, interface errors, FCS errors, and fec-uncorrectable-blocks via batched gnmi.Lookup.
 func snapshotPortCounters(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port, params *cfgplugins.ConfigParameters) portCountersSnapshot {
 	t.Helper()
-	cnt, _ := gnmi.Lookup(t, dut, gnmi.OC().Interface(p.Name()).Counters().State()).Val()
+	otnIdx := params.OTNIndexes[p.Name()]
+	cntBatch := gnmi.OCBatch()
+	cntBatch.AddPaths(
+		gnmi.OC().Interface(p.Name()).Counters().InUnicastPkts(),
+		gnmi.OC().Interface(p.Name()).Counters().OutUnicastPkts(),
+		gnmi.OC().Interface(p.Name()).Counters().InPkts(),
+		gnmi.OC().Interface(p.Name()).Counters().OutPkts(),
+		gnmi.OC().Interface(p.Name()).Counters().InErrors(),
+		gnmi.OC().Interface(p.Name()).Counters().OutErrors(),
+		gnmi.OC().TerminalDevice().Channel(otnIdx).Otn().FecUncorrectableBlocks(),
+	)
+	if !deviations.InterfaceCountersInFcsErrorsUnsupported(dut) {
+		cntBatch.AddPaths(gnmi.OC().Interface(p.Name()).Counters().InFcsErrors())
+	}
+	var root *oc.Root
+	for attempt := 0; attempt < 3; attempt++ {
+		if msg := testt.CaptureFatal(t, func(tb testing.TB) {
+			root, _ = gnmi.Lookup(tb, dut, cntBatch.State()).Val()
+		}); msg == nil {
+			break
+		}
+	}
+	cnt := root.GetInterface(p.Name()).GetCounters()
 	var fcsErr uint64
 	if !deviations.InterfaceCountersInFcsErrorsUnsupported(dut) {
-		fcsErr, _ = gnmi.Lookup(t, dut, gnmi.OC().Interface(p.Name()).Counters().InFcsErrors().State()).Val()
+		fcsErr = cnt.GetInFcsErrors()
 	}
-	otnIdx := params.OTNIndexes[p.Name()]
-	fecUncorrect, _ := gnmi.Lookup(t, dut, gnmi.OC().TerminalDevice().Channel(otnIdx).Otn().FecUncorrectableBlocks().State()).Val()
+	fecUncorrect := root.GetTerminalDevice().GetChannel(otnIdx).GetOtn().GetFecUncorrectableBlocks()
 
 	return portCountersSnapshot{
 		inUnicastPkts:  cnt.GetInUnicastPkts(),
@@ -455,9 +476,20 @@ func runAndVerifyBidirectionalTraffic(t *testing.T, dut *ondatra.DUTDevice, ate 
 	} {
 		if ate != nil && top != nil {
 			// Wait via gnmi.Watch for interface counters (in-unicast-pkts, out-unicast-pkts, in-pkts, out-pkts) to reflect >= +200,000 packet delta.
-			_, ok := gnmi.Watch(t, dut, gnmi.OC().Interface(tc.port.Name()).Counters().State(), negativeCheckTimeout, func(val *ygnmi.Value[*oc.Interface_Counters]) bool {
-				c, present := val.Val()
-				if !present || c == nil {
+			pktBatch := gnmi.OCBatch()
+			pktBatch.AddPaths(
+				gnmi.OC().Interface(tc.port.Name()).Counters().InUnicastPkts(),
+				gnmi.OC().Interface(tc.port.Name()).Counters().OutUnicastPkts(),
+				gnmi.OC().Interface(tc.port.Name()).Counters().InPkts(),
+				gnmi.OC().Interface(tc.port.Name()).Counters().OutPkts(),
+			)
+			_, ok := gnmi.Watch(t, dut, pktBatch.State(), negativeCheckTimeout, func(val *ygnmi.Value[*oc.Root]) bool {
+				root, present := val.Val()
+				if !present || root == nil {
+					return false
+				}
+				c := root.GetInterface(tc.port.Name()).GetCounters()
+				if c == nil {
 					return false
 				}
 				return (c.GetInUnicastPkts()-tc.before.inUnicastPkts) >= expectedUnicastDeltaPort &&
@@ -571,7 +603,7 @@ func Test800ZROperationalModeInventoryRecovery(t *testing.T) {
 			var ok bool
 			for attempt := 0; attempt < 3; attempt++ {
 				if msg := testt.CaptureFatal(t, func(tb testing.TB) {
-					_, ok = gnmi.Watch(tb, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), negativeCheckTimeout, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
+					_, ok = gnmi.Watch(tb, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), convergenceTimeout, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
 						v, present := val.Val()
 						return present && v == oc.Interface_OperStatus_UP
 					}).Await(tb)
@@ -580,13 +612,28 @@ func Test800ZROperationalModeInventoryRecovery(t *testing.T) {
 				}
 			}
 			if !ok {
+				cfgplugins.BounceTransceivers(t, dut, ports, params, negativeCheckTimeout)
+				for attempt := 0; attempt < 3; attempt++ {
+					if msg := testt.CaptureFatal(t, func(tb testing.TB) {
+						_, ok = gnmi.Watch(tb, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), convergenceTimeout, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
+							v, present := val.Val()
+							return present && v == oc.Interface_OperStatus_UP
+						}).Await(tb)
+					}); msg == nil {
+						break
+					}
+				}
+			}
+			if !ok {
 				t.Errorf("Cleanup: Interface %s did not return to OperStatus UP", p.Name())
 			}
 			var trActive bool
 			for attempt := 0; attempt < 3; attempt++ {
 				if msg := testt.CaptureFatal(t, func(tb testing.TB) {
-					got, present := gnmi.Lookup(tb, dut, gnmi.OC().Component(trName).OperStatus().State()).Val()
-					trActive = present && got == oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE
+					_, trActive = gnmi.Watch(tb, dut, gnmi.OC().Component(trName).OperStatus().State(), negativeCheckTimeout, func(val *ygnmi.Value[oc.E_PlatformTypes_COMPONENT_OPER_STATUS]) bool {
+						v, present := val.Val()
+						return present && v == oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE
+					}).Await(tb)
 				}); msg == nil {
 					break
 				}

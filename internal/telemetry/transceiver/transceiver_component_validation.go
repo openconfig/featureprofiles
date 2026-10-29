@@ -448,6 +448,41 @@ func watchAwait[T any](t *testing.T, dut *ondatra.DUTDevice, q ygnmi.SingletonQu
 	return lastVal, false
 }
 
+// componentInventoryQuery returns a batched query for the transceiver component's inventory and state leaves.
+func componentInventoryQuery(dut *ondatra.DUTDevice, trName string) ygnmi.SingletonQuery[*oc.Root] {
+	b := gnmi.OCBatch()
+	b.AddPaths(
+		gnmi.OC().Component(trName).Name(),
+		gnmi.OC().Component(trName).Type(),
+		gnmi.OC().Component(trName).Parent(),
+		gnmi.OC().Component(trName).OperStatus(),
+		gnmi.OC().Component(trName).SerialNo(),
+		gnmi.OC().Component(trName).PartNo(),
+		gnmi.OC().Component(trName).MfgName(),
+		gnmi.OC().Component(trName).HardwareVersion(),
+		gnmi.OC().Component(trName).FirmwareVersion(),
+		gnmi.OC().Component(trName).Transceiver().FormFactor(),
+	)
+	if !deviations.ComponentMfgDateUnsupported(dut) {
+		b.AddPaths(gnmi.OC().Component(trName).MfgDate())
+	}
+	if !deviations.TransceiverConfigEnableUnsupported(dut) {
+		b.AddPaths(gnmi.OC().Component(trName).Transceiver().Enabled())
+	}
+	return b.State()
+}
+
+// componentBasicQuery returns a batched query for a component's basic identity leaves (name, type, parent).
+func componentBasicQuery(compName string) ygnmi.SingletonQuery[*oc.Root] {
+	b := gnmi.OCBatch()
+	b.AddPaths(
+		gnmi.OC().Component(compName).Name(),
+		gnmi.OC().Component(compName).Type(),
+		gnmi.OC().Component(compName).Parent(),
+	)
+	return b.State()
+}
+
 // CaptureAndValidateBaselineInventory waits for the transceiver component to be ACTIVE with populated
 // inventory strings via ON_CHANGE gNMI subscription (gnmi.Watch) and gnmi.Lookup, validates all required
 // PORT, TRANSCEIVER, and OPTICAL_CHANNEL component state leaves and leafref paths, and returns the captured baseline snapshot.
@@ -459,16 +494,19 @@ func CaptureAndValidateBaselineInventory(t *testing.T, dut *ondatra.DUTDevice, p
 	ethIdx := params.ETHIndexes[p.Name()]
 
 	// Wait via ON_CHANGE gNMI subscription (gnmi.Watch) for transceiver oper-status == ACTIVE and inventory strings to populate.
-	comp, present := lookupVal(t, dut, gnmi.OC().Component(trName).State())
+	invQuery := componentInventoryQuery(dut, trName)
+	root, present := lookupVal(t, dut, invQuery)
+	comp := root.GetComponent(trName)
 	if !present || comp == nil || comp.GetOperStatus() != oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE ||
 		comp.GetSerialNo() == "" || comp.GetPartNo() == "" || comp.GetMfgName() == "" ||
 		comp.GetHardwareVersion() == "" || comp.GetFirmwareVersion() == "" {
-		lastVal, ok := watchAwait(t, dut, gnmi.OC().Component(trName).State(), watchTimeout, func(val *ygnmi.Value[*oc.Component]) bool {
-			c, ok := val.Val()
-			if !ok || c == nil {
+		lastVal, ok := watchAwait(t, dut, invQuery, watchTimeout, func(val *ygnmi.Value[*oc.Root]) bool {
+			r, ok := val.Val()
+			if !ok || r == nil {
 				return false
 			}
-			if c.GetOperStatus() != oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE {
+			c := r.GetComponent(trName)
+			if c == nil || c.GetOperStatus() != oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE {
 				return false
 			}
 			return c.GetSerialNo() != "" && c.GetPartNo() != "" && c.GetMfgName() != "" &&
@@ -478,10 +516,13 @@ func CaptureAndValidateBaselineInventory(t *testing.T, dut *ondatra.DUTDevice, p
 			t.Fatalf("Transceiver %s on port %s did not reach ACTIVE state with populated inventory within %v", trName, p.Name(), watchTimeout)
 		}
 		if lastVal != nil {
-			comp, _ = lastVal.Val()
+			if r, ok := lastVal.Val(); ok && r != nil {
+				comp = r.GetComponent(trName)
+			}
 		}
 		if comp == nil {
-			comp, _ = lookupVal(t, dut, gnmi.OC().Component(trName).State())
+			r, _ := lookupVal(t, dut, invQuery)
+			comp = r.GetComponent(trName)
 		}
 	}
 	if comp == nil {
@@ -489,7 +530,8 @@ func CaptureAndValidateBaselineInventory(t *testing.T, dut *ondatra.DUTDevice, p
 	}
 
 	// Validate PORT component state (name, type, parent).
-	if hwComp, ok := lookupVal(t, dut, gnmi.OC().Component(hwPortName).State()); !ok || hwComp == nil {
+	hwRoot, hwOK := lookupVal(t, dut, componentBasicQuery(hwPortName))
+	if hwComp := hwRoot.GetComponent(hwPortName); !hwOK || hwComp == nil {
 		t.Errorf("Port %s hardware port component %s missing from /components/component", p.Name(), hwPortName)
 	} else {
 		if got, want := hwComp.GetName(), hwPortName; got != want {
@@ -504,7 +546,8 @@ func CaptureAndValidateBaselineInventory(t *testing.T, dut *ondatra.DUTDevice, p
 	}
 
 	// Validate OPTICAL_CHANNEL component state (name, type, parent).
-	if ochComp, ok := lookupVal(t, dut, gnmi.OC().Component(ochName).State()); !ok || ochComp == nil {
+	ochRoot, ochOK := lookupVal(t, dut, componentBasicQuery(ochName))
+	if ochComp := ochRoot.GetComponent(ochName); !ochOK || ochComp == nil {
 		t.Errorf("Port %s optical-channel component %s missing from /components/component", p.Name(), ochName)
 	} else {
 		if got, want := ochComp.GetName(), ochName; got != want {
@@ -610,12 +653,18 @@ func VerifyInventoryMatchesBaseline(t *testing.T, dut *ondatra.DUTDevice, p *ond
 
 	// Verify via gNMI Lookup (and ON_CHANGE Watch fallback if not yet converged) that the component is present,
 	// inventory strings are non-empty, and (if expectActive is true) oper-status is ACTIVE.
-	compVal, present := lookupVal(t, dut, gnmi.OC().Component(trName).State())
+	invQuery := componentInventoryQuery(dut, trName)
+	rootVal, present := lookupVal(t, dut, invQuery)
+	compVal := rootVal.GetComponent(trName)
 	if !present || compVal == nil || (expectActive && compVal.GetOperStatus() != oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE) ||
 		compVal.GetSerialNo() == "" || compVal.GetPartNo() == "" || compVal.GetMfgName() == "" {
-		_, ok := watchAwait(t, dut, gnmi.OC().Component(trName).State(), 30*time.Second, func(val *ygnmi.Value[*oc.Component]) bool {
-			comp, present := val.Val()
-			if !present || comp == nil {
+		_, ok := watchAwait(t, dut, invQuery, 30*time.Second, func(val *ygnmi.Value[*oc.Root]) bool {
+			r, present := val.Val()
+			if !present || r == nil {
+				return false
+			}
+			comp := r.GetComponent(trName)
+			if comp == nil {
 				return false
 			}
 			if expectActive && comp.GetOperStatus() != oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE {
@@ -626,7 +675,8 @@ func VerifyInventoryMatchesBaseline(t *testing.T, dut *ondatra.DUTDevice, p *ond
 		if !ok {
 			t.Errorf("Port %s ON_CHANGE watch on /components/component[name=%s]/state did not report present component with expected oper-status and non-empty inventory", p.Name(), trName)
 		}
-		compVal, present = lookupVal(t, dut, gnmi.OC().Component(trName).State())
+		rootVal, present = lookupVal(t, dut, invQuery)
+		compVal = rootVal.GetComponent(trName)
 	}
 	if !present || compVal == nil {
 		t.Fatalf("Port %s transceiver component %s is missing from /components/ tree", p.Name(), trName)
