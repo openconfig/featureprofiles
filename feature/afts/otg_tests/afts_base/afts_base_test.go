@@ -1,4 +1,3 @@
-//
 // Copyright 2025 Google LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -236,6 +235,7 @@ func (tc *testCase) configureDUT(t *testing.T) error {
 	if _, err = ts.AwaitAdjacency(); err != nil {
 		return fmt.Errorf("no IS-IS adjacency formed: %v", err)
 	}
+	tc.ts = ts
 	return nil
 }
 
@@ -321,6 +321,7 @@ func updateNeighborMaxPrefix(t *testing.T, dut *ondatra.DUTDevice, neighbors []*
 	}
 }
 func (tc *testCase) waitForBGPSessions(t *testing.T, ipv4nbrs []string, ipv6nbrs []string) error {
+	t.Helper()
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(tc.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	verifySessionState := func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 		state, ok := val.Val()
@@ -346,6 +347,38 @@ func (tc *testCase) waitForBGPSessions(t *testing.T, ipv4nbrs []string, ipv6nbrs
 		if !ok {
 			fptest.LogQuery(t, "BGPv6 reported state", nbrPathv6.State(), gnmi.Get(t, tc.dut, nbrPathv6.State()))
 			return fmt.Errorf("BGP session with %s not established", nbr)
+		}
+	}
+	return nil
+}
+
+func (tc *testCase) waitForBGPSessionsDown(t *testing.T, ipv4nbrs []string, ipv6nbrs []string) error {
+	t.Helper()
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(tc.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	verifySessionDown := func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+		state, ok := val.Val()
+		if !ok {
+			t.Logf("BGP session state not found for neighbor %s", val.Path.String())
+			return false
+		}
+		t.Logf("BGP session state for neighbor %s: %s", val.Path.String(), state.String())
+		return state != oc.Bgp_Neighbor_SessionState_ESTABLISHED
+	}
+
+	for _, nbr := range ipv4nbrs {
+		nbrPath := statePath.Neighbor(nbr)
+		_, ok := gnmi.Watch(t, tc.dut, nbrPath.SessionState().State(), bgpTimeout, verifySessionDown).Await(t)
+		if !ok {
+			fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, tc.dut, nbrPath.State()))
+			return fmt.Errorf("BGP session with %s still established", nbr)
+		}
+	}
+	for _, nbr := range ipv6nbrs {
+		nbrPathv6 := statePath.Neighbor(nbr)
+		_, ok := gnmi.Watch(t, tc.dut, nbrPathv6.SessionState().State(), bgpTimeout, verifySessionDown).Await(t)
+		if !ok {
+			fptest.LogQuery(t, "BGPv6 reported state", nbrPathv6.State(), gnmi.Get(t, tc.dut, nbrPathv6.State()))
+			return fmt.Errorf("BGPv6 session with %s still established", nbr)
 		}
 	}
 	return nil
@@ -447,42 +480,6 @@ func (tc *testCase) configureATE(t *testing.T) {
 		SetAddress(ateP2.IPv6).
 		SetGateway(dutP2.IPv6).
 		SetPrefix(v6PrefixLen)
-
-	d2ISIS := d2.Isis().
-		SetName(d2.Name() + ".isis").
-		SetSystemId(isisSystemID)
-	d2ISIS.Basic().
-		SetIpv4TeRouterId(d2IPv4.Address()).
-		SetHostname("ixia-c-port2")
-	d2ISIS.Advanced().SetAreaAddresses([]string{"49"})
-	d2ISISInt := d2ISIS.Interfaces().
-		Add().
-		SetName(d2ISIS.Name() + ".intf").
-		SetEthName(d2Eth.Name()).
-		SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT).
-		SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2).
-		SetMetric(10)
-	d2ISISInt.TrafficEngineering().Add().PriorityBandwidths()
-	d2ISISInt.Advanced().SetAutoAdjustMtu(true).SetAutoAdjustArea(true).SetAutoAdjustSupportedProtocols(true)
-
-	d2ISISRoute := d2ISIS.V4Routes().Add().SetName(d2ISIS.Name() + ".rr")
-	d2ISISRoute.Addresses().
-		Add().
-		SetAddress(isisRoute).
-		SetPrefix(advertisedRoutesV4Prefix).
-		SetCount(isisRouteCount)
-
-	d2ISISRouteV6 := d2ISIS.V6Routes().Add().SetName(d2ISISRoute.Name() + ".v6")
-	d2ISISRouteV6.Addresses().
-		Add().
-		SetAddress(isisRoutev6).
-		SetPrefix(advertisedRoutesV6Prefix128).
-		SetCount(isisRouteCount)
-	d2ISISRouteV6.Addresses().
-		Add().
-		SetAddress(isisRoutev6).
-		SetPrefix(advertisedRoutesV6Prefix64).
-		SetCount(isisRouteCount)
 
 	tc.configureBGPDev(d2, d2IPv4, d2IPv6)
 
@@ -643,8 +640,10 @@ func (tc *testCase) filterAFTByPrefixes(aft *aftcache.AFTData, wantPrefixes map[
 }
 
 func (tc *testCase) otgInterfaceState(t *testing.T, portName string, state gosnappi.StatePortLinkStateEnum) {
+	t.Helper()
+	p := tc.ate.Port(t, portName)
 	portStateAction := gosnappi.NewControlState()
-	portStateAction.Port().Link().SetPortNames([]string{portName}).SetState(state)
+	portStateAction.Port().Link().SetPortNames([]string{p.ID()}).SetState(state)
 	tc.ate.OTG().SetControlState(t, portStateAction)
 }
 
@@ -654,6 +653,7 @@ type testCase struct {
 	ate         *ondatra.ATEDevice
 	gnmiClient1 gnmipb.GNMIClient
 	gnmiClient2 gnmipb.GNMIClient
+	ts          *isissession.TestSession
 }
 
 func TestBGP(t *testing.T) {
@@ -733,7 +733,27 @@ func TestBGP(t *testing.T) {
 		t.Fatalf("failed to configure DUT: %v", err)
 	}
 	tc.configureATE(t)
-	defer ate.OTG().StopProtocols(t)
+
+	// Ensure OTG ports are left in a healthy state (link UP) even if the test fails or aborts.
+	t.Cleanup(func() {
+		t.Logf("Restoring OTG port %s link state to UP", port1Name)
+		tc.otgInterfaceState(t, port1Name, gosnappi.StatePortLinkState.UP)
+	})
+	t.Cleanup(func() {
+		t.Logf("Restoring OTG port %s link state to UP", port2Name)
+		tc.otgInterfaceState(t, port2Name, gosnappi.StatePortLinkState.UP)
+	})
+
+	// Ensure OTG protocols are stopped at the end of the test.
+	t.Cleanup(func() {
+		t.Log("Stopping OTG protocols")
+		ate.OTG().StopProtocols(t)
+	})
+
+	t.Log("Waiting for ISIS adjacency to establish...")
+	if _, err := tc.ts.AwaitAdjacency(); err != nil {
+		t.Fatalf("Unable to establish ISIS adjacency: %v", err)
+	}
 
 	t.Log("Waiting for BGP neighbor to establish...")
 	if err := tc.waitForBGPSessions(t, []string{ateP1.IPv4, ateP2.IPv4}, []string{ateP1.IPv6, ateP2.IPv6}); err != nil {
@@ -741,20 +761,31 @@ func TestBGP(t *testing.T) {
 	}
 
 	// Step 1: Initial state verification (BGP: 2 NHs, ISIS: 1 NH)
-	aft := verifyAFTState("Initial AFT verification", 2, wantIPv4NHs, wantIPv6NHs)
+	verifyAFTState("Initial AFT verification", 2, wantIPv4NHs, wantIPv6NHs)
 
 	// Verify ISIS prefixes are present in AFT.
-	if err := tc.verifyPrefixes(t, aft, startingISISRouteIPv4, isisRouteCount, 1, false); err != nil {
-		t.Errorf("failed to verify IPv4 ISIS prefixes: %v", err)
+	t.Log("Verifying ISIS prefixes in AFT...")
+	wantISISPrefixes := make(map[string]bool)
+	for pfix := range netutil.GenCIDRs(t, startingISISRouteIPv4, isisRouteCount) {
+		wantISISPrefixes[pfix] = true
 	}
-	if err := tc.verifyPrefixes(t, aft, startingISISRouteIPv6, isisRouteCount, 1, false); err != nil {
-		t.Errorf("failed to verify IPv6 ISIS prefixes: %v", err)
+	for pfix := range netutil.GenCIDRs(t, startingISISRouteIPv6, isisRouteCount) {
+		wantISISPrefixes[pfix] = true
+	}
+	isisStoppingCondition := aftcache.InitialSyncStoppingCondition(t, dut, wantISISPrefixes, map[string]bool{ateP1.IPv4: true}, map[string]bool{ateP1.IPv6: true})
+	if _, err := tc.fetchAFT(t, aftSession1, aftSession2, isisStoppingCondition, wantISISPrefixes); err != nil {
+		t.Fatalf("Failed to verify ISIS prefixes in AFT: %v", err)
 	}
 	t.Log("ISIS verification completed")
 
 	// Step 2: Stop Port2 interface to create Churn (BGP: 1 NH)
 	t.Log("SubTest 2: Stopping Port2 interface to create Churn")
 	tc.otgInterfaceState(t, port2Name, gosnappi.StatePortLinkState.DOWN)
+	t.Log("Waiting for Port2 BGP sessions to go down...")
+	if err := tc.waitForBGPSessionsDown(t, []string{ateP2.IPv4}, []string{ateP2.IPv6}); err != nil {
+		t.Fatalf("BGP session for port2 did not go down: %v", err)
+	}
+	t.Log("Verifying Port1 BGP sessions remain established...")
 	if err := tc.waitForBGPSessions(t, []string{ateP1.IPv4}, []string{ateP1.IPv6}); err != nil {
 		t.Fatalf("Unable to establish BGP session: %v", err)
 	}
@@ -763,6 +794,10 @@ func TestBGP(t *testing.T) {
 	// Step 3: Stop Port1 interface to create full Churn (BGP: deletion expected)
 	t.Log("SubTest 3: Stopping Port1 interface to remove Churn")
 	tc.otgInterfaceState(t, port1Name, gosnappi.StatePortLinkState.DOWN)
+	t.Log("Waiting for Port1 BGP sessions to go down...")
+	if err := tc.waitForBGPSessionsDown(t, []string{ateP1.IPv4}, []string{ateP1.IPv6}); err != nil {
+		t.Fatalf("BGP session for port1 did not go down: %v", err)
+	}
 	sc := aftcache.DeletionStoppingCondition(t, dut, wantPrefixes)
 	// Expecting all prefixes deleted, so pass empty map for wantPrefixes validation
 	if _, err := tc.fetchAFT(t, aftSession1, aftSession2, sc, map[string]bool{}); err != nil {
