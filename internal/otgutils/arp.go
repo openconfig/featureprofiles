@@ -3,12 +3,29 @@ package otgutils
 import (
 	"testing"
 	"time"
+    "encoding/binary"
+    "fmt"
+    "net/netip"
+    "strings"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 )
+
+func expandIPv6OTGKey(s string) string {
+    addr, err := netip.ParseAddr(s)
+    if err != nil || !addr.Is6() {
+        return s
+    }
+    b := addr.As16()
+    parts := make([]string, 8)
+    for i := 0; i < 8; i++ {
+        parts[i] = fmt.Sprintf("%04x", binary.BigEndian.Uint16(b[2*i:2*i+2]))
+    }
+    return strings.Join(parts, ":")
+}
 
 // WaitForARP waits for ARP to resolve on all OTG interfaces for a given ipType, which is
 // either "IPv4" or "IPv6". Interfaces without addresses of the requested family are skipped.
@@ -42,10 +59,25 @@ func WaitForARP(t *testing.T, otg *otg.OTG, c gosnappi.Config, ipType string) {
 				if gw == "" {
 					continue
 				}
-				if got, ok := gnmi.Watch(t, otg, gnmi.OTG().Interface(eth.Name()).Ipv6Neighbor(gw).LinkLayerAddress().State(), 2*time.Minute, func(val *ygnmi.Value[string]) bool {
-					v, present := val.Val()
-					return present && v != ""
-				}).Await(t); !ok {
+
+				keys := []string{gw, expandIPv6OTGKey(gw)}
+				if keys[1] == keys[0] {
+					keys = keys[:1]
+				}
+
+				var got *ygnmi.Value[string]
+				var ok bool
+				for _, key := range keys {
+					got, ok = gnmi.Watch(t, otg, gnmi.OTG().Interface(eth.Name()).Ipv6Neighbor(key).LinkLayerAddress().State(), 2*time.Minute, func(val *ygnmi.Value[string]) bool {
+							v, present := val.Val()
+							return present && v != ""
+						},
+					).Await(t)
+					if ok {
+						break
+					}
+				}
+				if !ok {
 					t.Fatalf("Did not receive OTG Neighbor entry for gateway %s on interface %s, last got: %v", gw, eth.Name(), got)
 				}
 			}
