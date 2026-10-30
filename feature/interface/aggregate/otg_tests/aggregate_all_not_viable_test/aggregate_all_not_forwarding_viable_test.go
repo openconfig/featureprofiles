@@ -311,8 +311,11 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 		if ok := awaitAdjacency(t, dut, aggIDs[1], []oc.E_Isis_IsisInterfaceAdjState{oc.Isis_IsisInterfaceAdjState_UP}); !ok {
 			t.Fatal("ISIS Adjacency is Down on LAG_2")
 		}
+		portsRestored := false
 		t.Cleanup(func() {
-			configForwardingViable(t, dut, dutPortList[1:agg2.ateLagCount+1], true)
+			if !portsRestored {
+				configForwardingViable(t, dut, dutPortList[1:agg2.ateLagCount+1], true)
+			}
 		})
 		configForwardingViable(t, dut, dutPortList[1:agg2.ateLagCount+1], false)
 		// Ensure ISIS Adjacency is Down on LAG_2
@@ -320,13 +323,17 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 		if len(dut.Ports()) > 4 {
 			t.Logf("Bring Down Port2 and Port3")
 			t.Cleanup(func() {
-				setDUTInterfaceWithState(t, dut, []*ondatra.Port{dut.Port(t, "port2"), dut.Port(t, "port3")}, true)
+				if !portsRestored {
+					setDUTInterfaceWithState(t, dut, []*ondatra.Port{dut.Port(t, "port2"), dut.Port(t, "port3")}, true)
+				}
 			})
 			setDUTInterfaceWithState(t, dut, []*ondatra.Port{dut.Port(t, "port2"), dut.Port(t, "port3")}, false)
 		} else {
 			t.Logf("Bring Down Port2")
 			t.Cleanup(func() {
-				setDUTInterfaceWithState(t, dut, []*ondatra.Port{dut.Port(t, "port2")}, true)
+				if !portsRestored {
+					setDUTInterfaceWithState(t, dut, []*ondatra.Port{dut.Port(t, "port2")}, true)
+				}
 			})
 			setDUTInterfaceWithState(t, dut, []*ondatra.Port{dut.Port(t, "port2")}, false)
 		}
@@ -354,7 +361,17 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 		if ok := verifyTrafficFlow(t, ate, flows[0:1], true); !ok {
 			t.Fatal("Packet Dropped, LossPct for flow ", flows[0].Name())
 		}
+		portsRestored = true
 	})
+	t.Logf("Bring Up the Port2 and Port3")
+	if len(dut.Ports()) > 4 {
+		setDUTInterfaceWithState(t, dut, []*ondatra.Port{dut.Port(t, "port2"), dut.Port(t, "port3")}, true)
+	} else {
+		setDUTInterfaceWithState(t, dut, []*ondatra.Port{dut.Port(t, "port2")}, true)
+	}
+
+	// Reset Forwarding-Viable to True for all the ports of LAG_2
+	configForwardingViable(t, dut, dutPortList[1:agg2.ateLagCount+1], true)
 	// Change ISIS metric Equal for Both LAG_2 and LAG_3
 	changeMetric(t, dut, aggIDs[2], 20)
 
