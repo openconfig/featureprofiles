@@ -2530,3 +2530,8 @@ func ISISInterfaceAuthenticationContainerUnsupported(dut *ondatra.DUTDevice) boo
 func SkipGnoiPingRpcAuthzVerification(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipGnoiPingRpcAuthzVerification()
 }
+
+// MaxSupportedDecapEntries returns the maximum number of decap entries supported by the device.
+func MaxSupportedDecapEntries(dut *ondatra.DUTDevice) uint32 {
+	return lookupDUTDeviations(dut).GetMaxSupportedDecapEntries()
+}
