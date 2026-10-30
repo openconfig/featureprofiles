@@ -2509,6 +2509,12 @@ func InvalidInterfaceNumberAllowed(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInvalidInterfaceNumberAllowed()
 }
 
+// GRIBIOpaqueRecursiveNHG returns true if the device reports recursive gRIBI IPv4 next-hop groups with opaque IDs and no next-hop members
+// Cisco: https://partnerissuetracker.corp.google.com/issues/577036552
+func GRIBIOpaqueRecursiveNHG(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGribiOpaqueRecursiveNhg()
+}
+
 // BgpAfiSafiSendCommunityTypeUnsupported returns true if the device does not support configuring
 // BGP send-community-type under peer-group/afi-safis/afi-safi/config/send-community-type and
 // requires configuring it under peer-group/config/send-community-type instead.
