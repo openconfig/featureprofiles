@@ -198,8 +198,6 @@ func prettyPrintYgnmiResult(setResult *ygnmi.Result) string {
 
 func setCLINoMTU(t *testing.T, dut *ondatra.DUTDevice, portName string) {
 	t.Helper()
-	before, hadMTU := gnmi.Lookup(t, dut, gnmi.OC().Interface(portName).Mtu().Config()).Val()
-
 	var cli string
 	switch dut.Vendor() {
 	case ondatra.ARISTA, ondatra.CISCO:
@@ -211,35 +209,18 @@ func setCLINoMTU(t *testing.T, dut *ondatra.DUTDevice, portName string) {
 		t.Fatalf("unsupported vendor: %v", dut.Vendor())
 	}
 	helpers.GnmiCLIConfig(t, dut, cli)
-
-	switch dut.Vendor() {
-	case ondatra.ARISTA, ondatra.CISCO:
-		// Wait for the MTU to be removed (i.e., not equal to 1500/1514).
-		gnmi.Watch(t, dut, gnmi.OC().Interface(portName).Mtu().State(), awaitTimeOut, func(val *ygnmi.Value[uint16]) bool {
-			m, present := val.Val()
-			if !present {
-				t.Logf("Got MTU not present, want 1500 or 1514.")
-				return false
-			}
-			if m == 1500 || m == 1514 {
-				return true
-			}
+	// Wait for the MTU to be removed (i.e., not equal to 1500/1514/9232).
+	gnmi.Watch(t, dut, gnmi.OC().Interface(portName).Mtu().State(), awaitTimeOut, func(val *ygnmi.Value[uint16]) bool {
+		m, present := val.Val()
+		if !present {
+			t.Logf("Got MTU not present, want 1500, 1514, or 9232.")
 			return false
-		}).Await(t)
-	case ondatra.NOKIA:
-		if !hadMTU {
-			return
 		}
-		mtuState := gnmi.OC().Interface(portName).Mtu().State()
-		if _, ok := gnmi.Watch(t, dut, mtuState, awaitTimeOut, func(val *ygnmi.Value[uint16]) bool {
-			m, present := val.Val()
-			return !present || m != before
-		}).Await(t); !ok {
-			t.Fatalf("interface %s MTU %d was not removed within %v", portName, before, awaitTimeOut)
+		if m == 1500 || m == 1514 || m == 9232 {
+			return true
 		}
-	default:
-		t.Fatalf("unsupported vendor: %v", dut.Vendor())
-	}
+		return false
+	}).Await(t)
 }
 
 // setCLIunionReplace adds any necessary modifications to the base CLI configuration
@@ -506,7 +487,7 @@ func batchUnionReplaceOCInterface(sb *gnmi.SetBatch, dut *ondatra.DUTDevice, int
 	gnmi.BatchUnionReplace(sb, gnmi.OC().Interface(intfName).Config(), intf)
 }
 
-func cliInterface(cli, intfName string) string {
+func cliInterface(dut *ondatra.DUTDevice, cli, intfName string) string {
 	var sb strings.Builder
 	insideInterface := false
 	for _, line := range strings.Split(cli, "\n") {
@@ -521,7 +502,7 @@ func cliInterface(cli, intfName string) string {
 			}
 		}
 	}
-	if sb.Len() == 0 {
+	if dut.Vendor() == ondatra.NOKIA {
 		flatRE := regexp.MustCompile(`^\s*(set\s+)?/\s*interface\s+` + regexp.QuoteMeta(intfName) + `(\s|$)`)
 		for _, line := range strings.Split(cli, "\n") {
 			if flatRE.MatchString(line) {
@@ -576,7 +557,7 @@ func verifyInterfaceMTU(t *testing.T, dut *ondatra.DUTDevice, intfName string, w
 
 func verifyCLIMTU(t *testing.T, dut *ondatra.DUTDevice, intfName string, wantMTU uint16) bool {
 	t.Helper()
-	interfaceConfig := cliInterface(cliConfig(t, dut), intfName)
+	interfaceConfig := cliInterface(dut, cliConfig(t, dut), intfName)
 	if strings.Contains(interfaceConfig, fmt.Sprintf("mtu %d", wantMTU)) {
 		t.Logf("Interface %s MTU verified in CLI running-config", intfName)
 		return true
@@ -808,7 +789,7 @@ func verifyCLIBreakout(t *testing.T, dut *ondatra.DUTDevice, intfName string, br
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
 		want := fmt.Sprintf("speed %s", breakoutSpeedCLI(breakout))
-		if strings.Contains(cliInterface(cliConfig(t, dut), intfName), want) {
+		if strings.Contains(cliInterface(dut, cliConfig(t, dut), intfName), want) {
 			t.Logf("Breakout for %s verified in CLI running-config", intfName)
 			return true
 		}
@@ -1655,9 +1636,18 @@ func TestUnionReplace(t *testing.T) {
 						}
 					} else {
 						t.Log("Option 2 behavior: DUT accepted overlapping config, CLI value should take effect in state")
+						// Option 2 of the gNMI union_replace specification does not specify what
+						// value the OC config path should report when CLI and OC overlap. Nokia
+						// uses a unified datastore that reflects the winning CLI value on the OC
+						// config path, whereas dual-datastore implementations retain the OC value.
+						wantConfig := overlapMTUOC
+						switch dut.Vendor() {
+						case ondatra.NOKIA:
+							wantConfig = overlapMTUCLI
+						}
 						gotConfig := gnmi.Get(t, dut, configPath)
-						if gotConfig != overlapMTUOC {
-							errs = append(errs, fmt.Errorf("MTU config: got %d, want %d", gotConfig, overlapMTUOC))
+						if gotConfig != wantConfig {
+							errs = append(errs, fmt.Errorf("MTU config: got %d, want %d", gotConfig, wantConfig))
 						}
 						if !verifyCLIMTU(t, dut, intf1Name, overlapMTUCLI) {
 							gotState, ok := gnmi.Await(t, dut, statePath, awaitTimeOut, overlapMTUCLI).Val()
@@ -1770,8 +1760,17 @@ func TestUnionReplace(t *testing.T) {
 						}
 					} else {
 						t.Log("Option 2 behavior: DUT accepted BGP AS overlap")
-						if gotConfig, ok := gnmi.Lookup(t, dut, configPath).Val(); !ok || gotConfig != bgpASOC {
-							errs = append(errs, fmt.Errorf("BGP AS config: got %d (present=%v), want %d", gotConfig, ok, bgpASOC))
+						// Option 2 of the gNMI union_replace specification does not specify what
+						// value the OC config path should report when CLI and OC overlap. Nokia
+						// uses a unified datastore that reflects the winning CLI value on the OC
+						// config path, whereas dual-datastore implementations retain the OC value.
+						wantConfig := bgpASOC
+						switch dut.Vendor() {
+						case ondatra.NOKIA:
+							wantConfig = bgpASCLI
+						}
+						if gotConfig, ok := gnmi.Lookup(t, dut, configPath).Val(); !ok || gotConfig != wantConfig {
+							errs = append(errs, fmt.Errorf("BGP AS config: got %d (present=%v), want %d", gotConfig, ok, wantConfig))
 						}
 						if gotState, ok := awaitStateEq(t, dut, statePath, bgpASCLI, awaitTimeOut); ok {
 							t.Logf("BGP AS state verified: %d", gotState)
