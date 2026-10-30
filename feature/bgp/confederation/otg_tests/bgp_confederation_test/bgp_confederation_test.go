@@ -97,14 +97,25 @@ const (
 	ipv6 family = "IPv6"
 )
 
+// families are the address families of every BGP session, route, and flow.
+// The test covers IPv4 and IPv6 unicast, as in the README. Every helper that
+// differs between families handles IPv4 and IPv6 explicitly and fails the
+// test for any other family, so a new family, such as EVPN, needs its own DUT
+// and OTG configuration and route checks before it is added here.
 var families = []family{ipv4, ipv6}
 
 // afiSafi returns the BGP unicast AFI-SAFI of the address family.
-func (f family) afiSafi() oc.E_BgpTypes_AFI_SAFI_TYPE {
-	if f == ipv6 {
+func (f family) afiSafi(t *testing.T) oc.E_BgpTypes_AFI_SAFI_TYPE {
+	t.Helper()
+	switch f {
+	case ipv4:
+		return oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST
+	case ipv6:
 		return oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST
+	default:
+		t.Fatalf("Unsupported address family %q", f)
+		return oc.BgpTypes_AFI_SAFI_TYPE_UNSET
 	}
-	return oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST
 }
 
 // ateRouter is one emulated ATE BGP router of the README topology together
@@ -119,11 +130,17 @@ type ateRouter struct {
 }
 
 // addr returns the ATE router address, which is the DUT BGP neighbor address.
-func (r *ateRouter) addr(f family) string {
-	if f == ipv6 {
+func (r *ateRouter) addr(t *testing.T, f family) string {
+	t.Helper()
+	switch f {
+	case ipv4:
+		return r.ateAttr.IPv4
+	case ipv6:
 		return r.ateAttr.IPv6
+	default:
+		t.Fatalf("%v: unsupported address family %q", r, f)
+		return ""
 	}
-	return r.ateAttr.IPv4
 }
 
 // otgIntf returns the name of the OTG IP interface that attrs.AddToOTG creates.
@@ -139,12 +156,23 @@ func (r *ateRouter) peerName(f family) string {
 // peerGroup returns the DUT peer-group of the address family, for example
 // BGP-PEER-GROUP-V4-R1. Each peer group carries a single AFI-SAFI so that
 // every session negotiates one family.
-func (r *ateRouter) peerGroup(f family) string {
-	v := "V4"
-	if f == ipv6 {
-		v = "V6"
+func (r *ateRouter) peerGroup(t *testing.T, f family) string {
+	t.Helper()
+	switch f {
+	case ipv4:
+		return "BGP-PEER-GROUP-V4-" + r.name
+	case ipv6:
+		return "BGP-PEER-GROUP-V6-" + r.name
+	default:
+		t.Fatalf("%v: unsupported address family %q", r, f)
+		return ""
 	}
-	return "BGP-PEER-GROUP-" + v + "-" + r.name
+}
+
+// inConfederation reports whether the router is in the DUT confederation,
+// either in the DUT Member-AS or in another Member-AS.
+func (r *ateRouter) inConfederation() bool {
+	return r.asn == dutAS || r.asn == confedPeerAS
 }
 
 func (r *ateRouter) String() string {
@@ -230,11 +258,17 @@ type advertisedRoute struct {
 }
 
 // prefix returns the advertised prefix of the address family.
-func (a *advertisedRoute) prefix(f family) string {
-	if f == ipv6 {
+func (a *advertisedRoute) prefix(t *testing.T, f family) string {
+	t.Helper()
+	switch f {
+	case ipv4:
+		return a.v4Prefix
+	case ipv6:
 		return a.v6Prefix
+	default:
+		t.Fatalf("%s route: unsupported address family %q", a.name, f)
+		return ""
 	}
-	return a.v4Prefix
 }
 
 // otgName returns the name of the OTG route range of the address family.
@@ -244,21 +278,22 @@ func (a *advertisedRoute) otgName(f family) string {
 
 // routeOptions returns the OTG route range options: the ATE address as the
 // next hop and the AS_PATH from the README route table.
-func (a *advertisedRoute) routeOptions(f family) []otgconfighelpers.BGPRouteOption {
-	opts := []otgconfighelpers.BGPRouteOption{
-		otgconfighelpers.WithBGPRouteNextHopIPv4(a.router.ateAttr.IPv4),
-	}
-	if f == ipv6 {
-		opts = []otgconfighelpers.BGPRouteOption{
-			otgconfighelpers.WithBGPRouteNextHopIPv6(a.router.ateAttr.IPv6),
-		}
-	}
+func (a *advertisedRoute) routeOptions(t *testing.T, f family) []otgconfighelpers.BGPRouteOption {
+	t.Helper()
 	// The README AS_PATH is built from the ATE AS only, without extra
 	// segments: on an eBGP session the ATE adds its own AS even when
 	// DO_NOT_INCLUDE_LOCAL_AS is set, so an extra segment would be advertised
 	// after it.
-	asPath := gosnappi.NewBgpAsPath().SetAsSetMode(a.asSetMode)
-	return append(opts, otgconfighelpers.WithBGPRouteASPath(asPath))
+	asPath := otgconfighelpers.WithBGPRouteASPath(gosnappi.NewBgpAsPath().SetAsSetMode(a.asSetMode))
+	switch f {
+	case ipv4:
+		return []otgconfighelpers.BGPRouteOption{otgconfighelpers.WithBGPRouteNextHopIPv4(a.router.ateAttr.IPv4), asPath}
+	case ipv6:
+		return []otgconfighelpers.BGPRouteOption{otgconfighelpers.WithBGPRouteNextHopIPv6(a.router.ateAttr.IPv6), asPath}
+	default:
+		t.Fatalf("%s route: unsupported address family %q", a.name, f)
+		return nil
+	}
 }
 
 // The README route table names each route after the peer type of the port
@@ -360,6 +395,11 @@ func TestBGPConfederation(t *testing.T) {
 	// receives them as coming from confederation 64500, without the
 	// AS_CONFED_SEQUENCE.
 	t.Run("RT-1.111.4: Confederation routes to external eBGP peer", func(t *testing.T) {
+		// The whole AS_PATH that R1 receives, with the type of every segment,
+		// must be AS_SEQ [64500]: an AS_CONFED_SEQUENCE or AS_CONFED_SET
+		// segment, or Member-AS 64501 or 64502, fails the check.
+		// verifyATEASPath also reports any confederation segment that reaches
+		// R1 in its own error, because R1 is outside the confederation.
 		verifyATEASPath(t, otg, r1, r3Routes, "AS_SEQ [64500]")
 		verifyATEASPath(t, otg, r1, r2Routes, "AS_SEQ [64500]")
 		runTraffic(t, otg, slices.Concat(flowNames(r1, r2Routes), flowNames(r1, r3Routes)))
@@ -438,8 +478,8 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 			if a.router != r {
 				continue
 			}
-			otgconfighelpers.AddBGPV4Routes(peer4, a.otgName(ipv4), []string{a.v4Prefix}, a.routeOptions(ipv4)...)
-			otgconfighelpers.AddBGPV6Routes(peer6, a.otgName(ipv6), []string{a.v6Prefix}, a.routeOptions(ipv6)...)
+			otgconfighelpers.AddBGPV4Routes(peer4, a.otgName(ipv4), []string{a.v4Prefix}, a.routeOptions(t, ipv4)...)
+			otgconfighelpers.AddBGPV6Routes(peer6, a.otgName(ipv6), []string{a.v6Prefix}, a.routeOptions(t, ipv6)...)
 		}
 	}
 	for _, p := range trafficPaths {
@@ -465,14 +505,17 @@ func addFlow(t *testing.T, top gosnappi.Config, f family, src *ateRouter, dst *a
 	}
 	flow.CreateFlow(top)
 	flow.AddEthHeader()
-	dstAddr := firstHost(t, dst.prefix(f))
-	if f == ipv6 {
+	dstAddr := firstHost(t, dst.prefix(t, f))
+	switch f {
+	case ipv4:
+		flow.IPv4Flow = &otgconfighelpers.IPv4FlowParams{IPv4Src: src.ateAttr.IPv4, IPv4Dst: dstAddr}
+		flow.AddIPv4Header()
+	case ipv6:
 		flow.IPv6Flow = &otgconfighelpers.IPv6FlowParams{IPv6Src: src.ateAttr.IPv6, IPv6Dst: dstAddr}
 		flow.AddIPv6Header()
-		return
+	default:
+		t.Fatalf("Flow %s: unsupported address family %q", flow.FlowName, f)
 	}
-	flow.IPv4Flow = &otgconfighelpers.IPv4FlowParams{IPv4Src: src.ateAttr.IPv4, IPv4Dst: dstAddr}
-	flow.AddIPv4Header()
 }
 
 // configureDUTInterfaces configures the DUT ports from the README table and
@@ -549,18 +592,23 @@ func configureDUTBGP(t *testing.T, dut *ondatra.DUTDevice) {
 	cfgplugins.ConfigureBGPConfederation(bgp, confedID, []uint32{confedPeerAS})
 	for _, r := range routers {
 		for _, f := range families {
-			pg := r.peerGroup(f)
+			pg := r.peerGroup(t, f)
+			afiSafi := f.afiSafi(t)
 			cfgplugins.ConfigurePeerGroup(bgp.GetOrCreatePeerGroup(pg), dut,
 				cfgplugins.WithPeerAS(r.asn),
-				cfgplugins.WithPGAfiSafiEnabled(f.afiSafi(), true, false),
+				cfgplugins.WithPGAfiSafiEnabled(afiSafi, true, false),
 				cfgplugins.ApplyPGRoutingPolicy(allowPolicy, allowPolicy, false),
 			)
+			// The cfgplugins neighbor AFI-SAFI options configure IPv4 unicast
+			// if isV4 is true and IPv6 unicast if it is false. afiSafi is one
+			// of the two, because f.afiSafi fails the test for other families.
+			isV4 := afiSafi == oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST
 			// WithPeerGroup only sets the peer group and the peer AS; the
 			// policies are applied by the AFI-SAFI options.
-			cfgplugins.ConfigurePeer(bgp.GetOrCreateNeighbor(r.addr(f)), dut,
+			cfgplugins.ConfigurePeer(bgp.GetOrCreateNeighbor(r.addr(t, f)), dut,
 				cfgplugins.WithPeerGroup(pg, r.asn, "", "", false),
-				cfgplugins.WithPeerAfiSafiEnabled(f == ipv4, allowPolicy, allowPolicy, false),
-				cfgplugins.ApplyPeerPerAfiSafiRoutingPolicy(f == ipv4, allowPolicy, allowPolicy, false),
+				cfgplugins.WithPeerAfiSafiEnabled(isV4, allowPolicy, allowPolicy, false),
+				cfgplugins.ApplyPeerPerAfiSafiRoutingPolicy(isV4, allowPolicy, allowPolicy, false),
 			)
 		}
 	}
@@ -648,7 +696,7 @@ func verifySessions(t *testing.T, dut *ondatra.DUTDevice) bool {
 	var watches []sessionWatch
 	for _, r := range routers {
 		for _, f := range families {
-			nbr := r.addr(f)
+			nbr := r.addr(t, f)
 			w := gnmi.Watch(t, onChange(dut), bgpPath(dut).Neighbor(nbr).SessionState().State(), sessionTimeout, func(v *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 				s, present := v.Val()
 				return present && s == oc.Bgp_Neighbor_SessionState_ESTABLISHED
@@ -711,12 +759,14 @@ func verifyLocRibASPath(t *testing.T, dut *ondatra.DUTDevice, a *advertisedRoute
 	t.Logf("Verify in the DUT loc-rib that the %s routes are received with %s", a.name, want)
 	rib := bgpPath(dut).Rib()
 	for _, f := range families {
-		prefix := a.prefix(f)
+		prefix := a.prefix(t, f)
+		afiSafi := rib.AfiSafi(f.afiSafi(t))
 		got := "prefix not in loc-rib"
 		// attrIndex returns the attr-set index of the loc-rib route of prefix.
 		attrIndex := func() (uint64, bool) {
-			if f == ipv6 {
-				locRib, ok := gnmi.Lookup(t, dut, rib.AfiSafi(f.afiSafi()).Ipv6Unicast().LocRib().State()).Val()
+			switch f {
+			case ipv4:
+				locRib, ok := gnmi.Lookup(t, dut, afiSafi.Ipv4Unicast().LocRib().State()).Val()
 				if !ok {
 					return 0, false
 				}
@@ -725,16 +775,18 @@ func verifyLocRibASPath(t *testing.T, dut *ondatra.DUTDevice, a *advertisedRoute
 						return r.GetAttrIndex(), true
 					}
 				}
-				return 0, false
-			}
-			locRib, ok := gnmi.Lookup(t, dut, rib.AfiSafi(f.afiSafi()).Ipv4Unicast().LocRib().State()).Val()
-			if !ok {
-				return 0, false
-			}
-			for _, r := range locRib.Route {
-				if samePrefix(r.GetPrefix(), prefix) {
-					return r.GetAttrIndex(), true
+			case ipv6:
+				locRib, ok := gnmi.Lookup(t, dut, afiSafi.Ipv6Unicast().LocRib().State()).Val()
+				if !ok {
+					return 0, false
 				}
+				for _, r := range locRib.Route {
+					if samePrefix(r.GetPrefix(), prefix) {
+						return r.GetAttrIndex(), true
+					}
+				}
+			default:
+				t.Fatalf("DUT loc-rib %s: unsupported address family %q", prefix, f)
 			}
 			return 0, false
 		}
@@ -758,13 +810,17 @@ func verifyLocRibASPath(t *testing.T, dut *ondatra.DUTDevice, a *advertisedRoute
 }
 
 // verifyATEASPath waits until the ATE router at learns the IPv4 and IPv6
-// prefixes of the route a, and reports an error unless they have the AS_PATH
-// want, in README notation.
+// prefixes of the route a, and reports an error unless their whole AS_PATH,
+// with the type of every segment, is want in README notation. If at is
+// outside the confederation, an AS_CONFED_SEQUENCE or AS_CONFED_SET segment
+// that it receives is also reported in its own error: RFC 5065 requires the
+// DUT to remove these segments before it advertises a route outside the
+// confederation.
 func verifyATEASPath(t *testing.T, otg *otg.OTG, at *ateRouter, a *advertisedRoute, want string) {
 	t.Helper()
 	t.Logf("Verify %v receives the %s routes with %s", at, a.name, want)
 	for _, f := range families {
-		prefix := a.prefix(f)
+		prefix := a.prefix(t, f)
 		peer := gnmi.OTG().BgpPeer(at.peerName(f))
 		isPrefix := func(addr string, length uint32) bool {
 			return samePrefix(fmt.Sprintf("%s/%d", addr, length), prefix)
@@ -775,27 +831,8 @@ func verifyATEASPath(t *testing.T, otg *otg.OTG, at *ateRouter, a *advertisedRou
 		// the AS_PATH with a new request.
 		var learned bool
 		var readASPath func() string
-		if f == ipv6 {
-			q := peer.UnicastIpv6PrefixAny().State()
-			_, learned = gnmi.WatchAll(t, otg, q, routeTimeout, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv6Prefix]) bool {
-				p, present := v.Val()
-				return present && isPrefix(p.GetAddress(), p.GetPrefixLength())
-			}).Await(t)
-			readASPath = func() string {
-				for _, v := range gnmi.LookupAll(t, otg, q) {
-					if p, present := v.Val(); present && isPrefix(p.GetAddress(), p.GetPrefixLength()) {
-						var segs []string
-						for _, s := range p.AsPath {
-							if len(s.GetAsNumbers()) > 0 {
-								segs = append(segs, otgSegment(s.GetSegmentType(), s.GetAsNumbers()))
-							}
-						}
-						return strings.Join(segs, ", ")
-					}
-				}
-				return "prefix not received"
-			}
-		} else {
+		switch f {
+		case ipv4:
 			q := peer.UnicastIpv4PrefixAny().State()
 			_, learned = gnmi.WatchAll(t, otg, q, routeTimeout, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
 				p, present := v.Val()
@@ -815,6 +852,28 @@ func verifyATEASPath(t *testing.T, otg *otg.OTG, at *ateRouter, a *advertisedRou
 				}
 				return "prefix not received"
 			}
+		case ipv6:
+			q := peer.UnicastIpv6PrefixAny().State()
+			_, learned = gnmi.WatchAll(t, otg, q, routeTimeout, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv6Prefix]) bool {
+				p, present := v.Val()
+				return present && isPrefix(p.GetAddress(), p.GetPrefixLength())
+			}).Await(t)
+			readASPath = func() string {
+				for _, v := range gnmi.LookupAll(t, otg, q) {
+					if p, present := v.Val(); present && isPrefix(p.GetAddress(), p.GetPrefixLength()) {
+						var segs []string
+						for _, s := range p.AsPath {
+							if len(s.GetAsNumbers()) > 0 {
+								segs = append(segs, otgSegment(s.GetSegmentType(), s.GetAsNumbers()))
+							}
+						}
+						return strings.Join(segs, ", ")
+					}
+				}
+				return "prefix not received"
+			}
+		default:
+			t.Fatalf("%v %s: unsupported address family %q", at, prefix, f)
 		}
 		got := "prefix not received"
 		for i := 1; learned; i++ {
@@ -826,6 +885,11 @@ func verifyATEASPath(t *testing.T, otg *otg.OTG, at *ateRouter, a *advertisedRou
 		}
 		if got != want {
 			t.Errorf("%v %s: AS_PATH got %q, want %q", at, prefix, got, want)
+		}
+		// otgSegment names the confederation segments AS_CONFED_SEQUENCE and
+		// AS_CONFED_SET.
+		if !at.inConfederation() && strings.Contains(got, "AS_CONFED_") {
+			t.Errorf("%v %s: got confederation segments in AS_PATH %q, want none outside confederation %d", at, prefix, got, confedID)
 		}
 	}
 }
