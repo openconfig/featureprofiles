@@ -22,6 +22,7 @@ import (
 	otgconfighelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers"
 	otgvalidationhelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_validation_helpers"
 	packetvalidationhelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/packetvalidationhelpers"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -566,7 +567,8 @@ func createflow(top gosnappi.Config, params *otgconfighelpers.Flow, clearFlows b
 func sendTrafficCapture(t *testing.T, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
 	t.Helper()
 	ate.OTG().StartProtocols(t)
-	cs := packetvalidationhelpers.StartCapture(t, ate)
+	cs := otgutils.StartCapture(t, ate.OTG())
+	defer otgutils.StopCapture(t, ate.OTG(), cs)
 	hasFlows := len(otgConfig.Flows().Items()) > 0
 	if hasFlows {
 		ate.OTG().StartTraffic(t)
@@ -577,7 +579,7 @@ func sendTrafficCapture(t *testing.T, ate *ondatra.ATEDevice, otgConfig gosnappi
 	if hasFlows {
 		ate.OTG().StopTraffic(t)
 	}
-	packetvalidationhelpers.StopCapture(t, ate, cs)
+	otgutils.StopCapture(t, ate.OTG(), cs)
 }
 
 // verifyLoadBalanceAcrossGre verifies that the CCM PDUs of each MEP, being a
