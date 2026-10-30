@@ -2,9 +2,22 @@
 # proto-message: Metadata
 
 uuid:  "021610e4-9b59-48c2-a9b9-2f204fa4c2a7"
-plan_id:  "TE-9.2"
-description:  "MPLS based forwarding Static LSP"
-testbed:  TESTBED_DUT_ATE_2LINKS
+plan_id:  "PF-1.25"
+description:  "Egress Static MPLS LSP Verification"
+testbed:  TESTBED_DUT_ATE_4LINKS
+platform_exceptions:  {
+  platform:  {
+    vendor:  ARISTA
+  }
+  deviations:  {
+    interface_enabled:  true
+    default_network_instance:  "default"
+    static_mpls_lsp_oc_unsupported:  true
+    mpls_unsupported:  true
+    gue_gre_decap_unsupported:  true
+    aggregate_atomic_update:  true
+  }
+}
 platform_exceptions:  {
   platform:  {
     vendor:  CISCO

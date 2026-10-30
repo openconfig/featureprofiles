@@ -14,6 +14,7 @@ platform_exceptions: {
     default_network_instance: "default"
     missing_port_to_optical_channel_component_mapping: true
     missing_zr_optical_channel_tunable_parameters_telemetry: true
+    terminal_device_channel_admin_state_unsupported: true
   }
 }
 platform_exceptions: {
@@ -25,5 +26,13 @@ platform_exceptions: {
     explicit_dco_config: true
     transceiver_config_enable_unsupported: true
     missing_zr_optical_channel_tunable_parameters_telemetry: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    terminal_device_channel_admin_state_unsupported: true
   }
 }

@@ -7,6 +7,28 @@ description: "AFTs collector Flap"
 testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    isis_single_topology_required: true
+    skip_interface_name_check: true
+    link_local_instead_of_nh: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    default_network_instance: "default"
+    isis_instance_enabled_required: true
+    isis_interface_afi_unsupported: true
+    interface_enabled: true
+    bgp_missing_oc_max_prefixes_configuration: true
+  }
+}
+platform_exceptions: {
+  platform: {
     vendor: JUNIPER
   }
   deviations: {

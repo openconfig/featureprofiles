@@ -87,6 +87,7 @@ func configNonDefaultNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 // Reference: https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/vrf_policy_driven_te/README.md?plain=1#L252
 func BuildVRFSelectionPolicyW(t *testing.T, dut *ondatra.DUTDevice, niName string) *oc.NetworkInstance_PolicyForwarding {
 	configNonDefaultNetworkInstance(t, dut)
+	defaultNI := deviations.DefaultNetworkInstance(dut)
 
 	pfRule1 := &policyFwRule{
 		seqID:  1,
@@ -133,22 +134,22 @@ func BuildVRFSelectionPolicyW(t *testing.T, dut *ondatra.DUTDevice, niName strin
 	pfRule9 := &policyFwRule{
 		seqID:  9,
 		ipv4:   &ipInfo{protocol: 4, sourceAddr: ipv4OuterSrc222WithMask},
-		action: &action{decapNI: niDecapTeVrf, postDecapNI: niDefault, decapFallbackNI: niTeVrf222},
+		action: &action{decapNI: niDecapTeVrf, postDecapNI: defaultNI, decapFallbackNI: niTeVrf222},
 	}
 	pfRule10 := &policyFwRule{
 		seqID:  10,
 		ipv4:   &ipInfo{protocol: 41, sourceAddr: ipv4OuterSrc222WithMask},
-		action: &action{decapNI: niDecapTeVrf, postDecapNI: niDefault, decapFallbackNI: niTeVrf222},
+		action: &action{decapNI: niDecapTeVrf, postDecapNI: defaultNI, decapFallbackNI: niTeVrf222},
 	}
 	pfRule11 := &policyFwRule{
 		seqID:  11,
 		ipv4:   &ipInfo{protocol: 4, sourceAddr: ipv4OuterSrc111WithMask},
-		action: &action{decapNI: niDecapTeVrf, postDecapNI: niDefault, decapFallbackNI: niTeVrf111},
+		action: &action{decapNI: niDecapTeVrf, postDecapNI: defaultNI, decapFallbackNI: niTeVrf111},
 	}
 	pfRule12 := &policyFwRule{
 		seqID:  12,
 		ipv4:   &ipInfo{protocol: 41, sourceAddr: ipv4OuterSrc111WithMask},
-		action: &action{decapNI: niDecapTeVrf, postDecapNI: niDefault, decapFallbackNI: niTeVrf111},
+		action: &action{decapNI: niDecapTeVrf, postDecapNI: defaultNI, decapFallbackNI: niTeVrf111},
 	}
 
 	pfRuleList := []*policyFwRule{
@@ -169,15 +170,15 @@ func BuildVRFSelectionPolicyW(t *testing.T, dut *ondatra.DUTDevice, niName strin
 		pfR13 := niPf.GetOrCreateRule(913)
 		pfR13.GetOrCreateL2().SetEthertype(oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4)
 		pfRAction := pfR13.GetOrCreateAction()
-		pfRAction.NetworkInstance = ygot.String(niDefault)
+		pfRAction.NetworkInstance = ygot.String(defaultNI)
 		pfR14 := niPf.GetOrCreateRule(914)
 		pfR14.GetOrCreateL2().SetEthertype(oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV6)
 		pfRAction = pfR14.GetOrCreateAction()
-		pfRAction.NetworkInstance = ygot.String(niDefault)
+		pfRAction.NetworkInstance = ygot.String(defaultNI)
 	} else {
 		pfR := niPf.GetOrCreateRule(13)
 		pfRAction := pfR.GetOrCreateAction()
-		pfRAction.NetworkInstance = ygot.String(niDefault)
+		pfRAction.NetworkInstance = ygot.String(defaultNI)
 	}
 
 	return niP
@@ -187,6 +188,7 @@ func BuildVRFSelectionPolicyW(t *testing.T, dut *ondatra.DUTDevice, niName strin
 // Reference: https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/vrf_policy_driven_te/README.md?plain=1#L40
 func BuildVRFSelectionPolicyC(t *testing.T, dut *ondatra.DUTDevice, niName string) *oc.NetworkInstance_PolicyForwarding {
 	configNonDefaultNetworkInstance(t, dut)
+	defaultNI := deviations.DefaultNetworkInstance(dut)
 
 	pfRule1 := &policyFwRule{
 		seqID:  1,
@@ -233,22 +235,22 @@ func BuildVRFSelectionPolicyC(t *testing.T, dut *ondatra.DUTDevice, niName strin
 	pfRule9 := &policyFwRule{
 		seqID:  9,
 		ipv4:   &ipInfo{protocol: 4, sourceAddr: ipv4OuterSrc222WithMask},
-		action: &action{decapNI: niDecapTeVrf, postDecapNI: niDefault, decapFallbackNI: niTeVrf222},
+		action: &action{decapNI: niDecapTeVrf, postDecapNI: defaultNI, decapFallbackNI: niTeVrf222},
 	}
 	pfRule10 := &policyFwRule{
 		seqID:  10,
 		ipv4:   &ipInfo{protocol: 41, sourceAddr: ipv4OuterSrc222WithMask},
-		action: &action{decapNI: niDecapTeVrf, postDecapNI: niDefault, decapFallbackNI: niTeVrf222},
+		action: &action{decapNI: niDecapTeVrf, postDecapNI: defaultNI, decapFallbackNI: niTeVrf222},
 	}
 	pfRule11 := &policyFwRule{
 		seqID:  11,
 		ipv4:   &ipInfo{protocol: 4, sourceAddr: ipv4OuterSrc111WithMask},
-		action: &action{decapNI: niDecapTeVrf, postDecapNI: niDefault, decapFallbackNI: niTeVrf111},
+		action: &action{decapNI: niDecapTeVrf, postDecapNI: defaultNI, decapFallbackNI: niTeVrf111},
 	}
 	pfRule12 := &policyFwRule{
 		seqID:  12,
 		ipv4:   &ipInfo{protocol: 41, sourceAddr: ipv4OuterSrc111WithMask},
-		action: &action{decapNI: niDecapTeVrf, postDecapNI: niDefault, decapFallbackNI: niTeVrf111},
+		action: &action{decapNI: niDecapTeVrf, postDecapNI: defaultNI, decapFallbackNI: niTeVrf111},
 	}
 
 	pfRule13 := &policyFwRule{
@@ -294,15 +296,15 @@ func BuildVRFSelectionPolicyC(t *testing.T, dut *ondatra.DUTDevice, niName strin
 		pfR17 := niPf.GetOrCreateRule(917)
 		pfR17.GetOrCreateL2().SetEthertype(oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4)
 		pfRAction := pfR17.GetOrCreateAction()
-		pfRAction.NetworkInstance = ygot.String(niDefault)
+		pfRAction.NetworkInstance = ygot.String(defaultNI)
 		pfR18 := niPf.GetOrCreateRule(918)
 		pfR18.GetOrCreateL2().SetEthertype(oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV6)
 		pfRAction = pfR18.GetOrCreateAction()
-		pfRAction.NetworkInstance = ygot.String(niDefault)
+		pfRAction.NetworkInstance = ygot.String(defaultNI)
 	} else {
 		pfR := niPf.GetOrCreateRule(17)
 		pfRAction := pfR.GetOrCreateAction()
-		pfRAction.NetworkInstance = ygot.String(niDefault)
+		pfRAction.NetworkInstance = ygot.String(defaultNI)
 	}
 
 	return niP
@@ -314,7 +316,7 @@ func ConfigureVRFSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice, policyNam
 
 	port1 := dut.Port(t, "port1")
 	interfaceID := port1.Name()
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+	if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
 		interfaceID = interfaceID + ".0"
 	}
 
@@ -329,8 +331,6 @@ func ConfigureVRFSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice, policyNam
 	}
 
 	dutForwardingPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding()
-	gnmi.Replace(t, dut, dutForwardingPath.Config(), niForwarding)
-
 	interface1 := niForwarding.GetOrCreateInterface(interfaceID)
 	interface1.ApplyVrfSelectionPolicy = ygot.String(policyName)
 	interface1.GetOrCreateInterfaceRef().Interface = ygot.String(port1.Name())
@@ -338,7 +338,7 @@ func ConfigureVRFSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice, policyNam
 	if deviations.InterfaceRefConfigUnsupported(dut) {
 		interface1.InterfaceRef = nil
 	}
-	gnmi.Replace(t, dut, dutForwardingPath.Interface(interfaceID).Config(), interface1)
+	gnmi.Replace(t, dut, dutForwardingPath.Config(), niForwarding)
 }
 
 func buildVRFSelectionPolicy(niName string, policyName string, pfRules []*policyFwRule) *oc.NetworkInstance_PolicyForwarding {
@@ -362,7 +362,7 @@ func buildVRFSelectionPolicy(niName string, policyName string, pfRules []*policy
 				pfRProtoIP.SourceAddress = ygot.String(pfRule.ipv4.sourceAddr)
 			}
 		} else {
-			pfRProtoIP := pfR.GetOrCreateIpv4()
+			pfRProtoIP := pfR.GetOrCreateIpv6()
 			if pfRule.ipv6.dscpSet != nil {
 				pfRProtoIP.DscpSet = pfRule.ipv6.dscpSet
 			}
@@ -392,7 +392,7 @@ func DeletePolicyForwarding(t *testing.T, dut *ondatra.DUTDevice, portID string)
 	p1 := dut.Port(t, portID)
 	ingressPort := p1.Name()
 	interfaceID := ingressPort
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+	if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
 		interfaceID = ingressPort + ".0"
 	}
 	pfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID)

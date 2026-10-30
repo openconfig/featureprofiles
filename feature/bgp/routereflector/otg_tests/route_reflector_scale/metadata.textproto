@@ -18,6 +18,7 @@ platform_exceptions: {
     isis_instance_enabled_required: true
     bgp_default_policy_unsupported: true
     isis_require_same_l1_metric_with_l2_metric: true
+    default_bgp_instance_name: "BGP"
   }
 }
 platform_exceptions: {
@@ -26,5 +27,24 @@ platform_exceptions: {
   }
   deviations: {
     isis_level_enabled: true
+    interface_ref_interface_id_format: true
+    default_bgp_instance_name: "BGP"
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    prefix_limit_config_unsupported: true
+    default_bgp_instance_name: "BGP"
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    default_bgp_instance_name: "BGP"
   }
 }

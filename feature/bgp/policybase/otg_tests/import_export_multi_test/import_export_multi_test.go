@@ -72,6 +72,7 @@ const (
 	matchInvert                      = oc.BgpPolicy_MatchSetOptionsType_INVERT
 	rejectResult                     = oc.RoutingPolicy_PolicyResultType_REJECT_ROUTE
 	nextstatementResult              = oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT
+	tolerancePct                     = 1
 )
 
 var prefixesV4 = [][]string{
@@ -130,12 +131,8 @@ func deleteBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, nbrList []*bgpNbrList
 	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	for _, nbr := range nbrList {
 		nbrAfiSafiPath := bgpPath.Neighbor(nbr.nbrAddr).AfiSafi(nbr.afiSafi)
-		peerAfiSafiPath := bgpPath.PeerGroup(cfgplugins.BGPPeerGroup1).AfiSafi(nbr.afiSafi)
 		b := &gnmi.SetBatch{}
-		gnmi.BatchDelete(b, nbrAfiSafiPath.ApplyPolicy().ImportPolicy().Config())
-		gnmi.BatchDelete(b, nbrAfiSafiPath.ApplyPolicy().ExportPolicy().Config())
-		gnmi.BatchDelete(b, peerAfiSafiPath.ApplyPolicy().ImportPolicy().Config())
-		gnmi.BatchDelete(b, peerAfiSafiPath.ApplyPolicy().ExportPolicy().Config())
+		gnmi.BatchDelete(b, nbrAfiSafiPath.ApplyPolicy().Config())
 		b.Set(t, dut)
 	}
 }
@@ -256,6 +253,15 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 
 	if !deviations.SkipSettingStatementForPolicy(dut) {
 		pd2stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+
+		// Add catch-all reject statement to match_community_regex policy so that
+		// routes not matching the regex get an explicit REJECT_ROUTE result,
+		// ensuring the call-policy condition in the parent policy evaluates to false.
+		pd2stmt2, err := pdef2.AppendNewStatement("catch_all_reject")
+		if err != nil {
+			t.Fatalf("AppendNewStatement(%s) failed: %v", "catch_all_reject", err)
+		}
+		pd2stmt2.GetOrCreateActions().SetPolicyResult(rejectResult)
 	}
 
 	// Configure the parent policy multi_policy.
@@ -513,12 +519,6 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 	}
 	gnmi.Replace(t, dut, pathV6.Config(), policyV6)
 
-	if !deviations.SkipBgpSendCommunityType(dut) {
-		n6 := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(ipv6)
-		n6.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_BOTH})
-		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(ipv6).Config(), n6)
-	}
-
 	pathV4 := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(ipv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 	policyV4 := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(ipv4).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy()
 	policyV4.SetImportPolicy([]string{parentPolicy})
@@ -529,29 +529,29 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 	}
 	gnmi.Replace(t, dut, pathV4.Config(), policyV4)
 
-	if !deviations.SkipBgpSendCommunityType(dut) {
-		n4 := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(ipv4)
-		n4.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_BOTH})
-		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(ipv4).Config(), n4)
-	}
-
 	pathV61 := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(ipv61).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
 	policyV61 := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(ipv61).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy()
 	policyV61.SetExportPolicy([]string{parentPolicy})
 	if !deviations.DefaultRoutePolicyUnsupported(dut) {
-		policyV6.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
-		policyV6.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
+		policyV61.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
+		policyV61.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
 	}
-	gnmi.Update(t, dut, pathV61.Config(), policyV61)
+	gnmi.Replace(t, dut, pathV61.Config(), policyV61)
+	if !deviations.SkipBgpSendCommunityType(dut) {
+		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(ipv61).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).SendCommunityType().Config(), []oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD, oc.Bgp_CommunityType_EXTENDED})
+	}
 
 	pathV41 := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(ipv41).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 	policyV41 := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(ipv41).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy()
 	policyV41.SetExportPolicy([]string{parentPolicy})
 	if !deviations.DefaultRoutePolicyUnsupported(dut) {
-		policyV4.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
-		policyV4.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
+		policyV41.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
+		policyV41.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
 	}
-	gnmi.Update(t, dut, pathV41.Config(), policyV41)
+	gnmi.Replace(t, dut, pathV41.Config(), policyV41)
+	if !deviations.SkipBgpSendCommunityType(dut) {
+		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(ipv41).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).SendCommunityType().Config(), []oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD, oc.Bgp_CommunityType_EXTENDED})
+	}
 }
 
 func configureOTG(t *testing.T, bs *cfgplugins.BGPSession, prefixesV4 [][]string, prefixesV6 [][]string, communityMembers [][][]int) {
@@ -651,44 +651,112 @@ func verifyTrafficV4AndV6(t *testing.T, bs *cfgplugins.BGPSession, testResults [
 	bs.ATE.OTG().StartTraffic(t)
 	time.Sleep(time.Second * sleepTime)
 	bs.ATE.OTG().StopTraffic(t)
-
-	otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
-	otgutils.LogPortMetrics(t, bs.ATE.OTG(), bs.ATETop)
-
 	for index, prefixPairV4 := range prefixesV4 {
 		t.Logf("Running traffic test for IPv4 prefixes: [%s, %s]. Expected Result: [%t]", prefixPairV4[0], prefixPairV4[1], testResults[index])
 		t.Logf("Running traffic test for IPv6 prefixes: [%s, %s]. Expected Result: [%t]", prefixesV6[index][0], prefixesV6[index][1], testResults[index])
 
+		otg := bs.ATE.OTG()
+		flowV4 := "flow" + "ipv4" + strconv.Itoa(index)
+		flowV6 := "flow" + "ipv6" + strconv.Itoa(index)
+		expectSuccess := testResults[index]
+
+		// IPv4 Telemetry Watch & Verification
 		t.Log("Checking flow telemetry for v4...")
-		recvMetric := gnmi.Get(t, bs.ATE.OTG(), gnmi.OTG().Flow("flow"+"ipv4"+strconv.Itoa(index)).State())
-		txPackets := recvMetric.GetCounters().GetOutPkts()
-		rxPackets := recvMetric.GetCounters().GetInPkts()
-		lostPackets := txPackets - rxPackets
-		lossPct := lostPackets * 100 / txPackets
+		inPktsQueryV4 := gnmi.OTG().Flow(flowV4).Counters().InPkts().State()
+		outPktsQueryV4 := gnmi.OTG().Flow(flowV4).Counters().OutPkts().State()
+
+		gnmi.Watch(t, otg, inPktsQueryV4, 45*time.Second, func(v *ygnmi.Value[uint64]) bool {
+			rx, present := v.Val()
+			if !present {
+				return false
+			}
+			tx, txPresent := gnmi.Lookup(t, otg, outPktsQueryV4).Val()
+			if !txPresent || tx == 0 {
+				return false
+			}
+			if expectSuccess {
+				// Wait for rx to catch up to within 1 packet of tx
+				return tx >= rx && (tx-rx) <= tolerancePct
+			}
+			// Wait for 100% packet loss (allowing 1 stray packet)
+			return rx <= tolerancePct
+		}).Await(t)
+
+		txPackets := gnmi.Get(t, otg, outPktsQueryV4)
+		rxPackets := gnmi.Get(t, otg, inPktsQueryV4)
+
+		if txPackets == 0 {
+			t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flowV4)
+		}
+
+		lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
+
+		if expectSuccess && (txPackets-rxPackets) > tolerancePct {
+			t.Errorf("FAIL- got %.2f%% packet loss (%d lost) for %s flow and prefixes: [%s, %s]; want <= %d packet(s) lost", lossPct, (txPackets - rxPackets), flowV4, prefixPairV4[0], prefixPairV4[1], tolerancePct)
+		} else if !expectSuccess && rxPackets > tolerancePct {
+			t.Errorf("FAIL- got %.2f%% packet loss (%d received) for %s flow and prefixes: [%s, %s]; want <= %d packet(s) received (100%% loss)", lossPct, rxPackets, flowV4, prefixPairV4[0], prefixPairV4[1], tolerancePct)
+		} else {
+			t.Logf("Traffic validation successful for Prefixes: [%s, %s]. Result: [%t] PacketsTx: %d PacketsRx: %d", prefixPairV4[0], prefixPairV4[1], expectSuccess, txPackets, rxPackets)
+		}
+
+		// IPv6 Telemetry Watch & Verification
 
 		t.Log("Checking flow telemetry for v6...")
-		recvMetric6 := gnmi.Get(t, bs.ATE.OTG(), gnmi.OTG().Flow("flow"+"ipv6"+strconv.Itoa(index)).State())
-		txPackets6 := recvMetric6.GetCounters().GetOutPkts()
-		rxPackets6 := recvMetric6.GetCounters().GetInPkts()
-		lostPackets6 := txPackets6 - rxPackets6
-		lossPct6 := lostPackets6 * 100 / txPackets6
+		inPktsQueryV6 := gnmi.OTG().Flow(flowV6).Counters().InPkts().State()
+		outPktsQueryV6 := gnmi.OTG().Flow(flowV6).Counters().OutPkts().State()
 
-		if txPackets != rxPackets && testResults[index] {
-			t.Errorf("FAIL- got %v%% packet loss for %s flow and prefixes: [%s, %s]; want < 0%% traffic loss", lossPct, "flow"+"ipv4"+strconv.Itoa(index), prefixPairV4[0], prefixPairV4[1])
-		} else if rxPackets != 0 && !testResults[index] {
-			t.Errorf("FAIL- got %v%% packet loss for %s flow and prefixes: [%s, %s]; want >100%% traffic loss", lossPct, "flow"+"ipv4"+strconv.Itoa(index), prefixPairV4[0], prefixPairV4[1])
-		} else {
-			t.Logf("Traffic validation successful for Prefixes: [%s, %s]. Result: [%t] PacketsTx: %d PacketsRx: %d", prefixPairV4[0], prefixPairV4[1], testResults[index], txPackets, rxPackets)
+		gnmi.Watch(t, otg, inPktsQueryV6, 45*time.Second, func(v *ygnmi.Value[uint64]) bool {
+			rx, present := v.Val()
+			if !present {
+				return false
+			}
+			tx, txPresent := gnmi.Lookup(t, otg, outPktsQueryV6).Val()
+			if !txPresent || tx == 0 {
+				return false
+			}
+			if expectSuccess {
+				// Wait for rx to catch up to within 1 packet of tx
+				return tx >= rx && (tx-rx) <= tolerancePct
+			}
+			// Wait for 100% packet loss (allowing 1 stray packet)
+			return rx <= tolerancePct
+		}).Await(t)
+
+		txPackets6, _ := gnmi.Lookup(t, otg, outPktsQueryV6).Val()
+		rxPackets6, _ := gnmi.Lookup(t, otg, inPktsQueryV6).Val()
+
+		if txPackets6 == 0 {
+			t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flowV6)
 		}
 
-		if txPackets6 != rxPackets6 && testResults[index] {
-			t.Errorf("FAIL- got %v%% packet loss for %s flow and prefixes: [%s, %s]; want < 0%% traffic loss", lossPct6, "flow"+"ipv6"+strconv.Itoa(index), prefixesV6[index][0], prefixesV6[index][1])
-		} else if rxPackets6 != 0 && !testResults[index] {
-			t.Errorf("FAIL- got %v%% packet loss for %s flow and prefixes: [%s, %s]; want >100%% traffic loss", lossPct6, "flow"+"ipv6"+strconv.Itoa(index), prefixesV6[index][0], prefixesV6[index][1])
-		} else {
-			t.Logf("Traffic validation successful for Prefixes: [%s, %s]. Result: [%t] PacketsTx: %d PacketsRx: %d", prefixesV6[index][0], prefixesV6[index][1], testResults[index], txPackets6, rxPackets6)
-		}
+		lossPct6 := float32(txPackets6-rxPackets6) * 100 / float32(txPackets6)
 
+		if expectSuccess && (txPackets6-rxPackets6) > tolerancePct {
+			t.Errorf("FAIL- got %.2f%% packet loss (%d lost) for %s flow and prefixes: [%s, %s]; want <= %d packet(s) lost", lossPct6, (txPackets6 - rxPackets6), flowV6, prefixesV6[index][0], prefixesV6[index][1], tolerancePct)
+		} else if !expectSuccess && rxPackets6 > tolerancePct {
+			t.Errorf("FAIL- got %.2f%% packet loss (%d received) for %s flow and prefixes: [%s, %s]; want <= %d packet(s) received (100%% loss)", lossPct6, rxPackets6, flowV6, prefixesV6[index][0], prefixesV6[index][1], tolerancePct)
+		} else {
+			t.Logf("Traffic validation successful for Prefixes: [%s, %s]. Result: [%t] PacketsTx: %d PacketsRx: %d", prefixesV6[index][0], prefixesV6[index][1], expectSuccess, txPackets6, rxPackets6)
+		}
+	}
+
+	// Log flow and port metrics
+	otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
+	otgutils.LogPortMetrics(t, bs.ATE.OTG(), bs.ATETop)
+}
+
+func awaitBGPReady(t *testing.T, bs *cfgplugins.BGPSession, ipv4, ipv6, ipv41, ipv61 string) {
+	t.Helper()
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(bs.DUT)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp()
+	for _, nbr := range []string{ipv4, ipv6, ipv41, ipv61} {
+		gnmi.Await(t, bs.DUT, bgpPath.Neighbor(nbr).SessionState().State(), 2*time.Minute, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+	}
+
+	for _, device := range bs.ATETop.Devices().Items() {
+		bgp4Peer := device.Bgp().Ipv4Interfaces().Items()[0].Peers().Items()[0]
+		bgp6Peer := device.Bgp().Ipv6Interfaces().Items()[0].Peers().Items()[0]
+		gnmi.Await(t, bs.ATE.OTG(), gnmi.OTG().BgpPeer(bgp4Peer.Name()).SessionState().State(), 2*time.Minute, otgtelemetry.BgpPeer_SessionState_ESTABLISHED)
+		gnmi.Await(t, bs.ATE.OTG(), gnmi.OTG().BgpPeer(bgp6Peer.Name()).SessionState().State(), 2*time.Minute, otgtelemetry.BgpPeer_SessionState_ESTABLISHED)
 	}
 }
 
@@ -903,28 +971,24 @@ func TestImportExportMultifacetMatchActionsBGPPolicy(t *testing.T) {
 	bs := cfgplugins.NewBGPSession(t, cfgplugins.PortCount2, nil)
 	bs.WithEBGP(t, []oc.E_BgpTypes_AFI_SAFI_TYPE{oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST}, []string{
 		"port1", "port2"}, true, false)
+	if deviations.BgpRibStreamingConfigRequired(dut) {
+		cfgplugins.DeviationBgpRibStreamingConfigRequired(t, dut)
+	}
 
 	configureOTG(t, bs, prefixesV4, prefixesV6, communityMembers)
+	configureFlowV4(t, bs)
+	configureFlowV6(t, bs)
 	bs.PushAndStart(t)
-
-	t.Log("Verify DUT BGP sessions up")
-	cfgplugins.VerifyDUTBGPEstablished(t, bs.DUT)
-	t.Log("Verify OTG BGP sessions up")
-	cfgplugins.VerifyOTGBGPEstablished(t, bs.ATE)
 
 	ipv4 := bs.ATETop.Devices().Items()[1].Ethernets().Items()[0].Ipv4Addresses().Items()[0].Address()
 	ipv6 := bs.ATETop.Devices().Items()[1].Ethernets().Items()[0].Ipv6Addresses().Items()[0].Address()
 
 	ipv41 := bs.ATETop.Devices().Items()[0].Ethernets().Items()[0].Ipv4Addresses().Items()[0].Address()
 	ipv61 := bs.ATETop.Devices().Items()[0].Ethernets().Items()[0].Ipv6Addresses().Items()[0].Address()
+	awaitBGPReady(t, bs, ipv4, ipv6, ipv41, ipv61)
 
 	t.Logf("Verify Import Export Accept all bgp policy")
 	configureImportExportAcceptAllBGPPolicy(t, bs.DUT, ipv4, ipv6)
-
-	configureFlowV4(t, bs)
-	configureFlowV6(t, bs)
-
-	bs.PushAndStartATE(t)
 
 	testResults := [6]bool{true, true, true, true, true, true}
 	verifyTrafficV4AndV6(t, bs, testResults)
@@ -941,10 +1005,8 @@ func TestImportExportMultifacetMatchActionsBGPPolicy(t *testing.T) {
 		},
 	})
 
-	configureImportExportMultifacetMatchActionsBGPPolicy(t, bs.DUT, ipv4, ipv6, ipv41, ipv61)
-	time.Sleep(time.Second * 120)
-
 	testResults1 := [6]bool{false, true, false, false, true, true}
+	configureImportExportMultifacetMatchActionsBGPPolicy(t, bs.DUT, ipv4, ipv6, ipv41, ipv61)
 	verifyTrafficV4AndV6(t, bs, testResults1)
 
 	testMedResults := [6]bool{false, true, false, false, true, true}

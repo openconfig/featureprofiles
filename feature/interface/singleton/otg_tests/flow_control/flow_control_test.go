@@ -80,16 +80,11 @@ func configureDUTInterface(t *testing.T, dut *ondatra.DUTDevice, a *attrs.Attrib
 	s := duti1.GetOrCreateSubinterface(0)
 	_ = s.GetOrCreateIpv4()
 	_ = s.GetOrCreateIpv6()
+	duti1.GetOrCreateEthernet().EnableFlowControl = ygot.Bool(flowControlMode)
 	di1 := d.Interface(p1.Name())
 	fptest.LogQuery(t, p1.String(), di1.Config(), duti1)
-	gnmi.Replace(t, dut, di1.Config(), duti1)
 
-	flowControl := d.Interface(p1.Name()).Ethernet().EnableFlowControl()
-	if flowControlMode {
-		gnmi.Replace(t, dut, flowControl.Config(), true)
-	} else {
-		gnmi.Replace(t, dut, flowControl.Config(), false)
-	}
+	gnmi.Update(t, dut, di1.Config(), duti1)
 }
 
 func verifyFlowControl(t *testing.T, dut *ondatra.DUTDevice, flowControlMode bool) {

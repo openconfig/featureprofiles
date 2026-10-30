@@ -245,7 +245,7 @@ func MustNew(t testing.TB) *TestSession {
 
 // WithISIS adds ISIS to a test session.
 func (s *TestSession) WithISIS() *TestSession {
-	if deviations.ExplicitInterfaceInDefaultVRF(s.DUT) {
+	if deviations.ExplicitInterfaceInDefaultVRF(s.DUT) || deviations.InterfaceRefInterfaceIDFormat(s.DUT) {
 		addISISOC(s.DUTConf, DUTAreaAddress, DUTSysID, s.DUTPort1.Name()+".0", s.DUT)
 	} else {
 		addISISOC(s.DUTConf, DUTAreaAddress, DUTSysID, s.DUTPort1.Name(), s.DUT)
@@ -322,7 +322,7 @@ func (s *TestSession) PushAndStartATE(t testing.TB) {
 // if one doesn't form.
 func (s *TestSession) AwaitAdjacency() (string, error) {
 	intf := ISISPath(s.DUT).Interface(s.DUTPort1.Name())
-	if deviations.ExplicitInterfaceInDefaultVRF(s.DUT) {
+	if deviations.ExplicitInterfaceInDefaultVRF(s.DUT) || deviations.InterfaceRefInterfaceIDFormat(s.DUT) {
 		intf = ISISPath(s.DUT).Interface(s.DUTPort1.Name() + ".0")
 	}
 	query := intf.LevelAny().AdjacencyAny().AdjacencyState().State()

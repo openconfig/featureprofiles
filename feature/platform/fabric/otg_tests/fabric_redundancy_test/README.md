@@ -4,6 +4,7 @@
 - collect inventory data for each fabric card
 - Verify last restart time is updated
 - verify traffic could be forwarded with one of Fabric Card inactive.
+- Verify presence of fabric error counters.
 
 ## Procedure
 ### topology and basic setup
@@ -41,6 +42,18 @@
 * Wait
 * get last-reboot-time and compare with "PREVIOUS_REBOOT_TIME". The "PREVIOUS_REBOOT_TIME" must be smaller (earlier) then recently collected last-reboot-time
     
+### test 4 fabric error counters
+* Read fabric block error counters for all the available cards. 
+* Verify that following counters are available:
+  * rx-bad-crc
+  * rx-errors
+  * tx-fifo-unrun
+  * uncorrectable-error-cells
+  * unicast-lost-cells
+  * multicast-lost-cells
+  * parity-error-cells
+  * asic-internal-drops
+
 ## OpenConfig Path and RPC Coverage
 
 ```yaml

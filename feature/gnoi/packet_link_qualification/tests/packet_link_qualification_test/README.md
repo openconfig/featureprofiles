@@ -89,6 +89,8 @@ The below yaml defines the OC paths intended to be covered by this test. OC
 paths used for test setup are not listed here.
 
 ```yaml
+paths:
+  /interfaces/interface/state/oper-status:
 rpcs:
   gnoi:
     packet_link_qualification.LinkQualification.Capabilities:

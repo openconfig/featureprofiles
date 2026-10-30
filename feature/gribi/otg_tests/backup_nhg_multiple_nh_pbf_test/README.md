@@ -33,15 +33,33 @@ Ensure that backup NHGs are honoured with NextHopGroup entries containing >1 NH.
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  /interfaces/interface/config/description:
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/config/name:
+  /interfaces/interface/config/type:
+  /interfaces/interface/state/oper-status:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
+  /network-instances/network-instance/config/name:
+  /network-instances/network-instance/config/type:
+  /network-instances/network-instance/interfaces/interface/config/id:
+  /network-instances/network-instance/interfaces/interface/config/interface:
+  /network-instances/network-instance/interfaces/interface/config/subinterface:
+  /network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-vrf-selection-policy:
+  /network-instances/network-instance/policy-forwarding/interfaces/interface/config/interface-id:
+  /network-instances/network-instance/policy-forwarding/policies/policy/config/type:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/network-instance:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/protocol:
 rpcs:
   gnmi:
     gNMI.Get:
     gNMI.Set:
     gNMI.Subscribe:
   gribi:
+    gRIBI.Flush:
     gRIBI.Get:
     gRIBI.Modify:
-    gRIBI.Flush:
 ```
 
 ## Minimum DUT platform requirement

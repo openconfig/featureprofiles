@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/security/authz"
 	"github.com/openconfig/featureprofiles/internal/security/gnxi"
@@ -46,10 +47,9 @@ const (
 type UsersMap map[string]authz.Spiffe
 
 var (
-	testInfraID = flag.String("test_infra_id", "cafyauto", "SPIFFE-ID used by test Infra ID user for authz operation")
-	caCertPem   = flag.String("ca_cert_pem", "testdata/ca.cert.pem", "a pem file for ca cert that will be used to generate svid")
-	caKeyPem    = flag.String("ca_key_pem", "testdata/ca.key.pem", "a pem file for ca key that will be used to generate svid")
-	policyMap   map[string]authz.AuthorizationPolicy
+	caCertPem = flag.String("ca_cert_pem", "testdata/ca.cert.pem", "a pem file for ca cert that will be used to generate svid")
+	caKeyPem  = flag.String("ca_key_pem", "testdata/ca.key.pem", "a pem file for ca key that will be used to generate svid")
+	policyMap map[string]authz.AuthorizationPolicy
 
 	usersMap = UsersMap{
 		"cert_user_admin": {
@@ -180,6 +180,10 @@ func verifyAuthTable(t *testing.T, dut *ondatra.DUTDevice, authTable authorizati
 	for certName, access := range authTable {
 		t.Run(fmt.Sprintf("Validating access for user %s", certName), func(t *testing.T) {
 			for _, allowedRPC := range access.allowed {
+				if allowedRPC == gnxi.RPCs.GnoiSystemPing &&
+					deviations.SkipGnoiPingRpcAuthzVerification(dut) {
+					continue
+				}
 				authz.Verify(t, dut, getSpiffe(t, dut, certName), allowedRPC, &authz.HardVerify{})
 			}
 			for _, deniedRPC := range access.denied {
@@ -204,9 +208,15 @@ func TestAuthz1(t *testing.T) {
 	certAdminSpiffe := getSpiffe(t, dut, "cert_user_admin")
 	t.Run("Authz-1.1, - Test empty source", func(t *testing.T) {
 		// Pre-Test Section
-		_, policyBefore := authz.Get(t, dut)
-		t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint(t))
-		defer policyBefore.Rotate(t, dut, uint64(time.Now().Unix()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
+		statusmsg, policyBefore := authz.Get(t, dut)
+		if statusmsg == nil {
+			t.Logf("When the device has no pre-installed authz policy file,initial Authz Get operation results in failure.Handle graceful exit and continute with validation having Rotate Operation")
+			t.Logf("Expected error FAILED_PRECONDITION seen for authz Get Request.")
+		}
+		if statusmsg != nil {
+			t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint(t))
+			defer policyBefore.Rotate(t, dut, uint64(time.Now().Unix()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
+		}
 
 		// Fetch the Desired Authorization Policy and Attach base Admin Policy Before Rotate
 		newpolicy, ok := policyMap["policy-everyone-can-gnmi-not-gribi"]
@@ -214,7 +224,7 @@ func TestAuthz1(t *testing.T) {
 			t.Fatal("Policy policy-everyone-can-gnmi-not-gribi is not loaded from policy json file")
 		}
 
-		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.GnsiAuthzAllRPC})
+		newpolicy.AddAllowRules("base", []string{*fptest.TestInfraID}, []*gnxi.RPC{gnxi.RPCs.GnsiAuthzAllRPC})
 		// Rotate the policy.
 		newpolicy.Rotate(t, dut, uint64(100), "policy-everyone-can-gnmi-not-gribi_v1", false)
 
@@ -237,7 +247,7 @@ func TestAuthz1(t *testing.T) {
 		if !ok {
 			t.Fatal("policy-everyone-can-gribi-not-gnmi")
 		}
-		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
+		newpolicy.AddAllowRules("base", []string{*fptest.TestInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
 		// Rotate the policy.
 		newpolicy.Rotate(t, dut, uint64(100), "policy-everyone-can-gribi-not-gnmi_v1", false)
 
@@ -260,7 +270,7 @@ func TestAuthz1(t *testing.T) {
 		if !ok {
 			t.Fatal("Policy policy-gribi-get is not loaded from policy json file")
 		}
-		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
+		newpolicy.AddAllowRules("base", []string{*fptest.TestInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
 		// Rotate the policy.
 		newpolicy.Rotate(t, dut, uint64(100), "policy-gribi-get_v1", false)
 
@@ -273,7 +283,7 @@ func TestAuthz1(t *testing.T) {
 		if !ok {
 			t.Fatal("Policy policy-gnmi-get is not loaded from policy json file")
 		}
-		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
+		newpolicy.AddAllowRules("base", []string{*fptest.TestInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
 		// Rotate the policy.
 		newpolicy.Rotate(t, dut, uint64(time.Now().Unix()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
 
@@ -286,16 +296,22 @@ func TestAuthz1(t *testing.T) {
 
 	t.Run("Authz-1.4, Test Normal Policy", func(t *testing.T) {
 		// Pre-Test Section
-		_, policyBefore := authz.Get(t, dut)
-		t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint(t))
-		defer policyBefore.Rotate(t, dut, uint64(time.Now().Unix()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
+		statusmsg, policyBefore := authz.Get(t, dut)
+		if statusmsg == nil {
+			t.Logf("When the device has no pre-installed authz policy file,initial Authz Get operation results in failure.Handle graceful exit and continute with validation having Rotate Operation")
+			t.Logf("Expected error FAILED_PRECONDITION seen for authz Get Request.")
+		}
+		if statusmsg != nil {
+			t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint(t))
+			defer policyBefore.Rotate(t, dut, uint64(time.Now().Unix()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
+		}
 
 		// Fetch the Desired Authorization Policy and Attach base Admin Policy Before Rotate
 		newpolicy, ok := policyMap["policy-normal-1"]
 		if !ok {
 			t.Fatal("Policy policy-normal-1 is not loaded from policy json file")
 		}
-		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
+		newpolicy.AddAllowRules("base", []string{*fptest.TestInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
 		// Rotate the policy.
 		newpolicy.Rotate(t, dut, uint64(100), "policy-normal-1_v1", false)
 
@@ -321,7 +337,7 @@ func TestAuthz2(t *testing.T) {
 		if !ok {
 			t.Fatal("Policy policy-everyone-can-gnmi-not-gribi is not loaded from policy json file")
 		}
-		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
+		newpolicy.AddAllowRules("base", []string{*fptest.TestInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
 		jsonPolicy, err := newpolicy.Marshal()
 		if err != nil {
 			t.Fatalf("Could not marshal the policy %s", string(jsonPolicy))
@@ -353,7 +369,7 @@ func TestAuthz2(t *testing.T) {
 		if !ok {
 			t.Fatal("Policy policy-everyone-can-gribi-not-gnmi is not loaded from policy json file")
 		}
-		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
+		newpolicy.AddAllowRules("base", []string{*fptest.TestInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
 		jsonPolicy, err = newpolicy.Marshal()
 		if err != nil {
 			t.Fatalf("Could not marshal the policy %s", string(jsonPolicy))
@@ -398,7 +414,7 @@ func TestAuthz2(t *testing.T) {
 		if !ok {
 			t.Fatal("Policy policy-gribi-get is not loaded from policy json file")
 		}
-		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
+		newpolicy.AddAllowRules("base", []string{*fptest.TestInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
 		// Rotate the policy.
 		newpolicy.Rotate(t, dut, uint64(time.Now().Unix()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
 
@@ -413,7 +429,7 @@ func TestAuthz2(t *testing.T) {
 		if !ok {
 			t.Fatal("Policy policy-gnmi-get is not loaded from policy json file")
 		}
-		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
+		newpolicy.AddAllowRules("base", []string{*fptest.TestInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
 		jsonPolicy, err := newpolicy.Marshal()
 		if err != nil {
 			t.Fatalf("Could not marshal the policy %s", string(jsonPolicy))
@@ -467,7 +483,7 @@ func TestAuthz2(t *testing.T) {
 		if !ok {
 			t.Fatal("Policy policy-gribi-get is not loaded from policy json file")
 		}
-		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
+		newpolicy.AddAllowRules("base", []string{*fptest.TestInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
 		// Rotate the policy.
 		newpolicy.Rotate(t, dut, uint64(time.Now().Unix()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
 
@@ -483,7 +499,7 @@ func TestAuthz2(t *testing.T) {
 			if !ok {
 				t.Fatal("Policy policy-invalid-no-allow-rules is not loaded from policy json file")
 			}
-			newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
+			newpolicy.AddAllowRules("base", []string{*fptest.TestInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
 			jsonPolicy, err := newpolicy.Marshal()
 			if err != nil {
 				t.Fatalf("Could not marshal the policy %s", string(jsonPolicy))
@@ -535,7 +551,7 @@ func TestAuthz2(t *testing.T) {
 		if !ok {
 			t.Fatal("Policy policy-gribi-get is not loaded from policy json file")
 		}
-		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
+		newpolicy.AddAllowRules("base", []string{*fptest.TestInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
 		// Rotate the policy.
 		prevVersion := fmt.Sprintf("v0.%v", (time.Now().UnixNano()))
 		newpolicy.Rotate(t, dut, uint64(time.Now().Unix()), prevVersion, false)
@@ -544,7 +560,7 @@ func TestAuthz2(t *testing.T) {
 		if !ok {
 			t.Fatal("Policy policy-gnmi-get is not loaded from policy json file")
 		}
-		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
+		newpolicy.AddAllowRules("base", []string{*fptest.TestInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
 		jsonPolicy, err := newpolicy.Marshal()
 		if err != nil {
 			t.Fatalf("Could not marshal the policy %s", string(jsonPolicy))
@@ -603,7 +619,7 @@ func TestAuthz3(t *testing.T) {
 	}
 	// Attach base Admin Policy
 	// Rotate the policy.
-	newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
+	newpolicy.AddAllowRules("base", []string{*fptest.TestInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
 	expCreatedOn := uint64(time.Now().Unix())
 	expVersion := fmt.Sprintf("v0.%v", (time.Now().UnixNano()))
 	newpolicy.Rotate(t, dut, expCreatedOn, expVersion, false)
@@ -646,7 +662,7 @@ func TestAuthz4(t *testing.T) {
 	if !ok {
 		t.Fatal("Policy policy-normal-1 is not loaded from policy json file")
 	}
-	newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
+	newpolicy.AddAllowRules("base", []string{*fptest.TestInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
 	expCreatedOn := uint64(time.Now().Unix())
 	expVersion := fmt.Sprintf("v0.%v", (time.Now().UnixNano()))
 	t.Logf("New Authz Policy is %s", newpolicy.PrettyPrint(t))
@@ -717,5 +733,6 @@ func TestAuthz4(t *testing.T) {
 		t.Errorf("Created On has Changed to %v from Expected Created On %v after Reboot Trigger", resp.GetCreatedOn(), expCreatedOn)
 	}
 	// Verify all results match per the above table for policy policy-normal-1
+	setUpBaseline(t, dut)
 	verifyAuthTable(t, dut, authTable)
 }

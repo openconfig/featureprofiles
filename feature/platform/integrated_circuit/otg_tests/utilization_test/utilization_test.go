@@ -15,15 +15,19 @@
 package utilization_test
 
 import (
+	"regexp"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/functional-translators/registrar"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -47,6 +51,13 @@ var (
 	fibResource = map[ondatra.Vendor]string{
 		ondatra.ARISTA: "Routing/Resource6",
 		ondatra.NOKIA:  "ip-lpm-routes",
+		ondatra.CISCO:  "central_em_0",
+	}
+	chassisFIBResources = []string{
+		"Routing/Resource1", "Routing/Resource2", "Routing/Resource3",
+		"Routing/Resource4", "Routing/Resource5", "Routing/Resource6",
+		"Routing2/Resource1", "Routing2/Resource2", "Routing2/Resource3",
+		"Routing2/Resource4", "Routing2/Resource5", "Routing2/Resource6",
 	}
 	dutPort1 = attrs.Attributes{
 		Desc:    "dutPort1",
@@ -81,10 +92,13 @@ var (
 )
 
 type utilization struct {
-	used                uint64
-	free                uint64
-	upperThreshold      uint8
-	upperThresholdClear uint8
+	name                   string
+	maxLimit               uint64
+	used                   uint64
+	free                   uint64
+	upperThreshold         uint8
+	upperThresholdClear    uint8
+	upperThresholdExceeded bool
 }
 
 func (u *utilization) percent() uint8 {
@@ -92,6 +106,36 @@ func (u *utilization) percent() uint8 {
 		return 0
 	}
 	return uint8(u.used * 100 / (u.used + u.free))
+}
+
+func getOptsForFunctionalTranslator(t *testing.T, dut *ondatra.DUTDevice, functionalTranslatorName string) []ygnmi.Option {
+	if functionalTranslatorName == "" {
+		return nil
+	}
+	ft, ok := registrar.FunctionalTranslatorRegistry[functionalTranslatorName]
+	if !ok {
+		t.Fatalf("Functional translator %s is not registered", functionalTranslatorName)
+	}
+	return []ygnmi.Option{ygnmi.WithFT(ft)}
+}
+
+// Helper function to get translator friendly resource name and component name for Ciscoxr8000IntegratedCircuitResourceFt
+func getFTCompatibleResourceNameAndComponentName(resourceName string, componentName string) (string, string) {
+	ftResourceName := strings.ReplaceAll(resourceName, "_", "-")
+	re := regexp.MustCompile(`(NPU)(\d+)$`)
+	ftComponent := re.ReplaceAllString(componentName, "$1-$2")
+	return ftResourceName, ftComponent
+}
+
+func validateUtilizationExceeded(t *testing.T, utzs map[string]*utilization) {
+	for c, u := range utzs {
+		if u.upperThresholdExceeded && u.percent() < u.upperThresholdClear {
+			t.Errorf("upperThresholdExceeded is true for component: %s when it should be false", c)
+		}
+		if !u.upperThresholdExceeded && u.percent() > u.upperThreshold {
+			t.Errorf("upperThresholdExceeded is false for component: %s when it should be true", c)
+		}
+	}
 }
 
 func TestMain(m *testing.M) {
@@ -112,64 +156,217 @@ func TestResourceUtilization(t *testing.T) {
 		UsedThresholdUpper:      ygot.Uint8(usedThresholdUpper),
 		UsedThresholdUpperClear: ygot.Uint8(usedThresholdUpperClear),
 	})
-	comps := components.FindActiveComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
+	var comps []string
+	if deviations.UseChassisAggregateUtilization(dut) {
+		comps = []string{"Chassis"}
+	} else {
+		comps = components.FindActiveComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
+	}
 	beforeUtzs := componentUtilizations(t, dut, comps)
 	if len(beforeUtzs) != len(comps) {
 		t.Fatalf("Couldn't retrieve Utilization information for all Active Components")
 	}
+	if deviations.Ciscoxr8000IntegratedCircuitResourceFt(dut) != "" {
+		validateUtilizationExceeded(t, beforeUtzs)
+	}
 
 	injectBGPRoutes(t, otg, otgV6Peer, otgPort1, otgConfig)
 
-	afterUtzs := componentUtilizations(t, dut, comps)
-	if len(afterUtzs) != len(comps) {
-		t.Fatalf("Couldn't retrieve Utilization information for all Active Components")
+	// Use map to store utilization after BGP route installation to compare with cleared state later.
+	afterUtzs := make(map[string]*utilization)
+	if deviations.Ciscoxr8000IntegratedCircuitResourceFt(dut) != "" {
+		validateUtilizationExceeded(t, afterUtzs)
 	}
 
 	t.Run("Utilization after BGP route installation", func(t *testing.T) {
 		for _, c := range comps {
 			t.Run(c, func(t *testing.T) {
-				if beforeUtzs[c].percent() >= afterUtzs[c].percent() {
-					t.Errorf("Utilization Percent didn't increase for component: %s", c)
+				if deviations.Ciscoxr8000IntegratedCircuitResourceFt(dut) != "" {
+					if got, want := beforeUtzs[c].name, fibResource[dut.Vendor()]; got != want {
+						t.Errorf("Resource name mismatch! got: %s, want: %s", got, want)
+					}
 				}
-				t.Logf("Before Utilization: %d, After Utilization: %d", beforeUtzs[c].percent(), afterUtzs[c].percent())
+				beforePct := beforeUtzs[c].percent()
+				t.Logf("Waiting for utilization to increase above %d%%...", beforePct)
+				u := awaitUtilization(t, dut, c, func(pct uint8) bool {
+					return pct > beforePct
+				})
+				if u == nil {
+					t.Errorf("Utilization Percent didn't increase for component: %s (Started at %d%%)", c, beforePct)
+					// Fallback to get current value for map consistency, though test failed.
+					afterUtzs[c] = beforeUtzs[c]
+				} else if deviations.Ciscoxr8000IntegratedCircuitResourceFt(dut) != "" && u.used+u.free > u.maxLimit {
+					t.Errorf("Max limit %d is less than used %d + free %d", u.maxLimit, u.used, u.free)
+				} else {
+					t.Logf("Before Utilization: %d, After Utilization: %d", beforePct, u.percent())
+					afterUtzs[c] = u
+				}
 			})
 		}
 	})
 
 	clearBGPRoutes(t, otg, otgV6Peer, otgConfig)
 
-	afterClearUtzs := componentUtilizations(t, dut, comps)
-	if len(afterClearUtzs) != len(comps) {
-		t.Fatalf("Couldn't retrieve Utilization information for all Active Components")
-	}
-
 	t.Run("Utilization after BGP route clear", func(t *testing.T) {
 		for _, c := range comps {
 			t.Run(c, func(t *testing.T) {
-				if afterClearUtzs[c].percent() >= afterUtzs[c].percent() {
-					t.Errorf("Utilization Percent didn't decrease for component: %s", c)
+				prev, ok := afterUtzs[c]
+				if !ok {
+					t.Fatalf("No previous utilization data for component %s", c)
 				}
-				t.Logf("Before Utilization: %d, After Utilization: %d", afterUtzs[c].percent(), afterClearUtzs[c].percent())
+				prevPct := prev.percent()
+				t.Logf("Waiting for utilization to decrease below %d%%...", prevPct)
+				u := awaitUtilization(t, dut, c, func(pct uint8) bool {
+					return pct < prevPct
+				})
+
+				if u == nil {
+					t.Errorf("Utilization Percent didn't decrease for component: %s (Was %d%%)", c, prevPct)
+				} else {
+					t.Logf("Before Utilization: %d, After Utilization: %d", prevPct, u.percent())
+				}
 			})
 		}
 	})
 }
 
-func componentUtilizations(t *testing.T, dut *ondatra.DUTDevice, comps []string) map[string]*utilization {
-	t.Helper()
+// awaitUtilization polls the utilization resource until the predicate function returns true
+// or the timeout expires. Returns the final utilization snapshot, or nil if timed out.
+func awaitUtilization(t *testing.T, dut *ondatra.DUTDevice, c string, predicate func(uint8) bool) *utilization {
+	if deviations.UseChassisAggregateUtilization(dut) {
+		return awaitChassisUtilization(t, dut, predicate)
+	}
+
 	resName := fibResource[dut.Vendor()]
 	if deviations.MismatchedHardwareResourceNameInComponent(dut) {
 		resName += "/-"
 	}
+	path := gnmi.OC().Component(c).IntegratedCircuit().Utilization().Resource(resName)
+
+	var lastVal *utilization
+
+	_, ok := gnmi.Watch(t, dut, path.State(), 2*time.Minute, func(val *ygnmi.Value[*oc.Component_IntegratedCircuit_Utilization_Resource]) bool {
+		res, ok := val.Val()
+		if !ok {
+			return false
+		}
+		u := &utilization{
+			name:                   res.GetName(),
+			maxLimit:               res.GetMaxLimit(),
+			used:                   res.GetUsed(),
+			free:                   res.GetFree(),
+			upperThreshold:         res.GetUsedThresholdUpper(),
+			upperThresholdClear:    res.GetUsedThresholdUpperClear(),
+			upperThresholdExceeded: res.GetUsedThresholdUpperExceeded(),
+		}
+		opts := getOptsForFunctionalTranslator(t, dut, deviations.Ciscoxr8000IntegratedCircuitResourceFt(dut))
+		if len(opts) > 0 {
+			ftResourceName, ftComponent := getFTCompatibleResourceNameAndComponentName(resName, c)
+			resourcePath := gnmi.OC().Component(ftComponent).IntegratedCircuit().Utilization().Resource(ftResourceName)
+
+			u.used = gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), resourcePath.Used().State())
+			u.upperThresholdClear = gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), resourcePath.UsedThresholdUpperClear().State())
+			u.upperThreshold = gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), resourcePath.UsedThresholdUpper().State())
+			u.maxLimit = gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), resourcePath.MaxLimit().State())
+			u.name = strings.ReplaceAll(gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), resourcePath.Name().State()), "-", "_")
+		}
+		lastVal = u
+		return predicate(u.percent())
+	}).Await(t)
+
+	if !ok {
+		return lastVal
+	}
+	return &utilization{
+		name:                   lastVal.name,
+		maxLimit:               lastVal.maxLimit,
+		used:                   lastVal.used,
+		free:                   lastVal.free,
+		upperThreshold:         lastVal.upperThreshold,
+		upperThresholdClear:    lastVal.upperThresholdClear,
+		upperThresholdExceeded: lastVal.upperThresholdExceeded,
+	}
+}
+
+func chassisAggregateUtilization(t *testing.T, dut *ondatra.DUTDevice) *utilization {
+	t.Helper()
+	var totalUsed, totalFree uint64
+	var found bool
+	for _, resName := range chassisFIBResources {
+		val, present := gnmi.Lookup(t, dut, gnmi.OC().Component("Chassis").Chassis().Utilization().Resource(resName).State()).Val()
+		if !present {
+			continue
+		}
+		found = true
+		t.Logf("Chassis resource %s: used=%d, free=%d", resName, val.GetUsed(), val.GetFree())
+		totalUsed += val.GetUsed()
+		totalFree += val.GetFree()
+	}
+	if !found {
+		t.Fatalf("No chassis FIB resources found on the device")
+	}
+	return &utilization{used: totalUsed, free: totalFree}
+}
+
+func awaitChassisUtilization(t *testing.T, dut *ondatra.DUTDevice, predicate func(uint8) bool) *utilization {
+	t.Helper()
+	deadline := time.After(2 * time.Minute)
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
+	var last *utilization
+	for {
+		u := chassisAggregateUtilization(t, dut)
+		last = u
+		if predicate(u.percent()) {
+			return u
+		}
+		select {
+		case <-deadline:
+			t.Logf("Timed out waiting for chassis utilization change, last used: %d", last.used)
+			return nil
+		case <-ticker.C:
+		}
+	}
+}
+
+func componentUtilizations(t *testing.T, dut *ondatra.DUTDevice, comps []string) map[string]*utilization {
+	t.Helper()
 	utzs := map[string]*utilization{}
+
+	if deviations.UseChassisAggregateUtilization(dut) {
+		for _, c := range comps {
+			utzs[c] = chassisAggregateUtilization(t, dut)
+		}
+		return utzs
+	}
+
+	resName := fibResource[dut.Vendor()]
+	if deviations.MismatchedHardwareResourceNameInComponent(dut) {
+		resName += "/-"
+	}
 	for _, c := range comps {
 		comp := gnmi.Get(t, dut, gnmi.OC().Component(c).State())
 		res := comp.GetIntegratedCircuit().GetUtilization().GetResource(resName)
 		utzs[c] = &utilization{
-			used:                res.GetUsed(),
-			free:                res.GetFree(),
-			upperThreshold:      res.GetUsedThresholdUpper(),
-			upperThresholdClear: res.GetUsedThresholdUpperClear(),
+			name:                   res.GetName(),
+			maxLimit:               res.GetMaxLimit(),
+			used:                   res.GetUsed(),
+			free:                   res.GetFree(),
+			upperThreshold:         res.GetUsedThresholdUpper(),
+			upperThresholdClear:    res.GetUsedThresholdUpperClear(),
+			upperThresholdExceeded: res.GetUsedThresholdUpperExceeded(),
+		}
+		opts := getOptsForFunctionalTranslator(t, dut, deviations.Ciscoxr8000IntegratedCircuitResourceFt(dut))
+		if len(opts) > 0 {
+			ftResourceName, ftComponent := getFTCompatibleResourceNameAndComponentName(resName, c)
+			resourcePath := gnmi.OC().Component(ftComponent).IntegratedCircuit().Utilization().Resource(ftResourceName)
+
+			utzs[c].used = gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), resourcePath.Used().State())
+			utzs[c].upperThresholdClear = gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), resourcePath.UsedThresholdUpperClear().State())
+			utzs[c].upperThreshold = gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), resourcePath.UsedThresholdUpper().State())
+			utzs[c].maxLimit = gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), resourcePath.MaxLimit().State())
+			utzs[c].name = strings.ReplaceAll(gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), resourcePath.Name().State()), "-", "_")
 		}
 	}
 	return utzs
@@ -249,6 +446,9 @@ func configureBGPDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	af6 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 	af6.Enabled = ygot.Bool(true)
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), niProto)
+	if deviations.BGPMissingOCMaxPrefixesConfiguration(dut) {
+		cfgplugins.DeviationAristaBGPNeighborMaxPrefixes(t, dut, atePort1.IPv6, 0)
+	}
 }
 
 func configureOTG(t *testing.T, otg *otg.OTG) (gosnappi.BgpV6Peer, gosnappi.DeviceIpv6, gosnappi.Config) {

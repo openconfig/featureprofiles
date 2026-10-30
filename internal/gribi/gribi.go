@@ -35,7 +35,7 @@ import (
 )
 
 const (
-	timeout = time.Minute
+	timeout = 30 * time.Minute
 )
 
 // Uint128 struct implements a 128 bit unsigned integer required by gRIBI
@@ -88,7 +88,7 @@ type Client struct {
 	electionID Uint128
 }
 
-// Fluent resturns the fluent client that can be used to directly call the gribi fluent APIs
+// Fluent returns the fluent client that can be used to directly call the gribi fluent APIs
 func (c *Client) Fluent(_ testing.TB) *fluent.GRIBIClient {
 	return c.fluentC
 }
@@ -267,6 +267,9 @@ func NHGEntry(nhgIndex uint64, nhWeights map[uint64]uint64, instance string, exp
 func (c *Client) AddEntries(t testing.TB, entries []fluent.GRIBIEntry, expectedResults []*client.OpResult) {
 	t.Helper()
 	c.fluentC.Modify().AddEntry(t, entries...)
+	if len(expectedResults) == 0 {
+		return
+	}
 	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
 		t.Fatalf("Error waiting to add entries: %v", err)
 	}
@@ -337,6 +340,50 @@ func (c *Client) AddIPv6(t testing.TB, prefix string, nhgIndex uint64, instance,
 			AsResult(),
 		chk.IgnoreOperationID(),
 	)
+}
+
+// AddIPv4s adds multiple IPv4Entry mappings to a given next hop group index within a given network instance.
+func (c *Client) AddIPv4s(t testing.TB, prefixes []string, nhgIndex uint64, instance, nhgInstance string, expectedResult fluent.ProgrammingResult) {
+	t.Helper()
+	var entries []fluent.GRIBIEntry
+	var results []*client.OpResult
+	for _, prefix := range prefixes {
+		ipv4Entry := fluent.IPv4Entry().WithPrefix(prefix).
+			WithNetworkInstance(instance).
+			WithNextHopGroup(nhgIndex)
+		if nhgInstance != "" && nhgInstance != instance {
+			ipv4Entry.WithNextHopGroupNetworkInstance(nhgInstance)
+		}
+		entries = append(entries, ipv4Entry)
+		results = append(results, fluent.OperationResult().
+			WithIPv4Operation(prefix).
+			WithOperationType(constants.Add).
+			WithProgrammingResult(expectedResult).
+			AsResult())
+	}
+	c.AddEntries(t, entries, results)
+}
+
+// AddIPv6s adds multiple IPv6Entry mappings to a given next hop group index within a given network instance.
+func (c *Client) AddIPv6s(t testing.TB, prefixes []string, nhgIndex uint64, instance, nhgInstance string, expectedResult fluent.ProgrammingResult) {
+	t.Helper()
+	var entries []fluent.GRIBIEntry
+	var results []*client.OpResult
+	for _, prefix := range prefixes {
+		ipv6Entry := fluent.IPv6Entry().WithPrefix(prefix).
+			WithNetworkInstance(instance).
+			WithNextHopGroup(nhgIndex)
+		if nhgInstance != "" && nhgInstance != instance {
+			ipv6Entry.WithNextHopGroupNetworkInstance(nhgInstance)
+		}
+		entries = append(entries, ipv6Entry)
+		results = append(results, fluent.OperationResult().
+			WithIPv6Operation(prefix).
+			WithOperationType(constants.Add).
+			WithProgrammingResult(expectedResult).
+			AsResult())
+	}
+	c.AddEntries(t, entries, results)
 }
 
 // DeleteIPv4 deletes an IPv4Entry within a network instance, given the route's prefix

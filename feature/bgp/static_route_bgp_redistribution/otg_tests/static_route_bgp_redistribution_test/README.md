@@ -48,14 +48,14 @@
     *   DUT ASN = 64512
     *   /network-instances/network-instance/protocols/protocol/bgp/global/config
     *   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/
-    *   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/send-community-type = ```STANDARD```
+    *   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/config/send-community-type = ```STANDARD```
 
 *   Configure IPv4 and IPv6 iBGP session between ATE port-3 and DUT port-3
     *   ATE ASN = 64512
     *   DUT ASN = 64512
     *   /network-instances/network-instance/protocols/protocol/bgp/global/config
     *   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/
-    *   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/send-community-type = ```STANDARD```
+    *   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/config/send-community-type = ```STANDARD```
 
 *   On the DUT advertise networks of ```dp2-v4``` i.e. ```192.168.1.4/30``` and ```dp2-v6``` i.e. ```2001:DB8::0/126``` through the BGP session between DUT port-1 and ATE port-1
     *   Do not configure BGP between DUT port-2 and ATE port-2
@@ -197,6 +197,7 @@
 ##### Configure BGP actions to set MED
 *   For routing-policy ```route-policy-v4``` statement ```statement-v4``` set MED to ```1000```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med-action = ```SET```
 ##### Verification
 *   Verify for routing-policy ```route-policy-v4``` statement ```statement-v4``` MED is set to ```1000```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/state/set-med
@@ -228,6 +229,8 @@
 *   For community set ```community-set-v4``` configure a community member value to ```64512:100```
     *   /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-member
 ##### Attach the community-set to route-policy
+*   Before replacing the referenced route-policy, clear its import policy by replacing the complete table-connection parent while preserving the other fields.
+    *   /network-instances/network-instance/table-connections/table-connection/config
 *   For routing-policy ```route-policy-v4``` statement ```statement-v4``` reference the community set ```community-set-v4```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community/reference/config/community-set-ref
 ##### Verification
@@ -423,6 +426,7 @@
 ##### Configure BGP actions to set MED
 *   For routing-policy ```route-policy-v6``` statement ```statement-v6``` set MED to ```1000```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med-action = ```SET```
 ##### Verification
 *   Verify for routing-policy ```route-policy-v6``` statement ```statement-v6``` MED is set to ```1000```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/state/set-med
@@ -454,6 +458,8 @@
 *   For community set ```community-set-v6``` configure a community member value to ```64512:100```
     *   /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-member
 ##### Attach the community-set to route-policy
+*   Before replacing the referenced route-policy, clear its import policy by replacing the complete table-connection parent while preserving the other fields.
+    *   /network-instances/network-instance/table-connections/table-connection/config
 *   For routing-policy ```route-policy-v6``` statement ```statement-v6``` reference the community set ```community-set-v6```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community/reference/config/community-set-ref
 ##### Verification
@@ -534,7 +540,7 @@
 ## Config parameter coverage
 
 *   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/
-*   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/send-community-type
+*   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/config/send-community-type
 *   /network-instances/network-instance/protocols/protocol/bgp/global/config
 
 *   /network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix
@@ -567,6 +573,7 @@
 *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref
 *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med
+*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med-action
 *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-next-hop
 *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/asn
 *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community/reference/config/community-set-ref
@@ -628,6 +635,69 @@
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  /interfaces/interface/config/mtu:
+  /interfaces/interface/config/name:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length:
+  /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/enabled:
+  /network-instances/network-instance/protocols/protocol/bgp/global/config/as:
+  /network-instances/network-instance/protocols/protocol/bgp/global/config/router-id:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/config/enabled:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/enabled:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-as:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-group:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/peer-as:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/send-community-type:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/config/send-community-type:
+  /network-instances/network-instance/protocols/protocol/config/enabled:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/config/set-tag:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/metric:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/preference:
+  /network-instances/network-instance/table-connections/table-connection/config/disable-metric-propagation:
+  /network-instances/network-instance/table-connections/table-connection/config/import-policy:
+  /network-instances/network-instance/table-connections/table-connection/state/address-family:
+  /network-instances/network-instance/table-connections/table-connection/state/disable-metric-propagation:
+  /network-instances/network-instance/table-connections/table-connection/state/dst-protocol:
+  /network-instances/network-instance/table-connections/table-connection/state/import-policy:
+  /network-instances/network-instance/table-connections/table-connection/state/src-protocol:
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-member:
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-set-name:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/config/mode:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/state/ip-prefix:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/state/mode:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/state/name:
+  /routing-policy/defined-sets/tag-sets/tag-set/config/name:
+  /routing-policy/defined-sets/tag-sets/tag-set/config/tag-value:
+  /routing-policy/policy-definitions/policy-definition/config/name:
+  /routing-policy/policy-definitions/policy-definition/state/name:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med-action:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-next-hop:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/asn:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/repeat-n:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community/reference/config/community-set-ref:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/state/set-next-hop:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/state/policy-result:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/state/match-set-options:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/state/prefix-set:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-tag-set/config/match-set-options:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-tag-set/config/tag-set:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-tag-set/state/match-set-options:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-tag-set/state/tag-set:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/config/name:
 rpcs:
   gnmi:
     gNMI.Get:

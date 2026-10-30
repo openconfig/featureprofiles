@@ -45,6 +45,7 @@ to Automatic Test Equipment (ATE).
         *   /components/component/transceiver/thresholds/threshold/state/module-temperature-upper
         *   /components/component/transceiver/thresholds/threshold/state/severity
         *   /components/component/state/temperature/instant
+        *   /components/component/transceiver/physical-channels/channel/state/laser-temperature/instant
     *   Tx output power
         *   /components/component/transceiver/thresholds/threshold/state/output-power-lower
         *   /components/component/transceiver/thresholds/threshold/state/output-power-upper
@@ -77,6 +78,12 @@ to Automatic Test Equipment (ATE).
     *   Verify /interfaces/interface/state/oper-status is UP.
     *   Repeat Step1 and Step2.
 
+## Canonical OC
+
+```json
+{}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test.
@@ -103,9 +110,17 @@ paths:
     platform_type: ["TRANSCEIVER"]
   /components/component/transceiver/physical-channels/channel/state/laser-bias-current/instant:
     platform_type: ["TRANSCEIVER"]
+  /components/component/transceiver/physical-channels/channel/state/laser-temperature/instant:
+    platform_type: ["TRANSCEIVER"]
   /components/component/transceiver/physical-channels/channel/state/output-power/instant:
     platform_type: ["TRANSCEIVER"]
   /components/component/transceiver/state/form-factor:
+    platform_type: ["TRANSCEIVER"]
+  /components/component/transceiver/state/vendor:
+    platform_type: ["TRANSCEIVER"]
+  /components/component/transceiver/state/vendor-part:
+    platform_type: ["TRANSCEIVER"]
+  /components/component/transceiver/state/vendor-rev:
     platform_type: ["TRANSCEIVER"]
   /components/component/transceiver/thresholds/threshold/state/input-power-lower:
     platform_type: ["TRANSCEIVER"]

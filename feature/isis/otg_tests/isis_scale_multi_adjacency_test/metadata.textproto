@@ -3,8 +3,8 @@
 
 uuid: "d6453669-e73b-4bca-9d8c-ceb812b97132"
 plan_id: "RT-2.18"
-description: "Scale for IS-IS with multiple adjacencies"
-testbed: TESTBED_DUT_ATE_8LINKS
+description: "IS-IS Multi-adjacencies scale test"
+testbed: TESTBED_DUT_ATE_4LINKS
 platform_exceptions: {
   platform: {
     vendor: ARISTA
@@ -17,6 +17,7 @@ platform_exceptions: {
     isis_mpls_unsupported: true
     ipv4_missing_enabled: true
     isis_lsp_tlvs_oc_unsupported: true
+    isis_interface_authentication_container_unsupported: true
   }
 }
 platform_exceptions: {
@@ -34,6 +35,7 @@ platform_exceptions: {
   }
   deviations: {
     isis_level_enabled: true
+    interface_ref_interface_id_format: true
   }
 }
 platform_exceptions: {
@@ -47,5 +49,7 @@ platform_exceptions: {
     ipv4_missing_enabled: true
     aggregate_atomic_update: true
     isis_adjacency_stream_unsupported: true
+    # Nokia SR Linux requires explicit Level 2 authentication flags (disable-csnp/lsp/psnp = false).
+    isis_explicit_level_authentication_config: true
   }
 }

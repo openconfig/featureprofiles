@@ -12,14 +12,7 @@ platform_exceptions: {
   deviations: {
     interface_enabled: true
     default_network_instance: "default"
-  }
-}
-platform_exceptions: {
-  platform: {
-    vendor: CISCO
-  }
-  deviations: {
-    default_ni_gnmi_server_name: "gnxi-default"
+    grpc_server_services_unsupported: true
   }
 }
 platform_exceptions: {
@@ -37,5 +30,7 @@ platform_exceptions: {
   }
   deviations: {
     interface_enabled: true
+    require_transport_security: true
+    default_ni_gnmi_server_name: "gnmi_gnoi_gnsi"
   }
 }

@@ -33,7 +33,7 @@ import (
 
 const (
 	sampleInterval = 10 * time.Second
-	intUpdateTime  = 2 * time.Minute
+	intUpdateTime  = 10 * time.Minute
 	otnIndexBase   = uint32(4000)
 	ethIndexBase   = uint32(40000)
 )

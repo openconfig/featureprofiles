@@ -12,6 +12,7 @@ platform_exceptions: {
   deviations: {
     default_network_instance: "default"
     channel_assignment_rate_class_parameters_unsupported: true
+    terminal_device_channel_admin_state_unsupported: true
   }
 }
 platform_exceptions: {
@@ -23,6 +24,7 @@ platform_exceptions: {
     eth_channel_ingress_parameters_unsupported: true
     eth_channel_assignment_cisco_numbering: true
     cisco_pre_fec_ber_inactive_value: true
+    terminal_device_channel_admin_state_unsupported: true
   }
 }
 platform_exceptions: {

@@ -27,6 +27,11 @@ and gRPC connections.
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  /system/aaa/authentication/users/user/config/role:
+  /system/aaa/authentication/users/user/config/username:
+  /system/config/hostname:
+  /system/config/motd-banner:
 rpcs:
   gnmi:
     gNMI.Set:

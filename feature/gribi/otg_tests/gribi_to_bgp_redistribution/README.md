@@ -1,4 +1,4 @@
-# TestID-16.4: gRIBI to BGP Route Redistribution for IPv4
+# TE-6.4: gRIBI to BGP Route Redistribution for IPv4
 
 ## Summary
 
@@ -48,11 +48,11 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
     * Prefixes within 198.51.100.0/26 with mask /32: Add Communities EF_ALL, NO-CORE, then Accept.
     * Default: Reject
 
-### TestID-16.4.1 - gRIBI to BGP Redistribution
+### TE-6.4.1 - gRIBI to BGP Redistribution
 
 * Step 1 - Generate DUT configuration
   * Configure network-instance 'TEST_VRF' with DUT and ATE interfaces and IP addresses.
-  * Configure eBGP with import and export policies.
+  * Configure eBGP with ATE in network-instance 'TEST_VRF' and apply import/export policies.
   * Configure gRIBI to BGP redistribution policy and table connection.
 
 #### Canonical OC
@@ -236,9 +236,9 @@ Note: Protocols and tables containers are not expected to be configured, but are
 * Step 2 - Program a gRIBI route in TEST_VRF
 
 ```json
-'operation: { op: ADD network_instance: "TEST_VRF" next_hop: { index: 1001 next_hop { ip_address: { value: "192.0.2.2" } } } }'
-'operation: { op: ADD network_instance: "TEST_VRF" next_hop_group: { id: 2001 next_hop_group { next_hop { index: 1001 weight: { value: 1 } } } } }'
-'operation: { op: ADD network_instance: "TEST_VRF" ipv4: { prefix: "198.51.100.1/32" ipv4_entry { next_hop_group: { value: 2001 } } } }'
+'operation: { op: ADD network_instance: "DEFAULT" next_hop: { index: 1001 next_hop { ip_address: { value: "192.0.2.2" } } } }'
+'operation: { op: ADD network_instance: "DEFAULT" next_hop_group: { id: 2001 next_hop_group { next_hop { index: 1001 weight: { value: 1 } } } } }'
+'operation: { op: ADD network_instance: "TEST_VRF" ipv4: { prefix: "198.51.100.1/32" ipv4_entry { next_hop_group: { value: 2001 } next_hop_group_network_instance { value: "DEFAULT" } } } }'
 ```
 
 * Step 3 - Verify gRIBI route '198.51.100.1/32' is received over eBGP session at ATE Port 2
@@ -248,14 +248,14 @@ Note: Protocols and tables containers are not expected to be configured, but are
 
 ```json
 'operation: { op: DELETE network_instance: "TEST_VRF" ipv4: { prefix: "198.51.100.1/32" } }'
-'operation: { op: DELETE network_instance: "TEST_VRF" next_hop_group: { id: 2001 } }'
-'operation: { op: DELETE network_instance: "TEST_VRF" next_hop: { index: 1001 } }'
+'operation: { op: DELETE network_instance: "DEFAULT" next_hop_group: { id: 2001 } }'
+'operation: { op: DELETE network_instance: "DEFAULT" next_hop: { index: 1001 } }'
 ```
 
 * Step 7 - Verify gRIBI route '198.51.100.1/32' is deleted from TEST_VRF using '/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/' and route withdrawal from over eBGP on ATE Port 2
 * Step 8 - Validate full traffic loss at ATE Port 1
 
-### TestID-16.4.2 - Drain Policy Validation
+### TE-6.4.2 - Drain Policy Validation
 
 * Step 1 - Generate DUT configuration
   * Configure network-instance 'TEST_VRF' with DUT and ATE interfaces and IP addresses.
@@ -265,9 +265,9 @@ Note: Protocols and tables containers are not expected to be configured, but are
 * Step 2 - Program a gRIBI route in TEST_VRF
 
 ```yaml
-'operation: { op: ADD network_instance: "TEST_VRF" next_hop: { index: 1001 next_hop { ip_address: { value: "192.0.2.2" } } } }'
-'operation: { op: ADD network_instance: "TEST_VRF" next_hop_group: { id: 2001 next_hop_group { next_hop { index: 1001 weight: { value: 1 } } } } }'
-'operation: { op: ADD network_instance: "TEST_VRF" ipv4: { prefix: "198.51.100.1/32" ipv4_entry { next_hop_group: { value: 2001 } } } }'
+'operation: { op: ADD network_instance: "DEFAULT" next_hop: { index: 1001 next_hop { ip_address: { value: "192.0.2.2" } } } }'
+'operation: { op: ADD network_instance: "DEFAULT" next_hop_group: { id: 2001 next_hop_group { next_hop { index: 1001 weight: { value: 1 } } } } }'
+'operation: { op: ADD network_instance: "TEST_VRF" ipv4: { prefix: "198.51.100.1/32" ipv4_entry { next_hop_group: { value: 2001 } next_hop_group_network_instance { value: "DEFAULT" } } } }'
 ```
 * Step 3 - Verify gRIBI route '198.51.100.1/32' is received over eBGP session at ATE Port 2 with EF_ALL community, without GSHUT.
 
@@ -357,11 +357,11 @@ Note: Protocols and tables containers are not expected to be configured, but are
 
 ```yaml
 'operation: { op: DELETE network_instance: "TEST_VRF" ipv4: { prefix: "198.51.100.1/32" } }'
-'operation: { op: DELETE network_instance: "TEST_VRF" next_hop_group: { id: 2001 } }'
-'operation: { op: DELETE network_instance: "TEST_VRF" next_hop: { index: 1001 } }'
+'operation: { op: DELETE network_instance: "DEFAULT" next_hop_group: { id: 2001 } }'
+'operation: { op: DELETE network_instance: "DEFAULT" next_hop: { index: 1001 } }'
 ```
 
-### TestID-16.4.3 - Disable BGP session with drain policy
+### TE-6.4.3 - Disable BGP session with drain policy
 
 * Step 1 - Generate DUT configuration
   * Configure network-instance 'TEST_VRF' with DUT and ATE interfaces and IP addresses.
@@ -371,9 +371,9 @@ Note: Protocols and tables containers are not expected to be configured, but are
 * Step 2 - Program a gRIBI route in TEST_VRF
 
 ```yaml
-'operation: { op: ADD network_instance: "TEST_VRF" next_hop: { index: 1001 next_hop { ip_address: { value: "192.0.2.2" } } } }'
-'operation: { op: ADD network_instance: "TEST_VRF" next_hop_group: { id: 2001 next_hop_group { next_hop { index: 1001 weight: { value: 1 } } } } }'
-'operation: { op: ADD network_instance: "TEST_VRF" ipv4: { prefix: "198.51.100.1/32" ipv4_entry { next_hop_group: { value: 2001 } } } }'
+'operation: { op: ADD network_instance: "DEFAULT" next_hop: { index: 1001 next_hop { ip_address: { value: "192.0.2.2" } } } }'
+'operation: { op: ADD network_instance: "DEFAULT" next_hop_group: { id: 2001 next_hop_group { next_hop { index: 1001 weight: { value: 1 } } } } }'
+'operation: { op: ADD network_instance: "TEST_VRF" ipv4: { prefix: "198.51.100.1/32" ipv4_entry { next_hop_group: { value: 2001 } next_hop_group_network_instance { value: "DEFAULT" } } } }'
 ```
 * Step 3 - Verify gRIBI route '198.51.100.1/32' is received over eBGP session at ATE Port 2 with EF_ALL community, without GSHUT.
 
@@ -466,8 +466,8 @@ Note: Protocols and tables containers are not expected to be configured, but are
 
 ```yaml
 'operation: { op: DELETE network_instance: "TEST_VRF" ipv4: { prefix: "198.51.100.1/32" } }'
-'operation: { op: DELETE network_instance: "TEST_VRF" next_hop_group: { id: 2001 } }'
-'operation: { op: DELETE network_instance: "TEST_VRF" next_hop: { index: 1001 } }'
+'operation: { op: DELETE network_instance: "DEFAULT" next_hop_group: { id: 2001 } }'
+'operation: { op: DELETE network_instance: "DEFAULT" next_hop: { index: 1001 } }'
 ```
 
 ## OpenConfig Path and RPC Coverage

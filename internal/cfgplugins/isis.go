@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -30,6 +31,7 @@ type ISISGlobalParams struct {
 	NetworkInstanceName string
 	ISISInterfaceNames  []string
 	NetworkInstanceType *oc.E_NetworkInstanceTypes_NETWORK_INSTANCE_TYPE
+	ISISAuthKey         string
 }
 
 // NewISIS configures the DUT with ISIS protocol.
@@ -70,6 +72,23 @@ func NewISIS(t *testing.T, dut *ondatra.DUTDevice, ISISData *ISISGlobalParams, b
 		isis.GetGlobal().GetOrCreateMpls().GetOrCreateIgpLdpSync().SetEnabled(false)
 	}
 
+	// Configure Level 2 LSP database authentication if ISISAuthKey is provided.
+	// This secures IS-IS LSP exchanges between the DUT and peers using MD5 authentication.
+	if ISISData.ISISAuthKey != "" {
+		lvl2Auth := isis.GetOrCreateLevel(2).GetOrCreateAuthentication()
+		lvl2Auth.Enabled = ygot.Bool(true)
+		lvl2Auth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+		lvl2Auth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
+		lvl2Auth.AuthPassword = ygot.String(ISISData.ISISAuthKey)
+		// For Nokia SR Linux (and platforms requiring explicit level auth containers), explicit flags
+		// (DisableCsnp, DisableLsp, DisablePsnp = false) must be set to ensure complete LSP authentication.
+		if deviations.ISISExplicitLevelAuthenticationConfig(dut) {
+			lvl2Auth.DisableCsnp = ygot.Bool(false)
+			lvl2Auth.DisableLsp = ygot.Bool(false)
+			lvl2Auth.DisablePsnp = ygot.Bool(false)
+		}
+	}
+
 	// Set IPV4 configuration parameters
 	isisV4Afi := isis.GetGlobal().GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
 	isisV4Afi.SetEnabled(true)
@@ -79,7 +98,7 @@ func NewISIS(t *testing.T, dut *ondatra.DUTDevice, ISISData *ISISGlobalParams, b
 	isisV6Afi.Enabled = ygot.Bool(true)
 
 	for _, in := range ISISData.ISISInterfaceNames {
-		if deviations.ExplicitInterfaceInDefaultVRF(dut) && !strings.Contains(in, ".") {
+		if (deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut)) && !strings.Contains(in, ".") {
 			in += ".0"
 		}
 		fmt.Println("Adding ISIS interface: ", in)
@@ -99,8 +118,24 @@ func NewISIS(t *testing.T, dut *ondatra.DUTDevice, ISISData *ISISGlobalParams, b
 		if !deviations.IsisMplsUnsupported(dut) {
 			isisInterface.GetOrCreateMpls().GetOrCreateIgpLdpSync().SetEnabled(false)
 		}
-		if in[0:2] == "lo" {
+		// Loopback interfaces are configured as passive and excluded from Hello authentication.
+		if strings.HasPrefix(strings.ToLower(in), "lo") {
 			isisInterface.SetPassive(true)
+		} else if ISISData.ISISAuthKey != "" {
+			// Configure interface-level MD5 authentication for IS-IS Hello packets on active links.
+			if deviations.ISISInterfaceAuthenticationContainerUnsupported(dut) {
+				lvl2IntfAuth := isisInterface.GetOrCreateLevel(2).GetOrCreateHelloAuthentication()
+				lvl2IntfAuth.Enabled = ygot.Bool(true)
+				lvl2IntfAuth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+				lvl2IntfAuth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
+				lvl2IntfAuth.AuthPassword = ygot.String(ISISData.ISISAuthKey)
+			} else {
+				intfAuth := isisInterface.GetOrCreateAuthentication()
+				intfAuth.Enabled = ygot.Bool(true)
+				intfAuth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+				intfAuth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
+				intfAuth.AuthPassword = ygot.String(ISISData.ISISAuthKey)
+			}
 		}
 	}
 
@@ -188,5 +223,61 @@ func handleSingleTopologyDeviation(t *testing.T, dut *ondatra.DUTDevice, sb *gnm
 		gnmi.BatchUpdate(sb, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, deviations.DefaultNetworkInstance(dut)).Config(), protocol)
 	default:
 		t.Fatalf("Single ISIS topology deviation not supported for vendor: %s", dut.Vendor())
+	}
+}
+
+// GenerateDynamicRouteWithISIS configures the DUT to generate dynamic routes using ISIS as the trigger protocol.
+func GenerateDynamicRouteWithISIS(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, localAggregateName string, generateRoute string, generateIPv6Route string) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		var cliConfig strings.Builder
+
+		cliConfig.WriteString(`
+    configure terminal
+    router general
+    control-functions
+
+    { "cmd": "code unit ipv4_generate_default_conditionally", "input": "function ipv4_generate_route_conditionally()\n{\nif source_protocol is ISIS and prefix match prefix_list_v4 TRIGGER_ROUTE {\nreturn true;\n}\n}\nEOF"}
+    { "cmd": "code unit ipv6_generate_route_conditionally", "input": "function ipv6_generate_route_conditionally()\n{\nif source_protocol is ISIS and prefix match prefix_list_v6 TRIGGER_ROUTE_IPV6 {\nreturn true;\n}\n}\nEOF"}
+    compile
+    commit
+    dynamic prefix-list ipv4_generate_route
+    match vrf default source-protocol any rcf ipv4_generate_route_conditionally()
+    prefix-list ipv4 GENERATED_ROUTE
+    !
+    dynamic prefix-list ipv6_generate_route
+    match vrf default source-protocol any rcf ipv6_generate_route_conditionally()
+    prefix-list ipv6 GENERATED_ROUTE_IPV6
+    !
+    router general
+    vrf default
+      routes dynamic prefix-list ipv4_generate_route install drop
+      routes dynamic prefix-list ipv6_generate_route install drop
+    !
+    router isis DEFAULT
+    redistribute dynamic
+    !
+    router bgp 1
+    redistribute dynamic
+    !`)
+		helpers.GnmiCLIConfig(t, dut, cliConfig.String())
+	default:
+		dc := gnmi.OC()
+		root := &oc.Root{}
+
+		dni := deviations.DefaultNetworkInstance(dut)
+		ni := root.GetOrCreateNetworkInstance(dni)
+
+		aggProto := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_LOCAL_AGGREGATE, localAggregateName)
+		aggProto.SetIdentifier(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_LOCAL_AGGREGATE)
+		aggProto.SetName(localAggregateName)
+
+		aggProto.GetOrCreateAggregate(generateRoute).SetPrefix(generateRoute)
+		aggProto.GetOrCreateAggregate(generateIPv6Route).SetPrefix(generateIPv6Route)
+		aggProto.SetEnabled(true)
+
+		gnmi.BatchReplace(sb, dc.NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_LOCAL_AGGREGATE, localAggregateName).Config(), aggProto)
+		sb.Set(t, dut)
 	}
 }

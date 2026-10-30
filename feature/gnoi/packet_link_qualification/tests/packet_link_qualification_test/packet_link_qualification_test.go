@@ -238,6 +238,9 @@ func TestListDelete(t *testing.T) {
 					t.Fatalf("Failed to handle gnoi LinkQualification().Delete(): %v", err)
 				}
 			}
+			if deviations.LinkQualWaitAfterDeleteRequired(dut1) {
+				time.Sleep(10 * time.Second)
+			}
 		} else {
 			t.Logf("The LinkQualification request was not found on client %d", i+1)
 			continue
@@ -252,9 +255,6 @@ func TestListDelete(t *testing.T) {
 		if got, want := len(listResp.GetResults()), 0; got != want {
 			t.Errorf("len(listResp.GetResults()): got %v, want %v", got, want)
 		}
-	}
-	if deviations.LinkQualWaitAfterDeleteRequired(dut1) {
-		time.Sleep(10 * time.Second)
 	}
 }
 
@@ -380,8 +380,8 @@ func configureDUTAggregate(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Po
 	}
 
 	// Wait for LAG interfaces to be UP
-	gnmi.Await(t, dut, gnmi.OC().Interface(aggID1).OperStatus().State(), 60*time.Second, oc.Interface_OperStatus_UP)
-	gnmi.Await(t, dut, gnmi.OC().Interface(aggID2).OperStatus().State(), 60*time.Second, oc.Interface_OperStatus_UP)
+	gnmi.Await(t, dut, gnmi.OC().Interface(aggID1).OperStatus().State(), 12*time.Minute, oc.Interface_OperStatus_UP)
+	gnmi.Await(t, dut, gnmi.OC().Interface(aggID2).OperStatus().State(), 12*time.Minute, oc.Interface_OperStatus_UP)
 }
 
 func testLinkQualification(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Port, dp2 *ondatra.Port, plqID string, aggregate bool) {

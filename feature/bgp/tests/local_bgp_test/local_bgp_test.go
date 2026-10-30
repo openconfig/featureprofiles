@@ -88,7 +88,7 @@ func bgpWithNbr(nbr *oc.NetworkInstance_Protocol_Bgp_Neighbor, dut *ondatra.DUTD
 		rpl := pgaf.GetOrCreateApplyPolicy()
 		rpl.SetImportPolicy([]string{policyName})
 		rpl.SetExportPolicy([]string{policyName})
-	} else {
+	} else if !deviations.BgpRplDirectlyUnderPeerGroupUnsupported(dut) {
 		rpl := pg.GetOrCreateApplyPolicy()
 		rpl.SetImportPolicy([]string{policyName})
 		rpl.SetExportPolicy([]string{policyName})
@@ -198,6 +198,7 @@ func TestEstablish(t *testing.T) {
 				wantState.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = nil
 				wantState.GetOrCreateNeighbor(ateAttrs.IPv4).Enabled = nil
 			}
+
 			confirm.State(t, wantState, dutState)
 			nbr := dutState.GetNeighbor(ateAttrs.IPv4)
 
