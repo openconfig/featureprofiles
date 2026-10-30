@@ -244,6 +244,20 @@ set using OC.
 Perform the steps where a configuration D.2 where the port-speed and breakout
 set using CLI.
 
+### gNMI-3.11 - union_replace accepted with OTN logical channels OC config
+
+Configure OTN and ETH logical channels using OC paths that have no CLI equivalent.
+A successful apply shows union_replace programs these paths natively and does not
+silently drop them.
+
+Steps
+
+1. Get the CLI configuration D.1 from the DUT.
+2. Generate an OC configuration D.2 with the OTN and ETH logical channels.
+3. Push D.1 and D.2 to the DUT using union_replace.
+4. Verify the gnmi.Set is accepted.
+5. Get the logical channel config D.3 from DUT and verify D.2 == D.3.
+
 ## Canonical OC
 
 ```json
@@ -327,6 +341,20 @@ set using CLI.
 paths:
   /interfaces/interface/ethernet/config/port-speed:
   /interfaces/interface/ethernet/state/port-speed:
+  /terminal-device/logical-channels/channel/config/description:
+  /terminal-device/logical-channels/channel/config/index:
+  /terminal-device/logical-channels/channel/config/logical-channel-type:
+  /terminal-device/logical-channels/channel/config/trib-protocol:
+  /terminal-device/logical-channels/channel/config/rate-class:
+  /terminal-device/logical-channels/channel/config/admin-state:
+  /terminal-device/logical-channels/channel/ingress/config/interface:
+  /terminal-device/logical-channels/channel/ingress/config/transceiver:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/index:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/description:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/allocation:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/assignment-type:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/optical-channel:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/logical-channel:
 
 rpcs:
   gnmi:
