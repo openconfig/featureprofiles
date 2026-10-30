@@ -53,28 +53,28 @@ var (
 
 	usersMap = UsersMap{
 		"cert_user_admin": {
-			ID: "spiffe://test-abc.foo.bar/xyz/admin",
+			ID: "spiffe://test-abc.foo.bar.test.google.com/xyz/admin",
 		},
 		"cert_deny_all": {
-			ID: "spiffe://test-abc.foo.bar/xyz/deny-all", // a user with valid svid but no permission (has a deny rule for target *)
+			ID: "spiffe://test-abc.foo.bar.test.google.com/xyz/deny-all", // a user with valid svid but no permission (has a deny rule for target *)
 		},
 		"cert_gribi_modify": {
-			ID: "spiffe://test-abc.foo.bar/xyz/gribi-modify",
+			ID: "spiffe://test-abc.foo.bar.test.google.com/xyz/gribi-modify",
 		},
 		"cert_gnmi_set": {
-			ID: "spiffe://test-abc.foo.bar/xyz/gnmi-set",
+			ID: "spiffe://test-abc.foo.bar.test.google.com/xyz/gnmi-set",
 		},
 		"cert_gnoi_time": {
-			ID: "spiffe://test-abc.foo.bar/xyz/gnoi-time",
+			ID: "spiffe://test-abc.foo.bar.test.google.com/xyz/gnoi-time",
 		},
 		"cert_gnoi_ping": {
-			ID: "spiffe://test-abc.foo.bar/xyz/gnoi-ping",
+			ID: "spiffe://test-abc.foo.bar.test.google.com/xyz/gnoi-ping",
 		},
 		"cert_gnsi_probe": {
-			ID: "spiffe://test-abc.foo.bar/xyz/gnsi-probe",
+			ID: "spiffe://test-abc.foo.bar.test.google.com/xyz/gnsi-probe",
 		},
 		"cert_read_only": {
-			ID: "spiffe://test-abc.foo.bar/xyz/read-only",
+			ID: "spiffe://test-abc.foo.bar.test.google.com/xyz/read-only",
 		},
 	}
 )
