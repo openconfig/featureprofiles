@@ -57,7 +57,7 @@ The test is configured with the following parameters defined in `gribi_full_scal
   * 5% NHGs have WCMP granularity `1/64`
 
 ### Decap VRF
-* `NumDecapEntries`: `8`
+* `NumDecapEntries`: `50` for all vendors and `8` for Juniper until March 2027
 * `DecapDestsSubsetPct`: `100%`
 
 ### OTG / Port Configuration
