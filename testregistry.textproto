@@ -2270,6 +2270,7 @@ test: {
   id: "gNMI-1.30"
   description: "gNMI Telemetry Performance under Dynamic Control Plane Churn"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/otg_tests/telemetry_under_churn_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/otg_tests/telemetry_under_churn_test/telemetry_under_churn_test.go"
 }
 test: {
   id: "gNMI-1.4"
