@@ -251,9 +251,11 @@ func TestLAGLastChangeState(t *testing.T) {
 
 	t.Run("LAGMemberFlap", func(t *testing.T) {
 		t.Cleanup(func() {
+			b := &gnmi.SetBatch{}
 			for _, port := range dutAggPorts {
-				gnmi.Update(t, dut, gnmi.OC().Interface(port.Name()).Enabled().Config(), true)
+				gnmi.BatchUpdate(b, gnmi.OC().Interface(port.Name()).Enabled().Config(), true)
 			}
+			b.Set(t, dut)
 		})
 		flapFunc := func(t *testing.T, enable bool) {
 			action := "Enabling"

@@ -635,9 +635,11 @@ func TestAlwaysCompareMED(t *testing.T) {
 		neighborsRestored := false
 		t.Cleanup(func() {
 			if !neighborsRestored {
+				b := &gnmi.SetBatch{}
 				for _, nbrIP := range nbrIPs {
-					gnmi.Replace(t, dut, bgpPath.Neighbor(nbrIP).Enabled().Config(), true)
+					gnmi.BatchReplace(b, bgpPath.Neighbor(nbrIP).Enabled().Config(), true)
 				}
+				b.Set(t, dut)
 			}
 		})
 		for _, nbrIP := range nbrIPs {
