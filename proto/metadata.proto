@@ -1489,7 +1489,7 @@ message Metadata {
     // through OpenConfig.
     // Arista: https://partnerissuetracker.corp.google.com/issues/562517133
     bool sflow_egress_sampling_rate_unsupported = 460;
-
+  
     // Device does not populate /interfaces/interface/state/counters/last-clear
     // after the interface counters are cleared.
     // Arista: https://partnerissuetracker.corp.google.com/issues/570578230
@@ -1500,7 +1500,7 @@ message Metadata {
     // transit traffic.
     // Juniper: https://partnerissuetracker.corp.google.com/issues/570573973
     bool default_subinterface_ip_counters_unsupported = 462;
-
+    
     // Device does not support
     // /lacp/interfaces/interface/members/member/state/counters/lacp-tx-errors.
     // Cisco: https://partnerissuetracker.corp.google.com/issues/570398368
@@ -1581,9 +1581,27 @@ message Metadata {
     // Arista: https://partnerissuetracker.corp.google.com/issues/567813121
     bool isis_interface_authentication_container_unsupported = 478;
 
+    // Device does not support the per-path gNMI pathz policy counters
+    // (access-accepts/access-rejects).
+    // Arista: https://partnerissuetracker.corp.google.com/issues/565204169
+    bool pathz_counters_unsupported = 479;
+
+    // Device does not reject a pathz Rotate that changes policy content under an
+    // already-committed version without force_overwrite (freshness not enforced).
+    // Arista: https://partnerissuetracker.corp.google.com/issues/565204169
+    bool pathz_force_overwrite_unsupported = 480;
+
+    // Device does not support cli to remove pathz policy
+    // Arista: https://partnerissuetracker.corp.google.com/issues/565204169
+    bool pathz_policy_removal_via_cli_unsupported = 481;
+
+    // Device does not support unauthorized access error
+    // Arista: https://partnerissuetracker.corp.google.com/issues/565204169   
+    bool pathz_unauthorized_access_error_unsupported = 482;
+    
     // deviation to skip authz verification of gnoi ping rpc
     // Arista: https://partnerissuetracker.corp.google.com/issues/219953165
-    bool skip_gnoi_ping_rpc_authz_verification = 479;
+    bool skip_gnoi_ping_rpc_authz_verification = 483;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
