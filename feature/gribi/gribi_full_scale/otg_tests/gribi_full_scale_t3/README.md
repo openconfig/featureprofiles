@@ -66,7 +66,7 @@ The test is configured with the following parameters defined in `gribi_full_scal
 ### Traffic Parameters
 * `TrafficRateMpps`: `30,000,000` (30 Mpps)
 * `TrafficDuration`: `5 minutes`
-* `TrafficLossTol`: `5`
+* `TrafficLossTol`: `0`
 
 ## Canonical OC
 ```json

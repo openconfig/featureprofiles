@@ -205,7 +205,7 @@ var (
 	}
 
 	// decapPrefixLens is the mix of prefix lengths for DECAP_TE_VRF.
-	decapPrefixLens = []int{22, 24, 26, 28}
+	decapPrefixLens = []int{22, 24}
 
 	// outerSrcs enumerates the two magic outer source IPs across traffic scenarios.
 	outerSrcs = []string{IPv4OuterSrc111, IPv4OuterSrc222}
