@@ -29,6 +29,13 @@ platform_exceptions: {
     explicit_interface_in_default_vrf: true
     aggregate_atomic_update: true
     interface_enabled: true
+    explicit_breakout_interface_config: true
+    duplex_mode_unsupported: true
+    auto_negotiate_unsupported: true
+    vendor_pre_config_required: true
+    num_physical_channels_unsupported: true
+    port_speed_duplex_mode_unsupported_for_interface_config: true
+    explicit_dco_config: true
   }
 }
 

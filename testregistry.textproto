@@ -1197,6 +1197,7 @@ test: {
   id: "RT-3.4"
   description: "VRF Selection Policy Hardware Programming with Linecard and Supervisor Resiliency"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/vrf_selection/otg_tests/vrf_selection_resiliency_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/vrf_selection/otg_tests/vrf_selection_resiliency_test/vrf_selection_resiliency_test.go"
 }
 test: {
   id: "RT-3.52"
@@ -1268,6 +1269,7 @@ test: {
   id: "RT-5.16"
   description: "LACP Member Linecard Reboot"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/lacp/otg_tests/lacp_member_reboot_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/lacp/otg_tests/lacp_member_reboot_test/lacp_member_reboot_test.go"
 }
 test: {
   id: "RT-5.17"
@@ -1936,6 +1938,11 @@ test: {
   description: "Telemetry: ZR Plus terminal-device OC paths streaming."
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_400_terminal_device_paths_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_400_terminal_device_paths_test/zrp_400_terminal_device_paths_test.go"
+}
+test: {
+  id: "TRANSCEIVER-109"
+  description: "400ZR / 800ZR Operational Mode Transition and Inventory Persistence"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zr_800_operational_mode_inventory_recovery_test/README.md"
 }
 test: {
   id: "TRANSCEIVER-11.1"

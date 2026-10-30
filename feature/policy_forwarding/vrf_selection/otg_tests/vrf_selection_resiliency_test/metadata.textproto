@@ -13,5 +13,41 @@ platform_exceptions:  {
   deviations:  {
     interface_enabled:  true
     default_network_instance:  "default"
+    static_protocol_name: "STATIC"
+    interface_config_vrf_before_address: true
+    gnoi_subcomponent_path: true
+    gnoi_switchover_reason_missing_user_initiated: true
+    missing_value_for_defaults: true
+    vendor_pre_config_required: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+    interface_id_format_required_for_policy_forwarding: true
+    power_disable_enable_leaf_ref_validation: true
+    interface_config_vrf_before_address: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    explicit_interface_in_default_vrf: true
+    static_protocol_name: "static"
+    interface_enabled: true
+    missing_value_for_defaults: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    pf_require_match_default_rule: true
   }
 }
