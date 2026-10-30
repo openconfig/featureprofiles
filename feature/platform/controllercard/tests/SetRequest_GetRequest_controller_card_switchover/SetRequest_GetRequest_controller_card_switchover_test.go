@@ -93,9 +93,20 @@ func fetchActiveStandbyControllerCards(t *testing.T, dut *ondatra.DUTDevice, con
 func verifyControllerCardSwitchover(t *testing.T, dut *ondatra.DUTDevice, controllerCards []string, before activeStandByControllerCards) bool {
 	t.Helper()
 
-	rpStandbyAfterSwitch, rpActiveAfterSwitch := components.FindStandbyControllerCard(t, dut, controllerCards)
-	t.Logf("Found standbyRP after switchover: %v, activeRP: %v", rpStandbyAfterSwitch, rpActiveAfterSwitch)
-	return rpActiveAfterSwitch == before.standbyControllerCard && rpStandbyAfterSwitch == before.activeControllerCard
+	var activeCC, standbyCC string
+	for _, supervisor := range controllerCards {
+		roleVal, present := gnmi.Lookup(t, dut, gnmi.OC().Component(supervisor).RedundantRole().State()).Val()
+		if !present {
+			return false
+		}
+		if roleVal == oc.Platform_ComponentRedundantRole_PRIMARY {
+			activeCC = supervisor
+		} else if roleVal == oc.Platform_ComponentRedundantRole_SECONDARY {
+			standbyCC = supervisor
+		}
+	}
+	t.Logf("Found standbyRP after switchover: %v, activeRP: %v", standbyCC, activeCC)
+	return activeCC == before.standbyControllerCard && standbyCC == before.activeControllerCard
 }
 
 func switchoverControllerCards(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, config *switchoverControllerCardsConfig) {
@@ -366,6 +377,27 @@ func configureGNMIExpandWildcardPaths(t *testing.T, dut *ondatra.DUTDevice) {
 			},
 		})
 	}
+	t.Cleanup(func() {
+		deletes := make([]*gpb.Path, 0, len(names))
+		for _, name := range names {
+			deletes = append(deletes, &gpb.Path{
+				Elem: []*gpb.PathElem{
+					{Name: "system"},
+					{Name: "grpc-server", Key: map[string]string{"name": name}},
+					{Name: "gnmi"},
+					{Name: "expand-wildcard-paths-in-get-responses"},
+				},
+			})
+		}
+		cleanupReq := &gpb.SetRequest{
+			Prefix: &gpb.Path{Origin: "native"},
+			Delete: deletes,
+		}
+		if _, err := dut.RawAPIs().GNMI(t).Set(context.Background(), cleanupReq); err != nil {
+			t.Logf("Failed to cleanup expand-wildcard-paths-in-get-responses: %v", err)
+		}
+	})
+
 	req := &gpb.SetRequest{
 		Prefix: &gpb.Path{Origin: "native"},
 		Update: updates,
