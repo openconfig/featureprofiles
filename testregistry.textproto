@@ -462,6 +462,11 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/management/otg_tests/management_ha_test/management_ha_test.go"
 }
 test: {
+  id: "MGT-2"
+  description: "QoS of MVC Control and Management Traffic"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/management/otg_tests/mvc_control_traffic_qos_test/README.md"
+}
+test: {
   id: "MPLS-1.1"
   description: "MPLS label blocks using ISIS"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/mpls/otg_tests/label_block/README.md"

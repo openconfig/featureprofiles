@@ -1,0 +1,9 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "e4a9b621-7f44-4d3b-9c8a-2b5e1d8c7f10"
+plan_id: "MGT-2"
+description: "QoS of MVC Control and Management Traffic"
+testbed: TESTBED_DUT_ATE_4LINKS
+tags: TAGS_TRANSIT
+tags: TAGS_DATACENTER_EDGE
