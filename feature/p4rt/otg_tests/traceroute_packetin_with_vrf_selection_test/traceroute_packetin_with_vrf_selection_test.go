@@ -1211,6 +1211,9 @@ func TestTraceRoute(t *testing.T) {
 	client := fluent.NewClient()
 	client.Connection().WithStub(gribic).WithPersistence().WithInitialElectionID(1, 0).
 		WithFIBACK().WithRedundancyMode(fluent.ElectedPrimaryClient)
+	t.Cleanup(func() {
+		client.Stop(t)
+	})
 	client.Start(ctx, t)
 
 	client.StartSending(ctx, t)
@@ -1218,6 +1221,11 @@ func TestTraceRoute(t *testing.T) {
 		t.Fatalf("Await got error during session negotiation for clientA: %v", err)
 	}
 	eID := gribi.BecomeLeader(t, client)
+	t.Cleanup(func() {
+		if err := gribi.FlushAll(client); err != nil {
+			t.Error(err)
+		}
+	})
 
 	leader := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
 	if err := leader.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {

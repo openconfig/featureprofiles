@@ -244,6 +244,10 @@ func configureACLs(t *testing.T, dut *ondatra.DUTDevice) {
 
 	// Push ACL configuration
 	t.Log("Pushing ACL configuration...")
+	t.Cleanup(func() {
+		gnmi.Delete(t, dut, gnmi.OC().Acl().AclSet(aclNameIPv4, aclTypeIPv4).Config())
+		gnmi.Delete(t, dut, gnmi.OC().Acl().AclSet(aclNameIPv6, aclTypeIPv6).Config())
+	})
 	gnmi.Replace(t, dut, gnmi.OC().Acl().Config(), acl)
 	t.Log("ACL configuration applied.")
 }
@@ -251,6 +255,11 @@ func configureACLs(t *testing.T, dut *ondatra.DUTDevice) {
 // applyACLsToControlPlane applies the configured ACLs to the DUT's control plane ingress.
 func applyACLsToControlPlane(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
+
+	t.Cleanup(func() {
+		gnmi.Delete(t, dut, gnmi.OC().System().ControlPlaneTraffic().Ingress().AclSet(aclNameIPv4, aclTypeIPv4).Config())
+		gnmi.Delete(t, dut, gnmi.OC().System().ControlPlaneTraffic().Ingress().AclSet(aclNameIPv6, aclTypeIPv6).Config())
+	})
 
 	// Apply IPv4 ACL to control plane ingress using individual updates
 	ingressv4 := &oc.System_ControlPlaneTraffic_Ingress{}

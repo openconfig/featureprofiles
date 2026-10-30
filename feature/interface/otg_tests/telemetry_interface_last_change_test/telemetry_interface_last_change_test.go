@@ -235,6 +235,9 @@ func TestLAGLastChangeState(t *testing.T) {
 	configureOTGLAG(t, ate, ateAggPorts, aggID)
 
 	t.Run("LAGInterfaceFlap", func(t *testing.T) {
+		t.Cleanup(func() {
+			gnmi.Update(t, dut, aggIntfPath.Enabled().Config(), true)
+		})
 		flapFunc := func(t *testing.T, enable bool) {
 			action := "Enabling"
 			if !enable {
@@ -247,6 +250,13 @@ func TestLAGLastChangeState(t *testing.T) {
 	})
 
 	t.Run("LAGMemberFlap", func(t *testing.T) {
+		t.Cleanup(func() {
+			b := &gnmi.SetBatch{}
+			for _, port := range dutAggPorts {
+				gnmi.BatchUpdate(b, gnmi.OC().Interface(port.Name()).Enabled().Config(), true)
+			}
+			b.Set(t, dut)
+		})
 		flapFunc := func(t *testing.T, enable bool) {
 			action := "Enabling"
 			if !enable {
@@ -432,6 +442,9 @@ func TestEthernetInterfaceLastChangeState(t *testing.T) {
 	})
 
 	t.Run("OCInterfaceFlap", func(t *testing.T) {
+		t.Cleanup(func() {
+			gnmi.Update(t, dut, intfPath.Enabled().Config(), true)
+		})
 		flapFunc := func(t *testing.T, enabled bool) {
 			gnmi.Update(t, dut, intfPath.Enabled().Config(), enabled)
 		}

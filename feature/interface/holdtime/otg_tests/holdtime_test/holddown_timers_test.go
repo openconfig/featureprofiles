@@ -616,6 +616,12 @@ func TestTC5ShortDOWN(t *testing.T) {
 		Down: ygot.Uint32(5000),
 	}
 
+	t.Cleanup(func() {
+		gnmi.Update(t, dut, gnmi.OC().Interface(dutPort1Intf.Name()).HoldTime().Config(), &oc.Interface_HoldTime{
+			Up:   ygot.Uint32(0),
+			Down: ygot.Uint32(0),
+		})
+	})
 	t.Run("Update hold timer configs down", func(t *testing.T) {
 		intfPath := gnmi.OC().Interface(dutPort1Intf.Name())
 		gnmi.Update(t, dut, intfPath.HoldTime().Config(), holdTimeConfig)

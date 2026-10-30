@@ -424,8 +424,12 @@ func TestGNMIReducedLACPSpeed(t *testing.T) {
 					break
 				}
 				if deviations.ATEPortLinkStateOperationsUnsupported(ate) {
-					gnmi.Replace(t, dut, gnmi.OC().Interface(tc.dutPorts[index].Name()).Enabled().Config(), false)
-					gnmi.Await(t, dut, gnmi.OC().Interface(tc.dutPorts[index].Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_DOWN)
+					portName := tc.dutPorts[index].Name()
+					t.Cleanup(func() {
+						gnmi.Replace(t, dut, gnmi.OC().Interface(portName).Enabled().Config(), true)
+					})
+					gnmi.Replace(t, dut, gnmi.OC().Interface(portName).Enabled().Config(), false)
+					gnmi.Await(t, dut, gnmi.OC().Interface(portName).OperStatus().State(), time.Minute, oc.Interface_OperStatus_DOWN)
 				} else {
 					portStateAction := gosnappi.NewControlState()
 					portStateAction.Port().Link().SetPortNames([]string{port.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)

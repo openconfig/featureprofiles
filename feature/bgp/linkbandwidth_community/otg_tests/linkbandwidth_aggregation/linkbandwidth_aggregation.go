@@ -279,6 +279,9 @@ func TestLinkBandwidthExtendedCommunityCumulative(t *testing.T) {
 			validate:            validateCumulativeLBwCommunityAdvertisedByDUT,
 		},
 	}
+	t.Cleanup(func() {
+		disableEnableBgpWithNbr(t, dut, true)
+	})
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.applyConfig != nil {

@@ -206,6 +206,27 @@ func TestISISLevelPassive(t *testing.T) {
 		time.Sleep(time.Minute * 1)
 		var isispassiveconfig string
 		t.Run("Passive checks", func(t *testing.T) {
+			resetPassive := func() {
+				if deviations.IsisInterfaceLevelPassiveUnsupported(ts.DUT) {
+					switch dut.Vendor() {
+					case ondatra.CISCO:
+						isispassiveconfig = fmt.Sprintf("router isis DEFAULT\n interface %s\n no passive\n", intfName)
+						helpers.GnmiCLIConfig(t, dut, isispassiveconfig)
+					case ondatra.ARISTA:
+						gnmi.Update(t, ts.DUT, statePath.Interface(intfName).Passive().Config(), false)
+					default:
+						t.Fatalf("Unsupported vendor %s for deviation 'IsisInterfaceLevelPassiveUnsupported'", dut.Vendor())
+					}
+				} else {
+					gnmi.Update(t, ts.DUT, statePath.Interface(intfName).Level(2).Passive().Config(), false)
+				}
+			}
+			passiveReset := false
+			t.Cleanup(func() {
+				if !passiveReset {
+					resetPassive()
+				}
+			})
 			if deviations.IsisInterfaceLevelPassiveUnsupported(ts.DUT) {
 				switch dut.Vendor() {
 				case ondatra.CISCO:
@@ -233,19 +254,8 @@ func TestISISLevelPassive(t *testing.T) {
 				}
 			}
 			// Updating passive config to false on dut.
-			if deviations.IsisInterfaceLevelPassiveUnsupported(ts.DUT) {
-				switch dut.Vendor() {
-				case ondatra.CISCO:
-					isispassiveconfig = fmt.Sprintf("router isis DEFAULT\n interface %s\n no passive\n", intfName)
-					helpers.GnmiCLIConfig(t, dut, isispassiveconfig)
-				case ondatra.ARISTA:
-					gnmi.Update(t, ts.DUT, statePath.Interface(intfName).Passive().Config(), false)
-				default:
-					t.Fatalf("Unsupported vendor %s for deviation 'IsisInterfaceLevelPassiveUnsupported'", dut.Vendor())
-				}
-			} else {
-				gnmi.Update(t, ts.DUT, statePath.Interface(intfName).Level(2).Passive().Config(), false)
-			}
+			resetPassive()
+			passiveReset = true
 			if !deviations.IsisInterfaceLevelPassiveUnsupported(ts.DUT) {
 				if got := gnmi.Get(t, ts.DUT, statePath.Interface(intfName).Level(2).Passive().State()); got != false {
 					t.Errorf("FAIL- Expected level 2 passive state not found, got %t, want %t", got, true)
