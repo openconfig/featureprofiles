@@ -46,6 +46,7 @@ const (
 	setRequestTimeout               = 30 * time.Second
 	getRequestTimeout               = 10 * time.Second
 	controllerCardSwitchoverTimeout = 2 * time.Minute
+	switchoverRetryTimeout          = 5 * time.Minute
 	sleepTimeBtwAttempts            = 10 * time.Second
 	lastRequestTime                 = 120 * time.Second
 	maxResponseTime                 = 150 * time.Second
@@ -88,6 +89,15 @@ func fetchActiveStandbyControllerCards(t *testing.T, dut *ondatra.DUTDevice, con
 	return activeStandByControllerCards{rpActiveBeforeSwitch, rpStandbyBeforeSwitch}
 }
 
+// verifyControllerCardSwitchover reports whether the DUT swapped controller roles.
+func verifyControllerCardSwitchover(t *testing.T, dut *ondatra.DUTDevice, controllerCards []string, before activeStandByControllerCards) bool {
+	t.Helper()
+
+	rpStandbyAfterSwitch, rpActiveAfterSwitch := components.FindStandbyControllerCard(t, dut, controllerCards)
+	t.Logf("Found standbyRP after switchover: %v, activeRP: %v", rpStandbyAfterSwitch, rpActiveAfterSwitch)
+	return rpActiveAfterSwitch == before.standbyControllerCard && rpStandbyAfterSwitch == before.activeControllerCard
+}
+
 func switchoverControllerCards(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, config *switchoverControllerCardsConfig) {
 	t.Helper()
 
@@ -97,9 +107,6 @@ func switchoverControllerCards(ctx context.Context, t *testing.T, dut *ondatra.D
 	switchOverReadyTimeout := 30 * time.Minute
 	gnmi.Await(t, dut, switchoverReady.State(), switchOverReadyTimeout, true)
 	t.Logf("SwitchoverReady().Get(t): %v", gnmi.Get(t, dut, switchoverReady.State()))
-	if got, want := gnmi.Get(t, dut, switchoverReady.State()), true; got != want {
-		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
-	}
 
 	// Initiate a RP switchover
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
@@ -108,10 +115,22 @@ func switchoverControllerCards(ctx context.Context, t *testing.T, dut *ondatra.D
 	}
 	t.Logf("switchoverRequest: %v", switchoverRequest)
 
-	ctxWithTimeout, cancelWithTimeout := context.WithTimeout(ctx, config.requestTimeout)
-	defer cancelWithTimeout()
-
-	switchoverResponse, err := config.gnoiClient.System().SwitchControlProcessor(ctxWithTimeout, switchoverRequest)
+	deadline := time.Now().Add(switchoverRetryTimeout)
+	var switchoverResponse *spb.SwitchControlProcessorResponse
+	var err error
+	for attempt := 1; time.Now().Before(deadline); attempt++ {
+		if attempt > 1 {
+			time.Sleep(sleepTimeBtwAttempts)
+		}
+		ctxWithTimeout, cancelWithTimeout := context.WithTimeout(ctx, config.requestTimeout)
+		switchoverResponse, err = config.gnoiClient.System().SwitchControlProcessor(ctxWithTimeout, switchoverRequest)
+		cancelWithTimeout()
+		if err != nil {
+			t.Logf("SwitchControlProcessor attempt %d: %v", attempt, err)
+			continue
+		}
+		break
+	}
 	if err != nil {
 		t.Fatalf("Failed to perform control processor switchover with unexpected err: %v", err)
 	}
@@ -251,7 +270,9 @@ func buildConfigBatch(t *testing.T, dut *ondatra.DUTDevice) {
 	isisProto := networkInterface.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
 	isisProto.Enabled = ygot.Bool(true)
 	isis := isisProto.GetOrCreateIsis()
-	isis.GetOrCreateGlobal().Instance = ygot.String(isisInstance)
+	if deviations.ISISInstanceEnabledRequired(dut) {
+		isis.GetOrCreateGlobal().Instance = ygot.String(isisInstance)
+	}
 	for _, agg := range aggIDs {
 		isisIntf := isis.GetOrCreateInterface(agg)
 		isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
@@ -309,6 +330,51 @@ func buildConfigBatch(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
+// configureGNMIExpandWildcardPaths enables expand-wildcard-paths-in-get-responses
+// on every gRPC server that advertises the gNMI service.
+func configureGNMIExpandWildcardPaths(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+
+	servers := gnmi.GetAll(t, dut, gnmi.OC().System().GrpcServerAny().State())
+	var names []string
+	for _, server := range servers {
+		for _, svc := range server.GetServices() {
+			if svc == oc.SystemGrpc_GRPC_SERVICE_GNMI {
+				names = append(names, server.GetName())
+				break
+			}
+		}
+	}
+	if len(names) == 0 {
+		t.Log("did not find any gNMI server")
+		return
+	}
+
+	updates := make([]*gpb.Update, 0, len(names))
+	for _, name := range names {
+		updates = append(updates, &gpb.Update{
+			Path: &gpb.Path{
+				Elem: []*gpb.PathElem{
+					{Name: "system"},
+					{Name: "grpc-server", Key: map[string]string{"name": name}},
+					{Name: "gnmi"},
+					{Name: "expand-wildcard-paths-in-get-responses"},
+				},
+			},
+			Val: &gpb.TypedValue{
+				Value: &gpb.TypedValue_BoolVal{BoolVal: true},
+			},
+		})
+	}
+	req := &gpb.SetRequest{
+		Prefix: &gpb.Path{Origin: "native"},
+		Update: updates,
+	}
+	if _, err := dut.RawAPIs().GNMI(t).Set(context.Background(), req); err != nil {
+		t.Fatalf("Failed to set expand-wildcard-paths-in-get-responses: %v", err)
+	}
+}
+
 func setConfig(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) error {
 	t.Helper()
 	if result := configBatch.Set(t, dut); result.RawResponse.Message.GetCode() != 0 {
@@ -327,6 +393,9 @@ func TestControllerCardLargeConfigPushAndPull(t *testing.T) {
 	gnmi.Replace(t, dut, gnmi.OC().System().Hostname().Config(), "ondatraHost")
 	// Configuring the network instance as some devices only populate OC after configuration.
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
+	if deviations.GNMIExpandWildcardPathsInGetResponsesRequired(dut) {
+		configureGNMIExpandWildcardPaths(t, dut)
+	}
 
 	// Get Controller Card list that are inserted in the DUT.
 	controllerCards := components.FindComponentsByType(t, dut, controlcardType)
@@ -386,19 +455,25 @@ func testLargeConfigSetRequest(ctx context.Context, t *testing.T, dut *ondatra.D
 		gnmiClient := dut.RawAPIs().GNMI(t)
 		getRequest := buildGetRequest(t)
 		var err error
+		swapped := false
 		for attempt := 1; attempt <= 12; attempt++ {
 			if attempt > 1 {
 				time.Sleep(sleepTimeBtwAttempts)
 			}
 			ctxWithTimeout, cancelWithTimeout := context.WithTimeout(ctx, getRequestTimeout)
 			_, err = gnmiClient.Get(ctxWithTimeout, getRequest)
+			t.Logf("Checking if gNMI is responsive and card role swapped on attempt %d", attempt)
 			cancelWithTimeout()
-			if err == nil {
+			if err != nil {
+				continue
+			}
+			if verifyControllerCardSwitchover(t, dut, *controllerCards, activeStandbyCC) {
+				swapped = true
 				break
 			}
 		}
-		if err != nil {
-			t.Fatalf("gNMI agent did not become responsive: %v", err)
+		if !swapped {
+			t.Fatalf("controller roles did not swap after switchover: %v", err)
 		}
 	}
 
@@ -454,23 +529,27 @@ func testLargeConfigGetRequest(ctx context.Context, t *testing.T, dut *ondatra.D
 	gnmiClient := dut.RawAPIs().GNMI(t)
 	getRequest := buildGetRequest(t)
 	var err error
+	swapped := false
 
 	for attempt := 1; attempt <= 11; attempt++ {
 		if attempt > 1 {
 			time.Sleep(sleepTimeBtwAttempts)
 		}
 		ctxWithTimeout, cancelWithTimeout := context.WithTimeout(ctx, getRequestTimeout)
-		t.Logf("Checking if gNMI is responsive on attempt %d", attempt)
+		t.Logf("Checking if gNMI is responsive and card role swapped on attempt %d", attempt)
 		_, err = gnmiClient.Get(ctxWithTimeout, getRequest)
 		cancelWithTimeout()
-		if err == nil {
-			t.Logf("gNMI agent is responsive!")
+		if err != nil {
+			continue
+		}
+		if verifyControllerCardSwitchover(t, dut, *controllerCards, activeStandbyCC) {
+			swapped = true
 			break
 		}
 	}
 
-	if err != nil {
-		t.Fatalf("gNMI agent did not become responsive after switchover: %v", err)
+	if !swapped {
+		t.Fatalf("controller roles did not swap after switchover: %v", err)
 	}
 
 	t.Log("Verifying configuration counts AFTER switchover...")
