@@ -23,6 +23,7 @@ const (
 	ipv4PrefixLen            = 28
 	ipv6PrefixLen            = 64
 	vlanID                   = uint16(10)
+	vlanName                 = "VLAN_10"
 	vlanIntfName             = "Vlan10"
 	frameSize                = 512
 	packetPerSecond          = 100
@@ -155,6 +156,11 @@ func TestStaticRouteWithVlanInterface(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	configureDUT(t, dut)
 
+	t.Run("Validate_VLAN_State", func(t *testing.T) {
+		t.Logf("Validating VLAN %d name and status state on DUT", vlanID)
+		validateVlanState(t, dut)
+	})
+
 	ate := ondatra.ATE(t, "ate")
 	top := gosnappi.NewConfig()
 	configureOTG(t, ate, top)
@@ -182,17 +188,6 @@ func TestStaticRouteWithVlanInterface(t *testing.T) {
 func mustTestStaticRoute(t *testing.T, tc testCase, dut *ondatra.DUTDevice, top gosnappi.Config, ate *ondatra.ATEDevice) {
 	t.Helper()
 
-	t.Logf("Validating routed-vlan %s IPv4 and IPv6 address state on DUT", vlanIntfName)
-	validateRoutedVlanAddressState(t, dut)
-
-	// Validate static routes if this is the IP forwarding over static route test
-	if tc.flowType == flowTypeStatic {
-		t.Log("Validating all static routes on DUT")
-		if err := validateAllStaticRoutes(t, dut); err != nil {
-			t.Fatalf("Static route validation failed: %v", err)
-		}
-	}
-
 	// Clear existing flows
 	top.Flows().Clear()
 
@@ -205,6 +200,17 @@ func mustTestStaticRoute(t *testing.T, tc testCase, dut *ondatra.DUTDevice, top 
 
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
+
+	t.Logf("Validating routed-vlan %s IPv4 and IPv6 address state on DUT", vlanIntfName)
+	validateRoutedVlanAddressState(t, dut)
+
+	// Validate static routes if this is the IP forwarding over static route test
+	if tc.flowType == flowTypeStatic {
+		t.Log("Validating all static routes on DUT")
+		if err := validateAllStaticRoutes(t, dut); err != nil {
+			t.Fatalf("Static route validation failed: %v", err)
+		}
+	}
 
 	// Capture DUT counters BEFORE traffic
 	t.Log("Reading DUT counters before traffic")
@@ -252,6 +258,31 @@ func mustTestStaticRoute(t *testing.T, tc testCase, dut *ondatra.DUTDevice, top 
 		if err := verifyTrafficFlow(t, ate, flow.Name()); err != nil {
 			t.Fatalf("Traffic flow validation failed: %v", err)
 		}
+	}
+}
+
+// validateVlanState verifies the global VLAN name and operational status state in the default network instance.
+func validateVlanState(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+
+	vlanPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Vlan(vlanID)
+	gnmi.Await(t, dut, vlanPath.Name().State(), time.Minute, vlanName)
+
+	t.Cleanup(func() {
+		gnmi.Update(t, dut, vlanPath.Status().Config(), oc.Vlan_Status_ACTIVE)
+	})
+	gnmi.Update(t, dut, vlanPath.Status().Config(), oc.Vlan_Status_SUSPENDED)
+	gnmi.Await(t, dut, vlanPath.Status().State(), time.Minute, oc.Vlan_Status_SUSPENDED)
+
+	gnmi.Update(t, dut, vlanPath.Status().Config(), oc.Vlan_Status_ACTIVE)
+	if _, ok := gnmi.Watch(t, dut, vlanPath.Status().State(), time.Minute, func(val *ygnmi.Value[oc.E_Vlan_Status]) bool {
+		status, present := val.Val()
+		if !present {
+			return deviations.MissingValueForDefaults(dut)
+		}
+		return status == oc.Vlan_Status_ACTIVE
+	}).Await(t); !ok {
+		t.Errorf("VLAN %d status state did not return to ACTIVE", vlanID)
 	}
 }
 
@@ -352,6 +383,7 @@ func mustConfigureRecursiveStaticRoutes(t *testing.T, dut *ondatra.DUTDevice) {
 	ni := dutOcRoot.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	proto := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
 	proto.SetEnabled(true)
+	gnmi.BatchUpdate(staticRouteBatch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), proto)
 
 	for _, r := range staticRoutes {
 		routeCfg := &cfgplugins.StaticRouteCfg{
@@ -470,11 +502,22 @@ func createTrafficFlows(t *testing.T, top gosnappi.Config, flowType string) {
 	}
 }
 
-// validateAllStaticRoutes verifies that all recursive and resolution static routes are installed on the DUT.
+// validateAllStaticRoutes verifies that the static protocol is enabled and all recursive and resolution static routes are installed on the DUT.
 func validateAllStaticRoutes(t *testing.T, dut *ondatra.DUTDevice) error {
 	t.Helper()
 
 	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+
+	t.Log("Validating static protocol enabled state on DUT")
+	if _, ok := gnmi.Watch(t, dut, sp.Enabled().State(), time.Minute, func(val *ygnmi.Value[bool]) bool {
+		enabled, present := val.Val()
+		if !present {
+			return deviations.MissingValueForDefaults(dut)
+		}
+		return enabled
+	}).Await(t); !ok {
+		return fmt.Errorf("static protocol enabled state is not true")
+	}
 
 	for _, r := range staticRoutes {
 

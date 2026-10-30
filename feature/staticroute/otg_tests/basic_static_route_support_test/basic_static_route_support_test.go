@@ -328,6 +328,15 @@ func TestStaticRouteAddRemove(t *testing.T) {
 
 func validateStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, sV4 *cfgplugins.StaticRouteCfg) {
 	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+	if _, ok := gnmi.Watch(t, dut, sp.Enabled().State(), time.Minute, func(val *ygnmi.Value[bool]) bool {
+		enabled, present := val.Val()
+		if !present {
+			return deviations.MissingValueForDefaults(dut)
+		}
+		return enabled
+	}).Await(t); !ok {
+		t.Errorf("Static protocol enabled state is not true")
+	}
 	gnmi.Await(t, dut, sp.Static(prefix).Prefix().State(), 120*time.Second, prefix)
 
 	if deviations.SkipStaticNexthopCheck(dut) {
@@ -604,6 +613,15 @@ func (td *testData) testStaticRouteECMP(t *testing.T) {
 	t.Run("Telemetry", func(t *testing.T) {
 
 		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
+		if _, ok := gnmi.Watch(t, td.dut, sp.Enabled().State(), time.Minute, func(val *ygnmi.Value[bool]) bool {
+			enabled, present := val.Val()
+			if !present {
+				return deviations.MissingValueForDefaults(td.dut)
+			}
+			return enabled
+		}).Await(t); !ok {
+			t.Errorf("Static protocol enabled state is not true")
+		}
 		gnmi.Await(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).Prefix().State(), 120*time.Second, td.staticIPv4.cidr(t))
 		gnmi.Await(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).Prefix().State(), 120*time.Second, td.staticIPv6.cidr(t))
 
