@@ -183,7 +183,8 @@ func TestRemoteSyslog(t *testing.T) {
 			otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 			otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 
-			cs := startCapture(t, ate, top)
+			cs := otgutils.StartCapture(t, ate.OTG())
+			defer otgutils.StopCapture(t, ate.OTG(), cs)
 
 			sleepTime := time.Duration(totalPackets/trafficPps) + 2
 			ate.OTG().StartTraffic(t)
@@ -191,7 +192,7 @@ func TestRemoteSyslog(t *testing.T) {
 			time.Sleep(sleepTime * time.Second)
 			ate.OTG().StopTraffic(t)
 
-			stopCapture(t, ate, cs)
+			otgutils.StopCapture(t, ate.OTG(), cs)
 
 			otgutils.LogFlowMetrics(t, ate.OTG(), top)
 			otgutils.LogPortMetrics(t, ate.OTG(), top)
@@ -457,22 +458,6 @@ func enableCapture(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config)
 
 	pb, _ := config.Marshal().ToProto()
 	t.Log(pb.GetCaptures())
-}
-
-func startCapture(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) gosnappi.ControlState {
-	t.Helper()
-
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
-	ate.OTG().SetControlState(t, cs)
-
-	return cs
-}
-
-func stopCapture(t *testing.T, ate *ondatra.ATEDevice, cs gosnappi.ControlState) {
-	t.Helper()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
-	ate.OTG().SetControlState(t, cs)
 }
 
 func processCapture(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) {
