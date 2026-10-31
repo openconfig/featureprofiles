@@ -183,7 +183,8 @@ func TestISISSegmentRouting(t *testing.T) {
 	verifyISIS(t, dut, dut.Port(t, "port2").Name(), "dev2Isis")
 
 	t.Logf("Starting capture")
-	startCapture(t, ate)
+	cs := otgutils.StartCapture(t, ate.OTG())
+	defer otgutils.StopCapture(t, ate.OTG(), cs)
 	t.Logf("Waiting for routes to be installed on DUT.")
 	dni := deviations.DefaultNetworkInstance(dut)
 	ipv4Path := gnmi.OC().NetworkInstance(dni).Afts().Ipv4Entry(v4Route + "/32")
@@ -205,7 +206,7 @@ func TestISISSegmentRouting(t *testing.T) {
 	t.Logf("Stop traffic")
 	ate.OTG().StopTraffic(t)
 	t.Logf("Stop Capture")
-	stopCapture(t, ate)
+	otgutils.StopCapture(t, ate.OTG(), cs)
 
 	t.Run("Node SID Validation.", func(t *testing.T) {
 		verifyPrefixSids(t, ate, dutLoopback1.IPv4, uint32(nodeSIDLabelv4))
@@ -673,22 +674,6 @@ func verifyTrafficNodeSID(t *testing.T, ate *ondatra.ATEDevice) {
 	otgutils.ExpectedTrafficLoss(t, ate.OTG(), v4FlowNameNodeSID, 0, 0)
 	t.Logf("Starting V6 traffic validation")
 	otgutils.ExpectedTrafficLoss(t, ate.OTG(), v6FlowNameNodeSID, 0, 0)
-}
-
-// startCapture starts the capture on the otg ports
-func startCapture(t *testing.T, ate *ondatra.ATEDevice) {
-	otg := ate.OTG()
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
-	otg.SetControlState(t, cs)
-}
-
-// stopCapture starts the capture on the otg ports
-func stopCapture(t *testing.T, ate *ondatra.ATEDevice) {
-	otg := ate.OTG()
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
-	otg.SetControlState(t, cs)
 }
 
 func processCapture(t *testing.T, otg *otg.OTG, port string) {

@@ -18,8 +18,10 @@ package helpers
 import (
 	"context"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -219,6 +221,28 @@ func GetRouterTime(t *testing.T, dut *ondatra.DUTDevice) time.Time {
 	return startTime
 }
 
+// GetGnmiCLIOutput sets config built with buildCliConfigRequest and returns the output.
+func ExecuteShowCLI(t testing.TB, dut *ondatra.DUTDevice, config string) *gpb.GetResponse {
+	getReq := &gpb.GetRequest{
+		Path: []*gpb.Path{
+			{
+				Origin: "cli",
+				Elem: []*gpb.PathElem{
+					{Name: config},
+				},
+			},
+		},
+		Encoding: gpb.Encoding_ASCII,
+		Type:     gpb.GetRequest_ALL,
+	}
+
+	resp, err := dut.RawAPIs().GNMI(t).Get(context.Background(), getReq)
+	if err != nil {
+		t.Fatalf("gnmiClient.Get() with unexpected error: %v", err)
+	}
+	return resp
+}
+
 // RunCliCommand runs a CLI command on the DUT and returns the output.
 func RunCliCommand(t *testing.T, dut *ondatra.DUTDevice, cliCommand string) string {
 	cliClient := dut.RawAPIs().CLI(t)
@@ -227,4 +251,244 @@ func RunCliCommand(t *testing.T, dut *ondatra.DUTDevice, cliCommand string) stri
 		t.Fatalf("Failed to execute CLI command '%q': %v", cliCommand, err)
 	}
 	return output.Output()
+}
+
+// WaitForIPSECTunnelsParams contains parameters for waiting for a range of tunnels to come UP.
+type WaitForIPSECTunnelsParams struct {
+	StartTunnel int
+	Count       int
+	Timeout     time.Duration
+}
+
+// WaitForAllIPSECTunnelsUP waits for the IPSec tunnels numbered [startTunnel,
+// startTunnel+count-1] to reach UP state on both DUTs.
+func WaitForAllIPSECTunnelsUP(t *testing.T, dut1, dut2 *ondatra.DUTDevice, params WaitForIPSECTunnelsParams) {
+	t.Helper()
+
+	endTunnel := params.StartTunnel + params.Count - 1
+	t.Logf("Waiting for IPSec tunnels %d-%d to come UP on both DUTs (timeout: %v)...", params.StartTunnel, endTunnel, params.Timeout)
+
+	for i := params.StartTunnel; i <= endTunnel; i++ {
+		tunName := fmt.Sprintf("Tunnel%d", i)
+
+		// Check DUT1 tunnel
+		path1 := gnmi.OC().Interface(tunName).OperStatus().State()
+		_, ok1 := gnmi.Watch(t, dut1, path1, params.Timeout, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
+			status, present := val.Val()
+			return present && status == oc.Interface_OperStatus_UP
+		}).Await(t)
+		if !ok1 {
+			got1 := gnmi.Get(t, dut1, path1)
+			t.Fatalf("DUT1 tunnel %s did not come UP within %v, final status: %v", tunName, params.Timeout, got1)
+		}
+
+		// Check DUT2 tunnel
+		path2 := gnmi.OC().Interface(tunName).OperStatus().State()
+		_, ok2 := gnmi.Watch(t, dut2, path2, params.Timeout, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
+			status, present := val.Val()
+			return present && status == oc.Interface_OperStatus_UP
+		}).Await(t)
+		if !ok2 {
+			got2 := gnmi.Get(t, dut2, path2)
+			t.Fatalf("DUT2 tunnel %s did not come UP within %v, final status: %v", tunName, params.Timeout, got2)
+		}
+
+		if (i-params.StartTunnel+1)%32 == 0 || i == endTunnel {
+			t.Logf("Tunnels up through %d on both DUTs", i)
+		}
+	}
+
+	t.Logf("All IPSec tunnels %d-%d are UP on both DUTs", params.StartTunnel, endTunnel)
+}
+
+// ReadMemberOutPkts reads out-pkts telemetry counters for all specified member ports on the DUT.
+func ReadMemberOutPkts(t *testing.T, dut *ondatra.DUTDevice, memberPorts []*ondatra.Port) map[string]uint64 {
+	t.Helper()
+	vals := make(map[string]uint64)
+	for _, p := range memberPorts {
+		vals[p.Name()] = gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Counters().OutPkts().State())
+	}
+	return vals
+}
+
+// DUTDUTLoadBalanceParams contains parameters for verifying load balance across member ports.
+type DUTDUTLoadBalanceParams struct {
+	MemberPorts    []*ondatra.Port
+	Baseline       map[string]uint64
+	Tolerance      float64
+	WantSingleLink bool
+}
+
+// VerifyDUTDUTLoadBalance verifies that traffic delta across member ports matches the expected balance.
+func VerifyDUTDUTLoadBalance(t *testing.T, dut *ondatra.DUTDevice, params DUTDUTLoadBalanceParams) error {
+	t.Helper()
+
+	after := ReadMemberOutPkts(t, dut, params.MemberPorts)
+	delta := make(map[string]uint64)
+	var total uint64
+	active := 0
+
+	for _, p := range params.MemberPorts {
+		name := p.Name()
+		if after[name] > params.Baseline[name] {
+			delta[name] = after[name] - params.Baseline[name]
+		}
+		total += delta[name]
+		if delta[name] > 0 {
+			active++
+		}
+	}
+
+	if total == 0 {
+		return fmt.Errorf("no packets observed on DUT-to-DUT member links")
+	}
+
+	var errs []error
+
+	if params.WantSingleLink {
+		if active != 1 {
+			errs = append(errs, fmt.Errorf("single-link expectation failed: active members got %d, want 1", active))
+		}
+	} else {
+		if active != len(params.MemberPorts) {
+			errs = append(errs, fmt.Errorf("balanced load expectation failed: active members got %d, want %d", active, len(params.MemberPorts)))
+		}
+
+		evenShare := 1.0 / float64(len(params.MemberPorts))
+		for _, p := range params.MemberPorts {
+			name := p.Name()
+			share := float64(delta[name]) / float64(total)
+			if math.Abs(share-evenShare) > params.Tolerance {
+				errs = append(errs, fmt.Errorf("member %s share got %.3f, want %.3f +/- %.3f", name, share, evenShare, params.Tolerance))
+			}
+		}
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("load balance verification failed: %v", errs)
+	}
+	return nil
+}
+
+// InterfaceCountersMonitor streams /interfaces/interface[name]/state/counters
+// over a single gNMI STREAM subscription (gnmi.Watch) and records any sample in
+// which a cumulative counter (in-pkts, out-pkts, in-octets, out-octets) is
+// lower than in the previous sample, i.e. the counter decremented or was reset
+// to zero. It is intended for validating that counters are reported
+// monotonically while a disruptive event (linecard reboot, process restart,
+// switchover, ...) happens in the background.
+//
+// Use StartInterfaceCountersMonitor to begin monitoring and Stop to end it and
+// collect the result.
+type InterfaceCountersMonitor struct {
+	intf        string
+	maxDuration time.Duration
+	start       time.Time
+	watcher     *gnmi.Watcher[*oc.Interface_Counters]
+
+	mu         sync.Mutex
+	samples    int
+	prev       map[string]uint64
+	violations []string
+}
+
+// monotonicInterfaceCounters returns the cumulative interface counters that
+// must never decrease, keyed by their OpenConfig leaf name.
+func monotonicInterfaceCounters(c *oc.Interface_Counters) map[string]*uint64 {
+	return map[string]*uint64{
+		"in-pkts":    c.InPkts,
+		"out-pkts":   c.OutPkts,
+		"in-octets":  c.InOctets,
+		"out-octets": c.OutOctets,
+	}
+}
+
+// StartInterfaceCountersMonitor starts monitoring the counters of interface
+// intf on dut. The subscription is bounded by maxDuration; Stop should be
+// called before maxDuration expires, otherwise Stop reports that part of the
+// monitoring window was not covered.
+func StartInterfaceCountersMonitor(t *testing.T, dut *ondatra.DUTDevice, intf string, maxDuration time.Duration) *InterfaceCountersMonitor {
+	t.Helper()
+	m := &InterfaceCountersMonitor{
+		intf:        intf,
+		maxDuration: maxDuration,
+		start:       time.Now(),
+	}
+	// The predicate never returns true: the watch keeps recording samples
+	// until Stop cancels it (or maxDuration expires).
+	m.watcher = gnmi.Watch(t, dut, gnmi.OC().Interface(intf).Counters().State(), maxDuration, func(v *ygnmi.Value[*oc.Interface_Counters]) bool {
+		m.record(v)
+		return false
+	})
+	t.Logf("Started counters monitor for interface %s (max duration %v)", intf, maxDuration)
+	return m
+}
+
+// record stores one streamed sample and notes any decrement versus the
+// previous sample.
+//
+// Samples that carry no OpenConfig counter value are ignored: some targets
+// (e.g. Juniper) also stream notifications under the counters container that
+// contain only non-OpenConfig (vendor) leaves, which ygnmi reports as not
+// present. They are neither a decrement nor a reset to zero. A counter that is
+// reset to zero still arrives as a value lower than the previous sample and is
+// reported as a decrement.
+func (m *InterfaceCountersMonitor) record(v *ygnmi.Value[*oc.Interface_Counters]) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	c, ok := v.Val()
+	if !ok {
+		return
+	}
+	cur := make(map[string]uint64)
+	for name, val := range monotonicInterfaceCounters(c) {
+		if val == nil {
+			continue
+		}
+		cur[name] = *val
+		if prev, ok := m.prev[name]; ok && *val < prev {
+			m.violations = append(m.violations, fmt.Sprintf("%s %s decreased from %d to %d (timestamp %v)", m.intf, name, prev, *val, v.Timestamp))
+		}
+	}
+	if len(cur) == 0 {
+		return
+	}
+	m.samples++
+	// Keep the last known value for counters missing from this sample so a
+	// later sample is still compared against it.
+	for name, val := range m.prev {
+		if _, ok := cur[name]; !ok {
+			cur[name] = val
+		}
+	}
+	m.prev = cur
+}
+
+// Stop ends the monitoring subscription and returns the number of samples
+// received and an error describing every decrement observed, if any. An error
+// is also returned if no samples were received or if the subscription expired
+// (maxDuration) before Stop was called.
+func (m *InterfaceCountersMonitor) Stop(t *testing.T) (int, error) {
+	t.Helper()
+	expired := time.Since(m.start) >= m.maxDuration
+	m.watcher.Cancel()
+	// The predicate never returns true, so Await always reports false once
+	// the subscription is cancelled or times out.
+	m.watcher.Await(t)
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var errs []string
+	if m.samples == 0 {
+		errs = append(errs, fmt.Sprintf("%s: no counter samples received", m.intf))
+	}
+	if expired {
+		errs = append(errs, fmt.Sprintf("%s: monitor expired after %v before Stop was called; part of the window was not monitored", m.intf, m.maxDuration))
+	}
+	errs = append(errs, m.violations...)
+	t.Logf("Stopped counters monitor for interface %s after %v: %d samples, %d violations", m.intf, time.Since(m.start).Round(time.Second), m.samples, len(m.violations))
+	if len(errs) > 0 {
+		return m.samples, fmt.Errorf("interface counters monitor detected issues: %s", strings.Join(errs, "; "))
+	}
+	return m.samples, nil
 }

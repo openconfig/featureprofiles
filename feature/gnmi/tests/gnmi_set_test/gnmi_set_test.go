@@ -155,8 +155,21 @@ func TestDeleteInterface(t *testing.T) {
 	forEachPushOp(t, dut, func(t *testing.T, op pushOp, config *oc.Root) {
 		t.Log("Initialize")
 
-		config.GetOrCreateInterface(p1.Name()).Description = ygot.String(want1)
-		config.GetOrCreateInterface(p2.Name()).Description = ygot.String(want2)
+		config.DeleteInterface(p1.Name())
+		config.DeleteInterface(p2.Name())
+		intf1 := config.GetOrCreateInterface(p1.Name())
+		intf1.Description = ygot.String(want1)
+		intf1.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+		if deviations.InterfaceEnabled(dut) {
+			intf1.Enabled = ygot.Bool(true)
+		}
+		intf2 := config.GetOrCreateInterface(p2.Name())
+		intf2.Description = ygot.String(want2)
+		intf2.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+		if deviations.InterfaceEnabled(dut) {
+			intf2.Enabled = ygot.Bool(true)
+		}
+
 		op.push(t, dut, config, scope)
 
 		t.Run("VerifyBeforeDelete", func(t *testing.T) {

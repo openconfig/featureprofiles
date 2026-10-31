@@ -20,6 +20,7 @@ platform_exceptions: {
     isis_interface_afi_unsupported: true
     isis_instance_enabled_required: true
     ate_port_link_state_operations_unsupported: true
+    vendor_pre_config_required: true
   }
 }
 platform_exceptions: {

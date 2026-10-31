@@ -33,6 +33,7 @@ import (
 	"github.com/google/gopacket/pcap"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	baseScenario "github.com/openconfig/featureprofiles/internal/encapfrr"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -288,6 +289,10 @@ func dutInterface(p *ondatra.Port, dut *ondatra.DUTDevice) *oc.Interface {
 
 // configureDUT configures all the interfaces on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPortList []*ondatra.Port) {
+	if deviations.VendorPreConfigRequired(dut) {
+		cfgplugins.ConfigureDecapVrfSelection(t, dut)
+	}
+
 	dc := gnmi.OC()
 	for _, dp := range dutPortList {
 
@@ -712,21 +717,17 @@ func startCapture(t *testing.T, args *testArgs, capturePortList []string) gosnap
 	time.Sleep(30 * time.Second)
 	args.otg.StartProtocols(t)
 	time.Sleep(30 * time.Second)
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
-	args.otg.SetControlState(t, cs)
-	return cs
+	return otgutils.StartCapture(t, args.otg)
 }
 
 func sendTraffic(t *testing.T, args *testArgs, capturePortList []string, cs gosnappi.ControlState) {
 	t.Helper()
+	defer otgutils.StopCapture(t, args.otg, cs)
 	t.Logf("Starting traffic")
 	args.otg.StartTraffic(t)
 	time.Sleep(15 * time.Second)
 	t.Logf("Stop traffic")
 	args.otg.StopTraffic(t)
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
-	args.otg.SetControlState(t, cs)
 }
 
 func verifyTraffic(t *testing.T, args *testArgs, capturePortList []string, loadBalancePercent []float64, wantLoss, checkEncap bool, headerDstIP map[string][]string) {
@@ -1223,6 +1224,7 @@ func TestEncapFrr(t *testing.T) {
 			configureGribiRoute(ctx, t, dut, client)
 			createFlow(t, otgConfig, otg, ipv4InnerDst)
 			captureState := startCapture(t, args, baseCapturePortList)
+			defer otgutils.StopCapture(t, args.otg, captureState)
 			sendTraffic(t, args, baseCapturePortList, captureState)
 			baseHeaderDstIP := map[string][]string{"outerIP": {gribiIPv4EntryVRF1111, gribiIPv4EntryVRF1112}, "innerIP": {ipv4InnerDst, ipv4InnerDst}}
 			baseLoadBalancePercent := []float64{0.0156, 0.0468, 0.1875, 0, 0.75, 0, 0}
@@ -1269,6 +1271,7 @@ func TestEncapFrr(t *testing.T) {
 			}
 
 			captureState = startCapture(t, args, tc.CapturePortList)
+			defer otgutils.StopCapture(t, args.otg, captureState)
 			if len(tc.DownPortList) > 0 {
 				t.Logf("Bring down ports %s", tc.DownPortList)
 				portState(t, args, tc.DownPortList, false)
