@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "a129d966-063d-4099-afd1-98942399ec79"
+plan_id: "RT-3.5"
+description: "VRF Selection Policy Hardware Programming Across Multiple Linecards"
+testbed: TESTBED_DUT_ATE_8LINKS
