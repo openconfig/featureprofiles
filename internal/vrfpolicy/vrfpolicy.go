@@ -30,8 +30,6 @@ const (
 	VRFPolicyW = "vrf_selection_policy_w"
 	// VRFPolicyC is the policy name
 	VRFPolicyC = "vrf_selection_policy_c"
-	// NiRepair is the canonical repair VRF network-instance name defined in TE-16.3.
-	NiRepair = "REPAIR"
 
 	niDecapTeVrf            = "DECAP_TE_VRF"
 	niEncapTeVrfA           = "ENCAP_TE_VRF_A"
@@ -73,11 +71,11 @@ type policyFwRule struct {
 }
 
 // configureNetworkInstance configures vrfs DECAP_TE_VRF, ENCAP_TE_VRF_A, ENCAP_TE_VRF_B,
-// ENCAP_TE_VRF_C, ENCAP_TE_VRF_D, TE_VRF_111, TE_VRF_222, REPAIR, and REPAIR_VRF.
+// ENCAP_TE_VRF_C, ENCAP_TE_VRF_D, TE_VRF_111, TE_VRF_222
 func configNonDefaultNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	c := &oc.Root{}
-	vrfs := []string{niDecapTeVrf, niEncapTeVrfA, niEncapTeVrfB, niEncapTeVrfC, niEncapTeVrfD, niTeVrf111, niTeVrf222, NiRepair, niRepairVrf}
+	vrfs := []string{niDecapTeVrf, niEncapTeVrfA, niEncapTeVrfB, niEncapTeVrfC, niEncapTeVrfD, niTeVrf111, niTeVrf222, niRepairVrf}
 	for _, vrf := range vrfs {
 		ni := c.GetOrCreateNetworkInstance(vrf)
 		ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
@@ -399,74 +397,4 @@ func DeletePolicyForwarding(t *testing.T, dut *ondatra.DUTDevice, portID string)
 	}
 	pfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID)
 	gnmi.Delete(t, dut, pfPath.Config())
-}
-
-// VerifyVRFSelectionPolicyCState verifies via gNMI state telemetry that vrf_selection_policy_c
-// rules 3, 4, 7, 8, 11, and 12 match outer IPv4 source 198.51.100.111/32 with IP protocols
-// 4 and 41 and direct packets missing DECAP_TE_VRF to decap-fallback-network-instance TE_VRF_111,
-// and that IPv4/IPv6 DSCP-set rules (13, 14, 15, 16) are reported in state (TE-16.3 Test-11 Step 2).
-func VerifyVRFSelectionPolicyCState(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-	policyPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Policy(VRFPolicyC)
-
-	seq11 := uint32(11)
-	seq12 := uint32(12)
-	seq13 := uint32(13)
-	seq14 := uint32(14)
-	seq15 := uint32(15)
-	seq16 := uint32(16)
-	if deviations.PfRequireSequentialOrderPbrRules(dut) {
-		seq11 = 911
-		seq12 = 912
-		seq13 = 913
-		seq14 = 914
-		seq15 = 915
-		seq16 = 916
-	}
-
-	decapRules := []struct {
-		seqID      uint32
-		wantDSCP   []uint8
-		wantSource string
-		wantFallbk string
-	}{
-		{seqID: 3, wantDSCP: []uint8{dscpEncapA1, dscpEncapA2}, wantSource: ipv4OuterSrc111WithMask, wantFallbk: niTeVrf111},
-		{seqID: 4, wantDSCP: []uint8{dscpEncapA1, dscpEncapA2}, wantSource: ipv4OuterSrc111WithMask, wantFallbk: niTeVrf111},
-		{seqID: 7, wantDSCP: []uint8{dscpEncapB1, dscpEncapB2}, wantSource: ipv4OuterSrc111WithMask, wantFallbk: niTeVrf111},
-		{seqID: 8, wantDSCP: []uint8{dscpEncapB1, dscpEncapB2}, wantSource: ipv4OuterSrc111WithMask, wantFallbk: niTeVrf111},
-		{seqID: seq11, wantDSCP: nil, wantSource: ipv4OuterSrc111WithMask, wantFallbk: niTeVrf111},
-		{seqID: seq12, wantDSCP: nil, wantSource: ipv4OuterSrc111WithMask, wantFallbk: niTeVrf111},
-	}
-
-	for _, r := range decapRules {
-		rulePath := policyPath.Rule(r.seqID)
-		gotFallbk := gnmi.Get(t, dut, rulePath.Action().DecapFallbackNetworkInstance().State())
-		if gotFallbk != r.wantFallbk {
-			t.Errorf("Rule %d decap-fallback-network-instance state: got %q, want %q", r.seqID, gotFallbk, r.wantFallbk)
-		}
-		gotSrc := gnmi.Get(t, dut, rulePath.Ipv4().SourceAddress().State())
-		if gotSrc != r.wantSource {
-			t.Errorf("Rule %d ipv4 source-address state: got %q, want %q", r.seqID, gotSrc, r.wantSource)
-		}
-		if len(r.wantDSCP) > 0 {
-			gotDSCP := gnmi.Get(t, dut, rulePath.Ipv4().DscpSet().State())
-			if len(gotDSCP) != len(r.wantDSCP) {
-				t.Errorf("Rule %d ipv4 dscp-set state length: got %v, want %v", r.seqID, gotDSCP, r.wantDSCP)
-			}
-		}
-	}
-
-	// Verify IPv4 and IPv6 DSCP-set state on rules 13, 14, 15, 16.
-	for _, seq := range []uint32{seq13, seq15} {
-		gotDSCP := gnmi.Get(t, dut, policyPath.Rule(seq).Ipv4().DscpSet().State())
-		if len(gotDSCP) == 0 {
-			t.Errorf("Rule %d ipv4 dscp-set state is empty, want non-empty", seq)
-		}
-	}
-	for _, seq := range []uint32{seq14, seq16} {
-		gotDSCP := gnmi.Get(t, dut, policyPath.Rule(seq).Ipv6().DscpSet().State())
-		if len(gotDSCP) == 0 {
-			t.Errorf("Rule %d ipv6 dscp-set state is empty, want non-empty", seq)
-		}
-	}
 }

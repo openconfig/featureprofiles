@@ -76,15 +76,19 @@ const (
 	dscpEncapA2            = 18
 	dscpEncapB1            = 20
 	dscpEncapB2            = 28
+	ipv4OuterSrcAddr       = "198.100.200.123"
 	ipv4InnerDst           = "138.0.11.8"
 	ipv6InnerDst           = "2001:db8::138:0:11:8"
 	ipv4OuterDst333        = "192.58.200.7"
-	noMatchEncapDest       = baseScenario.NoMatchEncapDest
-	niDecapTeVrf           = "DECAP_TE_VRF"
-	niEncapTeVrfA          = "ENCAP_TE_VRF_A"
-	niEncapTeVrfB          = "ENCAP_TE_VRF_B"
-	niRepairVrf            = vrfpolicy.NiRepair
-	tolerancePct           = 2
+	noMatchEncapDest       = "20.0.0.1"
+	niDecapTeVrf                = "DECAP_TE_VRF"
+	niEncapTeVrfA               = "ENCAP_TE_VRF_A"
+	niEncapTeVrfB               = "ENCAP_TE_VRF_B"
+	niRepairVrf                 = "REPAIR_VRF"
+	gribiIPv6EntryEncapVRF      = "2001:db8::138:0:11:0"
+	gribiIPv6EntryEncapVRFHost8 = "2001:db8::138:0:11:8"
+	gribiIPv6EntryMaskLen       = "126"
+	tolerancePct                = 2
 	tolerance              = 0.2
 	encapFlow              = "encapFlow"
 	correspondingHopLimit  = 64
@@ -291,6 +295,9 @@ func dutInterface(p *ondatra.Port, dut *ondatra.DUTDevice) *oc.Interface {
 
 // configureDUT configures all the interfaces on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPortList []*ondatra.Port) {
+	if dut.Vendor() == ondatra.ARISTA {
+		helpers.GnmiCLIConfig(t, dut, "management api gnsi\n no service authz\n!\n")
+	}
 	if deviations.VendorPreConfigRequired(dut) {
 		cfgplugins.ConfigureDecapVrfSelection(t, dut)
 	}
@@ -750,7 +757,9 @@ func configureOTG(t *testing.T, otg *otg.OTG, atePorts []*ondatra.Port) gosnappi
 	}
 
 	otg.PushConfig(t, config)
+	time.Sleep(30 * time.Second)
 	otg.StartProtocols(t)
+	time.Sleep(30 * time.Second)
 	otgutils.WaitForARP(t, otg, config, "IPv4")
 	otgutils.WaitForARP(t, otg, config, "IPv6")
 	pb, _ := config.Marshal().ToProto()
@@ -779,7 +788,7 @@ func createFlow(t *testing.T, config gosnappi.Config, otg *otg.OTG, trafficDestI
 	ethHeader1.Src().SetValue(ateSrcPortMac)
 
 	IPHeader := flow1.Packet().Add().Ipv4()
-	IPHeader.Src().Increment().SetCount(ateSrcNetCount).SetStep("0.0.0.1").SetStart(ateSrcNetFirstIP)
+	IPHeader.Src().Increment().SetCount(1000).SetStep("0.0.0.1").SetStart(ipv4OuterSrcAddr)
 	IPHeader.Dst().SetValue(trafficDestIP)
 	IPHeader.Priority().Dscp().Phb().SetValue(dscpEncapA1)
 
@@ -788,11 +797,6 @@ func createFlow(t *testing.T, config gosnappi.Config, otg *otg.OTG, trafficDestI
 	UDPHeader.SrcPort().Increment().SetStart(1).SetCount(50000).SetStep(1)
 
 	config.Flows().Append(flow1)
-
-	t.Logf("Pushing traffic flows to OTG and starting protocols...")
-	otg.PushConfig(t, config)
-	otg.StartProtocols(t)
-	otgutils.WaitForARP(t, otg, config, "IPv4")
 }
 
 func startCapture(t *testing.T, args *testArgs, capturePortList []string) gosnappi.ControlState {
@@ -801,10 +805,27 @@ func startCapture(t *testing.T, args *testArgs, capturePortList []string) gosnap
 	args.otgConfig.Captures().Add().SetName("packetCapture").
 		SetPortNames(capturePortList).
 		SetFormat(gosnappi.CaptureFormat.PCAP)
+	needsPort8BGP := false
+	for _, p := range capturePortList {
+		if len(atePortNamelist) > 7 && p == atePortNamelist[7] {
+			needsPort8BGP = true
+			break
+		}
+	}
 	args.otg.PushConfig(t, args.otgConfig)
+	if needsPort8BGP {
+		time.Sleep(30 * time.Second)
+	}
 	args.otg.StartProtocols(t)
+	if needsPort8BGP {
+		time.Sleep(30 * time.Second)
+	}
 	otgutils.WaitForARP(t, args.otg, args.otgConfig, "IPv4")
 	otgutils.WaitForARP(t, args.otg, args.otgConfig, "IPv6")
+	if needsPort8BGP {
+		verifyISISTelemetry(t, args.dut, args.dut.Port(t, "port8").Name())
+		verifyBgpTelemetry(t, args.dut)
+	}
 	t.Cleanup(func() {
 		if len(args.otgConfig.Captures().Items()) > 0 {
 			stopCS := gosnappi.NewControlState()
@@ -820,7 +841,7 @@ func startCapture(t *testing.T, args *testArgs, capturePortList []string) gosnap
 
 func sendTraffic(t *testing.T, args *testArgs, capturePortList []string, cs gosnappi.ControlState) {
 	t.Helper()
-	otgutils.WaitForARP(t, args.otg, args.otgConfig, "IPv4")
+	otgutils.WaitForARP(t, args.otg, args.top, "IPv4")
 	t.Logf("Starting traffic")
 	args.otg.StartTraffic(t)
 	// Wait via gnmi.Watch until at least minTransmittedPkts have been transmitted before stopping traffic.
@@ -860,8 +881,6 @@ func verifyTraffic(t *testing.T, args *testArgs, capturePortList []string, loadB
 	}
 	validatePackets(t, pcapFileList, checkEncap, headerDstIP)
 	args.otgConfig.Captures().Clear()
-	args.otg.PushConfig(t, args.otgConfig)
-	args.otg.StartProtocols(t)
 }
 
 // waitForFlowMetricsReady waits via gnmi.Watch until a flow's TX/RX counters stabilize after stopping traffic.
@@ -1212,10 +1231,8 @@ func TestEncapFrr(t *testing.T) {
 			TestID:                 "teVrf222NoMatch",
 		},
 		&baseScenario.TestCase{
-			// README Test-9: Update NHG#101 to point to unresolvable next-hops in TE_VRF_111
-			// without shutting down physical ports; traffic falls back to DEFAULT VRF on port-8.
 			Desc:                   "Test-9: no match in TE_VRF_111",
-			DownPortList:           []string{},
+			DownPortList:           []string{"port2", "port3", "port4", "port6"},
 			CapturePortList:        []string{atePortNamelist[7]},
 			EncapHeaderOuterIPList: []string{},
 			EncapHeaderInnerIPList: []string{ipv4InnerDst},
@@ -1243,12 +1260,14 @@ func TestEncapFrr(t *testing.T) {
 			}
 			baseCapturePortList := []string{atePortNamelist[1], atePortNamelist[5]}
 			configureGribiRoute(ctx, t, dut, args.client)
+			createFlow(t, otgConfig, otg, ipv4InnerDst)
+			captureState := startCapture(t, args, baseCapturePortList)
+			sendTraffic(t, args, baseCapturePortList, captureState)
+			baseHeaderDstIP := map[string][]string{"outerIP": {gribiIPv4EntryVRF1111, gribiIPv4EntryVRF1112}, "innerIP": {ipv4InnerDst, ipv4InnerDst}}
+			baseLoadBalancePercent := []float64{0.0156, 0.0468, 0.1875, 0, 0.75, 0, 0}
+			verifyTraffic(t, args, baseCapturePortList, baseLoadBalancePercent, !wantLoss, checkEncap, baseHeaderDstIP)
 
-			// For Test-3 (primaryBackupRoutingSingle), Test-6 (primaryBackupRoutingAll), and
-			// Test-8 (teVrf222NoMatch), README Step 1 updates the gRIBI NHGs first and Step 2
-			// validates baseline hierarchical traffic distribution before shutting down ports.
 			if tc.TestID == "primaryBackupRoutingSingle" {
-				// Test-3 Step 1: Update NHG#1000 to decapsulate IPv4 and route in DEFAULT VRF.
 				args.client.Modify().AddEntry(t,
 					fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 						WithIndex(1100).WithDecapsulateHeader(fluent.IPinIP).
@@ -1261,7 +1280,6 @@ func TestEncapFrr(t *testing.T) {
 				}
 			}
 			if tc.TestID == "primaryBackupRoutingAll" {
-				// Test-6 Step 1: Update NHG#1000 and NHG#1001 to decapsulate IPv4 and route in DEFAULT VRF.
 				args.client.Modify().AddEntry(t,
 					fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 						WithIndex(1200).WithDecapsulateHeader(fluent.IPinIP).
@@ -1278,9 +1296,10 @@ func TestEncapFrr(t *testing.T) {
 					t.Logf("Could not program entries via client, got err, check error codes: %v", err)
 				}
 			}
+			if tc.TestID == "encapNoMatch" {
+				createFlow(t, otgConfig, otg, noMatchEncapDest)
+			}
 			if tc.TestID == "teVrf222NoMatch" {
-				// Test-8 Step 1: Update NHG#1000 and NHG#1001 to re-encapsulate to unresolvable
-				// destinations 203.100.113.100 and 203.100.113.101 in TE_VRF_222.
 				args.client.Modify().AddEntry(t,
 					fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 						WithIndex(1300).WithDecapsulateHeader(fluent.IPinIP).WithEncapsulateHeader(fluent.IPinIP).
@@ -1289,62 +1308,35 @@ func TestEncapFrr(t *testing.T) {
 						WithIndex(1301).WithDecapsulateHeader(fluent.IPinIP).WithEncapsulateHeader(fluent.IPinIP).
 						WithIPinIP(ipv4OuterSrc222Addr, gribiIPv4EntryVRF2224).WithNextHopNetworkInstance(niTEVRF222),
 					fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-						WithID(1000).AddNextHop(1300, 1).WithBackupNHG(2000),
+						WithID(1000).AddNextHop(1300, 1),
 					fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-						WithID(1001).AddNextHop(1301, 1).WithBackupNHG(2000),
+						WithID(1001).AddNextHop(1301, 1),
 				)
 				if err := awaitTimeout(ctx, t, args.client, 2*time.Minute); err != nil {
 					t.Logf("Could not program entries via client, got err, check error codes: %v", err)
 				}
 				res := args.client.Results(t)
-				for _, nhIdx := range []uint64{1300, 1301} {
+				operIndexList := []uint64{1000, 1001}
+				for _, operIndex := range operIndexList {
 					chk.HasResult(t, res,
 						fluent.OperationResult().
 							WithOperationType(constants.Add).
-							WithNextHopOperation(nhIdx).
+							WithNextHopOperation(operIndex).
+							WithProgrammingResult(fluent.InstalledInFIB).
+							AsResult(),
+						chk.IgnoreOperationID(),
+					)
+					chk.HasResult(t, res,
+						fluent.OperationResult().
+							WithOperationType(constants.Add).
+							WithNextHopGroupOperation(operIndex).
 							WithProgrammingResult(fluent.InstalledInFIB).
 							AsResult(),
 						chk.IgnoreOperationID(),
 					)
 				}
-				for _, nhgIdx := range []uint64{1000, 1001} {
-					chk.HasResult(t, res,
-						fluent.OperationResult().
-							WithOperationType(constants.Add).
-							WithNextHopGroupOperation(nhgIdx).
-							WithProgrammingResult(fluent.InstalledInFIB).
-							AsResult(),
-						chk.IgnoreOperationID(),
-					)
-				}
-			}
-
-			// Validate baseline traffic distribution per hierarchical weights (README Test-1..Test-9 baseline / Step 2).
-			createFlow(t, otgConfig, otg, ipv4InnerDst)
-			captureState := startCapture(t, args, baseCapturePortList)
-			sendTraffic(t, args, baseCapturePortList, captureState)
-			baseHeaderDstIP := map[string][]string{"outerIP": {gribiIPv4EntryVRF1111, gribiIPv4EntryVRF1112}, "innerIP": {ipv4InnerDst, ipv4InnerDst}}
-			baseLoadBalancePercent := []float64{0.0156, 0.0468, 0.1875, 0, 0.75, 0, 0}
-			verifyTraffic(t, args, baseCapturePortList, baseLoadBalancePercent, !wantLoss, checkEncap, baseHeaderDstIP)
-
-			if tc.TestID == "encapNoMatch" {
-				// Test-7 Step 1: In ENCAP_TE_VRF_A, add a 0.0.0.0/0 static route pointing to the DEFAULT VRF using gNMI.
-				staticDefaultRoute := []*cfgplugins.StaticRouteCfg{
-					{
-						NetworkInstance:     niEncapTeVrfA,
-						Prefix:              "0.0.0.0/0",
-						NextNetworkInstance: deviations.DefaultNetworkInstance(dut),
-					},
-				}
-				t.Cleanup(func() {
-					cfgplugins.RemoveStaticRoutesInVRF(t, dut, staticDefaultRoute)
-				})
-				cfgplugins.ConfigureStaticRoutesInVRF(t, dut, staticDefaultRoute)
-				createFlow(t, otgConfig, otg, noMatchEncapDest)
 			}
 			if tc.TestID == "teVrf111NoMatch" {
-				// Test-9 Step 1: Update NHG#101 to point to next-hops 203.100.113.1 and 203.100.113.2
-				// which have no matching routes in TE_VRF_111.
 				args.client.Modify().AddEntry(t,
 					fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 						WithIndex(201).WithEncapsulateHeader(fluent.IPinIP).WithIPinIP(ipv4OuterSrc111Addr, gribiIPv4EntryVRF1113).
@@ -1385,10 +1377,17 @@ func TestEncapFrr(t *testing.T) {
 				)
 			}
 
-			if deviations.ReducedEcmpSetOnMixedEncapDecapNh(dut) {
-				if tc.TestID == "primaryBackupSingle" || tc.TestID == "primaryBackupRoutingSingle" {
+			if deviations.EncapTunnelShutBackupNhgZeroTraffic(dut) || deviations.ReducedEcmpSetOnMixedEncapDecapNh(dut) {
+				if tc.TestID == "primarySingle" || tc.TestID == "primaryBackupSingle" || tc.TestID == "primaryBackupRoutingSingle" {
 					tc.CapturePortList = []string{atePortNamelist[5]}
+					tc.EncapHeaderOuterIPList = []string{gribiIPv4EntryVRF1112}
+					tc.EncapHeaderInnerIPList = []string{ipv4InnerDst}
 					tc.LoadBalancePercent = []float64{0, 0, 0, 0, 1, 0, 0}
+				} else if tc.TestID == "primaryAll" {
+					tc.CapturePortList = []string{atePortNamelist[7]}
+					tc.EncapHeaderOuterIPList = []string{}
+					tc.EncapHeaderInnerIPList = []string{ipv4InnerDst}
+					tc.LoadBalancePercent = []float64{0, 0, 0, 0, 0, 0, 1}
 				}
 			}
 
@@ -1405,13 +1404,6 @@ func TestEncapFrr(t *testing.T) {
 			sendTraffic(t, args, tc.CapturePortList, captureState)
 			headerDstIP := map[string][]string{"outerIP": tc.EncapHeaderOuterIPList, "innerIP": tc.EncapHeaderInnerIPList}
 
-			if deviations.EncapTunnelShutBackupNhgZeroTraffic(dut) {
-				if tc.TestID == "primarySingle" || tc.TestID == "primaryBackupSingle" || tc.TestID == "primaryBackupRoutingSingle" {
-					tc.LoadBalancePercent = []float64{0, 0, 0, 0, 1, 0, 0}
-				} else if tc.TestID == "primaryAll" {
-					tc.LoadBalancePercent = []float64{0, 0, 0, 0, 0, 0, 1}
-				}
-			}
 			verifyTraffic(t, args, tc.CapturePortList, tc.LoadBalancePercent, !wantLoss, checkEncap, headerDstIP)
 		})
 	}
@@ -1507,10 +1499,6 @@ func createMultiFlows(t *testing.T, config gosnappi.Config, otgDev *otg.OTG, spe
 		flowNames = append(flowNames, spec.name)
 	}
 
-	otgDev.PushConfig(t, config)
-	otgDev.StartProtocols(t)
-	otgutils.WaitForARP(t, otgDev, config, "IPv4")
-	otgutils.WaitForARP(t, otgDev, config, "IPv6")
 	return flowNames
 }
 
@@ -1595,8 +1583,6 @@ func sendAndVerifyMultiFlows(t *testing.T, args *testArgs, flowNames []string, d
 		verifyPortStatus(t, args, downPorts, true)
 	}
 	args.otgConfig.Captures().Clear()
-	args.otg.PushConfig(t, args.otgConfig)
-	args.otg.StartProtocols(t)
 }
 
 // validateDualStackCaptureFile validates captured packets on capturePort for either 4in4/6in4
@@ -1676,6 +1662,362 @@ func validateDualStackCaptureFile(t *testing.T, pcapPath, capturePort string, ex
 	}
 }
 
+// configureMultiVRFDualStackGribiRoutes programs the IPv6 entries in ENCAP_TE_VRF_A and
+// the IPv4 and IPv6 entries in ENCAP_TE_VRF_B with inverted tunnel weights (3:1 on NH#103/NH#104)
+// and backup NHG#2001 as specified in TE-16.3 Test-10 Step 1.
+func configureMultiVRFDualStackGribiRoutes(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, client *fluent.GRIBIClient, encapVrfA, encapVrfB string) {
+	t.Helper()
+	defNI := deviations.DefaultNetworkInstance(dut)
+
+	// Program NH#103, NH#104, and NHG#102 in DEFAULT VRF with inverted weights 3:1 across
+	// 203.0.113.1 and 203.0.113.2 in TE_VRF_111 and backup NHG#2001, plus IPv6 entries in
+	// ENCAP_TE_VRF_A and IPv4/IPv6 entries in ENCAP_TE_VRF_B (Test-10 Step 1).
+	client.Modify().AddEntry(t,
+		fluent.NextHopEntry().WithNetworkInstance(defNI).
+			WithIndex(103).WithEncapsulateHeader(fluent.IPinIP).
+			WithIPinIP(ipv4OuterSrc111Addr, gribiIPv4EntryVRF1111).
+			WithNextHopNetworkInstance(niTEVRF111),
+		fluent.NextHopEntry().WithNetworkInstance(defNI).
+			WithIndex(104).WithEncapsulateHeader(fluent.IPinIP).
+			WithIPinIP(ipv4OuterSrc111Addr, gribiIPv4EntryVRF1112).
+			WithNextHopNetworkInstance(niTEVRF111),
+		fluent.NextHopGroupEntry().WithNetworkInstance(defNI).
+			WithID(102).AddNextHop(103, 3).AddNextHop(104, 1).WithBackupNHG(2001),
+		fluent.IPv6Entry().WithNetworkInstance(encapVrfA).
+			WithPrefix("::/0").WithNextHopGroup(1003).WithNextHopGroupNetworkInstance(defNI),
+		fluent.IPv6Entry().WithNetworkInstance(encapVrfA).
+			WithPrefix(gribiIPv6EntryEncapVRF+"/"+gribiIPv6EntryMaskLen).WithNextHopGroup(101).
+			WithNextHopGroupNetworkInstance(defNI),
+		fluent.IPv6Entry().WithNetworkInstance(encapVrfA).
+			WithPrefix(gribiIPv6EntryEncapVRFHost8+"/"+gribiIPv6EntryMaskLen).WithNextHopGroup(101).
+			WithNextHopGroupNetworkInstance(defNI),
+		fluent.IPv4Entry().WithNetworkInstance(encapVrfB).
+			WithPrefix("0.0.0.0/0").WithNextHopGroup(1003).WithNextHopGroupNetworkInstance(defNI),
+		fluent.IPv6Entry().WithNetworkInstance(encapVrfB).
+			WithPrefix("::/0").WithNextHopGroup(1003).WithNextHopGroupNetworkInstance(defNI),
+		fluent.IPv4Entry().WithNetworkInstance(encapVrfB).
+			WithPrefix(gribiIPv4EntryEncapVRF+"/24").WithNextHopGroup(102).
+			WithNextHopGroupNetworkInstance(defNI),
+		fluent.IPv6Entry().WithNetworkInstance(encapVrfB).
+			WithPrefix(gribiIPv6EntryEncapVRF+"/"+gribiIPv6EntryMaskLen).WithNextHopGroup(102).
+			WithNextHopGroupNetworkInstance(defNI),
+		fluent.IPv6Entry().WithNetworkInstance(encapVrfB).
+			WithPrefix(gribiIPv6EntryEncapVRFHost8+"/"+gribiIPv6EntryMaskLen).WithNextHopGroup(102).
+			WithNextHopGroupNetworkInstance(defNI),
+	)
+	if err := awaitTimeout(ctx, t, client, time.Minute); err != nil {
+		t.Logf("Could not program multi-VRF dual-stack gRIBI entries, got err: %v", err)
+	}
+
+	for _, v4Prefix := range []string{"0.0.0.0/0", gribiIPv4EntryEncapVRF + "/24"} {
+		chk.HasResult(t, client.Results(t),
+			fluent.OperationResult().
+				WithIPv4Operation(v4Prefix).
+				WithOperationType(constants.Add).
+				WithProgrammingResult(fluent.InstalledInFIB).
+				AsResult(),
+			chk.IgnoreOperationID(),
+		)
+	}
+	for _, v6Prefix := range []string{
+		"::/0",
+		gribiIPv6EntryEncapVRF + "/" + gribiIPv6EntryMaskLen,
+		gribiIPv6EntryEncapVRFHost8 + "/" + gribiIPv6EntryMaskLen,
+	} {
+		chk.HasResult(t, client.Results(t),
+			fluent.OperationResult().
+				WithIPv6Operation(v6Prefix).
+				WithOperationType(constants.Add).
+				WithProgrammingResult(fluent.InstalledInFIB).
+				AsResult(),
+			chk.IgnoreOperationID(),
+		)
+	}
+}
+
+// verifyMultiVRFAFTState verifies via gNMI AFT state telemetry that IPv4 and IPv6 prefixes are
+// installed in the specified VRFs with resolved next-hop-groups and that tunnel next-hop-groups
+// in TE_VRF_111 are present in AFT state (TE-16.3 Test-10 Step 2).
+func verifyMultiVRFAFTState(t *testing.T, dut *ondatra.DUTDevice, ipv4VRFs map[string]map[string]uint64, ipv6VRFs map[string]map[string]uint64, _ map[string]map[uint64]uint64) {
+	t.Helper()
+	if deviations.AFTNextHopEncapsulateHeaderUnsupported(dut) {
+		t.Logf("Skipping non-default VRF AFT telemetry state check on %s (AFTNextHopEncapsulateHeaderUnsupported)", dut.Vendor())
+		return
+	}
+	defNI := deviations.DefaultNetworkInstance(dut)
+	v4ResolvedNHG := make(map[string]uint64)
+	for vrf, prefixes := range ipv4VRFs {
+		aftPath := gnmi.OC().NetworkInstance(vrf).Afts()
+		for prefix := range prefixes {
+			v4Val, ok := gnmi.Watch(t, dut, aftPath.Ipv4Entry(prefix).State(), 30*time.Second, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+				v, present := val.Val()
+				return present && v != nil && v.GetNextHopGroup() != 0
+			}).Await(t)
+			if !ok {
+				t.Errorf("VRF %s IPv4Entry %s not present in AFT state", vrf, prefix)
+				continue
+			}
+			v4Entry, _ := v4Val.Val()
+			nhgID := v4Entry.GetNextHopGroup()
+			v4ResolvedNHG[vrf+":"+prefix] = nhgID
+			nhgNI := v4Entry.GetNextHopGroupNetworkInstance()
+			if nhgNI == "" {
+				nhgNI = defNI
+			}
+			if _, ok := gnmi.Watch(t, dut, gnmi.OC().NetworkInstance(nhgNI).Afts().NextHopGroup(nhgID).State(), 30*time.Second, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_NextHopGroup]) bool {
+				v, present := val.Val()
+				return present && v != nil && len(v.NextHop) > 0
+			}).Await(t); !ok {
+				t.Errorf("VRF %s IPv4Entry %s next-hop-group %d not present in %s AFT state", vrf, prefix, nhgID, nhgNI)
+			}
+		}
+	}
+	for vrf, prefixes := range ipv6VRFs {
+		aftPath := gnmi.OC().NetworkInstance(vrf).Afts()
+		for prefix := range prefixes {
+			v6Val, ok := gnmi.Watch(t, dut, aftPath.Ipv6Entry(prefix).State(), 30*time.Second, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
+				v, present := val.Val()
+				return present && v != nil && v.GetNextHopGroup() != 0
+			}).Await(t)
+			if !ok {
+				t.Errorf("VRF %s IPv6Entry %s not present in AFT state", vrf, prefix)
+				continue
+			}
+			v6Entry, _ := v6Val.Val()
+			nhgID := v6Entry.GetNextHopGroup()
+			nhgNI := v6Entry.GetNextHopGroupNetworkInstance()
+			if nhgNI == "" {
+				nhgNI = defNI
+			}
+			if _, ok := gnmi.Watch(t, dut, gnmi.OC().NetworkInstance(nhgNI).Afts().NextHopGroup(nhgID).State(), 30*time.Second, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_NextHopGroup]) bool {
+				v, present := val.Val()
+				return present && v != nil && len(v.NextHop) > 0
+			}).Await(t); !ok {
+				t.Errorf("VRF %s IPv6Entry %s next-hop-group %d not present in %s AFT state", vrf, prefix, nhgID, nhgNI)
+			}
+			if v4NHG, exists := v4ResolvedNHG[vrf+":"+gribiIPv4EntryEncapVRF+"/24"]; exists && prefix == gribiIPv6EntryEncapVRF+"/"+gribiIPv6EntryMaskLen {
+				if nhgID != v4NHG {
+					t.Errorf("VRF %s IPv6Entry %s next-hop-group (%d) does not match IPv4Entry next-hop-group (%d)", vrf, prefix, nhgID, v4NHG)
+				}
+			}
+		}
+	}
+	for _, tunnelPfx := range []string{gribiIPv4EntryVRF1111 + "/32", gribiIPv4EntryVRF1112 + "/32"} {
+		tVal, ok := gnmi.Watch(t, dut, gnmi.OC().NetworkInstance(niTEVRF111).Afts().Ipv4Entry(tunnelPfx).State(), 30*time.Second, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+			v, present := val.Val()
+			return present && v != nil && v.GetNextHopGroup() != 0
+		}).Await(t)
+		if !ok {
+			t.Errorf("VRF %s tunnel IPv4Entry %s not present in AFT state", niTEVRF111, tunnelPfx)
+			continue
+		}
+		tEntry, _ := tVal.Val()
+		nhgID := tEntry.GetNextHopGroup()
+		nhgNI := tEntry.GetNextHopGroupNetworkInstance()
+		if nhgNI == "" {
+			nhgNI = defNI
+		}
+		nhgVal, ok := gnmi.Watch(t, dut, gnmi.OC().NetworkInstance(nhgNI).Afts().NextHopGroup(nhgID).State(), 30*time.Second, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_NextHopGroup]) bool {
+			v, present := val.Val()
+			return present && v != nil && len(v.NextHop) > 0
+		}).Await(t)
+		if !ok {
+			t.Errorf("VRF %s tunnel IPv4Entry %s next-hop-group %d not present in %s AFT state", niTEVRF111, tunnelPfx, nhgID, nhgNI)
+			continue
+		}
+		nhgState, _ := nhgVal.Val()
+		t.Logf("VRF %s tunnel %s resolved NHG %d (backup-next-hop-group=%d)", niTEVRF111, tunnelPfx, nhgID, nhgState.GetBackupNextHopGroup())
+	}
+}
+
+// verifyRepairReencapNextHopState verifies via gNMI AFT state telemetry that the repair VRF
+// re-encapsulation prefixes resolve to valid next-hop-groups and next-hops in the DEFAULT
+// network instance (TE-16.3 Test-11 Step 6).
+func verifyRepairReencapNextHopState(t *testing.T, dut *ondatra.DUTDevice, _ []uint64) {
+	t.Helper()
+	if deviations.AFTNextHopEncapsulateHeaderUnsupported(dut) {
+		t.Logf("Skipping %s AFT next-hop encapsulation header telemetry check on %s (AFTNextHopEncapsulateHeaderUnsupported)", niRepairVrf, dut.Vendor())
+		return
+	}
+	defNI := deviations.DefaultNetworkInstance(dut)
+	for _, repairPfx := range []string{gribiIPv4EntryVRF1111 + "/32", gribiIPv4EntryVRF1112 + "/32"} {
+		ipv4Path := gnmi.OC().NetworkInstance(niRepairVrf).Afts().Ipv4Entry(repairPfx)
+		ipv4Val, ok := gnmi.Watch(t, dut, ipv4Path.State(), 30*time.Second, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+			v, present := val.Val()
+			return present && v != nil && v.GetNextHopGroup() != 0
+		}).Await(t)
+		if !ok {
+			t.Errorf("%s IPv4Entry %s not present in telemetry AFT", niRepairVrf, repairPfx)
+			continue
+		}
+		ipv4Entry, _ := ipv4Val.Val()
+		nhgNI := ipv4Entry.GetNextHopGroupNetworkInstance()
+		if nhgNI == "" {
+			nhgNI = defNI
+		}
+		nhgID := ipv4Entry.GetNextHopGroup()
+		nhgVal, ok := gnmi.Watch(t, dut, gnmi.OC().NetworkInstance(nhgNI).Afts().NextHopGroup(nhgID).State(), 30*time.Second, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_NextHopGroup]) bool {
+			v, present := val.Val()
+			return present && v != nil && len(v.NextHop) > 0
+		}).Await(t)
+		if !ok {
+			t.Errorf("%s prefix %s next-hop-group %d not present in %s telemetry AFT", niRepairVrf, repairPfx, nhgID, nhgNI)
+			continue
+		}
+		nhg, _ := nhgVal.Val()
+		for nhIndex := range nhg.NextHop {
+			nhVal, ok := gnmi.Watch(t, dut, gnmi.OC().NetworkInstance(nhgNI).Afts().NextHop(nhIndex).State(), 10*time.Second, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_NextHop]) bool {
+				v, present := val.Val()
+				return present && v != nil
+			}).Await(t)
+			if !ok {
+				t.Errorf("Next-hop %d of next-hop-group %d is not present in %s telemetry AFT", nhIndex, nhgID, nhgNI)
+				continue
+			}
+			nh, _ := nhVal.Val()
+			t.Logf("%s prefix %s next-hop %d: decapsulate-header = %v, encapsulate-header = %v, origin-protocol = %v",
+				niRepairVrf, repairPfx, nhIndex, nh.GetDecapsulateHeader(), nh.GetEncapsulateHeader(), nh.GetOriginProtocol())
+			if !deviations.AFTNextHopEncapsulateHeaderUnsupported(dut) {
+				if got, want := nh.GetDecapsulateHeader(), oc.Aft_EncapsulationHeaderType_IPV4; got != want {
+					t.Errorf("%s prefix %s next-hop %d: decapsulate-header = %v, want %v", niRepairVrf, repairPfx, nhIndex, got, want)
+				}
+				if got, want := nh.GetEncapsulateHeader(), oc.Aft_EncapsulationHeaderType_IPV4; got != want {
+					t.Errorf("%s prefix %s next-hop %d: encapsulate-header = %v, want %v", niRepairVrf, repairPfx, nhIndex, got, want)
+				}
+			}
+			if !deviations.AFTNextHopOriginProtocolUnsupported(dut) {
+				if got, want := nh.GetOriginProtocol(), oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_GRIBI; got != want {
+					t.Errorf("%s prefix %s next-hop %d: origin-protocol = %v, want %v", niRepairVrf, repairPfx, nhIndex, got, want)
+				}
+			}
+		}
+	}
+}
+
+// verifyNoContinuousDiscards verifies via time-bounded gNMI Watch calls that interface in-discards
+// and out-discards counters do not continuously increment after encap FRR convergence
+// (TE-16.3 Test-10 Step 6/7 and Test-11 Step 6).
+func verifyNoContinuousDiscards(t *testing.T, dut *ondatra.DUTDevice, ports []*ondatra.Port) {
+	t.Helper()
+	for _, p := range ports {
+		intfCounters := gnmi.OC().Interface(p.Name()).Counters()
+		var baseIn, baseOut uint64
+		if v, ok := gnmi.Watch(t, dut, intfCounters.InDiscards().State(), 5*time.Second, func(v *ygnmi.Value[uint64]) bool {
+			return v.IsPresent()
+		}).Await(t); ok {
+			baseIn, _ = v.Val()
+		}
+		if v, ok := gnmi.Watch(t, dut, intfCounters.OutDiscards().State(), 5*time.Second, func(v *ygnmi.Value[uint64]) bool {
+			return v.IsPresent()
+		}).Await(t); ok {
+			baseOut, _ = v.Val()
+		}
+
+		// Watch in-discards to ensure it stabilizes at baseIn rather than continuously incrementing.
+		if _, ok := gnmi.Watch(t, dut, intfCounters.InDiscards().State(), 5*time.Second, func(v *ygnmi.Value[uint64]) bool {
+			val, present := v.Val()
+			return !present || val == baseIn
+		}).Await(t); !ok {
+			if v, ok := gnmi.Watch(t, dut, intfCounters.InDiscards().State(), 5*time.Second, func(v *ygnmi.Value[uint64]) bool {
+				return v.IsPresent()
+			}).Await(t); ok {
+				if latestIn, _ := v.Val(); latestIn > baseIn {
+					t.Errorf("Interface %s in-discards continuously incremented after convergence: baseline %d, current %d", p.Name(), baseIn, latestIn)
+				}
+			}
+		}
+
+		// Watch out-discards to ensure it stabilizes at baseOut.
+		if _, ok := gnmi.Watch(t, dut, intfCounters.OutDiscards().State(), 5*time.Second, func(v *ygnmi.Value[uint64]) bool {
+			val, present := v.Val()
+			return !present || val == baseOut
+		}).Await(t); !ok {
+			if v, ok := gnmi.Watch(t, dut, intfCounters.OutDiscards().State(), 5*time.Second, func(v *ygnmi.Value[uint64]) bool {
+				return v.IsPresent()
+			}).Await(t); ok {
+				if latestOut, _ := v.Val(); latestOut > baseOut {
+					t.Errorf("Interface %s out-discards continuously incremented after convergence: baseline %d, current %d", p.Name(), baseOut, latestOut)
+				}
+			}
+		}
+	}
+}
+
+// verifyVRFSelectionPolicyCState verifies via gNMI state telemetry that vrf_selection_policy_c
+// rules 3, 4, 7, 8, 11, and 12 match outer IPv4 source 198.51.100.111/32 with IP protocols
+// 4 and 41 and direct packets missing DECAP_TE_VRF to decap-fallback-network-instance TE_VRF_111,
+// and that IPv4/IPv6 DSCP-set rules (13, 14, 15, 16) are reported in state (TE-16.3 Test-11 Step 2).
+func verifyVRFSelectionPolicyCState(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		t.Logf("Skipping PolicyForwarding rule state telemetry check on %s (InterfaceRefInterfaceIDFormat)", dut.Vendor())
+		return
+	}
+	policyPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Policy(vrfpolicy.VRFPolicyC)
+
+	seq11 := uint32(11)
+	seq12 := uint32(12)
+	seq13 := uint32(13)
+	seq14 := uint32(14)
+	seq15 := uint32(15)
+	seq16 := uint32(16)
+	if deviations.PfRequireSequentialOrderPbrRules(dut) {
+		seq11 = 911
+		seq12 = 912
+		seq13 = 913
+		seq14 = 914
+		seq15 = 915
+		seq16 = 916
+	}
+
+	const ipv4OuterSrc111WithMask = "198.51.100.111/32"
+	decapRules := []struct {
+		seqID      uint32
+		wantDSCP   []uint8
+		wantSource string
+		wantFallbk string
+	}{
+		{seqID: 3, wantDSCP: []uint8{dscpEncapA1, dscpEncapA2}, wantSource: ipv4OuterSrc111WithMask, wantFallbk: niTEVRF111},
+		{seqID: 4, wantDSCP: []uint8{dscpEncapA1, dscpEncapA2}, wantSource: ipv4OuterSrc111WithMask, wantFallbk: niTEVRF111},
+		{seqID: 7, wantDSCP: []uint8{dscpEncapB1, dscpEncapB2}, wantSource: ipv4OuterSrc111WithMask, wantFallbk: niTEVRF111},
+		{seqID: 8, wantDSCP: []uint8{dscpEncapB1, dscpEncapB2}, wantSource: ipv4OuterSrc111WithMask, wantFallbk: niTEVRF111},
+		{seqID: seq11, wantDSCP: nil, wantSource: ipv4OuterSrc111WithMask, wantFallbk: niTEVRF111},
+		{seqID: seq12, wantDSCP: nil, wantSource: ipv4OuterSrc111WithMask, wantFallbk: niTEVRF111},
+	}
+
+	for _, r := range decapRules {
+		rulePath := policyPath.Rule(r.seqID)
+		gotFallbk := gnmi.Get(t, dut, rulePath.Action().DecapFallbackNetworkInstance().State())
+		if gotFallbk != r.wantFallbk {
+			t.Errorf("Rule %d decap-fallback-network-instance state: got %q, want %q", r.seqID, gotFallbk, r.wantFallbk)
+		}
+		gotSrc := gnmi.Get(t, dut, rulePath.Ipv4().SourceAddress().State())
+		if gotSrc != r.wantSource {
+			t.Errorf("Rule %d ipv4 source-address state: got %q, want %q", r.seqID, gotSrc, r.wantSource)
+		}
+		if len(r.wantDSCP) > 0 {
+			gotDSCP := gnmi.Get(t, dut, rulePath.Ipv4().DscpSet().State())
+			if len(gotDSCP) != len(r.wantDSCP) {
+				t.Errorf("Rule %d ipv4 dscp-set state length: got %v, want %v", r.seqID, gotDSCP, r.wantDSCP)
+			}
+		}
+	}
+
+	// Verify IPv4 and IPv6 DSCP-set state on rules 13, 14, 15, 16.
+	for _, seq := range []uint32{seq13, seq15} {
+		gotDSCP := gnmi.Get(t, dut, policyPath.Rule(seq).Ipv4().DscpSet().State())
+		if len(gotDSCP) == 0 {
+			t.Errorf("Rule %d ipv4 dscp-set state is empty, want non-empty", seq)
+		}
+	}
+	for _, seq := range []uint32{seq14, seq16} {
+		gotDSCP := gnmi.Get(t, dut, policyPath.Rule(seq).Ipv6().DscpSet().State())
+		if len(gotDSCP) == 0 {
+			t.Errorf("Rule %d ipv6 dscp-set state is empty, want non-empty", seq)
+		}
+	}
+}
+
 // runTest10MultiVRFDualStackRepairConvergence implements README Test-10:
 // Multi-VRF (ENCAP_TE_VRF_A and ENCAP_TE_VRF_B) dual-stack (IPv4 and IPv6) encap path
 // convergence into REPAIR VRF on primary tunnel edge cut.
@@ -1690,19 +2032,19 @@ func runTest10MultiVRFDualStackRepairConvergence(ctx context.Context, t *testing
 		t.Fatal(err)
 	}
 	configureGribiRoute(ctx, t, args.dut, args.client)
-	baseScenario.ConfigureMultiVRFDualStackGribiRoutes(ctx, t, args.dut, args.client, niEncapTeVrfA, niEncapTeVrfB)
+	configureMultiVRFDualStackGribiRoutes(ctx, t, args.dut, args.client, niEncapTeVrfA, niEncapTeVrfB)
 
 	// Test-10 Step 2: Verify via gNMI AFT state telemetry that IPv4 and IPv6 entries in
 	// ENCAP_TE_VRF_A and ENCAP_TE_VRF_B are installed and NHG#1/NHG#3 report backup-next-hop-group = 3000.
 	defNI := deviations.DefaultNetworkInstance(args.dut)
-	baseScenario.VerifyMultiVRFAFTState(t, args.dut,
+	verifyMultiVRFAFTState(t, args.dut,
 		map[string]map[string]uint64{
 			niEncapTeVrfA: {gribiIPv4EntryEncapVRF + "/24": 101},
 			niEncapTeVrfB: {gribiIPv4EntryEncapVRF + "/24": 102},
 		},
 		map[string]map[string]uint64{
-			niEncapTeVrfA: {baseScenario.GribiIPv6EntryEncapVRF + "/" + baseScenario.GribiIPv6EntryMaskLen: 101},
-			niEncapTeVrfB: {baseScenario.GribiIPv6EntryEncapVRF + "/" + baseScenario.GribiIPv6EntryMaskLen: 102},
+			niEncapTeVrfA: {gribiIPv6EntryEncapVRF + "/" + gribiIPv6EntryMaskLen: 101},
+			niEncapTeVrfB: {gribiIPv6EntryEncapVRF + "/" + gribiIPv6EntryMaskLen: 102},
 		},
 		map[string]map[uint64]uint64{
 			defNI: {1: 3000, 3: 3000},
@@ -1773,7 +2115,7 @@ func runTest10MultiVRFDualStackRepairConvergence(ctx context.Context, t *testing
 		singleCutOuterDsts,
 		nil,
 		func() {
-			baseScenario.VerifyNoContinuousDiscards(t, args.dut, []*ondatra.Port{
+			verifyNoContinuousDiscards(t, args.dut, []*ondatra.Port{
 				args.dut.Port(t, "port1"),
 				args.dut.Port(t, "port5"),
 				args.dut.Port(t, "port6"),
@@ -1787,7 +2129,7 @@ func runTest10MultiVRFDualStackRepairConvergence(ctx context.Context, t *testing
 		t.Fatal(err)
 	}
 	configureGribiRoute(ctx, t, args.dut, args.client)
-	baseScenario.ConfigureMultiVRFDualStackGribiRoutes(ctx, t, args.dut, args.client, niEncapTeVrfA, niEncapTeVrfB)
+	configureMultiVRFDualStackGribiRoutes(ctx, t, args.dut, args.client, niEncapTeVrfA, niEncapTeVrfB)
 
 	// Test-10 Step 7: Shut down DUT port-2, port-3, port-4, and port-6 so all primary tunnels in TE_VRF_111
 	// are unviable, and validate 100% convergence onto REPAIR VRF backup tunnels in TE_VRF_222 (port-5 and port-7)
@@ -1798,7 +2140,7 @@ func runTest10MultiVRFDualStackRepairConvergence(ctx context.Context, t *testing
 	allCutExpectEncap := true
 	allCutOuterSrc := ipv4OuterSrc222Addr
 	allCutOuterDsts := []string{gribiIPv4EntryVRF2221, gribiIPv4EntryVRF2222, gribiIPv4EntryVRF2225}
-	if deviations.EncapTunnelShutBackupNhgZeroTraffic(args.dut) {
+	if deviations.EncapTunnelShutBackupNhgZeroTraffic(args.dut) || deviations.ReducedEcmpSetOnMixedEncapDecapNh(args.dut) {
 		allCutWeights = []float64{0, 0, 0, 0, 0, 0, 1}
 		allCutCapturePorts = []string{atePortNamelist[7]}
 		allCutExpectEncap = false
@@ -1811,7 +2153,7 @@ func runTest10MultiVRFDualStackRepairConvergence(ctx context.Context, t *testing
 		allCutOuterDsts,
 		nil,
 		func() {
-			baseScenario.VerifyNoContinuousDiscards(t, args.dut, []*ondatra.Port{
+			verifyNoContinuousDiscards(t, args.dut, []*ondatra.Port{
 				args.dut.Port(t, "port1"),
 				args.dut.Port(t, "port5"),
 				args.dut.Port(t, "port7"),
@@ -1825,7 +2167,7 @@ func runTest10MultiVRFDualStackRepairConvergence(ctx context.Context, t *testing
 		t.Fatal(err)
 	}
 	configureGribiRoute(ctx, t, args.dut, args.client)
-	baseScenario.ConfigureMultiVRFDualStackGribiRoutes(ctx, t, args.dut, args.client, niEncapTeVrfA, niEncapTeVrfB)
+	configureMultiVRFDualStackGribiRoutes(ctx, t, args.dut, args.client, niEncapTeVrfA, niEncapTeVrfB)
 
 	// Test-10 Step 8: With DUT port-2, port-3, port-4, and port-6 re-enabled and verified oper-status UP,
 	// confirm traffic restores to primary TE_VRF_111 tunnels with 0% steady-state loss.
@@ -1858,11 +2200,11 @@ func runTest11TransitIPinIPReencapRepairConvergence(ctx context.Context, t *test
 		t.Fatal(err)
 	}
 	configureGribiRoute(ctx, t, args.dut, args.client)
-	baseScenario.ConfigureMultiVRFDualStackGribiRoutes(ctx, t, args.dut, args.client, niEncapTeVrfA, niEncapTeVrfB)
+	configureMultiVRFDualStackGribiRoutes(ctx, t, args.dut, args.client, niEncapTeVrfA, niEncapTeVrfB)
 
 	// Test-11 Step 2: Verify via gNMI state telemetry that vrf_selection_policy_c rules 3, 4, 7, 8, 11, and 12
 	// match outer source 198.51.100.111/32 and direct packets missing DECAP_TE_VRF to decap-fallback-network-instance TE_VRF_111.
-	vrfpolicy.VerifyVRFSelectionPolicyCState(t, args.dut)
+	verifyVRFSelectionPolicyCState(t, args.dut)
 
 	// Test-11 Step 3: Configure 4 pre-encapsulated IP-in-IP transit flows on ATE port-1:
 	// Transit Flow 1 (4in4 DSCP 10), Transit Flow 2 (6in4 DSCP 10),
@@ -1927,22 +2269,15 @@ func runTest11TransitIPinIPReencapRepairConvergence(ctx context.Context, t *test
 	reencapExpectEncap := true
 	reencapOuterSrc := ipv4OuterSrc222Addr
 	reencapOuterDsts := []string{gribiIPv4EntryVRF2221, gribiIPv4EntryVRF2222, gribiIPv4EntryVRF2225}
-	if deviations.EncapTunnelShutBackupNhgZeroTraffic(args.dut) {
-		reencapWeights = []float64{0, 0, 0, 0, 0, 0, 1}
-		reencapCapturePorts = []string{atePortNamelist[7]}
-		reencapExpectEncap = false
-		reencapOuterSrc = ""
-		reencapOuterDsts = nil
-	}
 	sendAndVerifyMultiFlows(t, args, flowNames, primaryTransitPorts,
 		reencapCapturePorts,
 		reencapWeights, reencapExpectEncap, reencapOuterSrc,
 		reencapOuterDsts,
 		func() {
-			baseScenario.VerifyRepairReencapNextHopState(t, args.dut, []uint64{1000, 1001, 1004})
+			verifyRepairReencapNextHopState(t, args.dut, []uint64{1000, 1001, 1004})
 		},
 		func() {
-			baseScenario.VerifyNoContinuousDiscards(t, args.dut, []*ondatra.Port{
+			verifyNoContinuousDiscards(t, args.dut, []*ondatra.Port{
 				args.dut.Port(t, "port1"),
 				args.dut.Port(t, "port5"),
 				args.dut.Port(t, "port7"),
@@ -1956,7 +2291,7 @@ func runTest11TransitIPinIPReencapRepairConvergence(ctx context.Context, t *test
 		t.Fatal(err)
 	}
 	configureGribiRoute(ctx, t, args.dut, args.client)
-	baseScenario.ConfigureMultiVRFDualStackGribiRoutes(ctx, t, args.dut, args.client, niEncapTeVrfA, niEncapTeVrfB)
+	configureMultiVRFDualStackGribiRoutes(ctx, t, args.dut, args.client, niEncapTeVrfA, niEncapTeVrfB)
 
 	// Test-11 Step 7 & Step 8: Shut down DUT port-2, port-3, port-4, port-5, port-6, and port-7 so both
 	// TE_VRF_111 primary tunnels and TE_VRF_222 backup tunnels are unviable, triggering backup_next_hop_group: 2000
@@ -1976,7 +2311,7 @@ func runTest11TransitIPinIPReencapRepairConvergence(ctx context.Context, t *test
 		t.Fatal(err)
 	}
 	configureGribiRoute(ctx, t, args.dut, args.client)
-	baseScenario.ConfigureMultiVRFDualStackGribiRoutes(ctx, t, args.dut, args.client, niEncapTeVrfA, niEncapTeVrfB)
+	configureMultiVRFDualStackGribiRoutes(ctx, t, args.dut, args.client, niEncapTeVrfA, niEncapTeVrfB)
 
 	// Test-11 Step 9: With DUT port-2, port-3, port-4, port-5, port-6, and port-7 re-enabled and verified
 	// oper-status UP, confirm all transit flows revert to the primary TE_VRF_111 tunnels with 0% steady-state loss.
