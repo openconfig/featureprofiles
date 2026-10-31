@@ -37,6 +37,7 @@ type VrfRule struct {
 	IpType       string
 	SourcePrefix string
 	PrefixLength uint8
+	DscpSet      []uint8
 	NetInstName  string
 }
 
