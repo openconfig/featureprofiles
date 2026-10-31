@@ -18,10 +18,36 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 )
+
+// StartCapture starts packet capture on all configured OTG capture ports and
+// registers a t.Cleanup handler to ensure capture is stopped if the test exits
+// early.
+func StartCapture(t testing.TB, otg *otg.OTG) gosnappi.ControlState {
+	t.Helper()
+	cs := gosnappi.NewControlState()
+	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
+	otg.SetControlState(t, cs)
+	t.Cleanup(func() {
+		StopCapture(t, otg, cs)
+	})
+	return cs
+}
+
+// StopCapture stops packet capture on OTG ports using the provided
+// ControlState. It is a no-op if cs is nil or already in the STOP state.
+func StopCapture(t testing.TB, otg *otg.OTG, cs gosnappi.ControlState) {
+	t.Helper()
+	if cs == nil || cs.Port().Capture().State() == gosnappi.StatePortCaptureState.STOP {
+		return
+	}
+	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
+	otg.SetControlState(t, cs)
+}
 
 // GetFlowStats checks to see if all the flows are completely stopped and returns tx and rx packets for the given flow
 func GetFlowStats(t testing.TB, otg *otg.OTG, flowName string, timeout time.Duration) (txPackets, rxPackets uint64) {

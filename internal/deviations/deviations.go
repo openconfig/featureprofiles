@@ -158,6 +158,11 @@ func ISISRestartSuppressUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisRestartSuppressUnsupported()
 }
 
+// ISISLspRetransmitCounterUnsupported returns whether the device skips isis lsp retransmit packet counter check.
+func ISISLspRetransmitCounterUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisLspRetransmitCounterUnsupported()
+}
+
 // BgpGrHelperDisableUnsupported returns whether the device does not support to disable BGP GR Helper.
 func BgpGrHelperDisableUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpGrHelperDisableUnsupported()
@@ -2523,4 +2528,10 @@ func BgpAfiSafiSendCommunityTypeUnsupported(dut *ondatra.DUTDevice) bool {
 // Arista: https://partnerissuetracker.corp.google.com/issues/567813121
 func ISISInterfaceAuthenticationContainerUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisInterfaceAuthenticationContainerUnsupported()
+}
+
+// SkipGnoiPingRpcAuthzVerification returnds true if Gnoi Ping rpc to be skipped based on a deviation
+// Arista: https://partnerissuetracker.corp.google.com/issues/219953165
+func SkipGnoiPingRpcAuthzVerification(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipGnoiPingRpcAuthzVerification()
 }
