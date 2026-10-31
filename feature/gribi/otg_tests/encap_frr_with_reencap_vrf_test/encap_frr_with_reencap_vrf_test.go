@@ -826,21 +826,12 @@ func startCapture(t *testing.T, args *testArgs, capturePortList []string) gosnap
 		verifyISISTelemetry(t, args.dut, args.dut.Port(t, "port8").Name())
 		verifyBgpTelemetry(t, args.dut)
 	}
-	t.Cleanup(func() {
-		if len(args.otgConfig.Captures().Items()) > 0 {
-			stopCS := gosnappi.NewControlState()
-			stopCS.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
-			args.otg.SetControlState(t, stopCS)
-		}
-	})
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
-	args.otg.SetControlState(t, cs)
-	return cs
+	return otgutils.StartCapture(t, args.otg)
 }
 
 func sendTraffic(t *testing.T, args *testArgs, capturePortList []string, cs gosnappi.ControlState) {
 	t.Helper()
+	defer otgutils.StopCapture(t, args.otg, cs)
 	otgutils.WaitForARP(t, args.otg, args.top, "IPv4")
 	t.Logf("Starting traffic")
 	args.otg.StartTraffic(t)
@@ -851,8 +842,6 @@ func sendTraffic(t *testing.T, args *testArgs, capturePortList []string, cs gosn
 	}).Await(t)
 	t.Logf("Stop traffic")
 	args.otg.StopTraffic(t)
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
-	args.otg.SetControlState(t, cs)
 }
 
 func verifyTraffic(t *testing.T, args *testArgs, capturePortList []string, loadBalancePercent []float64, wantLoss, checkEncap bool, headerDstIP map[string][]string) {
@@ -1262,6 +1251,7 @@ func TestEncapFrr(t *testing.T) {
 			configureGribiRoute(ctx, t, dut, args.client)
 			createFlow(t, otgConfig, otg, ipv4InnerDst)
 			captureState := startCapture(t, args, baseCapturePortList)
+			defer otgutils.StopCapture(t, args.otg, captureState)
 			sendTraffic(t, args, baseCapturePortList, captureState)
 			baseHeaderDstIP := map[string][]string{"outerIP": {gribiIPv4EntryVRF1111, gribiIPv4EntryVRF1112}, "innerIP": {ipv4InnerDst, ipv4InnerDst}}
 			baseLoadBalancePercent := []float64{0.0156, 0.0468, 0.1875, 0, 0.75, 0, 0}
@@ -1392,6 +1382,7 @@ func TestEncapFrr(t *testing.T) {
 			}
 
 			captureState = startCapture(t, args, tc.CapturePortList)
+			defer otgutils.StopCapture(t, args.otg, captureState)
 			if len(tc.DownPortList) > 0 {
 				t.Cleanup(func() {
 					portState(t, args, tc.DownPortList, true)
@@ -1519,6 +1510,7 @@ func dscpToTrafficClass(dscps []uint32) []uint32 {
 func sendAndVerifyMultiFlows(t *testing.T, args *testArgs, flowNames []string, downPorts []string, capturePorts []string, wantWeights []float64, expectEncap bool, wantOuterSrc string, wantOuterDsts []string, afterPortDown func(), afterTraffic func()) {
 	t.Helper()
 	cs := startCapture(t, args, capturePorts)
+	defer otgutils.StopCapture(t, args.otg, cs)
 	if len(downPorts) > 0 {
 		t.Cleanup(func() {
 			portState(t, args, downPorts, true)
@@ -1540,8 +1532,6 @@ func sendAndVerifyMultiFlows(t *testing.T, args *testArgs, flowNames []string, d
 	defer func() {
 		if trafficStarted {
 			args.otg.StopTraffic(t)
-			cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
-			args.otg.SetControlState(t, cs)
 		}
 	}()
 	for _, fn := range flowNames {
@@ -1551,8 +1541,7 @@ func sendAndVerifyMultiFlows(t *testing.T, args *testArgs, flowNames []string, d
 		}).Await(t)
 	}
 	args.otg.StopTraffic(t)
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
-	args.otg.SetControlState(t, cs)
+	otgutils.StopCapture(t, args.otg, cs)
 	trafficStarted = false
 
 	for _, fn := range flowNames {
