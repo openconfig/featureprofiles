@@ -18,6 +18,14 @@ platform_exceptions: {
 }
 platform_exceptions: {
   platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    containerz_dut_clock_sync_required: true
+  }
+}
+platform_exceptions: {
+  platform: {
     vendor: NOKIA
   }
   deviations: {
