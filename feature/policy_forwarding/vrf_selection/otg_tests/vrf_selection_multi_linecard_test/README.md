@@ -1,21 +1,21 @@
-# RT-3.5: VRF Selection Policy Hardware Programming Across Multiple Linecards
+# RT-3.6: VRF Selection Policy Hardware Programming Across Multiple Linecards
 
 ## Summary
 
-On a modular DUT, a VRF selection policy bound to several ingress interfaces must be programmed into the forwarding hardware of **every** linecard (and every forwarding integrated circuit) hosting one of those interfaces. This test builds up in stages across three ingress linecards (`LC-A`, `LC-B`, `LC-C`) and a separate egress linecard (`LC-EGRESS`):
+On a modular DUT, a VRF selection policy bound to several ingress interfaces must be programmed into the forwarding hardware of **every** linecard (and every forwarding integrated circuit) hosting one of those interfaces. This test dynamically discovers the parent `LINECARD` component for each reserved port (`port1`..`port8`), requires at least 2 distinct linecards across the testbed (using up to 3 distinct ingress linecards `LC_INGRESS` when available), and builds up in stages:
 
-1. **RT-3.5.1**: Baseline 2-rule VRF selection policy (one IPv4, one IPv6) bound to physical ports on three ingress linecards.
-2. **RT-3.5.2**: In-place scale to 34 rules steering into 4 VRFs (`VRF-1`..`VRF-4`) across 6 ingress interfaces (one physical port and one LACP aggregate interface per ingress linecard).
-3. **RT-3.5.3**: In-place rule modification propagation across all linecards without stale hardware entries.
-4. **RT-3.5.4**: Physical ingress port and LACP member port flap persistence on each linecard.
-5. **RT-3.5.5**: Repeated single-linecard cold reboots while traffic runs hitlessly on the remaining linecards.
-6. **RT-3.5.6**: Linecard boot with concurrent policy rule and interface binding updates before the booting linecard's aggregate interface comes up.
-7. **RT-3.5.7**: Simultaneous multi-linecard cold reboots (Part A) and full DUT cold reboots with configuration persistence (Part B).
-8. **RT-3.5.8**: In-place policy replace and 5-iteration interface unbind/rebind churn across all 6 ingress interfaces.
-9. **RT-3.5.9**: Per-linecard forwarding ASIC (`INTEGRATED_CIRCUIT`) resource utilization telemetry and cross-linecard symmetry.
-10. **RT-3.5.10**: Negative configuration and forwarding checks (`RT-3.5.10.1`–`RT-3.5.10.5`).
+1. **RT-3.6.1**: Baseline 2-rule VRF selection policy (one IPv4, one IPv6) bound to physical ingress ports `port1`..`port3` across the discovered ingress linecards.
+2. **RT-3.6.2**: In-place scale to 34 rules steering into 4 VRFs (`VRF-1`..`VRF-4`) across 6 ingress interfaces (`port1`..`port3` and LACP aggregates `Agg-A`..`Agg-C` on `port5`..`port7`).
+3. **RT-3.6.3**: In-place rule modification propagation across all linecards without stale hardware entries.
+4. **RT-3.6.4**: Physical ingress port and LACP member port flap persistence on each linecard.
+5. **RT-3.6.5**: Single-linecard cold reboot on each discovered ingress linecard (1 iteration per linecard) while traffic runs hitlessly on any un-rebooted linecards.
+6. **RT-3.6.6**: Linecard boot with concurrent policy rule and interface binding updates before the booting linecard's aggregate interface comes up (1 iteration per ingress linecard).
+7. **RT-3.6.7**: Simultaneous multi-linecard cold reboot (Part A, 1 iteration) and full DUT cold reboot with configuration persistence (Part B, 1 iteration).
+8. **RT-3.6.8**: In-place policy replace and 5-iteration interface unbind/rebind churn across all 6 ingress interfaces.
+9. **RT-3.6.9**: Per-linecard forwarding ASIC (`INTEGRATED_CIRCUIT`) resource utilization telemetry and cross-linecard symmetry.
+10. **RT-3.6.10**: Negative configuration and forwarding checks (`RT-3.6.10.1`–`RT-3.6.10.5`).
 
-Every traffic check is validated per ingress linecard and per address family, distinguishing VRF-steered traffic from `DEFAULT`-routed traffic by egress port/subinterface.
+Every traffic check is validated per ingress interface and per address family, distinguishing VRF-steered traffic from `DEFAULT`-routed traffic by egress port/subinterface.
 
 ## Testbed type
 
@@ -27,46 +27,46 @@ Every traffic check is validated per ingress linecard and per address family, di
 
 ```mermaid
 graph LR
-A1[ATE port-1] <-->|LC-A| D1[DUT port-1]
-A5[ATE port-5] <-->|LC-A, Agg-A member| D5[DUT port-5]
-A2[ATE port-2] <-->|LC-B| D2[DUT port-2]
-A6[ATE port-6] <-->|LC-B, Agg-B member| D6[DUT port-6]
-A3[ATE port-3] <-->|LC-C| D3[DUT port-3]
-A7[ATE port-7] <-->|LC-C, Agg-C member| D7[DUT port-7]
-D4[DUT port-4] <-->|LC-EGRESS, VLAN 10-13 (VRF-1..VRF-4)| A4[ATE port-4]
-D8[DUT port-8] <-->|LC-EGRESS (DEFAULT)| A8[ATE port-8]
+A1[ATE port-1] <-->|Ingress physical| D1[DUT port-1]
+A5[ATE port-5] <-->|Ingress Agg-A member| D5[DUT port-5]
+A2[ATE port-2] <-->|Ingress physical| D2[DUT port-2]
+A6[ATE port-6] <-->|Ingress Agg-B member| D6[DUT port-6]
+A3[ATE port-3] <-->|Ingress physical| D3[DUT port-3]
+A7[ATE port-7] <-->|Ingress Agg-C member| D7[DUT port-7]
+D4[DUT port-4] <-->|Egress VLAN 10-13 (VRF-1..VRF-4)| A4[ATE port-4]
+D8[DUT port-8] <-->|Egress (DEFAULT)| A8[ATE port-8]
 ```
 
 #### Port roles and linecard placement precondition
 
 * Connect DUT `port1`..`port8` to ATE `port1`..`port8` respectively.
-* **Ingress interfaces**: physical ports `port1`, `port2`, `port3` (from RT-3.5.1) and 1-member LACP aggregates `Agg-A` (`port5`), `Agg-B` (`port6`), `Agg-C` (`port7`) (added in RT-3.5.2, allocated via the DUT's aggregate naming).
-* **Egress interfaces**: `port4` (VLAN subinterfaces for `VRF-1`..`VRF-4`, plus `port4.20` for `DEFAULT` in RT-3.5.1) and `port8` (`DEFAULT` from RT-3.5.2 onward).
-* **Linecard resolution & precondition**:
-  * For each port, read `/interfaces/interface/state/hardware-port` and walk `/components/component/state/parent` up to 5 hops until `/components/component/state/type == LINECARD`. If no `LINECARD` component exists, skip with `"DUT has no LINECARD components; RT-3.5 requires a modular DUT"`.
-  * Verify `port1` & `port5` share `LC-A`, `port2` & `port6` share `LC-B`, `port3` & `port7` share `LC-C`, `port4` & `port8` are on `LC-EGRESS`, and `LC-A`, `LC-B`, `LC-C`, `LC-EGRESS` are four distinct linecards; otherwise skip.
+* **Ingress interfaces**: physical ports `port1`, `port2`, `port3` (from RT-3.6.1) and 1-member LACP aggregates `Agg-A` (`port5`), `Agg-B` (`port6`), `Agg-C` (`port7`) (added in RT-3.6.2, allocated via the DUT's aggregate naming).
+* **Egress interfaces**: `port4` (VLAN subinterfaces for `VRF-1`..`VRF-4`, plus `port4.20` for `DEFAULT` in RT-3.6.1) and `port8` (`DEFAULT` from RT-3.6.2 onward).
+* **Linecard resolution & dynamic grouping precondition**:
+  * For each port in `port1`..`port8`, read `/interfaces/interface/state/hardware-port` and walk `/components/component/state/parent` up to 5 hops until `/components/component/state/type == LINECARD`. If no `LINECARD` component exists, skip with `"DUT has no LINECARD components; RT-3.6 requires a modular DUT"`.
+  * Dynamically group `port1`..`port8` by their discovered parent `LINECARD` component (`ALL_LCS = unique([LC(port1)..LC(port8)])` and `LC_INGRESS = unique([LC(port1), LC(port2), LC(port3), LC(port5), LC(port6), LC(port7)])`, up to 3 distinct ingress linecards). Require at least **2 distinct `LINECARD` components** across `port1`..`port8` (`len(ALL_LCS) >= 2`); otherwise skip.
 
 #### Addressing
 
 | DUT interface | Added in | Network instance | DUT IPv4 | ATE IPv4 | DUT IPv6 | ATE IPv6 |
 | --- | --- | --- | --- | --- | --- | --- |
-| `port1` (subif 0) | RT-3.5.1 | `DEFAULT` | `192.0.2.1/30` | `192.0.2.2` | `2001:db8:0:1::1/126` | `2001:db8:0:1::2` |
-| `port2` (subif 0) | RT-3.5.1 | `DEFAULT` | `192.0.2.5/30` | `192.0.2.6` | `2001:db8:0:2::1/126` | `2001:db8:0:2::2` |
-| `port3` (subif 0) | RT-3.5.1 | `DEFAULT` | `192.0.2.9/30` | `192.0.2.10` | `2001:db8:0:3::1/126` | `2001:db8:0:3::2` |
-| `port4.10` (VLAN 10) | RT-3.5.1 | `VRF-1` | `192.0.2.13/30` | `192.0.2.14` | `2001:db8:0:4::1/126` | `2001:db8:0:4::2` |
-| `port4.20` (VLAN 20) | RT-3.5.1 (removed in RT-3.5.2) | `DEFAULT` | `192.0.2.17/30` | `192.0.2.18` | `2001:db8:0:5::1/126` | `2001:db8:0:5::2` |
-| `Agg-A` (subif 0; member `port5`) | RT-3.5.2 | `DEFAULT` | `192.0.2.21/30` | `192.0.2.22` | `2001:db8:0:6::1/126` | `2001:db8:0:6::2` |
-| `Agg-B` (subif 0; member `port6`) | RT-3.5.2 | `DEFAULT` | `192.0.2.25/30` | `192.0.2.26` | `2001:db8:0:7::1/126` | `2001:db8:0:7::2` |
-| `Agg-C` (subif 0; member `port7`) | RT-3.5.2 | `DEFAULT` | `192.0.2.29/30` | `192.0.2.30` | `2001:db8:0:8::1/126` | `2001:db8:0:8::2` |
-| `port8` (subif 0) | RT-3.5.2 | `DEFAULT` | `192.0.2.33/30` | `192.0.2.34` | `2001:db8:0:9::1/126` | `2001:db8:0:9::2` |
-| `port4.11` (VLAN 11) | RT-3.5.2 | `VRF-2` | `192.0.2.37/30` | `192.0.2.38` | `2001:db8:0:a::1/126` | `2001:db8:0:a::2` |
-| `port4.12` (VLAN 12) | RT-3.5.2 | `VRF-3` | `192.0.2.41/30` | `192.0.2.42` | `2001:db8:0:b::1/126` | `2001:db8:0:b::2` |
-| `port4.13` (VLAN 13) | RT-3.5.2 | `VRF-4` | `192.0.2.45/30` | `192.0.2.46` | `2001:db8:0:c::1/126` | `2001:db8:0:c::2` |
+| `port1` (subif 0) | RT-3.6.1 | `DEFAULT` | `192.0.2.1/30` | `192.0.2.2` | `2001:db8:0:1::1/126` | `2001:db8:0:1::2` |
+| `port2` (subif 0) | RT-3.6.1 | `DEFAULT` | `192.0.2.5/30` | `192.0.2.6` | `2001:db8:0:2::1/126` | `2001:db8:0:2::2` |
+| `port3` (subif 0) | RT-3.6.1 | `DEFAULT` | `192.0.2.9/30` | `192.0.2.10` | `2001:db8:0:3::1/126` | `2001:db8:0:3::2` |
+| `port4.10` (VLAN 10) | RT-3.6.1 | `VRF-1` | `192.0.2.13/30` | `192.0.2.14` | `2001:db8:0:4::1/126` | `2001:db8:0:4::2` |
+| `port4.20` (VLAN 20) | RT-3.6.1 (removed in RT-3.6.2) | `DEFAULT` | `192.0.2.17/30` | `192.0.2.18` | `2001:db8:0:5::1/126` | `2001:db8:0:5::2` |
+| `Agg-A` (subif 0; member `port5`) | RT-3.6.2 | `DEFAULT` | `192.0.2.21/30` | `192.0.2.22` | `2001:db8:0:6::1/126` | `2001:db8:0:6::2` |
+| `Agg-B` (subif 0; member `port6`) | RT-3.6.2 | `DEFAULT` | `192.0.2.25/30` | `192.0.2.26` | `2001:db8:0:7::1/126` | `2001:db8:0:7::2` |
+| `Agg-C` (subif 0; member `port7`) | RT-3.6.2 | `DEFAULT` | `192.0.2.29/30` | `192.0.2.30` | `2001:db8:0:8::1/126` | `2001:db8:0:8::2` |
+| `port8` (subif 0) | RT-3.6.2 | `DEFAULT` | `192.0.2.33/30` | `192.0.2.34` | `2001:db8:0:9::1/126` | `2001:db8:0:9::2` |
+| `port4.11` (VLAN 11) | RT-3.6.2 | `VRF-2` | `192.0.2.37/30` | `192.0.2.38` | `2001:db8:0:a::1/126` | `2001:db8:0:a::2` |
+| `port4.12` (VLAN 12) | RT-3.6.2 | `VRF-3` | `192.0.2.41/30` | `192.0.2.42` | `2001:db8:0:b::1/126` | `2001:db8:0:b::2` |
+| `port4.13` (VLAN 13) | RT-3.6.2 | `VRF-4` | `192.0.2.45/30` | `192.0.2.46` | `2001:db8:0:c::1/126` | `2001:db8:0:c::2` |
 
 #### Common definitions and gates
 
 * **Policy**: `CLUSTER_FACING_POLICY` (`type = VRF_SELECTION_POLICY`) under network instance `DEFAULT`, bound on subinterface `0` of active ingress interfaces via `apply-vrf-selection-policy`.
-* **Traffic profile**: 512-byte frames at 1,000 fps, fixed count of 32,000 packets per flow per measurement window (unless continuous mode is specified in RT-3.5.5). Always assert `Tx > 0` and `Rx == Tx`.
+* **Traffic profile**: 512-byte frames at 1,000 fps, fixed count of 32,000 packets per flow per measurement window (unless continuous mode is specified in RT-3.6.5). Always assert `Tx > 0` and `Rx == Tx`.
 * **Convergence gate** (using `gnmi.Watch` / `gnmi.Await`, 2-minute timeout, no `time.Sleep`):
   1. `/interfaces/interface/state/oper-status == UP` on all active interfaces and `/lacp/interfaces/interface/members/member/state/synchronization == IN_SYNC` on all aggregate members.
   2. `/network-instances/network-instance/policy-forwarding/interfaces/interface/state/apply-vrf-selection-policy == CLUSTER_FACING_POLICY` on all bound interfaces and absent on unbound interfaces.
@@ -76,13 +76,13 @@ D8[DUT port-8] <-->|LC-EGRESS (DEFAULT)| A8[ATE port-8]
 * **Linecard boot recovery gate** (for each rebooted linecard `LC`):
   1. Watch `/components/component[name=LC]/state/oper-status` leave `ACTIVE` and return to `ACTIVE` (timeout 15 minutes).
   2. Verify `/components/component[name=LC]/state/last-reboot-time` increased past its pre-reboot value and `last-reboot-reason` is populated.
-  3. Watch the physical and aggregate interfaces on `LC` reach `oper-status == UP` and LACP member `synchronization == IN_SYNC` (timeout 5 minutes).
+  3. Watch all physical and aggregate interfaces hosted on `LC` reach `oper-status == UP` and LACP member `synchronization == IN_SYNC` (timeout 5 minutes).
   4. Run the full **Convergence gate**.
 * **Stability check** (at the end of every subtest): verify `/system/processes/process/state/start-time` and `/components/component/state/last-reboot-time` have not changed unexpectedly from baseline (updating the baseline for intentionally rebooted linecards/chassis).
 
 ---
 
-### RT-3.5.1 - Baseline policy programmed on three ingress linecards
+### RT-3.6.1 - Baseline policy programmed across ingress linecards
 
 * **Step 1 - Configure DUT**:
   * Configure `port1`, `port2`, `port3`, `port4.10` (`VRF-1`, `L3VRF`), and `port4.20` (`DEFAULT`).
@@ -91,7 +91,7 @@ D8[DUT port-8] <-->|LC-EGRESS (DEFAULT)| A8[ATE port-8]
 
 #### Canonical OC
 
-The representative JSON below illustrates the OpenConfig VRF selection policy and interface binding structure used across RT-3.5:
+The representative JSON below illustrates the OpenConfig VRF selection policy and interface binding structure used across RT-3.6:
 
 ```json
 {
@@ -217,7 +217,7 @@ The representative JSON below illustrates the OpenConfig VRF selection policy an
 
 ---
 
-### RT-3.5.2 - Scale the policy in place to 34 rules, 4 VRFs and 6 ingress interfaces
+### RT-3.6.2 - Scale the policy in place to 34 rules, 4 VRFs and 6 ingress interfaces
 
 * **Step 1 - Scale DUT configuration in place**:
   * Configure `Agg-A` (`port5`), `Agg-B` (`port6`), `Agg-C` (`port7`), `port8` (`DEFAULT`), and `port4.11` (`VRF-2`), `port4.12` (`VRF-3`), `port4.13` (`VRF-4`) per the [Addressing](#addressing) table.
@@ -236,7 +236,7 @@ The representative JSON below illustrates the OpenConfig VRF selection policy an
 
 ---
 
-### RT-3.5.3 - In-place rule modification leaves no stale entries
+### RT-3.6.3 - In-place rule modification leaves no stale entries
 
 * **Step 1**: Add static routes for `2001:db8:300::/48` in `VRF-1` (`-> 2001:db8:0:4::2`) and `DEFAULT` (`-> 2001:db8:0:9::2`). Replace rule `20` `ipv6/config/destination-address` with `2001:db8:300::/48` and watch state update.
 * **Step 2**: Run the **Convergence gate** and validate per-linecard traffic across all 6 ingress interfaces (`K = 6`) using `PN-IPV6-MOD` (`dst = 2001:db8:300::1` -> `port4.10`).
@@ -244,7 +244,7 @@ The representative JSON below illustrates the OpenConfig VRF selection policy an
 
 ---
 
-### RT-3.5.4 - Ingress interface flap on each linecard
+### RT-3.6.4 - Ingress interface flap on each linecard
 
 * Repeat for each ingress port `F` in `[port1, port5 (Agg-A), port2, port6 (Agg-B), port3, port7 (Agg-C)]`:
   1. Set `/interfaces/interface[name=F]/config/enabled = false` and watch `F` (and its aggregate interface if `F` is a LAG member) reach `oper-status == DOWN`.
@@ -253,20 +253,20 @@ The representative JSON below illustrates the OpenConfig VRF selection policy an
 
 ---
 
-### RT-3.5.5 - Repeated linecard reboot on each ingress linecard
+### RT-3.6.5 - Single-linecard reboot on each discovered ingress linecard
 
-* For each `(LC, REMAINING)` in `[(LC-A, {2, 3, 6, 7}), (LC-B, {1, 3, 5, 7}), (LC-C, {1, 2, 5, 6})]`, repeat for 3 iterations:
-  1. Start the 24 flows on `REMAINING` ports in continuous mode and verify active transmission.
+* For each distinct discovered ingress linecard `LC` in `LC_INGRESS` (1 iteration per linecard, where `REMAINING` is the subset of ingress ports `{1, 2, 3, 5, 6, 7}` not hosted on `LC`):
+  1. If `port4` and `port8` are not on `LC` and `REMAINING` is non-empty, start the flows on `REMAINING` ports in continuous mode and verify active transmission.
   2. Record `last-reboot-time` for `LC` and issue gNOI `System.Reboot` (`method = COLD`, `subcomponents = [LC]`).
-  3. Run the **Linecard boot recovery gate** for `LC`, stop the 24 continuous `REMAINING` flows, and verify `Tx > 0` and `Rx == Tx` (zero loss on un-rebooted linecards).
+  3. Run the **Linecard boot recovery gate** for `LC`, stop any active continuous `REMAINING` flows, and verify `Tx > 0` and `Rx == Tx` (zero loss on un-rebooted linecards).
   4. Reconfigure all 36 flows to fixed 32,000-packet mode, run the **Convergence gate**, and validate per-linecard traffic across all 6 ingress interfaces (`K = 6`).
 
 ---
 
-### RT-3.5.6 - Linecard boot with concurrent policy updates
+### RT-3.6.6 - Linecard boot with concurrent policy updates
 
 * Pre-program static routes for `2001:db8:300::/48` in `VRF-1` and `DEFAULT`.
-* For each `(LC, P, M, Agg, OtherAgg1, OtherAgg2)` in `[(LC-A, port1, port5, Agg-A, Agg-B, Agg-C), (LC-B, port2, port6, Agg-B, Agg-A, Agg-C), (LC-C, port3, port7, Agg-C, Agg-A, Agg-B)]`, repeat for 3 iterations:
+* For each distinct discovered ingress linecard `LC` in `LC_INGRESS` (1 iteration per linecard, with a representative physical ingress port `P` and aggregate `Agg` (member `M`) on `LC`, and remaining aggregates `OtherAgg1`, `OtherAgg2`):
   1. Set ATE port `M` link state `DOWN` and watch `Agg` `oper-status == DOWN`.
   2. Issue gNOI `System.Reboot` (`COLD`) for subcomponent `LC`.
   3. Watch `LC` leave `ACTIVE`, then watch physical port `P` reach `oper-status == UP` while `Agg` is still `DOWN`.
@@ -280,18 +280,18 @@ The representative JSON below illustrates the OpenConfig VRF selection policy an
 
 ---
 
-### RT-3.5.7 - Simultaneous multi-linecard reboot and full DUT reboot
+### RT-3.6.7 - Simultaneous multi-linecard reboot and full DUT reboot
 
-* **Part A - Simultaneous reboot of `[LC-A, LC-B, LC-C]` (3 iterations)**:
-  * Issue a single gNOI `System.Reboot` (`COLD`) with `subcomponents = [LC-A, LC-B, LC-C]`, run the **Linecard boot recovery gate** for all three linecards, and validate all 36 flows (`K = 6`).
-* **Part B - Full DUT reboot (3 iterations)**:
+* **Part A - Simultaneous reboot of `LC_INGRESS` (1 iteration)**:
+  * Issue a single gNOI `System.Reboot` (`COLD`) with `subcomponents = LC_INGRESS`, run the **Linecard boot recovery gate** for all rebooted linecards, and validate all 36 flows (`K = 6`).
+* **Part B - Full DUT reboot (1 iteration)**:
   * Record `/system/state/boot-time`, issue chassis-level gNOI `System.Reboot` (`COLD`, empty `subcomponents`), and watch `/system/state/boot-time` increase (timeout 30 minutes).
-  * Watch `LC-A`, `LC-B`, `LC-C`, and `LC-EGRESS` reach `oper-status == ACTIVE` (timeout 20 minutes).
+  * Watch all discovered linecards in `ALL_LCS` reach `oper-status == ACTIVE` (timeout 20 minutes).
   * Verify `VRF-1`..`VRF-4`, `CLUSTER_FACING_POLICY` (34 rules), and all 6 interface bindings persisted without re-pushing config, run the **Convergence gate**, validate all 36 flows (`K = 6`), and refresh the stability baseline.
 
 ---
 
-### RT-3.5.8 - Policy-forwarding replace and repeated unbind/rebind
+### RT-3.6.8 - Policy-forwarding replace and repeated unbind/rebind
 
 * **Step 1 - In-place Replace**: Push `gnmi.Replace` of the complete 34-rule `CLUSTER_FACING_POLICY` and all 6 interface bindings without prior `Delete`, run the **Convergence gate**, and validate all 36 flows (`K = 6`).
 * **Step 2 - 5-Iteration Unbind/Rebind Churn**: Repeat 5 cycles:
@@ -300,23 +300,23 @@ The representative JSON below illustrates the OpenConfig VRF selection policy an
 
 ---
 
-### RT-3.5.9 - Hardware resource utilization telemetry across linecards
+### RT-3.6.9 - Hardware resource utilization telemetry across linecards
 
-* **Step 1**: Discover all `INTEGRATED_CIRCUIT` components parented (within 5 hops) to `LC-A`, `LC-B`, and `LC-C`.
+* **Step 1**: Discover all `INTEGRATED_CIRCUIT` components parented (within 5 hops) to each discovered ingress linecard in `LC_INGRESS`.
 * **Step 2**: Subscribe (`SAMPLE`, 10s interval) to `/components/component/integrated-circuit/utilization/resources/resource/state/{name,used,free,max-limit,high-watermark}` for each discovered chip.
 * **Step 3**: Unbind `CLUSTER_FACING_POLICY` from all 6 ingress interfaces, watch bindings clear, and record 3 consecutive stable 10s samples `U_unbound(IC, R)`.
 * **Step 4**: Rebind `CLUSTER_FACING_POLICY` to all 6 ingress interfaces, run the **Convergence gate**, and record 3 consecutive stable 10s samples `U_bound(IC, R)`.
-* **Step 5**: Verify `R_pbf = { R | U_bound(IC, R) > U_unbound(IC, R) }` is non-empty on each of `LC-A`, `LC-B`, and `LC-C`; if all three linecards share the same `/components/component/state/part-no`, verify per-linecard totals are within 10% of the 3-linecard mean; verify `used + free == max-limit` (when `max-limit > 0`), `high-watermark >= used`, sample intervals `<= 15s`, and validate all 36 flows (`K = 6`).
+* **Step 5**: Verify `R_pbf = { R | U_bound(IC, R) > U_unbound(IC, R) }` is non-empty on each discovered ingress linecard in `LC_INGRESS`; if the linecards in `LC_INGRESS` share the same `/components/component/state/part-no` and host equal numbers of bound ingress interfaces, verify per-linecard totals are within 10% of the mean; verify `used + free == max-limit` (when `max-limit > 0`), `high-watermark >= used`, sample intervals `<= 15s`, and validate all 36 flows (`K = 6`).
 
 ---
 
-### RT-3.5.10 - Negative cases: invalid or inconsistent configuration
+### RT-3.6.10 - Negative cases: invalid or inconsistent configuration
 
-* **RT-3.5.10.1 - Atomic rejection of partially invalid `SetRequest`**: Push a single raw JSON `SetRequest` containing valid rule `600` (`198.19.0.0/24 -> VRF-1`) and invalid rule `610` (`300.1.1.0/24 -> VRF-1`). Verify the `SetRequest` is rejected, neither rule `600` nor `610` appears in state, and all 36 flows pass validation (`K = 6`).
-* **RT-3.5.10.2 - Binding to non-existent policy**: Attempt to set `apply-vrf-selection-policy = NO_SUCH_POLICY` on `port1`. Verify the other 5 ingress interfaces remain bound to `CLUSTER_FACING_POLICY`, restore `port1` binding if needed, and validate all 36 flows (`K = 6`).
-* **RT-3.5.10.3 - Rule referencing non-existent target VRF**: Attempt to add rule `700` (`198.19.1.0/24 -> VRF-GHOST`). Verify rejection (or clean up if accepted), verify the 34 valid rules remain intact, and validate all 36 flows (`K = 6`).
-* **RT-3.5.10.4 - Missing route in target VRF drops traffic without fallback to `DEFAULT`**: Delete static route `198.18.0.0/24` in `VRF-1` while keeping `198.18.0.0/24 -> 192.0.2.34` in `DEFAULT`. Send 32,000 packets per ingress interface (`dst = 198.18.0.1`, matching rule `100 -> VRF-1`) and verify `Rx == 0` (100% dropped), rule `100` `matched-pkts` increases by `192,000`, and `port8` `out-pkts` does not increase (`< 320`). Restore the `VRF-1` route and validate all 36 flows (`K = 6`).
-* **RT-3.5.10.5 - Deleting a VRF referenced by active policy rules**: Attempt to delete `VRF-4` while referenced by rules `130..450`. Verify `VRF-4` remains intact (or restore if accepted) and validate all 36 flows (`K = 6`).
+* **RT-3.6.10.1 - Atomic rejection of partially invalid `SetRequest`**: Push a single raw JSON `SetRequest` containing valid rule `600` (`198.19.0.0/24 -> VRF-1`) and invalid rule `610` (`300.1.1.0/24 -> VRF-1`). Verify the `SetRequest` is rejected, neither rule `600` nor `610` appears in state, and all 36 flows pass validation (`K = 6`).
+* **RT-3.6.10.2 - Binding to non-existent policy**: Attempt to set `apply-vrf-selection-policy = NO_SUCH_POLICY` on `port1`. Verify the other 5 ingress interfaces remain bound to `CLUSTER_FACING_POLICY`, restore `port1` binding if needed, and validate all 36 flows (`K = 6`).
+* **RT-3.6.10.3 - Rule referencing non-existent target VRF**: Attempt to add rule `700` (`198.19.1.0/24 -> VRF-GHOST`). Verify rejection (or clean up if accepted), verify the 34 valid rules remain intact, and validate all 36 flows (`K = 6`).
+* **RT-3.6.10.4 - Missing route in target VRF drops traffic without fallback to `DEFAULT`**: Delete static route `198.18.0.0/24` in `VRF-1` while keeping `198.18.0.0/24 -> 192.0.2.34` in `DEFAULT`. Send 32,000 packets per ingress interface (`dst = 198.18.0.1`, matching rule `100 -> VRF-1`) and verify `Rx == 0` (100% dropped), rule `100` `matched-pkts` increases by `192,000`, and `port8` `out-pkts` does not increase (`< 320`). Restore the `VRF-1` route and validate all 36 flows (`K = 6`).
+* **RT-3.6.10.5 - Deleting a VRF referenced by active policy rules**: Attempt to delete `VRF-4` while referenced by rules `130..450`. Verify `VRF-4` remains intact (or restore if accepted) and validate all 36 flows (`K = 6`).
 
 ---
 
@@ -437,4 +437,4 @@ rpcs:
 
 ## Required DUT platform
 
-* MFF - A modular form factor device containing `LINECARD`, `FABRIC`, and redundant `CONTROLLER_CARD` components (at least 4 distinct linecards: `LC-A`, `LC-B`, `LC-C`, and `LC-EGRESS`).
+* MFF - A modular form factor device containing `LINECARD`, `FABRIC`, and redundant `CONTROLLER_CARD` components (at least 2 distinct `LINECARD` components across `port1`..`port8`, using up to 3 distinct ingress linecards when available).
