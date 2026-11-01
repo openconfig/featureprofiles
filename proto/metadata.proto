@@ -1596,6 +1596,19 @@ message Metadata {
     // Maximum number of decap entries supported by the device.
     uint32 max_supported_decap_entries = 482;
 
+    // Device rejects setting
+    // /components/component/controller-card/config/power-admin-state to
+    // POWER_DISABLED on the PRIMARY controller card and only powers down a
+    // controller card whose redundant-role is SECONDARY, so powering down the
+    // PRIMARY does not trigger a switchover. This deviates from rule 1 of
+    // https://github.com/openconfig/public/blob/master/doc/controller-card_poweroff.md,
+    // which requires the configuration to be accepted on the PRIMARY. Tests
+    // must trigger the switchover first (gNOI System.SwitchControlProcessor)
+    // and then power down the former PRIMARY.
+    // Arista: https://issuetracker.google.com/issues/582304398
+    // Cisco: https://issuetracker.google.com/issues/372605838
+    bool controller_card_primary_power_disable_unsupported = 483;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49, 313;
   }

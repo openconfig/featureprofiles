@@ -11,6 +11,8 @@ platform_exceptions: {
   }
   deviations: {
     missing_value_for_defaults: true
+    controller_card_primary_power_disable_unsupported: true
+    gnoi_subcomponent_path: true
   }
 }
 platform_exceptions: {
@@ -19,6 +21,7 @@ platform_exceptions: {
   }
   deviations: {
     missing_value_for_defaults: true
+    skip_controller_card_power_admin: true
   }
 }
 platform_exceptions: {
@@ -27,6 +30,7 @@ platform_exceptions: {
   }
   deviations: {
     power_disable_enable_leaf_ref_validation: true
+    controller_card_primary_power_disable_unsupported: true
   }
 }
 platform_exceptions: {

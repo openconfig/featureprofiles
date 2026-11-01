@@ -347,13 +347,24 @@ func LinecardsFromPorts(t testing.TB, dut *ondatra.DUTDevice, ports []*ondatra.P
 
 // WatchWithRetry watches a query until the predicate returns true, catching temporary connection errors
 // and retrying every retryInterval until timeout expires.
+//
+// The timeout is measured in wall-clock time. If a watch attempt fails before
+// its retryInterval slice has elapsed (e.g. the gNMI server is unreachable
+// during a controller card switchover and Subscribe fails immediately), the
+// remainder of the slice is waited out before re-subscribing. This back-off is
+// required because no gNMI Watch can be established while the server is
+// unreachable; without it, fast failures would either spin or exhaust the
+// timeout budget within seconds.
 func WatchWithRetry[T any](t *testing.T, dut *ondatra.DUTDevice, query ygnmi.SingletonQuery[T], timeout, retryInterval time.Duration, predicate func(*ygnmi.Value[T]) bool) (*ygnmi.Value[T], bool) {
 	t.Helper()
-	for remaining := timeout; remaining > 0; remaining -= retryInterval {
-		waitDur := remaining
-		if waitDur > retryInterval {
-			waitDur = retryInterval
+	deadline := time.Now().Add(timeout)
+	for {
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			return nil, false
 		}
+		waitDur := min(remaining, retryInterval)
+		sliceEnd := time.Now().Add(waitDur)
 		var val *ygnmi.Value[T]
 		var ok bool
 		testt.CaptureFatal(t, func(t testing.TB) {
@@ -362,8 +373,10 @@ func WatchWithRetry[T any](t *testing.T, dut *ondatra.DUTDevice, query ygnmi.Sin
 		if ok {
 			return val, true
 		}
+		if r := time.Until(sliceEnd); r > 0 {
+			time.Sleep(r)
+		}
 	}
-	return nil, false
 }
 
 // WaitForSwitchover verifies the stability of the SUP cards after switchover by watching the system datetime.
@@ -372,15 +385,32 @@ func WaitForSwitchover(t *testing.T, dut *ondatra.DUTDevice, maxSwitchoverTime t
 	startSwitchover := time.Now()
 	t.Logf("Wait for new active RP to boot up by watching the system datetime telemetry.")
 
-	val, ok := WatchWithRetry(t, dut, gnmi.OC().System().CurrentDatetime().State(), maxSwitchoverTime, 30*time.Second, func(val *ygnmi.Value[string]) bool {
-		currentTime, present := val.Val()
-		return present && currentTime != ""
-	})
+	val, ok := watchCurrentDatetime(t, dut, maxSwitchoverTime)
 	if !ok {
 		t.Fatalf("RP switchover timed out after %v: system datetime not reachable", maxSwitchoverTime)
 	}
 	currentTime, _ := val.Val()
 	t.Logf("RP switchover has completed successfully in %.2f seconds with received time: %v", time.Since(startSwitchover).Seconds(), currentTime)
+}
+
+// AwaitGNMIReachable waits up to timeout until the DUT serves
+// /system/state/current-datetime over gNMI, tolerating disconnects. Unlike
+// WaitForSwitchover it does not fail the test, so it is safe to use in
+// cleanup and retry paths. It returns whether the DUT became reachable.
+func AwaitGNMIReachable(t *testing.T, dut *ondatra.DUTDevice, timeout time.Duration) bool {
+	t.Helper()
+	_, ok := watchCurrentDatetime(t, dut, timeout)
+	return ok
+}
+
+// watchCurrentDatetime waits up to timeout, tolerating gNMI disconnects, until
+// the DUT reports a non-empty /system/state/current-datetime.
+func watchCurrentDatetime(t *testing.T, dut *ondatra.DUTDevice, timeout time.Duration) (*ygnmi.Value[string], bool) {
+	t.Helper()
+	return WatchWithRetry(t, dut, gnmi.OC().System().CurrentDatetime().State(), timeout, 30*time.Second, func(val *ygnmi.Value[string]) bool {
+		currentTime, present := val.Val()
+		return present && currentTime != ""
+	})
 }
 
 // SetLinecardPowerAdminState sets /components/component/linecard/config/power-admin-state
@@ -467,4 +497,291 @@ func AwaitOperStatusOrAbsent(t *testing.T, dut *ondatra.DUTDevice, name string, 
 			return s, true
 		}
 	}
+}
+
+// switchoverWatchRetryInterval is the interval at which watches that may span a
+// controller card switchover are re-established after a gNMI disconnect.
+const switchoverWatchRetryInterval = 30 * time.Second
+
+// SwitchoverTimeout returns base extended by the number of minutes configured
+// in the SwitchoverStabilizeDelayM deviation. Use it for any wait that spans a
+// controller card switchover so slow platforms are handled without vendor
+// checks.
+func SwitchoverTimeout(dut *ondatra.DUTDevice, base time.Duration) time.Duration {
+	return base + time.Duration(deviations.SwitchoverStabilizeDelayM(dut))*time.Minute
+}
+
+// PowerAdminStateQueries returns the config and state queries of the
+// power-admin-state leaf of component name, which is of hardware type cType:
+//
+//	/components/component/controller-card/{config|state}/power-admin-state
+//	/components/component/linecard/{config|state}/power-admin-state
+//	/components/component/fabric/{config|state}/power-admin-state
+//
+// An error is returned for hardware types that do not model power-admin-state.
+func PowerAdminStateQueries(name string, cType oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT) (ygnmi.ConfigQuery[oc.E_Platform_ComponentPowerType], ygnmi.SingletonQuery[oc.E_Platform_ComponentPowerType], error) {
+	c := gnmi.OC().Component(name)
+	switch cType {
+	case oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD:
+		return c.ControllerCard().PowerAdminState().Config(), c.ControllerCard().PowerAdminState().State(), nil
+	case oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD:
+		return c.Linecard().PowerAdminState().Config(), c.Linecard().PowerAdminState().State(), nil
+	case oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC:
+		return c.Fabric().PowerAdminState().Config(), c.Fabric().PowerAdminState().State(), nil
+	default:
+		return nil, nil, fmt.Errorf("component type %v does not support power-admin-state", cType)
+	}
+}
+
+// TrySetPowerAdminState replaces the config/power-admin-state leaf of component
+// name, which is of hardware type cType, with power. When the
+// PowerDisableEnableLeafRefValidation or ConfigLeafCreateRequired deviation is
+// set, the component config node is created first so the leafref to the
+// component name resolves.
+//
+// Unlike SetPowerAdminState, a rejected gNMI Set is returned as an error rather
+// than failing the test, which allows negative scenarios (e.g. powering down
+// the last controller card) to be validated.
+func TrySetPowerAdminState(t *testing.T, dut *ondatra.DUTDevice, name string, cType oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT, power oc.E_Platform_ComponentPowerType) error {
+	t.Helper()
+	config, _, err := PowerAdminStateQueries(name, cType)
+	if err != nil {
+		return err
+	}
+	if deviations.PowerDisableEnableLeafRefValidation(dut) || deviations.ConfigLeafCreateRequired(dut) {
+		if msg := testt.CaptureFatal(t, func(t testing.TB) {
+			gnmi.Update(t, dut, gnmi.OC().Component(name).Config(), &oc.Component{Name: ygot.String(name)})
+		}); msg != nil {
+			return fmt.Errorf("creating config node of component %s: %s", name, *msg)
+		}
+	}
+	t.Logf("Setting %v component %s config/power-admin-state to %v", cType, name, power)
+	if msg := testt.CaptureFatal(t, func(t testing.TB) {
+		gnmi.Replace(t, dut, config, power)
+	}); msg != nil {
+		return fmt.Errorf("setting component %s config/power-admin-state to %v: %s", name, power, *msg)
+	}
+	return nil
+}
+
+// SetPowerAdminState is like TrySetPowerAdminState but fails the test fatally
+// if the gNMI Set is rejected.
+func SetPowerAdminState(t *testing.T, dut *ondatra.DUTDevice, name string, cType oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT, power oc.E_Platform_ComponentPowerType) {
+	t.Helper()
+	if err := TrySetPowerAdminState(t, dut, name, cType, power); err != nil {
+		t.Fatalf("SetPowerAdminState: %v", err)
+	}
+}
+
+// AwaitPowerAdminState waits up to timeout until the state/power-admin-state
+// leaf of component name, which is of hardware type cType, equals want. The
+// watch tolerates gNMI disconnects (e.g. during a controller card switchover).
+// It returns the last observed value and whether want was observed.
+//
+// When want is POWER_ENABLED (the YANG default) and the MissingValueForDefaults
+// deviation is set, an absent leaf is treated as POWER_ENABLED.
+func AwaitPowerAdminState(t *testing.T, dut *ondatra.DUTDevice, name string, cType oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT, want oc.E_Platform_ComponentPowerType, timeout time.Duration) (oc.E_Platform_ComponentPowerType, bool) {
+	t.Helper()
+	_, state, err := PowerAdminStateQueries(name, cType)
+	if err != nil {
+		t.Fatalf("AwaitPowerAdminState: %v", err)
+	}
+	absentIsWant := want == oc.Platform_ComponentPowerType_POWER_ENABLED && deviations.MissingValueForDefaults(dut)
+	// A STREAM subscription to an absent leaf may not deliver any notification,
+	// so check the current value first when an absent leaf is acceptable.
+	if absentIsWant {
+		absent := false
+		testt.CaptureFatal(t, func(t testing.TB) {
+			_, present := gnmi.Lookup(t, dut, state).Val()
+			absent = !present
+		})
+		if absent {
+			return want, true
+		}
+	}
+	val, ok := WatchWithRetry(t, dut, state, timeout, switchoverWatchRetryInterval, func(v *ygnmi.Value[oc.E_Platform_ComponentPowerType]) bool {
+		got, present := v.Val()
+		if !present {
+			return absentIsWant
+		}
+		return got == want
+	})
+	if !ok {
+		var last oc.E_Platform_ComponentPowerType
+		testt.CaptureFatal(t, func(t testing.TB) {
+			last, _ = gnmi.Lookup(t, dut, state).Val()
+		})
+		return last, false
+	}
+	got, present := val.Val()
+	if !present {
+		return want, true
+	}
+	return got, true
+}
+
+// AwaitOperStatusWithRetry is like AwaitOperStatus but tolerates gNMI
+// disconnects, e.g. while a controller card switchover is in progress. It
+// returns the last observed oper-status and whether one of want was observed.
+func AwaitOperStatusWithRetry(t *testing.T, dut *ondatra.DUTDevice, name string, timeout time.Duration, want ...oc.E_PlatformTypes_COMPONENT_OPER_STATUS) (oc.E_PlatformTypes_COMPONENT_OPER_STATUS, bool) {
+	t.Helper()
+	query := gnmi.OC().Component(name).OperStatus().State()
+	val, ok := WatchWithRetry(t, dut, query, timeout, switchoverWatchRetryInterval, func(v *ygnmi.Value[oc.E_PlatformTypes_COMPONENT_OPER_STATUS]) bool {
+		s, present := v.Val()
+		return present && slices.Contains(want, s)
+	})
+	if !ok {
+		var last oc.E_PlatformTypes_COMPONENT_OPER_STATUS
+		testt.CaptureFatal(t, func(t testing.TB) {
+			last, _ = gnmi.Lookup(t, dut, query).Val()
+		})
+		return last, false
+	}
+	s, _ := val.Val()
+	return s, true
+}
+
+// findInstalled returns the components of hardware type cType that are not
+// reported as empty and, when requireRemovable is true, are reported as
+// removable. The empty and removable leaves of all candidates are fetched in a
+// single batched gNMI Get. A component that reports neither leaf is not
+// considered installed; otherwise a leaf that is not reported is treated as
+// false.
+func findInstalled(t *testing.T, dut *ondatra.DUTDevice, cType oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT, requireRemovable bool) []string {
+	t.Helper()
+	names := FindComponentsByType(t, dut, cType)
+	if len(names) == 0 {
+		return nil
+	}
+	batch := gnmi.OCBatch()
+	for _, name := range names {
+		batch.AddPaths(
+			gnmi.OC().Component(name).Empty(),
+			gnmi.OC().Component(name).Removable(),
+		)
+	}
+	// root is nil if none of the leaves is reported; the generated getters are
+	// nil-safe.
+	root, _ := gnmi.Lookup(t, dut, batch.State()).Val()
+	var installed []string
+	for _, name := range names {
+		c := root.GetComponent(name)
+		if c == nil || c.GetEmpty() || (requireRemovable && !c.GetRemovable()) {
+			continue
+		}
+		installed = append(installed, name)
+	}
+	return installed
+}
+
+// FindInstalledComponents returns the components of hardware type cType whose
+// /components/component/state/empty leaf is not true, i.e. whose slot is
+// populated. Components that report neither state/empty nor state/removable
+// are not returned.
+func FindInstalledComponents(t *testing.T, dut *ondatra.DUTDevice, cType oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT) []string {
+	t.Helper()
+	return findInstalled(t, dut, cType, false)
+}
+
+// FindInstalledRemovableComponents returns the components of hardware type
+// cType that are installed (state/empty is not true) and removable
+// (state/removable is true), e.g. linecards and fabric cards that can be
+// powered down individually.
+func FindInstalledRemovableComponents(t *testing.T, dut *ondatra.DUTDevice, cType oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT) []string {
+	t.Helper()
+	return findInstalled(t, dut, cType, true)
+}
+
+// minPerComponentWait is the minimum time the multi-component Await helpers
+// wait for each component, so that every component is checked at least once
+// even if earlier components used up the shared timeout.
+const minPerComponentWait = 30 * time.Second
+
+// waitUntil returns the time left until deadline, but at least
+// minPerComponentWait.
+func waitUntil(deadline time.Time) time.Duration {
+	return max(time.Until(deadline), minPerComponentWait)
+}
+
+// The multi-component Await helpers below wait on each component with its own
+// single-leaf gnmi.Watch, sharing one timeout, instead of one batched watch:
+// some devices (e.g. Juniper) deliver the values of a batched multi-path STREAM
+// subscription only after many minutes, while single-leaf subscriptions are
+// served immediately.
+
+// AwaitComponentsOperStatus waits, sharing timeout across all components (with
+// at least minPerComponentWait per component), until the oper-status of every
+// component in names equals want. Each component is watched with
+// AwaitOperStatusWithRetry, which tolerates gNMI disconnects. It returns the
+// components that did not reach want and whether all components reached want.
+func AwaitComponentsOperStatus(t *testing.T, dut *ondatra.DUTDevice, names []string, timeout time.Duration, want oc.E_PlatformTypes_COMPONENT_OPER_STATUS) ([]string, bool) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	var notMatching []string
+	for _, name := range names {
+		if _, ok := AwaitOperStatusWithRetry(t, dut, name, waitUntil(deadline), want); !ok {
+			notMatching = append(notMatching, name)
+		}
+	}
+	return notMatching, len(notMatching) == 0
+}
+
+// AwaitRedundantRole waits up to timeout until the state/redundant-role of
+// controller card name equals want. The watch is re-established every 30
+// seconds so that a gNMI disconnect caused by a controller card switchover
+// does not fail the test. It returns the observed role (UNSET if want was not
+// observed) and whether want was observed.
+func AwaitRedundantRole(t *testing.T, dut *ondatra.DUTDevice, name string, want oc.E_Platform_ComponentRedundantRole, timeout time.Duration) (oc.E_Platform_ComponentRedundantRole, bool) {
+	t.Helper()
+	val, ok := WatchWithRetry(t, dut, gnmi.OC().Component(name).RedundantRole().State(), timeout, switchoverWatchRetryInterval, func(v *ygnmi.Value[oc.E_Platform_ComponentRedundantRole]) bool {
+		role, present := v.Val()
+		return present && role == want
+	})
+	if !ok || val == nil {
+		return oc.Platform_ComponentRedundantRole_UNSET, false
+	}
+	role, _ := val.Val()
+	return role, true
+}
+
+// AwaitComponentsPowerAdminState waits, sharing timeout across all components
+// (with at least minPerComponentWait per component), until the
+// state/power-admin-state of every component in names, which are of hardware
+// type cType, equals want. Each component is checked with AwaitPowerAdminState,
+// which tolerates gNMI disconnects. It returns the components that did not
+// reach want and whether all components reached want.
+//
+// When want is POWER_ENABLED (the YANG default) and the MissingValueForDefaults
+// deviation is set, an absent leaf is treated as POWER_ENABLED.
+func AwaitComponentsPowerAdminState(t *testing.T, dut *ondatra.DUTDevice, names []string, cType oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT, want oc.E_Platform_ComponentPowerType, timeout time.Duration) ([]string, bool) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	var notMatching []string
+	for _, name := range names {
+		if _, ok := AwaitPowerAdminState(t, dut, name, cType, want, waitUntil(deadline)); !ok {
+			notMatching = append(notMatching, name)
+		}
+	}
+	return notMatching, len(notMatching) == 0
+}
+
+// AwaitComponentsSwitchoverReady waits, sharing timeout across all controller
+// cards (with at least minPerComponentWait per controller card), until every
+// controller card in names reports /components/component/state/switchover-ready
+// true. Each controller card is watched with a single-leaf watch that tolerates
+// gNMI disconnects. It returns the controller cards that did not become
+// switchover-ready and whether all of them became switchover-ready.
+func AwaitComponentsSwitchoverReady(t *testing.T, dut *ondatra.DUTDevice, names []string, timeout time.Duration) ([]string, bool) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	var notReady []string
+	for _, name := range names {
+		if _, ok := WatchWithRetry(t, dut, gnmi.OC().Component(name).SwitchoverReady().State(), waitUntil(deadline), switchoverWatchRetryInterval, func(v *ygnmi.Value[bool]) bool {
+			ready, present := v.Val()
+			return present && ready
+		}); !ok {
+			notReady = append(notReady, name)
+		}
+	}
+	return notReady, len(notReady) == 0
 }
