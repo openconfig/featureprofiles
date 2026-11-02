@@ -204,7 +204,7 @@ func (traceroute *TraceroutePacketIO) GetTrafficFlow(ate *ondatra.ATEDevice, dst
 	}
 	if flowValues.udp {
 		UDPHeader := flow.Packet().Add().Udp()
-		configureUDPFlowEntropy(UDPHeader, 1, 2)
+		configureUDPFlowEntropy(UDPHeader, 1+flowValues.udpEntropySeedOffset, 2+flowValues.udpEntropySeedOffset)
 	}
 
 	if flowValues.proto != 0 {
@@ -220,14 +220,14 @@ func (traceroute *TraceroutePacketIO) GetTrafficFlow(ate *ondatra.ATEDevice, dst
 			innerIPHdr.Dst().SetValue(flowValues.InnHdrDstIP)
 			innerIPHdr.Priority().Dscp().Phb().SetValue(flowValues.innHdrDscp)
 			UDPHeader := flow.Packet().Add().Udp()
-			configureUDPFlowEntropy(UDPHeader, 3, 4)
+			configureUDPFlowEntropy(UDPHeader, 3+flowValues.udpEntropySeedOffset, 4+flowValues.udpEntropySeedOffset)
 		} else {
 			innerIpv6Hdr := flow.Packet().Add().Ipv6()
 			innerIpv6Hdr.Src().SetValue(flowValues.InnHdrSrcIPv6)
 			innerIpv6Hdr.Dst().SetValue(flowValues.InnHdrDstIPv6)
 			innerIpv6Hdr.TrafficClass().SetValue(flowValues.innHdrDscp << 2)
 			UDPHeader := flow.Packet().Add().Udp()
-			configureUDPFlowEntropy(UDPHeader, 3, 4)
+			configureUDPFlowEntropy(UDPHeader, 3+flowValues.udpEntropySeedOffset, 4+flowValues.udpEntropySeedOffset)
 		}
 	}
 

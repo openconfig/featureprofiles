@@ -21,6 +21,50 @@ import (
 	"github.com/open-traffic-generator/snappi/gosnappi"
 )
 
+func TestDistributionFlowArgs(t *testing.T) {
+	base := flowArgs{flowName: "flow4in4", udp: true}
+	samples := distributionFlowArgs(base)
+	if got, want := len(samples), distributionFlowCount; got != want {
+		t.Fatalf("Got %d distribution flows, want %d", got, want)
+	}
+
+	var totalRate uint64
+	seenNames := make(map[string]bool)
+	seenOuterPorts := make(map[[2]uint32]bool)
+	for i, sample := range samples {
+		if seenNames[sample.flowName] {
+			t.Errorf("Repeated flow name %q", sample.flowName)
+		}
+		seenNames[sample.flowName] = true
+		if got, want := sample.udpEntropySeedOffset, int64(i*4); got != want {
+			t.Errorf("Flow %d seed offset: got %d, want %d", i, got, want)
+		}
+		if sample.ratePps == 0 {
+			t.Errorf("Flow %d has zero packet rate", i)
+		}
+		totalRate += sample.ratePps
+
+		outerSrc := udpPortValues(1 + sample.udpEntropySeedOffset)
+		outerDst := udpPortValues(2 + sample.udpEntropySeedOffset)
+		for j := range outerSrc {
+			ports := [2]uint32{outerSrc[j], outerDst[j]}
+			if seenOuterPorts[ports] {
+				t.Errorf("Repeated outer UDP port pair %v", ports)
+			}
+			seenOuterPorts[ports] = true
+		}
+	}
+	if totalRate != tracerouteTrafficRatePPS {
+		t.Errorf("Aggregate packet rate: got %d pps, want %d pps", totalRate, tracerouteTrafficRatePPS)
+	}
+	if got, want := len(seenOuterPorts), distributionFlowCount*traceroutePacketsPerFlow; got != want {
+		t.Errorf("Distinct outer UDP port pairs: got %d, want %d", got, want)
+	}
+	if base.flowName != "flow4in4" || base.ratePps != 0 || base.udpEntropySeedOffset != 0 {
+		t.Errorf("Distribution sampling mutated the base flow: %+v", base)
+	}
+}
+
 func TestUDPFlowEntropy(t *testing.T) {
 	outer, inner := gosnappi.NewFlowUdp(), gosnappi.NewFlowUdp()
 	configureUDPFlowEntropy(outer, 1, 2)

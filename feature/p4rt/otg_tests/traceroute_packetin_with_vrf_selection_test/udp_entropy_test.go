@@ -15,12 +15,35 @@
 package traceroute_packetin_with_vrf_selection_test
 
 import (
+	"fmt"
 	"math/rand"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 )
 
-const traceroutePacketsPerFlow = 1000
+const (
+	traceroutePacketsPerFlow = 1000
+	tracerouteTrafficRatePPS = 50
+	distributionFlowCount    = 4
+)
+
+// distributionFlowArgs gives Test-1 independent, reproducible hash samples.
+// Split the original 50 pps across the samples so the larger PacketIn sample
+// does not increase the offered packet rate.
+func distributionFlowArgs(base flowArgs) []*flowArgs {
+	samples := make([]*flowArgs, 0, distributionFlowCount)
+	for i := 0; i < distributionFlowCount; i++ {
+		sample := base
+		sample.flowName = fmt.Sprintf("%s-sample-%d", base.flowName, i+1)
+		sample.udpEntropySeedOffset = int64(i * 4)
+		sample.ratePps = uint64(tracerouteTrafficRatePPS / distributionFlowCount)
+		if i < tracerouteTrafficRatePPS%distributionFlowCount {
+			sample.ratePps++
+		}
+		samples = append(samples, &sample)
+	}
+	return samples
+}
 
 // configureUDPFlowEntropy spreads the fixed packet burst over distinct hash
 // inputs. Separate seeds for source/destination and outer/inner headers avoid

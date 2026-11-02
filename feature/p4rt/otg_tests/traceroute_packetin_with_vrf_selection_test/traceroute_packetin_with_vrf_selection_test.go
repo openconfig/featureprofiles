@@ -352,6 +352,8 @@ type flowArgs struct {
 	outHdrDscp                   []uint32
 	innHdrDscp                   uint32
 	proto                        uint32
+	udpEntropySeedOffset         int64
+	ratePps                      uint64
 }
 
 func TestMain(m *testing.M) {
@@ -978,9 +980,9 @@ func testGribiMatchNoSourceNoProtocolMacthDSCP(ctx context.Context, t *testing.T
 
 	EgressPortMap := map[string]bool{"11": true, "12": true, "13": true, "14": false, "15": true, "16": false, "17": false}
 	LoadBalancePercent := []float64{0.0156, 0.0468, 0.1875, 0, 0.75, 0, 0}
-	flow := []*flowArgs{{flowName: "flow4in4",
+	flow := distributionFlowArgs(flowArgs{flowName: "flow4in4",
 		outHdrSrcIP: ipv4OuterSrcAddr, outHdrDstIP: ipv4InnerDst, outHdrDscp: []uint32{dscpEncapA1},
-		InnHdrSrcIP: ipv4OuterSrcAddr, InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true, udp: true}}
+		InnHdrSrcIP: ipv4OuterSrcAddr, InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true, udp: true})
 	gotWeights := testPacket(t, args, flow, EgressPortMap)
 	validateTrafficDistribution(t, args.ate, LoadBalancePercent, gotWeights)
 }

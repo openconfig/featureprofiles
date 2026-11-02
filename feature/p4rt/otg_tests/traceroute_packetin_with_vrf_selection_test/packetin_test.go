@@ -233,12 +233,17 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool
 	dstMac, _ := llAddress.Val()
 	var flow []gosnappi.Flow
 	for _, flowValue := range flowValues {
-		flow = append(flow, args.packetIO.GetTrafficFlow(args.ate, dstMac, isIPv4, 1, 300, 50, ipv4InnerDst, flowValue))
+		frameRate := uint64(tracerouteTrafficRatePPS)
+		if flowValue.ratePps != 0 {
+			frameRate = flowValue.ratePps
+		}
+		flow = append(flow, args.packetIO.GetTrafficFlow(args.ate, dstMac, isIPv4, 1, 300, frameRate, ipv4InnerDst, flowValue))
 	}
 	pktOut := testTraffic(t, args.dut, args.top, args.ate, flow, srcEndPoint, traceroutePacketsPerFlow)
 	if pktOut <= 0 {
 		t.Fatalf("OTG transmitted %d packets; want a positive count before PacketIn and traffic distribution validation", pktOut)
 	}
+	t.Logf("OTG transmitted %d packets across %d flows", pktOut, len(flow))
 	var countPkts = map[string]int{"11": 0, "12": 0, "13": 0, "14": 0, "15": 0, "16": 0, "17": 0}
 
 	packetInTests := []struct {
@@ -314,6 +319,7 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool
 					gotPkts++
 				}
 			}
+			t.Logf("Validated %d PacketIns for %d transmitted packets", gotPkts, test.wantPkts)
 			if got, want := gotPkts, test.wantPkts; math.Abs(float64(got-want))/float64(want) > tolerance {
 				t.Errorf("Number of PacketIn, got: %d, want: %d", got, want)
 			}
