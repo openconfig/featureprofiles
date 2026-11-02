@@ -21,6 +21,7 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
@@ -104,6 +105,10 @@ var (
 )
 
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice, p1 *ondatra.Port, p2 *ondatra.Port) {
+	if deviations.VendorPreConfigRequired(dut) {
+		cfgplugins.ConfigureDecapVrfSelection(t, dut)
+	}
+
 	d := gnmi.OC()
 
 	// Configure ingress interface
@@ -263,7 +268,7 @@ func applyForwardingPolicy(t *testing.T, ate *ondatra.ATEDevice, ingressPort, ma
 	d := &oc.Root{}
 	dut := ondatra.DUT(t, "dut")
 	interfaceID := ingressPort
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+	if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
 		interfaceID = ingressPort + ".0"
 	}
 	pfpath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID)
@@ -373,12 +378,27 @@ func createIPv4Flow(name string, top gosnappi.Config, dst attrs.Attributes, srcI
 
 func sendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
 	t.Logf("*** Starting traffic ...")
+
 	otgutils.WaitForARP(t, ate.OTG(), ate.OTG().GetConfig(t), "IPv4")
 	otgutils.WaitForARP(t, ate.OTG(), ate.OTG().GetConfig(t), "IPv6")
+
+	// Send traffic for 2 seconds to force ND/ARP resolution
+	t.Logf("Warming up hardware FIBs by sending traffic for 2 seconds")
+	ate.OTG().StartTraffic(t)
+	time.Sleep(2 * time.Second)
+	ate.OTG().StopTraffic(t)
+	time.Sleep(2 * time.Second)
+
+	// Sanity check that ARP is still resolved before starting the main traffic validation.
+	otgutils.WaitForARP(t, ate.OTG(), ate.OTG().GetConfig(t), "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), ate.OTG().GetConfig(t), "IPv6")
+
 	ate.OTG().StartTraffic(t)
 	time.Sleep(trafficDuration)
 	t.Logf("*** Stop traffic ...")
 	ate.OTG().StopTraffic(t)
+	// Wait for counters to be updated.
+	time.Sleep(20 * time.Second)
 }
 
 func captureTrafficStats(t *testing.T, ate *ondatra.ATEDevice, flowName string, wantLoss bool) {

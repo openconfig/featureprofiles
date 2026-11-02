@@ -340,10 +340,6 @@ func createLink(d1 gosnappi.Device, d2 gosnappi.Device, IDx1 int, IDx2 int, link
 		d2.Isis().Interfaces().Add().SetName(isisInf2Name).SetEthName(eth2Name).
 			SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT)
 
-		if linkIP4FirstOctet == 0 && len(linkIP6FirstOctet) == 0 {
-			return fmt.Errorf("first octet of IP4 or IP6 for link must be configured")
-		}
-
 		if linkIP4FirstOctet != 0 {
 			ip1Name := fmt.Sprintf("%vip4", eth1Name)
 			ip2Name := fmt.Sprintf("%vip4", eth2Name)

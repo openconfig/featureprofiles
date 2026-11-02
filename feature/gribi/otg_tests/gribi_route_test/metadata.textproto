@@ -36,6 +36,7 @@ platform_exceptions: {
     vendor: ARISTA
   }
   deviations: {
+    vendor_pre_config_required: true
     interface_enabled: true
     default_network_instance: "default"
     omit_l2_mtu: true
@@ -48,6 +49,7 @@ platform_exceptions: {
     missing_value_for_defaults: true
     max_ecmp_paths: true
     explicit_interface_in_default_vrf: false
+    decap_nh_with_nexthop_ni_unsupported: true
   }
 }
 tags: TAGS_TRANSIT

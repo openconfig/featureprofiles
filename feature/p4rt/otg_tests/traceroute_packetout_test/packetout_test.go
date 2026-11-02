@@ -25,6 +25,7 @@ import (
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ygnmi/ygnmi"
 	p4v1 "github.com/p4lang/p4runtime/go/p4/v1"
 )
 
@@ -96,7 +97,7 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 	sendPackets(t, args.client, packets)
 
 	// Wait for ate stats to be populated
-	time.Sleep(60 * time.Second)
+	watchTraffic(t, args.ate, args.trafficPort, counter0p1, counter0p2, packetCount)
 
 	// Check packet counters after packet out
 	counter1p1 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port("port1").Counters().InFrames().State())
@@ -140,4 +141,22 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 
 func gotAllPackets(counter1, counter0 uint64, expected int) bool {
 	return counter1-counter0 >= uint64(float64(expected)*0.95)
+}
+
+func watchTraffic(t *testing.T, ate *ondatra.ATEDevice, trafficPort string, counter0p1, counter0p2 uint64, expected int) {
+	var initialCount uint64
+	switch trafficPort {
+	case "port1":
+		initialCount = counter0p1
+	case "port2":
+		initialCount = counter0p2
+	default:
+		time.Sleep(15 * time.Second) // wait for 15 seconds to ensure that we don't receive any packets
+		return
+	}
+
+	gnmi.Watch(t, ate.OTG(), gnmi.OTG().Port(trafficPort).Counters().InFrames().State(), time.Minute, func(val *ygnmi.Value[uint64]) bool {
+		count, present := val.Val()
+		return present && gotAllPackets(count, initialCount, expected)
+	}).Await(t)
 }

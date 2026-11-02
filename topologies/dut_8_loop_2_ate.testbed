@@ -1,0 +1,45 @@
+# proto-file: github.com/openconfig/ondatra/blob/main/proto/testbed.proto
+# proto-message: ondatra.Testbed
+
+# This testbed provides a DUT with 8 Physical loops and ATE with 2 links between DUT and ATE.
+
+duts {
+  id: "dut"
+  ports { id: "lc1_p1" }
+  ports { id: "lc1_p2" }
+  ports { id: "lc1_p3" }
+  ports { id: "lc1_p4" }
+  ports { id: "lc1_p5" }
+  ports { id: "lc1_p6" }
+  ports { id: "lc1_p7" }
+  ports { id: "lc1_p8" }
+  ports { id: "lc2_p1" }
+  ports { id: "lc2_p2" }
+  ports { id: "lc2_p3" }
+  ports { id: "lc2_p4" }
+  ports { id: "lc2_p5" }
+  ports { id: "lc2_p6" }
+  ports { id: "lc2_p7" }
+  ports { id: "lc2_p8" }
+  ports { id: "lc2_p9" }
+  ports { id: "lc2_p10" }
+}
+
+ates {
+  id: "ate"
+  vendor: IXIA
+  ports { id: "ixia1" }
+  ports { id: "ixia2" }
+}
+
+links { a: "dut:lc1_p1" b: "dut:lc2_p1" }
+links { a: "dut:lc1_p2" b: "dut:lc2_p2" }
+links { a: "dut:lc1_p3" b: "dut:lc2_p3" }
+links { a: "dut:lc1_p4" b: "dut:lc2_p4" }
+links { a: "dut:lc1_p5" b: "dut:lc2_p5" }
+links { a: "dut:lc1_p6" b: "dut:lc2_p6" }
+links { a: "dut:lc1_p7" b: "dut:lc2_p7" }
+links { a: "dut:lc1_p8" b: "dut:lc2_p8" }
+
+links { a: "dut:lc2_p9" b: "ate:ixia1" }
+links { a: "dut:lc2_p10" b: "ate:ixia2" }

@@ -32,3 +32,13 @@ platform_exceptions: {
     terminal_device_channel_admin_state_unsupported: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
+    missing_zr_optical_channel_tunable_parameters_telemetry: true
+    explicit_dco_config: true
+  }
+}

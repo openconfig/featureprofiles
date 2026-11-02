@@ -37,17 +37,20 @@ Validate link operational status of Static LAG and LACP.
 *   /lacp/interfaces/interface/config/name
 *   /lacp/interfaces/interface/config/interval
 *   /lacp/interfaces/interface/config/lacp-mode
-*   TODO: /lacp/interfaces/interface/config/system-id-mac
+*   /lacp/interfaces/interface/config/system-id-mac
 *   TODO: /lacp/interfaces/interface/config/system-priority
 
 ## Telemetry Parameter Coverage
 
 *   TODO: /lacp/interfaces/interface/members/member/state/counters/lacp-in-pkts
 *   TODO: /lacp/interfaces/interface/members/member/state/counters/lacp-out-pkts
-*   TODO:
-    /lacp/interfaces/interface/members/member/state/counters/lacp-rx-errors
+*   /lacp/interfaces/interface/members/member/state/counters/lacp-errors
+*   /lacp/interfaces/interface/members/member/state/counters/lacp-rx-errors
+*   /lacp/interfaces/interface/members/member/state/counters/lacp-tx-errors
+*   /lacp/interfaces/interface/members/member/state/counters/lacp-unknown-errors
 *   /lacp/interfaces/interface/name
 *   /lacp/interfaces/interface/state/name
+*   /lacp/interfaces/interface/state/system-id-mac
 *   /lacp/interfaces/interface/members/member/interface
 *   /lacp/interfaces/interface/members/member/state/interface
 *   /lacp/interfaces/interface/members/member/state/oper-key
@@ -80,7 +83,12 @@ paths:
   /interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled:
   /lacp/interfaces/interface/config/interval:
   /lacp/interfaces/interface/config/lacp-mode:
+  /lacp/interfaces/interface/config/system-id-mac:
   /lacp/interfaces/interface/members/member/state/collecting:
+  /lacp/interfaces/interface/members/member/state/counters/lacp-errors:
+  /lacp/interfaces/interface/members/member/state/counters/lacp-rx-errors:
+  /lacp/interfaces/interface/members/member/state/counters/lacp-tx-errors:
+  /lacp/interfaces/interface/members/member/state/counters/lacp-unknown-errors:
   /lacp/interfaces/interface/members/member/state/distributing:
   /lacp/interfaces/interface/members/member/state/interface:
   /lacp/interfaces/interface/members/member/state/oper-key:
@@ -90,6 +98,7 @@ paths:
   /lacp/interfaces/interface/members/member/state/port-num:
   /lacp/interfaces/interface/members/member/state/system-id:
   /lacp/interfaces/interface/state/name:
+  /lacp/interfaces/interface/state/system-id-mac:
 rpcs:
   gnmi:
     gNMI.Set:

@@ -32,6 +32,7 @@ type AteEmulatedRouterData struct {
 	ISISBlocks             []*ISISOTGBlock
 	ISISLSPRefreshInterval int
 	ISISSPLifetime         int
+	ISISAuthKey            string
 }
 
 // ATEPortData is the data structure for a port in the ATE.
@@ -233,6 +234,7 @@ func configureOTGISIS(t *testing.T, dev gosnappi.Device, eRouter *AteEmulatedRou
 	isis.Advanced().SetAreaAddresses([]string{eRouter.ISISAreaAddress})
 	isis.Advanced().SetEnableHelloPadding(false)
 	isis.Basic().SetEnableWideMetric(true)
+	isis.Basic().SetLearnedLspFilter(false)
 	if eRouter.ISISLSPRefreshInterval != 0 {
 		isis.Advanced().SetLspRefreshRate(uint32(eRouter.ISISLSPRefreshInterval))
 	}
@@ -246,4 +248,11 @@ func configureOTGISIS(t *testing.T, dev gosnappi.Device, eRouter *AteEmulatedRou
 
 	isisInt.Advanced().SetEnable3WayHandshake(true)
 	isisInt.Advanced().SetAutoAdjustMtu(true).SetAutoAdjustArea(true).SetAutoAdjustSupportedProtocols(true)
+	// Configure Area, Domain (LSP), and Interface (Hello) MD5 authentication on the ATE emulated router
+	// to match the DUT MD5 authentication parameters.
+	if eRouter.ISISAuthKey != "" {
+		isis.RouterAuth().AreaAuth().SetAuthType("md5").SetMd5(eRouter.ISISAuthKey)
+		isis.RouterAuth().DomainAuth().SetAuthType("md5").SetMd5(eRouter.ISISAuthKey)
+		isisInt.Authentication().SetAuthType("md5").SetMd5(eRouter.ISISAuthKey)
+	}
 }

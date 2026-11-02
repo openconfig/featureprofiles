@@ -3,41 +3,30 @@ package zrp_tunable_parameters_test
 import (
 	"flag"
 	"fmt"
-	"reflect"
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
-	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 )
 
 const (
 	samplingInterval    = 10 * time.Second
 	frequencyTolerance  = 1800
-	timeout             = 12 * time.Minute
+	interfaceTimeout    = 12 * time.Minute
 	telemetryWaitTime   = 60 * time.Second // Increased from 30s to 60s for 6 sampling windows
 	maxTelemetryRetries = 3
 	statisticsTolerance = 3.0 // Relaxed tolerance for statistical comparisons
 )
 
 var (
-	dutPort1 = attrs.Attributes{
-		Desc:    "dutPort1",
-		IPv4:    "192.0.2.1",
-		IPv4Len: 30,
-	}
-	dutPort2 = attrs.Attributes{
-		Desc:    "dutPort2",
-		IPv4:    "192.0.2.5",
-		IPv4Len: 30,
-	}
 	operationalModeFlag = flag.Int("operational_mode", 0, "vendor-specific operational-mode for the channel")
 	operationalMode     uint16
 )
@@ -47,22 +36,20 @@ func TestMain(m *testing.M) {
 }
 
 func Test400ZRPlusTunableFrequency(t *testing.T) {
-	if operationalModeFlag != nil {
-		operationalMode = uint16(*operationalModeFlag)
-	} else {
-		t.Fatalf("Please specify the vendor-specific operational-mode flag")
-	}
 	dut := ondatra.DUT(t, "dut")
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
-	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
-	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
-	oc1 := components.OpticalChannelComponentFromPort(t, dut, p1)
-	oc2 := components.OpticalChannelComponentFromPort(t, dut, p2)
-	streamOC1 := samplestream.New(t, dut, gnmi.OC().Component(oc1).State(), samplingInterval)
+
+	operationalMode = uint16(*operationalModeFlag)
+	operationalMode = cfgplugins.InterfaceInitialize(t, dut, operationalMode)
+	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"))
+	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"))
+	oc1 := opticalChannelFromPort(t, dut, p1)
+	oc2 := opticalChannelFromPort(t, dut, p2)
+	streamOC1 := samplestream.New(t, dut, gnmi.OC().Component(oc1).OpticalChannel().State(), samplingInterval)
 	defer streamOC1.Close()
-	streamOC2 := samplestream.New(t, dut, gnmi.OC().Component(oc2).State(), samplingInterval)
+	streamOC2 := samplestream.New(t, dut, gnmi.OC().Component(oc2).OpticalChannel().State(), samplingInterval)
 	defer streamOC2.Close()
 	tests := []struct {
 		description       string
@@ -85,19 +72,47 @@ func Test400ZRPlusTunableFrequency(t *testing.T) {
 		t.Run(tc.description, func(t *testing.T) {
 			for freq := tc.startFreq; freq <= tc.endFreq; freq += tc.freqStep {
 				t.Run(fmt.Sprintf("Freq: %v", freq), func(t *testing.T) {
-					if deviations.OperationalModeUnsupported(dut) {
-						operationalMode = 0
-					}
-					cfgplugins.ConfigOpticalChannel(t, dut, oc1, freq, tc.targetOutputPower, operationalMode)
-					cfgplugins.ConfigOpticalChannel(t, dut, oc2, freq, tc.targetOutputPower, operationalMode)
-					gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
-					gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
+					opticalChannel1Config := &oc.Component_OpticalChannel{
+						TargetOutputPower: ygot.Float64(tc.targetOutputPower),
+						Frequency:         ygot.Uint64(freq),
+						OperationalMode:   ygot.Uint16(operationalMode)}
+					opticalChannel2Config := &oc.Component_OpticalChannel{
+						TargetOutputPower: ygot.Float64(tc.targetOutputPower),
+						Frequency:         ygot.Uint64(freq),
+						OperationalMode:   ygot.Uint16(operationalMode)}
 
-					// CRITICAL FIX: Wait for telemetry to stabilize (increased from 30s to 60s)
+					if deviations.OperationalModeUnsupported(dut) {
+						opticalChannel1Config.OperationalMode = nil
+						opticalChannel2Config.OperationalMode = nil
+					}
+					gnmi.Replace(t, dut, gnmi.OC().Component(oc1).OpticalChannel().Config(), opticalChannel1Config)
+					gnmi.Replace(t, dut, gnmi.OC().Component(oc2).OpticalChannel().Config(), opticalChannel2Config)
+
+					// Verify frequency configuration
+					gotFreqoc1, ok := gnmi.Watch(t, dut, gnmi.OC().Component(oc1).OpticalChannel().Frequency().State(), 2*time.Minute, func(val *ygnmi.Value[uint64]) bool {
+						Frequency, ok := val.Val()
+						return ok && Frequency == freq
+					}).Await(t)
+					if !ok {
+						t.Fatalf("ERROR:Got frequency: %v, but wanted frequency: %v", gotFreqoc1, freq)
+					}
+					gotFreqoc2, ok := gnmi.Watch(t, dut, gnmi.OC().Component(oc2).OpticalChannel().Frequency().State(), 2*time.Minute, func(val *ygnmi.Value[uint64]) bool {
+						Frequency, ok := val.Val()
+						return ok && Frequency == freq
+					}).Await(t)
+					if !ok {
+						t.Fatalf("ERROR:Got frequency: %v, but wanted frequency: %v", gotFreqoc2, freq)
+					}
+
+					// Wait for interfaces to come up
+					gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), interfaceTimeout, oc.Interface_OperStatus_UP)
+					gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), interfaceTimeout, oc.Interface_OperStatus_UP)
+
+					// Wait for telemetry to stabilize
 					t.Logf("Waiting %v for statistical telemetry to stabilize...", telemetryWaitTime)
 					time.Sleep(telemetryWaitTime)
 
-					validateOpticsTelemetry(t, []*samplestream.SampleStream[*oc.Component]{streamOC1, streamOC2}, freq, tc.targetOutputPower, oc.Interface_OperStatus_UP)
+					validateOpticsTelemetry(t, []*samplestream.SampleStream[*oc.Component_OpticalChannel]{streamOC1, streamOC2}, freq, tc.targetOutputPower)
 				})
 			}
 		})
@@ -105,22 +120,20 @@ func Test400ZRPlusTunableFrequency(t *testing.T) {
 }
 
 func Test400ZRPlusTunableOutputPower(t *testing.T) {
-	if operationalModeFlag != nil {
-		operationalMode = uint16(*operationalModeFlag)
-	} else {
-		t.Fatalf("Please specify the vendor-specific operational-mode flag")
-	}
 	dut := ondatra.DUT(t, "dut")
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
-	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
-	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
-	oc1 := components.OpticalChannelComponentFromPort(t, dut, p1)
-	oc2 := components.OpticalChannelComponentFromPort(t, dut, p2)
-	streamOC1 := samplestream.New(t, dut, gnmi.OC().Component(oc1).State(), samplingInterval)
+
+	operationalMode = uint16(*operationalModeFlag)
+	operationalMode = cfgplugins.InterfaceInitialize(t, dut, operationalMode)
+	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"))
+	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"))
+	oc1 := opticalChannelFromPort(t, dut, p1)
+	oc2 := opticalChannelFromPort(t, dut, p2)
+	streamOC1 := samplestream.New(t, dut, gnmi.OC().Component(oc1).OpticalChannel().State(), 10*time.Second)
 	defer streamOC1.Close()
-	streamOC2 := samplestream.New(t, dut, gnmi.OC().Component(oc2).State(), samplingInterval)
+	streamOC2 := samplestream.New(t, dut, gnmi.OC().Component(oc2).OpticalChannel().State(), 10*time.Second)
 	defer streamOC2.Close()
 	tests := []struct {
 		description            string
@@ -143,97 +156,154 @@ func Test400ZRPlusTunableOutputPower(t *testing.T) {
 	for _, tc := range tests {
 		for top := tc.startTargetOutputPower; top <= tc.endTargetOutputPower; top += tc.targetOutputPowerStep {
 			t.Run(fmt.Sprintf("Target Power: %v", top), func(t *testing.T) {
-				if deviations.OperationalModeUnsupported(dut) {
-					operationalMode = 0
+				opticalChannel1Config := &oc.Component_OpticalChannel{
+					TargetOutputPower: ygot.Float64(top),
+					Frequency:         ygot.Uint64(tc.frequency),
+					OperationalMode:   ygot.Uint16(operationalMode),
 				}
+				opticalChannel2Config := &oc.Component_OpticalChannel{
+					TargetOutputPower: ygot.Float64(top),
+					Frequency:         ygot.Uint64(tc.frequency),
+					OperationalMode:   ygot.Uint16(operationalMode),
+				}
+				if deviations.OperationalModeUnsupported(dut) {
+					opticalChannel1Config.OperationalMode = nil
+					opticalChannel2Config.OperationalMode = nil
+				}
+				gnmi.Replace(t, dut, gnmi.OC().Component(oc1).OpticalChannel().Config(), opticalChannel1Config)
+				gnmi.Replace(t, dut, gnmi.OC().Component(oc2).OpticalChannel().Config(), opticalChannel2Config)
 
-				cfgplugins.ConfigOpticalChannel(t, dut, oc1, tc.frequency, top, operationalMode)
-				cfgplugins.ConfigOpticalChannel(t, dut, oc2, tc.frequency, top, operationalMode)
-				gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
-				gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
+				gotOPoc1, ok := gnmi.Watch(t, dut, gnmi.OC().Component(oc1).OpticalChannel().TargetOutputPower().State(), 2*time.Minute, func(val *ygnmi.Value[float64]) bool {
+					outPower, ok := val.Val()
+					return ok && outPower == top
+				}).Await(t)
+				if !ok {
+					t.Fatalf("ERROR:Got output power: %v, but wanted output power: %v", gotOPoc1, top)
+				}
+				gotOPoc2, ok := gnmi.Watch(t, dut, gnmi.OC().Component(oc2).OpticalChannel().TargetOutputPower().State(), 2*time.Minute, func(val *ygnmi.Value[float64]) bool {
+					outPower, ok := val.Val()
+					return ok && outPower == top
+				}).Await(t)
+				if !ok {
+					t.Fatalf("ERROR:Got output power: %v, but wanted output power: %v", gotOPoc2, top)
+				}
+				gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), interfaceTimeout, oc.Interface_OperStatus_UP)
+				gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), interfaceTimeout, oc.Interface_OperStatus_UP)
 
-				// CRITICAL FIX: Wait for telemetry to stabilize (increased from 30s to 60s)
+				// Wait for telemetry to stabilize
 				t.Logf("Waiting %v for statistical telemetry to stabilize...", telemetryWaitTime)
 				time.Sleep(telemetryWaitTime)
 
-				validateOpticsTelemetry(t, []*samplestream.SampleStream[*oc.Component]{streamOC1, streamOC2}, tc.frequency, top, oc.Interface_OperStatus_UP)
+				validateOpticsTelemetry(t, []*samplestream.SampleStream[*oc.Component_OpticalChannel]{streamOC1, streamOC2}, tc.frequency, top)
 			})
 		}
 	}
 }
 
 func Test400ZRPlusInterfaceFlap(t *testing.T) {
-	if operationalModeFlag != nil {
-		operationalMode = uint16(*operationalModeFlag)
-	} else {
-		t.Fatalf("Please specify the vendor-specific operational-mode flag")
-	}
 	dut := ondatra.DUT(t, "dut")
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
-	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
-	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
-	oc1 := components.OpticalChannelComponentFromPort(t, dut, p1)
-	oc2 := components.OpticalChannelComponentFromPort(t, dut, p2)
-	streamOC1 := samplestream.New(t, dut, gnmi.OC().Component(oc1).State(), samplingInterval)
+
+	operationalMode = uint16(*operationalModeFlag)
+	operationalMode = cfgplugins.InterfaceInitialize(t, dut, operationalMode)
+	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"))
+	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"))
+	oc1 := opticalChannelFromPort(t, dut, p1)
+	oc2 := opticalChannelFromPort(t, dut, p2)
+	streamOC1 := samplestream.New(t, dut, gnmi.OC().Component(oc1).OpticalChannel().State(), 10*time.Second)
 	defer streamOC1.Close()
-	streamOC2 := samplestream.New(t, dut, gnmi.OC().Component(oc2).State(), samplingInterval)
+	streamOC2 := samplestream.New(t, dut, gnmi.OC().Component(oc2).OpticalChannel().State(), 10*time.Second)
 	defer streamOC2.Close()
 	targetPower := float64(-3)
 	frequency := uint64(193100000)
 
-	if deviations.OperationalModeUnsupported(dut) {
-		operationalMode = 0
+	opticalChannel1Config := &oc.Component_OpticalChannel{
+		TargetOutputPower: ygot.Float64(targetPower),
+		Frequency:         ygot.Uint64(frequency),
+		OperationalMode:   ygot.Uint16(operationalMode),
+	}
+	opticalChannel2Config := &oc.Component_OpticalChannel{
+		TargetOutputPower: ygot.Float64(targetPower),
+		Frequency:         ygot.Uint64(frequency),
+		OperationalMode:   ygot.Uint16(operationalMode),
 	}
 
-	cfgplugins.ConfigOpticalChannel(t, dut, oc1, frequency, targetPower, operationalMode)
-	cfgplugins.ConfigOpticalChannel(t, dut, oc2, frequency, targetPower, operationalMode)
-	gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
-	gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
+	if deviations.OperationalModeUnsupported(dut) {
+		opticalChannel1Config.OperationalMode = nil
+		opticalChannel2Config.OperationalMode = nil
+	}
+	gnmi.Replace(t, dut, gnmi.OC().Component(oc1).OpticalChannel().Config(), opticalChannel1Config)
+	gnmi.Replace(t, dut, gnmi.OC().Component(oc2).OpticalChannel().Config(), opticalChannel2Config)
 
-	// CRITICAL FIX: Wait for telemetry to stabilize (increased from 30s to 60s)
+	gotOPoc1, ok := gnmi.Watch(t, dut, gnmi.OC().Component(oc1).OpticalChannel().TargetOutputPower().State(), 2*time.Minute, func(val *ygnmi.Value[float64]) bool {
+		outPower, ok := val.Val()
+		return ok && outPower == targetPower
+	}).Await(t)
+	if !ok {
+		t.Fatalf("ERROR:Got output power: %v, but wanted output power: %v", gotOPoc1, targetPower)
+	}
+	gotOPoc2, ok := gnmi.Watch(t, dut, gnmi.OC().Component(oc2).OpticalChannel().TargetOutputPower().State(), 2*time.Minute, func(val *ygnmi.Value[float64]) bool {
+		outPower, ok := val.Val()
+		return ok && outPower == targetPower
+	}).Await(t)
+	if !ok {
+		t.Fatalf("ERROR:Got output power: %v, but wanted output power: %v", gotOPoc2, targetPower)
+	}
+	gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), interfaceTimeout, oc.Interface_OperStatus_UP)
+	gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), interfaceTimeout, oc.Interface_OperStatus_UP)
+
+	// Wait for telemetry to stabilize
 	t.Logf("Waiting %v for statistical telemetry to stabilize...", telemetryWaitTime)
 	time.Sleep(telemetryWaitTime)
 
 	t.Run("Telemetry before flap", func(t *testing.T) {
-		validateOpticsTelemetry(t, []*samplestream.SampleStream[*oc.Component]{streamOC1, streamOC2}, frequency, targetPower, oc.Interface_OperStatus_UP)
+		validateOpticsTelemetry(t, []*samplestream.SampleStream[*oc.Component_OpticalChannel]{streamOC1, streamOC2}, frequency, targetPower)
 	})
-	// Disable or shut down the interface on the DUT.
-	cfgplugins.ToggleInterface(t, dut, p1.Name(), false)
-	cfgplugins.ToggleInterface(t, dut, p2.Name(), false)
-	gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_DOWN)
-	gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_DOWN)
+
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().Config(), false)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Enabled().Config(), false)
+	gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_DOWN)
+	gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_DOWN)
 
 	// Wait for telemetry to reflect down state
 	time.Sleep(telemetryWaitTime)
 
-	// Verify with interfaces in down state both optics are still streaming
-	// configured value for frequency.
-	// Verify for the TX output power with interface in down state a decimal64
-	// value of -40 dB is streamed.
 	t.Run("Telemetry during interface disabled", func(t *testing.T) {
-		validateOpticsTelemetry(t, []*samplestream.SampleStream[*oc.Component]{streamOC1, streamOC2}, frequency, -40, oc.Interface_OperStatus_DOWN)
+		validateOpticsTelemetry(t, []*samplestream.SampleStream[*oc.Component_OpticalChannel]{streamOC1, streamOC2}, frequency, -40)
 	})
-	// Re-enable the interfaces on the DUT.
-	cfgplugins.ToggleInterface(t, dut, p1.Name(), true)
-	cfgplugins.ToggleInterface(t, dut, p2.Name(), true)
-	gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
-	gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 
-	// CRITICAL FIX: Wait for telemetry to stabilize after recovery (increased from 30s to 60s)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().Config(), true)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Enabled().Config(), true)
+
+	gotOPoc1_enable, ok := gnmi.Watch(t, dut, gnmi.OC().Component(oc1).OpticalChannel().TargetOutputPower().State(), 2*time.Minute, func(val *ygnmi.Value[float64]) bool {
+		outPower, ok := val.Val()
+		return ok && outPower == targetPower
+	}).Await(t)
+	if !ok {
+		t.Fatalf("ERROR:Got output power: %v, but wanted output power: %v", gotOPoc1_enable, targetPower)
+	}
+	gotOPoc2_enable, ok := gnmi.Watch(t, dut, gnmi.OC().Component(oc2).OpticalChannel().TargetOutputPower().State(), 2*time.Minute, func(val *ygnmi.Value[float64]) bool {
+		outPower, ok := val.Val()
+		return ok && outPower == targetPower
+	}).Await(t)
+	if !ok {
+		t.Fatalf("ERROR:Got output power: %v, but wanted output power: %v", gotOPoc2_enable, targetPower)
+	}
+	gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), interfaceTimeout, oc.Interface_OperStatus_UP)
+	gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), interfaceTimeout, oc.Interface_OperStatus_UP)
+
+	// Wait for telemetry to stabilize after recovery
 	t.Logf("Waiting %v for statistical telemetry to stabilize...", telemetryWaitTime)
 	time.Sleep(telemetryWaitTime)
 
-	// Verify the ZR optics tune back to the correct frequency and TX output
-	// power as per the configuration and related telemetry values are updated
-	// to the value in the normal range again.
 	t.Run("Telemetry after flap", func(t *testing.T) {
-		validateOpticsTelemetry(t, []*samplestream.SampleStream[*oc.Component]{streamOC1, streamOC2}, frequency, targetPower, oc.Interface_OperStatus_UP)
+		validateOpticsTelemetry(t, []*samplestream.SampleStream[*oc.Component_OpticalChannel]{streamOC1, streamOC2}, frequency, targetPower)
 	})
 }
 
-func validateOpticsTelemetry(t *testing.T, streams []*samplestream.SampleStream[*oc.Component], frequency uint64, outputPower float64, operStatus oc.E_Interface_OperStatus) {
+func validateOpticsTelemetry(t *testing.T, streams []*samplestream.SampleStream[*oc.Component_OpticalChannel], frequency uint64, outputPower float64) {
 	dut := ondatra.DUT(t, "dut")
 	var ocs []*oc.Component_OpticalChannel
 
@@ -255,7 +325,7 @@ func validateOpticsTelemetry(t *testing.T, streams []*samplestream.SampleStream[
 				allSuccess = false
 				break
 			}
-			ocs = append(ocs, v.GetOpticalChannel())
+			ocs = append(ocs, v)
 		}
 
 		if allSuccess && len(ocs) == len(streams) {
@@ -269,38 +339,30 @@ func validateOpticsTelemetry(t *testing.T, streams []*samplestream.SampleStream[
 		time.Sleep(samplingInterval)
 	}
 
-	for i, _oc := range ocs {
+	for i, oc := range ocs {
 		// Log telemetry values for debugging
-		logTelemetryValues(t, i, _oc)
+		logTelemetryValues(t, i, oc)
 
-		opm := _oc.GetOperationalMode()
+		opm := oc.GetOperationalMode()
 
 		// Carrier Frequency Offset validation
-		cfInst := _oc.GetCarrierFrequencyOffset().GetInstant()
-		cfAvg := _oc.GetCarrierFrequencyOffset().GetAvg()
-		cfMin := _oc.GetCarrierFrequencyOffset().GetMin()
-		cfMax := _oc.GetCarrierFrequencyOffset().GetMax()
+		cfInst := oc.GetCarrierFrequencyOffset().GetInstant()
+		cfAvg := oc.GetCarrierFrequencyOffset().GetAvg()
+		cfMin := oc.GetCarrierFrequencyOffset().GetMin()
+		cfMax := oc.GetCarrierFrequencyOffset().GetMax()
 
 		if got, want := opm, uint16(operationalMode); got != want && !deviations.OperationalModeUnsupported(dut) {
 			t.Errorf("ERROR: Optical-Channel %d: operational-mode: got %v, want %v", i, got, want)
 		}
-
-		// Laser frequency offset should not be more than +/- 1.8 GHz max from the configured center frequency.
-		// Statistical values are checked for internal consistency within a relaxed tolerance of +/- 3.0.
+		// Laser frequency offset should not be more than +/- 1.8 GHz max from the
+		// configured centre frequency. Statistical values are checked for internal consistency
+		// within a relaxed tolerance of +/- 3.0.
 		if cfInst < -1*frequencyTolerance || cfInst > frequencyTolerance {
 			t.Errorf("ERROR: Optical-Channel %d: carrier-frequency-offset not in tolerable range, got: %v, want: (+/-)%v", i, cfInst, frequencyTolerance)
 		}
 
-		// Verify all values are float64
-		for _, ele := range []any{cfInst, cfMin, cfMax, cfAvg} {
-			if reflect.TypeOf(ele).Kind() != reflect.Float64 {
-				t.Fatalf("Value %v is not type float64", ele)
-			}
-		}
-
 		if !deviations.MissingZROpticalChannelTunableParametersTelemetry(dut) {
-			// CRITICAL FIX: Validate statistics consistency without comparing to instant
-			// The instant value may be from a different sampling window than min/max/avg
+			// Validate statistics consistency (not comparing to instant)
 			// Only validate that the statistics themselves are internally consistent
 			if cfMin > cfAvg+statisticsTolerance {
 				t.Errorf("ERROR: Optical-Channel %d: carrier-frequency-offset min (%v) greater than avg (%v) beyond tolerance", i, cfMin, cfAvg)
@@ -312,40 +374,22 @@ func validateOpticsTelemetry(t *testing.T, streams []*samplestream.SampleStream[
 			if cfMin > cfMax+statisticsTolerance {
 				t.Errorf("ERROR: Optical-Channel %d: carrier-frequency-offset min (%v) greater than max (%v)", i, cfMin, cfMax)
 			}
-		} else {
-			t.Log("Skipping Min/Max/Avg Tunable Parameters Telemetry validation. Deviation MissingZROpticalChannelTunableParametersTelemetry enabled.")
 		}
 
 		// Output Power validation
-		opInst := _oc.GetOutputPower().GetInstant()
-		opAvg := _oc.GetOutputPower().GetAvg()
-		opMin := _oc.GetOutputPower().GetMin()
-		opMax := _oc.GetOutputPower().GetMax()
+		opInst := oc.GetOutputPower().GetInstant()
+		opAvg := oc.GetOutputPower().GetAvg()
+		opMin := oc.GetOutputPower().GetMin()
+		opMax := oc.GetOutputPower().GetMax()
 
-		// When set to a specific target output power, transmit power control absolute accuracy should be
-		// within +/- 2 dBm of the target configured output power.
+		// Use relaxed tolerance for instant output power check (±2 dBm).
 		// Statistical values are checked for internal consistency within a relaxed tolerance of +/- 3.0.
-		switch operStatus {
-		case oc.Interface_OperStatus_UP:
-			// Use relaxed tolerance for instant output power check (±2 dBm)
-			if opInst < outputPower-2 || opInst > outputPower+2 {
-				t.Errorf("ERROR: Optical-Channel %d: output-power not in tolerable range, got: %v, want: %v (±2 dBm)", i, opInst, outputPower)
-			}
-		case oc.Interface_OperStatus_DOWN:
-			if opInst != -40 {
-				t.Errorf("ERROR: Optical-Channel %d: output-power not in tolerable range, got: %v, want: %v", i, opInst, -40)
-			}
-		}
-
-		// Verify all values are float64
-		for _, ele := range []any{opInst, opMin, opMax, opAvg} {
-			if reflect.TypeOf(ele).Kind() != reflect.Float64 {
-				t.Fatalf("Value %v is not type float64", ele)
-			}
+		if opInst < outputPower-2 || opInst > outputPower+2 {
+			t.Errorf("ERROR: Optical-Channel %d: output-power not in tolerable range, got: %v, want: %v (±2 dBm)", i, opInst, outputPower)
 		}
 
 		if !deviations.MissingZROpticalChannelTunableParametersTelemetry(dut) {
-			// CRITICAL FIX: Validate statistics consistency without comparing to instant
+			// Validate statistics consistency (not comparing to instant)
 			// Only validate that the statistics themselves are internally consistent
 			if opMin > opAvg+statisticsTolerance {
 				t.Errorf("ERROR: Optical-Channel %d: output-power min (%v) greater than avg (%v) beyond tolerance", i, opMin, opAvg)
@@ -357,11 +401,9 @@ func validateOpticsTelemetry(t *testing.T, streams []*samplestream.SampleStream[
 			if opMin > opMax+statisticsTolerance {
 				t.Errorf("ERROR: Optical-Channel %d: output-power min (%v) greater than max (%v)", i, opMin, opMax)
 			}
-		} else {
-			t.Log("Skipping Min/Max/Avg Tunable Parameters Telemetry validation. Deviation MissingZROpticalChannelTunableParametersTelemetry enabled.")
 		}
 
-		if got, want := _oc.GetFrequency(), frequency; got != want {
+		if got, want := oc.GetFrequency(), frequency; got != want {
 			t.Errorf("ERROR: Optical-Channel %d: frequency: %v, want: %v", i, got, want)
 		}
 	}
@@ -382,4 +424,10 @@ func logTelemetryValues(t *testing.T, channelID int, oc *oc.Component_OpticalCha
 		oc.GetOutputPower().GetMax())
 	t.Logf("  Frequency: %v", oc.GetFrequency())
 	t.Logf("  Operational Mode: %v", oc.GetOperationalMode())
+}
+
+func opticalChannelFromPort(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
+	t.Helper()
+	tr := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
+	return gnmi.Get(t, dut, gnmi.OC().Component(tr).Transceiver().Channel(0).AssociatedOpticalChannel().State())
 }

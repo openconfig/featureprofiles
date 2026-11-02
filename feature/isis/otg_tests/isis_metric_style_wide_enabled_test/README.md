@@ -5,6 +5,11 @@
 *  Base IS-IS functionality and adjacency establishment.
 *  Verifies route metric with wide metric enabled on DUT.
 
+## Canonical OC
+```json
+{}
+```  
+
 ## Procedure
 
     *	Configure IS-IS for ATE port-1 and DUT port-1.
