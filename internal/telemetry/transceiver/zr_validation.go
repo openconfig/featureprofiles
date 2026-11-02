@@ -201,10 +201,8 @@ func PlatformPathsTest(t *testing.T, tp *TunableParamters) {
 				}
 
 				t.Logf("\n*** Bringing UP all interfaces\n\n\n")
-				for _, p := range dut.Ports() {
-					params.Enabled = true
-					cfgplugins.ToggleInterfaceState(t, dut, p, params)
-				}
+				params.Enabled = true
+				cfgplugins.ToggleInterfaceState(t, dut, params)
 				for _, p := range dut.Ports() {
 					validateTempSensorTelemetry(t, dut, p, params, oc.Interface_OperStatus_UP, tempSensorStreams[p.Name()])
 					validateInterfaceTelemetry(t, dut, p, params, oc.Interface_OperStatus_UP, interfaceStreams[p.Name()])

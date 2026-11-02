@@ -759,12 +759,10 @@ func lookupOpticalChannelName(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.P
 // lookupLinePortName returns the line port name for the given port.
 func lookupLinePortName(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
 	switch dut.Vendor() {
-	case ondatra.ARISTA, ondatra.JUNIPER:
+	case ondatra.ARISTA, ondatra.JUNIPER, ondatra.NOKIA:
 		return lookupHWPortName(t, dut, p)
 	case ondatra.CISCO:
 		return lookupTransceiverName(t, dut, p)
-	case ondatra.NOKIA:
-		return ""
 	default:
 		return ""
 	}
@@ -821,15 +819,6 @@ func InterfaceName(dut *ondatra.DUTDevice, p *ondatra.Port, params *ConfigParame
 		return strings.Replace(p.Name(), "EightHundredGigE", "FourHundredGigE", -1) + "/0"
 	default:
 		return p.Name()
-	}
-	gnmi.Replace(t, p.Device(), gnmi.OC().Interface(p.Name()).Config(), i)
-	if deviations.ExplicitBreakoutInterfaceConfig(dut) &&
-		!(deviations.BreakoutModeUnsupportedForEightHundredGb(dut) && params.PortSpeed == oc.IfEthernet_ETHERNET_SPEED_SPEED_800GB) {
-		gnmi.Replace(t, p.Device(), gnmi.OC().Interface(p.Name()+"/1").Config(), &oc.Interface{
-			Name:    ygot.String(p.Name() + "/1"),
-			Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
-			Enabled: ygot.Bool(params.Enabled),
-		})
 	}
 }
 
