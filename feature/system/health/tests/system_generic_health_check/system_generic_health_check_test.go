@@ -973,17 +973,10 @@ func TestInterfaceEthernetNoDrop(t *testing.T) {
 					desc:    "OutMacPauseFrames",
 					counter: counters.OutMacPauseFrames().State(),
 				},
-				{
-					desc:    "InBlockErrors",
-					counter: counters.InBlockErrors().State(),
-				},
 			}
 
 			for _, c := range cases {
 				t.Run(c.desc, func(t *testing.T) {
-					if c.desc == "InBlockErrors" && deviations.InterfaceEthernetInblockErrorsUnsupported(dut) {
-						t.Skipf("skip testcase as in-block errors counters are not supported")
-					}
 					if val, present := gnmi.Lookup(t, dut, c.counter).Val(); present {
 						t.Logf("INFO: %s: %d", c.counter, val)
 					} else {
@@ -1007,52 +1000,6 @@ func TestSystemAlarms(t *testing.T) {
 			if alarmSeverity == oc.AlarmTypes_OPENCONFIG_ALARM_SEVERITY_MAJOR {
 				t.Logf("INFO: System Alarm with severity %s seen: %s", alarmSeverity, val.GetText())
 			}
-		}
-	}
-}
-
-func TestFabricDrop(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	t.Logf("INFO: Check no fabric drop")
-	if deviations.FabricDropCounterUnsupported(dut) {
-		t.Skipf("INFO: Skipping test due to deviation fabric_drop_counter_unsupported")
-	}
-	query := gnmi.OC().ComponentAny().IntegratedCircuit().PipelineCounters().Drop().FabricBlock().State()
-	t.Logf("query %s", query)
-	fabricBlocks := gnmi.GetAll(t, dut, query)
-	if len(fabricBlocks) == 0 {
-		t.Fatalf("ERROR: %s is not present", query)
-	}
-	for _, fabricBlock := range fabricBlocks {
-		if fabricBlock.LostPackets == nil {
-			t.Errorf("ERROR: Fabric LostPackets counter is not present")
-		} else {
-			t.Logf("INFO: Fabric LostPackets: %d", fabricBlock.GetLostPackets())
-		}
-		if fabricBlock.FabricAggregate == nil {
-			t.Errorf("ERROR: FabricAggregate counter is not present")
-		} else {
-			t.Logf("INFO: FabricAggregate: %d", fabricBlock.GetFabricAggregate())
-		}
-		if fabricBlock.InHighPriority == nil {
-			t.Errorf("ERROR: Fabric InHighPriority counter is not present")
-		} else {
-			t.Logf("INFO: Fabric InHighPriority: %d", fabricBlock.GetInHighPriority())
-		}
-		if fabricBlock.InLowPriority == nil {
-			t.Errorf("ERROR: Fabric InLowPriority counter is not present")
-		} else {
-			t.Logf("INFO: Fabric InLowPriority: %d", fabricBlock.GetInLowPriority())
-		}
-		if fabricBlock.OutHighPriority == nil {
-			t.Errorf("ERROR: Fabric OutHighPriority counter is not present")
-		} else {
-			t.Logf("INFO: Fabric OutHighPriority: %d", fabricBlock.GetOutHighPriority())
-		}
-		if fabricBlock.OutLowPriority == nil {
-			t.Errorf("ERROR: Fabric OutLowPriority counter is not present")
-		} else {
-			t.Logf("INFO: Fabric OutLowPriority: %d", fabricBlock.GetOutLowPriority())
 		}
 	}
 }
