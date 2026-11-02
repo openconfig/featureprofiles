@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "d4f8b2c1-6e3a-4b9d-8c1e-7a2f5b9d3e14"
+plan_id: "Authz-5"
+description: "gRPC Server Per-RPC Statistics YANG State Bounding"
+testbed: TESTBED_DUT_ATE_4LINKS
