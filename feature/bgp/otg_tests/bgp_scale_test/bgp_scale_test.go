@@ -1420,9 +1420,9 @@ func (a *attributes) setupNbrList() []*bgpNeighbor {
 // and measures convergence, LACP/host-path health, BGP telemetry, traffic, and system process stability.
 func bgpEvents(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, top gosnappi.Config, nbrList []*bgpNeighbor, dutInfoPreReset dutInfo, operation string, v4ConvergenceCount, v6ConvergenceCount uint32) {
 	t.Helper()
-	dutInfoPostReset := dutInfo{processes: make(map[string]processesInfo)}
-
-	dutInfoPreReset = verifySystemHealth(t, dut)
+	if len(dutInfoPreReset.processes) == 0 {
+		dutInfoPreReset = verifySystemHealth(t, dut)
+	}
 	cs := gosnappi.NewControlState()
 	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 
@@ -1562,7 +1562,7 @@ func bgpEvents(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, top
 	}
 
 	t.Logf("%s: Check DUT health and verify no process restarts", operation)
-	dutInfoPostReset = verifySystemHealth(t, dut)
+	dutInfoPostReset := verifySystemHealth(t, dut)
 	verifyNoProcessRestart(t, dutInfoPreReset, dutInfoPostReset)
 	t.Logf("Verify Final system health")
 }
