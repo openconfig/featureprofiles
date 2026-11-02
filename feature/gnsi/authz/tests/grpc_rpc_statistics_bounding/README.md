@@ -216,13 +216,16 @@ leaking AAA sessions or corrupting DUT state.
 
 ### Authz-5.5 - Teardown and Cleanup Verification
 
-* Step 1 - Close test streams and restore initial authorization policy: Close
-  the `P4Runtime.StreamChannel` session and restore the initial `gNSI.authz`
-  policy recorded during setup using `gNSI.authz.v1.Authz.Rotate`.
+* Step 1 - Close test streams, restore initial authorization policy, and revert
+  configurations: Close the `P4Runtime.StreamChannel` session, restore the
+  initial `gNSI.authz` policy recorded during setup using
+  `gNSI.authz.v1.Authz.Rotate`, and revert the P4RT `node-id`, interface `id`,
+  and `grpc-servers` configurations to their pre-test states.
 * Step 2 - Validation with pass/fail criteria:
   * Verify via `gNSI.authz.v1.Authz.Get` and `gNMI.Get` on
     `/system/aaa/authorization/state/grpc-authz-policy-version` that the
-    pre-test authorization policy version and content are restored.
+    pre-test authorization policy version and content are restored, and that the
+    DUT is restored to its baseline operational state.
 
 ## Canonical OC
 
@@ -341,6 +344,14 @@ rpcs:
     authz.v1.Authz.Probe:
   gribi:
     gRIBI.Get:
+  # P4Runtime RPCs (github.com/p4lang/p4runtime; commented out as validate_readme_spec only clones github.com/openconfig/<api>.git):
+  # p4runtime:
+  #   p4.v1.P4Runtime.StreamChannel:
+  #   p4.v1.P4Runtime.SetForwardingPipelineConfig:
+  #   p4.v1.P4Runtime.GetForwardingPipelineConfig:
+  #   p4.v1.P4Runtime.Capabilities:
+  #   p4.v1.P4Runtime.Write:
+  #   p4.v1.P4Runtime.Read:
 ```
 
 ## Required DUT platform
