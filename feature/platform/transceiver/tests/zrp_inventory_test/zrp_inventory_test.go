@@ -105,6 +105,15 @@ func TestInventoryInterfaceFlap(t *testing.T) {
 	verifyAllInventoryValues(t, p1StreamsStr, p1StreamsUnion)
 
 	// Disable or shut down the interface on the DUT.
+	portsDisabled := true
+	t.Cleanup(func() {
+		if !portsDisabled {
+			return
+		}
+		for _, p := range dut.Ports() {
+			cfgplugins.ToggleInterface(t, dut, p.Name(), true)
+		}
+	})
 	for _, p := range dut.Ports() {
 		cfgplugins.ToggleInterface(t, dut, p.Name(), false)
 	}
@@ -120,6 +129,7 @@ func TestInventoryInterfaceFlap(t *testing.T) {
 	for _, p := range dut.Ports() {
 		cfgplugins.ToggleInterface(t, dut, p.Name(), true)
 	}
+	portsDisabled = false
 	// Wait for channels to be up.
 	gnmi.Await(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 	gnmi.Await(t, dut, gnmi.OC().Interface(dp2.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
@@ -171,6 +181,15 @@ func TestInventoryTransceiverOnOff(t *testing.T) {
 		verifyAllInventoryValues(t, p1StreamsStr, p1StreamsUnion)
 
 		// Disable or shut down the interface on the DUT.
+		portsDisabled := true
+		t.Cleanup(func() {
+			if !portsDisabled {
+				return
+			}
+			for _, p := range dut.Ports() {
+				cfgplugins.ToggleInterface(t, dut, p.Name(), true)
+			}
+		})
 		for _, p := range dut.Ports() {
 			cfgplugins.ToggleInterface(t, dut, p.Name(), false)
 		}
@@ -186,6 +205,7 @@ func TestInventoryTransceiverOnOff(t *testing.T) {
 		for _, p := range dut.Ports() {
 			cfgplugins.ToggleInterface(t, dut, p.Name(), true)
 		}
+		portsDisabled = false
 
 		// Wait for channels to be up.
 		gnmi.Await(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)

@@ -112,6 +112,13 @@ func TestZRFirmwareVersionStateInterfaceFlap(t *testing.T) {
 		t.Fatalf("%s Transceiver is not 400ZR its of type: %v", transceiverName, dp1.PMD())
 	}
 	// Disable interface
+	portDisabled := true
+	t.Cleanup(func() {
+		if !portDisabled {
+			return
+		}
+		configInterface(t, dut1, dp1, true)
+	})
 	configInterface(t, dut1, dp1, false)
 	component1 := gnmi.OC().Component(transceiverName)
 
@@ -123,6 +130,7 @@ func TestZRFirmwareVersionStateInterfaceFlap(t *testing.T) {
 
 	// Enable interface
 	configInterface(t, dut1, dp1, true)
+	portDisabled = false
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
 	verifyFirmwareVersionValue(t, dut1, p1Stream)
 }

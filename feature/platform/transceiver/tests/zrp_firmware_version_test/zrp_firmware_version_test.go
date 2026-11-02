@@ -104,6 +104,13 @@ func TestZRPFirmwareVersionStateInterfaceFlap(t *testing.T) {
 	}
 	// Disable interface
 	// TODO: jchenjian - Add support for module reset (not supported in current implementation)
+	portDisabled := true
+	t.Cleanup(func() {
+		if !portDisabled {
+			return
+		}
+		cfgplugins.ToggleInterface(t, dut1, dp1.Name(), true)
+	})
 	cfgplugins.ToggleInterface(t, dut1, dp1.Name(), false)
 	component1 := gnmi.OC().Component(transceiverName)
 
@@ -116,6 +123,7 @@ func TestZRPFirmwareVersionStateInterfaceFlap(t *testing.T) {
 
 	// Enable interface
 	cfgplugins.ToggleInterface(t, dut1, dp1.Name(), true)
+	portDisabled = false
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 	t.Logf("Interfaces are up: %v", dp1.Name())
 	verifyFirmwareVersionValue(t, dut1, p1Stream)

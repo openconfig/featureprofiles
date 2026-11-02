@@ -137,6 +137,13 @@ func TestLowPowerMode(t *testing.T) {
 			validateStreamOutput(t, allStream)
 
 			// Disable interface
+			portDisabled := true
+			t.Cleanup(func() {
+				if !portDisabled {
+					return
+				}
+				cfgplugins.ToggleInterface(t, dut, dp.Name(), true)
+			})
 			cfgplugins.ToggleInterface(t, dut, dp.Name(), false)
 			// Wait for interface to go down.
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
@@ -190,6 +197,7 @@ func TestLowPowerMode(t *testing.T) {
 
 			// Enable interface
 			cfgplugins.ToggleInterface(t, dut, dp.Name(), true)
+			portDisabled = false
 			// Wait for interface to go up.
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 

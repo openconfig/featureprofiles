@@ -147,6 +147,13 @@ func TestZRTemperatureStateInterfaceFlap(t *testing.T) {
 	// 	t.Fatalf("%s Transceiver is not 400ZR_PLUS its of type: %v", transceiverName, dp1.PMD())
 	// }
 	// Disable interface
+	portDisabled := true
+	t.Cleanup(func() {
+		if !portDisabled {
+			return
+		}
+		cfgplugins.ToggleInterface(t, dut1, dp1.Name(), true)
+	})
 	cfgplugins.ToggleInterface(t, dut1, dp1.Name(), false)
 	compWithTemperature := gnmi.OC().Component(transceiverName)
 	if !deviations.UseParentComponentForTemperatureTelemetry(dut1) {
@@ -184,6 +191,7 @@ func TestZRTemperatureStateInterfaceFlap(t *testing.T) {
 	}
 	// Enable interface
 	cfgplugins.ToggleInterface(t, dut1, dp1.Name(), true)
+	portDisabled = false
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 	temperatureInstant = verifyTemperatureSensorValue(t, p1StreamInstant, "Instant")
 	t.Logf("Port1 dut1 %s Instant Temperature after interface up: %v", dp1.Name(), temperatureInstant)
