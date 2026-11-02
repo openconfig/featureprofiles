@@ -3,7 +3,7 @@
 ## Summary
 
 Validate gNOI RPC can support packet-based link qualification test for the 400g
-and 100g links within 1 DUTs.
+and 100g links within 1 DUT.
 
 ## Testbed type
 
@@ -14,119 +14,81 @@ and 100g links within 1 DUTs.
 ### Topology
 
 ```text
-+------------------------+                         +------------------------+
-|   NEAR_END Generator   |                         |   FAR_END Reflector    |
-|                        |        400G Link        |                        |
-|  dut:port1 (lag1)      | <=====================> |  dut:port2 (lag2)      |
-|  192.0.2.1/30          |  (PBLQ TX / Loopback)   |  192.0.2.2/30          |
-|  198.51.100.1/30 (LAG) |                         |  198.51.100.2/30 (LAG) |
-|                        |        100G Link        |                        |
-|  dut:port3 (lag3)      | <=====================> |  dut:port4 (lag4)      |
-|  192.0.2.5/30          |  (PBLQ TX / Loopback)   |  192.0.2.6/30          |
-|  198.51.100.5/30 (LAG) |                         |  198.51.100.6/30 (LAG) |
-+------------------------+                         +------------------------+
++-------------------------+                         +-------------------------+
+|   NEAR_END Generator    |                         |    FAR_END Reflector    |
+|                         |        400G Link        |                         |
+|  dut:port1 (lag1)       | <=====================> |  dut:port2 (lag2)       |
+|  192.0.2.1/30           |  (PBLQ TX / Loopback)   |  192.0.2.5/30           |
+|  198.51.100.1/30 (LAG)  |                         |  198.51.100.5/30 (LAG)  |
+|                         |        100G Link        |                         |
+|  dut:port3 (lag3)       | <=====================> |  dut:port4 (lag4)       |
+|  192.0.2.9/30           |  (PBLQ TX / Loopback)   |  192.0.2.13/30          |
+|  198.51.100.9/30 (LAG)  |                         |  198.51.100.13/30 (LAG) |
++-------------------------+                         +-------------------------+
 ```
 
-*   `dut1:port 1 <--> port 2:dut1` - 400G ports (port 1 and 2 as singleton and
+*   `dut:port1 <--> dut:port2` - 400G ports (port 1 and 2 as singleton and
     memberlink)
-*   `dut1:port 3 <--> port 4:dut1` - 100G ports (port 3 and 4 as singleton and
+*   `dut:port3 <--> dut:port4` - 100G ports (port 3 and 4 as singleton and
     memberlink)
 
-*   Connect the ports as per topology.
-    *   Validate the link qualification Capabilities response.
-        *   MaxHistoricalResultsPerInterface is >= 2.
-        *   Time exists.
-        *   Generator:
-            *   MinMtu >= 64,
-            *   MaxMtu >= 8184,
-            *   MaxBps >= 4e11,
-            *   MaxPps >= 5e8,
-            *   MinSetupDuration > 0
-            *   MinTeardownDuration > 0,
-            *   MinSampleInterval > 0,
-        *   Reflector:
-            *   MinSetupDuration > 0
-            *   MinTeardownDuration > 0,
-*   Validate the error code is returned for Get and Delete requests with
-    non-existing ID.
-    *   Error code is 5 NOT_FOUND (HTTP Mapping: 404 Not Found).
-*   Validate the link qualification List and Delete.
-    *   Issue List qualifications request.
-    *   Delete the qualification if qualification is found.
-    *   Issue List qualifications request again.
-    *   Verify that the qualification has been deleted successfully by checking
-        List response.
-*   Set a port as the NEAR_END (generator) device for Packet Based Link Qual.
-    *   Issue gnoi.LinkQualification Create RPC to the device and provide
-        following parameters:
-        *   Id: A unique identifier for this run of the test
-        *   InterfaceName: interface as the interface to be used as generator
-            end.
-            *   This interface must be connected to the interface chosen on the
-                reflector device using 400G connection.
-        *   EndpointType: Qualification_end set as NEAR_END with
-            PacketGeneratorConfiguration.
-    *   Set the following parameters for link qualification service usage:
-        *   PacketRate: Packet per second rate to use for this test.
-        *   PacketSize: Size of packets to inject. The value is 8184 bytes.
-    *   RPCSyncedTiming:
-        *   SetupDuration: The requested setup time for the endpoint.
-        *   PreSyncDuration: Minimum_wait_before_preparation_seconds. Within
-            this period, the device should:
-            *   Initialize the link qualification state machine.
-            *   Set port’s state to TESTING. This state is only relevant inside
-                the linkQual service.
-            *   Set the port in loopback mode.
-        *   Duration:The length of the qualification.
-        *   PostSyncDuration: The amount time a side should wait before starting
-            its teardown.
-        *   TeardownDuration: The amount time required to bring the interface
-            back to pre-test state.
-    *       Verify generator interface oper-state is 'TESTING'
-   *   Set another port as the FAR_END (reflector) device for Packet Based Link
-    Qual.
-    *   Issue gnoi.LinkQualification Create RPC to the device and provide
-        following parameters:
-        *   Id: A unique identifier for this run of the test
-        *   InterfaceName: Interface as the interface to be used as a reflector
-            to turn the packet back.
-        *   EndpointType: Qualification_end set as FAR_END.
-        *   RPCSyncedTiming:
-            *   Reflector timers should be same as the ones on the generator.
-        *   Verify reflector interface oper-state is 'TESTING'
-*   Get the result by issuing gnoi.LinkQualification Get RPC to gather the
-    result of link qualification. Provide the following parameter:
-    *   Id: The identifier used above on the NEAR_END side.
-    *   Validate the response to
-        *   Ensure that the current_state is QUALIFICATION_STATE_COMPLETED
-        *   Ensure that the num_corrupt_packets and num_packets_dropped_by_mmu
-            are 0
-        *   Ensure that RPC status code is 0 for success.
-        *   Packets sent count matches with packets received.
+### gNOI-2.1.1 - Capabilities, Error Handling, and List/Delete Validation
 
-### Scenario 1: Concurrent Multi-Link Qualification on Singleton Interfaces (Dual-Stack IPv4 and IPv6)
+1.  **Capabilities Validation (`Capabilities` RPC)**:
+    *   Connect the ports as per topology and issue
+        `gnoi.packet_link_qualification.LinkQualification.Capabilities`.
+    *   Validate the `CapabilitiesResponse` fields:
+        *   `time` exists (`time.seconds >= 1`).
+        *   `max_historical_results_per_interface >= 2`.
+        *   `generator.packet_generator`:
+            *   `min_mtu >= 64`
+            *   `max_mtu >= 8184`
+            *   `max_bps >= 4e11` (400G) / `1e11` (100G)
+            *   `max_pps >= 5e8` (or device capability threshold `>= 1e8`)
+            *   `min_setup_duration > 0` (`>= 1s`)
+            *   `min_teardown_duration > 0` (`>= 1s`)
+            *   `min_sample_interval > 0` (`>= 10s`)
+        *   `reflector` (`pmd_loopback` or `asic_loopback`):
+            *   `min_setup_duration > 0` (`>= 1s`)
+            *   `min_teardown_duration > 0` (`>= 1s`)
 
-This scenario validates that the gNOI `LinkQualification` service can
-concurrently qualify all 4 physical links (both 400G and 100G interfaces, either
-hairpinned on a single DUT or connected between two peer DUTs) as singleton
-Layer 3 interfaces without encountering `DEADLINE_EXCEEDED` gRPC errors during
-session creation (`Create`), state monitoring (`List`), result retrieval
-(`Get`), or post-qualification cleanup (`Delete`).
+2.  **Non-Existent ID Error Handling (`Get` and `Delete` RPCs)**:
+    *   Issue `gnoi.packet_link_qualification.LinkQualification.Get` and
+        `gnoi.packet_link_qualification.LinkQualification.Delete` requests using
+        a non-existent qualification ID.
+    *   Verify that the per-ID status code returned in both `GetResponse` and
+        `DeleteResponse` is `5` (`NOT_FOUND`, HTTP Mapping: `404 Not Found`).
+
+3.  **Baseline List and Delete Validation (`List` and `Delete` RPCs)**:
+    *   Issue `gnoi.packet_link_qualification.LinkQualification.List` to query
+        existing link qualification records on the DUT.
+    *   If any qualification records exist, delete them via
+        `gnoi.packet_link_qualification.LinkQualification.Delete`.
+    *   Issue `gnoi.packet_link_qualification.LinkQualification.List` again and
+        verify that `0` qualification records remain so subsequent tests start
+        from a clean baseline.
+
+### gNOI-2.1.2 - Concurrent Multi-Link Qualification on Singleton Interfaces
+
+This subtest validates that the gNOI `LinkQualification` service can
+concurrently qualify all 4 physical links (both 400G and 100G interfaces) as
+singleton Layer 3 interfaces without encountering `DEADLINE_EXCEEDED` gRPC
+errors during session creation (`Create`), state monitoring (`List`), result
+retrieval (`Get`), or post-qualification cleanup (`Delete`).
 
 1.  **Interface Configuration and Pre-Test Baseline**:
-    *   Configure `DUT 1 port 1`, `DUT 1 port 2` (400G interfaces) and `DUT 1
-        port 3`, `DUT 1 port 4` (100G interfaces)—or `DUT 1 port 1` through
-        `DUT 1 port 4` connected to `DUT 2 port 1` through `DUT 2 port 4` in a
-        two-DUT topology—as singleton Ethernet interfaces using `gNMI.Set`:
+    *   Configure `dut:port1`, `dut:port2` (400G interfaces) and `dut:port3`,
+        `dut:port4` (100G interfaces) as singleton Ethernet interfaces using
+        `gNMI.Set`:
         *   Set `/interfaces/interface/config/type` to `ethernetCsmacd`,
             `/interfaces/interface/config/enabled` to `true`, and
             `/interfaces/interface/config/mtu` to `9000`.
         *   Configure dual-stack IPv4 and IPv6 addressing on subinterface `0`
             (`/interfaces/interface/subinterfaces/subinterface/index`):
             *   `port1`: IPv4 `192.0.2.1/30` and IPv6 `2001:db8::1/126`
-            *   `port2`: IPv4 `192.0.2.2/30` and IPv6 `2001:db8::2/126`
-            *   `port3`: IPv4 `192.0.2.5/30` and IPv6 `2001:db8::5/126`
-            *   `port4`: IPv4 `192.0.2.6/30` and IPv6 `2001:db8::6/126`
+            *   `port2`: IPv4 `192.0.2.5/30` and IPv6 `2001:db8::5/126`
+            *   `port3`: IPv4 `192.0.2.9/30` and IPv6 `2001:db8::9/126`
+            *   `port4`: IPv4 `192.0.2.13/30` and IPv6 `2001:db8::d/126`
             *   Enable both address families by setting
                 `/interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled`
                 to `true` and
@@ -136,32 +98,25 @@ session creation (`Create`), state monitoring (`List`), result retrieval
         `/interfaces/interface/state/admin-status` is `UP` and
         `/interfaces/interface/state/oper-status` is `UP` on all 4 interfaces
         before starting link qualification.
-    *   Issue `gnoi.packet_link_qualification.LinkQualification.List` and delete
-        any pre-existing qualification records via
-        `gnoi.packet_link_qualification.LinkQualification.Delete` so that the
-        service starts from a clean baseline with `0` active or historical
-        sessions.
 
 2.  **Concurrent Multi-Link Qualification Start (`Create` RPC)**:
-    *   Query `gnoi.packet_link_qualification.LinkQualification.Capabilities` to
-        determine the minimum setup and teardown durations supported by the
-        generator (`PacketGenerator`) and reflector (`AsicLoopback` or
-        `PmdLoopback`).
-    *   Issue `gnoi.packet_link_qualification.LinkQualification.Create` with an
+    *   Using the minimum setup and teardown durations reported by
+        `LinkQualification.Capabilities` in `gNOI-2.1.1`, issue
+        `gnoi.packet_link_qualification.LinkQualification.Create` with an
         explicit RPC deadline (e.g., 60 seconds) to initiate link qualification
         simultaneously across all connected port pairs (`port1 <--> port2` on
-        400G and `port3 <--> port4` on 100G, or all 4 `DUT 1 <--> DUT 2` links
-        concurrently):
-        *   **NEAR_END (Generator) Interfaces**: Configure
+        400G and `port3 <--> port4` on 100G):
+        *   **NEAR_END (Generator) Interfaces (`port1`, `port3`)**: Configure
             `PacketGeneratorConfiguration` with `packet_rate` set to `138888`
             PPS and `packet_size` set to `8184` bytes, and `RPCSyncedTiming` set
             to `pre_sync_duration: 10s`, `setup_duration: >= 30s`, `duration:
             180s`, `post_sync_duration: 0s`, and `teardown_duration: >= 30s`.
-        *   **FAR_END (Reflector) Interfaces**: Configure
+        *   **FAR_END (Reflector) Interfaces (`port2`, `port4`)**: Configure
             `AsicLoopbackConfiguration` (or `PmdLoopbackConfiguration` based on
-            device capabilities) with `RPCSyncedTiming` set to
-            `pre_sync_duration: 0s`, `setup_duration: >= 40s`, `duration: 180s`,
-            `post_sync_duration: 30s`, and `teardown_duration: >= 10s`.
+            device capabilities) to place the reflector port in loopback mode,
+            with `RPCSyncedTiming` set to `pre_sync_duration: 0s`,
+            `setup_duration: >= 40s`, `duration: 180s`, `post_sync_duration:
+            30s`, and `teardown_duration: >= 10s`.
     *   **Pass/Fail Criteria (`Create`)**: The `Create` RPC must complete before
         the context deadline expires without returning `DEADLINE_EXCEEDED`, and
         `CreateResponse.status` must contain an entry for every requested
@@ -191,10 +146,16 @@ session creation (`Create`), state monitoring (`List`), result retrieval
         *   For every qualification ID: `status.code == 0`, `state ==
             QUALIFICATION_STATE_COMPLETED`, `packets_error == 0`, and
             `packets_dropped == 0`.
-        *   `packets_sent > 0` and `packets_received > 0` on all qualified
-            interfaces, and the discrepancy between generator
-            `packets_sent`/`packets_received` and reflector
-            `packets_received`/`packets_sent` must not exceed `0.0001%`.
+        *   On all `NEAR_END` generator interfaces (and `FAR_END` reflector
+            interfaces when `AsicLoopback` is used and reflector stats are
+            supported), `packets_sent > 0` and `packets_received > 0`.
+        *   When `AsicLoopback` is used and reflector stats are supported, the
+            discrepancy between generator `packets_sent`/`packets_received` and
+            reflector `packets_received`/`packets_sent` must not exceed
+            `0.0001%`. When `PmdLoopback` is used or reflector stats are
+            unsupported, the discrepancy between `packets_sent` and
+            `packets_received` on the `NEAR_END` generator result must not
+            exceed `0.0001%`.
 
 5.  **Cleanup and Interface State Restoration (`Delete` RPC)**:
     *   Issue `gnoi.packet_link_qualification.LinkQualification.Delete`
@@ -288,58 +249,6 @@ session creation (`Create`), state monitoring (`List`), result retrieval
                   "address": [
                     {
                       "config": {
-                        "ip": "192.0.2.2",
-                        "prefix-length": 30
-                      },
-                      "ip": "192.0.2.2"
-                    }
-                  ]
-                },
-                "config": {
-                  "enabled": true
-                }
-              },
-              "ipv6": {
-                "addresses": {
-                  "address": [
-                    {
-                      "config": {
-                        "ip": "2001:db8::2",
-                        "prefix-length": 126
-                      },
-                      "ip": "2001:db8::2"
-                    }
-                  ]
-                },
-                "config": {
-                  "enabled": true
-                }
-              }
-            }
-          ]
-        }
-      },
-      {
-        "config": {
-          "description": "Singleton 100G Generator Port 3",
-          "enabled": true,
-          "mtu": 9000,
-          "name": "port3",
-          "type": "iana-if-type:ethernetCsmacd"
-        },
-        "name": "port3",
-        "subinterfaces": {
-          "subinterface": [
-            {
-              "config": {
-                "index": 0
-              },
-              "index": 0,
-              "ipv4": {
-                "addresses": {
-                  "address": [
-                    {
-                      "config": {
                         "ip": "192.0.2.5",
                         "prefix-length": 30
                       },
@@ -373,6 +282,58 @@ session creation (`Create`), state monitoring (`List`), result retrieval
       },
       {
         "config": {
+          "description": "Singleton 100G Generator Port 3",
+          "enabled": true,
+          "mtu": 9000,
+          "name": "port3",
+          "type": "iana-if-type:ethernetCsmacd"
+        },
+        "name": "port3",
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "config": {
+                "index": 0
+              },
+              "index": 0,
+              "ipv4": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "192.0.2.9",
+                        "prefix-length": 30
+                      },
+                      "ip": "192.0.2.9"
+                    }
+                  ]
+                },
+                "config": {
+                  "enabled": true
+                }
+              },
+              "ipv6": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "2001:db8::9",
+                        "prefix-length": 126
+                      },
+                      "ip": "2001:db8::9"
+                    }
+                  ]
+                },
+                "config": {
+                  "enabled": true
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "config": {
           "description": "Singleton 100G Reflector Port 4",
           "enabled": true,
           "mtu": 9000,
@@ -392,10 +353,10 @@ session creation (`Create`), state monitoring (`List`), result retrieval
                   "address": [
                     {
                       "config": {
-                        "ip": "192.0.2.6",
+                        "ip": "192.0.2.13",
                         "prefix-length": 30
                       },
-                      "ip": "192.0.2.6"
+                      "ip": "192.0.2.13"
                     }
                   ]
                 },
@@ -408,10 +369,10 @@ session creation (`Create`), state monitoring (`List`), result retrieval
                   "address": [
                     {
                       "config": {
-                        "ip": "2001:db8::6",
+                        "ip": "2001:db8::d",
                         "prefix-length": 126
                       },
-                      "ip": "2001:db8::6"
+                      "ip": "2001:db8::d"
                     }
                   ]
                 },
@@ -428,9 +389,9 @@ session creation (`Create`), state monitoring (`List`), result retrieval
 }
 ```
 
-### Scenario 2: Concurrent Multi-Link Qualification on Aggregate Member Links (Dual-Stack IPv4 and IPv6)
+### gNOI-2.1.3 - Concurrent Multi-Link Qualification on Aggregate Member Links
 
-This scenario validates that physical interfaces configured as member links of
+This subtest validates that physical interfaces configured as member links of
 static IEEE 802.3ad Link Aggregation Group (LAG) bundles with dual-stack IPv4
 and IPv6 subinterfaces can undergo concurrent Packet-Based Link Qualification
 across multiple links without gNOI RPC timeouts, and that both the physical
@@ -447,9 +408,9 @@ cleanup.
         *   Configure dual-stack IPv4 and IPv6 addresses on subinterface `0` of
             each aggregate interface:
             *   `lag1`: IPv4 `198.51.100.1/30` and IPv6 `2001:db8:1::1/126`
-            *   `lag2`: IPv4 `198.51.100.2/30` and IPv6 `2001:db8:1::2/126`
-            *   `lag3`: IPv4 `198.51.100.5/30` and IPv6 `2001:db8:1::5/126`
-            *   `lag4`: IPv4 `198.51.100.6/30` and IPv6 `2001:db8:1::6/126`
+            *   `lag2`: IPv4 `198.51.100.5/30` and IPv6 `2001:db8:1::5/126`
+            *   `lag3`: IPv4 `198.51.100.9/30` and IPv6 `2001:db8:1::9/126`
+            *   `lag4`: IPv4 `198.51.100.13/30` and IPv6 `2001:db8:1::d/126`
             *   Set
                 `/interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled`
                 and
@@ -466,7 +427,7 @@ cleanup.
         `/interfaces/interface/ethernet/state/aggregate-id` reflects the
         assigned LAG name.
 
-2.  **Concurrent Member-Link Qualification Execution (`Create`, `List`, `Get`)**:
+2.  **Concurrent Member-Link Qualification (`Create`, `List`, `Get` RPCs)**:
     *   Issue `gnoi.packet_link_qualification.LinkQualification.Create`
         concurrently across all 4 physical LAG member interfaces (`port1` and
         `port3` as `NEAR_END` `PacketGenerator` endpoints with `packet_rate:
@@ -487,9 +448,18 @@ cleanup.
     *   **Pass/Fail Criteria**:
         *   `Get` completes within the RPC deadline without `DEADLINE_EXCEEDED`.
         *   Every member link reports `status.code == 0`, `state ==
-            QUALIFICATION_STATE_COMPLETED`, `packets_error == 0`,
-            `packets_dropped == 0`, and generator/reflector packet counts match
-            within `0.0001%`.
+            QUALIFICATION_STATE_COMPLETED`, `packets_error == 0`, and
+            `packets_dropped == 0`.
+        *   On all `NEAR_END` generator interfaces (and `FAR_END` reflector
+            interfaces when `AsicLoopback` is used and reflector stats are
+            supported), `packets_sent > 0` and `packets_received > 0`.
+        *   When `AsicLoopback` is used and reflector stats are supported, the
+            discrepancy between generator `packets_sent`/`packets_received` and
+            reflector `packets_received`/`packets_sent` must not exceed
+            `0.0001%`. When `PmdLoopback` is used or reflector stats are
+            unsupported, the discrepancy between `packets_sent` and
+            `packets_received` on the `NEAR_END` generator result must not
+            exceed `0.0001%`.
 
 3.  **Cleanup and LAG Recovery Verification (`Delete` RPC)**:
     *   Delete all 4 member-link qualification records via
@@ -592,10 +562,10 @@ cleanup.
                   "address": [
                     {
                       "config": {
-                        "ip": "198.51.100.2",
+                        "ip": "198.51.100.5",
                         "prefix-length": 30
                       },
-                      "ip": "198.51.100.2"
+                      "ip": "198.51.100.5"
                     }
                   ]
                 },
@@ -608,10 +578,124 @@ cleanup.
                   "address": [
                     {
                       "config": {
-                        "ip": "2001:db8:1::2",
+                        "ip": "2001:db8:1::5",
                         "prefix-length": 126
                       },
-                      "ip": "2001:db8:1::2"
+                      "ip": "2001:db8:1::5"
+                    }
+                  ]
+                },
+                "config": {
+                  "enabled": true
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "aggregation": {
+          "config": {
+            "lag-type": "STATIC"
+          }
+        },
+        "config": {
+          "description": "100G Aggregate Interface 3",
+          "enabled": true,
+          "mtu": 9000,
+          "name": "lag3",
+          "type": "iana-if-type:ieee8023adLag"
+        },
+        "name": "lag3",
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "config": {
+                "index": 0
+              },
+              "index": 0,
+              "ipv4": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "198.51.100.9",
+                        "prefix-length": 30
+                      },
+                      "ip": "198.51.100.9"
+                    }
+                  ]
+                },
+                "config": {
+                  "enabled": true
+                }
+              },
+              "ipv6": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "2001:db8:1::9",
+                        "prefix-length": 126
+                      },
+                      "ip": "2001:db8:1::9"
+                    }
+                  ]
+                },
+                "config": {
+                  "enabled": true
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "aggregation": {
+          "config": {
+            "lag-type": "STATIC"
+          }
+        },
+        "config": {
+          "description": "100G Aggregate Interface 4",
+          "enabled": true,
+          "mtu": 9000,
+          "name": "lag4",
+          "type": "iana-if-type:ieee8023adLag"
+        },
+        "name": "lag4",
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "config": {
+                "index": 0
+              },
+              "index": 0,
+              "ipv4": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "198.51.100.13",
+                        "prefix-length": 30
+                      },
+                      "ip": "198.51.100.13"
+                    }
+                  ]
+                },
+                "config": {
+                  "enabled": true
+                }
+              },
+              "ipv6": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "2001:db8:1::d",
+                        "prefix-length": 126
+                      },
+                      "ip": "2001:db8:1::d"
                     }
                   ]
                 },
@@ -652,6 +736,36 @@ cleanup.
           }
         },
         "name": "port2"
+      },
+      {
+        "config": {
+          "description": "LAG Member Port 3",
+          "enabled": true,
+          "id": 12,
+          "name": "port3",
+          "type": "iana-if-type:ethernetCsmacd"
+        },
+        "ethernet": {
+          "config": {
+            "aggregate-id": "lag3"
+          }
+        },
+        "name": "port3"
+      },
+      {
+        "config": {
+          "description": "LAG Member Port 4",
+          "enabled": true,
+          "id": 13,
+          "name": "port4",
+          "type": "iana-if-type:ethernetCsmacd"
+        },
+        "ethernet": {
+          "config": {
+            "aggregate-id": "lag4"
+          }
+        },
+        "name": "port4"
       }
     ]
   }
