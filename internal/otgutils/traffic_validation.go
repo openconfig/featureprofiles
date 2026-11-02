@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
@@ -96,5 +97,64 @@ func VerifyNoPacketLoss(t testing.TB, otg *otg.OTG, allFlows []string) {
 		} else {
 			t.Logf("Traffic Test Passed for flow %s!", flow)
 		}
+	}
+}
+
+// RunTrafficAndWaitForTx starts OTG traffic, watches the flow's OutPkts counter until at least
+// minTxPkts are transmitted, stops traffic, and waits for the flow transmit state to become false.
+func RunTrafficAndWaitForTx(t testing.TB, otg *otg.OTG, flowName string, minTxPkts uint64, timeout time.Duration) {
+	t.Helper()
+	otg.StartTraffic(t)
+	// Ensure traffic is always stopped even if the watch times out, fails, or panics.
+	trafficStopped := false
+	defer func() {
+		if !trafficStopped {
+			otg.StopTraffic(t)
+		}
+	}()
+	if _, ok := gnmi.Watch(t, otg, gnmi.OTG().Flow(flowName).Counters().OutPkts().State(), timeout, func(v *ygnmi.Value[uint64]) bool {
+		gotPkts, present := v.Val()
+		return present && gotPkts >= minTxPkts
+	}).Await(t); !ok {
+		t.Fatalf("Did not transmit expected number of packets for flow %s within %v: want >= %d", flowName, timeout, minTxPkts)
+	}
+	otg.StopTraffic(t)
+	trafficStopped = true
+	if _, ok := gnmi.Watch(t, otg, gnmi.OTG().Flow(flowName).Transmit().State(), timeout, func(v *ygnmi.Value[bool]) bool {
+		transmit, present := v.Val()
+		return present && !transmit
+	}).Await(t); !ok {
+		t.Logf("Flow %s transmit state did not become false within %v after StopTraffic", flowName, timeout)
+	}
+}
+
+// VerifyDUTInterfaceInPkts watches a DUT interface's InPkts counter and verifies that the packets
+// received since beforeInPkts match the OTG flow's OutPkts within maxLossPct tolerance.
+func VerifyDUTInterfaceInPkts(t testing.TB, dut *ondatra.DUTDevice, otg *otg.OTG, portName, flowName string, beforeInPkts uint64, maxLossPct float64, timeout time.Duration) {
+	t.Helper()
+	flowMetrics := gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).Counters().State())
+	otgTxPkts := flowMetrics.GetOutPkts()
+	if otgTxPkts == 0 {
+		t.Fatalf("OTG OutPkts for flow %s is 0", flowName)
+	}
+
+	dutCounterPath := gnmi.OC().Interface(portName).Counters().InPkts().State()
+	lastLoss := 100.0
+	_, watchOk := gnmi.Watch(t, dut, dutCounterPath, timeout, func(val *ygnmi.Value[uint64]) bool {
+		currInPkts, present := val.Val()
+		if !present || currInPkts < beforeInPkts {
+			return false
+		}
+		recvDUTPkts := currInPkts - beforeInPkts
+		if otgTxPkts > recvDUTPkts {
+			lastLoss = 100.0 * float64(otgTxPkts-recvDUTPkts) / float64(otgTxPkts)
+		} else {
+			lastLoss = 0
+		}
+		return lastLoss <= maxLossPct
+	}).Await(t)
+
+	if !watchOk {
+		t.Errorf("DUT interface %s traffic loss convergence failed for flow %s: final loss got %f%%, want <= %f%%", portName, flowName, lastLoss, maxLossPct)
 	}
 }
