@@ -16,7 +16,6 @@ Generic Health Check
         *   QUEUE drops
             *   Interfaces
             *   VOQ
-        *   Fabric drops
         *   ASIC drops
     *   No flow control frames tx/rx
     *   No CRC or Layer 1 errors on interfaces
@@ -60,18 +59,6 @@ paths:
     /system/alarms/alarm/state/severity:
     /components/component/cpu/utilization/state/avg:
        platform_type: ["CPU"]
-    /components/component/integrated-circuit/pipeline-counters/drop/fabric-block/state/fabric-aggregate:
-       platform_type: ["INTEGRATED_CIRCUIT"]
-    /components/component/integrated-circuit/pipeline-counters/drop/fabric-block/state/in-high-priority:
-       platform_type: ["INTEGRATED_CIRCUIT"]
-    /components/component/integrated-circuit/pipeline-counters/drop/fabric-block/state/in-low-priority:
-       platform_type: ["INTEGRATED_CIRCUIT"]
-    /components/component/integrated-circuit/pipeline-counters/drop/fabric-block/state/lost-packets:
-       platform_type: ["INTEGRATED_CIRCUIT"]
-    /components/component/integrated-circuit/pipeline-counters/drop/fabric-block/state/out-high-priority:
-       platform_type: ["INTEGRATED_CIRCUIT"]
-    /components/component/integrated-circuit/pipeline-counters/drop/fabric-block/state/out-low-priority:
-       platform_type: ["INTEGRATED_CIRCUIT"]
     /components/component/integrated-circuit/pipeline-counters/drop/host-interface-block/state/host-aggregate:
        platform_type: ["INTEGRATED_CIRCUIT"]
     /components/component/integrated-circuit/pipeline-counters/drop/lookup-block/state/acl-drops:
@@ -120,7 +107,6 @@ paths:
     /interfaces/interface/ethernet/state/counters/in-mac-pause-frames:
     /interfaces/interface/ethernet/state/counters/out-mac-pause-frames:
     /interfaces/interface/ethernet/state/counters/in-crc-errors:
-    /interfaces/interface/ethernet/state/counters/in-block-errors:
 ```
 
 ## Protocol/RPC Parameter Coverage
