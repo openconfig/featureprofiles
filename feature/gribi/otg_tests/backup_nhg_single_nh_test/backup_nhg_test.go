@@ -31,6 +31,7 @@ import (
 	"github.com/openconfig/ygot/ygot"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
@@ -133,6 +134,9 @@ func TestDirectBackupNexthopGroup(t *testing.T) {
 	ctx := context.Background()
 
 	dut := ondatra.DUT(t, "dut")
+	if deviations.VendorPreConfigRequired(dut) {
+		cfgplugins.ConfigureFallbackDecapVrfSelection(t, dut)
+	}
 	configureDUT(t, dut)
 	configureNetworkInstance(t, dut)
 	// For interface configuration, prefer config Vrf first then the IP address
@@ -251,6 +255,13 @@ func TestDirectBackupNexthopGroup(t *testing.T) {
 				tcArgs.validateAftTelemetry(t, deviations.DefaultNetworkInstance(dut), nhip, atePort2.IPv4, atePort2.IPv4)
 				tcArgs.validateAftTelemetry(t, deviations.DefaultNetworkInstance(dut), dstPfx, nhip, atePort2.IPv4)
 				tcArgs.validateAftTelemetry(t, vrfB, dstPfx, atePort3.IPv4, atePort3.IPv4)
+			})
+
+			t.Run("Validate Backup NHG AFT Telemetry", func(t *testing.T) {
+				if deviations.AFTNextHopGroupBackupNHGUnsupported(dut) {
+					t.Skip("Skipping backup-next-hop-group AFT telemetry validation due to deviation aft_next_hop_group_backup_nhg_unsupported")
+				}
+				tcArgs.validateBackupNHGTelemetry(t, deviations.DefaultNetworkInstance(dut), dstPfx)
 			})
 
 			t.Run("Validate Baseline Traffic Delivery", func(t *testing.T) {
@@ -420,6 +431,63 @@ func (a *testArgs) validateAftTelemetry(t *testing.T, vrfName, prefix, ipAddress
 		if got := aftnh.GetIpAddress(); got != ipAddress && got != resolvedNhIPAddress {
 			t.Fatalf("Prefix %s next-hop IP: got %s, want %s or %s", prefix+"/"+mask, got, ipAddress, resolvedNhIPAddress)
 		}
+		if !deviations.AFTNextHopOriginProtocolUnsupported(a.dut) {
+			if got, want := aftnh.GetOriginProtocol(), oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_GRIBI; got != want {
+				t.Errorf("Prefix %s next-hop %d: next-hop/state/origin-protocol = %v, want %v", prefix+"/"+mask, k, got, want)
+			}
+		}
+	}
+}
+
+// validateBackupNHGTelemetry verifies that the next-hop-group used by the given
+// prefix reports a backup-next-hop-group in AFT telemetry and that the
+// referenced backup next-hop-group is present in the AFT.
+//
+// The prefix -> next-hop-group mapping is re-resolved on every poll because
+// some devices re-allocate AFT next-hop-group IDs while the gRIBI entries are
+// still being installed, so a next-hop-group ID read once may become stale.
+func (a *testArgs) validateBackupNHGTelemetry(t *testing.T, vrfName, prefix string) {
+	t.Helper()
+	dni := deviations.DefaultNetworkInstance(a.dut)
+	pfx := prefix + "/" + mask
+	aftPfxPath := gnmi.OC().NetworkInstance(vrfName).Afts().Ipv4Entry(pfx)
+
+	const (
+		timeout  = 2 * time.Minute
+		interval = 5 * time.Second
+	)
+	var nhgID, backupNHGID uint64
+	seenNHGs := map[uint64]bool{}
+	for deadline := time.Now().Add(timeout); ; {
+		if aftPfx, ok := gnmi.Lookup(t, a.dut, aftPfxPath.State()).Val(); ok && aftPfx.GetNextHopGroup() != 0 {
+			nhgID = aftPfx.GetNextHopGroup()
+			seenNHGs[nhgID] = true
+			if aftNHG, ok := gnmi.Lookup(t, a.dut, gnmi.OC().NetworkInstance(dni).Afts().NextHopGroup(nhgID).State()).Val(); ok {
+				backupNHGID = aftNHG.GetBackupNextHopGroup()
+			}
+		}
+		if backupNHGID != 0 || time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(interval)
+	}
+	if nhgID == 0 {
+		t.Fatalf("Could not find prefix %s with a next-hop-group in telemetry AFT", pfx)
+	}
+	if backupNHGID == 0 {
+		t.Fatalf("Prefix %s next-hop-group %d: next-hop-group/state/backup-next-hop-group is not present (next-hop-groups seen: %v)", pfx, nhgID, seenNHGs)
+	}
+	t.Logf("Prefix %s next-hop-group %d: backup-next-hop-group = %d", pfx, nhgID, backupNHGID)
+	if backupNHGID == nhgID {
+		t.Errorf("Prefix %s next-hop-group %d: next-hop-group/state/backup-next-hop-group = %d, want a different next-hop-group", prefix+"/"+mask, nhgID, backupNHGID)
+	}
+
+	backupNHG, present := gnmi.Lookup(t, a.dut, gnmi.OC().NetworkInstance(dni).Afts().NextHopGroup(backupNHGID).State()).Val()
+	if !present {
+		t.Fatalf("Backup next-hop-group %d referenced by next-hop-group %d is not present in telemetry AFT", backupNHGID, nhgID)
+	}
+	if got := len(backupNHG.NextHop); got == 0 {
+		t.Errorf("Backup next-hop-group %d next-hop count: got %d, want > 0", backupNHGID, got)
 	}
 }
 
