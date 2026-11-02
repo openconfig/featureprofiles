@@ -639,13 +639,14 @@ func validateIPv6FlowLabel(t *testing.T, ate *ondatra.ATEDevice, topo gosnappi.C
 	enableCapture(t, topo, "port2")
 	ate.OTG().PushConfig(t, topo)
 	ate.OTG().StartProtocols(t)
-	startCapture(t, ate)
+	cs := otgutils.StartCapture(t, ate.OTG())
+	defer otgutils.StopCapture(t, ate.OTG(), cs)
 
 	t.Log("Sending traffic...")
 	ate.OTG().StartTraffic(t)
 	time.Sleep(trafficDuration)
 	ate.OTG().StopTraffic(t)
-	stopCapture(t, ate)
+	otgutils.StopCapture(t, ate.OTG(), cs)
 
 	otgutils.LogFlowMetrics(t, ate.OTG(), topo)
 
@@ -684,22 +685,6 @@ func validateIPv6FlowLabel(t *testing.T, ate *ondatra.ATEDevice, topo gosnappi.C
 	}
 
 	t.Logf("Flow-label validation PASSED: flowA=%x flowB=%x", refA, refB)
-}
-
-// startCapture starts the capture on the otg ports.
-func startCapture(t *testing.T, ate *ondatra.ATEDevice) {
-	otg := ate.OTG()
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
-	otg.SetControlState(t, cs)
-}
-
-// stopCapture starts the capture on the otg ports.
-func stopCapture(t *testing.T, ate *ondatra.ATEDevice) {
-	otg := ate.OTG()
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
-	otg.SetControlState(t, cs)
 }
 
 // enableCapture enables packet capture on specified OTG ports.
