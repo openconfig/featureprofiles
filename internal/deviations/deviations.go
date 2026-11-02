@@ -1950,12 +1950,6 @@ func NoQueueDropUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNoQueueDropUnsupported()
 }
 
-// InterfaceEthernetInblockErrorsUnsupported returns true if device does not support interface ethernet in-block errors
-// Arista: https://issuetracker.google.com/456175793
-func InterfaceEthernetInblockErrorsUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetInterfaceEthernetInblockErrorsUnsupported()
-}
-
 // WithIPAddressUnsupported returns true when an indirect next-hop (direct interface IP) with forwarding viable is used, since this is not supported.
 // Nokia b/428883444
 func ForwardingViableFailoverWithIndirectNHUnsupported(dut *ondatra.DUTDevice) bool {

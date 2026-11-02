@@ -1121,9 +1121,8 @@ message Metadata {
     // Cisco: https://partnerissuetracker.corp.google.com/issues/475777158
     bool no_queue_drop_unsupported = 370;
 
-    // Device does not support interface-ethernet in-block errors counters
-    // Cisco: https://partnerissuetracker.corp.google.com/issues/475777324
-    bool interface_ethernet_inblock_errors_unsupported = 371;
+    reserved 371;
+    reserved "interface_ethernet_inblock_errors_unsupported";
 
     // Arista https://partnerissuetracker.corp.google.com/476271160
     bool retain_gnmi_cfg_after_reboot = 372;
