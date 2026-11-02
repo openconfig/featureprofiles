@@ -1549,6 +1549,17 @@ const nokiaLoadBalanceHashReset = "system load-balancing hash-options hash-seed 
 
 const nokiaLoadBalanceHashPerturb = "system load-balancing hash-options hash-seed %d"
 
+// juniperLoadBalanceHashPerturb sets an explicit ECMP/LAG hash seed on Junos
+// (Evolved) PTX platforms. Without this statement Junos derives the seed from
+// the chassis MAC address, so no explicit reset template is needed: the lab
+// baseline restore removes the statement again.
+const juniperLoadBalanceHashPerturb = `forwarding-options {
+    enhanced-hash-key {
+        hash-seed %d;
+    }
+}
+`
+
 var (
 	aristaTcamProfileMap = map[FeatureType]string{
 		FeatureMplsTracking:              aristaTcamProfileMplsTracking,
@@ -1579,6 +1590,10 @@ var (
 
 	ciscoHardwareInitMap = map[FeatureType]string{
 		FeatureHighScale: ciscoHighScale,
+	}
+
+	juniperHardwareInitMap = map[FeatureType]string{
+		FeatureLoadBalanceHashPerturb: juniperLoadBalanceHashPerturb,
 	}
 )
 
@@ -1612,6 +1627,8 @@ func NewDUTHardwareInit(t *testing.T, dut *ondatra.DUTDevice, feature FeatureTyp
 		return nokiaHardwareInitMap[feature]
 	case ondatra.CISCO:
 		return ciscoHardwareInitMap[feature]
+	case ondatra.JUNIPER:
+		return juniperHardwareInitMap[feature]
 	default:
 		return ""
 	}

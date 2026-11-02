@@ -722,6 +722,8 @@ func perturbHashConfig(t *testing.T, dut *ondatra.DUTDevice, iteration int) {
 		perturbHashArista(t, dut, iteration)
 	case ondatra.NOKIA:
 		perturbHashNokia(t, dut, iteration)
+	case ondatra.JUNIPER:
+		perturbHashJuniper(t, dut, iteration)
 	default:
 		t.Fatalf("Hash perturbation not implemented for vendor %s; please add support in perturbHashConfig", dut.Vendor())
 	}
@@ -771,6 +773,19 @@ func perturbHashNokia(t *testing.T, dut *ondatra.DUTDevice, iteration int) {
 	seeds := []int{0x1357, 0x9BDF, 0x2468, 0xACE1, 0x5A3C}
 	seed := seeds[iteration%len(seeds)]
 	t.Logf("Nokia SR Linux: setting system load-balancing hash-options hash-seed %d", seed)
+	if tmpl := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureLoadBalanceHashPerturb); tmpl != "" {
+		cfgplugins.PushDUTHardwareInitConfig(t, dut, fmt.Sprintf(tmpl, seed))
+	}
+}
+
+// perturbHashJuniper changes the enhanced-hash-key hash-seed on Junos (Evolved)
+// PTX platforms. The seed feeds both the ECMP and the LAG hash computation; by
+// default Junos derives it from the chassis MAC address.
+func perturbHashJuniper(t *testing.T, dut *ondatra.DUTDevice, iteration int) {
+	t.Helper()
+	seeds := []int{0x1357, 0x9BDF, 0x2468, 0xACE1, 0x5A3C}
+	seed := seeds[iteration%len(seeds)]
+	t.Logf("Juniper Junos: setting forwarding-options enhanced-hash-key hash-seed %d", seed)
 	if tmpl := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureLoadBalanceHashPerturb); tmpl != "" {
 		cfgplugins.PushDUTHardwareInitConfig(t, dut, fmt.Sprintf(tmpl, seed))
 	}
