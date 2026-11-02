@@ -19,7 +19,11 @@ negative error-path hygiene and AAA session cleanup.
 * Input arguments:
   * `test_infra_id`: the SPIFFE ID used by test infrastructure clients.
 * Configure the DUT so that `gNMI`, `gNOI`, `gNSI`, `gRIBI`, and `P4RT` gRPC
-  services are enabled and use mTLS for authentication.
+  services are enabled and use mTLS (`transport-security = true`,
+  `certificate-id = "server-mtls-cert"`, `listen-addresses = ["ANY"]`) under
+  `/system/grpc-servers/grpc-server`:
+  * `gribi-server`: `services = ["GRIBI"]`, `port = 9340`, `enable = true`
+  * `p4rt-server`: `services = ["P4RT"]`, `port = 9559`, `enable = true`
 * Configure P4RT on an integrated-circuit component (`node-id = 100`) using
   `/components/component/integrated-circuit/config/node-id` and configure a
   P4RT port ID (`id = 20`) on a DUT interface using
@@ -110,62 +114,70 @@ negative error-path hygiene and AAA session cleanup.
 ```
 
 * Step 2 - Establish baseline `gRIBI` and `P4RT` sessions: Using
-  `cert_conformance_client`, invoke `gribi.gRIBI.Get`, establish
-  `P4Runtime.StreamChannel` mastership (`device_id = 100`, `election_id = 100`),
-  push the WBB `P4Info` pipeline via `P4Runtime.SetForwardingPipelineConfig`,
-  and invoke `P4Runtime.Capabilities` and `P4Runtime.Read`.
+  `cert_conformance_client`, invoke `gribi.gRIBI.Get` on `gribi-server` (port
+  `9340`), establish `P4Runtime.StreamChannel` mastership (`device_id = 100`,
+  `election_id = 100`) on `p4rt-server` (port `9559`), push the WBB `P4Info`
+  pipeline via `P4Runtime.SetForwardingPipelineConfig`, and invoke
+  `P4Runtime.Capabilities` and `P4Runtime.Read`.
 * Step 3 - Validation with pass/fail criteria: Validate policy activation and
-  baseline per-RPC counters using `gNMI.Get`:
+  baseline per-RPC counters using `gNMI.Subscribe` (`ON_CHANGE` / `SAMPLE`) and
+  `gNMI.Get`:
   * Verify `/system/aaa/authorization/state/grpc-authz-policy-version` ==
     `"policy-grpc-rpc-statistics-bounding-v1"`
   * Verify `/system/aaa/authorization/state/grpc-authz-policy-created-on` ==
     `100`
-  * Verify `/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc[name=/gribi.gRIBI/Get]/state/access-accepts` >= `1`
-  * Verify `/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc[name=/p4.v1.P4Runtime/Read]/state/access-accepts` >= `1`
+  * Verify `/system/grpc-servers/grpc-server[name=gribi-server]/state/enable` ==
+    `true` and `/system/grpc-servers/grpc-server[name=gribi-server]/state/port`
+    == `9340`
+  * Verify `/system/grpc-servers/grpc-server[name=p4rt-server]/state/enable` ==
+    `true` and `/system/grpc-servers/grpc-server[name=p4rt-server]/state/port`
+    == `9559`
+  * Verify `/system/grpc-servers/grpc-server[name=gribi-server]/authz-policy-counters/rpcs/rpc[name=/gribi.gRIBI/Get]/state/access-accepts` >= `1`
+  * Verify `/system/grpc-servers/grpc-server[name=p4rt-server]/authz-policy-counters/rpcs/rpc[name=/p4.v1.P4Runtime/Read]/state/access-accepts` >= `1`
   * Record the baseline set of registered RPC names under
     `/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/state/name`.
 
 ### Authz-5.2 - Per-RPC State Bounding on Wildcard Policy (gRIBI UNIMPLEMENTED Path)
 
 * Step 1 - Invoke unimplemented RPC paths matching wildcard allow rule: Using
-  `cert_conformance_client`, send `10` unary gRPC calls to the `gRIBI` server
-  using distinct unimplemented HTTP/2 `:path` strings
+  `cert_conformance_client`, send `10` unary gRPC calls to `gribi-server` (port
+  `9340`) using distinct unimplemented HTTP/2 `:path` strings
   (`/gribi.gRIBI/NonExistentMethod_01` through
   `/gribi.gRIBI/NonExistentMethod_10`).
 * Step 2 - Validation with pass/fail criteria: Validate client status codes and
-  per-RPC telemetry state via `gNMI.Get`:
+  streamed per-RPC telemetry state via `gNMI.Subscribe` and `gNMI.Get`:
   * Verify all `10` calls fail with gRPC status code `UNIMPLEMENTED` (`12`).
   * Verify
-    `/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/state/name`
+    `/system/grpc-servers/grpc-server[name=gribi-server]/authz-policy-counters/rpcs/rpc/state/name`
     contains no `/gribi.gRIBI/NonExistentMethod_*` entries and remains strictly
     bounded to registered `gRIBI` RPC methods (or a single fixed aggregate
     unknown-path bucket).
   * Verify
-    `/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/state/access-accepts`
+    `/system/grpc-servers/grpc-server[name=gribi-server]/authz-policy-counters/rpcs/rpc/state/access-accepts`
     and
-    `/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/state/last-access-accept`
+    `/system/grpc-servers/grpc-server[name=gribi-server]/authz-policy-counters/rpcs/rpc/state/last-access-accept`
     update only on registered or aggregate entries.
 
 ### Authz-5.3 - Per-RPC State Bounding on Explicit Allowlist Policy (P4RT PERMISSION_DENIED Path)
 
 * Step 1 - Invoke unregistered methods and unknown services on explicit
   allowlist policy: Using `cert_conformance_client`, send `10` unary gRPC calls
-  to the `P4RT` server for unregistered methods on the known service
+  to `p4rt-server` (port `9559`) for unregistered methods on the known service
   (`/p4.v1.P4Runtime/NonExistentMethod_01` through
   `/p4.v1.P4Runtime/NonExistentMethod_10`) and `10` unary gRPC calls for unknown
   services (`/p4.v1.P4RuntimeConformanceProbe_01/Read` through
   `/p4.v1.P4RuntimeConformanceProbe_10/Read`).
 * Step 2 - Validation with pass/fail criteria: Validate client status codes and
-  per-RPC telemetry state via `gNMI.Get`:
+  streamed per-RPC telemetry state via `gNMI.Subscribe` and `gNMI.Get`:
   * Verify all `20` calls fail with gRPC status code `PERMISSION_DENIED` (`7`).
   * Verify
-    `/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/state/name`
+    `/system/grpc-servers/grpc-server[name=p4rt-server]/authz-policy-counters/rpcs/rpc/state/name`
     contains no `/p4.v1.P4Runtime/NonExistentMethod_*` or
     `/p4.v1.P4RuntimeConformanceProbe_*/Read` entries.
   * Verify
-    `/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/state/access-rejects`
+    `/system/grpc-servers/grpc-server[name=p4rt-server]/authz-policy-counters/rpcs/rpc/state/access-rejects`
     and
-    `/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/state/last-access-reject`
+    `/system/grpc-servers/grpc-server[name=p4rt-server]/authz-policy-counters/rpcs/rpc/state/last-access-reject`
     update only on registered or aggregate entries.
 
 ### Authz-5.4 - Negative Test Cases
@@ -243,6 +255,44 @@ leaking AAA sessions or corrupting DUT state.
         "name": "port-1"
       }
     ]
+  },
+  "system": {
+    "grpc-servers": {
+      "grpc-server": [
+        {
+          "config": {
+            "certificate-id": "server-mtls-cert",
+            "enable": true,
+            "listen-addresses": [
+              "ANY"
+            ],
+            "name": "gribi-server",
+            "port": 9340,
+            "services": [
+              "openconfig-system-grpc:GRIBI"
+            ],
+            "transport-security": true
+          },
+          "name": "gribi-server"
+        },
+        {
+          "config": {
+            "certificate-id": "server-mtls-cert",
+            "enable": true,
+            "listen-addresses": [
+              "ANY"
+            ],
+            "name": "p4rt-server",
+            "port": 9559,
+            "services": [
+              "openconfig-system-grpc:P4RT"
+            ],
+            "transport-security": true
+          },
+          "name": "p4rt-server"
+        }
+      ]
+    }
   }
 }
 ```
@@ -258,10 +308,20 @@ paths:
   /components/component/integrated-circuit/config/node-id:
     platform_type: ["INTEGRATED_CIRCUIT"]
   /interfaces/interface/config/id:
+  /system/grpc-servers/grpc-server/config/name:
+  /system/grpc-servers/grpc-server/config/enable:
+  /system/grpc-servers/grpc-server/config/port:
+  /system/grpc-servers/grpc-server/config/services:
+  /system/grpc-servers/grpc-server/config/transport-security:
+  /system/grpc-servers/grpc-server/config/certificate-id:
+  /system/grpc-servers/grpc-server/config/listen-addresses:
 
   ## State paths
   /system/aaa/authorization/state/grpc-authz-policy-version:
   /system/aaa/authorization/state/grpc-authz-policy-created-on:
+  /system/grpc-servers/grpc-server/state/name:
+  /system/grpc-servers/grpc-server/state/enable:
+  /system/grpc-servers/grpc-server/state/port:
   /system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/state/name:
   /system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/state/access-accepts:
   /system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/state/access-rejects:
@@ -281,13 +341,6 @@ rpcs:
     authz.v1.Authz.Probe:
   gribi:
     gRIBI.Get:
-  p4rt:
-    P4Runtime.Write:
-    P4Runtime.Read:
-    P4Runtime.SetForwardingPipelineConfig:
-    P4Runtime.GetForwardingPipelineConfig:
-    P4Runtime.StreamChannel:
-    P4Runtime.Capabilities:
 ```
 
 ## Required DUT platform
