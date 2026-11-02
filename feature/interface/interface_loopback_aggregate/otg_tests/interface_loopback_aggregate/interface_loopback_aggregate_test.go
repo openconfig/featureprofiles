@@ -184,6 +184,11 @@ func TestInterfaceLoopbackMode(t *testing.T) {
 	})
 
 	cs := gosnappi.NewControlState()
+	defer func() {
+		cs := gosnappi.NewControlState()
+		cs.Port().Link().SetPortNames([]string{ate.Port(t, "port1").ID()}).SetState(gosnappi.StatePortLinkState.UP)
+		otg.SetControlState(t, cs)
+	}()
 	t.Run("Admin down OTG port1", func(t *testing.T) {
 		cs.Port().Link().SetPortNames([]string{ate.Port(t, "port1").ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
 		otg.SetControlState(t, cs)

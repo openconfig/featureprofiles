@@ -243,6 +243,10 @@ func sendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
 	cs := gosnappi.NewControlState()
 	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
 	otg.SetControlState(t, cs)
+	defer func() {
+		cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
+		otg.SetControlState(t, cs)
+	}()
 	t.Log("Starting traffic")
 	otg.StartTraffic(t)
 	time.Sleep(15 * time.Second)

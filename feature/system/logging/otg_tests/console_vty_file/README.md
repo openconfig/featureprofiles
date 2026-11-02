@@ -67,7 +67,7 @@ The vty represents here terminal session - ssh, telnet.
 
 ```yaml
 paths:
-  # interface configuration
+  ## Config Paths ##
   /system/logging/console/selectors/selector/config/facility:
   /system/logging/console/selectors/selector/config/severity:
   /system/logging/vty/selectors/selector/config/facility:
@@ -80,12 +80,53 @@ paths:
   /system/logging/files/file/config/max-open-time:
   /system/logging/files/file/config/rotate:
 
+  ## State Paths ##
+  /system/logging/console/selectors/selector/state/severity:
+
 rpcs:
   gnmi:
     gNMI.Set:
       union_replace: true
     gNMI.Subscribe:
       on_change: false
+```
+
+## Canonical OC
+
+```json
+{
+  "openconfig-system:system": {
+    "logging": {
+      "console": {
+        "selectors": {
+          "selector": [
+            {
+              "facility": "openconfig-system-logging:LOCAL7",
+              "config": {
+                "facility": "openconfig-system-logging:LOCAL7",
+                "severity": "openconfig-system-logging:INFORMATIONAL"
+              }
+            },
+            {
+              "facility": "openconfig-system-logging:LOCAL6",
+              "config": {
+                "facility": "openconfig-system-logging:LOCAL6",
+                "severity": "openconfig-system-logging:ALERT"
+              }
+            },
+            {
+              "facility": "openconfig-system-logging:LOCAL5",
+              "config": {
+                "facility": "openconfig-system-logging:LOCAL5",
+                "severity": "openconfig-system-logging:CRITICAL"
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}
 ```
 
 ## DUT

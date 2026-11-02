@@ -29,6 +29,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -353,6 +354,9 @@ func sendTraffic(t *testing.T, args *testArgs) {
 	t.Helper()
 	t.Logf("TestBGP:start otg Traffic")
 
+	t.Logf("Waiting for ARP to resolve")
+	otgutils.WaitForARP(t, args.otg, args.otgConfig, "IPv4")
+
 	t.Logf("Starting traffic")
 	args.otg.StartTraffic(t)
 	time.Sleep(15 * time.Second)
@@ -366,18 +370,20 @@ func sendTraffic(t *testing.T, args *testArgs) {
 func verifyTraffic(t *testing.T, args *testArgs, flowName string, wantLoss bool) {
 	t.Helper()
 	t.Logf("Verifying flow metrics for the flow %s\n", flowName)
-	recvMetric := gnmi.Get(t, args.otg, gnmi.OTG().Flow(flowName).State())
-	txPackets := recvMetric.GetCounters().GetOutPkts()
-	rxPackets := recvMetric.GetCounters().GetInPkts()
-	lostPackets := txPackets - rxPackets
-	var lossPct uint64
-	trafficPassed := false
-	if txPackets != 0 {
-		lossPct = lostPackets * 100 / txPackets
-	} else {
-		t.Errorf("Traffic stats are not correct %v", recvMetric)
-	}
 	if wantLoss {
+		if _, ok := gnmi.Watch(t, args.otg, gnmi.OTG().Flow(flowName).Counters().OutPkts().State(), 45*time.Second, func(val *ygnmi.Value[uint64]) bool {
+			v, present := val.Val()
+			return present && v > 0
+		}).Await(t); !ok {
+			t.Fatalf("Timeout waiting for TxPackets to populate")
+		}
+		recvMetric := gnmi.Get(t, args.otg, gnmi.OTG().Flow(flowName).State())
+		txPackets := recvMetric.GetCounters().GetOutPkts()
+		rxPackets := recvMetric.GetCounters().GetInPkts()
+		trafficPassed := false
+		if txPackets == 0 {
+			t.Errorf("Traffic stats are not correct %v", recvMetric)
+		}
 		// If no rxPackets are received, the first route is fibFailedRoute, resulting in no packets being generated with tagged metrics.
 		if rxPackets > 0 {
 			etPath := gnmi.OTG().Flow(flowName).TaggedMetricAny()
@@ -398,13 +404,9 @@ func verifyTraffic(t *testing.T, args *testArgs, flowName string, wantLoss bool)
 			t.Logf("Traffic Test Passed!")
 		}
 	} else {
-		if lossPct > tolerancePct {
-			t.Errorf("Traffic Loss Pct for Flow: %s\n got %v, want 0", flowName, lossPct)
-		} else {
-			t.Logf("Traffic Test Passed!")
-		}
+		otgutils.ExpectedTrafficLoss(t, args.otg, flowName, 0, tolerancePct)
+		t.Logf("Traffic Test Passed!")
 	}
-
 }
 
 func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {

@@ -57,6 +57,9 @@ A[ATE:Port1-3] <--(Layer 3 - Vlan 10)-->B[Port1-3:-DUT-:Port4];B <--Layer 3 poin
 
 **Verify that:**
 
+* The `Vlan10` routed-vlan interface state reports the configured IPv4
+  (`198.51.100.129/25`) and IPv6 (`2001:db8:2::129/48`) address (`ip`) and
+  `prefix-length`.
 * The DUT:Port[1], DUT:Port[2], and DUT:Port[3] receive the traffic for the flows and forward traffic out over DUT:Port[4]
 
 ### RT-1.67.2 Validate IP forwarding over static route 
@@ -77,6 +80,9 @@ A[ATE:Port1-3] <--(Layer 3 - Vlan 10)-->B[Port1-3:-DUT-:Port4];B <--Layer 3 poin
     * 198.51.100.160/28 & 2001:db8:2:1::/64 going towards DUT:Port[1] ⇔ ATE:Port[1]
     * 198.51.100.160/28 & 2001:db8:2:2::/64 going towards DUT:Port[2] ⇔ ATE:Port[2]
     * 198.51.100.160/28 & 2001:db8:2:3::/64 going towards DUT:Port[3] ⇔ ATE:Port[3]
+* The `Vlan10` routed-vlan interface IPv4 and IPv6 neighbor tables resolve and
+  report the expected neighbor `ip` and `link-layer-address` (MAC address) for
+  `ATE:Port[1]`, `ATE:Port[2]`, and `ATE:Port[3]`.
 
 #### Canonical OC
 
@@ -201,31 +207,39 @@ A[ATE:Port1-3] <--(Layer 3 - Vlan 10)-->B[Port1-3:-DUT-:Port4];B <--Layer 3 poin
 
 ```yaml
 paths:
-
   ## Config Paths ##
+  /interfaces/interface/config/description:
+  /interfaces/interface/ethernet/switched-vlan/config/interface-mode:
+  /interfaces/interface/ethernet/switched-vlan/config/access-vlan:
+  /interfaces/interface/routed-vlan/ipv4/addresses/address/config/ip:
+  /interfaces/interface/routed-vlan/ipv4/addresses/address/config/prefix-length:
+  /interfaces/interface/routed-vlan/ipv6/addresses/address/config/ip:
+  /interfaces/interface/routed-vlan/ipv6/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop:
 
-/interfaces/interface/config/description: 
-/interfaces/interface/ethernet/switched-vlan/config/interface-mode: 
-/interfaces/interface/ethernet/switched-vlan/config/access-vlan:
-/interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/ip:
-/interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
-/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/ip: 
-/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length:
-/network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix:
-/network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop:
-
-
-## State Paths ##
-
-/interfaces/interface/state/description:
-/interfaces/interface/ethernet/switched-vlan/state/interface-mode:
-/interfaces/interface/ethernet/switched-vlan/state/access-vlan:
-/interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/state/ip:
-/interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/state/prefix-length:
-/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/ip:
-/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/prefix-length:
-/network-instances/network-instance/protocols/protocol/static-routes/static/state/prefix:
-/network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/state/next-hop:
+  ## State Paths ##
+  /interfaces/interface/state/description:
+  /interfaces/interface/ethernet/switched-vlan/state/interface-mode:
+  /interfaces/interface/ethernet/switched-vlan/state/access-vlan:
+  /interfaces/interface/routed-vlan/ipv4/addresses/address/state/ip:
+  /interfaces/interface/routed-vlan/ipv4/addresses/address/state/prefix-length:
+  /interfaces/interface/routed-vlan/ipv4/neighbors/neighbor/state/ip:
+  /interfaces/interface/routed-vlan/ipv4/neighbors/neighbor/state/link-layer-address:
+  /interfaces/interface/routed-vlan/ipv6/addresses/address/state/ip:
+  /interfaces/interface/routed-vlan/ipv6/addresses/address/state/prefix-length:
+  /interfaces/interface/routed-vlan/ipv6/neighbors/neighbor/state/ip:
+  /interfaces/interface/routed-vlan/ipv6/neighbors/neighbor/state/link-layer-address:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/state/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/state/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/prefix-length:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/state/prefix:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/state/next-hop:
 
 rpcs:
   gnmi:
@@ -234,7 +248,6 @@ rpcs:
       replace: true
     gNMI.Subscribe:
       on_change: true
-
 ```
 
 ## Required DUT platform

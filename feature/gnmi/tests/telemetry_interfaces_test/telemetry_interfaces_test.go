@@ -30,6 +30,14 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
+// vendorSubIntfIndexMap maps vendor to the subinterface index used for testing.
+var vendorSubIntfIndexMap = map[ondatra.Vendor]uint32{
+	ondatra.JUNIPER: 0,
+	ondatra.CISCO:   100,
+	ondatra.NOKIA:   100,
+	ondatra.ARISTA:  100,
+}
+
 // TestMain sets up the test environment.
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
@@ -318,7 +326,11 @@ func testTelemetryInterfacesStateRate(t *testing.T, dut *ondatra.DUTDevice, port
 func testTelemetryInterfacesStateSubinterface(t *testing.T, dut *ondatra.DUTDevice, ports []string) {
 	t.Helper()
 	p := gnmi.OC()
+
 	subIntfIndex := uint32(100)
+	if index, ok := vendorSubIntfIndexMap[dut.Vendor()]; ok {
+		subIntfIndex = index
+	}
 	description := "test description"
 
 	for _, port := range ports {
@@ -350,7 +362,12 @@ func testTelemetryInterfacesStateSubinterface(t *testing.T, dut *ondatra.DUTDevi
 
 		subinterface := p.Interface(port).Subinterface(subIntfIndex)
 
-		si := &oc.Interface_Subinterface{Description: ygot.String(description)}
+		// Include Index in the payload for vendors (e.g. Junos) that require the
+		// list key to be present in the data tree, not just the path.
+		si := &oc.Interface_Subinterface{
+			Index:       ygot.Uint32(subIntfIndex),
+			Description: ygot.String(description),
+		}
 		gnmi.Update(t, dut, p.Interface(port).Subinterface(subIntfIndex).Config(), si)
 
 		time.Sleep(2 * time.Minute)
@@ -360,7 +377,7 @@ func testTelemetryInterfacesStateSubinterface(t *testing.T, dut *ondatra.DUTDevi
 			if descriptionValue == description {
 				t.Logf("\n\n [PASSED]: port: '%s' subinterface: '%v' description value: '%v' is as expected \n\n", port, subIntfIndex, descriptionValue)
 			} else {
-				t.Errorf("\n\n [FAILED]: Subinterface description value got: '%v' expected: 'test-description' on port '%s' subinterface: '%v' \n\n", descriptionValue, port, subinterface)
+				t.Errorf("\n\n [FAILED]: Subinterface description value got: '%v' expected: 'test-description' on port '%s' subinterface: '%v' \n\n", descriptionValue, port, subIntfIndex)
 			}
 		} else {
 			t.Errorf("\n\n [FAILED]: leaf: Subinterface description is not present on port %s subinterface: '%v' \n\n", port, subinterface)
