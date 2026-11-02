@@ -540,6 +540,16 @@ func TestPolarization(t *testing.T) {
 	agg1ID := aggIDs[0]
 	agg2ID := aggIDs[1]
 
+	var (
+		origJuniperSeed    int
+		hasOrigJuniperSeed bool
+		hashPerturbed      bool
+	)
+	if dut.Vendor() == ondatra.JUNIPER {
+		origJuniperSeed, hasOrigJuniperSeed = cfgplugins.JuniperLoadBalanceHashSeed(t, dut)
+		t.Logf("Initial Juniper enhanced-hash-key hash-seed: configured=%v, seed=%d", hasOrigJuniperSeed, origJuniperSeed)
+	}
+
 	t.Cleanup(func() {
 		flushGRIBIEntries(t, dut)
 		for _, portID := range []string{"port2", "port3", "port4", "port5"} {
@@ -558,7 +568,21 @@ func TestPolarization(t *testing.T) {
 		if dut.Vendor() == ondatra.CISCO {
 			gnmi.Delete(t, dut, gnmi.OC().Interface("Loopback0").Config())
 		}
-		cfgplugins.PushDUTHardwareInitConfig(t, dut, cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureLoadBalanceHashReset))
+		if dut.Vendor() == ondatra.JUNIPER {
+			if hashPerturbed {
+				if hasOrigJuniperSeed {
+					t.Logf("Restoring original Juniper hash-seed %d", origJuniperSeed)
+					if tmpl := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureLoadBalanceHashPerturb); tmpl != "" {
+						cfgplugins.PushDUTHardwareInitConfig(t, dut, fmt.Sprintf(tmpl, origJuniperSeed))
+					}
+				} else {
+					t.Log("Deleting test-configured Juniper hash-seed")
+					cfgplugins.PushDUTHardwareInitConfig(t, dut, cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureLoadBalanceHashReset))
+				}
+			}
+		} else {
+			cfgplugins.PushDUTHardwareInitConfig(t, dut, cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureLoadBalanceHashReset))
+		}
 	})
 
 	t.Log("=== Phase 1/4: Configuring DUT interfaces and LAGs ===")
@@ -613,6 +637,7 @@ func TestPolarization(t *testing.T) {
 
 					t.Log("Perturbing DUT hash configuration")
 					perturbHashConfig(t, dut, id)
+					hashPerturbed = true
 
 					var port2Total, port3Total, port4Total, port5Total uint64
 					var allCaptured []packetTuples
