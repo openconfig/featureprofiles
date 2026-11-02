@@ -5,8 +5,11 @@
 Clients must be able to validate a remote server's TLS certificate
 and present a valid client certificate to that server in order to provide
 identification information. The client certificate should have a
-SPIFFE Idenitifier embedded in it to be used as the identifier of
-the client to the server.
+SPIFFE Identifier embedded in it to be used as the identifier of
+the client to the server. Validating that the client certificate contains
+a valid SPIFFE ID and that the DUT accepts and authenticates inbound mTLS
+connections using this certificate confirms that the DUT uses the SPIFFE
+identifier as the client's identity for authentication.
 
 * SPIFFEE ID format
 
@@ -83,8 +86,9 @@ trust_bundle configurations: (## indicates the 1, 2, 10, 1000, 20000 CA testdata
    6) Validate that the connection is established and that the client's
       provided certificate is validated by the service on the DUT.
 
-   7) Validate that the connection's provided certificate is used for
-      authentication of the connection to the service on the DUT.
+   7) Validate that the connection's provided certificate containing the SPIFFE
+      identifier is used for authentication of the connection to the service on the DUT,
+      verified by successful completion of authenticated RPCs using the client certificate.
 
 ### Certz-1.2
 
@@ -110,11 +114,11 @@ certificates:
    3) Validate that the certificate is loaded and useful for outbound
       client connections. Connect to the service on the DUT.
 
-   4) Validate that the connection to the remote device is established,
-      validate the client certificate can not be used (is untrusted) by
-      service on the DUT.
+   4) Validate that the connection to the remote device is established before the
+      client certificate is rejected as untrusted by the service on the DUT.
 
-   5) Validate that the connection is properly torn down by the DUT.
+   5) Validate that the connection is properly torn down by the DUT following
+      the failed authentication.
    
 
 ## OpenConfig Path and RPC Coverage
