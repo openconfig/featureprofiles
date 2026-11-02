@@ -143,19 +143,17 @@ func TestZRTemperatureStateInterfaceFlap(t *testing.T) {
 	}
 	// Disable interface
 	d := &oc.Root{}
+	i := d.GetOrCreateInterface(dp1.Name())
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	portDisabled := true
 	t.Cleanup(func() {
 		if !portDisabled {
 			return
 		}
-		i := d.GetOrCreateInterface(dp1.Name())
 		i.Enabled = ygot.Bool(true)
-		i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 		gnmi.Replace(t, dut1, gnmi.OC().Interface(dp1.Name()).Config(), i)
 	})
-	i := d.GetOrCreateInterface(dp1.Name())
 	i.Enabled = ygot.Bool(false)
-	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	gnmi.Replace(t, dut1, gnmi.OC().Interface(dp1.Name()).Config(), i)
 	compWithTemperature := gnmi.OC().Component(transceiverName)
 	if !deviations.UseParentComponentForTemperatureTelemetry(dut1) {
