@@ -825,7 +825,7 @@ func measureConvergence(t *testing.T, dut *ondatra.DUTDevice, afi []string, v4Ro
 			var stableUpdates int
 			var convergenceTime time.Duration
 
-			_, ok := gnmi.Watch(t, dut, prefixes.Sent().State(), 15*time.Minute, func(val *ygnmi.Value[uint32]) bool {
+			gnmi.Watch(t, dut, prefixes.Sent().State(), 15*time.Minute, func(val *ygnmi.Value[uint32]) bool {
 				gotSent, present := val.Val()
 				if !present {
 					return false
@@ -874,13 +874,11 @@ func measureConvergence(t *testing.T, dut *ondatra.DUTDevice, afi []string, v4Ro
 				return false
 			}).Await(t)
 
-			if !ok {
-				gotSent := gnmi.Get(t, dut, prefixes.Sent().State())
-				if !isRouteWithdrawn && gotSent < routeCount {
-					t.Errorf("%s Convergence: sent prefixes from DUT to neighbor %v mismatch: got %v, want %v", safi, peer, gotSent, routeCount)
-				} else if isRouteWithdrawn && gotSent > routeCountWithdraw {
-					t.Errorf("%s Convergence WithdrawRoutes: sent prefixes from DUT to neighbor %v mismatch: got %v, want <= %v", safi, peer, gotSent, routeCountWithdraw)
-				}
+			gotSent := gnmi.Get(t, dut, prefixes.Sent().State())
+			if !isRouteWithdrawn && gotSent < routeCount {
+				t.Errorf("%s Convergence: sent prefixes from DUT to neighbor %v mismatch: got %v, want %v", safi, peer, gotSent, routeCount)
+			} else if isRouteWithdrawn && gotSent > routeCountWithdraw {
+				t.Errorf("%s Convergence WithdrawRoutes: sent prefixes from DUT to neighbor %v mismatch: got %v, want <= %v", safi, peer, gotSent, routeCountWithdraw)
 			}
 		}
 	}
@@ -1572,17 +1570,30 @@ func bgpEvents(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, top
 func verifyNoProcessRestart(t *testing.T, pre, post dutInfo) {
 	t.Helper()
 	criticalProcs := []string{"bgp", "bgp-main", "rpd", "sr_bgp_mgr"}
-	for procName, postProc := range post.processes {
-		preProc, ok := pre.processes[procName]
-		if slices.Contains(criticalProcs, strings.ToLower(procName)) {
-			t.Logf("Pre Event:  ProcessName: %v, PID: %v, StartTime: %v, CPU: %v, Memory: %v", procName, preProc.pid, preProc.startTime, preProc.cpuPct, preProc.memPct)
-			t.Logf("Post Event: ProcessName: %v, PID: %v, StartTime: %v, CPU: %v, Memory: %v", procName, postProc.pid, postProc.startTime, postProc.cpuPct, postProc.memPct)
-			if ok && (postProc.pid != preProc.pid || postProc.startTime != preProc.startTime) {
-				t.Errorf("Critical process %s restarted during test: pre(pid=%d, startTime=%d) != post(pid=%d, startTime=%d)",
-					procName, preProc.pid, preProc.startTime, postProc.pid, postProc.startTime)
-			}
-		} else if ok && postProc.pid != preProc.pid {
-			t.Logf("Process: %v restarted between initial and final health check: new pid: %v, old pid: %v", procName, postProc.pid, preProc.pid)
+	preCritical := make(map[string]processesInfo)
+	for name, proc := range pre.processes {
+		if slices.Contains(criticalProcs, strings.ToLower(name)) {
+			preCritical[strings.ToLower(name)] = proc
+		}
+	}
+	postCritical := make(map[string]processesInfo)
+	for name, proc := range post.processes {
+		if slices.Contains(criticalProcs, strings.ToLower(name)) {
+			postCritical[strings.ToLower(name)] = proc
+		}
+	}
+
+	for name, preProc := range preCritical {
+		postProc, ok := postCritical[name]
+		if !ok {
+			t.Errorf("Critical process %s was running before the event but is no longer running after the event", name)
+			continue
+		}
+		t.Logf("Pre Event:  ProcessName: %v, PID: %v, StartTime: %v, CPU: %v, Memory: %v", name, preProc.pid, preProc.startTime, preProc.cpuPct, preProc.memPct)
+		t.Logf("Post Event: ProcessName: %v, PID: %v, StartTime: %v, CPU: %v, Memory: %v", name, postProc.pid, postProc.startTime, postProc.cpuPct, postProc.memPct)
+		if postProc.pid != preProc.pid || postProc.startTime != preProc.startTime {
+			t.Errorf("Critical process %s restarted during test: pre(pid=%d, startTime=%d) != post(pid=%d, startTime=%d)",
+				name, preProc.pid, preProc.startTime, postProc.pid, postProc.startTime)
 		}
 	}
 }
@@ -2264,18 +2275,12 @@ func configureTrafficFlow(t *testing.T, otgConfig gosnappi.Config, flowSrcEndPoi
 	}
 }
 
-// sendTraffic sends traffic from the ATE and waits via gnmi.WatchAll for fixed-packet flows to complete.
-func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, conf gosnappi.Config) {
+// sendTraffic sends traffic from the ATE for trafficDuration.
+func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, _ gosnappi.Config) {
 	t.Helper()
 	t.Logf("Starting traffic")
 	ate.OTG().StartTraffic(t)
-	if items := conf.Flows().Items(); len(items) > 0 {
-		firstFlow := items[0].Name()
-		gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(firstFlow).Counters().OutPkts().State(), trafficDuration, func(val *ygnmi.Value[uint64]) bool {
-			pkts, ok := val.Val()
-			return ok && pkts >= 1000
-		}).Await(t)
-	}
+	time.Sleep(trafficDuration)
 	t.Logf("Stop traffic")
 	ate.OTG().StopTraffic(t)
 }
