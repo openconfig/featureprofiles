@@ -12,6 +12,7 @@ platform_exceptions: {
   }
   deviations: {
     containerz_oc_unsupported: true
+    containerz_require_explicit_config_save: true
   }
 }
 

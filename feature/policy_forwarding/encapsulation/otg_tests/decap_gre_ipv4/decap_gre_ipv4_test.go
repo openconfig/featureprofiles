@@ -271,21 +271,6 @@ func enableCapture(t *testing.T, config gosnappi.Config, port string) {
 
 }
 
-func startCapture(t *testing.T, otg *otg.OTG) gosnappi.ControlState {
-	t.Helper()
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
-	otg.SetControlState(t, cs)
-
-	return cs
-}
-
-func stopCapture(t *testing.T, otg *otg.OTG, cs gosnappi.ControlState) {
-	t.Helper()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
-	otg.SetControlState(t, cs)
-}
-
 func createFlow(flowName string, destMac string) gosnappi.Flow {
 	flow := gosnappi.NewFlow().SetName(flowName)
 	flow.Metrics().SetEnable(true)
@@ -324,14 +309,15 @@ func testGreDecapIPv4(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.OTG, 
 	otgutils.WaitForARP(t, otgConfig, config, "IPv4")
 	otgutils.WaitForARP(t, otgConfig, config, "IPv6")
 
-	cs := startCapture(t, otgConfig)
+	cs := otgutils.StartCapture(t, otgConfig)
+	defer otgutils.StopCapture(t, otgConfig, cs)
 
 	otgConfig.StartTraffic(t)
 	time.Sleep(sleepTime * time.Second)
 
 	otgConfig.StopTraffic(t)
 
-	stopCapture(t, otgConfig, cs)
+	otgutils.StopCapture(t, otgConfig, cs)
 
 	validateDUTPkts(t, dut)
 	validateTrafficLoss(t, otgConfig, config, "DecapGREIpv4")
@@ -361,14 +347,15 @@ func testGreDecapIPv6(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.OTG, 
 	otgutils.WaitForARP(t, otgConfig, config, "IPv4")
 	otgutils.WaitForARP(t, otgConfig, config, "IPv6")
 
-	cs := startCapture(t, otgConfig)
+	cs := otgutils.StartCapture(t, otgConfig)
+	defer otgutils.StopCapture(t, otgConfig, cs)
 
 	otgConfig.StartTraffic(t)
 	time.Sleep(sleepTime * time.Second)
 
 	otgConfig.StopTraffic(t)
 
-	stopCapture(t, otgConfig, cs)
+	otgutils.StopCapture(t, otgConfig, cs)
 	validateTrafficLoss(t, otgConfig, config, "DecapIpv6GRE")
 	validateGREDecapIpv6(t, otgConfig, false)
 
@@ -400,14 +387,15 @@ func testGreDecapIPv4MPLS(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.O
 	otgutils.WaitForARP(t, otgConfig, config, "IPv4")
 	otgutils.WaitForARP(t, otgConfig, config, "IPv6")
 
-	cs := startCapture(t, otgConfig)
+	cs := otgutils.StartCapture(t, otgConfig)
+	defer otgutils.StopCapture(t, otgConfig, cs)
 
 	otgConfig.StartTraffic(t)
 	time.Sleep(sleepTime * time.Second)
 
 	otgConfig.StopTraffic(t)
 
-	stopCapture(t, otgConfig, cs)
+	otgutils.StopCapture(t, otgConfig, cs)
 	validateTrafficLoss(t, otgConfig, config, "Decap-IPv4-over-MPLS")
 	validateGREDecapIpv4(t, otgConfig, true)
 
@@ -439,14 +427,15 @@ func testGreDecapIPv6MPLS(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.O
 	otgutils.WaitForARP(t, otgConfig, config, "IPv4")
 	otgutils.WaitForARP(t, otgConfig, config, "IPv6")
 
-	cs := startCapture(t, otgConfig)
+	cs := otgutils.StartCapture(t, otgConfig)
+	defer otgutils.StopCapture(t, otgConfig, cs)
 
 	otgConfig.StartTraffic(t)
 	time.Sleep(sleepTime * time.Second)
 
 	otgConfig.StopTraffic(t)
 
-	stopCapture(t, otgConfig, cs)
+	otgutils.StopCapture(t, otgConfig, cs)
 	validateTrafficLoss(t, otgConfig, config, "Decap-IPv6-over-MPLS")
 	validateGREDecapIpv6(t, otgConfig, true)
 
@@ -483,14 +472,15 @@ func testGreDecapMultiLabelMPLS(t *testing.T, dut *ondatra.DUTDevice, otgConfig 
 	otgutils.WaitForARP(t, otgConfig, config, "IPv4")
 	otgutils.WaitForARP(t, otgConfig, config, "IPv6")
 
-	cs := startCapture(t, otgConfig)
+	cs := otgutils.StartCapture(t, otgConfig)
+	defer otgutils.StopCapture(t, otgConfig, cs)
 
 	otgConfig.StartTraffic(t)
 	time.Sleep(sleepTime * time.Second)
 
 	otgConfig.StopTraffic(t)
 
-	stopCapture(t, otgConfig, cs)
+	otgutils.StopCapture(t, otgConfig, cs)
 	validateTrafficLoss(t, otgConfig, config, "Decap-Multilabel-MPLS")
 	validateMPLSDecapTraffic(t, otgConfig)
 
@@ -659,15 +649,7 @@ func validateTrafficLoss(t *testing.T, otgConfig *otg.OTG, config gosnappi.Confi
 	otgutils.LogFlowMetrics(t, otgConfig, config)
 	otgutils.LogPortMetrics(t, otgConfig, config)
 
-	outPkts := float32(gnmi.Get(t, otgConfig, gnmi.OTG().Flow(flowName).Counters().OutPkts().State()))
-	inPkts := float32(gnmi.Get(t, otgConfig, gnmi.OTG().Flow(flowName).Counters().InPkts().State()))
-	t.Logf("outPkts: %v, inPkts: %v", outPkts, inPkts)
-	if outPkts == 0 {
-		t.Fatalf("OutPkts for flow %s is 0, want > 0", flowName)
-	}
-	if got := ((outPkts - inPkts) * 100) / outPkts; got > 0 {
-		t.Fatalf("LossPct for flow %s: got %v, want 0", flowName, got)
-	}
+	otgutils.ExpectedTrafficLoss(t, otgConfig, flowName, 0, 0)
 }
 
 func processCapture(t *testing.T, otg *otg.OTG, port string) string {

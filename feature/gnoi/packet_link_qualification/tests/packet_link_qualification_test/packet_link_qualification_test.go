@@ -238,6 +238,9 @@ func TestListDelete(t *testing.T) {
 					t.Fatalf("Failed to handle gnoi LinkQualification().Delete(): %v", err)
 				}
 			}
+			if deviations.LinkQualWaitAfterDeleteRequired(dut1) {
+				time.Sleep(10 * time.Second)
+			}
 		} else {
 			t.Logf("The LinkQualification request was not found on client %d", i+1)
 			continue
@@ -252,9 +255,6 @@ func TestListDelete(t *testing.T) {
 		if got, want := len(listResp.GetResults()), 0; got != want {
 			t.Errorf("len(listResp.GetResults()): got %v, want %v", got, want)
 		}
-	}
-	if deviations.LinkQualWaitAfterDeleteRequired(dut1) {
-		time.Sleep(10 * time.Second)
 	}
 }
 

@@ -16,6 +16,7 @@ import (
 	otgconfighelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers"
 	otgvalidationhelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_validation_helpers"
 	"github.com/openconfig/featureprofiles/internal/otg_helpers/packetvalidationhelpers"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -550,11 +551,12 @@ func mustSendTrafficCapture(t *testing.T, ate *ondatra.ATEDevice) {
 	if err := flowResolveARP.IsIPv4Interfaceresolved(t, ate); err != nil {
 		t.Fatalf("Failed to resolve IPv4 interface for ATE: %v, error: %v", ate, err)
 	}
-	cs := packetvalidationhelpers.StartCapture(t, ate)
+	cs := otgutils.StartCapture(t, ate.OTG())
+	defer otgutils.StopCapture(t, ate.OTG(), cs)
 	ate.OTG().StartTraffic(t)
 	time.Sleep(trafficDuration)
 	ate.OTG().StopTraffic(t)
-	packetvalidationhelpers.StopCapture(t, ate, cs)
+	otgutils.StopCapture(t, ate.OTG(), cs)
 }
 
 // pushPolicyForwardingConfig pushes the policy forwarding configuration to the DUT.

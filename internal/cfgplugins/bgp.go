@@ -406,15 +406,23 @@ func (bs *BGPSession) PushAndStartATE(t testing.TB) {
 	}
 }
 
+type VerifyBGPPeerOptions struct {
+	Duration        time.Duration
+	NetworkInstance string
+}
+
 // VerifyDUTBGPEstablished verifies on DUT BGP peer establishment
-func VerifyDUTBGPEstablished(t *testing.T, dut *ondatra.DUTDevice, duration ...time.Duration) {
-	var timeout time.Duration
-	if len(duration) > 0 {
-		timeout = duration[0]
-	} else {
-		timeout = 2 * time.Minute
-	}
+func VerifyDUTBGPEstablished(t *testing.T, dut *ondatra.DUTDevice, opts ...VerifyBGPPeerOptions) {
+	timeout := 2 * time.Minute
 	dni := deviations.DefaultNetworkInstance(dut)
+	if len(opts) > 0 {
+		if opts[0].Duration != 0 {
+			timeout = opts[0].Duration
+		}
+		if opts[0].NetworkInstance != "" {
+			dni = opts[0].NetworkInstance
+		}
+	}
 	nSessionState := gnmi.OC().NetworkInstance(dni).Protocol(PTBGP, bgpName).Bgp().NeighborAny().SessionState().State()
 	watch := gnmi.WatchAll(t, dut, nSessionState, timeout, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 		state, ok := val.Val()
@@ -911,6 +919,16 @@ func ConfigureBGPNeighbor(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkIn
 	nAfiSafi.Enabled = ygot.Bool(true)
 	nAfiSafi.GetOrCreateAddPaths().Receive = ygot.Bool(sendReceivePaths)
 	nAfiSafi.GetOrCreateAddPaths().Send = ygot.Bool(sendReceivePaths)
+}
+
+// ConfigureBGPConfederation sets the BGP confederation (RFC 5065) on the BGP
+// global configuration: the confederation identifier, which external peers see
+// as the AS of the confederation, and the Member-ASes of the confederation
+// peers.
+func ConfigureBGPConfederation(bgp *oc.NetworkInstance_Protocol_Bgp, identifier uint32, memberAS []uint32) {
+	confed := bgp.GetOrCreateGlobal().GetOrCreateConfederation()
+	confed.SetIdentifier(identifier)
+	confed.SetMemberAs(memberAS)
 }
 
 // ConfigureDUTBGP configures BGP on the DUT using OpenConfig.
