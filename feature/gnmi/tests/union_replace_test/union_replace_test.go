@@ -227,27 +227,13 @@ func setCLINoMTU(t *testing.T, dut *ondatra.DUTDevice, portName string) {
 // for union replace.
 func setCLIunionReplace(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	clicfg1 := ""
-
 	if dut.Vendor() == ondatra.ARISTA {
-		// Add  "operation set namespace" command from the CLI config as this is required for Arista
-		// when using union replace.
-		clicfg1 = "configure terminal\nmanagement api gnmi\n  provider eos-native\n  operation set persistence\n  operation set namespace\n"
-		helpers.GnmiCLIConfig(t, dut, clicfg1)
-		// Poll for config to be applied.
-		start := time.Now()
-		for {
-			if time.Since(start) > 1*time.Minute {
-				t.Fatal("setCLIunionReplace config not applied in time")
-			}
-			clicfg2 := cliConfig(t, dut)
-			if strings.Contains(clicfg2, "operation set namespace") && strings.Contains(clicfg2, "operation set persistence") {
-				break
-			}
-			time.Sleep(1 * time.Second)
-		}
+		// Add "operation set namespace" command to the CLI config as this is required for Arista
+		// when using union replace. helpers.GnmiCLIConfig is a synchronous gNMI Set that fails the
+		// test on error, so the config is applied once it returns and no polling is needed.
+		clicfg := "configure terminal\nmanagement api gnmi\n  provider eos-native\n  operation set persistence\n  operation set namespace\n"
+		helpers.GnmiCLIConfig(t, dut, clicfg)
 	}
-
 }
 
 // Remove description lines from the base CLI config.
@@ -564,7 +550,8 @@ func verifyInterfaceIP(t *testing.T, dut *ondatra.DUTDevice, intfName, wantIPv4 
 func verifyCLIIP(t *testing.T, dut *ondatra.DUTDevice, intfName, wantIPv4 string, wantLen uint8) bool {
 	t.Helper()
 	interfaceConfig := cliInterface(dut, cliConfig(t, dut), intfName)
-	if strings.Contains(interfaceConfig, fmt.Sprintf("ip address %s/%d", wantIPv4, wantLen)) {
+	if strings.Contains(interfaceConfig, fmt.Sprintf("ip address %s/%d", wantIPv4, wantLen)) ||
+		strings.Contains(interfaceConfig, fmt.Sprintf("ipv4 address %s/%d", wantIPv4, wantLen)) {
 		t.Logf("Interface %s IPv4 %s/%d verified in CLI running-config", intfName, wantIPv4, wantLen)
 		return true
 	}
@@ -585,7 +572,8 @@ func verifyInterfaceNoIP(t *testing.T, dut *ondatra.DUTDevice, intfName, ipv4 st
 		got, _ := v.Val()
 		return fmt.Errorf("interface %s IPv4 %s config should not be present, got prefix-length %v", intfName, ipv4, got)
 	}
-	if strings.Contains(cliInterface(dut, cliConfig(t, dut), intfName), fmt.Sprintf("ip address %s/", ipv4)) {
+	cliConf := cliInterface(dut, cliConfig(t, dut), intfName)
+	if strings.Contains(cliConf, fmt.Sprintf("ip address %s/", ipv4)) || strings.Contains(cliConf, fmt.Sprintf("ipv4 address %s/", ipv4)) {
 		return fmt.Errorf("interface %s IPv4 %s should not be present in CLI running-config", intfName, ipv4)
 	}
 	return nil
