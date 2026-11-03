@@ -429,8 +429,8 @@ func configureDUTBGP(t *testing.T, env *testEnv) {
 }
 
 // configureATE implements RT-3.5.1 Step 1 & Step 2 (ATE side):
-//   - Configures OTG LAG1 (port1, port2) with LACP active mode and dual-stack addresses using otg_config_helpers.
-//   - Configures OTG Port3 (DEFAULT VRF egress) and OTG Port4 (VRF-10 egress) using otg_config_helpers.
+//   - Configures OTG LAG1 (port1, port2) with LACP active mode and dual-stack addresses using otgconfighelpers.
+//   - Configures OTG Port3 (DEFAULT VRF egress) and OTG Port4 (VRF-10 egress) using otgconfighelpers.
 //   - Configures OTG dual-stack eBGP peers on ATE:LAG1 (AS 64501) and ATE:Port3 (AS 64501), advertising
 //     198.19.0.0/24 and 2001:db8:20::/64 from ATE:LAG1 and 198.51.100.0/24 and 2001:db8:1::/64 from ATE:Port3.
 func configureATE(t *testing.T, env *testEnv) {
@@ -592,53 +592,85 @@ func configureATE(t *testing.T, env *testEnv) {
 	)
 }
 
+// supportsDualStackVRFSelectionPolicy reports whether the DUT supports both IPv4 and IPv6
+// match rules within the same VRF_SELECTION_POLICY.
+func supportsDualStackVRFSelectionPolicy(dut *ondatra.DUTDevice) bool {
+	return dut.Vendor() != ondatra.NOKIA && dut.Vendor() != ondatra.JUNIPER
+}
+
 // configureDUTVRFSelectionPolicy implements RT-3.5.1 Step 3:
-//   - Configures VRF-SELECT-POLICY under the DEFAULT network instance using cfgplugins.NewVrfSelectionPolicy:
+//   - Configures VRF-SELECT-POLICY under the DEFAULT network instance:
 //   - Rule 10: IPv4 source-address 198.18.0.0/16, dscp-set [10] -> action network-instance VRF-10.
 //   - Rule 20: IPv6 source-address 2001:db8:10::/48, dscp-set [10] -> action network-instance VRF-10.
 //   - Binds VRF-SELECT-POLICY to the ingress LAG interface (aggID) subinterface 0.
 func configureDUTVRFSelectionPolicy(t *testing.T, env *testEnv) {
 	t.Helper()
-	srcPrefixV4 := rule10SrcPrefixV4
-	prefixLenV4 := uint8(rule10PrefixLenV4)
-	srcPrefixV6 := rule20SrcPrefixV6
-	prefixLenV6 := uint8(rule20PrefixLenV6)
-	if env.dut.Vendor() == ondatra.CISCO {
+	dut := env.dut
+	defNI := deviations.DefaultNetworkInstance(dut)
+
+	seqIDOffset := func(seq uint32) uint32 {
+		if deviations.PfRequireSequentialOrderPbrRules(dut) {
+			return seq + 10
+		}
+		return seq
+	}
+
+	pf := &oc.NetworkInstance_PolicyForwarding{}
+	policy := pf.GetOrCreatePolicy(vrfSelectionPolicyName)
+	policy.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
+
+	rule10Idx := seqIDOffset(rule10SeqID)
+	r10 := policy.GetOrCreateRule(rule10Idx)
+	ipv4 := r10.GetOrCreateIpv4()
+	if dut.Vendor() != ondatra.CISCO {
 		// Cisco 8000 PBR PD hardware supports dscp-set without source-address on VRF selection rules.
-		srcPrefixV4 = ""
-		prefixLenV4 = 0
-		srcPrefixV6 = ""
-		prefixLenV6 = 0
+		ipv4.SetSourceAddress(fmt.Sprintf("%s/%d", rule10SrcPrefixV4, rule10PrefixLenV4))
 	}
-	rule10 := cfgplugins.VrfRule{
-		Index:        rule10SeqID,
-		IpType:       cfgplugins.IPv4,
-		SourcePrefix: srcPrefixV4,
-		PrefixLength: prefixLenV4,
-		DscpSet:      []uint8{dscpVRF10},
-		NetInstName:  vrf10Name,
+	ipv4.SetDscpSet([]uint8{dscpVRF10})
+	r10.GetOrCreateAction().SetNetworkInstance(vrf10Name)
+	maxRuleIdx := rule10Idx
+
+	if supportsDualStackVRFSelectionPolicy(dut) {
+		rule20Idx := seqIDOffset(rule20SeqID)
+		r20 := policy.GetOrCreateRule(rule20Idx)
+		ipv6 := r20.GetOrCreateIpv6()
+		if dut.Vendor() != ondatra.CISCO {
+			ipv6.SetSourceAddress(fmt.Sprintf("%s/%d", rule20SrcPrefixV6, rule20PrefixLenV6))
+		}
+		ipv6.SetDscpSet([]uint8{dscpVRF10})
+		r20.GetOrCreateAction().SetNetworkInstance(vrf10Name)
+		if rule20Idx > maxRuleIdx {
+			maxRuleIdx = rule20Idx
+		}
 	}
-	rule20 := cfgplugins.VrfRule{
-		Index:        rule20SeqID,
-		IpType:       cfgplugins.IPv6,
-		SourcePrefix: srcPrefixV6,
-		PrefixLength: prefixLenV6,
-		DscpSet:      []uint8{dscpVRF10},
-		NetInstName:  vrf10Name,
+
+	if deviations.PfRequireMatchDefaultRule(dut) {
+		defV4Rule := policy.GetOrCreateRule(seqIDOffset(maxRuleIdx + 10))
+		defV4Rule.GetOrCreateL2().SetEthertype(oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4)
+		defV4Rule.GetOrCreateAction().SetNetworkInstance(defNI)
+
+		defV6Rule := policy.GetOrCreateRule(seqIDOffset(maxRuleIdx + 20))
+		defV6Rule.GetOrCreateL2().SetEthertype(oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV6)
+		defV6Rule.GetOrCreateAction().SetNetworkInstance(defNI)
 	}
-	rules := []cfgplugins.VrfRule{rule10, rule20}
-	if env.dut.Vendor() == ondatra.NOKIA {
-		// Nokia 7250 IXR supports IPv4 match criteria in VRF_SELECTION_POLICY (and rejects IPv6
-		// match criteria in VRF_SELECTION_POLICY with InvalidArgument).
-		rules = []cfgplugins.VrfRule{rule10}
+
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(defNI).PolicyForwarding().Config(), pf)
+
+	interfaceID := env.aggID
+	if deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
+		interfaceID = fmt.Sprintf("%s.%d", env.aggID, 0)
 	}
-	cfgplugins.NewVrfSelectionPolicy(t, env.dut, cfgplugins.VrfSelectionPolicyConfig{
-		NetworkInstanceName: deviations.DefaultNetworkInstance(env.dut),
-		PolicyName:          vrfSelectionPolicyName,
-		InterfaceName:       env.aggID,
-		SubinterfaceIndex:   0,
-		Rules:               rules,
-	})
+	d := &oc.Root{}
+	iface := d.GetOrCreateNetworkInstance(defNI).GetOrCreatePolicyForwarding().GetOrCreateInterface(interfaceID)
+	iface.SetApplyVrfSelectionPolicy(vrfSelectionPolicyName)
+	iface.GetOrCreateInterfaceRef().SetInterface(env.aggID)
+	iface.GetOrCreateInterfaceRef().SetSubinterface(0)
+	if deviations.InterfaceRefConfigUnsupported(dut) {
+		iface.InterfaceRef = nil
+	}
+
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(defNI).PolicyForwarding().Interface(interfaceID).Config(), iface)
 }
 
 // verifyControlPlaneState implements RT-3.5.1 Step 4:
@@ -705,10 +737,10 @@ func verifyControlPlaneState(t *testing.T, env *testEnv) {
 	cfgplugins.VerifyRoutes(t, dut, expectedRoutes)
 
 	// 7. Verify VRF selection policy interface binding on DUT.
-	if !deviations.PolicyForwardingOCUnsupported(dut) {
+	if !deviations.PolicyForwardingOCUnsupported(dut) && dut.Vendor() != ondatra.JUNIPER {
 		pfStatePath := gnmi.OC().NetworkInstance(defNI).PolicyForwarding()
 		interfaceID := env.aggID
-		if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
+		if deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
 			interfaceID = fmt.Sprintf("%s.0", env.aggID)
 		}
 		gnmi.Await(t, dut, pfStatePath.Interface(interfaceID).ApplyVrfSelectionPolicy().State(), controlTimeout, vrfSelectionPolicyName)
@@ -888,8 +920,14 @@ func configureOTGTrafficFlows(t *testing.T, env *testEnv) []string {
 	flow3.AddEthHeader()
 	flow3.AddIPv4Header()
 
+	flowNames := []string{
+		flow1IPv4DefaultVRF,
+		flow2IPv6DefaultVRF,
+		flow3IPv4VRF10,
+	}
+
 	// Flow 4: IPv6 VRF-10 Steered (matching Rule 20: Src 2001:db8:10::/48, DSCP 10 -> VRF-10 -> ATE:Port4).
-	if env.dut.Vendor() != ondatra.NOKIA {
+	if supportsDualStackVRFSelectionPolicy(env.dut) {
 		flow4 := &otgconfighelpers.Flow{
 			FlowName:      flow4IPv6VRF10,
 			TxNames:       []string{ateLag1.Name + ".IPv6"},
@@ -907,27 +945,16 @@ func configureOTGTrafficFlows(t *testing.T, env *testEnv) []string {
 		flow4.CreateFlow(top)
 		flow4.AddEthHeader()
 		flow4.AddIPv6Header()
+		flowNames = append(flowNames, flow4IPv6VRF10)
 	}
 
-	if env.dut.Vendor() == ondatra.NOKIA {
-		return []string{
-			flow1IPv4DefaultVRF,
-			flow2IPv6DefaultVRF,
-			flow3IPv4VRF10,
-		}
-	}
-	return []string{
-		flow1IPv4DefaultVRF,
-		flow2IPv6DefaultVRF,
-		flow3IPv4VRF10,
-		flow4IPv6VRF10,
-	}
+	return flowNames
 }
 
 // runAndVerifyTraffic implements RT-3.5.2 Step 2 & Step 3:
 //   - Verifies ARP/NDP and eBGP readiness prior to traffic injection.
 //   - Starts traffic and awaits flow completion using gnmi.Watch (no time.Sleep).
-//   - Verifies 0% packet loss on all 4 flows using otg_validation_helpers.VerifyTraffic.
+//   - Verifies 0% packet loss on all 4 flows using otgvalidationhelpers.VerifyTraffic.
 //   - Verifies VRF-SELECT-POLICY Rule 10 and Rule 20 matched-pkts and matched-octets counters increment.
 //   - Verifies DUT interface packet counters (in-pkts on LAG1 and out-pkts on Port3 and Port4) increment.
 //   - Re-verifies that dual-stack eBGP sessions remain ESTABLISHED and IPv6 NDP remains resolved.
@@ -1005,16 +1032,23 @@ func runAndVerifyTraffic(t *testing.T, env *testEnv, flowNames []string) {
 		}
 	}
 
-	// Verify VRF selection policy Rule 10 and Rule 20 matched-pkts and matched-octets counters incremented.
+	// Verify VRF selection policy Rule 10 (and Rule 20 when dual-stack rules are supported) matched-pkts and matched-octets counters incremented.
 	if !deviations.PolicyRuleCountersOCUnsupported(dut) && !deviations.PolicyForwardingOCUnsupported(dut) {
-		for _, ruleCheck := range []struct {
+		ruleChecks := []struct {
 			seqID        uint32
 			pktsBefore   uint64
 			octetsBefore uint64
 		}{
 			{seqID: rule10SeqID, pktsBefore: rule10PktsBefore, octetsBefore: rule10OctetsBefore},
-			{seqID: rule20SeqID, pktsBefore: rule20PktsBefore, octetsBefore: rule20OctetsBefore},
-		} {
+		}
+		if supportsDualStackVRFSelectionPolicy(dut) {
+			ruleChecks = append(ruleChecks, struct {
+				seqID        uint32
+				pktsBefore   uint64
+				octetsBefore uint64
+			}{seqID: rule20SeqID, pktsBefore: rule20PktsBefore, octetsBefore: rule20OctetsBefore})
+		}
+		for _, ruleCheck := range ruleChecks {
 			if _, ok := gnmi.Watch(t, dut, policyPath.Rule(ruleCheck.seqID).MatchedPkts().State(), trafficTimeout, func(val *ygnmi.Value[uint64]) bool {
 				pkts, present := val.Val()
 				return present && pkts >= ruleCheck.pktsBefore+trafficPackets
@@ -1032,9 +1066,9 @@ func runAndVerifyTraffic(t *testing.T, env *testEnv, flowNames []string) {
 	// Verify DUT interface counters (in-pkts on LAG1 and out-pkts on Port3 and Port4) incremented as expected.
 	wantLagInPkts := uint64(len(flowNames)) * trafficPackets
 	wantP3OutPkts := uint64(2 * trafficPackets)
-	wantP4OutPkts := uint64(2 * trafficPackets)
-	if dut.Vendor() == ondatra.NOKIA {
-		wantP4OutPkts = uint64(trafficPackets)
+	wantP4OutPkts := uint64(trafficPackets)
+	if supportsDualStackVRFSelectionPolicy(dut) {
+		wantP4OutPkts = uint64(2 * trafficPackets)
 	}
 	if _, ok := gnmi.Watch(t, dut, gnmi.OC().Interface(env.aggID).Counters().InPkts().State(), trafficTimeout, func(val *ygnmi.Value[uint64]) bool {
 		pkts, present := val.Val()
