@@ -587,16 +587,14 @@ func sendTraffic(t *testing.T, args *testArgs, top gosnappi.Config, ate *ondatra
 	ate.OTG().StartProtocols(t)
 	time.Sleep(30 * time.Second)
 
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
-	args.otg.SetControlState(t, cs)
+	cs := otgutils.StartCapture(t, args.otg)
+	defer otgutils.StopCapture(t, args.otg, cs)
 
 	ate.OTG().StartTraffic(t)
 	time.Sleep(time.Duration(duration) * time.Second)
 	ate.OTG().StopTraffic(t)
 
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
-	args.otg.SetControlState(t, cs)
+	otgutils.StopCapture(t, args.otg, cs)
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
 	otgutils.LogPortMetrics(t, ate.OTG(), top)
 }
