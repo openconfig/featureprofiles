@@ -1597,6 +1597,10 @@ message Metadata {
     // Cisco: https://partnerissuetracker.corp.google.com/issues/573074330
     bool ecn_min_greater_max_threshold_unsupported = 481;
 
+    // Devices doesnt support isis interface authentication state telemetry
+    // Juniper: B/577987389
+    bool isis_int_authentication_state_unsupported = 482;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }

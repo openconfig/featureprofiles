@@ -386,7 +386,7 @@ func VerifyISISAuthTelemetry(t *testing.T, dut *ondatra.DUTDevice, isisInterface
 
 	// 2. Query and verify Interface Hello Authentication State across all interfaces
 	helloAuthCount := 0
-	if deviations.ISISInterfaceAuthenticationContainerUnsupported(dut) {
+	if deviations.ISISInterfaceAuthenticationContainerUnsupported(dut) || deviations.ISISIntAuthenticationStateUnsupported(dut) {
 		helloAuthVals := gnmi.LookupAll(t, dut, isisProto.InterfaceAny().LevelAny().HelloAuthentication().State())
 		if len(helloAuthVals) == 0 {
 			return false, fmt.Errorf("interface hello auth telemetry state is not present in telemetry stream")

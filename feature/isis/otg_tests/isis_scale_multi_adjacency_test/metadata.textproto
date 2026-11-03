@@ -36,6 +36,7 @@ platform_exceptions: {
   deviations: {
     isis_level_enabled: true
     interface_ref_interface_id_format: true
+    isis_int_authentication_state_unsupported: true
   }
 }
 platform_exceptions: {
