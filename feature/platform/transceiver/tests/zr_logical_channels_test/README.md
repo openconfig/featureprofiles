@@ -158,6 +158,7 @@ Once the ZR link is estabished proceed to configure the following entities:
 *   /terminal-device/logical-channels/channel/state/description
 *   /terminal-device/logical-channels/channel/state/index
 *   /terminal-device/logical-channels/channel/state/logical-channel-type
+*   /terminal-device/logical-channels/channel/state/loopback-mode
 *   /terminal-device/logical-channels/channel/state/rate-class
 *   /terminal-device/logical-channels/channel/state/trib-protocol
 *   /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/allocation
@@ -199,6 +200,19 @@ paths:
   /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/index:
   /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/logical-channel:
   /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/optical-channel:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/allocation:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/assignment-type:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/description:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/index:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/logical-channel:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/optical-channel:
+  /terminal-device/logical-channels/channel/state/admin-state:
+  /terminal-device/logical-channels/channel/state/description:
+  /terminal-device/logical-channels/channel/state/index:
+  /terminal-device/logical-channels/channel/state/logical-channel-type:
+  /terminal-device/logical-channels/channel/state/loopback-mode:
+  /terminal-device/logical-channels/channel/state/rate-class:
+  /terminal-device/logical-channels/channel/state/trib-protocol:
 rpcs:
   gnmi:
     gNMI.Get:
