@@ -2541,3 +2541,8 @@ func SkipGnoiPingRpcAuthzVerification(dut *ondatra.DUTDevice) bool {
 func EcnMinGreaterMaxThresholdUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEcnMinGreaterMaxThresholdUnsupported()
 }
+// ISISIntAuthenticationStateUnsupported returns true if the device does not support
+// IS-IS authentication state under /isis/interfaces/interface/ 
+func ISISIntAuthenticationStateUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisIntAuthenticationStateUnsupported()
+}
