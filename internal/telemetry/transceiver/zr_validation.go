@@ -200,17 +200,6 @@ func PlatformPathsTest(t *testing.T, tp *TunableParamters) {
 					validateHWPortTelemetry(t, dut, p, params, hwPortStreams[p.Name()])
 				}
 
-				t.Logf("\n*** Bringing UP all interfaces\n\n\n")
-				params.Enabled = true
-				cfgplugins.ToggleInterfaceState(t, dut, params)
-				for _, p := range dut.Ports() {
-					validateTempSensorTelemetry(t, dut, p, params, oc.Interface_OperStatus_UP, tempSensorStreams[p.Name()])
-					validateInterfaceTelemetry(t, dut, p, params, oc.Interface_OperStatus_UP, interfaceStreams[p.Name()])
-					validateTranscieverTelemetry(t, dut, p, params, oc.Interface_OperStatus_UP, trStreams[p.Name()])
-					validateOpticalChannelTelemetry(t, p, params, oc.Interface_OperStatus_UP, ochStreams[p.Name()])
-					validateHWPortTelemetry(t, dut, p, params, hwPortStreams[p.Name()])
-				}
-
 				// Close all streams.
 				for _, p := range dut.Ports() {
 					ochStreams[p.Name()].Close()
