@@ -86,6 +86,8 @@ paths:
        platform_type: ["INTEGRATED_CIRCUIT"]
     /components/component/integrated-circuit/pipeline-counters/drop/state/congestion-aggregate:
        platform_type: ["INTEGRATED_CIRCUIT"]
+    /components/component/integrated-circuit/pipeline-counters/drop/state/no-route:
+       platform_type: ["INTEGRATED_CIRCUIT"]
     /components/component/state/memory/available:
        platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU"]
     /components/component/state/memory/utilized:

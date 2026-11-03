@@ -717,6 +717,11 @@ func TestNoAsicDrop(t *testing.T) {
 					}
 				}
 			}
+			if drop.NoRoute == nil {
+				t.Errorf("ERROR: Drop NoRoute counter is not present")
+			} else {
+				t.Logf("INFO: Drop NoRoute counter: %d", drop.GetNoRoute())
+			}
 			if !deviations.FabricDropCounterUnsupported(dut) {
 				if drop.CongestionAggregate == nil {
 					t.Errorf("ERROR: CongestionAggregate counter is not present")
