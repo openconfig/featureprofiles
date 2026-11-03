@@ -187,7 +187,7 @@ func validatePowerValue(t *testing.T, portName, pm string, instant, min, max, av
 	}
 
 	if !isValid {
-		t.Errorf("Invalid %v sample when %v is %v --> min : %v, max : %v, avg : %v, instant : %v", pm, portName, operStatus, min, max, avg, instant)
+t.Errorf("Invalid %v sample when %v is %v --> min: %v, max: %v, avg: %v, instant: %v (expected range [%v, %v] or inactive <= %v)", pm, portName, operStatus, min, max, avg, instant, minAllowed, maxAllowed, inactiveValue)
 	} else {
 		t.Logf("Valid %v sample when %v is %v --> min : %v, max : %v, avg : %v, instant : %v", pm, portName, operStatus, min, max, avg, instant)
 	}
