@@ -296,7 +296,8 @@ func TestSFlowEgressTraffic(t *testing.T) {
 			fc = flowConfigsKNE[0]
 		}
 		createFlow(t, ate, config, fc, IPv4)
-		cs := startCapture(t, ate, config)
+		cs := otgutils.StartCapture(t, ate.OTG())
+		defer otgutils.StopCapture(t, ate.OTG(), cs)
 		if fc.ppsRate == 0 {
 			t.Fatal("ppsRate cannot be zero")
 		}
@@ -304,7 +305,7 @@ func TestSFlowEgressTraffic(t *testing.T) {
 		ate.OTG().StartTraffic(t)
 		time.Sleep(sleepTime * time.Second)
 		ate.OTG().StopTraffic(t)
-		stopCapture(t, ate, cs)
+		otgutils.StopCapture(t, ate.OTG(), cs)
 		verifyNoSFlowPackets(t, ate, config, IPv4)
 	})
 }
@@ -433,7 +434,8 @@ func testFlowEgress(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config
 		flowName := string(ip) + fc.name
 		t.Run(flowName, func(t *testing.T) {
 			createFlow(t, ate, config, fc, ip)
-			cs := startCapture(t, ate, config)
+			cs := otgutils.StartCapture(t, ate.OTG())
+			defer otgutils.StopCapture(t, ate.OTG(), cs)
 			if fc.ppsRate == 0 {
 				t.Fatal("ppsRate cannot be zero")
 			}
@@ -441,7 +443,7 @@ func testFlowEgress(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config
 			ate.OTG().StartTraffic(t)
 			time.Sleep(sleepTime * time.Second)
 			ate.OTG().StopTraffic(t)
-			stopCapture(t, ate, cs)
+			otgutils.StopCapture(t, ate.OTG(), cs)
 			otgutils.LogFlowMetrics(t, ate.OTG(), config)
 			otgutils.LogPortMetrics(t, ate.OTG(), config)
 			loss := otgutils.GetFlowLossPct(t, ate.OTG(), flowName, 10*time.Second)
@@ -451,20 +453,6 @@ func testFlowEgress(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config
 			processCapture(t, ate, config, ip, fc, port2IfIndex)
 		})
 	}
-}
-
-func startCapture(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) gosnappi.ControlState {
-	t.Helper()
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
-	ate.OTG().SetControlState(t, cs)
-	return cs
-}
-
-func stopCapture(t *testing.T, ate *ondatra.ATEDevice, cs gosnappi.ControlState) {
-	t.Helper()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
-	ate.OTG().SetControlState(t, cs)
 }
 
 func processCapture(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, ip IPType, fc flowConfig, port2IfIndex uint32) {
