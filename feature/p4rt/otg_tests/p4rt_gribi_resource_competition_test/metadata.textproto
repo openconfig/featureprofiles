@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "433e2e55-af9a-4417-9d27-6d0408aa4d05"
+plan_id: "P4RT-3.5"
+description: "P4RT vs. gRIBI Hardware Resource Competition"
+testbed: TESTBED_DUT_ATE_4LINKS
