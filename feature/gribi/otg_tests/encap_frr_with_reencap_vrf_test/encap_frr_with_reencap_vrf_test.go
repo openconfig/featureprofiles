@@ -33,6 +33,7 @@ import (
 	"github.com/google/gopacket/pcap"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	baseScenario "github.com/openconfig/featureprofiles/internal/encapfrr"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -282,6 +283,10 @@ func dutInterface(p *ondatra.Port, dut *ondatra.DUTDevice) *oc.Interface {
 
 // configureDUT configures all the interfaces on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPortList []*ondatra.Port) {
+	if deviations.VendorPreConfigRequired(dut) {
+		cfgplugins.ConfigureDecapVrfSelection(t, dut)
+	}
+
 	dc := gnmi.OC()
 	for _, dp := range dutPortList {
 
@@ -771,22 +776,18 @@ func startCapture(t *testing.T, args *testArgs, capturePortList []string) gosnap
 	time.Sleep(30 * time.Second)
 	args.otg.StartProtocols(t)
 	time.Sleep(30 * time.Second)
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
-	args.otg.SetControlState(t, cs)
-	return cs
+	return otgutils.StartCapture(t, args.otg)
 }
 
 func sendTraffic(t *testing.T, args *testArgs, capturePortList []string, cs gosnappi.ControlState) {
 	t.Helper()
+	defer otgutils.StopCapture(t, args.otg, cs)
 	otgutils.WaitForARP(t, args.otg, args.top, "IPv4")
 	t.Logf("Starting traffic")
 	args.otg.StartTraffic(t)
 	time.Sleep(15 * time.Second)
 	t.Logf("Stop traffic")
 	args.otg.StopTraffic(t)
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
-	args.otg.SetControlState(t, cs)
 }
 
 func verifyTraffic(t *testing.T, args *testArgs, capturePortList []string, loadBalancePercent []float64, wantLoss, checkEncap bool, headerDstIP map[string][]string) {
@@ -1009,6 +1010,59 @@ func validateTrafficDistribution(t *testing.T, ate *ondatra.ATEDevice, wantWeigh
 	}
 }
 
+// validateEncapNHTelemetry verifies AFT telemetry for the encap next-hops used by
+// the 138.0.11.0/24 entry in ENCAP_TE_VRF_A. Each next-hop (NH#101 and NH#102)
+// is programmed via gRIBI with encapsulate_header IPV4, so telemetry is expected
+// to report next-hop/state/encapsulate-header as IPV4 and
+// next-hop/state/origin-protocol as GRIBI.
+func validateEncapNHTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	pfx := gribiIPv4EntryEncapVRF + "/" + maskLen24
+	ipv4Path := gnmi.OC().NetworkInstance(niEncapTeVrfA).Afts().Ipv4Entry(pfx)
+	ipv4Val, ok := gnmi.Watch(t, dut, ipv4Path.State(), 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		v, present := val.Val()
+		return present && v.GetNextHopGroup() != 0
+	}).Await(t)
+	if !ok {
+		t.Fatalf("Could not find prefix %s in %s telemetry AFT", pfx, niEncapTeVrfA)
+	}
+	ipv4Entry, _ := ipv4Val.Val()
+	nhgNI := ipv4Entry.GetNextHopGroupNetworkInstance()
+	if nhgNI == "" {
+		nhgNI = deviations.DefaultNetworkInstance(dut)
+	}
+	nhgID := ipv4Entry.GetNextHopGroup()
+
+	nhgVal, ok := gnmi.Watch(t, dut, gnmi.OC().NetworkInstance(nhgNI).Afts().NextHopGroup(nhgID).State(), 2*time.Minute,
+		func(val *ygnmi.Value[*oc.NetworkInstance_Afts_NextHopGroup]) bool {
+			v, present := val.Val()
+			return present && len(v.NextHop) > 0
+		}).Await(t)
+	if !ok {
+		t.Fatalf("Next-hop-group %d for prefix %s is not present in telemetry AFT", nhgID, pfx)
+	}
+	nhg, _ := nhgVal.Val()
+
+	for nhIndex := range nhg.NextHop {
+		nh, present := gnmi.Lookup(t, dut, gnmi.OC().NetworkInstance(nhgNI).Afts().NextHop(nhIndex).State()).Val()
+		if !present {
+			t.Errorf("Next-hop %d of next-hop-group %d is not present in telemetry AFT", nhIndex, nhgID)
+			continue
+		}
+		t.Logf("Prefix %s next-hop %d: encapsulate-header = %v, origin-protocol = %v", pfx, nhIndex, nh.GetEncapsulateHeader(), nh.GetOriginProtocol())
+		if !deviations.AFTNextHopEncapsulateHeaderUnsupported(dut) {
+			if got, want := nh.GetEncapsulateHeader(), oc.Aft_EncapsulationHeaderType_IPV4; got != want {
+				t.Errorf("Prefix %s next-hop %d: next-hop/state/encapsulate-header = %v, want %v", pfx, nhIndex, got, want)
+			}
+		}
+		if !deviations.AFTNextHopOriginProtocolUnsupported(dut) {
+			if got, want := nh.GetOriginProtocol(), oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_GRIBI; got != want {
+				t.Errorf("Prefix %s next-hop %d: next-hop/state/origin-protocol = %v, want %v", pfx, nhIndex, got, want)
+			}
+		}
+	}
+}
+
 // TestEncapFrr is to test Test FRR behaviors with encapsulation scenarios
 func TestEncapFrr(t *testing.T) {
 	ctx := context.Background()
@@ -1116,6 +1170,13 @@ func TestEncapFrr(t *testing.T) {
 			TestID:                 "teVrf111NoMatch",
 		},
 	)
+	t.Run("Validate encap next-hop AFT telemetry", func(t *testing.T) {
+		if err := gribi.FlushAll(client); err != nil {
+			t.Fatal(err)
+		}
+		configureGribiRoute(ctx, t, dut, args.client)
+		validateEncapNHTelemetry(t, dut)
+	})
 	for _, tc := range testCases {
 		t.Run(tc.Desc, func(t *testing.T) {
 			t.Log("Verify whether the ports are in up state")
@@ -1130,6 +1191,7 @@ func TestEncapFrr(t *testing.T) {
 			configureGribiRoute(ctx, t, dut, args.client)
 			createFlow(t, otgConfig, otg, ipv4InnerDst)
 			captureState := startCapture(t, args, baseCapturePortList)
+			defer otgutils.StopCapture(t, args.otg, captureState)
 			sendTraffic(t, args, baseCapturePortList, captureState)
 			baseHeaderDstIP := map[string][]string{"outerIP": {gribiIPv4EntryVRF1111, gribiIPv4EntryVRF1112}, "innerIP": {ipv4InnerDst, ipv4InnerDst}}
 			baseLoadBalancePercent := []float64{0.0156, 0.0468, 0.1875, 0, 0.75, 0, 0}
@@ -1253,6 +1315,7 @@ func TestEncapFrr(t *testing.T) {
 			}
 
 			captureState = startCapture(t, args, tc.CapturePortList)
+			defer otgutils.StopCapture(t, args.otg, captureState)
 			if len(tc.DownPortList) > 0 {
 				t.Logf("Bring down ports %s", tc.DownPortList)
 				portState(t, args, tc.DownPortList, false)
