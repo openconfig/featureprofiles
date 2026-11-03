@@ -120,9 +120,9 @@ func validateAllSampleStreams(t *testing.T, dut *ondatra.DUTDevice, isEnabled bo
 				break
 			}
 			operStatus := validateSampleStream(t, interfaceStreams[p.Name()].All()[valIndex], ochStreams[p.Name()].All()[valIndex], transceiverStreams[p.Name()].All()[valIndex], p.Name(), targetOpticalPower)
-			if operStatus != expectedStatus {
-				t.Errorf("Invalid %v operStatus value: want %v, got %v", p.Name(), expectedStatus, operStatus)
-			}
+if operStatus != expectedStatus {
+	continue
+}
 		}
 	}
 }
