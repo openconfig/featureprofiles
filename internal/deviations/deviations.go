@@ -2544,7 +2544,7 @@ func EcnMinGreaterMaxThresholdUnsupported(dut *ondatra.DUTDevice) bool {
 
 // ISISIntAuthenticationStateUnsupported returns true if the device does not support
 // IS-IS authentication state under /isis/interfaces/interface/.
-// See https://issuetracker.google.com/577987389 
+// See https://issuetracker.google.com/577987389
 func ISISIntAuthenticationStateUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisIntAuthenticationStateUnsupported()
 }
