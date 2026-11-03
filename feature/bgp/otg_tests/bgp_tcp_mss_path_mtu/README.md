@@ -10,8 +10,9 @@ and path MTU discovery (PMTUD) settings for BGP sessions:
 *   Configuration and state of PMTUD on an iBGP neighbor with TCP MD5
     authentication (`transport/config/mtu-discovery` and
     `transport/state/mtu-discovery`)
-*   `transport/state/tcp-mss` reports the configured MSS. When no MSS is
-    configured, it may instead report the MSS in use on the TCP session.
+*   `transport/state/tcp-mss` reports the configured MSS (the applied
+    configuration), in the same way as `timers/state/hold-time`. When no MSS
+    is configured, it may instead report the MSS in use on the TCP session.
 *   TODO: Verify the MSS in use on the session once OpenConfig adds a leaf
     for it, as proposed in the OpenConfig Path and RPC Coverage section.
 *   TODO: Add IPv6 link-local BGP neighbors if they are required.
@@ -49,8 +50,9 @@ graph LR
 *   Establish IPv4 and IPv6 eBGP sessions between ATE port-1 (AS `64501`) and
     DUT1 port-1 (AS `64500`).
 *   If DUT1 reports `transport/state/tcp-mss` for the eBGP neighbors before an
-    MSS is configured, verify that the value is non-zero and below the MTU of
-    DUT1 port-1.
+    MSS is configured, verify that the value is at least the TCP default MSS
+    (536 for IPv4 and 1220 for IPv6) and at most the MTU of DUT1 port-1 minus
+    40 bytes for IPv4 or 60 bytes for IPv6 (1460 and 1440 for a 1500-byte MTU).
 *   Set the MTU of DUT1 port-1 and ATE port-1 to 5040 bytes.
 *   Configure `transport/config/tcp-mss` to 4096 on the IPv4 and IPv6 eBGP
     neighbors on DUT1.
@@ -147,8 +149,8 @@ graph LR
 *   Verify that the session is `ESTABLISHED` and that
     `transport/state/mtu-discovery` is `true`.
 *   If DUT2 reports `transport/state/tcp-mss` for the iBGP neighbor (no MSS is
-    configured), verify that the value is non-zero and below 1500, which shows
-    that PMTUD has adjusted the MSS to the path.
+    configured), verify that the value is at least 536 and at most 1460, which
+    shows that PMTUD has adjusted the MSS to the 1500-byte path.
 
 #### Canonical OC
 
@@ -217,7 +219,7 @@ graph LR
     1.  A BGP session is not `ESTABLISHED` after it is re-established
     2.  `transport/state/tcp-mss` is not 4096 for the eBGP neighbors in
         `RT-1.21.1`
-    3.  A reported `transport/state/tcp-mss` is zero or not below the limit in
+    3.  A reported `transport/state/tcp-mss` is outside the range given in
         `RT-1.21.1` or `RT-1.21.2`
     4.  `transport/state/mtu-discovery` is not `true` on DUT2 in `RT-1.21.2`
 
