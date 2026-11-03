@@ -13,9 +13,6 @@ and path MTU discovery (PMTUD) settings for BGP sessions:
 *   `transport/state/tcp-mss` reports the configured MSS (the applied
     configuration), in the same way as `timers/state/hold-time`. When no MSS
     is configured, it may instead report the MSS in use on the TCP session.
-*   TODO: Verify the MSS in use on the session once OpenConfig adds a leaf
-    for it, as proposed in the OpenConfig Path and RPC Coverage section.
-*   TODO: Add IPv6 link-local BGP neighbors if they are required.
 
 ### Testbed type
 
@@ -235,17 +232,10 @@ paths:
   ## Config Parameter Coverage
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/config/tcp-mss:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/config/mtu-discovery:
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/auth-password:
-  /interfaces/interface/config/mtu:
 
   ## Telemetry Parameter Coverage
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/state/tcp-mss:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/state/mtu-discovery:
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
-
-  # TODO: Propose a leaf that reports the MSS in use on the session to
-  # openconfig/public, similar to timers/state/negotiated-hold-time.
-  # /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/state/negotiated-tcp-mss:
 
 rpcs:
   gnmi:
@@ -258,4 +248,4 @@ rpcs:
 
 ## Minimum DUT platform requirement
 
-*   FFF
+N/A
