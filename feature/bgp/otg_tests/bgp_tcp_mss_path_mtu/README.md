@@ -12,6 +12,8 @@ and path MTU discovery (PMTUD) settings for BGP sessions:
     `transport/state/mtu-discovery`)
 *   `transport/state/tcp-mss` reports the configured MSS. When no MSS is
     configured, it may instead report the MSS in use on the TCP session.
+*   TODO: Verify the MSS in use on the session once OpenConfig adds a leaf
+    for it, as proposed in the OpenConfig Path and RPC Coverage section.
 *   TODO: Add IPv6 link-local BGP neighbors if they are required.
 
 ### Testbed type
