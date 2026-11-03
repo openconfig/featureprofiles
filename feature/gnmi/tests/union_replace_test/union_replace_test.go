@@ -280,6 +280,28 @@ func withoutPortSpeed(t *testing.T, dut *ondatra.DUTDevice, config, intfName str
 	}
 }
 
+// withoutBreakout removes any existing controller Optics breakout configuration
+// and associated breakout child or preconfigure interfaces for intfName's base
+// optics port from a baseline CLI config on Cisco DUTs.
+func withoutBreakout(t *testing.T, dut *ondatra.DUTDevice, config, intfName string) string {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.CISCO:
+		baseIntf := intfName
+		if strings.Count(intfName, "/") == 4 {
+			baseIntf = interfaceBase(t, intfName)
+		}
+		baseLoc := regexp.QuoteMeta(interfaceLocation(baseIntf))
+		opticsRE := regexp.MustCompile(`(?m)^controller Optics\s*` + baseLoc + `\s*\n(?:\s+.*\n)*!\n?`)
+		config = opticsRE.ReplaceAllString(config, "")
+		childIntfRE := regexp.MustCompile(`(?m)^interface (?:preconfigure )?[A-Za-z]+` + baseLoc + `(?:/\d+)?\s*\n(?:\s+.*\n)*!\n?`)
+		config = childIntfRE.ReplaceAllString(config, "")
+		return config
+	default:
+		return withoutPortSpeed(t, dut, config, intfName)
+	}
+}
+
 // stripShowRunningConfigBanner removes decorative header lines (e.g. "!! Building configuration..."
 // and dashed banners). These lines are not valid configuration input and must be removed
 // before the text is resubmitted via a CLI-origin union_replace.
@@ -1345,6 +1367,40 @@ func TestUnionReplace(t *testing.T) {
 				}
 
 				t.Logf("Configuring DUT port %q to mismatched port-speed %q using gNMI union_replace.", dp1.Name(), targetSpeed)
+				if deviations.PortSpeedUnsupported(dut) {
+					baseIntf := dp1.Name()
+					if strings.Count(dp1.Name(), "/") == 4 {
+						baseIntf = interfaceBase(t, dp1.Name())
+					}
+					hwPort, _ := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp1.Name()).HardwarePort().State()).Val()
+					if dut.Vendor() == ondatra.CISCO {
+						hwPort = "Port" + interfaceLocation(baseIntf)
+					}
+					mismatchBreakout := breakoutConfig{
+						index:        groupIndex,
+						numBreakouts: 4,
+						speed:        targetSpeed,
+						numChannels:  breakoutNumChannel,
+					}
+					clicfg1 := withoutBreakout(t, dut, cliConfig(t, dut), dp1.Name())
+					gnmi.BatchUnionReplaceCLI(sb, cliOrigin, clicfg1)
+					ocDelta := &oc.Root{}
+					ocBreakoutMode(t, dut, ocDelta, hwPort, mismatchBreakout)
+					gnmi.BatchUnionReplace(sb, gnmi.OC().Config(), ocDelta)
+					t.Logf("Generated BatchUnionReplace: %#v\n", sb.String())
+
+					setResult := sb.Set(t, dut)
+					t.Logf("SetResult:\n%s", prettyPrintYgnmiResult(setResult))
+
+					if err := verifyBreakoutModeConfig(t, dut, hwPort, baseIntf, mismatchBreakout); err != nil {
+						return err
+					}
+					operIntf := dp1.Name()
+					if dut.Vendor() == ondatra.CISCO {
+						operIntf = "TenGigE" + interfaceLocation(baseIntf) + "/0"
+					}
+					return verifyInterfaceOperStatus(t, dut, operIntf, oc.Interface_OperStatus_DOWN)
+				}
 				// get the cli config from DUT and add it to the SetBatch.
 				clicfg1 := cliConfig(t, dut)
 				gnmi.BatchUnionReplaceCLI(sb, cliOrigin, clicfg1)
@@ -1436,6 +1492,38 @@ func TestUnionReplace(t *testing.T) {
 				}
 
 				t.Logf("Configuring DUT port %q to mismatched port-speed %q using gNMI union_replace CLI.", dp1.Name(), targetSpeed)
+				if deviations.PortSpeedUnsupported(dut) {
+					baseIntf := dp1.Name()
+					if strings.Count(dp1.Name(), "/") == 4 {
+						baseIntf = interfaceBase(t, dp1.Name())
+					}
+					hwPort, _ := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp1.Name()).HardwarePort().State()).Val()
+					if dut.Vendor() == ondatra.CISCO {
+						hwPort = "Port" + interfaceLocation(baseIntf)
+					}
+					mismatchBreakout := breakoutConfig{
+						index:        groupIndex,
+						numBreakouts: 4,
+						speed:        targetSpeed,
+						numChannels:  breakoutNumChannel,
+					}
+					clicfg1 := withoutBreakout(t, dut, cliConfig(t, dut), dp1.Name()) + "\n" + cliBreakoutMode(t, dut, baseIntf, mismatchBreakout) + "\n"
+					gnmi.BatchUnionReplaceCLI(sb, cliOrigin, clicfg1)
+					requireOCWithCLI(t, dut, sb)
+					t.Logf("Generated BatchUnionReplace: %#v\n", sb.String())
+
+					setResult := sb.Set(t, dut)
+					t.Logf("SetResult:\n%s", prettyPrintYgnmiResult(setResult))
+
+					if err := verifyBreakoutModeConfig(t, dut, hwPort, baseIntf, mismatchBreakout); err != nil {
+						return err
+					}
+					operIntf := dp1.Name()
+					if dut.Vendor() == ondatra.CISCO {
+						operIntf = "TenGigE" + interfaceLocation(baseIntf) + "/0"
+					}
+					return verifyInterfaceOperStatus(t, dut, operIntf, oc.Interface_OperStatus_DOWN)
+				}
 				// get the cli config from DUT, modify it to introduce the port speed mismatch, and add it to the SetBatch.
 				clicfg1 := cliConfig(t, dut)
 				switch dut.Vendor() {
@@ -1961,7 +2049,7 @@ func TestUnionReplace(t *testing.T) {
 
 				t.Log("Push OTN and ETH logical channels via union_replace")
 				sb := &gnmi.SetBatch{}
-				gnmi.BatchUnionReplaceCLI(sb, cliOrigin, sharedBaseline)
+				gnmi.BatchUnionReplaceCLI(sb, cliOrigin, withoutBreakout(t, dut, sharedBaseline, dut.Port(t, port1).Name()))
 				gnmi.BatchUnionReplace(sb, gnmi.OC().Config(), ocConfig)
 				sb.Set(t, dut)
 
