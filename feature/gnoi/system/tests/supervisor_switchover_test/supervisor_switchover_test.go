@@ -40,7 +40,7 @@ import (
 )
 
 const (
-	maxSwitchoverTime = 15 * time.Minute
+	maxSwitchoverTime = 30 * time.Minute
 	controlcardType   = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
 	activeController  = oc.Platform_ComponentRedundantRole_PRIMARY
 	standbyController = oc.Platform_ComponentRedundantRole_SECONDARY
