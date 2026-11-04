@@ -433,52 +433,6 @@ func checkOTGBGP6Prefix(t *testing.T, otg *otg.OTG, config gosnappi.Config, expe
 	return ok
 }
 
-// otgPathIDs returns the set of path IDs received on the given OTG BGP peer matching addr and plen.
-func otgPathIDs(t *testing.T, otg *otg.OTG, peer string, isV4 bool, addr string, plen uint32) map[uint32]bool {
-	t.Helper()
-	ids := make(map[uint32]bool)
-	if isV4 {
-		for _, v := range gnmi.LookupAll(t, otg, gnmi.OTG().BgpPeer(peer).UnicastIpv4PrefixAny().State()) {
-			if p, ok := v.Val(); ok && p.GetAddress() == addr && p.GetPrefixLength() == plen {
-				ids[p.GetPathId()] = true
-			}
-		}
-	} else {
-		for _, v := range gnmi.LookupAll(t, otg, gnmi.OTG().BgpPeer(peer).UnicastIpv6PrefixAny().State()) {
-			if p, ok := v.Val(); ok && p.GetAddress() == addr && p.GetPrefixLength() == plen {
-				ids[p.GetPathId()] = true
-			}
-		}
-	}
-	return ids
-}
-
-// awaitOTGPathCount waits for the number of paths received on OTG to match the expected count,
-// polling every 5s for up to 2 minutes. Once matched, it sleeps 15 seconds to settle and counts
-// once more to catch any extra paths arriving late, returning the final count and whether it matches.
-func awaitOTGPathCount(t *testing.T, otg *otg.OTG, peer string, isV4 bool, addr string, plen uint32, want int, atLeast bool) (int, bool) {
-	t.Helper()
-	match := func(got int) bool {
-		if atLeast {
-			return got >= want
-		}
-		return got == want
-	}
-	deadline := time.Now().Add(2 * time.Minute)
-	for {
-		got := len(otgPathIDs(t, otg, peer, isV4, addr, plen))
-		if match(got) {
-			time.Sleep(15 * time.Second)
-			settled := len(otgPathIDs(t, otg, peer, isV4, addr, plen))
-			return settled, match(settled)
-		}
-		if time.Now().After(deadline) {
-			return got, false
-		}
-		time.Sleep(5 * time.Second)
-	}
-}
-
 // verifyAddPathState verifies DUT telemetry for BGP ADD-Path receive states.
 func verifyAddPathState(t *testing.T, dut *ondatra.DUTDevice, afi oc.E_BgpTypes_AFI_SAFI_TYPE, rxNbr string, cfg addPathCfg) {
 	t.Helper()
@@ -849,6 +803,9 @@ func TestAddPath(t *testing.T) {
 	for _, af := range afs {
 		for _, tc := range cases {
 			t.Run(af.name+" "+tc.name, func(t *testing.T) {
+				t.Cleanup(func() {
+					gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config())
+				})
 				d := dutData{addPathBGP(dut, af.afi, af.rxNbr, af.txNbr, tc.cfg)}
 				d.Configure(t, dut)
 				otg := ondatra.ATE(t, "ate").OTG()
@@ -894,8 +851,19 @@ func TestAddPath(t *testing.T) {
 						if err != nil {
 							t.Fatalf("Invalid prefix length in %s: %v", prefix, err)
 						}
-						if got, ok := awaitOTGPathCount(t, otg, peer, af.isV4, addr, uint32(plen), 1, false); !ok {
-							t.Errorf("ATE port-2 path count for %s: got %d, want 1", prefix, got)
+						expectedOTGBGPPrefix := OTGBGPPrefix{
+							PeerName:     peer,
+							Address:      addr,
+							PrefixLength: uint32(plen),
+						}
+						if af.isV4 {
+							if !checkOTGBGP4Prefix(t, otg, otgConfig, expectedOTGBGPPrefix) {
+								t.Errorf("Prefix %v is not being learned on ATE port-2", prefix)
+							}
+						} else {
+							if !checkOTGBGP6Prefix(t, otg, otgConfig, expectedOTGBGPPrefix) {
+								t.Errorf("Prefix %v is not being learned on ATE port-2", prefix)
+							}
 						}
 					}
 				}

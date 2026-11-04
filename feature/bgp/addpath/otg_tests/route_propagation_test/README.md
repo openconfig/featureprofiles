@@ -145,6 +145,9 @@ The DUT configuration for RT-1.3.3.1:
     DUT keeps one path per prefix.
 *   ATE Port 2: Verify that the DUT has received and propagated only one single path.
 
+### Cleanup
+*   DUT: Delete the BGP protocol configuration from the default network instance to restore the DUT to its baseline operational state upon test completion.
+
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test.
