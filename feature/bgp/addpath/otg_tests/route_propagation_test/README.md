@@ -49,17 +49,22 @@ prefixes (`198.51.100.0/32` to `198.51.100.3/32`) and 4 IPv6 prefixes
         `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/add-paths/state/receive`
         is `true` on the ATE port-1 neighbors.
     *   Verification (Telemetry):
+        `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities`
+        on the ATE port-1 neighbors includes `ADD_PATHS`.
+    *   Verification (Telemetry):
         `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received`
         on the ATE port-1 neighbors is `16` (4 prefixes x 4 paths): the DUT
         keeps every path.
 *   RT-1.3.3.2: Add-Path receive on the peer-group
-    *   DUT: Remove the `add-paths` configuration from the ATE port-1
-        neighbors and set
+    *   DUT: Remove the AFI-SAFI configuration (including `add-paths`) from the
+        ATE port-1 neighbors so they inherit it from `BGP-PEER-GROUP1`, and set
         `/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/add-paths/config/receive`
         to `true` on `BGP-PEER-GROUP1` for IPv4 and IPv6.
     *   Verification (Telemetry):
         `/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/add-paths/state/receive`
         is `true` on `BGP-PEER-GROUP1`.
+    *   Verification (Telemetry): `supported-capabilities` on the ATE port-1
+        neighbors includes `ADD_PATHS`.
     *   Verification (Telemetry): `prefixes/received` on the ATE port-1
         neighbors is `16` (receive inherited from the peer-group).
 *   ADD-Path is negotiated when a session is established, so the BGP sessions
