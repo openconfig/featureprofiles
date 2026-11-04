@@ -389,8 +389,6 @@ github.com/openconfig/ondatra v0.14.9 h1:blkeveRIMz7IoK5rblRMwEMDolUnBfaQbAbB2ON
 github.com/openconfig/ondatra v0.14.9/go.mod h1:h2WrL4G0W8vid2k2A2EkMf3cBO+0mcEvoQ72XT5bPZo=
 github.com/openconfig/qualification-reporter v0.1.2 h1:kYvc5Wd/6asxkPUyfBwTa5u+kXAYBMupk+nLdnJY0DA=
 github.com/openconfig/qualification-reporter v0.1.2/go.mod h1:w13yVs1XNZdV3CrOlMFZVuLCtN5pkzjDXBKiSlM/UDs=
-github.com/openconfig/replayer v0.0.0-20240110192655-4e9cf83d8d30 h1:KcHS08m7nFHq/D03ZfZKKNCSaS1jsuvdF3lCyDjPWJc=
-github.com/openconfig/replayer v0.0.0-20240110192655-4e9cf83d8d30/go.mod h1:VQ8FdPVaHwxKtamhcrwkPsvTeeoEgFYNK1xE8nHD0S8=
 github.com/openconfig/testt v0.0.0-20251119232631-fbbd49c39452 h1:KI67JEIYGMXx9aZjGOwfO2aUsCGih9199v+zhJNHB9Y=
 github.com/openconfig/testt v0.0.0-20251119232631-fbbd49c39452/go.mod h1:wOB0bus1N8a90H58cmlxE15dKN4bTvdqqlh7bEQkQFc=
 github.com/openconfig/ygnmi v0.15.0 h1:Cio+fv7+c8G/w3KpO9CK7BLLEMdBy9bO1q3RRsd5xqs=
