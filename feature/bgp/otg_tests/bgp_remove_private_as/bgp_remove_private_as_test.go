@@ -182,12 +182,10 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 		switch dut.Vendor() {
 		case ondatra.ARISTA, ondatra.JUNIPER:
 			rpl.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
-			rpl.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
 			rp2.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
 			rp2.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
 		default:
 			rpl.ImportPolicy = []string{policyName}
-			rpl.ExportPolicy = []string{policyName}
 			rp2.ImportPolicy = []string{policyName}
 			rp2.ExportPolicy = []string{policyName}
 		}
@@ -202,12 +200,10 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 		switch dut.Vendor() {
 		case ondatra.ARISTA, ondatra.JUNIPER:
 			rpl.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
-			rpl.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
 			rp2.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
 			rp2.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
 		default:
 			rpl.ImportPolicy = []string{policyName}
-			rpl.ExportPolicy = []string{policyName}
 			rp2.ImportPolicy = []string{policyName}
 			rp2.ExportPolicy = []string{policyName}
 		}
