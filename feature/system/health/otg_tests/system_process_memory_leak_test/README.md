@@ -3,23 +3,27 @@
 ## Summary
 
 This test validates system process, controller-card memory, and hardware
-resource stability on a DUT against unbounded memory leaks. The specification is
-organized into distinct, cross-referenced sections:
+resource stability on a DUT against unbounded memory leaks within a realistic
+`~44-minute` execution budget (`< 50 minutes`). The specification is organized
+into five distinct, cross-referenced sections:
 
 - **Section 1 (Test environment setup)**: Defines physical port mappings,
-  RFC-compliant IPv4/IPv6 addressing, eBGP peers, and route sets
-  (`Baseline-Routes` and `Churn-Routes`).
+  RFC-compliant IPv4/IPv6 addressing, 3-way ECMP eBGP peers, route sets
+  (`Baseline-Routes` and `Churn-Routes`), and sentinel AFT prefixes.
 - **Section 2 (OpenConfig Path Groups)**: Groups all OpenConfig leaf paths by
   function (`[OC-Group-A]` through `[OC-Group-E]`) and maps each group to the
   test cases that use it.
 - **Section 3 (Positive Test Cases `Health-1.3.1`–`Health-1.3.4`)**: Validates
-  baseline memory telemetry, 1-hour steady-state per-process memory polling,
-  `300,000`-route dual-stack eBGP churn memory reclamation, and hardware FIB
-  resource utilization.
+  baseline memory telemetry (`~3 min`), `15-minute` steady-state per-process and
+  controller-card memory polling, `15-minute` accelerated `20,000`-route
+  dual-stack eBGP churn (`60,000` BGP paths across 3 peers over `5` cycles =
+  `600,000` cumulative path transitions), and concurrent hardware FIB resource
+  utilization.
 - **Section 4 (Negative Test Cases `Health-1.3.5`–`Health-1.3.7`)**: Validates
-  process memory stability during BGP max-prefix limit violations, repeated
-  egress link admin-down/up flapping, and abrupt BGP peer session resets.
-- **Section 5 (Cleanup)**: Restores all DUT and ATE state upon test completion.
+  process and controller-card memory stability during BGP max-prefix limit
+  violations (`~3 min`), `5` egress link admin-down/up flaps (`~4 min`), and `3`
+  abrupt BGP peer session resets (`~3 min`).
+- **Section 5 (Cleanup)**: Restores all DUT and ATE state (`~1 min`).
 
 ## Testbed type
 
@@ -53,14 +57,22 @@ organized into distinct, cross-referenced sections:
     peer AS `64502`.
   * `Peer 3` on `Link 3` (`atePort3`): Neighbor `192.0.2.10` and `2001:db8::a`,
     peer AS `64503`.
-* **Advertised BGP Route Sets on `Peer 1`, `Peer 2`, and `Peer 3`**:
-  * `Baseline-Routes` (used in `Health-1.3.1`–`Health-1.3.7`): `250` IPv4 `/32`
-    prefixes (`203.0.113.1/32`–`203.0.113.250/32`, RFC 5737) and `250` IPv6
-    `/64` prefixes (`2001:db8:2:1::/64`–`2001:db8:2:fa::/64`, RFC 3849).
-  * `Churn-Routes` (used in `Health-1.3.3`–`Health-1.3.7`, `300,000` total
-    dual-stack routes): `150,000` IPv4 `/32` prefixes (`100.64.0.1/32`–
-    `100.66.73.240/32`, RFC 6598) and `150,000` IPv6 `/64` prefixes
-    (`2001:db8:10:1::/64`–`2001:db8:12:49f0::/64`, RFC 3849).
+* **Advertised BGP Route Sets and Sentinel AFT Prefixes on `Peer 1`–`Peer 3`**:
+  * `Baseline-Routes` (used in `Health-1.3.1`–`Health-1.3.7`, `500` dual-stack
+    routes per peer): `250` IPv4 `/32` prefixes (`203.0.113.1/32`–
+    `203.0.113.250/32`, RFC 5737) and `250` IPv6 `/64` prefixes
+    (`2001:db8:2:1::/64`–`2001:db8:2:fa::/64`, RFC 3849).
+    * `Baseline-Sentinel-Prefixes` (for fast point-lookup AFT validation):
+      `203.0.113.1/32`, `203.0.113.250/32`, `2001:db8:2:1::/64`, and
+      `2001:db8:2:fa::/64`.
+  * `Churn-Routes` (used in `Health-1.3.3`–`Health-1.3.7`, `20,000` unique
+    dual-stack routes per peer = `60,000` total eBGP paths across 3 peers):
+    `10,000` IPv4 `/32` prefixes (`100.64.0.1/32`–`100.64.39.16/32`, RFC 6598)
+    and `10,000` IPv6 `/64` prefixes (`2001:db8:10:1::/64`–
+    `2001:db8:10:2710::/64`, RFC 3849).
+    * `Churn-Sentinel-Prefixes` (for fast point-lookup AFT validation without
+      streaming the full AFT table): `100.64.0.1/32`, `100.64.39.16/32`,
+      `2001:db8:10:1::/64`, and `2001:db8:10:2710::/64`.
 * **Data-Plane Validation Traffic**:
   * Transmit dual-stack IPv4 and IPv6 packets from ingress `atePort4` (`Link 4`)
     destined to the active route set (`Baseline-Routes` or `Churn-Routes`)
@@ -107,7 +119,8 @@ into five functional groups below and listed in the machine-readable
     `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received`,
     and
     `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/installed`.
-  * AFT programmed entries and ECMP next-hops:
+  * AFT programmed entries (queried on `Baseline-Sentinel-Prefixes` and
+    `Churn-Sentinel-Prefixes`) and ECMP next-hops:
     `/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix`,
     `/network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/prefix`,
     `/network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id`,
@@ -159,11 +172,12 @@ into five functional groups below and listed in the machine-readable
 
 * **Connected Setup & OC Groups**: Uses `Link 1`–`Link 4`, `Peer 1`–`Peer 3`,
   `Baseline-Routes` (`250` IPv4 + `250` IPv6), and OpenConfig groups
-  `[OC-Group-A]`, `[OC-Group-B]`, and `[OC-Group-C]`.
+  `[OC-Group-A]`, `[OC-Group-B]`, and `[OC-Group-C]` (`~3 minutes`).
 * Step 1 - Advertise `Baseline-Routes` from `Peer 1`, `Peer 2`, and `Peer 3`,
   and verify via `gnmi.Watch` on `[OC-Group-C]` that `prefixes/received` and
-  `prefixes/installed` equal `250` per family on all three peers and that routes
-  and 3-way ECMP next-hops are present in the AFT.
+  `prefixes/installed` equal `250` per family on all three peers and that
+  `Baseline-Sentinel-Prefixes` resolve to a 3-way ECMP `next-hop-group` in the
+  AFT.
 * Step 2 - Query `[OC-Group-A]` via a batched `gNMI.Get` to enumerate all
   running process IDs (`pid`) and names (`name`) and record the initial baseline
   `memory-usage`, `memory-utilization`, `cpu-utilization`, and `start-time` for
@@ -182,63 +196,73 @@ into five functional groups below and listed in the machine-readable
 ### Health-1.3.2 - Validate Steady-State Per-Process Memory Usage Over Time
 
 * **Connected Setup & OC Groups**: Builds on `Health-1.3.1` (`Baseline-Routes`
-  installed) and polls `[OC-Group-A]` and `[OC-Group-B]`.
+  installed) and polls `[OC-Group-A]` and `[OC-Group-B]` (`15 minutes` default
+  FNT duration; configurable up to `60 minutes` for extended soak runs).
 * Step 1 - Poll `[OC-Group-A]` (for every running `pid`) and `[OC-Group-B]`
   (for active and standby `CONTROLLER_CARD` components) every `60 seconds` for a
-  total duration of `1 hour` (`60 minutes`, `60` samples).
+  total duration of `15 minutes` (`15` samples).
 * Step 2 - Compare `memory-usage` in `[OC-Group-A]` across consecutive
-  `60 seconds` samples for each process, treating samples `1`–`30` as the
-  warm-up window (allowing bounded caches and active/standby controller-card
-  state-synchronization buffers to reach their retention threshold) and samples
-  `30`–`60` as the steady-state evaluation window.
+  `60 seconds` samples for each process, treating samples `1`–`5` (`5 minutes`)
+  as the warm-up window (allowing bounded caches and active/standby
+  controller-card state-synchronization history buffers to reach their retention
+  threshold) and samples `6`–`15` (`10 minutes`) as the steady-state evaluation
+  window.
 * Step 3 - Pass/Fail Criteria: Pass if no process restarts (constant `pid` and
-  `start-time` in `[OC-Group-A]`) and every process plateaus in `memory-usage`
-  across samples `30`–`60`; Fail and report the offending process (`pid` and
-  `name`) as a memory leak if any process exhibits continuous, ever-growing
-  memory usage.
+  `start-time` in `[OC-Group-A]`) and no process exhibits both a monotonic
+  upward linear trend (`R² >= 0.85`) and net `memory-usage` growth exceeding
+  `5%` (and `10 MB`) from sample `6` to sample `15`; Fail and report the
+  offending process (`pid` and `name`) as a memory leak otherwise.
 
 ### Health-1.3.3 - Validate Process Memory Reclamation Under Scaled Dual-Stack eBGP Route Churn
 
-* **Connected Setup & OC Groups**: Builds on `Health-1.3.2`, adding
-  `Churn-Routes` (`150,000` IPv4 + `150,000` IPv6 = `300,000` routes) on
-  `Peer 1`–`Peer 3` and monitoring `[OC-Group-A]`, `[OC-Group-B]`, and
-  `[OC-Group-C]`.
+* **Connected Setup & OC Groups**: Builds on `Health-1.3.2`, flapping
+  `Churn-Routes` (`10,000` IPv4 + `10,000` IPv6 = `20,000` routes per peer,
+  `60,000` total BGP paths across `Peer 1`–`Peer 3`) and monitoring
+  `[OC-Group-A]`, `[OC-Group-B]`, and `[OC-Group-C]` (`15 minutes`).
 * Step 1 - Advertise `Churn-Routes` alongside `Baseline-Routes` from `Peer 1`,
   `Peer 2`, and `Peer 3`, confirm via `gnmi.Watch` on `[OC-Group-C]` that
-  `prefixes/installed` reaches `150,250` per family on all three peers, and
-  verify `0%` traffic loss to `Churn-Routes`.
-* Step 2 - Hold `Churn-Routes` advertised for `5 minutes`, then withdraw
-  `Churn-Routes` from all three peers for `5 minutes` (or `25 minutes` in
-  extended soak mode) while keeping `Baseline-Routes` active.
-* Step 3 - Confirm via `gnmi.Watch` on `[OC-Group-C]` that `prefixes/installed`
-  returns to `250` per family and `Churn-Routes` are removed from the AFT. Send
-  traffic to the withdrawn `Churn-Routes` for `5 seconds` and verify `100%`
-  packet loss (confirming no stale FIB entries remain), while traffic to
-  `Baseline-Routes` continues with `0%` loss.
-* Step 4 - Repeat Steps 1–3 across `6` consecutive churn cycles over `1 hour`
-  (or `2` cycles in `5 minutes` advertise / `25 minutes` withdraw mode) while
-  polling `[OC-Group-A]` and `[OC-Group-B]` every `60 seconds`.
+  `prefixes/installed` reaches `10,250` per family on all three peers and
+  `Churn-Sentinel-Prefixes` are present in the AFT, and verify `0%` traffic loss
+  to `Churn-Routes`.
+* Step 2 - Hold `Churn-Routes` advertised for `90 seconds`, then withdraw
+  `Churn-Routes` from all three peers and hold withdrawn for `90 seconds` (`3
+  minutes` per full advertise/withdraw cycle) while keeping `Baseline-Routes`
+  active.
+* Step 3 - During each withdraw hold, confirm via `gnmi.Watch` on `[OC-Group-C]`
+  that `prefixes/installed` returns to `250` per family and
+  `Churn-Sentinel-Prefixes` are removed from the AFT. Send traffic to the
+  withdrawn `Churn-Routes` for `5 seconds` and verify `100%` packet loss
+  (confirming no stale FIB entries remain), while traffic to `Baseline-Routes`
+  continues with `0%` loss.
+* Step 4 - Repeat Steps 1–3 across `5` consecutive churn cycles over `15
+  minutes` (`600,000` cumulative BGP path advertise/withdraw transitions across
+  the 3 peers) while polling `[OC-Group-A]` and `[OC-Group-B]` every `60
+  seconds`.
 * Step 5 - Pass/Fail Criteria: Pass if all six eBGP sessions remain
-  `ESTABLISHED` with constant `established-transitions` in `[OC-Group-C]` and
-  post-withdrawal per-process `memory-usage` in `[OC-Group-A]` stabilizes across
-  cycles without monotonic step-function growth; Fail and report a memory leak
-  if any process shows strictly increasing post-withdrawal memory usage across
-  cycles.
+  `ESTABLISHED` with constant `established-transitions` in `[OC-Group-C]` and,
+  using Cycle `1` post-withdrawal memory as the arena-warmed baseline,
+  post-withdrawal per-process `memory-usage` in `[OC-Group-A]` across Cycles
+  `2`–`5` does not exhibit monotonic growth (`R² >= 0.85` with net unrecovered
+  growth `> 5%` and `> 15 MB` above Cycle `1` post-withdrawal baseline); Fail
+  and report the leaking process (`pid` and `name`) otherwise.
 
 ### Health-1.3.4 - Validate Hardware Resource Utilization Telemetry Under Route Scale
 
 * **Connected Setup & OC Groups**: Runs concurrently with the `Churn-Routes`
-  advertise and withdraw phases of `Health-1.3.3` using `[OC-Group-D]`.
+  advertise and withdraw phases of `Health-1.3.3` using `[OC-Group-D]` (`0`
+  additional minutes).
 * Step 1 - Verify the hardware resource utilization thresholds configured in
   [Canonical OC](#canonical-oc) (`name` = `FIB`, `used-threshold-upper` = `80`,
   `used-threshold-upper-clear` = `70`) are reflected in the system resource
   state leaves of `[OC-Group-D]`.
 * Step 2 - Query the `INTEGRATED_CIRCUIT` utilization state leaves in
-  `[OC-Group-D]` before `Churn-Routes` advertisement, at peak `300,000`-route
-  installation, and after `Churn-Routes` withdrawal.
+  `[OC-Group-D]` before `Churn-Routes` advertisement, at peak `20,000`-route
+  (`60,000`-path) installation, and after `Churn-Routes` withdrawal in Cycle `1`
+  and Cycle `5`.
 * Step 3 - Pass/Fail Criteria: Pass if hardware `used` increases and `free`
-  decreases proportionally when `Churn-Routes` are installed, and `used` and
-  `free` return to the `Health-1.3.1` baseline after withdrawal without leaking
+  decreases proportionally when `Churn-Routes` are installed (with
+  `used-threshold-upper-exceeded` = `false`), and `used` and `free` return
+  within `±1%` of the `Health-1.3.1` baseline after withdrawal without leaking
   hardware FIB entries; Fail otherwise.
 
 ---
@@ -249,60 +273,64 @@ into five functional groups below and listed in the machine-readable
 
 * **Connected Setup & OC Groups**: Targets `Peer 1` (`atePort1` on `Link 1`)
   while `Peer 2` and `Peer 3` remain active, using `Churn-Routes` and OpenConfig
-  groups `[OC-Group-E]`, `[OC-Group-C]`, and `[OC-Group-A]`.
-* Step 1 - Configure `[OC-Group-E]` prefix limits (`max-prefixes` = `120000`,
+  groups `[OC-Group-E]`, `[OC-Group-C]`, and `[OC-Group-A]` (`~3 minutes`).
+* Step 1 - Configure `[OC-Group-E]` prefix limits (`max-prefixes` = `8000`,
   `warning-threshold-pct` = `80`) for `IPV4_UNICAST` and `IPV6_UNICAST` on
   `Peer 1` (`192.0.2.2` and `2001:db8::2`) via `gNMI.Set`.
-* Step 2 - Advertise `Churn-Routes` (`150,000` IPv4 and `150,000` IPv6 routes)
+* Step 2 - Advertise `Churn-Routes` (`10,000` IPv4 and `10,000` IPv6 routes)
   from `Peer 1`, `Peer 2`, and `Peer 3`.
 * Step 3 - Verify via `gnmi.Watch` on `[OC-Group-E]` and `[OC-Group-C]` that
   `Peer 1` reports `prefix-limit-exceeded` = `true` and transitions to
-  `session-state` = `IDLE`, while `Peer 2` and `Peer 3` remain `ESTABLISHED` and
-  forward traffic from `atePort4` with `0%` loss across 2-way ECMP (`50% ± 5%`
-  split).
+  `session-state` = `IDLE`, while `Peer 2` and `Peer 3` remain `ESTABLISHED`
+  (`prefixes/installed` = `10,250` per family) and forward traffic from
+  `atePort4` with `0%` steady-state loss across 2-way ECMP (`50% ± 5%` split).
 * Step 4 - Withdraw excess routes on `Peer 1`, remove the `[OC-Group-E]`
-  prefix-limit configuration, re-establish `Peer 1`, and poll `[OC-Group-A]`.
+  prefix-limit configuration, re-establish `Peer 1` (`prefixes/installed` =
+  `10,250` per family across all three peers), and poll `[OC-Group-A]`.
 * Step 5 - Pass/Fail Criteria: Pass if `Peer 1` enforces the prefix limit,
   surviving peers forward traffic with `0%` loss, and per-process `memory-usage`
-  in `[OC-Group-A]` returns to baseline after session recovery without leaking
-  rejected prefix buffers; Fail otherwise.
+  in `[OC-Group-A]` remains within `<= 5%` (or `<= 10 MB`) of the post-churn
+  baseline after session recovery without leaking rejected prefix buffers; Fail
+  otherwise.
 
 ### Health-1.3.6 - Repeated Egress Interface Admin-Down Flapping Under High Route Scale (Negative)
 
 * **Connected Setup & OC Groups**: Targets DUT `port1` (`Link 1`) with
-  `Churn-Routes` installed across `Peer 1`–`Peer 3`, using `[OC-Group-E]`,
-  `[OC-Group-C]`, `[OC-Group-A]`, and `[OC-Group-B]`.
-* Step 1 - With `Churn-Routes` (`300,000` routes) installed and traffic flowing,
-  flap `port1` across `5` consecutive cycles by setting `[OC-Group-E]`
+  `Churn-Routes` (`20,000` dual-stack routes) installed across `Peer 1`–`Peer
+  3`, using `[OC-Group-E]`, `[OC-Group-C]`, `[OC-Group-A]`, and `[OC-Group-B]`
+  (`~4 minutes`).
+* Step 1 - With `Churn-Routes` installed and traffic flowing, flap `port1`
+  across `5` consecutive cycles by setting `[OC-Group-E]`
   `/interfaces/interface/config/enabled` to `false` (registering a deferred
-  cleanup to restore `enabled` = `true`), awaiting `oper-status` = `DOWN` in
-  `[OC-Group-C]`, and then setting `enabled` = `true` and awaiting `oper-status`
-  = `UP`.
+  cleanup to restore `enabled` = `true`), awaiting `oper-status` = `DOWN` via
+  `gnmi.Watch` on `[OC-Group-C]`, and then setting `enabled` = `true` and
+  awaiting `oper-status` = `UP`.
 * Step 2 - During each `DOWN` phase, verify via `[OC-Group-C]` and OTG metrics
   that traffic reconverges to `port2` and `port3` (`50% ± 5%` split) with `0%`
   steady-state loss; during each `UP` phase, verify 3-way ECMP restoration
   (`33.3% ± 5%` split) across `port1`–`port3`.
 * Step 3 - Pass/Fail Criteria: Pass if querying `[OC-Group-A]` and
   `[OC-Group-B]` after the `5` flap cycles confirms that process `memory-usage`
-  and controller-card `memory/utilized` return to their pre-flap baseline
-  without retaining orphaned next-hop or state-synchronization buffers; Fail
-  otherwise.
+  and controller-card `memory/utilized` return within `<= 5%` of their pre-flap
+  baseline without retaining orphaned next-hop or state-synchronization buffers;
+  Fail otherwise.
 
 ### Health-1.3.7 - Abrupt BGP Peer Session Reset Under High Route Scale (Negative)
 
 * **Connected Setup & OC Groups**: Targets `Peer 2` (`atePort2` on `Link 2`)
-  with `Churn-Routes` installed across `Peer 1`–`Peer 3`, using `[OC-Group-C]`
-  and `[OC-Group-A]`.
-* Step 1 - With `Churn-Routes` (`150,000` IPv4 and `150,000` IPv6 prefixes)
+  with `Churn-Routes` (`20,000` dual-stack routes) installed across `Peer 1`–
+  `Peer 3`, using `[OC-Group-C]` and `[OC-Group-A]` (`~3 minutes`).
+* Step 1 - With `Churn-Routes` (`10,000` IPv4 and `10,000` IPv6 prefixes)
   installed across all three peers, trigger `3` consecutive administrative BGP
   session resets on `Peer 2` (`192.0.2.6` and `2001:db8::6`).
-* Step 2 - Verify via `[OC-Group-C]` and OTG metrics that traffic continues with
-  `0%` steady-state loss on `Peer 1` and `Peer 3` during each reset, and that
-  `Peer 2` re-establishes and converges back to `prefixes/installed` = `150,250`
-  per family after each reset.
-* Step 3 - Pass/Fail Criteria: Pass if querying `[OC-Group-A]` confirms zero
-  monotonic growth in per-process `memory-usage` across repeated peer RIB flush
-  and re-learning cycles; Fail otherwise.
+* Step 2 - Verify via `gnmi.Watch` on `[OC-Group-C]` and OTG metrics that
+  traffic continues with `0%` steady-state loss on `Peer 1` and `Peer 3` during
+  each reset, and that `Peer 2` re-establishes and converges back to
+  `prefixes/installed` = `10,250` per family after each reset.
+* Step 3 - Pass/Fail Criteria: Pass if querying `[OC-Group-A]` confirms per-PID
+  `memory-usage` remains within `<= 5%` (or `<= 10 MB`) of the pre-reset
+  baseline with zero monotonic growth across repeated peer RIB flush and
+  re-learning cycles; Fail otherwise.
 
 ---
 
@@ -313,7 +341,7 @@ into five functional groups below and listed in the machine-readable
 * Revert all BGP, routing-policy, resource-threshold, and interface
   configurations on the DUT using `t.Cleanup()` (`gNMI.Set` with `DELETE` /
   `REPLACE`) and verify via `[OC-Group-C]` that all DUT and ATE ports are
-  restored to `UP`.
+  restored to `UP` (`~1 minute`).
 
 ## Canonical OC
 
