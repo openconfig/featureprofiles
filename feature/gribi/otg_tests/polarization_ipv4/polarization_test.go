@@ -540,6 +540,16 @@ func TestPolarization(t *testing.T) {
 	agg1ID := aggIDs[0]
 	agg2ID := aggIDs[1]
 
+	var (
+		origJuniperSeed    int
+		hasOrigJuniperSeed bool
+		hashPerturbed      bool
+	)
+	if dut.Vendor() == ondatra.JUNIPER {
+		origJuniperSeed, hasOrigJuniperSeed = cfgplugins.JuniperLoadBalanceHashSeed(t, dut)
+		t.Logf("Initial Juniper enhanced-hash-key hash-seed: configured=%v, seed=%d", hasOrigJuniperSeed, origJuniperSeed)
+	}
+
 	t.Cleanup(func() {
 		flushGRIBIEntries(t, dut)
 		for _, portID := range []string{"port2", "port3", "port4", "port5"} {
@@ -558,7 +568,21 @@ func TestPolarization(t *testing.T) {
 		if dut.Vendor() == ondatra.CISCO {
 			gnmi.Delete(t, dut, gnmi.OC().Interface("Loopback0").Config())
 		}
-		cfgplugins.PushDUTHardwareInitConfig(t, dut, cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureLoadBalanceHashReset))
+		if dut.Vendor() == ondatra.JUNIPER {
+			if hashPerturbed {
+				if hasOrigJuniperSeed {
+					t.Logf("Restoring original Juniper hash-seed %d", origJuniperSeed)
+					if tmpl := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureLoadBalanceHashPerturb); tmpl != "" {
+						cfgplugins.PushDUTHardwareInitConfig(t, dut, fmt.Sprintf(tmpl, origJuniperSeed))
+					}
+				} else {
+					t.Log("Deleting test-configured Juniper hash-seed")
+					cfgplugins.PushDUTHardwareInitConfig(t, dut, cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureLoadBalanceHashReset))
+				}
+			}
+		} else {
+			cfgplugins.PushDUTHardwareInitConfig(t, dut, cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureLoadBalanceHashReset))
+		}
 	})
 
 	t.Log("=== Phase 1/4: Configuring DUT interfaces and LAGs ===")
@@ -613,6 +637,7 @@ func TestPolarization(t *testing.T) {
 
 					t.Log("Perturbing DUT hash configuration")
 					perturbHashConfig(t, dut, id)
+					hashPerturbed = true
 
 					var port2Total, port3Total, port4Total, port5Total uint64
 					var allCaptured []packetTuples
@@ -722,6 +747,8 @@ func perturbHashConfig(t *testing.T, dut *ondatra.DUTDevice, iteration int) {
 		perturbHashArista(t, dut, iteration)
 	case ondatra.NOKIA:
 		perturbHashNokia(t, dut, iteration)
+	case ondatra.JUNIPER:
+		perturbHashJuniper(t, dut, iteration)
 	default:
 		t.Fatalf("Hash perturbation not implemented for vendor %s; please add support in perturbHashConfig", dut.Vendor())
 	}
@@ -771,6 +798,19 @@ func perturbHashNokia(t *testing.T, dut *ondatra.DUTDevice, iteration int) {
 	seeds := []int{0x1357, 0x9BDF, 0x2468, 0xACE1, 0x5A3C}
 	seed := seeds[iteration%len(seeds)]
 	t.Logf("Nokia SR Linux: setting system load-balancing hash-options hash-seed %d", seed)
+	if tmpl := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureLoadBalanceHashPerturb); tmpl != "" {
+		cfgplugins.PushDUTHardwareInitConfig(t, dut, fmt.Sprintf(tmpl, seed))
+	}
+}
+
+// perturbHashJuniper changes the enhanced-hash-key hash-seed on Junos (Evolved)
+// PTX platforms. The seed feeds both the ECMP and the LAG hash computation; by
+// default Junos derives it from the chassis MAC address.
+func perturbHashJuniper(t *testing.T, dut *ondatra.DUTDevice, iteration int) {
+	t.Helper()
+	seeds := []int{0x1357, 0x9BDF, 0x2468, 0xACE1, 0x5A3C}
+	seed := seeds[iteration%len(seeds)]
+	t.Logf("Juniper Junos: setting forwarding-options enhanced-hash-key hash-seed %d", seed)
 	if tmpl := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureLoadBalanceHashPerturb); tmpl != "" {
 		cfgplugins.PushDUTHardwareInitConfig(t, dut, fmt.Sprintf(tmpl, seed))
 	}
