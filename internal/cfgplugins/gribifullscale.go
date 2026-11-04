@@ -2919,10 +2919,6 @@ func FetchHWUtilizationSnapshot(t *testing.T, dut *ondatra.DUTDevice, stage stri
 				}
 			}
 		}
-		if resName == "" {
-			t.Logf("[%s] WARNING: HW resource has no name in state or response path: %v", stage, val.Path)
-			continue
-		}
 		key := HWResourceKey{
 			Component: compName,
 			Name:      resName,
