@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "2e708725-f280-4aa1-bb23-1a41dce93aea"
+plan_id: "gNPSI-2"
+description: "gNPSI Packet Sampling for Tunneled Traffic"
+testbed: TESTBED_DUT_ATE_4LINKS
