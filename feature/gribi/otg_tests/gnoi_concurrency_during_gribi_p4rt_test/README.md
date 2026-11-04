@@ -6,7 +6,8 @@ This test validates control-plane and data-plane resilience when operational
 management RPCs via `gNOI` (`System`, `File`, `Healthz`, and `PacketLinkQual` /
 `Diag` on non-transit interfaces) execute concurrently with high-rate `gRIBI`
 Abstract Forwarding Table (AFT) route modifications and `P4Runtime` (`P4RT`)
-table updates. It ensures that gNOI operations complete accurately without
+Packet-I/O punt (`wbb.p4info.pb.txt` `acl_wbb_ingress_table`) and `PacketOut`
+operations. It ensures that gNOI operations complete accurately without
 destabilizing, starving, or dropping active `gRIBI`, `P4RT`, or `gNMI` sessions,
 and that transit data-plane forwarding and Packet-In punting sustain zero packet
 loss.
@@ -49,7 +50,10 @@ loss.
   `/interfaces/interface/config/id` values (`1`–`4`) via `gNMI.Set`.
 * Establish a `P4Runtime` client session (`device_id = 1`, `election_id = {high:
   0, low: 1}`), complete primary controller arbitration via
-  `P4Runtime.StreamChannel`, and push the forwarding pipeline via
+  `P4Runtime.StreamChannel`, and push the WBB forwarding pipeline
+  (`feature/p4rt/data/wbb.p4info.pb.txt`, defining `acl_wbb_ingress_table` with
+  `size = 8`, actions `acl_wbb_ingress_copy` and `acl_wbb_ingress_trap`, and
+  `packet_in` / `packet_out` metadata) via
   `P4Runtime.SetForwardingPipelineConfig` (`VERIFY_AND_COMMIT`).
 * Establish a `gRIBI` client session in `SINGLE_PRIMARY` mode with `PRESERVE`
   persistence and `FIB_ACK` requested, elect the client as leader, and flush the
@@ -64,21 +68,28 @@ loss.
     in `DEFAULT` (`198.51.100.0/24` and `2001:db8:100::/64`) pointing to
     `NextHopGroup 10` (`NextHop 1` = `192.0.2.6` / `NextHop 2` = `2001:db8:2::2`
     on ATE `port2`).
-  * Via `P4Runtime.Write` (`INSERT`), program an ingress punt rule for LLDP
-    frames (`ether_type == 0x88cc`, action `PuntToController`).
+  * Via `P4Runtime.Write` (`INSERT`, `Atomicity = CONTINUE_ON_ERROR`), program
+    the protected `acl_wbb_ingress_table` punt rule for LLDP frames
+    (`ether_type == 0x88cc & 0xffff`, `priority = 1`, action
+    `acl_wbb_ingress_trap` or `acl_wbb_ingress_copy`), and verify presence via
+    `P4Runtime.Read`.
   * Confirm baseline AFT state via `gRIBI.Get` and `gNMI.Subscribe`
     (`ON_CHANGE`).
 * **Step 2 - Start Protected Transit and Packet-In Traffic**:
-  * Start continuous IPv4 and IPv6 OTG transit flows (`512`-byte frames, `5,000
-    fps` each) from ATE `port1` to `198.51.100.1` and `2001:db8:100::1`.
+  * Start continuous IPv4 (`TTL = 64`) and IPv6 (`HopLimit = 64`) OTG transit
+    flows (`512`-byte frames, `5,000 fps` each) from ATE `port1` to
+    `198.51.100.1` and `2001:db8:100::1`.
   * Start continuous LLDP injection (`100 fps`) on ATE `port1` and verify `100%`
     of punted frames arrive on `P4Runtime.StreamChannel` as `PacketIn` messages
     while `100%` of transit packets egress ATE `port2` (`0%` loss).
 * **Step 3 - Measure Baseline Control-Plane Programming Rate**:
   * Measure the baseline completion time `T_base` to program and delete `2,000`
-    gRIBI IPv4/IPv6 routes (`100.64.0.0/24`–`100.71.207.0/24`) and `500` P4RT
-    ternary ACL entries (`203.0.113.0/24` host rules) without concurrent gNOI
-    load.
+    gRIBI IPv4/IPv6 routes (`100.64.0.0/24`–`100.71.207.0/24`) and execute `100`
+    `P4Runtime.Write` (`INSERT` -> `MODIFY` -> `DELETE`) cycles of the `7`
+    non-baseline WBB `acl_wbb_ingress_table` punt entries (`ether_type ==
+    0x6007 & 0xffff` ND/GDP and `6` IPv4/IPv6 Traceroute `ttl == 0, 1, 2 &
+    0xff` rules) plus `PacketOut` frames (`egress_port = "2"`) without
+    concurrent gNOI load.
 
 ### TE-1.24.2 - System and Healthz gNOI Operations Under gRIBI/P4RT Churn
 
@@ -90,9 +101,13 @@ loss.
       IPv4 `/32` routes (`100.64.0.1/32`–`100.64.39.16/32`) and `10,000` IPv6
       `/128` routes (`2001:db8:1000::1/128`–`2001:db8:1000::2710/128`) toggling
       ECMP NextHopGroups across ATE `port2` and ATE `port3`.
-    * `P4Runtime.Write` (`INSERT` -> `MODIFY` -> `DELETE` batches of `100`
-      entries) across `1,000` ingress ACL entries matching non-transit test
-      prefixes (`198.18.0.0/16`).
+    * `P4Runtime.Write` (`INSERT` -> `MODIFY` -> `DELETE`, `Atomicity =
+      CONTINUE_ON_ERROR`) batch loops cycling the `7` non-baseline
+      `wbb.p4info.pb.txt` `acl_wbb_ingress_table` punt entries (`ether_type ==
+      0x6007 & 0xffff` ND/GDP and `6` IPv4/IPv6 Traceroute `ttl == 0, 1, 2 &
+      0xff` rules while keeping the protected `0x88cc` LLDP punt entry active)
+      plus continuous `PacketOut` frame injection (`100 fps`, `egress_port =
+      "2"`).
 * **Step 2 - Execute Concurrent System & Healthz gNOI RPCs**:
   * Concurrently issue 20 back-to-back iterations of:
     * `gnoi.system.System.Time` (validating monotonic timestamp responses).
