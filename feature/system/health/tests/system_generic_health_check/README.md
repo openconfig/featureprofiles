@@ -60,7 +60,19 @@ paths:
     /system/alarms/alarm/state/severity:
     /components/component/cpu/utilization/state/avg:
        platform_type: ["CPU"]
+    /components/component/integrated-circuit/pipeline-counters/drop/fabric-block/state/fabric-aggregate:
+       platform_type: ["INTEGRATED_CIRCUIT"]
+    /components/component/integrated-circuit/pipeline-counters/drop/fabric-block/state/in-high-priority:
+       platform_type: ["INTEGRATED_CIRCUIT"]
+    /components/component/integrated-circuit/pipeline-counters/drop/fabric-block/state/in-low-priority:
+       platform_type: ["INTEGRATED_CIRCUIT"]
     /components/component/integrated-circuit/pipeline-counters/drop/fabric-block/state/lost-packets:
+       platform_type: ["INTEGRATED_CIRCUIT"]
+    /components/component/integrated-circuit/pipeline-counters/drop/fabric-block/state/out-high-priority:
+       platform_type: ["INTEGRATED_CIRCUIT"]
+    /components/component/integrated-circuit/pipeline-counters/drop/fabric-block/state/out-low-priority:
+       platform_type: ["INTEGRATED_CIRCUIT"]
+    /components/component/integrated-circuit/pipeline-counters/drop/host-interface-block/state/host-aggregate:
        platform_type: ["INTEGRATED_CIRCUIT"]
     /components/component/integrated-circuit/pipeline-counters/drop/lookup-block/state/acl-drops:
        platform_type: ["INTEGRATED_CIRCUIT"]
@@ -69,6 +81,10 @@ paths:
     /components/component/integrated-circuit/pipeline-counters/drop/lookup-block/state/invalid-packet:
        platform_type: ["INTEGRATED_CIRCUIT"]
     /components/component/integrated-circuit/pipeline-counters/drop/lookup-block/state/no-nexthop:
+       platform_type: ["INTEGRATED_CIRCUIT"]
+    /components/component/integrated-circuit/pipeline-counters/drop/lookup-block/state/oversubscription:
+       platform_type: ["INTEGRATED_CIRCUIT"]
+    /components/component/integrated-circuit/pipeline-counters/drop/state/congestion-aggregate:
        platform_type: ["INTEGRATED_CIRCUIT"]
     /components/component/state/memory/available:
        platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU"]
