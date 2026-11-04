@@ -10,6 +10,100 @@
 - verify ```NEXT-STATEMENT``` flow-control action
 - Applicable to both IPv4 and IPv6 BGP neighbors
 
+## Canonical OC
+
+```json
+{
+  "network-instances": {
+    "network-instance": [
+      {
+        "config": {
+          "name": "DEFAULT"
+        },
+        "name": "DEFAULT",
+        "protocols": {
+          "protocol": [
+            {
+              "bgp": {
+                "neighbors": {
+                  "neighbor": [
+                    {
+                      "afi-safis": {
+                        "afi-safi": [
+                          {
+                            "afi-safi-name": "IPV4_UNICAST",
+                            "apply-policy": {
+                              "config": {
+                                "export-policy": [
+                                  "med-policy"
+                                ],
+                                "import-policy": [
+                                  "med-policy"
+                                ]
+                              }
+                            },
+                            "config": {
+                              "afi-safi-name": "IPV4_UNICAST"
+                            }
+                          }
+                        ]
+                      },
+                      "config": {
+                        "neighbor-address": "192.0.2.6"
+                      },
+                      "neighbor-address": "192.0.2.6"
+                    }
+                  ]
+                }
+              },
+              "config": {
+                "identifier": "BGP",
+                "name": "BGP"
+              },
+              "identifier": "BGP",
+              "name": "BGP"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "routing-policy": {
+    "policy-definitions": {
+      "policy-definition": [
+        {
+          "config": {
+            "name": "med-policy"
+          },
+          "name": "med-policy",
+          "statements": {
+            "statement": [
+              {
+                "actions": {
+                  "bgp-actions": {
+                    "config": {
+                      "set-med": 50,
+                      "set-med-action": "SET"
+                    }
+                  },
+                  "config": {
+                    "policy-result": "ACCEPT_ROUTE"
+                  }
+                },
+                "config": {
+                  "name": "match-statement-1"
+                },
+                "name": "match-statement-1"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
 ## Testbed type
 
 *   https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_2.testbed
@@ -19,6 +113,11 @@
 
 For each section of configuration below, prepare a gnmi.SetBatch  with all the configuration items appended to one SetBatch.  Then apply the configuration to the DUT in one gnmi.Set using the `replace` option.
 > WARNING: Replace operations should be performed at an appropriate level in the config tree to ensure that preexisting configuration objects necessary for DUT management access and base operation are not removed.
+
+When import or export policy lists change, send the Replace operation to the complete
+`/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config`
+parent. Populate the `import-policy`, `export-policy`, and applicable `default-import-policy` and `default-export-policy`
+leaves in that parent.
 
 #### Initial Setup:
 
