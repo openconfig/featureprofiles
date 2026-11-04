@@ -31,6 +31,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 const (
@@ -266,7 +267,7 @@ func setupEnvironment(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 	// subinterfaces, and network instances (DEFAULT and B2_CORE) to their pre-test baseline state.
 	t.Cleanup(func() {
 		t.Log("Executing RT-5.18 DUT Cleanup: restoring DUT interface and protocol state")
-		cfgplugins.CleanupAggregateDrainTest(t, dut, cfgplugins.AggregateDrainCleanupParams{
+		cleanupAggregateDrainTest(t, dut, aggregateDrainCleanupParams{
 			AggID:          aggID,
 			MemberPorts:    memberPorts,
 			TransitPort:    p4,
@@ -278,7 +279,6 @@ func setupEnvironment(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 	})
 
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
-	cfgplugins.ClearAggregateMembers(t, dut, nil, memberPorts)
 
 	sb := &gnmi.SetBatch{}
 
@@ -304,7 +304,9 @@ func setupEnvironment(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 	// RT-5.18 Test Environment Setup - 2. Configure standalone Layer 3 transit interface (Port-4):
 	// - Subinterface 0 IPv4 192.0.2.5/30 and IPv6 2001:db8::5/126 in DEFAULT network instance.
 	p4OC := dutPort4Attrs.NewOCInterface(p4.Name(), dut)
-	gnmi.BatchReplace(sb, gnmi.OC().Interface(p4.Name()).Config(), p4OC)
+	p4OC.SetEnabled(true)
+	gnmi.BatchDelete(sb, gnmi.OC().Interface(p4.Name()).Subinterface(0).Config())
+	gnmi.BatchUpdate(sb, gnmi.OC().Interface(p4.Name()).Config(), p4OC)
 
 	// Apply DUT interface configurations before binding to default network instance if required by deviations.
 	sb.Set(t, dut)
@@ -395,7 +397,6 @@ func setupEnvironment(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 	otgConfig := configureOTG(t, ate, ateLagPortIDs, dutLagMAC, dutPort4MAC)
 	ate.OTG().PushConfig(t, otgConfig)
 	ate.OTG().StartProtocols(t)
-	cfgplugins.AwaitLACPMemberState(t, dut, aggID, memberPorts, stateTimeout)
 	otgvalidationhelpers.WaitForOTGLAGUP(t, ate, otgvalidationhelpers.LagParams{
 		LagName:       ateLagAttrs.Name,
 		WantMembersUp: uint64(len(memberPorts)),
@@ -405,6 +406,13 @@ func setupEnvironment(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 	ate.OTG().StopProtocols(t)
 	ate.OTG().PushConfig(t, otgConfig)
 	ate.OTG().StartProtocols(t)
+	awaitLACPMemberState(t, dut, aggID, memberPorts, stateTimeout)
+	otgvalidationhelpers.WaitForOTGLAGUP(t, ate, otgvalidationhelpers.LagParams{
+		LagName:       ateLagAttrs.Name,
+		WantMembersUp: uint64(len(memberPorts)),
+		MemberPortIDs: memberPortIDs,
+		Timeout:       stateTimeout,
+	})
 	t.Cleanup(func() {
 		t.Log("Executing RT-5.18 ATE Cleanup: stopping ATE traffic and protocols")
 		ate.OTG().StopTraffic(t)
@@ -455,6 +463,7 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice, memberPortIDs []string, 
 
 	ateP4 := ate.Port(t, "port4")
 	config.Ports().Add().SetName(ateP4.ID())
+	configureOTGLayer1(ate, config)
 
 	// Device on ATE LAG (Port-1..Port-3) in DEFAULT VRF (IPv4 192.0.2.2/30, IPv6 2001:db8::2/126).
 	lagDev := config.Devices().Add().SetName(ateLagAttrs.Name + ".dev")
@@ -688,30 +697,35 @@ func testAdminDownDrainDisable(t *testing.T, env *testEnv) {
 	// - /network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=BGP][name=BGP]/bgp/neighbors/neighbor[neighbor-address=192.0.2.2]/afi-safis/afi-safi[afi-safi-name=IPV4_UNICAST]/state/prefixes/installed
 	// - /network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=BGP][name=BGP]/bgp/neighbors/neighbor[neighbor-address=2001:db8::2]/afi-safis/afi-safi[afi-safi-name=IPV6_UNICAST]/state/prefixes/installed
 	t.Log("RT-5.18.1 Step 1: Verifying LAG/LACP state, all 4 eBGP sessions ESTABLISHED, IS-IS Level-2 adjacencies UP, and 10,000 IPv4/IPv6 BGP prefixes installed")
-	cfgplugins.AwaitInterfaceAdminAndOperStatus(t, env.dut, env.aggID, true, oc.Interface_AdminStatus_UP, oc.Interface_OperStatus_UP, stateTimeout)
-	cfgplugins.AwaitAggregateState(t, env.dut, env.aggID, oc.IfAggregate_AggregationType_LACP, stateTimeout)
+	awaitInterfaceAdminAndOperStatus(t, env.dut, env.aggID, true, oc.Interface_AdminStatus_UP, oc.Interface_OperStatus_UP, stateTimeout)
+	awaitAggregateState(t, env.dut, env.aggID, oc.IfAggregate_AggregationType_LACP, stateTimeout)
 	for _, p := range env.memberPorts {
-		cfgplugins.AwaitInterfaceAdminAndOperStatus(t, env.dut, p.Name(), true, oc.Interface_AdminStatus_UP, oc.Interface_OperStatus_UP, stateTimeout)
-		cfgplugins.AwaitMemberForwardingViableAndAggregateID(t, env.dut, p.Name(), env.aggID, true, stateTimeout)
+		awaitInterfaceAdminAndOperStatus(t, env.dut, p.Name(), true, oc.Interface_AdminStatus_UP, oc.Interface_OperStatus_UP, stateTimeout)
+		awaitMemberForwardingViableAndAggregateID(t, env.dut, p.Name(), env.aggID, true, stateTimeout)
 	}
-	cfgplugins.AwaitInterfaceAdminAndOperStatus(t, env.dut, env.port4.Name(), true, oc.Interface_AdminStatus_UP, oc.Interface_OperStatus_UP, stateTimeout)
-	cfgplugins.AwaitLACPMemberState(t, env.dut, env.aggID, env.memberPorts, stateTimeout)
+	awaitInterfaceAdminAndOperStatus(t, env.dut, env.port4.Name(), true, oc.Interface_AdminStatus_UP, oc.Interface_OperStatus_UP, stateTimeout)
+	awaitLACPMemberState(t, env.dut, env.aggID, env.memberPorts, stateTimeout)
+	memberATEPortIDs := make([]string, 0, len(env.memberPorts))
+	for _, p := range env.memberPorts {
+		memberATEPortIDs = append(memberATEPortIDs, env.ate.Port(t, p.ID()).ID())
+	}
 	otgvalidationhelpers.WaitForOTGLAGUP(t, env.ate, otgvalidationhelpers.LagParams{
 		LagName:       ateLagAttrs.Name,
 		WantMembersUp: uint64(len(env.memberPorts)),
+		MemberPortIDs: memberATEPortIDs,
 		Timeout:       stateTimeout,
 	})
 
 	for _, peer := range []string{ateLagAttrs.IPv4, ateLagAttrs.IPv6, atePort4Attrs.IPv4, atePort4Attrs.IPv6} {
-		cfgplugins.AwaitBGPSessionStatus(t, env.dut, deviations.DefaultNetworkInstance(env.dut), peer, true, protocolTimeout)
+		awaitBGPSessionStatus(t, env.dut, deviations.DefaultNetworkInstance(env.dut), peer, true, protocolTimeout)
 	}
-	cfgplugins.AwaitISISAdjacencyStatus(t, env.dut, isisInstance, env.aggID, 0, true, protocolTimeout)
-	cfgplugins.AwaitISISAdjacencyStatus(t, env.dut, isisInstance, env.port4.Name(), 0, true, protocolTimeout)
+	awaitISISAdjacencyStatus(t, env.dut, isisInstance, env.aggID, 0, true, protocolTimeout)
+	awaitISISAdjacencyStatus(t, env.dut, isisInstance, env.port4.Name(), 0, true, protocolTimeout)
 
-	cfgplugins.AwaitBGPPrefixes(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv4, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, lagBGPV4Count, lagBGPV4Count, protocolTimeout)
-	cfgplugins.AwaitBGPPrefixes(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv6, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, lagBGPV6Count, lagBGPV6Count, protocolTimeout)
-	cfgplugins.AwaitBGPPrefixes(t, env.dut, deviations.DefaultNetworkInstance(env.dut), atePort4Attrs.IPv4, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, port4BGPV4Count, port4BGPV4Count, protocolTimeout)
-	cfgplugins.AwaitBGPPrefixes(t, env.dut, deviations.DefaultNetworkInstance(env.dut), atePort4Attrs.IPv6, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, port4BGPV6Count, port4BGPV6Count, protocolTimeout)
+	awaitBGPPrefixes(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv4, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, lagBGPV4Count, lagBGPV4Count, protocolTimeout)
+	awaitBGPPrefixes(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv6, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, lagBGPV6Count, lagBGPV6Count, protocolTimeout)
+	awaitBGPPrefixes(t, env.dut, deviations.DefaultNetworkInstance(env.dut), atePort4Attrs.IPv4, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, port4BGPV4Count, port4BGPV4Count, protocolTimeout)
+	awaitBGPPrefixes(t, env.dut, deviations.DefaultNetworkInstance(env.dut), atePort4Attrs.IPv6, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, port4BGPV6Count, port4BGPV6Count, protocolTimeout)
 
 	// RT-5.18.1 Step 2: Ensure IPv4 ARP and IPv6 ND resolution completes (WaitForARP) on all ATE interfaces,
 	// then start continuous bidirectional IPv4 and IPv6 traffic flows between ATE Port-4 and ATE Port-Channel1 (Port-1..Port-3).
@@ -725,7 +739,7 @@ func testAdminDownDrainDisable(t *testing.T, env *testEnv) {
 		env.dutPort4MAC = resolvedPort4MAC
 	}
 	updateDefaultFlowMACs(env)
-	env.ate.OTG().StartTraffic(t)
+	restartTrafficAfterLAGChange(t, env, env.memberPorts)
 
 	// RT-5.18.1 Step 3: Verify 0% steady-state traffic loss across all flows (using gNMI counter Watch, with no static sleep wait time).
 	t.Log("RT-5.18.1 Step 3: Verifying 0% steady-state traffic loss across all flows and incrementing counters on Port-Channel1 and Port-1..Port-3")
@@ -737,9 +751,9 @@ func testAdminDownDrainDisable(t *testing.T, env *testEnv) {
 			Timeout:       trafficTimeout,
 		})
 	}
-	cfgplugins.AwaitInterfaceCountersIncrement(t, env.dut, env.aggID, 50, trafficTimeout)
+	awaitInterfaceCountersIncrement(t, env.dut, env.aggID, 50, trafficTimeout)
 	for _, p := range env.memberPorts {
-		cfgplugins.AwaitInterfaceCountersIncrement(t, env.dut, p.Name(), 10, trafficTimeout)
+		awaitInterfaceCountersIncrement(t, env.dut, p.Name(), 10, trafficTimeout)
 	}
 
 	// RT-5.18.1 Step 4: Administratively disable the LAG interface by setting
@@ -750,9 +764,9 @@ func testAdminDownDrainDisable(t *testing.T, env *testEnv) {
 	// RT-5.18.1 Step 5: Verify via gNMI Subscribe (Watch) that /interfaces/interface[name=Port-Channel1]/state/admin-status
 	// is DOWN and /interfaces/interface[name=Port-Channel1]/state/oper-status is DOWN, while member ports retain aggregate membership.
 	t.Logf("RT-5.18.1 Step 5: Verifying %s state/enabled == false, admin-status == DOWN, and oper-status == DOWN", env.aggID)
-	cfgplugins.AwaitInterfaceAdminAndOperStatus(t, env.dut, env.aggID, false, oc.Interface_AdminStatus_DOWN, oc.Interface_OperStatus_DOWN, stateTimeout)
+	awaitInterfaceAdminAndOperStatus(t, env.dut, env.aggID, false, oc.Interface_AdminStatus_DOWN, oc.Interface_OperStatus_DOWN, stateTimeout)
 	for _, p := range env.memberPorts {
-		cfgplugins.AwaitMemberForwardingViableAndAggregateID(t, env.dut, p.Name(), env.aggID, true, stateTimeout)
+		awaitMemberForwardingViableAndAggregateID(t, env.dut, p.Name(), env.aggID, true, stateTimeout)
 		if got := gnmi.Get(t, env.dut, gnmi.OC().Interface(p.Name()).Enabled().Config()); !got {
 			t.Errorf("RT-5.18.1 Step 5: Member interface %s config/enabled = %v, want true", p.Name(), got)
 		}
@@ -763,17 +777,17 @@ func testAdminDownDrainDisable(t *testing.T, env *testEnv) {
 	// /network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=BGP][name=BGP]/bgp/neighbors/neighbor[neighbor-address=<192.0.2.2|2001:db8::2>]/state/session-state,
 	// while the BGP sessions on Port-4 (192.0.2.6 and 2001:db8::6) remain ESTABLISHED.
 	t.Log("RT-5.18.1 Step 6: Verifying eBGP sessions over Port-Channel1 transition out of ESTABLISHED while Port-4 sessions remain ESTABLISHED")
-	cfgplugins.AwaitBGPSessionStatus(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv4, false, protocolTimeout)
-	cfgplugins.AwaitBGPSessionStatus(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv6, false, protocolTimeout)
-	cfgplugins.AwaitBGPSessionStatus(t, env.dut, deviations.DefaultNetworkInstance(env.dut), atePort4Attrs.IPv4, true, protocolTimeout)
-	cfgplugins.AwaitBGPSessionStatus(t, env.dut, deviations.DefaultNetworkInstance(env.dut), atePort4Attrs.IPv6, true, protocolTimeout)
+	awaitBGPSessionStatus(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv4, false, protocolTimeout)
+	awaitBGPSessionStatus(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv6, false, protocolTimeout)
+	awaitBGPSessionStatus(t, env.dut, deviations.DefaultNetworkInstance(env.dut), atePort4Attrs.IPv4, true, protocolTimeout)
+	awaitBGPSessionStatus(t, env.dut, deviations.DefaultNetworkInstance(env.dut), atePort4Attrs.IPv6, true, protocolTimeout)
 
 	// RT-5.18.1 Step 7: Verify that the IS-IS adjacency on Port-Channel1 transitions to DOWN (or is removed from the active adjacency table)
 	// via /network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=ISIS]/isis/interfaces/interface[interface-id=Port-Channel1]/levels/level[level-number=2]/adjacencies/adjacency/state/adjacency-state,
 	// while the IS-IS adjacency on Port-4 remains UP.
 	t.Log("RT-5.18.1 Step 7: Verifying IS-IS adjacency on Port-Channel1 transitions to DOWN while Port-4 remains UP")
-	cfgplugins.AwaitISISAdjacencyStatus(t, env.dut, isisInstance, env.aggID, 0, false, protocolTimeout)
-	cfgplugins.AwaitISISAdjacencyStatus(t, env.dut, isisInstance, env.port4.Name(), 0, true, protocolTimeout)
+	awaitISISAdjacencyStatus(t, env.dut, isisInstance, env.aggID, 0, false, protocolTimeout)
+	awaitISISAdjacencyStatus(t, env.dut, isisInstance, env.port4.Name(), 0, true, protocolTimeout)
 
 	// RT-5.18.1 Step 8: Verify that all bidirectional traffic traversing Port-Channel1 stops completely (steady-state traffic loss is 100%).
 	t.Log("RT-5.18.1 Step 8: Verifying all bidirectional traffic traversing Port-Channel1 stops completely (100% steady-state loss)")
@@ -787,7 +801,7 @@ func testAdminDownDrainDisable(t *testing.T, env *testEnv) {
 			Timeout:       trafficTimeout,
 		})
 	}
-	cfgplugins.AwaitInterfaceAdminAndOperStatus(t, env.dut, env.port4.Name(), true, oc.Interface_AdminStatus_UP, oc.Interface_OperStatus_UP, stateTimeout)
+	awaitInterfaceAdminAndOperStatus(t, env.dut, env.port4.Name(), true, oc.Interface_AdminStatus_UP, oc.Interface_OperStatus_UP, stateTimeout)
 	env.ate.OTG().StopTraffic(t)
 }
 
@@ -799,20 +813,21 @@ func restartTrafficAfterLAGChange(t *testing.T, env *testEnv, activeMembers []*o
 	for _, p := range activeMembers {
 		activeATEPortIDs = append(activeATEPortIDs, env.ate.Port(t, p.ID()).ID())
 	}
-	cfgplugins.AwaitLACPMemberState(t, env.dut, env.aggID, activeMembers, stateTimeout)
+	awaitLACPMemberState(t, env.dut, env.aggID, activeMembers, stateTimeout)
 	otgvalidationhelpers.WaitForOTGLAGUP(t, env.ate, otgvalidationhelpers.LagParams{
 		LagName:       ateLagAttrs.Name,
 		WantMembersUp: uint64(len(activeMembers)),
 		MemberPortIDs: activeATEPortIDs,
 		Timeout:       stateTimeout,
 	})
-	for attempt := 1; attempt <= 3; attempt++ {
+	for attempt := 1; attempt <= 4; attempt++ {
 		env.ate.OTG().StopTraffic(t)
 		if len(activeMembers) == len(env.memberPorts) {
 			otgutils.WaitForARP(t, env.ate.OTG(), env.otgConfig, "IPv4")
+			otgutils.WaitForARP(t, env.ate.OTG(), env.otgConfig, "IPv6")
 		}
 		env.ate.OTG().StartTraffic(t)
-		if otgvalidationhelpers.AreFlowsTransmitting(t, env.ate, env.allFlows, 200, 8*time.Second) {
+		if otgvalidationhelpers.AreFlowsTransmitting(t, env.ate, env.allFlows, 200, 20*time.Second) {
 			return
 		}
 		t.Logf("restartTrafficAfterLAGChange: flows not yet incrementing OutPkts/InPkts on attempt %d; retrying", attempt)
@@ -823,7 +838,17 @@ func restartTrafficAfterLAGChange(t *testing.T, env *testEnv, activeMembers []*o
 	env.ate.OTG().StopProtocols(t)
 	env.ate.OTG().PushConfig(t, env.otgConfig)
 	env.ate.OTG().StartProtocols(t)
-	cfgplugins.AwaitLACPMemberState(t, env.dut, env.aggID, activeMembers, stateTimeout)
+	awaitLACPMemberState(t, env.dut, env.aggID, activeMembers, stateTimeout)
+	otgvalidationhelpers.WaitForOTGLAGUP(t, env.ate, otgvalidationhelpers.LagParams{
+		LagName:       ateLagAttrs.Name,
+		WantMembersUp: uint64(len(activeMembers)),
+		MemberPortIDs: activeATEPortIDs,
+		Timeout:       stateTimeout,
+	})
+	env.ate.OTG().StopProtocols(t)
+	env.ate.OTG().PushConfig(t, env.otgConfig)
+	env.ate.OTG().StartProtocols(t)
+	awaitLACPMemberState(t, env.dut, env.aggID, activeMembers, stateTimeout)
 	otgvalidationhelpers.WaitForOTGLAGUP(t, env.ate, otgvalidationhelpers.LagParams{
 		LagName:       ateLagAttrs.Name,
 		WantMembersUp: uint64(len(activeMembers)),
@@ -831,16 +856,17 @@ func restartTrafficAfterLAGChange(t *testing.T, env *testEnv, activeMembers []*o
 		Timeout:       stateTimeout,
 	})
 	for _, peer := range []string{ateLagAttrs.IPv4, ateLagAttrs.IPv6, atePort4Attrs.IPv4, atePort4Attrs.IPv6} {
-		cfgplugins.AwaitBGPSessionStatus(t, env.dut, deviations.DefaultNetworkInstance(env.dut), peer, true, protocolTimeout)
+		awaitBGPSessionStatus(t, env.dut, deviations.DefaultNetworkInstance(env.dut), peer, true, protocolTimeout)
 	}
-	cfgplugins.AwaitISISAdjacencyStatus(t, env.dut, isisInstance, env.aggID, 0, true, protocolTimeout)
-	cfgplugins.AwaitISISAdjacencyStatus(t, env.dut, isisInstance, env.port4.Name(), 0, true, protocolTimeout)
-	cfgplugins.AwaitBGPPrefixes(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv4, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, lagBGPV4Count, lagBGPV4Count, protocolTimeout)
-	cfgplugins.AwaitBGPPrefixes(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv6, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, lagBGPV6Count, lagBGPV6Count, protocolTimeout)
-	cfgplugins.AwaitBGPPrefixes(t, env.dut, deviations.DefaultNetworkInstance(env.dut), atePort4Attrs.IPv4, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, port4BGPV4Count, port4BGPV4Count, protocolTimeout)
-	cfgplugins.AwaitBGPPrefixes(t, env.dut, deviations.DefaultNetworkInstance(env.dut), atePort4Attrs.IPv6, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, port4BGPV6Count, port4BGPV6Count, protocolTimeout)
+	awaitISISAdjacencyStatus(t, env.dut, isisInstance, env.aggID, 0, true, protocolTimeout)
+	awaitISISAdjacencyStatus(t, env.dut, isisInstance, env.port4.Name(), 0, true, protocolTimeout)
+	awaitBGPPrefixes(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv4, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, lagBGPV4Count, lagBGPV4Count, protocolTimeout)
+	awaitBGPPrefixes(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv6, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, lagBGPV6Count, lagBGPV6Count, protocolTimeout)
+	awaitBGPPrefixes(t, env.dut, deviations.DefaultNetworkInstance(env.dut), atePort4Attrs.IPv4, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, port4BGPV4Count, port4BGPV4Count, protocolTimeout)
+	awaitBGPPrefixes(t, env.dut, deviations.DefaultNetworkInstance(env.dut), atePort4Attrs.IPv6, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, port4BGPV6Count, port4BGPV6Count, protocolTimeout)
 	if len(activeMembers) == len(env.memberPorts) {
 		otgutils.WaitForARP(t, env.ate.OTG(), env.otgConfig, "IPv4")
+		otgutils.WaitForARP(t, env.ate.OTG(), env.otgConfig, "IPv6")
 	}
 	env.ate.OTG().StartTraffic(t)
 }
@@ -855,8 +881,8 @@ func testAdminDownDrainReEnable(t *testing.T, env *testEnv) {
 	// RT-5.18.2 Step 2: Verify via gNMI Subscribe (Watch) that /interfaces/interface[name=Port-Channel1]/state/admin-status
 	// is UP and /interfaces/interface[name=Port-Channel1]/state/oper-status is UP, and all 3 LACP members synchronize.
 	t.Logf("RT-5.18.2 Step 2: Verifying %s state/enabled == true, admin-status == UP, oper-status == UP, and LACP members IN_SYNC", env.aggID)
-	cfgplugins.AwaitInterfaceAdminAndOperStatus(t, env.dut, env.aggID, true, oc.Interface_AdminStatus_UP, oc.Interface_OperStatus_UP, stateTimeout)
-	cfgplugins.AwaitLACPMemberState(t, env.dut, env.aggID, env.memberPorts, stateTimeout)
+	awaitInterfaceAdminAndOperStatus(t, env.dut, env.aggID, true, oc.Interface_AdminStatus_UP, oc.Interface_OperStatus_UP, stateTimeout)
+	awaitLACPMemberState(t, env.dut, env.aggID, env.memberPorts, stateTimeout)
 	otgvalidationhelpers.WaitForOTGLAGUP(t, env.ate, otgvalidationhelpers.LagParams{
 		LagName:       ateLagAttrs.Name,
 		WantMembersUp: uint64(len(env.memberPorts)),
@@ -866,27 +892,27 @@ func testAdminDownDrainReEnable(t *testing.T, env *testEnv) {
 	// RT-5.18.2 Step 3: Verify that the BGP sessions over Port-Channel1 (192.0.2.2 and 2001:db8::2) re-establish
 	// by checking session-state is ESTABLISHED at the paths from RT-5.18.1 Step 6.
 	t.Log("RT-5.18.2 Step 3: Verifying eBGP sessions over Port-Channel1 (192.0.2.2 and 2001:db8::2) re-establish to ESTABLISHED")
-	cfgplugins.AwaitBGPSessionStatus(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv4, true, protocolTimeout)
-	cfgplugins.AwaitBGPSessionStatus(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv6, true, protocolTimeout)
+	awaitBGPSessionStatus(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv4, true, protocolTimeout)
+	awaitBGPSessionStatus(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv6, true, protocolTimeout)
 
 	// RT-5.18.2 Step 4: Verify that the IS-IS Level-2 adjacency on Port-Channel1 re-establishes
 	// by checking adjacency-state is UP at the path from RT-5.18.1 Step 7.
 	t.Log("RT-5.18.2 Step 4: Verifying IS-IS Level-2 adjacency on Port-Channel1 re-establishes to UP")
-	cfgplugins.AwaitISISAdjacencyStatus(t, env.dut, isisInstance, env.aggID, 0, true, protocolTimeout)
+	awaitISISAdjacencyStatus(t, env.dut, isisInstance, env.aggID, 0, true, protocolTimeout)
 
 	// RT-5.18.2 Step 5: Verify via gNMI Watch that the BGP installed prefix count returns to 10000
 	// for both IPV4_UNICAST and IPV6_UNICAST at the paths from RT-5.18.1 Step 1.
 	t.Log("RT-5.18.2 Step 5: Verifying BGP installed prefix count returns to 10,000 for IPV4_UNICAST and IPV6_UNICAST")
-	cfgplugins.AwaitBGPPrefixes(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv4, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, lagBGPV4Count, lagBGPV4Count, protocolTimeout)
-	cfgplugins.AwaitBGPPrefixes(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv6, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, lagBGPV6Count, lagBGPV6Count, protocolTimeout)
+	awaitBGPPrefixes(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv4, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, lagBGPV4Count, lagBGPV4Count, protocolTimeout)
+	awaitBGPPrefixes(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv6, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, lagBGPV6Count, lagBGPV6Count, protocolTimeout)
 
 	// RT-5.18.2 Step 6: Once gNMI confirms control plane and AFT convergence, verify that steady-state
 	// bidirectional traffic loss returns to 0%.
 	t.Log("RT-5.18.2 Step 6: Verifying steady-state bidirectional traffic loss returns to 0% across all flows and all 3 member links")
 	restartTrafficAfterLAGChange(t, env, env.memberPorts)
-	cfgplugins.AwaitInterfaceCountersIncrement(t, env.dut, env.aggID, 50, trafficTimeout)
+	awaitInterfaceCountersIncrement(t, env.dut, env.aggID, 50, trafficTimeout)
 	for _, p := range env.memberPorts {
-		cfgplugins.AwaitInterfaceCountersIncrement(t, env.dut, p.Name(), 10, trafficTimeout)
+		awaitInterfaceCountersIncrement(t, env.dut, p.Name(), 10, trafficTimeout)
 	}
 	for _, flow := range env.allFlows {
 		otgvalidationhelpers.AwaitFlowSteadyState(t, env.ate, otgvalidationhelpers.SteadyStateFlowParams{
@@ -907,12 +933,12 @@ func testNegativeAdminDownMemberLinks(t *testing.T, env *testEnv) {
 	// RT-5.18.3 Step 1: Verify BGP installed prefixes are at 10000 for IPv4 (192.0.2.2) and 10000 for IPv6 (2001:db8::2)
 	// via gNMI telemetry at the paths from RT-5.18.1 Step 1.
 	t.Log("RT-5.18.3 Step 1: Verifying BGP installed prefixes are at 10,000 for IPv4 (192.0.2.2) and 10,000 for IPv6 (2001:db8::2)")
-	cfgplugins.AwaitInterfaceAdminAndOperStatus(t, env.dut, env.aggID, true, oc.Interface_AdminStatus_UP, oc.Interface_OperStatus_UP, stateTimeout)
+	awaitInterfaceAdminAndOperStatus(t, env.dut, env.aggID, true, oc.Interface_AdminStatus_UP, oc.Interface_OperStatus_UP, stateTimeout)
 	for _, p := range env.memberPorts {
-		cfgplugins.AwaitInterfaceAdminAndOperStatus(t, env.dut, p.Name(), true, oc.Interface_AdminStatus_UP, oc.Interface_OperStatus_UP, stateTimeout)
+		awaitInterfaceAdminAndOperStatus(t, env.dut, p.Name(), true, oc.Interface_AdminStatus_UP, oc.Interface_OperStatus_UP, stateTimeout)
 	}
-	cfgplugins.AwaitBGPPrefixes(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv4, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, lagBGPV4Count, lagBGPV4Count, protocolTimeout)
-	cfgplugins.AwaitBGPPrefixes(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv6, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, lagBGPV6Count, lagBGPV6Count, protocolTimeout)
+	awaitBGPPrefixes(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv4, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, lagBGPV4Count, lagBGPV4Count, protocolTimeout)
+	awaitBGPPrefixes(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv6, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, lagBGPV6Count, lagBGPV6Count, protocolTimeout)
 
 	// RT-5.18.3 Step 2: Send continuous bidirectional IPv4 and IPv6 traffic flows between ATE Port-4 and
 	// ATE Port-Channel1 (Port-1..Port-3) via the advertised prefixes at 10% of a single member link's line rate.
@@ -949,22 +975,22 @@ func testNegativeAdminDownMemberLinks(t *testing.T, env *testEnv) {
 	// remains UP (via active member Port-3).
 	t.Logf("RT-5.18.3 Step 4: Verifying %s and %s transition to oper-status == DOWN while %s remains oper-status == UP via active member %s",
 		p1.Name(), p2.Name(), env.aggID, p3.Name())
-	cfgplugins.AwaitInterfaceAdminAndOperStatus(t, env.dut, p1.Name(), false, oc.Interface_AdminStatus_DOWN, oc.Interface_OperStatus_DOWN, stateTimeout)
-	cfgplugins.AwaitInterfaceAdminAndOperStatus(t, env.dut, p2.Name(), false, oc.Interface_AdminStatus_DOWN, oc.Interface_OperStatus_DOWN, stateTimeout)
-	cfgplugins.AwaitInterfaceAdminAndOperStatus(t, env.dut, env.aggID, true, oc.Interface_AdminStatus_UP, oc.Interface_OperStatus_UP, stateTimeout)
+	awaitInterfaceAdminAndOperStatus(t, env.dut, p1.Name(), false, oc.Interface_AdminStatus_DOWN, oc.Interface_OperStatus_DOWN, stateTimeout)
+	awaitInterfaceAdminAndOperStatus(t, env.dut, p2.Name(), false, oc.Interface_AdminStatus_DOWN, oc.Interface_OperStatus_DOWN, stateTimeout)
+	awaitInterfaceAdminAndOperStatus(t, env.dut, env.aggID, true, oc.Interface_AdminStatus_UP, oc.Interface_OperStatus_UP, stateTimeout)
 
 	// RT-5.18.3 Step 5: Verify that the eBGP (192.0.2.2, 2001:db8::2) and IS-IS sessions over Port-Channel1
 	// remain ESTABLISHED and UP at their respective paths without flapping.
 	t.Log("RT-5.18.3 Step 5: Verifying eBGP (192.0.2.2, 2001:db8::2) and IS-IS sessions over Port-Channel1 remain ESTABLISHED and UP")
-	cfgplugins.AwaitBGPSessionStatus(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv4, true, protocolTimeout)
-	cfgplugins.AwaitBGPSessionStatus(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv6, true, protocolTimeout)
-	cfgplugins.AwaitISISAdjacencyStatus(t, env.dut, isisInstance, env.aggID, 0, true, protocolTimeout)
+	awaitBGPSessionStatus(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv4, true, protocolTimeout)
+	awaitBGPSessionStatus(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv6, true, protocolTimeout)
+	awaitISISAdjacencyStatus(t, env.dut, isisInstance, env.aggID, 0, true, protocolTimeout)
 
 	// RT-5.18.3 Step 6: Verify that bidirectional traffic continues to flow (0% steady-state loss)
 	// over the remaining active member link (DUT Port-3).
 	t.Logf("RT-5.18.3 Step 6: Verifying bidirectional traffic continues to flow at 0%% steady-state loss over remaining active member %s", p3.Name())
 	restartTrafficAfterLAGChange(t, env, []*ondatra.Port{p3})
-	cfgplugins.AwaitInterfaceCountersIncrement(t, env.dut, p3.Name(), 10, trafficTimeout)
+	awaitInterfaceCountersIncrement(t, env.dut, p3.Name(), 10, trafficTimeout)
 	for _, flow := range env.allFlows {
 		otgvalidationhelpers.AwaitFlowSteadyState(t, env.ate, otgvalidationhelpers.SteadyStateFlowParams{
 			FlowName:      flow,
@@ -985,17 +1011,17 @@ func testNegativeAdminDownMemberLinks(t *testing.T, env *testEnv) {
 	membersRestored = true
 
 	for _, p := range env.memberPorts {
-		cfgplugins.AwaitInterfaceAdminAndOperStatus(t, env.dut, p.Name(), true, oc.Interface_AdminStatus_UP, oc.Interface_OperStatus_UP, stateTimeout)
+		awaitInterfaceAdminAndOperStatus(t, env.dut, p.Name(), true, oc.Interface_AdminStatus_UP, oc.Interface_OperStatus_UP, stateTimeout)
 	}
-	cfgplugins.AwaitInterfaceAdminAndOperStatus(t, env.dut, env.aggID, true, oc.Interface_AdminStatus_UP, oc.Interface_OperStatus_UP, stateTimeout)
-	cfgplugins.AwaitISISAdjacencyStatus(t, env.dut, isisInstance, env.aggID, 0, true, protocolTimeout)
-	cfgplugins.AwaitBGPSessionStatus(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv4, true, protocolTimeout)
-	cfgplugins.AwaitBGPSessionStatus(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv6, true, protocolTimeout)
-	cfgplugins.AwaitBGPPrefixes(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv4, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, lagBGPV4Count, lagBGPV4Count, protocolTimeout)
-	cfgplugins.AwaitBGPPrefixes(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv6, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, lagBGPV6Count, lagBGPV6Count, protocolTimeout)
+	awaitInterfaceAdminAndOperStatus(t, env.dut, env.aggID, true, oc.Interface_AdminStatus_UP, oc.Interface_OperStatus_UP, stateTimeout)
+	awaitISISAdjacencyStatus(t, env.dut, isisInstance, env.aggID, 0, true, protocolTimeout)
+	awaitBGPSessionStatus(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv4, true, protocolTimeout)
+	awaitBGPSessionStatus(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv6, true, protocolTimeout)
+	awaitBGPPrefixes(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv4, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, lagBGPV4Count, lagBGPV4Count, protocolTimeout)
+	awaitBGPPrefixes(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv6, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, lagBGPV6Count, lagBGPV6Count, protocolTimeout)
 	restartTrafficAfterLAGChange(t, env, env.memberPorts)
 	for _, p := range env.memberPorts {
-		cfgplugins.AwaitInterfaceCountersIncrement(t, env.dut, p.Name(), 10, trafficTimeout)
+		awaitInterfaceCountersIncrement(t, env.dut, p.Name(), 10, trafficTimeout)
 	}
 	for _, flow := range env.allFlows {
 		otgvalidationhelpers.AwaitFlowSteadyState(t, env.ate, otgvalidationhelpers.SteadyStateFlowParams{
@@ -1017,7 +1043,7 @@ func testNegativeAdminDownAlreadyDisabledLAG(t *testing.T, env *testEnv) {
 	// RT-5.18.4 Step 2: Verify via gNMI that /interfaces/interface[name=Port-Channel1]/state/admin-status is DOWN,
 	// /interfaces/interface[name=Port-Channel1]/state/oper-status is DOWN, and traffic loss across Port-Channel1 is 100%.
 	t.Logf("RT-5.18.4 Step 2: Verifying %s admin-status == DOWN, oper-status == DOWN, and 100%% traffic loss", env.aggID)
-	cfgplugins.AwaitInterfaceAdminAndOperStatus(t, env.dut, env.aggID, false, oc.Interface_AdminStatus_DOWN, oc.Interface_OperStatus_DOWN, stateTimeout)
+	awaitInterfaceAdminAndOperStatus(t, env.dut, env.aggID, false, oc.Interface_AdminStatus_DOWN, oc.Interface_OperStatus_DOWN, stateTimeout)
 	for _, flow := range env.allFlows {
 		otgvalidationhelpers.AwaitFlowSteadyState(t, env.ate, otgvalidationhelpers.SteadyStateFlowParams{
 			FlowName:      flow,
@@ -1038,11 +1064,11 @@ func testNegativeAdminDownAlreadyDisabledLAG(t *testing.T, env *testEnv) {
 	// RT-5.18.4 Step 5: Verify that /interfaces/interface[name=Port-Channel1]/state/admin-status and
 	// /interfaces/interface[name=Port-Channel1]/state/oper-status remain DOWN and traffic remains at 100% loss.
 	t.Log("RT-5.18.4 Step 5: Verifying Port-Channel1 admin-status and oper-status remain DOWN, Port-4 remains UP, and traffic remains at 100% loss")
-	cfgplugins.AwaitInterfaceAdminAndOperStatus(t, env.dut, env.aggID, false, oc.Interface_AdminStatus_DOWN, oc.Interface_OperStatus_DOWN, stateTimeout)
-	cfgplugins.AwaitInterfaceAdminAndOperStatus(t, env.dut, env.port4.Name(), true, oc.Interface_AdminStatus_UP, oc.Interface_OperStatus_UP, stateTimeout)
-	cfgplugins.AwaitISISAdjacencyStatus(t, env.dut, isisInstance, env.port4.Name(), 0, true, protocolTimeout)
-	cfgplugins.AwaitBGPSessionStatus(t, env.dut, deviations.DefaultNetworkInstance(env.dut), atePort4Attrs.IPv4, true, protocolTimeout)
-	cfgplugins.AwaitBGPSessionStatus(t, env.dut, deviations.DefaultNetworkInstance(env.dut), atePort4Attrs.IPv6, true, protocolTimeout)
+	awaitInterfaceAdminAndOperStatus(t, env.dut, env.aggID, false, oc.Interface_AdminStatus_DOWN, oc.Interface_OperStatus_DOWN, stateTimeout)
+	awaitInterfaceAdminAndOperStatus(t, env.dut, env.port4.Name(), true, oc.Interface_AdminStatus_UP, oc.Interface_OperStatus_UP, stateTimeout)
+	awaitISISAdjacencyStatus(t, env.dut, isisInstance, env.port4.Name(), 0, true, protocolTimeout)
+	awaitBGPSessionStatus(t, env.dut, deviations.DefaultNetworkInstance(env.dut), atePort4Attrs.IPv4, true, protocolTimeout)
+	awaitBGPSessionStatus(t, env.dut, deviations.DefaultNetworkInstance(env.dut), atePort4Attrs.IPv6, true, protocolTimeout)
 	for _, flow := range env.allFlows {
 		otgvalidationhelpers.AwaitFlowSteadyState(t, env.ate, otgvalidationhelpers.SteadyStateFlowParams{
 			FlowName:      flow,
@@ -1061,12 +1087,12 @@ func testNegativeAdminDownAlreadyDisabledLAG(t *testing.T, env *testEnv) {
 	// to 10000 (IPv4 and IPv6), and steady-state traffic loss returns to 0%.
 	t.Logf("RT-5.18.4 Step 6: Re-enabling %s (enabled = true) and verifying recovery of interface, eBGP/IS-IS sessions, 10,000 prefixes, and 0%% traffic loss", env.aggID)
 	cfgplugins.SetInterfaceAdminEnabled(t, env.dut, nil, env.aggID, true)
-	cfgplugins.AwaitInterfaceAdminAndOperStatus(t, env.dut, env.aggID, true, oc.Interface_AdminStatus_UP, oc.Interface_OperStatus_UP, stateTimeout)
-	cfgplugins.AwaitBGPSessionStatus(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv4, true, protocolTimeout)
-	cfgplugins.AwaitBGPSessionStatus(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv6, true, protocolTimeout)
-	cfgplugins.AwaitISISAdjacencyStatus(t, env.dut, isisInstance, env.aggID, 0, true, protocolTimeout)
-	cfgplugins.AwaitBGPPrefixes(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv4, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, lagBGPV4Count, lagBGPV4Count, protocolTimeout)
-	cfgplugins.AwaitBGPPrefixes(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv6, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, lagBGPV6Count, lagBGPV6Count, protocolTimeout)
+	awaitInterfaceAdminAndOperStatus(t, env.dut, env.aggID, true, oc.Interface_AdminStatus_UP, oc.Interface_OperStatus_UP, stateTimeout)
+	awaitBGPSessionStatus(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv4, true, protocolTimeout)
+	awaitBGPSessionStatus(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv6, true, protocolTimeout)
+	awaitISISAdjacencyStatus(t, env.dut, isisInstance, env.aggID, 0, true, protocolTimeout)
+	awaitBGPPrefixes(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv4, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, lagBGPV4Count, lagBGPV4Count, protocolTimeout)
+	awaitBGPPrefixes(t, env.dut, deviations.DefaultNetworkInstance(env.dut), ateLagAttrs.IPv6, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, lagBGPV6Count, lagBGPV6Count, protocolTimeout)
 	restartTrafficAfterLAGChange(t, env, env.memberPorts)
 	for _, flow := range env.allFlows {
 		otgvalidationhelpers.AwaitFlowSteadyState(t, env.ate, otgvalidationhelpers.SteadyStateFlowParams{
@@ -1173,7 +1199,20 @@ func testUplinkLAGMemberRetentionAndB2CoreBGP(t *testing.T, env *testEnv) {
 	bgpBatch.Set(t, env.dut)
 
 	// Configure and push OTG VLAN 100 subinterfaces, eBGP peers, and B2_CORE traffic flows on ATE.
+	memberATEPortIDs := make([]string, 0, len(env.memberPorts))
+	for _, p := range env.memberPorts {
+		memberATEPortIDs = append(memberATEPortIDs, env.ate.Port(t, p.ID()).ID())
+	}
 	configureB2CoreOTG(t, env, dutLagMAC, dutPort4MAC)
+	env.ate.OTG().PushConfig(t, env.otgConfig)
+	env.ate.OTG().StartProtocols(t)
+	otgvalidationhelpers.WaitForOTGLAGUP(t, env.ate, otgvalidationhelpers.LagParams{
+		LagName:       ateLagAttrs.Name,
+		WantMembersUp: uint64(len(env.memberPorts)),
+		MemberPortIDs: memberATEPortIDs,
+		Timeout:       stateTimeout,
+	})
+	env.ate.OTG().StopProtocols(t)
 	env.ate.OTG().PushConfig(t, env.otgConfig)
 	env.ate.OTG().StartProtocols(t)
 
@@ -1184,17 +1223,12 @@ func testUplinkLAGMemberRetentionAndB2CoreBGP(t *testing.T, env *testEnv) {
 	// - /interfaces/interface[name=<Port-1..Port-3>]/state/oper-status == UP and /interfaces/interface[name=Port-Channel1]/state/oper-status == UP
 	// - /lacp/interfaces/interface[name=Port-Channel1]/members/member[interface=<Port-1..Port-3>]/state/{activity=ACTIVE, aggregatable=true, collecting=true, distributing=true, synchronization=IN_SYNC}.
 	t.Log("RT-5.18.5 Step 5: Verifying uplink LAG members Port-1..Port-3 retain aggregate-id, forwarding-viable == true, oper-status == UP, and LACP IN_SYNC")
-	cfgplugins.AwaitInterfaceAdminAndOperStatus(t, env.dut, env.aggID, true, oc.Interface_AdminStatus_UP, oc.Interface_OperStatus_UP, stateTimeout)
+	awaitInterfaceAdminAndOperStatus(t, env.dut, env.aggID, true, oc.Interface_AdminStatus_UP, oc.Interface_OperStatus_UP, stateTimeout)
 	for _, p := range env.memberPorts {
-		cfgplugins.AwaitInterfaceAdminAndOperStatus(t, env.dut, p.Name(), true, oc.Interface_AdminStatus_UP, oc.Interface_OperStatus_UP, stateTimeout)
-		cfgplugins.AwaitMemberForwardingViableAndAggregateID(t, env.dut, p.Name(), env.aggID, true, stateTimeout)
+		awaitInterfaceAdminAndOperStatus(t, env.dut, p.Name(), true, oc.Interface_AdminStatus_UP, oc.Interface_OperStatus_UP, stateTimeout)
+		awaitMemberForwardingViableAndAggregateID(t, env.dut, p.Name(), env.aggID, true, stateTimeout)
 	}
-
-	memberATEPortIDs := make([]string, 0, len(env.memberPorts))
-	for _, p := range env.memberPorts {
-		memberATEPortIDs = append(memberATEPortIDs, env.ate.Port(t, p.ID()).ID())
-	}
-	cfgplugins.AwaitLACPMemberState(t, env.dut, env.aggID, env.memberPorts, stateTimeout)
+	awaitLACPMemberState(t, env.dut, env.aggID, env.memberPorts, stateTimeout)
 	otgvalidationhelpers.WaitForOTGLAGUP(t, env.ate, otgvalidationhelpers.LagParams{
 		LagName:       ateLagAttrs.Name,
 		WantMembersUp: uint64(len(env.memberPorts)),
@@ -1207,12 +1241,12 @@ func testUplinkLAGMemberRetentionAndB2CoreBGP(t *testing.T, env *testEnv) {
 	// for both IPV4_UNICAST and IPV6_UNICAST.
 	t.Logf("RT-5.18.5 Step 6: Verifying all 4 eBGP sessions in %s reach ESTABLISHED and prefixes are installed", b2CoreVRFName)
 	for _, peer := range []string{ateLagVlan100IPv4, ateLagVlan100IPv6, atePort4Vlan100IPv4, atePort4Vlan100IPv6} {
-		cfgplugins.AwaitBGPSessionStatus(t, env.dut, b2CoreVRFName, peer, true, protocolTimeout)
+		awaitBGPSessionStatus(t, env.dut, b2CoreVRFName, peer, true, protocolTimeout)
 	}
-	cfgplugins.AwaitBGPPrefixes(t, env.dut, b2CoreVRFName, ateLagVlan100IPv4, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, b2CoreLagBGPV4Count, b2CoreLagBGPV4Count, protocolTimeout)
-	cfgplugins.AwaitBGPPrefixes(t, env.dut, b2CoreVRFName, ateLagVlan100IPv6, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, b2CoreLagBGPV6Count, b2CoreLagBGPV6Count, protocolTimeout)
-	cfgplugins.AwaitBGPPrefixes(t, env.dut, b2CoreVRFName, atePort4Vlan100IPv4, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, b2CorePort4BGPV4Count, b2CorePort4BGPV4Count, protocolTimeout)
-	cfgplugins.AwaitBGPPrefixes(t, env.dut, b2CoreVRFName, atePort4Vlan100IPv6, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, b2CorePort4BGPV6Count, b2CorePort4BGPV6Count, protocolTimeout)
+	awaitBGPPrefixes(t, env.dut, b2CoreVRFName, ateLagVlan100IPv4, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, b2CoreLagBGPV4Count, b2CoreLagBGPV4Count, protocolTimeout)
+	awaitBGPPrefixes(t, env.dut, b2CoreVRFName, ateLagVlan100IPv6, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, b2CoreLagBGPV6Count, b2CoreLagBGPV6Count, protocolTimeout)
+	awaitBGPPrefixes(t, env.dut, b2CoreVRFName, atePort4Vlan100IPv4, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, b2CorePort4BGPV4Count, b2CorePort4BGPV4Count, protocolTimeout)
+	awaitBGPPrefixes(t, env.dut, b2CoreVRFName, atePort4Vlan100IPv6, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, b2CorePort4BGPV6Count, b2CorePort4BGPV6Count, protocolTimeout)
 
 	// RT-5.18.5 Step 7: Confirm IPv4 ARP and IPv6 ND resolution on all ATE VLAN 100 interfaces,
 	// then start bidirectional IPv4 and IPv6 traffic flows in the B2_CORE VRF between ATE Port-4 (VLAN 100)
@@ -1233,7 +1267,7 @@ func testUplinkLAGMemberRetentionAndB2CoreBGP(t *testing.T, env *testEnv) {
 		})
 	}
 	for _, p := range env.memberPorts {
-		cfgplugins.AwaitInterfaceCountersIncrement(t, env.dut, p.Name(), 10, trafficTimeout)
+		awaitInterfaceCountersIncrement(t, env.dut, p.Name(), 10, trafficTimeout)
 	}
 }
 
@@ -1322,6 +1356,7 @@ func configureB2CoreOTG(t *testing.T, env *testEnv, dutLagMAC, dutPort4MAC strin
 	})
 	ateP4 := env.ate.Port(t, "port4")
 	config.Ports().Add().SetName(ateP4.ID())
+	configureOTGLayer1(env.ate, config)
 	env.otgConfig = config
 
 	// ATE LAG VLAN 100 device (192.0.2.10/30, 2001:db8::a/126, AS 64501).
@@ -1490,18 +1525,18 @@ func testDifferentialMemberDrainForwardingViable(t *testing.T, env *testEnv) {
 	// - /interfaces/interface[name=<Port-2|Port-3>]/state/forwarding-viable remains true
 	// - /interfaces/interface[name=<Port-1..Port-3>]/ethernet/state/aggregate-id remains Port-Channel1.
 	t.Log("RT-5.18.6 Step 2: Verifying Port-1 state/forwarding-viable == false, Port-2 & Port-3 state/forwarding-viable == true, and aggregate-id retained")
-	cfgplugins.AwaitMemberForwardingViableAndAggregateID(t, env.dut, p1.Name(), env.aggID, false, stateTimeout)
-	cfgplugins.AwaitMemberForwardingViableAndAggregateID(t, env.dut, p2.Name(), env.aggID, true, stateTimeout)
-	cfgplugins.AwaitMemberForwardingViableAndAggregateID(t, env.dut, p3.Name(), env.aggID, true, stateTimeout)
+	awaitMemberForwardingViableAndAggregateID(t, env.dut, p1.Name(), env.aggID, false, stateTimeout)
+	awaitMemberForwardingViableAndAggregateID(t, env.dut, p2.Name(), env.aggID, true, stateTimeout)
+	awaitMemberForwardingViableAndAggregateID(t, env.dut, p3.Name(), env.aggID, true, stateTimeout)
 
 	// RT-5.18.6 Step 3: Verify via gNMI that the dual-stack eBGP sessions in B2_CORE (192.0.2.10 and 2001:db8::a)
 	// remain ESTABLISHED without flapping:
 	// - /network-instances/network-instance[name=B2_CORE]/protocols/protocol[identifier=BGP][name=BGP]/bgp/neighbors/neighbor[neighbor-address=<192.0.2.10|2001:db8::a>]/state/session-state
 	t.Logf("RT-5.18.6 Step 3: Verifying inband eBGP sessions in %s (%s and %s) remain ESTABLISHED", b2CoreVRFName, ateLagVlan100IPv4, ateLagVlan100IPv6)
-	cfgplugins.AwaitBGPSessionStatus(t, env.dut, b2CoreVRFName, ateLagVlan100IPv4, true, protocolTimeout)
-	cfgplugins.AwaitBGPSessionStatus(t, env.dut, b2CoreVRFName, ateLagVlan100IPv6, true, protocolTimeout)
-	cfgplugins.AwaitBGPPrefixes(t, env.dut, b2CoreVRFName, ateLagVlan100IPv4, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, b2CoreLagBGPV4Count, b2CoreLagBGPV4Count, protocolTimeout)
-	cfgplugins.AwaitBGPPrefixes(t, env.dut, b2CoreVRFName, ateLagVlan100IPv6, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, b2CoreLagBGPV6Count, b2CoreLagBGPV6Count, protocolTimeout)
+	awaitBGPSessionStatus(t, env.dut, b2CoreVRFName, ateLagVlan100IPv4, true, protocolTimeout)
+	awaitBGPSessionStatus(t, env.dut, b2CoreVRFName, ateLagVlan100IPv6, true, protocolTimeout)
+	awaitBGPPrefixes(t, env.dut, b2CoreVRFName, ateLagVlan100IPv4, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, b2CoreLagBGPV4Count, b2CoreLagBGPV4Count, protocolTimeout)
+	awaitBGPPrefixes(t, env.dut, b2CoreVRFName, ateLagVlan100IPv6, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, b2CoreLagBGPV6Count, b2CoreLagBGPV6Count, protocolTimeout)
 
 	// RT-5.18.6 Step 4: Send continuous bidirectional IPv4 and IPv6 traffic in the B2_CORE VRF between
 	// ATE Port-4.100 and ATE Port-Channel1.100 and verify via gNMI interface counter Watch:
@@ -1520,7 +1555,7 @@ func testDifferentialMemberDrainForwardingViable(t *testing.T, env *testEnv) {
 			Timeout:       trafficTimeout,
 		})
 	}
-	cfgplugins.AwaitDifferentialMemberEgressTraffic(t, env.dut, p1.Name(), activeMembers, 20, trafficTimeout)
+	awaitDifferentialMemberEgressTraffic(t, env.dut, p1.Name(), activeMembers, 20, trafficTimeout)
 
 	// RT-5.18.6 Step 5: Restore Port-1 to the retained Access Core uplink state via gNMI.Set and verify recovery:
 	// - Set /interfaces/interface[name=Port-1]/config/forwarding-viable = true
@@ -1528,8 +1563,8 @@ func testDifferentialMemberDrainForwardingViable(t *testing.T, env *testEnv) {
 	// - Confirm egress traffic resumes across all 3 member links (Port-1, Port-2, and Port-3) with 0% steady-state loss.
 	t.Logf("RT-5.18.6 Step 5: Restoring %s config/forwarding-viable = true and verifying egress traffic resumes across all 3 member links", p1.Name())
 	cfgplugins.SetMemberForwardingViable(t, env.dut, nil, p1.Name(), env.aggID, true)
-	cfgplugins.AwaitMemberForwardingViableAndAggregateID(t, env.dut, p1.Name(), env.aggID, true, stateTimeout)
-	cfgplugins.AwaitLACPMemberState(t, env.dut, env.aggID, env.memberPorts, stateTimeout)
+	awaitMemberForwardingViableAndAggregateID(t, env.dut, p1.Name(), env.aggID, true, stateTimeout)
+	awaitLACPMemberState(t, env.dut, env.aggID, env.memberPorts, stateTimeout)
 	otgvalidationhelpers.WaitForOTGLAGUP(t, env.ate, otgvalidationhelpers.LagParams{
 		LagName:       ateLagAttrs.Name,
 		WantMembersUp: uint64(len(env.memberPorts)),
@@ -1547,7 +1582,21 @@ func testDifferentialMemberDrainForwardingViable(t *testing.T, env *testEnv) {
 		})
 	}
 	for _, p := range env.memberPorts {
-		cfgplugins.AwaitInterfaceCountersIncrement(t, env.dut, p.Name(), 10, trafficTimeout)
+		awaitInterfaceCountersIncrement(t, env.dut, p.Name(), 10, trafficTimeout)
+	}
+}
+
+func configureOTGLayer1(ate *ondatra.ATEDevice, config gosnappi.Config) {
+	var p100gbasefr []string
+	for _, p := range ate.Ports() {
+		if p.PMD() == ondatra.PMD100GBASEFR {
+			p100gbasefr = append(p100gbasefr, p.ID())
+		}
+	}
+	if len(p100gbasefr) > 0 {
+		l1Settings := config.Layer1().Add().SetName("L1").SetPortNames(p100gbasefr)
+		l1Settings.SetAutoNegotiate(true).SetIeeeMediaDefaults(false).SetSpeed("speed_100_gbps")
+		l1Settings.AutoNegotiation().SetRsFec(false)
 	}
 }
 
@@ -1561,5 +1610,475 @@ func setOTGBGPTimers(dev gosnappi.Device) {
 		for _, peer := range ipv6Intf.Peers().Items() {
 			peer.Advanced().SetHoldTimeInterval(600).SetKeepAliveInterval(200)
 		}
+	}
+}
+
+// aggregateDrainCleanupParams holds parameters for restoring the DUT to its pre-test baseline state.
+type aggregateDrainCleanupParams struct {
+	AggID          string
+	MemberPorts    []*ondatra.Port
+	TransitPort    *ondatra.Port
+	ISISInstance   string
+	LocalAS        uint32
+	NonDefaultVRF  string
+	TaggedSubIndex uint32
+}
+
+// cleanupAggregateDrainTest restores the DUT interfaces, LACP bundle, subinterfaces, and network instances
+// to their pre-test baseline state.
+func cleanupAggregateDrainTest(t *testing.T, dut *ondatra.DUTDevice, params aggregateDrainCleanupParams) {
+	t.Helper()
+	cleanupBatch := &gnmi.SetBatch{}
+	dni := deviations.DefaultNetworkInstance(dut)
+	if params.ISISInstance != "" {
+		gnmi.BatchDelete(cleanupBatch, gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, params.ISISInstance).Config())
+	}
+	gnmi.BatchDelete(cleanupBatch, gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config())
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		gnmi.BatchDelete(cleanupBatch, gnmi.OC().NetworkInstance(dni).Interface(params.AggID+".0").Config())
+		if params.TransitPort != nil {
+			gnmi.BatchDelete(cleanupBatch, gnmi.OC().NetworkInstance(dni).Interface(params.TransitPort.Name()+".0").Config())
+		}
+	}
+	if params.NonDefaultVRF != "" {
+		gnmi.BatchDelete(cleanupBatch, gnmi.OC().NetworkInstance(params.NonDefaultVRF).Config())
+	}
+	if params.TaggedSubIndex > 0 {
+		gnmi.BatchDelete(cleanupBatch, gnmi.OC().Interface(params.AggID).Subinterface(params.TaggedSubIndex).Config())
+		if params.TransitPort != nil {
+			gnmi.BatchDelete(cleanupBatch, gnmi.OC().Interface(params.TransitPort.Name()).Subinterface(params.TaggedSubIndex).Config())
+		}
+	}
+	if params.TransitPort != nil {
+		gnmi.BatchDelete(cleanupBatch, gnmi.OC().Interface(params.TransitPort.Name()).Subinterface(0).Config())
+	}
+
+	cfgplugins.ClearAggregateMembers(t, dut, cleanupBatch, params.MemberPorts)
+	gnmi.BatchDelete(cleanupBatch, gnmi.OC().Lacp().Interface(params.AggID).Config())
+	gnmi.BatchDelete(cleanupBatch, gnmi.OC().Interface(params.AggID).Config())
+
+	for _, p := range params.MemberPorts {
+		intf := &oc.Interface{}
+		intf.SetName(p.Name())
+		intf.SetType(oc.IETFInterfaces_InterfaceType_ethernetCsmacd)
+		intf.SetEnabled(true)
+		gnmi.BatchUpdate(cleanupBatch, gnmi.OC().Interface(p.Name()).Config(), intf)
+	}
+	if params.TransitPort != nil {
+		intf := &oc.Interface{}
+		intf.SetName(params.TransitPort.Name())
+		intf.SetType(oc.IETFInterfaces_InterfaceType_ethernetCsmacd)
+		intf.SetEnabled(true)
+		gnmi.BatchUpdate(cleanupBatch, gnmi.OC().Interface(params.TransitPort.Name()).Config(), intf)
+	}
+
+	cleanupBatch.Set(t, dut)
+	if deviations.ExplicitEnableBGPOnDefaultVRF(dut) {
+		cfgplugins.EnableDefaultNetworkInstanceBgp(t, dut, params.LocalAS)
+	}
+}
+
+// awaitBGPSessionStatus verifies via gNMI Watch/Await that the specified BGP neighbor in networkInstanceName
+// (or default network instance if empty) reaches the expected session state (when wantEstablished is true,
+// expects ESTABLISHED; when false, expects any state != ESTABLISHED).
+func awaitBGPSessionStatus(t *testing.T, dut *ondatra.DUTDevice, networkInstanceName, nbrAddr string, wantEstablished bool, timeout time.Duration) {
+	t.Helper()
+	niName := networkInstanceName
+	if niName == "" {
+		niName = deviations.DefaultNetworkInstance(dut)
+	}
+	statePath := gnmi.OC().NetworkInstance(niName).
+		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").
+		Bgp().Neighbor(nbrAddr).SessionState().State()
+
+	_, ok := gnmi.Watch(t, dut, statePath, timeout, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+		state, present := val.Val()
+		if wantEstablished {
+			return present && state == oc.Bgp_Neighbor_SessionState_ESTABLISHED
+		}
+		return !present || state != oc.Bgp_Neighbor_SessionState_ESTABLISHED
+	}).Await(t)
+	if !ok {
+		t.Errorf("BGP neighbor %s in VRF %s session-state did not reach wantEstablished=%v within %v (got %v)", nbrAddr, niName, wantEstablished, timeout, gnmi.Lookup(t, dut, statePath))
+	}
+}
+
+// awaitBGPPrefixes verifies via gNMI Watch/Await that the BGP neighbor AFI/SAFI prefixes in networkInstanceName
+// (or default network instance if empty) reach the expected received and installed prefix counts.
+func awaitBGPPrefixes(t *testing.T, dut *ondatra.DUTDevice, networkInstanceName, nbrAddr string, afiSafi oc.E_BgpTypes_AFI_SAFI_TYPE, wantReceived, wantInstalled uint32, timeout time.Duration) {
+	t.Helper()
+	niName := networkInstanceName
+	if niName == "" {
+		niName = deviations.DefaultNetworkInstance(dut)
+	}
+	pfxPath := gnmi.OC().NetworkInstance(niName).
+		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").
+		Bgp().Neighbor(nbrAddr).AfiSafi(afiSafi).Prefixes()
+
+	if _, ok := gnmi.Watch(t, dut, pfxPath.Received().State(), timeout, func(val *ygnmi.Value[uint32]) bool {
+		got, present := val.Val()
+		if wantReceived == 0 && !present {
+			return true
+		}
+		return present && got == wantReceived
+	}).Await(t); !ok {
+		t.Errorf("BGP neighbor %s (%v) in VRF %s prefixes/received did not reach %d within %v (got %v)",
+			nbrAddr, afiSafi, niName, wantReceived, timeout, gnmi.Lookup(t, dut, pfxPath.Received().State()))
+	}
+
+	if deviations.BGPRibOcPathUnsupported(dut) && niName != deviations.DefaultNetworkInstance(dut) {
+		return
+	}
+
+	if _, ok := gnmi.Watch(t, dut, pfxPath.Installed().State(), timeout, func(val *ygnmi.Value[uint32]) bool {
+		got, present := val.Val()
+		if wantInstalled == 0 && !present {
+			return true
+		}
+		return present && got == wantInstalled
+	}).Await(t); !ok {
+		t.Errorf("BGP neighbor %s (%v) in VRF %s prefixes/installed did not reach %d within %v (got %v)",
+			nbrAddr, afiSafi, niName, wantInstalled, timeout, gnmi.Lookup(t, dut, pfxPath.Installed().State()))
+	}
+}
+
+// awaitISISAdjacencyStatus verifies via gNMI WatchAll/Await whether an IS-IS Level-2 adjacency on the
+// specified interface is in UP state (when wantUp is true) or torn down/not UP (when wantUp is false).
+func awaitISISAdjacencyStatus(t *testing.T, dut *ondatra.DUTDevice, instanceName, intfName string, subintfIdx uint32, wantUp bool, timeout time.Duration) {
+	t.Helper()
+	dni := deviations.DefaultNetworkInstance(dut)
+	isisIntfID := cfgplugins.ISISInterfaceID(dut, intfName, subintfIdx)
+	adjStatePath := gnmi.OC().NetworkInstance(dni).
+		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, instanceName).
+		Isis().Interface(isisIntfID).Level(2).
+		AdjacencyAny().AdjacencyState().State()
+
+	if wantUp {
+		_, ok := gnmi.WatchAll(t, dut, adjStatePath, timeout, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
+			state, present := val.Val()
+			return present && state == oc.Isis_IsisInterfaceAdjState_UP
+		}).Await(t)
+		if !ok {
+			t.Errorf("IS-IS adjacency on interface %s (id=%s) did not reach UP within %v", intfName, isisIntfID, timeout)
+		}
+		return
+	}
+
+	// When wantUp is false, an adjacency may either transition to a non-UP state or be deleted from the list.
+	isisIntfPath := gnmi.OC().NetworkInstance(dni).
+		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, instanceName).
+		Isis().Interface(isisIntfID).Level(2).State()
+	_, ok := gnmi.Watch(t, dut, isisIntfPath, timeout, func(val *ygnmi.Value[*oc.NetworkInstance_Protocol_Isis_Interface_Level]) bool {
+		lvl, present := val.Val()
+		if !present || lvl == nil {
+			return true
+		}
+		for _, adj := range lvl.Adjacency {
+			if adj.GetAdjacencyState() == oc.Isis_IsisInterfaceAdjState_UP {
+				return false
+			}
+		}
+		return true
+	}).Await(t)
+	if !ok {
+		t.Errorf("IS-IS adjacency on interface %s (id=%s) remained UP after %v, want DOWN/absent", intfName, isisIntfID, timeout)
+	}
+}
+
+// awaitInterfaceAdminAndOperStatus verifies via gNMI Watch/Await that the specified interface
+// reaches the expected enabled, admin-status, and oper-status telemetry states.
+func awaitInterfaceAdminAndOperStatus(t *testing.T, dut *ondatra.DUTDevice, intfName string, wantEnabled bool, wantAdmin oc.E_Interface_AdminStatus, wantOper oc.E_Interface_OperStatus, timeout time.Duration) {
+	t.Helper()
+	intfPath := gnmi.OC().Interface(intfName)
+	if _, ok := gnmi.Watch(t, dut, intfPath.Enabled().State(), timeout, func(val *ygnmi.Value[bool]) bool {
+		got, present := val.Val()
+		return present && got == wantEnabled
+	}).Await(t); !ok {
+		t.Errorf("Interface %s enabled state did not reach %v within %v (got %v)", intfName, wantEnabled, timeout, gnmi.Lookup(t, dut, intfPath.Enabled().State()))
+	}
+	if _, ok := gnmi.Watch(t, dut, intfPath.AdminStatus().State(), timeout, func(val *ygnmi.Value[oc.E_Interface_AdminStatus]) bool {
+		got, present := val.Val()
+		return present && got == wantAdmin
+	}).Await(t); !ok {
+		t.Errorf("Interface %s admin-status did not reach %v within %v (got %v)", intfName, wantAdmin, timeout, gnmi.Lookup(t, dut, intfPath.AdminStatus().State()))
+	}
+	if _, ok := gnmi.Watch(t, dut, intfPath.OperStatus().State(), timeout, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
+		got, present := val.Val()
+		return present && got == wantOper
+	}).Await(t); !ok {
+		t.Errorf("Interface %s oper-status did not reach %v within %v (got %v)", intfName, wantOper, timeout, gnmi.Lookup(t, dut, intfPath.OperStatus().State()))
+	}
+}
+
+// awaitAggregateState verifies via gNMI Watch/Await that the aggregate interface reports the expected lag-type.
+func awaitAggregateState(t *testing.T, dut *ondatra.DUTDevice, aggID string, wantLagType oc.E_IfAggregate_AggregationType, timeout time.Duration) {
+	t.Helper()
+	aggPath := gnmi.OC().Interface(aggID).Aggregation()
+	if _, ok := gnmi.Watch(t, dut, aggPath.LagType().State(), timeout, func(val *ygnmi.Value[oc.E_IfAggregate_AggregationType]) bool {
+		got, present := val.Val()
+		return present && got == wantLagType
+	}).Await(t); !ok {
+		t.Errorf("Interface %s aggregation lag-type did not reach %v within %v (got %v)", aggID, wantLagType, timeout, gnmi.Lookup(t, dut, aggPath.LagType().State()))
+	}
+}
+
+// awaitMemberForwardingViableAndAggregateID verifies via gNMI Watch/Await that a LAG member port
+// reports the expected forwarding-viable state and ethernet aggregate-id.
+func awaitMemberForwardingViableAndAggregateID(t *testing.T, dut *ondatra.DUTDevice, portName, wantAggID string, wantViable bool, timeout time.Duration) {
+	t.Helper()
+	intfPath := gnmi.OC().Interface(portName)
+	if _, ok := gnmi.Watch(t, dut, intfPath.ForwardingViable().State(), timeout, func(val *ygnmi.Value[bool]) bool {
+		got, present := val.Val()
+		if !present {
+			return deviations.MissingValueForDefaults(dut) && wantViable
+		}
+		return got == wantViable
+	}).Await(t); !ok {
+		t.Errorf("Interface %s forwarding-viable did not reach %v within %v (got %v)", portName, wantViable, timeout, gnmi.Lookup(t, dut, intfPath.ForwardingViable().State()))
+	}
+	if _, ok := gnmi.Watch(t, dut, intfPath.Ethernet().AggregateId().State(), timeout, func(val *ygnmi.Value[string]) bool {
+		got, present := val.Val()
+		return present && got == wantAggID
+	}).Await(t); !ok {
+		t.Errorf("Interface %s ethernet aggregate-id did not reach %q within %v (got %v)", portName, wantAggID, timeout, gnmi.Lookup(t, dut, intfPath.Ethernet().AggregateId().State()))
+	}
+}
+
+// awaitLACPMemberState verifies via gNMI Watch/Await that all specified LAG member ports report
+// ACTIVE activity, aggregatable=true, collecting=true, distributing=true, and synchronization=IN_SYNC.
+func awaitLACPMemberState(t *testing.T, dut *ondatra.DUTDevice, aggID string, memberPorts []*ondatra.Port, timeout time.Duration) {
+	t.Helper()
+	if len(memberPorts) == 0 {
+		t.Fatalf("awaitLACPMemberState: memberPorts slice cannot be empty")
+	}
+	lacpIntfPath := gnmi.OC().Lacp().Interface(aggID)
+	batch := gnmi.OCBatch()
+	for _, p := range memberPorts {
+		mPath := lacpIntfPath.Member(p.Name())
+		batch.AddPaths(
+			mPath.Activity(),
+			mPath.Aggregatable(),
+			mPath.Collecting(),
+			mPath.Distributing(),
+			mPath.Synchronization(),
+		)
+	}
+	if _, ok := gnmi.Watch(t, dut, batch.State(), timeout, func(val *ygnmi.Value[*oc.Root]) bool {
+		root, present := val.Val()
+		if !present || root == nil {
+			return false
+		}
+		lacpIntf := root.GetLacp().GetInterface(aggID)
+		if lacpIntf == nil {
+			return false
+		}
+		for _, p := range memberPorts {
+			m := lacpIntf.GetMember(p.Name())
+			if m == nil {
+				return false
+			}
+			if m.GetActivity() != oc.Lacp_LacpActivityType_ACTIVE ||
+				!m.GetAggregatable() ||
+				!m.GetCollecting() ||
+				!m.GetDistributing() ||
+				m.GetSynchronization() != oc.Lacp_LacpSynchronizationType_IN_SYNC {
+				return false
+			}
+		}
+		return true
+	}).Await(t); !ok {
+		t.Errorf("LACP members %v on %s did not all reach (ACTIVE, aggregatable, collecting, distributing, IN_SYNC) within %v", memberPorts, aggID, timeout)
+	}
+}
+
+// awaitInterfaceCountersIncrement watches /interfaces/interface/state/counters/in-unicast-pkts
+// (or in-pkts), out-unicast-pkts (or out-pkts), in-octets, and out-octets on the specified
+// interface until packet and octet counters increment by at least minPktDelta.
+func awaitInterfaceCountersIncrement(t *testing.T, dut *ondatra.DUTDevice, intfName string, minPktDelta uint64, timeout time.Duration) {
+	t.Helper()
+	cntPath := gnmi.OC().Interface(intfName).Counters()
+	batch := gnmi.OCBatch()
+	batch.AddPaths(
+		cntPath.InUnicastPkts(),
+		cntPath.OutUnicastPkts(),
+		cntPath.InPkts(),
+		cntPath.OutPkts(),
+		cntPath.InOctets(),
+		cntPath.OutOctets(),
+	)
+
+	isMemberPort := gnmi.Lookup(t, dut, gnmi.OC().Interface(intfName).Ethernet().AggregateId().State()).IsPresent()
+	inRequiredDelta := minPktDelta
+	if isMemberPort {
+		// Hardware ATE LAGs may hash reverse device-bound traffic from a single source MAC onto one member link,
+		// while DUT egress load-balancing distributes OutUnicastPkts across all active member links.
+		inRequiredDelta = 0
+	}
+
+	var baseInUcast, baseInPkts, baseOutUcast, baseOutPkts, baseInOct, baseOutOct uint64
+	var baseInUcastSet, baseInPktsSet, baseOutUcastSet, baseOutPktsSet, baseInOctSet, baseOutOctSet bool
+	var inPktsOk, outPktsOk, inOctOk, outOctOk bool
+
+	_, ok := gnmi.Watch(t, dut, batch.State(), timeout, func(val *ygnmi.Value[*oc.Root]) bool {
+		root, present := val.Val()
+		if !present || root == nil {
+			return false
+		}
+		intf := root.GetInterface(intfName)
+		if intf == nil || intf.Counters == nil {
+			return false
+		}
+		c := intf.Counters
+		if c.InUnicastPkts != nil && !baseInUcastSet {
+			baseInUcast = *c.InUnicastPkts
+			baseInUcastSet = true
+		}
+		if c.InPkts != nil && !baseInPktsSet {
+			baseInPkts = *c.InPkts
+			baseInPktsSet = true
+		}
+		if c.OutUnicastPkts != nil && !baseOutUcastSet {
+			baseOutUcast = *c.OutUnicastPkts
+			baseOutUcastSet = true
+		}
+		if c.OutPkts != nil && !baseOutPktsSet {
+			baseOutPkts = *c.OutPkts
+			baseOutPktsSet = true
+		}
+		if c.InOctets != nil && !baseInOctSet {
+			baseInOct = *c.InOctets
+			baseInOctSet = true
+		}
+		if c.OutOctets != nil && !baseOutOctSet {
+			baseOutOct = *c.OutOctets
+			baseOutOctSet = true
+		}
+		inReady := inRequiredDelta == 0 || ((baseInUcastSet || baseInPktsSet) && baseInOctSet)
+		outReady := (baseOutUcastSet || baseOutPktsSet) && baseOutOctSet
+		return inReady && outReady
+	}).Await(t)
+	if !ok {
+		t.Errorf("Interface %s baseline counters not present within %v", intfName, timeout)
+		return
+	}
+
+	_, ok = gnmi.Watch(t, dut, batch.State(), timeout, func(val *ygnmi.Value[*oc.Root]) bool {
+		root, present := val.Val()
+		if !present || root == nil {
+			return false
+		}
+		intf := root.GetInterface(intfName)
+		if intf == nil || intf.Counters == nil {
+			return false
+		}
+		c := intf.Counters
+		if c.InUnicastPkts != nil && baseInUcastSet && *c.InUnicastPkts >= baseInUcast+inRequiredDelta {
+			inPktsOk = true
+		}
+		if c.InPkts != nil && baseInPktsSet && *c.InPkts >= baseInPkts+inRequiredDelta {
+			inPktsOk = true
+		}
+		if c.OutUnicastPkts != nil && baseOutUcastSet && *c.OutUnicastPkts >= baseOutUcast+minPktDelta {
+			outPktsOk = true
+		}
+		if c.OutPkts != nil && baseOutPktsSet && *c.OutPkts >= baseOutPkts+minPktDelta {
+			outPktsOk = true
+		}
+		if c.InOctets != nil && baseInOctSet && *c.InOctets > baseInOct {
+			inOctOk = true
+		}
+		if c.OutOctets != nil && baseOutOctSet && *c.OutOctets > baseOutOct {
+			outOctOk = true
+		}
+
+		inOk := inRequiredDelta == 0 || (inPktsOk && inOctOk)
+		outOk := outPktsOk && outOctOk
+		return inOk && outOk
+	}).Await(t)
+
+	if !ok {
+		t.Errorf("Interface %s counters did not increment within %v", intfName, timeout)
+	}
+}
+
+// awaitDifferentialMemberEgressTraffic verifies via gNMI Watch that when drainedPort has forwarding-viable=false,
+// its out-unicast-pkts rate drops to 0 while activePorts carry 100% of egress routed traffic.
+func awaitDifferentialMemberEgressTraffic(t *testing.T, dut *ondatra.DUTDevice, drainedPort string, activePorts []*ondatra.Port, minActiveDelta uint64, timeout time.Duration) {
+	t.Helper()
+	if len(activePorts) == 0 {
+		t.Fatalf("awaitDifferentialMemberEgressTraffic: activePorts slice cannot be empty")
+	}
+	batch := gnmi.OCBatch()
+	batch.AddPaths(gnmi.OC().Interface(drainedPort).Counters().OutUnicastPkts())
+	for _, ap := range activePorts {
+		batch.AddPaths(gnmi.OC().Interface(ap.Name()).Counters().OutUnicastPkts())
+	}
+
+	var baseDrained uint64
+	baseActive := make(map[string]uint64)
+
+	_, ok := gnmi.Watch(t, dut, batch.State(), timeout, func(val *ygnmi.Value[*oc.Root]) bool {
+		root, present := val.Val()
+		if !present || root == nil {
+			return false
+		}
+		drainedIntf := root.GetInterface(drainedPort)
+		if drainedIntf == nil || drainedIntf.Counters == nil || drainedIntf.Counters.OutUnicastPkts == nil {
+			return false
+		}
+		for _, ap := range activePorts {
+			ai := root.GetInterface(ap.Name())
+			if ai == nil || ai.Counters == nil || ai.Counters.OutUnicastPkts == nil {
+				return false
+			}
+			baseActive[ap.Name()] = ai.GetCounters().GetOutUnicastPkts()
+		}
+		baseDrained = drainedIntf.GetCounters().GetOutUnicastPkts()
+		return true
+	}).Await(t)
+	if !ok {
+		t.Errorf("Baseline out-unicast-pkts counters not present on drained port %s or active ports %v within %v", drainedPort, activePorts, timeout)
+		return
+	}
+
+	_, ok = gnmi.Watch(t, dut, batch.State(), timeout, func(val *ygnmi.Value[*oc.Root]) bool {
+		root, present := val.Val()
+		if !present || root == nil {
+			return false
+		}
+		drainedIntf := root.GetInterface(drainedPort)
+		if drainedIntf == nil || drainedIntf.Counters == nil || drainedIntf.Counters.OutUnicastPkts == nil {
+			return false
+		}
+		curDrained := drainedIntf.GetCounters().GetOutUnicastPkts()
+
+		curActive := make(map[string]uint64)
+		for _, ap := range activePorts {
+			ai := root.GetInterface(ap.Name())
+			if ai == nil || ai.Counters == nil || ai.Counters.OutUnicastPkts == nil {
+				return false
+			}
+			curActive[ap.Name()] = ai.GetCounters().GetOutUnicastPkts()
+		}
+
+		for _, ap := range activePorts {
+			if curActive[ap.Name()] < baseActive[ap.Name()]+minActiveDelta {
+				return false
+			}
+		}
+
+		if curDrained == baseDrained {
+			return true
+		}
+
+		baseDrained = curDrained
+		for k, v := range curActive {
+			baseActive[k] = v
+		}
+		return false
+	}).Await(t)
+
+	if !ok {
+		t.Errorf("Drained member port %s continued transmitting out-unicast-pkts or active ports %v did not increment within %v", drainedPort, activePorts, timeout)
 	}
 }

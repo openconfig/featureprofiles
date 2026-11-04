@@ -385,12 +385,12 @@ func AwaitFlowSteadyState(t *testing.T, ate *ondatra.ATEDevice, params SteadySta
 
 	flowPath := gnmi.OTG().Flow(params.FlowName).Counters().State()
 	var baseSet bool
-	var baseTx, baseRx uint64
+	var baseTx, baseRx, lastTx uint64
 	var baseTime time.Time
 
 	_, ok := gnmi.Watch(t, ate.OTG(), flowPath, timeout, func(val *ygnmi.Value[*otg.Flow_Counters]) bool {
 		cnt, present := val.Val()
-		if !present || cnt == nil {
+		if !present || cnt == nil || cnt.OutPkts == nil || cnt.InPkts == nil {
 			return false
 		}
 		tx := cnt.GetOutPkts()
@@ -398,13 +398,21 @@ func AwaitFlowSteadyState(t *testing.T, ate *ondatra.ATEDevice, params SteadySta
 		if tx == 0 && (params.WantZeroLoss || params.WantComplete || params.MaxLossPct < 100) {
 			return false
 		}
-		if !baseSet {
+		if !baseSet || tx < baseTx || rx < baseRx {
 			baseTx = tx
 			baseRx = rx
+			lastTx = tx
 			baseTime = time.Now()
 			baseSet = true
 			return false
 		}
+		// In ygnmi, Flow_Counters leaves unmarshal in alphabetical order (in-octets, in-pkts,
+		// out-octets, out-pkts). When traffic is actively transmitting, evaluate once out-pkts (tx)
+		// advances so rx and tx reflect the same poll snapshot.
+		if params.WantZeroLoss && tx == lastTx && time.Since(baseTime) < 5*time.Second {
+			return false
+		}
+		lastTx = tx
 		deltaTx := tx - baseTx
 		deltaRx := rx - baseRx
 
@@ -512,10 +520,18 @@ func AreFlowsTransmitting(t *testing.T, ate *ondatra.ATEDevice, flowNames []stri
 			}
 			tx := cnt.GetOutPkts()
 			rx := cnt.GetInPkts()
+			// If StartTraffic reset the counters after baseTx was sampled from the gNMI cache,
+			// re-baseline to the post-reset counters.
+			if tx < lastTx || tx < baseTx || rx < baseRx {
+				baseTx = tx
+				baseRx = rx
+				lastTx = tx
+				return false
+			}
 			// In ygnmi, Flow_Counters leaves unmarshal in alphabetical order (in-octets, in-pkts,
 			// out-octets, out-pkts). Only evaluate once out-pkts (tx) advances so rx and tx reflect
 			// the same poll snapshot.
-			if tx <= lastTx {
+			if tx == lastTx {
 				return false
 			}
 			lastTx = tx
@@ -524,7 +540,12 @@ func AreFlowsTransmitting(t *testing.T, ate *ondatra.ATEDevice, flowNames []stri
 			}
 			deltaTx := tx - baseTx
 			deltaRx := rx - baseRx
-			return deltaRx*10 >= deltaTx*9
+			if deltaRx*10 >= deltaTx*9 {
+				return true
+			}
+			baseTx = tx
+			baseRx = rx
+			return false
 		}).Await(t); !ok {
 			return false
 		}

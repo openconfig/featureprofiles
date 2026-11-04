@@ -5,14 +5,12 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -395,47 +393,4 @@ func ConfigureISISProtocol(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBat
 	protoPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, params.InstanceName)
 	gnmi.BatchUpdate(sb, protoPath.Config(), proto)
 	return sb
-}
-
-// AwaitISISAdjacencyStatus verifies via gNMI WatchAll/Await whether an IS-IS Level-2 adjacency on the
-// specified interface is in UP state (when wantUp is true) or torn down/not UP (when wantUp is false).
-func AwaitISISAdjacencyStatus(t *testing.T, dut *ondatra.DUTDevice, instanceName, intfName string, subintfIdx uint32, wantUp bool, timeout time.Duration) {
-	t.Helper()
-	dni := deviations.DefaultNetworkInstance(dut)
-	isisIntfID := ISISInterfaceID(dut, intfName, subintfIdx)
-	adjStatePath := gnmi.OC().NetworkInstance(dni).
-		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, instanceName).
-		Isis().Interface(isisIntfID).Level(2).
-		AdjacencyAny().AdjacencyState().State()
-
-	if wantUp {
-		_, ok := gnmi.WatchAll(t, dut, adjStatePath, timeout, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
-			state, present := val.Val()
-			return present && state == oc.Isis_IsisInterfaceAdjState_UP
-		}).Await(t)
-		if !ok {
-			t.Errorf("IS-IS adjacency on interface %s (id=%s) did not reach UP within %v", intfName, isisIntfID, timeout)
-		}
-		return
-	}
-
-	// When wantUp is false, an adjacency may either transition to a non-UP state or be deleted from the list.
-	isisIntfPath := gnmi.OC().NetworkInstance(dni).
-		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, instanceName).
-		Isis().Interface(isisIntfID).Level(2).State()
-	_, ok := gnmi.Watch(t, dut, isisIntfPath, timeout, func(val *ygnmi.Value[*oc.NetworkInstance_Protocol_Isis_Interface_Level]) bool {
-		lvl, present := val.Val()
-		if !present || lvl == nil {
-			return true
-		}
-		for _, adj := range lvl.Adjacency {
-			if adj.GetAdjacencyState() == oc.Isis_IsisInterfaceAdjState_UP {
-				return false
-			}
-		}
-		return true
-	}).Await(t)
-	if !ok {
-		t.Errorf("IS-IS adjacency on interface %s (id=%s) remained UP after %v, want DOWN/absent", intfName, isisIntfID, timeout)
-	}
 }
