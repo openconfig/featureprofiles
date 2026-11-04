@@ -2,7 +2,12 @@
 
 ## Summary
 
-Test basic encapsulation and decapsulation behaviors, including DSCP, TTL, and Explicit Congestion Notification (ECN) bit management during IP-in-IP encapsulation and congestion propagation during decapsulation.
+Test basic encapsulation and decapsulation behaviors, including DSCP, TTL, and
+Explicit Congestion Notification (ECN) bit management during IP-in-IP
+encapsulation, congestion propagation during decapsulation, and simultaneous
+gNMI `SAMPLE` streaming telemetry and counter accuracy for gRIBI IP-in-IP
+encapsulation tunnel next-hop counters and subinterface/interface IPv4 and IPv6
+egress/ingress counters.
 
 ## Topology
 
@@ -251,7 +256,7 @@ network-instances {
     behavior.
 
 ```
-IPv6Entry {2015:aa8::/32 (ENCAP_TE_VRF_A)} -> NHG#10 (DEFAULT VRF)
+IPv6Entry {2015:aa8::/64 (ENCAP_TE_VRF_A)} -> NHG#10 (DEFAULT VRF)
 IPv4Entry {138.0.11.0/24 (ENCAP_TE_VRF_A)} -> NHG#10 (DEFAULT VRF) -> {
   {NH#201, DEFAULT VRF, weight:1},
   {NH#202, DEFAULT VRF, weight:3},
@@ -458,10 +463,563 @@ Platform compliance in this test suite:
 *   **Decapsulation**:
     *   All tested platforms (including Juniper) propagate outer tunnel congestion (`CE = 11`) to the decapsulated inner packet per RFC 6040 decapsulation rules.
 
+#### Test-6, Simultaneous IP-in-IP Encapsulation Tunnel and Subinterface Egress Streaming Telemetry Counters Validation
+
+Validate that enabling and streaming both gRIBI IP-in-IP encapsulation tunnel
+next-hop counters and subinterface/interface IPv4 and IPv6 egress and ingress
+counters simultaneously operates without feature conflict, counter suppression,
+or stale (`0`) counter updates during 4in4 and 6in4 encapsulation:
+
+1.  **Baseline Setup and Simultaneous gNMI `SAMPLE` Streaming Subscriptions**:
+    *   Ensure the baseline VRF selection policy (`vrf_selection_policy_c`) on
+        DUT `port-1` and the gRIBI IP-in-IP encapsulation AFT hierarchy
+        (`NH#201` with `dst_ip = 203.0.113.1`, weight `1` and `NH#202` with
+        `dst_ip = 203.0.113.2`, weight `3` in `NHG#10`, resolving recursively
+        out `port-2`, `port-3`, `port-4`, and `port-5`) are programmed and
+        `FIB_PROGRAMMED`.
+    *   Establish a single gNMI `Subscribe` session in `STREAM` mode with
+        `SubscriptionMode: SAMPLE` (at `sample_interval = 10s`) containing
+        IP-in-IP encapsulation tunnel counters and interface/subinterface
+        counter paths as follows:
+        *   **gRIBI IP-in-IP Encapsulation Tunnel Next-Hop & AFT Entry Counter Paths**:
+            *   `/network-instances/network-instance[name=DEFAULT]/afts/next-hops/next-hop[index=201]/state/counters/packets-forwarded`
+            *   `/network-instances/network-instance[name=DEFAULT]/afts/next-hops/next-hop[index=201]/state/counters/octets-forwarded`
+            *   `/network-instances/network-instance[name=DEFAULT]/afts/next-hops/next-hop[index=202]/state/counters/packets-forwarded`
+            *   `/network-instances/network-instance[name=DEFAULT]/afts/next-hops/next-hop[index=202]/state/counters/octets-forwarded`
+            *   `/network-instances/network-instance[name=ENCAP_TE_VRF_A]/afts/ipv4-unicast/ipv4-entry[prefix=138.0.11.0/24]/state/counters/packets-forwarded`
+            *   `/network-instances/network-instance[name=ENCAP_TE_VRF_A]/afts/ipv4-unicast/ipv4-entry[prefix=138.0.11.0/24]/state/counters/octets-forwarded`
+            *   `/network-instances/network-instance[name=ENCAP_TE_VRF_A]/afts/ipv6-unicast/ipv6-entry[prefix=2015:aa8::/64]/state/counters/packets-forwarded`
+            *   `/network-instances/network-instance[name=ENCAP_TE_VRF_A]/afts/ipv6-unicast/ipv6-entry[prefix=2015:aa8::/64]/state/counters/octets-forwarded`
+        *   **Subinterface IPv4 and IPv6 Egress and Ingress Counter Paths** (on
+            ingress `port-1` `subinterface 0` and egress `port-2`, `port-3`,
+            `port-4`, `port-5` `subinterface 0`):
+            *   `/interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-pkts`
+            *   `/interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-forwarded-octets`
+            *   `/interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-pkts`
+            *   `/interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-forwarded-octets`
+            *   `/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-pkts`
+            *   `/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-forwarded-octets`
+            *   `/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-pkts`
+            *   `/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-forwarded-octets`
+        *   **Physical Interface Egress and Ingress Counter Paths** (on ingress
+            `port-1` and egress `port-2`, `port-3`, `port-4`, `port-5`):
+            *   `/interfaces/interface/state/counters/out-pkts`
+            *   `/interfaces/interface/state/counters/out-octets`
+            *   `/interfaces/interface/state/counters/in-pkts`
+            *   `/interfaces/interface/state/counters/in-octets`
+    *   Record initial baseline counter readings (`C_before`) from the
+        initial streaming sample updates (and via `gNMI.Get`) prior to starting
+        traffic.
+2.  **Sustained Encapsulated Traffic Transmission (4in4 and 6in4)**:
+    *   From ATE `port-1`, transmit continuous dual-stack traffic matching
+        `vrf_selection_policy_c` (`dscp = dscp_encap_a_1 = 10` ->
+        `ENCAP_TE_VRF_A`) for at least `30` seconds (`30,000` packets per flow,
+        sufficient to collect at least `3` non-zero periodic `SAMPLE` updates):
+        *   **IPv4 Flow (4in4 Encap)**: Source IPv4 `192.0.2.2`, destination
+            IPv4 `138.0.11.8`, DSCP `10`, frame size `512` bytes, rate
+            `1,000 pps`.
+        *   **IPv6 Flow (6in4 Encap)**: Source IPv6 `2001:db8::192:0:2:2`,
+            destination IPv6 `2015:aa8::1`, DSCP `10`, frame size `512` bytes,
+            rate `1,000 pps`.
+3.  **Periodic Streaming Telemetry & Simultaneous Feature Coexistence Verification**:
+    *   While traffic is actively flowing, verify that the DUT emits periodic
+        `SAMPLE` telemetry updates at the configured interval for the
+        gRIBI IP-in-IP encapsulation tunnel next-hops (`NH#201` and `NH#202`),
+        physical interfaces (`port-1` through `port-5`), and subinterfaces
+        (`port-2` through `port-5` `subinterface 0`
+        `ipv4/state/counters/out-pkts` and `out-forwarded-octets`, and ingress
+        `port-1` `subinterface 0` `ipv4/state/counters/in-pkts`,
+        `in-forwarded-octets` and `ipv6/state/counters/in-pkts`,
+        `in-forwarded-octets`).
+    *   Verify that enabling IP-in-IP encapsulation tunnel counters does **not**
+        cause subinterface IPv4/IPv6 or physical interface egress counters
+        (`out-pkts`, `out-forwarded-octets`, `out-octets`) to freeze or report
+        stale (`0` rate/delta) values, and conversely that enabling
+        subinterface/interface counters does not suppress IP-in-IP tunnel
+        counter updates.
+    *   Verify that consecutive streaming sample updates (`S_1, S_2, ..., S_k`)
+        for active counters are monotonically non-decreasing (`S_1 <= S_2 <= ... <= S_k`)
+        with at least `2` distinct positive step increases during traffic
+        transmission.
+4.  **Post-Traffic Counter Delta & Hierarchical Distribution Accuracy**:
+    *   Stop traffic on ATE `port-1`, wait for at least one full
+        `sample_interval` after traffic cessation to receive final settled
+        streaming counter values (`C_after`), and validate:
+        *   **IP-in-IP Encap Tunnel Next-Hop Counters**:
+            *   The combined packet delta across `NH#201` and `NH#202`
+                (`delta_NH201_pkts + delta_NH202_pkts`) equals the total
+                encapsulated packets transmitted across the 4in4 and 6in4 flows
+                (`N_tx_v4 + N_tx_v6`, within `+/- 1%` tolerance for
+                control-plane packets).
+            *   Individual tunnel next-hop packet and octet deltas reflect the
+                configured `1:3` WCMP weights on `NHG#10`: `delta_NH201` is
+                approximately `25%` (`+/- 5%`) and `delta_NH202` is
+                approximately `75%` (`+/- 5%`) of total encapsulated traffic.
+        *   **Subinterface and Physical Interface Egress Counters**:
+            *   Because both 4in4 and 6in4 encapsulated packets egress the DUT
+                with an outer IPv4 tunnel header, the sum of egress subinterface
+                IPv4 packet deltas (`ipv4/state/counters/out-pkts`) across DUT
+                `port-2` through `port-5`, as well as the sum of physical
+                interface egress packet deltas (`state/counters/out-pkts`)
+                across those same ports, each independently equals the total
+                encapsulated packets received on ATE `port-2` through `port-5`
+                (`N_rx_total = N_tx_v4 + N_tx_v6`).
+            *   The sum of egress subinterface IPv4 forwarded octet deltas
+                (`ipv4/state/counters/out-forwarded-octets`) and the sum of
+                physical interface egress octet deltas
+                (`state/counters/out-octets`) across `port-2` through `port-5`
+                match the total outer IPv4 encapsulated octets (L3 or L2 frame
+                octets) forwarded across `port-2` through `port-5`.
+            *   Per-port physical interface egress counter deltas
+                (`state/counters/out-pkts`) and per-port egress subinterface
+                IPv4 counter deltas (`ipv4/state/counters/out-pkts`) on `port-2`,
+                `port-3`, `port-4`, and `port-5` match the expected
+                hierarchical WCMP distribution (`6.25%`, `18.75%`, `30%`, and
+                `45%` with `+/- 2%` tolerance).
+            *   For native IPv6 egress validation (when native IPv6 traffic is
+                forwarded out `port-2` via the `::/0` fallback route in
+                `ENCAP_TE_VRF_A` -> `NHG#3000` -> `NHG#3002`),
+                `/interfaces/interface[name=port-2]/subinterfaces/subinterface[index=0]/ipv6/state/counters/out-pkts`
+                and `out-forwarded-octets` increment monotonically via `SAMPLE`
+                streaming updates and match the native IPv6 packets and octets
+                received on ATE `port-2`.
+        *   **Ingress Subinterface and Physical Interface Counters & Post-Traffic Stability**:
+            *   Ingress subinterface counters on DUT `port-1`
+                (`ipv4/state/counters/in-pkts`, `in-forwarded-octets` and
+                `ipv6/state/counters/in-pkts`, `in-forwarded-octets`) equal the
+                respective native IPv4 (`N_tx_v4`) and IPv6 (`N_tx_v6`) packets
+                and octets sent by ATE `port-1`, and physical interface ingress
+                counters on `port-1` (`state/counters/in-pkts`) equal the total
+                packets sent (`N_tx_v4 + N_tx_v6`).
+            *   Subsequent streaming sample updates after traffic stops remain
+                stable with no stale backlog or unexpected counter drift.
+
 ## Canonical OC
 
 ```json
-{}
+{
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "dutPort1",
+          "enabled": true,
+          "name": "Ethernet1",
+          "type": "iana-if-type:ethernetCsmacd"
+        },
+        "ethernet": {
+          "config": {
+            "mac-address": "02:01:00:00:00:01"
+          }
+        },
+        "name": "Ethernet1",
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "config": {
+                "enabled": true,
+                "index": 0
+              },
+              "index": 0,
+              "ipv4": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "192.0.2.1",
+                        "prefix-length": 30
+                      },
+                      "ip": "192.0.2.1"
+                    }
+                  ]
+                },
+                "config": {
+                  "enabled": true
+                }
+              },
+              "ipv6": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "2001:db8::192:0:2:1",
+                        "prefix-length": 126
+                      },
+                      "ip": "2001:db8::192:0:2:1"
+                    }
+                  ]
+                },
+                "config": {
+                  "enabled": true
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "config": {
+          "description": "dutPort2",
+          "enabled": true,
+          "name": "Ethernet2",
+          "type": "iana-if-type:ethernetCsmacd"
+        },
+        "name": "Ethernet2",
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "config": {
+                "enabled": true,
+                "index": 0
+              },
+              "index": 0,
+              "ipv4": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "192.0.2.5",
+                        "prefix-length": 30
+                      },
+                      "ip": "192.0.2.5"
+                    }
+                  ]
+                },
+                "config": {
+                  "enabled": true
+                }
+              },
+              "ipv6": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "2001:db8::192:0:2:5",
+                        "prefix-length": 126
+                      },
+                      "ip": "2001:db8::192:0:2:5"
+                    }
+                  ]
+                },
+                "config": {
+                  "enabled": true
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "config": {
+          "description": "dutPort3",
+          "enabled": true,
+          "name": "Ethernet3",
+          "type": "iana-if-type:ethernetCsmacd"
+        },
+        "name": "Ethernet3",
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "config": {
+                "enabled": true,
+                "index": 0
+              },
+              "index": 0,
+              "ipv4": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "192.0.2.9",
+                        "prefix-length": 30
+                      },
+                      "ip": "192.0.2.9"
+                    }
+                  ]
+                },
+                "config": {
+                  "enabled": true
+                }
+              },
+              "ipv6": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "2001:db8::192:0:2:9",
+                        "prefix-length": 126
+                      },
+                      "ip": "2001:db8::192:0:2:9"
+                    }
+                  ]
+                },
+                "config": {
+                  "enabled": true
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "config": {
+          "description": "dutPort4",
+          "enabled": true,
+          "name": "Ethernet4",
+          "type": "iana-if-type:ethernetCsmacd"
+        },
+        "name": "Ethernet4",
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "config": {
+                "enabled": true,
+                "index": 0
+              },
+              "index": 0,
+              "ipv4": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "192.0.2.13",
+                        "prefix-length": 30
+                      },
+                      "ip": "192.0.2.13"
+                    }
+                  ]
+                },
+                "config": {
+                  "enabled": true
+                }
+              },
+              "ipv6": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "2001:db8::192:0:2:d",
+                        "prefix-length": 126
+                      },
+                      "ip": "2001:db8::192:0:2:d"
+                    }
+                  ]
+                },
+                "config": {
+                  "enabled": true
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "config": {
+          "description": "dutPort5",
+          "enabled": true,
+          "name": "Ethernet5",
+          "type": "iana-if-type:ethernetCsmacd"
+        },
+        "name": "Ethernet5",
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "config": {
+                "enabled": true,
+                "index": 0
+              },
+              "index": 0,
+              "ipv4": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "192.0.2.17",
+                        "prefix-length": 30
+                      },
+                      "ip": "192.0.2.17"
+                    }
+                  ]
+                },
+                "config": {
+                  "enabled": true
+                }
+              },
+              "ipv6": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "2001:db8::192:0:2:11",
+                        "prefix-length": 126
+                      },
+                      "ip": "2001:db8::192:0:2:11"
+                    }
+                  ]
+                },
+                "config": {
+                  "enabled": true
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "network-instances": {
+    "network-instance": [
+      {
+        "config": {
+          "name": "DEFAULT",
+          "type": "openconfig-network-instance-types:DEFAULT_INSTANCE"
+        },
+        "name": "DEFAULT",
+        "policy-forwarding": {
+          "interfaces": {
+            "interface": [
+              {
+                "config": {
+                  "apply-vrf-selection-policy": "vrf_selection_policy_c",
+                  "interface-id": "Ethernet1"
+                },
+                "interface-id": "Ethernet1",
+                "interface-ref": {
+                  "config": {
+                    "interface": "Ethernet1",
+                    "subinterface": 0
+                  }
+                }
+              }
+            ]
+          },
+          "policies": {
+            "policy": [
+              {
+                "config": {
+                  "policy-id": "vrf_selection_policy_c",
+                  "type": "VRF_SELECTION_POLICY"
+                },
+                "policy-id": "vrf_selection_policy_c",
+                "rules": {
+                  "rule": [
+                    {
+                      "action": {
+                        "config": {
+                          "decap-fallback-network-instance": "TE_VRF_111",
+                          "decap-network-instance": "DECAP_TE_VRF",
+                          "post-decap-network-instance": "ENCAP_TE_VRF_A"
+                        }
+                      },
+                      "config": {
+                        "sequence-id": 3
+                      },
+                      "ipv4": {
+                        "config": {
+                          "dscp-set": [
+                            10,
+                            18
+                          ],
+                          "protocol": 4,
+                          "source-address": "198.51.100.111/32"
+                        }
+                      },
+                      "sequence-id": 3
+                    },
+                    {
+                      "action": {
+                        "config": {
+                          "network-instance": "ENCAP_TE_VRF_A"
+                        }
+                      },
+                      "config": {
+                        "sequence-id": 13
+                      },
+                      "ipv4": {
+                        "config": {
+                          "dscp-set": [
+                            10,
+                            18
+                          ]
+                        }
+                      },
+                      "sequence-id": 13
+                    },
+                    {
+                      "action": {
+                        "config": {
+                          "network-instance": "ENCAP_TE_VRF_A"
+                        }
+                      },
+                      "config": {
+                        "sequence-id": 14
+                      },
+                      "ipv6": {
+                        "config": {
+                          "dscp-set": [
+                            10,
+                            18
+                          ]
+                        }
+                      },
+                      "sequence-id": 14
+                    },
+                    {
+                      "action": {
+                        "config": {
+                          "network-instance": "DEFAULT"
+                        }
+                      },
+                      "config": {
+                        "sequence-id": 17
+                      },
+                      "sequence-id": 17
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "config": {
+          "name": "DECAP_TE_VRF",
+          "type": "openconfig-network-instance-types:L3VRF"
+        },
+        "name": "DECAP_TE_VRF"
+      },
+      {
+        "config": {
+          "name": "TE_VRF_111",
+          "type": "openconfig-network-instance-types:L3VRF"
+        },
+        "name": "TE_VRF_111"
+      },
+      {
+        "config": {
+          "name": "TE_VRF_222",
+          "type": "openconfig-network-instance-types:L3VRF"
+        },
+        "name": "TE_VRF_222"
+      },
+      {
+        "config": {
+          "name": "ENCAP_TE_VRF_A",
+          "type": "openconfig-network-instance-types:L3VRF"
+        },
+        "name": "ENCAP_TE_VRF_A"
+      },
+      {
+        "config": {
+          "name": "ENCAP_TE_VRF_B",
+          "type": "openconfig-network-instance-types:L3VRF"
+        },
+        "name": "ENCAP_TE_VRF_B"
+      }
+    ]
+  }
+}
 ```
 
 ## Config Parameter Coverage
@@ -493,12 +1051,39 @@ Platform compliance in this test suite:
 *   network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/decap-network-instance
 *   network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/post-network-instance
 *   network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/decap-fallback-network-instance
+*   network-instances/network-instance/afts/next-hops/next-hop/state/encapsulate-header
+*   network-instances/network-instance/afts/next-hops/next-hop/ip-in-ip/state/src-ip
+*   network-instances/network-instance/afts/next-hops/next-hop/ip-in-ip/state/dst-ip
+*   network-instances/network-instance/afts/next-hops/next-hop/state/counters/packets-forwarded
+*   network-instances/network-instance/afts/next-hops/next-hop/state/counters/octets-forwarded
+*   network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/counters/packets-forwarded
+*   network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/counters/octets-forwarded
+*   network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/counters/packets-forwarded
+*   network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/counters/octets-forwarded
+*   interfaces/interface/state/counters/in-pkts
+*   interfaces/interface/state/counters/in-octets
+*   interfaces/interface/state/counters/out-pkts
+*   interfaces/interface/state/counters/out-octets
+*   interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-pkts
+*   interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-forwarded-octets
+*   interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-pkts
+*   interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-forwarded-octets
+*   interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-pkts
+*   interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-forwarded-octets
+*   interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-pkts
+*   interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-forwarded-octets
 
 ## Protocol/RPC Parameter Coverage
 
 *   gRIBI:
     *   Modify
         *   ModifyRequest
+    *   Flush
+    *   Get
+*   gNMI:
+    *   Set
+    *   Get
+    *   Subscribe (STREAM mode: SAMPLE and ON_CHANGE)
 
 ## Required DUT platform
 
@@ -509,7 +1094,7 @@ vRX
 The below yaml defines the OC paths intended to be covered by this test. OC
 paths used for test setup are not listed here.
 
-```yaml 
+```yaml
 paths:
   ## Config paths
   /network-instances/network-instance/policy-forwarding/policies/policy/config/policy-id:
@@ -526,12 +1111,41 @@ paths:
 
   ## State paths
   /interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/state/link-layer-address:
+  /interfaces/interface/state/counters/in-pkts:
+  /interfaces/interface/state/counters/in-octets:
+  /interfaces/interface/state/counters/out-pkts:
+  /interfaces/interface/state/counters/out-octets:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-forwarded-octets:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-forwarded-octets:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-forwarded-octets:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-forwarded-octets:
+  /network-instances/network-instance/afts/next-hops/next-hop/state/index:
+  /network-instances/network-instance/afts/next-hops/next-hop/state/encapsulate-header:
+  /network-instances/network-instance/afts/next-hops/next-hop/state/decapsulate-header:
+  /network-instances/network-instance/afts/next-hops/next-hop/ip-in-ip/state/src-ip:
+  /network-instances/network-instance/afts/next-hops/next-hop/ip-in-ip/state/dst-ip:
+  /network-instances/network-instance/afts/next-hops/next-hop/state/counters/packets-forwarded:
+  /network-instances/network-instance/afts/next-hops/next-hop/state/counters/octets-forwarded:
+  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix:
+  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/counters/packets-forwarded:
+  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/counters/octets-forwarded:
+  /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/prefix:
+  /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/counters/packets-forwarded:
+  /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/counters/octets-forwarded:
 
 rpcs:
   gnmi:
     gNMI.Set:
+    gNMI.Get:
     gNMI.Subscribe:
+      on_change: true
+      sample: true
   gribi:
     gRIBI.Modify:
-    gRIBI.Flush:    
+    gRIBI.Flush:
+    gRIBI.Get:
 ```
