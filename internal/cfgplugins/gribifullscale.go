@@ -1597,7 +1597,11 @@ func BuildDecapVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, de
 		pfx := fmt.Sprintf("203.%d.%d.0/%d", i/4, (i%4)*64, prefixLen)
 		nhIdx := NHBaseDecap + uint64(i)
 		nhgIdx := NHGBaseDecap + uint64(i)
-		decapNH, _ := gribi.NHEntry(nhIdx, "Decap", defaultVRF, fluent.InstalledInFIB)
+		var opts []*gribi.NHOptions
+		if !deviations.DecapNHWithNextHopNIUnsupported(dut) {
+			opts = append(opts, &gribi.NHOptions{VrfName: defaultVRF})
+		}
+		decapNH, _ := gribi.NHEntry(nhIdx, "Decap", defaultVRF, fluent.InstalledInFIB, opts...)
 		decapNHG, _ := gribi.NHGEntry(nhgIdx, map[uint64]uint64{nhIdx: 1}, defaultVRF, fluent.InstalledInFIB)
 		nhEntries = append(nhEntries, decapNH)
 		nhgEntries = append(nhgEntries, decapNHG)
@@ -2900,19 +2904,24 @@ func FetchHWUtilizationSnapshot(t *testing.T, dut *ondatra.DUTDevice, stage stri
 			continue
 		}
 		compName := "UNKNOWN"
-		if path := val.Path; path != nil {
-			for _, elem := range path.GetElem() {
-				if elem.GetName() == "component" {
-					if name, ok := elem.GetKey()["name"]; ok {
-						compName = name
-						break
-					}
+		resName := res.GetName()
+		for _, elem := range val.Path.GetElem() {
+			switch elem.GetName() {
+			case "component":
+				if name, ok := elem.GetKey()["name"]; ok {
+					compName = name
+				}
+			case "resource":
+				// Some devices do not send the state/name leaf, leaving res.GetName()
+				// empty; fall back to the list key from the path.
+				if name, ok := elem.GetKey()["name"]; ok && resName == "" {
+					resName = name
 				}
 			}
 		}
 		key := HWResourceKey{
 			Component: compName,
-			Name:      res.GetName(),
+			Name:      resName,
 		}
 		maxLimit := res.GetMaxLimit()
 		// If max limit is not set, calculate it based on used and free resources.

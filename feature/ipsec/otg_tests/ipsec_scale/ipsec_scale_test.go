@@ -1246,7 +1246,8 @@ func TestIPSecScaleWithMACSecOverAggregatedLinks(t *testing.T) {
 
 	// Start the customer-port capture before traffic; it is consumed once by
 	// IPSEC-1.2.1 to confirm MACsec encryption.
-	cs := packetvalidationhelpers.StartCapture(t, ate)
+	cs := otgutils.StartCapture(t, ate.OTG())
+	defer otgutils.StopCapture(t, ate.OTG(), cs)
 	captureValidated := false
 
 	// runTrafficAndVerify runs a traffic window and verifies the named flows are
@@ -1260,7 +1261,7 @@ func TestIPSecScaleWithMACSecOverAggregatedLinks(t *testing.T) {
 		// Consume the MACsec capture on the first traffic window and confirm the
 		// customer traffic egressing towards the ATE is MACsec-encrypted.
 		if !captureValidated {
-			packetvalidationhelpers.StopCapture(t, ate, cs)
+			otgutils.StopCapture(t, ate.OTG(), cs)
 			if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, MacsecPacketValidation); err != nil {
 				t.Errorf("CaptureAndValidatePackets() MACsec: %v", err)
 			}
