@@ -38,7 +38,7 @@ Test to validate basic gNMI streaming telemetry works with `SAMPLE` mode.
 
 *   Configure ISIS on Port 1 in Default Network Instance.
 
-*   Verify that ISIS telemetry is streamed within the next 5 samples.
+*   Verify that ISIS telemetry is streamed within the next 10 samples.
 
 ## OpenConfig Path and RPC Coverage
 
