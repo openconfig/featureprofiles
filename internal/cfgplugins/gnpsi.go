@@ -55,6 +55,10 @@ func configureGNPSIFromCLI(t *testing.T, dut *ondatra.DUTDevice, params *GNPSIPa
         no disabled
         `, params.SSLProfile, params.Port)
 		helpers.GnmiCLIConfig(t, dut, cli)
+	case ondatra.JUNIPER:
+		// The gNPSI service relies on sFlow configuration which should already be configured
+		t.Log("For Juniper devices, gNPSI is implicitely configured with sFlow. No additional CLI configuration is required.")
+	
 	default:
 		t.Errorf("gNPSI configuration not implemented for vendor %s", dut.Vendor())
 	}
