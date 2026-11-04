@@ -14,6 +14,7 @@ import (
 	"github.com/google/gopacket/pcap"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
@@ -168,6 +169,9 @@ func TestMain(m *testing.M) {
 
 func TestGRIBIFailover(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	if deviations.VendorPreConfigRequired(dut) {
+		cfgplugins.ConfigureFallbackDecapVrfSelection(t, dut)
+	}
 	configureDUT(t, dut)
 	ate := ondatra.ATE(t, "ate")
 	top := configureOTG(t, ate)
@@ -583,16 +587,14 @@ func sendTraffic(t *testing.T, args *testArgs, top gosnappi.Config, ate *ondatra
 	ate.OTG().StartProtocols(t)
 	time.Sleep(30 * time.Second)
 
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
-	args.otg.SetControlState(t, cs)
+	cs := otgutils.StartCapture(t, args.otg)
+	defer otgutils.StopCapture(t, args.otg, cs)
 
 	ate.OTG().StartTraffic(t)
 	time.Sleep(time.Duration(duration) * time.Second)
 	ate.OTG().StopTraffic(t)
 
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
-	args.otg.SetControlState(t, cs)
+	otgutils.StopCapture(t, args.otg, cs)
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
 	otgutils.LogPortMetrics(t, ate.OTG(), top)
 }

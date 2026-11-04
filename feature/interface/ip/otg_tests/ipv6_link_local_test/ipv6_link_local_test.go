@@ -20,24 +20,27 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	otgconfighelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
-	"github.com/openconfig/ygot/ygot"
 )
 
 const (
-	srcDUTGlobalIPv6      = "2001:db8::1"
-	srcOTGGlobalIPv6      = "2001:db8::2"
-	dstDUTGlobalIPv6      = "2001:db8::5"
-	dstOTGGlobalIPv6      = "2001:db8::6"
-	globalIPv6Len         = 126
-	linkLocalFlowName     = "SrcToDstLinkLocal"
-	globalUnicastFlowName = "SrcToDstGlobalUnicast"
+	srcDUTGlobalIPv6          = "2001:db8::1"
+	srcOTGGlobalIPv6          = "2001:db8::2"
+	dstDUTGlobalIPv6          = "2001:db8::5"
+	dstOTGGlobalIPv6          = "2001:db8::6"
+	globalIPv6Len             = 126
+	linkLocalPrefixLen        = 64
+	minTrafficPkts            = 100
+	linkLocalOTGToOTGFlowName = "SrcToDstLinkLocal"
+	linkLocalOTGToDUTFlowName = "SrcToDUTLinkLocal"
+	globalUnicastFlowName     = "SrcToDstGlobalUnicast"
 )
 
 // We use the same link local IPv6 fe80::1 and fe80::2 on both src and dst pairs to ensure
@@ -46,27 +49,27 @@ var (
 	dutSrc = attrs.Attributes{
 		Desc:    "dutsrc",
 		IPv6:    "fe80::1",
-		IPv6Len: 64,
+		IPv6Len: linkLocalPrefixLen,
 	}
 
 	ateSrc = attrs.Attributes{
 		Name:    "atesrc",
 		MAC:     "02:11:01:00:00:01",
 		IPv6:    "fe80::2",
-		IPv6Len: 64,
+		IPv6Len: linkLocalPrefixLen,
 	}
 
 	dutDst = attrs.Attributes{
 		Desc:    "dutdst",
 		IPv6:    "fe80::1",
-		IPv6Len: 64,
+		IPv6Len: linkLocalPrefixLen,
 	}
 
 	ateDst = attrs.Attributes{
 		Name:    "atedst",
 		MAC:     "02:12:01:00:00:01",
 		IPv6:    "fe80::2",
-		IPv6Len: 64,
+		IPv6Len: linkLocalPrefixLen,
 	}
 )
 
@@ -76,288 +79,325 @@ func TestMain(m *testing.M) {
 
 func TestIPv6LinkLocal(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	configureDUTLinkLocalInterface(t, dut)
-	fptest.ConfigureDefaultNetworkInstance(t, dut)
-
 	ate := ondatra.ATE(t, "ate")
 	top := gosnappi.NewConfig()
-	configureOTGInterface(t, ate, top)
-	otgSrcToDstFlow(t, top, ateSrc.IPv6, ateDst.IPv6, linkLocalFlowName)
 
-	ate.OTG().PushConfig(t, top)
-	ate.OTG().StartProtocols(t)
-	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
+	// RT-5.8 Subtest #1 - Configure IPv6 link local:
+	// - Configure DUT port 1 and OTG port 1 with an IPv6 link local scope IP address.
+	// - Configure DUT port 2 and OTG port 2 with an IPv6 link local scope IP address.
+	// - Validate config and state paths are set.
+	t.Run("RT-5.8.1: Subtest #1 - Configure IPv6 link local", func(t *testing.T) {
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
+		configureDUTLinkLocalInterface(t, dut)
 
-	t.Run("Interface Telemetry", func(t *testing.T) {
-		verifyInterfaceTelemetry(t, dut)
+		configureOTGInterface(t, ate, top, false)
+		ate.OTG().PushConfig(t, top)
+		ate.OTG().StartProtocols(t)
+		// Wait for OTG IPv6 neighbor discovery using the standard WaitForARP helper.
+		otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
+
+		t.Run("Validate Link Local Config and State Paths", func(t *testing.T) {
+			verifyInterfaceTelemetry(t, dut)
+		})
 	})
 
-	t.Run("Link Local Traffic Test", func(t *testing.T) {
-		verifyLinkLocalTraffic(t, dut, ate, top, linkLocalFlowName)
+	// RT-5.8 Subtest #2 - Verify the interface will pass IPv6 traffic as expected:
+	// - Send IPv6 traffic from OTG port 1 to OTG port 2, validate OTG port 2 does not receive the traffic.
+	// - Send IPv6 traffic from OTG port 1 to DUT port 1, validate DUT port 1 receives the traffic.
+	t.Run("RT-5.8.2: Subtest #2 - Verify the interface will pass IPv6 traffic as expected", func(t *testing.T) {
+		t.Run("OTG Port 1 to OTG Port 2 Link Local Traffic Does Not Forward", func(t *testing.T) {
+			configureOTGFlow(t, top, ateSrc.Name+".IPv6", ateDst.Name+".IPv6", ateSrc.IPv6, ateDst.IPv6, linkLocalOTGToOTGFlowName)
+			ate.OTG().PushConfig(t, top)
+			ate.OTG().StartProtocols(t)
+			otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
+
+			verifyLinkLocalTrafficNotForwarded(t, ate, top, linkLocalOTGToOTGFlowName)
+		})
+
+		t.Run("OTG Port 1 to DUT Port 1 Link Local Traffic Received by DUT", func(t *testing.T) {
+			configureOTGFlow(t, top, ateSrc.Name+".IPv6", ateDst.Name+".IPv6", ateSrc.IPv6, dutSrc.IPv6, linkLocalOTGToDUTFlowName)
+			ate.OTG().PushConfig(t, top)
+			ate.OTG().StartProtocols(t)
+			otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
+
+			verifyLinkLocalTrafficReceivedByDUT(t, dut, ate, top, linkLocalOTGToDUTFlowName)
+		})
 	})
 
-	t.Run("Configure And Delete Global Unicast IPv6", func(t *testing.T) {
-		configureDUTGlobalIPv6(t, dut)
-		otgSrcToDstFlow(t, top, srcOTGGlobalIPv6, dstOTGGlobalIPv6, globalUnicastFlowName)
+	// RT-5.8 Subtest #3 - Verify adding and removing global unicast address does not affect link local address:
+	// - Add configuration for a global unicast address on DUT port 1 and DUT port 2.
+	// - Validate config and state paths are set.
+	// - Send IPv6 traffic from OTG port 1 to OTG port 2, validate OTG port 2 receives the traffic.
+	// - Remove configuration for the global unicast address on DUT port 1 (and port 2).
+	// - Validate that DUT port 1 link local address is still configured.
+	// - Send IPv6 traffic from OTG port 1 to DUT port 1, validate DUT port 1 receives the traffic.
+	// - Send IPv6 traffic from OTG port 1 to OTG port 2, validate OTG port 2 does not receive the traffic.
+	t.Run("RT-5.8.3: Subtest #3 - Verify adding and removing global unicast address does not affect link local address", func(t *testing.T) {
+		p1 := dut.Port(t, "port1")
+		p2 := dut.Port(t, "port2")
+
+		// Ensure global unicast addresses are cleaned up if the subtest exits early.
+		t.Cleanup(func() {
+			gnmi.Delete(t, dut, gnmi.OC().Interface(p1.Name()).Subinterface(0).Ipv6().Address(srcDUTGlobalIPv6).Config())
+			gnmi.Delete(t, dut, gnmi.OC().Interface(p2.Name()).Subinterface(0).Ipv6().Address(dstDUTGlobalIPv6).Config())
+		})
+
+		// Step 3.1 & 3.2: Add global unicast IPv6 configuration on DUT port 1 and port 2 and validate config and state paths.
+		configureAndVerifyDUTGlobalIPv6(t, dut)
+
+		// Configure global unicast IPv6 addresses and flow on OTG.
+		configureOTGInterface(t, ate, top, true)
+		configureOTGFlow(t, top, ateSrc.Name+".IPv6-1", ateDst.Name+".IPv6-1", srcOTGGlobalIPv6, dstOTGGlobalIPv6, globalUnicastFlowName)
 		ate.OTG().PushConfig(t, top)
 		ate.OTG().StartProtocols(t)
 		otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 
+		// Step 3.3: Send IPv6 traffic from OTG port 1 to OTG port 2, validate OTG port 2 receives the traffic.
 		t.Run("Global IPv6 Traffic Test", func(t *testing.T) {
-			verifyGlobalUnicastTraffic(t, dut, ate, top, globalUnicastFlowName)
+			verifyGlobalUnicastTraffic(t, ate, top, globalUnicastFlowName)
 		})
 
-		p1 := dut.Port(t, "port1")
-		gnmi.Delete(t, dut, gnmi.OC().Interface(p1.Name()).Subinterface(0).Ipv6().Address(srcDUTGlobalIPv6).Config())
-		p2 := dut.Port(t, "port2")
-		gnmi.Delete(t, dut, gnmi.OC().Interface(p2.Name()).Subinterface(0).Ipv6().Address(dstDUTGlobalIPv6).Config())
+		// Step 3.4: Remove configuration for the global unicast address and await removal from state.
+		deleteDUTGlobalIPv6(t, dut, p1.Name(), srcDUTGlobalIPv6)
+		deleteDUTGlobalIPv6(t, dut, p2.Name(), dstDUTGlobalIPv6)
 
-		t.Run("Interface Telemetry", func(t *testing.T) {
+		// Step 3.5: Validate that DUT port 1 (and port 2) link local address is still configured in config and state.
+		t.Run("Validate Link Local Config and State Paths After Global IPv6 Removal", func(t *testing.T) {
 			verifyInterfaceTelemetry(t, dut)
 		})
 
-		otgSrcToDstFlow(t, top, ateSrc.IPv6, ateDst.IPv6, linkLocalFlowName)
-		ate.OTG().PushConfig(t, top)
-		ate.OTG().StartProtocols(t)
-		otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
-		t.Run("Traffic Test", func(t *testing.T) {
-			verifyLinkLocalTraffic(t, dut, ate, top, linkLocalFlowName)
+		// Restore OTG interfaces to link-local only after removing global unicast IPv6 from DUT.
+		configureOTGInterface(t, ate, top, false)
+
+		// Step 3.6: Send IPv6 traffic from OTG port 1 to DUT port 1, validate DUT port 1 receives the traffic.
+		t.Run("OTG Port 1 to DUT Port 1 Link Local Traffic After Global IPv6 Removal", func(t *testing.T) {
+			configureOTGFlow(t, top, ateSrc.Name+".IPv6", ateDst.Name+".IPv6", ateSrc.IPv6, dutSrc.IPv6, linkLocalOTGToDUTFlowName)
+			ate.OTG().PushConfig(t, top)
+			ate.OTG().StartProtocols(t)
+			otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
+
+			verifyLinkLocalTrafficReceivedByDUT(t, dut, ate, top, linkLocalOTGToDUTFlowName)
+		})
+
+		// Step 3.7: Send IPv6 traffic from OTG port 1 to OTG port 2, validate OTG port 2 does not receive the traffic.
+		t.Run("OTG Port 1 to OTG Port 2 Link Local Traffic Not Forwarded After Global IPv6 Removal", func(t *testing.T) {
+			configureOTGFlow(t, top, ateSrc.Name+".IPv6", ateDst.Name+".IPv6", ateSrc.IPv6, ateDst.IPv6, linkLocalOTGToOTGFlowName)
+			ate.OTG().PushConfig(t, top)
+			ate.OTG().StartProtocols(t)
+			otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
+
+			verifyLinkLocalTrafficNotForwarded(t, ate, top, linkLocalOTGToOTGFlowName)
 		})
 	})
 
-	t.Run("Disable and Enable Port1", func(t *testing.T) {
+	// RT-5.8 Subtest #4 - Verify enable/disable of DUT port 1 does not affect link local address:
+	// - Disable/enable the port and see if the configured link-local address stays.
+	// - Validate that DUT port 1 link local address config and state paths continue to contain the address assignment.
+	// - Send IPv6 traffic from OTG port 1 to DUT port 1, validate DUT port 1 receives the traffic.
+	t.Run("RT-5.8.4: Subtest #4 - Verify enable/disable of DUT port 1 does not affect link local address", func(t *testing.T) {
 		p1 := dut.Port(t, "port1")
+
+		// Step 4.1: Register cleanup before disabling DUT port 1 to guarantee restoration, and await DOWN state.
+		t.Cleanup(func() {
+			gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().Config(), true)
+			gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
+		})
 		gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().Config(), false)
 		gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().State(), 2*time.Minute, false)
+		gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_DOWN)
+
+		// Re-enable DUT port 1 and await UP state.
 		gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().Config(), true)
 		gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().State(), 2*time.Minute, true)
-		otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
-		t.Run("Interface Telemetry", func(t *testing.T) {
+		gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
+
+		// Step 4.2: Validate that DUT port 1 link local address config and state paths continue to contain the address assignment.
+		t.Run("Validate Link Local Config and State Paths After Port Toggle", func(t *testing.T) {
 			verifyInterfaceTelemetry(t, dut)
 		})
-		t.Run("Traffic Test", func(t *testing.T) {
-			verifyLinkLocalTraffic(t, dut, ate, top, linkLocalFlowName)
+
+		// Step 4.3: Send IPv6 traffic from OTG port 1 to DUT port 1, validate DUT port 1 receives the traffic.
+		t.Run("OTG Port 1 to DUT Port 1 Link Local Traffic After Port Toggle", func(t *testing.T) {
+			configureOTGFlow(t, top, ateSrc.Name+".IPv6", ateDst.Name+".IPv6", ateSrc.IPv6, dutSrc.IPv6, linkLocalOTGToDUTFlowName)
+			ate.OTG().PushConfig(t, top)
+			ate.OTG().StartProtocols(t)
+			otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
+
+			verifyLinkLocalTrafficReceivedByDUT(t, dut, ate, top, linkLocalOTGToDUTFlowName)
 		})
 	})
 }
 
-func configureDUTGlobalIPv6(t *testing.T, dut *ondatra.DUTDevice) {
+// configureAndVerifyDUTGlobalIPv6 adds global unicast IPv6 addresses to DUT port 1 and port 2
+// using cfgplugins and validates both config and state paths via gnmi.Watch/gnmi.Await.
+func configureAndVerifyDUTGlobalIPv6(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
 	portData := []struct {
-		port   *ondatra.Port
-		ipAddr string
+		portName string
+		ipAddr   string
 	}{
 		{
-			port:   dut.Port(t, "port1"),
-			ipAddr: srcDUTGlobalIPv6,
+			portName: "port1",
+			ipAddr:   srcDUTGlobalIPv6,
 		},
 		{
-			port:   dut.Port(t, "port2"),
-			ipAddr: dstDUTGlobalIPv6,
+			portName: "port2",
+			ipAddr:   dstDUTGlobalIPv6,
 		},
 	}
 
+	sb := &gnmi.SetBatch{}
 	for _, pd := range portData {
-		addr := &oc.Interface_Subinterface_Ipv6_Address{
-			Ip:           ygot.String(pd.ipAddr),
-			PrefixLength: ygot.Uint8(globalIPv6Len),
-		}
-		gnmi.Update(t, dut, gnmi.OC().Interface(pd.port.Name()).Subinterface(0).Ipv6().Address(pd.ipAddr).Config(), addr)
+		cfgplugins.ConfigureInterfaceIPv6Address(t, dut, sb, cfgplugins.IPv6AddressParams{
+			PortName:         pd.portName,
+			SubinterfaceIdx:  0,
+			IPv6:             pd.ipAddr,
+			PrefixLen:        globalIPv6Len,
+			AddrType:         oc.IfIp_Ipv6AddressType_GLOBAL_UNICAST,
+			ReplaceInterface: false,
+		})
+	}
+	sb.Set(t, dut)
 
-		if _, ok := gnmi.Watch(t, dut, gnmi.OC().Interface(pd.port.Name()).Subinterface(0).Ipv6().Address(pd.ipAddr).State(), 30*time.Second, func(val *ygnmi.Value[*oc.Interface_Subinterface_Ipv6_Address]) bool {
-			v, present := val.Val()
-			return present && v.GetType() == oc.IfIp_Ipv6AddressType_GLOBAL_UNICAST && v.GetPrefixLength() == globalIPv6Len && v.GetIp() == pd.ipAddr
-		}).Await(t); !ok {
-			t.Errorf("Couldn't configure Global Unicast IPv6 on port: %s", pd.port.Name())
-		}
+	for _, pd := range portData {
+		p := dut.Port(t, pd.portName)
+		cfgplugins.VerifyInterfaceIPv6Address(t, dut, p.Name(), 0, pd.ipAddr, globalIPv6Len, oc.IfIp_Ipv6AddressType_GLOBAL_UNICAST, 30*time.Second)
 	}
 }
 
+// deleteDUTGlobalIPv6 removes a global unicast IPv6 address from a DUT port.
+func deleteDUTGlobalIPv6(t *testing.T, dut *ondatra.DUTDevice, portName, ipAddr string) {
+	t.Helper()
+	gnmi.Delete(t, dut, gnmi.OC().Interface(portName).Subinterface(0).Ipv6().Address(ipAddr).Config())
+}
+
+// configureDUTLinkLocalInterface configures link-local IPv6 addresses on DUT port 1 and port 2
+// using cfgplugins and awaits operational UP state.
 func configureDUTLinkLocalInterface(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
+	sb := &gnmi.SetBatch{}
+	cfgplugins.ConfigureInterfaceIPv6Address(t, dut, sb, cfgplugins.IPv6AddressParams{
+		PortName:         "port1",
+		SubinterfaceIdx:  0,
+		Description:      dutSrc.Desc,
+		IPv6:             dutSrc.IPv6,
+		PrefixLen:        dutSrc.IPv6Len,
+		AddrType:         oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST,
+		ReplaceInterface: true,
+	})
+	cfgplugins.ConfigureInterfaceIPv6Address(t, dut, sb, cfgplugins.IPv6AddressParams{
+		PortName:         "port2",
+		SubinterfaceIdx:  0,
+		Description:      dutDst.Desc,
+		IPv6:             dutDst.IPv6,
+		PrefixLen:        dutDst.IPv6Len,
+		AddrType:         oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST,
+		ReplaceInterface: true,
+	})
+	sb.Set(t, dut)
 
 	p1 := dut.Port(t, "port1")
-	srcIntf := dutSrc.NewOCInterface(p1.Name(), dut)
-	subInt := srcIntf.GetOrCreateSubinterface(0)
-	subInt4 := subInt.GetOrCreateIpv4()
-	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
-		subInt4.Enabled = ygot.Bool(true)
-	}
-	subInt.GetOrCreateIpv6().Enabled = ygot.Bool(true)
-	if deviations.LinkLocalMaskLen(dut) {
-		dutSrc.IPv6Len = 128
-	}
-	subInt.GetOrCreateIpv6().GetOrCreateAddress(dutSrc.IPv6).SetType(oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST)
-	subInt.GetOrCreateIpv6().GetOrCreateAddress(dutSrc.IPv6).SetPrefixLength(dutSrc.IPv6Len)
-	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), srcIntf)
 	p2 := dut.Port(t, "port2")
-	dstIntf := dutDst.NewOCInterface(p2.Name(), dut)
-	dstSubInt := dstIntf.GetOrCreateSubinterface(0)
-	dstSubInt4 := dstSubInt.GetOrCreateIpv4()
-	dstSubInt.GetOrCreateIpv6().Enabled = ygot.Bool(true)
-	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
-		dstSubInt4.Enabled = ygot.Bool(true)
-	}
-	if deviations.LinkLocalMaskLen(dut) {
-		dutDst.IPv6Len = 128
-	}
-	dstSubInt.GetOrCreateIpv6().GetOrCreateAddress(dutDst.IPv6).SetType(oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST)
-	dstSubInt.GetOrCreateIpv6().GetOrCreateAddress(dutDst.IPv6).SetPrefixLength(dutDst.IPv6Len)
-
-	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dstIntf)
-
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
-	gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
-	gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
+	gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
+	gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
 }
 
-func configureOTGInterface(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
+// configureOTGInterface configures OTG port 1 and port 2 with link-local IPv6 addresses,
+// and optionally adds global unicast IPv6 addresses when includeGlobalIPv6 is true.
+func configureOTGInterface(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, includeGlobalIPv6 bool) {
 	t.Helper()
+	top.Ports().Clear()
+	top.Devices().Clear()
 
 	p1 := ate.Port(t, "port1")
-	ateSrc.AddToOTG(top, p1, &dutSrc)
-
-	// global IPv6 address config for port1
-	dev := top.Devices().Items()[0]
-	eth := dev.Ethernets().Items()[0]
-	ip := eth.Ipv6Addresses().Add().SetName(dev.Name() + ".IPv6-1")
-	ip.SetAddress(srcOTGGlobalIPv6).SetGateway(srcDUTGlobalIPv6).SetPrefix(uint32(globalIPv6Len))
+	dev1 := ateSrc.AddToOTG(top, p1, &dutSrc)
 
 	p2 := ate.Port(t, "port2")
-	ateDst.AddToOTG(top, p2, &dutDst)
+	dev2 := ateDst.AddToOTG(top, p2, &dutDst)
 
-	// global IPv6 address config for port2
-	for _, d := range top.Devices().Items() {
-		if d.Name() == ateDst.Name {
-			dev = d
-		}
+	if includeGlobalIPv6 {
+		eth1 := dev1.Ethernets().Items()[0]
+		ip1 := eth1.Ipv6Addresses().Add().SetName(dev1.Name() + ".IPv6-1")
+		ip1.SetAddress(srcOTGGlobalIPv6).SetGateway(srcDUTGlobalIPv6).SetPrefix(uint32(globalIPv6Len))
+
+		eth2 := dev2.Ethernets().Items()[0]
+		ip2 := eth2.Ipv6Addresses().Add().SetName(dev2.Name() + ".IPv6-1")
+		ip2.SetAddress(dstOTGGlobalIPv6).SetGateway(dstDUTGlobalIPv6).SetPrefix(uint32(globalIPv6Len))
 	}
-	eth = dev.Ethernets().Items()[0]
-	ip = eth.Ipv6Addresses().Add().SetName(dev.Name() + ".IPv6-1")
-	ip.SetAddress(dstOTGGlobalIPv6).SetGateway(dstDUTGlobalIPv6).SetPrefix(uint32(globalIPv6Len))
 }
 
-func otgSrcToDstFlow(t *testing.T, top gosnappi.Config, srcIPv6, dstIPv6, flowName string) {
+// configureOTGFlow configures an IPv6 flow on the OTG topology using otgconfighelpers.Flow.
+func configureOTGFlow(t *testing.T, top gosnappi.Config, txName, rxName, srcIPv6, dstIPv6, flowName string) {
+	t.Helper()
 	top.Flows().Clear()
-	flow := top.Flows().Add().SetName(flowName)
-	flow.Metrics().SetEnable(true)
-	e1 := flow.Packet().Add().Ethernet()
-	e1.Src().SetValue(ateSrc.MAC)
-	flow.TxRx().Device().SetTxNames([]string{ateSrc.Name + ".IPv6"}).SetRxNames([]string{ateDst.Name + ".IPv6"})
-	v6 := flow.Packet().Add().Ipv6()
-	v6.Src().SetValue(srcIPv6)
-	v6.Dst().SetValue(dstIPv6)
+	flow := &otgconfighelpers.Flow{
+		FlowName: flowName,
+		TxNames:  []string{txName},
+		RxNames:  []string{rxName},
+		EthFlow:  &otgconfighelpers.EthFlowParams{SrcMAC: ateSrc.MAC},
+		IPv6Flow: &otgconfighelpers.IPv6FlowParams{IPv6Src: srcIPv6, IPv6Dst: dstIPv6},
+	}
+	flow.CreateFlow(top)
+	flow.AddEthHeader()
+	flow.AddIPv6Header()
 }
 
-func verifyLinkLocalTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, flowName string) {
+// verifyLinkLocalTrafficNotForwarded sends IPv6 link-local traffic from OTG port 1 toward OTG port 2
+// and verifies that OTG port 2 does not receive the traffic (100% loss).
+func verifyLinkLocalTrafficNotForwarded(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, flowName string) {
+	t.Helper()
+	otgutils.RunTrafficAndWaitForTx(t, ate.OTG(), flowName, minTrafficPkts, 2*time.Minute)
+	otgutils.LogFlowMetrics(t, ate.OTG(), top)
+	otgutils.ExpectedTrafficLoss(t, ate.OTG(), flowName, 99, 100)
+}
+
+// verifyLinkLocalTrafficReceivedByDUT sends IPv6 link-local traffic from OTG port 1 to DUT port 1
+// and verifies via gnmi.Watch that DUT port 1 receives the transmitted packets.
+func verifyLinkLocalTrafficReceivedByDUT(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, flowName string) {
+	t.Helper()
 	p1 := dut.Port(t, "port1")
 	beforeInPkts := gnmi.Get(t, dut, gnmi.OC().Interface(p1.Name()).Counters().InPkts().State())
-	ate.OTG().StartTraffic(t)
-	_, ok := gnmi.Watch(t, dut, gnmi.OC().Interface(p1.Name()).Counters().InPkts().State(), 2*time.Minute, func(v *ygnmi.Value[uint64]) bool {
-		gotPkts, present := v.Val()
-		return present && (gotPkts-beforeInPkts) >= 100
-	}).Await(t)
-	if !ok {
-		t.Fatal("did not get expected number of packets after starting traffic. want > 100")
-	}
 
-	ate.OTG().StopTraffic(t)
+	otgutils.RunTrafficAndWaitForTx(t, ate.OTG(), flowName, minTrafficPkts, 2*time.Minute)
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
-	flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().State())
-	otgTxPkts := flowMetrics.GetOutPkts()
-	otgRxPkts := flowMetrics.GetInPkts()
-
-	if otgTxPkts == 0 {
-		t.Fatalf("txPackets is 0")
-	}
-	if got, want := 100*float32(otgTxPkts-otgRxPkts)/float32(otgTxPkts), float32(99); got < want {
-		t.Errorf("LossPct for flow %s got %f, want 100", flowName, got)
-	}
-	t.Log("Waiting for DUT counters to converge match OTG Tx packets")
-	dutCounterPath := gnmi.OC().Interface(p1.Name()).Counters().InPkts().State()
-
-	lastLoss := 100.0
-	_, watchOk := gnmi.Watch(t, dut, dutCounterPath, 2*time.Minute, func(val *ygnmi.Value[uint64]) bool {
-		currInPkts, present := val.Val()
-		if !present {
-			return false
-		}
-		recvDUTPkts := currInPkts - beforeInPkts
-		lastLoss = lossPct(otgTxPkts, recvDUTPkts)
-		return lastLoss < 1.0
-	}).Await(t)
-
-	if !watchOk {
-		t.Errorf("Traffic Loss Convergence Failed. Final LossPct for flow %s got %f, want < 1.0%%", flowName, lastLoss)
-	}
+	otgutils.VerifyDUTInterfaceInPkts(t, dut, ate.OTG(), p1.Name(), flowName, beforeInPkts, 1.0, 2*time.Minute)
 }
 
-func verifyGlobalUnicastTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, flowName string) {
-	ate.OTG().StartTraffic(t)
-	time.Sleep(15 * time.Second)
-	ate.OTG().StopTraffic(t)
-	time.Sleep(15 * time.Second)
+// verifyGlobalUnicastTraffic sends global unicast IPv6 traffic from OTG port 1 to OTG port 2
+// without static sleeps and verifies 0% loss at OTG port 2.
+func verifyGlobalUnicastTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, flowName string) {
+	t.Helper()
+	otgutils.RunTrafficAndWaitForTx(t, ate.OTG(), flowName, minTrafficPkts, 2*time.Minute)
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
-
-	flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().State())
-	otgTxPkts := flowMetrics.GetOutPkts()
-	otgRxPkts := flowMetrics.GetInPkts()
-
-	if otgTxPkts == 0 {
-		t.Fatalf("txPackets is 0")
-	}
-	if got, want := lossPct(otgTxPkts, otgRxPkts), float64(1); got > want {
-		t.Errorf("LossPct for flow %s got %f, want 0", flowName, got)
-	}
+	otgutils.ExpectedTrafficLoss(t, ate.OTG(), flowName, 0, 1)
 }
 
-func lossPct(tx, rx uint64) float64 {
-	if tx > rx {
-		return 100 * float64(tx-rx) / float64(tx)
-	}
-	// When computing loss across DUT and OTG, DUT also counts received
-	// protocol packets not part of the OTG traffic flow.
-	return 0
-}
-
+// verifyInterfaceTelemetry validates the link-local IPv6 config and state paths on DUT port 1 and port 2.
 func verifyInterfaceTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 
-	for p, attr := range map[string]attrs.Attributes{
-		p1.Name(): dutSrc,
-		p2.Name(): dutDst,
+	for _, entry := range []struct {
+		portName string
+		attr     attrs.Attributes
+	}{
+		{portName: p1.Name(), attr: dutSrc},
+		{portName: p2.Name(), attr: dutDst},
 	} {
-		conf := gnmi.Get(t, dut, gnmi.OC().Interface(p).Subinterface(0).Ipv6().Address(attr.IPv6).Config())
-		if got, want := conf.GetIp(), attr.IPv6; got != want {
-			t.Errorf("IP address config-path mismatch for port: %s, got: %s, want: %s", p, got, want)
-		}
-		if got, want := conf.GetType(), oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST; got != want {
-			t.Errorf("IP address type config-path mismatch for port: %s, got: %v, want: %v", p, got, want)
-		}
-		if got, want := conf.GetPrefixLength(), attr.IPv6Len; got != want {
-			t.Errorf("IP address prefix length config-path mismatch for port: %s, got: %d, want: %d", p, got, want)
-		}
-
-		if got, want := gnmi.Get(t, dut, gnmi.OC().Interface(p).Subinterface(0).Ipv6().Enabled().Config()), true; got != want {
-			t.Errorf("IPv6 subinterface status config-path mismatch for port: %s, got: %v, want: %v", p, got, want)
-		}
-
-		state := gnmi.Get(t, dut, gnmi.OC().Interface(p).Subinterface(0).Ipv6().Address(attr.IPv6).State())
-		if got, want := state.GetIp(), attr.IPv6; got != want {
-			t.Errorf("IP address state mismatch for port: %s, got: %s, want: %s", p, got, want)
-		}
-		if got, want := state.GetType(), oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST; got != want {
-			t.Errorf("IP address type state mismatch for port: %s, got: %v, want: %v", p, got, want)
-		}
-		if got, want := state.GetPrefixLength(), attr.IPv6Len; got != want {
-			t.Errorf("IP address prefix length state mismatch for port: %s, got: %d, want: %d", p, got, want)
-		}
-
-		if got, want := gnmi.Get(t, dut, gnmi.OC().Interface(p).Subinterface(0).Ipv6().Enabled().State()), true; got != want {
-			t.Errorf("IPv6 subinterface status state mismatch for port: %s, got: %v, want: %v", p, got, want)
-		}
+		cfgplugins.VerifyInterfaceIPv6Address(
+			t,
+			dut,
+			entry.portName,
+			0,
+			entry.attr.IPv6,
+			entry.attr.IPv6Len,
+			oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST,
+			30*time.Second,
+		)
 	}
 }

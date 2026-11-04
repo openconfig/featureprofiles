@@ -913,10 +913,23 @@ func ConfigureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 		rebootRequired = ConfigureTcam(t, dut)
 	} else if dut.Vendor() == ondatra.NOKIA {
 		rebootRequired = EnableSecondaryDefaultLookup(t, dut)
+	} else if dut.Vendor() == ondatra.CISCO {
+		rebootRequired = ConfigureCiscoHardwareInit(t, dut)
 	}
 	if rebootRequired {
 		RebootChassis(t, dut)
 	}
+}
+
+// ConfigureCiscoHardwareInit pushes Cisco-specific hardware init configs required for full scale testing.
+func ConfigureCiscoHardwareInit(t *testing.T, dut *ondatra.DUTDevice) bool {
+	t.Helper()
+	cliConfig := NewDUTHardwareInit(t, dut, FeatureHighScale)
+	if cliConfig != "" {
+		PushDUTHardwareInitConfig(t, dut, cliConfig)
+		return true
+	}
+	return false
 }
 
 // ConfigureTcam pushes Arista-specific hardware init configs for TCAM to allocate enough space
@@ -1183,7 +1196,9 @@ func ProgramAndVerifyGribiEntries(
 	}
 
 	// Parse results, check for errors and log failures.
-	ValidateGRIBIResults(t, gSession)
+	if !ValidateGRIBIResults(t, gSession) {
+		t.Fatalf("ProgramAndVerifyGribiEntries: gRIBI programming failed")
+	}
 
 	if verifyFunc != nil {
 		verifyFunc(gSession)
@@ -1582,7 +1597,11 @@ func BuildDecapVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, de
 		pfx := fmt.Sprintf("203.%d.%d.0/%d", i/4, (i%4)*64, prefixLen)
 		nhIdx := NHBaseDecap + uint64(i)
 		nhgIdx := NHGBaseDecap + uint64(i)
-		decapNH, _ := gribi.NHEntry(nhIdx, "Decap", defaultVRF, fluent.InstalledInFIB)
+		var opts []*gribi.NHOptions
+		if !deviations.DecapNHWithNextHopNIUnsupported(dut) {
+			opts = append(opts, &gribi.NHOptions{VrfName: defaultVRF})
+		}
+		decapNH, _ := gribi.NHEntry(nhIdx, "Decap", defaultVRF, fluent.InstalledInFIB, opts...)
 		decapNHG, _ := gribi.NHGEntry(nhgIdx, map[uint64]uint64{nhIdx: 1}, defaultVRF, fluent.InstalledInFIB)
 		nhEntries = append(nhEntries, decapNH)
 		nhgEntries = append(nhgEntries, decapNHG)
@@ -1684,6 +1703,7 @@ func FlushGRIBIRoutes(t *testing.T, dut *ondatra.DUTDevice) {
 // It groups results by OperationID to verify that every AFT operation achieved FIB_PROGRAMMED.
 // If an operation received RIB_PROGRAMMED but not FIB_PROGRAMMED, or experienced a server/client error,
 // it is treated as a failure. It counts totals and logs the first 10 failures for each category.
+// Returns true if there were no failures, false otherwise.
 func ValidateGRIBIResults(t *testing.T, gSession *gribi.Client) bool {
 	t.Helper()
 
@@ -1900,7 +1920,7 @@ func ValidateGRIBIResults(t *testing.T, gSession *gribi.Client) bool {
 		}
 	}
 
-	return hasFailure
+	return !hasFailure
 }
 
 // VerifyHierarchicalResolution spot-checks TE_VRF_111 prefixes for FIB_PROGRAMMED and non-zero NHG via gNMI AFT.
@@ -2884,25 +2904,36 @@ func FetchHWUtilizationSnapshot(t *testing.T, dut *ondatra.DUTDevice, stage stri
 			continue
 		}
 		compName := "UNKNOWN"
-		if path := val.Path; path != nil {
-			for _, elem := range path.GetElem() {
-				if elem.GetName() == "component" {
-					if name, ok := elem.GetKey()["name"]; ok {
-						compName = name
-						break
-					}
+		resName := res.GetName()
+		for _, elem := range val.Path.GetElem() {
+			switch elem.GetName() {
+			case "component":
+				if name, ok := elem.GetKey()["name"]; ok {
+					compName = name
+				}
+			case "resource":
+				// Some devices do not send the state/name leaf, leaving res.GetName()
+				// empty; fall back to the list key from the path.
+				if name, ok := elem.GetKey()["name"]; ok && resName == "" {
+					resName = name
 				}
 			}
 		}
 		key := HWResourceKey{
 			Component: compName,
-			Name:      res.GetName(),
+			Name:      resName,
 		}
+		maxLimit := res.GetMaxLimit()
+		// If max limit is not set, calculate it based on used and free resources.
+		if maxLimit == 0 {
+			maxLimit = res.GetUsed() + res.GetFree()
+		}
+
 		snapshot.Resources[key] = HWResourceMetric{
 			Key:      key,
 			Used:     res.GetUsed(),
 			Free:     res.GetFree(),
-			MaxLimit: res.GetMaxLimit(),
+			MaxLimit: maxLimit,
 		}
 	}
 	return snapshot
