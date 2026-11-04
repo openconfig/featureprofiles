@@ -376,6 +376,9 @@ func (ce *commonEntities) getComponentKey(t *testing.T) string {
 	componentKey := cur
 	for {
 		parent := gnmi.Get(t, ce.dut, gnmi.OC().Component(cur).Parent().State())
+		if parent == "" {
+			t.Fatalf("getComponentKey: reached root component %q without finding an INTEGRATED_CIRCUIT", cur)
+		}
 		parentType := gnmi.Get(t, ce.dut, gnmi.OC().Component(parent).Type().State())
 		if parentType == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT {
 			componentKey = parent
