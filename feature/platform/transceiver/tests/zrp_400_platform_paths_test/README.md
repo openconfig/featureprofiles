@@ -87,6 +87,18 @@ Validate ZR Plus optics module reports telemetry data for all leaves in
     *   platform/components/component/optical-channel/state/carrier-frequency-offset/avg
     *   platform/components/component/optical-channel/state/carrier-frequency-offset/min
     *   platform/components/component/optical-channel/state/carrier-frequency-offset/max
+    *   platform/components/component/optical-channel/state/polarization-mode-dispersion/instant
+    *   platform/components/component/optical-channel/state/polarization-mode-dispersion/avg
+    *   platform/components/component/optical-channel/state/polarization-mode-dispersion/min
+    *   platform/components/component/optical-channel/state/polarization-mode-dispersion/max
+    *   platform/components/component/optical-channel/state/second-order-polarization-mode-dispersion/instant
+    *   platform/components/component/optical-channel/state/second-order-polarization-mode-dispersion/avg
+    *   platform/components/component/optical-channel/state/second-order-polarization-mode-dispersion/min
+    *   platform/components/component/optical-channel/state/second-order-polarization-mode-dispersion/max
+    *   platform/components/component/optical-channel/state/sop-roc/instant
+    *   platform/components/component/optical-channel/state/sop-roc/avg
+    *   platform/components/component/optical-channel/state/sop-roc/min
+    *   platform/components/component/optical-channel/state/sop-roc/max
 
 **Note:** For min, max, and avg values, 10 second sampling is preferred. If 
           10 seconds is not supported, the sampling interval used must be
@@ -316,6 +328,30 @@ paths:
     /components/component/optical-channel/state/carrier-frequency-offset/min:
         platform_type: ["OPTICAL_CHANNEL"]
     /components/component/optical-channel/state/carrier-frequency-offset/max:
+        platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/optical-channel/state/polarization-mode-dispersion/instant:
+        platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/optical-channel/state/polarization-mode-dispersion/avg:
+        platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/optical-channel/state/polarization-mode-dispersion/min:
+        platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/optical-channel/state/polarization-mode-dispersion/max:
+        platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/optical-channel/state/second-order-polarization-mode-dispersion/instant:
+        platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/optical-channel/state/second-order-polarization-mode-dispersion/avg:
+        platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/optical-channel/state/second-order-polarization-mode-dispersion/min:
+        platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/optical-channel/state/second-order-polarization-mode-dispersion/max:
+        platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/optical-channel/state/sop-roc/instant:
+        platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/optical-channel/state/sop-roc/avg:
+        platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/optical-channel/state/sop-roc/min:
+        platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/optical-channel/state/sop-roc/max:
         platform_type: ["OPTICAL_CHANNEL"]
 
 rpcs:
