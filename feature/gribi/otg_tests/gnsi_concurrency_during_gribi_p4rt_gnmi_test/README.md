@@ -6,7 +6,8 @@ This test validates control-plane security lifecycle resilience and data-plane
 isolation when `gNSI` credential and authorization updates
 (`gnsi.certz.v1.Certz.Rotate` and `gnsi.authz.v1.Authz.Rotate`) execute
 concurrently with high-rate `gRIBI` Abstract Forwarding Table (AFT) route
-programming, `P4Runtime` (`P4RT`) table modifications, and continuous `gNMI`
+programming, `P4Runtime` (`P4RT`) Packet-I/O punt (`wbb.p4info.pb.txt`
+`acl_wbb_ingress_table`) and `PacketOut` operations, and continuous `gNMI`
 streaming telemetry. It verifies that active mTLS gRPC sessions remain
 uninterrupted without RPC drops or unbounded latency spikes, transit forwarding
 and `PacketIn` punting sustain zero packet loss, newly established connections
@@ -80,8 +81,11 @@ unfinalized rotations roll back cleanly under load.
     clear initial AFT state via `gRIBI.Flush` on `DEFAULT`.
   * **P4RT Client**: Open `P4Runtime.StreamChannel` (`device_id = 1`,
     `election_id = {high: 0, low: 1}`), complete primary controller arbitration,
-    and push the forwarding pipeline via
-    `P4Runtime.SetForwardingPipelineConfig` (`VERIFY_AND_COMMIT`).
+    and push the WBB forwarding pipeline (`feature/p4rt/data/wbb.p4info.pb.txt`,
+    defining `acl_wbb_ingress_table` with `size = 8`, actions
+    `acl_wbb_ingress_copy` and `acl_wbb_ingress_trap`, and `packet_in` /
+    `packet_out` metadata) via `P4Runtime.SetForwardingPipelineConfig`
+    (`VERIFY_AND_COMMIT`).
 * Verify all 4 DUT ports report `oper-status = UP` via the `ON_CHANGE`
   `gNMI.Subscribe` stream, start OTG protocols, and explicitly resolve IPv4 ARP
   and IPv6 Neighbor Discovery (ND) across all 4 links before starting traffic.
@@ -94,13 +98,16 @@ unfinalized rotations roll back cleanly under load.
     (`NextHop 1` = `192.0.2.6` and `NextHop 2` = `2001:db8:2::2` on ATE
     `port2`). Confirm installation via `gRIBI.Get` and `gNMI.Subscribe`
     (`ON_CHANGE`).
-  * Via `P4Runtime.Write` (`INSERT`), install a punt entry matching LLDP frames
-    (`ether_type == 0x88cc`, action `PuntToController`).
+  * Via `P4Runtime.Write` (`INSERT`, `Atomicity = CONTINUE_ON_ERROR`), install
+    the protected `acl_wbb_ingress_table` punt entry matching LLDP frames
+    (`ether_type == 0x88cc & 0xffff`, `priority = 1`, action
+    `acl_wbb_ingress_trap` or `acl_wbb_ingress_copy`), and verify presence via
+    `P4Runtime.Read`.
 * **Step 2 - Start Protected Data-Plane and Packet-In Traffic**:
   * From ATE `port1`, start continuous dual-stack OTG transit flows (`512`-byte
-    frames, `5,000 fps` IPv4 to `198.51.100.1` and `5,000 fps` IPv6 to
-    `2001:db8:100::1`, `10,000 fps` aggregate) and continuous LLDP frames (`100
-    fps`).
+    frames, `5,000 fps` IPv4 with `TTL = 64` to `198.51.100.1` and `5,000 fps`
+    IPv6 with `HopLimit = 64` to `2001:db8:100::1`, `10,000 fps` aggregate) and
+    continuous LLDP frames (`100 fps`).
   * Verify `100%` of transit packets egress ATE `port2` (`0%` loss) and `100%`
     of LLDP frames arrive as `PacketIn` messages on `P4Runtime.StreamChannel`.
 * **Step 3 - Start Continuous High-Rate Control-Plane Churn**:
@@ -111,9 +118,13 @@ unfinalized rotations roll back cleanly under load.
       `10,000` IPv6 `/128` routes
       (`2001:db8:1000::1/128`–`2001:db8:1000::2710/128`) referencing ECMP
       `NextHopGroups` across ATE `port3` and ATE `port4`.
-    * `P4Runtime.Write` (`INSERT` -> `MODIFY` -> `DELETE` batches of `100`
-      entries) across `1,000` ingress ACL entries matching non-transit prefixes
-      (`198.18.0.0/16`).
+    * `P4Runtime.Write` (`INSERT` -> `MODIFY` -> `DELETE`, `Atomicity =
+      CONTINUE_ON_ERROR`) batch loops cycling the `7` non-baseline
+      `wbb.p4info.pb.txt` `acl_wbb_ingress_table` punt entries (`ether_type ==
+      0x6007 & 0xffff` ND/GDP and `6` IPv4/IPv6 Traceroute `ttl == 0, 1, 2 &
+      0xff` rules while keeping the protected `0x88cc` LLDP punt entry
+      installed) plus continuous `PacketOut` frame injection (`100 fps`,
+      `egress_port = "2"`).
   * Record baseline median and 99th-percentile batch completion latencies for
     `gRIBI.Modify` (`FIB_PROGRAMMED`) and `P4Runtime.Write`.
 
