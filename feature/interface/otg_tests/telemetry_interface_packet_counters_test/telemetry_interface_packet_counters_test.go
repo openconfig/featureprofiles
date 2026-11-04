@@ -15,6 +15,8 @@
 package telemetry_interface_packet_counters_test
 
 import (
+	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -35,6 +37,30 @@ import (
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
+}
+
+func clearInterfaceCounters(t *testing.T, dut *ondatra.DUTDevice, intfName string) {
+	t.Helper()
+	var cmd string
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		cmd = fmt.Sprintf("clear counters %s", intfName)
+	case ondatra.CISCO:
+		cmd = fmt.Sprintf("clear counters interface %s", intfName)
+	case ondatra.JUNIPER:
+		cmd = fmt.Sprintf("clear interfaces statistics %s", intfName)
+	case ondatra.NOKIA:
+		cmd = fmt.Sprintf("tools interface %s statistics clear", intfName)
+	default:
+		t.Logf("No CLI counter clear command defined for vendor %v", dut.Vendor())
+		return
+	}
+	res, err := dut.RawAPIs().CLI(t).RunCommand(context.Background(), cmd)
+	if err != nil {
+		t.Logf("Failed to run CLI command %q on %s: %v", cmd, dut.Name(), err)
+		return
+	}
+	t.Logf("Cleared interface counters with %q: %s", cmd, res.Output())
 }
 
 func TestEthernetCounters(t *testing.T) {
@@ -72,6 +98,10 @@ func TestEthernetCounters(t *testing.T) {
 		desc:    "InJabberFrames",
 		path:    ethCounterPath + "in-jabber-frames",
 		counter: gnmi.Lookup(t, dut, counters.InJabberFrames().State()),
+	}, {
+		desc:    "InOversizeFrames",
+		path:    ethCounterPath + "in-oversize-frames",
+		counter: gnmi.Lookup(t, dut, counters.InOversizeFrames().State()),
 	}}
 
 	for _, tc := range cases {
@@ -109,6 +139,7 @@ func TestInterfaceCounters(t *testing.T) {
 
 	skipSubinterfacePacketCountersMissing := deviations.SubinterfacePacketCountersMissing(dut)
 	skipSubinterfaceStateCounters := skipSubinterfacePacketCountersMissing || deviations.DefaultSubinterfacePacketCountersMissing(dut)
+	skipSubinterfaceInOctets := deviations.Subinterface0StateUnsupported(dut)
 	skipIpv6DiscardedPkts := skipSubinterfacePacketCountersMissing || deviations.Ipv6DiscardedPktsUnsupported(dut)
 
 	cases := []struct {
@@ -181,6 +212,11 @@ func TestInterfaceCounters(t *testing.T) {
 		path:    intfCounterPath + "out-unicast-pkts",
 		counter: intfCounters.OutUnicastPkts().State(),
 	}, {
+		desc:    "SubinterfaceInOctets",
+		path:    subinterfaceCounterPath + "in-octets",
+		counter: subinterfaceCounters.InOctets().State(),
+		skip:    skipSubinterfaceInOctets,
+	}, {
 		desc:    "SubinterfaceOutBroadcastPkts",
 		path:    subinterfaceCounterPath + "out-broadcast-pkts",
 		counter: subinterfaceCounters.OutBroadcastPkts().State(),
@@ -245,6 +281,11 @@ func TestInterfaceCounters(t *testing.T) {
 		path:    ipv6CounterPath + "out-discarded-pkts",
 		counter: ipv6Counters.OutDiscardedPkts().State(),
 		skip:    skipIpv6DiscardedPkts,
+	}, {
+		desc:    "LastClear",
+		path:    intfCounterPath + "last-clear",
+		counter: intfCounters.LastClear().State(),
+		skip:    deviations.InterfaceLastClearUnsupported(dut),
 	},
 	}
 
@@ -252,6 +293,19 @@ func TestInterfaceCounters(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			if tc.skip {
 				t.Skipf("Counter %v is not supported.", tc.desc)
+			}
+			if tc.desc == "LastClear" {
+				clearInterfaceCounters(t, dut, dp.Name())
+				val, ok := gnmi.Watch(t, dut, tc.counter, 35*time.Second, func(v *ygnmi.Value[uint64]) bool {
+					return v.IsPresent()
+				}).Await(t)
+				if !ok {
+					t.Errorf("Get IsPresent status for path %q: got false, want true", tc.path)
+					return
+				}
+				v, _ := val.Val()
+				t.Logf("Got path/value: %s:%d", tc.path, v)
+				return
 			}
 			val, present := gnmi.Lookup(t, dut, tc.counter).Val()
 			if !present {
@@ -312,24 +366,26 @@ func validateInAndOutPktsPerSecond(t *testing.T, dut *ondatra.DUTDevice, i1, i2 
 		t.Fatalf("Interface Packet Counters are not updated every 30 second")
 	}
 
-	// Subscribe to sub-interface ipv4 counters
-	inSubInterfaceSamples := gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), i1.Subinterface(0).Ipv4().Counters().InPkts().State(), 300*time.Second)
-	outSubInterfaceSamples := gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), i2.Subinterface(0).Ipv4().Counters().OutPkts().State(), 300*time.Second)
-	inSubInterfacePkts := inSubInterfaceSamples.Await(t)
-	outSubInterfacePkts := outSubInterfaceSamples.Await(t)
-	if got := verifyCounters(t, dut, inSubInterfacePkts, outSubInterfacePkts); got == false {
-		pktCounterOK = false
-		t.Fatalf("Sub-interface IPv4 Packet Counters are not updated every 30 second")
-	}
+	if !deviations.DefaultSubinterfaceIPCountersUnsupported(dut) {
+		// Subscribe to sub-interface ipv4 counters
+		inSubInterfaceSamples := gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), i1.Subinterface(0).Ipv4().Counters().InPkts().State(), 300*time.Second)
+		outSubInterfaceSamples := gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), i2.Subinterface(0).Ipv4().Counters().OutPkts().State(), 300*time.Second)
+		inSubInterfacePkts := inSubInterfaceSamples.Await(t)
+		outSubInterfacePkts := outSubInterfaceSamples.Await(t)
+		if got := verifyCounters(t, dut, inSubInterfacePkts, outSubInterfacePkts); got == false {
+			pktCounterOK = false
+			t.Fatalf("Sub-interface IPv4 Packet Counters are not updated every 30 second")
+		}
 
-	// Subscribe to sub-interface ipv6 counters
-	inSubInterfaceIpv6Samples := gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), i1.Subinterface(0).Ipv6().Counters().InPkts().State(), 300*time.Second)
-	outSubInterfaceIpv6Samples := gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), i2.Subinterface(0).Ipv6().Counters().OutPkts().State(), 300*time.Second)
-	inSubInterfaceIpv6Pkts := inSubInterfaceIpv6Samples.Await(t)
-	outSubInterfaceIpv6Pkts := outSubInterfaceIpv6Samples.Await(t)
-	if got := verifyCounters(t, dut, inSubInterfaceIpv6Pkts, outSubInterfaceIpv6Pkts); got == false {
-		pktCounterOK = false
-		t.Fatalf("Sub-interface IPv6 Packet Counters are not updated every 30 second")
+		// Subscribe to sub-interface ipv6 counters
+		inSubInterfaceIpv6Samples := gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), i1.Subinterface(0).Ipv6().Counters().InPkts().State(), 300*time.Second)
+		outSubInterfaceIpv6Samples := gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), i2.Subinterface(0).Ipv6().Counters().OutPkts().State(), 300*time.Second)
+		inSubInterfaceIpv6Pkts := inSubInterfaceIpv6Samples.Await(t)
+		outSubInterfaceIpv6Pkts := outSubInterfaceIpv6Samples.Await(t)
+		if got := verifyCounters(t, dut, inSubInterfaceIpv6Pkts, outSubInterfaceIpv6Pkts); got == false {
+			pktCounterOK = false
+			t.Fatalf("Sub-interface IPv6 Packet Counters are not updated every 30 second")
+		}
 	}
 
 	return pktCounterOK
@@ -608,9 +664,16 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 			li.SetLoadInterval(intf.loadInterval)
 			gnmi.Update(t, dut, gnmi.OC().Interface(intf.intfName).Config(), i)
 		}
-		t.Logf("Validate that IPv4 and IPv6 addresses are enabled: %s", intf.intfName)
+		t.Logf("Validate that subinterface and IPv4 and IPv6 addresses are enabled: %s", intf.intfName)
 		subint := gnmi.OC().Interface(intf.intfName).Subinterface(0)
 
+		if !deviations.Subinterface0StateUnsupported(dut) {
+			if !gnmi.Get(t, dut, subint.Enabled().State()) {
+				t.Errorf("Subinterface(0).Enabled().Get(t) for interface %v: got false, want true", intf.intfName)
+			} else {
+				t.Logf("Subinterface(0).Enabled().Get(t) for interface %v: got true, want true", intf.intfName)
+			}
+		}
 		if !deviations.IPv4MissingEnabled(dut) {
 			if !gnmi.Get(t, dut, subint.Ipv4().Enabled().State()) {
 				t.Errorf("Ipv4().Enabled().Get(t) for interface %v: got false, want true", intf.intfName)

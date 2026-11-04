@@ -183,7 +183,8 @@ func TestISISSegmentRouting(t *testing.T) {
 	verifyISIS(t, dut, dut.Port(t, "port2").Name(), "dev2Isis")
 
 	t.Logf("Starting capture")
-	startCapture(t, ate)
+	cs := otgutils.StartCapture(t, ate.OTG())
+	defer otgutils.StopCapture(t, ate.OTG(), cs)
 	t.Logf("Waiting for routes to be installed on DUT.")
 	dni := deviations.DefaultNetworkInstance(dut)
 	ipv4Path := gnmi.OC().NetworkInstance(dni).Afts().Ipv4Entry(v4Route + "/32")
@@ -205,7 +206,7 @@ func TestISISSegmentRouting(t *testing.T) {
 	t.Logf("Stop traffic")
 	ate.OTG().StopTraffic(t)
 	t.Logf("Stop Capture")
-	stopCapture(t, ate)
+	otgutils.StopCapture(t, ate.OTG(), cs)
 
 	t.Run("Node SID Validation.", func(t *testing.T) {
 		verifyPrefixSids(t, ate, dutLoopback1.IPv4, uint32(nodeSIDLabelv4))
@@ -669,46 +670,10 @@ func configureDUTLoopback(t *testing.T, dut *ondatra.DUTDevice, id int, dutLoopb
 }
 
 func verifyTrafficNodeSID(t *testing.T, ate *ondatra.ATEDevice) {
-	recvMetricV4 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v4FlowNameNodeSID).State())
-	recvMetricV6 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v6FlowNameNodeSID).State())
-
-	framesTxV4 := recvMetricV4.GetCounters().GetOutPkts()
-	framesRxV4 := recvMetricV4.GetCounters().GetInPkts()
-	framesTxV6 := recvMetricV6.GetCounters().GetOutPkts()
-	framesRxV6 := recvMetricV6.GetCounters().GetInPkts()
-
 	t.Logf("Starting V4 traffic validation")
-	if framesTxV4 == 0 {
-		t.Error("No traffic was generated and frames transmitted were 0")
-	} else if framesRxV4 == framesTxV4 {
-		t.Logf("Traffic validation successful for [%s] FramesTx: %d FramesRx: %d", v4FlowNameNodeSID, framesTxV4, framesRxV4)
-	} else {
-		t.Errorf("Traffic validation failed for [%s] FramesTx: %d FramesRx: %d", v4FlowNameNodeSID, framesTxV4, framesRxV4)
-	}
+	otgutils.ExpectedTrafficLoss(t, ate.OTG(), v4FlowNameNodeSID, 0, 0)
 	t.Logf("Starting V6 traffic validation")
-	if framesTxV6 == 0 {
-		t.Error("No traffic was generated and frames transmitted were 0")
-	} else if framesRxV6 == framesTxV6 {
-		t.Logf("Traffic validation successful for [%s] FramesTx: %d FramesRx: %d", v6FlowNameNodeSID, framesTxV6, framesRxV6)
-	} else {
-		t.Errorf("Traffic validation failed for [%s] FramesTx: %d FramesRx: %d", v6FlowNameNodeSID, framesTxV6, framesRxV6)
-	}
-}
-
-// startCapture starts the capture on the otg ports
-func startCapture(t *testing.T, ate *ondatra.ATEDevice) {
-	otg := ate.OTG()
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
-	otg.SetControlState(t, cs)
-}
-
-// stopCapture starts the capture on the otg ports
-func stopCapture(t *testing.T, ate *ondatra.ATEDevice) {
-	otg := ate.OTG()
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
-	otg.SetControlState(t, cs)
+	otgutils.ExpectedTrafficLoss(t, ate.OTG(), v6FlowNameNodeSID, 0, 0)
 }
 
 func processCapture(t *testing.T, otg *otg.OTG, port string) {
