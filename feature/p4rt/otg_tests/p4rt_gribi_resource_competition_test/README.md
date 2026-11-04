@@ -2,17 +2,31 @@
 
 ## Summary
 
-This test validates graceful hardware resource contention handling, failure
-isolation, and telemetry accuracy when forwarding entities programmed by
-`P4Runtime` (`P4RT`) and `gRIBI` compete for finite ASIC hardware tables (such
-as shared TCAM, LPM, or NextHop banks). It verifies that exhausting hardware
-capacity through one control-plane API produces deterministic resource
-exhaustion responses (`RESOURCE_EXHAUSTED` in `P4RT` or `FIB_FAILED` in `gRIBI`
-when sharing a hardware pool, or `OK` / `FIB_PROGRAMMED` when hardware
-partitions are isolated), preserves all previously programmed forwarding and
-punt entries with zero packet loss, maintains control-plane daemon stability,
-accurately reports `/components/component/integrated-circuit/utilization/`
-telemetry, and cleanly reclaims capacity upon entry deletion.
+This test validates capacity admission control, failure isolation,
+protocol-compliant error reporting, and telemetry accuracy when `P4Runtime`
+(`P4RT`) Packet-I/O punt entries (`wbb.p4info.pb.txt` `acl_wbb_ingress_table`,
+`size = 8`) and `gRIBI` Abstract Forwarding Table (AFT) entries operate
+concurrently at table capacity limits. It verifies that:
+
+* Saturating `acl_wbb_ingress_table` to its `P4Info` capacity (`8` valid WBB
+  punt entries: LLDP `0x88cc`, ND/GDP `0x6007`, and IPv4/IPv6 Traceroute
+  `ttl = 0, 1, 2`) and attempting an overflow/out-of-profile `N + 1` update via
+  `P4Runtime.Write` (`Atomicity = CONTINUE_ON_ERROR`) returns outer gRPC status
+  `UNKNOWN` wrapping per-update `p4.v1.Error` details (`canonical_code` =
+  `RESOURCE_EXHAUSTED` when exceeding table/hardware capacity or
+  `INVALID_ARGUMENT` / `UNIMPLEMENTED` when rejected by `@entry_restriction`)
+  without dropping `P4Runtime.StreamChannel`, while `gRIBI.Modify` returns
+  `FIB_PROGRAMMED` on isolated partitions (or `FIB_FAILED` on shared hardware
+  pools).
+* Exhausting hardware FIB/NextHop capacity via `gRIBI.Modify` deterministically
+  returns `AFTResult.status = FIB_FAILED` inside `ModifyResponse` over an intact
+  `OK` `gRIBI` gRPC stream (never a transport disconnect or top-level gRPC
+  `RESOURCE_EXHAUSTED`), reports integrated-circuit FIB utilization via
+  `/components/component/integrated-circuit/utilization/`, preserves all
+  protected `gRIBI` forwarding and `P4RT` `PacketIn`/`PacketOut` operations with
+  zero packet loss, allows isolated `P4RT` Packet-I/O punt rules to remain
+  programmable (or returns per-update `RESOURCE_EXHAUSTED` if sharing hardware
+  memory), and cleanly reclaims capacity upon entry deletion.
 
 ## Testbed type
 
@@ -57,7 +71,10 @@ telemetry, and cleanly reclaims capacity upon entry deletion.
   ACL/TCAM hardware resources via `gNMI.Set`.
 * Establish a `P4Runtime` client session (`device_id = 1`, `election_id = {high:
   0, low: 1}`), complete primary controller arbitration via
-  `P4Runtime.StreamChannel`, and push the forwarding pipeline via
+  `P4Runtime.StreamChannel`, and push the WBB forwarding pipeline
+  (`feature/p4rt/data/wbb.p4info.pb.txt`, defining `acl_wbb_ingress_table` with
+  `size = 8`, actions `acl_wbb_ingress_copy` and `acl_wbb_ingress_trap`, and
+  `packet_in` / `packet_out` controller metadata) via
   `P4Runtime.SetForwardingPipelineConfig` (`VERIFY_AND_COMMIT`).
 * Establish a `gRIBI` client session in `SINGLE_PRIMARY` mode with `PRESERVE`
   persistence and `FIB_ACK` requested (`election_id = {high: 0, low: 1}`), and
@@ -77,118 +94,159 @@ telemetry, and cleanly reclaims capacity upon entry deletion.
   * Query the integrated-circuit resource telemetry path
     `/components/component/integrated-circuit/utilization/resources/resource/state/`
     on `IntegratedCircuit0` via `gNMI.Get` to record baseline `used`, `free`,
-    and `max-limit` counts for all P4RT-programmable and gRIBI-programmable
-    hardware tables, confirming `used-threshold-upper-exceeded = false`.
-* **Step 2 - Program Protected gRIBI and P4RT Baseline Entries**:
+    and `max-limit` counts for all reported routing/FIB/NextHop hardware tables
+    (and `ACL` tables where exposed by the platform), confirming
+    `used-threshold-upper-exceeded = false`.
+* **Step 2 - Program Protected gRIBI Routes and P4RT Punt Entry**:
   * Via `gRIBI.Modify` (`ADD`, `FIB_ACK`), install protected IPv4
     (`198.51.100.0/24`) and IPv6 (`2001:db8:100::/64`) routes in `DEFAULT`
     pointing to `NextHopGroup 10` (`NextHop 1` = `192.0.2.6`, `NextHop 2` =
-    `2001:db8:2::2` on ATE `port2`). Confirm installation via `gRIBI.Get` and
-    `gNMI.Subscribe` (`ON_CHANGE`).
-  * Via `P4Runtime.Write` (`INSERT`), install protected high-priority ingress
-    entries:
-    * Punt rule matching LLDP (`ether_type == 0x88cc`, action
-      `PuntToController`).
-    * Permit rule matching protected transit destination `198.51.100.0/24` and
-      `2001:db8:100::/64`.
-* **Step 3 - Start Continuous Protected Traffic**:
+    `2001:db8:2::2` on ATE `port2`). Confirm `AFTResult.status = FIB_PROGRAMMED`
+    and verify installation via `gRIBI.Get` and `gNMI.Subscribe` (`ON_CHANGE`).
+  * Via `P4Runtime.Write` (`INSERT`, `Atomicity = CONTINUE_ON_ERROR`), install
+    the protected `acl_wbb_ingress_table` punt entry matching LLDP frames
+    (`ether_type == 0x88cc & 0xffff`, `priority = 1`, action
+    `acl_wbb_ingress_trap` or `acl_wbb_ingress_copy`), and verify presence via
+    `P4Runtime.Read`.
+* **Step 3 - Start Continuous Protected Traffic and Validate Packet-I/O**:
   * From ATE `port1`, start continuous OTG streams (kept active across all
     subtests):
-    * `Flow-Protected-v4`: `512`-byte IPv4 packets at `5,000 fps` to
-      `198.51.100.1`.
-    * `Flow-Protected-v6`: `512`-byte IPv6 packets at `5,000 fps` to
-      `2001:db8:100::1`.
-    * `Flow-Protected-LLDP`: LLDP frames at `100 fps`.
+    * `Flow-Protected-v4`: `512`-byte IPv4 packets (`TTL = 64`) at `5,000 fps`
+      to `198.51.100.1`.
+    * `Flow-Protected-v6`: `512`-byte IPv6 packets (`HopLimit = 64`) at `5,000
+      fps` to `2001:db8:100::1`.
+    * `Flow-Protected-LLDP`: LLDP frames (`ether_type = 0x88cc`) at `100 fps`.
   * Verify `100%` of `Flow-Protected-v4` and `Flow-Protected-v6` packets arrive
-    on ATE `port2` (`0%` loss) and `100%` of `Flow-Protected-LLDP` frames arrive
-    as `PacketIn` messages on `P4Runtime.StreamChannel`.
+    on ATE `port2` (`0%` loss), `100%` of `Flow-Protected-LLDP` frames arrive as
+    `PacketIn` messages on `P4Runtime.StreamChannel` (`ingress_port = "1"`), and
+    a baseline `PacketOut` frame injected via `P4Runtime.StreamChannel`
+    (`egress_port = "2"`) is received on ATE `port2`.
 
-### P4RT-3.5.2 - P4RT Table Exhaustion Followed by gRIBI Contention
+### P4RT-3.5.2 - P4RT Punt Table Saturation Followed by gRIBI Contention
 
-* **Step 1 - Scale P4RT Table Entries to Hardware Exhaustion**:
-  * Using batched `P4Runtime.Write` (`INSERT`) requests, iteratively program
-    unique P4RT table entries matching non-overlapping test prefixes across
-    `198.18.0.0/15` and `2001:db8:2000::/48` until the ASIC table reaches full
-    capacity and `P4Runtime.Write` returns gRPC `RESOURCE_EXHAUSTED` for entry
-    `N_p4rt + 1`.
-  * Verify via `gNMI.Subscribe` that
-    `/components/component/integrated-circuit/utilization/resources/resource/state/used`
-    increases monotonically with installed entries, `free` approaches `0` (or
-    the table reservation boundary), and `used-threshold-upper-exceeded`
-    transitions to `true` once utilization exceeds `80%`.
-* **Step 2 - Attempt gRIBI Route Programming Under P4RT Exhaustion**:
+* **Step 1 - Saturate `acl_wbb_ingress_table` and Verify Overflow Rejection**:
+  * Using `P4Runtime.Write` (`INSERT`, `Atomicity = CONTINUE_ON_ERROR`), install
+    the remaining `7` valid WBB punt entries permitted by `wbb.p4info.pb.txt` in
+    `acl_wbb_ingress_table` so all `8` table slots (`size = 8`) are occupied (or
+    fill up to the pipeline's advertised table `size` if an extended hardware
+    table `P4Info` is loaded):
+    * ND/GDP punt entry (`ether_type == 0x6007 & 0xffff`, `priority = 1`).
+    * `3` IPv4 Traceroute punt entries (`is_ipv4 == 0x1`, `ttl == 0 & 0xff`,
+      `ttl == 1 & 0xff`, and `ttl == 2 & 0xff`, `priority = 1`).
+    * `3` IPv6 Traceroute punt entries (`is_ipv6 == 0x1`, `ttl == 0 & 0xff`,
+      `ttl == 1 & 0xff`, and `ttl == 2 & 0xff`, `priority = 1`).
+  * Confirm via `P4Runtime.Read` that all `8` punt entries are active.
+  * Issue an additional `P4Runtime.Write` (`INSERT`, `Atomicity =
+    CONTINUE_ON_ERROR`) attempting entry `N_p4rt + 1` beyond the `size = 8`
+    capacity / `@entry_restriction` boundary:
+    * Verify `P4Runtime.Write` rejects the `N_p4rt + 1` update cleanly with
+      outer gRPC status `UNKNOWN` (`codes.Unknown`) containing per-update
+      `p4.v1.Error` details (`canonical_code = RESOURCE_EXHAUSTED` when rejected
+      for table/hardware capacity, or `canonical_code = INVALID_ARGUMENT` /
+      `UNIMPLEMENTED` when rejected by `@entry_restriction` admission control),
+      and confirm it never returns a session/transport failure (`UNAVAILABLE`,
+      `DEADLINE_EXCEEDED`, `CANCELED`, or `PERMISSION_DENIED`) or drops
+      `P4Runtime.StreamChannel`.
+    * On platforms where `acl_wbb_ingress_table` consumes a hardware-reported
+      `/components/component/integrated-circuit/utilization/resources/resource/state/`
+      counter, verify `used` reflects the installed entries without exceeding
+      `max-limit` (noting that `size = 8` Packet-I/O punt implementations do not
+      trigger the `80%` bulk ASIC `ACL` watermark).
+* **Step 2 - Attempt gRIBI Programming Under Full P4RT Punt Table Saturation**:
   * Issue `gRIBI.Modify` (`ADD`, `FIB_ACK`) for `200` new unique routes (`100`
     IPv4 `/32` routes `100.64.10.1/32`–`100.64.10.100/32` and `100` IPv6 `/128`
     routes `2001:db8:3000::1/128`–`2001:db8:3000::64/128`) referencing unique
     `NextHopGroups` and `NextHops` pointing to ATE `port3` (`192.0.2.10` /
     `2001:db8:3::2`):
-    * **Shared Hardware Resource Pool**: Where the P4RT table and gRIBI AFT
-      compete for the same exhausted hardware table/TCAM bank, verify
-      `gRIBI.Modify` deterministically returns `FIB_FAILED` (without hanging or
-      dropping the gRIBI stream), and confirm OTG probe packets sent to a
-      `FIB_FAILED` destination (`100.64.10.1`) are dropped (`0` packets
-      forwarded to `port3`).
-    * **Dedicated Hardware Partition**: Where the ASIC enforces strict hardware
-      partition isolation between P4RT TCAM and gRIBI LPM/NextHop tables, verify
-      all `200` gRIBI routes return `FIB_PROGRAMMED` and forward OTG probe
-      packets to ATE `port3` with `0%` loss despite `100%` P4RT exhaustion.
+    * **Dedicated / Isolated Partition (Standard WBB Packet-I/O Behavior)**:
+      Where `P4RT` punt entries and `gRIBI` LPM/NextHop tables use independent
+      partitions, verify all `200` `gRIBI.Modify` operations return
+      `AFTResult.status = FIB_PROGRAMMED`, OTG probe packets (`TTL = 64`) to the
+      `200` prefixes forward to ATE `port3` with `0%` loss, and IPv4/IPv6
+      Traceroute probe packets (`TTL = 1`) injected on ATE `port1` arrive as
+      `PacketIn` messages on `P4Runtime.StreamChannel`.
+    * **Shared Hardware Resource Pool**: Where an extended hardware-backed
+      `P4RT` table and `gRIBI` AFT compete for the same exhausted ASIC bank,
+      verify `gRIBI.Modify` deterministically returns `AFTResult.status =
+      FIB_FAILED` inside `ModifyResponse` while keeping the `gRIBI` gRPC stream
+      `OK`, and confirm OTG probe packets (`TTL = 64`) sent to a `FIB_FAILED`
+      destination (`100.64.10.1`) are dropped (`0` packets forwarded to
+      `port3`).
 * **Step 3 - Stability and Isolation Pass/Fail Criteria**:
   * Protected baseline flows (`Flow-Protected-v4`, `Flow-Protected-v6`, and
-    `Flow-Protected-LLDP`) sustain `0%` packet loss throughout P4RT table
-    exhaustion and gRIBI contention.
+    `Flow-Protected-LLDP`) sustain `0%` packet loss throughout `P4RT` table
+    saturation and `gRIBI` route programming.
   * `P4Runtime.Read` and `gRIBI.Get` remain responsive and match programmed
-    hardware state without control-plane process crashes or session resets.
+    state without control-plane process crashes or session resets.
 
-### P4RT-3.5.3 - P4RT Resource Reclamation and gRIBI Recovery
+### P4RT-3.5.3 - P4RT Punt Entry Reclamation and gRIBI Verification
 
-* **Step 1 - Reclaim 50% of Scaled P4RT Entries**:
-  * Issue `P4Runtime.Write` (`DELETE`) to remove `50%` of the scaled P4RT
-    entries installed in `P4RT-3.5.2`.
-  * Verify via `gNMI.Subscribe` on
-    `/components/component/integrated-circuit/utilization/resources/resource/state/`
-    that `used` decreases by the deleted entry count, `free` increases
-    correspondingly, and `used-threshold-upper-exceeded` clears to `false` once
-    utilization drops below `70%` (`used-threshold-upper-clear`).
+* **Step 1 - Reclaim Non-Baseline P4RT Punt Entries**:
+  * Issue `P4Runtime.Write` (`DELETE`, `Atomicity = CONTINUE_ON_ERROR`) to
+    remove the `7` non-baseline WBB punt entries installed in `P4RT-3.5.2`
+    (ND/GDP `0x6007` and the `6` IPv4/IPv6 Traceroute `ttl = 0, 1, 2` entries),
+    retaining only the protected LLDP (`0x88cc`) punt entry.
+  * Confirm via `P4Runtime.Read` that only the single protected LLDP entry
+    remains in `acl_wbb_ingress_table` (and where an integrated-circuit `ACL`
+    utilization counter incremented in `P4RT-3.5.2`, verify `used` decreases
+    correspondingly).
 * **Step 2 - Verify gRIBI Programming Succeeds After Reclamation**:
   * Issue `gRIBI.Modify` (`ADD` or `REPLACE`, `FIB_ACK`) for the `200` gRIBI
     test routes (`100` IPv4 `/32` routes `100.64.10.1/32`–`100.64.10.100/32` and
     `100` IPv6 `/128` routes `2001:db8:3000::1/128`–`2001:db8:3000::64/128`).
-  * Verify `100%` of the routes receive `FIB_PROGRAMMED`, appear in `gRIBI.Get`
-    and `gNMI` AFT state, and forward OTG traffic from ATE `port1` to ATE
-    `port3` with `0%` packet loss.
-* **Step 3 - Reset Scale Entries for Reverse Direction Test**:
-  * Delete the remaining non-baseline scaled P4RT entries and the `200`
-    temporary gRIBI routes while keeping the protected baseline entries and
-    protected traffic flows active.
+  * Verify `100%` of the routes receive `AFTResult.status = FIB_PROGRAMMED`,
+    appear in `gRIBI.Get` and `gNMI` AFT state, and forward OTG traffic (`TTL =
+    64`) from ATE `port1` to ATE `port3` with `0%` packet loss.
+* **Step 3 - Reset Temporary Scale Entries for Reverse Direction Test**:
+  * Delete the `200` temporary gRIBI routes via `gRIBI.Modify` (`DELETE`,
+    `FIB_ACK`) while keeping the protected baseline gRIBI routes, protected LLDP
+    punt rule, and continuous protected traffic flows active.
 
-### P4RT-3.5.4 - Reverse Direction: gRIBI FIB Exhaustion Followed by P4RT Contention
+### P4RT-3.5.4 - gRIBI Hardware FIB Exhaustion Followed by P4RT Contention
 
-* **Step 1 - Scale gRIBI AFT Entries to Hardware Exhaustion**:
+* **Step 1 - Scale gRIBI AFT Entries to Hardware Exhaustion (`FIB_FAILED`)**:
   * Continuously inject unique hierarchical gRIBI entries via `gRIBI.Modify`
     (`ADD`, `FIB_ACK`) across `100.65.0.0/16` (`/32` prefixes) and
     `2001:db8:4000::/48` (`/128` prefixes) referencing unique `NextHopGroups`
-    and `NextHops` resolving via ATE `port3` and ATE `port4` until the first
-    `FIB_FAILED` response is received at entry `M_gribi + 1`.
-  * Verify via `gNMI.Subscribe` that FIB/NextHop hardware utilization `used`
-    reaches capacity and `used-threshold-upper-exceeded` transitions to `true`.
-  * Send OTG probe traffic to a `FIB_PROGRAMMED` gRIBI prefix (verifying `100%`
-    forwarding to ATE `port3`/`port4`) and to the `FIB_FAILED` prefix (verifying
-    `0` forwarded packets).
-* **Step 2 - Attempt P4RT Programming Under gRIBI Exhaustion**:
-  * Issue `P4Runtime.Write` (`INSERT`) for `100` new P4RT table entries matching
-    `198.19.0.1`–`198.19.0.100`:
-    * On shared hardware pools, verify `P4Runtime.Write` cleanly returns
-      per-entry `RESOURCE_EXHAUSTED` without dropping `P4Runtime.StreamChannel`.
-    * On isolated hardware partitions, verify `P4Runtime.Write` succeeds (`OK`)
-      and enforces matching actions accurately.
+    and `NextHops` resolving via ATE `port3` and ATE `port4` until hardware
+    FIB/NextHop capacity is reached and `gRIBI.Modify` returns
+    `AFTResult.status = FIB_FAILED` inside `ModifyResponse` at entry
+    `M_gribi + 1` (confirming the `gRIBI` gRPC stream stays `OK` rather than
+    returning a gRPC transport error or top-level `RESOURCE_EXHAUSTED`).
+  * Verify via `gNMI.Subscribe` on
+    `/components/component/integrated-circuit/utilization/resources/resource/state/`
+    that FIB/NextHop hardware utilization `used` reaches capacity and
+    `used-threshold-upper-exceeded` transitions to `true` once utilization
+    exceeds `80%`.
+  * Send OTG probe traffic (`TTL = 64`) to a `FIB_PROGRAMMED` gRIBI prefix
+    (verifying `100%` forwarding to ATE `port3`/`port4`) and to the `FIB_FAILED`
+    prefix (verifying `0` forwarded packets).
+* **Step 2 - Validate P4RT Programming and Packet-I/O Under gRIBI Exhaustion**:
+  * While hardware FIB remains exhausted (`FIB_FAILED`), issue `P4Runtime.Write`
+    (`INSERT`, `Atomicity = CONTINUE_ON_ERROR`) for the `7` remaining valid
+    `wbb.p4info.pb.txt` `acl_wbb_ingress_table` punt entries (ND/GDP `0x6007`
+    and the `6` IPv4/IPv6 Traceroute `ttl = 0, 1, 2` entries):
+    * **Dedicated / Isolated Partition**: Where `P4RT` Packet-I/O punt entries
+      are isolated from hardware LPM/NextHop FIB tables, verify
+      `P4Runtime.Write` succeeds (`OK`), `P4Runtime.Read` returns all `8` punt
+      entries, IPv4/IPv6 Traceroute probe packets (`TTL = 1`) injected on ATE
+      `port1` arrive as `PacketIn` messages on `P4Runtime.StreamChannel`, and
+      `PacketOut` frames (`egress_port = "2"`) egress DUT `port2` with `0%`
+      loss.
+    * **Shared Hardware Resource Pool**: Where `P4RT` table entries compete for
+      the same exhausted ASIC memory pool as `gRIBI` AFT entries, verify
+      `P4Runtime.Write` cleanly returns outer gRPC `UNKNOWN` wrapping per-update
+      `p4.v1.Error` (`canonical_code = RESOURCE_EXHAUSTED`) without dropping
+      `P4Runtime.StreamChannel`.
   * Verify protected baseline flows (`Flow-Protected-v4`, `Flow-Protected-v6`,
     and `Flow-Protected-LLDP`) sustain `0%` packet loss.
-* **Step 3 - Reclaim gRIBI Resources and Verify P4RT Recovery**:
+* **Step 3 - Reclaim gRIBI Resources and Verify Full Recovery**:
   * Delete the scaled `100.65.0.0/16` and `2001:db8:4000::/48` gRIBI entries via
-    `gRIBI.Modify` (`DELETE`), verify FIB utilization drops below
-    `used-threshold-upper-clear` (`used-threshold-upper-exceeded = false`), and
-    confirm a subsequent `P4Runtime.Write` (`INSERT`) for the `100` P4RT entries
-    completes with `OK` status.
+    `gRIBI.Modify` (`DELETE`, `FIB_ACK`), verify FIB utilization drops below
+    `used-threshold-upper-clear` (`70%`, `used-threshold-upper-exceeded =
+    false`), and confirm both a subsequent `gRIBI.Modify` (`ADD`, `FIB_ACK`)
+    probe route (`FIB_PROGRAMMED`) and `P4Runtime.Write` (`INSERT` / `MODIFY`)
+    for the WBB punt entries complete with `OK` status.
 
 ### Cleanup
 
