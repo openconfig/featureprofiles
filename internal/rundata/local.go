@@ -147,7 +147,7 @@ func gitInfoWithCLI(m map[string]string, dir string) string {
 		glog.Warningf("Could not find git working tree: %v", err)
 		return ""
 	}
-	if origin, err := runGit(root, "remote", "get-url", "origin"); err != nil {
+	if origin, err := runGit(root, "config", "--get", "remote.origin.url"); err != nil {
 		glog.Warningf("Could not get git origin URL: %v", err)
 	} else {
 		m["git.origin"] = origin
