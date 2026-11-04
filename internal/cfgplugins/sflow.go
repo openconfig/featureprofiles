@@ -46,6 +46,9 @@ func NewSFlowGlobalCfg(t *testing.T, batch *gnmi.SetBatch, newcfg *oc.Sampling_S
 	if newcfg == nil {
 		c.Enabled = ygot.Bool(true)
 		c.SampleSize = ygot.Uint16(256)
+		if p == nil {
+			t.Fatal("SFlowGlobalParams parameter 'p' must not be nil when newcfg is nil")
+		}
 		c.Dscp = ygot.Uint8(8)
 		if p.Egress {
 			port2Name := d.Port(t, "port2").Name()
@@ -62,15 +65,7 @@ func NewSFlowGlobalCfg(t *testing.T, batch *gnmi.SetBatch, newcfg *oc.Sampling_S
 				intfCfg.SetEgressSamplingRate(p.MinSamplingRate)
 			}
 		} else {
-			// override ingress sampling rate if default value of 1000000 is not supported
-			if deviations.SflowIngressMinSamplingRate(d) != 0 {
-				switch d.Vendor() {
-				case ondatra.CISCO:
-					c.SetIngressSamplingRate(deviations.SflowIngressMinSamplingRate(d))
-				}
-			} else {
-				c.SetIngressSamplingRate(p.MinSamplingRate)
-			}
+			c.SetIngressSamplingRate(p.MinSamplingRate)
 			c.GetOrCreateInterface(d.Port(t, "port1").Name()).Enabled = ygot.Bool(true)
 			c.GetOrCreateInterface(d.Port(t, "port2").Name()).Enabled = ygot.Bool(true)
 		}
