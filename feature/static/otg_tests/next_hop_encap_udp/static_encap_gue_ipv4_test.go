@@ -466,21 +466,6 @@ func enableCapture(t *testing.T, config gosnappi.Config, portNames []string) {
 	}
 }
 
-func startCapture(t *testing.T, otg *otg.OTG) gosnappi.ControlState {
-	t.Helper()
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
-	otg.SetControlState(t, cs)
-
-	return cs
-}
-
-func stopCapture(t *testing.T, otg *otg.OTG, cs gosnappi.ControlState) {
-	t.Helper()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
-	otg.SetControlState(t, cs)
-}
-
 func mustProcessCapture(t *testing.T, otg *otg.OTG, port string) string {
 	bytes := otg.GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(port))
 	time.Sleep(30 * time.Second)
@@ -734,7 +719,8 @@ func TestGUEEncap(t *testing.T) {
 		cfgplugins.VerifyOTGBGPEstablished(t, bs.ATE)
 
 		t.Log("Starting capture")
-		cs := startCapture(t, bs.ATE.OTG())
+		cs := otgutils.StartCapture(t, bs.ATE.OTG())
+		defer otgutils.StopCapture(t, bs.ATE.OTG(), cs)
 
 		t.Log("Starting traffic")
 		bs.ATE.OTG().StartTraffic(t)
@@ -743,7 +729,7 @@ func TestGUEEncap(t *testing.T) {
 		otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
 
 		t.Log("Stop Capture")
-		stopCapture(t, bs.ATE.OTG(), cs)
+		otgutils.StopCapture(t, bs.ATE.OTG(), cs)
 
 		t.Log("Verify traffic packets")
 		verifyTraffic(t, bs.DUT, bs.ATE, bs.ATETop, "IPv4-GUE-Traffic")
@@ -770,7 +756,8 @@ func TestGUEEncap(t *testing.T) {
 		cfgplugins.VerifyOTGBGPEstablished(t, bs.ATE)
 
 		t.Log("Starting capture")
-		cs := startCapture(t, bs.ATE.OTG())
+		cs := otgutils.StartCapture(t, bs.ATE.OTG())
+		defer otgutils.StopCapture(t, bs.ATE.OTG(), cs)
 
 		t.Log("Starting traffic")
 		bs.ATE.OTG().StartTraffic(t)
@@ -779,7 +766,7 @@ func TestGUEEncap(t *testing.T) {
 		otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
 
 		t.Log("Stop Capture")
-		stopCapture(t, bs.ATE.OTG(), cs)
+		otgutils.StopCapture(t, bs.ATE.OTG(), cs)
 
 		t.Log("Verify traffic packets")
 		verifyTraffic(t, bs.DUT, bs.ATE, bs.ATETop, "IPv6-GUE-Traffic")
@@ -818,7 +805,8 @@ func TestGUEEncap(t *testing.T) {
 		t.Log("Verify OTG BGP sessions up")
 		cfgplugins.VerifyOTGBGPEstablished(t, bs.ATE)
 		t.Logf("Starting capture")
-		cs := startCapture(t, bs.ATE.OTG())
+		cs := otgutils.StartCapture(t, bs.ATE.OTG())
+		defer otgutils.StopCapture(t, bs.ATE.OTG(), cs)
 
 		t.Log("Starting traffic")
 		bs.ATE.OTG().StartTraffic(t)
@@ -827,7 +815,7 @@ func TestGUEEncap(t *testing.T) {
 		otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
 
 		t.Log("Stop Capture")
-		stopCapture(t, bs.ATE.OTG(), cs)
+		otgutils.StopCapture(t, bs.ATE.OTG(), cs)
 
 		t.Log("Verify traffic packets")
 		verifyTraffic(t, bs.DUT, bs.ATE, bs.ATETop, "IPv4-GUE-Traffic")
@@ -849,7 +837,8 @@ func TestGUEEncap(t *testing.T) {
 		bs.ATE.OTG().StartProtocols(t)
 
 		t.Log("Starting capture")
-		cs := startCapture(t, bs.ATE.OTG())
+		cs := otgutils.StartCapture(t, bs.ATE.OTG())
+		defer otgutils.StopCapture(t, bs.ATE.OTG(), cs)
 
 		t.Log("Starting traffic")
 		bs.ATE.OTG().StartTraffic(t)
@@ -858,7 +847,7 @@ func TestGUEEncap(t *testing.T) {
 		otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
 
 		t.Log("Stop Capture")
-		stopCapture(t, bs.ATE.OTG(), cs)
+		otgutils.StopCapture(t, bs.ATE.OTG(), cs)
 
 		t.Log("Verify traffic packets")
 		verifyTraffic(t, bs.DUT, bs.ATE, bs.ATETop, "IPv6-GUE-Traffic")
@@ -896,7 +885,8 @@ func TestGUEEncap(t *testing.T) {
 		cfgplugins.VerifyOTGBGPEstablished(t, bs.ATE)
 
 		t.Log("Starting capture")
-		cs := startCapture(t, bs.ATE.OTG())
+		cs := otgutils.StartCapture(t, bs.ATE.OTG())
+		defer otgutils.StopCapture(t, bs.ATE.OTG(), cs)
 
 		t.Log("Starting traffic")
 		bs.ATE.OTG().StartTraffic(t)
@@ -905,7 +895,7 @@ func TestGUEEncap(t *testing.T) {
 		otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
 
 		t.Log("Stop Capture")
-		stopCapture(t, bs.ATE.OTG(), cs)
+		otgutils.StopCapture(t, bs.ATE.OTG(), cs)
 
 		t.Log("Verify traffic packets")
 		verifyTraffic(t, bs.DUT, bs.ATE, bs.ATETop, "IPv4-GUE-Traffic")
@@ -939,7 +929,8 @@ func TestGUEEncap(t *testing.T) {
 		cfgplugins.VerifyOTGBGPEstablished(t, bs.ATE)
 
 		t.Log("Starting capture")
-		cs := startCapture(t, bs.ATE.OTG())
+		cs := otgutils.StartCapture(t, bs.ATE.OTG())
+		defer otgutils.StopCapture(t, bs.ATE.OTG(), cs)
 
 		t.Log("Starting traffic")
 		bs.ATE.OTG().StartTraffic(t)
@@ -948,7 +939,7 @@ func TestGUEEncap(t *testing.T) {
 		otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
 
 		t.Log("Stop Capture")
-		stopCapture(t, bs.ATE.OTG(), cs)
+		otgutils.StopCapture(t, bs.ATE.OTG(), cs)
 
 		t.Log("Verify traffic packets")
 		verifyTraffic(t, bs.DUT, bs.ATE, bs.ATETop, "IPv6-GUE-Traffic")
@@ -983,7 +974,8 @@ func TestGUEEncap(t *testing.T) {
 		t.Log("Verify OTG BGP sessions up")
 		cfgplugins.VerifyOTGBGPEstablished(t, bs.ATE)
 		t.Log("Starting capture")
-		cs := startCapture(t, bs.ATE.OTG())
+		cs := otgutils.StartCapture(t, bs.ATE.OTG())
+		defer otgutils.StopCapture(t, bs.ATE.OTG(), cs)
 
 		t.Log("Starting traffic")
 		bs.ATE.OTG().StartTraffic(t)
@@ -992,7 +984,7 @@ func TestGUEEncap(t *testing.T) {
 		otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
 
 		t.Log("Stop Capture")
-		stopCapture(t, bs.ATE.OTG(), cs)
+		otgutils.StopCapture(t, bs.ATE.OTG(), cs)
 
 		t.Log("Verify traffic packets")
 		verifyTraffic(t, bs.DUT, bs.ATE, bs.ATETop, "IPv4-GUE-Traffic")
@@ -1021,7 +1013,8 @@ func TestGUEEncap(t *testing.T) {
 		t.Log("Start ATE protocols and verify BGP session")
 		bs.ATE.OTG().StartProtocols(t)
 		t.Log("Starting capture")
-		cs := startCapture(t, bs.ATE.OTG())
+		cs := otgutils.StartCapture(t, bs.ATE.OTG())
+		defer otgutils.StopCapture(t, bs.ATE.OTG(), cs)
 
 		t.Log("Starting traffic")
 		bs.ATE.OTG().StartTraffic(t)
@@ -1030,7 +1023,7 @@ func TestGUEEncap(t *testing.T) {
 		otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
 
 		t.Log("Stop Capture")
-		stopCapture(t, bs.ATE.OTG(), cs)
+		otgutils.StopCapture(t, bs.ATE.OTG(), cs)
 
 		t.Log("Verify traffic packets")
 		verifyTraffic(t, bs.DUT, bs.ATE, bs.ATETop, "IPv6-GUE-Traffic")
@@ -1066,7 +1059,8 @@ func TestGUEEncap(t *testing.T) {
 		cfgplugins.VerifyOTGBGPEstablished(t, bs.ATE)
 
 		t.Log("Starting capture")
-		cs := startCapture(t, bs.ATE.OTG())
+		cs := otgutils.StartCapture(t, bs.ATE.OTG())
+		defer otgutils.StopCapture(t, bs.ATE.OTG(), cs)
 
 		t.Log("Starting traffic")
 		bs.ATE.OTG().StartTraffic(t)
@@ -1075,7 +1069,7 @@ func TestGUEEncap(t *testing.T) {
 		otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
 
 		t.Log("Stop Capture")
-		stopCapture(t, bs.ATE.OTG(), cs)
+		otgutils.StopCapture(t, bs.ATE.OTG(), cs)
 
 		t.Log("Verify traffic packets")
 		activeport := verifySinglePathTraffic(t, bs.ATE, bs.ATETop, "IPv4-GUE-Single-Traffic")
@@ -1109,7 +1103,8 @@ func TestGUEEncap(t *testing.T) {
 		cfgplugins.VerifyOTGBGPEstablished(t, bs.ATE)
 
 		t.Log("Starting capture")
-		cs := startCapture(t, bs.ATE.OTG())
+		cs := otgutils.StartCapture(t, bs.ATE.OTG())
+		defer otgutils.StopCapture(t, bs.ATE.OTG(), cs)
 
 		t.Log("Starting traffic")
 		bs.ATE.OTG().StartTraffic(t)
@@ -1118,7 +1113,7 @@ func TestGUEEncap(t *testing.T) {
 		otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
 
 		t.Log("Stop Capture")
-		stopCapture(t, bs.ATE.OTG(), cs)
+		otgutils.StopCapture(t, bs.ATE.OTG(), cs)
 
 		t.Log("Verify traffic packets")
 		activeport := verifySinglePathTraffic(t, bs.ATE, bs.ATETop, "IPv6-GUE-Single-Traffic")
@@ -1140,7 +1135,8 @@ func TestGUEEncap(t *testing.T) {
 		t.Log("Verify OTG BGP sessions up")
 		cfgplugins.VerifyOTGBGPEstablished(t, bs.ATE)
 
-		cs := startCapture(t, bs.ATE.OTG())
+		cs := otgutils.StartCapture(t, bs.ATE.OTG())
+		defer otgutils.StopCapture(t, bs.ATE.OTG(), cs)
 
 		t.Log("Starting TTL=1 traffic test")
 		bs.ATE.OTG().StartTraffic(t)
@@ -1149,7 +1145,7 @@ func TestGUEEncap(t *testing.T) {
 		otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
 
 		time.Sleep(20 * time.Second)
-		stopCapture(t, bs.ATE.OTG(), cs)
+		otgutils.StopCapture(t, bs.ATE.OTG(), cs)
 		captureName := mustProcessCapture(t, bs.ATE.OTG(), "port1")
 
 		t.Log("Verify TTL=1 packets are dropped and ICMP is returned")
@@ -1169,7 +1165,8 @@ func TestGUEEncap(t *testing.T) {
 		t.Log("Verify OTG BGP sessions up")
 		cfgplugins.VerifyOTGBGPEstablished(t, bs.ATE)
 
-		cs := startCapture(t, bs.ATE.OTG())
+		cs := otgutils.StartCapture(t, bs.ATE.OTG())
+		defer otgutils.StopCapture(t, bs.ATE.OTG(), cs)
 
 		t.Log("Starting TTL=1 traffic test")
 		bs.ATE.OTG().StartTraffic(t)
@@ -1178,7 +1175,7 @@ func TestGUEEncap(t *testing.T) {
 		otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
 
 		time.Sleep(20 * time.Second)
-		stopCapture(t, bs.ATE.OTG(), cs)
+		otgutils.StopCapture(t, bs.ATE.OTG(), cs)
 		captureName := mustProcessCapture(t, bs.ATE.OTG(), "port1")
 
 		t.Log("Verify TTL=1 packets are dropped and ICMP is returned")

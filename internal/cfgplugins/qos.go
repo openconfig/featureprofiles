@@ -288,7 +288,7 @@ func CreateQueues(t *testing.T, dut *ondatra.DUTDevice, qos *oc.Qos, queues []st
 	}
 }
 
-func configureTwoRateThreeColorSchedulerFromOC(batch *gnmi.SetBatch, params *SchedulerParams) {
+func configureTwoRateThreeColorSchedulerFromOC(dut *ondatra.DUTDevice, batch *gnmi.SetBatch, params *SchedulerParams) {
 	qos := &oc.Qos{}
 	sp := qos.GetOrCreateSchedulerPolicy(params.SchedulerName)
 	sp.Name = ygot.String(params.SchedulerName)
@@ -301,9 +301,16 @@ func configureTwoRateThreeColorSchedulerFromOC(batch *gnmi.SetBatch, params *Sch
 	trtc := sched.GetOrCreateTwoRateThreeColor()
 	trtc.Cir = ygot.Uint64(params.CirValue)
 	trtc.Pir = ygot.Uint64(params.PirValue)
-	trtc.Bc = ygot.Uint32(params.BurstSize)
-	trtc.Be = ygot.Uint32(params.BurstSize)
-	trtc.GetOrCreateExceedAction().Drop = ygot.Bool(true)
+	// Platforms with QosSchedulerConfigRequired (such as Cisco IOS-XR) reject bc, be, and
+	// exceed-action/config/drop as unsupported YANG paths on two-rate-three-color schedulers,
+	// and default to dropping exceeding packets.
+	if !deviations.QosSchedulerConfigRequired(dut) {
+		if params.BurstSize > 0 {
+			trtc.Bc = ygot.Uint32(params.BurstSize)
+			trtc.Be = ygot.Uint32(params.BurstSize)
+		}
+		trtc.GetOrCreateExceedAction().Drop = ygot.Bool(true)
+	}
 	trtc.GetOrCreateViolateAction().Drop = ygot.Bool(true)
 	qosPath := gnmi.OC().Qos().Config()
 	gnmi.BatchUpdate(batch, qosPath, qos)
@@ -331,7 +338,7 @@ func NewTwoRateThreeColorScheduler(t *testing.T, dut *ondatra.DUTDevice, batch *
 	if deviations.QosTwoRateThreeColorPolicerOCUnsupported(dut) {
 		configureTwoRateThreeColorSchedulerFromCLI(t, dut, params)
 	} else {
-		configureTwoRateThreeColorSchedulerFromOC(batch, params)
+		configureTwoRateThreeColorSchedulerFromOC(dut, batch, params)
 	}
 }
 
@@ -341,15 +348,21 @@ func ApplyQosPolicyOnInterface(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi
 	if deviations.QosSchedulerIngressPolicer(dut) {
 		applyQosPolicyOnInterfaceFromCLI(t, dut, params)
 	} else {
-		applyQosPolicyOnInterfaceFromOC(batch, params)
+		applyQosPolicyOnInterfaceFromOC(dut, batch, params)
 	}
 }
 
-func applyQosPolicyOnInterfaceFromOC(batch *gnmi.SetBatch, params *SchedulerParams) {
+func applyQosPolicyOnInterfaceFromOC(dut *ondatra.DUTDevice, batch *gnmi.SetBatch, params *SchedulerParams) {
 	qos := &oc.Qos{}
 	intf := qos.GetOrCreateInterface(params.InterfaceName)
 	intf.InterfaceId = ygot.String(params.InterfaceName)
+	if !deviations.InterfaceRefConfigUnsupported(dut) {
+		intf.GetOrCreateInterfaceRef().Interface = ygot.String(params.InterfaceName)
+	}
 	in := intf.GetOrCreateInput()
+	if params.QueueName != "" {
+		in.GetOrCreateQueue(params.QueueName).SetName(params.QueueName)
+	}
 	in.GetOrCreateSchedulerPolicy().Name = ygot.String(params.SchedulerName)
 	qosPath := gnmi.OC().Qos().Config()
 	gnmi.BatchUpdate(batch, qosPath, qos)

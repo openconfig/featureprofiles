@@ -45,11 +45,11 @@ func makeIntentDir(t *testing.T, name string) string {
 
 const validIntent = `
 release_id: "2026.1"
-intended_test_ids: "ACL-1.2"
-intended_test_ids: "gNOI-4.1"
+excluded_tests { test_id: "ACL-1.2" }
+excluded_tests { test_id: "gNOI-4.1" }
 `
 
-func TestIsTestIntended(t *testing.T) {
+func TestIsTestExcluded(t *testing.T) {
 	intentPath := writeIntentFile(t, "release_intent.textproto", validIntent)
 
 	tests := []struct {
@@ -60,17 +60,17 @@ func TestIsTestIntended(t *testing.T) {
 		want       bool
 	}{
 		{
-			name:   "first_intended_plan_id_runs",
+			name:   "first_excluded_plan_id_is_skipped",
 			planID: "ACL-1.2",
 			want:   true,
 		},
 		{
-			name:   "second_intended_plan_id_runs",
+			name:   "second_excluded_plan_id_is_skipped",
 			planID: "gNOI-4.1",
 			want:   true,
 		},
 		{
-			name:   "unintended_plan_id_is_skipped",
+			name:   "non_excluded_plan_id_runs",
 			planID: "TE-3.8",
 			want:   false,
 		},
@@ -86,9 +86,28 @@ func TestIsTestIntended(t *testing.T) {
 			// release_id is validated by the qualification-reporter pipeline,
 			// not by the test runner, so filtering still works without it.
 			name:       "intent_without_release_id_still_filters",
-			intentPath: writeIntentFile(t, "no_release_id.textproto", `intended_test_ids: "ACL-1.2"`),
+			intentPath: writeIntentFile(t, "no_release_id.textproto", `excluded_tests { test_id: "ACL-1.2" }`),
 			planID:     "ACL-1.2",
 			want:       true,
+		},
+		{
+			// An empty excluded_tests list means that no tests are excluded.
+			name:       "no_excluded_tests_runs_every_test",
+			intentPath: writeIntentFile(t, "no_exclusions.textproto", `release_id: "2026.1"`),
+			planID:     "ACL-1.2",
+			want:       false,
+		},
+		{
+			name:       "comment_only_file_runs_every_test",
+			intentPath: writeIntentFile(t, "comment_only.textproto", "# release intent for 2026.1\n"),
+			planID:     "ACL-1.2",
+			want:       false,
+		},
+		{
+			name:       "empty_file_runs_every_test",
+			intentPath: writeIntentFile(t, "empty.textproto", ""),
+			planID:     "ACL-1.2",
+			want:       false,
 		},
 	}
 
@@ -98,18 +117,18 @@ func TestIsTestIntended(t *testing.T) {
 			if path == "" {
 				path = intentPath
 			}
-			got, err := isTestIntended(path, tc.planID)
+			got, err := isTestExcluded(path, tc.planID)
 			if err != nil {
-				t.Fatalf("isTestIntended(%q, %q) returned unexpected error: %v", path, tc.planID, err)
+				t.Fatalf("isTestExcluded(%q, %q) returned unexpected error: %v", path, tc.planID, err)
 			}
 			if got != tc.want {
-				t.Errorf("isTestIntended(%q, %q) = %v, want %v", path, tc.planID, got, tc.want)
+				t.Errorf("isTestExcluded(%q, %q) = %v, want %v", path, tc.planID, got, tc.want)
 			}
 		})
 	}
 }
 
-func TestIsTestIntendedErrors(t *testing.T) {
+func TestIsTestExcludedErrors(t *testing.T) {
 	validPath := writeIntentFile(t, "release_intent.textproto", validIntent)
 
 	tests := []struct {
@@ -152,34 +171,22 @@ func TestIsTestIntendedErrors(t *testing.T) {
 			wantErrContains: []string{"cannot parse", "invalid.textproto"},
 		},
 		{
-			name:            "empty_intended_test_ids_is_rejected",
-			intentPath:      writeIntentFile(t, "no_ids.textproto", `release_id: "2026.1"`),
-			planID:          "ACL-1.2",
-			wantErrContains: []string{"no intended_test_ids", "would skip every test"},
-		},
-		{
-			name:            "comment_only_file_is_rejected",
-			intentPath:      writeIntentFile(t, "comment_only.textproto", "# release intent for 2026.1\n"),
-			planID:          "ACL-1.2",
-			wantErrContains: []string{"no intended_test_ids", "would skip every test"},
-		},
-		{
-			name:            "empty_file_is_rejected",
-			intentPath:      writeIntentFile(t, "empty.textproto", ""),
-			planID:          "ACL-1.2",
-			wantErrContains: []string{"no intended_test_ids", "would skip every test"},
+			name:            "empty_excluded_test_id_is_rejected",
+			intentPath:      writeIntentFile(t, "empty_test_id.textproto", `excluded_tests { test_id: "ACL-1.2" } excluded_tests {}`),
+			planID:          "TE-3.8",
+			wantErrContains: []string{"empty excluded_tests[1].test_id", "empty_test_id.textproto"},
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := isTestIntended(tc.intentPath, tc.planID)
+			got, err := isTestExcluded(tc.intentPath, tc.planID)
 			if err == nil {
-				t.Fatalf("isTestIntended(%q, %q) = %v, want error", tc.intentPath, tc.planID, got)
+				t.Fatalf("isTestExcluded(%q, %q) = %v, want error", tc.intentPath, tc.planID, got)
 			}
 			for _, want := range tc.wantErrContains {
 				if !strings.Contains(err.Error(), want) {
-					t.Errorf("isTestIntended(%q, %q) error = %q, want it to contain %q", tc.intentPath, tc.planID, err, want)
+					t.Errorf("isTestExcluded(%q, %q) error = %q, want it to contain %q", tc.intentPath, tc.planID, err, want)
 				}
 			}
 		})
