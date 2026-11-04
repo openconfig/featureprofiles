@@ -19,6 +19,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
@@ -119,10 +120,51 @@ func gitInfo(m map[string]string) string {
 	repo, err := gitV5.PlainOpenWithOptions(cwd, &gitV5.PlainOpenOptions{
 		DetectDotGit: true,
 	})
-	if err != nil {
+	if err == nil {
+		return gitInfoWithRepo(m, repo)
+	}
+	if errors.Is(err, gitV5.ErrRepositoryNotExists) {
 		return ""
 	}
-	return gitInfoWithRepo(m, repo)
+	// go-git cannot open some valid repositories, e.g. those using the
+	// reftable ref storage (extensions.refstorage=reftable). Fall back to
+	// the git CLI so the git properties are still reported.
+	glog.Warningf("go-git could not open %q: %v; falling back to the git CLI", cwd, err)
+	return gitInfoWithCLI(m, cwd)
+}
+
+// runGit runs a git command in dir and returns its trimmed stdout.
+var runGit = func(dir string, args ...string) (string, error) {
+	out, err := exec.Command("git", append([]string{"-C", dir}, args...)...).Output()
+	return strings.TrimSpace(string(out)), err
+}
+
+// gitInfoWithCLI populates the git properties using the git CLI and
+// returns the path to the working directory.
+func gitInfoWithCLI(m map[string]string, dir string) string {
+	root, err := runGit(dir, "rev-parse", "--show-toplevel")
+	if err != nil {
+		glog.Warningf("Could not find git working tree: %v", err)
+		return ""
+	}
+	if origin, err := runGit(root, "remote", "get-url", "origin"); err != nil {
+		glog.Warningf("Could not get git origin URL: %v", err)
+	} else {
+		m["git.origin"] = origin
+	}
+	if head, err := runGit(root, "log", "-1", "--format=%H %ct"); err != nil {
+		glog.Warningf("Could not get git HEAD: %v", err)
+	} else if hash, ts, ok := strings.Cut(head, " "); ok {
+		m["git.commit"] = hash
+		m["git.commit_timestamp"] = ts
+	}
+	if status, err := runGit(root, "status", "--porcelain"); err != nil {
+		glog.Warningf("Could not get git status: %v", err)
+	} else {
+		m["git.status"] = status
+		m["git.clean"] = fmt.Sprint(status == "")
+	}
+	return root
 }
 
 // fpPath returns the package path of a test file path under the
