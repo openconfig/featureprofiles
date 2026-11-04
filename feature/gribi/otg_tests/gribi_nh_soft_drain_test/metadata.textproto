@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "04bf1b78-2601-49a5-853f-e7938f113bb6"
+plan_id: "TE-3.11"
+description: "gRIBI Next-Hop Weight Adjustment and Soft Drain"
+testbed: TESTBED_DUT_ATE_4LINKS
