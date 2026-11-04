@@ -16,47 +16,48 @@ and path MTU discovery (PMTUD) settings for BGP sessions:
 
 ### Testbed type
 
-*   [TESTBED_DUT_DUT_ATE_2LINKS](https://github.com/openconfig/featureprofiles/blob/main/topologies/dutdutate.testbed)
+*   [TESTBED_DUT_ATE_2LINKS](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_2.testbed)
 
 ### Topology
 
 ```mermaid
 graph LR
-    ATE["ATE"] <-->|"port-1 to port-1"| DUT1["DUT1"]
-    DUT1 <-->|"port-2 to port-1"| DUT2["DUT2"]
+    ATE["ATE"] <-->|"port-1: eBGP IPv4 and IPv6"| DUT["DUT"]
+    ATE <-->|"port-2: iBGP IPv4 with TCP MD5"| DUT
 ```
 
 ### DUT and OTG properties
 
 | Device | Port   | IPv4         | IPv6                    | AS    |
 | :----- | :----- | :----------- | :---------------------- | :---- |
-| DUT1   | Port 1 | 192.0.2.1/30 | 2001:db8::192:0:2:1/126 | 64500 |
-| DUT1   | Port 2 | 192.0.2.5/30 | N/A                     | 64500 |
-| DUT2   | Port 1 | 192.0.2.6/30 | N/A                     | 64501 |
+| DUT    | Port 1 | 192.0.2.1/30 | 2001:db8::192:0:2:1/126 | 64500 |
+| DUT    | Port 2 | 192.0.2.5/30 | N/A                     | 64500 |
 | ATE    | Port 1 | 192.0.2.2/30 | 2001:db8::192:0:2:2/126 | 64501 |
+| ATE    | Port 2 | 192.0.2.6/30 | N/A                     | 64500 |
 
 ### Procedure
 
 #### Initial Setup:
 
-*   Connect ATE port-1 to DUT1 port-1, and DUT1 port-2 to DUT2 port-1.
+*   Connect ATE port-1 to DUT port-1, and ATE port-2 to DUT port-2.
 *   Configure the DUT and ATE interfaces per the table above.
 
 ### RT-1.21.1: TCP MSS on eBGP sessions
 
 *   Establish IPv4 and IPv6 eBGP sessions between ATE port-1 (AS `64501`) and
-    DUT1 port-1 (AS `64500`).
-*   If DUT1 reports `transport/state/tcp-mss` for the eBGP neighbors before an
-    MSS is configured, verify that the value is at least the TCP default MSS
-    (536 for IPv4 and 1220 for IPv6) and at most the MTU of DUT1 port-1 minus
-    40 bytes for IPv4 or 60 bytes for IPv6 (1460 and 1440 for a 1500-byte MTU).
-*   Set the MTU of DUT1 port-1 and ATE port-1 to 5040 bytes.
+    DUT port-1 (AS `64500`).
+*   If the DUT reports `transport/state/tcp-mss` for the eBGP neighbors before
+    an MSS is configured, verify that the value is at least the TCP default MSS
+    (536 for IPv4 and 1220 for IPv6) and at most the MTU of DUT port-1 minus 40
+    bytes for IPv4 or 60 bytes for IPv6 (1460 and 1440 for a 1500-byte MTU).
+*   Set the MTU of DUT port-1 and ATE port-1 to 5040 bytes.
 *   Configure `transport/config/tcp-mss` to 4096 on the IPv4 and IPv6 eBGP
-    neighbors on DUT1.
+    neighbors on the DUT.
 *   Re-establish the eBGP sessions, for example by restarting the ATE BGP
     peers.
 *   Verify that both sessions are `ESTABLISHED` and that
-    `transport/state/tcp-mss` is 4096 for both neighbors.
+    `transport/state/tcp-mss` equals `transport/config/tcp-mss` (4096) for both
+    neighbors.
 
 #### Canonical OC
 
@@ -127,27 +128,20 @@ graph LR
 }
 ```
 
-### RT-1.21.2: PMTUD on a multihop iBGP session with TCP MD5
+### RT-1.21.2: PMTUD on an iBGP session with TCP MD5
 
-*   Remove the BGP and MTU configuration of RT-1.21.1 from DUT1, so that DUT1
-    port-1 returns to the default MTU of 1500 bytes.
-*   Provide reachability between ATE port-1 and DUT2 port-1 for a multihop
-    session, for example with IS-IS between ATE port-1 and DUT1 and a static
-    route on DUT2 to `192.0.2.2/32` through DUT1.
 *   Establish an IPv4 iBGP session with TCP MD5 authentication between ATE
-    port-1 (AS `64501`) and DUT2 port-1 (AS `64501`), two hops apart through
-    DUT1.
-*   Set the MTU of ATE port-1, DUT1 port-2 and DUT2 port-1 to 5040 bytes, and
-    leave DUT1 port-1 at 1500 bytes, so that DUT1 port-1 is the smallest MTU on
-    the path.
-*   Set `transport/config/mtu-discovery` to `true` on the iBGP neighbor on
-    DUT2.
+    port-2 (AS `64500`) and DUT port-2 (AS `64500`).
+*   Set the MTU of DUT port-2 to 5040 bytes, and leave ATE port-2 at 1500
+    bytes, so that the ATE side of the link has the smaller MTU.
+*   Set `transport/config/mtu-discovery` to `true` on the iBGP neighbor on the
+    DUT.
 *   Re-establish the iBGP session.
 *   Verify that the session is `ESTABLISHED` and that
     `transport/state/mtu-discovery` is `true`.
-*   If DUT2 reports `transport/state/tcp-mss` for the iBGP neighbor (no MSS is
-    configured), verify that the value is at least 536 and at most 1460, which
-    shows that PMTUD has adjusted the MSS to the 1500-byte path.
+*   If the DUT reports `transport/state/tcp-mss` for the iBGP neighbor (no MSS
+    is configured), verify that the value is at least 536 and at most 1460,
+    which shows that the MSS in use fits the 1500-byte MTU of ATE port-2.
 
 #### Canonical OC
 
@@ -156,9 +150,9 @@ graph LR
   "interfaces": {
     "interface": [
       {
-        "name": "port1",
+        "name": "port2",
         "config": {
-          "name": "port1",
+          "name": "port2",
           "type": "iana-if-type:ethernetCsmacd",
           "mtu": 5040
         }
@@ -185,10 +179,10 @@ graph LR
                 "neighbors": {
                   "neighbor": [
                     {
-                      "neighbor-address": "192.0.2.2",
+                      "neighbor-address": "192.0.2.6",
                       "config": {
-                        "neighbor-address": "192.0.2.2",
-                        "peer-as": 64501,
+                        "neighbor-address": "192.0.2.6",
+                        "peer-as": 64500,
                         "auth-password": "md5-test-password"
                       },
                       "transport": {
@@ -214,16 +208,16 @@ graph LR
 *   If any of the below conditions are not met, test should be declared as a
     "FAIL":
     1.  A BGP session is not `ESTABLISHED` after it is re-established
-    2.  `transport/state/tcp-mss` is not 4096 for the eBGP neighbors in
-        `RT-1.21.1`
+    2.  `transport/state/tcp-mss` does not equal `transport/config/tcp-mss`
+        (4096) for the eBGP neighbors in `RT-1.21.1`
     3.  A reported `transport/state/tcp-mss` is outside the range given in
         `RT-1.21.1` or `RT-1.21.2`
-    4.  `transport/state/mtu-discovery` is not `true` on DUT2 in `RT-1.21.2`
+    4.  `transport/state/mtu-discovery` is not `true` in `RT-1.21.2`
 
 ### Cleanup
 
-*   Remove the BGP, IS-IS, static route and MTU configurations from DUT1 and
-    DUT2 and stop OTG protocols to restore the baseline state.
+*   Remove the BGP and MTU configurations from the DUT and stop OTG protocols
+    to restore the baseline state.
 
 ## OpenConfig Path and RPC Coverage
 
