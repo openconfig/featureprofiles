@@ -158,6 +158,11 @@ func ISISRestartSuppressUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisRestartSuppressUnsupported()
 }
 
+// ISISLspRetransmitCounterUnsupported returns whether the device skips isis lsp retransmit packet counter check.
+func ISISLspRetransmitCounterUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisLspRetransmitCounterUnsupported()
+}
+
 // BgpGrHelperDisableUnsupported returns whether the device does not support to disable BGP GR Helper.
 func BgpGrHelperDisableUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpGrHelperDisableUnsupported()
@@ -1594,11 +1599,6 @@ func IsisSrNoPhpRequired(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisSrNoPhpRequired()
 }
 
-// SflowIngressMinSamplingRate returns the minimum sampling rate supported for sflow ingress on the device.
-func SflowIngressMinSamplingRate(dut *ondatra.DUTDevice) uint32 {
-	return lookupDUTDeviations(dut).GetSflowIngressMinSamplingRate()
-}
-
 // SflowEgressSamplingRateUnsupported returns true if the device does not support
 // configuring the sFlow egress sampling rate through OpenConfig.
 // Arista EOS: b/562517133.
@@ -2482,4 +2482,57 @@ func AFTNextHopEncapsulateHeaderUnsupported(dut *ondatra.DUTDevice) bool {
 // Arista: https://partnerissuetracker.corp.google.com/issues/573620862
 func AFTNextHopGroupBackupNHGUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAftNextHopGroupBackupNhgUnsupported()
+}
+
+// CfmStateFt returns the functional translator to be used for translating CFM
+// state leaves (e.g. present-rdi).
+// Arista: https://partnerissuetracker.corp.google.com/issues/574322407
+func CfmStateFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetCfmStateFt()
+}
+
+// CfmPmFt returns the functional translator to be used for translating CFM
+// performance measurement leaves.
+// Arista: https://partnerissuetracker.corp.google.com/issues/574326691
+func CfmPmFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetCfmPmFt()
+}
+
+// QosRedUnsupported returns true if device does not support RED under queue-management-profiles.
+func QosRedUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDropWeightLeavesUnsupported()
+}
+
+// InvalidInterfaceNumberAllowed returns true for devices that don't pre-check invalid interface numbers when configured
+// Cisco: https://partnerissuetracker.corp.google.com/issues/570523357
+func InvalidInterfaceNumberAllowed(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInvalidInterfaceNumberAllowed()
+}
+
+// BgpAfiSafiSendCommunityTypeUnsupported returns true if the device does not support configuring
+// BGP send-community-type under peer-group/afi-safis/afi-safi/config/send-community-type and
+// requires configuring it under peer-group/config/send-community-type instead.
+// Arista: https://partnerissuetracker.corp.google.com/issues/567652475
+func BgpAfiSafiSendCommunityTypeUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpAfiSafiSendCommunityTypeUnsupported()
+}
+
+// ISISInterfaceAuthenticationContainerUnsupported returns true if the device does not support
+// configuring IS-IS interface authentication under /isis/interfaces/interface/authentication
+// and requires /isis/interfaces/interface/levels/level/hello-authentication instead.
+// Arista: https://partnerissuetracker.corp.google.com/issues/567813121
+func ISISInterfaceAuthenticationContainerUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisInterfaceAuthenticationContainerUnsupported()
+}
+
+// SkipGnoiPingRpcAuthzVerification returnds true if Gnoi Ping rpc to be skipped based on a deviation
+// Arista: https://partnerissuetracker.corp.google.com/issues/219953165
+func SkipGnoiPingRpcAuthzVerification(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipGnoiPingRpcAuthzVerification()
+}
+
+// EcnMinGreaterMaxThresholdUnsupported returns true if the device does not
+// validate that max-threshold is strictly greater than min-threshold.
+func EcnMinGreaterMaxThresholdUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEcnMinGreaterMaxThresholdUnsupported()
 }
