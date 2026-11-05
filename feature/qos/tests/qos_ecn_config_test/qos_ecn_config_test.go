@@ -346,16 +346,15 @@ func TestQosEcnConfig(t *testing.T) {
 
 		// DP-1.3.4 Step 2: Validate profile is detached
 		outQueuePath := gnmi.OC().Qos().Interface(qosIntfID).Output().Queue(queueName)
-		allProfiles := []string{"ECN_PROFILE_1", "ECN_PROFILE_2", "ECN_PROFILE_3"}
-		qoscfg.VerifyLeafDetached(t, dut, outQueuePath.QueueManagementProfile().State(), outQueuePath.QueueManagementProfile().Config(), allProfiles, time.Minute)
+		qoscfg.VerifyLeafDetached(t, dut, outQueuePath.QueueManagementProfile().State(), outQueuePath.QueueManagementProfile().Config(), ecnProfiles, time.Minute)
 
 		// DP-1.3.4 Step 3: Delete profile globally
-		for _, profileName := range allProfiles {
+		for _, profileName := range ecnProfiles {
 			gnmi.Delete(t, dut, gnmi.OC().Qos().QueueManagementProfile(profileName).Config())
 		}
 
 		// DP-1.3.4 Step 4: Validate profile is removed
-		for _, profileName := range allProfiles {
+		for _, profileName := range ecnProfiles {
 			profilePath := gnmi.OC().Qos().QueueManagementProfile(profileName)
 			qoscfg.VerifyLeafRemoved(t, dut, profilePath.State(), profilePath.Config(), time.Minute)
 		}
