@@ -55,3 +55,11 @@ platform_exceptions: {
     omit_l2_mtu: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    eth_channel_ingress_parameters_unsupported: true
+  }
+}
