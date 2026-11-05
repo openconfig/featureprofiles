@@ -862,7 +862,7 @@ func PLQGeneratorCapabilitiesMaxPPS(dut *ondatra.DUTDevice) uint64 {
 	return lookupDUTDeviations(dut).GetPlqGeneratorCapabilitiesMaxPps()
 }
 
-// PLQGeneratorCapabilitiesMaxBPS returns supported max_bps for devices that supports packet link qualification(PLQ) Generator max_bps capability < 100000000000.
+// PLQGeneratorCapabilitiesMaxBPS returns supported max_bps for devices that support packet link qualification generator max_bps capability.
 func PLQGeneratorCapabilitiesMaxBPS(dut *ondatra.DUTDevice) uint64 {
 	return lookupDUTDeviations(dut).GetPlqGeneratorCapabilitiesMaxBps()
 }
@@ -1604,11 +1604,9 @@ func IsisSrNoPhpRequired(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisSrNoPhpRequired()
 }
 
-// SflowEgressSamplingRateUnsupported returns true if the device does not support
-// configuring the sFlow egress sampling rate through OpenConfig.
-// Arista EOS: b/562517133.
-func SflowEgressSamplingRateUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSflowEgressSamplingRateUnsupported()
+// SflowIngressMinSamplingRate returns the minimum sampling rate supported for sflow ingress on the device.
+func SflowIngressMinSamplingRate(dut *ondatra.DUTDevice) uint32 {
+	return lookupDUTDeviations(dut).GetSflowIngressMinSamplingRate()
 }
 
 // SflowEgressSamplingRateUnsupported returns true if the device does not support
@@ -2541,6 +2539,8 @@ func ISISInterfaceAuthenticationContainerUnsupported(dut *ondatra.DUTDevice) boo
 // testing on 800g links. This is typically only supported on P200 devices, not Q200.
 func SkipPLQ800gTests(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipPlq_800GTests()
+}
+
 // SkipGnoiPingRpcAuthzVerification returnds true if Gnoi Ping rpc to be skipped based on a deviation
 // Arista: https://partnerissuetracker.corp.google.com/issues/219953165
 func SkipGnoiPingRpcAuthzVerification(dut *ondatra.DUTDevice) bool {
