@@ -885,10 +885,6 @@ message Metadata {
 
     // Devices that do not support policy forwarding on next-hop
     bool policy_forwarding_to_next_hop_oc_unsupported = 312;
-    // Cisco: b/402672689
-    // Devices that support sflow ingress min sampling rate of 1/N with N<1,000,000 can use
-    // this deviation to set specific value of N. Returns N=1,000,000 by default.
-    uint32 sflow_ingress_min_sampling_rate = 313;
 
     // DUT not supporting with qos remarking
     // Arista: b/415889077
@@ -1445,7 +1441,7 @@ message Metadata {
 
     // No P4RT AAA role based Authorization support
     bool p4rt_aaa_role_based_authz_unsupported = 452;
-
+    
     // Extra minutes the device needs beyond the 5-minute base timeout for
     // switchover-related waits (post-switchover verification, switchover-ready
     // polling, and SwitchControlProcessor retry). Supervisors may restart
@@ -1477,7 +1473,7 @@ message Metadata {
     // NOKIA: https://partnerissuetracker.corp.google.com/issues/510725200
     bool bgp_adj_rib_oc_unsupported = 457;
 
-    // Devices that donot support AIGP metric increment when IGP metric to original destination is zero
+    // Devices that do not support AIGP metric increment when IGP metric to original destination is zero
     bool aigp_metric_increment = 458;
 
     // Device does not support power supply telemetry.
@@ -1514,6 +1510,7 @@ message Metadata {
 
     // Device requires vendor-specific configuration before the test configuration.
     bool vendor_pre_config_required = 465;
+
     // Devices that do not report
     // /network-instances/network-instance/afts/next-hops/next-hop/state/origin-protocol
     // in AFT telemetry.
@@ -1563,8 +1560,41 @@ message Metadata {
     // qos_red_unsupported specifies if device does not support RED under
     // queue-management-profiles.
     bool qos_red_unsupported = 475;
+
+    // Devices that don't pre-check invalid interface numbers when configured
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/570523357
+    bool invalid_interface_number_allowed = 476;
+
+    // Device does not support configuring BGP send-community-type under
+    // /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/config/send-community-type
+    // and requires configuring it under peer-group/config/send-community-type instead.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/567652475
+    bool bgp_afi_safi_send_community_type_unsupported = 477;
+
+    // Device does not support configuring IS-IS interface authentication under
+    // /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication
+    // and requires /isis/interfaces/interface/levels/level/hello-authentication instead.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/567813121
+    bool isis_interface_authentication_container_unsupported = 478;
+
+    // deviation to skip authz verification of gnoi ping rpc
+    // Arista: https://partnerissuetracker.corp.google.com/issues/219953165
+    bool skip_gnoi_ping_rpc_authz_verification = 479;
+
+    // Device does not support IS-IS interface level packet-counters/lsp/state/retransmit leaf.
+    // Nokia: https://partnerissuetracker.corp.google.com/issues/570885559
+    bool isis_lsp_retransmit_counter_unsupported = 480;
+
+    // Devices that do not validate that max-threshold is strictly greater than
+    // min-threshold, so a min > max configuration is accepted instead of
+    // rejected.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/573059610
+    // Nokia: https://partnerissuetracker.corp.google.com/issues/573067365
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/573074330
+    bool ecn_min_greater_max_threshold_unsupported = 481;
+
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
+    reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49, 313;
   }
 
   message PlatformExceptions {
