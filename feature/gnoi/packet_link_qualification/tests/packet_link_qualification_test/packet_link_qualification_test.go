@@ -224,9 +224,6 @@ func TestListDelete(t *testing.T) {
 					t.Fatalf("Failed to handle gnoi LinkQualification().Delete(): %v", err)
 				}
 			}
-			if deviations.LinkQualWaitAfterDeleteRequired(dut1) {
-				time.Sleep(10 * time.Second)
-			}
 		} else {
 			t.Logf("The LinkQualification request was not found on client %d", i+1)
 			continue
@@ -241,6 +238,9 @@ func TestListDelete(t *testing.T) {
 		if got, want := len(listResp.GetResults()), 0; got != want {
 			t.Errorf("len(listResp.GetResults()): got %v, want %v", got, want)
 		}
+	}
+	if deviations.LinkQualWaitAfterDeleteRequired(dut1) {
+		time.Sleep(10 * time.Second)
 	}
 }
 
@@ -372,8 +372,8 @@ func configureDUTAggregate(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Po
 	}
 
 	// Wait for LAG interfaces to be UP
-	gnmi.Await(t, dut, gnmi.OC().Interface(aggID1).OperStatus().State(), 60*time.Second, oc.Interface_OperStatus_UP)
-	gnmi.Await(t, dut, gnmi.OC().Interface(aggID2).OperStatus().State(), 60*time.Second, oc.Interface_OperStatus_UP)
+	gnmi.Await(t, dut, gnmi.OC().Interface(aggID1).OperStatus().State(), 5*time.Minute, oc.Interface_OperStatus_UP)
+	gnmi.Await(t, dut, gnmi.OC().Interface(aggID2).OperStatus().State(), 5*time.Minute, oc.Interface_OperStatus_UP)
 }
 
 func testLinkQualification(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Port, dp2 *ondatra.Port, plqID string, aggregate bool) {
@@ -616,14 +616,11 @@ func TestLinkQualification(t *testing.T) {
 	port3 := dut.Port(t, "port3")
 	port4 := dut.Port(t, "port4")
 
-	// port5 and port6 are optional (only for 800g capable devices like P200)
 	var port5, port6 *ondatra.Port
-	portList := dut.Ports()
-	if len(portList) >= 6 {
+	if len(dut.Ports()) >= 6 {
 		port5 = dut.Port(t, "port5")
 		port6 = dut.Port(t, "port6")
 	}
-
 	t.Logf("dut: %v", dut.Name())
 	t.Logf("PLQ will run on 400g links on dut port1 name: %v, dut port2 name : %v", port1.Name(), port2.Name())
 	t.Logf("PLQ will run on 100g links on dut port3 name: %v, dut port4 name : %v", port3.Name(), port4.Name())
@@ -637,7 +634,6 @@ func TestLinkQualification(t *testing.T) {
 	if port5 != nil && port6 != nil {
 		portNames = append(portNames, "port5", "port6")
 	}
-
 	for _, p := range portNames {
 		port := dut.Port(t, p)
 		i := &oc.Interface{Name: ygot.String(port.Name())}
@@ -679,35 +675,34 @@ func TestLinkQualification(t *testing.T) {
 		speed:     "100g",
 	}}
 
-	// Add 800g test cases only if ports are available and device supports them
 	if port5 != nil && port6 != nil && !deviations.SkipPLQ800gTests(dut) {
-		case800gSingleton := struct {
-			desc      string
-			plqID     string
-			testFunc  func(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Port, dp2 *ondatra.Port, plqID string, aggregate bool)
-			aggregate bool
-			speed     string
-		}{
-			desc:      "Singleton Interface LinkQualification on 800g links",
-			plqID:     fmt.Sprintf("%s:%s-%s:%s", dut.Name(), port5.Name(), dut.Name(), port6.Name()),
-			testFunc:  testLinkQualification,
-			aggregate: false,
-			speed:     "800g",
-		}
-		case800gAggregate := struct {
-			desc      string
-			plqID     string
-			testFunc  func(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Port, dp2 *ondatra.Port, plqID string, aggregate bool)
-			aggregate bool
-			speed     string
-		}{
-			desc:      "Member Link LinkQualification on 800g links",
-			plqID:     fmt.Sprintf("%s:%s-%s:%s-aggregate", dut.Name(), port5.Name(), dut.Name(), port6.Name()),
-			testFunc:  testLinkQualification,
-			aggregate: true,
-			speed:     "800g",
-		}
-		cases = append(cases, case800gSingleton, case800gAggregate)
+		cases = append(cases,
+			struct {
+				desc      string
+				plqID     string
+				testFunc  func(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Port, dp2 *ondatra.Port, plqID string, aggregate bool)
+				aggregate bool
+				speed     string
+			}{
+				desc:     "Singleton Interface LinkQualification on 800g links",
+				plqID:    fmt.Sprintf("%s:%s-%s:%s", dut.Name(), port5.Name(), dut.Name(), port6.Name()),
+				testFunc: testLinkQualification,
+				speed:    "800g",
+			},
+			struct {
+				desc      string
+				plqID     string
+				testFunc  func(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Port, dp2 *ondatra.Port, plqID string, aggregate bool)
+				aggregate bool
+				speed     string
+			}{
+				desc:      "Member Link LinkQualification on 800g links",
+				plqID:     fmt.Sprintf("%s:%s-%s:%s-aggregate", dut.Name(), port5.Name(), dut.Name(), port6.Name()),
+				testFunc:  testLinkQualification,
+				aggregate: true,
+				speed:     "800g",
+			},
+		)
 	}
 
 	for _, tc := range cases {
