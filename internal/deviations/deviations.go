@@ -158,6 +158,11 @@ func ISISRestartSuppressUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisRestartSuppressUnsupported()
 }
 
+// ISISLspRetransmitCounterUnsupported returns whether the device skips isis lsp retransmit packet counter check.
+func ISISLspRetransmitCounterUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisLspRetransmitCounterUnsupported()
+}
+
 // BgpGrHelperDisableUnsupported returns whether the device does not support to disable BGP GR Helper.
 func BgpGrHelperDisableUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpGrHelperDisableUnsupported()
@@ -1599,9 +1604,11 @@ func IsisSrNoPhpRequired(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisSrNoPhpRequired()
 }
 
-// SflowIngressMinSamplingRate returns the minimum sampling rate supported for sflow ingress on the device.
-func SflowIngressMinSamplingRate(dut *ondatra.DUTDevice) uint32 {
-	return lookupDUTDeviations(dut).GetSflowIngressMinSamplingRate()
+// SflowEgressSamplingRateUnsupported returns true if the device does not support
+// configuring the sFlow egress sampling rate through OpenConfig.
+// Arista EOS: b/562517133.
+func SflowEgressSamplingRateUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSflowEgressSamplingRateUnsupported()
 }
 
 // SflowEgressSamplingRateUnsupported returns true if the device does not support
@@ -2534,4 +2541,14 @@ func ISISInterfaceAuthenticationContainerUnsupported(dut *ondatra.DUTDevice) boo
 // testing on 800g links. This is typically only supported on P200 devices, not Q200.
 func SkipPLQ800gTests(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipPlq_800GTests()
+// SkipGnoiPingRpcAuthzVerification returnds true if Gnoi Ping rpc to be skipped based on a deviation
+// Arista: https://partnerissuetracker.corp.google.com/issues/219953165
+func SkipGnoiPingRpcAuthzVerification(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipGnoiPingRpcAuthzVerification()
+}
+
+// EcnMinGreaterMaxThresholdUnsupported returns true if the device does not
+// validate that max-threshold is strictly greater than min-threshold.
+func EcnMinGreaterMaxThresholdUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEcnMinGreaterMaxThresholdUnsupported()
 }

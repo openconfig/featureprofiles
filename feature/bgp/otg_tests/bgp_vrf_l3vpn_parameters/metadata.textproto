@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "6b325655-a140-4873-bdcc-c0f1cba33e82"
+plan_id: "RT-1.102"
+description: "DUT eBGP FNTs coverage for new L3VPN params"
+testbed: TESTBED_DUT_ATE_2LINKS

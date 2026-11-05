@@ -43,6 +43,7 @@ platform_exceptions: {
     linecard_memory_utilization_unsupported: true
     secondary_controller_card_cpu_utilization_unsupported: true
     secondary_controller_card_memory_utilization_unsupported: true
+    skip_origin: true
     subinterface_0_state_unsupported: true
   }
 }

@@ -640,7 +640,9 @@ func (ss *AFTStreamSession) listenUntil(ctx context.Context, t *testing.T, timeo
 			err := ss.Cache.addAFTNotification(resp.notification)
 			switch {
 			case errors.Is(err, cache.ErrStale):
-				t.Logf("Received stale notification with timestamp %v (current time: %v)", time.Unix(0, resp.notification.GetUpdate().GetTimestamp()), time.Now())
+				// TODO: The log line below is currently commented out to avoid stale log messages. Uncomment it later if the additional logging is required.
+				// t.Logf("Received stale notification with timestamp %v (current time: %v)", time.Unix(0, resp.notification.GetUpdate().GetTimestamp()), time.Now())
+				continue
 			case err != nil:
 				t.Fatalf("error updating AFT cache with response %v: %v", resp.notification, err)
 			}
@@ -1130,4 +1132,117 @@ func writeNotifications(t *testing.T, notifications []*gnmipb.SubscribeResponse,
 		}
 	}
 	return path, nil
+}
+
+// Notifications return the AFT stream notifications.
+func (ss *AFTStreamSession) Notifications() []*gnmipb.SubscribeResponse {
+	return ss.notifications
+}
+
+// notificationMatch tracks whether the expected update/delete notifications have been observed in the gNMI stream.
+type notificationMatch struct {
+	updateFound bool
+	deleteFound bool
+}
+
+// NotificationExpectation defines prefixes that should appear as UPDATE and/or DELETE notifications in the gNMI stream.
+type NotificationExpectation struct {
+	AddPrefix        string
+	DeletePrefix     string
+	NotificationWait time.Duration
+}
+
+// WaitForNotification returns a PeriodicHook that waits for the expected update
+// and/or delete notifications specified in NotificationExpectation. The hook
+// completes successfully once all requested notifications are observed.
+func WaitForNotification(t *testing.T, cfg NotificationExpectation) PeriodicHook {
+	t.Helper()
+	start := time.Now()
+	return PeriodicHook{
+		Description: "Wait for notification",
+		PeriodicFunc: func(ss *AFTStreamSession) (bool, error) {
+			match := notificationMatch{
+				updateFound: cfg.AddPrefix == "",
+				deleteFound: cfg.DeletePrefix == "",
+			}
+			for _, resp := range ss.Notifications() {
+				update := resp.GetUpdate()
+				if update == nil {
+					// Ignore SubscribeResponse messages that do not contain an Update,
+					// such as SyncResponse.
+					continue
+				}
+				if !match.updateFound && hasUpdateNotification(update, cfg.AddPrefix) {
+					match.updateFound = true
+				}
+				if !match.deleteFound && hasDeleteNotification(update, cfg.DeletePrefix) {
+					match.deleteFound = true
+				}
+				if match.updateFound && match.deleteFound {
+					return true, nil
+				}
+			}
+			if time.Since(start) > cfg.NotificationWait {
+				return false, fmt.Errorf("timed out waiting for update(%q) delete(%q)", cfg.AddPrefix, cfg.DeletePrefix)
+			}
+			return false, nil
+		},
+	}
+}
+
+// pathHasPrefixKey returns true if path contains the supplied route-prefix key.
+func pathHasPrefixKey(path *gnmipb.Path, prefix string) bool {
+	if path == nil {
+		return false
+	}
+	for _, elem := range path.GetElem() {
+		for _, keyVal := range elem.GetKey() {
+			if keyVal == prefix {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// hasUpdateNotification returns true if the specified prefix appears in the
+// notification prefix or in any UPDATE path. For atomic containers in
+// Subscribe and Get responses, gNMI section 3.5.2.5 permits a server to place
+// the list key in Notification.Prefix and make the UPDATE path relative to
+// that prefix. Checking both locations handles this encoding as well as
+// notifications with the key directly in an UPDATE path.
+func hasUpdateNotification(update *gnmipb.Notification, prefix string) bool {
+	if len(update.GetUpdate()) == 0 {
+		return false
+	}
+	if pathHasPrefixKey(update.GetPrefix(), prefix) {
+		return true
+	}
+	for _, upd := range update.GetUpdate() {
+		if pathHasPrefixKey(upd.GetPath(), prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// hasDeleteNotification returns true if the specified prefix appears in the
+// notification prefix or in any DELETE path. For atomic containers in
+// Subscribe and Get responses, gNMI section 3.5.2.5 permits a server to place
+// the list key in Notification.Prefix and make the DELETE path relative to
+// that prefix. Checking both locations handles this encoding as well as
+// notifications with the key directly in a DELETE path.
+func hasDeleteNotification(update *gnmipb.Notification, prefix string) bool {
+	if len(update.GetDelete()) == 0 {
+		return false
+	}
+	if pathHasPrefixKey(update.GetPrefix(), prefix) {
+		return true
+	}
+	for _, del := range update.GetDelete() {
+		if pathHasPrefixKey(del, prefix) {
+			return true
+		}
+	}
+	return false
 }

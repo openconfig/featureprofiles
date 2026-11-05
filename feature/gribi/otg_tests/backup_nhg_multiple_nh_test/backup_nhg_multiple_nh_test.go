@@ -21,6 +21,7 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
@@ -240,6 +241,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 func TestBackup(t *testing.T) {
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
+	if deviations.VendorPreConfigRequired(dut) {
+		cfgplugins.ConfigureFallbackDecapVrfSelection(t, dut)
+	}
 
 	// Configure ATE
 	ate := ondatra.ATE(t, "ate")
@@ -358,6 +362,14 @@ func (a *testArgs) testIPv4BackUpSwitch(t *testing.T) {
 	})
 
 	// shutdown port2
+	if deviations.ATEPortLinkStateOperationsUnsupported(a.ate) {
+		defer a.flapinterface(t, "port2", true)
+		defer a.flapinterface(t, "port3", true)
+	} else {
+		portStateAction := gosnappi.NewControlState()
+		portStateAction.Port().Link().SetPortNames([]string{"port2", "port3"}).SetState(gosnappi.StatePortLinkState.UP)
+		defer a.ate.OTG().SetControlState(t, portStateAction)
+	}
 	t.Run("Baseline (port3 only)", func(t *testing.T) {
 		t.Logf("Shutdown port 2 and validate traffic switching over port3 primary path")
 		a.validateTrafficFlows(t, baseFlow, []*ondatra.Port{a.ate.Port(t, "port3")}, "port2")
@@ -370,14 +382,6 @@ func (a *testArgs) testIPv4BackUpSwitch(t *testing.T) {
 		t.Logf("Shutdown port 3 and validate traffic switching over port4 backup path")
 		a.validateTrafficFlows(t, baseFlow, []*ondatra.Port{a.ate.Port(t, "port4")}, "port3")
 	})
-	if deviations.ATEPortLinkStateOperationsUnsupported(a.ate) {
-		defer a.flapinterface(t, "port2", true)
-		defer a.flapinterface(t, "port3", true)
-	} else {
-		portStateAction := gosnappi.NewControlState()
-		portStateAction.Port().Link().SetPortNames([]string{"port2", "port3"}).SetState(gosnappi.StatePortLinkState.UP)
-		defer a.ate.OTG().SetControlState(t, portStateAction)
-	}
 	// TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
 }
 
