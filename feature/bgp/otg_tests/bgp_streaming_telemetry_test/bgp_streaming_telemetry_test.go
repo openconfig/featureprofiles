@@ -39,8 +39,8 @@ import (
 
 const (
 	vrfName               = "ce1"
-	dutAS                 = 65000
-	ceAS                  = 65001
+	dutAS                 = 64496
+	ceAS                  = 64497
 	rrAS                  = dutAS
 	plenIPv4              = 30
 	plenIPv6              = 126
@@ -167,13 +167,17 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.BatchReplace(batch, d.NetworkInstance(vrfName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Config(), buildVRFBGP(dut))
 	configureStaticRedistribution(t, dut, batch)
 	batch.Set(t, dut)
-	cfgplugins.ConfigureBGPMaxPrefix(t, dut, cfgplugins.BGPMaxPrefixConfig{
+	// Configure max-prefix after base OC config is committed so vendor CLI
+	// fallback paths can reference an already-created VRF/BGP context.
+	if maxPrefixBatch := cfgplugins.ConfigureBGPMaxPrefix(t, dut, &gnmi.SetBatch{}, cfgplugins.BGPMaxPrefixConfig{
 		DUTAS:               dutAS,
 		VRFName:             vrfName,
 		NeighborAddress:     atePort1.IPv4,
 		MaxPrefixes:         maxPrefixes,
 		WarningThresholdPct: warnPct,
-	})
+	}); maxPrefixBatch != nil {
+		maxPrefixBatch.Set(t, dut)
+	}
 }
 
 // configureRoutingPolicy installs routing policies used by this test.
@@ -264,22 +268,6 @@ func buildCoreBGP(dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	return proto
 }
 
-// setPrefixLimit sets IPv4 neighbor prefix-limit state for max-prefix behavior.
-func setPrefixLimit(dut *ondatra.DUTDevice, afi *oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi) {
-	if deviations.BGPMissingOCMaxPrefixesConfiguration(dut) {
-		return
-	}
-	if deviations.BGPExplicitPrefixLimitReceived(dut) {
-		pl := afi.GetOrCreateIpv4Unicast().GetOrCreatePrefixLimitReceived()
-		pl.MaxPrefixes = ygot.Uint32(maxPrefixes)
-		pl.WarningThresholdPct = ygot.Uint8(warnPct)
-		return
-	}
-	pl := afi.GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit()
-	pl.MaxPrefixes = ygot.Uint32(maxPrefixes)
-	pl.WarningThresholdPct = ygot.Uint8(warnPct)
-}
-
 // buildVRFBGP returns VRF ce1 BGP with the eBGP CE peers (IPv4 and IPv6).
 func buildVRFBGP(dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	root := &oc.Root{}
@@ -296,7 +284,6 @@ func buildVRFBGP(dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	af4 := n4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 	af4.Enabled = ygot.Bool(true)
 	n4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(false)
-	setPrefixLimit(dut, af4)
 	applyPolicy(dut, n4, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, allowPolicy, exportPolicy)
 	n6 := bgp.GetOrCreateNeighbor(atePort1.IPv6)
 	n6.PeerAs = ygot.Uint32(ceAS)
@@ -486,6 +473,14 @@ func awaitPrefixLimitExceededPresence(t *testing.T, dut *ondatra.DUTDevice, time
 func TestBGPStreamingTelemetry(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
+	t.Cleanup(func() {
+		gnmi.Delete(t, dut, gnmi.OC().RoutingPolicy().PolicyDefinition(allowPolicy).Config())
+		gnmi.Delete(t, dut, gnmi.OC().RoutingPolicy().PolicyDefinition(exportPolicy).Config())
+		gnmi.Delete(t, dut, gnmi.OC().RoutingPolicy().DefinedSets().PrefixSet(exportPfxSet).Config())
+		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(vrfName).Config())
+		defaultNI := deviations.DefaultNetworkInstance(dut)
+		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(defaultNI).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Config())
+	})
 	t.Log("Configuring DUT")
 	configureDUT(t, dut)
 	t.Log("Configuring ATE")

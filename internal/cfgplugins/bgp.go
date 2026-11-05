@@ -1896,10 +1896,25 @@ type BGPMaxPrefixConfig struct {
 
 // ConfigureBGPMaxPrefix configures the BGP maximum-prefix limit using
 // OpenConfig when supported, or vendor-specific CLI when required.
-func ConfigureBGPMaxPrefix(t *testing.T, dut *ondatra.DUTDevice, params BGPMaxPrefixConfig) {
+func ConfigureBGPMaxPrefix(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, params BGPMaxPrefixConfig) *gnmi.SetBatch {
 	t.Helper()
 	if !deviations.BGPMissingOCMaxPrefixesConfiguration(dut) {
-		return
+		d := gnmi.OC()
+		afiPath := d.NetworkInstance(params.VRFName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(params.NeighborAddress).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+		if deviations.BGPExplicitPrefixLimitReceived(dut) {
+			pl := &oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_Ipv4Unicast_PrefixLimitReceived{
+				MaxPrefixes:         ygot.Uint32(params.MaxPrefixes),
+				WarningThresholdPct: ygot.Uint8(params.WarningThresholdPct),
+			}
+			gnmi.BatchReplace(sb, afiPath.Ipv4Unicast().PrefixLimitReceived().Config(), pl)
+		} else {
+			pl := &oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_Ipv4Unicast_PrefixLimit{
+				MaxPrefixes:         ygot.Uint32(params.MaxPrefixes),
+				WarningThresholdPct: ygot.Uint8(params.WarningThresholdPct),
+			}
+			gnmi.BatchReplace(sb, afiPath.Ipv4Unicast().PrefixLimit().Config(), pl)
+		}
+		return sb
 	}
 	var cli string
 	switch dut.Vendor() {
@@ -1932,4 +1947,5 @@ func ConfigureBGPMaxPrefix(t *testing.T, dut *ondatra.DUTDevice, params BGPMaxPr
 		t.Fatalf("BGP maximum-prefix CLI is not implemented for vendor %v", dut.Vendor())
 	}
 	helpers.GnmiCLIConfig(t, dut, cli)
+	return nil
 }
