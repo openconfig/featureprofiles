@@ -2924,8 +2924,9 @@ func FetchHWUtilizationSnapshot(t *testing.T, dut *ondatra.DUTDevice, stage stri
 			Name:      resName,
 		}
 		maxLimit := res.GetMaxLimit()
-		// If max limit is not set, calculate it based on used and free resources.
-		if maxLimit == 0 {
+		// If max limit is not set, derive capacity only when both counters are
+		// present. Missing counters must not be treated as zero.
+		if maxLimit == 0 && res.Used != nil && res.Free != nil {
 			maxLimit = res.GetUsed() + res.GetFree()
 		}
 
