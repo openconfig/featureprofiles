@@ -213,11 +213,18 @@ func configureISISMPLSSR(t *testing.T, ts *isissession.TestSession) {
 	isisIntfLevel.LevelNumber = ygot.Uint8(2)
 	isisIntfLevel.SetEnabled(true)
 	isisIntfLevel.Enabled = ygot.Bool(true)
-	intfAuth := intf.GetOrCreateAuthentication()
-	intfAuth.Enabled = ygot.Bool(true)
-	intfAuth.AuthPassword = ygot.String(password)
-	intfAuth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
-	intfAuth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
+	if deviations.ISISInterfaceAuthenticationContainerUnsupported(ts.DUT) {
+		isisIntfLevel.GetOrCreateHelloAuthentication().Enabled = ygot.Bool(true)
+		isisIntfLevel.GetHelloAuthentication().AuthPassword = ygot.String(password)
+		isisIntfLevel.GetHelloAuthentication().AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+		isisIntfLevel.GetHelloAuthentication().AuthMode = oc.IsisTypes_AUTH_MODE_MD5
+	} else {
+		intfAuth := intf.GetOrCreateAuthentication()
+		intfAuth.Enabled = ygot.Bool(true)
+		intfAuth.AuthPassword = ygot.String(password)
+		intfAuth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+		intfAuth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
+	}
 
 	isisIntfLevelTimers := isisIntfLevel.GetOrCreateTimers()
 	isisIntfLevelTimers.HelloInterval = ygot.Uint32(5)
