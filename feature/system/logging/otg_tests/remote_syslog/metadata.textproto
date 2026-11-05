@@ -15,6 +15,18 @@ platform_exceptions: {
     interface_enabled: true
     default_network_instance: "default"
     static_protocol_name: "STATIC"
+    syslog_uniform_selector_required: true
+    syslog_default_ni_state_unsupported: true
+  }
+}
+
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    syslog_default_ni_state_unsupported: true
+    syslog_debug_severity_unsupported: true
   }
 }
 
