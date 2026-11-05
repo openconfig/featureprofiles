@@ -421,13 +421,13 @@ func verifySFlowReconnect(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUT
 	var ctx context.Context
 	var closeContext context.CancelFunc
 	otg := ate.OTG()
-	otg.PushConfig(t, top)
-	otg.StartProtocols(t)
 
 	sampleCount := 0
 	sampleCountAtDisconnect := 0
 
 	for range connectionAttempts {
+		otg.PushConfig(t, top)
+		otg.StartProtocols(t)
 		t.Log("Connecting GNPSI client")
 		sflowPacketsToValidate := make(chan sFlowPacket, 2*expectedSFlowSamplesCount)
 		ctx, closeContext = context.WithCancel(t.Context())
@@ -470,12 +470,12 @@ func verifySFlowServiceRestart(t *testing.T, ate *ondatra.ATEDevice, dut *ondatr
 	gnpsiClient := dut.RawAPIs().GNPSI(t)
 
 	otg := ate.OTG()
-	otg.PushConfig(t, top)
-	otg.StartProtocols(t)
 	sampleCount := 0
 	sampleCountAtRestart := 0
 
 	for range connectionAttempts {
+		otg.PushConfig(t, top)
+		otg.StartProtocols(t)
 		sflowPacketsToValidate := make(chan sFlowPacket, 2*expectedSFlowSamplesCount)
 		stream, err = subscribeGNPSIClient(t, ctx, gnpsiClient)
 		if err != nil {
