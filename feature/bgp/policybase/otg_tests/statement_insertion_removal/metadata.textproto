@@ -24,14 +24,7 @@ platform_exceptions:  {
     omit_l2_mtu:  true
     interface_enabled:  true
     default_network_instance:  "default"
-  }
-}
-platform_exceptions:  {
-  platform:  {
-    vendor:  CISCO
-  }
-  deviations:  {
-    bgp_community_type_slice_input_unsupported: true
+    bgp_afi_safi_send_community_type_unsupported:  true
   }
 }
 tags:  TAGS_DATACENTER_EDGE

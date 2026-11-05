@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "b4b66a28-3dcf-4cc9-9e59-bbfe50c7a0e5"
+plan_id:  "RT-1.110"
+description:  "Single-Hop BFD over eBGP Subinterfaces"
+testbed:  TESTBED_DUT_ATE_2LINKS

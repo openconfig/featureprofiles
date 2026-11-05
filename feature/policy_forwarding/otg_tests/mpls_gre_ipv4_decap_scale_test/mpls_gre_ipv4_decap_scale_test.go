@@ -530,11 +530,12 @@ func sendTrafficCapture(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDe
 	if err := flowResolveArp.IsIPv6Interfaceresolved(t, ate); err != nil {
 		t.Fatalf("Failed to resolve IPv6 interface for ATE: %v, error: %v", ate, err)
 	}
-	cs := packetvalidationhelpers.StartCapture(t, ate)
+	cs := otgutils.StartCapture(t, ate.OTG())
+	defer otgutils.StopCapture(t, ate.OTG(), cs)
 	ate.OTG().StartTraffic(t)
 	time.Sleep(sleepTime * time.Second)
 	ate.OTG().StopTraffic(t)
-	packetvalidationhelpers.StopCapture(t, ate, cs)
+	otgutils.StopCapture(t, ate.OTG(), cs)
 }
 
 func createflow(t *testing.T, top gosnappi.Config, outer *otgconfighelpers.Flow, inner *otgconfighelpers.Flow, clearFlows bool) {

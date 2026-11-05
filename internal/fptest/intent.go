@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 
 	log "github.com/golang/glog"
 	"github.com/openconfig/featureprofiles/internal/metadata"
@@ -28,18 +27,18 @@ import (
 	"google.golang.org/protobuf/encoding/prototext"
 )
 
-var releaseIntent = flag.String("release_intent", "", "Path to the ReleaseIntent textproto file listing the test plan IDs to qualify. If set, tests whose plan ID is not listed in intended_test_ids are skipped. Prefer an absolute path: a relative path is resolved against the test's own directory.")
+var releaseIntent = flag.String("release_intent", "", "Path to the ReleaseIntent textproto file listing the test plan IDs excluded from qualification. If set, tests whose plan ID is listed in excluded_tests are skipped; all other tests run. Prefer an absolute path: a relative path is resolved against the test's own directory.")
 
-// skipIfNotIntended reports whether the current test should be skipped because
-// its plan ID is not part of the release intent given by --release_intent.
+// skipIfExcluded reports whether the current test should be skipped because
+// its plan ID is excluded by the release intent given by --release_intent.
 // It exits the test binary if --release_intent is set but cannot be evaluated,
 // so that an unusable intent file fails the run loudly instead of silently
-// skipping every test.
+// running or skipping the wrong tests.
 //
 // As a side effect, it publishes the plan ID as a suite property when the test
 // does run. This must happen before ondatra.RunTests so that the JSON-Lines
 // ledger records the plan ID rather than falling back to the binary name.
-func skipIfNotIntended() bool {
+func skipIfExcluded() bool {
 	// RunTests calls this even when initMetadata failed, and initMetadata
 	// returns before its own flag.Parse when metadata is missing. Parse here so
 	// that a bad metadata file cannot silently disable the intent filter.
@@ -51,16 +50,16 @@ func skipIfNotIntended() bool {
 		planID = md.GetPlanId()
 	}
 	if *releaseIntent != "" {
-		intended, err := isTestIntended(*releaseIntent, planID)
+		excluded, err := isTestExcluded(*releaseIntent, planID)
 		if err != nil {
 			log.Exitf("Invalid --release_intent: %v", err)
 		}
-		if !intended {
-			log.Infof("Skipping test (plan ID %q): not listed in intended_test_ids of release intent %q", planID, *releaseIntent)
+		if excluded {
+			log.Infof("Skipping test (plan ID %q): listed in excluded_tests of release intent %q", planID, *releaseIntent)
 			// Emit go test formatted output so that test runners parsing the
 			// binary's stdout record the test as skipped rather than as having
 			// produced no results at all.
-			fmt.Printf("=== RUN   TestMain\n    Skipping test (plan ID %q): not included in release intent\n--- SKIP: TestMain (0.00s)\nPASS\n", planID)
+			fmt.Printf("=== RUN   TestMain\n    Skipping test (plan ID %q): excluded by release intent\n--- SKIP: TestMain (0.00s)\nPASS\n", planID)
 			return true
 		}
 	}
@@ -70,10 +69,11 @@ func skipIfNotIntended() bool {
 	return false
 }
 
-// isTestIntended reports whether the test with the given planID is listed in
-// the ReleaseIntent textproto at intentPath. It returns an error describing
-// what to fix if planID is unknown or intentPath is not a usable ReleaseIntent.
-func isTestIntended(intentPath, planID string) (bool, error) {
+// isTestExcluded reports whether the test with the given planID is listed in
+// excluded_tests of the ReleaseIntent textproto at intentPath. It returns an
+// error describing what to fix if planID is unknown or intentPath is not a
+// usable ReleaseIntent.
+func isTestExcluded(intentPath, planID string) (bool, error) {
 	if planID == "" {
 		return false, fmt.Errorf("cannot match the test against release intent %q because the test has no plan ID; check that the test's metadata.textproto exists and sets plan_id", intentPath)
 	}
@@ -81,7 +81,12 @@ func isTestIntended(intentPath, planID string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return slices.Contains(relIntent.GetIntendedTestIds(), planID), nil
+	for _, excludedTest := range relIntent.GetExcludedTests() {
+		if excludedTest.GetTestId() == planID {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // readReleaseIntent reads and parses the ReleaseIntent textproto at intentPath.
@@ -100,11 +105,14 @@ func readReleaseIntent(intentPath string) (*ripb.ReleaseIntent, error) {
 	if err := prototext.Unmarshal(data, relIntent); err != nil {
 		return nil, fmt.Errorf("cannot parse release intent file %q as a ReleaseIntent textproto: %w", intentPath, err)
 	}
-	// An intent that parses but lists no tests would skip every test and report
-	// a green run, so reject it here. Other fields are left to the
-	// qualification-reporter pipeline, which owns intent policy.
-	if len(relIntent.GetIntendedTestIds()) == 0 {
-		return nil, fmt.Errorf("release intent file %q lists no intended_test_ids, which would skip every test; list the plan IDs to qualify", intentPath)
+	// An empty excluded_tests list is valid and means that every test runs.
+	// An empty test_id would silently exclude nothing, so reject it here. Other
+	// fields are left to the qualification-reporter pipeline, which owns intent
+	// policy.
+	for i, excludedTest := range relIntent.GetExcludedTests() {
+		if excludedTest.GetTestId() == "" {
+			return nil, fmt.Errorf("release intent file %q has an empty excluded_tests[%d].test_id; set it to the plan ID to exclude", intentPath, i)
+		}
 	}
 	return relIntent, nil
 }
