@@ -862,6 +862,11 @@ func PLQGeneratorCapabilitiesMaxPPS(dut *ondatra.DUTDevice) uint64 {
 	return lookupDUTDeviations(dut).GetPlqGeneratorCapabilitiesMaxPps()
 }
 
+// PLQGeneratorCapabilitiesMaxBPS returns supported max_bps for devices that support packet link qualification generator max_bps capability.
+func PLQGeneratorCapabilitiesMaxBPS(dut *ondatra.DUTDevice) uint64 {
+	return lookupDUTDeviations(dut).GetPlqGeneratorCapabilitiesMaxBps()
+}
+
 // BgpExtendedCommunityIndexUnsupported return true if BGP extended community index is not supported.
 func BgpExtendedCommunityIndexUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpExtendedCommunityIndexUnsupported()
@@ -1597,6 +1602,11 @@ func IsisSrNodeSegmentConfigUnsupported(dut *ondatra.DUTDevice) bool {
 // IsisSrNoPhpRequired returns true if the device requires the no-php flag for ISIS SR prefix and node segments
 func IsisSrNoPhpRequired(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisSrNoPhpRequired()
+}
+
+// SflowIngressMinSamplingRate returns the minimum sampling rate supported for sflow ingress on the device.
+func SflowIngressMinSamplingRate(dut *ondatra.DUTDevice) uint32 {
+	return lookupDUTDeviations(dut).GetSflowIngressMinSamplingRate()
 }
 
 // SflowEgressSamplingRateUnsupported returns true if the device does not support
@@ -2523,6 +2533,12 @@ func BgpAfiSafiSendCommunityTypeUnsupported(dut *ondatra.DUTDevice) bool {
 // Arista: https://partnerissuetracker.corp.google.com/issues/567813121
 func ISISInterfaceAuthenticationContainerUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisInterfaceAuthenticationContainerUnsupported()
+}
+
+// SkipPLQ800gTests returns true if the device does not support packet link qualification (PLQ)
+// testing on 800g links. This is typically only supported on P200 devices, not Q200.
+func SkipPLQ800gTests(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipPlq_800GTests()
 }
 
 // SkipGnoiPingRpcAuthzVerification returnds true if Gnoi Ping rpc to be skipped based on a deviation
