@@ -32,19 +32,24 @@ Flag                     | Defined by       | Purpose
 Use absolute paths for `-release_intent` and `-jsonl`. `go test` runs each test
 binary in its own package directory, so a relative path is resolved against
 each test's directory: a relative `-release_intent` is not found, and a
-relative `-jsonl` scatters results across one file per test directory.
+relative `-jsonl` scatters results across one file per test directory. Keep
+both files outside the featureprofiles checkout; files inside it make the
+checkout dirty, so results would be recorded with `gitDirty: true`.
 
 ## Example
 
 Run from the root of a clean featureprofiles checkout:
 
 ```shell
-go test ./feature/... -timeout=2h \
+go test ./feature/... -p 1 -timeout=2h \
   -binding=$PWD/topologies/otgdut_4.binding \
   -release_intent=/abs/path/release_intent.textproto \
   -jsonl=/abs/path/results.jsonl \
   -run_time=110m
 ```
+
+`-p 1` runs one test package at a time. By default `go test` runs several
+packages in parallel, which would make tests compete for the same testbed.
 
 Several runs, including parallel runs on the same machine, can append to the
 same ledger file; appends are protected by a file lock. Ledgers from different
