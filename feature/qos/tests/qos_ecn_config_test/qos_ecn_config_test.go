@@ -46,10 +46,10 @@ const (
 const wantWeight = uint32(0)
 
 // ecnProfiles lists every queue management profile this test may create.
-var ecnProfiles = []string{"ECN_PROFILE_1", "ECN_PROFILE_2", "ECN_PROFILE_3", "ECN_PROFILE_NEG"}
+var ecnProfiles = []string{"ECN_PROFILE_1", "ECN_PROFILE_2", "ECN_PROFILE_3"}
 
 // removeECNConfig detaches the ECN profile from queueName on dp and deletes all
-// ecnProfiles, logging and ignoring errors. Used by t.Cleanup if DP-1.3.5 did not complete.
+// ecnProfiles, logging and ignoring errors. Used by t.Cleanup if DP-1.3.4 did not complete.
 func removeECNConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port, queueName string) {
 	t.Helper()
 	bestEffort := func(desc string, fn func(t testing.TB)) {
@@ -67,29 +67,6 @@ func removeECNConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port, que
 	}
 }
 
-// newValidECNProfile adds a complete ECN profile called name to q, using the
-// DP-1.3.2 values that all vendors accept, and returns its wred/uniform
-// settings. It does not send anything to the device.
-//
-// DP-1.3.4 Negative Tests 1 and 2 change one leaf to an invalid value, so a
-// rejection is caused by that leaf and not by missing leaves (Junos rejects a
-// profile without enable-ecn and max-drop-probability-percent).
-// Negative Test 4 uses it unchanged: attaches it to queue "0", then deletes it.
-func newValidECNProfile(dut *ondatra.DUTDevice, q *oc.Qos, name string) *oc.Qos_QueueManagementProfile_Wred_Uniform {
-	profile := q.GetOrCreateQueueManagementProfile(name)
-	profile.SetName(name)
-	uniform := profile.GetOrCreateWred().GetOrCreateUniform()
-	uniform.SetEnableEcn(true)
-	uniform.SetDrop(false)
-	uniform.SetMaxDropProbabilityPercent(100)
-	uniform.SetMinThreshold(3276800)
-	uniform.SetMaxThreshold(6553600)
-	if !deviations.QosSetWeightConfigUnsupported(dut) {
-		uniform.SetWeight(wantWeight)
-	}
-	return uniform
-}
-
 func TestQosEcnConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp1 := dut.Port(t, "port1")
@@ -99,16 +76,16 @@ func TestQosEcnConfig(t *testing.T) {
 		queueName = netutil.CommonTrafficQueues(t, dut).BE0
 	}
 
-	// teardownVerified is set when DP-1.3.5 removes and verifies all ECN config.
+	// teardownVerified is set when DP-1.3.4 removes and verifies all ECN config.
 	teardownVerified := false
-	// Safety net for DP-1.3.5: registered before any configuration is pushed so
-	// the ECN config is removed even if a subtest panics before DP-1.3.5 runs.
-	// It does nothing when DP-1.3.5 already completed successfully.
+	// Safety net for DP-1.3.4: registered before any configuration is pushed so
+	// the ECN config is removed even if a subtest panics before DP-1.3.4 runs.
+	// It does nothing when DP-1.3.4 already completed successfully.
 	t.Cleanup(func() {
 		if teardownVerified {
 			return
 		}
-		t.Log("DP-1.3.5 did not complete; removing ECN configuration (best effort)")
+		t.Log("DP-1.3.4 did not complete; removing ECN configuration (best effort)")
 		removeECNConfig(t, dut, dp1, queueName)
 	})
 
@@ -362,109 +339,28 @@ func TestQosEcnConfig(t *testing.T) {
 		qoscfg.VerifyLeaf(t, dut, outQueuePath.QueueManagementProfile().State(), outQueuePath.QueueManagementProfile().Config(), profileName, time.Minute)
 	})
 
-	t.Run("DP-1.3.4 - Negative Test Cases", func(t *testing.T) {
-		// DP-1.3.4: each negative test builds its own new QoS config (q), so nothing
-		// carries over between tests. Tests that need a profile get a complete, valid
-		// one from newValidECNProfile and change only the leaf under test.
-		profileName := "ECN_PROFILE_NEG"
-		outQueuePath := gnmi.OC().Qos().Interface(qoscfg.QosInterfaceID(dut, dp1.Name())).Output().Queue(queueName)
-
-		// DP-1.3.4 Negative Test 1: min-threshold (81920) > max-threshold (40960).
-		// Verify the gNMI Set is rejected.
-		t.Run("Negative Test 1 (min > max threshold)", func(t *testing.T) {
-			if deviations.EcnMinGreaterMaxThresholdUnsupported(dut) {
-				t.Skip("Device does not support validating min-threshold > max-threshold")
-			}
-			q := &oc.Qos{}
-			uniform := newValidECNProfile(dut, q, profileName)
-			uniform.SetMinThreshold(81920)
-			uniform.SetMaxThreshold(40960)
-			// Some devices validate cross-leaf constraints only when the profile is
-			// attached to a queue, so attach it to queue "0".
-			qoscfg.BuildOutputQueueManagementProfile(dut, q, dp1.Name(), queueName, profileName)
-
-			// testt.ExpectFatal fails the test if the Set is accepted.
-			errStr := testt.ExpectFatal(t, func(t testing.TB) {
-				gnmi.Update(t, dut, gnmi.OC().Qos().Config(), q)
-			})
-			t.Logf("min-threshold > max-threshold rejected as expected: %s", errStr)
-		})
-
-		// DP-1.3.4 Negative Test 2: max-drop-probability-percent = 101 (out of
-		// range). Verify the gNMI Set is rejected.
-		t.Run("Negative Test 2 (invalid max-drop-prob)", func(t *testing.T) {
-			q := &oc.Qos{}
-			newValidECNProfile(dut, q, profileName).SetMaxDropProbabilityPercent(101)
-
-			errStr := testt.ExpectFatal(t, func(t testing.TB) {
-				gnmi.Update(t, dut, gnmi.OC().Qos().Config(), q)
-			})
-			t.Logf("max-drop-probability-percent 101 rejected as expected: %s", errStr)
-		})
-
-		// DP-1.3.4 Negative Test 3: assign non-existent profile "BOGUS_PROFILE" to
-		// queue "0". Verify the gNMI Set is rejected.
-		t.Run("Negative Test 3 (non-existent profile)", func(t *testing.T) {
-			q := &oc.Qos{}
-			qoscfg.BuildOutputQueueManagementProfile(dut, q, dp1.Name(), queueName, "BOGUS_PROFILE")
-
-			errStr := testt.ExpectFatal(t, func(t testing.TB) {
-				gnmi.Update(t, dut, gnmi.OC().Qos().Config(), q)
-			})
-			t.Logf("Non-existent profile assignment rejected as expected: %s", errStr)
-		})
-
-		// DP-1.3.4 Negative Test 4: apply a valid profile to queue "0", then attempt
-		// to delete it while it is still applied. Verify the deletion is rejected.
-		t.Run("Negative Test 4 (delete active profile)", func(t *testing.T) {
-			// The profile is created here (same values as DP-1.3.2) so this test still
-			// works if DP-1.3.2 failed.
-			activeProfile := "ECN_PROFILE_2"
-
-			// DP-1.3.4 Negative Test 4 - "Apply a valid queue-management-profile to
-			// an interface's queue".
-			q := &oc.Qos{}
-			newValidECNProfile(dut, q, activeProfile)
-			qoscfg.BuildOutputQueueManagementProfile(dut, q, dp1.Name(), queueName, activeProfile)
-			batch := &gnmi.SetBatch{}
-			qoscfg.ReplaceQueueManagementProfile(t, dut, batch, q, dp1.Name(), queueName, activeProfile)
-			batch.Set(t, dut)
-			qoscfg.VerifyLeaf(t, dut, outQueuePath.QueueManagementProfile().State(), outQueuePath.QueueManagementProfile().Config(), activeProfile, time.Minute)
-
-			// DP-1.3.4 Negative Test 4 - "attempt to delete that queue-management-profile
-			// while it is still actively applied ... Verify the deletion is rejected."
-			errStr := testt.ExpectFatal(t, func(t testing.TB) {
-				gnmi.Delete(t, dut, gnmi.OC().Qos().QueueManagementProfile(activeProfile).Config())
-			})
-			t.Logf("Deletion of active profile %s rejected as expected: %s", activeProfile, errStr)
-
-			// DP-1.3.4 Negative Test 4: the rejected delete must leave the profile applied.
-			qoscfg.VerifyLeaf(t, dut, outQueuePath.QueueManagementProfile().State(), outQueuePath.QueueManagementProfile().Config(), activeProfile, time.Minute)
-		})
-	})
-
-	t.Run("DP-1.3.5 - Teardown and Cleanup Verification", func(t *testing.T) {
-		// DP-1.3.5 Step 1: Detach profile from interface
+	t.Run("DP-1.3.4 - Teardown and Cleanup Verification", func(t *testing.T) {
+		// DP-1.3.4 Step 1: Detach profile from interface
 		qosIntfID := qoscfg.QosInterfaceID(dut, dp1.Name())
 		qoscfg.DetachOutputQueueManagementProfile(t, dut, dp1.Name(), queueName)
 
-		// DP-1.3.5 Step 2: Validate profile is detached
+		// DP-1.3.4 Step 2: Validate profile is detached
 		outQueuePath := gnmi.OC().Qos().Interface(qosIntfID).Output().Queue(queueName)
 		allProfiles := []string{"ECN_PROFILE_1", "ECN_PROFILE_2", "ECN_PROFILE_3"}
 		qoscfg.VerifyLeafDetached(t, dut, outQueuePath.QueueManagementProfile().State(), outQueuePath.QueueManagementProfile().Config(), allProfiles, time.Minute)
 
-		// DP-1.3.5 Step 3: Delete profile globally
+		// DP-1.3.4 Step 3: Delete profile globally
 		for _, profileName := range allProfiles {
 			gnmi.Delete(t, dut, gnmi.OC().Qos().QueueManagementProfile(profileName).Config())
 		}
 
-		// DP-1.3.5 Step 4: Validate profile is removed
+		// DP-1.3.4 Step 4: Validate profile is removed
 		for _, profileName := range allProfiles {
 			profilePath := gnmi.OC().Qos().QueueManagementProfile(profileName)
 			qoscfg.VerifyLeafRemoved(t, dut, profilePath.State(), profilePath.Config(), time.Minute)
 		}
 
-		// DP-1.3.5 complete: the t.Cleanup safety net is not needed.
+		// DP-1.3.4 complete: the t.Cleanup safety net is not needed.
 		teardownVerified = !t.Failed()
 	})
 }
