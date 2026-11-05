@@ -172,6 +172,12 @@ func TestCapabilitiesResponse(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
+			if tc.desc == "Generator MaxMtu" && deviations.PLQGeneratorCapabilitiesMaxMTU(dut1) != 0 {
+				tc.min = uint64(deviations.PLQGeneratorCapabilitiesMaxMTU(dut1))
+			}
+			if tc.desc == "Generator MaxPps" && deviations.PLQGeneratorCapabilitiesMaxPPS(dut1) != 0 {
+				tc.min = deviations.PLQGeneratorCapabilitiesMaxPPS(dut1)
+			}
 			if tc.desc == "Generator MaxBps" && deviations.PLQGeneratorCapabilitiesMaxGBPS(dut1) != 0 {
 				tc.min = uint64(deviations.PLQGeneratorCapabilitiesMaxGBPS(dut1))
 			}
@@ -623,16 +629,30 @@ func TestLinkQualification(t *testing.T) {
 	port2 := dut.Port(t, "port2")
 	port3 := dut.Port(t, "port3")
 	port4 := dut.Port(t, "port4")
-	port5 := dut.Port(t, "port5")
-	port6 := dut.Port(t, "port6")
+
+	// port5 and port6 are optional (only for 800g capable devices like P200)
+	var port5, port6 *ondatra.Port
+	portList := dut.Ports()
+	if len(portList) >= 6 {
+		port5 = dut.Port(t, "port5")
+		port6 = dut.Port(t, "port6")
+	}
+
 	t.Logf("dut: %v", dut.Name())
 	t.Logf("PLQ will run on 400g links on dut port1 name: %v, dut port2 name : %v", port1.Name(), port2.Name())
 	t.Logf("PLQ will run on 100g links on dut port3 name: %v, dut port4 name : %v", port3.Name(), port4.Name())
-	t.Logf("PLQ will run on 800g links on dut port5 name: %v, dut port6 name : %v", port5.Name(), port6.Name())
+	if port5 != nil && port6 != nil {
+		t.Logf("PLQ will run on 800g links on dut port5 name: %v, dut port6 name : %v", port5.Name(), port6.Name())
+	}
 
 	d := gnmi.OC()
 
-	for _, p := range []string{"port1", "port2", "port3", "port4", "port5", "port6"} {
+	portNames := []string{"port1", "port2", "port3", "port4"}
+	if port5 != nil && port6 != nil {
+		portNames = append(portNames, "port5", "port6")
+	}
+
+	for _, p := range portNames {
 		port := dut.Port(t, p)
 		i := &oc.Interface{Name: ygot.String(port.Name())}
 		gnmi.Replace(t, dut, d.Interface(port.Name()).Config(), configInterfaceMTU(i, dut))
@@ -671,19 +691,38 @@ func TestLinkQualification(t *testing.T) {
 		testFunc:  testLinkQualification,
 		aggregate: true,
 		speed:     "100g",
-	}, {
-		desc:      "Singleton Interface LinkQualification on 800g links",
-		plqID:     fmt.Sprintf("%s:%s-%s:%s", dut.Name(), port5.Name(), dut.Name(), port6.Name()),
-		testFunc:  testLinkQualification,
-		aggregate: false,
-		speed:     "800g",
-	}, {
-		desc:      "Member Link LinkQualification on 800g links",
-		plqID:     fmt.Sprintf("%s:%s-%s:%s-aggregate", dut.Name(), port5.Name(), dut.Name(), port6.Name()),
-		testFunc:  testLinkQualification,
-		aggregate: true,
-		speed:     "800g",
 	}}
+
+	// Add 800g test cases only if ports are available and device supports them
+	if port5 != nil && port6 != nil && !deviations.SkipPLQ800gTests(dut) {
+		case800gSingleton := struct {
+			desc      string
+			plqID     string
+			testFunc  func(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Port, dp2 *ondatra.Port, plqID string, aggregate bool)
+			aggregate bool
+			speed     string
+		}{
+			desc:      "Singleton Interface LinkQualification on 800g links",
+			plqID:     fmt.Sprintf("%s:%s-%s:%s", dut.Name(), port5.Name(), dut.Name(), port6.Name()),
+			testFunc:  testLinkQualification,
+			aggregate: false,
+			speed:     "800g",
+		}
+		case800gAggregate := struct {
+			desc      string
+			plqID     string
+			testFunc  func(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Port, dp2 *ondatra.Port, plqID string, aggregate bool)
+			aggregate bool
+			speed     string
+		}{
+			desc:      "Member Link LinkQualification on 800g links",
+			plqID:     fmt.Sprintf("%s:%s-%s:%s-aggregate", dut.Name(), port5.Name(), dut.Name(), port6.Name()),
+			testFunc:  testLinkQualification,
+			aggregate: true,
+			speed:     "800g",
+		}
+		cases = append(cases, case800gSingleton, case800gAggregate)
+	}
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
