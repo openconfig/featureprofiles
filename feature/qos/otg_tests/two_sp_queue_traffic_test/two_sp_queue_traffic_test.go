@@ -15,6 +15,7 @@
 package two_sp_queue_traffic_test
 
 import (
+	"sort"
 	"testing"
 	"time"
 
@@ -1054,8 +1055,14 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			trafficFlows := tc.trafficFlows
 			top.Flows().Clear()
+			queueSet := make(map[string]bool)
+			var queues []string
 
 			for trafficID, data := range trafficFlows {
+				if !queueSet[data.queue] {
+					queueSet[data.queue] = true
+					queues = append(queues, data.queue)
+				}
 				t.Logf("Configuring flow %s", trafficID)
 				flow := top.Flows().Add().SetName(trafficID)
 				flow.Metrics().SetEnable(true)
@@ -1071,6 +1078,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 				flow.Size().SetFixed(uint32(data.frameSize))
 				flow.Rate().SetPercentage(float32(data.trafficRate))
 			}
+			sort.Strings(queues)
 
 			ate.OTG().PushConfig(t, top)
 			ate.OTG().StartProtocols(t)
@@ -1084,30 +1092,30 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			dutQosDroppedPktsAfterTraffic := make(map[string]uint64)
 
 			// Set the initial counters to 0.
-			for _, data := range trafficFlows {
-				ateOutPkts[data.queue] = 0
-				ateInPkts[data.queue] = 0
-				dutQosPktsBeforeTraffic[data.queue] = 0
-				dutQosPktsAfterTraffic[data.queue] = 0
-				dutQosDroppedPktsBeforeTraffic[data.queue] = 0
-				dutQosDroppedPktsAfterTraffic[data.queue] = 0
+			for _, queue := range queues {
+				ateOutPkts[queue] = 0
+				ateInPkts[queue] = 0
+				dutQosPktsBeforeTraffic[queue] = 0
+				dutQosPktsAfterTraffic[queue] = 0
+				dutQosDroppedPktsBeforeTraffic[queue] = 0
+				dutQosDroppedPktsAfterTraffic[queue] = 0
 			}
 
 			// Get QoS egress packet counters before the traffic.
 			const timeout = time.Minute
 			isPresent := func(val *ygnmi.Value[uint64]) bool { return val.IsPresent() }
-			for _, data := range trafficFlows {
-				count, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State(), timeout, isPresent).Await(t)
+			for _, queue := range queues {
+				count, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).TransmitPkts().State(), timeout, isPresent).Await(t)
 				if !ok {
-					t.Errorf("TransmitPkts count for queue %q on interface %q not available within %v", dp3.Name(), data.queue, timeout)
+					t.Fatalf("TransmitPkts count for queue %q on interface %q not available within %v", queue, dp3.Name(), timeout)
 				}
-				dutQosPktsBeforeTraffic[data.queue], _ = count.Val()
+				dutQosPktsBeforeTraffic[queue], _ = count.Val()
 
-				count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State(), timeout, isPresent).Await(t)
+				count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).DroppedPkts().State(), timeout, isPresent).Await(t)
 				if !ok {
-					t.Errorf("DroppedPkts count for queue %q on interface %q not available within %v", dp3.Name(), data.queue, timeout)
+					t.Fatalf("DroppedPkts count for queue %q on interface %q not available within %v", queue, dp3.Name(), timeout)
 				}
-				dutQosDroppedPktsBeforeTraffic[data.queue], _ = count.Val()
+				dutQosDroppedPktsBeforeTraffic[queue], _ = count.Val()
 			}
 
 			t.Logf("Running traffic 1 on DUT interfaces: %s => %s ", dp1.Name(), dp3.Name())
@@ -1129,9 +1137,21 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 
 				ateOutPkts[data.queue] += gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().OutPkts().State())
 				ateInPkts[data.queue] += gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().InPkts().State())
-				dutQosPktsAfterTraffic[data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State())
-				dutQosDroppedPktsAfterTraffic[data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State())
-				t.Logf("ateInPkts: %v, txPkts %v, Queue: %v", ateInPkts[data.queue], dutQosPktsAfterTraffic[data.queue], data.queue)
+			}
+
+			// Queue counters may be published after OTG flow counters settle. Wait for each
+			// unique queue to account for the received traffic instead of relying on a
+			// fixed delay or reading the same absolute queue counter once per flow.
+			for _, queue := range queues {
+				if ateInPkts[queue] > ateOutPkts[queue] {
+					t.Fatalf("OTG received more packets than it transmitted for queue %q: got in-pkts %d, out-pkts %d", queue, ateInPkts[queue], ateOutPkts[queue])
+				}
+				dutQosPktsAfterTraffic[queue] = awaitQueueCounter(
+					t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).TransmitPkts().State(),
+					"TransmitPkts", queue, dp3.Name(), dutQosPktsBeforeTraffic[queue], ateInPkts[queue], timeout)
+				dutQosDroppedPktsAfterTraffic[queue] = awaitQueueCounter(
+					t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).DroppedPkts().State(),
+					"DroppedPkts", queue, dp3.Name(), dutQosDroppedPktsBeforeTraffic[queue], ateOutPkts[queue]-ateInPkts[queue], timeout)
 			}
 
 			// Check QoS egress packet counters are updated correctly.
@@ -1141,18 +1161,70 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			t.Logf("QoS dutQosDroppedPktsAfterTraffic: %v", dutQosDroppedPktsAfterTraffic)
 			t.Logf("QoS ateOutPkts: %v", ateOutPkts)
 			t.Logf("QoS ateInPkts: %v", ateInPkts)
-			for _, data := range trafficFlows {
-				qosCounterDiff := dutQosPktsAfterTraffic[data.queue] - dutQosPktsBeforeTraffic[data.queue]
-				ateCounterDiff := ateInPkts[data.queue]
-				ateDropCounterDiff := ateOutPkts[data.queue] - ateInPkts[data.queue]
-				dutDropCounterDiff := dutQosDroppedPktsAfterTraffic[data.queue] - dutQosDroppedPktsBeforeTraffic[data.queue]
-				t.Logf("QoS queue %q: ateDropCounterDiff: %v dutDropCounterDiff: %v", data.queue, ateDropCounterDiff, dutDropCounterDiff)
+			for _, queue := range queues {
+				qosCounterDiff := dutQosPktsAfterTraffic[queue] - dutQosPktsBeforeTraffic[queue]
+				ateCounterDiff := ateInPkts[queue]
+				ateDropCounterDiff := ateOutPkts[queue] - ateInPkts[queue]
+				dutDropCounterDiff := dutQosDroppedPktsAfterTraffic[queue] - dutQosDroppedPktsBeforeTraffic[queue]
+				t.Logf("QoS queue %q: ateDropCounterDiff: %v dutDropCounterDiff: %v", queue, ateDropCounterDiff, dutDropCounterDiff)
 				if qosCounterDiff < ateCounterDiff {
-					t.Errorf("Get telemetry packet update for queue %q: got %v, want >= %v", data.queue, qosCounterDiff, ateCounterDiff)
+					t.Errorf("Get telemetry packet update for queue %q: got %v, want >= %v", queue, qosCounterDiff, ateCounterDiff)
+				}
+				if dutDropCounterDiff < ateDropCounterDiff {
+					t.Errorf("Get dropped packet telemetry update for queue %q: got %v, want >= %v", queue, dutDropCounterDiff, ateDropCounterDiff)
 				}
 			}
 		})
 	}
+}
+
+func awaitQueueCounter(
+	t *testing.T,
+	dut *ondatra.DUTDevice,
+	query ygnmi.SingletonQuery[uint64],
+	counterName, queue, intfName string,
+	before, want uint64,
+	timeout time.Duration,
+) uint64 {
+	t.Helper()
+	var (
+		lastValue                        uint64
+		lastPresent, counterReset        bool
+		lastTimestamp, lastRecvTimestamp time.Time
+	)
+	watchStart := time.Now()
+	_, ok := gnmi.Watch(t, dut, query, timeout, func(val *ygnmi.Value[uint64]) bool {
+		got, present := val.Val()
+		if !present {
+			return false
+		}
+		lastValue = got
+		lastPresent = true
+		lastTimestamp = val.Timestamp
+		lastRecvTimestamp = val.RecvTimestamp
+		if got < before {
+			counterReset = true
+			return true
+		}
+		return got-before >= want
+	}).Await(t)
+	elapsed := time.Since(watchStart)
+	if counterReset {
+		t.Fatalf("%s counter for queue %q on interface %q decreased: baseline %d, got %d (sample timestamp %v, received %v)", counterName, queue, intfName, before, lastValue, lastTimestamp, lastRecvTimestamp)
+	}
+	if !ok {
+		if !lastPresent {
+			t.Fatalf("%s counter for queue %q on interface %q did not produce a value within %v", counterName, queue, intfName, timeout)
+		}
+		got := lastValue - before
+		deficit := uint64(0)
+		if got < want {
+			deficit = want - got
+		}
+		t.Fatalf("%s counter for queue %q on interface %q did not converge within %v: got delta %d (baseline %d, last %d), want >= %d, deficit %d (sample timestamp %v, received %v)", counterName, queue, intfName, timeout, got, before, lastValue, want, deficit, lastTimestamp, lastRecvTimestamp)
+	}
+	t.Logf("%s counter for queue %q converged after %v: got delta %d, want >= %d (sample timestamp %v, received %v)", counterName, queue, elapsed, lastValue-before, want, lastTimestamp, lastRecvTimestamp)
+	return lastValue
 }
 
 func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
