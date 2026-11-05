@@ -102,10 +102,14 @@ so set it explicitly when running for qualification.
 
 ## Git commit
 
-Results include `gitCommit` and `gitDirty` when featureprofiles can read the
-checkout's Git state. Run from a clean checkout of the commit you pass to
-`generate_report -featureprofiles_commit`; that flag is the commit recorded in
-the qualification report.
+`gitCommit` and `gitDirty` are good to have but best effort: they may be
+missing from some results, for example when the run fails before the testbed is
+reserved or when the checkout's Git state cannot be read. Their absence does
+not invalidate a result.
+
+The commit that counts is the one you pass to
+`generate_report -featureprofiles_commit`, which is required and recorded in
+the qualification report. Run all tests from a clean checkout of that commit.
 
 ## Versions
 
