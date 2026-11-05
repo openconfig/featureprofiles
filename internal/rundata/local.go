@@ -15,6 +15,7 @@
 package rundata
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -23,6 +24,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"time"
 
@@ -133,9 +135,16 @@ func gitInfo(m map[string]string) string {
 	return gitInfoWithCLI(m, cwd)
 }
 
+// gitTimeout bounds each git CLI call, so that a stalled git (e.g. on a slow
+// network filesystem) cannot block the test before Ondatra's -run_time timer
+// starts.
+const gitTimeout = 10 * time.Second
+
 // runGit runs a git command in dir and returns its trimmed stdout.
 var runGit = func(dir string, args ...string) (string, error) {
-	out, err := exec.Command("git", append([]string{"-C", dir}, args...)...).Output()
+	ctx, cancel := context.WithTimeout(context.Background(), gitTimeout)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "git", append([]string{"-C", dir}, args...)...).Output()
 	return strings.TrimSpace(string(out)), err
 }
 
@@ -158,11 +167,13 @@ func gitInfoWithCLI(m map[string]string, dir string) string {
 		m["git.commit"] = hash
 		m["git.commit_timestamp"] = ts
 	}
-	if status, err := runGit(root, "status", "--porcelain"); err != nil {
+	// --no-optional-locks keeps git status from taking index.lock, so it does
+	// not interfere with git commands the user runs in the same repo.
+	if status, err := runGit(root, "--no-optional-locks", "status", "--porcelain"); err != nil {
 		glog.Warningf("Could not get git status: %v", err)
 	} else {
 		m["git.status"] = status
-		m["git.clean"] = fmt.Sprint(status == "")
+		m["git.clean"] = strconv.FormatBool(status == "")
 	}
 	return root
 }
