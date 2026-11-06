@@ -49,6 +49,8 @@ const (
 	dutIncomingPort         = "port1"
 )
 
+const maxComponentDepth = 100
+
 var (
 	dutSrc = attrs.Attributes{
 		Desc:    "dutSrc",
@@ -93,11 +95,12 @@ type flowParameters struct {
 }
 
 type commonEntities struct {
-	dut        *ondatra.DUTDevice
-	ate        *ondatra.ATEDevice
-	platCfg    *platformConfig
-	gnmiClient gpb.GNMIClient
-	ctx        context.Context
+	dut          *ondatra.DUTDevice
+	ate          *ondatra.ATEDevice
+	platCfg      *platformConfig
+	gnmiClient   gpb.GNMIClient
+	ctx          context.Context
+	componentKey string
 }
 
 type coppSystemTestcase struct {
@@ -373,34 +376,41 @@ func (ce *commonEntities) getComponentKey(t *testing.T) string {
 	// Search starts from the Ethernet port to identify the proper ASIC for
 	// multichip systems.
 	cur := pName
-	componentKey := cur
-	for {
-		parent := gnmi.Get(t, ce.dut, gnmi.OC().Component(cur).Parent().State())
-		if parent == "" {
-			t.Fatalf("getComponentKey: reached root component %q without finding an INTEGRATED_CIRCUIT", cur)
+	visited := make(map[string]bool)
+	for depth := 0; depth < maxComponentDepth; depth++ {
+		if visited[cur] {
+			t.Fatalf("getComponentKey: detected a parent cycle at component %q without finding an INTEGRATED_CIRCUIT", cur)
 		}
-		parentType := gnmi.Get(t, ce.dut, gnmi.OC().Component(parent).Type().State())
+		visited[cur] = true
+
+		parentLookup := gnmi.Lookup(t, ce.dut, gnmi.OC().Component(cur).Parent().State())
+		parent, ok := parentLookup.Val()
+		if !ok || parent == "" {
+			t.Fatalf("getComponentKey: component %q has no parent; no INTEGRATED_CIRCUIT ancestor found", cur)
+		}
+		parentTypeLookup := gnmi.Lookup(t, ce.dut, gnmi.OC().Component(parent).Type().State())
+		parentType, ok := parentTypeLookup.Val()
+		if !ok {
+			t.Fatalf("getComponentKey: parent component %q has no type; no INTEGRATED_CIRCUIT ancestor found", parent)
+		}
 		if parentType == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT {
-			componentKey = parent
-			break
+			return parent
 		}
 		cur = parent
 	}
-
-	return componentKey
+	t.Fatalf("getComponentKey: exceeded maximum component hierarchy depth (%d) without finding an INTEGRATED_CIRCUIT", maxComponentDepth)
+	return ""
 }
 
 // getDroppedPktCounts returns the dropped packet counts for the given counters.
 func (ce *commonEntities) getDroppedPktCounts(t *testing.T, counters []string) []float64 {
 	t.Helper()
 
-	componentKey := ce.getComponentKey(t)
-
-	getResponse, err := ce.gnmiClient.Get(context.Background(), &gpb.GetRequest{
+	getResponse, err := ce.gnmiClient.Get(ce.ctx, &gpb.GetRequest{
 		Path: []*gpb.Path{{
 			Elem: []*gpb.PathElem{
 				{Name: "components"},
-				{Name: "component", Key: map[string]string{"name": componentKey}},
+				{Name: "component", Key: map[string]string{"name": ce.componentKey}},
 				{Name: "integrated-circuit"},
 				{Name: "pipeline-counters"},
 				{Name: "control-plane-traffic"},
@@ -420,6 +430,10 @@ func (ce *commonEntities) getDroppedPktCounts(t *testing.T, counters []string) [
 		return droppedPkts
 	}
 	notifications := getResponse.GetNotification()
+	if len(notifications) == 0 || len(notifications[0].GetUpdate()) == 0 {
+		t.Errorf("getDroppedPktCounts: gNMI Get response contains no updates")
+		return droppedPkts
+	}
 	jsonData := notifications[0].GetUpdate()[0].GetVal().GetJsonIetfVal()
 	for _, counter := range counters {
 		droppedPkts = append(droppedPkts, getDroppedPktsForCounter(t, jsonData, counter))
@@ -530,6 +544,7 @@ func TestCoppSystem(t *testing.T) {
 	}
 
 	ce.configureDUT(t)
+	ce.componentKey = ce.getComponentKey(t)
 
 	// TODO [https://github.com/openconfig/featureprofiles/issues/4171]: Add test cases for BGP, LDP and LLDP traffic.
 	// Add test case for arista-platform-control-plane-traffic-counters:l3-destination-miss.
