@@ -5,3 +5,25 @@ uuid:  "0bfc332b-fe26-4861-907b-abf62326fcf2"
 plan_id:  "RT-1.109"
 description:  "BGP Streaming Telemetry and Operational State Verification"
 testbed:  TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+    interface_config_vrf_before_address: true
+    prefix_limit_exceeded_telemetry_unsupported: true
+    bgp_missing_oc_max_prefixes_configuration: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    omit_l2_mtu: true
+    interface_enabled: true
+    default_network_instance: "default"
+    bgp_missing_oc_max_prefixes_configuration: true
+  }
+}
