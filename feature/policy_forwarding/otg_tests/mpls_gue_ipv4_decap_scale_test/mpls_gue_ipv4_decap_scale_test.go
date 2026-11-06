@@ -1192,7 +1192,7 @@ func generateIPv6ScaleOuterSources(t *testing.T) []string {
 // subtest) has finished.
 func configureIPv6ScaleDecapPolicy(t *testing.T, parent *testing.T, dut *ondatra.DUTDevice, srcs []string, ingressAggIDs []string) (bool, cfgplugins.GueDecapIPv6ScaleParams) {
 	t.Helper()
-	ocProgrammed := !deviations.GueGreDecapUnsupported(dut) && !deviations.PolicyForwardingOCUnsupported(dut)
+	ocProgrammed := !deviations.GueGreDecapOCUnsupported(dut) && !deviations.PolicyForwardingOCUnsupported(dut)
 	root := &oc.Root{}
 	ni := root.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	ni.SetType(oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)

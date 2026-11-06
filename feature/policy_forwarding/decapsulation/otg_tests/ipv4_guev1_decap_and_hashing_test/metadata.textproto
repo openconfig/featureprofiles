@@ -15,7 +15,7 @@ platform_exceptions: {
     isis_instance_enabled_required: true
     multipath_unsupported_neighbor_or_afisafi: true
     static_mpls_lsp_oc_unsupported: true
-    gue_gre_decap_unsupported: true
+    gue_gre_decap_oc_unsupported: true
     load_interval_not_supported: true
     load_balance_policy_oc_unsupported: true
   }

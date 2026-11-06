@@ -15,6 +15,6 @@ platform_exceptions: {
     default_network_instance: "default"
     qos_remark_oc_unsupported: true
     static_mpls_lsp_oc_unsupported: true
-    gue_gre_decap_unsupported: true
+    gue_gre_decap_oc_unsupported: true
   }
 }

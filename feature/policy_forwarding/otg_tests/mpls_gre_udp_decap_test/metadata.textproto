@@ -13,7 +13,7 @@ platform_exceptions: {
   deviations: {
     interface_enabled: true
     default_network_instance: "default"
-    gue_gre_decap_unsupported: true
+    gue_gre_decap_oc_unsupported: true
     policy_forwarding_unsupported: true
     interface_policy_forwarding_unsupported: true
   }

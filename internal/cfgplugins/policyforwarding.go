@@ -862,7 +862,7 @@ func PushPolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.Net
 
 // DecapGroupConfigGre configures the interface decap-group.
 func DecapGroupConfigGre(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, ocPFParams OcPolicyForwardingParams) {
-	if deviations.GueGreDecapUnsupported(dut) {
+	if deviations.GueGreDecapOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
 			if ocPFParams.Dynamic {
@@ -881,7 +881,7 @@ func DecapGroupConfigGre(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 
 // DecapGroupConfigGue configures the interface decap-group for GUE.
 func DecapGroupConfigGue(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, ocPFParams OcPolicyForwardingParams) {
-	if deviations.GueGreDecapUnsupported(dut) {
+	if deviations.GueGreDecapOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
 			if ocPFParams.Dynamic {
@@ -901,7 +901,7 @@ func DecapGroupConfigGue(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 // DecapGroupConfigGue, allowing tests to revert the DUT to its original state.
 func RemoveDecapGroupGue(t *testing.T, dut *ondatra.DUTDevice, ocPFParams OcPolicyForwardingParams) {
 	t.Helper()
-	if deviations.GueGreDecapUnsupported(dut) {
+	if deviations.GueGreDecapOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
 			helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("no ip decap-group %s\n", ocPFParams.AppliedPolicyName))
@@ -913,16 +913,17 @@ func RemoveDecapGroupGue(t *testing.T, dut *ondatra.DUTDevice, ocPFParams OcPoli
 	}
 }
 
-// aristaGueDecapCLIConfig configures GUEDEcapConfig for Arista
+// aristaGueDecapCLIConfig configures GUE decap for Arista. It clears any existing
+// UDP port mapping for the given port before applying the new configuration.
 func aristaGueDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
-
 	decapProto := params.DecapProtocol
 	if decapProto == "" {
 		decapProto = params.IPType
 	}
-
+	// Just in case the same gue port is already configured with another payload type, first unconfigure the mapping for this port.
+	helpers.GnmiCLIConfig(t, dut, fmt.Sprintf(`no ip decap-group type udp destination port %d`, params.GUEPort))
 	cliConfig := fmt.Sprintf(`
-		                    ip decap-group type udp destination port %v payload %s
+		               ip decap-group type udp destination port %v payload %s
 							ip decap-group %s
 							tunnel type UDP
 							tunnel decap-ip %s
@@ -1266,44 +1267,6 @@ func NewConfigureGRETunnel(t *testing.T, dut *ondatra.DUTDevice, decapIp string,
 		intf.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
 
 		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), ni1)
-	}
-}
-
-// ConfigureDutWithGueDecap configures the DUT to decapsulate GUE (Generic UDP Encapsulation) traffic. It supports both native CLI configuration (for vendors like Arista) and OpenConfig (GNMI) configuration.
-func ConfigureDutWithGueDecap(t *testing.T, dut *ondatra.DUTDevice, guePort int, ipType, tunIP, decapInt, policyName string, policyId int) {
-	t.Logf("Configure DUT with decapsulation UDP port %v", guePort)
-	if deviations.DecapsulateGueOCUnsupported(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			payloadType := ipType
-			if strings.EqualFold(ipType, "ipv4") {
-				payloadType = "ip"
-			}
-			cliConfig := fmt.Sprintf(`
-						ip decap-group type udp destination port %[1]d payload %[2]s
-						ip decap-group %[3]s
-						tunnel type UDP
-						tunnel decap-ip %[4]s
-						tunnel decap-interface %[5]s
-					`, guePort, payloadType, policyName, tunIP, decapInt)
-			helpers.GnmiCLIConfig(t, dut, cliConfig)
-
-		default:
-			t.Errorf("deviation decapsulateGueOCUnsupported is not handled for the dut: %v", dut.Vendor())
-		}
-	} else {
-		// TODO: As per the latest OpenConfig GNMI OC schema — the Encapsulation/Decapsulation sub-tree is not fully implemented, need to add OC commands once implemented.
-		d := &oc.Root{}
-		ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-		npf := ni1.GetOrCreatePolicyForwarding()
-		np := npf.GetOrCreatePolicy(policyName)
-		np.PolicyId = ygot.String(policyName)
-		npRule := np.GetOrCreateRule(uint32(policyId))
-		ip := npRule.GetOrCreateIpv4()
-		ip.DestinationAddressPrefixSet = ygot.String(tunIP)
-		ip.Protocol = oc.PacketMatchTypes_IP_PROTOCOL_IP_UDP
-		// transport := npRule.GetOrCreateTransport()
-		// transport.SetDestinationPort()
 	}
 }
 
@@ -1730,7 +1693,7 @@ type GueDecapIPv6ScaleParams struct {
 // and forward the inner payload) is identical in both cases.
 func DecapGroupConfigGueIPv6Scale(t *testing.T, dut *ondatra.DUTDevice, params GueDecapIPv6ScaleParams) {
 	t.Helper()
-	if deviations.GueGreDecapUnsupported(dut) || deviations.PolicyForwardingOCUnsupported(dut) {
+	if deviations.GueGreDecapOCUnsupported(dut) || deviations.PolicyForwardingOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
 			configureGueDecapIPv6ScaleNative(t, dut, params)
@@ -2056,7 +2019,7 @@ func parseNativeTrafficPolicyCounters(out string) map[string]uint64 {
 // ingress classifiers and the per-outer-source counters can be observed.
 func SetGueDecapIPv6ScaleDecapGroup(t *testing.T, dut *ondatra.DUTDevice, params GueDecapIPv6ScaleParams) {
 	t.Helper()
-	if !deviations.GueGreDecapUnsupported(dut) && !deviations.PolicyForwardingOCUnsupported(dut) {
+	if !deviations.GueGreDecapOCUnsupported(dut) && !deviations.PolicyForwardingOCUnsupported(dut) {
 		setGueDecapIPv6ScaleDecapActionOC(t, dut, params, params.Enabled)
 		return
 	}
@@ -2162,7 +2125,7 @@ func countGueDecapIPv6ScaleRulesOC(t *testing.T, dut *ondatra.DUTDevice, params 
 // DecapGroupConfigGueIPv6Scale.
 func RemoveDecapGroupConfigGueIPv6Scale(t *testing.T, dut *ondatra.DUTDevice, params GueDecapIPv6ScaleParams) {
 	t.Helper()
-	if deviations.GueGreDecapUnsupported(dut) || deviations.PolicyForwardingOCUnsupported(dut) {
+	if deviations.GueGreDecapOCUnsupported(dut) || deviations.PolicyForwardingOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
 			var b strings.Builder

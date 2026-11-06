@@ -14,6 +14,6 @@ platform_exceptions: {
     interface_enabled: true
     default_network_instance: "default"
     policy_rule_counters_oc_unsupported: true
-    gue_gre_decap_unsupported: true
+    gue_gre_decap_oc_unsupported: true
   }
 }
