@@ -5,3 +5,20 @@ uuid: "6b325655-a140-4873-bdcc-c0f1cba33e82"
 plan_id: "RT-1.102"
 description: "DUT eBGP FNTs coverage for new L3VPN params"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    omit_l2_mtu: true
+    default_network_instance: "default"
+    explicit_interface_in_default_vrf: true
+    network_instance_import_export_policy_oc_unsupported: true
+    peer_group_def_ebgp_vrf_unsupported: true
+    interface_config_vrf_before_address: true
+    route_policy_under_afi_unsupported: true
+    missing_value_for_defaults: true
+    mpls_unsupported: true
+  }
+}
