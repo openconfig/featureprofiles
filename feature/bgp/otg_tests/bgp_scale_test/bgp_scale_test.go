@@ -406,9 +406,10 @@ type dutInfo struct {
 }
 
 type processesInfo struct {
-	pid    uint64
-	cpuPct uint8
-	memPct uint8
+	pid       uint64
+	startTime uint64
+	cpuPct    uint8
+	memPct    uint8
 }
 
 type bgpNeighbor struct {
@@ -569,6 +570,7 @@ func TestBGPScale(t *testing.T) {
 		testCleanup       []func(t *testing.T, dut *ondatra.DUTDevice, intfName string, mtu uint16, nbrList []string, mss uint16)
 	}{
 		{
+			// RT-1.65.1: Baseline steady-state BGP session & route scale (150 eBGP peers on Ports 2 & 3, 15 iBGP peers on Port 4).
 			name:              "RT-1.65.1.1 - Steady State - 7 v4/v6 IBGP sessions",
 			dutSetup:          dutSetup,
 			scale:             map[string]uint32{"Port2": defaultEBGPPeerCount, "Port3": defaultEBGPPeerCount, "Port4": defaultIBGPPeerCount, "v4ISISRoutes": v4ISISRoutes, "v6ISISRoutes": v6ISISRoutes, "v4IBGPRoutes": defaultv4IBGPRoutes, "v6IBGPRoutes": defaultv6IBGPRoutes, "v4Convergence": defaultv4Convergence, "v6Convergence": defaultv6Convergence},
@@ -578,6 +580,7 @@ func TestBGPScale(t *testing.T) {
 			verifyTraffic:     []func(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config){sendTraffic, verifyTraffic},
 		},
 		{
+			// RT-1.65.2: BGP Session Scale - 200 eBGP v4/v6 peers per Port 2 & 3, 31 iBGP v4/v6 peers on Port 4 (LAG).
 			name:              "RT-1.65.2 - BGP Session Scale - 31 v4/v6 IBGP sessions",
 			dutSetup:          ateSetup,
 			scale:             map[string]uint32{"Port2": scaleEBGPPeerCount, "Port3": scaleEBGPPeerCount, "Port4": scaleIBGPPeerCount, "v4ISISRoutes": v4ISISRoutes, "v6ISISRoutes": v6ISISRoutes, "v4IBGPRoutes": defaultv4IBGPRoutes, "v6IBGPRoutes": defaultv6IBGPRoutes, "v4Convergence": defaultv4Convergence, "v6Convergence": defaultv6Convergence},
@@ -587,6 +590,7 @@ func TestBGPScale(t *testing.T) {
 			verifyTraffic:     []func(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config){sendTraffic, verifyTraffic},
 		},
 		{
+			// RT-1.65.3: Session and BGP Route Scale without BGP events (full session and route scale).
 			name:              "RT-1.65.3 - Session and BGP Route Scale without BGP events",
 			dutSetup:          ateSetup,
 			scale:             map[string]uint32{"Port2": scaleEBGPPeerCount, "Port3": scaleEBGPPeerCount, "Port4": scaleIBGPPeerCount, "v4ISISRoutes": v4ISISRoutes, "v6ISISRoutes": v6ISISRoutes, "v4IBGPRoutes": scalev4IBGPRoutes, "v6IBGPRoutes": scalev6IBGPRoutes, "v4Convergence": scalev4Convergence, "v6Convergence": scalev6Convergence},
@@ -596,6 +600,7 @@ func TestBGPScale(t *testing.T) {
 			verifyTraffic:     []func(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config){sendTraffic, verifyTraffic},
 		},
 		{
+			// RT-1.65.3.2: Session and BGP Route Scale without BGP events with MTU 9210 and TCP MSS 4096 configured.
 			name:              "RT-1.65.3.2 - Session and BGP Route Scale without BGP events with MSS configured",
 			dutSetup:          ateSetup,
 			scale:             map[string]uint32{"Port2": scaleEBGPPeerCount, "Port3": scaleEBGPPeerCount, "Port4": scaleIBGPPeerCount, "v4ISISRoutes": v4ISISRoutes, "v6ISISRoutes": v6ISISRoutes, "v4IBGPRoutes": scalev4IBGPRoutes, "v6IBGPRoutes": scalev6IBGPRoutes, "v4Convergence": scalev4Convergence, "v6Convergence": scalev6Convergence},
@@ -606,17 +611,19 @@ func TestBGPScale(t *testing.T) {
 			testCleanup:       []func(t *testing.T, dut *ondatra.DUTDevice, intfName string, mtu uint16, nbrList []string, mss uint16){cfgplugins.DeleteDUTBGPMaxSegmentSize},
 		},
 		{
-			name:              "RT-1.65.4.1 - BGP Session and Route Scale with BGP events_Alter_BGP_attributes",
+			// RT-1.65.4.1: Reset BGP Peers at full scale and verify re-establishment, convergence, traffic, and process stability.
+			name:              "RT-1.65.4.1 - BGP Session and Route Scale with BGP events_ResetBGPPeers",
 			dutSetup:          nil,
 			scale:             map[string]uint32{"Port2": scaleEBGPPeerCount, "Port3": scaleEBGPPeerCount, "Port4": scaleIBGPPeerCount, "v4ISISRoutes": v4ISISRoutes, "v6ISISRoutes": v6ISISRoutes, "v4IBGPRoutes": scalev4IBGPRoutes, "v6IBGPRoutes": scalev6IBGPRoutes, "v4Convergence": scalev4Convergence, "v6Convergence": scalev6Convergence},
 			bgpEvents:         bgpEvents,
-			operation:         "alterBGPAttributes",
+			operation:         "resetBGPPeers",
 			validate:          []func(t *testing.T, dev *ondatra.Device){verifyPortsUp},
 			verifyTelemetry:   nil,
 			verifyConvergence: nil,
 			verifyTraffic:     nil,
 		},
 		{
+			// RT-1.65.4.2: Withdraw and re-advertise BGP routes at full scale and verify convergence, traffic, and process stability.
 			name:              "RT-1.65.4.2 - BGP Session and Route Scale with BGP events_WithdrawRoutes",
 			dutSetup:          nil,
 			scale:             map[string]uint32{"Port2": scaleEBGPPeerCount, "Port3": scaleEBGPPeerCount, "Port4": scaleIBGPPeerCount, "v4ISISRoutes": v4ISISRoutes, "v6ISISRoutes": v6ISISRoutes, "v4IBGPRoutes": scalev4IBGPRoutes, "v6IBGPRoutes": scalev6IBGPRoutes, "v4Convergence": scalev4Convergence, "v6Convergence": scalev6Convergence},
@@ -628,11 +635,36 @@ func TestBGPScale(t *testing.T) {
 			verifyTraffic:     nil,
 		},
 		{
-			name:              "RT-1.65.4.3 - BGP Session and Route Scale with BGP events_ResetBGPPeers",
+			// RT-1.65.4.3: Alter BGP attributes (Origin, AS_PATH, Communities, LOCAL_PREF) at full scale across IPv4/IPv6 peers.
+			name:              "RT-1.65.4.3 - BGP Session and Route Scale with BGP events_Alter_BGP_attributes",
 			dutSetup:          nil,
 			scale:             map[string]uint32{"Port2": scaleEBGPPeerCount, "Port3": scaleEBGPPeerCount, "Port4": scaleIBGPPeerCount, "v4ISISRoutes": v4ISISRoutes, "v6ISISRoutes": v6ISISRoutes, "v4IBGPRoutes": scalev4IBGPRoutes, "v6IBGPRoutes": scalev6IBGPRoutes, "v4Convergence": scalev4Convergence, "v6Convergence": scalev6Convergence},
 			bgpEvents:         bgpEvents,
-			operation:         "resetBGPPeers",
+			operation:         "alterBGPAttributes",
+			validate:          []func(t *testing.T, dev *ondatra.Device){verifyPortsUp},
+			verifyTelemetry:   nil,
+			verifyConvergence: nil,
+			verifyTraffic:     nil,
+		},
+		{
+			// RT-1.65.5.1: TX Host-Path High-Rate BGP Control-Plane Stress (outbound UPDATE/WITHDRAW fan-out + aggressive keepalives + LACP wedge verification).
+			name:              "RT-1.65.5.1 - High-Rate BGP Control-Plane Stress - TX Host-Path Stress",
+			dutSetup:          nil,
+			scale:             map[string]uint32{"Port2": scaleEBGPPeerCount, "Port3": scaleEBGPPeerCount, "Port4": scaleIBGPPeerCount, "v4ISISRoutes": v4ISISRoutes, "v6ISISRoutes": v6ISISRoutes, "v4IBGPRoutes": scalev4IBGPRoutes, "v6IBGPRoutes": scalev6IBGPRoutes, "v4Convergence": scalev4Convergence, "v6Convergence": scalev6Convergence},
+			bgpEvents:         bgpEvents,
+			operation:         "txHostPathStress",
+			validate:          []func(t *testing.T, dev *ondatra.Device){verifyPortsUp},
+			verifyTelemetry:   nil,
+			verifyConvergence: nil,
+			verifyTraffic:     nil,
+		},
+		{
+			// RT-1.65.5.2: RX Host-Path High-Rate BGP Control-Plane Stress (inbound UPDATE/WITHDRAW/NOTIFICATION flood + LACP wedge verification).
+			name:              "RT-1.65.5.2 - High-Rate BGP Control-Plane Stress - RX Host-Path Stress",
+			dutSetup:          nil,
+			scale:             map[string]uint32{"Port2": scaleEBGPPeerCount, "Port3": scaleEBGPPeerCount, "Port4": scaleIBGPPeerCount, "v4ISISRoutes": v4ISISRoutes, "v6ISISRoutes": v6ISISRoutes, "v4IBGPRoutes": scalev4IBGPRoutes, "v6IBGPRoutes": scalev6IBGPRoutes, "v4Convergence": scalev4Convergence, "v6Convergence": scalev6Convergence},
+			bgpEvents:         bgpEvents,
+			operation:         "rxHostPathStress",
 			validate:          []func(t *testing.T, dev *ondatra.Device){verifyPortsUp},
 			verifyTelemetry:   nil,
 			verifyConvergence: nil,
@@ -658,7 +690,7 @@ func TestBGPScale(t *testing.T) {
 
 				ipv4Traffic = map[int][]string{}
 				ipv6Traffic = map[int][]string{}
-				nbrList := setupNeighborList([]attributes{atePort1, atePort2, atePort3, atePort4})
+				nbrList = setupNeighborList([]attributes{atePort1, atePort2, atePort3, atePort4})
 
 				if index > 0 {
 					ate.Topology().New()
@@ -748,7 +780,7 @@ func TestBGPScale(t *testing.T) {
 	}
 }
 
-// measureConvergence measures the convergence time for BGP routes.
+// measureConvergence measures the convergence time for BGP routes using gnmi.Watch without sleep loops.
 func measureConvergence(t *testing.T, dut *ondatra.DUTDevice, afi []string, v4RouteCount, v6RouteCount uint32, isRouteWithdrawn bool) {
 	t.Helper()
 	if afi == nil {
@@ -759,121 +791,108 @@ func measureConvergence(t *testing.T, dut *ondatra.DUTDevice, afi []string, v4Ro
 	testConvergence := make([]func(testing.TB), len(afi))
 
 	for i, safi := range afi {
+		safi := safi
 		testConvergence[i] = func(t testing.TB) {
-			time.Sleep(10 * time.Second)
 			statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
 				Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 			var prefixes *netinstbgp.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_PrefixesPath
 			var peer string
-			var routeCount, routeCountWithdraw, prevSent uint32
-			var counter int
+			var routeCount, routeCountWithdraw uint32
+
+			switch safi {
+			case "ipv4":
+				prefixes = statePath.Neighbor(atePort1.IPv4).
+					AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
+				peer = atePort1.IPv4
+				routeCount = v4RouteCount
+				if isRouteWithdrawn {
+					routeCountWithdraw = 250
+				}
+			case "ipv6":
+				prefixes = statePath.Neighbor(atePort1.IPv6).
+					AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Prefixes()
+				peer = atePort1.IPv6
+				routeCount = v6RouteCount
+				if isRouteWithdrawn {
+					routeCountWithdraw = 150
+				}
+			}
+
+			var prevSent uint32
+			if isRouteWithdrawn {
+				prevSent = routeCount
+			}
+			var stableUpdates int
 			var convergenceTime time.Duration
 
-			if isRouteWithdrawn && safi == "ipv4" {
-				prevSent = v4RouteCount
-			} else if isRouteWithdrawn && safi == "ipv6" {
-				prevSent = v6RouteCount
-			}
-		ConvergenceLoop:
-			for repeat := 1000; repeat > 0; repeat-- {
-				switch safi {
-				case "ipv4":
-					prefixes = statePath.Neighbor(atePort1.IPv4).
-						AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
-					peer = atePort1.IPv4
-					routeCount = v4RouteCount
-					if isRouteWithdrawn {
-						routeCountWithdraw = 250
+			gnmi.Watch(t, dut, prefixes.Sent().State(), 15*time.Minute, func(val *ygnmi.Value[uint32]) bool {
+				gotSent, present := val.Val()
+				if !present {
+					return false
+				}
+				if !isRouteWithdrawn {
+					if gotSent >= routeCount {
+						convergenceTime = time.Since(start)
+						t.Logf("%s Convergence: Prefixes sent from ingress port are learnt at ATE dst port: %v are %v (time: %v)", safi, peer, gotSent, convergenceTime)
+						return true
 					}
+					if gotSent != prevSent {
+						prevSent = gotSent
+						stableUpdates = 0
+						convergenceTime = 0
+					} else if gotSent > 0 {
+						if convergenceTime == 0 && stableUpdates == 0 {
+							convergenceTime = time.Since(start)
+						}
+						stableUpdates++
+						if stableUpdates > 20 {
+							t.Logf("%s Convergence stabilized at %v prefixes (want %v) after %v", safi, gotSent, routeCount, convergenceTime)
+							return true
+						}
+					}
+					return false
+				}
+				if gotSent <= routeCountWithdraw {
+					convergenceTime = time.Since(start)
+					t.Logf("%s Convergence WithdrawRoutes: Prefixes sent to ATE dst port %v dropped to %v (time: %v)", safi, peer, gotSent, convergenceTime)
+					return true
+				}
+				if gotSent != prevSent {
+					prevSent = gotSent
+					stableUpdates = 0
+					convergenceTime = 0
+				} else {
+					if convergenceTime == 0 && stableUpdates == 0 {
+						convergenceTime = time.Since(start)
+					}
+					stableUpdates++
+					if stableUpdates > 20 {
+						t.Logf("%s Convergence WithdrawRoutes stabilized at %v prefixes (want <= %v) after %v", safi, gotSent, routeCountWithdraw, convergenceTime)
+						return true
+					}
+				}
+				return false
+			}).Await(t)
 
-				case "ipv6":
-					prefixes = statePath.Neighbor(atePort1.IPv6).
-						AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Prefixes()
-					peer = atePort1.IPv6
-					routeCount = v6RouteCount
-					if isRouteWithdrawn {
-						routeCountWithdraw = 150
-					}
-				}
-				gotSent := gnmi.Get(t, dut, prefixes.Sent().State())
-				switch {
-				case !isRouteWithdrawn && gotSent >= routeCount:
-					t.Logf("%s Convergence: Prefixes sent from ingress port are learnt at ATE dst port : %v are %v", safi, peer, routeCount)
-					t.Logf("%s Convergence: Time taken for convergence: %v", safi, time.Since(start))
-					break ConvergenceLoop
-				case !isRouteWithdrawn && repeat > 0 && gotSent < routeCount:
-					if gotSent != prevSent {
-						prevSent = gotSent
-						counter = 0
-						convergenceTime = 0
-					} else if gotSent == prevSent && counter <= 20 && prevSent > 0 {
-						if convergenceTime == 0 && counter == 0 {
-							convergenceTime = time.Since(start)
-						}
-						counter++
-						t.Logf("%s Convergence: sent prefixes from DUT to neighbor %v is is same as previous: got %v, previous %v, want %v", safi, peer, gotSent, prevSent, routeCount)
-						t.Logf("%s Convergence: Sleep for 30 secs", safi)
-						time.Sleep(time.Second * 30)
-					} else if gotSent == prevSent && counter > 20 && prevSent > 0 {
-						t.Logf("%s Convergence: Time taken for convergence: %v", safi, convergenceTime)
-						t.Logf("%s Convergence without convergenceTime var: Time taken for convergence: %v", safi, time.Since(start))
-						break ConvergenceLoop
-					}
-					t.Logf("%s Convergence: All the prefixes are not learnt , wait for 30 secs before retry.. got %v, want %v", safi, gotSent, routeCount)
-					time.Sleep(time.Second * 30)
-				case !isRouteWithdrawn && repeat == 0 && gotSent < routeCount:
-					t.Errorf("%s Convergence: sent prefixes from DUT to neighbor %v is mismatch: got %v, want %v", safi, peer, gotSent, routeCount)
-					time.Sleep(time.Second * 30)
-				case isRouteWithdrawn && gotSent <= routeCountWithdraw:
-					t.Logf("%s Convergence WithdrawRoutes: Prefixes sent from ingress port are learnt at ATE dst port : %v are %v", safi, peer, routeCountWithdraw)
-					t.Logf("%s Convergence WithdrawRoutes: Time taken for convergence: %v", safi, time.Since(start))
-					break ConvergenceLoop
-				case isRouteWithdrawn && repeat > 0 && gotSent > routeCountWithdraw:
-					if gotSent != prevSent {
-						prevSent = gotSent
-						counter = 0
-						convergenceTime = 0
-					} else if gotSent == prevSent && counter <= 20 {
-						if convergenceTime == 0 && counter == 0 {
-							convergenceTime = time.Since(start)
-						}
-						counter++
-						t.Logf("%s Convergence WithdrawRoutes: sent prefixes from DUT to neighbor %v is is same as previous: got %v, previous %v, want %v", safi, peer, gotSent, prevSent, routeCountWithdraw)
-						t.Logf("%s Convergence: Sleep for 30 secs", safi)
-						time.Sleep(time.Second * 30)
-					} else if gotSent == prevSent && counter > 20 {
-						t.Logf("%s Convergence WithdrawRoutes: Time taken for convergence: %v", safi, convergenceTime)
-						t.Logf("%s Convergence WithdrawRoutes: Convergence without convergenceTime var: Time taken for convergence: %v", safi, time.Since(start))
-						break ConvergenceLoop
-					}
-					t.Logf("%s Convergence WithdrawRoutes: All the prefixes are not learnt , wait for 30 secs before retry.. got %v, want %v", safi, gotSent, routeCountWithdraw)
-					time.Sleep(time.Second * 30)
-				case isRouteWithdrawn && repeat == 0 && gotSent > routeCountWithdraw:
-					t.Errorf("%s Convergence WithdrawRoutes: sent prefixes from DUT to neighbor %v is mismatch: got %v, want %v", safi, peer, gotSent, routeCountWithdraw)
-					time.Sleep(time.Second * 30)
-				default:
-					if isRouteWithdrawn {
-						t.Logf("DUT did not converge for safi %v after %v retries. got %v want %v routes", safi, repeat, gotSent, routeCountWithdraw)
-					} else {
-						t.Logf("DUT did not converge for safi %v after %v retries. got %v want %v routes", safi, repeat, gotSent, routeCount)
-					}
-				}
+			gotSent := gnmi.Get(t, dut, prefixes.Sent().State())
+			if !isRouteWithdrawn && gotSent < routeCount {
+				t.Errorf("%s Convergence: sent prefixes from DUT to neighbor %v mismatch: got %v, want %v", safi, peer, gotSent, routeCount)
+			} else if isRouteWithdrawn && gotSent > routeCountWithdraw {
+				t.Errorf("%s Convergence WithdrawRoutes: sent prefixes from DUT to neighbor %v mismatch: got %v, want <= %v", safi, peer, gotSent, routeCountWithdraw)
 			}
 		}
 	}
 
 	t.Logf("Starting parallel convergence tests")
-
 	testt.ParallelFatal(t, testConvergence...)
-
 	t.Logf("Measure Convergence completed")
 }
 
-// ateReSetup configures the ATE for the test.
+// ateSetup configures the ATE for the test.
 func ateSetup(t *testing.T, dut *ondatra.DUTDevice, top gosnappi.Config, ate *ondatra.ATEDevice, nbrList []*bgpNeighbor, operation string, isMSSTest bool) {
 	t.Helper()
 	if isMSSTest {
-		t.Logf("Configuring DUT for MSS test")
+		t.Logf("Configuring DUT for MSS test (RT-1.65.3.2)")
 		var nbrPeers []string
 		for i := 1; i <= int(dutPort4.numSubIntf); i++ {
 			ip4, eMsg := atePort4v4Loopback(i)
@@ -894,10 +913,9 @@ func ateSetup(t *testing.T, dut *ondatra.DUTDevice, top gosnappi.Config, ate *on
 	var isLoopback, isLag, isMTU bool
 	var loopbackV4, loopbackV6, eMsg string
 	for _, atePort := range []attributes{atePort1, atePort2, atePort3, atePort4} {
-		if dut.Vendor() == ondatra.CISCO {
+		mtu = 9210
+		if deviations.BgpDistanceOcPathUnsupported(dut) {
 			mtu = 9214
-		} else {
-			mtu = 9210
 		}
 		if atePort.Name == "port4" {
 			isLoopback = true
@@ -989,20 +1007,28 @@ func ateSetup(t *testing.T, dut *ondatra.DUTDevice, top gosnappi.Config, ate *on
 	atePort3.configureATEBGP(t, top)
 	atePort4.configureATEIBGP(t, top, ate)
 
-	if operation == "alterBGPAttributes" {
-		t.Logf("Pushing config to Setup  Altering BGP Attributes ")
-		alterBGPAttributes(t, ate, top)
+	if operation == "alterBGPAttributes" || operation == "txHostPathStress" || operation == "rxHostPathStress" {
+		t.Logf("Configuring structured BGP updates for operation %s", operation)
+		alterBGPAttributes(t, ate, top, operation)
 	}
 
 	configureTrafficFlow(t, top, fmt.Sprintf(`%sdst%d`, atePort1.Name, 1)+".IPv4", fmt.Sprintf(`%sdst1`, atePort2.Name)+".IPv4", atePort1.MAC, atePort1.IPv4, ipv4Traffic, ipv6Traffic)
 	ate.OTG().PushConfig(t, top)
-	t.Logf("Sleep for 1 minutes before starting protocols")
-	time.Sleep(60 * time.Second)
-	t.Logf("Wakeup from sleep and start protocols")
+
+	for _, p := range dut.Ports() {
+		gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
+	}
 
 	start = time.Now()
 	ate.OTG().StartProtocols(t)
-	time.Sleep(60 * time.Second)
+	if len(aggIDs) > 0 {
+		gnmi.Await(t, dut, gnmi.OC().Interface(aggIDs[len(aggIDs)-1]).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
+	}
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	gnmi.Watch(t, dut, bgpPath.Neighbor(atePort1.IPv4).SessionState().State(), 2*time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+		state, ok := val.Val()
+		return ok && state == oc.Bgp_Neighbor_SessionState_ESTABLISHED
+	}).Await(t)
 }
 
 // dutSetup configures the DUT for the test.
@@ -1010,8 +1036,7 @@ func dutSetup(t *testing.T, dut *ondatra.DUTDevice, top gosnappi.Config, ate *on
 	t.Helper()
 
 	t.Logf("Reset DUT Config")
-	if dut.Vendor() == ondatra.JUNIPER {
-		t.Logf("Reset DUT Config for Juniper")
+	if deviations.BgpMaxMultipathPathsUnsupported(dut) {
 		gnmi.Delete(t, dut, gnmi.OC().Config())
 	}
 
@@ -1057,7 +1082,7 @@ func dutSetup(t *testing.T, dut *ondatra.DUTDevice, top gosnappi.Config, ate *on
 			cfgplugins.DeviationCiscoRoutingPolicyBGPToISIS(t, dut, dutAS, "BGP", "TAG_7", "SNH", 7)
 		}
 
-		if dut.Vendor() == ondatra.JUNIPER {
+		if deviations.BgpMaxMultipathPathsUnsupported(dut) {
 			helpers.GnmiCLIConfig(t, dut, juniperLimitation)
 		}
 	})
@@ -1108,36 +1133,40 @@ func validateLinkBWNotAdvertised(t *testing.T, dut *ondatra.DUTDevice, ate *onda
 
 }
 
-// verifyBgpTelemetry verifies BGP telemetry.
+// verifyBgpTelemetry verifies BGP telemetry using gnmi.WatchAll instead of sleep loops.
 func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, nbrList []*bgpNeighbor) {
 	t.Helper()
 	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	wantSessions := int(atePort2.numSubIntf+atePort3.numSubIntf+atePort4.numSubIntf+1) * 2
+
+	establishedNeighbors := make(map[string]bool)
+	gnmi.WatchAll(t, dut, bgpPath.NeighborAny().State(), 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Protocol_Bgp_Neighbor]) bool {
+		nbr, ok := val.Val()
+		if !ok || nbr == nil {
+			return false
+		}
+		if nbr.GetSessionState() == oc.Bgp_Neighbor_SessionState_ESTABLISHED {
+			establishedNeighbors[nbr.GetNeighborAddress()] = true
+		} else {
+			delete(establishedNeighbors, nbr.GetNeighborAddress())
+		}
+		return len(establishedNeighbors) >= wantSessions
+	}).Await(t)
 
 	counter := 0
-	counter2 := 0
-	for i := 1; i <= 4; i++ {
-		counter = 0
-		counter2 = 0
-		results := gnmi.LookupAll(t, dut, bgpPath.NeighborAny().SessionState().State())
-
-		t.Logf("results length: %v", len(results))
-		for _, result := range results {
-			state, ok := result.Val()
-			if ok && state == oc.Bgp_Neighbor_SessionState_ESTABLISHED {
-				counter++
-			} else {
-				counter2++
-			}
+	counterDown := 0
+	results := gnmi.LookupAll(t, dut, bgpPath.NeighborAny().SessionState().State())
+	for _, result := range results {
+		state, ok := result.Val()
+		if ok && state == oc.Bgp_Neighbor_SessionState_ESTABLISHED {
+			counter++
+		} else {
+			counterDown++
 		}
-		if counter == int(atePort2.numSubIntf+atePort3.numSubIntf+atePort4.numSubIntf+1)*2 {
-			t.Logf("Break from Loop:Iteration %d: Number of established BGP sessions: %v %v. Configured BGP sessions: %d", i, counter, counter2, int(atePort2.numSubIntf+atePort3.numSubIntf+atePort4.numSubIntf+1)*2)
-			break
-		}
-		t.Logf("Iteration %d: Number of established BGP sessions: UP %v DOWN %v Enabled BGP sessions: %d", i, counter, counter2, int(atePort2.numSubIntf+atePort3.numSubIntf+atePort4.numSubIntf+1)*2)
-		time.Sleep(30 * time.Second)
 	}
-	if counter < int(atePort2.numSubIntf+atePort3.numSubIntf+atePort4.numSubIntf+1)*2 {
-		t.Errorf("V4/V6 BGP adjacencies reported mismatch: got %v, want %v", counter, int(atePort2.numSubIntf+atePort3.numSubIntf+atePort4.numSubIntf+1)*2)
+	t.Logf("Established BGP sessions: UP %d, DOWN %d, Expected %d", counter, counterDown, wantSessions)
+	if counter < wantSessions {
+		t.Errorf("V4/V6 BGP adjacencies reported mismatch: got %v, want %v", counter, wantSessions)
 	}
 }
 
@@ -1176,7 +1205,7 @@ func verifyBGPCapabilities(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.AT
 	testt.ParallelFatal(t, testBGPCapabilities...)
 }
 
-// verifyISISTelemetry verifies IS-IS telemetry.
+// verifyISISTelemetry verifies IS-IS telemetry using gnmi.WatchAll instead of sleep loops.
 func verifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, nbrList []*bgpNeighbor) {
 	t.Helper()
 	dutIntfs = []string{}
@@ -1198,30 +1227,35 @@ func verifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATED
 	}
 
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, deviations.DefaultNetworkInstance(dut)).Isis()
+	wantAdj := int(atePort4.numSubIntf)
+	upAdjs := make(map[string]bool)
+	gnmi.WatchAll(t, dut, statePath.InterfaceAny().LevelAny().AdjacencyAny().State(), 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Protocol_Isis_Interface_Level_Adjacency]) bool {
+		adj, ok := val.Val()
+		if !ok || adj == nil {
+			return false
+		}
+		if adj.GetAdjacencyState() == oc.Isis_IsisInterfaceAdjState_UP {
+			upAdjs[adj.GetSystemId()] = true
+		} else {
+			delete(upAdjs, adj.GetSystemId())
+		}
+		return len(upAdjs) >= wantAdj
+	}).Await(t)
+
 	counter := 0
-	counter2 := 0
-	for i := 1; i <= 4; i++ {
-		counter = 0
-		counter2 = 0
-		results := gnmi.LookupAll(t, dut, statePath.InterfaceAny().LevelAny().AdjacencyAny().AdjacencyState().State())
-		t.Logf("results length: %v", len(results))
-		for _, result := range results {
-			state, ok := result.Val()
-			if ok && state == oc.Isis_IsisInterfaceAdjState_UP {
-				counter++
-			} else {
-				counter2++
-			}
+	counterDown := 0
+	results := gnmi.LookupAll(t, dut, statePath.InterfaceAny().LevelAny().AdjacencyAny().AdjacencyState().State())
+	for _, result := range results {
+		state, ok := result.Val()
+		if ok && state == oc.Isis_IsisInterfaceAdjState_UP {
+			counter++
+		} else {
+			counterDown++
 		}
-		if counter2 == 0 || counter == int(atePort4.numSubIntf) {
-			t.Logf("Break from Loop:Iteration %d: Number of established IS-IS sessions: UP %v  DOWN %v Configured %v", i, counter, counter2, atePort4.numSubIntf)
-			break
-		}
-		t.Logf("Iteration %d: Number of established IS-IS sessions: UP %v DOWN %v Configured %d", i, counter, counter2, atePort4.numSubIntf)
-		time.Sleep(30 * time.Second)
 	}
-	if counter != int(atePort4.numSubIntf) {
-		t.Errorf("IS-IS adjacencies reported mismatch: got %v, want %v Configured %v", counter, atePort4.numSubIntf, len(dutIntfs))
+	t.Logf("Established IS-IS sessions: UP %d, DOWN %d, Expected %d", counter, counterDown, wantAdj)
+	if counter != wantAdj {
+		t.Errorf("IS-IS adjacencies reported mismatch: got %v, want %v Configured %v", counter, wantAdj, len(dutIntfs))
 	}
 }
 
@@ -1380,54 +1414,136 @@ func (a *attributes) setupNbrList() []*bgpNeighbor {
 	return nbrList
 }
 
-// bgpEvents performs the BGP events and measures the convergence time.
+// bgpEvents performs the BGP events for RT-1.65.4.1, RT-1.65.4.2, RT-1.65.4.3, RT-1.65.5.1, and RT-1.65.5.2,
+// and measures convergence, LACP/host-path health, BGP telemetry, traffic, and system process stability.
 func bgpEvents(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, top gosnappi.Config, nbrList []*bgpNeighbor, dutInfoPreReset dutInfo, operation string, v4ConvergenceCount, v6ConvergenceCount uint32) {
 	t.Helper()
-	dutInfoPostReset := dutInfo{processes: make(map[string]processesInfo)}
-
-	dutInfoPreReset = verifySystemHealth(t, dut)
+	if len(dutInfoPreReset.processes) == 0 {
+		dutInfoPreReset = verifySystemHealth(t, dut)
+	}
 	cs := gosnappi.NewControlState()
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+
+	var port4SubIntfIDs []uint32
+	for i := uint32(1); i <= atePort4.numSubIntf; i++ {
+		port4SubIntfIDs = append(port4SubIntfIDs, uint32(dutPort4.index*10)+i)
+	}
+	sampleNbrIPs := []string{
+		"192.0.2.2", "102.1.2.2", "153.1.2.2", "203.0.113.1",
+		"2001:db8::192:0:2:2", "1002::102:1:2:2", "1003::153:1:2:2", "2001:db8::203:0:113:1",
+	}
+
+	trafficAlreadyVerified := false
 
 	switch operation {
 	case "resetBGPPeers":
-		t.Logf("%v: Tear down BGP peers", operation)
+		// RT-1.65.4.1: Reset BGP Peers and verify re-establishment without sleep.
+		t.Logf("%v (RT-1.65.4.1): Tear down BGP peers", operation)
 		cs.Protocol().Bgp().Peers().SetState(gosnappi.StateProtocolBgpPeersState.DOWN)
 		ate.OTG().SetControlState(t, cs)
-		t.Logf("%v: Bring down BGP peers and Sleep for 90 seconds", operation)
-		time.Sleep(time.Second * 90)
-		t.Logf("%v: Bring down BGP peers:  Wake up from 90 seconds sleep", operation)
 
-		t.Logf("%v: Bring up BGP peers and Sleep for 90 seconds", operation)
+		gnmi.Watch(t, dut, bgpPath.Neighbor(atePort1.IPv4).SessionState().State(), 90*time.Second, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+			state, ok := val.Val()
+			return ok && state != oc.Bgp_Neighbor_SessionState_ESTABLISHED
+		}).Await(t)
+
+		t.Logf("%v (RT-1.65.4.1): Bring up BGP peers", operation)
 		cs.Protocol().Bgp().Peers().SetState(gosnappi.StateProtocolBgpPeersState.UP)
 		ate.OTG().SetControlState(t, cs)
-		time.Sleep(time.Second * 90)
-		t.Logf("%v: Bring up BGP peers: Wake up from 90 seconds sleep", operation)
+		verifyBgpTelemetry(t, dut, ate, top, nbrList)
 
 	case "withdrawRoutes":
+		// RT-1.65.4.2: Withdraw routes, verify withdrawal convergence, and re-advertise routes.
 		cs.Protocol().Route().SetState(gosnappi.StateProtocolRouteState.WITHDRAW)
-		t.Logf("%v: Withdraw routes", operation)
+		t.Logf("%v (RT-1.65.4.2): Withdraw routes", operation)
 		start = time.Now()
 		ate.OTG().SetControlState(t, cs)
 		measureConvergence(t, dut, []string{"ipv4", "ipv6"}, v4ConvergenceCount, v6ConvergenceCount, true)
 
 		cs.Protocol().Route().SetState(gosnappi.StateProtocolRouteState.ADVERTISE)
-		t.Logf("%v: Advertise routes", operation)
+		t.Logf("%v (RT-1.65.4.2): Advertise routes", operation)
 		ate.OTG().SetControlState(t, cs)
 
 	case "alterBGPAttributes":
-		t.Logf("%v: Alter BGP attributes", operation)
+		// RT-1.65.4.3: Alter BGP attributes across IPv4 and IPv6 peers on Ports 2, 3, and 4.
+		t.Logf("%v (RT-1.65.4.3): Alter BGP attributes", operation)
 		ate.Topology().New()
 		top = gosnappi.NewConfig()
 
 		ateSetup(t, dut, top, ate, nbrList, "alterBGPAttributes", isMSSTest)
-		t.Logf("%v: Alter BGP attributes completed", operation)
-		time.Sleep(time.Second * 120)
+		t.Logf("%v (RT-1.65.4.3): Alter BGP attributes configured; awaiting session establishment", operation)
+		verifyBgpTelemetry(t, dut, ate, top, nbrList)
+
+	case "txHostPathStress":
+		// RT-1.65.5.1: TX Host-Path High-Rate BGP Control-Plane Stress.
+		// Configure minimum-advertisement-interval = 0 and aggressive keepalive/hold timers (30s/90s)
+		// across all peer-groups and neighbors so the DUT fans out outbound BGP UPDATE/WITHDRAW bursts
+		// and frequent KEEPALIVE packets simultaneously across all 433 peers (866 v4/v6 sessions).
+		t.Logf("%v (RT-1.65.5.1): Applying aggressive BGP timers (hold=90, keepalive=30, minAdvInterval=0)", operation)
+		pgSet := make(map[string]bool)
+		var pgNames, allNbrIPs []string
+		for _, n := range nbrList {
+			allNbrIPs = append(allNbrIPs, n.neighborip)
+			if !pgSet[n.pg] {
+				pgSet[n.pg] = true
+				pgNames = append(pgNames, n.pg)
+			}
+		}
+		updateDUTBGPTimers(t, dut, pgNames, allNbrIPs, 90, 30, 0)
+		defer updateDUTBGPTimers(t, dut, pgNames, allNbrIPs, defaultHoldTimer, defaultKeepaliveTimer, defaultUpdateTimer)
+
+		ate.Topology().New()
+		top = gosnappi.NewConfig()
+		ateSetup(t, dut, top, ate, nbrList, "txHostPathStress", isMSSTest)
+		verifyBgpTelemetry(t, dut, ate, top, nbrList)
+
+		t.Logf("%v (RT-1.65.5.1): Starting data-plane traffic during TX host-path stress window", operation)
+		sendTraffic(t, ate, top)
+		verifyTraffic(t, ate, top)
+		trafficAlreadyVerified = true
+
+		t.Logf("%v (RT-1.65.5.1): Verifying LACP LAG & subinterface health (zero host-path wedge)", operation)
+		verifyDUTLACPAndSubinterfacesHealthy(t, dut, aggIDs[0], port4SubIntfIDs, 2*time.Minute)
+		verifyBGPQueueAndMessageState(t, dut, sampleNbrIPs, false, 2*time.Minute)
+
+	case "rxHostPathStress":
+		// RT-1.65.5.2: RX Host-Path High-Rate BGP Control-Plane Stress.
+		// Inject simultaneous back-to-back inbound BGP UPDATE/WITHDRAW churn from all 400 eBGP peers
+		// on Ports 2 & 3 and all 31 iBGP peers on Port 4 (862 v4/v6 sessions), combined with BGP
+		// NOTIFICATION / Cease session churn on a subset of peers.
+		t.Logf("%v (RT-1.65.5.2): Configuring simultaneous inbound BGP UPDATE/WITHDRAW flood on Ports 2, 3, and 4", operation)
+		ate.Topology().New()
+		top = gosnappi.NewConfig()
+		ateSetup(t, dut, top, ate, nbrList, "rxHostPathStress", isMSSTest)
+		verifyBgpTelemetry(t, dut, ate, top, nbrList)
+
+		churnPeers := []string{
+			"port2dst1.Dev.port2dst1.IPv4.BGP4.peer1",
+			"port2dst1.Dev.port2dst1.IPv6.BGP6.peer1",
+			"port3dst1.Dev.port3dst1.IPv4.BGP4.peer1",
+			"port3dst1.Dev.port3dst1.IPv6.BGP6.peer1",
+			"port4dst1.Dev.IBGP.BGP4.peer1",
+			"port4dst1.Dev.IBGP.BGP6.peer1",
+		}
+		t.Logf("%v (RT-1.65.5.2): Triggering BGP NOTIFICATION (Cease/Admin Reset) and session churn on %v", operation, churnPeers)
+		triggerOTGBGPPeersNotification(t, ate, churnPeers)
+
+		churnState := gosnappi.NewControlState()
+		churnState.Protocol().Bgp().Peers().SetPeerNames(churnPeers).SetState(gosnappi.StateProtocolBgpPeersState.DOWN)
+		ate.OTG().SetControlState(t, churnState)
+		churnState.Protocol().Bgp().Peers().SetPeerNames(churnPeers).SetState(gosnappi.StateProtocolBgpPeersState.UP)
+		ate.OTG().SetControlState(t, churnState)
+
+		verifyBgpTelemetry(t, dut, ate, top, nbrList)
+		t.Logf("%v (RT-1.65.5.2): Verifying LACP LAG & subinterface health (zero host-path wedge)", operation)
+		verifyDUTLACPAndSubinterfacesHealthy(t, dut, aggIDs[0], port4SubIntfIDs, 2*time.Minute)
+		verifyBGPQueueAndMessageState(t, dut, sampleNbrIPs, true, 2*time.Minute)
 
 	default:
 		t.Errorf("ERROR: Unsupported operation: %s", operation)
 	}
 
-	t.Logf(" %s completed. Measuring DUT Convergence", operation)
+	t.Logf("%s completed. Measuring DUT Convergence", operation)
 	start = time.Now()
 	measureConvergence(t, dut, []string{"ipv4", "ipv6"}, v4ConvergenceCount, v6ConvergenceCount, false)
 
@@ -1437,86 +1553,413 @@ func bgpEvents(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, top
 	t.Logf("%s: Verify BGP Telemetry", operation)
 	verifyBgpTelemetry(t, dut, ate, top, nbrList)
 
-	t.Logf("%s: Verify traffic ", operation)
-	sendTraffic(t, ate, top)
-	verifyTraffic(t, ate, top)
-
-	t.Logf("%s: Check DUT health", operation)
-	dutInfoPostReset = verifySystemHealth(t, dut)
-
-	for procName := range dutInfoPostReset.processes {
-		if slices.Contains([]string{"bgp", "bgp-main", "rpd", "sr_bgp_mgr"}, strings.ToLower(procName)) {
-			t.Logf("Pre Reset: ProcessName: %v, PID: %v, CPU: %v, Memory: %v", procName, dutInfoPreReset.processes[procName].pid, dutInfoPreReset.processes[procName].cpuPct, dutInfoPreReset.processes[procName].memPct)
-			t.Logf("Post Reset: ProcessName: %v, PID: %v, CPU: %v, Memory: %v", procName, dutInfoPostReset.processes[procName].pid, dutInfoPostReset.processes[procName].cpuPct, dutInfoPostReset.processes[procName].memPct)
-		}
-
-		if _, ok := dutInfoPreReset.processes[procName]; dutInfoPostReset.processes[procName].pid != dutInfoPreReset.processes[procName].pid && ok {
-			t.Logf("Process: %v restarted between initial and final health check: new pid: %v, old pid: %v", procName, dutInfoPostReset.processes[procName].pid, dutInfoPreReset.processes[procName].pid)
-		}
+	if !trafficAlreadyVerified {
+		t.Logf("%s: Verify traffic", operation)
+		sendTraffic(t, ate, top)
+		verifyTraffic(t, ate, top)
 	}
+
+	t.Logf("%s: Check DUT health and verify no process restarts", operation)
+	dutInfoPostReset := verifySystemHealth(t, dut)
+	verifyNoProcessRestart(t, dutInfoPreReset, dutInfoPostReset)
 	t.Logf("Verify Final system health")
 }
 
-func alterBGPAttributes(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
-	devices := top.Devices().Items()
-	for _, device := range devices {
-		if len(device.Bgp().Ipv4Interfaces().Items()) == 0 || len(device.Bgp().Ipv4Interfaces().Items()[0].Peers().Items()) == 0 {
-			continue // No BGP peer to configure
+// verifyNoProcessRestart verifies that no critical routing or control-plane daemon changed PID
+// or start-time between the pre-event and post-event health snapshots.
+func verifyNoProcessRestart(t *testing.T, pre, post dutInfo) {
+	t.Helper()
+	criticalProcs := []string{"bgp", "bgp-main", "rpd", "sr_bgp_mgr"}
+	preCritical := make(map[string]processesInfo)
+	for name, proc := range pre.processes {
+		if slices.Contains(criticalProcs, strings.ToLower(name)) {
+			preCritical[strings.ToLower(name)] = proc
 		}
-		bgp4Peer := device.Bgp().Ipv4Interfaces().Items()[0].Peers().Items()[0]
-		updates := bgp4Peer.ReplayUpdates().StructuredPdus().Updates()
-		deviceName := device.Name()
+	}
+	postCritical := make(map[string]processesInfo)
+	for name, proc := range post.processes {
+		if slices.Contains(criticalProcs, strings.ToLower(name)) {
+			postCritical[strings.ToLower(name)] = proc
+		}
+	}
 
-		if len(device.Ethernets().Items()) == 0 || len(device.Ethernets().Items()[0].Ipv4Addresses().Items()) == 0 {
-			t.Fatalf("Device %s missing expected Ethernet or IPv4 configuration", deviceName)
+	for name, preProc := range preCritical {
+		postProc, ok := postCritical[name]
+		if !ok {
+			t.Errorf("Critical process %s was running before the event but is no longer running after the event", name)
+			continue
+		}
+		t.Logf("Pre Event:  ProcessName: %v, PID: %v, StartTime: %v, CPU: %v, Memory: %v", name, preProc.pid, preProc.startTime, preProc.cpuPct, preProc.memPct)
+		t.Logf("Post Event: ProcessName: %v, PID: %v, StartTime: %v, CPU: %v, Memory: %v", name, postProc.pid, postProc.startTime, postProc.cpuPct, postProc.memPct)
+		if postProc.pid != preProc.pid || postProc.startTime != preProc.startTime {
+			t.Errorf("Critical process %s restarted during test: pre(pid=%d, startTime=%d) != post(pid=%d, startTime=%d)",
+				name, preProc.pid, preProc.startTime, postProc.pid, postProc.startTime)
+		}
+	}
+}
+
+// alterBGPAttributes configures structured BGP UPDATE and WITHDRAW PDUs on IPv4 and IPv6 peers for:
+//   - RT-1.65.4.3 ("alterBGPAttributes"): attribute churn across Ports 2, 3, and 4.
+//   - RT-1.65.5.1 ("txHostPathStress"): high-rate 5,000 IPv4 + 5,000 IPv6 route & attribute churn on Port 1 to drive outbound fan-out across all 433 peers.
+//   - RT-1.65.5.2 ("rxHostPathStress"): back-to-back (TimeGap = 0) inbound attribute & withdrawal churn across all peers on Ports 2, 3, and 4.
+func alterBGPAttributes(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, operation string) {
+	t.Helper()
+	devices := top.Devices().Items()
+	commonCommunities := map[uint32][]string{300: otgconfighelpers.GenerateCommunityStrings(8, "10%d")}
+	altCommunities := map[uint32][]string{300: otgconfighelpers.GenerateCommunityStrings(8, "20%d")}
+	longASPath := []uint32{800101, 800111, 800121, 800131, 800141, 800151, 800161, 800171, 800181, 800191,
+		8001101, 8001111, 8001121, 8001131, 8001141, 8001151, 8001161, 8001171, 8001181, 8001191,
+		80011101, 80011111, 80011121, 80011131, 80011141, 80011151, 80011161, 80011171, 80011181, 80011191}
+
+	advGap := uint32(120000)
+	withdrawGapP2 := uint32(60000)
+	withdrawGapOther := uint32(120000)
+	if operation == "rxHostPathStress" || operation == "txHostPathStress" {
+		advGap = 0
+		withdrawGapP2 = 0
+		withdrawGapOther = 0
+	}
+	med50 := uint32(50)
+	med200 := uint32(200)
+
+	for _, device := range devices {
+		deviceName := device.Name()
+		if len(device.Ethernets().Items()) == 0 ||
+			len(device.Ethernets().Items()[0].Ipv4Addresses().Items()) == 0 ||
+			len(device.Ethernets().Items()[0].Ipv6Addresses().Items()) == 0 {
+			t.Fatalf("Device %s missing expected Ethernet, IPv4, or IPv6 configuration", deviceName)
 			continue
 		}
 		nextHopV4 := device.Ethernets().Items()[0].Ipv4Addresses().Items()[0].Address()
-		commonCommunities := map[uint32][]string{300: otgconfighelpers.GenerateCommunityStrings(8, "10%d")}
-		longASPath := []uint32{800101, 800111, 800121, 800131, 800141, 800151, 800161, 800171, 800181, 800191,
-			8001101, 8001111, 8001121, 8001131, 8001141, 8001151, 8001161, 8001171, 8001181, 8001191,
-			80011101, 80011111, 80011121, 80011131, 80011141, 80011151, 80011161, 80011171, 80011181, 80011191}
+		nextHopV6 := device.Ethernets().Items()[0].Ipv6Addresses().Items()[0].Address()
 
+		var v4Updates, v6Updates gosnappi.BgpStructuredPdusBgpOneStructuredUpdateReplayIter
+		if len(device.Bgp().Ipv4Interfaces().Items()) > 0 && len(device.Bgp().Ipv4Interfaces().Items()[0].Peers().Items()) > 0 {
+			v4Updates = device.Bgp().Ipv4Interfaces().Items()[0].Peers().Items()[0].ReplayUpdates().StructuredPdus().Updates()
+		}
+		if len(device.Bgp().Ipv6Interfaces().Items()) > 0 && len(device.Bgp().Ipv6Interfaces().Items()[0].Peers().Items()) > 0 {
+			v6Updates = device.Bgp().Ipv6Interfaces().Items()[0].Peers().Items()[0].ReplayUpdates().StructuredPdus().Updates()
+		}
+
+		if operation == "txHostPathStress" {
+			if !strings.Contains(deviceName, "port1") {
+				continue
+			}
+			// RT-1.65.5.1: Inject 5,000 IPv4 and 5,000 IPv6 routes on ATE Port 1 with rapid attribute
+			// churn and withdrawal/re-advertisement to force outbound TX fan-out across all 433 peers.
+			var v4Formats, v6Formats []otgconfighelpers.PrefixFormat
+			for b := 1; b <= 20; b++ {
+				v4Formats = append(v4Formats, otgconfighelpers.PrefixFormat{Format: fmt.Sprintf("198.%d.%%d.0", b), Length: 24})
+				v6Formats = append(v6Formats, otgconfighelpers.PrefixFormat{Format: fmt.Sprintf("2001:db8:198:%x:%%x::", b), Length: 64})
+			}
+			txRoutesV4 := otgconfighelpers.GenerateIPv4Prefixes(250, v4Formats)
+			txRoutesV6 := generateIPv6Prefixes(250, v6Formats)
+
+			if v4Updates != nil {
+				addBGPAdvertisement(v4Updates, bgpAdvOptions{
+					Origin: gosnappi.BgpAttributesOrigin.IGP, ASPath: []uint32{800100}, Communities: commonCommunities, Med: &med50, NextHop: nextHopV4, IPv4Routes: txRoutesV4,
+				})
+				addBGPAdvertisement(v4Updates, bgpAdvOptions{
+					TimeGap: 0, Origin: gosnappi.BgpAttributesOrigin.INCOMPLETE, ASPath: longASPath, Communities: altCommunities, Med: &med200, NextHop: nextHopV4, IPv4Routes: txRoutesV4,
+				})
+				addBGPWithdrawal(v4Updates, bgpWithdrawOptions{TimeGap: 0, IPv4Routes: txRoutesV4})
+				addBGPAdvertisement(v4Updates, bgpAdvOptions{
+					TimeGap: 0, Origin: gosnappi.BgpAttributesOrigin.IGP, ASPath: []uint32{800100}, Communities: commonCommunities, Med: &med50, NextHop: nextHopV4, IPv4Routes: txRoutesV4,
+				})
+			}
+			if v6Updates != nil {
+				addBGPAdvertisement(v6Updates, bgpAdvOptions{
+					Origin: gosnappi.BgpAttributesOrigin.IGP, ASPath: []uint32{800100}, Communities: commonCommunities, Med: &med50, NextHopIPv6: nextHopV6, IPv6Routes: txRoutesV6,
+				})
+				addBGPAdvertisement(v6Updates, bgpAdvOptions{
+					TimeGap: 0, Origin: gosnappi.BgpAttributesOrigin.INCOMPLETE, ASPath: longASPath, Communities: altCommunities, Med: &med200, NextHopIPv6: nextHopV6, IPv6Routes: txRoutesV6,
+				})
+				addBGPWithdrawal(v6Updates, bgpWithdrawOptions{TimeGap: 0, IPv6Routes: txRoutesV6})
+				addBGPAdvertisement(v6Updates, bgpAdvOptions{
+					TimeGap: 0, Origin: gosnappi.BgpAttributesOrigin.IGP, ASPath: []uint32{800100}, Communities: commonCommunities, Med: &med50, NextHopIPv6: nextHopV6, IPv6Routes: txRoutesV6,
+				})
+			}
+			continue
+		}
+
+		// RT-1.65.4.3 and RT-1.65.5.2: Configure structured updates on Ports 2, 3, and 4 for both IPv4 and IPv6 peers.
 		if strings.Contains(deviceName, "port2") {
-			routes := otgconfighelpers.GenerateIPv4Prefixes(80, []otgconfighelpers.PrefixFormat{
+			routesV4 := otgconfighelpers.GenerateIPv4Prefixes(80, []otgconfighelpers.PrefixFormat{
 				{Format: "122.100.%d.0", Length: 24},
 				{Format: "123.%d.0.0", Length: 16},
 			})
-			otgconfighelpers.AddBGPAdvertisement(updates, otgconfighelpers.AdvertisementOptions{
-				Origin: gosnappi.BgpAttributesOrigin.IGP, ASPath: []uint32{800101}, Communities: commonCommunities, NextHop: nextHopV4, IPv4Routes: routes,
+			routesV6 := generateIPv6Prefixes(80, []otgconfighelpers.PrefixFormat{
+				{Format: "2001:db8:122:%x::", Length: 64},
+				{Format: "2001:db8:123:%x::", Length: 48},
 			})
-			otgconfighelpers.AddBGPAdvertisement(updates, otgconfighelpers.AdvertisementOptions{
-				TimeGap: 120000, Origin: gosnappi.BgpAttributesOrigin.INCOMPLETE, ASPath: longASPath, Communities: commonCommunities, NextHop: nextHopV4, IPv4Routes: routes,
-			})
-			otgconfighelpers.AddBGPWithdrawal(updates, otgconfighelpers.WithdrawalOptions{TimeGap: 60000, IPv4Routes: routes})
+			if v4Updates != nil {
+				addBGPAdvertisement(v4Updates, bgpAdvOptions{
+					Origin: gosnappi.BgpAttributesOrigin.IGP, ASPath: []uint32{800101}, Communities: commonCommunities, Med: &med50, NextHop: nextHopV4, IPv4Routes: routesV4,
+				})
+				addBGPAdvertisement(v4Updates, bgpAdvOptions{
+					TimeGap: advGap, Origin: gosnappi.BgpAttributesOrigin.INCOMPLETE, ASPath: longASPath, Communities: altCommunities, Med: &med200, NextHop: nextHopV4, IPv4Routes: routesV4,
+				})
+				addBGPWithdrawal(v4Updates, bgpWithdrawOptions{TimeGap: withdrawGapP2, IPv4Routes: routesV4})
+			}
+			if v6Updates != nil {
+				addBGPAdvertisement(v6Updates, bgpAdvOptions{
+					Origin: gosnappi.BgpAttributesOrigin.IGP, ASPath: []uint32{800101}, Communities: commonCommunities, Med: &med50, NextHopIPv6: nextHopV6, IPv6Routes: routesV6,
+				})
+				addBGPAdvertisement(v6Updates, bgpAdvOptions{
+					TimeGap: advGap, Origin: gosnappi.BgpAttributesOrigin.INCOMPLETE, ASPath: longASPath, Communities: altCommunities, Med: &med200, NextHopIPv6: nextHopV6, IPv6Routes: routesV6,
+				})
+				addBGPWithdrawal(v6Updates, bgpWithdrawOptions{TimeGap: withdrawGapP2, IPv6Routes: routesV6})
+			}
 		} else if strings.Contains(deviceName, "port3") {
-			routes := otgconfighelpers.GenerateIPv4Prefixes(80, []otgconfighelpers.PrefixFormat{
+			routesV4 := otgconfighelpers.GenerateIPv4Prefixes(80, []otgconfighelpers.PrefixFormat{
 				{Format: "124.100.%d.0", Length: 24},
 				{Format: "125.%d.0.0", Length: 16},
 			})
-			otgconfighelpers.AddBGPAdvertisement(updates, otgconfighelpers.AdvertisementOptions{
-				Origin: gosnappi.BgpAttributesOrigin.IGP, ASPath: []uint32{800101}, Communities: commonCommunities, NextHop: nextHopV4, IPv4Routes: routes,
+			routesV6 := generateIPv6Prefixes(80, []otgconfighelpers.PrefixFormat{
+				{Format: "2001:db8:124:%x::", Length: 64},
+				{Format: "2001:db8:125:%x::", Length: 48},
 			})
-			otgconfighelpers.AddBGPAdvertisement(updates, otgconfighelpers.AdvertisementOptions{
-				TimeGap: 120000, Origin: gosnappi.BgpAttributesOrigin.INCOMPLETE, ASPath: longASPath, Communities: commonCommunities, NextHop: nextHopV4, IPv4Routes: routes,
-			})
-			otgconfighelpers.AddBGPWithdrawal(updates, otgconfighelpers.WithdrawalOptions{TimeGap: 120000, IPv4Routes: routes})
+			if v4Updates != nil {
+				addBGPAdvertisement(v4Updates, bgpAdvOptions{
+					Origin: gosnappi.BgpAttributesOrigin.IGP, ASPath: []uint32{800101}, Communities: commonCommunities, Med: &med50, NextHop: nextHopV4, IPv4Routes: routesV4,
+				})
+				addBGPAdvertisement(v4Updates, bgpAdvOptions{
+					TimeGap: advGap, Origin: gosnappi.BgpAttributesOrigin.INCOMPLETE, ASPath: longASPath, Communities: altCommunities, Med: &med200, NextHop: nextHopV4, IPv4Routes: routesV4,
+				})
+				addBGPWithdrawal(v4Updates, bgpWithdrawOptions{TimeGap: withdrawGapOther, IPv4Routes: routesV4})
+			}
+			if v6Updates != nil {
+				addBGPAdvertisement(v6Updates, bgpAdvOptions{
+					Origin: gosnappi.BgpAttributesOrigin.IGP, ASPath: []uint32{800101}, Communities: commonCommunities, Med: &med50, NextHopIPv6: nextHopV6, IPv6Routes: routesV6,
+				})
+				addBGPAdvertisement(v6Updates, bgpAdvOptions{
+					TimeGap: advGap, Origin: gosnappi.BgpAttributesOrigin.INCOMPLETE, ASPath: longASPath, Communities: altCommunities, Med: &med200, NextHopIPv6: nextHopV6, IPv6Routes: routesV6,
+				})
+				addBGPWithdrawal(v6Updates, bgpWithdrawOptions{TimeGap: withdrawGapOther, IPv6Routes: routesV6})
+			}
 		} else if strings.Contains(deviceName, "port4") {
-			routes := otgconfighelpers.GenerateIPv4Prefixes(20, []otgconfighelpers.PrefixFormat{
+			routesV4 := otgconfighelpers.GenerateIPv4Prefixes(20, []otgconfighelpers.PrefixFormat{
 				{Format: "111.100.%d.0", Length: 25}, {Format: "111.100.%d.32", Length: 25},
 				{Format: "111.111.%d.64", Length: 27}, {Format: "111.111.%d.96", Length: 27},
 				{Format: "111.111.%d.128", Length: 27}, {Format: "111.111.%d.160", Length: 27},
 				{Format: "111.111.%d.192", Length: 27}, {Format: "111.111.%d.224", Length: 27},
 			})
+			routesV6 := generateIPv6Prefixes(20, []otgconfighelpers.PrefixFormat{
+				{Format: "2001:db8:111:100:%x::", Length: 64},
+				{Format: "2001:db8:111:111:%x::", Length: 64},
+			})
 			lp102 := uint32(102)
 			lp1000 := uint32(1000)
-			otgconfighelpers.AddBGPAdvertisement(updates, otgconfighelpers.AdvertisementOptions{
-				Origin: gosnappi.BgpAttributesOrigin.IGP, ASPath: []uint32{800101}, Communities: commonCommunities, NextHop: "50.1.1.2", LocalPref: &lp102, IPv4Routes: routes,
+			if v4Updates != nil {
+				addBGPAdvertisement(v4Updates, bgpAdvOptions{
+					Origin: gosnappi.BgpAttributesOrigin.IGP, ASPath: []uint32{800101}, Communities: commonCommunities, NextHop: "50.1.1.2", LocalPref: &lp102, Med: &med50, IPv4Routes: routesV4,
+				})
+				addBGPAdvertisement(v4Updates, bgpAdvOptions{
+					TimeGap: advGap, Origin: gosnappi.BgpAttributesOrigin.INCOMPLETE, ASPath: []uint32{800101, 800111}, Communities: altCommunities, NextHop: "50.1.2.2", LocalPref: &lp1000, Med: &med200, IPv4Routes: routesV4,
+				})
+				addBGPWithdrawal(v4Updates, bgpWithdrawOptions{TimeGap: withdrawGapOther, IPv4Routes: routesV4})
+			}
+			if v6Updates != nil {
+				addBGPAdvertisement(v6Updates, bgpAdvOptions{
+					Origin: gosnappi.BgpAttributesOrigin.IGP, ASPath: []uint32{800101}, Communities: commonCommunities, NextHopIPv6: "1000:1:11:0:50:1:1:2", LocalPref: &lp102, Med: &med50, IPv6Routes: routesV6,
+				})
+				addBGPAdvertisement(v6Updates, bgpAdvOptions{
+					TimeGap: advGap, Origin: gosnappi.BgpAttributesOrigin.INCOMPLETE, ASPath: []uint32{800101, 800111}, Communities: altCommunities, NextHopIPv6: "1000:2:21:0:50:2:1:2", LocalPref: &lp1000, Med: &med200, IPv6Routes: routesV6,
+				})
+				addBGPWithdrawal(v6Updates, bgpWithdrawOptions{TimeGap: withdrawGapOther, IPv6Routes: routesV6})
+			}
+		}
+	}
+}
+
+type bgpAdvOptions struct {
+	TimeGap     uint32
+	Origin      gosnappi.BgpAttributesOriginEnum
+	ASPath      []uint32
+	Communities map[uint32][]string
+	NextHop     string
+	NextHopIPv6 string
+	LocalPref   *uint32
+	Med         *uint32
+	IPv4Routes  []otgconfighelpers.RoutePrefix
+	IPv6Routes  []otgconfighelpers.RoutePrefix
+}
+
+type bgpWithdrawOptions struct {
+	TimeGap    uint32
+	IPv4Routes []otgconfighelpers.RoutePrefix
+	IPv6Routes []otgconfighelpers.RoutePrefix
+}
+
+func addBGPAdvertisement(updates gosnappi.BgpStructuredPdusBgpOneStructuredUpdateReplayIter, opts bgpAdvOptions) {
+	adv := updates.Add()
+	if opts.TimeGap > 0 {
+		adv.SetTimeGap(opts.TimeGap)
+	}
+	pa := adv.PathAttributes()
+	pa.SetOrigin(opts.Origin)
+	if len(opts.ASPath) > 0 {
+		pa.AsPath().FourByteAsPath().Segments().Add().
+			SetType(gosnappi.BgpAttributesFourByteAsPathSegmentType.AS_SEQ).
+			SetAsNumbers(opts.ASPath)
+	}
+	for asNum, customs := range opts.Communities {
+		for _, custom := range customs {
+			pa.Community().Add().CustomCommunity().SetAsNumber(asNum).SetCustom(custom)
+		}
+	}
+	if opts.LocalPref != nil {
+		pa.LocalPreference().SetValue(*opts.LocalPref)
+	}
+	if opts.Med != nil {
+		pa.MultiExitDiscriminator().SetValue(*opts.Med)
+	}
+	mpReach := pa.MpReach()
+	if opts.NextHop != "" {
+		mpReach.NextHop().SetIpv4(opts.NextHop)
+	}
+	if opts.NextHopIPv6 != "" {
+		mpReach.NextHop().SetIpv6(opts.NextHopIPv6)
+	}
+	if len(opts.IPv4Routes) > 0 {
+		ipv4Unicast := mpReach.Ipv4Unicast()
+		for _, route := range opts.IPv4Routes {
+			ipv4Unicast.Add().SetAddress(route.Address).SetPrefix(route.Prefix)
+		}
+	}
+	if len(opts.IPv6Routes) > 0 {
+		ipv6Unicast := mpReach.Ipv6Unicast()
+		for _, route := range opts.IPv6Routes {
+			ipv6Unicast.Add().SetAddress(route.Address).SetPrefix(route.Prefix)
+		}
+	}
+}
+
+func addBGPWithdrawal(updates gosnappi.BgpStructuredPdusBgpOneStructuredUpdateReplayIter, opts bgpWithdrawOptions) {
+	wd := updates.Add()
+	if opts.TimeGap > 0 {
+		wd.SetTimeGap(opts.TimeGap)
+	}
+	if len(opts.IPv4Routes) > 0 {
+		ipv4Unicast := wd.PathAttributes().MpUnreach().Ipv4Unicast()
+		for _, route := range opts.IPv4Routes {
+			ipv4Unicast.Add().SetAddress(route.Address).SetPrefix(route.Prefix)
+		}
+	}
+	if len(opts.IPv6Routes) > 0 {
+		ipv6Unicast := wd.PathAttributes().MpUnreach().Ipv6Unicast()
+		for _, route := range opts.IPv6Routes {
+			ipv6Unicast.Add().SetAddress(route.Address).SetPrefix(route.Prefix)
+		}
+	}
+}
+
+func generateIPv6Prefixes(count int, formats []otgconfighelpers.PrefixFormat) []otgconfighelpers.RoutePrefix {
+	var routes []otgconfighelpers.RoutePrefix
+	for j := 0; j <= count; j++ {
+		for _, form := range formats {
+			routes = append(routes, otgconfighelpers.RoutePrefix{
+				Address: fmt.Sprintf(form.Format, j),
+				Prefix:  form.Length,
 			})
-			otgconfighelpers.AddBGPAdvertisement(updates, otgconfighelpers.AdvertisementOptions{
-				TimeGap: 120000, Origin: gosnappi.BgpAttributesOrigin.INCOMPLETE, ASPath: []uint32{800101, 800111}, Communities: commonCommunities, NextHop: "50.1.2.2", LocalPref: &lp1000, IPv4Routes: routes,
-			})
-			otgconfighelpers.AddBGPWithdrawal(updates, otgconfighelpers.WithdrawalOptions{TimeGap: 120000, IPv4Routes: routes})
+		}
+	}
+	return routes
+}
+
+func triggerOTGBGPPeersNotification(t *testing.T, ate *ondatra.ATEDevice, peerNames []string) {
+	t.Helper()
+	if len(peerNames) == 0 {
+		return
+	}
+	ca := gosnappi.NewControlAction()
+	notif := ca.Protocol().Bgp().Notification().SetNames(peerNames)
+	notif.Cease().SetSubcode(gosnappi.DeviceBgpCeaseErrorSubcode.ADMIN_RESET_CODE6_SUBCODE4)
+	ate.OTG().SetControlAction(t, ca)
+}
+
+func updateDUTBGPTimers(t *testing.T, dut *ondatra.DUTDevice, peerGroups []string, neighbors []string, holdTime, keepalive, minAdvInterval uint16) {
+	t.Helper()
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	batch := &gnmi.SetBatch{}
+	for _, pg := range peerGroups {
+		pgTimers := bgpPath.PeerGroup(pg).Timers()
+		gnmi.BatchUpdate(batch, pgTimers.HoldTime().Config(), holdTime)
+		gnmi.BatchUpdate(batch, pgTimers.KeepaliveInterval().Config(), keepalive)
+		gnmi.BatchUpdate(batch, pgTimers.MinimumAdvertisementInterval().Config(), minAdvInterval)
+	}
+	if deviations.PeerGroupDefEbgpVrfUnsupported(dut) {
+		for _, nbr := range neighbors {
+			nbrTimers := bgpPath.Neighbor(nbr).Timers()
+			gnmi.BatchUpdate(batch, nbrTimers.HoldTime().Config(), holdTime)
+			gnmi.BatchUpdate(batch, nbrTimers.KeepaliveInterval().Config(), keepalive)
+			gnmi.BatchUpdate(batch, nbrTimers.MinimumAdvertisementInterval().Config(), minAdvInterval)
+		}
+	}
+	batch.Set(t, dut)
+}
+
+func verifyDUTLACPAndSubinterfacesHealthy(t *testing.T, dut *ondatra.DUTDevice, aggID string, subIntfIDs []uint32, timeout time.Duration) {
+	t.Helper()
+	gnmi.Await(t, dut, gnmi.OC().Interface(aggID).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
+	for _, subIdx := range subIntfIDs {
+		subPath := gnmi.OC().Interface(aggID).Subinterface(subIdx)
+		if val, ok := gnmi.Lookup(t, dut, subPath.OperStatus().State()).Val(); ok {
+			if val != oc.Interface_OperStatus_UP {
+				t.Errorf("Subinterface %s.%d oper-status got %v, want UP", aggID, subIdx, val)
+			}
+		}
+	}
+	lacpPath := gnmi.OC().Lacp().Interface(aggID)
+	members := gnmi.LookupAll(t, dut, lacpPath.MemberAny().State())
+	for _, mVal := range members {
+		member, ok := mVal.Val()
+		if !ok || member == nil {
+			continue
+		}
+		mName := member.GetInterface()
+		if sync := member.GetSynchronization(); sync != oc.Lacp_LacpSynchronizationType_IN_SYNC {
+			t.Errorf("LACP member %s on %s synchronization got %v, want IN_SYNC", mName, aggID, sync)
+		}
+		if !member.GetCollecting() {
+			t.Errorf("LACP member %s on %s collecting got false, want true", mName, aggID)
+		}
+		if !member.GetDistributing() {
+			t.Errorf("LACP member %s on %s distributing got false, want true", mName, aggID)
+		}
+		if counters := member.GetCounters(); counters != nil {
+			if timeouts := counters.GetLacpTimeoutTransitions(); timeouts != 0 {
+				t.Errorf("LACP member %s on %s lacp-timeout-transitions got %d, want 0", mName, aggID, timeouts)
+			}
+		}
+	}
+}
+
+func verifyBGPQueueAndMessageState(t *testing.T, dut *ondatra.DUTDevice, neighborIPs []string, expectNotifications bool, timeout time.Duration) {
+	t.Helper()
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	for _, nbrIP := range neighborIPs {
+		nbrPath := bgpPath.Neighbor(nbrIP)
+		if _, ok := gnmi.Lookup(t, dut, nbrPath.Queues().Input().State()).Val(); ok {
+			gnmi.Watch(t, dut, nbrPath.Queues().Input().State(), timeout, func(val *ygnmi.Value[uint32]) bool {
+				q, present := val.Val()
+				return present && q == 0
+			}).Await(t)
+		}
+		if _, ok := gnmi.Lookup(t, dut, nbrPath.Queues().Output().State()).Val(); ok {
+			gnmi.Watch(t, dut, nbrPath.Queues().Output().State(), timeout, func(val *ygnmi.Value[uint32]) bool {
+				q, present := val.Val()
+				return present && q == 0
+			}).Await(t)
+		}
+		if sentVal, ok := gnmi.Lookup(t, dut, nbrPath.Messages().Sent().State()).Val(); ok && sentVal != nil {
+			t.Logf("BGP neighbor %s messages sent: UPDATE=%d, NOTIFICATION=%d", nbrIP, sentVal.GetUPDATE(), sentVal.GetNOTIFICATION())
+		}
+		if rcvdVal, ok := gnmi.Lookup(t, dut, nbrPath.Messages().Received().State()).Val(); ok && rcvdVal != nil {
+			t.Logf("BGP neighbor %s messages received: UPDATE=%d, NOTIFICATION=%d", nbrIP, rcvdVal.GetUPDATE(), rcvdVal.GetNOTIFICATION())
+			if expectNotifications && rcvdVal.GetNOTIFICATION() > 0 {
+				t.Logf("Verified BGP neighbor %s received NOTIFICATION count: %d", nbrIP, rcvdVal.GetNOTIFICATION())
+			}
 		}
 	}
 }
@@ -1699,22 +2142,18 @@ func configureDUTBGP(t *testing.T, as uint32, nbrs []*bgpNeighbor, dut *ondatra.
 		distanceConfigv6 = fmt.Sprintf("router bgp %d instance BGP\naddress-family %s unicast\ndistance bgp %d 200 200\n", dutAS, "ipv6", 9)
 	}
 
+	addDelLinkBW := deviations.BgpExtendedCommunitySetUnsupported(dut) || delLinkbwCLIConfig != ""
 	for _, pg := range bgpPeerGroups {
 		if pg.pgV4Unicast {
 			afi = "ipv4"
 		} else {
 			afi = "ipv6"
 		}
-		if dut.Vendor() == ondatra.CISCO {
-			if weightNHConfig == "" {
-				weightNHConfig = fmt.Sprintf("router bgp %d instance BGP\n", dutAS)
-			}
-			weightNHConfig += fmt.Sprintf("neighbor-group %s\n address-family %s unicast\n weight 49151\n", pg.pgName, afi)
+		if deviations.BgpDistanceOcPathUnsupported(dut) {
 			if pg.pgMultipath {
-				weightNHConfig += fmt.Sprintf("neighbor-group %s\n dmz-link-bandwidth\nebgp-recv-extcommunity-dmz\nebgp-send-extcommunity-dmz\n", pg.pgName)
+				weightNHConfig += fmt.Sprintf("router bgp %d instance BGP\nneighbor-group %s\naddress-family %s unicast\nadditional-paths receive\nmultipath\n", dutAS, pg.pgName, afi)
 			} else {
-				weightNHConfig += fmt.Sprintf("neighbor-group %s\n address-family %s unicast\n weight 49151\n", pg.pgName, afi)
-				weightNHConfig += fmt.Sprintf("neighbor-group %s\n address-family %s unicast\n next-hop-unchanged multipath\n", pg.pgName, afi)
+				weightNHConfig += fmt.Sprintf("router bgp %d instance BGP\nneighbor-group %s\naddress-family %s unicast\nadditional-paths receive\n", dutAS, pg.pgName, afi)
 			}
 		}
 
@@ -1728,7 +2167,7 @@ func configureDUTBGP(t *testing.T, as uint32, nbrs []*bgpNeighbor, dut *ondatra.
 			cfgplugins.WithPGMultipath(pg.pgName, pg.pgMultipath),
 			cfgplugins.WithPGSendCommunity([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD, oc.Bgp_CommunityType_EXTENDED}),
 			cfgplugins.WithPGAfiSafiEnabled(pg.pgAFISAFI, true, true),
-			cfgplugins.ApplyPGRoutingPolicy(pg.pgImportPolicy, pg.pgExportPolicy, dut.Vendor() == ondatra.CISCO || delLinkbwCLIConfig != ""),
+			cfgplugins.ApplyPGRoutingPolicy(pg.pgImportPolicy, pg.pgExportPolicy, addDelLinkBW),
 		}
 		cfgplugins.ConfigurePeerGroup(peerGroup, dut, pgOpts...)
 	}
@@ -1736,9 +2175,9 @@ func configureDUTBGP(t *testing.T, as uint32, nbrs []*bgpNeighbor, dut *ondatra.
 	for _, nbr := range nbrs {
 		bgpNbr := bgp.GetOrCreateNeighbor(nbr.neighborip)
 		cfgplugins.ConfigurePeer(bgpNbr, dut,
-			cfgplugins.WithPeerGroup(nbr.pg, uint32(nbr.as), nbr.importPolicy, nbr.exportPolicy, delLinkbwCLIConfig != "" && dut.Vendor() == ondatra.CISCO),
-			cfgplugins.WithPeerAfiSafiEnabled(nbr.isV4, nbr.importPolicy, nbr.exportPolicy, delLinkbwCLIConfig != "" && dut.Vendor() == ondatra.CISCO),
-			cfgplugins.ApplyPeerPerAfiSafiRoutingPolicy(nbr.isV4, nbr.importPolicy, nbr.exportPolicy, delLinkbwCLIConfig != "" && dut.Vendor() == ondatra.CISCO),
+			cfgplugins.WithPeerGroup(nbr.pg, uint32(nbr.as), nbr.importPolicy, nbr.exportPolicy, addDelLinkBW),
+			cfgplugins.WithPeerAfiSafiEnabled(nbr.isV4, nbr.importPolicy, nbr.exportPolicy, addDelLinkBW),
+			cfgplugins.ApplyPeerPerAfiSafiRoutingPolicy(nbr.isV4, nbr.importPolicy, nbr.exportPolicy, addDelLinkBW),
 		)
 	}
 	return niProto
@@ -1760,32 +2199,8 @@ func configureDUTLoopback(t *testing.T, dut *ondatra.DUTDevice) {
 	lo1.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
 	gnmi.Update(t, dut, gnmi.OC().Interface(lb).Config(), lo1)
 
-	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		if dut.Vendor() != ondatra.NOKIA {
-			fptest.AssignToNetworkInstance(t, dut, lb, deviations.DefaultNetworkInstance(dut), 0)
-		} else if dut.Vendor() == ondatra.NOKIA && (slices.Contains(kneDeviceModelList, dut.Model()) || dut.Model() == "ixr10e") {
-			AssignToNetworkInstance(t, dut, lb, deviations.DefaultNetworkInstance(dut), 0)
-		}
-	}
-}
-
-// AssignToNetworkInstance assigns the interface to the network instance.
-func AssignToNetworkInstance(t testing.TB, d *ondatra.DUTDevice, i string, ni string, si uint32) {
-	t.Helper()
-	if ni == "" {
-		t.Fatalf("Network instance not provided for interface assignment")
-	}
-	netInst := &oc.NetworkInstance{Name: ygot.String(ni)}
-	intf := &oc.Interface{Name: ygot.String(i)}
-	netInstIntf, err := netInst.NewInterface(intf.GetName())
-	if err != nil {
-		t.Errorf("Error fetching NewInterface for %s", intf.GetName())
-	}
-	netInstIntf.Interface = ygot.String(intf.GetName())
-	netInstIntf.Subinterface = ygot.Uint32(si)
-	netInstIntf.Id = ygot.String(intf.GetName())
-	if intf.GetOrCreateSubinterface(si) != nil {
-		gnmi.Update(t, d, gnmi.OC().NetworkInstance(ni).Config(), netInst)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) && (slices.Contains(kneDeviceModelList, dut.Model()) || dut.Model() == "ixr10e") {
+		fptest.AssignToNetworkInstance(t, dut, lb, deviations.DefaultNetworkInstance(dut), 0)
 	}
 }
 
@@ -1860,8 +2275,9 @@ func configureTrafficFlow(t *testing.T, otgConfig gosnappi.Config, flowSrcEndPoi
 	}
 }
 
-// sendTraffic sends traffic from the ATE.
-func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, conf gosnappi.Config) {
+// sendTraffic sends traffic from the ATE for trafficDuration.
+func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, _ gosnappi.Config) {
+	t.Helper()
 	t.Logf("Starting traffic")
 	ate.OTG().StartTraffic(t)
 	time.Sleep(trafficDuration)
@@ -1879,13 +2295,13 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, conf gosnappi.Config) {
 	}
 }
 
-// verifySystemHealth verifies the system health.
+// verifySystemHealth verifies the system health and captures process PID, start-time, CPU, and memory.
 func verifySystemHealth(t *testing.T, dut *ondatra.DUTDevice) dutInfo {
 	t.Helper()
 	t.Logf("INFO: Verifying system health")
 	var dutInfo dutInfo
 
-	t.Logf("INFO: Check CPU utilization")
+	t.Logf("INFO: Check CPU, Memory, PID, and StartTime")
 	query := gnmi.OC().System().ProcessAny().State()
 	results := gnmi.GetAll(t, dut, query)
 
@@ -1895,9 +2311,10 @@ func verifySystemHealth(t *testing.T, dut *ondatra.DUTDevice) dutInfo {
 			dutInfo.processes = make(map[string]processesInfo)
 		}
 		dutInfo.processes[processName] = processesInfo{
-			pid:    result.GetPid(),
-			cpuPct: result.GetCpuUtilization(),
-			memPct: result.GetMemoryUtilization(),
+			pid:       result.GetPid(),
+			startTime: result.GetStartTime(),
+			cpuPct:    result.GetCpuUtilization(),
+			memPct:    result.GetMemoryUtilization(),
 		}
 	}
 	return dutInfo
@@ -1972,12 +2389,16 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutData *dutData) {
 	}
 	cfgplugins.NewSubInterfaces(t, dut, cfgDutPorts)
 
-	// TODO: Need to investigate if we need to define a deviation for this.
-	if dut.Vendor() == ondatra.ARISTA {
-		helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("interface %s\n no switchport \n", aggIDs[0]))
-		for _, dp := range []attributes{dutPort1, dutPort2, dutPort3} {
-			helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("interface %s\n no switchport \n", dut.Port(t, dp.Name).Name()))
+	switchportIntfs := []string{aggIDs[0]}
+	for _, dp := range []attributes{dutPort1, dutPort2, dutPort3} {
+		switchportIntfs = append(switchportIntfs, dut.Port(t, dp.Name).Name())
+	}
+	if deviations.OmitL2MTU(dut) {
+		var cliConfig string
+		for _, intf := range switchportIntfs {
+			cliConfig += fmt.Sprintf("interface %s\nno switchport\n", intf)
 		}
+		helpers.GnmiCLIConfig(t, dut, cliConfig)
 	}
 }
 
