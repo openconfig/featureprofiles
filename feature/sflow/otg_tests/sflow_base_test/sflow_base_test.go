@@ -79,14 +79,14 @@ var (
 	sflowCfgv4KNE = &cfgplugins.SFlowGlobalParams{
 		Ni:              mgmtVRF,
 		IntfName:        "port1",
-		SrcAddrV4:       "192.0.2.1",
+		SrcAddrV4:       "203.0.113.1",
 		IP:              "IPv4",
 		MinSamplingRate: 10,
 	}
 	sflowCfgv6KNE = &cfgplugins.SFlowGlobalParams{
 		Ni:              mgmtVRF,
 		IntfName:        "port1",
-		SrcAddrV6:       "2001:db8::1",
+		SrcAddrV6:       "2001:db8::203:0:113:1",
 		IP:              "IPv6",
 		MinSamplingRate: 10,
 	}
@@ -130,7 +130,7 @@ var (
 		IPv4Len: 32,
 		IPv6Len: 128,
 	}
-	kneDeviceModelList = []string{"ncptx", "ceos", "srlinux", "xrd"}
+	kneDeviceModelList = []string{"ncptx", "ceos", "srlinux", "xrd", "ixr10e"}
 	flowConfigs        = []flowConfig{
 		{
 			name:            "flowS",
