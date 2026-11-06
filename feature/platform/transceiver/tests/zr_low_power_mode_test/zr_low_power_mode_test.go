@@ -148,10 +148,11 @@ func TestLowPowerMode(t *testing.T) {
 
 			validateStreamOutput(t, allStream)
 			opticalChannelName := components.OpticalChannelComponentFromPort(t, dut, dp)
+			perfMonSamplingInterval := samplingInterval
 			if !deviations.SkipOpticalChannelOutputPowerInterval(dut) {
-				samplingInterval = time.Duration(gnmi.Get(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Interval().State()))
+				perfMonSamplingInterval = time.Duration(gnmi.Get(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Interval().State()))
 			}
-			opInst := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Instant().State(), samplingInterval)
+			opInst := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Instant().State(), perfMonSamplingInterval)
 			defer opInst.Close()
 			if opInstN := opInst.Next(); opInstN != nil {
 				if val, ok := opInstN.Val(); ok && val != -40 {
@@ -159,7 +160,7 @@ func TestLowPowerMode(t *testing.T) {
 				}
 			}
 
-			opAvg := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Avg().State(), samplingInterval)
+			opAvg := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Avg().State(), perfMonSamplingInterval)
 			defer opAvg.Close()
 			if opAvgN := opAvg.Next(); opAvgN != nil {
 				if val, ok := opAvgN.Val(); ok && val != -40 {
@@ -167,7 +168,7 @@ func TestLowPowerMode(t *testing.T) {
 				}
 			}
 
-			opMin := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Min().State(), samplingInterval)
+			opMin := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Min().State(), perfMonSamplingInterval)
 			defer opMin.Close()
 			if opMinN := opMin.Next(); opMinN != nil {
 				if val, ok := opMinN.Val(); ok && val != -40 {
@@ -175,7 +176,7 @@ func TestLowPowerMode(t *testing.T) {
 				}
 			}
 
-			opMax := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Max().State(), samplingInterval)
+			opMax := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Max().State(), perfMonSamplingInterval)
 			defer opMax.Close()
 			if opMaxN := opMax.Next(); opMaxN != nil {
 				if val, ok := opMaxN.Val(); ok && val != -40 {
