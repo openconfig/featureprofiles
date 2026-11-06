@@ -1303,24 +1303,6 @@ func enableCapture(t *testing.T, config gosnappi.Config, ports ...string) {
 	}
 }
 
-// startCapture starts packet capture on the ATE and returns the control state that
-// must be passed to stopCapture.
-func startCapture(t *testing.T, otg *otg.OTG) gosnappi.ControlState {
-	t.Helper()
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
-	otg.SetControlState(t, cs)
-
-	return cs
-}
-
-// stopCapture stops the packet capture previously started with startCapture.
-func stopCapture(t *testing.T, otg *otg.OTG, cs gosnappi.ControlState) {
-	t.Helper()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
-	otg.SetControlState(t, cs)
-}
-
 // processCapture downloads the capture for the given ATE port into a temporary PCAP file and
 // returns its path. The ATE occasionally reports an empty buffer right after the capture is
 // stopped, which results in a "truncated dump file" error when the file is opened, so the capture
@@ -1375,4 +1357,22 @@ func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
 			t.Errorf("%s Status: got %v, want %v", p, status, want)
 		}
 	}
+}
+
+// startCapture starts packet capture on the ATE and returns the control state that
+// must be passed to stopCapture.
+func startCapture(t *testing.T, otg *otg.OTG) gosnappi.ControlState {
+	t.Helper()
+	cs := gosnappi.NewControlState()
+	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
+	otg.SetControlState(t, cs)
+
+	return cs
+}
+
+// stopCapture stops the packet capture previously started with startCapture.
+func stopCapture(t *testing.T, otg *otg.OTG, cs gosnappi.ControlState) {
+	t.Helper()
+	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
+	otg.SetControlState(t, cs)
 }

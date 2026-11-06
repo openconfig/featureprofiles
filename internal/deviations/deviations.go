@@ -2509,6 +2509,34 @@ func InvalidInterfaceNumberAllowed(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInvalidInterfaceNumberAllowed()
 }
 
+// BgpAfiSafiSendCommunityTypeUnsupported returns true if the device does not support configuring
+// BGP send-community-type under peer-group/afi-safis/afi-safi/config/send-community-type and
+// requires configuring it under peer-group/config/send-community-type instead.
+// Arista: https://partnerissuetracker.corp.google.com/issues/567652475
+func BgpAfiSafiSendCommunityTypeUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpAfiSafiSendCommunityTypeUnsupported()
+}
+
+// ISISInterfaceAuthenticationContainerUnsupported returns true if the device does not support
+// configuring IS-IS interface authentication under /isis/interfaces/interface/authentication
+// and requires /isis/interfaces/interface/levels/level/hello-authentication instead.
+// Arista: https://partnerissuetracker.corp.google.com/issues/567813121
+func ISISInterfaceAuthenticationContainerUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisInterfaceAuthenticationContainerUnsupported()
+}
+
+// SkipGnoiPingRpcAuthzVerification returnds true if Gnoi Ping rpc to be skipped based on a deviation
+// Arista: https://partnerissuetracker.corp.google.com/issues/219953165
+func SkipGnoiPingRpcAuthzVerification(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipGnoiPingRpcAuthzVerification()
+}
+
+// EcnMinGreaterMaxThresholdUnsupported returns true if the device does not
+// validate that max-threshold is strictly greater than min-threshold.
+func EcnMinGreaterMaxThresholdUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEcnMinGreaterMaxThresholdUnsupported()
+}
+
 // DecapICMPTTLExceededUnsupported returns true if the device does not support
 // generating ICMP TTL Exceeded messages for decapsulated packets.
 // Arista: https://partnerissuetracker.corp.google.com/issues/556092813

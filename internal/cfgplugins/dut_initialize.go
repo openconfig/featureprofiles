@@ -17,6 +17,8 @@ package cfgplugins
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -1651,6 +1653,28 @@ const nokiaLoadBalanceHashReset = "system load-balancing hash-options hash-seed 
 
 const nokiaLoadBalanceHashPerturb = "system load-balancing hash-options hash-seed %d"
 
+// juniperLoadBalanceHashReset deletes the explicit ECMP/LAG hash-seed under
+// forwarding-options enhanced-hash-key so Junos reverts to deriving the seed
+// from the chassis MAC address without disturbing sibling enhanced-hash-key
+// stanzas.
+const juniperLoadBalanceHashReset = `forwarding-options {
+    enhanced-hash-key {
+        delete: hash-seed;
+    }
+}
+`
+
+// juniperLoadBalanceHashPerturb sets an explicit ECMP/LAG hash seed on Junos
+// (Evolved) PTX platforms.
+const juniperLoadBalanceHashPerturb = `forwarding-options {
+    enhanced-hash-key {
+        hash-seed %d;
+    }
+}
+`
+
+var juniperHashSeedRE = regexp.MustCompile(`\bhash-seed"?\s*:?\s*"?(\d+)\b`)
+
 var (
 	aristaTcamProfileMap = map[FeatureType]string{
 		FeatureMplsTracking:              aristaTcamProfileMplsTracking,
@@ -1683,7 +1707,111 @@ var (
 	ciscoHardwareInitMap = map[FeatureType]string{
 		FeatureHighScale: ciscoHighScale,
 	}
+
+	juniperHardwareInitMap = map[FeatureType]string{
+		FeatureLoadBalanceHashReset:   juniperLoadBalanceHashReset,
+		FeatureLoadBalanceHashPerturb: juniperLoadBalanceHashPerturb,
+	}
 )
+
+// JuniperLoadBalanceHashSeed queries the active enhanced-hash-key hash-seed on
+// a Juniper DUT. It returns (seed, true) when an explicit hash-seed statement
+// is configured, or (0, false) when unset (Junos derives the seed from the
+// chassis MAC address).
+func JuniperLoadBalanceHashSeed(t *testing.T, dut *ondatra.DUTDevice) (int, bool) {
+	t.Helper()
+	const showCmd = "show configuration forwarding-options enhanced-hash-key hash-seed"
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	var raw string
+	var queried bool
+	var lastErr error
+	gnmiClient := dut.RawAPIs().GNMI(t)
+
+	cliReq := &gpb.GetRequest{
+		Path: []*gpb.Path{{
+			Origin: "cli",
+			Elem:   []*gpb.PathElem{{Name: showCmd}},
+		}},
+		Encoding: gpb.Encoding_ASCII,
+	}
+	if resp, err := gnmiClient.Get(ctx, cliReq); err == nil {
+		queried = true
+		for _, notif := range resp.GetNotification() {
+			for _, upd := range notif.GetUpdate() {
+				if s := upd.GetVal().GetAsciiVal(); s != "" {
+					raw = s
+					break
+				}
+			}
+		}
+	} else {
+		lastErr = err
+	}
+
+	if !queried {
+		for _, origin := range []string{"junos", "native", ""} {
+			cfgReq := &gpb.GetRequest{
+				Path: []*gpb.Path{{
+					Origin: origin,
+					Elem: []*gpb.PathElem{
+						{Name: "configuration"},
+						{Name: "forwarding-options"},
+						{Name: "enhanced-hash-key"},
+					},
+				}},
+				Type:     gpb.GetRequest_CONFIG,
+				Encoding: gpb.Encoding_JSON_IETF,
+			}
+			resp, err := gnmiClient.Get(ctx, cfgReq)
+			if err != nil {
+				if strings.Contains(err.Error(), "code = NotFound") {
+					queried = true
+					break
+				}
+				lastErr = err
+				continue
+			}
+			queried = true
+			for _, notif := range resp.GetNotification() {
+				for _, upd := range notif.GetUpdate() {
+					if b := upd.GetVal().GetJsonIetfVal(); len(b) > 0 {
+						raw = string(b)
+						break
+					}
+					if b := upd.GetVal().GetJsonVal(); len(b) > 0 {
+						raw = string(b)
+						break
+					}
+				}
+			}
+			break
+		}
+	}
+
+	if !queried {
+		res, err := dut.RawAPIs().CLI(t).RunCommand(ctx, showCmd)
+		if err != nil {
+			t.Fatalf("Unable to query initial Juniper enhanced-hash-key hash-seed via gNMI or CLI: %v (last gNMI error: %v)", err, lastErr)
+		}
+		raw = res.Output()
+	}
+
+	if strings.TrimSpace(raw) == "" {
+		return 0, false
+	}
+	m := juniperHashSeedRE.FindStringSubmatch(raw)
+	if len(m) < 2 {
+		return 0, false
+	}
+	seed, err := strconv.Atoi(m[1])
+	if err != nil {
+		t.Fatalf("Unable to parse Juniper enhanced-hash-key hash-seed from %q: %v", raw, err)
+	}
+	return seed, true
+}
 
 func buildCliSetRequest(config string) *gpb.SetRequest {
 	gpbSetRequest := &gpb.SetRequest{
@@ -1715,6 +1843,8 @@ func NewDUTHardwareInit(t *testing.T, dut *ondatra.DUTDevice, feature FeatureTyp
 		return nokiaHardwareInitMap[feature]
 	case ondatra.CISCO:
 		return ciscoHardwareInitMap[feature]
+	case ondatra.JUNIPER:
+		return juniperHardwareInitMap[feature]
 	default:
 		return ""
 	}

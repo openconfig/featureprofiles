@@ -85,6 +85,12 @@ func TestNoInvalidValuesOnInterfaceFlap(t *testing.T) {
 	time.Sleep(10 * time.Second) // wait 10 seconds for at-least 1 stream value.
 
 	// Flap interface by setting enabled to false
+	portRestored := false
+	t.Cleanup(func() {
+		if !portRestored {
+			gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().Config(), true)
+		}
+	})
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().Config(), false)
 
 	// Wait until interface is DOWN.
@@ -93,6 +99,7 @@ func TestNoInvalidValuesOnInterfaceFlap(t *testing.T) {
 
 	// Re-enable interface
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().Config(), true)
+	portRestored = true
 
 	// Wait until interface is UP.
 	gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).AdminStatus().State(), 60*time.Second, oc.Interface_AdminStatus_UP)
