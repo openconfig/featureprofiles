@@ -2537,6 +2537,11 @@ func EcnMinGreaterMaxThresholdUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEcnMinGreaterMaxThresholdUnsupported()
 }
 
+// MaxSupportedDecapEntries returns the maximum number of decap entries supported by the device.
+func MaxSupportedDecapEntries(dut *ondatra.DUTDevice) uint32 {
+	return lookupDUTDeviations(dut).GetMaxSupportedDecapEntries()
+}
+
 // DecapICMPTTLExceededUnsupported returns true if the device does not support
 // generating ICMP TTL Exceeded messages for decapsulated packets.
 // Arista: https://partnerissuetracker.corp.google.com/issues/556092813
