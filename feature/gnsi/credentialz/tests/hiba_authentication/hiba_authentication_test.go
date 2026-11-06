@@ -16,6 +16,7 @@ package hibaauthentication_test
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"testing"
 	"time"
@@ -38,6 +39,7 @@ const (
 
 var (
 	hostCertificateCreatedOn = time.Now().Unix()
+	hibaCertsDir             = flag.String("hiba_certs_dir", ".", "directory containing pre-generated HIBA CA keys and certificates")
 )
 
 func TestMain(m *testing.M) {
@@ -47,7 +49,7 @@ func TestMain(m *testing.M) {
 func TestCredentialz(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dir := t.TempDir()
-	credz.CreateHibaKeys(t, dut, dir)
+	credz.CreateHibaKeys(t, dut, *hibaCertsDir, dir)
 	credz.SetupUser(t, dut, username)
 
 	// Set only public key authentication for our test.
