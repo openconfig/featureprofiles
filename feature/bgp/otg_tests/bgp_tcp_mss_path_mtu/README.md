@@ -19,6 +19,9 @@ and path MTU discovery (PMTUD) settings for BGP sessions:
     a packet is too big for its next link. This testbed has no router between
     the DUT and the ATE, so the test verifies the PMTUD configuration and
     state, not the PMTUD behavior.
+*   TODO: The current test code configures TCP MD5 authentication on the
+    iBGP neighbor. Remove it when the code is updated to this README; BGP
+    MD5 authentication is covered by RT-1.1.
 
 ### Testbed type
 
