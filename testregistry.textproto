@@ -427,6 +427,11 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/healthz/tests/status/README.md"
 }
 test: {
+  id: "Health-1.3"
+  description: "System Process and Controller Card Memory Leak Detection"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/health/otg_tests/system_process_memory_leak_test/README.md"
+}
+test: {
   id: "INT-1.1"
   description: "Interface Performance"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/benchmark/otg_tests/dev_thruput/README.md"
