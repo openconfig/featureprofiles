@@ -68,6 +68,14 @@ var (
 	nonMatchPrefixes = []string{"100.64.0.0/24", "2001:db8:1::/64", "2001:db8:3::/64"}
 )
 
+func prefixSet(prefixes []string) map[string]bool {
+	set := make(map[string]bool, len(prefixes))
+	for _, prefix := range prefixes {
+		set[prefix] = true
+	}
+	return set
+}
+
 // configurePolicies configures the routing policies and prefix-sets required
 // by the AFT-6.2 test procedures.
 func configurePolicies(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch) {
@@ -125,7 +133,7 @@ func testSimultaneousDualStackPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	aftpf.CollectAndVerify(t, dut, aftpf.RunCollectorParams{
 		Ctx:       context.Background(),
 		Collector: collector,
-		Stop: aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes,
+		Stop: aftcache.InitialSyncStoppingConditionWithAbsentPrefixes(t, dut, wantPrefixes, prefixSet(nonMatchPrefixes),
 			map[string]bool{aftpf.ATEPort1.IPv4: true}, map[string]bool{aftpf.ATEPort1.IPv6: true}),
 		Timeout: aftpf.AFTSubscriptionWait,
 	}, allMatch, nonMatchPrefixes)
