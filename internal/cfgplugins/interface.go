@@ -1654,24 +1654,25 @@ type VlanParams struct {
 // ConfigureVlan configures the Vlan and remove the spanning-tree with ID.
 func ConfigureVlan(t *testing.T, dut *ondatra.DUTDevice, cfg VlanParams) {
 	t.Helper()
-	if !deviations.DeprecatedVlanID(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			cliConfig := fmt.Sprintf(`vlan %[1]d
-			no spanning-tree vlan-id %[1]d`, cfg.VlanID)
-			helpers.GnmiCLIConfig(t, dut, cliConfig)
-		default:
-			t.Logf("Unsupported vendor %s for native command support for deviation 'Vlan ID'", dut.Vendor())
-		}
-	} else {
+	if !deviations.SwitchedVlanUnsupported(dut) && (deviations.DeprecatedVlanID(dut) || dut.Vendor() == ondatra.ARISTA) {
 		t.Log("Configuring VLAN using OpenConfig global VLAN model")
 
 		vi := &oc.NetworkInstance_Vlan{
 			VlanId: ygot.Uint16(uint16(cfg.VlanID)),
 			Name:   ygot.String(fmt.Sprintf("VLAN_%d", cfg.VlanID)),
+			Status: oc.Vlan_Status_ACTIVE,
 		}
 
 		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Vlan(uint16(cfg.VlanID)).Config(), vi)
+	}
+
+	if !deviations.DeprecatedVlanID(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("no spanning-tree vlan-id %d\n", cfg.VlanID))
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'Vlan ID'", dut.Vendor())
+		}
 	}
 }
 
