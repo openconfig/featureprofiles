@@ -144,8 +144,28 @@
         }()
         ```
     *   **OTG Port Capture Cleanup:**
-        - **Anti-pattern:** Starting an Open Traffic Generator (OTG) port packet capture (`gosnappi.StatePortCaptureState.START`) without stopping it, or stopping it sequentially without a `defer`. If the test omits stopping capture or fails/aborts mid-run (e.g., via `t.Fatalf`) prior to sequential cleanup, the capture session remains active on the ATE/Ixia port, exhausting hardware capture slot limits across subtests or subsequent tests.
-        - **Correction:** Whenever an OTG port capture is started (`gosnappi.StatePortCaptureState.START`), a deferred cleanup (`defer`) that stops the port capture (`gosnappi.StatePortCaptureState.STOP`) MUST be registered immediately after starting capture (in addition to stopping capture before reading `.pcap` bytes with `GetCapture` if done within the same function).
+        - **Anti-pattern:** Starting an Open Traffic Generator (OTG) port packet
+          capture (`gosnappi.StatePortCaptureState.START` or
+          `otgutils.StartCapture`) without stopping it, or stopping it
+          sequentially without a `defer` / `t.Cleanup()`. If the test omits
+          stopping capture or fails/aborts mid-run (e.g., via `t.Fatalf`) prior
+          to sequential cleanup, the capture session remains active on the
+          ATE/Ixia port, exhausting hardware capture slot limits across subtests
+          or subsequent tests.
+        - **Correction:** Use the centralized helpers
+          `cs := otgutils.StartCapture(t, ate.OTG())` (which automatically
+          registers a `t.Cleanup()` fallback) and idempotent
+          `otgutils.StopCapture(t, ate.OTG(), cs)` (or
+          `packetvalidationhelpers.StartCapture` /
+          `packetvalidationhelpers.StopCapture` when using `CaptureConfig`).
+          Whenever an OTG port capture is started, register
+          `defer otgutils.StopCapture(t, ate.OTG(), cs)` immediately after
+          starting capture (unless inside a `for` loop without `t.Run`, where
+          `defer` would accumulate across iterations and
+          `otgutils.StartCapture`'s `t.Cleanup()` plus explicit per-iteration
+          `otgutils.StopCapture(t, ate.OTG(), cs)` should be used instead), in
+          addition to calling `otgutils.StopCapture(t, ate.OTG(), cs)` before
+          reading `.pcap` bytes with `GetCapture`.
         - **BAD (Do not do this):**
 
         ```go
@@ -164,13 +184,8 @@
         - **GOOD (Do this instead):**
 
         ```go
-        cs := gosnappi.NewControlState()
-        cs.Port().Capture().SetPortNames([]string{atePort.ID()}).SetState(gosnappi.StatePortCaptureState.START)
-        ate.OTG().SetControlState(t, cs)
-        defer func() {
-            cs.Port().Capture().SetPortNames([]string{atePort.ID()}).SetState(gosnappi.StatePortCaptureState.STOP)
-            ate.OTG().SetControlState(t, cs)
-        }()
+        cs := otgutils.StartCapture(t, ate.OTG())
+        defer otgutils.StopCapture(t, ate.OTG(), cs)
 
         ate.OTG().StartTraffic(t)
         // ... wait for traffic/protocol packets ...
@@ -178,8 +193,7 @@
 
         // Explicitly stop capture before downloading pcap bytes if read in the same function,
         // while the defer above guarantees cleanup if any step fails early.
-        cs.Port().Capture().SetPortNames([]string{atePort.ID()}).SetState(gosnappi.StatePortCaptureState.STOP)
-        ate.OTG().SetControlState(t, cs)
+        otgutils.StopCapture(t, ate.OTG(), cs)
         bytes := ate.OTG().GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(atePort.ID()))
         ```
     *   **SSH and AAA State:** Pay special attention to AAA and SSH configurations. If a test modifies SSH authentication (e.g., `management ssh authentication protocol password`), the cleanup routine MUST explicitly negate that specific command (e.g., `management ssh \n no authentication protocol`) rather than relying on generic default commands that might wipe baseline lab configurations.

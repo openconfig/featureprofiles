@@ -172,5 +172,3 @@ rpcs:
     gNMI.Subscribe:
     gNMI.Set:
 ```
-
-
