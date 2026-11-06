@@ -2541,3 +2541,9 @@ func EcnMinGreaterMaxThresholdUnsupported(dut *ondatra.DUTDevice) bool {
 func MaxSupportedDecapEntries(dut *ondatra.DUTDevice) uint32 {
 	return lookupDUTDeviations(dut).GetMaxSupportedDecapEntries()
 }
+
+// Devices that do not support RPD restart while LLGR is in progress.
+// Juniper :  b/567579406
+func BgpRpdRestartDuringLlgrNotSupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpRpdRestartDuringLlgrNotSupported()
+}
