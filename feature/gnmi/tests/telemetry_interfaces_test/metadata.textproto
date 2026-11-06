@@ -6,6 +6,16 @@ description: "Telemetry: Interface openconfig validation."
 testbed: TESTBED_DUT_2LINKS
 platform_exceptions: {
   platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    missing_value_for_defaults: true
+    state_path_unsupported: true
+  }
+}
+
+platform_exceptions: {
+  platform: {
     vendor: PALOALTO
   }
 }
