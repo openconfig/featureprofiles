@@ -572,6 +572,7 @@ test: {
   id: "P4RT-3.4"
   description: "P4RT Packet-In Interaction with gRIBI"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/p4rt_packetin_gribi_interaction_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/p4rt_packetin_gribi_interaction_test/p4rt_packetin_gribi_interaction_test.go"
 }
 test: {
   id: "P4RT-5.1"
