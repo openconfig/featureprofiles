@@ -12,7 +12,6 @@ platform_exceptions: {
   deviations: {
     explicit_interface_in_default_vrf: true
     omit_l2_mtu: true
-    fragment_total_drops_unsupported: true
     aggregate_atomic_update: true
     interface_enabled: true
     fragment_punt_unsupported: true
@@ -36,7 +35,6 @@ platform_exceptions: {
     vendor: CISCO
   }
   deviations: {
-    fragment_total_drops_unsupported: true
     fragment_punt_ft: "ciscoxr-fragment-ft"
   }
 }
