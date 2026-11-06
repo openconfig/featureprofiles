@@ -17,4 +17,16 @@ testbed:  TESTBED_DUT_ATE_4LINKS
      tunnel_config_path_unsupported: true
    }
  }
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    static_protocol_name: "STATIC"
+    tunnel_config_path_unsupported: true
+    tunnel_state_path_unsupported: true
+  }
+}
 tags: TAGS_AGGREGATION
