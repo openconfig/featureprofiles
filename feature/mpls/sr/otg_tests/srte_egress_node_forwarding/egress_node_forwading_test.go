@@ -355,21 +355,6 @@ func enableCapture(t *testing.T, config gosnappi.Config, port string) {
 
 }
 
-func startCapture(t *testing.T, otg *otg.OTG) gosnappi.ControlState {
-	t.Helper()
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
-	otg.SetControlState(t, cs)
-
-	return cs
-}
-
-func stopCapture(t *testing.T, otg *otg.OTG, cs gosnappi.ControlState) {
-	t.Helper()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
-	otg.SetControlState(t, cs)
-}
-
 func mustProcessCapture(t *testing.T, otg *otg.OTG, port string) string {
 	bytes := otg.GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(port))
 	time.Sleep(30 * time.Second)
@@ -469,7 +454,11 @@ func verifyTrafficValidations(t *testing.T, ate *ondatra.ATEDevice, flowName str
 
 func sendTrafficCapture(t *testing.T, ate *ondatra.ATEDevice) {
 	t.Logf("Starting capture")
-	cs := startCapture(t, ate.OTG())
+	cs := otgutils.StartCapture(t, ate.OTG())
+	defer func() {
+		t.Logf("Stop Capture")
+		otgutils.StopCapture(t, ate.OTG(), cs)
+	}()
 
 	t.Logf("Starting traffic on ATE...")
 	ate.OTG().StartTraffic(t)
@@ -477,9 +466,6 @@ func sendTrafficCapture(t *testing.T, ate *ondatra.ATEDevice) {
 	time.Sleep(trafficTimeout)
 	ate.OTG().StopTraffic(t)
 	t.Logf("Traffic stopped.")
-
-	t.Logf("Stop Capture")
-	stopCapture(t, ate.OTG(), cs)
 }
 
 func captureDUTCounters(t *testing.T, dut *ondatra.DUTDevice) (uint64, uint64) {

@@ -21,6 +21,7 @@ import (
 	"math"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -367,4 +368,127 @@ func VerifyDUTDUTLoadBalance(t *testing.T, dut *ondatra.DUTDevice, params DUTDUT
 		return fmt.Errorf("load balance verification failed: %v", errs)
 	}
 	return nil
+}
+
+// InterfaceCountersMonitor streams /interfaces/interface[name]/state/counters
+// over a single gNMI STREAM subscription (gnmi.Watch) and records any sample in
+// which a cumulative counter (in-pkts, out-pkts, in-octets, out-octets) is
+// lower than in the previous sample, i.e. the counter decremented or was reset
+// to zero. It is intended for validating that counters are reported
+// monotonically while a disruptive event (linecard reboot, process restart,
+// switchover, ...) happens in the background.
+//
+// Use StartInterfaceCountersMonitor to begin monitoring and Stop to end it and
+// collect the result.
+type InterfaceCountersMonitor struct {
+	intf        string
+	maxDuration time.Duration
+	start       time.Time
+	watcher     *gnmi.Watcher[*oc.Interface_Counters]
+
+	mu         sync.Mutex
+	samples    int
+	prev       map[string]uint64
+	violations []string
+}
+
+// monotonicInterfaceCounters returns the cumulative interface counters that
+// must never decrease, keyed by their OpenConfig leaf name.
+func monotonicInterfaceCounters(c *oc.Interface_Counters) map[string]*uint64 {
+	return map[string]*uint64{
+		"in-pkts":    c.InPkts,
+		"out-pkts":   c.OutPkts,
+		"in-octets":  c.InOctets,
+		"out-octets": c.OutOctets,
+	}
+}
+
+// StartInterfaceCountersMonitor starts monitoring the counters of interface
+// intf on dut. The subscription is bounded by maxDuration; Stop should be
+// called before maxDuration expires, otherwise Stop reports that part of the
+// monitoring window was not covered.
+func StartInterfaceCountersMonitor(t *testing.T, dut *ondatra.DUTDevice, intf string, maxDuration time.Duration) *InterfaceCountersMonitor {
+	t.Helper()
+	m := &InterfaceCountersMonitor{
+		intf:        intf,
+		maxDuration: maxDuration,
+		start:       time.Now(),
+	}
+	// The predicate never returns true: the watch keeps recording samples
+	// until Stop cancels it (or maxDuration expires).
+	m.watcher = gnmi.Watch(t, dut, gnmi.OC().Interface(intf).Counters().State(), maxDuration, func(v *ygnmi.Value[*oc.Interface_Counters]) bool {
+		m.record(v)
+		return false
+	})
+	t.Logf("Started counters monitor for interface %s (max duration %v)", intf, maxDuration)
+	return m
+}
+
+// record stores one streamed sample and notes any decrement versus the
+// previous sample.
+//
+// Samples that carry no OpenConfig counter value are ignored: some targets
+// (e.g. Juniper) also stream notifications under the counters container that
+// contain only non-OpenConfig (vendor) leaves, which ygnmi reports as not
+// present. They are neither a decrement nor a reset to zero. A counter that is
+// reset to zero still arrives as a value lower than the previous sample and is
+// reported as a decrement.
+func (m *InterfaceCountersMonitor) record(v *ygnmi.Value[*oc.Interface_Counters]) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	c, ok := v.Val()
+	if !ok {
+		return
+	}
+	cur := make(map[string]uint64)
+	for name, val := range monotonicInterfaceCounters(c) {
+		if val == nil {
+			continue
+		}
+		cur[name] = *val
+		if prev, ok := m.prev[name]; ok && *val < prev {
+			m.violations = append(m.violations, fmt.Sprintf("%s %s decreased from %d to %d (timestamp %v)", m.intf, name, prev, *val, v.Timestamp))
+		}
+	}
+	if len(cur) == 0 {
+		return
+	}
+	m.samples++
+	// Keep the last known value for counters missing from this sample so a
+	// later sample is still compared against it.
+	for name, val := range m.prev {
+		if _, ok := cur[name]; !ok {
+			cur[name] = val
+		}
+	}
+	m.prev = cur
+}
+
+// Stop ends the monitoring subscription and returns the number of samples
+// received and an error describing every decrement observed, if any. An error
+// is also returned if no samples were received or if the subscription expired
+// (maxDuration) before Stop was called.
+func (m *InterfaceCountersMonitor) Stop(t *testing.T) (int, error) {
+	t.Helper()
+	expired := time.Since(m.start) >= m.maxDuration
+	m.watcher.Cancel()
+	// The predicate never returns true, so Await always reports false once
+	// the subscription is cancelled or times out.
+	m.watcher.Await(t)
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var errs []string
+	if m.samples == 0 {
+		errs = append(errs, fmt.Sprintf("%s: no counter samples received", m.intf))
+	}
+	if expired {
+		errs = append(errs, fmt.Sprintf("%s: monitor expired after %v before Stop was called; part of the window was not monitored", m.intf, m.maxDuration))
+	}
+	errs = append(errs, m.violations...)
+	t.Logf("Stopped counters monitor for interface %s after %v: %d samples, %d violations", m.intf, time.Since(m.start).Round(time.Second), m.samples, len(m.violations))
+	if len(errs) > 0 {
+		return m.samples, fmt.Errorf("interface counters monitor detected issues: %s", strings.Join(errs, "; "))
+	}
+	return m.samples, nil
 }
