@@ -3,6 +3,7 @@ package transceiver
 import (
 	"fmt"
 	"math"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -18,6 +19,8 @@ const (
 	maxAllowedCDValue                = 2400
 	inactiveCDValue                  = 1.0
 	inactivePower                    = -25.0
+	inactiveOutputPower              = -40.0
+	frequencyToleranceMHz            = 1800.0
 	powerLoss                        = 2.0
 	powerReadingError                = 2.0
 	minAllowedCarrierFrequencyOffset = -3600.0
@@ -278,8 +281,8 @@ func validateOpticalChannelTelemetry(t *testing.T, p *ondatra.Port, params *cfgp
 			path:       fmt.Sprintf(componentPath+"/optical-channel/state/carrier-frequency-offset/instant", params.OpticalChannelNames[p.Name()]),
 			got:        opticalChannelValue.GetOpticalChannel().GetCarrierFrequencyOffset().GetInstant(),
 			operStatus: oc.Interface_OperStatus_UP,
-			minAllowed: minAllowedCarrierFrequencyOffset,
-			maxAllowed: maxAllowedCarrierFrequencyOffset,
+			minAllowed: -frequencyToleranceMHz,
+			maxAllowed: frequencyToleranceMHz,
 		},
 		{
 			desc:       "Optical Channel Average Carrier Frequency Offset Validation",
@@ -327,7 +330,11 @@ func validateOpticalChannelTelemetry(t *testing.T, p *ondatra.Port, params *cfgp
 				if !ok {
 					t.Errorf("\n%s: %s, invalid type: \n got %v want float64\n\n", p.Name(), tc.path, tc.got)
 				}
-				if val > tc.maxAllowed {
+				if strings.Contains(tc.path, "output-power/instant") {
+					if math.Abs(val-inactiveOutputPower) > powerReadingError {
+						t.Errorf("\n%s: %s, out of range:\n got %v want %v (±%v)\n\n", p.Name(), tc.path, tc.got, inactiveOutputPower, powerReadingError)
+					}
+				} else if val > tc.maxAllowed {
 					t.Errorf("\n%s: %s, out of range:\n got %v want <= %v\n\n", p.Name(), tc.path, tc.got, tc.maxAllowed)
 				}
 			default:
@@ -370,6 +377,7 @@ func isOpticalChannelStreamReady(val *oc.Component, operStatus oc.E_Interface_Op
 			val.GetOpticalChannel().GetOutputPower().GetMax() <= inactivePower &&
 			val.GetOpticalChannel().GetOutputPower().GetMin() <= inactivePower &&
 			val.GetOpticalChannel().GetOutputPower().GetAvg() <= inactivePower &&
-			val.GetOpticalChannel().GetOutputPower().GetInstant() <= inactivePower
+			val.GetOpticalChannel().GetOutputPower().GetInstant() <= inactivePower &&
+			val.GetOpticalChannel().GetOutputPower().GetInstant() <= inactiveOutputPower
 	}
 }
