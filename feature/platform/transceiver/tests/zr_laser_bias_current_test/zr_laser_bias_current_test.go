@@ -126,8 +126,16 @@ func TestZRLaserBiasCurrentStateInterfaceFlap(t *testing.T) {
 	// Disable interface
 	d := &oc.Root{}
 	i := d.GetOrCreateInterface(dp1.Name())
-	i.Enabled = ygot.Bool(false)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	portDisabled := true
+	t.Cleanup(func() {
+		if !portDisabled {
+			return
+		}
+		i.Enabled = ygot.Bool(true)
+		gnmi.Replace(t, dut1, gnmi.OC().Interface(dp1.Name()).Config(), i)
+	})
+	i.Enabled = ygot.Bool(false)
 	gnmi.Replace(t, dut1, gnmi.OC().Interface(dp1.Name()).Config(), i)
 	t.Logf(" %v interface config disable initiated", dp1.Name())
 	componentName := components.OpticalChannelComponentFromPort(t, dut1, dp1)
@@ -148,6 +156,7 @@ func TestZRLaserBiasCurrentStateInterfaceFlap(t *testing.T) {
 	// Enable interface
 	i.Enabled = ygot.Bool(true)
 	gnmi.Replace(t, dut1, gnmi.OC().Interface(dp1.Name()).Config(), i)
+	portDisabled = false
 	t.Logf("%v interface config enable initiated", dp1.Name())
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 	t.Logf("%v operational status is: %v", dp1.Name(), gnmi.Get(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State()))
@@ -180,10 +189,18 @@ func TestZRLaserBiasCurrentStateTransceiverOnOff(t *testing.T) {
 		// power off interface transceiver
 		gnmi.Update(t, dut1, gnmi.OC().Component(transceiverState).Name().Config(), transceiverState)
 		// for transceiver disable, the input needs to be the transceiver name instead of the interface name
+		transceiverDisabled := true
+		t.Cleanup(func() {
+			if !transceiverDisabled {
+				return
+			}
+			gnmi.Update(t, dut1, gnmi.OC().Component(transceiverState).Transceiver().Enabled().Config(), true)
+		})
 		gnmi.Update(t, dut1, gnmi.OC().Component(transceiverState).Transceiver().Enabled().Config(), false)
 		verifyLaserBiasCurrentAll(t, p1Stream, dut1)
 		// power on interface transceiver
 		gnmi.Update(t, dut1, gnmi.OC().Component(transceiverState).Transceiver().Enabled().Config(), true)
+		transceiverDisabled = false
 		gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 		verifyLaserBiasCurrentAll(t, p1Stream, dut1)
 	}

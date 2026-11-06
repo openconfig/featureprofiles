@@ -141,6 +141,14 @@ func TestLowPowerMode(t *testing.T) {
 			i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 			// Disable interface
 			t.Logf("Bringing down interface to verify")
+			portDisabled := true
+			t.Cleanup(func() {
+				if !portDisabled {
+					return
+				}
+				i.Enabled = ygot.Bool(true)
+				gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
+			})
 			i.Enabled = ygot.Bool(false)
 			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
 			// Wait for interface to go down.
@@ -186,6 +194,7 @@ func TestLowPowerMode(t *testing.T) {
 			// Enable interface
 			i.Enabled = ygot.Bool(true)
 			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
+			portDisabled = false
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 
 			powerStreamMap := map[string]*samplestream.SampleStream[float64]{

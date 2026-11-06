@@ -98,12 +98,20 @@ func TestZrUncorrectableFrames(t *testing.T) {
 			validateFecUncorrectableBlocks(t, streamFecOtn)
 
 			// Disable interface
+			portDisabled := true
+			t.Cleanup(func() {
+				if !portDisabled {
+					return
+				}
+				cfgplugins.ToggleInterface(t, dut, p.Name(), true)
+			})
 			cfgplugins.ToggleInterface(t, dut, p.Name(), false)
 			// Wait for the cooling-off period
 			gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
 
 			// Enable interface
 			cfgplugins.ToggleInterface(t, dut, p.Name(), true)
+			portDisabled = false
 			// Wait for the cooling-off period
 			gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 

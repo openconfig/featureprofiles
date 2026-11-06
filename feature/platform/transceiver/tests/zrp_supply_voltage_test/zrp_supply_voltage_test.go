@@ -87,6 +87,13 @@ func TestZrSupplyVoltage(t *testing.T) {
 			t.Logf("Port %s instant voltage: %v", dp.Name(), volInst)
 
 			// Disable interface
+			portDisabled := true
+			t.Cleanup(func() {
+				if !portDisabled {
+					return
+				}
+				cfgplugins.ToggleInterface(t, dut, dp.Name(), true)
+			})
 			cfgplugins.ToggleInterface(t, dut, dp.Name(), false)
 			// Wait for the cooling-off period
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
@@ -96,6 +103,7 @@ func TestZrSupplyVoltage(t *testing.T) {
 
 			// Enable interface again.
 			cfgplugins.ToggleInterface(t, dut, dp.Name(), true)
+			portDisabled = false
 			// Wait for the cooling-off period
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 		})

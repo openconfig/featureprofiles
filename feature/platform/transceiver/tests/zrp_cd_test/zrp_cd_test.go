@@ -124,6 +124,15 @@ func TestCDValue(t *testing.T) {
 	och2 := components.OpticalChannelComponentFromPort(t, dut, dp2)
 
 	component1 := gnmi.OC().Component(och1)
+	var portsDisabled bool
+	t.Cleanup(func() {
+		if !portsDisabled {
+			return
+		}
+		for _, p := range dut.Ports() {
+			cfgplugins.ToggleInterface(t, dut, p.Name(), true)
+		}
+	})
 	for _, frequency := range frequencies {
 		for _, targetOutputPower := range targetOutputPowers {
 			cfgplugins.ConfigOpticalChannel(t, dut, och1, frequency, targetOutputPower, operationalMode)
@@ -146,6 +155,7 @@ func TestCDValue(t *testing.T) {
 			verifyAllCDValues(t, dut, p1StreamInstant, p1StreamMax, p1StreamMin, p1StreamAvg, oc.Interface_OperStatus_UP)
 
 			// Disable interface.
+			portsDisabled = true
 			for _, p := range dut.Ports() {
 				cfgplugins.ToggleInterface(t, dut, p.Name(), false)
 			}
@@ -161,6 +171,7 @@ func TestCDValue(t *testing.T) {
 			for _, p := range dut.Ports() {
 				cfgplugins.ToggleInterface(t, dut, p.Name(), true)
 			}
+			portsDisabled = false
 			// Wait for channels to be up.
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp2.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)

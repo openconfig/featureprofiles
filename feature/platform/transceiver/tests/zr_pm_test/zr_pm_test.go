@@ -74,6 +74,16 @@ func TestPM(t *testing.T) {
 		ethIndexes[p.Name()] = ethernetIndexBase + uint32(i)
 	}
 
+	var portsDisabled bool
+	t.Cleanup(func() {
+		if !portsDisabled {
+			return
+		}
+		for _, p := range dut.Ports() {
+			cfgplugins.ToggleInterface(t, dut, p.Name(), true)
+		}
+	})
+
 	for _, frequency := range frequencies {
 		for _, targetOpticalPower := range targetOpticalPowers {
 			// Configure OCH component and OTN and ETH logical channels.
@@ -108,6 +118,7 @@ func TestPM(t *testing.T) {
 			validateAllSamples(t, dut, true, interfaceStreams, otnStreams)
 
 			// Disable interface.
+			portsDisabled = true
 			for _, p := range dut.Ports() {
 				cfgplugins.ToggleInterface(t, dut, p.Name(), false)
 			}
@@ -125,6 +136,7 @@ func TestPM(t *testing.T) {
 			for _, p := range dut.Ports() {
 				cfgplugins.ToggleInterface(t, dut, p.Name(), true)
 			}
+			portsDisabled = false
 
 			// Wait for streaming telemetry to report the channels as up.
 			t.Log("Bringing UP both 400G interfaces")

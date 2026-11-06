@@ -90,6 +90,14 @@ func TestZrSupplyVoltage(t *testing.T) {
 			i := d.GetOrCreateInterface(dp.Name())
 			i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 			// Disable interface
+			portDisabled := true
+			t.Cleanup(func() {
+				if !portDisabled {
+					return
+				}
+				i.Enabled = ygot.Bool(true)
+				gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
+			})
 			i.Enabled = ygot.Bool(false)
 			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
 			// Wait for the cooling-off period
@@ -101,6 +109,7 @@ func TestZrSupplyVoltage(t *testing.T) {
 			// Enable interface again.
 			i.Enabled = ygot.Bool(true)
 			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
+			portDisabled = false
 			// Wait for the cooling-off period
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 		})

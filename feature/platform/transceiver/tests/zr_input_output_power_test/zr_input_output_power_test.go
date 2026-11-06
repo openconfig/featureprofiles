@@ -59,6 +59,16 @@ func TestOpticalPower(t *testing.T) {
 		ochs[p.Name()] = gnmi.Get(t, dut, gnmi.OC().Component(trs[p.Name()]).Transceiver().Channel(0).AssociatedOpticalChannel().State())
 	}
 
+	var portsDisabled bool
+	t.Cleanup(func() {
+		if !portsDisabled {
+			return
+		}
+		for _, p := range dut.Ports() {
+			cfgplugins.ToggleInterface(t, dut, p.Name(), true)
+		}
+	})
+
 	for _, frequency := range frequencies {
 		for _, targetOpticalPower := range targetOpticalPowers {
 			// Configure OCH component and OTN and ETH logical channels.
@@ -96,6 +106,7 @@ func TestOpticalPower(t *testing.T) {
 			validateAllSampleStreams(t, dut, true, interfaceStreams, ochStreams, trStreams, targetOpticalPower)
 
 			// Disable interface.
+			portsDisabled = true
 			for _, p := range dut.Ports() {
 				cfgplugins.ToggleInterface(t, dut, p.Name(), false)
 			}
@@ -112,6 +123,7 @@ func TestOpticalPower(t *testing.T) {
 			for _, p := range dut.Ports() {
 				cfgplugins.ToggleInterface(t, dut, p.Name(), true)
 			}
+			portsDisabled = false
 
 			// Wait for streaming telemetry to report the channels as up.
 			for _, p := range dut.Ports() {

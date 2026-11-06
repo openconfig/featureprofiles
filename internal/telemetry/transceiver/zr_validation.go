@@ -56,6 +56,15 @@ func TerminalDevicePathsTest(t *testing.T, tp *TunableParamters) {
 
 	setToDefaults(t, dut, tp)
 
+	var lastParams *cfgplugins.ConfigParameters
+	var interfacesDisabled bool
+	t.Cleanup(func() {
+		if interfacesDisabled && lastParams != nil {
+			lastParams.Enabled = true
+			cfgplugins.ToggleInterfaceState(t, dut, lastParams)
+		}
+	})
+
 	for _, operationalMode := range tp.OperationalModeList {
 		for _, frequency := range tp.FrequencyList {
 			for _, targetOpticalPower := range tp.TargetOpticalPowerList {
@@ -67,9 +76,11 @@ func TerminalDevicePathsTest(t *testing.T, tp *TunableParamters) {
 					TargetOpticalPower: targetOpticalPower,
 					OperationalMode:    operationalMode,
 				}
+				lastParams = params
 				batch := &gnmi.SetBatch{}
 				cfgplugins.NewInterfaceConfigAll(t, dut, batch, params)
 				batch.Set(t, dut)
+				interfacesDisabled = true
 
 				// Create sample steams for each port.
 				ethStreams := make(map[string]*samplestream.SampleStream[*oc.TerminalDevice_Channel])
@@ -95,6 +106,7 @@ func TerminalDevicePathsTest(t *testing.T, tp *TunableParamters) {
 				t.Logf("\n*** Bringing UP all interfaces\n\n\n")
 				params.Enabled = true
 				cfgplugins.ToggleInterfaceState(t, dut, params)
+				interfacesDisabled = false
 
 				for _, p := range dut.Ports() {
 					validateInterfaceTelemetry(t, dut, p, params, oc.Interface_OperStatus_UP, interfaceStreams[p.Name()])
@@ -105,6 +117,7 @@ func TerminalDevicePathsTest(t *testing.T, tp *TunableParamters) {
 				t.Logf("\n*** Bringing DOWN all interfaces\n\n\n")
 				params.Enabled = false
 				cfgplugins.ToggleInterfaceState(t, dut, params)
+				interfacesDisabled = true
 
 				for _, p := range dut.Ports() {
 					validateInterfaceTelemetry(t, dut, p, params, oc.Interface_OperStatus_DOWN, interfaceStreams[p.Name()])
@@ -134,6 +147,15 @@ func PlatformPathsTest(t *testing.T, tp *TunableParamters) {
 
 	setToDefaults(t, dut, tp)
 
+	var lastParams *cfgplugins.ConfigParameters
+	var interfacesDisabled bool
+	t.Cleanup(func() {
+		if interfacesDisabled && lastParams != nil {
+			lastParams.Enabled = true
+			cfgplugins.ToggleInterfaceState(t, dut, lastParams)
+		}
+	})
+
 	for _, operationalMode := range tp.OperationalModeList {
 		for _, frequency := range tp.FrequencyList {
 			for _, targetOpticalPower := range tp.TargetOpticalPowerList {
@@ -145,9 +167,11 @@ func PlatformPathsTest(t *testing.T, tp *TunableParamters) {
 					TargetOpticalPower: targetOpticalPower,
 					OperationalMode:    operationalMode,
 				}
+				lastParams = params
 				batch := &gnmi.SetBatch{}
 				cfgplugins.NewInterfaceConfigAll(t, dut, batch, params)
 				batch.Set(t, dut)
+				interfacesDisabled = true
 
 				// Create sample steams for each port.
 				ochStreams := make(map[string]*samplestream.SampleStream[*oc.Component])
@@ -181,6 +205,7 @@ func PlatformPathsTest(t *testing.T, tp *TunableParamters) {
 				t.Logf("\n*** Bringing UP all interfaces\n\n\n")
 				params.Enabled = true
 				cfgplugins.ToggleInterfaceState(t, dut, params)
+				interfacesDisabled = false
 
 				for _, p := range dut.Ports() {
 					validateInterfaceTelemetry(t, dut, p, params, oc.Interface_OperStatus_UP, interfaceStreams[p.Name()])
@@ -193,6 +218,7 @@ func PlatformPathsTest(t *testing.T, tp *TunableParamters) {
 				t.Logf("\n*** Bringing DOWN all interfaces\n\n\n")
 				params.Enabled = false
 				cfgplugins.ToggleInterfaceState(t, dut, params)
+				interfacesDisabled = true
 
 				for _, p := range dut.Ports() {
 					validateInterfaceTelemetry(t, dut, p, params, oc.Interface_OperStatus_DOWN, interfaceStreams[p.Name()])
