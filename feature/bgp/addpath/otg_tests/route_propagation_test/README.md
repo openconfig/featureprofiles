@@ -75,6 +75,16 @@ prefixes (`198.51.100.0/32` to `198.51.100.3/32`) and 4 IPv6 prefixes
     *   Verification (Telemetry): `prefixes/received` on the ATE port-1
         neighbors is `4`: the DUT keeps one path per prefix.
     *   ATE Port 2: Verify that the DUT has propagated each prefix.
+*   RT-1.3.3.4: Add-Path receive disabled on the peer-group, enabled on the
+    neighbor
+    *   DUT: Set `add-paths/config/receive` to `false` on `BGP-PEER-GROUP1` and
+        to `true` on the ATE port-1 neighbors for IPv4 and IPv6.
+    *   Verification (Telemetry): `add-paths/state/receive` on the ATE port-1
+        neighbors is `true`: the neighbor value overrides the peer-group value.
+    *   Verification (Telemetry): `supported-capabilities` on the ATE port-1
+        neighbors includes `ADD_PATHS`.
+    *   Verification (Telemetry): `prefixes/received` on the ATE port-1
+        neighbors is `16`.
 *   ADD-Path is negotiated when a session is established, so the BGP sessions
     are re-established after each configuration change.
 
@@ -143,15 +153,29 @@ The DUT configuration for RT-1.3.3.1:
 *   ATE Port 2: Verify that only a single best path is received by ATE Port 2 due to disabled Add-Path send on the DUT.
 
 ### RT-1.3.5: Disabling Add-Path Receive
-*   DUT: Set `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/add-paths/config/receive`
-    to `false` on the ATE port-1 neighbors for IPv4 and IPv6.
-*   Verification (Telemetry): `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/add-paths/state/receive`
-    is `false` on the ATE port-1 neighbors.
 *   ATE Port 1: Advertise each prefix with path IDs 1 to 4 again.
-*   Verification (Telemetry): `prefixes/received` on the ATE port-1 neighbors
-    is `4`: without receive, each new path replaces the previous one, so the
-    DUT keeps one path per prefix.
-*   ATE Port 2: Verify that the DUT has received and propagated only one single path.
+*   RT-1.3.5.1: Add-Path receive disabled on the neighbor
+    *   DUT: Set `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/add-paths/config/receive`
+        to `false` on the ATE port-1 neighbors for IPv4 and IPv6.
+    *   Verification (Telemetry): `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/add-paths/state/receive`
+        is `false` on the ATE port-1 neighbors.
+    *   Verification (Telemetry): `prefixes/received` on the ATE port-1
+        neighbors is `4`: without receive, each new path replaces the previous
+        one, so the DUT keeps one path per prefix.
+    *   ATE Port 2: Verify that the DUT has received and propagated only one
+        single path.
+*   RT-1.3.5.2: Add-Path receive disabled on the peer-group
+    *   DUT: Remove the AFI-SAFI configuration from the ATE port-1 neighbors so
+        they inherit it from `BGP-PEER-GROUP1`, and set
+        `/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/add-paths/config/receive`
+        to `false` on `BGP-PEER-GROUP1` for IPv4 and IPv6.
+    *   Verification (Telemetry):
+        `/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/add-paths/state/receive`
+        is `false` on `BGP-PEER-GROUP1`.
+    *   Verification (Telemetry): `prefixes/received` on the ATE port-1
+        neighbors is `4`.
+    *   ATE Port 2: Verify that the DUT has received and propagated only one
+        single path.
 
 ### Cleanup
 *   DUT: Delete the BGP protocol configuration from the default network instance to restore the DUT to its baseline operational state upon test completion.

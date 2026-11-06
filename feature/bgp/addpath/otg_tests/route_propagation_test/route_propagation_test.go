@@ -724,8 +724,8 @@ func TestBGP(t *testing.T) {
 	}
 }
 
-// TestAddPath implements RT-1.3.3 and RT-1.3.5: ADD-Path receive enabled on the neighbor and on the peer-group,
-// receive enabled on the peer-group but disabled on the neighbor, and receive disabled.
+// TestAddPath implements RT-1.3.3 and RT-1.3.5: ADD-Path receive enabled and disabled on the neighbor and on the
+// peer-group, and the neighbor value overriding the peer-group value in both directions.
 func TestAddPath(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
@@ -808,9 +808,22 @@ func TestAddPath(t *testing.T) {
 			},
 		},
 		{
-			name: "RT-1.3.5 receive disabled",
+			name: "RT-1.3.3.4 peer-group receive overridden on by neighbor",
+			cfg: addPathCfg{
+				pgReceive:  ygot.Bool(false),
+				nbrReceive: ygot.Bool(true),
+			},
+		},
+		{
+			name: "RT-1.3.5.1 receive disabled on neighbor",
 			cfg: addPathCfg{
 				nbrReceive: ygot.Bool(false),
+			},
+		},
+		{
+			name: "RT-1.3.5.2 receive disabled on peer-group",
+			cfg: addPathCfg{
+				pgReceive: ygot.Bool(false),
 			},
 		},
 	}
