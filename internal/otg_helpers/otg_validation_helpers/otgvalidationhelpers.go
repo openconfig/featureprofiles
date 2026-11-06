@@ -4,6 +4,7 @@ package otgvalidationhelpers
 import (
 	"fmt"
 	"math"
+	"strings"
 	"testing"
 	"time"
 
@@ -345,4 +346,119 @@ func VerifyTraffic(t *testing.T, ate *ondatra.ATEDevice, params VerifyTrafficPar
 	otgutils.LogFlowMetrics(t, ate.OTG(), params.Config)
 	t.Logf("%s: traffic verification passed: FramesTx: %d, FramesRx: %d", params.FlowName, framesTx, framesRx)
 	return nil
+}
+
+// FlowQoSECNParams contains parameters for validating OTG flow throughput, latency, DSCP preservation, and ECN marking.
+type FlowQoSECNParams struct {
+	FlowName               string
+	QueueName              string
+	ExpectedDSCP           uint8
+	WantECNHex             string
+	WantMinCEFraction      float64
+	ExpectBothECTAndCE     bool
+	ExpectTailDrops        bool
+	CheckWRRShare          bool
+	ExpectedThroughputPct  float32
+	ThroughputTolerancePct float64
+	MaxAverageLatencyNs    uint64
+}
+
+// VerifyFlowQoSECNAndLatency validates OTG flow packet counters, WRR or lossless throughput,
+// average latency (< MaxAverageLatencyNs), egress DSCP bits (0..5), and egress ECN bits (6..7).
+// It returns (outPkts, inPkts) for the flow.
+func VerifyFlowQoSECNAndLatency(t *testing.T, ate *ondatra.ATEDevice, params FlowQoSECNParams) (uint64, uint64) {
+	t.Helper()
+	flowData := gnmi.Get[*otg.Flow](t, ate.OTG(), gnmi.OTG().Flow(params.FlowName).State())
+	outPkts := flowData.GetCounters().GetOutPkts()
+	inPkts := flowData.GetCounters().GetInPkts()
+	if outPkts == 0 {
+		t.Fatalf("Flow %s transmitted 0 packets", params.FlowName)
+	}
+
+	gotThroughputPct := (float64(inPkts) / float64(outPkts)) * 100.0
+	if params.CheckWRRShare {
+		wantPct := float64(params.ExpectedThroughputPct)
+		if math.Abs(gotThroughputPct-wantPct) > params.ThroughputTolerancePct {
+			t.Errorf("Flow %s (queue %s) WRR throughput percentage: got %.2f%%, want %.2f%% +/- %.2f%%",
+				params.FlowName, params.QueueName, gotThroughputPct, wantPct, params.ThroughputTolerancePct)
+		}
+	} else if !params.ExpectTailDrops && params.ExpectedThroughputPct == 100 && params.WantMinCEFraction == 0 && !params.ExpectBothECTAndCE {
+		if inPkts != outPkts {
+			t.Errorf("Flow %s (queue %s) expected lossless forwarding: got inPkts=%d, outPkts=%d",
+				params.FlowName, params.QueueName, inPkts, outPkts)
+		}
+	}
+
+	if params.MaxAverageLatencyNs > 0 {
+		avgLatNs := flowData.GetAverageLatency()
+		t.Logf("Flow %s (queue %s) average latency: %d ns (max allowed: %d ns)",
+			params.FlowName, params.QueueName, avgLatNs, params.MaxAverageLatencyNs)
+		if avgLatNs > params.MaxAverageLatencyNs {
+			t.Errorf("Flow %s (queue %s) average latency %d ns exceeds maximum %d ns",
+				params.FlowName, params.QueueName, avgLatNs, params.MaxAverageLatencyNs)
+		}
+	}
+
+	dscpAsHex := fmt.Sprintf("0x%02x", params.ExpectedDSCP)
+	var totalTaggedRxPkts uint64
+	var ceMarkedPkts uint64
+	var ectMarkedPkts uint64
+
+	for _, et := range flowData.TaggedMetric {
+		pktCount := et.GetCounters().GetInPkts()
+		if pktCount == 0 {
+			continue
+		}
+		totalTaggedRxPkts += pktCount
+		for _, tag := range et.Tags {
+			tagName := tag.GetTagName()
+			valHex := strings.ToLower(tag.GetTagValue().GetValueAsHex())
+			if strings.Contains(tagName, "dscp") {
+				if valHex != dscpAsHex && valHex != fmt.Sprintf("0x%x", params.ExpectedDSCP) {
+					t.Errorf("Flow %s (queue %s) DSCP modified: got %s, want %s",
+						params.FlowName, params.QueueName, valHex, dscpAsHex)
+				}
+			} else if strings.Contains(tagName, "ecn") {
+				switch valHex {
+				case "0x3", "0x03":
+					ceMarkedPkts += pktCount
+				case "0x2", "0x02", "0x1", "0x01":
+					ectMarkedPkts += pktCount
+				}
+				if params.WantMinCEFraction == 0 && !params.ExpectBothECTAndCE {
+					wantTrim := strings.TrimPrefix(strings.ToLower(params.WantECNHex), "0x0")
+					gotTrim := strings.TrimPrefix(valHex, "0x0")
+					if gotTrim != wantTrim && valHex != strings.ToLower(params.WantECNHex) {
+						t.Errorf("Flow %s (queue %s) ECN bits: got %s, want %s",
+							params.FlowName, params.QueueName, valHex, params.WantECNHex)
+					}
+				}
+			}
+		}
+	}
+
+	if params.ExpectBothECTAndCE {
+		if ceMarkedPkts == 0 || ectMarkedPkts == 0 {
+			t.Errorf("Flow %s: expected both unmarked ECT(0) (got %d) and marked CE (got %d) packets",
+				params.FlowName, ectMarkedPkts, ceMarkedPkts)
+		}
+		return outPkts, inPkts
+	}
+
+	if params.WantMinCEFraction == 0 {
+		if ceMarkedPkts > 0 {
+			t.Errorf("Flow %s (queue %s) expected 0 CE (0b11) marked packets, got %d / %d",
+				params.FlowName, params.QueueName, ceMarkedPkts, totalTaggedRxPkts)
+		}
+	} else if totalTaggedRxPkts > 0 {
+		ceFrac := float64(ceMarkedPkts) / float64(totalTaggedRxPkts)
+		t.Logf("Flow %s (queue %s) CE marked packets: %d / %d (%.2f%%)",
+			params.FlowName, params.QueueName, ceMarkedPkts, totalTaggedRxPkts, ceFrac*100)
+		if ceFrac < params.WantMinCEFraction {
+			t.Errorf("Flow %s (queue %s) CE marking fraction: got %.4f, want >= %.4f",
+				params.FlowName, params.QueueName, ceFrac, params.WantMinCEFraction)
+		}
+	}
+
+	return outPkts, inPkts
 }

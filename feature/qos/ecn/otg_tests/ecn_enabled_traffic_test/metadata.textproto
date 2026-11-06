@@ -12,6 +12,9 @@ platform_exceptions: {
   deviations: {
     ipv4_missing_enabled: true
     qos_queue_requires_id: true
+    ecn_same_min_max_threshold_unsupported: true
+    qos_set_weight_config_unsupported: true
+    qos_get_state_path_unsupported: true
   }
 }
 platform_exceptions: {
@@ -20,6 +23,8 @@ platform_exceptions: {
   }
   deviations: {
     interface_ref_interface_id_format: true
+    ecn_profile_required_definition: true
+    qos_scheduler_config_required: true
   }
 }
 platform_exceptions: {
@@ -30,6 +35,8 @@ platform_exceptions: {
     interface_enabled: true
     explicit_interface_in_default_vrf: true
     qos_queue_requires_id: true
+    qos_buffer_allocation_config_required: true
+    explicit_port_speed: true
   }
 }
 platform_exceptions: {
@@ -40,5 +47,6 @@ platform_exceptions: {
     interface_enabled: true
     default_network_instance: "default"
     omit_l2_mtu: true
+    drop_weight_leaves_unsupported: true
   }
 }
