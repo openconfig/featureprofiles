@@ -51,20 +51,20 @@ var (
 		"2001:db8:2::1/128",
 	}
 
+	// Default routes are appended to these lists at runtime only when they are
+	// preconfigured on the DUT (see TestAFTPrefixFilteringDualStack).
 	pfxSetAMembers = []string{
 		"198.51.100.0/24",
 		"203.0.113.0/28",
 		"198.51.100.1/32",
-		defaultV4Route,
 	}
 	pfxSetBMembers = []string{
 		"2001:db8:2::/64",
 		"2001:db8:2::1/128",
-		defaultV6Route,
 	}
 
-	v4MatchPrefixes  = []string{"198.51.100.0/24", "203.0.113.0/28", "198.51.100.1/32", defaultV4Route}
-	v6MatchPrefixes  = []string{"2001:db8:2::/64", "2001:db8:2::1/128", defaultV6Route}
+	v4MatchPrefixes  = []string{"198.51.100.0/24", "203.0.113.0/28", "198.51.100.1/32"}
+	v6MatchPrefixes  = []string{"2001:db8:2::/64", "2001:db8:2::1/128"}
 	nonMatchPrefixes = []string{"100.64.0.0/24", "2001:db8:1::/64", "2001:db8:3::/64"}
 )
 
@@ -174,6 +174,23 @@ func TestAFTPrefixFilteringDualStack(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 
+	// Only include the default routes in the global filter when they are
+	// preconfigured on the DUT; otherwise they can never stream through AFT.
+	v4Default, v6Default := aftpf.CheckForDefaultRoutes(t, &aftpf.CheckForDefaultRoutesParams{
+		DUT:             dut,
+		NetworkInstance: ni,
+		IPv4Route:       defaultV4Route,
+		IPv6Route:       defaultV6Route,
+	})
+	if v4Default {
+		pfxSetAMembers = append(pfxSetAMembers, defaultV4Route)
+		v4MatchPrefixes = append(v4MatchPrefixes, defaultV4Route)
+	}
+	if v6Default {
+		pfxSetBMembers = append(pfxSetBMembers, defaultV6Route)
+		v6MatchPrefixes = append(v6MatchPrefixes, defaultV6Route)
+	}
+
 	batch := aftpf.ConfigureDUT(t, dut)
 	configurePolicies(t, dut, batch)
 	prefixes := aftpf.ConfigureBaseRoutesParams{V4Prefixes: baseIPv4Prefixes, V6Prefixes: baseIPv6Prefixes}
@@ -192,13 +209,6 @@ func TestAFTPrefixFilteringDualStack(t *testing.T) {
 	cfgplugins.IsIPv6InterfaceARPresolved(t, ate, cfgplugins.AddressFamilyParams{InterfaceNames: interfaceNamesList})
 
 	aftpf.AwaitBGPConvergence(t, dut, ni)
-
-	aftpf.CheckForDefaultRoutes(t, &aftpf.CheckForDefaultRoutesParams{
-		DUT:             dut,
-		NetworkInstance: ni,
-		IPv4Route:       defaultV4Route,
-		IPv6Route:       defaultV6Route,
-	})
 
 	t.Run("aft-6.2.1-testSimultaneousDualStackPolicy", func(t *testing.T) {
 		testSimultaneousDualStackPolicy(t, dut)
