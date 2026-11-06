@@ -4,6 +4,19 @@ uuid: "72d5fade-abb1-49fb-ab9d-1c4f14845e2f"
 plan_id: "gNMI-1.28"
 description: "Telemetry: Interface openconfig validation."
 testbed: TESTBED_DUT_2LINKS
+# IOS XR 26.4.1.26I and 26.4.1.28I OCIF do not expose interface in-rate/out-rate.
+# This deviation is consumed by TEST3 (interface state rates) only.
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+    hardware_model_regex: "CISCO-8808"
+    software_version_regex: "26\\.4\\.1\\.(26|28)I"
+  }
+  deviations: {
+    state_path_unsupported: true
+  }
+}
+
 platform_exceptions: {
   platform: {
     vendor: PALOALTO
@@ -18,6 +31,7 @@ platform_exceptions: {
     missing_value_for_defaults: true
     state_path_unsupported: true
     interface_enabled: true
+    aggregate_atomic_update: true
   }
 }
 platform_exceptions: {
