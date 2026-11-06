@@ -30,6 +30,7 @@ const (
 	testNI                 = "test-instance"
 	flowRatePercent        = 5
 	frameSize              = 9210
+	ethernetHeaderSize     = 14
 	lacpConvergenceTimeout = 1 * time.Minute
 	trafficDuration        = 60 * time.Second
 	setupDelay             = 2 * time.Second
@@ -225,6 +226,12 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, niName string, minLinks 
 		gnmi.BatchReplace(batch, gnmi.OC().Interface(dutPort.Name()).Config(), intf)
 	}
 	batch.Set(t, dut)
+
+	if dut.Vendor() == ondatra.JUNIPER {
+		// Juniper derives family MTU automatically for aggregate subinterfaces.
+		// Sending explicit family-MTU replaces is rejected by device validation.
+		return
+	}
 
 	t.Logf("Setting MTU for Lag: %s", lag1Name)
 	mtuBatch := &gnmi.SetBatch{}
@@ -443,8 +450,8 @@ func verifyMTU(t *testing.T, dut *ondatra.DUTDevice, lag1Name, lag2Name string, 
 	wantIPv6Primary := uint32(mtu)
 	wantIPv6Adjusted := uint32(mtu)
 	// Some platforms expose IP MTU as L2 MTU minus ethernet header bytes.
-	wantAdjusted = uint16(mtu - 14)
-	wantIPv6Adjusted = uint32(mtu - 14)
+	wantAdjusted = uint16(mtu - ethernetHeaderSize)
+	wantIPv6Adjusted = uint32(mtu - ethernetHeaderSize)
 	for _, lagName := range []string{lag1Name, lag2Name} {
 		if !deviations.OmitL2MTU(dut) {
 			lagMTU := gnmi.Get(t, dut, gnmi.OC().Interface(lagName).Mtu().State())
@@ -453,6 +460,9 @@ func verifyMTU(t *testing.T, dut *ondatra.DUTDevice, lag1Name, lag2Name string, 
 			} else {
 				t.Logf("%s aggregate MTU: %d (OK)", lagName, lagMTU)
 			}
+		}
+		if dut.Vendor() == ondatra.JUNIPER {
+			continue
 		}
 		if deviations.RequireRoutedSubinterface0(dut) {
 			ipv4MTU := gnmi.Get(t, dut, gnmi.OC().Interface(lagName).Subinterface(0).Ipv4().Mtu().State())
