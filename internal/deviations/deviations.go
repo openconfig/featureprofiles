@@ -2541,3 +2541,15 @@ func EcnMinGreaterMaxThresholdUnsupported(dut *ondatra.DUTDevice) bool {
 func MaxSupportedDecapEntries(dut *ondatra.DUTDevice) uint32 {
 	return lookupDUTDeviations(dut).GetMaxSupportedDecapEntries()
 }
+
+// ControllerCardPrimaryPowerDisableUnsupported returns true if the device
+// rejects setting controller-card power-admin-state to POWER_DISABLED on the
+// PRIMARY controller card, i.e. only the SECONDARY can be powered down. This
+// deviates from rule 1 of
+// https://github.com/openconfig/public/blob/master/doc/controller-card_poweroff.md,
+// which requires the configuration to be accepted on the PRIMARY.
+// Arista: https://issuetracker.google.com/issues/582304398
+// Cisco: https://issuetracker.google.com/issues/372605838
+func ControllerCardPrimaryPowerDisableUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetControllerCardPrimaryPowerDisableUnsupported()
+}

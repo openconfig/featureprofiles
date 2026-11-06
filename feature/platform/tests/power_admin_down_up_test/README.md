@@ -16,6 +16,15 @@ Validate the ability to toggle the power-admin-state for Fabric, Linecard, and C
     *  Verify `/components/component/{linecard|fabric}/state/oper-status` is `DISABLED` for the selected linecard and fabric card.
     *  Update `/components/component/{linecard|fabric}/config/power-admin-state` to `POWER_ENABLED` for the selected linecard and fabric card.
     *  Verify `/components/component/{linecard|fabric}/state/oper-status` returns to `ACTIVE` for the selected linecard and fabric card.
+3. **Cleanup**:
+    *  Regardless of the test result, update
+       `/components/component/{linecard|fabric}/config/power-admin-state` to
+       `POWER_ENABLED` for the selected linecard and fabric card and verify
+       `/components/component/{linecard|fabric}/state/oper-status` is `ACTIVE`.
+    *  Restore the original configuration of
+       `/components/component/{linecard|fabric}/config/power-admin-state`
+       (remove the leaf, or the component config created by the test, if it was
+       not configured before the test).
 
 ## FP-1.1.2: Attempting to power down both controller cards
 
@@ -37,6 +46,17 @@ Validate the ability to toggle the power-admin-state for Fabric, Linecard, and C
     *   Restore the `/components/component/controller-card/config/power-admin-state` for the disabled controller card back to `POWER_ENABLED` via gNMI Set.
 3.  **Verification**:
     *   Verify the operational status and redundant roles of the controller cards post-recovery.
+4.  **Cleanup**:
+    *   Regardless of the test result, update
+        `/components/component/controller-card/config/power-admin-state` to
+        `POWER_ENABLED` for both controller cards.
+    *   Verify `/components/component/state/oper-status` is `ACTIVE` for both
+        controller cards, one controller card is `PRIMARY` and the other is
+        `SECONDARY` using `/components/component/state/redundant-role`.
+    *   Restore the original configuration of
+        `/components/component/controller-card/config/power-admin-state` for
+        both controller cards (remove the leaf, or the component config created
+        by the test, if it was not configured before the test).
 
 ### Canonical OC
 
