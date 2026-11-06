@@ -152,9 +152,11 @@ behavior.
 *   Re-establish the iBGP session.
 *   Verify that the session is `ESTABLISHED` and that
     `transport/state/mtu-discovery` is `true`.
-*   If the DUT reports `transport/state/tcp-mss` for the iBGP neighbor (no MSS
-    is configured), verify that the value is at least 536 and at most 1460,
-    which shows that the DUT uses the smaller MSS advertised by ATE port-2.
+*   If the DUT reports `transport/state/tcp-mss` for the iBGP neighbor, verify
+    that the value is at least 536 and at most 1460, which shows that the DUT
+    uses the smaller MSS advertised by ATE port-2. No MSS is configured on the
+    iBGP neighbor: the 4096 set in RT-1.21.1 is configured only on the eBGP
+    neighbors on port-1, so it does not need to be removed.
 
 #### Canonical OC
 
