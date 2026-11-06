@@ -50,9 +50,16 @@ graph LR
     an MSS is configured, verify that the value is at least the TCP default MSS
     (536 for IPv4 and 1220 for IPv6) and at most the MTU of DUT port-1 minus 40
     bytes for IPv4 or 60 bytes for IPv6 (1460 and 1440 for a 1500-byte MTU).
-*   Set the MTU of DUT port-1 and ATE port-1 to 5040 bytes.
+*   Set the MTU of DUT port-1 and ATE port-1 to 5040 bytes, and verify that
+    both sessions are `ESTABLISHED`.
+*   Record `state/established-transitions` for both eBGP neighbors.
 *   Configure `transport/config/tcp-mss` to 4096 on the IPv4 and IPv6 eBGP
     neighbors on the DUT.
+*   Record whether applying the MSS reset the sessions, that is, whether
+    `state/established-transitions` increased or `state/session-state` left
+    `ESTABLISHED` within 30 seconds of the change. This shows whether the
+    configuration change is disruptive. It is reported only and is not a
+    pass/fail criterion.
 *   Re-establish the eBGP sessions, for example by restarting the ATE BGP
     peers.
 *   Verify that both sessions are `ESTABLISHED` and that
@@ -128,7 +135,13 @@ graph LR
 }
 ```
 
-### RT-1.21.2: PMTUD on an iBGP session with TCP MD5
+### RT-1.21.2: PMTUD configuration and state on an iBGP session with TCP MD5
+
+PMTUD lowers the TCP segment size when a router between the BGP peers reports,
+with an ICMP Fragmentation Needed or Packet Too Big message, that a packet is
+too big for its next link. This testbed has no router between the DUT and the
+ATE, so this subtest verifies the PMTUD configuration and state, not the PMTUD
+behavior.
 
 *   Establish an IPv4 iBGP session with TCP MD5 authentication between ATE
     port-2 (AS `64500`) and DUT port-2 (AS `64500`).
@@ -141,7 +154,7 @@ graph LR
     `transport/state/mtu-discovery` is `true`.
 *   If the DUT reports `transport/state/tcp-mss` for the iBGP neighbor (no MSS
     is configured), verify that the value is at least 536 and at most 1460,
-    which shows that the MSS in use fits the 1500-byte MTU of ATE port-2.
+    which shows that the DUT uses the smaller MSS advertised by ATE port-2.
 
 #### Canonical OC
 
