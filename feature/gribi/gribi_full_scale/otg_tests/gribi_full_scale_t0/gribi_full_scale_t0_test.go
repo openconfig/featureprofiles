@@ -32,7 +32,9 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/ondatra"
 )
 
 var (
@@ -113,7 +115,12 @@ func TestGRIBIFullScaleT0(t *testing.T) {
 		},
 
 		// Decap VRF parameters
-		NumDecapEntries:     8,
+		NumDecapEntries: func() int {
+			if max := deviations.MaxSupportedDecapEntries(ondatra.DUT(t, "dut")); max != 0 {
+				return int(max)
+			}
+			return 50
+		}(),
 		DecapDestsSubsetPct: 100,
 
 		// OTG / Port parameters
