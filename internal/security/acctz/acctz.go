@@ -391,8 +391,12 @@ func SetupUsers(t *testing.T, dut *ondatra.DUTDevice, configureFailCliRole bool)
 		auth := &oc.System_Aaa_Authentication{}
 		successUser := auth.GetOrCreateUser(SuccessUsername)
 		successUser.SetRole(oc.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN)
-		auth.GetOrCreateUser(FailAuthenticateUsername)
+		failAuthenticateUser := auth.GetOrCreateUser(FailAuthenticateUsername)
 		failAuthorizeUser := auth.GetOrCreateUser(failAuthorizeUsername)
+		if dut.Vendor() == ondatra.CISCO {
+			failAuthenticateUser.SetRole(oc.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN)
+			failAuthorizeUser.SetRole(oc.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN)
+		}
 		if configureFailCliRole {
 			var SetRequest *gnmipb.SetRequest
 
