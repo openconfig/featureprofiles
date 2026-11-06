@@ -30,6 +30,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -104,11 +105,19 @@ func configureISIS(t *testing.T, ts *isissession.TestSession) {
 	isisIntfLevel2.LevelNumber = ygot.Uint8(2)
 	isisIntfLevel2.SetEnabled(true)
 	isisIntfLevel2.Enabled = ygot.Bool(true)
-	intfAuth := intf.GetOrCreateAuthentication()
-	intfAuth.Enabled = ygot.Bool(true)
-	intfAuth.AuthPassword = ygot.String(password)
-	intfAuth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
-	intfAuth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
+	if deviations.ISISInterfaceAuthenticationContainerUnsupported(ts.DUT) {
+		helloAuth := isisIntfLevel2.GetOrCreateHelloAuthentication()
+		helloAuth.Enabled = ygot.Bool(true)
+		helloAuth.AuthPassword = ygot.String(password)
+		helloAuth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+		helloAuth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
+	} else {
+		intfAuth := intf.GetOrCreateAuthentication()
+		intfAuth.Enabled = ygot.Bool(true)
+		intfAuth.AuthPassword = ygot.String(password)
+		intfAuth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+		intfAuth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
+	}
 
 	isisIntfLevel2.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	isisIntfLevel2.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric = ygot.Uint32(v4Metric)
@@ -379,17 +388,25 @@ func TestISISLevelPassive(t *testing.T) {
 			}
 		})
 		t.Run("Route checks", func(t *testing.T) {
+			ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).Afts().Ipv4Entry(v4Route)
+			if _, ok := gnmi.Watch(t, ts.DUT, ipv4Path.State(), time.Second*30, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+				ipv4Entry, present := val.Val()
+				return present && ipv4Entry.GetPrefix() == v4Route
+			}).Await(t); !ok {
+				t.Errorf("FAIL- Expected v4 route %v not found in aft", v4Route)
+			}
+			ipv6Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).Afts().Ipv6Entry(v6Route)
+			if _, ok := gnmi.Watch(t, ts.DUT, ipv6Path.State(), time.Second*30, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
+				ipv6Entry, present := val.Val()
+				return present && ipv6Entry.GetPrefix() == v6Route
+			}).Await(t); !ok {
+				t.Errorf("FAIL- Expected v6 route %v not found in aft", v6Route)
+			}
 			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().Prefix(v4Route).Prefix().State()); got != v4Route {
 				t.Errorf("FAIL- Expected v4 route not found in isis, got %v, want %v", got, v4Route)
 			}
 			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).Ipv6Reachability().Prefix(v6Route).Prefix().State()); got != v6Route {
 				t.Errorf("FAIL- Expected v6 route not found in isis, got %v, want %v", got, v6Route)
-			}
-			if got := gnmi.Get(t, ts.DUT, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).Afts().Ipv4Entry(v4Route).State()).GetPrefix(); got != v4Route {
-				t.Errorf("FAIL- Expected v4 route not found in aft, got %v, want %v", got, v4Route)
-			}
-			if got := gnmi.Get(t, ts.DUT, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).Afts().Ipv6Entry(v6Route).State()).GetPrefix(); got != v6Route {
-				t.Errorf("FAIL- Expected v6 route not found in aft, got %v, want %v", got, v6Route)
 			}
 		})
 		t.Run("Traffic checks", func(t *testing.T) {
