@@ -58,7 +58,7 @@ graph LR
 *   Configure the matching BGP peers on the ATE, and verify that all four
     sessions are `ESTABLISHED`.
 
-### RT-1.21.1: TCP MSS at the neighbor level
+### RT-1.21.1: TCP MSS at the neighbor and peer-group levels
 
 *   If the DUT reports `transport/state/tcp-mss` for the neighbors before an
     MSS is configured, verify that the value is at least the TCP default MSS
@@ -66,21 +66,35 @@ graph LR
     40 bytes for IPv4 or 60 bytes for IPv6 (1460 and 1440 for a 1500-byte MTU).
 *   Set the MTU of DUT port-1, DUT port-2, ATE port-1 and ATE port-2 to 5040
     bytes, and verify that all four sessions are `ESTABLISHED`.
-*   Record `state/established-transitions` for all four neighbors.
-*   Configure `transport/config/tcp-mss` to 4096 on all four neighbors.
-*   Record whether applying the MSS reset the sessions, that is, whether
-    `state/established-transitions` increased or `state/session-state` left
-    `ESTABLISHED` within 30 seconds of the change. This shows whether the
-    configuration change is disruptive. It is reported only and is not a
-    pass/fail criterion.
-*   Re-establish the four sessions, for example by restarting the ATE BGP
-    peers.
-*   Verify that all four sessions are `ESTABLISHED`, and that
-    `transport/state/tcp-mss` equals `transport/config/tcp-mss` (4096) for all
-    four neighbors.
-*   Remove `transport/config/tcp-mss` from the four neighbors.
+*   Neighbor level:
+    *   Record `state/established-transitions` for all four neighbors.
+    *   Configure `transport/config/tcp-mss` to 4096 on all four neighbors.
+    *   Record whether applying the MSS reset the sessions, that is, whether
+        `state/established-transitions` increased or `state/session-state`
+        left `ESTABLISHED` within 30 seconds of the change. This shows whether
+        the configuration change is disruptive. It is reported only and is not
+        a pass/fail criterion.
+    *   Re-establish the four sessions, for example by restarting the ATE BGP
+        peers.
+    *   Verify that all four sessions are `ESTABLISHED`, and that
+        `transport/state/tcp-mss` equals `transport/config/tcp-mss` (4096) for
+        all four neighbors.
+    *   Remove `transport/config/tcp-mss` from the four neighbors.
+*   Peer-group level:
+    *   Set `transport/config/tcp-mss` to 4000 on the peer groups `EBGP-PEERS`
+        and `IBGP-PEERS`, with no MSS configured on the neighbors.
+    *   Re-establish the four sessions.
+    *   Verify that all four sessions are `ESTABLISHED`, that
+        `transport/state/tcp-mss` is 4000 for both peer groups, and that all
+        four neighbors inherit it (`transport/state/tcp-mss` is 4000).
+    *   Remove `transport/config/tcp-mss` from both peer groups.
+*   Remove the MTU configuration from the four ports so that they return to the
+    default MTU.
 
 #### Canonical OC
+
+The neighbor-level and peer-group-level values are configured in separate
+steps, not at the same time.
 
 ```json
 {
@@ -104,97 +118,6 @@ graph LR
       }
     ]
   },
-  "network-instances": {
-    "network-instance": [
-      {
-        "name": "DEFAULT",
-        "config": {
-          "name": "DEFAULT"
-        },
-        "protocols": {
-          "protocol": [
-            {
-              "identifier": "BGP",
-              "name": "BGP",
-              "config": {
-                "identifier": "BGP",
-                "name": "BGP"
-              },
-              "bgp": {
-                "neighbors": {
-                  "neighbor": [
-                    {
-                      "neighbor-address": "192.0.2.2",
-                      "config": {
-                        "neighbor-address": "192.0.2.2"
-                      },
-                      "transport": {
-                        "config": {
-                          "tcp-mss": 4096
-                        }
-                      }
-                    },
-                    {
-                      "neighbor-address": "2001:db8::192:0:2:2",
-                      "config": {
-                        "neighbor-address": "2001:db8::192:0:2:2"
-                      },
-                      "transport": {
-                        "config": {
-                          "tcp-mss": 4096
-                        }
-                      }
-                    },
-                    {
-                      "neighbor-address": "192.0.2.6",
-                      "config": {
-                        "neighbor-address": "192.0.2.6"
-                      },
-                      "transport": {
-                        "config": {
-                          "tcp-mss": 4096
-                        }
-                      }
-                    },
-                    {
-                      "neighbor-address": "2001:db8::192:0:2:6",
-                      "config": {
-                        "neighbor-address": "2001:db8::192:0:2:6"
-                      },
-                      "transport": {
-                        "config": {
-                          "tcp-mss": 4096
-                        }
-                      }
-                    }
-                  ]
-                }
-              }
-            }
-          ]
-        }
-      }
-    ]
-  }
-}
-```
-
-### RT-1.21.2: TCP MSS at the peer-group level
-
-*   Set `transport/config/tcp-mss` to 4000 on the peer groups `EBGP-PEERS` and
-    `IBGP-PEERS`, with no MSS configured on the neighbors. The MTU of all four
-    ports stays at 5040 bytes from RT-1.21.1.
-*   Re-establish the four sessions.
-*   Verify that all four sessions are `ESTABLISHED`, that
-    `transport/state/tcp-mss` is 4000 for both peer groups, and that all four
-    neighbors inherit it (`transport/state/tcp-mss` is 4000).
-*   Remove `transport/config/tcp-mss` from both peer groups, and remove the MTU
-    configuration from the four ports so that they return to the default MTU.
-
-#### Canonical OC
-
-```json
-{
   "network-instances": {
     "network-instance": [
       {
@@ -247,6 +170,11 @@ graph LR
                       "config": {
                         "neighbor-address": "192.0.2.2",
                         "peer-group": "EBGP-PEERS"
+                      },
+                      "transport": {
+                        "config": {
+                          "tcp-mss": 4096
+                        }
                       }
                     },
                     {
@@ -254,6 +182,11 @@ graph LR
                       "config": {
                         "neighbor-address": "2001:db8::192:0:2:2",
                         "peer-group": "EBGP-PEERS"
+                      },
+                      "transport": {
+                        "config": {
+                          "tcp-mss": 4096
+                        }
                       }
                     },
                     {
@@ -261,6 +194,11 @@ graph LR
                       "config": {
                         "neighbor-address": "192.0.2.6",
                         "peer-group": "IBGP-PEERS"
+                      },
+                      "transport": {
+                        "config": {
+                          "tcp-mss": 4096
+                        }
                       }
                     },
                     {
@@ -268,6 +206,11 @@ graph LR
                       "config": {
                         "neighbor-address": "2001:db8::192:0:2:6",
                         "peer-group": "IBGP-PEERS"
+                      },
+                      "transport": {
+                        "config": {
+                          "tcp-mss": 4096
+                        }
                       }
                     }
                   ]
@@ -282,22 +225,29 @@ graph LR
 }
 ```
 
-### RT-1.21.3: PMTUD at the neighbor and peer-group levels
+### RT-1.21.2: PMTUD at the neighbor and peer-group levels
 
 No MSS is configured in this subtest, and all four ports use the default MTU.
 
-*   Set `transport/config/mtu-discovery` to `true` on all four neighbors.
-*   Re-establish the four sessions.
-*   Verify that all four sessions are `ESTABLISHED` and that
-    `transport/state/mtu-discovery` is `true` for all four neighbors.
-*   Remove `transport/config/mtu-discovery` from the neighbors, and set it to
-    `true` on the peer groups `EBGP-PEERS` and `IBGP-PEERS` instead.
-*   Re-establish the four sessions.
-*   Verify that all four sessions are `ESTABLISHED`, that
-    `transport/state/mtu-discovery` is `true` for both peer groups, and that
-    all four neighbors inherit it.
+*   Neighbor level:
+    *   Set `transport/config/mtu-discovery` to `true` on all four neighbors.
+    *   Re-establish the four sessions.
+    *   Verify that all four sessions are `ESTABLISHED` and that
+        `transport/state/mtu-discovery` is `true` for all four neighbors.
+    *   Remove `transport/config/mtu-discovery` from the four neighbors.
+*   Peer-group level:
+    *   Set `transport/config/mtu-discovery` to `true` on the peer groups
+        `EBGP-PEERS` and `IBGP-PEERS`.
+    *   Re-establish the four sessions.
+    *   Verify that all four sessions are `ESTABLISHED`, that
+        `transport/state/mtu-discovery` is `true` for both peer groups, and
+        that all four neighbors inherit it.
+    *   Remove `transport/config/mtu-discovery` from both peer groups.
 
 #### Canonical OC
+
+The neighbor-level and peer-group-level values are configured in separate
+steps, not at the same time.
 
 ```json
 {
@@ -345,6 +295,58 @@ No MSS is configured in this subtest, and all four ports use the default MTU.
                       }
                     }
                   ]
+                },
+                "neighbors": {
+                  "neighbor": [
+                    {
+                      "neighbor-address": "192.0.2.2",
+                      "config": {
+                        "neighbor-address": "192.0.2.2",
+                        "peer-group": "EBGP-PEERS"
+                      },
+                      "transport": {
+                        "config": {
+                          "mtu-discovery": true
+                        }
+                      }
+                    },
+                    {
+                      "neighbor-address": "2001:db8::192:0:2:2",
+                      "config": {
+                        "neighbor-address": "2001:db8::192:0:2:2",
+                        "peer-group": "EBGP-PEERS"
+                      },
+                      "transport": {
+                        "config": {
+                          "mtu-discovery": true
+                        }
+                      }
+                    },
+                    {
+                      "neighbor-address": "192.0.2.6",
+                      "config": {
+                        "neighbor-address": "192.0.2.6",
+                        "peer-group": "IBGP-PEERS"
+                      },
+                      "transport": {
+                        "config": {
+                          "mtu-discovery": true
+                        }
+                      }
+                    },
+                    {
+                      "neighbor-address": "2001:db8::192:0:2:6",
+                      "config": {
+                        "neighbor-address": "2001:db8::192:0:2:6",
+                        "peer-group": "IBGP-PEERS"
+                      },
+                      "transport": {
+                        "config": {
+                          "mtu-discovery": true
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
@@ -361,10 +363,11 @@ No MSS is configured in this subtest, and all four ports use the default MTU.
 *   If any of the below conditions occur, the test should be declared as a
     "FAIL":
     1.  A BGP session is not `ESTABLISHED` after it is re-established
-    2.  `transport/state/tcp-mss` is not 4096 for a neighbor in `RT-1.21.1`, or
-        not 4000 for a peer group or neighbor in `RT-1.21.2`
-    3.  `transport/state/mtu-discovery` is not `true` for a neighbor or peer
-        group in `RT-1.21.3`
+    2.  In `RT-1.21.1`, `transport/state/tcp-mss` is not 4096 for a neighbor at
+        the neighbor level, or not 4000 for a peer group or neighbor at the
+        peer-group level
+    3.  In `RT-1.21.2`, `transport/state/mtu-discovery` is not `true` for a
+        neighbor or peer group
     4.  A `transport/state/tcp-mss` reported before any MSS is configured is
         outside the range given in `RT-1.21.1`
 
