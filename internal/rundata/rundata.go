@@ -94,6 +94,16 @@ func topology(resv *binding.Reservation) string {
 	return strings.Join(parts, ",")
 }
 
+// GitProperties returns the git.* properties of the Feature Profiles
+// working tree that contains the current working directory. Unlike
+// Properties, it does not need a reservation, so callers can report
+// it before the testbed is bound or reserved.
+func GitProperties() map[string]string {
+	m := make(map[string]string)
+	gitInfo(m)
+	return m
+}
+
 // Properties builds the test properties map representing run data.
 func Properties(ctx context.Context, resv *binding.Reservation) map[string]string {
 	md := metadataGetFn()
