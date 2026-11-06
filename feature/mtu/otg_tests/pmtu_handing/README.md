@@ -79,8 +79,6 @@ paths:
     /interfaces/interface/state/mtu:
     /components/component/integrated-circuit/pipeline-counters/drop/state/packet-processing-aggregate:
       platform_type: [ "INTEGRATED_CIRCUIT" ]
-    /components/component/integrated-circuit/pipeline-counters/drop/lookup-block/state/fragment-total-drops:
-      platform_type: [ "INTEGRATED_CIRCUIT" ]
     /components/component/integrated-circuit/pipeline-counters/drop/host-interface-block/state/fragment-punt:
       platform_type: [ "INTEGRATED_CIRCUIT" ]
     /components/component/integrated-circuit/pipeline-counters/packet/host-interface-block/state/fragment-punt-pkts:
