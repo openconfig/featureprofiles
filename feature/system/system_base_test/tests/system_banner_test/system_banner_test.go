@@ -52,6 +52,12 @@ func TestMotdBanner(t *testing.T) {
 			config := gnmi.OC().System().MotdBanner()
 			state := gnmi.OC().System().MotdBanner()
 
+			bannerDeleted := false
+			t.Cleanup(func() {
+				if !bannerDeleted {
+					gnmi.Delete(t, dut, config.Config())
+				}
+			})
 			gnmi.Replace(t, dut, config.Config(), testCase.banner)
 
 			t.Run("Get MOTD Config", func(t *testing.T) {
@@ -77,6 +83,7 @@ func TestMotdBanner(t *testing.T) {
 
 			t.Run("Delete MOTD", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
+				bannerDeleted = true
 				if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.IsPresent() == true {
 					t.Errorf("Delete MOTD Banner fail: got %v", qs)
 				}
@@ -106,6 +113,12 @@ func TestLoginBanner(t *testing.T) {
 			config := gnmi.OC().System().LoginBanner()
 			state := gnmi.OC().System().LoginBanner()
 
+			bannerDeleted := false
+			t.Cleanup(func() {
+				if !bannerDeleted {
+					gnmi.Delete(t, dut, config.Config())
+				}
+			})
 			gnmi.Replace(t, dut, config.Config(), testCase.banner)
 
 			t.Run("Get Login Banner Config", func(t *testing.T) {
@@ -128,6 +141,7 @@ func TestLoginBanner(t *testing.T) {
 			})
 			t.Run("Delete Login Banner", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
+				bannerDeleted = true
 				if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.IsPresent() == true {
 					t.Errorf("Delete Login Banner fail: got %v", qs)
 				}
