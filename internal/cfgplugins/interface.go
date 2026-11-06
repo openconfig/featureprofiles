@@ -2058,3 +2058,91 @@ func VerifyInterfaceIPv6Address(t *testing.T, dut *ondatra.DUTDevice, portName s
 		t.Errorf("IPv6 subinterface status state mismatch for port: %s, got: %v, want: %v", portName, got, want)
 	}
 }
+
+// ToggleTransceiver sets /components/component/transceiver/config/enabled for a transceiver component.
+func ToggleTransceiver(t *testing.T, dut *ondatra.DUTDevice, transceiverName string, isEnabled bool) {
+	t.Helper()
+	if deviations.TransceiverConfigEnableUnsupported(dut) {
+		t.Logf("Skipping transceiver config enable=%v on %s due to deviation TransceiverConfigEnableUnsupported", isEnabled, transceiverName)
+		return
+	}
+	tr := &oc.Component_Transceiver{
+		Enabled: ygot.Bool(isEnabled),
+	}
+	if deviations.ExplicitDcoConfig(dut) {
+		tr.ModuleFunctionalType = oc.TransportTypes_TRANSCEIVER_MODULE_FUNCTIONAL_TYPE_TYPE_DIGITAL_COHERENT_OPTIC
+	}
+	gnmi.Update(t, dut, gnmi.OC().Component(transceiverName).Config(), &oc.Component{
+		Name:        ygot.String(transceiverName),
+		Transceiver: tr,
+	})
+}
+
+// Configure400ZRL3Interface configures a 400ZR interface with dual-stack IPv4 and IPv6 addresses on subinterface 0.
+func Configure400ZRL3Interface(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, portName, ipv4Addr string, ipv4Prefix uint8, ipv6Addr string, ipv6Prefix uint8) {
+	t.Helper()
+	intf := &oc.Interface{
+		Name:    ygot.String(portName),
+		Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+		Enabled: ygot.Bool(true),
+	}
+	if !deviations.PortSpeedDuplexModeUnsupportedForInterfaceConfig(dut) && (deviations.ExplicitPortSpeed(dut) || !deviations.PortSpeedUnsupported(dut)) {
+		eth := intf.GetOrCreateEthernet()
+		if !deviations.PortSpeedUnsupported(dut) {
+			eth.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB
+		}
+		if !deviations.DuplexModeUnsupported(dut) {
+			eth.DuplexMode = oc.Ethernet_DuplexMode_FULL
+		}
+	}
+
+	sub := intf.GetOrCreateSubinterface(0)
+	if deviations.InterfaceEnabled(dut) {
+		sub.Enabled = ygot.Bool(true)
+	}
+	ConfigureSubinterfaceIPs(sub, dut, ipv4Addr, ipv4Prefix, ipv6Addr, ipv6Prefix)
+	if deviations.InterfaceEnabled(dut) {
+		if ipv4Addr != "" && !deviations.IPv4MissingEnabled(dut) {
+			sub.GetOrCreateIpv4().Enabled = ygot.Bool(true)
+		}
+		if ipv6Addr != "" {
+			sub.GetOrCreateIpv6().Enabled = ygot.Bool(true)
+		}
+	}
+	if deviations.RequireRoutedSubinterface0(dut) {
+		EnsureRoutedSubinterface0(intf, dut, ipv4Addr, ipv6Addr, ipv4Prefix, ipv6Prefix)
+	}
+
+	if batch != nil {
+		gnmi.BatchUpdate(batch, gnmi.OC().Interface(portName).Config(), intf)
+	} else {
+		gnmi.Update(t, dut, gnmi.OC().Interface(portName).Config(), intf)
+	}
+}
+
+// Await400ZROpticalLinkUp waits for a 400ZR interface to reach oper-status UP and for its optical
+// channel laser bias current, output power, and input power to stabilize within active ranges.
+func Await400ZROpticalLinkUp(t *testing.T, dut *ondatra.DUTDevice, portName, ochName string, timeout time.Duration) {
+	t.Helper()
+	gnmi.Await(t, dut, gnmi.OC().Interface(portName).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
+
+	ochPath := gnmi.OC().Component(ochName).OpticalChannel()
+	if val, ok := gnmi.Watch(t, dut, ochPath.LaserBiasCurrent().Instant().State(), timeout, func(v *ygnmi.Value[float64]) bool {
+		cur, present := v.Val()
+		return present && cur > 0.0
+	}).Await(t); !ok {
+		t.Fatalf("Optical channel %s laser-bias-current/instant did not exceed 0.0 mA within %v (last value: %v)", ochName, timeout, val)
+	}
+	if val, ok := gnmi.Watch(t, dut, ochPath.OutputPower().Instant().State(), timeout, func(v *ygnmi.Value[float64]) bool {
+		pwr, present := v.Val()
+		return present && pwr > -20.0
+	}).Await(t); !ok {
+		t.Fatalf("Optical channel %s output-power/instant did not exceed -20.0 dBm within %v (last value: %v)", ochName, timeout, val)
+	}
+	if val, ok := gnmi.Watch(t, dut, ochPath.InputPower().Instant().State(), timeout, func(v *ygnmi.Value[float64]) bool {
+		pwr, present := v.Val()
+		return present && pwr > -20.0
+	}).Await(t); !ok {
+		t.Fatalf("Optical channel %s input-power/instant did not exceed -20.0 dBm within %v (last value: %v)", ochName, timeout, val)
+	}
+}

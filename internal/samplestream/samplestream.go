@@ -147,3 +147,21 @@ func VerifyMonotonicIncreaseFunc[T any](t testing.TB, s *SampleStream[T], extrac
 	}
 	return samples, nil
 }
+
+// AwaitNextSamples awaits count consecutive samples that satisfy predicate from the given
+// SampleStream[T], waiting up to perSampleTimeout for each sample.
+func AwaitNextSamples[T any](t testing.TB, s *SampleStream[T], count int, perSampleTimeout time.Duration, predicate func(*ygnmi.Value[T]) bool) ([]*ygnmi.Value[T], error) {
+	t.Helper()
+	if count <= 0 {
+		return nil, fmt.Errorf("count must be positive, got %d", count)
+	}
+	samples := make([]*ygnmi.Value[T], 0, count)
+	for i := 0; i < count; i++ {
+		val, ok := s.AwaitNext(perSampleTimeout, predicate)
+		if !ok || val == nil {
+			return samples, fmt.Errorf("sample %d/%d did not satisfy predicate within %v (last sample: %v)", i+1, count, perSampleTimeout, val)
+		}
+		samples = append(samples, val)
+	}
+	return samples, nil
+}
