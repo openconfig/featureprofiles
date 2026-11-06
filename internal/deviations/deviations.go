@@ -2546,4 +2546,4 @@ func MaxSupportedDecapEntries(dut *ondatra.DUTDevice) uint32 {
 // Juniper :  b/567579406
 func BgpRpdRestartDuringLlgrNotSupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpRpdRestartDuringLlgrNotSupported()
-}  
+}
