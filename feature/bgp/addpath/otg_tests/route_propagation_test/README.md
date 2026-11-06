@@ -67,6 +67,14 @@ prefixes (`198.51.100.0/32` to `198.51.100.3/32`) and 4 IPv6 prefixes
         neighbors includes `ADD_PATHS`.
     *   Verification (Telemetry): `prefixes/received` on the ATE port-1
         neighbors is `16` (receive inherited from the peer-group).
+*   RT-1.3.3.3: Add-Path receive on the peer-group, disabled on the neighbor
+    *   DUT: Set `add-paths/config/receive` to `true` on `BGP-PEER-GROUP1` and
+        to `false` on the ATE port-1 neighbors for IPv4 and IPv6.
+    *   Verification (Telemetry): `add-paths/state/receive` on the ATE port-1
+        neighbors is `false`: the neighbor value overrides the peer-group value.
+    *   Verification (Telemetry): `prefixes/received` on the ATE port-1
+        neighbors is `4`: the DUT keeps one path per prefix.
+    *   ATE Port 2: Verify that the DUT has propagated each prefix.
 *   ADD-Path is negotiated when a session is established, so the BGP sessions
     are re-established after each configuration change.
 

@@ -452,17 +452,24 @@ func verifyAddPathState(t *testing.T, dut *ondatra.DUTDevice, afi oc.E_BgpTypes_
 
 	if cfg.pgReceive != nil {
 		q := bgpPath.PeerGroup("BGP-PEER-GROUP1").AfiSafi(afi).AddPaths().Receive().State()
-		_, ok := gnmi.Watch(t, dut, q, 30*time.Second, func(v *ygnmi.Value[bool]) bool {
-			got, present := v.Val()
-			return present && got == *cfg.pgReceive
-		}).Await(t)
-		if !ok {
-			got, present := gnmi.Lookup(t, dut, q).Val()
-			t.Errorf("DUT peer-group BGP-PEER-GROUP1 add-paths receive state: got %v (present: %v), want %t", got, present, *cfg.pgReceive)
+		if cfg.nbrReceive == nil {
+			_, ok := gnmi.Watch(t, dut, q, 30*time.Second, func(v *ygnmi.Value[bool]) bool {
+				got, present := v.Val()
+				return present && got == *cfg.pgReceive
+			}).Await(t)
+			if !ok {
+				got, present := gnmi.Lookup(t, dut, q).Val()
+				t.Errorf("DUT peer-group BGP-PEER-GROUP1 add-paths receive state: got %v (present: %v), want %t", got, present, *cfg.pgReceive)
+			}
+			rxQ := bgpPath.Neighbor(rxNbr).AfiSafi(afi).AddPaths().Receive().State()
+			rxVal, rxPresent := gnmi.Lookup(t, dut, rxQ).Val()
+			t.Logf("DUT neighbor %s add-paths receive state (inherited from peer-group): %v (present: %v)", rxNbr, rxVal, rxPresent)
+		} else {
+			// The neighbor sets its own value, which overrides the peer-group and
+			// is verified above, so the peer-group state is only logged here.
+			pgVal, pgPresent := gnmi.Lookup(t, dut, q).Val()
+			t.Logf("DUT peer-group BGP-PEER-GROUP1 add-paths receive state (overridden on neighbor %s): %v (present: %v)", rxNbr, pgVal, pgPresent)
 		}
-		rxQ := bgpPath.Neighbor(rxNbr).AfiSafi(afi).AddPaths().Receive().State()
-		rxVal, rxPresent := gnmi.Lookup(t, dut, rxQ).Val()
-		t.Logf("DUT neighbor %s add-paths receive state (inherited from peer-group): %v (present: %v)", rxNbr, rxVal, rxPresent)
 	}
 
 	capQ := bgpPath.Neighbor(rxNbr).SupportedCapabilities().State()
@@ -717,7 +724,8 @@ func TestBGP(t *testing.T) {
 	}
 }
 
-// TestAddPath implements RT-1.3.3 and RT-1.3.5: ADD-Path receive enabled on the neighbor and on the peer-group, and receive disabled.
+// TestAddPath implements RT-1.3.3 and RT-1.3.5: ADD-Path receive enabled on the neighbor and on the peer-group,
+// receive enabled on the peer-group but disabled on the neighbor, and receive disabled.
 func TestAddPath(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
@@ -790,6 +798,13 @@ func TestAddPath(t *testing.T) {
 			name: "RT-1.3.3.2 receive on peer-group",
 			cfg: addPathCfg{
 				pgReceive: ygot.Bool(true),
+			},
+		},
+		{
+			name: "RT-1.3.3.3 peer-group receive overridden off on neighbor",
+			cfg: addPathCfg{
+				pgReceive:  ygot.Bool(true),
+				nbrReceive: ygot.Bool(false),
 			},
 		},
 		{
