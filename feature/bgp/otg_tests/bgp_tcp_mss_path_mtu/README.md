@@ -5,14 +5,21 @@
 This test validates that the router supports the TCP maximum segment size (MSS)
 and path MTU discovery (PMTUD) settings for BGP sessions:
 
-*   Configuration and state of the TCP MSS on IPv4 and IPv6 eBGP neighbors
-    (`transport/config/tcp-mss` and `transport/state/tcp-mss`)
-*   Configuration and state of PMTUD on an iBGP neighbor with TCP MD5
-    authentication (`transport/config/mtu-discovery` and
-    `transport/state/mtu-discovery`)
+*   Configuration and state of the TCP MSS (`transport/config/tcp-mss` and
+    `transport/state/tcp-mss`) and of PMTUD (`transport/config/mtu-discovery`
+    and `transport/state/mtu-discovery`), at the neighbor level and at the
+    peer-group level
+*   IPv4 and IPv6 eBGP sessions, and IPv4 and IPv6 iBGP sessions with TCP MD5
+    authentication
 *   `transport/state/tcp-mss` reports the configured MSS (the applied
-    configuration), in the same way as `timers/state/hold-time`. When no MSS
-    is configured, it may instead report the MSS in use on the TCP session.
+    configuration, including a value inherited from the peer group), in the
+    same way as `timers/state/hold-time`. When no MSS is configured, it may
+    instead report the MSS in use on the TCP session.
+*   PMTUD lowers the TCP segment size when a router between the BGP peers
+    reports, with an ICMP Fragmentation Needed or Packet Too Big message, that
+    a packet is too big for its next link. This testbed has no router between
+    the DUT and the ATE, so the test verifies the PMTUD configuration and
+    state, not the PMTUD behavior.
 
 ### Testbed type
 
@@ -23,7 +30,7 @@ and path MTU discovery (PMTUD) settings for BGP sessions:
 ```mermaid
 graph LR
     ATE["ATE"] <-->|"port-1: eBGP IPv4 and IPv6"| DUT["DUT"]
-    ATE <-->|"port-2: iBGP IPv4 with TCP MD5"| DUT
+    ATE <-->|"port-2: iBGP IPv4 and IPv6 with TCP MD5"| DUT
 ```
 
 ### DUT and OTG properties
@@ -31,9 +38,9 @@ graph LR
 | Device | Port   | IPv4         | IPv6                    | AS    |
 | :----- | :----- | :----------- | :---------------------- | :---- |
 | DUT    | Port 1 | 192.0.2.1/30 | 2001:db8::192:0:2:1/126 | 64500 |
-| DUT    | Port 2 | 192.0.2.5/30 | N/A                     | 64500 |
+| DUT    | Port 2 | 192.0.2.5/30 | 2001:db8::192:0:2:5/126 | 64500 |
 | ATE    | Port 1 | 192.0.2.2/30 | 2001:db8::192:0:2:2/126 | 64501 |
-| ATE    | Port 2 | 192.0.2.6/30 | N/A                     | 64500 |
+| ATE    | Port 2 | 192.0.2.6/30 | 2001:db8::192:0:2:6/126 | 64500 |
 
 ### Procedure
 
@@ -41,30 +48,37 @@ graph LR
 
 *   Connect ATE port-1 to DUT port-1, and ATE port-2 to DUT port-2.
 *   Configure the DUT and ATE interfaces per the table above.
+*   Configure BGP on the DUT (AS `64500`) with two peer groups:
+    *   `EBGP-PEERS` (peer AS `64501`) containing the IPv4 and IPv6 eBGP
+        neighbors on ATE port-1.
+    *   `IBGP-PEERS` (peer AS `64500`) containing the IPv4 and IPv6 iBGP
+        neighbors on ATE port-2, with TCP MD5 authentication.
+*   Configure the matching BGP peers on the ATE, and verify that all four
+    sessions are `ESTABLISHED`.
 
-### RT-1.21.1: TCP MSS on eBGP sessions
+### RT-1.21.1: TCP MSS and PMTUD at the neighbor level
 
-*   Establish IPv4 and IPv6 eBGP sessions between ATE port-1 (AS `64501`) and
-    DUT port-1 (AS `64500`).
-*   If the DUT reports `transport/state/tcp-mss` for the eBGP neighbors before
-    an MSS is configured, verify that the value is at least the TCP default MSS
-    (536 for IPv4 and 1220 for IPv6) and at most the MTU of DUT port-1 minus 40
-    bytes for IPv4 or 60 bytes for IPv6 (1460 and 1440 for a 1500-byte MTU).
-*   Set the MTU of DUT port-1 and ATE port-1 to 5040 bytes, and verify that
-    both sessions are `ESTABLISHED`.
-*   Record `state/established-transitions` for both eBGP neighbors.
-*   Configure `transport/config/tcp-mss` to 4096 on the IPv4 and IPv6 eBGP
-    neighbors on the DUT.
+*   If the DUT reports `transport/state/tcp-mss` for the neighbors before an
+    MSS is configured, verify that the value is at least the TCP default MSS
+    (536 for IPv4 and 1220 for IPv6) and at most the MTU of the DUT port minus
+    40 bytes for IPv4 or 60 bytes for IPv6 (1460 and 1440 for a 1500-byte MTU).
+*   Set the MTU of DUT port-1, DUT port-2, ATE port-1 and ATE port-2 to 5040
+    bytes, and verify that all four sessions are `ESTABLISHED`.
+*   Record `state/established-transitions` for all four neighbors.
+*   Configure `transport/config/tcp-mss` to 4096 on all four neighbors.
 *   Record whether applying the MSS reset the sessions, that is, whether
     `state/established-transitions` increased or `state/session-state` left
     `ESTABLISHED` within 30 seconds of the change. This shows whether the
     configuration change is disruptive. It is reported only and is not a
     pass/fail criterion.
-*   Re-establish the eBGP sessions, for example by restarting the ATE BGP
+*   Set `transport/config/mtu-discovery` to `true` on all four neighbors.
+*   Re-establish the four sessions, for example by restarting the ATE BGP
     peers.
-*   Verify that both sessions are `ESTABLISHED` and that
-    `transport/state/tcp-mss` equals `transport/config/tcp-mss` (4096) for both
-    neighbors.
+*   Verify that all four sessions are `ESTABLISHED`, and that for all four
+    neighbors `transport/state/tcp-mss` equals `transport/config/tcp-mss`
+    (4096) and `transport/state/mtu-discovery` is `true`.
+*   Remove `transport/config/tcp-mss` and `transport/config/mtu-discovery`
+    from the four neighbors.
 
 #### Canonical OC
 
@@ -76,6 +90,14 @@ graph LR
         "name": "port1",
         "config": {
           "name": "port1",
+          "type": "iana-if-type:ethernetCsmacd",
+          "mtu": 5040
+        }
+      },
+      {
+        "name": "port2",
+        "config": {
+          "name": "port2",
           "type": "iana-if-type:ethernetCsmacd",
           "mtu": 5040
         }
@@ -108,7 +130,8 @@ graph LR
                       },
                       "transport": {
                         "config": {
-                          "tcp-mss": 4096
+                          "tcp-mss": 4096,
+                          "mtu-discovery": true
                         }
                       }
                     },
@@ -119,7 +142,32 @@ graph LR
                       },
                       "transport": {
                         "config": {
-                          "tcp-mss": 4096
+                          "tcp-mss": 4096,
+                          "mtu-discovery": true
+                        }
+                      }
+                    },
+                    {
+                      "neighbor-address": "192.0.2.6",
+                      "config": {
+                        "neighbor-address": "192.0.2.6"
+                      },
+                      "transport": {
+                        "config": {
+                          "tcp-mss": 4096,
+                          "mtu-discovery": true
+                        }
+                      }
+                    },
+                    {
+                      "neighbor-address": "2001:db8::192:0:2:6",
+                      "config": {
+                        "neighbor-address": "2001:db8::192:0:2:6"
+                      },
+                      "transport": {
+                        "config": {
+                          "tcp-mss": 4096,
+                          "mtu-discovery": true
                         }
                       }
                     }
@@ -135,45 +183,24 @@ graph LR
 }
 ```
 
-### RT-1.21.2: PMTUD configuration and state on an iBGP session with TCP MD5
+### RT-1.21.2: TCP MSS and PMTUD at the peer-group level
 
-PMTUD lowers the TCP segment size when a router between the BGP peers reports,
-with an ICMP Fragmentation Needed or Packet Too Big message, that a packet is
-too big for its next link. This testbed has no router between the DUT and the
-ATE, so this subtest verifies the PMTUD configuration and state, not the PMTUD
-behavior.
-
-*   Establish an IPv4 iBGP session with TCP MD5 authentication between ATE
-    port-2 (AS `64500`) and DUT port-2 (AS `64500`).
-*   Set the MTU of DUT port-2 to 5040 bytes, and leave ATE port-2 at 1500
-    bytes, so that the ATE side of the link has the smaller MTU.
-*   Set `transport/config/mtu-discovery` to `true` on the iBGP neighbor on the
-    DUT.
-*   Re-establish the iBGP session.
-*   Verify that the session is `ESTABLISHED` and that
+*   Repeat RT-1.21.1, but configure the settings on the peer groups instead of
+    the neighbors: set `transport/config/tcp-mss` to 4000 and
+    `transport/config/mtu-discovery` to `true` on `EBGP-PEERS` and
+    `IBGP-PEERS`, with neither setting configured on the neighbors.
+*   Re-establish the four sessions.
+*   Verify that all four sessions are `ESTABLISHED`, and that for both peer
+    groups `transport/state/tcp-mss` is 4000 and
     `transport/state/mtu-discovery` is `true`.
-*   If the DUT reports `transport/state/tcp-mss` for the iBGP neighbor, verify
-    that the value is at least 536 and at most 1460, which shows that the DUT
-    uses the smaller MSS advertised by ATE port-2. No MSS is configured on the
-    iBGP neighbor: the 4096 set in RT-1.21.1 is configured only on the eBGP
-    neighbors on port-1, so it does not need to be removed.
+*   Verify that all four neighbors inherit the peer-group values:
+    `transport/state/tcp-mss` is 4000 and `transport/state/mtu-discovery` is
+    `true`.
 
 #### Canonical OC
 
 ```json
 {
-  "interfaces": {
-    "interface": [
-      {
-        "name": "port2",
-        "config": {
-          "name": "port2",
-          "type": "iana-if-type:ethernetCsmacd",
-          "mtu": 5040
-        }
-      }
-    ]
-  },
   "network-instances": {
     "network-instance": [
       {
@@ -191,19 +218,66 @@ behavior.
                 "name": "BGP"
               },
               "bgp": {
+                "peer-groups": {
+                  "peer-group": [
+                    {
+                      "peer-group-name": "EBGP-PEERS",
+                      "config": {
+                        "peer-group-name": "EBGP-PEERS",
+                        "peer-as": 64501
+                      },
+                      "transport": {
+                        "config": {
+                          "tcp-mss": 4000,
+                          "mtu-discovery": true
+                        }
+                      }
+                    },
+                    {
+                      "peer-group-name": "IBGP-PEERS",
+                      "config": {
+                        "peer-group-name": "IBGP-PEERS",
+                        "peer-as": 64500
+                      },
+                      "transport": {
+                        "config": {
+                          "tcp-mss": 4000,
+                          "mtu-discovery": true
+                        }
+                      }
+                    }
+                  ]
+                },
                 "neighbors": {
                   "neighbor": [
+                    {
+                      "neighbor-address": "192.0.2.2",
+                      "config": {
+                        "neighbor-address": "192.0.2.2",
+                        "peer-group": "EBGP-PEERS"
+                      }
+                    },
+                    {
+                      "neighbor-address": "2001:db8::192:0:2:2",
+                      "config": {
+                        "neighbor-address": "2001:db8::192:0:2:2",
+                        "peer-group": "EBGP-PEERS"
+                      }
+                    },
                     {
                       "neighbor-address": "192.0.2.6",
                       "config": {
                         "neighbor-address": "192.0.2.6",
-                        "peer-as": 64500,
+                        "peer-group": "IBGP-PEERS",
                         "auth-password": "md5-test-password"
-                      },
-                      "transport": {
-                        "config": {
-                          "mtu-discovery": true
-                        }
+                      }
+                    },
+                    {
+                      "neighbor-address": "2001:db8::192:0:2:6",
+                      "config": {
+                        "neighbor-address": "2001:db8::192:0:2:6",
+                        "peer-group": "IBGP-PEERS",
+                        "auth-password": "md5-test-password"
                       }
                     }
                   ]
@@ -220,14 +294,15 @@ behavior.
 
 #### Test pass fail criteria
 
-*   If any of the below conditions are not met, test should be declared as a
+*   If any of the below conditions occur, the test should be declared as a
     "FAIL":
     1.  A BGP session is not `ESTABLISHED` after it is re-established
-    2.  `transport/state/tcp-mss` does not equal `transport/config/tcp-mss`
-        (4096) for the eBGP neighbors in `RT-1.21.1`
-    3.  A reported `transport/state/tcp-mss` is outside the range given in
-        `RT-1.21.1` or `RT-1.21.2`
-    4.  `transport/state/mtu-discovery` is not `true` in `RT-1.21.2`
+    2.  `transport/state/tcp-mss` is not 4096 for a neighbor in `RT-1.21.1`, or
+        not 4000 for a peer group or neighbor in `RT-1.21.2`
+    3.  `transport/state/mtu-discovery` is not `true` for a neighbor in
+        `RT-1.21.1`, or for a peer group or neighbor in `RT-1.21.2`
+    4.  A `transport/state/tcp-mss` reported before any MSS is configured is
+        outside the range given in `RT-1.21.1`
 
 ### Cleanup
 
@@ -241,10 +316,14 @@ paths:
   ## Config Parameter Coverage
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/config/tcp-mss:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/config/mtu-discovery:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/transport/config/tcp-mss:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/transport/config/mtu-discovery:
 
   ## Telemetry Parameter Coverage
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/state/tcp-mss:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/state/mtu-discovery:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/transport/state/tcp-mss:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/transport/state/mtu-discovery:
 
 rpcs:
   gnmi:
