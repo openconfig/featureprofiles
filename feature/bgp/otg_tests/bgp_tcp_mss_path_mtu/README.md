@@ -9,8 +9,7 @@ and path MTU discovery (PMTUD) settings for BGP sessions:
     `transport/state/tcp-mss`) and of PMTUD (`transport/config/mtu-discovery`
     and `transport/state/mtu-discovery`), at the neighbor level and at the
     peer-group level
-*   IPv4 and IPv6 eBGP sessions, and IPv4 and IPv6 iBGP sessions with TCP MD5
-    authentication
+*   IPv4 and IPv6 eBGP and iBGP sessions
 *   `transport/state/tcp-mss` reports the configured MSS (the applied
     configuration, including a value inherited from the peer group), in the
     same way as `timers/state/hold-time`. When no MSS is configured, it may
@@ -30,7 +29,7 @@ and path MTU discovery (PMTUD) settings for BGP sessions:
 ```mermaid
 graph LR
     ATE["ATE"] <-->|"port-1: eBGP IPv4 and IPv6"| DUT["DUT"]
-    ATE <-->|"port-2: iBGP IPv4 and IPv6 with TCP MD5"| DUT
+    ATE <-->|"port-2: iBGP IPv4 and IPv6"| DUT
 ```
 
 ### DUT and OTG properties
@@ -52,7 +51,7 @@ graph LR
     *   `EBGP-PEERS` (peer AS `64501`) containing the IPv4 and IPv6 eBGP
         neighbors on ATE port-1.
     *   `IBGP-PEERS` (peer AS `64500`) containing the IPv4 and IPv6 iBGP
-        neighbors on ATE port-2, with TCP MD5 authentication.
+        neighbors on ATE port-2.
 *   Configure the matching BGP peers on the ATE, and verify that all four
     sessions are `ESTABLISHED`.
 
@@ -268,16 +267,14 @@ graph LR
                       "neighbor-address": "192.0.2.6",
                       "config": {
                         "neighbor-address": "192.0.2.6",
-                        "peer-group": "IBGP-PEERS",
-                        "auth-password": "md5-test-password"
+                        "peer-group": "IBGP-PEERS"
                       }
                     },
                     {
                       "neighbor-address": "2001:db8::192:0:2:6",
                       "config": {
                         "neighbor-address": "2001:db8::192:0:2:6",
-                        "peer-group": "IBGP-PEERS",
-                        "auth-password": "md5-test-password"
+                        "peer-group": "IBGP-PEERS"
                       }
                     }
                   ]
