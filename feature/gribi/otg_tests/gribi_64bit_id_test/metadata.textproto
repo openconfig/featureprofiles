@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "d24a703b-a461-4b00-a8b6-059ed1d7da6b"
+plan_id: "TE-15.2"
+description: "gRIBI 64-bit NextHop and NextHopGroup ID support"
+testbed: TESTBED_DUT_ATE_4LINKS
