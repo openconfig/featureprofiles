@@ -575,7 +575,7 @@ test: {
 }
 test: {
   id: "P4RT-3.5"
-  description: "P4RT vs. gRIBI Hardware Resource Competition"
+  description: "P4RT Packet-I/O Isolation under gRIBI FIB Exhaustion"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/p4rt_gribi_resource_competition_test/README.md"
 }
 test: {
