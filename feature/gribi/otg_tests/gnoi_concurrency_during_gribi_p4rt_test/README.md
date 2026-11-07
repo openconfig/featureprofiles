@@ -3,14 +3,17 @@
 ## Summary
 
 This test validates control-plane and data-plane resilience when operational
-management RPCs via `gNOI` (`System`, `File`, `Healthz`, and `PacketLinkQual` /
-`Diag` on non-transit interfaces) execute concurrently with high-rate `gRIBI`
-Abstract Forwarding Table (AFT) route modifications and `P4Runtime` (`P4RT`)
-Packet-I/O punt (`wbb.p4info.pb.txt` `acl_wbb_ingress_table`) and `PacketOut`
-operations. It ensures that gNOI operations complete accurately without
-destabilizing, starving, or dropping active `gRIBI`, `P4RT`, or `gNMI` sessions,
-and that transit data-plane forwarding and Packet-In punting sustain zero packet
-loss.
+`gNOI` RPCs (`System` `Time` / `Ping` / `Traceroute`, `Healthz`, `File`, and
+`LinkQualification` on a non-transit interface) execute concurrently with paced
+`gRIBI` Abstract Forwarding Table (AFT) churn and `P4Runtime` (`P4RT`) churn of
+the WBB `acl_wbb_ingress_table` punt entries (`wbb.p4info.pb.txt`), while LLDP
+`PacketIn` and `PacketOut` traffic is exchanged with the P4RT controller. It
+verifies that every gNOI operation completes with its defined result, that
+`gRIBI` and `P4RT` operations keep succeeding with latency bounded relative to
+a baseline measured with the same load and no gNOI operations, that no `gRIBI`,
+`P4RT`, or `gNMI` session is dropped, that protected transit traffic,
+`PacketIn`, and `PacketOut` sustain zero loss, and that the DUT remains stable
+(no reboot, process restart, or component state change).
 
 ## Testbed type
 
@@ -22,8 +25,8 @@ loss.
 
 ```text
                              +---------+
-  [ ATE port1 ] ------------ |         | ------------ [ ATE port2 ] (Transit Egress 1)
-  (Transit & Punt Src)       |   DUT   | ------------ [ ATE port3 ] (Transit Egress 2)
+  [ ATE port1 ] ------------ |         | ------------ [ ATE port2 ] (Protected Transit Egress)
+  (Transit & LLDP Src)       |   DUT   | ------------ [ ATE port3 ] (Churn Next Hops & PacketOut)
                              |         |
                              |         | ------------ [ ATE port4 ] (Non-Transit gNOI Port)
                              +---------+
@@ -33,146 +36,349 @@ loss.
   IPv6 addresses in the `DEFAULT` network instance:
   * **Link 1 (Transit & Packet-In Ingress)**: DUT `port1` (`192.0.2.1/30`,
     `2001:db8:1::1/126`, P4RT `id = 1`) <-> ATE `port1` (`192.0.2.2/30`,
-    `2001:db8:1::2/126`).
-  * **Link 2 (Transit Egress 1)**: DUT `port2` (`192.0.2.5/30`,
+    `2001:db8:1::2/126`, MAC `02:00:01:01:01:01`).
+  * **Link 2 (Protected Transit Egress)**: DUT `port2` (`192.0.2.5/30`,
     `2001:db8:2::1/126`, P4RT `id = 2`) <-> ATE `port2` (`192.0.2.6/30`,
-    `2001:db8:2::2/126`).
-  * **Link 3 (Transit Egress 2)**: DUT `port3` (`192.0.2.9/30`,
-    `2001:db8:3::1/126`, P4RT `id = 3`) <-> ATE `port3` (`192.0.2.10/30`,
-    `2001:db8:3::2/126`).
+    `2001:db8:2::2/126`, MAC `02:00:02:01:01:01`).
+  * **Link 3 (Churn Next Hops & PacketOut Egress)**: DUT `port3`
+    (`192.0.2.9/30`, `2001:db8:3::1/126`, P4RT `id = 3`) <-> ATE `port3`
+    (`192.0.2.10/30`, `2001:db8:3::2/126`, MAC `02:00:03:01:01:01`).
   * **Link 4 (Dedicated Non-Transit Port)**: DUT `port4` (`192.0.2.13/30`,
     `2001:db8:4::1/126`, P4RT `id = 4`) <-> ATE `port4` (`192.0.2.14/30`,
-    `2001:db8:4::2/126`).
+    `2001:db8:4::2/126`, MAC `02:00:04:01:01:01`).
 * Verify all 4 DUT interfaces report `oper-status = UP` via `gNMI.Subscribe`
   (`ON_CHANGE`) on `/interfaces/interface/state/oper-status`.
-* Configure `/components/component/integrated-circuit/config/node-id` (e.g.,
-  `device_id = 1`) for the target forwarding integrated circuit and interface
-  `/interfaces/interface/config/id` values (`1`–`4`) via `gNMI.Set`.
-* Establish a `P4Runtime` client session (`device_id = 1`, `election_id = {high:
-  0, low: 1}`), complete primary controller arbitration via
+* Record the pre-test value of `/lldp/config/enabled` and set it to `false` via
+  `gNMI.Set` to disable on-box LLDP processing (as in P4RT-7.1 and P4RT-7.2),
+  so that LLDP frames are handled only by the P4RT punt entry.
+* Configure `/components/component/integrated-circuit/config/node-id` to `1`
+  (P4RT `device_id = 1`) for the integrated circuit that hosts DUT `port1` to
+  `port4`, and the interface `/interfaces/interface/config/id` values (`1`–`4`)
+  via `gNMI.Set`.
+* Establish a `P4Runtime` client session (`device_id = 1`, `election_id =
+  {high: 0, low: 1}`), complete primary controller arbitration via
   `P4Runtime.StreamChannel`, and push the WBB forwarding pipeline
   (`feature/p4rt/data/wbb.p4info.pb.txt`, defining `acl_wbb_ingress_table` with
-  `size = 8`, actions `acl_wbb_ingress_copy` and `acl_wbb_ingress_trap`, and
-  `packet_in` / `packet_out` metadata) via
+  `size = 8`, actions `acl_wbb_ingress_copy` and `acl_wbb_ingress_trap`,
+  `packet_in` metadata `ingress_port` / `target_egress_port`, and `packet_out`
+  metadata `egress_port` / `submit_to_ingress`) via
   `P4Runtime.SetForwardingPipelineConfig` (`VERIFY_AND_COMMIT`).
+* Reconcile the punt table so that the test starts with an empty
+  `acl_wbb_ingress_table`: `P4Runtime.Read` the table, record any pre-existing
+  entries (for example, entries installed by the platform when P4RT is
+  enabled), `DELETE` them via `P4Runtime.Write`, and verify that a second
+  `P4Runtime.Read` returns `0` entries. The recorded entries are restored in
+  Cleanup.
 * Establish a `gRIBI` client session in `SINGLE_PRIMARY` mode with `PRESERVE`
-  persistence and `FIB_ACK` requested, elect the client as leader, and flush the
-  `DEFAULT` network instance via `gRIBI.Flush`.
+  persistence and `ack_type = RIB_AND_FIB_ACK`, elect the client as leader
+  (`election_id = 1`), and flush the `DEFAULT` network instance via
+  `gRIBI.Flush`.
+* Select the Healthz target component `HC`: the component whose
+  `/components/component/state/type` is `CHASSIS`. On platforms that do not
+  support Healthz RPCs against the chassis-level component, `HC` is the
+  `CONTROLLER_CARD` component (the active one if more than one is present).
+  Issue `gnoi.healthz.Healthz.Check` and then `gnoi.healthz.Healthz.Get` for
+  the path `/components/component[name=HC]`; both must return gRPC `OK` with
+  status `STATUS_HEALTHY`. `Get` is only issued after `Check` because `Get`
+  returns an error when no health status exists for the path.
+* Capture the stability snapshot `S0` via `gNMI.Get`:
+  * `/system/state/boot-time`.
+  * The stable process set: every process whose `state/name`, `state/pid`, and
+    `state/start-time` under `/system/processes/process` are identical in two
+    reads taken `60 s` apart.
+  * `/components/component/state/oper-status`, and
+    `/components/component/state/last-reboot-time` where reported, of every
+    component of type `CHASSIS`, `CONTROLLER_CARD`, `FAN`,
+    `INTEGRATED_CIRCUIT`, `LINECARD`, or `POWER_SUPPLY`.
 * Start OTG protocols and explicitly resolve IPv4 ARP and IPv6 ND on all 4 links
   before starting traffic.
 
-### TE-1.24.1 - Baseline Forwarding, Packet-In, and Programming Latency
+### Background load and common window criteria
+
+Each measurement window (TE-1.24.1 Step 3, TE-1.24.2, TE-1.24.3, and TE-1.24.4)
+starts the background load B1–B5 below and stops it as described after the
+list. TE-1.24.1 Step 2 uses B1–B3 only.
+
+* **B1 - Protected transit flows**: OTG IPv4 (`TTL = 64`) and IPv6
+  (`HopLimit = 64`) flows from ATE `port1` to `198.51.100.1` and
+  `2001:db8:100::1` (`512`-byte frames, `5,000 fps` each, `10,000 fps`
+  aggregate), expected on ATE `port2`.
+* **B2 - LLDP `PacketIn`**: an OTG raw Ethernet flow on ATE `port1`
+  (destination MAC `01:80:c2:00:00:0e`, source MAC `02:00:01:01:01:01`,
+  EtherType `0x88cc`, `128`-byte frames) at `10 fps`, trapped by the protected
+  LLDP entry and delivered to the controller as `PacketIn` messages.
+* **B3 - `PacketOut`**: the controller sends `10` `PacketOut` messages per
+  second on `P4Runtime.StreamChannel`, each carrying the same LLDP frame
+  (destination MAC `01:80:c2:00:00:0e`, source MAC `02:00:00:00:00:aa`,
+  EtherType `0x88cc`, with Chassis ID, Port ID, TTL, and End TLVs) and the
+  metadata `egress_port = "3"` (DUT `port3`) and `submit_to_ingress = 0`. An
+  OTG packet capture runs on ATE `port3` for the whole window.
+* **B4 - P4RT churn**: one cycle per second (a cycle that takes longer than
+  `1 s` is followed immediately by the next) over the `7` churn entries, which
+  are the non-LLDP entries allowed by the table's `@entry_restriction`, all
+  with `priority = 1`: `6` traceroute entries (`is_ipv4 = 1` or `is_ipv6 = 1`,
+  each with `ttl == 0`, `1`, or `2` `& 0xff`) and `1` ND/GDP entry
+  (`ether_type == 0x6007 & 0xffff`). Each `P4Runtime.Write` carries all `7`
+  updates (`Atomicity = CONTINUE_ON_ERROR`). A cycle is:
+  1. `INSERT` of the 7 entries with action `acl_wbb_ingress_trap`.
+  2. `MODIFY` of the 7 entries changing only the action to
+     `acl_wbb_ingress_copy` (match key and priority unchanged). On platforms
+     that do not support the P4Runtime `MODIFY` update type, this step is a
+     `DELETE` of the 7 entries followed by an `INSERT` of the same entries with
+     action `acl_wbb_ingress_copy`.
+  3. `P4Runtime.Read` of `acl_wbb_ingress_table`.
+  4. `DELETE` of the 7 entries.
+  5. `P4Runtime.Read` of `acl_wbb_ingress_table`.
+* **B5 - gRIBI churn**: repeated cycles of `ADD` then `DELETE` of `2,000` IPv4
+  `/24` entries (`100.64.0.0/24`–`100.71.207.0/24`, i.e.
+  `100.<64 + floor(i / 256)>.<i mod 256>.0/24`) pointing to `NextHopGroup 100`
+  and `2,000` IPv6 `/64` entries (`2001:db8:1000::/64`–`2001:db8:17cf::/64`,
+  i.e. `2001:db8:<hex(0x1000 + i)>::/64`) pointing to `NextHopGroup 101`, for
+  `i = 0` to `1999`, in `DEFAULT` (`NextHopGroup 100` and `101` on ATE `port3`
+  are programmed in TE-1.24.1 Step 1 and are not churned). `ModifyRequest`s
+  carry `100` `AFTOperation`s each and are sent at a paced rate of `10`
+  requests per second (`1,000` AFT operations/s), with at most `10` requests
+  awaiting acknowledgement (a request is awaiting acknowledgement until each of
+  its operations has returned `FIB_PROGRAMMED`, `FAILED`, or `FIB_FAILED`). A
+  cycle is `40` `ADD` requests (IPv4, then IPv6) followed, once every `ADD` is
+  acknowledged, by `40` `DELETE` requests in the same order (`8,000`
+  operations, about `8 s`). The ack latency of an operation is the time from
+  sending its `ModifyRequest` to receiving its `FIB_PROGRAMMED` `AFTResult`.
+
+To stop a window, let B5 and B4 finish their current cycle (all churn prefixes
+and churn entries deleted), stop B3, stop the B1 and B2 flows, wait `10 s`, and
+stop the capture. The following criteria are then evaluated:
+
+* **W1 - Transit**: for each B1 flow, OTG flow metrics report `frames_rx ==
+  frames_tx` (`0%` loss).
+* **W2 - `PacketIn`**: the number of `PacketIn` messages received in the window
+  whose payload has EtherType `0x88cc` and source MAC `02:00:01:01:01:01`, and
+  whose `ingress_port` metadata is `"1"`, equals the B2 `frames_tx`. Other
+  `PacketIn` messages (for example, IPv6 packets with hop limit `1` matched by
+  a churn traceroute entry) are ignored.
+* **W3 - `PacketOut`**: no `PacketOut` is rejected with a `StreamChannel`
+  error, and the number of frames captured on ATE `port3` with EtherType
+  `0x88cc` and source MAC `02:00:00:00:00:aa` equals the number of `PacketOut`
+  messages sent.
+* **W4 - gRIBI**: every B5 `AFTOperation` returns `FIB_PROGRAMMED` (none
+  returns `FAILED` or `FIB_FAILED`), no ack latency exceeds `5 s`, and the
+  `gRIBI.Modify` stream is never closed and returns no error (including
+  `DEADLINE_EXCEEDED`).
+* **W5 - P4RT writes**: every B4 `P4Runtime.Write` returns gRPC `OK` with no
+  per-update error; every Read in cycle step 3 returns exactly `8` entries (the
+  protected LLDP entry with `acl_wbb_ingress_trap` and the 7 churn entries with
+  `acl_wbb_ingress_copy`), and every Read in cycle step 5 returns exactly the
+  protected LLDP entry.
+* **W6 - P4RT session**: the `StreamChannel` stays open and the client remains
+  the primary controller (no arbitration change).
+* **W7 - gNMI and ports**: `S1` (opened in TE-1.24.1 Step 1) is not closed by
+  the DUT (`0` disconnects); DUT `port1`–`port4` report no `oper-status` other
+  than `UP` (except DUT `port4` in TE-1.24.4, see there); every subscribed
+  counter leaf receives `SAMPLE` updates at most `20 s` apart; and no
+  notification changes or deletes the `next-hop-group` of the two protected
+  AFT entries.
+* **W8 - Post-churn state**: `gRIBI.Get` (`DEFAULT`, `aft = ALL`) returns
+  exactly `NextHop` `1`, `2`, `100`, `101`, `NextHopGroup` `10`, `11`, `100`,
+  `101`, and the prefixes `198.51.100.0/24` and `2001:db8:100::/64`. The
+  protected prefixes, `NextHopGroup` `10` and `11`, and `NextHop` `1` and `2`
+  report `fib_status = PROGRAMMED`; the churn next hops and next-hop groups,
+  which no prefix references after the churn, report `rib_status =
+  PROGRAMMED`. A `gNMI.Get` of the `DEFAULT` AFT contains none of the `4,000`
+  churn prefixes.
+* **W9 - Stability**: compared with `S0`, `/system/state/boot-time` is
+  unchanged, every process of the stable set is still present with the same
+  `pid` and `start-time` (processes outside the set, such as short-lived
+  helpers spawned by gNOI `Ping` or `Traceroute`, are ignored), and the
+  `oper-status` and `last-reboot-time` of every component in `S0` are
+  unchanged.
+* **W10 - Latency** (TE-1.24.2, TE-1.24.3, and TE-1.24.4 only): over the
+  operations sent between the start of the first and the completion of the
+  last gNOI RPC of the subtest, the p99 B5 ack latency is
+  `<= max(2 x L99_gribi_base, L99_gribi_base + 50 ms)`, and the p99 B4
+  `P4Runtime.Write` latency (request sent to response received) is
+  `<= max(2 x L99_p4rt_base, L99_p4rt_base + 20 ms)`. The absolute floors keep
+  the bounds meaningful when a baseline p99 is only a few milliseconds (the
+  P4RT baseline p99 is computed from only a few hundred writes); the `5 s`
+  per-operation limit of W4 still applies.
+
+### TE-1.24.1 - Baseline Forwarding, Packet I/O, and Programming Latency
 
 * **Step 1 - Program Protected Baseline Entries**:
-  * Via `gRIBI.Modify` (`ADD`, `FIB_ACK`), program protected steady-state routes
-    in `DEFAULT` (`198.51.100.0/24` and `2001:db8:100::/64`) pointing to
-    `NextHopGroup 10` (`NextHop 1` = `192.0.2.6` / `NextHop 2` = `2001:db8:2::2`
-    on ATE `port2`).
+  * Via `gRIBI.Modify` (`ADD`) in `DEFAULT`, program the protected entries
+    `NextHop 1` (`192.0.2.6`, ATE `port2`) -> `NextHopGroup 10` ->
+    `198.51.100.0/24` and `NextHop 2` (`2001:db8:2::2`, ATE `port2`) ->
+    `NextHopGroup 11` -> `2001:db8:100::/64`, and the churn next hops
+    `NextHop 100` (`192.0.2.10`, ATE `port3`) -> `NextHopGroup 100` and
+    `NextHop 101` (`2001:db8:3::2`, ATE `port3`) -> `NextHopGroup 101`.
+    Acknowledgements are awaited once after the full NH -> NHG -> prefix
+    sequence (timeout `60 s`): every operation returns `FIB_PROGRAMMED`, except
+    that on platforms that do not send `FIB_PROGRAMMED` for NH/NHG entries that
+    no prefix references yet, the `NextHop 100` / `101` and
+    `NextHopGroup 100` / `101` operations return `RIB_PROGRAMMED`.
   * Via `P4Runtime.Write` (`INSERT`, `Atomicity = CONTINUE_ON_ERROR`), program
-    the protected `acl_wbb_ingress_table` punt rule for LLDP frames
-    (`ether_type == 0x88cc & 0xffff`, `priority = 1`, action
-    `acl_wbb_ingress_trap` or `acl_wbb_ingress_copy`), and verify presence via
-    `P4Runtime.Read`.
-  * Confirm baseline AFT state via `gRIBI.Get` and `gNMI.Subscribe`
-    (`ON_CHANGE`).
-* **Step 2 - Start Protected Transit and Packet-In Traffic**:
-  * Start continuous IPv4 (`TTL = 64`) and IPv6 (`HopLimit = 64`) OTG transit
-    flows (`512`-byte frames, `5,000 fps` each) from ATE `port1` to
-    `198.51.100.1` and `2001:db8:100::1`.
-  * Start continuous LLDP injection (`100 fps`) on ATE `port1` and verify `100%`
-    of punted frames arrive on `P4Runtime.StreamChannel` as `PacketIn` messages
-    while `100%` of transit packets egress ATE `port2` (`0%` loss).
-* **Step 3 - Measure Baseline Control-Plane Programming Rate**:
-  * Measure the baseline completion time `T_base` to program and delete `2,000`
-    gRIBI IPv4/IPv6 routes (`100.64.0.0/24`–`100.71.207.0/24`) and execute `100`
-    `P4Runtime.Write` (`INSERT` -> `MODIFY` -> `DELETE`) cycles of the `7`
-    non-baseline WBB `acl_wbb_ingress_table` punt entries (`ether_type ==
-    0x6007 & 0xffff` ND/GDP and `6` IPv4/IPv6 Traceroute `ttl == 0, 1, 2 &
-    0xff` rules) plus `PacketOut` frames (`egress_port = "2"`) without
-    concurrent gNOI load.
+    the protected LLDP punt entry in `acl_wbb_ingress_table` (`ether_type ==
+    0x88cc & 0xffff`, `priority = 1`, action `acl_wbb_ingress_trap`) and verify
+    that `P4Runtime.Read` returns exactly this entry.
+  * Verify via `gRIBI.Get` the entry set defined in W8, and via `gNMI.Get` that
+    the AFT entry for `198.51.100.0/24` references a next-hop-group with
+    `programmed-id = 10` whose only next hop has `ip-address = 192.0.2.6`, and
+    that the AFT entry for `2001:db8:100::/64` references a next-hop-group with
+    `programmed-id = 11` whose only next hop has `ip-address = 2001:db8:2::2`.
+  * Open the persistent `gNMI.Subscribe` `STREAM` subscription `S1`, kept open
+    until Cleanup, with `ON_CHANGE` on `/interfaces/interface/state/oper-status`
+    of DUT `port1`–`port4`, `SAMPLE` (`sample_interval = 10 s`,
+    `suppress_redundant = false`) on
+    `/interfaces/interface/state/counters/in-pkts` and `out-pkts` of DUT
+    `port1`–`port3`, and `ON_CHANGE` on `state/next-hop-group` of the two
+    protected `DEFAULT` AFT entries.
+* **Step 2 - Verify Protected Forwarding and Packet I/O Without Churn**:
+  * Run B1 for `30 s` together with B2 and B3 limited to `300` frames each
+    (`30 s` at `10` frames/s), with no churn and no gNOI RPCs, then stop them
+    as for a window.
+  * Pass: W1, W2, W3, W6, and W7 hold (`300` LLDP `PacketIn` messages and
+    `300` `PacketOut` frames on ATE `port3`).
+* **Step 3 - Measure the No-gNOI Baseline `T_base`**:
+  * Run B1–B5 for `120 s` without any gNOI RPC, then stop them.
+  * Record `L99_gribi_base` (p99 B5 ack latency) and `L99_p4rt_base` (p99 B4
+    `P4Runtime.Write` latency) over the window.
+  * Pass: W1–W9 hold.
 
 ### TE-1.24.2 - System and Healthz gNOI Operations Under gRIBI/P4RT Churn
 
-* **Step 1 - Launch Concurrent gRIBI and P4RT Churn**:
-  * While the protected transit flows (`10,000 fps` aggregate) and LLDP
-    `PacketIn` stream (`100 fps`) remain active on `port1 -> port2`,
-    continuously stream:
-    * `gRIBI.Modify` (`ADD` -> `REPLACE` -> `DELETE` cycles) across `10,000`
-      IPv4 `/32` routes (`100.64.0.1/32`–`100.64.39.16/32`) and `10,000` IPv6
-      `/128` routes (`2001:db8:1000::1/128`–`2001:db8:1000::2710/128`) toggling
-      ECMP NextHopGroups across ATE `port2` and ATE `port3`.
-    * `P4Runtime.Write` (`INSERT` -> `MODIFY` -> `DELETE`, `Atomicity =
-      CONTINUE_ON_ERROR`) batch loops cycling the `7` non-baseline
-      `wbb.p4info.pb.txt` `acl_wbb_ingress_table` punt entries (`ether_type ==
-      0x6007 & 0xffff` ND/GDP and `6` IPv4/IPv6 Traceroute `ttl == 0, 1, 2 &
-      0xff` rules while keeping the protected `0x88cc` LLDP punt entry active)
-      plus continuous `PacketOut` frame injection (`100 fps`, `egress_port =
-      "2"`).
-* **Step 2 - Execute Concurrent System & Healthz gNOI RPCs**:
-  * Concurrently issue 20 back-to-back iterations of:
-    * `gnoi.system.System.Time` (validating monotonic timestamp responses).
-    * `gnoi.system.System.Ping` from the DUT to `192.0.2.14` and `2001:db8:4::2`
-      on non-transit ATE `port4` (`count = 5` per call).
-    * `gnoi.system.System.Traceroute` to `192.0.2.14` on ATE `port4`.
-    * `gnoi.healthz.Healthz.List` and `gnoi.healthz.Healthz.Get` across active
-      `CHASSIS` and `CONTROLLER_CARD` components.
-* **Step 3 - Pass/Fail Criteria**:
-  * `100%` of `gRIBI.Modify` operations return `FIB_PROGRAMMED` without gRPC
-    stream disconnects, unbounded stalls relative to `T_base`, or
-    `DEADLINE_EXCEEDED` errors.
-  * `100%` of `P4Runtime.Write` batches succeed and `P4Runtime.Read` matches
-    expected table state.
-  * `100%` of `gNOI` `Time`, `Ping`, `Traceroute`, and `Healthz` RPCs succeed.
-  * Protected transit traffic on `port2` and LLDP `PacketIn` messages sustain
-    `0%` packet loss.
+* **Step 1 - Start the Background Load**: start B1–B5.
+* **Step 2 - Execute System and Healthz gNOI RPCs**:
+  * Record the DUT time `T2` via `gnoi.system.System.Time`, then issue
+    `gnoi.healthz.Healthz.Check` once for `HC` (`300 s` deadline).
+  * Run `20` iterations back-to-back. Within an iteration the following RPCs
+    are issued sequentially (each with a `60 s` deadline), concurrently with the
+    background load:
+    1. `gnoi.system.System.Time`, immediately followed by a `gNMI.Get` of
+       `/system/state/current-datetime`.
+    2. `gnoi.system.System.Ping` from the DUT to `192.0.2.14` (`count = 5`,
+       `l3protocol = IPV4`) and then to `2001:db8:4::2` (`count = 5`,
+       `l3protocol = IPV6`) on non-transit ATE `port4`.
+    3. `gnoi.system.System.Traceroute` to `192.0.2.14` on ATE `port4`
+       (`l3protocol = IPV4`, `l4protocol = ICMP`, `max_ttl = 1`). On platforms
+       whose gNOI Traceroute supports only UDP probes, `l4protocol = UDP` and
+       the destination is the DUT `port4` address `192.0.2.13`.
+    4. `gnoi.healthz.Healthz.Get` and then `gnoi.healthz.Healthz.List` for
+       `HC`.
+* **Step 3 - Stop the Background Load** as described above.
+* **Step 4 - Pass/Fail Criteria**:
+  * Every gNOI RPC returns gRPC `OK` before its deadline, and:
+    * `Healthz.Check` reports `STATUS_HEALTHY` for `HC`.
+    * The `Time` values strictly increase across the `20` iterations, and each
+      is within `±5 s` of the `current-datetime` read right after it.
+    * Each `Ping` final summary reports `sent == 5` and `received == 5`.
+    * Each `Traceroute` returns at least one hop-`1` response, and every hop-`1`
+      response has `address` equal to the destination.
+    * Each `Healthz.Get` reports `STATUS_HEALTHY` for `HC`.
+    * No `Healthz.List` response contains a `STATUS_UNHEALTHY` status whose
+      `created` time is later than `T2`.
+  * W1–W10 hold.
 
 ### TE-1.24.3 - File Service gNOI Operations During gRIBI/P4RT Programming
 
-* **Step 1 - Execute Large File Transfers Under Control-Plane Churn**:
-  * With the `gRIBI.Modify` and `P4Runtime.Write` churn loops and OTG transit
-    streams still running, execute 5 consecutive file lifecycle cycles via
-    `gnoi.file.File`:
-    1. Stream a `10 MB` synthetic diagnostic payload to `/tmp/fnt_gnoi_blob.bin`
-       using `gnoi.file.File.Put` (`64 KB` chunks) and finalize with its MD5 /
-       SHA-256 hash.
-    2. Query `/tmp/fnt_gnoi_blob.bin` via `gnoi.file.File.Stat` and verify exact
-       byte size (`10,485,760` bytes).
-    3. Download the file via `gnoi.file.File.Get` and verify byte-for-byte hash
-       integrity.
-    4. Delete `/tmp/fnt_gnoi_blob.bin` via `gnoi.file.File.Remove` and verify
-       removal via `Stat` (`NOT_FOUND`).
-* **Step 2 - Pass/Fail Criteria**:
-  * All 5 `Put` / `Stat` / `Get` / `Remove` cycles succeed with `100%` checksum
-    integrity.
-  * Concurrent `gRIBI` and `P4RT` programming continues with `0` failed RPCs,
-    `0` session drops, and `0%` transit or `PacketIn` packet loss.
+* `<file_path>` is `<file_dir>/te_1_24_gnoi_blob.bin`, where `<file_dir>` is a
+  platform-specific absolute directory that is writable through gNOI `File`
+  (for example, a temporary or flash file system), supplied to the test as a
+  parameter.
+* **Step 1 - Start the Background Load**: start B1–B5, then verify that
+  `gnoi.file.File.Stat` of `<file_path>` returns gRPC `NOT_FOUND`.
+* **Step 2 - Execute File Lifecycle Cycles Under Churn**: run `5` consecutive
+  cycles, each with a new random `10 MiB` (`10,485,760`-byte) payload:
+  1. `gnoi.file.File.Put` (`300 s` deadline): an `open` message with
+     `remote_file = <file_path>` and `permissions = 644`, `160` `contents`
+     messages of `64 KiB` (`65,536` bytes), and a final `hash` message with
+     `method = SHA256` and the SHA-256 digest of the payload.
+  2. `gnoi.file.File.Stat` of `<file_path>` (`60 s` deadline).
+  3. `gnoi.file.File.Get` of `<file_path>` (`300 s` deadline).
+  4. `gnoi.file.File.Remove` of `<file_path>` (`60 s` deadline), followed by
+     `gnoi.file.File.Stat` of `<file_path>`.
+* **Step 3 - Stop the Background Load** as described above.
+* **Step 4 - Pass/Fail Criteria**:
+  * In all `5` cycles: `Put` returns `OK`; `Stat` returns exactly one
+    `StatInfo` with `size = 10,485,760`; `Get` returns exactly `10,485,760`
+    bytes whose SHA-256 digest equals that of the payload, and its final `hash`
+    message matches the received bytes using the hash method it names; `Remove`
+    returns `OK`; and the subsequent `Stat` returns `NOT_FOUND`.
+  * W1–W10 hold.
 
-### TE-1.24.4 - Non-Transit Port gNOI Diagnostic Isolation
+### TE-1.24.4 - Non-Transit Port gNOI Link Qualification Isolation
 
-* **Step 1 - Run Intrusive Port-Scoped gNOI Operations on Non-Transit `port4`**:
-  * While transit traffic (`port1 -> port2` and `port3`) and `gRIBI` / `P4RT`
-    programming churn remain active on transit ports `port1`–`port3`, execute
-    port-level `gNOI` link qualification
-    (`gnoi.packet_link_qualification.LinkQualification.Create`, `Get`, `Delete`)
-    or port diagnostic loopback/BERT operations exclusively on non-transit
-    `port4`.
-* **Step 2 - Pass/Fail Criteria**:
-  * Verify via `gNMI.Subscribe` (`SAMPLE`) and OTG flow metrics that transit
-    ports `port1`, `port2`, and `port3` remain `UP` with `0%` packet loss.
-  * Verify `100%` of concurrent `gRIBI.Modify` (`FIB_PROGRAMMED`) and
-    `P4Runtime.Write` operations on transit ports complete cleanly without
-    error.
-  * Verify `/system/processes/process/state/` and `/components/component/state/`
-    show no process crashes or unexpected restarts.
+In this subtest DUT `port4` is the packet link qualification reflector and ATE
+`port4` is the packet source; no gNOI endpoint is required on the ATE.
+
+* **Step 1 - Prepare the Qualification**:
+  * Start B1–B5.
+  * Issue `gnoi.packet_link_qualification.LinkQualification.Capabilities`. The
+    response must include `reflector.pmd_loopback` or
+    `reflector.asic_loopback`. The reflector type `R` is `pmd_loopback` if it
+    is reported, otherwise `asic_loopback`; record the `min_setup_duration` and
+    `min_teardown_duration` reported for `R`. `pmd_loopback` is preferred here
+    because a port-level loopback returns every frame received from ATE
+    `port4`, whereas an ASIC loopback runs in the forwarding engine and may
+    reflect only traffic that matches its qualification header-match fields.
+  * Issue `LinkQualification.List`; if an entry with ID `te-1-24-4-port4`
+    exists, remove it via `LinkQualification.Delete`.
+  * Read the DUT `port4` MAC address via `gNMI.Get` of
+    `/interfaces/interface/ethernet/state/mac-address`.
+* **Step 2 - Run the Qualification on DUT `port4` Under Churn**:
+  * Issue `LinkQualification.Create` with one configuration: `id =
+    te-1-24-4-port4`, `interface_name` = DUT `port4`, endpoint type `R`, and
+    `RPCSyncedTiming` with `pre_sync_duration = 0 s`, `setup_duration` =
+    `min_setup_duration`, `duration = 120 s`, `post_sync_duration = 0 s`, and
+    `teardown_duration` = `min_teardown_duration`.
+  * Poll `LinkQualification.List` every `5 s` until the ID reports
+    `QUALIFICATION_STATE_RUNNING`, then start the OTG reflection flow on ATE
+    `port4`: raw Ethernet frames (destination MAC = DUT `port4` MAC, source MAC
+    `02:00:04:01:01:01`, EtherType `0x88b5`, the IEEE 802 local experimental
+    EtherType, which no punt entry matches; `512`-byte frames) at `1,000 fps`
+    for a fixed `60,000` frames, transmitted and received on ATE `port4`.
+  * While the ID reports `QUALIFICATION_STATE_RUNNING`, read the DUT `port4`
+    `oper-status` from `S1`.
+  * Keep polling `LinkQualification.List` until the ID reports
+    `QUALIFICATION_STATE_COMPLETED` (timeout: `setup_duration + duration +
+    teardown_duration + 60 s` after `Create`), then issue
+    `LinkQualification.Get` and `LinkQualification.Delete` for the ID and a
+    final `LinkQualification.List`.
+  * Stop the background load as described above.
+* **Step 3 - Pass/Fail Criteria**:
+  * `Capabilities`, `Create`, `List`, `Get`, and `Delete` return gRPC `OK`
+    before their `30 s` deadline; `CreateResponse.status` and
+    `DeleteResponse.results` report code `OK` for the ID.
+  * The ID never reports `QUALIFICATION_STATE_ERROR`; `Get` returns `state =
+    QUALIFICATION_STATE_COMPLETED`, no error `status`, and `interface_name` =
+    DUT `port4`; the final `List` no longer contains the ID.
+  * If `R` is `pmd_loopback`, the reflection flow reports `frames_rx ==
+    frames_tx == 60,000` (every frame was returned). If `R` is
+    `asic_loopback`, the reflection flow `frames_rx` is logged for information
+    only and is not a pass/fail criterion; the qualification is judged by the
+    `Create`, `List`, `Get`, and `Delete` results above.
+  * DUT `port4` reports `oper-status = TESTING` while the qualification is
+    running (except on platforms that do not report `TESTING` for an interface
+    under qualification) and `UP` within `120 s` after `Delete`; these are the
+    only `oper-status` changes allowed by W7.
+  * W1–W10 hold: DUT `port1`–`port3` stay `UP`, the protected transit flows,
+    LLDP `PacketIn`, and `PacketOut` to `port3` have `0%` loss, and gRIBI and
+    P4RT programming stay within the latency bounds.
 
 ### Cleanup
 
-* Ensure `/tmp/fnt_gnoi_blob.bin` is removed via `gnoi.file.File.Remove` and any
-  active link qualification session on `port4` is deleted via `Delete` so
-  `port4` returns to normal `UP` forwarding state.
-* Delete all P4RT table entries via `P4Runtime.Write` (`DELETE`) and flush all
-  gRIBI AFT entries via `gRIBI.Flush` on `DEFAULT`.
-* Stop OTG traffic and protocols and restore baseline DUT configuration.
+* Stop any OTG flow, `PacketOut` sender, or churn loop that is still running.
+* If `gnoi.file.File.Stat` finds `<file_path>`, remove it via
+  `gnoi.file.File.Remove`.
+* If `LinkQualification.List` contains `te-1-24-4-port4`, delete it via
+  `LinkQualification.Delete` and verify that DUT `port4` returns to
+  `oper-status = UP`.
+* Delete all test entries from `acl_wbb_ingress_table` via `P4Runtime.Write`
+  (`DELETE`), re-insert the entries recorded during setup, and verify via
+  `P4Runtime.Read` that the table matches the recorded pre-test set.
+* Flush the `DEFAULT` network instance via `gRIBI.Flush` and verify that
+  `gRIBI.Get` returns `0` entries.
+* Close `S1` and the `gRIBI` and `P4RT` sessions.
+* Restore `/lldp/config/enabled` to its pre-test value, stop OTG protocols, and
+  restore the baseline DUT configuration.
 
 ## Canonical OC
 
@@ -249,7 +455,7 @@ loss.
       },
       {
         "config": {
-          "description": "Transit Egress 1 Port 2",
+          "description": "Protected Transit Egress Port 2",
           "enabled": true,
           "id": 2,
           "name": "port2",
@@ -301,7 +507,7 @@ loss.
       },
       {
         "config": {
-          "description": "Transit Egress 2 Port 3",
+          "description": "Churn Next Hop and PacketOut Egress Port 3",
           "enabled": true,
           "id": 3,
           "name": "port3",
@@ -405,6 +611,11 @@ loss.
       }
     ]
   },
+  "lldp": {
+    "config": {
+      "enabled": false
+    }
+  },
   "network-instances": {
     "network-instance": [
       {
@@ -425,8 +636,15 @@ loss.
 paths:
   /components/component/integrated-circuit/config/node-id:
     platform_type: ["INTEGRATED_CIRCUIT"]
+  /components/component/state/last-reboot-time:
+    platform_type: ["CHASSIS", "CONTROLLER_CARD", "INTEGRATED_CIRCUIT", "LINECARD"]
+  /components/component/state/oper-status:
+    platform_type: ["CHASSIS", "CONTROLLER_CARD", "FAN", "INTEGRATED_CIRCUIT", "LINECARD", "POWER_SUPPLY"]
+  /components/component/state/type:
+    platform_type: ["CHASSIS", "CONTROLLER_CARD"]
   /interfaces/interface/config/enabled:
   /interfaces/interface/config/id:
+  /interfaces/interface/ethernet/state/mac-address:
   /interfaces/interface/state/counters/in-pkts:
   /interfaces/interface/state/counters/out-pkts:
   /interfaces/interface/state/oper-status:
@@ -434,16 +652,20 @@ paths:
   /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
   /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/ip:
   /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length:
+  /lldp/config/enabled:
   /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group:
   /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix:
   /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/next-hop-group:
   /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/prefix:
+  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/index:
   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id:
+  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/programmed-id:
   /network-instances/network-instance/afts/next-hops/next-hop/state/index:
   /network-instances/network-instance/afts/next-hops/next-hop/state/ip-address:
   /system/processes/process/state/name:
   /system/processes/process/state/pid:
   /system/processes/process/state/start-time:
+  /system/state/boot-time:
   /system/state/current-datetime:
 
 rpcs:
@@ -452,16 +674,20 @@ rpcs:
     gNMI.Set:
     gNMI.Subscribe:
       on_change: true
+      sample: true
   gnoi:
     file.File.Get:
     file.File.Put:
     file.File.Remove:
     file.File.Stat:
+    healthz.Healthz.Check:
     healthz.Healthz.Get:
     healthz.Healthz.List:
+    packet_link_qualification.LinkQualification.Capabilities:
     packet_link_qualification.LinkQualification.Create:
     packet_link_qualification.LinkQualification.Delete:
     packet_link_qualification.LinkQualification.Get:
+    packet_link_qualification.LinkQualification.List:
     system.System.Ping:
     system.System.Time:
     system.System.Traceroute:
@@ -469,6 +695,10 @@ rpcs:
     gRIBI.Flush:
     gRIBI.Get:
     gRIBI.Modify:
+  # P4Runtime (p4.v1.P4Runtime) RPCs exercised; not listed above because they
+  # are not part of the OpenConfig RPC catalog checked by this block:
+  # SetForwardingPipelineConfig, StreamChannel (arbitration, PacketIn,
+  # PacketOut), Write, Read.
 ```
 
 ## Required DUT platform
