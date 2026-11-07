@@ -1543,6 +1543,11 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/strict_fib_precedence_blackhole_test/README.md"
 }
 test: {
+  id: "TE-1.24"
+  description: "gNOI Operations During gRIBI and P4RT Programming"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gnoi_concurrency_during_gribi_p4rt_test/README.md"
+}
+test: {
   id: "TE-1.3"
   description: "P4RT ACL Interaction with gRIBI Forwarding"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/p4rt_acl_gribi_interaction_test/README.md"
