@@ -134,22 +134,22 @@ func BuildVRFSelectionPolicyW(t *testing.T, dut *ondatra.DUTDevice, niName strin
 	pfRule9 := &policyFwRule{
 		seqID:  9,
 		ipv4:   &ipInfo{protocol: 4, sourceAddr: ipv4OuterSrc222WithMask},
-		action: &action{decapNI: niDecapTeVrf, postDecapNI: defaultNI, decapFallbackNI: niTeVrf222},
+		action: &action{decapNI: niDecapTeVrf, postDecapNI: niName, decapFallbackNI: niTeVrf222},
 	}
 	pfRule10 := &policyFwRule{
 		seqID:  10,
 		ipv4:   &ipInfo{protocol: 41, sourceAddr: ipv4OuterSrc222WithMask},
-		action: &action{decapNI: niDecapTeVrf, postDecapNI: defaultNI, decapFallbackNI: niTeVrf222},
+		action: &action{decapNI: niDecapTeVrf, postDecapNI: niName, decapFallbackNI: niTeVrf222},
 	}
 	pfRule11 := &policyFwRule{
 		seqID:  11,
 		ipv4:   &ipInfo{protocol: 4, sourceAddr: ipv4OuterSrc111WithMask},
-		action: &action{decapNI: niDecapTeVrf, postDecapNI: defaultNI, decapFallbackNI: niTeVrf111},
+		action: &action{decapNI: niDecapTeVrf, postDecapNI: niName, decapFallbackNI: niTeVrf111},
 	}
 	pfRule12 := &policyFwRule{
 		seqID:  12,
 		ipv4:   &ipInfo{protocol: 41, sourceAddr: ipv4OuterSrc111WithMask},
-		action: &action{decapNI: niDecapTeVrf, postDecapNI: defaultNI, decapFallbackNI: niTeVrf111},
+		action: &action{decapNI: niDecapTeVrf, postDecapNI: niName, decapFallbackNI: niTeVrf111},
 	}
 
 	pfRuleList := []*policyFwRule{
@@ -170,15 +170,15 @@ func BuildVRFSelectionPolicyW(t *testing.T, dut *ondatra.DUTDevice, niName strin
 		pfR13 := niPf.GetOrCreateRule(913)
 		pfR13.GetOrCreateL2().SetEthertype(oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4)
 		pfRAction := pfR13.GetOrCreateAction()
-		pfRAction.NetworkInstance = ygot.String(defaultNI)
+		pfRAction.NetworkInstance = ygot.String(niName)
 		pfR14 := niPf.GetOrCreateRule(914)
 		pfR14.GetOrCreateL2().SetEthertype(oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV6)
 		pfRAction = pfR14.GetOrCreateAction()
-		pfRAction.NetworkInstance = ygot.String(defaultNI)
+		pfRAction.NetworkInstance = ygot.String(niName)
 	} else {
 		pfR := niPf.GetOrCreateRule(13)
 		pfRAction := pfR.GetOrCreateAction()
-		pfRAction.NetworkInstance = ygot.String(defaultNI)
+		pfRAction.NetworkInstance = ygot.String(niName)
 	}
 
 	return niP
@@ -235,22 +235,22 @@ func BuildVRFSelectionPolicyC(t *testing.T, dut *ondatra.DUTDevice, niName strin
 	pfRule9 := &policyFwRule{
 		seqID:  9,
 		ipv4:   &ipInfo{protocol: 4, sourceAddr: ipv4OuterSrc222WithMask},
-		action: &action{decapNI: niDecapTeVrf, postDecapNI: defaultNI, decapFallbackNI: niTeVrf222},
+		action: &action{decapNI: niDecapTeVrf, postDecapNI: niName, decapFallbackNI: niTeVrf222},
 	}
 	pfRule10 := &policyFwRule{
 		seqID:  10,
 		ipv4:   &ipInfo{protocol: 41, sourceAddr: ipv4OuterSrc222WithMask},
-		action: &action{decapNI: niDecapTeVrf, postDecapNI: defaultNI, decapFallbackNI: niTeVrf222},
+		action: &action{decapNI: niDecapTeVrf, postDecapNI: niName, decapFallbackNI: niTeVrf222},
 	}
 	pfRule11 := &policyFwRule{
 		seqID:  11,
 		ipv4:   &ipInfo{protocol: 4, sourceAddr: ipv4OuterSrc111WithMask},
-		action: &action{decapNI: niDecapTeVrf, postDecapNI: defaultNI, decapFallbackNI: niTeVrf111},
+		action: &action{decapNI: niDecapTeVrf, postDecapNI: niName, decapFallbackNI: niTeVrf111},
 	}
 	pfRule12 := &policyFwRule{
 		seqID:  12,
 		ipv4:   &ipInfo{protocol: 41, sourceAddr: ipv4OuterSrc111WithMask},
-		action: &action{decapNI: niDecapTeVrf, postDecapNI: defaultNI, decapFallbackNI: niTeVrf111},
+		action: &action{decapNI: niDecapTeVrf, postDecapNI: niName, decapFallbackNI: niTeVrf111},
 	}
 
 	pfRule13 := &policyFwRule{
@@ -296,15 +296,15 @@ func BuildVRFSelectionPolicyC(t *testing.T, dut *ondatra.DUTDevice, niName strin
 		pfR17 := niPf.GetOrCreateRule(917)
 		pfR17.GetOrCreateL2().SetEthertype(oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4)
 		pfRAction := pfR17.GetOrCreateAction()
-		pfRAction.NetworkInstance = ygot.String(defaultNI)
+		pfRAction.NetworkInstance = ygot.String(niName)
 		pfR18 := niPf.GetOrCreateRule(918)
 		pfR18.GetOrCreateL2().SetEthertype(oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV6)
 		pfRAction = pfR18.GetOrCreateAction()
-		pfRAction.NetworkInstance = ygot.String(defaultNI)
+		pfRAction.NetworkInstance = ygot.String(niName)
 	} else {
 		pfR := niPf.GetOrCreateRule(17)
 		pfRAction := pfR.GetOrCreateAction()
-		pfRAction.NetworkInstance = ygot.String(defaultNI)
+		pfRAction.NetworkInstance = ygot.String(niName)
 	}
 
 	return niP
