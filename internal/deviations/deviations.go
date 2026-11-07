@@ -1599,11 +1599,6 @@ func IsisSrNoPhpRequired(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisSrNoPhpRequired()
 }
 
-// SflowIngressMinSamplingRate returns the minimum sampling rate supported for sflow ingress on the device.
-func SflowIngressMinSamplingRate(dut *ondatra.DUTDevice) uint32 {
-	return lookupDUTDeviations(dut).GetSflowIngressMinSamplingRate()
-}
-
 // SflowEgressSamplingRateUnsupported returns true if the device does not support
 // configuring the sFlow egress sampling rate through OpenConfig.
 // Arista EOS: b/562517133.
@@ -2540,4 +2535,9 @@ func SkipGnoiPingRpcAuthzVerification(dut *ondatra.DUTDevice) bool {
 // validate that max-threshold is strictly greater than min-threshold.
 func EcnMinGreaterMaxThresholdUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEcnMinGreaterMaxThresholdUnsupported()
+}
+
+// MaxSupportedDecapEntries returns the maximum number of decap entries supported by the device.
+func MaxSupportedDecapEntries(dut *ondatra.DUTDevice) uint32 {
+	return lookupDUTDeviations(dut).GetMaxSupportedDecapEntries()
 }

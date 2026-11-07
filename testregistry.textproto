@@ -1422,24 +1422,6 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/singleton/tests/singleton_with_breakouts/singleton_with_breakouts_test.go"
 }
 test: {
-  id: "Replay-1.0"
-  description: "Record/replay presession test"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/replay/tests/presession_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/replay/tests/presession_test/presession_test.go"
-}
-test: {
-  id: "Replay-1.1"
-  description: "Record/replay diff command trees test"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/replay/tests/diff_command_trees/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/replay/tests/diff_command_trees/diff_command_trees_test.go"
-}
-test: {
-  id: "Replay-1.2"
-  description: "P4RT Replay Test"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/replay/tests/p4rt_replay/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/replay/tests/p4rt_replay/p4rt_replay_test.go"
-}
-test: {
   id: "SEC-3.1"
   description: "Authentication"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/aaa/kne_tests/tls_authentication_over_grpc_test/README.md"
