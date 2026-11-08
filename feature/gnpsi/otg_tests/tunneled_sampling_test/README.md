@@ -154,15 +154,24 @@ MPLS extended flow records, their content is validated as well.
         entry is removed with the rest of `/sampling/sflow` in Cleanup.
 *   Enable the `gNPSI` gRPC service on the port that the testbed binding uses
     for `gNPSI` (the `introspect.GNPSI` dialer port). The service identity is
-    `openconfig-gnpsi-types:GNPSI` (base `GRPC_SERVICE`):
-    *   If `/system/grpc-servers` already has a server on that port whose
-        `services` include `openconfig-gnpsi-types:GNPSI` (for example, one
-        provisioned with the binding), use it unchanged.
-    *   Otherwise create `/system/grpc-servers/grpc-server[name=gnpsi]` with
-        `services = [openconfig-gnpsi-types:GNPSI]`, `enable = true` and
-        `port` = the binding port (`50051` in the Canonical OC is an example),
-        and remove it in Cleanup. Never create a second server on a port that
-        an existing server already uses.
+    `openconfig-gnpsi-types:GNPSI` (base `GRPC_SERVICE`). Never create a second
+    `grpc-server` entry on a port that an existing server already uses:
+    1.  If `/system/grpc-servers` already has an enabled server on that port
+        whose `config/services` includes `openconfig-gnpsi-types:GNPSI` (for
+        example, one provisioned with the testbed binding), use it unchanged.
+    2.  Otherwise, if `/system/grpc-servers` already has an enabled server on
+        that port (for example, `DEFAULT` serving `GNMI`/`GNOI`/`GRIBI`) whose
+        `config/services` does not yet include `openconfig-gnpsi-types:GNPSI`,
+        record its pre-test `config/services` list and issue a `gNMI.Set`
+        `UPDATE` on that server's `config/services` appending
+        `openconfig-gnpsi-types:GNPSI`; restore its original `config/services`
+        list in Cleanup.
+    3.  Otherwise (no existing server listens on the `introspect.GNPSI` port),
+        create `/system/grpc-servers/grpc-server[name=gnpsi]` with `services =
+        [openconfig-gnpsi-types:GNPSI]`, `enable = true`, `port` = the binding
+        port (`50051` in the Canonical OC is an example), and any required
+        TLS/network-instance settings copied from the primary management gRPC
+        server, and remove `grpc-server[name=gnpsi]` in Cleanup.
     *   On platforms with deviation `gnpsi_oc_unsupported`, which cannot
         enable `gNPSI` through `/system/grpc-servers` (for example, because the
         `services` leaf does not accept `openconfig-gnpsi-types:GNPSI`), enable
@@ -175,13 +184,15 @@ MPLS extended flow records, their content is validated as well.
         the service).
 *   Apply the configuration in the Canonical OC below with `gNMI.Set`
     `REPLACE` scoped to `/interfaces/interface[name=portN]` (each of
-    `port1`-`port4`) and to `/sampling/sflow`, a `REPLACE` of
-    `/system/grpc-servers/grpc-server[name=gnpsi]` only when the test creates
-    that server, and an `UPDATE` of
-    `/network-instances/network-instance[name=DEFAULT]/config`. Apply it once,
-    before the `gRIBI` and `gNPSI` sessions are opened. Never use a root-level
-    `REPLACE`: it would remove the gRPC servers and any deviation-applied
-    configuration and tear down both sessions in the middle of the test.
+    `port1`-`port4`) and to `/sampling/sflow`, the applicable `grpc-server`
+    operation from the 3-way rule above (no-op in case 1, `UPDATE` of the
+    existing server's `config/services` in case 2, or `REPLACE` of
+    `/system/grpc-servers/grpc-server[name=gnpsi]` in case 3), and an `UPDATE`
+    of `/network-instances/network-instance[name=DEFAULT]/config`. Apply it
+    once, before the `gRIBI` and `gNPSI` sessions are opened. Never use a
+    root-level `REPLACE`: it would remove the gRPC servers and any
+    deviation-applied configuration and tear down both sessions in the middle
+    of the test.
 *   Verify `/interfaces/interface/state/oper-status = UP` for DUT
     `port1`-`port4` with `gNMI.Subscribe` (`ON_CHANGE`, `gnmi.Watch` and
     `Await`). Then start OTG protocols and verify ARP and IPv6 Neighbor
@@ -1210,16 +1221,23 @@ only the inner packet.
         and the pass criteria do not change.
 *   Step 2 - Program decapsulation and inner routes via `gRIBI.Modify`:
     *   In `DEFAULT`, decapsulating `NextHop` `201` (`decapsulate_header =
-        IPV4`, no `network_instance`; the post-decapsulation lookup network
-        instance, `DEFAULT`, comes from the policy) -> `NextHopGroup` `200`.
+        IPV4`, with `network_instance = DEFAULT` for the post-decapsulation
+        lookup; omit `network_instance` on `NextHop` `201` **only** on
+        platforms with deviation `decap_nh_with_nexthop_ni_unsupported`, where
+        the post-decapsulation lookup network instance comes solely from the
+        VRF selection policy) -> `NextHopGroup` `200`.
     *   In `DECAP_TE_VRF`, tunnel endpoint `IPv4Entry` `198.51.100.100/32` ->
         `NextHopGroup` `200` (`next_hop_group_network_instance = DEFAULT`).
     *   Inner routes in `DEFAULT`: `IPv4Entry` `100.64.5.0/24` ->
         `NextHopGroup` `10` and `IPv6Entry` `2001:db8:50::/64` ->
         `NextHopGroup` `20` (both ATE `port2`).
-    *   Every operation must return `AFTResult` status `FIB_PROGRAMMED`.
-        Verify the entries with `gRIBI.Get` on `DECAP_TE_VRF` and `DEFAULT`,
-        and verify the AFT with `gNMI.Subscribe` (`ON_CHANGE`):
+    *   Send `NextHop` `201`, `NextHopGroup` `200`, and `DECAP_TE_VRF`
+        `IPv4Entry` `198.51.100.100/32` in NH -> NHG -> prefix dependency order
+        before awaiting `FIB_PROGRAMMED` (avoiding
+        `unreferenced_aft_fib_ack_unsupported` stalls before `NextHopGroup`
+        `200` is referenced). Every operation must return `AFTResult` status
+        `FIB_PROGRAMMED`. Verify the entries with `gRIBI.Get` on `DECAP_TE_VRF`
+        and `DEFAULT`, and verify the AFT with `gNMI.Subscribe` (`ON_CHANGE`):
         `198.51.100.100/32` in `DECAP_TE_VRF` resolves to a next hop with
         `decapsulate-header = IPV4`.
 *   Step 3 - Send each stream below from ATE `port1` to ATE `port2`, one at a
@@ -1270,9 +1288,11 @@ restored to its pre-test state even if a step fails:
 *   Restore `/sampling/sflow` to its pre-test configuration (including any
     collector added by the shared sFlow helper) and remove the
     deviation-applied `port2` egress sampling configuration.
-*   Remove the `gnpsi` gRPC server if the test created it, or revert the
+*   Remove the `gnpsi` gRPC server if the test created it, restore the
+    recorded `config/services` list if the test appended
+    `openconfig-gnpsi-types:GNPSI` to an existing gRPC server, or revert the
     deviation-applied `gNPSI` configuration; a pre-existing gRPC server that
-    the test only used is left unchanged.
+    already included `openconfig-gnpsi-types:GNPSI` is left unchanged.
 *   Restore the `port1`-`port4` interface configuration to its pre-test state.
 
 ## OpenConfig Path and RPC Coverage

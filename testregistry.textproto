@@ -2379,5 +2379,5 @@ test: {
 test: {
   id: "gNPSI-2"
   description: "gNPSI Packet Sampling for Tunneled Traffic"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/sampling/gnpsi/otg_tests/tunneled_sampling_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnpsi/otg_tests/tunneled_sampling_test/README.md"
 }
