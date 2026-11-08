@@ -417,31 +417,50 @@ The subtests apply the following checks.
         *   `1,000` `IPv6Entry` `/128` prefixes (`2001:db8:20::1/128` through
             `2001:db8:20::3e8/128`, i.e., `2001:db8:20::<hex(i)>/128` for
             $i \in [1, 1000]$) referencing `NextHopGroup` `200`.
-    *   Diverse set, exercising the attributes that `Get` must report:
+    *   Diverse set, exercising the attributes that `Get` must report (with
+        tunnel and backup-NHG attributes gated on platform capability
+        deviations so the `2,012` entry count remains invariant across
+        platforms):
         *   `NextHop` `30` (`ip_address = "192.0.2.2"`, ATE `port-1`).
-        *   `NextHop` `31`, a decapsulation next-hop
-            (`decapsulate_header = IPV4`, `network_instance = "DEFAULT"`). On
-            platforms that do not support `network_instance` on a
-            decapsulation next-hop, `NextHop` `31` is programmed without it
-            (the lookup after decapsulation then uses the local `DEFAULT`
-            instance) and `Get` must return it exactly as programmed.
-        *   `NextHop` `32`, an IP-in-IP encapsulation next-hop
+        *   `NextHop` `31`: on platforms that support gRIBI IPv4 decapsulation
+            next-hops in `Modify`, a decapsulation next-hop
+            (`decapsulate_header = IPV4`, `network_instance = "DEFAULT"`,
+            omitting `network_instance` under
+            `decap_nh_with_nexthop_ni_unsupported`). On platforms that do not
+            support gRIBI decapsulation next-hops in `Modify`, `NextHop` `31`
+            is programmed as a plain IPv4 next-hop with explicit interface
+            binding (`ip_address = "192.0.2.2"`, `interface_ref` = DUT
+            `port-1`, `subinterface = 0`), and `Get` must return `NextHop` `31`
+            with the exact attributes programmed.
+        *   `NextHop` `32`: on platforms that support gRIBI IP-in-IP
+            encapsulation headers (i.e., without
+            `gribi_encap_header_unsupported` or equivalent platform
+            capability deviation), an IP-in-IP encapsulation next-hop
             (`encapsulate_header = IPV4`, `ip_in_ip.src_ip = "192.0.2.5"`,
             `ip_in_ip.dst_ip = "192.0.2.6"`, and
             `network_instance = "DEFAULT"`, the network instance in which the
-            outer header is resolved).
-        *   `NextHopGroup` `301` (backup group) referencing `NextHop` `31`
-            (`weight = 1`).
+            outer header is resolved). On platforms where gRIBI IP-in-IP
+            encapsulation is unsupported, `NextHop` `32` is programmed as a
+            plain IPv4 next-hop with explicit interface binding
+            (`ip_address = "192.0.2.6"`, `interface_ref` = DUT `port-2`,
+            `subinterface = 0`).
+        *   `NextHopGroup` `301` referencing `NextHop` `31` (`weight = 1`).
         *   `NextHopGroup` `300`, a weighted multi-member group referencing
             `NextHop` `30` (`weight = 1`) and `NextHop` `10` (`weight = 3`),
-            with `backup_next_hop_group = 301`.
+            with `backup_next_hop_group = 301` on platforms that support
+            gRIBI backup next-hop-groups in `Modify` (omitting
+            `backup_next_hop_group` on platforms that declare backup
+            next-hop-groups unsupported).
         *   `NextHopGroup` `302` referencing `NextHop` `32` (`weight = 1`).
         *   `IPv4Entry` `100.64.4.0/24` referencing `NextHopGroup` `300` and
             `IPv4Entry` `100.64.5.0/28` referencing `NextHopGroup` `302`.
 *   After the full `NextHop` -> `NextHopGroup` -> prefix sequence has been
     sent, confirm `FIB_PROGRAMMED` acknowledgements for all `2,012`
     `AFTOperation`s within `2` minutes, with zero `FAILED` or `FIB_FAILED`
-    results.
+    results (except that when `backup_next_hop_group` is omitted on
+    `NextHopGroup` `300` on a platform with
+    `unreferenced_aft_fib_ack_unsupported`, unreferenced `NextHopGroup` `301`
+    and `NextHop` `31` return `RIB_PROGRAMMED`).
 *   Use `gNMI.Subscribe` (`ON_CHANGE`) on the `DEFAULT` AFT paths to verify
     that all `1,002` IPv4 prefixes and `1,000` IPv6 prefixes are present in
     OpenConfig AFT state within `2` minutes without static sleeps.
@@ -454,11 +473,13 @@ The subtests apply the following checks.
         `next_hop_group`, and `5` `next_hop` entries) with zero missing,
         duplicate, or corrupted keys/attributes.
     *   Verify every returned `AFTEntry` reports `network_instance = "DEFAULT"`,
-        `rib_status = PROGRAMMED`, and `fib_status = PROGRAMMED`, and matches
-        the programmed entry field for field, including the `1:3` member
-        weights and `backup_next_hop_group = 301` of `NextHopGroup` `300` and
-        the decapsulation and encapsulation attributes of `NextHop`s `31` and
-        `32`.
+        `rib_status = PROGRAMMED`, and `fib_status = PROGRAMMED` (except
+        unreferenced `NextHopGroup` `301` and `NextHop` `31` when
+        `backup_next_hop_group` is omitted under
+        `unreferenced_aft_fib_ack_unsupported`), and matches the programmed
+        entry field for field, including the `1:3` member weights (and
+        `backup_next_hop_group = 301` when programmed) of `NextHopGroup` `300`
+        and the exact programmed attributes of `NextHop`s `31` and `32`.
     *   Verify each `gRIBI.Get` call across the `2,012`-entry table completes
         end-to-end within **`<= 5 seconds`**.
 *   Apply the AFT consistency check to `DEFAULT` against the `gRIBI-A` `Get`
@@ -466,12 +487,12 @@ The subtests apply the following checks.
     `ipv6-entry` records with `origin-protocol = GRIBI`, at least one matching
     AFT `next-hop-group` for each of the `5` gRIBI `NextHopGroup`s
     (`programmed-id` `100`, `200`, `300`, `301`, and `302`, including the
-    backup reference from `300` to `301`), and a matching AFT `next-hop` for
-    each of the `5` gRIBI `NextHop`s (`programmed-index` `10`, `20`, `30`,
-    `31`, and `32`) with the same next-hop attributes. On platforms that do
-    not report backup next-hop-groups in AFT telemetry, `NextHopGroup` `301`
-    and `NextHop` `31` are not required to appear in the AFT; `Get` must still
-    return them.
+    backup reference from `300` to `301` when programmed), and a matching AFT
+    `next-hop` for each of the `5` gRIBI `NextHop`s (`programmed-index` `10`,
+    `20`, `30`, `31`, and `32`) with the same programmed next-hop attributes.
+    On platforms that do not program or report backup next-hop-groups in AFT
+    telemetry, `NextHopGroup` `301` and `NextHop` `31` are not required to
+    appear in the AFT; `Get` must still return them.
 *   Scale rationale: `1,000` entries per address family is functional scale
     for verifying `Get` completeness and multi-message streaming. The
     per-family entry counts are test parameters; the counts and the latency
@@ -499,12 +520,12 @@ The subtests apply the following checks.
         `next_hop` member IDs and weights (`300`: `NextHop` `30` at weight `1`
         and `NextHop` `10` at weight `3`; every other group: its single member
         at weight `1`), and with `backup_next_hop_group = 301` set on `300`
-        only.
+        when programmed in `TE-5.1.2` (and unset on all other groups).
     *   `aft = NEXTHOP`: Verify exactly the `5` `NextHop` records (`10`, `20`,
-        `30`, `31`, and `32`) are returned with exact attributes: `ip_address`
-        `192.0.2.6`, `2001:db8:2::2`, and `192.0.2.2` for `10`, `20`, and
-        `30`, the decapsulation attributes of `31`, and the encapsulation
-        attributes of `32`.
+        `30`, `31`, and `32`) are returned with exact programmed attributes:
+        `ip_address` `192.0.2.6`, `2001:db8:2::2`, and `192.0.2.2` for `10`,
+        `20`, and `30`, and the programmed decapsulation/fallback attributes of
+        `31` and encapsulation/fallback attributes of `32` from `TE-5.1.2`.
     *   Verify the union of the `IPV4`, `IPV6`, `NEXTHOP_GROUP`, and `NEXTHOP`
         responses equals the `aft = ALL` response from `TE-5.1.2`.
     *   `aft = MPLS`, `aft = MAC`, and `aft = POLICY_FORWARDING`: this test
@@ -580,11 +601,13 @@ The subtests apply the following checks.
     populated).
 *   **Non-Existent Network Instance**: Issue `gRIBI.Get` with
     `network_instance: {name: "VRF-NONEXISTENT"}` and `aft: ALL`. Verify the
-    DUT responds with gRPC error `INVALID_ARGUMENT`: a `Get` for a network
-    instance that does not exist returns an error
-    ([gRIBI specification section 4.1.7][spec-417]), and `INVALID_ARGUMENT`
-    is the code that the specification defines for a network instance that
-    does not exist ([section 4.3.1][spec-431]).
+    DUT responds with canonical gRPC error code `INVALID_ARGUMENT` or
+    `NOT_FOUND`: a `Get` for a network instance that does not exist must return
+    an error ([gRIBI specification section 4.1.7][spec-417]), and while
+    `FlushRequest` mandates `INVALID_ARGUMENT` ([section 4.3.1][spec-431]),
+    `GetRequest` in `gribi.proto` ([section 4.2.1][spec-421]) does not
+    constrain non-existent network-instance errors to `INVALID_ARGUMENT` over
+    `NOT_FOUND`.
 *   **Session stability**: After the requests above, verify that the gRIBI
     daemon has not crashed or dropped the active `Modify` sessions: neither
     `gRIBI-A` nor `gRIBI-B` observes its `Modify` stream being closed by the
