@@ -56,31 +56,50 @@ a baseline measured with the same load and no gNOI operations, that no `gRIBI`,
   `port4`, and the interface `/interfaces/interface/config/id` values (`1`–`4`)
   via `gNMI.Set`.
 * Establish a `P4Runtime` client session (`device_id = 1`, `election_id =
-  {high: 0, low: 1}`), complete primary controller arbitration via
-  `P4Runtime.StreamChannel`, and push the WBB forwarding pipeline
-  (`feature/p4rt/data/wbb.p4info.pb.txt`, defining `acl_wbb_ingress_table` with
-  `size = 8`, actions `acl_wbb_ingress_copy` and `acl_wbb_ingress_trap`,
-  `packet_in` metadata `ingress_port` / `target_egress_port`, and `packet_out`
-  metadata `egress_port` / `submit_to_ingress`) via
-  `P4Runtime.SetForwardingPipelineConfig` (`VERIFY_AND_COMMIT`).
-* Reconcile the punt table so that the test starts with an empty
-  `acl_wbb_ingress_table`: `P4Runtime.Read` the table, record any pre-existing
-  entries (for example, entries installed by the platform when P4RT is
-  enabled), `DELETE` them via `P4Runtime.Write`, and verify that a second
-  `P4Runtime.Read` returns `0` entries. The recorded entries are restored in
-  Cleanup.
+  {high: 0, low: 1}`) and complete primary controller arbitration via
+  `MasterArbitrationUpdate` on `P4Runtime.StreamChannel`.
+* Record the pre-test P4RT state before changing it, because pushing a pipeline
+  with `VERIFY_AND_COMMIT` clears forwarding state per P4Runtime v1 §7.1: read
+  the current pipeline with `P4Runtime.GetForwardingPipelineConfig`
+  (`response_type = ALL`) as `P_pre` (empty if no pipeline is configured) and,
+  if a pipeline is present, read all entries of `acl_wbb_ingress_table` with
+  `P4Runtime.Read` as `E_pre`. Const entries (`is_const = true`, such as the
+  `const_default_action_id` defined in `wbb.p4info.pb.txt`) belong to the
+  pipeline, cannot be deleted or re-inserted, and are excluded from `E_pre` and
+  from every `P4Runtime.Read` entry count in this test (`is_const = false`
+  filter).
+* Push the WBB forwarding pipeline (`feature/p4rt/data/wbb.p4info.pb.txt`,
+  defining `acl_wbb_ingress_table` with `size = 8`, actions
+  `acl_wbb_ingress_copy` and `acl_wbb_ingress_trap`, `packet_in` metadata
+  `ingress_port` / `target_egress_port`, and `packet_out` metadata
+  `egress_port` / `submit_to_ingress`) via
+  `P4Runtime.SetForwardingPipelineConfig` (`action = VERIFY_AND_COMMIT`). If
+  `P4Runtime.Read` (`is_const = false`) still returns non-const entries in
+  `acl_wbb_ingress_table` (for example, entries installed automatically by the
+  platform when P4RT is enabled), add them to `E_pre`, `DELETE` them via
+  `P4Runtime.Write`, and verify that a second `P4Runtime.Read` returns `0`
+  non-const entries. `P_pre` and `E_pre` are restored in Cleanup.
 * Establish a `gRIBI` client session in `SINGLE_PRIMARY` mode with `PRESERVE`
   persistence and `ack_type = RIB_AND_FIB_ACK`, elect the client as leader
-  (`election_id = 1`), and flush the `DEFAULT` network instance via
-  `gRIBI.Flush`.
+  (`election_id = {high: 0, low: 1}`), and flush the `DEFAULT` network instance
+  via `gRIBI.Flush` (`election.id = {high: 0, low: 1}` or `override = {}`,
+  satisfying `FlushRequest.election` in `SINGLE_PRIMARY` mode per
+  `gribi.proto`).
 * Select the Healthz target component `HC`: the component whose
   `/components/component/state/type` is `CHASSIS`. On platforms that do not
-  support Healthz RPCs against the chassis-level component, `HC` is the
-  `CONTROLLER_CARD` component (the active one if more than one is present).
-  Issue `gnoi.healthz.Healthz.Check` and then `gnoi.healthz.Healthz.Get` for
-  the path `/components/component[name=HC]`; both must return gRPC `OK` with
-  status `STATUS_HEALTHY`. `Get` is only issued after `Check` because `Get`
-  returns an error when no health status exists for the path.
+  support Healthz RPCs against the chassis-level component
+  (`chassis_get_rpc_unsupported`), `HC` is the active `CONTROLLER_CARD`
+  component (or `<active_rp>-<process_name>` on platforms whose Healthz
+  implementation targets per-RP process components). Every `gnoi.types.Path`
+  passed to `Healthz` sets `origin = "openconfig"`, except on platforms with
+  deviation `skip_origin` where `origin` is left empty. Issue
+  `gnoi.healthz.Healthz.Check` (logging and continuing if active `Check` is
+  unsupported for `HC`) and then `gnoi.healthz.Healthz.Get` for
+  `/components/component[name=HC]`; `Get` must return gRPC `OK` with status
+  `STATUS_HEALTHY` (`Get` is issued after `Check` because `Get` returns an
+  error when no health status exists yet). On platforms that enforce a minimum
+  cooldown between consecutive `Healthz` calls (for example, `120 s`), honor
+  that cooldown before the next `Healthz` round.
 * Capture the stability snapshot `S0` via `gNMI.Get`:
   * `/system/state/boot-time`.
   * The stable process set: every process whose `state/name`, `state/pid`, and
@@ -165,9 +184,10 @@ stop the capture. The following criteria are then evaluated:
   `gRIBI.Modify` stream is never closed and returns no error (including
   `DEADLINE_EXCEEDED`).
 * **W5 - P4RT writes**: every B4 `P4Runtime.Write` returns gRPC `OK` with no
-  per-update error; every Read in cycle step 3 returns exactly `8` entries (the
-  protected LLDP entry with `acl_wbb_ingress_trap` and the 7 churn entries with
-  `acl_wbb_ingress_copy`), and every Read in cycle step 5 returns exactly the
+  per-update error; every Read (`is_const = false`) in cycle step 3 returns
+  exactly `8` non-const entries (the protected LLDP entry with
+  `acl_wbb_ingress_trap` and the 7 churn entries with `acl_wbb_ingress_copy`),
+  and every Read (`is_const = false`) in cycle step 5 returns exactly the
   protected LLDP entry.
 * **W6 - P4RT session**: the `StreamChannel` stays open and the client remains
   the primary controller (no arbitration change).
@@ -218,7 +238,8 @@ stop the capture. The following criteria are then evaluated:
   * Via `P4Runtime.Write` (`INSERT`, `Atomicity = CONTINUE_ON_ERROR`), program
     the protected LLDP punt entry in `acl_wbb_ingress_table` (`ether_type ==
     0x88cc & 0xffff`, `priority = 1`, action `acl_wbb_ingress_trap`) and verify
-    that `P4Runtime.Read` returns exactly this entry.
+    that `P4Runtime.Read` (`is_const = false`) returns exactly this non-const
+    entry.
   * Verify via `gRIBI.Get` the entry set defined in W8, and via `gNMI.Get` that
     the AFT entry for `198.51.100.0/24` references a next-hop-group with
     `programmed-id = 10` whose only next hop has `ip-address = 192.0.2.6`, and
@@ -247,11 +268,15 @@ stop the capture. The following criteria are then evaluated:
 
 * **Step 1 - Start the Background Load**: start B1–B5.
 * **Step 2 - Execute System and Healthz gNOI RPCs**:
-  * Record the DUT time `T2` via `gnoi.system.System.Time`, then issue
-    `gnoi.healthz.Healthz.Check` once for `HC` (`300 s` deadline).
-  * Run `20` iterations back-to-back. Within an iteration the following RPCs
-    are issued sequentially (each with a `60 s` deadline), concurrently with the
-    background load:
+  * Record the DUT time `T2` via `gnoi.system.System.Time`.
+  * Execute **Healthz round 1** for `HC` (honoring any platform `Healthz`
+    cooldown since setup): issue `gnoi.healthz.Healthz.Check` (`300 s`
+    deadline, if active `Check` is supported for `HC`), followed by
+    `gnoi.healthz.Healthz.Get` and `gnoi.healthz.Healthz.List` (`60 s`
+    deadline each).
+  * Run `20` System RPC iterations back-to-back concurrently with the
+    background load. Within an iteration the following RPCs are issued
+    sequentially (each with a `60 s` deadline):
     1. `gnoi.system.System.Time`, immediately followed by a `gNMI.Get` of
        `/system/state/current-datetime`.
     2. `gnoi.system.System.Ping` from the DUT to `192.0.2.14` (`count = 5`,
@@ -261,19 +286,26 @@ stop the capture. The following criteria are then evaluated:
        (`l3protocol = IPV4`, `l4protocol = ICMP`, `max_ttl = 1`). On platforms
        whose gNOI Traceroute supports only UDP probes, `l4protocol = UDP` and
        the destination is the DUT `port4` address `192.0.2.13`.
-    4. `gnoi.healthz.Healthz.Get` and then `gnoi.healthz.Healthz.List` for
-       `HC`.
+  * Execute **Healthz round 2** for `HC` after the `20` System iterations
+    complete (waiting first if needed so any platform `Healthz` cooldown, such
+    as `120 s`, has elapsed since round 1 while B1–B5 continue running): issue
+    `gnoi.healthz.Healthz.Check` (`300 s` deadline, if supported for `HC`),
+    `gnoi.healthz.Healthz.Get`, and `gnoi.healthz.Healthz.List` (`60 s`
+    deadline each). Keeping `Healthz` in `2` spaced rounds avoids compounding
+    vendor `Healthz` cooldowns across `20` iterations while validating `Check`,
+    `Get`, and `List` under sustained gRIBI/P4RT churn.
 * **Step 3 - Stop the Background Load** as described above.
 * **Step 4 - Pass/Fail Criteria**:
-  * Every gNOI RPC returns gRPC `OK` before its deadline, and:
-    * `Healthz.Check` reports `STATUS_HEALTHY` for `HC`.
+  * Every gNOI RPC returns gRPC `OK` before its deadline (except `Healthz.Check`
+    on platforms where active `Check` is unsupported for `HC`), and:
+    * Each supported `Healthz.Check` and both `Healthz.Get` rounds report
+      `STATUS_HEALTHY` for `HC`.
     * The `Time` values strictly increase across the `20` iterations, and each
       is within `±5 s` of the `current-datetime` read right after it.
     * Each `Ping` final summary reports `sent == 5` and `received == 5`.
     * Each `Traceroute` returns at least one hop-`1` response, and every hop-`1`
       response has `address` equal to the destination.
-    * Each `Healthz.Get` reports `STATUS_HEALTHY` for `HC`.
-    * No `Healthz.List` response contains a `STATUS_UNHEALTHY` status whose
+    * Neither `Healthz.List` response contains a `STATUS_UNHEALTHY` status whose
       `created` time is later than `T2`.
   * W1–W10 hold.
 
@@ -371,10 +403,14 @@ In this subtest DUT `port4` is the packet link qualification reflector and ATE
 * If `LinkQualification.List` contains `te-1-24-4-port4`, delete it via
   `LinkQualification.Delete` and verify that DUT `port4` returns to
   `oper-status = UP`.
-* Delete all test entries from `acl_wbb_ingress_table` via `P4Runtime.Write`
-  (`DELETE`), re-insert the entries recorded during setup, and verify via
-  `P4Runtime.Read` that the table matches the recorded pre-test set.
-* Flush the `DEFAULT` network instance via `gRIBI.Flush` and verify that
+* Delete all non-const entries (`is_const = false`) currently in
+  `acl_wbb_ingress_table` via `P4Runtime.Write` (`DELETE`). If `P_pre` is not
+  empty, re-push it via `P4Runtime.SetForwardingPipelineConfig`
+  (`VERIFY_AND_COMMIT`). Then re-insert (`INSERT`) every entry of `E_pre` that
+  is not already present, and verify via `P4Runtime.Read` (`is_const = false`)
+  that the table matches `E_pre`.
+* Flush the `DEFAULT` network instance via `gRIBI.Flush`
+  (`election.id = {high: 0, low: 1}` or `override = {}`) and verify that
   `gRIBI.Get` returns `0` entries.
 * Close `S1` and the `gRIBI` and `P4RT` sessions.
 * Restore `/lldp/config/enabled` to its pre-test value, stop OTG protocols, and
@@ -697,8 +733,8 @@ rpcs:
     gRIBI.Modify:
   # P4Runtime (p4.v1.P4Runtime) RPCs exercised; not listed above because they
   # are not part of the OpenConfig RPC catalog checked by this block:
-  # SetForwardingPipelineConfig, StreamChannel (arbitration, PacketIn,
-  # PacketOut), Write, Read.
+  # GetForwardingPipelineConfig, SetForwardingPipelineConfig, StreamChannel
+  # (arbitration, PacketIn, PacketOut), Write, Read.
 ```
 
 ## Required DUT platform
