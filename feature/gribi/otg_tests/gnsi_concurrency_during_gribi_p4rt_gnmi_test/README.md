@@ -9,7 +9,8 @@ concurrently with a defined `gRIBI` Abstract Forwarding Table (AFT) route churn
 (about `1,000` AFT operations/s), `P4Runtime` (`P4RT`) Packet-I/O punt-table
 churn (`wbb.p4info.pb.txt` `acl_wbb_ingress_table`) with `PacketIn` and
 `PacketOut` traffic, and continuous `gNMI` streaming telemetry (an `ON_CHANGE`
-stream that carries the AFT churn and a `1 s` `SAMPLE` counter stream). It
+stream monitoring interface operational state and the protected AFT entries,
+plus a `10 s` `SAMPLE` counter stream). It
 verifies that established mTLS gRPC sessions stay up with bounded latency (p99
 at most `2x` the baseline p99, with an absolute floor), transit forwarding,
 `PacketIn` punting and `PacketOut` injection sustain zero packet loss, newly
@@ -198,15 +199,21 @@ value is `created_on x 1,000,000,000`. For example, `policy-v2` is encoded as:
   leaf, every listed gRPC server). Verify that each bound server has
   `config/enable = true` and `config/transport-security = true`.
 * The certz state leaves (`state/ssl-profile-id`, `state/certificate-*`,
-  `state/ca-trust-bundle-*` and `state/counters/connection-rejects`) and the
-  `authz-policy-counters` are defined only for servers that host gNSI
-  (`services` includes `GNSI`), so they are read from the bound servers that
-  host gNSI. The TLS connection checks in TE-1.25.2 and TE-1.25.4 open `gNMI`
-  connections to the verification server: the bound server that hosts gNMI
-  and gNSI (the single `DEFAULT` server in the canonical configuration). On
-  platforms that do not support the `services` leaf, the bound server named
-  `DEFAULT` (or the only bound server) is the server that hosts gNSI and the
-  verification server.
+  `state/ca-trust-bundle-*` and `state/counters/connection-rejects`) are
+  defined only for servers that host gNSI (`services` includes `GNSI`), so they
+  are read via `gNMI.Get` from the bound servers that host gNSI. In OpenConfig,
+  `authz-policy-counters` also has a `when` statement gated on `GNSI`, though
+  on multi-server platforms some implementations expose `authz-policy-counters`
+  on additional bound servers (such as a separate `GRIBI` server) while others
+  expose it only on `GNSI`-hosting servers; therefore TE-1.25.3 aggregates
+  `authz-policy-counters` across every bound server that exposes the
+  `authz-policy-counters` container and issues denied RPCs against both
+  `/gribi.gRIBI/Get` and `/gnsi.authz.v1.Authz/Get`. The TLS connection checks
+  in TE-1.25.2 and TE-1.25.4 open `gNMI` connections to the verification
+  server: the bound server that hosts gNMI and gNSI (the single `DEFAULT`
+  server in the canonical configuration). On platforms that do not support the
+  `services` leaf, the bound server named `DEFAULT` (or the only bound server)
+  is the server that hosts gNSI and the verification server.
 * Capture the pre-test state needed by Cleanup:
   * Each bound server's `config/certificate-id` (or its absence) and
     `state/certificate-id`, and `state/ssl-profile-id` of each bound server
@@ -224,11 +231,16 @@ value is `created_on x 1,000,000,000`. For example, `policy-v2` is encoded as:
   lists it.
 * Populate it with one `gnsi.certz.v1.Certz.Rotate` stream
   (`ssl_profile_id = "te125_profile"`, `force_overwrite = false`): send an
-  `UploadRequest` with the `server-v1-rsa` certificate chain and private key
-  (`version = "cert-v1-rsa"`, `created_on = 1700001000`) and a trust bundle
-  containing `ca-v1` (`version = "bundle-v1"`, `created_on = 1700001000`), wait
-  for `UploadResponse`, and send `FinalizeRequest`. No server uses the profile
-  yet, so no pre-finalize connection check applies.
+  `UploadRequest` containing an `Entity.certificate_chain` (`CertificateChain`)
+  with the `server-v1-rsa` certificate chain and private key
+  (`version = "cert-v1-rsa"`, `created_on = 1700001000`) and an
+  `Entity.trust_bundle_pkcs7` (`TrustBundle` whose `pkcs7_block` is a
+  PEM-encoded PKCS#7 certificate-only bundle — not `Entity.trust_bundle` /
+  `CertificateChain`, which in `gnsi.certz.v1` represents only a singly-linked
+  signing chain and cannot encode multiple independent root CAs) containing
+  `ca-v1` (`version = "bundle-v1"`, `created_on = 1700001000`), wait for
+  `UploadResponse`, and send `FinalizeRequest`. No server uses the profile yet,
+  so no pre-finalize connection check applies.
 * Via `gNMI.Set`, set `/system/grpc-servers/grpc-server/config/certificate-id`
   to `"te125_profile"` on every bound server, then verify via `gNMI.Get` that
   each one reports `state/certificate-id = "te125_profile"` and that each bound
@@ -248,29 +260,48 @@ value is `created_on x 1,000,000,000`. For example, `policy-v2` is encoded as:
 * Establish persistent mTLS client sessions authenticated as `controller@ca-v1`:
   * **gNMI Streaming Client**: Open two persistent `gNMI.Subscribe` (`STREAM`)
     sessions:
-    1. `ON_CHANGE` subscription on `/interfaces/interface/state/oper-status`,
-       `/network-instances/network-instance/afts/`,
-       `/system/aaa/authorization/state/`, and
-       `/system/grpc-servers/grpc-server/state/`. While the gRIBI churn runs,
-       this stream carries about `1,000` AFT entry updates/s.
-    2. `SAMPLE` subscription (`sample_interval = 1 s`,
+    1. `ON_CHANGE` subscription scoped to `/interfaces/interface/state/oper-status`
+       for DUT `port1`–`port4` and the protected `DEFAULT` AFT entries and their
+       next-hop-groups/next-hops
+       (`/network-instances/network-instance[name=DEFAULT]/afts/ipv4-unicast/ipv4-entry[prefix=198.51.100.0/24]/state/...`,
+       `/network-instances/network-instance[name=DEFAULT]/afts/ipv6-unicast/ipv6-entry[prefix=2001:db8:100::/64]/state/...`,
+       `/network-instances/network-instance[name=DEFAULT]/afts/next-hop-groups/next-hop-group[id=...]/...`,
+       and `/network-instances/network-instance[name=DEFAULT]/afts/next-hops/next-hop[index=...]/...`),
+       rather than subscribing `ON_CHANGE` on the root `/afts/` tree (avoiding
+       `~1,000` churn notifications/s). Certz and authz state leaves under
+       `/system/grpc-servers/grpc-server/state/` and
+       `/system/aaa/authorization/state/` are not marked
+       `oc-ext:telemetry-on-change` in OpenConfig YANG and are queried via
+       `gNMI.Get`.
+    2. `SAMPLE` subscription (`sample_interval = 10 s`,
        `suppress_redundant = false`) on `/interfaces/interface/state/counters/`
-       and `/system/grpc-servers/grpc-server/authz-policy-counters/`.
+       (for DUT `port1`–`port4`) and
+       `/system/grpc-servers/grpc-server/authz-policy-counters/`.
   * **gRIBI Client**: Connect in `SINGLE_PRIMARY` mode with `PRESERVE`
     persistence and `ack_type = RIB_AND_FIB_ACK`
     (`election_id = {high: 0, low: 1}`), and clear initial AFT state via
-    `gRIBI.Flush` on `DEFAULT`.
+    `gRIBI.Flush` on `DEFAULT` with `election.id = {high: 0, low: 1}` (or
+    `override = {}`).
   * **P4RT Client**: Open `P4Runtime.StreamChannel` (`device_id = 1`,
-    `election_id = {high: 0, low: 1}`), complete primary controller
-    arbitration, and push the WBB forwarding pipeline
-    (`feature/p4rt/data/wbb.p4info.pb.txt`, defining `acl_wbb_ingress_table`
-    with `size = 8`, actions `acl_wbb_ingress_copy` and `acl_wbb_ingress_trap`,
-    and `packet_in` / `packet_out` metadata) via
-    `P4Runtime.SetForwardingPipelineConfig` (`VERIFY_AND_COMMIT`).
-* Empty the punt table, because the test needs all 8 entries that
-  `acl_wbb_ingress_table` admits: `P4Runtime.Read` the table, record any
-  existing entries for Cleanup, delete them via `P4Runtime.Write` (`DELETE`),
-  and verify that a second `P4Runtime.Read` returns no entries.
+    `election_id = {high: 0, low: 1}`) and complete primary controller
+    arbitration. **Before** pushing the test pipeline, capture the pre-test
+    forwarding pipeline config `P_pre` via
+    `P4Runtime.GetForwardingPipelineConfig` (`response_type = ALL`; if
+    `FAILED_PRECONDITION` / no pipeline is set, record `P_pre = unset`) and, if
+    a pipeline is present, read and record all existing dynamic
+    (`is_const = false`) table entries `E_pre` via `P4Runtime.Read`. Then push
+    the WBB forwarding pipeline (`feature/p4rt/data/wbb.p4info.pb.txt`,
+    defining `acl_wbb_ingress_table` with `size = 8`, actions
+    `acl_wbb_ingress_copy` and `acl_wbb_ingress_trap`, and `packet_in` /
+    `packet_out` metadata) via `P4Runtime.SetForwardingPipelineConfig`
+    (`VERIFY_AND_COMMIT`).
+* Empty dynamic entries in the punt table so all 8 dynamic slots that
+  `acl_wbb_ingress_table` admits are available: `P4Runtime.Read` the table,
+  ignore immutable default/const entries (`is_const = true`), delete any
+  platform-installed non-const (`is_const = false`) entries via
+  `P4Runtime.Write` (`DELETE`) (adding them to `E_pre` if `P_pre` already used
+  the same WBB P4Info), and verify that a second `P4Runtime.Read` returns `0`
+  non-const (`is_const = false`) entries.
 * Verify all 4 DUT ports report `oper-status = UP` via the `ON_CHANGE`
   `gNMI.Subscribe` stream, start OTG protocols, and explicitly resolve IPv4 ARP
   and IPv6 Neighbor Discovery (ND) across all 4 links before starting traffic.
@@ -311,9 +342,10 @@ value is `created_on x 1,000,000,000`. For example, `policy-v2` is encoded as:
   * The ack latency of an AFT operation is the time from sending the
     `ModifyRequest` that carries it to receiving its `FIB_PROGRAMMED`
     `AFTResult`, measured on the client clock.
-* **P4RT churn** (persistent P4RT session): the 7 non-LLDP entries admitted by
-  the `acl_wbb_ingress_table` `@entry_restriction`, all with `priority = 1`:
-  ND/GDP (`ether_type == 0x6007 & 0xffff`) and six traceroute entries
+* **P4RT churn** (persistent P4RT session): the 7 untagged (`outer_vlan_id`
+  wildcarded) non-LLDP entries admitted by the `acl_wbb_ingress_table`
+  `@entry_restriction`, all with `priority = 1`: ND/GDP
+  (`ether_type == 0x6007 & 0xffff`) and six traceroute entries
   (`is_ipv4 == 1` or `is_ipv6 == 1`, each with `ttl == 0`, `1` or `2 & 0xff`).
   A cycle starts every `1 s`, or immediately after the previous cycle if that
   cycle took longer:
@@ -324,10 +356,12 @@ value is `created_on x 1,000,000,000`. For example, `policy-v2` is encoded as:
      that do not support P4RT `MODIFY`, this step is a `P4Runtime.Write`
      `DELETE` of the 7 entries followed by a separate `P4Runtime.Write`
      `INSERT` of the 7 entries with action `acl_wbb_ingress_copy`.
-  3. `P4Runtime.Read` returns exactly 8 entries: the protected LLDP entry
+  3. `P4Runtime.Read` on `acl_wbb_ingress_table` returns exactly 8 non-const
+     (`is_const = false`) entries: the protected LLDP entry
      (`acl_wbb_ingress_trap`) and the 7 churn entries (`acl_wbb_ingress_copy`).
   4. `P4Runtime.Write` `DELETE` of the 7 entries.
-  5. `P4Runtime.Read` returns only the protected LLDP entry.
+  5. `P4Runtime.Read` on `acl_wbb_ingress_table` returns only the protected
+     LLDP entry among non-const (`is_const = false`) entries.
   * Each `P4Runtime.Write` is one `WriteRequest` with 7 updates
     (`Atomicity = CONTINUE_ON_ERROR`); its latency is the time from sending the
     request to receiving the response.
@@ -368,10 +402,13 @@ stops (C4 and C5 apply to windows with churn):
   latency is at most `max(2 x L99_p4rt_base, L99_p4rt_base + 20 ms)` (from
   TE-1.25.2 onward), and the `StreamChannel` stays open with the client still
   primary.
-* **C6 - gNMI streams**: both persistent `gNMI.Subscribe` streams stay open and
-  neither sends a second `sync_response`; in the `SAMPLE` stream, consecutive
-  updates of `in-pkts` and of `out-pkts` of each of DUT `port1`–`port4` are
-  never more than `2 s` apart (client receive time).
+* **C6 - gNMI streams**: both persistent `gNMI.Subscribe` streams stay open,
+  neither sends a second `sync_response`, and the `ON_CHANGE` stream emits no
+  deletion or `next-hop-group` modification for the protected `DEFAULT` AFT
+  prefixes (`198.51.100.0/24` and `2001:db8:100::/64`); in the `SAMPLE` stream
+  (`sample_interval = 10 s`), consecutive updates of `in-pkts` and of
+  `out-pkts` of each of DUT `port1`–`port4` arrive at most `20 s` apart (client
+  receive time).
 * **C7 - No unexpected RPC errors**: no RPC returns a non-`OK` status, including
   `DEADLINE_EXCEEDED` and `UNAVAILABLE`, unless the step expects it.
 * **C8 - Stability**: compared with the setup snapshot,
@@ -407,7 +444,7 @@ stops (C4 and C5 apply to windows with churn):
     the protected `acl_wbb_ingress_table` punt entry matching LLDP frames
     (`ether_type == 0x88cc & 0xffff`, `priority = 1`, action
     `acl_wbb_ingress_trap`), and verify that `P4Runtime.Read` returns exactly
-    this entry.
+    this entry among non-const (`is_const = false`) entries.
 * **Step 2 - Start Protected Data-Plane and Packet-I/O Traffic**:
   * Run a `60 s` measurement window (`W0`) without control-plane churn.
 * **Step 3 - Start Continuous Control-Plane Churn**:
@@ -436,13 +473,16 @@ collides with a version that is already in use.
 
 | Pass | Stage | `UploadRequest` entities | `certificate-version` (`created_on`) | `ca-trust-bundle-version` (`created_on`) | Trusted CAs after `FinalizeRequest` |
 | --- | --- | --- | --- | --- | --- |
-| RSA (`ca-old = ca-v1`, `ca-new = ca-v2`) | A | `server-v2-rsa` chain and key; trust bundle {`ca-v1`, `ca-v2`} | `cert-v2-rsa` (`1700001100`) | `bundle-v1-v2` (`1700001100`) | `ca-v1`, `ca-v2` |
-| RSA | B | Trust bundle {`ca-v2`} | `cert-v2-rsa` (unchanged) | `bundle-v2` (`1700001200`) | `ca-v2` |
-| ECDSA (`ca-old = ca-v2`, `ca-new = ca-v3`) | A | `server-v3-ecdsa` chain and key; trust bundle {`ca-v2`, `ca-v3`} | `cert-v3-ecdsa` (`1700001300`) | `bundle-v2-v3` (`1700001300`) | `ca-v2`, `ca-v3` |
-| ECDSA | B | Trust bundle {`ca-v3`} | `cert-v3-ecdsa` (unchanged) | `bundle-v3` (`1700001400`) | `ca-v3` |
+| RSA (`ca-old = ca-v1`, `ca-new = ca-v2`) | A | `Entity.certificate_chain` (`server-v2-rsa` chain and key); `Entity.trust_bundle_pkcs7` (`pkcs7_block` with {`ca-v1`, `ca-v2`}) | `cert-v2-rsa` (`1700001100`) | `bundle-v1-v2` (`1700001100`) | `ca-v1`, `ca-v2` |
+| RSA | B | `Entity.trust_bundle_pkcs7` (`pkcs7_block` with {`ca-v2`}) | `cert-v2-rsa` (unchanged) | `bundle-v2` (`1700001200`) | `ca-v2` |
+| ECDSA (`ca-old = ca-v2`, `ca-new = ca-v3`) | A | `Entity.certificate_chain` (`server-v3-ecdsa` chain and key); `Entity.trust_bundle_pkcs7` (`pkcs7_block` with {`ca-v2`, `ca-v3`}) | `cert-v3-ecdsa` (`1700001300`) | `bundle-v2-v3` (`1700001300`) | `ca-v2`, `ca-v3` |
+| ECDSA | B | `Entity.trust_bundle_pkcs7` (`pkcs7_block` with {`ca-v3`}) | `cert-v3-ecdsa` (unchanged) | `bundle-v3` (`1700001400`) | `ca-v3` |
 
 Below, `server-new` is `server-v2-rsa` in the RSA pass and `server-v3-ecdsa` in
-the ECDSA pass, and `<alg>` is `rsa` or `ecdsa`. Certz `created_on` values are
+the ECDSA pass, and `<alg>` is `rsa` or `ecdsa`. Every trust-bundle upload uses
+`Entity.trust_bundle_pkcs7` (`TrustBundle` with PEM-encoded PKCS#7
+certificate-only `pkcs7_block`, not `Entity.trust_bundle` /
+`CertificateChain`). Certz `created_on` values are
 seconds since the Unix epoch, while `state/certificate-created-on`,
 `state/ca-trust-bundle-created-on` and `state/certificate-expires-on` are
 `timeticks64` values in nanoseconds, so their expected values are
@@ -451,8 +491,10 @@ nanoseconds.
 
 * **Step 1 - Stage A: Rotate the Server Certificate and Add `ca-new`**:
   1. Open the pass's measurement window.
-  2. Open `Certz.Rotate` and send the stage A `UploadRequest` with the versions
-     and `created_on` values from the table, then wait for `UploadResponse`.
+  2. Open `Certz.Rotate` and send the stage A `UploadRequest`
+     (`Entity.certificate_chain` + `Entity.trust_bundle_pkcs7`) with the
+     versions and `created_on` values from the table, then wait for
+     `UploadResponse`.
   3. Before sending `FinalizeRequest`:
      * A new connection as `auditor@<ca-new>` to the verification server
        completes the TLS handshake, the DUT presents `server-new` (serial
@@ -467,16 +509,16 @@ nanoseconds.
        immediately before the attempt.
   4. Send `FinalizeRequest` and close the send direction; the `Certz.Rotate`
      RPC ends with status `OK`.
-  5. Verify on every bound server that hosts gNSI, via the `ON_CHANGE` stream
-     and `gNMI.Get`, that `state/certificate-version`,
-     `state/certificate-created-on`, `state/certificate-expires-on`,
-     `state/ca-trust-bundle-version` and `state/ca-trust-bundle-created-on`
-     equal the stage A values.
+  5. Verify on every bound server that hosts gNSI, via `gNMI.Get`, that
+     `state/certificate-version`, `state/certificate-created-on`,
+     `state/certificate-expires-on`, `state/ca-trust-bundle-version` and
+     `state/ca-trust-bundle-created-on` equal the stage A values.
 * **Step 2 - Stage B: Remove `ca-old`**:
   1. New connections now use `@<ca-new>` certificates (credential selection
      rule).
-  2. Open `Certz.Rotate` and send the stage B `UploadRequest` (trust bundle
-     {`ca-new`} only), then wait for `UploadResponse`.
+  2. Open `Certz.Rotate` and send the stage B `UploadRequest`
+     (`Entity.trust_bundle_pkcs7` containing {`ca-new`} only), then wait for
+     `UploadResponse`.
   3. Before sending `FinalizeRequest`:
      * A new connection as `auditor@<ca-new>` to the verification server
        succeeds (`gNMI.Get` returns `OK`) and the DUT still presents
@@ -486,7 +528,7 @@ nanoseconds.
        least `1` over the value read immediately before the attempt.
   4. Send `FinalizeRequest` and close the send direction; the `Certz.Rotate`
      RPC ends with status `OK`.
-  5. Verify on every bound server that hosts gNSI that
+  5. Verify on every bound server that hosts gNSI, via `gNMI.Get`, that
      `state/ca-trust-bundle-version` and `state/ca-trust-bundle-created-on`
      equal the stage B values and that `state/certificate-version` and
      `state/certificate-created-on` are unchanged.
@@ -529,35 +571,52 @@ nanoseconds.
        `version = "authz-v2"`, `created_on = 1700000100` and the `policy-v2`
        rules, and repeating the Step 3 probes returns the same actions with
        version `authz-v2`.
-    5. Via `gNMI.Get`, snapshot `access-accepts`, `access-rejects`,
-       `last-access-accept` and `last-access-reject` of
-       `rpc[name=/gribi.gRIBI/Get]` and `rpc[name=/gnmi.gNMI/Get]` under
-       `/system/grpc-servers/grpc-server/authz-policy-counters/rpcs` of every
-       bound server that hosts gNSI (see setup; on platforms that do not
-       support the `services` leaf, the bound server named `DEFAULT`, or the
-       only bound server). Counters are summed and timestamps take their latest
-       value across these servers.
+    5. Via `gNMI.Get`, identify the counter-bearing servers — every bound
+       `/system/grpc-servers/grpc-server` that exposes the
+       `authz-policy-counters` container (which always includes every bound
+       server hosting `GNSI`, and on multi-server platforms also includes any
+       separate `GRIBI` or `GNMI` server that exposes `authz-policy-counters`) —
+       and snapshot `access-accepts`, `access-rejects`, `last-access-accept` and
+       `last-access-reject` of `rpc[name=/gribi.gRIBI/Get]`,
+       `rpc[name=/gnsi.authz.v1.Authz/Get]` and `rpc[name=/gnmi.gNMI/Get]` under
+       `/system/grpc-servers/grpc-server/authz-policy-counters/rpcs` across
+       those servers. Counters are summed and timestamps take their latest value
+       across all counter-bearing bound servers (missing `rpc` entries prior to
+       the first hit default to `0`).
     6. Issue live RPCs over newly opened mTLS connections:
        * `auditor@ca-v3` calls `gRIBI.Get` (`DEFAULT`, AFT type `ALL`) `5`
          times -> each returns gRPC `PERMISSION_DENIED`.
+       * `viewer@ca-v3` calls `gnsi.authz.v1.Authz.Get` `5` times -> each
+         returns gRPC `PERMISSION_DENIED` (because `allow-ops-viewer` permits
+         only `/gnmi.gNMI/Get`, exercising a denied RPC directly on the
+         `GNSI`-hosting server even when `GRIBI` runs on a separate
+         `grpc-server`).
        * `viewer@ca-v3` calls `gNMI.Get` on `/system/state/current-datetime`
          `5` times -> each returns gRPC `OK`.
        * `auditor@ca-v3` calls `gNMI.Get` on `/system/state/current-datetime`
-         once -> gRPC `OK`, because the deny rule covers only
+         once -> gRPC `OK`, because `deny-auditor-gribi-get` covers only
          `/gribi.gRIBI/Get`.
-    7. Close the window at least `10 s` after the last call.
+    7. Close the window at least `12 s` (`sample_interval + 2 s`) after the
+       last Step 1.6 call so at least one post-call `10 s` `SAMPLE` interval
+       completes before the window closes.
 * **Step 2 - Pass/Fail Criteria**:
-  * Via the `ON_CHANGE` stream and `gNMI.Get`,
+  * Via `gNMI.Get`,
     `/system/aaa/authorization/state/grpc-authz-policy-version` equals
     `"authz-v2"` and
     `/system/aaa/authorization/state/grpc-authz-policy-created-on` equals
     `1700000100000000000` (`created_on = 1700000100` s in nanoseconds).
-  * In the first `SAMPLE` update received at least `2 s` after the last Step 1.6
-    call, aggregated over the same servers and compared with the Step 1.5
-    snapshot: for `rpc[name=/gribi.gRIBI/Get]`, `access-rejects` increased by
-    at least `5` and `last-access-reject` advanced; for
-    `rpc[name=/gnmi.gNMI/Get]`, `access-accepts` increased by at least `6` and
-    `last-access-accept` advanced.
+  * Both via `gNMI.Get` after Step 1.6 and in the first `SAMPLE` update received
+    at least `12 s` (`sample_interval + 2 s`) after the last Step 1.6 call,
+    aggregated across all counter-bearing bound servers and compared with the
+    Step 1.5 snapshot:
+    * for `rpc[name=/gnsi.authz.v1.Authz/Get]`, `access-rejects` increased by at
+      least `5` and `last-access-reject` advanced;
+    * for `rpc[name=/gribi.gRIBI/Get]`, whenever the bound server hosting
+      `GRIBI` exposes `authz-policy-counters` (including all single-server
+      deployments), `access-rejects` increased by at least `5` and
+      `last-access-reject` advanced;
+    * for `rpc[name=/gnmi.gNMI/Get]`, `access-accepts` increased by at least `6`
+      and `last-access-accept` advanced.
   * The window meets C1–C8; `policy-v2` keeps `allow-sdn-controller`, so the
     controller sessions see no errors.
 
@@ -614,22 +673,31 @@ nanoseconds.
     `RIB_PROGRAMMED`.
   * `gRIBI.Get` (`DEFAULT`, AFT type `ALL`) returns exactly the 6 protected
     entries programmed in TE-1.25.1 Step 1, each with `fib_status = PROGRAMMED`.
-  * AFT telemetry still resolves `198.51.100.0/24` (next-hop-group
+  * Via `gNMI.Get` on `/network-instances/network-instance[name=DEFAULT]/afts/`
+    (and confirmed on the `ON_CHANGE` stream for the protected entries), AFT
+    telemetry still resolves `198.51.100.0/24` (next-hop-group
     `programmed-id = 10`) to next hop `192.0.2.6` and `2001:db8:100::/64`
     (`programmed-id = 11`) to next hop `2001:db8:2::2`, contains no prefix
     within `100.64.0.0/13` or `2001:db8:1000::/52`, and contains no
     next-hop-group with `programmed-id` `100` or `101`.
-  * `P4Runtime.Read` returns only the protected LLDP entry.
+  * `P4Runtime.Read` on `acl_wbb_ingress_table` returns only the protected LLDP
+    entry among non-const (`is_const = false`) entries.
   * C8 passes.
 
 ### Cleanup
 
 * Stop OTG traffic, captures and protocol sessions.
-* Delete the protected LLDP entry via `P4Runtime.Write` (`DELETE`), re-insert
-  the entries recorded during setup and verify them via `P4Runtime.Read`, then
-  close the P4RT session.
-* Execute `gRIBI.Flush` on `DEFAULT`, close the gRIBI session and close the
-  persistent `gNMI.Subscribe` streams.
+* Read `acl_wbb_ingress_table` via `P4Runtime.Read` and delete all remaining
+  non-const (`is_const = false`) entries via `P4Runtime.Write` (`DELETE`)
+  (covering both the protected LLDP entry and any churn entries remaining if an
+  earlier subtest failed mid-cycle). If `P_pre` was set before the test, restore
+  `P_pre` via `P4Runtime.SetForwardingPipelineConfig` (`VERIFY_AND_COMMIT`),
+  re-insert the recorded pre-test dynamic (`is_const = false`) entries `E_pre`
+  via `P4Runtime.Write` (`INSERT`), and verify them via `P4Runtime.Read`
+  (`is_const = false`); then close the P4RT session.
+* Execute `gRIBI.Flush` on `DEFAULT` with `election.id = {high: 0, low: 1}` (or
+  `override = {}`), close the gRIBI session and close the persistent
+  `gNMI.Subscribe` streams.
 * Over a connection that uses the current credential (credential selection
   rule), restore each bound server's captured
   `/system/grpc-servers/grpc-server/config/certificate-id` via `gNMI.Set`
@@ -998,8 +1066,9 @@ rpcs:
     gRIBI.Get:
     gRIBI.Modify:
   # P4Runtime (p4.v1.P4Runtime) RPCs used by this test are not tracked by the
-  # OpenConfig RPC coverage tooling: SetForwardingPipelineConfig,
-  # StreamChannel (arbitration, PacketIn, PacketOut), Write and Read.
+  # OpenConfig RPC coverage tooling: GetForwardingPipelineConfig,
+  # SetForwardingPipelineConfig, StreamChannel (arbitration, PacketIn,
+  # PacketOut), Write and Read.
 ```
 
 ## Required DUT platform
