@@ -1662,8 +1662,14 @@ type Metadata_Deviations struct {
 	EcnMinGreaterMaxThresholdUnsupported bool `protobuf:"varint,481,opt,name=ecn_min_greater_max_threshold_unsupported,json=ecnMinGreaterMaxThresholdUnsupported,proto3" json:"ecn_min_greater_max_threshold_unsupported,omitempty"`
 	// Maximum number of decap entries supported by the device.
 	MaxSupportedDecapEntries uint32 `protobuf:"varint,482,opt,name=max_supported_decap_entries,json=maxSupportedDecapEntries,proto3" json:"max_supported_decap_entries,omitempty"`
-	unknownFields            protoimpl.UnknownFields
-	sizeCache                protoimpl.SizeCache
+	// Device does not support /interfaces/interface/ethernet/state/negotiated-port-speed telemetry path.
+	// Nokia: https://partnerissuetracker.corp.google.com/issues/572214470
+	NegotiatedPortSpeedUnsupported bool `protobuf:"varint,483,opt,name=negotiated_port_speed_unsupported,json=negotiatedPortSpeedUnsupported,proto3" json:"negotiated_port_speed_unsupported,omitempty"`
+	// Device does not support /interfaces/interface/subinterfaces/subinterface/state/ifindex telemetry path.
+	// Juniper: https://partnerissuetracker.corp.google.com/issues/572208368
+	SubinterfaceIfindexUnsupported bool `protobuf:"varint,484,opt,name=subinterface_ifindex_unsupported,json=subinterfaceIfindexUnsupported,proto3" json:"subinterface_ifindex_unsupported,omitempty"`
+	unknownFields                  protoimpl.UnknownFields
+	sizeCache                      protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -4811,6 +4817,20 @@ func (x *Metadata_Deviations) GetMaxSupportedDecapEntries() uint32 {
 	return 0
 }
 
+func (x *Metadata_Deviations) GetNegotiatedPortSpeedUnsupported() bool {
+	if x != nil {
+		return x.NegotiatedPortSpeedUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetSubinterfaceIfindexUnsupported() bool {
+	if x != nil {
+		return x.SubinterfaceIfindexUnsupported
+	}
+	return false
+}
+
 type Metadata_PlatformExceptions struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Platform      *Metadata_Platform     `protobuf:"bytes,1,opt,name=platform,proto3" json:"platform,omitempty"`
@@ -4867,7 +4887,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xba\x90\x02\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"ё\x02\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -4879,7 +4899,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xa2\x85\x02\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xb9\x86\x02\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -5331,7 +5351,9 @@ const file_metadata_proto_rawDesc = "" +
 	"%skip_gnoi_ping_rpc_authz_verification\x18\xdf\x03 \x01(\bR skipGnoiPingRpcAuthzVerification\x12U\n" +
 	"'isis_lsp_retransmit_counter_unsupported\x18\xe0\x03 \x01(\bR#isisLspRetransmitCounterUnsupported\x12X\n" +
 	")ecn_min_greater_max_threshold_unsupported\x18\xe1\x03 \x01(\bR$ecnMinGreaterMaxThresholdUnsupported\x12>\n" +
-	"\x1bmax_supported_decap_entries\x18\xe2\x03 \x01(\rR\x18maxSupportedDecapEntriesJ\x06\b\x85\x02\x10\x86\x02J\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"\x1bmax_supported_decap_entries\x18\xe2\x03 \x01(\rR\x18maxSupportedDecapEntries\x12J\n" +
+	"!negotiated_port_speed_unsupported\x18\xe3\x03 \x01(\bR\x1enegotiatedPortSpeedUnsupported\x12I\n" +
+	" subinterface_ifindex_unsupported\x18\xe4\x03 \x01(\bR\x1esubinterfaceIfindexUnsupportedJ\x06\b\x85\x02\x10\x86\x02J\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02J\x06\b\xf1\x01\x10\xf2\x01J\x04\b1\x102J\x06\b\xb9\x02\x10\xba\x02\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +

@@ -2541,3 +2541,17 @@ func EcnMinGreaterMaxThresholdUnsupported(dut *ondatra.DUTDevice) bool {
 func MaxSupportedDecapEntries(dut *ondatra.DUTDevice) uint32 {
 	return lookupDUTDeviations(dut).GetMaxSupportedDecapEntries()
 }
+
+// NegotiatedPortSpeedUnsupported returns true if the device does not support
+// /interfaces/interface/ethernet/state/negotiated-port-speed telemetry path.
+// Nokia: https://partnerissuetracker.corp.google.com/issues/572214470
+func NegotiatedPortSpeedUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNegotiatedPortSpeedUnsupported()
+}
+
+// SubinterfaceIfindexUnsupported returns true if the device does not support
+// /interfaces/interface/subinterfaces/subinterface/state/ifindex telemetry path.
+// Juniper: https://partnerissuetracker.corp.google.com/issues/572208368
+func SubinterfaceIfindexUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSubinterfaceIfindexUnsupported()
+}
