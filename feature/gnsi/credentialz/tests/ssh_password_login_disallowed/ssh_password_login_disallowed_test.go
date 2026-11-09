@@ -78,6 +78,16 @@ func TestCredentialz(t *testing.T) {
 	password := credz.GeneratePassword()
 	credz.RotateUserPassword(t, dut, username, password, credz.GenerateVersion(), uint64(time.Now().Unix()))
 
+	t.Cleanup(func() {
+		// Cleanup to remove previous policy which only allowed key auth to make sure we don't
+		// leave dut in a state where we can't reset config for further tests.
+		credz.RotateAuthenticationTypes(t, dut, []cpb.AuthenticationType{
+			cpb.AuthenticationType_AUTHENTICATION_TYPE_PASSWORD,
+			cpb.AuthenticationType_AUTHENTICATION_TYPE_PUBKEY,
+			cpb.AuthenticationType_AUTHENTICATION_TYPE_KBDINTERACTIVE,
+		})
+	})
+
 	credz.RotateTrustedUserCA(t, dut, dir)
 	credz.RotateAuthenticationTypes(t, dut, []cpb.AuthenticationType{
 		cpb.AuthenticationType_AUTHENTICATION_TYPE_PUBKEY,
@@ -205,15 +215,5 @@ func TestCredentialz(t *testing.T) {
 		if !foundRecord {
 			t.Fatalf("Did not find accounting record for %s", username)
 		}
-	})
-
-	t.Cleanup(func() {
-		// Cleanup to remove previous policy which only allowed key auth to make sure we don't
-		// leave dut in a state where we can't reset config for further tests.
-		credz.RotateAuthenticationTypes(t, dut, []cpb.AuthenticationType{
-			cpb.AuthenticationType_AUTHENTICATION_TYPE_PASSWORD,
-			cpb.AuthenticationType_AUTHENTICATION_TYPE_PUBKEY,
-			cpb.AuthenticationType_AUTHENTICATION_TYPE_KBDINTERACTIVE,
-		})
 	})
 }

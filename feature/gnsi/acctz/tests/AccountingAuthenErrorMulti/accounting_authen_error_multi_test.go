@@ -91,9 +91,9 @@ func TestAccountingAuthenErrorMultiTransaction(t *testing.T) {
 	t.Helper()
 	dut := ondatra.DUT(t, "dut")
 	batch := new(gnmi.SetBatch)
-	setupTestUser(t, batch)
+	setupTestUser(t, dut, batch)
 	// Configure TACACS normally first.
-	configureTacacsAAAWithLocalFallback(t, batch)
+	configureTacacsAAAWithLocalFallback(t, dut, batch)
 	batch.Set(t, dut)
 	verifyTacacsConfigured(t, dut)
 
@@ -172,7 +172,7 @@ func TestAccountingAuthenErrorMultiTransaction(t *testing.T) {
 // configureTacacsAAAWithLocalFallback queues TACACS+ AAA configuration.
 // When isTacacs is true, the function adds TACACS+ server-group configuration with local authentication fallback.
 // When isTacacs is false, the function removes the TACACS+ server-group configuration from the batch to simulate TACACS backend unavailability.
-func configureTacacsAAAWithLocalFallback(t *testing.T, batch *gnmi.SetBatch) {
+func configureTacacsAAAWithLocalFallback(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch) {
 	t.Helper()
 	// ============================================================
 	// CONFIGURE TACACS
@@ -213,6 +213,9 @@ func configureTacacsAAAWithLocalFallback(t *testing.T, batch *gnmi.SetBatch) {
 	// ------------------------------------------------------------
 	// Push config
 	// ------------------------------------------------------------
+	t.Cleanup(func() {
+		gnmi.Delete(t, dut, gnmi.OC().System().Aaa().ServerGroup("TACACS").Config())
+	})
 	gnmi.BatchUpdate(batch, gnmi.OC().System().Aaa().ServerGroup("TACACS").Config(), sg)
 	t.Log("Configured TACACS AAA with local fallback")
 }
@@ -248,7 +251,7 @@ func verifyTacacsConfigured(t *testing.T, dut *ondatra.DUTDevice) {
 // setupTestUser queues configuration for a local AAA test user.
 // The configured user is used for authentication testing with the DUT.
 // A cleanup handler is registered to remove the user configuration after test completion.
-func setupTestUser(t *testing.T, batch *gnmi.SetBatch) {
+func setupTestUser(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch) {
 	t.Helper()
 	userPath := gnmi.OC().System().Aaa().Authentication().User(acctzlib.SuccessUsername)
 	user := &oc.System_Aaa_Authentication_User{
@@ -256,13 +259,12 @@ func setupTestUser(t *testing.T, batch *gnmi.SetBatch) {
 		Role:     oc.UnionString(ocUserRole),
 		Password: ygot.String(successPassword),
 	}
+	t.Cleanup(func() {
+		gnmi.Delete(t, dut, userPath.Config())
+	})
 	gnmi.BatchReplace(batch, userPath.Config(), user)
 
 	t.Logf("Configured test user %q", acctzlib.SuccessUsername)
-
-	t.Cleanup(func() {
-		gnmi.BatchDelete(batch, userPath.Config())
-	})
 }
 
 // dialAndFail establishes a TCP and gRPC connection to the target DUT and

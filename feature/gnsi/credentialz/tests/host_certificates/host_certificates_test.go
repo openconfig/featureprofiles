@@ -61,6 +61,9 @@ func TestCredentialz(t *testing.T) {
 	// Create ssh keys/certificates for CA & host.
 	credz.CreateSSHKeyPair(t, dir, "ca")
 	credz.CreateSSHKeyPair(t, dir, dut.ID())
+	t.Cleanup(func() {
+		credz.RotateAuthenticationArtifacts(t, dut, dir, "", credz.GenerateVersion(), uint64(time.Now().Unix()))
+	})
 	credz.RotateAuthenticationArtifacts(t, dut, dir, "", hostCertificateVersion, hostCertificateCreatedOn)
 	dutKey := credz.GetDutPublicKey(t, dut, "ssh-ed25519")
 	credz.CreateHostCertificate(t, dut, dir, dutKey)

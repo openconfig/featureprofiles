@@ -373,6 +373,9 @@ func TestHashing(t *testing.T) {
 	cleanupDevice(t, dut)
 
 	if dut.Vendor() == ondatra.NOKIA {
+		t.Cleanup(func() {
+			helpers.GnmiCLIConfig(t, dut, "system load-balancing hash-options per-complex-randomization false")
+		})
 		helpers.GnmiCLIConfig(t, dut, "system load-balancing hash-options per-complex-randomization true")
 	}
 

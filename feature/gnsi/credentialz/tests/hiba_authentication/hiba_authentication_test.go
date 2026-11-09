@@ -50,6 +50,27 @@ func TestCredentialz(t *testing.T) {
 	credz.CreateHibaKeys(t, dut, dir)
 	credz.SetupUser(t, dut, username)
 
+	t.Cleanup(func() {
+		// Cleanup to remove previous policy which only allowed key auth to make sure we don't leave dut in a
+		// state where we can't reset config for further tests.
+		credz.RotateAuthenticationTypes(t, dut, []cpb.AuthenticationType{
+			cpb.AuthenticationType_AUTHENTICATION_TYPE_PASSWORD,
+			cpb.AuthenticationType_AUTHENTICATION_TYPE_PUBKEY,
+			cpb.AuthenticationType_AUTHENTICATION_TYPE_KBDINTERACTIVE,
+		})
+
+		// Remove user ca so subsequent fail cases work.
+		// credz.RotateTrustedUserCA(t, dut, "")
+
+		// Clear hiba for authorized principals command.
+		credz.RotateAuthorizedPrincipalCheck(t, dut, cpb.AuthorizedPrincipalCheckRequest_TOOL_UNSPECIFIED)
+
+		// Remove host artifacts from the dut.
+		// credz.RotateAuthenticationArtifacts(t, dut, "", "", "", 0)
+		// SSH configuration cleanup on DUT
+		// credz.SSHCleanup(t, dut)
+	})
+
 	// Set only public key authentication for our test.
 	credz.RotateAuthenticationTypes(t, dut, []cpb.AuthenticationType{
 		cpb.AuthenticationType_AUTHENTICATION_TYPE_PUBKEY,
@@ -155,26 +176,5 @@ func TestCredentialz(t *testing.T) {
 				gotHostCertificateCreatedOn, hostCertificateCreatedOn,
 			)
 		}
-	})
-
-	t.Cleanup(func() {
-		// Cleanup to remove previous policy which only allowed key auth to make sure we don't leave dut in a
-		// state where we can't reset config for further tests.
-		credz.RotateAuthenticationTypes(t, dut, []cpb.AuthenticationType{
-			cpb.AuthenticationType_AUTHENTICATION_TYPE_PASSWORD,
-			cpb.AuthenticationType_AUTHENTICATION_TYPE_PUBKEY,
-			cpb.AuthenticationType_AUTHENTICATION_TYPE_KBDINTERACTIVE,
-		})
-
-		// Remove user ca so subsequent fail cases work.
-		// credz.RotateTrustedUserCA(t, dut, "")
-
-		// Clear hiba for authorized principals command.
-		credz.RotateAuthorizedPrincipalCheck(t, dut, cpb.AuthorizedPrincipalCheckRequest_TOOL_UNSPECIFIED)
-
-		// Remove host artifacts from the dut.
-		// credz.RotateAuthenticationArtifacts(t, dut, "", "", "", 0)
-		// SSH configuration cleanup on DUT
-		// credz.SSHCleanup(t, dut)
 	})
 }
