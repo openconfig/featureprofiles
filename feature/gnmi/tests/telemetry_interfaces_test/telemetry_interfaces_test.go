@@ -17,6 +17,7 @@ package telemetry_interfaces_test
 import (
 	"fmt"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -27,6 +28,8 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -205,78 +208,92 @@ func testTelemetryInterfacesState(t *testing.T, dut *ondatra.DUTDevice, ports []
 
 func testTelemetryInterfacesAggregation(t *testing.T, dut *ondatra.DUTDevice, ports []string) {
 	t.Helper()
+	if len(ports) < 2 {
+		t.Fatalf("Aggregation test requires at least two physical member interfaces, got %d", len(ports))
+	}
 	p := gnmi.OC()
+	lagName := netutil.NextAggregateInterface(t, dut)
+	lag := &oc.Interface{
+		Name: ygot.String(lagName),
+		Type: oc.IETFInterfaces_InterfaceType_ieee8023adLag,
+		Aggregation: &oc.Interface_Aggregation{
+			LagType: oc.IfAggregate_AggregationType_STATIC,
+		},
+	}
+	t.Cleanup(func() {
+		for _, port := range ports {
+			gnmi.Delete(t, dut, p.Interface(port).Ethernet().AggregateId().Config())
+		}
+		gnmi.Delete(t, dut, p.Interface(lagName).Config())
+	})
 
-	// FIX: Nokia (SR Linux) rejects LAG configuration on physical ports.
-	if deviations.StatePathsUnsupported(dut) {
-		t.Skip("Aggregation configuration on physical ports is not supported on Nokia.")
+	if !t.Run("test_interfaces_aggregation_config", func(t *testing.T) {
+		// lag-type is configured on the logical aggregate interface, not a physical member.
+		config := &oc.Root{
+			Interface: map[string]*oc.Interface{lagName: lag},
+		}
+		for _, port := range ports {
+			member := &oc.Interface{
+				Name: ygot.String(port),
+				Type: oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+				Ethernet: &oc.Interface_Ethernet{
+					AggregateId: ygot.String(lagName),
+				},
+			}
+			if deviations.InterfaceEnabled(dut) {
+				member.Enabled = ygot.Bool(true)
+			}
+			config.Interface[port] = member
+		}
+		if deviations.AggregateAtomicUpdate(dut) {
+			// Some platforms require the LAG and its members in one root update.
+			gnmi.Update(t, dut, p.Config(), config)
+			return
+		}
+		gnmi.Update(t, dut, p.Interface(lagName).Config(), lag)
+		for _, port := range ports {
+			gnmi.Update(t, dut, p.Interface(port).Config(), config.Interface[port])
+		}
+	}) {
+		return
 	}
 
-	intfAggregationPassed := make(map[string][]any)
-	intfAggregationFailed := make(map[string]string)
+	t.Run("test_interfaces_aggregation_state", func(t *testing.T) {
+		lagType := p.Interface(lagName).Aggregation().LagType().Config()
+		if got, ok := gnmi.Await(t, dut, lagType, time.Minute, oc.IfAggregate_AggregationType_STATIC).Val(); !ok {
+			t.Errorf("%s aggregation/config/lag-type got %v, want STATIC", lagName, got)
+		} else {
+			t.Logf("%s aggregation/config/lag-type got %v", lagName, got)
+		}
 
-	for _, port := range ports {
-		t.Logf("\n\n Iteration on port %s on DUT %s: \n\n", port, dut.Name())
-
-		t.Run("test_interfaces_aggregation_config", func(t *testing.T) {
-			i := &oc.Interface{Name: ygot.String(port)}
-			// Configure link aggregation using gNMI update.
-			i.Aggregation = &oc.Interface_Aggregation{
-				LagType: oc.IfAggregate_AggregationType_STATIC,
-			}
-			gnmi.Update(t, dut, gnmi.OC().Interface(port).Aggregation().Config(), i.Aggregation)
-			t.Logf("Waiting for commit to take effect")
-			time.Sleep(2 * time.Minute)
-		})
-
-		t.Run("test_interfaces_aggregation_st", func(t *testing.T) {
-			member := p.Interface(port).Aggregation().Member().State()
-			lagType := p.Interface(port).Aggregation().LagType().Config()
-
-			memberKey := strings.Join([]string{port, "aggregation/state/member"}, ":")
-			lagTypeKey := strings.Join([]string{port, "aggregation/config/lag-type"}, ":")
-
-			/* intfAggregationPassed: Key: port:leaf, Value: []any{isLeafPresent, leafValue} */
-			intfAggregationPassed[memberKey] = []any{gnmi.Lookup(t, dut, member).IsPresent()}
-			intfAggregationPassed[lagTypeKey] = []any{gnmi.Lookup(t, dut, lagType).IsPresent()}
-
-			for leaf, value := range intfAggregationPassed {
-				if value[0].(bool) && strings.Contains(leaf, port) {
-					switch leaf {
-					case memberKey:
-						intfAggregationPassed[leaf] = append(intfAggregationPassed[leaf], gnmi.Get(t, dut, member))
-					case lagTypeKey:
-						intfAggregationPassed[leaf] = append(intfAggregationPassed[leaf], gnmi.Get(t, dut, lagType))
-					}
-					// Check if the leaf value is present or not. nil, '', 0 or empty slice is considered as not present.
-					if intfAggregationPassed[leaf][1] == nil || reflect.ValueOf(intfAggregationPassed[leaf][1]).IsZero() || (reflect.ValueOf(intfAggregationPassed[leaf][1]).Kind() == reflect.Slice && reflect.ValueOf(intfAggregationPassed[leaf][1]).Len() == 0) {
-						intfAggregationFailed[leaf] = fmt.Sprintf("value: '%v' is not as expected", intfAggregationPassed[leaf][1])
-					} else {
-						t.Logf("[PASSED]: leaf: '%v' value: '%v' is as expected", leaf, intfAggregationPassed[leaf][1])
-					}
-				} else if !value[0].(bool) && strings.Contains(leaf, port) {
-					intfAggregationFailed[leaf] = "is not present"
-				}
-			}
-			t.Logf("\n\n")
-			for leaf, value := range intfAggregationFailed {
-				t.Errorf("[FAILED]: leaf: '%v' %v", leaf, value)
-			}
-			t.Logf("\n\n")
-		})
-		t.Run("test_interfaces_aggregation_delete", func(t *testing.T) {
-			gnmi.Delete(t, dut, gnmi.OC().Interface(port).Aggregation().Config())
-			t.Logf("Waiting for commit to take effect")
-			time.Sleep(2 * time.Minute)
-		})
-	}
+		members := p.Interface(lagName).Aggregation().Member().State()
+		wantMembers := slices.Clone(ports)
+		slices.Sort(wantMembers)
+		value, ok := gnmi.Watch(t, dut, members, time.Minute, func(value *ygnmi.Value[[]string]) bool {
+			got, present := value.Val()
+			got = slices.Clone(got)
+			slices.Sort(got)
+			return present && slices.Equal(got, wantMembers)
+		}).Await(t)
+		var got []string
+		var present bool
+		if value != nil {
+			got, present = value.Val()
+		}
+		t.Logf("%s aggregation/state/member got %v (present=%t), want %v", lagName, got, present, ports)
+		if !ok {
+			t.Errorf("%s aggregation/state/member did not contain the expected members", lagName)
+		}
+	})
 }
 
 func testTelemetryInterfacesStateRate(t *testing.T, dut *ondatra.DUTDevice, ports []string) {
 	t.Helper()
 	p := gnmi.OC()
 
-	// FIX: Skip if the platform does not support the /interfaces/interface/state/in-rate leaf.
+	// The test expects the OpenConfig interface state rate leaves documented in
+	// telemetry_interfaces_test/README.md. IOS XR platforms whose OCIF schema
+	// omits these leaves declare state_path_unsupported in this test's metadata.
 	if deviations.StatePathsUnsupported(dut) {
 		t.Skip("State/Rate telemetry paths are not supported on this platform.")
 	}
@@ -432,6 +449,18 @@ func testTelemetryInterfacesConfig(t *testing.T, dut *ondatra.DUTDevice, ports [
 		t.Run("test_telemetry_interfaces_config_mac_address", func(t *testing.T) {
 			macAddress := gnmi.Get(t, dut, p.Interface(port).Ethernet().MacAddress().State())
 			t.Logf("macAddress: %s", macAddress)
+			macConfig := p.Interface(port).Ethernet().MacAddress().Config()
+			originalMACConfig := gnmi.Lookup(t, dut, macConfig)
+			t.Cleanup(func() {
+				// Restore configuration presence, rather than configuring the original
+				// operational MAC. An explicit override prevents XR bundle membership.
+				if configuredMAC, present := originalMACConfig.Val(); present {
+					gnmi.Update(t, dut, macConfig, configuredMAC)
+				} else {
+					gnmi.Delete(t, dut, macConfig)
+				}
+				time.Sleep(2 * time.Minute)
+			})
 
 			i := &oc.Interface{Name: ygot.String(port)}
 			if deviations.ExplicitPortSpeed(dut) {
@@ -449,9 +478,6 @@ func testTelemetryInterfacesConfig(t *testing.T, dut *ondatra.DUTDevice, ports [
 			} else {
 				t.Errorf("\n\n [FAILED]: Interface mac address value got: '%v' expected: '%v' on port '%s' \n\n", macAddressValue, macAddressConfig, port)
 			}
-
-			gnmi.Update(t, dut, p.Interface(port).Ethernet().MacAddress().Config(), macAddress)
-			time.Sleep(2 * time.Minute)
 		})
 	}
 }
@@ -459,7 +485,10 @@ func testTelemetryInterfacesConfig(t *testing.T, dut *ondatra.DUTDevice, ports [
 // TestTelemetryInterfaces tests interfaces oc paths.
 func TestTelemetryInterfaces(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	port1 := strings.ToLower(dut.Port(t, "port1").Name())
+	// Keep the exact interface name from the binding. IOS XR validates the
+	// interface name case-sensitively and rejects a lowercased form.
+	port1 := dut.Port(t, "port1").Name()
+	port2 := dut.Port(t, "port2").Name()
 
 	// Ensure the test interface is explicitly enabled and configured with its mandatory base schema type upfront.
 	p := gnmi.OC()
@@ -506,7 +535,7 @@ func TestTelemetryInterfaces(t *testing.T) {
 		},
 		{
 			name:     "TEST6: Test_Telemetry_Interfaces_Aggregation",
-			ports:    []string{port1},
+			ports:    []string{port1, port2},
 			testFunc: testTelemetryInterfacesAggregation,
 		},
 	}
