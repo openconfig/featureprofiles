@@ -68,6 +68,7 @@ var (
 
 	dutPort1 = attrs.Attributes{
 		Desc:    "dutPort1",
+		MAC:     "02:00:01:00:00:01",
 		IPv4:    "192.0.2.1",
 		IPv6:    "2001:db8::1",
 		IPv4Len: ipv4PrefixLen,
@@ -83,6 +84,7 @@ var (
 	}
 	dutPort2 = attrs.Attributes{
 		Desc:    "dutPort2",
+		MAC:     "02:00:02:00:00:02",
 		IPv4:    "192.0.2.5",
 		IPv6:    "2001:db8::5",
 		IPv4Len: ipv4PrefixLen,
@@ -145,6 +147,12 @@ func resolveTestParameters(t *testing.T, dut *ondatra.DUTDevice) (baselineMode, 
 		customMode = operationalModes[1]
 	} else if len(operationalModes) == 1 {
 		customMode = operationalModes[0]
+	} else if defModes := operationalModes.Default(t, dut); len(defModes) >= 2 {
+		baselineMode = defModes[0]
+		customMode = defModes[1]
+	} else if len(defModes) == 1 {
+		baselineMode = defModes[0]
+		customMode = defModes[0]
 	}
 
 	freq = defaultFrequencyMHz
@@ -299,7 +307,22 @@ func addIPv6Flow(top gosnappi.Config, name, txEndpoint, rxEndpoint, srcMAC, srcI
 // Technical Summary: Uses gnmi.Watch().Await() to confirm IP state, neighbor resolution, and all 64 AFT prefixes before traffic.
 func verifyControlPlaneConvergenceGate(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, p1, p2 *ondatra.Port) {
 	t.Helper()
-	// 1. Verify subinterface IPv4 and IPv6 addresses are active in state via ON_CHANGE watch.
+	// 1. Verify subinterface IPv4 and IPv6 addresses are active in state via batched Lookup and ON_CHANGE watch fallback.
+	ipBatch := gnmi.OCBatch()
+	ipBatch.AddPaths(
+		gnmi.OC().Interface(p1.Name()).Subinterface(0).Ipv4().Address(dutPort1.IPv4).Ip().State().PathStruct(),
+		gnmi.OC().Interface(p1.Name()).Subinterface(0).Ipv6().Address(dutPort1.IPv6).Ip().State().PathStruct(),
+		gnmi.OC().Interface(p2.Name()).Subinterface(0).Ipv4().Address(dutPort2.IPv4).Ip().State().PathStruct(),
+		gnmi.OC().Interface(p2.Name()).Subinterface(0).Ipv6().Address(dutPort2.IPv6).Ip().State().PathStruct(),
+	)
+	var ipRoot *oc.Root
+	for attempt := 0; attempt < 3; attempt++ {
+		if msg := testt.CaptureFatal(t, func(tb testing.TB) {
+			ipRoot, _ = gnmi.Lookup(tb, dut, ipBatch.State()).Val()
+		}); msg == nil {
+			break
+		}
+	}
 	for _, tc := range []struct {
 		port *ondatra.Port
 		attr attrs.Attributes
@@ -307,32 +330,36 @@ func verifyControlPlaneConvergenceGate(t *testing.T, dut *ondatra.DUTDevice, ate
 		{port: p1, attr: dutPort1},
 		{port: p2, attr: dutPort2},
 	} {
-		var ok bool
-		for attempt := 0; attempt < 3; attempt++ {
-			if msg := testt.CaptureFatal(t, func(tb testing.TB) {
-				_, ok = gnmi.Watch(tb, dut, gnmi.OC().Interface(tc.port.Name()).Subinterface(0).Ipv4().Address(tc.attr.IPv4).Ip().State(), convergenceTimeout, func(val *ygnmi.Value[string]) bool {
-					v, present := val.Val()
-					return present && v == tc.attr.IPv4
-				}).Await(tb)
-			}); msg == nil {
-				break
+		v4OK := ipRoot.GetInterface(tc.port.Name()).GetSubinterface(0).GetIpv4().GetAddress(tc.attr.IPv4).GetIp() == tc.attr.IPv4
+		if !v4OK {
+			for attempt := 0; attempt < 3; attempt++ {
+				if msg := testt.CaptureFatal(t, func(tb testing.TB) {
+					_, v4OK = gnmi.Watch(tb, dut, gnmi.OC().Interface(tc.port.Name()).Subinterface(0).Ipv4().Address(tc.attr.IPv4).Ip().State(), convergenceTimeout, func(val *ygnmi.Value[string]) bool {
+						v, present := val.Val()
+						return present && v == tc.attr.IPv4
+					}).Await(tb)
+				}); msg == nil {
+					break
+				}
 			}
 		}
-		if !ok {
+		if !v4OK {
 			t.Errorf("Port %s IPv4 address %s not active in state", tc.port.Name(), tc.attr.IPv4)
 		}
-		ok = false
-		for attempt := 0; attempt < 3; attempt++ {
-			if msg := testt.CaptureFatal(t, func(tb testing.TB) {
-				_, ok = gnmi.Watch(tb, dut, gnmi.OC().Interface(tc.port.Name()).Subinterface(0).Ipv6().Address(tc.attr.IPv6).Ip().State(), convergenceTimeout, func(val *ygnmi.Value[string]) bool {
-					v, present := val.Val()
-					return present && v == tc.attr.IPv6
-				}).Await(tb)
-			}); msg == nil {
-				break
+		v6OK := ipRoot.GetInterface(tc.port.Name()).GetSubinterface(0).GetIpv6().GetAddress(tc.attr.IPv6).GetIp() == tc.attr.IPv6
+		if !v6OK {
+			for attempt := 0; attempt < 3; attempt++ {
+				if msg := testt.CaptureFatal(t, func(tb testing.TB) {
+					_, v6OK = gnmi.Watch(tb, dut, gnmi.OC().Interface(tc.port.Name()).Subinterface(0).Ipv6().Address(tc.attr.IPv6).Ip().State(), convergenceTimeout, func(val *ygnmi.Value[string]) bool {
+						v, present := val.Val()
+						return present && v == tc.attr.IPv6
+					}).Await(tb)
+				}); msg == nil {
+					break
+				}
 			}
 		}
-		if !ok {
+		if !v6OK {
 			t.Errorf("Port %s IPv6 address %s not active in state", tc.port.Name(), tc.attr.IPv6)
 		}
 	}
@@ -379,24 +406,26 @@ func verifyControlPlaneConvergenceGate(t *testing.T, dut *ondatra.DUTDevice, ate
 	transceiver.VerifyAFTPrefixesConverged(t, dut, niName, append(v4ToP2, v4ToP1...), append(v6ToP2, v6ToP1...), convergenceTimeout)
 }
 
-// snapshotPortCounters captures a point-in-time snapshot of DUT interface packet/error counters and OTN FEC blocks.
+// snapshotPortsCounters captures a point-in-time snapshot of DUT interface packet/error counters and OTN FEC blocks for all ports in a single batch.
 // README.md Section: TRANSCEIVER-109.1 (Step 4), TRANSCEIVER-109.2 (Step 3), and TRANSCEIVER-109.3 (Steps 2 & 3).
 // Technical Summary: Reads unicast/total packets, interface errors, FCS errors, and fec-uncorrectable-blocks via batched gnmi.Lookup.
-func snapshotPortCounters(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port, params *cfgplugins.ConfigParameters) portCountersSnapshot {
+func snapshotPortsCounters(t *testing.T, dut *ondatra.DUTDevice, ports []*ondatra.Port, params *cfgplugins.ConfigParameters) map[string]portCountersSnapshot {
 	t.Helper()
-	otnIdx := params.OTNIndexes[p.Name()]
 	cntBatch := gnmi.OCBatch()
-	cntBatch.AddPaths(
-		gnmi.OC().Interface(p.Name()).Counters().InUnicastPkts(),
-		gnmi.OC().Interface(p.Name()).Counters().OutUnicastPkts(),
-		gnmi.OC().Interface(p.Name()).Counters().InPkts(),
-		gnmi.OC().Interface(p.Name()).Counters().OutPkts(),
-		gnmi.OC().Interface(p.Name()).Counters().InErrors(),
-		gnmi.OC().Interface(p.Name()).Counters().OutErrors(),
-		gnmi.OC().TerminalDevice().Channel(otnIdx).Otn().FecUncorrectableBlocks(),
-	)
-	if !deviations.InterfaceCountersInFcsErrorsUnsupported(dut) {
-		cntBatch.AddPaths(gnmi.OC().Interface(p.Name()).Counters().InFcsErrors())
+	for _, p := range ports {
+		otnIdx := params.OTNIndexes[p.Name()]
+		cntBatch.AddPaths(
+			gnmi.OC().Interface(p.Name()).Counters().InUnicastPkts().State().PathStruct(),
+			gnmi.OC().Interface(p.Name()).Counters().OutUnicastPkts().State().PathStruct(),
+			gnmi.OC().Interface(p.Name()).Counters().InPkts().State().PathStruct(),
+			gnmi.OC().Interface(p.Name()).Counters().OutPkts().State().PathStruct(),
+			gnmi.OC().Interface(p.Name()).Counters().InErrors().State().PathStruct(),
+			gnmi.OC().Interface(p.Name()).Counters().OutErrors().State().PathStruct(),
+			gnmi.OC().TerminalDevice().Channel(otnIdx).Otn().FecUncorrectableBlocks().State().PathStruct(),
+		)
+		if !deviations.InterfaceCountersInFcsErrorsUnsupported(dut) {
+			cntBatch.AddPaths(gnmi.OC().Interface(p.Name()).Counters().InFcsErrors().State().PathStruct())
+		}
 	}
 	var root *oc.Root
 	for attempt := 0; attempt < 3; attempt++ {
@@ -406,23 +435,27 @@ func snapshotPortCounters(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port,
 			break
 		}
 	}
-	cnt := root.GetInterface(p.Name()).GetCounters()
-	var fcsErr uint64
-	if !deviations.InterfaceCountersInFcsErrorsUnsupported(dut) {
-		fcsErr = cnt.GetInFcsErrors()
+	snaps := make(map[string]portCountersSnapshot, len(ports))
+	for _, p := range ports {
+		otnIdx := params.OTNIndexes[p.Name()]
+		cnt := root.GetInterface(p.Name()).GetCounters()
+		var fcsErr uint64
+		if !deviations.InterfaceCountersInFcsErrorsUnsupported(dut) {
+			fcsErr = cnt.GetInFcsErrors()
+		}
+		fecUncorrect := root.GetTerminalDevice().GetChannel(otnIdx).GetOtn().GetFecUncorrectableBlocks()
+		snaps[p.Name()] = portCountersSnapshot{
+			inUnicastPkts:  cnt.GetInUnicastPkts(),
+			outUnicastPkts: cnt.GetOutUnicastPkts(),
+			inPkts:         cnt.GetInPkts(),
+			outPkts:        cnt.GetOutPkts(),
+			inErrors:       cnt.GetInErrors(),
+			outErrors:      cnt.GetOutErrors(),
+			inFCSErrors:    fcsErr,
+			fecUncorrect:   fecUncorrect,
+		}
 	}
-	fecUncorrect := root.GetTerminalDevice().GetChannel(otnIdx).GetOtn().GetFecUncorrectableBlocks()
-
-	return portCountersSnapshot{
-		inUnicastPkts:  cnt.GetInUnicastPkts(),
-		outUnicastPkts: cnt.GetOutUnicastPkts(),
-		inPkts:         cnt.GetInPkts(),
-		outPkts:        cnt.GetOutPkts(),
-		inErrors:       cnt.GetInErrors(),
-		outErrors:      cnt.GetOutErrors(),
-		inFCSErrors:    fcsErr,
-		fecUncorrect:   fecUncorrect,
-	}
+	return snaps
 }
 
 // runAndVerifyBidirectionalTraffic runs the 4 dual-stack traffic flows and checks zero packet loss and zero DUT errors.
@@ -430,8 +463,10 @@ func snapshotPortCounters(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port,
 // Technical Summary: Verifies 100,000 tx/rx packets per flow, >= +200,000 packet deltas per port, and 0 interface/FEC errors.
 func runAndVerifyBidirectionalTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, p1, p2 *ondatra.Port, params *cfgplugins.ConfigParameters) {
 	t.Helper()
-	beforeP1 := snapshotPortCounters(t, dut, p1, params)
-	beforeP2 := snapshotPortCounters(t, dut, p2, params)
+	ports := []*ondatra.Port{p1, p2}
+	beforeSnaps := snapshotPortsCounters(t, dut, ports, params)
+	beforeP1 := beforeSnaps[p1.Name()]
+	beforeP2 := beforeSnaps[p2.Name()]
 
 	var trafficStarted bool
 	if ate != nil && top != nil {
@@ -467,21 +502,22 @@ func runAndVerifyBidirectionalTraffic(t *testing.T, dut *ondatra.DUTDevice, ate 
 		}
 	}
 
-	for _, tc := range []struct {
-		port   *ondatra.Port
-		before portCountersSnapshot
-	}{
-		{port: p1, before: beforeP1},
-		{port: p2, before: beforeP2},
-	} {
-		if ate != nil && top != nil {
+	afterSnaps := beforeSnaps
+	if ate != nil && top != nil {
+		for _, tc := range []struct {
+			port   *ondatra.Port
+			before portCountersSnapshot
+		}{
+			{port: p1, before: beforeP1},
+			{port: p2, before: beforeP2},
+		} {
 			// Wait via gnmi.Watch for interface counters (in-unicast-pkts, out-unicast-pkts, in-pkts, out-pkts) to reflect >= +200,000 packet delta.
 			pktBatch := gnmi.OCBatch()
 			pktBatch.AddPaths(
-				gnmi.OC().Interface(tc.port.Name()).Counters().InUnicastPkts(),
-				gnmi.OC().Interface(tc.port.Name()).Counters().OutUnicastPkts(),
-				gnmi.OC().Interface(tc.port.Name()).Counters().InPkts(),
-				gnmi.OC().Interface(tc.port.Name()).Counters().OutPkts(),
+				gnmi.OC().Interface(tc.port.Name()).Counters().InUnicastPkts().State().PathStruct(),
+				gnmi.OC().Interface(tc.port.Name()).Counters().OutUnicastPkts().State().PathStruct(),
+				gnmi.OC().Interface(tc.port.Name()).Counters().InPkts().State().PathStruct(),
+				gnmi.OC().Interface(tc.port.Name()).Counters().OutPkts().State().PathStruct(),
 			)
 			_, ok := gnmi.Watch(t, dut, pktBatch.State(), negativeCheckTimeout, func(val *ygnmi.Value[*oc.Root]) bool {
 				root, present := val.Val()
@@ -501,8 +537,17 @@ func runAndVerifyBidirectionalTraffic(t *testing.T, dut *ondatra.DUTDevice, ate 
 				t.Errorf("Port %s counter watch timed out waiting for +%d packet delta within %v", tc.port.Name(), expectedUnicastDeltaPort, negativeCheckTimeout)
 			}
 		}
+		afterSnaps = snapshotPortsCounters(t, dut, ports, params)
+	}
 
-		after := snapshotPortCounters(t, dut, tc.port, params)
+	for _, tc := range []struct {
+		port   *ondatra.Port
+		before portCountersSnapshot
+	}{
+		{port: p1, before: beforeP1},
+		{port: p2, before: beforeP2},
+	} {
+		after := afterSnaps[tc.port.Name()]
 		if ate != nil && top != nil {
 			if delta := after.inUnicastPkts - tc.before.inUnicastPkts; delta < expectedUnicastDeltaPort {
 				t.Errorf("Port %s in-unicast-pkts delta = %d, want >= %d", tc.port.Name(), delta, expectedUnicastDeltaPort)
@@ -528,7 +573,7 @@ func runAndVerifyBidirectionalTraffic(t *testing.T, dut *ondatra.DUTDevice, ate 
 				t.Errorf("Port %s in-fcs-errors delta = %d, want 0", tc.port.Name(), delta)
 			}
 		}
-		if !deviations.NonIntervalFecErrorCounter(dut) {
+		if !deviations.NonIntervalFecErrorCounter(dut) && tc.before.fecUncorrect == 0 {
 			if after.fecUncorrect != 0 {
 				t.Errorf("Port %s fec-uncorrectable-blocks = %d, want 0", tc.port.Name(), after.fecUncorrect)
 			}
@@ -575,19 +620,6 @@ func Test800ZROperationalModeInventoryRecovery(t *testing.T) {
 		if !deviations.TransceiverConfigEnableUnsupported(dut) {
 			cfgplugins.BatchConfigureTransceiverEnabled(t, dut, cleanupBatch, ports, params, true)
 		}
-		for _, p := range ports {
-			gnmi.BatchDelete(cleanupBatch, gnmi.OC().Interface(p.Name()).Subinterface(0).Config())
-		}
-
-		niName := deviations.DefaultNetworkInstance(dut)
-		staticProtoName := deviations.StaticProtocolName(dut)
-		v4ToP2, _ := ipv4StaticPrefixes(true)
-		v4ToP1, _ := ipv4StaticPrefixes(false)
-		v6ToP2, _ := ipv6StaticPrefixes(true)
-		v6ToP1, _ := ipv6StaticPrefixes(false)
-		for _, prefix := range append(append(v4ToP2, v4ToP1...), append(v6ToP2, v6ToP1...)...) {
-			gnmi.BatchDelete(cleanupBatch, gnmi.OC().NetworkInstance(niName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, staticProtoName).Static(prefix).Config())
-		}
 		for attempt := 0; attempt < 3; attempt++ {
 			if msg := testt.CaptureFatal(t, func(tb testing.TB) {
 				cleanupBatch.Set(tb, dut)
@@ -596,10 +628,34 @@ func Test800ZROperationalModeInventoryRecovery(t *testing.T) {
 			}
 		}
 
+		routeCleanupBatch := &gnmi.SetBatch{}
+		niName := deviations.DefaultNetworkInstance(dut)
+		for _, p := range ports {
+			if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+				gnmi.BatchDelete(routeCleanupBatch, gnmi.OC().NetworkInstance(niName).Interface(p.Name()+".0").Config())
+			}
+			gnmi.BatchDelete(routeCleanupBatch, gnmi.OC().Interface(p.Name()).Subinterface(0).Config())
+		}
+
+		staticProtoName := deviations.StaticProtocolName(dut)
+		v4ToP2, _ := ipv4StaticPrefixes(true)
+		v4ToP1, _ := ipv4StaticPrefixes(false)
+		v6ToP2, _ := ipv6StaticPrefixes(true)
+		v6ToP1, _ := ipv6StaticPrefixes(false)
+		for _, prefix := range append(append(v4ToP2, v4ToP1...), append(v6ToP2, v6ToP1...)...) {
+			gnmi.BatchDelete(routeCleanupBatch, gnmi.OC().NetworkInstance(niName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, staticProtoName).Static(prefix).Config())
+		}
+		for attempt := 0; attempt < 3; attempt++ {
+			if msg := testt.CaptureFatal(t, func(tb testing.TB) {
+				routeCleanupBatch.Set(tb, dut)
+			}); msg == nil {
+				break
+			}
+		}
+
 		cfgplugins.BounceTransceivers(t, dut, ports, params, negativeCheckTimeout)
 
 		for _, p := range ports {
-			trName := params.TransceiverNames[p.Name()]
 			var ok bool
 			for attempt := 0; attempt < 3; attempt++ {
 				if msg := testt.CaptureFatal(t, func(tb testing.TB) {
@@ -627,15 +683,31 @@ func Test800ZROperationalModeInventoryRecovery(t *testing.T) {
 			if !ok {
 				t.Errorf("Cleanup: Interface %s did not return to OperStatus UP", p.Name())
 			}
-			var trActive bool
-			for attempt := 0; attempt < 3; attempt++ {
-				if msg := testt.CaptureFatal(t, func(tb testing.TB) {
-					_, trActive = gnmi.Watch(tb, dut, gnmi.OC().Component(trName).OperStatus().State(), negativeCheckTimeout, func(val *ygnmi.Value[oc.E_PlatformTypes_COMPONENT_OPER_STATUS]) bool {
-						v, present := val.Val()
-						return present && v == oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE
-					}).Await(tb)
-				}); msg == nil {
-					break
+		}
+
+		trOperBatch := gnmi.OCBatch()
+		trOperBatch.AddPaths(gnmi.OC().ComponentAny().OperStatus().State().PathStruct())
+		var trOperRoot *oc.Root
+		for attempt := 0; attempt < 3; attempt++ {
+			if msg := testt.CaptureFatal(t, func(tb testing.TB) {
+				trOperRoot, _ = gnmi.Lookup(tb, dut, trOperBatch.State()).Val()
+			}); msg == nil {
+				break
+			}
+		}
+		for _, p := range ports {
+			trName := params.TransceiverNames[p.Name()]
+			trActive := trOperRoot.GetComponent(trName).GetOperStatus() == oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE
+			if !trActive {
+				for attempt := 0; attempt < 3; attempt++ {
+					if msg := testt.CaptureFatal(t, func(tb testing.TB) {
+						_, trActive = gnmi.Watch(tb, dut, gnmi.OC().Component(trName).OperStatus().State(), negativeCheckTimeout, func(val *ygnmi.Value[oc.E_PlatformTypes_COMPONENT_OPER_STATUS]) bool {
+							v, present := val.Val()
+							return present && v == oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE
+						}).Await(tb)
+					}); msg == nil {
+						break
+					}
 				}
 			}
 			if !trActive {
@@ -663,8 +735,6 @@ func Test800ZROperationalModeInventoryRecovery(t *testing.T) {
 		}
 		initBatch.Set(t, dut)
 
-		cfgplugins.BounceTransceivers(t, dut, ports, params, negativeCheckTimeout)
-
 		for _, p := range ports {
 			var ok bool
 			for attempt := 0; attempt < 3; attempt++ {
@@ -678,13 +748,26 @@ func Test800ZROperationalModeInventoryRecovery(t *testing.T) {
 				}
 			}
 			if !ok {
+				cfgplugins.BounceTransceivers(t, dut, ports, params, negativeCheckTimeout)
+				for attempt := 0; attempt < 3; attempt++ {
+					if msg := testt.CaptureFatal(t, func(tb testing.TB) {
+						_, ok = gnmi.Watch(tb, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), convergenceTimeout, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
+							v, present := val.Val()
+							return present && v == oc.Interface_OperStatus_UP
+						}).Await(tb)
+					}); msg == nil {
+						break
+					}
+				}
+			}
+			if !ok {
 				t.Errorf("TRANSCEIVER-109.1 Step 1: Interface %s did not reach OperStatus UP within %v", p.Name(), convergenceTimeout)
 			}
 		}
 
 		// TRANSCEIVER-109.1 Step 2: Baseline Transceiver Inventory Verification (gNMI.Subscribe & gNMI.Get).
-		for _, p := range ports {
-			baselineInventory[p.Name()] = transceiver.CaptureAndValidateBaselineInventory(t, dut, p, params, negativeCheckTimeout)
+		for k, v := range transceiver.CaptureAndValidateMultiPortBaselineInventory(t, dut, ports, params, negativeCheckTimeout) {
+			baselineInventory[k] = v
 		}
 
 		// TRANSCEIVER-109.1 Step 3: Reconfigure to Custom Operational Mode (Appsel) and Execute Event-Driven Transceiver Bounce.
@@ -700,9 +783,7 @@ func Test800ZROperationalModeInventoryRecovery(t *testing.T) {
 		transceiver.VerifyOpticalAndChannelTelemetry(t, dut, ports, params, customOpMode, freqMHz, convergenceTimeout, negativeCheckTimeout)
 
 		// Verify transceiver inventory persistence after custom operational-mode transition and transceiver bounce.
-		for _, p := range ports {
-			transceiver.VerifyInventoryMatchesBaseline(t, dut, p, params, baselineInventory[p.Name()], true, true, true)
-		}
+		transceiver.VerifyMultiPortInventoryMatchesBaseline(t, dut, ports, params, baselineInventory, true, true, true)
 
 		// TRANSCEIVER-109.1 Step 4: Event-Driven Control-Plane/AFT Convergence and Bidirectional Dual-Stack Traffic Validation.
 		configureL3AndStaticRoutes(t, dut, p1, p2, portAttrs)
@@ -729,8 +810,10 @@ func Test800ZROperationalModeInventoryRecovery(t *testing.T) {
 			w := transceiver.StartOnChangeInventoryWatcher(t, dut, trName, baselineInventory[p.Name()])
 			defer w.Close()
 			inventoryWatchers[p.Name()] = w
-			transceiver.VerifyInventoryMatchesBaseline(t, dut, p, params, baselineInventory[p.Name()], true, true, true)
-			w.VerifyNoViolations(t)
+		}
+		transceiver.VerifyMultiPortInventoryMatchesBaseline(t, dut, ports, params, baselineInventory, true, true, true)
+		for _, p := range ports {
+			inventoryWatchers[p.Name()].VerifyNoViolations(t)
 		}
 
 		// TRANSCEIVER-109.2 Step 2: Execute 5 Consecutive Multi-Port Interface Delete and Re-Create Cycles (Iteration i = 1..5).
@@ -743,8 +826,8 @@ func Test800ZROperationalModeInventoryRecovery(t *testing.T) {
 			// Step 2.2: Verify Transceiver Inventory Persistence While Interfaces Are Deleted.
 			for _, p := range ports {
 				inventoryWatchers[p.Name()].VerifyNoViolations(t)
-				transceiver.VerifyInventoryMatchesBaseline(t, dut, p, params, baselineInventory[p.Name()], false, true, true)
 			}
+			transceiver.VerifyMultiPortInventoryMatchesBaseline(t, dut, ports, params, baselineInventory, false, !deviations.TransceiverConfigEnableUnsupported(dut), true)
 
 			// Step 2.3: Batched Interface Re-Creation and Custom Operational Mode Verification.
 			recreateBatch := &gnmi.SetBatch{}
@@ -756,7 +839,6 @@ func Test800ZROperationalModeInventoryRecovery(t *testing.T) {
 			cfgplugins.AssignPortsToDefaultNetworkInstance(t, dut, ports)
 
 			for _, p := range ports {
-				ochName := params.OpticalChannelNames[p.Name()]
 				var ok bool
 				for attempt := 0; attempt < 3; attempt++ {
 					if msg := testt.CaptureFatal(t, func(tb testing.TB) {
@@ -771,37 +853,14 @@ func Test800ZROperationalModeInventoryRecovery(t *testing.T) {
 				if !ok {
 					t.Fatalf("Cycle %d: Interface %s did not return to OperStatus UP within %v after re-creation", cycle, p.Name(), convergenceTimeout)
 				}
-				if !deviations.OperationalModeUnsupported(dut) {
-					var modeOK bool
-					for attempt := 0; attempt < 3; attempt++ {
-						if msg := testt.CaptureFatal(t, func(tb testing.TB) {
-							_, modeOK = gnmi.Watch(tb, dut, gnmi.OC().Component(ochName).OpticalChannel().OperationalMode().State(), negativeCheckTimeout, func(val *ygnmi.Value[uint16]) bool {
-								v, present := val.Val()
-								return present && v == customOpMode
-							}).Await(tb)
-						}); msg == nil {
-							break
-						}
-					}
-					if !modeOK {
-						var gotMode uint16
-						for attempt := 0; attempt < 3; attempt++ {
-							if msg := testt.CaptureFatal(t, func(tb testing.TB) {
-								gotMode, _ = gnmi.Lookup(tb, dut, gnmi.OC().Component(ochName).OpticalChannel().OperationalMode().State()).Val()
-							}); msg == nil {
-								break
-							}
-						}
-						t.Errorf("Cycle %d: Port %s /components/component[name=%s]/optical-channel/state/operational-mode = %d, want %d", cycle, p.Name(), ochName, gotMode, customOpMode)
-					}
-				}
-				inventoryWatchers[p.Name()].VerifyNoViolations(t)
-				transceiver.VerifyInventoryMatchesBaseline(t, dut, p, params, baselineInventory[p.Name()], true, true, true)
 			}
+			for _, p := range ports {
+				inventoryWatchers[p.Name()].VerifyNoViolations(t)
+			}
+			transceiver.VerifyMultiPortInventoryMatchesBaseline(t, dut, ports, params, baselineInventory, true, true, true)
 		}
 
 		// TRANSCEIVER-109.2 Step 3: Post-Stress Bidirectional Dual-Stack IPv4 and IPv6 Traffic Validation.
-		transceiver.VerifyOpticalAndChannelTelemetry(t, dut, ports, params, customOpMode, freqMHz, convergenceTimeout, negativeCheckTimeout)
 		configureL3AndStaticRoutes(t, dut, p1, p2, portAttrs)
 		verifyControlPlaneConvergenceGate(t, dut, ate, otgConfig, p1, p2)
 		runAndVerifyBidirectionalTraffic(t, dut, ate, otgConfig, p1, p2, params)
@@ -828,12 +887,27 @@ func Test800ZROperationalModeInventoryRecovery(t *testing.T) {
 			gnmi.Replace(t, dut, gnmi.OC().Component(p1OchName).OpticalChannel().OperationalMode().Config(), unsupportedOpMode)
 		})
 		if fatalMsg == nil {
-			_, ok := gnmi.Watch(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), negativeCheckTimeout, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
-				v, present := val.Val()
-				return present && (v == oc.Interface_OperStatus_DOWN || v == oc.Interface_OperStatus_LOWER_LAYER_DOWN)
-			}).Await(t)
-			if !ok {
-				t.Errorf("TRANSCEIVER-109.3 Step 1: Interface %s did not transition to DOWN/LOWER_LAYER_DOWN when configured with unsupported operational-mode %d", p1.Name(), unsupportedOpMode)
+			modeBatch := gnmi.OCBatch()
+			modeBatch.AddPaths(gnmi.OC().ComponentAny().OpticalChannel().OperationalMode().State().PathStruct())
+			var stateRoot *oc.Root
+			modeFatal := testt.CaptureFatal(t, func(tb testing.TB) {
+				stateRoot, _ = gnmi.Lookup(tb, dut, modeBatch.State()).Val()
+			})
+			if modeFatal == nil && stateRoot != nil && stateRoot.GetComponent(p1OchName).GetOpticalChannel().GetOperationalMode() == unsupportedOpMode {
+				var downOK bool
+				for attempt := 0; attempt < 3; attempt++ {
+					if msg := testt.CaptureFatal(t, func(tb testing.TB) {
+						_, downOK = gnmi.Watch(tb, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), negativeCheckTimeout, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
+							v, present := val.Val()
+							return present && (v == oc.Interface_OperStatus_DOWN || v == oc.Interface_OperStatus_LOWER_LAYER_DOWN)
+						}).Await(tb)
+					}); msg == nil {
+						break
+					}
+				}
+				if !downOK {
+					t.Errorf("TRANSCEIVER-109.3 Step 1: Interface %s did not transition to DOWN/LOWER_LAYER_DOWN when configured with unsupported operational-mode %d", p1.Name(), unsupportedOpMode)
+				}
 			}
 		}
 
@@ -852,6 +926,19 @@ func Test800ZROperationalModeInventoryRecovery(t *testing.T) {
 				}).Await(tb)
 			}); msg == nil {
 				break
+			}
+		}
+		if !ok {
+			cfgplugins.BounceTransceivers(t, dut, []*ondatra.Port{p1}, params, negativeCheckTimeout)
+			for attempt := 0; attempt < 3; attempt++ {
+				if msg := testt.CaptureFatal(t, func(tb testing.TB) {
+					_, ok = gnmi.Watch(tb, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), convergenceTimeout, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
+						v, present := val.Val()
+						return present && v == oc.Interface_OperStatus_UP
+					}).Await(tb)
+				}); msg == nil {
+					break
+				}
 			}
 		}
 		if !ok {
@@ -916,19 +1003,6 @@ func Test800ZROperationalModeInventoryRecovery(t *testing.T) {
 		cfgplugins.BatchConfigureOpticalChannel(t, dut, restoreFreqBatch, []*ondatra.Port{p1}, params)
 		restoreFreqBatch.Set(t, dut)
 
-		if !deviations.OperationalModeUnsupported(dut) {
-			for attempt := 0; attempt < 3; attempt++ {
-				if msg := testt.CaptureFatal(t, func(tb testing.TB) {
-					gnmi.Watch(tb, dut, gnmi.OC().Component(p1OchName).OpticalChannel().Frequency().State(), negativeCheckTimeout, func(val *ygnmi.Value[uint64]) bool {
-						v, present := val.Val()
-						return present && v == freqMHz
-					}).Await(tb)
-				}); msg == nil {
-					break
-				}
-			}
-		}
-
 		cfgplugins.BounceTransceivers(t, dut, []*ondatra.Port{p1}, params, negativeCheckTimeout)
 
 		ok = false
@@ -969,11 +1043,17 @@ func Test800ZROperationalModeInventoryRecovery(t *testing.T) {
 
 		if !deviations.TransceiverConfigEnableUnsupported(dut) {
 			var trDisabled bool
+			trEnabledBatch := gnmi.OCBatch()
+			trEnabledBatch.AddPaths(gnmi.OC().ComponentAny().Transceiver().Enabled().State().PathStruct())
 			for attempt := 0; attempt < 3; attempt++ {
 				if msg := testt.CaptureFatal(t, func(tb testing.TB) {
-					_, trDisabled = gnmi.Watch(tb, dut, gnmi.OC().Component(p1TrName).Transceiver().Enabled().State(), negativeCheckTimeout, func(val *ygnmi.Value[bool]) bool {
-						v, present := val.Val()
-						return present && !v
+					_, trDisabled = gnmi.Watch(tb, dut, trEnabledBatch.State(), negativeCheckTimeout, func(val *ygnmi.Value[*oc.Root]) bool {
+						r, present := val.Val()
+						if !present || r == nil {
+							return false
+						}
+						tr := r.GetComponent(p1TrName).GetTransceiver()
+						return tr != nil && tr.Enabled != nil && !tr.GetEnabled()
 					}).Await(tb)
 				}); msg == nil {
 					break

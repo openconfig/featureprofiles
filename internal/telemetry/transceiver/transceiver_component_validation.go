@@ -292,26 +292,204 @@ type InventorySnapshot struct {
 	FirmwareVersion string
 }
 
-// OnChangeInventoryWatcher maintains a continuous ON_CHANGE gNMI subscription on a transceiver
-// component state tree and records any gNMI delete notification or inventory string corruption.
-type OnChangeInventoryWatcher struct {
-	mu         sync.Mutex
-	trName     string
-	baseline   *InventorySnapshot
-	synced     bool
-	violations []string
-	cancel     context.CancelFunc
+type compSnapshot struct {
+	name            string
+	compType        oc.Component_Type_Union
+	parent          string
+	operStatus      oc.E_PlatformTypes_COMPONENT_OPER_STATUS
+	serialNo        string
+	partNo          string
+	mfgName         string
+	mfgDate         string
+	hardwareVersion string
+	firmwareVersion string
+	formFactor      oc.E_TransportTypes_TRANSCEIVER_FORM_FACTOR_TYPE
+	hasEnabled      bool
+	enabled         bool
+	hasOpMode       bool
+	operationalMode uint16
 }
 
-// StartOnChangeInventoryWatcher starts a continuous ON_CHANGE gNMI subscription on
-// /components/component[name=<trName>]/state inventory leaves that monitors for delete notifications or inventory mismatches.
-func StartOnChangeInventoryWatcher(t *testing.T, dut *ondatra.DUTDevice, trName string, baseline *InventorySnapshot) *OnChangeInventoryWatcher {
+type ingressSnapshot struct {
+	intf        string
+	transceiver string
+}
+
+type dutOnChangeStream struct {
+	mu              sync.Mutex
+	dutID           string
+	watchStarted    bool
+	components      map[string]compSnapshot
+	intfTransceiver map[string]string
+	channelIngress  map[uint32]ingressSnapshot
+	watchers        map[string]*OnChangeInventoryWatcher
+}
+
+var (
+	dutStreamsMu sync.Mutex
+	dutStreams   = make(map[string]*dutOnChangeStream)
+)
+
+func getActiveDUTStream(dutID string) *dutOnChangeStream {
+	dutStreamsMu.Lock()
+	defer dutStreamsMu.Unlock()
+	return dutStreams[dutID]
+}
+
+func getOrCreateDUTStream(dutID string) *dutOnChangeStream {
+	dutStreamsMu.Lock()
+	defer dutStreamsMu.Unlock()
+	if s, ok := dutStreams[dutID]; ok {
+		return s
+	}
+	s := &dutOnChangeStream{
+		dutID:           dutID,
+		components:      make(map[string]compSnapshot),
+		intfTransceiver: make(map[string]string),
+		channelIngress:  make(map[uint32]ingressSnapshot),
+		watchers:        make(map[string]*OnChangeInventoryWatcher),
+	}
+	dutStreams[dutID] = s
+	return s
+}
+
+func (s *dutOnChangeStream) hasActiveWatchers() bool {
+	if s == nil {
+		return false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.watchers) > 0
+}
+
+func (s *dutOnChangeStream) updateFromRootLocked(dut *ondatra.DUTDevice, root *oc.Root, checkDeletes bool) {
+	if root == nil {
+		if checkDeletes {
+			for trName, w := range s.watchers {
+				w.mu.Lock()
+				if w.synced {
+					w.violations = append(w.violations, fmt.Sprintf("received gNMI delete or nil component notification for /components/component[name=%s]/state", trName))
+				}
+				w.mu.Unlock()
+			}
+		}
+		return
+	}
+	for name, comp := range root.Component {
+		if comp == nil {
+			continue
+		}
+		prev := s.components[name]
+		if v := comp.GetName(); v != "" {
+			prev.name = v
+		}
+		if v := comp.GetType(); v != nil {
+			prev.compType = v
+		}
+		if v := comp.GetParent(); v != "" {
+			prev.parent = v
+		}
+		if v := comp.GetOperStatus(); v != oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET {
+			prev.operStatus = v
+		}
+		if v := comp.GetSerialNo(); v != "" {
+			prev.serialNo = v
+		}
+		if v := comp.GetPartNo(); v != "" {
+			prev.partNo = v
+		}
+		if v := comp.GetMfgName(); v != "" {
+			prev.mfgName = v
+		}
+		if v := comp.GetMfgDate(); v != "" {
+			prev.mfgDate = v
+		}
+		if v := comp.GetHardwareVersion(); v != "" {
+			prev.hardwareVersion = v
+		}
+		if v := comp.GetFirmwareVersion(); v != "" {
+			prev.firmwareVersion = v
+		}
+		if tr := comp.GetTransceiver(); tr != nil {
+			if v := tr.GetFormFactor(); v != oc.TransportTypes_TRANSCEIVER_FORM_FACTOR_TYPE_UNSET {
+				prev.formFactor = v
+			}
+			if tr.Enabled != nil {
+				prev.hasEnabled = true
+				prev.enabled = tr.GetEnabled()
+			}
+		}
+		if och := comp.GetOpticalChannel(); och != nil && och.OperationalMode != nil {
+			prev.hasOpMode = true
+			prev.operationalMode = och.GetOperationalMode()
+		}
+		s.components[name] = prev
+	}
+	if checkDeletes {
+		for name := range s.components {
+			if root.GetComponent(name) == nil {
+				delete(s.components, name)
+			}
+		}
+	}
+	for intfName, intf := range root.Interface {
+		if intf != nil && intf.Transceiver != nil {
+			s.intfTransceiver[intfName] = intf.GetTransceiver()
+		}
+	}
+	if td := root.GetTerminalDevice(); td != nil {
+		for idx, ch := range td.Channel {
+			if ch != nil && ch.GetIngress() != nil {
+				prevIng := s.channelIngress[idx]
+				if ch.GetIngress().Interface != nil {
+					prevIng.intf = ch.GetIngress().GetInterface()
+				} else if checkDeletes {
+					prevIng.intf = ""
+				}
+				if ch.GetIngress().Transceiver != nil {
+					prevIng.transceiver = ch.GetIngress().GetTransceiver()
+				} else if checkDeletes {
+					prevIng.transceiver = ""
+				}
+				s.channelIngress[idx] = prevIng
+			} else if checkDeletes {
+				delete(s.channelIngress, idx)
+			}
+		}
+		if checkDeletes {
+			for idx := range s.channelIngress {
+				if td.GetChannel(idx) == nil {
+					delete(s.channelIngress, idx)
+				}
+			}
+		}
+	} else if checkDeletes {
+		for idx := range s.channelIngress {
+			delete(s.channelIngress, idx)
+		}
+	}
+	for trName, w := range s.watchers {
+		w.mu.Lock()
+		snap, exists := s.components[trName]
+		if !exists {
+			if checkDeletes && w.synced {
+				w.violations = append(w.violations, fmt.Sprintf("received gNMI delete or nil component notification for /components/component[name=%s]/state", trName))
+			}
+			w.mu.Unlock()
+			continue
+		}
+		w.checkAndUpdateLocked(dut, snap)
+		w.mu.Unlock()
+	}
+}
+
+func getOrStartDUTStream(t *testing.T, dut *ondatra.DUTDevice) *dutOnChangeStream {
 	t.Helper()
-	ctx, cancel := context.WithCancel(context.Background())
-	w := &OnChangeInventoryWatcher{
-		trName:   trName,
-		baseline: baseline,
-		cancel:   cancel,
+	s := getOrCreateDUTStream(dut.ID())
+	dutStreamsMu.Lock()
+	defer dutStreamsMu.Unlock()
+	if s.watchStarted {
+		return s
 	}
 	c, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.ID()))
 	if err != nil {
@@ -319,74 +497,116 @@ func StartOnChangeInventoryWatcher(t *testing.T, dut *ondatra.DUTDevice, trName 
 	}
 	invBatch := gnmi.OCBatch()
 	invBatch.AddPaths(
-		gnmi.OC().Component(trName).Name(),
-		gnmi.OC().Component(trName).Type(),
-		gnmi.OC().Component(trName).Parent(),
-		gnmi.OC().Component(trName).OperStatus(),
-		gnmi.OC().Component(trName).SerialNo(),
-		gnmi.OC().Component(trName).PartNo(),
-		gnmi.OC().Component(trName).MfgName(),
-		gnmi.OC().Component(trName).MfgDate(),
-		gnmi.OC().Component(trName).HardwareVersion(),
-		gnmi.OC().Component(trName).FirmwareVersion(),
+		gnmi.OC().ComponentAny().Type().State().PathStruct(),
+		gnmi.OC().ComponentAny().Parent().State().PathStruct(),
+		gnmi.OC().ComponentAny().OperStatus().State().PathStruct(),
+		gnmi.OC().ComponentAny().SerialNo().State().PathStruct(),
+		gnmi.OC().ComponentAny().PartNo().State().PathStruct(),
+		gnmi.OC().ComponentAny().MfgName().State().PathStruct(),
+		gnmi.OC().ComponentAny().HardwareVersion().State().PathStruct(),
+		gnmi.OC().ComponentAny().FirmwareVersion().State().PathStruct(),
+		gnmi.OC().ComponentAny().Transceiver().FormFactor().State().PathStruct(),
 	)
-	// ygnmi.Watch starts an asynchronous STREAM subscription in its own internal goroutine and returns
-	// *ygnmi.Watcher[T] immediately (only calling .Await() blocks). The context.Context (ctx) passed into
-	// ygnmi.Watch(ctx, ...) controls the lifetime of the background ON_CHANGE stream until w.Close() cancels it.
-	ygnmi.Watch(ctx, c, invBatch.State(), func(v *ygnmi.Value[*oc.Root]) error {
-		w.mu.Lock()
-		defer w.mu.Unlock()
+	if !deviations.ComponentMfgDateUnsupported(dut) {
+		invBatch.AddPaths(gnmi.OC().ComponentAny().MfgDate().State().PathStruct())
+	}
+	if !deviations.TransceiverConfigEnableUnsupported(dut) {
+		invBatch.AddPaths(gnmi.OC().ComponentAny().Transceiver().Enabled().State().PathStruct())
+	}
+	if !deviations.EthChannelIngressParametersUnsupported(dut) {
+		invBatch.AddPaths(
+			gnmi.OC().TerminalDevice().ChannelAny().Ingress().Interface().State().PathStruct(),
+			gnmi.OC().TerminalDevice().ChannelAny().Ingress().Transceiver().State().PathStruct(),
+		)
+	}
+	ygnmi.Watch(context.Background(), c, invBatch.State(), func(v *ygnmi.Value[*oc.Root]) error {
+		s.mu.Lock()
+		defer s.mu.Unlock()
 		root, present := v.Val()
-		if !present || root == nil || root.GetComponent(trName) == nil {
-			if w.synced {
-				w.violations = append(w.violations, fmt.Sprintf("received gNMI delete or nil component notification for /components/component[name=%s]/state", trName))
-			}
+		if !present || root == nil {
+			s.updateFromRootLocked(dut, nil, true)
 			return ygnmi.Continue
 		}
-		comp := root.GetComponent(trName)
-		if !w.synced {
-			if comp.GetName() != "" && comp.GetParent() != "" &&
-				comp.GetSerialNo() != "" && comp.GetPartNo() != "" && comp.GetMfgName() != "" &&
-				comp.GetHardwareVersion() != "" && comp.GetFirmwareVersion() != "" &&
-				(deviations.ComponentMfgDateUnsupported(dut) || comp.GetMfgDate() != "") {
-				w.synced = true
-			} else {
-				return ygnmi.Continue
-			}
-		}
-		if baseline != nil {
-			if got := comp.GetName(); got == "" || got != baseline.Name {
-				w.violations = append(w.violations, fmt.Sprintf("component %s name changed in ON_CHANGE stream: got %q, want %q", trName, got, baseline.Name))
-			}
-			if got := comp.GetType(); got != nil && got != oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER {
-				w.violations = append(w.violations, fmt.Sprintf("component %s type changed in ON_CHANGE stream: got %v, want %v", trName, got, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER))
-			}
-			if got := comp.GetParent(); got == "" || got != baseline.Parent {
-				w.violations = append(w.violations, fmt.Sprintf("component %s parent changed in ON_CHANGE stream: got %q, want %q", trName, got, baseline.Parent))
-			}
-			if got := comp.GetSerialNo(); got == "" || got != baseline.SerialNo {
-				w.violations = append(w.violations, fmt.Sprintf("component %s serial-no changed in ON_CHANGE stream: got %q, want %q", trName, got, baseline.SerialNo))
-			}
-			if got := comp.GetPartNo(); got == "" || got != baseline.PartNo {
-				w.violations = append(w.violations, fmt.Sprintf("component %s part-no changed in ON_CHANGE stream: got %q, want %q", trName, got, baseline.PartNo))
-			}
-			if got := comp.GetMfgName(); got == "" || got != baseline.MfgName {
-				w.violations = append(w.violations, fmt.Sprintf("component %s mfg-name changed in ON_CHANGE stream: got %q, want %q", trName, got, baseline.MfgName))
-			}
-			if !deviations.ComponentMfgDateUnsupported(dut) {
-				if got := comp.GetMfgDate(); got == "" || got != baseline.MfgDate {
-					w.violations = append(w.violations, fmt.Sprintf("component %s mfg-date changed in ON_CHANGE stream: got %q, want %q", trName, got, baseline.MfgDate))
-				}
-			}
-			if got := comp.GetHardwareVersion(); got == "" || got != baseline.HardwareVersion {
-				w.violations = append(w.violations, fmt.Sprintf("component %s hardware-version changed in ON_CHANGE stream: got %q, want %q", trName, got, baseline.HardwareVersion))
-			}
-			if got := comp.GetFirmwareVersion(); got == "" || got != baseline.FirmwareVersion {
-				w.violations = append(w.violations, fmt.Sprintf("component %s firmware-version changed in ON_CHANGE stream: got %q, want %q", trName, got, baseline.FirmwareVersion))
-			}
-		}
+		s.updateFromRootLocked(dut, root, true)
 		return ygnmi.Continue
 	}, ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE))
+	s.watchStarted = true
+	return s
+}
+
+// OnChangeInventoryWatcher maintains a continuous ON_CHANGE gNMI subscription on a transceiver
+// component state tree and records any gNMI delete notification or inventory string corruption.
+type OnChangeInventoryWatcher struct {
+	mu         sync.Mutex
+	stream     *dutOnChangeStream
+	trName     string
+	baseline   *InventorySnapshot
+	synced     bool
+	violations []string
+}
+
+func (w *OnChangeInventoryWatcher) checkAndUpdateLocked(dut *ondatra.DUTDevice, snap compSnapshot) {
+	if !w.synced {
+		if snap.name != "" && snap.parent != "" &&
+			snap.serialNo != "" && snap.partNo != "" && snap.mfgName != "" &&
+			snap.hardwareVersion != "" && snap.firmwareVersion != "" &&
+			(deviations.ComponentMfgDateUnsupported(dut) || snap.mfgDate != "") {
+			w.synced = true
+		} else {
+			return
+		}
+	}
+	if w.baseline != nil {
+		if got := snap.name; got == "" || got != w.baseline.Name {
+			w.violations = append(w.violations, fmt.Sprintf("component %s name changed in ON_CHANGE stream: got %q, want %q", w.trName, got, w.baseline.Name))
+		}
+		if got := snap.compType; got != nil && got != oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER {
+			w.violations = append(w.violations, fmt.Sprintf("component %s type changed in ON_CHANGE stream: got %v, want %v", w.trName, got, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER))
+		}
+		if got := snap.parent; got == "" || got != w.baseline.Parent {
+			w.violations = append(w.violations, fmt.Sprintf("component %s parent changed in ON_CHANGE stream: got %q, want %q", w.trName, got, w.baseline.Parent))
+		}
+		if got := snap.serialNo; got == "" || got != w.baseline.SerialNo {
+			w.violations = append(w.violations, fmt.Sprintf("component %s serial-no changed in ON_CHANGE stream: got %q, want %q", w.trName, got, w.baseline.SerialNo))
+		}
+		if got := snap.partNo; got == "" || got != w.baseline.PartNo {
+			w.violations = append(w.violations, fmt.Sprintf("component %s part-no changed in ON_CHANGE stream: got %q, want %q", w.trName, got, w.baseline.PartNo))
+		}
+		if got := snap.mfgName; got == "" || got != w.baseline.MfgName {
+			w.violations = append(w.violations, fmt.Sprintf("component %s mfg-name changed in ON_CHANGE stream: got %q, want %q", w.trName, got, w.baseline.MfgName))
+		}
+		if !deviations.ComponentMfgDateUnsupported(dut) {
+			if got := snap.mfgDate; got == "" || got != w.baseline.MfgDate {
+				w.violations = append(w.violations, fmt.Sprintf("component %s mfg-date changed in ON_CHANGE stream: got %q, want %q", w.trName, got, w.baseline.MfgDate))
+			}
+		}
+		if got := snap.hardwareVersion; got == "" || got != w.baseline.HardwareVersion {
+			w.violations = append(w.violations, fmt.Sprintf("component %s hardware-version changed in ON_CHANGE stream: got %q, want %q", w.trName, got, w.baseline.HardwareVersion))
+		}
+		if got := snap.firmwareVersion; got == "" || got != w.baseline.FirmwareVersion {
+			w.violations = append(w.violations, fmt.Sprintf("component %s firmware-version changed in ON_CHANGE stream: got %q, want %q", w.trName, got, w.baseline.FirmwareVersion))
+		}
+	}
+}
+
+// StartOnChangeInventoryWatcher starts a continuous ON_CHANGE gNMI subscription on
+// /components/component[name=<trName>]/state inventory leaves that monitors for delete notifications or inventory mismatches.
+func StartOnChangeInventoryWatcher(t *testing.T, dut *ondatra.DUTDevice, trName string, baseline *InventorySnapshot) *OnChangeInventoryWatcher {
+	t.Helper()
+	s := getOrStartDUTStream(t, dut)
+	w := &OnChangeInventoryWatcher{
+		stream:   s,
+		trName:   trName,
+		baseline: baseline,
+	}
+	s.mu.Lock()
+	s.watchers[trName] = w
+	if snap, exists := s.components[trName]; exists {
+		w.mu.Lock()
+		w.checkAndUpdateLocked(dut, snap)
+		w.mu.Unlock()
+	}
+	s.mu.Unlock()
 	return w
 }
 
@@ -401,10 +621,14 @@ func (w *OnChangeInventoryWatcher) VerifyNoViolations(t *testing.T) {
 	w.violations = nil
 }
 
-// Close stops the continuous ON_CHANGE gNMI subscription.
+// Close unregisters the watcher from the continuous ON_CHANGE gNMI subscription.
 func (w *OnChangeInventoryWatcher) Close() {
-	if w != nil && w.cancel != nil {
-		w.cancel()
+	if w != nil && w.stream != nil {
+		w.stream.mu.Lock()
+		if w.stream.watchers[w.trName] == w {
+			delete(w.stream.watchers, w.trName)
+		}
+		w.stream.mu.Unlock()
 	}
 }
 
@@ -452,22 +676,18 @@ func watchAwait[T any](t *testing.T, dut *ondatra.DUTDevice, q ygnmi.SingletonQu
 func componentInventoryQuery(dut *ondatra.DUTDevice, trName string) ygnmi.SingletonQuery[*oc.Root] {
 	b := gnmi.OCBatch()
 	b.AddPaths(
-		gnmi.OC().Component(trName).Name(),
-		gnmi.OC().Component(trName).Type(),
-		gnmi.OC().Component(trName).Parent(),
-		gnmi.OC().Component(trName).OperStatus(),
-		gnmi.OC().Component(trName).SerialNo(),
-		gnmi.OC().Component(trName).PartNo(),
-		gnmi.OC().Component(trName).MfgName(),
-		gnmi.OC().Component(trName).HardwareVersion(),
-		gnmi.OC().Component(trName).FirmwareVersion(),
-		gnmi.OC().Component(trName).Transceiver().FormFactor(),
+		gnmi.OC().Component(trName).Type().State().PathStruct(),
+		gnmi.OC().Component(trName).Parent().State().PathStruct(),
+		gnmi.OC().Component(trName).OperStatus().State().PathStruct(),
+		gnmi.OC().Component(trName).SerialNo().State().PathStruct(),
+		gnmi.OC().Component(trName).PartNo().State().PathStruct(),
+		gnmi.OC().Component(trName).MfgName().State().PathStruct(),
+		gnmi.OC().Component(trName).HardwareVersion().State().PathStruct(),
+		gnmi.OC().Component(trName).FirmwareVersion().State().PathStruct(),
+		gnmi.OC().Component(trName).Transceiver().FormFactor().State().PathStruct(),
 	)
 	if !deviations.ComponentMfgDateUnsupported(dut) {
-		b.AddPaths(gnmi.OC().Component(trName).MfgDate())
-	}
-	if !deviations.TransceiverConfigEnableUnsupported(dut) {
-		b.AddPaths(gnmi.OC().Component(trName).Transceiver().Enabled())
+		b.AddPaths(gnmi.OC().Component(trName).MfgDate().State().PathStruct())
 	}
 	return b.State()
 }
@@ -476,11 +696,41 @@ func componentInventoryQuery(dut *ondatra.DUTDevice, trName string) ygnmi.Single
 func componentBasicQuery(compName string) ygnmi.SingletonQuery[*oc.Root] {
 	b := gnmi.OCBatch()
 	b.AddPaths(
-		gnmi.OC().Component(compName).Name(),
-		gnmi.OC().Component(compName).Type(),
-		gnmi.OC().Component(compName).Parent(),
+		gnmi.OC().Component(compName).Type().State().PathStruct(),
+		gnmi.OC().Component(compName).Parent().State().PathStruct(),
 	)
 	return b.State()
+}
+
+// lookupInterfaceTransceivers queries /interfaces/interface[name=p]/state/transceiver as individual string leaves
+// so ygot does not reject the response due to *oc.Root leafref cross-validation.
+func lookupInterfaceTransceivers(t *testing.T, dut *ondatra.DUTDevice, ports []*ondatra.Port) map[string]string {
+	t.Helper()
+	res := make(map[string]string, len(ports))
+	if s := getActiveDUTStream(dut.ID()); s != nil {
+		s.mu.Lock()
+		allFound := true
+		for _, p := range ports {
+			if tr := s.intfTransceiver[p.Name()]; tr != "" {
+				res[p.Name()] = tr
+			} else {
+				allFound = false
+			}
+		}
+		s.mu.Unlock()
+		if allFound {
+			return res
+		}
+	}
+	for _, p := range ports {
+		if res[p.Name()] != "" {
+			continue
+		}
+		if tr, ok := lookupVal(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State()); ok && tr != "" {
+			res[p.Name()] = tr
+		}
+	}
+	return res
 }
 
 // CaptureAndValidateBaselineInventory waits for the transceiver component to be ACTIVE with populated
@@ -488,14 +738,71 @@ func componentBasicQuery(compName string) ygnmi.SingletonQuery[*oc.Root] {
 // PORT, TRANSCEIVER, and OPTICAL_CHANNEL component state leaves and leafref paths, and returns the captured baseline snapshot.
 func CaptureAndValidateBaselineInventory(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port, params *cfgplugins.ConfigParameters, watchTimeout time.Duration) *InventorySnapshot {
 	t.Helper()
+	return CaptureAndValidateMultiPortBaselineInventory(t, dut, []*ondatra.Port{p}, params, watchTimeout)[p.Name()]
+}
+
+// CaptureAndValidateMultiPortBaselineInventory captures and validates baseline transceiver inventory across multiple ports
+// using a single batched gNMI Lookup, falling back to per-port watch if any transceiver is not yet ACTIVE.
+func CaptureAndValidateMultiPortBaselineInventory(t *testing.T, dut *ondatra.DUTDevice, ports []*ondatra.Port, params *cfgplugins.ConfigParameters, watchTimeout time.Duration) map[string]*InventorySnapshot {
+	t.Helper()
+	fullBatch := gnmi.OCBatch()
+	fullBatch.AddPaths(
+		gnmi.OC().ComponentAny().Type().State().PathStruct(),
+		gnmi.OC().ComponentAny().Parent().State().PathStruct(),
+		gnmi.OC().ComponentAny().OperStatus().State().PathStruct(),
+		gnmi.OC().ComponentAny().SerialNo().State().PathStruct(),
+		gnmi.OC().ComponentAny().PartNo().State().PathStruct(),
+		gnmi.OC().ComponentAny().MfgName().State().PathStruct(),
+		gnmi.OC().ComponentAny().HardwareVersion().State().PathStruct(),
+		gnmi.OC().ComponentAny().FirmwareVersion().State().PathStruct(),
+		gnmi.OC().ComponentAny().Transceiver().FormFactor().State().PathStruct(),
+	)
+	if !deviations.ComponentMfgDateUnsupported(dut) {
+		fullBatch.AddPaths(gnmi.OC().ComponentAny().MfgDate().State().PathStruct())
+	}
+	if !deviations.TransceiverConfigEnableUnsupported(dut) {
+		fullBatch.AddPaths(gnmi.OC().ComponentAny().Transceiver().Enabled().State().PathStruct())
+	}
+	if !deviations.OperationalModeUnsupported(dut) {
+		fullBatch.AddPaths(gnmi.OC().ComponentAny().OpticalChannel().OperationalMode().State().PathStruct())
+	}
+	if !deviations.EthChannelIngressParametersUnsupported(dut) {
+		for _, p := range ports {
+			ethIdx := params.ETHIndexes[p.Name()]
+			fullBatch.AddPaths(
+				gnmi.OC().TerminalDevice().Channel(ethIdx).Ingress().Interface().State().PathStruct(),
+				gnmi.OC().TerminalDevice().Channel(ethIdx).Ingress().Transceiver().State().PathStruct(),
+			)
+		}
+	}
+	fullQuery := fullBatch.State()
+	root, present := lookupVal(t, dut, fullQuery)
+	if root != nil {
+		for intfName, tr := range lookupInterfaceTransceivers(t, dut, ports) {
+			root.GetOrCreateInterface(intfName).SetTransceiver(tr)
+		}
+	}
+	if s := getOrCreateDUTStream(dut.ID()); s != nil && present && root != nil {
+		s.mu.Lock()
+		s.updateFromRootLocked(dut, root, false)
+		s.mu.Unlock()
+		getOrStartDUTStream(t, dut)
+	}
+	snapshots := make(map[string]*InventorySnapshot, len(ports))
+	for _, p := range ports {
+		snapshots[p.Name()] = validateBaselineInventoryFromRoot(t, dut, p, params, watchTimeout, fullQuery, root, present)
+	}
+	return snapshots
+}
+
+func validateBaselineInventoryFromRoot(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port, params *cfgplugins.ConfigParameters, watchTimeout time.Duration, fullQuery ygnmi.SingletonQuery[*oc.Root], root *oc.Root, present bool) *InventorySnapshot {
+	t.Helper()
 	trName := params.TransceiverNames[p.Name()]
 	hwPortName := params.HWPortNames[p.Name()]
 	ochName := params.OpticalChannelNames[p.Name()]
 	ethIdx := params.ETHIndexes[p.Name()]
 
-	// Wait via ON_CHANGE gNMI subscription (gnmi.Watch) for transceiver oper-status == ACTIVE and inventory strings to populate.
 	invQuery := componentInventoryQuery(dut, trName)
-	root, present := lookupVal(t, dut, invQuery)
 	comp := root.GetComponent(trName)
 	if !present || comp == nil || comp.GetOperStatus() != oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE ||
 		comp.GetSerialNo() == "" || comp.GetPartNo() == "" || comp.GetMfgName() == "" ||
@@ -521,7 +828,8 @@ func CaptureAndValidateBaselineInventory(t *testing.T, dut *ondatra.DUTDevice, p
 			}
 		}
 		if comp == nil {
-			r, _ := lookupVal(t, dut, invQuery)
+			r, _ := lookupVal(t, dut, fullQuery)
+			root = r
 			comp = r.GetComponent(trName)
 		}
 	}
@@ -530,8 +838,12 @@ func CaptureAndValidateBaselineInventory(t *testing.T, dut *ondatra.DUTDevice, p
 	}
 
 	// Validate PORT component state (name, type, parent).
-	hwRoot, hwOK := lookupVal(t, dut, componentBasicQuery(hwPortName))
-	if hwComp := hwRoot.GetComponent(hwPortName); !hwOK || hwComp == nil {
+	hwComp := root.GetComponent(hwPortName)
+	if hwComp == nil {
+		hwRoot, _ := lookupVal(t, dut, componentBasicQuery(hwPortName))
+		hwComp = hwRoot.GetComponent(hwPortName)
+	}
+	if hwComp == nil {
 		t.Errorf("Port %s hardware port component %s missing from /components/component", p.Name(), hwPortName)
 	} else {
 		if got, want := hwComp.GetName(), hwPortName; got != want {
@@ -546,14 +858,18 @@ func CaptureAndValidateBaselineInventory(t *testing.T, dut *ondatra.DUTDevice, p
 	}
 
 	// Validate OPTICAL_CHANNEL component state (name, type, parent).
-	ochRoot, ochOK := lookupVal(t, dut, componentBasicQuery(ochName))
-	if ochComp := ochRoot.GetComponent(ochName); !ochOK || ochComp == nil {
+	ochComp := root.GetComponent(ochName)
+	if ochComp == nil {
+		ochRoot, _ := lookupVal(t, dut, componentBasicQuery(ochName))
+		ochComp = ochRoot.GetComponent(ochName)
+	}
+	if ochComp == nil {
 		t.Errorf("Port %s optical-channel component %s missing from /components/component", p.Name(), ochName)
 	} else {
 		if got, want := ochComp.GetName(), ochName; got != want {
 			t.Errorf("Port %s /components/component[name=%s]/state/name = %q, want %q", p.Name(), ochName, got, want)
 		}
-		if got, want := ochComp.GetType(), oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_OPTICAL_CHANNEL; got != want {
+		if got, want := ochComp.GetType(), oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_OPTICAL_CHANNEL; got != nil && got != want {
 			t.Errorf("Port %s /components/component[name=%s]/state/type = %v, want %v", p.Name(), ochName, got, want)
 		}
 		if got := ochComp.GetParent(); got == "" {
@@ -575,8 +891,11 @@ func CaptureAndValidateBaselineInventory(t *testing.T, dut *ondatra.DUTDevice, p
 		t.Errorf("Port %s /components/component[name=%s]/state/oper-status = %v, want %v", p.Name(), trName, got, want)
 	}
 	if !deviations.TransceiverConfigEnableUnsupported(dut) {
-		if got := comp.GetTransceiver().GetEnabled(); !got {
-			t.Errorf("Port %s /components/component[name=%s]/transceiver/state/enabled = %v, want true", p.Name(), trName, got)
+		enabledVal := comp.GetTransceiver().GetEnabled()
+		if !enabledVal {
+			if got, ok := lookupVal(t, dut, gnmi.OC().Component(trName).Transceiver().Enabled().State()); !ok || !got {
+				t.Errorf("Port %s /components/component[name=%s]/transceiver/state/enabled = %v, want true", p.Name(), trName, got)
+			}
 		}
 	}
 	if got := comp.GetTransceiver().GetFormFactor(); got != oc.TransportTypes_TRANSCEIVER_FORM_FACTOR_TYPE_UNSET &&
@@ -607,23 +926,32 @@ func CaptureAndValidateBaselineInventory(t *testing.T, dut *ondatra.DUTDevice, p
 		t.Errorf("Port %s /components/component[name=%s]/state/firmware-version is empty, want non-empty string", p.Name(), trName)
 	}
 
-	// Validate interface and ETH logical channel leafref bindings via Lookup and ON_CHANGE watch fallback.
-	if got, ok := lookupVal(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State()); !ok || got != trName {
-		_, ok := watchAwait(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State(), watchTimeout, func(val *ygnmi.Value[string]) bool {
-			v, present := val.Val()
-			return present && v == trName
-		})
-		if !ok {
-			got, _ := lookupVal(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
-			t.Errorf("Port %s /interfaces/interface[name=%s]/state/transceiver = %q, want %q", p.Name(), p.Name(), got, trName)
+	// Validate interface and ETH logical channel leafref bindings via batched result or Lookup/Watch fallback.
+	if got := root.GetInterface(p.Name()).GetTransceiver(); got != trName {
+		if got, ok := lookupVal(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State()); !ok || got != trName {
+			_, ok := watchAwait(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State(), watchTimeout, func(val *ygnmi.Value[string]) bool {
+				v, present := val.Val()
+				return present && v == trName
+			})
+			if !ok {
+				got, _ := lookupVal(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
+				if got != trName {
+					t.Errorf("Port %s /interfaces/interface[name=%s]/state/transceiver = %q, want %q", p.Name(), p.Name(), got, trName)
+				}
+			}
 		}
 	}
 	if !deviations.EthChannelIngressParametersUnsupported(dut) {
-		if got, _ := lookupVal(t, dut, gnmi.OC().TerminalDevice().Channel(ethIdx).Ingress().Interface().State()); got != p.Name() {
-			t.Errorf("Port %s /terminal-device/logical-channels/channel[index=%d]/ingress/state/interface = %q, want %q", p.Name(), ethIdx, got, p.Name())
+		ing := root.GetTerminalDevice().GetChannel(ethIdx).GetIngress()
+		if got := ing.GetInterface(); got != p.Name() {
+			if got, _ := lookupVal(t, dut, gnmi.OC().TerminalDevice().Channel(ethIdx).Ingress().Interface().State()); got != p.Name() {
+				t.Errorf("Port %s /terminal-device/logical-channels/channel[index=%d]/ingress/state/interface = %q, want %q", p.Name(), ethIdx, got, p.Name())
+			}
 		}
-		if got, _ := lookupVal(t, dut, gnmi.OC().TerminalDevice().Channel(ethIdx).Ingress().Transceiver().State()); got != trName {
-			t.Errorf("Port %s /terminal-device/logical-channels/channel[index=%d]/ingress/state/transceiver = %q, want %q", p.Name(), ethIdx, got, trName)
+		if got := ing.GetTransceiver(); got != trName {
+			if got, _ := lookupVal(t, dut, gnmi.OC().TerminalDevice().Channel(ethIdx).Ingress().Transceiver().State()); got != trName {
+				t.Errorf("Port %s /terminal-device/logical-channels/channel[index=%d]/ingress/state/transceiver = %q, want %q", p.Name(), ethIdx, got, trName)
+			}
 		}
 	}
 
@@ -648,13 +976,59 @@ func VerifyInventoryMatchesBaseline(t *testing.T, dut *ondatra.DUTDevice, p *ond
 	if baseline == nil {
 		baseline = CaptureAndValidateBaselineInventory(t, dut, p, params, 30*time.Second)
 	}
+	if s := getActiveDUTStream(dut.ID()); s != nil && s.hasActiveWatchers() {
+		VerifyMultiPortInventoryMatchesBaseline(t, dut, []*ondatra.Port{p}, params, map[string]*InventorySnapshot{p.Name(): baseline}, expectInterfaceBound, expectActive, expectEnabled)
+		return
+	}
 	trName := params.TransceiverNames[p.Name()]
 	ethIdx := params.ETHIndexes[p.Name()]
+	if s := getActiveDUTStream(dut.ID()); s != nil && (!expectInterfaceBound || !expectActive || !expectEnabled) {
+		s.mu.Lock()
+		if !expectInterfaceBound {
+			delete(s.intfTransceiver, p.Name())
+			delete(s.channelIngress, ethIdx)
+		}
+		if ochName := params.OpticalChannelNames[p.Name()]; ochName != "" {
+			ochSnap := s.components[ochName]
+			ochSnap.hasOpMode = false
+			s.components[ochName] = ochSnap
+		}
+		s.mu.Unlock()
+	}
 
 	// Verify via gNMI Lookup (and ON_CHANGE Watch fallback if not yet converged) that the component is present,
 	// inventory strings are non-empty, and (if expectActive is true) oper-status is ACTIVE.
+	fullBatch := gnmi.OCBatch()
+	fullBatch.AddPaths(
+		gnmi.OC().ComponentAny().Type().State().PathStruct(),
+		gnmi.OC().ComponentAny().Parent().State().PathStruct(),
+		gnmi.OC().ComponentAny().OperStatus().State().PathStruct(),
+		gnmi.OC().ComponentAny().SerialNo().State().PathStruct(),
+		gnmi.OC().ComponentAny().PartNo().State().PathStruct(),
+		gnmi.OC().ComponentAny().MfgName().State().PathStruct(),
+		gnmi.OC().ComponentAny().HardwareVersion().State().PathStruct(),
+		gnmi.OC().ComponentAny().FirmwareVersion().State().PathStruct(),
+		gnmi.OC().ComponentAny().Transceiver().FormFactor().State().PathStruct(),
+	)
+	if !deviations.ComponentMfgDateUnsupported(dut) {
+		fullBatch.AddPaths(gnmi.OC().ComponentAny().MfgDate().State().PathStruct())
+	}
+	if !deviations.TransceiverConfigEnableUnsupported(dut) {
+		fullBatch.AddPaths(gnmi.OC().ComponentAny().Transceiver().Enabled().State().PathStruct())
+	}
+	if expectInterfaceBound && !deviations.EthChannelIngressParametersUnsupported(dut) {
+		fullBatch.AddPaths(
+			gnmi.OC().TerminalDevice().Channel(ethIdx).Ingress().Interface().State().PathStruct(),
+			gnmi.OC().TerminalDevice().Channel(ethIdx).Ingress().Transceiver().State().PathStruct(),
+		)
+	}
 	invQuery := componentInventoryQuery(dut, trName)
-	rootVal, present := lookupVal(t, dut, invQuery)
+	rootVal, present := lookupVal(t, dut, fullBatch.State())
+	if expectInterfaceBound && rootVal != nil {
+		for intfName, tr := range lookupInterfaceTransceivers(t, dut, []*ondatra.Port{p}) {
+			rootVal.GetOrCreateInterface(intfName).SetTransceiver(tr)
+		}
+	}
 	compVal := rootVal.GetComponent(trName)
 	if !present || compVal == nil || (expectActive && compVal.GetOperStatus() != oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE) ||
 		compVal.GetSerialNo() == "" || compVal.GetPartNo() == "" || compVal.GetMfgName() == "" {
@@ -675,8 +1049,18 @@ func VerifyInventoryMatchesBaseline(t *testing.T, dut *ondatra.DUTDevice, p *ond
 		if !ok {
 			t.Errorf("Port %s ON_CHANGE watch on /components/component[name=%s]/state did not report present component with expected oper-status and non-empty inventory", p.Name(), trName)
 		}
-		rootVal, present = lookupVal(t, dut, invQuery)
+		rootVal, present = lookupVal(t, dut, fullBatch.State())
+		if expectInterfaceBound && rootVal != nil {
+			for intfName, tr := range lookupInterfaceTransceivers(t, dut, []*ondatra.Port{p}) {
+				rootVal.GetOrCreateInterface(intfName).SetTransceiver(tr)
+			}
+		}
 		compVal = rootVal.GetComponent(trName)
+	}
+	if s := getActiveDUTStream(dut.ID()); s != nil && present && rootVal != nil {
+		s.mu.Lock()
+		s.updateFromRootLocked(dut, rootVal, false)
+		s.mu.Unlock()
 	}
 	if !present || compVal == nil {
 		t.Fatalf("Port %s transceiver component %s is missing from /components/ tree", p.Name(), trName)
@@ -696,8 +1080,10 @@ func VerifyInventoryMatchesBaseline(t *testing.T, dut *ondatra.DUTDevice, p *ond
 		}
 	}
 	if !deviations.TransceiverConfigEnableUnsupported(dut) {
-		if got, want := compVal.GetTransceiver().GetEnabled(), expectEnabled; got != want {
-			t.Errorf("Port %s /components/component[name=%s]/transceiver/state/enabled = %v, want %v", p.Name(), trName, got, want)
+		if compVal.GetTransceiver().GetEnabled() != expectEnabled {
+			if got, ok := lookupVal(t, dut, gnmi.OC().Component(trName).Transceiver().Enabled().State()); !ok || got != expectEnabled {
+				t.Errorf("Port %s /components/component[name=%s]/transceiver/state/enabled = %v, want %v", p.Name(), trName, got, expectEnabled)
+			}
 		}
 	}
 	if baseline.FormFactor != oc.TransportTypes_TRANSCEIVER_FORM_FACTOR_TYPE_UNSET {
@@ -727,36 +1113,423 @@ func VerifyInventoryMatchesBaseline(t *testing.T, dut *ondatra.DUTDevice, p *ond
 	}
 
 	if expectInterfaceBound {
-		if got, ok := lookupVal(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State()); !ok || got != trName {
-			_, ok := watchAwait(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State(), 30*time.Second, func(val *ygnmi.Value[string]) bool {
-				v, present := val.Val()
-				return present && v == trName
-			})
-			if !ok {
-				got, _ := lookupVal(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
-				t.Errorf("Port %s /interfaces/interface[name=%s]/state/transceiver = %q, want %q", p.Name(), p.Name(), got, trName)
-			}
-		}
-		if !deviations.EthChannelIngressParametersUnsupported(dut) {
-			if got, ok := lookupVal(t, dut, gnmi.OC().TerminalDevice().Channel(ethIdx).Ingress().Interface().State()); !ok || got != p.Name() {
-				_, ok := watchAwait(t, dut, gnmi.OC().TerminalDevice().Channel(ethIdx).Ingress().Interface().State(), 30*time.Second, func(val *ygnmi.Value[string]) bool {
-					v, present := val.Val()
-					return present && v == p.Name()
-				})
-				if !ok {
-					got, _ := lookupVal(t, dut, gnmi.OC().TerminalDevice().Channel(ethIdx).Ingress().Interface().State())
-					t.Errorf("Port %s /terminal-device/logical-channels/channel[index=%d]/ingress/state/interface = %q, want %q", p.Name(), ethIdx, got, p.Name())
-				}
-			}
-			if got, ok := lookupVal(t, dut, gnmi.OC().TerminalDevice().Channel(ethIdx).Ingress().Transceiver().State()); !ok || got != trName {
-				_, ok = watchAwait(t, dut, gnmi.OC().TerminalDevice().Channel(ethIdx).Ingress().Transceiver().State(), 30*time.Second, func(val *ygnmi.Value[string]) bool {
+		if got := rootVal.GetInterface(p.Name()).GetTransceiver(); got != trName {
+			if got, ok := lookupVal(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State()); !ok || got != trName {
+				_, ok := watchAwait(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State(), 30*time.Second, func(val *ygnmi.Value[string]) bool {
 					v, present := val.Val()
 					return present && v == trName
 				})
 				if !ok {
-					got, _ := lookupVal(t, dut, gnmi.OC().TerminalDevice().Channel(ethIdx).Ingress().Transceiver().State())
-					t.Errorf("Port %s /terminal-device/logical-channels/channel[index=%d]/ingress/state/transceiver = %q, want %q", p.Name(), ethIdx, got, trName)
+					got, _ := lookupVal(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
+					t.Errorf("Port %s /interfaces/interface[name=%s]/state/transceiver = %q, want %q", p.Name(), p.Name(), got, trName)
 				}
+			}
+		}
+		if !deviations.EthChannelIngressParametersUnsupported(dut) {
+			ing := rootVal.GetTerminalDevice().GetChannel(ethIdx).GetIngress()
+			if got := ing.GetInterface(); got != p.Name() {
+				if got, ok := lookupVal(t, dut, gnmi.OC().TerminalDevice().Channel(ethIdx).Ingress().Interface().State()); !ok || got != p.Name() {
+					_, ok := watchAwait(t, dut, gnmi.OC().TerminalDevice().Channel(ethIdx).Ingress().Interface().State(), 30*time.Second, func(val *ygnmi.Value[string]) bool {
+						v, present := val.Val()
+						return present && v == p.Name()
+					})
+					if !ok {
+						got, _ := lookupVal(t, dut, gnmi.OC().TerminalDevice().Channel(ethIdx).Ingress().Interface().State())
+						t.Errorf("Port %s /terminal-device/logical-channels/channel[index=%d]/ingress/state/interface = %q, want %q", p.Name(), ethIdx, got, p.Name())
+					}
+				}
+			}
+			if got := ing.GetTransceiver(); got != trName {
+				if got, ok := lookupVal(t, dut, gnmi.OC().TerminalDevice().Channel(ethIdx).Ingress().Transceiver().State()); !ok || got != trName {
+					_, ok = watchAwait(t, dut, gnmi.OC().TerminalDevice().Channel(ethIdx).Ingress().Transceiver().State(), 30*time.Second, func(val *ygnmi.Value[string]) bool {
+						v, present := val.Val()
+						return present && v == trName
+					})
+					if !ok {
+						got, _ := lookupVal(t, dut, gnmi.OC().TerminalDevice().Channel(ethIdx).Ingress().Transceiver().State())
+						t.Errorf("Port %s /terminal-device/logical-channels/channel[index=%d]/ingress/state/transceiver = %q, want %q", p.Name(), ethIdx, got, trName)
+					}
+				}
+			}
+		}
+	}
+}
+
+// VerifyMultiPortInventoryMatchesBaseline validates transceiver inventory across multiple ports using a single
+// batched gNMI Lookup (or the active ON_CHANGE subscription when present), falling back to per-port watch if needed.
+func VerifyMultiPortInventoryMatchesBaseline(t *testing.T, dut *ondatra.DUTDevice, ports []*ondatra.Port, params *cfgplugins.ConfigParameters, baselines map[string]*InventorySnapshot, expectInterfaceBound bool, expectActive bool, expectEnabled bool) {
+	t.Helper()
+	for _, p := range ports {
+		if baselines[p.Name()] == nil {
+			baselines[p.Name()] = CaptureAndValidateBaselineInventory(t, dut, p, params, 30*time.Second)
+		}
+	}
+	checkOpMode := expectInterfaceBound && expectActive && expectEnabled && !deviations.OperationalModeUnsupported(dut) && params.OperationalMode != 0
+
+	if s := getActiveDUTStream(dut.ID()); s != nil {
+		if !expectInterfaceBound || !expectActive || !expectEnabled {
+			s.mu.Lock()
+			for _, p := range ports {
+				if !expectInterfaceBound {
+					delete(s.channelIngress, params.ETHIndexes[p.Name()])
+				}
+				if ochName := params.OpticalChannelNames[p.Name()]; ochName != "" {
+					ochSnap := s.components[ochName]
+					ochSnap.hasOpMode = false
+					s.components[ochName] = ochSnap
+				}
+			}
+			s.mu.Unlock()
+		}
+		if s.watchStarted || s.hasActiveWatchers() {
+			deadline := time.Now().Add(3 * time.Second)
+			var allCompReady bool
+			for {
+				s.mu.Lock()
+				allCompReady = true
+				for _, p := range ports {
+					trName := params.TransceiverNames[p.Name()]
+					snap, exists := s.components[trName]
+					if !exists || snap.serialNo == "" || snap.partNo == "" || snap.mfgName == "" ||
+						snap.hardwareVersion == "" || snap.firmwareVersion == "" ||
+						(!deviations.ComponentMfgDateUnsupported(dut) && snap.mfgDate == "") ||
+						(expectActive && snap.operStatus != oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE) ||
+						(!deviations.TransceiverConfigEnableUnsupported(dut) && (!snap.hasEnabled || snap.enabled != expectEnabled)) {
+						allCompReady = false
+						break
+					}
+				}
+				s.mu.Unlock()
+				if allCompReady || time.Now().After(deadline) {
+					break
+				}
+				time.Sleep(200 * time.Millisecond)
+			}
+			if allCompReady {
+				var needOpModeLookup bool
+				if expectInterfaceBound {
+					s.mu.Lock()
+					allIntfTrReady := true
+					allIngressReady := true
+					for _, p := range ports {
+						trName := params.TransceiverNames[p.Name()]
+						ethIdx := params.ETHIndexes[p.Name()]
+						if s.intfTransceiver[p.Name()] != trName {
+							allIntfTrReady = false
+						}
+						if !deviations.EthChannelIngressParametersUnsupported(dut) {
+							ing := s.channelIngress[ethIdx]
+							if ing.intf != p.Name() || ing.transceiver != trName {
+								allIngressReady = false
+							}
+						}
+						if checkOpMode {
+							if ochName := params.OpticalChannelNames[p.Name()]; ochName != "" {
+								ochSnap := s.components[ochName]
+								if !ochSnap.hasOpMode || ochSnap.operationalMode != params.OperationalMode {
+									needOpModeLookup = true
+								}
+							}
+						}
+					}
+					s.mu.Unlock()
+					if !allIntfTrReady {
+						intfTrMap := lookupInterfaceTransceivers(t, dut, ports)
+						s.mu.Lock()
+						for intfName, tr := range intfTrMap {
+							s.intfTransceiver[intfName] = tr
+						}
+						s.mu.Unlock()
+					}
+					if !allIngressReady && !deviations.EthChannelIngressParametersUnsupported(dut) {
+						for _, p := range ports {
+							ethIdx := params.ETHIndexes[p.Name()]
+							intf, ok1 := lookupVal(t, dut, gnmi.OC().TerminalDevice().Channel(ethIdx).Ingress().Interface().State())
+							tr, ok2 := lookupVal(t, dut, gnmi.OC().TerminalDevice().Channel(ethIdx).Ingress().Transceiver().State())
+							if ok1 || ok2 {
+								s.mu.Lock()
+								ing := s.channelIngress[ethIdx]
+								if ok1 && intf != "" {
+									ing.intf = intf
+								}
+								if ok2 && tr != "" {
+									ing.transceiver = tr
+								}
+								s.channelIngress[ethIdx] = ing
+								s.mu.Unlock()
+							}
+						}
+					}
+					if needOpModeLookup {
+						opModeBatch := gnmi.OCBatch()
+						opModeBatch.AddPaths(gnmi.OC().ComponentAny().OpticalChannel().OperationalMode().State().PathStruct())
+						if opRoot, ok := lookupVal(t, dut, opModeBatch.State()); ok && opRoot != nil {
+							s.mu.Lock()
+							for _, p := range ports {
+								if ochName := params.OpticalChannelNames[p.Name()]; ochName != "" {
+									if och := opRoot.GetComponent(ochName).GetOpticalChannel(); och != nil && och.OperationalMode != nil {
+										ochSnap := s.components[ochName]
+										ochSnap.hasOpMode = true
+										ochSnap.operationalMode = och.GetOperationalMode()
+										s.components[ochName] = ochSnap
+									}
+								}
+							}
+							s.mu.Unlock()
+						} else {
+							for _, p := range ports {
+								if ochName := params.OpticalChannelNames[p.Name()]; ochName != "" {
+									if opMode, ok := lookupVal(t, dut, gnmi.OC().Component(ochName).OpticalChannel().OperationalMode().State()); ok {
+										s.mu.Lock()
+										ochSnap := s.components[ochName]
+										ochSnap.hasOpMode = true
+										ochSnap.operationalMode = opMode
+										s.components[ochName] = ochSnap
+										s.mu.Unlock()
+									}
+								}
+							}
+						}
+					}
+				}
+				for _, p := range ports {
+					baseline := baselines[p.Name()]
+					trName := params.TransceiverNames[p.Name()]
+					ethIdx := params.ETHIndexes[p.Name()]
+					s.mu.Lock()
+					snap := s.components[trName]
+					gotIntfTr := s.intfTransceiver[p.Name()]
+					gotIng := s.channelIngress[ethIdx]
+					s.mu.Unlock()
+
+					if got, want := snap.name, baseline.Name; got != want {
+						t.Errorf("Port %s /components/component[name=%s]/state/name = %q, want %q", p.Name(), trName, got, want)
+					}
+					if got, want := snap.compType, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER; got != want {
+						t.Errorf("Port %s /components/component[name=%s]/state/type = %v, want %v", p.Name(), trName, got, want)
+					}
+					if got, want := snap.parent, baseline.Parent; got != want {
+						t.Errorf("Port %s /components/component[name=%s]/state/parent = %q, want %q", p.Name(), trName, got, want)
+					}
+					if baseline.FormFactor != oc.TransportTypes_TRANSCEIVER_FORM_FACTOR_TYPE_UNSET {
+						if got, want := snap.formFactor, baseline.FormFactor; got != want {
+							t.Errorf("Port %s /components/component[name=%s]/transceiver/state/form-factor = %v, want %v", p.Name(), trName, got, want)
+						}
+					}
+					if got, want := snap.serialNo, baseline.SerialNo; got != want {
+						t.Errorf("Port %s /components/component[name=%s]/state/serial-no = %q, want %q", p.Name(), trName, got, want)
+					}
+					if got, want := snap.partNo, baseline.PartNo; got != want {
+						t.Errorf("Port %s /components/component[name=%s]/state/part-no = %q, want %q", p.Name(), trName, got, want)
+					}
+					if got, want := snap.mfgName, baseline.MfgName; got != want {
+						t.Errorf("Port %s /components/component[name=%s]/state/mfg-name = %q, want %q", p.Name(), trName, got, want)
+					}
+					if !deviations.ComponentMfgDateUnsupported(dut) {
+						if got, want := snap.mfgDate, baseline.MfgDate; got != want {
+							t.Errorf("Port %s /components/component[name=%s]/state/mfg-date = %q, want %q", p.Name(), trName, got, want)
+						}
+					}
+					if got, want := snap.hardwareVersion, baseline.HardwareVersion; got != want {
+						t.Errorf("Port %s /components/component[name=%s]/state/hardware-version = %q, want %q", p.Name(), trName, got, want)
+					}
+					if got, want := snap.firmwareVersion, baseline.FirmwareVersion; got != want {
+						t.Errorf("Port %s /components/component[name=%s]/state/firmware-version = %q, want %q", p.Name(), trName, got, want)
+					}
+					if expectInterfaceBound {
+						if gotIntfTr != trName {
+							if got, ok := lookupVal(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State()); !ok || got != trName {
+								t.Errorf("Port %s /interfaces/interface[name=%s]/state/transceiver = %q, want %q", p.Name(), p.Name(), got, trName)
+							}
+						}
+						if !deviations.EthChannelIngressParametersUnsupported(dut) {
+							if gotIng.intf != p.Name() {
+								if got, ok := lookupVal(t, dut, gnmi.OC().TerminalDevice().Channel(ethIdx).Ingress().Interface().State()); !ok || got != p.Name() {
+									t.Errorf("Port %s /terminal-device/logical-channels/channel[index=%d]/ingress/state/interface = %q, want %q", p.Name(), ethIdx, got, p.Name())
+								}
+							}
+							if gotIng.transceiver != trName {
+								if got, ok := lookupVal(t, dut, gnmi.OC().TerminalDevice().Channel(ethIdx).Ingress().Transceiver().State()); !ok || got != trName {
+									t.Errorf("Port %s /terminal-device/logical-channels/channel[index=%d]/ingress/state/transceiver = %q, want %q", p.Name(), ethIdx, got, trName)
+								}
+							}
+						}
+					}
+				}
+				if checkOpMode {
+					for _, p := range ports {
+						ochName := params.OpticalChannelNames[p.Name()]
+						if ochName == "" {
+							continue
+						}
+						s.mu.Lock()
+						ochSnap := s.components[ochName]
+						s.mu.Unlock()
+						modeOK := ochSnap.hasOpMode && ochSnap.operationalMode == params.OperationalMode
+						if !modeOK {
+							_, modeOK = watchAwait(t, dut, gnmi.OC().Component(ochName).OpticalChannel().OperationalMode().State(), 30*time.Second, func(val *ygnmi.Value[uint16]) bool {
+								v, ok := val.Val()
+								return ok && v == params.OperationalMode
+							})
+						}
+						if !modeOK {
+							gotMode, _ := lookupVal(t, dut, gnmi.OC().Component(ochName).OpticalChannel().OperationalMode().State())
+							if gotMode != params.OperationalMode {
+								t.Errorf("Port %s /components/component[name=%s]/optical-channel/state/operational-mode = %d, want %d", p.Name(), ochName, gotMode, params.OperationalMode)
+							} else {
+								modeOK = true
+							}
+						}
+						if modeOK {
+							s.mu.Lock()
+							ochSnap := s.components[ochName]
+							ochSnap.hasOpMode = true
+							ochSnap.operationalMode = params.OperationalMode
+							s.components[ochName] = ochSnap
+							s.mu.Unlock()
+						}
+					}
+				}
+				return
+			}
+		}
+	}
+
+	batch := gnmi.OCBatch()
+	batch.AddPaths(
+		gnmi.OC().ComponentAny().Type().State().PathStruct(),
+		gnmi.OC().ComponentAny().Parent().State().PathStruct(),
+		gnmi.OC().ComponentAny().OperStatus().State().PathStruct(),
+		gnmi.OC().ComponentAny().SerialNo().State().PathStruct(),
+		gnmi.OC().ComponentAny().PartNo().State().PathStruct(),
+		gnmi.OC().ComponentAny().MfgName().State().PathStruct(),
+		gnmi.OC().ComponentAny().HardwareVersion().State().PathStruct(),
+		gnmi.OC().ComponentAny().FirmwareVersion().State().PathStruct(),
+		gnmi.OC().ComponentAny().Transceiver().FormFactor().State().PathStruct(),
+	)
+	if !deviations.ComponentMfgDateUnsupported(dut) {
+		batch.AddPaths(gnmi.OC().ComponentAny().MfgDate().State().PathStruct())
+	}
+	if !deviations.TransceiverConfigEnableUnsupported(dut) {
+		batch.AddPaths(gnmi.OC().ComponentAny().Transceiver().Enabled().State().PathStruct())
+	}
+	s := getOrCreateDUTStream(dut.ID())
+	needSlowOpModeLookup := false
+	if expectInterfaceBound {
+		if checkOpMode {
+			s.mu.Lock()
+			for _, p := range ports {
+				if ochName := params.OpticalChannelNames[p.Name()]; ochName != "" {
+					ochSnap := s.components[ochName]
+					if !ochSnap.hasOpMode || ochSnap.operationalMode != params.OperationalMode {
+						needSlowOpModeLookup = true
+						break
+					}
+				}
+			}
+			s.mu.Unlock()
+			if needSlowOpModeLookup {
+				batch.AddPaths(gnmi.OC().ComponentAny().OpticalChannel().OperationalMode().State().PathStruct())
+			}
+		}
+		if !deviations.EthChannelIngressParametersUnsupported(dut) {
+			for _, p := range ports {
+				ethIdx := params.ETHIndexes[p.Name()]
+				batch.AddPaths(
+					gnmi.OC().TerminalDevice().Channel(ethIdx).Ingress().Interface().State().PathStruct(),
+					gnmi.OC().TerminalDevice().Channel(ethIdx).Ingress().Transceiver().State().PathStruct(),
+				)
+			}
+		}
+	}
+	rootVal, present := lookupVal(t, dut, batch.State())
+	if expectInterfaceBound && rootVal != nil {
+		for intfName, tr := range lookupInterfaceTransceivers(t, dut, ports) {
+			rootVal.GetOrCreateInterface(intfName).SetTransceiver(tr)
+		}
+	}
+	if s != nil && present && rootVal != nil {
+		s.mu.Lock()
+		s.updateFromRootLocked(dut, rootVal, false)
+		s.mu.Unlock()
+	}
+	for _, p := range ports {
+		baseline := baselines[p.Name()]
+		trName := params.TransceiverNames[p.Name()]
+		ochName := params.OpticalChannelNames[p.Name()]
+		ethIdx := params.ETHIndexes[p.Name()]
+		compVal := rootVal.GetComponent(trName)
+		ready := present && compVal != nil &&
+			(!expectActive || compVal.GetOperStatus() == oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE) &&
+			compVal.GetSerialNo() != "" && compVal.GetPartNo() != "" && compVal.GetMfgName() != "" &&
+			compVal.GetHardwareVersion() != "" && compVal.GetFirmwareVersion() != "" &&
+			(deviations.ComponentMfgDateUnsupported(dut) || compVal.GetMfgDate() != "") &&
+			(deviations.TransceiverConfigEnableUnsupported(dut) || compVal.GetTransceiver().GetEnabled() == expectEnabled) &&
+			(!expectInterfaceBound || rootVal.GetInterface(p.Name()).GetTransceiver() == trName) &&
+			(!expectInterfaceBound || deviations.EthChannelIngressParametersUnsupported(dut) ||
+				(rootVal.GetTerminalDevice().GetChannel(ethIdx).GetIngress().GetInterface() == p.Name() &&
+					rootVal.GetTerminalDevice().GetChannel(ethIdx).GetIngress().GetTransceiver() == trName))
+		if !ready {
+			VerifyInventoryMatchesBaseline(t, dut, p, params, baseline, expectInterfaceBound, expectActive, expectEnabled)
+		} else {
+			if got, want := compVal.GetName(), baseline.Name; got != want {
+				t.Errorf("Port %s /components/component[name=%s]/state/name = %q, want %q", p.Name(), trName, got, want)
+			}
+			if got, want := compVal.GetType(), oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER; got != want {
+				t.Errorf("Port %s /components/component[name=%s]/state/type = %v, want %v", p.Name(), trName, got, want)
+			}
+			if got, want := compVal.GetParent(), baseline.Parent; got != want {
+				t.Errorf("Port %s /components/component[name=%s]/state/parent = %q, want %q", p.Name(), trName, got, want)
+			}
+			if baseline.FormFactor != oc.TransportTypes_TRANSCEIVER_FORM_FACTOR_TYPE_UNSET {
+				if got, want := compVal.GetTransceiver().GetFormFactor(), baseline.FormFactor; got != want {
+					t.Errorf("Port %s /components/component[name=%s]/transceiver/state/form-factor = %v, want %v", p.Name(), trName, got, want)
+				}
+			}
+			if got, want := compVal.GetSerialNo(), baseline.SerialNo; got != want {
+				t.Errorf("Port %s /components/component[name=%s]/state/serial-no = %q, want %q", p.Name(), trName, got, want)
+			}
+			if got, want := compVal.GetPartNo(), baseline.PartNo; got != want {
+				t.Errorf("Port %s /components/component[name=%s]/state/part-no = %q, want %q", p.Name(), trName, got, want)
+			}
+			if got, want := compVal.GetMfgName(), baseline.MfgName; got != want {
+				t.Errorf("Port %s /components/component[name=%s]/state/mfg-name = %q, want %q", p.Name(), trName, got, want)
+			}
+			if !deviations.ComponentMfgDateUnsupported(dut) {
+				if got, want := compVal.GetMfgDate(), baseline.MfgDate; got != want {
+					t.Errorf("Port %s /components/component[name=%s]/state/mfg-date = %q, want %q", p.Name(), trName, got, want)
+				}
+			}
+			if got, want := compVal.GetHardwareVersion(), baseline.HardwareVersion; got != want {
+				t.Errorf("Port %s /components/component[name=%s]/state/hardware-version = %q, want %q", p.Name(), trName, got, want)
+			}
+			if got, want := compVal.GetFirmwareVersion(), baseline.FirmwareVersion; got != want {
+				t.Errorf("Port %s /components/component[name=%s]/state/firmware-version = %q, want %q", p.Name(), trName, got, want)
+			}
+		}
+		if checkOpMode && ochName != "" && needSlowOpModeLookup {
+			modeOK := present && rootVal.GetComponent(ochName).GetOpticalChannel().GetOperationalMode() == params.OperationalMode
+			if !modeOK {
+				_, modeOK = watchAwait(t, dut, gnmi.OC().Component(ochName).OpticalChannel().OperationalMode().State(), 30*time.Second, func(val *ygnmi.Value[uint16]) bool {
+					v, ok := val.Val()
+					return ok && v == params.OperationalMode
+				})
+			}
+			if !modeOK {
+				gotMode, _ := lookupVal(t, dut, gnmi.OC().Component(ochName).OpticalChannel().OperationalMode().State())
+				if gotMode != params.OperationalMode {
+					t.Errorf("Port %s /components/component[name=%s]/optical-channel/state/operational-mode = %d, want %d", p.Name(), ochName, gotMode, params.OperationalMode)
+				} else {
+					modeOK = true
+				}
+			}
+			if modeOK && s != nil {
+				s.mu.Lock()
+				ochSnap := s.components[ochName]
+				ochSnap.hasOpMode = true
+				ochSnap.operationalMode = params.OperationalMode
+				s.components[ochName] = ochSnap
+				s.mu.Unlock()
 			}
 		}
 	}
@@ -773,12 +1546,6 @@ func VerifyOpticalAndChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, port
 		maxPreFECBER          = 1.25e-2
 	)
 	for _, p := range ports {
-		ochName := params.OpticalChannelNames[p.Name()]
-		trName := params.TransceiverNames[p.Name()]
-		otnIdx := params.OTNIndexes[p.Name()]
-		ethIdx := params.ETHIndexes[p.Name()]
-
-		// Wait via ON_CHANGE subscription (gnmi.Watch) for interface oper-status == UP and logical channel link-state == UP.
 		_, ok := watchAwait(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), convergenceTimeout, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
 			v, present := val.Val()
 			return present && v == oc.Interface_OperStatus_UP
@@ -786,112 +1553,263 @@ func VerifyOpticalAndChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, port
 		if !ok {
 			t.Fatalf("Interface %s did not reach OperStatus UP within %v", p.Name(), convergenceTimeout)
 		}
+	}
 
+	otnStreams := make(map[string]*samplestream.SampleStream[*oc.TerminalDevice_Channel])
+	for _, p := range ports {
+		otnIdx := params.OTNIndexes[p.Name()]
+		s := samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(otnIdx).State(), samplingInterval)
+		defer s.Close()
+		otnStreams[p.Name()] = s
+	}
+
+	stateBatch := gnmi.OCBatch()
+	stateBatch.AddPaths(
+		gnmi.OC().TerminalDevice().ChannelAny().Index().State().PathStruct(),
+		gnmi.OC().ComponentAny().OpticalChannel().Frequency().State().PathStruct(),
+		gnmi.OC().ComponentAny().OpticalChannel().TargetOutputPower().State().PathStruct(),
+	)
+	if !deviations.TerminalDeviceChannelAdminStateUnsupported(dut) {
+		stateBatch.AddPaths(gnmi.OC().TerminalDevice().ChannelAny().AdminState().State().PathStruct())
+	}
+	if !deviations.OperationalModeUnsupported(dut) {
+		stateBatch.AddPaths(gnmi.OC().ComponentAny().OpticalChannel().OperationalMode().State().PathStruct())
+	}
+	stateRoot, _ := lookupVal(t, dut, stateBatch.State())
+
+	for _, p := range ports {
+		otnIdx := params.OTNIndexes[p.Name()]
+		ethIdx := params.ETHIndexes[p.Name()]
 		for _, chIdx := range []uint32{otnIdx, ethIdx} {
-			_, ok := watchAwait(t, dut, gnmi.OC().TerminalDevice().Channel(chIdx).State(), sampleTimeout, func(val *ygnmi.Value[*oc.TerminalDevice_Channel]) bool {
-				v, present := val.Val()
-				if !present || v == nil || v.GetIndex() != chIdx {
-					return false
+			ch := stateRoot.GetTerminalDevice().GetChannel(chIdx)
+			if ch == nil || ch.GetIndex() != chIdx {
+				_, ok := watchAwait(t, dut, gnmi.OC().TerminalDevice().Channel(chIdx).Index().State(), sampleTimeout, func(val *ygnmi.Value[uint32]) bool {
+					v, present := val.Val()
+					return present && v == chIdx
+				})
+				if !ok {
+					t.Errorf("Port %s logical channel %d did not report valid index within %v", p.Name(), chIdx, sampleTimeout)
 				}
-				if !deviations.TerminalDeviceChannelAdminStateUnsupported(dut) && v.GetAdminState() != oc.TerminalDevice_AdminStateType_ENABLED {
-					return false
+			}
+			if !deviations.TerminalDeviceChannelAdminStateUnsupported(dut) && (ch == nil || ch.GetAdminState() != oc.TerminalDevice_AdminStateType_ENABLED) {
+				_, ok := watchAwait(t, dut, gnmi.OC().TerminalDevice().Channel(chIdx).AdminState().State(), sampleTimeout, func(val *ygnmi.Value[oc.E_TerminalDevice_AdminStateType]) bool {
+					v, present := val.Val()
+					return present && v == oc.TerminalDevice_AdminStateType_ENABLED
+				})
+				if !ok {
+					t.Errorf("Port %s logical channel %d did not report admin-state ENABLED within %v", p.Name(), chIdx, sampleTimeout)
 				}
-				return true
-			})
-			if !ok {
-				t.Errorf("Port %s logical channel %d did not report valid index and admin-state ENABLED within %v", p.Name(), chIdx, sampleTimeout)
 			}
 		}
+	}
+
+	for _, p := range ports {
+		ochName := params.OpticalChannelNames[p.Name()]
+		och := stateRoot.GetComponent(ochName).GetOpticalChannel()
 
 		if !deviations.OperationalModeUnsupported(dut) {
-			_, ok := watchAwait(t, dut, gnmi.OC().Component(ochName).OpticalChannel().OperationalMode().State(), sampleTimeout, func(val *ygnmi.Value[uint16]) bool {
+			modeOK := och != nil && och.GetOperationalMode() == wantOpMode
+			if !modeOK {
+				_, modeOK = watchAwait(t, dut, gnmi.OC().Component(ochName).OpticalChannel().OperationalMode().State(), sampleTimeout, func(val *ygnmi.Value[uint16]) bool {
+					v, present := val.Val()
+					return present && v == wantOpMode
+				})
+				if !modeOK {
+					gotMode, _ := lookupVal(t, dut, gnmi.OC().Component(ochName).OpticalChannel().OperationalMode().State())
+					if gotMode != wantOpMode {
+						t.Errorf("Port %s /components/component[name=%s]/optical-channel/state/operational-mode = %d, want %d", p.Name(), ochName, gotMode, wantOpMode)
+					} else {
+						modeOK = true
+					}
+				}
+			}
+			if modeOK {
+				if s := getOrCreateDUTStream(dut.ID()); s != nil {
+					s.mu.Lock()
+					ochSnap := s.components[ochName]
+					ochSnap.hasOpMode = true
+					ochSnap.operationalMode = wantOpMode
+					s.components[ochName] = ochSnap
+					s.mu.Unlock()
+				}
+			}
+		}
+
+		if och == nil || och.GetFrequency() != wantFreq {
+			_, ok := watchAwait(t, dut, gnmi.OC().Component(ochName).OpticalChannel().Frequency().State(), sampleTimeout, func(val *ygnmi.Value[uint64]) bool {
 				v, present := val.Val()
-				return present && v == wantOpMode
+				return present && v == wantFreq
 			})
 			if !ok {
-				gotMode, _ := lookupVal(t, dut, gnmi.OC().Component(ochName).OpticalChannel().OperationalMode().State())
-				t.Errorf("Port %s /components/component[name=%s]/optical-channel/state/operational-mode = %d, want %d", p.Name(), ochName, gotMode, wantOpMode)
+				gotFreq, _ := lookupVal(t, dut, gnmi.OC().Component(ochName).OpticalChannel().Frequency().State())
+				if gotFreq != wantFreq {
+					t.Errorf("Port %s /components/component[name=%s]/optical-channel/state/frequency = %d, want %d", p.Name(), ochName, gotFreq, wantFreq)
+				}
 			}
 		}
 
-		gotFreq, _ := lookupVal(t, dut, gnmi.OC().Component(ochName).OpticalChannel().Frequency().State())
-		if gotFreq != wantFreq {
-			t.Errorf("Port %s /components/component[name=%s]/optical-channel/state/frequency = %d, want %d", p.Name(), ochName, gotFreq, wantFreq)
-		}
-
-		gotTargetPower, _ := lookupVal(t, dut, gnmi.OC().Component(ochName).OpticalChannel().TargetOutputPower().State())
-		if math.Abs(gotTargetPower-params.TargetOpticalPower) > powerTolerance {
-			t.Errorf("Port %s /components/component[name=%s]/optical-channel/state/target-output-power = %v, want %v (+/- %v dBm)", p.Name(), ochName, gotTargetPower, params.TargetOpticalPower, powerTolerance)
-		}
-
-		// Subscribe with SAMPLE mode (10s interval) to optical-channel, transceiver, and OTN logical channel telemetry.
-		ochStream := samplestream.New(t, dut, gnmi.OC().Component(ochName).State(), samplingInterval)
-		defer ochStream.Close()
-		trStream := samplestream.New(t, dut, gnmi.OC().Component(trName).State(), samplingInterval)
-		defer trStream.Close()
-		otnStream := samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(otnIdx).State(), samplingInterval)
-		defer otnStream.Close()
-
-		_, ok = ochStream.AwaitNext(sampleTimeout, func(v *ygnmi.Value[*oc.Component]) bool {
-			c, present := v.Val()
-			if !present || c == nil || c.GetOpticalChannel() == nil {
-				return false
+		if och == nil || och.TargetOutputPower == nil || math.Abs(och.GetTargetOutputPower()-params.TargetOpticalPower) > powerTolerance {
+			_, ok := watchAwait(t, dut, gnmi.OC().Component(ochName).OpticalChannel().TargetOutputPower().State(), sampleTimeout, func(val *ygnmi.Value[float64]) bool {
+				v, present := val.Val()
+				return present && math.Abs(v-params.TargetOpticalPower) <= powerTolerance
+			})
+			if !ok {
+				gotTargetPower, _ := lookupVal(t, dut, gnmi.OC().Component(ochName).OpticalChannel().TargetOutputPower().State())
+				if math.Abs(gotTargetPower-params.TargetOpticalPower) > powerTolerance {
+					t.Errorf("Port %s /components/component[name=%s]/optical-channel/state/target-output-power = %v, want %v (+/- %v dBm)", p.Name(), ochName, gotTargetPower, params.TargetOpticalPower, powerTolerance)
+				}
 			}
-			inPwr := c.GetOpticalChannel().GetInputPower().GetInstant()
-			outPwr := c.GetOpticalChannel().GetOutputPower().GetInstant()
-			return inPwr >= minValidInputPowerdBm && inPwr <= maxValidInputPowerdBm &&
-				math.Abs(outPwr-params.TargetOpticalPower) <= powerTolerance
-		})
-		if !ok {
-			t.Errorf("Port %s optical-channel %s did not report valid input/output power within %v", p.Name(), ochName, sampleTimeout)
 		}
+	}
 
-		_, ok = trStream.AwaitNext(sampleTimeout, func(v *ygnmi.Value[*oc.Component]) bool {
-			c, present := v.Val()
-			if !present || c == nil || c.GetTransceiver() == nil || c.GetTransceiver().GetChannel(0) == nil {
-				return false
-			}
-			inPwr := c.GetTransceiver().GetChannel(0).GetInputPower().GetInstant()
-			outPwr := c.GetTransceiver().GetChannel(0).GetOutputPower().GetInstant()
-			return inPwr >= minValidInputPowerdBm && inPwr <= maxValidInputPowerdBm &&
-				math.Abs(outPwr-params.TargetOpticalPower) <= powerTolerance
-		})
-		if !ok {
-			t.Errorf("Port %s transceiver %s physical-channel[0] did not report valid input/output power within %v", p.Name(), trName, sampleTimeout)
+	opticsSampleBatch := gnmi.OCBatch()
+	opticsSampleBatch.AddPaths(
+		gnmi.OC().ComponentAny().OpticalChannel().InputPower().Instant().State().PathStruct(),
+		gnmi.OC().ComponentAny().OpticalChannel().OutputPower().Instant().State().PathStruct(),
+	)
+
+	opticsBatchStream := samplestream.New(t, dut, opticsSampleBatch.State(), samplingInterval)
+	defer opticsBatchStream.Close()
+
+	var sampleMu sync.Mutex
+	var sampleDone bool
+	ochOK := make(map[string]bool)
+	otnOK := make(map[string]bool)
+	_, allOpticsOK := opticsBatchStream.AwaitNext(sampleTimeout, func(v *ygnmi.Value[*oc.Root]) bool {
+		sampleMu.Lock()
+		defer sampleMu.Unlock()
+		if sampleDone {
+			return true
 		}
+		root, present := v.Val()
+		if !present || root == nil {
+			return false
+		}
+		done := true
+		for _, p := range ports {
+			ochName := params.OpticalChannelNames[p.Name()]
+			och := root.GetComponent(ochName).GetOpticalChannel()
+			if !ochOK[p.Name()] && och != nil && och.GetInputPower() != nil && och.GetOutputPower() != nil {
+				inPwr := och.GetInputPower().GetInstant()
+				outPwr := och.GetOutputPower().GetInstant()
+				if inPwr >= minValidInputPowerdBm && inPwr <= maxValidInputPowerdBm && math.Abs(outPwr-params.TargetOpticalPower) <= powerTolerance {
+					ochOK[p.Name()] = true
+				}
+			}
+			if !ochOK[p.Name()] {
+				done = false
+			}
+		}
+		if done {
+			sampleDone = true
+		}
+		return done
+	})
+	sampleMu.Lock()
+	sampleDone = true
+	sampleMu.Unlock()
+	opticsBatchStream.Close()
 
-		var prevFEC uint64
-		var hasPrevFEC bool
-		_, ok = otnStream.AwaitNext(sampleTimeout, func(v *ygnmi.Value[*oc.TerminalDevice_Channel]) bool {
-			ch, present := v.Val()
-			if !present || ch == nil || ch.GetOtn() == nil {
-				return false
+	if !allOpticsOK {
+		if root, present := lookupVal(t, dut, opticsSampleBatch.State()); present && root != nil {
+			for _, p := range ports {
+				ochName := params.OpticalChannelNames[p.Name()]
+				och := root.GetComponent(ochName).GetOpticalChannel()
+				if !ochOK[p.Name()] && och != nil && och.GetInputPower() != nil && och.GetOutputPower() != nil {
+					inPwr := och.GetInputPower().GetInstant()
+					outPwr := och.GetOutputPower().GetInstant()
+					if inPwr >= minValidInputPowerdBm && inPwr <= maxValidInputPowerdBm && math.Abs(outPwr-params.TargetOpticalPower) <= powerTolerance {
+						ochOK[p.Name()] = true
+					}
+				}
 			}
-			ber := ch.GetOtn().GetPreFecBer().GetInstant()
-			if ber < 0 || ber >= maxPreFECBER {
-				return false
-			}
-			fec := ch.GetOtn().GetFecUncorrectableBlocks()
-			if deviations.NonIntervalFecErrorCounter(dut) {
-				if !hasPrevFEC {
-					prevFEC = fec
-					hasPrevFEC = true
+		}
+	}
+
+	checkOTN := func(ch *oc.TerminalDevice_Channel, portHasPFEC *bool, portPFEC *uint64) bool {
+		if ch == nil || ch.GetOtn() == nil {
+			return false
+		}
+		ber := ch.GetOtn().GetPreFecBer().GetInstant()
+		if ber < 0 || ber >= maxPreFECBER {
+			return false
+		}
+		fec := ch.GetOtn().GetFecUncorrectableBlocks()
+		if !deviations.NonIntervalFecErrorCounter(dut) && fec == 0 {
+			return true
+		}
+		if !*portHasPFEC {
+			*portPFEC = fec
+			*portHasPFEC = true
+			return false
+		}
+		if fec != *portPFEC {
+			*portPFEC = fec
+			return false
+		}
+		return true
+	}
+
+	for _, p := range ports {
+		ochName := params.OpticalChannelNames[p.Name()]
+		otnIdx := params.OTNIndexes[p.Name()]
+
+		if !ochOK[p.Name()] {
+			ochStream := samplestream.New(t, dut, gnmi.OC().Component(ochName).State(), samplingInterval)
+			_, ok := ochStream.AwaitNext(sampleTimeout, func(v *ygnmi.Value[*oc.Component]) bool {
+				c, present := v.Val()
+				if !present || c == nil || c.GetOpticalChannel() == nil {
 					return false
 				}
-				if fec != prevFEC {
-					prevFEC = fec
-					return false
+				inPwr := c.GetOpticalChannel().GetInputPower().GetInstant()
+				outPwr := c.GetOpticalChannel().GetOutputPower().GetInstant()
+				return inPwr >= minValidInputPowerdBm && inPwr <= maxValidInputPowerdBm &&
+					math.Abs(outPwr-params.TargetOpticalPower) <= powerTolerance
+			})
+			ochStream.Close()
+			if !ok {
+				if c, present := lookupVal(t, dut, gnmi.OC().Component(ochName).State()); present && c != nil && c.GetOpticalChannel() != nil {
+					inPwr := c.GetOpticalChannel().GetInputPower().GetInstant()
+					outPwr := c.GetOpticalChannel().GetOutputPower().GetInstant()
+					ok = inPwr >= minValidInputPowerdBm && inPwr <= maxValidInputPowerdBm &&
+						math.Abs(outPwr-params.TargetOpticalPower) <= powerTolerance
 				}
-				return true
 			}
-			return fec == 0
-		})
-		if !ok {
+			if !ok {
+				t.Errorf("Port %s optical-channel %s did not report valid input/output power within %v", p.Name(), ochName, sampleTimeout)
+			}
+		}
+
+		var portPFEC uint64
+		var portHasPFEC bool
+		otnStream := otnStreams[p.Name()]
+		for _, v := range otnStream.All() {
+			if ch, present := v.Val(); present && checkOTN(ch, &portHasPFEC, &portPFEC) {
+				otnOK[p.Name()] = true
+				break
+			}
+		}
+		if !otnOK[p.Name()] {
+			_, ok := otnStream.AwaitNext(sampleTimeout, func(v *ygnmi.Value[*oc.TerminalDevice_Channel]) bool {
+				ch, present := v.Val()
+				return present && checkOTN(ch, &portHasPFEC, &portPFEC)
+			})
+			otnOK[p.Name()] = ok
+		}
+		otnStream.Close()
+		if !otnOK[p.Name()] {
+			if ch, ok := lookupVal(t, dut, gnmi.OC().TerminalDevice().Channel(otnIdx).State()); ok && checkOTN(ch, &portHasPFEC, &portPFEC) {
+				otnOK[p.Name()] = true
+			} else if ok && ch != nil && ch.GetOtn() != nil {
+				time.Sleep(samplingInterval)
+				if ch2, ok2 := lookupVal(t, dut, gnmi.OC().TerminalDevice().Channel(otnIdx).State()); ok2 && checkOTN(ch2, &portHasPFEC, &portPFEC) {
+					otnOK[p.Name()] = true
+				}
+			}
+		}
+		if !otnOK[p.Name()] {
 			t.Errorf("Port %s OTN channel %d did not report valid pre-fec-ber (< %v) and zero fec-uncorrectable-blocks within %v", p.Name(), otnIdx, maxPreFECBER, sampleTimeout)
 		}
-		ochStream.Close()
-		trStream.Close()
-		otnStream.Close()
 	}
 }
 
@@ -899,77 +1817,170 @@ func VerifyOpticalAndChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, port
 // and verifies the value via gnmi.Lookup.
 func VerifyLaserShutoffOutputPower(t *testing.T, dut *ondatra.DUTDevice, ochName string, maxLaserOffPowerdBm float64, timeout time.Duration) {
 	t.Helper()
-	ochStream := samplestream.New(t, dut, gnmi.OC().Component(ochName).State(), samplingInterval)
+	pwrBatch := gnmi.OCBatch()
+	pwrBatch.AddPaths(gnmi.OC().ComponentAny().OpticalChannel().OutputPower().Instant().State().PathStruct())
+	ochStream := samplestream.New(t, dut, pwrBatch.State(), samplingInterval)
 	defer ochStream.Close()
-	_, ok := ochStream.AwaitNext(timeout, func(v *ygnmi.Value[*oc.Component]) bool {
-		c, present := v.Val()
-		if !present || c == nil || c.GetOpticalChannel() == nil {
+	var gotPower float64
+	var hasPower bool
+	_, ok := ochStream.AwaitNext(timeout, func(v *ygnmi.Value[*oc.Root]) bool {
+		root, present := v.Val()
+		if !present || root == nil {
 			return false
 		}
-		return c.GetOpticalChannel().GetOutputPower().GetInstant() <= maxLaserOffPowerdBm
+		och := root.GetComponent(ochName).GetOpticalChannel()
+		if och == nil || och.GetOutputPower() == nil || och.GetOutputPower().Instant == nil {
+			return false
+		}
+		gotPower = och.GetOutputPower().GetInstant()
+		hasPower = true
+		return gotPower <= maxLaserOffPowerdBm
 	})
+	ochStream.Close()
 	if !ok {
 		t.Errorf("Optical channel %s sample stream timed out waiting for output-power/instant <= %v dBm within %v", ochName, maxLaserOffPowerdBm, timeout)
+		if root, present := lookupVal(t, dut, pwrBatch.State()); present && root != nil {
+			if och := root.GetComponent(ochName).GetOpticalChannel(); och != nil && och.GetOutputPower() != nil && och.GetOutputPower().Instant != nil {
+				gotPower = och.GetOutputPower().GetInstant()
+				hasPower = true
+			}
+		}
+		if !hasPower || gotPower > maxLaserOffPowerdBm {
+			t.Errorf("/components/component[name=%s]/optical-channel/state/output-power/instant = %v dBm, want <= %v dBm when transceiver is disabled", ochName, gotPower, maxLaserOffPowerdBm)
+		}
+		return
 	}
-	gotPower, _ := lookupVal(t, dut, gnmi.OC().Component(ochName).OpticalChannel().OutputPower().Instant().State())
-	if gotPower > maxLaserOffPowerdBm {
+	if !hasPower || gotPower > maxLaserOffPowerdBm {
 		t.Errorf("/components/component[name=%s]/optical-channel/state/output-power/instant = %v dBm, want <= %v dBm when transceiver is disabled", ochName, gotPower, maxLaserOffPowerdBm)
 	}
 }
 
 // VerifyAFTPrefixesConverged uses a single batched gnmi.OCBatch() watch to verify that all IPv4 and IPv6
-// static prefixes are installed in the network instance AFT without N+1 sequential RPCs.
+// static prefixes are installed in the network instance AFT or static routing table without N+1 sequential RPCs.
 func VerifyAFTPrefixesConverged(t *testing.T, dut *ondatra.DUTDevice, niName string, ipv4Prefixes, ipv6Prefixes []string, timeout time.Duration) {
 	t.Helper()
+	staticProtoName := deviations.StaticProtocolName(dut)
 	aftBatch := gnmi.OCBatch()
 	for _, prefix := range ipv4Prefixes {
-		aftBatch.AddPaths(gnmi.OC().NetworkInstance(niName).Afts().Ipv4Entry(prefix))
+		aftBatch.AddPaths(gnmi.OC().NetworkInstance(niName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, staticProtoName).Static(prefix).Prefix().State().PathStruct())
 	}
 	for _, prefix := range ipv6Prefixes {
-		aftBatch.AddPaths(gnmi.OC().NetworkInstance(niName).Afts().Ipv6Entry(prefix))
+		aftBatch.AddPaths(gnmi.OC().NetworkInstance(niName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, staticProtoName).Static(prefix).Prefix().State().PathStruct())
 	}
-	checkAllPresent := func(root *oc.Root) bool {
-		if root == nil {
-			return false
+	foundV4 := make(map[string]bool, len(ipv4Prefixes))
+	foundV6 := make(map[string]bool, len(ipv6Prefixes))
+
+	checkInstalled := func() (missingV4, missingV6 []string) {
+		if root, present := lookupVal(t, dut, aftBatch.State()); present && root != nil {
+			if ni := root.GetNetworkInstance(niName); ni != nil {
+				if sp := ni.GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, staticProtoName); sp != nil {
+					for _, prefix := range ipv4Prefixes {
+						if sp.GetStatic(prefix).GetPrefix() == prefix {
+							foundV4[prefix] = true
+						}
+					}
+					for _, prefix := range ipv6Prefixes {
+						if sp.GetStatic(prefix).GetPrefix() == prefix {
+							foundV6[prefix] = true
+						}
+					}
+				}
+			}
 		}
-		afts := root.GetNetworkInstance(niName).GetAfts()
-		if afts == nil {
-			return false
+		needV4AFT := false
+		for _, prefix := range ipv4Prefixes {
+			if !foundV4[prefix] {
+				needV4AFT = true
+				break
+			}
+		}
+		if needV4AFT {
+			for attempt := 0; attempt < 3; attempt++ {
+				var vals []*ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]
+				if msg := testt.CaptureFatal(t, func(tb testing.TB) {
+					vals = gnmi.LookupAll(tb, dut, gnmi.OC().NetworkInstance(niName).Afts().Ipv4EntryAny().State())
+				}); msg == nil {
+					for _, v := range vals {
+						if entry, ok := v.Val(); ok && entry != nil && entry.GetPrefix() != "" {
+							foundV4[entry.GetPrefix()] = true
+						}
+					}
+					break
+				}
+			}
+		}
+		needV6AFT := false
+		for _, prefix := range ipv6Prefixes {
+			if !foundV6[prefix] {
+				needV6AFT = true
+				break
+			}
+		}
+		if needV6AFT {
+			for attempt := 0; attempt < 3; attempt++ {
+				var vals []*ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]
+				if msg := testt.CaptureFatal(t, func(tb testing.TB) {
+					vals = gnmi.LookupAll(tb, dut, gnmi.OC().NetworkInstance(niName).Afts().Ipv6EntryAny().State())
+				}); msg == nil {
+					for _, v := range vals {
+						if entry, ok := v.Val(); ok && entry != nil && entry.GetPrefix() != "" {
+							foundV6[entry.GetPrefix()] = true
+						}
+					}
+					break
+				}
+			}
 		}
 		for _, prefix := range ipv4Prefixes {
-			if afts.GetIpv4Entry(prefix).GetPrefix() != prefix {
-				return false
+			if !foundV4[prefix] {
+				if entry, ok := lookupVal(t, dut, gnmi.OC().NetworkInstance(niName).Afts().Ipv4Entry(prefix).State()); ok && entry != nil && entry.GetPrefix() == prefix {
+					foundV4[prefix] = true
+				} else {
+					missingV4 = append(missingV4, prefix)
+				}
 			}
 		}
 		for _, prefix := range ipv6Prefixes {
-			if afts.GetIpv6Entry(prefix).GetPrefix() != prefix {
-				return false
+			if !foundV6[prefix] {
+				if entry, ok := lookupVal(t, dut, gnmi.OC().NetworkInstance(niName).Afts().Ipv6Entry(prefix).State()); ok && entry != nil && entry.GetPrefix() == prefix {
+					foundV6[prefix] = true
+				} else {
+					missingV6 = append(missingV6, prefix)
+				}
 			}
 		}
-		return true
+		return missingV4, missingV6
 	}
-	if root, present := lookupVal(t, dut, aftBatch.State()); present && checkAllPresent(root) {
+
+	missingV4, missingV6 := checkInstalled()
+	if len(missingV4) == 0 && len(missingV6) == 0 {
 		return
 	}
-	_, ok := watchAwait(t, dut, aftBatch.State(), timeout, func(val *ygnmi.Value[*oc.Root]) bool {
-		root, present := val.Val()
-		return present && checkAllPresent(root)
-	})
-	if !ok {
-		root, _ := lookupVal(t, dut, aftBatch.State())
-		var afts *oc.NetworkInstance_Afts
-		if root != nil {
-			afts = root.GetNetworkInstance(niName).GetAfts()
+	deadline := time.Now().Add(timeout)
+	for (len(missingV4) > 0 || len(missingV6) > 0) && time.Now().Before(deadline) {
+		waitDur := 15 * time.Second
+		if rem := time.Until(deadline); rem < waitDur {
+			waitDur = rem
 		}
-		for _, prefix := range ipv4Prefixes {
-			if afts == nil || afts.GetIpv4Entry(prefix).GetPrefix() != prefix {
-				t.Errorf("IPv4 static prefix %s not installed in AFT for network-instance %s", prefix, niName)
-			}
+		if len(missingV4) > 0 {
+			p := missingV4[0]
+			watchAwait(t, dut, gnmi.OC().NetworkInstance(niName).Afts().Ipv4Entry(p).State(), waitDur, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+				e, ok := val.Val()
+				return ok && e != nil && e.GetPrefix() == p
+			})
+		} else if len(missingV6) > 0 {
+			p := missingV6[0]
+			watchAwait(t, dut, gnmi.OC().NetworkInstance(niName).Afts().Ipv6Entry(p).State(), waitDur, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
+				e, ok := val.Val()
+				return ok && e != nil && e.GetPrefix() == p
+			})
 		}
-		for _, prefix := range ipv6Prefixes {
-			if afts == nil || afts.GetIpv6Entry(prefix).GetPrefix() != prefix {
-				t.Errorf("IPv6 static prefix %s not installed in AFT for network-instance %s", prefix, niName)
-			}
-		}
+		missingV4, missingV6 = checkInstalled()
+	}
+	for _, prefix := range missingV4 {
+		t.Errorf("IPv4 static prefix %s not installed in AFT for network-instance %s", prefix, niName)
+	}
+	for _, prefix := range missingV6 {
+		t.Errorf("IPv6 static prefix %s not installed in AFT for network-instance %s", prefix, niName)
 	}
 }

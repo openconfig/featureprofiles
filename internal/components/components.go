@@ -349,34 +349,36 @@ func LinecardsFromPorts(t testing.TB, dut *ondatra.DUTDevice, ports []*ondatra.P
 func OpticalChannelComponentFromPortWithRetry(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
 	t.Helper()
 
-	if deviations.MissingPortToOpticalChannelMapping(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			var transceiverName string
-			for attempt := 0; attempt < 3; attempt++ {
-				if msg := testt.CaptureFatal(t, func(tb testing.TB) {
-					transceiverName = gnmi.Get(tb, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
-				}); msg == nil {
-					break
-				}
-			}
-			if transceiverName == "" {
-				t.Fatalf("Associated Transceiver for Interface (%v) not found!", p.Name())
-			}
-			return fmt.Sprintf("%s-Optical0", transceiverName)
-		case ondatra.CISCO:
-			return "OpticalChannel" + strings.TrimLeftFunc(p.Name(), unicode.IsLetter)
-		default:
-			t.Fatal("Manual Optical channel name required when deviation missing_port_to_optical_channel_component_mapping applied.")
-		}
+	if deviations.MissingPortToOpticalChannelMapping(dut) && strings.Contains(p.Name(), "GigE") {
+		return "OpticalChannel" + strings.TrimLeftFunc(p.Name(), unicode.IsLetter)
 	}
 	var transceiverName string
 	for attempt := 0; attempt < 3; attempt++ {
 		if msg := testt.CaptureFatal(t, func(tb testing.TB) {
-			transceiverName = gnmi.Get(tb, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
+			transceiverName, _ = gnmi.Lookup(tb, dut, gnmi.OC().Interface(p.Name()).Transceiver().State()).Val()
 		}); msg == nil {
 			break
 		}
+	}
+	if deviations.MissingPortToOpticalChannelMapping(dut) {
+		if strings.HasPrefix(p.Name(), "Ethernet") && transceiverName != "" {
+			return fmt.Sprintf("%s-Optical0", transceiverName)
+		}
+		if transceiverName != "" {
+			candidate := fmt.Sprintf("%s-Optical0", transceiverName)
+			var present bool
+			for attempt := 0; attempt < 3; attempt++ {
+				if msg := testt.CaptureFatal(t, func(tb testing.TB) {
+					present = gnmi.Lookup(tb, dut, gnmi.OC().Component(candidate).Name().State()).IsPresent()
+				}); msg == nil {
+					break
+				}
+			}
+			if present {
+				return candidate
+			}
+		}
+		return "OpticalChannel" + strings.TrimLeftFunc(p.Name(), unicode.IsLetter)
 	}
 	if transceiverName == "" {
 		t.Fatalf("Associated Transceiver for Interface (%v) not found!", p.Name())

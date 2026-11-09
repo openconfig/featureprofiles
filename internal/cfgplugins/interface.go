@@ -563,7 +563,7 @@ func updateOpticalChannelConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p 
 		TargetOutputPower: ygot.Float64(params.TargetOpticalPower),
 		LinePort:          ygot.String(params.LinePortNames[p.Name()]),
 	}
-	if dut.Vendor() == ondatra.NOKIA || params.LinePortNames[p.Name()] == "" {
+	if dut.Vendor() == ondatra.NOKIA {
 		och.LinePort = nil
 	}
 	gnmi.BatchReplace(batch, gnmi.OC().Component(params.OpticalChannelNames[p.Name()]).Config(), &oc.Component{
@@ -2128,7 +2128,7 @@ func PopulateZRPortParams(t testing.TB, p *ondatra.Port, params *ConfigParameter
 		switch params.OperationalMode {
 		case 0:
 			t.Fatalf("Unsupported operational mode for %v: %v", p.PMD(), params.OperationalMode)
-		case 3, 4:
+		case 3, 4, 6003, 6004:
 			params.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB
 			params.NumPhysicalChannels = 4
 			params.RateClass = oc.TransportTypes_TRIBUTARY_RATE_CLASS_TYPE_TRIB_RATE_400G
@@ -2146,6 +2146,26 @@ func PopulateZRPortParams(t testing.TB, p *ondatra.Port, params *ConfigParameter
 	}
 }
 
+// updateZROpticalChannelConfig updates the optical channel config for ZR interfaces,
+// omitting line-port when unsupported or unset.
+func updateZROpticalChannelConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ondatra.Port, params *ConfigParameters) {
+	och := &oc.Component_OpticalChannel{
+		OperationalMode:   ygot.Uint16(params.OperationalMode),
+		Frequency:         ygot.Uint64(params.Frequency),
+		TargetOutputPower: ygot.Float64(params.TargetOpticalPower),
+	}
+	if !deviations.LinePortUnsupported(dut) && params.LinePortNames[p.Name()] != "" {
+		och.LinePort = ygot.String(params.LinePortNames[p.Name()])
+	}
+	if deviations.OperationalModeUnsupported(dut) {
+		och.OperationalMode = nil
+	}
+	gnmi.BatchReplace(batch, gnmi.OC().Component(params.OpticalChannelNames[p.Name()]).Config(), &oc.Component{
+		Name:           ygot.String(params.OpticalChannelNames[p.Name()]),
+		OpticalChannel: och,
+	})
+}
+
 // NewZRInterfaceConfigAll configures all coherent ZR ports on the DUT with cached component discovery and retry on transient gRPC errors.
 func NewZRInterfaceConfigAll(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, params *ConfigParameters) {
 	t.Helper()
@@ -2160,6 +2180,103 @@ func NewZRInterfaceConfigAll(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.S
 	}
 	if params.OpticalChannelNames == nil {
 		params.OpticalChannelNames = make(map[string]string)
+	}
+	if params.LinePortNames == nil {
+		params.LinePortNames = make(map[string]string)
+	}
+	needHWPortDiscovery := false
+	needTrDiscovery := false
+	for _, p := range dut.Ports() {
+		if params.HWPortNames[p.Name()] == "" {
+			needHWPortDiscovery = true
+		}
+		if params.TransceiverNames[p.Name()] == "" {
+			needTrDiscovery = true
+		}
+	}
+	if needHWPortDiscovery {
+		for attempt := 0; attempt < 3; attempt++ {
+			var vals []*ygnmi.Value[string]
+			if msg := testt.CaptureFatal(t, func(tb testing.TB) {
+				vals = gnmi.LookupAll(tb, dut, gnmi.OC().InterfaceAny().HardwarePort().State())
+			}); msg == nil {
+				for _, v := range vals {
+					if hw, ok := v.Val(); ok && hw != "" {
+						for _, e := range v.Path.GetElem() {
+							if e.GetName() == "interface" {
+								if intfName := e.GetKey()["name"]; intfName != "" && params.HWPortNames[intfName] == "" {
+									params.HWPortNames[intfName] = hw
+								}
+								break
+							}
+						}
+					}
+				}
+				break
+			}
+		}
+	}
+	if needTrDiscovery {
+		for attempt := 0; attempt < 3; attempt++ {
+			var vals []*ygnmi.Value[string]
+			if msg := testt.CaptureFatal(t, func(tb testing.TB) {
+				vals = gnmi.LookupAll(tb, dut, gnmi.OC().InterfaceAny().Transceiver().State())
+			}); msg == nil {
+				for _, v := range vals {
+					if tr, ok := v.Val(); ok && tr != "" {
+						for _, e := range v.Path.GetElem() {
+							if e.GetName() == "interface" {
+								if intfName := e.GetKey()["name"]; intfName != "" && params.TransceiverNames[intfName] == "" {
+									params.TransceiverNames[intfName] = tr
+								}
+								break
+							}
+						}
+					}
+				}
+				break
+			}
+		}
+	}
+	if !deviations.MissingPortToOpticalChannelMapping(dut) {
+		needOchDiscovery := false
+		for _, p := range dut.Ports() {
+			trName := params.TransceiverNames[p.Name()]
+			if params.OpticalChannelNames[p.Name()] == "" && trName != "" {
+				needOchDiscovery = true
+			}
+		}
+		if needOchDiscovery {
+			trToOch := make(map[string]string)
+			for attempt := 0; attempt < 3; attempt++ {
+				var vals []*ygnmi.Value[string]
+				if msg := testt.CaptureFatal(t, func(tb testing.TB) {
+					vals = gnmi.LookupAll(tb, dut, gnmi.OC().ComponentAny().Transceiver().Channel(0).AssociatedOpticalChannel().State())
+				}); msg == nil {
+					for _, v := range vals {
+						if och, ok := v.Val(); ok && och != "" {
+							for _, e := range v.Path.GetElem() {
+								if e.GetName() == "component" {
+									if compName := e.GetKey()["name"]; compName != "" {
+										trToOch[compName] = och
+									}
+									break
+								}
+							}
+						}
+					}
+					break
+				}
+			}
+			for _, p := range dut.Ports() {
+				trName := params.TransceiverNames[p.Name()]
+				if params.OpticalChannelNames[p.Name()] == "" && trName != "" {
+					if och := trToOch[trName]; och != "" {
+						params.OpticalChannelNames[p.Name()] = och
+					}
+				}
+			}
+		}
 	}
 	for _, p := range dut.Ports() {
 		if params.HWPortNames[p.Name()] == "" {
@@ -2204,7 +2321,7 @@ func NewZRInterfaceConfigAll(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.S
 		updateInterfaceConfig(batch, dut, p, params)
 		updateHWPortConfig(batch, dut, p, params)
 		updateTransceiverConfig(batch, dut, p, params)
-		updateOpticalChannelConfig(batch, dut, p, params)
+		updateZROpticalChannelConfig(batch, dut, p, params)
 		updateOTNChannelConfig(batch, dut, p, params)
 		updateETHChannelConfig(batch, dut, p, params)
 	}
@@ -2242,7 +2359,7 @@ func BatchConfigureTransceiverEnabled(t *testing.T, dut *ondatra.DUTDevice, batc
 func BatchConfigureOpticalChannel(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, ports []*ondatra.Port, params *ConfigParameters) *gnmi.SetBatch {
 	t.Helper()
 	for _, p := range ports {
-		updateOpticalChannelConfig(batch, dut, p, params)
+		updateZROpticalChannelConfig(batch, dut, p, params)
 	}
 	return batch
 }
@@ -2256,35 +2373,67 @@ func BounceTransceivers(t *testing.T, dut *ondatra.DUTDevice, ports []*ondatra.P
 		BatchConfigureTransceiverEnabled(t, dut, disableBatch, ports, params, false)
 		disableBatch.Set(t, dut)
 
+		downBatch := gnmi.OCBatch()
+		downBatch.AddPaths(gnmi.OC().ComponentAny().Transceiver().Enabled().State().PathStruct())
 		for _, p := range ports {
-			trName := params.TransceiverNames[p.Name()]
-			var ok bool
-			for attempt := 0; attempt < 3; attempt++ {
-				if msg := testt.CaptureFatal(t, func(tb testing.TB) {
-					_, ok = gnmi.Watch(tb, dut, gnmi.OC().Component(trName).Transceiver().Enabled().State(), timeout, func(val *ygnmi.Value[bool]) bool {
-						v, present := val.Val()
-						return present && !v
-					}).Await(tb)
-				}); msg == nil {
-					break
+			downBatch.AddPaths(gnmi.OC().Interface(p.Name()).OperStatus().State().PathStruct())
+		}
+		var allDown bool
+		for attempt := 0; attempt < 3; attempt++ {
+			if msg := testt.CaptureFatal(t, func(tb testing.TB) {
+				_, allDown = gnmi.Watch(tb, dut, downBatch.State(), timeout, func(val *ygnmi.Value[*oc.Root]) bool {
+					root, present := val.Val()
+					if !present || root == nil {
+						return false
+					}
+					for _, p := range ports {
+						trName := params.TransceiverNames[p.Name()]
+						tr := root.GetComponent(trName).GetTransceiver()
+						if tr == nil || tr.Enabled == nil || tr.GetEnabled() {
+							return false
+						}
+						st := root.GetInterface(p.Name()).GetOperStatus()
+						if st != oc.Interface_OperStatus_DOWN && st != oc.Interface_OperStatus_LOWER_LAYER_DOWN {
+							return false
+						}
+					}
+					return true
+				}).Await(tb)
+			}); msg == nil {
+				break
+			}
+		}
+		if !allDown {
+			for _, p := range ports {
+				trName := params.TransceiverNames[p.Name()]
+				var ok bool
+				for attempt := 0; attempt < 3; attempt++ {
+					if msg := testt.CaptureFatal(t, func(tb testing.TB) {
+						_, ok = gnmi.Watch(tb, dut, gnmi.OC().Component(trName).Transceiver().Enabled().State(), timeout, func(val *ygnmi.Value[bool]) bool {
+							v, present := val.Val()
+							return present && !v
+						}).Await(tb)
+					}); msg == nil {
+						break
+					}
 				}
-			}
-			if !ok {
-				t.Errorf("Transceiver %s on port %s did not transition to enabled=false within %v", trName, p.Name(), timeout)
-			}
-			ok = false
-			for attempt := 0; attempt < 3; attempt++ {
-				if msg := testt.CaptureFatal(t, func(tb testing.TB) {
-					_, ok = gnmi.Watch(tb, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), timeout, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
-						v, present := val.Val()
-						return present && (v == oc.Interface_OperStatus_DOWN || v == oc.Interface_OperStatus_LOWER_LAYER_DOWN)
-					}).Await(tb)
-				}); msg == nil {
-					break
+				if !ok {
+					t.Errorf("Transceiver %s on port %s did not transition to enabled=false within %v", trName, p.Name(), timeout)
 				}
-			}
-			if !ok {
-				t.Errorf("Interface %s did not transition to DOWN/LOWER_LAYER_DOWN within %v after disabling transceiver", p.Name(), timeout)
+				ok = false
+				for attempt := 0; attempt < 3; attempt++ {
+					if msg := testt.CaptureFatal(t, func(tb testing.TB) {
+						_, ok = gnmi.Watch(tb, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), timeout, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
+							v, present := val.Val()
+							return present && (v == oc.Interface_OperStatus_DOWN || v == oc.Interface_OperStatus_LOWER_LAYER_DOWN)
+						}).Await(tb)
+					}); msg == nil {
+						break
+					}
+				}
+				if !ok {
+					t.Errorf("Interface %s did not transition to DOWN/LOWER_LAYER_DOWN within %v after disabling transceiver", p.Name(), timeout)
+				}
 			}
 		}
 
@@ -2326,7 +2475,7 @@ func BounceTransceivers(t *testing.T, dut *ondatra.DUTDevice, ports []*ondatra.P
 	enableBatch.Set(t, dut)
 }
 
-// BatchDeleteZRInterfaces adds batched gNMI delete operations for ZR interfaces and their ETH logical-channel ingress interface bindings.
+// BatchDeleteZRInterfaces adds batched gNMI delete operations for ZR interfaces and their ETH/OTN logical-channel bindings.
 func BatchDeleteZRInterfaces(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, ports []*ondatra.Port, params *ConfigParameters) *gnmi.SetBatch {
 	t.Helper()
 	for _, p := range ports {
@@ -2335,7 +2484,19 @@ func BatchDeleteZRInterfaces(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.S
 				gnmi.BatchDelete(batch, gnmi.OC().TerminalDevice().Channel(ethIdx).Ingress().Interface().Config())
 			}
 		}
-		if deviations.ExplicitBreakoutInterfaceConfig(dut) {
+		if deviations.ExplicitDcoConfig(dut) {
+			if ethIdx, ok := params.ETHIndexes[p.Name()]; ok {
+				gnmi.BatchDelete(batch, gnmi.OC().TerminalDevice().Channel(ethIdx).Config())
+			}
+			if otnIdx, ok := params.OTNIndexes[p.Name()]; ok {
+				gnmi.BatchDelete(batch, gnmi.OC().TerminalDevice().Channel(otnIdx).Config())
+			}
+		}
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+			niName := deviations.DefaultNetworkInstance(dut)
+			gnmi.BatchDelete(batch, gnmi.OC().NetworkInstance(niName).Interface(p.Name()+".0").Config())
+		}
+		if deviations.ExplicitBreakoutInterfaceConfig(dut) && IsBreakoutPort(dut, p, params) {
 			gnmi.BatchDelete(batch, gnmi.OC().Interface(p.Name()+"/1").Config())
 		}
 		gnmi.BatchDelete(batch, gnmi.OC().Interface(p.Name()).Config())
@@ -2344,13 +2505,13 @@ func BatchDeleteZRInterfaces(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.S
 }
 
 // BatchRecreateZRInterfaces adds batched gNMI replace/update operations to re-create ZR interfaces,
-// their L3 subinterface IPv4/IPv6 configurations, ETH logical-channel ingress bindings, and optical-channel configurations.
+// their L3 subinterface IPv4/IPv6 configurations, ETH/OTN logical-channel bindings, and optical-channel configurations.
 func BatchRecreateZRInterfaces(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, ports []*ondatra.Port, params *ConfigParameters, portAttrs map[string]*attrs.Attributes) *gnmi.SetBatch {
 	t.Helper()
 	for _, p := range ports {
 		PopulateZRPortParams(t, p, params)
 		updateInterfaceConfig(batch, dut, p, params)
-		if deviations.ExplicitBreakoutInterfaceConfig(dut) {
+		if deviations.ExplicitBreakoutInterfaceConfig(dut) && IsBreakoutPort(dut, p, params) {
 			gnmi.BatchReplace(batch, gnmi.OC().Interface(p.Name()+"/1").Config(), &oc.Interface{
 				Name:    ygot.String(p.Name() + "/1"),
 				Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
@@ -2358,11 +2519,29 @@ func BatchRecreateZRInterfaces(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi
 			})
 		}
 		if a, ok := portAttrs[p.Name()]; ok && a != nil {
+			if a.MAC != "" && !deviations.SkipMacaddressCheck(dut) {
+				gnmi.BatchUpdate(batch, gnmi.OC().Interface(p.Name()).Ethernet().MacAddress().Config(), a.MAC)
+			}
 			sub := a.NewOCInterface(p.Name(), dut).GetOrCreateSubinterface(0)
 			gnmi.BatchReplace(batch, gnmi.OC().Interface(p.Name()).Subinterface(0).Config(), sub)
 		}
-		updateOpticalChannelConfig(batch, dut, p, params)
-		updateETHChannelConfig(batch, dut, p, params)
+		if deviations.ExplicitDcoConfig(dut) {
+			updateTransceiverConfig(batch, dut, p, params)
+			updateZROpticalChannelConfig(batch, dut, p, params)
+			updateOTNChannelConfig(batch, dut, p, params)
+			updateETHChannelConfig(batch, dut, p, params)
+		} else {
+			if !deviations.EthChannelIngressParametersUnsupported(dut) {
+				if ethIdx, ok := params.ETHIndexes[p.Name()]; ok {
+					gnmi.BatchUpdate(batch, gnmi.OC().TerminalDevice().Channel(ethIdx).Ingress().Interface().Config(), p.Name())
+				}
+			}
+			if !deviations.OperationalModeUnsupported(dut) {
+				if ochName := params.OpticalChannelNames[p.Name()]; ochName != "" {
+					gnmi.BatchUpdate(batch, gnmi.OC().Component(ochName).OpticalChannel().OperationalMode().Config(), params.OperationalMode)
+				}
+			}
+		}
 	}
 	return batch
 }
@@ -2397,6 +2576,9 @@ func BatchConfigureL3AndStaticRoutes(t *testing.T, dut *ondatra.DUTDevice, sb *g
 	t.Helper()
 	for _, p := range cfg.Ports {
 		if a, ok := cfg.PortAttrs[p.Name()]; ok && a != nil {
+			if a.MAC != "" && !deviations.SkipMacaddressCheck(dut) {
+				gnmi.BatchUpdate(sb, gnmi.OC().Interface(p.Name()).Ethernet().MacAddress().Config(), a.MAC)
+			}
 			gnmi.BatchReplace(sb, gnmi.OC().Interface(p.Name()).Subinterface(0).Config(), a.NewOCInterface(p.Name(), dut).GetOrCreateSubinterface(0))
 		}
 	}
