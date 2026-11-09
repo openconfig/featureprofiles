@@ -9,6 +9,8 @@ and path MTU discovery (PMTUD) settings for BGP sessions:
     `transport/state/tcp-mss`) and of PMTUD (`transport/config/mtu-discovery`
     and `transport/state/mtu-discovery`), at the neighbor level and at the
     peer-group level
+*   A value set on a neighbor overrides the peer-group value for that neighbor
+    only. The other neighbors in the peer group keep the peer-group value.
 *   IPv4 and IPv6 eBGP and iBGP sessions
 *   `transport/state/tcp-mss` reports the configured MSS (the applied
     configuration, including a value inherited from the peer group), in the
@@ -87,14 +89,24 @@ graph LR
     *   Verify that all four sessions are `ESTABLISHED`, that
         `transport/state/tcp-mss` is 4000 for both peer groups, and that all
         four neighbors inherit it (`transport/state/tcp-mss` is 4000).
-    *   Remove `transport/config/tcp-mss` from both peer groups.
+    *   Neighbor-level override: keep the peer-group MSS, and set
+        `transport/config/tcp-mss` to 1400 on one neighbor in each peer group
+        (the IPv4 neighbors 192.0.2.2 and 192.0.2.6).
+    *   Re-establish the four sessions.
+    *   Verify that all four sessions are `ESTABLISHED`, that
+        `transport/state/tcp-mss` is 1400 for the two IPv4 neighbors, and that
+        it is still 4000 for the two IPv6 neighbors and both peer groups.
+    *   Remove `transport/config/tcp-mss` from the two IPv4 neighbors and from
+        both peer groups.
 *   Remove the MTU configuration from the four ports so that they return to the
     default MTU.
 
 #### Canonical OC
 
-The neighbor-level and peer-group-level values are configured in separate
-steps, not at the same time.
+The block below shows the neighbor-level override step: the peer groups use
+an MSS of 4000, and the IPv4 neighbors override it with 1400. In the
+neighbor-level step, the four neighbors use 4096 instead, and the peer groups
+have no MSS.
 
 ```json
 {
@@ -173,7 +185,7 @@ steps, not at the same time.
                       },
                       "transport": {
                         "config": {
-                          "tcp-mss": 4096
+                          "tcp-mss": 1400
                         }
                       }
                     },
@@ -182,11 +194,6 @@ steps, not at the same time.
                       "config": {
                         "neighbor-address": "2001:db8::192:0:2:2",
                         "peer-group": "EBGP-PEERS"
-                      },
-                      "transport": {
-                        "config": {
-                          "tcp-mss": 4096
-                        }
                       }
                     },
                     {
@@ -197,7 +204,7 @@ steps, not at the same time.
                       },
                       "transport": {
                         "config": {
-                          "tcp-mss": 4096
+                          "tcp-mss": 1400
                         }
                       }
                     },
@@ -206,11 +213,6 @@ steps, not at the same time.
                       "config": {
                         "neighbor-address": "2001:db8::192:0:2:6",
                         "peer-group": "IBGP-PEERS"
-                      },
-                      "transport": {
-                        "config": {
-                          "tcp-mss": 4096
-                        }
                       }
                     }
                   ]
@@ -242,12 +244,23 @@ No MSS is configured in this subtest, and all four ports use the default MTU.
     *   Verify that all four sessions are `ESTABLISHED`, that
         `transport/state/mtu-discovery` is `true` for both peer groups, and
         that all four neighbors inherit it.
-    *   Remove `transport/config/mtu-discovery` from both peer groups.
+    *   Neighbor-level override: keep PMTUD enabled on the peer groups, and
+        set `transport/config/mtu-discovery` to `false` on one neighbor in
+        each peer group (the IPv4 neighbors 192.0.2.2 and 192.0.2.6).
+    *   Re-establish the four sessions.
+    *   Verify that all four sessions are `ESTABLISHED`, that
+        `transport/state/mtu-discovery` is `false` for the two IPv4 neighbors,
+        and that it is still `true` for the two IPv6 neighbors and both peer
+        groups.
+    *   Remove `transport/config/mtu-discovery` from the two IPv4 neighbors and
+        from both peer groups.
 
 #### Canonical OC
 
-The neighbor-level and peer-group-level values are configured in separate
-steps, not at the same time.
+The block below shows the neighbor-level override step: PMTUD is enabled on
+the peer groups and disabled on the IPv4 neighbors. In the neighbor-level
+step, it is enabled on the four neighbors instead, and not configured on the
+peer groups.
 
 ```json
 {
@@ -306,7 +319,7 @@ steps, not at the same time.
                       },
                       "transport": {
                         "config": {
-                          "mtu-discovery": true
+                          "mtu-discovery": false
                         }
                       }
                     },
@@ -315,11 +328,6 @@ steps, not at the same time.
                       "config": {
                         "neighbor-address": "2001:db8::192:0:2:2",
                         "peer-group": "EBGP-PEERS"
-                      },
-                      "transport": {
-                        "config": {
-                          "mtu-discovery": true
-                        }
                       }
                     },
                     {
@@ -330,7 +338,7 @@ steps, not at the same time.
                       },
                       "transport": {
                         "config": {
-                          "mtu-discovery": true
+                          "mtu-discovery": false
                         }
                       }
                     },
@@ -339,11 +347,6 @@ steps, not at the same time.
                       "config": {
                         "neighbor-address": "2001:db8::192:0:2:6",
                         "peer-group": "IBGP-PEERS"
-                      },
-                      "transport": {
-                        "config": {
-                          "mtu-discovery": true
-                        }
                       }
                     }
                   ]
@@ -364,10 +367,11 @@ steps, not at the same time.
     "FAIL":
     1.  A BGP session is not `ESTABLISHED` after it is re-established
     2.  In `RT-1.21.1`, `transport/state/tcp-mss` is not 4096 for a neighbor at
-        the neighbor level, or not 4000 for a peer group or neighbor at the
-        peer-group level
-    3.  In `RT-1.21.2`, `transport/state/mtu-discovery` is not `true` for a
-        neighbor or peer group
+        the neighbor level, not 1400 for a neighbor with the override, or not
+        4000 for a peer group or any other neighbor at the peer-group level
+    3.  In `RT-1.21.2`, `transport/state/mtu-discovery` is not `false` for a
+        neighbor with the override, or not `true` for a peer group or any
+        other neighbor
     4.  A `transport/state/tcp-mss` reported before any MSS is configured is
         outside the range given in `RT-1.21.1`
 
