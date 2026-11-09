@@ -21,7 +21,7 @@ Generic Health Check
     *   No flow control frames tx/rx
     *   No CRC or Layer 1 errors on interfaces
     *   No config commit errors
-    *   No system level alarms
+    *   No system level alarms (/system/alarms/alarm/state/severity)
     *   In spec hardware should be in proper state
         *   No hardware errors
         *   Major Alarms
@@ -55,7 +55,7 @@ rpcs:
     gNMI.Get:
 
 paths:
-  ## Config Parameter coverage
+  ## Telemetry Parameter coverage
 
     /system/alarms/alarm/state/severity:
     /components/component/cpu/utilization/state/avg:
