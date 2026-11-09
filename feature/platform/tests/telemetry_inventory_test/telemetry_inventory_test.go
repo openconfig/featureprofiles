@@ -27,6 +27,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygot/ygot"
 )
 
 var componentType = map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{
@@ -42,6 +43,7 @@ var componentType = map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{
 	"TempSensor":  oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_SENSOR,
 	"Cpu":         oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CPU,
 	"Storage":     oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_STORAGE,
+	"Sensor":      oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_SENSOR,
 }
 
 // validInstallComponentTypes indicates for each component type, which types of
@@ -568,10 +570,8 @@ func TestTempSensor(t *testing.T) {
 
 func TestPowerSupplyTelemetry(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	if deviations.PowerSupplyTelemetryUnsupported(dut) {
-		t.Skip("Skip PowerSupplyTelemetry test due to deviation power_supply_telemetry_unsupported.")
-	}
-	psus := findComponentsListByType(t, dut)["PowerSupply"]
+	byType := findComponentsListByType(t, dut)
+	psus := byType["PowerSupply"]
 	if len(psus) == 0 {
 		t.Fatalf("Get PowerSupply list for %q: got 0, want > 0", dut.Model())
 	}
@@ -590,33 +590,52 @@ func TestPowerSupplyTelemetry(t *testing.T) {
 
 		pName := psu.GetName()
 		t.Run(pName, func(t *testing.T) {
-			psVal := psu.GetPowerSupply()
-			if psVal == nil {
-				t.Fatalf("PowerSupply %s state is not present in telemetry", pName)
+			sources := []*oc.Component{psu}
+			if deviations.PowerSupplyTelemetryAgainstSensorChildren(dut) {
+				sources = nil
+				for _, sensor := range byType["Sensor"] {
+					if sensor.GetParent() == pName && !sensor.GetEmpty() {
+						sources = append(sources, sensor)
+					}
+				}
+				if len(sources) == 0 {
+					t.Fatalf("PowerSupply %s has no sensor children in telemetry", pName)
+				}
 			}
 
-			if psVal.InputCurrent == nil {
-				t.Errorf("PowerSupply %s: /components/component/power-supply/state/input-current is nil", pName)
-			} else {
-				t.Logf("PowerSupply %s InputCurrent: %v Amps", pName, psVal.GetInputCurrent())
+			// Each sensor may provide only one reading. Require all four readings
+			// across this PSU's sources, rather than all four on every sensor.
+			found := make(map[string]bool)
+			for _, source := range sources {
+				psVal := source.GetPowerSupply()
+				if psVal == nil {
+					continue // e.g. a temperature sensor, not an electrical sensor.
+				}
+				for _, reading := range []struct {
+					name    string
+					present bool
+					value   []byte
+					unit    string
+				}{
+					{"input-current", psVal.InputCurrent != nil, psVal.GetInputCurrent(), "Amps"},
+					{"input-voltage", psVal.InputVoltage != nil, psVal.GetInputVoltage(), "Volts"},
+					{"output-current", psVal.OutputCurrent != nil, psVal.GetOutputCurrent(), "Amps"},
+					{"output-voltage", psVal.OutputVoltage != nil, psVal.GetOutputVoltage(), "Volts"},
+				} {
+					if reading.present {
+						if len(reading.value) != 4 {
+							t.Errorf("PowerSupply %s component %s %s: invalid IEEE float32 length %d", pName, source.GetName(), reading.name, len(reading.value))
+							continue
+						}
+						found[reading.name] = true
+						t.Logf("PowerSupply %s component %s %s: %v %s", pName, source.GetName(), reading.name, ygot.BinaryToFloat32(reading.value), reading.unit)
+					}
+				}
 			}
-
-			if psVal.InputVoltage == nil {
-				t.Errorf("PowerSupply %s: /components/component/power-supply/state/input-voltage is nil", pName)
-			} else {
-				t.Logf("PowerSupply %s InputVoltage: %v Volts", pName, psVal.GetInputVoltage())
-			}
-
-			if psVal.OutputCurrent == nil {
-				t.Errorf("PowerSupply %s: /components/component/power-supply/state/output-current is nil", pName)
-			} else {
-				t.Logf("PowerSupply %s OutputCurrent: %v Amps", pName, psVal.GetOutputCurrent())
-			}
-
-			if psVal.OutputVoltage == nil {
-				t.Errorf("PowerSupply %s: /components/component/power-supply/state/output-voltage is nil", pName)
-			} else {
-				t.Logf("PowerSupply %s OutputVoltage: %v Volts", pName, psVal.GetOutputVoltage())
+			for _, leaf := range []string{"input-current", "input-voltage", "output-current", "output-voltage"} {
+				if !found[leaf] {
+					t.Errorf("PowerSupply %s: /components/component/power-supply/state/%s is absent from telemetry sources", pName, leaf)
+				}
 			}
 		})
 	}

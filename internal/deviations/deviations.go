@@ -2415,10 +2415,10 @@ func SwitchedVlanUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSwitchedVlanUnsupported()
 }
 
-// PowerSupplyTelemetryUnsupported returns true if device does not support power supply telemetry.
+// PowerSupplyTelemetryAgainstSensorChildren returns true if the device reports power supply telemetry against sensor children of each PSU.
 // Cisco: https://b.corp.google.com/issues/307454993
-func PowerSupplyTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetPowerSupplyTelemetryUnsupported()
+func PowerSupplyTelemetryAgainstSensorChildren(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPowerSupplyTelemetryAgainstSensorChildren()
 }
 
 // InterfaceLastClearUnsupported returns true if the device does not populate

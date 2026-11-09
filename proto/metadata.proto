@@ -1476,9 +1476,9 @@ message Metadata {
     // Devices that do not support AIGP metric increment when IGP metric to original destination is zero
     bool aigp_metric_increment = 458;
 
-    // Device does not support power supply telemetry.
+    // Device reports power supply telemetry against sensor children of each PSU.
     // Cisco: https://b.corp.google.com/issues/307454993
-    bool power_supply_telemetry_unsupported = 459;
+    bool power_supply_telemetry_against_sensor_children = 459;
 
     // Devices that do not support configuring the sFlow egress sampling rate
     // (/sampling/sflow/interfaces/interface/config/egress-sampling-rate)
