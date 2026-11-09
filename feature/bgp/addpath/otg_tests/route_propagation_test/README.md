@@ -10,10 +10,12 @@ BGP Route Propagation
 
 ## Procedure
 
-Establish eBGP sessions between:
+Establish BGP sessions between:
 
-*   ATE port-1 and DUT port-1
-*   ATE port-2 and DUT port-2
+*   ATE port-1 and DUT port-1: eBGP (ATE AS 65536) for RT-1.3.1 and RT-1.3.2;
+    iBGP (ATE uses the DUT AS 65537 and acts as a route reflector to the DUT)
+    for the Add-Path subtests RT-1.3.3 and RT-1.3.5.
+*   ATE port-2 and DUT port-2: eBGP (ATE AS 65538).
 
 IPv4 and IPv6 use separate sessions on each port: the IPv4 neighbors carry
 IPV4_UNICAST and the IPv6 neighbors carry IPV6_UNICAST. The DUT port-1

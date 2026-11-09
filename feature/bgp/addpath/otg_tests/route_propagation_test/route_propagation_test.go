@@ -40,6 +40,9 @@ import (
 // We are testing BGP route propagation across the DUT, so we are using the ATE to simulate two
 // neighbors: AS 65536 on ATE port1, and AS 65538 on ATE port2, which both neighbor the DUT AS
 // 65537 (both port1 and port2).
+//
+// TestAddPath instead runs ATE port1 as an iBGP peer in the DUT AS (route reflector to the
+// DUT), so the DUT receives multiple paths per prefix over iBGP.
 var (
 	// TODO: The DUT IP should be table driven as well, but assigning only an IPv6
 	// address seems to prevent Ixia from bringing up the connection.
