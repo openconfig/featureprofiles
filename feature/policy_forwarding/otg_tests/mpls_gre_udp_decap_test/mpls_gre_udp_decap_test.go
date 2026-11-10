@@ -213,10 +213,12 @@ func sendAndValidateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnapp
 
 	otg.PushConfig(t, config)
 	otg.StartProtocols(t)
-	captureState := startCapture(t, ate)
+	captureState := otgutils.StartCapture(t, otg)
+	defer otgutils.StopCapture(t, otg, captureState)
 	otg.StartTraffic(t)
 	err := waitForTraffic(t, otg, flowName, trafficTimeout)
-	stopCapture(t, ate, captureState)
+	otgutils.StopCapture(t, otg, captureState)
+	time.Sleep(5 * time.Second)
 	if err != nil {
 		return err
 	}
@@ -255,14 +257,6 @@ func clearCapture(t *testing.T, ate *ondatra.ATEDevice, topo gosnappi.Config) {
 	ate.OTG().PushConfig(t, topo)
 }
 
-func startCapture(t *testing.T, ate *ondatra.ATEDevice) gosnappi.ControlState {
-	t.Helper()
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
-	ate.OTG().SetControlState(t, cs)
-	return cs
-}
-
 func mustProcessCapture(t *testing.T, ate *ondatra.ATEDevice, capturePort string, flowName string) {
 	otg := ate.OTG()
 	bytes := otg.GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(capturePort))
@@ -277,13 +271,6 @@ func mustProcessCapture(t *testing.T, ate *ondatra.ATEDevice, capturePort string
 	if _, err := f.Write(bytes); err != nil {
 		t.Fatalf("Could not write bytes to pcap file: %v\n", err)
 	}
-}
-
-func stopCapture(t *testing.T, ate *ondatra.ATEDevice, cs gosnappi.ControlState) {
-	t.Helper()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
-	ate.OTG().SetControlState(t, cs)
-	time.Sleep(5 * time.Second)
 }
 
 func waitForTraffic(t *testing.T, otg *otg.OTG, flowName string, timeout time.Duration) error {
