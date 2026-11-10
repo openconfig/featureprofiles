@@ -130,6 +130,10 @@ func verifyOTGPacketCaptureForRA(t *testing.T, ate *ondatra.ATEDevice, config go
 	cs := gosnappi.NewControlState()
 	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
 	otg.SetControlState(t, cs)
+	defer func() {
+		cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
+		otg.SetControlState(t, cs)
+	}()
 	if ipv6Solicitation {
 		otgutils.WaitForARP(t, ate.OTG(), config, "IPv6")
 	}

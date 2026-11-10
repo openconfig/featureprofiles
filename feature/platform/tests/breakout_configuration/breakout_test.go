@@ -346,6 +346,18 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 				gnmi.Update(t, dut, gnmi.OC().Component(componentName).Name().Config(), componentName)
 				path := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(getSchemaValue(dut))
 
+				breakoutCleanedUp := false
+				t.Cleanup(func() {
+					if !breakoutCleanedUp {
+						gnmi.Replace(t, dut, gnmi.OC().Component(componentName).Config(), portContainer)
+						if deviations.FrBreakoutFix(dut) {
+							deleteBreakoutConfig(t, dut, componentName)
+						} else {
+							gnmi.Delete(t, dut, gnmi.OC().Component(componentName).Port().BreakoutMode().Group(getSchemaValue(dut)).Config())
+						}
+					}
+				})
+
 				if deviations.FrBreakoutFix(dut) {
 					batch := &gnmi.SetBatch{}
 					for _, port := range dut.Ports() {
@@ -525,6 +537,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 					} else {
 						gnmi.Delete(t, dut, path.Config())
 					}
+					breakoutCleanedUp = true
 					verifyDelete(t, dut, componentName, getSchemaValue(dut))
 				})
 			}
