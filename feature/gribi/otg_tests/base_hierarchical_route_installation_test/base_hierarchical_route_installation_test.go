@@ -23,6 +23,7 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
@@ -262,7 +263,7 @@ func configureVrfSelectionPolicyW(t *testing.T, dut *ondatra.DUTDevice) {
 
 	p1 := dut.Port(t, "port1")
 	interfaceID := p1.Name()
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+	if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
 		interfaceID = interfaceID + ".0"
 	}
 
@@ -280,6 +281,10 @@ func configureVrfSelectionPolicyW(t *testing.T, dut *ondatra.DUTDevice) {
 
 // configureDUT configures port1 and port2 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
+	if deviations.VendorPreConfigRequired(dut) {
+		cfgplugins.ConfigureDecapVrfSelection(t, dut)
+	}
+
 	d := gnmi.OC()
 	for p, dp := range dutPorts {
 		p1 := dut.Port(t, p)
@@ -328,7 +333,7 @@ func applyForwardingPolicy(t *testing.T, ingressPort string) {
 	d := &oc.Root{}
 	dut := ondatra.DUT(t, "dut")
 	interfaceID := ingressPort
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+	if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
 		interfaceID = ingressPort + ".0"
 	}
 	pfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID)

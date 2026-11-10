@@ -38,11 +38,13 @@ platform_exceptions: {
     interface_ethernet_inblock_errors_unsupported: true
     interface_counters_in_unknown_protos_unsupported: true
     interface_counters_in_fcs_errors_unsupported: true
+    subinterface_counters_in_fcs_errors_unsupported: true
     no_queue_drop_unsupported: true
     linecard_cpu_utilization_unsupported: true
     linecard_memory_utilization_unsupported: true
     secondary_controller_card_cpu_utilization_unsupported: true
     secondary_controller_card_memory_utilization_unsupported: true
+    skip_origin: true
     subinterface_0_state_unsupported: true
   }
 }
@@ -57,6 +59,7 @@ platform_exceptions: {
     interface_counters_in_unknown_protos_unsupported: true
     interface_ethernet_inblock_errors_unsupported: true
     interface_counters_in_fcs_errors_unsupported: true
+    subinterface_counters_in_fcs_errors_unsupported: true
     fabric_drop_counter_unsupported: true
     linecard_cpu_utilization_unsupported: true
     linecard_memory_utilization_unsupported: true

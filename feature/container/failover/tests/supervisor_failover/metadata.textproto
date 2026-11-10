@@ -12,6 +12,10 @@ platform_exceptions: {
   }
   deviations: {
     containerz_oc_unsupported: true
+    gnoi_subcomponent_path: true
+    switchover_stabilize_delay_m: 10
+    containerz_require_explicit_config_save: true
+    gnoi_requires_fresh_dial_after_switchover: true
   }
 }
 

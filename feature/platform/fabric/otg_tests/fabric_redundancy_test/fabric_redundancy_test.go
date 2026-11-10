@@ -413,6 +413,12 @@ func testFabricLastRebootTime(t *testing.T, dut *ondatra.DUTDevice, fabrics []st
 			Name: ygot.String(fabric),
 		})
 	}
+	fabricRestored := false
+	t.Cleanup(func() {
+		if !fabricRestored {
+			gnmi.Replace(t, dut, gnmi.OC().Component(fabric).Fabric().PowerAdminState().Config(), oc.Platform_ComponentPowerType_POWER_ENABLED)
+		}
+	})
 	gnmi.Replace(t, dut, gnmi.OC().Component(fabric).Fabric().PowerAdminState().Config(), oc.Platform_ComponentPowerType_POWER_DISABLED)
 	gnmi.Await(t, dut, gnmi.OC().Component(fabric).Fabric().PowerAdminState().State(), 5*time.Minute, oc.Platform_ComponentPowerType_POWER_DISABLED)
 
@@ -424,6 +430,7 @@ func testFabricLastRebootTime(t *testing.T, dut *ondatra.DUTDevice, fabrics []st
 		})
 	}
 	gnmi.Replace(t, dut, gnmi.OC().Component(fabric).Fabric().PowerAdminState().Config(), oc.Platform_ComponentPowerType_POWER_ENABLED)
+	fabricRestored = true
 
 	if deviations.MissingValueForDefaults(dut) {
 		time.Sleep(time.Minute)
@@ -473,6 +480,12 @@ func testFabricRedundancy(t *testing.T, dut *ondatra.DUTDevice, fabrics []string
 			Name: ygot.String(disabledFabric),
 		})
 	}
+	fabricRestored := false
+	t.Cleanup(func() {
+		if !fabricRestored {
+			gnmi.Replace(t, dut, gnmi.OC().Component(disabledFabric).Fabric().PowerAdminState().Config(), oc.Platform_ComponentPowerType_POWER_ENABLED)
+		}
+	})
 	gnmi.Replace(t, dut, gnmi.OC().Component(disabledFabric).Fabric().PowerAdminState().Config(), oc.Platform_ComponentPowerType_POWER_DISABLED)
 	gnmi.Await(t, dut, gnmi.OC().Component(disabledFabric).Fabric().PowerAdminState().State(), 5*time.Minute, oc.Platform_ComponentPowerType_POWER_DISABLED)
 
@@ -531,6 +544,7 @@ func testFabricRedundancy(t *testing.T, dut *ondatra.DUTDevice, fabrics []string
 	}
 
 	gnmi.Replace(t, dut, gnmi.OC().Component(disabledFabric).Fabric().PowerAdminState().Config(), oc.Platform_ComponentPowerType_POWER_ENABLED)
+	fabricRestored = true
 	if deviations.MissingValueForDefaults(dut) {
 		time.Sleep(time.Minute)
 	} else {

@@ -47,7 +47,7 @@ const (
 	groupName       = "arp-policer"
 	SchedulerName   = "ARP-policer"
 	flowName        = "arp-test"
-	tolerance       = 5
+	tolerancePct    = 0.01
 	macB            = "ff:ff:ff:ff:ff:ff"
 )
 
@@ -96,14 +96,14 @@ func TestIngressArpPolicing(t *testing.T) {
 	t.Run("VerifyQoSCounters", func(t *testing.T) {
 		t.Log("Validating traffic without policy-map")
 		txRateKbps, rxRateKbps := startAndMeasureTraffic(t, ate, trafficDuration)
-		validateRates(t, txRateKbps, rxRateKbps, txRateKbps, tolerance, "Without policy-map")
+		validateRates(t, txRateKbps, rxRateKbps, txRateKbps, tolerancePct, "Without policy-map")
 		verifyTrafficAndLog(t, "QoS Counters", verifyPortTraffic(t, ate, config))
 	})
 	t.Run("VerifyTransmitOctetsWithCIR", func(t *testing.T) {
 		t.Log("Validating traffic with policy-map")
 		configureDUTTrafficPolicy(t, dut, dut.Port(t, "port1").Name())
 		txRateKbps, rxRateKbps := startAndMeasureTraffic(t, ate, trafficDuration)
-		validateRates(t, txRateKbps, rxRateKbps, float64(cir), tolerance, "With CIR restriction")
+		validateRates(t, txRateKbps, rxRateKbps, float64(cir), tolerancePct, "With CIR restriction")
 		verifyTrafficAndLog(t, "Transmit/Octets and Loss", verifyPortTrafficwithCir(t, ate, config))
 	})
 }
@@ -119,20 +119,23 @@ func startAndMeasureTraffic(t *testing.T, ate *ondatra.ATEDevice, duration time.
 	// Stop traffic *after* measurement
 	ate.OTG().StopTraffic(t)
 	// TODO: currently not implemented to get txRateInKbps from traffic counters.
-	txRateKbps := (txRate * 512) / 1000 // assuming 64-byte avg packet (512 bits)
-	rxRateKbps := (rxRate * 512) / 1000
+	txRateKbps := (float64(txRate) * 512) / 1000 // assuming 64-byte avg packet (512 bits)
+	rxRateKbps := (float64(rxRate) * 512) / 1000
 
 	t.Logf("Measured TX Rate: %.2f Kbps, RX Rate: %.2f Kbps", txRateKbps, rxRateKbps)
-	return float64(txRateKbps), float64(rxRateKbps)
+	return txRateKbps, rxRateKbps
 }
 
-func validateRates(t *testing.T, txRateKbps, rxRateKbps float64, expectedRate float64, tolerance float64, description string) {
+func validateRates(t *testing.T, txRateKbps, rxRateKbps float64, expectedRate float64, tolerancePct float64, description string) {
 	t.Helper()
+
+	allowedVariance := expectedRate * tolerancePct
 	diff := math.Abs(rxRateKbps - expectedRate)
-	if diff <= tolerance {
-		t.Logf("%s Passed: TX=%.2f Kbps, RX=%.2f Kbps (Δ=%.2f Kbps within tolerance %.2f)", description, expectedRate, rxRateKbps, diff, tolerance)
+
+	if diff <= allowedVariance {
+		t.Logf("%s Passed: TX=%.2f Kbps, RX=%.2f Kbps (Δ=%.2f Kbps within allowed %.2f)", description, txRateKbps, rxRateKbps, diff, allowedVariance)
 	} else {
-		t.Errorf("%s Failed: TX=%.2f Kbps, RX=%.2f Kbps (Δ=%.2f Kbps exceeds tolerance %.2f)", description, expectedRate, rxRateKbps, diff, tolerance)
+		t.Errorf("%s Failed: TX=%.2f Kbps, RX=%.2f Kbps (Δ=%.2f Kbps exceeds allowed %.2f)", description, txRateKbps, rxRateKbps, diff, allowedVariance)
 	}
 }
 
@@ -176,7 +179,7 @@ func configureDUTTrafficPolicy(t *testing.T, dut *ondatra.DUTDevice, portName st
 		10 permit any any arp payload offset 1 pattern 0x00000001 mask 0xffffff00
 		interface %s
 		service-policy type qos input ARP-policing-Qos
-		`, cir, burstCount, portName)
+    `, cir, burstCount, portName)
 		gpbSetRequest := buildCLIConfigRequest(cliCommands)
 
 		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
@@ -296,56 +299,80 @@ func validatePortTraffic(t *testing.T, ate *ondatra.ATEDevice, portID string, ex
 	const fn = "validatePortTraffic"
 
 	countersPath := gnmi.OTG().Port(portID).Counters()
-	txRate := gnmi.Get(t, ate.OTG(), countersPath.OutFrames().State())
-	rxRate := gnmi.Get(t, ate.OTG(), countersPath.InFrames().State())
 
 	isWithinTolerance := func(expected, actual uint64) bool {
-		return actual >= expected-tolerance && actual <= expected+tolerance
+		allowedVariance := uint64(float64(expected) * tolerancePct)
+		var minVal uint64
+		if expected > allowedVariance {
+			minVal = expected - allowedVariance
+		}
+		return actual >= minVal && actual <= expected+allowedVariance
 	}
 
-	// TX validation
+	// TX validation: wait for TX counter to reach > 0
 	txVal, ok := gnmi.Watch(t, ate.OTG(), countersPath.OutFrames().State(), timeout,
 		func(val *ygnmi.Value[uint64]) bool {
 			v, present := val.Val()
-			return val.IsPresent() && present && isWithinTolerance(txRate, v)
+			return val.IsPresent() && present && v > 0
 		}).Await(t)
 
 	if !ok {
-		t.Errorf("[%s] TX did not reach expected count (%d)", fn, txRate)
+		txRate := gnmi.Get(t, ate.OTG(), countersPath.OutFrames().State())
+		t.Errorf("[%s] TX packets did not reach expected count (>0), got (%d)", fn, txRate)
 		return false
 	}
+	txPkts, _ := txVal.Val()
 
 	// RX validation
-	rxVal, ok := gnmi.Watch(t, ate.OTG(), countersPath.InFrames().State(), timeout,
-		func(val *ygnmi.Value[uint64]) bool {
-			v, present := val.Val()
-			return val.IsPresent() && present && isWithinTolerance(rxRate, v)
-		}).Await(t)
+	var rxPkts uint64
+	if !expectDrop {
+		rxVal, ok := gnmi.Watch(t, ate.OTG(), countersPath.InFrames().State(), timeout,
+			func(val *ygnmi.Value[uint64]) bool {
+				v, present := val.Val()
+				return val.IsPresent() && present && isWithinTolerance(txPkts, v)
+			}).Await(t)
 
-	if !ok {
-		if expectDrop {
-			t.Logf("[%s] Expected packet drop verified (RX lower than TX)", fn)
-		} else {
-			t.Errorf("[%s] RX packets did not match expected TX count (%d)", fn, txRate)
+		if !ok {
+			rxRate := gnmi.Get(t, ate.OTG(), countersPath.InFrames().State())
+			t.Errorf("[%s] RX packets (%d) did not match expected TX count (%d)", fn, rxRate, txPkts)
 			return false
 		}
+		rxPkts, _ = rxVal.Val()
+	} else {
+		rxVal, ok := gnmi.Watch(t, ate.OTG(), countersPath.InFrames().State(), timeout,
+			func(val *ygnmi.Value[uint64]) bool {
+				v, present := val.Val()
+				return val.IsPresent() && present && v > 0 && v < txPkts
+			}).Await(t)
+
+		if !ok {
+			rxRate := gnmi.Get(t, ate.OTG(), countersPath.InFrames().State())
+			t.Errorf("[%s] RX packets (%d) were not lower than TX count (%d) despite expected drop", fn, rxRate, txPkts)
+			return false
+		}
+		rxPkts, _ = rxVal.Val()
+		t.Logf("[%s] Expected packet drop verified (RX=%d lower than TX=%d)", fn, rxPkts, txPkts)
 	}
 
 	// Octets validation (only for CIR test)
 	if expectDrop {
-		rxOctets := gnmi.Get(t, ate.OTG(), countersPath.InOctets().State())
 		txOctets := gnmi.Get(t, ate.OTG(), countersPath.OutOctets().State())
-		if txOctets > rxOctets && rxOctets != 0 && txOctets != 0 {
-			t.Logf("[%s] In/Out Octets: TX=%d, RX=%d", fn, txOctets, rxOctets)
-		} else {
-			t.Errorf("[%s] Failed to validate In/Out Octets", fn)
+		rxValOctets, ok := gnmi.Watch(t, ate.OTG(), countersPath.InOctets().State(), timeout,
+			func(val *ygnmi.Value[uint64]) bool {
+				v, present := val.Val()
+				return val.IsPresent() && present && v > 0 && v < txOctets
+			}).Await(t)
+
+		if !ok {
+			rxOctets := gnmi.Get(t, ate.OTG(), countersPath.InOctets().State())
+			t.Errorf("[%s] Failed to validate In/Out Octets: TX=%d, RX=%d", fn, txOctets, rxOctets)
 			return false
 		}
+		rxOctets, _ := rxValOctets.Val()
+		t.Logf("[%s] In/Out Octets: TX=%d, RX=%d", fn, txOctets, rxOctets)
 	}
 
 	// Final log
-	txPkts, _ := txVal.Val()
-	rxPkts, _ := rxVal.Val()
 	t.Logf("[%s] %s: TX=%d, RX=%d", fn, flowName, txPkts, rxPkts)
 
 	return true

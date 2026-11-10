@@ -373,25 +373,12 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, flowName string, wantLoss bool) {
 	t.Helper()
 	otg := ate.OTG()
-	otgutils.LogFlowMetrics(t, otg, c)
+	defer otgutils.LogFlowMetrics(t, otg, c)
 	t.Logf("Verifying flow metrics for flow %s\n", flowName)
-	recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).State())
-	txPackets := recvMetric.GetCounters().GetOutPkts()
-	rxPackets := recvMetric.GetCounters().GetInPkts()
-	lostPackets := txPackets - rxPackets
-	lossPct := lostPackets * 100 / txPackets
 	if wantLoss {
-		if lossPct < 100-tolerancePct {
-			t.Errorf("Traffic is expected to fail %s\n got %v, want 100%% failure", flowName, lossPct)
-		} else {
-			t.Logf("Traffic Loss Test Passed!")
-		}
+		otgutils.ExpectedTrafficLoss(t, otg, flowName, float64(100-tolerancePct), 100)
 	} else {
-		if lossPct > tolerancePct {
-			t.Errorf("Traffic Loss Pct for Flow: %s\n got %v, want 0", flowName, lossPct)
-		} else {
-			t.Logf("Traffic Test Passed!")
-		}
+		otgutils.ExpectedTrafficLoss(t, otg, flowName, 0, float64(tolerancePct)+0.99)
 	}
 }
 
@@ -441,9 +428,7 @@ func configPolicy(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 	}
 	actions1 := st.GetOrCreateActions()
 	actions1.GetOrCreateBgpActions().SetMed = oc.UnionUint32(bgpMED100)
-	if !deviations.BGPSetMedActionUnsupported(dut) {
-		actions1.GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
-	}
+	actions1.GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
 	if deviations.BGPSetMedRequiresEqualOspfSetMetric(dut) {
 		actions1.GetOrCreateOspfActions().GetOrCreateSetMetric().SetMetric(bgpMED100)
 	}
@@ -456,9 +441,7 @@ func configPolicy(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 	}
 	actions2 := st.GetOrCreateActions()
 	actions2.GetOrCreateBgpActions().SetMed = oc.UnionUint32(bgpMED50)
-	if !deviations.BGPSetMedActionUnsupported(dut) {
-		actions2.GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
-	}
+	actions2.GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
 	if deviations.BGPSetMedRequiresEqualOspfSetMetric(dut) {
 		actions2.GetOrCreateOspfActions().GetOrCreateSetMetric().SetMetric(bgpMED50)
 	}
@@ -649,6 +632,16 @@ func TestAlwaysCompareMED(t *testing.T) {
 		bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 
 		// First, disable all neighbors
+		neighborsRestored := false
+		t.Cleanup(func() {
+			if !neighborsRestored {
+				b := &gnmi.SetBatch{}
+				for _, nbrIP := range nbrIPs {
+					gnmi.BatchReplace(b, bgpPath.Neighbor(nbrIP).Enabled().Config(), true)
+				}
+				b.Set(t, dut)
+			}
+		})
 		for _, nbrIP := range nbrIPs {
 			nbrPath := bgpPath.Neighbor(nbrIP)
 			t.Logf("Disabling BGP neighbor %s", nbrIP)
@@ -677,6 +670,7 @@ func TestAlwaysCompareMED(t *testing.T) {
 			t.Logf("Re-enabling BGP neighbor %s", nbrIP)
 			gnmi.Replace(t, dut, nbrPath.Enabled().Config(), true)
 		}
+		neighborsRestored = true
 
 		// Wait for BGP sessions to re-establish
 		t.Log("Waiting for BGP sessions to re-establish...")

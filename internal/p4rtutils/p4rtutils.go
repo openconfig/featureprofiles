@@ -21,14 +21,20 @@
 package p4rtutils
 
 import (
+	"fmt"
+	"io"
 	"testing"
+	"time"
 
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/golang/glog"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	p4ConfigV1 "github.com/p4lang/p4runtime/go/p4/config/v1"
 	p4V1 "github.com/p4lang/p4runtime/go/p4/v1"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // Some hardcoding to simplify things
@@ -232,5 +238,229 @@ func StreamTermErr(ste chan *p4rt_client.P4RTStreamTermErr) error {
 		return e.StreamErr
 	default:
 		return nil
+	}
+}
+
+// StreamTermErrWithTimeout returns any error (if present), in the P4RTStreamTermErr channel.
+// Function blocks for specified duration if no error in channel.
+func StreamTermErrWithTimeout(ste chan *p4rt_client.P4RTStreamTermErr, timeout time.Duration) error {
+	if ste == nil {
+		return nil
+	}
+	select {
+	case e := <-ste:
+		return e.StreamErr
+	case <-time.After(timeout):
+		return nil
+	}
+}
+
+// CheckRPCErrorCode returns nil if err is a gRPC status error carrying the
+// wanted code, and a descriptive error otherwise (including when err is nil).
+func CheckRPCErrorCode(err error, want codes.Code) error {
+	if err == nil {
+		return fmt.Errorf("expected %v error, got nil", want)
+	}
+	s, ok := status.FromError(err)
+	if !ok {
+		return fmt.Errorf("error is not a valid gRPC status error: %v", err)
+	}
+	if s.Code() != want {
+		return fmt.Errorf("expected %v, got %v: %v", want, s.Code(), err)
+	}
+	return nil
+}
+
+// CheckRPCErrorNotFound checks if the given error is a gRPC NOT_FOUND error.
+func CheckRPCErrorNotFound(err error) error {
+	return CheckRPCErrorCode(err, codes.NotFound)
+}
+
+// PacketOutGet returns a StreamMessageRequest for PacketOut.
+func PacketOutGet(payload []byte) *p4V1.StreamMessageRequest {
+	return &p4V1.StreamMessageRequest{
+		Update: &p4V1.StreamMessageRequest_Packet{
+			Packet: &p4V1.PacketOut{
+				Payload: payload,
+			},
+		},
+	}
+}
+
+// PacketOutWithEgressPortGet returns a StreamMessageRequest for a PacketOut
+// carrying the WBB packet_out metadata: egress_port (metadata id 1) set to the
+// P4RT port id and, optionally, submit_to_ingress (metadata id 2).
+func PacketOutWithEgressPortGet(payload []byte, egressPortID uint32, submitToIngress bool) *p4V1.StreamMessageRequest {
+	pkt := &p4V1.PacketOut{
+		Payload: payload,
+		Metadata: []*p4V1.PacketMetadata{
+			{
+				MetadataId: uint32(1), // "egress_port"
+				Value:      []byte(fmt.Sprint(egressPortID)),
+			},
+		},
+	}
+	if submitToIngress {
+		pkt.Metadata = append(pkt.Metadata, &p4V1.PacketMetadata{
+			MetadataId: uint32(2), // "submit_to_ingress"
+			Value:      []byte{1},
+		})
+	}
+	return &p4V1.StreamMessageRequest{
+		Update: &p4V1.StreamMessageRequest_Packet{Packet: pkt},
+	}
+}
+
+// DrainStreamTermErr discards, without blocking, any stream termination errors
+// currently queued in the P4RTStreamTermErr channel.
+func DrainStreamTermErr(ste chan *p4rt_client.P4RTStreamTermErr) {
+	if ste == nil {
+		return
+	}
+	for {
+		select {
+		case <-ste:
+		default:
+			return
+		}
+	}
+}
+
+// StreamTermErrForStream waits up to timeout for the termination error of the
+// stream named streamName in the P4RTStreamTermErr channel. Termination entries
+// for other streams (e.g. stale entries from earlier streams of the same client)
+// are discarded. It returns as soon as a matching entry is received, and nil if
+// no matching entry is received before the timeout expires.
+func StreamTermErrForStream(ste chan *p4rt_client.P4RTStreamTermErr, streamName string, timeout time.Duration) error {
+	if ste == nil {
+		return nil
+	}
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	for {
+		select {
+		case e := <-ste:
+			if e == nil || e.StreamParams == nil || e.StreamParams.Name != streamName {
+				continue
+			}
+			return e.StreamErr
+		case <-timer.C:
+			return nil
+		}
+	}
+}
+
+// StreamArbitrate creates a StreamChannel described by params on client, sends a
+// MasterArbitrationUpdate for params.DeviceId/ElectionId and waits up to timeout
+// for the outcome. It returns:
+//   - nil if an arbitration response with an OK status is received;
+//   - the gRPC status error with which the server terminated the stream, or a
+//     gRPC status error built from a non-OK arbitration response status;
+//   - a non-status error for client-side failures or timeouts.
+//
+// On timeout the stream is destroyed so no goroutine is left blocked.
+func StreamArbitrate(client *p4rt_client.P4RTClient, params *p4rt_client.P4RTStreamParameters, timeout time.Duration) error {
+	if client == nil || params == nil {
+		return fmt.Errorf("StreamArbitrate: nil client or stream parameters")
+	}
+	name := params.Name
+	if err := client.StreamChannelCreate(params); err != nil {
+		return err
+	}
+	if err := client.StreamChannelSendMsg(&name, &p4V1.StreamMessageRequest{
+		Update: &p4V1.StreamMessageRequest_Arbitration{
+			Arbitration: &p4V1.MasterArbitrationUpdate{
+				DeviceId: params.DeviceId,
+				ElectionId: &p4V1.Uint128{
+					High: params.ElectionIdH,
+					Low:  params.ElectionIdL,
+				},
+			},
+		},
+	}); err != nil {
+		if termErr := StreamTermErrForStream(client.StreamTermErr, name, timeout); termErr != nil {
+			return termErr
+		}
+		return err
+	}
+
+	type arbResult struct {
+		arb *p4rt_client.P4RTArbInfo
+		err error
+	}
+	resCh := make(chan arbResult, 1)
+	go func() {
+		_, arb, err := client.StreamChannelGetArbitrationResp(&name, 1)
+		resCh <- arbResult{arb: arb, err: err}
+	}()
+
+	select {
+	case res := <-resCh:
+		if res.err != nil {
+			// The stream was terminated (io.EOF or stream no longer found); the
+			// server's gRPC status is reported through the termination channel.
+			if termErr := StreamTermErrForStream(client.StreamTermErr, name, timeout); termErr != nil {
+				return termErr
+			}
+			return res.err
+		}
+		if res.arb == nil || res.arb.Arb == nil {
+			return fmt.Errorf("missing MasterArbitrationUpdate response on stream %q", name)
+		}
+		if s := res.arb.Arb.GetStatus(); s != nil && codes.Code(s.GetCode()) != codes.OK {
+			return status.Error(codes.Code(s.GetCode()), s.GetMessage())
+		}
+		return nil
+	case <-time.After(timeout):
+		client.StreamChannelDestroy(&name)
+		return fmt.Errorf("timed out after %v waiting for arbitration response on stream %q", timeout, name)
+	}
+}
+
+// SetForwardingPipelineConfigGet returns a VERIFY_AND_COMMIT
+// SetForwardingPipelineConfigRequest for the given device, election id and P4Info.
+func SetForwardingPipelineConfigGet(deviceID uint64, electionID *p4V1.Uint128, p4Info *p4ConfigV1.P4Info, cookie uint64) *p4V1.SetForwardingPipelineConfigRequest {
+	return &p4V1.SetForwardingPipelineConfigRequest{
+		DeviceId:   deviceID,
+		ElectionId: electionID,
+		Action:     p4V1.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
+		Config: &p4V1.ForwardingPipelineConfig{
+			P4Info: p4Info,
+			Cookie: &p4V1.ForwardingPipelineConfig_Cookie{
+				Cookie: cookie,
+			},
+		},
+	}
+}
+
+// ReadTableEntries reads the table entries of tableID (0 reads all tables) on
+// deviceID and drains the server stream until io.EOF. Read is a server-streaming
+// RPC, so a gRPC status error (e.g. NOT_FOUND) is reported by Recv(), not by the
+// Read() call itself; that error is returned unchanged.
+func ReadTableEntries(client *p4rt_client.P4RTClient, deviceID uint64, tableID uint32) ([]*p4V1.Entity, error) {
+	if client == nil {
+		return nil, fmt.Errorf("ReadTableEntries: nil client")
+	}
+	stream, err := client.Read(&p4V1.ReadRequest{
+		DeviceId: deviceID,
+		Entities: []*p4V1.Entity{{
+			Entity: &p4V1.Entity_TableEntry{
+				TableEntry: &p4V1.TableEntry{TableId: tableID},
+			},
+		}},
+	})
+	if err != nil {
+		return nil, err
+	}
+	var entities []*p4V1.Entity
+	for {
+		resp, err := stream.Recv()
+		if err == io.EOF {
+			return entities, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		entities = append(entities, resp.GetEntities()...)
 	}
 }

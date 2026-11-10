@@ -225,8 +225,8 @@ func NewStaticMplsLspPushLabel(t *testing.T, dut *ondatra.DUTDevice, lspName str
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	mplsCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateMpls()
 	staticMplsCfg := mplsCfg.GetOrCreateLsps().GetOrCreateStaticLsp(lspName)
-	staticMplsCfg.GetOrCreateEgress().GetOrCreateLspNextHop(lspNextHopIndex).SetIpAddress(nextHopIP)
-	staticMplsCfg.GetOrCreateEgress().GetOrCreateLspNextHop(lspNextHopIndex).SetPushLabel(oc.UnionUint32(mplsPushLabel))
+	staticMplsCfg.GetOrCreateIngress().SetNextHop(nextHopIP)
+	staticMplsCfg.GetOrCreateIngress().SetPushLabel(oc.UnionUint32(mplsPushLabel))
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
 }
 
@@ -282,6 +282,28 @@ func MPLSStaticLSPByPass(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDev
 
 		gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
 	}
+}
+
+// RemoveMPLSStaticLSP removes a static MPLS label binding configured by MPLSStaticLSP.
+func RemoveMPLSStaticLSP(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, lspName string, incomingLabel uint32, nextHopIP string, protocolType string, byPass bool) {
+	if deviations.StaticMplsLspOCUnsupported(dut) {
+		cliConfig := ""
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			bypassStr := ""
+			if byPass {
+				bypassStr = " access-list bypass"
+			}
+			cliConfig = fmt.Sprintf(`
+					no mpls static top-label %v %s pop payload-type %s%s
+					`, incomingLabel, nextHopIP, protocolType, bypassStr)
+			helpers.GnmiCLIConfig(t, dut, cliConfig)
+		default:
+			t.Errorf("Deviation StaticMplsLspOCUnsupported is not handled for the dut: %v", dut.Vendor())
+		}
+		return
+	}
+	gnmi.BatchDelete(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Lsps().StaticLsp(lspName).Config())
 }
 
 // mplsGlobalStaticLspAttributes configures the MPLS global static LSP attributes.
@@ -422,6 +444,7 @@ func LabelRangeOCConfig(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Update(t, dut, gnmi.OC().Config(), d)
 }
 
+// MplsStaticPseudowire configures pseudowire static mpls
 type MplsStaticPseudowire struct {
 	PseudowireName   string
 	NexthopGroupName string
@@ -429,30 +452,39 @@ type MplsStaticPseudowire struct {
 	RemoteLabel      string
 	IntfName         string
 	Subinterface     int
+	PatchPanel       string
+}
+
+// aristaMplsStaticPseudowireCLI returns the Arista CLI that configures a static
+// MPLS pseudowire and the patch panel connecting it to an attachment circuit.
+func aristaMplsStaticPseudowireCLI(params MplsStaticPseudowire) string {
+	if params.Subinterface != 0 {
+		params.IntfName = fmt.Sprintf("%s.%v", params.IntfName, params.Subinterface)
+	}
+	if params.PatchPanel == "" {
+		params.PatchPanel = "patch-1"
+	}
+	return fmt.Sprintf(`
+mpls pseudowires
+   static pseudowires
+      pseudowire %s
+         transport nexthop-group %s
+         local label %s
+         neighbor label %s
+         control-word
+patch panel
+   patch %s
+      connector interface %s
+      connector pseudowire mpls static %s
+`,
+		params.PseudowireName, params.NexthopGroupName, params.LocalLabel, params.RemoteLabel, params.PatchPanel, params.IntfName, params.PseudowireName)
 }
 
 func ConfigureMplsStaticPseudowire(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, params MplsStaticPseudowire) {
 	if deviations.MplsStaticPseudowireOcUnsupported(dut) {
-		cli := ""
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			if params.Subinterface != 0 {
-				params.IntfName = fmt.Sprintf("%s.%v", params.IntfName, params.Subinterface)
-			}
-			cli = fmt.Sprintf(`
-			mpls pseudowires
-   				static pseudowires
-      			pseudowire %s
-         		transport nexthop-group %s
-         		local label %s
-         		neighbor label %s
-         		control-word
-			patch panel
-				patch patch-1
-				   connector interface %s
-				   connector pseudowire mpls static %s`,
-				params.PseudowireName, params.NexthopGroupName, params.LocalLabel, params.RemoteLabel, params.IntfName, params.PseudowireName)
-			helpers.GnmiCLIConfig(t, dut, cli)
+			helpers.GnmiCLIConfig(t, dut, aristaMplsStaticPseudowireCLI(params))
 		default:
 			t.Errorf("Deviation MplsStaticPseudowireOcUnsupported is not handled for the dut: %v", dut.Vendor())
 		}
@@ -478,7 +510,7 @@ func RemoveMplsStaticPseudowire(t *testing.T, batch *gnmi.SetBatch, dut *ondatra
 		cli := ""
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			cli = "patch panel\n no patch patch-1"
+			cli = "no patch panel"
 			helpers.GnmiCLIConfig(t, dut, cli)
 		default:
 			t.Errorf("Deviation MplsStaticPseudowireOcUnsupported is not handled for the dut: %v", dut.Vendor())
@@ -489,28 +521,32 @@ func RemoveMplsStaticPseudowire(t *testing.T, batch *gnmi.SetBatch, dut *ondatra
 	}
 }
 
+// VlanClientEncapsulationParams configures vlan encapsulation params
 type VlanClientEncapsulationParams struct {
 	IntfName         string
 	Subinterfaces    int
 	RemoveVlanConfig bool
 }
 
+// aristaVlanClientEncapsulationCLI returns the Arista CLI that adds or removes
+// the client dot1q VLAN encapsulation on a subinterface.
+func aristaVlanClientEncapsulationCLI(params VlanClientEncapsulationParams) string {
+	if params.RemoveVlanConfig {
+		return fmt.Sprintf(`
+interface %v.%v
+   no encapsulation vlan
+`, params.IntfName, params.Subinterfaces)
+	}
+	return fmt.Sprintf(`
+interface %v.%v
+   encapsulation vlan
+      client dot1q %v network client
+`, params.IntfName, params.Subinterfaces, params.Subinterfaces)
+}
+
 func VlanClientEncapsulation(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, params VlanClientEncapsulationParams) {
 	if deviations.VlanClientEncapsulationOcUnsupported(dut) {
-		cli := ""
-		if !params.RemoveVlanConfig {
-			cli = fmt.Sprintf(`
-					interface %v.%v
-						encapsulation vlan
-      						client dot1q %v network client
-						`, params.IntfName, params.Subinterfaces, params.Subinterfaces)
-		} else {
-			cli = fmt.Sprintf(`
-				interface %v.%v
-					no encapsulation vlan
-					`, params.IntfName, params.Subinterfaces)
-		}
-		helpers.GnmiCLIConfig(t, dut, cli)
+		helpers.GnmiCLIConfig(t, dut, aristaVlanClientEncapsulationCLI(params))
 	} else {
 		// OC is not available
 	}
