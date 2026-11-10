@@ -349,11 +349,13 @@ func LinecardsFromPorts(t testing.TB, dut *ondatra.DUTDevice, ports []*ondatra.P
 // and retrying every retryInterval until timeout expires.
 func WatchWithRetry[T any](t *testing.T, dut *ondatra.DUTDevice, query ygnmi.SingletonQuery[T], timeout, retryInterval time.Duration, predicate func(*ygnmi.Value[T]) bool) (*ygnmi.Value[T], bool) {
 	t.Helper()
-	for remaining := timeout; remaining > 0; remaining -= retryInterval {
-		waitDur := remaining
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		waitDur := time.Until(deadline)
 		if waitDur > retryInterval {
 			waitDur = retryInterval
 		}
+		start := time.Now()
 		var val *ygnmi.Value[T]
 		var ok bool
 		testt.CaptureFatal(t, func(t testing.TB) {
@@ -361,6 +363,10 @@ func WatchWithRetry[T any](t *testing.T, dut *ondatra.DUTDevice, query ygnmi.Sin
 		})
 		if ok {
 			return val, true
+		}
+		// A failed connection returns immediately; pace retries so the full timeout is honored.
+		if el := time.Since(start); el < waitDur {
+			time.Sleep(waitDur - el)
 		}
 	}
 	return nil, false
