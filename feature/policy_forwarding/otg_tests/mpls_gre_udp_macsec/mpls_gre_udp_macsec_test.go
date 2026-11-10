@@ -1,4 +1,4 @@
-package mpls_gre_udp_macsec
+package mpls_gre_udp_macsec_test
 
 import (
 	"fmt"
