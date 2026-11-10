@@ -553,7 +553,7 @@ interface %s.%d
 		if err := gnmiNativeConfigNonFatal(t, dut, cli); err != nil {
 			t.Fatalf("failed to configure MPLS GRE/GUE encapsulation: %v", err)
 		}
-		return sb
+		return nil
 	}
 
 	networkInstance := deviations.DefaultNetworkInstance(dut)

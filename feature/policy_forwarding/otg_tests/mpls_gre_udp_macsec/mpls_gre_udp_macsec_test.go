@@ -21,6 +21,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -567,24 +568,12 @@ func configureInterfaces(t *testing.T, dut *ondatra.DUTDevice, dutPorts []string
 	gnmi.Replace(t, dut, aggPath.Config(), agg)
 }
 
-func waitForCondition(timeout, interval time.Duration, condition func() bool) bool {
-	if interval <= 0 {
-		interval = time.Millisecond
+func waitForCondition[T any](t testing.TB, dev gnmi.DeviceOrOpts, query ygnmi.SingletonQuery[T], timeout time.Duration, condition func(*ygnmi.Value[T]) bool) bool {
+	if condition == nil {
+		return false
 	}
-	deadline := time.Now().Add(timeout)
-	for {
-		if condition() {
-			return true
-		}
-		remaining := time.Until(deadline)
-		if remaining <= 0 {
-			return false
-		}
-		if interval > remaining {
-			interval = remaining
-		}
-		time.Sleep(interval)
-	}
+	_, ok := gnmi.Watch(t, dev, query, timeout, condition).Await(t)
+	return ok
 }
 
 func macsecKeyRotationConfig(anchor time.Time) cfgplugins.MACsecKeyRotationConfig {
@@ -631,7 +620,7 @@ func configureStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
 func configureMPLSEncap(t *testing.T, dut *ondatra.DUTDevice, custAggID, nextHopGroupName, trafficPolicyName string, subinterface, label uint32, ttl uint8, tunnelSource, tunnelDestination string, udpDestinationPort uint16) {
 	t.Helper()
 	batch := &gnmi.SetBatch{}
-	cfgplugins.MPLSEncapConfig(t, dut, batch, cfgplugins.MPLSEncapConfigParams{
+	batch = cfgplugins.MPLSEncapConfig(t, dut, batch, cfgplugins.MPLSEncapConfigParams{
 		NextHopGroupName:   nextHopGroupName,
 		TrafficPolicyName:  trafficPolicyName,
 		InterfaceName:      custAggID,
@@ -642,7 +631,9 @@ func configureMPLSEncap(t *testing.T, dut *ondatra.DUTDevice, custAggID, nextHop
 		TTL:                ttl,
 		UDPDestinationPort: udpDestinationPort,
 	})
-	batch.Set(t, dut)
+	if batch != nil {
+		batch.Set(t, dut)
+	}
 }
 
 func configureMPLSoGREEncap(t *testing.T, dut *ondatra.DUTDevice, custAggID string) {
@@ -706,8 +697,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, anchor time.Time, testCo
 	}
 
 	interfaceName := dut.Port(t, custPorts[0]).Name()
-	if !waitForCondition(5*time.Minute, time.Second, func() bool {
-		status, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(interfaceName).OperStatus().State()).Val()
+	if !waitForCondition(t, dut, gnmi.OC().Interface(interfaceName).OperStatus().State(), 5*time.Minute, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
+		status, ok := val.Val()
 		return ok && status == oc.Interface_OperStatus_UP
 	}) {
 		t.Fatalf("DUT interface %s did not become operationally UP within 5m", interfaceName)
@@ -1167,8 +1158,8 @@ func waitForOTGMACSecState(t *testing.T, ate *ondatra.ATEDevice, ifName string, 
 	t.Helper()
 	otg := ate.OTG()
 	t.Logf("Waiting for OTG MACsec session on %s to be %v", ifName, state)
-	if !waitForCondition(timeout, time.Second, func() bool {
-		got, ok := gnmi.Lookup(t, otg, gnmi.OTG().Macsec().Interface(ifName).SessionState().State()).Val()
+	if !waitForCondition(t, otg, gnmi.OTG().Macsec().Interface(ifName).SessionState().State(), timeout, func(val *ygnmi.Value[otgtelemetry.E_Interface_SessionState]) bool {
+		got, ok := val.Val()
 		return ok && got == state
 	}) {
 		finalState := gnmi.Get(t, otg, gnmi.OTG().Macsec().Interface(ifName).SessionState().State())
@@ -1181,8 +1172,8 @@ func waitForOTGLAGUp(t *testing.T, ate *ondatra.ATEDevice, lagName string, wantM
 	t.Helper()
 	otg := ate.OTG()
 	t.Logf("Waiting for OTG LAG %s to be UP with %d member(s)", lagName, wantMembersUp)
-	if !waitForCondition(timeout, time.Second, func() bool {
-		lag, ok := gnmi.Lookup(t, otg, gnmi.OTG().Lag(lagName).State()).Val()
+	if !waitForCondition(t, otg, gnmi.OTG().Lag(lagName).State(), timeout, func(val *ygnmi.Value[*otgtelemetry.Lag]) bool {
+		lag, ok := val.Val()
 		return ok && lag != nil && lag.GetOperStatus() == otgtelemetry.Lag_OperStatus_UP && lag.GetCounters().GetMemberPortsUp() == wantMembersUp
 	}) {
 		finalOper := gnmi.Get(t, otg, gnmi.OTG().Lag(lagName).OperStatus().State())
@@ -1214,18 +1205,15 @@ func bringUpOTG(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, skipC
 // resolveDUTMAC waits for and returns the resolved link-layer MAC address for a gateway neighbor on an OTG interface.
 func resolveDUTMAC(t *testing.T, ate *ondatra.ATEDevice, ifName, gwIP string) string {
 	t.Helper()
-	var mac string
-	if !waitForCondition(time.Minute, time.Second, func() bool {
-		resolved, present := gnmi.Lookup(t, ate.OTG(), gnmi.OTG().Interface(ifName).Ipv4Neighbor(gwIP).LinkLayerAddress().State()).Val()
-		if present && resolved != "" {
-			mac = resolved
-			return true
-		}
-		return false
-	}) {
+	resolved, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Interface(ifName).Ipv4Neighbor(gwIP).LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+		resolved, ok := val.Val()
+		return ok && resolved != ""
+	}).Await(t)
+	if !ok {
 		t.Fatalf("Failed to resolve MAC for %s neighbor %s within 1m", ifName, gwIP)
 		return ""
 	}
+	mac, _ := resolved.Val()
 	return mac
 }
 
@@ -1480,7 +1468,7 @@ func readStoppedFlowCounters(t *testing.T, ate *ondatra.ATEDevice, flowNames []s
 	counters := make(map[string]flowCounterSnapshot, len(flowNames))
 	lastChanged := make(map[string]time.Time, len(flowNames))
 	var reset error
-	quiet := waitForCondition(30*time.Second, time.Second, func() bool {
+	quiet := waitForCondition(t, ate.OTG(), gnmi.OTG().Flow(flowNames[0]).State(), 30*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
 		for _, name := range flowNames {
 			flow, ok := gnmi.Lookup(t, ate.OTG(), gnmi.OTG().Flow(name).State()).Val()
 			if !ok || flow == nil {
@@ -1538,8 +1526,8 @@ func verifyDUTEncryptedCounterDelta(t *testing.T, dut *ondatra.DUTDevice, flowNa
 	}
 	var gotEncrypted uint64
 	var reset error
-	ready := waitForCondition(30*time.Second, time.Second, func() bool {
-		macsec, ok := gnmi.Lookup(t, dut, gnmi.OC().Macsec().State()).Val()
+	ready := waitForCondition(t, dut, gnmi.OC().Macsec().State(), 30*time.Second, func(val *ygnmi.Value[*oc.Macsec]) bool {
+		macsec, ok := val.Val()
 		if !ok || macsec == nil {
 			return false
 		}
@@ -1757,8 +1745,8 @@ func awaitFlowTX(t *testing.T, ate *ondatra.ATEDevice, flowNames []string, basel
 		}
 		var current uint64
 		present := false
-		ready := waitForCondition(remaining, time.Second, func() bool {
-			value, ok := gnmi.Lookup(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().OutPkts().State()).Val()
+		ready := waitForCondition(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().OutPkts().State(), remaining, func(val *ygnmi.Value[uint64]) bool {
+			value, ok := val.Val()
 			if !ok {
 				return false
 			}
@@ -2082,8 +2070,8 @@ func waitForDUTTime(t *testing.T, dut *ondatra.DUTDevice, target time.Time) {
 		return
 	}
 	timeout := target.Sub(current) + sessionUpTimeout
-	if !waitForCondition(timeout, time.Second, func() bool {
-		clock, ok := gnmi.Lookup(t, dut, gnmi.OC().System().CurrentDatetime().State()).Val()
+	if !waitForCondition(t, dut, gnmi.OC().System().CurrentDatetime().State(), timeout, func(val *ygnmi.Value[string]) bool {
+		clock, ok := val.Val()
 		if !ok {
 			return false
 		}
@@ -2189,8 +2177,8 @@ func testKeyRotation(t *testing.T, args *testArgs) {
 			state, ok := stateVal.Val()
 			if !ok || state != otgtelemetry.Interface_SessionState_UP {
 				t.Logf("MACsec session on %s is not UP after key change, waiting up to %v for recovery", macsecPeerNames[i], sessionUpTime)
-				if !waitForCondition(sessionUpTime, time.Second, func() bool {
-					sessionState, present := gnmi.Lookup(t, args.ate.OTG(), gnmi.OTG().Macsec().Interface(macsecPeerNames[i]).SessionState().State()).Val()
+				if !waitForCondition(t, args.ate.OTG(), gnmi.OTG().Macsec().Interface(macsecPeerNames[i]).SessionState().State(), sessionUpTime, func(val *ygnmi.Value[otgtelemetry.E_Interface_SessionState]) bool {
+					sessionState, present := val.Val()
 					return present && sessionState == otgtelemetry.Interface_SessionState_UP
 				}) {
 					t.Errorf("MACsec session on %s did not recover during Key %d transition within %v; session-state=%v", macsecPeerNames[i], k+1, sessionUpTime,
