@@ -350,8 +350,11 @@ func LinecardsFromPorts(t testing.TB, dut *ondatra.DUTDevice, ports []*ondatra.P
 func WatchWithRetry[T any](t *testing.T, dut *ondatra.DUTDevice, query ygnmi.SingletonQuery[T], timeout, retryInterval time.Duration, predicate func(*ygnmi.Value[T]) bool) (*ygnmi.Value[T], bool) {
 	t.Helper()
 	deadline := time.Now().Add(timeout)
-	for time.Now().Before(deadline) {
+	for {
 		waitDur := time.Until(deadline)
+		if waitDur <= 0 {
+			break
+		}
 		if waitDur > retryInterval {
 			waitDur = retryInterval
 		}
