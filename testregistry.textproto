@@ -1945,6 +1945,12 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_logical_channels_test/zrp_logical_channels_test.go"
 }
 test: {
+  id: "TRANSCEIVER-110"
+  description: "Telemetry: ZR Optical Channel Polarization Telemetry Streaming"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zr_polarization_telemetry_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zr_polarization_telemetry_test/zr_polarization_telemetry_test.go"
+}
+test: {
   id: "TRANSCEIVER-12.1"
   description: "Telemetry: 400ZR Transceiver Supply Voltage streaming."
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zr_supply_voltage_test/README.md"
