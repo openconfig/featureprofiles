@@ -215,7 +215,7 @@ func (d *staticDUT) DialGNMI(ctx context.Context, opts ...grpc.DialOption) (gpb.
 		return nil, err
 	}
 	cli := gpb.NewGNMIClient(conn)
-	if *restconfGNMI {
+	if d.useRestconfGNMI() {
 		return &restconfGNMIClient{GNMIClient: cli}, nil
 	}
 	return cli, nil
