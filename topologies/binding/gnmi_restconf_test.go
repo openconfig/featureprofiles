@@ -18,8 +18,27 @@ import (
 	"encoding/json"
 	"testing"
 
+	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
+	"google.golang.org/protobuf/encoding/prototext"
 )
+
+func TestRestconfJSONBindingOption(t *testing.T) {
+	b := &bindpb.Binding{}
+	const text = `
+duts {
+  id: "dut"
+  name: "example"
+  gnmi { restconf_json: true }
+}
+`
+	if err := prototext.Unmarshal([]byte(text), b); err != nil {
+		t.Fatalf("prototext.Unmarshal() = %v", err)
+	}
+	if got := b.GetDuts(); len(got) != 1 || !got[0].GetGnmi().GetRestconfJson() {
+		t.Fatalf("gnmi.restconf_json = %v, want true", got)
+	}
+}
 
 func TestWrapRestconfLeaf(t *testing.T) {
 	up := &gpb.Update{

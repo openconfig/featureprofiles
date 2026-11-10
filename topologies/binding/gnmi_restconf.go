@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
+	"github.com/openconfig/ondatra/binding/introspect"
 	"google.golang.org/grpc"
 )
 
@@ -32,8 +33,21 @@ import (
 // map keyed by the last path element, and a list node is a JSON array.
 // ygnmi sends the bare value, which translib rejects with errors such as
 // "got type string inside container" or "JSON contains unexpected field".
-// Other NOS accept the bare value, so the rewrite is opt-in.
+// Other NOS accept the bare value, so the rewrite is opt-in. A SONiC binding
+// sets gnmi.restconf_json, which covers every test that uses that binding.
+// -restconf-gnmi forces the same rewrite for a single run.
 var restconfGNMI = flag.Bool("restconf-gnmi", false, "rewrite gNMI JSON into the RESTCONF shape SONiC translib unmarshals")
+
+func (d *staticDUT) useRestconfGNMI() bool {
+	if *restconfGNMI {
+		return true
+	}
+	params := dutSvcParams[introspect.GNMI]
+	if params == nil || d.dev == nil {
+		return false
+	}
+	return d.r.grpc(d.dev, params).GetRestconfJson()
+}
 
 type restconfGNMIClient struct {
 	gpb.GNMIClient
