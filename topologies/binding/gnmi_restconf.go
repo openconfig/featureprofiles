@@ -25,6 +25,8 @@ import (
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra/binding/introspect"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // restconfGNMI rewrites gNMI JSON for SONiC translib.
@@ -72,6 +74,13 @@ func (c *restconfGNMIClient) Get(ctx context.Context, in *gpb.GetRequest, opts .
 		in.Encoding = gpb.Encoding_JSON_IETF
 	}
 	resp, err := c.GNMIClient.Get(ctx, in, opts...)
+	// SONiC returns NotFound / "Resource not found" after a leaf is deleted.
+	// ygnmi Lookup treats that RPC error as a failure; an empty result is
+	// the absent value the test checks for. A missing schema node uses a
+	// different NotFound text and is left unchanged.
+	if err != nil && status.Code(err) == codes.NotFound && strings.Contains(err.Error(), "Resource not found") {
+		return &gpb.GetResponse{}, nil
+	}
 	if resp != nil {
 		for _, note := range resp.GetNotification() {
 			normalizeRestconfNotification(note)
