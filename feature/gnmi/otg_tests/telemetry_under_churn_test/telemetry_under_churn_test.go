@@ -265,13 +265,16 @@ func testBaselineTelemetryUnderChurn(t *testing.T, dut *ondatra.DUTDevice, ate *
 	gc.programBaseline(t)
 
 	t.Log("Step 6 - Wait for programmed prefixes to be present in the AFT.")
-	awaitAFTPrefixes(t, dut, ni, gc.v4Prefixes, gc.v6Prefixes)
+	awaitAFTPrefixes(t, dut, ni, aftMon, gc.v4Prefixes, gc.v6Prefixes)
 
 	t.Log("Step 7 - Start ATE traffic from port1 to port2 matching the gRIBI routes.")
 	ingress := []counterLeaf{{p1.Name(), inUnicastLeaf}}
 	egress := []counterLeaf{{p2.Name(), outUnicastLeaf}}
 	leaves := []counterLeaf{ingress[0], egress[0]}
+	baseStart := time.Now()
+	awaitCounterRefresh(t, dut, counterMon, leaves, baseStart, "baseline")
 	base := snapshotCounters(t, counterMon, leaves)
+
 	aftNotifsBefore := aftMon.notifications()
 	trafficStart := time.Now()
 	ate.OTG().StartTraffic(t)
@@ -285,11 +288,11 @@ func testBaselineTelemetryUnderChurn(t *testing.T, dut *ondatra.DUTDevice, ate *
 
 	ate.OTG().StopTraffic(t)
 	trafficStop := time.Now()
-	awaitCountersSettled(t, counterMon, leaves, trafficStop)
+	awaitCountersSettled(t, dut, counterMon, leaves, trafficStop)
 
 	t.Log("Step 9 - Validate telemetry and traffic.")
 	validateSubscriptionStability(t, counterMon, aftMon, aftNotifsBefore)
-	validateOnTimeDelivery(t, counterMon, leaves, churnStart, churnStop)
+	validateOnTimeDelivery(t, dut, counterMon, leaves, churnStart, churnStop)
 	totalTx, totalRx := validateLossless(t, ate, top)
 	validateDataAccuracy(t, counterMon, base, ingress, egress, totalTx, totalRx, trafficStop)
 }
@@ -346,7 +349,7 @@ func setupScaled(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) *
 	gc.programBaseline(t)
 
 	t.Log("Step 6 - Wait for the scaled prefixes to be present in the AFT.")
-	awaitAFTPrefixes(t, dut, ni, gc.v4Prefixes, gc.v6Prefixes)
+	awaitAFTPrefixes(t, dut, ni, aftMon, gc.v4Prefixes, gc.v6Prefixes)
 
 	return &scaledEnv{top: top, counterMon: counterMon, aftMon: aftMon, gc: gc}
 }
@@ -365,7 +368,10 @@ func testScaledTelemetryUnderChurn(t *testing.T, dut *ondatra.DUTDevice, ate *on
 	ingress := []counterLeaf{{p1.Name(), inUnicastLeaf}}
 	egress := []counterLeaf{{p2.Name(), outUnicastLeaf}, {p3.Name(), outUnicastLeaf}, {p4.Name(), outUnicastLeaf}}
 	leaves := []counterLeaf{ingress[0], egress[0], egress[1], egress[2]}
+	baseStart := time.Now()
+	awaitCounterRefresh(t, dut, counterMon, leaves, baseStart, "baseline")
 	base := snapshotCounters(t, counterMon, leaves)
+
 	aftNotifsBefore := aftMon.notifications()
 	trafficStart := time.Now()
 	ate.OTG().StartTraffic(t)
@@ -379,11 +385,11 @@ func testScaledTelemetryUnderChurn(t *testing.T, dut *ondatra.DUTDevice, ate *on
 
 	ate.OTG().StopTraffic(t)
 	trafficStop := time.Now()
-	awaitCountersSettled(t, counterMon, leaves, trafficStop)
+	awaitCountersSettled(t, dut, counterMon, leaves, trafficStop)
 
 	t.Log("Step 9 - Validate telemetry and traffic.")
 	validateSubscriptionStability(t, counterMon, aftMon, aftNotifsBefore)
-	validateOnTimeDelivery(t, counterMon, leaves, churnStart, churnStop)
+	validateOnTimeDelivery(t, dut, counterMon, leaves, churnStart, churnStop)
 	totalTx, totalRx := validateLossless(t, ate, top)
 	validateDataAccuracy(t, counterMon, base, ingress, egress, totalTx, totalRx, trafficStop)
 }
@@ -403,7 +409,10 @@ func testGRIBIDisconnect(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATED
 	ingress := []counterLeaf{{p1.Name(), inUnicastLeaf}}
 	egress := []counterLeaf{{p2.Name(), outUnicastLeaf}, {p3.Name(), outUnicastLeaf}, {p4.Name(), outUnicastLeaf}}
 	pkts := []counterLeaf{ingress[0], egress[0], egress[1], egress[2]}
+	baseStart := time.Now()
+	awaitCounterRefresh(t, dut, counterMon, pkts, baseStart, "baseline")
 	base := snapshotCounters(t, counterMon, pkts)
+
 	streamed := []counterLeaf{
 		{p1.Name(), inUnicastLeaf}, {p1.Name(), inOctetsLeaf},
 		{p2.Name(), outUnicastLeaf}, {p2.Name(), outOctetsLeaf},
@@ -426,18 +435,18 @@ func testGRIBIDisconnect(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATED
 	time.Sleep(observeDuration)
 	ate.OTG().StopTraffic(t)
 	trafficStop := time.Now()
-	awaitCountersSettled(t, counterMon, pkts, trafficStop)
+	awaitCountersSettled(t, dut, counterMon, pkts, trafficStop)
 
 	t.Log("Step 3 - Validate telemetry stability across the gRIBI session drop.")
 	validateTelemetryIsolation(t, counterMon, aftMon)
 	t.Log("Validating Continuous Accuracy.")
 	for _, l := range streamed {
-		validateCadence(t, l.intf+" "+l.leaf, counterMon.samplesFor(l.intf, l.leaf), dropTime, trafficStop)
+		validateCadence(t, dut, l.intf+" "+l.leaf, counterMon.samplesFor(l.intf, l.leaf), dropTime, trafficStop)
 	}
 	totalTx, totalRx := validateLossless(t, ate, top)
 	validateDataAccuracy(t, counterMon, base, ingress, egress, totalTx, totalRx, trafficStop)
 	t.Log("Validating Route Persistence.")
-	awaitAFTPrefixes(t, dut, ni, gc.v4Prefixes, gc.v6Prefixes)
+	awaitAFTPrefixes(t, dut, ni, aftMon, gc.v4Prefixes, gc.v6Prefixes)
 }
 
 // validateTelemetryIsolation checks the gNMI-1.30.3 Telemetry Isolation and No Sync Loss criteria.
@@ -461,7 +470,14 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, ports map[*ondatra.Port]
 
 	b := &gnmi.SetBatch{}
 	for p, a := range ports {
-		gnmi.BatchReplace(b, gnmi.OC().Interface(p.Name()).Config(), a.NewOCInterface(p.Name(), dut))
+		intf := a.NewOCInterface(p.Name(), dut)
+		// Cisco IOS XR does not support the OpenConfig
+		// IPv4 subinterface config/enabled leaf.
+		if deviations.IPv4MissingEnabled(dut) {
+			intf.GetOrCreateSubinterface(0).
+				GetOrCreateIpv4().Enabled = nil
+		}
+		gnmi.BatchReplace(b, gnmi.OC().Interface(p.Name()).Config(), intf)
 	}
 	b.Set(t, dut)
 
@@ -483,58 +499,93 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, ports map[*ondatra.Port]
 // IPv4 and IPv6 sessions towards the given ATE peers.
 func configureDUTBGP(t *testing.T, dut *ondatra.DUTDevice, peers ...*attrs.Attributes) {
 	t.Helper()
+
 	if len(peers) == 0 {
 		t.Fatalf("configureDUTBGP: peers list cannot be empty")
 	}
+
 	root := &oc.Root{}
 
-	pd := root.GetOrCreateRoutingPolicy().GetOrCreatePolicyDefinition(allowPolicy)
+	// Build the ALLOW routing policy.
+	pd := root.GetOrCreateRoutingPolicy().
+		GetOrCreatePolicyDefinition(allowPolicy)
+
 	st, err := pd.AppendNewStatement("id-1")
 	if err != nil {
 		t.Fatalf("AppendNewStatement() failed: %v", err)
 	}
-	st.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	st.GetOrCreateActions().PolicyResult =
+		oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
+	// Build the BGP configuration.
 	ni := deviations.DefaultNetworkInstance(dut)
 	bgpName := deviations.DefaultBgpInstanceName(dut)
-	proto := root.GetOrCreateNetworkInstance(ni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName)
+
+	proto := root.GetOrCreateNetworkInstance(ni).
+		GetOrCreateProtocol(
+			oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
+			bgpName,
+		)
+
 	bgp := proto.GetOrCreateBgp()
 	g := bgp.GetOrCreateGlobal()
 	g.As = ygot.Uint32(dutAS)
 	g.RouterId = ygot.String(dutPort1.IPv4)
-	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
-	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 
+	g.GetOrCreateAfiSafi(
+		oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST,
+	).Enabled = ygot.Bool(true)
+
+	g.GetOrCreateAfiSafi(
+		oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST,
+	).Enabled = ygot.Bool(true)
+
+	// Configure peer groups and routing policies.
 	for pgName, afi := range map[string]oc.E_BgpTypes_AFI_SAFI_TYPE{
 		peerGroupV4: oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST,
 		peerGroupV6: oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST,
 	} {
 		pg := bgp.GetOrCreatePeerGroup(pgName)
 		pg.PeerAs = ygot.Uint32(ateAS)
+
 		if deviations.RoutePolicyUnderAFIUnsupported(dut) {
 			ap := pg.GetOrCreateApplyPolicy()
 			ap.SetImportPolicy([]string{allowPolicy})
 			ap.SetExportPolicy([]string{allowPolicy})
 			continue
 		}
+
 		af := pg.GetOrCreateAfiSafi(afi)
 		af.Enabled = ygot.Bool(true)
+
 		ap := af.GetOrCreateApplyPolicy()
 		ap.SetImportPolicy([]string{allowPolicy})
 		ap.SetExportPolicy([]string{allowPolicy})
 	}
 
+	// Build IPv4 and IPv6 BGP neighbors.
 	type bgpNbr struct {
 		addr string
 		pg   string
 		afi  oc.E_BgpTypes_AFI_SAFI_TYPE
 	}
+
 	var nbrs []bgpNbr
 	for _, p := range peers {
 		nbrs = append(nbrs,
-			bgpNbr{p.IPv4, peerGroupV4, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST},
-			bgpNbr{p.IPv6, peerGroupV6, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST})
+			bgpNbr{
+				addr: p.IPv4,
+				pg:   peerGroupV4,
+				afi:  oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST,
+			},
+			bgpNbr{
+				addr: p.IPv6,
+				pg:   peerGroupV6,
+				afi:  oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST,
+			},
+		)
 	}
+
 	for _, n := range nbrs {
 		nbr := bgp.GetOrCreateNeighbor(n.addr)
 		nbr.PeerAs = ygot.Uint32(ateAS)
@@ -543,29 +594,59 @@ func configureDUTBGP(t *testing.T, dut *ondatra.DUTDevice, peers ...*attrs.Attri
 		nbr.GetOrCreateAfiSafi(n.afi).Enabled = ygot.Bool(true)
 	}
 
-	bgpPath := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName)
-	policyPath := gnmi.OC().RoutingPolicy().PolicyDefinition(allowPolicy)
-	origBGP := gnmi.Lookup(t, dut, bgpPath.Config())
-	origPolicy := gnmi.Lookup(t, dut, policyPath.Config())
-	t.Cleanup(func() {
-		cb := &gnmi.SetBatch{}
-		if v, ok := origBGP.Val(); ok {
-			gnmi.BatchReplace(cb, bgpPath.Config(), v)
-		} else {
-			gnmi.BatchDelete(cb, bgpPath.Config())
-		}
-		if v, ok := origPolicy.Val(); ok {
-			gnmi.BatchReplace(cb, policyPath.Config(), v)
-		} else {
-			gnmi.BatchDelete(cb, policyPath.Config())
-		}
-		cb.Set(t, dut)
-	})
+	// Define the paths used to configure BGP and the routing policy.
+	bgpPath := gnmi.OC().
+		NetworkInstance(ni).
+		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName)
 
+	policyPath := gnmi.OC().
+		RoutingPolicy().
+		PolicyDefinition(allowPolicy)
+
+	// IOS XR returns an invalid nil-valued update when looking up the
+	// existing BGP configuration at this path. Avoid these backup lookups
+	// on Cisco. Retain the original behavior for other vendors, including
+	// Arista.
+	if dut.Vendor() != ondatra.CISCO {
+		origBGP := gnmi.Lookup(t, dut, bgpPath.Config())
+		origPolicy := gnmi.Lookup(t, dut, policyPath.Config())
+
+		t.Cleanup(func() {
+			cb := &gnmi.SetBatch{}
+
+			if v, ok := origBGP.Val(); ok {
+				gnmi.BatchReplace(cb, bgpPath.Config(), v)
+			} else {
+				gnmi.BatchDelete(cb, bgpPath.Config())
+			}
+
+			if v, ok := origPolicy.Val(); ok {
+				gnmi.BatchReplace(cb, policyPath.Config(), v)
+			} else {
+				gnmi.BatchDelete(cb, policyPath.Config())
+			}
+
+			cb.Set(t, dut)
+		})
+	}
+
+	// Push the routing policy and BGP configuration.
 	b := &gnmi.SetBatch{}
 	gnmi.BatchReplace(b, policyPath.Config(), pd)
 	gnmi.BatchReplace(b, bgpPath.Config(), proto)
 	b.Set(t, dut)
+
+	// Cisco cleanup assumes the testbed has no pre-existing BGP
+	// configuration or ALLOW policy that needs to be preserved.
+	// Register cleanup only after the configuration Set succeeds.
+	if dut.Vendor() == ondatra.CISCO {
+		t.Cleanup(func() {
+			cb := &gnmi.SetBatch{}
+			gnmi.BatchDelete(cb, bgpPath.Config())
+			gnmi.BatchDelete(cb, policyPath.Config())
+			cb.Set(t, dut)
+		})
+	}
 }
 
 // configureATE builds the OTG config: port1/port2 devices with eBGP peers,
@@ -679,23 +760,88 @@ func awaitBGPEstablished(t *testing.T, dut *ondatra.DUTDevice, neighbors ...stri
 }
 
 // awaitAFTPrefixes waits for the first and last prefix of each family.
-func awaitAFTPrefixes(t *testing.T, dut *ondatra.DUTDevice, ni string, v4, v6 []string) {
+func awaitAFTPrefixes(t *testing.T, dut *ondatra.DUTDevice, ni string, aftMon *subscriptionMonitor, v4, v6 []string) {
 	t.Helper()
+
+	// Cisco: verify prefixes received through the AFT SAMPLE subscription.
+	if dut.Vendor() == ondatra.CISCO {
+		expected := []string{
+			v4[0],
+			v4[len(v4)-1],
+			v6[0],
+			v6[len(v6)-1],
+		}
+
+		deadline := time.Now().Add(aftTimeout)
+
+		for time.Now().Before(deadline) {
+			allPresent := true
+
+			for _, prefix := range expected {
+				if !aftMon.hasAFTPrefix(prefix) {
+					allPresent = false
+					break
+				}
+			}
+
+			if allPresent {
+				t.Logf("Cisco AFT SAMPLE subscription received all expected prefixes: %v", expected)
+				return
+			}
+
+			if err := aftMon.err(); err != nil {
+				t.Fatalf("Cisco AFT subscription failed: %v", err)
+			}
+
+			time.Sleep(time.Second)
+		}
+
+		for i, prefix := range expected {
+			if !aftMon.hasAFTPrefix(prefix) {
+				family := "IPv4"
+				if i >= 2 {
+					family = "IPv6"
+				}
+
+				t.Fatalf("%s prefix %s not received through Cisco AFT SAMPLE subscription within %v", family, prefix, aftTimeout)
+			}
+		}
+
+		return
+	}
+
+	// Arista and other vendors: preserve original ygnmi Watch behavior.
 	afts := gnmi.OC().NetworkInstance(ni).Afts()
+
 	for _, p := range []string{v4[0], v4[len(v4)-1]} {
-		_, ok := gnmi.Watch(t, dut, afts.Ipv4Entry(p).State(), aftTimeout, func(v *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
-			e, present := v.Val()
-			return present && e.GetPrefix() == p
-		}).Await(t)
+		_, ok := gnmi.Watch(
+			t,
+			dut,
+			afts.Ipv4Entry(p).State(),
+			aftTimeout,
+			func(v *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+				e, present := v.Val()
+				return present && e.GetPrefix() == p
+			},
+		).Await(t)
+
 		if !ok {
 			t.Fatalf("IPv4 prefix %s not present in AFT within %v", p, aftTimeout)
 		}
 	}
+
 	for _, p := range []string{v6[0], v6[len(v6)-1]} {
-		_, ok := gnmi.Watch(t, dut, afts.Ipv6Entry(p).State(), aftTimeout, func(v *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
-			e, present := v.Val()
-			return present && e.GetPrefix() == p
-		}).Await(t)
+		_, ok := gnmi.Watch(
+			t,
+			dut,
+			afts.Ipv6Entry(p).State(),
+			aftTimeout,
+			func(v *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
+				e, present := v.Val()
+				return present && e.GetPrefix() == p
+			},
+		).Await(t)
+
 		if !ok {
 			t.Fatalf("IPv6 prefix %s not present in AFT within %v", p, aftTimeout)
 		}
@@ -738,7 +884,7 @@ func checkCounterDelta(t *testing.T, desc string, before, after, want uint64) {
 
 // validateCadence checks that SAMPLE updates received in [from, to] are
 // timestamped exactly one interval apart, with no samples missing.
-func validateCadence(t *testing.T, intf string, samples []leafSample, from, to time.Time) {
+func validateCadence(t *testing.T, dut *ondatra.DUTDevice, intf string, samples []leafSample, from, to time.Time) {
 	t.Helper()
 	var window []leafSample
 	var failed bool
@@ -748,19 +894,44 @@ func validateCadence(t *testing.T, intf string, samples []leafSample, from, to t
 		}
 	}
 	if want := int(to.Sub(from)/sampleInterval) - 1; len(window) < want {
-		t.Errorf("%s: received %d samples in %v, want >= %d (telemetry starvation)", intf, len(window), to.Sub(from).Round(time.Second), want)
+		t.Errorf(
+			"%s: received %d samples in %v, want >= %d (telemetry starvation)",
+			intf, len(window), to.Sub(from).Round(time.Second), want,
+		)
 		failed = true
 	}
 	for i := 1; i < len(window); i++ {
 		gap := window[i].timestamp.Sub(window[i-1].timestamp)
-		if gap < sampleInterval-cadenceTolerance || gap > sampleInterval+cadenceTolerance {
-			t.Errorf("%s: sample timestamp gap %v at %v, want %v +/- %v", intf, gap, window[i].timestamp, sampleInterval, cadenceTolerance)
+		basis := "DUT timestamp"
+		// IOS XR periodically refreshes the underlying counter snapshot.
+		// SAMPLE notifications arrive every 10s, but can carry the same
+		// source timestamp until the next counter refresh.
+		if dut.Vendor() == ondatra.CISCO {
+			gap = window[i].received.Sub(window[i-1].received)
+			basis = "notification receive time"
+		}
+		if gap < sampleInterval-cadenceTolerance ||
+			gap > sampleInterval+cadenceTolerance {
+			t.Errorf(
+				"%s: sample %s gap %v at %v, want %v +/- %v",
+				intf,
+				basis,
+				gap,
+				window[i].received,
+				sampleInterval,
+				cadenceTolerance,
+			)
 			failed = true
 		}
 	}
 	t.Logf("%s: validated cadence of %d samples", intf, len(window))
 	if failed {
-		t.Logf("%s: validation window is %s - %s (received at)", intf, from.UTC().Format("15:04:05.000"), to.UTC().Format("15:04:05.000"))
+		t.Logf(
+			"%s: validation window is %s - %s (received at)",
+			intf,
+			from.UTC().Format("15:04:05.000"),
+			to.UTC().Format("15:04:05.000"),
+		)
 		logSampleSequence(t, intf, samples)
 	}
 }
@@ -818,11 +989,18 @@ func validateSubscriptionStability(t *testing.T, counterMon, aftMon *subscriptio
 	}
 }
 
-func validateOnTimeDelivery(t *testing.T, mon *subscriptionMonitor, leaves []counterLeaf, from, to time.Time) {
+func validateOnTimeDelivery(
+	t *testing.T,
+	dut *ondatra.DUTDevice,
+	mon *subscriptionMonitor,
+	leaves []counterLeaf,
+	from, to time.Time,
+) {
 	t.Helper()
 	t.Log("Validating On-time Delivery.")
+
 	for _, l := range leaves {
-		validateCadence(t, l.intf+" "+l.leaf, mon.samplesFor(l.intf, l.leaf), from, to)
+		validateCadence(t, dut, l.intf+" "+l.leaf, mon.samplesFor(l.intf, l.leaf), from, to)
 	}
 }
 
@@ -878,10 +1056,21 @@ func validateDataAccuracy(t *testing.T, mon *subscriptionMonitor, base map[count
 // gribiSession is a SINGLE_PRIMARY, PRESERVE gRIBI session that is leader
 // and starts from an empty RIB.
 type gribiSession struct {
-	ctx     context.Context
-	c       *fluent.GRIBIClient
-	ni      string
-	timeout time.Duration
+	ctx              context.Context
+	c                *fluent.GRIBIClient
+	ni               string
+	timeout          time.Duration
+	checkFIBFailures bool
+}
+
+// cisco debug
+// gribiNetworkInstance returns the network-instance name expected by
+// the gRIBI API.
+func gribiNetworkInstance(dut *ondatra.DUTDevice) string {
+	if dut.Vendor() == ondatra.CISCO {
+		return "DEFAULT"
+	}
+	return deviations.DefaultNetworkInstance(dut)
 }
 
 func newGRIBISession(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, timeout time.Duration) *gribiSession {
@@ -896,7 +1085,13 @@ func newGRIBISession(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, 
 	}
 	c.Start(ctx, t)
 	c.StartSending(ctx, t)
-	s := &gribiSession{ctx: ctx, c: c, ni: deviations.DefaultNetworkInstance(dut), timeout: timeout}
+	s := &gribiSession{
+		ctx:              ctx,
+		c:                c,
+		ni:               gribiNetworkInstance(dut),
+		timeout:          timeout,
+		checkFIBFailures: dut.Vendor() == ondatra.CISCO,
+	}
 	s.await(t)
 	gribi.BecomeLeader(t, c)
 	if err := gribi.FlushAll(c); err != nil {
@@ -924,15 +1119,34 @@ func (s *gribiSession) await(t *testing.T) {
 
 func (s *gribiSession) verifyNoFailures(t *testing.T) {
 	t.Helper()
+
+	results := s.c.Results(t)
+	statusCounts := make(map[string]int)
+
 	var failed int
-	for _, r := range s.c.Results(t) {
-		if r.ProgrammingResult == spb.AFTResult_FAILED {
+
+	for _, r := range results {
+		status := r.ProgrammingResult.String()
+		statusCounts[status]++
+
+		switch r.ProgrammingResult {
+		case spb.AFTResult_FAILED:
+			// Preserve the original failure check for all vendors.
 			failed++
-			if failed <= 5 {
-				t.Errorf("gRIBI operation failed: %s", r)
+
+		case spb.AFTResult_FIB_FAILED:
+			// Additional FIB failure validation is Cisco-specific.
+			// Keep the original Arista behavior unchanged.
+			if s.checkFIBFailures {
+				failed++
 			}
 		}
+		if failed > 0 && failed <= 10 {
+			t.Errorf("gRIBI programming failure: status=%s, result=%v", status, r)
+		}
 	}
+	t.Logf("gRIBI programming results: total=%d, status counts=%v", len(results), statusCounts)
+
 	if failed > 0 {
 		t.Errorf("%d gRIBI operations failed", failed)
 	}
@@ -1185,11 +1399,12 @@ type subscriptionMonitor struct {
 	cancel context.CancelFunc
 	done   chan struct{}
 
-	mu        sync.Mutex
-	syncCount int
-	notifs    int
-	streamErr error
-	samples   map[string][]leafSample // keyed by leafKey(intf, leaf)
+	mu          sync.Mutex
+	syncCount   int
+	notifs      int
+	streamErr   error
+	samples     map[string][]leafSample
+	aftPrefixes map[string]struct{}
 }
 
 func counterSubscriptions(intfs ...string) []*gpb.Subscription {
@@ -1211,11 +1426,16 @@ func counterSubscriptions(intfs ...string) []*gpb.Subscription {
 
 func aftSubscriptions(ni string) []*gpb.Subscription {
 	return []*gpb.Subscription{{
-		Path: &gpb.Path{Elem: []*gpb.PathElem{
-			{Name: "network-instances"},
-			{Name: "network-instance", Key: map[string]string{"name": ni}},
-			{Name: "afts"},
-		}},
+		Path: &gpb.Path{
+			Elem: []*gpb.PathElem{
+				{Name: "network-instances"},
+				{
+					Name: "network-instance",
+					Key:  map[string]string{"name": ni},
+				},
+				{Name: "afts"},
+			},
+		},
 		Mode:           gpb.SubscriptionMode_SAMPLE,
 		SampleInterval: uint64(sampleInterval.Nanoseconds()),
 	}}
@@ -1240,10 +1460,11 @@ func startMonitor(t *testing.T, dut *ondatra.DUTDevice, name string, subs []*gpb
 		t.Fatalf("%s: sending SubscribeRequest failed: %v", name, err)
 	}
 	m := &subscriptionMonitor{
-		name:    name,
-		cancel:  cancel,
-		done:    make(chan struct{}),
-		samples: map[string][]leafSample{},
+		name:        name,
+		cancel:      cancel,
+		done:        make(chan struct{}),
+		samples:     map[string][]leafSample{},
+		aftPrefixes: map[string]struct{}{},
 	}
 	go func() {
 		defer close(m.done)
@@ -1255,6 +1476,16 @@ func startMonitor(t *testing.T, dut *ondatra.DUTDevice, name string, subs []*gpb
 					m.streamErr = fmt.Errorf("stream terminated: %w", err)
 					m.mu.Unlock()
 				}
+				return
+			}
+			if subErr := resp.GetError(); subErr != nil {
+				m.mu.Lock()
+				m.streamErr = fmt.Errorf(
+					"server returned gNMI subscription error: code=%d message=%q",
+					subErr.GetCode(),
+					subErr.GetMessage(),
+				)
+				m.mu.Unlock()
 				return
 			}
 			if resp.GetSyncResponse() {
@@ -1276,28 +1507,86 @@ func (m *subscriptionMonitor) stop() {
 	<-m.done
 }
 
+// aftPrefixFromUpdate extracts an IPv4 or IPv6 AFT prefix from a gNMI update.
+func aftPrefixFromUpdate(n *gpb.Notification, u *gpb.Update) string {
+	if n == nil || u == nil {
+		return ""
+	}
+
+	// A gNMI update path can be relative to the notification prefix.
+	elems := append(
+		append([]*gpb.PathElem{}, n.GetPrefix().GetElem()...),
+		u.GetPath().GetElem()...,
+	)
+
+	// First check the AFT list key.
+	for _, elem := range elems {
+		switch elem.GetName() {
+		case "ipv4-entry", "ipv6-entry":
+			if prefix := elem.GetKey()["prefix"]; prefix != "" {
+				return prefix
+			}
+		}
+	}
+
+	// Also support an update delivered directly to the state/prefix leaf.
+	if len(elems) > 0 && elems[len(elems)-1].GetName() == "prefix" {
+		if val := u.GetVal(); val != nil {
+			return val.GetStringVal()
+		}
+	}
+
+	return ""
+}
+
 func (m *subscriptionMonitor) record(n *gpb.Notification, recv time.Time) {
 	ts := time.Unix(0, n.GetTimestamp())
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
 	m.notifs++
+
 	for _, u := range n.GetUpdate() {
-		elems := append(append([]*gpb.PathElem{}, n.GetPrefix().GetElem()...), u.GetPath().GetElem()...)
+
+		// Collect AFT prefixes from raw gNMI notifications.
+		if prefix := aftPrefixFromUpdate(n, u); prefix != "" {
+			m.aftPrefixes[prefix] = struct{}{}
+		}
+
+		// Existing interface-counter processing.
+		elems := append(
+			append([]*gpb.PathElem{}, n.GetPrefix().GetElem()...),
+			u.GetPath().GetElem()...,
+		)
+
 		if len(elems) == 0 {
 			continue
 		}
+
 		leaf := elems[len(elems)-1].GetName()
+
 		switch leaf {
 		case inUnicastLeaf, outUnicastLeaf, inOctetsLeaf, outOctetsLeaf:
 		default:
 			continue
 		}
+
 		intf := interfaceKey(elems)
 		if intf == "" {
 			continue
 		}
+
 		k := leafKey(intf, leaf)
-		m.samples[k] = append(m.samples[k], leafSample{timestamp: ts, received: recv, value: u.GetVal().GetUintVal()})
+
+		m.samples[k] = append(
+			m.samples[k],
+			leafSample{
+				timestamp: ts,
+				received:  recv,
+				value:     u.GetVal().GetUintVal(),
+			},
+		)
 	}
 }
 
@@ -1370,10 +1659,105 @@ func awaitTrafficInCounters(t *testing.T, mon *subscriptionMonitor, leaves []cou
 	t.Logf("Traffic visible in streamed counters after %v.", time.Since(since).Round(time.Second))
 }
 
-// awaitCountersSettled waits until every leaf streams its final value after traffic stopped.
-func awaitCountersSettled(t *testing.T, mon *subscriptionMonitor, leaves []counterLeaf, since time.Time) {
+// awaitCounterRefresh waits until every requested Cisco counter has a
+// newer DUT timestamp received after the supplied time.
+//
+// IOS XR can deliver SAMPLE notifications every 10 seconds while the
+// underlying counter snapshot is refreshed less frequently. Repeated
+// notifications with the same DUT timestamp must not be treated as fresh
+// counter snapshots.
+func awaitCounterRefresh(
+	t *testing.T,
+	dut *ondatra.DUTDevice,
+	mon *subscriptionMonitor,
+	leaves []counterLeaf,
+	since time.Time,
+	stage string,
+) {
 	t.Helper()
+	// Keep the existing behavior for other vendors.
+	if dut.Vendor() != ondatra.CISCO {
+		return
+	}
+	// Record the latest source timestamp received at or before the
+	// measurement boundary.
+	before := make(map[counterLeaf]time.Time, len(leaves))
+	for _, l := range leaves {
+		samples := mon.samplesFor(l.intf, l.leaf)
+		found := false
+		for i := len(samples) - 1; i >= 0; i-- {
+			if !samples[i].received.After(since) {
+				before[l] = samples[i].timestamp
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf(
+				"Cisco %s: no counter sample received before boundary for %s/%s",
+				stage, l.intf, l.leaf,
+			)
+		}
+	}
+	// Logs show approximately 30 seconds between fresh IOS XR counter
+	// timestamps. Allow up to 60 seconds for the next source refresh.
+	timeout := 6 * sampleInterval
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		allFresh := true
+		for _, l := range leaves {
+			current, ok := mon.latest(l.intf, l.leaf)
+
+			if !ok ||
+				!current.received.After(since) ||
+				!current.timestamp.After(before[l]) {
+				allFresh = false
+				break
+			}
+		}
+		if allFresh {
+			t.Logf(
+				"Cisco %s: received fresh counter timestamps for all %d leaves",
+				stage,
+				len(leaves),
+			)
+			return
+		}
+		if err := mon.err(); err != nil {
+			t.Fatalf(
+				"Cisco %s: counter subscription failed while waiting for refresh: %v",
+				stage, err,
+			)
+		}
+		time.Sleep(time.Second)
+	}
+	t.Fatalf(
+		"Cisco %s: counters did not receive a new DUT timestamp within %v",
+		stage, timeout,
+	)
+}
+
+// awaitCountersSettled waits until every leaf has a fresh counter snapshot
+// after traffic stops. Cisco requires a new source timestamp because its
+// SAMPLE notifications can repeat the previous counter value.
+func awaitCountersSettled(
+	t *testing.T,
+	dut *ondatra.DUTDevice,
+	mon *subscriptionMonitor,
+	leaves []counterLeaf,
+	since time.Time,
+) {
+	t.Helper()
+
 	t.Log("Waiting for streamed counters to settle after traffic stopped.")
+
+	if dut.Vendor() == ondatra.CISCO {
+		awaitCounterRefresh(t, dut, mon, leaves, since, "after traffic stopped")
+		t.Log("Cisco counter snapshots refreshed after traffic stopped.")
+		return
+	}
+
+	// Preserve the original behavior for Arista and other vendors.
 	if !mon.waitForSamples(leaves, settleTimeout, stoppedSince(since)) {
 		t.Errorf("Streamed counters did not settle within %v after traffic stopped", settleTimeout)
 		return
@@ -1403,6 +1787,14 @@ func (m *subscriptionMonitor) samplesFor(intf, leaf string) []leafSample {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return append([]leafSample(nil), m.samples[leafKey(intf, leaf)]...)
+}
+
+func (m *subscriptionMonitor) hasAFTPrefix(prefix string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	_, ok := m.aftPrefixes[prefix]
+	return ok
 }
 
 func (m *subscriptionMonitor) latest(intf, leaf string) (leafSample, bool) {

@@ -16,3 +16,14 @@ platform_exceptions: {
     omit_l2_mtu: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    interface_enabled: true
+    ipv4_missing_enabled: true
+    default_network_instance: "default"
+    default_bgp_instance_name: "BGP"
+  }
+}
