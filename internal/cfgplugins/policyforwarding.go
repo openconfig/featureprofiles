@@ -77,6 +77,7 @@ type OcPolicyForwardingParams struct {
 	PolicyName         string              // PolicyName refers to the traffic policy that is bound to the given interface in CLI-based configuration.
 	NetworkInstanceObj *oc.NetworkInstance // NetworkInstanceObj represents the OpenConfig network instance (default/non-default VRF).
 	HasMPLS            bool                // HasMPLS indicates whether the policy forwarding configuration involves an MPLS overlay.
+	MPLSQoSMapping     bool                // MPLSQoSMapping enables MPLS traffic-class mapping for GUE decapsulation.
 	MatchTTL           int
 	ActionSetTTL       int
 	ActionNHGName      string
@@ -483,6 +484,112 @@ func MplsConfig(t *testing.T, dut *ondatra.DUTDevice) {
 		// mpls := ni.GetOrCreateMpls()
 		// mpls.Enabled = ygot.Bool(true)
 	}
+}
+
+// MPLSEncapConfigParams holds parameters for an MPLS GRE or GUE forwarding path.
+type MPLSEncapConfigParams struct {
+	NextHopGroupName   string
+	TrafficPolicyName  string
+	InterfaceName      string
+	Subinterface       uint32
+	MPLSLabel          uint32
+	TunnelSource       string
+	TunnelDestination  string
+	TTL                uint8
+	UDPDestinationPort uint16
+}
+
+// MPLSEncapConfig adds an MPLS-over-GRE or MPLS-over-UDP config to a batch.
+func MPLSEncapConfig(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, params MPLSEncapConfigParams) *gnmi.SetBatch {
+	t.Helper()
+	if sb == nil {
+		sb = &gnmi.SetBatch{}
+	}
+	if deviations.PolicyForwardingOCUnsupported(dut) || deviations.NextHopGroupOCUnsupported(dut) {
+		if dut.Vendor() != ondatra.ARISTA {
+			t.Fatalf("MPLS GRE/GUE CLI deviation is not implemented for vendor %v", dut.Vendor())
+			return sb
+		}
+		var nextHopGroupConfig, udpConfig string
+		if params.UDPDestinationPort != 0 {
+			nextHopGroupConfig = fmt.Sprintf(`nexthop-group %s type mpls-over-udp
+   fec hierarchical
+   size 1
+   entry 0 push label-stack %d tunnel-destination %s tunnel-source %s
+!
+`, params.NextHopGroupName, params.MPLSLabel, params.TunnelDestination, params.TunnelSource)
+			udpConfig = fmt.Sprintf("tunnel type mpls-over-udp udp destination port %d\n", params.UDPDestinationPort)
+		} else {
+			nextHopGroupConfig = fmt.Sprintf(`nexthop-group %s type mpls-over-gre
+   ttl %d
+   tunnel-source %s
+   fec hierarchical
+   entry 0 push label-stack %d tunnel-destination %s tunnel-source %s
+!
+`, params.NextHopGroupName, params.TTL, params.TunnelSource, params.MPLSLabel,
+				params.TunnelDestination, params.TunnelSource)
+		}
+		cli := fmt.Sprintf(`
+%s%s
+traffic-policies
+	traffic-policy %s
+      match ipv4-all-default ipv4
+         actions
+            count
+				redirect next-hop group %s
+      !
+      match ipv6-all-default ipv6
+         actions
+            count
+				redirect next-hop group %s
+   !
+!
+interface %s.%d
+   traffic-policy input %s
+!`,
+			nextHopGroupConfig, udpConfig, params.TrafficPolicyName,
+			params.NextHopGroupName, params.NextHopGroupName, params.InterfaceName, params.Subinterface,
+			params.TrafficPolicyName)
+		if err := gnmiNativeConfigNonFatal(t, dut, cli); err != nil {
+			t.Fatalf("failed to configure MPLS GRE/GUE encapsulation: %v", err)
+		}
+		return sb
+	}
+
+	networkInstance := deviations.DefaultNetworkInstance(dut)
+	policy := &oc.NetworkInstance_PolicyForwarding_Policy{PolicyId: ygot.String(params.TrafficPolicyName)}
+	policy.SetType(oc.Policy_Type_PBR_POLICY)
+	for sequence, ipVersion := range []string{"ipv4", "ipv6"} {
+		rule := policy.GetOrCreateRule(uint32(sequence + 1))
+		if ipVersion == "ipv4" {
+			rule.GetOrCreateIpv4()
+		} else {
+			rule.GetOrCreateIpv6()
+		}
+		action := rule.GetOrCreateAction()
+		if params.UDPDestinationPort == 0 {
+			target := action.GetOrCreateEncapsulateGre().GetOrCreateTarget("mpls-gre")
+			target.SetSource(params.TunnelSource)
+			target.SetDestination(params.TunnelDestination)
+			target.SetIpTtl(params.TTL)
+		} else {
+			action.SetNextHop(params.TunnelDestination)
+		}
+	}
+	policyPath := gnmi.OC().NetworkInstance(networkInstance).PolicyForwarding()
+	gnmi.BatchUpdate(sb, policyPath.Policy(params.TrafficPolicyName).Config(), policy)
+	policyInterfaceID := fmt.Sprintf("%s.%d", params.InterfaceName, params.Subinterface)
+	policyInterface := &oc.NetworkInstance_PolicyForwarding_Interface{InterfaceId: ygot.String(policyInterfaceID)}
+	policyInterface.SetApplyForwardingPolicy(params.TrafficPolicyName)
+	policyInterface.GetOrCreateInterfaceRef().SetInterface(params.InterfaceName)
+	policyInterface.GetOrCreateInterfaceRef().SetSubinterface(params.Subinterface)
+	gnmi.BatchUpdate(sb, policyPath.Interface(policyInterfaceID).Config(), policyInterface)
+	if params.UDPDestinationPort == 0 {
+		t.Logf("OpenConfig GRE target configured; MPLS label push is not represented by the policy-forwarding model")
+	} else {
+		t.Logf("OpenConfig next-hop intent configured; MPLSoGUE encapsulation fields are not represented by the policy-forwarding model")
+	}
+	return sb
 }
 
 // QosClassificationConfig configures the interface qos classification.
@@ -930,21 +1037,26 @@ func aristaGueDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPoli
 	if params.InterfaceID != "" {
 		cliConfig += fmt.Sprintf("tunnel decap-interface %s", params.InterfaceID)
 	}
+	if params.MPLSQoSMapping {
+		cliConfig += "\n   tunnel overlay mpls qos map mpls-traffic-class to traffic-class"
+	}
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
 }
 
 // aristaGreDecapCLIConfig configures GREDEcapConfig for Arista
 func aristaGreDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
-	var cliConfig string
-	if params.HasMPLS {
-		cliConfig = fmt.Sprintf(decapGroupGREAristaMPLSTemplate, params.AppliedPolicyName, params.TunnelIP, params.InterfaceID)
-	} else {
-		cliConfig = fmt.Sprintf(`
-			ip decap-group %s
-			 tunnel type gre
-			 tunnel decap-ip %s
-			`, params.AppliedPolicyName, params.TunnelIP)
+	cliConfig := fmt.Sprintf(`
+ip decap-group %s
+   tunnel type gre
+   tunnel decap-ip %s
+`, params.AppliedPolicyName, params.TunnelIP)
+	if params.InterfaceID != "" {
+		cliConfig += fmt.Sprintf("   tunnel decap-interface %s\n", params.InterfaceID)
 	}
+	if params.HasMPLS {
+		cliConfig += "   tunnel overlay mpls qos map mpls-traffic-class to traffic-class\n"
+	}
+	cliConfig += "!\n"
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
 
 }
@@ -1551,7 +1663,7 @@ func ConfigureVRFSelectionPolicyOC(t *testing.T, dut *ondatra.DUTDevice, encapVR
 				fallback = TransitVRF111Str
 			}
 			for _, proto := range []oc.UnionUint8{4, 41} {
-				r := pol.GetOrCreateRule(seqIDOffset(dut, seq))
+				r := pol.GetOrCreateRule(seq)
 				ip4 := r.GetOrCreateIpv4()
 				ip4.Protocol = proto
 				ip4.SourceAddress = ygot.String(fmt.Sprintf("%s/%d", src, IPv4HostMask))
@@ -1575,7 +1687,7 @@ func ConfigureVRFSelectionPolicyOC(t *testing.T, dut *ondatra.DUTDevice, encapVR
 		{4, IPv4OuterSrc111, TransitVRF111Str},
 		{41, IPv4OuterSrc111, TransitVRF111Str},
 	} {
-		r := pol.GetOrCreateRule(seqIDOffset(dut, seq))
+		r := pol.GetOrCreateRule(seq)
 		ip4 := r.GetOrCreateIpv4()
 		ip4.Protocol = entry.proto
 		ip4.SourceAddress = ygot.String(fmt.Sprintf("%s/%d", entry.src, IPv4HostMask))
@@ -1589,26 +1701,26 @@ func ConfigureVRFSelectionPolicyOC(t *testing.T, dut *ondatra.DUTDevice, encapVR
 	for i, vrf := range encapVRFs {
 		d1, d2 := EncapVRFDSCP(i)
 		dscpSet := []uint8{d1, d2}
-		r4 := pol.GetOrCreateRule(seqIDOffset(dut, seq))
+		r4 := pol.GetOrCreateRule(seq)
 		r4.GetOrCreateIpv4().DscpSet = dscpSet
 		r4.GetOrCreateAction().NetworkInstance = ygot.String(vrf)
 		seq++
-		r6 := pol.GetOrCreateRule(seqIDOffset(dut, seq))
+		r6 := pol.GetOrCreateRule(seq)
 		r6.GetOrCreateIpv6().DscpSet = dscpSet
 		r6.GetOrCreateAction().NetworkInstance = ygot.String(vrf)
 		seq++
 	}
 
 	if deviations.PfRequireMatchDefaultRule(dut) {
-		r4 := pol.GetOrCreateRule(seqIDOffset(dut, seq))
+		r4 := pol.GetOrCreateRule(seq)
 		r4.GetOrCreateL2().SetEthertype(oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4)
 		r4.GetOrCreateAction().NetworkInstance = ygot.String(defaultVRF)
 		seq++
-		r6 := pol.GetOrCreateRule(seqIDOffset(dut, seq))
+		r6 := pol.GetOrCreateRule(seq)
 		r6.GetOrCreateL2().SetEthertype(oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV6)
 		r6.GetOrCreateAction().NetworkInstance = ygot.String(defaultVRF)
 	} else {
-		pol.GetOrCreateRule(seqIDOffset(dut, seq)).GetOrCreateAction().NetworkInstance = ygot.String(defaultVRF)
+		pol.GetOrCreateRule(seq).GetOrCreateAction().NetworkInstance = ygot.String(defaultVRF)
 	}
 
 	interfaceID := p1.Name()
