@@ -669,57 +669,53 @@ func VerifyPortsUp(t *testing.T, dev *ondatra.Device) {
 	}
 }
 
-// DeviationAristaBGPNeighborMaxPrefixes updates the max-prefixes of a specific BGP neighbor.
-// This is an Arista specific augmented model which sets the following path:
-// /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/prefix-limit-received/config/max-prefixes
-// Set max-prefixes to 0 will mean no limit will be set.
-// Tracking the removal of this deviation in b/438620249
-func DeviationAristaBGPNeighborMaxPrefixes(t *testing.T, dut *ondatra.DUTDevice, neighborIP string, maxPrefixes uint32) {
-	gpbSetRequest := &gnmipb.SetRequest{
-		Update: []*gnmipb.Update{{
-			Path: &gnmipb.Path{
-				Elem: []*gnmipb.PathElem{
-					{Name: "network-instances"},
-					{Name: "network-instance", Key: map[string]string{"name": deviations.DefaultNetworkInstance(dut)}},
-					{Name: "protocols"},
-					{Name: "protocol", Key: map[string]string{"name": "BGP", "identifier": "BGP"}},
-					{Name: "bgp"},
-					{Name: "neighbors"},
-					{Name: "neighbor", Key: map[string]string{"neighbor-address": neighborIP}},
-					{Name: "prefix-limit-received"},
-					{Name: "config"},
-					{Name: "max-prefixes"},
-				},
-			},
-			Val: &gnmipb.TypedValue{
-				Value: &gnmipb.TypedValue_UintVal{
-					UintVal: uint64(maxPrefixes),
-				},
-			},
-		}},
-	}
-	gnmiClient := dut.RawAPIs().GNMI(t)
-	if _, err := gnmiClient.Set(t.Context(), gpbSetRequest); err != nil {
-		t.Errorf("Unexpected error max-prefix: %v", err)
-	}
-}
-
-// handleMaxPrefixesDeviation updates neighbor max prefixes only if deviation BGPMissingOCMaxPrefixesConfiguration
-// is set. TODO: Add config created in DeviationAristaBGPNeighborMaxPrefixes to the SetBatch.
-func handleMaxPrefixesDeviation(t *testing.T, dut *ondatra.DUTDevice, _ *gnmi.SetBatch, cfg BGPNeighborsConfig) error {
+// DeviationAristaBGPGlobalMaxPrefixes sets unlimited received BGP routes
+// via the Arista-augmented global OC path when
+// BGPMissingOCMaxPrefixesConfiguration is set:
+// /network-instances/network-instance/protocols/protocol/bgp/global/prefix-limit-received/config/max-prefixes
+// EOS maps that leaf to neighbor default maximum-routes; 0 means no limit.
+// networkInstance is the OC network-instance / VRF name; empty uses the
+// default network-instance. Apply this after the BGP process exists.
+// Tracking: b/438620249
+func DeviationAristaBGPGlobalMaxPrefixes(t *testing.T, dut *ondatra.DUTDevice, networkInstance string) {
 	t.Helper()
 	if !deviations.BGPMissingOCMaxPrefixesConfiguration(dut) {
-		return nil
+		return
+	}
+	if networkInstance == "" {
+		networkInstance = deviations.DefaultNetworkInstance(dut)
 	}
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
-		for _, nbr := range cfg.Nbrs {
-			DeviationAristaBGPNeighborMaxPrefixes(t, dut, nbr.Neighborip, 0)
+		gpbSetRequest := &gnmipb.SetRequest{
+			Update: []*gnmipb.Update{{
+				Path: &gnmipb.Path{
+					Elem: []*gnmipb.PathElem{
+						{Name: "network-instances"},
+						{Name: "network-instance", Key: map[string]string{"name": networkInstance}},
+						{Name: "protocols"},
+						{Name: "protocol", Key: map[string]string{"name": "BGP", "identifier": "BGP"}},
+						{Name: "bgp"},
+						{Name: "global"},
+						{Name: "prefix-limit-received"},
+						{Name: "config"},
+						{Name: "max-prefixes"},
+					},
+				},
+				Val: &gnmipb.TypedValue{
+					Value: &gnmipb.TypedValue_UintVal{
+						UintVal: 0,
+					},
+				},
+			}},
+		}
+		gnmiClient := dut.RawAPIs().GNMI(t)
+		if _, err := gnmiClient.Set(t.Context(), gpbSetRequest); err != nil {
+			t.Errorf("Unexpected error setting global prefix-limit-received: %v", err)
 		}
 	default:
-		return fmt.Errorf("deviation not expected for vendor %v", dut.Vendor())
+		t.Fatalf("deviation BGPMissingOCMaxPrefixesConfiguration not expected for vendor %v", dut.Vendor())
 	}
-	return nil
 }
 
 // DeviationBgpRibStreamingConfigRequired updates required config for BGP RIB streaming
@@ -880,9 +876,6 @@ func CreateBGPNeighbors(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch,
 			neighbor.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).
 				SetEnabled(true)
 		}
-	}
-	if err := handleMaxPrefixesDeviation(t, dut, sb, cfg); err != nil {
-		return err
 	}
 	gnmi.BatchUpdate(sb, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), root.GetNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP"))
 	return nil

@@ -55,10 +55,10 @@ deviations: {
 }
 deviations: {
   name: "bgp_missing_oc_max_prefixes_configuration"
-  type: DEVIATION_TYPE_CLI
+  type: DEVIATION_TYPE_PATH
   impacted_paths: {
     ocpaths: {
-      name: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/use-multiple-paths/ebgp/config/maximum-paths"
+      name: "/network-instances/network-instance/protocols/protocol/bgp/global/prefix-limit-received/config/max-prefixes"
     }
   }
   platforms: {
@@ -66,9 +66,6 @@ deviations: {
     platform: {
       vendor: ARISTA
       software_version_regex: "*.*"
-    }
-    clis: {
-      commands: "router.bgp.[0-9]+\n +neighbor.*maximum-routes.[0-9]+"
     }
   }
 }

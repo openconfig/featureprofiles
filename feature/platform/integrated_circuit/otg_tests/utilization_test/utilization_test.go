@@ -446,9 +446,7 @@ func configureBGPDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	af6 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 	af6.Enabled = ygot.Bool(true)
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), niProto)
-	if deviations.BGPMissingOCMaxPrefixesConfiguration(dut) {
-		cfgplugins.DeviationAristaBGPNeighborMaxPrefixes(t, dut, atePort1.IPv6, 0)
-	}
+	cfgplugins.DeviationAristaBGPGlobalMaxPrefixes(t, dut, "")
 }
 
 func configureOTG(t *testing.T, otg *otg.OTG) (gosnappi.BgpV6Peer, gosnappi.DeviceIpv6, gosnappi.Config) {

@@ -222,7 +222,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch {
 	cfgplugins.UpdateNetworkInstanceOnDut(t, dut, vrfName, nonDefaultNI)
 	configureDUTPort(t, dut, batch, &dutPort2, p2, vrfName)
 	batch.Set(t, dut)
-	aftpf.ApplyBGPMaxPrefixes(t, dut, aftpf.BGPPrefixParams{V4Prefix: atePort1.IPv4, V6Prefix: atePort1.IPv6, NetworkInstance: defaultNI})
+	aftpf.ApplyBGPMaxPrefixes(t, dut, vrfName)
 	return batch
 }
 

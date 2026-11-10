@@ -1074,8 +1074,7 @@ func TestAFTPrefixFiltering(t *testing.T) {
 	defNI := d.GetOrCreateNetworkInstance(ni)
 	aftpf.ConfigureBGP(t, dut, batch, defNI)
 	batch.Set(t, dut)
-	aftpf.ApplyBGPMaxPrefixes(t, dut, aftpf.BGPPrefixParams{V4Prefix: aftpf.ATEPort1.IPv4,
-		V6Prefix: aftpf.ATEPort2.IPv6, NetworkInstance: defNI})
+	aftpf.ApplyBGPMaxPrefixes(t, dut)
 	topo, interfaceNamesList := aftpf.ConfigureATE(t, ate)
 	aftpf.ConfigureATEBGP(t, topo)
 	ate.OTG().PushConfig(t, topo)

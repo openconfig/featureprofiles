@@ -369,8 +369,9 @@ message Metadata {
     // Device set received prefix limits explicitly under prefix-limit-received
     // rather than "prefix-limit"
     bool bgp_explicit_prefix_limit_received = 127;
-    // Device does not configure BGP maximum routes correctly when max-prefixes
-    // leaf is configured
+    // Device requires BGP global prefix-limit-received (Arista augment)
+    // because the default received-route limit is not lifted by standard
+    // OC max-prefixes.
     bool bgp_missing_oc_max_prefixes_configuration = 128;
     // Devices which needs to skip checking AFI-SAFI disable.
     // Juniper: b/310698466

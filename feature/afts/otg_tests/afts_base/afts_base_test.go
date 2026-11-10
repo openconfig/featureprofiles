@@ -202,18 +202,13 @@ func (tc *testCase) configureDUT(t *testing.T) error {
 	}
 	dutConf := createBGPNeighbor(peerGrpNameV4P1, peerGrpNameV6P1, nbrs, dut)
 	gnmi.Update(t, dut, dutConfPath.Config(), dutConf)
-	if deviations.BGPMissingOCMaxPrefixesConfiguration(dut) {
-		updateNeighborMaxPrefix(t, dut, nbrs)
-	}
 	nbrs = []*BGPNeighbor{
 		{as: ateAS, neighborip: ateP2.IPv4, version: IPv4},
 		{as: ateAS, neighborip: ateP2.IPv6, version: IPv6},
 	}
 	dutConf = createBGPNeighbor(peerGrpNameV4P2, peerGrpNameV6P2, nbrs, dut)
 	gnmi.Update(t, dut, dutConfPath.Config(), dutConf)
-	if deviations.BGPMissingOCMaxPrefixesConfiguration(dut) {
-		updateNeighborMaxPrefix(t, dut, nbrs)
-	}
+	cfgplugins.DeviationAristaBGPGlobalMaxPrefixes(t, dut, "")
 
 	ts := isissession.MustNew(t).WithISIS()
 	ts.ConfigISIS(func(isis *oc.NetworkInstance_Protocol_Isis) {
@@ -315,11 +310,6 @@ func createBGPNeighbor(peerGrpNameV4, peerGrpNameV6 string, nbrs []*BGPNeighbor,
 	return niProtocol
 }
 
-func updateNeighborMaxPrefix(t *testing.T, dut *ondatra.DUTDevice, neighbors []*BGPNeighbor) {
-	for _, nbr := range neighbors {
-		cfgplugins.DeviationAristaBGPNeighborMaxPrefixes(t, dut, nbr.neighborip, 0)
-	}
-}
 func (tc *testCase) waitForBGPSessions(t *testing.T, ipv4nbrs []string, ipv6nbrs []string) error {
 	t.Helper()
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(tc.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()

@@ -161,6 +161,7 @@ func (tc *testCase) configureDUT(t *testing.T) error {
 		}
 	}
 	sb.Set(t, dut)
+	cfgplugins.DeviationAristaBGPGlobalMaxPrefixes(t, dut, "")
 
 	t.Log("Configure ISIS")
 	b := &gnmi.SetBatch{}

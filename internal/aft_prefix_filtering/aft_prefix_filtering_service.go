@@ -294,20 +294,14 @@ func ConfigureBGP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, ni
 	gnmi.BatchUpdate(batch, gnmi.OC().NetworkInstance(ni.GetName()).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP"))
 }
 
-type BGPPrefixParams struct {
-	V4Prefix        string
-	V6Prefix        string
-	NetworkInstance *oc.NetworkInstance
-}
-
-// ApplyBGPMaxPrefixes applies the Arista max-prefixes deviation to the DEFAULT-instance eBGP neighbors.
-func ApplyBGPMaxPrefixes(t *testing.T, dut *ondatra.DUTDevice, cfg BGPPrefixParams) {
+// ApplyBGPMaxPrefixes applies the Arista global unlimited max-routes
+// deviation after BGP is configured. Extra network-instance names apply
+// the same knob under those VRFs.
+func ApplyBGPMaxPrefixes(t *testing.T, dut *ondatra.DUTDevice, extraNetworkInstances ...string) {
 	t.Helper()
-	if !deviations.BGPMissingOCMaxPrefixesConfiguration(dut) {
-		return
-	}
-	for _, addr := range []string{cfg.V4Prefix, cfg.V6Prefix} {
-		cfgplugins.DeviationAristaBGPNeighborMaxPrefixes(t, dut, addr, 0)
+	cfgplugins.DeviationAristaBGPGlobalMaxPrefixes(t, dut, "")
+	for _, ni := range extraNetworkInstances {
+		cfgplugins.DeviationAristaBGPGlobalMaxPrefixes(t, dut, ni)
 	}
 }
 
@@ -331,10 +325,6 @@ func ConfigureScaleBGP(t *testing.T, dut *ondatra.DUTDevice, cfg BGPParams) {
 		{address: cfg.V4Neighbor, peerGroup: v4PeerGroup, v4: true},
 		{address: cfg.V6Neighbor, peerGroup: v6PeerGroup, v4: false},
 	})
-	if deviations.BGPMissingOCMaxPrefixesConfiguration(dut) {
-		cfgplugins.DeviationAristaBGPNeighborMaxPrefixes(t, dut, cfg.V4Neighbor, 0)
-		cfgplugins.DeviationAristaBGPNeighborMaxPrefixes(t, dut, cfg.V6Neighbor, 0)
-	}
 }
 
 // bgpNeighborSpec describes a single-AFI eBGP neighbor: when v4 is

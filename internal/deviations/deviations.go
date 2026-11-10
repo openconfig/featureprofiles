@@ -672,8 +672,9 @@ func BGPExplicitPrefixLimitReceived(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpExplicitPrefixLimitReceived()
 }
 
-// BGPMissingOCMaxPrefixesConfiguration returns true for devices that does not configure BGP
-// maximum routes correctly when max-prefixes OC leaf is configured.
+// BGPMissingOCMaxPrefixesConfiguration returns true for devices that require
+// setting BGP global prefix-limit-received (Arista augment) because the
+// default received-route limit is not lifted by standard OC max-prefixes.
 func BGPMissingOCMaxPrefixesConfiguration(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpMissingOcMaxPrefixesConfiguration()
 }

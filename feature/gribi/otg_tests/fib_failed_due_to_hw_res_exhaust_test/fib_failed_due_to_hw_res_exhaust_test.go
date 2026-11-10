@@ -26,6 +26,7 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
@@ -265,25 +266,7 @@ func TestFibFailDueToHwResExhaust(t *testing.T) {
 		dutConf := configureBGP(dut)
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
-		if deviations.BGPMissingOCMaxPrefixesConfiguration(dut) {
-			switch dut.Vendor() {
-			case ondatra.ARISTA:
-				cli := dut.RawAPIs().CLI(t)
-				_, err := cli.RunCommand(context.Background(), `
-				configure
-					router bgp 64500
-						neighbor BGP-PEER-GROUP-V6 maximum-routes 0
-						exit
-					exit
-				exit
-				`)
-				if err != nil {
-					t.Fatal(err)
-				}
-			default:
-				t.Fatal("Unsupported vendor")
-			}
-		}
+		cfgplugins.DeviationAristaBGPGlobalMaxPrefixes(t, dut, "")
 	})
 
 	ate := ondatra.ATE(t, "ate")
