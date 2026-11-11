@@ -1,0 +1,47 @@
+# proto-file: github.com/openconfig/ondatra/blob/main/proto/testbed.proto
+# proto-message: ondatra.Testbed
+
+# This testbed provides a DUT with 1 physical loop (dut:port2 <-> dut:port3)
+# and an ATE with 2 links to the DUT (ate:port1 <-> dut:port1 and
+# ate:port2 <-> dut:port4).
+
+duts {
+  id: "dut"
+  ports {
+    id: "port1"
+  }
+  ports {
+    id: "port2"
+  }
+  ports {
+    id: "port3"
+  }
+  ports {
+    id: "port4"
+  }
+}
+
+ates {
+  id: "ate"
+  ports {
+    id: "port1"
+  }
+  ports {
+    id: "port2"
+  }
+}
+
+links {
+  a: "dut:port1"
+  b: "ate:port1"
+}
+
+links {
+  a: "dut:port2"
+  b: "dut:port3"
+}
+
+links {
+  a: "dut:port4"
+  b: "ate:port2"
+}
