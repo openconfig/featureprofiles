@@ -16,6 +16,7 @@
 package route_propagation_test
 
 import (
+	"fmt"
 	"slices"
 	"strconv"
 	"strings"
@@ -227,7 +228,31 @@ func (ad *ateData) ConfigureOTG(t *testing.T, otg *otg.OTG, ateList []string) go
 }
 
 type dutData struct {
-	bgpOC *oc.NetworkInstance_Protocol_Bgp
+	bgpOC                         *oc.NetworkInstance_Protocol_Bgp
+	ni                            string
+	explicitPortSpeed             *bool
+	explicitInterfaceInDefaultVRF *bool
+}
+
+func (d *dutData) networkInstance(dut *ondatra.DUTDevice) string {
+	if d.ni != "" {
+		return d.ni
+	}
+	return deviations.DefaultNetworkInstance(dut)
+}
+
+func (d *dutData) hasExplicitPortSpeed(dut *ondatra.DUTDevice) bool {
+	if d.explicitPortSpeed != nil {
+		return *d.explicitPortSpeed
+	}
+	return deviations.ExplicitPortSpeed(dut)
+}
+
+func (d *dutData) hasExplicitInterfaceInDefaultVRF(dut *ondatra.DUTDevice) bool {
+	if d.explicitInterfaceInDefaultVRF != nil {
+		return *d.explicitInterfaceInDefaultVRF
+	}
+	return deviations.ExplicitInterfaceInDefaultVRF(dut)
 }
 
 func configureRoutingPolicy(d *oc.Root) (*oc.RoutingPolicy, error) {
@@ -247,22 +272,25 @@ func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
 		gnmi.Replace(t, dut, gnmi.OC().Interface(ocName).Config(), a.NewOCInterface(ocName, dut))
 	}
 
-	t.Log("Configure Network Instance")
+	if d.ni == "" {
+		t.Log("Configure Network Instance")
+	}
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
-	if deviations.ExplicitPortSpeed(dut) {
+	if d.hasExplicitPortSpeed(dut) {
 		for _, a := range []attrs.Attributes{dutPort1, dutPort2} {
 			fptest.SetPortSpeed(t, dut.Port(t, a.Name))
 		}
 	}
-	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+	ni := d.networkInstance(dut)
+	if d.hasExplicitInterfaceInDefaultVRF(dut) {
 		for _, a := range []attrs.Attributes{dutPort1, dutPort2} {
 			ocName := dut.Port(t, a.Name).Name()
-			fptest.AssignToNetworkInstance(t, dut, ocName, deviations.DefaultNetworkInstance(dut), 0)
+			fptest.AssignToNetworkInstance(t, dut, ocName, ni, 0)
 		}
 	}
 
-	dutProto := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
+	dutProto := gnmi.OC().NetworkInstance(ni).
 		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	key := oc.NetworkInstance_Protocol_Key{
 		Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
@@ -270,7 +298,7 @@ func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	niOC := &oc.NetworkInstance{
-		Name: ygot.String(deviations.DefaultNetworkInstance(dut)),
+		Name: ygot.String(ni),
 		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
 		Protocol: map[oc.NetworkInstance_Protocol_Key]*oc.NetworkInstance_Protocol{
 			key: {
@@ -289,35 +317,42 @@ func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func (d *dutData) AwaitBGPEstablished(t *testing.T, dut *ondatra.DUTDevice) {
+	ni := d.networkInstance(dut)
 	for neighbor := range d.bgpOC.Neighbor {
-		gnmi.Await(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
+		gnmi.Await(t, dut, gnmi.OC().NetworkInstance(ni).
 			Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").
 			Bgp().
 			Neighbor(neighbor).
 			SessionState().State(), time.Second*120, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
 	}
-	t.Log("BGP sessions established")
+	if d.ni == "" {
+		t.Log("BGP sessions established")
+	}
 }
 
-func getPeerGroup(pgn string, aftype oc.E_BgpTypes_AFI_SAFI_TYPE, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol_Bgp_PeerGroup {
+func getPeerGroupWithPolicy(pgn string, aftype oc.E_BgpTypes_AFI_SAFI_TYPE, policyUnderPeerGroup bool) *oc.NetworkInstance_Protocol_Bgp_PeerGroup {
 	bgp := &oc.NetworkInstance_Protocol_Bgp{}
 	pg := bgp.GetOrCreatePeerGroup(pgn)
 	pg.GetOrCreateTimers().SetMinimumAdvertisementInterval(10)
-	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
-		//policy under peer group
+	if policyUnderPeerGroup {
+		// policy under peer group
 		rpl := pg.GetOrCreateApplyPolicy()
 		rpl.SetExportPolicy([]string{rplPermitAll})
 		rpl.SetImportPolicy([]string{rplPermitAll})
 		return pg
 	}
 
-	//policy under peer group AFI
+	// policy under peer group AFI
 	afisafi := pg.GetOrCreateAfiSafi(aftype)
 	afisafi.Enabled = ygot.Bool(true)
 	rpl := afisafi.GetOrCreateApplyPolicy()
 	rpl.SetExportPolicy([]string{rplPermitAll})
 	rpl.SetImportPolicy([]string{rplPermitAll})
 	return pg
+}
+
+func getPeerGroup(pgn string, aftype oc.E_BgpTypes_AFI_SAFI_TYPE, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol_Bgp_PeerGroup {
+	return getPeerGroupWithPolicy(pgn, aftype, deviations.RoutePolicyUnderAFIUnsupported(dut))
 }
 
 // addPathCfg is the ADD-Path configuration that TestAddPath applies to the DUT.
@@ -327,11 +362,11 @@ type addPathCfg struct {
 }
 
 // addPathBGP builds the BGP OpenConfig structure for a single AFI/SAFI with ADD-Path options applied.
-func addPathBGP(dut *ondatra.DUTDevice, afi oc.E_BgpTypes_AFI_SAFI_TYPE, rxNbr, txNbr string, cfg addPathCfg) *oc.NetworkInstance_Protocol_Bgp {
+func addPathBGP(afi oc.E_BgpTypes_AFI_SAFI_TYPE, rxNbr, txNbr string, cfg addPathCfg, policyUnderPeerGroup bool) *oc.NetworkInstance_Protocol_Bgp {
 	bgp := &oc.NetworkInstance_Protocol_Bgp{
 		PeerGroup: map[string]*oc.NetworkInstance_Protocol_Bgp_PeerGroup{
-			"BGP-PEER-GROUP1": getPeerGroup("BGP-PEER-GROUP1", afi, dut),
-			"BGP-PEER-GROUP2": getPeerGroup("BGP-PEER-GROUP2", afi, dut),
+			"BGP-PEER-GROUP1": getPeerGroupWithPolicy("BGP-PEER-GROUP1", afi, policyUnderPeerGroup),
+			"BGP-PEER-GROUP2": getPeerGroupWithPolicy("BGP-PEER-GROUP2", afi, policyUnderPeerGroup),
 		},
 	}
 	global := bgp.GetOrCreateGlobal()
@@ -437,9 +472,9 @@ func checkOTGBGP6Prefix(t *testing.T, otg *otg.OTG, config gosnappi.Config, expe
 }
 
 // verifyAddPathState verifies DUT telemetry for BGP ADD-Path receive states.
-func verifyAddPathState(t *testing.T, dut *ondatra.DUTDevice, afi oc.E_BgpTypes_AFI_SAFI_TYPE, rxNbr string, cfg addPathCfg) {
+func verifyAddPathState(t *testing.T, dut *ondatra.DUTDevice, ni, tag string, afi oc.E_BgpTypes_AFI_SAFI_TYPE, rxNbr string, cfg addPathCfg) {
 	t.Helper()
-	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	bgpPath := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 
 	if cfg.nbrReceive != nil {
 		q := bgpPath.Neighbor(rxNbr).AfiSafi(afi).AddPaths().Receive().State()
@@ -449,35 +484,41 @@ func verifyAddPathState(t *testing.T, dut *ondatra.DUTDevice, afi oc.E_BgpTypes_
 		}).Await(t)
 		if !ok {
 			got, present := gnmi.Lookup(t, dut, q).Val()
-			t.Errorf("DUT neighbor %s add-paths receive state: got %v (present: %v), want %t", rxNbr, got, present, *cfg.nbrReceive)
+			t.Errorf("%s STEP 2/4 FAIL: neighbor %s add-paths/state/receive: got %v (present: %v), want %t", tag, rxNbr, got, present, *cfg.nbrReceive)
+		} else {
+			t.Logf("%s STEP 2/4 PASS: neighbor %s add-paths/state/receive = %t", tag, rxNbr, *cfg.nbrReceive)
 		}
 	}
 
 	if cfg.pgReceive != nil {
 		q := bgpPath.PeerGroup("BGP-PEER-GROUP1").AfiSafi(afi).AddPaths().Receive().State()
-		if cfg.nbrReceive == nil {
-			_, ok := gnmi.Watch(t, dut, q, 30*time.Second, func(v *ygnmi.Value[bool]) bool {
-				got, present := v.Val()
-				return present && got == *cfg.pgReceive
-			}).Await(t)
-			if !ok {
-				got, present := gnmi.Lookup(t, dut, q).Val()
-				t.Errorf("DUT peer-group BGP-PEER-GROUP1 add-paths receive state: got %v (present: %v), want %t", got, present, *cfg.pgReceive)
+		_, ok := gnmi.Watch(t, dut, q, 30*time.Second, func(v *ygnmi.Value[bool]) bool {
+			got, present := v.Val()
+			return present && got == *cfg.pgReceive
+		}).Await(t)
+		if !ok {
+			got, present := gnmi.Lookup(t, dut, q).Val()
+			t.Errorf("%s STEP 2/4 FAIL: peer-group BGP-PEER-GROUP1 add-paths/state/receive: got %v (present: %v), want %t", tag, got, present, *cfg.pgReceive)
+			if cfg.nbrReceive != nil {
+				nbrVal, nbrPresent := gnmi.Lookup(t, dut, bgpPath.Neighbor(rxNbr).AfiSafi(afi).AddPaths().Receive().State()).Val()
+				t.Logf("%s INFO: override mismatch detail — configured pg=%t nbr=%t; observed state pg=%v(present:%v) nbr=%v(present:%v)",
+					tag, *cfg.pgReceive, *cfg.nbrReceive, got, present, nbrVal, nbrPresent)
 			}
+		} else {
+			t.Logf("%s STEP 2/4 PASS: peer-group BGP-PEER-GROUP1 add-paths/state/receive = %t", tag, *cfg.pgReceive)
+		}
+		if cfg.nbrReceive == nil {
 			rxQ := bgpPath.Neighbor(rxNbr).AfiSafi(afi).AddPaths().Receive().State()
 			rxVal, rxPresent := gnmi.Lookup(t, dut, rxQ).Val()
-			t.Logf("DUT neighbor %s add-paths receive state (inherited from peer-group): %v (present: %v)", rxNbr, rxVal, rxPresent)
-		} else {
-			// The neighbor sets its own value, which overrides the peer-group and
-			// is verified above, so the peer-group state is only logged here.
-			pgVal, pgPresent := gnmi.Lookup(t, dut, q).Val()
-			t.Logf("DUT peer-group BGP-PEER-GROUP1 add-paths receive state (overridden on neighbor %s): %v (present: %v)", rxNbr, pgVal, pgPresent)
+			if !rxPresent {
+				t.Logf("%s INFO: neighbor %s inherited add-paths/state/receive: not reported by DUT (present: false)", tag, rxNbr)
+			} else {
+				t.Logf("%s INFO: neighbor %s inherited add-paths/state/receive = %t", tag, rxNbr, rxVal)
+			}
 		}
 	}
 
 	capQ := bgpPath.Neighbor(rxNbr).SupportedCapabilities().State()
-	capVal, capPresent := gnmi.Lookup(t, dut, capQ).Val()
-	t.Logf("DUT neighbor %s supported capabilities: %v (present: %v)", rxNbr, capVal, capPresent)
 	// When ADD-Path receive is in effect for the neighbor (set on the neighbor,
 	// or inherited from the peer-group), ADD-Path must be negotiated on the
 	// session and reported in the neighbor's supported-capabilities.
@@ -489,11 +530,172 @@ func verifyAddPathState(t *testing.T, dut *ondatra.DUTDevice, afi oc.E_BgpTypes_
 		}).Await(t)
 		if !ok {
 			got, present := gnmi.Lookup(t, dut, capQ).Val()
-			t.Errorf("DUT neighbor %s supported-capabilities: got %v (present: %v), want ADD_PATHS included", rxNbr, got, present)
+			t.Errorf("%s STEP 2/4 FAIL: neighbor %s supported-capabilities: got %v (present: %v), want ADD_PATHS included", tag, rxNbr, got, present)
+		} else {
+			gotCaps, _ := gnmi.Lookup(t, dut, capQ).Val()
+			t.Logf("%s STEP 2/4 PASS: neighbor %s supported-capabilities includes ADD_PATHS (%v)", tag, rxNbr, gotCaps)
+		}
+	} else {
+		capVal, capPresent := gnmi.Lookup(t, dut, capQ).Val()
+		t.Logf("%s INFO: neighbor %s supported-capabilities = %v (present: %v)", tag, rxNbr, capVal, capPresent)
+	}
+}
+
+type prefixKey struct {
+	addr string
+	plen uint32
+}
+
+func (k prefixKey) String() string {
+	return fmt.Sprintf("%s/%d", k.addr, k.plen)
+}
+
+type learnedRoute struct {
+	addr   string
+	plen   uint32
+	pathID uint32
+}
+
+func parsePrefix(t *testing.T, prefix string) prefixKey {
+	t.Helper()
+	addr, plenStr, ok := strings.Cut(prefix, "/")
+	if !ok {
+		t.Fatalf("Invalid prefix format: %s", prefix)
+	}
+	plen, err := strconv.Atoi(plenStr)
+	if err != nil {
+		t.Fatalf("Invalid prefix length in %s: %v", prefix, err)
+	}
+	return prefixKey{addr: addr, plen: uint32(plen)}
+}
+
+func watchAndLookupPort2RoutesV4(t *testing.T, otg *otg.OTG, peerName string, wantSet map[prefixKey]bool) ([]learnedRoute, bool) {
+	t.Helper()
+	seen := make(map[prefixKey]bool)
+	q := gnmi.OTG().BgpPeer(peerName).UnicastIpv4PrefixAny().State()
+	_, ok := gnmi.WatchAll(t, otg, q, 2*time.Minute, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
+		prefix, present := v.Val()
+		if !present {
+			return false
+		}
+		k := prefixKey{addr: prefix.GetAddress(), plen: prefix.GetPrefixLength()}
+		if wantSet[k] {
+			seen[k] = true
+		}
+		return len(seen) == len(wantSet)
+	}).Await(t)
+	if !ok {
+		return nil, false
+	}
+	snaps := gnmi.LookupAll(t, otg, q)
+	var routes []learnedRoute
+	for _, s := range snaps {
+		if val, present := s.Val(); present {
+			routes = append(routes, learnedRoute{
+				addr:   val.GetAddress(),
+				plen:   val.GetPrefixLength(),
+				pathID: val.GetPathId(),
+			})
 		}
 	}
-	rcvVal, rcvPresent := gnmi.Lookup(t, dut, bgpPath.Neighbor(rxNbr).AfiSafi(afi).Prefixes().Received().State()).Val()
-	t.Logf("DUT neighbor %s received prefixes: %v (present: %v)", rxNbr, rcvVal, rcvPresent)
+	return routes, true
+}
+
+func watchAndLookupPort2RoutesV6(t *testing.T, otg *otg.OTG, peerName string, wantSet map[prefixKey]bool) ([]learnedRoute, bool) {
+	t.Helper()
+	seen := make(map[prefixKey]bool)
+	q := gnmi.OTG().BgpPeer(peerName).UnicastIpv6PrefixAny().State()
+	_, ok := gnmi.WatchAll(t, otg, q, 2*time.Minute, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv6Prefix]) bool {
+		prefix, present := v.Val()
+		if !present {
+			return false
+		}
+		k := prefixKey{addr: prefix.GetAddress(), plen: prefix.GetPrefixLength()}
+		if wantSet[k] {
+			seen[k] = true
+		}
+		return len(seen) == len(wantSet)
+	}).Await(t)
+	if !ok {
+		return nil, false
+	}
+	snaps := gnmi.LookupAll(t, otg, q)
+	var routes []learnedRoute
+	for _, s := range snaps {
+		if val, present := s.Val(); present {
+			routes = append(routes, learnedRoute{
+				addr:   val.GetAddress(),
+				plen:   val.GetPrefixLength(),
+				pathID: val.GetPathId(),
+			})
+		}
+	}
+	return routes, true
+}
+
+func verifyOTGPort2Routes(t *testing.T, otg *otg.OTG, tag, peerName string, isV4 bool, prefixes []string, wantPathsPerPrefix int) {
+	t.Helper()
+	wantSet := make(map[prefixKey]bool, len(prefixes))
+	var wantList []prefixKey
+	for _, p := range prefixes {
+		k := parsePrefix(t, p)
+		wantSet[k] = true
+		wantList = append(wantList, k)
+	}
+
+	var routes []learnedRoute
+	var ok bool
+	if isV4 {
+		routes, ok = watchAndLookupPort2RoutesV4(t, otg, peerName, wantSet)
+	} else {
+		routes, ok = watchAndLookupPort2RoutesV6(t, otg, peerName, wantSet)
+	}
+	if !ok {
+		t.Errorf("%s STEP 4/4 FAIL: timed out waiting for all expected prefixes on ATE port-2 peer %s", tag, peerName)
+		return
+	}
+
+	counts := make(map[prefixKey]map[uint32]bool)
+	for _, r := range routes {
+		k := prefixKey{addr: r.addr, plen: r.plen}
+		if counts[k] == nil {
+			counts[k] = make(map[uint32]bool)
+		}
+		counts[k][r.pathID] = true
+	}
+
+	failed := false
+	for _, k := range wantList {
+		pathMap := counts[k]
+		if len(pathMap) != wantPathsPerPrefix {
+			var pathIDs []uint32
+			for pid := range pathMap {
+				pathIDs = append(pathIDs, pid)
+			}
+			slices.Sort(pathIDs)
+			t.Errorf("%s STEP 4/4 FAIL: ATE port-2 peer %s prefix %s has %d distinct path(s) %v, want %d",
+				tag, peerName, k, len(pathMap), pathIDs, wantPathsPerPrefix)
+			failed = true
+		}
+	}
+
+	var extraPrefixes []string
+	for k := range counts {
+		if !wantSet[k] {
+			extraPrefixes = append(extraPrefixes, k.String())
+		}
+	}
+	if len(extraPrefixes) > 0 {
+		slices.Sort(extraPrefixes)
+		t.Logf("%s INFO: ATE port-2 peer %s ignored %d non-test DUT/link prefixes: %v",
+			tag, peerName, len(extraPrefixes), extraPrefixes)
+	}
+
+	if !failed {
+		totalExpected := len(wantList) * wantPathsPerPrefix
+		t.Logf("%s STEP 4/4 PASS: ATE port-2 peer %s received %d paths (%d prefixes x %d distinct path each)",
+			tag, peerName, totalExpected, len(wantList), wantPathsPerPrefix)
+	}
 }
 
 func TestBGP(t *testing.T) {
@@ -507,7 +709,7 @@ func TestBGP(t *testing.T) {
 	}{{
 		desc:     "propagate IPv4 over IPv4",
 		fullDesc: "Advertise prefixes from ATE port1, observe received prefixes at ATE port2",
-		dut: dutData{&oc.NetworkInstance_Protocol_Bgp{
+		dut: dutData{bgpOC: &oc.NetworkInstance_Protocol_Bgp{
 			PeerGroup: map[string]*oc.NetworkInstance_Protocol_Bgp_PeerGroup{
 				"BGP-PEER-GROUP1": getPeerGroup("BGP-PEER-GROUP1", oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, dut),
 				"BGP-PEER-GROUP2": getPeerGroup("BGP-PEER-GROUP2", oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, dut),
@@ -564,7 +766,7 @@ func TestBGP(t *testing.T) {
 	}, {
 		desc:     "propagate IPv6 over IPv6",
 		fullDesc: "Advertise IPv6 prefixes from ATE port1, observe received prefixes at ATE port2",
-		dut: dutData{&oc.NetworkInstance_Protocol_Bgp{
+		dut: dutData{bgpOC: &oc.NetworkInstance_Protocol_Bgp{
 			PeerGroup: map[string]*oc.NetworkInstance_Protocol_Bgp_PeerGroup{
 				"BGP-PEER-GROUP1": getPeerGroup("BGP-PEER-GROUP1", oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, dut),
 				"BGP-PEER-GROUP2": getPeerGroup("BGP-PEER-GROUP2", oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, dut),
@@ -622,7 +824,7 @@ func TestBGP(t *testing.T) {
 		desc:       "propagate IPv4 over IPv6",
 		skipReason: "TODO: RFC5549 needs to be enabled explicitly and OpenConfig does not currently provide a signal.",
 		fullDesc:   "IPv4 routes with an IPv6 next-hop when negotiating RFC5549 - validating that routes are accepted and advertised with the specified values.",
-		dut: dutData{&oc.NetworkInstance_Protocol_Bgp{
+		dut: dutData{bgpOC: &oc.NetworkInstance_Protocol_Bgp{
 			PeerGroup: map[string]*oc.NetworkInstance_Protocol_Bgp_PeerGroup{
 				"BGP-PEER-GROUP1": getPeerGroup("BGP-PEER-GROUP1", oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, dut),
 				"BGP-PEER-GROUP2": getPeerGroup("BGP-PEER-GROUP2", oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, dut),
@@ -731,6 +933,10 @@ func TestBGP(t *testing.T) {
 // peer-group, and the neighbor value overriding the peer-group value in both directions.
 func TestAddPath(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	defaultNI := deviations.DefaultNetworkInstance(dut)
+	explicitPortSpeed := deviations.ExplicitPortSpeed(dut)
+	explicitIfInDefaultVRF := deviations.ExplicitInterfaceInDefaultVRF(dut)
+	routePolicyUnderAFIUnsupported := deviations.RoutePolicyUnderAFIUnsupported(dut)
 
 	afs := []struct {
 		name     string
@@ -788,43 +994,57 @@ func TestAddPath(t *testing.T) {
 	}
 
 	cases := []struct {
+		id   string
 		name string
+		desc string
 		cfg  addPathCfg
 	}{
 		{
+			id:   "RT-1.3.3.1",
 			name: "RT-1.3.3.1 receive on neighbor",
+			desc: "neighbor add-paths receive=true (peer-group unset)",
 			cfg: addPathCfg{
 				nbrReceive: ygot.Bool(true),
 			},
 		},
 		{
+			id:   "RT-1.3.3.2",
 			name: "RT-1.3.3.2 receive on peer-group",
+			desc: "peer-group BGP-PEER-GROUP1 receive=true (neighbor AFI-SAFI unset; inherited)",
 			cfg: addPathCfg{
 				pgReceive: ygot.Bool(true),
 			},
 		},
 		{
+			id:   "RT-1.3.3.3",
 			name: "RT-1.3.3.3 peer-group receive overridden off on neighbor",
+			desc: "peer-group receive=true overridden OFF by neighbor receive=false",
 			cfg: addPathCfg{
 				pgReceive:  ygot.Bool(true),
 				nbrReceive: ygot.Bool(false),
 			},
 		},
 		{
+			id:   "RT-1.3.3.4",
 			name: "RT-1.3.3.4 peer-group receive overridden on by neighbor",
+			desc: "peer-group receive=false overridden ON by neighbor receive=true",
 			cfg: addPathCfg{
 				pgReceive:  ygot.Bool(false),
 				nbrReceive: ygot.Bool(true),
 			},
 		},
 		{
+			id:   "RT-1.3.5.1",
 			name: "RT-1.3.5.1 receive disabled on neighbor",
+			desc: "neighbor add-paths receive=false (peer-group unset; baseline disable)",
 			cfg: addPathCfg{
 				nbrReceive: ygot.Bool(false),
 			},
 		},
 		{
+			id:   "RT-1.3.5.2",
 			name: "RT-1.3.5.2 receive disabled on peer-group",
+			desc: "peer-group BGP-PEER-GROUP1 receive=false (neighbor AFI-SAFI unset; negative control)",
 			cfg: addPathCfg{
 				pgReceive: ygot.Bool(false),
 			},
@@ -834,10 +1054,23 @@ func TestAddPath(t *testing.T) {
 	for _, af := range afs {
 		for _, tc := range cases {
 			t.Run(af.name+" "+tc.name, func(t *testing.T) {
+				tag := fmt.Sprintf("[%s %s]", tc.id, af.name)
+				receiveOn := (tc.cfg.nbrReceive != nil && *tc.cfg.nbrReceive) || (tc.cfg.nbrReceive == nil && tc.cfg.pgReceive != nil && *tc.cfg.pgReceive)
+				wantRcv := af.ate.prefixesCount
+				if receiveOn {
+					wantRcv = af.ate.prefixesCount * uint32(len(af.ate.routePathIDs()))
+				}
+				t.Logf("%s START | Config: %s | Expect: effective receive=%t, ADD_PATHS=%t, DUT(%s) rcv=%d, ATE port-2=4 paths (1/prefix)", tag, tc.desc, receiveOn, receiveOn, af.rxNbr, wantRcv)
+
 				t.Cleanup(func() {
-					gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config())
+					gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(defaultNI).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config())
 				})
-				d := dutData{addPathBGP(dut, af.afi, af.rxNbr, af.txNbr, tc.cfg)}
+				d := dutData{
+					bgpOC:                         addPathBGP(af.afi, af.rxNbr, af.txNbr, tc.cfg, routePolicyUnderAFIUnsupported),
+					ni:                            defaultNI,
+					explicitPortSpeed:             &explicitPortSpeed,
+					explicitInterfaceInDefaultVRF: &explicitIfInDefaultVRF,
+				}
 				d.Configure(t, dut)
 				otg := ondatra.ATE(t, "ate").OTG()
 				ate := af.ate
@@ -845,59 +1078,29 @@ func TestAddPath(t *testing.T) {
 				otgConfig := ate.ConfigureOTG(t, otg, []string{"port1", "port2"})
 				d.AwaitBGPEstablished(t, dut)
 				verifyOTGBGPTelemetry(t, otg, otgConfig, "ESTABLISHED")
-				verifyAddPathState(t, dut, af.afi, af.rxNbr, tc.cfg)
+				t.Logf("%s STEP 1/4 PASS: BGP sessions ESTABLISHED (rxNbr=%s, txNbr=%s)", tag, af.rxNbr, af.txNbr)
+				verifyAddPathState(t, dut, defaultNI, tag, af.afi, af.rxNbr, tc.cfg)
 
 				// Primary check: the number of paths the DUT holds from ATE port-1.
 				// With ADD-Path receive enabled the DUT keeps every path ID for each
 				// prefix; with it disabled each new path implicitly replaces the
 				// previous one, so the DUT keeps one path per prefix.
-				receiveOn := (tc.cfg.nbrReceive != nil && *tc.cfg.nbrReceive) || (tc.cfg.nbrReceive == nil && tc.cfg.pgReceive != nil && *tc.cfg.pgReceive)
-				wantRcv := ate.prefixesCount
-				if receiveOn {
-					wantRcv = ate.prefixesCount * uint32(len(ate.routePathIDs()))
-				}
-				rcvQ := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(af.rxNbr).AfiSafi(af.afi).Prefixes().Received().State()
+				rcvQ := gnmi.OC().NetworkInstance(defaultNI).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(af.rxNbr).AfiSafi(af.afi).Prefixes().Received().State()
 				if _, ok := gnmi.Watch(t, dut, rcvQ, time.Minute, func(v *ygnmi.Value[uint32]) bool {
 					got, present := v.Val()
 					return present && got == wantRcv
 				}).Await(t); !ok {
 					got, present := gnmi.Lookup(t, dut, rcvQ).Val()
-					t.Errorf("DUT neighbor %s received prefixes: got %v (present: %v), want %d", af.rxNbr, got, present, wantRcv)
+					t.Errorf("%s STEP 3/4 FAIL: DUT neighbor %s received prefixes: got %v (present: %v), want %d", tag, af.rxNbr, got, present, wantRcv)
 				} else {
-					t.Logf("DUT neighbor %s received prefixes: %d (want %d)", af.rxNbr, wantRcv, wantRcv)
+					t.Logf("%s STEP 3/4 PASS: DUT neighbor %s received prefixes = %d (want %d)", tag, af.rxNbr, wantRcv, wantRcv)
 				}
 
-				if !receiveOn {
-					peer := "port2.dev.BGP6.peer"
-					if af.isV4 {
-						peer = "port2.dev.BGP4.peer"
-					}
-
-					for _, prefix := range af.prefixes {
-						addr, plenStr, ok := strings.Cut(prefix, "/")
-						if !ok {
-							t.Fatalf("Invalid prefix format: %s", prefix)
-						}
-						plen, err := strconv.Atoi(plenStr)
-						if err != nil {
-							t.Fatalf("Invalid prefix length in %s: %v", prefix, err)
-						}
-						expectedOTGBGPPrefix := OTGBGPPrefix{
-							PeerName:     peer,
-							Address:      addr,
-							PrefixLength: uint32(plen),
-						}
-						if af.isV4 {
-							if !checkOTGBGP4Prefix(t, otg, otgConfig, expectedOTGBGPPrefix) {
-								t.Errorf("Prefix %v is not being learned on ATE port-2", prefix)
-							}
-						} else {
-							if !checkOTGBGP6Prefix(t, otg, otgConfig, expectedOTGBGPPrefix) {
-								t.Errorf("Prefix %v is not being learned on ATE port-2", prefix)
-							}
-						}
-					}
+				peer := "port2.dev.BGP6.peer"
+				if af.isV4 {
+					peer = "port2.dev.BGP4.peer"
 				}
+				verifyOTGPort2Routes(t, otg, tag, peer, af.isV4, af.prefixes, 1)
 			})
 		}
 	}
