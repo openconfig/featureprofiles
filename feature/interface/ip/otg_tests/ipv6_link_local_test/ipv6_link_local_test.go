@@ -95,7 +95,6 @@ func TestIPv6LinkLocal(t *testing.T) {
 		configureOTGInterface(t, ate, top, false)
 		ate.OTG().PushConfig(t, top)
 		ate.OTG().StartProtocols(t)
-		// Wait for OTG IPv6 neighbor discovery using the standard WaitForARP helper.
 		waitForOTGIPv6Neighbors(t, ate.OTG(), top)
 
 		t.Run("Validate Link Local Config and State Paths", func(t *testing.T) {
@@ -410,17 +409,18 @@ func waitForOTGIPv6Neighbors(t *testing.T, otg *otg.OTG, top gosnappi.Config) {
 	t.Helper()
 	otgutils.WaitForARP(t, otg, top, "IPv6")
 	for _, d := range top.Devices().Items() {
-		eth := d.Ethernets().Items()[0]
-		for _, ip := range eth.Ipv6Addresses().Items() {
-			gw := ip.Gateway()
-			if gw == "" {
-				continue
-			}
-			if got, ok := gnmi.Watch(t, otg, gnmi.OTG().Interface(eth.Name()).Ipv6Neighbor(gw).LinkLayerAddress().State(), 2*time.Minute, func(val *ygnmi.Value[string]) bool {
-				v, present := val.Val()
-				return present && v != ""
-			}).Await(t); !ok {
-				t.Fatalf("Did not receive OTG Neighbor entry for gateway %s on interface %s, last got: %v", gw, eth.Name(), got)
+		for _, eth := range d.Ethernets().Items() {
+			for _, ip := range eth.Ipv6Addresses().Items() {
+				gw := ip.Gateway()
+				if gw == "" {
+					continue
+				}
+				if got, ok := gnmi.Watch(t, otg, gnmi.OTG().Interface(eth.Name()).Ipv6Neighbor(gw).LinkLayerAddress().State(), 2*time.Minute, func(val *ygnmi.Value[string]) bool {
+					v, present := val.Val()
+					return present && v != ""
+				}).Await(t); !ok {
+					t.Fatalf("Did not receive OTG Neighbor entry for gateway %s on interface %s, last got: %v", gw, eth.Name(), got)
+				}
 			}
 		}
 	}
