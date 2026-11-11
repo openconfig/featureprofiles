@@ -25,6 +25,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
+	"github.com/openconfig/featureprofiles/internal/telemetry/transceiver"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -97,21 +98,15 @@ func TestZrUncorrectableFrames(t *testing.T) {
 			defer streamFecOtn.Close()
 			validateFecUncorrectableBlocks(t, streamFecOtn)
 
+			togglePort := transceiver.ToggleInterfacesWithCleanup(t, dut, p)
+
 			// Disable interface
-			portDisabled := true
-			t.Cleanup(func() {
-				if !portDisabled {
-					return
-				}
-				cfgplugins.ToggleInterface(t, dut, p.Name(), true)
-			})
-			cfgplugins.ToggleInterface(t, dut, p.Name(), false)
+			togglePort(false)
 			// Wait for the cooling-off period
 			gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
 
 			// Enable interface
-			cfgplugins.ToggleInterface(t, dut, p.Name(), true)
-			portDisabled = false
+			togglePort(true)
 			// Wait for the cooling-off period
 			gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 

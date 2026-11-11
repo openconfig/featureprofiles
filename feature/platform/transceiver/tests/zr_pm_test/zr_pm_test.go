@@ -9,6 +9,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
+	"github.com/openconfig/featureprofiles/internal/telemetry/transceiver"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -74,16 +75,7 @@ func TestPM(t *testing.T) {
 		ethIndexes[p.Name()] = ethernetIndexBase + uint32(i)
 	}
 
-	var portsDisabled bool
-	t.Cleanup(func() {
-		if !portsDisabled {
-			return
-		}
-		for _, p := range dut.Ports() {
-			cfgplugins.ToggleInterface(t, dut, p.Name(), true)
-		}
-	})
-
+	toggleInterfaces := transceiver.ToggleInterfacesWithCleanup(t, dut, dut.Ports()...)
 	for _, frequency := range frequencies {
 		for _, targetOpticalPower := range targetOpticalPowers {
 			// Configure OCH component and OTN and ETH logical channels.
@@ -105,9 +97,7 @@ func TestPM(t *testing.T) {
 			}
 
 			// Enable interface.
-			for _, p := range dut.Ports() {
-				cfgplugins.ToggleInterface(t, dut, p.Name(), true)
-			}
+			toggleInterfaces(true)
 
 			// Wait for streaming telemetry to report the channels as up.
 			for _, p := range dut.Ports() {
@@ -118,10 +108,7 @@ func TestPM(t *testing.T) {
 			validateAllSamples(t, dut, true, interfaceStreams, otnStreams)
 
 			// Disable interface.
-			portsDisabled = true
-			for _, p := range dut.Ports() {
-				cfgplugins.ToggleInterface(t, dut, p.Name(), false)
-			}
+			toggleInterfaces(false)
 
 			// Wait for streaming telemetry to report the channels as down.
 			t.Log("Bringing DOWN both 400G interfaces")
@@ -133,10 +120,7 @@ func TestPM(t *testing.T) {
 			validateAllSamples(t, dut, false, interfaceStreams, otnStreams)
 
 			// Re-enable transceivers.
-			for _, p := range dut.Ports() {
-				cfgplugins.ToggleInterface(t, dut, p.Name(), true)
-			}
-			portsDisabled = false
+			toggleInterfaces(true)
 
 			// Wait for streaming telemetry to report the channels as up.
 			t.Log("Bringing UP both 400G interfaces")

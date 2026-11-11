@@ -25,10 +25,10 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
+	"github.com/openconfig/featureprofiles/internal/telemetry/transceiver"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -119,29 +119,15 @@ func TestZrUncorrectableFrames(t *testing.T) {
 			// Validate that FEC errors haven't increased
 			validateFecUncorrectableBlocks(t, streamFecOtn, baselineFec)
 
-			// Toggle interface enabled
-			d := &oc.Root{}
-			i := d.GetOrCreateInterface(dp.Name())
-			i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+			togglePort := transceiver.ToggleInterfacesWithCleanup(t, dut, dp)
 
 			// Disable interface
-			portDisabled := true
-			t.Cleanup(func() {
-				if !portDisabled {
-					return
-				}
-				i.Enabled = ygot.Bool(true)
-				gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
-			})
-			i.Enabled = ygot.Bool(false)
-			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
+			togglePort(false)
 			// Wait for the cooling-off period
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
 
 			// Enable interface
-			i.Enabled = ygot.Bool(true)
-			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
-			portDisabled = false
+			togglePort(true)
 			// Wait for the cooling-off period
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 

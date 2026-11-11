@@ -23,6 +23,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
+	"github.com/openconfig/featureprofiles/internal/telemetry/transceiver"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -104,14 +105,8 @@ func TestZRPFirmwareVersionStateInterfaceFlap(t *testing.T) {
 	}
 	// Disable interface
 	// TODO: jchenjian - Add support for module reset (not supported in current implementation)
-	portDisabled := true
-	t.Cleanup(func() {
-		if !portDisabled {
-			return
-		}
-		cfgplugins.ToggleInterface(t, dut1, dp1.Name(), true)
-	})
-	cfgplugins.ToggleInterface(t, dut1, dp1.Name(), false)
+	togglePort := transceiver.ToggleInterfacesWithCleanup(t, dut1, dp1)
+	togglePort(false)
 	component1 := gnmi.OC().Component(transceiverName)
 
 	p1Stream := samplestream.New(t, dut1, component1.FirmwareVersion().State(), 10*time.Second)
@@ -122,8 +117,7 @@ func TestZRPFirmwareVersionStateInterfaceFlap(t *testing.T) {
 	verifyFirmwareVersionValue(t, dut1, p1Stream)
 
 	// Enable interface
-	cfgplugins.ToggleInterface(t, dut1, dp1.Name(), true)
-	portDisabled = false
+	togglePort(true)
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 	t.Logf("Interfaces are up: %v", dp1.Name())
 	verifyFirmwareVersionValue(t, dut1, p1Stream)

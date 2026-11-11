@@ -26,6 +26,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
+	"github.com/openconfig/featureprofiles/internal/telemetry/transceiver"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -136,15 +137,9 @@ func TestLowPowerMode(t *testing.T) {
 
 			validateStreamOutput(t, allStream)
 
+			togglePort := transceiver.ToggleInterfacesWithCleanup(t, dut, dp)
 			// Disable interface
-			portDisabled := true
-			t.Cleanup(func() {
-				if !portDisabled {
-					return
-				}
-				cfgplugins.ToggleInterface(t, dut, dp.Name(), true)
-			})
-			cfgplugins.ToggleInterface(t, dut, dp.Name(), false)
+			togglePort(false)
 			// Wait for interface to go down.
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
 			time.Sleep(3 * samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
@@ -196,8 +191,7 @@ func TestLowPowerMode(t *testing.T) {
 			}
 
 			// Enable interface
-			cfgplugins.ToggleInterface(t, dut, dp.Name(), true)
-			portDisabled = false
+			togglePort(true)
 			// Wait for interface to go up.
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 
