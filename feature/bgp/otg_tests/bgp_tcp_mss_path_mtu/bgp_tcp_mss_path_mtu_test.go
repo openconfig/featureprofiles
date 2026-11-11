@@ -15,11 +15,16 @@
 package bgp_tcp_mss_path_mtu_test
 
 import (
-	"fmt"
+	"bytes"
+	"errors"
+	"io"
 	"net"
 	"testing"
 	"time"
 
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
+	"github.com/google/gopacket/pcapgo"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -27,6 +32,8 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/gnmi/oc/netinstbgp"
+	"github.com/openconfig/ondatra/gnmi/oc/networkinstance"
 	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
@@ -37,591 +44,815 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-// The testbed consists of ate:port1 -> dut1:port1 and
-// dut1:port2 -> dut2:port1.  The first pair is called the "source"
-// pair, and the second the "destination" pair.
+// The testbed is TESTBED_DUT_1_LOOP_2_ATE:
 //
-// 	ATE   Port-1 192.0.2.2 --------  DUT-1 Port-1 192.0.2.1
-//	DUT-1 Port-2 192.0.2.5 --------  DUT-2 Port-1 192.0.2.6
+//	ATE port-1 <-> DUT port-1 [TRANSIT] DUT port-2 <-> DUT port-3 [DEFAULT] DUT port-4 <-> ATE port-2
+//
+// BGP runs in the DEFAULT network instance. The L3VRF network instance TRANSIT
+// routes between ATE port-1 and the loop link, so it is a router between the
+// DUT BGP speaker (DUT port-3 addresses) and the iBGP peers on ATE port-1.
+// That router is needed to test PMTUD with a single DUT.
 
 const (
-	peerGrpName1    = "BGP-PEER-GROUP1"
-	dut1AS          = 65501
-	ateAS1          = 65502
-	dut2AS          = 65502
-	plenIPv4        = 30
-	plenIPv6        = 126
-	mtu5040B        = uint16(5040)
-	mtu4096B        = uint16(4096)
-	mtu512B         = uint16(512)
-	mtu1500B        = uint16(1500)
-	vlan10          = 10
-	vlan20          = 20
-	isisInstance    = "DEFAULT"
-	authPWd         = "BGPTCPMSS"
-	dut1AreaAddress = "49.0001"
-	dut1SysID       = "1920.0000.2001"
-	dut2AreaAddress = "49.0001"
-	dut2SysID       = "1920.0000.3001"
-	ateSysID        = "640000000001"
-	otgISISName     = "ISIS"
-	protocolTimeout = 2 * time.Minute
+	transitNI   = "TRANSIT"
+	bgpName     = "BGP"
+	ebgpPG      = "EBGP-PEERS"
+	ibgpPG      = "IBGP-PEERS"
+	policyName  = "ACCEPT-ALL"
+	dutAS       = 64500
+	ateEBGPAS   = 64501
+	plenIPv4    = 30
+	plenIPv6    = 126
+	mtuDefault  = 1500
+	mtuJumbo    = 5040
+	mtuPMTUD    = 1400
+	mssNeighbor = uint16(4096)
+	mssGroup    = uint16(4000)
+	mssOverride = uint16(1400)
+	// TCP default MSS values (RFC 9293 and RFC 8200).
+	mssMinV4 = uint16(536)
+	mssMinV6 = uint16(1220)
+	// Header overhead of an IPv4 or IPv6 TCP segment without options.
+	tcpIPv4Overhead = 40
+	tcpIPv6Overhead = 60
+	// The capture must show DUT packets larger than this, so the DUT uses the
+	// 1400-byte path MTU and not a smaller default.
+	minPMTUDPacket = 1280
+	routeCount     = 2000
+	v4RouteStart   = "100.64.0.0"
+	v4RouteLen     = 24
+	v6RouteStart   = "2001:db8:1::"
+	v6RouteLen     = 64
+	v4RouteName    = "ateP2.v4.routes"
+	v6RouteName    = "ateP2.v6.routes"
+
+	protocolTimeout = 3 * time.Minute
+	resetWindow     = 30 * time.Second
 )
 
 var (
-	dut1Port1 = attrs.Attributes{
-		Desc:    "DUT to ATE source",
-		Name:    "port1",
+	atePort1 = attrs.Attributes{
+		Name:    "ateP1",
+		MAC:     "02:00:01:01:01:01",
+		IPv4:    "192.0.2.2",
+		IPv6:    "2001:db8::192:0:2:2",
+		IPv4Len: plenIPv4,
+		IPv6Len: plenIPv6,
+	}
+	dutPort1 = attrs.Attributes{
+		Desc:    "DUT port-1 to ATE port-1 (TRANSIT)",
 		IPv4:    "192.0.2.1",
 		IPv6:    "2001:db8::192:0:2:1",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
-	atePort1 = attrs.Attributes{
-		Name:    "ateSrc",
-		IPv4:    "192.0.2.2",
-		IPv6:    "2001:db8::192:0:2:2",
-		MAC:     "02:00:01:01:01:01",
+	dutPort2 = attrs.Attributes{
+		Desc:    "DUT port-2 loop to DUT port-3 (TRANSIT)",
+		IPv4:    "192.0.2.9",
+		IPv6:    "2001:db8::192:0:2:9",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
-	dut1Port2 = attrs.Attributes{
-		Name:    "port2",
-		Desc:    "DUT1 to DUT2",
+	dutPort3 = attrs.Attributes{
+		Desc:    "DUT port-3 loop to DUT port-2 (DEFAULT)",
+		IPv4:    "192.0.2.10",
+		IPv6:    "2001:db8::192:0:2:a",
+		IPv4Len: plenIPv4,
+		IPv6Len: plenIPv6,
+	}
+	dutPort4 = attrs.Attributes{
+		Desc:    "DUT port-4 to ATE port-2 (DEFAULT)",
 		IPv4:    "192.0.2.5",
+		IPv6:    "2001:db8::192:0:2:5",
 		IPv4Len: plenIPv4,
+		IPv6Len: plenIPv6,
 	}
-	dut2Port1 = attrs.Attributes{
-		Name:    "port1",
+	atePort2 = attrs.Attributes{
+		Name:    "ateP2",
+		MAC:     "02:00:02:01:01:01",
 		IPv4:    "192.0.2.6",
+		IPv6:    "2001:db8::192:0:2:6",
 		IPv4Len: plenIPv4,
+		IPv6Len: plenIPv6,
 	}
+
+	// ATE port-1 subnets, routed by DEFAULT through the loop link.
+	ateP1PrefixV4 = "192.0.2.0/30"
+	ateP1PrefixV6 = "2001:db8::192:0:2:0/126"
+
+	otgBGPPeers = []string{otgPeerName(atePort1, "v4"), otgPeerName(atePort1, "v6"), otgPeerName(atePort2, "v4"), otgPeerName(atePort2, "v6")}
 )
 
-// configureDUT configures all the interfaces on the DUT.
-func configureDUT(t *testing.T) {
-	dc := gnmi.OC()
-	dut1 := ondatra.DUT(t, "dut1")
-	dut2 := ondatra.DUT(t, "dut2")
-	dutPortsMap := map[*ondatra.DUTDevice][]*attrs.Attributes{
-		dut1: {&dut1Port1, &dut1Port2},
-		dut2: {&dut2Port1},
+// bgpNeighbor describes one DUT BGP neighbor.
+type bgpNeighbor struct {
+	address   string
+	peerGroup string
+	isV4      bool
+}
+
+var (
+	ibgpV4 = bgpNeighbor{address: atePort1.IPv4, peerGroup: ibgpPG, isV4: true}
+	ibgpV6 = bgpNeighbor{address: atePort1.IPv6, peerGroup: ibgpPG}
+	ebgpV4 = bgpNeighbor{address: atePort2.IPv4, peerGroup: ebgpPG, isV4: true}
+	ebgpV6 = bgpNeighbor{address: atePort2.IPv6, peerGroup: ebgpPG}
+
+	allNeighbors = []bgpNeighbor{ibgpV4, ibgpV6, ebgpV4, ebgpV6}
+	// The neighbor-level override steps use the IPv4 neighbor of each peer group.
+	overrideNeighbors = []bgpNeighbor{ibgpV4, ebgpV4}
+	inheritNeighbors  = []bgpNeighbor{ibgpV6, ebgpV6}
+	peerGroups        = []string{ibgpPG, ebgpPG}
+)
+
+func otgPeerName(a attrs.Attributes, af string) string {
+	return a.Name + "." + af + ".bgp"
+}
+
+func bgpPath(dut *ondatra.DUTDevice) *netinstbgp.NetworkInstance_Protocol_BgpPath {
+	return gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp()
+}
+
+// dutPorts returns the DUT ports with their attributes and network instance.
+func dutPorts(t *testing.T, dut *ondatra.DUTDevice) []struct {
+	port *ondatra.Port
+	a    *attrs.Attributes
+	ni   string
+} {
+	t.Helper()
+	def := deviations.DefaultNetworkInstance(dut)
+	return []struct {
+		port *ondatra.Port
+		a    *attrs.Attributes
+		ni   string
+	}{
+		{dut.Port(t, "port1"), &dutPort1, transitNI},
+		{dut.Port(t, "port2"), &dutPort2, transitNI},
+		{dut.Port(t, "port3"), &dutPort3, def},
+		{dut.Port(t, "port4"), &dutPort4, def},
 	}
-	t.Log("Configure interfaces on dut.")
-	for dutx, dutports := range dutPortsMap {
-		for _, portx := range dutports {
-			port := dutx.Port(t, portx.Name)
-			dutInt := portx.NewOCInterface(port.Name(), dutx)
-			ethPort := dutInt.GetOrCreateEthernet()
-			if deviations.FrBreakoutFix(dut1) && port.PMD() == ondatra.PMD100GBASEFR {
-				ethPort.SetAutoNegotiate(false)
-				ethPort.SetDuplexMode(oc.Ethernet_DuplexMode_FULL)
-				ethPort.SetPortSpeed(oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB)
-			}
-			dutInt.SetType(oc.IETFInterfaces_InterfaceType_ethernetCsmacd)
-			gnmi.Replace(t, dutx, dc.Interface(dutInt.GetName()).Config(), dutInt)
-			if deviations.ExplicitInterfaceInDefaultVRF(dutx) {
-				fptest.AssignToNetworkInstance(t, dutx, dutInt.GetName(), deviations.DefaultNetworkInstance(dutx), 0)
+}
+
+// configureDUTInterfaces configures the four DUT ports, the TRANSIT network
+// instance on port-1 and port-2, and the DEFAULT network instance on port-3
+// and port-4, in one gNMI Set.
+func configureDUTInterfaces(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
+	b := &gnmi.SetBatch{}
+	transit := &oc.NetworkInstance{
+		Name: ygot.String(transitNI),
+		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
+	}
+	for _, p := range dutPorts(t, dut) {
+		if deviations.ExplicitPortSpeed(dut) {
+			fptest.SetPortSpeed(t, p.port)
+		}
+		intf := p.a.NewOCInterface(p.port.Name(), dut)
+		if deviations.FrBreakoutFix(dut) && p.port.PMD() == ondatra.PMD100GBASEFR {
+			e := intf.GetOrCreateEthernet()
+			e.SetAutoNegotiate(false)
+			e.SetDuplexMode(oc.Ethernet_DuplexMode_FULL)
+			e.SetPortSpeed(oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB)
+		}
+		gnmi.BatchReplace(b, gnmi.OC().Interface(p.port.Name()).Config(), intf)
+		if p.ni == transitNI {
+			ni := transit.GetOrCreateInterface(p.port.Name() + ".0")
+			ni.Interface = ygot.String(p.port.Name())
+			ni.Subinterface = ygot.Uint32(0)
+		}
+	}
+	gnmi.BatchReplace(b, gnmi.OC().NetworkInstance(transitNI).Config(), transit)
+	b.Set(t, dut)
+
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		for _, p := range dutPorts(t, dut) {
+			if p.ni != transitNI {
+				fptest.AssignToNetworkInstance(t, dut, p.port.Name(), p.ni, 0)
 			}
 		}
 	}
 }
 
-// bgpCreateNbr creates bgp configuration on dut device.
-func bgpCreateNbr(t *testing.T, dut *ondatra.DUTDevice, authPwd, routerID string, localAs uint32, nbrs []*bgpNeighbor) *oc.NetworkInstance_Protocol {
+// configureStaticRoutes routes the ATE port-1 subnets from DEFAULT to the
+// TRANSIT addresses on DUT port-2, so the packets cross the loop link.
+func configureStaticRoutes(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	static := &oc.NetworkInstance_Protocol{
+		Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+		Name:       ygot.String(deviations.StaticProtocolName(dut)),
+	}
+	for prefix, nh := range map[string]string{ateP1PrefixV4: dutPort2.IPv4, ateP1PrefixV6: dutPort2.IPv6} {
+		static.GetOrCreateStatic(prefix).GetOrCreateNextHop("0").NextHop = oc.UnionString(nh)
+	}
+	gnmi.Update(t, dut, staticPath(dut).Config(), static)
+}
+
+func staticPath(dut *ondatra.DUTDevice) *networkinstance.NetworkInstance_ProtocolPath {
+	return gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+}
+
+// configureRoutingPolicy configures a policy that accepts all routes.
+func configureRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	rp := &oc.RoutingPolicy{}
+	stmt, err := rp.GetOrCreatePolicyDefinition(policyName).AppendNewStatement("accept")
+	if err != nil {
+		t.Fatalf("AppendNewStatement(%q) failed: %v", "accept", err)
+	}
+	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().PolicyDefinition(policyName).Config(), rp.GetPolicyDefinition(policyName))
+}
+
+// bgpConfig returns the DUT BGP configuration: two peer groups that use the
+// accept-all policy, and the four neighbors.
+func bgpConfig(dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	d := &oc.Root{}
-	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	bgp := niProto.GetOrCreateBgp()
+	proto := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName)
+	bgp := proto.GetOrCreateBgp()
 	global := bgp.GetOrCreateGlobal()
-	global.RouterId = ygot.String(routerID)
-	global.As = ygot.Uint32(localAs)
+	global.As = ygot.Uint32(dutAS)
+	global.RouterId = ygot.String(dutPort3.IPv4)
 	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 
-	pg1 := bgp.GetOrCreatePeerGroup(peerGrpName1)
-	pg1.PeerAs = ygot.Uint32(ateAS1)
-	pg1.PeerGroupName = ygot.String(peerGrpName1)
-
-	// Note: we have to define the peer group even if we aren't setting any policy because it's
-	// invalid OC for the neighbor to be part of a peer group that doesn't exist.
-	for _, nbr := range nbrs {
-		nv := bgp.GetOrCreateNeighbor(nbr.neighborip)
-		nv.PeerGroup = ygot.String(nbr.peerGrp)
-		nv.PeerAs = ygot.Uint32(nbr.as)
-		nv.Enabled = ygot.Bool(true)
-		if authPwd != "" {
-			nv.AuthPassword = ygot.String(authPWd)
+	for name, peerAS := range map[string]uint32{ebgpPG: ateEBGPAS, ibgpPG: dutAS} {
+		pg := bgp.GetOrCreatePeerGroup(name)
+		pg.PeerAs = ygot.Uint32(peerAS)
+		if deviations.RoutePolicyUnderAFIUnsupported(dut) {
+			ap := pg.GetOrCreateApplyPolicy()
+			ap.ImportPolicy = []string{policyName}
+			ap.ExportPolicy = []string{policyName}
+			continue
 		}
-		if nbr.isV4 {
-			af4 := nv.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-			af4.Enabled = ygot.Bool(true)
-		} else {
-			af6 := nv.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-			af6.Enabled = ygot.Bool(true)
+		for _, afi := range []oc.E_BgpTypes_AFI_SAFI_TYPE{oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST} {
+			af := pg.GetOrCreateAfiSafi(afi)
+			af.Enabled = ygot.Bool(true)
+			ap := af.GetOrCreateApplyPolicy()
+			ap.ImportPolicy = []string{policyName}
+			ap.ExportPolicy = []string{policyName}
 		}
 	}
-	return niProto
+
+	for _, n := range allNeighbors {
+		nbr := bgp.GetOrCreateNeighbor(n.address)
+		nbr.PeerGroup = ygot.String(n.peerGroup)
+		nbr.Enabled = ygot.Bool(true)
+		afi := oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST
+		if n.isV4 {
+			afi = oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST
+		}
+		nbr.GetOrCreateAfiSafi(afi).Enabled = ygot.Bool(true)
+		if n.peerGroup == ibgpPG {
+			// The iBGP sessions run from the DUT port-3 addresses through TRANSIT.
+			local := dutPort3.IPv6
+			if n.isV4 {
+				local = dutPort3.IPv4
+			}
+			nbr.GetOrCreateTransport().LocalAddress = ygot.String(local)
+		}
+	}
+	return proto
 }
 
-// verifyBGPTelemetry checks that the dut has an established BGP session with reasonable settings.
-func verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbrIP []string) {
+// otgOptions selects the optional parts of the OTG configuration.
+type otgOptions struct {
+	mtu          uint32
+	routes       bool
+	capturePort1 bool
+}
+
+// otgConfig returns the ATE configuration: one device per port with IPv4 and
+// IPv6 BGP peers. The ATE port-1 peers are iBGP peers of the DUT port-3
+// addresses, reached through DUT port-1.
+func otgConfig(t *testing.T, ate *ondatra.ATEDevice, o otgOptions) gosnappi.Config {
 	t.Helper()
-	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	for _, nbr := range nbrIP {
-		nbrPath := statePath.Neighbor(nbr)
-		t.Logf("Waiting for BGP neighbor %s to establish", nbr)
-		status, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), protocolTimeout, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
-			state, ok := val.Val()
-			return ok && state == oc.Bgp_Neighbor_SessionState_ESTABLISHED
+	config := gosnappi.NewConfig()
+	for _, p := range []struct {
+		ate, gw, peer *attrs.Attributes
+		port          string
+		asn           uint32
+		asType4       gosnappi.BgpV4PeerAsTypeEnum
+		asType6       gosnappi.BgpV6PeerAsTypeEnum
+	}{
+		{&atePort1, &dutPort1, &dutPort3, "port1", dutAS, gosnappi.BgpV4PeerAsType.IBGP, gosnappi.BgpV6PeerAsType.IBGP},
+		{&atePort2, &dutPort4, &dutPort4, "port2", ateEBGPAS, gosnappi.BgpV4PeerAsType.EBGP, gosnappi.BgpV6PeerAsType.EBGP},
+	} {
+		port := config.Ports().Add().SetName(ate.Port(t, p.port).ID())
+		dev := config.Devices().Add().SetName(p.ate.Name)
+		eth := dev.Ethernets().Add().SetName(p.ate.Name + ".Eth").SetMac(p.ate.MAC).SetMtu(o.mtu)
+		eth.Connection().SetPortName(port.Name())
+		ip4 := eth.Ipv4Addresses().Add().SetName(p.ate.Name + ".IPv4").SetAddress(p.ate.IPv4).SetGateway(p.gw.IPv4).SetPrefix(uint32(p.ate.IPv4Len))
+		ip6 := eth.Ipv6Addresses().Add().SetName(p.ate.Name + ".IPv6").SetAddress(p.ate.IPv6).SetGateway(p.gw.IPv6).SetPrefix(uint32(p.ate.IPv6Len))
+
+		bgp := dev.Bgp().SetRouterId(p.ate.IPv4)
+		peer4 := bgp.Ipv4Interfaces().Add().SetIpv4Name(ip4.Name()).Peers().Add().SetName(otgPeerName(*p.ate, "v4"))
+		peer4.SetPeerAddress(p.peer.IPv4).SetAsNumber(p.asn).SetAsType(p.asType4)
+		peer6 := bgp.Ipv6Interfaces().Add().SetIpv6Name(ip6.Name()).Peers().Add().SetName(otgPeerName(*p.ate, "v6"))
+		peer6.SetPeerAddress(p.peer.IPv6).SetAsNumber(p.asn).SetAsType(p.asType6)
+
+		if o.routes && p.ate == &atePort2 {
+			r4 := peer4.V4Routes().Add().SetName(v4RouteName).SetNextHopIpv4Address(p.ate.IPv4).
+				SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
+				SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
+			r4.Addresses().Add().SetAddress(v4RouteStart).SetPrefix(v4RouteLen).SetCount(routeCount)
+			r6 := peer6.V6Routes().Add().SetName(v6RouteName).SetNextHopIpv6Address(p.ate.IPv6).
+				SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
+				SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
+			r6.Addresses().Add().SetAddress(v6RouteStart).SetPrefix(v6RouteLen).SetCount(routeCount)
+		}
+	}
+	if o.capturePort1 {
+		config.Captures().Add().SetName("port1").SetPortNames([]string{ate.Port(t, "port1").ID()}).SetFormat(gosnappi.CaptureFormat.PCAP)
+	}
+	return config
+}
+
+// startOTG pushes the configuration, optionally starts the capture, and starts
+// the protocols.
+func startOTG(t *testing.T, ate *ondatra.ATEDevice, o otgOptions) gosnappi.Config {
+	t.Helper()
+	config := otgConfig(t, ate, o)
+	ate.OTG().StopProtocols(t)
+	ate.OTG().PushConfig(t, config)
+	if o.capturePort1 {
+		cs := gosnappi.NewControlState()
+		cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
+		ate.OTG().SetControlState(t, cs)
+	}
+	ate.OTG().StartProtocols(t)
+	return config
+}
+
+// restartOTGBGPPeers restarts the four ATE BGP peers to re-establish the
+// sessions.
+func restartOTGBGPPeers(t *testing.T, o *otg.OTG) {
+	t.Helper()
+	for _, state := range []gosnappi.StateProtocolBgpPeersStateEnum{gosnappi.StateProtocolBgpPeersState.DOWN, gosnappi.StateProtocolBgpPeersState.UP} {
+		cs := gosnappi.NewControlState()
+		cs.Protocol().Bgp().Peers().SetPeerNames(otgBGPPeers).SetState(state)
+		o.SetControlState(t, cs)
+		if state == gosnappi.StateProtocolBgpPeersState.DOWN {
+			for _, p := range otgBGPPeers {
+				gnmi.Watch(t, o, gnmi.OTG().BgpPeer(p).SessionState().State(), protocolTimeout, func(v *ygnmi.Value[otgtelemetry.E_BgpPeer_SessionState]) bool {
+					s, ok := v.Val()
+					return !ok || s != otgtelemetry.BgpPeer_SessionState_ESTABLISHED
+				}).Await(t)
+			}
+		}
+	}
+}
+
+// verifyEstablished verifies that the four sessions are ESTABLISHED on the
+// ATE and on the DUT.
+func verifyEstablished(t *testing.T, dut *ondatra.DUTDevice, o *otg.OTG) {
+	t.Helper()
+	for _, p := range otgBGPPeers {
+		_, ok := gnmi.Watch(t, o, gnmi.OTG().BgpPeer(p).SessionState().State(), protocolTimeout, func(v *ygnmi.Value[otgtelemetry.E_BgpPeer_SessionState]) bool {
+			s, ok := v.Val()
+			return ok && s == otgtelemetry.BgpPeer_SessionState_ESTABLISHED
 		}).Await(t)
 		if !ok {
-			if state, present := gnmi.Lookup(t, dut, nbrPath.SessionState().State()).Val(); present {
-				t.Logf("BGP neighbor %s final session state: %s", nbr, state)
-			} else {
-				t.Logf("BGP neighbor %s session state is absent", nbr)
-			}
-			t.Fatalf("BGP neighbor %s did not reach ESTABLISHED within %s", nbr, protocolTimeout)
+			t.Fatalf("OTG BGP peer %s did not reach ESTABLISHED within %v", p, protocolTimeout)
 		}
-		state, _ := status.Val()
-		if want := oc.Bgp_Neighbor_SessionState_ESTABLISHED; state != want {
-			t.Errorf("BGP peer %s status got %d, want %d", nbr, state, want)
+	}
+	for _, n := range allNeighbors {
+		path := bgpPath(dut).Neighbor(n.address).SessionState().State()
+		_, ok := gnmi.Watch(t, dut, path, protocolTimeout, func(v *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+			s, ok := v.Val()
+			return ok && s == oc.Bgp_Neighbor_SessionState_ESTABLISHED
+		}).Await(t)
+		if !ok {
+			t.Fatalf("DUT BGP neighbor %s did not reach ESTABLISHED within %v", n.address, protocolTimeout)
 		}
-		t.Logf("BGP adjacency for %s: %s", nbr, state)
 	}
 }
 
-// waitForOTGISISPrefix waits until the ATE has learned the route needed to
-// reach the multihop BGP peer. Starting IS-IS and BGP together can otherwise
-// leave BGP waiting for its connect-retry timer after its first attempt races
-// route installation.
-func waitForOTGISISPrefix(t *testing.T, otg *otg.OTG, address string, prefixLen uint8) {
+// reportSessionReset logs whether a configuration change reset the sessions.
+// It is reported only and is not a pass/fail criterion.
+func reportSessionReset(t *testing.T, dut *ondatra.DUTDevice, before map[string]uint64) {
 	t.Helper()
-	_, network, err := net.ParseCIDR(fmt.Sprintf("%s/%d", address, prefixLen))
+	deadline := time.Now().Add(resetWindow)
+	reset := map[string]bool{}
+	for time.Now().Before(deadline) {
+		for _, n := range allNeighbors {
+			nbr := bgpPath(dut).Neighbor(n.address)
+			transitions, _ := gnmi.Lookup(t, dut, nbr.EstablishedTransitions().State()).Val()
+			state, ok := gnmi.Lookup(t, dut, nbr.SessionState().State()).Val()
+			if transitions > before[n.address] || !ok || state != oc.Bgp_Neighbor_SessionState_ESTABLISHED {
+				reset[n.address] = true
+			}
+		}
+		time.Sleep(5 * time.Second)
+	}
+	for _, n := range allNeighbors {
+		t.Logf("Neighbor %s: applying the configuration reset the session: %t", n.address, reset[n.address])
+	}
+}
+
+func establishedTransitions(t *testing.T, dut *ondatra.DUTDevice) map[string]uint64 {
+	t.Helper()
+	m := map[string]uint64{}
+	for _, n := range allNeighbors {
+		m[n.address], _ = gnmi.Lookup(t, dut, bgpPath(dut).Neighbor(n.address).EstablishedTransitions().State()).Val()
+	}
+	return m
+}
+
+// setPortMTU sets the MTU of a DUT port, or deletes it when mtu is 0.
+func setPortMTU(t *testing.T, b *gnmi.SetBatch, dut *ondatra.DUTDevice, port *ondatra.Port, mtu uint16) {
+	t.Helper()
+	intf := gnmi.OC().Interface(port.Name())
+	if deviations.OmitL2MTU(dut) {
+		setL3MTU(b, port, mtu)
+		return
+	}
+	if mtu == 0 {
+		gnmi.BatchDelete(b, intf.Mtu().Config())
+		return
+	}
+	gnmi.BatchReplace(b, intf.Mtu().Config(), mtu)
+}
+
+// setL3MTU sets the IPv4 and IPv6 MTU of a DUT port, or deletes them when mtu
+// is 0.
+func setL3MTU(b *gnmi.SetBatch, port *ondatra.Port, mtu uint16) {
+	sub := gnmi.OC().Interface(port.Name()).Subinterface(0)
+	if mtu == 0 {
+		gnmi.BatchDelete(b, sub.Ipv4().Mtu().Config())
+		gnmi.BatchDelete(b, sub.Ipv6().Mtu().Config())
+		return
+	}
+	gnmi.BatchReplace(b, sub.Ipv4().Mtu().Config(), mtu)
+	gnmi.BatchReplace(b, sub.Ipv6().Mtu().Config(), uint32(mtu))
+}
+
+// portMTU returns the MTU of a DUT port that a TCP segment must fit in.
+func portMTU(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.Port) uint16 {
+	t.Helper()
+	if deviations.OmitL2MTU(dut) {
+		if v, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(port.Name()).Subinterface(0).Ipv4().Mtu().State()).Val(); ok {
+			return v
+		}
+		return mtuDefault
+	}
+	if v, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(port.Name()).Mtu().State()).Val(); ok {
+		return v
+	}
+	return mtuDefault
+}
+
+func verifyNeighborMSS(t *testing.T, dut *ondatra.DUTDevice, nbrs []bgpNeighbor, want uint16) {
+	t.Helper()
+	for _, n := range nbrs {
+		if got := gnmi.Get(t, dut, bgpPath(dut).Neighbor(n.address).Transport().TcpMss().State()); got != want {
+			t.Errorf("Neighbor %s transport/state/tcp-mss = %d, want %d", n.address, got, want)
+		}
+	}
+}
+
+func verifyPeerGroupMSS(t *testing.T, dut *ondatra.DUTDevice, want uint16) {
+	t.Helper()
+	for _, pg := range peerGroups {
+		if got := gnmi.Get(t, dut, bgpPath(dut).PeerGroup(pg).Transport().TcpMss().State()); got != want {
+			t.Errorf("Peer group %s transport/state/tcp-mss = %d, want %d", pg, got, want)
+		}
+	}
+}
+
+func verifyNeighborPMTUD(t *testing.T, dut *ondatra.DUTDevice, nbrs []bgpNeighbor, want bool) {
+	t.Helper()
+	for _, n := range nbrs {
+		if got := gnmi.Get(t, dut, bgpPath(dut).Neighbor(n.address).Transport().MtuDiscovery().State()); got != want {
+			t.Errorf("Neighbor %s transport/state/mtu-discovery = %t, want %t", n.address, got, want)
+		}
+	}
+}
+
+func verifyPeerGroupPMTUD(t *testing.T, dut *ondatra.DUTDevice, want bool) {
+	t.Helper()
+	for _, pg := range peerGroups {
+		if got := gnmi.Get(t, dut, bgpPath(dut).PeerGroup(pg).Transport().MtuDiscovery().State()); got != want {
+			t.Errorf("Peer group %s transport/state/mtu-discovery = %t, want %t", pg, got, want)
+		}
+	}
+}
+
+// verifyReceivedPrefixes waits until the ATE port-1 iBGP peers have received
+// all the prefixes advertised by the ATE port-2 eBGP peers.
+func verifyReceivedPrefixes(t *testing.T, o *otg.OTG) {
+	t.Helper()
+	peer := gnmi.OTG().BgpPeer
+	counts := func() (int, int) {
+		v4 := gnmi.LookupAll(t, o, peer(otgPeerName(atePort1, "v4")).UnicastIpv4PrefixAny().State())
+		v6 := gnmi.LookupAll(t, o, peer(otgPeerName(atePort1, "v6")).UnicastIpv6PrefixAny().State())
+		return len(v4), len(v6)
+	}
+	deadline := time.Now().Add(protocolTimeout)
+	for {
+		v4, v6 := counts()
+		if v4 >= routeCount && v6 >= routeCount {
+			t.Logf("ATE port-1 iBGP peers received %d IPv4 and %d IPv6 prefixes", v4, v6)
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Errorf("ATE port-1 iBGP peers received %d IPv4 and %d IPv6 prefixes within %v, want %d of each", v4, v6, protocolTimeout, routeCount)
+			return
+		}
+		time.Sleep(10 * time.Second)
+	}
+}
+
+// captureStats are the DUT packets seen in the ATE port-1 capture.
+type captureStats struct {
+	maxV4, maxV6 int
+	v4Fragments  int
+}
+
+// parseCapture reads a PCAP capture and returns the sizes of the IPv4 and IPv6
+// packets sent by the DUT port-3 addresses, and the number of IPv4 fragments.
+func parseCapture(pcap []byte) (captureStats, error) {
+	var s captureStats
+	r, err := pcapgo.NewReader(bytes.NewReader(pcap))
 	if err != nil {
-		t.Fatalf("Invalid IPv4 prefix %s/%d: %v", address, prefixLen, err)
+		return s, err
 	}
-	wantPrefix := network.IP.String()
-	prefixPath := gnmi.OTG().IsisRouter(otgISISName).LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().Prefix(wantPrefix)
-	_, ok := gnmi.WatchAll(t, otg, prefixPath.State(), protocolTimeout, func(v *ygnmi.Value[*otgtelemetry.IsisRouter_LinkStateDatabase_Lsps_Tlvs_ExtendedIpv4Reachability_Prefix]) bool {
-		prefix, present := v.Val()
-		return present && prefix.GetPrefix() == wantPrefix
-	}).Await(t)
-	if !ok {
-		t.Fatalf("ATE did not learn IS-IS prefix %s/%d within %s", wantPrefix, prefixLen, protocolTimeout)
+	for {
+		data, _, err := r.ReadPacketData()
+		if errors.Is(err, io.EOF) {
+			return s, nil
+		}
+		if err != nil {
+			return s, err
+		}
+		pkt := gopacket.NewPacket(data, r.LinkType(), gopacket.Lazy)
+		if l, ok := pkt.Layer(layers.LayerTypeIPv4).(*layers.IPv4); ok && l.SrcIP.String() == dutPort3.IPv4 {
+			s.maxV4 = max(s.maxV4, int(l.Length))
+			if l.Flags&layers.IPv4MoreFragments != 0 || l.FragOffset != 0 {
+				s.v4Fragments++
+			}
+		}
+		if l, ok := pkt.Layer(layers.LayerTypeIPv6).(*layers.IPv6); ok && l.SrcIP.Equal(netIP(dutPort3.IPv6)) {
+			s.maxV6 = max(s.maxV6, int(l.Length)+40)
+		}
 	}
-	t.Logf("ATE learned IS-IS prefix %s/%d", wantPrefix, prefixLen)
 }
 
-// waitForOTGIPv4Neighbor verifies that the ATE has resolved the directly
-// connected gateway used for the multihop session.
-func waitForOTGIPv4Neighbor(t *testing.T, otg *otg.OTG, interfaceName, neighbor string) {
-	t.Helper()
-	neighborPath := gnmi.OTG().Interface(interfaceName).Ipv4Neighbor(neighbor).LinkLayerAddress().State()
-	_, ok := gnmi.Watch(t, otg, neighborPath, protocolTimeout, func(v *ygnmi.Value[string]) bool {
-		address, present := v.Val()
-		return present && address != ""
-	}).Await(t)
-	if !ok {
-		t.Fatalf("ATE did not resolve IPv4 gateway %s on %s within %s", neighbor, interfaceName, protocolTimeout)
-	}
-	t.Logf("ATE resolved IPv4 gateway %s on %s", neighbor, interfaceName)
+func netIP(s string) net.IP {
+	return net.ParseIP(s)
 }
 
-func startOTGBGPPeer(t *testing.T, otg *otg.OTG, peerName string) {
-	t.Helper()
-	startBGP := gosnappi.NewControlState()
-	startBGP.Protocol().Bgp().Peers().SetPeerNames([]string{peerName}).SetState(gosnappi.StateProtocolBgpPeersState.UP)
-	otg.SetControlState(t, startBGP)
+func bgpProtoPath(dut *ondatra.DUTDevice) *networkinstance.NetworkInstance_ProtocolPath {
+	return gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName)
 }
 
-// verifyOTGBGPEstablished verifies the session from the OTG side before the DUT
-// check. A failed setup therefore reports which endpoint remained down.
-func verifyOTGBGPEstablished(t *testing.T, otg *otg.OTG, dut *ondatra.DUTDevice, peerName, neighbor string) {
+// setNeighborMSS sets transport/config/tcp-mss on the neighbors, or deletes it
+// when mss is 0.
+func setNeighborMSS(t *testing.T, dut *ondatra.DUTDevice, nbrs []bgpNeighbor, mss uint16) {
 	t.Helper()
-	peerPath := gnmi.OTG().BgpPeer(peerName).SessionState().State()
-	_, ok := gnmi.Watch(t, otg, peerPath, protocolTimeout, func(v *ygnmi.Value[otgtelemetry.E_BgpPeer_SessionState]) bool {
-		state, present := v.Val()
-		return present && state == otgtelemetry.BgpPeer_SessionState_ESTABLISHED
-	}).Await(t)
-	if !ok {
-		if state, present := gnmi.Lookup(t, otg, peerPath).Val(); present {
-			t.Logf("OTG BGP peer %s final session state: %s", peerName, state)
+	b := &gnmi.SetBatch{}
+	for _, n := range nbrs {
+		p := bgpPath(dut).Neighbor(n.address).Transport().TcpMss().Config()
+		if mss == 0 {
+			gnmi.BatchDelete(b, p)
 		} else {
-			t.Logf("OTG BGP peer %s session state is absent", peerName)
+			gnmi.BatchReplace(b, p, mss)
 		}
-		dutPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(neighbor).SessionState().State()
-		if state, present := gnmi.Lookup(t, dut, dutPath).Val(); present {
-			t.Logf("DUT BGP neighbor %s final session state: %s", neighbor, state)
-		} else {
-			t.Logf("DUT BGP neighbor %s session state is absent", neighbor)
-		}
-		t.Fatalf("OTG BGP peer %s did not reach ESTABLISHED within %s", peerName, protocolTimeout)
 	}
-	verifyBGPTelemetry(t, dut, []string{neighbor})
+	b.Set(t, dut)
 }
 
-// restartOTGBGPPeer restarts only the peer under test. Keeping IS-IS running
-// preserves the route required by the multihop BGP session.
-func restartOTGBGPPeer(t *testing.T, otg *otg.OTG, peerName string) {
+// setPeerGroupMSS sets transport/config/tcp-mss on both peer groups, or
+// deletes it when mss is 0.
+func setPeerGroupMSS(t *testing.T, dut *ondatra.DUTDevice, mss uint16) {
 	t.Helper()
-	t.Logf("Restarting OTG BGP peer %s", peerName)
-	stopBGP := gosnappi.NewControlState()
-	stopBGP.Protocol().Bgp().Peers().SetPeerNames([]string{peerName}).SetState(gosnappi.StateProtocolBgpPeersState.DOWN)
-	otg.SetControlState(t, stopBGP)
-
-	peerPath := gnmi.OTG().BgpPeer(peerName).SessionState().State()
-	_, ok := gnmi.Watch(t, otg, peerPath, protocolTimeout, func(val *ygnmi.Value[otgtelemetry.E_BgpPeer_SessionState]) bool {
-		state, present := val.Val()
-		return !present || state == otgtelemetry.BgpPeer_SessionState_IDLE
-	}).Await(t)
-	if !ok {
-		if state, present := gnmi.Lookup(t, otg, peerPath).Val(); present {
-			t.Logf("OTG BGP peer %s final session state after DOWN: %s", peerName, state)
-		}
-		t.Fatalf("OTG BGP peer %s did not reach IDLE within %s", peerName, protocolTimeout)
-	}
-
-	startOTGBGPPeer(t, otg, peerName)
-}
-
-func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName []string, dutAreaAddress, dutSysID string) {
-	d := &oc.Root{}
-	netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	prot := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
-	prot.Enabled = ygot.Bool(true)
-	isis := prot.GetOrCreateIsis()
-	globalISIS := isis.GetOrCreateGlobal()
-	if deviations.ISISInstanceEnabledRequired(dut) {
-		globalISIS.Instance = ygot.String(isisInstance)
-	}
-	globalISIS.Net = []string{fmt.Sprintf("%v.%v.00", dutAreaAddress, dutSysID)}
-	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	globalISIS.LevelCapability = oc.Isis_LevelType_LEVEL_2
-	isisLevel2 := isis.GetOrCreateLevel(2)
-	isisLevel2.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
-	if deviations.ISISLevelEnabled(dut) {
-		isisLevel2.Enabled = ygot.Bool(true)
-	}
-
-	for _, intf := range intfName {
-		if deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut) {
-			intf += ".0"
-		}
-		isisIntf := isis.GetOrCreateInterface(intf)
-		isisIntf.Enabled = ygot.Bool(true)
-		isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
-		// Configure ISIS level at global mode if true else at interface mode
-		if deviations.ISISInterfaceLevel1DisableRequired(dut) {
-			isisIntf.GetOrCreateLevel(1).Enabled = ygot.Bool(false)
+	b := &gnmi.SetBatch{}
+	for _, pg := range peerGroups {
+		p := bgpPath(dut).PeerGroup(pg).Transport().TcpMss().Config()
+		if mss == 0 {
+			gnmi.BatchDelete(b, p)
 		} else {
-			isisIntf.GetOrCreateLevel(2).Enabled = ygot.Bool(true)
+			gnmi.BatchReplace(b, p, mss)
 		}
-		isisIntfLevel := isisIntf.GetOrCreateLevel(2)
-		isisIntfLevel.Enabled = ygot.Bool(true)
-		if deviations.MissingIsisInterfaceAfiSafiEnable(dut) {
-			isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = nil
-			isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = nil
-		}
-		if !deviations.ISISInterfaceAfiUnsupported(dut) {
-			isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-			isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-		}
-		if deviations.ISISInterfaceAfiUnsupported(dut) {
-			isisIntfLevel.Af = nil
-		}
-		isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric = ygot.Uint32(200)
-		isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric = ygot.Uint32(200)
 	}
-	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Config(), prot)
+	b.Set(t, dut)
 }
 
-func configureOTG(t *testing.T, otg *otg.OTG, mtu uint32) gosnappi.Config {
-	config := gosnappi.NewConfig()
-	port1 := config.Ports().Add().SetName("port1")
-
-	iDut1Dev := config.Devices().Add().SetName(atePort1.Name)
-	iDut1Eth := iDut1Dev.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetMac(atePort1.MAC).SetMtu(mtu)
-	iDut1Eth.Connection().SetPortName(port1.Name())
-	iDut1Ipv4 := iDut1Eth.Ipv4Addresses().Add().SetName(atePort1.Name + ".IPv4")
-	iDut1Ipv4.SetAddress(atePort1.IPv4).SetGateway(dut1Port1.IPv4).SetPrefix(uint32(atePort1.IPv4Len))
-	iDut1Ipv6 := iDut1Eth.Ipv6Addresses().Add().SetName(atePort1.Name + ".IPv6")
-	iDut1Ipv6.SetAddress(atePort1.IPv6).SetGateway(dut1Port1.IPv6).SetPrefix(uint32(atePort1.IPv6Len))
-
-	isisDut1 := iDut1Dev.Isis().SetName(otgISISName).SetSystemId(ateSysID)
-
-	isisDut1.Basic().SetIpv4TeRouterId(atePort1.IPv4).SetHostname(isisDut1.Name()).SetLearnedLspFilter(true)
-	isisDut1.Interfaces().Add().SetEthName(iDut1Dev.Ethernets().Items()[0].Name()).
-		SetName("devIsisInt").
-		SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2).
-		SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT)
-
-	iDut1Bgp := iDut1Dev.Bgp().SetRouterId(iDut1Ipv4.Address())
-	iDut1Bgp4Peer := iDut1Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut1Ipv4.Name()).Peers().Add().SetName(atePort1.Name + ".BGP4.peer")
-	iDut1Bgp4Peer.SetPeerAddress(dut1Port1.IPv4).SetAsNumber(ateAS1).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
-	iDut1Bgp6 := iDut1Dev.Bgp().SetRouterId(iDut1Ipv4.Address())
-	iDut1Bgp6Peer := iDut1Bgp6.Ipv6Interfaces().Add().SetIpv6Name(iDut1Ipv6.Name()).Peers().Add().SetName(atePort1.Name + ".BGP6.peer")
-	iDut1Bgp6Peer.SetPeerAddress(dut1Port1.IPv6).SetAsNumber(ateAS1).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
-
-	t.Logf("Pushing config to OTG and starting protocols...")
-
-	otg.PushConfig(t, config)
-	otg.StartProtocols(t)
-	return config
+// setNeighborPMTUD sets transport/config/mtu-discovery on the neighbors, or
+// deletes it when v is nil.
+func setNeighborPMTUD(t *testing.T, dut *ondatra.DUTDevice, nbrs []bgpNeighbor, v *bool) {
+	t.Helper()
+	b := &gnmi.SetBatch{}
+	for _, n := range nbrs {
+		p := bgpPath(dut).Neighbor(n.address).Transport().MtuDiscovery().Config()
+		if v == nil {
+			gnmi.BatchDelete(b, p)
+		} else {
+			gnmi.BatchReplace(b, p, *v)
+		}
+	}
+	b.Set(t, dut)
 }
 
-func configOTG(t *testing.T, otg *otg.OTG, mtu uint32) gosnappi.Config {
-	config := gosnappi.NewConfig()
-	config.Options().ProtocolOptions().SetAutoStartAll(false)
-	port1 := config.Ports().Add().SetName("port1")
-
-	iDut1Dev := config.Devices().Add().SetName(atePort1.Name)
-	iDut1Eth := iDut1Dev.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetMac(atePort1.MAC).SetMtu(mtu)
-	iDut1Eth.Connection().SetPortName(port1.Name())
-	iDut1Ipv4 := iDut1Eth.Ipv4Addresses().Add().SetName(atePort1.Name + ".IPv4")
-	iDut1Ipv4.SetAddress(atePort1.IPv4).SetGateway(dut1Port1.IPv4).SetPrefix(uint32(atePort1.IPv4Len))
-	iDut1Ipv6 := iDut1Eth.Ipv6Addresses().Add().SetName(atePort1.Name + ".IPv6")
-	iDut1Ipv6.SetAddress(atePort1.IPv6).SetGateway(dut1Port1.IPv6).SetPrefix(uint32(atePort1.IPv6Len))
-
-	isisDut1 := iDut1Dev.Isis().SetName(otgISISName).SetSystemId(ateSysID)
-
-	isisDut1.Basic().SetIpv4TeRouterId(atePort1.IPv4).SetHostname(isisDut1.Name()).SetLearnedLspFilter(true)
-	isisDut1.Interfaces().Add().SetEthName(iDut1Dev.Ethernets().Items()[0].Name()).
-		SetName("devIsisInt").
-		SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2).
-		SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT)
-
-	iDut1Bgp := iDut1Dev.Bgp().SetRouterId(iDut1Ipv4.Address())
-	iDut1Bgp4Peer := iDut1Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut1Ipv4.Name()).Peers().Add().SetName(atePort1.Name + ".BGP4.peer")
-	iDut1Bgp4Peer.SetPeerAddress(dut2Port1.IPv4).SetAsNumber(ateAS1).SetAsType(gosnappi.BgpV4PeerAsType.IBGP).
-		Advanced().SetMd5Key(authPWd)
-
-	t.Log("Pushing staged multihop config to OTG")
-
-	otg.PushConfig(t, config)
-
-	return config
+// setPeerGroupPMTUD sets transport/config/mtu-discovery on both peer groups,
+// or deletes it when v is nil.
+func setPeerGroupPMTUD(t *testing.T, dut *ondatra.DUTDevice, v *bool) {
+	t.Helper()
+	b := &gnmi.SetBatch{}
+	for _, pg := range peerGroups {
+		p := bgpPath(dut).PeerGroup(pg).Transport().MtuDiscovery().Config()
+		if v == nil {
+			gnmi.BatchDelete(b, p)
+		} else {
+			gnmi.BatchReplace(b, p, *v)
+		}
+	}
+	b.Set(t, dut)
 }
 
-func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, nexthop string) {
-	ni := oc.NetworkInstance{Name: ygot.String(deviations.DefaultNetworkInstance(dut))}
-	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-	sr := static.GetOrCreateStatic(prefix)
-	nh := sr.GetOrCreateNextHop("0")
-	nh.NextHop = oc.UnionString(nexthop)
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), static)
+// setAllPortsMTU sets the MTU of the four DUT ports, or deletes it when mtu is
+// 0.
+func setAllPortsMTU(t *testing.T, dut *ondatra.DUTDevice, mtu uint16) {
+	t.Helper()
+	b := &gnmi.SetBatch{}
+	for _, p := range dutPorts(t, dut) {
+		setPortMTU(t, b, dut, p.port, mtu)
+	}
+	b.Set(t, dut)
 }
 
-func configureIntfMTU(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.Port, mtu uint16) {
-	switch {
-	case deviations.OmitL2MTU(dut):
-		b := &gnmi.SetBatch{}
-		gnmi.BatchReplace(b, gnmi.OC().Interface(port.Name()).Subinterface(0).Ipv4().Mtu().Config(), mtu)
-		gnmi.BatchReplace(b, gnmi.OC().Interface(port.Name()).Subinterface(0).Ipv6().Mtu().Config(), uint32(mtu))
-		b.Set(t, dut)
-	default:
-		gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Mtu().Config(), mtu)
+// verifyDefaultMSS checks an MSS that the DUT reports before one is
+// configured: at least the TCP default MSS, and at most what fits in the MTU
+// of the DUT port towards the neighbor.
+func verifyDefaultMSS(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	port3, port4 := dut.Port(t, "port3"), dut.Port(t, "port4")
+	for _, n := range allNeighbors {
+		got, ok := gnmi.Lookup(t, dut, bgpPath(dut).Neighbor(n.address).Transport().TcpMss().State()).Val()
+		if !ok || got == 0 {
+			t.Logf("Neighbor %s does not report transport/state/tcp-mss before an MSS is configured", n.address)
+			continue
+		}
+		port := port4
+		if n.peerGroup == ibgpPG {
+			port = port3
+		}
+		minMSS, overhead := mssMinV6, uint16(tcpIPv6Overhead)
+		if n.isV4 {
+			minMSS, overhead = mssMinV4, uint16(tcpIPv4Overhead)
+		}
+		maxMSS := portMTU(t, dut, port) - overhead
+		if got < minMSS || got > maxMSS {
+			t.Errorf("Neighbor %s transport/state/tcp-mss before configuration = %d, want between %d and %d", n.address, got, minMSS, maxMSS)
+		}
 	}
 }
 
-func deleteIntfMTU(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.Port) {
-	switch {
-	case deviations.OmitL2MTU(dut):
-		b := &gnmi.SetBatch{}
-		gnmi.BatchDelete(b, gnmi.OC().Interface(port.Name()).Subinterface(0).Ipv4().Mtu().Config())
-		gnmi.BatchDelete(b, gnmi.OC().Interface(port.Name()).Subinterface(0).Ipv6().Mtu().Config())
-		b.Set(t, dut)
-	default:
-		gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Mtu().Config())
-	}
-}
-
-func intfMTU(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.Port) uint16 {
-	switch {
-	case deviations.OmitL2MTU(dut):
-		return gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).Subinterface(0).Ipv4().Mtu().State())
-	default:
-		return gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).Mtu().State())
-	}
-}
-
-type bgpNeighbor struct {
-	as         uint32
-	neighborip string
-	isV4       bool
-	peerGrp    string
-}
-
-// TestTcpMssPathMtu is to Validate TCP MSS for BGP v4/v6 sessions.
-func TestTcpMssPathMtu(t *testing.T) {
-	dut1 := ondatra.DUT(t, "dut1")
-	dut2 := ondatra.DUT(t, "dut2")
+// TestTCPMSSPathMTU validates the BGP TCP MSS and PMTUD configuration and
+// state, and that PMTUD lowers the segment size through the TRANSIT router.
+func TestTCPMSSPathMTU(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
+	o := ate.OTG()
 
-	t.Run("Configure DUT1 and DUT2 interfaces", func(t *testing.T) {
-		configureDUT(t)
-	})
-
-	t.Run("Configure DEFAULT network instance on both DUT1 and DUT2", func(t *testing.T) {
-		fptest.ConfigureDefaultNetworkInstance(t, dut1)
-		fptest.ConfigureDefaultNetworkInstance(t, dut2)
-	})
-
-	dut1ConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut1)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	dut2ConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut2)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-
-	t.Run("Configure BGP Neighbors DUT1", func(t *testing.T) {
-		t.Logf("Start DUT1 BGP Config.")
-		gnmi.Delete(t, dut1, dut1ConfPath.Config())
-		dut1Nbr1v4 := &bgpNeighbor{as: ateAS1, neighborip: atePort1.IPv4, isV4: true, peerGrp: peerGrpName1}
-		dut1Nbr1v6 := &bgpNeighbor{as: ateAS1, neighborip: atePort1.IPv6, isV4: false, peerGrp: peerGrpName1}
-		dut1Nbrs := []*bgpNeighbor{dut1Nbr1v4, dut1Nbr1v6}
-		dut1Conf := bgpCreateNbr(t, dut1, "", dut1Port2.IPv4, dut1AS, dut1Nbrs)
-		gnmi.Replace(t, dut1, dut1ConfPath.Config(), dut1Conf)
-		fptest.LogQuery(t, "DUT1 BGP Config", dut1ConfPath.Config(), gnmi.Get(t, dut1, dut1ConfPath.Config()))
-	})
-
-	otg := ate.OTG()
-	var otgConfig gosnappi.Config
-	otgBGPv4PeerName := atePort1.Name + ".BGP4.peer"
-
-	t.Run("Configure OTG", func(t *testing.T) {
-		otgConfig = configureOTG(t, otg, uint32(mtu5040B))
-	})
-
-	var dut1NbrIP = []string{atePort1.IPv4, atePort1.IPv6}
-	if !t.Run("Verify BGP telemetry", func(t *testing.T) {
-		verifyBGPTelemetry(t, dut1, dut1NbrIP)
-	}) {
-		return
-	}
-
-	if !deviations.SkipTCPNegotiatedMSSCheck(dut1) {
-		t.Run("Verify that the default TCP MSS value is set below the default interface MTU value.", func(t *testing.T) {
-			// Fetch interface MTU value to compare negotiated tcp mss.
-			gotIntfMTU := intfMTU(t, dut1, dut1.Port(t, "port1"))
-			if gotTCPMss := gnmi.Get(t, dut1, dut1ConfPath.Bgp().Neighbor(atePort1.IPv4).Transport().TcpMss().State()); gotTCPMss > gotIntfMTU || gotTCPMss == 0 {
-				t.Errorf("Obtained TCP MSS for BGP v4 on dut1 is not as expected, got is %v, want non zero and less than %v", gotTCPMss, mtu4096B)
-			}
-			if gotTCP6Mss := gnmi.Get(t, dut1, dut1ConfPath.Bgp().Neighbor(atePort1.IPv6).Transport().TcpMss().State()); gotTCP6Mss > gotIntfMTU || gotTCP6Mss == 0 {
-				t.Errorf("Obtained TCP MSS for BGP v6 peer on dut1 is not as expected, got is %v, want non zero and less than %v", gotTCP6Mss, mtu4096B)
-			}
-		})
-	}
-	t.Run("Change the Interface MTU to the DUT1 port as 5040.", func(t *testing.T) {
-		t.Logf("Configure DUT1 interface MTU to %v", mtu5040B)
-		configureIntfMTU(t, dut1, dut1.Port(t, "port1"), mtu5040B)
-
-		t.Logf("Configure DUT1 BGP TCP-MSS value to %v", mtu4096B)
-		gnmi.Replace(t, dut1, dut1ConfPath.Bgp().Neighbor(atePort1.IPv4).Transport().TcpMss().Config(), mtu4096B)
-		gnmi.Replace(t, dut1, dut1ConfPath.Bgp().Neighbor(atePort1.IPv6).Transport().TcpMss().Config(), mtu4096B)
-	})
-
-	t.Run("Re-establish the BGP sessions by tcp reset.", func(t *testing.T) {
-		otg.StopProtocols(t)
-		time.Sleep(20 * time.Second)
-		otg.PushConfig(t, otgConfig)
-		otg.StartProtocols(t)
-	})
-
-	if !t.Run("Verify BGP telemetry after reset.", func(t *testing.T) {
-		verifyBGPTelemetry(t, dut1, dut1NbrIP)
-	}) {
-		return
-	}
-
-	t.Run("Verify BGP TCP MSS value", func(t *testing.T) {
-		t.Logf("Verify DUT1 BGP TCP-MSS value is to %v for both BGP v4 and v6 sessions.", mtu4096B)
-		if gotTCPMss := gnmi.Get(t, dut1, dut1ConfPath.Bgp().Neighbor(atePort1.IPv4).Transport().TcpMss().State()); gotTCPMss != mtu4096B {
-			t.Errorf("Obtained TCP MSS for BGP v4 on dut1 is not as expected, got is %v, want %v", gotTCPMss, mtu4096B)
-		}
-		if gotTCP6Mss := gnmi.Get(t, dut1, dut1ConfPath.Bgp().Neighbor(atePort1.IPv6).Transport().TcpMss().State()); gotTCP6Mss != mtu4096B {
-			t.Errorf("Obtained TCP MSS for BGP v6 peer on dut1 is not as expected, got is %v, want %v", gotTCP6Mss, mtu4096B)
-		}
-	})
-
-	t.Run("Remove configured BGP TCP MSS for v4 and v6 neighbors on DUT1", func(t *testing.T) {
-		gnmi.Delete(t, dut1, dut1ConfPath.Config())
-		deleteIntfMTU(t, dut1, dut1.Port(t, "port1"))
-	})
-
-	t.Run("Configure ISIS Neighbors on DUT1 and ATE", func(t *testing.T) {
-		dut1PortNames := []string{dut1.Port(t, "port1").Name(), dut1.Port(t, "port2").Name()}
-		configureISIS(t, dut1, dut1PortNames, dut1AreaAddress, dut1SysID)
-	})
-
-	ateIPAddr := fmt.Sprintf("%s/%d", atePort1.IPv4, uint32(32))
 	t.Cleanup(func() {
-		gnmi.Delete(t, dut2, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut2)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut2)).Static(ateIPAddr).Config())
-	})
-	if !t.Run("Configure static route on DUT2 to ATE to establish multihop iBGP session", func(t *testing.T) {
-		configStaticRoute(t, dut2, ateIPAddr, dut1Port2.IPv4)
-		// Some platforms do not expose static or connected routes through OC AFT
-		// telemetry. The multihop BGP session below is the end-to-end proof that
-		// this route is usable.
-	}) {
-		return
-	}
-
-	t.Run("Establish iBGP session with MD5 enabled from ATE port-1 to DUT-2 - multihop iBGP", func(t *testing.T) {
-		t.Logf("Start DUT2 - ATE Port1 iBGP Config.")
-		gnmi.Delete(t, dut2, dut2ConfPath.Config())
-		dut2Nbr1v4 := &bgpNeighbor{as: ateAS1, neighborip: atePort1.IPv4, isV4: true, peerGrp: peerGrpName1}
-		dut2Nbrs := []*bgpNeighbor{dut2Nbr1v4}
-		dut2Conf := bgpCreateNbr(t, dut2, authPWd, dut2Port1.IPv4, dut2AS, dut2Nbrs)
-		gnmi.Replace(t, dut2, dut2ConfPath.Config(), dut2Conf)
-		t.Logf("Configured DUT2 BGP neighbor %s with TCP authentication", atePort1.IPv4)
+		o.StopProtocols(t)
+		gnmi.Delete(t, dut, bgpProtoPath(dut).Config())
+		gnmi.Delete(t, dut, gnmi.OC().RoutingPolicy().PolicyDefinition(policyName).Config())
+		b := &gnmi.SetBatch{}
+		gnmi.BatchDelete(b, staticPath(dut).Static(ateP1PrefixV4).Config())
+		gnmi.BatchDelete(b, staticPath(dut).Static(ateP1PrefixV6).Config())
+		gnmi.BatchDelete(b, gnmi.OC().NetworkInstance(transitNI).Config())
+		b.Set(t, dut)
 	})
 
-	if !t.Run("Configure iBGP session ATE Port1 - DUT2", func(t *testing.T) {
-		otg.StopProtocols(t)
-		configOTG(t, otg, uint32(mtu5040B))
-		// Starting only the ISIS router does not bring up the base IPv4
-		// neighbor stack when auto-start is disabled. Start the full stack,
-		// then restart BGP below after its recursive route is usable.
-		otg.StartProtocols(t)
-		waitForOTGIPv4Neighbor(t, otg, atePort1.Name+".Eth", dut1Port1.IPv4)
-		waitForOTGISISPrefix(t, otg, dut1Port2.IPv4, dut1Port2.IPv4Len)
-		restartOTGBGPPeer(t, otg, otgBGPv4PeerName)
+	if !t.Run("Initial setup", func(t *testing.T) {
+		configureDUTInterfaces(t, dut)
+		configureStaticRoutes(t, dut)
+		configureRoutingPolicy(t, dut)
+		gnmi.Replace(t, dut, bgpProtoPath(dut).Config(), bgpConfig(dut))
+		startOTG(t, ate, otgOptions{mtu: mtuDefault})
+		verifyEstablished(t, dut, o)
 	}) {
 		return
 	}
 
-	if !t.Run("Verify iBGP session between DUT2 - ATE Port1.", func(t *testing.T) {
-		verifyOTGBGPEstablished(t, otg, dut2, otgBGPv4PeerName, atePort1.IPv4)
-	}) {
-		return
-	}
+	t.Run("RT-1.21.1: TCP MSS at the neighbor and peer-group levels", func(t *testing.T) {
+		if !deviations.SkipTCPNegotiatedMSSCheck(dut) {
+			t.Run("MSS reported before configuration", func(t *testing.T) {
+				verifyDefaultMSS(t, dut)
+			})
+		}
 
-	t.Run("Configure MTU on ATE1:port1, DUT2:port1 and Enable PMTU discovery on DUT2", func(t *testing.T) {
-		// MTU on the DUT1:port1 towards ATE1:port1 is left at default.
-		// ATE1:port1 interface towards DUT1:port1 is set at 5040B
-		// OTG Port1 MTU is set to 5040B in configOTG.
-
-		// DUT2:port1 MTU is set at 5040B.
-		configureIntfMTU(t, dut2, dut2.Port(t, "port1"), mtu5040B)
-		// Enable PMTU discovery on DUT2.
-		gnmi.Replace(t, dut2, dut2ConfPath.Bgp().Neighbor(atePort1.IPv4).Transport().MtuDiscovery().Config(), true)
-	})
-
-	if !t.Run("Re-establish the BGP session by tcp reset", func(t *testing.T) {
-		waitForOTGISISPrefix(t, otg, dut1Port2.IPv4, dut1Port2.IPv4Len)
-		restartOTGBGPPeer(t, otg, otgBGPv4PeerName)
-	}) {
-		return
-	}
-
-	if !t.Run("Verify iBGP session between DUT2 - ATE Port1 after reset.", func(t *testing.T) {
-		verifyOTGBGPEstablished(t, otg, dut2, otgBGPv4PeerName, atePort1.IPv4)
-	}) {
-		return
-	}
-
-	if !deviations.SkipTCPNegotiatedMSSCheck(dut2) {
-		t.Run("Validate that the min MSS value has been adjusted to be below 1500 bytes on the tcp session.", func(t *testing.T) {
-			if gotTCPMss := gnmi.Get(t, dut2, dut2ConfPath.Bgp().Neighbor(atePort1.IPv4).Transport().TcpMss().State()); gotTCPMss > mtu1500B || gotTCPMss == 0 {
-				t.Errorf("Obtained TCP MSS for BGP v4 on dut2 is not as expected, got %v, want non zero value and less then %v", gotTCPMss, mtu1500B)
-			}
+		t.Run("Set the MTU to 5040 bytes", func(t *testing.T) {
+			setAllPortsMTU(t, dut, mtuJumbo)
+			startOTG(t, ate, otgOptions{mtu: mtuJumbo})
+			verifyEstablished(t, dut, o)
 		})
-	}
+		t.Cleanup(func() {
+			setAllPortsMTU(t, dut, 0)
+			startOTG(t, ate, otgOptions{mtu: mtuDefault})
+		})
+
+		t.Run("Neighbor level", func(t *testing.T) {
+			before := establishedTransitions(t, dut)
+			setNeighborMSS(t, dut, allNeighbors, mssNeighbor)
+			reportSessionReset(t, dut, before)
+			restartOTGBGPPeers(t, o)
+			verifyEstablished(t, dut, o)
+			verifyNeighborMSS(t, dut, allNeighbors, mssNeighbor)
+			setNeighborMSS(t, dut, allNeighbors, 0)
+		})
+
+		t.Run("Peer-group level", func(t *testing.T) {
+			setPeerGroupMSS(t, dut, mssGroup)
+			restartOTGBGPPeers(t, o)
+			verifyEstablished(t, dut, o)
+			verifyPeerGroupMSS(t, dut, mssGroup)
+			verifyNeighborMSS(t, dut, allNeighbors, mssGroup)
+
+			t.Run("Neighbor-level override", func(t *testing.T) {
+				setNeighborMSS(t, dut, overrideNeighbors, mssOverride)
+				restartOTGBGPPeers(t, o)
+				verifyEstablished(t, dut, o)
+				verifyNeighborMSS(t, dut, overrideNeighbors, mssOverride)
+				verifyNeighborMSS(t, dut, inheritNeighbors, mssGroup)
+				verifyPeerGroupMSS(t, dut, mssGroup)
+			})
+
+			setNeighborMSS(t, dut, overrideNeighbors, 0)
+			setPeerGroupMSS(t, dut, 0)
+		})
+	})
+
+	t.Run("RT-1.21.2: PMTUD at the neighbor and peer-group levels", func(t *testing.T) {
+		enabled, disabled := ygot.Bool(true), ygot.Bool(false)
+		port1 := dut.Port(t, "port1")
+
+		t.Run("Neighbor level", func(t *testing.T) {
+			b := &gnmi.SetBatch{}
+			setL3MTU(b, port1, mtuPMTUD)
+			b.Set(t, dut)
+			defer func() {
+				b := &gnmi.SetBatch{}
+				setL3MTU(b, port1, 0)
+				b.Set(t, dut)
+			}()
+
+			setNeighborPMTUD(t, dut, allNeighbors, enabled)
+			defer setNeighborPMTUD(t, dut, allNeighbors, nil)
+			restartOTGBGPPeers(t, o)
+			verifyEstablished(t, dut, o)
+			verifyNeighborPMTUD(t, dut, allNeighbors, true)
+
+			// Restart the ATE with the capture on port-1 and the prefixes on
+			// port-2. The DUT then sends large UPDATE messages to the iBGP
+			// peers through TRANSIT, whose link to ATE port-1 has a 1400-byte
+			// MTU.
+			startOTG(t, ate, otgOptions{mtu: mtuDefault, routes: true, capturePort1: true})
+			verifyEstablished(t, dut, o)
+			verifyReceivedPrefixes(t, o)
+			verifyEstablished(t, dut, o)
+
+			cs := gosnappi.NewControlState()
+			cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
+			o.SetControlState(t, cs)
+			pcap := o.GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(ate.Port(t, "port1").ID()))
+			s, err := parseCapture(pcap)
+			if err != nil {
+				t.Fatalf("parseCapture() failed: %v", err)
+			}
+			t.Logf("Largest DUT packet in the capture: IPv4 %d bytes, IPv6 %d bytes; IPv4 fragments: %d", s.maxV4, s.maxV6, s.v4Fragments)
+			if s.maxV4 <= minPMTUDPacket {
+				t.Errorf("Largest IPv4 packet from %s = %d bytes, want more than %d", dutPort3.IPv4, s.maxV4, minPMTUDPacket)
+			}
+			if s.maxV6 <= minPMTUDPacket {
+				t.Errorf("Largest IPv6 packet from %s = %d bytes, want more than %d", dutPort3.IPv6, s.maxV6, minPMTUDPacket)
+			}
+			if s.v4Fragments != 0 {
+				t.Errorf("IPv4 fragments from %s = %d, want 0", dutPort3.IPv4, s.v4Fragments)
+			}
+
+			// Withdraw the prefixes and remove the capture.
+			startOTG(t, ate, otgOptions{mtu: mtuDefault})
+			verifyEstablished(t, dut, o)
+		})
+
+		t.Run("Peer-group level", func(t *testing.T) {
+			setPeerGroupPMTUD(t, dut, enabled)
+			defer setPeerGroupPMTUD(t, dut, nil)
+			restartOTGBGPPeers(t, o)
+			verifyEstablished(t, dut, o)
+			verifyPeerGroupPMTUD(t, dut, true)
+			verifyNeighborPMTUD(t, dut, allNeighbors, true)
+
+			t.Run("Neighbor-level override", func(t *testing.T) {
+				setNeighborPMTUD(t, dut, overrideNeighbors, disabled)
+				defer setNeighborPMTUD(t, dut, overrideNeighbors, nil)
+				restartOTGBGPPeers(t, o)
+				verifyEstablished(t, dut, o)
+				verifyNeighborPMTUD(t, dut, overrideNeighbors, false)
+				verifyNeighborPMTUD(t, dut, inheritNeighbors, true)
+				verifyPeerGroupPMTUD(t, dut, true)
+			})
+		})
+	})
 }
