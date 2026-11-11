@@ -2541,3 +2541,48 @@ func EcnMinGreaterMaxThresholdUnsupported(dut *ondatra.DUTDevice) bool {
 func MaxSupportedDecapEntries(dut *ondatra.DUTDevice) uint32 {
 	return lookupDUTDeviations(dut).GetMaxSupportedDecapEntries()
 }
+
+// NegotiatedPortSpeedUnsupported returns true if the device does not support
+// /interfaces/interface/ethernet/state/negotiated-port-speed telemetry path.
+// Nokia: https://partnerissuetracker.corp.google.com/issues/572214470
+func NegotiatedPortSpeedUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNegotiatedPortSpeedUnsupported()
+}
+
+// SubinterfaceIfindexUnsupported returns true if the device does not support
+// /interfaces/interface/subinterfaces/subinterface/state/ifindex telemetry path.
+// Juniper: https://partnerissuetracker.corp.google.com/issues/572208368
+func SubinterfaceIfindexUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSubinterfaceIfindexUnsupported()
+}
+
+// SyslogUniformSelectorRequired returns true if the device requires all remote
+// syslog servers to use the same facility and severity selector when configured
+// via OpenConfig.
+// Arista: https://partnerissuetracker.corp.google.com/issues/574820175
+func SyslogUniformSelectorRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSyslogUniformSelectorRequired()
+}
+
+// SyslogDefaultNIStateUnsupported returns true if the device omits
+// /system/logging/remote-servers/remote-server/state/network-instance when the
+// remote syslog server is configured in the default network instance.
+// Arista: https://partnerissuetracker.corp.google.com/issues/574820175
+// Juniper: https://partnerissuetracker.corp.google.com/issues/574811352
+func SyslogDefaultNIStateUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSyslogDefaultNiStateUnsupported()
+}
+
+// SyslogDebugSeverityUnsupported returns true if the device does not support
+// configuring DEBUG severity for remote syslog selectors via OpenConfig.
+// Juniper: https://partnerissuetracker.corp.google.com/issues/574811352
+func SyslogDebugSeverityUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSyslogDebugSeverityUnsupported()
+}
+
+// MountPointStorageComponentUnsupported returns true if the device does not
+// support /system/mount-points/mount-point/state/storage-component telemetry.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/429234456
+func MountPointStorageComponentUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMountPointStorageComponentUnsupported()
+}
