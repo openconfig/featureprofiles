@@ -20,6 +20,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/ygnmi"
@@ -143,7 +144,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	isisGracefulRestart := globalISIS.GetOrCreateGracefulRestart()
-	isisGracefulRestart.SetEnabled(true)
+	isisGracefulRestart.SetEnabled(false)
 	isisGracefulRestart.SetHelperOnly(true)
 	isisGracefulRestart.SetRestartTime(gracefulRestartTime)
 
@@ -282,7 +283,17 @@ func createTrafficFlows(t *testing.T, otgConfig gosnappi.Config, flowNameV4, flo
 	v6.Dst().SetValue(ipv6Prefix)
 }
 
-func verifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntf []string) {
+func verifyAdjRestartState(t *testing.T, ate *ondatra.ATEDevice, routerName string, expectedAdj string) {
+	_, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().IsisRouter(routerName).Adjacencies().AdjacencyAny().LocalState().LocalRestartingStatus().State(), 5*time.Minute, func(v *ygnmi.Value[*otgtelemetry.IsisRouter_Adjacencies_Adjacency_LocalState_LocalRestartingStatus]) bool {
+		state, present := v.Val()
+		return present && state.GetCurrentState().String() == expectedAdj
+	}).Await(t)
+	if !ok {
+		t.Fatalf("adjacency state not found to be: %s", expectedAdj)
+	}
+}
+
+func verifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntf []string, noAdjacency bool) {
 	t.Helper()
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
 	for _, intfName := range dutIntf {
@@ -293,10 +304,16 @@ func verifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntf []string)
 		query := nbrPath.LevelAny().AdjacencyAny().AdjacencyState().State()
 		_, ok := gnmi.WatchAll(t, dut, query, 5*time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
 			state, present := val.Val()
-			if present && state == oc.Isis_IsisInterfaceAdjState_UP {
+			if noAdjacency {
+				if !present || state == oc.Isis_IsisInterfaceAdjState_DOWN {
+					t.Logf("IS-IS adjacency on %v is DOWN or absent as expected", intfName)
+					return true
+				}
+			} else if present && state == oc.Isis_IsisInterfaceAdjState_UP {
 				t.Logf("IS-IS state on %v has adjacencies", intfName)
+				return true
 			}
-			return true
+			return false
 		}).Await(t)
 		if !ok {
 			t.Logf("IS-IS state on %v has no adjacencies", intfName)
@@ -306,10 +323,8 @@ func verifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntf []string)
 }
 
 // verifyTraffic checks traffic flow metrics against expected loss.
-func verifyTraffic(t *testing.T, otg *otg.OTG, otgConfig gosnappi.Config, expectLoss bool) bool {
+func verifyTraffic(t *testing.T, otg *otg.OTG, otgConfig gosnappi.Config, expectLoss bool) error {
 	t.Helper()
-
-	fail := false
 
 	otgutils.LogFlowMetrics(t, otg, otgConfig)
 	otgutils.LogPortMetrics(t, otg, otgConfig)
@@ -327,22 +342,20 @@ func verifyTraffic(t *testing.T, otg *otg.OTG, otgConfig gosnappi.Config, expect
 
 		switch {
 		case expectLoss && lossPct < (100-lossTolerancePct):
-			t.Errorf("traffic loss for flow %s was less than expected: got %v, want > %v", flowName, lossPct, 100-lossTolerancePct)
-			fail = true
+			return fmt.Errorf("traffic loss for flow %s was less than expected: got %v, want > %v", flowName, lossPct, 100-lossTolerancePct)
 
 		case expectLoss:
 			t.Logf("Traffic loss for flow %s was as expected: %v", flowName, lossPct)
 
 		case lossPct > lossTolerancePct:
-			t.Errorf("traffic loss for flow %s was higher than expected: got %v, want < %v", flowName, lossPct, lossTolerancePct)
-			fail = true
+			return fmt.Errorf("traffic loss for flow %s was higher than expected: got %v, want < %v", flowName, lossPct, lossTolerancePct)
 
 		default:
 			t.Logf("No loss seen for flow %s as expected", flowName)
 		}
 	}
 
-	return fail
+	return nil
 }
 
 func startStopISISRouter(t *testing.T, otg *otg.OTG, routeNames []string, state string) {
@@ -371,7 +384,7 @@ func TestGracefulRestart(t *testing.T) {
 	ate.OTG().PushConfig(t, otgConfig)
 	ate.OTG().StartProtocols(t)
 	time.Sleep(20 * time.Second)
-	verifyISISTelemetry(t, dut, []string{dut.Port(t, "port1").Name(), dut.Port(t, "port2").Name()})
+	verifyISISTelemetry(t, dut, []string{dut.Port(t, "port1").Name(), dut.Port(t, "port2").Name()}, false)
 
 	type testCase struct {
 		Name        string
@@ -426,8 +439,8 @@ func testGrHelper(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, 
 	otg.StartTraffic(t)
 	time.Sleep(sleepTime)
 	otg.StopTraffic(t)
-	if verifyTraffic(t, otg, otgConfig, false) {
-		t.Error("traffic loss for flow is more than expected")
+	if err := verifyTraffic(t, otg, otgConfig, false); err != nil {
+		t.Error(err)
 	}
 
 	// Validating subtest 2: Restarting IS-IS on ATE port-2 and verifying traffic is not lost due to GR
@@ -435,49 +448,47 @@ func testGrHelper(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, 
 	cs := gosnappi.NewControlAction()
 	isisRestart := cs.Protocol().Isis().InitiateGracefulRestart().SetRouterNames([]string{isisPort2Device})
 	isisRestart.Unplanned().SetHoldingTime(gracefulRestartTime).SetRestartAfter(uint32(restartWait))
-	startTime := time.Now()
 
 	// Initiating graceful restart, waiting for ISIS to come up after GR time expiry and validating traffic
-	otg.StartTraffic(t)
-	replaceDuration := time.Since(startTime)
+
 	t.Log("Send traffic while GR timer is counting down. Traffic should pass as ISIS GR is enabled!")
 	otg.SetControlAction(t, cs)
-	sleepTime := gracefulRestartTime*time.Second - replaceDuration
-	time.Sleep(sleepTime)
+	verifyAdjRestartState(t, ate, isisPort2Device, "RESTARTING")
+	otg.StartTraffic(t)
+	time.Sleep(5 * time.Second)
 	otg.StopTraffic(t)
-	if verifyTraffic(t, otg, otgConfig, false) {
-		t.Error("traffic loss for flow is more than expected")
+	if err := verifyTraffic(t, otg, otgConfig, false); err != nil {
+		t.Error(err)
 	}
 
+	verifyAdjRestartState(t, ate, isisPort2Device, "RUNNING")
 	otgvalidationhelpers.ValidateOTGISISTelemetry(t, ate, expectedISISAdj)
 
-	time.Sleep(sleepTime)
+	// time.Sleep(sleepTime)
 	t.Log("Verify ISIS is up again after GR timeout expiry")
-	verifyISISTelemetry(t, dut, []string{dut.Port(t, "port1").Name(), dut.Port(t, "port2").Name()})
+	verifyISISTelemetry(t, dut, []string{dut.Port(t, "port1").Name(), dut.Port(t, "port2").Name()}, false)
 
 	// Initiating graceful restart, validating traffic loss after graceful restart expires before restart time
 	t.Logf("Validating traffic loss after after Restart Time expiry")
 	otg.SetControlAction(t, cs)
-
-	//The graceful restart timer is set to 30, validating traffic as soon as it expires before it initiate restart
-	time.Sleep(29 * time.Second)
+	verifyISISTelemetry(t, dut, []string{dut.Port(t, "port2").Name()}, true)
 	otg.StartTraffic(t)
 	time.Sleep(5 * time.Second)
 	otg.StopTraffic(t)
-	if verifyTraffic(t, otg, otgConfig, true) {
-		t.Error("traffic loss is not seen for flow as expected")
+	if err := verifyTraffic(t, otg, otgConfig, true); err != nil {
+		t.Error(err)
 	}
 
 	// Validating subtest 3: Disable IS-IS on ATE port-2 and verifying traffic is lost due to GR.
 	t.Logf("Subtest-3: Disable IS-IS on ATE port-2 and verifying traffic is lost due to GR.")
 	otg.SetControlAction(t, cs)
 	startStopISISRouter(t, otg, []string{isisPort2Device}, "DOWN")
-	time.Sleep(restartWait * time.Second)
+	verifyISISTelemetry(t, dut, []string{dut.Port(t, "port2").Name()}, true)
 	otg.StartTraffic(t)
 	time.Sleep(sleepTime)
 	otg.StopTraffic(t)
-	if verifyTraffic(t, otg, otgConfig, true) {
-		t.Error("traffic loss is not seen for flow as expected")
+	if err := verifyTraffic(t, otg, otgConfig, true); err != nil {
+		t.Error(err)
 	}
 }
 
@@ -485,14 +496,23 @@ func testISISWithControllerCardSwitchOver(t *testing.T, dut *ondatra.DUTDevice, 
 
 	otg := ate.OTG()
 
+	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
+	t.Cleanup(func() {
+		gnmi.Update(t, dut, dutConfPath.Global().GracefulRestart().HelperOnly().Config(), true)
+		gnmi.Update(t, dut, dutConfPath.Global().GracefulRestart().Enabled().Config(), false)
+	})
+	gnmi.Update(t, dut, dutConfPath.Global().GracefulRestart().HelperOnly().Config(), false)
+	gnmi.Update(t, dut, dutConfPath.Global().GracefulRestart().Enabled().Config(), true)
+	port2isis.GracefulRestart().SetHelperMode(true)
+	otg.PushConfig(t, otgConfig)
 	otg.StartProtocols(t)
-	verifyISISTelemetry(t, dut, []string{dut.Port(t, "port1").Name(), dut.Port(t, "port2").Name()})
+	verifyISISTelemetry(t, dut, []string{dut.Port(t, "port1").Name(), dut.Port(t, "port2").Name()}, false)
 
 	otg.StartTraffic(t)
 	time.Sleep(sleepTime)
 	otg.StopTraffic(t)
-	if verifyTraffic(t, otg, otgConfig, false) {
-		t.Error("traffic loss for flow is more than expected")
+	if err := verifyTraffic(t, otg, otgConfig, false); err != nil {
+		t.Error(err)
 	}
 
 	// TODO: Not able to verify because of HW limitation. Adding the below deviation instead creating new one
@@ -541,10 +561,13 @@ func testISISWithControllerCardSwitchOver(t *testing.T, dut *ondatra.DUTDevice, 
 		for {
 			var currentTime string
 			t.Logf("Time elapsed %.2f seconds since switchover started.", time.Since(startSwitchover).Seconds())
-			if !verifyTraffic(t, otg, otgConfig, false) {
+			otg.StartTraffic(t)
+			time.Sleep(sleepTime)
+			otg.StopTraffic(t)
+			if err := verifyTraffic(t, otg, otgConfig, false); err != nil {
+				t.Logf("Traffic verification failed: %v", err)
 				break
 			}
-			time.Sleep(60 * time.Second)
 			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 				currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
 			}); errMsg != nil {
@@ -558,6 +581,7 @@ func testISISWithControllerCardSwitchOver(t *testing.T, dut *ondatra.DUTDevice, 
 				t.Fatalf("time.Since(startSwitchover): got %v, want < %v", got, want)
 			}
 		}
+		time.Sleep(60 * time.Second)
 	}
 
 }
@@ -579,18 +603,23 @@ func testISISWithDUTRestart(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.A
 	}
 
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
+	t.Cleanup(func() {
+		gnmi.Update(t, dut, dutConfPath.Global().GracefulRestart().HelperOnly().Config(), true)
+		gnmi.Update(t, dut, dutConfPath.Global().GracefulRestart().Enabled().Config(), false)
+	})
 	gnmi.Update(t, dut, dutConfPath.Global().GracefulRestart().HelperOnly().Config(), false)
+	gnmi.Update(t, dut, dutConfPath.Global().GracefulRestart().Enabled().Config(), true)
 	port2isis.GracefulRestart().SetHelperMode(true)
 	otg.PushConfig(t, otgConfig)
 	otg.StartProtocols(t)
 	time.Sleep(20 * time.Second)
 
-	verifyISISTelemetry(t, dut, []string{dut.Port(t, "port1").Name(), dut.Port(t, "port2").Name()})
+	verifyISISTelemetry(t, dut, []string{dut.Port(t, "port1").Name(), dut.Port(t, "port2").Name()}, false)
 	otg.StartTraffic(t)
 	time.Sleep(sleepTime)
 	otg.StopTraffic(t)
-	if verifyTraffic(t, otg, otgConfig, false) {
-		t.Error("traffic loss for flow is more than expected")
+	if err := verifyTraffic(t, otg, otgConfig, false); err != nil {
+		t.Error(err)
 	}
 
 	t.Logf("Initiating Kill Process on DUT")
@@ -600,8 +629,11 @@ func testISISWithDUTRestart(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.A
 		otg.StartTraffic(t)
 		time.Sleep(5 * time.Second)
 		otg.StopTraffic(t)
-		if !verifyTraffic(t, otg, otgConfig, false) {
+		if err := verifyTraffic(t, otg, otgConfig, false); err == nil {
+			t.Log("Traffic verification passed")
 			break
+		} else {
+			t.Logf("Traffic verification failed: %v", err)
 		}
 
 		if uint64(time.Since(startTime).Seconds()) > gracefulRestartTime {
@@ -609,5 +641,6 @@ func testISISWithDUTRestart(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.A
 		}
 	}
 
+	verifyISISTelemetry(t, dut, []string{dut.Port(t, "port1").Name(), dut.Port(t, "port2").Name()}, false)
 	otgvalidationhelpers.ValidateOTGISISTelemetry(t, ate, expectedISISAdj)
 }
