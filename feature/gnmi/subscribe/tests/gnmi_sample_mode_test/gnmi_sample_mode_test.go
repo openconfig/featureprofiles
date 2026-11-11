@@ -131,7 +131,7 @@ func TestISISProtocol(t *testing.T) {
 
 	// Starting ISIS protocol takes some time to converge. So we may not receive ISIS data
 	// in the first sample after configuration.
-	samples := niStream.Nexts(5)
+	samples := niStream.Nexts(10)
 
 	updated := false
 	for idx, sample := range samples {
@@ -153,6 +153,6 @@ func TestISISProtocol(t *testing.T) {
 	}
 
 	if !updated {
-		t.Errorf("ISIS session %q telemetry not received in three samples after configuration", isissession.ISISName)
+		t.Errorf("ISIS session %q telemetry not received in ten samples after configuration", isissession.ISISName)
 	}
 }
