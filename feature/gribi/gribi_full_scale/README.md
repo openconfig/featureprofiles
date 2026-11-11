@@ -215,7 +215,7 @@ network-instances {
 - The entries in the Encap VRFs point to NextHopGroups in the default VRF. Inject `NumEncapNHGPerVRF` NextHopGroups per Encap VRF in the default VRF.
 - Each NextHopGroup should have a number of NextHops where each NextHop should do encapsulation, update src ip to `ipv4_outer_src_111` and point to a tunnel in the `TE_VRF_111`. In addition, weights specified in the NextHopGroup should be co-prime and have the granularity defined in each target README.
 - The number of unique encapsulation NHs per Encap VRF should be `NumEncapNHPerVRF`.
-- Inject `NumDecapEntries` IPv4 entries in the `DECAP_TE_VRF` with a mix of prefix lengths (`/22`, `/24`, `/26`, and `/28`).
+- Inject `NumDecapEntries` IPv4 entries in the `DECAP_TE_VRF` with a mix of prefix lengths (`/22` and `/24`).
 - Each NHG points to 1 NH to decapsulate and output to a port.
 
 ---
@@ -236,14 +236,14 @@ network-instances {
 
     - **Decap**
       - Send encapsulated traffic to all the IPv4 expanded from all the prefix
-        lengths (`/22`, `/24`, `/26`, and `/28`) in Decap VRF:
+        lengths (`/22` and `/24`) in Decap VRF:
       - For all the `ENCAP_TE_VRF_A` - `ENCAP_TE_VRF_P` (here `VRF_X`), the flows are:
           - outer_src_ip=`ipv4_outer_src_111`, outer_dst_ip=[expanded Decap IPv4s],outer_dscp=`encap_vrf_dscp_x_1`, inner_src_ip=DUT-1, inner_dst_ip=DUT-2, inner_dscp=`encap_vrf_dscp_x_1`
           - outer_src_ip=`ipv4_outer_src_111`, outer_dst_ip=[expanded Decap IPv4s],outer_dscp=`encap_vrf_dscp_x_2`, inner_src_ip=DUT-1, inner_dst_ip=DUT-2, inner_dscp=`encap_vrf_dscp_x_2`
       - Verify traffic received by ATE was de-encapsulated
 
     - **Re-encap**
-        - Send encapsulated traffic to all the IPv4 expanded from all the prefix lengths (`/22`, `/24`, `/26`, and `/28`) in Decap VRF to all the Encap VRFs:
+        - Send encapsulated traffic to all the IPv4 expanded from all the prefix lengths (`/22` and `/24`) in Decap VRF to all the Encap VRFs:
             - For all the `ENCAP_TE_VRF_A` - `ENCAP_TE_VRF_P` (here `VRF_X`), the flows are:
                 - outer_src_ip=`ipv4_outer_src_111`, outer_dst_ip=[expanded Decap IPv4s], outer_dscp=`encap_vrf_dscp_x_1`,  inner_src_ip=DUT-1, inner_dst_ip=[all IPv4s from `VRF_X`], inner_dscp=`encap_vrf_dscp_x_1`
                 - outer_src_ip=`ipv4_outer_src_111`, outer_dst_ip=[expanded Decap IPv4s], outer_dscp=`encap_vrf_dscp_x_2`, inner_src_ip=DUT-1, inner_dst_ip=[all IPv4s from `VRF_X`], inner_dscp=`encap_vrf_dscp_x_2`

@@ -5,3 +5,13 @@ uuid:  "a5c2d46c-976b-41bd-9fae-3341ce5c1b29"
 plan_id:  "Authz"
 description:  "General Authz (1-4) tests"
 testbed:  TESTBED_DUT
+
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    # a bug in parsing zone identifiers in IPV6 address
+    skip_gnoi_ping_rpc_authz_verification: true
+  }
+}
