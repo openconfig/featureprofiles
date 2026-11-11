@@ -24,10 +24,10 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
+	"github.com/openconfig/featureprofiles/internal/telemetry/transceiver"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -86,12 +86,9 @@ func TestZrSupplyVoltage(t *testing.T) {
 			volInst := verifyVoltageValue(t, streamInst, "Instant")
 			t.Logf("Port %s instant voltage: %v", dp.Name(), volInst)
 
-			d := &oc.Root{}
-			i := d.GetOrCreateInterface(dp.Name())
-			i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+			togglePort := transceiver.ToggleInterfacesWithCleanup(t, dut, dp)
 			// Disable interface
-			i.Enabled = ygot.Bool(false)
-			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
+			togglePort(false)
 			// Wait for the cooling-off period
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
 
@@ -99,8 +96,7 @@ func TestZrSupplyVoltage(t *testing.T) {
 			t.Logf("Port %s instant voltage after port down: %v", dp.Name(), volInstNew)
 
 			// Enable interface again.
-			i.Enabled = ygot.Bool(true)
-			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
+			togglePort(true)
 			// Wait for the cooling-off period
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 		})
