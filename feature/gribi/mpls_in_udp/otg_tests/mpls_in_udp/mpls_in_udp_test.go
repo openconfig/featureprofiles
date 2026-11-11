@@ -273,8 +273,10 @@ func TestMPLSOUDPEncap(t *testing.T) {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
 	t.Cleanup(func() {
-		c.FlushAll(t)
 		c.Close(t)
+	})
+	t.Cleanup(func() {
+		c.FlushAll(t)
 	})
 	c.BecomeLeader(t)
 
