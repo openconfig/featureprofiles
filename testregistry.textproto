@@ -887,11 +887,6 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_tcp_mss_path_mtu/bgp_tcp_mss_path_mtu_test.go"
 }
 test: {
-  id: "RT-1.22"
-  description: "BGP TCP MSS"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_tcp_mss/README.md"
-}
-test: {
   id: "RT-1.23"
   description: "BGP AFI SAFI OC DEFAULTS"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_afi_safi_defaults/README.md"
