@@ -1,0 +1,53 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "fc4884a4-627c-4f01-b423-cfdc339d7bba"
+plan_id: "Health-1.3"
+description: "System Process and Controller Card Memory Leak Detection"
+testbed: TESTBED_DUT_ATE_4LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    mismatched_hardware_resource_name_in_component: true
+    use_chassis_aggregate_utilization: true
+    secondary_controller_card_memory_utilization_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    interface_enabled: true
+    ipv4_missing_enabled: true
+    interface_counters_update_delayed: true
+    prefix_limit_exceeded_telemetry_unsupported: true
+    ciscoxr8000_integrated_circuit_resource_ft: "ciscoxr-8000-integrated-circuit-resource-ft"
+    enable_multipath_under_afi_safi: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    interface_enabled: true
+    bgp_max_multipath_paths_unsupported: true
+    prefix_limit_exceeded_telemetry_unsupported: true
+    multipath_unsupported_neighbor_or_afisafi: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    explicit_interface_in_default_vrf: true
+    interface_enabled: true
+    bgp_explicit_prefix_limit_received: true
+  }
+}
