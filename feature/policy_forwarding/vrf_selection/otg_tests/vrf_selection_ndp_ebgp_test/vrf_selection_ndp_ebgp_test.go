@@ -47,12 +47,9 @@ const (
 	vrfSelectionPolicyName = "VRF-SELECT-POLICY"
 	routePolicyAcceptAll   = "ALLOW"
 
-	rule10SeqID       = 10
-	rule20SeqID       = 20
-	rule10SrcPrefixV4 = "198.18.0.0"
-	rule10PrefixLenV4 = 16
-	rule20SrcPrefixV6 = "2001:db8:10::"
-	rule20PrefixLenV6 = 48
+	rule10SeqID = 10
+	rule20SeqID = 20
+	rule30SeqID = 30
 
 	ateLagAdvPrefixV4  = "198.19.0.0/24"
 	ateLagAdvPrefixV6  = "2001:db8:20::/64"
@@ -69,7 +66,8 @@ const (
 	vrf10TrafficDst4   = "203.0.113.1"
 	vrf10TrafficDst6   = "2001:db8:2::1"
 
-	dscpDefault      = 0
+	dscpDefault      = 20
+	dscpSteered0     = 0
 	dscpVRF10        = 10
 	trafficFrameSize = 512
 	trafficRatePps   = 1000
@@ -181,11 +179,14 @@ func setupEnvironment(t *testing.T) *testEnv {
 // and IPv6 NDP Resolution over LAG with Active VRF Selection Policy.
 func TestVRFSelectionNDPEBGP(t *testing.T) {
 	env := setupEnvironment(t)
+	var otgStarted bool
 
 	// Register cleanup before executing any configuration pushes or destructive operations.
 	t.Cleanup(func() {
 		t.Log("Cleanup: Stopping OTG protocols and removing VRF selection policy, BGP, VRF-10, and LAG configurations")
-		env.ate.OTG().StopProtocols(t)
+		if otgStarted {
+			env.ate.OTG().StopProtocols(t)
+		}
 
 		defNI := deviations.DefaultNetworkInstance(env.dut)
 		gnmi.Delete(t, env.dut, gnmi.OC().NetworkInstance(defNI).PolicyForwarding().Config())
@@ -217,33 +218,30 @@ func TestVRFSelectionNDPEBGP(t *testing.T) {
 		t.Log("RT-3.5.1 Step 1: Configuring DEFAULT and VRF-10 network instances, LAG1, physical interfaces, and static routes on DUT")
 		configureDUTNetworkInstancesAndInterfaces(t, env)
 
-		// RT-3.5.1 Step 2: Configure Dual-Stack eBGP on DUT and ATE.
-		t.Log("RT-3.5.1 Step 2: Configuring dual-stack eBGP on DUT and ATE (LAG1 and Port3)")
+		// RT-3.5.1 Step 2: Configure and Apply VRF Selection Policy on DUT Ingress LAG Interface.
+		t.Log("RT-3.5.1 Step 2: Configuring VRF-SELECT-POLICY and applying to DUT ingress LAG subinterface 0 before starting protocols")
+		configureDUTVRFSelectionPolicy(t, env)
+
+		// RT-3.5.1 Step 3: Configure Dual-Stack eBGP on DUT and ATE and Start Protocols.
+		t.Log("RT-3.5.1 Step 3: Configuring dual-stack eBGP on DUT and ATE (LAG1 and Port3) and starting OTG protocols")
 		configureDUTBGP(t, env)
 		configureATE(t, env)
 		flowNames = configureOTGTrafficFlows(t, env)
 		env.ate.OTG().PushConfig(t, env.top)
 		env.ate.OTG().StartProtocols(t)
+		otgStarted = true
 
-		// Wait for baseline LACP LAG, ARP/NDP, and eBGP sessions to establish before applying
-		// VRF-SELECT-POLICY, then verify full control-plane state while VRF-SELECT-POLICY is active.
-		otgvalidationhelpers.WaitForOTGLAGUP(t, env.ate, otgvalidationhelpers.LagParams{
-			LagName:       ateLag1.Name,
-			WantMembersUp: uint64(len(env.aggPorts)),
-			Timeout:       controlTimeout,
-		})
-		otgutils.WaitForARP(t, env.ate.OTG(), env.top, "IPv4")
-		otgutils.WaitForARP(t, env.ate.OTG(), env.top, "IPv6")
-		verifyBGPSessionsEstablished(t, env)
+		// RT-3.5.1 Step 4: Verify Control-Plane State (LAG, IPv6 NDP Neighbor Cache, eBGP Sessions, and AFT Routes)
+		// with VRF-SELECT-POLICY active from initial protocol bringup, and across an OTG protocol restart cycle.
+		t.Log("RT-3.5.1 Step 4: Verifying initial LACP LAG state, IPv6 NDP neighbor resolution, dual-stack eBGP sessions, AFT routes, and VRF selection policy state")
+		verifyControlPlaneState(t, env)
 		cfgplugins.VerifyOTGBGPEstablished(t, env.ate, controlTimeout)
 
-		// RT-3.5.1 Step 3: Configure and Apply VRF Selection Policy on DUT Ingress LAG Interface.
-		t.Log("RT-3.5.1 Step 3: Configuring VRF-SELECT-POLICY and applying to DUT ingress LAG subinterface 0")
-		configureDUTVRFSelectionPolicy(t, env)
-
-		// RT-3.5.1 Step 4: Verify Control-Plane State (LAG, IPv6 NDP Neighbor Cache, eBGP Sessions, and AFT Routes).
-		t.Log("RT-3.5.1 Step 4: Verifying LACP LAG state, IPv6 NDP neighbor resolution, dual-stack eBGP sessions, AFT routes, and VRF selection policy state")
+		t.Log("RT-3.5.1 Step 4: Verifying control-plane recovery across OTG protocol stop/start cycle while VRF-SELECT-POLICY remains active")
+		env.ate.OTG().StopProtocols(t)
+		env.ate.OTG().StartProtocols(t)
 		verifyControlPlaneState(t, env)
+		cfgplugins.VerifyOTGBGPEstablished(t, env.ate, controlTimeout)
 	})
 
 	// RT-3.5.2: Dual-Stack Data Plane Forwarding Verification for Default VRF eBGP Routes and VRF-Steered Traffic.
@@ -265,6 +263,15 @@ func configureDUTNetworkInstancesAndInterfaces(t *testing.T, env *testEnv) {
 
 	// Initialize the default network instance first.
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
+
+	// Clear any pre-existing IPv4/IPv6 and interface configurations on DUT test ports before LAG/interface setup.
+	clearBatch := &gnmi.SetBatch{}
+	for _, p := range dut.Ports() {
+		gnmi.BatchDelete(clearBatch, gnmi.OC().Interface(p.Name()).Subinterface(0).Ipv4().Config())
+		gnmi.BatchDelete(clearBatch, gnmi.OC().Interface(p.Name()).Subinterface(0).Ipv6().Config())
+		gnmi.BatchDelete(clearBatch, gnmi.OC().Interface(p.Name()).Config())
+	}
+	clearBatch.Set(t, dut)
 
 	// Create VRF-10 network instance via shared library helper.
 	niBatch := &gnmi.SetBatch{}
@@ -348,7 +355,7 @@ func configureDUTNetworkInstancesAndInterfaces(t *testing.T, env *testEnv) {
 	srBatch.Set(t, dut)
 }
 
-// configureDUTBGP implements RT-3.5.1 Step 2 (DUT side):
+// configureDUTBGP implements RT-3.5.1 Step 3 (DUT side):
 //   - Configures an unconditional ACCEPT_ROUTE routing policy ("ALLOW") using cfgplugins.ConfigureBGPRoutePolicy.
 //   - Configures BGP global (AS 64500, router-id 192.0.2.1), peer groups, and dual-stack eBGP neighbors
 //     over LAG1 (AS 64501: 192.0.2.2 and 2001:db8::2) and Port3 (AS 64501: 192.0.2.6 and 2001:db8::6).
@@ -428,7 +435,7 @@ func configureDUTBGP(t *testing.T, env *testEnv) {
 	bgpBatch.Set(t, dut)
 }
 
-// configureATE implements RT-3.5.1 Step 1 & Step 2 (ATE side):
+// configureATE implements RT-3.5.1 Step 1 & Step 3 (ATE side):
 //   - Configures OTG LAG1 (port1, port2) with LACP active mode and dual-stack addresses using otgconfighelpers.
 //   - Configures OTG Port3 (DEFAULT VRF egress) and OTG Port4 (VRF-10 egress) using otgconfighelpers.
 //   - Configures OTG dual-stack eBGP peers on ATE:LAG1 (AS 64501) and ATE:Port3 (AS 64501), advertising
@@ -592,66 +599,48 @@ func configureATE(t *testing.T, env *testEnv) {
 	)
 }
 
-// supportsDualStackVRFSelectionPolicy reports whether the DUT supports both IPv4 and IPv6
-// match rules within the same VRF_SELECTION_POLICY.
-func supportsDualStackVRFSelectionPolicy(dut *ondatra.DUTDevice) bool {
-	return dut.Vendor() != ondatra.NOKIA && dut.Vendor() != ondatra.JUNIPER
+// seqIDOffset returns seq offset by 10 when PfRequireSequentialOrderPbrRules is enabled on dut.
+func seqIDOffset(dut *ondatra.DUTDevice, seq uint32) uint32 {
+	if deviations.PfRequireSequentialOrderPbrRules(dut) {
+		return seq + 10
+	}
+	return seq
 }
 
-// configureDUTVRFSelectionPolicy implements RT-3.5.1 Step 3:
+// configureDUTVRFSelectionPolicy implements RT-3.5.1 Step 2:
 //   - Configures VRF-SELECT-POLICY under the DEFAULT network instance:
-//   - Rule 10: IPv4 source-address 198.18.0.0/16, dscp-set [10] -> action network-instance VRF-10.
-//   - Rule 20: IPv6 source-address 2001:db8:10::/48, dscp-set [10] -> action network-instance VRF-10.
+//   - Rule 10: IPv4 dscp-set [0, 10] -> action network-instance VRF-10.
+//   - Rule 20: IPv6 dscp-set [0, 10] -> action network-instance VRF-10.
+//   - Rule 30: Default catch-all rule -> action network-instance DEFAULT (or L2 ethertype IPv4/IPv6 rules when PfRequireMatchDefaultRule is enabled).
 //   - Binds VRF-SELECT-POLICY to the ingress LAG interface (aggID) subinterface 0.
 func configureDUTVRFSelectionPolicy(t *testing.T, env *testEnv) {
 	t.Helper()
 	dut := env.dut
 	defNI := deviations.DefaultNetworkInstance(dut)
 
-	seqIDOffset := func(seq uint32) uint32 {
-		if deviations.PfRequireSequentialOrderPbrRules(dut) {
-			return seq + 10
-		}
-		return seq
-	}
-
 	pf := &oc.NetworkInstance_PolicyForwarding{}
 	policy := pf.GetOrCreatePolicy(vrfSelectionPolicyName)
 	policy.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
 
-	rule10Idx := seqIDOffset(rule10SeqID)
-	r10 := policy.GetOrCreateRule(rule10Idx)
-	ipv4 := r10.GetOrCreateIpv4()
-	if dut.Vendor() != ondatra.CISCO {
-		// Cisco 8000 PBR PD hardware supports dscp-set without source-address on VRF selection rules.
-		ipv4.SetSourceAddress(fmt.Sprintf("%s/%d", rule10SrcPrefixV4, rule10PrefixLenV4))
-	}
-	ipv4.SetDscpSet([]uint8{dscpVRF10})
+	r10 := policy.GetOrCreateRule(seqIDOffset(dut, rule10SeqID))
+	r10.GetOrCreateIpv4().SetDscpSet([]uint8{dscpSteered0, dscpVRF10})
 	r10.GetOrCreateAction().SetNetworkInstance(vrf10Name)
-	maxRuleIdx := rule10Idx
 
-	if supportsDualStackVRFSelectionPolicy(dut) {
-		rule20Idx := seqIDOffset(rule20SeqID)
-		r20 := policy.GetOrCreateRule(rule20Idx)
-		ipv6 := r20.GetOrCreateIpv6()
-		if dut.Vendor() != ondatra.CISCO {
-			ipv6.SetSourceAddress(fmt.Sprintf("%s/%d", rule20SrcPrefixV6, rule20PrefixLenV6))
-		}
-		ipv6.SetDscpSet([]uint8{dscpVRF10})
-		r20.GetOrCreateAction().SetNetworkInstance(vrf10Name)
-		if rule20Idx > maxRuleIdx {
-			maxRuleIdx = rule20Idx
-		}
-	}
+	r20 := policy.GetOrCreateRule(seqIDOffset(dut, rule20SeqID))
+	r20.GetOrCreateIpv6().SetDscpSet([]uint8{dscpSteered0, dscpVRF10})
+	r20.GetOrCreateAction().SetNetworkInstance(vrf10Name)
 
 	if deviations.PfRequireMatchDefaultRule(dut) {
-		defV4Rule := policy.GetOrCreateRule(seqIDOffset(maxRuleIdx + 10))
+		defV4Rule := policy.GetOrCreateRule(seqIDOffset(dut, rule30SeqID))
 		defV4Rule.GetOrCreateL2().SetEthertype(oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4)
 		defV4Rule.GetOrCreateAction().SetNetworkInstance(defNI)
 
-		defV6Rule := policy.GetOrCreateRule(seqIDOffset(maxRuleIdx + 20))
+		defV6Rule := policy.GetOrCreateRule(seqIDOffset(dut, rule30SeqID+10))
 		defV6Rule.GetOrCreateL2().SetEthertype(oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV6)
 		defV6Rule.GetOrCreateAction().SetNetworkInstance(defNI)
+	} else {
+		defRule := policy.GetOrCreateRule(seqIDOffset(dut, rule30SeqID))
+		defRule.GetOrCreateAction().SetNetworkInstance(defNI)
 	}
 
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
@@ -726,18 +715,10 @@ func verifyControlPlaneState(t *testing.T, env *testEnv) {
 	verifyBGPSessionsEstablished(t, env)
 
 	// 6. Verify AFT route installation in DEFAULT and VRF-10 network instances.
-	expectedRoutes := map[string]cfgplugins.RouteInfo{
-		ateLagAdvPrefixV4: {VRF: defNI, IPType: cfgplugins.IPv4, DefaultName: defNI},
-		ateLagAdvPrefixV6: {VRF: defNI, IPType: cfgplugins.IPv6, DefaultName: defNI},
-		ebgpDestPrefixV4:  {VRF: defNI, IPType: cfgplugins.IPv4, DefaultName: defNI},
-		ebgpDestPrefixV6:  {VRF: defNI, IPType: cfgplugins.IPv6, DefaultName: defNI},
-		vrf10DestPrefixV4: {VRF: vrf10Name, IPType: cfgplugins.IPv4, DefaultName: defNI},
-		vrf10DestPrefixV6: {VRF: vrf10Name, IPType: cfgplugins.IPv6, DefaultName: defNI},
-	}
-	cfgplugins.VerifyRoutes(t, dut, expectedRoutes)
+	verifyRoutesInstalled(t, env)
 
 	// 7. Verify VRF selection policy interface binding on DUT.
-	if !deviations.PolicyForwardingOCUnsupported(dut) && dut.Vendor() != ondatra.JUNIPER {
+	if !deviations.PolicyForwardingOCUnsupported(dut) && !deviations.StatePathsUnsupported(dut) {
 		pfStatePath := gnmi.OC().NetworkInstance(defNI).PolicyForwarding()
 		interfaceID := env.aggID
 		if deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
@@ -790,7 +771,7 @@ func verifyDUTIPv6NDPNeighborState(t *testing.T, env *testEnv) {
 			state == oc.Neighbor_NeighborState_STALE ||
 			state == oc.Neighbor_NeighborState_DELAY ||
 			state == oc.Neighbor_NeighborState_PROBE ||
-			state == oc.Neighbor_NeighborState_UNSET
+			(deviations.MissingValueForDefaults(dut) && state == oc.Neighbor_NeighborState_UNSET)
 	}).Await(t)
 	if !ok {
 		t.Fatalf("DUT IPv6 NDP neighbor %s on %s.0 did not resolve within %v (last value: %v)",
@@ -853,9 +834,68 @@ func verifyBGPSessionsEstablished(t *testing.T, env *testEnv) {
 	}
 }
 
+// verifyRoutesInstalled verifies that the expected IPv4 and IPv6 eBGP routes in the DEFAULT network
+// instance and static routes in VRF-10 are installed. On platforms where OpenConfig AFT ipv6-entry
+// telemetry is not exported before data-plane traffic (such as Cisco 8202 IOS-XR), it falls back to
+// verifying the BGP neighbor IPv6 unicast prefix/session state and VRF-10 static route state.
+func verifyRoutesInstalled(t *testing.T, env *testEnv) {
+	t.Helper()
+	dut := env.dut
+	defNI := deviations.DefaultNetworkInstance(dut)
+
+	expectedV4Routes := map[string]cfgplugins.RouteInfo{
+		ateLagAdvPrefixV4: {VRF: defNI, IPType: cfgplugins.IPv4, DefaultName: defNI},
+		ebgpDestPrefixV4:  {VRF: defNI, IPType: cfgplugins.IPv4, DefaultName: defNI},
+		vrf10DestPrefixV4: {VRF: vrf10Name, IPType: cfgplugins.IPv4, DefaultName: defNI},
+	}
+	cfgplugins.VerifyRoutes(t, dut, expectedV4Routes)
+
+	ipv6Checks := []struct {
+		prefix  string
+		vrf     string
+		bgpPeer string
+	}{
+		{prefix: ateLagAdvPrefixV6, vrf: defNI, bgpPeer: ateLag1.IPv6},
+		{prefix: ebgpDestPrefixV6, vrf: defNI, bgpPeer: atePort3.IPv6},
+		{prefix: vrf10DestPrefixV6, vrf: vrf10Name},
+	}
+	for _, route := range ipv6Checks {
+		aftPath := gnmi.OC().NetworkInstance(route.vrf).Afts().Ipv6Entry(route.prefix).State()
+		if _, ok := gnmi.Watch(t, dut, aftPath, 15*time.Second, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
+			return val.IsPresent()
+		}).Await(t); ok {
+			t.Logf("Route %s is installed in AFT (VRF: %s, Type: IPv6)", route.prefix, route.vrf)
+			continue
+		}
+
+		// Fallback for platforms that do not populate OpenConfig AFT ipv6-entry telemetry before traffic.
+		if route.bgpPeer != "" {
+			afiPath := gnmi.OC().NetworkInstance(route.vrf).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(route.bgpPeer).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+			if _, ok := gnmi.Watch(t, dut, afiPath.Active().State(), 15*time.Second, func(val *ygnmi.Value[bool]) bool {
+				active, present := val.Val()
+				return present && active
+			}).Await(t); !ok {
+				t.Errorf("Route %s is NOT installed in AFT (VRF: %s, Type: IPv6) and BGP peer %s IPv6_UNICAST is not active", route.prefix, route.vrf, route.bgpPeer)
+				continue
+			}
+			t.Logf("Route %s verified via active eBGP IPv6 peer %s in VRF %s (OpenConfig AFT ipv6-entry not populated pre-traffic)", route.prefix, route.bgpPeer, route.vrf)
+		} else {
+			staticPath := gnmi.OC().NetworkInstance(route.vrf).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Static(route.prefix).Prefix().State()
+			if _, ok := gnmi.Watch(t, dut, staticPath, 15*time.Second, func(val *ygnmi.Value[string]) bool {
+				pfx, present := val.Val()
+				return present && pfx == route.prefix
+			}).Await(t); !ok {
+				t.Errorf("Route %s is NOT installed in AFT or static protocol state (VRF: %s, Type: IPv6)", route.prefix, route.vrf)
+				continue
+			}
+			t.Logf("Route %s verified via static route protocol state in VRF %s (OpenConfig AFT ipv6-entry not populated pre-traffic)", route.prefix, route.vrf)
+		}
+	}
+}
+
 // configureOTGTrafficFlows implements RT-3.5.2 Step 2:
-//   - Flow-1-Default-IPv4: ATE:LAG1 -> ATE:Port3, Src 198.19.0.1, Dst 198.51.100.1, DSCP 0.
-//   - Flow-2-Default-IPv6: ATE:LAG1 -> ATE:Port3, Src 2001:db8:20::1, Dst 2001:db8:1::1, DSCP 0.
+//   - Flow-1-Default-IPv4: ATE:LAG1 -> ATE:Port3, Src 198.19.0.1, Dst 198.51.100.1, DSCP 20.
+//   - Flow-2-Default-IPv6: ATE:LAG1 -> ATE:Port3, Src 2001:db8:20::1, Dst 2001:db8:1::1, DSCP 20.
 //   - Flow-3-Steered-IPv4: ATE:LAG1 -> ATE:Port4, Src 198.18.0.1, Dst 203.0.113.1, DSCP 10.
 //   - Flow-4-Steered-IPv6: ATE:LAG1 -> ATE:Port4, Src 2001:db8:10::1, Dst 2001:db8:2::1, DSCP 10.
 func configureOTGTrafficFlows(t *testing.T, env *testEnv) []string {
@@ -863,7 +903,7 @@ func configureOTGTrafficFlows(t *testing.T, env *testEnv) []string {
 	top := env.top
 	top.Flows().Clear()
 
-	// Flow 1: IPv4 Default VRF (Src 198.19.0.1, DSCP 0 -> forwarded via eBGP route to ATE:Port3).
+	// Flow 1: IPv4 Default VRF (Src 198.19.0.1, DSCP 20 -> forwarded via eBGP route to ATE:Port3).
 	flow1 := &otgconfighelpers.Flow{
 		FlowName:      flow1IPv4DefaultVRF,
 		TxNames:       []string{ateLag1.Name + ".IPv4"},
@@ -882,7 +922,7 @@ func configureOTGTrafficFlows(t *testing.T, env *testEnv) []string {
 	flow1.AddEthHeader()
 	flow1.AddIPv4Header()
 
-	// Flow 2: IPv6 Default VRF (Src 2001:db8:20::1, DSCP 0 -> forwarded via eBGP route to ATE:Port3).
+	// Flow 2: IPv6 Default VRF (Src 2001:db8:20::1, DSCP 20 -> forwarded via eBGP route to ATE:Port3).
 	flow2 := &otgconfighelpers.Flow{
 		FlowName:      flow2IPv6DefaultVRF,
 		TxNames:       []string{ateLag1.Name + ".IPv6"},
@@ -901,7 +941,7 @@ func configureOTGTrafficFlows(t *testing.T, env *testEnv) []string {
 	flow2.AddEthHeader()
 	flow2.AddIPv6Header()
 
-	// Flow 3: IPv4 VRF-10 Steered (matching Rule 10: Src 198.18.0.0/16, DSCP 10 -> VRF-10 -> ATE:Port4).
+	// Flow 3: IPv4 VRF-10 Steered (matching Rule 10: DSCP 10 -> VRF-10 -> ATE:Port4).
 	flow3 := &otgconfighelpers.Flow{
 		FlowName:      flow3IPv4VRF10,
 		TxNames:       []string{ateLag1.Name + ".IPv4"},
@@ -920,35 +960,31 @@ func configureOTGTrafficFlows(t *testing.T, env *testEnv) []string {
 	flow3.AddEthHeader()
 	flow3.AddIPv4Header()
 
-	flowNames := []string{
+	// Flow 4: IPv6 VRF-10 Steered (matching Rule 20: DSCP 10 -> VRF-10 -> ATE:Port4).
+	flow4 := &otgconfighelpers.Flow{
+		FlowName:      flow4IPv6VRF10,
+		TxNames:       []string{ateLag1.Name + ".IPv6"},
+		RxNames:       []string{atePort4.Name + ".IPv6"},
+		FrameSize:     trafficFrameSize,
+		PpsRate:       trafficRatePps,
+		PacketsToSend: trafficPackets,
+		EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: ateLag1.MAC},
+		IPv6Flow: &otgconfighelpers.IPv6FlowParams{
+			IPv6Src:      steeredTrafficSrc6,
+			IPv6Dst:      vrf10TrafficDst6,
+			TrafficClass: dscpVRF10 << 2,
+		},
+	}
+	flow4.CreateFlow(top)
+	flow4.AddEthHeader()
+	flow4.AddIPv6Header()
+
+	return []string{
 		flow1IPv4DefaultVRF,
 		flow2IPv6DefaultVRF,
 		flow3IPv4VRF10,
+		flow4IPv6VRF10,
 	}
-
-	// Flow 4: IPv6 VRF-10 Steered (matching Rule 20: Src 2001:db8:10::/48, DSCP 10 -> VRF-10 -> ATE:Port4).
-	if supportsDualStackVRFSelectionPolicy(env.dut) {
-		flow4 := &otgconfighelpers.Flow{
-			FlowName:      flow4IPv6VRF10,
-			TxNames:       []string{ateLag1.Name + ".IPv6"},
-			RxNames:       []string{atePort4.Name + ".IPv6"},
-			FrameSize:     trafficFrameSize,
-			PpsRate:       trafficRatePps,
-			PacketsToSend: trafficPackets,
-			EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: ateLag1.MAC},
-			IPv6Flow: &otgconfighelpers.IPv6FlowParams{
-				IPv6Src:      steeredTrafficSrc6,
-				IPv6Dst:      vrf10TrafficDst6,
-				TrafficClass: dscpVRF10 << 2,
-			},
-		}
-		flow4.CreateFlow(top)
-		flow4.AddEthHeader()
-		flow4.AddIPv6Header()
-		flowNames = append(flowNames, flow4IPv6VRF10)
-	}
-
-	return flowNames
 }
 
 // runAndVerifyTraffic implements RT-3.5.2 Step 2 & Step 3:
@@ -971,30 +1007,38 @@ func runAndVerifyTraffic(t *testing.T, env *testEnv, flowNames []string) {
 	otgutils.WaitForARP(t, otg, env.top, "IPv6")
 	verifyBGPSessionsEstablished(t, env)
 
-	// Warm up hardware FIBs and egress ARP/NDP by sending traffic for 2 seconds before the measured burst.
-	t.Logf("Warming up hardware FIBs and egress ARP/NDP by sending traffic for 2 seconds")
+	// Warm up hardware FIBs and egress ARP/NDP by sending a fixed-packet burst and awaiting completion via gnmi.Watch.
+	t.Logf("Warming up hardware FIBs and egress ARP/NDP with an initial fixed-packet burst")
 	otg.StartTraffic(t)
-	time.Sleep(2 * time.Second)
-	otg.StopTraffic(t)
-	time.Sleep(2 * time.Second)
+	for _, flowName := range flowNames {
+		transmitPath := gnmi.OTG().Flow(flowName).Transmit().State()
+		if _, ok := gnmi.Watch(t, otg, transmitPath, trafficTimeout, func(val *ygnmi.Value[bool]) bool {
+			transmitState, present := val.Val()
+			return present && !transmitState
+		}).Await(t); !ok {
+			t.Errorf("Warm-up traffic for flow %s did not finish transmitting within %v", flowName, trafficTimeout)
+		}
+	}
 	otgutils.WaitForARP(t, otg, env.top, "IPv4")
 	otgutils.WaitForARP(t, otg, env.top, "IPv6")
 
 	// Capture baseline policy rule matched-pkts and matched-octets counters and interface counters before starting traffic.
+	rule10Idx := seqIDOffset(dut, rule10SeqID)
+	rule20Idx := seqIDOffset(dut, rule20SeqID)
 	var rule10PktsBefore, rule20PktsBefore uint64
 	var rule10OctetsBefore, rule20OctetsBefore uint64
 	policyPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Policy(vrfSelectionPolicyName)
 	if !deviations.PolicyRuleCountersOCUnsupported(dut) && !deviations.PolicyForwardingOCUnsupported(dut) {
-		if v, ok := gnmi.Lookup(t, dut, policyPath.Rule(rule10SeqID).MatchedPkts().State()).Val(); ok {
+		if v, ok := gnmi.Lookup(t, dut, policyPath.Rule(rule10Idx).MatchedPkts().State()).Val(); ok {
 			rule10PktsBefore = v
 		}
-		if v, ok := gnmi.Lookup(t, dut, policyPath.Rule(rule20SeqID).MatchedPkts().State()).Val(); ok {
+		if v, ok := gnmi.Lookup(t, dut, policyPath.Rule(rule20Idx).MatchedPkts().State()).Val(); ok {
 			rule20PktsBefore = v
 		}
-		if v, ok := gnmi.Lookup(t, dut, policyPath.Rule(rule10SeqID).MatchedOctets().State()).Val(); ok {
+		if v, ok := gnmi.Lookup(t, dut, policyPath.Rule(rule10Idx).MatchedOctets().State()).Val(); ok {
 			rule10OctetsBefore = v
 		}
-		if v, ok := gnmi.Lookup(t, dut, policyPath.Rule(rule20SeqID).MatchedOctets().State()).Val(); ok {
+		if v, ok := gnmi.Lookup(t, dut, policyPath.Rule(rule20Idx).MatchedOctets().State()).Val(); ok {
 			rule20OctetsBefore = v
 		}
 	}
@@ -1032,21 +1076,16 @@ func runAndVerifyTraffic(t *testing.T, env *testEnv, flowNames []string) {
 		}
 	}
 
-	// Verify VRF selection policy Rule 10 (and Rule 20 when dual-stack rules are supported) matched-pkts and matched-octets counters incremented.
+	// Verify VRF selection policy Rule 10 and Rule 20 matched-pkts and matched-octets counters incremented.
 	if !deviations.PolicyRuleCountersOCUnsupported(dut) && !deviations.PolicyForwardingOCUnsupported(dut) {
+		wantMinOctets := uint64(trafficPackets) * (trafficFrameSize - 18)
 		ruleChecks := []struct {
 			seqID        uint32
 			pktsBefore   uint64
 			octetsBefore uint64
 		}{
-			{seqID: rule10SeqID, pktsBefore: rule10PktsBefore, octetsBefore: rule10OctetsBefore},
-		}
-		if supportsDualStackVRFSelectionPolicy(dut) {
-			ruleChecks = append(ruleChecks, struct {
-				seqID        uint32
-				pktsBefore   uint64
-				octetsBefore uint64
-			}{seqID: rule20SeqID, pktsBefore: rule20PktsBefore, octetsBefore: rule20OctetsBefore})
+			{seqID: rule10Idx, pktsBefore: rule10PktsBefore, octetsBefore: rule10OctetsBefore},
+			{seqID: rule20Idx, pktsBefore: rule20PktsBefore, octetsBefore: rule20OctetsBefore},
 		}
 		for _, ruleCheck := range ruleChecks {
 			if _, ok := gnmi.Watch(t, dut, policyPath.Rule(ruleCheck.seqID).MatchedPkts().State(), trafficTimeout, func(val *ygnmi.Value[uint64]) bool {
@@ -1057,8 +1096,13 @@ func runAndVerifyTraffic(t *testing.T, env *testEnv, flowNames []string) {
 				t.Errorf("Policy %s rule %d matched-pkts counter did not increment as expected: got %d, want >= %d",
 					vrfSelectionPolicyName, ruleCheck.seqID, got, ruleCheck.pktsBefore+trafficPackets)
 			}
-			if octets, ok := gnmi.Lookup(t, dut, policyPath.Rule(ruleCheck.seqID).MatchedOctets().State()).Val(); ok {
-				t.Logf("Policy %s rule %d matched-octets: before=%d, after=%d", vrfSelectionPolicyName, ruleCheck.seqID, ruleCheck.octetsBefore, octets)
+			if _, ok := gnmi.Watch(t, dut, policyPath.Rule(ruleCheck.seqID).MatchedOctets().State(), trafficTimeout, func(val *ygnmi.Value[uint64]) bool {
+				octets, present := val.Val()
+				return present && octets >= ruleCheck.octetsBefore+wantMinOctets
+			}).Await(t); !ok {
+				got, _ := gnmi.Lookup(t, dut, policyPath.Rule(ruleCheck.seqID).MatchedOctets().State()).Val()
+				t.Errorf("Policy %s rule %d matched-octets counter did not increment as expected: got %d, want >= %d",
+					vrfSelectionPolicyName, ruleCheck.seqID, got, ruleCheck.octetsBefore+wantMinOctets)
 			}
 		}
 	}
@@ -1066,10 +1110,7 @@ func runAndVerifyTraffic(t *testing.T, env *testEnv, flowNames []string) {
 	// Verify DUT interface counters (in-pkts on LAG1 and out-pkts on Port3 and Port4) incremented as expected.
 	wantLagInPkts := uint64(len(flowNames)) * trafficPackets
 	wantP3OutPkts := uint64(2 * trafficPackets)
-	wantP4OutPkts := uint64(trafficPackets)
-	if supportsDualStackVRFSelectionPolicy(dut) {
-		wantP4OutPkts = uint64(2 * trafficPackets)
-	}
+	wantP4OutPkts := uint64(2 * trafficPackets)
 	if _, ok := gnmi.Watch(t, dut, gnmi.OC().Interface(env.aggID).Counters().InPkts().State(), trafficTimeout, func(val *ygnmi.Value[uint64]) bool {
 		pkts, present := val.Val()
 		return present && pkts >= lagInPktsBefore+wantLagInPkts

@@ -30,7 +30,6 @@ platform_exceptions: {
     interface_id_format_required_for_policy_forwarding: true
     ipv4_missing_enabled: true
     lacp_config_after_aggregate_replace: true
-    policy_rule_counters_oc_unsupported: true
   }
 }
 platform_exceptions: {
@@ -40,8 +39,8 @@ platform_exceptions: {
   deviations: {
     interface_enabled: true
     interface_ref_interface_id_format: true
-    policy_rule_counters_oc_unsupported: true
     route_policy_under_afi_unsupported: true
+    state_path_unsupported: true
   }
 }
 platform_exceptions: {
@@ -52,7 +51,6 @@ platform_exceptions: {
     aggregate_atomic_update: true
     explicit_interface_in_default_vrf: true
     interface_enabled: true
-    policy_rule_counters_oc_unsupported: true
     static_protocol_name: "static"
   }
 }

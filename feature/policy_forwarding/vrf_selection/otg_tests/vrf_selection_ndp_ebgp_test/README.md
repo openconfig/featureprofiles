@@ -121,22 +121,19 @@ graph LR
     = `VRF-SELECT-POLICY`,
     `/network-instances/network-instance/policy-forwarding/policies/policy/config/type`
     = `VRF_SELECTION_POLICY`) with the following rules:
-    * **Rule 10** (`sequence-id: 10`): Match IPv4 packets with source prefix
-      `198.18.0.0/16`
-      (`/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/source-address`)
-      and DSCP `10`
+    * **Rule 10** (`sequence-id: 10`): Match IPv4 packets with DSCP `[0, 10]`
       (`/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/dscp-set`),
       with action
       `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/network-instance`
       set to `VRF-10`.
-    * **Rule 20** (`sequence-id: 20`): Match IPv6 packets with source prefix
-      `2001:db8:10::/48`
-      (`/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/source-address`)
-      and DSCP `10`
+    * **Rule 20** (`sequence-id: 20`): Match IPv6 packets with DSCP `[0, 10]`
       (`/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/dscp-set`),
       with action
       `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/network-instance`
       set to `VRF-10`.
+    * **Rule 30** (`sequence-id: 30`): Default catch-all rule with action
+      `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/network-instance`
+      set to `DEFAULT`.
   * Apply `VRF-SELECT-POLICY` to ingress interface `Port-Channel1.0` in the
     `DEFAULT` network instance using
     `/network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-vrf-selection-policy`.
@@ -189,7 +186,9 @@ graph LR
     * **Pass**: Both the IPv4 eBGP neighbor (`192.0.2.2`) and the IPv6 eBGP
       neighbor (`2001:db8::2`) on `Port-Channel1` (as well as `192.0.2.6` and
       `2001:db8::6` on **DUT port 3**) reach `session-state` = `ESTABLISHED`
-      and `afi-safi/state/active` = `true`.
+      and `afi-safi/state/active` = `true`, including after stopping and
+      restarting ATE protocols while `VRF-SELECT-POLICY` remains active on
+      `Port-Channel1.0`.
     * **Fail**: Either the IPv4 or IPv6 eBGP session remains stuck in
       `CONNECT`, `ACTIVE`, or `IDLE`.
 
@@ -212,8 +211,8 @@ graph LR
 
 | Flow Name | IP Version | Source Address | Destination Address | DSCP | Expected VRF Lookup | Expected Egress Port |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Flow 1 (Default-IPv4)** | IPv4 | `198.19.0.1` | `198.51.100.1` | `0` | `DEFAULT` (eBGP route) | **DUT port 3** -> **ATE port 3** |
-| **Flow 2 (Default-IPv6)** | IPv6 | `2001:db8:20::1` | `2001:db8:1::1` | `0` | `DEFAULT` (eBGP route) | **DUT port 3** -> **ATE port 3** |
+| **Flow 1 (Default-IPv4)** | IPv4 | `198.19.0.1` | `198.51.100.1` | `20` | `DEFAULT` (eBGP route) | **DUT port 3** -> **ATE port 3** |
+| **Flow 2 (Default-IPv6)** | IPv6 | `2001:db8:20::1` | `2001:db8:1::1` | `20` | `DEFAULT` (eBGP route) | **DUT port 3** -> **ATE port 3** |
 | **Flow 3 (Steered-IPv4)** | IPv4 | `198.18.0.1` | `203.0.113.1` | `10` | `VRF-10` (Rule 10 match) | **DUT port 4** -> **ATE port 4** |
 | **Flow 4 (Steered-IPv6)** | IPv6 | `2001:db8:10::1` | `2001:db8:2::1` | `10` | `VRF-10` (Rule 20 match) | **DUT port 4** -> **ATE port 4** |
 
@@ -228,22 +227,22 @@ graph LR
       `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts`
       and
       `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-octets`
-      for Rule 10 and Rule 20 increment by the exact number of packets and
+      for Rule 10 and Rule 20 increment by at least the number of packets and
       octets transmitted for Flow 3 and Flow 4 respectively.
     * Interface packet counters `/interfaces/interface/state/counters/in-pkts`
       on `Port-Channel1` and `/interfaces/interface/state/counters/out-pkts` on
       **DUT port 3** and **DUT port 4** match the transmitted packet counts.
     * Throughout and after the traffic run, the IPv6 neighbor state
       (`/interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor/state/neighbor-state`)
-      on `Port-Channel1` remains `REACHABLE` and the IPv4/IPv6 eBGP session
-      state
+      on `Port-Channel1` remains `REACHABLE` (or `STALE`) and the IPv4/IPv6 eBGP
+      session state
       (`/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state`)
       remains `ESTABLISHED`.
   * **Fail**:
     * Any packet loss (> 0%) is observed on Flows 1, 2, 3, or 4, or traffic is
       misrouted to the wrong egress port.
-    * Policy-forwarding `matched-pkts` counters fail to increment for steered
-      flows.
+    * Policy-forwarding `matched-pkts` or `matched-octets` counters fail to
+      increment for steered flows.
     * The IPv6 eBGP session flaps or drops out of `ESTABLISHED`, or the IPv6
       neighbor state reverts to `INCOMPLETE`.
 
@@ -561,9 +560,9 @@ graph LR
                       "ipv4": {
                         "config": {
                           "dscp-set": [
+                            0,
                             10
-                          ],
-                          "source-address": "198.18.0.0/16"
+                          ]
                         }
                       },
                       "sequence-id": 10
@@ -580,12 +579,23 @@ graph LR
                       "ipv6": {
                         "config": {
                           "dscp-set": [
+                            0,
                             10
-                          ],
-                          "source-address": "2001:db8:10::/48"
+                          ]
                         }
                       },
                       "sequence-id": 20
+                    },
+                    {
+                      "action": {
+                        "config": {
+                          "network-instance": "DEFAULT"
+                        }
+                      },
+                      "config": {
+                        "sequence-id": 30
+                      },
+                      "sequence-id": 30
                     }
                   ]
                 }
@@ -758,9 +768,7 @@ paths:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/network-instance:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/config/sequence-id:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/dscp-set:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/source-address:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/dscp-set:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/source-address:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-octets:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts:
 
