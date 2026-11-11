@@ -29,6 +29,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -366,20 +367,20 @@ func otgConfig(t *testing.T, ate *ondatra.ATEDevice, o otgOptions) gosnappi.Conf
 	return config
 }
 
-// startOTG pushes the configuration, optionally starts the capture, and starts
-// the protocols.
-func startOTG(t *testing.T, ate *ondatra.ATEDevice, o otgOptions) gosnappi.Config {
+// startOTG pushes the configuration and starts the protocols. When the
+// configuration has the port-1 capture, the capture starts after the push and
+// before the protocols, so it records the BGP UPDATE messages from the start.
+// otgutils.StartCapture registers the capture stop as a cleanup.
+func startOTG(t *testing.T, ate *ondatra.ATEDevice, o otgOptions) gosnappi.ControlState {
 	t.Helper()
-	config := otgConfig(t, ate, o)
 	ate.OTG().StopProtocols(t)
-	ate.OTG().PushConfig(t, config)
+	ate.OTG().PushConfig(t, otgConfig(t, ate, o))
+	var cs gosnappi.ControlState
 	if o.capturePort1 {
-		cs := gosnappi.NewControlState()
-		cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
-		ate.OTG().SetControlState(t, cs)
+		cs = otgutils.StartCapture(t, ate.OTG())
 	}
 	ate.OTG().StartProtocols(t)
-	return config
+	return cs
 }
 
 // restartOTGBGPPeers restarts the four ATE BGP peers to re-establish the
@@ -426,25 +427,22 @@ func verifyEstablished(t *testing.T, dut *ondatra.DUTDevice, o *otg.OTG) {
 	}
 }
 
-// reportSessionReset logs whether a configuration change reset the sessions.
-// It is reported only and is not a pass/fail criterion.
+// reportSessionReset logs whether a configuration change reset the sessions
+// within resetWindow: whether established-transitions increased or the session
+// left ESTABLISHED. It is reported only and is not a pass/fail criterion.
 func reportSessionReset(t *testing.T, dut *ondatra.DUTDevice, before map[string]uint64) {
 	t.Helper()
 	deadline := time.Now().Add(resetWindow)
-	reset := map[string]bool{}
-	for time.Now().Before(deadline) {
-		for _, n := range allNeighbors {
-			nbr := bgpPath(dut).Neighbor(n.address)
-			transitions, _ := gnmi.Lookup(t, dut, nbr.EstablishedTransitions().State()).Val()
-			state, ok := gnmi.Lookup(t, dut, nbr.SessionState().State()).Val()
-			if transitions > before[n.address] || !ok || state != oc.Bgp_Neighbor_SessionState_ESTABLISHED {
-				reset[n.address] = true
-			}
-		}
-		time.Sleep(5 * time.Second)
-	}
 	for _, n := range allNeighbors {
-		t.Logf("Neighbor %s: applying the configuration reset the session: %t", n.address, reset[n.address])
+		nbr := bgpPath(dut).Neighbor(n.address)
+		timeout := max(time.Until(deadline), time.Second)
+		_, transitioned := gnmi.Watch(t, dut, nbr.EstablishedTransitions().State(), timeout, func(v *ygnmi.Value[uint64]) bool {
+			got, ok := v.Val()
+			return ok && got > before[n.address]
+		}).Await(t)
+		state, ok := gnmi.Lookup(t, dut, nbr.SessionState().State()).Val()
+		reset := transitioned || !ok || state != oc.Bgp_Neighbor_SessionState_ESTABLISHED
+		t.Logf("Neighbor %s: applying the configuration reset the session: %t", n.address, reset)
 	}
 }
 
@@ -537,27 +535,22 @@ func verifyPeerGroupPMTUD(t *testing.T, dut *ondatra.DUTDevice, want bool) {
 }
 
 // verifyReceivedPrefixes waits until the ATE port-1 iBGP peers have received
-// all the prefixes advertised by the ATE port-2 eBGP peers.
+// all the prefixes advertised by the ATE port-2 eBGP peers. The OTG
+// configuration was just pushed, so the counters start from zero.
 func verifyReceivedPrefixes(t *testing.T, o *otg.OTG) {
 	t.Helper()
-	peer := gnmi.OTG().BgpPeer
-	counts := func() (int, int) {
-		v4 := gnmi.LookupAll(t, o, peer(otgPeerName(atePort1, "v4")).UnicastIpv4PrefixAny().State())
-		v6 := gnmi.LookupAll(t, o, peer(otgPeerName(atePort1, "v6")).UnicastIpv6PrefixAny().State())
-		return len(v4), len(v6)
-	}
-	deadline := time.Now().Add(protocolTimeout)
-	for {
-		v4, v6 := counts()
-		if v4 >= routeCount && v6 >= routeCount {
-			t.Logf("ATE port-1 iBGP peers received %d IPv4 and %d IPv6 prefixes", v4, v6)
-			return
+	for _, p := range []string{otgPeerName(atePort1, "v4"), otgPeerName(atePort1, "v6")} {
+		path := gnmi.OTG().BgpPeer(p).Counters().InRoutes().State()
+		got, ok := gnmi.Watch(t, o, path, protocolTimeout, func(v *ygnmi.Value[uint64]) bool {
+			n, present := v.Val()
+			return present && n >= routeCount
+		}).Await(t)
+		n, _ := got.Val()
+		if !ok {
+			t.Errorf("ATE BGP peer %s received %d routes within %v, want at least %d", p, n, protocolTimeout, routeCount)
+			continue
 		}
-		if time.Now().After(deadline) {
-			t.Errorf("ATE port-1 iBGP peers received %d IPv4 and %d IPv6 prefixes within %v, want %d of each", v4, v6, protocolTimeout, routeCount)
-			return
-		}
-		time.Sleep(10 * time.Second)
+		t.Logf("ATE BGP peer %s received %d routes", p, n)
 	}
 }
 
@@ -742,27 +735,28 @@ func TestTCPMSSPathMTU(t *testing.T) {
 			})
 		}
 
+		t.Cleanup(func() {
+			setAllPortsMTU(t, dut, 0)
+			startOTG(t, ate, otgOptions{mtu: mtuDefault})
+		})
 		t.Run("Set the MTU to 5040 bytes", func(t *testing.T) {
 			setAllPortsMTU(t, dut, mtuJumbo)
 			startOTG(t, ate, otgOptions{mtu: mtuJumbo})
 			verifyEstablished(t, dut, o)
 		})
-		t.Cleanup(func() {
-			setAllPortsMTU(t, dut, 0)
-			startOTG(t, ate, otgOptions{mtu: mtuDefault})
-		})
 
 		t.Run("Neighbor level", func(t *testing.T) {
+			t.Cleanup(func() { setNeighborMSS(t, dut, allNeighbors, 0) })
 			before := establishedTransitions(t, dut)
 			setNeighborMSS(t, dut, allNeighbors, mssNeighbor)
 			reportSessionReset(t, dut, before)
 			restartOTGBGPPeers(t, o)
 			verifyEstablished(t, dut, o)
 			verifyNeighborMSS(t, dut, allNeighbors, mssNeighbor)
-			setNeighborMSS(t, dut, allNeighbors, 0)
 		})
 
 		t.Run("Peer-group level", func(t *testing.T) {
+			t.Cleanup(func() { setPeerGroupMSS(t, dut, 0) })
 			setPeerGroupMSS(t, dut, mssGroup)
 			restartOTGBGPPeers(t, o)
 			verifyEstablished(t, dut, o)
@@ -770,6 +764,7 @@ func TestTCPMSSPathMTU(t *testing.T) {
 			verifyNeighborMSS(t, dut, allNeighbors, mssGroup)
 
 			t.Run("Neighbor-level override", func(t *testing.T) {
+				t.Cleanup(func() { setNeighborMSS(t, dut, overrideNeighbors, 0) })
 				setNeighborMSS(t, dut, overrideNeighbors, mssOverride)
 				restartOTGBGPPeers(t, o)
 				verifyEstablished(t, dut, o)
@@ -777,9 +772,6 @@ func TestTCPMSSPathMTU(t *testing.T) {
 				verifyNeighborMSS(t, dut, inheritNeighbors, mssGroup)
 				verifyPeerGroupMSS(t, dut, mssGroup)
 			})
-
-			setNeighborMSS(t, dut, overrideNeighbors, 0)
-			setPeerGroupMSS(t, dut, 0)
 		})
 	})
 
@@ -788,17 +780,17 @@ func TestTCPMSSPathMTU(t *testing.T) {
 		port1 := dut.Port(t, "port1")
 
 		t.Run("Neighbor level", func(t *testing.T) {
-			b := &gnmi.SetBatch{}
-			setL3MTU(b, port1, mtuPMTUD)
-			b.Set(t, dut)
-			defer func() {
+			t.Cleanup(func() {
 				b := &gnmi.SetBatch{}
 				setL3MTU(b, port1, 0)
 				b.Set(t, dut)
-			}()
+			})
+			b := &gnmi.SetBatch{}
+			setL3MTU(b, port1, mtuPMTUD)
+			b.Set(t, dut)
 
+			t.Cleanup(func() { setNeighborPMTUD(t, dut, allNeighbors, nil) })
 			setNeighborPMTUD(t, dut, allNeighbors, enabled)
-			defer setNeighborPMTUD(t, dut, allNeighbors, nil)
 			restartOTGBGPPeers(t, o)
 			verifyEstablished(t, dut, o)
 			verifyNeighborPMTUD(t, dut, allNeighbors, true)
@@ -806,15 +798,14 @@ func TestTCPMSSPathMTU(t *testing.T) {
 			// Restart the ATE with the capture on port-1 and the prefixes on
 			// port-2. The DUT then sends large UPDATE messages to the iBGP
 			// peers through TRANSIT, whose link to ATE port-1 has a 1400-byte
-			// MTU.
-			startOTG(t, ate, otgOptions{mtu: mtuDefault, routes: true, capturePort1: true})
+			// MTU. The cleanup withdraws the prefixes and removes the capture.
+			t.Cleanup(func() { startOTG(t, ate, otgOptions{mtu: mtuDefault}) })
+			cs := startOTG(t, ate, otgOptions{mtu: mtuDefault, routes: true, capturePort1: true})
 			verifyEstablished(t, dut, o)
 			verifyReceivedPrefixes(t, o)
 			verifyEstablished(t, dut, o)
 
-			cs := gosnappi.NewControlState()
-			cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
-			o.SetControlState(t, cs)
+			otgutils.StopCapture(t, o, cs)
 			pcap := o.GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(ate.Port(t, "port1").ID()))
 			s, err := parseCapture(pcap)
 			if err != nil {
@@ -830,23 +821,19 @@ func TestTCPMSSPathMTU(t *testing.T) {
 			if s.v4Fragments != 0 {
 				t.Errorf("IPv4 fragments from %s = %d, want 0", dutPort3.IPv4, s.v4Fragments)
 			}
-
-			// Withdraw the prefixes and remove the capture.
-			startOTG(t, ate, otgOptions{mtu: mtuDefault})
-			verifyEstablished(t, dut, o)
 		})
 
 		t.Run("Peer-group level", func(t *testing.T) {
+			t.Cleanup(func() { setPeerGroupPMTUD(t, dut, nil) })
 			setPeerGroupPMTUD(t, dut, enabled)
-			defer setPeerGroupPMTUD(t, dut, nil)
 			restartOTGBGPPeers(t, o)
 			verifyEstablished(t, dut, o)
 			verifyPeerGroupPMTUD(t, dut, true)
 			verifyNeighborPMTUD(t, dut, allNeighbors, true)
 
 			t.Run("Neighbor-level override", func(t *testing.T) {
+				t.Cleanup(func() { setNeighborPMTUD(t, dut, overrideNeighbors, nil) })
 				setNeighborPMTUD(t, dut, overrideNeighbors, disabled)
-				defer setNeighborPMTUD(t, dut, overrideNeighbors, nil)
 				restartOTGBGPPeers(t, o)
 				verifyEstablished(t, dut, o)
 				verifyNeighborPMTUD(t, dut, overrideNeighbors, false)
