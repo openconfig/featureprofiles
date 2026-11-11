@@ -885,10 +885,6 @@ message Metadata {
 
     // Devices that do not support policy forwarding on next-hop
     bool policy_forwarding_to_next_hop_oc_unsupported = 312;
-    // Cisco: b/402672689
-    // Devices that support sflow ingress min sampling rate of 1/N with N<1,000,000 can use
-    // this deviation to set specific value of N. Returns N=1,000,000 by default.
-    uint32 sflow_ingress_min_sampling_rate = 313;
 
     // DUT not supporting with qos remarking
     // Arista: b/415889077
@@ -1477,7 +1473,7 @@ message Metadata {
     // NOKIA: https://partnerissuetracker.corp.google.com/issues/510725200
     bool bgp_adj_rib_oc_unsupported = 457;
 
-    // Devices that donot support AIGP metric increment when IGP metric to original destination is zero
+    // Devices that do not support AIGP metric increment when IGP metric to original destination is zero
     bool aigp_metric_increment = 458;
 
     // Device does not support power supply telemetry.
@@ -1585,8 +1581,52 @@ message Metadata {
     // Arista: https://partnerissuetracker.corp.google.com/issues/219953165
     bool skip_gnoi_ping_rpc_authz_verification = 479;
 
+    // Device does not support IS-IS interface level packet-counters/lsp/state/retransmit leaf.
+    // Nokia: https://partnerissuetracker.corp.google.com/issues/570885559
+    bool isis_lsp_retransmit_counter_unsupported = 480;
+
+    // Devices that do not validate that max-threshold is strictly greater than
+    // min-threshold, so a min > max configuration is accepted instead of
+    // rejected.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/573059610
+    // Nokia: https://partnerissuetracker.corp.google.com/issues/573067365
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/573074330
+    bool ecn_min_greater_max_threshold_unsupported = 481;
+
+    // Maximum number of decap entries supported by the device.
+    uint32 max_supported_decap_entries = 482;
+
+    // Device does not support /interfaces/interface/ethernet/state/negotiated-port-speed telemetry path.
+    // Nokia: https://partnerissuetracker.corp.google.com/issues/572214470
+    bool negotiated_port_speed_unsupported = 483;
+
+    // Device does not support /interfaces/interface/subinterfaces/subinterface/state/ifindex telemetry path.
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/572208368
+    bool subinterface_ifindex_unsupported = 484;
+
+    // Device requires all remote syslog servers to use the same facility and
+    // severity selector when configured via OpenConfig.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/574820175
+    bool syslog_uniform_selector_required = 485;
+
+    // Device omits /system/logging/remote-servers/remote-server/state/network-instance
+    // when the remote syslog server is configured in the default network instance.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/574820175
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/574811352
+    bool syslog_default_ni_state_unsupported = 486;
+
+    // Device does not support configuring DEBUG severity for remote syslog
+    // selectors via OpenConfig.
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/574811352
+    bool syslog_debug_severity_unsupported = 487;
+
+    // Device does not support /system/mount-points/mount-point/state/storage-component
+    // telemetry (including via the system_mount_point_state_ft functional translator).
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/429234456
+    bool mount_point_storage_component_unsupported = 488;
+
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
+    reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49, 313;
   }
 
   message PlatformExceptions {

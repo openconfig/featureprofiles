@@ -1538,7 +1538,8 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 					cfgplugins.ApplyExtendedRouteRetention(t, dut, b, false, bgpGracefulRestartConfigParams)
 					b.Set(t, dut)
 
-					cs := packetvalidationhelpers.StartCapture(t, ate)
+					cs := otgutils.StartCapture(t, ate.OTG())
+					defer otgutils.StopCapture(t, ate.OTG(), cs)
 
 					ate.OTG().StartTraffic(t)
 
@@ -1551,7 +1552,7 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 						t.Fatalf("Failed to clear BGP neighbor: %v", err)
 					}
 
-					packetvalidationhelpers.StopCapture(t, ate, cs)
+					otgutils.StopCapture(t, ate.OTG(), cs)
 					mustValidateGracefulRestartHardResetCode6Subcode9(t, ate)
 
 					validateExrr(t, flowsWithNoERR, flowsWithNoLoss, true, bgpGracefulRestartConfigParams)
@@ -1879,7 +1880,8 @@ func TestBGPPGracefulRestartExtendedRouteRetentionOnPeerGroup(t *testing.T) {
 					cfgplugins.ApplyExtendedRouteRetention(t, dut, b, true, bgpGracefulRestartConfigParams)
 					b.Set(t, dut)
 
-					cs := packetvalidationhelpers.StartCapture(t, ate)
+					cs := otgutils.StartCapture(t, ate.OTG())
+					defer otgutils.StopCapture(t, ate.OTG(), cs)
 
 					ate.OTG().StartTraffic(t)
 
@@ -1892,7 +1894,7 @@ func TestBGPPGracefulRestartExtendedRouteRetentionOnPeerGroup(t *testing.T) {
 						t.Fatalf("Failed to clear BGP neighbor: %v", err)
 					}
 
-					packetvalidationhelpers.StopCapture(t, ate, cs)
+					otgutils.StopCapture(t, ate.OTG(), cs)
 					mustValidateGracefulRestartHardResetCode6Subcode9(t, ate)
 
 					validateExrr(t, flowsWithNoERR, flowsWithNoLoss, true, bgpGracefulRestartConfigParams)
