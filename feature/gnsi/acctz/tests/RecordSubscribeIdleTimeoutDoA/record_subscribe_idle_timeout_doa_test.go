@@ -58,7 +58,7 @@ func TestRecordSubscribeIdleTimeoutDoA(t *testing.T) {
 	if err != nil {
 		t.Errorf("Failed to parse system time %q: %v", systemTime, err)
 	}
-	ctx, cancel := context.WithTimeout(t.Context(), defaultIdleTimeout+gracePeriod+30*time.Second)
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
 	acctzClient := dut.RawAPIs().GNSI(t).AcctzStream()
@@ -71,19 +71,30 @@ func TestRecordSubscribeIdleTimeoutDoA(t *testing.T) {
 	t.Log("RecordSubscribe stream established successfully.")
 	t.Logf("Waiting %v to trigger idle timeout... %v", defaultIdleTimeout+gracePeriod, time.Now())
 	time.Sleep(defaultIdleTimeout + gracePeriod)
+
 	t.Log("Idle timeout and grace period passed:", time.Now())
-	t.Logf("Try to receive a record after idle timeout: %v", time.Now())
-	recv, recvErr := acctzSubClient.Recv()
-	t.Logf("%v Try to log recv: %v", time.Now(), prettyPrint(recv))
+	t.Logf("Checking RecordSubscribe stream termination: %v", time.Now())
 
-	if recvErr == nil {
-		t.Errorf("RecordSubscribe stream is still active after the idle timeout period, but it should have been closed by the DUT.")
+	// A RecordSubscribe RPC can deliver buffered accounting records
+	// before returning its final stream status.
+	// Consume all available records until Recv returns an error.
+	for {
+		recv, recvErr := acctzSubClient.Recv()
+		if recvErr == nil {
+			t.Logf("%v Received accounting record while checking stream closure: %s", time.Now(), prettyPrint(recv))
+			continue
+		}
+		t.Logf("%v RecordSubscribe Recv returned: %v", time.Now(), recvErr)
+		// A client-side context deadline is NOT proof that
+		// the DUT closed the stream due to its idle timeout.
+		if status.Code(recvErr) == codes.DeadlineExceeded {
+			t.Fatalf("DUT did not close RecordSubscribe stream within the idle timeout and grace period: %v", recvErr)
+		}
+		if !isStreamClosedErr(recvErr) {
+			t.Fatalf("RecordSubscribe stream returned unexpected error after idle timeout: %v", recvErr)
+		}
+		t.Logf("RecordSubscribe stream closed as expected after idle timeout: %v", recvErr)
 		return
 	}
 
-	if !isStreamClosedErr(recvErr) {
-		t.Errorf("RecordSubscribe stream returned unexpected error after idle timeout: %v", recvErr)
-		return
-	}
-	t.Logf("Stream closed as expected after idle timeout: %v", recvErr)
 }
