@@ -3,7 +3,7 @@
 
 ## Summary
 
-Verify system mount points state parameters including name, size, utilized, and available space.
+Verify system mount points state parameters including name, storage-component, size, utilized, and available space.
 
 ## Testbed type
 
@@ -19,7 +19,7 @@ Verify system mount points state parameters including name, size, utilized, and 
 
 1.  Subscribe/Get `/system/mount-points/mount-point` list.
 2.  Verify that the list of mount points is not empty (expecting at least one mount point).
-3.  For each mount point, verify `name`, `size`, `utilized`, and `available` are present and valid:
+3.  For each mount point, verify `name`, `storage-component`, `size`, `utilized`, and `available` are present and valid:
     *   `size` >= 0
     *   `utilized` <= `size`
     *   `available` <= `size`
@@ -30,6 +30,19 @@ Verify system mount points state parameters including name, size, utilized, and 
 
 ```json
 {
+  "components": {
+    "component": [
+      {
+        "config": {
+          "name": "/dev/root"
+        },
+        "name": "/dev/root",
+        "state": {
+          "name": "/dev/root"
+        }
+      }
+    ]
+  },
   "system": {
     "mount-points": {
       "mount-point": [
@@ -37,6 +50,7 @@ Verify system mount points state parameters including name, size, utilized, and 
           "name": "/",
           "state": {
             "name": "/",
+            "storage-component": "/dev/root",
             "size": "100000",
             "utilized": "50000",
             "available": "50000"
@@ -55,6 +69,7 @@ paths:
   /system/mount-points/mount-point/state/available:
   /system/mount-points/mount-point/state/name:
   /system/mount-points/mount-point/state/size:
+  /system/mount-points/mount-point/state/storage-component:
   /system/mount-points/mount-point/state/utilized:
 
 rpcs:
