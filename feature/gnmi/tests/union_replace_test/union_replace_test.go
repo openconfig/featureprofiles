@@ -1367,6 +1367,10 @@ func TestUnionReplace(t *testing.T) {
 				}
 
 				t.Logf("Configuring DUT port %q to mismatched port-speed %q using gNMI union_replace.", dp1.Name(), targetSpeed)
+				// If a device doesn't support /interfaces/interface/ethernet/config/port-speed,
+				// apply a 4x10G breakout and check the breakout config and that the link is
+				// DOWN. This is an acceptable workaround, but still requires a deviation as
+				// the README requires port-speed.
 				if deviations.PortSpeedUnsupported(dut) {
 					baseIntf := dp1.Name()
 					if strings.Count(dp1.Name(), "/") == 4 {
@@ -1492,6 +1496,10 @@ func TestUnionReplace(t *testing.T) {
 				}
 
 				t.Logf("Configuring DUT port %q to mismatched port-speed %q using gNMI union_replace CLI.", dp1.Name(), targetSpeed)
+				// If a device doesn't support /interfaces/interface/ethernet/config/port-speed,
+				// apply a 4x10G breakout and check the breakout config and that the link is
+				// DOWN. This is an acceptable workaround, but still requires a deviation as
+				// the README requires port-speed.
 				if deviations.PortSpeedUnsupported(dut) {
 					baseIntf := dp1.Name()
 					if strings.Count(dp1.Name(), "/") == 4 {
