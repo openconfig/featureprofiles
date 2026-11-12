@@ -236,6 +236,16 @@ func TestInterfaceLoopbackMode(t *testing.T) {
 		}
 	})
 
+	loopbackRestored := false
+	t.Cleanup(func() {
+		if !loopbackRestored {
+			if deviations.MemberLinkLoopbackUnsupported(dut) {
+				gnmi.Update(t, dut, gnmi.OC().Interface(aggID).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_NONE)
+			} else {
+				gnmi.Update(t, dut, gnmi.OC().Interface(dutPort1.Name()).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_NONE)
+			}
+		}
+	})
 	t.Run("Configure interface loopback mode TERMINAL on DUT AE interface", func(t *testing.T) {
 		if deviations.MemberLinkLoopbackUnsupported(dut) {
 			gnmi.Update(t, dut, gnmi.OC().Interface(aggID).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_TERMINAL)
@@ -265,6 +275,7 @@ func TestInterfaceLoopbackMode(t *testing.T) {
 		} else {
 			gnmi.Update(t, dut, gnmi.OC().Interface(dutPort1.Name()).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_NONE)
 		}
+		loopbackRestored = true
 		gnmi.Await(t, otg, gnmi.OTG().Port(ate.Port(t, "port1").ID()).Link().State(), 2*time.Minute, otgtelemetry.Port_Link_UP)
 	})
 }
