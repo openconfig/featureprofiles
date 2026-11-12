@@ -1735,6 +1735,11 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/dynamic_wcmp_group_resizing_test/README.md"
 }
 test: {
+  id: "TE-3.11"
+  description: "gRIBI Next-Hop Weight Adjustment and Soft Drain"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_nh_soft_drain_test/README.md"
+}
+test: {
   id: "TE-3.2"
   description: "Traffic Balancing According to Weights"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/weighted_balancing_test/README.md"
