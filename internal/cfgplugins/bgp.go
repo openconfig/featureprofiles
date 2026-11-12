@@ -921,6 +921,16 @@ func ConfigureBGPNeighbor(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkIn
 	nAfiSafi.GetOrCreateAddPaths().Send = ygot.Bool(sendReceivePaths)
 }
 
+// ConfigureBGPConfederation sets the BGP confederation (RFC 5065) on the BGP
+// global configuration: the confederation identifier, which external peers see
+// as the AS of the confederation, and the Member-ASes of the confederation
+// peers.
+func ConfigureBGPConfederation(bgp *oc.NetworkInstance_Protocol_Bgp, identifier uint32, memberAS []uint32) {
+	confed := bgp.GetOrCreateGlobal().GetOrCreateConfederation()
+	confed.SetIdentifier(identifier)
+	confed.SetMemberAs(memberAS)
+}
+
 // ConfigureDUTBGP configures BGP on the DUT using OpenConfig.
 func ConfigureDUTBGP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, cfg BGPConfig) *oc.NetworkInstance_Protocol {
 	t.Helper()
