@@ -208,6 +208,12 @@ func TestMyStationMAC(t *testing.T) {
 	ate.OTG().StartProtocols(t)
 
 	t.Logf("Configure MyStationMAC")
+	macDeleted := false
+	t.Cleanup(func() {
+		if !macDeleted {
+			gnmi.Delete(t, dut, gnmi.OC().System().MacAddress().RoutingMac().Config())
+		}
+	})
 	gnmi.Replace(t, dut, gnmi.OC().System().MacAddress().RoutingMac().Config(), myStationMAC)
 
 	t.Logf("Verify configured MyStationMAC through telemetry")
@@ -228,6 +234,7 @@ func TestMyStationMAC(t *testing.T) {
 
 	t.Logf("Remove MyStationMAC configuraiton")
 	gnmi.Delete(t, dut, gnmi.OC().System().MacAddress().RoutingMac().Config())
+	macDeleted = true
 
 	t.Run("Without MyStationMAC", func(t *testing.T) {
 		t.Run("IPv4", func(t *testing.T) {

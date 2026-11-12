@@ -849,6 +849,7 @@ test: {
   id: "RT-1.111"
   description: "BGP Autonomous System Confederations (RFC 5065)"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/confederation/otg_tests/bgp_confederation_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/confederation/otg_tests/bgp_confederation_test/bgp_confederation_test.go"
 }
 test: {
   id: "RT-1.12"
@@ -1213,6 +1214,11 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/static/otg_tests/next_hop_encap_udp/static_encap_gue_ipv4_test.go"
 }
 test: {
+  id: "RT-3.6"
+  description: "VRF Selection Policy Hardware Programming Across Multiple Linecards"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/vrf_selection/otg_tests/vrf_selection_multi_linecard_test/README.md"
+}
+test: {
   id: "RT-4.10"
   description: "AFTs Route Summary"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/summary/otg_tests/route_summary_counters_test/README.md"
@@ -1415,24 +1421,6 @@ test: {
   description: "Singleton with breakouts"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/singleton/tests/singleton_with_breakouts/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/singleton/tests/singleton_with_breakouts/singleton_with_breakouts_test.go"
-}
-test: {
-  id: "Replay-1.0"
-  description: "Record/replay presession test"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/replay/tests/presession_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/replay/tests/presession_test/presession_test.go"
-}
-test: {
-  id: "Replay-1.1"
-  description: "Record/replay diff command trees test"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/replay/tests/diff_command_trees/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/replay/tests/diff_command_trees/diff_command_trees_test.go"
-}
-test: {
-  id: "Replay-1.2"
-  description: "P4RT Replay Test"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/replay/tests/p4rt_replay/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/replay/tests/p4rt_replay/p4rt_replay_test.go"
 }
 test: {
   id: "SEC-3.1"

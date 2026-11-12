@@ -8,6 +8,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
+	"github.com/openconfig/featureprofiles/internal/telemetry/transceiver"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -109,6 +110,7 @@ func TestCDValue(t *testing.T) {
 	och1 := gnmi.Get(t, dut, gnmi.OC().Component(tr1).Transceiver().Channel(0).AssociatedOpticalChannel().State())
 	och2 := gnmi.Get(t, dut, gnmi.OC().Component(tr2).Transceiver().Channel(0).AssociatedOpticalChannel().State())
 	component1 := gnmi.OC().Component(och1)
+	toggleInterfaces := transceiver.ToggleInterfacesWithCleanup(t, dut, dut.Ports()...)
 	for _, frequency := range frequencies {
 		for _, targetOutputPower := range targetOutputPowers {
 			cfgplugins.ConfigOpticalChannel(t, dut, och1, frequency, targetOutputPower, operationalMode)
@@ -131,9 +133,7 @@ func TestCDValue(t *testing.T) {
 			verifyAllCDValues(t, dut, p1StreamInstant, p1StreamMax, p1StreamMin, p1StreamAvg, enabled)
 
 			// Disable interface.
-			for _, p := range dut.Ports() {
-				cfgplugins.ToggleInterface(t, dut, p.Name(), false)
-			}
+			toggleInterfaces(false)
 			// Wait for channels to be down.
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_DOWN)
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp2.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_DOWN)
@@ -143,9 +143,7 @@ func TestCDValue(t *testing.T) {
 			time.Sleep(flapInterval)
 
 			// Enable interface.
-			for _, p := range dut.Ports() {
-				cfgplugins.ToggleInterface(t, dut, p.Name(), true)
-			}
+			toggleInterfaces(true)
 			// Wait for channels to be up.
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp2.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
