@@ -151,6 +151,25 @@ func TestOnChangeBackplaneCapacityCounters(t *testing.T) {
 		fc = len(fabrics) - 1
 		t.Logf("Capping fabric cards to disable at %d to keep at least 1 active", fc)
 	}
+	fabricsRestored := false
+	t.Cleanup(func() {
+		if !fabricsRestored {
+			batch := gnmi.OCBatch()
+			for _, f := range fabrics[:fc] {
+				batch.AddPaths(gnmi.OC().Component(f).Empty())
+			}
+			root, _ := gnmi.Lookup(t, dut, batch.State()).Val()
+			b := &gnmi.SetBatch{}
+			for _, f := range fabrics[:fc] {
+				if root != nil && root.GetComponent(f).GetEmpty() {
+					continue
+				}
+				gnmi.BatchUpdate(b, gnmi.OC().Component(f).Config(), &oc.Component{Name: ygot.String(f)})
+				gnmi.BatchReplace(b, gnmi.OC().Component(f).Fabric().PowerAdminState().Config(), oc.Platform_ComponentPowerType_POWER_ENABLED)
+			}
+			b.Set(t, dut)
+		}
+	})
 	for _, f := range fabrics[:fc] {
 		empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(f).Empty().State()).Val()
 		if ok && empty {
@@ -184,6 +203,7 @@ func TestOnChangeBackplaneCapacityCounters(t *testing.T) {
 			t.Errorf("Component %s oper-status after POWER_ENABLED, got: %v, want: %v", f, oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE)
 		}
 	}
+	fabricsRestored = true
 	t.Logf("Waiting for 90s after power enable...")
 	time.Sleep(90 * time.Second)
 	ts3, tocs3, apct3 := getBackplaneCapacityCounters(t, dut, ics)
