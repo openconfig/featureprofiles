@@ -1372,7 +1372,7 @@ message Metadata {
     // .subinterface index with Interface-ref container specifically for policy forwarding usecase
     // Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/523054650
     bool interface_id_format_required_for_policy_forwarding = 434;
-    
+
     // Device reports resource utilization at the chassis component level
     // rather than at the integrated-circuit component level.
     // Arista: https://partnerissuetracker.corp.google.com/issues/523026741
@@ -1441,7 +1441,7 @@ message Metadata {
 
     // No P4RT AAA role based Authorization support
     bool p4rt_aaa_role_based_authz_unsupported = 452;
-    
+
     // Extra minutes the device needs beyond the 5-minute base timeout for
     // switchover-related waits (post-switchover verification, switchover-ready
     // polling, and SwitchControlProcessor retry). Supervisors may restart
@@ -1624,6 +1624,11 @@ message Metadata {
     // telemetry (including via the system_mount_point_state_ft functional translator).
     // Cisco: https://partnerissuetracker.corp.google.com/issues/429234456
     bool mount_point_storage_component_unsupported = 488;
+
+    // Device requires expand-wildcard-paths-in-get-responses on the gRPC server
+    // via the native model so gNMI Get responses expand wildcard paths.
+    // Nokia: https://partnerissuetracker.corp.google.com/issues/579492243
+    bool gnmi_expand_wildcard_paths_in_get_responses_required = 489;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49, 313;

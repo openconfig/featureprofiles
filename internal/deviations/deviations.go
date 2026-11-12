@@ -2586,3 +2586,11 @@ func SyslogDebugSeverityUnsupported(dut *ondatra.DUTDevice) bool {
 func MountPointStorageComponentUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMountPointStorageComponentUnsupported()
 }
+
+// GNMIExpandWildcardPathsInGetResponsesRequired returns true if the device requires
+// expand-wildcard-paths-in-get-responses on the gRPC server via the native model
+// so gNMI Get responses expand wildcard paths.
+// Nokia: https://partnerissuetracker.corp.google.com/issues/579492243
+func GNMIExpandWildcardPathsInGetResponsesRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGnmiExpandWildcardPathsInGetResponsesRequired()
+}
