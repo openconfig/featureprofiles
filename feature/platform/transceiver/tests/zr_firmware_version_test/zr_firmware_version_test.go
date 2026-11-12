@@ -24,6 +24,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
+	"github.com/openconfig/featureprofiles/internal/telemetry/transceiver"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -111,8 +112,11 @@ func TestZRFirmwareVersionStateInterfaceFlap(t *testing.T) {
 	if dp1.PMD() != ondatra.PMD400GBASEZR {
 		t.Fatalf("%s Transceiver is not 400ZR its of type: %v", transceiverName, dp1.PMD())
 	}
+	toggleInterface := transceiver.ToggleWithCleanup(t, func(enable bool) {
+		configInterface(t, dut1, dp1, enable)
+	})
 	// Disable interface
-	configInterface(t, dut1, dp1, false)
+	toggleInterface(false)
 	component1 := gnmi.OC().Component(transceiverName)
 
 	p1Stream := samplestream.New(t, dut1, component1.FirmwareVersion().State(), 10*time.Second)
@@ -122,7 +126,7 @@ func TestZRFirmwareVersionStateInterfaceFlap(t *testing.T) {
 	verifyFirmwareVersionValue(t, dut1, p1Stream)
 
 	// Enable interface
-	configInterface(t, dut1, dp1, true)
+	toggleInterface(true)
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
 	verifyFirmwareVersionValue(t, dut1, p1Stream)
 }
