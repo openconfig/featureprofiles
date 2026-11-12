@@ -1625,6 +1625,15 @@ message Metadata {
     // Cisco: https://partnerissuetracker.corp.google.com/issues/429234456
     bool mount_point_storage_component_unsupported = 488;
 
+    // SubintfCountersInMulticastPktsUnsupported returns true if the DUT does not support counters for
+    // multicast packets at the subinterface state level.
+    // Nokia: b/513402739
+    bool subintf_counters_inmulticastpkts_unsupported = 489;
+
+    // SubinterfaceCountersInFcsErrorsUnsupported returns true if the DUT does not support
+    // in-fcs-errors counters at the subinterface state level.
+    bool subinterface_counters_in_fcs_errors_unsupported = 490;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49, 313;
   }

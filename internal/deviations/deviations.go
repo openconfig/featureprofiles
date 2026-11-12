@@ -2586,3 +2586,16 @@ func SyslogDebugSeverityUnsupported(dut *ondatra.DUTDevice) bool {
 func MountPointStorageComponentUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMountPointStorageComponentUnsupported()
 }
+
+// SubintfCountersInMulticastPktsUnsupported returns true if the DUT does not support counters for
+// multicast packets at the subinterface state level.
+// Nokia: b/513402739
+func SubintfCountersInMulticastPktsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSubintfCountersInmulticastpktsUnsupported()
+}
+
+// SubinterfaceCountersInFcsErrorsUnsupported returns true if the DUT does not support
+// in-fcs-errors counters at the subinterface state level.
+func SubinterfaceCountersInFcsErrorsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSubinterfaceCountersInFcsErrorsUnsupported()
+}
