@@ -24,6 +24,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
+	"github.com/openconfig/featureprofiles/internal/telemetry/transceiver"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -86,8 +87,9 @@ func TestZrSupplyVoltage(t *testing.T) {
 			volInst := verifyVoltageValue(t, streamInst, "Instant")
 			t.Logf("Port %s instant voltage: %v", dp.Name(), volInst)
 
+			togglePort := transceiver.ToggleInterfacesWithCleanup(t, dut, dp)
 			// Disable interface
-			cfgplugins.ToggleInterface(t, dut, dp.Name(), false)
+			togglePort(false)
 			// Wait for the cooling-off period
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
 
@@ -95,7 +97,7 @@ func TestZrSupplyVoltage(t *testing.T) {
 			t.Logf("Port %s instant voltage after port down: %v", dp.Name(), volInstNew)
 
 			// Enable interface again.
-			cfgplugins.ToggleInterface(t, dut, dp.Name(), true)
+			togglePort(true)
 			// Wait for the cooling-off period
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 		})

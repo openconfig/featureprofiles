@@ -12,5 +12,6 @@ platform_exceptions:  {
   }
   deviations:  {
     system_mount_point_state_ft: "ciscoxr-mount-ft"
+    mount_point_storage_component_unsupported: true
   }
 }
