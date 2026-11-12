@@ -1564,7 +1564,7 @@ message Metadata {
     // Devices that don't pre-check invalid interface numbers when configured
     // Cisco: https://partnerissuetracker.corp.google.com/issues/570523357
     bool invalid_interface_number_allowed = 476;
-   
+
     // Device does not support configuring BGP send-community-type under
     // /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/config/send-community-type
     // and requires configuring it under peer-group/config/send-community-type instead.
@@ -1577,13 +1577,9 @@ message Metadata {
     // Arista: https://partnerissuetracker.corp.google.com/issues/567813121
     bool isis_interface_authentication_container_unsupported = 478;
 
-    // The device reports recursive gRIBI IPv4 next-hop groups with opaque IDs and no next-hop members
-    // Cisco: https://partnerissuetracker.corp.google.com/issues/577036552
-    bool gribi_opaque_recursive_nhg = 479;
-    
     // deviation to skip authz verification of gnoi ping rpc
     // Arista: https://partnerissuetracker.corp.google.com/issues/219953165
-    bool skip_gnoi_ping_rpc_authz_verification = 480;
+    bool skip_gnoi_ping_rpc_authz_verification = 479;
 
     // Device does not support IS-IS interface level packet-counters/lsp/state/retransmit leaf.
     // Nokia: https://partnerissuetracker.corp.google.com/issues/570885559
@@ -1628,6 +1624,10 @@ message Metadata {
     // telemetry (including via the system_mount_point_state_ft functional translator).
     // Cisco: https://partnerissuetracker.corp.google.com/issues/429234456
     bool mount_point_storage_component_unsupported = 488;
+
+    // The device reports recursive gRIBI IPv4 next-hop groups with opaque IDs and no next-hop members
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/577036552
+    bool gribi_opaque_recursive_nhg = 489;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49, 313;
