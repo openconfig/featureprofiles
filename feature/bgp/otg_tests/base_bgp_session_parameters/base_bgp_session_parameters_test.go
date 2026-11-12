@@ -129,6 +129,11 @@ func bgpClearConfig(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 	}
 	resetBatch.Set(t, dut)
+	nbrPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(ateAttrs.IPv4)
+	gnmi.Watch(t, dut, nbrPath.SessionState().State(), 30*time.Second, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+		state, present := val.Val()
+		return !present || state == oc.Bgp_Neighbor_SessionState_IDLE
+	}).Await(t)
 }
 
 // bgpCreateNbr creates a BGP object with neighbors pointing to ate and returns bgp object.
@@ -374,6 +379,12 @@ func TestEstablishAndDisconnect(t *testing.T) {
 	t.Log("Check BGP Capabilities")
 	verifyBGPCapabilities(t, dut)
 
+	// Start watching for NOTIFICATION count > 0 before sending the CEASE action
+	notifWatch := gnmi.Watch(t, dut, nbrPath.Messages().Received().NOTIFICATION().State(), 60*time.Second, func(val *ygnmi.Value[uint64]) bool {
+		count, present := val.Val()
+		return present && count > 0
+	})
+
 	// Send Cease Notification from ATE to DUT
 	t.Log("Send Cease Notification from OTG to DUT -- ")
 	otg.SetControlAction(t, createCeaseAction(t))
@@ -396,7 +407,7 @@ func TestEstablishAndDisconnect(t *testing.T) {
 	if !codeok {
 		t.Errorf("On disconnect: expected error code %v", oc.BgpTypes_BGP_ERROR_CODE_CEASE)
 	}
-	if got := gnmi.Get(t, dut, nbrPath.Messages().Received().NOTIFICATION().State()); got == 0 {
+	if _, notifOk := notifWatch.Await(t); !notifOk {
 		t.Errorf("On disconnect: received NOTIFICATION count got 0, want > 0")
 	}
 	if got := gnmi.Get(t, dut, nbrPath.Messages().Received().LastNotificationErrorSubcode().State()); got != oc.BgpTypes_BGP_ERROR_SUBCODE_OTHER_CONFIG_CHANGE {
@@ -591,6 +602,9 @@ func TestParameters(t *testing.T) {
 			gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*100, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
 			if got := gnmi.Get(t, dut, nbrPath.PeerType().State()); got != tc.wantPeerType {
 				t.Errorf("BGP neighbor %s state/peer-type: got %v, want %v", ateIP, got, tc.wantPeerType)
+			}
+			if wantPeerAS := tc.dutConf.GetBgp().GetNeighbor(ateIP).GetPeerAs(); wantPeerAS != 0 {
+				gnmi.Await(t, dut, nbrPath.PeerAs().State(), 30*time.Second, wantPeerAS)
 			}
 			stateDut := gnmi.Get(t, dut, statePath.State())
 			wantState := tc.dutConf.Bgp
