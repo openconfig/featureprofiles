@@ -62,9 +62,6 @@ func TestCredentialz(t *testing.T) {
 		// Remove user ca so subsequent fail cases work.
 		// credz.RotateTrustedUserCA(t, dut, "")
 
-		// Clear hiba for authorized principals command.
-		credz.RotateAuthorizedPrincipalCheck(t, dut, cpb.AuthorizedPrincipalCheckRequest_TOOL_UNSPECIFIED)
-
 		// Remove host artifacts from the dut.
 		// credz.RotateAuthenticationArtifacts(t, dut, "", "", "", 0)
 		// SSH configuration cleanup on DUT
@@ -121,6 +118,10 @@ func TestCredentialz(t *testing.T) {
 		credz.RotateTrustedUserCA(t, dut, dir)
 
 		// Setup hiba for authorized principals command.
+		t.Cleanup(func() {
+			// Clear hiba for authorized principals command.
+			credz.RotateAuthorizedPrincipalCheck(t, dut, cpb.AuthorizedPrincipalCheckRequest_TOOL_UNSPECIFIED)
+		})
 		credz.RotateAuthorizedPrincipalCheck(t, dut, cpb.AuthorizedPrincipalCheckRequest_TOOL_HIBA_DEFAULT)
 
 		var startingAcceptCounter, startingLastAcceptTime uint64
