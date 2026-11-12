@@ -94,6 +94,11 @@ const (
 // (e.g., ffffffd3 or ffffff88) on digest bytes >= 0x80 when formatted with %x.
 var signExtensionHexPattern = regexp.MustCompile(`(?i)ffffff[89a-f][0-9a-f]`)
 
+// errorDigestHexPattern captures a hex digest rendered in an error message
+// immediately after a digest label (e.g. "File hash: 00d357..."), so its length
+// and value can be compared against the expected fixed-length %02x encoding.
+var errorDigestHexPattern = regexp.MustCompile(`(?i)\b(?:hash|digest|checksum)\b\W{1,3}([0-9a-f]{8,})\b`)
+
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
@@ -598,6 +603,25 @@ func verifyDirectoryStat(ctx context.Context, t *testing.T, fc fpb.FileClient, s
 	}
 }
 
+// verifyErrorDigestHex asserts that every hex digest rendered after a digest
+// label in a File.Put hash-mismatch error message uses the fixed-length,
+// zero-padded unsigned %02x encoding (64 chars for SHA256, 32 chars for MD5),
+// and that any digest other than the all-zero digest sent by the client equals
+// the expected digest of the transmitted payload.
+func verifyErrorDigestHex(t *testing.T, errMsg, wantHex string) {
+	t.Helper()
+	zeroHex := strings.Repeat("0", len(wantHex))
+	for _, m := range errorDigestHexPattern.FindAllStringSubmatch(errMsg, -1) {
+		gotHex := strings.ToLower(m[1])
+		switch {
+		case len(gotHex) != len(wantHex):
+			t.Errorf("gNOI-5.4.3 Defect: error message %q contains digest %q with %d hex chars, want fixed-length zero-padded %d-char hex (e.g. %q)", errMsg, m[1], len(gotHex), len(wantHex), wantHex)
+		case gotHex != zeroHex && gotHex != wantHex:
+			t.Errorf("gNOI-5.4.3 Defect: error message %q contains digest %q, want the all-zero client digest or the payload digest %q", errMsg, m[1], wantHex)
+		}
+	}
+}
+
 // verifyFileStatNotFound asserts that gnoi.file.File.Stat returns a non-OK
 // gRPC error (NOT_FOUND) for a removed or uncommitted file path.
 func verifyFileStatNotFound(ctx context.Context, t *testing.T, fc fpb.FileClient, path string) {
@@ -897,6 +921,9 @@ func TestGNOIFileConformance(t *testing.T) {
 					t.Logf("gnoi.file.File.Put(%q) with mismatched %v digest rejected with code=%v message=%q", mismatchPath, tc.method, status.Code(putErr), errMsg)
 					if signExtensionHexPattern.MatchString(errMsg) {
 						t.Errorf("gNOI-5.4.3 Defect: error message %q contains signed-char ffffff sign-extension on digest bytes >= 0x80 (want clean %d-char hex %q)", errMsg, len(tc.wantHex), tc.wantHex)
+					}
+					if tc.method != tpb.HashType_UNSPECIFIED {
+						verifyErrorDigestHex(t, errMsg, tc.wantHex)
 					}
 				}
 
