@@ -1,11 +1,14 @@
 package transceiver
 
 import (
+	"context"
 	"fmt"
+	"io"
 	"math"
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
@@ -13,6 +16,8 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
+
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
 const (
@@ -102,12 +107,6 @@ func validateTranscieverTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondat
 			operStatus: oc.Interface_OperStatus_UP,
 			minAllowed: minAllowedSupplyVoltage,
 			maxAllowed: maxAllowedSupplyVoltage,
-		},
-		{
-			desc: "Transceiver Physical Channel Index Validation",
-			path: fmt.Sprintf(componentPath+"/transceiver/state/physical-channels/channel[index=0]/index", params.TransceiverNames[p.Name()]),
-			got:  transceiverValue.GetTransceiver().GetChannel(0).GetIndex(),
-			want: uint16(0),
 		},
 		{
 			desc:       "Transceiver Physical Channel Instant Output Power Validation",
@@ -246,6 +245,78 @@ func validateTranscieverTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondat
 			}
 		})
 	}
+	validatePhysicalChannelIndex(t, dut, p, params)
+}
+
+// validatePhysicalChannelIndex verifies that the DUT streams
+// /components/component/transceiver/physical-channels/channel[index=0]/state/index
+// with value 0. The leaf is subscribed to directly with a raw gNMI ONCE
+// subscription, rather than read from the sampled component struct (ygnmi
+// populates list keys from the path, so the struct cannot tell whether the DUT
+// actually streams the index leaf) or with ygnmi (which rejects duplicate data
+// points for the same leaf). Duplicate data points are logged.
+func validatePhysicalChannelIndex(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port, params *cfgplugins.ConfigParameters) {
+	t.Helper()
+	const wantIndex = uint64(0)
+	transceiverName := params.TransceiverNames[p.Name()]
+	pathStr := fmt.Sprintf(componentPath+"/transceiver/physical-channels/channel[index=%d]/state/index", transceiverName, wantIndex)
+	t.Run(fmt.Sprintf("Transceiver Physical Channel Index Validation of %v", p.Name()), func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		defer cancel()
+		path := &gpb.Path{
+			Origin: "openconfig",
+			Elem: []*gpb.PathElem{
+				{Name: "components"},
+				{Name: "component", Key: map[string]string{"name": transceiverName}},
+				{Name: "transceiver"},
+				{Name: "physical-channels"},
+				{Name: "channel", Key: map[string]string{"index": fmt.Sprint(wantIndex)}},
+				{Name: "state"},
+				{Name: "index"},
+			},
+		}
+		sub, err := dut.RawAPIs().GNMI(t).Subscribe(ctx)
+		if err != nil {
+			t.Fatalf("\n%s: failed to create subscribe client for %s: %v\n\n", p.Name(), pathStr, err)
+		}
+		if err := sub.Send(&gpb.SubscribeRequest{
+			Request: &gpb.SubscribeRequest_Subscribe{
+				Subscribe: &gpb.SubscriptionList{
+					Prefix:       &gpb.Path{Target: dut.Name()},
+					Mode:         gpb.SubscriptionList_ONCE,
+					Encoding:     gpb.Encoding_PROTO,
+					Subscription: []*gpb.Subscription{{Path: path}},
+				},
+			},
+		}); err != nil {
+			t.Fatalf("\n%s: failed to send subscribe request for %s: %v\n\n", p.Name(), pathStr, err)
+		}
+		var got []uint64
+		for {
+			resp, err := sub.Recv()
+			if err == io.EOF || resp.GetSyncResponse() {
+				break
+			}
+			if err != nil {
+				t.Fatalf("\n%s: subscribe to %s failed before SyncResponse: %v\n\n", p.Name(), pathStr, err)
+			}
+			for _, u := range resp.GetUpdate().GetUpdate() {
+				got = append(got, u.GetVal().GetUintVal())
+			}
+		}
+		if len(got) == 0 {
+			t.Fatalf("\n%s: %s is not streamed by the DUT\n\n", p.Name(), pathStr)
+		}
+		t.Logf("\n%s: %s = %v\n\n", p.Name(), pathStr, got)
+		if len(got) > 1 {
+			t.Logf("\nWARNING: %s: DUT streamed %d data points for %s in one response\n\n", p.Name(), len(got), pathStr)
+		}
+		for _, v := range got {
+			if v != wantIndex {
+				t.Errorf("\n%s: %s, got %v, want %v\n\n", p.Name(), pathStr, v, wantIndex)
+			}
+		}
+	})
 }
 
 // isTransceiverStreamReady returns true if the transceiver stream is ready for the given oper status and params.
