@@ -1,4 +1,4 @@
-# RT-1.21: BGP TCP MSS and PMTUD 
+# RT-1.21: BGP PMTUD
 
 ## Summary
 

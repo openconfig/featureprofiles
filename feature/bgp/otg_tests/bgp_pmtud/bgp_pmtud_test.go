@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package bgp_tcp_mss_path_mtu_test
+package bgp_pmtud_test
 
 import (
 	"fmt"
