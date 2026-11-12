@@ -50,6 +50,8 @@ Telemetry: Interface oc path validation
 
 * Validate interface state subinterface leaves are streamed with expected value
  - subinterface/state/oper-status
+ - subinterface/state/ifindex
+ - subinterface/state/name
  - subinterface/config/description
  - subinterface/config/index
 
@@ -136,6 +138,8 @@ paths:
     /interfaces/interface/state/in-rate:
     /interfaces/interface/state/out-rate:
     /interfaces/interface/subinterfaces/subinterface/state/oper-status:
+    /interfaces/interface/subinterfaces/subinterface/state/ifindex:
+    /interfaces/interface/subinterfaces/subinterface/state/name:
     /interfaces/interface/subinterfaces/subinterface/config/description:
     /interfaces/interface/subinterfaces/subinterface/config/index:
     /interfaces/interface/config/enabled:

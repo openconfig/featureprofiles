@@ -410,7 +410,7 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/ha_groups/tests/telemetry_high_availability_test/telemetry_high_availability_test.go"
 }
 test: {
-  id: "Hashing"
+  id: "Hashing-1.0"
   description: "Dataplane Hashing with Physical Loopbacks"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/hashing_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/hashing_test/hashing_test.go"
@@ -460,6 +460,11 @@ test: {
   description: "Management HA solution test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/management/otg_tests/management_ha_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/management/otg_tests/management_ha_test/management_ha_test.go"
+}
+test: {
+  id: "MGT-2"
+  description: "QoS of Control and Management Traffic"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/management/otg_tests/control_traffic_qos_test/README.md"
 }
 test: {
   id: "MPLS-1.1"
@@ -1420,24 +1425,6 @@ test: {
   description: "Singleton with breakouts"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/singleton/tests/singleton_with_breakouts/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/singleton/tests/singleton_with_breakouts/singleton_with_breakouts_test.go"
-}
-test: {
-  id: "Replay-1.0"
-  description: "Record/replay presession test"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/replay/tests/presession_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/replay/tests/presession_test/presession_test.go"
-}
-test: {
-  id: "Replay-1.1"
-  description: "Record/replay diff command trees test"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/replay/tests/diff_command_trees/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/replay/tests/diff_command_trees/diff_command_trees_test.go"
-}
-test: {
-  id: "Replay-1.2"
-  description: "P4RT Replay Test"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/replay/tests/p4rt_replay/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/replay/tests/p4rt_replay/p4rt_replay_test.go"
 }
 test: {
   id: "SEC-3.1"
