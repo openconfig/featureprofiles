@@ -73,6 +73,11 @@ func (c *restconfGNMIClient) Get(ctx context.Context, in *gpb.GetRequest, opts .
 	if in.GetEncoding() == gpb.Encoding_PROTO || in.GetEncoding() == gpb.Encoding_JSON {
 		in.Encoding = gpb.Encoding_JSON_IETF
 	}
+	// SONiC rejects a CONFIG data type ("unsupported request type: CONFIG").
+	// ygnmi config queries keep only the config leaves of an ALL response.
+	if in.GetType() == gpb.GetRequest_CONFIG {
+		in.Type = gpb.GetRequest_ALL
+	}
 	resp, err := c.GNMIClient.Get(ctx, in, opts...)
 	// SONiC returns NotFound / "Resource not found" after a leaf is deleted.
 	// ygnmi Lookup treats that RPC error as a failure; an empty result is
