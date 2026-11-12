@@ -24,11 +24,11 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
+	"github.com/openconfig/featureprofiles/internal/telemetry/transceiver"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
-	"github.com/openconfig/ygot/ygot"
 )
 
 var (
@@ -124,11 +124,8 @@ func TestZRLaserBiasCurrentStateInterfaceFlap(t *testing.T) {
 		t.Fatalf("%s Transceiver is not 400ZR its of type: %v", transceiverState, dp1.PMD())
 	}
 	// Disable interface
-	d := &oc.Root{}
-	i := d.GetOrCreateInterface(dp1.Name())
-	i.Enabled = ygot.Bool(false)
-	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	gnmi.Replace(t, dut1, gnmi.OC().Interface(dp1.Name()).Config(), i)
+	togglePort := transceiver.ToggleInterfacesWithCleanup(t, dut1, dp1)
+	togglePort(false)
 	t.Logf(" %v interface config disable initiated", dp1.Name())
 	componentName := components.OpticalChannelComponentFromPort(t, dut1, dp1)
 	component := gnmi.OC().Component(componentName)
@@ -146,8 +143,7 @@ func TestZRLaserBiasCurrentStateInterfaceFlap(t *testing.T) {
 	}).Await(t)
 	verifyLaserBiasCurrentAll(t, p1Stream, dut1)
 	// Enable interface
-	i.Enabled = ygot.Bool(true)
-	gnmi.Replace(t, dut1, gnmi.OC().Interface(dp1.Name()).Config(), i)
+	togglePort(true)
 	t.Logf("%v interface config enable initiated", dp1.Name())
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 	t.Logf("%v operational status is: %v", dp1.Name(), gnmi.Get(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State()))
@@ -177,13 +173,14 @@ func TestZRLaserBiasCurrentStateTransceiverOnOff(t *testing.T) {
 		p1Stream := samplestream.New(t, dut1, component.OpticalChannel().LaserBiasCurrent().State(), 10*time.Second)
 		defer p1Stream.Close()
 		verifyLaserBiasCurrentAll(t, p1Stream, dut1)
+		toggleTransceiver := transceiver.ToggleTransceiverWithCleanup(t, dut1, transceiverState)
 		// power off interface transceiver
 		gnmi.Update(t, dut1, gnmi.OC().Component(transceiverState).Name().Config(), transceiverState)
 		// for transceiver disable, the input needs to be the transceiver name instead of the interface name
-		gnmi.Update(t, dut1, gnmi.OC().Component(transceiverState).Transceiver().Enabled().Config(), false)
+		toggleTransceiver(false)
 		verifyLaserBiasCurrentAll(t, p1Stream, dut1)
 		// power on interface transceiver
-		gnmi.Update(t, dut1, gnmi.OC().Component(transceiverState).Transceiver().Enabled().Config(), true)
+		toggleTransceiver(true)
 		gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 		verifyLaserBiasCurrentAll(t, p1Stream, dut1)
 	}

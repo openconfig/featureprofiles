@@ -27,6 +27,9 @@ The test must be repeated for each supported operational-mode or as agreed betwe
     controlled through automation to simulate a fiber cut.  
 *   To establish a point to point ZR link ensure the following:
       * Both transceivers states are enabled
+      * Retrieve the associated optical channel component for each transceiver
+        physical channel via
+        `/components/component/transceiver/physical-channels/channel/state/associated-optical-channel`
       * Both transceivers are set to a valid target TX output power
         example -9 dBm
       * Both transceivers are tuned to a valid centre frequency
@@ -133,6 +136,8 @@ paths:
     /components/component/transceiver/physical-channels/channel/state/input-power/max:
         platform_type: [ "TRANSCEIVER" ]
     /components/component/transceiver/physical-channels/channel/state/input-power/avg:
+        platform_type: [ "TRANSCEIVER" ]
+    /components/component/transceiver/physical-channels/channel/state/associated-optical-channel:
         platform_type: [ "TRANSCEIVER" ]
 
 rpcs:
