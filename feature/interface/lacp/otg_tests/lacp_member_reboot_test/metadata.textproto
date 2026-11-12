@@ -5,3 +5,21 @@ uuid: "e1ad8b60-cb7c-4510-a13e-3113d7b4968b"
 plan_id: "RT-5.16"
 description: "LACP Member Linecard Reboot"
 testbed: TESTBED_DUT_ATE_4LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    gnoi_subcomponent_path: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
+    explicit_interface_in_default_vrf: true
+  }
+}

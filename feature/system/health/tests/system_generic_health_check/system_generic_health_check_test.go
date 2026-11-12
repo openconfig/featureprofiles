@@ -16,6 +16,7 @@ package system_generic_health_check_test
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"regexp"
 	"strings"
@@ -32,6 +33,7 @@ import (
 	"github.com/openconfig/ygnmi/ygnmi"
 	"golang.org/x/exp/slices"
 
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	fpb "github.com/openconfig/gnoi/file"
 	hpb "github.com/openconfig/gnoi/healthz"
 	tpb "github.com/openconfig/gnoi/types"
@@ -42,6 +44,8 @@ func TestMain(m *testing.M) {
 }
 
 var (
+	cpuUtilizationThreshold = flag.Uint("cpu_utilization_threshold", 80, "CPU utilization threshold, in percent, for /components/component/cpu/utilization/state/avg and state/instant samples collected during the health check. No avg sample may exceed it; instant may exceed it for a single sample only.")
+
 	vendorCoreFilePath = map[ondatra.Vendor]string{
 		ondatra.JUNIPER: "/var/core/",
 		ondatra.CISCO:   "/misc/disk1/",
@@ -62,6 +66,17 @@ const (
 	fabricCardType     = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC
 	controllerCardType = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
 	chassisCardType    = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS
+	fanType            = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FAN
+	fanTrayType        = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FAN_TRAY
+
+	// cpuSampleWindow is how long CPU utilization is streamed to detect spikes.
+	cpuSampleWindow = 30 * time.Second
+	// instantSustainedSamples is the number of consecutive instant CPU
+	// utilization samples above the threshold that counts as sustained high CPU.
+	// A single instant spike above the threshold is tolerated.
+	instantSustainedSamples = 2
+	// fanSampleWindow is how long fan speed is streamed.
+	fanSampleWindow = 30 * time.Second
 )
 
 // coreFileCheck function is used to check if cores are found on the DUT.
@@ -193,18 +208,21 @@ func TestComponentStatus(t *testing.T) {
 			}
 
 			componentName := map[string]string{"name": component}
-
-			checkReq := &hpb.CheckRequest{
-				Path: &tpb.Path{
-					Origin: "openconfig",
-					Elem: []*tpb.PathElem{
-						{Name: "components"},
-						{
-							Name: "component",
-							Key:  componentName,
-						},
+			healthPath := &tpb.Path{
+				Elem: []*tpb.PathElem{
+					{Name: "components"},
+					{
+						Name: "component",
+						Key:  componentName,
 					},
 				},
+			}
+			if !deviations.SkipOrigin(dut) {
+				healthPath.Origin = "openconfig"
+			}
+
+			checkReq := &hpb.CheckRequest{
+				Path: healthPath,
 			}
 			checkResponse, err := gnoiClient.Healthz().Check(context.Background(), checkReq)
 			if err != nil {
@@ -214,16 +232,7 @@ func TestComponentStatus(t *testing.T) {
 			}
 
 			getReq := &hpb.GetRequest{
-				Path: &tpb.Path{
-					Origin: "openconfig",
-					Elem: []*tpb.PathElem{
-						{Name: "components"},
-						{
-							Name: "component",
-							Key:  componentName,
-						},
-					},
-				},
+				Path: healthPath,
 			}
 			getResponse, err := gnoiClient.Healthz().Get(context.Background(), getReq)
 			if err != nil {
@@ -245,6 +254,7 @@ func TestControllerCardsNoHighCPUSpike(t *testing.T) {
 
 	controllerCards := components.FindComponentsByType(t, dut, controllerCardType)
 	cpuCards := components.FindComponentsByType(t, dut, cpuType)
+	chassisCards := components.FindComponentsByType(t, dut, chassisCardType)
 	if len(controllerCards) == 0 && len(cpuCards) == 0 {
 		t.Errorf("ERROR: No controllerCard or cpuCard has been found.")
 	}
@@ -261,12 +271,17 @@ func TestControllerCardsNoHighCPUSpike(t *testing.T) {
 				} else {
 					t.Logf("INFO: %s %s Type %-20s %-10s - Utilization: %3d%%",
 						ts, deviceName, cpu, ccType, util.GetAvg())
+					validateNoHighCPUSpike(t, dut, cpu)
 				}
 			})
 		}
 		// prevent missing-CPU association check at the end of test since it's already handled above
 		controllerCards = []string{}
 	} else {
+		// Fixed form factor devices have no controller cards; their CPUs are
+		// parented by the chassis and must still be checked.
+		fixedChassis := len(controllerCards) == 0
+		fixedChassisCPUsChecked := 0
 		for _, cpu := range cpuCards {
 			t.Run(cpu, func(t *testing.T) {
 				query := gnmi.OC().Component(cpu).State()
@@ -278,19 +293,31 @@ func TestControllerCardsNoHighCPUSpike(t *testing.T) {
 				}
 
 				t.Logf("controller: %s, parent: %s, cpu: %s", controllerCards, cpuParent, cpu)
+				checkCPU := false
 				if slices.Contains(controllerCards, cpuParent) {
 					// Remove parent from the list of check cards.
 					controllerCards = removeElement(controllerCards, cpuParent)
+					checkCPU = true
+				} else if fixedChassis && slices.Contains(chassisCards, cpuParent) {
+					t.Logf("INFO: Fixed form factor device, checking chassis CPU %s", cpu)
+					checkCPU = true
+					fixedChassisCPUsChecked++
+				}
+				if checkCPU {
 					cpuUtilization := component.GetCpu().GetUtilization()
 					if cpuUtilization == nil || cpuUtilization.Avg == nil {
 						t.Errorf("ERROR: %s %s %s Type %-20s - CPU utilization data not available",
 							timestamp, deviceName, cpu, cpuParent)
 					} else {
 						t.Logf("INFO: %s %s Type %-20s %-10s - Utilization: %3d%%", timestamp, deviceName, cpu, cpuParent, cpuUtilization.GetAvg())
+						validateNoHighCPUSpike(t, dut, cpu)
 					}
 				}
 			})
 
+		}
+		if fixedChassis && fixedChassisCPUsChecked == 0 {
+			t.Errorf("ERROR: Fixed form factor device: no CPU parented by a chassis component (%v) was found among CPUs %v", chassisCards, cpuCards)
 		}
 
 		if deviations.SecondaryControllerCardCpuUtilizationUnsupported(dut) {
@@ -362,6 +389,7 @@ func TestLineCardsNoHighCPUSpike(t *testing.T) {
 				}
 				t.Logf("INFO: %s %s Type %-20s %-10s - Utilization: %3d%%",
 					timestamp, deviceName, removableLCState.GetType(), removableLC, util.GetAvg())
+				validateNoHighCPUSpike(t, dut, removableLC)
 			})
 		}
 		// prevent missing-CPU association check at the end of test since it's already handled above
@@ -405,6 +433,7 @@ func TestLineCardsNoHighCPUSpike(t *testing.T) {
 							timestamp, deviceName, cpu, cpuParent)
 					} else {
 						t.Logf("INFO: %s %s Type %-20s %-10s - Utilization: %3d%%", timestamp, deviceName, cpu, cpuParent, cpuUtilization.GetAvg())
+						validateNoHighCPUSpike(t, dut, cpu)
 					}
 				}
 			})
@@ -715,6 +744,27 @@ func TestNoAsicDrop(t *testing.T) {
 				} else {
 					t.Logf("INFO: RateLimit counter: %d", drop.LookupBlock.GetRateLimit())
 				}
+				if !deviations.FabricDropCounterUnsupported(dut) {
+					if drop.LookupBlock.Oversubscription == nil {
+						t.Errorf("ERROR: LookupBlock Oversubscription counter is not present")
+					} else {
+						t.Logf("INFO: LookupBlock Oversubscription counter: %d", drop.LookupBlock.GetOversubscription())
+					}
+				}
+			}
+			if !deviations.FabricDropCounterUnsupported(dut) {
+				if drop.CongestionAggregate == nil {
+					t.Errorf("ERROR: CongestionAggregate counter is not present")
+				} else {
+					t.Logf("INFO: CongestionAggregate counter: %d", drop.GetCongestionAggregate())
+				}
+				if drop.HostInterfaceBlock == nil {
+					t.Errorf("ERROR: HostInterfaceBlock is not present")
+				} else if drop.HostInterfaceBlock.HostAggregate == nil {
+					t.Errorf("ERROR: HostAggregate counter is not present")
+				} else {
+					t.Logf("INFO: HostAggregate counter: %d", drop.GetHostInterfaceBlock().GetHostAggregate())
+				}
 			}
 		})
 	}
@@ -1009,11 +1059,194 @@ func TestFabricDrop(t *testing.T) {
 		t.Fatalf("ERROR: %s is not present", query)
 	}
 	for _, fabricBlock := range fabricBlocks {
-		drop := fabricBlock.GetLostPackets()
 		if fabricBlock.LostPackets == nil {
-			t.Errorf("ERROR: Fabric drops is not present")
+			t.Errorf("ERROR: Fabric LostPackets counter is not present")
 		} else {
-			t.Logf("INFO: Fabric drops: %d", drop)
+			t.Logf("INFO: Fabric LostPackets: %d", fabricBlock.GetLostPackets())
+		}
+		if fabricBlock.FabricAggregate == nil {
+			t.Errorf("ERROR: FabricAggregate counter is not present")
+		} else {
+			t.Logf("INFO: FabricAggregate: %d", fabricBlock.GetFabricAggregate())
+		}
+		if fabricBlock.InHighPriority == nil {
+			t.Errorf("ERROR: Fabric InHighPriority counter is not present")
+		} else {
+			t.Logf("INFO: Fabric InHighPriority: %d", fabricBlock.GetInHighPriority())
+		}
+		if fabricBlock.InLowPriority == nil {
+			t.Errorf("ERROR: Fabric InLowPriority counter is not present")
+		} else {
+			t.Logf("INFO: Fabric InLowPriority: %d", fabricBlock.GetInLowPriority())
+		}
+		if fabricBlock.OutHighPriority == nil {
+			t.Errorf("ERROR: Fabric OutHighPriority counter is not present")
+		} else {
+			t.Logf("INFO: Fabric OutHighPriority: %d", fabricBlock.GetOutHighPriority())
+		}
+		if fabricBlock.OutLowPriority == nil {
+			t.Errorf("ERROR: Fabric OutLowPriority counter is not present")
+		} else {
+			t.Logf("INFO: Fabric OutLowPriority: %d", fabricBlock.GetOutLowPriority())
+		}
+	}
+}
+
+// TestFanSpeed verifies that the DUT streams /components/component/fan/state/speed
+// for its fans and that the fans are spinning. Fans are the installed components
+// of type FAN. Devices that do not model fans as FAN components (for example,
+// fan speed reported on sensor components under each FAN_TRAY) are validated on
+// the components that stream fan speed, and every installed FAN_TRAY must have
+// at least one such component.
+func TestFanSpeed(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+
+	empty := make(map[string]bool)
+	for _, v := range gnmi.LookupAll(t, dut, gnmi.OC().ComponentAny().Empty().State()) {
+		if e, ok := v.Val(); ok {
+			empty[componentNameFromPath(v.Path)] = e
+		}
+	}
+	installed := func(compType oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT) []string {
+		var names []string
+		for _, c := range components.FindComponentsByType(t, dut, compType) {
+			if empty[c] {
+				t.Logf("INFO: Skipping empty slot %s", c)
+				continue
+			}
+			names = append(names, c)
+		}
+		return names
+	}
+	fans := installed(fanType)
+	fanTrays := installed(fanTrayType)
+
+	// Read the current fan speed of every component, then stream fan speed over a
+	// single sampling window. Some devices only stream fan speed when it changes
+	// (or on a slow interval), so the initial read is included in the samples.
+	query := gnmi.OC().ComponentAny().Fan().Speed().State()
+	samples := make(map[string][]uint32)
+	for _, v := range gnmi.LookupAll(t, dut, query) {
+		if speed, ok := v.Val(); ok {
+			name := componentNameFromPath(v.Path)
+			samples[name] = append(samples[name], speed)
+		}
+	}
+	t.Logf("INFO: Collecting %s for %v", query, fanSampleWindow)
+	for _, s := range gnmi.CollectAll(t, dut, query, fanSampleWindow).Await(t) {
+		if speed, ok := s.Val(); ok {
+			name := componentNameFromPath(s.Path)
+			samples[name] = append(samples[name], speed)
+		}
+	}
+
+	if len(fans) == 0 {
+		t.Logf("INFO: No installed FAN components; validating fan speed on the %d components that stream fan/state/speed (FAN_TRAY components: %v)", len(samples), fanTrays)
+		if len(samples) == 0 {
+			t.Fatalf("ERROR: No installed FAN component found and no component streams fan/state/speed (FAN_TRAY components: %v)", fanTrays)
+		}
+		for name := range samples {
+			fans = append(fans, name)
+		}
+		slices.Sort(fans)
+
+		// Every installed fan tray must have at least one child component that
+		// streams fan speed.
+		parents := make(map[string]string)
+		for _, v := range gnmi.LookupAll(t, dut, gnmi.OC().ComponentAny().Parent().State()) {
+			if parent, ok := v.Val(); ok {
+				parents[componentNameFromPath(v.Path)] = parent
+			}
+		}
+		for _, tray := range fanTrays {
+			t.Run(tray, func(t *testing.T) {
+				var children []string
+				for _, name := range fans {
+					if parents[name] == tray {
+						children = append(children, name)
+					}
+				}
+				if len(children) == 0 {
+					t.Errorf("ERROR: No component under fan tray %s streams fan/state/speed", tray)
+					return
+				}
+				t.Logf("INFO: Fan tray %s components streaming fan speed: %v", tray, children)
+			})
+		}
+	}
+
+	for _, fan := range fans {
+		t.Run(fan, func(t *testing.T) {
+			speeds := samples[fan]
+			if len(speeds) == 0 {
+				t.Fatalf("ERROR: %s fan/state/speed was not streamed during %v", fan, fanSampleWindow)
+			}
+			t.Logf("INFO: %s fan speed samples over %v: %v rpm", fan, fanSampleWindow, speeds)
+			for _, speed := range speeds {
+				if speed == 0 {
+					t.Errorf("ERROR: %s fan is not spinning: speed sample %d rpm", fan, speed)
+					break
+				}
+			}
+		})
+	}
+}
+
+// componentNameFromPath returns the component name key of the given gNMI path.
+func componentNameFromPath(p *gpb.Path) string {
+	for _, e := range p.GetElem() {
+		if e.GetName() == "component" {
+			return e.GetKey()["name"]
+		}
+	}
+	return ""
+}
+
+// validateNoHighCPUSpike streams /components/component/cpu/utilization/state/avg
+// and /components/component/cpu/utilization/state/instant for the given
+// component over cpuSampleWindow, and verifies that both leaves are streamed.
+// No avg sample may exceed *cpuUtilizationThreshold. Instant samples may spike
+// above the threshold for a single sample, but must not exceed it for
+// instantSustainedSamples or more consecutive samples.
+func validateNoHighCPUSpike(t *testing.T, dut *ondatra.DUTDevice, component string) {
+	t.Helper()
+	utilization := gnmi.OC().Component(component).Cpu().Utilization()
+	// Both collectors stream concurrently over the same sampling window.
+	collectors := []struct {
+		name string
+		// maxConsecutive is the number of consecutive samples above the
+		// threshold that is tolerated.
+		maxConsecutive int
+		collector      *gnmi.Collector[uint8]
+	}{
+		{name: "avg", maxConsecutive: 0, collector: gnmi.Collect(t, dut, utilization.Avg().State(), cpuSampleWindow)},
+		{name: "instant", maxConsecutive: instantSustainedSamples - 1, collector: gnmi.Collect(t, dut, utilization.Instant().State(), cpuSampleWindow)},
+	}
+	for _, c := range collectors {
+		var samples []uint8
+		for _, s := range c.collector.Await(t) {
+			if v, ok := s.Val(); ok {
+				samples = append(samples, v)
+			}
+		}
+		if len(samples) == 0 {
+			t.Errorf("ERROR: %s cpu/utilization/state/%s was not streamed during %v", component, c.name, cpuSampleWindow)
+			continue
+		}
+		peak := samples[0]
+		consecutive, longest := 0, 0
+		for _, v := range samples {
+			peak = max(peak, v)
+			if uint(v) > *cpuUtilizationThreshold {
+				consecutive++
+				longest = max(longest, consecutive)
+			} else {
+				consecutive = 0
+			}
+		}
+		t.Logf("INFO: %s CPU utilization %s samples over %v: %v (peak %d%%, threshold %d%%, longest run above threshold: %d samples)", component, c.name, cpuSampleWindow, samples, peak, *cpuUtilizationThreshold, longest)
+		if longest > c.maxConsecutive {
+			t.Errorf("ERROR: %s high CPU utilization: %s exceeded threshold %d%% for %d consecutive samples (peak %d%%), want at most %d", component, c.name, *cpuUtilizationThreshold, longest, peak, c.maxConsecutive)
 		}
 	}
 }

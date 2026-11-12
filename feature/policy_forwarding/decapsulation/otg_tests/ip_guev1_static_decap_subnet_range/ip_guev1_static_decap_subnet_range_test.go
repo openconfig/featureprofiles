@@ -467,22 +467,6 @@ func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flowName string, tr
 	}
 }
 
-// startCapture starts the capture on the otg ports.
-func startCapture(t *testing.T, ate *ondatra.ATEDevice) {
-	otg := ate.OTG()
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
-	otg.SetControlState(t, cs)
-}
-
-// stopCapture starts the capture on the otg ports.
-func stopCapture(t *testing.T, ate *ondatra.ATEDevice) {
-	otg := ate.OTG()
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
-	otg.SetControlState(t, cs)
-}
-
 // enableCapture enable the port to capture packets.
 func enableCapture(t *testing.T, config gosnappi.Config, port string) {
 	config.Captures().Clear()
@@ -615,13 +599,14 @@ func gueDecapInnerIpv4Traffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 	enableCapture(t, topo, "port2")
 	ate.OTG().PushConfig(t, topo)
 	ate.OTG().StartProtocols(t)
-	startCapture(t, ate)
-	trafficStartStop(t, dut, ate, topo, otgConfig, flow, shouldDecap, verifyDropCounters)
-	stopCapture(t, ate)
-	verifyTrafficFlow(t, ate, trafficID, trafficShouldPass)
-	if trafficShouldPass {
-		if shouldDecap {
-			// PF-1.4.1: decapsulate — verify inner DSCP and TTL
+	cs := otgutils.StartCapture(t, ate.OTG())
+	defer otgutils.StopCapture(t, ate.OTG(), cs)
+	trafficStartStop(t, dut, ate, topo, otgConfig, flow, verifyCounters)
+	otgutils.StopCapture(t, ate.OTG(), cs)
+	if trafficValidation {
+		verifyTrafficFlow(t, ate, trafficID, true)
+		if verifyCounters {
+			// PF-1.4.1 / PF-1.4.2: decapsulate — verify inner DSCP and TTL
 			verifyCaptureDscpTtlValue(t, ate, "port2", int(innerDscpValue), int(innerTTL-1))
 		} else {
 			// PF-1.4.5: pass-through — verify outer packet unmodified (no decap)
@@ -638,13 +623,14 @@ func gueDecapInnerIpv6Traffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 	enableCapture(t, topo, "port2")
 	ate.OTG().PushConfig(t, topo)
 	ate.OTG().StartProtocols(t)
-	startCapture(t, ate)
-	trafficStartStop(t, dut, ate, topo, otgConfig, flow, shouldDecap, verifyDropCounters)
-	stopCapture(t, ate)
-	verifyTrafficFlow(t, ate, trafficID, trafficShouldPass)
-	if trafficShouldPass {
-		if shouldDecap {
-			// PF-1.4.2: decapsulate — verify inner DSCP and TTL
+	cs := otgutils.StartCapture(t, ate.OTG())
+	defer otgutils.StopCapture(t, ate.OTG(), cs)
+	trafficStartStop(t, dut, ate, topo, otgConfig, flow, verifyCounters)
+	otgutils.StopCapture(t, ate.OTG(), cs)
+	if trafficValidation {
+		verifyTrafficFlow(t, ate, trafficID, true)
+		if verifyCounters {
+			// PF-1.4.1 / PF-1.4.2: decapsulate — verify inner DSCP and TTL
 			verifyCaptureDscpTtlValue(t, ate, "port2", int(innerDscpValue), int(innerTTL-1))
 		} else {
 			// PF-1.4.6: pass-through — verify outer packet unmodified (no decap)

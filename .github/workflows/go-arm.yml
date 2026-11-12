@@ -1,9 +1,4 @@
-name: Go (ARM64 Experimental)
-
-# NOTE: This is an experimental workflow running on ARM64 infrastructure to 
-# evaluate execution speed and GitHub caching. 
-# DO NOT add this check as a required status check for branch protection.
-# If this workflow fails, it should NOT block merges to main.
+name: Go (ARM64)
 
 on:
   push:
