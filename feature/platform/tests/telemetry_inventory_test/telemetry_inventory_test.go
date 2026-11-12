@@ -19,6 +19,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/components"
@@ -27,6 +28,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 var componentType = map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{
@@ -590,7 +592,15 @@ func TestPowerSupplyTelemetry(t *testing.T) {
 
 		pName := psu.GetName()
 		t.Run(pName, func(t *testing.T) {
-			psVal := psu.GetPowerSupply()
+			var psVal *oc.Component_PowerSupply
+			if watchVal, ok := gnmi.Watch(t, dut, gnmi.OC().Component(pName).PowerSupply().State(), 30*time.Second, func(val *ygnmi.Value[*oc.Component_PowerSupply]) bool {
+				v, present := val.Val()
+				return present && v != nil && v.InputCurrent != nil && v.InputVoltage != nil && v.OutputCurrent != nil && v.OutputVoltage != nil
+			}).Await(t); ok {
+				psVal, _ = watchVal.Val()
+			} else {
+				psVal = psu.GetPowerSupply()
+			}
 			if psVal == nil {
 				t.Fatalf("PowerSupply %s state is not present in telemetry", pName)
 			}
