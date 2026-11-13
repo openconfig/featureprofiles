@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "9b4e2f8a-6d1c-4e7b-9a3f-5c8d7e2b1a09"
+plan_id: "RT-1.37"
+description: "BGP AIGP Feature Support and Precedence"
+testbed: TESTBED_DUT_DUT_ATE_2LINKS
