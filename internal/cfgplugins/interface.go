@@ -2058,3 +2058,12 @@ func VerifyInterfaceIPv6Address(t *testing.T, dut *ondatra.DUTDevice, portName s
 		t.Errorf("IPv6 subinterface status state mismatch for port: %s, got: %v, want: %v", portName, got, want)
 	}
 }
+
+// VerifyInterfacesStatus verifies all DUT interfaces are operationally up.
+func VerifyInterfacesStatus(t *testing.T, dut *ondatra.DUTDevice, portsList []string) {
+	t.Helper()
+	for _, name := range portsList {
+		port := dut.Port(t, name)
+		gnmi.Await(t, dut, gnmi.OC().Interface(port.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
+	}
+}
