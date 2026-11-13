@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"slices"
 	"testing"
 	"time"
 
@@ -30,6 +29,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/kneutil"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -130,8 +130,7 @@ var (
 		IPv4Len: 32,
 		IPv6Len: 128,
 	}
-	kneDeviceModelList = []string{"ncptx", "ceos", "srlinux", "xrd", "ixr10e"}
-	flowConfigs        = []flowConfig{
+	flowConfigs = []flowConfig{
 		{
 			name:            "flowS",
 			packetsToSend:   10000000,
@@ -284,13 +283,13 @@ func configSflow(t *testing.T, dut *ondatra.DUTDevice, loopbackIntfName string, 
 		sfBatch := &gnmi.SetBatch{}
 		switch ip {
 		case IPv4:
-			if slices.Contains(kneDeviceModelList, dut.Model()) {
+			if kneutil.IsKNEDUT(dut) {
 				sflowCfgv4 = sflowCfgv4KNE
 			}
 			sflowCfgv4.IntfName = loopbackIntfName
 			cfgplugins.NewSFlowGlobalCfg(t, sfBatch, nil, dut, sflowCfgv4)
 		case IPv6:
-			if slices.Contains(kneDeviceModelList, dut.Model()) {
+			if kneutil.IsKNEDUT(dut) {
 				sflowCfgv6 = sflowCfgv6KNE
 			}
 			sflowCfgv6.IntfName = loopbackIntfName
@@ -314,7 +313,7 @@ func configSflow(t *testing.T, dut *ondatra.DUTDevice, loopbackIntfName string, 
 
 func testFlowFixed(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, ip IPType, dut *ondatra.DUTDevice) {
 	var myFlowConfigs []flowConfig
-	if slices.Contains(kneDeviceModelList, dut.Model()) {
+	if kneutil.IsKNEDUT(dut) {
 		myFlowConfigs = flowConfigsKNE
 	} else {
 		myFlowConfigs = flowConfigs
@@ -323,13 +322,22 @@ func testFlowFixed(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config,
 		flowName := string(ip) + fc.name
 		t.Run(flowName, func(t *testing.T) {
 			createFlow(t, ate, config, fc, ip)
-			cs := otgutils.StartCapture(t, ate.OTG())
-			defer otgutils.StopCapture(t, ate.OTG(), cs)
+			var cs gosnappi.ControlState
+			if kneutil.IsKNEDUT(dut) {
+				cs = startCapture(t, ate, config)
+			} else {
+				cs = otgutils.StartCapture(t, ate.OTG())
+				defer otgutils.StopCapture(t, ate.OTG(), cs)
+			}
 			sleepTime := time.Duration(fc.packetsToSend/uint32(fc.ppsRate)) + 5
 			ate.OTG().StartTraffic(t)
 			time.Sleep(sleepTime * time.Second)
 			ate.OTG().StopTraffic(t)
-			otgutils.StopCapture(t, ate.OTG(), cs)
+			if kneutil.IsKNEDUT(dut) {
+				stopCapture(t, ate, cs)
+			} else {
+				otgutils.StopCapture(t, ate.OTG(), cs)
+			}
 			otgutils.LogFlowMetrics(t, ate.OTG(), config)
 			otgutils.LogPortMetrics(t, ate.OTG(), config)
 			loss := otgutils.GetFlowLossPct(t, ate.OTG(), flowName, 10*time.Second)
@@ -339,6 +347,20 @@ func testFlowFixed(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config,
 			processCapture(t, ate, config, ip, fc)
 		})
 	}
+}
+
+func startCapture(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) gosnappi.ControlState {
+	t.Helper()
+	cs := gosnappi.NewControlState()
+	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
+	ate.OTG().SetControlState(t, cs)
+	return cs
+}
+
+func stopCapture(t *testing.T, ate *ondatra.ATEDevice, cs gosnappi.ControlState) {
+	t.Helper()
+	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
+	ate.OTG().SetControlState(t, cs)
 }
 
 func processCapture(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, ip IPType, fc flowConfig) {
