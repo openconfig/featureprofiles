@@ -1324,8 +1324,6 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	// configure P4runtime
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
-		p4rtConfig := "p4-runtime\n transport grpc p4-foo\n ssl profile SELFSIGNED\n vrf mgmt\n no shutdown"
-		helpers.GnmiCLIConfig(t, dut, p4rtConfig)
 		gnmiClient := dut.RawAPIs().GNMI(t)
 		deadline := time.Now().Add(2 * time.Minute)
 		p4rtUp := false
