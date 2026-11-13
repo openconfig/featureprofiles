@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "87788cec-ee6c-4ba1-9469-fe6722f48e24"
+plan_id:  "SYS-3.2"
+description:  "TACACS server configuration"
+testbed:  TESTBED_DUT

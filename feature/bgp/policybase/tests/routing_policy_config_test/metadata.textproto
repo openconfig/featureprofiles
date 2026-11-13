@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "cf2b2e8f-708f-40ef-966b-70a19e90ce2d"
+plan_id:  "RT-1.38"
+description:  "Routing policy configuration"
+testbed:  TESTBED_DUT
