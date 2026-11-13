@@ -1625,6 +1625,10 @@ message Metadata {
     // Cisco: https://partnerissuetracker.corp.google.com/issues/429234456
     bool mount_point_storage_component_unsupported = 488;
 
+    // Device does not support generating ICMP TTL Exceeded messages for decapsulated packets
+    // when the inner/MPLS TTL expires after decapsulation (e.g. GRE and MPLS-in-UDP decap cases).
+    bool decap_icmp_ttl_exceeded_unsupported = 489;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49, 313;
   }
