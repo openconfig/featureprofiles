@@ -734,21 +734,21 @@ func TestBGP(t *testing.T) {
 	}
 	tc.configureATE(t)
 
-	// Ensure OTG ports are left in a healthy state (link UP) even if the test fails or aborts.
-	t.Cleanup(func() {
+	// Restore OTG state before the earlier deferred DUT profile reset and reboot.
+	defer func() {
 		t.Logf("Restoring OTG port %s link state to UP", port1Name)
 		tc.otgInterfaceState(t, port1Name, gosnappi.StatePortLinkState.UP)
-	})
-	t.Cleanup(func() {
+	}()
+	defer func() {
 		t.Logf("Restoring OTG port %s link state to UP", port2Name)
 		tc.otgInterfaceState(t, port2Name, gosnappi.StatePortLinkState.UP)
-	})
+	}()
 
 	// Ensure OTG protocols are stopped at the end of the test.
-	t.Cleanup(func() {
+	defer func() {
 		t.Log("Stopping OTG protocols")
 		ate.OTG().StopProtocols(t)
-	})
+	}()
 
 	t.Log("Waiting for ISIS adjacency to establish...")
 	if _, err := tc.ts.AwaitAdjacency(); err != nil {
@@ -772,7 +772,7 @@ func TestBGP(t *testing.T) {
 	for pfix := range netutil.GenCIDRs(t, startingISISRouteIPv6, isisRouteCount) {
 		wantISISPrefixes[pfix] = true
 	}
-	isisStoppingCondition := aftcache.InitialSyncStoppingCondition(t, dut, wantISISPrefixes, map[string]bool{ateP1.IPv4: true}, map[string]bool{ateP1.IPv6: true})
+	isisStoppingCondition := aftcache.InitialSyncStoppingCondition(t, dut, wantISISPrefixes, map[string]bool{ateP1.IPv4: true}, getPostChurnIPv6NH(tc.dut))
 	if _, err := tc.fetchAFT(t, aftSession1, aftSession2, isisStoppingCondition, wantISISPrefixes); err != nil {
 		t.Fatalf("Failed to verify ISIS prefixes in AFT: %v", err)
 	}
