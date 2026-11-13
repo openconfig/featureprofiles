@@ -329,8 +329,6 @@ github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd h1:TRLaZ9cD/w
 github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=
 github.com/modern-go/reflect2 v1.0.2 h1:xBagoLtFs94CBntxluKeaWgTMpvLxC4ur3nMaC9Gz0M=
 github.com/modern-go/reflect2 v1.0.2/go.mod h1:yWuevngMOJpCy52FWWMvUC8ws7m/LJsjYzDa0/r8luk=
-github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 h1:RWengNIwukTxcDr9M+97sNutRR1RKhG96O6jWumTTnw=
-github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826/go.mod h1:TaXosZuwdSHYgviHp1DAtfrULt5eUgsSMsZf+YrPgl8=
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 h1:C3w9PqII01/Oq1c1nUAm88MOHcQC9l5mIlSMApZMrHA=
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
 github.com/networkop/meshnet-cni v0.3.1-0.20230525201116-d7c306c635cf h1:9Pe9L0QCovb9o82inAVQitCo3IRnG9u45lRRm8QvgbU=
@@ -385,12 +383,10 @@ github.com/openconfig/lemming/operator v0.2.0 h1:dovZnR6lQkOHXcODli1NDOr/GVYrBY0
 github.com/openconfig/lemming/operator v0.2.0/go.mod h1:LKgEXSR5VK2CAeh2uKijKAXFj42uQuwakrCHVPF0iII=
 github.com/openconfig/models-ci v1.0.2-0.20231113233730-f0986391428e h1:6N4jXpZa/SXYcNpJFjjZvenxO/xnTwuUCgCEinhNLfU=
 github.com/openconfig/models-ci v1.0.2-0.20231113233730-f0986391428e/go.mod h1:w38G/kObu95PbtwMYVp6SKhkHCegJFwL8B58Ns84g4s=
-github.com/openconfig/ondatra v0.14.8 h1:R1HzjC8Izcy9wTacrEXaQZM2SRBpqegtSCSriWJd2y8=
-github.com/openconfig/ondatra v0.14.8/go.mod h1:h2WrL4G0W8vid2k2A2EkMf3cBO+0mcEvoQ72XT5bPZo=
-github.com/openconfig/qualification-reporter v0.1.0 h1:sRuiCrfPJGJ1qyD1YaRjFV+nkJIxyrGL1Kp9xd6mB9g=
-github.com/openconfig/qualification-reporter v0.1.0/go.mod h1:VwnVjwys3yf6KzhRujRp8a0QzLiZkdIx4TWrrWh5i84=
-github.com/openconfig/replayer v0.0.0-20240110192655-4e9cf83d8d30 h1:KcHS08m7nFHq/D03ZfZKKNCSaS1jsuvdF3lCyDjPWJc=
-github.com/openconfig/replayer v0.0.0-20240110192655-4e9cf83d8d30/go.mod h1:VQ8FdPVaHwxKtamhcrwkPsvTeeoEgFYNK1xE8nHD0S8=
+github.com/openconfig/ondatra v0.14.10 h1:fz11LoYFpLPLYmnLwMiSGKlr69d6eEJ9WNSoTYran/E=
+github.com/openconfig/ondatra v0.14.10/go.mod h1:mgJFPu6EpUOmmxHGvVH9GQVFheOqKQTA+fYhKtLOea4=
+github.com/openconfig/qualification-reporter v0.1.3 h1:w5iSyQt6EjyhopdObFT8qDBPDfo4uUFRKIFOebv+QRs=
+github.com/openconfig/qualification-reporter v0.1.3/go.mod h1:9EcgtKmxiOwtOiQKaZXL9acpSM88oXj6zu6F9CB1OsM=
 github.com/openconfig/testt v0.0.0-20251119232631-fbbd49c39452 h1:KI67JEIYGMXx9aZjGOwfO2aUsCGih9199v+zhJNHB9Y=
 github.com/openconfig/testt v0.0.0-20251119232631-fbbd49c39452/go.mod h1:wOB0bus1N8a90H58cmlxE15dKN4bTvdqqlh7bEQkQFc=
 github.com/openconfig/ygnmi v0.15.0 h1:Cio+fv7+c8G/w3KpO9CK7BLLEMdBy9bO1q3RRsd5xqs=

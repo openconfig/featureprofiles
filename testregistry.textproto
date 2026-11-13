@@ -154,6 +154,11 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/authz/tests/authz/authz1_4_test.go"
 }
 test: {
+  id: "Authz-5"
+  description: "gRPC Server Per-RPC Statistics YANG State Bounding"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/authz/tests/grpc_rpc_statistics_bounding/README.md"
+}
+test: {
   id: "BMP-1.1"
   description: "BMP Session Establishment and Telemetry Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/bmp/otg_tests/bmp_base_session_test/README.md"
@@ -216,6 +221,7 @@ test: {
   id: "Certz-1"
   description: "gNSI Client Certificate Tests"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/client_certificates/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/client_certificates/client_certificates_test.go"
 }
 test: {
   id: "Certz-2"
@@ -409,7 +415,7 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/ha_groups/tests/telemetry_high_availability_test/telemetry_high_availability_test.go"
 }
 test: {
-  id: "Hashing"
+  id: "Hashing-1.0"
   description: "Dataplane Hashing with Physical Loopbacks"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/hashing_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/hashing_test/hashing_test.go"
@@ -459,6 +465,11 @@ test: {
   description: "Management HA solution test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/management/otg_tests/management_ha_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/management/otg_tests/management_ha_test/management_ha_test.go"
+}
+test: {
+  id: "MGT-2"
+  description: "QoS of Control and Management Traffic"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/management/otg_tests/control_traffic_qos_test/README.md"
 }
 test: {
   id: "MPLS-1.1"
@@ -844,6 +855,12 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_single_hop_bfd_test/README.md"
 }
 test: {
+  id: "RT-1.111"
+  description: "BGP Autonomous System Confederations (RFC 5065)"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/confederation/otg_tests/bgp_confederation_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/confederation/otg_tests/bgp_confederation_test/bgp_confederation_test.go"
+}
+test: {
   id: "RT-1.12"
   description: "BGP always compare MED"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_always_compare_med/README.md"
@@ -1049,6 +1066,7 @@ test: {
   id: "RT-1.73"
   description: "Static Route Resilience Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/staticroute/otg_tests/static_route_resiliency_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/staticroute/otg_tests/static_route_resiliency_test/static_route_resiliency_test.go"
 }
 test: {
   id: "RT-1.8"
@@ -1190,6 +1208,7 @@ test: {
   id: "RT-3.4"
   description: "VRF Selection Policy Hardware Programming with Linecard and Supervisor Resiliency"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/vrf_selection/otg_tests/vrf_selection_resiliency_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/vrf_selection/otg_tests/vrf_selection_resiliency_test/vrf_selection_resiliency_test.go"
 }
 test: {
   id: "RT-3.52"
@@ -1202,6 +1221,11 @@ test: {
   description: "Static route based GUE Encapsulation to IPv6 tunnel"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/static/otg_tests/next_hop_encap_udp/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/static/otg_tests/next_hop_encap_udp/static_encap_gue_ipv4_test.go"
+}
+test: {
+  id: "RT-3.6"
+  description: "VRF Selection Policy Hardware Programming Across Multiple Linecards"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/vrf_selection/otg_tests/vrf_selection_multi_linecard_test/README.md"
 }
 test: {
   id: "RT-4.10"
@@ -1261,6 +1285,7 @@ test: {
   id: "RT-5.16"
   description: "LACP Member Linecard Reboot"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/lacp/otg_tests/lacp_member_reboot_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/lacp/otg_tests/lacp_member_reboot_test/lacp_member_reboot_test.go"
 }
 test: {
   id: "RT-5.17"
@@ -1407,24 +1432,6 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/singleton/tests/singleton_with_breakouts/singleton_with_breakouts_test.go"
 }
 test: {
-  id: "Replay-1.0"
-  description: "Record/replay presession test"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/replay/tests/presession_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/replay/tests/presession_test/presession_test.go"
-}
-test: {
-  id: "Replay-1.1"
-  description: "Record/replay diff command trees test"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/replay/tests/diff_command_trees/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/replay/tests/diff_command_trees/diff_command_trees_test.go"
-}
-test: {
-  id: "Replay-1.2"
-  description: "P4RT Replay Test"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/replay/tests/p4rt_replay/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/replay/tests/p4rt_replay/p4rt_replay_test.go"
-}
-test: {
   id: "SEC-3.1"
   description: "Authentication"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/aaa/kne_tests/tls_authentication_over_grpc_test/README.md"
@@ -1486,6 +1493,7 @@ test: {
   id: "SYS-6.1"
   description: "SSO Extended Forwarding and Stability Validation"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/sso_extended_stability_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/sso_extended_stability_test/sso_extended_stability_test.go"
 }
 test: {
   id: "Storage-1.1"
@@ -1928,6 +1936,11 @@ test: {
   description: "Telemetry: ZR Plus terminal-device OC paths streaming."
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_400_terminal_device_paths_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_400_terminal_device_paths_test/zrp_400_terminal_device_paths_test.go"
+}
+test: {
+  id: "TRANSCEIVER-109"
+  description: "400ZR / 800ZR Operational Mode Transition and Inventory Persistence"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zr_800_operational_mode_inventory_recovery_test/README.md"
 }
 test: {
   id: "TRANSCEIVER-11.1"

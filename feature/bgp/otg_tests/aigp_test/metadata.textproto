@@ -22,5 +22,6 @@ platform_exceptions: {
     isis_interface_afi_unsupported:  true
     bgp_adj_rib_oc_unsupported: true
     aigp_metric_increment: true
+    bgp_rib_streaming_config_required: true
   }
 }
