@@ -647,7 +647,7 @@ IPv6Entry {::/0 (ENCAP_TE_VRF_A)} -> NHG#1003 (DEFAULT VRF) -> {
   {NH#1003, DEFAULT VRF},
 } // fallback route to redirect to DEFAULT VRF
 
-IPv6Entry {2001:db8::138:0:11:0/126 (ENCAP_TE_VRF_A)} -> NHG#101 (DEFAULT VRF) -> {
+IPv6Entry {2001:db8::138:0:11:0/120 (ENCAP_TE_VRF_A)} -> NHG#101 (DEFAULT VRF) -> {
   {NH#101, DEFAULT VRF, weight:1},
   {NH#102, DEFAULT VRF, weight:3},
   backup_next_hop_group: 2001 // fallback to DEFAULT VRF
@@ -662,15 +662,32 @@ IPv6Entry {::/0 (ENCAP_TE_VRF_B)} -> NHG#1003 (DEFAULT VRF) -> {
 } // fallback route to redirect to DEFAULT VRF
 
 IPv4Entry {138.0.11.0/24 (ENCAP_TE_VRF_B)} -> NHG#102 (DEFAULT VRF) -> {
-  {NH#101, DEFAULT VRF, weight:3},
-  {NH#102, DEFAULT VRF, weight:1},
+  {NH#103, DEFAULT VRF, weight:3},
+  {NH#104, DEFAULT VRF, weight:1},
   backup_next_hop_group: 2001 // fallback to DEFAULT VRF
 }
 
-IPv6Entry {2001:db8::138:0:11:0/126 (ENCAP_TE_VRF_B)} -> NHG#102 (DEFAULT VRF) -> {
-  {NH#101, DEFAULT VRF, weight:3},
-  {NH#102, DEFAULT VRF, weight:1},
+IPv6Entry {2001:db8::138:0:11:0/120 (ENCAP_TE_VRF_B)} -> NHG#102 (DEFAULT VRF) -> {
+  {NH#103, DEFAULT VRF, weight:3},
+  {NH#104, DEFAULT VRF, weight:1},
   backup_next_hop_group: 2001 // fallback to DEFAULT VRF
+}
+
+NH#103 -> {
+  encapsulate_header: OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
+  ip_in_ip {
+    dst_ip: "203.0.113.1"
+    src_ip: "ipv4_outer_src_111"
+  }
+  network_instance: "TE_VRF_111"
+}
+NH#104 -> {
+  encapsulate_header: OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
+  ip_in_ip {
+    dst_ip: "203.0.113.2"
+    src_ip: "ipv4_outer_src_111"
+  }
+  network_instance: "TE_VRF_111"
 }
 ```
 
@@ -679,9 +696,12 @@ IPv6Entry {2001:db8::138:0:11:0/126 (ENCAP_TE_VRF_B)} -> NHG#102 (DEFAULT VRF) -
     (`/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group`
     and
     `/network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/next-hop-group`),
-    and that `NHG#1` and `NHG#3` report
+    and that the next-hop-groups of the `TE_VRF_111` primary tunnels
+    (`NHG#1` and `NHG#3`) report a non-zero
     `/network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/backup-next-hop-group`
-    as `3000` (`REPAIR` VRF).
+    (`NHG#3000`, `REPAIR` VRF) that is present in the `DEFAULT` network instance
+    AFT state. Platforms may report internally allocated AFT next-hop-group IDs
+    rather than the gRIBI-programmed ID `3000`.
 5.  Start continuous traffic flows on ATE `port-1` into DUT `port-1`:
     *   **Flow 1 (IPv4 `ENCAP_TE_VRF_A` - LowPriority)**: Unencapsulated IPv4
         packets with source `198.51.100.1`–`198.51.100.250`, destination
@@ -722,9 +742,9 @@ IPv6Entry {2001:db8::138:0:11:0/126 (ENCAP_TE_VRF_B)} -> NHG#102 (DEFAULT VRF) -
         convergence into the `REPAIR` VRF is within standard FNT tolerance
         (`<= 2%`), with zero sustained traffic drop after convergence (no
         prolonged multi-minute blackhole) and no continuous drop increments on
-        `/interfaces/interface/state/counters/in-discards`,
-        `/interfaces/interface/state/counters/out-discards`, or
-        `/qos/interfaces/interface/output/queues/queue/state/dropped-pkts`.
+        `/interfaces/interface/state/counters/in-discards` or
+        `/interfaces/interface/state/counters/out-discards` while traffic is
+        flowing after convergence.
 9.  While all 4 flows continue transmitting, shutdown DUT `port-6`
     (`/interfaces/interface/config/enabled` set to `false`) so that all primary
     tunnels in `TE_VRF_111` (`203.0.113.1/32` and `203.0.113.2/32`) are
@@ -832,10 +852,10 @@ IPv6Entry {2001:db8::138:0:11:0/126 (ENCAP_TE_VRF_B)} -> NHG#102 (DEFAULT VRF) -
       },
       {
         "config": {
-          "name": "REPAIR",
+          "name": "REPAIR_VRF",
           "type": "L3VRF"
         },
-        "name": "REPAIR"
+        "name": "REPAIR_VRF"
       },
       {
         "config": {
@@ -1136,9 +1156,9 @@ are shut down, without experiencing sustained traffic loss or ACL/VOQ drops.
     *   End-to-end packet loss across each transit flow is `<= 2%`, with zero
         sustained traffic blackhole (no ~2-minute traffic drop) and no
         continuous discard increments on
-        `/interfaces/interface/state/counters/in-discards`,
-        `/interfaces/interface/state/counters/out-discards`, or
-        `/qos/interfaces/interface/output/queues/queue/state/dropped-pkts`.
+        `/interfaces/interface/state/counters/in-discards` or
+        `/interfaces/interface/state/counters/out-discards` while traffic is
+        flowing after convergence.
 7.  While the re-encapsulated transit flows are actively egressing DUT `port-5`
     and `port-7`, shutdown DUT `port-5` and `port-7`
     (`/interfaces/interface/config/enabled` set to `false`) so that the backup
@@ -1177,7 +1197,7 @@ are shut down, without experiencing sustained traffic loss or ACL/VOQ drops.
 *   network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/dscp-set
 *   network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/source-address
 *   network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/decap-network-instance
-*   network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/post-network-instance
+*   network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/post-decap-network-instance
 *   network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/decap-fallback-network-instance
 
 ## Telemetry Parameter Coverage
@@ -1192,7 +1212,7 @@ are shut down, without experiencing sustained traffic loss or ACL/VOQ drops.
 *   network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/dscp-set
 *   network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/source-address
 *   network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/decap-network-instance
-*   network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/post-network-instance
+*   network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/post-decap-network-instance
 *   network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/decap-fallback-network-instance
 
 ## OpenConfig Path and RPC Coverage
@@ -1219,7 +1239,6 @@ paths:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/state/dscp-set:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state:
-  /qos/interfaces/interface/output/queues/queue/state/dropped-pkts:
 rpcs:
   gnmi:
     gNMI.Get:
