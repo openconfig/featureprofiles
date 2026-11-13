@@ -392,22 +392,6 @@ func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flowName string, tr
 	}
 }
 
-// startCapture starts the capture on the otg ports.
-func startCapture(t *testing.T, ate *ondatra.ATEDevice) {
-	otg := ate.OTG()
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
-	otg.SetControlState(t, cs)
-}
-
-// stopCapture starts the capture on the otg ports.
-func stopCapture(t *testing.T, ate *ondatra.ATEDevice) {
-	otg := ate.OTG()
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
-	otg.SetControlState(t, cs)
-}
-
 // enableCapture enable the port to capture packets.
 func enableCapture(t *testing.T, config gosnappi.Config, port string) {
 	config.Captures().Clear()
@@ -477,12 +461,19 @@ func gueDecapInnerIpv4Traffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 	enableCapture(t, topo, "port2")
 	ate.OTG().PushConfig(t, topo)
 	ate.OTG().StartProtocols(t)
-	startCapture(t, ate)
+	cs := otgutils.StartCapture(t, ate.OTG())
+	defer otgutils.StopCapture(t, ate.OTG(), cs)
 	trafficStartStop(t, dut, ate, topo, otgConfig, flow, verifyCounters)
-	stopCapture(t, ate)
+	otgutils.StopCapture(t, ate.OTG(), cs)
 	if trafficValidation {
 		verifyTrafficFlow(t, ate, trafficID, true)
-		verifyCaptureDscpTtlValue(t, ate, "port2", int(innerDscpValue), int(innerTTL-1))
+		if verifyCounters {
+			// PF-1.4.1 / PF-1.4.2: decapsulate — verify inner DSCP and TTL
+			verifyCaptureDscpTtlValue(t, ate, "port2", int(innerDscpValue), int(innerTTL-1))
+		} else {
+			// PF-1.4.5 / PF-1.4.6: pass-through — verify outer packet unmodified (no decap)
+			verifyPassThroughGuePacket(t, ate, "port2")
+		}
 	} else {
 		verifyTrafficFlow(t, ate, trafficID, false)
 	}
@@ -496,12 +487,19 @@ func gueDecapInnerIpv6Traffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 	enableCapture(t, topo, "port2")
 	ate.OTG().PushConfig(t, topo)
 	ate.OTG().StartProtocols(t)
-	startCapture(t, ate)
+	cs := otgutils.StartCapture(t, ate.OTG())
+	defer otgutils.StopCapture(t, ate.OTG(), cs)
 	trafficStartStop(t, dut, ate, topo, otgConfig, flow, verifyCounters)
-	stopCapture(t, ate)
+	otgutils.StopCapture(t, ate.OTG(), cs)
 	if trafficValidation {
 		verifyTrafficFlow(t, ate, trafficID, true)
-		verifyCaptureDscpTtlValue(t, ate, "port2", int(innerDscpValue), int(innerTTL-1))
+		if verifyCounters {
+			// PF-1.4.1 / PF-1.4.2: decapsulate — verify inner DSCP and TTL
+			verifyCaptureDscpTtlValue(t, ate, "port2", int(innerDscpValue), int(innerTTL-1))
+		} else {
+			// PF-1.4.5 / PF-1.4.6: pass-through — verify outer packet unmodified (no decap)
+			verifyPassThroughGuePacket(t, ate, "port2")
+		}
 	} else {
 		verifyTrafficFlow(t, ate, trafficID, false)
 	}
@@ -613,7 +611,7 @@ func verifyCaptureDscpTtlValue(t *testing.T, ate *ondatra.ATEDevice, port string
 		if ip6Layer := packet.Layer(layers.LayerTypeIPv6); ip6Layer != nil {
 			ip6, _ := ip6Layer.(*layers.IPv6)
 			if ip6.SrcIP.Equal(net.ParseIP(ipv6Src)) {
-				dscpValue := ip6.TrafficClass >> 2
+				dscpValue := ip6.TrafficClass
 				ttlVal := ip6.HopLimit
 				if int(dscpValue) == dscp && int(ttlVal) == ttl {
 					t.Logf("PASS: IPv6 DSCP value %v and TTL value %v are Preserved", dscp, ttl)
@@ -656,4 +654,27 @@ func waitForBGPSession(t *testing.T, dut *ondatra.DUTDevice, wantEstablished boo
 			}
 		}
 	}
+}
+func verifyPassThroughGuePacket(t *testing.T, ate *ondatra.ATEDevice, port string) {
+	pcapfilename := processCapture(t, ate, port)
+	handle, err := pcap.OpenOffline(pcapfilename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer handle.Close()
+	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
+	for packet := range packetSource.Packets() {
+		if ip6Layer := packet.Layer(layers.LayerTypeIPv6); ip6Layer != nil {
+			ip6, _ := ip6Layer.(*layers.IPv6)
+			if ip6.SrcIP.Equal(net.ParseIP(atePort1.IPv6)) {
+				expectedTTL := uint8(outerTTL - 1)
+				if ip6.HopLimit == expectedTTL {
+					t.Logf("PASS: GUE pass-through packet verified: outer src=%s, TTL=%d (decremented by 1)", atePort1.IPv6, ip6.HopLimit)
+					return
+				}
+				t.Fatalf("ERROR: Outer TTL mismatch in pass-through. Expected: %d, Got: %d", expectedTTL, ip6.HopLimit)
+			}
+		}
+	}
+	t.Fatalf("ERROR: Could not find GUE pass-through packet with outer src IP (%s) in capture", atePort1.IPv6)
 }

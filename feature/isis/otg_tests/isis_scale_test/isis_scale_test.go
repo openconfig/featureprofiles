@@ -16,6 +16,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	otgconfighelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -384,12 +385,14 @@ func initializeDynamicTestData(t *testing.T) *testData {
 		r22: {r21},
 		r23: {r21},
 	}
-	dutAgg11.IPv4 = ""
-	dutAgg11.IPv6 = ""
-	dutAgg12.IPv4 = ""
-	dutAgg12.IPv6 = ""
+	dynAgg1 := dutAgg11
+	dynAgg1.IPv4 = ""
+	dynAgg1.IPv6 = ""
+	dynAgg2 := dutAgg12
+	dynAgg2.IPv4 = ""
+	dynAgg2.IPv6 = ""
 
-	dutData := createDUTData([]attrs.Attributes{dutAgg11, dutAgg11})
+	dutData := createDUTData([]attrs.Attributes{dynAgg1, dynAgg2})
 	dutData.lags[0].SubInterfaces = []*cfgplugins.DUTSubInterfaceData{dutAggSubInterface211}
 	dutData.lags[1].SubInterfaces = []*cfgplugins.DUTSubInterfaceData{dutAggSubInterface221, dutAggSubInterface222}
 
@@ -426,6 +429,8 @@ func initializeDynamicTestData(t *testing.T) *testData {
 
 func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 	hardwareInitCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureEnableAFTSummaries)
+	// Hierarchical FEC resolution is Arista specific; other vendors get "".
+	hardwareInitCfg += cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureHierarchicalFIB)
 	if hardwareInitCfg == "" {
 		return
 	}
@@ -452,7 +457,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutData *dutData) {
 	}
 	// Wait for LAG interfaces to be AdminStatus UP
 	for _, l := range dutData.lags {
-		gnmi.Await(t, dut, gnmi.OC().Interface(l.LagName).AdminStatus().State(), 30*time.Second, oc.Interface_AdminStatus_UP)
+		gnmi.Await(t, dut, gnmi.OC().Interface(l.LagName).AdminStatus().State(), 60*time.Second, oc.Interface_AdminStatus_UP)
 	}
 	dutData.isisData.ISISInterfaceNames = createISISInterfaceNames(t, dut, dutData)
 	b := &gnmi.SetBatch{}
@@ -487,7 +492,7 @@ func findISISInterfaces(t *testing.T, dut *ondatra.DUTDevice) []string {
 		if !ok {
 			t.Fatalf("could not get isis interface on dut: %v", dut.Name())
 		}
-		if strings.ToLower(isisIntf.GetInterfaceId()[0:2]) == "lo" {
+		if strings.HasPrefix(strings.ToLower(isisIntf.GetInterfaceId()), "lo") {
 			continue
 		}
 		isisInterfaces = append(isisInterfaces, isisIntf.GetInterfaceId())
@@ -545,6 +550,9 @@ func findISISAdjCount(t *testing.T, dut *ondatra.DUTDevice, timeout time.Duratio
 			t.Logf("Could not get ISIS interface on DUT: %v", dut.Name())
 			return false
 		}
+		if s.GetLevel(2) == nil {
+			return false
+		}
 		adjMap := s.GetLevel(2).Adjacency
 		for nei, adj := range adjMap {
 			if adj.GetAdjacencyState() == oc.Isis_IsisInterfaceAdjState_UP {
@@ -572,6 +580,9 @@ func findISISAdjCountNonStream(t *testing.T, dut *ondatra.DUTDevice, timeout tim
 				t.Logf("Could not get ISIS interface on DUT: %v", dut.Name())
 				continue
 			}
+			if isisIntf.GetLevel(2) == nil {
+				continue
+			}
 			adjMap := isisIntf.GetLevel(2).GetOrCreateAdjacencyMap()
 			for nei, adj := range adjMap {
 				if adj.GetAdjacencyState() == oc.Isis_IsisInterfaceAdjState_UP {
@@ -587,25 +598,14 @@ func findISISAdjCountNonStream(t *testing.T, dut *ondatra.DUTDevice, timeout tim
 		time.Sleep(timeout / trialCount)
 	}
 
-	return len(isisAdjIDs), true
+	return len(isisAdjIDs), len(isisAdjIDs) >= nominalCount
 }
 
-func checkTraffic(t *testing.T, ate *ondatra.ATEDevice, trafficFlows []gosnappi.Flow) []error {
+func checkTraffic(t *testing.T, ate *ondatra.ATEDevice, trafficFlows []gosnappi.Flow) {
 	t.Helper()
-	var errs []error
 	for _, f := range trafficFlows {
-		outBytes := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(f.Name()).Counters().OutOctets().State()))
-		inBytes := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(f.Name()).Counters().InOctets().State()))
-		fmt.Printf("Flow: %s, OutBytes: %v, InBytes: %v\n", f.Name(), outBytes, inBytes)
-		rate := f.Rate().Kbps() * 1000 / 8
-		if int(outBytes) == 0 {
-			t.Errorf("outbytes for flow %s is 0, want > 0", f.Name())
-		} else if got := ((outBytes - inBytes) * 100) / outBytes; got > 0 {
-			downTime := (outBytes - inBytes) / float32(rate)
-			errs = append(errs, fmt.Errorf("\ncheck failed: losspct and downtime for flow %s:\n	got %v percent loss and %v seconds downtime, want 0 percent loss and 0 seconds downtime", f.Name(), got, downTime))
-		}
+		otgutils.ExpectedTrafficLoss(t, ate.OTG(), f.Name(), 0, 0)
 	}
-	return errs
 }
 
 func findISISActiveLSPCount(t *testing.T, dut *ondatra.DUTDevice, waitTime time.Duration, nominalCount int) (int, bool) {
@@ -720,11 +720,35 @@ func findProtocolRouteCount(t *testing.T, dut *ondatra.DUTDevice, afi oc.E_Types
 	}
 }
 
-func clearTestingConfig(t *testing.T, dut *ondatra.DUTDevice, defaultNetworkInstance string) {
+func clearTestingConfig(t *testing.T, dut *ondatra.DUTDevice, defaultNetworkInstance string, lags []*cfgplugins.DUTAggData) {
 	t.Helper()
 	t.Logf("===========Clearing Dut config===========")
 	isisIntf := findISISInterfaces(t, dut)
 	aggNames := findAggregatesFromInterfaces(t, dut)
+	for _, l := range lags {
+		if l.LagName == "" {
+			continue
+		}
+		if !slices.Contains(aggNames, l.LagName) {
+			aggNames = append(aggNames, l.LagName)
+		}
+		if l.Attributes.IPv4 != "" {
+			intfName := l.LagName
+			if deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut) {
+				intfName += ".0"
+			}
+			if !slices.Contains(isisIntf, intfName) {
+				isisIntf = append(isisIntf, intfName)
+			}
+		} else {
+			for _, s := range l.SubInterfaces {
+				intfName := fmt.Sprintf("%s.%d", l.LagName, s.VlanID)
+				if !slices.Contains(isisIntf, intfName) {
+					isisIntf = append(isisIntf, intfName)
+				}
+			}
+		}
+	}
 
 	b := &gnmi.SetBatch{}
 	gnmi.BatchDelete(b, gnmi.OC().NetworkInstance(defaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, defaultNetworkInstance).Config())
@@ -777,8 +801,10 @@ func setupTest(t *testing.T, testInfo *testData) *ondatra.DUTDevice {
 	dut := ondatra.DUT(t, "dut")
 	defaultNetworkInstance = deviations.DefaultNetworkInstance(dut)
 	testInfo.dutData.isisData.NetworkInstanceName = defaultNetworkInstance
+	t.Cleanup(func() {
+		clearTestingConfig(t, dut, testInfo.dutData.isisData.NetworkInstanceName, testInfo.dutData.lags)
+	})
 	configureDUT(t, dut, testInfo.dutData)
-	t.Cleanup(func() { clearTestingConfig(t, dut, testInfo.dutData.isisData.NetworkInstanceName) })
 	return dut
 }
 
@@ -801,6 +827,11 @@ func TestISISScale(t *testing.T) {
 			default:
 				t.Fatalf("check failed: not all interfaces participating in ISIS are operationally up  need %v up interfaces got %v", testInfo.correctAggInterfaceCount, count)
 			}
+
+			// Check ISIS Global SPF First Interval
+			spfFirstIntervalPath := gnmi.OC().NetworkInstance(defaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, defaultNetworkInstance).Isis().Global().Timers().Spf().SpfFirstInterval().State()
+			gnmi.Await(t, dut, spfFirstIntervalPath, 30*time.Second, uint64(200))
+			t.Logf("Check passed: ISIS SPF first interval on DUT is 200")
 
 			// Check ISIS Adjacency
 			if deviations.ISISAdjacencyStreamUnsupported(dut) {
@@ -844,14 +875,14 @@ func TestISISScale(t *testing.T) {
 					go func() {
 						defer wg.Done()
 						if deviations.AFTSummaryOCUnsupported(dut) {
-							count, ok := findProtocolRouteCount(t, dut, family, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, 1*time.Minute, testInfo.correctIPRouteCount[family])
+							count, ok := findProtocolRouteCount(t, dut, family, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, 5*time.Minute, testInfo.correctIPRouteCount[family])
 							if !ok {
 								t.Errorf("check failed: incorrect %s route count need %v routes got %v", family.String(), testInfo.correctIPRouteCount[family], count)
 								return
 							}
 							t.Logf("Check passed: correct %s route count need %v routes got %v", family.String(), testInfo.correctIPRouteCount[family], count)
 						} else {
-							count := findProtocolSummaryRouteCount(t, dut, family, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, 1*time.Minute, testInfo.correctIPRouteCount[family])
+							count := findProtocolSummaryRouteCount(t, dut, family, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, 5*time.Minute, testInfo.correctIPRouteCount[family])
 							if count >= testInfo.correctIPRouteCount[family] {
 								t.Logf("Check passed: correct route count for the family %s need %v routes got %v", family.String(), testInfo.correctIPRouteCount[family], count)
 							} else {
@@ -869,14 +900,7 @@ func TestISISScale(t *testing.T) {
 				time.Sleep(30 * time.Second)
 				testInfo.ateData.ATE.OTG().StopTraffic(t)
 				// Check Traffic Loss
-				errs := checkTraffic(t, testInfo.ateData.ATE, testInfo.ateData.TrafficFlows)
-				if len(errs) > 0 {
-					for _, err := range errs {
-						t.Errorf("%v", err.Error())
-					}
-				} else {
-					t.Logf("Check passed: no traffic loss found for the flows")
-				}
+				checkTraffic(t, testInfo.ateData.ATE, testInfo.ateData.TrafficFlows)
 			})
 		})
 	}

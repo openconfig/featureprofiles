@@ -25,6 +25,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
+	"github.com/openconfig/featureprofiles/internal/telemetry/transceiver"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -51,8 +52,8 @@ func TestMain(m *testing.M) {
 
 func verifyLaserBiasValue(t *testing.T, laserBiasValue float64) {
 	t.Helper()
-	if laserBiasValue <= 0 && laserBiasValue >= 131 {
-		t.Errorf("The laser bias value is not between 0 and 131")
+	if laserBiasValue < 0.0 || laserBiasValue > 131.0 {
+		t.Errorf("The laser bias value %f is not between 0 and 131", laserBiasValue)
 	}
 }
 
@@ -67,7 +68,7 @@ func verifyLaserBiasCurrentAll(t *testing.T, p1Stream *samplestream.SampleStream
 	}
 	laserBiasInstant := laserBiasVal.GetInstant()
 	if reflect.TypeOf(laserBiasInstant).Kind() != reflect.Float64 {
-		t.Fatalf("Return value is not type string")
+		t.Fatalf("Return value is not type float64")
 	}
 	t.Logf("laserBias Instant value: %f", laserBiasInstant)
 	if deviations.MissingZROpticalChannelTunableParametersTelemetry(dut1) {
@@ -81,7 +82,7 @@ func verifyLaserBiasCurrentAll(t *testing.T, p1Stream *samplestream.SampleStream
 		t.Logf("laserBias Max value: %f", laserBiasMax)
 		laserBiasAvg := laserBiasVal.GetAvg()
 		verifyLaserBiasValue(t, laserBiasAvg)
-		t.Logf("laserBias Avg value: %f", laserBiasMin)
+		t.Logf("laserBias Avg value: %f", laserBiasAvg)
 		if laserBiasAvg >= laserBiasMin && laserBiasAvg <= laserBiasMax {
 			t.Logf("The average %f is between the maximum and minimum values", laserBiasAvg)
 		} else {
@@ -133,7 +134,8 @@ func TestZRLaserBiasCurrentStateInterfaceFlap(t *testing.T) {
 	// 	t.Fatalf("%s Transceiver is not 400ZR_PLUS its of type: %v", transceiverState, dp1.PMD())
 	// }
 	// Disable interface
-	cfgplugins.ToggleInterface(t, dut1, dp1.Name(), false)
+	togglePort := transceiver.ToggleInterfacesWithCleanup(t, dut1, dp1)
+	togglePort(false)
 	t.Logf(" %v interface config disable initiated", dp1.Name())
 	componentName := components.OpticalChannelComponentFromPort(t, dut1, dp1)
 	component := gnmi.OC().Component(componentName)
@@ -144,11 +146,11 @@ func TestZRLaserBiasCurrentStateInterfaceFlap(t *testing.T) {
 	// Wait 120 sec cooling-off period
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
 	t.Logf("%v operational status is: %v", dp1.Name(), gnmi.Get(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State()))
-	t.Log("Wait to update telemetry")
-	time.Sleep(80 * time.Second)
+	t.Log("Wait for laser bias current to update to 0.0")
+	gnmi.Await(t, dut1, component.OpticalChannel().LaserBiasCurrent().Instant().State(), 2*time.Minute, 0.0)
 	verifyLaserBiasCurrentAll(t, p1Stream, dut1)
 	// Enable interface
-	cfgplugins.ToggleInterface(t, dut1, dp1.Name(), true)
+	togglePort(true)
 	t.Logf("%v interface config enable initiated", dp1.Name())
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 	t.Logf("%v operational status is: %v", dp1.Name(), gnmi.Get(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State()))
@@ -178,14 +180,15 @@ func TestZRLaserBiasCurrentStateTransceiverOnOff(t *testing.T) {
 		p1Stream := samplestream.New(t, dut1, component.OpticalChannel().LaserBiasCurrent().State(), 10*time.Second)
 		defer p1Stream.Close()
 		verifyLaserBiasCurrentAll(t, p1Stream, dut1)
+		toggleTransceiver := transceiver.ToggleTransceiverWithCleanup(t, dut1, transceiverState)
 		// power off interface transceiver
 		gnmi.Update(t, dut1, gnmi.OC().Component(transceiverState).Name().Config(), transceiverState)
 		// for transceiver disable, the input needs to be the transceiver name instead of the interface name
-		gnmi.Update(t, dut1, gnmi.OC().Component(transceiverState).Transceiver().Enabled().Config(), false)
+		toggleTransceiver(false)
 		// Cannot use Interface_OperStatus_DOWN here as the interface is "Not Present"
 		verifyLaserBiasCurrentAll(t, p1Stream, dut1)
 		// power on interface transceiver
-		gnmi.Update(t, dut1, gnmi.OC().Component(transceiverState).Transceiver().Enabled().Config(), true)
+		toggleTransceiver(true)
 		gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 		verifyLaserBiasCurrentAll(t, p1Stream, dut1)
 	}

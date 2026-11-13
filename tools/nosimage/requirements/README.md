@@ -34,12 +34,12 @@ hardware_name: "fixed-sku-01"
 
 # Enhancement: Multiple machine-consumable test results
 featureprofile_test_result: {
-  plan_id: "interfaces-base-config"
+  plan_id: "RT-1.4"
   commit: "a1b2c3d4e5f6g7h8i9j0"
   result: PASSED
 }
 featureprofile_test_result: {
-  plan_id: "bgp-neighbor-state"
+  plan_id: "gNMI-1.23"
   commit: "a1b2c3d4e5f6g7h8i9j0"
   result: FAILED
 }

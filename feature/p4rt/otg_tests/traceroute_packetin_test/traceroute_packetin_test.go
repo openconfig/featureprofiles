@@ -18,10 +18,9 @@ package traceroute_packetin_test
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"testing"
-
-	"flag"
 
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
@@ -139,6 +138,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
+	t.Cleanup(func() {
+		gnmi.Replace(t, dut, gnmi.OC().Lldp().Enabled().Config(), true)
+	})
 	gnmi.Replace(t, dut, gnmi.OC().Lldp().Enabled().Config(), false)
 }
 
@@ -365,6 +367,11 @@ func testPacketInAfterClientReconnection(ctx context.Context, t *testing.T, dut 
 	args.follower = newFollower
 	for _, test := range packetInTests {
 		t.Run(test.desc, func(t *testing.T) {
+			if deviations.P4RTExplicitTableEntryPerController(dut) {
+				if err := programmTableEntry(args.leader, args.packetIO, false /*delete*/, test.isIPv4, newLeaderElectionID); err != nil {
+					t.Fatalf("there is error when programming entry, %v", err)
+				}
+			}
 			defer programmTableEntry(args.leader, args.packetIO, true /*delete*/, test.isIPv4, newLeaderElectionID)
 			startTraficAndTestPacketIn(ctx, t, args, test.isIPv4)
 		})

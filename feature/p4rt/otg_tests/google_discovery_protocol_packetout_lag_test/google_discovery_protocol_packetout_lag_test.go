@@ -37,6 +37,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 	p4v1pb "github.com/p4lang/p4runtime/go/p4/v1"
 )
@@ -173,7 +174,16 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 			sendPackets(t, test.client, packets, packetCount)
 
 			// Wait for ate stats to be populated
-			time.Sleep(4 * time.Minute)
+			timeout := 4 * time.Minute
+			if test.expectPass {
+				expectedCount := uint64(float64(packetCount) * 0.95)
+				gnmi.Watch(t, args.ate.OTG(), gnmi.OTG().Port(port1).Counters().InFrames().State(), timeout, func(val *ygnmi.Value[uint64]) bool {
+					count, present := val.Val()
+					return present && count >= counter0 && (count-counter0 >= expectedCount)
+				}).Await(t)
+			} else {
+				time.Sleep(10 * time.Second)
+			}
 			otgutils.LogFlowMetrics(t, args.ate.OTG(), args.top)
 			otgutils.LogPortMetrics(t, args.ate.OTG(), args.top)
 			// Check packet counters after packet out

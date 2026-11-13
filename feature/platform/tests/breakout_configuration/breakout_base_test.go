@@ -99,6 +99,23 @@ func isBreakoutSupported(t *testing.T, dut *ondatra.DUTDevice, port string, numB
 		t.Logf("FAIL: Target breakout '%s' not found in Arista supported modes: [%s]", expectedBreakout, speedDuplexLine)
 		return false
 
+	case ondatra.JUNIPER:
+		targetSpeed := fmt.Sprintf("%sG", getSpeedValue(speed))
+		resp, err := cliHandle.RunCommand(context.Background(), fmt.Sprintf("show interfaces diagnostics optics-applications %s | grep \"%s\"", port, targetSpeed))
+		if err != nil {
+			t.Logf("Failed to run Juniper optics-applications command for %s: %v", port, err)
+			return false
+		}
+
+		output := strings.TrimSpace(resp.Output())
+		t.Logf("Juniper 'show interfaces diagnostics optics-applications %s | grep \"%s\"' output:\n%s", port, targetSpeed, output)
+		if output != "" {
+			return true
+		}
+
+		t.Logf("Juniper breakout mode not supported for port %s: no matching optics-applications output for %s", port, targetSpeed)
+		return false
+
 	default:
 		return false
 	}
@@ -108,7 +125,7 @@ func isBreakoutSupported(t *testing.T, dut *ondatra.DUTDevice, port string, numB
 // It reports errors to the testing object if there is a mismatch.
 func verifyBreakout(dut *ondatra.DUTDevice, index uint8, numBreakoutsWant uint8, numBreakoutsGot uint8, breakoutSpeedWant string, breakoutSpeedGot string, numPhysicalChannelsWant uint8, numPhysicalChannelsGot uint8, t *testing.T) {
 	// Ensure that the index is set to the expected value (1 in this case).
-	if dut.Vendor() == ondatra.CISCO {
+	if dut.Vendor() == ondatra.CISCO || dut.Vendor() == ondatra.JUNIPER {
 		if index != uint8(0) {
 			t.Errorf("Index: got %v, want 0", index)
 		}
@@ -230,6 +247,18 @@ func findNewPortNames(dut *ondatra.DUTDevice, t *testing.T, originalPortName str
 		}
 		return newPortNames, nil
 
+	case ondatra.JUNIPER:
+		basePortName := originalPortName
+		if lastColonIndex := strings.LastIndex(originalPortName, ":"); lastColonIndex != -1 {
+			basePortName = originalPortName[:lastColonIndex]
+		}
+		newPortNames := make([]string, numBreakouts)
+		for i := 0; i < int(numBreakouts); i++ {
+			newPortNames[i] = basePortName + ":" + strconv.Itoa(i)
+			t.Logf("Breakout port # %d name '%s'", i, newPortNames[i])
+		}
+		return newPortNames, nil
+
 	default:
 		return nil, fmt.Errorf("unsupported DUT vendor: %v", dut.Vendor())
 	}
@@ -265,7 +294,7 @@ func sortBreakoutPorts(breakOutPorts []string) {
 }
 
 // Function to get compName and set up port name based on provided interface and port prefix
-func getCompName(dut *ondatra.DUTDevice, _ string, portPrefix string, t *testing.T) (string, string, bool) {
+func getCompName(dut *ondatra.DUTDevice, iface string, portPrefix string, t *testing.T) (string, string, bool) {
 
 	foundExpectedInterfaceFlag := false
 	portsAll := dut.Ports()
@@ -308,6 +337,8 @@ func getCompName(dut *ondatra.DUTDevice, _ string, portPrefix string, t *testing
 		lastIndex := strings.LastIndex(dutPortName, "/")
 		breakOutCompName := dutPortName[:lastIndex] + "-Port"
 		return breakOutCompName, dutPortName, true
+	case ondatra.JUNIPER:
+		return dutPortName, dutPortName, true
 	default:
 		t.Fatalf("Unsupported vendor: %v", dut.Vendor())
 		return "", "", false
