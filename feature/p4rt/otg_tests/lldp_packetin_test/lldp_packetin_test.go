@@ -178,7 +178,7 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Send LLDP traffic from ATE
 	srcEndPoint := ateInterface(args.top, "port1")
-	pktOut := testTraffic(t, args.top, args.ate, args.packetIO.GetTrafficFlow(args.ate, 300, 2), srcEndPoint, 10)
+	pktOut := testTraffic(t, args.top, args.ate, args.packetIO.GetTrafficFlow(args.ate, 300, 50), srcEndPoint, 10)
 
 	// Extract packets from PacketIn message sent to p4rt client
 	_, packets, err := leader.StreamChannelGetPackets(&streamName, uint64(pktOut), 30*time.Second)
