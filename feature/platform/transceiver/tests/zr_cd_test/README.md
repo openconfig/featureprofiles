@@ -17,6 +17,9 @@ The test must be repeated for each supported operational-mode or as agreed betwe
     controlled through automation to simulate a fiber cut.  
 *   To establish a point to point ZR link ensure the following:
       * Both transceivers states are enabled
+      * Retrieve the associated optical channel component for each transceiver
+        physical channel via
+        `/components/component/transceiver/physical-channels/channel/state/associated-optical-channel`
       * Both transceivers are set to a valid target TX output power
         example -10 dBm
       * Both transceivers are tuned to a valid centre frequency
@@ -101,6 +104,8 @@ paths:
     platform_type: [OPTICAL_CHANNEL]
   /components/component/optical-channel/state/chromatic-dispersion/min:
     platform_type: [OPTICAL_CHANNEL]
+  /components/component/transceiver/physical-channels/channel/state/associated-optical-channel:
+    platform_type: [TRANSCEIVER]
   /interfaces/interface/config/enabled:
   /interfaces/interface/state/oper-status:
   /interfaces/interface/state/transceiver:
