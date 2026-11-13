@@ -47,8 +47,8 @@ const (
 	routeCount       = 1
 	vrf1             = "TE_VRF_111"
 	vrf2             = "vrfB"
-	fps              = 1000000 // traffic frames per second
-	switchovertime   = 250.0   // switchovertime during interface shut in milliseconds
+	fps              = 10000 // traffic frames per second
+	switchovertime   = 250.0 // switchovertime during interface shut in milliseconds
 	ethernetCsmacd   = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	decapFlowSrc     = "198.51.100.111"
 	dscpEncapA1      = 10
