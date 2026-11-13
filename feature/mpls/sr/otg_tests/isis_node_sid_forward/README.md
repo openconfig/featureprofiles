@@ -171,6 +171,8 @@ paths:
   /network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/state/local-id:
   /network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/state/lower-bound:
   /network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/state/upper-bound:
+  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix:
+  /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/prefix:
   /network-instances/network-instance/mpls/signaling-protocols/segment-routing/interfaces/interface/state/interface-id:
   /network-instances/network-instance/mpls/signaling-protocols/segment-routing/interfaces/interface/sid-counters/sid-counter/state/in-pkts:
   /network-instances/network-instance/mpls/signaling-protocols/segment-routing/interfaces/interface/sid-counters/sid-counter/state/out-pkts:

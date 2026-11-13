@@ -1,0 +1,36 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "07341742-d9d9-4f32-b881-9c5b43083bd2"
+plan_id: "LB-1.1"
+description: "wECMP Hashing Polarization Detection"
+testbed: TESTBED_DUT_ATE_5LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    aggregate_atomic_update: true
+    gribi_riback_only: false
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    aggregate_atomic_update: true
+    default_network_instance: "default"
+    interface_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    aggregate_atomic_update: true
+    explicit_interface_in_default_vrf: true
+    interface_enabled: true
+  }
+}

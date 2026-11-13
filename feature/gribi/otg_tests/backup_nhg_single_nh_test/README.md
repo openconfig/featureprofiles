@@ -24,6 +24,10 @@ containing a single NH.
 *   198.51.100.0/32 {VRF-B} --> NHG#2
 *   Validate:
     *   AFT telemetry shows the installed NHGs and NHs.
+    *   AFT telemetry for every NH reports `origin-protocol` as `GRIBI`.
+    *   AFT telemetry for the NHG used by 198.51.100.0/32 {DEFAULT} reports a
+        non-zero `backup-next-hop-group`, and the referenced backup NHG is
+        present in the AFT with at least one NH.
     *   Traffic is forwarded to ATE port-2 from ATE port-1.
 *   For each of the following cases, ensure that traffic switches to being
     forwarded to ATE port-3:
@@ -49,6 +53,9 @@ paths:
   /network-instances/network-instance/policy-forwarding/policies/policy/config/type:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/network-instance:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/protocol:
+  ## Telemetry parameter coverage
+  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/backup-next-hop-group:
+  /network-instances/network-instance/afts/next-hops/next-hop/state/origin-protocol:
 rpcs:
   gnmi:
     gNMI.Get:
@@ -63,3 +70,9 @@ rpcs:
 ## Minimum DUT platform requirement
 
 vRX if the vendor implementation supports FIB-ACK simulation, otherwise FFF.
+
+## Canonical OC
+
+```json
+{}
+```
