@@ -15,6 +15,7 @@
 package supervisor_failure_test
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"testing"
@@ -27,6 +28,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/gnoigo"
 	"github.com/openconfig/gnoigo/system"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
@@ -35,8 +37,8 @@ import (
 
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/gnoi"
 	"github.com/openconfig/ygnmi/ygnmi"
+	"google.golang.org/grpc"
 )
 
 func TestMain(m *testing.M) {
@@ -493,6 +495,23 @@ func flushActiveSupervisor(t *testing.T, dut *ondatra.DUTDevice, timeout time.Du
 	c.FlushAll(t)
 }
 
+// switchControlProcessor bypasses the cached gNOI client, which may refer to
+// the previous active supervisor. Preserve errors without retrying the action.
+func switchControlProcessor(t *testing.T, dut *ondatra.DUTDevice, controller string, timeout time.Duration) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	clients, err := dut.RawAPIs().BindingDUT().DialGNOI(ctx, grpc.WithDisableRetry())
+	if err != nil {
+		t.Fatalf("Dial gNOI before switching to %s: %v", controller, err)
+	}
+	resp, err := gnoigo.Execute(ctx, clients, system.NewSwitchControlProcessorOperation().Path(cmp.GetSubcomponentPath(controller, deviations.GNOISubcomponentPath(dut))))
+	if err != nil {
+		t.Fatalf("SwitchControlProcessor to %s failed (RPC will not be retried): %v", controller, err)
+	}
+	t.Logf("SwitchControlProcessor to %s response: %v", controller, resp)
+}
+
 // cleanBothSupervisors removes leftover gRIBI state from both supervisors, so
 // that entries found on the new active supervisor after the test switchover can
 // only come from state synchronized during that switchover and not from a
@@ -509,8 +528,7 @@ func cleanBothSupervisors(t *testing.T, dut *ondatra.DUTDevice, controllers []st
 
 	awaitSwitchoverReady(t, dut, primary, 5*time.Minute+extraWait)
 	t.Logf("Pre-test cleanup: switching over to %s to flush its gRIBI entries...", secondary)
-	resp := gnoi.Execute(t, dut, system.NewSwitchControlProcessorOperation().Path(cmp.GetSubcomponentPath(secondary, deviations.GNOISubcomponentPath(dut))))
-	t.Logf("Pre-test cleanup: SwitchControlProcessor() response: %v", resp)
+	switchControlProcessor(t, dut, secondary, 5*time.Minute+extraWait)
 	validateSwitchover(t, dut, secondary, 5*time.Minute+extraWait)
 
 	t.Logf("Pre-test cleanup: flushing gRIBI entries on active supervisor %s...", secondary)
@@ -599,8 +617,7 @@ func TestSupFailure(t *testing.T) {
 	})
 
 	t.Logf("TE-8.2.1: Validate: Supervisor switchover is triggered using gNOI SwitchControlProcessor...")
-	switchoverResponse := gnoi.Execute(t, dut, system.NewSwitchControlProcessorOperation().Path(cmp.GetSubcomponentPath(secondaryBeforeSwitch, deviations.GNOISubcomponentPath(dut))))
-	t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v", switchoverResponse)
+	switchControlProcessor(t, dut, secondaryBeforeSwitch, 5*time.Minute+extraWait)
 
 	validateSwitchover(t, dut, secondaryBeforeSwitch, 5*time.Minute+extraWait)
 
