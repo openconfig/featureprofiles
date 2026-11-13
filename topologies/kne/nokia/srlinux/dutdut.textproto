@@ -20,6 +20,9 @@ nodes: {
         key: 9339
         value: {
             name: "gnmi"
+            names: "gnmi"
+            names: "gnoi"
+            names: "gnsi"
             inside: 9339
         }
     }
@@ -88,6 +91,9 @@ nodes: {
         key: 9339
         value: {
             name: "gnmi"
+            names: "gnmi"
+            names: "gnoi"
+            names: "gnsi"
             inside: 9339
         }
     }
