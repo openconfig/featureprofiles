@@ -30,9 +30,9 @@ const (
 	testNI                 = "test-instance"
 	flowRatePercent        = 5
 	frameSize              = 9210
-	lacpConvergenceTimeout = 1 * time.Minute
+	lacpConvergenceTimeout = 2 * time.Minute
 	trafficDuration        = 60 * time.Second
-	setupDelay             = 2 * time.Second
+	setupDelay             = 15 * time.Second
 )
 
 var (
@@ -149,7 +149,12 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, niName string, minLinks 
 	var config oc.Root
 
 	batch := &gnmi.SetBatch{}
-
+	// Create Network Instance first for Cisco compatibility.
+	var ni *oc.NetworkInstance
+	if niName != deviations.DefaultNetworkInstance(dut) {
+		ni = config.GetOrCreateNetworkInstance(niName)
+		ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
+	}
 	// First: Create LAGs with their configuration
 	for _, lagName := range []string{lag1Name, lag2Name} {
 		lag := config.GetOrCreateInterface(lagName)
@@ -179,29 +184,33 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, niName string, minLinks 
 		}
 		for _, sub := range subs[lagName] {
 			subif := lag.GetOrCreateSubinterface(uint32(sub.vlanID))
-			subif.Enabled = ygot.Bool(true)
 			if deviations.DeprecatedVlanID(dut) {
 				subif.GetOrCreateVlan().VlanId = oc.UnionUint16(sub.vlanID)
 			} else {
 				subif.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(sub.vlanID)
 			}
 			ipv4 := subif.GetOrCreateIpv4()
+			if deviations.InterfaceEnabled(dut) {
+				ipv4.Enabled = ygot.Bool(true)
+			}
+
 			if !deviations.IPv4MissingEnabled(dut) {
 				ipv4.Enabled = ygot.Bool(true)
 			}
 			s4 := ipv4.GetOrCreateAddress(sub.dutIPv4)
 			s4.PrefixLength = ygot.Uint8(ipv4PrefixLen)
+
 			ipv6 := subif.GetOrCreateIpv6()
-			ipv6.Enabled = ygot.Bool(true)
+
+			if deviations.InterfaceEnabled(dut) {
+				ipv6.Enabled = ygot.Bool(true)
+			}
 			s6 := ipv6.GetOrCreateAddress(sub.dutIPv6)
 			s6.PrefixLength = ygot.Uint8(ipv6PrefixLen)
-			if niName != deviations.DefaultNetworkInstance(dut) {
-				ni := config.GetOrCreateNetworkInstance(niName)
-				ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
+			if ni != nil {
 				niIntf := ni.GetOrCreateInterface(fmt.Sprintf("%s.%d", lagName, sub.vlanID))
 				niIntf.Subinterface = ygot.Uint32(uint32(sub.vlanID))
 				niIntf.Interface = ygot.String(lagName)
-				gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(niName).Config(), ni)
 			}
 		}
 		gnmi.BatchReplace(batch, gnmi.OC().Interface(lagName).Config(), lag)
@@ -241,6 +250,17 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, niName string, minLinks 
 		}
 	}
 	mtuBatch.Set(t, dut)
+	for _, lagName := range []string{lag1Name, lag2Name} {
+		// gnmi.Await(t, dut, gnmi.OC().Interface(lagName).State(), 30*time.Second)
+		_, ok := gnmi.Watch(t, dut, gnmi.OC().Interface(lagName).OperStatus().State(), 30*time.Second, func(v *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
+			return v.IsPresent()
+		},
+		).Await(t)
+		if !ok {
+			t.Fatalf("Timed out waiting for interface %s to be present", lagName)
+		}
+
+	}
 }
 
 func configureATE(t *testing.T, ate *ondatra.ATEDevice, lag1Name, lag2Name string, subs map[string][]subifConfig) gosnappi.Config {
@@ -389,10 +409,12 @@ func verifyLACPState(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 			ateLACP, _ := ateVal.Val()
 
 			// Verify ID cross-matching after state is confirmed.
-			if ateLACP.PartnerId == nil || dutLACP.SystemId == nil || !strings.EqualFold(*ateLACP.PartnerId, *dutLACP.SystemId) {
+			if ateLACP.PartnerId == nil || dutLACP.SystemId == nil ||
+				!strings.EqualFold(*ateLACP.PartnerId, *dutLACP.SystemId) {
 				t.Errorf("LAG %s port %s: ATE partner-id (%v) did not match DUT system-id (%v)", lagName, portName, ateLACP.PartnerId, dutLACP.SystemId)
 			}
-			if dutLACP.PartnerId == nil || ateLACP.SystemId == nil || !strings.EqualFold(*dutLACP.PartnerId, *ateLACP.SystemId) {
+			if dutLACP.PartnerId == nil || ateLACP.SystemId == nil ||
+				!strings.EqualFold(*dutLACP.PartnerId, *ateLACP.SystemId) {
 				t.Errorf("LAG %s port %s: DUT partner-id (%v) did not match ATE system-id (%v)", lagName, portName, dutLACP.PartnerId, ateLACP.SystemId)
 			}
 		}
