@@ -2586,3 +2586,9 @@ func SyslogDebugSeverityUnsupported(dut *ondatra.DUTDevice) bool {
 func MountPointStorageComponentUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMountPointStorageComponentUnsupported()
 }
+
+// GRIBIOpaqueRecursiveNHG returns true if the device reports recursive gRIBI IPv4 next-hop groups with opaque IDs and no next-hop members
+// Cisco: https://partnerissuetracker.corp.google.com/issues/577036552
+func GRIBIOpaqueRecursiveNHG(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGribiOpaqueRecursiveNhg()
+}
