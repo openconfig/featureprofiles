@@ -1,4 +1,4 @@
-# Hashing: Dataplane Hashing with Physical Loopbacks
+# Hashing-1.0: Dataplane Hashing with Physical Loopbacks
 
 ## Summary
 Verify Dataplane Hashing (ECMP, WCMP, and Intra-LAG) using physical loopback ports across multiple Network Instances (`DEFAULT`, `SELF_SITE`, `EGRESS`).
