@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "33d06d39-ef20-4182-acad-c5f6f1498027"
+plan_id: "System-1.6"
+description: "DNS client configuration"
+testbed: TESTBED_DUT
