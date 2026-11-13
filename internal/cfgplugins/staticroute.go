@@ -17,6 +17,7 @@ package cfgplugins
 import (
 	"errors"
 	"fmt"
+	"net"
 	"strings"
 	"testing"
 	"time"
@@ -92,10 +93,11 @@ func NewStaticRouteCfg(batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUT
 		if deviations.StaticRouteToNHGOCUnsupported(d) {
 			switch d.Vendor() {
 			case ondatra.ARISTA:
+				routeCmd := staticRouteCmdByPrefix(cfg.Prefix)
 				if cfg.RemoveStaticRoute {
-					helpers.GnmiCLIConfig(cfg.T, d, fmt.Sprintf(`no ipv6 route %s nexthop-group %s`, cfg.Prefix, cfg.NexthopGroupName))
+					helpers.GnmiCLIConfig(cfg.T, d, fmt.Sprintf(`no %s route %s nexthop-group %s`, routeCmd, cfg.Prefix, cfg.NexthopGroupName))
 				} else {
-					cli := fmt.Sprintf(`ipv6 route %s nexthop-group %s`, cfg.Prefix, cfg.NexthopGroupName)
+					cli := fmt.Sprintf(`%s route %s nexthop-group %s`, routeCmd, cfg.Prefix, cfg.NexthopGroupName)
 					helpers.GnmiCLIConfig(cfg.T, d, cli)
 					staticRouteToNextHopGroupCLI(cfg.T, d, *cfg)
 					cliConfigured = true
@@ -143,6 +145,19 @@ func NewStaticRouteCfg(batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUT
 	gnmi.BatchUpdate(batch, sp.Config(), c)
 	gnmi.BatchReplace(batch, sp.Static(cfg.Prefix).Config(), s)
 	return s, nil
+}
+
+// staticRouteCmdByPrefix returns CLI route family keyword for an IP prefix.
+func staticRouteCmdByPrefix(prefix string) string {
+	ipPart := prefix
+	if i := strings.Index(prefix, "/"); i > 0 {
+		ipPart = prefix[:i]
+	}
+	ip := net.ParseIP(ipPart)
+	if ip != nil && ip.To4() == nil {
+		return "ipv6"
+	}
+	return "ip"
 }
 
 // StaticRouteNextNetworkInstance configures a static route with a next network instance (cross-VRF routing).
