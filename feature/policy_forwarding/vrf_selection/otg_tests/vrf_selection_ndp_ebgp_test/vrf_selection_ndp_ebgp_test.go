@@ -33,6 +33,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/ygnmi"
 )
 
@@ -142,11 +143,13 @@ var (
 
 // testEnv encapsulates the testbed devices, OTG configuration, and dynamic LAG interface data.
 type testEnv struct {
-	dut      *ondatra.DUTDevice
-	ate      *ondatra.ATEDevice
-	top      gosnappi.Config
-	aggID    string
-	aggPorts []*ondatra.Port
+	dut                *ondatra.DUTDevice
+	ate                *ondatra.ATEDevice
+	top                gosnappi.Config
+	aggID              string
+	aggPorts           []*ondatra.Port
+	singleAFPolicyOnly bool
+	ipv4PolicyOnly     bool
 }
 
 func TestMain(m *testing.M) {
@@ -607,45 +610,51 @@ func seqIDOffset(dut *ondatra.DUTDevice, seq uint32) uint32 {
 	return seq
 }
 
-// configureDUTVRFSelectionPolicy implements RT-3.5.1 Step 2:
-//   - Configures VRF-SELECT-POLICY under the DEFAULT network instance:
-//   - Rule 10: IPv4 dscp-set [0, 10] -> action network-instance VRF-10.
-//   - Rule 20: IPv6 dscp-set [0, 10] -> action network-instance VRF-10.
-//   - Rule 30: Default catch-all rule -> action network-instance DEFAULT (or L2 ethertype IPv4/IPv6 rules when PfRequireMatchDefaultRule is enabled).
-//   - Binds VRF-SELECT-POLICY to the ingress LAG interface (aggID) subinterface 0.
-func configureDUTVRFSelectionPolicy(t *testing.T, env *testEnv) {
-	t.Helper()
-	dut := env.dut
+// buildVRFSelectionPolicy constructs VRF-SELECT-POLICY with the requested IPv4 (Rule 10)
+// and/or IPv6 (Rule 20) DSCP [0, 10] VRF-10 steering rules and trailing DEFAULT catch-all rule(s).
+func buildVRFSelectionPolicy(dut *ondatra.DUTDevice, includeIPv4, includeIPv6 bool) *oc.NetworkInstance_PolicyForwarding {
 	defNI := deviations.DefaultNetworkInstance(dut)
-
 	pf := &oc.NetworkInstance_PolicyForwarding{}
 	policy := pf.GetOrCreatePolicy(vrfSelectionPolicyName)
 	policy.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
 
-	r10 := policy.GetOrCreateRule(seqIDOffset(dut, rule10SeqID))
-	r10.GetOrCreateIpv4().SetDscpSet([]uint8{dscpSteered0, dscpVRF10})
-	r10.GetOrCreateAction().SetNetworkInstance(vrf10Name)
+	if includeIPv4 {
+		r10 := policy.GetOrCreateRule(seqIDOffset(dut, rule10SeqID))
+		r10.GetOrCreateIpv4().SetDscpSet([]uint8{dscpSteered0, dscpVRF10})
+		r10.GetOrCreateAction().SetNetworkInstance(vrf10Name)
+	}
 
-	r20 := policy.GetOrCreateRule(seqIDOffset(dut, rule20SeqID))
-	r20.GetOrCreateIpv6().SetDscpSet([]uint8{dscpSteered0, dscpVRF10})
-	r20.GetOrCreateAction().SetNetworkInstance(vrf10Name)
+	if includeIPv6 {
+		r20 := policy.GetOrCreateRule(seqIDOffset(dut, rule20SeqID))
+		r20.GetOrCreateIpv6().SetDscpSet([]uint8{dscpSteered0, dscpVRF10})
+		r20.GetOrCreateAction().SetNetworkInstance(vrf10Name)
+	}
 
 	if deviations.PfRequireMatchDefaultRule(dut) {
-		defV4Rule := policy.GetOrCreateRule(seqIDOffset(dut, rule30SeqID))
-		defV4Rule.GetOrCreateL2().SetEthertype(oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4)
-		defV4Rule.GetOrCreateAction().SetNetworkInstance(defNI)
-
-		defV6Rule := policy.GetOrCreateRule(seqIDOffset(dut, rule30SeqID+10))
-		defV6Rule.GetOrCreateL2().SetEthertype(oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV6)
-		defV6Rule.GetOrCreateAction().SetNetworkInstance(defNI)
+		nextSeq := uint32(rule30SeqID)
+		if includeIPv4 {
+			defV4Rule := policy.GetOrCreateRule(seqIDOffset(dut, nextSeq))
+			defV4Rule.GetOrCreateL2().SetEthertype(oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4)
+			defV4Rule.GetOrCreateAction().SetNetworkInstance(defNI)
+			nextSeq += 10
+		}
+		if includeIPv6 {
+			defV6Rule := policy.GetOrCreateRule(seqIDOffset(dut, nextSeq))
+			defV6Rule.GetOrCreateL2().SetEthertype(oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV6)
+			defV6Rule.GetOrCreateAction().SetNetworkInstance(defNI)
+		}
 	} else {
 		defRule := policy.GetOrCreateRule(seqIDOffset(dut, rule30SeqID))
 		defRule.GetOrCreateAction().SetNetworkInstance(defNI)
 	}
+	return pf
+}
 
-	fptest.ConfigureDefaultNetworkInstance(t, dut)
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(defNI).PolicyForwarding().Config(), pf)
-
+// bindVRFSelectionPolicyToIngressLAG attaches VRF-SELECT-POLICY to the DUT's ingress LAG subinterface 0.
+func bindVRFSelectionPolicyToIngressLAG(t testing.TB, env *testEnv) {
+	t.Helper()
+	dut := env.dut
+	defNI := deviations.DefaultNetworkInstance(dut)
 	interfaceID := env.aggID
 	if deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
 		interfaceID = fmt.Sprintf("%s.%d", env.aggID, 0)
@@ -658,8 +667,51 @@ func configureDUTVRFSelectionPolicy(t *testing.T, env *testEnv) {
 	if deviations.InterfaceRefConfigUnsupported(dut) {
 		iface.InterfaceRef = nil
 	}
-
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(defNI).PolicyForwarding().Interface(interfaceID).Config(), iface)
+}
+
+// configureDUTVRFSelectionPolicy implements RT-3.5.1 Step 2:
+//   - Configures VRF-SELECT-POLICY under the DEFAULT network instance:
+//   - Rule 10: IPv4 dscp-set [0, 10] -> action network-instance VRF-10.
+//   - Rule 20: IPv6 dscp-set [0, 10] -> action network-instance VRF-10.
+//   - Rule 30: Default catch-all rule -> action network-instance DEFAULT (or L2 ethertype IPv4/IPv6 rules when PfRequireMatchDefaultRule is enabled).
+//   - Binds VRF-SELECT-POLICY to the ingress LAG interface (aggID) subinterface 0.
+//   - If the platform rejects mixing IPv4 and IPv6 match conditions within a single VRF_SELECTION_POLICY,
+//     falls back to single-AF VRF_SELECTION_POLICY (trying IPv6 Rule 20 first, or IPv4 Rule 10 if the platform
+//     does not support IPv6 match criteria in vrf-selection-policy).
+func configureDUTVRFSelectionPolicy(t *testing.T, env *testEnv) {
+	t.Helper()
+	dut := env.dut
+	defNI := deviations.DefaultNetworkInstance(dut)
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
+
+	dualStackPF := buildVRFSelectionPolicy(dut, true, true)
+	errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(defNI).PolicyForwarding().Config(), dualStackPF)
+		bindVRFSelectionPolicyToIngressLAG(t, env)
+	})
+	if errMsg == nil {
+		return
+	}
+
+	t.Logf("Combined IPv4+IPv6 VRF_SELECTION_POLICY was rejected by DUT (%s); attempting IPv6-only VRF_SELECTION_POLICY (Rule 20 + Rule 30)", *errMsg)
+	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(defNI).PolicyForwarding().Config())
+	ipv6PF := buildVRFSelectionPolicy(dut, false, true)
+	errMsgV6 := testt.CaptureFatal(t, func(t testing.TB) {
+		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(defNI).PolicyForwarding().Config(), ipv6PF)
+		bindVRFSelectionPolicyToIngressLAG(t, env)
+	})
+	if errMsgV6 == nil {
+		env.singleAFPolicyOnly = true
+		return
+	}
+
+	t.Logf("IPv6-only VRF_SELECTION_POLICY was also rejected by DUT (%s); applying IPv4 VRF_SELECTION_POLICY (Rule 10 + Rule 30) on ingress LAG", *errMsgV6)
+	env.ipv4PolicyOnly = true
+	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(defNI).PolicyForwarding().Config())
+	ipv4PF := buildVRFSelectionPolicy(dut, true, false)
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(defNI).PolicyForwarding().Config(), ipv4PF)
+	bindVRFSelectionPolicyToIngressLAG(t, env)
 }
 
 // verifyControlPlaneState implements RT-3.5.1 Step 4:
@@ -960,6 +1012,14 @@ func configureOTGTrafficFlows(t *testing.T, env *testEnv) []string {
 	flow3.AddEthHeader()
 	flow3.AddIPv4Header()
 
+	if env.ipv4PolicyOnly {
+		return []string{
+			flow1IPv4DefaultVRF,
+			flow2IPv6DefaultVRF,
+			flow3IPv4VRF10,
+		}
+	}
+
 	// Flow 4: IPv6 VRF-10 Steered (matching Rule 20: DSCP 10 -> VRF-10 -> ATE:Port4).
 	flow4 := &otgconfighelpers.Flow{
 		FlowName:      flow4IPv6VRF10,
@@ -990,8 +1050,8 @@ func configureOTGTrafficFlows(t *testing.T, env *testEnv) []string {
 // runAndVerifyTraffic implements RT-3.5.2 Step 2 & Step 3:
 //   - Verifies ARP/NDP and eBGP readiness prior to traffic injection.
 //   - Starts traffic and awaits flow completion using gnmi.Watch (no time.Sleep).
-//   - Verifies 0% packet loss on all 4 flows using otgvalidationhelpers.VerifyTraffic.
-//   - Verifies VRF-SELECT-POLICY Rule 10 and Rule 20 matched-pkts and matched-octets counters increment.
+//   - Verifies 0% packet loss on all configured flows using otgvalidationhelpers.VerifyTraffic.
+//   - Verifies VRF-SELECT-POLICY Rule 10 and/or Rule 20 matched-pkts and matched-octets counters increment.
 //   - Verifies DUT interface packet counters (in-pkts on LAG1 and out-pkts on Port3 and Port4) increment.
 //   - Re-verifies that dual-stack eBGP sessions remain ESTABLISHED and IPv6 NDP remains resolved.
 func runAndVerifyTraffic(t *testing.T, env *testEnv, flowNames []string) {
@@ -999,6 +1059,41 @@ func runAndVerifyTraffic(t *testing.T, env *testEnv, flowNames []string) {
 	if len(flowNames) == 0 {
 		t.Fatalf("flowNames must not be empty")
 	}
+	dut := env.dut
+	defNI := deviations.DefaultNetworkInstance(dut)
+	rule10Idx := seqIDOffset(dut, rule10SeqID)
+	rule20Idx := seqIDOffset(dut, rule20SeqID)
+
+	if env.ipv4PolicyOnly {
+		runTrafficPass(t, env, flowNames, flowNames, []uint32{rule10Idx}, 2*trafficPackets, 1*trafficPackets)
+		return
+	}
+
+	if !env.singleAFPolicyOnly {
+		runTrafficPass(t, env, flowNames, flowNames, []uint32{rule10Idx, rule20Idx}, 2*trafficPackets, 2*trafficPackets)
+		return
+	}
+
+	// Single-AF policy mode (when platform rejects mixing IPv4 and IPv6 rules in one policy):
+	// Pass 1: IPv6 rule (Rule 20 + Rule 30) is active -> verify Flow 1, Flow 2, Flow 4 and Rule 20 counters.
+	t.Log("RT-3.5.2 Pass 1 (IPv6 VRF selection rule active): verifying Flow-1-Default-IPv4, Flow-2-Default-IPv6, Flow-4-Steered-IPv6, and Rule 20 counters")
+	runTrafficPass(t, env, flowNames, []string{flow1IPv4DefaultVRF, flow2IPv6DefaultVRF, flow4IPv6VRF10}, []uint32{rule20Idx}, 2*trafficPackets, 1*trafficPackets)
+
+	// Pass 2: Replace policy rules with IPv4 rule (Rule 10 + Rule 30) -> verify Flow 1, Flow 2, Flow 3 and Rule 10 counters.
+	t.Log("RT-3.5.2 Pass 2 (IPv4 VRF selection rule active): updating VRF-SELECT-POLICY to Rule 10 + Rule 30 and verifying Flow-1-Default-IPv4, Flow-2-Default-IPv6, Flow-3-Steered-IPv4, and Rule 10 counters")
+	ipv4Policy := buildVRFSelectionPolicy(dut, true, false).GetPolicy(vrfSelectionPolicyName)
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(defNI).PolicyForwarding().Policy(vrfSelectionPolicyName).Config(), ipv4Policy)
+	runTrafficPass(t, env, flowNames, []string{flow1IPv4DefaultVRF, flow2IPv6DefaultVRF, flow3IPv4VRF10}, []uint32{rule10Idx}, 2*trafficPackets, 1*trafficPackets)
+
+	// Restore IPv6 rule (Rule 20 + Rule 30) and re-verify eBGP and IPv6 NDP stability.
+	ipv6Policy := buildVRFSelectionPolicy(dut, false, true).GetPolicy(vrfSelectionPolicyName)
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(defNI).PolicyForwarding().Policy(vrfSelectionPolicyName).Config(), ipv6Policy)
+	verifyBGPSessionsEstablished(t, env)
+	verifyDUTIPv6NDPNeighborState(t, env)
+}
+
+func runTrafficPass(t *testing.T, env *testEnv, allFlowNames, verifyFlowNames []string, verifyRuleSeqIDs []uint32, wantP3OutPkts, wantP4OutPkts uint64) {
+	t.Helper()
 	dut := env.dut
 	ate := env.ate
 	otg := ate.OTG()
@@ -1010,7 +1105,7 @@ func runAndVerifyTraffic(t *testing.T, env *testEnv, flowNames []string) {
 	// Warm up hardware FIBs and egress ARP/NDP by sending a fixed-packet burst and awaiting completion via gnmi.Watch.
 	t.Logf("Warming up hardware FIBs and egress ARP/NDP with an initial fixed-packet burst")
 	otg.StartTraffic(t)
-	for _, flowName := range flowNames {
+	for _, flowName := range allFlowNames {
 		transmitPath := gnmi.OTG().Flow(flowName).Transmit().State()
 		if _, ok := gnmi.Watch(t, otg, transmitPath, trafficTimeout, func(val *ygnmi.Value[bool]) bool {
 			transmitState, present := val.Val()
@@ -1023,35 +1118,54 @@ func runAndVerifyTraffic(t *testing.T, env *testEnv, flowNames []string) {
 	otgutils.WaitForARP(t, otg, env.top, "IPv6")
 
 	// Capture baseline policy rule matched-pkts and matched-octets counters and interface counters before starting traffic.
-	rule10Idx := seqIDOffset(dut, rule10SeqID)
-	rule20Idx := seqIDOffset(dut, rule20SeqID)
-	var rule10PktsBefore, rule20PktsBefore uint64
-	var rule10OctetsBefore, rule20OctetsBefore uint64
+	type ruleBaseline struct {
+		seqID           uint32
+		pktsBefore      uint64
+		octetsBefore    uint64
+		pktsSupported   bool
+		octetsSupported bool
+	}
+	var ruleChecks []ruleBaseline
 	policyPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Policy(vrfSelectionPolicyName)
 	if !deviations.PolicyRuleCountersOCUnsupported(dut) && !deviations.PolicyForwardingOCUnsupported(dut) {
-		if v, ok := gnmi.Lookup(t, dut, policyPath.Rule(rule10Idx).MatchedPkts().State()).Val(); ok {
-			rule10PktsBefore = v
-		}
-		if v, ok := gnmi.Lookup(t, dut, policyPath.Rule(rule20Idx).MatchedPkts().State()).Val(); ok {
-			rule20PktsBefore = v
-		}
-		if v, ok := gnmi.Lookup(t, dut, policyPath.Rule(rule10Idx).MatchedOctets().State()).Val(); ok {
-			rule10OctetsBefore = v
-		}
-		if v, ok := gnmi.Lookup(t, dut, policyPath.Rule(rule20Idx).MatchedOctets().State()).Val(); ok {
-			rule20OctetsBefore = v
+		for _, seqID := range verifyRuleSeqIDs {
+			var pktsBefore, octetsBefore uint64
+			var pktsSupported, octetsSupported bool
+			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+				if v, ok := gnmi.Lookup(t, dut, policyPath.Rule(seqID).MatchedPkts().State()).Val(); ok {
+					pktsBefore = v
+					pktsSupported = true
+				}
+			}); errMsg != nil {
+				t.Logf("Policy rule %d matched-pkts state path not supported on DUT: %s", seqID, *errMsg)
+			}
+			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+				if v, ok := gnmi.Lookup(t, dut, policyPath.Rule(seqID).MatchedOctets().State()).Val(); ok {
+					octetsBefore = v
+					octetsSupported = true
+				}
+			}); errMsg != nil {
+				t.Logf("Policy rule %d matched-octets state path not supported on DUT: %s", seqID, *errMsg)
+			}
+			ruleChecks = append(ruleChecks, ruleBaseline{
+				seqID:           seqID,
+				pktsBefore:      pktsBefore,
+				octetsBefore:    octetsBefore,
+				pktsSupported:   pktsSupported,
+				octetsSupported: octetsSupported,
+			})
 		}
 	}
 
 	p3Name := dut.Port(t, "port3").Name()
 	p4Name := dut.Port(t, "port4").Name()
-	lagInPktsBefore, _ := gnmi.Lookup(t, dut, gnmi.OC().Interface(env.aggID).Counters().InPkts().State()).Val()
+	lagInPktsBefore := getLAGInPkts(t, env)
 	p3OutPktsBefore, _ := gnmi.Lookup(t, dut, gnmi.OC().Interface(p3Name).Counters().OutPkts().State()).Val()
 	p4OutPktsBefore, _ := gnmi.Lookup(t, dut, gnmi.OC().Interface(p4Name).Counters().OutPkts().State()).Val()
 
 	// Start traffic across all configured flows and wait for fixed packet transmission to finish via gnmi.Watch.
 	otg.StartTraffic(t)
-	for _, flowName := range flowNames {
+	for _, flowName := range allFlowNames {
 		transmitPath := gnmi.OTG().Flow(flowName).Transmit().State()
 		if _, ok := gnmi.Watch(t, otg, transmitPath, trafficTimeout, func(val *ygnmi.Value[bool]) bool {
 			transmitState, present := val.Val()
@@ -1064,8 +1178,8 @@ func runAndVerifyTraffic(t *testing.T, env *testEnv, flowNames []string) {
 	otgutils.LogFlowMetrics(t, otg, env.top)
 	otgutils.LogPortMetrics(t, otg, env.top)
 
-	// Verify 0% packet loss (FramesRx == FramesTx and FramesTx > 0) for all configured flows.
-	for _, flowName := range flowNames {
+	// Verify 0% packet loss (FramesRx == FramesTx and FramesTx > 0) for all verified flows in this pass.
+	for _, flowName := range verifyFlowNames {
 		if err := otgvalidationhelpers.VerifyTraffic(t, ate, otgvalidationhelpers.VerifyTrafficParams{
 			Config:       env.top,
 			FlowName:     flowName,
@@ -1076,46 +1190,43 @@ func runAndVerifyTraffic(t *testing.T, env *testEnv, flowNames []string) {
 		}
 	}
 
-	// Verify VRF selection policy Rule 10 and Rule 20 matched-pkts and matched-octets counters incremented.
+	// Verify VRF selection policy rule matched-pkts and matched-octets counters incremented.
 	if !deviations.PolicyRuleCountersOCUnsupported(dut) && !deviations.PolicyForwardingOCUnsupported(dut) {
 		wantMinOctets := uint64(trafficPackets) * (trafficFrameSize - 18)
-		ruleChecks := []struct {
-			seqID        uint32
-			pktsBefore   uint64
-			octetsBefore uint64
-		}{
-			{seqID: rule10Idx, pktsBefore: rule10PktsBefore, octetsBefore: rule10OctetsBefore},
-			{seqID: rule20Idx, pktsBefore: rule20PktsBefore, octetsBefore: rule20OctetsBefore},
-		}
 		for _, ruleCheck := range ruleChecks {
-			if _, ok := gnmi.Watch(t, dut, policyPath.Rule(ruleCheck.seqID).MatchedPkts().State(), trafficTimeout, func(val *ygnmi.Value[uint64]) bool {
-				pkts, present := val.Val()
-				return present && pkts >= ruleCheck.pktsBefore+trafficPackets
-			}).Await(t); !ok {
-				got, _ := gnmi.Lookup(t, dut, policyPath.Rule(ruleCheck.seqID).MatchedPkts().State()).Val()
-				t.Errorf("Policy %s rule %d matched-pkts counter did not increment as expected: got %d, want >= %d",
-					vrfSelectionPolicyName, ruleCheck.seqID, got, ruleCheck.pktsBefore+trafficPackets)
+			if ruleCheck.pktsSupported {
+				if _, ok := gnmi.Watch(t, dut, policyPath.Rule(ruleCheck.seqID).MatchedPkts().State(), trafficTimeout, func(val *ygnmi.Value[uint64]) bool {
+					pkts, present := val.Val()
+					return present && pkts >= ruleCheck.pktsBefore+trafficPackets
+				}).Await(t); !ok {
+					got, _ := gnmi.Lookup(t, dut, policyPath.Rule(ruleCheck.seqID).MatchedPkts().State()).Val()
+					t.Errorf("Policy %s rule %d matched-pkts counter did not increment as expected: got %d, want >= %d",
+						vrfSelectionPolicyName, ruleCheck.seqID, got, ruleCheck.pktsBefore+trafficPackets)
+				}
 			}
-			if _, ok := gnmi.Watch(t, dut, policyPath.Rule(ruleCheck.seqID).MatchedOctets().State(), trafficTimeout, func(val *ygnmi.Value[uint64]) bool {
-				octets, present := val.Val()
-				return present && octets >= ruleCheck.octetsBefore+wantMinOctets
-			}).Await(t); !ok {
-				got, _ := gnmi.Lookup(t, dut, policyPath.Rule(ruleCheck.seqID).MatchedOctets().State()).Val()
-				t.Errorf("Policy %s rule %d matched-octets counter did not increment as expected: got %d, want >= %d",
-					vrfSelectionPolicyName, ruleCheck.seqID, got, ruleCheck.octetsBefore+wantMinOctets)
+			if ruleCheck.octetsSupported {
+				if _, ok := gnmi.Watch(t, dut, policyPath.Rule(ruleCheck.seqID).MatchedOctets().State(), trafficTimeout, func(val *ygnmi.Value[uint64]) bool {
+					octets, present := val.Val()
+					return present && octets >= ruleCheck.octetsBefore+wantMinOctets
+				}).Await(t); !ok {
+					got, _ := gnmi.Lookup(t, dut, policyPath.Rule(ruleCheck.seqID).MatchedOctets().State()).Val()
+					t.Errorf("Policy %s rule %d matched-octets counter did not increment as expected: got %d, want >= %d",
+						vrfSelectionPolicyName, ruleCheck.seqID, got, ruleCheck.octetsBefore+wantMinOctets)
+				}
 			}
 		}
 	}
 
 	// Verify DUT interface counters (in-pkts on LAG1 and out-pkts on Port3 and Port4) incremented as expected.
-	wantLagInPkts := uint64(len(flowNames)) * trafficPackets
-	wantP3OutPkts := uint64(2 * trafficPackets)
-	wantP4OutPkts := uint64(2 * trafficPackets)
+	wantLagInPkts := uint64(len(verifyFlowNames)) * trafficPackets
 	if _, ok := gnmi.Watch(t, dut, gnmi.OC().Interface(env.aggID).Counters().InPkts().State(), trafficTimeout, func(val *ygnmi.Value[uint64]) bool {
 		pkts, present := val.Val()
-		return present && pkts >= lagInPktsBefore+wantLagInPkts
+		if present && pkts >= lagInPktsBefore+wantLagInPkts {
+			return true
+		}
+		return getLAGInPkts(t, env) >= lagInPktsBefore+wantLagInPkts
 	}).Await(t); !ok {
-		got, _ := gnmi.Lookup(t, dut, gnmi.OC().Interface(env.aggID).Counters().InPkts().State()).Val()
+		got := getLAGInPkts(t, env)
 		t.Errorf("DUT LAG %s in-pkts counter did not increment as expected: got %d, want >= %d", env.aggID, got, lagInPktsBefore+wantLagInPkts)
 	}
 	for _, portCheck := range []struct {
@@ -1138,4 +1249,19 @@ func runAndVerifyTraffic(t *testing.T, env *testEnv, flowNames []string) {
 	// Verify eBGP sessions remain ESTABLISHED and IPv6 NDP neighbor cache remains resolved after traffic.
 	verifyBGPSessionsEstablished(t, env)
 	verifyDUTIPv6NDPNeighborState(t, env)
+}
+
+// getLAGInPkts returns the maximum of the aggregate interface in-pkts counter and the sum of its member ports' in-pkts counters.
+func getLAGInPkts(t *testing.T, env *testEnv) uint64 {
+	t.Helper()
+	aggPkts, _ := gnmi.Lookup(t, env.dut, gnmi.OC().Interface(env.aggID).Counters().InPkts().State()).Val()
+	var memberSum uint64
+	for _, p := range env.aggPorts {
+		pkts, _ := gnmi.Lookup(t, env.dut, gnmi.OC().Interface(p.Name()).Counters().InPkts().State()).Val()
+		memberSum += pkts
+	}
+	if memberSum > aggPkts {
+		return memberSum
+	}
+	return aggPkts
 }

@@ -137,6 +137,12 @@ graph LR
   * Apply `VRF-SELECT-POLICY` to ingress interface `Port-Channel1.0` in the
     `DEFAULT` network instance using
     `/network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-vrf-selection-policy`.
+  * **Platforms that reject IPv4 and IPv6 match conditions in one policy**: If
+    the DUT rejects the combined `VRF-SELECT-POLICY` (Rules 10, 20, and 30),
+    configure `VRF-SELECT-POLICY` with Rule 20 and Rule 30 only (IPv6), so that
+    IPv6 NDP (DSCP `0`) and dual-stack eBGP are verified with an active IPv6
+    VRF selection rule. If the DUT also rejects an IPv6-only
+    `VRF_SELECTION_POLICY`, configure Rule 10 and Rule 30 only (IPv4).
 
 * **Step 3 - Configure Dual-Stack eBGP Sessions**:
   * In the `DEFAULT` network instance, configure BGP
@@ -215,6 +221,12 @@ graph LR
 | **Flow 2 (Default-IPv6)** | IPv6 | `2001:db8:20::1` | `2001:db8:1::1` | `20` | `DEFAULT` (eBGP route) | **DUT port 3** -> **ATE port 3** |
 | **Flow 3 (Steered-IPv4)** | IPv4 | `198.18.0.1` | `203.0.113.1` | `10` | `VRF-10` (Rule 10 match) | **DUT port 4** -> **ATE port 4** |
 | **Flow 4 (Steered-IPv6)** | IPv6 | `2001:db8:10::1` | `2001:db8:2::1` | `10` | `VRF-10` (Rule 20 match) | **DUT port 4** -> **ATE port 4** |
+
+* If the IPv6-only fallback policy from RT-3.5.1 Step 2 is active, verify
+  Flows 1, 2, and 4 (and Rule 20 counters) first, then replace
+  `VRF-SELECT-POLICY` with Rule 10 and Rule 30 and verify Flows 1, 2, and 3
+  (and Rule 10 counters). If the IPv4-only fallback policy is active, verify
+  Flows 1, 2, and 3 (and Rule 10 counters).
 
 * **Step 3 - Data-Plane and Telemetry Validation (Pass/Fail Criteria)**:
   * **Pass**:
