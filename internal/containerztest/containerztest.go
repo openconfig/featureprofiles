@@ -41,6 +41,7 @@ const (
 	containerCleanupTimeout       = 2 * time.Minute
 	containerCleanupRPCTimeout    = 20 * time.Second
 	containerCleanupRetryInterval = 2 * time.Second
+	containerListRPCTimeout       = 10 * time.Second
 )
 
 // Client returns a new containerz client.
@@ -369,8 +370,16 @@ func cleanupFailedStart(t *testing.T, cli *client.Client, instanceName string) e
 // and a cleanup function that stops and removes the container. It calls t.Fatalf on failure.
 func Setup(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, opts StartContainerOptions) (*client.Client, func()) {
 	t.Helper()
-	opts = opts.withDefaults()
 	cli := Client(t, dut)
+	return SetupWithClient(ctx, t, cli, opts)
+}
+
+// SetupWithClient deploys and starts a container using an already initialized
+// client. Use this when a test needs multiple container operations without
+// reapplying the DUT configuration in Client.
+func SetupWithClient(ctx context.Context, t *testing.T, cli *client.Client, opts StartContainerOptions) (*client.Client, func()) {
+	t.Helper()
+	opts = opts.withDefaults()
 	if err := DeployAndStart(ctx, t, cli, opts); err != nil {
 		t.Fatalf("Failed to deploy and start container with options %+v: %v", opts, err)
 	}
@@ -484,7 +493,7 @@ func WaitForRunning(ctx context.Context, t *testing.T, cli *client.Client, insta
 
 	for {
 		// Use a per-call timeout so one slow RPC does not consume the entire budget.
-		callCtx, callCancel := context.WithTimeout(pollCtx, 30*time.Second)
+		callCtx, callCancel := context.WithTimeout(pollCtx, containerListRPCTimeout)
 		listContCh, err := cli.ListContainer(callCtx, true, 0, map[string][]string{"name": {instanceName}})
 		if err != nil {
 			callCancel()
@@ -492,7 +501,11 @@ func WaitForRunning(ctx context.Context, t *testing.T, cli *client.Client, insta
 			if pollCtx.Err() != nil {
 				return fmt.Errorf("timed out waiting for container %s to be RUNNING", instanceName)
 			}
-			time.Sleep(5 * time.Second)
+			select {
+			case <-pollCtx.Done():
+				return fmt.Errorf("timed out waiting for container %s to be RUNNING", instanceName)
+			case <-time.After(5 * time.Second):
+			}
 			continue
 		}
 
@@ -523,7 +536,14 @@ func WaitForRunning(ctx context.Context, t *testing.T, cli *client.Client, insta
 			}
 			return fmt.Errorf("timed out waiting for container %s to be RUNNING", instanceName)
 		}
-		time.Sleep(5 * time.Second)
+		select {
+		case <-pollCtx.Done():
+			if lastErr != nil {
+				return fmt.Errorf("timed out waiting for container %s to be RUNNING (last error: %v)", instanceName, lastErr)
+			}
+			return fmt.Errorf("timed out waiting for container %s to be RUNNING", instanceName)
+		case <-time.After(5 * time.Second):
+		}
 	}
 }
 
