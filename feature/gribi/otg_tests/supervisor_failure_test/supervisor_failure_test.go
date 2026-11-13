@@ -422,7 +422,7 @@ func validateTelemetry(t *testing.T, dut *ondatra.DUTDevice, primaryAfterSwitch,
 // awaitSwitchoverReady waits for the controller to report switchover-ready using gnmi.Await.
 func awaitSwitchoverReady(t *testing.T, dut *ondatra.DUTDevice, controller string, timeout time.Duration) {
 	t.Helper()
-	t.Logf("Waiting for controller %s to be switchover-ready (timeout: %v)...", controller, timeout)
+	//t.Logf("Waiting for controller %s to be switchover-ready (timeout: %v)...", controller, timeout)
 	gnmi.Await(t, dut, gnmi.OC().Component(controller).SwitchoverReady().State(), timeout, true)
 }
 
@@ -455,7 +455,7 @@ func validateSwitchover(t *testing.T, dut *ondatra.DUTDevice, controller string,
 			t.Logf("Controller switchover has completed successfully, %s is now %v in %.2f seconds.", controller, role, time.Since(start).Seconds())
 			return
 		}
-		t.Logf("Controller %s not yet PRIMARY (elapsed: %.2fs), retrying...", controller, time.Since(start).Seconds())
+		//t.Logf("Controller %s not yet PRIMARY (elapsed: %.2fs), retrying...", controller, time.Since(start).Seconds())
 	}
 	t.Fatalf("Controller %s did not become PRIMARY within %v", controller, timeout)
 }
@@ -506,7 +506,7 @@ func cleanBothSupervisors(t *testing.T, dut *ondatra.DUTDevice, controllers []st
 
 	t.Logf("Pre-test cleanup: flushing gRIBI entries on active supervisor %s...", primary)
 	flushActiveSupervisor(t, dut, gribiTimeout)
-
+	t.Logf("Waiting for controller to be switchover-ready ...")
 	awaitSwitchoverReady(t, dut, primary, 5*time.Minute+extraWait)
 	t.Logf("Pre-test cleanup: switching over to %s to flush its gRIBI entries...", secondary)
 	resp := gnoi.Execute(t, dut, system.NewSwitchControlProcessorOperation().Path(cmp.GetSubcomponentPath(secondary, deviations.GNOISubcomponentPath(dut))))
@@ -520,6 +520,7 @@ func cleanBothSupervisors(t *testing.T, dut *ondatra.DUTDevice, controllers []st
 	// to rejoin as standby before starting the test. Some platforms need well over
 	// 15 minutes for the standby to become switchover-ready, so allow 30 minutes
 	// as other switchover tests do.
+	t.Logf("Waiting for controller to be switchover-ready ...")
 	awaitSwitchoverReady(t, dut, secondary, 30*time.Minute+extraWait)
 }
 
@@ -589,7 +590,7 @@ func TestSupFailure(t *testing.T) {
 	t.Logf("TE-8.2.1: Leaving traffic running during switchover to ensure hitless forwarding...")
 
 	secondaryBeforeSwitch, primaryBeforeSwitch := findSecondaryController(t, dut, controllers)
-
+	t.Logf("Waiting for controller to be switchover-ready ...")
 	awaitSwitchoverReady(t, dut, primaryBeforeSwitch, 5*time.Minute+extraWait)
 
 	// Let the switchover terminate the pre-switchover gRIBI session naturally to avoid
