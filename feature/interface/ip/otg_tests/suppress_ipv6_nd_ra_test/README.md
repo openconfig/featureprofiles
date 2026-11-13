@@ -2,7 +2,6 @@
 
 ## Summary
 
-NOTE: `router-advertisement/config/suppress` is depreciated and will not pass on vendors that do not support this leaf
 Validate IPv6 ND Router Advertisement (RA) is suppressed. No periodic RA are sent.
 
 ## Procedure
@@ -24,7 +23,10 @@ Validate IPv6 ND Router Advertisement (RA) is suppressed. No periodic RA are sen
 ```yaml
 paths:
     /interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/config/interval:
-    /interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/config/suppress:
+    /interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/config/enable:
+    /interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/config/mode:
+    /interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/state/enable:
+    /interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/state/mode:
 
 rpcs:
   gnmi:
