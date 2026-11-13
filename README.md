@@ -175,6 +175,15 @@ devices, as well as the desired protocol dial options. Then test it by running:
 go test ./feature/example/tests/topology_test -binding $PWD/topologies/otgdut_4.binding
 ```
 
+# Running Tests for Release Qualification
+
+To produce results for release qualification, run the tests with
+`-release_intent` and the Ondatra `-jsonl` test result ledger, then generate a
+report with the
+[Qualification Reporter](https://github.com/openconfig/qualification-reporter).
+See [Running Tests for Release Qualification](doc/release-qualification.md) for
+the flags to use and for which failures are recorded in the ledger.
+
 # Path validation
 
 The `make validate_paths` target will clone the public OpenConfig definitions
