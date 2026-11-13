@@ -9,7 +9,8 @@ setting for BGP sessions:
     `transport/state/tcp-mss`) at the neighbor level and at the peer-group
     level
 *   A value set on a neighbor overrides the peer-group value for that neighbor
-    only. The other neighbors in the peer group keep the peer-group value.
+    only. The other neighbors in the peer group keep the peer-group value, and
+    removing the neighbor value returns the neighbor to the peer-group value.
 *   IPv4 and IPv6 eBGP and iBGP sessions
 *   `transport/state/tcp-mss` reports the configured MSS (the applied
     configuration, including a value inherited from the peer group), in the
@@ -111,8 +112,13 @@ graph LR
     *   Verify that all four sessions are `ESTABLISHED`, that
         `transport/state/tcp-mss` is 1400 for the two IPv4 neighbors, and that
         it is still 4000 for the two IPv6 neighbors and both peer groups.
-    *   Remove `transport/config/tcp-mss` from the two IPv4 neighbors and from
-        both peer groups.
+    *   Remove `transport/config/tcp-mss` from the two IPv4 neighbors, and keep
+        it on the peer groups.
+    *   Re-establish the four sessions.
+    *   Verify that all four sessions are `ESTABLISHED`, and that
+        `transport/state/tcp-mss` is back to the peer-group value (4000) for
+        the two IPv4 neighbors.
+    *   Remove `transport/config/tcp-mss` from both peer groups.
 *   Remove the MTU configuration from the four ports so that they return to the
     default MTU.
 
@@ -249,7 +255,8 @@ have no MSS.
     1.  A BGP session is not `ESTABLISHED` after it is re-established
     2.  `transport/state/tcp-mss` is not 4096 for a neighbor at the neighbor
         level, not 1400 for a neighbor with the override, or not 4000 for a
-        peer group or any other neighbor at the peer-group level
+        peer group or any other neighbor at the peer-group level, including a
+        neighbor after its override is removed
     3.  A `transport/state/tcp-mss` reported before any MSS is configured is
         outside the range given in `RT-1.22.1`
     4.  At the neighbor level, the DUT does not report all 2000 IPv4 and 2000
