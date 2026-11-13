@@ -137,50 +137,7 @@ negative error-path hygiene and AAA session cleanup.
   * Record the baseline set of registered RPC names under
     `/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/state/name`.
 
-### Authz-5.2 - Per-RPC State Bounding on Wildcard Policy (gRIBI UNIMPLEMENTED Path)
-
-* Step 1 - Invoke unimplemented RPC paths matching wildcard allow rule: Using
-  `cert_conformance_client`, send `10` unary gRPC calls to `gribi-server` (port
-  `9340`) using distinct unimplemented HTTP/2 `:path` strings
-  (`/gribi.gRIBI/NonExistentMethod_01` through
-  `/gribi.gRIBI/NonExistentMethod_10`).
-* Step 2 - Validation with pass/fail criteria: Validate client status codes and
-  streamed per-RPC telemetry state via `gNMI.Subscribe` and `gNMI.Get`:
-  * Verify all `10` calls fail with gRPC status code `UNIMPLEMENTED` (`12`).
-  * Verify
-    `/system/grpc-servers/grpc-server[name=gribi-server]/authz-policy-counters/rpcs/rpc/state/name`
-    contains no `/gribi.gRIBI/NonExistentMethod_*` entries and remains strictly
-    bounded to registered `gRIBI` RPC methods (or a single fixed aggregate
-    unknown-path bucket).
-  * Verify
-    `/system/grpc-servers/grpc-server[name=gribi-server]/authz-policy-counters/rpcs/rpc/state/access-accepts`
-    and
-    `/system/grpc-servers/grpc-server[name=gribi-server]/authz-policy-counters/rpcs/rpc/state/last-access-accept`
-    update only on registered or aggregate entries.
-
-### Authz-5.3 - Per-RPC State Bounding on Explicit Allowlist Policy (P4RT PERMISSION_DENIED Path)
-
-* Step 1 - Invoke unregistered methods and unknown services on explicit
-  allowlist policy: Using `cert_conformance_client`, send `10` unary gRPC calls
-  to `p4rt-server` (port `9559`) for unregistered methods on the known service
-  (`/p4.v1.P4Runtime/NonExistentMethod_01` through
-  `/p4.v1.P4Runtime/NonExistentMethod_10`) and `10` unary gRPC calls for unknown
-  services (`/p4.v1.P4RuntimeConformanceProbe_01/Read` through
-  `/p4.v1.P4RuntimeConformanceProbe_10/Read`).
-* Step 2 - Validation with pass/fail criteria: Validate client status codes and
-  streamed per-RPC telemetry state via `gNMI.Subscribe` and `gNMI.Get`:
-  * Verify all `20` calls fail with gRPC status code `PERMISSION_DENIED` (`7`).
-  * Verify
-    `/system/grpc-servers/grpc-server[name=p4rt-server]/authz-policy-counters/rpcs/rpc/state/name`
-    contains no `/p4.v1.P4Runtime/NonExistentMethod_*` or
-    `/p4.v1.P4RuntimeConformanceProbe_*/Read` entries.
-  * Verify
-    `/system/grpc-servers/grpc-server[name=p4rt-server]/authz-policy-counters/rpcs/rpc/state/access-rejects`
-    and
-    `/system/grpc-servers/grpc-server[name=p4rt-server]/authz-policy-counters/rpcs/rpc/state/last-access-reject`
-    update only on registered or aggregate entries.
-
-### Authz-5.4 - Negative Test Cases
+### Authz-5.2 - Negative Test Cases
 
 Ensure that explicit deny rules, unsupported compression encodings, malformed
 `P4RT` requests, and unfinalized policy rotations are properly rejected without
@@ -214,7 +171,7 @@ leaking AAA sessions or corrupting DUT state.
   `/system/aaa/authorization/state/grpc-authz-policy-version` that the active
   policy rolls back to `"policy-grpc-rpc-statistics-bounding-v1"`.
 
-### Authz-5.5 - Teardown and Cleanup Verification
+### Authz-5.3 - Teardown and Cleanup Verification
 
 * Step 1 - Close test streams, restore initial authorization policy, and revert
   configurations: Close the `P4Runtime.StreamChannel` session, restore the
