@@ -16,6 +16,10 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
+const (
+	isisAuthKey = "google_isis_key"
+)
+
 type descriptor struct {
 	name           string
 	dimension      []int
@@ -80,23 +84,30 @@ func initializeMultiAdjISISScaleTestData(t *testing.T) *isisscalehelpers.TestDat
 			blockCount:     1,
 		},
 	}
-	aggregateCount := 8
-	subInterfacesCountPerAggregate := 12
+	// Use 4 aggregate LAG interfaces with 76 sub-interfaces each to establish 304 total
+	// IS-IS Level 2 multi-adjacencies (4 x 76 = 304). This enables running against standard 4-port
+	// physical testbeds (testbed_dut_ate_4links.textproto) while achieving the 304 scale requirement.
+	aggregateCount := 4
+	subInterfacesCountPerAggregate := 76
 	initialVlanID := 1000
 	initialIPv4Address := net.ParseIP("192.0.0.1")
 	initialIPv6Address := net.ParseIP("2001:db8::1")
 
-	// Create DUT data.
+	// Create DUT data with MD5 authentication key enabled.
 	dutData := &isisscalehelpers.DutData{
 		Lags: isisscalehelpers.CreateDUTAggregateInterfacesData(t, aggregateCount, subInterfacesCountPerAggregate, initialVlanID, initialIPv4Address, initialIPv6Address),
 		IsisData: &cfgplugins.ISISGlobalParams{
-			DUTArea:  "49.0001",
-			DUTSysID: "1920.0000.2001",
+			DUTArea:     "49.0001",
+			DUTSysID:    "1920.0000.2001",
+			ISISAuthKey: isisAuthKey,
 		},
 	}
 
-	// Create ATE data.
+	// Create ATE data and configure the matching MD5 authentication key across all emulated routers.
 	ateEmulatedRouterData := isisscalehelpers.CreateATEEmulatedRouterData(t, dutData.Lags)
+	for _, er := range ateEmulatedRouterData {
+		er.ISISAuthKey = isisAuthKey
+	}
 	lagToErouterMap := make(map[int][]*otgconfighelpers.AteEmulatedRouterData)
 	for i := 0; i < aggregateCount; i++ {
 		lagToErouterMap[i] = ateEmulatedRouterData[i*subInterfacesCountPerAggregate : (i+1)*subInterfacesCountPerAggregate]
@@ -201,9 +212,14 @@ func TestISISScale(t *testing.T) {
 				t.Fatalf("check failed: not all ISIS adjacencies are up : need %v up adjacencies got %v", testInfo.CorrectISISAdjCount, count)
 			}
 
-			t.Logf("===========Sleep for 5 minutes to check DUT stabilty===========")
-			// Test will not check any metrics for 5 minutes to make sure DUT is stable.
-			time.Sleep(5 * 60 * time.Second)
+			t.Run("Verify_ISIS_Auth_Telemetry", func(t *testing.T) {
+				if ok, err := isisscalehelpers.VerifyISISAuthTelemetry(t, dut, testInfo.CorrectISISAdjCount); !ok {
+					t.Errorf("ISIS Auth Telemetry verification failed: %v", err)
+				} else {
+					t.Logf("ISIS Auth Telemetry verification passed")
+				}
+			})
+
 			t.Run("LSP_Count", func(t *testing.T) {
 				// Check LSP Count
 				if deviations.ISISLSPTlvsOCUnsupported(dut) {
@@ -226,14 +242,14 @@ func TestISISScale(t *testing.T) {
 					go func() {
 						defer wg.Done()
 						if deviations.AFTSummaryOCUnsupported(dut) {
-							count, ok := isisscalehelpers.FindProtocolRouteCount(t, dut, family, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, 1*time.Minute, testInfo.CorrectIPRouteCount[family])
+							count, ok := isisscalehelpers.FindProtocolRouteCount(t, dut, family, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, 5*time.Minute, testInfo.CorrectIPRouteCount[family])
 							if !ok {
 								t.Errorf("check failed: incorrect %s route count need %v routes got %v", family.String(), testInfo.CorrectIPRouteCount[family], count)
 								return
 							}
 							t.Logf("Check passed: correct %s route count need %v routes got %v", family.String(), testInfo.CorrectIPRouteCount[family], count)
 						} else {
-							count := isisscalehelpers.FindProtocolSummaryRouteCount(t, dut, family, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, 1*time.Minute, testInfo.CorrectIPRouteCount[family])
+							count := isisscalehelpers.FindProtocolSummaryRouteCount(t, dut, family, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, 5*time.Minute, testInfo.CorrectIPRouteCount[family])
 							if count >= testInfo.CorrectIPRouteCount[family] {
 								t.Logf("Check passed: correct route count for the family %s need %v routes got %v", family.String(), testInfo.CorrectIPRouteCount[family], count)
 							} else {

@@ -100,7 +100,7 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 		Timestamp: requestTimestamp,
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Minute)
 	defer cancel()
 
 	acctzClient := dut.RawAPIs().GNSI(t).AcctzStream()

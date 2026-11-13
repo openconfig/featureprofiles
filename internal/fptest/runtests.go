@@ -25,6 +25,7 @@ import (
 	log "github.com/golang/glog"
 	"github.com/openconfig/featureprofiles/internal/metadata"
 	"github.com/openconfig/featureprofiles/internal/pathutil"
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
 	"github.com/openconfig/featureprofiles/topologies/binding"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
@@ -45,6 +46,14 @@ import (
 func RunTests(m *testing.M) {
 	if err := initMetadata(); err != nil {
 		log.Errorf("Unable to initialize test metadata: %v", err)
+	}
+	if skipIfExcluded() {
+		return
+	}
+	// Report git properties before binding and reservation, so that
+	// failures in those steps are still attributed to a commit.
+	for k, v := range rundata.GitProperties() {
+		ondatra.Report().AddSuiteProperty(k, v)
 	}
 	ygnmi.WithDatapointValidator(datapointValidator)
 	ondatra.RunTests(m, binding.New)
@@ -88,6 +97,7 @@ func testbedPathFromMetadata() (string, error) {
 		mpb.Metadata_TESTBED_DUT_2LINKS:               "dut_2links.testbed",
 		mpb.Metadata_TESTBED_DUT_8_LOOP_2_ATE:         "dut_8_loop_2_ate.testbed",
 		mpb.Metadata_TESTBED_ATE_DUT1_4LINKS_DUT2_ATE: "ate_dut1_4links_dut2_ate.testbed",
+		mpb.Metadata_TESTBED_DUT_DUT_ATE_8LINKS:       "dutdutate_8.testbed",
 	}
 	testbedFile, ok := testbedToFile[testbed]
 	if !ok {

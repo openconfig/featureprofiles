@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "8752d17b-873c-4af2-ad34-8b2360061702"
+plan_id: "TE-3.10"
+description: "gRIBI WCMP Group Resizing and Weight Changes"
+testbed: TESTBED_DUT_ATE_4LINKS

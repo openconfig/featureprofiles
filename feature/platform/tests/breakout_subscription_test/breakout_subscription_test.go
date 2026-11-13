@@ -1004,6 +1004,13 @@ func TestBreakoutSubscription(t *testing.T) {
 	t.Run("PLT-1.3.1 Check response after a triggered interface state change", func(t *testing.T) {
 		drainChannel(notifCh)
 
+		portsRestored := false
+		t.Cleanup(func() {
+			if !portsRestored {
+				setDUTInterfaceWithState(t, dut, tc.dutPorts[0], true)
+				setDUTInterfaceWithState(t, dut, tc.dutPorts[2], true)
+			}
+		})
 		setDUTInterfaceWithState(t, dut, tc.dutPorts[0], false)
 		setDUTInterfaceWithState(t, dut, tc.dutPorts[2], false)
 		// time.Sleep(2 * time.Second)
@@ -1026,18 +1033,27 @@ func TestBreakoutSubscription(t *testing.T) {
 
 		setDUTInterfaceWithState(t, dut, tc.dutPorts[0], true)
 		setDUTInterfaceWithState(t, dut, tc.dutPorts[2], true)
+		portsRestored = true
 		receivedNotifications, _ = recieveUpdateWithTimeout(ctx, t, notifCh, updateTimeout)
 		verifyUpdateValue(t, receivedNotifications, dut, "UP")
 	})
 
 	// Check response after a triggered interface flap
 	t.Run("PLT-1.3.2 Check response after a triggered interface flap", func(t *testing.T) {
+		portsRestored := true
+		t.Cleanup(func() {
+			if !portsRestored {
+				setDUTInterfaceWithState(t, dut, tc.dutPorts[0], true)
+				setDUTInterfaceWithState(t, dut, tc.dutPorts[2], true)
+			}
+		})
 		counter := 5
 		var receivedNotifications []*gpb.Notification
 		var err error
 		for i := 0; i < counter; i++ {
 			drainChannel(notifCh)
 
+			portsRestored = false
 			setDUTInterfaceWithState(t, dut, tc.dutPorts[0], false)
 			setDUTInterfaceWithState(t, dut, tc.dutPorts[2], false)
 			updateTimeout := 45 * time.Second
@@ -1051,6 +1067,7 @@ func TestBreakoutSubscription(t *testing.T) {
 
 			setDUTInterfaceWithState(t, dut, tc.dutPorts[0], true)
 			setDUTInterfaceWithState(t, dut, tc.dutPorts[2], true)
+			portsRestored = true
 			receivedNotifications, _ = recieveUpdateWithTimeout(ctx, t, notifCh, updateTimeout)
 			verifyUpdateValue(t, receivedNotifications, dut, "UP")
 		}
@@ -1106,6 +1123,12 @@ func TestBreakoutSubscription(t *testing.T) {
 		t.Logf("LinecardList: %v", lcList)
 		selectedLC := selectFpc(t, lcList, dut)
 		t.Logf("selectedFpc: %v", selectedLC)
+		lcRestored := false
+		t.Cleanup(func() {
+			if !lcRestored {
+				lineCardUp(t, dut, selectedLC)
+			}
+		})
 		linecardDown(t, dut, selectedLC, lcs)
 
 		streamLC := newSubscribeRequest(ctx, t, dut)
@@ -1113,6 +1136,7 @@ func TestBreakoutSubscription(t *testing.T) {
 		notifChLC := startStreamReader(t, streamLC)
 
 		lineCardUp(t, dut, selectedLC)
+		lcRestored = true
 		updateTimeout := 10 * time.Minute
 		receivedNotifications, err := recieveUpdateWithTimeout(ctx, t, notifChLC, updateTimeout)
 		if err != nil {
