@@ -50,7 +50,7 @@ platform_exceptions: {
 platform_exceptions: {
   platform: {
     vendor: ARISTA
-    hardware_model_regex: "DCS-7280CR3K-32D4"
+    hardware_model_regex: "DCS-7280.*"
   }
   deviations: {
     interface_enabled: true

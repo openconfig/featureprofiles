@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "34d931b7-aa60-4843-a989-f38c2dc39516"
+plan_id: "RT-7.12"
+description: "BGP Drain using Route Policy"
+testbed: TESTBED_DUT_ATE_2LINKS
