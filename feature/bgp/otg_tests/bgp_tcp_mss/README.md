@@ -15,6 +15,9 @@ setting for BGP sessions:
     configuration, including a value inherited from the peer group), in the
     same way as `timers/state/hold-time`. When no MSS is configured, it may
     instead report the MSS in use on the TCP session.
+*   BGP UPDATE messages that add up to several times the MSS are received
+    correctly, and the MSS is applied on the wire: the DUT advertises the
+    configured MSS, and no TCP segment exceeds it.
 
 Path MTU discovery (PMTUD) is covered by RT-1.21.
 
@@ -45,7 +48,9 @@ graph LR
 
 *   Connect ATE port-1 to DUT port-1, and ATE port-2 to DUT port-2.
 *   Configure the DUT and ATE interfaces per the table above.
-*   Configure BGP on the DUT (AS `64500`) with two peer groups:
+*   Configure a routing policy that accepts all routes.
+*   Configure BGP on the DUT (AS `64500`) with two peer groups, which both use
+    the routing policy as their import and export policy:
     *   `EBGP-PEERS` (peer AS `64501`) containing the IPv4 and IPv6 eBGP
         neighbors on ATE port-1.
     *   `IBGP-PEERS` (peer AS `64500`) containing the IPv4 and IPv6 iBGP
@@ -69,11 +74,28 @@ graph LR
         left `ESTABLISHED` within 30 seconds of the change. This shows whether
         the configuration change is disruptive. It is reported only and is not
         a pass/fail criterion.
+    *   Start a packet capture on ATE port-1 and ATE port-2.
     *   Re-establish the four sessions, for example by restarting the ATE BGP
         peers.
     *   Verify that all four sessions are `ESTABLISHED`, and that
         `transport/state/tcp-mss` equals `transport/config/tcp-mss` (4096) for
         all four neighbors.
+    *   Advertise 2000 IPv4 prefixes (`100.64.0.0/24` onwards) from the IPv4
+        eBGP peer and 2000 IPv6 prefixes (`2001:db8:1::/64` onwards) from the
+        IPv6 eBGP peer on ATE port-1, all with the same path attributes. The
+        UPDATE messages then add up to several times the MSS, so they span
+        many TCP segments.
+    *   Verify that the DUT reports 2000 prefixes in
+        `afi-safis/afi-safi/state/prefixes/received` for the IPv4 and the IPv6
+        eBGP neighbors, that the iBGP peers on ATE port-2 receive all 2000 IPv4
+        and 2000 IPv6 prefixes from the DUT, and that all four sessions are
+        still `ESTABLISHED`.
+    *   Stop the capture, and verify in it that:
+        *   The MSS option in the TCP SYN or SYN-ACK that the DUT sends to each
+            of the four ATE peers is 4096.
+        *   No TCP segment between the DUT and the ATE, in either direction,
+            has more than 4096 bytes of payload.
+    *   Withdraw the prefixes.
     *   Remove `transport/config/tcp-mss` from the four neighbors.
 *   Peer-group level:
     *   Set `transport/config/tcp-mss` to 4000 on the peer groups `EBGP-PEERS`
@@ -230,11 +252,17 @@ have no MSS.
         peer group or any other neighbor at the peer-group level
     3.  A `transport/state/tcp-mss` reported before any MSS is configured is
         outside the range given in `RT-1.22.1`
+    4.  At the neighbor level, the DUT does not report all 2000 IPv4 and 2000
+        IPv6 prefixes received from the eBGP peers, the iBGP peers on ATE
+        port-2 do not receive all of them, or a session does not stay
+        `ESTABLISHED`
+    5.  The capture has a TCP SYN or SYN-ACK from the DUT whose MSS option is
+        not 4096, or a TCP segment with more than 4096 bytes of payload
 
 ### Cleanup
 
-*   Remove the BGP and MTU configurations from the DUT and stop OTG protocols
-    to restore the baseline state.
+*   Remove the BGP, routing policy and MTU configurations from the DUT and stop
+    OTG protocols to restore the baseline state.
 
 ## OpenConfig Path and RPC Coverage
 
@@ -247,6 +275,7 @@ paths:
   ## Telemetry Parameter Coverage
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/state/tcp-mss:
   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/transport/state/tcp-mss:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received:
 
 rpcs:
   gnmi:
