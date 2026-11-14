@@ -410,7 +410,11 @@ type Options struct {
 	// Certificate file path : a *.pem file that is signed by root or intermediate CA
 	CertFile string `protobuf:"bytes,11,opt,name=cert_file,json=certFile,proto3" json:"cert_file,omitempty"`
 	// Key file Path: a *.pem file that contains a private key
-	KeyFile       string `protobuf:"bytes,12,opt,name=key_file,json=keyFile,proto3" json:"key_file,omitempty"`
+	KeyFile string `protobuf:"bytes,12,opt,name=key_file,json=keyFile,proto3" json:"key_file,omitempty"`
+	// Rewrite gNMI JSON into the RESTCONF shape SONiC translib unmarshals.
+	// Set this on the gnmi options of a SONiC DUT. Leave it unset for a NOS
+	// that accepts the ygnmi payload directly.
+	RestconfJson  bool `protobuf:"varint,13,opt,name=restconf_json,json=restconfJson,proto3" json:"restconf_json,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -527,6 +531,13 @@ func (x *Options) GetKeyFile() string {
 		return x.KeyFile
 	}
 	return ""
+}
+
+func (x *Options) GetRestconfJson() bool {
+	if x != nil {
+		return x.RestconfJson
+	}
+	return false
 }
 
 // Port binding.
@@ -691,7 +702,7 @@ const file_binding_proto_rawDesc = "" +
 	"\x06vendor\x18\x13 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x12%\n" +
 	"\x0ehardware_model\x18\x14 \x01(\tR\rhardwareModel\x12)\n" +
 	"\x10software_version\x18\x15 \x01(\tR\x0fsoftwareVersion\x121\n" +
-	"\x05gnpsi\x18\x16 \x01(\v2\x1b.openconfig.testing.OptionsR\x05gnpsi\"\xfd\x02\n" +
+	"\x05gnpsi\x18\x16 \x01(\v2\x1b.openconfig.testing.OptionsR\x05gnpsi\"\xa2\x03\n" +
 	"\aOptions\x12\x16\n" +
 	"\x06target\x18\x01 \x01(\tR\x06target\x12\x1a\n" +
 	"\binsecure\x18\x02 \x01(\bR\binsecure\x12\x1f\n" +
@@ -708,7 +719,8 @@ const file_binding_proto_rawDesc = "" +
 	"\x11trust_bundle_file\x18\n" +
 	" \x01(\tR\x0ftrustBundleFile\x12\x1b\n" +
 	"\tcert_file\x18\v \x01(\tR\bcertFile\x12\x19\n" +
-	"\bkey_file\x18\f \x01(\tR\akeyFile\"z\n" +
+	"\bkey_file\x18\f \x01(\tR\akeyFile\x12\x23\n" +
+	"\rrestconf_json\x18\r \x01(\bR\frestconfJson\"z\n" +
 	"\x04Port\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12)\n" +
