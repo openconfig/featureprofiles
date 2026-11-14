@@ -304,11 +304,7 @@ func configureImportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 		gnmi.BatchDelete(batch, path.Config())
 		policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort1.IPv4).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy()
 		policy.SetImportPolicy([]string{v4LPPolicy})
-		if !deviations.RoutingPolicyChainingUnsupported(dut) {
-			gnmi.BatchUpdate(batch, path.Config(), policy)
-		} else {
-			gnmi.BatchReplace(batch, path.Config(), policy)
-		}
+		gnmi.BatchReplace(batch, path.Config(), policy)
 	}
 	batch.Set(t, dut)
 	// Sleep for 5 second to ensure that OTG has received the update packet
@@ -415,11 +411,7 @@ func configureExportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 		gnmi.BatchDelete(batch, path.Config())
 		policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort1.IPv4).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy()
 		policy.SetExportPolicy([]string{v4ASPPolicy})
-		if !deviations.RoutingPolicyChainingUnsupported(dut) {
-			gnmi.BatchUpdate(batch, path.Config(), policy)
-		} else {
-			gnmi.BatchReplace(batch, path.Config(), policy)
-		}
+		gnmi.BatchReplace(batch, path.Config(), policy)
 	}
 	batch.Set(t, dut)
 	time.Sleep(time.Second * 60)
@@ -526,11 +518,7 @@ func configureImportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 		gnmi.BatchDelete(batch, path.Config())
 		policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort1.IPv6).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy()
 		policy.SetImportPolicy([]string{v6LPPolicy})
-		if !deviations.RoutingPolicyChainingUnsupported(dut) {
-			gnmi.BatchUpdate(batch, path.Config(), policy)
-		} else {
-			gnmi.BatchReplace(batch, path.Config(), policy)
-		}
+		gnmi.BatchReplace(batch, path.Config(), policy)
 	}
 	batch.Set(t, dut)
 	// Sleep for 5 second to ensure that OTG has received the update packet
@@ -640,11 +628,7 @@ func configureExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 		gnmi.BatchDelete(batch, path.Config())
 		policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort1.IPv6).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy()
 		policy.SetExportPolicy([]string{v6ASPPolicy})
-		if !deviations.RoutingPolicyChainingUnsupported(dut) {
-			gnmi.BatchUpdate(batch, path.Config(), policy)
-		} else {
-			gnmi.BatchReplace(batch, path.Config(), policy)
-		}
+		gnmi.BatchReplace(batch, path.Config(), policy)
 	}
 	batch.Set(t, dut)
 	time.Sleep(time.Second * 60)
