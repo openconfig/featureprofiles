@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "6f9b88bb-3fbd-4309-833f-507ee9f3e407"
+plan_id: "DP-1.20"
+description: "QoS ECN negative feature config"
+testbed: TESTBED_DUT_ATE_2LINKS
