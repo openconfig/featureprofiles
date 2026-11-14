@@ -30,6 +30,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
+	"github.com/openconfig/featureprofiles/internal/telemetry/transceiver"
 	plqpb "github.com/openconfig/gnoi/packet_link_qualification"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -429,14 +430,23 @@ func TestZrUncorrectableFrames(t *testing.T) {
 
 			validateFecUncorrectableBlocks(t, streamFecOtn, baselineFec)
 
-			toggleInterface(t, dut, dp.Name(), false)
+			// Toggle the interface, registering a cleanup to re-enable it if the
+			// test ends while it is disabled.
+			togglePort := transceiver.ToggleWithCleanup(t, func(enabled bool) {
+				t.Helper()
+				if enabled && (dut.Vendor() == ondatra.NOKIA || dut.Vendor() == ondatra.JUNIPER) {
+					configureInterfaceAndOptics(t, dut, dp, ochs[dp.Name()], trs[dp.Name()], otnIndexes[dp.Name()], ethIndexes[dp.Name()])
+					return
+				}
+				toggleInterface(t, dut, dp.Name(), enabled)
+			})
+
+			// Disable interface
+			togglePort(false)
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
 
-			if dut.Vendor() == ondatra.NOKIA || dut.Vendor() == ondatra.JUNIPER {
-				configureInterfaceAndOptics(t, dut, dp, ochs[dp.Name()], trs[dp.Name()], otnIndexes[dp.Name()], ethIndexes[dp.Name()])
-			} else {
-				toggleInterface(t, dut, dp.Name(), true)
-			}
+			// Enable interface
+			togglePort(true)
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 
 			baselineFecStream1, ok := streamFecOtn.AwaitNext(sampleTimeout, func(v *ygnmi.Value[uint64]) bool {

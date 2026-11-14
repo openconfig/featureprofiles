@@ -25,6 +25,9 @@ This is a post-FEC decoder error metric.
     OTN logical channel `4001`, and Ethernet logical channel `40001`.
 *   To establish a point to point ZR link ensure the following:
     *   Both transceivers state is enabled
+    *   Retrieve the associated optical channel component for each transceiver
+        physical channel via
+        `/components/component/transceiver/physical-channels/channel/state/associated-optical-channel`
     *   Both transceivers are set to a valid target TX output power
         example -10 dBm
     *   Both transceivers are tuned to a valid centre frequency
@@ -479,6 +482,8 @@ paths:
     /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/logical-channel:
     /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/optical-channel:
     # Telemetry Parameter coverage
+    /components/component/transceiver/physical-channels/channel/state/associated-optical-channel:
+        platform_type: ["TRANSCEIVER"]
     /terminal-device/logical-channels/channel/otn/state/fec-uncorrectable-blocks:
     /terminal-device/logical-channels/channel/ethernet/state/fec-uncorrectable-blocks:
     /components/component/optical-channel/state/fec-uncorrectable-blocks:
