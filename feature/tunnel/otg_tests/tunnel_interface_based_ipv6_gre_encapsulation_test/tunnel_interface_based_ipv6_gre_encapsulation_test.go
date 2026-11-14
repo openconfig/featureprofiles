@@ -17,6 +17,7 @@ package tunnel_interface_based_ipv6_gre_encapsulation_test
 import (
 	"context"
 	"fmt"
+	"slices"
 	"net"
 	"strconv"
 	"testing"
@@ -47,10 +48,10 @@ const (
 	plen6                    = 128
 	tunnelCount              = 32
 	tunnelInterface          = "fti0"
-	trafficRatePps           = 5000
 	trafficDuration          = 120
 	tolerance                = 12
 )
+
 
 var (
 	dutIntf1 = attrs.Attributes{
@@ -94,6 +95,12 @@ var (
 		IPv6Len: interfacePlen6,
 		MAC:     "00:00:03:03:03:03",
 	}
+	kneDeviceModelList = []string{"ncptx"}
+
+	// trafficRatePps holds the pps rate actually configured for the OTG flow, since it
+	// varies by DUT model (see configureTrafficFlowsToEncasulation). verifyEcmpLoadBalance
+	// relies on this to compute the expected packet counts.
+	trafficRatePps uint64 = 5000
 )
 
 func TestMain(m *testing.M) {
@@ -271,6 +278,7 @@ func configureOtgPorts(top gosnappi.Config, port *ondatra.Port, name string, mac
 }
 
 func configureTrafficFlowsToEncasulation(t *testing.T, top gosnappi.Config, port1 *ondatra.Port, port2 *ondatra.Port, port3 *ondatra.Port, peer *attrs.Attributes, destMac string) {
+	dut := ondatra.DUT(t, "dut")
 	t.Logf("configure IPv6 flow from %s ", port1.Name())
 	// Set config flow
 	flow1ipv6 := top.Flows().Add().SetName("IPv6")
@@ -279,6 +287,9 @@ func configureTrafficFlowsToEncasulation(t *testing.T, top gosnappi.Config, port
 	flow1ipv6.TxRx().Port().SetTxName(port1.ID()).SetRxNames([]string{port2.ID(), port3.ID()})
 	// Flow settings.
 	flow1ipv6.Size().SetFixed(512)
+	if slices.Contains(kneDeviceModelList, dut.Model()) {
+		trafficRatePps = 1000
+	}
 	flow1ipv6.Rate().SetPps(trafficRatePps)
 	flow1ipv6.Duration().Continuous()
 	// Ethernet header
@@ -445,7 +456,7 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func verifyEcmpLoadBalance(t *testing.T, inital []uint64, final []uint64, flowCount int64, sharingIntfCont int64, firstintf int, wantLoss bool, lbTolerance int) {
-	expectedTotalPkts := (flowCount * trafficRatePps * trafficDuration)
+	expectedTotalPkts := (flowCount * int64(trafficRatePps) * trafficDuration)
 	expectedPerLinkPkts := expectedTotalPkts / sharingIntfCont
 	t.Logf("Total packets %d flow through the %d links", expectedTotalPkts, sharingIntfCont)
 	t.Logf("Expected per link packets %d ", expectedPerLinkPkts)
