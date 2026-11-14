@@ -1,0 +1,41 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "8f4b2c71-5d9a-4e3b-9c1e-6a7f8b2d4e50"
+plan_id: "gNOI-5.4"
+description: "gNOI File Put and Stat Protocol Conformance"
+testbed: TESTBED_DUT
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    explicit_interface_in_default_vrf: true
+    interface_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    default_network_instance: "default"
+    interface_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    system_mount_point_state_ft: "ciscoxr-mount-ft"
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    cli_takes_precedence_over_oc: true
+  }
+}

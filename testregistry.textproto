@@ -2370,6 +2370,12 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/copying_debug_files_test/copying_debug_files_test.go"
 }
 test: {
+  id: "gNOI-5.4"
+  description: "gNOI File Put and Stat Protocol Conformance"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/gnoi_file_conformance_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/gnoi_file_conformance_test/gnoi_file_conformance_test.go"
+}
+test: {
   id: "gNOI-6.1"
   description: "Factory Reset"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/factory_reset/tests/factory_reset_test/README.md"
