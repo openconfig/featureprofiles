@@ -4,7 +4,7 @@
 uuid: "912d6fc8-5245-419a-9ae9-7da432a46cdf"
 plan_id: "gNMI-3"
 description: "union_replace"
-testbed: TESTBED_DUT_ATE_2LINKS
+testbed: TESTBED_DUT
 platform_exceptions: {
   platform: {
     vendor: CISCO
@@ -52,5 +52,8 @@ platform_exceptions: {
     otn_to_eth_assignment: true
     terminal_device_channel_admin_state_unsupported: true
     channel_assignment_rate_class_parameters_unsupported: true
+    omit_l2_mtu: true
+    require_routed_subinterface_0: true
+    fr_breakout_fix: true
   }
 }
