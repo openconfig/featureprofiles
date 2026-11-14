@@ -892,7 +892,7 @@ test: {
 }
 test: {
   id: "RT-1.21"
-  description: "BGP TCP MSS and PMTUD"
+  description: "BGP PMTUD"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_tcp_mss_path_mtu/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_tcp_mss_path_mtu/bgp_tcp_mss_path_mtu_test.go"
 }
