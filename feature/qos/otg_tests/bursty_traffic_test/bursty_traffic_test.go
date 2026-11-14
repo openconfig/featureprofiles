@@ -115,6 +115,39 @@ func stopTrafficOnFlows(t *testing.T, flowNames []string, ate *ondatra.ATEDevice
 	flowStop := gosnappi.NewControlState()
 	flowStop.Traffic().FlowTransmit().SetFlowNames(flowNames).SetState(gosnappi.StateTrafficFlowTransmitState.STOP)
 	ate.OTG().SetControlState(t, flowStop)
+
+	// Wait for traffic flows to confirm transmission stopped.
+	for _, trafficID := range flowNames {
+		_, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Transmit().State(), 15*time.Second, func(val *ygnmi.Value[bool]) bool {
+			txState, present := val.Val()
+			return present && !txState
+		}).Await(t)
+		if !ok {
+			t.Logf("Flow %s did not transition to stopped state within timeout", trafficID)
+		}
+	}
+
+	// Wait for in-flight packets to finish draining into receiver.
+	for _, trafficID := range flowNames {
+		var lastRx uint64
+		var unchangedCount int
+		_, _ = gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().InPkts().State(), 15*time.Second, func(val *ygnmi.Value[uint64]) bool {
+			rx, present := val.Val()
+			if !present {
+				return false
+			}
+			if rx > 0 && rx == lastRx {
+				unchangedCount++
+				if unchangedCount >= 2 {
+					return true
+				}
+			} else {
+				lastRx = rx
+				unchangedCount = 0
+			}
+			return false
+		}).Await(t)
+	}
 }
 
 func TestBurstyTraffic(t *testing.T) {
@@ -442,7 +475,6 @@ func TestBurstyTraffic(t *testing.T) {
 			t.Logf("Running traffic 1 on DUT interfaces: %s => %s ", dp1.Name(), dp3.Name())
 			t.Logf("Running traffic 2 on DUT interfaces: %s => %s ", dp2.Name(), dp3.Name())
 			t.Logf("Sending traffic flows: \n%v\n\n", trafficFlows)
-			time.Sleep(30 * time.Second)
 			startTrafficOnFlows(t, flowNames, ate)
 			time.Sleep(30 * time.Second)
 			stopTrafficOnFlows(t, flowNames, ate)
