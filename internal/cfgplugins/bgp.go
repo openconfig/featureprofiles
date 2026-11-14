@@ -1883,3 +1883,69 @@ func DeleteExtendedRouteRetention(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi
 	}
 	return sb
 }
+
+// BGPMaxPrefixConfig contains the parameters required to configure
+// the BGP maximum-prefix limit.
+type BGPMaxPrefixConfig struct {
+	DUTAS               uint32
+	VRFName             string
+	NeighborAddress     string
+	MaxPrefixes         uint32
+	WarningThresholdPct uint8
+}
+
+// ConfigureBGPMaxPrefix configures the BGP maximum-prefix limit using
+// OpenConfig when supported, or vendor-specific CLI when required.
+func ConfigureBGPMaxPrefix(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, params BGPMaxPrefixConfig) *gnmi.SetBatch {
+	t.Helper()
+	if !deviations.BGPMissingOCMaxPrefixesConfiguration(dut) {
+		d := gnmi.OC()
+		afiPath := d.NetworkInstance(params.VRFName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(params.NeighborAddress).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+		if deviations.BGPExplicitPrefixLimitReceived(dut) {
+			pl := &oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_Ipv4Unicast_PrefixLimitReceived{
+				MaxPrefixes:         ygot.Uint32(params.MaxPrefixes),
+				WarningThresholdPct: ygot.Uint8(params.WarningThresholdPct),
+			}
+			gnmi.BatchReplace(sb, afiPath.Ipv4Unicast().PrefixLimitReceived().Config(), pl)
+		} else {
+			pl := &oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_Ipv4Unicast_PrefixLimit{
+				MaxPrefixes:         ygot.Uint32(params.MaxPrefixes),
+				WarningThresholdPct: ygot.Uint8(params.WarningThresholdPct),
+			}
+			gnmi.BatchReplace(sb, afiPath.Ipv4Unicast().PrefixLimit().Config(), pl)
+		}
+		return sb
+	}
+	var cli string
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		cli = fmt.Sprintf(
+			"router bgp %d\n"+
+				" vrf %s\n"+
+				"  address-family ipv4\n"+
+				"   neighbor %s maximum-routes %d warning-limit %d percent\n",
+			params.DUTAS,
+			params.VRFName,
+			params.NeighborAddress,
+			params.MaxPrefixes,
+			params.WarningThresholdPct,
+		)
+	case ondatra.CISCO:
+		cli = fmt.Sprintf(
+			"router bgp %d\n"+
+				" vrf %s\n"+
+				"  neighbor %s\n"+
+				"   address-family ipv4 unicast\n"+
+				"    maximum-prefix %d %d restart 1\n",
+			params.DUTAS,
+			params.VRFName,
+			params.NeighborAddress,
+			params.MaxPrefixes,
+			params.WarningThresholdPct,
+		)
+	default:
+		t.Fatalf("BGP maximum-prefix CLI is not implemented for vendor %v", dut.Vendor())
+	}
+	helpers.GnmiCLIConfig(t, dut, cli)
+	return nil
+}

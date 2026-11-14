@@ -842,6 +842,7 @@ test: {
   id: "RT-1.109"
   description: "BGP Streaming Telemetry and Operational State Verification"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_streaming_telemetry_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_streaming_telemetry_test/bgp_streaming_telemetry_test.go"
 }
 test: {
   id: "RT-1.11"
