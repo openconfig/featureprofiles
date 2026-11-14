@@ -57,6 +57,9 @@ A[ATE:Port1-3] <--(Layer 3 - Vlan 10)-->B[Port1-3:-DUT-:Port4];B <--Layer 3 poin
 
 **Verify that:**
 
+* The global VLAN `10` state in the default network instance reports `name` as
+  `VLAN_10`, and reports `status` as `SUSPENDED` when suspended and `ACTIVE`
+  when active.
 * The `Vlan10` routed-vlan interface state reports the configured IPv4
   (`198.51.100.129/25`) and IPv6 (`2001:db8:2::129/48`) address (`ip`) and
   `prefix-length`.
@@ -75,6 +78,8 @@ A[ATE:Port1-3] <--(Layer 3 - Vlan 10)-->B[Port1-3:-DUT-:Port4];B <--Layer 3 poin
 
 **Verify that:**
 
+* The `STATIC` protocol state in the default network instance reports `enabled`
+  as `true`.
 * Vaidate the static routes forv198.51.100.160/28, 198.51.100.192/28, 198.51.100.224/28  are pointing to a vlan 10.
 * The DUT:Port[4] receives the traffic for the flows and forward traffic out over VLAN interfaces.
     * 198.51.100.160/28 & 2001:db8:2:1::/64 going towards DUT:Port[1] ⇔ ATE:Port[1]
@@ -105,6 +110,18 @@ A[ATE:Port1-3] <--(Layer 3 - Vlan 10)-->B[Port1-3:-DUT-:Port4];B <--Layer 3 poin
         "config": {
           "name": "default"
         },
+        "vlans": {
+          "vlan": [
+            {
+              "vlan-id": 10,
+              "config": {
+                "vlan-id": 10,
+                "name": "VLAN_10",
+                "status": "ACTIVE"
+              }
+            }
+          ]
+        },
         "protocols": {
           "protocol": [
             {
@@ -112,7 +129,8 @@ A[ATE:Port1-3] <--(Layer 3 - Vlan 10)-->B[Port1-3:-DUT-:Port4];B <--Layer 3 poin
               "name": "default",
               "config": {
                 "identifier": "openconfig-policy-types:STATIC",
-                "name": "default"
+                "name": "default",
+                "enabled": true
               },
               "static-routes": {
                 "static": [
@@ -219,8 +237,12 @@ paths:
   /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
   /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/ip:
   /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length:
+  /network-instances/network-instance/protocols/protocol/config/enabled:
   /network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix:
   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop:
+  /network-instances/network-instance/vlans/vlan/config/name:
+  /network-instances/network-instance/vlans/vlan/config/status:
+  /network-instances/network-instance/vlans/vlan/config/vlan-id:
 
   ## State Paths ##
   /interfaces/interface/state/description:
@@ -238,8 +260,12 @@ paths:
   /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/state/prefix-length:
   /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/ip:
   /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/prefix-length:
+  /network-instances/network-instance/protocols/protocol/state/enabled:
   /network-instances/network-instance/protocols/protocol/static-routes/static/state/prefix:
   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/state/next-hop:
+  /network-instances/network-instance/vlans/vlan/state/name:
+  /network-instances/network-instance/vlans/vlan/state/status:
+  /network-instances/network-instance/vlans/vlan/state/vlan-id:
 
 rpcs:
   gnmi:

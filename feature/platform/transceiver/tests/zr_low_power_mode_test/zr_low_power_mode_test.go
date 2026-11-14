@@ -26,10 +26,10 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
+	"github.com/openconfig/featureprofiles/internal/telemetry/transceiver"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -136,13 +136,10 @@ func TestLowPowerMode(t *testing.T) {
 
 			validateStreamOutput(t, allStream)
 
-			d := &oc.Root{}
-			i := d.GetOrCreateInterface(dp.Name())
-			i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+			togglePort := transceiver.ToggleInterfacesWithCleanup(t, dut, dp)
 			// Disable interface
 			t.Logf("Bringing down interface to verify")
-			i.Enabled = ygot.Bool(false)
-			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
+			togglePort(false)
 			// Wait for interface to go down.
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
 
@@ -185,8 +182,7 @@ func TestLowPowerMode(t *testing.T) {
 			}
 
 			// Enable interface
-			i.Enabled = ygot.Bool(true)
-			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
+			togglePort(true)
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 
 			powerStreamMap := map[string]*samplestream.SampleStream[float64]{
