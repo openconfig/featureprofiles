@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -25,6 +26,9 @@ var (
 	registryFile = flag.String("registry", "testregistry.textproto", "Path to testregistry.textproto")
 	featureDir   = flag.String("feature_dir", "feature", "Path to feature directory")
 )
+
+// planIDRE matches valid test plan IDs such as "RT-1.1", "gNMI-1.10", "TE-16.1.2" or "MGT-1".
+var planIDRE = regexp.MustCompile(`^[A-Za-z0-9]+-[0-9]+(\.[0-9]+)*$`)
 
 func main() {
 	flag.Parse()
@@ -83,6 +87,10 @@ func processMetadataFile(path string, tests map[string]*tpb.Test) error {
 
 	if m.GetPlanId() == "" {
 		return fmt.Errorf("plan_id is empty")
+	}
+
+	if !planIDRE.MatchString(m.GetPlanId()) {
+		return fmt.Errorf("invalid plan_id %q in %s: must match %s, for example \"RT-1.1\"", m.GetPlanId(), path, planIDRE)
 	}
 
 	dir := filepath.Dir(path)
