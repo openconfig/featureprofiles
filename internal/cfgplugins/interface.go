@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"math"
 	"net"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -33,6 +34,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -42,6 +44,7 @@ const (
 	targetOutputPowerTolerancedBm = 1
 	targetFrequencyMHz            = 193100000
 	targetFrequencyToleranceMHz   = 100000
+	aggregateSearchLimit          = 50
 
 	vlanInterfaceCLITemplate = `interface vlan %d
    ip address %s/%d
@@ -139,6 +142,7 @@ var (
 		"176-6491-9G0":       true, // Ciena OSFP 800G ZRP L-Band
 		"176-6480-9M0":       true, // Ciena OSFP 800G ZRP L-Band
 	}
+	aggNumberRE = regexp.MustCompile(`(\d+)$`)
 )
 
 // OperationalModeList is a type for a list of operational modes in uint16 format.
@@ -1940,6 +1944,45 @@ func ConfigureLoopback(t *testing.T, dut *ondatra.DUTDevice, cfg LoopbackConfig)
 	} else {
 		gnmi.Replace(t, dut, gnmi.OC().Interface(cfg.Name).Config(), i)
 	}
+}
+
+// NextAggregates is like netutil.NextAggregateInterface but obtains multiple aggregate interfaces.
+func NextAggregates(t *testing.T, dut *ondatra.DUTDevice, n int) ([]string, error) {
+	firstAgg := netutil.NextAggregateInterface(t, dut)
+	loc := aggNumberRE.FindStringIndex(firstAgg)
+	if loc == nil {
+		return nil, fmt.Errorf("cannot extract trailing integer from %q", firstAgg)
+	}
+	start, err := strconv.Atoi(firstAgg[loc[0]:loc[1]])
+	if err != nil {
+		return nil, fmt.Errorf("cannot extract integer from %q: %v", firstAgg, err)
+	}
+	existingInterfaces := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().Name().State())
+	existingMap := make(map[string]bool)
+	for _, intf := range existingInterfaces {
+		existingMap[intf] = true
+	}
+	aggs := []string{firstAgg}
+	for i := start + 1; len(aggs) < n; i++ {
+		if i-start > n+aggregateSearchLimit {
+			return nil, fmt.Errorf("could not find %d aggregate interfaces after %d attempts", n, i-start)
+		}
+
+		agg := firstAgg[:loc[0]] + strconv.Itoa(i) + firstAgg[loc[1]:]
+		if !existingMap[agg] {
+			aggs = append(aggs, agg)
+		}
+	}
+	return aggs, nil
+}
+
+// InterfaceRefID returns interface ref format for intfName, appending the
+// ".0" subinterface suffix when the DUT requires it.
+func InterfaceRefID(dut *ondatra.DUTDevice, intfName string) string {
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		return intfName + ".0"
+	}
+	return intfName
 }
 
 // IPv6AddressParams holds parameters for configuring and validating an IPv6 address on a DUT interface.
