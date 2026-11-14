@@ -15,6 +15,7 @@ platform_exceptions:  {
     pf_require_match_default_rule: true
     pf_require_sequential_order_pbr_rules: true   
     isis_single_topology_required: true
+    use_interface_name_for_ibgp_neighbor_transport_ipv4_local_address: true
   }
 }
 platform_exceptions:  {

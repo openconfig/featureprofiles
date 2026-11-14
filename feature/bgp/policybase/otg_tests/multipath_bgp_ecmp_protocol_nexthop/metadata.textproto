@@ -32,6 +32,7 @@ platform_exceptions:  {
     skip_setting_allow_multiple_as: true
     skip_afi_safi_path_for_bgp_multiple_as: true
     bgp_multipath_paths_under_peer_group_unsupported: true
+    use_interface_name_for_ibgp_neighbor_transport_ipv4_local_address: true
   }
 }
 
@@ -46,4 +47,3 @@ platform_exceptions:  {
     per_flow_load_balancing_unsupported: true
   }
 }
-
