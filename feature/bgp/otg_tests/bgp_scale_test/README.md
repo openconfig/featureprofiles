@@ -141,6 +141,9 @@ ATE     | 200.1.[1-31].2/30 | 1000:4:[31-61]::200::0:2/126 | 49001 | 64000000000
             *   Set ISIS area ID
             *   Enable wide metrics
             *   Enable ISIS on the ethernet interface with Level 2 only and circuit type of point to point
+            *   Disable OTG ISIS learned LSP filtering (`SetLearnedLspFilter =
+                false`) for scale sessions while keeping the shared OTG helper
+                default as `true`
             *   Create NET to advertise P2P links, /25, /64 prefixes into ISIS
     7. Configure EBGP session on all sub-interfaces that belong to Ports 1-3
         Number of SubInterfaces is part of Port's attributes to define
@@ -183,7 +186,19 @@ ATE     | 200.1.[1-31].2/30 | 1000:4:[31-61]::200::0:2/126 | 49001 | 64000000000
             *   ALLOW policy for EBGP session
     4.  Create an LAG interface set the interface IP address and LACP and push path to DUT
     5.  Create a LAG's member.
-    6.  Create SubInterfaces to scale v4/v6 EBGP sessions
+    6.  Create SubInterfaces to scale v4/v6 EBGP sessions:
+        *   On both the LAG subinterfaces (`subinterface 0` and VLAN
+            subinterfaces) and the EBGP subinterfaces, under
+            `/interfaces/interface/subinterfaces/subinterface`, set
+            `ipv4/config/enabled` to `true` only when `(interface_enabled ||
+            require_routed_subinterface_0) && !ipv4_missing_enabled`, and omit
+            `ipv4/config/enabled` when `ipv4_missing_enabled` is `true` (so
+            platforms that do not support the leaf do not reject the gNMI `Set`
+            request).
+        *   On both the LAG subinterfaces and the EBGP subinterfaces, under
+            `/interfaces/interface/subinterfaces/subinterface`, set
+            `ipv6/config/enabled` to `true` when `interface_enabled ||
+            require_routed_subinterface_0`.
     7.  Configure ISIS for DUT :
             *   Create ISIS instance under the default routing instance
             *   Set ISIS net address (area ID + System ID)
@@ -246,6 +261,14 @@ ATE     | 200.1.[1-31].2/30 | 1000:4:[31-61]::200::0:2/126 | 49001 | 64000000000
         d. BGP routes successfully reflected to Port1's v4/v6 EBGP sessions
     3.  Number of TX packets is not equal to RX packets.
     4. No critical process (RPD, Bgp-main, BGP, sr_bgp_mgr) restarted during the test
+
+### Cleanup
+
+*   Stop all active OTG traffic flows and protocol sessions.
+*   Revert any state or configuration modified during the test (including
+    interface MTU, BGP TCP-MSS, routing policies, BGP/IS-IS instances, LACP
+    aggregate interfaces, and subinterfaces) and restore the DUT and ATE to
+    their baseline operational state upon test completion.
 
 ## Canonical OC
 
@@ -1996,6 +2019,8 @@ paths:
   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-community-set/config/match-set-options:
   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled:
 
   ## Telemetry State paths
   /interfaces/interface/state/admin-status:
