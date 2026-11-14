@@ -63,6 +63,9 @@ func PrettyPrint(i interface{}) string {
 
 // SetupUser setup user for credentialz tests.
 func SetupUser(t *testing.T, dut *ondatra.DUTDevice, username string) {
+	t.Cleanup(func() {
+		gnmi.Delete(t, dut, gnmi.OC().System().Aaa().Authentication().User(username).Config())
+	})
 	auth := &oc.System_Aaa_Authentication{}
 	user := auth.GetOrCreateUser(username)
 	user.SetRole(oc.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN)
