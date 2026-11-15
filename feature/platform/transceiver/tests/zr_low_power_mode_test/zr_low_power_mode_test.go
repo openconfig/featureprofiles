@@ -26,10 +26,10 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
+	"github.com/openconfig/featureprofiles/internal/telemetry/transceiver"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -136,22 +136,20 @@ func TestLowPowerMode(t *testing.T) {
 
 			validateStreamOutput(t, allStream)
 
-			d := &oc.Root{}
-			i := d.GetOrCreateInterface(dp.Name())
-			i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+			togglePort := transceiver.ToggleInterfacesWithCleanup(t, dut, dp)
 			// Disable interface
 			t.Logf("Bringing down interface to verify")
-			i.Enabled = ygot.Bool(false)
-			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
+			togglePort(false)
 			// Wait for interface to go down.
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
 
 			validateStreamOutput(t, allStream)
 			opticalChannelName := components.OpticalChannelComponentFromPort(t, dut, dp)
+			perfMonSamplingInterval := samplingInterval
 			if !deviations.SkipOpticalChannelOutputPowerInterval(dut) {
-				samplingInterval = time.Duration(gnmi.Get(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Interval().State()))
+				perfMonSamplingInterval = time.Duration(gnmi.Get(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Interval().State()))
 			}
-			opInst := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Instant().State(), samplingInterval)
+			opInst := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Instant().State(), perfMonSamplingInterval)
 			defer opInst.Close()
 			if opInstN := opInst.Next(); opInstN != nil {
 				if val, ok := opInstN.Val(); ok && val != -40 {
@@ -159,7 +157,7 @@ func TestLowPowerMode(t *testing.T) {
 				}
 			}
 
-			opAvg := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Avg().State(), samplingInterval)
+			opAvg := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Avg().State(), perfMonSamplingInterval)
 			defer opAvg.Close()
 			if opAvgN := opAvg.Next(); opAvgN != nil {
 				if val, ok := opAvgN.Val(); ok && val != -40 {
@@ -167,7 +165,7 @@ func TestLowPowerMode(t *testing.T) {
 				}
 			}
 
-			opMin := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Min().State(), samplingInterval)
+			opMin := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Min().State(), perfMonSamplingInterval)
 			defer opMin.Close()
 			if opMinN := opMin.Next(); opMinN != nil {
 				if val, ok := opMinN.Val(); ok && val != -40 {
@@ -175,7 +173,7 @@ func TestLowPowerMode(t *testing.T) {
 				}
 			}
 
-			opMax := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Max().State(), samplingInterval)
+			opMax := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Max().State(), perfMonSamplingInterval)
 			defer opMax.Close()
 			if opMaxN := opMax.Next(); opMaxN != nil {
 				if val, ok := opMaxN.Val(); ok && val != -40 {
@@ -184,8 +182,7 @@ func TestLowPowerMode(t *testing.T) {
 			}
 
 			// Enable interface
-			i.Enabled = ygot.Bool(true)
-			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
+			togglePort(true)
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 
 			powerStreamMap := map[string]*samplestream.SampleStream[float64]{

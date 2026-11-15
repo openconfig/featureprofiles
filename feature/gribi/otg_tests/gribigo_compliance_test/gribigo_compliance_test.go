@@ -340,6 +340,9 @@ func addNHGReferencingToDownPort(tcArgs *testArgs, wantACK fluent.ProgrammingRes
 	if err := gribi.FlushAll(tcArgs.client); err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() {
+		setDUTInterfaceWithState(t, tcArgs.dut, p, true)
+	})
 	setDUTInterfaceWithState(t, tcArgs.dut, p, false)
 
 	tcArgs.client.Modify().AddEntry(t,
