@@ -26,6 +26,7 @@ import (
 	"io"
 	"path"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -63,18 +64,21 @@ const (
 	scaleFileCount    = 10
 
 	// Explicit deterministic payloads and precomputed hex digests defined in
-	// the gNOI-5.4 README.
+	// the gNOI-5.4 README. Permissions carry the octal digits directly in the
+	// uint32 field with no base conversion, per gnoi/file/file.proto (e.g. UNIX
+	// mode 0644 is sent as the value 644).
 	payloadAContent   = "payload-with-wrong-sha256"
 	payloadASHA256Hex = "00d3573788b8879253860be8c1894fbea1a995fc6c5d55cc9be77658b2d72b3b"
-	payloadAPerms     = uint32(0644)
+	payloadAPerms     = uint32(644)
 
 	payloadBContent = "gnoi-conformance-md5-192.0.2.1-2001:db8::1\n"
 	payloadBMD5Hex  = "5488fc814e0791d457dc8953b529ed7d"
-	payloadBPerms   = uint32(0640)
+	payloadBPerms   = uint32(640)
 
 	payloadCRecord      = "gnoi-64k-chunk-block-ipv4-192.0.2.1-ipv6-2001:db8::1-padding-01\n"
 	payloadCRecordCount = 4096 // 64 bytes * 4096 = 262144 bytes (256 KB)
-	payloadCPerms       = uint32(0644)
+	payloadCSHA256Hex   = "5437d7315570842dec1cc16a4cc3968538047bdc4a0f640ec5bffe41b3b6881c"
+	payloadCPerms       = uint32(644)
 
 	incompleteNoHashPayload = "incomplete-stream-without-hash-192.0.2.1-2001:db8::1\n"
 	contentsBeforeOpenData  = "contents-before-open"
@@ -85,9 +89,8 @@ const (
 	fileNameIncompleteNoHash = "gnoi_conformance_incomplete_no_hash.txt"
 	fileNameHashMismatch     = "gnoi_conformance_hash_mismatch.txt"
 	fileNameNonExistent      = "gnoi_conformance_nonexistent_file.txt"
-	invalidDirFilePath       = "/nonexistent_dir_gnoi_test/gnoi_invalid_dir.txt"
+	relativePutFilePath      = "relative/path/gnoi_invalid_dir.txt"
 	relativeTestFilePath     = "relative/path/gnoi_conformance_file.txt"
-	nonScratchDirectoryPath  = "/var/log"
 )
 
 // signExtensionHexPattern matches signed-char sign-extension corruption
@@ -562,8 +565,8 @@ func verifyFileStat(ctx context.Context, t *testing.T, fc fpb.FileClient, spec f
 	}
 
 	info := stats[0]
-	t.Logf("File.Stat(%q): path=%q size=%d permissions=%o last_modified=%d umask=%o",
-		spec.path, info.GetPath(), info.GetSize(), info.GetPermissions(), info.GetLastModified(), info.GetUmask())
+	t.Logf("File.Stat(%q): path=%q size=%d permissions=%d umask=%d last_modified=%d",
+		spec.path, info.GetPath(), info.GetSize(), info.GetPermissions(), info.GetUmask(), info.GetLastModified())
 
 	if !strings.HasSuffix(info.GetPath(), spec.name) && info.GetPath() != spec.path {
 		t.Errorf("File.Stat(%q) StatInfo.path = %q, want %q", spec.path, info.GetPath(), spec.path)
@@ -574,9 +577,34 @@ func verifyFileStat(ctx context.Context, t *testing.T, fc fpb.FileClient, spec f
 	if info.GetLastModified() == 0 {
 		t.Errorf("File.Stat(%q) StatInfo.last_modified = 0, want > 0", spec.path)
 	}
-	if info.GetPermissions() == 0 {
-		t.Errorf("File.Stat(%q) StatInfo.permissions = 0, want non-zero mode (configured %o)", spec.path, spec.perms)
+	if masked, ok := permissionsMatch(spec.perms, info.GetPermissions(), info.GetUmask()); !ok {
+		t.Errorf("File.Stat(%q) StatInfo.permissions = %d, want %d (octal digits, no base conversion) or %d (requested permissions with umask %d applied)", spec.path, info.GetPermissions(), spec.perms, masked, info.GetUmask())
 	}
+}
+
+// permissionsMatch reports whether a StatInfo.permissions value matches the
+// permissions requested in PutRequest.Details. Both values, and the umask, use
+// the gnoi/file/file.proto octal-digit encoding (e.g. UNIX mode 0644 is carried
+// as 644), so the reported value may equal the requested value or the requested
+// value with the reported umask applied (permissions & ~umask). A umask of 0 is
+// valid. It also returns the umask-applied value for diagnostics.
+func permissionsMatch(want, got, umask uint32) (uint32, bool) {
+	if got == want {
+		return want, true
+	}
+	wantMode, err := strconv.ParseUint(strconv.FormatUint(uint64(want), 10), 8, 32)
+	if err != nil {
+		return want, false
+	}
+	umaskMode, err := strconv.ParseUint(strconv.FormatUint(uint64(umask), 10), 8, 32)
+	if err != nil {
+		return want, false
+	}
+	maskedDigits, err := strconv.ParseUint(strconv.FormatUint(wantMode&^umaskMode, 8), 10, 32)
+	if err != nil {
+		return want, false
+	}
+	return uint32(maskedDigits), got == uint32(maskedDigits)
 }
 
 // verifyDirectoryStat checks gnoi.file.File.Stat on the parent scratch
@@ -712,6 +740,9 @@ func TestGNOIFileConformance(t *testing.T) {
 
 	payloadCBytes := bytes.Repeat([]byte(payloadCRecord), payloadCRecordCount)
 	payloadCDigest, payloadCHex := computeDigest(t, payloadCBytes, tpb.HashType_SHA256)
+	if payloadCHex != payloadCSHA256Hex {
+		t.Fatalf("Internal sanity check failed for Payload C SHA256: got %q, want %q", payloadCHex, payloadCSHA256Hex)
+	}
 
 	baselineSpecs := []fileSpec{
 		{
@@ -978,36 +1009,41 @@ func TestGNOIFileConformance(t *testing.T) {
 			t.Logf("PutRequest{contents} before PutRequest{open} properly rejected with code=%v: %v", status.Code(seqErr), seqErr)
 		}
 
-		t.Log("gNOI-5.4.5 - Step 2: Negative Case — Non-existent target directory path in PutRequest{open}")
-		dirStream, err := fc.Put(ctx)
-		if err != nil {
-			t.Fatalf("gnoi.file.File.Put failed to open stream: %v", err)
+		t.Log("gNOI-5.4.5 - Step 2: Negative Case — Invalid remote_file (empty, relative, and existing directory) in PutRequest{open}")
+		for _, badPutPath := range []string{"", relativePutFilePath, scratchDir} {
+			badStream, err := fc.Put(ctx)
+			if err != nil {
+				t.Fatalf("gnoi.file.File.Put failed to open stream: %v", err)
+			}
+			_ = badStream.Send(&fpb.PutRequest{
+				Request: &fpb.PutRequest_Open{
+					Open: &fpb.PutRequest_Details{
+						RemoteFile:  badPutPath,
+						Permissions: payloadAPerms,
+					},
+				},
+			})
+			_ = badStream.Send(&fpb.PutRequest{
+				Request: &fpb.PutRequest_Contents{
+					Contents: payloadABytes,
+				},
+			})
+			_ = badStream.Send(&fpb.PutRequest{
+				Request: &fpb.PutRequest_Hash{
+					Hash: &tpb.HashType{
+						Method: tpb.HashType_SHA256,
+						Hash:   payloadADigest,
+					},
+				},
+			})
+			if _, putErr := badStream.CloseAndRecv(); putErr == nil || status.Code(putErr) == codes.OK {
+				t.Errorf("gnoi.file.File.Put(remote_file=%q) returned StatusCode.OK, want non-OK gRPC error (remote_file must be an absolute file path)", badPutPath)
+			} else {
+				t.Logf("gnoi.file.File.Put(remote_file=%q) properly rejected with code=%v: %v", badPutPath, status.Code(putErr), putErr)
+			}
 		}
-		_ = dirStream.Send(&fpb.PutRequest{
-			Request: &fpb.PutRequest_Open{
-				Open: &fpb.PutRequest_Details{
-					RemoteFile:  invalidDirFilePath,
-					Permissions: payloadAPerms,
-				},
-			},
-		})
-		_ = dirStream.Send(&fpb.PutRequest{
-			Request: &fpb.PutRequest_Contents{
-				Contents: payloadABytes,
-			},
-		})
-		_ = dirStream.Send(&fpb.PutRequest{
-			Request: &fpb.PutRequest_Hash{
-				Hash: &tpb.HashType{
-					Method: tpb.HashType_SHA256,
-					Hash:   payloadADigest,
-				},
-			},
-		})
-		if _, dirErr := dirStream.CloseAndRecv(); dirErr == nil || status.Code(dirErr) == codes.OK {
-			t.Errorf("gnoi.file.File.Put(%q) to non-existent directory returned StatusCode.OK, want non-OK gRPC error", invalidDirFilePath)
-		} else {
-			t.Logf("gnoi.file.File.Put(%q) to non-existent directory properly rejected with code=%v: %v", invalidDirFilePath, status.Code(dirErr), dirErr)
+		if _, err := fc.Stat(ctx, &fpb.StatRequest{Path: scratchDir}); err != nil {
+			t.Errorf("gnoi.file.File.Stat(%q) failed after File.Put to the directory path: %v, want scratch directory to remain intact", scratchDir, err)
 		}
 
 		t.Log("gNOI-5.4.5 - Step 3: Negative Case — File.Stat, File.Get, File.Remove, and File.TransferToRemote on non-existent, empty, relative, and directory paths")
@@ -1035,12 +1071,15 @@ func TestGNOIFileConformance(t *testing.T) {
 			}
 		}
 
-		for _, badRmPath := range []string{nonExistentPath, "", nonScratchDirectoryPath} {
+		for _, badRmPath := range []string{nonExistentPath, "", scratchDir} {
 			if _, rmErr := fc.Remove(ctx, &fpb.RemoveRequest{RemoteFile: badRmPath}); rmErr == nil || status.Code(rmErr) == codes.OK {
 				t.Errorf("gnoi.file.File.Remove(%q) returned StatusCode.OK, want non-OK gRPC error", badRmPath)
 			} else {
 				t.Logf("gnoi.file.File.Remove(%q) properly rejected with code=%v: %v", badRmPath, status.Code(rmErr), rmErr)
 			}
+		}
+		if _, err := fc.Stat(ctx, &fpb.StatRequest{Path: scratchDir}); err != nil {
+			t.Errorf("gnoi.file.File.Stat(%q) failed after File.Remove on the directory path: %v, want scratch directory to remain intact", scratchDir, err)
 		}
 
 		transferReqs := []*fpb.TransferToRemoteRequest{
