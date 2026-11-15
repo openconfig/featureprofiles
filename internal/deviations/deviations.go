@@ -2586,3 +2586,11 @@ func SyslogDebugSeverityUnsupported(dut *ondatra.DUTDevice) bool {
 func MountPointStorageComponentUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMountPointStorageComponentUnsupported()
 }
+
+// BgpGrHelperHoldTimerExpiryRequiresStalePolicy returns true if the device requires
+// explicit GR helper stale-route policy configuration for hold-timer-expiry to trigger
+// GR helper mode (RFC 8538 Section 4).
+// https://issuetracker.google.com/581463773
+func BgpGrHelperHoldTimerExpiryRequiresStalePolicy(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpGrHelperHoldTimerExpiryRequiresStalePolicy()
+}
