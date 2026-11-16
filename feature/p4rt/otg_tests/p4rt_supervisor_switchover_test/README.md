@@ -519,6 +519,11 @@ rpcs:
   gribi:
     gRIBI.Flush:
     gRIBI.Modify:
+  # p4runtime:
+  #   p4runtime.P4Runtime.Write:
+  #   p4runtime.P4Runtime.Read:
+  #   p4runtime.P4Runtime.SetForwardingPipelineConfig:
+  #   p4runtime.P4Runtime.StreamChannel:
 ```
 
 ## Required DUT platform
