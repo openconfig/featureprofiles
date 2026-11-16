@@ -127,7 +127,7 @@ func sendHostParametersRequest(t *testing.T, dut *ondatra.DUTDevice, request *cp
 		t.Fatalf("Failed sending credentialz rotate host parameters finalize request, error: %s", err)
 	}
 	// Brief sleep for finalize to get processed.
-	time.Sleep(time.Second)
+	time.Sleep(2 * time.Second)
 }
 
 func sendAccountCredentialsRequest(t *testing.T, dut *ondatra.DUTDevice, request *cpb.RotateAccountCredentialsRequest) {
