@@ -716,7 +716,7 @@ func TestUpgrade(t *testing.T) {
 
 	// Positive Test: Successful upgrade
 	t.Run("SuccessfulUpgrade", func(t *testing.T) {
-		cli, cleanup := startContainer(ctx, t)
+		cli, cleanup := startContainerWithClient(ctx, t, baseCli)
 		defer cleanup()
 		defer cli.RemoveImage(ctx, imageName, "upgrade", true)
 
@@ -776,7 +776,7 @@ func TestUpgrade(t *testing.T) {
 
 	// Negative Test: Upgrade to a non-existent image
 	t.Run("UpgradeToNonExistentImage", func(t *testing.T) {
-		cli, cleanup := startContainer(ctx, t) // Starts 'instanceName' with 'imageName:latest'
+		cli, cleanup := startContainerWithClient(ctx, t, baseCli) // Starts 'instanceName' with 'imageName:latest'
 		defer cleanup()
 
 		nonExistentImage := "non-existent-image-for-upgrade"
@@ -794,7 +794,7 @@ func TestUpgrade(t *testing.T) {
 
 	// Negative Test: Upgrade to an existing image but non-existent tag.
 	t.Run("UpgradeToNonExistentTag", func(t *testing.T) {
-		cli, cleanup := startContainer(ctx, t)
+		cli, cleanup := startContainerWithClient(ctx, t, baseCli)
 		defer cleanup()
 
 		nonExistentTag := "non-existent-tag-for-upgrade"
