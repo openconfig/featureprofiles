@@ -203,6 +203,7 @@ type testEnvironment struct {
 	baselineProcesses   map[uint64]system.ProcessSample
 	persistentProcesses map[uint64]system.ProcessSample
 	baselineComponents  map[string]system.ComponentMemorySample
+	peakChurnProcesses  map[uint64]system.ProcessSample
 	postChurnProcesses  map[uint64]system.ProcessSample
 	postChurnComponents map[string]system.ComponentMemorySample
 	baselineFIBUtil     map[string]*cfgplugins.HardwareResourceUtilization
@@ -380,10 +381,20 @@ func configureDUTEnvironment(t *testing.T, env *testEnvironment) {
 		cfgplugins.WithGlobalAfiSafiEnabled(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, true),
 		cfgplugins.WithGlobalAfiSafiEnabled(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, true),
 	}
-	if !deviations.BgpMaxMultipathPathsUnsupported(dut) {
-		globalOpts = append(globalOpts, cfgplugins.WithGlobalEBGPMultipath(ecmpMaxPaths))
-	}
 	cfgplugins.ConfigureGlobal(bgp, dut, globalOpts...)
+	if !deviations.BgpMaxMultipathPathsUnsupported(dut) {
+		if !deviations.EnableMultipathUnderAfiSafi(dut) {
+			bgp.GetOrCreateGlobal().GetOrCreateUseMultiplePaths().GetOrCreateEbgp().SetMaximumPaths(ecmpMaxPaths)
+		}
+		ebgpV4 := bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp()
+		ebgpV6 := bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp()
+		ebgpV4.SetMaximumPaths(ecmpMaxPaths)
+		ebgpV6.SetMaximumPaths(ecmpMaxPaths)
+		if !deviations.SkipSettingAllowMultipleAS(dut) && !deviations.SkipAfiSafiPathForBgpMultipleAs(dut) {
+			ebgpV4.SetAllowMultipleAs(true)
+			ebgpV6.SetAllowMultipleAs(true)
+		}
+	}
 
 	for _, peer := range env.peers {
 		nbrV4 := bgp.GetOrCreateNeighbor(peer.ateAttr.IPv4)
@@ -419,6 +430,22 @@ func configureDUTEnvironment(t *testing.T, env *testEnvironment) {
 			pgV6 := bgp.GetOrCreatePeerGroup(pgV6Name)
 			pgV6.GetOrCreateUseMultiplePaths().SetEnabled(true)
 			pgV6.GetOrCreateUseMultiplePaths().GetOrCreateEbgp().SetAllowMultipleAs(true)
+			nbrV6.SetPeerGroup(pgV6Name)
+		} else if !deviations.SkipSettingAllowMultipleAS(dut) {
+			pgV4Name := "EBGP-PG-V4"
+			pgV6Name := "EBGP-PG-V6"
+			pgV4 := bgp.GetOrCreatePeerGroup(pgV4Name)
+			pgV4Afi := pgV4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+			pgV4Afi.SetEnabled(true)
+			pgV4Afi.GetOrCreateApplyPolicy().SetImportPolicy([]string{routingPolicyName})
+			pgV4Afi.GetOrCreateApplyPolicy().SetExportPolicy([]string{routingPolicyName})
+			nbrV4.SetPeerGroup(pgV4Name)
+
+			pgV6 := bgp.GetOrCreatePeerGroup(pgV6Name)
+			pgV6Afi := pgV6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+			pgV6Afi.SetEnabled(true)
+			pgV6Afi.GetOrCreateApplyPolicy().SetImportPolicy([]string{routingPolicyName})
+			pgV6Afi.GetOrCreateApplyPolicy().SetExportPolicy([]string{routingPolicyName})
 			nbrV6.SetPeerGroup(pgV6Name)
 		}
 	}
@@ -827,6 +854,9 @@ func runHealth133And134RouteChurnAndFIBUtilization(t *testing.T, env *testEnviro
 		if rem := churnHoldDuration - time.Since(advStart); rem > 0 {
 			procStream.AwaitHoldWindow(t, env.dut, rem)
 		}
+		if cycle == churnCycleCount {
+			env.peakChurnProcesses = procStream.Snapshot(t, env.dut)
+		}
 
 		// Health-1.3.3 Step 2 & Step 3: Withdraw Churn-Routes from all three peers and hold withdrawn for 90 seconds.
 		t.Logf("Health-1.3.3 Cycle %d/%d Step 2-3: Withdrawing Churn-Routes on Peer 1-3 and verifying AFT removal", cycle, churnCycleCount)
@@ -1001,7 +1031,13 @@ func runHealth135BGPMaxPrefixLimitViolation(t *testing.T, env *testEnvironment) 
 	// at matching 10,250-route scale before withdrawing Peer 1's Churn-Routes to apply max-prefixes=8000.
 	setRouteState(t, env.ate, env.allChurnRouteNames(), gosnappi.StateProtocolRouteState.ADVERTISE)
 	awaitAllPeersPrefixCounts(t, env, env.peers, totalInstalledPeak)
+	verifySentinelPrefixesInAFT(t, env.dut, churnSentinelIPv4, churnSentinelIPv6, true, int(ecmpMaxPaths))
 	baselineProcs := system.CollectUserSpaceProcesses(t, env.dut)
+	for pid, peakSample := range env.peakChurnProcesses {
+		if cur, ok := baselineProcs[pid]; ok && cur.Name == peakSample.Name && peakSample.MemoryUsage > cur.MemoryUsage {
+			baselineProcs[pid] = peakSample
+		}
+	}
 
 	setRouteState(t, env.ate, []string{peer1.churnV4Name, peer1.churnV6Name}, gosnappi.StateProtocolRouteState.WITHDRAW)
 	awaitAllPeersPrefixCounts(t, env, []bgpPeerSpec{peer1}, baselineRouteCount)
@@ -1277,10 +1313,12 @@ func runHealth137AbruptBGPPeerSessionReset(t *testing.T, env *testEnvironment) {
 // and verifies all DUT ports are restored to UP.
 func cleanupEnvironment(t *testing.T, env *testEnvironment) {
 	t.Helper()
-	t.Log("Section 5 Cleanup: Stopping OTG traffic streams and protocols")
-	otg := env.ate.OTG()
-	otg.StopTraffic(t)
-	otg.StopProtocols(t)
+	if env.otgConfig != nil {
+		t.Log("Section 5 Cleanup: Stopping OTG traffic streams and protocols")
+		otg := env.ate.OTG()
+		otg.StopTraffic(t)
+		otg.StopProtocols(t)
+	}
 
 	t.Log("Section 5 Cleanup: Reverting BGP, routing-policy, resource-threshold, and interface configurations on DUT")
 	dni := deviations.DefaultNetworkInstance(env.dut)
@@ -1346,23 +1384,13 @@ func toggleBGPNeighborEnabled(t *testing.T, dut *ondatra.DUTDevice, neighborIP s
 
 func awaitPortsUp(t *testing.T, dut *ondatra.DUTDevice, portIDs []string) {
 	t.Helper()
-	type portWatch struct {
-		portID  string
-		pName   string
-		watcher *gnmi.Watcher[oc.E_Interface_OperStatus]
-	}
-	watches := make([]portWatch, 0, len(portIDs))
 	for _, portID := range portIDs {
 		pName := dut.Port(t, portID).Name()
-		w := gnmi.Watch(t, dut, gnmi.OC().Interface(pName).OperStatus().State(), interfaceOperStatusTimeout, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
+		if _, ok := gnmi.Watch(t, dut, gnmi.OC().Interface(pName).OperStatus().State(), interfaceOperStatusTimeout, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
 			status, present := val.Val()
 			return present && status == oc.Interface_OperStatus_UP
-		})
-		watches = append(watches, portWatch{portID: portID, pName: pName, watcher: w})
-	}
-	for _, pw := range watches {
-		if _, ok := pw.watcher.Await(t); !ok {
-			t.Errorf("DUT interface %s (%s) did not reach oper-status=UP", pw.portID, pw.pName)
+		}).Await(t); !ok {
+			t.Errorf("DUT interface %s (%s) did not reach oper-status=UP", portID, pName)
 		}
 	}
 }
@@ -1371,24 +1399,14 @@ func awaitAllBGPSessionsEstablished(t *testing.T, env *testEnvironment) {
 	t.Helper()
 	dni := deviations.DefaultNetworkInstance(env.dut)
 	bgpPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	type sessionWatch struct {
-		peerName string
-		nbrIP    string
-		watcher  *gnmi.Watcher[oc.E_Bgp_Neighbor_SessionState]
-	}
-	var watches []sessionWatch
 	for _, peer := range env.peers {
 		for _, nbrIP := range []string{peer.ateAttr.IPv4, peer.ateAttr.IPv6} {
-			w := gnmi.Watch(t, env.dut, bgpPath.Neighbor(nbrIP).SessionState().State(), bgpConvergenceTimeout, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+			if _, ok := gnmi.Watch(t, env.dut, bgpPath.Neighbor(nbrIP).SessionState().State(), bgpConvergenceTimeout, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 				state, present := val.Val()
 				return present && state == oc.Bgp_Neighbor_SessionState_ESTABLISHED
-			})
-			watches = append(watches, sessionWatch{peerName: peer.name, nbrIP: nbrIP, watcher: w})
-		}
-	}
-	for _, sw := range watches {
-		if _, ok := sw.watcher.Await(t); !ok {
-			t.Fatalf("BGP neighbor %s (%s) did not reach ESTABLISHED state within %v", sw.nbrIP, sw.peerName, bgpConvergenceTimeout)
+			}).Await(t); !ok {
+				t.Fatalf("BGP neighbor %s (%s) did not reach ESTABLISHED state within %v", nbrIP, peer.name, bgpConvergenceTimeout)
+			}
 		}
 	}
 }
@@ -1398,43 +1416,25 @@ func awaitAllPeersPrefixCounts(t *testing.T, env *testEnvironment, peers []bgpPe
 	dni := deviations.DefaultNetworkInstance(env.dut)
 	bgpPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 
-	type prefixWatch struct {
-		desc    string
-		watcher *gnmi.Watcher[uint32]
-	}
-	watches := make([]prefixWatch, 0, len(peers)*4)
 	pred := func(val *ygnmi.Value[uint32]) bool {
 		c, present := val.Val()
 		return present && c == wantCount
 	}
 	for _, peer := range peers {
 		v4Pfx := bgpPath.Neighbor(peer.ateAttr.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
-		watches = append(watches,
-			prefixWatch{
-				desc:    fmt.Sprintf("Peer %s (%s) IPv4 prefixes/received", peer.name, peer.ateAttr.IPv4),
-				watcher: gnmi.Watch(t, env.dut, v4Pfx.Received().State(), bgpConvergenceTimeout, pred),
-			},
-			prefixWatch{
-				desc:    fmt.Sprintf("Peer %s (%s) IPv4 prefixes/installed", peer.name, peer.ateAttr.IPv4),
-				watcher: gnmi.Watch(t, env.dut, v4Pfx.Installed().State(), bgpConvergenceTimeout, pred),
-			},
-		)
+		if got, ok := gnmi.Watch(t, env.dut, v4Pfx.Received().State(), bgpConvergenceTimeout, pred).Await(t); !ok {
+			t.Errorf("Peer %s (%s) IPv4 prefixes/received got %v, want %d", peer.name, peer.ateAttr.IPv4, got, wantCount)
+		}
+		if got, ok := gnmi.Watch(t, env.dut, v4Pfx.Installed().State(), bgpConvergenceTimeout, pred).Await(t); !ok {
+			t.Errorf("Peer %s (%s) IPv4 prefixes/installed got %v, want %d", peer.name, peer.ateAttr.IPv4, got, wantCount)
+		}
 
 		v6Pfx := bgpPath.Neighbor(peer.ateAttr.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Prefixes()
-		watches = append(watches,
-			prefixWatch{
-				desc:    fmt.Sprintf("Peer %s (%s) IPv6 prefixes/received", peer.name, peer.ateAttr.IPv6),
-				watcher: gnmi.Watch(t, env.dut, v6Pfx.Received().State(), bgpConvergenceTimeout, pred),
-			},
-			prefixWatch{
-				desc:    fmt.Sprintf("Peer %s (%s) IPv6 prefixes/installed", peer.name, peer.ateAttr.IPv6),
-				watcher: gnmi.Watch(t, env.dut, v6Pfx.Installed().State(), bgpConvergenceTimeout, pred),
-			},
-		)
-	}
-	for _, pw := range watches {
-		if got, ok := pw.watcher.Await(t); !ok {
-			t.Errorf("%s got %v, want %d", pw.desc, got, wantCount)
+		if got, ok := gnmi.Watch(t, env.dut, v6Pfx.Received().State(), bgpConvergenceTimeout, pred).Await(t); !ok {
+			t.Errorf("Peer %s (%s) IPv6 prefixes/received got %v, want %d", peer.name, peer.ateAttr.IPv6, got, wantCount)
+		}
+		if got, ok := gnmi.Watch(t, env.dut, v6Pfx.Installed().State(), bgpConvergenceTimeout, pred).Await(t); !ok {
+			t.Errorf("Peer %s (%s) IPv6 prefixes/installed got %v, want %d", peer.name, peer.ateAttr.IPv6, got, wantCount)
 		}
 	}
 }
@@ -1622,7 +1622,7 @@ func lookupAllAFTPrefixNHGs(t *testing.T, dut *ondatra.DUTDevice, isIPv6 bool) m
 	t.Helper()
 	dni := deviations.DefaultNetworkInstance(dut)
 	aftsPath := gnmi.OC().NetworkInstance(dni).Afts()
-	c, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.ID()))
+	c, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.Name()))
 	if err != nil {
 		return nil
 	}
@@ -1673,7 +1673,7 @@ func verifyNextHopGroupECMP(t *testing.T, dut *ondatra.DUTDevice, nhgID uint64, 
 	t.Helper()
 	dni := deviations.DefaultNetworkInstance(dut)
 	aftsPath := gnmi.OC().NetworkInstance(dni).Afts()
-	c, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.ID()))
+	c, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.Name()))
 	if err != nil {
 		return
 	}
