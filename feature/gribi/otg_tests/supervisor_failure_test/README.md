@@ -59,10 +59,9 @@ programmed entries, without duplicate or stale entries, within the configured
 deadline. The validation is performed after a switchover in each direction
 between the two controller cards.
 
-This subtest starts from the state left by TE-8.2.2: the 100 `IPv4Entry`s
-(starting at `203.0.113.1/32` and `203.0.114.1/32`) and the 100 `IPv6Entry`s
-(starting at `2001:db8:203:0:113::1/128` and `2001:db8:203:0:114::1/128`)
-pointing to ATE port-2 are programmed in the default network instance.
+This subtest starts from the state left by TE-8.2.2: the 100 `IPv4Entry`s and
+the 100 `IPv6Entry`s programmed in TE-8.2.1 and TE-8.2.2, all pointing to ATE
+port-2, are present in the default network instance.
 
 Test parameters:
 
