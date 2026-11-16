@@ -31,6 +31,7 @@ import (
 	"github.com/google/gopacket/pcap"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
@@ -271,7 +272,12 @@ func TestMPLSOUDPEncap(t *testing.T) {
 	if err := c.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
-	defer c.Close(t)
+	t.Cleanup(func() {
+		c.Close(t)
+	})
+	t.Cleanup(func() {
+		c.FlushAll(t)
+	})
 	c.BecomeLeader(t)
 
 	// Flush all existing AFT entries and set up basic routing infrastructure
@@ -659,6 +665,10 @@ func validateMPLSPacketCapture(t *testing.T, ate *ondatra.ATEDevice, otgPortName
 }
 
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
+	if deviations.VendorPreConfigRequired(dut) {
+		cfgplugins.ConfigureDecapVrfSelection(t, dut)
+	}
+
 	d := gnmi.OC()
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
