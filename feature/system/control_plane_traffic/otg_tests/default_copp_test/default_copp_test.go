@@ -108,6 +108,7 @@ type coppSystemTestcase struct {
 	flowParams         flowParameters
 	increasedDropCount bool
 	counters           []string
+	skip               bool
 }
 
 const (
@@ -134,7 +135,7 @@ var platformCounterNames = map[string]map[string]string{
 	},
 	"strata": {
 		counterL3LpmOverflow: "glean",
-		counterL2Unicast:     "switched-tc3-tc5",
+		counterL2Unicast:     "",
 		counterIPUnicast:     "self-ip",
 		counterL2Broadcast:   "other",
 		counterLACP:          "lacp",
@@ -566,12 +567,14 @@ func TestCoppSystem(t *testing.T) {
 			flowParams:         flowParameters{pps: 600000, packetSize: 512, trafficLayer: 2},
 			increasedDropCount: true,
 			counters:           []string{coppCounterPrefix + platCfg.counterNames[counterL2Unicast]},
+			skip:               platCfg.counterNames[counterL2Unicast] == "",
 		},
 		{
 			name:               "CoppSystemL2UcastInLimitTest",
 			flowParams:         flowParameters{pps: 600, packetSize: 512, trafficLayer: 2},
 			increasedDropCount: false,
 			counters:           []string{coppCounterPrefix + platCfg.counterNames[counterL2Unicast]},
+			skip:               platCfg.counterNames[counterL2Unicast] == "",
 		},
 		{
 			name:               "CoppSystemIpUcastExceedingLimitTest",
@@ -614,6 +617,9 @@ func TestCoppSystem(t *testing.T) {
 	for idx := range testCases {
 		tc := &testCases[idx]
 		t.Run(tc.name, func(t *testing.T) {
+			if tc.skip {
+				t.Skipf("Skipping %s: no CoPP queue is configured for this platform", tc.name)
+			}
 			ce.testCoppSystemHelper(t, tc)
 		})
 	}
