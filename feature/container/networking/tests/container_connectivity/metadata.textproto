@@ -22,6 +22,7 @@ platform_exceptions: {
   }
   deviations: {
     containerz_dut_clock_sync_required: true
+    containerz_tls_insecure_skip_verify: true
   }
 }
 platform_exceptions: {
