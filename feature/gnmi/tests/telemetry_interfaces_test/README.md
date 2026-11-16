@@ -47,7 +47,7 @@ Telemetry: Interface oc path validation
  - `/interfaces/interface[name=<port>]/state/in-rate`
  - `/interfaces/interface[name=<port>]/state/out-rate`
 
-The test constructs these paths with `gnmi.OC().Interface(port).InRate().State()` and `OutRate().State()` in `testTelemetryInterfacesStateRate`. The OpenConfig `openconfig-interfaces` schema defines both as read-only interface state leaves ([schema](https://www.openconfig.net/projects/models/schemadocs/yangdoc/openconfig-interfaces.html)). This records the generic test expectation; it does not imply that every vendor's OCIF implementation exposes the leaves. For IOS XR `26.4.1.26I` and `26.4.1.28I` on 8808, the platform exception marks the rate paths unsupported.
+The test constructs these paths with `gnmi.OC().Interface(port).InRate().State()` and `OutRate().State()` in `testTelemetryInterfacesStateRate`. The OpenConfig `openconfig-interfaces` schema defines both as read-only interface state leaves ([schema](https://www.openconfig.net/projects/models/schemadocs/yangdoc/openconfig-interfaces.html)). This records the generic test expectation; it does not imply that every vendor's OCIF implementation exposes the leaves. For Cisco 8808, the platform exception marks the rate paths unsupported across IOS XR versions.
 
 ### gNMI-1.28.4: Validate Interfaces_State_Subinterface
 
