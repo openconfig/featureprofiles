@@ -1,4 +1,4 @@
-# gNMI-1.21: Integrated Circuit Hardware Resource Utilization Test
+# GNMI-1.21: Integrated Circuit Hardware Resource Utilization Test
 
 ## Summary
 

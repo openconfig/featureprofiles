@@ -1,4 +1,4 @@
-# gNMI-1.11: Telemetry: Interface Packet Counters
+# GNMI-1.11: Telemetry: Interface Packet Counters
 
 ## Summary
 

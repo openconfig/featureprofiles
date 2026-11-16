@@ -1,4 +1,4 @@
-# gNMI-1.16: Fabric redundnacy test
+# GNMI-1.16: Fabric redundnacy test
 
 ## Summary
 - collect inventory data for each fabric card

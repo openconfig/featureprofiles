@@ -2,7 +2,7 @@
 # proto-message: Metadata
 
 uuid: "4632f134-71e6-46a2-ac2a-b1ff6a3444e6"
-plan_id: "Credentialz-2"
+plan_id: "CREDENTIALZ-2"
 description: "SSH Password Login Disallowed"
 testbed: TESTBED_DUT
 

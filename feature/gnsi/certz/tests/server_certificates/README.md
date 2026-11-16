@@ -1,4 +1,4 @@
-# Certz-2: Server Certificate
+# CERTZ-2: Server Certificate
 
 ## Summary
 

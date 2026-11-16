@@ -1,4 +1,4 @@
-# gNMI-3: union_replace
+# GNMI-3: union_replace
 
 ## Summary
 

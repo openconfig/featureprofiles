@@ -1,4 +1,4 @@
-# gNMI-1.1: cli Origin
+# GNMI-1.1: cli Origin
 
 ## Summary
 

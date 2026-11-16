@@ -1,4 +1,4 @@
-# gNMI-1.29: Pipeline Counters Drops Test
+# GNMI-1.29: Pipeline Counters Drops Test
 
 ## Summary
 Verify that NPU (integrated-circuit) pipeline drop counters are reported correctly via telemetry and correctly increment under conditions that induce the respective drops.

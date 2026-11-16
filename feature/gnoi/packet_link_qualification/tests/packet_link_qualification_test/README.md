@@ -1,4 +1,4 @@
-# gNOI-2.1: Packet-based Link Qualification on 100G and 400G links
+# GNOI-2.1: Packet-based Link Qualification on 100G and 400G links
 
 ## Summary
 

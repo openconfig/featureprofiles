@@ -1,4 +1,4 @@
-# gNOI-3.1: Complete Chassis Reboot
+# GNOI-3.1: Complete Chassis Reboot
 
 ## Summary
 

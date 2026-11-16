@@ -1,4 +1,4 @@
-# Certz-5: Trust Bundle Rotation
+# CERTZ-5: Trust Bundle Rotation
 
 ## Summary
 

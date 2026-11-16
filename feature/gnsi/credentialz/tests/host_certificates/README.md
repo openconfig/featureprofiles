@@ -1,4 +1,4 @@
-# Credentialz-3: Host Certificates
+# CREDENTIALZ-3: Host Certificates
 
 ## Summary
 

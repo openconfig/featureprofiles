@@ -1,4 +1,4 @@
-# gNMI-1.15: Set Requests
+# GNMI-1.15: Set Requests
 
 ## Summary
 

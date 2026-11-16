@@ -2,7 +2,7 @@
 # proto-message: Metadata
 
 uuid: "ef804c64-84dd-432d-ab38-630e9c82b42d"
-plan_id: "gNMI-1.18"
+plan_id: "GNMI-1.18"
 description: "gNMI subscribe with sample mode for backplane capacity counters"
 testbed: TESTBED_DUT
 platform_exceptions: {

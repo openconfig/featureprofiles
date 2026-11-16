@@ -1,4 +1,4 @@
-# Health-1.1: Generic Health Check
+# HEALTH-1.1: Generic Health Check
 
 ## Summary
 

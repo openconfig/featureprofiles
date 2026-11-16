@@ -1,4 +1,4 @@
-# attestz-1: General enrollz and attestz tests
+# ATTESTZ-1: General enrollz and attestz tests
 
 ## Summary
 

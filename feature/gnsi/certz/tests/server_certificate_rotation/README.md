@@ -1,4 +1,4 @@
-# Certz-3: Server Certificate Rotation
+# CERTZ-3: Server Certificate Rotation
 
 ## Summary
 

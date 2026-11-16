@@ -1,4 +1,4 @@
-# System-1.5: System software-version test
+# SYSTEM-1.5: System software-version test
 
 ## Summary
 

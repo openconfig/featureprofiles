@@ -1,4 +1,4 @@
-# System-1.3: System hostname test
+# SYSTEM-1.3: System hostname test
 
 ## Summary
 

@@ -1,4 +1,4 @@
-# gNMI-1.22: Controller card port attributes
+# GNMI-1.22: Controller card port attributes
 
 ## Summary
 

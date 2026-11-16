@@ -27,8 +27,10 @@ var (
 	featureDir   = flag.String("feature_dir", "feature", "Path to feature directory")
 )
 
-// planIDRE matches valid test plan IDs such as "RT-1.1", "gNMI-1.10", "TE-16.1.2" or "MGT-1".
-var planIDRE = regexp.MustCompile(`^[A-Za-z0-9]+-[0-9]+(\.[0-9]+)*$`)
+// planIDRE matches valid test plan IDs such as "RT-1.1", "GNMI-1.10", "P4RT-3.21"
+// or "MGT-1". The prefix must be upper case letters or digits, followed by a
+// hyphen, a major number and at most one optional minor number.
+var planIDRE = regexp.MustCompile(`^[A-Z0-9]+-[0-9]+(?:\.[0-9]+)?$`)
 
 func main() {
 	flag.Parse()

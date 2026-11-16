@@ -1,4 +1,4 @@
-# gNMI-1.23: Telemetry: Aggregate Interface Counters
+# GNMI-1.23: Telemetry: Aggregate Interface Counters
 
 ## Summary
 

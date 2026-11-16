@@ -1,4 +1,4 @@
-# gNOI-7.1: BootConfig
+# GNOI-7.1: BootConfig
 
 ## Summary
 
