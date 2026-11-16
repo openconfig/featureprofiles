@@ -297,7 +297,7 @@ func ConfigureResourceUtilizationThreshold(t *testing.T, dut *ondatra.DUTDevice,
 		t.Logf("Note: hardware resource utilization telemetry is not populated on %s; skipping /system/utilization/resources/resource[name=%s]/config", dut.Name(), resName)
 		return res
 	}
-	c, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.ID()))
+	c, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.Name()))
 	if err != nil {
 		t.Logf("Note: unable to create ygnmi client for resource threshold %s: %v", resName, err)
 		return res
@@ -325,7 +325,7 @@ func DeleteResourceUtilizationThreshold(t *testing.T, dut *ondatra.DUTDevice, re
 	if unsupported {
 		return
 	}
-	c, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.ID()))
+	c, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.Name()))
 	if err != nil {
 		t.Logf("Note: unable to create ygnmi client to delete resource threshold %s: %v", resourceName, err)
 		return
@@ -352,7 +352,7 @@ func LookupResourceUtilizationThresholdState(t *testing.T, dut *ondatra.DUTDevic
 	if unsupported {
 		return nil, false
 	}
-	c, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.ID()))
+	c, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.Name()))
 	if err != nil {
 		return nil, false
 	}

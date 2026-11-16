@@ -34,7 +34,28 @@ import (
 var (
 	cpComponentCacheMu sync.Mutex
 	cpComponentCache   = make(map[string][]string)
+	ygnmiClientCache   = make(map[string]*ygnmi.Client)
 )
+
+func getYGNMIClient(t testing.TB, dut *ondatra.DUTDevice) (*ygnmi.Client, error) {
+	t.Helper()
+	dutName := dut.Name()
+	cpComponentCacheMu.Lock()
+	if cached, ok := ygnmiClientCache[dutName]; ok {
+		cpComponentCacheMu.Unlock()
+		return cached, nil
+	}
+	cpComponentCacheMu.Unlock()
+
+	c, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dutName))
+	if err != nil {
+		return nil, err
+	}
+	cpComponentCacheMu.Lock()
+	ygnmiClientCache[dutName] = c
+	cpComponentCacheMu.Unlock()
+	return c, nil
+}
 
 // ProcessSample holds a point-in-time snapshot of a user-space system process's
 // identity, uptime, memory, and CPU telemetry from [OC-Group-A] (/system/processes/process/state).
@@ -100,20 +121,7 @@ func isTransientHelperProcess(name string) bool {
 // keyed by PID. Kernel threads reporting memory-usage == 0 and transient shell/CLI helpers are filtered out.
 func CollectUserSpaceProcesses(t testing.TB, dut *ondatra.DUTDevice) map[uint64]ProcessSample {
 	t.Helper()
-	var procs []*oc.System_Process
-	if c, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.ID())); err == nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
-		vals, _ := ygnmi.LookupAll(ctx, c, gnmi.OC().System().ProcessAny().State())
-		cancel()
-		for _, v := range vals {
-			if proc, ok := v.Val(); ok && proc != nil {
-				procs = append(procs, proc)
-			}
-		}
-	}
-	if len(procs) == 0 {
-		procs = gnmi.GetAll[*oc.System_Process](t, dut, gnmi.OC().System().ProcessAny().State())
-	}
+	procs := gnmi.GetAll[*oc.System_Process](t, dut, gnmi.OC().System().ProcessAny().State())
 	samples := make(map[uint64]ProcessSample, len(procs))
 	for _, proc := range procs {
 		if proc == nil || proc.GetMemoryUsage() == 0 || isTransientHelperProcess(proc.GetName()) {
@@ -305,7 +313,10 @@ func NewInterfaceCounterStream(t testing.TB, dut *ondatra.DUTDevice, portNames [
 	}
 	t.Cleanup(s.Close)
 
-	c, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.ID()))
+	if !deviations.InterfaceCountersUpdateDelayed(dut) {
+		return s
+	}
+	c, err := getYGNMIClient(t, dut)
 	if err != nil {
 		return s
 	}
@@ -386,7 +397,7 @@ func (s *InterfaceCounterStream) SnapshotCounters(t testing.TB, dut *ondatra.DUT
 	s.mu.Unlock()
 
 	if tryOnce {
-		if c, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.ID())); err == nil {
+		if c, err := getYGNMIClient(t, dut); err == nil {
 			dc := gnmi.OC()
 			for _, pName := range portNames {
 				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -480,6 +491,29 @@ func findControlPlaneComponentNames(t *testing.T, dut *ondatra.DUTDevice) []stri
 		}
 	}
 
+	utilVals := gnmi.LookupAll(t, dut, gnmi.OC().ComponentAny().Memory().Utilized().State())
+	if len(utilVals) > 0 {
+		hasMemory := make(map[string]bool, len(utilVals))
+		for _, uv := range utilVals {
+			if val, ok := uv.Val(); ok && val > 0 {
+				if elems := uv.Path.GetElem(); len(elems) > 1 {
+					if name := elems[1].GetKey()["name"]; name != "" {
+						hasMemory[name] = true
+					}
+				}
+			}
+		}
+		var filtered []string
+		for _, name := range names {
+			if hasMemory[name] {
+				filtered = append(filtered, name)
+			}
+		}
+		if len(filtered) > 0 {
+			names = filtered
+		}
+	}
+
 	cpComponentCacheMu.Lock()
 	cpComponentCache[dutName] = names
 	cpComponentCacheMu.Unlock()
@@ -511,8 +545,8 @@ func CollectControlPlaneMemory(t *testing.T, dut *ondatra.DUTDevice) map[string]
 	}
 	var root *oc.Root
 	var ok bool
-	if c, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.ID())); err == nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+	if c, err := getYGNMIClient(t, dut); err == nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		if val, lErr := ygnmi.Lookup(ctx, c, batch.State()); lErr == nil && val != nil {
 			root, ok = val.Val()
 		}
