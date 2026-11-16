@@ -201,25 +201,29 @@ func allTestFilePaths(scratchDir string) []string {
 }
 
 // resolveTestLoopback returns a non-management loopback interface name and
-// subinterface index on the DUT. When cli_takes_precedence_over_oc is enabled
-// (e.g. Juniper, where entity-naming only supports loopback index 0), it reuses
-// the active non-zero subinterface on lo0 via gnmi.Update without replacing the
-// subinterface; otherwise it selects a dedicated non-zero loopback interface
-// (index 10, e.g. Loopback10 / lo10) so Loopback0 / lo0 in-band management is
-// never modified.
-func resolveTestLoopback(t *testing.T, dut *ondatra.DUTDevice) (string, uint32) {
+// subinterface index on the DUT, and whether a test loopback should be
+// configured. When cli_takes_precedence_over_oc is enabled (e.g. Juniper, where
+// entity-naming only supports loopback index 0 and only one loopback unit is
+// permitted per routing instance), it reuses an active non-zero subinterface on
+// lo0 via gnmi.Update without replacing the subinterface; if no such
+// subinterface exists, the test loopback configuration is skipped, since the
+// gNOI File checks do not depend on it. Otherwise it selects a dedicated
+// non-zero loopback interface (index 10, e.g. Loopback10 / lo10) so
+// Loopback0 / lo0 in-band management is never modified.
+func resolveTestLoopback(t *testing.T, dut *ondatra.DUTDevice) (string, uint32, bool) {
 	t.Helper()
 	if !deviations.CLITakesPrecedenceOverOC(dut) {
-		return netutil.LoopbackInterface(t, dut, testLoopbackIndex), loopbackSubintf
+		return netutil.LoopbackInterface(t, dut, testLoopbackIndex), loopbackSubintf, true
 	}
 	lbIntfName := netutil.LoopbackInterface(t, dut, defaultLoopbackIndex)
 	for _, subVal := range gnmi.LookupAll(t, dut, gnmi.OC().Interface(lbIntfName).SubinterfaceAny().Index().State()) {
 		if idx, ok := subVal.Val(); ok && idx > 0 {
 			t.Logf("Resolved active master loopback subinterface on %s: index=%d", lbIntfName, idx)
-			return lbIntfName, idx
+			return lbIntfName, idx, true
 		}
 	}
-	return lbIntfName, testLoopbackIndex
+	t.Logf("No active non-zero subinterface on %s; skipping test loopback configuration (an additional loopback unit cannot be created on this platform)", lbIntfName)
+	return lbIntfName, 0, false
 }
 
 // configureLoopbackInterface pushes the dual-stack loopback configuration on
@@ -270,12 +274,11 @@ func resolveTargetHostname(t *testing.T, dut *ondatra.DUTDevice) string {
 	return dutHostname
 }
 
-// revertLoopbackAndHostname restores the pre-test loopback and hostname
-// configuration on the DUT without ever replacing or deleting Loopback0 / lo0.
-// The dedicated test loopback interface is restored to its original
-// configuration if it existed before the test, and deleted only if it was
-// created by the test.
-func revertLoopbackAndHostname(t *testing.T, dut *ondatra.DUTDevice, lbIntfName string, lbSubIdx uint32, origLoIntf *ygnmi.Value[*oc.Interface], origLoSub *ygnmi.Value[*oc.Interface_Subinterface], targetHostname string) {
+// revertLoopback restores the pre-test loopback configuration on the DUT
+// without ever replacing or deleting Loopback0 / lo0. The dedicated test
+// loopback interface is restored to its original configuration if it existed
+// before the test, and deleted only if it was created by the test.
+func revertLoopback(t *testing.T, dut *ondatra.DUTDevice, lbIntfName string, lbSubIdx uint32, origLoIntf *ygnmi.Value[*oc.Interface], origLoSub *ygnmi.Value[*oc.Interface_Subinterface]) {
 	t.Helper()
 	prevSub, subExisted := origLoSub.Val()
 	subExisted = subExisted && prevSub != nil
@@ -286,24 +289,21 @@ func revertLoopbackAndHostname(t *testing.T, dut *ondatra.DUTDevice, lbIntfName 
 			gnmi.Delete(t, dut, gnmi.OC().Interface(lbIntfName).Subinterface(lbSubIdx).Ipv4().Address(loopbackIPv4).Config())
 			gnmi.Delete(t, dut, gnmi.OC().Interface(lbIntfName).Subinterface(lbSubIdx).Ipv6().Address(loopbackIPv6).Config())
 		}
-	} else {
-		if deviations.ExplicitInterfaceInDefaultVRF(dut) && !subExisted {
-			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Interface(fmt.Sprintf("%s.%d", lbIntfName, lbSubIdx)).Config())
-		}
-		if prevIntf, ok := origLoIntf.Val(); ok && prevIntf != nil {
-			gnmi.Replace(t, dut, gnmi.OC().Interface(lbIntfName).Config(), prevIntf)
-		} else {
-			gnmi.Delete(t, dut, gnmi.OC().Interface(lbIntfName).Config())
-		}
+		return
 	}
-	if targetHostname != "" {
-		gnmi.Replace(t, dut, gnmi.OC().System().Hostname().Config(), targetHostname)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) && !subExisted {
+		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Interface(fmt.Sprintf("%s.%d", lbIntfName, lbSubIdx)).Config())
+	}
+	if prevIntf, ok := origLoIntf.Val(); ok && prevIntf != nil {
+		gnmi.Replace(t, dut, gnmi.OC().Interface(lbIntfName).Config(), prevIntf)
+	} else {
+		gnmi.Delete(t, dut, gnmi.OC().Interface(lbIntfName).Config())
 	}
 }
 
-// awaitEnvironmentConvergence verifies hostname, current-datetime, and loopback
-// state convergence via gNMI.
-func awaitEnvironmentConvergence(t *testing.T, dut *ondatra.DUTDevice, lbIntfName string, lbSubIdx uint32, targetHostname string) {
+// awaitEnvironmentConvergence verifies hostname and current-datetime state
+// convergence via gNMI.
+func awaitEnvironmentConvergence(t *testing.T, dut *ondatra.DUTDevice, targetHostname string) {
 	t.Helper()
 	if deviations.CLITakesPrecedenceOverOC(dut) {
 		if gotHost := gnmi.Get(t, dut, gnmi.OC().System().Hostname().Config()); gotHost != targetHostname {
@@ -319,7 +319,12 @@ func awaitEnvironmentConvergence(t *testing.T, dut *ondatra.DUTDevice, lbIntfNam
 	}).Await(t); !ok {
 		t.Fatalf("Timed out waiting for non-empty /system/state/current-datetime")
 	}
+}
 
+// awaitLoopbackConvergence verifies test loopback oper-status (or enabled) and
+// dual-stack address state convergence via gNMI.
+func awaitLoopbackConvergence(t *testing.T, dut *ondatra.DUTDevice, lbIntfName string, lbSubIdx uint32) {
+	t.Helper()
 	if _, ok := gnmi.Watch(t, dut, gnmi.OC().Interface(lbIntfName).OperStatus().State(), watchTimeout, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
 		v, present := val.Val()
 		return present && v == oc.Interface_OperStatus_UP
@@ -348,9 +353,13 @@ func setupEnvironment(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice,
 	t.Log("Test environment setup - Step 1: Configure baseline DUT hostname and dual-stack loopback interface via gNMI.Set")
 
 	targetHostname := resolveTargetHostname(t, dut)
-	lbIntfName, lbSubIdx := resolveTestLoopback(t, dut)
-	origLoIntf := gnmi.LookupConfig(t, dut, gnmi.OC().Interface(lbIntfName).Config())
-	origLoSub := gnmi.LookupConfig(t, dut, gnmi.OC().Interface(lbIntfName).Subinterface(lbSubIdx).Config())
+	lbIntfName, lbSubIdx, lbConfigured := resolveTestLoopback(t, dut)
+	var origLoIntf *ygnmi.Value[*oc.Interface]
+	var origLoSub *ygnmi.Value[*oc.Interface_Subinterface]
+	if lbConfigured {
+		origLoIntf = gnmi.LookupConfig(t, dut, gnmi.OC().Interface(lbIntfName).Config())
+		origLoSub = gnmi.LookupConfig(t, dut, gnmi.OC().Interface(lbIntfName).Subinterface(lbSubIdx).Config())
+	}
 	scratchDir := resolveScratchDir(ctx, t, fc)
 	cleanupPaths := allTestFilePaths(scratchDir)
 
@@ -365,7 +374,12 @@ func setupEnvironment(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice,
 		}
 
 		t.Log("Cleanup - Step 2: Reverting DUT loopback interface and hostname configuration to pre-test baseline")
-		revertLoopbackAndHostname(t, dut, lbIntfName, lbSubIdx, origLoIntf, origLoSub, targetHostname)
+		if lbConfigured {
+			revertLoopback(t, dut, lbIntfName, lbSubIdx, origLoIntf, origLoSub)
+		}
+		if targetHostname != "" {
+			gnmi.Replace(t, dut, gnmi.OC().System().Hostname().Config(), targetHostname)
+		}
 
 		t.Log("Cleanup - Step 3: Verifying DUT management plane and storage mount points remain healthy")
 		if _, ok := gnmi.Watch(t, dut, gnmi.OC().System().CurrentDatetime().State(), watchTimeout, func(val *ygnmi.Value[string]) bool {
@@ -379,10 +393,15 @@ func setupEnvironment(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice,
 
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	gnmi.Replace(t, dut, gnmi.OC().System().Hostname().Config(), targetHostname)
-	configureLoopbackInterface(t, dut, lbIntfName, lbSubIdx)
+	if lbConfigured {
+		configureLoopbackInterface(t, dut, lbIntfName, lbSubIdx)
+	}
 
 	t.Log("Test environment setup - Step 2: Event-driven state convergence via gnmi.Watch (gNMI.Subscribe ON_CHANGE)")
-	awaitEnvironmentConvergence(t, dut, lbIntfName, lbSubIdx, targetHostname)
+	awaitEnvironmentConvergence(t, dut, targetHostname)
+	if lbConfigured {
+		awaitLoopbackConvergence(t, dut, lbIntfName, lbSubIdx)
+	}
 	verifyMountPointsTelemetry(t, dut)
 
 	t.Log("Test environment setup - Step 3: Pre-test scratch file hygiene via gnoi.file.File.Remove and File.Stat")
