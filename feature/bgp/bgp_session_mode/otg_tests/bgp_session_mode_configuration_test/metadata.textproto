@@ -21,6 +21,7 @@ platform_exceptions:  {
   }
   deviations:  {
     default_network_instance:  "default"
+    default_bgp_instance_name: "bgp"
   }
 }
 platform_exceptions:  {
