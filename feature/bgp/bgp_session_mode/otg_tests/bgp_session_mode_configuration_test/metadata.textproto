@@ -17,6 +17,14 @@ platform_exceptions:  {
 }
 platform_exceptions:  {
   platform:  {
+    vendor:  OPENCONFIG
+  }
+  deviations:  {
+    default_network_instance:  "default"
+  }
+}
+platform_exceptions:  {
+  platform:  {
     vendor:  NOKIA
   }
   deviations:  {
