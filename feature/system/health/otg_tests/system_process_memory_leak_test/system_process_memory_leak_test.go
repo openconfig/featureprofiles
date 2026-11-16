@@ -1114,8 +1114,11 @@ func runHealth136RepeatedEgressInterfaceFlapping(t *testing.T, env *testEnvironm
 	intfPath := gnmi.OC().Interface(port1Name)
 
 	// Register deferred cleanup to restore port1 enabled = true.
+	portRestored := false
 	t.Cleanup(func() {
-		gnmi.Replace(t, env.dut, intfPath.Enabled().Config(), true)
+		if !portRestored {
+			gnmi.Replace(t, env.dut, intfPath.Enabled().Config(), true)
+		}
 	})
 
 	// Health-1.3.6 Step 1 & Step 2: Flap port1 across 5 consecutive cycles.
@@ -1163,6 +1166,7 @@ func runHealth136RepeatedEgressInterfaceFlapping(t *testing.T, env *testEnvironm
 			ecmp3WayTargetPct,
 		)
 	}
+	portRestored = true
 
 	// Health-1.3.6 Step 3: Query [OC-Group-A] and [OC-Group-B] after the 5 flap cycles and confirm
 	// persistent daemon memory-usage returns within <= 5% (or <= 10 MB) and control-plane
@@ -1190,8 +1194,11 @@ func runHealth137AbruptBGPPeerSessionReset(t *testing.T, env *testEnvironment) {
 	perResetSnapshots = append(perResetSnapshots, preResetProcs)
 
 	// Register deferred cleanup to restore OTG Peer 2 BGP peer state to UP.
+	peerRestored := false
 	t.Cleanup(func() {
-		setOTGPeerState(t, env.ate, []string{peer2.peerV4Name, peer2.peerV6Name}, gosnappi.StateProtocolBgpPeersState.UP)
+		if !peerRestored {
+			setOTGPeerState(t, env.ate, []string{peer2.peerV4Name, peer2.peerV6Name}, gosnappi.StateProtocolBgpPeersState.UP)
+		}
 	})
 
 	// Health-1.3.7 Step 1 & Step 2: Trigger 3 consecutive BGP session resets on Peer 2 from the ATE
@@ -1229,6 +1236,7 @@ func runHealth137AbruptBGPPeerSessionReset(t *testing.T, env *testEnvironment) {
 
 		perResetSnapshots = append(perResetSnapshots, system.CollectUserSpaceProcesses(t, env.dut))
 	}
+	peerRestored = true
 
 	// Health-1.3.7 Step 3: Query [OC-Group-A] via a single wildcard gnmi.GetAll and confirm
 	// persistent daemon memory-usage remains within <= 5% (or <= 10 MB) of the pre-reset baseline

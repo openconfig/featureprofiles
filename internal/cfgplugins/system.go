@@ -184,10 +184,11 @@ func functionalTranslatorOpts(t *testing.T, ftName string) []ygnmi.Option {
 	return []ygnmi.Option{ygnmi.WithFT(ft)}
 }
 
+var npuRegex = regexp.MustCompile(`(NPU)(\d+)$`)
+
 func ftCompatibleResourceAndComponent(resourceName, componentName string) (string, string) {
 	ftResourceName := strings.ReplaceAll(resourceName, "_", "-")
-	re := regexp.MustCompile(`(NPU)(\d+)$`)
-	ftComponent := re.ReplaceAllString(componentName, "$1-$2")
+	ftComponent := npuRegex.ReplaceAllString(componentName, "$1-$2")
 	return ftResourceName, ftComponent
 }
 
