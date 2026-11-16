@@ -7,7 +7,7 @@
     (WRED) `queue-management-profile` configurations and enforces referential
     integrity when profiles are assigned to or deleted from interface output
     queues.
-*   **Interfaces Used:** gNMI (`gNMI.Set`, `gNMI.Get`, `gNMI.Subscribe`).
+*   **Interfaces Used:** gNMI (`gNMI.Set`, `gNMI.Subscribe`).
 *   **Expected Outcome Summary:**
     *   Invalid WRED/ECN profile parameters (`min-threshold > max-threshold` and
         out-of-range `max-drop-probability-percent`) are rejected with a gNMI
@@ -73,7 +73,8 @@
         and
         `/qos/interfaces/interface/input/classifiers/classifier/config/type`.
     *   Verify classifier attachment using gNMI `Subscribe` (`Watch`) on
-        `/qos/interfaces/interface/input/classifiers/classifier/state/name`.
+        `/qos/interfaces/interface/input/classifiers/classifier/state/name` and
+        `/qos/interfaces/interface/input/classifiers/classifier/state/type`.
 *   Step 4 - Baseline Profile Template for Negative Tests: Each negative profile
     test (`DP-1.20.1` and `DP-1.20.2`) starts with all mandatory leaves
     populated from the Baseline Profile Defaults in the Topology table and
@@ -288,7 +289,8 @@ queue binding.
                 "enable-ecn": true,
                 "max-drop-probability-percent": 100,
                 "max-threshold": "163840",
-                "min-threshold": "81920"
+                "min-threshold": "81920",
+                "weight": 0
               }
             }
           }
@@ -309,10 +311,35 @@ queue binding.
 }
 ```
 
-*   Step 2 - Confirm `ECN_VALID_PROFILE` is active on `Ethernet1` queue `0`
-    using gNMI `Subscribe` (`Watch`) on
-    `/qos/interfaces/interface[interface-id=Ethernet1]/output/queues/queue[name=0]/state/queue-management-profile`
-    (`== ECN_VALID_PROFILE`).
+*   Step 2 - Confirm `ECN_VALID_PROFILE` and its `Ethernet1` queue `0` binding
+    are active using gNMI `Subscribe` (`Watch`):
+    *   Verify
+        `/qos/queue-management-profiles/queue-management-profile[name=ECN_VALID_PROFILE]/state/name`
+        == `ECN_VALID_PROFILE`
+    *   Verify
+        `/qos/queue-management-profiles/queue-management-profile[name=ECN_VALID_PROFILE]/wred/uniform/state/min-threshold`
+        == `81920`
+    *   Verify
+        `/qos/queue-management-profiles/queue-management-profile[name=ECN_VALID_PROFILE]/wred/uniform/state/max-threshold`
+        == `163840`
+    *   Verify
+        `/qos/queue-management-profiles/queue-management-profile[name=ECN_VALID_PROFILE]/wred/uniform/state/enable-ecn`
+        == `true`
+    *   Verify
+        `/qos/queue-management-profiles/queue-management-profile[name=ECN_VALID_PROFILE]/wred/uniform/state/weight`
+        == `0`
+    *   Verify
+        `/qos/queue-management-profiles/queue-management-profile[name=ECN_VALID_PROFILE]/wred/uniform/state/drop`
+        == `false`
+    *   Verify
+        `/qos/queue-management-profiles/queue-management-profile[name=ECN_VALID_PROFILE]/wred/uniform/state/max-drop-probability-percent`
+        == `100`
+    *   Verify
+        `/qos/interfaces/interface[interface-id=Ethernet1]/output/queues/queue[name=0]/state/name`
+        == `0`
+    *   Verify
+        `/qos/interfaces/interface[interface-id=Ethernet1]/output/queues/queue[name=0]/state/queue-management-profile`
+        == `ECN_VALID_PROFILE`
 *   Step 3 - While `ECN_VALID_PROFILE` remains applied to `Ethernet1` queue `0`,
     attempt to delete
     `/qos/queue-management-profiles/queue-management-profile[name=ECN_VALID_PROFILE]`
@@ -337,7 +364,20 @@ queue binding.
     `/qos/queue-management-profiles/queue-management-profile[name=ECN_VALID_PROFILE]`.
 *   Step 4 - Verify via gNMI `Subscribe` (`Watch`) on
     `/qos/queue-management-profiles/queue-management-profile[name=ECN_VALID_PROFILE]/state/name`
-    that the profile is removed and the DUT is restored to its baseline state.
+    that the profile is removed.
+*   Step 5 - Revert the setup QoS and interface configurations from `Test
+    environment setup` using gNMI `Set` (`Delete`) to restore the DUT
+    completely to its baseline state:
+    *   Detach and delete input classifiers `dscp_based_classifier_ipv4` and
+        `dscp_based_classifier_ipv6` from
+        `/qos/interfaces/interface/input/classifiers/classifier` on `Ethernet1`
+        and `Ethernet2` and from `/qos/classifiers/classifier`.
+    *   Delete forwarding groups `target-group-BE1` and `target-group-AF1` from
+        `/qos/forwarding-groups/forwarding-group` and queues `0` and `1` from
+        `/qos/queues/queue`.
+    *   Delete the QoS interface entries (`Ethernet1` and `Ethernet2`) under
+        `/qos/interfaces/interface` and revert the IPv4 and IPv6 interface
+        address configurations on `Ethernet1` and `Ethernet2`.
 
 ## OpenConfig Path and RPC Coverage
 
@@ -377,7 +417,6 @@ rpcs:
   gnmi:
     gNMI.Set:
       Replace:
-    gNMI.Get:
     gNMI.Subscribe:
       on_change: true
 ```
