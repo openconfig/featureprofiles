@@ -221,7 +221,7 @@ Verify:
 
 Verify:
 
-* Device Health and soak for at least 6 hrs.
+* TODO: Device Health and soak for at least 6 hrs.
 
 ## Canonical OC  
 
@@ -803,6 +803,7 @@ paths:
     /oam/cfm/domains/maintenance-domain/state/md-id:
     /oam/cfm/domains/maintenance-domain/maintenance-associations/maintenance-association/state/ma-id:
     /oam/cfm/domains/maintenance-domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/state/local-mep-id:
+    /oam/cfm/domains/maintenance-domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/state/present-rdi:
     /oam/cfm/domains/maintenance-domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/remote-meps/remote-mep/state/id:
     /oam/cfm/performance-measurement-profiles-global/performance-measurement-profile/state/profile-name:
     /oam/cfm/domains/maintenance-domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/pm-profiles/pm-profile/state/delay-measurement-state/frame-delay-two-way-average:

@@ -347,24 +347,12 @@ const (
 
 func (tc *testCase) verifyAggID(t *testing.T, dp *ondatra.Port) {
 	dip := gnmi.OC().Interface(dp.Name())
-	di := gnmi.Get(t, tc.dut, dip.State())
-	fptest.LogQuery(t, dp.String()+" before Await", dip.State(), di)
-
-	if lagID := di.GetEthernet().GetAggregateId(); lagID != tc.aggID {
-		t.Errorf("%s LagID got %v, want %v", dp, lagID, tc.aggID)
-	}
+	gnmi.Await(t, tc.dut, dip.Ethernet().AggregateId().State(), time.Minute, tc.aggID)
 }
 
 func (tc *testCase) verifyInterfaceDUT(t *testing.T, dp *ondatra.Port) {
 	dip := gnmi.OC().Interface(dp.Name())
-	di := gnmi.Get(t, tc.dut, dip.State())
-	fptest.LogQuery(t, dp.String()+" before Await", dip.State(), di)
-
-	if got := di.GetAdminStatus(); got != adminUp {
-		t.Errorf("%s admin-status got %v, want %v", dp, got, adminUp)
-	}
-
-	// LAG members may fall behind, so wait for them to be up.
+	gnmi.Await(t, tc.dut, dip.AdminStatus().State(), time.Minute, adminUp)
 	gnmi.Await(t, tc.dut, dip.OperStatus().State(), time.Minute, opUp)
 }
 
@@ -393,22 +381,19 @@ func (tc *testCase) verifyDUT(t *testing.T) {
 func (tc *testCase) verifyATE(t *testing.T) {
 	ap := tc.atePorts[0]
 	// State for the interface.
-	time.Sleep(10 * time.Second)
-	otgutils.LogLAGMetrics(t, tc.ate.OTG(), tc.top)
+	gnmi.Await(t, tc.ate.OTG(), gnmi.OTG().Port(ap.ID()).Link().State(), time.Minute, otgtelemetry.Port_Link_UP)
 
+	t.Logf("Checking if LAG is up on OTG")
+	gnmi.Await(t, tc.ate.OTG(), gnmi.OTG().Lag(ateDst.Name).OperStatus().State(), time.Minute, otgtelemetry.Lag_OperStatus_UP)
+
+	// Ensure ARP and NDP resolve so that initial packet counters (in/out pkts) are non-zero and exported by the NOS.
+	otgutils.WaitForARP(t, tc.ate.OTG(), tc.top, "IPv4")
+	otgutils.WaitForARP(t, tc.ate.OTG(), tc.top, "IPv6")
+
+	otgutils.LogLAGMetrics(t, tc.ate.OTG(), tc.top)
 	if tc.lagType == oc.IfAggregate_AggregationType_LACP {
 		otgutils.LogLACPMetrics(t, tc.ate.OTG(), tc.top)
 	}
-	portMetrics := gnmi.Get(t, tc.ate.OTG(), gnmi.OTG().Port(ap.ID()).State())
-	if portMetrics.GetLink() != otgtelemetry.Port_Link_UP {
-		t.Errorf("%s oper-status got %v, want %v", ap.ID(), portMetrics.GetLink(), otgtelemetry.Port_Link_UP)
-	}
-	t.Logf("Checking if LAG is up on OTG")
-	gnmi.Watch(t, tc.ate.OTG(), gnmi.OTG().Lag(ateDst.Name).OperStatus().State(), time.Minute, func(val *ygnmi.Value[otgtelemetry.E_Lag_OperStatus]) bool {
-		state, present := val.Val()
-		return present && state.String() == "UP"
-	}).Await(t)
-
 }
 
 // sortPorts sorts the ports by the testbed port ID.
@@ -567,7 +552,6 @@ func TestAggregateCounters(t *testing.T) {
 
 	t.Run(fmt.Sprintf("LagType=%s, Iteration=%d", lagType, 1), func(t *testing.T) {
 		tc.configureDUT(t)
-		time.Sleep(120 * time.Second)
 		t.Run("VerifyDUT", tc.verifyDUT)
 		tc.configureATE(t)
 		t.Run("VerifyATE", tc.verifyATE)
@@ -577,7 +561,6 @@ func TestAggregateCounters(t *testing.T) {
 	})
 	t.Run(fmt.Sprintf("LagType=%s, Iteration=%d", lagType, 2), func(t *testing.T) {
 		tc.configureDUT(t)
-		time.Sleep(120 * time.Second)
 		t.Run("VerifyDUT", tc.verifyDUT)
 		t.Run("VerifyATE", tc.verifyATE)
 		tc.TestAggregateCounters(t)

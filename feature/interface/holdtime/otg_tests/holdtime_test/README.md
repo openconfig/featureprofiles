@@ -42,8 +42,9 @@ Verify oper-state behaviour
   * DUT_LAST_CHANGE_TS = OTG_STATE_CHANGE_TS + 5000ms +/- tolerance; Use tolerance of 200ms.
 
 ### TC5 - short down:
+*   Configure hold-time down 5000ms and hold-time up 5000ms  
 *   Read timestamp of last oper-status change   
-*   Start sending Ethernet Remote Fault (RF) from OTG port-1 for **200ms** 
+*   Start sending Ethernet Remote Fault (RF) from OTG port-1 for **200ms** ; Use tolerance of 300ms
 *   Verify that DUT LAG:
   * oper-status is UP
   * oper-status last change time has NOT changed
@@ -66,7 +67,29 @@ rpcs:
     gNMI.Set:
     gNMI.Subscribe:
 ```
+## Canonical OC
 
+```json
+{
+  "interfaces": {
+    "interface": [
+      {
+        "name": "port-1",
+        "hold-time": {
+          "config": {
+            "up": 5000,
+            "down": 300
+          }
+        },
+        "state": {
+          "oper-status": "UP",
+          "last-change": "0"
+        }
+      }
+    ]
+  }
+}
+```
 ## Minimum DUT Platform Requirement
 
 FFF

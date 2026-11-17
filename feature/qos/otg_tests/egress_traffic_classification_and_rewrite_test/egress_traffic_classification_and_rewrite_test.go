@@ -632,9 +632,10 @@ func rewriteIpv6PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	intialpacket5 := verfiyClassifierPackets(t, dut, oc.Input_Classifier_Type_IPV6, "4")
 	intialpacket6 := verfiyClassifierPackets(t, dut, oc.Input_Classifier_Type_IPV6, "6")
 
-	startCapture(t, ate)
+	cs := otgutils.StartCapture(t, ate.OTG())
+	defer otgutils.StopCapture(t, ate.OTG(), cs)
 	trafficStartStop(t, dut, ate, topo)
-	stopCapture(t, ate)
+	otgutils.StopCapture(t, ate.OTG(), cs)
 
 	if enableMpls {
 		t.Logf("removing MPLS POP Action for IPv6 with DUT")
@@ -761,9 +762,10 @@ func rewriteIpv4PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	intialpacket5 := verfiyClassifierPackets(t, dut, oc.Input_Classifier_Type_IPV4, "4")
 	intialpacket6 := verfiyClassifierPackets(t, dut, oc.Input_Classifier_Type_IPV4, "6")
 
-	startCapture(t, ate)
+	cs := otgutils.StartCapture(t, ate.OTG())
+	defer otgutils.StopCapture(t, ate.OTG(), cs)
 	trafficStartStop(t, dut, ate, topo)
-	stopCapture(t, ate)
+	otgutils.StopCapture(t, ate.OTG(), cs)
 	if enableMpls {
 		t.Logf("removing MPLS POP Action for IPv4 with DUT")
 		cfgplugins.RemoveStaticMplsLspPopLabel(t, dut, "lsp-pop", mplsPopLabelv4, "", atePort2.IPv4, "ipv4")
@@ -818,22 +820,6 @@ func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flowName string) {
 	} else {
 		t.Errorf("Traffic validation failed for [%s] FramesTx: %d FramesRx: %d", flowName, framesTxV4, framesRxV4)
 	}
-}
-
-// startCapture starts the capture on the otg ports
-func startCapture(t *testing.T, ate *ondatra.ATEDevice) {
-	otg := ate.OTG()
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
-	otg.SetControlState(t, cs)
-}
-
-// stopCapture starts the capture on the otg ports
-func stopCapture(t *testing.T, ate *ondatra.ATEDevice) {
-	otg := ate.OTG()
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
-	otg.SetControlState(t, cs)
 }
 
 // enableCapture enable capture for the particular port

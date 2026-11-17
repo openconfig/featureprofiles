@@ -299,6 +299,10 @@ func mustNewGRIBIClient(t *testing.T, dut *ondatra.DUTDevice) *gribi.Client {
 }
 
 func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
+	if deviations.VendorPreConfigRequired(dut) {
+		cfgplugins.ConfigureDecapVrfSelection(t, dut)
+	}
+
 	d := gnmi.OC()
 	p1 := dut.Port(t, "port1")
 	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(p1, dutPort1, dut))
@@ -369,7 +373,7 @@ func configureBaseconfig(t *testing.T, dut *ondatra.DUTDevice) {
 func applyForwardingPolicy(t *testing.T, dut *ondatra.DUTDevice, ingressPort string) {
 	d := &oc.Root{}
 	interfaceID := ingressPort
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+	if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
 		interfaceID = ingressPort + ".0"
 	}
 
@@ -717,30 +721,10 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, ateConfig gosnap
 	otgutils.LogFlowMetrics(t, otg, args.topo)
 
 	for _, flow := range flows {
-		outPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State()))
-		inPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State()))
-		lossPct := ((outPkts - inPkts) * 100) / outPkts
-
-		t.Logf("Flow %s: OutPkts=%v, InPkts=%v, LossPct=%v", flow.Name(), outPkts, inPkts, lossPct)
-
-		if outPkts == 0 {
-			t.Fatalf("OutPkts for flow %s is 0, want > 0", flow.Name())
-		}
-
 		if match {
-			// Expecting traffic to pass (0% loss)
-			if got := lossPct; got > 0 {
-				t.Fatalf("Traffic validation FAILED: Flow %s has %v%% packet loss, want 0%%", flow.Name(), got)
-			} else {
-				t.Logf("Traffic validation PASSED: Flow %s has 0%% packet loss", flow.Name())
-			}
+			otgutils.ExpectedTrafficLoss(t, otg, flow.Name(), 0, 0)
 		} else {
-			// Expecting traffic to fail (100% loss)
-			if got := lossPct; got != 100 {
-				t.Fatalf("Traffic validation FAILED: Flow %s has %v%% packet loss, want 100%%", flow.Name(), got)
-			} else {
-				t.Logf("Traffic validation PASSED: Flow %s has 100%% packet loss", flow.Name())
-			}
+			otgutils.ExpectedTrafficLoss(t, otg, flow.Name(), 100, 100)
 		}
 		if match {
 			rxPorts := []string{ateConfig.Ports().Items()[1].Name(), ateConfig.Ports().Items()[2].Name(), ateConfig.Ports().Items()[3].Name()}

@@ -1,0 +1,46 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "ed72d555-ef0d-4808-aa1f-fab2d99c9149"
+plan_id: "TE-14.7"
+description: "gRIBI Scaling - full scale setup, target T3"
+testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    omit_l2_mtu: true
+    interface_enabled: true
+    default_network_instance: "default"
+    unreferenced_aft_fib_ack_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    no_mix_of_tagged_and_untagged_subinterfaces: true
+    explicit_interface_in_default_vrf: true
+    interface_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    no_mix_of_tagged_and_untagged_subinterfaces: true
+    interface_ref_interface_id_format: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    interface_ref_interface_id_format: true
+    pf_require_match_default_rule: true
+  }
+}
