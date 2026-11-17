@@ -499,12 +499,13 @@ func sendTrafficCapture(t *testing.T, ate *ondatra.ATEDevice, otgConfig gosnappi
 	ate.OTG().PushConfig(t, otgConfig)
 	ate.OTG().StartProtocols(t)
 	time.Sleep(60 * time.Second)
-	cs := packetvalidationhelpers.StartCapture(t, ate)
+	cs := otgutils.StartCapture(t, ate.OTG())
+	defer otgutils.StopCapture(t, ate.OTG(), cs)
 	ate.OTG().StartTraffic(t)
 	time.Sleep(60 * time.Second)
 	ate.OTG().StopTraffic(t)
 	time.Sleep(60 * time.Second)
-	packetvalidationhelpers.StopCapture(t, ate, cs)
+	otgutils.StopCapture(t, ate.OTG(), cs)
 }
 
 func verifyECMPLagBalance(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, flowName string) error {

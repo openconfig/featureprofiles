@@ -9,6 +9,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
+	"github.com/openconfig/featureprofiles/internal/telemetry/transceiver"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -101,9 +102,8 @@ func TestInventory(t *testing.T) {
 	verifyAllInventoryValues(t, p1StreamsStr, p1StreamsUnion)
 
 	// Disable or shut down the interface on the DUT.
-	for _, p := range dut.Ports() {
-		cfgplugins.ToggleInterface(t, dut, p.Name(), false)
-	}
+	toggleInterfaces := transceiver.ToggleInterfacesWithCleanup(t, dut, dut.Ports()...)
+	toggleInterfaces(false)
 	// Wait for channels to be down.
 	gnmi.Await(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_DOWN)
 	gnmi.Await(t, dut, gnmi.OC().Interface(dp2.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_DOWN)
@@ -113,9 +113,7 @@ func TestInventory(t *testing.T) {
 
 	time.Sleep(waitInterval)
 	// Re-enable interfaces.
-	for _, p := range dut.Ports() {
-		cfgplugins.ToggleInterface(t, dut, p.Name(), true)
-	}
+	toggleInterfaces(true)
 	// Wait for channels to be up.
 	gnmi.Await(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 	gnmi.Await(t, dut, gnmi.OC().Interface(dp2.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)

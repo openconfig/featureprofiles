@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/system"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
@@ -28,6 +29,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/ygnmi"
 )
 
@@ -167,4 +169,55 @@ func RestartRoutingProcess(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Skip("Skipping routing restart via gNOI due to deviation")
 	}
 	KillProcess(t, dut, ROUTING, SigTerm, true, true)
+}
+
+// SwitchControlProcessor triggers a switchover to the standby controller card
+// following the gNOI-3.3 supervisor switchover pattern. It returns false
+// without sending any RPC when the DUT reports fewer than two controller cards,
+// since a switchover is not possible. On success it returns true together with
+// the names of the previously active and previously standby controller cards.
+func SwitchControlProcessor(t *testing.T, dut *ondatra.DUTDevice) (switched bool, prevActive, prevStandby string) {
+	t.Helper()
+	cards := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
+	if len(cards) < 2 {
+		t.Logf("DUT reports %d controller card(s) %v; supervisor switchover is not applicable", len(cards), cards)
+		return false, "", ""
+	}
+	standby, active := components.FindStandbyControllerCard(t, dut, cards)
+	gnmi.Await(t, dut, gnmi.OC().Component(active).SwitchoverReady().State(), 30*time.Minute, true)
+	req := &spb.SwitchControlProcessorRequest{
+		ControlProcessor: components.GetSubcomponentPath(standby, deviations.GNOISubcomponentPath(dut)),
+	}
+	t.Logf("SwitchControlProcessorRequest: %v", req)
+	if _, err := dut.RawAPIs().GNOI(t).System().SwitchControlProcessor(context.Background(), req); err != nil {
+		t.Fatalf("SwitchControlProcessor(%v) failed: %v", req, err)
+	}
+	t.Logf("Successfully triggered SwitchControlProcessor from %q to %q", active, standby)
+	return true, active, standby
+}
+
+// switchoverRetryBackoff is the delay before re-subscribing after the gNMI
+// stream is reset while control processors converge after a switchover.
+const switchoverRetryBackoff = 30 * time.Second
+
+// AwaitSwitchoverReady waits up to timeout for component's switchover-ready
+// state to be true. The gNMI stream may be reset while control processors
+// converge after a switchover, so a failed Await is retried after
+// switchoverRetryBackoff until timeout expires.
+func AwaitSwitchoverReady(t *testing.T, dut *ondatra.DUTDevice, component string, timeout time.Duration) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for {
+		errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			gnmi.Await(t, dut, gnmi.OC().Component(component).SwitchoverReady().State(), time.Until(deadline), true)
+		})
+		if errMsg == nil {
+			return
+		}
+		if time.Until(deadline) <= switchoverRetryBackoff {
+			t.Fatalf("Component %s not switchover-ready within %v: %s", component, timeout, *errMsg)
+		}
+		t.Logf("Waiting for %s switchover-ready interrupted, retrying: %s", component, *errMsg)
+		time.Sleep(switchoverRetryBackoff)
+	}
 }

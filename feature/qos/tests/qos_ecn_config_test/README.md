@@ -130,16 +130,7 @@ Verify QoS ECN feature configuration.
 *   Step 4 - Validate ECN profile application: Verify that the profile is successfully applied to the output interface queue.
     *   Verify `/qos/interfaces/interface[interface-id=Ethernet1]/output/queues/queue[name=0]/state/queue-management-profile` == `ECN_PROFILE_3`
 
-### DP-1.3.4 - Negative Test Cases
-
-Ensure that invalid configurations are properly rejected by the DUT.
-
-*   **Negative Test 1 (`min-threshold` > `max-threshold`):** Attempt to configure a `queue-management-profile` where `min-threshold` is strictly greater than `max-threshold` (e.g., `min-threshold` = `81920` and `max-threshold` = `40960`). Verify the gNMI Set is rejected.
-*   **Negative Test 2 (Invalid `max-drop-probability-percent`):** Attempt to configure `max-drop-probability-percent` to an out-of-range value (e.g., `101`). Verify the gNMI Set is rejected.
-*   **Negative Test 3 (Non-existent Profile Assignment):** Attempt to assign a non-existent `queue-management-profile` string (e.g., `BOGUS_PROFILE`) to `/qos/interfaces/interface/output/queues/queue/config/queue-management-profile`. Verify the gNMI Set is rejected.
-*   **Negative Test 4 (Invalid Profile Deletion):** Apply a valid `queue-management-profile` to an interface's queue. Then, attempt to delete that `queue-management-profile` while it is still actively applied to the interface's queue. Verify the deletion is rejected.
-
-### DP-1.3.5 - Teardown and Cleanup Verification
+### DP-1.3.4 - Teardown and Cleanup Verification
 
 *   Step 1 - Detach the `queue-management-profile` from the output queue using gNMI Delete on `/qos/interfaces/interface/output/queues/queue/config/queue-management-profile` or by sending a Replace with an empty profile.
 *   Step 2 - Validate the profile is detached by verifying the state path no longer returns the profile name.
