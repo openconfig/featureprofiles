@@ -108,9 +108,8 @@ func getFibResource(t *testing.T, dut *ondatra.DUTDevice) string {
 	if dut.Vendor() == ondatra.ARISTA {
 		if aristaPlatform == "strata" {
 			return "ALPM"
-		} else {
-			return "Routing/Resource6"
 		}
+		return "Routing/Resource6"
 	}
 	return fibResource[dut.Vendor()]
 }
@@ -122,12 +121,8 @@ func getChassisFibResources(t *testing.T, dut *ondatra.DUTDevice) []string {
 		"Routing2/Resource1", "Routing2/Resource2", "Routing2/Resource3",
 		"Routing2/Resource4", "Routing2/Resource5", "Routing2/Resource6",
 	}
-	if dut.Vendor() == ondatra.ARISTA {
-		if aristaPlatform == "strata" {
-			return []string{"ALPM"}
-		} else {
-			return chassisFIBResources
-		}
+	if dut.Vendor() == ondatra.ARISTA && aristaPlatform == "strata" {
+		return []string{"ALPM"}
 	}
 	return chassisFIBResources
 }
@@ -180,6 +175,9 @@ func TestResourceUtilization(t *testing.T) {
 	verifyBgpTelemetry(t, dut)
 
 	resName := getFibResource(t, dut)
+	t.Cleanup(func() {
+		gnmi.Delete(t, dut, gnmi.OC().System().Utilization().Resource(resName).Config())
+	})
 	gnmi.Replace(t, dut, gnmi.OC().System().Utilization().Resource(resName).Config(), &oc.System_Utilization_Resource{
 		Name:                    ygot.String(resName),
 		UsedThresholdUpper:      ygot.Uint8(usedThresholdUpper),
