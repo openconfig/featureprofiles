@@ -1625,6 +1625,11 @@ message Metadata {
     // Cisco: https://partnerissuetracker.corp.google.com/issues/429234456
     bool mount_point_storage_component_unsupported = 488;
 
+    // Device requires explicit GR helper stale-route policy configuration
+    // for hold-timer-expiry to trigger GR helper mode (RFC 8538 Section 4).
+    // https://issuetracker.google.com/581463773
+    bool bgp_gr_helper_hold_timer_expiry_requires_stale_policy = 489;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49, 313;
   }
