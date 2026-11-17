@@ -49,6 +49,8 @@ const (
 )
 
 var (
+	aristaPlatform string
+
 	dutPort1 = attrs.Attributes{
 		Desc:    "dutPort1",
 		IPv4:    "192.0.2.1",
@@ -104,7 +106,7 @@ func getFibResource(t *testing.T, dut *ondatra.DUTDevice) string {
 		ondatra.CISCO: "central_em_0",
 	}
 	if dut.Vendor() == ondatra.ARISTA {
-		if platform := helpers.AristaPlatform(t, dut); platform == "strata" {
+		if aristaPlatform == "strata" {
 			return "ALPM"
 		} else {
 			return "Routing/Resource6"
@@ -121,7 +123,7 @@ func getChassisFibResources(t *testing.T, dut *ondatra.DUTDevice) []string {
 		"Routing2/Resource4", "Routing2/Resource5", "Routing2/Resource6",
 	}
 	if dut.Vendor() == ondatra.ARISTA {
-		if platform := helpers.AristaPlatform(t, dut); platform == "strata" {
+		if aristaPlatform == "strata" {
 			return []string{"ALPM"}
 		} else {
 			return chassisFIBResources
@@ -166,6 +168,9 @@ func TestMain(m *testing.M) {
 
 func TestResourceUtilization(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	if dut.Vendor() == ondatra.ARISTA {
+		aristaPlatform = helpers.AristaPlatform(t, dut)
+	}
 	configureDUT(t, dut)
 
 	ate := ondatra.ATE(t, "ate")
