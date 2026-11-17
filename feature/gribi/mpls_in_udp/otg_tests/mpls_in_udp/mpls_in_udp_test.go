@@ -272,7 +272,12 @@ func TestMPLSOUDPEncap(t *testing.T) {
 	if err := c.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
-	defer c.Close(t)
+	t.Cleanup(func() {
+		c.Close(t)
+	})
+	t.Cleanup(func() {
+		c.FlushAll(t)
+	})
 	c.BecomeLeader(t)
 
 	// Flush all existing AFT entries and set up basic routing infrastructure
