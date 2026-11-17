@@ -10,10 +10,7 @@ transitions on coherent 400ZR/ZR+ and 800ZR/ZR+ transceivers:
 *   `/components/component/optical-channel/state/second-order-polarization-mode-dispersion/{instant,avg,min,max}`
 *   `/components/component/optical-channel/state/sop-roc/{instant,avg,min,max}`
 
-This standalone operational telemetry test is intentionally separated from the
-baseline ZR/ZR+ platform qualification test suites (`TRANSCEIVER-101`,
-`TRANSCEIVER-103`, `TRANSCEIVER-105`, `TRANSCEIVER-107`) and is excluded from
-standard platform qualification runs.
+Note: This test is not currently required for ZR/ZR+ qualification.
 
 ## Testbed type
 
@@ -46,6 +43,10 @@ standard platform qualification runs.
     *   Open `gNMI.Subscribe` (`SAMPLE` mode at 10-second intervals) on
         `/components/component[name=<optical-channel>]/state` for each tested
         port.
+
+**Note:** For min, max, and avg values, 10 second sampling is preferred. If 10
+seconds is not supported, the sampling interval used must be specified by adding
+a deviation to the test.
 
 #### Canonical OC
 
@@ -267,11 +268,11 @@ standard platform qualification runs.
         `second-order-polarization-mode-dispersion`, `sop-roc`) are populated.
     *   Validate all 12 polarization telemetry leaves on each port:
         *   `polarization-mode-dispersion/{instant,avg,min,max}`: finite values
-            within `[0.0, 200.0]` ps.
+            within `[0.0, 655.35]` ps.
         *   `second-order-polarization-mode-dispersion/{instant,avg,min,max}`:
-            finite values within `[0.0, 2000.0]` ps^2.
+            finite values within `[0.0, 655.35]` ps^2.
         *   `sop-roc/{instant,avg,min,max}`: finite values within
-            `[0.0, 5000.0]` rad/s.
+            `[0.0, 6553.5]` krad/s.
         *   Statistical consistency for every metric container: `min <= max`, and
             both `instant` and `avg` lie within
             `[min - |min| * 0.05, max + |max| * 0.05]`.

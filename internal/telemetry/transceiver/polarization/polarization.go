@@ -32,13 +32,13 @@ import (
 
 const (
 	minAllowedPMDValue            = 0.0
-	maxAllowedPMDValue            = 200.0
+	maxAllowedPMDValue            = 655.35
 	inactivePMDValue              = 1.0
 	minAllowedSecondOrderPMDValue = 0.0
-	maxAllowedSecondOrderPMDValue = 2000.0
+	maxAllowedSecondOrderPMDValue = 655.35
 	inactiveSecondOrderPMDValue   = 1.0
 	minAllowedSOPROCValue         = 0.0
-	maxAllowedSOPROCValue         = 5000.0
+	maxAllowedSOPROCValue         = 6553.5
 	inactiveSOPROCValue           = 1.0
 
 	inactivePower     = -25.0

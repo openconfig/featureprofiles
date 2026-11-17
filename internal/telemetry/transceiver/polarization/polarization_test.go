@@ -54,10 +54,10 @@ func makeValidPolarizationComponent(ochName string, opMode uint16, inPower, outP
 				Max:     ygot.Float64(sopmdBase + 10.0),
 			},
 			SopRoc: &oc.Component_OpticalChannel_SopRoc{
-				Instant: ygot.Float64(sopROCBase + 25.0),
-				Avg:     ygot.Float64(sopROCBase + 20.0),
+				Instant: ygot.Float64(sopROCBase + 2.5),
+				Avg:     ygot.Float64(sopROCBase + 2.0),
 				Min:     ygot.Float64(sopROCBase),
-				Max:     ygot.Float64(sopROCBase + 50.0),
+				Max:     ygot.Float64(sopROCBase + 5.0),
 			},
 		},
 	}
@@ -111,7 +111,7 @@ func TestValidateOpticalChannelPolarizationComponent(t *testing.T) {
 		},
 	}
 
-	upComp := makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 1.0, 20.0, 100.0)
+	upComp := makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 1.0, 20.0, 10.0)
 	ValidateOpticalChannelPolarizationComponent(t, "port1", upComp, params, oc.Interface_OperStatus_UP)
 
 	downComp := makeUniformPolarizationComponent("Ethernet4/1-Optical0", 1, -40.0, -40.0, 0.0)
@@ -138,7 +138,7 @@ func TestValidateOpticalChannelPolarization(t *testing.T) {
 		{
 			name: "UP valid baseline",
 			buildComponent: func() *oc.Component {
-				return makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 2.0, 50.0, 200.0)
+				return makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 2.0, 50.0, 20.0)
 			},
 			params:         params,
 			wantOperStatus: oc.Interface_OperStatus_UP,
@@ -147,7 +147,7 @@ func TestValidateOpticalChannelPolarization(t *testing.T) {
 		{
 			name: "UP valid tolerance boundary",
 			buildComponent: func() *oc.Component {
-				c := makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 10.0, 50.0, 200.0)
+				c := makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 10.0, 50.0, 20.0)
 				c.OpticalChannel.PolarizationModeDispersion = &oc.Component_OpticalChannel_PolarizationModeDispersion{
 					Min:     ygot.Float64(10.0),
 					Max:     ygot.Float64(20.0),
@@ -163,7 +163,7 @@ func TestValidateOpticalChannelPolarization(t *testing.T) {
 		{
 			name: "UP fallback component name without params",
 			buildComponent: func() *oc.Component {
-				return makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 1.0, 10.0, 50.0)
+				return makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 1.0, 10.0, 5.0)
 			},
 			params:         nil,
 			wantOperStatus: oc.Interface_OperStatus_UP,
@@ -190,7 +190,7 @@ func TestValidateOpticalChannelPolarization(t *testing.T) {
 		{
 			name: "unsupported target oper status fails",
 			buildComponent: func() *oc.Component {
-				return makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 1.0, 10.0, 50.0)
+				return makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 1.0, 10.0, 5.0)
 			},
 			params:         params,
 			wantOperStatus: oc.Interface_OperStatus_TESTING,
@@ -200,7 +200,7 @@ func TestValidateOpticalChannelPolarization(t *testing.T) {
 		{
 			name: "UP missing PMD container fails",
 			buildComponent: func() *oc.Component {
-				c := makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 1.0, 10.0, 50.0)
+				c := makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 1.0, 10.0, 5.0)
 				c.OpticalChannel.PolarizationModeDispersion = nil
 				return c
 			},
@@ -212,7 +212,7 @@ func TestValidateOpticalChannelPolarization(t *testing.T) {
 		{
 			name: "UP missing SOPMD container fails",
 			buildComponent: func() *oc.Component {
-				c := makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 1.0, 10.0, 50.0)
+				c := makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 1.0, 10.0, 5.0)
 				c.OpticalChannel.SecondOrderPolarizationModeDispersion = nil
 				return c
 			},
@@ -224,7 +224,7 @@ func TestValidateOpticalChannelPolarization(t *testing.T) {
 		{
 			name: "UP missing SOP-ROC container fails",
 			buildComponent: func() *oc.Component {
-				c := makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 1.0, 10.0, 50.0)
+				c := makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 1.0, 10.0, 5.0)
 				c.OpticalChannel.SopRoc = nil
 				return c
 			},
@@ -236,7 +236,7 @@ func TestValidateOpticalChannelPolarization(t *testing.T) {
 		{
 			name: "UP missing single leaf fails",
 			buildComponent: func() *oc.Component {
-				c := makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 1.0, 10.0, 50.0)
+				c := makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 1.0, 10.0, 5.0)
 				c.OpticalChannel.PolarizationModeDispersion.Instant = nil
 				return c
 			},
@@ -248,7 +248,7 @@ func TestValidateOpticalChannelPolarization(t *testing.T) {
 		{
 			name: "UP NaN leaf fails",
 			buildComponent: func() *oc.Component {
-				c := makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 1.0, 10.0, 50.0)
+				c := makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 1.0, 10.0, 5.0)
 				c.OpticalChannel.PolarizationModeDispersion.Instant = ygot.Float64(math.NaN())
 				return c
 			},
@@ -260,7 +260,7 @@ func TestValidateOpticalChannelPolarization(t *testing.T) {
 		{
 			name: "UP PMD out of range fails",
 			buildComponent: func() *oc.Component {
-				return makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 200.5, 10.0, 50.0)
+				return makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 656.0, 10.0, 5.0)
 			},
 			params:         params,
 			wantOperStatus: oc.Interface_OperStatus_UP,
@@ -270,19 +270,19 @@ func TestValidateOpticalChannelPolarization(t *testing.T) {
 		{
 			name: "UP negative PMD fails",
 			buildComponent: func() *oc.Component {
-				c := makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 1.0, 10.0, 50.0)
+				c := makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 1.0, 10.0, 5.0)
 				c.OpticalChannel.PolarizationModeDispersion.Min = ygot.Float64(-0.1)
 				return c
 			},
 			params:         params,
 			wantOperStatus: oc.Interface_OperStatus_UP,
 			wantErrors:     1,
-			wantErrSubstr:  "out of range: got -0.1, want >= 0 and <= 200",
+			wantErrSubstr:  "out of range: got -0.1, want >= 0 and <= 655.35",
 		},
 		{
 			name: "UP SOPMD out of range fails",
 			buildComponent: func() *oc.Component {
-				return makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 1.0, 2001.0, 50.0)
+				return makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 1.0, 656.0, 5.0)
 			},
 			params:         params,
 			wantOperStatus: oc.Interface_OperStatus_UP,
@@ -292,7 +292,7 @@ func TestValidateOpticalChannelPolarization(t *testing.T) {
 		{
 			name: "UP SOP-ROC out of range fails",
 			buildComponent: func() *oc.Component {
-				return makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 1.0, 10.0, 5001.0)
+				return makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 1.0, 10.0, 6554.0)
 			},
 			params:         params,
 			wantOperStatus: oc.Interface_OperStatus_UP,
@@ -302,12 +302,12 @@ func TestValidateOpticalChannelPolarization(t *testing.T) {
 		{
 			name: "UP instant outside statistical tolerance fails",
 			buildComponent: func() *oc.Component {
-				c := makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 10.0, 10.0, 50.0)
+				c := makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 10.0, 10.0, 5.0)
 				c.OpticalChannel.SopRoc = &oc.Component_OpticalChannel_SopRoc{
-					Min:     ygot.Float64(100.0),
-					Max:     ygot.Float64(200.0),
-					Avg:     ygot.Float64(150.0),
-					Instant: ygot.Float64(211.0), // > 200 + 200*0.05 (210)
+					Min:     ygot.Float64(10.0),
+					Max:     ygot.Float64(20.0),
+					Avg:     ygot.Float64(15.0),
+					Instant: ygot.Float64(21.1), // > 20 + 20*0.05 (21.0)
 				}
 				return c
 			},
@@ -319,7 +319,7 @@ func TestValidateOpticalChannelPolarization(t *testing.T) {
 		{
 			name: "UP inverted min > max fails",
 			buildComponent: func() *oc.Component {
-				c := makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 10.0, 10.0, 50.0)
+				c := makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 10.0, 10.0, 5.0)
 				c.OpticalChannel.SecondOrderPolarizationModeDispersion = &oc.Component_OpticalChannel_SecondOrderPolarizationModeDispersion{
 					Min:     ygot.Float64(50.0),
 					Max:     ygot.Float64(10.0),
@@ -412,7 +412,7 @@ func TestValidateOpticalChannelPolarization(t *testing.T) {
 		{
 			name: "DOWN stale values above inactive threshold fail",
 			buildComponent: func() *oc.Component {
-				return makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -40.0, -40.0, 2.0, 20.0, 100.0)
+				return makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -40.0, -40.0, 2.0, 20.0, 10.0)
 			},
 			params:         params,
 			wantOperStatus: oc.Interface_OperStatus_DOWN,
@@ -473,7 +473,7 @@ func TestIsPolarizationStreamReady(t *testing.T) {
 		{
 			name: "UP ready",
 			buildComponent: func() *oc.Component {
-				return makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 1.0, 10.0, 50.0)
+				return makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 1.0, 10.0, 5.0)
 			},
 			params:     params,
 			operStatus: oc.Interface_OperStatus_UP,
@@ -498,7 +498,7 @@ func TestIsPolarizationStreamReady(t *testing.T) {
 		{
 			name: "nil params",
 			buildComponent: func() *oc.Component {
-				return makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 1.0, 10.0, 50.0)
+				return makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 1.0, 10.0, 5.0)
 			},
 			params:     nil,
 			operStatus: oc.Interface_OperStatus_UP,
@@ -507,7 +507,7 @@ func TestIsPolarizationStreamReady(t *testing.T) {
 		{
 			name: "mismatched operational mode",
 			buildComponent: func() *oc.Component {
-				return makeValidPolarizationComponent("Ethernet4/1-Optical0", 2, -7.5, -7.0, 1.0, 10.0, 50.0)
+				return makeValidPolarizationComponent("Ethernet4/1-Optical0", 2, -7.5, -7.0, 1.0, 10.0, 5.0)
 			},
 			params:     params,
 			operStatus: oc.Interface_OperStatus_UP,
@@ -516,7 +516,7 @@ func TestIsPolarizationStreamReady(t *testing.T) {
 		{
 			name: "missing input power container",
 			buildComponent: func() *oc.Component {
-				c := makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 1.0, 10.0, 50.0)
+				c := makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 1.0, 10.0, 5.0)
 				c.OpticalChannel.InputPower = nil
 				return c
 			},
@@ -527,7 +527,7 @@ func TestIsPolarizationStreamReady(t *testing.T) {
 		{
 			name: "missing output power leaf",
 			buildComponent: func() *oc.Component {
-				c := makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 1.0, 10.0, 50.0)
+				c := makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 1.0, 10.0, 5.0)
 				c.OpticalChannel.OutputPower.Max = nil
 				return c
 			},
@@ -538,7 +538,7 @@ func TestIsPolarizationStreamReady(t *testing.T) {
 		{
 			name: "UP missing PMD container",
 			buildComponent: func() *oc.Component {
-				c := makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 1.0, 10.0, 50.0)
+				c := makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 1.0, 10.0, 5.0)
 				c.OpticalChannel.PolarizationModeDispersion = nil
 				return c
 			},
@@ -549,7 +549,7 @@ func TestIsPolarizationStreamReady(t *testing.T) {
 		{
 			name: "UP missing SOPMD container",
 			buildComponent: func() *oc.Component {
-				c := makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 1.0, 10.0, 50.0)
+				c := makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 1.0, 10.0, 5.0)
 				c.OpticalChannel.SecondOrderPolarizationModeDispersion = nil
 				return c
 			},
@@ -560,7 +560,7 @@ func TestIsPolarizationStreamReady(t *testing.T) {
 		{
 			name: "UP missing SOP-ROC container",
 			buildComponent: func() *oc.Component {
-				c := makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 1.0, 10.0, 50.0)
+				c := makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 1.0, 10.0, 5.0)
 				c.OpticalChannel.SopRoc = nil
 				return c
 			},
@@ -571,7 +571,7 @@ func TestIsPolarizationStreamReady(t *testing.T) {
 		{
 			name: "UP low input power not ready",
 			buildComponent: func() *oc.Component {
-				return makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -20.0, -7.0, 1.0, 10.0, 50.0)
+				return makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -20.0, -7.0, 1.0, 10.0, 5.0)
 			},
 			params:     params,
 			operStatus: oc.Interface_OperStatus_UP,
@@ -580,7 +580,7 @@ func TestIsPolarizationStreamReady(t *testing.T) {
 		{
 			name: "UP output power out of tolerance",
 			buildComponent: func() *oc.Component {
-				c := makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 1.0, 10.0, 50.0)
+				c := makeValidPolarizationComponent("Ethernet4/1-Optical0", 1, -7.5, -7.0, 1.0, 10.0, 5.0)
 				c.OpticalChannel.OutputPower.Instant = ygot.Float64(-1.0)
 				return c
 			},
