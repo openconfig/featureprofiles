@@ -47,12 +47,17 @@ const (
 	vrfRouteV4Pfx        = "90.0.0.1"
 	vrfRouteV6Pfx        = "4000::1"
 	maskRange            = "exact"
-	notificationWaitTime = 30 * time.Second
+	notificationWaitTime = subscriptionWait
 	staticRouteIndex     = 100
 	pfxCount             = 1
 	aftFilterDUTAS       = 65001
 	vrfRoutes            = 5000
 )
+
+// notificationCollectorTimeout extends past the next two-minute periodic
+// hook after subscriptionWait, so a missing notification produces the
+// WaitForNotification diagnostic before the collector context expires.
+const notificationCollectorTimeout = subscriptionWait + 90*time.Second
 
 var (
 	dutPort1 = attrs.Attributes{
@@ -464,7 +469,7 @@ func testDynamicUpdates(t *testing.T, dut *ondatra.DUTDevice, pArgs dynamicUpdat
 					AddPrefix:        pArgs.dynamicPrefix,
 					NotificationWait: notificationWaitTime,
 				}),
-			Timeout: subscriptionWait,
+			Timeout: notificationCollectorTimeout,
 		})
 	//----------------------------------------------------------------------
 	// AFT-6.4.X.2 Delete Prefix
@@ -488,7 +493,7 @@ func testDynamicUpdates(t *testing.T, dut *ondatra.DUTDevice, pArgs dynamicUpdat
 					DeletePrefix:     pArgs.initialAllowedPrefixes[0],
 					NotificationWait: notificationWaitTime,
 				}),
-			Timeout: subscriptionWait,
+			Timeout: notificationCollectorTimeout,
 		})
 	//----------------------------------------------------------------------
 	// AFT-6.4.X.3 Atomic Add/Delete
@@ -507,7 +512,7 @@ func testDynamicUpdates(t *testing.T, dut *ondatra.DUTDevice, pArgs dynamicUpdat
 					DeletePrefix:     pArgs.initialAllowedPrefixes[1],
 					NotificationWait: notificationWaitTime,
 				}),
-			Timeout: subscriptionWait,
+			Timeout: notificationCollectorTimeout,
 		})
 	//----------------------------------------------------------------------
 	// Final verification
@@ -570,6 +575,8 @@ func configureDynamicUpdatePolicies(t *testing.T, rp *oc.RoutingPolicy) {
 			PrefixSetNames: []string{v4PfxSet},
 			PrefixList:     policyIPv4Prefixes,
 			PrefixMode:     maskRange,
+			MatchPrefixSet: true,
+			MatchSetOption: oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY,
 			PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
 		})
 	// IPv6 dynamic prefix filtering policy.
@@ -580,6 +587,8 @@ func configureDynamicUpdatePolicies(t *testing.T, rp *oc.RoutingPolicy) {
 			PrefixSetNames: []string{v6PfxSet},
 			PrefixList:     policyIPv6Prefixes,
 			PrefixMode:     maskRange,
+			MatchPrefixSet: true,
+			MatchSetOption: oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY,
 			PolicyResult:   oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
 		})
 }

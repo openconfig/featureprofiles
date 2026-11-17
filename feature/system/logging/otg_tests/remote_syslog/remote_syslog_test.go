@@ -41,8 +41,8 @@ import (
 const (
 	pLen4         = 30
 	pLen6         = 126
-	trafficPps    = 1000
-	totalPackets  = 30000
+	trafficPps    = 10
+	totalPackets  = 300
 	flowV4        = "flowV4"
 	flowV6        = "flowV6"
 	v4Route       = "203.0.113.0"
@@ -110,18 +110,7 @@ func TestRemoteSyslog(t *testing.T) {
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 	ate := ondatra.ATE(t, "ate")
-	for i := 0; i < 10; i++ {
-		tempLb := netutil.LoopbackInterface(t, dut, i)
-		lo := gnmi.OC().Interface(tempLb).Subinterface(0)
-		ipv4Addrs := gnmi.LookupAll(t, dut, lo.Ipv4().AddressAny().State())
-		if len(ipv4Addrs) == 0 {
-			lb = tempLb
-			break
-		}
-	}
-	if lb == "" {
-		t.Fatalf("Failed to find a free loopback interface")
-	}
+	lb = netutil.LoopbackInterface(t, dut, 0)
 
 	top := configureATE(t, ate)
 	createFlow(t, top, true)
@@ -144,12 +133,33 @@ func TestRemoteSyslog(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			if tc.vrf != deviations.DefaultNetworkInstance(dut) {
-				if deviations.SyslogNonDefaultVrfUnsupported(dut) {
-					t.Skipf("skipping the unsupported non-default VRF testcase")
-				}
-				// Delete interfaces from the default network instance before adding them to VRF.
+			if tc.vrf != deviations.DefaultNetworkInstance(dut) && deviations.SyslogNonDefaultVrfUnsupported(dut) {
+				t.Skipf("skipping the unsupported non-default VRF testcase")
+			}
 
+			t.Cleanup(func() {
+				gnmi.Delete(t, dut, gnmi.OC().System().Logging().Config())
+				gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(tc.vrf).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT").Static(v4Route+"/30").Config())
+				gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(tc.vrf).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT").Static(v6Route+"/126").Config())
+				if tc.vrf != deviations.DefaultNetworkInstance(dut) {
+					cleanupBatch := &gnmi.SetBatch{}
+					gnmi.BatchDelete(cleanupBatch, gnmi.OC().NetworkInstance(tc.vrf).Config())
+					if !deviations.ExplicitInterfaceInDefaultVRF(dut) && len(gnmi.LookupAll(t, dut, gnmi.OC().Interface(lb).SubinterfaceAny().Index().State())) > 1 {
+						gnmi.BatchDelete(cleanupBatch, gnmi.OC().Interface(lb).Subinterface(0).Config())
+					}
+					cleanupBatch.Set(t, dut)
+					// Restore default network instance association
+					if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+						fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
+						fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
+						fptest.AssignToNetworkInstance(t, dut, lb, deviations.DefaultNetworkInstance(dut), 0)
+					}
+				}
+				flipATEPort(t, dut, ate, top, "port2", true)
+			})
+
+			if tc.vrf != deviations.DefaultNetworkInstance(dut) {
+				// Delete interfaces from the default network instance before adding them to VRF.
 				for _, intf := range []string{p1.Name(), p2.Name(), lb} {
 					gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Interface(intf+".0").Config())
 				}
@@ -160,22 +170,7 @@ func TestRemoteSyslog(t *testing.T) {
 			configureDUTLoopback(t, dut, &tc.vrf)
 			configureStaticRoute(t, dut, tc.vrf)
 			configureSyslog(t, dut, tc.vrf)
-
-			t.Cleanup(func() {
-				gnmi.Delete(t, dut, gnmi.OC().System().Logging().Config())
-				gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(tc.vrf).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT").Static(v4Route+"/30").Config())
-				gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(tc.vrf).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT").Static(v6Route+"/126").Config())
-				if tc.vrf != deviations.DefaultNetworkInstance(dut) {
-					gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(tc.vrf).Config())
-					// Restore default network instance association
-					if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-						fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
-						fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
-						fptest.AssignToNetworkInstance(t, dut, lb, deviations.DefaultNetworkInstance(dut), 0)
-					}
-				}
-				flipATEPort(t, dut, ate, top, "port2", true)
-			})
+			verifySyslogState(t, dut, tc.vrf)
 
 			ate.OTG().StartProtocols(t)
 			time.Sleep(30 * time.Second)
@@ -239,9 +234,16 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 // configureDUTLoopback configures the loopback interface on the DUT
 func configureDUTLoopback(t *testing.T, dut *ondatra.DUTDevice, vrfName *string) {
 	t.Helper()
-	lo0 := gnmi.OC().Interface(lb).Subinterface(0)
-	ipv4Addrs := gnmi.LookupAll(t, dut, lo0.Ipv4().AddressAny().State())
-	ipv6Addrs := gnmi.LookupAll(t, dut, lo0.Ipv6().AddressAny().State())
+	dutLoopback.IPv4 = "203.0.113.1"
+	dutLoopback.IPv6 = "2001:db8::203:0:113:1"
+	ipv4Path := gnmi.OC().Interface(lb).Subinterface(0).Ipv4().AddressAny().State()
+	ipv6Path := gnmi.OC().Interface(lb).Subinterface(0).Ipv6().AddressAny().State()
+	if vrfName == nil || *vrfName == deviations.DefaultNetworkInstance(dut) {
+		ipv4Path = gnmi.OC().Interface(lb).SubinterfaceAny().Ipv4().AddressAny().State()
+		ipv6Path = gnmi.OC().Interface(lb).SubinterfaceAny().Ipv6().AddressAny().State()
+	}
+	ipv4Addrs := gnmi.LookupAll(t, dut, ipv4Path)
+	ipv6Addrs := gnmi.LookupAll(t, dut, ipv6Path)
 	foundV4 := false
 	for _, ip := range ipv4Addrs {
 		if v, ok := ip.Val(); ok {
@@ -340,6 +342,22 @@ func configureSyslog(t *testing.T, dut *ondatra.DUTDevice, ni string) {
 	root := &oc.Root{}
 	logging := root.GetOrCreateSystem().GetOrCreateLogging()
 	t.Logf("configureSyslog for NI: %s", ni)
+
+	srv1Severity := oc.SystemLogging_SyslogSeverity_DEBUG
+	srv2Severity := oc.SystemLogging_SyslogSeverity_CRITICAL
+	srv3Facility := oc.SystemLogging_SYSLOG_FACILITY_LOCAL1
+	srv3Severity := oc.SystemLogging_SyslogSeverity_DEBUG
+	srv4Severity := oc.SystemLogging_SyslogSeverity_CRITICAL
+	if deviations.SyslogUniformSelectorRequired(dut) {
+		srv2Severity = oc.SystemLogging_SyslogSeverity_DEBUG
+		srv3Facility = oc.SystemLogging_SYSLOG_FACILITY_LOCAL7
+		srv4Severity = oc.SystemLogging_SyslogSeverity_DEBUG
+	}
+	if deviations.SyslogDebugSeverityUnsupported(dut) {
+		srv1Severity = oc.SystemLogging_SyslogSeverity_INFORMATIONAL
+		srv3Severity = oc.SystemLogging_SyslogSeverity_INFORMATIONAL
+	}
+
 	remoteServer1 := logging.GetOrCreateRemoteServer("203.0.113.1")
 	if !deviations.SyslogOCUnsupported(dut) {
 		remoteServer1.SetNetworkInstance(ni)
@@ -347,7 +365,7 @@ func configureSyslog(t *testing.T, dut *ondatra.DUTDevice, ni string) {
 	remoteServer1.SetSourceAddress(dutLoopback.IPv4)
 	remoteServer1.GetOrCreateSelector(
 		oc.SystemLogging_SYSLOG_FACILITY_LOCAL7,
-		oc.SystemLogging_SyslogSeverity_DEBUG,
+		srv1Severity,
 	)
 
 	remoteServer2 := logging.GetOrCreateRemoteServer("203.0.113.2")
@@ -357,7 +375,7 @@ func configureSyslog(t *testing.T, dut *ondatra.DUTDevice, ni string) {
 	remoteServer2.SetSourceAddress(dutLoopback.IPv4)
 	remoteServer2.GetOrCreateSelector(
 		oc.SystemLogging_SYSLOG_FACILITY_LOCAL7,
-		oc.SystemLogging_SyslogSeverity_CRITICAL,
+		srv2Severity,
 	)
 
 	remoteServer3 := logging.GetOrCreateRemoteServer("2001:db8:128:128::1")
@@ -367,8 +385,8 @@ func configureSyslog(t *testing.T, dut *ondatra.DUTDevice, ni string) {
 	remoteServer3.SetRemotePort(5140)
 	remoteServer3.SetSourceAddress(dutLoopback.IPv6)
 	remoteServer3.GetOrCreateSelector(
-		oc.SystemLogging_SYSLOG_FACILITY_LOCAL1,
-		oc.SystemLogging_SyslogSeverity_DEBUG,
+		srv3Facility,
+		srv3Severity,
 	)
 
 	remoteServer4 := logging.GetOrCreateRemoteServer("2001:db8:128:128::2")
@@ -378,10 +396,100 @@ func configureSyslog(t *testing.T, dut *ondatra.DUTDevice, ni string) {
 	remoteServer4.SetSourceAddress(dutLoopback.IPv6)
 	remoteServer4.GetOrCreateSelector(
 		oc.SystemLogging_SYSLOG_FACILITY_LOCAL7,
-		oc.SystemLogging_SyslogSeverity_CRITICAL,
+		srv4Severity,
 	)
 
 	gnmi.Replace(t, dut, gnmi.OC().System().Logging().Config(), logging)
+}
+
+// verifySyslogState reads the state of all 4 remote syslog servers and verifies it matches intent.
+func verifySyslogState(t *testing.T, dut *ondatra.DUTDevice, ni string) {
+	t.Helper()
+	t.Logf("Read configuration of all 4 servers, verify it matches intent for NI: %s", ni)
+	srv1Severity := oc.SystemLogging_SyslogSeverity_DEBUG
+	srv2Severity := oc.SystemLogging_SyslogSeverity_CRITICAL
+	srv3Facility := oc.SystemLogging_SYSLOG_FACILITY_LOCAL1
+	srv3Severity := oc.SystemLogging_SyslogSeverity_DEBUG
+	srv4Severity := oc.SystemLogging_SyslogSeverity_CRITICAL
+	if deviations.SyslogUniformSelectorRequired(dut) {
+		srv2Severity = oc.SystemLogging_SyslogSeverity_DEBUG
+		srv3Facility = oc.SystemLogging_SYSLOG_FACILITY_LOCAL7
+		srv4Severity = oc.SystemLogging_SyslogSeverity_DEBUG
+	}
+	if deviations.SyslogDebugSeverityUnsupported(dut) {
+		srv1Severity = oc.SystemLogging_SyslogSeverity_INFORMATIONAL
+		srv3Severity = oc.SystemLogging_SyslogSeverity_INFORMATIONAL
+	}
+
+	expectedServers := []struct {
+		host       string
+		srcAddr    string
+		remotePort uint16
+		facility   oc.E_SystemLogging_SYSLOG_FACILITY
+		severity   oc.E_SystemLogging_SyslogSeverity
+	}{
+		{
+			host:     "203.0.113.1",
+			srcAddr:  dutLoopback.IPv4,
+			facility: oc.SystemLogging_SYSLOG_FACILITY_LOCAL7,
+			severity: srv1Severity,
+		},
+		{
+			host:     "203.0.113.2",
+			srcAddr:  dutLoopback.IPv4,
+			facility: oc.SystemLogging_SYSLOG_FACILITY_LOCAL7,
+			severity: srv2Severity,
+		},
+		{
+			host:       "2001:db8:128:128::1",
+			srcAddr:    dutLoopback.IPv6,
+			remotePort: 5140,
+			facility:   srv3Facility,
+			severity:   srv3Severity,
+		},
+		{
+			host:     "2001:db8:128:128::2",
+			srcAddr:  dutLoopback.IPv6,
+			facility: oc.SystemLogging_SYSLOG_FACILITY_LOCAL7,
+			severity: srv4Severity,
+		},
+	}
+
+	loggingState := gnmi.Get(t, dut, gnmi.OC().System().Logging().State())
+	for _, srv := range expectedServers {
+		remoteServer := loggingState.GetRemoteServer(srv.host)
+		if remoteServer == nil {
+			t.Errorf("RemoteServer(%q) not found in state", srv.host)
+			continue
+		}
+		if gotHost := remoteServer.GetHost(); gotHost != srv.host {
+			t.Errorf("RemoteServer(%q) state host = %q, want %q", srv.host, gotHost, srv.host)
+		}
+		if gotSrc := remoteServer.GetSourceAddress(); gotSrc != srv.srcAddr {
+			t.Errorf("RemoteServer(%q) state source-address = %q, want %q", srv.host, gotSrc, srv.srcAddr)
+		}
+		if !deviations.SyslogOCUnsupported(dut) {
+			if gotNI := remoteServer.GetNetworkInstance(); gotNI != ni && !(deviations.SyslogDefaultNIStateUnsupported(dut) && ni == deviations.DefaultNetworkInstance(dut) && gotNI == "") {
+				t.Errorf("RemoteServer(%q) state network-instance = %q, want %q", srv.host, gotNI, ni)
+			}
+		}
+		if srv.remotePort != 0 {
+			if gotPort := remoteServer.GetRemotePort(); gotPort != srv.remotePort {
+				t.Errorf("RemoteServer(%q) state remote-port = %d, want %d", srv.host, gotPort, srv.remotePort)
+			}
+		}
+		selector := remoteServer.GetSelector(srv.facility, srv.severity)
+		if selector == nil {
+			t.Errorf("RemoteServer(%q) selector for facility %v, severity %v not found in state", srv.host, srv.facility, srv.severity)
+			continue
+		}
+		if gotFacility := selector.GetFacility(); gotFacility != srv.facility {
+			t.Errorf("RemoteServer(%q) selector state facility = %v, want %v", srv.host, gotFacility, srv.facility)
+		}
+		if gotSeverity := selector.GetSeverity(); gotSeverity != srv.severity {
+			t.Errorf("RemoteServer(%q) selector state severity = %v, want %v", srv.host, gotSeverity, srv.severity)
+		}
+	}
 }
 
 // createFlow creates a traffic flow with fixed number of packets

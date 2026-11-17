@@ -9,6 +9,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
+	"github.com/openconfig/featureprofiles/internal/telemetry/transceiver"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -61,6 +62,7 @@ func TestOpticalPower(t *testing.T) {
 		// ochs[p.Name()] = components.OpticalChannelComponentFromPort(t, dut, p)
 	}
 
+	toggleInterfaces := transceiver.ToggleInterfacesWithCleanup(t, dut, dut.Ports()...)
 	for _, frequency := range frequencies {
 		for _, targetOpticalPower := range targetOpticalPowers {
 			// Configure OCH component and OTN and ETH logical channels.
@@ -82,9 +84,7 @@ func TestOpticalPower(t *testing.T) {
 			}
 
 			// Enable interface.
-			for _, p := range dut.Ports() {
-				cfgplugins.ToggleInterface(t, dut, p.Name(), true)
-			}
+			toggleInterfaces(true)
 
 			// Wait for streaming telemetry to report the channels as up.
 			for _, p := range dut.Ports() {
@@ -95,9 +95,7 @@ func TestOpticalPower(t *testing.T) {
 			validateAllSampleStreams(t, dut, true, interfaceStreams, ochStreams, trStreams, targetOpticalPower)
 
 			// Disable interface.
-			for _, p := range dut.Ports() {
-				cfgplugins.ToggleInterface(t, dut, p.Name(), false)
-			}
+			toggleInterfaces(false)
 
 			// Wait for streaming telemetry to report the channels as down.
 			for _, p := range dut.Ports() {
@@ -108,9 +106,7 @@ func TestOpticalPower(t *testing.T) {
 			validateAllSampleStreams(t, dut, false, interfaceStreams, ochStreams, trStreams, targetOpticalPower)
 
 			// Re-enable transceivers.
-			for _, p := range dut.Ports() {
-				cfgplugins.ToggleInterface(t, dut, p.Name(), true)
-			}
+			toggleInterfaces(true)
 
 			// Wait for streaming telemetry to report the channels as up.
 			for _, p := range dut.Ports() {
