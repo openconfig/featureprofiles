@@ -56,6 +56,8 @@ func TerminalDevicePathsTest(t *testing.T, tp *TunableParamters) {
 
 	setToDefaults(t, dut, tp)
 
+	stateCleanup := newInterfaceStateCleanup(t, dut)
+
 	for _, operationalMode := range tp.OperationalModeList {
 		for _, frequency := range tp.FrequencyList {
 			for _, targetOpticalPower := range tp.TargetOpticalPowerList {
@@ -67,9 +69,7 @@ func TerminalDevicePathsTest(t *testing.T, tp *TunableParamters) {
 					TargetOpticalPower: targetOpticalPower,
 					OperationalMode:    operationalMode,
 				}
-				batch := &gnmi.SetBatch{}
-				cfgplugins.NewInterfaceConfigAll(t, dut, batch, params)
-				batch.Set(t, dut)
+				stateCleanup.configureAll(params)
 
 				// Create sample steams for each port.
 				ethStreams := make(map[string]*samplestream.SampleStream[*oc.TerminalDevice_Channel])
@@ -93,8 +93,7 @@ func TerminalDevicePathsTest(t *testing.T, tp *TunableParamters) {
 				}
 
 				t.Logf("\n*** Bringing UP all interfaces\n\n\n")
-				params.Enabled = true
-				cfgplugins.ToggleInterfaceState(t, dut, params)
+				stateCleanup.toggle(params, true)
 
 				for _, p := range dut.Ports() {
 					validateInterfaceTelemetry(t, dut, p, params, oc.Interface_OperStatus_UP, interfaceStreams[p.Name()])
@@ -103,8 +102,7 @@ func TerminalDevicePathsTest(t *testing.T, tp *TunableParamters) {
 				}
 
 				t.Logf("\n*** Bringing DOWN all interfaces\n\n\n")
-				params.Enabled = false
-				cfgplugins.ToggleInterfaceState(t, dut, params)
+				stateCleanup.toggle(params, false)
 
 				for _, p := range dut.Ports() {
 					validateInterfaceTelemetry(t, dut, p, params, oc.Interface_OperStatus_DOWN, interfaceStreams[p.Name()])
@@ -134,6 +132,8 @@ func PlatformPathsTest(t *testing.T, tp *TunableParamters) {
 
 	setToDefaults(t, dut, tp)
 
+	stateCleanup := newInterfaceStateCleanup(t, dut)
+
 	for _, operationalMode := range tp.OperationalModeList {
 		for _, frequency := range tp.FrequencyList {
 			for _, targetOpticalPower := range tp.TargetOpticalPowerList {
@@ -145,9 +145,7 @@ func PlatformPathsTest(t *testing.T, tp *TunableParamters) {
 					TargetOpticalPower: targetOpticalPower,
 					OperationalMode:    operationalMode,
 				}
-				batch := &gnmi.SetBatch{}
-				cfgplugins.NewInterfaceConfigAll(t, dut, batch, params)
-				batch.Set(t, dut)
+				stateCleanup.configureAll(params)
 
 				// Create sample steams for each port.
 				ochStreams := make(map[string]*samplestream.SampleStream[*oc.Component])
@@ -179,8 +177,7 @@ func PlatformPathsTest(t *testing.T, tp *TunableParamters) {
 				}
 
 				t.Logf("\n*** Bringing UP all interfaces\n\n\n")
-				params.Enabled = true
-				cfgplugins.ToggleInterfaceState(t, dut, params)
+				stateCleanup.toggle(params, true)
 
 				for _, p := range dut.Ports() {
 					validateInterfaceTelemetry(t, dut, p, params, oc.Interface_OperStatus_UP, interfaceStreams[p.Name()])
@@ -191,8 +188,7 @@ func PlatformPathsTest(t *testing.T, tp *TunableParamters) {
 				}
 
 				t.Logf("\n*** Bringing DOWN all interfaces\n\n\n")
-				params.Enabled = false
-				cfgplugins.ToggleInterfaceState(t, dut, params)
+				stateCleanup.toggle(params, false)
 
 				for _, p := range dut.Ports() {
 					validateInterfaceTelemetry(t, dut, p, params, oc.Interface_OperStatus_DOWN, interfaceStreams[p.Name()])
@@ -213,6 +209,109 @@ func PlatformPathsTest(t *testing.T, tp *TunableParamters) {
 			}
 		}
 	}
+}
+
+// ToggleWithCleanup wraps toggleFn and registers a t.Cleanup handler once to
+// restore the enabled state if the test ends while disabled.
+func ToggleWithCleanup(t *testing.T, toggleFn func(enabled bool)) func(enabled bool) {
+	t.Helper()
+	var disabled bool
+	t.Cleanup(func() {
+		if disabled {
+			toggleFn(true)
+		}
+	})
+	return func(enabled bool) {
+		t.Helper()
+		if !enabled {
+			disabled = true
+			toggleFn(false)
+			return
+		}
+		toggleFn(true)
+		disabled = false
+	}
+}
+
+// ToggleInterfacesWithCleanup returns a function that toggles the administrative
+// state of the given ports via cfgplugins.ToggleInterface and registers a
+// t.Cleanup handler to re-enable them if the test ends while they are disabled.
+func ToggleInterfacesWithCleanup(t *testing.T, dut *ondatra.DUTDevice, ports ...*ondatra.Port) func(enabled bool) {
+	t.Helper()
+	return ToggleWithCleanup(t, func(enabled bool) {
+		t.Helper()
+		for _, p := range ports {
+			cfgplugins.ToggleInterface(t, dut, p.Name(), enabled)
+		}
+	})
+}
+
+// ToggleInterfaceEnabledWithCleanup returns a function that replaces the
+// interface enabled config leaf for the given ports and registers a t.Cleanup
+// handler to re-enable them if the test ends while they are disabled.
+func ToggleInterfaceEnabledWithCleanup(t *testing.T, dut *ondatra.DUTDevice, ports ...*ondatra.Port) func(enabled bool) {
+	t.Helper()
+	return ToggleWithCleanup(t, func(enabled bool) {
+		t.Helper()
+		for _, p := range ports {
+			gnmi.Replace(t, dut, gnmi.OC().Interface(p.Name()).Enabled().Config(), enabled)
+		}
+	})
+}
+
+// ToggleTransceiverWithCleanup returns a function that updates the transceiver
+// component enabled config leaf and registers a t.Cleanup handler to re-enable
+// it if the test ends while it is disabled.
+func ToggleTransceiverWithCleanup(t *testing.T, dut *ondatra.DUTDevice, transceiverName string) func(enabled bool) {
+	t.Helper()
+	return ToggleWithCleanup(t, func(enabled bool) {
+		t.Helper()
+		gnmi.Update(t, dut, gnmi.OC().Component(transceiverName).Transceiver().Enabled().Config(), enabled)
+	})
+}
+
+type interfaceStateCleanup struct {
+	t          *testing.T
+	dut        *ondatra.DUTDevice
+	lastParams *cfgplugins.ConfigParameters
+	disabled   bool
+}
+
+func newInterfaceStateCleanup(t *testing.T, dut *ondatra.DUTDevice) *interfaceStateCleanup {
+	t.Helper()
+	c := &interfaceStateCleanup{
+		t:   t,
+		dut: dut,
+	}
+	t.Cleanup(func() {
+		if c.disabled && c.lastParams != nil {
+			c.lastParams.Enabled = true
+			cfgplugins.ToggleInterfaceState(t, dut, c.lastParams)
+		}
+	})
+	return c
+}
+
+func (c *interfaceStateCleanup) configureAll(params *cfgplugins.ConfigParameters) {
+	c.t.Helper()
+	batch := &gnmi.SetBatch{}
+	cfgplugins.NewInterfaceConfigAll(c.t, c.dut, batch, params)
+	batch.Set(c.t, c.dut)
+	c.lastParams = params
+	c.disabled = !params.Enabled
+}
+
+func (c *interfaceStateCleanup) toggle(params *cfgplugins.ConfigParameters, enabled bool) {
+	c.t.Helper()
+	c.lastParams = params
+	params.Enabled = enabled
+	if !enabled {
+		c.disabled = true
+		cfgplugins.ToggleInterfaceState(c.t, c.dut, params)
+		return
+	}
+	cfgplugins.ToggleInterfaceState(c.t, c.dut, params)
+	c.disabled = false
 }
 
 // setToDefaults sets the flags to their default values if the flags are not set.
