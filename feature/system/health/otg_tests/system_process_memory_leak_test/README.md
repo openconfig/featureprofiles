@@ -22,7 +22,7 @@ organized into five distinct, cross-referenced sections:
   peers over `5` cycles), and concurrent hardware FIB resource utilization.
 - **Section 4 (Negative Test Cases `Health-1.3.5`–`Health-1.3.7`)**: Validates
   process and controller-card memory stability during BGP max-prefix limit
-  violations (`~3 min`), `3` egress link admin-down/up flaps (`~5 min`), and `3`
+  violations (`~4 min`), `3` egress link admin-down/up flaps (`~5 min`), and `3`
   abrupt BGP peer session resets (`~3 min`).
 - **Section 5 (Cleanup)**: Restores all DUT and ATE state (`~1 min`).
 
@@ -323,7 +323,7 @@ into five functional groups below and listed in the machine-readable
 
 * **Connected Setup & OC Groups**: Targets `Peer 1` (ECMP Path 1 on `atePort1`,
   `Link 1`) while `Peer 2` and `Peer 3` remain active, using `Churn-Routes` and
-  OpenConfig groups `[OC-Group-E]`, `[OC-Group-C]`, and `[OC-Group-A]` (`~3
+  OpenConfig groups `[OC-Group-E]`, `[OC-Group-C]`, and `[OC-Group-A]` (`~4
   minutes`).
 * Step 1 - Configure `[OC-Group-E]` prefix limits (`max-prefixes` = `8000`,
   `warning-threshold-pct` = `80`, and `timers/config/restart-time` = `30`,
@@ -343,14 +343,19 @@ into five functional groups below and listed in the machine-readable
 * Step 4 - Withdraw excess routes on `Peer 1`, remove the `[OC-Group-E]`
   prefix-limit configuration, allow `restart-time` (or toggle
   `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/enabled`
-  `false` -> `true`) to re-establish `Peer 1` (`prefixes/installed` = `10,250`
-  per family across all three peers), and query `[OC-Group-A]` via a single
-  wildcard `gnmi.GetAll`.
+  `false` -> `true`) to re-establish `Peer 1`, and confirm full re-convergence
+  via `[OC-Group-C]` (all six eBGP sessions `ESTABLISHED` and
+  `prefixes/installed` = `10,250` per family across all three peers). Allow one
+  additional `60s` `[OC-Group-A]` `SAMPLE` interval to elapse so transient
+  re-learning buffers from `Peer 1` re-advertising `Churn-Routes` are released,
+  and then query `[OC-Group-A]` via a single wildcard `gnmi.GetAll`.
 * Step 5 - Pass/Fail Criteria: Pass if `Peer 1` enforces the prefix limit,
   surviving peers forward traffic with `0%` loss, and persistent daemon
-  `memory-usage` in `[OC-Group-A]` remains within `<= 5%` (or `<= 10 MB`) of the
-  post-churn baseline after session recovery without leaking rejected prefix
-  buffers; Fail otherwise.
+  `memory-usage` in `[OC-Group-A]`, measured after the Step 4 settle interval,
+  remains within `<= 5%` (or `<= 10 MB`) of the post-churn baseline (captured
+  with `Churn-Routes` installed on all three peers before Step 1, using the
+  higher of that snapshot and the `Health-1.3.3` peak-churn sample per daemon)
+  without leaking rejected prefix buffers; Fail otherwise.
 
 ### Health-1.3.6 - Repeated Egress Interface Admin-Down Flapping Under High Route Scale (Negative)
 
