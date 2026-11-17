@@ -293,6 +293,18 @@ func testControllerCardInventory(t *testing.T, dut *ondatra.DUTDevice, controlle
 	}
 }
 
+func gnoiSystemClient(t *testing.T, dut *ondatra.DUTDevice) spb.SystemClient {
+	t.Helper()
+	if deviations.GnoiRequiresFreshDialAfterSwitchover(dut) {
+		freshClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
+		if err != nil {
+			t.Fatalf("Failed to dial fresh gNOI client: %v", err)
+		}
+		return freshClient.System()
+	}
+	return dut.RawAPIs().GNOI(t).System()
+}
+
 func testControllerCardRedundancy(t *testing.T, dut *ondatra.DUTDevice, controllerCards []string) {
 
 	if deviations.SkipControllerCardPowerAdmin(dut) {
@@ -311,14 +323,7 @@ func testControllerCardRedundancy(t *testing.T, dut *ondatra.DUTDevice, controll
 	}
 
 	// Initiate a RP switchover
-	gnoiClient := dut.RawAPIs().GNOI(t)
-	if deviations.GnoiRequiresFreshDialAfterSwitchover(dut) {
-		freshClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
-		if err != nil {
-			t.Fatalf("Failed to dial fresh gNOI client: %v", err)
-		}
-		gnoiClient = freshClient
-	}
+	gnoiClient := gnoiSystemClient(t, dut)
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
 	switchoverRequest := &spb.SwitchControlProcessorRequest{
 		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch, useNameOnly),
@@ -326,19 +331,15 @@ func testControllerCardRedundancy(t *testing.T, dut *ondatra.DUTDevice, controll
 	t.Logf("Wait for 10 seconds before triggering switchover")
 	time.Sleep(10 * time.Second)
 	t.Logf("switchoverRequest: %v", switchoverRequest)
-	switchoverResponse, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
+	switchoverResponse, err := gnoiClient.SwitchControlProcessor(context.Background(), switchoverRequest)
 	if err != nil {
 		t.Fatalf("Failed to perform control processor switchover with unexpected err: %v", err)
 	}
-	t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
+	t.Logf("gnoiClient.SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
 	// Polling the device to verify the stability of the device.
 	waitForSwitchover(t, dut)
 	if deviations.GnoiRequiresFreshDialAfterSwitchover(dut) {
-		freshClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
-		if err != nil {
-			t.Fatalf("Failed to dial fresh gNOI client after switchover: %v", err)
-		}
-		gnoiClient = freshClient
+		gnoiClient = gnoiSystemClient(t, dut)
 	}
 	rpStandbyAfterSwitch, rpActiveAfterSwitch := components.FindStandbyControllerCard(t, dut, controllerCards)
 	switchoverReadyActiverp := gnmi.OC().Component(rpActiveAfterSwitch).SwitchoverReady()
@@ -372,7 +373,7 @@ func testControllerCardRedundancy(t *testing.T, dut *ondatra.DUTDevice, controll
 		},
 	}
 	t.Logf("powerDownControllerCardRequest: %v", powerDownControllerCardRequest)
-	powerDownResponse, err := gnoiClient.System().Reboot(context.Background(), powerDownControllerCardRequest)
+	powerDownResponse, err := gnoiClient.Reboot(context.Background(), powerDownControllerCardRequest)
 	if err != nil {
 		t.Fatalf("Failed to perform standby RP powerdown with unexpected err: %v", err)
 	}
@@ -427,11 +428,11 @@ func testControllerCardRedundancy(t *testing.T, dut *ondatra.DUTDevice, controll
 		},
 	}
 	t.Logf("powerUpControllerCardRequest: %v", powerUpControllerCardRequest)
-	powerUpResponse, err := gnoiClient.System().Reboot(context.Background(), powerUpControllerCardRequest)
+	powerUpResponse, err := gnoiClient.Reboot(context.Background(), powerUpControllerCardRequest)
 	if err != nil {
 		t.Fatalf("Failed to perform standby RP powerup with unexpected err: %v", err)
 	}
-	t.Logf("gnoiClient.System().Reboot() response: %v, err: %v", powerUpResponse, err)
+	t.Logf("gnoiClient.Reboot() response: %v, err: %v", powerUpResponse, err)
 
 	t.Logf("Wait for 5 seconds to allow the sub component's powerup process to start")
 	time.Sleep(5 * time.Second)
@@ -461,14 +462,7 @@ func testControllerCardLastRebootTime(t *testing.T, dut *ondatra.DUTDevice, cont
 	lastRebootTime := gnmi.OC().Component(rpStandby).LastRebootTime()
 	lastRebootTimeBefore := gnmi.Get(t, dut, lastRebootTime.State())
 	// Reboot the standby controller card
-	gnoiClient := dut.RawAPIs().GNOI(t)
-	if deviations.GnoiRequiresFreshDialAfterSwitchover(dut) {
-		freshClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
-		if err != nil {
-			t.Fatalf("Failed to dial fresh gNOI client: %v", err)
-		}
-		gnoiClient = freshClient
-	}
+	gnoiClient := gnoiSystemClient(t, dut)
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
 	rebootControllerCardRequest := &spb.RebootRequest{
 		Method: spb.RebootMethod_COLD,
@@ -478,11 +472,11 @@ func testControllerCardLastRebootTime(t *testing.T, dut *ondatra.DUTDevice, cont
 	}
 	t.Logf("rebootControllerCardRequest: %v", rebootControllerCardRequest)
 	startReboot := time.Now()
-	rebootResponse, err := gnoiClient.System().Reboot(context.Background(), rebootControllerCardRequest)
+	rebootResponse, err := gnoiClient.Reboot(context.Background(), rebootControllerCardRequest)
 	if err != nil {
 		t.Fatalf("Failed to perform component reboot with unexpected err: %v", err)
 	}
-	t.Logf("gnoiClient.System().Reboot() response: %v, err: %v", rebootResponse, err)
+	t.Logf("gnoiClient.Reboot() response: %v, err: %v", rebootResponse, err)
 
 	t.Logf("Wait for a minute to allow the sub component's reboot process to start")
 	time.Sleep(1 * time.Minute)
