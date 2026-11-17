@@ -16,6 +16,7 @@ package singleton_test
 
 import (
 	"fmt"
+	"net"
 	"strings"
 	"testing"
 	"time"
@@ -251,6 +252,7 @@ func (tc *testCase) verifyInterfaceDUT(
 	atea *attrs.Attributes,
 ) {
 	dip := gnmi.OC().Interface(dp.Name())
+	gnmi.Await(t, tc.dut, dip.OperStatus().State(), time.Minute, opUp)
 	di := gnmi.Get(t, tc.dut, dip.State())
 	fptest.LogQuery(t, dp.String(), dip.State(), di)
 
@@ -268,6 +270,12 @@ func (tc *testCase) verifyInterfaceDUT(
 	diMacAddress := gnmi.Get(t, tc.dut, dip.Ethernet().MacAddress().State())
 	di.GetOrCreateEthernet().MacAddress = &diMacAddress
 
+	if hwMac, present := gnmi.Lookup(t, tc.dut, dip.Ethernet().HwMacAddress().State()).Val(); !present || hwMac == "" {
+		t.Errorf("%s ethernet hw-mac-address got (%q, present=%v), want non-empty MAC address", dp, hwMac, present)
+	} else if _, err := net.ParseMAC(hwMac); err != nil {
+		t.Errorf("%s ethernet hw-mac-address %q is not a valid MAC address: %v", dp, hwMac, err)
+	}
+
 	wantdi.GetOrCreateEthernet().SetMacAddress(strings.ToUpper(wantdi.GetOrCreateEthernet().GetMacAddress()))
 	di.GetOrCreateEthernet().SetMacAddress(strings.ToUpper(di.GetOrCreateEthernet().GetMacAddress()))
 
@@ -282,6 +290,18 @@ func (tc *testCase) verifyInterfaceDUT(
 	}
 
 	disp := dip.Subinterface(0)
+	if !deviations.Subinterface0StateUnsupported(tc.dut) {
+		if !gnmi.Get(t, tc.dut, disp.Enabled().State()) {
+			t.Errorf("%s subinterface 0 enabled got false, want true", dp)
+		}
+	}
+	if !deviations.Subinterface0StateUnsupported(tc.dut) && !deviations.SubinterfacePacketCountersMissing(tc.dut) && !deviations.DefaultSubinterfacePacketCountersMissing(tc.dut) {
+		if inOctets, present := gnmi.Lookup(t, tc.dut, disp.Counters().InOctets().State()).Val(); !present {
+			t.Errorf("%s subinterface 0 in-octets not present", dp)
+		} else {
+			t.Logf("%s subinterface 0 in-octets: %d", dp, inOctets)
+		}
+	}
 
 	if !deviations.IPNeighborMissing(tc.dut) {
 		// IPv4 neighbor discovered by ARP.
@@ -294,6 +314,12 @@ func (tc *testCase) verifyInterfaceDUT(
 		dis6np := disp.Ipv6().Neighbor(atea.IPv6)
 		if got := gnmi.Get(t, tc.dut, dis6np.Origin().State()); got != dynamic {
 			t.Errorf("%s IPv6 neighbor %s origin got %v, want %v", dp, atea.IPv6, got, dynamic)
+		}
+		if got := gnmi.Get(t, tc.dut, dis6np.Ip().State()); !strings.EqualFold(got, atea.IPv6) {
+			t.Errorf("%s IPv6 neighbor %s ip got %v, want %v", dp, atea.IPv6, got, atea.IPv6)
+		}
+		if got := gnmi.Get(t, tc.dut, dis6np.LinkLayerAddress().State()); !strings.EqualFold(got, atea.MAC) {
+			t.Errorf("%s IPv6 neighbor %s link-layer-address got %v, want %v", dp, atea.IPv6, got, atea.MAC)
 		}
 	}
 }
@@ -323,6 +349,7 @@ func (tc *testCase) verifyDUT(t *testing.T, breakoutGroup *oc.Component_Port_Bre
 
 func (tc *testCase) verifyInterfaceATE(t *testing.T, ap *ondatra.Port) {
 	aip := gnmi.OTG().Port(ap.ID())
+	gnmi.Await(t, tc.ate.OTG(), aip.Link().State(), time.Minute, otgtelemetry.Port_Link_UP)
 	ai := gnmi.Get(t, tc.ate.OTG(), aip.State())
 	fptest.LogQuery(t, ap.String(), aip.State(), ai)
 

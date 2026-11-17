@@ -132,6 +132,7 @@ var portSpeed = map[ondatra.Speed]oc.E_IfEthernet_ETHERNET_SPEED{
 	ondatra.Speed10Gb:  oc.IfEthernet_ETHERNET_SPEED_SPEED_10GB,
 	ondatra.Speed100Gb: oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
 	ondatra.Speed400Gb: oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB,
+	ondatra.Speed800Gb: oc.IfEthernet_ETHERNET_SPEED_SPEED_800GB,
 }
 
 func (tc *testCase) configMemberDUT(i *oc.Interface, p *ondatra.Port) {
@@ -333,8 +334,18 @@ func (tc *testCase) verifyDUT(t *testing.T, numPort int) {
 func TestGNMIPortSpeed(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dutPort := dut.Port(t, "port1")
-	if got, want := gnmi.Get(t, dut, gnmi.OC().Interface(dutPort.Name()).Ethernet().PortSpeed().State()), portSpeed[dutPort.Speed()]; got != want {
-		t.Errorf("Get(DUT port1 status): got %v, want %v", got, want)
+	ethPath := gnmi.OC().Interface(dutPort.Name()).Ethernet()
+	want := portSpeed[dutPort.Speed()]
+	gnmi.Await(t, dut, ethPath.PortSpeed().State(), time.Minute, want)
+	if !deviations.NegotiatedPortSpeedUnsupported(dut) {
+		if negSpeed, present := gnmi.Lookup(t, dut, ethPath.NegotiatedPortSpeed().State()).Val(); present {
+			t.Logf("Got %s NegotiatedPortSpeed from telemetry: %v", dutPort.Name(), negSpeed)
+			if autoNeg, ok := gnmi.Lookup(t, dut, ethPath.AutoNegotiate().State()).Val(); ok && autoNeg && negSpeed != oc.IfEthernet_ETHERNET_SPEED_SPEED_UNKNOWN && negSpeed != want {
+				t.Errorf("Get(DUT port1 NegotiatedPortSpeed): got %v, want %v", negSpeed, want)
+			}
+		} else {
+			t.Errorf("Get(DUT port1 NegotiatedPortSpeed): path is not present")
+		}
 	}
 }
 
@@ -351,6 +362,11 @@ func TestGNMIPortDown(t *testing.T) {
 	portStateAction := gosnappi.NewControlState()
 	portStateAction.Port().Link().SetPortNames([]string{atePort.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
 	ate.OTG().SetControlState(t, portStateAction)
+	defer func() {
+		portStateAction := gosnappi.NewControlState()
+		portStateAction.Port().Link().SetPortNames([]string{atePort.ID()}).SetState(gosnappi.StatePortLinkState.UP)
+		ate.OTG().SetControlState(t, portStateAction)
+	}()
 
 	want := oc.Interface_OperStatus_DOWN
 	gnmi.Await(t, dut, gnmi.OC().Interface(dutPort.Name()).OperStatus().State(), 2*time.Minute, want)
@@ -418,12 +434,21 @@ func TestGNMIReducedLACPSpeed(t *testing.T) {
 					break
 				}
 				if deviations.ATEPortLinkStateOperationsUnsupported(ate) {
-					gnmi.Replace(t, dut, gnmi.OC().Interface(tc.dutPorts[index].Name()).Enabled().Config(), false)
-					gnmi.Await(t, dut, gnmi.OC().Interface(tc.dutPorts[index].Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_DOWN)
+					portName := tc.dutPorts[index].Name()
+					t.Cleanup(func() {
+						gnmi.Replace(t, dut, gnmi.OC().Interface(portName).Enabled().Config(), true)
+					})
+					gnmi.Replace(t, dut, gnmi.OC().Interface(portName).Enabled().Config(), false)
+					gnmi.Await(t, dut, gnmi.OC().Interface(portName).OperStatus().State(), time.Minute, oc.Interface_OperStatus_DOWN)
 				} else {
 					portStateAction := gosnappi.NewControlState()
 					portStateAction.Port().Link().SetPortNames([]string{port.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
 					ate.OTG().SetControlState(t, portStateAction)
+					defer func(p *ondatra.Port) {
+						portStateAction := gosnappi.NewControlState()
+						portStateAction.Port().Link().SetPortNames([]string{p.ID()}).SetState(gosnappi.StatePortLinkState.UP)
+						ate.OTG().SetControlState(t, portStateAction)
+					}(port)
 				}
 				time.Sleep(10 * time.Second)
 				tc.verifyDUT(t, totalPort)

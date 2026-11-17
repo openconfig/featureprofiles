@@ -424,12 +424,10 @@ func isOTNChannelReady(val *oc.TerminalDevice_Channel, operStatus oc.E_Interface
 			val.GetOtn().GetEsnr().GetInstant() <= val.GetOtn().GetEsnr().GetMax()*(1+errorTolerance) &&
 			val.GetOtn().GetEsnr().GetInstant() >= val.GetOtn().GetEsnr().GetMin()*(1-errorTolerance)
 	default:
-		isPreFECBERReady :=
-			slices.Contains(inactivePreFECBER, val.GetOtn().GetPreFecBer().GetMin()) &&
-				slices.Contains(inactivePreFECBER, val.GetOtn().GetPreFecBer().GetAvg()) &&
-				slices.Contains(inactivePreFECBER, val.GetOtn().GetPreFecBer().GetMax()) &&
-				slices.Contains(inactivePreFECBER, val.GetOtn().GetPreFecBer().GetInstant())
-		return isPreFECBERReady &&
+		return slices.Contains(inactivePreFECBER, val.GetOtn().GetPreFecBer().GetMin()) &&
+			slices.Contains(inactivePreFECBER, val.GetOtn().GetPreFecBer().GetAvg()) &&
+			slices.Contains(inactivePreFECBER, val.GetOtn().GetPreFecBer().GetMax()) &&
+			slices.Contains(inactivePreFECBER, val.GetOtn().GetPreFecBer().GetInstant()) &&
 			val.GetOtn().GetQValue().GetMin() == inactiveQValue &&
 			val.GetOtn().GetQValue().GetAvg() == inactiveQValue &&
 			val.GetOtn().GetQValue().GetMax() == inactiveQValue &&

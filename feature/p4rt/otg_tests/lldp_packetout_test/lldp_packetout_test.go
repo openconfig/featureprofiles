@@ -37,6 +37,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 	p4pb "github.com/p4lang/p4runtime/go/p4/v1"
 )
@@ -164,7 +165,14 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 			sendPackets(t, test.client, packets, packetCount)
 
 			// Wait for ate stats to be populated
-			time.Sleep(60 * time.Second)
+			if test.expectPass {
+				gnmi.Watch(t, args.ate.OTG(), gnmi.OTG().Port(port).Counters().InFrames().State(), time.Minute, func(val *ygnmi.Value[uint64]) bool {
+					count, present := val.Val()
+					return present && count >= counter0 && (count-counter0 >= uint64(float64(packetCount)*0.95))
+				}).Await(t)
+			} else {
+				time.Sleep(10 * time.Second)
+			}
 
 			// Check packet counters after packet out
 			counter1 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port(port).Counters().InFrames().State())
@@ -356,6 +364,9 @@ func TestPacketOut(t *testing.T) {
 	configureDeviceID(ctx, t, dut)
 
 	t.Logf("Disable LLDP config")
+	t.Cleanup(func() {
+		gnmi.Replace(t, dut, gnmi.OC().Lldp().Enabled().Config(), true)
+	})
 	gnmi.Replace(t, dut, gnmi.OC().Lldp().Enabled().Config(), false)
 
 	leader := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})

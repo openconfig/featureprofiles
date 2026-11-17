@@ -45,6 +45,7 @@ to Automatic Test Equipment (ATE).
         *   /components/component/transceiver/thresholds/threshold/state/module-temperature-upper
         *   /components/component/transceiver/thresholds/threshold/state/severity
         *   /components/component/state/temperature/instant
+        *   /components/component/transceiver/physical-channels/channel/state/laser-temperature/instant
     *   Tx output power
         *   /components/component/transceiver/thresholds/threshold/state/output-power-lower
         *   /components/component/transceiver/thresholds/threshold/state/output-power-upper
@@ -108,6 +109,8 @@ paths:
   /components/component/transceiver/physical-channels/channel/state/input-power/instant:
     platform_type: ["TRANSCEIVER"]
   /components/component/transceiver/physical-channels/channel/state/laser-bias-current/instant:
+    platform_type: ["TRANSCEIVER"]
+  /components/component/transceiver/physical-channels/channel/state/laser-temperature/instant:
     platform_type: ["TRANSCEIVER"]
   /components/component/transceiver/physical-channels/channel/state/output-power/instant:
     platform_type: ["TRANSCEIVER"]

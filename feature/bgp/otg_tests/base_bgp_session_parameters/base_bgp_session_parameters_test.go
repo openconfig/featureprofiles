@@ -147,11 +147,13 @@ func bgpCreateNbr(bgpParams *bgpTestParams, dut *ondatra.DUTDevice) *oc.NetworkI
 	pg := bgp.GetOrCreatePeerGroup(peerGrpName)
 	pg.PeerAs = ygot.Uint32(bgpParams.peerAS)
 	pg.PeerGroupName = ygot.String(peerGrpName)
+	pg.GetOrCreateTransport().LocalAddress = ygot.String(dutAttrs.IPv4)
 
 	nv4 := bgp.GetOrCreateNeighbor(ateAttrs.IPv4)
 	nv4.PeerGroup = ygot.String(peerGrpName)
 	nv4.PeerAs = ygot.Uint32(bgpParams.peerAS)
 	nv4.Enabled = ygot.Bool(true)
+	nv4.GetOrCreateTransport().LocalAddress = ygot.String(dutAttrs.IPv4)
 
 	if bgpParams.nbrLocalAS != 0 {
 		nv4.LocalAs = ygot.Uint32(bgpParams.nbrLocalAS)
@@ -244,6 +246,39 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	// Check BGP neighbor is enabled
 	if !gnmi.Get(t, dut, nbrPath.State()).GetEnabled() {
 		t.Errorf("Expected neighbor %v to be enabled", ateAttrs.IPv4)
+	}
+
+	// Check BGP neighbor peer-group and peer-type from telemetry
+	if got := gnmi.Get(t, dut, nbrPath.PeerGroup().State()); got != peerGrpName {
+		t.Errorf("BGP neighbor %s state/peer-group: got %v, want %v", ateAttrs.IPv4, got, peerGrpName)
+	}
+	if got := gnmi.Get(t, dut, nbrPath.PeerType().State()); got != oc.Bgp_PeerType_EXTERNAL {
+		t.Errorf("BGP neighbor %s state/peer-type: got %v, want %v", ateAttrs.IPv4, got, oc.Bgp_PeerType_EXTERNAL)
+	}
+
+	// Check BGP neighbor input and output queues from telemetry
+	queues := gnmi.Get(t, dut, nbrPath.Queues().State())
+	if queues.Input == nil {
+		t.Errorf("BGP neighbor %s state/queues/input is nil", ateAttrs.IPv4)
+	}
+	if queues.Output == nil {
+		t.Errorf("BGP neighbor %s state/queues/output is nil", ateAttrs.IPv4)
+	}
+
+	// Check BGP neighbor and peer-group transport state from telemetry
+	nbrTransport := gnmi.Get(t, dut, nbrPath.Transport().State())
+	if got := nbrTransport.GetLocalAddress(); got != dutAttrs.IPv4 {
+		t.Errorf("BGP neighbor %s transport/state/local-address: got %v, want %v", ateAttrs.IPv4, got, dutAttrs.IPv4)
+	}
+	if got := nbrTransport.GetLocalPort(); got == 0 {
+		t.Errorf("BGP neighbor %s transport/state/local-port: got 0, want non-zero", ateAttrs.IPv4)
+	}
+	if got := nbrTransport.GetRemotePort(); got == 0 {
+		t.Errorf("BGP neighbor %s transport/state/remote-port: got 0, want non-zero", ateAttrs.IPv4)
+	}
+	pgTransport := gnmi.Get(t, dut, statePath.PeerGroup(peerGrpName).Transport().State())
+	if got := pgTransport.GetLocalAddress(); got != dutAttrs.IPv4 {
+		t.Errorf("BGP peer-group %s transport/state/local-address: got %v, want %v", peerGrpName, got, dutAttrs.IPv4)
 	}
 }
 
@@ -360,6 +395,15 @@ func TestEstablishAndDisconnect(t *testing.T) {
 	}).Await(t)
 	if !codeok {
 		t.Errorf("On disconnect: expected error code %v", oc.BgpTypes_BGP_ERROR_CODE_CEASE)
+	}
+	if got := gnmi.Get(t, dut, nbrPath.Messages().Received().NOTIFICATION().State()); got == 0 {
+		t.Errorf("On disconnect: received NOTIFICATION count got 0, want > 0")
+	}
+	if got := gnmi.Get(t, dut, nbrPath.Messages().Received().LastNotificationErrorSubcode().State()); got != oc.BgpTypes_BGP_ERROR_SUBCODE_OTHER_CONFIG_CHANGE {
+		t.Errorf("On disconnect: received last-notification-error-subcode got %v, want %v", got, oc.BgpTypes_BGP_ERROR_SUBCODE_OTHER_CONFIG_CHANGE)
+	}
+	if got := gnmi.Get(t, dut, nbrPath.Messages().Received().LastNotificationTime().State()); got == 0 {
+		t.Errorf("On disconnect: received last-notification-time got 0, want non-zero timestamp")
 	}
 
 	// Clear config on DUT and ATE
@@ -479,49 +523,58 @@ func TestParameters(t *testing.T) {
 	nbrPath := statePath.Neighbor(ateIP)
 
 	cases := []struct {
-		name    string
-		dutConf *oc.NetworkInstance_Protocol
-		ateConf gosnappi.Config
+		name         string
+		dutConf      *oc.NetworkInstance_Protocol
+		ateConf      gosnappi.Config
+		wantPeerType oc.E_Bgp_PeerType
 	}{
 		{
-			name:    "Test the eBGP session establishment: Global AS",
-			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS, RouterID: dutAttrs.IPv4}, dut),
-			ateConf: configureATE(t, &bgpTestParams{localAS: ateAS, peerIP: dutIP}, connExternal, noAuth),
+			name:         "Test the eBGP session establishment: Global AS",
+			dutConf:      bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS, RouterID: dutAttrs.IPv4}, dut),
+			ateConf:      configureATE(t, &bgpTestParams{localAS: ateAS, peerIP: dutIP}, connExternal, noAuth),
+			wantPeerType: oc.Bgp_PeerType_EXTERNAL,
 		},
 		{
-			name:    "Test the eBGP session establishment: Neighbor AS",
-			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS2, peerAS: ateAS, nbrLocalAS: dutAS, RouterID: dutAttrs.IPv4}, dut),
-			ateConf: configureATE(t, &bgpTestParams{localAS: ateAS, peerIP: dutIP}, connExternal, noAuth),
+			name:         "Test the eBGP session establishment: Neighbor AS",
+			dutConf:      bgpCreateNbr(&bgpTestParams{localAS: dutAS2, peerAS: ateAS, nbrLocalAS: dutAS, RouterID: dutAttrs.IPv4}, dut),
+			ateConf:      configureATE(t, &bgpTestParams{localAS: ateAS, peerIP: dutIP}, connExternal, noAuth),
+			wantPeerType: oc.Bgp_PeerType_EXTERNAL,
 		},
 		{
-			name:    "Test the iBGP session establishment: Global AS",
-			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS2, peerAS: ateAS2, RouterID: dutAttrs.IPv4}, dut),
-			ateConf: configureATE(t, &bgpTestParams{localAS: ateAS2, peerIP: dutIP}, connInternal, noAuth),
+			name:         "Test the iBGP session establishment: Global AS",
+			dutConf:      bgpCreateNbr(&bgpTestParams{localAS: dutAS2, peerAS: ateAS2, RouterID: dutAttrs.IPv4}, dut),
+			ateConf:      configureATE(t, &bgpTestParams{localAS: ateAS2, peerIP: dutIP}, connInternal, noAuth),
+			wantPeerType: oc.Bgp_PeerType_INTERNAL,
 		},
 		{
-			name:    "Test the iBGP session establishment: Neighbor AS",
-			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS2, nbrLocalAS: dutAS2, RouterID: dutAttrs.IPv4}, dut),
-			ateConf: configureATE(t, &bgpTestParams{localAS: ateAS2, peerIP: dutIP}, connInternal, noAuth),
+			name:         "Test the iBGP session establishment: Neighbor AS",
+			dutConf:      bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS2, nbrLocalAS: dutAS2, RouterID: dutAttrs.IPv4}, dut),
+			ateConf:      configureATE(t, &bgpTestParams{localAS: ateAS2, peerIP: dutIP}, connInternal, noAuth),
+			wantPeerType: oc.Bgp_PeerType_INTERNAL,
 		},
 		{
-			name:    "Test the eBGP session establishment with martian IP as Router ID: Global AS",
-			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS, RouterID: martianIP}, dut),
-			ateConf: configureATE(t, &bgpTestParams{localAS: ateAS, peerIP: dutIP, RouterID: ateAttrs.IPv4}, connExternal, noAuth),
+			name:         "Test the eBGP session establishment with martian IP as Router ID: Global AS",
+			dutConf:      bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS, RouterID: martianIP}, dut),
+			ateConf:      configureATE(t, &bgpTestParams{localAS: ateAS, peerIP: dutIP, RouterID: ateAttrs.IPv4}, connExternal, noAuth),
+			wantPeerType: oc.Bgp_PeerType_EXTERNAL,
 		},
 		{
-			name:    "Test the eBGP session establishment with martian IP as Router ID: Neighbor AS",
-			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS2, peerAS: ateAS, nbrLocalAS: dutAS, RouterID: martianIP}, dut),
-			ateConf: configureATE(t, &bgpTestParams{localAS: ateAS, peerIP: dutIP, RouterID: ateAttrs.IPv4}, connExternal, noAuth),
+			name:         "Test the eBGP session establishment with martian IP as Router ID: Neighbor AS",
+			dutConf:      bgpCreateNbr(&bgpTestParams{localAS: dutAS2, peerAS: ateAS, nbrLocalAS: dutAS, RouterID: martianIP}, dut),
+			ateConf:      configureATE(t, &bgpTestParams{localAS: ateAS, peerIP: dutIP, RouterID: ateAttrs.IPv4}, connExternal, noAuth),
+			wantPeerType: oc.Bgp_PeerType_EXTERNAL,
 		},
 		{
-			name:    "Test the iBGP session establishment with martian IP as Router ID: Global AS",
-			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS2, peerAS: ateAS2, RouterID: martianIP}, dut),
-			ateConf: configureATE(t, &bgpTestParams{localAS: ateAS2, peerIP: dutIP, RouterID: ateAttrs.IPv4}, connInternal, noAuth),
+			name:         "Test the iBGP session establishment with martian IP as Router ID: Global AS",
+			dutConf:      bgpCreateNbr(&bgpTestParams{localAS: dutAS2, peerAS: ateAS2, RouterID: martianIP}, dut),
+			ateConf:      configureATE(t, &bgpTestParams{localAS: ateAS2, peerIP: dutIP, RouterID: ateAttrs.IPv4}, connInternal, noAuth),
+			wantPeerType: oc.Bgp_PeerType_INTERNAL,
 		},
 		{
-			name:    "Test the iBGP session establishment with martian IP as Router ID: Neighbor AS",
-			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS2, nbrLocalAS: dutAS2, RouterID: martianIP}, dut),
-			ateConf: configureATE(t, &bgpTestParams{localAS: ateAS2, peerIP: dutIP, RouterID: ateAttrs.IPv4}, connInternal, noAuth),
+			name:         "Test the iBGP session establishment with martian IP as Router ID: Neighbor AS",
+			dutConf:      bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS2, nbrLocalAS: dutAS2, RouterID: martianIP}, dut),
+			ateConf:      configureATE(t, &bgpTestParams{localAS: ateAS2, peerIP: dutIP, RouterID: ateAttrs.IPv4}, connInternal, noAuth),
+			wantPeerType: oc.Bgp_PeerType_INTERNAL,
 		},
 	}
 	for _, tc := range cases {
@@ -536,6 +589,9 @@ func TestParameters(t *testing.T) {
 			ate.OTG().StartProtocols(t)
 			t.Log("Verify BGP session state : ESTABLISHED")
 			gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*100, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+			if got := gnmi.Get(t, dut, nbrPath.PeerType().State()); got != tc.wantPeerType {
+				t.Errorf("BGP neighbor %s state/peer-type: got %v, want %v", ateIP, got, tc.wantPeerType)
+			}
 			stateDut := gnmi.Get(t, dut, statePath.State())
 			wantState := tc.dutConf.Bgp
 			if deviations.MissingValueForDefaults(dut) {
