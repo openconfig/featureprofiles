@@ -4,4 +4,4 @@
 uuid: "fc4884a4-627c-4f01-b423-cfdc339d7bba"
 plan_id: "Health-1.3"
 description: "System Process and Controller Card Memory Leak Detection"
-testbed: TESTBED_DUT_ATE_4LINKS
+testbed: TESTBED_DUT_ATE_2LINKS

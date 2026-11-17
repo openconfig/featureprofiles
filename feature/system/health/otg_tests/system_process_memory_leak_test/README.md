@@ -4,12 +4,14 @@
 
 This test validates system process, controller-card memory, and hardware
 resource stability on a DUT against unbounded memory leaks within a realistic
-`~44-minute` execution budget (`< 50 minutes`). The specification is organized
-into five distinct, cross-referenced sections:
+`~45-minute` nominal execution budget (`< 60 minutes` including platform
+convergence overhead) on a 2-link DUT-ATE testbed. The specification is
+organized into five distinct, cross-referenced sections:
 
-- **Section 1 (Test environment setup)**: Defines physical port mappings,
-  RFC-compliant IPv4/IPv6 addressing, 3-way ECMP eBGP peers, route sets
-  (`Baseline-Routes` and `Churn-Routes`), and sentinel AFT prefixes.
+- **Section 1 (Test environment setup)**: Defines the 2-link physical port
+  mappings, RFC-compliant IPv4/IPv6 addressing, 3-way ECMP eBGP peers emulated
+  on a single shared egress link, route sets (`Baseline-Routes` and
+  `Churn-Routes`), and sentinel AFT prefixes.
 - **Section 2 (OpenConfig Path Groups)**: Groups all OpenConfig leaf paths by
   function (`[OC-Group-A]` through `[OC-Group-E]`) and maps each group to the
   test cases that use it.
@@ -20,13 +22,13 @@ into five distinct, cross-referenced sections:
   peers over `5` cycles), and concurrent hardware FIB resource utilization.
 - **Section 4 (Negative Test Cases `Health-1.3.5`–`Health-1.3.7`)**: Validates
   process and controller-card memory stability during BGP max-prefix limit
-  violations (`~3 min`), `5` egress link admin-down/up flaps (`~4 min`), and `3`
+  violations (`~3 min`), `3` egress link admin-down/up flaps (`~5 min`), and `3`
   abrupt BGP peer session resets (`~3 min`).
 - **Section 5 (Cleanup)**: Restores all DUT and ATE state (`~1 min`).
 
 ## Testbed type
 
-* [`featureprofiles/topologies/atedut_4.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_4.testbed)
+* [`featureprofiles/topologies/atedut_2.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_2.testbed)
 
 ## Procedure
 
@@ -34,15 +36,15 @@ into five distinct, cross-referenced sections:
 
 * **Physical Links and Interface Addressing** (configured in
   [Canonical OC](#canonical-oc) under `"interfaces"`):
-  * `Link 1` (`port1` <-> `atePort1`, Egress ECMP Path 1): DUT `192.0.2.1/30`
-    and `2001:db8::1/126` <-> ATE `192.0.2.2/30` and `2001:db8::2/126`.
-  * `Link 2` (`port2` <-> `atePort2`, Egress ECMP Path 2): DUT `192.0.2.5/30`
-    and `2001:db8::5/126` <-> ATE `192.0.2.6/30` and `2001:db8::6/126`.
-  * `Link 3` (`port3` <-> `atePort3`, Egress ECMP Path 3): DUT `192.0.2.9/30`
-    and `2001:db8::9/126` <-> ATE `192.0.2.10/30` and `2001:db8::a/126`.
-  * `Link 4` (`port4` <-> `atePort4`, Ingress Validation Port): DUT
-    `192.0.2.13/30` and `2001:db8::d/126` <-> ATE `192.0.2.14/30` and
-    `2001:db8::e/126`.
+  * `Link 1` (`port1` <-> `atePort1`, shared Egress ECMP Link): DUT
+    `192.0.2.1/29` and `2001:db8::1/125`. `atePort1` emulates three OTG
+    devices, each with a unique MAC address, on the same subnet:
+    * ECMP Path 1 (`Peer 1`): ATE `192.0.2.2/29` and `2001:db8::2/125`.
+    * ECMP Path 2 (`Peer 2`): ATE `192.0.2.3/29` and `2001:db8::3/125`.
+    * ECMP Path 3 (`Peer 3`): ATE `192.0.2.4/29` and `2001:db8::4/125`.
+  * `Link 2` (`port2` <-> `atePort2`, Ingress Validation Port): DUT
+    `192.0.2.9/30` and `2001:db8::9/126` <-> ATE `192.0.2.10/30` and
+    `2001:db8::a/126`.
 * **DUT and ATE eBGP Control Plane** (configured in
   [Canonical OC](#canonical-oc) under `"network-instances"` and
   `"routing-policy"`):
@@ -50,12 +52,12 @@ into five distinct, cross-referenced sections:
     `192.0.2.1`, eBGP `maximum-paths` = `3`, routing policy `ALLOW-ALL`
     (`ACCEPT_ROUTE`) applied on import and export for `IPV4_UNICAST` and
     `IPV6_UNICAST`.
-  * `Peer 1` on `Link 1` (`atePort1`): Neighbor `192.0.2.2` and `2001:db8::2`,
-    peer AS `64501`.
-  * `Peer 2` on `Link 2` (`atePort2`): Neighbor `192.0.2.6` and `2001:db8::6`,
-    peer AS `64502`.
-  * `Peer 3` on `Link 3` (`atePort3`): Neighbor `192.0.2.10` and `2001:db8::a`,
-    peer AS `64503`.
+  * `Peer 1` on `Link 1` (`atePort1`, ECMP Path 1): Neighbor `192.0.2.2` and
+    `2001:db8::2`, peer AS `64501`.
+  * `Peer 2` on `Link 1` (`atePort1`, ECMP Path 2): Neighbor `192.0.2.3` and
+    `2001:db8::3`, peer AS `64502`.
+  * `Peer 3` on `Link 1` (`atePort1`, ECMP Path 3): Neighbor `192.0.2.4` and
+    `2001:db8::4`, peer AS `64503`.
 * **Advertised BGP Route Sets and Sentinel AFT Prefixes on `Peer 1`–`Peer 3`**:
   * `Baseline-Routes` (used in `Health-1.3.1`–`Health-1.3.7`, `500` dual-stack
     routes per peer): `250` IPv4 `/32` prefixes (`203.0.113.1/32`–
@@ -73,16 +75,21 @@ into five distinct, cross-referenced sections:
       streaming the full AFT table): `100.64.0.1/32`, `100.64.39.16/32`,
       `2001:db8:10:1::/64`, and `2001:db8:10:2710::/64`.
 * **Data-Plane Validation Traffic**:
-  * Transmit dual-stack IPv4 and IPv6 packets from ingress `atePort4` (`Link 4`)
+  * Transmit dual-stack IPv4 and IPv6 packets from ingress `atePort2` (`Link 2`)
     destined to the active route set (`Baseline-Routes` or `Churn-Routes`)
-    across egress `atePort1`–`atePort3` (`Link 1`–`Link 3`) at `10,000 pps` per
-    family (`512` and `1500` byte frames, UDP source ports `10000`–`10999`).
+    across the 3 ECMP next-hops (`Peer 1`–`Peer 3`) on egress `atePort1`
+    (`Link 1`) at `10,000 pps` per family (`512` and `1500` byte frames, UDP
+    source ports `10000`–`10999`).
+  * Because all three ECMP next-hops share `Link 1`, ECMP distribution is
+    validated through the AFT `next-hop-group` membership in `[OC-Group-C]`
+    (`3` next-hops whose `ip-address` values match the active peers) rather
+    than through per-egress-port packet counters.
 * **Initial Bring-Up**:
   * Push the [Canonical OC](#canonical-oc) configuration to the DUT using
     `gNMI.Set` (`REPLACE`), start ATE protocols, resolve IPv4 ARP and IPv6 ND
     neighbors (`WaitForARP`), and use `gnmi.Watch` (`ON_CHANGE`) on
-    `[OC-Group-C]` to confirm `port1`–`port4` are `UP` and all six eBGP sessions
-    (`Peer 1`–`Peer 3`, IPv4 and IPv6) are `ESTABLISHED`.
+    `[OC-Group-C]` to confirm `port1` and `port2` are `UP` and all six eBGP
+    sessions (`Peer 1`–`Peer 3`, IPv4 and IPv6) are `ESTABLISHED`.
 
 ---
 
@@ -127,6 +134,7 @@ into five functional groups below and listed in the machine-readable
     `/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix`,
     `/network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/prefix`,
     `/network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id`,
+    `/network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/index`,
     `/network-instances/network-instance/afts/next-hops/next-hop/state/index`,
     and
     `/network-instances/network-instance/afts/next-hops/next-hop/state/ip-address`.
@@ -176,7 +184,7 @@ into five functional groups below and listed in the machine-readable
 
 ### Health-1.3.1 - Validate Baseline System Process and Controller Card Memory Telemetry
 
-* **Connected Setup & OC Groups**: Uses `Link 1`–`Link 4`, `Peer 1`–`Peer 3`,
+* **Connected Setup & OC Groups**: Uses `Link 1`–`Link 2`, `Peer 1`–`Peer 3`,
   `Baseline-Routes` (`250` IPv4 + `250` IPv6), and OpenConfig groups
   `[OC-Group-A]`, `[OC-Group-B]`, and `[OC-Group-C]` (`~3 minutes`).
 * Step 1 - Advertise `Baseline-Routes` from `Peer 1`, `Peer 2`, and `Peer 3`,
@@ -194,10 +202,14 @@ into five functional groups below and listed in the machine-readable
   `memory/available` and `memory/utilized` for the router's control-plane
   components (`CONTROLLER_CARD`—including standby when present/supported—
   `CHASSIS`, and `CPU`).
-* Step 4 - Send data-plane validation traffic from `atePort4` to
-  `Baseline-Routes` for `15 seconds` and verify via `[OC-Group-C]` counters and
-  OTG metrics that packet loss is `0%` and traffic is balanced across `port1`,
-  `port2`, and `port3` (`33.3% ± 5%`).
+* Step 4 - Send data-plane validation traffic from `atePort2` to
+  `Baseline-Routes` for `15 seconds` and verify via OTG metrics that packet loss
+  is `0%`, via `[OC-Group-C]` interface counters that `port2` `in-pkts` and
+  `port1` `out-pkts` advance by the transmitted packet count, and via
+  `[OC-Group-C]` AFT state that the `Baseline-Sentinel-Prefixes`
+  `next-hop-group` contains `3` next-hops (`192.0.2.2`, `192.0.2.3`, and
+  `192.0.2.4` for IPv4; `2001:db8::2`, `2001:db8::3`, and `2001:db8::4` for
+  IPv6).
 * Step 5 - Pass/Fail Criteria: Pass if:
   * User-space processes (`memory-usage > 0`) in `[OC-Group-A]` report valid
     `pid` and `name` (`cpu-utilization` and `memory-utilization` are integer
@@ -206,7 +218,10 @@ into five functional groups below and listed in the machine-readable
   * At least one control-plane component (`CONTROLLER_CARD`—including standby
     when present/supported—or `CHASSIS`) in `[OC-Group-B]` reports non-zero
     `memory/available` and `memory/utilized`.
-  * Baseline traffic forwards with `0%` packet loss; Fail otherwise.
+  * Baseline traffic forwards with `0%` packet loss, `port2` `in-pkts` and
+    `port1` `out-pkts` advance in `[OC-Group-C]`, and the
+    `Baseline-Sentinel-Prefixes` `next-hop-group` contains `3` next-hops
+    matching `Peer 1`–`Peer 3`; Fail otherwise.
 
 ### Health-1.3.2 - Validate Steady-State Per-Process Memory Usage Over Time
 
@@ -306,9 +321,10 @@ into five functional groups below and listed in the machine-readable
 
 ### Health-1.3.5 - BGP Max-Prefix Limit Violation (Negative)
 
-* **Connected Setup & OC Groups**: Targets `Peer 1` (`atePort1` on `Link 1`)
-  while `Peer 2` and `Peer 3` remain active, using `Churn-Routes` and OpenConfig
-  groups `[OC-Group-E]`, `[OC-Group-C]`, and `[OC-Group-A]` (`~3 minutes`).
+* **Connected Setup & OC Groups**: Targets `Peer 1` (ECMP Path 1 on `atePort1`,
+  `Link 1`) while `Peer 2` and `Peer 3` remain active, using `Churn-Routes` and
+  OpenConfig groups `[OC-Group-E]`, `[OC-Group-C]`, and `[OC-Group-A]` (`~3
+  minutes`).
 * Step 1 - Configure `[OC-Group-E]` prefix limits (`max-prefixes` = `8000`,
   `warning-threshold-pct` = `80`, and `timers/config/restart-time` = `30`,
   accounting for `prefix-limit-received` vendor deviations as in `RT-1.5`) for
@@ -321,8 +337,9 @@ into five functional groups below and listed in the machine-readable
   `Peer 1` reports `prefix-limit-exceeded` = `true` (when supported by the
   platform) and transitions to `session-state` = `IDLE`, while `Peer 2` and
   `Peer 3` remain `ESTABLISHED` (`prefixes/installed` = `10,250` per family) and
-  forward traffic from `atePort4` with `0%` steady-state loss across 2-way ECMP
-  (`50% ± 5%` split).
+  forward traffic from `atePort2` with `0%` steady-state loss across 2-way ECMP
+  (`Churn-Sentinel-Prefixes` `next-hop-group` contains `2` next-hops: `Peer 2`
+  and `Peer 3`).
 * Step 4 - Withdraw excess routes on `Peer 1`, remove the `[OC-Group-E]`
   prefix-limit configuration, allow `restart-time` (or toggle
   `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/enabled`
@@ -337,35 +354,46 @@ into five functional groups below and listed in the machine-readable
 
 ### Health-1.3.6 - Repeated Egress Interface Admin-Down Flapping Under High Route Scale (Negative)
 
-* **Connected Setup & OC Groups**: Targets DUT `port1` (`Link 1`) with
-  `Churn-Routes` (`20,000` dual-stack routes) installed across `Peer 1`–`Peer
-  3`, using `[OC-Group-E]`, `[OC-Group-C]`, `[OC-Group-A]`, and `[OC-Group-B]`
-  (`~4 minutes`).
+* **Connected Setup & OC Groups**: Targets DUT `port1` (`Link 1`, the shared
+  egress link carrying `Peer 1`–`Peer 3`) with `Churn-Routes` (`20,000`
+  dual-stack routes) installed across `Peer 1`–`Peer 3`, using `[OC-Group-E]`,
+  `[OC-Group-C]`, `[OC-Group-A]`, and `[OC-Group-B]` (`~5 minutes`). Each flap
+  withdraws and re-learns the full `Baseline-Routes` and `Churn-Routes` RIB/FIB
+  from all three peers, exercising maximum next-hop and route-state churn.
 * Step 1 - With `Churn-Routes` installed and traffic flowing, flap `port1`
-  across `5` consecutive cycles by setting `[OC-Group-E]`
+  across `3` consecutive cycles by setting `[OC-Group-E]`
   `/interfaces/interface/config/enabled` to `false` (registering a deferred
   cleanup to restore `enabled` = `true`), awaiting `oper-status` = `DOWN` via
   `gnmi.Watch` on `[OC-Group-C]`, and then setting `enabled` = `true` and
   awaiting `oper-status` = `UP`.
-* Step 2 - During each `DOWN` phase, verify via `[OC-Group-C]` and OTG metrics
-  that traffic reconverges to `port2` and `port3` (`50% ± 5%` split) with `0%`
-  steady-state loss; during each `UP` phase, verify 3-way ECMP restoration
-  (`33.3% ± 5%` split) across `port1`–`port3`.
-* Step 3 - Pass/Fail Criteria: Pass if querying `[OC-Group-A]` (via a single
-  wildcard `gnmi.GetAll`) and `[OC-Group-B]` after the `5` flap cycles confirms
-  that persistent daemon `memory-usage` returns within `<= 5%` (or `<= 10 MB`)
-  and control-plane `memory/utilized` returns within `<= 5%` of their pre-flap
-  baseline without retaining orphaned next-hop or state-synchronization buffers;
-  Fail otherwise.
+* Step 2 - During each `DOWN` phase, verify via `[OC-Group-C]` that all six
+  eBGP sessions leave `ESTABLISHED` and `Churn-Sentinel-Prefixes` are removed
+  from the AFT (traffic from `atePort2` to the withdrawn routes is expected to
+  be dropped while the only egress link is down). During each `UP` phase,
+  verify via `[OC-Group-C]` that all six eBGP sessions return to `ESTABLISHED`,
+  `prefixes/installed` returns to `10,250` per family on all three peers, the
+  `Churn-Sentinel-Prefixes` `next-hop-group` is restored to `3` next-hops, and
+  traffic from `atePort2` forwards with `0%` steady-state loss.
+* Step 3 - Pass/Fail Criteria: After the final `UP` phase, confirm full
+  re-convergence (all six eBGP sessions `ESTABLISHED`, `prefixes/installed` =
+  `10,250` per family on all three peers, and the `Churn-Sentinel-Prefixes`
+  `next-hop-group` restored to `3` next-hops) and allow one additional `60s`
+  `[OC-Group-A]` `SAMPLE` interval to elapse so transient re-learning buffers
+  are released before measurement. Pass if querying `[OC-Group-A]` (via a
+  single wildcard `gnmi.GetAll`) and `[OC-Group-B]` after the `3` flap cycles
+  confirms that persistent daemon `memory-usage` returns within `<= 5%` (or
+  `<= 10 MB`) and control-plane `memory/utilized` returns within `<= 5%` of
+  their pre-flap baseline without retaining orphaned next-hop or
+  state-synchronization buffers; Fail otherwise.
 
 ### Health-1.3.7 - Abrupt BGP Peer Session Reset Under High Route Scale (Negative)
 
-* **Connected Setup & OC Groups**: Targets `Peer 2` (`atePort2` on `Link 2`)
-  with `Churn-Routes` (`20,000` dual-stack routes) installed across `Peer 1`–
-  `Peer 3`, using `[OC-Group-C]` and `[OC-Group-A]` (`~3 minutes`).
+* **Connected Setup & OC Groups**: Targets `Peer 2` (ECMP Path 2 on `atePort1`,
+  `Link 1`) with `Churn-Routes` (`20,000` dual-stack routes) installed across
+  `Peer 1`–`Peer 3`, using `[OC-Group-C]` and `[OC-Group-A]` (`~3 minutes`).
 * Step 1 - With `Churn-Routes` (`10,000` IPv4 and `10,000` IPv6 prefixes)
   installed across all three peers, trigger `3` consecutive BGP session resets
-  on `Peer 2` (`192.0.2.6` and `2001:db8::6`) from the ATE side via OTG
+  on `Peer 2` (`192.0.2.3` and `2001:db8::3`) from the ATE side via OTG
   `SetControlState` (`StateProtocolBgpPeersState.DOWN` followed by `UP`, as in
   `RT-1.65`, registering a deferred cleanup to restore the OTG BGP peer state to
   `UP`).
@@ -383,8 +411,8 @@ into five functional groups below and listed in the machine-readable
 
 ### Cleanup
 
-* Stop all active OTG traffic streams and protocols on `atePort1` through
-  `atePort4`.
+* Stop all active OTG traffic streams and protocols on `atePort1` and
+  `atePort2`.
 * Revert all BGP, routing-policy, resource-threshold, and interface
   configurations on the DUT using `t.Cleanup()` (`gNMI.Set` with `DELETE` /
   `REPLACE`) and verify via `[OC-Group-C]` that all DUT and ATE ports are
@@ -418,7 +446,7 @@ into five functional groups below and listed in the machine-readable
                     {
                       "config": {
                         "ip": "192.0.2.1",
-                        "prefix-length": 30
+                        "prefix-length": 29
                       },
                       "ip": "192.0.2.1"
                     }
@@ -434,7 +462,7 @@ into five functional groups below and listed in the machine-readable
                     {
                       "config": {
                         "ip": "2001:db8::1",
-                        "prefix-length": 126
+                        "prefix-length": 125
                       },
                       "ip": "2001:db8::1"
                     }
@@ -469,58 +497,6 @@ into five functional groups below and listed in the machine-readable
                   "address": [
                     {
                       "config": {
-                        "ip": "192.0.2.5",
-                        "prefix-length": 30
-                      },
-                      "ip": "192.0.2.5"
-                    }
-                  ]
-                },
-                "config": {
-                  "enabled": true
-                }
-              },
-              "ipv6": {
-                "addresses": {
-                  "address": [
-                    {
-                      "config": {
-                        "ip": "2001:db8::5",
-                        "prefix-length": 126
-                      },
-                      "ip": "2001:db8::5"
-                    }
-                  ]
-                },
-                "config": {
-                  "enabled": true
-                }
-              }
-            }
-          ]
-        }
-      },
-      {
-        "config": {
-          "description": "DUT Port 3 connected to ATE Port 3",
-          "enabled": true,
-          "name": "port3",
-          "type": "iana-if-type:ethernetCsmacd"
-        },
-        "name": "port3",
-        "subinterfaces": {
-          "subinterface": [
-            {
-              "config": {
-                "enabled": true,
-                "index": 0
-              },
-              "index": 0,
-              "ipv4": {
-                "addresses": {
-                  "address": [
-                    {
-                      "config": {
                         "ip": "192.0.2.9",
                         "prefix-length": 30
                       },
@@ -541,58 +517,6 @@ into five functional groups below and listed in the machine-readable
                         "prefix-length": 126
                       },
                       "ip": "2001:db8::9"
-                    }
-                  ]
-                },
-                "config": {
-                  "enabled": true
-                }
-              }
-            }
-          ]
-        }
-      },
-      {
-        "config": {
-          "description": "DUT Port 4 connected to ATE Port 4",
-          "enabled": true,
-          "name": "port4",
-          "type": "iana-if-type:ethernetCsmacd"
-        },
-        "name": "port4",
-        "subinterfaces": {
-          "subinterface": [
-            {
-              "config": {
-                "enabled": true,
-                "index": 0
-              },
-              "index": 0,
-              "ipv4": {
-                "addresses": {
-                  "address": [
-                    {
-                      "config": {
-                        "ip": "192.0.2.13",
-                        "prefix-length": 30
-                      },
-                      "ip": "192.0.2.13"
-                    }
-                  ]
-                },
-                "config": {
-                  "enabled": true
-                }
-              },
-              "ipv6": {
-                "addresses": {
-                  "address": [
-                    {
-                      "config": {
-                        "ip": "2001:db8::d",
-                        "prefix-length": 126
-                      },
-                      "ip": "2001:db8::d"
                     }
                   ]
                 },
@@ -732,10 +656,10 @@ into five functional groups below and listed in the machine-readable
                       },
                       "config": {
                         "enabled": true,
-                        "neighbor-address": "192.0.2.6",
+                        "neighbor-address": "192.0.2.3",
                         "peer-as": 64502
                       },
-                      "neighbor-address": "192.0.2.6"
+                      "neighbor-address": "192.0.2.3"
                     },
                     {
                       "afi-safis": {
@@ -761,10 +685,10 @@ into five functional groups below and listed in the machine-readable
                       },
                       "config": {
                         "enabled": true,
-                        "neighbor-address": "2001:db8::6",
+                        "neighbor-address": "2001:db8::3",
                         "peer-as": 64502
                       },
-                      "neighbor-address": "2001:db8::6"
+                      "neighbor-address": "2001:db8::3"
                     },
                     {
                       "afi-safis": {
@@ -790,10 +714,10 @@ into five functional groups below and listed in the machine-readable
                       },
                       "config": {
                         "enabled": true,
-                        "neighbor-address": "192.0.2.10",
+                        "neighbor-address": "192.0.2.4",
                         "peer-as": 64503
                       },
-                      "neighbor-address": "192.0.2.10"
+                      "neighbor-address": "192.0.2.4"
                     },
                     {
                       "afi-safis": {
@@ -819,10 +743,10 @@ into five functional groups below and listed in the machine-readable
                       },
                       "config": {
                         "enabled": true,
-                        "neighbor-address": "2001:db8::a",
+                        "neighbor-address": "2001:db8::4",
                         "peer-as": 64503
                       },
-                      "neighbor-address": "2001:db8::a"
+                      "neighbor-address": "2001:db8::4"
                     }
                   ]
                 }
@@ -946,6 +870,7 @@ paths:
   /network-instances/network-instance/afts/next-hops/next-hop/state/index:
   /network-instances/network-instance/afts/next-hops/next-hop/state/ip-address:
   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id:
+  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/index:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/established-transitions:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received:
