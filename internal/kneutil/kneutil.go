@@ -7,8 +7,7 @@ import (
 	"github.com/openconfig/ondatra/binding"
 )
 
-// IsKNEDUT reports whether dut is bound via knebind (KNE topology) for any
-// vendor, as opposed to static/hardware binding.
+// IsKNEDUT reports whether dut is bound via knebind (KNE topology) for any vendor, as opposed to static/hardware binding.
 func IsKNEDUT(dut *ondatra.DUTDevice) bool {
 	type serviceLookup interface {
 		Service(string) (*tpb.Service, error)
@@ -18,8 +17,7 @@ func IsKNEDUT(dut *ondatra.DUTDevice) bool {
 }
 
 // IsKNEBinding reports whether dut is a Nokia device bound via knebind.
-// Nokia-only KNE tweaks must gate on this so HW paths stay identical to the
-// untouched featureprofiles baseline.
+// Nokia-only KNE tweaks must gate on this so HW paths stay identical to the untouched featureprofiles baseline.
 func IsKNEBinding(dut *ondatra.DUTDevice) bool {
 	return dut.Vendor() == ondatra.NOKIA && IsKNEDUT(dut)
 }
