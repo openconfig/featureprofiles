@@ -199,7 +199,7 @@ func validateTranscieverTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondat
 		tcs = append(tcs, testcase{
 			desc: "Transceiver Form Factor Validation",
 			path: fmt.Sprintf(componentPath+"/transceiver/state/form-factor", params.TransceiverNames[p.Name()]),
-			got:  formFactor,
+			got:  transceiverValue.GetTransceiver().GetFormFactor(),
 			want: params.FormFactor,
 		})
 	}
