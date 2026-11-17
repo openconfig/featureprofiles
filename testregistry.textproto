@@ -2324,9 +2324,21 @@ test: {
 }
 test: {
   id: "gNOI-2.1"
-  description: "Packet-based Link Qualification on 100G and 400G links"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/packet_link_qualification/tests/packet_link_qualification_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/packet_link_qualification/tests/packet_link_qualification_test/packet_link_qualification_test.go"
+  description: "Packet-based Link Qualification on 100G links"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/packet_link_qualification/tests/packet_link_qualification_100g_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/packet_link_qualification/tests/packet_link_qualification_100g_test/packet_link_qualification_100g_test.go"
+}
+test: {
+  id: "gNOI-2.2"
+  description: "Packet-based Link Qualification on 400G links"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/packet_link_qualification/tests/packet_link_qualification_400g_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/packet_link_qualification/tests/packet_link_qualification_400g_test/packet_link_qualification_400g_test.go"
+}
+test: {
+  id: "gNOI-2.3"
+  description: "Packet-based Link Qualification on 800G links"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/packet_link_qualification/tests/packet_link_qualification_800g_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/packet_link_qualification/tests/packet_link_qualification_800g_test/packet_link_qualification_800g_test.go"
 }
 test: {
   id: "gNOI-3.1"

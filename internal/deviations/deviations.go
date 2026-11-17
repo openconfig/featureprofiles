@@ -258,6 +258,7 @@ func Ipv6DiscardedPktsUnsupported(dut *ondatra.DUTDevice) bool {
 }
 
 // LinkQualWaitAfterDeleteRequired returns whether the device requires additional time to complete post delete link qualification cleanup.
+// Juniper: https://issuetracker.google.com/587248907
 func LinkQualWaitAfterDeleteRequired(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLinkQualWaitAfterDeleteRequired()
 }
@@ -2583,4 +2584,9 @@ func MountPointStorageComponentUnsupported(dut *ondatra.DUTDevice) bool {
 // https://issuetracker.google.com/581463773
 func BgpGrHelperHoldTimerExpiryRequiresStalePolicy(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpGrHelperHoldTimerExpiryRequiresStalePolicy()
+}
+
+// PLQGeneratorCapabilitiesMaxBPS returns supported max_bps for devices that do not support packet link qualification(PLQ) Generator max_bps at the port line rate (https://issuetracker.google.com/issues/508691244).
+func PLQGeneratorCapabilitiesMaxBPS(dut *ondatra.DUTDevice) uint64 {
+	return lookupDUTDeviations(dut).GetPlqGeneratorCapabilitiesMaxBps()
 }

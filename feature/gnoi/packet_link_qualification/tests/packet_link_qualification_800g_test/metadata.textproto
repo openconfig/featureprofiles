@@ -1,0 +1,66 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "39161719-1e4a-4a0f-bf35-e823db67d190"
+plan_id: "gNOI-2.3"
+description: "Packet-based Link Qualification on 800G links"
+testbed: TESTBED_DUT_1_LOOP_800G
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    aggregate_atomic_update: true
+    link_qual_wait_after_delete_required: true
+    skip_plq_interface_oper_status_check: true
+    default_network_instance: "default"
+    interface_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    aggregate_atomic_update: true
+    explicit_interface_in_default_vrf: true
+    interface_enabled: true
+    negotiated_port_speed_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+    hardware_model_regex: ".*820.*|.*822.*"
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+    skip_plq_interface_oper_status_check: true
+    plq_reflector_stats_unsupported: true
+    plq_generator_capabilities_max_mtu: 512
+    plq_generator_capabilities_max_pps: 13000000
+    plq_generator_capabilities_max_bps: 50000000000
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+    hardware_model_regex: ".*88.*|xrd"
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+    skip_plq_interface_oper_status_check: true
+    plq_reflector_stats_unsupported: true
+    plq_generator_capabilities_max_mtu: 512
+    plq_generator_capabilities_max_pps: 40000000
+    plq_generator_capabilities_max_bps: 100000000000
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    link_qual_wait_after_delete_required: true
+  }
+}
