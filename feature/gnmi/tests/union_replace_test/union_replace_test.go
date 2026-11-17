@@ -492,24 +492,23 @@ func ocInterface(root *oc.Root, dut *ondatra.DUTDevice, intfName string) *oc.Int
 	if deviations.InterfaceEnabled(dut) {
 		intf.Enabled = ygot.Bool(true)
 	}
-	if deviations.RequireRoutedSubinterface0(dut) {
-		s4 := intf.GetOrCreateSubinterface(defaultSubif).GetOrCreateIpv4()
-		if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
-			s4.Enabled = ygot.Bool(true)
-		}
-	}
 	return intf
 }
 
 // setOCMTU sets the MTU of intf. DUTs that do not support setting the L2 MTU take the MTU on the
-// subinterface 0 IPv4 and IPv6 MTU leaves instead, which some DUTs require to be equal.
+// subinterface 0 IPv4 and IPv6 MTU leaves instead, which some DUTs require to be equal. As in
+// attrs.NewOCInterface, IPv4 is enabled on the subinterface that carries the IPv4 MTU.
 func setOCMTU(dut *ondatra.DUTDevice, intf *oc.Interface, mtu uint16) {
 	if !deviations.OmitL2MTU(dut) {
 		intf.Mtu = ygot.Uint16(mtu)
 		return
 	}
 	subif := intf.GetOrCreateSubinterface(defaultSubif)
-	subif.GetOrCreateIpv4().Mtu = ygot.Uint16(mtu)
+	s4 := subif.GetOrCreateIpv4()
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+		s4.Enabled = ygot.Bool(true)
+	}
+	s4.Mtu = ygot.Uint16(mtu)
 	subif.GetOrCreateIpv6().Mtu = ygot.Uint32(uint32(mtu))
 }
 
@@ -740,7 +739,9 @@ func breakoutInterfaces(t *testing.T, dut *ondatra.DUTDevice, baseIntfName strin
 		baseName = interfaceBase(t, baseIntfName)
 	}
 	step := uint8(1)
-	if deviations.FrBreakoutFix(dut) && breakout.numChannels > 0 {
+	// Arista EOS names breakout child interfaces after their first lane, e.g. /1 and /3 for a
+	// 2x50G breakout that uses 2 lanes per child.
+	if dut.Vendor() == ondatra.ARISTA && breakout.numChannels > 0 {
 		step = breakout.numChannels
 	}
 	for index := uint8(0); index < breakout.numBreakouts; index++ {
@@ -983,11 +984,7 @@ func configureUnionReplaceSupport(t *testing.T, dut *ondatra.DUTDevice) {
 func requireOCWithCLI(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch) {
 	t.Helper()
 	if hostname, ok := gnmi.Lookup(t, dut, gnmi.OC().System().Hostname().State()).Val(); ok {
-		if deviations.RequireRoutedSubinterface0(dut) {
-			gnmi.BatchUnionReplace(sb, gnmi.OC().Config(), &oc.Root{System: &oc.System{Hostname: ygot.String(hostname)}})
-		} else {
-			gnmi.BatchUnionReplace(sb, gnmi.OC().System().Hostname().Config(), hostname)
-		}
+		gnmi.BatchUnionReplace(sb, gnmi.OC().System().Hostname().Config(), hostname)
 	}
 }
 
@@ -1755,15 +1752,16 @@ func TestUnionReplace(t *testing.T) {
 					} else {
 						t.Log("Option 2 behavior: DUT accepted overlapping config, CLI value should take effect in state")
 						// Option 2 of the gNMI union_replace specification does not specify what
-						// value the OC config path should report when CLI and OC overlap. Nokia
-						// (unified datastore) and Arista reflect the winning CLI value on the OC
-						// config path, whereas dual-datastore implementations retain the OC value.
+						// value the OC config path should report when CLI and OC overlap. Nokia and
+						// Arista report the winning CLI value on the OC config path, whereas
+						// dual-datastore implementations retain the OC value.
 						wantConfig := overlapMTUOC
 						switch dut.Vendor() {
 						case ondatra.ARISTA, ondatra.NOKIA:
 							wantConfig = overlapMTUCLI
 						}
 						gotConfig := gnmi.Get(t, dut, configPath)
+						t.Logf("Interface %s OC MTU config after Option 2 accept: %d (OC value %d, CLI value %d)", intf1Name, gotConfig, overlapMTUOC, overlapMTUCLI)
 						if gotConfig != wantConfig {
 							errs = append(errs, fmt.Errorf("MTU config: got %d, want %d", gotConfig, wantConfig))
 						}
@@ -2059,9 +2057,7 @@ func TestUnionReplace(t *testing.T) {
 				sb.Set(t, dut)
 
 				t.Log("Verify configuration applied")
-				if !deviations.FrBreakoutFix(dut) {
-					errs = append(errs, verifyBreakoutModeConfig(t, dut, noTransceiverHWPort, interfaceWithoutTransceiver, breakout))
-				}
+				errs = append(errs, verifyBreakoutModeConfig(t, dut, noTransceiverHWPort, interfaceWithoutTransceiver, breakout))
 				if !deviations.PortSpeedUnsupported(dut) && !deviations.PortSpeedDuplexModeUnsupportedForInterfaceConfig(dut) {
 					checkIntf := interfaceWithoutTransceiver
 					if deviations.ExplicitBreakoutInterfaceConfig(dut) {
