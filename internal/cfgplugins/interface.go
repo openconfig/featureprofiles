@@ -628,6 +628,7 @@ func OTNChannelConfig(dut *ondatra.DUTDevice, p *ondatra.Port, params *ConfigPar
 			Description:        ygot.String("OTN Logical Channel"),
 			Index:              ygot.Uint32(params.OTNIndexes[p.Name()]),
 			LogicalChannelType: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_OTN,
+			TribProtocol:       params.TribProtocol,
 			Assignment: map[uint32]*oc.TerminalDevice_Channel_Assignment{
 				firstAssignmentIndex: {
 					Index:          ygot.Uint32(firstAssignmentIndex),
@@ -638,9 +639,6 @@ func OTNChannelConfig(dut *ondatra.DUTDevice, p *ondatra.Port, params *ConfigPar
 				},
 			},
 		}
-	}
-	if !deviations.OTNChannelTribUnsupported(dut) {
-		ch.TribProtocol = params.TribProtocol
 	}
 	if !deviations.TerminalDeviceChannelAdminStateUnsupported(dut) && !deviations.OTNToETHAssignment(dut) {
 		ch.AdminState = oc.TerminalDevice_AdminStateType_ENABLED
