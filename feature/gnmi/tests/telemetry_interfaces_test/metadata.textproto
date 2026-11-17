@@ -9,7 +9,6 @@ testbed: TESTBED_DUT_2LINKS
 platform_exceptions: {
   platform: {
     vendor: CISCO
-    hardware_model_regex: "CISCO-8808"
   }
   deviations: {
     state_path_unsupported: true
