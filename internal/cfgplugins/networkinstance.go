@@ -131,7 +131,7 @@ func AssignToNetworkInstance(t testing.TB, d *ondatra.DUTDevice, i string, ni st
 
 // AssignInterfaceToNetworkInstance attaches an interface to a network instance using batch update.
 // This is required for vendors that do not support subinterfaces and only support interface to network instance assignment.
-func AssignInterfaceToNetworkInstance(t testing.TB, batch *gnmi.SetBatch, d *ondatra.DUTDevice, i string, nip *NetworkInstanceParams, si uint32) {
+func AssignInterfaceToNetworkInstance(t testing.TB, batch *gnmi.SetBatch, d *ondatra.DUTDevice, i string, nip *NetworkInstanceParams, si uint32, subInt ...bool) {
 	var ni string
 	if nip.Default {
 		ni = deviations.DefaultNetworkInstance(d)
@@ -152,7 +152,7 @@ func AssignInterfaceToNetworkInstance(t testing.TB, batch *gnmi.SetBatch, d *ond
 	netInstIntf.Subinterface = ygot.Uint32(si)
 	switch d.Vendor() {
 	case ondatra.ARISTA:
-		if deviations.InterfaceConfigVRFBeforeAddress(d) {
+		if deviations.InterfaceConfigVRFBeforeAddress(d) && (len(subInt) > 0 && subInt[0]) {
 			netInstIntf.Id = ygot.String(fmt.Sprintf("%s.%d", intf.GetName(), si))
 		} else {
 			netInstIntf.Id = ygot.String(intf.GetName())
@@ -169,4 +169,46 @@ func AssignInterfaceToNetworkInstance(t testing.TB, batch *gnmi.SetBatch, d *ond
 	if intf.GetOrCreateSubinterface(si) != nil {
 		gnmi.BatchUpdate(batch, gnmi.OC().NetworkInstance(ni).Config(), netInst)
 	}
+}
+
+// DefaultNetworkInstanceInterfacesConfig holds the parameters for
+// AssignInterfacesToDefaultNetworkInstance.
+type DefaultNetworkInstanceInterfacesConfig struct {
+	// Interfaces are the names of the interfaces whose Subinterface is
+	// assigned to (or removed from) the default network instance.
+	Interfaces   []string
+	Subinterface uint32
+	// Delete removes the assignment instead of creating it.
+	Delete bool
+}
+
+// AssignInterfacesToDefaultNetworkInstance appends to sb the
+// /network-instances/network-instance/interfaces/interface entries that attach
+// (or, with cfg.Delete, detach) the given subinterfaces to the default network
+// instance. Devices that implicitly place interfaces in the default network
+// instance need no explicit assignment, so nothing is added unless the
+// ExplicitInterfaceInDefaultVRF deviation is set.
+func AssignInterfacesToDefaultNetworkInstance(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, cfg DefaultNetworkInstanceInterfacesConfig) *gnmi.SetBatch {
+	t.Helper()
+	if len(cfg.Interfaces) == 0 {
+		t.Fatalf("AssignInterfacesToDefaultNetworkInstance: cfg.Interfaces must not be empty")
+	}
+	if !deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		return sb
+	}
+	ni := deviations.DefaultNetworkInstance(dut)
+	for _, intf := range cfg.Interfaces {
+		id := fmt.Sprintf("%s.%d", intf, cfg.Subinterface)
+		path := gnmi.OC().NetworkInstance(ni).Interface(id)
+		if cfg.Delete {
+			gnmi.BatchDelete(sb, path.Config())
+			continue
+		}
+		gnmi.BatchUpdate(sb, path.Config(), &oc.NetworkInstance_Interface{
+			Id:           ygot.String(id),
+			Interface:    ygot.String(intf),
+			Subinterface: ygot.Uint32(cfg.Subinterface),
+		})
+	}
+	return sb
 }

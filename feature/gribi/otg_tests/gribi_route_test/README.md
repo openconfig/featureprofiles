@@ -76,7 +76,10 @@ network-instances {
     {NH#3, DEFAULT VRF, weight:1}, interface-ref:dut-port-2-interface,
   }
 - IPv4Entry {0.0.0.0/0 (ENCAP_TE_VRF_A)} -> NHG#5 (DEFAULT VRF) -> {
-    {NH#5, DEFAULT VRF, weight:1, interface-ref:dut-port-3-interface},
+    {NH#5, DEFAULT VRF, weight:1},
+  }
+  NH#5 -> {
+    network_instance: "DEFAULT"
   }
 - IPv4Entry {138.0.11.8/32 (ENCAP_TE_VRF_A)} -> NHG#4 (DEFAULT VRF) -> {
     {NH#4, DEFAULT VRF, weight:1},
@@ -109,7 +112,8 @@ Test-2, Match on source prefix, flow hits ENCAP_TE_VRF_A followed by Default VRF
 
 ```
   1. Send flow with source IP ipv4_outer_src_111 with destination IP ipv4PrefixNotEncapped.
-  2. Verify v4 packet not matched with tunnel prefix and egress via port-3.
+  2. Verify v4 packet not matched with tunnel prefix, falls back to DEFAULT VRF
+     via 0/0 route and is routed based on BGP route, egress via port-3.
   3. No traffic loss in steady state
 
 ```

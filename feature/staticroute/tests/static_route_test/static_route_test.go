@@ -14,6 +14,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/otg"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -77,6 +78,7 @@ func configureInterfaceVRF(t *testing.T,
 	}
 	vi := v.GetOrCreateInterface(portName)
 	vi.Interface = ygot.String(portName)
+	vi.Subinterface = ygot.Uint32(0)
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(vrfName).Config(), v)
 }
 
@@ -115,20 +117,26 @@ func configInterfaceDUT(i *oc.Interface,
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
 
-	p1 := dut.Port(t, "port1")
-	t.Logf("Configuring VRF on interface %s", p1.Name())
-	configureInterfaceVRF(t, dut, p1.Name())
-
-	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
-	i1.Enabled = ygot.Bool(true)
-	gnmi.Update(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutSrc, dut))
-
-	p2 := dut.Port(t, "port2")
-	t.Logf("Configuring VRF on interface %s", p2.Name())
-	configureInterfaceVRF(t, dut, p2.Name())
-	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
-	i2.Enabled = ygot.Bool(true)
-	gnmi.Update(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutDst, dut))
+	for _, p := range []struct {
+		portName string
+		attrs    *attrs.Attributes
+	}{
+		{"port1", &dutSrc},
+		{"port2", &dutDst},
+	} {
+		port := dut.Port(t, p.portName)
+		if deviations.InterfaceConfigVRFBeforeAddress(dut) {
+			t.Logf("Configuring VRF on interface %s", port.Name())
+			configureInterfaceVRF(t, dut, port.Name())
+		}
+		i := &oc.Interface{Name: ygot.String(port.Name())}
+		i.Enabled = ygot.Bool(true)
+		gnmi.Update(t, dut, d.Interface(port.Name()).Config(), configInterfaceDUT(i, p.attrs, dut))
+		if !deviations.InterfaceConfigVRFBeforeAddress(dut) {
+			t.Logf("Configuring VRF on interface %s", port.Name())
+			configureInterfaceVRF(t, dut, port.Name())
+		}
+	}
 
 }
 
@@ -213,38 +221,61 @@ func createTrafficFlows(t *testing.T,
 }
 
 // Send traffic and validate traffic.
-func verifyTrafficStreams(t *testing.T,
-	ate *ondatra.ATEDevice,
-	top gosnappi.Config,
-	otg *otg.OTG,
-	trafficFlows ...gosnappi.Flow) {
+func verifyTrafficStreams(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, otg *otg.OTG, trafficFlows ...gosnappi.Flow) {
 	t.Helper()
 
 	t.Log("Starting traffic for 30 seconds")
 	ate.OTG().StartTraffic(t)
 	time.Sleep(30 * time.Second)
-	t.Log("Stopping traffic and waiting 10 seconds for traffic stats to complete")
-	ate.OTG().StopTraffic(t)
-	time.Sleep(10 * time.Second)
 
-	otgutils.LogFlowMetrics(t, ate.OTG(), top)
+	t.Log("Stopping traffic and waiting for traffic stats to settle")
+	ate.OTG().StopTraffic(t)
 
 	// Loop through each flow to validate packets
 	for _, flow := range trafficFlows {
 		flowName := flow.Name()
-		txPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).Counters().OutPkts().State()))
-		rxPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).Counters().InPkts().State()))
+		inPktsQuery := gnmi.OTG().Flow(flowName).Counters().InPkts().State()
+		outPktsQuery := gnmi.OTG().Flow(flowName).Counters().OutPkts().State()
 
-		// Calculate the acceptable lower and upper bounds for rxPkts
+		// Fetch TX packets once since traffic is stopped and this value is static
+		txPkts := float32(gnmi.Get(t, otg, outPktsQuery))
+
+		// Calculate bounds once before entering the watch loop
 		lowerBound := txPkts * (1 - tolerance)
 		upperBound := txPkts * (1 + tolerance)
 
-		if rxPkts < lowerBound || rxPkts > upperBound {
-			t.Errorf("Received packets for flow %s are outside of the acceptable range: %v (1%% tolerance from %v)", flowName, rxPkts, txPkts)
+		// Watch for up to 45 seconds for the counters to sync and fall within tolerance
+		_, watchOk := gnmi.Watch(t, otg, inPktsQuery, 45*time.Second, func(v *ygnmi.Value[uint64]) bool {
+			rx, present := v.Val()
+			if !present {
+				return false
+			}
+
+			// Prevent the test from passing if both TX and RX are 0
+			if txPkts == 0 {
+				return false
+			}
+
+			rxPkts := float32(rx)
+			// Return true to exit Watch loop as soon as it's within +/- tolerance limits
+			return rxPkts >= lowerBound && rxPkts <= upperBound
+		}).Await(t)
+
+		// Fetch final RX value for logging/error reporting
+		rxPkts := float32(gnmi.Get(t, otg, inPktsQuery))
+
+		if !watchOk || rxPkts < lowerBound || rxPkts > upperBound {
+			if txPkts == 0 {
+				t.Errorf("IXIA traffic generation failed: flow %s transmitted 0 packets after 45s", flowName)
+			} else {
+				t.Errorf("Generic Test Assertion Failure: Received packets for flow %s are outside of the acceptable range: %v (± tolerance from %v)", flowName, rxPkts, txPkts)
+			}
 		} else {
-			t.Logf("Received packets for flow %s are within the acceptable range: %v (1%% tolerance from %v)", flowName, rxPkts, txPkts)
+			t.Logf("Received packets for flow %s are within the acceptable range: %v (± tolerance from %v)", flowName, rxPkts, txPkts)
 		}
 	}
+
+	otgutils.LogFlowMetrics(t, ate.OTG(), top)
 }
 
 func configureStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
@@ -275,7 +306,7 @@ func TestStaticRouteToDefaultRoute(t *testing.T) {
 	otgObj := ate.OTG()
 
 	t.Run("configureDUT Interfaces", func(t *testing.T) {
-		// Configure the DUT
+		t.Log("Configure the DUT")
 		configureDUT(t, dut)
 	})
 

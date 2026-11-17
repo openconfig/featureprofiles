@@ -118,9 +118,7 @@ func TestCopyingDebugFiles(t *testing.T) {
 			{Name: "component", Key: componentName},
 		},
 	}
-	if !deviations.SkipOrigin(dut) {
-		healthPath.Origin = "openconfig"
-	}
+	healthPath.Origin = "openconfig"
 
 	// Trigger an active health check using Check()
 	checkReq := &hpb.CheckRequest{
@@ -145,7 +143,10 @@ func TestCopyingDebugFiles(t *testing.T) {
 		t.Logf("Healthz Get attempt %d failed: %v", i+1, err)
 		time.Sleep(30 * time.Second)
 	}
-
+	if dut.Vendor() == ondatra.JUNIPER {
+		t.Logf("Waiting 120s between Healthz RPC calls for Juniper...")
+		time.Sleep(120 * time.Second)
+	}
 	t.Logf("Error: %v", err)
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
@@ -176,9 +177,7 @@ func TestChassisComponentArtifacts(t *testing.T) {
 			},
 		},
 	}
-	if !deviations.SkipOrigin(dut) {
-		chkReq.Path.Origin = "openconfig"
-	}
+	chkReq.Path.Origin = "openconfig"
 	t.Logf("Executing Healthz Check RPC for component %v", componentName["name"])
 	chkRes, err := gnoiClient.Healthz().Check(context.Background(), chkReq)
 	if err != nil {

@@ -31,6 +31,21 @@ func TestMain(m *testing.M) {
 func TestSystemLogging(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
+	loggingPath := gnmi.OC().System().Logging().Config()
+	if origLogging, present := gnmi.Lookup(t, dut, loggingPath).Val(); present {
+		t.Cleanup(func() {
+			fptest.NonFatal(t, func(t testing.TB) {
+				gnmi.Replace(t, dut, loggingPath, origLogging)
+			})
+		})
+	} else {
+		t.Cleanup(func() {
+			fptest.NonFatal(t, func(t testing.TB) {
+				gnmi.Delete(t, dut, loggingPath)
+			})
+		})
+	}
+
 	testCases := []struct {
 		name      string
 		configure func(*testing.T, *ondatra.DUTDevice)

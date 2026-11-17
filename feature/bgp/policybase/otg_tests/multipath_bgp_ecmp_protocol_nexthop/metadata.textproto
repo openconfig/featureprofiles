@@ -31,5 +31,19 @@ platform_exceptions:  {
     ipv4_missing_enabled: true
     skip_setting_allow_multiple_as: true
     skip_afi_safi_path_for_bgp_multiple_as: true
+    bgp_multipath_paths_under_peer_group_unsupported: true
   }
 }
+
+platform_exceptions:  {
+  platform:  {
+    vendor:  JUNIPER
+  }
+  deviations:  {
+    isis_level_enabled:  true
+    interface_ref_interface_id_format: true
+    bgp_max_multipath_paths_unsupported: true
+    per_flow_load_balancing_unsupported: true
+  }
+}
+

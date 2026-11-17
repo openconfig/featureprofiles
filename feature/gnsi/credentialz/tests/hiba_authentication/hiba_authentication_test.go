@@ -50,6 +50,24 @@ func TestCredentialz(t *testing.T) {
 	credz.CreateHibaKeys(t, dut, dir)
 	credz.SetupUser(t, dut, username)
 
+	t.Cleanup(func() {
+		// Cleanup to remove previous policy which only allowed key auth to make sure we don't leave dut in a
+		// state where we can't reset config for further tests.
+		credz.RotateAuthenticationTypes(t, dut, []cpb.AuthenticationType{
+			cpb.AuthenticationType_AUTHENTICATION_TYPE_PASSWORD,
+			cpb.AuthenticationType_AUTHENTICATION_TYPE_PUBKEY,
+			cpb.AuthenticationType_AUTHENTICATION_TYPE_KBDINTERACTIVE,
+		})
+
+		// Remove user ca so subsequent fail cases work.
+		// credz.RotateTrustedUserCA(t, dut, "")
+
+		// Remove host artifacts from the dut.
+		// credz.RotateAuthenticationArtifacts(t, dut, "", "", "", 0)
+		// SSH configuration cleanup on DUT
+		// credz.SSHCleanup(t, dut)
+	})
+
 	// Set only public key authentication for our test.
 	credz.RotateAuthenticationTypes(t, dut, []cpb.AuthenticationType{
 		cpb.AuthenticationType_AUTHENTICATION_TYPE_PUBKEY,
@@ -100,6 +118,10 @@ func TestCredentialz(t *testing.T) {
 		credz.RotateTrustedUserCA(t, dut, dir)
 
 		// Setup hiba for authorized principals command.
+		t.Cleanup(func() {
+			// Clear hiba for authorized principals command.
+			credz.RotateAuthorizedPrincipalCheck(t, dut, cpb.AuthorizedPrincipalCheckRequest_TOOL_UNSPECIFIED)
+		})
 		credz.RotateAuthorizedPrincipalCheck(t, dut, cpb.AuthorizedPrincipalCheckRequest_TOOL_HIBA_DEFAULT)
 
 		var startingAcceptCounter, startingLastAcceptTime uint64
@@ -134,44 +156,26 @@ func TestCredentialz(t *testing.T) {
 		}
 
 		// Verify host certificate telemetry.
-		if !deviations.SSHServerHostCertificateTelemetryUnsupported(dut) {
-			sshServer := gnmi.Get(t, dut, gnmi.OC().System().SshServer().State())
-			gotHostCertificateVersion := sshServer.GetActiveHostCertificateVersion()
-			if !cmp.Equal(gotHostCertificateVersion, hostCertificateVersion) {
-				t.Fatalf(
-					"Telemetry reports host certificate version is not correct\n\tgot: %s\n\twant: %s",
-					gotHostCertificateVersion, hostCertificateVersion,
-				)
-			}
-			gotHostCertificateCreatedOn := sshServer.GetActiveHostCertificateCreatedOn()
-			// if !cmp.Equal(time.Unix(0, int64(gotHostCertificateCreatedOn)), time.Unix(hostCertificateCreatedOn, 0)) {
-			if !cmp.Equal(time.Unix(int64(gotHostCertificateCreatedOn), 0), time.Unix(hostCertificateCreatedOn, 0)) {
-				t.Fatalf(
-					"Telemetry reports host certificate created on is not correct\n\tgot: %d\n\twant: %d",
-					gotHostCertificateCreatedOn, hostCertificateCreatedOn,
-				)
-			}
+		sshServer := gnmi.Get(t, dut, gnmi.OC().System().SshServer().State())
+		gotHostCertificateVersion := sshServer.GetActiveHostCertificateVersion()
+		if !cmp.Equal(gotHostCertificateVersion, hostCertificateVersion) {
+			t.Fatalf(
+				"Telemetry reports host certificate version is not correct\n\tgot: %s\n\twant: %s",
+				gotHostCertificateVersion, hostCertificateVersion,
+			)
 		}
-	})
-
-	t.Cleanup(func() {
-		// Cleanup to remove previous policy which only allowed key auth to make sure we don't leave dut in a
-		// state where we can't reset config for further tests.
-		credz.RotateAuthenticationTypes(t, dut, []cpb.AuthenticationType{
-			cpb.AuthenticationType_AUTHENTICATION_TYPE_PASSWORD,
-			cpb.AuthenticationType_AUTHENTICATION_TYPE_PUBKEY,
-			cpb.AuthenticationType_AUTHENTICATION_TYPE_KBDINTERACTIVE,
-		})
-
-		// Remove user ca so subsequent fail cases work.
-		// credz.RotateTrustedUserCA(t, dut, "")
-
-		// Clear hiba for authorized principals command.
-		credz.RotateAuthorizedPrincipalCheck(t, dut, cpb.AuthorizedPrincipalCheckRequest_TOOL_UNSPECIFIED)
-
-		// Remove host artifacts from the dut.
-		// credz.RotateAuthenticationArtifacts(t, dut, "", "", "", 0)
-		// SSH configuration cleanup on DUT
-		credz.SSHCleanup(t, dut)
+		gotHostCertificateCreatedOn := sshServer.GetActiveHostCertificateCreatedOn()
+		wantHostCertificateCreatedOn := hostCertificateCreatedOn
+		switch dut.Vendor() {
+		case ondatra.NOKIA:
+			wantHostCertificateCreatedOn *= 1e9
+		}
+		// if !cmp.Equal(time.Unix(0, int64(gotHostCertificateCreatedOn)), time.Unix(hostCertificateCreatedOn, 0)) {
+		if got, want := int64(gotHostCertificateCreatedOn), wantHostCertificateCreatedOn; got != want {
+			t.Fatalf(
+				"Telemetry reports host certificate created on is not correct\n\tgot: %d\n\twant: %d",
+				gotHostCertificateCreatedOn, hostCertificateCreatedOn,
+			)
+		}
 	})
 }

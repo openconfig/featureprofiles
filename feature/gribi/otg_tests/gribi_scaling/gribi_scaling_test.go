@@ -27,6 +27,7 @@ import (
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	fpargs "github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
@@ -136,7 +137,7 @@ func applyForwardingPolicy(t *testing.T, ingressPort string) {
 	d := &oc.Root{}
 	dut := ondatra.DUT(t, "dut")
 	interfaceID := ingressPort
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+	if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
 		interfaceID = ingressPort + ".0"
 	}
 	pfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID)
@@ -261,6 +262,9 @@ func incrementMAC(mac string, i int) (string, error) {
 
 func TestScaling(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	if deviations.VendorPreConfigRequired(dut) {
+		cfgplugins.ConfigureFallbackDecapVrfSelection(t, dut)
+	}
 	ate := ondatra.ATE(t, "ate")
 
 	ctx := context.Background()
@@ -384,21 +388,11 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, vrfTC
 }
 
 func checkTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
+	defer otgutils.LogFlowMetrics(t, ate.OTG(), top)
+	defer otgutils.LogPortMetrics(t, ate.OTG(), top)
 	ate.OTG().StartTraffic(t)
 	time.Sleep(time.Second * 30)
 	ate.OTG().StopTraffic(t)
 
-	otgutils.LogFlowMetrics(t, ate.OTG(), top)
-	otgutils.LogPortMetrics(t, ate.OTG(), top)
-
-	t.Log("Checking flow telemetry...")
-	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow("flow").State())
-	txPackets := recvMetric.GetCounters().GetOutPkts()
-	rxPackets := recvMetric.GetCounters().GetInPkts()
-	lostPackets := txPackets - rxPackets
-	lossPct := lostPackets * 100 / txPackets
-
-	if lossPct > 1 {
-		t.Errorf("FAIL- Got %v%% packet loss for %s ; expected < 1%%", lossPct, "flow")
-	}
+	otgutils.ExpectedTrafficLoss(t, ate.OTG(), "flow", 0, 1)
 }

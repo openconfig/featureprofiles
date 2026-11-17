@@ -12,5 +12,7 @@ platform_exceptions:  {
   deviations:  {
     interface_enabled:  true
     default_network_instance:  "default"
+    aggregate_atomic_update:  true
+    dhcp_relay_oc_unsupported: true
   }
 }
