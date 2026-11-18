@@ -534,12 +534,6 @@ func NewAFTStreamSession(ctx context.Context, t *testing.T, c gnmipb.GNMIClient,
 	return NewAFTStreamSessionForNetworkInstances(ctx, t, c, dut, defaultNetworkInstance, defaultNetworkInstance)
 }
 
-// NewAFTStreamSessionForNetworkInstance constructs an AFT stream session for
-// the supplied network instance.
-func NewAFTStreamSessionForNetworkInstance(ctx context.Context, t *testing.T, c gnmipb.GNMIClient, dut *ondatra.DUTDevice, networkInstance string) *AFTStreamSession {
-	return NewAFTStreamSessionForNetworkInstances(ctx, t, c, dut, networkInstance, networkInstance)
-}
-
 // NewAFTStreamSessionForNetworkInstances constructs an AFT stream session for
 // route entries in routeNetworkInstance and next-hop-group/next-hop objects in
 // nextHopNetworkInstance.
