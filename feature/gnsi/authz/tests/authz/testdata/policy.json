@@ -1,18 +1,13 @@
 [
-  {
-    "name": "allow-test-infra",
-    "allow_rules": [
-      {
-        "name": "allow-test-infra-rule",
-        "source": {
-          "principals": [
-               "spiffe://test-abc.foo.bar.test.google.com/xyz/cafyauto"
-          ]
-        },
-        "request": {}
-      }
-    ]
-  },
+   {
+      "name": "allow-test-infra",
+      "source": {
+        "principals": [
+          "<test_infra_id>"
+         ]
+      },
+      "request": {}
+   },
   {
     "name": "policy-everyone-can-gnmi-not-gribi",
     "allow_rules": [

@@ -30,14 +30,14 @@ NOTE: the support of SPIFFE-ID should NOT require explicitly pre-configured loca
 
 Prepare the following certs with the specified SPIFFE ID. Cert format details can be found in [SPIFFE PR](https://github.com/openconfig/featureprofiles/pull/1563/files)
 
-* `cert_user_admin` with `spiffe://test-abc.foo.bar/xyz/admin`
-* `cert_user_deny_all` with `spiffe://test-abc.foo.bar/xyz/deny-all`
-* `cert_gribi_modify` with `spiffe://test-abc.foo.bar/xyz/gribi-modify`
-* `cert_gnmi_set` with `spiffe://test-abc.foo.bar/xyz/gnmi-set`
-* `cert_gnoi_time` with `spiffe://test-abc.foo.bar/xyz/gnoi-time`
-* `cert_gnoi_ping` with `spiffe://test-abc.foo.bar/xyz/gnoi-ping`
-* `cert_gnsi_probe` with `spiffe://test-abc.foo.bar/xyz/gnsi-probe`
-* `cert_read_only` with `spiffe://test-abc.foo.bar/xyz/read-only`
+* `cert_user_admin` with `spiffe://test-abc.foo.bar.test.google.com/xyz/admin`
+* `cert_user_deny_all` with `spiffe://test-abc.foo.bar.test.google.com/xyz/deny-all`
+* `cert_gribi_modify` with `spiffe://test-abc.foo.bar.test.google.com/xyz/gribi-modify`
+* `cert_gnmi_set` with `spiffe://test-abc.foo.bar.test.google.com/xyz/gnmi-set`
+* `cert_gnoi_time` with `spiffe://test-abc.foo.bar.test.google.com/xyz/gnoi-time`
+* `cert_gnoi_ping` with `spiffe://test-abc.foo.bar.test.google.com/xyz/gnoi-ping`
+* `cert_gnsi_probe` with `spiffe://test-abc.foo.bar.test.google.com/xyz/gnsi-probe`
+* `cert_read_only` with `spiffe://test-abc.foo.bar.test.google.com/xyz/read-only`
 
 #### gRPC authorization policies
 
@@ -144,7 +144,7 @@ Prepare the following gRPC authorization policies.
       "name": "gribi-get",
       "source": {
         "principals": [
-          "spiffe://test-abc.foo.bar/xyz/read-only"
+          "spiffe://test-abc.foo.bar.test.google.com/xyz/read-only"
         ]
       },
       "request": {
@@ -163,7 +163,7 @@ Prepare the following gRPC authorization policies.
       "name": "gnmi-get",
       "source": {
         "principals": [
-          "spiffe://test-abc.foo.bar/xyz/read-only"
+          "spiffe://test-abc.foo.bar.test.google.com/xyz/read-only"
         ]
       },
       "request": {
@@ -195,8 +195,8 @@ cert_read_only |deny |allow |deny |allow |deny |deny |deny |allow |deny
       "name": "gribi-modify",
       "source": {
         "principals": [
-          "spiffe://test-abc.foo.bar/xyz/admin",
-          "spiffe://test-abc.foo.bar/xyz/gribi-modify"
+          "spiffe://test-abc.foo.bar.test.google.com/xyz/admin",
+          "spiffe://test-abc.foo.bar.test.google.com/xyz/gribi-modify"
         ]
       },
       "request": {
@@ -207,8 +207,8 @@ cert_read_only |deny |allow |deny |allow |deny |deny |deny |allow |deny
       "name": "gnmi-set",
       "source": {
         "principals": [
-          "spiffe://test-abc.foo.bar/xyz/admin",
-          "spiffe://test-abc.foo.bar/xyz/gnmi-set"
+          "spiffe://test-abc.foo.bar.test.google.com/xyz/admin",
+          "spiffe://test-abc.foo.bar.test.google.com/xyz/gnmi-set"
         ]
       },
       "request": {
@@ -219,8 +219,8 @@ cert_read_only |deny |allow |deny |allow |deny |deny |deny |allow |deny
       "name": "gnoi-time",
       "source": {
         "principals": [
-          "spiffe://test-abc.foo.bar/xyz/admin",
-          "spiffe://test-abc.foo.bar/xyz/gnoi-time"
+          "spiffe://test-abc.foo.bar.test.google.com/xyz/admin",
+          "spiffe://test-abc.foo.bar.test.google.com/xyz/gnoi-time"
         ]
       },
       "request": {
@@ -231,8 +231,8 @@ cert_read_only |deny |allow |deny |allow |deny |deny |deny |allow |deny
       "name": "gnoi-ping",
       "source": {
         "principals": [
-          "spiffe://test-abc.foo.bar/xyz/admin",
-          "spiffe://test-abc.foo.bar/xyz/gnoi-ping"
+          "spiffe://test-abc.foo.bar.test.google.com/xyz/admin",
+          "spiffe://test-abc.foo.bar.test.google.com/xyz/gnoi-ping"
         ]
       },
       "request": {
@@ -243,7 +243,7 @@ cert_read_only |deny |allow |deny |allow |deny |deny |deny |allow |deny
       "name": "gnsi-set",
       "source": {
         "principals": [
-          "spiffe://test-abc.foo.bar/xyz/admin"
+          "spiffe://test-abc.foo.bar.test.google.com/xyz/admin"
         ]
       },
       "request": {
@@ -254,7 +254,7 @@ cert_read_only |deny |allow |deny |allow |deny |deny |deny |allow |deny
       "name": "gnsi-probe",
       "source": {
         "principals": [
-          "spiffe://test-abc.foo.bar/xyz/gnsi-probe"
+          "spiffe://test-abc.foo.bar.test.google.com/xyz/gnsi-probe"
         ]
       },
       "request": {
@@ -265,7 +265,7 @@ cert_read_only |deny |allow |deny |allow |deny |deny |deny |allow |deny
       "name": "read-only",
       "source": {
         "principals": [
-          "spiffe://test-abc.foo.bar/xyz/read-only"
+          "spiffe://test-abc.foo.bar.test.google.com/xyz/read-only"
         ]
       },
       "request": {
@@ -282,7 +282,7 @@ cert_read_only |deny |allow |deny |allow |deny |deny |deny |allow |deny
       "name": "deny-all-user-can-do-nothing",
       "source": {
         "principals": [
-          "spiffe://test-abc.foo.bar/xyz/deny_all"
+          "spiffe://test-abc.foo.bar.test.google.com/xyz/deny-all"
         ]
       },
       "request": {
