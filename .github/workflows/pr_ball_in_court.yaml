@@ -1,17 +1,17 @@
 name: 'PR Ball in Court Label'
 
-on:
-  pull_request_target:
+on: # zizmor: ignore[dangerous-triggers] - never checks out or executes PR code; only updates labels via GitHub REST API
+  pull_request_target: # zizmor: ignore[dangerous-triggers]
     types:
       - opened
       - reopened
+      - synchronize
       - ready_for_review
       - converted_to_draft
       - review_requested
-  pull_request_review:
-    types:
-      - submitted
-      - dismissed
+      - review_request_removed
+  schedule:
+    - cron: '*/30 * * * *'
   workflow_dispatch:
     inputs:
       pr_number:
@@ -19,19 +19,20 @@ on:
         required: false
         type: string
 
-permissions:
-  issues: write
-  pull-requests: write
+permissions: {}
 
 concurrency:
-  group: pr-ball-in-court-${{ github.event.pull_request.number || 'backfill' }}
+  group: pr-ball-in-court-${{ github.event.pull_request.number || 'batch' }}
   cancel-in-progress: false
 
 jobs:
   update_ball_in_court_label:
     name: Update waiting-on-author / waiting-on-reviewer label
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.state == 'open'
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.event.pull_request.state == 'open'
+    permissions:
+      issues: write
+      pull-requests: write
     steps:
       - name: Evaluate formal review state and update PR label
         uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410
@@ -60,7 +61,7 @@ jobs:
               const latestVerdictByUser = new Map();
               for (const rev of reviews) {
                 const login = rev.user ? rev.user.login : null;
-                if (!login || login.endsWith('[bot]') || login === pr.user.login) {
+                if (!login || login === pr.user.login || rev.user.type === 'Bot') {
                   continue;
                 }
                 if (
@@ -72,27 +73,39 @@ jobs:
                 }
               }
 
-              // When an author clicks "Re-request review", GitHub adds that reviewer back
-              // into pr.requested_reviewers.
+              // Currently requested human reviewers (re-requesting review adds the
+              // reviewer back into requested_reviewers).
               const requestedLogins = new Set(
-                (pr.requested_reviewers || []).map((u) => u.login)
+                (pr.requested_reviewers || [])
+                  .filter((u) => u && u.type !== 'Bot' && u.login !== pr.user.login)
+                  .map((u) => u.login)
               );
 
+              // Check if any reviewer still has an active CHANGES_REQUESTED verdict
+              // WITHOUT a subsequent re-review request from the author.
               let hasUnaddressedChangesRequested = false;
+              let hasApproved = false;
               for (const [login, state] of latestVerdictByUser.entries()) {
                 if (state === 'CHANGES_REQUESTED' && !requestedLogins.has(login)) {
                   hasUnaddressedChangesRequested = true;
-                  break;
+                } else if (state === 'APPROVED') {
+                  hasApproved = true;
                 }
               }
 
-              // Formal rule:
-              // - Draft PR or un-re-requested CHANGES_REQUESTED -> waiting-on-author
-              // - Otherwise (new PR, ready for review, or review re-requested) -> waiting-on-reviewer
-              const targetLabel =
-                pr.draft || hasUnaddressedChangesRequested
-                  ? WAITING_AUTHOR
-                  : WAITING_REVIEWER;
+              let targetLabel;
+              if (pr.draft) {
+                targetLabel = WAITING_AUTHOR;
+              } else if (hasUnaddressedChangesRequested) {
+                targetLabel = WAITING_AUTHOR;
+              } else if (requestedLogins.size > 0) {
+                targetLabel = WAITING_REVIEWER;
+              } else if (hasApproved) {
+                targetLabel = WAITING_AUTHOR;
+              } else {
+                targetLabel = WAITING_REVIEWER;
+              }
+
               const labelToRemove =
                 targetLabel === WAITING_AUTHOR ? WAITING_REVIEWER : WAITING_AUTHOR;
 
@@ -106,7 +119,7 @@ jobs:
                     issue_number,
                     name: labelToRemove,
                   });
-                  core.info(`Removed label '${labelToRemove}' from PR #${issue_number}`);
+                  core.info(`PR #${issue_number}: removed label '${labelToRemove}'`);
                 } catch (err) {
                   if (err.status !== 404) {
                     throw err;
@@ -121,22 +134,29 @@ jobs:
                   issue_number,
                   labels: [targetLabel],
                 });
-                core.info(`Added label '${targetLabel}' to PR #${issue_number}`);
+                core.info(`PR #${issue_number}: added label '${targetLabel}'`);
               } else {
-                core.info(`PR #${issue_number} already has label '${targetLabel}'`);
+                core.info(`PR #${issue_number}: label '${targetLabel}' already present`);
               }
             }
 
-            if (context.eventName === 'workflow_dispatch') {
-              const inputPr =
+            if (context.eventName === 'workflow_dispatch' || context.eventName === 'schedule') {
+              const inputPr = (
                 context.payload.inputs && context.payload.inputs.pr_number
-                  ? context.payload.inputs.pr_number.trim()
-                  : '';
+                  ? context.payload.inputs.pr_number
+                  : ''
+              ).trim();
+
               if (inputPr) {
+                const pull_number = parseInt(inputPr, 10);
+                if (isNaN(pull_number)) {
+                  core.setFailed(`Invalid pr_number input: '${inputPr}'`);
+                  return;
+                }
                 const { data: pr } = await github.rest.pulls.get({
                   owner,
                   repo,
-                  pull_number: Number(inputPr),
+                  pull_number,
                 });
                 await evaluateAndLabelPR(pr);
               } else {
@@ -146,16 +166,18 @@ jobs:
                   state: 'open',
                   per_page: 100,
                 });
-                core.info(`Backfilling ball-in-court labels across ${openPrs.length} open PRs...`);
-                for (const pr of openPrs) {
-                  await evaluateAndLabelPR(pr);
+                core.info(`Evaluating ${openPrs.length} open PRs...`);
+                for (const prSummary of openPrs) {
+                  // pulls.list includes requested_reviewers, labels, draft, and user.
+                  await evaluateAndLabelPR(prSummary);
                 }
               }
             } else {
+              const pull_number = context.payload.pull_request.number;
               const { data: pr } = await github.rest.pulls.get({
                 owner,
                 repo,
-                pull_number: context.payload.pull_request.number,
+                pull_number,
               });
               await evaluateAndLabelPR(pr);
             }
