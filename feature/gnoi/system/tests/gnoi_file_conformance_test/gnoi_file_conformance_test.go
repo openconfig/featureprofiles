@@ -467,31 +467,25 @@ func verifyMountPointsTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 
 	var mountPoints []*oc.System_MountPoint
 	if ftName != "" {
+		// Functional translators only support single-leaf queries, so query each
+		// leaf with a wildcard mount-point key and join the results by name.
 		mpNames := gnmi.GetAll(t, gnmiOpts, gnmi.OC().System().MountPointAny().Name().State())
 		if len(mpNames) == 0 {
 			t.Fatalf("No storage mount points reported under /system/mount-points/mount-point/state")
 		}
-		batch := gnmi.OCBatch()
-		for _, mpName := range mpNames {
-			batch.AddPaths(
-				gnmi.OC().System().MountPoint(mpName).Size(),
-				gnmi.OC().System().MountPoint(mpName).Available(),
-				gnmi.OC().System().MountPoint(mpName).Utilized(),
-			)
-		}
-		systemVal := gnmi.Get(t, gnmiOpts, batch.State()).GetSystem()
+		sizes := mountPointLeafValues(t, gnmiOpts, gnmi.OC().System().MountPointAny().Size().State())
+		availables := mountPointLeafValues(t, gnmiOpts, gnmi.OC().System().MountPointAny().Available().State())
+		utilizeds := mountPointLeafValues(t, gnmiOpts, gnmi.OC().System().MountPointAny().Utilized().State())
 		for _, mpName := range mpNames {
 			mp := &oc.System_MountPoint{Name: ygot.String(mpName)}
-			if devMp := systemVal.GetMountPoint(mpName); devMp != nil {
-				if devMp.Size != nil {
-					mp.Size = ygot.Uint64(devMp.GetSize())
-				}
-				if devMp.Available != nil {
-					mp.Available = ygot.Uint64(devMp.GetAvailable())
-				}
-				if devMp.Utilized != nil {
-					mp.Utilized = ygot.Uint64(devMp.GetUtilized())
-				}
+			if v, ok := sizes[mpName]; ok {
+				mp.Size = ygot.Uint64(v)
+			}
+			if v, ok := availables[mpName]; ok {
+				mp.Available = ygot.Uint64(v)
+			}
+			if v, ok := utilizeds[mpName]; ok {
+				mp.Utilized = ygot.Uint64(v)
 			}
 			mountPoints = append(mountPoints, mp)
 		}
@@ -511,6 +505,29 @@ func verifyMountPointsTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	if !foundUsableCapacity {
 		t.Errorf("No mount point reported non-zero size and available capacity")
 	}
+}
+
+// mountPointLeafValues runs a single-leaf wildcard query over
+// /system/mount-points/mount-point[name=*]/state/<leaf> and returns the
+// present values keyed by mount-point name.
+func mountPointLeafValues(t *testing.T, dev gnmi.DeviceOrOpts, q ygnmi.WildcardQuery[uint64]) map[string]uint64 {
+	t.Helper()
+	vals := make(map[string]uint64)
+	for _, v := range gnmi.LookupAll(t, dev, q) {
+		val, ok := v.Val()
+		if !ok {
+			continue
+		}
+		for _, elem := range v.Path.GetElem() {
+			if elem.GetName() == "mount-point" {
+				if name := elem.GetKey()["name"]; name != "" {
+					vals[name] = val
+				}
+				break
+			}
+		}
+	}
+	return vals
 }
 
 // putFileComplete executes a complete three-phase client-streaming
