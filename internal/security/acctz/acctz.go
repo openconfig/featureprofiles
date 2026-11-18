@@ -160,7 +160,7 @@ func nokiaCreateTestGrpcServer(t *testing.T) *gnmipb.SetRequest {
 					"session-limit":           1024,
 					"metadata-authentication": true,
 					"yang-models":             "openconfig",
-					"tls-profile":             "self-signed-certs-profile",
+					"default-tls-profile":     true,
 					"network-instance":        "mgmtVrf",
 					"port":                    10162,
 					"services":                []string{"gnmi", "gnoi", "gnsi"},
