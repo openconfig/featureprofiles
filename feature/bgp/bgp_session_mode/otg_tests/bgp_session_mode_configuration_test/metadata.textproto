@@ -17,7 +17,7 @@ platform_exceptions:  {
 }
 platform_exceptions:  {
   platform:  {
-    vendor:  OPENCONFIG
+    vendor:  SONIC
   }
   deviations:  {
     default_network_instance:  "default"
