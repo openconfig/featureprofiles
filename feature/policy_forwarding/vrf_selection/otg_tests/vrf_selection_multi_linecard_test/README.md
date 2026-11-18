@@ -64,6 +64,12 @@ D8[DUT port8] <-->|Egress VRF-1| A8[ATE port8]
   re-program the policy and hide a linecard that missed it during boot.
 * Repeat the traffic checks of RT-3.6.1.
 
+### Cleanup
+
+* Remove the configuration added by the test, whether it passes or fails:
+  `CLUSTER_FACING_POLICY` and its bindings, the static routes, `VRF-1`, and
+  subinterface 0 on port1..8, restoring the DUT to its baseline state.
+
 #### Canonical OC
 
 ```json
