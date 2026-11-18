@@ -2590,4 +2590,3 @@ func BgpGrHelperHoldTimerExpiryRequiresStalePolicy(dut *ondatra.DUTDevice) bool 
 func DecapNHWithoutNextHopNIUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDecapNhWithoutNexthopNiUnsupported()
 }
-
